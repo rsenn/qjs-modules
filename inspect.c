@@ -182,7 +182,14 @@ static const JSCFunctionListEntry js_inspect_funcs[] = {JS_CFUNC_DEF("inspect", 
 
 static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {
-  return JS_SetModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));
+  JSValue inspect;
+
+  JS_SetModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));
+
+  inspect = JS_NewCFunction(ctx, js_inspect, "inspect", 2);
+  JS_SetModuleExport(ctx, m, "default", inspect);
+
+  return 0;
 }
 
 #ifdef JS_SHARED_LIBRARY
@@ -198,5 +205,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));
+  JS_AddModuleExport(ctx, m, "default");
   return m;
 }
