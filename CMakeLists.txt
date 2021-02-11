@@ -1,7 +1,8 @@
 project(quickjs-modules C)
 
 if(NOT QUICKJS_PREFIX)
-  set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
+  set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
+      CACHE PATH "QuickJS install directory")
 endif(NOT QUICKJS_PREFIX)
 
 include(CheckIncludeFile)
@@ -14,9 +15,14 @@ if(NOT HAVE_QUICKJS_H)
   message(FATAL_ERROR "QuickJS headers not found")
 endif(NOT HAVE_QUICKJS_H)
 
-add_library(mmap MODULE mmap.c)
+foreach(NAME mmap inspect)
+  add_library(${NAME} MODULE ${NAME}.c)
 
-set_target_properties(mmap PROPERTIES PREFIX "" INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs")
-  target_compile_definitions(mmap PRIVATE -DJS_SHARED_LIBRARY)
+  set_target_properties(${NAME} PROPERTIES
+    PREFIX ""
+    INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs"
+  )
+  target_compile_definitions(${NAME} PRIVATE -DJS_SHARED_LIBRARY)
+  install(TARGETS ${NAME} DESTINATION lib/quickjs)
+endforeach(NAME mmap inspect)
 
-install(TARGETS mmap DESTINATION lib/quickjs)

@@ -3,7 +3,7 @@
 #include <sys/mman.h>
 
 static void
-js_munmap(JSRuntime* rt, void* opaque, void* ptr) {
+js_mmap_free_func(JSRuntime* rt, void* opaque, void* ptr) {
   munmap(ptr, (size_t)opaque);
 }
 
@@ -31,33 +31,38 @@ js_mmap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   if(ptr == 0)
     return JS_EXCEPTION;
 
-  return JS_NewArrayBuffer(ctx, ptr, length, &js_munmap, (void*)length, flags & MAP_SHARED);
+  return JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)length, flags & MAP_SHARED);
 }
 
-static const JSCFunctionListEntry js_mmap_funcs[] = {
-  JS_CFUNC_DEF("mmap", 2, js_mmap),
-  JS_PROP_INT32_DEF("PROT_READ", 0x01, 0),
-  JS_PROP_INT32_DEF("PROT_WRITE", 0x02, 0),
-  JS_PROP_INT32_DEF("PROT_EXEC", 0x04, 0),
-  JS_PROP_INT32_DEF("PROT_SEM", 0x08, 0),
-  JS_PROP_INT32_DEF("PROT_NONE", 0x00, 0),
-  JS_PROP_INT32_DEF("PROT_GROWSDOWN", 0x01000000, 0),
-  JS_PROP_INT32_DEF("PROT_GROWSUP", 0x02000000, 0),
-  JS_PROP_INT32_DEF("MAP_SHARED", 0x01, 0),
-  JS_PROP_INT32_DEF("MAP_PRIVATE", 0x02, 0),
-  JS_PROP_INT32_DEF("MAP_TYPE", 0x0f, 0),
-  JS_PROP_INT32_DEF("MAP_FIXED", 0x10, 0),
-  JS_PROP_INT32_DEF("MAP_ANONYMOUS", 0x20, 0),
-  JS_PROP_INT32_DEF("MAP_GROWSDOWN", 0x0100, 0),
-  JS_PROP_INT32_DEF("MAP_DENYWRITE", 0x0800, 0),
-  JS_PROP_INT32_DEF("MAP_EXECUTABLE", 0x1000, 0),
-  JS_PROP_INT32_DEF("MAP_LOCKED", 0x2000, 0),
-  JS_PROP_INT32_DEF("MAP_NORESERVE", 0x4000, 0),
-  JS_PROP_INT32_DEF("MAP_POPULATE", 0x8000, 0),
-  JS_PROP_INT32_DEF("MAP_NONBLOCK", 0x10000, 0),
-  JS_PROP_INT32_DEF("MAP_STACK", 0x20000, 0),
-  JS_PROP_INT32_DEF("MAP_HUGETLB", 0x40000, 0)
-};
+static JSValue
+js_munmap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  JS_DetachArrayBuffer(ctx, argv[0]);
+  return JS_UNDEFINED;
+}
+
+static const JSCFunctionListEntry js_mmap_funcs[] = {JS_CFUNC_DEF("mmap", 2, js_mmap),
+                                                     JS_CFUNC_DEF("munmap", 1, js_munmap),
+                                                     JS_PROP_INT32_DEF("PROT_READ", 0x01, 0),
+                                                     JS_PROP_INT32_DEF("PROT_WRITE", 0x02, 0),
+                                                     JS_PROP_INT32_DEF("PROT_EXEC", 0x04, 0),
+                                                     JS_PROP_INT32_DEF("PROT_SEM", 0x08, 0),
+                                                     JS_PROP_INT32_DEF("PROT_NONE", 0x00, 0),
+                                                     JS_PROP_INT32_DEF("PROT_GROWSDOWN", 0x01000000, 0),
+                                                     JS_PROP_INT32_DEF("PROT_GROWSUP", 0x02000000, 0),
+                                                     JS_PROP_INT32_DEF("MAP_SHARED", 0x01, 0),
+                                                     JS_PROP_INT32_DEF("MAP_PRIVATE", 0x02, 0),
+                                                     JS_PROP_INT32_DEF("MAP_TYPE", 0x0f, 0),
+                                                     JS_PROP_INT32_DEF("MAP_FIXED", 0x10, 0),
+                                                     JS_PROP_INT32_DEF("MAP_ANONYMOUS", 0x20, 0),
+                                                     JS_PROP_INT32_DEF("MAP_GROWSDOWN", 0x0100, 0),
+                                                     JS_PROP_INT32_DEF("MAP_DENYWRITE", 0x0800, 0),
+                                                     JS_PROP_INT32_DEF("MAP_EXECUTABLE", 0x1000, 0),
+                                                     JS_PROP_INT32_DEF("MAP_LOCKED", 0x2000, 0),
+                                                     JS_PROP_INT32_DEF("MAP_NORESERVE", 0x4000, 0),
+                                                     JS_PROP_INT32_DEF("MAP_POPULATE", 0x8000, 0),
+                                                     JS_PROP_INT32_DEF("MAP_NONBLOCK", 0x10000, 0),
+                                                     JS_PROP_INT32_DEF("MAP_STACK", 0x20000, 0),
+                                                     JS_PROP_INT32_DEF("MAP_HUGETLB", 0x40000, 0)};
 
 static int
 js_mmap_init(JSContext* ctx, JSModuleDef* m) {
