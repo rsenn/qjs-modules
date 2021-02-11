@@ -1,5 +1,6 @@
 #include <quickjs.h>
 #include <cutils.h>
+#include <math.h>
 
 typedef struct {
   int colors : 1;
@@ -97,8 +98,8 @@ js_inspect_default_options(inspect_options_t* opts) {
   opts->depth = 2;
   opts->max_array_length = 100;
   opts->max_string_length = -1;
-  opts->break_length = 0;
-  opts->compact = 0;
+  opts->break_length = 80;
+  opts->compact = 3;
 }
 
 static void
@@ -119,20 +120,45 @@ js_inspect_get_options(JSContext* ctx, JSValueConst object, inspect_options_t* o
   if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "getters"))))
     opts->getters = JS_ToBool(ctx, value);
 
-  if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "depth"))))
-    JS_ToInt32(ctx, &opts->depth, value);
+  value = JS_GetPropertyStr(ctx, object, "depth");
+  if(!JS_IsUndefined(value)) {
+    if(isinf(JS_VALUE_GET_FLOAT64(value)))
+      opts->depth = -1;
+    else
+      JS_ToInt32(ctx, &opts->depth, value);
+  }
 
-  if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "maxArrayLength"))))
-    JS_ToInt32(ctx, &opts->max_array_length, value);
+  value = JS_GetPropertyStr(ctx, object, "maxArrayLength");
+  if(!JS_IsUndefined(value)) {
+    if(isinf(JS_VALUE_GET_FLOAT64(value)))
+      opts->max_array_length = -1;
+    else
+      JS_ToInt32(ctx, &opts->max_array_length, value);
+  }
 
-  if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "maxStringLength"))))
-    JS_ToInt32(ctx, &opts->max_string_length, value);
+  value = JS_GetPropertyStr(ctx, object, "maxStringLength");
+  if(!JS_IsUndefined(value)) {
+    if(isinf(JS_VALUE_GET_FLOAT64(value)))
+      opts->max_string_length = -1;
+    else
+      JS_ToInt32(ctx, &opts->max_string_length, value);
+  }
 
-  if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "breakLength"))))
-    JS_ToInt32(ctx, &opts->break_length, value);
+  value = JS_GetPropertyStr(ctx, object, "breakLength");
+  if(!JS_IsUndefined(value)) {
+    if(isinf(JS_VALUE_GET_FLOAT64(value)))
+      opts->break_length = -1;
+    else
+      JS_ToInt32(ctx, &opts->break_length, value);
+  }
 
-  if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "compact"))))
-    JS_ToInt32(ctx, &opts->compact, value);
+  value = JS_GetPropertyStr(ctx, object, "compact");
+  if(!JS_IsUndefined(value)) {
+    if(isinf(JS_VALUE_GET_FLOAT64(value)))
+      opts->compact = -1;
+    else
+      JS_ToInt32(ctx, &opts->compact, value);
+  }
 }
 
 static JSValue
@@ -143,8 +169,10 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   dbuf_init(&dbuf);
 
   js_inspect_default_options(&options);
+
   if(argc > 1)
     js_inspect_get_options(ctx, argv[1], &options);
+
   js_inspect_print(ctx, &dbuf, argv[0], &options);
 
   return JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
