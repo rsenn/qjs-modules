@@ -206,9 +206,9 @@ dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color
     dbuf_putstr(db, COLOR_NONE);
 }
 
-#define js_object_tmpmark_set(value)                                                                                                                           \
+#define js_object_tmpmark_set(value)                                                                                   \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
-#define js_object_tmpmark_clear(value)                                                                                                                         \
+#define js_object_tmpmark_clear(value)                                                                                 \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
 
@@ -557,7 +557,11 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         return 0;
       }
 
-      if(JS_GetOwnPropertyNames(ctx, &props, &nprops, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+      if(JS_GetOwnPropertyNames(ctx,
+                                &props,
+                                &nprops,
+                                value,
+                                JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(JS_IsFunction(ctx, value)) {
@@ -659,7 +663,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
         if(desc.flags & JS_PROP_GETSET)
           dbuf_put_colorstr(buf,
-                            JS_IsUndefined(desc.getter) ? "[Setter]" : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
+                            JS_IsUndefined(desc.getter) ? "[Setter]"
+                                                        : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
                             COLOR_MARINE,
                             opts->colors);
         else
