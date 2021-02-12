@@ -2,6 +2,8 @@ project(quickjs-modules C)
 
 set(QUICKJS_MODULES mmap inspect tree-walker)
 
+set(tree_walker_SOURCES vector.c vector.h)
+
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
       CACHE PATH "QuickJS install directory")
@@ -31,8 +33,8 @@ if(NOT HAVE_QUICKJS_H)
 endif(NOT HAVE_QUICKJS_H)
 
 foreach(NAME ${QUICKJS_MODULES})
-  add_library(${NAME} MODULE ${NAME}.c)
-
+  string(REGEX REPLACE "[-/]" "_" PFX "${NAME}")
+  add_library(${NAME} MODULE ${NAME}.c ${${PFX}_SOURCES} )
   set_target_properties(${NAME} PROPERTIES
     PREFIX ""
     INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs"

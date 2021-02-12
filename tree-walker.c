@@ -1,5 +1,6 @@
 #include "quickjs.h"
 #include "cutils.h"
+#include "vector.h"
 #include <string.h>
 
 JSClassID js_tree_walker_class_id;
@@ -25,42 +26,30 @@ typedef struct {
 } tree_walker_frame;
 
 typedef struct {
-  tree_walker_frame* stack;
-  uint32_t frames;
-  uint32_t allocated;
+  vector frames;
 } tree_walker_instance;
 
 static tree_walker_frame*
 js_tree_walker_push(JSContext* ctx, tree_walker_instance* tw) {
-  uint32_t n = tw->frames + 1;
-  if(tw->allocated < n) {
-    tw->stack = tw->stack ? js_realloc(ctx, tw->stack, sizeof(tree_walker_frame) * n)
-                          : js_malloc(ctx, sizeof(tree_walker_frame) * n);
-    tw->allocated = n;
-  }
-  if(tw->stack) {
+ 
     tree_walker_frame* r;
-    r = &tw->stack[tw->frames++];
-    memset(r, 0, sizeof(tree_walker_frame));
-    r->object = JS_UNDEFINED;
+
+    if((r = vector_push(&tw->frames, sizeof(tree_walker_frame)))) {
+     r->object = JS_UNDEFINED;
     r->properties = 0;
     r->length = 0;
     r->index = 0;
     r->current = JS_UNDEFINED;
-    return r;
   }
-  return 0;
+    return r;
 }
 
 static tree_walker_frame*
 js_tree_walker_pop(JSContext* ctx, tree_walker_instance* tw) {
-  if(tw->frames > 0)
-    tw->frames--;
-  if(tw->frames > 0)
-    return &tw->stack[tw->frames - 1];
+  vector_pop(&tw->frames,sizeof(tree_walker_frame));
   return 0;
 }
-
+/*
 static inline tree_walker_frame*
 js_tree_walker_top(tree_walker_instance* tw) {
   return tw->frames > 0 ? &tw->stack[tw->frames - 1] : 0;
@@ -70,7 +59,7 @@ static inline tree_walker_frame*
 js_tree_walker_bottom(tree_walker_instance* tw) {
   return tw->frames > 0 ? &tw->stack[0] : 0;
 }
-
+*/
 static int
 js_tree_walker_recurse(JSContext* ctx, tree_walker_frame* f, JSValueConst object, int flags) {
   if(JS_GetOwnPropertyNames(ctx, &f->properties, &f->length, object, flags))
@@ -105,13 +94,12 @@ js_tree_walker_at(JSContext* ctx, tree_walker_frame* f, int32_t index) {
 
 static tree_walker_instance*
 js_tree_walker_new(JSContext* ctx) {
-  tree_walker_instance*  tw;
-  if((tw = js_mallocz(ctx, sizeof(tree_walker_instance)))) {
-tw->frames = 0;
-  tw->allocated  = 2;
-  tw->stack = js_mallocz(ctx, sizeof(tree_walker_frame) * tw->allocated);
-}
-return tw;
+  tree_walker_instance* tw;
+  if((tw = js_malloc(ctx, sizeof(tree_walker_instance)))) {
+    
+vector_init(&tw->frames);
+  }
+  return tw;
 }
 
 static JSValue
@@ -136,8 +124,6 @@ js_tree_walker_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   if(argc > 0) {
     tree_walker_frame* f = js_tree_walker_push(ctx, tw);
     js_tree_walker_recurse(ctx, f, argv[0], JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
-
-
   }
   return obj;
 fail:
@@ -154,16 +140,16 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!(tw = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
 
-  f = js_tree_walker_top(tw);
+  f = vector_back(&tw->frames, sizeof(tree_walker_frame));
 
   switch(magic) {
     case FIRST_CHILD: {
       break;
-   //   return js_tree_walker_at(ctx, f, 0);
+      //   return js_tree_walker_at(ctx, f, 0);
     }
     case LAST_CHILD: {
       break;
-     // return js_tree_walker_at(ctx, f, -1);
+      // return js_tree_walker_at(ctx, f, -1);
     }
     case NEXT_NODE: {
       break;
@@ -194,12 +180,12 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case GET_ROOT: {
-      if((f = js_tree_walker_bottom(tw)))
+      if((f = vector_front(&tw->frames, sizeof(tree_walker_frame))))
         return f->object;
       break;
     }
     case GET_CURRENT: {
-      if((f = js_tree_walker_top(tw)))
+      if((f = vector_back(&tw->frames, sizeof(tree_walker_frame))))
         return f->object;
       break;
     }
