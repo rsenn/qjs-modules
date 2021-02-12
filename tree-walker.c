@@ -15,7 +15,7 @@ enum tree_walker_methods {
   PREVIOUS_NODE,
   PREVIOUS_SIBLING
 };
-enum tree_walker_getters { GET_ROOT = 0, GET_CURRENT, GET_LEVEL, GET_INDEX, GET_LENGTH };
+enum tree_walker_getters { GET_ROOT = 0, GET_CURRENT, GET_LEVEL, GET_INDEX, GET_LENGTH, GET_KEY };
 
 typedef struct {
   JSValue object;
@@ -88,6 +88,26 @@ walker_frame_current(walker_frame* fr, int32_t index, JSContext* ctx) {
     return fr->current;
   }
   return JS_EXCEPTION;
+}
+
+static JSValue
+walker_frame_key(walker_frame* fr, int32_t index, JSContext* ctx) {
+  JSPropertyEnum* prop;
+  if((prop = walker_frame_property(fr, index))) {
+    return JS_AtomToValue(ctx, prop->atom);
+  }
+  return JS_UNDEFINED;
+}
+static JSValue
+walker_frame_propdesc(walker_frame* fr, int32_t index, JSContext* ctx) {
+  JSPropertyEnum* prop;
+  if((prop = walker_frame_property(fr, index))) {
+    JSPropertyDescriptor desc;
+
+    JS_GetOwnProperty(ctx, &desc, fr->object, prop->atom);
+  }
+
+  return JS_UNDEFINED;
 }
 
 static JSValue
@@ -174,6 +194,8 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   if(!(wc = JS_GetOpaque(this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
+  if(!(fr = vector_back(&wc->frames, sizeof(walker_frame))))
+    return JS_EXCEPTION;
 
   switch(magic) {
     case GET_ROOT: {
@@ -182,18 +204,20 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case GET_CURRENT: {
-      if((fr = vector_back(&wc->frames, sizeof(walker_frame))))
-        return JS_DupValue(ctx, fr->current);
+      return JS_DupValue(ctx, fr->current);
       break;
     }
     case GET_LEVEL: {
-      return JS_NewUint32(ctx, vector_size(&wc->frames, sizeof(walker_frame)));
+      return JS_NewUint32(ctx, vector_size(&wc->frames, sizeof(walker_frame)) - 1);
     }
     case GET_INDEX: {
       return JS_NewUint32(ctx, fr->index);
     }
     case GET_LENGTH: {
       return JS_NewUint32(ctx, fr->nprops);
+    }
+    case GET_KEY: {
+      return walker_frame_key(fr, fr->index, ctx);
     }
   }
   return JS_UNDEFINED;
