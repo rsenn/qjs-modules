@@ -449,14 +449,17 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         dbuf_putstr(buf, COLOR_NONE);
       break;
     }
-    case JS_TAG_SYMBOL:
-      value = js_symbol_invoke_static(ctx, "keyFor", value);
-      if(JS_IsUndefined(value))
-        value = JS_NewString(ctx, "");
+    case JS_TAG_SYMBOL: {
+      JSValue tmp =  js_symbol_invoke_static(ctx, "keyFor", value);
+      if(!JS_IsUndefined(tmp))
+        value = tmp;
+      else
+        value = JS_AtomToString(ctx, JS_ValueToAtom(ctx, value));
       if(opts->colors)
         dbuf_putstr(buf, COLOR_GREEN);
       dbuf_putstr(buf, "Symbol");
       __attribute__((fallthrough));
+    }
     case JS_TAG_STRING: {
       const char* str;
       size_t pos, len, max_len, limit;
@@ -595,12 +598,17 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       for(pos = 0; pos < nprops; pos++) {
         JSPropertyDescriptor desc;
         const char* name;
+        JSValue key = JS_AtomToValue(ctx, props[pos].atom);
+
         name = JS_AtomToCString(ctx, props[pos].atom);
 
+if(!JS_IsSymbol(key)) {
         if((is_array && is_integer(name)) || js_inspect_hidden_key(opts, name)) {
-          JS_FreeCString(ctx, name);
+              JS_FreeValue(ctx, key);
+    JS_FreeCString(ctx, name);
           continue;
         }
+      }
 
         if(pos > 0)
           dbuf_putstr(buf, compact ? ", " : ",");
@@ -609,12 +617,16 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           js_inspect_newline(buf, level + 1);
         // printf("js_inspect_print obj=%p name=%s compact=%i level=%i opts->compact=%i buf->size=%zx\n", obj, name, compact, level, opts->compact, buf->size);
 
-        if(is_identifier(name))
+        if(!JS_IsSymbol(key) && is_identifier(name)) {
           dbuf_putstr(buf, name);
-        else
-          js_inspect_print(ctx, buf, JS_AtomToValue(ctx, props[pos].atom), opts, depth - 1);
+        }        else {
+          dbuf_putc(buf, '[');
+          js_inspect_print(ctx, buf, key, opts, depth - 1);
+          dbuf_putc(buf, ']');
+        }
         dbuf_putstr(buf, ": ");
         JS_FreeCString(ctx, name);
+        JS_FreeValue(ctx, key);
 
         JS_GetOwnProperty(ctx, &desc, value, props[pos].atom);
 
