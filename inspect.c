@@ -46,6 +46,7 @@ escape_char_letter(char c) {
     case '\\': return '\\';
     case '\'': return '\'';
   }
+  return 0;
 }
 
 static inline int
@@ -102,10 +103,10 @@ predicate_find(const char* str, size_t len, int (*pred)(char)) {
   return pos;
 }
 
-static size_t
+/*static size_t
 predicate_match(const char* str, size_t len, int (*pred)(char)) {
   return len > predicate_find(str, len, pred);
-}
+}*/
 
 static size_t
 ansi_skip(const char* str, size_t len) {
@@ -136,7 +137,7 @@ ansi_length(const char* str, size_t len) {
   return n;
 }
 
-size_t
+static size_t
 ansi_truncate(const char* str, size_t len, size_t limit) {
   size_t i, n = 0, p;
   for(i = 0; i < len; i++) {
@@ -152,37 +153,36 @@ ansi_truncate(const char* str, size_t len, size_t limit) {
 }
 
 static void
-dbuf_put_escaped(DynBuf* buf, const char* str, size_t len) {
+dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
   size_t i = 0, j;
   while(i < len) {
-    j = predicate_find(&str[i], len - i, is_escape_char);
-    if(j)
-      dbuf_put(buf, &str[i], j);
+    if((j = predicate_find(&str[i], len - i, is_escape_char)))
+      dbuf_put(db, (const uint8_t*)&str[i], j);
     if((i += j) == len)
       break;
-    dbuf_putc(buf, '\\');
-    dbuf_putc(buf, escape_char_letter(str[i]));
+    dbuf_putc(db, '\\');
+    dbuf_putc(db, escape_char_letter(str[i]));
     i++;
   }
 }
 
 static inline const char*
-dbuf_last_line(DynBuf* buf, size_t* len) {
+dbuf_last_line(DynBuf* db, size_t* len) {
   size_t i;
-  for(i = buf->size; i > 0; i--)
-    if(buf->buf[i - 1] == '\n')
+  for(i = db->size; i > 0; i--)
+    if(db->buf[i - 1] == '\n')
       break;
   if(len)
-    *len = buf->size - i;
-  return &buf->buf[i];
+    *len = db->size - i;
+  return (const char*)&db->buf[i];
 }
 
-static inline size_t
-dbuf_get_column(DynBuf* buf) {
+static inline int32_t
+dbuf_get_column(DynBuf* db) {
   size_t len;
   const char* str;
-  if(buf->size) {
-    str = dbuf_last_line(buf, &len);
+  if(db->size) {
+    str = dbuf_last_line(db, &len);
     return ansi_length(str, len);
   }
   return 0;
@@ -208,7 +208,7 @@ js_symbol_constructor_get(JSContext* ctx) {
 
   if(JS_IsUndefined(ctor))
     ctor = JS_GetPropertyStr(ctx, global_object, "Symbol");
-  
+
   return ctor;
 }
 
@@ -344,7 +344,7 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   return 0;
 }
 
-static int
+static void
 js_inspect_newline(DynBuf* buf, int32_t depth) {
   dbuf_putc(buf, '\n');
 
@@ -373,12 +373,12 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         dbuf_putstr(buf, COLOR_NONE);
       break;
     }
-    case JS_TAG_SYMBOL: {
+    case JS_TAG_SYMBOL:
       value = js_symbol_invoke_static(ctx, "keyFor", value);
       if(opts->colors)
         dbuf_putstr(buf, COLOR_GREEN);
       dbuf_putstr(buf, "Symbol");
-    }
+      __attribute__((fallthrough));
     case JS_TAG_STRING: {
       const char* str;
       size_t pos, len, max_len, limit;
@@ -589,9 +589,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       break;
     }
     default: {
-      return INT32_MAX;
+      return -1;
     }
   }
+  return 0;
 }
 
 static JSValue
