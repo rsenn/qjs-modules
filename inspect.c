@@ -9,7 +9,7 @@
 #define COLOR_MARINE "\x1b[36m"
 #define COLOR_GRAY "\x1b[1;30m"
 #define COLOR_NONE "\x1b[m"
- 
+
 typedef struct {
   int colors : 1;
   int show_hidden : 1;
@@ -24,24 +24,8 @@ typedef struct {
 
 } inspect_options_t;
 
-JSValue global_object;
-// JSValue options_object;
-JSAtom inspect_custom_atom;
-
-
-static inline JSValue
-new_number(JSContext* ctx, int32_t n) {
-  if(n == INT32_MAX)
-    return JS_NewFloat64(ctx, INFINITY);
-  return JS_NewInt32(ctx, n);
-}
-
-static inline JSValue
-new_bool_or_number(JSContext* ctx, int32_t n) {
-  if(n == 0)
-    return JS_NewBool(ctx, FALSE);
-  return new_number(ctx, n);
-}
+static JSValue global_object;
+static JSAtom inspect_custom_atom;
 
 static inline int
 is_control_char(char c) {
@@ -54,7 +38,7 @@ is_escape_char(char c) {
 }
 
 static inline char
-escape_char(char c) {
+escape_char_letter(char c) {
   switch(c) {
     case '\t': return 't';
     case '\r': return 'r';
@@ -73,12 +57,10 @@ static inline int
 is_digit_char(char c) {
   return c >= '0' && c <= '9';
 }
-
 static inline int
-is_notdigit_char(char c) {
+is_nondigit_char(char c) {
   return !is_digit_char(c);
 }
-
 static inline int
 is_newline_char(char c) {
   return c == '\n';
@@ -89,65 +71,63 @@ is_identifier_char(char c) {
   return is_alphanumeric_char(c) || c == '$' || c == '_';
 }
 
+static int
+is_identifier(const char* str) {
+  if(!((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z') || *str == '$'))
+    return 0;
+  while(*++str) {
+    if(!is_identifier_char(*str))
+      return 0;
+  }
+  return 1;
+}
+
+static int
+is_integer(const char* str) {
+  if(!(*str >= '1' && *str <= '9') && !(*str == '0' && str[1] == '\0'))
+    return 0;
+  while(*++str) {
+    if(!is_digit_char(*str))
+      return 0;
+  }
+  return 1;
+}
+
 static size_t
-find_predicate(const char* s, size_t len, int (*pred)(char)) {
-  size_t i;
-  for(i = 0; i < len; i++) {
-    if(pred(s[i]))
+predicate_find(const char* str, size_t len, int (*pred)(char)) {
+  size_t pos;
+  for(pos = 0; pos < len; pos++)
+    if(pred(str[pos]))
       break;
-  }
-  return i;
+  return pos;
 }
 
 static size_t
-nomatch_predicate(const char* s, size_t len, int (*pred)(char)) {
-  size_t found = find_predicate(s, len, pred);
-  return found == len;
-}
-
-static int
-is_identifier(const char* s) {
-  if(!((*s >= 'A' && *s <= 'Z') || (*s >= 'a' && *s <= 'z') || *s == '$'))
-    return 0;
-  while(*++s) {
-    if(!is_identifier_char(*s))
-      return 0;
-  }
-  return 1;
-}
-
-static int
-is_integer(const char* s) {
-  if(!(*s >= '1' && *s <= '9') && !(*s == '0' && s[1] == '\0'))
-    return 0;
-  while(*++s) {
-    if(!is_digit_char(*s))
-      return 0;
-  }
-  return 1;
+predicate_match(const char* str, size_t len, int (*pred)(char)) {
+  return len > predicate_find(str, len, pred);
 }
 
 static size_t
-skip_ansi(const char* s, size_t limit) {
-  size_t i = 0;
-  if(s[i] == 0x1b) {
-    if(++i < limit && s[i] == '[') {
-      while(++i < limit)
-        if(is_alphanumeric_char(s[i]))
+ansi_skip(const char* str, size_t len) {
+  size_t pos = 0;
+  if(str[pos] == 0x1b) {
+    if(++pos < len && str[pos] == '[') {
+      while(++pos < len)
+        if(is_alphanumeric_char(str[pos]))
           break;
-      if(++i < limit && s[i] == '~')
-        ++i;
-      return i;
+      if(++pos < len && str[pos] == '~')
+        ++pos;
+      return pos;
     }
   }
   return 0;
 }
 
 static size_t
-length_noansi(const char* str, size_t len) {
+ansi_length(const char* str, size_t len) {
   size_t i, n = 0, p;
   for(i = 0; i < len; i++) {
-    if((p = skip_ansi(&str[i], len - i)) > 0) {
+    if((p = ansi_skip(&str[i], len - i)) > 0) {
       i += p;
       continue;
     }
@@ -157,10 +137,10 @@ length_noansi(const char* str, size_t len) {
 }
 
 size_t
-limit_noansi(const char* str, size_t len, size_t limit) {
+ansi_truncate(const char* str, size_t len, size_t limit) {
   size_t i, n = 0, p;
   for(i = 0; i < len; i++) {
-    if((p = skip_ansi(&str[i], len - i)) > 0) {
+    if((p = ansi_skip(&str[i], len - i)) > 0) {
       i += p;
       continue;
     }
@@ -172,22 +152,22 @@ limit_noansi(const char* str, size_t len, size_t limit) {
 }
 
 static void
-put_string(DynBuf* buf, const char* str, size_t len) {
+dbuf_put_escaped(DynBuf* buf, const char* str, size_t len) {
   size_t i = 0, j;
   while(i < len) {
-    j = find_predicate(&str[i], len - i, is_escape_char);
+    j = predicate_find(&str[i], len - i, is_escape_char);
     if(j)
       dbuf_put(buf, &str[i], j);
     if((i += j) == len)
       break;
     dbuf_putc(buf, '\\');
-    dbuf_putc(buf, escape_char(str[i]));
+    dbuf_putc(buf, escape_char_letter(str[i]));
     i++;
   }
 }
 
 static inline const char*
-last_line(DynBuf* buf, size_t* len) {
+dbuf_last_line(DynBuf* buf, size_t* len) {
   size_t i;
   for(i = buf->size; i > 0; i--)
     if(buf->buf[i - 1] == '\n')
@@ -197,33 +177,48 @@ last_line(DynBuf* buf, size_t* len) {
   return &buf->buf[i];
 }
 
-static size_t
-get_column(DynBuf* buf) {
+static inline size_t
+dbuf_get_column(DynBuf* buf) {
   size_t len;
-  const char* s;
-  s = last_line(buf, &len);
-  return length_noansi(s, len);
+  const char* str;
+  if(buf->size) {
+    str = dbuf_last_line(buf, &len);
+    return ansi_length(str, len);
+  }
+  return 0;
+}
+
+static inline JSValue
+js_new_number(JSContext* ctx, int32_t n) {
+  if(n == INT32_MAX)
+    return JS_NewFloat64(ctx, INFINITY);
+  return JS_NewInt32(ctx, n);
+}
+
+static inline JSValue
+js_new_bool_or_number(JSContext* ctx, int32_t n) {
+  if(n == 0)
+    return JS_NewBool(ctx, FALSE);
+  return js_new_number(ctx, n);
+}
+
+static inline JSValue
+js_symbol_constructor_get(JSContext* ctx) {
+  static JSValue ctor = {.u = {.int32 = 0}, .tag = JS_TAG_UNDEFINED};
+
+  if(JS_IsUndefined(ctor))
+    ctor = JS_GetPropertyStr(ctx, global_object, "Symbol");
+  
+  return ctor;
 }
 
 static JSValue
-invoke_symbol_static_method(JSContext* ctx, const char* name, JSValueConst arg) {
-
+js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
+  JSValue ret;
   JSAtom method_name = JS_NewAtom(ctx, name);
-  JSValue symbol_ctor = JS_GetPropertyStr(ctx, global_object, "Symbol");
-  return JS_Invoke(ctx, symbol_ctor, method_name, 1, &arg);
-}
-
-static JSAtom
-get_inspect_custom_atom(JSContext* ctx) {
-  static JSValue symbol_value = {.u = {.int32 = 0}, .tag = JS_TAG_UNDEFINED};
-
-  if(JS_IsUndefined(symbol_value)) {
-    JSValue key = JS_NewString(ctx, "nodejs.util.inspect.custom");
-    symbol_value = invoke_symbol_static_method(ctx, "for", key);
-    JS_FreeValue(ctx, key);
-    inspect_custom_atom = JS_ValueToAtom(ctx, symbol_value);
-  }
-  return inspect_custom_atom;
+  ret = JS_Invoke(ctx, js_symbol_constructor_get(ctx), method_name, 1, &arg);
+  JS_FreeAtom(ctx, method_name);
+  return ret;
 }
 
 static void
@@ -309,20 +304,33 @@ js_inspect_options_object(JSContext* ctx, inspect_options_t* opts) {
   JS_SetPropertyStr(ctx, ret, "showProxy", JS_NewBool(ctx, opts->show_proxy));
   JS_SetPropertyStr(ctx, ret, "getters", JS_NewBool(ctx, opts->getters));
 
-  JS_SetPropertyStr(ctx, ret, "depth", new_number(ctx, opts->depth));
-  JS_SetPropertyStr(ctx, ret, "maxArrayLength", new_number(ctx, opts->max_array_length));
-  JS_SetPropertyStr(ctx, ret, "maxStringLength", new_number(ctx, opts->max_string_length));
-  JS_SetPropertyStr(ctx, ret, "breakLength", new_number(ctx, opts->break_length));
-  JS_SetPropertyStr(ctx, ret, "compact", new_bool_or_number(ctx, opts->compact));
+  JS_SetPropertyStr(ctx, ret, "depth", js_new_number(ctx, opts->depth));
+  JS_SetPropertyStr(ctx, ret, "maxArrayLength", js_new_number(ctx, opts->max_array_length));
+  JS_SetPropertyStr(ctx, ret, "maxStringLength", js_new_number(ctx, opts->max_string_length));
+  JS_SetPropertyStr(ctx, ret, "breakLength", js_new_number(ctx, opts->break_length));
+  JS_SetPropertyStr(ctx, ret, "compact", js_new_bool_or_number(ctx, opts->compact));
 
   return ret;
 }
 
+static JSAtom
+js_inspect_custom_atom(JSContext* ctx) {
+  static JSValue sym = {.u = {.int32 = 0}, .tag = JS_TAG_UNDEFINED};
+
+  if(JS_IsUndefined(sym)) {
+    JSValue key = JS_NewString(ctx, "nodejs.util.inspect.custom");
+    sym = js_symbol_invoke_static(ctx, "for", key);
+    JS_FreeValue(ctx, key);
+    inspect_custom_atom = JS_ValueToAtom(ctx, sym);
+  }
+  return inspect_custom_atom;
+}
+
 static const char*
-js_inspect_call_custom(JSContext* ctx, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
+js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   JSValue inspect;
 
-  inspect = JS_GetProperty(ctx, obj, get_inspect_custom_atom(ctx));
+  inspect = JS_GetProperty(ctx, obj, js_inspect_custom_atom(ctx));
   if(JS_IsUndefined(inspect))
     inspect = JS_GetPropertyStr(ctx, obj, "inspect");
 
@@ -366,7 +374,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       break;
     }
     case JS_TAG_SYMBOL: {
-      value = invoke_symbol_static_method(ctx, "keyFor", value);
+      value = js_symbol_invoke_static(ctx, "keyFor", value);
       if(opts->colors)
         dbuf_putstr(buf, COLOR_GREEN);
       dbuf_putstr(buf, "Symbol");
@@ -375,7 +383,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       const char* str;
       size_t pos, len, max_len, limit;
       str = JS_ToCStringLen(ctx, &len, value);
-      max_len = min_uint32(opts->break_length - get_column(buf) - 4, len);
+      max_len = min_uint32(opts->break_length - dbuf_get_column(buf) - 4, len);
 
       if(tag != JS_TAG_SYMBOL && opts->colors)
         dbuf_putstr(buf, COLOR_GREEN);
@@ -383,28 +391,28 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       limit = min_uint32(opts->max_string_length, len);
       for(pos = 0; pos < limit;) {
         size_t n, eol;
-        eol = find_predicate(&str[pos], limit - pos, is_newline_char);
+        eol = predicate_find(&str[pos], limit - pos, is_newline_char);
         if(str[pos + eol] == '\n')
           eol++;
 
-        n = min_uint32(limit_noansi(&str[pos], limit - pos, max_len), eol);
+        n = min_uint32(ansi_truncate(&str[pos], limit - pos, max_len), eol);
 
         if(pos > 0) {
           dbuf_putstr(buf, opts->colors ? "'" COLOR_NONE " +" : "' +");
           js_inspect_newline(buf, level + 1);
           dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
         } else {
-          max_len = opts->break_length - get_column(buf) - 4;
+          max_len = opts->break_length - dbuf_get_column(buf) - 4;
         }
 
-        put_string(buf, &str[pos], n);
+        dbuf_put_escaped(buf, &str[pos], n);
         pos += n;
       }
       dbuf_putc(buf, tag == JS_TAG_SYMBOL ? ')' : '\'');
       if(opts->colors)
         dbuf_putstr(buf, COLOR_NONE);
       if(limit < len) {
-        if(get_column(buf) + 26 > opts->break_length)
+        if(dbuf_get_column(buf) + 26 > opts->break_length)
           js_inspect_newline(buf, level + 1);
         dbuf_printf(buf, "... %zu more characters", len - pos);
       }
@@ -416,7 +424,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       JSPropertyEnum* props;
       const char* s;
 
-      if((s = js_inspect_call_custom(ctx, value, opts, depth))) {
+      if(opts->custom_inspect && (s = js_inspect_custom_call(ctx, value, opts, depth))) {
         dbuf_putstr(buf, s);
         return 0;
       }
@@ -471,7 +479,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           js_inspect_print(ctx, buf, JS_GetPropertyUint32(ctx, value, pos), opts, depth - 1);
         }
         if(limit < len) {
-          if(get_column(buf) + 20 > opts->break_length)
+          if(dbuf_get_column(buf) + 20 > opts->break_length)
             js_inspect_newline(buf, level + 1);
           dbuf_printf(buf, "... %u more item", len - pos);
           if(pos + 1 < len)
@@ -590,15 +598,25 @@ static JSValue
 js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   DynBuf dbuf;
   inspect_options_t options;
+  int32_t depth;
+  int optsind = 1;
 
   dbuf_init(&dbuf);
 
   js_inspect_options_init(&options);
 
-  if(argc > 1)
-    js_inspect_options_get(ctx, argv[1], &options);
+  if(argc > 1 && JS_IsNumber(argv[1]))
+    optsind++;
 
-  js_inspect_print(ctx, &dbuf, argv[0], &options, options.depth);
+  if(optsind < argc)
+    js_inspect_options_get(ctx, argv[optsind], &options);
+
+  if(optsind > 1)
+    JS_ToInt32(ctx, &depth, argv[1]);
+  else
+    depth = options.depth;
+
+  js_inspect_print(ctx, &dbuf, argv[0], &options, depth);
 
   return JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 }
