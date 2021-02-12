@@ -1,5 +1,7 @@
 project(quickjs-modules C)
 
+set(QUICKJS_MODULES mmap inspect tree-walker)
+
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
       CACHE PATH "QuickJS install directory")
@@ -28,7 +30,7 @@ if(NOT HAVE_QUICKJS_H)
   message(FATAL_ERROR "QuickJS headers not found")
 endif(NOT HAVE_QUICKJS_H)
 
-foreach(NAME mmap inspect)
+foreach(NAME ${QUICKJS_MODULES})
   add_library(${NAME} MODULE ${NAME}.c)
 
   set_target_properties(${NAME} PROPERTIES

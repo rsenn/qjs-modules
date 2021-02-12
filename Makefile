@@ -1,4 +1,4 @@
-MODULES = mmap inspect
+MODULES = mmap inspect tree-walker
 QUICKJS_PREFIX ?= /usr/local
 
 INSTALL = install
@@ -37,4 +37,7 @@ mmap.$(SUFFIX): mmap.o
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 inspect.$(SUFFIX): inspect.o
+	$(CC) $(CFLAGS) -shared -o $@ $^
+
+tree-walker.$(SUFFIX): tree-walker.o
 	$(CC) $(CFLAGS) -shared -o $@ $^
