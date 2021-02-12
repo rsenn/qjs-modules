@@ -39,5 +39,5 @@ mmap.$(SUFFIX): mmap.o
 inspect.$(SUFFIX): inspect.o
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-tree-walker.$(SUFFIX): tree-walker.o
+tree-walker.$(SUFFIX): tree-walker.o vector.o
 	$(CC) $(CFLAGS) -shared -o $@ $^

@@ -63,7 +63,7 @@ escape_char_letter(char c) {
 
 static inline int
 is_escape_char(char c) {
-  return is_control_char(c) || c == 0x5c   || c == 0x27;
+  return is_control_char(c) || c == 0x5c || c == 0x27;
 }
 
 static int

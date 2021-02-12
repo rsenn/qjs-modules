@@ -1,13 +1,59 @@
+#include "quickjs.h"
 #include "vector.h"
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 #include <assert.h>
 
+#define HAVE_UINT128
+
+#if defined(__GNUC__) && (__GNUC__ >= 5)
+int
+umult64(uint64_t a, uint64_t b, uint64_t* c) {
+  return !__builtin_mul_overflow(a, b, c);
+}
+#elif defined(HAVE_UINT128)
+int
+umult64(uint64_t a, uint64_t b, uint64_t* c) {
+  __uint128_t x = ((__uint128_t)a) * b;
+  if((*c = (uint64_t)x) != x)
+    return 0;
+  return 1;
+}
+#else
+int
+umult64(uint64_t a, uint64_t b, uint64_t* c) {
+  uint32_t ahi = a >> 32;
+  uint32_t alo = (a & 0xffffffff);
+  uint32_t bhi = b >> 32;
+  uint32_t blo = (b & 0xffffffff);
+
+  if(ahi && bhi)
+    return 0;
+
+  a = (uint64_t)(ahi)*blo + (uint64_t)(alo)*bhi;
+  if(a > 0xffffffff)
+    return 0;
+  {
+    uint64_t x = (uint64_t)(alo)*blo;
+    if(x + (a << 32) < x)
+      return 0;
+    *c = x + (a << 32);
+  }
+  return 1;
+}
+#endif
+
 void*
-vector_allocate(vector* vec, size_t elsz, ssize_t pos) {
-  size_t need;
+vector_allocate(vector* vec, size_t elsz, int32_t pos) {
+  uint64_t need;
   void* tmp;
-  if((need = elsz * (pos + 1)) > vec->size) {
+  if(pos < 0)
+    return 0;
+  if(!umult64(elsz, pos + 1, &need))
+    return 0;
+
+  if(need > vec->size) {
     if(need >= vec->capacity) {
       if(elsz < 8)
         need = (need + 127) & (~127);
@@ -20,9 +66,9 @@ vector_allocate(vector* vec, size_t elsz, ssize_t pos) {
       vec->capacity = need;
       memset(vec->data + vec->size, 0, vec->capacity - vec->size);
     }
-    vec->size = (pos + 1) * elsz;
+    vec->size = ((uint32_t)pos + 1) * elsz;
   }
-  return vec->data + pos * elsz;
+  return vec->data + (uint32_t)pos * elsz;
 }
 
 void
@@ -34,19 +80,19 @@ vector_free(vector* vec) {
 }
 
 void*
-vector_at(const vector* vec, size_t elsz, ssize_t pos) {
-  size_t offs;
-  if(pos < 0 || (offs = elsz * pos) >= vec->size)
+vector_at(const vector* vec, size_t elsz, int32_t pos) {
+  uint64_t offs;
+  if(pos < 0 || (offs = elsz * (uint32_t)pos) >= vec->size)
     return 0;
   return vec->data + offs;
 }
 
 void
-vector_shrink(vector* vec, size_t elsz, ssize_t len) {
-  size_t need;
+vector_shrink(vector* vec, size_t elsz, int32_t len) {
+  uint64_t need;
   if((len < 0))
     return;
-  if((need = elsz * len) > vec->size)
+  if((need = elsz * (uint32_t)len) > vec->size)
     return;
   vec->size = need;
 }
