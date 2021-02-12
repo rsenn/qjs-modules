@@ -317,7 +317,7 @@ invoke_symbol_static_method(JSContext* ctx, const char* name, JSValueConst arg) 
 static JSValue
 get_inspect_custom_symbol(JSContext* ctx) {
   if(JS_IsUndefined(inspect_custom_symbol)) {
-      JSValue key = JS_NewString(ctx, "nodejs.util.inspect.custom");
+    JSValue key = JS_NewString(ctx, "nodejs.util.inspect.custom");
     inspect_custom_symbol = invoke_symbol_static_method(ctx, "for", key);
     JS_FreeValue(ctx, key);
   }
@@ -593,8 +593,8 @@ js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetModuleExport(ctx, m, "default", inspect);
 
   global_object = JS_GetGlobalObject(ctx);
- options_object = JS_UNDEFINED;
- inspect_custom_symbol = JS_UNDEFINED;
+  options_object = JS_UNDEFINED;
+  inspect_custom_symbol = JS_UNDEFINED;
   return 0;
 }
 
