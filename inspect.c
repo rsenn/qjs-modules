@@ -35,7 +35,7 @@ typedef struct {
 static JSValue global_object;
 static JSAtom inspect_custom_atom;
 
-#define is_control_char(c) ((c) == '\b' || (c) == '\f' || (c) == '\n' || (c) == '\r' || (c) == '\t' || (c) == '\v')
+#define is_control_char(c) ((c) == 8 || (c) == '\f' || (c) == '\n' || (c) == '\r' || (c) == '\t' || (c) == 11)
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_newline_char(c) ((c) == '\n')
@@ -63,7 +63,7 @@ escape_char_letter(char c) {
 
 static inline int
 is_escape_char(char c) {
-  return is_control_char(c) || c == '\\' || c == '\'';
+  return is_control_char(c) || c == 0x5c   || c == 0x27;
 }
 
 static int

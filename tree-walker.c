@@ -20,95 +20,69 @@ enum tree_walker_getters { GET_ROOT = 0, GET_CURRENT };
 typedef struct {
   JSValue object;
   JSPropertyEnum* properties;
-  uint32_t length;
+  uint32_t nprops;
   uint32_t index;
   JSValue current;
-} tree_walker_frame;
+} walker_frame;
 
 typedef struct {
   vector frames;
-} tree_walker_instance;
+} walker_context;
 
-static tree_walker_frame*
-js_tree_walker_push(JSContext* ctx, tree_walker_instance* tw) {
- 
-    tree_walker_frame* r;
-
-    if((r = vector_push(&tw->frames, sizeof(tree_walker_frame)))) {
-     r->object = JS_UNDEFINED;
-    r->properties = 0;
-    r->length = 0;
-    r->index = 0;
-    r->current = JS_UNDEFINED;
+static walker_frame*
+walker_frame_new(walker_context* wc) {
+  walker_frame* fr;
+  if((fr = vector_push(&wc->frames, sizeof(walker_frame)))) {
+    fr->object = JS_UNDEFINED;
+    fr->properties = 0;
+    fr->nprops = 0;
+    fr->index = 0;
+    fr->current = JS_UNDEFINED;
   }
-    return r;
+  return fr;
 }
 
-static tree_walker_frame*
-js_tree_walker_pop(JSContext* ctx, tree_walker_instance* tw) {
-  vector_pop(&tw->frames,sizeof(tree_walker_frame));
-  return 0;
-}
-/*
-static inline tree_walker_frame*
-js_tree_walker_top(tree_walker_instance* tw) {
-  return tw->frames > 0 ? &tw->stack[tw->frames - 1] : 0;
-}
 
-static inline tree_walker_frame*
-js_tree_walker_bottom(tree_walker_instance* tw) {
-  return tw->frames > 0 ? &tw->stack[0] : 0;
-}
-*/
 static int
-js_tree_walker_recurse(JSContext* ctx, tree_walker_frame* f, JSValueConst object, int flags) {
-  if(JS_GetOwnPropertyNames(ctx, &f->properties, &f->length, object, flags))
+walker_frame_init( walker_frame* fr, JSContext* ctx,JSValueConst object, int flags) {
+  if(JS_GetOwnPropertyNames(ctx, &fr->properties, &fr->nprops, object, flags))
     return -1;
-  f->object = object;
-  f->index = 0;
+  fr->object = object;
+  fr->index = 0;
   return 0;
 }
 
-static JSAtom
-js_tree_walker_key(JSContext* ctx, tree_walker_frame* f, int32_t index) {
-  JSPropertyEnum* property;
-  if(index < 0) {
-    index %= (int32_t)f->length;
-    index += f->length;
+static JSPropertyEnum*
+walker_frame_property(walker_frame* fr, int32_t index) {
+   if(index < 0) {
+    index %= (int32_t)fr->nprops;
+    index += fr->nprops;
   } else {
-    index %= (uint32_t)f->length;
+    index %= (uint32_t)fr->nprops;
   }
-  f->index = index;
-  return f->properties[index].atom;
+  assert(index >= 0);
+  assert(index < fr->nprops);
+  return &fr->properties[(fr->index = index)];
 }
 
 static JSValue
-js_tree_walker_at(JSContext* ctx, tree_walker_frame* f, int32_t index) {
-  JSAtom key;
-  JSValue prop;
-  key = js_tree_walker_key(ctx, f, index);
-  prop = JS_GetProperty(ctx, f->object, key);
-  f->current = prop;
-  return prop;
-}
-
-static tree_walker_instance*
-js_tree_walker_new(JSContext* ctx) {
-  tree_walker_instance* tw;
-  if((tw = js_malloc(ctx, sizeof(tree_walker_instance)))) {
-    
-vector_init(&tw->frames);
+walker_frame_current(walker_frame* fr, int32_t index, JSContext* ctx ) {
+  JSPropertyEnum* prop;
+  if((prop = walker_frame_property(fr, index))) {
+     fr->current =  JS_GetProperty(ctx, fr->object, prop->atom);
+    return fr->current;
   }
-  return tw;
-}
+  return JS_EXCEPTION;
+} 
+
 
 static JSValue
 js_tree_walker_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
-  tree_walker_instance* tw;
+  walker_context* wc;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
 
-  if(!(tw = js_mallocz(ctx, sizeof(tree_walker_instance))))
+  if(!(wc = js_mallocz(ctx, sizeof(walker_context))))
     return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the
@@ -120,36 +94,37 @@ js_tree_walker_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
-  JS_SetOpaque(obj, tw);
+  JS_SetOpaque(obj, wc);
   if(argc > 0) {
-    tree_walker_frame* f = js_tree_walker_push(ctx, tw);
-    js_tree_walker_recurse(ctx, f, argv[0], JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
+    walker_frame* fr = walker_frame_new(wc);
+    fr->current = argv[0];
+//    walker_frame_init(fr, ctx, argv[0], JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
   }
   return obj;
 fail:
-  js_free(ctx, tw);
+  js_free(ctx, wc);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
 static JSValue
 js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
-  tree_walker_instance* tw;
-  tree_walker_frame* f;
+  walker_context* wc;
+  walker_frame* fr;
 
-  if(!(tw = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
+  if(!(wc = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
 
-  f = vector_back(&tw->frames, sizeof(tree_walker_frame));
+  fr = vector_back(&wc->frames, sizeof(walker_frame));
 
   switch(magic) {
     case FIRST_CHILD: {
       break;
-      //   return js_tree_walker_at(ctx, f, 0);
+      //   return walker_frame_current(ctx, fr, 0);
     }
     case LAST_CHILD: {
       break;
-      // return js_tree_walker_at(ctx, f, -1);
+      // return walker_frame_current(ctx, fr, -1);
     }
     case NEXT_NODE: {
       break;
@@ -172,21 +147,21 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static JSValue
 js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  tree_walker_instance* tw;
-  tree_walker_frame* f;
+  walker_context* wc;
+  walker_frame* fr;
 
-  if(!(tw = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
+  if(!(wc = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
 
   switch(magic) {
     case GET_ROOT: {
-      if((f = vector_front(&tw->frames, sizeof(tree_walker_frame))))
-        return f->object;
+      if((fr = vector_front(&wc->frames, sizeof(walker_frame))))
+        return fr->current;
       break;
     }
     case GET_CURRENT: {
-      if((f = vector_back(&tw->frames, sizeof(tree_walker_frame))))
-        return f->object;
+      if((fr = vector_back(&wc->frames, sizeof(walker_frame))))
+        return fr->current;
       break;
     }
   }
@@ -200,9 +175,9 @@ js_tree_walker_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
 void
 js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
-  tree_walker_instance* tw = JS_GetOpaque(val, js_tree_walker_class_id);
-  if(tw)
-    js_free_rt(rt, tw);
+  walker_context* wc = JS_GetOpaque(val, js_tree_walker_class_id);
+  if(wc)
+    js_free_rt(rt, wc);
   JS_FreeValueRT(rt, val);
 }
 

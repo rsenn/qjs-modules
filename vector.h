@@ -34,14 +34,14 @@ vector_end(const vector* vec) {
 
 static inline void*
 vector_front(const vector* vec, size_t elsz) {
-	assert (vec->size >= elsz);
+  assert(vec->size >= elsz);
   return vec->data;
 }
 
 static inline void*
 vector_back(const vector* vec, size_t elsz) {
-		size_t n = vector_size(vec, elsz);
-assert (n);
+  size_t n = vector_size(vec, elsz);
+  assert(n);
   return vec->data + (n - 1) * elsz;
 }
 
@@ -52,15 +52,15 @@ vector_clear(vector* vec) {
 
 static inline void*
 vector_push(vector* vec, size_t elsz) {
-	size_t n = vector_size(vec, elsz);
-	return vector_allocate(vec, elsz, n);
+  size_t n = vector_size(vec, elsz);
+  return vector_allocate(vec, elsz, n);
 }
 
 static inline void
 vector_pop(vector* vec, size_t elsz) {
-	size_t n = vector_size(vec, elsz);
-	assert(n);
-	return vector_shrink(vec, elsz, n - 1);
+  size_t n = vector_size(vec, elsz);
+  assert(n);
+  return vector_shrink(vec, elsz, n - 1);
 }
 
 #endif /* VECTOR_H */
