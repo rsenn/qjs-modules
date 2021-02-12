@@ -204,9 +204,9 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
 
 static inline JSValue
 js_symbol_constructor_get(JSContext* ctx) {
-  static JSValue ctor = {.u = {.int32 = 0}, .tag = JS_TAG_UNDEFINED};
+  static JSValue ctor;
 
-  if(JS_IsUndefined(ctor))
+  if((JS_VALUE_GET_TAG(ctor) | JS_VALUE_GET_INT(ctor)) == 0)
     ctor = JS_GetPropertyStr(ctx, global_object, "Symbol");
 
   return ctor;

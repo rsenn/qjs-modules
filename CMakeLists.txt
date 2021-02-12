@@ -36,6 +36,6 @@ foreach(NAME mmap inspect)
     INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs"
   )
   target_compile_definitions(${NAME} PRIVATE -DJS_SHARED_LIBRARY)
-  install(TARGETS ${NAME} DESTINATION lib/quickjs)
+  install(TARGETS ${NAME} DESTINATION lib/quickjs PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 endforeach(NAME mmap inspect)
 
