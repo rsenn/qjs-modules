@@ -172,6 +172,20 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   /*  if(!JS_IsObject(wc->current))
       return JS_EXCEPTION;*/
 
+  if(magic == PREVIOUS_NODE) {
+    if(it->idx == 0)
+      magic = PARENT_NODE;
+    else
+      magic = PREVIOUS_SIBLING;
+  }
+
+  if(magic == NEXT_NODE) {
+    if(JS_IsObject(wc->current))
+      magic = FIRST_CHILD;
+    else
+      magic = NEXT_SIBLING;
+  }
+
   switch(magic) {
     case FIRST_CHILD: {
       if((it = tree_walker_push(wc, ctx)))
@@ -185,9 +199,6 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
           return wc->current = tree_iterator_value(it, ctx);
       break;
     }
-    case NEXT_NODE: {
-      break;
-    }
     case NEXT_SIBLING: {
       if(tree_iterator_setpos(it, it->idx + 1))
         return wc->current = tree_iterator_value(it, ctx);
@@ -198,14 +209,17 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         return wc->current = tree_iterator_value(it, ctx);
       break;
     }
-    case PREVIOUS_NODE: {
-      break;
-    }
     case PREVIOUS_SIBLING: {
       if(tree_iterator_setpos(it, it->idx - 1))
         return wc->current = tree_iterator_value(it, ctx);
       break;
     }
+      /*    case NEXT_NODE: {
+        break;
+      }
+    case PREVIOUS_NODE: {
+        break;
+      }*/
   }
   return JS_UNDEFINED;
 }
