@@ -14,11 +14,11 @@ typedef struct JSForInIterator {
 } JSForInIterator;
 
 static void
-js_free_prop_enum(JSContext* ctx, JSPropertyEnum* tab, uint32_t len) {
+js_free_prop_enum(JSRuntime* rt, JSPropertyEnum* tab, uint32_t len) {
   uint32_t i;
   if(tab) {
-    for(i = 0; i < len; i++) JS_FreeAtom(ctx, tab[i].atom);
-    js_free(ctx, tab);
+    for(i = 0; i < len; i++) JS_FreeAtomRT(rt, tab[i].atom);
+    js_free_rt(rt, tab);
   }
 }
 
@@ -31,7 +31,7 @@ enum tree_walker_methods {
   PREVIOUS_NODE,
   PREVIOUS_SIBLING
 };
-enum tree_walker_getters { GET_ROOT = 0, GET_CURRENT_NODE, GET_LEVEL, GET_INDEX, GET_LENGTH, GET_KEY };
+enum tree_walker_getters { GET_ROOT = 0, GET_CURRENT_NODE, GET_DEPTH, GET_INDEX, GET_LENGTH, GET_KEY };
 
 typedef struct {
   JSValue obj;
@@ -68,24 +68,6 @@ tree_iterator_init(TreeIterator* it, JSContext* ctx, JSValueConst object, int fl
   return 0;
 }
 
-static TreeIterator*
-tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
-  TreeIterator* it;
-
-  if((it = tree_iterator_new(wc, JS_DupValue(ctx, object))))
-    tree_iterator_init(it, ctx, object, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
-  return it;
-}
-
-static TreeIterator*
-tree_walker_push(TreeWalker* wc, JSContext* ctx) {
-  TreeIterator* it;
-
-  if((it = tree_iterator_new(wc, wc->current)))
-    tree_iterator_init(it, ctx, wc->current, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
-  return it;
-}
-
 static JSPropertyEnum*
 tree_iterator_setpos(TreeIterator* it, int32_t idx) {
   if(idx < 0) {
@@ -109,6 +91,26 @@ tree_iterator_key(TreeIterator* it,  JSContext* ctx) {
     return JS_AtomToValue(ctx, it->tab[it->idx].atom);
    
 }
+
+
+static TreeIterator*
+tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
+  TreeIterator* it;
+
+  if((it = tree_iterator_new(wc, JS_DupValue(ctx, object))))
+    tree_iterator_init(it, ctx, object, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
+  return it;
+}
+
+static TreeIterator*
+tree_walker_push(TreeWalker* wc, JSContext* ctx) {
+  TreeIterator* it;
+
+  if((it = tree_iterator_new(wc, wc->current)))
+    tree_iterator_init(it, ctx, wc->current, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
+  return it;
+}
+
 /*static JSValue
 tree_iterator_propdesc(TreeIterator* it, int32_t idx, JSContext* ctx) {
   JSPropertyEnum* prop;
@@ -148,8 +150,8 @@ js_tree_walker_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
 
   return obj;
 fail:
-  /*js_free(ctx, wc);
-  JS_FreeValue(ctx, obj);*/
+  js_free(ctx, wc);
+  JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -218,7 +220,7 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
       return JS_DupValue(ctx, wc->current);
       break;
     }
-    case GET_LEVEL: {
+    case GET_DEPTH: {
       return JS_NewUint32(ctx, vector_size(&wc->frames, sizeof(TreeIterator)) - 1);
     }
     case GET_INDEX: {
@@ -248,13 +250,13 @@ js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
     uint32_t i, n = vector_size(&wc->frames, sizeof(TreeIterator));
 
     for(i = 0; i < n; i++) {
-
       it = vector_at(&wc->frames, sizeof(TreeIterator), i);
-      JS_FreeValueRT(rt, wc->current);
       JS_FreeValueRT(rt, it->obj);
+      js_free_prop_enum(rt, it->tab, it->tab_atom_len);
     }
 
-    js_free_rt(rt, wc);
+       JS_FreeValueRT(rt, wc->current);
+   js_free_rt(rt, wc);
   }
   // JS_FreeValueRT(rt, val);
 }
@@ -274,7 +276,7 @@ static const JSCFunctionListEntry js_tree_walker_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("previousSibling", 1, js_tree_walker_method, PREVIOUS_SIBLING),
     JS_CGETSET_MAGIC_DEF("root", js_tree_walker_get, NULL, GET_ROOT),
     JS_CGETSET_MAGIC_DEF("currentNode", js_tree_walker_get, NULL, GET_CURRENT_NODE),
-    JS_CGETSET_MAGIC_DEF("level", js_tree_walker_get, NULL, GET_LEVEL),
+    JS_CGETSET_MAGIC_DEF("depth", js_tree_walker_get, NULL, GET_DEPTH),
     JS_CGETSET_MAGIC_DEF("index", js_tree_walker_get, NULL, GET_INDEX),
     JS_CGETSET_MAGIC_DEF("length", js_tree_walker_get, NULL, GET_LENGTH),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TreeWalker", JS_PROP_CONFIGURABLE)};
