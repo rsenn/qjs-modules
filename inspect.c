@@ -4,6 +4,7 @@
 #include <math.h>
 #include <ctype.h>
 #include <string.h>
+#include <sys/ioctl.h>
 
 #define COLOR_RED "\x1b[31m"
 #define COLOR_GREEN "\x1b[32m"
@@ -32,7 +33,7 @@ typedef struct {
   struct list_head link;
 } prop_key_t;
 
-static JSValue global_object;
+static JSValueConst global_object, array_buffer, array_buffer_proto;
 static JSAtom inspect_custom_atom;
 
 #define is_control_char(c) ((c) == 8 || (c) == '\f' || (c) == '\n' || (c) == '\r' || (c) == '\t' || (c) == 11)
@@ -97,7 +98,7 @@ predicate_find(const char* str, size_t len, int (*pred)(char)) {
   return pos;
 }
 
-size_t
+static size_t
 byte_chr(const char* str, size_t len, char c) {
   const char* s = str;
   const char* t = s + len;
@@ -459,13 +460,128 @@ js_inspect_newline(DynBuf* buf, int32_t depth) {
 
   while(depth-- > 0) dbuf_putstr(buf, "  ");
 }
+char*
+strndup(const char* s, size_t n) {
+  char* r = malloc(n + 1);
+  if(r == NULL)
+    return NULL;
+  memcpy(r, s, n);
+  r[n] = '\0';
+  return r;
+}
+
+static char*
+js_class_name(JSContext* ctx, JSValueConst value) {
+  JSValue proto, ctor;
+  const char *str;
+  char *name = 0;
+  int namelen;
+  proto = JS_GetPrototype(ctx, value);
+  ctor = JS_GetPropertyStr(ctx, proto, "constructor");
+  if((str = JS_ToCString(ctx, ctor))) {
+    printf("  ctor=%s\n", str);
+    if(!strncmp(str, "function ", 9)) {
+      namelen = byte_chr(str + 9, strlen(str) - 9, '(');
+      name = js_strndup(ctx, str + 9, namelen);
+    }
+  }
+  if(!name) {
+    if(str)
+      JS_FreeCString(ctx, str);
+    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
+      name = js_strdup(ctx, str);
+  }
+  if(str)
+    JS_FreeCString(ctx, str);
+  return name;
+}
+
+static int
+js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
+  int ret = 0;
+  int n, m;
+  void* obj = JS_VALUE_GET_OBJ(value);
+  char* name = 0;
+
+  if((name = js_class_name(ctx, value))) {
+    n = strlen(name);
+    m = n >= 11 ? n - 11 : 0;
+    // printf("  name=%s\n", name + m);
+    if(!strcmp(name + m, "ArrayBuffer"))
+      ret = 1;
+  }
+  if(!ret) {
+    const char* str;
+    if(JS_IsInstanceOf(ctx, value, array_buffer))
+      ret = 1;
+    else if(!JS_IsArray(ctx, value) && (str = JS_ToCString(ctx, value))) {
+      ret = strstr(str, "ArrayBuffer]") != 0;
+      //   ret = !strcmp(str, "[object ArrayBuffer]");
+      JS_FreeCString(ctx, str);
+    }
+  }
+  if(name)
+    js_free(ctx, (void*)name);
+  printf("js_is_arraybuffer ret=%i\n", ret);
+  return ret;
+}
+
+static int
+js_inspect_screen_width(void) {
+  struct winsize w = {.ws_col = -1, .ws_row = -1};
+  ioctl(1, TIOCGWINSZ, &w);
+  return w.ws_col;
+}
+
+static int
+js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
+  const char *str, *str2;
+  uint8_t* ptr;
+  size_t i, size;
+  int break_len = js_inspect_screen_width();
+  int column = dbuf_get_column(buf);
+
+  if(break_len > opts->break_length)
+    break_len = opts->break_length;
+
+  ptr = JS_GetArrayBuffer(ctx, &size, value);
+
+  printf("maxArrayLength: %i\n", opts->max_array_length);
+
+  str = JS_ToCString(ctx, value);
+  str2 = strstr(str, "ArrayBuffer");
+
+  while(str2 > str && !isspace(*--str2))
+    ;
+
+  size_t slen = byte_chr(str2, strlen(str2), ']');
+
+  dbuf_put(buf, str2, slen);
+  dbuf_printf(buf, " { byteLength: %zu [", size);
+  for(i = 0; i < size; i++) {
+    if(i == opts->max_array_length)
+      break;
+
+    if(column == break_len) {
+      js_inspect_newline(buf, (opts->depth - depth) + 1);
+      column = 0;
+    } else
+      column += 3;
+
+    dbuf_printf(buf, " %02x", ptr[i]);
+  }
+  dbuf_printf(buf, "... %zu more bytes", size - i);
+  dbuf_putstr(buf, " ] }");
+
+  return 0;
+}
 
 static int
 js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
 
   int tag = JS_VALUE_GET_TAG(value);
   int32_t level = opts->depth - depth;
-  int compact = (level >= opts->compact);
+  int compact = level >= (opts->depth - opts->compact);
 
   switch(tag) {
     case JS_TAG_FLOAT64:
@@ -546,6 +662,9 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       uint32_t nprops, pos, len, limit;
       JSPropertyEnum* props;
       const char* s;
+
+      if(JS_IsInstanceOf(ctx, value, array_buffer) || js_is_arraybuffer(ctx, value))
+        return js_inspect_arraybuffer(ctx, buf, value, opts, depth);
 
       if(js_object_tmpmark_isset(value)) {
         JS_ThrowTypeError(ctx, "circular reference");
@@ -781,7 +900,12 @@ js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetModuleExport(ctx, m, "default", inspect);
 
   global_object = JS_GetGlobalObject(ctx);
+  array_buffer = JS_GetPropertyStr(ctx, global_object, "ArrayBuffer");
 
+  if(!JS_IsConstructor(ctx, array_buffer))
+    JS_ThrowTypeError(ctx, "ArrayBuffer is not a constructor");
+
+  array_buffer_proto = JS_GetPropertyStr(ctx, array_buffer, "prototype");
   return 0;
 }
 

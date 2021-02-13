@@ -28,6 +28,16 @@ set(CMAKE_REQUIRED_INCLUDES "${QUICKJS_PREFIX}/include/quickjs")
 message("CMAKE_REQUIRED_INCLUDES = ${CMAKE_REQUIRED_INCLUDES}")
 check_include_file(quickjs.h HAVE_QUICKJS_H)
 
+include(CheckCSourceRuns)
+
+check_c_source_runs(
+    "#include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   return __builtin_mul_overflow(a, b, c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n   return 0;\n}"
+
+    HAVE__BUILTIN_MUL_OVERFLOW)
+if(HAVE__BUILTIN_MUL_OVERFLOW)
+    add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
+endif(HAVE__BUILTIN_MUL_OVERFLOW)
+
 if(NOT HAVE_QUICKJS_H)
   message(FATAL_ERROR "QuickJS headers not found")
 endif(NOT HAVE_QUICKJS_H)

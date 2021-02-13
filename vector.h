@@ -23,6 +23,11 @@ vector_size(const vector* vec, size_t elsz) {
   return vec->size / elsz;
 }
 
+static inline int
+vector_empty(const vector* vec) {
+  return vec->size == 0;
+}
+
 static inline void*
 vector_begin(const vector* vec) {
   return vec->data;

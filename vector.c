@@ -7,7 +7,7 @@
 
 #define HAVE_UINT128
 
-#if defined(__GNUC__) && (__GNUC__ >= 5)
+#if(defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
 int
 umult64(uint64_t a, uint64_t b, uint64_t* c) {
   return !__builtin_mul_overflow(a, b, c);
@@ -82,7 +82,11 @@ vector_free(vector* vec) {
 void*
 vector_at(const vector* vec, size_t elsz, int32_t pos) {
   uint64_t offs;
-  if(pos < 0 || (offs = elsz * (uint32_t)pos) >= vec->size)
+  if(pos < 0)
+    return 0;
+  if(!umult64(elsz, pos, &offs))
+    return 0;
+  if(offs >= vec->size)
     return 0;
   return vec->data + offs;
 }
@@ -90,9 +94,11 @@ vector_at(const vector* vec, size_t elsz, int32_t pos) {
 void
 vector_shrink(vector* vec, size_t elsz, int32_t len) {
   uint64_t need;
-  if((len < 0))
+  if(len < 0)
     return;
-  if((need = elsz * (uint32_t)len) > vec->size)
+  if(!umult64(elsz, len, &need))
+    return;
+  if(need > vec->size)
     return;
   vec->size = need;
 }
