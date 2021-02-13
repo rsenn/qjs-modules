@@ -49,6 +49,7 @@ typedef struct {
 static TreeIterator*
 tree_iterator_new(TreeWalker* wc, JSValue obj) {
   TreeIterator* it;
+
   if((it = vector_push(&wc->frames, sizeof(TreeIterator)))) {
     it->obj = obj;
     it->tab_atom = 0;
@@ -94,6 +95,11 @@ tree_iterator_key(TreeIterator* it, JSContext* ctx) {
 static TreeIterator*
 tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
   TreeIterator* it;
+
+  if(!JS_IsObject(object)) {
+    JS_ThrowTypeError(ctx, "not an object");
+    return 0;
+  }
   wc->current = JS_DupValue(ctx, object);
   if((it = tree_iterator_new(wc, wc->current)))
     tree_iterator_init(it, ctx, object, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
@@ -103,10 +109,23 @@ tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
 static TreeIterator*
 tree_walker_push(TreeWalker* wc, JSContext* ctx) {
   TreeIterator* it;
-
+  if(!JS_IsObject(wc->current)) {
+    JS_ThrowTypeError(ctx, "not an object");
+    return 0;
+  }
   if((it = tree_iterator_new(wc, wc->current)))
     tree_iterator_init(it, ctx, wc->current, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
   return it;
+}
+
+static TreeIterator*
+tree_walker_pop(TreeWalker* wc, JSContext* ctx) {
+  TreeIterator* it = vector_back(&wc->frames, sizeof(TreeIterator));
+  js_free_prop_enum(JS_GetRuntime(ctx), it->tab_atom, it->tab_atom_len);
+  vector_pop(&wc->frames, sizeof(TreeIterator));
+  if(vector_size(&wc->frames, sizeof(TreeIterator)) == 0)
+    return 0;
+  return vector_back(&wc->frames, sizeof(TreeIterator));
 }
 
 static JSValue
@@ -155,13 +174,15 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   switch(magic) {
     case FIRST_CHILD: {
-      if(tree_iterator_setpos((it = tree_walker_push(wc, ctx)), 0))
-        return wc->current = tree_iterator_value(it, ctx);
+      if((it = tree_walker_push(wc, ctx)))
+        if(tree_iterator_setpos(it, 0))
+          return wc->current = tree_iterator_value(it, ctx);
       break;
     }
     case LAST_CHILD: {
-      if(tree_iterator_setpos((it = tree_walker_push(wc, ctx)), -1))
-        return wc->current = tree_iterator_value(it, ctx);
+      if((it = tree_walker_push(wc, ctx)))
+        if(tree_iterator_setpos(it, -1))
+          return wc->current = tree_iterator_value(it, ctx);
       break;
     }
     case NEXT_NODE: {
@@ -173,6 +194,8 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       break;
     }
     case PARENT_NODE: {
+      if((it = tree_walker_pop(wc, ctx)))
+        return wc->current = tree_iterator_value(it, ctx);
       break;
     }
     case PREVIOUS_NODE: {
