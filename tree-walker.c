@@ -14,11 +14,11 @@ typedef struct JSForInIterator {
 } JSForInIterator;
 
 static void
-js_free_prop_enum(JSRuntime* rt, JSPropertyEnum* tab, uint32_t len) {
+js_free_prop_enum(JSRuntime* rt, JSPropertyEnum* tab_atom, uint32_t len) {
   uint32_t i;
-  if(tab) {
-    for(i = 0; i < len; i++) JS_FreeAtomRT(rt, tab[i].atom);
-    js_free_rt(rt, tab);
+  if(tab_atom) {
+    for(i = 0; i < len; i++) JS_FreeAtomRT(rt, tab_atom[i].atom);
+    js_free_rt(rt, tab_atom);
   }
 }
 
@@ -38,7 +38,7 @@ typedef struct {
   BOOL is_array;
   uint32_t tab_atom_len;
   uint32_t idx;
-  JSPropertyEnum* tab;
+  JSPropertyEnum* tab_atom;
 } TreeIterator;
 
 typedef struct {
@@ -51,7 +51,7 @@ tree_iterator_new(TreeWalker* wc, JSValue obj) {
   TreeIterator* it;
   if((it = vector_push(&wc->frames, sizeof(TreeIterator)))) {
     it->obj = obj;
-    it->tab = 0;
+    it->tab_atom = 0;
     it->tab_atom_len = 0;
     it->idx = 0;
   }
@@ -60,15 +60,15 @@ tree_iterator_new(TreeWalker* wc, JSValue obj) {
 
 static int
 tree_iterator_init(TreeIterator* it, JSContext* ctx, JSValueConst object, int flags) {
-  if(JS_GetOwnPropertyNames(ctx, &it->tab, &it->tab_atom_len, object, flags)) {
+  if(JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, object, flags)) {
     it->tab_atom_len = 0;
-    it->tab = 0;
+    it->tab_atom = 0;
     return -1;
   }
   return 0;
 }
 
-static JSPropertyEnum*
+static int32_t
 tree_iterator_setpos(TreeIterator* it, int32_t idx) {
   if(idx < 0) {
     idx %= (int32_t)it->tab_atom_len;
@@ -78,20 +78,18 @@ tree_iterator_setpos(TreeIterator* it, int32_t idx) {
   }
   assert(idx >= 0);
   assert(idx < it->tab_atom_len);
-  return &it->tab[(it->idx = idx)];
+return (it->idx = idx);
 }
 
 static JSValue
 tree_iterator_value(TreeIterator* it, JSContext* ctx) {
-  return JS_GetProperty(ctx, it->obj, it->tab[it->idx].atom);
+  return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx].atom);
 }
 
 static JSValue
-tree_iterator_key(TreeIterator* it,  JSContext* ctx) {
-    return JS_AtomToValue(ctx, it->tab[it->idx].atom);
-   
+tree_iterator_key(TreeIterator* it, JSContext* ctx) {
+  return JS_AtomToValue(ctx, it->tab_atom[it->idx].atom);
 }
-
 
 static TreeIterator*
 tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
@@ -167,17 +165,16 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   switch(magic) {
     case FIRST_CHILD: {
       if(JS_IsObject(wc->current)) {
-        it = tree_walker_push(wc, ctx);
-        tree_iterator_setpos(it, 0);
-        return tree_iterator_value(it, ctx);
+        tree_iterator_setpos((it = tree_walker_push(wc, ctx)), 0);
+        return wc->current = tree_iterator_value(it, ctx);
       }
       break;
     }
     case LAST_CHILD: {
       if(JS_IsObject(wc->current)) {
-        it = tree_walker_push(wc, ctx);
-       tree_iterator_setpos(it, -1);
-        return tree_iterator_value(it, ctx);
+        ;
+        tree_iterator_setpos((it = tree_walker_push(wc, ctx)), -1);
+        return wc->current = tree_iterator_value(it, ctx);
       }
       break;
     }
@@ -230,7 +227,7 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
       return JS_NewUint32(ctx, it->tab_atom_len);
     }
     case GET_KEY: {
-      return tree_iterator_key(it,  ctx);
+      return tree_iterator_key(it, ctx);
     }
   }
   return JS_UNDEFINED;
@@ -252,11 +249,11 @@ js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
     for(i = 0; i < n; i++) {
       it = vector_at(&wc->frames, sizeof(TreeIterator), i);
       JS_FreeValueRT(rt, it->obj);
-      js_free_prop_enum(rt, it->tab, it->tab_atom_len);
+      js_free_prop_enum(rt, it->tab_atom, it->tab_atom_len);
     }
 
-       JS_FreeValueRT(rt, wc->current);
-   js_free_rt(rt, wc);
+    JS_FreeValueRT(rt, wc->current);
+    js_free_rt(rt, wc);
   }
   // JS_FreeValueRT(rt, val);
 }
