@@ -473,8 +473,8 @@ strndup(const char* s, size_t n) {
 static char*
 js_class_name(JSContext* ctx, JSValueConst value) {
   JSValue proto, ctor;
-  const char *str;
-  char *name = 0;
+  const char* str;
+  char* name = 0;
   int namelen;
   proto = JS_GetPrototype(ctx, value);
   ctor = JS_GetPropertyStr(ctx, proto, "constructor");
