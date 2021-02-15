@@ -209,7 +209,7 @@ tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
 
   vector_clear(&wc->frames);
 
-  wc->flags = MATCH_KEY|MATCH_VALUE;
+  wc->flags = MATCH_KEY | MATCH_VALUE;
 
   /*  JS_FreeValue(ctx, wc->current);
     wc->current = JS_UNDEFINED;*/
@@ -245,17 +245,16 @@ tree_walker_setregexp(TreeWalker* wc, JSContext* ctx, const char* str) {
 }
 
 static int
-tree_walker_testregexp(TreeWalker* wc, JSContext* ctx, const char *str) {
-   uint8_t* capture = 0;
+tree_walker_testregexp(TreeWalker* wc, JSContext* ctx, const char* str) {
+  uint8_t* capture = 0;
   int ret;
-   ret = lre_exec(&capture, wc->re_byte, (const uint8_t*)str, 0, strlen(str), 0, ctx);
+  ret = lre_exec(&capture, wc->re_byte, (const uint8_t*)str, 0, strlen(str), 0, ctx);
   return ret == 1;
 }
 
-
 static int
 tree_walker_testregexp_value(TreeWalker* wc, JSContext* ctx, JSValue value) {
-   int ret;
+  int ret;
   size_t len;
   const char* str;
   str = JS_ToCStringLen(ctx, &len, value);
@@ -433,23 +432,23 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* wc) {
     type = js_value_type(value);
 
     if(wc->tag_mask && 0 == (wc->tag_mask & (1 << type))) {
-              JS_FreeValue(ctx, value);
+      JS_FreeValue(ctx, value);
       continue;
     }
 
     if(wc->re_byte) {
       int ret = 1;
 
-    /*  if(type != TYPE_OBJECT &&  (wc->flags & MATCH_VALUE))
-        ret &= tree_walker_testregexp_value(wc, ctx, value);
+      /*  if(type != TYPE_OBJECT &&  (wc->flags & MATCH_VALUE))
+          ret &= tree_walker_testregexp_value(wc, ctx, value);
 
-  
-      if(!ret &&  (wc->flags & MATCH_KEY) && it->idx < it->tab_atom_len) {
-        const char* str = JS_AtomToCString(ctx, property_enumeration_atom(it));
 
-         ret &= tree_walker_testregexp(wc, ctx, str);
-         JS_FreeCString(ctx, str);
-      }*/
+        if(!ret &&  (wc->flags & MATCH_KEY) && it->idx < it->tab_atom_len) {
+          const char* str = JS_AtomToCString(ctx, property_enumeration_atom(it));
+
+           ret &= tree_walker_testregexp(wc, ctx, str);
+           JS_FreeCString(ctx, str);
+        }*/
 
       if(ret == 0) {
         JS_FreeValue(ctx, value);
@@ -457,7 +456,6 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* wc) {
       }
     }
     JS_FreeValue(ctx, value);
-
   }
   return it;
 }
@@ -579,7 +577,7 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_TAG_MASK: {
       return JS_NewUint32(ctx, wc->tag_mask);
     }
-       case PROP_FLAGS: {
+    case PROP_FLAGS: {
       return JS_NewUint32(ctx, wc->flags);
     }
   }
@@ -602,8 +600,8 @@ js_tree_walker_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       JS_ToUint32(ctx, &tag_mask, value);
       wc->tag_mask = tag_mask;
       break;
-    }  
-      case PROP_FLAGS: {
+    }
+    case PROP_FLAGS: {
       uint32_t flags = 0;
       JS_ToUint32(ctx, &flags, value);
       wc->flags = flags;
