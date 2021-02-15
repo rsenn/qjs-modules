@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdarg.h>
 #include <assert.h>
 
 #define HAVE_UINT128
@@ -54,17 +55,18 @@ vector_allocate(vector* vec, size_t elsz, int32_t pos) {
     return 0;
 
   if(need > vec->size) {
-    if(need >= vec->capacity) {
+    if(need > vec->capacity) {
       if(elsz < 8)
-        need = (need + 127) & (~127);
+        need = (need + 1023) & (~1023);
       else
         need = (need + 4095) & (~4095);
-      assert(need >= 128);
+      assert(need >= 512);
       if(!(tmp = realloc(vec->data, need)))
         return 0;
       vec->data = tmp;
-      vec->capacity = need;
-      memset(vec->data + vec->size, 0, vec->capacity - vec->size);
+      if(need > vec->capacity)
+        memset(vec->data + vec->capacity, 0, need - vec->capacity);
+      vec->capacity += need;
     }
     vec->size = ((uint32_t)pos + 1) * elsz;
   }
@@ -101,4 +103,35 @@ vector_shrink(vector* vec, size_t elsz, int32_t len) {
   if(need > vec->size)
     return;
   vec->size = need;
+}
+
+void
+vector_catb(vector* vec, const void* bytes, size_t len) {
+  size_t pos;
+  if(!len)
+    return;
+  pos = vec->size;
+  if(!vector_allocate(vec, 1, vec->size + len - 1))
+    return;
+  memcpy(vec->data + pos, bytes, len);
+}
+
+void __attribute__((format(printf, 2, 3))) vector_printf(vector* vec, const char* fmt, ...) {
+  va_list ap;
+  char buf[128];
+  int len;
+  va_start(ap, fmt);
+  len = vsnprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+  if(len < sizeof(buf)) {
+    vector_catb(vec, buf, len);
+  } else {
+    size_t pos = vec->size;
+    if(!vector_allocate(vec, 1, vec->size + len))
+      return;
+    va_start(ap, fmt);
+    len = vsnprintf((char*)(vec->data + pos), len, fmt, ap);
+    va_end(ap);
+    vec->size += len;
+  }
 }

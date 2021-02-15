@@ -40,7 +40,7 @@ static JSAtom inspect_custom_atom;
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_newline_char(c) ((c) == '\n')
-#define is_identifier_char(c) (is_alphanumeric_char(c) || (c) == '$' || (c) == '_')
+#define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
 
 static inline size_t
 min_size(size_t a, size_t b) {
@@ -479,7 +479,6 @@ js_class_name(JSContext* ctx, JSValueConst value) {
   proto = JS_GetPrototype(ctx, value);
   ctor = JS_GetPropertyStr(ctx, proto, "constructor");
   if((str = JS_ToCString(ctx, ctor))) {
-    printf("  ctor=%s\n", str);
     if(!strncmp(str, "function ", 9)) {
       namelen = byte_chr(str + 9, strlen(str) - 9, '(');
       name = js_strndup(ctx, str + 9, namelen);
@@ -521,8 +520,7 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
     }
   }
   if(name)
-    js_free(ctx, (void*)name);
-  printf("js_is_arraybuffer ret=%i\n", ret);
+    js_free(ctx, (void*)name); // printf("js_is_arraybuffer ret=%i\n", ret);
   return ret;
 }
 
@@ -546,7 +544,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 
   ptr = JS_GetArrayBuffer(ctx, &size, value);
 
-  printf("maxArrayLength: %i\n", opts->max_array_length);
+  //  printf("maxArrayLength: %i\n", opts->max_array_length);
 
   str = JS_ToCString(ctx, value);
   str2 = strstr(str, "ArrayBuffer");
