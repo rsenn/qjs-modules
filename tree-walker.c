@@ -57,7 +57,8 @@ enum tree_walker_mask {
   MASK_BIG_FLOAT = (1 << TYPE_BIG_FLOAT),
   MASK_BIG_INT = (1 << TYPE_BIG_INT),
   MASK_BIG_DECIMAL = (1 << TYPE_BIG_DECIMAL),
-  MASK_ALL = ((1 << (TYPE_BIG_DECIMAL+1) -1))
+  MASK_PRIMITIVE = (MASK_UNDEFINED |MASK_NULL|MASK_BOOL|MASK_INT|MASK_STRING|MASK_SYMBOL|MASK_BIG_FLOAT|MASK_BIG_INT|MASK_BIG_DECIMAL),
+  MASK_ALL = (MASK_PRIMITIVE|MASK_OBJECT)
 };
 
 typedef struct {
@@ -218,7 +219,7 @@ tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
 static int
 tree_walker_setregexp(TreeWalker* wc, JSContext* ctx, const char* str) {
   char error_msg[64];
-  int re_flags = LRE_FLAG_GLOBAL | LRE_FLAG_IGNORECASE;
+  int re_flags = /*LRE_FLAG_GLOBAL | */LRE_FLAG_IGNORECASE;
 
   wc->re_bytecode = lre_compile(&wc->re_bytecodelen, error_msg, sizeof(error_msg), str, strlen(str), re_flags, ctx);
   if(!wc->re_bytecode)
@@ -635,7 +636,8 @@ static const JSCFunctionListEntry js_tree_walker_static_funcs[] = {
     JS_PROP_INT32_DEF("MASK_BIG_FLOAT", MASK_BIG_FLOAT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MASK_BIG_INT", MASK_BIG_INT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MASK_BIG_DECIMAL", MASK_BIG_DECIMAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_ALL", MASK_ALL, JS_PROP_ENUMERABLE)};
+    JS_PROP_INT32_DEF("MASK_ALL", MASK_ALL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("MASK_PRIMITIVE", MASK_PRIMITIVE, JS_PROP_ENUMERABLE)};
 
 static int
 js_tree_walker_init(JSContext* ctx, JSModuleDef* m) {
