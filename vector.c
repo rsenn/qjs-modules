@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "quickjs.h"
 #include "vector.h"
 #include <stdlib.h>
@@ -106,7 +108,7 @@ vector_shrink(vector* vec, size_t elsz, int32_t len) {
 }
 
 void
-vector_catb(vector* vec, const void* bytes, size_t len) {
+vector_put(vector* vec, const void* bytes, size_t len) {
   size_t pos;
   if(!len)
     return;
@@ -124,7 +126,7 @@ void __attribute__((format(printf, 2, 3))) vector_printf(vector* vec, const char
   len = vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
   if(len < sizeof(buf)) {
-    vector_catb(vec, buf, len);
+    vector_put(vec, buf, len);
   } else {
     size_t pos = vec->size;
     if(!vector_allocate(vec, 1, vec->size + len))

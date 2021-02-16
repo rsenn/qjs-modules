@@ -23,7 +23,7 @@ typedef struct {
 int umult64(uint64_t a, uint64_t b, uint64_t* c);
 void* vector_allocate(vector* vec, size_t elsz, int32_t pos);
 void* vector_at(const vector* vec, size_t elsz, int32_t pos);
-void vector_catb(vector* vec, const void* bytes, size_t len);
+void vector_put(vector* vec, const void* bytes, size_t len);
 void vector_free(vector* vec);
 void vector_shrink(vector* vec, size_t elsz, int32_t len);
 void vector_printf(vector* vec, const char*, ...);
@@ -81,19 +81,33 @@ vector_pop(vector* vec, size_t elsz) {
 }
 
 static inline void
-vector_cats(vector* vec, const char* str) {
-  vector_catb(vec, str, strlen(str));
+vector_puts(vector* vec, const char* str) {
+  vector_put(vec, str, strlen(str));
 }
 
 static inline void
-vector_cat0(vector* vec) {
-  vector_catb(vec, "\0", 1);
+vector_put0(vector* vec) {
+  vector_put(vec, "\0", 1);
 }
+
 static inline void
+vector_putlong(vector* vec, long l, int radix) {
+  char buf[64];
+  size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
+  vector_put(vec, buf, len);
+}
+
+static inline void
+vector_sort(vector* vec, size_t elsz, int (*compar)(const void*, const void*, void*), void* arg) {
+  qsort_r(vector_begin(vec), vector_size(vec, elsz), elsz, compar, arg);
+}
+
+static inline void
+
 vector_catlong(vector* vec, long l, int radix) {
   char buf[64];
   size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
-  vector_catb(vec, buf, len);
+  vector_put(vec, buf, len);
 }
 
 #endif /* VECTOR_H */
