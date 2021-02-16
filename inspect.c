@@ -426,7 +426,7 @@ js_is_map(JSContext* ctx, JSValueConst value) {
   int ret;
   const char* str;
   str = JS_ToCString(ctx, value);
-  ret = strstr(str, " Map]") != 0;
+  ret = strcmp(str, "[object Map]") == 0;
   JS_FreeCString(ctx, str);
   return ret;
 }
@@ -473,7 +473,7 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_
   entries = JS_GetPropertyStr(ctx, value, "entries");
   iterator = JS_Call(ctx, entries, value, 0, NULL);
   JS_FreeValue(ctx, entries);
-  dbuf_putstr(buf, "Map {\n");
+  dbuf_putstr(buf, "Map {");
   js_inspect_newline(buf, level + 1);
   next = JS_GetPropertyStr(ctx, iterator, "next");
   for(i = 0;; i++) {
@@ -490,11 +490,12 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_
     }
     dbuf_putstr(buf, "  ");
     key = JS_GetPropertyUint32(ctx, entry, 0);
-    js_inspect_print(ctx, buf, key, opts, depth + 1);
+    js_inspect_print(ctx, buf, key, opts, depth - 2);
     dbuf_putstr(buf, " => ");
     val = JS_GetPropertyUint32(ctx, entry, 1);
-    js_inspect_print(ctx, buf, val, opts, depth + 1);
+    js_inspect_print(ctx, buf, val, opts, depth - 2);
   }
+      js_inspect_newline(buf, level);
   dbuf_putstr(buf, "}");
 }
 
