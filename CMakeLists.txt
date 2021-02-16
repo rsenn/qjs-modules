@@ -3,6 +3,7 @@ project(quickjs-modules C)
 set(QUICKJS_MODULES mmap inspect tree-walker xml)
 
 set(tree_walker_SOURCES vector.c vector.h)
+set(xml_SOURCES vector.c vector.h)
 
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
