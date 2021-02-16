@@ -91,12 +91,12 @@ js_value_dump(JSContext* ctx, JSValue value, vector* vec) {
 
 static int32_t
 js_value_type(JSValueConst value) {
-   switch(JS_VALUE_GET_TAG(value)) {
+  switch(JS_VALUE_GET_TAG(value)) {
     case JS_TAG_UNDEFINED: return TYPE_UNDEFINED;
     case JS_TAG_NULL: return TYPE_NULL;
     case JS_TAG_BOOL: return TYPE_BOOL;
     case JS_TAG_INT: return TYPE_INT;
-    case JS_TAG_OBJECT:      return TYPE_OBJECT; 
+    case JS_TAG_OBJECT: return TYPE_OBJECT;
     case JS_TAG_STRING: return TYPE_STRING;
     case JS_TAG_SYMBOL: return TYPE_SYMBOL;
     case JS_TAG_BIG_FLOAT: return TYPE_BIG_FLOAT;
@@ -121,10 +121,10 @@ tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
 static PropertyEnumeration*
 tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
   PropertyEnumeration* it;
-    tree_walker_reset(wc, ctx);
-it = property_enumeration_push(&wc->frames, ctx, object, PROPERTY_ENUMERATION_DEFAULT_FLAGS);
-/*  if((it = property_enumeration_new(&wc->frames)))
-    property_enumeration_init(it, ctx, object, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);*/
+  tree_walker_reset(wc, ctx);
+  it = property_enumeration_push(&wc->frames, ctx, object, PROPERTY_ENUMERATION_DEFAULT_FLAGS);
+  /*  if((it = property_enumeration_new(&wc->frames)))
+      property_enumeration_init(it, ctx, object, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);*/
   return it;
 }
 
@@ -164,16 +164,10 @@ tree_walker_dump(TreeWalker* wc, JSContext* ctx, vector* vec) {
   PropertyEnumeration* it;
   size_t i;
   vector_puts(vec, "TreeWalker {\n  current: ");
-  // js_value_dump(ctx, wc->current, vec);
-  vector_printf(vec, ",\n  frames: (%u) [\n    ", vector_size(&wc->frames, sizeof(PropertyEnumeration)));
+  vector_printf(vec, ",\n  frames: (%u) ");
 
-  i = 0;
-  vector_foreach_t(&wc->frames, it) {
-    vector_puts(vec, i > 0 ? ",\n    " : "");
-    property_enumeration_dump(it, ctx, vec);
-    i++;
-  }
-  vector_puts(vec, "\n  ]\n}");
+  property_enumeration_dumpall(&wc->frames, ctx, vec);
+  vector_puts(vec, "\n}");
 }
 
 static JSValue
@@ -271,12 +265,14 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   switch(magic) {
     case FIRST_CHILD: {
-      if((it = property_enumeration_enter(&wc->frames, ctx, PROPERTY_ENUMERATION_DEFAULT_FLAGS)) == 0 || !property_enumeration_setpos(it, 0))
+      if((it = property_enumeration_enter(&wc->frames, ctx, PROPERTY_ENUMERATION_DEFAULT_FLAGS)) == 0 ||
+         !property_enumeration_setpos(it, 0))
         return JS_UNDEFINED;
       break;
     }
     case LAST_CHILD: {
-      if((it = property_enumeration_enter(&wc->frames, ctx, PROPERTY_ENUMERATION_DEFAULT_FLAGS)) == 0 || !property_enumeration_setpos(it, -1))
+      if((it = property_enumeration_enter(&wc->frames, ctx, PROPERTY_ENUMERATION_DEFAULT_FLAGS)) == 0 ||
+         !property_enumeration_setpos(it, -1))
         return JS_UNDEFINED;
       break;
     }
@@ -330,10 +326,10 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
       return JS_NewUint32(ctx, vector_size(&wc->frames, sizeof(PropertyEnumeration)) - 1);
     }
     case PROP_INDEX: {
-      return JS_NewUint32(ctx, it->idx);
+      return JS_NewUint32(ctx, property_enumeration_index(it));
     }
     case PROP_LENGTH: {
-      return JS_NewUint32(ctx, it->tab_atom_len);
+      return JS_NewUint32(ctx, property_enumeration_length(it));
     }
     case PROP_TAG_MASK: {
       return JS_NewUint32(ctx, wc->tag_mask);
@@ -360,7 +356,7 @@ js_tree_walker_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       int64_t index = 0;
       JS_ToInt64(ctx, &index, value);
       if(index < 0)
-        index = (index % it->tab_atom_len) + it->tab_atom_len;
+        index = (index % property_enumeration_length(it)) + property_enumeration_length(it);
       it->idx = index;
       break;
     }

@@ -20,6 +20,8 @@ typedef struct {
 #define PROPERTY_ENUMERATION_DEFAULT_FLAGS (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)
 
 #define property_enumeration_new(vec) vector_push((vec), sizeof(PropertyEnumeration))
+#define property_enumeration_length(enum) ((enum)->tab_atom_len)
+#define property_enumeration_index(enum) ((enum)->idx)
 
 inline static int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
@@ -88,13 +90,13 @@ property_enumeration_pop(vector* vec, JSContext* ctx) {
 inline static PropertyEnumeration*
 property_enumeration_push(vector* vec, JSContext* ctx, JSValue object, int flags) {
   PropertyEnumeration* it;
-  
+
   if(!JS_IsObject(object)) {
     JS_ThrowTypeError(ctx, "not an object");
     return 0;
   }
   if((it = property_enumeration_new(vec)))
-    property_enumeration_init(it, ctx,object,flags);
+    property_enumeration_init(it, ctx, object, flags);
 
   return it;
 }
@@ -108,7 +110,7 @@ property_enumeration_enter(vector* vec, JSContext* ctx, int flags) {
   it = vector_back(vec, sizeof(PropertyEnumeration));
   value = property_enumeration_value(it, ctx);
 
-return property_enumeration_push(vec, ctx, value, flags);
+  return property_enumeration_push(vec, ctx, value, flags);
 }
 
 inline static int
@@ -159,28 +161,41 @@ property_enumeration_sort(PropertyEnumeration* it, JSContext* ctx) {
 }
 
 inline static void
-property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, vector* vec) {
+property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, vector* out) {
   size_t i;
   const char* s;
-  vector_puts(vec, "{ obj: 0x");
-  vector_putlong(vec, (long)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : 0), 16);
-  vector_puts(vec, ", idx: ");
-  vector_putlong(vec, it->idx, 10);
-  vector_puts(vec, ", tab_atom_len: ");
-  vector_putlong(vec, it->tab_atom_len, 10);
-  vector_puts(vec, ", tab_atom: [ ");
+  vector_puts(out, "{ obj: 0x");
+  vector_putlong(out, (long)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : 0), 16);
+  vector_puts(out, ", idx: ");
+  vector_putlong(out, it->idx, 10);
+  vector_puts(out, ", len: ");
+  vector_putlong(out, it->tab_atom_len, 10);
+  vector_puts(out, ", tab: [ ");
   for(i = 0; i < it->tab_atom_len; i++) {
     if(i)
-      vector_put(vec, ", ", 2);
+      vector_put(out, ", ", 2);
     s = JS_AtomToCString(ctx, it->tab_atom[i].atom);
-    if(i == it->idx)
-      vector_puts(vec, "\x1b[32m");
-    vector_puts(vec, s);
-    if(i == it->idx)
-      vector_puts(vec, "\x1b[m");
+    vector_puts(out, i == it->idx ? "\x1b[1;31m" : "\x1b[1;30m");
+    vector_puts(out, s);
+    vector_puts(out, "\x1b[m");
     JS_FreeCString(ctx, s);
   }
-  vector_puts(vec, " ] }");
+  vector_puts(out, " ] }");
+}
+
+inline static void
+property_enumeration_dumpall(vector* vec, JSContext* ctx, vector* out) {
+
+  PropertyEnumeration* it;
+  size_t i = 0;
+  vector_puts(out, "[\n  ");
+  vector_foreach_t(vec, it) {
+    if(i)
+      vector_puts(out, ",\n  ");
+    property_enumeration_dump(it, ctx, out);
+    i++;
+  }
+  vector_puts(out, "\n]");
 }
 
 static JSValue
