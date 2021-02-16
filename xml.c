@@ -146,7 +146,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
       js_set_attr_value(ctx, element, "tagName", 7, name, namelen);
       if(namelen && (chars[name[0]] & (QUESTION | EXCLAM)))
         self_closing = TRUE;
-      if(n >= 3 && (chars[*start] & EXCLAM) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & HYPHEN)) {
+      if(namelen >= 3 && (chars[*start] & EXCLAM) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & HYPHEN)) {
         while(!done) {
           next();
           if(end - ptr >= 3 && (chars[*start] & HYPHEN) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & CLOSE)) {
@@ -291,11 +291,12 @@ xml_enumeration_next(vector* vec, JSContext* ctx, DynBuf* db) {
     for(;;) {
       if((it = property_enumeration_pop(vec, ctx)) == 0)
         goto end;
-
-      value = property_enumeration_value(it, ctx);
+if(!vector_empty(vec)) {
+      it = vector_back(vec, sizeof(PropertyEnumeration));
+    value = property_enumeration_value(it, ctx);
       xml_close_element(ctx, value, db, (int32_t)vector_size(vec, sizeof(PropertyEnumeration)) - 1);
       JS_FreeValue(ctx, value);
-
+    }
       if(property_enumeration_setpos(it, it->idx + 1))
         goto end;
     }
@@ -338,6 +339,24 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
     JS_FreeCString(ctx, keystr);
     JS_FreeValue(ctx, value);
   }
+}
+
+static inline void
+xml_write_indent(  DynBuf* db, int32_t depth) {
+ while(depth-- > 0) dbuf_putstr(db, "  ");
+ }
+static void
+xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
+  const char* textStr;
+size_t textLen;
+  textStr = JS_ToCStringLen(ctx, &textLen,text);
+
+while(textLen) {
+xml_write_indent(db, depth);
+  dbuf_putstr(db, textStr);
+  dbuf_putc(db, '\n');
+}
+  JS_FreeCString(ctx, textStr);
 }
 
 static void
@@ -391,6 +410,8 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     value = property_enumeration_value(it, ctx);
     if(JS_IsObject(value)) {
       xml_write_element(ctx, value, &output, depth);
+    } else if(JS_IsString(value)) {
+      xml_write_text(ctx, value, &output, depth);
     }
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, &output)));

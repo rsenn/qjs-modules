@@ -1,6 +1,7 @@
 #include "quickjs.h"
 #include "cutils.h"
 #include "list.h"
+#include "byte.h"
 #include <math.h>
 #include <ctype.h>
 #include <string.h>
@@ -97,22 +98,7 @@ predicate_find(const char* str, size_t len, int (*pred)(char)) {
       break;
   return pos;
 }
-
-static size_t
-byte_chr(const char* str, size_t len, char c) {
-  const char* s = str;
-  const char* t = s + len;
-
-  for(;;) {
-    if(s == t)
-      break;
-    if(*s == c)
-      break;
-    ++s;
-  }
-  return s - str;
-}
-
+ 
 static size_t
 ansi_skip(const char* str, size_t len) {
   size_t pos = 0;
