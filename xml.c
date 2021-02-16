@@ -378,34 +378,27 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 
   vector enumerations = VECTOR_INIT();
   DynBuf output = {0};
-
   JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
   PropertyEnumeration* it;
   JSValue value = JS_UNDEFINED;
   JSValue str;
   it = property_enumeration_push(&enumerations, ctx, obj, PROPERTY_ENUMERATION_DEFAULT_FLAGS);
-  dbuf_init(&output);
+//  dbuf_init(&output);
+      dbuf_init2(&output,JS_GetRuntime(ctx), (DynBufReallocFunc *)js_realloc_rt);
 
   do {
     int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
     value = property_enumeration_value(it, ctx);
-
     if(JS_IsObject(value)) {
       xml_write_element(ctx, value, &output, depth);
     }
-
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, &output)));
-
   dbuf_putc(&output, '\0');
-
   str = JS_NewString(ctx, output.buf);
-
   dbuf_free(&output);
-
   vector_foreach_t(&enumerations, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
   vector_free(&enumerations);
-
   return str;
 }
 
