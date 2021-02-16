@@ -103,7 +103,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
 
   ret = JS_NewArray(ctx);
 
-  out = vector_push(&st, sizeof(JSValue));
+  out = vector_push(&st, sizeof(OutputValue));
 out->obj = ret;
 out->idx = 0;
 
@@ -181,6 +181,11 @@ out->idx = 0;
         }
         if(closing) {
           JS_DefinePropertyValueStr(ctx, element, "closing", JS_NewBool(ctx, closing), JS_PROP_ENUMERABLE);
+        } else {
+          out = vector_push(&st, sizeof(OutputValue));
+          out->obj = JS_NewArray(ctx);
+          out->idx = 0;
+          JS_SetPropertyStr(ctx, element, "children", out->obj);
         }
         if(!closing) {
           if(chars[name[0]] & EXCLAM) {
