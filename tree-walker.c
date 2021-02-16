@@ -1,7 +1,7 @@
 #include "quickjs.h"
 #include "cutils.h"
 #include "libregexp.h"
-#include "vector.h"
+#include "property-enumeration.h"
 #include <string.h>
 
 JSClassID js_tree_walker_class_id;
@@ -37,15 +37,18 @@ enum tree_walker_getters {
 };
 enum tree_walker_types {
   TYPE_UNDEFINED = 0,
-  TYPE_NULL,   // 1
-  TYPE_BOOL,   // 2
-  TYPE_INT,    // 3
-  TYPE_OBJECT, // 4
-  TYPE_STRING, // 5
-  TYPE_SYMBOL,
-  TYPE_BIG_FLOAT,
-  TYPE_BIG_INT,
-  TYPE_BIG_DECIMAL
+  TYPE_NULL,        // 1
+  TYPE_BOOL,        // 2
+  TYPE_INT,         // 3
+  TYPE_OBJECT,      // 4
+  TYPE_STRING,      // 5
+  TYPE_SYMBOL,      // 6
+  TYPE_BIG_FLOAT,   // 7
+  TYPE_BIG_INT,     // 8
+  TYPE_BIG_DECIMAL, // 9
+  TYPE_FUNCTION = 16,
+  TYPE_ARRAY = 17
+
 };
 enum tree_walker_mask {
   MASK_UNDEFINED = (1 << TYPE_UNDEFINED),
@@ -60,18 +63,14 @@ enum tree_walker_mask {
   MASK_BIG_DECIMAL = (1 << TYPE_BIG_DECIMAL),
   MASK_PRIMITIVE = (MASK_UNDEFINED | MASK_NULL | MASK_BOOL | MASK_INT | MASK_STRING | MASK_SYMBOL | MASK_BIG_FLOAT |
                     MASK_BIG_INT | MASK_BIG_DECIMAL),
-  MASK_ALL = (MASK_PRIMITIVE | MASK_OBJECT)
+  MASK_ALL = (MASK_PRIMITIVE | MASK_OBJECT),
+  MASK_FUNCTION = (1 << TYPE_FUNCTION),
+  MASK_ARRAY = (1 << TYPE_ARRAY),
+
 };
 
 enum tree_walker_flags { MATCH_KEY = 1, MATCH_VALUE = 2 };
 
-typedef struct {
-  JSValue obj;
-  uint32_t idx;
-  uint32_t tab_atom_len;
-  JSPropertyEnum* tab_atom;
-  BOOL is_array;
-} PropertyEnumeration;
 
 typedef struct {
   // JSValue current;
@@ -83,64 +82,6 @@ typedef struct {
 } TreeWalker;
 
 #define property_enumeration_new(wc) vector_push(&(wc)->frames, sizeof(PropertyEnumeration))
-
-static void
-property_enumeration_free(PropertyEnumeration* it, JSRuntime* rt) {
-  uint32_t i;
-  if(it->tab_atom) {
-    for(i = 0; i < it->tab_atom_len; i++) JS_FreeAtomRT(rt, it->tab_atom[i].atom);
-    js_free_rt(rt, it->tab_atom);
-  }
-  JS_FreeValueRT(rt, it->obj);
-}
-
-static int
-property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
-  it->obj = object;
-  it->idx = 0;
-  it->is_array = JS_IsArray(ctx, object);
-
-  if(JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, object, flags)) {
-    it->tab_atom_len = 0;
-    it->tab_atom = 0;
-    return -1;
-  }
-  return 0;
-}
-
-static int
-property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
-  if((idx < 0 ? -idx : idx) >= it->tab_atom_len)
-    return 0;
-
-  if(idx < 0)
-    idx += it->tab_atom_len;
-  assert(idx >= 0);
-  assert(idx < it->tab_atom_len);
-  it->idx = idx;
-  return 1;
-}
-
-static JSValue
-property_enumeration_value(PropertyEnumeration* it, JSContext* ctx) {
-  assert(it->idx >= 0);
-  assert(it->idx < it->tab_atom_len);
-  return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx].atom);
-}
-
-static JSAtom
-property_enumeration_atom(PropertyEnumeration* it) {
-  assert(it->idx >= 0);
-  assert(it->idx < it->tab_atom_len);
-  return it->tab_atom[it->idx].atom;
-}
-
-static JSValue
-property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
-  assert(it->idx >= 0);
-  assert(it->idx < it->tab_atom_len);
-  return JS_AtomToValue(ctx, it->tab_atom[it->idx].atom);
-}
 
 static void
 js_value_dump(JSContext* ctx, JSValue value, vector* vec) {
@@ -174,34 +115,6 @@ js_value_type(JSValueConst value) {
 }
 
 static void
-property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, vector* vec) {
-  size_t i;
-  const char* s;
-  vector_cats(vec, "{ obj: 0x");
-  vector_catlong(vec, (long)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : 0), 16);
-  //  js_value_dump(ctx, it->obj, vec);
-  vector_cats(vec, ", idx: ");
-  vector_catlong(vec, it->idx, 10);
-  vector_cats(vec, ", tab_atom_len: ");
-  vector_catlong(vec, it->tab_atom_len, 10);
-  vector_cats(vec, ", tab_atom: [ ");
-  for(i = 0; i < it->tab_atom_len; i++) {
-    if(i)
-      vector_catb(vec, ", ", 2);
-
-    s = JS_AtomToCString(ctx, it->tab_atom[i].atom);
-    if(i == it->idx)
-      vector_cats(vec, "\x1b[32m");
-    vector_cats(vec, s);
-    if(i == it->idx)
-      vector_cats(vec, "\x1b[m");
-    JS_FreeCString(ctx, s);
-  }
-
-  vector_cats(vec, " ] }");
-}
-
-static void
 tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
   PropertyEnumeration *s = vector_begin(&wc->frames), *e = vector_end(&wc->frames);
 
@@ -210,7 +123,7 @@ tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
   vector_clear(&wc->frames);
 
   wc->flags = MATCH_KEY | MATCH_VALUE;
-
+  wc->tag_mask = MASK_ALL;
   /*  JS_FreeValue(ctx, wc->current);
     wc->current = JS_UNDEFINED;*/
 }
@@ -436,26 +349,27 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* wc) {
       continue;
     }
 
-    if(wc->re_byte) {
-      int ret = 1;
+    if(wc->flags && wc->re_byte) {
+      int ret = 0;
 
-      /*  if(type != TYPE_OBJECT &&  (wc->flags & MATCH_VALUE))
-          ret &= tree_walker_testregexp_value(wc, ctx, value);
+      if(type != TYPE_OBJECT && (wc->flags & MATCH_VALUE))
+        ret = tree_walker_testregexp_value(wc, ctx, value);
 
+      if(!ret && (wc->flags & MATCH_KEY) && it->idx < it->tab_atom_len) {
+        const char* str = JS_AtomToCString(ctx, property_enumeration_atom(it));
+        ret = tree_walker_testregexp(wc, ctx, str);
+        /*fprintf(stderr, "atom: %s match: %i\n", str, ret);
+        fflush(stderr);*/
+        JS_FreeCString(ctx, str);
+      }
 
-        if(!ret &&  (wc->flags & MATCH_KEY) && it->idx < it->tab_atom_len) {
-          const char* str = JS_AtomToCString(ctx, property_enumeration_atom(it));
-
-           ret &= tree_walker_testregexp(wc, ctx, str);
-           JS_FreeCString(ctx, str);
-        }*/
-
-      if(ret == 0) {
+      if(wc->flags && ret == 0) {
         JS_FreeValue(ctx, value);
         continue;
       }
     }
     JS_FreeValue(ctx, value);
+    break;
   }
   return it;
 }
