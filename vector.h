@@ -86,6 +86,11 @@ vector_puts(vector* vec, const char* str) {
 }
 
 static inline void
+vector_putc(vector* vec, char c) {
+  vector_put(vec, &c, 1);
+}
+
+static inline void
 vector_put0(vector* vec) {
   vector_put(vec, "\0", 1);
 }

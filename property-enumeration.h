@@ -54,6 +54,14 @@ property_enumeration_value(PropertyEnumeration* it, JSContext* ctx) {
   return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx].atom);
 }
 
+inline static const char*
+property_enumeration_valuestr(PropertyEnumeration* it, JSContext* ctx) {
+  JSValue value = property_enumeration_value(it, ctx);
+  const char* str = JS_ToCString(ctx, value);
+  JS_FreeValue(ctx, value);
+  return str;
+}
+
 inline static JSAtom
 property_enumeration_atom(PropertyEnumeration* it) {
   assert(it->idx >= 0);
@@ -215,8 +223,25 @@ property_enumeration_path(vector* vec, JSContext* ctx) {
   return ret;
 }
 
+static int
+property_enumeration_insideof(vector* vec, JSValueConst val) {
+  PropertyEnumeration* it;
+  void* obj = JS_VALUE_GET_OBJ(val);
+  vector_foreach_t(vec, it) {
+    void* obj2 = JS_VALUE_GET_OBJ(it->obj);
+    if(obj == obj2)
+      return 1;
+  }
+  return 0;
+}
+
 static PropertyEnumeration*
-property_enumeration_next(vector* vec, JSContext* ctx) {
+property_enumeration_next(PropertyEnumeration* it) {
+  return property_enumeration_setpos(it, it->idx + 1) ? it : 0;
+}
+
+static PropertyEnumeration*
+property_enumeration_recurse(vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
   JSValue value = JS_UNDEFINED;
   int32_t type;

@@ -184,7 +184,7 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* wc, JSValueConst this_arg, JSVal
   PropertyEnumeration* it;
   int32_t type;
   for(;;) {
-    it = property_enumeration_next(&wc->frames, ctx);
+    it = property_enumeration_recurse(&wc->frames, ctx);
     if(!it)
       break;
     if(JS_IsFunction(ctx, pred)) {

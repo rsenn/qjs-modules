@@ -47,6 +47,8 @@ umult64(uint64_t a, uint64_t b, uint64_t* c) {
 }
 #endif
 
+#define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
+
 void*
 vector_allocate(vector* vec, size_t elsz, int32_t pos) {
   uint64_t need;
@@ -59,10 +61,10 @@ vector_allocate(vector* vec, size_t elsz, int32_t pos) {
   if(need > vec->size) {
     if(need > vec->capacity) {
       if(elsz < 8)
-        need = (need + 1023) & (~1023);
+        roundto(need, 1000);
       else
-        need = (need + 4095) & (~4095);
-      assert(need >= 512);
+        roundto(need, 8000);
+      assert(need >= 1000);
       if(!(tmp = realloc(vec->data, need)))
         return 0;
       vec->data = tmp;
