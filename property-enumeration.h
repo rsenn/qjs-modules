@@ -186,16 +186,13 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, vector* out) 
 inline static void
 property_enumeration_dumpall(vector* vec, JSContext* ctx, vector* out) {
 
-  PropertyEnumeration* it;
-  size_t i = 0;
-  vector_puts(out, "[\n  ");
-  vector_foreach_t(vec, it) {
-    if(i)
-      vector_puts(out, ",\n  ");
-    property_enumeration_dump(it, ctx, out);
-    i++;
+  size_t i, n = vector_size(vec, sizeof(PropertyEnumeration));
+  vector_printf(out, "(%zu) [", n);
+  for(i = 0; i < n; i++) {
+    vector_puts(out, i ? ",\n    " : "\n    ");
+    property_enumeration_dump(vector_at(vec, sizeof(PropertyEnumeration), i), ctx, out);
   }
-  vector_puts(out, "\n]");
+  vector_puts(out, i ? "\n  ]" : "]");
 }
 
 static JSValue
