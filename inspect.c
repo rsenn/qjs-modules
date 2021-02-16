@@ -98,7 +98,7 @@ predicate_find(const char* str, size_t len, int (*pred)(char)) {
       break;
   return pos;
 }
- 
+
 static size_t
 ansi_skip(const char* str, size_t len) {
   size_t pos = 0;
