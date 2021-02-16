@@ -1,6 +1,8 @@
 #ifndef PROPERTY_ENUMERATION_H
 #define PROPERTY_ENUMERATION_H
 
+#include <stdint.h>
+#include <assert.h>
 #include "quickjs.h"
 #include "vector.h"
 
@@ -12,7 +14,9 @@ typedef struct {
   BOOL is_array;
 } PropertyEnumeration;
 
-static void
+#define property_enumeration_push(vec) vector_push((vec), sizeof(PropertyEnumeration))
+
+inline static void
 property_enumeration_free(PropertyEnumeration* it, JSRuntime* rt) {
   uint32_t i;
   if(it->tab_atom) {
@@ -22,7 +26,21 @@ property_enumeration_free(PropertyEnumeration* it, JSRuntime* rt) {
   JS_FreeValueRT(rt, it->obj);
 }
 
-static int
+inline static PropertyEnumeration*
+property_enumeration_pop(vector* vec, JSContext* ctx) {
+  PropertyEnumeration* it;
+
+  assert(!vector_empty(vec));
+
+  it = vector_back(vec, sizeof(PropertyEnumeration));
+  property_enumeration_free(it, JS_GetRuntime(ctx));
+
+  vector_pop(vec, sizeof(PropertyEnumeration));
+
+  return vector_empty(vec) ? 0 : it - 1;
+}
+
+inline static int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
   it->obj = object;
   it->idx = 0;
@@ -36,7 +54,7 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
   return 0;
 }
 
-static int
+inline static int
 property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
   if((idx < 0 ? -idx : idx) >= it->tab_atom_len)
     return 0;
@@ -49,28 +67,28 @@ property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
   return 1;
 }
 
-static JSValue
+inline static JSValue
 property_enumeration_value(PropertyEnumeration* it, JSContext* ctx) {
   assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx].atom);
 }
 
-static JSAtom
+inline static JSAtom
 property_enumeration_atom(PropertyEnumeration* it) {
   assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   return it->tab_atom[it->idx].atom;
 }
 
-static JSValue
+inline static JSValue
 property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
   assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   return JS_AtomToValue(ctx, it->tab_atom[it->idx].atom);
 }
 
-static void
+inline static void
 property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, vector* vec) {
   size_t i;
   const char* s;

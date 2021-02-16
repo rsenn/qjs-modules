@@ -81,7 +81,6 @@ typedef struct {
   int re_byte_len;
 } TreeWalker;
 
-#define property_enumeration_new(wc) vector_push(&(wc)->frames, sizeof(PropertyEnumeration))
 
 static void
 js_value_dump(JSContext* ctx, JSValue value, vector* vec) {
@@ -140,7 +139,7 @@ tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
   tree_walker_reset(wc, ctx);
   // wc->current = JS_DupValue(ctx, object);
 
-  if((it = property_enumeration_new(wc)))
+  if((it = property_enumeration_push(&wc->frames)))
     property_enumeration_init(it, ctx, object, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
   return it;
 }
@@ -190,7 +189,7 @@ tree_walker_descend(TreeWalker* wc, JSContext* ctx) {
     JS_ThrowTypeError(ctx, "not an object");
     return 0;
   }
-  if((it = property_enumeration_new(wc)))
+  if((it = property_enumeration_push(&wc->frames)))
     property_enumeration_init(it, ctx, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
 
   /* JS_FreeValue(ctx, wc->current);
@@ -201,18 +200,7 @@ tree_walker_descend(TreeWalker* wc, JSContext* ctx) {
 
 static PropertyEnumeration*
 tree_walker_ascend(TreeWalker* wc, JSContext* ctx) {
-  PropertyEnumeration* it;
-
-  assert(!vector_empty(&wc->frames));
-
-  it = vector_back(&wc->frames, sizeof(PropertyEnumeration));
-  /* JS_FreeValue(ctx, wc->current);
-   wc->current = it->obj; */
-  property_enumeration_free(it, JS_GetRuntime(ctx));
-
-  vector_pop(&wc->frames, sizeof(PropertyEnumeration));
-
-  return vector_empty(&wc->frames) ? 0 : it - 1;
+  return property_enumeration_pop(&wc->frames,ctx);
 }
 
 static JSValue

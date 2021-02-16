@@ -72,11 +72,12 @@ vector_push(vector* vec, size_t elsz) {
   return vector_allocate(vec, elsz, n);
 }
 
-static inline void
+static inline void*
 vector_pop(vector* vec, size_t elsz) {
   uint32_t n = vector_size(vec, elsz);
   assert(n);
-  return vector_shrink(vec, elsz, n - 1);
+   vector_shrink(vec, elsz, n - 1);
+   return vector_end(vec);
 }
 
 static inline void
