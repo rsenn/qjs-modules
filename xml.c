@@ -1,5 +1,7 @@
+#define _GNU_SOURCE
 #include "quickjs.h"
 #include "cutils.h"
+#include "vector.h"
 
 #include <stdint.h>
 
@@ -56,12 +58,7 @@ js_value_to_bytes(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
-#define next()                                                                                                         \
-  do {                                                                                                                 \
-    c = *ptr++;                                                                                                        \
-    if(ptr >= end)                                                                                                     \
-      done = TRUE;                                                                                                     \
-  } while(0)
+#define next() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
 #define skip(cond)                                                                                                     \
   do {                                                                                                                 \
     c = *ptr;                                                                                                          \
@@ -73,43 +70,73 @@ js_value_to_bytes(JSContext* ctx, JSValueConst value) {
 
 #define skipws() skip(chars[c] & WS)
 
+static void
+js_set_attr_value(JSContext* ctx, JSValueConst obj, const uint8_t* attr, size_t alen, const uint8_t* str, size_t slen) {
+
+  char* key;
+  JSValue value;
+  key = js_strndup(ctx, (const char*)attr, alen);
+  value = JS_NewStringLen(ctx, (const char*)str, slen);
+
+  JS_DefinePropertyValueStr(ctx, obj, key, value, JS_PROP_ENUMERABLE);
+
+  js_free(ctx, key);
+}
+
+typedef struct {
+  uint32_t idx;
+  JSValue obj;
+} OutputValue;
+
 static JSValue
 js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
 
   BOOL done = FALSE;
-  JSValue tag;
+  JSValue ret;
   const uint8_t *ptr, *end, *start;
   uint8_t c;
   size_t n;
+  OutputValue* out;
+  vector st = VECTOR_INIT();
   ptr = buf;
   end = buf + len;
+
+  ret = JS_NewArray(ctx);
+
+  out = vector_push(&st, sizeof(JSValue));
+out->obj = ret;
+out->idx = 0;
+
   while(!done) {
     start = ptr;
     skip(!(chars[c] & START));
 
-    if(ptr > start) {}
+    if(ptr > start) {
+      JSValue str = JS_NewStringLen(ctx, start, ptr - start);
+      JS_SetPropertyUint32(ctx, out->obj, out->idx++, str);
+    }
 
     if(chars[c] & START) {
       const uint8_t* name;
       size_t namelen;
       BOOL closing = FALSE;
-      skipws();
-      next();
+      JSValue element;
 
+      next();
       if(chars[c] & SLASH) {
         closing = TRUE;
-        skipws();
         next();
       }
       name = ptr;
       skip(!(chars[c] & (WS | END)));
       namelen = ptr - name;
+      element = JS_NewObject(ctx);
+      JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
+      js_set_attr_value(ctx, element, "tagName", 7, name, namelen);
 
       if(n >= 3 && (chars[*start] & EXCLAM) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & HYPHEN)) {
-
         while(!done) {
           next();
-
           if(end - ptr >= 3 && (chars[*start] & HYPHEN) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & CLOSE)) {
             ptr += 3;
             break;
@@ -119,29 +146,41 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
         if(!closing) {
           const uint8_t *attr, *value;
           size_t alen, vlen;
+          JSValue attributes = JS_NewObject(ctx);
+          JS_SetPropertyStr(ctx, element, "attributes", attributes);
+
           while(!done) {
             skipws();
             if(chars[c] & END)
               break;
             attr = ptr;
-            skip((chars[c] & (EQUAL | WS | SPECIAL | CLOSE)) == 0);
+            skip(!(chars[c] & (EQUAL | WS | SPECIAL | CLOSE)));
             alen = ptr - attr;
             if(alen == 0)
               break;
 
-            if(chars[c] & EQUAL) {
+            if(chars[c = *ptr] & EQUAL) {
               next();
-              if(chars[c] & QUOTE) {
+              if(chars[c = *ptr] & QUOTE)
                 next();
-                value = ptr;
-                skip((chars[c] & QUOTE) == 0);
-                vlen = ptr - value;
 
-                if(chars[c] & QUOTE)
-                  next();
-              }
+              value = ptr;
+              skip(!(chars[c] & QUOTE));
+              vlen = ptr - value;
+
+              if(chars[c] & QUOTE)
+                next();
+
+              js_set_attr_value(ctx, attributes, attr, alen, value, vlen);
             }
           }
+          if(chars[c] & SLASH) {
+            closing = TRUE;
+            next();
+          }
+        }
+        if(closing) {
+          JS_DefinePropertyValueStr(ctx, element, "closing", JS_NewBool(ctx, closing), JS_PROP_ENUMERABLE);
         }
         if(!closing) {
           if(chars[name[0]] & EXCLAM) {
@@ -154,21 +193,24 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
           }
         }
         skipws();
+
         if(chars[c] & CLOSE)
           next();
       }
     }
   }
+  return ret;
 }
 
 static JSValue
 js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-
+  JSValue ret;
   InputValue input = js_value_to_bytes(ctx, argv[0]);
 
-  js_xml_parse(ctx, input.x, input.n);
+  ret = js_xml_parse(ctx, input.x, input.n);
 
   input.free(ctx, input.x);
+  return ret;
 }
 
 static JSValue
