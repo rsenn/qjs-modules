@@ -16,7 +16,7 @@
 #define EXCLAM 0x400
 #define HYPHEN 0x400
 
-static int character_classes[256] = {0};
+static int chars[256] = {0};
 
 typedef struct {
   const uint8_t* x;
@@ -71,61 +71,103 @@ js_value_to_bytes(JSContext* ctx, JSValueConst value) {
       done = TRUE;                                                                                                     \
   } while(!done)
 
+#define skipws() skip(chars[c] & WS)
+
 static JSValue
 js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
 
   BOOL done = FALSE;
+  JSValue tag;
   const uint8_t *ptr, *end, *start;
   uint8_t c;
+  size_t n;
   ptr = buf;
   end = buf + len;
   while(!done) {
     start = ptr;
-    skip(!(character_classes[c] & START));
+    skip(!(chars[c] & START));
 
     if(ptr > start) {}
 
-    if(character_classes[c] & START) {
+    if(chars[c] & START) {
       BOOL closing = FALSE;
-      skip((character_classes[c] & WS));
+      skipws();
       next();
 
-      if(character_classes[c] & SLASH) {
+      if(chars[c] & SLASH) {
         closing = TRUE;
-        skip((character_classes[c] & WS));
+        skipws();
         next();
       }
       start = ptr;
-      skip(!(character_classes[c] & (WS | END)));
+      skip(!(chars[c] & (WS | END)));
+
+      n = ptr - start;
+      //  tag = JS_NewStringLen(ctx, start, ptr - start);
+
+      if(n >= 3 && (chars[*start] & EXCLAM) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & HYPHEN)) {
+
+        while(!done) {
+          next();
+
+          if(end - ptr >= 3 && (chars[*start] & HYPHEN) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & CLOSE)) {
+            ptr += 3;
+            break;
+          }
+        }
+      } else {
+        if(!closing) {
+          const char *attr, *value;
+          size_t alen, vlen;
+          while(!done) {
+            skipws();
+            if(chars[c] & END)
+              break;
+            attr = ptr;
+            skip((chars[c] & (EQUAL | WS | SPECIAL | CLOSE)) == 0);
+            alen = ptr - attr;
+            if(alen == 0)
+              break;
+
+            if(chars[c] & EQUAL) {
+              next();
+              if(chars[c] & QUOTE) {
+                next();
+                value = ptr;
+                skip((chars[c] & QUOTE) == 0);
+                vlen = ptr - value;
+
+                if(chars[c] & QUOTE)
+                  next();
+              }
+            }
+          }
+        }
+      }
     }
-  }
-}
 
-static JSValue
-js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+    static JSValue js_xml_read(JSContext * ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
 
-  InputValue input = js_value_to_bytes(ctx, argv[0]);
+      InputValue input = js_value_to_bytes(ctx, argv[0]);
 
-  js_xml_parse(ctx, input.x, input.n);
+      js_xml_parse(ctx, input.x, input.n);
 
-  input.free(ctx, input.x);
-}
+      input.free(ctx, input.x);
+    }
 
-static JSValue
-js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {}
+    static JSValue js_xml_write(JSContext * ctx, JSValueConst this_val, int argc, JSValueConst* argv) {}
 
-static const JSCFunctionListEntry js_xml_funcs[] = {
-    JS_CFUNC_DEF("read", 1, js_xml_read),
-    JS_CFUNC_DEF("write", 2, js_xml_write),
-};
+    static const JSCFunctionListEntry js_xml_funcs[] = {
+        JS_CFUNC_DEF("read", 1, js_xml_read),
+        JS_CFUNC_DEF("write", 2, js_xml_write),
+    };
 
-static int
-js_xml_init(JSContext* ctx, JSModuleDef* m) {
+    static int js_xml_init(JSContext * ctx, JSModuleDef * m) {
 
-  character_classes_init(character_classes);
+      character_classes_init(chars);
 
-  return JS_SetModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
-}
+      return JS_SetModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
+    }
 
 #ifdef JS_SHARED_LIBRARY
 #define JS_INIT_MODULE js_init_module
@@ -133,12 +175,11 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
 #define JS_INIT_MODULE js_init_module_xml
 #endif
 
-JSModuleDef*
-JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
-  JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, js_xml_init);
-  if(!m)
-    return NULL;
-  JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
-  return m;
-}
+    JSModuleDef* JS_INIT_MODULE(JSContext * ctx, const char* module_name) {
+      JSModuleDef* m;
+      m = JS_NewCModule(ctx, module_name, js_xml_init);
+      if(!m)
+        return NULL;
+      JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
+      return m;
+    }
