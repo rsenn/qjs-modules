@@ -435,14 +435,16 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     }
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, &output)));
-// 
-  while(output.size > 0 && (output.buf[output.size -1] == '\0' || byte_chr("\r\n\t ", 4, output.buf[output.size -1]) < 4)) output.size--;
- dbuf_putc(&output, '\0');
+  //
+  while(output.size > 0 &&
+        (output.buf[output.size - 1] == '\0' || byte_chr("\r\n\t ", 4, output.buf[output.size - 1]) < 4))
+    output.size--;
+  dbuf_putc(&output, '\0');
 
-  //fprintf(stderr, "last char: %u\n", output.buf[output.size-1]);
+  // fprintf(stderr, "last char: %u\n", output.buf[output.size-1]);
 
   str = JS_NewString(ctx, output.buf);
-//  str = JS_NewStringLen(ctx, output.buf, output.size);
+  //  str = JS_NewStringLen(ctx, output.buf, output.size);
   dbuf_free(&output);
   vector_foreach_t(&enumerations, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
   vector_free(&enumerations);
