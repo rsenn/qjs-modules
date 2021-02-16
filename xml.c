@@ -144,16 +144,17 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
         }
       }
       element = JS_NewObject(ctx);
-              JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
-if(namelen && (chars[name[0]] & (QUESTION | EXCLAM)))
+      JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
+      if(namelen && (chars[name[0]] & (QUESTION | EXCLAM)))
         self_closing = TRUE;
- 
+
       if(namelen && (chars[name[0]] & EXCLAM)) {
         while(!done) {
- if(c == '>') break;
+          if(c == '>')
+            break;
           next();
-}
-//ptr--;
+        }
+        // ptr--;
         namelen = ptr - name;
       }
       xml_set_attr_value(ctx, element, "tagName", 7, name, namelen);
