@@ -77,6 +77,13 @@ property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
   return key;
 }
 
+inline static const char*
+property_enumeration_keystr(PropertyEnumeration* it, JSContext* ctx) {
+  assert(it->idx >= 0);
+  assert(it->idx < it->tab_atom_len);
+  return JS_AtomToCString(ctx, it->tab_atom[it->idx].atom);
+}
+
 inline static PropertyEnumeration*
 property_enumeration_pop(vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
