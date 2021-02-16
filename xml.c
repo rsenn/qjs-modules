@@ -58,6 +58,7 @@ js_value_to_bytes(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
+#define end() (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue)))
 #define next() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
 #define skip(cond)                                                                                                     \
   do {                                                                                                                 \
@@ -86,6 +87,8 @@ js_set_attr_value(JSContext* ctx, JSValueConst obj, const uint8_t* attr, size_t 
 typedef struct {
   uint32_t idx;
   JSValue obj;
+  const uint8_t* name;
+  size_t namelen;
 } OutputValue;
 
 static JSValue
@@ -104,10 +107,11 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
   ret = JS_NewArray(ctx);
 
   out = vector_push(&st, sizeof(OutputValue));
-out->obj = ret;
-out->idx = 0;
+  out->obj = ret;
+  out->idx = 0;
 
   while(!done) {
+    skipws();
     start = ptr;
     skip(!(chars[c] & START));
 
@@ -119,7 +123,7 @@ out->idx = 0;
     if(chars[c] & START) {
       const uint8_t* name;
       size_t namelen;
-      BOOL closing = FALSE;
+      BOOL closing = FALSE, self_closing = FALSE;
       JSValue element;
 
       next();
@@ -130,9 +134,24 @@ out->idx = 0;
       name = ptr;
       skip(!(chars[c] & (WS | END)));
       namelen = ptr - name;
+
+      if(closing) {
+        skipws();
+        if(chars[c] & CLOSE)
+          next();
+
+        if(out->namelen == namelen && !memcmp(out->name, name, namelen)) {
+          end();
+          continue;
+        }
+      }
+
       element = JS_NewObject(ctx);
       JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
       js_set_attr_value(ctx, element, "tagName", 7, name, namelen);
+
+      if(namelen && (chars[name[0]] & (QUESTION |EXCLAM)))
+        self_closing = TRUE;
 
       if(n >= 3 && (chars[*start] & EXCLAM) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & HYPHEN)) {
         while(!done) {
@@ -158,10 +177,17 @@ out->idx = 0;
             alen = ptr - attr;
             if(alen == 0)
               break;
+            if(chars[c] & (WS | CLOSE |SLASH)) {
+  char* key;
 
-            if(chars[c = *ptr] & EQUAL) {
+  key = js_strndup(ctx, (const char*)attr, alen);
+          JS_DefinePropertyValueStr(ctx, attributes, key, JS_NewBool(ctx, TRUE), JS_PROP_ENUMERABLE);
+continue;
+            }
+
+            if(chars[c] & EQUAL) {
               next();
-              if(chars[c = *ptr] & QUOTE)
+              if(chars[c] & QUOTE)
                 next();
 
               value = ptr;
@@ -175,27 +201,35 @@ out->idx = 0;
             }
           }
           if(chars[c] & SLASH) {
-            closing = TRUE;
+            self_closing = TRUE;
             next();
           }
         }
         if(closing) {
           JS_DefinePropertyValueStr(ctx, element, "closing", JS_NewBool(ctx, closing), JS_PROP_ENUMERABLE);
-        } else {
+        }
+
+        if(!closing && !self_closing) {
           out = vector_push(&st, sizeof(OutputValue));
           out->obj = JS_NewArray(ctx);
           out->idx = 0;
+          out->name = name;
+          out->namelen = namelen;
           JS_SetPropertyStr(ctx, element, "children", out->obj);
         }
         if(!closing) {
           if(chars[name[0]] & EXCLAM) {
-            // end(str(name));
-          } else if((chars[name[0]] & QUESTION) && (chars[c] & QUESTION)) {
-            next();
-          } else if(chars[c] & SLASH) {
-            next();
-            // end();
-          }
+            if(chars[c] & EXCLAM)
+              next();
+
+  // 
+      end();
+          } else if(chars[name[0]] & QUESTION) {
+            if(chars[c] & QUESTION)
+              next();
+       end();
+
+          }  
         }
         skipws();
 
