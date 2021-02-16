@@ -239,19 +239,93 @@ js_get_property_string(JSContext* ctx, JSValueConst obj, JSAtom prop) {
 }
 
 static void
+xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
+  JSAtom atagName = JS_NewAtom(ctx, "tagName");
+  JSAtom achildren = JS_NewAtom(ctx, "children");
+
+  JSValue tag = JS_GetProperty(ctx, element, atagName);
+  JSValue childNodes = JS_GetProperty(ctx, element, achildren);
+
+  if(JS_IsArray(ctx, childNodes)) {
+    const char* tagStr;
+    size_t tagLen;
+
+    tagStr = JS_ToCStringLen(ctx, &tagLen, tag);
+
+    while(depth-- > 0) dbuf_putstr(db, "  ");
+
+    dbuf_putstr(db, "</");
+    dbuf_put(db, tagStr, tagLen);
+    dbuf_putstr(db, ">");
+    dbuf_putc(db, '\n');
+    JS_FreeCString(ctx, tagStr);
+  }
+
+  JS_FreeValue(ctx, tag);
+  JS_FreeValue(ctx, childNodes);
+  JS_FreeAtom(ctx, atagName);
+  JS_FreeAtom(ctx, achildren);
+}
+
+static PropertyEnumeration*
+xml_enumeration_next(vector* vec, JSContext* ctx, DynBuf* db) {
+  PropertyEnumeration* it;
+  JSValue value = JS_UNDEFINED, children;
+  int32_t type;
+  it = vector_back(vec, sizeof(PropertyEnumeration));
+  for(;;) {
+    value = property_enumeration_value(it, ctx);
+    type = JS_VALUE_GET_TAG(value);
+    JS_FreeValue(ctx, value);
+    if(type == JS_TAG_OBJECT) {
+      children = JS_GetPropertyStr(ctx, value, "children");
+      if(!JS_IsUndefined(children)) {
+        it = property_enumeration_push(vec, ctx, children, PROPERTY_ENUMERATION_DEFAULT_FLAGS);
+        if(it && property_enumeration_setpos(it, 0))
+          goto end;
+      } else {
+        if(property_enumeration_setpos(it, it->idx + 1))
+          goto end;
+      }
+    }
+    for(;;) {
+      if((it = property_enumeration_pop(vec, ctx)) == 0)
+        goto end;
+
+      value = property_enumeration_value(it, ctx);
+      xml_close_element(ctx, value, db, (int32_t)vector_size(vec, sizeof(PropertyEnumeration)) - 1);
+      JS_FreeValue(ctx, value);
+
+      if(property_enumeration_setpos(it, it->idx + 1))
+        goto end;
+    }
+  end:
+    if(!it)
+      break;
+    break;
+  }
+  return it;
+}
+static void
+xml_write_value(JSContext* ctx, JSValueConst value, DynBuf* db) {
+  const char* str;
+  size_t len;
+  str = JS_ToCStringLen(ctx, &len, value);
+  dbuf_put(db, str, len);
+  JS_FreeCString(ctx, str);
+}
+
+static void
 xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
   size_t i;
   PropertyEnumeration props = {0};
   property_enumeration_init(&props, ctx, attributes, PROPERTY_ENUMERATION_DEFAULT_FLAGS);
-
   for(i = 0; i < props.tab_atom_len; i++) {
     const char *keystr, *valuestr;
     JSValue value;
     property_enumeration_setpos(&props, i);
-
     keystr = property_enumeration_keystr(&props, ctx);
     value = property_enumeration_value(&props, ctx);
-
     dbuf_putc(db, ' ');
     dbuf_putstr(db, keystr);
     if(!(JS_IsBool(value) && JS_ToBool(ctx, value))) {
@@ -261,10 +335,42 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
       JS_FreeCString(ctx, valuestr);
     }
     dbuf_putc(db, '"');
-
     JS_FreeCString(ctx, keystr);
     JS_FreeValue(ctx, value);
   }
+}
+
+static void
+xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
+  JSAtom atagName = JS_NewAtom(ctx, "tagName");
+  JSAtom aattributes = JS_NewAtom(ctx, "attributes");
+  JSAtom achildren = JS_NewAtom(ctx, "children");
+
+  JSValue tag = JS_GetProperty(ctx, element, atagName);
+  JSValue attrs = JS_GetProperty(ctx, element, aattributes);
+  JSValue childNodes = JS_GetProperty(ctx, element, achildren);
+
+  const char* tagStr = JS_ToCString(ctx, tag);
+
+  while(depth-- > 0) dbuf_putstr(db, "  ");
+
+  dbuf_putc(db, '<');
+  dbuf_putstr(db, tagStr);
+
+  if(JS_IsObject(attrs))
+    xml_write_attributes(ctx, attrs, db);
+  dbuf_putstr(db, JS_IsObject(childNodes) ? ">" : tagStr[0] == '?' ? "?>" : tagStr[0] == '!' ? "!>" : " />");
+  dbuf_putc(db, '\n');
+
+  JS_FreeCString(ctx, tagStr);
+
+  JS_FreeValue(ctx, tag);
+  JS_FreeValue(ctx, attrs);
+  JS_FreeValue(ctx, childNodes);
+
+  JS_FreeAtom(ctx, atagName);
+  JS_FreeAtom(ctx, aattributes);
+  JS_FreeAtom(ctx, achildren);
 }
 
 static JSValue
@@ -275,74 +381,26 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 
   JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
   PropertyEnumeration* it;
-  JSAtom tagName = JS_NewAtom(ctx, "tagName");
-  JSAtom attributes = JS_NewAtom(ctx, "attributes");
-  JSAtom children = JS_NewAtom(ctx, "children");
+  JSValue value = JS_UNDEFINED;
   JSValue str;
- it = property_enumeration_push(&enumerations, ctx, obj, PROPERTY_ENUMERATION_DEFAULT_FLAGS);
+  it = property_enumeration_push(&enumerations, ctx, obj, PROPERTY_ENUMERATION_DEFAULT_FLAGS);
   dbuf_init(&output);
 
-do{    JSValue value;
-    const char *key, *valuestr = 0;
-    uint32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration));
-
-    key = property_enumeration_keystr(it, ctx);
+  do {
+    int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
     value = property_enumeration_value(it, ctx);
 
-    if(JS_IsArray(ctx, it->obj) && it->idx == 0) {
-      dbuf_putstr(&output, "[ ");
-    }
-
     if(JS_IsObject(value)) {
-      if(JS_HasProperty(ctx, value, tagName)) {
-        JSValue tag = JS_GetProperty(ctx, value, tagName);
-        JSValue attrs = JS_GetProperty(ctx, value, attributes);
-        JSValue childNodes = JS_GetProperty(ctx, value, children);
-
-        dbuf_putc(&output, '<');
-        valuestr = JS_ToCString(ctx, tag);
-        dbuf_putstr(&output, valuestr);
-
-        if(JS_IsObject(attrs))
-          xml_write_attributes(ctx, attrs, &output);
-
-        dbuf_putstr(&output, JS_IsObject(childNodes) ? ">" : " />");
-
-        JS_FreeValue(ctx, tag);
-        JS_FreeValue(ctx, attrs);
-        JS_FreeValue(ctx, childNodes);
-      }
-    }
-    if(JS_IsArray(ctx, it->obj)) {
-
-      if(it->idx == 0) {
-        dbuf_putstr(&output, "[ ");
-      } else if(it->idx == it->tab_atom_len - 1) {
-
-        const char* str = js_get_property_string(ctx, it->obj, tagName);
-        dbuf_putstr(&output, "</");
-        dbuf_putstr(&output, str);
-        dbuf_putc(&output, '>');
-        JS_FreeCString(ctx, str);
-      } else {
-        dbuf_putstr(&output, "\n");
-        for(int i = depth - 1; i > 0; i -= 2) dbuf_putstr(&output, "  ");
-      }
+      xml_write_element(ctx, value, &output, depth);
     }
 
-    if(valuestr)
-      JS_FreeCString(ctx, valuestr);
-
-    /*   fprintf(stderr, "depth: %u key: %s\n", vector_size(&enumerations, sizeof(PropertyEnumeration)), key);
-       fflush(stderr);
-   */
-    JS_FreeCString(ctx, key);
     JS_FreeValue(ctx, value);
-   } while((it = property_enumeration_next(it)));
-  JS_FreeAtom(ctx, tagName);
-  JS_FreeAtom(ctx, attributes);
+  } while((it = xml_enumeration_next(&enumerations, ctx, &output)));
 
-  str = JS_NewStringLen(ctx, output.buf, output.size);
+  dbuf_putc(&output, '\0');
+
+  str = JS_NewString(ctx, output.buf);
+
   dbuf_free(&output);
 
   vector_foreach_t(&enumerations, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
