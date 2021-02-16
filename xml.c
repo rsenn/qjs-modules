@@ -148,7 +148,17 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
       if(namelen && (chars[name[0]] & (QUESTION | EXCLAM)))
         self_closing = TRUE;
 
-      if(namelen && (chars[name[0]] & EXCLAM)) {
+      if(namelen >= 3 && (chars[*start] & EXCLAM) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & HYPHEN)) {
+        while(!done) {
+          next();
+          if(end - ptr >= 3 && (chars[*start] & HYPHEN) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & CLOSE)) {
+            ptr += 2;
+            break;
+          }
+        }
+        namelen = ptr - name;
+
+      } else if(namelen && (chars[name[0]] & EXCLAM)) {
         while(!done) {
           if(c == '>')
             break;
@@ -159,15 +169,11 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
       }
       xml_set_attr_value(ctx, element, "tagName", 7, name, namelen);
 
-      if(namelen >= 3 && (chars[*start] & EXCLAM) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & HYPHEN)) {
-        while(!done) {
-          next();
-          if(end - ptr >= 3 && (chars[*start] & HYPHEN) && (chars[start[1]] & HYPHEN) && (chars[start[2]] & CLOSE)) {
-            ptr += 3;
-            break;
-          }
-        }
-      } else {
+      if(namelen && (chars[name[0]] & EXCLAM)) {
+        next();
+        continue;
+      }
+      {
         if(!closing) {
           const uint8_t *attr, *value;
           size_t alen, vlen;
@@ -429,8 +435,10 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     }
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, &output)));
-  dbuf_putc(&output, '\0');
-  str = JS_NewString(ctx, output.buf);
+//  dbuf_putc(&output, '\0');
+  while(output.size > 0  && byte_chr("\r\n\t \0", 5, output.buf[output.size -1]) < 5) output.size--;
+
+  str = JS_NewStringLen(ctx, output.buf, output.size);
   dbuf_free(&output);
   vector_foreach_t(&enumerations, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
   vector_free(&enumerations);
