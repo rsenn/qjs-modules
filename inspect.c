@@ -193,6 +193,13 @@ dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color
     dbuf_putstr(db, COLOR_NONE);
 }
 
+static void
+js_property_names_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
+  uint32_t i;
+  for(i = 0; i < len; i++) JS_FreeAtom(ctx, props[i].atom);
+  js_free(ctx, props);
+}
+
 #define js_object_tmpmark_set(value)                                                                                   \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
 #define js_object_tmpmark_clear(value)                                                                                 \
@@ -273,6 +280,7 @@ js_inspect_options_get(JSContext* ctx, JSValueConst object, inspect_options_t* o
   value = JS_GetPropertyStr(ctx, object, "customInspect");
   opts->custom_inspect = JS_ToBool(ctx, value);
   JS_FreeValue(ctx, value);
+
   if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "showProxy")))) {
     opts->show_proxy = JS_ToBool(ctx, value);
     JS_FreeValue(ctx, value);
@@ -456,13 +464,23 @@ js_class_name(JSContext* ctx, JSValueConst value) {
 }
 
 static int
-js_is_map(JSContext* ctx, JSValueConst value) {
+js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
   int ret;
   const char* str;
   str = JS_ToCString(ctx, value);
-  ret = strcmp(str, "[object Map]") == 0;
+  ret = strcmp(str, cmp) == 0;
   JS_FreeCString(ctx, str);
   return ret;
+}
+
+static int
+js_is_map(JSContext* ctx, JSValueConst value) {
+  return js_is_object(ctx, value, "[object Map]");
+}
+
+static int
+js_is_generator(JSContext* ctx, JSValueConst value) {
+  return js_is_object(ctx, value, "[object Generator]");
 }
 
 static int
@@ -590,7 +608,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
   int tag = JS_VALUE_GET_TAG(value);
   int32_t level = opts->depth - depth;
-  int compact = level >= (opts->depth - opts->compact);
+  int compact = level >= (/*opts->depth -*/ opts->compact);
 
   switch(tag) {
     case JS_TAG_FLOAT64:
@@ -669,7 +687,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
     case JS_TAG_OBJECT: {
       int is_array = JS_IsArray(ctx, value);
       uint32_t nprops, pos, len, limit;
-      JSPropertyEnum* props;
+      JSPropertyEnum* props = 0;
       const char* s;
 
       if(JS_IsInstanceOf(ctx, value, array_buffer) || js_is_arraybuffer(ctx, value))
@@ -688,6 +706,23 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         dbuf_putstr(buf, s);
         return 0;
       }
+      s = JS_ToCString(ctx, value);
+      if(!strcmp(s, "[object Generator]")) {
+        dbuf_putstr(buf, "Object [Generator] {}");
+        JS_FreeCString(ctx, s);
+        return 0;
+      }
+      if(!strncmp(s, "[object ", 8)) {
+        const char* e = strchr(s, ']');
+        size_t slen = e - (s + 8);
+
+        if(slen != 6 || memcmp(s + 8, "Object", 6)) {
+          dbuf_putc(buf, '[');
+          dbuf_put(buf, s + 8, e - (s + 8));
+          dbuf_putstr(buf, "] ");
+        }
+      }
+      JS_FreeCString(ctx, s);
 
       if(JS_GetOwnPropertyNames(ctx,
                                 &props,
@@ -712,11 +747,11 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         if(nprops)
           dbuf_putc(buf, ' ');
         else
-          return 0;
+          goto end_obj;
       }
       if(depth < 0) {
         dbuf_put_colorstr(buf, is_array ? "[Array]" : "[Object]", COLOR_MARINE, opts->colors);
-        return 0;
+        goto end_obj;
       }
 
       js_object_tmpmark_set(value);
@@ -808,6 +843,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       if(!compact && len)
         js_inspect_newline(buf, level);
       dbuf_putstr(buf, is_array ? (compact ? " ]" : "]") : (compact ? " }" : "}"));
+
+    end_obj:
+      if(props)
+        js_property_names_free(ctx, props, nprops);
       break;
     }
 
