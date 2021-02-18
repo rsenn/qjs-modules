@@ -926,10 +926,15 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   if(optsind < argc)
     js_inspect_options_get(ctx, argv[optsind], &options);
 
+  /*printf("options.depth: %i\n", options.depth);
+  printf("options.compact: %i\n", options.compact);*/
+
   if(optsind > 1)
     JS_ToInt32(ctx, &depth, argv[1]);
   else
     depth = options.depth;
+
+printf("inspect.depth: %i\n", depth);
 
   js_inspect_print(ctx, &dbuf, argv[0], &options, depth);
 

@@ -6,28 +6,43 @@ set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
 
 if(NOT QUICKJS_PREFIX)
-  set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
-      CACHE PATH "QuickJS install directory")
+  set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
+else(NOT QUICKJS_PREFIX)
+  set(QUICKJS_PREFIX "${QUICKJS_PREFIX}" CACHE PATH "QuickJS install directory")
 endif(NOT QUICKJS_PREFIX)
+
+set(CMAKE_INSTALL_PREFIX "${QUICKJS_PREFIX}" CACHE PATH "Install directory" FORCE)
+
+message("QuickJS install directory: ${QUICKJS_PREFIX}")
+
+set(CMAKE_REQUIRED_QUIET TRUE CACHE BOOLEAN "Quiet" FORCE)
 
 include(CheckCCompilerFlag)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
+    if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options" FORCE)
+    endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb")
+    if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options" FORCE)
+    endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 include(CheckIncludeFile)
 
 set(CMAKE_REQUIRED_INCLUDES "${QUICKJS_PREFIX}/include/quickjs")
-message("CMAKE_REQUIRED_INCLUDES = ${CMAKE_REQUIRED_INCLUDES}")
+#message("CMAKE_REQUIRED_INCLUDES = ${CMAKE_REQUIRED_INCLUDES}")
 check_include_file(quickjs.h HAVE_QUICKJS_H)
+
+if(NOT HAVE_QUICKJS_H)
+  message(FATAL_ERROR "QuickJS headers not found")
+endif(NOT HAVE_QUICKJS_H)
 
 include(CheckCSourceRuns)
 
@@ -38,10 +53,6 @@ check_c_source_runs(
 if(HAVE__BUILTIN_MUL_OVERFLOW)
     add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
 endif(HAVE__BUILTIN_MUL_OVERFLOW)
-
-if(NOT HAVE_QUICKJS_H)
-  message(FATAL_ERROR "QuickJS headers not found")
-endif(NOT HAVE_QUICKJS_H)
 
 foreach(NAME ${QUICKJS_MODULES})
   string(REGEX REPLACE "[-/]" "_" PFX "${NAME}")
