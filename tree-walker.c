@@ -102,10 +102,9 @@ js_value_type(JSValueConst value) {
 
 static void
 tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
-  PropertyEnumeration *s = vector_begin(&wc->frames), *e = vector_end(&wc->frames);
+  PropertyEnumeration* it;
 
-  while(s < e) property_enumeration_free(s++, JS_GetRuntime(ctx));
-
+  vector_foreach_t(&wc->frames, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
   vector_clear(&wc->frames);
 
   wc->tag_mask = MASK_ALL;
@@ -114,7 +113,7 @@ tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
 static PropertyEnumeration*
 tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
   tree_walker_reset(wc, ctx);
-  return property_enumeration_push(&wc->frames, ctx, object, PROPERTY_ENUMERATION_DEFAULT_FLAGS);
+  return property_enumeration_push(&wc->frames, ctx, object, PROPENUM_DEFAULT_FLAGS);
 }
 
 static void
@@ -215,13 +214,13 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   }
   switch(magic) {
     case FIRST_CHILD: {
-      if((it = property_enumeration_enter(&wc->frames, ctx, PROPERTY_ENUMERATION_DEFAULT_FLAGS)) == 0 ||
+      if((it = property_enumeration_enter(&wc->frames, ctx, PROPENUM_DEFAULT_FLAGS)) == 0 ||
          !property_enumeration_setpos(it, 0))
         return JS_UNDEFINED;
       break;
     }
     case LAST_CHILD: {
-      if((it = property_enumeration_enter(&wc->frames, ctx, PROPERTY_ENUMERATION_DEFAULT_FLAGS)) == 0 ||
+      if((it = property_enumeration_enter(&wc->frames, ctx, PROPENUM_DEFAULT_FLAGS)) == 0 ||
          !property_enumeration_setpos(it, -1))
         return JS_UNDEFINED;
       break;
