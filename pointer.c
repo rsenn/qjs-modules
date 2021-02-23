@@ -3,6 +3,7 @@
 #include "quickjs.h"
 #include "cutils.h"
 #include "libregexp.h"
+#include "utils.h"
 #include <string.h>
 
 JSClassID js_pointer_class_id;
@@ -50,79 +51,6 @@ js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
   JS_FreeCString(ctx, str);
 }
 
-static JSValue
-js_symbol_get_static(JSContext* ctx, const char* name) {
-  JSValue global_obj, symbol_ctor, ret;
-  global_obj = JS_GetGlobalObject(ctx);
-  symbol_ctor = JS_GetPropertyStr(ctx, global_obj, "Symbol");
-  ret = JS_GetPropertyStr(ctx, symbol_ctor, name);
-
-  JS_FreeValue(ctx, symbol_ctor);
-  JS_FreeValue(ctx, global_obj);
-  return ret;
-}
-
-static JSAtom
-js_symbol_atom(JSContext* ctx, const char* name) {
-  JSValue sym = js_symbol_get_static(ctx, name);
-  JSAtom ret = JS_ValueToAtom(ctx, sym);
-  JS_FreeValue(ctx, sym);
-  return ret;
-}
-
-static JSValue
-js_iterator_method(JSContext* ctx, JSValueConst obj) {
-  JSAtom atom;
-  JSValue ret = JS_UNDEFINED;
-  atom = js_symbol_atom(ctx, "iterator");
-  if(JS_HasProperty(ctx, obj, atom))
-    ret = JS_GetProperty(ctx, obj, atom);
-  JS_FreeAtom(ctx, atom);
-  if(!JS_IsFunction(ctx, ret)) {
-    atom = js_symbol_atom(ctx, "asyncIterator");
-    if(JS_HasProperty(ctx, obj, atom))
-      ret = JS_GetProperty(ctx, obj, atom);
-    JS_FreeAtom(ctx, atom);
-  }
-  return ret;
-}
-
-static JSValue
-js_iterator_new(JSContext* ctx, JSValueConst obj) {
-  JSValue fn, ret;
-  fn = js_iterator_method(ctx, obj);
-
-  ret = JS_Call(ctx, fn, obj, 0, 0);
-  JS_FreeValue(ctx, fn);
-  return ret;
-}
-
-static IteratorValue
-js_iterator_next(JSContext* ctx, JSValueConst obj) {
-  JSValue fn, result, done;
-  IteratorValue ret;
-
-  fn = JS_GetPropertyStr(ctx, obj, "next");
-
-  result = JS_Call(ctx, fn, obj, 0, 0);
-  JS_FreeValue(ctx, fn);
-
-  done = JS_GetPropertyStr(ctx, result, "done");
-  ret.value = JS_GetPropertyStr(ctx, result, "value");
-  JS_FreeValue(ctx, result);
-
-  ret.done = JS_ToBool(ctx, done);
-  JS_FreeValue(ctx, done);
-
-  return ret;
-}
-
-static int64_t
-js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
-  if(!JS_IsUndefined(value))
-    JS_ToInt64(ctx, &i, value);
-  return i;
-}
 
 static void
 pointer_reset(Pointer* ptr, JSContext* ctx) {
@@ -222,86 +150,6 @@ js_pointer_tostring(JSContext* ctx, JSValueConst this_val, BOOL color) {
   return ret;
 }
 
-static JSValue
-js_dereferenceerror_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
-  Pointer* ptr;
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
-
-  ptr = pointer_slice(js_pointer_data(ctx, argv[0]), ctx, 0, js_int64_default(ctx, argv[1], 0));
-
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, dereferenceerror_proto);
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_dereferenceerror_class_id);
-  JS_FreeValue(ctx, proto);
-  if(JS_IsException(obj))
-    goto fail;
-  JS_SetOpaque(obj, ptr);
-
-  return obj;
-fail:
-  js_free(ctx, ptr);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
-}
-
-static JSValue
-js_dereferenceerror_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  Pointer* ptr;
-  DynBuf dbuf;
-  JSValue ret;
-  if(!(ptr = JS_GetOpaque2(ctx, this_val, js_dereferenceerror_class_id)))
-    return JS_EXCEPTION;
-
-  dbuf_init(&dbuf);
-
-  dbuf_putstr(&dbuf, "DereferenceError ");
-
-  pointer_dump(ptr, ctx, &dbuf, FALSE);
-  ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
-  dbuf_free(&dbuf);
-
-  return ret;
-}
-
-static JSValue
-js_dereferenceerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
-  Pointer* ptr;
-
-  if(!(ptr = JS_GetOpaque2(ctx, this_val, js_dereferenceerror_class_id)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-
-    case TO_STRING: {
-      return js_dereferenceerror_tostring(ctx, this_val, argc, argv);
-    }
-  }
-
-  return JS_EXCEPTION;
-}
-
-static JSValue
-js_dereferenceerror_throw(JSContext* ctx, Pointer* ptr, int64_t index) {
-  JSValue obj = JS_NewObjectProtoClass(ctx, dereferenceerror_proto, js_dereferenceerror_class_id);
-
-  JS_SetOpaque(obj, pointer_slice(ptr, ctx, 0, index + 1));
-  return JS_Throw(ctx, obj);
-}
-
-static JSValue
-js_dereferenceerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  Pointer* ptr;
-
-  if(!(ptr = JS_GetOpaque2(ctx, this_val, js_dereferenceerror_class_id)))
-    return JS_EXCEPTION;
-
-  return js_pointer_new(ctx, ptr);
-}
 static JSValue
 js_pointer_toarray(JSContext* ctx, Pointer* ptr) {
   size_t i;
@@ -408,7 +256,14 @@ js_pointer_next(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueCons
     obj = JS_GetProperty(ctx, obj, atom);
 
     if(JS_IsException(obj)) {
-      JS_Throw(ctx, js_dereferenceerror_ctor(ctx, JS_UNDEFINED, 1, &obj));
+      DynBuf dbuf;
+      dbuf_init(&dbuf);
+
+      pointer_dump(ptr, ctx, &dbuf, TRUE);
+      dbuf_put(&dbuf, "\0", 1);
+
+      JS_ThrowReferenceError(ctx, "ptr %s", dbuf.buf);
+      dbuf_free(&dbuf);
       break;
     }
   }
@@ -424,8 +279,14 @@ js_pointer_deref(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueCon
     obj = JS_GetProperty(ctx, obj, atom);
 
     if(JS_IsException(obj)) {
-      js_dereferenceerror_throw(ctx, ptr, i);
+      DynBuf dbuf;
+      dbuf_init(&dbuf);
 
+      pointer_dump(ptr, ctx, &dbuf, TRUE);
+      dbuf_put(&dbuf, "\0", 1);
+
+      JS_ThrowReferenceError(ctx, "ptr %s", dbuf.buf);
+      dbuf_free(&dbuf);
       break;
     }
   }
@@ -537,11 +398,6 @@ JSClassDef js_pointer_class = {
     .class_name = "Pointer",
     .finalizer = js_pointer_finalizer,
 };
-JSClassDef js_dereferenceerror_class = {
-    .class_name = "DereferenceError",
-    .finalizer = js_pointer_finalizer,
-};
-
 static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("deref", 1, js_pointer_method, DEREF),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_pointer_method, TO_STRING),
@@ -551,21 +407,13 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, SLICE),
     JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, KEYS),
     JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, VALUES),
+    JS_ALIAS_DEF("toPrimitive", "toString"),
     JS_ALIAS_DEF("[Symbol.iterator]", "keys"),
     JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),
     JS_CGETSET_MAGIC_DEF("path", js_pointer_get, js_pointer_set, PROP_PATH),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Pointer", JS_PROP_C_W_E)};
 
 static const JSCFunctionListEntry js_pointer_static_funcs[] = {JS_CFUNC_MAGIC_DEF("from", 1, js_pointer_funcs, 0)};
-
-static const JSCFunctionListEntry js_dereferenceerror_proto_funcs[] = {
-    JS_CFUNC_DEF("toString", 0, js_dereferenceerror_tostring),
-    JS_PROP_STRING_DEF("name", "DereferenceError", JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE),
-    JS_CGETSET_MAGIC_DEF("pointer", js_dereferenceerror_get, 0, 0),
-    JS_ALIAS_DEF("toPrimitive", "toString"),
-    JS_ALIAS_DEF("valueOf", "toString"),
-    JS_ALIAS_DEF("inspect", "toString"),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "DereferenceError", JS_PROP_CONFIGURABLE)};
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {
@@ -582,18 +430,8 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, pointer_class, pointer_proto);
   JS_SetPropertyFunctionList(ctx, pointer_class, js_pointer_static_funcs, countof(js_pointer_static_funcs));
 
-  dereferenceerror_class =
-      JS_NewCFunction2(ctx, js_dereferenceerror_ctor, "DereferenceError", 2, JS_CFUNC_constructor, 0);
-
-  JS_SetConstructor(ctx, dereferenceerror_class, dereferenceerror_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             dereferenceerror_proto,
-                             js_dereferenceerror_proto_funcs,
-                             countof(js_dereferenceerror_proto_funcs));
-
   if(m) {
     JS_SetModuleExport(ctx, m, "Pointer", pointer_class);
-    JS_SetModuleExport(ctx, m, "DereferenceError", dereferenceerror_class);
   }
 
   return 0;
@@ -612,6 +450,5 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExport(ctx, m, "Pointer");
-  JS_AddModuleExport(ctx, m, "DereferenceError");
   return m;
 }
