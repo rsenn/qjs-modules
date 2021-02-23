@@ -20,26 +20,11 @@ typedef struct {
 } Pointer;
 
 static void
-js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
-  const char* str;
-  str = JS_AtomToCString(ctx, atom);
-
-  if(color)
-    dbuf_putstr(db, is_integer(str) ? "\x1b[33m" : "\x1b[1;30m");
-
-  dbuf_putstr(db, str);
-  if(color)
-    dbuf_putstr(db, "\x1b[m");
-
-  JS_FreeCString(ctx, str);
-}
-
-static void
 pointer_reset(Pointer* ptr, JSContext* ctx) {
   size_t i;
 
   if(ptr->atoms) {
-    for(i = 0; i < ptr->n; i++) JS_FreeAtom(ctx, ptr->atoms[i]);
+    for(i = 0; i < ptr->n; i++) js_atom_free(ctx, ptr->atoms[i]);
     free(ptr->atoms);
     ptr->atoms = 0;
   }
@@ -78,7 +63,7 @@ pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
   ret->n = end - start;
   ret->atoms = ret->n ? malloc(sizeof(JSAtom) * ret->n) : 0;
 
-  for(i = start; i < end; i++) ret->atoms[i - start] = JS_DupAtom(ctx, ptr->atoms[i]);
+  for(i = start; i < end; i++) ret->atoms[i - start] = js_atom_dup(ctx, ptr->atoms[i]);
 
   return ret;
 }
@@ -93,7 +78,7 @@ pointer_shift(Pointer* ptr, JSContext* ctx, JSValueConst obj) {
     for(i = 1; i < ptr->n; i++) { ptr->atoms[i - 1] = ptr->atoms[i]; }
     ptr->n--;
     ret = JS_GetProperty(ctx, obj, atom);
-    JS_FreeAtom(ctx, atom);
+    js_atom_free(ctx, atom);
   }
   return ret;
 }
@@ -217,7 +202,7 @@ js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
         JSAtom atom;
         atom = JS_ValueToAtom(ctx, argv[i]);
         pointer_atom_add(ptr, ctx, atom);
-        // JS_FreeAtom(ctx, atom);
+        // js_atom_free(ctx, atom);
       }
     }
   }

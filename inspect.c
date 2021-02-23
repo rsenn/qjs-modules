@@ -34,14 +34,6 @@ static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor,
     regexp_ctor, symbol_ctor;
 static JSAtom inspect_custom_atom;
 
-static inline size_t
-min_size(size_t a, size_t b) {
-  if(a < b)
-    return a;
-  else
-    return b;
-}
-
 static inline const char*
 js_object_tostring(JSContext* ctx, JSValueConst value) {
   JSAtom atom;
@@ -49,7 +41,7 @@ js_object_tostring(JSContext* ctx, JSValueConst value) {
   const char* s;
   atom = JS_NewAtom(ctx, "toString");
   tostring = JS_GetProperty(ctx, object_proto, atom);
-  JS_FreeAtom(ctx, atom);
+  js_atom_free(ctx, atom);
   str = JS_Call(ctx, tostring, value, 0, 0);
   JS_FreeValue(ctx, tostring);
   s = JS_ToCString(ctx, str);
@@ -68,7 +60,7 @@ js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
   JSValue ret;
   JSAtom method_name = JS_NewAtom(ctx, name);
   ret = JS_Invoke(ctx, symbol_ctor, method_name, 1, &arg);
-  JS_FreeAtom(ctx, method_name);
+  js_atom_free(ctx, method_name);
   return ret;
 }
 
@@ -81,7 +73,7 @@ js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
     return value;
   atom = JS_ValueToAtom(ctx, sym);
   str = JS_AtomToString(ctx, atom);
-  JS_FreeAtom(ctx, atom);
+  js_atom_free(ctx, atom);
   return str;
 }
 
@@ -653,7 +645,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
           atom = JS_NewAtomUInt32(ctx, pos);
           JS_GetOwnProperty(ctx, &desc, value, atom);
-          JS_FreeAtom(ctx, atom);
+          js_atom_free(ctx, atom);
 
           if(desc.flags & JS_PROP_GETSET)
             dbuf_put_colorstr(buf,
@@ -842,7 +834,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   dbuf_free(&dbuf);
 
   if(options.custom_inspect)
-    JS_FreeAtom(ctx, inspect_custom_atom);
+    js_atom_free(ctx, inspect_custom_atom);
 
   js_inspect_constructors_free(ctx);
 

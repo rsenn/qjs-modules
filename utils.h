@@ -43,6 +43,29 @@ is_integer(const char* str) {
 }
 
 static inline size_t
+min_size(size_t a, size_t b) {
+  if(a < b)
+    return a;
+  else
+    return b;
+}
+
+static inline uint64_t
+abs_int64(int64_t a) {
+  return a < 0 ? -a : a;
+}
+
+static inline uint32_t
+abs_int32(int32_t i) {
+  return i < 0 ? -i : i;
+}
+
+static inline int32_t
+sign_int32(uint32_t i) {
+  return (i & 0x80000000) ? -1 : 1;
+}
+
+static inline size_t
 byte_chr(const char* str, size_t len, char c) {
   const char *s = str, *t = s + len;
   for(; s < t; ++s)
@@ -339,6 +362,74 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
   if(n == 0)
     return JS_NewBool(ctx, FALSE);
   return js_new_number(ctx, n);
+}
+
+static inline int
+js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
+  int ret;
+  if(atom > 0) {
+    JSValue value;
+
+    *i = INT64_MAX;
+    value = JS_AtomToValue(ctx, atom);
+    ret = !JS_ToInt64(ctx, i, value);
+    JS_FreeValue(ctx, value);
+  } else {
+    *i = -atom;
+    ret = 1;
+  }
+  return ret;
+}
+
+static inline BOOL
+js_atom_isint32(  JSAtom atom) {
+  
+  return atom <= 0 ? TRUE : FALSE;
+}
+
+static inline int32_t
+js_atom_toint32(JSContext* ctx, JSAtom atom) {
+  if(atom > 0) {
+    JSValue value;
+    int64_t i;
+    if(!js_atom_toint64(ctx, &i, atom))
+      i = INT64_MIN;
+    return i;
+  }
+  return -atom;
+}
+
+static inline JSAtom
+js_atom_fromuint32(JSContext* ctx, int32_t i) {
+
+  if(i >= 0) return -i;
+
+  return JS_NewAtomUInt32(ctx, i);
+}
+ 
+#define js_atom_dup(ctx, atom) ((atom) <= 0 ? (atom) : JS_DupAtom((ctx), (atom)))
+#define js_atom_free(ctx, atom) do {   if((atom) > 0) JS_FreeAtom((ctx), (atom)); } while(0)
+ 
+static void
+js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
+  const char* str;
+  str = JS_AtomToCString(ctx, atom);
+
+  if(color)
+    dbuf_putstr(db, is_integer(str) ? "\x1b[33m" : "\x1b[1;30m");
+
+  dbuf_putstr(db, str);
+
+  if(color)
+    dbuf_putstr(db, "\x1b[1;36m");
+
+  if(!js_atom_isint32(atom))
+  dbuf_printf(db, sign_int32(atom) == -1 ? "(-%d)" : "(0x%x)", atom & 0x7fffffff);
+
+  if(color)
+    dbuf_putstr(db, "\x1b[m");
+
+  JS_FreeCString(ctx, str);
 }
 
 #endif
