@@ -40,7 +40,12 @@ function main(...args) {
     console.log('path:', walker.currentPath);
 
     pointer =      new Pointer(...(walker.currentPath ?? []));
-      console.log('deref:', pointer.deref(result));
+    try {
+      console.log('deref:', pointer.deref(result[2]));
+     }catch(e) {
+console.log("exception:",e.constructor);
+break;
+     }
       console.log('keys:', [...pointer]);
       console.log('values:', [...pointer.values()]);
       console.log('pointer:', pointer.slice(0).inspect());
