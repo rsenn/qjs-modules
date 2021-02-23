@@ -42,7 +42,6 @@ min_size(size_t a, size_t b) {
     return b;
 }
 
- 
 static inline const char*
 js_object_tostring(JSContext* ctx, JSValueConst value) {
   JSAtom atom;
@@ -63,20 +62,8 @@ js_object_tostring(JSContext* ctx, JSValueConst value) {
 #define js_object_tmpmark_clear(value)                                                                                 \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
-static inline JSValue
-js_new_number(JSContext* ctx, int32_t n) {
-  if(n == INT32_MAX)
-    return JS_NewFloat64(ctx, INFINITY);
-  return JS_NewInt32(ctx, n);
-}
 
-static inline JSValue
-js_new_bool_or_number(JSContext* ctx, int32_t n) {
-  if(n == 0)
-    return JS_NewBool(ctx, FALSE);
-  return js_new_number(ctx, n);
-}
-
+  
 static JSValue
 js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
   JSValue ret;
@@ -99,6 +86,7 @@ js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
   return str;
 }
 
+
 static inline const char*
 js_symbol_to_c_string(JSContext* ctx, JSValueConst sym) {
   JSValue value = js_symbol_to_string(ctx, sym);
@@ -107,6 +95,8 @@ js_symbol_to_c_string(JSContext* ctx, JSValueConst sym) {
   JS_FreeValue(ctx, value);
   return str;
 }
+
+
 
 static int
 js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
@@ -117,6 +107,7 @@ js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
   JS_FreeCString(ctx, str);
   return ret;
 }
+
 
 static int
 js_is_map(JSContext* ctx, JSValueConst value) {

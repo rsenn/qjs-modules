@@ -2,13 +2,13 @@
 #define QJS_MODULES_UTILS_H
 
 #include <string.h>
+#include <math.h>
 
 #define is_control_char(c) ((c) == 8 || (c) == '\f' || (c) == '\n' || (c) == '\r' || (c) == '\t' || (c) == 11)
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_newline_char(c) ((c) == '\n')
 #define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
-
 
 static inline size_t
 byte_chr(const char* str, size_t len, char c) {
@@ -52,7 +52,6 @@ is_integer(const char* str) {
 #define COLOR_MARINE "\x1b[36m"
 #define COLOR_GRAY "\x1b[1;30m"
 #define COLOR_NONE "\x1b[m"
-
 
 static inline size_t
 ansi_skip(const char* str, size_t len) {
@@ -109,7 +108,6 @@ strndup(const char* s, size_t n) {
   r[n] = '\0';
   return r;
 }
-
 
 static inline size_t
 predicate_find(const char* str, size_t len, int (*pred)(char)) {
@@ -321,5 +319,22 @@ js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
     JS_ToInt64(ctx, &i, value);
   return i;
 }
+
+
+static inline JSValue
+js_new_number(JSContext* ctx, int32_t n) {
+  if(n == INT32_MAX)
+    return JS_NewFloat64(ctx, INFINITY);
+  return JS_NewInt32(ctx, n);
+}
+
+static inline JSValue
+js_new_bool_or_number(JSContext* ctx, int32_t n) {
+  if(n == 0)
+    return JS_NewBool(ctx, FALSE);
+  return js_new_number(ctx, n);
+}
+
+
 
 #endif
