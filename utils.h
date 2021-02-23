@@ -10,14 +10,10 @@
 #define is_newline_char(c) ((c) == '\n')
 #define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
 
-static inline size_t
-byte_chr(const char* str, size_t len, char c) {
-  const char *s = str, *t = s + len;
-  for(; s < t; ++s)
-    if(*s == c)
-      break;
-  return s - str;
-}
+typedef struct {
+  BOOL done;
+  JSValue value;
+} IteratorValue;
 
 static inline int
 is_escape_char(char c) {
@@ -44,6 +40,15 @@ is_integer(const char* str) {
       return 0;
   }
   return 1;
+}
+
+static inline size_t
+byte_chr(const char* str, size_t len, char c) {
+  const char *s = str, *t = s + len;
+  for(; s < t; ++s)
+    if(*s == c)
+      break;
+  return s - str;
 }
 
 #define COLOR_RED "\x1b[31m"
@@ -176,11 +181,6 @@ dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color
   if(with_color)
     dbuf_putstr(db, COLOR_NONE);
 }
-
-typedef struct {
-  BOOL done;
-  JSValue value;
-} IteratorValue;
 
 static inline char*
 js_class_name(JSContext* ctx, JSValueConst value) {
