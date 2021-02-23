@@ -121,7 +121,7 @@ static JSValue
 js_pointer_toarray(JSContext* ctx, Pointer* ptr) {
   size_t i;
   JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++) JS_SetPropertyUint32(ctx, array, i, JS_AtomToValue(ctx, ptr->atoms[i]));
+  for(i = 0; i < ptr->n; i++) JS_SetPropertyUint32(ctx, array, i, js_atom_tovalue(ctx, ptr->atoms[i]));
   return array;
 }
 
@@ -137,7 +137,7 @@ js_pointer_fromarray(JSContext* ctx, Pointer* ptr, JSValueConst array) {
   ptr->atoms = malloc(sizeof(JSAtom) * len);
   for(i = 0; i < len; i++) {
     prop = JS_GetPropertyUint32(ctx, array, i);
-    ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
+    ptr->atoms[i] = js_atom_fromvalue(ctx, prop);
     JS_FreeValue(ctx, prop);
   }
 }
@@ -153,7 +153,7 @@ js_pointer_fromiterable(JSContext* ctx, Pointer* ptr, JSValueConst arg) {
     item = js_iterator_next(ctx, iter);
     if(item.done)
       break;
-    pointer_atom_add(ptr, ctx, JS_ValueToAtom(ctx, item.value));
+    pointer_atom_add(ptr, ctx, js_atom_fromvalue(ctx, item.value));
     JS_FreeValue(ctx, item.value);
   }
 }
@@ -192,7 +192,7 @@ js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
       for(i = 0; i < len; i++) {
         JSValue arg = JS_GetPropertyUint32(ctx, argv[0], i);
         JSAtom atom;
-        atom = JS_ValueToAtom(ctx, arg);
+        atom = js_atom_fromvalue(ctx, arg);
         pointer_atom_add(ptr, ctx, atom);
         JS_FreeValue(ctx, arg);
       }
@@ -200,7 +200,7 @@ js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
 
       for(i = 0; i < argc; i++) {
         JSAtom atom;
-        atom = JS_ValueToAtom(ctx, argv[i]);
+        atom = js_atom_fromvalue(ctx, argv[i]);
         pointer_atom_add(ptr, ctx, atom);
         // js_atom_free(ctx, atom);
       }

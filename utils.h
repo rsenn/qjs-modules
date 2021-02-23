@@ -364,72 +364,81 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
   return js_new_number(ctx, n);
 }
 
+#define JS_ATOM_TAG_INT (1U << 31)
+#define JS_ATOM_MAX_INT (JS_ATOM_TAG_INT - 1)
+
+#define js_atom_isint32(atom) ((unsigned)(atom)&JS_ATOM_TAG_INT)
+#define js_atom_dup(ctx, atom) (js_atom_isint32(atom) ? (atom) : JS_DupAtom((ctx), (atom)))
+#define js_atom_free(ctx, atom)                                                                                        \
+  do {                                                                                                                 \
+    if((atom) > 0)                                                                                                     \
+      JS_FreeAtom((ctx), (atom));                                                                                      \
+  } while(0)
+
 static inline int
 js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
   int ret;
-  if(atom > 0) {
-    JSValue value;
+  JSValue value;
+  *i = INT64_MAX;
+  value = JS_AtomToValue(ctx, atom);
+  ret = !JS_ToInt64(ctx, i, value);
+  JS_FreeValue(ctx, value);
 
-    *i = INT64_MAX;
-    value = JS_AtomToValue(ctx, atom);
-    ret = !JS_ToInt64(ctx, i, value);
-    JS_FreeValue(ctx, value);
-  } else {
-    *i = -atom;
-    ret = 1;
-  }
   return ret;
-}
-
-static inline BOOL
-js_atom_isint32(  JSAtom atom) {
-  
-  return atom <= 0 ? TRUE : FALSE;
 }
 
 static inline int32_t
 js_atom_toint32(JSContext* ctx, JSAtom atom) {
-  if(atom > 0) {
-    JSValue value;
-    int64_t i;
-    if(!js_atom_toint64(ctx, &i, atom))
-      i = INT64_MIN;
+  if(!js_atom_isint32(atom)) {
+    int64_t i = INT64_MIN;
+    js_atom_toint64(ctx, &i, atom);
     return i;
   }
+
   return -atom;
+}
+
+static inline JSValue
+js_atom_tovalue(JSContext* ctx, JSAtom atom) {
+  if(js_atom_isint32(atom))
+    return JS_MKVAL(JS_TAG_INT, -atom);
+
+  return JS_AtomToValue(ctx, atom);
+}
+
+static inline JSAtom
+js_atom_fromvalue(JSContext* ctx, JSValueConst value) {
+  if(JS_VALUE_GET_TAG(value) == JS_TAG_INT) {
+    if(JS_VALUE_GET_INT(value) <= JS_ATOM_MAX_INT && JS_VALUE_GET_INT(value) >= 0)
+      return (unsigned)JS_VALUE_GET_INT(value) | JS_ATOM_TAG_INT;
+  }
+  return JS_ValueToAtom(ctx, value);
 }
 
 static inline JSAtom
 js_atom_fromuint32(JSContext* ctx, int32_t i) {
 
-  if(i >= 0) return -i;
+  if(i >= 0)
+    return -i;
 
   return JS_NewAtomUInt32(ctx, i);
 }
- 
-#define js_atom_dup(ctx, atom) ((atom) <= 0 ? (atom) : JS_DupAtom((ctx), (atom)))
-#define js_atom_free(ctx, atom) do {   if((atom) > 0) JS_FreeAtom((ctx), (atom)); } while(0)
- 
+
 static void
 js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
   const char* str;
+  BOOL is_int;
   str = JS_AtomToCString(ctx, atom);
-
+  is_int = js_atom_isint32(atom) || is_integer(str);
   if(color)
-    dbuf_putstr(db, is_integer(str) ? "\x1b[33m" : "\x1b[1;30m");
-
+    dbuf_putstr(db, is_int ? "\x1b[33m" : "\x1b[1;30m");
   dbuf_putstr(db, str);
-
   if(color)
     dbuf_putstr(db, "\x1b[1;36m");
-
-  if(!js_atom_isint32(atom))
-  dbuf_printf(db, sign_int32(atom) == -1 ? "(-%d)" : "(0x%x)", atom & 0x7fffffff);
-
+  if(!is_int)
+    dbuf_printf(db, sign_int32(atom) == -1 ? "(-%d)" : "(0x%x)", atom & 0x7fffffff);
   if(color)
     dbuf_putstr(db, "\x1b[m");
-
-  JS_FreeCString(ctx, str);
 }
 
 #endif

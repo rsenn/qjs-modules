@@ -71,7 +71,7 @@ js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
   value = js_symbol_invoke_static(ctx, "keyFor", sym);
   if(!JS_IsUndefined(value))
     return value;
-  atom = JS_ValueToAtom(ctx, sym);
+  atom = js_atom_fromvalue(ctx, sym);
   str = JS_AtomToString(ctx, atom);
   js_atom_free(ctx, atom);
   return str;
@@ -265,7 +265,7 @@ js_inspect_options_get(JSContext* ctx, JSValueConst object, inspect_options_t* o
       JSValue item = JS_GetPropertyUint32(ctx, value, pos);
       prop_key_t* key = js_mallocz(ctx, sizeof(prop_key_t));
       key->name = JS_ToCString(ctx, item);
-      key->atom = JS_ValueToAtom(ctx, item);
+      key->atom = js_atom_fromvalue(ctx, item);
       list_add(&key->link, &opts->hide_keys);
       JS_FreeValue(ctx, item);
     }
@@ -292,7 +292,7 @@ js_inspect_options_object(JSContext* ctx, inspect_options_t* opts) {
   n = 0;
   list_for_each(el, &opts->hide_keys) {
     prop_key_t* key = list_entry(el, prop_key_t, link);
-    JS_SetPropertyUint32(ctx, arr, n++, JS_AtomToValue(ctx, key->atom));
+    JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom));
   }
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   return ret;
@@ -316,7 +316,7 @@ js_inspect_custom_atom(JSContext* ctx) {
   key = JS_NewString(ctx, "nodejs.util.inspect.custom");
   sym = js_symbol_invoke_static(ctx, "for", key);
   JS_FreeValue(ctx, key);
-  atom = JS_ValueToAtom(ctx, sym);
+  atom = js_atom_fromvalue(ctx, sym);
   JS_FreeValue(ctx, sym);
 
   return atom;
@@ -682,7 +682,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       for(pos = 0; pos < nprops; pos++) {
         JSPropertyDescriptor desc;
         const char* name;
-        JSValue key = JS_AtomToValue(ctx, props[pos].atom);
+        JSValue key = js_atom_tovalue(ctx, props[pos].atom);
 
         name = JS_AtomToCString(ctx, props[pos].atom);
 
