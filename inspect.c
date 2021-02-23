@@ -147,6 +147,16 @@ ansi_truncate(const char* str, size_t len, size_t limit) {
   return i;
 }
 
+char*
+strndup(const char* s, size_t n) {
+  char* r = malloc(n + 1);
+  if(r == NULL)
+    return NULL;
+  memcpy(r, s, n);
+  r[n] = '\0';
+  return r;
+}
+
 static void
 dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
   size_t i = 0, j;
@@ -192,6 +202,79 @@ dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color
   dbuf_putstr(db, str);
   if(with_color)
     dbuf_putstr(db, COLOR_NONE);
+}
+
+static char*
+js_class_name(JSContext* ctx, JSValueConst value) {
+  JSValue proto, ctor;
+  const char* str;
+  char* name = 0;
+  int namelen;
+  proto = JS_GetPrototype(ctx, value);
+  ctor = JS_GetPropertyStr(ctx, proto, "constructor");
+  if((str = JS_ToCString(ctx, ctor))) {
+    if(!strncmp(str, "function ", 9)) {
+      namelen = byte_chr(str + 9, strlen(str) - 9, '(');
+      name = js_strndup(ctx, str + 9, namelen);
+    }
+  }
+  if(!name) {
+    if(str)
+      JS_FreeCString(ctx, str);
+    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
+      name = js_strdup(ctx, str);
+  }
+  if(str)
+    JS_FreeCString(ctx, str);
+  return name;
+}
+
+static int
+js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
+  int ret;
+  const char* str;
+  str = js_object_tostring(ctx, value);
+  ret = strcmp(str, cmp) == 0;
+  JS_FreeCString(ctx, str);
+  return ret;
+}
+
+static int
+js_is_map(JSContext* ctx, JSValueConst value) {
+  return js_is_object(ctx, value, "[object Map]");
+}
+
+static int
+js_is_generator(JSContext* ctx, JSValueConst value) {
+  return js_is_object(ctx, value, "[object Generator]");
+}
+
+static int
+js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
+  int ret = 0;
+  int n, m;
+  void* obj = JS_VALUE_GET_OBJ(value);
+  char* name = 0;
+  if((name = js_class_name(ctx, value))) {
+    n = strlen(name);
+    m = n >= 11 ? n - 11 : 0;
+    // printf("  name=%s\n", name + m);
+    if(!strcmp(name + m, "ArrayBuffer"))
+      ret = 1;
+  }
+  if(!ret) {
+    const char* str;
+    if(JS_IsInstanceOf(ctx, value, array_buffer))
+      ret = 1;
+    else if(!JS_IsArray(ctx, value) && (str = js_object_tostring(ctx, value))) {
+      ret = strstr(str, "ArrayBuffer]") != 0;
+      //   ret = !strcmp(str, "[object ArrayBuffer]");
+      JS_FreeCString(ctx, str);
+    }
+  }
+  if(name)
+    js_free(ctx, (void*)name); // printf("js_is_arraybuffer ret=%i\n", ret);
+  return ret;
 }
 
 static void
@@ -492,89 +575,6 @@ js_inspect_newline(DynBuf* buf, int32_t depth) {
   while(depth-- > 0) dbuf_putstr(buf, "  ");
 }
 
-char*
-strndup(const char* s, size_t n) {
-  char* r = malloc(n + 1);
-  if(r == NULL)
-    return NULL;
-  memcpy(r, s, n);
-  r[n] = '\0';
-  return r;
-}
-
-static char*
-js_class_name(JSContext* ctx, JSValueConst value) {
-  JSValue proto, ctor;
-  const char* str;
-  char* name = 0;
-  int namelen;
-  proto = JS_GetPrototype(ctx, value);
-  ctor = JS_GetPropertyStr(ctx, proto, "constructor");
-  if((str = JS_ToCString(ctx, ctor))) {
-    if(!strncmp(str, "function ", 9)) {
-      namelen = byte_chr(str + 9, strlen(str) - 9, '(');
-      name = js_strndup(ctx, str + 9, namelen);
-    }
-  }
-  if(!name) {
-    if(str)
-      JS_FreeCString(ctx, str);
-    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
-      name = js_strdup(ctx, str);
-  }
-  if(str)
-    JS_FreeCString(ctx, str);
-  return name;
-}
-
-static int
-js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
-  int ret;
-  const char* str;
-  str = js_object_tostring(ctx, value);
-  ret = strcmp(str, cmp) == 0;
-  JS_FreeCString(ctx, str);
-  return ret;
-}
-
-static int
-js_is_map(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Map]");
-}
-
-static int
-js_is_generator(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Generator]");
-}
-
-static int
-js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
-  int ret = 0;
-  int n, m;
-  void* obj = JS_VALUE_GET_OBJ(value);
-  char* name = 0;
-  if((name = js_class_name(ctx, value))) {
-    n = strlen(name);
-    m = n >= 11 ? n - 11 : 0;
-    // printf("  name=%s\n", name + m);
-    if(!strcmp(name + m, "ArrayBuffer"))
-      ret = 1;
-  }
-  if(!ret) {
-    const char* str;
-    if(JS_IsInstanceOf(ctx, value, array_buffer))
-      ret = 1;
-    else if(!JS_IsArray(ctx, value) && (str = js_object_tostring(ctx, value))) {
-      ret = strstr(str, "ArrayBuffer]") != 0;
-      //   ret = !strcmp(str, "[object ArrayBuffer]");
-      JS_FreeCString(ctx, str);
-    }
-  }
-  if(name)
-    js_free(ctx, (void*)name); // printf("js_is_arraybuffer ret=%i\n", ret);
-  return ret;
-}
-
 static int
 js_inspect_screen_width(void) {
   struct winsize w = {.ws_col = -1, .ws_row = -1};
@@ -771,6 +771,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
     case JS_TAG_OBJECT: {
       int is_array = JS_IsArray(ctx, value);
+      int is_function = JS_IsFunction(ctx, value);
       uint32_t nprops, pos, len, limit;
       JSPropertyEnum* props = 0;
       const char* s;
@@ -788,7 +789,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         return -1;
       }
 
-      if(/*depth >= 0 &&*/ opts->custom_inspect && (s = js_inspect_custom_call(ctx, value, opts, depth))) {
+      if(/*depth >= 0 && opts->custom_inspect &&*/ (s = js_inspect_custom_call(ctx, value, opts, depth))) {
         dbuf_putstr(buf, s);
         JS_FreeCString(ctx, s);
         return 0;
@@ -799,7 +800,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         JS_FreeCString(ctx, s);
         return 0;
       }
-      if(!is_array && !strncmp(s, "[object ", 8)) {
+      if(!is_array && !is_function && !strncmp(s, "[object ", 8)) {
         const char* e = strchr(s, ']');
         size_t slen = e - (s + 8);
 
@@ -818,7 +819,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
                                 JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
-      if(JS_IsFunction(ctx, value)) {
+      if(is_function) {
         JSValue name;
         dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[Function" : "[Function");
         name = JS_GetPropertyStr(ctx, value, "name");
