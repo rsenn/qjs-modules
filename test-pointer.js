@@ -30,13 +30,20 @@ function main(...args) {
 
   let pointer;
   let walker = new TreeWalker(result);
+    walker.tagMask = TreeWalker.MASK_OBJECT;
+
   let node;
   while((node = walker.nextNode())) {
+
+    if(typeof walker.currentNode != 'object')continue;
     console.log('node:', node);
     console.log('path:', walker.currentPath);
 
     pointer =      new Pointer(...(walker.currentPath ?? []));
-      console.log('pointer:', pointer.inspect());
+      console.log('deref:', pointer.deref(result));
+      console.log('keys:', [...pointer]);
+      console.log('values:', [...pointer.values()]);
+      console.log('pointer:', pointer.slice(0).inspect());
 }
 
   WriteFile('output.json', JSON.stringify(result, null, 2));
