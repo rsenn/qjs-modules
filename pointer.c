@@ -144,12 +144,12 @@ js_pointer_fromarray(JSContext* ctx, Pointer* ptr, JSValueConst array) {
 
   if(len >= 0) {
     ptr->atoms = malloc(sizeof(JSAtom) * len);
-  for(i = 0; i < len; i++) {
-    prop = JS_GetPropertyUint32(ctx, array, i);
-    ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
-    JS_FreeValue(ctx, prop);
-  }
-  ptr->n = len;  
+    for(i = 0; i < len; i++) {
+      prop = JS_GetPropertyUint32(ctx, array, i);
+      ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
+      JS_FreeValue(ctx, prop);
+    }
+    ptr->n = len;
   }
 }
 

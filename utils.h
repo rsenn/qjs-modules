@@ -298,13 +298,13 @@ js_symbol_atom(JSContext* ctx, const char* name) {
 
 static inline int64_t
 js_array_length(JSContext* ctx, JSValueConst array) {
-    int64_t len = -1;
-       if(JS_IsArray(ctx, array)) {
-      JSValue length = JS_GetPropertyStr(ctx, array, "length");
-      JS_ToInt64(ctx, &len, length);
-      JS_FreeValue(ctx, length);
-    }
-    return len;
+  int64_t len = -1;
+  if(JS_IsArray(ctx, array)) {
+    JSValue length = JS_GetPropertyStr(ctx, array, "length");
+    JS_ToInt64(ctx, &len, length);
+    JS_FreeValue(ctx, length);
+  }
+  return len;
 }
 
 static inline JSValue

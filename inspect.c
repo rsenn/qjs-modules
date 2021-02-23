@@ -259,7 +259,7 @@ js_inspect_options_get(JSContext* ctx, JSValueConst object, inspect_options_t* o
   if(JS_IsArray(ctx, value)) {
     int64_t len, pos;
     len = js_array_length(ctx, value);
- 
+
     for(pos = 0; pos < len; pos++) {
       JSValue item = JS_GetPropertyUint32(ctx, value, pos);
       prop_key_t* key = js_mallocz(ctx, sizeof(prop_key_t));
@@ -624,7 +624,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       if(is_array) {
         len = js_array_length(ctx, value);
-         dbuf_putstr(buf, compact ? "[ " : "[");
+        dbuf_putstr(buf, compact ? "[ " : "[");
         if(!compact)
           js_inspect_newline(buf, level + 1);
 
