@@ -35,8 +35,8 @@ typedef struct {
 
 static int js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth);
 
-static JSValueConst global_object, object, object_proto, array_buffer, shared_array_buffer, map_constructor,
-    regexp_constructor, symbol_constructor;
+static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor,
+    regexp_ctor, symbol_ctor;
 static JSAtom inspect_custom_atom;
 
 #define is_control_char(c) ((c) == 8 || (c) == '\f' || (c) == '\n' || (c) == '\r' || (c) == '\t' || (c) == 11)
@@ -228,55 +228,6 @@ js_class_name(JSContext* ctx, JSValueConst value) {
     JS_FreeCString(ctx, str);
   return name;
 }
-
-static int
-js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
-  int ret;
-  const char* str;
-  str = js_object_tostring(ctx, value);
-  ret = strcmp(str, cmp) == 0;
-  JS_FreeCString(ctx, str);
-  return ret;
-}
-
-static int
-js_is_map(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Map]");
-}
-
-static int
-js_is_generator(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Generator]");
-}
-
-static int
-js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
-  int ret = 0;
-  int n, m;
-  void* obj = JS_VALUE_GET_OBJ(value);
-  char* name = 0;
-  if((name = js_class_name(ctx, value))) {
-    n = strlen(name);
-    m = n >= 11 ? n - 11 : 0;
-    // printf("  name=%s\n", name + m);
-    if(!strcmp(name + m, "ArrayBuffer"))
-      ret = 1;
-  }
-  if(!ret) {
-    const char* str;
-    if(JS_IsInstanceOf(ctx, value, array_buffer))
-      ret = 1;
-    else if(!JS_IsArray(ctx, value) && (str = js_object_tostring(ctx, value))) {
-      ret = strstr(str, "ArrayBuffer]") != 0;
-      //   ret = !strcmp(str, "[object ArrayBuffer]");
-      JS_FreeCString(ctx, str);
-    }
-  }
-  if(name)
-    js_free(ctx, (void*)name); // printf("js_is_arraybuffer ret=%i\n", ret);
-  return ret;
-}
-
 static void
 js_property_names_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
   uint32_t i;
@@ -329,7 +280,7 @@ static JSValue
 js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
   JSValue ret;
   JSAtom method_name = JS_NewAtom(ctx, name);
-  ret = JS_Invoke(ctx, symbol_constructor, method_name, 1, &arg);
+  ret = JS_Invoke(ctx, symbol_ctor, method_name, 1, &arg);
   JS_FreeAtom(ctx, method_name);
   return ret;
 }
@@ -356,39 +307,87 @@ js_symbol_to_c_string(JSContext* ctx, JSValueConst sym) {
   return str;
 }
 
+static int
+js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
+  int ret;
+  const char* str;
+  str = js_object_tostring(ctx, value);
+  ret = strcmp(str, cmp) == 0;
+  JS_FreeCString(ctx, str);
+  return ret;
+}
+
+static int
+js_is_map(JSContext* ctx, JSValueConst value) {
+  return js_is_object(ctx, value, "[object Map]");
+}
+
+static int
+js_is_generator(JSContext* ctx, JSValueConst value) {
+  return js_is_object(ctx, value, "[object Generator]");
+}
+
+static int
+js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
+  int ret = 0;
+  int n, m;
+  void* obj = JS_VALUE_GET_OBJ(value);
+  char* name = 0;
+  if((name = js_class_name(ctx, value))) {
+    n = strlen(name);
+    m = n >= 11 ? n - 11 : 0;
+    // printf("  name=%s\n", name + m);
+    if(!strcmp(name + m, "ArrayBuffer"))
+      ret = 1;
+  }
+  if(!ret) {
+    const char* str;
+    if(JS_IsInstanceOf(ctx, value, array_buffer_ctor))
+      ret = 1;
+    else if(!JS_IsArray(ctx, value) && (str = js_object_tostring(ctx, value))) {
+      ret = strstr(str, "ArrayBuffer]") != 0;
+      //   ret = !strcmp(str, "[object ArrayBuffer]");
+      JS_FreeCString(ctx, str);
+    }
+  }
+  if(name)
+    js_free(ctx, (void*)name); // printf("js_is_arraybuffer ret=%i\n", ret);
+  return ret;
+}
+
 static void
 js_inspect_constructors_get(JSContext* ctx) {
   global_object = JS_GetGlobalObject(ctx);
-  object = JS_GetPropertyStr(ctx, global_object, "Object");
-  array_buffer = JS_GetPropertyStr(ctx, global_object, "ArrayBuffer");
-  shared_array_buffer = JS_GetPropertyStr(ctx, global_object, "SharedArrayBuffer");
-  map_constructor = JS_GetPropertyStr(ctx, global_object, "Map");
-  regexp_constructor = JS_GetPropertyStr(ctx, global_object, "RegExp");
-  symbol_constructor = JS_GetPropertyStr(ctx, global_object, "Symbol");
+  object_ctor = JS_GetPropertyStr(ctx, global_object, "Object");
+  array_buffer_ctor = JS_GetPropertyStr(ctx, global_object, "ArrayBuffer");
+  shared_array_buffer_ctor = JS_GetPropertyStr(ctx, global_object, "SharedArrayBuffer");
+  map_ctor = JS_GetPropertyStr(ctx, global_object, "Map");
+  regexp_ctor = JS_GetPropertyStr(ctx, global_object, "RegExp");
+  symbol_ctor = JS_GetPropertyStr(ctx, global_object, "Symbol");
 
-  if(!JS_IsConstructor(ctx, array_buffer))
+  if(!JS_IsConstructor(ctx, array_buffer_ctor))
     JS_ThrowTypeError(ctx, "ArrayBuffer is not a constructor");
-  if(!JS_IsConstructor(ctx, shared_array_buffer))
+  if(!JS_IsConstructor(ctx, shared_array_buffer_ctor))
     JS_ThrowTypeError(ctx, "SharedArrayBuffer is not a constructor");
-  if(!JS_IsConstructor(ctx, map_constructor))
+  if(!JS_IsConstructor(ctx, map_ctor))
     JS_ThrowTypeError(ctx, "Map is not a constructor");
-  if(!JS_IsConstructor(ctx, regexp_constructor))
+  if(!JS_IsConstructor(ctx, regexp_ctor))
     JS_ThrowTypeError(ctx, "RegExp is not a constructor");
-  if(!JS_IsConstructor(ctx, symbol_constructor))
+  if(!JS_IsConstructor(ctx, symbol_ctor))
     JS_ThrowTypeError(ctx, "Symbol is not a constructor");
 
-  object_proto = JS_GetPropertyStr(ctx, object, "prototype");
+  object_proto = JS_GetPropertyStr(ctx, object_ctor, "prototype");
 }
 
 static void
 js_inspect_constructors_free(JSContext* ctx) {
-  JS_FreeValue(ctx, object);
+  JS_FreeValue(ctx, object_ctor);
   JS_FreeValue(ctx, object_proto);
-  JS_FreeValue(ctx, array_buffer);
-  JS_FreeValue(ctx, shared_array_buffer);
-  JS_FreeValue(ctx, map_constructor);
-  JS_FreeValue(ctx, regexp_constructor);
-  JS_FreeValue(ctx, symbol_constructor);
+  JS_FreeValue(ctx, array_buffer_ctor);
+  JS_FreeValue(ctx, shared_array_buffer_ctor);
+  JS_FreeValue(ctx, map_ctor);
+  JS_FreeValue(ctx, regexp_ctor);
+  JS_FreeValue(ctx, symbol_ctor);
   JS_FreeValue(ctx, global_object);
 }
 
@@ -646,9 +645,9 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     slen = byte_chr(str2, strlen(str2), ']');
     dbuf_put(buf, str2, slen);
   } else {
-    if(JS_IsInstanceOf(ctx, value, array_buffer))
+    if(JS_IsInstanceOf(ctx, value, array_buffer_ctor))
       dbuf_putstr(buf, "ArrayBuffer");
-    if(JS_IsInstanceOf(ctx, value, shared_array_buffer))
+    if(JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor))
       dbuf_putstr(buf, "SharedArrayBuffer");
   }
   if(str)
@@ -776,12 +775,12 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       JSPropertyEnum* props = 0;
       const char* s;
 
-      if(JS_IsInstanceOf(ctx, value, array_buffer) || JS_IsInstanceOf(ctx, value, shared_array_buffer)/* ||
+      if(JS_IsInstanceOf(ctx, value, array_buffer_ctor) || JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor)/* ||
          js_is_arraybuffer(ctx, value)*/)
         return js_inspect_arraybuffer(ctx, buf, value, opts, depth);
-      if(JS_IsInstanceOf(ctx, value, map_constructor) /*|| js_is_map(ctx, value)*/)
+      if(JS_IsInstanceOf(ctx, value, map_ctor) /*|| js_is_map(ctx, value)*/)
         return js_inspect_map(ctx, buf, value, opts, depth);
-      if(JS_IsInstanceOf(ctx, value, regexp_constructor) /*|| js_is_map(ctx, value)*/)
+      if(JS_IsInstanceOf(ctx, value, regexp_ctor) /*|| js_is_map(ctx, value)*/)
         return js_inspect_regexp(ctx, buf, value, opts, depth);
 
       if(js_object_tmpmark_isset(value)) {
