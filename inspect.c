@@ -71,7 +71,7 @@ js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
   value = js_symbol_invoke_static(ctx, "keyFor", sym);
   if(!JS_IsUndefined(value))
     return value;
-  atom = js_atom_fromvalue(ctx, sym);
+  atom = JS_ValueToAtom(ctx, sym);
   str = JS_AtomToString(ctx, atom);
   js_atom_free(ctx, atom);
   return str;
@@ -265,7 +265,7 @@ js_inspect_options_get(JSContext* ctx, JSValueConst object, inspect_options_t* o
       JSValue item = JS_GetPropertyUint32(ctx, value, pos);
       prop_key_t* key = js_mallocz(ctx, sizeof(prop_key_t));
       key->name = JS_ToCString(ctx, item);
-      key->atom = js_atom_fromvalue(ctx, item);
+      key->atom = JS_ValueToAtom(ctx, item);
       list_add(&key->link, &opts->hide_keys);
       JS_FreeValue(ctx, item);
     }
@@ -316,7 +316,7 @@ js_inspect_custom_atom(JSContext* ctx) {
   key = JS_NewString(ctx, "nodejs.util.inspect.custom");
   sym = js_symbol_invoke_static(ctx, "for", key);
   JS_FreeValue(ctx, key);
-  atom = js_atom_fromvalue(ctx, sym);
+  atom = JS_ValueToAtom(ctx, sym);
   JS_FreeValue(ctx, sym);
 
   return atom;
@@ -632,7 +632,6 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         limit = min_size(opts->max_array_length, len);
 
         for(pos = 0; pos < len; pos++) {
-          JSAtom atom;
           JSPropertyDescriptor desc;
           if(pos == limit)
             break;
@@ -643,9 +642,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
               js_inspect_newline(buf, level + 1);
           }
 
-          atom = JS_NewAtomUInt32(ctx, pos);
-          JS_GetOwnProperty(ctx, &desc, value, atom);
-          js_atom_free(ctx, atom);
+          JS_GetOwnProperty(ctx, &desc, value, js_atom_fromint(pos));
 
           if(desc.flags & JS_PROP_GETSET)
             dbuf_put_colorstr(buf,

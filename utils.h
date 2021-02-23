@@ -367,8 +367,11 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
 #define JS_ATOM_TAG_INT (1U << 31)
 #define JS_ATOM_MAX_INT (JS_ATOM_TAG_INT - 1)
 
-#define js_atom_isint32(atom) ((unsigned)(atom)&JS_ATOM_TAG_INT)
-#define js_atom_dup(ctx, atom) (js_atom_isint32(atom) ? (atom) : JS_DupAtom((ctx), (atom)))
+#define js_atom_isint(i) ((JSAtom)((i)&JS_ATOM_TAG_INT))
+#define js_atom_fromint(i) ((JSAtom)((i)&JS_ATOM_MAX_INT) | JS_ATOM_TAG_INT)
+#define js_atom_toint(i) (unsigned int)(((JSAtom)(i) & (~(JS_ATOM_TAG_INT))))
+
+#define js_atom_dup(ctx, atom) (js_atom_isint(atom) ? (atom) : JS_DupAtom((ctx), (atom)))
 #define js_atom_free(ctx, atom)                                                                                        \
   do {                                                                                                                 \
     if((atom) > 0)                                                                                                     \
@@ -389,7 +392,7 @@ js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
 
 static inline int32_t
 js_atom_toint32(JSContext* ctx, JSAtom atom) {
-  if(!js_atom_isint32(atom)) {
+  if(!js_atom_isint(atom)) {
     int64_t i = INT64_MIN;
     js_atom_toint64(ctx, &i, atom);
     return i;
@@ -400,7 +403,7 @@ js_atom_toint32(JSContext* ctx, JSAtom atom) {
 
 static inline JSValue
 js_atom_tovalue(JSContext* ctx, JSAtom atom) {
-  if(js_atom_isint32(atom))
+  if(js_atom_isint(atom))
     return JS_MKVAL(JS_TAG_INT, -atom);
 
   return JS_AtomToValue(ctx, atom);
@@ -416,12 +419,25 @@ js_atom_fromvalue(JSContext* ctx, JSValueConst value) {
 }
 
 static inline JSAtom
-js_atom_fromuint32(JSContext* ctx, int32_t i) {
+js_atom_fromuint32(JSContext* ctx, uint32_t i) {
+  if(i > JS_ATOM_MAX_INT)
+    return JS_NewAtomUInt32(ctx, i);
 
-  if(i >= 0)
-    return -i;
+  return js_atom_fromint(i);
+}
 
-  return JS_NewAtomUInt32(ctx, i);
+static inline unsigned int
+js_atom_tobinary(JSAtom atom) {
+  ssize_t ret;
+
+  if(js_atom_isint(atom)) {
+
+    ret = js_atom_toint(atom);
+    ret = -ret;
+  } else {
+    ret = atom;
+  }
+  return ret;
 }
 
 static void
@@ -429,14 +445,14 @@ js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
   const char* str;
   BOOL is_int;
   str = JS_AtomToCString(ctx, atom);
-  is_int = js_atom_isint32(atom) || is_integer(str);
+  is_int = js_atom_isint(atom) || is_integer(str);
   if(color)
     dbuf_putstr(db, is_int ? "\x1b[33m" : "\x1b[1;30m");
   dbuf_putstr(db, str);
   if(color)
     dbuf_putstr(db, "\x1b[1;36m");
   if(!is_int)
-    dbuf_printf(db, sign_int32(atom) == -1 ? "(-%d)" : "(0x%x)", atom & 0x7fffffff);
+    dbuf_printf(db, "(0x%x)", js_atom_tobinary(atom));
   if(color)
     dbuf_putstr(db, "\x1b[m");
 }
