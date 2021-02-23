@@ -10,9 +10,7 @@ export function Console(opts = {}) {
   };
   const stdoutFileno = std.out.fileno();
   const defaultBreakLength =
-    (os.isatty(stdoutFileno) && consoleWidth(stdoutFileno)) ||
-    env.COLUMNS ||
-    Infinity;
+    (os.isatty(stdoutFileno) && consoleWidth(stdoutFileno)) || env.COLUMNS || Infinity;
   const options = {
     depth: 2,
     colors: os.isatty(stdoutFileno),
@@ -25,10 +23,9 @@ export function Console(opts = {}) {
 
   let c = globalThis.console;
 
-
   let log = c.log;
   c.reallog = log;
-/*
+  /*
   class Console {
     config(obj = {}) {
       return new ConsoleOptions(obj);
@@ -79,8 +76,7 @@ export function Console(opts = {}) {
     return Object.assign(cons, fns);
   }
 
- globalThis.console = addMissingMethods(ret);
+  globalThis.console = addMissingMethods(ret);
 }
-
 
 export default Console;

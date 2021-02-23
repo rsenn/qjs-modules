@@ -124,7 +124,7 @@ tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
 static PropertyEnumeration*
 tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
   tree_walker_reset(wc, ctx);
-  return property_enumeration_push(&wc->frames, ctx,  JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS);
+  return property_enumeration_push(&wc->frames, ctx, JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS);
 }
 
 static void
@@ -262,8 +262,8 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   if(!(wc = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
-  if(!(it = vector_back(&wc->frames, sizeof(PropertyEnumeration))))
-    return JS_EXCEPTION;
+
+  it = vector_back(&wc->frames, sizeof(PropertyEnumeration));
 
   switch(magic) {
     case PROP_ROOT: {
@@ -274,10 +274,14 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case PROP_CURRENT_NODE: {
-      return property_enumeration_value(it, ctx);
+      if(it)
+        return property_enumeration_value(it, ctx);
+      break;
     }
     case PROP_CURRENT_KEY: {
-      return property_enumeration_key(it, ctx);
+      if(it)
+        return property_enumeration_key(it, ctx);
+      break;
     }
     case PROP_CURRENT_PATH: {
       return property_enumeration_path(&wc->frames, ctx);

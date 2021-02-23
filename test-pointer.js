@@ -14,7 +14,7 @@ function WriteFile(file, data) {
 
 function main(...args) {
   new Console({});
-  
+
   let data = std.loadFile(args[0] ?? std.getenv('HOME') + '/Sources/an-tronics/eagle/FM-Radio-Simple-Receiver-Dip1.sch',
     'utf-8'
   );
@@ -28,12 +28,16 @@ function main(...args) {
     inspect(result.slice(0, 2), { depth: Infinity, compact: Infinity, colors: true })
   );
 
+  let pointer;
   let walker = new TreeWalker(result);
   let node;
   while((node = walker.nextNode())) {
-    console.log('node:', node.toString());
-    console.log('path:', node.currentPath);
-  }
+    console.log('node:', node);
+    console.log('path:', walker.currentPath);
+
+    pointer =      new Pointer(...(walker.currentPath ?? []));
+      console.log('pointer:', pointer.inspect());
+}
 
   WriteFile('output.json', JSON.stringify(result, null, 2));
 
