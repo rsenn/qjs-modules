@@ -100,6 +100,17 @@ js_value_type(JSValueConst value) {
   return -1;
 }
 
+#define js_value_free(ctx, value)                                                                                      \
+  do {                                                                                                                 \
+    JS_FreeValue((ctx), (value));                                                                                      \
+    (value) = JS_UNDEFINED;                                                                                            \
+  } while(0);
+#define js_value_free_rt(ctx, value)                                                                                   \
+  do {                                                                                                                 \
+    JS_FreeValueRT((ctx), (value));                                                                                    \
+    (value) = JS_UNDEFINED;                                                                                            \
+  } while(0);
+
 static void
 tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
   PropertyEnumeration* it;
@@ -113,7 +124,7 @@ tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
 static PropertyEnumeration*
 tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
   tree_walker_reset(wc, ctx);
-  return property_enumeration_push(&wc->frames, ctx, object, PROPENUM_DEFAULT_FLAGS);
+  return property_enumeration_push(&wc->frames, ctx,  JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS);
 }
 
 static void
@@ -325,14 +336,10 @@ void
 js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
   TreeWalker* wc = JS_GetOpaque(val, js_tree_walker_class_id);
   if(wc) {
-    PropertyEnumeration* it;
-
-    uint32_t i, n = vector_size(&wc->frames, sizeof(PropertyEnumeration));
-    for(i = 0; i < n; i++) {
-      it = vector_at(&wc->frames, sizeof(PropertyEnumeration), i);
-      __JS_FreeValueRT(rt, it->obj);
-      property_enumeration_free(it, rt);
-    }
+    PropertyEnumeration *s, *e = vector_end(&wc->frames);
+    for(s = vector_begin(&wc->frames); s != e; s++) { property_enumeration_free(s, rt); }
+    vector_free(&wc->frames);
+    js_free_rt(rt, wc);
   }
   // JS_FreeValueRT(rt, val);
 }

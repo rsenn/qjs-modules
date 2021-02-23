@@ -736,19 +736,19 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         size_t n, eol;
 
         n = limit - pos;
-        if(!compact) {
-          eol = byte_chr(&str[pos], n, '\n');
-          if(str[pos + eol] == '\n')
-            eol++;
-          n = ansi_truncate(&str[pos], eol, max_len);
-        }
-
         if(pos > 0) {
           dbuf_putstr(buf, opts->colors ? "'" COLOR_NONE " +" : "' +");
           js_inspect_newline(buf, level + 1);
-          dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
-        } else {
           max_len = opts->break_length - (level * 2) - 4;
+          dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
+        }
+
+        if(!compact) {
+          eol = byte_chr(&str[pos], n, '\n');
+          if(str[pos + eol] == '\n') {
+            eol++;
+            n = ansi_truncate(&str[pos], eol, max_len);
+          }
         }
 
         dbuf_put_escaped(buf, &str[pos], n);

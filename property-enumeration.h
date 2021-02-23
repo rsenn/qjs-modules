@@ -43,8 +43,11 @@ property_enumeration_free(PropertyEnumeration* it, JSRuntime* rt) {
   if(it->tab_atom) {
     for(i = 0; i < it->tab_atom_len; i++) JS_FreeAtomRT(rt, it->tab_atom[i].atom);
     js_free_rt(rt, it->tab_atom);
+    it->tab_atom = 0;
+    it->tab_atom_len = 0;
   }
   JS_FreeValueRT(rt, it->obj);
+  it->obj = JS_UNDEFINED;
 }
 
 static inline JSValue
