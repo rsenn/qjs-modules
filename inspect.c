@@ -445,15 +445,15 @@ js_inspect_hidden_key(inspect_options_t* opts, JSAtom atom) {
 
 static JSAtom
 js_inspect_custom_atom(JSContext* ctx) {
-  static JSValue sym;
-  if((JS_VALUE_GET_TAG(sym) | JS_VALUE_GET_INT(sym)) == 0) {
-    JSValue key = JS_NewString(ctx, "nodejs.util.inspect.custom");
-    sym = js_symbol_invoke_static(ctx, "for", key);
-    JS_FreeValue(ctx, key);
-    inspect_custom_atom = JS_ValueToAtom(ctx, sym);
-    JS_FreeValue(ctx, sym);
-  }
-  return inspect_custom_atom;
+  JSValue sym;
+  JSAtom atom;
+  JSValue key = JS_NewString(ctx, "nodejs.util.inspect.custom");
+  sym = js_symbol_invoke_static(ctx, "for", key);
+  JS_FreeValue(ctx, key);
+  atom = JS_ValueToAtom(ctx, sym);
+  JS_FreeValue(ctx, sym);
+
+  return atom;
 }
 
 static const char*
@@ -461,11 +461,11 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   JSValue inspect;
   const char* str = 0;
   int32_t level = opts->depth - depth;
-  JSAtom prop = js_inspect_custom_atom(ctx);
-  if(JS_HasProperty(ctx, obj, prop))
-    inspect = JS_GetProperty(ctx, obj, prop);
-  else
+  inspect = JS_GetProperty(ctx, obj, inspect_custom_atom);
+  if(!JS_IsFunction(ctx, inspect)) {
+    JS_FreeValue(ctx, inspect);
     inspect = JS_GetPropertyStr(ctx, obj, "inspect");
+  }
   if(JS_IsFunction(ctx, inspect)) {
     JSValueConst args[2];
     JSValue ret;
@@ -849,13 +849,14 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         for(pos = 0; pos < len; pos++) {
           JSAtom atom;
           JSPropertyDescriptor desc;
+          if(pos == limit)
+            break;
+
           if(pos > 0) {
             dbuf_putstr(buf, compact ? ", " : ",");
             if(!compact)
               js_inspect_newline(buf, level + 1);
           }
-          if(pos == limit)
-            break;
 
           atom = JS_NewAtomUInt32(ctx, pos);
           JS_GetOwnProperty(ctx, &desc, value, atom);
@@ -1018,6 +1019,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   JSValue ret;
 
   js_inspect_constructors_get(ctx);
+  inspect_custom_atom = js_inspect_custom_atom(ctx);
 
   dbuf_init(&dbuf);
 
@@ -1043,6 +1045,8 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
   dbuf_free(&dbuf);
+
+  JS_FreeAtom(ctx, inspect_custom_atom);
 
   js_inspect_constructors_free(ctx);
 
