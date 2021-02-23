@@ -7,7 +7,7 @@
 #include <string.h>
 
 JSClassID js_tree_walker_class_id;
-JSValue tree_walker_proto, tree_walker_ctor, tree_walker_class;
+JSValue tree_walker_proto, tree_walker_constructor, tree_walker_ctor;
 
 enum tree_walker_methods {
   FIRST_CHILD = 0,
@@ -69,20 +69,6 @@ typedef struct {
   uint32_t tag_mask;
 } TreeWalker;
 
-static void
-js_value_dump(JSContext* ctx, JSValue value, vector* vec) {
-  const char* str;
-  size_t len;
-
-  if(JS_IsArray(ctx, value)) {
-    vector_puts(vec, "[object Array]");
-  } else {
-    str = JS_ToCStringLen(ctx, &len, value);
-    vector_put(vec, str, len);
-    JS_FreeCString(ctx, str);
-  }
-}
-
 static int32_t
 js_value_type(JSValueConst value) {
   switch(JS_VALUE_GET_TAG(value)) {
@@ -99,17 +85,6 @@ js_value_type(JSValueConst value) {
   }
   return -1;
 }
-
-#define js_value_free(ctx, value)                                                                                      \
-  do {                                                                                                                 \
-    JS_FreeValue((ctx), (value));                                                                                      \
-    (value) = JS_UNDEFINED;                                                                                            \
-  } while(0);
-#define js_value_free_rt(ctx, value)                                                                                   \
-  do {                                                                                                                 \
-    JS_FreeValueRT((ctx), (value));                                                                                    \
-    (value) = JS_UNDEFINED;                                                                                            \
-  } while(0);
 
 static void
 tree_walker_reset(TreeWalker* wc, JSContext* ctx) {
@@ -128,19 +103,19 @@ tree_walker_setroot(TreeWalker* wc, JSContext* ctx, JSValueConst object) {
 }
 
 static void
-tree_walker_dump(TreeWalker* wc, JSContext* ctx, vector* vec) {
+tree_walker_dump(TreeWalker* wc, JSContext* ctx, DynBuf* db) {
   PropertyEnumeration* it;
   size_t i;
-  vector_printf(vec, "TreeWalker {\n  depth: %u", vector_size(&wc->frames, sizeof(PropertyEnumeration)));
+  dbuf_printf(db, "TreeWalker {\n  depth: %u", vector_size(&wc->frames, sizeof(PropertyEnumeration)));
 
-  vector_puts(vec, ",\n  frames: ");
+  dbuf_putstr(db, ",\n  frames: ");
 
-  property_enumeration_dumpall(&wc->frames, ctx, vec);
-  vector_puts(vec, "\n}");
+  property_enumeration_dumpall(&wc->frames, ctx, db);
+  dbuf_putstr(db, "\n}");
 }
 
 static JSValue
-js_tree_walker_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   TreeWalker* wc;
   PropertyEnumeration* it = 0;
   JSValue obj = JS_UNDEFINED;
@@ -176,15 +151,14 @@ fail:
 static JSValue
 js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   TreeWalker* wc;
-  vector v = VECTOR_INIT();
+  DynBuf dbuf;
   JSValue ret;
   if(!(wc = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
-
-  tree_walker_dump(wc, ctx, &v);
-  vector_put0(&v);
-  ret = JS_NewStringLen(ctx, v.data, v.size - 1);
-  vector_free(&v);
+  dbuf_init(&dbuf);
+  tree_walker_dump(wc, ctx, &dbuf);
+  ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
+  dbuf_free(&dbuf);
 
   return ret;
 }
@@ -398,13 +372,13 @@ js_tree_walker_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, tree_walker_proto, js_tree_walker_proto_funcs, countof(js_tree_walker_proto_funcs));
   JS_SetClassProto(ctx, js_tree_walker_class_id, tree_walker_proto);
 
-  tree_walker_class = JS_NewCFunction2(ctx, js_tree_walker_ctor, "TreeWalker", 1, JS_CFUNC_constructor, 0);
+  tree_walker_ctor = JS_NewCFunction2(ctx, js_tree_walker_constructor, "TreeWalker", 1, JS_CFUNC_constructor, 0);
 
-  JS_SetConstructor(ctx, tree_walker_class, tree_walker_proto);
-  JS_SetPropertyFunctionList(ctx, tree_walker_class, js_tree_walker_static_funcs, countof(js_tree_walker_static_funcs));
+  JS_SetConstructor(ctx, tree_walker_ctor, tree_walker_proto);
+  JS_SetPropertyFunctionList(ctx, tree_walker_ctor, js_tree_walker_static_funcs, countof(js_tree_walker_static_funcs));
 
   if(m)
-    JS_SetModuleExport(ctx, m, "TreeWalker", tree_walker_class);
+    JS_SetModuleExport(ctx, m, "TreeWalker", tree_walker_ctor);
 
   return 0;
 }

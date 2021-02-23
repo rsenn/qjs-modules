@@ -179,38 +179,38 @@ property_enumeration_sort(PropertyEnumeration* it, JSContext* ctx) {
 }
 
 static inline void
-property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, vector* out) {
+property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) {
   size_t i;
   const char* s;
-  vector_puts(out, "{ obj: 0x");
-  vector_putlong(out, (long)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : 0), 16);
-  vector_puts(out, ", idx: ");
-  vector_putlong(out, it->idx, 10);
-  vector_puts(out, ", len: ");
-  vector_putlong(out, it->tab_atom_len, 10);
-  vector_puts(out, ", tab: [ ");
+  dbuf_putstr(out, "{ obj: 0x");
+  dbuf_printf(out, "%ld", (int64_t)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : 0));
+  dbuf_putstr(out, ", idx: ");
+  dbuf_printf(out, "%u", it->idx);
+  dbuf_putstr(out, ", len: ");
+  dbuf_printf(out, "%u", it->tab_atom_len);
+  dbuf_putstr(out, ", tab: [ ");
   for(i = 0; i < it->tab_atom_len; i++) {
     if(i)
-      vector_put(out, ", ", 2);
+      dbuf_putstr(out, ", ");
     s = JS_AtomToCString(ctx, it->tab_atom[i].atom);
-    vector_puts(out, i == it->idx ? "\x1b[1;31m" : "\x1b[1;30m");
-    vector_puts(out, s);
-    vector_puts(out, "\x1b[m");
+    dbuf_putstr(out, i == it->idx ? "\x1b[1;31m" : "\x1b[1;30m");
+    dbuf_putstr(out, s);
+    dbuf_putstr(out, "\x1b[m");
     JS_FreeCString(ctx, s);
   }
-  vector_puts(out, " ] }");
+  dbuf_putstr(out, " ] }");
 }
 
 static inline void
-property_enumeration_dumpall(vector* vec, JSContext* ctx, vector* out) {
+property_enumeration_dumpall(vector* vec, JSContext* ctx, DynBuf* out) {
 
   size_t i, n = vector_size(vec, sizeof(PropertyEnumeration));
-  vector_printf(out, "(%zu) [", n);
+  dbuf_printf(out, "(%zu) [", n);
   for(i = 0; i < n; i++) {
-    vector_puts(out, i ? ",\n    " : "\n    ");
+    dbuf_putstr(out, i ? ",\n    " : "\n    ");
     property_enumeration_dump(vector_at(vec, sizeof(PropertyEnumeration), i), ctx, out);
   }
-  vector_puts(out, i ? "\n  ]" : "]");
+  dbuf_putstr(out, i ? "\n  ]" : "]");
 }
 
 static JSValue

@@ -8,8 +8,8 @@
 
 JSClassID js_pointer_class_id;
 JSClassID js_dereferenceerror_class_id;
-JSValue pointer_proto, pointer_ctor, pointer_class;
-JSValue dereferenceerror_proto, dereferenceerror_ctor, dereferenceerror_class;
+JSValue pointer_proto, pointer_constructor, pointer_ctor;
+JSValue dereferenceerror_proto, dereferenceerror_constructor, dereferenceerror_ctor;
 
 enum pointer_methods { DEREF = 0, TO_STRING, TO_ARRAY, INSPECT, SHIFT, SLICE, KEYS, VALUES };
 enum pointer_getters { PROP_LENGTH = 0, PROP_PATH };
@@ -18,23 +18,6 @@ typedef struct {
   int64_t n;
   JSAtom* atoms;
 } Pointer;
-
-typedef struct {
-  BOOL done;
-  JSValue value;
-} IteratorValue;
-#define is_digit_char(c) ((c) >= '0' && (c) <= '9')
-
-static int
-is_integer(const char* str) {
-  if(!(*str >= '1' && *str <= '9') && !(*str == '0' && str[1] == '\0'))
-    return 0;
-  while(*++str) {
-    if(!is_digit_char(*str))
-      return 0;
-  }
-  return 1;
-}
 
 static void
 js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
@@ -50,7 +33,6 @@ js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
 
   JS_FreeCString(ctx, str);
 }
-
 
 static void
 pointer_reset(Pointer* ptr, JSContext* ctx) {
@@ -192,7 +174,7 @@ js_pointer_fromiterable(JSContext* ctx, Pointer* ptr, JSValueConst arg) {
 }
 
 static JSValue
-js_pointer_ctor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   Pointer* ptr;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
@@ -367,7 +349,7 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   JSValue ret = JS_UNDEFINED;
   switch(magic) {
     case 0: {
-      ret = js_pointer_ctor(ctx, JS_UNDEFINED, 0, 0);
+      ret = js_pointer_constructor(ctx, JS_UNDEFINED, 0, 0);
       if(JS_IsArray(ctx, argv[0]))
         js_pointer_fromarray(ctx, js_pointer_data(ctx, ret), argv[0]);
       else
@@ -425,13 +407,13 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, pointer_proto, js_pointer_proto_funcs, countof(js_pointer_proto_funcs));
   JS_SetClassProto(ctx, js_pointer_class_id, pointer_proto);
 
-  pointer_class = JS_NewCFunction2(ctx, js_pointer_ctor, "Pointer", 1, JS_CFUNC_constructor, 0);
+  pointer_ctor = JS_NewCFunction2(ctx, js_pointer_constructor, "Pointer", 1, JS_CFUNC_constructor, 0);
 
-  JS_SetConstructor(ctx, pointer_class, pointer_proto);
-  JS_SetPropertyFunctionList(ctx, pointer_class, js_pointer_static_funcs, countof(js_pointer_static_funcs));
+  JS_SetConstructor(ctx, pointer_ctor, pointer_proto);
+  JS_SetPropertyFunctionList(ctx, pointer_ctor, js_pointer_static_funcs, countof(js_pointer_static_funcs));
 
   if(m) {
-    JS_SetModuleExport(ctx, m, "Pointer", pointer_class);
+    JS_SetModuleExport(ctx, m, "Pointer", pointer_ctor);
   }
 
   return 0;

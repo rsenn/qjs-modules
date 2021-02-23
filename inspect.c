@@ -1,17 +1,12 @@
 #include "quickjs.h"
 #include "cutils.h"
 #include "list.h"
+#include "utils.h"
 #include "byte.h"
 #include <math.h>
 #include <ctype.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#define COLOR_RED "\x1b[31m"
-#define COLOR_GREEN "\x1b[32m"
-#define COLOR_YELLOW "\x1b[33m"
-#define COLOR_MARINE "\x1b[36m"
-#define COLOR_GRAY "\x1b[1;30m"
-#define COLOR_NONE "\x1b[m"
 
 typedef struct {
   int colors : 1;
@@ -39,12 +34,6 @@ static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor,
     regexp_ctor, symbol_ctor;
 static JSAtom inspect_custom_atom;
 
-#define is_control_char(c) ((c) == 8 || (c) == '\f' || (c) == '\n' || (c) == '\r' || (c) == '\t' || (c) == 11)
-#define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
-#define is_digit_char(c) ((c) >= '0' && (c) <= '9')
-#define is_newline_char(c) ((c) == '\n')
-#define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
-
 static inline size_t
 min_size(size_t a, size_t b) {
   if(a < b)
@@ -53,195 +42,7 @@ min_size(size_t a, size_t b) {
     return b;
 }
 
-static inline char
-escape_char_letter(char c) {
-  switch(c) {
-    case '\t': return 't';
-    case '\r': return 'r';
-    case '\n': return 'n';
-    case '\\': return '\\';
-    case '\'': return '\'';
-  }
-  return 0;
-}
-
-static inline int
-is_escape_char(char c) {
-  return is_control_char(c) || c == 0x5c || c == 0x27;
-}
-
-static int
-is_identifier(const char* str) {
-  if(!((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z') || *str == '$'))
-    return 0;
-  while(*++str) {
-    if(!is_identifier_char(*str))
-      return 0;
-  }
-  return 1;
-}
-
-static int
-is_integer(const char* str) {
-  if(!(*str >= '1' && *str <= '9') && !(*str == '0' && str[1] == '\0'))
-    return 0;
-  while(*++str) {
-    if(!is_digit_char(*str))
-      return 0;
-  }
-  return 1;
-}
-
-static size_t
-predicate_find(const char* str, size_t len, int (*pred)(char)) {
-  size_t pos;
-  for(pos = 0; pos < len; pos++)
-    if(pred(str[pos]))
-      break;
-  return pos;
-}
-
-static size_t
-ansi_skip(const char* str, size_t len) {
-  size_t pos = 0;
-  if(str[pos] == 0x1b) {
-    if(++pos < len && str[pos] == '[') {
-      while(++pos < len)
-        if(is_alphanumeric_char(str[pos]))
-          break;
-      if(++pos < len && str[pos] == '~')
-        ++pos;
-      return pos;
-    }
-  }
-  return 0;
-}
-
-static size_t
-ansi_length(const char* str, size_t len) {
-  size_t i, n = 0, p;
-  for(i = 0; i < len;) {
-    if((p = ansi_skip(&str[i], len - i)) > 0) {
-      i += p;
-      continue;
-    }
-    n++;
-    i++;
-  }
-  return n;
-}
-
-static size_t
-ansi_truncate(const char* str, size_t len, size_t limit) {
-  size_t i, n = 0, p;
-  for(i = 0; i < len;) {
-    if((p = ansi_skip(&str[i], len - i)) > 0) {
-      i += p;
-      continue;
-    }
-    n += is_escape_char(str[i]) ? 2 : 1;
-    if(n > limit)
-      break;
-    i++;
-  }
-  return i;
-}
-
-char*
-strndup(const char* s, size_t n) {
-  char* r = malloc(n + 1);
-  if(r == NULL)
-    return NULL;
-  memcpy(r, s, n);
-  r[n] = '\0';
-  return r;
-}
-
-static void
-dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
-  size_t i = 0, j;
-  while(i < len) {
-    if((j = predicate_find(&str[i], len - i, is_escape_char))) {
-      dbuf_put(db, (const uint8_t*)&str[i], j);
-      i += j;
-    }
-    if(i == len)
-      break;
-    dbuf_putc(db, '\\');
-    dbuf_putc(db, escape_char_letter(str[i]));
-    i++;
-  }
-}
-
-static const char*
-dbuf_last_line(DynBuf* db, size_t* len) {
-  size_t i;
-  for(i = db->size; i > 0; i--)
-    if(db->buf[i - 1] == '\n')
-      break;
-  if(len)
-    *len = db->size - i;
-  return (const char*)&db->buf[i];
-}
-
-static int32_t
-dbuf_get_column(DynBuf* db) {
-  size_t len;
-  const char* str;
-  if(db->size) {
-    str = dbuf_last_line(db, &len);
-    return ansi_length(str, len);
-  }
-  return 0;
-}
-
-static inline void
-dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color) {
-  if(with_color)
-    dbuf_putstr(db, color);
-  dbuf_putstr(db, str);
-  if(with_color)
-    dbuf_putstr(db, COLOR_NONE);
-}
-
-static char*
-js_class_name(JSContext* ctx, JSValueConst value) {
-  JSValue proto, ctor;
-  const char* str;
-  char* name = 0;
-  int namelen;
-  proto = JS_GetPrototype(ctx, value);
-  ctor = JS_GetPropertyStr(ctx, proto, "constructor");
-  if((str = JS_ToCString(ctx, ctor))) {
-    if(!strncmp(str, "function ", 9)) {
-      namelen = byte_chr(str + 9, strlen(str) - 9, '(');
-      name = js_strndup(ctx, str + 9, namelen);
-    }
-  }
-  if(!name) {
-    if(str)
-      JS_FreeCString(ctx, str);
-    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
-      name = js_strdup(ctx, str);
-  }
-  if(str)
-    JS_FreeCString(ctx, str);
-  return name;
-}
-static void
-js_property_names_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
-  uint32_t i;
-  for(i = 0; i < len; i++) JS_FreeAtom(ctx, props[i].atom);
-  js_free(ctx, props);
-}
-
-static inline void
-js_property_descriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
-  JS_FreeValue(ctx, desc->value);
-  JS_FreeValue(ctx, desc->getter);
-  JS_FreeValue(ctx, desc->setter);
-}
-
+ 
 static inline const char*
 js_object_tostring(JSContext* ctx, JSValueConst value) {
   JSAtom atom;
