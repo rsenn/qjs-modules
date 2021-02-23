@@ -208,14 +208,14 @@ js_class_name(JSContext* ctx, JSValueConst value) {
 }
 
 static inline void
-js_property_names_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
+js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
   uint32_t i;
   for(i = 0; i < len; i++) JS_FreeAtom(ctx, props[i].atom);
   js_free(ctx, props);
 }
 
 static inline void
-js_property_descriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
+js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
   JS_FreeValue(ctx, desc->value);
   JS_FreeValue(ctx, desc->getter);
   JS_FreeValue(ctx, desc->setter);
@@ -247,14 +247,21 @@ js_value_dump(JSContext* ctx, JSValue value, DynBuf* db) {
   } while(0);
 
 static inline JSValue
-js_symbol_get_static(JSContext* ctx, const char* name) {
-  JSValue global_obj, symbol_ctor, ret;
+js_symbol_ctor(JSContext* ctx) {
+  JSValue global_obj, ret;
   global_obj = JS_GetGlobalObject(ctx);
-  symbol_ctor = JS_GetPropertyStr(ctx, global_obj, "Symbol");
+  ret = JS_GetPropertyStr(ctx, global_obj, "Symbol");
+  JS_FreeValue(ctx, global_obj);
+  return ret;
+}
+
+static inline JSValue
+js_symbol_get_static(JSContext* ctx, const char* name) {
+  JSValue symbol_ctor, ret;
+  symbol_ctor = js_symbol_ctor(ctx);
   ret = JS_GetPropertyStr(ctx, symbol_ctor, name);
 
   JS_FreeValue(ctx, symbol_ctor);
-  JS_FreeValue(ctx, global_obj);
   return ret;
 }
 

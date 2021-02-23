@@ -85,16 +85,6 @@ js_value_to_bytes(JSContext* ctx, JSValueConst value) {
 #define skip_ws() skip(chars[c] & WS)
 #define char_is(c, classes) (chars[(c)] & (classes))
 
-char*
-xml_strndup(const char* s, size_t n) {
-  char* ptr;
-  if((ptr = malloc(n + 1))) {
-    memcpy(ptr, s, n);
-    ptr[n] = '\0';
-  }
-  return ptr;
-}
-
 static void
 xml_set_attr_value(JSContext* ctx, JSValueConst obj, const uint8_t* attr, size_t alen, JSValue value) {
   JSAtom prop;

@@ -665,7 +665,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           else
             js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
 
-          js_property_descriptor_free(ctx, &desc);
+          js_propertydescriptor_free(ctx, &desc);
         }
         if(limit < len) {
           if(dbuf_get_column(buf) + 20 > opts->break_length)
@@ -730,7 +730,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         else
           js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
 
-        js_property_descriptor_free(ctx, &desc);
+        js_propertydescriptor_free(ctx, &desc);
         len++;
       }
       js_object_tmpmark_clear(value);
@@ -741,7 +741,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
     end_obj:
       if(props)
-        js_property_names_free(ctx, props, nprops);
+        js_propertyenums_free(ctx, props, nprops);
       break;
     }
 
