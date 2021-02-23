@@ -2,7 +2,7 @@
 #include "quickjs.h"
 #include "cutils.h"
 #include "vector.h"
-#include "byte.h"
+#include "utils.h"
 #include "property-enumeration.h"
 
 #include <stdint.h>

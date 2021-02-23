@@ -28,6 +28,8 @@ void vector_free(vector* vec);
 void vector_shrink(vector* vec, size_t elsz, int32_t len);
 void vector_printf(vector* vec, const char*, ...);
 
+#define vector_emplace(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
+
 static inline uint32_t
 vector_size(const vector* vec, size_t elsz) {
   return vec->size / elsz;

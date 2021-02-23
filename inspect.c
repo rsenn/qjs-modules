@@ -2,7 +2,7 @@
 #include "cutils.h"
 #include "list.h"
 #include "utils.h"
-#include "byte.h"
+#include "utils.h"
 #include <math.h>
 #include <ctype.h>
 #include <string.h>
