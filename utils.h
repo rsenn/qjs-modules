@@ -320,7 +320,6 @@ js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
   return i;
 }
 
-
 static inline JSValue
 js_new_number(JSContext* ctx, int32_t n) {
   if(n == INT32_MAX)
@@ -334,7 +333,5 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
     return JS_NewBool(ctx, FALSE);
   return js_new_number(ctx, n);
 }
-
-
 
 #endif

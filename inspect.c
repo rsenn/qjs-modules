@@ -63,7 +63,6 @@ js_object_tostring(JSContext* ctx, JSValueConst value) {
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
 
-  
 static JSValue
 js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
   JSValue ret;
@@ -86,7 +85,6 @@ js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
   return str;
 }
 
-
 static inline const char*
 js_symbol_to_c_string(JSContext* ctx, JSValueConst sym) {
   JSValue value = js_symbol_to_string(ctx, sym);
@@ -95,8 +93,6 @@ js_symbol_to_c_string(JSContext* ctx, JSValueConst sym) {
   JS_FreeValue(ctx, value);
   return str;
 }
-
-
 
 static int
 js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
@@ -107,7 +103,6 @@ js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
   JS_FreeCString(ctx, str);
   return ret;
 }
-
 
 static int
 js_is_map(JSContext* ctx, JSValueConst value) {
