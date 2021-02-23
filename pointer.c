@@ -139,15 +139,17 @@ js_pointer_fromarray(JSContext* ctx, Pointer* ptr, JSValueConst array) {
   int64_t i, len;
   JSValue prop;
   JSAtom atom;
-  prop = JS_GetPropertyStr(ctx, array, "length");
-  JS_ToInt64(ctx, &len, prop);
-  JS_FreeValue(ctx, prop);
+  len = js_array_length(ctx, array);
   pointer_reset(ptr, ctx);
-  ptr->atoms = malloc(sizeof(JSAtom) * len);
+
+  if(len >= 0) {
+    ptr->atoms = malloc(sizeof(JSAtom) * len);
   for(i = 0; i < len; i++) {
     prop = JS_GetPropertyUint32(ctx, array, i);
     ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
     JS_FreeValue(ctx, prop);
+  }
+  ptr->n = len;  
   }
 }
 
@@ -195,9 +197,8 @@ js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
 
     if(JS_IsArray(ctx, argv[0])) {
       int64_t len;
-      JSValue length = JS_GetPropertyStr(ctx, argv[0], "length");
-      JS_ToInt64(ctx, &len, length);
-      JS_FreeValue(ctx, length);
+      len = js_array_length(ctx, argv[0]);
+
       for(i = 0; i < len; i++) {
         JSValue arg = JS_GetPropertyUint32(ctx, argv[0], i);
         JSAtom atom;

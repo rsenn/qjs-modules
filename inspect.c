@@ -257,10 +257,9 @@ js_inspect_options_get(JSContext* ctx, JSValueConst object, inspect_options_t* o
   }
   value = JS_GetPropertyStr(ctx, object, "hideKeys");
   if(JS_IsArray(ctx, value)) {
-    uint32_t len, pos;
-    JSValue lval = JS_GetPropertyStr(ctx, value, "length");
-    JS_ToUint32(ctx, &len, lval);
-    JS_FreeValue(ctx, lval);
+    int64_t len, pos;
+    len = js_array_length(ctx, value);
+ 
     for(pos = 0; pos < len; pos++) {
       JSValue item = JS_GetPropertyUint32(ctx, value, pos);
       prop_key_t* key = js_mallocz(ctx, sizeof(prop_key_t));
@@ -624,8 +623,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       js_object_tmpmark_set(value);
 
       if(is_array) {
-        JS_ToUint32(ctx, &len, JS_GetPropertyStr(ctx, value, "length"));
-        dbuf_putstr(buf, compact ? "[ " : "[");
+        len = js_array_length(ctx, value);
+         dbuf_putstr(buf, compact ? "[ " : "[");
         if(!compact)
           js_inspect_newline(buf, level + 1);
 
