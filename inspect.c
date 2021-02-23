@@ -327,28 +327,33 @@ js_inspect_options_init(inspect_options_t* opts) {
 static void
 js_inspect_options_get(JSContext* ctx, JSValueConst object, inspect_options_t* opts) {
   JSValue value;
-  if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "colors")))) {
+  value = JS_GetPropertyStr(ctx, object, "colors");
+  if(!JS_IsException(value) && !JS_IsUndefined(value))
     opts->colors = JS_ToBool(ctx, value);
-    JS_FreeValue(ctx, value);
-  }
-  if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "showHidden")))) {
-    opts->show_hidden = JS_ToBool(ctx, value);
-    JS_FreeValue(ctx, value);
-  }
-  value = JS_GetPropertyStr(ctx, object, "customInspect");
-  opts->custom_inspect = JS_ToBool(ctx, value);
   JS_FreeValue(ctx, value);
 
-  if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "showProxy")))) {
+  value = JS_GetPropertyStr(ctx, object, "showHidden");
+  if(!JS_IsException(value) && !JS_IsUndefined(value))
+    opts->show_hidden = JS_ToBool(ctx, value);
+  JS_FreeValue(ctx, value);
+
+  value = JS_GetPropertyStr(ctx, object, "customInspect");
+  if(!JS_IsException(value) && !JS_IsUndefined(value))
+    opts->custom_inspect = JS_ToBool(ctx, value);
+  JS_FreeValue(ctx, value);
+
+  value = JS_GetPropertyStr(ctx, object, "showProxy");
+  if(!JS_IsException(value) && !JS_IsUndefined(value))
     opts->show_proxy = JS_ToBool(ctx, value);
-    JS_FreeValue(ctx, value);
-  }
-  if(!JS_IsUndefined((value = JS_GetPropertyStr(ctx, object, "getters")))) {
+  JS_FreeValue(ctx, value);
+
+  value = JS_GetPropertyStr(ctx, object, "getters");
+  if(!JS_IsException(value) && !JS_IsUndefined(value))
     opts->getters = JS_ToBool(ctx, value);
-    JS_FreeValue(ctx, value);
-  }
+  JS_FreeValue(ctx, value);
+
   value = JS_GetPropertyStr(ctx, object, "depth");
-  if(!JS_IsUndefined(value)) {
+  if(!JS_IsException(value) && !JS_IsUndefined(value)) {
     if(isinf(JS_VALUE_GET_FLOAT64(value)))
       opts->depth = INT32_MAX;
     else
@@ -445,9 +450,9 @@ js_inspect_hidden_key(inspect_options_t* opts, JSAtom atom) {
 
 static JSAtom
 js_inspect_custom_atom(JSContext* ctx) {
-  JSValue sym;
+  JSValue key, sym;
   JSAtom atom;
-  JSValue key = JS_NewString(ctx, "nodejs.util.inspect.custom");
+  key = JS_NewString(ctx, "nodejs.util.inspect.custom");
   sym = js_symbol_invoke_static(ctx, "for", key);
   JS_FreeValue(ctx, key);
   atom = JS_ValueToAtom(ctx, sym);
@@ -783,8 +788,9 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         return -1;
       }
 
-      if(depth >= 0 && opts->custom_inspect && (s = js_inspect_custom_call(ctx, value, opts, depth))) {
+      if(/*depth >= 0 &&*/ opts->custom_inspect && (s = js_inspect_custom_call(ctx, value, opts, depth))) {
         dbuf_putstr(buf, s);
+        JS_FreeCString(ctx, s);
         return 0;
       }
       s = js_object_tostring(ctx, value);
@@ -1019,11 +1025,13 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   JSValue ret;
 
   js_inspect_constructors_get(ctx);
-  inspect_custom_atom = js_inspect_custom_atom(ctx);
 
   dbuf_init(&dbuf);
 
   js_inspect_options_init(&options);
+
+  if(options.custom_inspect)
+    inspect_custom_atom = js_inspect_custom_atom(ctx);
 
   if(argc > 1 && JS_IsNumber(argv[1]))
     optsind++;
@@ -1046,7 +1054,8 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
 
   dbuf_free(&dbuf);
 
-  JS_FreeAtom(ctx, inspect_custom_atom);
+  if(options.custom_inspect)
+    JS_FreeAtom(ctx, inspect_custom_atom);
 
   js_inspect_constructors_free(ctx);
 
