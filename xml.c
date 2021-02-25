@@ -239,6 +239,11 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
   JSValue ret;
   InputValue input = js_value_to_bytes(ctx, argv[0]);
 
+  if(input.x == 0 || input.n == 0) {
+    JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
+    return JS_EXCEPTION;
+  }
+
   ret = js_xml_parse(ctx, input.x, input.n);
 
   input.free(ctx, (void*)input.x);
@@ -247,11 +252,11 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
 
 static void
 xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
-  JSAtom atagName = JS_NewAtom(ctx, "tagName");
-  JSAtom achildren = JS_NewAtom(ctx, "children");
+  JSAtom tagName = JS_NewAtom(ctx, "tagName");
+  JSAtom children = JS_NewAtom(ctx, "children");
 
-  JSValue tag = JS_GetProperty(ctx, element, atagName);
-  JSValue childNodes = JS_GetProperty(ctx, element, achildren);
+  JSValue tag = JS_GetProperty(ctx, element, tagName);
+  JSValue childNodes = JS_GetProperty(ctx, element, children);
 
   if(JS_IsArray(ctx, childNodes)) {
     const char* tagStr;
@@ -270,8 +275,8 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 
   JS_FreeValue(ctx, tag);
   JS_FreeValue(ctx, childNodes);
-  js_atom_free(ctx, atagName);
-  js_atom_free(ctx, achildren);
+  js_atom_free(ctx, tagName);
+  js_atom_free(ctx, children);
 }
 
 static PropertyEnumeration*
@@ -418,24 +423,22 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   do {
     int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
     value = property_enumeration_value(it, ctx);
-    if(JS_IsObject(value)) {
+    if(JS_IsObject(value))
       xml_write_element(ctx, value, &output, depth);
-    } else if(JS_IsString(value)) {
+    else if(JS_IsString(value))
       xml_write_text(ctx, value, &output, depth);
-    }
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, &output)));
-  //
   while(output.size > 0 &&
         (output.buf[output.size - 1] == '\0' || byte_chr("\r\n\t ", 4, output.buf[output.size - 1]) < 4))
     output.size--;
   dbuf_putc(&output, '\0');
 
-  // fprintf(stderr, "last char: %u\n", output.buf[output.size-1]);
-
   str = JS_NewString(ctx, (const char*)output.buf);
-  //  str = JS_NewStringLen(ctx, output.buf, output.size);
+  // str = JS_NewStringLen(ctx, output.buf, output.size);
+
   dbuf_free(&output);
+
   vector_foreach_t(&enumerations, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
   vector_free(&enumerations);
   return str;

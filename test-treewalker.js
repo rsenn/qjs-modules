@@ -63,4 +63,4 @@ function main(...args) {
   std.gc();
 }
 
-main(...scriptArgs.slice(2));
+main(...scriptArgs.slice(1));
