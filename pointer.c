@@ -120,7 +120,7 @@ js_pointer_tostring(JSContext* ctx, JSValueConst this_val, BOOL color) {
 
   pointer_dump(ptr, ctx, &dbuf, color);
   // dbuf_put(&dbuf, "\0", 1);
-  ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
+  ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
 
   return ret;
@@ -237,7 +237,7 @@ js_pointer_next(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueCons
       dbuf_init(&dbuf);
 
       pointer_dump(ptr, ctx, &dbuf, TRUE);
-      dbuf_put(&dbuf, "\0", 1);
+      dbuf_put(&dbuf, (const uint8_t*)"\0", 1);
 
       JS_ThrowReferenceError(ctx, "ptr %s", dbuf.buf);
       dbuf_free(&dbuf);
@@ -260,7 +260,7 @@ js_pointer_deref(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueCon
       dbuf_init(&dbuf);
 
       pointer_dump(ptr, ctx, &dbuf, TRUE);
-      dbuf_put(&dbuf, "\0", 1);
+      dbuf_put(&dbuf, (const uint8_t*)"\0", 1);
 
       JS_ThrowReferenceError(ctx, "ptr %s", dbuf.buf);
       dbuf_free(&dbuf);

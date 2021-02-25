@@ -86,7 +86,7 @@ js_value_to_bytes(JSContext* ctx, JSValueConst value) {
 #define char_is(c, classes) (chars[(c)] & (classes))
 
 static void
-xml_set_attr_value(JSContext* ctx, JSValueConst obj, const uint8_t* attr, size_t alen, JSValue value) {
+xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, JSValue value) {
   JSAtom prop;
   prop = JS_NewAtomLen(ctx, (const char*)attr, alen);
   JS_SetProperty(ctx, obj, prop, value);
@@ -95,7 +95,7 @@ xml_set_attr_value(JSContext* ctx, JSValueConst obj, const uint8_t* attr, size_t
 
 static void
 xml_set_attr_bytes(
-    JSContext* ctx, JSValueConst obj, const uint8_t* attr, size_t alen, const uint8_t* str, size_t slen) {
+    JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, const uint8_t* str, size_t slen) {
   JSValue value;
   value = JS_NewStringLen(ctx, (const char*)str, slen);
   xml_set_attr_value(ctx, obj, attr, alen, value);
@@ -126,7 +126,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
     start = ptr;
     skip_until(char_is(c, START));
     if(ptr > start) {
-      JSValue str = JS_NewStringLen(ctx, start, ptr - start);
+      JSValue str = JS_NewStringLen(ctx, (const char*)start, ptr - start);
       JS_SetPropertyUint32(ctx, out->obj, out->idx++, str);
     }
     if(char_is(c, START)) {
@@ -180,7 +180,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
         continue;
       }
       if(!closing) {
-        const uint8_t *attr, *value;
+        const uint8_t *attr,*value;
         size_t alen, vlen;
         JSValue attributes = JS_NewObject(ctx);
         JS_SetPropertyStr(ctx, element, "attributes", attributes);
@@ -193,7 +193,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
           if((alen = ptr - attr) == 0)
             break;
           if(char_is(c, WS | CLOSE | SLASH)) {
-            xml_set_attr_value(ctx, attributes, attr, alen, JS_NewBool(ctx, TRUE));
+            xml_set_attr_value(ctx, attributes, (const char*)attr, alen, JS_NewBool(ctx, TRUE));
             continue;
           }
           if(char_is(c, EQUAL)) {
@@ -205,7 +205,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
             vlen = ptr - value;
             if(char_is(c, QUOTE))
               next();
-            xml_set_attr_bytes(ctx, attributes, attr, alen, value, vlen);
+            xml_set_attr_bytes(ctx, attributes, (const char*)attr, alen, value, vlen);
           }
         }
         if(char_is(c, SLASH)) {
@@ -242,7 +242,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
 
   ret = js_xml_parse(ctx, input.x, input.n);
 
-  input.free(ctx, input.x);
+  input.free(ctx, (void*)input.x);
   return ret;
 }
 
@@ -263,7 +263,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     while(depth-- > 0) dbuf_putstr(db, "  ");
 
     dbuf_putstr(db, "</");
-    dbuf_put(db, tagStr, tagLen);
+    dbuf_put(db, (const uint8_t*)tagStr, tagLen);
     dbuf_putstr(db, ">");
     dbuf_putc(db, '\n');
     JS_FreeCString(ctx, tagStr);
@@ -315,7 +315,7 @@ xml_write_value(JSContext* ctx, JSValueConst value, DynBuf* db) {
   const char* str;
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
-  dbuf_put(db, str, len);
+  dbuf_put(db, (const uint8_t*)str, len);
   JS_FreeCString(ctx, str);
 }
 
@@ -368,7 +368,7 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
       textLen--;
     }
     n = byte_chr(p, textLen, '\n');
-    dbuf_put(db, p, n);
+    dbuf_put(db, (const uint8_t*)p, n);
     dbuf_putc(db, '\n');
     if(n < textLen)
       n++;
@@ -434,7 +434,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 
   // fprintf(stderr, "last char: %u\n", output.buf[output.size-1]);
 
-  str = JS_NewString(ctx, output.buf);
+  str = JS_NewString(ctx, (const char*)output.buf);
   //  str = JS_NewStringLen(ctx, output.buf, output.size);
   dbuf_free(&output);
   vector_foreach_t(&enumerations, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }

@@ -157,7 +157,7 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     return JS_EXCEPTION;
   dbuf_init(&dbuf);
   tree_walker_dump(wc, ctx, &dbuf);
-  ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
+  ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
 
   return ret;

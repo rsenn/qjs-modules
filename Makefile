@@ -1,4 +1,5 @@
-MODULES = mmap pointer inspect tree-walker
+MODULES = inspect mmap pointer tree-walker xml
+
 QUICKJS_PREFIX ?= /usr/local
 
 INSTALL = install
@@ -9,14 +10,15 @@ SUFFIX = so
 DEFS = -DJS_SHARED_LIBRARY
 INCLUDES = -I$(QUICKJS_PREFIX)/include/quickjs
 
-CFLAGS = $(DEFS) $(INCLUDES) -O3 -Wall
+CFLAGS = $(DEFS) $(INCLUDES) -O3 -Wall -fPIC
 
 ifneq ($(DEBUG),)
 CFLAGS += -g -ggdb
 endif
 ifneq ($(WEXTRA),)
-CFLAGS += -Wextra -Wno-unused -Wno-cast-function-type
+CFLAGS += -Wextra -Wno-cast-function-type
 endif
+CFLAGS += -Wno-unused 
 
 OBJECTS = $(MODULES:%=%.o)
 SHARED_OBJECTS = $(MODULES:%=%.$(SUFFIX))
@@ -33,14 +35,17 @@ install:
 .c.o:
 	$(CC) $(CFLAGS) -c $< 
 
+inspect.$(SUFFIX): inspect.o
+	$(CC) $(CFLAGS) -shared -o $@ $^
+
 mmap.$(SUFFIX): mmap.o
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 pointer.$(SUFFIX): pointer.o
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-inspect.$(SUFFIX): inspect.o
+tree-walker.$(SUFFIX): tree-walker.o vector.o
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-tree-walker.$(SUFFIX): tree-walker.o vector.o
+xml.$(SUFFIX): xml.o
 	$(CC) $(CFLAGS) -shared -o $@ $^

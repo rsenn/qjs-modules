@@ -399,6 +399,7 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_
   if(!compact)
     js_inspect_newline(buf, level);
   dbuf_putstr(buf, compact ? " }" : "}");
+  return 0;
 }
 
 static int
@@ -421,7 +422,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     while(str2 > str && !isspace(*--str2))
       ;
     slen = byte_chr(str2, strlen(str2), ']');
-    dbuf_put(buf, str2, slen);
+    dbuf_put(buf, (const uint8_t*)str2, slen);
   } else {
     if(JS_IsInstanceOf(ctx, value, array_buffer_ctor))
       dbuf_putstr(buf, "ArrayBuffer");
@@ -583,7 +584,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
         if(slen != 6 || memcmp(s + 8, "Object", 6)) {
           dbuf_putc(buf, '[');
-          dbuf_put(buf, s + 8, e - (s + 8));
+          dbuf_put(buf, (const uint8_t*)s + 8, e - (s + 8));
           dbuf_putstr(buf, "] ");
         }
       }

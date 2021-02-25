@@ -253,7 +253,7 @@ js_value_dump(JSContext* ctx, JSValue value, DynBuf* db) {
     dbuf_putstr(db, "[object Array]");
   } else {
     str = JS_ToCStringLen(ctx, &len, value);
-    dbuf_put(db, str, len);
+    dbuf_put(db, (const uint8_t*)str, len);
     JS_FreeCString(ctx, str);
   }
 }
