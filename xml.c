@@ -94,8 +94,7 @@ xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t al
 }
 
 static void
-xml_set_attr_bytes(
-    JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, const uint8_t* str, size_t slen) {
+xml_set_attr_bytes(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, const uint8_t* str, size_t slen) {
   JSValue value;
   value = JS_NewStringLen(ctx, (const char*)str, slen);
   xml_set_attr_value(ctx, obj, attr, alen, value);
@@ -180,7 +179,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
         continue;
       }
       if(!closing) {
-        const uint8_t *attr,*value;
+        const uint8_t *attr, *value;
         size_t alen, vlen;
         JSValue attributes = JS_NewObject(ctx);
         JS_SetPropertyStr(ctx, element, "attributes", attributes);

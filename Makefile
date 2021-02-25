@@ -47,5 +47,5 @@ pointer.$(SUFFIX): pointer.o
 tree-walker.$(SUFFIX): tree-walker.o vector.o
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-xml.$(SUFFIX): xml.o
+xml.$(SUFFIX): xml.o vector.o
 	$(CC) $(CFLAGS) -shared -o $@ $^

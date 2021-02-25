@@ -248,14 +248,15 @@ js_pointer_next(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueCons
 }
 
 static JSValue
-js_pointer_deref(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueConst obj) {
+js_pointer_deref(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueConst arg) {
   size_t i;
+  JSValue obj = JS_DupValue(ctx, arg);
   for(i = 0; i < ptr->n; i++) {
     JSAtom atom = ptr->atoms[i];
+    JSValue child = JS_GetProperty(ctx, obj, atom);
+    JS_FreeValue(ctx, obj);
 
-    obj = JS_GetProperty(ctx, obj, atom);
-
-    if(JS_IsException(obj)) {
+    if(JS_IsException(child)) {
       DynBuf dbuf;
       dbuf_init(&dbuf);
 
@@ -266,6 +267,7 @@ js_pointer_deref(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueCon
       dbuf_free(&dbuf);
       break;
     }
+    obj = child;
   }
   return obj;
 }
