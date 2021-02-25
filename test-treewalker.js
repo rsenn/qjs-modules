@@ -24,16 +24,15 @@ function main(...args) {
 
   //console.log('xml:\n' + xml.write(result));
 
-
-   let walk = new TreeWalker(result[0]);
+  let walk = new TreeWalker(result);
   console.log('walk:', walk.toString());
   let i = 0;
   console.log('~TreeWalker.MASK_PRIMITIVE:', TreeWalker.MASK_PRIMITIVE.toString(2));
   console.log(' TreeWalker.MASK_ALL:', TreeWalker.MASK_ALL);
   console.log(' TreeWalker.MASK_ALL:', TreeWalker.MASK_ALL.toString(2));
-  walk.tagMask = TreeWalker.MASK_PRIMITIVE;
-  walk.tagMask = TreeWalker.MASK_OBJECT;
-  walk.flags = 0;
+  //walk.tagMask = TreeWalker.MASK_PRIMITIVE;
+  walk.tagMask = TreeWalker.MASK_ALL;
+  //walk.flags = 0;
   const { flags, tagMask } = walk;
   console.log(' walk', { flags, tagMask });
   while(walk.nextNode((v, k, w) => typeof v != 'object')) {
@@ -54,10 +53,10 @@ function main(...args) {
       );
     }
     i++;
-  } 
+  }
 
   //  delete result[2];
-   WriteFile('output.json', JSON.stringify(result, null, 2));
+  WriteFile('output.json', JSON.stringify(result, null, 2));
 
   //  console.log('result[2]  :', inspect(result[2], { depth: 10, compact: Infinity, colors: true }));
 
