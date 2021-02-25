@@ -3,7 +3,7 @@ import * as std from 'std';
 import inspect from 'inspect.so';
 import * as xml from 'xml.so';
 import { Pointer } from 'pointer.so';
- import Console from './console.js';
+import Console from './console.js';
 
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
@@ -12,30 +12,29 @@ function WriteFile(file, data) {
 }
 
 function main(...args) {
-  console =new Console({ colors:true,depth: 1 });
+  console = new Console({ colors: true, depth: 1 });
 
   let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
 
-//   console.log('data:', data);
+  //   console.log('data:', data);
 
   let result = xml.read(data);
   console.log('result:', result);
 
-  console.log('xml:\n'+xml.write(result));
+  console.log('xml:\n' + xml.write(result));
 
-  let pointer; 
+  let pointer;
 
-    pointer = new Pointer(2, 'children', 0, 'children', 2);
-    try {
-      console.log('deref:', pointer.deref(result));
-    } catch(e) {
-      console.log('exception:', e);
-      
-    }
-    console.log('keys:', [...pointer]);
-    console.log('values:', [...pointer.values()]);
-    console.log('pointer:', pointer.slice(0).inspect());
- 
+  pointer = new Pointer(2, 'children', 0, 'children', 2);
+  try {
+    console.log('deref:', pointer.deref(result));
+  } catch(e) {
+    console.log('exception:', e);
+  }
+  console.log('keys:', [...pointer]);
+  console.log('values:', [...pointer.values()]);
+  console.log('pointer:', pointer.slice(0).inspect());
+
   WriteFile('output.json', JSON.stringify(result, null, 2));
 
   std.gc();

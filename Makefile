@@ -10,10 +10,12 @@ SUFFIX = so
 DEFS = -DJS_SHARED_LIBRARY
 INCLUDES = -I$(QUICKJS_PREFIX)/include/quickjs
 
-CFLAGS = $(DEFS) $(INCLUDES) -O3 -Wall -fPIC
+CFLAGS = $(DEFS) $(INCLUDES) -Wall -fPIC
 
 ifneq ($(DEBUG),)
-CFLAGS += -g -ggdb
+CFLAGS += -g -ggdb -O0
+else
+CFLAGS += -O3
 endif
 ifneq ($(WEXTRA),)
 CFLAGS += -Wextra -Wno-cast-function-type

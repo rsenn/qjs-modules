@@ -3,21 +3,29 @@ import * as std from 'std';
 import inspect from 'inspect.so';
 import * as xml from 'xml.so';
 import { TreeWalker } from 'tree-walker.so';
+import Console from './console.js';
+
+function WriteFile(file, data) {
+  let f = std.open(file, 'w+');
+  f.puts(data);
+  console.log(`Wrote '${file}': ${data.length} bytes`);
+}
 
 function main(...args) {
-  let data = std.loadFile(args[0] ?? 'FM-Radio-Simple-Receiver-Dip1.sch', 'utf-8');
+  console = new Console({ colors: true, depth: 1 });
 
-  //console.log('data:', Util.abbreviate(Util.escape(data)));
-  console.log('data.length:', data.length);
+  console.log('args:', args);
+  let data = std.loadFile(args[0] ?? 'Simple-NPN-Regen-Receiver.xml', 'utf-8');
+
+  //console.log('data:', data);
 
   let result = xml.read(data);
   console.log('result:', result);
 
-  console.log('xml:',
-    inspect(result.slice(0, 2), { depth: Infinity, compact: Infinity, colors: true })
-  );
+  //console.log('xml:\n' + xml.write(result));
 
-  /*let walk = new TreeWalker(result[0]);
+
+   let walk = new TreeWalker(result[0]);
   console.log('walk:', walk.toString());
   let i = 0;
   console.log('~TreeWalker.MASK_PRIMITIVE:', TreeWalker.MASK_PRIMITIVE.toString(2));
@@ -46,14 +54,14 @@ function main(...args) {
       );
     }
     i++;
-  }*/
+  } 
 
   //  delete result[2];
-  console.log('output:', xml.write(result));
+   WriteFile('output.json', JSON.stringify(result, null, 2));
 
   //  console.log('result[2]  :', inspect(result[2], { depth: 10, compact: Infinity, colors: true }));
 
   std.gc();
 }
 
-main(scriptArgs.slice(1));
+main(...scriptArgs.slice(2));
