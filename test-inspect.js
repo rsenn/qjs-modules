@@ -5,12 +5,7 @@ import Console from './console.js';
 
 async function main(...args) {
   console = new Console({ colors: true, depth: 1 });
-
-  /*let std = [0, 1, 2].map(fd => filesystem.readlink(`/proc/self/fd/${fd}`));
-  console.log('std:', std.join(', '));
-  let fd = filesystem.open(`/dev/tty`);
-  console.log('fd:', fd);
-  console.log('os.ttyGetWinSize(fd):', os.ttyGetWinSize(fd));*/
+ 
   let winsz = await os.ttyGetWinSize(1);
   console.log('winsz:', winsz);
 
@@ -85,7 +80,7 @@ async function main(...args) {
   };
 
   console.log('inspect(NaN)', inspect(NaN, options));
-  // for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
+ for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
 
   console.log('inspect', inspect(obj, options));
 }
