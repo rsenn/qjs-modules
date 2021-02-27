@@ -58,10 +58,10 @@ function main(...args) {
   //  delete result[2];
   WriteFile('output.json', JSON.stringify(result, null, 2));
 
-  let it = new TreeIterator(result);
+  let it = new TreeIterator(result, TreeIterator.MASK_OBJECT);
 
   for(let node of it) {
-    
+ console.log('node:', node);
   }
 
   //  console.log('result[2]  :', inspect(result[2], { depth: 10, compact: Infinity, colors: true }));

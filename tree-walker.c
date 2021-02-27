@@ -69,9 +69,9 @@ enum tree_walker_mask {
 };
 
 typedef struct {
-  // JSValue current;
   vector frames;
   uint32_t tag_mask;
+  uint32_t ref_count;
 } TreeWalker;
 
 static int32_t
@@ -142,9 +142,11 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
     goto fail;
   JS_SetOpaque(obj, w);
 
-  if(argc > 0 && JS_IsObject(argv[0])) {
+  if(argc > 0 && JS_IsObject(argv[0]))
     it = tree_walker_setroot(w, ctx, argv[0]);
-  }
+
+  if(argc > 1)
+    JS_ToUint32(ctx, &w->tag_mask, argv[1]);
 
   return obj;
 fail:
@@ -317,20 +319,23 @@ js_tree_walker_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
 static JSValue
 js_tree_walker_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  TreeWalker* w;
 
-
-
+  if(!(w = JS_GetOpaque(this_val, js_tree_walker_class_id)))
+    w = JS_GetOpaque(this_val, js_tree_iterator_class_id);
 }
-
 
 void
 js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
   TreeWalker* w = JS_GetOpaque(val, js_tree_walker_class_id);
   if(w) {
-    PropertyEnumeration *s, *e = vector_end(&w->frames);
-    for(s = vector_begin(&w->frames); s != e; s++) { property_enumeration_free(s, rt); }
-    vector_free(&w->frames);
-    js_free_rt(rt, w);
+    PropertyEnumeration *s, *e;
+
+    if(--w->ref_count == 0) {
+      for(s = vector_begin(&w->frames), e = vector_end(&w->frames); s != e; s++) { property_enumeration_free(s, rt); }
+      vector_free(&w->frames);
+      js_free_rt(rt, w);
+    }
   }
   // JS_FreeValueRT(rt, val);
 }
@@ -360,7 +365,7 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
 
   if(argc > 0 && JS_IsObject(argv[0]))
     it = tree_walker_setroot(w, ctx, argv[0]);
-  
+
   if(argc > 1)
     JS_ToUint32(ctx, &w->tag_mask, argv[1]);
 
@@ -378,10 +383,13 @@ void
 js_tree_iterator_finalizer(JSRuntime* rt, JSValue val) {
   TreeWalker* w = JS_GetOpaque(val, js_tree_iterator_class_id);
   if(w) {
-    PropertyEnumeration *s, *e = vector_end(&w->frames);
-    for(s = vector_begin(&w->frames); s != e; s++) { property_enumeration_free(s, rt); }
-    vector_free(&w->frames);
-    js_free_rt(rt, w);
+    PropertyEnumeration *s, *e;
+
+    if(--w->ref_count == 0) {
+      for(s = vector_begin(&w->frames), e = vector_end(&w->frames); s != e; s++) { property_enumeration_free(s, rt); }
+      vector_free(&w->frames);
+      js_free_rt(rt, w);
+    }
   }
   // JS_FreeValueRT(rt, val);
 }
@@ -465,7 +473,10 @@ js_tree_walker_init(JSContext* ctx, JSModuleDef* m) {
   tree_iterator_ctor = JS_NewCFunction2(ctx, js_tree_iterator_constructor, "TreeIterator", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, tree_iterator_ctor, tree_iterator_proto);
-  JS_SetPropertyFunctionList(ctx, tree_iterator_ctor, js_tree_walker_static_funcs, countof(js_tree_walker_static_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             tree_iterator_ctor,
+                             js_tree_walker_static_funcs,
+                             countof(js_tree_walker_static_funcs));
 
   if(m) {
     JS_SetModuleExport(ctx, m, "TreeWalker", tree_walker_ctor);
