@@ -5,7 +5,7 @@ import Console from './console.js';
 
 async function main(...args) {
   console = new Console({ colors: true, depth: 1 });
- 
+
   let winsz = await os.ttyGetWinSize(1);
   console.log('winsz:', winsz);
 
@@ -80,7 +80,7 @@ async function main(...args) {
   };
 
   console.log('inspect(NaN)', inspect(NaN, options));
- for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
+  for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
 
   console.log('inspect', inspect(obj, options));
 }

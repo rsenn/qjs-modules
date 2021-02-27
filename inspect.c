@@ -626,10 +626,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       if(is_array) {
         len = js_array_length(ctx, value);
         dbuf_putstr(buf, compact ? "[ " : "[");
-        if(!compact)
-          js_inspect_newline(buf, level + 1);
 
         limit = min_size(opts->max_array_length, len);
+        if(len && !compact)
+          js_inspect_newline(buf, level + 1);
 
         for(pos = 0; pos < len; pos++) {
           JSPropertyDescriptor desc;
@@ -656,7 +656,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
           js_propertydescriptor_free(ctx, &desc);
         }
-        if(limit < len) {
+        if(len && limit < len) {
           if(dbuf_get_column(buf) + 20 > opts->break_length)
             js_inspect_newline(buf, level + 1);
           dbuf_printf(buf, "... %u more item", len - pos);

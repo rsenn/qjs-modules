@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
 import * as xml from 'xml.so';
-import { TreeWalker } from 'tree-walker.so';
+import { TreeWalker, TreeIterator } from 'tree-walker.so';
 import Console from './console.js';
 
 function WriteFile(file, data) {
@@ -57,6 +57,12 @@ function main(...args) {
 
   //  delete result[2];
   WriteFile('output.json', JSON.stringify(result, null, 2));
+
+  let it = new TreeIterator(result);
+
+  for(let node of it) {
+    
+  }
 
   //  console.log('result[2]  :', inspect(result[2], { depth: 10, compact: Infinity, colors: true }));
 
