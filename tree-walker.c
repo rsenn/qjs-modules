@@ -195,15 +195,20 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
+
   if(vector_empty(&w->frames))
     return JS_UNDEFINED;
+
   it = vector_back(&w->frames, sizeof(PropertyEnumeration));
+
   if(magic == PREVIOUS_NODE) {
     magic = it->idx == 0 ? PARENT_NODE : PREVIOUS_SIBLING;
   }
+
   if(magic == NEXT_NODE) {
     it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED);
   }
+
   switch(magic) {
     case FIRST_CHILD: {
       if((it = property_enumeration_enter(&w->frames, ctx, PROPENUM_DEFAULT_FLAGS)) == 0 ||
@@ -320,9 +325,18 @@ js_tree_walker_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 static JSValue
 js_tree_walker_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   TreeWalker* w;
+  JSValue obj;
 
   if(!(w = JS_GetOpaque(this_val, js_tree_walker_class_id)))
     w = JS_GetOpaque(this_val, js_tree_iterator_class_id);
+
+  obj = JS_NewObjectProtoClass(ctx, tree_iterator_proto, js_tree_iterator_class_id);
+
+  w->ref_count++;
+
+  JS_SetOpaque(obj, w);
+
+  return obj;
 }
 
 void
@@ -377,7 +391,19 @@ fail:
 }
 
 JSValue
-js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {}
+js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
+  PropertyEnumeration* it;
+  TreeWalker* w;
+
+  w = JS_GetOpaque(this_val, js_tree_iterator_class_id);
+
+  if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {
+    return property_enumeration_value(it, ctx);
+  }
+
+  *pdone = TRUE;
+  return JS_UNDEFINED;
+}
 
 void
 js_tree_iterator_finalizer(JSRuntime* rt, JSValue val) {
@@ -442,7 +468,6 @@ static const JSCFunctionListEntry js_tree_iterator_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_tree_iterator_next, 0),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TreeIterator", JS_PROP_CONFIGURABLE),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_tree_walker_iterator),
-
 };
 
 static int
