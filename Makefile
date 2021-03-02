@@ -7,7 +7,7 @@ INSTALL = install
 CC = gcc
 SUFFIX = so
 
-DEFS = -DJS_SHARED_LIBRARY
+DEFS = -DJS_SHARED_LIBRARY -DHAVE_QUICKJS_CONFIG_H
 INCLUDES = -I$(QUICKJS_PREFIX)/include/quickjs
 
 CFLAGS = $(DEFS) $(INCLUDES) -Wall -fPIC
@@ -37,17 +37,17 @@ install:
 .c.o:
 	$(CC) $(CFLAGS) -c $< 
 
-inspect.$(SUFFIX): inspect.o
+inspect.$(SUFFIX): inspect.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-mmap.$(SUFFIX): mmap.o
+mmap.$(SUFFIX): mmap.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-pointer.$(SUFFIX): pointer.o
+pointer.$(SUFFIX): pointer.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-tree-walker.$(SUFFIX): tree-walker.o vector.o
+tree-walker.$(SUFFIX): tree-walker.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-xml.$(SUFFIX): xml.o vector.o
+xml.$(SUFFIX): xml.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^

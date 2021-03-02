@@ -4,26 +4,31 @@ import inspect from 'inspect.so';
 
 export function Console(opts = {}) {
   let env = std.getenviron();
-  let stdioFds = [std.in, std.out, std.err].map(f => f.fileno());
-  let termFd = stdioFds.find(fd => os.isatty(fd)) ?? 1;
-  const consoleWidth = fd => {
+  let stdioFds = [std.out, std.err, std.in].map(f => f.fileno());
+  let termFd = stdioFds.find(fd => os.isatty(fd));
+  if(typeof termFd != 'number') termFd =  1;
+
+  const consoleWidth = (fd = termFd) => {
     let size;
-    fd ??= termFd;
     try {
       size = os.ttyGetWinSize(fd);
     } catch(err) {}
     return Array.isArray(size) ? size[0] : undefined;
   };
+  
   const isTerminal = os.isatty(termFd);
 
-  const defaultBreakLength = (isTerminal && consoleWidth(termFd)) || env.COLUMNS || Infinity;
-  const options = {
+  const defaultBreakLength = (isTerminal && consoleWidth()) || env.COLUMNS || Infinity;
+  const defaultOptions = {
     depth: 2,
     colors: isTerminal,
     breakLength: defaultBreakLength,
     maxArrayLength: Infinity,
     compact: false,
-    customInspect: true,
+    customInspect: true
+  };
+  let options = {
+    ...defaultOptions,
     ...opts
   };
 

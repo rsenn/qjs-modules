@@ -192,7 +192,7 @@ dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
     dbuf_putc(db, '\\');
 
     if(str[i] == 0x1b)
-      dbuf_put(db, "x1b", 3);
+      dbuf_put(db, (const uint8_t*)"x1b", 3);
     else
       dbuf_putc(db, escape_char_letter(str[i]));
     i++;

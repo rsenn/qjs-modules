@@ -416,7 +416,8 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     switch(r) {
       case RETURN_VALUE: return property_enumeration_value(it, ctx);
       case RETURN_PATH: return property_enumeration_path(&w->frames, ctx);
-      case RETURN_TUPLE: {
+      case RETURN_TUPLE:
+      default: {
         JSValue ret = JS_NewArray(ctx);
         JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
         JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->frames, ctx));
