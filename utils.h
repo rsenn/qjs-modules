@@ -4,7 +4,8 @@
 #include <string.h>
 #include <math.h>
 
-#define is_control_char(c) ((c) == 8 || (c) == '\f' || (c) == '\n' || (c) == '\r' || (c) == '\t' || (c) == 11)
+#define is_control_char(c)                                                                                             \
+  ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_newline_char(c) ((c) == '\n')
@@ -17,7 +18,7 @@ typedef struct {
 
 static inline int
 is_escape_char(char c) {
-  return is_control_char(c) || c == 0x5c || c == 0x27;
+  return is_control_char(c) || c == '\\' || c == '\'' || c == 0x1b || c == 0;
 }
 
 static inline int
@@ -72,6 +73,21 @@ byte_chr(const char* str, size_t len, char c) {
     if(*s == c)
       break;
   return s - str;
+}
+
+static inline size_t
+byte_chrs(const char* str, size_t len, char needle[], size_t nl) {
+  const char* s = str;
+  const char* t = str + len;
+
+  for(;;) {
+    if(s == t)
+      break;
+    if(byte_chr(needle, nl, *s) < nl)
+      break;
+    ++s;
+  }
+  return s - (const char*)str;
 }
 
 #define COLOR_RED "\x1b[31m"
@@ -149,9 +165,14 @@ predicate_find(const char* str, size_t len, int (*pred)(char)) {
 static inline char
 escape_char_letter(char c) {
   switch(c) {
+    case '\0': return '0';
+    case '\a': return 'a';
+    case '\b': return 'b';
     case '\t': return 't';
-    case '\r': return 'r';
     case '\n': return 'n';
+    case '\v': return 'v';
+    case '\f': return 'f';
+    case '\r': return 'r';
     case '\\': return '\\';
     case '\'': return '\'';
   }
@@ -169,7 +190,11 @@ dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
     if(i == len)
       break;
     dbuf_putc(db, '\\');
-    dbuf_putc(db, escape_char_letter(str[i]));
+
+    if(str[i] == 0x1b)
+      dbuf_put(db, "x1b", 3);
+    else
+      dbuf_putc(db, escape_char_letter(str[i]));
     i++;
   }
 }
@@ -270,12 +295,26 @@ js_value_dump(JSContext* ctx, JSValue value, DynBuf* db) {
   } while(0);
 
 static inline JSValue
-js_symbol_ctor(JSContext* ctx) {
+js_global_get(JSContext* ctx, const char* prop) {
   JSValue global_obj, ret;
   global_obj = JS_GetGlobalObject(ctx);
-  ret = JS_GetPropertyStr(ctx, global_obj, "Symbol");
+  ret = JS_GetPropertyStr(ctx, global_obj, prop);
   JS_FreeValue(ctx, global_obj);
   return ret;
+}
+
+static inline JSValue
+js_global_prototype(JSContext* ctx, const char* class_name) {
+  JSValue ctor, ret;
+  ctor = js_global_get(ctx, class_name);
+  ret = JS_GetPropertyStr(ctx, ctor, "prototype");
+  JS_FreeValue(ctx, ctor);
+  return ret;
+}
+
+static inline JSValue
+js_symbol_ctor(JSContext* ctx) {
+  return js_global_get(ctx, "Symbol");
 }
 
 static inline JSValue
@@ -294,17 +333,6 @@ js_symbol_atom(JSContext* ctx, const char* name) {
   JSAtom ret = JS_ValueToAtom(ctx, sym);
   JS_FreeValue(ctx, sym);
   return ret;
-}
-
-static inline int64_t
-js_array_length(JSContext* ctx, JSValueConst array) {
-  int64_t len = -1;
-  if(JS_IsArray(ctx, array)) {
-    JSValue length = JS_GetPropertyStr(ctx, array, "length");
-    JS_ToInt64(ctx, &len, length);
-    JS_FreeValue(ctx, length);
-  }
-  return len;
 }
 
 static inline JSValue
@@ -466,6 +494,74 @@ js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
     dbuf_printf(db, "(0x%x)", js_atom_tobinary(atom));
   if(color)
     dbuf_putstr(db, "\x1b[m");
+}
+
+static inline const char*
+js_object_tostring(JSContext* ctx, JSValueConst value) {
+  JSAtom atom;
+  JSValue proto, tostring, str;
+  const char* s;
+  proto = js_global_prototype(ctx, "Object");
+  atom = JS_NewAtom(ctx, "toString");
+  tostring = JS_GetProperty(ctx, proto, atom);
+  JS_FreeValue(ctx, proto);
+  js_atom_free(ctx, atom);
+  str = JS_Call(ctx, tostring, value, 0, 0);
+  JS_FreeValue(ctx, tostring);
+  s = JS_ToCString(ctx, str);
+  JS_FreeValue(ctx, str);
+  return s;
+}
+
+static int
+js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
+  int ret = 0;
+  int n, m;
+  void* obj = JS_VALUE_GET_OBJ(value);
+  char* name = 0;
+  if((name = js_class_name(ctx, value))) {
+    n = strlen(name);
+    m = n >= 11 ? n - 11 : 0;
+    if(!strcmp(name + m, "ArrayBuffer"))
+      ret = 1;
+  }
+  if(!ret) {
+    const char* str;
+    JSValue ctor = js_global_get(ctx, "ArrayBuffer");
+    if(JS_IsInstanceOf(ctx, value, ctor))
+      ret = 1;
+    else if(!JS_IsArray(ctx, value) && (str = js_object_tostring(ctx, value))) {
+      ret = strstr(str, "ArrayBuffer]") != 0;
+      JS_FreeCString(ctx, str);
+    }
+    JS_FreeValue(ctx, ctor);
+  }
+  if(name)
+    js_free(ctx, (void*)name);
+  return ret;
+}
+
+static int
+js_is_typedarray(JSContext* ctx, JSValueConst value) {
+  int ret;
+  JSValue buf;
+  size_t byte_offset, byte_length, bytes_per_element;
+
+  buf = JS_GetTypedArrayBuffer(ctx, value, &byte_offset, &byte_length, &bytes_per_element);
+  ret = js_is_arraybuffer(ctx, buf);
+  JS_FreeValue(ctx, buf);
+  return ret;
+}
+
+static inline int64_t
+js_array_length(JSContext* ctx, JSValueConst array) {
+  int64_t len = -1;
+  if(JS_IsArray(ctx, array) || js_is_typedarray(ctx, array)) {
+    JSValue length = JS_GetPropertyStr(ctx, array, "length");
+    JS_ToInt64(ctx, &len, length);
+    JS_FreeValue(ctx, length);
+  }
+  return len;
 }
 
 #endif

@@ -46,7 +46,6 @@ enum tree_walker_types {
   TYPE_BIG_DECIMAL, // 9
   TYPE_FUNCTION = 16,
   TYPE_ARRAY = 17
-
 };
 
 enum tree_walker_mask {
@@ -65,8 +64,9 @@ enum tree_walker_mask {
   MASK_ALL = (MASK_PRIMITIVE | MASK_OBJECT),
   MASK_FUNCTION = (1 << TYPE_FUNCTION),
   MASK_ARRAY = (1 << TYPE_ARRAY),
-
 };
+
+enum tree_iterator_return { RETURN_VALUE = 0, RETURN_PATH = 1 << 24, RETURN_TUPLE = 2 << 24, RETURN_MASK = 3 << 24 };
 
 typedef struct {
   vector frames;
@@ -129,6 +129,7 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(!(w = js_mallocz(ctx, sizeof(TreeWalker))))
     return JS_EXCEPTION;
 
+  w->ref_count = 1;
   tree_walker_reset(w, ctx);
 
   /* using new_target to get the prototype is necessary when the
@@ -394,11 +395,25 @@ JSValue
 js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
   PropertyEnumeration* it;
   TreeWalker* w;
+  enum tree_iterator_return r;
 
   w = JS_GetOpaque(this_val, js_tree_iterator_class_id);
 
+  r = w->tag_mask & RETURN_MASK;
+
   if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {
-    return property_enumeration_value(it, ctx);
+    *pdone = FALSE;
+
+    switch(r) {
+      case RETURN_VALUE: return property_enumeration_value(it, ctx);
+      case RETURN_PATH: return property_enumeration_path(&w->frames, ctx);
+      case RETURN_TUPLE: {
+        JSValue ret = JS_NewArray(ctx);
+        JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
+        JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->frames, ctx));
+        return ret;
+      }
+    }
   }
 
   *pdone = TRUE;
