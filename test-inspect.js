@@ -77,7 +77,7 @@ async function main(...args) {
   };
 
   console.log('inspect(NaN)', inspect(NaN, options));
- for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
+// for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
 
   console.log('inspect', inspect(obj2, options));
   console.log(inspect('test \x1btest!', options));
