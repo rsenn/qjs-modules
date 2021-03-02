@@ -1,7 +1,12 @@
 #ifndef QUICKJS_INTERNAL_H
 #define QUICKJS_INTERNAL_H
 
-#include "quickjs.h"
+#include <quickjs.h>
+#include <libbf.h>
+
+#ifdef HAVE_QUICKJS_CONFIG_H
+#include <quickjs-config.h>
+#endif
 
 typedef enum JSErrorEnum {
   JS_EVAL_ERROR,
@@ -57,6 +62,24 @@ struct JSGCObjectHeader {
   uint16_t dummy2;
   struct list_head link;
 };
+
+typedef enum OPCodeEnum { OPCODEENUM_DUMMY } OPCodeEnum;
+
+typedef struct JSFloatEnv {
+  limb_t prec;
+  bf_flags_t flags;
+  unsigned int status;
+} JSFloatEnv;
+
+typedef struct {
+  JSValue (*to_string)(JSContext* ctx, JSValueConst val);
+  JSValue (*from_string)(JSContext* ctx, const char* buf, int radix, int flags, slimb_t* pexponent);
+  int (*unary_arith)(JSContext* ctx, JSValue* pres, OPCodeEnum op, JSValue op1);
+  int (*binary_arith)(JSContext* ctx, OPCodeEnum op, JSValue* pres, JSValue op1, JSValue op2);
+  int (*compare)(JSContext* ctx, OPCodeEnum op, JSValue op1, JSValue op2);
+  JSValue (*mul_pow10_to_float64)(JSContext* ctx, const bf_t* a, int64_t exponent);
+  int (*mul_pow10)(JSContext* ctx, JSValue* sp);
+} JSNumericOperations;
 
 typedef struct JSRuntime {
   JSMallocFunctions mf;
