@@ -40,7 +40,7 @@ async function main(...args) {
     b: true,
     c: 'prop',
     d: [...arr, { x: 99, y: Infinity, z: NaN }],
-    
+
     inspect(depth, options) {
       const { hideKeys, ...opts } = options;
       print('inspect hideKeys ' + hideKeys.join(','));
@@ -77,7 +77,7 @@ async function main(...args) {
   };
 
   console.log('inspect(NaN)', inspect(NaN, options));
-// for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
+  // for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
 
   console.log('inspect', inspect(obj2, options));
   console.log(inspect('test \x1btest!', options));

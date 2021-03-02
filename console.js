@@ -4,16 +4,22 @@ import inspect from 'inspect.so';
 
 export function Console(opts = {}) {
   let env = std.getenviron();
-  const consoleWidth = (fd = 1) => {
-    const size = os.ttyGetWinSize(fd);
+  let stdioFds = [std.in, std.out, std.err].map(f => f.fileno());
+  let termFd = stdioFds.find(fd => os.isatty(fd)) ?? 1;
+  const consoleWidth = fd => {
+    let size;
+    fd ??= termFd;
+    try {
+      size = os.ttyGetWinSize(fd);
+    } catch(err) {}
     return Array.isArray(size) ? size[0] : undefined;
   };
-  const stdoutFileno = std.out.fileno();
-  const defaultBreakLength =
-    (os.isatty(stdoutFileno) && consoleWidth(stdoutFileno)) || env.COLUMNS || Infinity;
+  const isTerminal = os.isatty(termFd);
+
+  const defaultBreakLength = (isTerminal && consoleWidth(termFd)) || env.COLUMNS || Infinity;
   const options = {
     depth: 2,
-    colors: os.isatty(stdoutFileno),
+    colors: isTerminal,
     breakLength: defaultBreakLength,
     maxArrayLength: Infinity,
     compact: false,
@@ -25,12 +31,6 @@ export function Console(opts = {}) {
 
   let log = c.log;
   c.reallog = log;
-  /*
-  class Console {
-    config(obj = {}) {
-      return new ConsoleOptions(obj);
-    }
-  }*/
 
   function ConsoleOptions(obj = {}) {
     Object.assign(this, obj);
