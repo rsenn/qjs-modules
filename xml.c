@@ -124,6 +124,9 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
     skip_ws();
     start = ptr;
     skip_until(char_is(c, START));
+
+    if(done)
+      break;
     if(ptr > start) {
       JSValue str = JS_NewStringLen(ctx, (const char*)start, ptr - start);
       JS_SetPropertyUint32(ctx, out->obj, out->idx++, str);

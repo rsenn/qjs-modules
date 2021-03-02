@@ -62,13 +62,13 @@ function main(...args) {
   }
 
   function TestIterator() {
-    let it = new TreeIterator(result, TreeIterator.MASK_OBJECT);
+    let it = new TreeIterator(result, TreeIterator.MASK_OBJECT | TreeIterator.RETURN_TUPLE);
 
-    for(let node of it) {
-      console.log('node:', node);
+    for(let [node, path] of it) {
+      console.log('path:', path.join('.'), 'node:', node);
     }
   }
-  //  console.log('result[2]  :', inspect(result[2], { depth: 10, compact: Infinity, colors: true }));
+  console.log(result.slice(2));
 
   std.gc();
 }

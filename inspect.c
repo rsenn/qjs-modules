@@ -2,7 +2,7 @@
 #include "cutils.h"
 #include "list.h"
 #include "utils.h"
-#include "utils.h"
+#include "quickjs-internal.h"
 #include <math.h>
 #include <ctype.h>
 #include <string.h>
@@ -22,32 +22,24 @@ typedef struct {
   struct list_head hide_keys;
 } inspect_options_t;
 
-typedef struct {
+struct prop_key;
+
+typedef struct prop_key {
+  union {
+    struct list_head link;
+    /*     struct {
+          struct prop_key* prev;
+          struct prop_key* next;
+        }; */
+  };
   const char* name;
   JSAtom atom;
-  struct list_head link;
 } prop_key_t;
 
 static int js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth);
 
 static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor,
     regexp_ctor, symbol_ctor;
-static JSAtom inspect_custom_atom;
-
-static inline const char*
-js_object_tostring(JSContext* ctx, JSValueConst value) {
-  JSAtom atom;
-  JSValue tostring, str;
-  const char* s;
-  atom = JS_NewAtom(ctx, "toString");
-  tostring = JS_GetProperty(ctx, object_proto, atom);
-  js_atom_free(ctx, atom);
-  str = JS_Call(ctx, tostring, value, 0, 0);
-  JS_FreeValue(ctx, tostring);
-  s = JS_ToCString(ctx, str);
-  JS_FreeValue(ctx, str);
-  return s;
-}
 
 #define js_object_tmpmark_set(value)                                                                                   \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
@@ -106,34 +98,6 @@ js_is_generator(JSContext* ctx, JSValueConst value) {
   return js_is_object(ctx, value, "[object Generator]");
 }
 
-static int
-js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
-  int ret = 0;
-  int n, m;
-  void* obj = JS_VALUE_GET_OBJ(value);
-  char* name = 0;
-  if((name = js_class_name(ctx, value))) {
-    n = strlen(name);
-    m = n >= 11 ? n - 11 : 0;
-    // printf("  name=%s\n", name + m);
-    if(!strcmp(name + m, "ArrayBuffer"))
-      ret = 1;
-  }
-  if(!ret) {
-    const char* str;
-    if(JS_IsInstanceOf(ctx, value, array_buffer_ctor))
-      ret = 1;
-    else if(!JS_IsArray(ctx, value) && (str = js_object_tostring(ctx, value))) {
-      ret = strstr(str, "ArrayBuffer]") != 0;
-      //   ret = !strcmp(str, "[object ArrayBuffer]");
-      JS_FreeCString(ctx, str);
-    }
-  }
-  if(name)
-    js_free(ctx, (void*)name); // printf("js_is_arraybuffer ret=%i\n", ret);
-  return ret;
-}
-
 static void
 js_inspect_constructors_get(JSContext* ctx) {
   global_object = JS_GetGlobalObject(ctx);
@@ -183,6 +147,19 @@ js_inspect_options_init(inspect_options_t* opts) {
   opts->break_length = 80;
   opts->compact = 5;
   init_list_head(&opts->hide_keys);
+}
+
+static void
+js_inspect_options_free(inspect_options_t* opts, JSContext* ctx) {
+  struct list_head *entry, *next;
+
+  list_for_each_safe(entry, next, &opts->hide_keys) {
+    prop_key_t* prop_key = (prop_key_t*)entry;
+    JS_FreeAtom(ctx, prop_key->atom);
+    JS_FreeCString(ctx, prop_key->name);
+    js_free(ctx, prop_key);
+  }
+  memset(&opts->hide_keys, 0, sizeof(opts->hide_keys));
 }
 
 static void
@@ -324,9 +301,13 @@ js_inspect_custom_atom(JSContext* ctx) {
 static const char*
 js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   JSValue inspect;
+  JSAtom inspect_custom;
   const char* str = 0;
   int32_t level = opts->depth - depth;
-  inspect = JS_GetProperty(ctx, obj, inspect_custom_atom);
+  inspect_custom = js_inspect_custom_atom(ctx);
+  // printf("inspect_custom ref_count=%d\n", JS_GetRuntime(ctx)->atom_array[inspect_custom]->header.ref_count);
+  inspect = JS_GetProperty(ctx, obj, inspect_custom);
+  JS_FreeAtom(ctx, inspect_custom);
   if(!JS_IsFunction(ctx, inspect)) {
     JS_FreeValue(ctx, inspect);
     inspect = JS_GetPropertyStr(ctx, obj, "inspect");
@@ -548,7 +529,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
     }
 
     case JS_TAG_OBJECT: {
-      int is_array = JS_IsArray(ctx, value);
+      int is_array = JS_IsArray(ctx, value), is_typedarray = js_is_typedarray(ctx, value);
       int is_function = JS_IsFunction(ctx, value);
       uint32_t nprops, pos, len, limit;
       JSPropertyEnum* props = 0;
@@ -623,7 +604,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       js_object_tmpmark_set(value);
 
-      if(is_array) {
+      if(is_array || is_typedarray) {
         len = js_array_length(ctx, value);
         dbuf_putstr(buf, compact ? "[ " : "[");
 
@@ -671,7 +652,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         }*/
       }
 
-      if(!is_array) {
+      if(!is_array && !is_typedarray) {
         dbuf_putstr(buf, compact ? "{ " : "{");
         len = 0;
       }
@@ -684,7 +665,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         name = JS_AtomToCString(ctx, props[pos].atom);
 
         if(!JS_IsSymbol(key)) {
-          if((is_array && is_integer(name)) || js_inspect_hidden_key(opts, props[pos].atom)) {
+          if(((is_array || is_typedarray) && is_integer(name)) || js_inspect_hidden_key(opts, props[pos].atom)) {
             JS_FreeValue(ctx, key);
             JS_FreeCString(ctx, name);
             continue;
@@ -697,7 +678,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         if(!compact)
           js_inspect_newline(buf, level + 1);
 
-        if(!JS_IsSymbol(key) && is_identifier(name)) {
+        if(!JS_IsSymbol(key) && (is_identifier(name) || is_integer(name))) {
           dbuf_putstr(buf, name);
         } else {
           dbuf_putc(buf, '[');
@@ -726,7 +707,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       if(!compact && len)
         js_inspect_newline(buf, level);
-      dbuf_putstr(buf, is_array ? (compact ? " ]" : "]") : (compact ? " }" : "}"));
+      dbuf_putstr(buf, (is_array || is_typedarray) ? (compact ? " ]" : "]") : (compact ? " }" : "}"));
 
     end_obj:
       if(props)
@@ -806,9 +787,6 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
 
   js_inspect_options_init(&options);
 
-  if(options.custom_inspect)
-    inspect_custom_atom = js_inspect_custom_atom(ctx);
-
   if(argc > 1 && JS_IsNumber(argv[1]))
     optsind++;
 
@@ -830,8 +808,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
 
   dbuf_free(&dbuf);
 
-  if(options.custom_inspect)
-    js_atom_free(ctx, inspect_custom_atom);
+  js_inspect_options_free(&options, ctx);
 
   js_inspect_constructors_free(ctx);
 

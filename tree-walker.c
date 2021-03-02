@@ -174,11 +174,20 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 static PropertyEnumeration*
 js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValueConst pred) {
   PropertyEnumeration* it;
-  int32_t type;
+  int32_t type, mask = w->tag_mask & MASK_ALL;
+
   for(;;) {
     it = property_enumeration_recurse(&w->frames, ctx);
     if(!it)
       break;
+    if(mask && mask != MASK_ALL) {
+      JSValue value;
+      value = property_enumeration_value(it, ctx);
+      type = js_value_type(value);
+      JS_FreeValue(ctx, value);
+      if((mask & (1 << type)) == 0)
+        continue;
+    }
     if(JS_IsFunction(ctx, pred)) {
       BOOL result = property_enumeration_predicate(it, ctx, pred, this_arg);
       if(!result)
@@ -477,7 +486,10 @@ static const JSCFunctionListEntry js_tree_walker_static_funcs[] = {
     JS_PROP_INT32_DEF("MASK_BIG_INT", MASK_BIG_INT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MASK_BIG_DECIMAL", MASK_BIG_DECIMAL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MASK_ALL", MASK_ALL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_PRIMITIVE", MASK_PRIMITIVE, JS_PROP_ENUMERABLE)};
+    JS_PROP_INT32_DEF("MASK_PRIMITIVE", MASK_PRIMITIVE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("RETURN_VALUE", RETURN_VALUE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("RETURN_PATH", RETURN_PATH, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("RETURN_TUPLE", RETURN_TUPLE, JS_PROP_ENUMERABLE)};
 
 static const JSCFunctionListEntry js_tree_iterator_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_tree_iterator_next, 0),
