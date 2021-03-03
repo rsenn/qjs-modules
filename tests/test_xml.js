@@ -14,7 +14,7 @@ function WriteFile(file, data) {
 }
 
 async function main(...args) {
-  console = new Console({ colors: true, depth: 10, _stringBreakNewline: false });
+  console = new Console({ colors: true, depth: 5, _stringBreakNewline: false,maxArrayLength:10,compact:1, maxStringLength: 60 });
 
   let winsz;
 
@@ -40,6 +40,10 @@ async function main(...args) {
 
   let str = xml.write(result);
   console.log('write:', str);
+
+
+  console.log(`Writing '${base + '.json'}'...`);
+  WriteFile(base + '.json',JSON.stringify(result, null, 2));
 
   console.log(`Writing '${base + '.xml'}'...`);
   WriteFile(base + '.xml', str);
