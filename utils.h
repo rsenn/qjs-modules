@@ -319,6 +319,26 @@ dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color
     dbuf_putstr(db, COLOR_NONE);
 }
 
+static int
+dbuf_reserve_start(DynBuf* s, size_t len) {
+  if(unlikely((s->size + len) > s->allocated_size)) {
+    if(dbuf_realloc(s, s->size + len))
+      return -1;
+  }
+  if(s->size > 0)
+    memcpy(s->buf + len, s->buf, s->size);
+  s->size += len;
+  return 0;
+}
+
+static inline int
+dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len) {
+  int ret;
+  if(!(ret = dbuf_reserve_start(s, len)))
+    memcpy(s->buf, data, len);
+  return 0;
+}
+
 #define js_object_tmpmark_set(value)                                                                                   \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
 #define js_object_tmpmark_clear(value)                                                                                 \

@@ -262,6 +262,56 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   return ret;
 }
 
+static JSValue
+js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  const char* str;
+  DynBuf db, cwd;
+  ssize_t i;
+  size_t len = 0, pos;
+  JSValue ret = JS_UNDEFINED;
+  dbuf_init(&db);
+  dbuf_0(&db);
+
+  for(i = argc - 1; i >= 0; i--) {
+    if(!JS_IsString(argv[i])) {
+      ret = JS_ThrowTypeError(ctx, "argument #%zx is not a string", i);
+      goto fail;
+    }
+    str = JS_ToCStringLen(ctx, &len, argv[i]);
+    while(len > 0 && str[len - 1] == PATHSEP_C) len--;
+    if(dbuf_reserve_start(&db, len + 1))
+      goto fail;
+    if(len > 0) {
+      memcpy(db.buf, str, len);
+      db.buf[len] = PATHSEP_C;
+    }
+  }
+
+  if(!path_is_absolute(db.buf, db.size)) {
+    dbuf_init(&cwd);
+    str = path_getcwd(&cwd);
+    len = cwd.size;
+    if(dbuf_reserve_start(&db, len + 1))
+      goto fail;
+    if(len > 0) {
+      memcpy(db.buf, str, len);
+      db.buf[len] = PATHSEP_C;
+    }
+    dbuf_free(&cwd);
+  }
+
+  dbuf_0(&db);
+
+  if(db.size) {
+    db.size = path_collapse(db.buf, db.size);
+    while(db.size > 0 && db.buf[db.size - 1] == PATHSEP_C) db.size--;
+    ret = JS_NewStringLen(ctx, db.buf, db.size);
+  }
+fail:
+  dbuf_free(&db);
+  return ret;
+}
+
 static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("basename", 1, js_path_method, METHOD_BASENAME),
     JS_CFUNC_MAGIC_DEF("collapse", 1, js_path_method, METHOD_COLLAPSE),
@@ -294,6 +344,7 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_DEF("join", 1, js_path_join),
     JS_CFUNC_DEF("parse", 1, js_path_parse),
     JS_CFUNC_DEF("format", 1, js_path_format),
+    JS_CFUNC_DEF("resolve", 1, js_path_resolve),
     JS_PROP_STRING_DEF("delimiter", PATHDELIM_S, JS_PROP_CONFIGURABLE),
     JS_PROP_STRING_DEF("sep", PATHSEP_S, JS_PROP_CONFIGURABLE)};
 

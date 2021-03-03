@@ -398,3 +398,14 @@ path_gethome(int uid) {
   fclose(fp);
   return ret;
 }
+
+char*
+path_getcwd(DynBuf* db) {
+  char* p;
+  dbuf_zero(db);
+  dbuf_realloc(db, PATH_MAX);
+  p = getcwd(db->buf, db->allocated_size);
+  db->size = strlen(db->buf);
+  dbuf_0(db);
+  return db->buf;
+}

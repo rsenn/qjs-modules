@@ -53,6 +53,7 @@ void path_concat(const char*, size_t alen, const char* b, size_t blen, DynBuf* d
 int path_find(const char*, const char* name, DynBuf* db);
 int path_fnmatch(const char*, unsigned int plen, const char* string, unsigned int slen, int flags);
 char* path_gethome(int);
+char* path_getcwd(DynBuf*);
 int path_relative(const char*, const char* relative_to, DynBuf* db);
 
 static inline size_t
