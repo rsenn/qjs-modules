@@ -105,7 +105,7 @@ path_append(const char* x, size_t len, DynBuf* db) {
     x += 2;
     len -= 2;
   }
-  dbuf_put(db, x, len);
+  dbuf_put(db, (const uint8_t*)x, len);
 }
 static inline int
 path_getsep(const char* path) {
@@ -174,7 +174,7 @@ path_is_symlink(const char* p) {
 
 static inline int
 path_canonical_buf(DynBuf* db) {
-  db->size = path_collapse(db->buf, db->size);
+  db->size = path_collapse((char*)db->buf, db->size);
   dbuf_putc(db, '\0');
   db->size--;
   return 1;

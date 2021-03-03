@@ -8,8 +8,8 @@ path_absolute(const char* path, DynBuf* db) {
   int ret = 0;
   if(!path_isabs(path)) {
     dbuf_realloc(db, PATH_MAX + 1);
-    if(getcwd(db->buf, PATH_MAX + 1))
-      db->size = strlen(db->buf);
+    if(getcwd((char*)db->buf, PATH_MAX + 1))
+      db->size = strlen((const char*)db->buf);
     else
       db->size = 0;
     if(strcmp(path, ".")) {
@@ -29,18 +29,18 @@ path_absolute_db(DynBuf* db) {
   dbuf_putc(db, '\0');
   db->size--;
 
-  if(!path_isabs(db->buf)) {
+  if(!path_isabs((const char*)db->buf)) {
     DynBuf tmp;
     dbuf_init(&tmp);
     dbuf_put(&tmp, db->buf, db->size);
 
     dbuf_realloc(db, PATH_MAX + 1);
-    if(getcwd(db->buf, PATH_MAX)) {
-      db->size = strlen(db->buf);
+    if(getcwd((char*)db->buf, PATH_MAX)) {
+      db->size = strlen((const char*)db->buf);
     }
 
     dbuf_putc(db, PATHSEP_C);
-    dbuf_put(db, tmp.buf, tmp.size);
+    dbuf_put(db, (const uint8_t*)tmp.buf, tmp.size);
     dbuf_free(&tmp);
     ret = 1;
   }
@@ -113,7 +113,7 @@ start:
         continue;
       }
       if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
-        db->size = path_right(db->buf, db->size);
+        db->size = path_right((const char*)db->buf, db->size);
         path += 2;
         continue;
       }
@@ -123,15 +123,15 @@ start:
     if(db->size && (db->buf[db->size - 1] != '/' && db->buf[db->size - 1] != '\\'))
       dbuf_putc(db, sep);
     n = path_length_s(path);
-    dbuf_put(db, path, n);
+    dbuf_put(db, (const uint8_t*)path, n);
     if(n == 2 && path[1] == ':')
       dbuf_putc(db, sep);
     dbuf_0(db);
     path += n;
     memset(&st, 0, sizeof(st));
-    if(stat_fn(db->buf, &st) != -1 && path_is_symlink(db->buf)) {
+    if(stat_fn((const char*)db->buf, &st) != -1 && path_is_symlink((const char*)db->buf)) {
       ret++;
-      if((ssize_t)(n = readlink(db->buf, buf, PATH_MAX)) == (ssize_t)-1)
+      if((ssize_t)(n = readlink((const char*)db->buf, buf, PATH_MAX)) == (ssize_t)-1)
         return 0;
       if(path_is_absolute(buf, n)) {
         strncpy(&buf[n], path, PATH_MAX - n);
@@ -141,7 +141,7 @@ start:
         goto start;
       } else {
         int rret;
-        db->size = path_right(db->buf, db->size);
+        db->size = path_right((const char*)db->buf, db->size);
         buf[n] = '\0';
         rret = path_normalize(buf, db, symbolic);
         if(!rret)
@@ -164,13 +164,13 @@ path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) 
   path_append(a, alen, &tmp);
   path_append(b, blen, &tmp);
 
-  x = tmp.buf;
+  x = (const char*)tmp.buf;
   size = tmp.size;
   if(size > 2 && tmp.buf[0] == '.' && tmp.buf[1] == PATHSEP_C) {
     x += 2;
     size -= 2;
   }
-  dbuf_put(db, x, size);
+  dbuf_put(db, (const uint8_t*)x, size);
   dbuf_putc(db, '\0');
   db->size--;
 
@@ -242,7 +242,7 @@ path_relative(const char* path, const char* relative_to, DynBuf* db) {
       dbuf_putc(&rel, PATHSEP_C);
 
     s = dbuf_at_n(&p, i, &n, PATHSEP_C);
-    dbuf_put(&rel, s, n);
+    dbuf_put(&rel, (const uint8_t*)s, n);
     ++i;
   }
 
@@ -250,7 +250,7 @@ path_relative(const char* path, const char* relative_to, DynBuf* db) {
     dbuf_putstr(db, ".");
   } else {
     db->size = 0;
-    dbuf_put(db, rel.buf, rel.size);
+    dbuf_put(db, (const uint8_t*)rel.buf, rel.size);
   }
   dbuf_free(&p);
   dbuf_free(&r);
@@ -404,8 +404,8 @@ path_getcwd(DynBuf* db) {
   char* p;
   dbuf_zero(db);
   dbuf_realloc(db, PATH_MAX);
-  p = getcwd(db->buf, db->allocated_size);
-  db->size = strlen(db->buf);
+  p = getcwd((char*)db->buf, db->allocated_size);
+  db->size = strlen((const char*)db->buf);
   dbuf_0(db);
-  return db->buf;
+  return (char*)db->buf;
 }

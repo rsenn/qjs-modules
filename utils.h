@@ -278,8 +278,8 @@ dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
   size_t p, l = 0;
   for(p = 0; p < db->size; ++p) {
     if(l == i) {
-      *n = byte_chr(&db->buf[p], db->size - p, sep);
-      return &db->buf[p];
+      *n = byte_chr((const char*)&db->buf[p], db->size - p, sep);
+      return (char*)&db->buf[p];
     }
     if(db->buf[p] == sep)
       ++l;

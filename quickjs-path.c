@@ -176,7 +176,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   }
 
   if(db.size) {
-    ret = JS_NewStringLen(ctx, db.buf, db.size);
+    ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   }
   dbuf_free(&db);
   return ret;
@@ -194,7 +194,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     path_append(str, len, &db);
   }
   if(db.size) {
-    ret = JS_NewStringLen(ctx, db.buf, db.size);
+    ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   }
   dbuf_free(&db);
   return ret;
@@ -256,7 +256,7 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     }
   }
 
-  ret = JS_NewStringLen(ctx, db.buf, db.size);
+  ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   dbuf_free(&db);
 
   return ret;
@@ -287,7 +287,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     }
   }
 
-  if(!path_is_absolute(db.buf, db.size)) {
+  if(!path_is_absolute((const char*)db.buf, db.size)) {
     dbuf_init(&cwd);
     str = path_getcwd(&cwd);
     len = cwd.size;
@@ -303,9 +303,9 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   dbuf_0(&db);
 
   if(db.size) {
-    db.size = path_collapse(db.buf, db.size);
+    db.size = path_collapse((char*)db.buf, db.size);
     while(db.size > 0 && db.buf[db.size - 1] == PATHSEP_C) db.size--;
-    ret = JS_NewStringLen(ctx, db.buf, db.size);
+    ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   }
 fail:
   dbuf_free(&db);
