@@ -1,3 +1,5 @@
+"use strict";
+"use math";
 import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
