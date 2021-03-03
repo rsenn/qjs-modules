@@ -51,6 +51,10 @@ export function Console(opts = {}) {
 
   if(globalThis.inspect !== inspect) globalThis.inspect = inspect;
 
+  if(!globalThis.inspect)
+    globalThis.inspect = arg => arg;
+
+
   return Object.assign(newcons, {
     options,
     reallog: log,
@@ -64,7 +68,7 @@ export function Console(opts = {}) {
       return log.call(this,
         ...args.reduce((acc, arg, i) => {
           if(typeof arg && arg != null && arg instanceof ConsoleOptions) tempOpts.merge(arg);
-          else if(typeof arg == 'object' || i > 0) acc.push(inspect(arg, tempOpts));
+          else if(typeof arg == 'object' || i > 0) acc.push(typeof arg == 'string' && arg.indexOf('\x1b') != -1  ? arg : inspect(arg, tempOpts));
           else acc.push(arg);
           return acc;
         }, [])

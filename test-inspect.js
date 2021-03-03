@@ -3,6 +3,8 @@ import * as std from 'std';
 import inspect from 'inspect.so';
 import Console from './console.js';
 
+globalThis.inspect = inspect;
+
 async function main(...args) {
   console = new Console({ colors: true, depth: 1 });
 
@@ -15,10 +17,10 @@ async function main(...args) {
     customInspect: true,
     showProxy: false,
     getters: false,
-    depth: Infinity,
+    depth: 50,
     maxStringLength: 200,
     breakLength: winsz[0] || 80,
-    compact: 2,
+    compact: false,
     hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
   };
 
@@ -76,6 +78,7 @@ async function main(...args) {
     }
   };
 
+
   console.log('inspect(NaN)', inspect(NaN, options));
   // for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
 
@@ -86,7 +89,12 @@ async function main(...args) {
 
   outfile.puts(inspect('test \x1btest!', options));
   outfile.close();
+  let deepObj = {
 
+    a: { [1]: { [Symbol.species]: {  test: { [0]: { x: [ { z: { ['?']: [  {} ]} }] } }  }}}
+  }
+
+  console.log('inspect(deepObj)', inspect(deepObj, options));
   std.gc();
   return;
 }

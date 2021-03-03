@@ -247,18 +247,19 @@ property_enumeration_recurse(vector* vec, JSContext* ctx) {
   int32_t type;
   it = vector_back(vec, sizeof(PropertyEnumeration));
   for(;;) {
-    value = property_enumeration_value(it, ctx);
-    type = JS_VALUE_GET_TAG(value);
-    JS_FreeValue(ctx, value);
-    if(type == JS_TAG_OBJECT) {
-      if((it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS)) && property_enumeration_setpos(it, 0))
-        break;
-    } else {
-      if(property_enumeration_setpos(it, it->idx + 1))
-        break;
+    if(it->tab_atom_len > 0) {
+      value = property_enumeration_value(it, ctx);
+      type = JS_VALUE_GET_TAG(value);
+      JS_FreeValue(ctx, value);
+      if(type == JS_TAG_OBJECT) {
+        if((it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS)) && property_enumeration_setpos(it, 0))
+          break;
+      } else {
+        if(property_enumeration_setpos(it, it->idx + 1))
+          break;
+      }
+      return 0;
     }
-    return 0;
-
     for(;;) {
       if((it = property_enumeration_pop(vec, ctx)) == 0)
         return it;
@@ -278,17 +279,19 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
   vector vec;
   int32_t depth, max_depth = 0;
   PropertyEnumeration* it;
+  JSValue root = JS_DupValue(ctx, object);
+
   vector_init(&vec);
-  if(!JS_IsObject(object) ||
-     !(it = property_enumeration_push(&vec, ctx, JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS)))
-    return 0;
-  for(;;) {
-    if(!(it = property_enumeration_recurse(&vec, ctx)))
-      break;
-    depth = vector_size(&vec, sizeof(PropertyEnumeration));
-    if(max_depth < depth)
-      max_depth = depth;
+  if(JS_IsObject(root)) {
+    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS);
+        (it = property_enumeration_recurse(&vec, ctx));) {
+      depth = vector_size(&vec, sizeof(PropertyEnumeration));
+      if(max_depth < depth)
+        max_depth = depth;
+    }
   }
+  vector_foreach_t(&vec, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
+  vector_free(&vec);
   return max_depth;
 }
 

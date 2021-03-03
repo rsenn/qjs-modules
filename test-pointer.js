@@ -5,6 +5,8 @@ import * as xml from 'xml.so';
 import { Pointer } from 'pointer.so';
 import Console from './console.js';
 
+globalThis.inspect = inspect;
+
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);
@@ -12,7 +14,7 @@ function WriteFile(file, data) {
 }
 
 function main(...args) {
-  console = new Console({ colors: true, depth: 1, maxArrayLength: 10, maxStringLength: 100 });
+  console = new Console({ colors: true, depth: 1, maxArrayLength: 10, maxStringLength: 100,compact: false });
   console.log('args:', args);
 
   let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');

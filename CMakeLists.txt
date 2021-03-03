@@ -2,6 +2,7 @@ project(quickjs-modules C)
 
 set(QUICKJS_MODULES mmap pointer inspect tree-walker xml)
 
+set(inspect_SOURCES vector.c vector.h)
 set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
 

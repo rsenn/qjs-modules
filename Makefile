@@ -37,7 +37,7 @@ install:
 .c.o:
 	$(CC) $(CFLAGS) -c $< 
 
-inspect.$(SUFFIX): inspect.c
+inspect.$(SUFFIX): inspect.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 mmap.$(SUFFIX): mmap.c

@@ -229,7 +229,7 @@ js_inspect_options_get(JSContext* ctx, JSValueConst object, inspect_options_t* o
   value = JS_GetPropertyStr(ctx, object, "compact");
   if(!JS_IsUndefined(value)) {
     if(JS_VALUE_GET_TAG(value) == JS_TAG_BOOL && JS_VALUE_GET_BOOL(value) == 0)
-      opts->compact = INT32_MAX;
+      opts->compact = INT32_MIN;
     else if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))
       opts->compact = INT32_MAX;
     else
@@ -453,8 +453,15 @@ static int
 js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
 
   int tag = JS_VALUE_GET_TAG(value);
-  int32_t level = opts->depth - depth;
-  int compact = level >= opts->compact;
+  int32_t level = (int32_t)opts->depth - depth;
+  int compact = INT32_MIN + 1;
+
+  int compactValid = opts->compact != INT32_MIN && opts->compact != INT32_MAX;
+
+  if(compactValid)
+    compact = level >= opts->compact;
+  else
+    compact = 0;
 
   // if(level) printf("js_inspect_print level: %d\n", level);
 
@@ -538,11 +545,14 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       uint32_t nprops, pos, len, limit;
       JSPropertyEnum* props = 0;
       const char* s;
-      int32_t depth;
 
-      depth = property_enumeration_depth(ctx, value);
-      printf("js_inspect_print level=%d compact=%d depth=%d\n", level, compact, depth);
-      fflush(stdout);
+      if(compactValid) {
+        int32_t odepth;
+        odepth = property_enumeration_depth(ctx, value);
+        // printf("js_inspect_print level=%"PRId32" compact=%"PRId32" odepth=%"PRId32"\n", level, compact, odepth);
+        compact = opts->compact >= odepth;
+      } else
+        compact = 0;
 
       if(JS_IsInstanceOf(ctx, value, array_buffer_ctor) || JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor)/* ||
          js_is_arraybuffer(ctx, value)*/)
@@ -662,7 +672,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       }
 
       if(!is_array && !is_typedarray) {
-        dbuf_putstr(buf, compact ? "{ " : "{");
+        dbuf_putstr(buf, (compact && nprops) ? "{ " : "{");
         len = 0;
       }
 
@@ -716,7 +726,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       if(!compact && len)
         js_inspect_newline(buf, level);
-      dbuf_putstr(buf, (is_array || is_typedarray) ? (compact ? " ]" : "]") : (compact ? " }" : "}"));
+      dbuf_putstr(buf, (is_array || is_typedarray) ? (compact && len ? " ]" : "]") : (compact && len ? " }" : "}"));
 
     end_obj:
       if(props)
