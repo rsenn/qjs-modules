@@ -44,10 +44,11 @@ CallPathFunction('join', '/home/roman', 'Sources', 'plot-cv/quickjs', 'modules')
 CallPathFunction('isAbsolute', 'c:/windows');
 CallPathFunction('isAbsolute', '/etc');
 CallPathFunction('isAbsolute', '../tmp');
-CallPathFunction('parse', '/home/roman/Sources/plot-cv/quickjs');
-CallPathFunction('parse', 'c:/windows/system32/drivers/etc');
+CallPathFunction('isRelative', '../tmp');
+CallPathFunction('parse', '/home/roman/Sources/plot-cv/CMakeLists.txt');
+CallPathFunction('parse', 'C:/Windows/System32/mshtml.dll');
 CallPathFunction('components', '/home/roman/Sources/plot-cv/quickjs');
-CallPathFunction('format', { root: 'c:/', dir: 'c:/windows/system32/drivers', name: 'etc', ext: '.x' });
+CallPathFunction('format', { root: 'c:/', dir: 'C:/Windows/System32/drivers', name: 'tcpip', ext: '.sys' });
 
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));

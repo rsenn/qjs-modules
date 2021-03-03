@@ -120,7 +120,7 @@ static inline int
 path_exists(const char* p) {
   struct stat st;
   int r;
-#if WINDOWS_NATIVE
+#ifdef WINDOWS_NATIVE
   if(access(p, 0) == 0)
     return 1;
 #endif

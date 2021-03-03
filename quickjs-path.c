@@ -26,6 +26,7 @@ enum path_methods {
   METHOD_GETHOME,
   METHOD_GETSEP,
   METHOD_IS_ABSOLUTE,
+  METHOD_IS_RELATIVE,
   METHOD_IS_DIRECTORY,
   METHOD_IS_SEPARATOR,
   METHOD_LENGTH,
@@ -73,33 +74,30 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       break;
     }
     case METHOD_REALPATH:
-      if(realpath(a, buf)) {
+      if(realpath(a, buf))
         ret = JS_NewString(ctx, buf);
-      }
       break;
-    case METHOD_EXISTS: {
-      ret = JS_NewBool(ctx, path_exists(a));
-      break;
-    }
+    case METHOD_EXISTS: ret = JS_NewBool(ctx, path_exists(a)); break;
+
     case METHOD_EXTNAME: ret = JS_NewString(ctx, path_extname(a)); break;
 
-    case METHOD_GETCWD: {
-      if(getcwd(buf, sizeof(buf))) {
+    case METHOD_GETCWD:
+      if(getcwd(buf, sizeof(buf)))
         ret = JS_NewString(ctx, buf);
-      }
       break;
-    }
-    case METHOD_IS_ABSOLUTE: {
-      if(a && a[0]) {
+
+    case METHOD_IS_ABSOLUTE:
+      if(a && a[0])
         ret = JS_NewBool(ctx, path_isabs(a));
-      }
       break;
-    }
+    case METHOD_IS_RELATIVE:
+      if(a && a[0])
+        ret = JS_NewBool(ctx, !path_isabs(a));
+      break;
     case METHOD_IS_DIRECTORY: ret = JS_NewBool(ctx, path_is_directory(a)); break;
     case METHOD_IS_SEPARATOR:
-      if(a && a[0]) {
+      if(a && a[0])
         ret = JS_NewBool(ctx, path_issep(a[0]));
-      }
       break;
     case METHOD_COLLAPSE: {
       char* s = str_ndup(a, alen);
@@ -116,10 +114,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       ret = JS_NewInt32(ctx, path_fnmatch(a, alen, b, blen, flags));
       break;
     }
-    case METHOD_GETHOME: {
-      ret = JS_NewString(ctx, path_gethome(getuid()));
-      break;
-    }
+    case METHOD_GETHOME: ret = JS_NewString(ctx, path_gethome(getuid())); break;
     case METHOD_GETSEP: {
       char c;
       if((c = path_getsep(a)) != '\0')
@@ -236,34 +231,32 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 
   dbuf_init(&db);
 
-  dir = js_object_propertystr_getstr(ctx, obj, "dir");
-  root = js_object_propertystr_getstr(ctx, obj, "root");
-  base = js_object_propertystr_getstr(ctx, obj, "base");
-  name = js_object_propertystr_getstr(ctx, obj, "name");
-  ext = js_object_propertystr_getstr(ctx, obj, "ext");
-
-  if(dir) {
+  if((dir = js_object_propertystr_getstr(ctx, obj, "dir"))) {
     dbuf_putstr(&db, dir);
-  } else if(root) {
+    JS_FreeCString(ctx, dir);
+  } else if((root = js_object_propertystr_getstr(ctx, obj, "root"))) {
     dbuf_putstr(&db, root);
+    JS_FreeCString(ctx, root);
   }
 
-  if(base) {
+  if(db.size)
+    dbuf_putc(&db, PATHSEP_C);
+
+  if((base = js_object_propertystr_getstr(ctx, obj, "base"))) {
     dbuf_putstr(&db, base);
-  } else if(name) {
+    JS_FreeCString(ctx, base);
+  } else if((name = js_object_propertystr_getstr(ctx, obj, "name"))) {
     dbuf_putstr(&db, name);
-    if(ext)
+    JS_FreeCString(ctx, name);
+    if((ext = js_object_propertystr_getstr(ctx, obj, "ext"))) {
       dbuf_putstr(&db, ext);
+      JS_FreeCString(ctx, ext);
+    }
   }
 
   ret = JS_NewStringLen(ctx, db.buf, db.size);
   dbuf_free(&db);
 
-  JS_FreeCString(ctx, dir);
-  JS_FreeCString(ctx, root);
-  JS_FreeCString(ctx, base);
-  JS_FreeCString(ctx, name);
-  JS_FreeCString(ctx, ext);
   return ret;
 }
 
@@ -278,6 +271,7 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("gethome", 1, js_path_method, METHOD_GETHOME),
     JS_CFUNC_MAGIC_DEF("getsep", 1, js_path_method, METHOD_GETSEP),
     JS_CFUNC_MAGIC_DEF("isAbsolute", 1, js_path_method, METHOD_IS_ABSOLUTE),
+    JS_CFUNC_MAGIC_DEF("isRelative", 1, js_path_method, METHOD_IS_RELATIVE),
     JS_CFUNC_MAGIC_DEF("isDirectory", 1, js_path_method, METHOD_IS_DIRECTORY),
     JS_CFUNC_MAGIC_DEF("isSeparator", 1, js_path_method, METHOD_IS_SEPARATOR),
     JS_CFUNC_MAGIC_DEF("length", 1, js_path_method, METHOD_LENGTH),
