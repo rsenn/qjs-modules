@@ -3,15 +3,20 @@ import * as std from 'std';
 import inspect from 'inspect.so';
 import Console from './console.js';
 
-('use strict');
-('use math');
+'use strict';
+'use math';
 
 globalThis.inspect = inspect;
 
 async function main(...args) {
+  console.log('main:', args);
   console = new Console({ colors: true, depth: 1 });
 
-  let winsz = await os.ttyGetWinSize(1);
+  let winsz;
+
+try {
+  winsz = await os.ttyGetWinSize(1);
+ }catch(err) {}
   console.log('winsz:', winsz);
 
   const options = {

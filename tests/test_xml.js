@@ -1,41 +1,50 @@
-import { read, write } from 'xml.so';
-import ConsoleSetup from '../../lib/consoleSetup.js';
-import PortableFileSystem from '../../lib/filesystem.js';
-import { toXML } from '../../lib/json.js';
-import Util from '../../lib/util.js';
-import path from '../../lib/path.js';
+import * as os from 'os';
+import * as std from 'std';
+import inspect from 'inspect.so';
+import * as xml from 'xml.so';
+import Console from './console.js';
+
+'use strict';
+'use math';
+
+function WriteFile(file, data) {
+  let f = std.open(file, 'w+');
+  f.puts(data);
+  console.log(`Wrote '${file}': ${data.length} bytes`);
+}
 
 async function main(...args) {
-  await ConsoleSetup({
-    depth: 5,
-    colors: true,
-    breakLength: 80,
-    maxArrayLength: 10,
-    maxStringLength: 30,
-    compact: 3
-  });
-  await PortableFileSystem();
-  let file = args[0] ?? 'C Theme 2.tmTheme';
+  console = new Console({ colors: true, depth: 1 });
 
-  let base = path.basename(file, /\.[^.]*$/);
+  let winsz;
 
-  let data = filesystem.readFile(file, 'utf-8');
-  console.log('data:', Util.abbreviate(Util.escape(data)));
+try {
+  winsz = await os.ttyGetWinSize(1);
+ }catch(err) {}
+console.log('winsz:', winsz);
+
+  let file = args[0] ?? 'Simple-NPN-Regen-Receiver.brd';
+  console.log('file:', file);
+
+  let base = file.replace(/.*\//g, '').replace(/\.[^.]*$/, '');
+    console.log('base:', base);
+
+  let data = std.loadFile(file, 'utf-8');
+  console.log('data:', data.substring(0,100));
 
   // let result = parse2(Util.bufferToString(data));
-  let result = read(data);
+
+  let result = xml.read(data);
 
   console.log('result:', result);
 
-  /* let xml = toXML(result, { depth: Infinity, quote: '"', indent: '' });
-  console.log('xml:', xml);*/
-  let str = toXML(result);
+  let str =  xml.write(result);
   console.log('write:', str);
 
   console.log(`Writing '${base + '.xml'}'...`);
-  filesystem.writeFile(base + '.xml', str);
+  WriteFile(base + '.xml', str);
 
   await import('std').then(std => std.gc());
 }
-
-Util.callMain(main, true);
+console.log("test");
+main(...scriptArgs.slice(1));

@@ -1,11 +1,12 @@
-'use strict';
-'use math';
 import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
 import * as xml from 'xml.so';
 import { Pointer } from 'pointer.so';
 import Console from './console.js';
+
+'use strict';
+'use math';
 
 globalThis.inspect = inspect;
 
