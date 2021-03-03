@@ -204,10 +204,6 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   if(isComment) {
     size_t i = 0, tagLen = strlen(tagStr);
 
-    /*while(tagLen > 0 && tagStr[tagLen-1] == '-') {
-      tagLen--;
-      if(++i == 2) break;
-    }*/
     if(byte_chr(tagStr, tagLen, '\n') < tagLen) {
       xml_write_string(ctx, tagStr, tagLen - 2, db, depth + 1);
       dbuf_putc(db, '\n');
