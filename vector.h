@@ -1,5 +1,5 @@
-#ifndef VECTOR_H
-#define VECTOR_H
+#ifndef QJS_MODULES_VECTOR_H
+#define QJS_MODULES_VECTOR_H
 
 #include <assert.h>
 #include <sys/types.h>
@@ -117,4 +117,4 @@ vector_catlong(vector* vec, long l, int radix) {
   vector_put(vec, buf, len);
 }
 
-#endif /* VECTOR_H */
+#endif /* defined(QJS_MODULES_VECTOR_H) */

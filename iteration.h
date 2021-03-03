@@ -1,5 +1,5 @@
-#ifndef ITERATION_H
-#define ITERATION_H
+#ifndef QJS_MODULES_ITERATION_H
+#define QJS_MODULES_ITERATION_H
 
 #define _GNU_SOURCE
 
@@ -98,4 +98,4 @@ iteration_valuestr(Iteration* it, JSContext* ctx) {
   return str;
 }
 
-#endif // ITERATION_H
+#endif /* defined(QJS_MODULES_ITERATION_H) */

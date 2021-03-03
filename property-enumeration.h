@@ -1,5 +1,5 @@
-#ifndef PROPENUM_H
-#define PROPENUM_H
+#ifndef QJS_MODULES_PROPENUM_H
+#define QJS_MODULES_PROPENUM_H
 
 #define _GNU_SOURCE
 
@@ -295,4 +295,4 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
   return max_depth;
 }
 
-#endif // PROPENUM_H
+#endif /* defined(QJS_MODULES_PROPENUM_H) */

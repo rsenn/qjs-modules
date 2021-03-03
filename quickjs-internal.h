@@ -1,5 +1,5 @@
-#ifndef QUICKJS_INTERNAL_H
-#define QUICKJS_INTERNAL_H
+#ifndef QJS_MODULES_INTERNAL_H
+#define QJS_MODULES_INTERNAL_H
 
 #include <quickjs.h>
 #include <libbf.h>
@@ -174,4 +174,4 @@ struct JSContext {
   void* user_opaque;
 };
 
-#endif /* defined QUICKJS_INTERNAL_H */
+#endif /* defined(QJS_MODULES_INTERNAL_H) */

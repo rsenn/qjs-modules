@@ -582,4 +582,4 @@ js_array_length(JSContext* ctx, JSValueConst array) {
   return len;
 }
 
-#endif
+#endif /* defined(QJS_MODULES_UTILS_H) */

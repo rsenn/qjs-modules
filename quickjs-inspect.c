@@ -34,13 +34,7 @@ typedef struct {
 struct prop_key;
 
 typedef struct prop_key {
-  union {
-    struct list_head link;
-    /*     struct {
-          struct prop_key* prev;
-          struct prop_key* next;
-        }; */
-  };
+     struct list_head link; 
   const char* name;
   JSAtom atom;
 } prop_key_t;
@@ -329,7 +323,7 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   JSAtom inspect_custom;
   const char* str = 0;
   inspect_custom = js_inspect_custom_atom(ctx);
-  // printf("inspect_custom ref_count=%d\n", JS_GetRuntime(ctx)->atom_array[inspect_custom]->header.ref_count);
+  //printf("inspect_custom ref_count=%d\n", JS_GetRuntime(ctx)->atom_array[inspect_custom]->header.ref_count);
   inspect = JS_GetProperty(ctx, obj, inspect_custom);
   JS_FreeAtom(ctx, inspect_custom);
   if(!JS_IsFunction(ctx, inspect)) {
@@ -437,7 +431,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   if(break_len > opts->break_length)
     break_len = opts->break_length;
   ptr = JS_GetArrayBuffer(ctx, &size, value);
-  //  printf("maxArrayLength: %i\n", opts->max_array_length);
+  //printf("maxArrayLength: %i\n", opts->max_array_length);
   proto = JS_GetPrototype(ctx, value);
   str = js_object_tostring(ctx, proto);
   JS_FreeValue(ctx, proto);
