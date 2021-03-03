@@ -230,6 +230,12 @@ dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color
     dbuf_putstr(db, COLOR_NONE);
 }
 
+#define js_object_tmpmark_set(value)                                                                                   \
+  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
+#define js_object_tmpmark_clear(value)                                                                                 \
+  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
+#define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
+
 static inline char*
 js_class_name(JSContext* ctx, JSValueConst value) {
   JSValue proto, ctor;
@@ -511,6 +517,18 @@ js_object_tostring(JSContext* ctx, JSValueConst value) {
   s = JS_ToCString(ctx, str);
   JS_FreeValue(ctx, str);
   return s;
+}
+
+static inline BOOL
+js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
+BOOL ret = -1;
+ JSValue value;
+value = JS_GetPropertyStr(ctx, obj, str);
+
+if(!JS_IsUndefined(value) &&!JS_IsException(value))
+  ret = JS_ToBool(ctx, value);
+JS_FreeValue(ctx,value);
+return ret;
 }
 
 static int

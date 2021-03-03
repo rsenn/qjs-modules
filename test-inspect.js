@@ -20,7 +20,7 @@ async function main(...args) {
     depth: 50,
     maxStringLength: 200,
     breakLength: winsz[0] || 80,
-    compact: false,
+    compact: 2,
     hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
   };
 
@@ -78,7 +78,6 @@ async function main(...args) {
     }
   };
 
-
   console.log('inspect(NaN)', inspect(NaN, options));
   // for(let value of Object.values(obj)) console.log('inspect', inspect(value, options));
 
@@ -90,11 +89,22 @@ async function main(...args) {
   outfile.puts(inspect('test \x1btest!', options));
   outfile.close();
   let deepObj = {
-
-    a: { [1]: { [Symbol.species]: {  test: { [0]: { x: [ { z: { ['?']: [  {} ]} }] } }  }}}
-  }
+    a: { [1]: { [Symbol.species]: { test: { [0]: { x: [{ z: { ['?']: [{}] } }] } } } } }
+  };
 
   console.log('inspect(deepObj)', inspect(deepObj, options));
+
+  let s = new Set();
+  ['a', 'b', 'c', 'd', 1, 2, 3, 4].forEach(item => s.add(item));
+
+  console.log('inspect(s)', inspect(s, options));
+
+  std.gc();
+  let m = new Map();
+  [['A','a'], ['B','b'], ['C','c'], ['D','d'], ['1',1], ['2',2], ['3',3], ['4',4], ['5','x']].forEach(([k,v]) => m.set(k,v));
+
+  console.log('inspect(m)', inspect(m, options));
+
   std.gc();
   return;
 }

@@ -6,7 +6,7 @@ export function Console(opts = {}) {
   let env = std.getenviron();
   let stdioFds = [std.out, std.err, std.in].map(f => f.fileno());
   let termFd = stdioFds.find(fd => os.isatty(fd));
-  if(typeof termFd != 'number') termFd =  1;
+  if(typeof termFd != 'number') termFd = 1;
 
   const consoleWidth = (fd = termFd) => {
     let size;
@@ -15,7 +15,7 @@ export function Console(opts = {}) {
     } catch(err) {}
     return Array.isArray(size) ? size[0] : undefined;
   };
-  
+
   const isTerminal = os.isatty(termFd);
 
   const defaultBreakLength = (isTerminal && consoleWidth()) || env.COLUMNS || Infinity;
@@ -51,9 +51,7 @@ export function Console(opts = {}) {
 
   if(globalThis.inspect !== inspect) globalThis.inspect = inspect;
 
-  if(!globalThis.inspect)
-    globalThis.inspect = arg => arg;
-
+  if(!globalThis.inspect) globalThis.inspect = arg => arg;
 
   return Object.assign(newcons, {
     options,
@@ -68,7 +66,9 @@ export function Console(opts = {}) {
       return log.call(this,
         ...args.reduce((acc, arg, i) => {
           if(typeof arg && arg != null && arg instanceof ConsoleOptions) tempOpts.merge(arg);
-          else if(typeof arg == 'object' || i > 0) acc.push(typeof arg == 'string' && arg.indexOf('\x1b') != -1  ? arg : inspect(arg, tempOpts));
+          else if(typeof arg == 'object' || i > 0)
+            acc.push(typeof arg == 'string' && arg.indexOf('\x1b') != -1 ? arg : inspect(arg, tempOpts)
+            );
           else acc.push(arg);
           return acc;
         }, [])

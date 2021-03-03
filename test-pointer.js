@@ -14,7 +14,13 @@ function WriteFile(file, data) {
 }
 
 function main(...args) {
-  console = new Console({ colors: true, depth: 1, maxArrayLength: 10, maxStringLength: 100,compact: false });
+  console = new Console({
+    colors: true,
+    depth: 1,
+    maxArrayLength: 10,
+    maxStringLength: 100,
+    compact: false
+  });
   console.log('args:', args);
 
   let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
