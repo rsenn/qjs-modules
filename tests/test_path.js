@@ -68,7 +68,8 @@ async function main(...args) {
   });
   CallPathFunction('resolve', 'wwwroot', 'static_files/png/', '../gif/image.gif');
   CallPathFunction('resolve', '..');
-  
+  CallPathFunction('resolve', '/etc', 'fonts', 'fonts.conf');
+
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));
 
