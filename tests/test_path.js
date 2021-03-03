@@ -45,6 +45,7 @@ CallPathFunction('isAbsolute', 'c:/windows');
 CallPathFunction('isAbsolute', '/etc');
 CallPathFunction('isAbsolute', '../tmp');
 CallPathFunction('isRelative', '../tmp');
+CallPathFunction('isSymlink', '/dev/stdin');
 CallPathFunction('parse', '/home/roman/Sources/plot-cv/CMakeLists.txt');
 CallPathFunction('parse', 'C:/Windows/System32/mshtml.dll');
 CallPathFunction('components', '/home/roman/Sources/plot-cv/quickjs');
