@@ -116,6 +116,8 @@ async function main(...args) {
   ].forEach(([k, v]) => map.set(k, v));
 
   console.log('inspect(map)', map);
+  const re = /[a-z].*!$/g;
+  console.log('inspect(re)', re);
 
   std.gc();
   return;

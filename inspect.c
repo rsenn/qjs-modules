@@ -201,6 +201,19 @@ inspect_options_hidden(inspect_options_t* opts, JSAtom atom) {
   return 0;
 }
 
+static void
+inspect_newline(DynBuf* buf, int32_t depth) {
+  dbuf_putc(buf, '\n');
+  while(depth-- > 0) dbuf_putstr(buf, "  ");
+}
+
+static inline int
+inspect_screen_width(void) {
+  struct winsize w = {.ws_col = -1, .ws_row = -1};
+  ioctl(1, TIOCGWINSZ, &w);
+  return w.ws_col;
+}
+
 static JSValue
 js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
   JSValue ret;
@@ -338,19 +351,6 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   return str;
 }
 
-static void
-js_inspect_newline(DynBuf* buf, int32_t depth) {
-  dbuf_putc(buf, '\n');
-  while(depth-- > 0) dbuf_putstr(buf, "  ");
-}
-
-static int
-js_inspect_screen_width(void) {
-  struct winsize w = {.ws_col = -1, .ws_row = -1};
-  ioctl(1, TIOCGWINSZ, &w);
-  return w.ws_col;
-}
-
 static int
 js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   BOOL ret, finish = FALSE;
@@ -364,28 +364,28 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
   }
   dbuf_putstr(buf, "Map {");
   if(!compact)
-    js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+    inspect_newline(buf, INSPECT_LEVEL(opts));
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
       data = iteration_value(&it, ctx);
       if(i) {
         dbuf_putstr(buf, ",");
         if(!compact)
-          js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+          inspect_newline(buf, INSPECT_LEVEL(opts));
       }
       dbuf_putstr(buf, compact ? " " : "  ");
       key = JS_GetPropertyUint32(ctx, data, 0);
-      js_inspect_print(ctx, buf, key, opts, depth - 1);
+      js_inspect_print(ctx, buf, key, opts, depth);
       dbuf_putstr(buf, " => ");
       value = JS_GetPropertyUint32(ctx, data, 1);
-      js_inspect_print(ctx, buf, value, opts, depth - 1);
+      js_inspect_print(ctx, buf, value, opts, depth);
       JS_FreeValue(ctx, key);
       JS_FreeValue(ctx, value);
       JS_FreeValue(ctx, data);
     }
   }
   if(!compact)
-    js_inspect_newline(buf, INSPECT_LEVEL(opts));
+    inspect_newline(buf, INSPECT_LEVEL(opts));
   dbuf_putstr(buf, compact ? " }" : "}");
   iteration_reset(&it, JS_GetRuntime(ctx));
   return 0;
@@ -405,22 +405,22 @@ js_inspect_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
   }
   dbuf_putstr(buf, "Set [");
   if(!compact)
-    js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+    inspect_newline(buf, INSPECT_LEVEL(opts));
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
       value = iteration_value(&it, ctx);
       if(i) {
         dbuf_putstr(buf, ",");
         if(!compact)
-          js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+          inspect_newline(buf, INSPECT_LEVEL(opts));
       }
       dbuf_putstr(buf, compact ? " " : "  ");
-      js_inspect_print(ctx, buf, value, opts, depth - 1);
+      js_inspect_print(ctx, buf, value, opts, depth);
       JS_FreeValue(ctx, value);
     }
   }
   if(!compact)
-    js_inspect_newline(buf, INSPECT_LEVEL(opts));
+    inspect_newline(buf, INSPECT_LEVEL(opts));
   dbuf_putstr(buf, compact ? " ]" : "]");
   iteration_reset(&it, JS_GetRuntime(ctx));
   return 0;
@@ -431,7 +431,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   const char *str, *str2;
   uint8_t* ptr;
   size_t i, slen, size;
-  int break_len = js_inspect_screen_width();
+  int break_len = inspect_screen_width();
   int column = dbuf_get_column(buf);
   JSValue proto;
   if(break_len > opts->break_length)
@@ -461,16 +461,16 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     if(i == opts->max_array_length)
       break;
     if(column == break_len) {
-      js_inspect_newline(buf, (opts->depth - depth) + 1);
+      inspect_newline(buf, (opts->depth - depth) + 1);
       column = 0;
-    } else
+    } else {
       column += 3;
+    }
     dbuf_printf(buf, " %02x", ptr[i]);
   }
   if(i < size)
     dbuf_printf(buf, "... %zu more bytes", size - i);
   dbuf_putstr(buf, " ] }");
-
   return 0;
 }
 
@@ -478,9 +478,8 @@ static int
 js_inspect_regexp(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   const char* str;
   str = JS_ToCString(ctx, value);
-  //   dbuf_putstr(buf, "RegExp ");
   if(opts->colors)
-    dbuf_putstr(buf, "\x1b[31m");
+    dbuf_putstr(buf, "\x1b[0;31m");
   dbuf_putstr(buf, str);
   if(opts->colors)
     dbuf_putstr(buf, "\x1b[m");
@@ -525,7 +524,7 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
     n = limit - pos;
     if(pos > 0) {
       dbuf_putstr(buf, opts->colors ? "'" COLOR_NONE " +" : "' +");
-      js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+      inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
       max_len = opts->break_length - (INSPECT_LEVEL(opts) * 2) - 4;
       dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
     }
@@ -547,7 +546,7 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
 
   if(limit < len) {
     if(dbuf_get_column(buf) + 26 > opts->break_length)
-      js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+      inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
     dbuf_printf(buf, "... %zu more characters", len - pos);
   }
   return 0;
@@ -565,8 +564,9 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
     case JS_TAG_FLOAT64:
     case JS_TAG_BIG_DECIMAL:
     case JS_TAG_BIG_INT:
-    case JS_TAG_BIG_FLOAT: return js_inspect_number(ctx, buf, value, opts, depth);
-
+    case JS_TAG_BIG_FLOAT: {
+      return js_inspect_number(ctx, buf, value, opts, depth);
+    }
     case JS_TAG_INT: {
       int i = JS_VALUE_GET_INT(value);
       if(opts->colors)
@@ -596,7 +596,6 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       dbuf_put_colorstr(buf, "[exception]", COLOR_RED, opts->colors);
       break;
     }
-
     case JS_TAG_SYMBOL: {
       value = js_symbol_to_string(ctx, value);
       if(opts->colors)
@@ -604,9 +603,9 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       dbuf_putstr(buf, "Symbol");
       __attribute__((fallthrough));
     }
-
-    case JS_TAG_STRING: return js_inspect_string(ctx, buf, value, opts, depth);
-
+    case JS_TAG_STRING: {
+      return js_inspect_string(ctx, buf, value, opts, depth);
+    }
     case JS_TAG_OBJECT: {
       int is_array = JS_IsArray(ctx, value), is_typedarray = js_is_typedarray(ctx, value);
       int is_function = JS_IsFunction(ctx, value);
@@ -630,7 +629,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         return -1;
       }
 
-      if(/*depth >= 0 && opts->custom_inspect &&*/ (s = js_inspect_custom_call(ctx, value, opts, depth))) {
+      if((s = js_inspect_custom_call(ctx, value, opts, depth))) {
         dbuf_putstr(buf, s);
         JS_FreeCString(ctx, s);
         return 0;
@@ -647,10 +646,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
         if(slen != 6 || memcmp(s + 8, "Object", 6)) {
           dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[" : "[");
-          // dbuf_putc(buf, '[');
           dbuf_put(buf, (const uint8_t*)s + 8, e - (s + 8));
           dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE " " : "] ");
-          // dbuf_putstr(buf, "] ");
         }
       }
       JS_FreeCString(ctx, s);
@@ -691,24 +688,19 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       if(is_array || is_typedarray) {
         len = js_array_length(ctx, value);
         dbuf_putstr(buf, compact ? "[ " : "[");
-
         limit = min_size(opts->max_array_length, len);
         if(len && !compact)
-          js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
-
+          inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
         for(pos = 0; pos < len; pos++) {
           JSPropertyDescriptor desc;
           if(pos == limit)
             break;
-
           if(pos > 0) {
             dbuf_putstr(buf, compact ? ", " : ",");
             if(!compact)
-              js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+              inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           }
-
           JS_GetOwnProperty(ctx, &desc, value, js_atom_fromint(pos));
-
           if(desc.flags & JS_PROP_GETSET)
             dbuf_put_colorstr(buf,
                               JS_IsUndefined(desc.getter)
@@ -718,22 +710,15 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
                               opts->colors);
           else
             js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
-
           js_propertydescriptor_free(ctx, &desc);
         }
         if(len && limit < len) {
           if(dbuf_get_column(buf) + 20 > opts->break_length)
-            js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+            inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           dbuf_printf(buf, "... %u more item", len - pos);
           if(pos + 1 < len)
             dbuf_putc(buf, 's');
         }
-        /*if(nprops <= len) {
-          if(!compact)
-            js_inspect_newline(buf, INSPECT_LEVEL(opts));
-          dbuf_putstr(buf, compact ? " ]" : "]");
-          return 0;
-        }*/
       }
 
       if(!is_array && !is_typedarray) {
@@ -745,9 +730,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         JSPropertyDescriptor desc;
         const char* name;
         JSValue key = js_atom_tovalue(ctx, props[pos].atom);
-
         name = JS_AtomToCString(ctx, props[pos].atom);
-
         if(!JS_IsSymbol(key)) {
           if(((is_array || is_typedarray) && is_integer(name)) || inspect_options_hidden(opts, props[pos].atom)) {
             JS_FreeValue(ctx, key);
@@ -755,13 +738,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
             continue;
           }
         }
-
         if(pos > 0)
           dbuf_putstr(buf, compact ? ", " : ",");
-
         if(!compact)
-          js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
-
+          inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
         if(!JS_IsSymbol(key) && (is_identifier(name) || is_integer(name))) {
           dbuf_putstr(buf, name);
         } else {
@@ -772,9 +752,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         dbuf_putstr(buf, ": ");
         JS_FreeCString(ctx, name);
         JS_FreeValue(ctx, key);
-
         JS_GetOwnProperty(ctx, &desc, value, props[pos].atom);
-
         if(desc.flags & JS_PROP_GETSET)
           dbuf_put_colorstr(buf,
                             JS_IsUndefined(desc.getter) ? "[Setter]"
@@ -783,14 +761,13 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
                             opts->colors);
         else
           js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
-
         js_propertydescriptor_free(ctx, &desc);
         len++;
       }
       js_object_tmpmark_clear(value);
 
       if(!compact && len)
-        js_inspect_newline(buf, INSPECT_LEVEL(opts));
+        inspect_newline(buf, INSPECT_LEVEL(opts));
       dbuf_putstr(buf, (is_array || is_typedarray) ? (compact && len ? " ]" : "]") : (compact && len ? " }" : "}"));
 
     end_obj:
@@ -816,9 +793,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   JSValue ret;
 
   js_inspect_constructors_get(ctx);
-
   dbuf_init(&dbuf);
-
   inspect_options_init(&options);
 
   if(argc > 1 && JS_IsNumber(argv[1]))
@@ -839,11 +814,8 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   js_inspect_print(ctx, &dbuf, argv[0], &options, options.depth - level);
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
-
   dbuf_free(&dbuf);
-
   inspect_options_free(&options, ctx);
-
   js_inspect_constructors_free(ctx);
 
   return ret;
