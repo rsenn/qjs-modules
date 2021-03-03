@@ -715,7 +715,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           js_propertydescriptor_free(ctx, &desc);
         }
         if(len && limit < len) {
-        if(!compact) // if(dbuf_get_column(buf) + 20 > opts->break_length)
+          if(!compact) // if(dbuf_get_column(buf) + 20 > opts->break_length)
             inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           dbuf_printf(buf, "... %u more item", len - pos);
           if(pos + 1 < len)

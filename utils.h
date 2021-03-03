@@ -67,6 +67,18 @@ sign_int32(uint32_t i) {
   return (i & 0x80000000) ? -1 : 1;
 }
 
+size_t
+byte_count(const void* s, size_t n, char c) {
+  const unsigned char* t;
+  unsigned char ch = (unsigned char)c;
+  size_t count;
+  for(t = (unsigned char*)s, count = 0; n; ++t, --n) {
+    if(*t == ch)
+      ++count;
+  }
+  return count;
+}
+
 static inline size_t
 byte_chr(const char* str, size_t len, char c) {
   const char *s = str, *t = s + len;
@@ -89,6 +101,48 @@ byte_chrs(const char* str, size_t len, char needle[], size_t nl) {
     ++s;
   }
   return s - (const char*)str;
+}
+
+static inline size_t
+str_chr(const char* in, char needle) {
+  const char* t = in;
+  const char c = needle;
+  for(;;) {
+    if(!*t || *t == c) {
+      break;
+    };
+    ++t;
+  }
+  return (size_t)(t - in);
+}
+
+static inline size_t
+str_rchr(const char* s, char needle) {
+  const char *in = s, *found = 0;
+  for(;;) {
+    if(!*in)
+      break;
+    if(*in == needle)
+      found = in;
+    ++in;
+  }
+  return (size_t)((found ? found : in) - s);
+}
+
+static inline size_t
+str_rchrs(const char* in, const char needles[], size_t nn) {
+  const char *s = in, *found = 0;
+  size_t i;
+  for(;;) {
+    if(!*s)
+      break;
+    for(i = 0; i < nn; ++i) {
+      if(*s == needles[i])
+        found = s;
+    }
+    ++s;
+  }
+  return (size_t)((found ? found : s) - in);
 }
 
 #define COLOR_RED "\x1b[31m"
@@ -198,6 +252,26 @@ dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
       dbuf_putc(db, escape_char_letter(str[i]));
     i++;
   }
+}
+
+static inline size_t
+dbuf_count(DynBuf* db, int ch) {
+  return byte_count(db->buf, db->size, ch);
+}
+
+char*
+dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
+  size_t p, l = 0;
+  for(p = 0; p < db->size; ++p) {
+    if(l == i) {
+      *n = byte_chr(&db->buf[p], db->size - p, sep);
+      return &db->buf[p];
+    }
+    if(db->buf[p] == sep)
+      ++l;
+  }
+  *n = 0;
+  return 0;
 }
 
 static inline const char*
