@@ -23,9 +23,14 @@ endif
 CFLAGS += -Wno-unused 
 
 OBJECTS = $(MODULES:%=%.o)
-SHARED_OBJECTS = $(MODULES:%=%.$(SUFFIX))
+BUILDDIR := bin/
+SHARED_OBJECTS = $(MODULES:%=$(BUILDDIR)%.$(SUFFIX))
 
-all: $(SHARED_OBJECTS)
+all: bin $(SHARED_OBJECTS)
+
+.PHONY: bin
+bin:
+	mkdir -p $@
 
 clean:
 	$(RM) $(OBJECTS) $(SHARED_OBJECTS)
@@ -37,20 +42,20 @@ install:
 .c.o:
 	$(CC) $(CFLAGS) -c $< 
 
-inspect.$(SUFFIX): quickjs-inspect.c vector.c
+$(BUILDDIR)inspect.$(SUFFIX): quickjs-inspect.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-mmap.$(SUFFIX): quickjs-mmap.c
+$(BUILDDIR)mmap.$(SUFFIX): quickjs-mmap.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-path.$(SUFFIX): quickjs-path.c path.c
+$(BUILDDIR)path.$(SUFFIX): quickjs-path.c path.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-pointer.$(SUFFIX): quickjs-pointer.c
+$(BUILDDIR)pointer.$(SUFFIX): quickjs-pointer.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-tree-walker.$(SUFFIX): quickjs-tree-walker.c vector.c
+$(BUILDDIR)tree-walker.$(SUFFIX): quickjs-tree-walker.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-xml.$(SUFFIX): quickjs-xml.c vector.c
+$(BUILDDIR)xml.$(SUFFIX): quickjs-xml.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
