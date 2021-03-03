@@ -2,8 +2,6 @@
 
 #include "path.h"
 #include <stdio.h>
-#include <string.h>
-#include "utils.h"
 
 int
 path_absolute(const char* path, DynBuf* db) {
@@ -85,23 +83,21 @@ path_collapse(char* path, size_t n) {
 }
 
 int
-path_canonicalize(const char* path, DynBuf* db, int symbolic) {
+path_normalize(const char* path, DynBuf* db, int symbolic) {
   size_t l1, l2, n;
   struct stat st;
   int ret = 1;
   char sep, buf[PATH_MAX + 1];
   int (*stat_fn)(const char*, struct stat*) = stat;
-#ifdef HAVE_LSTAT
-#if !WINDOWS_NATIVE
+#if 1 //! WINDOWS_NATIVE
   if(symbolic)
     stat_fn = lstat;
-#endif
 #endif
   if(path_issep(*path)) {
     dbuf_putc(db, (sep = *path));
     path++;
   }
-#if WINDOWS
+#if 0 // WINDOWS
   else if(*path && path[1] == ':') {
     sep = path[1];
   }
@@ -126,7 +122,7 @@ start:
       break;
     if(db->size && (db->buf[db->size - 1] != '/' && db->buf[db->size - 1] != '\\'))
       dbuf_putc(db, sep);
-    n = path_len_s(path);
+    n = path_length_s(path);
     dbuf_put(db, path, n);
     if(n == 2 && path[1] == ':')
       dbuf_putc(db, sep);
@@ -147,7 +143,7 @@ start:
         int rret;
         db->size = path_right(db->buf, db->size);
         buf[n] = '\0';
-        rret = path_canonicalize(buf, db, symbolic);
+        rret = path_normalize(buf, db, symbolic);
         if(!rret)
           return 0;
       }

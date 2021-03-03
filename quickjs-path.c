@@ -15,11 +15,11 @@ enum path_methods {
   METHOD_APPEND,
   METHOD_BASENAME,
   METHOD_CANONICAL,
-  METHOD_CANONICALIZE,
   METHOD_COLLAPSE,
   METHOD_CONCAT,
   METHOD_DIRNAME,
   METHOD_EXISTS,
+  METHOD_EXTNAME,
   METHOD_FIND,
   METHOD_FNMATCH,
   METHOD_GETCWD,
@@ -28,9 +28,10 @@ enum path_methods {
   METHOD_IS_ABSOLUTE,
   METHOD_IS_DIRECTORY,
   METHOD_IS_SEPARATOR,
-  METHOD_LEN,
+  METHOD_LENGTH,
   METHOD_LEN_S,
-  METHOD_NUM,
+  METHOD_NORMALIZE,
+  METHOD_COMPONENTS,
   METHOD_READLINK,
   METHOD_REALPATH,
   METHOD_RELATIVE,
@@ -80,6 +81,8 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       ret = JS_NewBool(ctx, path_exists(a));
       break;
     }
+    case METHOD_EXTNAME: ret = JS_NewString(ctx, path_extname(a)); break;
+
     case METHOD_GETCWD: {
       if(getcwd(buf, sizeof(buf))) {
         ret = JS_NewString(ctx, buf);
@@ -123,11 +126,12 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
         ret = JS_NewStringLen(ctx, &c, 1);
       break;
     }
-    case METHOD_LEN: ret = JS_NewUint32(ctx, path_len(a, alen)); break;
-    case METHOD_NUM: {
-      int64_t n = -1;
-      JS_ToInt64(ctx, &n, argv[1]);
-      ret = JS_NewUint32(ctx, path_num(a, alen, n));
+    case METHOD_LENGTH: ret = JS_NewUint32(ctx, path_length(a, alen)); break;
+    case METHOD_COMPONENTS: {
+      uint32_t n = UINT32_MAX;
+      if(argc > 1)
+        JS_ToUint32(ctx, &n, argv[1]);
+      ret = JS_NewUint32(ctx, path_components(a, alen, n));
       break;
     }
     case METHOD_RIGHT: ret = JS_NewUint32(ctx, path_right(a, alen)); break;
@@ -165,11 +169,11 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     case METHOD_CONCAT: path_concat(a, alen, b, blen, &db); break;
     case METHOD_FIND: path_find(a, b, &db); break;
     case METHOD_RELATIVE: path_relative(a, b, &db); break;
-    case METHOD_CANONICALIZE: {
+    case METHOD_NORMALIZE: {
       BOOL symbolic = FALSE;
       if(argc > 1)
         symbolic = JS_ToBool(ctx, argv[1]);
-      path_canonicalize(a, &db, symbolic);
+      path_normalize(a, &db, symbolic);
       break;
     }
   }
@@ -181,12 +185,94 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return ret;
 }
 
+static JSValue
+js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  const char* str;
+  DynBuf db;
+  size_t i, len = 0, pos;
+  JSValue ret = JS_UNDEFINED;
+  dbuf_init(&db);
+  for(i = 0; i < argc; i++) {
+    str = JS_ToCStringLen(ctx, &len, argv[i]);
+    path_append(str, len, &db);
+  }
+  if(db.size) {
+    ret = JS_NewStringLen(ctx, db.buf, db.size);
+  }
+  dbuf_free(&db);
+  return ret;
+}
+
+static JSValue
+js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  const char *str, *base, *ext;
+  size_t i, len = 0, rootlen, dirlen;
+  JSValue ret = JS_UNDEFINED;
+
+  str = JS_ToCStringLen(ctx, &len, argv[0]);
+
+  base = basename(str);
+  dirlen = base - str - 1;
+  rootlen = path_root(str, len);
+  ext = path_extname(str);
+
+  ret = JS_NewObject(ctx);
+
+  js_object_propertystr_setstr(ctx, ret, "root", str, rootlen);
+  js_object_propertystr_setstr(ctx, ret, "dir", str, dirlen);
+  js_object_propertystr_setstr(ctx, ret, "base", base, strlen(base));
+  js_object_propertystr_setstr(ctx, ret, "ext", ext, strlen(ext));
+  js_object_propertystr_setstr(ctx, ret, "name", base, strlen(base) - strlen(ext));
+
+  return ret;
+}
+
+static JSValue
+js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  JSValueConst obj = argv[0];
+  const char *dir, *root, *base, *name, *ext;
+  JSValue ret = JS_UNDEFINED;
+  DynBuf db;
+
+  dbuf_init(&db);
+
+  dir = js_object_propertystr_getstr(ctx, obj, "dir");
+  root = js_object_propertystr_getstr(ctx, obj, "root");
+  base = js_object_propertystr_getstr(ctx, obj, "base");
+  name = js_object_propertystr_getstr(ctx, obj, "name");
+  ext = js_object_propertystr_getstr(ctx, obj, "ext");
+
+  if(dir) {
+    dbuf_putstr(&db, dir);
+  } else if(root) {
+    dbuf_putstr(&db, root);
+  }
+
+  if(base) {
+    dbuf_putstr(&db, base);
+  } else if(name) {
+    dbuf_putstr(&db, name);
+    if(ext)
+      dbuf_putstr(&db, ext);
+  }
+
+  ret = JS_NewStringLen(ctx, db.buf, db.size);
+  dbuf_free(&db);
+
+  JS_FreeCString(ctx, dir);
+  JS_FreeCString(ctx, root);
+  JS_FreeCString(ctx, base);
+  JS_FreeCString(ctx, name);
+  JS_FreeCString(ctx, ext);
+  return ret;
+}
+
 static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("basename", 1, js_path_method, METHOD_BASENAME),
-    JS_CFUNC_MAGIC_DEF("canonicalize", 1, js_path_method, METHOD_CANONICALIZE),
     JS_CFUNC_MAGIC_DEF("collapse", 1, js_path_method, METHOD_COLLAPSE),
     JS_CFUNC_MAGIC_DEF("dirname", 1, js_path_method, METHOD_DIRNAME),
     JS_CFUNC_MAGIC_DEF("exists", 1, js_path_method, METHOD_EXISTS),
+    JS_CFUNC_MAGIC_DEF("extname", 1, js_path_method, METHOD_EXTNAME),
     JS_CFUNC_MAGIC_DEF("fnmatch", 1, js_path_method, METHOD_FNMATCH),
     JS_CFUNC_MAGIC_DEF("getcwd", 1, js_path_method, METHOD_GETCWD),
     JS_CFUNC_MAGIC_DEF("gethome", 1, js_path_method, METHOD_GETHOME),
@@ -194,8 +280,8 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isAbsolute", 1, js_path_method, METHOD_IS_ABSOLUTE),
     JS_CFUNC_MAGIC_DEF("isDirectory", 1, js_path_method, METHOD_IS_DIRECTORY),
     JS_CFUNC_MAGIC_DEF("isSeparator", 1, js_path_method, METHOD_IS_SEPARATOR),
-    JS_CFUNC_MAGIC_DEF("len", 1, js_path_method, METHOD_LEN),
-    JS_CFUNC_MAGIC_DEF("num", 1, js_path_method, METHOD_NUM),
+    JS_CFUNC_MAGIC_DEF("length", 1, js_path_method, METHOD_LENGTH),
+    JS_CFUNC_MAGIC_DEF("components", 1, js_path_method, METHOD_COMPONENTS),
     JS_CFUNC_MAGIC_DEF("readlink", 1, js_path_method, METHOD_READLINK),
     JS_CFUNC_MAGIC_DEF("realpath", 1, js_path_method, METHOD_REALPATH),
     JS_CFUNC_MAGIC_DEF("right", 1, js_path_method, METHOD_RIGHT),
@@ -206,7 +292,13 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("canonical", 1, js_path_method_dbuf, METHOD_CANONICAL),
     JS_CFUNC_MAGIC_DEF("concat", 2, js_path_method_dbuf, METHOD_CONCAT),
     JS_CFUNC_MAGIC_DEF("find", 2, js_path_method_dbuf, METHOD_FIND),
-    JS_CFUNC_MAGIC_DEF("relative", 2, js_path_method_dbuf, METHOD_RELATIVE)};
+    JS_CFUNC_MAGIC_DEF("normalize", 1, js_path_method_dbuf, METHOD_NORMALIZE),
+    JS_CFUNC_MAGIC_DEF("relative", 2, js_path_method_dbuf, METHOD_RELATIVE),
+    JS_CFUNC_DEF("join", 1, js_path_join),
+    JS_CFUNC_DEF("parse", 1, js_path_parse),
+    JS_CFUNC_DEF("format", 1, js_path_format),
+    JS_PROP_STRING_DEF("delimiter", PATHDELIM_S, JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("sep", PATHSEP_S, JS_PROP_CONFIGURABLE)};
 
 static int
 js_path_init(JSContext* ctx, JSModuleDef* m) {

@@ -5,8 +5,11 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <string.h>
+#include <ctype.h>
 
 #include "cutils.h"
+#include "utils.h"
 
 #define PATH_NOTFIRST 0x80
 
@@ -17,18 +20,24 @@
 
 #if defined(__MINGW32__) || defined(__MSYS__) || defined(__CYGWIN__)
 #define WINDOWS 1
+#define PATHSEP_S "/"
 #define PATHSEP_C '/'
 #define PATHSEP_S_MIXED "\\/"
+#define PATHDELIM_S ":"
 #define path_issep(c) ((c) == '/' || (c) == '\\')
 #elif defined(_WIN32)
 #define WINDOWS 1
 #define WINDOWS_NATIVE 1
 #define PATHSEP_C '\\'
+#define PATHSEP_S "\\"
 #define PATHSEP_S_MIXED "\\"
+#define PATHDELIM_S ";"
 #define path_issep(c) ((c) == '\\')
 #else
+#define PATHSEP_S "/"
 #define PATHSEP_C '/'
 #define PATHSEP_S_MIXED "/"
+#define PATHDELIM_S ":"
 #define path_issep(c) ((c) == '/')
 #endif
 
@@ -38,7 +47,7 @@
 
 int path_absolute_db(DynBuf*);
 int path_absolute(const char*, DynBuf* db);
-int path_canonicalize(const char*, DynBuf* db, int symbolic);
+int path_normalize(const char*, DynBuf* db, int symbolic);
 size_t path_collapse(char*, size_t n);
 void path_concat(const char*, size_t alen, const char* b, size_t blen, DynBuf* db);
 int path_find(const char*, const char* name, DynBuf* db);
@@ -47,14 +56,14 @@ char* path_gethome(int);
 int path_relative(const char*, const char* relative_to, DynBuf* db);
 
 static inline size_t
-path_len(const char* s, size_t n) {
+path_length(const char* s, size_t n) {
   const char *p = s, *e = s + n;
   while(p < e && !path_issep(*p)) ++p;
   return p - s;
 }
 
 static inline size_t
-path_len_s(const char* s) {
+path_length_s(const char* s) {
   const char* p = s;
   while(*p && !path_issep(*p)) ++p;
   return p - s;
@@ -129,6 +138,17 @@ path_is_absolute(const char* x, size_t n) {
   return 0;
 }
 
+static inline size_t
+path_root(const char* x, size_t n) {
+  if(n > 0 && x[0] == PATHSEP_C)
+    return 1;
+#if 1 // def WINDOWS
+  if(n >= 3 && isalnum(x[0]) && x[1] == ':' && path_issep(x[2]))
+    return 3;
+#endif
+  return 0;
+}
+
 static inline int
 path_is_directory(const char* p) {
   struct stat st;
@@ -169,14 +189,30 @@ path_canonical(const char* path, DynBuf* db) {
 }
 
 static inline size_t
-path_num(const char* p, size_t len, int n) {
+path_components(const char* p, size_t len, uint32_t n) {
   const char *s = p, *e = p + len;
+  size_t count = 0;
   while(s < e) {
-    s += path_skip(s, e - s);
+    s += path_skip_separator(s, e - s, 0);
+    if(s == e)
+      break;
+    s += path_length(s, e - s);
     if(--n <= 0)
       break;
+    count++;
   }
-  return s - p;
+  return count;
+}
+
+static inline const char*
+path_extname(const char* p) {
+  size_t pos;
+  char* q;
+  if((q = strrchr(p, PATHSEP_C)))
+    p = q + 1;
+  pos = str_rchr(p, '.');
+  p += pos;
+  return p;
 }
 
 #endif /* defined(QJS_MODULES_PATH_H) */

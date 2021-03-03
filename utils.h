@@ -70,7 +70,8 @@ sign_int32(uint32_t i) {
   return (i & 0x80000000) ? -1 : 1;
 }
 
-size_t inline byte_count(const void* s, size_t n, char c) {
+static inline size_t
+byte_count(const void* s, size_t n, char c) {
   const unsigned char* t;
   unsigned char ch = (unsigned char)c;
   size_t count;
@@ -615,6 +616,25 @@ js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
 
   if(!JS_IsException(value))
     ret = JS_ToBool(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+static inline void
+js_object_propertystr_setstr(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
+  JSValue value;
+  value = JS_NewStringLen(ctx, str, len);
+  JS_SetPropertyStr(ctx, obj, prop, value);
+}
+
+static inline const char*
+js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop) {
+  JSValue value;
+  const char* ret;
+  value = JS_GetPropertyStr(ctx, obj, prop);
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+  ret = JS_ToCString(ctx, value);
   JS_FreeValue(ctx, value);
   return ret;
 }

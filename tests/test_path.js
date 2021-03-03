@@ -17,7 +17,7 @@ function CallPathFunction(name, ...args) {
   let fn = path[name];
 
  let ret = fn.call(path, ...args);
- console.log(`path.${name}(`, ...args.reduce((acc,arg) => acc.length ? [...acc, ', ', arg] : [arg], []), `) = ${ret}`);
+ console.log(`path.${name}(`, ...args.reduce((acc,arg) => acc.length ? [...acc, ', ', arg] : [arg], []), `) =`,ret);
  return ret;
 }
 
@@ -33,11 +33,21 @@ console.log('base:', base);
 console.log(`exists(${file}):`, path.exists(file));
 console.log(`gethome(1000):`, path.gethome(1000));
 console.log(`gethome(1000):`, path.gethome(1000));
+console.log(`path.delimiter:`, path.delimiter);
 
+CallPathFunction('extname', file);
 CallPathFunction('readlink', '/home/roman/Sources');
-CallPathFunction('canonicalize', '/home/roman/Sources');
+CallPathFunction('normalize', '/home/roman/Sources');
 CallPathFunction('realpath', '/home/roman/Sources');
 CallPathFunction('relative', '/home/roman/Sources/plot-cv/quickjs', '/home/roman');
+CallPathFunction('join', '/home/roman', 'Sources', 'plot-cv/quickjs', 'modules');
+CallPathFunction('isAbsolute', 'c:/windows');
+CallPathFunction('isAbsolute', '/etc');
+CallPathFunction('isAbsolute', '../tmp');
+CallPathFunction('parse', '/home/roman/Sources/plot-cv/quickjs');
+CallPathFunction('parse', 'c:/windows/system32/drivers/etc');
+CallPathFunction('components', '/home/roman/Sources/plot-cv/quickjs');
+CallPathFunction('format', { root: 'c:/', dir: 'c:/windows/system32/drivers', name: 'etc', ext: '.x' });
 
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));
