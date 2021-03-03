@@ -13,6 +13,14 @@ function WriteFile(file, data) {
   console.log(`Wrote '${file}': ${data.length} bytes`);
 }
 
+function CallPathFunction(name, ...args) {
+  let fn = path[name];
+
+ let ret = fn.call(path, ...args);
+ console.log(`path.${name}(`, ...args.reduce((acc,arg) => acc.length ? [...acc, ', ', arg] : [arg], []), `) = ${ret}`);
+ return ret;
+}
+
 async function main(...args) {
   console = new Console({ colors: true, depth: 5, _stringBreakNewline: false,maxArrayLength:10,compact:1, maxStringLength: 60 });
 
@@ -24,6 +32,12 @@ async function main(...args) {
 console.log('base:', base);
 console.log(`exists(${file}):`, path.exists(file));
 console.log(`gethome(1000):`, path.gethome(1000));
+console.log(`gethome(1000):`, path.gethome(1000));
+
+CallPathFunction('readlink', '/home/roman/Sources');
+CallPathFunction('canonicalize', '/home/roman/Sources');
+CallPathFunction('realpath', '/home/roman/Sources');
+CallPathFunction('relative', '/home/roman/Sources/plot-cv/quickjs', '/home/roman');
 
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));

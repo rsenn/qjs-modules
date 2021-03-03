@@ -3,6 +3,9 @@
 
 #include <string.h>
 #include <math.h>
+#include "quickjs.h"
+
+#define max_num(a, b) ((a) > (b) ? (a) : (b))
 
 #define is_control_char(c)                                                                                             \
   ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
@@ -67,8 +70,7 @@ sign_int32(uint32_t i) {
   return (i & 0x80000000) ? -1 : 1;
 }
 
-size_t
-byte_count(const void* s, size_t n, char c) {
+size_t inline byte_count(const void* s, size_t n, char c) {
   const unsigned char* t;
   unsigned char ch = (unsigned char)c;
   size_t count;
@@ -198,8 +200,8 @@ ansi_truncate(const char* str, size_t len, size_t limit) {
   return i;
 }
 
-char*
-strndup(const char* s, size_t n) {
+static inline char*
+str_ndup(const char* s, size_t n) {
   char* r = malloc(n + 1);
   if(r == NULL)
     return NULL;
@@ -259,7 +261,18 @@ dbuf_count(DynBuf* db, int ch) {
   return byte_count(db->buf, db->size, ch);
 }
 
-char*
+static inline void
+dbuf_0(DynBuf* db) {
+  dbuf_putc(db, '\0');
+  db->size--;
+}
+
+static inline void
+dbuf_zero(DynBuf* db) {
+  dbuf_realloc(db, 0);
+}
+
+static inline char*
 dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
   size_t p, l = 0;
   for(p = 0; p < db->size; ++p) {

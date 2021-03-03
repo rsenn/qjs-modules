@@ -43,7 +43,7 @@ inspect.$(SUFFIX): quickjs-inspect.c vector.c
 mmap.$(SUFFIX): quickjs-mmap.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-path.$(SUFFIX): quickjs-path.c
+path.$(SUFFIX): quickjs-path.c path.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 pointer.$(SUFFIX): quickjs-pointer.c

@@ -5,6 +5,7 @@ set(QUICKJS_MODULES mmap path pointer inspect tree-walker xml)
 set(inspect_SOURCES vector.c vector.h)
 set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
+set(path_SOURCES path.c path.h)
 
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
