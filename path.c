@@ -183,7 +183,7 @@ path_find(const char* path, const char* name, DynBuf* db) {
   struct dirent* entry;
   int ret = 0;
 
-  if((dir = opendir(path)))
+  if(!(dir = opendir(path)))
     return 0;
 
   while((entry = readdir(dir))) {
