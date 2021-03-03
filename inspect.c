@@ -6,14 +6,16 @@
 #include "utils.h"
 #include "quickjs-internal.h"
 #include "property-enumeration.h"
+#include "iteration.h"
 
 #include <math.h>
 #include <ctype.h>
 #include <string.h>
 #include <sys/ioctl.h>
 
-#define INT32_NOT_MIN_MAX(i) ((i) != INT32_MIN && (i) != INT32_MAX)
-#define IS_COMPACT(opts, level) (INT32_NOT_MIN_MAX((opts)->compact) ? (level) >= (opts)->compact : 0)
+#define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
+#define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
+#define INSPECT_IS_COMPACT(opts) (INSPECT_INT32T_INRANGE((opts)->compact) ? INSPECT_LEVEL(opts) >= (opts)->compact : 0)
 
 typedef struct {
   int colors : 1;
@@ -313,7 +315,6 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   JSValue inspect;
   JSAtom inspect_custom;
   const char* str = 0;
-  int32_t level = opts->depth - depth;
   inspect_custom = js_inspect_custom_atom(ctx);
   // printf("inspect_custom ref_count=%d\n", JS_GetRuntime(ctx)->atom_array[inspect_custom]->header.ref_count);
   inspect = JS_GetProperty(ctx, obj, inspect_custom);
@@ -325,7 +326,7 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   if(JS_IsFunction(ctx, inspect)) {
     JSValueConst args[2];
     JSValue ret;
-    args[0] = js_new_number(ctx, level);
+    args[0] = js_new_number(ctx, INSPECT_LEVEL(opts));
     args[1] = inspect_options_object(opts, ctx);
     ret = JS_Call(ctx, inspect, obj, 2, args);
     JS_FreeValue(ctx, args[0]);
@@ -351,91 +352,82 @@ js_inspect_screen_width(void) {
 }
 
 static int
-js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
-  BOOL finish = FALSE;
+js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
+  BOOL ret, finish = FALSE;
   size_t i = 0;
-  int32_t level = opts->depth - depth;
-  int compact = IS_COMPACT(opts, level);
-  JSValue entries, iterator, result, next, done, entry, key, val;
-
-  // printf("js_inspect_map level: %d\n", level);
-
-  entries = JS_GetPropertyStr(ctx, value, "entries");
-  iterator = JS_Call(ctx, entries, value, 0, NULL);
-  JS_FreeValue(ctx, entries);
+  int compact = INSPECT_IS_COMPACT(opts);
+  JSValue data, key, value;
+  Iteration it;
+  if(!(ret = iteration_method_str(&it, ctx, obj, "entries"))) {
+    JS_ThrowTypeError(ctx, "js_inspect_map tag=%d\n", JS_VALUE_GET_TAG(obj));
+    return 0;
+  }
   dbuf_putstr(buf, "Map {");
   if(!compact)
-    js_inspect_newline(buf, level + 1);
-  next = JS_GetPropertyStr(ctx, iterator, "next");
-  for(i = 0; !finish; i++) {
-    result = JS_Call(ctx, next, iterator, 0, NULL);
-    entry = JS_GetPropertyStr(ctx, result, "value");
-    done = JS_GetPropertyStr(ctx, result, "done");
-    JS_FreeValue(ctx, result);
-    finish = JS_ToBool(ctx, done);
-    JS_FreeValue(ctx, done);
+    js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+  for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
+      data = iteration_value(&it, ctx);
       if(i) {
         dbuf_putstr(buf, ",");
         if(!compact)
-          js_inspect_newline(buf, level + 1);
+          js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
       }
       dbuf_putstr(buf, compact ? " " : "  ");
-      key = JS_GetPropertyUint32(ctx, entry, 0);
+      key = JS_GetPropertyUint32(ctx, data, 0);
       js_inspect_print(ctx, buf, key, opts, depth - 1);
       dbuf_putstr(buf, " => ");
-      val = JS_GetPropertyUint32(ctx, entry, 1);
-      js_inspect_print(ctx, buf, val, opts, depth - 1);
+      value = JS_GetPropertyUint32(ctx, data, 1);
+      js_inspect_print(ctx, buf, value, opts, depth - 1);
       JS_FreeValue(ctx, key);
-      JS_FreeValue(ctx, val);
+      JS_FreeValue(ctx, value);
+      JS_FreeValue(ctx, data);
     }
-       JS_FreeValue(ctx, entry);
- }
+  }
   if(!compact)
-    js_inspect_newline(buf, level);
+    js_inspect_newline(buf, INSPECT_LEVEL(opts));
   dbuf_putstr(buf, compact ? " }" : "}");
-  JS_FreeValue(ctx, iterator);
-  JS_FreeValue(ctx, next);
+  iteration_free(&it, JS_GetRuntime(ctx));
   return 0;
 }
 
 static int
 js_inspect_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
-  BOOL finish = FALSE;
+  BOOL ret, finish = FALSE;
   size_t i = 0;
-  int32_t level = opts->depth - depth;
-  int compact = IS_COMPACT(opts, level);
-  JSValue values, iterator, result, next, done, value;
-  values = JS_GetPropertyStr(ctx, obj, "values");
-  iterator = JS_Call(ctx, values, obj, 0, NULL);
-  JS_FreeValue(ctx, values);
+  int compact = INSPECT_IS_COMPACT(opts);
+  JSValue value;
+  Iteration it;
+  JSAtom atom;
+  atom = js_symbol_atom(ctx, "iterator");
+  ret = iteration_method(&it, ctx, obj, atom);
+  JS_FreeAtom(ctx, atom);
+
+  if(!ret) {
+    JS_ThrowTypeError(ctx, "js_inspect_map tag=%d\n", JS_VALUE_GET_TAG(obj));
+    return 0;
+  }
   dbuf_putstr(buf, "Set [");
   if(!compact)
-    js_inspect_newline(buf, level + 1);
-  next = JS_GetPropertyStr(ctx, iterator, "next");
-  for(i = 0; !finish; i++) {
-    result = JS_Call(ctx, next, iterator, 0, NULL);
-    value = JS_GetPropertyStr(ctx, result, "value");
-    done = JS_GetPropertyStr(ctx, result, "done");
-    JS_FreeValue(ctx, result);
-    finish = JS_ToBool(ctx, done);
-    JS_FreeValue(ctx, done);
+    js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+  for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
+      value = iteration_value(&it, ctx);
       if(i) {
         dbuf_putstr(buf, ",");
         if(!compact)
-          js_inspect_newline(buf, level + 1);
+          js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
       }
       dbuf_putstr(buf, compact ? " " : "  ");
+
       js_inspect_print(ctx, buf, value, opts, depth - 1);
+      JS_FreeValue(ctx, value);
     }
-    JS_FreeValue(ctx, value);
   }
   if(!compact)
-    js_inspect_newline(buf, level);
+    js_inspect_newline(buf, INSPECT_LEVEL(opts));
   dbuf_putstr(buf, compact ? " ]" : "]");
-  JS_FreeValue(ctx, iterator);
-  JS_FreeValue(ctx, next);
+  iteration_free(&it, JS_GetRuntime(ctx));
   return 0;
 }
 
@@ -521,8 +513,7 @@ js_inspect_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
 static int
 js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   int tag = JS_VALUE_GET_TAG(value);
-  int32_t level = (int32_t)opts->depth - depth;
-  int compact = IS_COMPACT(opts, level);
+  int compact = INSPECT_IS_COMPACT(opts);
 
   const char* str;
   size_t pos, len, max_len, limit;
@@ -539,8 +530,8 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
     n = limit - pos;
     if(pos > 0) {
       dbuf_putstr(buf, opts->colors ? "'" COLOR_NONE " +" : "' +");
-      js_inspect_newline(buf, level + 1);
-      max_len = opts->break_length - (level * 2) - 4;
+      js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
+      max_len = opts->break_length - (INSPECT_LEVEL(opts) * 2) - 4;
       dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
     }
     if(!compact) {
@@ -561,7 +552,7 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
 
   if(limit < len) {
     if(dbuf_get_column(buf) + 26 > opts->break_length)
-      js_inspect_newline(buf, level + 1);
+      js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
     dbuf_printf(buf, "... %zu more characters", len - pos);
   }
   return 0;
@@ -571,8 +562,7 @@ static int
 js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
 
   int tag = JS_VALUE_GET_TAG(value);
-  int32_t level = (int32_t)opts->depth - depth;
-  int compact = IS_COMPACT(opts, level);
+   int compact = INSPECT_IS_COMPACT(opts);
 
   // if(level) printf("js_inspect_print level: %d\n", level);
 
@@ -629,7 +619,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       JSPropertyEnum* props = 0;
       const char* s;
 
-      compact = INT32_NOT_MIN_MAX(opts->compact) ? opts->compact >= property_enumeration_depth(ctx, value) : 0;
+      compact = INSPECT_INT32T_INRANGE(opts->compact) ? opts->compact >= property_enumeration_depth(ctx, value) : 0;
 
       if(JS_IsInstanceOf(ctx, value, array_buffer_ctor) || JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor))
         return js_inspect_arraybuffer(ctx, buf, value, opts, depth + 1);
@@ -709,7 +699,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
         limit = min_size(opts->max_array_length, len);
         if(len && !compact)
-          js_inspect_newline(buf, level + 1);
+          js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
 
         for(pos = 0; pos < len; pos++) {
           JSPropertyDescriptor desc;
@@ -719,7 +709,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           if(pos > 0) {
             dbuf_putstr(buf, compact ? ", " : ",");
             if(!compact)
-              js_inspect_newline(buf, level + 1);
+              js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           }
 
           JS_GetOwnProperty(ctx, &desc, value, js_atom_fromint(pos));
@@ -738,14 +728,14 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         }
         if(len && limit < len) {
           if(dbuf_get_column(buf) + 20 > opts->break_length)
-            js_inspect_newline(buf, level + 1);
+            js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           dbuf_printf(buf, "... %u more item", len - pos);
           if(pos + 1 < len)
             dbuf_putc(buf, 's');
         }
         /*if(nprops <= len) {
           if(!compact)
-            js_inspect_newline(buf, level);
+            js_inspect_newline(buf, INSPECT_LEVEL(opts));
           dbuf_putstr(buf, compact ? " ]" : "]");
           return 0;
         }*/
@@ -775,7 +765,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           dbuf_putstr(buf, compact ? ", " : ",");
 
         if(!compact)
-          js_inspect_newline(buf, level + 1);
+          js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
 
         if(!JS_IsSymbol(key) && (is_identifier(name) || is_integer(name))) {
           dbuf_putstr(buf, name);
@@ -805,7 +795,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       js_object_tmpmark_clear(value);
 
       if(!compact && len)
-        js_inspect_newline(buf, level);
+        js_inspect_newline(buf, INSPECT_LEVEL(opts));
       dbuf_putstr(buf, (is_array || is_typedarray) ? (compact && len ? " ]" : "]") : (compact && len ? " }" : "}"));
 
     end_obj:

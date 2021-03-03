@@ -99,11 +99,23 @@ async function main(...args) {
 
   console.log('inspect(s)', inspect(s, options));
 
-  std.gc();
-  let m = new Map();
-  [['A','a'], ['B','b'], ['C','c'], ['D','d'], ['1',1], ['2',2], ['3',3], ['4',4], ['5','x']].forEach(([k,v]) => m.set(k,v));
+  //for(let item of s) console.log('item:', item);
 
-  console.log('inspect(m)', inspect(m, options));
+  std.gc();
+  let map = new Map();
+  [
+    ['A', 'a'],
+    ['B', 'b'],
+    ['C', 'c'],
+    ['D', 'd'],
+    ['1', 1],
+    ['2', 2],
+    ['3', 3],
+    ['4', 4],
+    ['5', 'x']
+  ].forEach(([k, v]) => map.set(k, v));
+
+  console.log('inspect(map)', map);
 
   std.gc();
   return;

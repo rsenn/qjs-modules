@@ -521,14 +521,14 @@ js_object_tostring(JSContext* ctx, JSValueConst value) {
 
 static inline BOOL
 js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
-BOOL ret = -1;
- JSValue value;
-value = JS_GetPropertyStr(ctx, obj, str);
+  BOOL ret = FALSE;
+  JSValue value;
+  value = JS_GetPropertyStr(ctx, obj, str);
 
-if(!JS_IsUndefined(value) &&!JS_IsException(value))
-  ret = JS_ToBool(ctx, value);
-JS_FreeValue(ctx,value);
-return ret;
+  if(!JS_IsException(value))
+    ret = JS_ToBool(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
 }
 
 static int
