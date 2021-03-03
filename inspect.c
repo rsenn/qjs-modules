@@ -358,7 +358,7 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
   int compact = INSPECT_IS_COMPACT(opts);
   JSValue data, key, value;
   Iteration it;
-  if(!(ret = iteration_method_str(&it, ctx, obj, "entries"))) {
+  if(!(ret = iteration_method_symbol(&it, ctx, obj, "iterator"))) {
     JS_ThrowTypeError(ctx, "js_inspect_map tag=%d\n", JS_VALUE_GET_TAG(obj));
     return 0;
   }
@@ -387,7 +387,7 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
   if(!compact)
     js_inspect_newline(buf, INSPECT_LEVEL(opts));
   dbuf_putstr(buf, compact ? " }" : "}");
-  iteration_free(&it, JS_GetRuntime(ctx));
+  iteration_reset(&it, JS_GetRuntime(ctx));
   return 0;
 }
 
@@ -398,12 +398,8 @@ js_inspect_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
   int compact = INSPECT_IS_COMPACT(opts);
   JSValue value;
   Iteration it;
-  JSAtom atom;
-  atom = js_symbol_atom(ctx, "iterator");
-  ret = iteration_method(&it, ctx, obj, atom);
-  JS_FreeAtom(ctx, atom);
 
-  if(!ret) {
+  if(!(ret = iteration_method_symbol(&it, ctx, obj, "iterator"))) {
     JS_ThrowTypeError(ctx, "js_inspect_map tag=%d\n", JS_VALUE_GET_TAG(obj));
     return 0;
   }
@@ -419,7 +415,6 @@ js_inspect_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
           js_inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
       }
       dbuf_putstr(buf, compact ? " " : "  ");
-
       js_inspect_print(ctx, buf, value, opts, depth - 1);
       JS_FreeValue(ctx, value);
     }
@@ -427,7 +422,7 @@ js_inspect_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
   if(!compact)
     js_inspect_newline(buf, INSPECT_LEVEL(opts));
   dbuf_putstr(buf, compact ? " ]" : "]");
-  iteration_free(&it, JS_GetRuntime(ctx));
+  iteration_reset(&it, JS_GetRuntime(ctx));
   return 0;
 }
 
@@ -562,7 +557,7 @@ static int
 js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
 
   int tag = JS_VALUE_GET_TAG(value);
-   int compact = INSPECT_IS_COMPACT(opts);
+  int compact = INSPECT_IS_COMPACT(opts);
 
   // if(level) printf("js_inspect_print level: %d\n", level);
 

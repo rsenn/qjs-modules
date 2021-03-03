@@ -95,7 +95,7 @@ static void
 tree_walker_reset(TreeWalker* w, JSContext* ctx) {
   PropertyEnumeration* it;
 
-  vector_foreach_t(&w->frames, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
+  vector_foreach_t(&w->frames, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
   vector_clear(&w->frames);
 
   w->tag_mask = MASK_ALL;
@@ -356,7 +356,7 @@ js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
     PropertyEnumeration *s, *e;
 
     if(--w->ref_count == 0) {
-      for(s = vector_begin(&w->frames), e = vector_end(&w->frames); s != e; s++) { property_enumeration_free(s, rt); }
+      for(s = vector_begin(&w->frames), e = vector_end(&w->frames); s != e; s++) { property_enumeration_reset(s, rt); }
       vector_free(&w->frames);
       js_free_rt(rt, w);
     }
@@ -437,7 +437,7 @@ js_tree_iterator_finalizer(JSRuntime* rt, JSValue val) {
     PropertyEnumeration *s, *e;
 
     if(--w->ref_count == 0) {
-      for(s = vector_begin(&w->frames), e = vector_end(&w->frames); s != e; s++) { property_enumeration_free(s, rt); }
+      for(s = vector_begin(&w->frames), e = vector_end(&w->frames); s != e; s++) { property_enumeration_reset(s, rt); }
       vector_free(&w->frames);
       js_free_rt(rt, w);
     }

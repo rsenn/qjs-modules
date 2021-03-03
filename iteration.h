@@ -50,8 +50,18 @@ iteration_method_str(Iteration* it, JSContext* ctx, JSValueConst object, const c
   return ret;
 }
 
+static inline BOOL
+iteration_method_symbol(Iteration* it, JSContext* ctx, JSValueConst object, const char* sym) {
+  JSAtom atom;
+  BOOL ret;
+  atom = js_symbol_atom(ctx, sym);
+  ret = iteration_method(it, ctx, object, atom);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+
 static inline void
-iteration_free(Iteration* it, JSRuntime* rt) {
+iteration_reset(Iteration* it, JSRuntime* rt) {
   if(JS_IsObject(it->iter))
     JS_FreeValueRT(rt, it->iter);
   if(JS_IsObject(it->next))
@@ -63,19 +73,10 @@ iteration_free(Iteration* it, JSRuntime* rt) {
 }
 
 static inline BOOL
-iteration_clear(Iteration* it, JSContext* ctx) {
-  int ret = JS_IsObject(it->data);
-  if(ret) {
-    JS_FreeValue(ctx, it->data);
-    it->data = JS_UNDEFINED;
-  }
-  return ret;
-}
-
-static inline BOOL
 iteration_next(Iteration* it, JSContext* ctx) {
   assert(!it->done);
-  iteration_clear(it, ctx);
+  if(JS_IsObject(it->data))
+    JS_FreeValue(ctx, it->data);
   it->data = JS_Call(ctx, it->next, it->iter, 0, 0);
   it->done = js_object_propertystr_bool(ctx, it->data, "done");
   return it->done;

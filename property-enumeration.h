@@ -38,7 +38,7 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
 }
 
 static inline void
-property_enumeration_free(PropertyEnumeration* it, JSRuntime* rt) {
+property_enumeration_reset(PropertyEnumeration* it, JSRuntime* rt) {
   uint32_t i;
   if(it->tab_atom) {
     for(i = 0; i < it->tab_atom_len; i++) JS_FreeAtomRT(rt, it->tab_atom[i].atom);
@@ -187,7 +187,7 @@ property_enumeration_pop(vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
   assert(!vector_empty(vec));
   it = vector_back(vec, sizeof(PropertyEnumeration));
-  property_enumeration_free(it, JS_GetRuntime(ctx));
+  property_enumeration_reset(it, JS_GetRuntime(ctx));
   vector_pop(vec, sizeof(PropertyEnumeration));
   return vector_empty(vec) ? 0 : it - 1;
 }
@@ -290,7 +290,7 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
         max_depth = depth;
     }
   }
-  vector_foreach_t(&vec, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
+  vector_foreach_t(&vec, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
   vector_free(&vec);
   return max_depth;
 }

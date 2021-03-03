@@ -353,7 +353,7 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
     JS_FreeValue(ctx, value);
   }
 
-  property_enumeration_free(&props, JS_GetRuntime(ctx));
+  property_enumeration_reset(&props, JS_GetRuntime(ctx));
 }
 
 static inline void
@@ -443,7 +443,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 
   dbuf_free(&output);
 
-  vector_foreach_t(&enumerations, it) { property_enumeration_free(it, JS_GetRuntime(ctx)); }
+  vector_foreach_t(&enumerations, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
   vector_free(&enumerations);
   return str;
 }
