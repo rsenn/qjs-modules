@@ -23,6 +23,7 @@ typedef struct {
   int custom_inspect : 1;
   int show_proxy : 1;
   int getters : 1;
+  int string_break_newline : 1;
   int32_t depth;
   int32_t max_array_length;
   int32_t max_string_length;
@@ -34,7 +35,7 @@ typedef struct {
 struct prop_key;
 
 typedef struct prop_key {
-     struct list_head link; 
+  struct list_head link;
   const char* name;
   JSAtom atom;
 } prop_key_t;
@@ -51,6 +52,7 @@ inspect_options_init(inspect_options_t* opts) {
   opts->custom_inspect = TRUE;
   opts->show_proxy = FALSE;
   opts->getters = FALSE;
+  opts->string_break_newline = TRUE;
   opts->depth = INT32_MAX;
   opts->max_array_length = 100;
   opts->max_string_length = INT32_MAX;
@@ -98,6 +100,11 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
   value = JS_GetPropertyStr(ctx, object, "getters");
   if(!JS_IsException(value) && !JS_IsUndefined(value))
     opts->getters = JS_ToBool(ctx, value);
+  JS_FreeValue(ctx, value);
+
+  value = JS_GetPropertyStr(ctx, object, "stringBreakNewline");
+  if(!JS_IsException(value) && !JS_IsUndefined(value))
+    opts->string_break_newline = JS_ToBool(ctx, value);
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, object, "depth");
@@ -169,6 +176,7 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
   JS_SetPropertyStr(ctx, ret, "customInspect", JS_NewBool(ctx, opts->custom_inspect));
   JS_SetPropertyStr(ctx, ret, "showProxy", JS_NewBool(ctx, opts->show_proxy));
   JS_SetPropertyStr(ctx, ret, "getters", JS_NewBool(ctx, opts->getters));
+  JS_SetPropertyStr(ctx, ret, "stringBreakNewline", JS_NewBool(ctx, opts->string_break_newline));
   JS_SetPropertyStr(ctx, ret, "depth", js_new_number(ctx, opts->depth));
   JS_SetPropertyStr(ctx, ret, "maxArrayLength", js_new_number(ctx, opts->max_array_length));
   JS_SetPropertyStr(ctx, ret, "maxStringLength", js_new_number(ctx, opts->max_string_length));
@@ -323,7 +331,7 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   JSAtom inspect_custom;
   const char* str = 0;
   inspect_custom = js_inspect_custom_atom(ctx);
-  //printf("inspect_custom ref_count=%d\n", JS_GetRuntime(ctx)->atom_array[inspect_custom]->header.ref_count);
+  // printf("inspect_custom ref_count=%d\n", JS_GetRuntime(ctx)->atom_array[inspect_custom]->header.ref_count);
   inspect = JS_GetProperty(ctx, obj, inspect_custom);
   JS_FreeAtom(ctx, inspect_custom);
   if(!JS_IsFunction(ctx, inspect)) {
@@ -431,7 +439,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   if(break_len > opts->break_length)
     break_len = opts->break_length;
   ptr = JS_GetArrayBuffer(ctx, &size, value);
-  //printf("maxArrayLength: %i\n", opts->max_array_length);
+  // printf("maxArrayLength: %i\n", opts->max_array_length);
   proto = JS_GetPrototype(ctx, value);
   str = js_object_tostring(ctx, proto);
   JS_FreeValue(ctx, proto);
@@ -522,7 +530,7 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
       max_len = opts->break_length - (INSPECT_LEVEL(opts) * 2) - 4;
       dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
     }
-    if(!compact) {
+    if(!compact && opts->string_break_newline) {
       eol = byte_chr(&str[pos], n, '\n');
       if(str[pos + eol] == '\n') {
         eol++;

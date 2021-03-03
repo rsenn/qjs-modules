@@ -3,8 +3,8 @@ import * as std from 'std';
 import inspect from 'inspect.so';
 import Console from './console.js';
 
-'use strict';
-'use math';
+('use strict');
+('use math');
 
 globalThis.inspect = inspect;
 
@@ -14,9 +14,9 @@ async function main(...args) {
 
   let winsz;
 
-try {
-  winsz = await os.ttyGetWinSize(1);
- }catch(err) {}
+  try {
+    winsz = await os.ttyGetWinSize(1);
+  } catch(err) {}
   console.log('winsz:', winsz);
 
   const options = {

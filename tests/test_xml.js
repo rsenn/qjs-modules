@@ -4,8 +4,8 @@ import inspect from 'inspect.so';
 import * as xml from 'xml.so';
 import Console from './console.js';
 
-'use strict';
-'use math';
+('use strict');
+('use math');
 
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
@@ -14,23 +14,23 @@ function WriteFile(file, data) {
 }
 
 async function main(...args) {
-  console = new Console({ colors: true, depth: 1 });
+  console = new Console({ colors: true, depth: 10, _stringBreakNewline: false });
 
   let winsz;
 
-try {
-  winsz = await os.ttyGetWinSize(1);
- }catch(err) {}
-console.log('winsz:', winsz);
+  try {
+    winsz = await os.ttyGetWinSize(1);
+  } catch(err) {}
+  console.log('winsz:', winsz);
 
-  let file = args[0] ?? 'Simple-NPN-Regen-Receiver.brd';
+  let file = args[0] ?? '/etc/fonts/fonts.conf';
   console.log('file:', file);
 
   let base = file.replace(/.*\//g, '').replace(/\.[^.]*$/, '');
-    console.log('base:', base);
+  console.log('base:', base);
 
   let data = std.loadFile(file, 'utf-8');
-  console.log('data:', data.substring(0,100));
+  console.log('data:', data.substring(0, 100));
 
   // let result = parse2(Util.bufferToString(data));
 
@@ -38,7 +38,7 @@ console.log('winsz:', winsz);
 
   console.log('result:', result);
 
-  let str =  xml.write(result);
+  let str = xml.write(result);
   console.log('write:', str);
 
   console.log(`Writing '${base + '.xml'}'...`);
@@ -46,5 +46,5 @@ console.log('winsz:', winsz);
 
   await import('std').then(std => std.gc());
 }
-console.log("test");
+console.log('test');
 main(...scriptArgs.slice(1));

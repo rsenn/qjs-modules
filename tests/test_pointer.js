@@ -5,8 +5,8 @@ import * as xml from 'xml.so';
 import { Pointer } from 'pointer.so';
 import Console from './console.js';
 
-'use strict';
-'use math';
+('use strict');
+('use math');
 
 globalThis.inspect = inspect;
 

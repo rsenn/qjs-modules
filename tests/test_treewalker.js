@@ -5,8 +5,8 @@ import * as xml from 'xml.so';
 import { TreeWalker, TreeIterator } from 'tree-walker.so';
 import Console from './console.js';
 
-'use strict';
-'use math';
+('use strict');
+('use math');
 
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
