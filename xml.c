@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+
 #include "quickjs.h"
 #include "cutils.h"
 #include "vector.h"

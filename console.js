@@ -62,9 +62,9 @@ export function Console(opts = {}) {
     log(...args) {
       let tempOpts = new ConsoleOptions(this.options);
       return log.call(this,
-        ...args.reduce((acc, arg) => {
+        ...args.reduce((acc, arg, i) => {
           if(typeof arg && arg != null && arg instanceof ConsoleOptions) tempOpts.merge(arg);
-          else if(typeof arg == 'object') acc.push(inspect(arg, tempOpts));
+          else if(typeof arg == 'object' || i > 0) acc.push(inspect(arg, tempOpts));
           else acc.push(arg);
           return acc;
         }, [])

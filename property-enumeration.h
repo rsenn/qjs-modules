@@ -9,7 +9,7 @@
 #include "quickjs.h"
 #include "vector.h"
 
-typedef struct {
+typedef struct PropertyEnumeration {
   JSValue obj;
   uint32_t idx;
   uint32_t tab_atom_len;
@@ -75,7 +75,6 @@ property_enumeration_atom(PropertyEnumeration* it) {
 static inline JSValue
 property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
   JSValue key;
-
   assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   key = JS_AtomToValue(ctx, it->tab_atom[it->idx].atom);
@@ -95,47 +94,10 @@ property_enumeration_keystr(PropertyEnumeration* it, JSContext* ctx) {
   return JS_AtomToCString(ctx, it->tab_atom[it->idx].atom);
 }
 
-static inline PropertyEnumeration*
-property_enumeration_pop(vector* vec, JSContext* ctx) {
-  PropertyEnumeration* it;
-  assert(!vector_empty(vec));
-  it = vector_back(vec, sizeof(PropertyEnumeration));
-  property_enumeration_free(it, JS_GetRuntime(ctx));
-  vector_pop(vec, sizeof(PropertyEnumeration));
-  return vector_empty(vec) ? 0 : it - 1;
-}
-
-static inline PropertyEnumeration*
-property_enumeration_push(vector* vec, JSContext* ctx, JSValue object, int flags) {
-  PropertyEnumeration* it;
-
-  if(!JS_IsObject(object)) {
-    JS_ThrowTypeError(ctx, "not an object");
-    return 0;
-  }
-  if((it = property_enumeration_new(vec)))
-    property_enumeration_init(it, ctx, object, flags);
-
-  return it;
-}
-
-static inline PropertyEnumeration*
-property_enumeration_enter(vector* vec, JSContext* ctx, int flags) {
-  PropertyEnumeration* it;
-  JSValue value;
-
-  assert(!vector_empty(vec));
-  it = vector_back(vec, sizeof(PropertyEnumeration));
-  value = property_enumeration_value(it, ctx);
-
-  return property_enumeration_push(vec, ctx, value, flags);
-}
-
 static inline int
 property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
   if((idx < 0 ? -idx : idx) >= it->tab_atom_len)
     return 0;
-
   if(idx < 0)
     idx += it->tab_atom_len;
   assert(idx >= 0);
@@ -201,9 +163,49 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
   dbuf_putstr(out, " ] }");
 }
 
+static PropertyEnumeration*
+property_enumeration_next(PropertyEnumeration* it) {
+  return property_enumeration_setpos(it, it->idx + 1) ? it : 0;
+}
+
+static inline PropertyEnumeration*
+property_enumeration_push(vector* vec, JSContext* ctx, JSValue object, int flags) {
+  PropertyEnumeration* it;
+
+  if(!JS_IsObject(object)) {
+    JS_ThrowTypeError(ctx, "not an object");
+    return 0;
+  }
+  if((it = property_enumeration_new(vec)))
+    property_enumeration_init(it, ctx, object, flags);
+
+  return it;
+}
+
+static inline PropertyEnumeration*
+property_enumeration_pop(vector* vec, JSContext* ctx) {
+  PropertyEnumeration* it;
+  assert(!vector_empty(vec));
+  it = vector_back(vec, sizeof(PropertyEnumeration));
+  property_enumeration_free(it, JS_GetRuntime(ctx));
+  vector_pop(vec, sizeof(PropertyEnumeration));
+  return vector_empty(vec) ? 0 : it - 1;
+}
+
+static inline PropertyEnumeration*
+property_enumeration_enter(vector* vec, JSContext* ctx, int flags) {
+  PropertyEnumeration* it;
+  JSValue value;
+
+  assert(!vector_empty(vec));
+  it = vector_back(vec, sizeof(PropertyEnumeration));
+  value = property_enumeration_value(it, ctx);
+
+  return property_enumeration_push(vec, ctx, value, flags);
+}
+
 static inline void
 property_enumeration_dumpall(vector* vec, JSContext* ctx, DynBuf* out) {
-
   size_t i, n = vector_size(vec, sizeof(PropertyEnumeration));
   dbuf_printf(out, "(%zu) [", n);
   for(i = 0; i < n; i++) {
@@ -239,11 +241,6 @@ property_enumeration_insideof(vector* vec, JSValueConst val) {
 }
 
 static PropertyEnumeration*
-property_enumeration_next(PropertyEnumeration* it) {
-  return property_enumeration_setpos(it, it->idx + 1) ? it : 0;
-}
-
-static PropertyEnumeration*
 property_enumeration_recurse(vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
   JSValue value = JS_UNDEFINED;
@@ -254,26 +251,45 @@ property_enumeration_recurse(vector* vec, JSContext* ctx) {
     type = JS_VALUE_GET_TAG(value);
     JS_FreeValue(ctx, value);
     if(type == JS_TAG_OBJECT) {
-      it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS);
-      if(it && property_enumeration_setpos(it, 0))
-        goto end;
+      if((it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS)) && property_enumeration_setpos(it, 0))
+        break;
     } else {
       if(property_enumeration_setpos(it, it->idx + 1))
-        goto end;
+        break;
     }
+    return 0;
+
     for(;;) {
       if((it = property_enumeration_pop(vec, ctx)) == 0)
-        goto end;
+        return it;
       if(property_enumeration_setpos(it, it->idx + 1))
-        goto end;
+        break;
     }
   end:
-    if(!it)
-      break;
-
+    /* if(!it)
+       break;*/
     break;
   }
   return it;
+}
+
+static int32_t
+property_enumeration_depth(JSContext* ctx, JSValueConst object) {
+  vector vec;
+  int32_t depth, max_depth = 0;
+  PropertyEnumeration* it;
+  vector_init(&vec);
+  if(!JS_IsObject(object) ||
+     !(it = property_enumeration_push(&vec, ctx, JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS)))
+    return 0;
+  for(;;) {
+    if(!(it = property_enumeration_recurse(&vec, ctx)))
+      break;
+    depth = vector_size(&vec, sizeof(PropertyEnumeration));
+    if(max_depth < depth)
+      max_depth = depth;
+  }
+  return max_depth;
 }
 
 #endif // PROPENUM_H

@@ -12,16 +12,17 @@ function WriteFile(file, data) {
 }
 
 function main(...args) {
-  console = new Console({ colors: true, depth: 1 });
+  console = new Console({ colors: true, depth: 1, maxArrayLength: 10, maxStringLength: 100 });
+  console.log('args:', args);
 
   let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
 
-  //   console.log('data:', data);
+  console.log('data:', data);
 
   let result = xml.read(data);
   console.log('result:', result);
 
-  console.log('xml:\n' + xml.write(result));
+  console.log('xml:', xml.write(result));
 
   let pointer;
 
@@ -40,4 +41,4 @@ function main(...args) {
   std.gc();
 }
 
-main(scriptArgs.slice(1));
+main(...scriptArgs.slice(1));

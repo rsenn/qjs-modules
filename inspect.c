@@ -1,8 +1,12 @@
+#define _GNU_SOURCE
+
 #include "quickjs.h"
 #include "cutils.h"
 #include "list.h"
 #include "utils.h"
 #include "quickjs-internal.h"
+#include "property-enumeration.h"
+
 #include <math.h>
 #include <ctype.h>
 #include <string.h>
@@ -534,6 +538,11 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       uint32_t nprops, pos, len, limit;
       JSPropertyEnum* props = 0;
       const char* s;
+      int32_t depth;
+
+      depth = property_enumeration_depth(ctx, value);
+      printf("js_inspect_print level=%d compact=%d depth=%d\n", level, compact, depth);
+      fflush(stdout);
 
       if(JS_IsInstanceOf(ctx, value, array_buffer_ctor) || JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor)/* ||
          js_is_arraybuffer(ctx, value)*/)

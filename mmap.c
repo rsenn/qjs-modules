@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "quickjs.h"
 #include "cutils.h"
 #include <sys/mman.h>
