@@ -37,17 +37,17 @@ install:
 .c.o:
 	$(CC) $(CFLAGS) -c $< 
 
-inspect.$(SUFFIX): inspect.c vector.c
+inspect.$(SUFFIX): quickjs-inspect.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-mmap.$(SUFFIX): mmap.c
+mmap.$(SUFFIX): quickjs-mmap.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-pointer.$(SUFFIX): pointer.c
+pointer.$(SUFFIX): quickjs-pointer.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-tree-walker.$(SUFFIX): tree-walker.c vector.c
+tree-walker.$(SUFFIX): quickjs-tree-walker.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
-xml.$(SUFFIX): xml.c vector.c
+xml.$(SUFFIX): quickjs-xml.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^

@@ -9,7 +9,6 @@
 JSClassID js_pointer_class_id;
 JSClassID js_dereferenceerror_class_id;
 JSValue pointer_proto, pointer_constructor, pointer_ctor;
-JSValue dereferenceerror_proto, dereferenceerror_constructor, dereferenceerror_ctor;
 
 enum pointer_methods {
   METHOD_DEREF = 0,
@@ -99,11 +98,8 @@ js_pointer_data(JSContext* ctx, JSValueConst value) {
 
 static JSValue
 js_pointer_new(JSContext* ctx, Pointer* ptr) {
-
   JSValue obj;
-
   obj = JS_NewObjectProtoClass(ctx, pointer_proto, js_pointer_class_id);
-
   JS_SetOpaque(obj, ptr);
   return obj;
 }
@@ -117,12 +113,9 @@ js_pointer_tostring(JSContext* ctx, JSValueConst this_val, BOOL color) {
     return JS_EXCEPTION;
 
   dbuf_init(&dbuf);
-
   pointer_dump(ptr, ctx, &dbuf, color);
-  // dbuf_put(&dbuf, "\0", 1);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
-
   return ret;
 }
 
@@ -315,12 +308,8 @@ js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PROP_LENGTH: {
-      return JS_NewInt64(ctx, ptr->n);
-    }
-    case PROP_PATH: {
-      return js_pointer_toarray(ctx, ptr);
-    }
+    case PROP_LENGTH: return JS_NewInt64(ctx, ptr->n);
+    case PROP_PATH: return js_pointer_toarray(ctx, ptr);
   }
   return JS_UNDEFINED;
 }
@@ -333,10 +322,7 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PROP_PATH: {
-      js_pointer_fromiterable(ctx, ptr, value);
-      break;
-    }
+    case PROP_PATH: js_pointer_fromiterable(ctx, ptr, value); break;
   }
   return JS_UNDEFINED;
 }
@@ -345,23 +331,22 @@ static JSValue
 js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   JSValue ret = JS_UNDEFINED;
   switch(magic) {
-    case 0: {
+    case 0:
       ret = js_pointer_constructor(ctx, JS_UNDEFINED, 0, 0);
       if(JS_IsArray(ctx, argv[0]))
         js_pointer_fromarray(ctx, js_pointer_data(ctx, ret), argv[0]);
       else
         js_pointer_fromiterable(ctx, js_pointer_data(ctx, ret), argv[0]);
       break;
-    }
   }
   return ret;
 }
 
 void
 js_pointer_finalizer(JSRuntime* rt, JSValue val) {
-  Pointer* ptr = JS_GetOpaque(val, js_pointer_class_id);
-  if(ptr) {
+  Pointer* ptr;
 
+  if((ptr = JS_GetOpaque(val, js_pointer_class_id))) {
     if(ptr->atoms) {
       uint32_t i;
       for(i = 0; i < ptr->n; i++) JS_FreeAtomRT(rt, ptr->atoms[i]);
@@ -369,7 +354,6 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
     }
     js_free_rt(rt, ptr);
   }
-
   // JS_FreeValueRT(rt, val);
 }
 

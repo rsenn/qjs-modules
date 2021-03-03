@@ -71,7 +71,7 @@ endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
 foreach(NAME ${QUICKJS_MODULES})
   string(REGEX REPLACE "[-/]" "_" PFX "${NAME}")
-  add_library(${NAME} MODULE ${NAME}.c ${${PFX}_SOURCES})
+  add_library(${NAME} MODULE quickjs-${NAME}.c ${${PFX}_SOURCES})
   set_target_properties(
     ${NAME} PROPERTIES PREFIX "" INCLUDE_DIRECTORIES
                                  "${QUICKJS_PREFIX}/include/quickjs")
