@@ -32,9 +32,7 @@ async function main(...args) {
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));
 
-  // let result = parse2(Util.bufferToString(data));
-
-  let result = xml.read(data);
+   let result = xml.read(data);
 
   console.log('result:', result);
 

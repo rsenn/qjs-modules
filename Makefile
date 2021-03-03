@@ -1,4 +1,4 @@
-MODULES = inspect mmap pointer tree-walker xml
+MODULES = inspect mmap path pointer tree-walker xml
 
 QUICKJS_PREFIX ?= /usr/local
 
@@ -41,6 +41,9 @@ inspect.$(SUFFIX): quickjs-inspect.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 mmap.$(SUFFIX): quickjs-mmap.c
+	$(CC) $(CFLAGS) -shared -o $@ $^
+
+path.$(SUFFIX): quickjs-path.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 pointer.$(SUFFIX): quickjs-pointer.c
