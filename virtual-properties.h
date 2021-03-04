@@ -6,10 +6,11 @@
 
 struct VProps;
 
-typedef BOOL has_function_t(struct VProps*, JSContext*, JSAtom);
-typedef BOOL delete_function_t(struct VProps*, JSContext*, JSAtom);
-typedef JSValue get_function_t(struct VProps*, JSContext*, JSAtom);
-typedef int set_function_t(struct VProps*, JSContext*, JSAtom, JSValue);
+typedef BOOL has_function_t(struct VProps*, JSContext*, JSValueConst);
+typedef BOOL delete_function_t(struct VProps*, JSContext*, JSValueConst);
+typedef JSValue get_function_t(struct VProps*, JSContext*, JSValueConst);
+typedef int set_function_t(struct VProps*, JSContext*, JSValueConst, JSValue);
+typedef void destroy_function_t(struct VProps*, JSContext*);
 
 typedef struct VProps {
   JSValue this_obj;
@@ -17,30 +18,36 @@ typedef struct VProps {
   delete_function_t* delete;
   get_function_t* get;
   set_function_t* set;
-  void* ptr;
+  destroy_function_t* finalize;
+  void* opaque;
 } VirtualProperties;
 
 VirtualProperties virtual_properties_map(JSContext*, JSValueConst);
 VirtualProperties virtual_properties_object(JSContext*, JSValueConst);
 
 static inline BOOL
-virtual_properties_has(VirtualProperties* vprop, JSContext* ctx, JSAtom prop) {
+virtual_properties_has(VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
   return vprop->has(vprop, ctx, prop);
 }
 
 static inline BOOL
-virtual_properties_delete(VirtualProperties* vprop, JSContext* ctx, JSAtom prop) {
+virtual_properties_delete(VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
   return vprop->delete(vprop, ctx, prop);
 }
 
 static inline JSValue
-virtual_properties_get(VirtualProperties* vprop, JSContext* ctx, JSAtom prop) {
+virtual_properties_get(VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
   return vprop->get(vprop, ctx, prop);
 }
 
 static inline int
-virtual_properties_set(VirtualProperties* vprop, JSContext* ctx, JSAtom prop, JSValue value) {
+virtual_properties_set(VirtualProperties* vprop, JSContext* ctx, JSValueConst prop, JSValue value) {
   return vprop->set(vprop, ctx, prop, value);
+}
+
+static inline void
+virtual_properties_free(VirtualProperties* vprop, JSContext* ctx) {
+  vprop->finalize(vprop, ctx);
 }
 
 #endif /* defined(VIRTUAL_PROPERTIES_H) */

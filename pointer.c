@@ -214,7 +214,7 @@ pointer_fromstring(Pointer* ptr, JSContext* ctx, JSValueConst value) {
 void
 pointer_fromarray(Pointer* ptr, JSContext* ctx, JSValueConst array) {
   size_t i, len;
-  JSValue prop;
+  JSValueConst prop;
   JSAtom atom;
   len = js_array_length(ctx, array);
   pointer_reset(ptr, ctx);

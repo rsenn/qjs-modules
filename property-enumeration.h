@@ -19,7 +19,7 @@ typedef struct PropertyEnumeration {
 
 #define PROPENUM_DEFAULT_FLAGS (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)
 
-#define property_enumeration_new(vec) vector_push((vec), sizeof(PropertyEnumeration))
+#define property_enumeration_new(vec) vector_emplace((vec), sizeof(PropertyEnumeration))
 #define property_enumeration_length(enum) ((enum)->tab_atom_len)
 #define property_enumeration_index(enum) ((enum)->idx)
 

@@ -310,7 +310,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
 
   ret = JS_NewArray(ctx);
 
-  out = vector_push(&st, sizeof(OutputValue));
+  out = vector_emplace(&st, sizeof(OutputValue));
   out->obj = ret;
   out->idx = 0;
 
@@ -419,7 +419,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
             next();
           pop();
         } else if(!self_closing) {
-          out = vector_push(&st, sizeof(OutputValue));
+          out = vector_emplace(&st, sizeof(OutputValue));
           out->obj = JS_NewArray(ctx);
           out->idx = 0;
           out->name = name;

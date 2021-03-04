@@ -32,7 +32,7 @@ void vector_free(vector* vec);
 void vector_shrink(vector* vec, size_t elsz, int32_t len);
 void vector_printf(vector* vec, const char*, ...);
 
-#define vector_emplace(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
+#define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 
 static inline uint32_t
 vector_size(const vector* vec, size_t elsz) {
@@ -73,7 +73,7 @@ vector_clear(vector* vec) {
 }
 
 static inline void*
-vector_push(vector* vec, size_t elsz) {
+vector_emplace(vector* vec, size_t elsz) {
   uint32_t n = vector_size(vec, elsz);
   return vector_allocate(vec, elsz, n);
 }
