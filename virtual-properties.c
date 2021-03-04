@@ -41,7 +41,7 @@ virtual_properties_object_has(VirtualProperties* vp, JSContext* ctx, JSAtom prop
 }
 
 static JSValue
-virtual_properties_object_get( VirtualProperties* vp, JSContext* ctx,JSAtom prop) {
+virtual_properties_object_get(VirtualProperties* vp, JSContext* ctx, JSAtom prop) {
   return JS_GetProperty(ctx, vp->this_obj, prop);
 }
 
