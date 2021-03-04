@@ -7,12 +7,14 @@
 struct VProps;
 
 typedef BOOL has_function_t(struct VProps*, JSContext*, JSAtom);
+typedef BOOL delete_function_t(struct VProps*, JSContext*, JSAtom);
 typedef JSValue get_function_t(struct VProps*, JSContext*, JSAtom);
 typedef int set_function_t(struct VProps*, JSContext*, JSAtom, JSValue);
 
 typedef struct VProps {
   JSValue this_obj;
   has_function_t* has;
+  delete_function_t* delete;
   get_function_t* get;
   set_function_t* set;
   void* ptr;
@@ -24,6 +26,11 @@ VirtualProperties virtual_properties_object(JSContext*, JSValueConst);
 static inline BOOL
 virtual_properties_has(VirtualProperties* vprop, JSContext* ctx, JSAtom prop) {
   return vprop->has(vprop, ctx, prop);
+}
+
+static inline BOOL
+virtual_properties_delete(VirtualProperties* vprop, JSContext* ctx, JSAtom prop) {
+  return vprop->delete(vprop, ctx, prop);
 }
 
 static inline JSValue

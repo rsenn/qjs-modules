@@ -7,6 +7,11 @@ map_has(VirtualProperties* vp, JSContext* ctx, JSAtom prop) {
   JSValueConst has = ((JSValueConst*)vp->ptr)[0];
 }
 
+static BOOL
+map_delete(VirtualProperties* vp, JSContext* ctx, JSAtom prop) {
+  JSValueConst has = ((JSValueConst*)vp->ptr)[0];
+}
+
 static JSValue
 map_get(VirtualProperties* vp, JSContext* ctx, JSAtom prop) {
   JSValueConst get = ((JSValueConst*)vp->ptr)[1];
@@ -21,7 +26,7 @@ VirtualProperties
 virtual_properties_map(JSContext* ctx, JSValueConst map) {
   JSValue map_prototype;
   JSValueConst* values = js_mallocz(ctx, sizeof(JSValue) * 3);
-  VirtualProperties vprops = {JS_DupValue(ctx, map), map_has, map_get, map_set, values};
+  VirtualProperties vprops = {JS_DupValue(ctx, map), map_has, map_delete, map_get, map_set, values};
   map_prototype = js_global_prototype(ctx, "Map");
   values[0] = JS_GetPropertyStr(ctx, map_prototype, "has");
   values[1] = JS_GetPropertyStr(ctx, map_prototype, "get");
@@ -36,6 +41,11 @@ object_has(VirtualProperties* vp, JSContext* ctx, JSAtom prop) {
   return JS_HasProperty(ctx, vp->this_obj, prop);
 }
 
+static BOOL
+object_delete(VirtualProperties* vp, JSContext* ctx, JSAtom prop) {
+  return JS_DeleteProperty(ctx, vp->this_obj, prop, 0);
+}
+
 static JSValue
 object_get(VirtualProperties* vp, JSContext* ctx, JSAtom prop) {
   return JS_GetProperty(ctx, vp->this_obj, prop);
@@ -48,6 +58,6 @@ object_set(VirtualProperties* vp, JSContext* ctx, JSAtom prop, JSValue value) {
 
 VirtualProperties
 virtual_properties_object(JSContext* ctx, JSValueConst obj) {
-  VirtualProperties vprops = {JS_DupValue(ctx, obj), object_has, object_get, object_set};
+  VirtualProperties vprops = {JS_DupValue(ctx, obj), object_has, object_delete, object_get, object_set};
   return vprops;
 }

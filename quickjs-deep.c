@@ -64,7 +64,6 @@ js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
   return JS_DupValue(ctx, obj);
 }
 
-
 static JSValue
 js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Pointer* ptr;
@@ -78,7 +77,7 @@ js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   obj = pointer_deref(ptr, ctx, argv[0]);
 
   if(!JS_IsException(obj))
-    JS_DeleteProperty(ctx, obj, prop,0);
+    JS_DeleteProperty(ctx, obj, prop, 0);
 
   JS_FreeAtom(ctx, prop);
   pointer_free(ptr, ctx);
