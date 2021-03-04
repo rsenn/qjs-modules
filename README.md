@@ -2,12 +2,24 @@
 
 Some modules for QuickJS
 
-  * deep
-  * inspect
-  * mmap
-  * path
-  * pointer
-  * tree-walker
-  * xml
+## deep
+  - find(object, (obj,key) => {})
+  - get(object, pointer)
+  - set(object, pointer, value)
+  - unset(object, pointer)
+
+## inspect
+  - inspect(value[, options])
+
+## mmap
+
+
+## path
+
+## pointer
+
+## tree-walker
+
+## xml
 
 

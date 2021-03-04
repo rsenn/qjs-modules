@@ -67,9 +67,9 @@ function main(...args) {
   );
   console.log('array:', inspect([, , , , 4, 5, 6, , ,], inspectOptions));
   let testObj = {};
-  
+
   deep.set(testObj, 'a.0.b.0.c\\.x.0', null);
-deep.unset(testObj, 'a.0.b.0');
+  deep.unset(testObj, 'a.0.b.0');
   console.log('testObj: ' + inspect(testObj, inspectOptions));
   std.gc();
 }
