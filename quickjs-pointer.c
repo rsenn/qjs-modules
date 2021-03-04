@@ -66,6 +66,25 @@ pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color) {
   }
 }
 
+void
+pointer_tostring(Pointer* ptr, JSContext* ctx, DynBuf* db) {
+  size_t i, j;
+  const char* str;
+
+  for(i = 0; i < ptr->n; i++) {
+    if(i > 0)
+      dbuf_putc(db, '.');
+
+    str = JS_AtomToCString(ctx, ptr->atoms[i]);
+
+    for(j = 0; str[j]; j++) {
+      if(str[j] == '.')
+        dbuf_putc(db, '\\');
+      dbuf_putc(db, str[j]);
+    }
+  }
+}
+
 size_t
 pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
   size_t pos, delim;
@@ -74,11 +93,9 @@ pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
     delim = 0;
     for(;;) {
       delim += byte_chr(&str[delim], len - delim, '.');
-      if(delim < len) {
-        if(delim > 0 && str[delim - 1] == '\\') {
-          ++delim;
-          continue;
-        }
+      if(delim < len && delim > 0 && str[delim - 1] == '\\') {
+        ++delim;
+        continue;
       }
       break;
     }
@@ -141,7 +158,23 @@ js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
 }
 
 static JSValue
-js_pointer_tostring(JSContext* ctx, JSValueConst this_val, BOOL color) {
+js_pointer_tostring(JSContext* ctx, JSValueConst this_val) {
+  Pointer* ptr;
+  DynBuf dbuf;
+  JSValue ret;
+
+  if(!(ptr = JS_GetOpaque2(ctx, this_val, js_pointer_class_id)))
+    return JS_EXCEPTION;
+
+  dbuf_init(&dbuf);
+  pointer_tostring(ptr, ctx, &dbuf);
+  ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+  dbuf_free(&dbuf);
+  return ret;
+}
+
+static JSValue
+js_pointer_inspect(JSContext* ctx, JSValueConst this_val, BOOL color) {
   Pointer* ptr;
   DynBuf dbuf;
   JSValue ret;
@@ -312,16 +345,17 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
     return JS_EXCEPTION;
 
   switch(magic) {
-    case METHOD_DEREF: return js_pointer_deref(ctx, ptr, this_val, argv[0]);
-
+    case METHOD_DEREF: {
+      return js_pointer_deref(ctx, ptr, this_val, argv[0]);
+    }
     case METHOD_TO_STRING: {
-      return js_pointer_tostring(ctx, this_val, FALSE);
+      return js_pointer_tostring(ctx, this_val);
     }
     case METHOD_TO_ARRAY: {
       return js_pointer_toarray(ctx, ptr);
     }
     case METHOD_INSPECT: {
-      return js_pointer_tostring(ctx, this_val, TRUE);
+      return js_pointer_inspect(ctx, this_val, TRUE);
     }
     case METHOD_SLICE: {
       return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, js_int64_default(ctx, argv[0], 0), js_int64_default(ctx, argv[1], 0)));
