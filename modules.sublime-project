@@ -4,8 +4,7 @@
             "path": ".",
 
             "file_exclude_patterns": [
-                "*.md",
-                "*.log",
+                 "*.log",
                 "*.sublime-*",
                 "*.tmTheme",
                 "*.brd",
@@ -37,7 +36,6 @@
                 "*.pack",
                 "*.opts",
                 "*.nvmrc",
-                "*.md~",
                 "*.m",
                 "*.ls",
                 "*.lib",

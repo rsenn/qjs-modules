@@ -69,7 +69,7 @@ function main(...args) {
   let testObj = {};
   
   deep.set(testObj, 'a.0.b.0.c\\.x.0', null);
-
+deep.unset(testObj, 'a.0.b.0');
   console.log('testObj: ' + inspect(testObj, inspectOptions));
   std.gc();
 }

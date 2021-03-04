@@ -64,6 +64,27 @@ js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
   return JS_DupValue(ctx, obj);
 }
 
+
+static JSValue
+js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  Pointer* ptr;
+  JSValue obj;
+  JSAtom prop;
+  if(!(ptr = pointer_new(ctx)))
+    return JS_ThrowOutOfMemory(ctx);
+
+  pointer_from(ptr, ctx, argv[1], 0);
+  prop = pointer_pop(ptr);
+  obj = pointer_deref(ptr, ctx, argv[0]);
+
+  if(!JS_IsException(obj))
+    JS_DeleteProperty(ctx, obj, prop,0);
+
+  JS_FreeAtom(ctx, prop);
+  pointer_free(ptr, ctx);
+  return JS_DupValue(ctx, obj);
+}
+
 static JSValue
 js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
 }
@@ -71,6 +92,7 @@ js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 static const JSCFunctionListEntry js_deep_funcs[] = {JS_CFUNC_DEF("find", 2, js_deep_find),
                                                      JS_CFUNC_DEF("get", 2, js_deep_get),
                                                      JS_CFUNC_DEF("set", 3, js_deep_set),
+                                                     JS_CFUNC_DEF("unset", 2, js_deep_unset),
                                                      JS_CFUNC_DEF("clone", 1, js_deep_clone)};
 
 static int
