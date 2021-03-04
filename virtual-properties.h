@@ -1,16 +1,16 @@
-#ifndef VIRTUAL_PROPERTIES
-#define VIRTUAL_PROPERTIES
+#ifndef VIRTUAL_PROPERTIES_H
+#define VIRTUAL_PROPERTIES_H
 
 #include "quickjs.h"
 #include "cutils.h"
 
-struct VirtualProperties;
+struct VProps;
 
-typedef BOOL has_function_t(struct VirtualProperties*, JSContext*, JSAtom);
-typedef JSValue get_function_t(struct VirtualProperties*, JSContext*, JSAtom);
-typedef int set_function_t(struct VirtualProperties*, JSContext*, JSAtom, JSValue);
+typedef BOOL has_function_t(struct VProps*, JSContext*, JSAtom);
+typedef JSValue get_function_t(struct VProps*, JSContext*, JSAtom);
+typedef int set_function_t(struct VProps*, JSContext*, JSAtom, JSValue);
 
-typedef struct VirtualProperties {
+typedef struct VProps {
   JSValue this_obj;
   has_function_t* has;
   get_function_t* get;
@@ -36,4 +36,4 @@ virtual_properties_set(VirtualProperties* vprop, JSContext* ctx, JSAtom prop, JS
   return vprop->set(vprop, ctx, prop, value);
 }
 
-#endif /* defined(VIRTUAL_PROPERTIES) */
+#endif /* defined(VIRTUAL_PROPERTIES_H) */
