@@ -39,7 +39,7 @@ function main(...args) {
 
   pointer = new Pointer(2, 'children', 0, 'children', 2);
   try {
-    console.log('deref:', pointer.deref(result));
+    console.log('deref pointer:', pointer.deref(result));
   } catch(e) {
     console.log('exception:', e);
   }
@@ -48,6 +48,11 @@ function main(...args) {
   console.log('pointer:', pointer.slice(0).inspect());
 
   WriteFile('output.json', JSON.stringify(result, null, 2));
+
+let ptr2 = new Pointer('2.children.0.children.2');
+
+    console.log('deref ptr2:', ptr2.deref(result));
+
 
   std.gc();
 }

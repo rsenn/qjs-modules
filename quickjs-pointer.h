@@ -15,6 +15,6 @@ JSValue pointer_shift(Pointer*, JSContext* ctx, JSValue obj);
 Pointer* pointer_slice(Pointer*, JSContext* ctx, int64_t start, int64_t end);
 
 Pointer* js_pointer_data(JSContext*, JSValueConst value);
-JSValue      js_pointer_wrap(JSContext*, Pointer* ptr);
+JSValue js_pointer_wrap(JSContext*, Pointer* ptr);
 
 #endif /* defined(QJS_MODULES_POINTER_H) */
