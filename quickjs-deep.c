@@ -64,9 +64,14 @@ js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
   return JS_DupValue(ctx, obj);
 }
 
+static JSValue
+js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+}
+
 static const JSCFunctionListEntry js_deep_funcs[] = {JS_CFUNC_DEF("find", 2, js_deep_find),
                                                      JS_CFUNC_DEF("get", 2, js_deep_get),
-                                                     JS_CFUNC_DEF("set", 3, js_deep_set)};
+                                                     JS_CFUNC_DEF("set", 3, js_deep_set),
+                                                     JS_CFUNC_DEF("clone", 1, js_deep_clone)};
 
 static int
 js_deep_init(JSContext* ctx, JSModuleDef* m) {

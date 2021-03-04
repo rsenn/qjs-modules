@@ -591,7 +591,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       break;
     }
     case JS_TAG_NULL: {
-      dbuf_putstr(buf, "null");
+      dbuf_putstr(buf, opts->colors ? "\x1b[38;5;129mnull\x1b[m" : "null");
       break;
     }
     case JS_TAG_UNDEFINED: {
@@ -703,25 +703,34 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
         for(pos = 0; pos < len; pos++) {
           JSPropertyDescriptor desc;
+          JSAtom prop;
           if(pos == limit)
             break;
           if(pos > 0) {
-            dbuf_putstr(buf, compact ? ", " : ",");
+            dbuf_putc(buf, ',');
+            //            dbuf_putstr(buf, compact ? ", " : ",");
             if(!compact)
               inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           }
-          JS_GetOwnProperty(ctx, &desc, value, js_atom_fromint(pos));
+          prop = JS_NewAtomUInt32(ctx, pos);
+          memset(&desc, 0, sizeof(desc));
+          desc.value = JS_UNDEFINED;
+          JS_GetOwnProperty(ctx, &desc, value, prop);
+          JS_FreeAtom(ctx, prop);
+
           if(desc.flags & JS_PROP_GETSET) {
-            int idx = (JS_IsUndefined(desc.getter) ? 1 : 0) | (JS_IsUndefined(desc.setter) ? 2 : 0);
-            const char* strs[4] = {0, "[Getter]", "[Setter]", "[Getter/Setter]"};
+            int idx = (JS_IsUndefined(desc.getter) ? 0 : 1) | (JS_IsUndefined(desc.setter) ? 0 : 2);
+            static const char* const strs[4] = {0, "[Getter]", "[Setter]", "[Getter/Setter]"};
             if(idx)
               dbuf_put_colorstr(buf, strs[idx], COLOR_MARINE, opts->colors);
-          } else
+          } else if(!JS_IsUndefined(desc.value)) {
+            /* if(!compact)*/ dbuf_putc(buf, ' ');
             js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
+          }
           js_propertydescriptor_free(ctx, &desc);
         }
         if(len && limit < len) {
-          if(!compact) // if(dbuf_get_column(buf) + 20 > opts->break_length)
+          if(!compact)
             inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           dbuf_printf(buf, "... %u more item", len - pos);
           if(pos + 1 < len)

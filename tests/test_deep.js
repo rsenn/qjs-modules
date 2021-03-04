@@ -53,7 +53,7 @@ function main(...args) {
   console.log('set:',
     inspect(
       deep.set(result,
-        [2, 'children', 0, 'children', 3, 'children', 1, 'children', 6, 'XXX', 'a','b','c','d'],
+        [2, 'children', 0, 'children', 3, 'children', 1, 'children', 6, 'XXX', 'a', 'b', 'c', 'd'],
         'blah'
       ),
       inspectOptions
@@ -65,10 +65,12 @@ function main(...args) {
       inspectOptions
     )
   );
-  console.log('array:', inspect([,,,,4,5,6,,,], inspectOptions));
+  console.log('array:', inspect([, , , , 4, 5, 6, , ,], inspectOptions));
   let testObj = {};
-  deep.set(testObj, 'a.1.b.2.c.3',null);
-  console.log('testObj: '+ inspect(testObj, inspectOptions));
+  
+  deep.set(testObj, 'a.0.b.0.c\\.x.0', null);
+
+  console.log('testObj: ' + inspect(testObj, inspectOptions));
   std.gc();
 }
 
