@@ -76,11 +76,12 @@ export function Console(opts = {}) {
             } else if(arg.merge === ConsoleOptions.prototype.merge) {
               tempOpts.merge(arg);
               continue;
-            } else if(i++ > 0) {
-              acc.push(typeof arg == 'string' && arg.indexOf('\x1b') != -1 ? arg : inspect(arg, tempOpts)
-              );
-              continue;
             }
+          }
+          if(i++ > 0) {
+            acc.push(typeof arg == 'string' && arg.indexOf('\x1b') != -1 ? arg : inspect(arg, tempOpts)
+            );
+            continue;
           }
           acc.push(arg);
         } catch(error) {

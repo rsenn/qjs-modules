@@ -91,7 +91,7 @@ xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t al
   JSAtom prop;
   prop = JS_NewAtomLen(ctx, (const char*)attr, alen);
   JS_SetProperty(ctx, obj, prop, value);
-  js_atom_free(ctx, prop);
+  JS_FreeAtom(ctx, prop);
 }
 
 static void
@@ -257,8 +257,8 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 
   JS_FreeValue(ctx, tag);
   JS_FreeValue(ctx, childNodes);
-  js_atom_free(ctx, tagName);
-  js_atom_free(ctx, children);
+  JS_FreeAtom(ctx, tagName);
+  JS_FreeAtom(ctx, children);
 }
 
 static PropertyEnumeration*

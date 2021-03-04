@@ -65,13 +65,15 @@ inspect_options_init(inspect_options_t* opts) {
 
 static void
 inspect_options_free(inspect_options_t* opts, JSContext* ctx) {
-  struct list_head *entry, *next;
+  union {
+    struct list_head* link;
+    prop_key_t* key;
+  } item, next;
 
-  list_for_each_safe(entry, next, &opts->hide_keys) {
-    prop_key_t* prop_key = (prop_key_t*)entry;
-    JS_FreeAtom(ctx, prop_key->atom);
-    JS_FreeCString(ctx, prop_key->name);
-    js_free(ctx, prop_key);
+  list_for_each_safe(item.link, next.link, &opts->hide_keys) {
+    JS_FreeAtom(ctx, item.key->atom);
+    JS_FreeCString(ctx, item.key->name);
+    js_free(ctx, item.key);
   }
   memset(&opts->hide_keys, 0, sizeof(opts->hide_keys));
 }
@@ -173,6 +175,7 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
   JSValue arr, ret = JS_NewObject(ctx);
   uint32_t n;
   struct list_head* el;
+
   JS_SetPropertyStr(ctx, ret, "colors", JS_NewBool(ctx, opts->colors));
   JS_SetPropertyStr(ctx, ret, "showHidden", JS_NewBool(ctx, opts->show_hidden));
   JS_SetPropertyStr(ctx, ret, "customInspect", JS_NewBool(ctx, opts->custom_inspect));
@@ -223,7 +226,7 @@ js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
   JSValue ret;
   JSAtom method_name = JS_NewAtom(ctx, name);
   ret = JS_Invoke(ctx, symbol_ctor, method_name, 1, &arg);
-  js_atom_free(ctx, method_name);
+  JS_FreeAtom(ctx, method_name);
   return ret;
 }
 
@@ -236,7 +239,7 @@ js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
     return value;
   atom = JS_ValueToAtom(ctx, sym);
   str = JS_AtomToString(ctx, atom);
-  js_atom_free(ctx, atom);
+  JS_FreeAtom(ctx, atom);
   return str;
 }
 
@@ -820,12 +823,15 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   } else
     level = 0;
 
-  // if(level) printf("js_inspect level: %d\n", level);
+  // if(level)
+  // printf("js_inspect level: %d\n", level);
 
   js_inspect_print(ctx, &dbuf, argv[0], &options, options.depth - level);
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+
   dbuf_free(&dbuf);
+
   inspect_options_free(&options, ctx);
   js_inspect_constructors_free(ctx);
 

@@ -1,5 +1,5 @@
-#ifndef QJS_MODULES_VECTOR_H
-#define QJS_MODULES_VECTOR_H
+#ifndef VECTOR_H
+#define VECTOR_H
 
 #include "quickjs.h"
 
@@ -121,4 +121,4 @@ vector_catlong(vector* vec, long l, int radix) {
   vector_put(vec, buf, len);
 }
 
-#endif /* defined(QJS_MODULES_VECTOR_H) */
+#endif /* defined(VECTOR_H) */

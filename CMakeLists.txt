@@ -2,12 +2,13 @@ project(quickjs-modules C)
 
 set(QUICKJS_MODULES deep mmap path pointer inspect tree-walker xml)
 
-set(deep_SOURCES vector.c vector.h quickjs-pointer.h)
+set(deep_SOURCES vector.c vector.h pointer.c pointer.h)
+set(deep_LIBRARIES pointer)
 set(inspect_SOURCES vector.c vector.h)
 set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
 set(path_SOURCES path.c path.h)
-set(pointer_SOURCES quickjs-pointer.h)
+set(pointer_SOURCES quickjs-pointer.h pointer.c pointer.h)
 
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
@@ -76,10 +77,12 @@ foreach(NAME ${QUICKJS_MODULES})
   set_target_properties(
     ${NAME} PROPERTIES PREFIX "" INCLUDE_DIRECTORIES
                                  "${QUICKJS_PREFIX}/include/quickjs")
+  if(${${PFX}_LIBRARIES})
+    target_link_libraries(${NAME} PUBLIC ${${PFX}_LIBRARIES})
+  endif(${${PFX}_LIBRARIES})
+
   target_compile_definitions(${NAME} PRIVATE -DJS_SHARED_LIBRARY)
   install(TARGETS ${NAME} DESTINATION lib/quickjs
           PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
                       GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 endforeach(NAME mmap inspect)
-
-target_link_libraries(deep pointer)

@@ -16,20 +16,20 @@ function WriteFile(file, data) {
   console.log(`Wrote '${file}': ${data.length} bytes`);
 }
 
-  const inspectOptions = {
-    colors: true,
-    showHidden: false,
-    customInspect: true,
-    showProxy: false,
-    getters: false,
-    depth: 3,
-    maxArrayLength: 10,
-    maxStringLength: 200,
-    compact: 2,
-    hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
-  };
+const inspectOptions = {
+  colors: true,
+  showHidden: false,
+  customInspect: true,
+  showProxy: false,
+  getters: false,
+  depth: 5,
+  maxArrayLength: 10,
+  maxStringLength: 200,
+  compact: 2,
+  hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
+};
 function main(...args) {
-    console = new Console(inspectOptions);
+  console = new Console(inspectOptions);
 
   console.log('args:', args);
 
@@ -46,6 +46,25 @@ function main(...args) {
 
   console.log('found:', inspect(found, inspectOptions));
 
+  console.log('get:',
+    inspect(deep.get(result, [2, 'children', 0, 'children', 3, 'children', 0]), inspectOptions)
+  );
+  //console.log('set:', inspect(deep.set(result, [2, 'children', 0, 'children', 3, 'children', 0, 'aaa'], 'blah'), inspectOptions));
+  console.log('set:',
+    inspect(
+      deep.set(result,
+        [2, 'children', 0, 'children', 3, 'children', 1, 'children', 6, 'XXX', 'a','b','c','d'],
+        'blah'
+      ),
+      inspectOptions
+    )
+  );
+  console.log('get:',
+    inspect(
+      deep.get(result, [2, 'children', 0, 'children', 3, 'children', 1, 'children']),
+      inspectOptions
+    )
+  );
   std.gc();
 }
 

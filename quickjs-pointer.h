@@ -1,31 +1,16 @@
-#ifndef QJS_MODULES_POINTER_H
-#define QJS_MODULES_POINTER_H
+#ifndef QUICKJS_POINTER_H
+#define QUICKJS_POINTER_H
 
-#include "quickjs.h"
-#include "cutils.h"
-#include <stdint.h>
+#include "pointer.h"
 
-typedef struct {
-  int64_t n;
-  JSAtom* atoms;
-} Pointer;
+extern JSClassID js_pointer_class_id;
 
-Pointer* pointer_new(JSContext*);
-void pointer_reset(Pointer*, JSContext* ctx);
-void pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size);
-Pointer* pointer_dup(Pointer*, JSContext* ctx);
-void pointer_copy(Pointer*, Pointer* src, JSContext* ctx);
-void pointer_push(Pointer*, JSAtom atom);
-void pointer_dump(Pointer*, JSContext* ctx, DynBuf* db, BOOL color);
-JSValue pointer_shift(Pointer*, JSContext* ctx, JSValue obj);
-Pointer* pointer_slice(Pointer*, JSContext* ctx, int64_t start, int64_t end);
+static inline Pointer*
+js_pointer_data(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_pointer_class_id);
+}
 
-void pointer_fromarray(Pointer*, JSContext* ctx, JSValue array);
-void pointer_fromiterable(Pointer*, JSContext* ctx, JSValue arg);
-void pointer_fromstring(Pointer*, JSContext* ctx, JSValue value);
+JSValue js_pointer_wrap(JSContext*, Pointer*);
+JSValue js_pointer_new(JSContext*, JSValue proto, JSValue);
 
-Pointer* js_pointer_data(JSContext*, JSValueConst value);
-JSValue js_pointer_wrap(JSContext*, Pointer* ptr);
-JSValue js_pointer_new(JSContext*, JSValue proto, JSValue value);
-
-#endif /* defined(QJS_MODULES_POINTER_H) */
+#endif /* defined(QUICKJS_POINTER_H) */

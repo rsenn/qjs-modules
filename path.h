@@ -1,5 +1,5 @@
-#ifndef QJS_MODULES_PATH_H
-#define QJS_MODULES_PATH_H
+#ifndef PATH_H
+#define PATH_H
 
 #include <ctype.h>
 #include <dirent.h>
@@ -216,4 +216,4 @@ path_extname(const char* p) {
   return p;
 }
 
-#endif /* defined(QJS_MODULES_PATH_H) */
+#endif /* defined(PATH_H) */

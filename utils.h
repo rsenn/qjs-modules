@@ -1,5 +1,5 @@
-#ifndef QJS_MODULES_UTILS_H
-#define QJS_MODULES_UTILS_H
+#ifndef UTILS_H
+#define UTILS_H
 
 #include "quickjs.h"
 #include <math.h>
@@ -530,14 +530,14 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
 #define js_atom_isint(i) ((JSAtom)((i)&JS_ATOM_TAG_INT))
 #define js_atom_fromint(i) ((JSAtom)((i)&JS_ATOM_MAX_INT) | JS_ATOM_TAG_INT)
 #define js_atom_toint(i) (unsigned int)(((JSAtom)(i) & (~(JS_ATOM_TAG_INT))))
-
+/*
 #define js_atom_dup(ctx, atom) (js_atom_isint(atom) ? (atom) : JS_DupAtom((ctx), (atom)))
 #define js_atom_free(ctx, atom)                                                                            \
   do {                                                                                                     \
     if((atom) > 0)                                                                                         \
       JS_FreeAtom((ctx), (atom));                                                                          \
   } while(0)
-
+*/
 static inline int
 js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
   int ret;
@@ -569,7 +569,7 @@ js_atom_tovalue(JSContext* ctx, JSAtom atom) {
   return JS_AtomToValue(ctx, atom);
 }
 
-static inline JSAtom
+/*static inline JSAtom
 js_atom_fromvalue(JSContext* ctx, JSValueConst value) {
   if(JS_VALUE_GET_TAG(value) == JS_TAG_INT) {
     if(JS_VALUE_GET_INT(value) <= JS_ATOM_MAX_INT && JS_VALUE_GET_INT(value) >= 0)
@@ -583,15 +583,13 @@ js_atom_fromuint32(JSContext* ctx, uint32_t i) {
   if(i > JS_ATOM_MAX_INT)
     return JS_NewAtomUInt32(ctx, i);
 
-  return js_atom_fromint(i);
-}
+  return JS_NewAtomUInt32(i);
+}*/
 
 static inline unsigned int
 js_atom_tobinary(JSAtom atom) {
   ssize_t ret;
-
   if(js_atom_isint(atom)) {
-
     ret = js_atom_toint(atom);
     ret = -ret;
   } else {
@@ -626,7 +624,7 @@ js_object_tostring(JSContext* ctx, JSValueConst value) {
   atom = JS_NewAtom(ctx, "toString");
   tostring = JS_GetProperty(ctx, proto, atom);
   JS_FreeValue(ctx, proto);
-  js_atom_free(ctx, atom);
+  JS_FreeAtom(ctx, atom);
   str = JS_Call(ctx, tostring, value, 0, 0);
   JS_FreeValue(ctx, tostring);
   s = JS_ToCString(ctx, str);
@@ -717,4 +715,4 @@ js_array_length(JSContext* ctx, JSValueConst array) {
   return len;
 }
 
-#endif /* defined(QJS_MODULES_UTILS_H) */
+#endif /* defined(UTILS_H) */

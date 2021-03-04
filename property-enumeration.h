@@ -1,5 +1,5 @@
-#ifndef QJS_MODULES_PROPENUM_H
-#define QJS_MODULES_PROPENUM_H
+#ifndef PROPERTY_ENUMERATION_H
+#define PROPERTY_ENUMERATION_H
 
 #define _GNU_SOURCE
 
@@ -309,4 +309,4 @@ property_enumeration_free(vector* vec, JSRuntime* rt) {
   vector_free(vec);
 }
 
-#endif /* defined(QJS_MODULES_PROPENUM_H) */
+#endif /* defined(PROPERTY_ENUMERATION_H) */

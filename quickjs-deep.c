@@ -4,26 +4,22 @@
 #include "property-enumeration.h"
 #include "quickjs.h"
 #include "utils.h"
-#include "vector.h"
+#include "pointer.h"
 
 #include <stdint.h>
 
 static JSValue
 js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  JSValue ret = JS_UNDEFINED, root;
-  JSValueConst this_arg = JS_UNDEFINED;
+  JSValue ret = JS_UNDEFINED;
+  JSValueConst this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
   PropertyEnumeration* it;
   vector frames;
-  vector_init(&frames);
 
   if(!JS_IsFunction(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
+  vector_init(&frames);
 
-  if(argc > 2)
-    this_arg = argv[2];
-
-  root = JS_DupValue(ctx, argv[0]);
-  it = property_enumeration_push(&frames, ctx, root, PROPENUM_DEFAULT_FLAGS);
+  it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   while((it = property_enumeration_recurse(&frames, ctx))) {
     BOOL result = property_enumeration_predicate(it, ctx, argv[1], this_arg);
     if(result) {
@@ -37,10 +33,35 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 
 static JSValue
 js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  Pointer* ptr;
+  JSValue ret;
+  if(!(ptr = pointer_new(ctx)))
+    return JS_ThrowOutOfMemory(ctx);
+
+  pointer_from(ptr, ctx, argv[1], 0);
+  ret = pointer_deref(ptr, ctx, argv[0]);
+  pointer_free(ptr, ctx);
+  return ret;
 }
 
 static JSValue
 js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  Pointer* ptr;
+  JSValue obj;
+  JSAtom prop;
+  if(!(ptr = pointer_new(ctx)))
+    return JS_ThrowOutOfMemory(ctx);
+
+  pointer_from(ptr, ctx, argv[1], 0);
+  prop = pointer_pop(ptr);
+  obj = pointer_acquire(ptr, ctx, argv[0]);
+
+  if(!JS_IsException(obj))
+    JS_SetProperty(ctx, obj, prop, argv[2]);
+  JS_FreeAtom(ctx, prop);
+  pointer_free(ptr, ctx);
+  // return JS_UNDEFINED;
+  return JS_DupValue(ctx, obj);
 }
 
 static const JSCFunctionListEntry js_deep_funcs[] = {JS_CFUNC_DEF("find", 2, js_deep_find),
