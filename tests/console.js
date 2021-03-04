@@ -70,15 +70,19 @@ export function Console(opts = {}) {
       for(let arg of args) {
         try {
           if(typeof arg == 'object') {
-            if(arg == null) acc.push('null');
-            else if(arg.merge === ConsoleOptions.prototype.merge) tempOpts.merge(arg);
-            else if(i++ > 0)
+            if(arg == null) {
+              acc.push('null');
+              continue;
+            } else if(arg.merge === ConsoleOptions.prototype.merge) {
+              tempOpts.merge(arg);
+              continue;
+            } else if(i++ > 0) {
               acc.push(typeof arg == 'string' && arg.indexOf('\x1b') != -1 ? arg : inspect(arg, tempOpts)
               );
-            else acc.push(arg);
-          } else {
-            acc.push(arg);
+              continue;
+            }
           }
+          acc.push(arg);
         } catch(error) {
           //console.reallog("error:", error);
         }

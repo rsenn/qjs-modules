@@ -49,11 +49,10 @@ function main(...args) {
 
   WriteFile('output.json', JSON.stringify(result, null, 2));
 
-let ptr2 = new Pointer('2.children.0.children.2');
+  let ptr2 = new Pointer('2.children.0.children.2');
 
-    console.log('deref ptr2:', ptr2.deref(result));
-    console.log('dump ptr2:', ptr2);
-    
+  console.log('deref ptr2:', ptr2.deref(result));
+  console.log('dump ptr2:', ptr2);
 
   std.gc();
 }

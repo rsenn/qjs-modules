@@ -1,7 +1,8 @@
 project(quickjs-modules C)
 
-set(QUICKJS_MODULES mmap path pointer inspect tree-walker xml)
+set(QUICKJS_MODULES deep mmap path pointer inspect tree-walker xml)
 
+set(deep_SOURCES vector.c vector.h quickjs-pointer.h)
 set(inspect_SOURCES vector.c vector.h)
 set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
@@ -71,7 +72,7 @@ endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
 foreach(NAME ${QUICKJS_MODULES})
   string(REGEX REPLACE "[-/]" "_" PFX "${NAME}")
-  add_library(${NAME} MODULE quickjs-${NAME}.c ${${PFX}_SOURCES})
+  add_library(${NAME} SHARED quickjs-${NAME}.c ${${PFX}_SOURCES})
   set_target_properties(
     ${NAME} PROPERTIES PREFIX "" INCLUDE_DIRECTORIES
                                  "${QUICKJS_PREFIX}/include/quickjs")
@@ -80,3 +81,5 @@ foreach(NAME ${QUICKJS_MODULES})
           PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
                       GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 endforeach(NAME mmap inspect)
+
+target_link_libraries(deep pointer)

@@ -21,476 +21,472 @@
 #define EXCLAM 0x400
 #define HYPHEN 0x400
 
-static int chars[256] = { 0 };
+static int chars[256] = {0};
 
 typedef struct {
-    const uint8_t* x;
-    size_t n;
-    void (*free)(JSContext*, const char*);
+  const uint8_t* x;
+  size_t n;
+  void (*free)(JSContext*, const char*);
 } InputValue;
 
 typedef struct {
-    uint32_t idx;
-    JSValue obj;
-    const uint8_t* name;
-    size_t namelen;
+  uint32_t idx;
+  JSValue obj;
+  const uint8_t* name;
+  size_t namelen;
 } OutputValue;
 
 void
-character_classes_init(int c[256])
-{
-    c[' '] = WS;
-    c['\t'] = WS;
-    c['\r'] = WS;
-    c['\n'] = WS;
-    c['!'] = SPECIAL | EXCLAM;
-    c['"'] = QUOTE;
-    c['/'] = END | SLASH;
-    c['<'] = START;
-    c['='] = EQUAL;
-    c['>'] = END | CLOSE;
-    c['?'] = SPECIAL | QUESTION;
-    c['\\'] = BACKSLASH;
-    c['-'] = HYPHEN;
+character_classes_init(int c[256]) {
+  c[' '] = WS;
+  c['\t'] = WS;
+  c['\r'] = WS;
+  c['\n'] = WS;
+  c['!'] = SPECIAL | EXCLAM;
+  c['"'] = QUOTE;
+  c['/'] = END | SLASH;
+  c['<'] = START;
+  c['='] = EQUAL;
+  c['>'] = END | CLOSE;
+  c['?'] = SPECIAL | QUESTION;
+  c['\\'] = BACKSLASH;
+  c['-'] = HYPHEN;
 }
 
 static void input_value_free_default(JSContext* ctx, const char* str){};
 
 static InputValue
-js_value_to_bytes(JSContext* ctx, JSValueConst value)
-{
-    InputValue ret = { 0, 0, input_value_free_default };
+js_value_to_bytes(JSContext* ctx, JSValueConst value) {
+  InputValue ret = {0, 0, input_value_free_default};
 
-    if(JS_IsString(value)) {
-        ret.x = (const uint8_t*)JS_ToCStringLen(ctx, &ret.n, value);
-        ret.free = JS_FreeCString;
-    } else {
-        ret.x = JS_GetArrayBuffer(ctx, &ret.n, value);
-    }
-    return ret;
+  if(JS_IsString(value)) {
+    ret.x = (const uint8_t*)JS_ToCStringLen(ctx, &ret.n, value);
+    ret.free = JS_FreeCString;
+  } else {
+    ret.x = JS_GetArrayBuffer(ctx, &ret.n, value);
+  }
+  return ret;
 }
 
-#define pop() (vector_size(&st, sizeof(OutputValue)) >= 2 ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue))) : 0)
+#define pop()                                                                                              \
+  (vector_size(&st, sizeof(OutputValue)) >= 2                                                              \
+       ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue)))               \
+       : 0)
 #define next() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
-#define skip(cond)                                                                                                                                                                                     \
-    do {                                                                                                                                                                                               \
-        c = *ptr;                                                                                                                                                                                      \
-        if(!(cond))                                                                                                                                                                                    \
-            break;                                                                                                                                                                                     \
-        if(++ptr >= end)                                                                                                                                                                               \
-            done = TRUE;                                                                                                                                                                               \
-    } while(!done)
+#define skip(cond)                                                                                         \
+  do {                                                                                                     \
+    c = *ptr;                                                                                              \
+    if(!(cond))                                                                                            \
+      break;                                                                                               \
+    if(++ptr >= end)                                                                                       \
+      done = TRUE;                                                                                         \
+  } while(!done)
 
 #define skip_until(cond) skip(!(cond))
 #define skip_ws() skip(chars[c] & WS)
 #define char_is(c, classes) (chars[(c)] & (classes))
 
 static void
-xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, JSValue value)
-{
-    JSAtom prop;
-    prop = JS_NewAtomLen(ctx, (const char*)attr, alen);
-    JS_SetProperty(ctx, obj, prop, value);
-    js_atom_free(ctx, prop);
+xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, JSValue value) {
+  JSAtom prop;
+  prop = JS_NewAtomLen(ctx, (const char*)attr, alen);
+  JS_SetProperty(ctx, obj, prop, value);
+  js_atom_free(ctx, prop);
 }
 
 static void
-xml_set_attr_bytes(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, const uint8_t* str, size_t slen)
-{
+xml_set_attr_bytes(
+    JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, const uint8_t* str, size_t slen) {
+  JSValue value;
+  value = JS_NewStringLen(ctx, (const char*)str, slen);
+  xml_set_attr_value(ctx, obj, attr, alen, value);
+  // JS_FreeValue(ctx, value);
+}
+
+static void
+xml_write_value(JSContext* ctx, JSValueConst value, DynBuf* db) {
+  const char* str;
+  size_t len;
+  str = JS_ToCStringLen(ctx, &len, value);
+  dbuf_put(db, (const uint8_t*)str, len);
+  JS_FreeCString(ctx, str);
+}
+
+static void
+xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
+  size_t i;
+  PropertyEnumeration props = {0};
+
+  property_enumeration_init(&props, ctx, JS_DupValue(ctx, attributes), PROPENUM_DEFAULT_FLAGS);
+
+  for(i = 0; i < props.tab_atom_len; i++) {
+    const char *keystr, *valuestr;
     JSValue value;
-    value = JS_NewStringLen(ctx, (const char*)str, slen);
-    xml_set_attr_value(ctx, obj, attr, alen, value);
-    // JS_FreeValue(ctx, value);
-}
-
-static void
-xml_write_value(JSContext* ctx, JSValueConst value, DynBuf* db)
-{
-    const char* str;
-    size_t len;
-    str = JS_ToCStringLen(ctx, &len, value);
-    dbuf_put(db, (const uint8_t*)str, len);
-    JS_FreeCString(ctx, str);
-}
-
-static void
-xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db)
-{
-    size_t i;
-    PropertyEnumeration props = { 0 };
-
-    property_enumeration_init(&props, ctx, JS_DupValue(ctx, attributes), PROPENUM_DEFAULT_FLAGS);
-
-    for(i = 0; i < props.tab_atom_len; i++) {
-        const char *keystr, *valuestr;
-        JSValue value;
-        property_enumeration_setpos(&props, i);
-        keystr = property_enumeration_keystr(&props, ctx);
-        value = property_enumeration_value(&props, ctx);
-        dbuf_putc(db, ' ');
-        dbuf_putstr(db, keystr);
-        if(!(JS_IsBool(value) && JS_ToBool(ctx, value))) {
-            valuestr = property_enumeration_valuestr(&props, ctx);
-            dbuf_putstr(db, "=\"");
-            dbuf_putstr(db, valuestr);
-            JS_FreeCString(ctx, valuestr);
-        }
-        dbuf_putc(db, '"');
-        JS_FreeCString(ctx, keystr);
-        JS_FreeValue(ctx, value);
+    property_enumeration_setpos(&props, i);
+    keystr = property_enumeration_keystr(&props, ctx);
+    value = property_enumeration_value(&props, ctx);
+    dbuf_putc(db, ' ');
+    dbuf_putstr(db, keystr);
+    if(!(JS_IsBool(value) && JS_ToBool(ctx, value))) {
+      valuestr = property_enumeration_valuestr(&props, ctx);
+      dbuf_putstr(db, "=\"");
+      dbuf_putstr(db, valuestr);
+      JS_FreeCString(ctx, valuestr);
     }
+    dbuf_putc(db, '"');
+    JS_FreeCString(ctx, keystr);
+    JS_FreeValue(ctx, value);
+  }
 
-    property_enumeration_reset(&props, JS_GetRuntime(ctx));
+  property_enumeration_reset(&props, JS_GetRuntime(ctx));
 }
 
 static inline void
-xml_write_indent(DynBuf* db, int32_t depth)
-{
-    while(depth-- > 0) dbuf_putstr(db, "  ");
+xml_write_indent(DynBuf* db, int32_t depth) {
+  while(depth-- > 0) dbuf_putstr(db, "  ");
 }
 
 static void
-xml_write_string(JSContext* ctx, const char* textStr, size_t textLen, DynBuf* db, int32_t depth)
-{
-    const char* p;
-    for(p = textStr;;) {
-        size_t n;
+xml_write_string(JSContext* ctx, const char* textStr, size_t textLen, DynBuf* db, int32_t depth) {
+  const char* p;
+  for(p = textStr;;) {
+    size_t n;
 
-        while(textLen) {
-            if(byte_chr("\r\n \t", 4, *p) == 4)
-                break;
-            p++;
-            textLen--;
-        }
-        n = byte_chr(p, textLen, '\n');
-        dbuf_put(db, (const uint8_t*)p, n);
-        if(n < textLen)
-            n++;
-        p += n;
-        textLen -= n;
-
-        /*while(textLen > 0 &&  (p[0] == ' ' ||  p[0] == '\t')) {
-          textLen--;
-          p++;
-        }    */
-
-        if(textLen == 0)
-            break;
-        dbuf_putc(db, '\n');
-
-        xml_write_indent(db, depth);
+    while(textLen) {
+      if(byte_chr("\r\n \t", 4, *p) == 4)
+        break;
+      p++;
+      textLen--;
     }
-}
+    n = byte_chr(p, textLen, '\n');
+    dbuf_put(db, (const uint8_t*)p, n);
+    if(n < textLen)
+      n++;
+    p += n;
+    textLen -= n;
 
-static void
-xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth)
-{
-    const char *textStr, *p;
-    size_t textLen;
-    textStr = JS_ToCStringLen(ctx, &textLen, text);
-    xml_write_indent(db, depth);
-    xml_write_string(ctx, textStr, textLen, db, depth);
-    JS_FreeCString(ctx, textStr);
-    dbuf_putc(db, '\n');
-}
+    /*while(textLen > 0 &&  (p[0] == ' ' ||  p[0] == '\t')) {
+      textLen--;
+      p++;
+    }    */
 
-static void
-xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth)
-{
-    JSValue tagName = JS_GetPropertyStr(ctx, element, "tagName");
-    JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
-    JSValue children = JS_GetPropertyStr(ctx, element, "children");
-
-    const char* tagStr = JS_ToCString(ctx, tagName);
-    BOOL isComment = !strncmp(tagStr, "!--", 3);
-
-    xml_write_indent(db, depth);
-
-    dbuf_putc(db, '<');
-
-    if(isComment) {
-        size_t i = 0, tagLen = strlen(tagStr);
-
-        if(byte_chr(tagStr, tagLen, '\n') < tagLen) {
-            xml_write_string(ctx, tagStr, tagLen - 2, db, depth + 1);
-            dbuf_putc(db, '\n');
-            xml_write_indent(db, depth);
-            dbuf_putc(db, '-');
-            dbuf_putc(db, '-');
-        } else {
-            xml_write_string(ctx, tagStr, tagLen, db, depth + 1);
-        }
-    } else if(JS_IsObject(attributes)) {
-        dbuf_putstr(db, tagStr);
-        xml_write_attributes(ctx, attributes, db);
-    }
-
-    dbuf_putstr(db, (JS_IsObject(children) || isComment) ? ">" : tagStr[0] == '?' ? "?>" : tagStr[0] == '!' ? "!>" : " />");
+    if(textLen == 0)
+      break;
     dbuf_putc(db, '\n');
 
+    xml_write_indent(db, depth);
+  }
+}
+
+static void
+xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
+  const char *textStr, *p;
+  size_t textLen;
+  textStr = JS_ToCStringLen(ctx, &textLen, text);
+  xml_write_indent(db, depth);
+  xml_write_string(ctx, textStr, textLen, db, depth);
+  JS_FreeCString(ctx, textStr);
+  dbuf_putc(db, '\n');
+}
+
+static void
+xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
+  JSValue tagName = JS_GetPropertyStr(ctx, element, "tagName");
+  JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
+  JSValue children = JS_GetPropertyStr(ctx, element, "children");
+
+  const char* tagStr = JS_ToCString(ctx, tagName);
+  BOOL isComment = !strncmp(tagStr, "!--", 3);
+
+  xml_write_indent(db, depth);
+
+  dbuf_putc(db, '<');
+
+  if(isComment) {
+    size_t i = 0, tagLen = strlen(tagStr);
+
+    if(byte_chr(tagStr, tagLen, '\n') < tagLen) {
+      xml_write_string(ctx, tagStr, tagLen - 2, db, depth + 1);
+      dbuf_putc(db, '\n');
+      xml_write_indent(db, depth);
+      dbuf_putc(db, '-');
+      dbuf_putc(db, '-');
+    } else {
+      xml_write_string(ctx, tagStr, tagLen, db, depth + 1);
+    }
+  } else if(JS_IsObject(attributes)) {
+    dbuf_putstr(db, tagStr);
+    xml_write_attributes(ctx, attributes, db);
+  }
+
+  dbuf_putstr(db,
+              (JS_IsObject(children) || isComment)
+                  ? ">"
+                  : tagStr[0] == '?' ? "?>" : tagStr[0] == '!' ? "!>" : " />");
+  dbuf_putc(db, '\n');
+
+  JS_FreeCString(ctx, tagStr);
+
+  JS_FreeValue(ctx, tagName);
+  JS_FreeValue(ctx, attributes);
+  JS_FreeValue(ctx, children);
+}
+
+static void
+xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
+  JSAtom tagName = JS_NewAtom(ctx, "tagName");
+  JSAtom children = JS_NewAtom(ctx, "children");
+
+  JSValue tag = JS_GetProperty(ctx, element, tagName);
+  JSValue childNodes = JS_GetProperty(ctx, element, children);
+
+  if(JS_IsArray(ctx, childNodes)) {
+    const char* tagStr;
+    size_t tagLen;
+
+    tagStr = JS_ToCStringLen(ctx, &tagLen, tag);
+
+    xml_write_indent(db, depth);
+
+    dbuf_putstr(db, "</");
+    dbuf_put(db, (const uint8_t*)tagStr, tagLen);
+    dbuf_putstr(db, ">");
+    dbuf_putc(db, '\n');
     JS_FreeCString(ctx, tagStr);
+  }
 
-    JS_FreeValue(ctx, tagName);
-    JS_FreeValue(ctx, attributes);
-    JS_FreeValue(ctx, children);
-}
-
-static void
-xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth)
-{
-    JSAtom tagName = JS_NewAtom(ctx, "tagName");
-    JSAtom children = JS_NewAtom(ctx, "children");
-
-    JSValue tag = JS_GetProperty(ctx, element, tagName);
-    JSValue childNodes = JS_GetProperty(ctx, element, children);
-
-    if(JS_IsArray(ctx, childNodes)) {
-        const char* tagStr;
-        size_t tagLen;
-
-        tagStr = JS_ToCStringLen(ctx, &tagLen, tag);
-
-        xml_write_indent(db, depth);
-
-        dbuf_putstr(db, "</");
-        dbuf_put(db, (const uint8_t*)tagStr, tagLen);
-        dbuf_putstr(db, ">");
-        dbuf_putc(db, '\n');
-        JS_FreeCString(ctx, tagStr);
-    }
-
-    JS_FreeValue(ctx, tag);
-    JS_FreeValue(ctx, childNodes);
-    js_atom_free(ctx, tagName);
-    js_atom_free(ctx, children);
+  JS_FreeValue(ctx, tag);
+  JS_FreeValue(ctx, childNodes);
+  js_atom_free(ctx, tagName);
+  js_atom_free(ctx, children);
 }
 
 static PropertyEnumeration*
-xml_enumeration_next(vector* vec, JSContext* ctx, DynBuf* db)
-{
-    PropertyEnumeration* it;
-    JSValue value = JS_UNDEFINED, children;
+xml_enumeration_next(vector* vec, JSContext* ctx, DynBuf* db) {
+  PropertyEnumeration* it;
+  JSValue value = JS_UNDEFINED, children;
 
-    it = vector_back(vec, sizeof(PropertyEnumeration));
+  it = vector_back(vec, sizeof(PropertyEnumeration));
+  value = property_enumeration_value(it, ctx);
+
+  if(JS_IsObject(value)) {
+    children = JS_GetPropertyStr(ctx, value, "children");
+    JS_FreeValue(ctx, value);
+    if(!JS_IsUndefined(children)) {
+      if((it = property_enumeration_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)))
+        if(property_enumeration_setpos(it, 0))
+          return it;
+    }
+  } else {
+    JS_FreeValue(ctx, value);
+  }
+
+  for(;;) {
+    if(property_enumeration_setpos(it, it->idx + 1))
+      break;
+
+    if((it = property_enumeration_pop(vec, ctx)) == 0)
+      break;
+
     value = property_enumeration_value(it, ctx);
+    xml_close_element(ctx, value, db, (int32_t)vector_size(vec, sizeof(PropertyEnumeration)) - 1);
+    JS_FreeValue(ctx, value);
+  }
 
-    if(JS_IsObject(value)) {
-        children = JS_GetPropertyStr(ctx, value, "children");
-        JS_FreeValue(ctx, value);
-        if(!JS_IsUndefined(children)) {
-            if((it = property_enumeration_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)))
-                if(property_enumeration_setpos(it, 0))
-                    return it;
-        }
-    } else {
-        JS_FreeValue(ctx, value);
-    }
-
-    for(;;) {
-        if(property_enumeration_setpos(it, it->idx + 1))
-            break;
-
-        if((it = property_enumeration_pop(vec, ctx)) == 0)
-            break;
-
-        value = property_enumeration_value(it, ctx);
-        xml_close_element(ctx, value, db, (int32_t)vector_size(vec, sizeof(PropertyEnumeration)) - 1);
-        JS_FreeValue(ctx, value);
-    }
-
-    return it;
+  return it;
 }
 
 static JSValue
-js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len)
-{
-    BOOL done = FALSE;
-    JSValue ret;
-    const uint8_t *ptr, *end, *start;
-    uint8_t c;
-    OutputValue* out;
-    JSValue element = JS_UNDEFINED;
-    vector st = VECTOR_INIT();
-    ptr = buf;
-    end = buf + len;
+js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
+  BOOL done = FALSE;
+  JSValue ret;
+  const uint8_t *ptr, *end, *start;
+  uint8_t c;
+  OutputValue* out;
+  JSValue element = JS_UNDEFINED;
+  vector st = VECTOR_INIT();
+  ptr = buf;
+  end = buf + len;
 
-    ret = JS_NewArray(ctx);
+  ret = JS_NewArray(ctx);
 
-    out = vector_push(&st, sizeof(OutputValue));
-    out->obj = ret;
-    out->idx = 0;
+  out = vector_push(&st, sizeof(OutputValue));
+  out->obj = ret;
+  out->idx = 0;
 
-    while(!done) {
+  while(!done) {
+    skip_ws();
+    start = ptr;
+    skip_until(char_is(c, START));
+
+    if(done)
+      break;
+    if(ptr > start) {
+      size_t len;
+      //  while(start < ptr && is_whitespace_char(*start)) start++;
+      len = ptr - start;
+      while(len > 0 && is_whitespace_char(start[len - 1])) len--;
+
+      JSValue str = JS_NewStringLen(ctx, (const char*)start, len);
+      JS_SetPropertyUint32(ctx, out->obj, out->idx++, str);
+    }
+    if(char_is(c, START)) {
+      const uint8_t* name;
+      size_t namelen;
+      BOOL closing = FALSE, self_closing = FALSE;
+      next();
+      if(char_is(c, SLASH)) {
+        closing = TRUE;
+        next();
+      }
+      name = ptr;
+      skip_until(char_is(c, WS | END));
+      namelen = ptr - name;
+      if(closing) {
         skip_ws();
-        start = ptr;
-        skip_until(char_is(c, START));
+        if(char_is(c, CLOSE))
+          next();
+        if(out->namelen == namelen && !memcmp(out->name, name, namelen)) {
+          pop();
+          continue;
+        }
+      }
+      element = JS_NewObject(ctx);
+      JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
+      if(namelen && (char_is(name[0], (QUESTION | EXCLAM))))
+        self_closing = TRUE;
 
-        if(done)
+      if(namelen >= 3 && char_is(start[0], EXCLAM) && char_is(start[1], HYPHEN) &&
+         char_is(start[2], HYPHEN)) {
+        /*  next();
+          next();*/
+        while(!done) {
+          next();
+          if(end - ptr >= 3 && char_is(ptr[0], HYPHEN) && char_is(ptr[1], HYPHEN) &&
+             char_is(ptr[2], CLOSE)) {
+            ptr += 2;
             break;
-        if(ptr > start) {
-            size_t len;
-            //  while(start < ptr && is_whitespace_char(*start)) start++;
-            len = ptr - start;
-            while(len > 0 && is_whitespace_char(start[len - 1])) len--;
-
-            JSValue str = JS_NewStringLen(ctx, (const char*)start, len);
-            JS_SetPropertyUint32(ctx, out->obj, out->idx++, str);
+          }
         }
-        if(char_is(c, START)) {
-            const uint8_t* name;
-            size_t namelen;
-            BOOL closing = FALSE, self_closing = FALSE;
+        namelen = ptr - name;
+
+      } else if(namelen && char_is(name[0], EXCLAM)) {
+        skip_until(char_is(c, CLOSE));
+        namelen = ptr - name;
+      }
+      xml_set_attr_bytes(ctx, element, "tagName", 7, name, namelen);
+
+      if(namelen && char_is(name[0], EXCLAM)) {
+        next();
+        continue;
+      }
+      if(!closing) {
+        const uint8_t *attr, *value;
+        size_t alen, vlen;
+        JSValue attributes = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, element, "attributes", attributes);
+        while(!done) {
+          skip_ws();
+          if(char_is(c, END))
+            break;
+          attr = ptr;
+          skip_until(char_is(c, EQUAL | WS | SPECIAL | CLOSE));
+          if((alen = ptr - attr) == 0)
+            break;
+          if(char_is(c, WS | CLOSE | SLASH)) {
+            xml_set_attr_value(ctx, attributes, (const char*)attr, alen, JS_NewBool(ctx, TRUE));
+            continue;
+          }
+          if(char_is(c, EQUAL)) {
             next();
-            if(char_is(c, SLASH)) {
-                closing = TRUE;
-                next();
-            }
-            name = ptr;
-            skip_until(char_is(c, WS | END));
-            namelen = ptr - name;
-            if(closing) {
-                skip_ws();
-                if(char_is(c, CLOSE))
-                    next();
-                if(out->namelen == namelen && !memcmp(out->name, name, namelen)) {
-                    pop();
-                    continue;
-                }
-            }
-            element = JS_NewObject(ctx);
-            JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
-            if(namelen && (char_is(name[0], (QUESTION | EXCLAM))))
-                self_closing = TRUE;
-
-            if(namelen >= 3 && char_is(start[0], EXCLAM) && char_is(start[1], HYPHEN) && char_is(start[2], HYPHEN)) {
-                /*  next();
-                  next();*/
-                while(!done) {
-                    next();
-                    if(end - ptr >= 3 && char_is(ptr[0], HYPHEN) && char_is(ptr[1], HYPHEN) && char_is(ptr[2], CLOSE)) {
-                        ptr += 2;
-                        break;
-                    }
-                }
-                namelen = ptr - name;
-
-            } else if(namelen && char_is(name[0], EXCLAM)) {
-                skip_until(char_is(c, CLOSE));
-                namelen = ptr - name;
-            }
-            xml_set_attr_bytes(ctx, element, "tagName", 7, name, namelen);
-
-            if(namelen && char_is(name[0], EXCLAM)) {
-                next();
-                continue;
-            }
-            if(!closing) {
-                const uint8_t *attr, *value;
-                size_t alen, vlen;
-                JSValue attributes = JS_NewObject(ctx);
-                JS_SetPropertyStr(ctx, element, "attributes", attributes);
-                while(!done) {
-                    skip_ws();
-                    if(char_is(c, END))
-                        break;
-                    attr = ptr;
-                    skip_until(char_is(c, EQUAL | WS | SPECIAL | CLOSE));
-                    if((alen = ptr - attr) == 0)
-                        break;
-                    if(char_is(c, WS | CLOSE | SLASH)) {
-                        xml_set_attr_value(ctx, attributes, (const char*)attr, alen, JS_NewBool(ctx, TRUE));
-                        continue;
-                    }
-                    if(char_is(c, EQUAL)) {
-                        next();
-                        if(char_is(c, QUOTE))
-                            next();
-                        value = ptr;
-                        skip_until(char_is(c, QUOTE));
-                        vlen = ptr - value;
-                        if(char_is(c, QUOTE))
-                            next();
-                        xml_set_attr_bytes(ctx, attributes, (const char*)attr, alen, value, vlen);
-                    }
-                }
-                if(char_is(c, SLASH)) {
-                    self_closing = TRUE;
-                    next();
-                }
-
-                if(char_is(name[0], QUESTION | EXCLAM)) {
-                    if(chars[c] == chars[name[0]])
-                        next();
-                    pop();
-                } else if(!self_closing) {
-                    out = vector_push(&st, sizeof(OutputValue));
-                    out->obj = JS_NewArray(ctx);
-                    out->idx = 0;
-                    out->name = name;
-                    out->namelen = namelen;
-                    JS_SetPropertyStr(ctx, element, "children", out->obj);
-                }
-            }
-
-            skip_ws();
-            if(char_is(c, CLOSE))
-                next();
+            if(char_is(c, QUOTE))
+              next();
+            value = ptr;
+            skip_until(char_is(c, QUOTE));
+            vlen = ptr - value;
+            if(char_is(c, QUOTE))
+              next();
+            xml_set_attr_bytes(ctx, attributes, (const char*)attr, alen, value, vlen);
+          }
         }
+        if(char_is(c, SLASH)) {
+          self_closing = TRUE;
+          next();
+        }
+
+        if(char_is(name[0], QUESTION | EXCLAM)) {
+          if(chars[c] == chars[name[0]])
+            next();
+          pop();
+        } else if(!self_closing) {
+          out = vector_push(&st, sizeof(OutputValue));
+          out->obj = JS_NewArray(ctx);
+          out->idx = 0;
+          out->name = name;
+          out->namelen = namelen;
+          JS_SetPropertyStr(ctx, element, "children", out->obj);
+        }
+      }
+
+      skip_ws();
+      if(char_is(c, CLOSE))
+        next();
     }
-    return ret;
+  }
+  return ret;
 }
 
 static JSValue
-js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
-{
-    JSValue ret;
-    InputValue input = js_value_to_bytes(ctx, argv[0]);
+js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  JSValue ret;
+  InputValue input = js_value_to_bytes(ctx, argv[0]);
 
-    if(input.x == 0 || input.n == 0) {
-        JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
-        return JS_EXCEPTION;
-    }
+  if(input.x == 0 || input.n == 0) {
+    JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
+    return JS_EXCEPTION;
+  }
 
-    ret = js_xml_parse(ctx, input.x, input.n);
+  ret = js_xml_parse(ctx, input.x, input.n);
 
-    input.free(ctx, (void*)input.x);
-    return ret;
+  input.free(ctx, (void*)input.x);
+  return ret;
 }
 
 static JSValue
-js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
-{
+js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
 
-    vector enumerations = VECTOR_INIT();
-    DynBuf output = { 0 };
-    JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
-    PropertyEnumeration* it;
-    JSValue value = JS_UNDEFINED;
-    JSValue str;
-    it = property_enumeration_push(&enumerations, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
-    //  dbuf_init(&output);
-    dbuf_init2(&output, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  vector enumerations = VECTOR_INIT();
+  DynBuf output = {0};
+  JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
+  PropertyEnumeration* it;
+  JSValue value = JS_UNDEFINED;
+  JSValue str;
+  it = property_enumeration_push(&enumerations, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
+  //  dbuf_init(&output);
+  dbuf_init2(&output, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
 
-    do {
-        int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
-        value = property_enumeration_value(it, ctx);
-        if(JS_IsObject(value))
-            xml_write_element(ctx, value, &output, depth);
-        else if(JS_IsString(value))
-            xml_write_text(ctx, value, &output, depth);
-        JS_FreeValue(ctx, value);
-    } while((it = xml_enumeration_next(&enumerations, ctx, &output)));
-    while(output.size > 0 && (output.buf[output.size - 1] == '\0' || byte_chr("\r\n\t ", 4, output.buf[output.size - 1]) < 4)) output.size--;
-    dbuf_putc(&output, '\0');
+  do {
+    int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
+    value = property_enumeration_value(it, ctx);
+    if(JS_IsObject(value))
+      xml_write_element(ctx, value, &output, depth);
+    else if(JS_IsString(value))
+      xml_write_text(ctx, value, &output, depth);
+    JS_FreeValue(ctx, value);
+  } while((it = xml_enumeration_next(&enumerations, ctx, &output)));
+  while(output.size > 0 &&
+        (output.buf[output.size - 1] == '\0' || byte_chr("\r\n\t ", 4, output.buf[output.size - 1]) < 4))
+    output.size--;
+  dbuf_putc(&output, '\0');
 
-    str = JS_NewString(ctx, (const char*)output.buf);
-    // str = JS_NewStringLen(ctx, output.buf, output.size);
+  str = JS_NewString(ctx, (const char*)output.buf);
+  // str = JS_NewStringLen(ctx, output.buf, output.size);
 
-    dbuf_free(&output);
+  dbuf_free(&output);
 
-    vector_foreach_t(&enumerations, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
-    vector_free(&enumerations);
-    return str;
+  vector_foreach_t(&enumerations, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
+  vector_free(&enumerations);
+  return str;
 }
 
 static const JSCFunctionListEntry js_xml_funcs[] = {
@@ -499,12 +495,11 @@ static const JSCFunctionListEntry js_xml_funcs[] = {
 };
 
 static int
-js_xml_init(JSContext* ctx, JSModuleDef* m)
-{
+js_xml_init(JSContext* ctx, JSModuleDef* m) {
 
-    character_classes_init(chars);
+  character_classes_init(chars);
 
-    return JS_SetModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
+  return JS_SetModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
 }
 
 #ifdef JS_SHARED_LIBRARY
@@ -514,12 +509,11 @@ js_xml_init(JSContext* ctx, JSModuleDef* m)
 #endif
 
 JSModuleDef*
-JS_INIT_MODULE(JSContext* ctx, const char* module_name)
-{
-    JSModuleDef* m;
-    m = JS_NewCModule(ctx, module_name, js_xml_init);
-    if(!m)
-        return NULL;
-    JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
-    return m;
+JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
+  JSModuleDef* m;
+  m = JS_NewCModule(ctx, module_name, js_xml_init);
+  if(!m)
+    return NULL;
+  JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
+  return m;
 }

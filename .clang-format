@@ -7,7 +7,7 @@ AlignTrailingComments: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortBlocksOnASingleLine: true
 AllowShortCaseLabelsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: All
+AllowShortFunctionsOnASingleLine: InlineOnly
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: true
 AlwaysBreakAfterDefinitionReturnType: TopLevel
@@ -21,15 +21,15 @@ BraceWrapping:
   AfterEnum: false
   AfterFunction: false
   AfterNamespace: false
-  AfterStruct: true
+  AfterStruct: false
   AfterUnion: false
   BeforeCatch: false
   BeforeElse: false
-  IndentBraces: true
+  IndentBraces: false
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Attach
 BreakBeforeTernaryOperators: true
-BreakConstructorInitializersBeforeComma: true
+BreakConstructorInitializersBeforeComma: false
 CommentPragmas: '^ IWYU pragma:'
 ConstructorInitializerAllOnOneLineOrOnePerLine: false
 DisableFormat: false
@@ -53,7 +53,9 @@ SpacesInParentheses: false
 SpacesInSquareBrackets: false
 UseTab: Never
 AlwaysBreakAfterDefinitionReturnType: All
-ColumnLimit: 200
+ColumnLimit: 108
+ConstructorInitializerIndentWidth: 4
+ContinuationIndentWidth: 4
 IndentWidth: 2
 MaxEmptyLinesToKeep: 1
 PenaltyBreakBeforeFirstCallParameter: 120
@@ -63,16 +65,5 @@ PenaltyBreakString: 1000
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 100
 SpacesBeforeTrailingComments: 1
+TabWidth: 2
 SpaceAfterTemplateKeyword: false
-BreakBeforeBraces: Custom
-BraceWrapping:
-  AfterEnum: true
-  AfterStruct: true
-  SplitEmptyFunction: false
-Cpp11BracedListStyle: false
-ContinuationIndentWidth: 2
-BreakBeforeBinaryOperators: NonAssignment
-BreakBeforeBraces: Linux
-IndentWidth: 4
-UseTab: Never
-BreakBeforeBinaryOperators: All

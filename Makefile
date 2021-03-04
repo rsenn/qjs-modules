@@ -1,4 +1,4 @@
-MODULES = inspect mmap path pointer tree-walker xml
+MODULES = deep inspect mmap path pointer tree-walker xml
 
 QUICKJS_PREFIX ?= /usr/local
 
@@ -41,6 +41,9 @@ install:
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< 
+
+$(BUILDDIR)deep.$(SUFFIX): quickjs-deep.c vector.c
+	$(CC) $(CFLAGS) -shared -o $@ $^
 
 $(BUILDDIR)inspect.$(SUFFIX): quickjs-inspect.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
