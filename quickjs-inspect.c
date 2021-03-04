@@ -556,12 +556,9 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
 
 static int
 js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
-
   int tag = JS_VALUE_GET_TAG(value);
   int compact = INSPECT_IS_COMPACT(opts);
-
-  // if(level) printf("js_inspect_print level: %d\n", level);
-
+ //printf("js_inspect_print level: %d\n", INSPECT_LEVEL(opts));
   switch(tag) {
     case JS_TAG_FLOAT64:
     case JS_TAG_BIG_DECIMAL:

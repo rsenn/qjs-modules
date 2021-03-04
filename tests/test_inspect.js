@@ -10,6 +10,7 @@ globalThis.inspect = inspect;
 
 async function main(...args) {
   console.log('main:', args);
+
   console = new Console({ colors: true, depth: 1 });
 
   let winsz;

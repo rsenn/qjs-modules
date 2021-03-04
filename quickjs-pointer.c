@@ -4,6 +4,7 @@
 #include "cutils.h"
 #include "libregexp.h"
 #include "utils.h"
+#include "quickjs-pointer.h"
 #include <string.h>
 
 JSClassID js_pointer_class_id;
@@ -22,12 +23,7 @@ enum pointer_methods {
 };
 enum pointer_getters { PROP_LENGTH = 0, PROP_PATH };
 
-typedef struct {
-  int64_t n;
-  JSAtom* atoms;
-} Pointer;
-
-static void
+void
 pointer_reset(Pointer* ptr, JSContext* ctx) {
   size_t i;
 
@@ -39,13 +35,13 @@ pointer_reset(Pointer* ptr, JSContext* ctx) {
   ptr->n = 0;
 }
 
-static void
+void
 pointer_atom_add(Pointer* ptr, JSContext* ctx, JSAtom atom) {
   ptr->atoms = realloc(ptr->atoms, (ptr->n + 1) * sizeof(JSAtom));
   ptr->atoms[ptr->n++] = atom;
 }
 
-static void
+void
 pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color) {
   size_t i;
 
@@ -58,7 +54,7 @@ pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color) {
   }
 }
 
-static Pointer*
+Pointer*
 pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
   Pointer* ret = js_mallocz(ctx, sizeof(Pointer));
   int64_t i;
@@ -76,7 +72,7 @@ pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
   return ret;
 }
 
-static JSValue
+JSValue
 pointer_shift(Pointer* ptr, JSContext* ctx, JSValueConst obj) {
   JSValue ret;
   if(ptr->n) {

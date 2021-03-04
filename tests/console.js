@@ -63,16 +63,27 @@ export function Console(opts = {}) {
     },
     log(...args) {
       let tempOpts = new ConsoleOptions(this.options);
-      return log.call(this,
-        ...args.reduce((acc, arg, i) => {
-          if(typeof arg && arg != null && arg instanceof ConsoleOptions) tempOpts.merge(arg);
-          else if(typeof arg == 'object' || i > 0)
-            acc.push(typeof arg == 'string' && arg.indexOf('\x1b') != -1 ? arg : inspect(arg, tempOpts)
-            );
-          else acc.push(arg);
-          return acc;
-        }, [])
-      );
+      let acc = [];
+      let i = 0;
+      //console.reallog("args:", args);
+
+      for(let arg of args) {
+        try {
+          if(typeof arg == 'object') {
+            if(arg == null) acc.push('null');
+            else if(arg.merge === ConsoleOptions.prototype.merge) tempOpts.merge(arg);
+            else if(i++ > 0)
+              acc.push(typeof arg == 'string' && arg.indexOf('\x1b') != -1 ? arg : inspect(arg, tempOpts)
+              );
+            else acc.push(arg);
+          } else {
+            acc.push(arg);
+          }
+        } catch(error) {
+          //console.reallog("error:", error);
+        }
+      }
+      return log.call(this, acc.join(' '));
     }
   });
 
