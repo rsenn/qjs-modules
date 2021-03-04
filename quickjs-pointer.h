@@ -1,6 +1,10 @@
 #ifndef QJS_MODULES_POINTER_H
 #define QJS_MODULES_POINTER_H
 
+#include "quickjs.h"
+#include "cutils.h"
+#include <stdint.h>
+
 typedef struct {
   int64_t n;
   JSAtom* atoms;

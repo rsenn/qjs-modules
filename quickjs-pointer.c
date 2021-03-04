@@ -1,10 +1,8 @@
 #define _GNU_SOURCE
 
-#include "quickjs.h"
-#include "cutils.h"
+#include "quickjs-pointer.h"
 #include "libregexp.h"
 #include "utils.h"
-#include "quickjs-pointer.h"
 #include <string.h>
 
 JSClassID js_pointer_class_id = 0;
@@ -345,36 +343,36 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
     return JS_EXCEPTION;
 
   switch(magic) {
-    case METHOD_DEREF: {
-      return js_pointer_deref(ctx, ptr, this_val, argv[0]);
-    }
-    case METHOD_TO_STRING: {
-      return js_pointer_tostring(ctx, this_val);
-    }
-    case METHOD_TO_ARRAY: {
-      return js_pointer_toarray(ctx, ptr);
-    }
-    case METHOD_INSPECT: {
-      return js_pointer_inspect(ctx, this_val, TRUE);
-    }
-    case METHOD_SLICE: {
-      return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, js_int64_default(ctx, argv[0], 0), js_int64_default(ctx, argv[1], 0)));
-    }
-    case METHOD_KEYS: {
-      JSValue array = js_pointer_toarray(ctx, ptr);
-      JSValue iter = js_iterator_new(ctx, array);
-      JS_FreeValue(ctx, array);
-      return iter;
-    }
-    case METHOD_VALUES: {
-      JSValue array = js_pointer_toarray(ctx, ptr);
-      JSValue iter = js_iterator_new(ctx, array);
-      JS_FreeValue(ctx, array);
-      return iter;
-    }
-    case METHOD_SHIFT: {
-      return pointer_shift(ptr, ctx, argv[0]);
-    }
+  case METHOD_DEREF: {
+    return js_pointer_deref(ctx, ptr, this_val, argv[0]);
+  }
+  case METHOD_TO_STRING: {
+    return js_pointer_tostring(ctx, this_val);
+  }
+  case METHOD_TO_ARRAY: {
+    return js_pointer_toarray(ctx, ptr);
+  }
+  case METHOD_INSPECT: {
+    return js_pointer_inspect(ctx, this_val, TRUE);
+  }
+  case METHOD_SLICE: {
+    return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, js_int64_default(ctx, argv[0], 0), js_int64_default(ctx, argv[1], 0)));
+  }
+  case METHOD_KEYS: {
+    JSValue array = js_pointer_toarray(ctx, ptr);
+    JSValue iter = js_iterator_new(ctx, array);
+    JS_FreeValue(ctx, array);
+    return iter;
+  }
+  case METHOD_VALUES: {
+    JSValue array = js_pointer_toarray(ctx, ptr);
+    JSValue iter = js_iterator_new(ctx, array);
+    JS_FreeValue(ctx, array);
+    return iter;
+  }
+  case METHOD_SHIFT: {
+    return pointer_shift(ptr, ctx, argv[0]);
+  }
   }
   return JS_EXCEPTION;
 }
@@ -387,12 +385,12 @@ js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PROP_LENGTH: {
-      return JS_NewInt64(ctx, ptr->n);
-    }
-    case PROP_PATH: {
-      return js_pointer_toarray(ctx, ptr);
-    }
+  case PROP_LENGTH: {
+    return JS_NewInt64(ctx, ptr->n);
+  }
+  case PROP_PATH: {
+    return js_pointer_toarray(ctx, ptr);
+  }
   }
   return JS_UNDEFINED;
 }
@@ -405,10 +403,10 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PROP_PATH: {
-      js_pointer_fromiterable(ctx, ptr, value);
-      break;
-    }
+  case PROP_PATH: {
+    js_pointer_fromiterable(ctx, ptr, value);
+    break;
+  }
   }
   return JS_UNDEFINED;
 }
@@ -424,21 +422,21 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   ret = js_pointer_wrap(ctx, ptr);
 
   switch(magic) {
-    case STATIC_FROM: {
-      if(JS_IsArray(ctx, argv[0]))
-        js_pointer_fromarray(ctx, ptr, argv[0]);
-      else
-        js_pointer_fromiterable(ctx, ptr, argv[0]);
-      break;
+  case STATIC_FROM: {
+    if(JS_IsArray(ctx, argv[0]))
+      js_pointer_fromarray(ctx, ptr, argv[0]);
+    else
+      js_pointer_fromiterable(ctx, ptr, argv[0]);
+    break;
+  }
+  case STATIC_OF: {
+    int i;
+    for(i = 0; i < argc; i++) {
+      JSAtom atom = JS_ValueToAtom(ctx, argv[i]);
+      pointer_push(ptr, atom);
     }
-    case STATIC_OF: {
-      int i;
-      for(i = 0; i < argc; i++) {
-        JSAtom atom = JS_ValueToAtom(ctx, argv[i]);
-        pointer_push(ptr, atom);
-      }
-      break;
-    }
+    break;
+  }
   }
   return ret;
 }
@@ -459,24 +457,30 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 JSClassDef js_pointer_class = {
-    .class_name = "Pointer",
-    .finalizer = js_pointer_finalizer,
+  .class_name = "Pointer",
+  .finalizer = js_pointer_finalizer,
 };
-static const JSCFunctionListEntry js_pointer_proto_funcs[] = {JS_CFUNC_MAGIC_DEF("deref", 1, js_pointer_method, METHOD_DEREF),
-                                                              JS_CFUNC_MAGIC_DEF("toString", 0, js_pointer_method, METHOD_TO_STRING),
-                                                              JS_CFUNC_MAGIC_DEF("toArray", 0, js_pointer_method, METHOD_TO_ARRAY),
-                                                              JS_CFUNC_MAGIC_DEF("inspect", 0, js_pointer_method, METHOD_INSPECT),
-                                                              JS_CFUNC_MAGIC_DEF("shift", 1, js_pointer_method, METHOD_SHIFT),
-                                                              JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, METHOD_SLICE),
-                                                              JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
-                                                              JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, METHOD_VALUES),
-                                                              JS_ALIAS_DEF("toPrimitive", "toString"),
-                                                              JS_ALIAS_DEF("[Symbol.iterator]", "keys"),
-                                                              JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),
-                                                              JS_CGETSET_MAGIC_DEF("path", js_pointer_get, js_pointer_set, PROP_PATH),
-                                                              JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Pointer", JS_PROP_C_W_E)};
 
-static const JSCFunctionListEntry js_pointer_static_funcs[] = {JS_CFUNC_MAGIC_DEF("from", 1, js_pointer_funcs, STATIC_FROM), JS_CFUNC_MAGIC_DEF("of", 0, js_pointer_funcs, STATIC_OF)};
+static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
+  JS_CFUNC_MAGIC_DEF("deref", 1, js_pointer_method, METHOD_DEREF),
+  JS_CFUNC_MAGIC_DEF("toString", 0, js_pointer_method, METHOD_TO_STRING),
+  JS_CFUNC_MAGIC_DEF("toArray", 0, js_pointer_method, METHOD_TO_ARRAY),
+  JS_CFUNC_MAGIC_DEF("inspect", 0, js_pointer_method, METHOD_INSPECT),
+  JS_CFUNC_MAGIC_DEF("shift", 1, js_pointer_method, METHOD_SHIFT),
+  JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, METHOD_SLICE),
+  JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
+  JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, METHOD_VALUES),
+  JS_ALIAS_DEF("toPrimitive", "toString"),
+  JS_ALIAS_DEF("[Symbol.iterator]", "keys"),
+  JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),
+  JS_CGETSET_MAGIC_DEF("path", js_pointer_get, js_pointer_set, PROP_PATH),
+  JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Pointer", JS_PROP_C_W_E)
+};
+
+static const JSCFunctionListEntry js_pointer_static_funcs[] = {
+  JS_CFUNC_MAGIC_DEF("from", 1, js_pointer_funcs, STATIC_FROM),
+  JS_CFUNC_MAGIC_DEF("of", 0, js_pointer_funcs, STATIC_OF)
+};
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {

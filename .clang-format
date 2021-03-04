@@ -21,11 +21,11 @@ BraceWrapping:
   AfterEnum: false
   AfterFunction: false
   AfterNamespace: false
-  AfterStruct: false
+  AfterStruct: true
   AfterUnion: false
   BeforeCatch: false
   BeforeElse: false
-  IndentBraces: false
+  IndentBraces: true
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Attach
 BreakBeforeTernaryOperators: true
@@ -54,8 +54,6 @@ SpacesInSquareBrackets: false
 UseTab: Never
 AlwaysBreakAfterDefinitionReturnType: All
 ColumnLimit: 200
-ConstructorInitializerIndentWidth: 4
-ContinuationIndentWidth: 4
 IndentWidth: 2
 MaxEmptyLinesToKeep: 1
 PenaltyBreakBeforeFirstCallParameter: 120
@@ -65,5 +63,16 @@ PenaltyBreakString: 1000
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 100
 SpacesBeforeTrailingComments: 1
-TabWidth: 2
 SpaceAfterTemplateKeyword: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterEnum: true
+  AfterStruct: true
+  SplitEmptyFunction: false
+Cpp11BracedListStyle: false
+ContinuationIndentWidth: 2
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Linux
+IndentWidth: 4
+UseTab: Never
+BreakBeforeBinaryOperators: All
