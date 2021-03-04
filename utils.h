@@ -69,6 +69,12 @@ sign_int32(uint32_t i) {
   return (i & 0x80000000) ? -1 : 1;
 }
 
+static inline int32_t
+mod_int32(int32_t a, int32_t b) {
+  int32_t c = a % b;
+  return (c < 0) ? c + b : c;
+}
+
 static inline size_t
 byte_count(const void* s, size_t n, char c) {
   const unsigned char* t;
