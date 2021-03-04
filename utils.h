@@ -7,8 +7,7 @@
 
 #define max_num(a, b) ((a) > (b) ? (a) : (b))
 
-#define is_control_char(c)                                                                                             \
-  ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
+#define is_control_char(c) ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_newline_char(c) ((c) == '\n')
@@ -339,9 +338,9 @@ dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len) {
   return 0;
 }
 
-#define js_object_tmpmark_set(value)                                                                                   \
+#define js_object_tmpmark_set(value)                                                                                                                                                                   \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
-#define js_object_tmpmark_clear(value)                                                                                 \
+#define js_object_tmpmark_clear(value)                                                                                                                                                                 \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
 
@@ -398,15 +397,15 @@ js_value_dump(JSContext* ctx, JSValue value, DynBuf* db) {
   }
 }
 
-#define js_value_free(ctx, value)                                                                                      \
-  do {                                                                                                                 \
-    JS_FreeValue((ctx), (value));                                                                                      \
-    (value) = JS_UNDEFINED;                                                                                            \
+#define js_value_free(ctx, value)                                                                                                                                                                      \
+  do {                                                                                                                                                                                                 \
+    JS_FreeValue((ctx), (value));                                                                                                                                                                      \
+    (value) = JS_UNDEFINED;                                                                                                                                                                            \
   } while(0);
-#define js_value_free_rt(ctx, value)                                                                                   \
-  do {                                                                                                                 \
-    JS_FreeValueRT((ctx), (value));                                                                                    \
-    (value) = JS_UNDEFINED;                                                                                            \
+#define js_value_free_rt(ctx, value)                                                                                                                                                                   \
+  do {                                                                                                                                                                                                 \
+    JS_FreeValueRT((ctx), (value));                                                                                                                                                                    \
+    (value) = JS_UNDEFINED;                                                                                                                                                                            \
   } while(0);
 
 static inline JSValue
@@ -526,10 +525,10 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
 #define js_atom_toint(i) (unsigned int)(((JSAtom)(i) & (~(JS_ATOM_TAG_INT))))
 
 #define js_atom_dup(ctx, atom) (js_atom_isint(atom) ? (atom) : JS_DupAtom((ctx), (atom)))
-#define js_atom_free(ctx, atom)                                                                                        \
-  do {                                                                                                                 \
-    if((atom) > 0)                                                                                                     \
-      JS_FreeAtom((ctx), (atom));                                                                                      \
+#define js_atom_free(ctx, atom)                                                                                                                                                                        \
+  do {                                                                                                                                                                                                 \
+    if((atom) > 0)                                                                                                                                                                                     \
+      JS_FreeAtom((ctx), (atom));                                                                                                                                                                      \
   } while(0)
 
 static inline int

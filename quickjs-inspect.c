@@ -42,8 +42,7 @@ typedef struct prop_key {
 
 static int js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth);
 
-static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor,
-    set_ctor, regexp_ctor, symbol_ctor;
+static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor, set_ctor, regexp_ctor, symbol_ctor;
 
 static void
 inspect_options_init(inspect_options_t* opts) {
@@ -558,7 +557,7 @@ static int
 js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   int tag = JS_VALUE_GET_TAG(value);
   int compact = INSPECT_IS_COMPACT(opts);
- //printf("js_inspect_print level: %d\n", INSPECT_LEVEL(opts));
+  // printf("js_inspect_print level: %d\n", INSPECT_LEVEL(opts));
   switch(tag) {
     case JS_TAG_FLOAT64:
     case JS_TAG_BIG_DECIMAL:
@@ -651,11 +650,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       }
       JS_FreeCString(ctx, s);
 
-      if(JS_GetOwnPropertyNames(ctx,
-                                &props,
-                                &nprops,
-                                value,
-                                JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+      if(JS_GetOwnPropertyNames(ctx, &props, &nprops, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(is_function) {
@@ -701,12 +696,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           }
           JS_GetOwnProperty(ctx, &desc, value, js_atom_fromint(pos));
           if(desc.flags & JS_PROP_GETSET)
-            dbuf_put_colorstr(buf,
-                              JS_IsUndefined(desc.getter)
-                                  ? "[Setter]"
-                                  : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
-                              COLOR_MARINE,
-                              opts->colors);
+            dbuf_put_colorstr(buf, JS_IsUndefined(desc.getter) ? "[Setter]" : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]", COLOR_MARINE, opts->colors);
           else
             js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
           js_propertydescriptor_free(ctx, &desc);
@@ -753,11 +743,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         JS_FreeValue(ctx, key);
         JS_GetOwnProperty(ctx, &desc, value, props[pos].atom);
         if(desc.flags & JS_PROP_GETSET)
-          dbuf_put_colorstr(buf,
-                            JS_IsUndefined(desc.getter) ? "[Setter]"
-                                                        : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
-                            COLOR_MARINE,
-                            opts->colors);
+          dbuf_put_colorstr(buf, JS_IsUndefined(desc.getter) ? "[Setter]" : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]", COLOR_MARINE, opts->colors);
         else
           js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
         js_propertydescriptor_free(ctx, &desc);

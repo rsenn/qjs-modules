@@ -8,17 +8,7 @@
 #include <quickjs-config.h>
 #endif
 
-typedef enum JSErrorEnum {
-  JS_EVAL_ERROR,
-  JS_RANGE_ERROR,
-  JS_REFERENCE_ERROR,
-  JS_SYNTAX_ERROR,
-  JS_TYPE_ERROR,
-  JS_URI_ERROR,
-  JS_INTERNAL_ERROR,
-  JS_AGGREGATE_ERROR,
-  JS_NATIVE_ERROR_COUNT
-} JSErrorEnum;
+typedef enum JSErrorEnum { JS_EVAL_ERROR, JS_RANGE_ERROR, JS_REFERENCE_ERROR, JS_SYNTAX_ERROR, JS_TYPE_ERROR, JS_URI_ERROR, JS_INTERNAL_ERROR, JS_AGGREGATE_ERROR, JS_NATIVE_ERROR_COUNT } JSErrorEnum;
 
 struct JSString {
   JSRefCountHeader header;
@@ -164,13 +154,7 @@ struct JSContext {
   BOOL is_error_property_enabled;
   struct list_head loaded_modules;
   JSValue (*compile_regexp)(JSContext* ctx, JSValueConst pattern, JSValueConst flags);
-  JSValue (*eval_internal)(JSContext* ctx,
-                           JSValueConst this_obj,
-                           const char* input,
-                           size_t input_len,
-                           const char* filename,
-                           int flags,
-                           int scope_idx);
+  JSValue (*eval_internal)(JSContext* ctx, JSValueConst this_obj, const char* input, size_t input_len, const char* filename, int flags, int scope_idx);
   void* user_opaque;
 };
 

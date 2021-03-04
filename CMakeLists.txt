@@ -6,6 +6,7 @@ set(inspect_SOURCES vector.c vector.h)
 set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
 set(path_SOURCES path.c path.h)
+set(pointer_SOURCES quickjs-pointer.h)
 
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"

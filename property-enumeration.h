@@ -283,8 +283,7 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
 
   vector_init(&vec);
   if(JS_IsObject(root)) {
-    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS);
-        (it = property_enumeration_recurse(&vec, ctx));) {
+    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); (it = property_enumeration_recurse(&vec, ctx));) {
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
       if(max_depth < depth)
         max_depth = depth;
