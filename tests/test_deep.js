@@ -65,6 +65,10 @@ function main(...args) {
       inspectOptions
     )
   );
+  console.log('array:', inspect([,,,,4,5,6,,,], inspectOptions));
+  let testObj = {};
+  deep.set(testObj, 'a.1.b.2.c.3',null);
+  console.log('testObj: '+ inspect(testObj, inspectOptions));
   std.gc();
 }
 

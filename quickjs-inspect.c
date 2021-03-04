@@ -711,14 +711,12 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
               inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           }
           JS_GetOwnProperty(ctx, &desc, value, js_atom_fromint(pos));
-          if(desc.flags & JS_PROP_GETSET)
-            dbuf_put_colorstr(buf,
-                              JS_IsUndefined(desc.getter)
-                                  ? "[Setter]"
-                                  : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
-                              COLOR_MARINE,
-                              opts->colors);
-          else
+          if(desc.flags & JS_PROP_GETSET) {
+            int idx = (JS_IsUndefined(desc.getter) ? 1 : 0) | (JS_IsUndefined(desc.setter) ? 2 : 0);
+            const char* strs[4] = {0, "[Getter]", "[Setter]", "[Getter/Setter]"};
+            if(idx)
+              dbuf_put_colorstr(buf, strs[idx], COLOR_MARINE, opts->colors);
+          } else
             js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
           js_propertydescriptor_free(ctx, &desc);
         }
