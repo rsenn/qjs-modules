@@ -23,9 +23,9 @@ const inspectOptions = {
   showProxy: false,
   getters: false,
   depth: Infinity,
-  maxArrayLength: 10,
+  maxArrayLength: 100,
   maxStringLength: 200,
-  compact: false,
+  compact: 2,
   hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
 };
 function main(...args) {
@@ -81,6 +81,13 @@ function main(...args) {
   console.log('flat.keys():', [...flat.keys()]);
   console.log('deep.MASK_STRING:', deep.MASK_NUMBER);
   console.log('deep:', deep);
+
+let clone = [];
+
+for(let [pointer,value] of out) {
+  deep.set(clone, pointer,value);
+}
+  console.log('clone:', clone);
 
   std.gc();
 }
