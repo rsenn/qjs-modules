@@ -32,7 +32,7 @@ path_absolute_db(DynBuf* db) {
   if(!path_isabs((const char*)db->buf)) {
     DynBuf tmp;
     dbuf_init(&tmp);
-    dbuf_put(&tmp, db->buf, db->size);
+    dbuf_append(&tmp, db->buf, db->size);
 
     dbuf_realloc(db, PATH_MAX + 1);
     if(getcwd((char*)db->buf, PATH_MAX)) {
@@ -40,7 +40,7 @@ path_absolute_db(DynBuf* db) {
     }
 
     dbuf_putc(db, PATHSEP_C);
-    dbuf_put(db, (const uint8_t*)tmp.buf, tmp.size);
+    dbuf_append(db, (const uint8_t*)tmp.buf, tmp.size);
     dbuf_free(&tmp);
     ret = 1;
   }
@@ -123,7 +123,7 @@ start:
     if(db->size && (db->buf[db->size - 1] != '/' && db->buf[db->size - 1] != '\\'))
       dbuf_putc(db, sep);
     n = path_length_s(path);
-    dbuf_put(db, (const uint8_t*)path, n);
+    dbuf_append(db, (const uint8_t*)path, n);
     if(n == 2 && path[1] == ':')
       dbuf_putc(db, sep);
     dbuf_0(db);
@@ -170,7 +170,7 @@ path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) 
     x += 2;
     size -= 2;
   }
-  dbuf_put(db, (const uint8_t*)x, size);
+  dbuf_append(db, (const uint8_t*)x, size);
   dbuf_putc(db, '\0');
   db->size--;
 
@@ -242,7 +242,7 @@ path_relative(const char* path, const char* relative_to, DynBuf* db) {
       dbuf_putc(&rel, PATHSEP_C);
 
     s = dbuf_at_n(&p, i, &n, PATHSEP_C);
-    dbuf_put(&rel, (const uint8_t*)s, n);
+    dbuf_append(&rel, (const uint8_t*)s, n);
     ++i;
   }
 
@@ -250,7 +250,7 @@ path_relative(const char* path, const char* relative_to, DynBuf* db) {
     dbuf_putstr(db, ".");
   } else {
     db->size = 0;
-    dbuf_put(db, (const uint8_t*)rel.buf, rel.size);
+    dbuf_append(db, (const uint8_t*)rel.buf, rel.size);
   }
   dbuf_free(&p);
   dbuf_free(&r);

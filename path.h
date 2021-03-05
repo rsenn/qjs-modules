@@ -105,7 +105,7 @@ path_append(const char* x, size_t len, DynBuf* db) {
     x += 2;
     len -= 2;
   }
-  dbuf_put(db, (const uint8_t*)x, len);
+  dbuf_append(db, (const uint8_t*)x, len);
 }
 static inline int
 path_getsep(const char* path) {

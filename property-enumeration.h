@@ -5,6 +5,7 @@
 
 #include "quickjs.h"
 #include "vector.h"
+#include "utils.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -92,6 +93,13 @@ property_enumeration_keystr(PropertyEnumeration* it, JSContext* ctx) {
   assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   return JS_AtomToCString(ctx, it->tab_atom[it->idx].atom);
+}
+
+static inline const char*
+property_enumeration_keystrlen(PropertyEnumeration* it, size_t* len, JSContext* ctx) {
+  assert(it->idx >= 0);
+  assert(it->idx < it->tab_atom_len);
+  return js_atom_tocstringlen(ctx, len, it->tab_atom[it->idx].atom);
 }
 
 static inline int
@@ -233,6 +241,35 @@ property_enumeration_path(vector* vec, JSContext* ctx) {
   return ret;
 }
 
+static JSValue
+property_enumeration_pathstr(vector* vec, JSContext* ctx) {
+  DynBuf dbuf;
+  PropertyEnumeration* it;
+  size_t i = 0;
+  JSValue ret;
+  dbuf_init(&dbuf);
+
+  vector_foreach_t(vec, it) {
+    const char* key;
+    if(i++ > 0)
+      dbuf_putc(&dbuf, '.');
+
+    key = property_enumeration_keystr(it, ctx);
+    dbuf_putstr(&dbuf, key);
+    JS_FreeCString(ctx, key);
+  }
+  dbuf_0(&dbuf);
+
+  ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
+  dbuf_free(&dbuf);
+  return ret;
+}
+
+/*static void
+property_enumeration_pointer(vector* vec, JSContext* ctx, struct Pointer* ptr) {
+  pointer_fromarray(ptr, ctx, property_enumeration_path(vec,ctx));
+}*/
+
 static int
 property_enumeration_insideof(vector* vec, JSValueConst val) {
   PropertyEnumeration* it;
@@ -275,6 +312,7 @@ property_enumeration_recurse(vector* vec, JSContext* ctx) {
   end:
     /* if(!it)
        break;*/
+
     break;
   }
   return it;
@@ -299,6 +337,11 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
   vector_foreach_t(&vec, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
   vector_free(&vec);
   return max_depth;
+}
+
+static inline int32_t
+property_enumeration_level(const PropertyEnumeration* it, const vector* vec) {
+  return it - (const PropertyEnumeration*)vec->data;
 }
 
 static void

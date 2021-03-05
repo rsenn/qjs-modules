@@ -252,31 +252,6 @@ js_symbol_to_c_string(JSContext* ctx, JSValueConst sym) {
   return str;
 }
 
-static int
-js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
-  int ret;
-  const char* str;
-  str = js_object_tostring(ctx, value);
-  ret = strcmp(str, cmp) == 0;
-  JS_FreeCString(ctx, str);
-  return ret;
-}
-
-static int
-js_is_map(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Map]");
-}
-
-static int
-js_is_set(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Set]");
-}
-
-static int
-js_is_generator(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Generator]");
-}
-
 static void
 js_inspect_constructors_get(JSContext* ctx) {
   global_object = JS_GetGlobalObject(ctx);
@@ -364,6 +339,11 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
   BOOL ret, finish = FALSE;
   size_t i = 0;
   int compact = INSPECT_IS_COMPACT(opts);
+  printf("js_inspect_map level=%u opts->depth=%ld depth=%ld compact=%i\n",
+         INSPECT_LEVEL(opts),
+         (long)(int32_t)opts->depth,
+         (long)(int32_t)depth,
+         compact);
   JSValue data, key, value;
   Iteration it;
   if(!(ret = iteration_method_symbol(&it, ctx, obj, "iterator"))) {
@@ -383,10 +363,10 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
       }
       dbuf_putstr(buf, compact ? " " : "  ");
       key = JS_GetPropertyUint32(ctx, data, 0);
-      js_inspect_print(ctx, buf, key, opts, depth);
+      js_inspect_print(ctx, buf, key, opts, depth - 1);
       dbuf_putstr(buf, " => ");
       value = JS_GetPropertyUint32(ctx, data, 1);
-      js_inspect_print(ctx, buf, value, opts, depth);
+      js_inspect_print(ctx, buf, value, opts, depth - 1);
       JS_FreeValue(ctx, key);
       JS_FreeValue(ctx, value);
       JS_FreeValue(ctx, data);
@@ -455,7 +435,7 @@ js_inspect_arraybuffer(
     while(str2 > str && !isspace(*--str2))
       ;
     slen = byte_chr(str2, strlen(str2), ']');
-    dbuf_put(buf, (const uint8_t*)str2, slen);
+    dbuf_append(buf, (const uint8_t*)str2, slen);
   } else {
     if(JS_IsInstanceOf(ctx, value, array_buffer_ctor))
       dbuf_putstr(buf, "ArrayBuffer");
@@ -504,7 +484,7 @@ js_inspect_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
   str = JS_ToCStringLen(ctx, &len, value);
   if(tag != JS_TAG_SYMBOL && opts->colors)
     dbuf_putstr(buf, COLOR_YELLOW);
-  dbuf_put(buf, (const uint8_t*)str, len);
+  dbuf_append(buf, (const uint8_t*)str, len);
   JS_FreeCString(ctx, str);
   if(tag <= JS_TAG_BIG_FLOAT)
     dbuf_putc(buf, tag == JS_TAG_BIG_DECIMAL ? 'm' : tag == JS_TAG_BIG_FLOAT ? 'l' : 'n');
@@ -627,7 +607,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
          JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor))
         return js_inspect_arraybuffer(ctx, buf, value, opts, depth + 1);
       if(JS_IsInstanceOf(ctx, value, map_ctor))
-        return js_inspect_map(ctx, buf, value, opts, depth + 1);
+        return js_inspect_map(ctx, buf, value, opts, depth /*+ 1*/);
       if(JS_IsInstanceOf(ctx, value, set_ctor))
         return js_inspect_set(ctx, buf, value, opts, depth + 1);
       if(JS_IsInstanceOf(ctx, value, regexp_ctor))
@@ -655,7 +635,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
         if(slen != 6 || memcmp(s + 8, "Object", 6)) {
           dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[" : "[");
-          dbuf_put(buf, (const uint8_t*)s + 8, e - (s + 8));
+          dbuf_append(buf, (const uint8_t*)s + 8, e - (s + 8));
           dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE " " : "] ");
         }
       }
@@ -763,9 +743,11 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         if(!JS_IsSymbol(key) && (is_identifier(name) || is_integer(name))) {
           dbuf_putstr(buf, name);
         } else {
-          dbuf_putc(buf, '[');
+          if(!JS_IsString(key))
+            dbuf_putc(buf, '[');
           js_inspect_print(ctx, buf, key, opts, depth - 1);
-          dbuf_putc(buf, ']');
+          if(!JS_IsString(key))
+            dbuf_putc(buf, ']');
         }
         dbuf_putstr(buf, ": ");
         JS_FreeCString(ctx, name);

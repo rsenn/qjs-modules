@@ -108,7 +108,7 @@ xml_write_value(JSContext* ctx, JSValueConst value, DynBuf* db) {
   const char* str;
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
-  dbuf_put(db, (const uint8_t*)str, len);
+  dbuf_append(db, (const uint8_t*)str, len);
   JS_FreeCString(ctx, str);
 }
 
@@ -159,7 +159,7 @@ xml_write_string(JSContext* ctx, const char* textStr, size_t textLen, DynBuf* db
       textLen--;
     }
     n = byte_chr(p, textLen, '\n');
-    dbuf_put(db, (const uint8_t*)p, n);
+    dbuf_append(db, (const uint8_t*)p, n);
     if(n < textLen)
       n++;
     p += n;
@@ -249,7 +249,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     xml_write_indent(db, depth);
 
     dbuf_putstr(db, "</");
-    dbuf_put(db, (const uint8_t*)tagStr, tagLen);
+    dbuf_append(db, (const uint8_t*)tagStr, tagLen);
     dbuf_putstr(db, ">");
     dbuf_putc(db, '\n');
     JS_FreeCString(ctx, tagStr);

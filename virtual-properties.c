@@ -9,26 +9,33 @@ struct MapAdapter {
 static BOOL
 map_has(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   struct MapAdapter* adapter = vp->opaque;
-  return JS_ToBool(ctx, JS_Invoke(ctx, vp->this_obj, adapter->has, 1, &prop));
+  JSValue ret;
+  ret = JS_Invoke(ctx, vp->this_obj, adapter->has, 1, &prop);
+  return JS_ToBool(ctx, ret);
 }
 
 static BOOL
 map_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   struct MapAdapter* adapter = vp->opaque;
-  return JS_ToBool(ctx, JS_Invoke(ctx, vp->this_obj, adapter->delete, 1, &prop));
+  JSValue ret;
+  ret = JS_Invoke(ctx, vp->this_obj, adapter->delete, 1, &prop);
+  return JS_ToBool(ctx, ret);
 }
 
 static JSValue
 map_get(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   struct MapAdapter* adapter = vp->opaque;
-  return JS_Invoke(ctx, vp->this_obj, adapter->delete, 1, &prop);
+  return JS_Invoke(ctx, vp->this_obj, adapter->get, 1, &prop);
 }
 
 static int
 map_set(VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
   struct MapAdapter* adapter = vp->opaque;
   int32_t r = -1;
-  JS_ToInt32(ctx, &r, JS_Invoke(ctx, vp->this_obj, adapter->delete, 1, &prop));
+  JSValueConst args[2] = {prop, value};
+  JSValue ret;
+  ret = JS_Invoke(ctx, vp->this_obj, adapter->set, 2, args);
+  JS_ToInt32(ctx, &r, ret);
   return r;
 }
 

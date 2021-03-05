@@ -5,7 +5,7 @@
 #include "cutils.h"
 #include <stdint.h>
 
-typedef struct {
+typedef struct Pointer {
   int64_t n;
   JSAtom* atoms;
 } Pointer;

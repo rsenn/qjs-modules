@@ -5,6 +5,60 @@
 #include <math.h>
 #include <string.h>
 
+enum value_types {
+  TYPE_UNDEFINED = 0,
+  TYPE_NULL,        // 1
+  TYPE_BOOL,        // 2
+  TYPE_INT,         // 3
+  TYPE_OBJECT,      // 4
+  TYPE_STRING,      // 5
+  TYPE_SYMBOL,      // 6
+  TYPE_BIG_FLOAT,   // 7
+  TYPE_BIG_INT,     // 8
+  TYPE_BIG_DECIMAL, // 9
+  TYPE_FLOAT64,
+  TYPE_FUNCTION = 16,
+  TYPE_ARRAY = 17
+};
+
+enum value_mask {
+  MASK_UNDEFINED = (1 << TYPE_UNDEFINED),
+  MASK_NULL = (1 << TYPE_NULL),
+  MASK_BOOL = (1 << TYPE_BOOL),
+  MASK_INT = (1 << TYPE_INT),
+  MASK_OBJECT = (1 << TYPE_OBJECT),
+  MASK_STRING = (1 << TYPE_STRING),
+  MASK_SYMBOL = (1 << TYPE_SYMBOL),
+  MASK_BIG_FLOAT = (1 << TYPE_BIG_FLOAT),
+  MASK_BIG_INT = (1 << TYPE_BIG_INT),
+  MASK_BIG_DECIMAL = (1 << TYPE_BIG_DECIMAL),
+  MASK_FLOAT64 = (1 << TYPE_FLOAT64),
+  MASK_NUMBER = (MASK_INT | MASK_BIG_FLOAT | MASK_BIG_INT | MASK_BIG_DECIMAL | MASK_FLOAT64),
+  MASK_PRIMITIVE = (MASK_UNDEFINED | MASK_NULL | MASK_BOOL | MASK_INT | MASK_STRING | MASK_SYMBOL |
+                    MASK_BIG_FLOAT | MASK_BIG_INT | MASK_BIG_DECIMAL),
+  MASK_ALL = (MASK_PRIMITIVE | MASK_OBJECT),
+  MASK_FUNCTION = (1 << TYPE_FUNCTION),
+  MASK_ARRAY = (1 << TYPE_ARRAY),
+};
+
+static inline int32_t
+js_value_type(JSValueConst value) {
+  switch(JS_VALUE_GET_TAG(value)) {
+    case JS_TAG_UNDEFINED: return TYPE_UNDEFINED;
+    case JS_TAG_NULL: return TYPE_NULL;
+    case JS_TAG_BOOL: return TYPE_BOOL;
+    case JS_TAG_INT: return TYPE_INT;
+    case JS_TAG_OBJECT: return TYPE_OBJECT;
+    case JS_TAG_STRING: return TYPE_STRING;
+    case JS_TAG_SYMBOL: return TYPE_SYMBOL;
+    case JS_TAG_BIG_FLOAT: return TYPE_BIG_FLOAT;
+    case JS_TAG_BIG_INT: return TYPE_BIG_INT;
+    case JS_TAG_BIG_DECIMAL: return TYPE_BIG_DECIMAL;
+    case JS_TAG_FLOAT64: return TYPE_FLOAT64;
+  }
+  return -1;
+}
+
 #define max_num(a, b) ((a) > (b) ? (a) : (b))
 
 #define is_control_char(c)                                                                                 \
@@ -21,8 +75,13 @@ typedef struct {
 } IteratorValue;
 
 static inline int
-is_escape_char(char c) {
+is_escape_char(int c) {
   return is_control_char(c) || c == '\\' || c == '\'' || c == 0x1b || c == 0;
+}
+
+static inline int
+is_dot_char(int c) {
+  return c == '.';
 }
 
 static inline int
@@ -90,25 +149,28 @@ byte_count(const void* s, size_t n, char c) {
 
 static inline size_t
 byte_chr(const char* str, size_t len, char c) {
-  const char *s = str, *t = s + len;
-  for(; s < t; ++s)
+  const char *s, *t;
+  for(s = str, t = s + len; s < t; ++s)
     if(*s == c)
       break;
   return s - str;
 }
 
 static inline size_t
-byte_chrs(const char* str, size_t len, char needle[], size_t nl) {
-  const char* s = str;
-  const char* t = str + len;
+byte_rchr(const void* str, size_t len, char c) {
+  const char *s, *t;
+  for(s = (const char*)str, t = s + len; --t >= s;)
+    if(*t == c)
+      return (size_t)(t - s);
+  return len;
+}
 
-  for(;;) {
-    if(s == t)
-      break;
+static inline size_t
+byte_chrs(const char* str, size_t len, char needle[], size_t nl) {
+  const char *s, *t;
+  for(s = str, t = str + len; s != t; s++)
     if(byte_chr(needle, nl, *s) < nl)
       break;
-    ++s;
-  }
   return s - (const char*)str;
 }
 
@@ -218,7 +280,7 @@ str_ndup(const char* s, size_t n) {
 }
 
 static inline size_t
-predicate_find(const char* str, size_t len, int (*pred)(char)) {
+predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
   size_t pos;
   for(pos = 0; pos < len; pos++)
     if(pred(str[pos]))
@@ -243,12 +305,30 @@ escape_char_letter(char c) {
   return 0;
 }
 
+static inline size_t
+token_length(const char* str, size_t len, char delim) {
+  const char *s, *e;
+  size_t pos;
+  for(s = str, e = s + len; s < e; s += pos + 1) {
+    pos = byte_chr(s, e - s, delim);
+    if(s + pos == e)
+      break;
+    if(pos == 0 || s[pos - 1] != '\\') {
+      s += pos;
+      break;
+    }
+  }
+  return s - str;
+}
+
+#define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
+
 static inline void
-dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
+dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
   size_t i = 0, j;
   while(i < len) {
-    if((j = predicate_find(&str[i], len - i, is_escape_char))) {
-      dbuf_put(db, (const uint8_t*)&str[i], j);
+    if((j = predicate_find(&str[i], len - i, pred))) {
+      dbuf_append(db, (const uint8_t*)&str[i], j);
       i += j;
     }
     if(i == len)
@@ -256,11 +336,46 @@ dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
     dbuf_putc(db, '\\');
 
     if(str[i] == 0x1b)
-      dbuf_put(db, (const uint8_t*)"x1b", 3);
+      dbuf_append(db, (const uint8_t*)"x1b", 3);
     else
       dbuf_putc(db, escape_char_letter(str[i]));
     i++;
   }
+}
+
+static inline void
+dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
+  return dbuf_put_escaped_pred(db, str, len, is_escape_char);
+}
+
+static inline size_t
+dbuf_token_push(DynBuf* db, const char* str, size_t len, char delim) {
+  size_t pos;
+  if(db->size)
+    dbuf_putc(db, delim);
+  pos = db->size;
+  dbuf_put_escaped_pred(db, str, len, is_dot_char);
+  return db->size - pos;
+}
+
+static inline size_t
+dbuf_token_pop(DynBuf* db, char delim) {
+  const char* x;
+  size_t n, p, len;
+  len = db->size;
+  for(n = db->size; n > 0;) {
+    if((p = byte_rchr(db->buf, n, delim)) == n) {
+      db->size = 0;
+      break;
+    }
+    if(p > 0 && db->buf[p - 1] == '\\') {
+      n = p - 1;
+      continue;
+    }
+    db->size = p;
+    break;
+  }
+  return len - db->size;
 }
 
 static inline size_t
@@ -399,7 +514,7 @@ js_value_dump(JSContext* ctx, JSValue value, DynBuf* db) {
     dbuf_putstr(db, "[object Array]");
   } else {
     str = JS_ToCStringLen(ctx, &len, value);
-    dbuf_put(db, (const uint8_t*)str, len);
+    dbuf_append(db, (const uint8_t*)str, len);
     JS_FreeCString(ctx, str);
   }
 }
@@ -598,6 +713,16 @@ js_atom_tobinary(JSAtom atom) {
   return ret;
 }
 
+static inline const char*
+js_atom_tocstringlen(JSContext* ctx, size_t* len, JSAtom atom) {
+  JSValue v;
+  const char* s;
+  v = JS_AtomToValue(ctx, atom);
+  s = JS_ToCStringLen(ctx, len, v);
+  JS_FreeValue(ctx, v);
+  return s;
+}
+
 static void
 js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
   const char* str;
@@ -662,6 +787,31 @@ js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop)
   ret = JS_ToCString(ctx, value);
   JS_FreeValue(ctx, value);
   return ret;
+}
+
+static int
+js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
+  int ret;
+  const char* str;
+  str = js_object_tostring(ctx, value);
+  ret = strcmp(str, cmp) == 0;
+  JS_FreeCString(ctx, str);
+  return ret;
+}
+
+static int
+js_is_map(JSContext* ctx, JSValueConst value) {
+  return js_is_object(ctx, value, "[object Map]");
+}
+
+static int
+js_is_set(JSContext* ctx, JSValueConst value) {
+  return js_is_object(ctx, value, "[object Set]");
+}
+
+static int
+js_is_generator(JSContext* ctx, JSValueConst value) {
+  return js_is_object(ctx, value, "[object Generator]");
 }
 
 static int

@@ -33,39 +33,6 @@ enum tree_walker_getters {
   PROP_FLAGS
 };
 
-enum tree_walker_types {
-  TYPE_UNDEFINED = 0,
-  TYPE_NULL,        // 1
-  TYPE_BOOL,        // 2
-  TYPE_INT,         // 3
-  TYPE_OBJECT,      // 4
-  TYPE_STRING,      // 5
-  TYPE_SYMBOL,      // 6
-  TYPE_BIG_FLOAT,   // 7
-  TYPE_BIG_INT,     // 8
-  TYPE_BIG_DECIMAL, // 9
-  TYPE_FUNCTION = 16,
-  TYPE_ARRAY = 17
-};
-
-enum tree_walker_mask {
-  MASK_UNDEFINED = (1 << TYPE_UNDEFINED),
-  MASK_NULL = (1 << TYPE_NULL),
-  MASK_BOOL = (1 << TYPE_BOOL),
-  MASK_INT = (1 << TYPE_INT),
-  MASK_OBJECT = (1 << TYPE_OBJECT),
-  MASK_STRING = (1 << TYPE_STRING),
-  MASK_SYMBOL = (1 << TYPE_SYMBOL),
-  MASK_BIG_FLOAT = (1 << TYPE_BIG_FLOAT),
-  MASK_BIG_INT = (1 << TYPE_BIG_INT),
-  MASK_BIG_DECIMAL = (1 << TYPE_BIG_DECIMAL),
-  MASK_PRIMITIVE = (MASK_UNDEFINED | MASK_NULL | MASK_BOOL | MASK_INT | MASK_STRING | MASK_SYMBOL |
-                    MASK_BIG_FLOAT | MASK_BIG_INT | MASK_BIG_DECIMAL),
-  MASK_ALL = (MASK_PRIMITIVE | MASK_OBJECT),
-  MASK_FUNCTION = (1 << TYPE_FUNCTION),
-  MASK_ARRAY = (1 << TYPE_ARRAY),
-};
-
 enum tree_iterator_return {
   RETURN_VALUE = 0,
   RETURN_PATH = 1 << 24,
@@ -78,23 +45,6 @@ typedef struct {
   uint32_t tag_mask;
   uint32_t ref_count;
 } TreeWalker;
-
-static int32_t
-js_value_type(JSValueConst value) {
-  switch(JS_VALUE_GET_TAG(value)) {
-    case JS_TAG_UNDEFINED: return TYPE_UNDEFINED;
-    case JS_TAG_NULL: return TYPE_NULL;
-    case JS_TAG_BOOL: return TYPE_BOOL;
-    case JS_TAG_INT: return TYPE_INT;
-    case JS_TAG_OBJECT: return TYPE_OBJECT;
-    case JS_TAG_STRING: return TYPE_STRING;
-    case JS_TAG_SYMBOL: return TYPE_SYMBOL;
-    case JS_TAG_BIG_FLOAT: return TYPE_BIG_FLOAT;
-    case JS_TAG_BIG_INT: return TYPE_BIG_INT;
-    case JS_TAG_BIG_DECIMAL: return TYPE_BIG_DECIMAL;
-  }
-  return -1;
-}
 
 static void
 tree_walker_reset(TreeWalker* w, JSContext* ctx) {

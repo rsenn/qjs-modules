@@ -22,10 +22,10 @@ const inspectOptions = {
   customInspect: true,
   showProxy: false,
   getters: false,
-  depth: 5,
+  depth: Infinity,
   maxArrayLength: 10,
   maxStringLength: 200,
-  compact: 2,
+  compact: false,
   hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
 };
 function main(...args) {
@@ -46,11 +46,10 @@ function main(...args) {
 
   console.log('found:', inspect(found, inspectOptions));
 
-  console.log('get:',
+  /* console.log('get:',
     inspect(deep.get(result, [2, 'children', 0, 'children', 3, 'children', 0]), inspectOptions)
   );
-  //console.log('set:', inspect(deep.set(result, [2, 'children', 0, 'children', 3, 'children', 0, 'aaa'], 'blah'), inspectOptions));
-  console.log('set:',
+   console.log('set:',
     inspect(
       deep.set(result,
         [2, 'children', 0, 'children', 3, 'children', 1, 'children', 6, 'XXX', 'a', 'b', 'c', 'd'],
@@ -64,13 +63,25 @@ function main(...args) {
       deep.get(result, [2, 'children', 0, 'children', 3, 'children', 1, 'children']),
       inspectOptions
     )
-  );
+  );*/
   console.log('array:', inspect([, , , , 4, 5, 6, , ,], inspectOptions));
   let testObj = {};
 
   deep.set(testObj, 'a.0.b.0.c\\.x.0', null);
   deep.unset(testObj, 'a.0.b.0');
   console.log('testObj: ' + inspect(testObj, inspectOptions));
+
+  let out =  new Map();
+
+  //out.set = function(...args) { console.log("args:", args); }
+//  out.set('@', ['blah']);
+
+  let flat = deep.flatten(result, out, (deep.MASK_PRIMITIVE | deep.MASK_STRING) && ~deep.MASK_OBJECT);
+  console.log('flat:', flat);
+  console.log('flat.keys():', [...flat.keys()]);
+  console.log('deep.MASK_STRING:', deep.MASK_NUMBER);
+  console.log('deep:', deep);
+
   std.gc();
 }
 
