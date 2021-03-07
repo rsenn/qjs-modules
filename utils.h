@@ -478,7 +478,7 @@ js_value_type_flag(JSValueConst value) {
 
 static inline int32_t
 js_value_type(JSValueConst value) {
-  int32_t flag, type;
+  int32_t flag, type = 0;
 
   if((flag = js_value_type_flag(value)) != -1)
     type = 1 << flag;
@@ -497,14 +497,34 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   if(ta != tb)
     return FALSE;
 
-  if(ta & tb & MASK_OBJECT) {
+  if(ta & MASK_INT) {
+    int32_t inta, intb;
+
+    inta = JS_VALUE_GET_INT(a);
+    intb = JS_VALUE_GET_INT(b);
+    ret = inta == intb;
+  } else if(ta & MASK_BOOL) {
+    BOOL boola, boolb;
+
+    boola = !!JS_VALUE_GET_BOOL(a);
+    boolb = !!JS_VALUE_GET_BOOL(b);
+    ret = boola == boolb;
+
+  } else if(ta & MASK_FLOAT64) {
+    double flta, fltb;
+
+    flta = JS_VALUE_GET_FLOAT64(a);
+    fltb = JS_VALUE_GET_FLOAT64(b);
+    ret = flta == fltb;
+
+  } else if(ta & MASK_OBJECT) {
     void *obja, *objb;
 
     obja = JS_VALUE_GET_OBJ(a);
     objb = JS_VALUE_GET_OBJ(b);
 
     ret = obja == objb;
-  } else if(ta & tb & MASK_STRING) {
+  } else if(ta & MASK_STRING) {
     const char *stra, *strb;
 
     stra = JS_ToCString(ctx, a);

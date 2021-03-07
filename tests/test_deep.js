@@ -96,10 +96,10 @@ console.log("pathOf():", path);
 
 
 let obj1 = {
-  a: 1,b:2,c:3,d:4
+  a: 1,b:2,c:3,d:4,e: [1,2,3,4,5]
 };
 let obj2 = {
-  d:4,c:3,b:2,a:1
+  d:4,c:3,b:2,a:1,e: [1,2,3,4,5]
 };
 
 
