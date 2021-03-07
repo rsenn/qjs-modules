@@ -489,6 +489,7 @@ js_value_type(JSValueConst value) {
 static inline BOOL
 js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   int32_t ta, tb;
+  BOOL ret = FALSE;
 
   ta = js_value_type(a);
   tb = js_value_type(a);
@@ -502,10 +503,20 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
     obja = JS_VALUE_GET_OBJ(a);
     objb = JS_VALUE_GET_OBJ(b);
 
-    return obja == objb;
+    ret = obja == objb;
+  } else if(ta & tb & MASK_STRING) {
+    const char *stra, *strb;
+
+    stra = JS_ToCString(ctx, a);
+    strb = JS_ToCString(ctx, b);
+
+    ret = !strcmp(stra, strb);
+
+    JS_FreeCString(ctx, stra);
+    JS_FreeCString(ctx, strb);
   }
 
-  return FALSE;
+  return ret;
 }
 
 static inline void
@@ -556,6 +567,7 @@ js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
 static inline JSValue
 js_global_get(JSContext* ctx, const char* prop) {
   JSValue global_obj, ret;
+
   global_obj = JS_GetGlobalObject(ctx);
   ret = JS_GetPropertyStr(ctx, global_obj, prop);
   JS_FreeValue(ctx, global_obj);

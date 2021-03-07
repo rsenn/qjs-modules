@@ -18,11 +18,18 @@ typedef struct PropertyEnumeration {
   BOOL is_array;
 } PropertyEnumeration;
 
+#define PROPENUM_SORT_ATOMS (1 << 6)
+
+
 #define PROPENUM_DEFAULT_FLAGS (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)
 
 #define property_enumeration_new(vec) vector_emplace((vec), sizeof(PropertyEnumeration))
 #define property_enumeration_length(enum) ((enum)->tab_atom_len)
 #define property_enumeration_index(enum) ((enum)->idx)
+
+static inline int compare_jspropertyenum(JSPropertyEnum*a, JSPropertyEnum*b) {
+  return a->atom < b->atom ? -1 : a->atom > b->atom ? 1 : 0;
+}
 
 static inline int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
@@ -30,11 +37,15 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
   it->idx = 0;
   it->is_array = JS_IsArray(ctx, object);
 
-  if(JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, object, flags)) {
+  if(JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, object, flags & 0x3f)) {
     it->tab_atom_len = 0;
     it->tab_atom = 0;
     return -1;
   }
+
+if(flags & PROPENUM_SORT_ATOMS) 
+  qsort(it->tab_atom,  it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void *, const void *))&compare_jspropertyenum);
+
   return 0;
 }
 

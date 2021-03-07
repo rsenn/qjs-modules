@@ -38,7 +38,8 @@ void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, vector*, vector*
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 
-#define vector_search(vec, elsz, elem) array_search(array_begin((vec)), array_size((vec),(elsz)), (elsz), (elem))
+#define vector_search(vec, elsz, elem)                                                                     \
+  array_search(array_begin((vec)), array_size((vec), (elsz)), (elsz), (elem))
 
 static inline uint32_t
 vector_size(const vector* vec, size_t elsz) {

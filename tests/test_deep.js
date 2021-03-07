@@ -93,7 +93,17 @@ function main(...args) {
 console.log("get():", node);
   let path = deep.pathOf(result, node);
 console.log("pathOf():", path);
- // console.log('clone:', clone);
+
+
+let obj1 = {
+  a: 1,b:2,c:3,d:4
+};
+let obj2 = {
+  d:4,c:3,b:2,a:1
+};
+
+
+  console.log('equals():', deep.equals(obj1, obj2));
 
   std.gc();
 }

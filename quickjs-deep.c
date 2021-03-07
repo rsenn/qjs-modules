@@ -171,6 +171,48 @@ js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
   return ret;
 }
+static JSValue
+js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  JSValue ret = JS_TRUE;
+  PropertyEnumeration *aenum, *benum;
+  vector aframes, bframes;
+
+  vector_init(&aframes);
+  vector_init(&bframes);
+
+  aenum = property_enumeration_push(&aframes, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  benum = property_enumeration_push(&bframes, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS);
+  while(((aenum = property_enumeration_recurse(&aframes, ctx)),
+         (benum = property_enumeration_recurse(&bframes, ctx)))) {
+    JSValue aval, bval;
+    JSAtom akey, bkey;
+    const char *astr, *bstr;
+
+    akey = aenum->tab_atom[aenum->idx].atom;
+    bkey = benum->tab_atom[benum->idx].atom;
+
+    printf("akey = %d, bkey = %d\n", akey, bkey);
+
+    aval = property_enumeration_value(aenum, ctx);
+    bval = property_enumeration_value(benum, ctx);
+
+    astr = JS_ToCString(ctx, aval);
+    bstr = JS_ToCString(ctx, bval);
+    printf("astr = %s, bstr = %s\n", astr, bstr);
+
+    BOOL result = js_value_equals(ctx, aval, bval);
+    JS_FreeValue(ctx, aval);
+    JS_FreeValue(ctx, bval);
+
+    if(!result) {
+      ret = JS_FALSE;
+      break;
+    }
+  }
+  property_enumeration_free(&aframes, JS_GetRuntime(ctx));
+  property_enumeration_free(&bframes, JS_GetRuntime(ctx));
+  return ret;
+}
 
 static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_CFUNC_DEF("find", 2, js_deep_find),
@@ -179,6 +221,7 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_CFUNC_DEF("unset", 2, js_deep_unset),
     JS_CFUNC_DEF("flatten", 1, js_deep_flatten),
     JS_CFUNC_DEF("pathOf", 2, js_deep_pathof),
+    JS_CFUNC_DEF("equals", 2, js_deep_equals),
     JS_PROP_INT32_DEF("MASK_UNDEFINED", MASK_UNDEFINED, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MASK_NULL", MASK_NULL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MASK_BOOL", MASK_BOOL, JS_PROP_ENUMERABLE),
