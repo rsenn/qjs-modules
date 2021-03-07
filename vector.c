@@ -151,13 +151,13 @@ vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out) {
   }
 }
 
-  void
+void
 vector_symmetricdiff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out_a, vector* out_b) {
   vector_diff(a, m, b, n, elsz, out_a);
   vector_diff(b, n, a, m, elsz, out_b);
 }
 
- void
+void
 vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out) {
   int j = 0;
   int k = 0;

@@ -283,7 +283,6 @@ array_search(void* a, size_t m, size_t elsz, void* needle) {
 
 #define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
 
-
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 
 static inline void
