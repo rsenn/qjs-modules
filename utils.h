@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include "quickjs.h"
+#include "cutils.h"
 #include <math.h>
 #include <string.h>
 
@@ -266,6 +267,22 @@ token_length(const char* str, size_t len, char delim) {
   }
   return s - str;
 }
+
+static inline int64_t
+array_search(void* a, size_t m, size_t elsz, void* needle) {
+  char* ptr = a;
+  int64_t n, ret;
+  n = m / elsz;
+  for(ret = 0; ret < n; ret++) {
+    if(!memcmp(ptr, needle, elsz))
+      return ret;
+    ptr += elsz;
+  }
+  return -1;
+}
+
+#define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
+
 
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 

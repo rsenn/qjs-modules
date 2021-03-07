@@ -32,6 +32,10 @@ void vector_free(vector* vec);
 void vector_shrink(vector* vec, size_t elsz, int32_t len);
 void vector_printf(vector* vec, const char*, ...);
 
+void  vector_intersection(void*, size_t, void*, size_t, size_t, vector*);
+void  vector_diff(void*, size_t, void*, size_t, size_t, vector*);
+void  vector_symmetricdiff(void*, size_t, void*, size_t, size_t, vector*, vector*);
+
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 
 static inline uint32_t
@@ -114,7 +118,6 @@ vector_sort(vector* vec, size_t elsz, int (*compar)(const void*, const void*, vo
 }
 
 static inline void
-
 vector_catlong(vector* vec, long l, int radix) {
   char buf[64];
   size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);

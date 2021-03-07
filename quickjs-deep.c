@@ -155,14 +155,12 @@ js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   PropertyEnumeration* it;
   vector frames;
 
-  if(!JS_IsFunction(ctx, argv[1]))
-    return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
   vector_init(&frames);
 
   it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   while((it = property_enumeration_recurse(&frames, ctx))) {
     JSValue value = property_enumeration_value(it, ctx);
-    BOOL result = js_value_equals(ctx, argv[0], value);
+    BOOL result = js_value_equals(ctx, argv[1], value);
     JS_FreeValue(ctx, value);
 
     if(result) {

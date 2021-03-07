@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "vector.h"
+#include "utils.h"
 #include <assert.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -136,5 +137,42 @@ void __attribute__((format(printf, 2, 3))) vector_printf(vector* vec, const char
     len = vsnprintf((char*)(vec->data + pos), len, fmt, ap);
     va_end(ap);
     vec->size += len;
+  }
+}
+
+void
+vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out) {
+  char* ptr = a;
+  size_t i;
+  for(i = 0; i < m; i++) {
+    if(array_contains(b, n, elsz, ptr))
+      vector_put(out, ptr, elsz);
+    ptr += elsz;
+  }
+}
+
+  void
+vector_symmetricdiff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out_a, vector* out_b) {
+  vector_diff(a, m, b, n, elsz, out_a);
+  vector_diff(b, n, a, m, elsz, out_b);
+}
+
+ void
+vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out) {
+  int j = 0;
+  int k = 0;
+  for(int i = 0; i < m + n; i++) {
+    void* aptr = (char*)a + j * elsz;
+    void* bptr = (char*)b + k * elsz;
+    int r = memcmp(aptr, bptr, elsz);
+    if(r < 0 && j < m) {
+      j++;
+    } else if(r > 0 && k < n) {
+      k++;
+    } else if(r == 0 && j < m && k < n) {
+      vector_put(out, aptr, elsz);
+      j++;
+      k++;
+    }
   }
 }

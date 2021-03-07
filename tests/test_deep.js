@@ -71,6 +71,7 @@ function main(...args) {
   deep.unset(testObj, 'a.0.b.0');
   console.log('testObj: ' + inspect(testObj, inspectOptions));
 
+
   let out = new Map();
 
   //out.set = function(...args) { console.log("args:", args); }
@@ -87,7 +88,12 @@ function main(...args) {
   for(let [pointer, value] of out) {
     deep.set(clone, pointer, value);
   }
-  console.log('clone:', clone);
+
+  let node = deep.get(result, '2.children.0.children.3.children.8.children.13.children.20');
+console.log("get():", node);
+  let path = deep.pathOf(result, node);
+console.log("pathOf():", path);
+ // console.log('clone:', clone);
 
   std.gc();
 }
