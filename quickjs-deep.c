@@ -99,7 +99,7 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
   dest = argc > 1 ? argv[1] : JS_NewObject(ctx);
 
-  if(js_is_map(ctx, dest))
+  if(js_object_is_map(ctx, dest))
     vmap = virtual_properties_map(ctx, dest);
   else
     vmap = virtual_properties_object(ctx, dest);
@@ -149,12 +149,38 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   return ret;
 }
 
+static JSValue
+js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  JSValue ret = JS_UNDEFINED;
+  PropertyEnumeration* it;
+  vector frames;
+
+  if(!JS_IsFunction(ctx, argv[1]))
+    return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
+  vector_init(&frames);
+
+  it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  while((it = property_enumeration_recurse(&frames, ctx))) {
+    JSValue value = property_enumeration_value(it, ctx);
+    BOOL result = js_value_equals(ctx, argv[0], value);
+    JS_FreeValue(ctx, value);
+
+    if(result) {
+      ret = property_enumeration_path(&frames, ctx);
+      break;
+    }
+  }
+  property_enumeration_free(&frames, JS_GetRuntime(ctx));
+  return ret;
+}
+
 static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_CFUNC_DEF("find", 2, js_deep_find),
     JS_CFUNC_DEF("get", 2, js_deep_get),
     JS_CFUNC_DEF("set", 3, js_deep_set),
     JS_CFUNC_DEF("unset", 2, js_deep_unset),
     JS_CFUNC_DEF("flatten", 1, js_deep_flatten),
+    JS_CFUNC_DEF("pathOf", 2, js_deep_pathof),
     JS_PROP_INT32_DEF("MASK_UNDEFINED", MASK_UNDEFINED, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MASK_NULL", MASK_NULL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MASK_BOOL", MASK_BOOL, JS_PROP_ENUMERABLE),

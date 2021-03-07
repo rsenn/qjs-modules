@@ -71,22 +71,22 @@ function main(...args) {
   deep.unset(testObj, 'a.0.b.0');
   console.log('testObj: ' + inspect(testObj, inspectOptions));
 
-  let out =  new Map();
+  let out = new Map();
 
   //out.set = function(...args) { console.log("args:", args); }
-//  out.set('@', ['blah']);
+  //  out.set('@', ['blah']);
 
-  let flat = deep.flatten(result, out, (deep.MASK_PRIMITIVE | deep.MASK_STRING) && ~deep.MASK_OBJECT);
+  let flat = deep.flatten(result, out, deep.MASK_PRIMITIVE | deep.MASK_STRING && ~deep.MASK_OBJECT);
   console.log('flat:', flat);
   console.log('flat.keys():', [...flat.keys()]);
   console.log('deep.MASK_STRING:', deep.MASK_NUMBER);
   console.log('deep:', deep);
 
-let clone = [];
+  let clone = [];
 
-for(let [pointer,value] of out) {
-  deep.set(clone, pointer,value);
-}
+  for(let [pointer, value] of out) {
+    deep.set(clone, pointer, value);
+  }
   console.log('clone:', clone);
 
   std.gc();

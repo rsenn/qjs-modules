@@ -593,7 +593,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       return js_inspect_string(ctx, buf, value, opts, depth);
     }
     case JS_TAG_OBJECT: {
-      int is_array = JS_IsArray(ctx, value), is_typedarray = js_is_typedarray(ctx, value);
+      int is_array = JS_IsArray(ctx, value), is_typedarray = js_object_is_typedarray(ctx, value);
       int is_function = JS_IsFunction(ctx, value);
       uint32_t nprops, pos, len, limit;
       JSPropertyEnum* props = 0;

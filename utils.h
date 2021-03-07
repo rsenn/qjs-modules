@@ -5,60 +5,6 @@
 #include <math.h>
 #include <string.h>
 
-enum value_types {
-  TYPE_UNDEFINED = 0,
-  TYPE_NULL,        // 1
-  TYPE_BOOL,        // 2
-  TYPE_INT,         // 3
-  TYPE_OBJECT,      // 4
-  TYPE_STRING,      // 5
-  TYPE_SYMBOL,      // 6
-  TYPE_BIG_FLOAT,   // 7
-  TYPE_BIG_INT,     // 8
-  TYPE_BIG_DECIMAL, // 9
-  TYPE_FLOAT64,
-  TYPE_FUNCTION = 16,
-  TYPE_ARRAY = 17
-};
-
-enum value_mask {
-  MASK_UNDEFINED = (1 << TYPE_UNDEFINED),
-  MASK_NULL = (1 << TYPE_NULL),
-  MASK_BOOL = (1 << TYPE_BOOL),
-  MASK_INT = (1 << TYPE_INT),
-  MASK_OBJECT = (1 << TYPE_OBJECT),
-  MASK_STRING = (1 << TYPE_STRING),
-  MASK_SYMBOL = (1 << TYPE_SYMBOL),
-  MASK_BIG_FLOAT = (1 << TYPE_BIG_FLOAT),
-  MASK_BIG_INT = (1 << TYPE_BIG_INT),
-  MASK_BIG_DECIMAL = (1 << TYPE_BIG_DECIMAL),
-  MASK_FLOAT64 = (1 << TYPE_FLOAT64),
-  MASK_NUMBER = (MASK_INT | MASK_BIG_FLOAT | MASK_BIG_INT | MASK_BIG_DECIMAL | MASK_FLOAT64),
-  MASK_PRIMITIVE = (MASK_UNDEFINED | MASK_NULL | MASK_BOOL | MASK_INT | MASK_STRING | MASK_SYMBOL |
-                    MASK_BIG_FLOAT | MASK_BIG_INT | MASK_BIG_DECIMAL),
-  MASK_ALL = (MASK_PRIMITIVE | MASK_OBJECT),
-  MASK_FUNCTION = (1 << TYPE_FUNCTION),
-  MASK_ARRAY = (1 << TYPE_ARRAY),
-};
-
-static inline int32_t
-js_value_type(JSValueConst value) {
-  switch(JS_VALUE_GET_TAG(value)) {
-    case JS_TAG_UNDEFINED: return TYPE_UNDEFINED;
-    case JS_TAG_NULL: return TYPE_NULL;
-    case JS_TAG_BOOL: return TYPE_BOOL;
-    case JS_TAG_INT: return TYPE_INT;
-    case JS_TAG_OBJECT: return TYPE_OBJECT;
-    case JS_TAG_STRING: return TYPE_STRING;
-    case JS_TAG_SYMBOL: return TYPE_SYMBOL;
-    case JS_TAG_BIG_FLOAT: return TYPE_BIG_FLOAT;
-    case JS_TAG_BIG_INT: return TYPE_BIG_INT;
-    case JS_TAG_BIG_DECIMAL: return TYPE_BIG_DECIMAL;
-    case JS_TAG_FLOAT64: return TYPE_FLOAT64;
-  }
-  return -1;
-}
-
 #define max_num(a, b) ((a) > (b) ? (a) : (b))
 
 #define is_control_char(c)                                                                                 \
@@ -460,49 +406,90 @@ dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len) {
   return 0;
 }
 
-#define js_object_tmpmark_set(value)                                                                       \
-  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
-#define js_object_tmpmark_clear(value)                                                                     \
-  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
-#define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
+enum value_types {
+  FLAG_UNDEFINED = 0,
+  FLAG_NULL,        // 1
+  FLAG_BOOL,        // 2
+  FLAG_INT,         // 3
+  FLAG_OBJECT,      // 4
+  FLAG_STRING,      // 5
+  FLAG_SYMBOL,      // 6
+  FLAG_BIG_FLOAT,   // 7
+  FLAG_BIG_INT,     // 8
+  FLAG_BIG_DECIMAL, // 9
+  FLAG_FLOAT64,
+  FLAG_FUNCTION = 16,
+  FLAG_ARRAY = 17
+};
 
-static inline char*
-js_class_name(JSContext* ctx, JSValueConst value) {
-  JSValue proto, ctor;
-  const char* str;
-  char* name = 0;
-  int namelen;
-  proto = JS_GetPrototype(ctx, value);
-  ctor = JS_GetPropertyStr(ctx, proto, "constructor");
-  if((str = JS_ToCString(ctx, ctor))) {
-    if(!strncmp(str, "function ", 9)) {
-      namelen = byte_chr(str + 9, strlen(str) - 9, '(');
-      name = js_strndup(ctx, str + 9, namelen);
-    }
+enum value_mask {
+  MASK_UNDEFINED = (1 << FLAG_UNDEFINED),
+  MASK_NULL = (1 << FLAG_NULL),
+  MASK_BOOL = (1 << FLAG_BOOL),
+  MASK_INT = (1 << FLAG_INT),
+  MASK_OBJECT = (1 << FLAG_OBJECT),
+  MASK_STRING = (1 << FLAG_STRING),
+  MASK_SYMBOL = (1 << FLAG_SYMBOL),
+  MASK_BIG_FLOAT = (1 << FLAG_BIG_FLOAT),
+  MASK_BIG_INT = (1 << FLAG_BIG_INT),
+  MASK_BIG_DECIMAL = (1 << FLAG_BIG_DECIMAL),
+  MASK_FLOAT64 = (1 << FLAG_FLOAT64),
+  MASK_NUMBER = (MASK_INT | MASK_BIG_FLOAT | MASK_BIG_INT | MASK_BIG_DECIMAL | MASK_FLOAT64),
+  MASK_PRIMITIVE = (MASK_UNDEFINED | MASK_NULL | MASK_BOOL | MASK_INT | MASK_STRING | MASK_SYMBOL |
+                    MASK_BIG_FLOAT | MASK_BIG_INT | MASK_BIG_DECIMAL),
+  MASK_ALL = (MASK_PRIMITIVE | MASK_OBJECT),
+  MASK_FUNCTION = (1 << FLAG_FUNCTION),
+  MASK_ARRAY = (1 << FLAG_ARRAY),
+};
+
+static inline int32_t
+js_value_type_flag(JSValueConst value) {
+  switch(JS_VALUE_GET_TAG(value)) {
+    case JS_TAG_UNDEFINED: return FLAG_UNDEFINED;
+    case JS_TAG_NULL: return FLAG_NULL;
+    case JS_TAG_BOOL: return FLAG_BOOL;
+    case JS_TAG_INT: return FLAG_INT;
+    case JS_TAG_OBJECT: return FLAG_OBJECT;
+    case JS_TAG_STRING: return FLAG_STRING;
+    case JS_TAG_SYMBOL: return FLAG_SYMBOL;
+    case JS_TAG_BIG_FLOAT: return FLAG_BIG_FLOAT;
+    case JS_TAG_BIG_INT: return FLAG_BIG_INT;
+    case JS_TAG_BIG_DECIMAL: return FLAG_BIG_DECIMAL;
+    case JS_TAG_FLOAT64: return FLAG_FLOAT64;
   }
-  if(!name) {
-    if(str)
-      JS_FreeCString(ctx, str);
-    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
-      name = js_strdup(ctx, str);
-  }
-  if(str)
-    JS_FreeCString(ctx, str);
-  return name;
+  return -1;
 }
 
-static inline void
-js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
-  uint32_t i;
-  for(i = 0; i < len; i++) JS_FreeAtom(ctx, props[i].atom);
-  js_free(ctx, props);
+static inline int32_t
+js_value_type(JSValueConst value) {
+  int32_t flag, type;
+
+  if((flag = js_value_type_flag(value)) != -1)
+    type = 1 << flag;
+
+  return type;
 }
 
-static inline void
-js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
-  JS_FreeValue(ctx, desc->value);
-  JS_FreeValue(ctx, desc->getter);
-  JS_FreeValue(ctx, desc->setter);
+static inline BOOL
+js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
+  int32_t ta, tb;
+
+  ta = js_value_type(a);
+  tb = js_value_type(a);
+
+  if(ta != tb)
+    return FALSE;
+
+  if(ta & tb & MASK_OBJECT) {
+    void *obja, *objb;
+
+    obja = JS_VALUE_GET_OBJ(a);
+    objb = JS_VALUE_GET_OBJ(b);
+
+    return obja == objb;
+  }
+
+  return FALSE;
 }
 
 static inline void
@@ -529,6 +516,26 @@ js_value_dump(JSContext* ctx, JSValue value, DynBuf* db) {
     JS_FreeValueRT((ctx), (value));                                                                        \
     (value) = JS_UNDEFINED;                                                                                \
   } while(0);
+
+#define js_object_tmpmark_set(value)                                                                       \
+  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
+#define js_object_tmpmark_clear(value)                                                                     \
+  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
+#define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
+
+static inline void
+js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
+  uint32_t i;
+  for(i = 0; i < len; i++) JS_FreeAtom(ctx, props[i].atom);
+  js_free(ctx, props);
+}
+
+static inline void
+js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
+  JS_FreeValue(ctx, desc->value);
+  JS_FreeValue(ctx, desc->getter);
+  JS_FreeValue(ctx, desc->setter);
+}
 
 static inline JSValue
 js_global_get(JSContext* ctx, const char* prop) {
@@ -789,8 +796,33 @@ js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop)
   return ret;
 }
 
+static inline char*
+js_object_classname(JSContext* ctx, JSValueConst value) {
+  JSValue proto, ctor;
+  const char* str;
+  char* name = 0;
+  int namelen;
+  proto = JS_GetPrototype(ctx, value);
+  ctor = JS_GetPropertyStr(ctx, proto, "constructor");
+  if((str = JS_ToCString(ctx, ctor))) {
+    if(!strncmp(str, "function ", 9)) {
+      namelen = byte_chr(str + 9, strlen(str) - 9, '(');
+      name = js_strndup(ctx, str + 9, namelen);
+    }
+  }
+  if(!name) {
+    if(str)
+      JS_FreeCString(ctx, str);
+    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
+      name = js_strdup(ctx, str);
+  }
+  if(str)
+    JS_FreeCString(ctx, str);
+  return name;
+}
+
 static int
-js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
+js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
   int ret;
   const char* str;
   str = js_object_tostring(ctx, value);
@@ -800,27 +832,27 @@ js_is_object(JSContext* ctx, JSValueConst value, const char* cmp) {
 }
 
 static int
-js_is_map(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Map]");
+js_object_is_map(JSContext* ctx, JSValueConst value) {
+  return js_object_is(ctx, value, "[object Map]");
 }
 
 static int
-js_is_set(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Set]");
+js_object_is_set(JSContext* ctx, JSValueConst value) {
+  return js_object_is(ctx, value, "[object Set]");
 }
 
 static int
-js_is_generator(JSContext* ctx, JSValueConst value) {
-  return js_is_object(ctx, value, "[object Generator]");
+js_object_is_generator(JSContext* ctx, JSValueConst value) {
+  return js_object_is(ctx, value, "[object Generator]");
 }
 
 static int
-js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
+js_object_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   int ret = 0;
   int n, m;
   void* obj = JS_VALUE_GET_OBJ(value);
   char* name = 0;
-  if((name = js_class_name(ctx, value))) {
+  if((name = js_object_classname(ctx, value))) {
     n = strlen(name);
     m = n >= 11 ? n - 11 : 0;
     if(!strcmp(name + m, "ArrayBuffer"))
@@ -843,13 +875,13 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
 }
 
 static int
-js_is_typedarray(JSContext* ctx, JSValueConst value) {
+js_object_is_typedarray(JSContext* ctx, JSValueConst value) {
   int ret;
   JSValue buf;
   size_t byte_offset, byte_length, bytes_per_element;
 
   buf = JS_GetTypedArrayBuffer(ctx, value, &byte_offset, &byte_length, &bytes_per_element);
-  ret = js_is_arraybuffer(ctx, buf);
+  ret = js_object_is_arraybuffer(ctx, buf);
   JS_FreeValue(ctx, buf);
   return ret;
 }
@@ -857,7 +889,7 @@ js_is_typedarray(JSContext* ctx, JSValueConst value) {
 static inline int64_t
 js_array_length(JSContext* ctx, JSValueConst array) {
   int64_t len = -1;
-  if(JS_IsArray(ctx, array) || js_is_typedarray(ctx, array)) {
+  if(JS_IsArray(ctx, array) || js_object_is_typedarray(ctx, array)) {
     JSValue length = JS_GetPropertyStr(ctx, array, "length");
     JS_ToInt64(ctx, &len, length);
     JS_FreeValue(ctx, length);

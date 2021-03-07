@@ -63,7 +63,7 @@ if(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
 endif(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
 
 set(QUICKJS_INCLUDE_DIRS "${QUICKJS_INCLUDE_DIRS}" CACHE STRING "QuickJS include dirs" FORCE)
- 
+
 set(CMAKE_REQUIRED_INCLUDES "${QUICKJS_INCLUDE_DIRS}")
 
 # message("CMAKE_REQUIRED_INCLUDES = ${CMAKE_REQUIRED_INCLUDES}")
@@ -91,17 +91,20 @@ endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
 foreach(NAME ${QUICKJS_MODULES})
   string(REGEX REPLACE "[-/]" "_" PFX "${NAME}")
-  add_library(${NAME} SHARED quickjs-${NAME}.c ${${PFX}_SOURCES})
+  add_library(quickjs-${NAME} SHARED quickjs-${NAME}.c ${${PFX}_SOURCES})
   set_target_properties(
-    ${NAME} PROPERTIES PREFIX "" INCLUDE_DIRECTORIES
-                                 "${QUICKJS_PREFIX}/include/quickjs")
+    quickjs-${NAME} PROPERTIES
+    PREFIX ""
+    INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs"
+    OUTPUT_NAME "${NAME}"
+  )
   if(${${PFX}_LIBRARIES})
-    target_link_libraries(${NAME} PUBLIC ${${PFX}_LIBRARIES})
+    target_link_libraries(quickjs-${NAME} PUBLIC ${${PFX}_LIBRARIES})
   endif(${${PFX}_LIBRARIES})
 
-  target_compile_definitions(${NAME} PRIVATE -DJS_SHARED_LIBRARY)
-  target_include_directories(${NAME} BEFORE PUBLIC ${QUICKJS_INCLUDE_DIRS})
-  install(TARGETS ${NAME} DESTINATION lib/quickjs
+  target_compile_definitions(quickjs-${NAME} PRIVATE -DJS_SHARED_LIBRARY)
+  target_include_directories(quickjs-${NAME} BEFORE PUBLIC ${QUICKJS_INCLUDE_DIRS})
+  install(TARGETS quickjs-${NAME} DESTINATION lib/quickjs
           PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
                       GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 endforeach(NAME mmap inspect)
