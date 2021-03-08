@@ -41,7 +41,10 @@ iteration_method(Iteration* it, JSContext* ctx, JSValueConst object, JSAtom atom
 }
 
 static inline BOOL
-iteration_method_str(Iteration* it, JSContext* ctx, JSValueConst object, const char* str) {
+iteration_method_str(Iteration* it,
+                     JSContext* ctx,
+                     JSValueConst object,
+                     const char* str) {
   JSAtom atom;
   BOOL ret;
   atom = JS_NewAtom(ctx, str);
@@ -51,7 +54,10 @@ iteration_method_str(Iteration* it, JSContext* ctx, JSValueConst object, const c
 }
 
 static inline BOOL
-iteration_method_symbol(Iteration* it, JSContext* ctx, JSValueConst object, const char* sym) {
+iteration_method_symbol(Iteration* it,
+                        JSContext* ctx,
+                        JSValueConst object,
+                        const char* sym) {
   JSAtom atom;
   BOOL ret;
   atom = js_symbol_atom(ctx, sym);

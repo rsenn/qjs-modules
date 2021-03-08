@@ -78,8 +78,8 @@ enum lexer_ctype {
 
 void
 lexer_init(Lexer* lex) {
-  // lex->data = 0; lex->size = 0; lex->pos = 0; lex->start = 0; lex->line = 0; lex->column = 0; lex->free =
-  // 0;
+  // lex->data = 0; lex->size = 0; lex->pos = 0; lex->start = 0; lex->line = 0;
+  // lex->column = 0; lex->free = 0;
   memset(lex, 0, sizeof(Lexer));
 }
 
@@ -166,7 +166,10 @@ js_lexer_toarray(JSContext* ctx, Lexer* lex) {
 }
 
 static JSValue
-js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_lexer_constructor(JSContext* ctx,
+                     JSValueConst new_target,
+                     int argc,
+                     JSValueConst* argv) {
   JSValue proto;
   /* using new_target to get the prototype is necessary when the
      class is extended. */
@@ -178,7 +181,8 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 }
 
 static JSValue
-js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_lexer_method(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Lexer* lex;
   JSValue ret = JS_UNDEFINED;
   if(!(lex = JS_GetOpaque2(ctx, this_val, js_lexer_class_id)))
@@ -354,7 +358,8 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
 }
 
 static JSValue
-js_lexer_ctype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_lexer_ctype(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   JSValue ret;
   char c;
 
@@ -375,17 +380,25 @@ js_lexer_ctype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 
     case IS_PUNCTUATOR: ret = JS_NewBool(ctx, ispunct(c)); break;
 
-    case IS_WHITESPACE: ret = JS_NewBool(ctx, c == 9 || c == 0xb || c == 0xc || c == ' '); break;
+    case IS_WHITESPACE:
+      ret = JS_NewBool(ctx, c == 9 || c == 0xb || c == 0xc || c == ' ');
+      break;
 
     case IS_DECIMAL_DIGIT: ret = JS_NewBool(ctx, str_contains("0123456789", c)); break;
-    case IS_HEX_DIGIT: ret = JS_NewBool(ctx, str_contains("0123456789ABCDEFabcdef", c)); break;
+    case IS_HEX_DIGIT:
+      ret = JS_NewBool(ctx, str_contains("0123456789ABCDEFabcdef", c));
+      break;
     case IS_LINE_TERMINATOR: ret = JS_NewBool(ctx, c == '\r' || c == '\n'); break;
     case IS_OCTAL_DIGIT: ret = JS_NewBool(ctx, c >= '0' && c <= '7'); break;
     case IS_QUOTE_CHAR: ret = JS_NewBool(ctx, c == '"' || c == '\'' || c == '`'); break;
-    case IS_PUNCTUATOR_CHAR: ret = JS_NewBool(ctx, str_contains("=.-%}>,*[<!/]~&(;?|):+^{@", c)); break;
+    case IS_PUNCTUATOR_CHAR:
+      ret = JS_NewBool(ctx, str_contains("=.-%}>,*[<!/]~&(;?|):+^{@", c));
+      break;
     case IS_IDENTIFIER_CHAR:
-      ret = JS_NewBool(ctx,
-                       str_contains("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_", c));
+      ret = JS_NewBool(
+          ctx,
+          str_contains("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_",
+                       c));
       break;
   }
   return ret;
@@ -453,13 +466,20 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_lexer_class_id, &js_lexer_class);
 
   lexer_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, lexer_proto, js_lexer_proto_funcs, countof(js_lexer_proto_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             lexer_proto,
+                             js_lexer_proto_funcs,
+                             countof(js_lexer_proto_funcs));
   JS_SetClassProto(ctx, js_lexer_class_id, lexer_proto);
 
-  lexer_ctor = JS_NewCFunction2(ctx, js_lexer_constructor, "Lexer", 1, JS_CFUNC_constructor, 0);
+  lexer_ctor =
+      JS_NewCFunction2(ctx, js_lexer_constructor, "Lexer", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, lexer_ctor, lexer_proto);
-  JS_SetPropertyFunctionList(ctx, lexer_ctor, js_lexer_static_funcs, countof(js_lexer_static_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             lexer_ctor,
+                             js_lexer_static_funcs,
+                             countof(js_lexer_static_funcs));
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Lexer", lexer_ctor);

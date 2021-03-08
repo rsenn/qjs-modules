@@ -43,8 +43,9 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
   }
 }
 
-#define pointer_color(s)                                                                                   \
-  ((index) >= 0 && (i) >= (index) ? "\x1b[31m" : (is_integer(s) ? "\x1b[1;30m" : "\x1b[0;33m"))
+#define pointer_color(s)                                                                 \
+  ((index) >= 0 && (i) >= (index) ? "\x1b[31m"                                           \
+                                  : (is_integer(s) ? "\x1b[1;30m" : "\x1b[0;33m"))
 
 void
 pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, int index) {

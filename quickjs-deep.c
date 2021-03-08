@@ -50,8 +50,10 @@ js_deep_return(JSContext* ctx, vector* frames, int32_t return_flag) {
 
       JS_SetPropertyUint32(ctx, ret, return_flag == RETURN_VALUE_PATH ? 0 : 1, value);
       JS_SetPropertyUint32(ctx, ret, return_flag == RETURN_VALUE_PATH ? 1 : 0, path);
-      JS_DefinePropertyValueStr(ctx, ret, "value", JS_DupValue(ctx, value), JS_PROP_CONFIGURABLE);
-      JS_DefinePropertyValueStr(ctx, ret, "path", JS_DupValue(ctx, path), JS_PROP_CONFIGURABLE);
+      JS_DefinePropertyValueStr(
+          ctx, ret, "value", JS_DupValue(ctx, value), JS_PROP_CONFIGURABLE);
+      JS_DefinePropertyValueStr(
+          ctx, ret, "path", JS_DupValue(ctx, path), JS_PROP_CONFIGURABLE);
 
       break;
     }
@@ -60,8 +62,11 @@ js_deep_return(JSContext* ctx, vector* frames, int32_t return_flag) {
 }
 
 static JSValue
-js_deep_iterator_new(
-    JSContext* ctx, JSValueConst proto, JSValueConst root, JSValueConst pred, uint32_t flags) {
+js_deep_iterator_new(JSContext* ctx,
+                     JSValueConst proto,
+                     JSValueConst root,
+                     JSValueConst pred,
+                     uint32_t flags) {
   DeepIterator* it;
   JSValue obj = JS_UNDEFINED;
 
@@ -95,7 +100,10 @@ fail:
 }
 
 static JSValue
-js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_deep_iterator_constructor(JSContext* ctx,
+                             JSValueConst new_target,
+                             int argc,
+                             JSValueConst* argv) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
   int32_t flags = RETURN_VALUE_PATH;
@@ -108,16 +116,23 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(argc >= 3)
     JS_ToInt32(ctx, &flags, argv[2]);
 
-  obj = js_deep_iterator_new(
-      ctx, proto, argc >= 1 ? argv[0] : JS_UNDEFINED, argc >= 2 ? argv[1] : JS_UNDEFINED, flags);
+  obj = js_deep_iterator_new(ctx,
+                             proto,
+                             argc >= 1 ? argv[0] : JS_UNDEFINED,
+                             argc >= 2 ? argv[1] : JS_UNDEFINED,
+                             flags);
   JS_FreeValue(ctx, proto);
 
   return obj;
 }
 
 static JSValue
-js_deep_iterator_next(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
+js_deep_iterator_next(JSContext* ctx,
+                      JSValueConst this_val,
+                      int argc,
+                      JSValueConst* argv,
+                      BOOL* pdone,
+                      int magic) {
   DeepIterator* it;
   PropertyEnumeration* penum;
   JSValue ret = JS_NULL;
@@ -126,7 +141,8 @@ js_deep_iterator_next(
 
   for(;;) {
     if(!(penum = vector_empty(&it->frames)
-                     ? property_enumeration_push(&it->frames, ctx, it->root, PROPENUM_DEFAULT_FLAGS)
+                     ? property_enumeration_push(
+                           &it->frames, ctx, it->root, PROPENUM_DEFAULT_FLAGS)
                      : property_enumeration_recurse(&it->frames, ctx))) {
 
       *pdone = TRUE;
@@ -160,12 +176,18 @@ js_deep_iterator_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static JSValue
-js_deep_iterator_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_deep_iterator_iterator(JSContext* ctx,
+                          JSValueConst this_val,
+                          int argc,
+                          JSValueConst* argv) {
   return this_val;
 }
 
 static JSValue
-js_deep_iterator_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_deep_iterator_tostring(JSContext* ctx,
+                          JSValueConst this_val,
+                          int argc,
+                          JSValueConst* argv) {
   DeepIterator* it;
   JSValue ret = JS_NULL;
   if(!(it = JS_GetOpaque2(ctx, this_val, js_deep_iterator_class_id)))
@@ -194,7 +216,10 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     return JS_ThrowTypeError(ctx, "argument 1 (root) is not an object");
   vector_init2(&frames, ctx);
 
-  property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  property_enumeration_push(&frames,
+                            ctx,
+                            JS_DupValue(ctx, argv[0]),
+                            PROPENUM_DEFAULT_FLAGS);
   it = vector_back(&frames, sizeof(PropertyEnumeration));
 
   do {
@@ -225,7 +250,10 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   vector_init2(&frames, ctx);
 
   ret = JS_NewArray(ctx);
-  property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  property_enumeration_push(&frames,
+                            ctx,
+                            JS_DupValue(ctx, argv[0]),
+                            PROPENUM_DEFAULT_FLAGS);
   it = vector_back(&frames, sizeof(PropertyEnumeration));
 
   do {
@@ -313,7 +341,10 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   ;
   vector_init2(&offsets, ctx);
   ;
-  it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  it = property_enumeration_push(&frames,
+                                 ctx,
+                                 JS_DupValue(ctx, argv[0]),
+                                 PROPENUM_DEFAULT_FLAGS);
   prev = 0;
   if(argc > 2)
     JS_ToUint32(ctx, &mask, argv[2]);
@@ -350,7 +381,10 @@ js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   vector_init2(&frames, ctx);
   ;
 
-  it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  it = property_enumeration_push(&frames,
+                                 ctx,
+                                 JS_DupValue(ctx, argv[0]),
+                                 PROPENUM_DEFAULT_FLAGS);
   do {
     JSValue value = property_enumeration_value(it, ctx);
     BOOL result = js_value_equals(ctx, argv[1], value);
@@ -378,7 +412,10 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   fn = argv[1];
   this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
 
-  it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  it = property_enumeration_push(&frames,
+                                 ctx,
+                                 JS_DupValue(ctx, argv[0]),
+                                 PROPENUM_DEFAULT_FLAGS);
   do {
     JSValueConst args[3] = {property_enumeration_value(it, ctx),
                             property_enumeration_path(&frames, ctx),
@@ -524,8 +561,8 @@ js_deep_init(JSContext* ctx, JSModuleDef* m) {
                              countof(js_deep_iterator_proto_funcs));
   JS_SetClassProto(ctx, js_deep_iterator_class_id, deep_iterator_proto);
 
-  deep_iterator_ctor =
-      JS_NewCFunction2(ctx, js_deep_iterator_constructor, "DeepIterator", 1, JS_CFUNC_constructor, 0);
+  deep_iterator_ctor = JS_NewCFunction2(
+      ctx, js_deep_iterator_constructor, "DeepIterator", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, deep_iterator_ctor, deep_iterator_proto);
 

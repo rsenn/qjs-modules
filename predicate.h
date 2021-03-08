@@ -4,7 +4,14 @@
 #include "vector.h"
 #include "utils.h"
 
-enum { PREDICATE_NONE = 0, PREDICATE_TYPE, PREDICATE_CHARSET, PREDICATE_NOT, PREDICATE_OR, PREDICATE_AND };
+enum predicate_id {
+  PREDICATE_NONE = -1,
+  PREDICATE_TYPE,
+  PREDICATE_CHARSET,
+  PREDICATE_NOT,
+  PREDICATE_OR,
+  PREDICATE_AND
+};
 
 typedef struct {
   int32_t flags;
@@ -28,7 +35,7 @@ typedef struct {
 } AndPredicate;
 
 typedef struct Predicate {
-  int id;
+  enum predicate_id id;
   union {
     TypePredicate type;
     CharsetPredicate charset;
@@ -38,7 +45,8 @@ typedef struct Predicate {
   };
 } Predicate;
 
-BOOL predicate_eval(const Predicate*, JSContext*, JSValueConst);
+int32_t predicate_eval(const Predicate*, JSContext*, JSValueConst);
+void predicate_tostring(const Predicate*, JSContext*, DynBuf*);
 
 #define predicate_undefined() predicate_type(TYPE_UNDEFINED)
 #define predicate_null() predicate_type(TYPE_NULL)

@@ -45,7 +45,8 @@ enum path_methods {
 };
 
 static JSValue
-js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_path_method(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   const char *a = 0, *b = 0;
   struct stat st;
   char buf[PATH_MAX + 1];
@@ -145,7 +146,8 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 }
 
 static JSValue
-js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_path_method_dbuf(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   const char *a = 0, *b = 0;
   DynBuf db;
   size_t alen = 0, blen = 0, pos;

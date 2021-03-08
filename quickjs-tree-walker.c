@@ -59,14 +59,19 @@ tree_walker_reset(TreeWalker* w, JSContext* ctx) {
 static PropertyEnumeration*
 tree_walker_setroot(TreeWalker* w, JSContext* ctx, JSValueConst object) {
   tree_walker_reset(w, ctx);
-  return property_enumeration_push(&w->frames, ctx, JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS);
+  return property_enumeration_push(&w->frames,
+                                   ctx,
+                                   JS_DupValue(ctx, object),
+                                   PROPENUM_DEFAULT_FLAGS);
 }
 
 static void
 tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
   PropertyEnumeration* it;
   size_t i;
-  dbuf_printf(db, "TreeWalker {\n  depth: %u", vector_size(&w->frames, sizeof(PropertyEnumeration)));
+  dbuf_printf(db,
+              "TreeWalker {\n  depth: %u",
+              vector_size(&w->frames, sizeof(PropertyEnumeration)));
 
   dbuf_putstr(db, ",\n  frames: ");
 
@@ -75,7 +80,10 @@ tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
 }
 
 static JSValue
-js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_tree_walker_constructor(JSContext* ctx,
+                           JSValueConst new_target,
+                           int argc,
+                           JSValueConst* argv) {
   TreeWalker* w;
   PropertyEnumeration* it = 0;
   JSValue obj = JS_UNDEFINED;
@@ -112,7 +120,10 @@ fail:
 }
 
 static JSValue
-js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_tree_walker_tostring(JSContext* ctx,
+                        JSValueConst this_val,
+                        int argc,
+                        JSValueConst* argv) {
   TreeWalker* w;
   DynBuf dbuf;
   JSValue ret;
@@ -127,7 +138,10 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 }
 
 static PropertyEnumeration*
-js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValueConst pred) {
+js_tree_walker_next(JSContext* ctx,
+                    TreeWalker* w,
+                    JSValueConst this_arg,
+                    JSValueConst pred) {
   PropertyEnumeration* it;
   int32_t type, mask = w->tag_mask & TYPE_ALL;
 
@@ -151,7 +165,8 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValu
 }
 
 static JSValue
-js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_tree_walker_method(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   TreeWalker* w;
   PropertyEnumeration* it;
 
@@ -173,13 +188,15 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   switch(magic) {
     case FIRST_CHILD: {
-      if((it = property_enumeration_enter(&w->frames, ctx, PROPENUM_DEFAULT_FLAGS)) == 0 ||
+      if((it = property_enumeration_enter(&w->frames, ctx, PROPENUM_DEFAULT_FLAGS)) ==
+             0 ||
          !property_enumeration_setpos(it, 0))
         return JS_UNDEFINED;
       break;
     }
     case LAST_CHILD: {
-      if((it = property_enumeration_enter(&w->frames, ctx, PROPENUM_DEFAULT_FLAGS)) == 0 ||
+      if((it = property_enumeration_enter(&w->frames, ctx, PROPENUM_DEFAULT_FLAGS)) ==
+             0 ||
          !property_enumeration_setpos(it, -1))
         return JS_UNDEFINED;
       break;
@@ -265,7 +282,8 @@ js_tree_walker_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       int64_t index = 0;
       JS_ToInt64(ctx, &index, value);
       if(index < 0)
-        index = (index % property_enumeration_length(it)) + property_enumeration_length(it);
+        index =
+            (index % property_enumeration_length(it)) + property_enumeration_length(it);
       it->idx = index;
       break;
     }
@@ -280,12 +298,16 @@ js_tree_walker_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
 }
 
 static JSValue
-js_tree_walker_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_tree_walker_funcs(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   return JS_UNDEFINED;
 }
 
 static JSValue
-js_tree_walker_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_tree_walker_iterator(JSContext* ctx,
+                        JSValueConst this_val,
+                        int argc,
+                        JSValueConst* argv) {
   TreeWalker* w;
   JSValue obj;
 
@@ -319,7 +341,10 @@ js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static JSValue
-js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_tree_iterator_constructor(JSContext* ctx,
+                             JSValueConst new_target,
+                             int argc,
+                             JSValueConst* argv) {
   TreeWalker* w;
   PropertyEnumeration* it = 0;
   JSValue obj = JS_UNDEFINED;
@@ -355,8 +380,12 @@ fail:
 }
 
 JSValue
-js_tree_iterator_next(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
+js_tree_iterator_next(JSContext* ctx,
+                      JSValueConst this_val,
+                      int argc,
+                      JSValueConst* argv,
+                      BOOL* pdone,
+                      int magic) {
   PropertyEnumeration* it;
   TreeWalker* w;
   enum tree_iterator_return r;
@@ -427,7 +456,8 @@ static const JSCFunctionListEntry js_tree_walker_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("depth", js_tree_walker_get, NULL, PROP_DEPTH),
     JS_CGETSET_MAGIC_DEF("index", js_tree_walker_get, js_tree_walker_set, PROP_INDEX),
     JS_CGETSET_MAGIC_DEF("length", js_tree_walker_get, NULL, PROP_LENGTH),
-    JS_CGETSET_MAGIC_DEF("tagMask", js_tree_walker_get, js_tree_walker_set, PROP_TAG_MASK),
+    JS_CGETSET_MAGIC_DEF(
+        "tagMask", js_tree_walker_get, js_tree_walker_set, PROP_TAG_MASK),
     JS_CGETSET_MAGIC_DEF("flags", js_tree_walker_get, js_tree_walker_set, PROP_FLAGS),
     JS_CFUNC_DEF("toString", 0, js_tree_walker_tostring),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TreeWalker", JS_PROP_CONFIGURABLE)};
@@ -468,8 +498,8 @@ js_tree_walker_init(JSContext* ctx, JSModuleDef* m) {
                              countof(js_tree_walker_proto_funcs));
   JS_SetClassProto(ctx, js_tree_walker_class_id, tree_walker_proto);
 
-  tree_walker_ctor =
-      JS_NewCFunction2(ctx, js_tree_walker_constructor, "TreeWalker", 1, JS_CFUNC_constructor, 0);
+  tree_walker_ctor = JS_NewCFunction2(
+      ctx, js_tree_walker_constructor, "TreeWalker", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, tree_walker_ctor, tree_walker_proto);
   JS_SetPropertyFunctionList(ctx,
@@ -487,8 +517,8 @@ js_tree_walker_init(JSContext* ctx, JSModuleDef* m) {
                              countof(js_tree_iterator_proto_funcs));
   JS_SetClassProto(ctx, js_tree_iterator_class_id, tree_iterator_proto);
 
-  tree_iterator_ctor =
-      JS_NewCFunction2(ctx, js_tree_iterator_constructor, "TreeIterator", 1, JS_CFUNC_constructor, 0);
+  tree_iterator_ctor = JS_NewCFunction2(
+      ctx, js_tree_iterator_constructor, "TreeIterator", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, tree_iterator_ctor, tree_iterator_proto);
   JS_SetPropertyFunctionList(ctx,
