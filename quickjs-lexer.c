@@ -113,7 +113,7 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
     return JS_EXCEPTION;
   lexer_init(lex);
   obj = JS_NewObjectProtoClass(ctx, proto, js_lexer_class_id);
-  
+
   if(JS_IsException(obj))
     goto fail;
   JS_SetOpaque(obj, lex);

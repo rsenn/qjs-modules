@@ -57,7 +57,6 @@ BOOL predicate_eval(const Predicate*, JSContext*, JSValueConst);
 #define predicate_function() predicate_type(TYPE_FUNCTION)
 #define predicate_array() predicate_type(TYPE_ARRAY)
 
-
 static inline Predicate
 predicate_type(int32_t type) {
   Predicate ret = {PREDICATE_TYPE};
@@ -91,7 +90,7 @@ predicate_charset(const char* str, size_t len) {
 static inline Predicate
 predicate_not(JSValueConst fn) {
   Predicate ret = {PREDICATE_NOT};
-  ret.not.fn = fn;
+  ret.not .fn = fn;
   return ret;
 }
 
