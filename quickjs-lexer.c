@@ -15,10 +15,14 @@ enum token_methods { TO_STRING = 0 };
 
 enum token_getters { PROP_LENGTH = 0, PROP_OFFSET };
 
-static Token lexer_token(Lexer*lex, JSContext*ctx) {
+static Token lexer_token(Lexer*lex, JSContext*ctx, int id) {
 
-  Token tok={0};
-
+  Token tok;
+tok.data =lex->data;
+tok.offset = lex->start;
+tok.length = lex->pos - lex->start;
+tok.id =id;
+return tok;
 }
 
 static JSValue

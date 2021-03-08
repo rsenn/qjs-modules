@@ -32,7 +32,7 @@ typedef struct {
 const uint8_t* data;
   uint32_t length;
   uint32_t offset;
-  enum token_types type;
+  enum token_types id;
   Location loc;
 } Token;
 
