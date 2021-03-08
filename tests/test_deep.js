@@ -116,11 +116,12 @@ function main(...args) {
 
   let it = deep.iterate(result, (n,p) => typeof n == 'object' && n && typeof n.tagName == 'string' );
   let item;
- while((item = it.next())) {
-  if(item.done) break;
+ for(let item of it) {
+   let [value,path] = item;
 
 
-    console.log('item:', item.value);
+    console.log('value:', value);
+    console.log('path:', path);
     // console.log('it:', it);
   //console.log("item.value:", item.value);
   }
