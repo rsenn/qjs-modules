@@ -15,23 +15,6 @@ enum token_methods { TO_STRING = 0 };
 
 enum token_getters { PROP_LENGTH = 0, PROP_OFFSET };
 
-static Token lexer_token(Lexer*lex, JSContext*ctx, int id) {
-
-  Token tok;
-tok.data =lex->data;
-tok.offset = lex->start;
-tok.length = lex->pos - lex->start;
-tok.id =id;
-return tok;
-}
-static Location lexer_location (Lexer*lex) {
-
-  Location loc;
-  loc.line = lex->line;
-  loc.column = lex->column;
-  return loc;
-}
-
 static JSValue
 js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   Token* tok;
@@ -160,7 +143,6 @@ static const JSCFunctionListEntry js_token_static_funcs[] = {
 JSClassID js_lexer_class_id = 0;
 JSValue lexer_proto, lexer_constructor, lexer_ctor;
 static const char punctuator_chars[] = "=.-%}>,*[<!/]~&(;?|):+^{@";
-
 
 enum lexer_methods {
   METHOD_PEEK = 0,

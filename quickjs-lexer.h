@@ -29,7 +29,7 @@ typedef struct {
 } Line;
 
 typedef struct {
-const uint8_t* data;
+  const uint8_t* data;
   uint32_t length;
   uint32_t offset;
   enum token_types id;
@@ -57,5 +57,24 @@ js_token_data(JSContext* ctx, JSValueConst value) {
 }
 
 JSValue js_token_wrap(JSContext*, Token*);
+
+static inline Location
+lexer_location(const Lexer* lex) {
+  Location loc;
+  loc.line = lex->loc.line;
+  loc.column = lex->loc.column;
+  return loc;
+}
+
+static inline Token
+lexer_token(const Lexer* lex, JSContext* ctx, int id) {
+  Token tok;
+  tok.data = lex->data;
+  tok.offset = lex->start;
+  tok.length = lex->pos - lex->start;
+  tok.id = id;
+  tok.loc = lexer_location(lex);
+  return tok;
+}
 
 #endif /* defined(QUICKJS_LEXER_H) */
