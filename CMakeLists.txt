@@ -3,6 +3,14 @@ project(quickjs-modules C)
 set(QUICKJS_MODULES deep lexer mmap path pointer predicate inspect tree-walker
                     xml)
 
+set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
+set(QUICKJS_H ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h)
+
+if(EXISTS "${QUICKJS_H}") 
+
+  set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
+endif()
+
 set(deep_SOURCES vector.c vector.h pointer.c pointer.h virtual-properties.c
                  virtual-properties.h)
 set(deep_LIBRARIES quickjs-pointer)
@@ -10,10 +18,9 @@ set(inspect_SOURCES vector.c vector.h)
 set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
 set(path_SOURCES path.c path.h)
-set(predicate_SOURCES predicate.c predicate.h)
-set(pointer_SOURCES quickjs-pointer.h pointer.c pointer.h)
-set(lexer_SOURCES utils.h ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h
-                  ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
+set(predicate_SOURCES predicate.c predicate.h ${COMMON_HEADERS})
+set(pointer_SOURCES quickjs-pointer.h pointer.c pointer.h ${COMMON_HEADERS})
+set(lexer_SOURCES utils.h quickjs-predicate.h predicate.h)
 set(lexer_LIBRARIES quickjs-predicate)
 
 if(NOT QUICKJS_PREFIX)
