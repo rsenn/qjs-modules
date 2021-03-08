@@ -232,9 +232,7 @@ _get_stack_trace(int full) {
     }
     if(ret == 0) {
       if(!full) {
-        if(!(stack_trace = _str_jointo(stack_trace,
-                                       ((j > nptrs - 4) ? ("") : (" < ")),
-                                       &stack_trace))) {
+        if(!(stack_trace = _str_jointo(stack_trace, ((j > nptrs - 4) ? ("") : (" < ")), &stack_trace))) {
           return (NULL);
         }
       } else {
@@ -474,10 +472,7 @@ _WRAPPED_malloc(size_t size, int line, const char* func, const char* file) {
   _mem_append(&_WRALOC_MEM_LIST_, _mem_new(ptr, size, 0));
   _WRALOC_NUM_ALLO_++;
   tmp = _mem_get_elem_by_addr(_WRALOC_MEM_LIST_, ptr);
-  printf(CL_GR "+A+ ALLO_NUM %04lu | ADDR <%p> | SIZE %04lu | ",
-         _WRALOC_NUM_ALLO_,
-         ptr,
-         size);
+  printf(CL_GR "+A+ ALLO_NUM %04lu | ADDR <%p> | SIZE %04lu | ", _WRALOC_NUM_ALLO_, ptr, size);
   if(tmp && tmp->id < 127) {
     printf("ID %c", (_WRAP_t_byte)tmp->id);
   } else if(tmp) {
@@ -515,10 +510,7 @@ _WRAPPED_free(void* ptr, int line, const char* func, const char* file) {
   size = _mem_get_size(_WRALOC_MEM_LIST_, ptr);
 
   if(size) {
-    printf(CL_BL "-F- FREE_NUM %04lu | ADDR <%p> | SIZE %04lu | ",
-           _WRALOC_NUM_FREE_,
-           ptr,
-           size);
+    printf(CL_BL "-F- FREE_NUM %04lu | ADDR <%p> | SIZE %04lu | ", _WRALOC_NUM_FREE_, ptr, size);
   } else {
     // printf("\033[96mFREE OF SIZE ZERO");
   }

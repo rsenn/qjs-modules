@@ -73,11 +73,9 @@ typedef struct JSFloatEnv {
 
 typedef struct {
   JSValue (*to_string)(JSContext* ctx, JSValueConst val);
-  JSValue (*from_string)(
-      JSContext* ctx, const char* buf, int radix, int flags, slimb_t* pexponent);
+  JSValue (*from_string)(JSContext* ctx, const char* buf, int radix, int flags, slimb_t* pexponent);
   int (*unary_arith)(JSContext* ctx, JSValue* pres, OPCodeEnum op, JSValue op1);
-  int (*binary_arith)(
-      JSContext* ctx, OPCodeEnum op, JSValue* pres, JSValue op1, JSValue op2);
+  int (*binary_arith)(JSContext* ctx, OPCodeEnum op, JSValue* pres, JSValue op1, JSValue op2);
   int (*compare)(JSContext* ctx, OPCodeEnum op, JSValue op1, JSValue op2);
   JSValue (*mul_pow10_to_float64)(JSContext* ctx, const bf_t* a, int64_t exponent);
   int (*mul_pow10)(JSContext* ctx, JSValue* sp);

@@ -3,18 +3,18 @@
 #include "quickjs-predicate.h"
 
 int32_t
-predicate_eval(const Predicate* pr, JSContext* ctx, JSValueConst arg) {
+predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
   int32_t ret = 0;
 
   switch(pr->id) {
     case PREDICATE_TYPE: {
-      int32_t id = js_value_type(arg);
+      int32_t id = js_value_type(argv[0]);
       ret = pr->type.flags == id;
       break;
     }
     case PREDICATE_CHARSET: {
       size_t i, len;
-      const char* str = JS_ToCStringLen(ctx, &len, arg);
+      const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
 
       ret = 1;
 
@@ -28,25 +28,24 @@ predicate_eval(const Predicate* pr, JSContext* ctx, JSValueConst arg) {
     }
     case PREDICATE_NOT: {
       JSValue value;
-      ret = js_predicate_call(ctx, pr->unary.fn, arg) == 0;
+      ret = js_predicate_call(ctx, pr->unary.fn, argc, argv) == 0;
       JS_FreeValue(ctx, value);
       break;
     }
     case PREDICATE_OR: {
-      ret = js_predicate_call(ctx, pr->binary.a, arg);
+      ret = js_predicate_call(ctx, pr->binary.a, argc, argv);
       if(!ret)
-        ret = js_predicate_call(ctx, pr->binary.b, arg);
+        ret = js_predicate_call(ctx, pr->binary.b, argc, argv);
       break;
     }
     case PREDICATE_AND: {
-      ret = js_predicate_call(ctx, pr->binary.a, arg);
+      ret = js_predicate_call(ctx, pr->binary.a, argc, argv);
       if(ret)
-        ret = js_predicate_call(ctx, pr->binary.b, arg);
+        ret = js_predicate_call(ctx, pr->binary.b, argc, argv);
       break;
     }
     case PREDICATE_XOR: {
-      ret = js_predicate_call(ctx, pr->binary.a, arg) ^
-            js_predicate_call(ctx, pr->binary.b, arg);
+      ret = js_predicate_call(ctx, pr->binary.a, argc, argv) ^ js_predicate_call(ctx, pr->binary.b, argc, argv);
       break;
     }
 
@@ -83,9 +82,7 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     case PREDICATE_XOR: {
       dbuf_putstr(dbuf, "( ");
       dbuf_put_value(dbuf, ctx, pr->binary.a);
-      dbuf_putstr(dbuf,
-                  pr->id == PREDICATE_XOR ? " ^ "
-                                          : pr->id == PREDICATE_AND ? " && " : " || ");
+      dbuf_putstr(dbuf, pr->id == PREDICATE_XOR ? " ^ " : pr->id == PREDICATE_AND ? " && " : " || ");
       dbuf_put_value(dbuf, ctx, pr->binary.a);
       dbuf_putstr(dbuf, " )");
 

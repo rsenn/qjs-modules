@@ -20,8 +20,7 @@ typedef struct PropertyEnumeration {
 
 #define PROPENUM_SORT_ATOMS (1 << 6)
 
-#define PROPENUM_DEFAULT_FLAGS                                                           \
-  (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)
+#define PROPENUM_DEFAULT_FLAGS (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)
 
 #define property_enumeration_new(vec) vector_emplace((vec), sizeof(PropertyEnumeration))
 #define property_enumeration_length(enum) ((enum)->tab_atom_len)
@@ -33,16 +32,12 @@ compare_jspropertyenum(JSPropertyEnum* a, JSPropertyEnum* b) {
 }
 
 static inline int
-property_enumeration_init(PropertyEnumeration* it,
-                          JSContext* ctx,
-                          JSValueConst object,
-                          int flags) {
+property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
   it->obj = object;
   it->idx = 0;
   it->is_array = JS_IsArray(ctx, object);
 
-  if(JS_GetOwnPropertyNames(
-         ctx, &it->tab_atom, &it->tab_atom_len, object, flags & 0x3f)) {
+  if(JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, object, flags & 0x3f)) {
     it->tab_atom_len = 0;
     it->tab_atom = 0;
     return -1;
@@ -134,10 +129,7 @@ property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
 }
 
 static inline int
-property_enumeration_predicate(PropertyEnumeration* it,
-                               JSContext* ctx,
-                               JSValueConst fn,
-                               JSValueConst this_arg) {
+property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueConst fn, JSValueConst this_arg) {
   BOOL result;
   JSValue key, value, ret;
   JSValueConst argv[3];
@@ -162,11 +154,7 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
   size_t i;
   const char* s;
   dbuf_putstr(out, "{ obj: 0x");
-  dbuf_printf(out,
-              "%ld",
-              (int64_t)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT
-                            ? JS_VALUE_GET_OBJ(it->obj)
-                            : 0));
+  dbuf_printf(out, "%ld", (int64_t)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : 0));
   dbuf_putstr(out, ", idx: ");
   dbuf_printf(out, "%u", it->idx);
   dbuf_putstr(out, ", len: ");
@@ -310,8 +298,7 @@ property_enumeration_recurse(vector* vec, JSContext* ctx) {
       type = JS_VALUE_GET_TAG(value);
       JS_FreeValue(ctx, value);
       if(type == JS_TAG_OBJECT) {
-        if((it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS)) &&
-           property_enumeration_setpos(it, 0))
+        if((it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS)) && property_enumeration_setpos(it, 0))
           break;
       } else {
         if(property_enumeration_setpos(it, it->idx + 1))

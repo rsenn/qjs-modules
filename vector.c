@@ -47,8 +47,7 @@ umult64(uint64_t a, uint64_t b, uint64_t* c) {
 }
 #endif
 
-#define roundto(n, mod)                                                                  \
-  (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
+#define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
 
 void*
 vector_allocate(vector* vec, size_t elsz, int32_t pos) {
@@ -131,8 +130,7 @@ vector_put(vector* vec, const void* bytes, size_t len) {
   memcpy(vec->data + pos, bytes, len);
 }
 
-void __attribute__((format(printf, 2, 3)))
-vector_printf(vector* vec, const char* fmt, ...) {
+void __attribute__((format(printf, 2, 3))) vector_printf(vector* vec, const char* fmt, ...) {
   va_list ap;
   char buf[128];
   int len;
@@ -164,8 +162,7 @@ vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out) {
 }
 
 void
-vector_symmetricdiff(
-    void* a, size_t m, void* b, size_t n, size_t elsz, vector* out_a, vector* out_b) {
+vector_symmetricdiff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out_a, vector* out_b) {
   vector_diff(a, m, b, n, elsz, out_a);
   vector_diff(b, n, a, m, elsz, out_b);
 }

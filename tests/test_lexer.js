@@ -159,6 +159,28 @@ function main(...args) {
   }
   console.log('lexer.keywords', lexer.keywords);
 
+  for(let char of 'Ff2_-/abc$') {
+    for(let name of [
+      'isAlphaChar',
+      'isDecimalDigit',
+      'isHexDigit',
+      'isIdentifierChar',
+      //'isKeyword',
+      'isLineTerminator',
+      'isOctalDigit',
+      // 'isPunctuator',
+      'isPunctuatorChar',
+      'isQuoteChar',
+      'isRegExpChar',
+      'isWhitespace'
+    ]) {
+      let method = `${name}('${char}')`;
+      let b = Lexer[name](char);
+
+      if(b) console.log(`Lexer.${method.padEnd(20)} =`, b);
+    }
+  }
+
   std.gc();
 }
 

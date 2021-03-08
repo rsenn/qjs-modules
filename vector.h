@@ -23,19 +23,17 @@ typedef union {
   };
 } vector;
 
-#define VECTOR_INIT()                                                                    \
+#define VECTOR_INIT()                                                                                                  \
   { 0, 0, 0 }
 
 #define vector_init(vec) memset((vec), 0, sizeof(vector))
-#define vector_init2(vec, ctx)                                                           \
-  dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&js_realloc)
-#define VECTOR2(ctx)                                                                     \
+#define vector_init2(vec, ctx) dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&js_realloc)
+#define VECTOR2(ctx)                                                                                                   \
   (vector) { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }
 
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
-#define vector_foreach(a, msz, p)                                                        \
-  for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a);                         \
-      (p) = (void*)(((char*)p) + msz))
+#define vector_foreach(a, msz, p)                                                                                      \
+  for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
 
 int umult64(uint64_t a, uint64_t b, uint64_t* c);
 void* vector_allocate(vector* vec, size_t elsz, int32_t pos);
@@ -52,8 +50,7 @@ void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, vector*, vector*
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 
-#define vector_search(vec, elsz, elem)                                                   \
-  array_search(array_begin((vec)), array_size((vec), (elsz)), (elsz), (elem))
+#define vector_search(vec, elsz, elem) array_search(array_begin((vec)), array_size((vec), (elsz)), (elsz), (elem))
 
 static inline uint32_t
 vector_size(const vector* vec, size_t elsz) {
@@ -125,24 +122,19 @@ vector_put0(vector* vec) {
 static inline void
 vector_putlong(vector* vec, long l, int radix) {
   char buf[64];
-  size_t len =
-      snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
+  size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
   vector_put(vec, buf, len);
 }
 
 static inline void
-vector_sort(vector* vec,
-            size_t elsz,
-            int (*compar)(const void*, const void*, void*),
-            void* arg) {
+vector_sort(vector* vec, size_t elsz, int (*compar)(const void*, const void*, void*), void* arg) {
   qsort_r(vector_begin(vec), vector_size(vec, elsz), elsz, compar, arg);
 }
 
 static inline void
 vector_catlong(vector* vec, long l, int radix) {
   char buf[64];
-  size_t len =
-      snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
+  size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
   vector_put(vec, buf, len);
 }
 

@@ -44,7 +44,6 @@ function main(...args) {
   let isAlpha = Predicate.or(isLower, isUpper);
   let isAlnum = Predicate.or(isAlpha, isDigit);
 
-
   let predicates = [isUpper, isLower, isNL, isNotNL, isNotUpper, isNotLower];
 
   for(let p of predicates) console.log('p:', p.toString());
@@ -56,14 +55,14 @@ function main(...args) {
   console.log(`isNotNL.eval('\\r')`, isNotNL.eval('\r'));
   console.log(`isNL.eval('\\r')`, isNL.eval('\r'));
 
-for(let ch of ['_','2','A','a','Z','z','?','-'])
-  console.log(`isXDigit.eval('${ch}') =`, isXDigit.eval(ch));
+  for(let ch of ['_', '2', 'A', 'a', 'Z', 'z', '?', '-'])
+    console.log(`isXDigit.eval('${ch}') =`, isXDigit.eval(ch));
 
-for(let ch of ['_','2','A','a','?','-'])
-  console.log(`isAlpha.eval('${ch}') =`, isAlpha.eval(ch));
+  for(let ch of ['_', '2', 'A', 'a', '?', '-'])
+    console.log(`isAlpha.eval('${ch}') =`, isAlpha.eval(ch));
 
-for(let ch of ['_','2','A','a','?','-'])
-  console.log(`isAlnum.eval('${ch}') =`, isAlnum.eval(ch));
+  for(let ch of ['_', '2', 'A', 'a', '?', '-'])
+    console.log(`isAlnum.eval('${ch}') =`, isAlnum.eval(ch));
 
   std.gc();
 }

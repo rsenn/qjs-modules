@@ -15,8 +15,7 @@
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
-#define INSPECT_IS_COMPACT(opts)                                                         \
-  (INSPECT_INT32T_INRANGE((opts)->compact) ? INSPECT_LEVEL(opts) >= (opts)->compact : 0)
+#define INSPECT_IS_COMPACT(opts) (INSPECT_INT32T_INRANGE((opts)->compact) ? INSPECT_LEVEL(opts) >= (opts)->compact : 0)
 
 typedef struct {
   int colors : 1;
@@ -41,14 +40,10 @@ typedef struct prop_key {
   JSAtom atom;
 } prop_key_t;
 
-static int js_inspect_print(JSContext* ctx,
-                            DynBuf* buf,
-                            JSValueConst value,
-                            inspect_options_t* opts,
-                            int32_t depth);
+static int js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth);
 
-static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor,
-    shared_array_buffer_ctor, map_ctor, set_ctor, regexp_ctor, symbol_ctor;
+static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor,
+    set_ctor, regexp_ctor, symbol_ctor;
 
 static void
 inspect_options_init(inspect_options_t* opts) {
@@ -150,8 +145,7 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
   if(!JS_IsUndefined(value)) {
     if(JS_VALUE_GET_TAG(value) == JS_TAG_BOOL && JS_VALUE_GET_BOOL(value) == 0)
       opts->compact = INT32_MIN;
-    else if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 &&
-            isinf(JS_VALUE_GET_FLOAT64(value)))
+    else if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))
       opts->compact = INT32_MAX;
     else
       JS_ToInt32(ctx, &opts->compact, value);
@@ -185,19 +179,10 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
   JS_SetPropertyStr(ctx, ret, "customInspect", JS_NewBool(ctx, opts->custom_inspect));
   JS_SetPropertyStr(ctx, ret, "showProxy", JS_NewBool(ctx, opts->show_proxy));
   JS_SetPropertyStr(ctx, ret, "getters", JS_NewBool(ctx, opts->getters));
-  JS_SetPropertyStr(ctx,
-                    ret,
-                    "stringBreakNewline",
-                    JS_NewBool(ctx, opts->string_break_newline));
+  JS_SetPropertyStr(ctx, ret, "stringBreakNewline", JS_NewBool(ctx, opts->string_break_newline));
   JS_SetPropertyStr(ctx, ret, "depth", js_new_number(ctx, opts->depth));
-  JS_SetPropertyStr(ctx,
-                    ret,
-                    "maxArrayLength",
-                    js_new_number(ctx, opts->max_array_length));
-  JS_SetPropertyStr(ctx,
-                    ret,
-                    "maxStringLength",
-                    js_new_number(ctx, opts->max_string_length));
+  JS_SetPropertyStr(ctx, ret, "maxArrayLength", js_new_number(ctx, opts->max_array_length));
+  JS_SetPropertyStr(ctx, ret, "maxStringLength", js_new_number(ctx, opts->max_string_length));
   JS_SetPropertyStr(ctx, ret, "breakLength", js_new_number(ctx, opts->break_length));
   JS_SetPropertyStr(ctx, ret, "compact", js_new_bool_or_number(ctx, opts->compact));
   arr = JS_NewArray(ctx);
@@ -319,10 +304,7 @@ js_inspect_custom_atom(JSContext* ctx) {
 }
 
 static const char*
-js_inspect_custom_call(JSContext* ctx,
-                       JSValueConst obj,
-                       inspect_options_t* opts,
-                       int32_t depth) {
+js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   JSValue inspect;
   JSAtom inspect_custom;
   const char* str = 0;
@@ -351,11 +333,7 @@ js_inspect_custom_call(JSContext* ctx,
 }
 
 static int
-js_inspect_map(JSContext* ctx,
-               DynBuf* buf,
-               JSValueConst obj,
-               inspect_options_t* opts,
-               int32_t depth) {
+js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   BOOL ret, finish = FALSE;
   size_t i = 0;
   int compact = INSPECT_IS_COMPACT(opts);
@@ -400,11 +378,7 @@ js_inspect_map(JSContext* ctx,
 }
 
 static int
-js_inspect_set(JSContext* ctx,
-               DynBuf* buf,
-               JSValueConst obj,
-               inspect_options_t* opts,
-               int32_t depth) {
+js_inspect_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   BOOL ret, finish = FALSE;
   size_t i = 0;
   int compact = INSPECT_IS_COMPACT(opts);
@@ -439,11 +413,7 @@ js_inspect_set(JSContext* ctx,
 }
 
 static int
-js_inspect_arraybuffer(JSContext* ctx,
-                       DynBuf* buf,
-                       JSValueConst value,
-                       inspect_options_t* opts,
-                       int32_t depth) {
+js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   const char *str, *str2;
   uint8_t* ptr;
   size_t i, slen, size;
@@ -491,11 +461,7 @@ js_inspect_arraybuffer(JSContext* ctx,
 }
 
 static int
-js_inspect_regexp(JSContext* ctx,
-                  DynBuf* buf,
-                  JSValueConst value,
-                  inspect_options_t* opts,
-                  int32_t depth) {
+js_inspect_regexp(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   const char* str;
   str = JS_ToCString(ctx, value);
   if(opts->colors)
@@ -508,11 +474,7 @@ js_inspect_regexp(JSContext* ctx,
 }
 
 static int
-js_inspect_number(JSContext* ctx,
-                  DynBuf* buf,
-                  JSValueConst value,
-                  inspect_options_t* opts,
-                  int32_t depth) {
+js_inspect_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   int tag = JS_VALUE_GET_TAG(value);
   const char* str;
   size_t len;
@@ -529,11 +491,7 @@ js_inspect_number(JSContext* ctx,
 }
 
 static int
-js_inspect_string(JSContext* ctx,
-                  DynBuf* buf,
-                  JSValueConst value,
-                  inspect_options_t* opts,
-                  int32_t depth) {
+js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   int tag = JS_VALUE_GET_TAG(value);
   int compact = INSPECT_IS_COMPACT(opts);
 
@@ -581,11 +539,7 @@ js_inspect_string(JSContext* ctx,
 }
 
 static int
-js_inspect_print(JSContext* ctx,
-                 DynBuf* buf,
-                 JSValueConst value,
-                 inspect_options_t* opts,
-                 int32_t depth) {
+js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   int tag = JS_VALUE_GET_TAG(value);
   int compact = INSPECT_IS_COMPACT(opts);
   // printf("js_inspect_print level: %d\n", INSPECT_LEVEL(opts));
@@ -636,8 +590,7 @@ js_inspect_print(JSContext* ctx,
       return js_inspect_string(ctx, buf, value, opts, depth);
     }
     case JS_TAG_OBJECT: {
-      int is_array = JS_IsArray(ctx, value),
-          is_typedarray = js_object_is_typedarray(ctx, value);
+      int is_array = JS_IsArray(ctx, value), is_typedarray = js_object_is_typedarray(ctx, value);
       int is_function = JS_IsFunction(ctx, value);
       uint32_t nprops, pos, len, limit;
       JSPropertyEnum* props = 0;
@@ -651,8 +604,7 @@ js_inspect_print(JSContext* ctx,
         compact = opts->compact >= depth;
       }
 
-      if(JS_IsInstanceOf(ctx, value, array_buffer_ctor) ||
-         JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor))
+      if(JS_IsInstanceOf(ctx, value, array_buffer_ctor) || JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor))
         return js_inspect_arraybuffer(ctx, buf, value, opts, depth + 1);
       if(JS_IsInstanceOf(ctx, value, map_ctor))
         return js_inspect_map(ctx, buf, value, opts, depth /*+ 1*/);
@@ -693,8 +645,7 @@ js_inspect_print(JSContext* ctx,
                                 &props,
                                 &nprops,
                                 value,
-                                JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
-                                    (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+                                JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(is_function) {
@@ -717,10 +668,7 @@ js_inspect_print(JSContext* ctx,
           goto end_obj;
       }
       if(depth < 0) {
-        dbuf_put_colorstr(buf,
-                          is_array ? "[Array]" : "[Object]",
-                          COLOR_MARINE,
-                          opts->colors);
+        dbuf_put_colorstr(buf, is_array ? "[Array]" : "[Object]", COLOR_MARINE, opts->colors);
         goto end_obj;
       }
 
@@ -750,12 +698,8 @@ js_inspect_print(JSContext* ctx,
           JS_FreeAtom(ctx, prop);
 
           if(desc.flags & JS_PROP_GETSET) {
-            int idx = (JS_IsUndefined(desc.getter) ? 0 : 1) |
-                      (JS_IsUndefined(desc.setter) ? 0 : 2);
-            static const char* const strs[4] = {0,
-                                                "[Getter]",
-                                                "[Setter]",
-                                                "[Getter/Setter]"};
+            int idx = (JS_IsUndefined(desc.getter) ? 0 : 1) | (JS_IsUndefined(desc.setter) ? 0 : 2);
+            static const char* const strs[4] = {0, "[Getter]", "[Setter]", "[Getter/Setter]"};
             if(idx)
               dbuf_put_colorstr(buf, strs[idx], COLOR_MARINE, opts->colors);
           } else if(!JS_IsUndefined(desc.value)) {
@@ -784,8 +728,7 @@ js_inspect_print(JSContext* ctx,
         JSValue key = js_atom_tovalue(ctx, props[pos].atom);
         name = JS_AtomToCString(ctx, props[pos].atom);
         if(!JS_IsSymbol(key)) {
-          if(((is_array || is_typedarray) && is_integer(name)) ||
-             inspect_options_hidden(opts, props[pos].atom)) {
+          if(((is_array || is_typedarray) && is_integer(name)) || inspect_options_hidden(opts, props[pos].atom)) {
             JS_FreeValue(ctx, key);
             JS_FreeCString(ctx, name);
             continue;
@@ -810,10 +753,8 @@ js_inspect_print(JSContext* ctx,
         JS_GetOwnProperty(ctx, &desc, value, props[pos].atom);
         if(desc.flags & JS_PROP_GETSET)
           dbuf_put_colorstr(buf,
-                            JS_IsUndefined(desc.getter)
-                                ? "[Setter]"
-                                : JS_IsUndefined(desc.setter) ? "[Getter]"
-                                                              : "[Getter/Setter]",
+                            JS_IsUndefined(desc.getter) ? "[Setter]"
+                                                        : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
                             COLOR_MARINE,
                             opts->colors);
         else
@@ -825,9 +766,7 @@ js_inspect_print(JSContext* ctx,
 
       if(!compact && len)
         inspect_newline(buf, INSPECT_LEVEL(opts));
-      dbuf_putstr(buf,
-                  (is_array || is_typedarray) ? (compact && len ? " ]" : "]")
-                                              : (compact && len ? " }" : "}"));
+      dbuf_putstr(buf, (is_array || is_typedarray) ? (compact && len ? " ]" : "]") : (compact && len ? " }" : "}"));
 
     end_obj:
       if(props)
@@ -883,8 +822,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   return ret;
 }
 
-static const JSCFunctionListEntry js_inspect_funcs[] = {
-    JS_CFUNC_DEF("inspect", 1, js_inspect)};
+static const JSCFunctionListEntry js_inspect_funcs[] = {JS_CFUNC_DEF("inspect", 1, js_inspect)};
 
 static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {

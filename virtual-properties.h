@@ -41,18 +41,12 @@ virtual_properties_get(VirtualProperties* vprop, JSContext* ctx, JSValueConst pr
 }
 
 static inline int
-virtual_properties_set(VirtualProperties* vprop,
-                       JSContext* ctx,
-                       JSValueConst prop,
-                       JSValue value) {
+virtual_properties_set(VirtualProperties* vprop, JSContext* ctx, JSValueConst prop, JSValue value) {
   return vprop->set(vprop, ctx, prop, value);
 }
 
 static inline int
-virtual_properties_setstr(VirtualProperties* vprop,
-                          JSContext* ctx,
-                          const char* prop,
-                          JSValue value) {
+virtual_properties_setstr(VirtualProperties* vprop, JSContext* ctx, const char* prop, JSValue value) {
   JSValue key = JS_NewString(ctx, prop);
   int ret = virtual_properties_set(vprop, ctx, key, value);
   JS_FreeValue(ctx, key);

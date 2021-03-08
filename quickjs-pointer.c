@@ -87,16 +87,12 @@ static JSValue
 js_pointer_toarray(JSContext* ctx, Pointer* ptr) {
   size_t i;
   JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++)
-    JS_SetPropertyUint32(ctx, array, i, JS_AtomToValue(ctx, ptr->atoms[i]));
+  for(i = 0; i < ptr->n; i++) JS_SetPropertyUint32(ctx, array, i, JS_AtomToValue(ctx, ptr->atoms[i]));
   return array;
 }
 
 static JSValue
-js_pointer_constructor(JSContext* ctx,
-                       JSValueConst new_target,
-                       int argc,
-                       JSValueConst* argv) {
+js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   JSValue proto;
   /* using new_target to get the prototype is necessary when the
      class is extended. */
@@ -113,8 +109,7 @@ js_pointer_deref(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueCon
 }
 
 static JSValue
-js_pointer_method(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Pointer* ptr;
 
   if(!(ptr = JS_GetOpaque2(ctx, this_val, js_pointer_class_id)))
@@ -193,8 +188,7 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
 }
 
 static JSValue
-js_pointer_funcs(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   JSValue ret;
 
   switch(magic) {
@@ -265,20 +259,13 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_pointer_class_id, &js_pointer_class);
 
   pointer_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             pointer_proto,
-                             js_pointer_proto_funcs,
-                             countof(js_pointer_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, pointer_proto, js_pointer_proto_funcs, countof(js_pointer_proto_funcs));
   JS_SetClassProto(ctx, js_pointer_class_id, pointer_proto);
 
-  pointer_ctor = JS_NewCFunction2(
-      ctx, js_pointer_constructor, "Pointer", 1, JS_CFUNC_constructor, 0);
+  pointer_ctor = JS_NewCFunction2(ctx, js_pointer_constructor, "Pointer", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, pointer_ctor, pointer_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             pointer_ctor,
-                             js_pointer_static_funcs,
-                             countof(js_pointer_static_funcs));
+  JS_SetPropertyFunctionList(ctx, pointer_ctor, js_pointer_static_funcs, countof(js_pointer_static_funcs));
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Pointer", pointer_ctor);

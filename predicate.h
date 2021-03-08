@@ -41,7 +41,7 @@ typedef struct Predicate {
   };
 } Predicate;
 
-int32_t predicate_eval(const Predicate*, JSContext*, JSValueConst);
+int32_t predicate_eval(const Predicate*, JSContext*, int argc, JSValueConst* argv);
 void predicate_tostring(const Predicate*, JSContext*, DynBuf*);
 
 #define predicate_undefined() predicate_type(TYPE_UNDEFINED)
@@ -95,6 +95,13 @@ static inline Predicate
 predicate_not(JSValueConst fn) {
   Predicate ret = {PREDICATE_NOT};
   ret.unary.fn = fn;
+  return ret;
+}
+static inline Predicate
+predicate_xor(JSValueConst a, JSValueConst b) {
+  Predicate ret = {PREDICATE_XOR};
+  ret.binary.a = a;
+  ret.binary.b = b;
   return ret;
 }
 

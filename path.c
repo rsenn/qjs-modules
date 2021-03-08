@@ -129,8 +129,7 @@ start:
     dbuf_0(db);
     path += n;
     memset(&st, 0, sizeof(st));
-    if(stat_fn((const char*)db->buf, &st) != -1 &&
-       path_is_symlink((const char*)db->buf)) {
+    if(stat_fn((const char*)db->buf, &st) != -1 && path_is_symlink((const char*)db->buf)) {
       ret++;
       if((ssize_t)(n = readlink((const char*)db->buf, buf, PATH_MAX)) == (ssize_t)-1)
         return 0;
@@ -260,11 +259,7 @@ path_relative(const char* path, const char* relative_to, DynBuf* db) {
 }
 
 int
-path_fnmatch(const char* pattern,
-             unsigned int plen,
-             const char* string,
-             unsigned int slen,
-             int flags) {
+path_fnmatch(const char* pattern, unsigned int plen, const char* string, unsigned int slen, int flags) {
 start:
   if(slen == 0) {
     while(plen && *pattern == '*') {
@@ -334,8 +329,7 @@ start:
         goto match;
     } break;
     case '*': {
-      if((*string == '/' && (flags & PATH_FNM_PATHNAME)) ||
-         path_fnmatch(pattern, plen, string + 1, slen - 1, flags)) {
+      if((*string == '/' && (flags & PATH_FNM_PATHNAME)) || path_fnmatch(pattern, plen, string + 1, slen - 1, flags)) {
         pattern++;
         plen--;
         goto start;

@@ -12,16 +12,13 @@
 
 #define max_num(a, b) ((a) > (b) ? (a) : (b))
 
-#define is_control_char(c)                                                               \
-  ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' ||            \
-   (c) == '\f' || (c) == '\r')
+#define is_control_char(c)                                                                                             \
+  ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_newline_char(c) ((c) == '\n')
-#define is_identifier_char(c)                                                            \
-  (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
-#define is_whitespace_char(c)                                                            \
-  ((c) == ' ' || (c) == '\t' || (c) == '\v' || (c) == '\n' || (c) == '\r')
+#define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
+#define is_whitespace_char(c) ((c) == ' ' || (c) == '\t' || (c) == '\v' || (c) == '\n' || (c) == '\r')
 
 typedef struct {
   BOOL done;
@@ -290,8 +287,7 @@ array_search(void* a, size_t m, size_t elsz, void* needle) {
   return -1;
 }
 
-#define array_contains(a, m, elsz, needle)                                               \
-  (array_search((a), (m), (elsz), (needle)) != -1)
+#define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
 
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 
@@ -470,10 +466,9 @@ enum value_mask {
   TYPE_BIG_INT = (1 << FLAG_BIG_INT),
   TYPE_BIG_DECIMAL = (1 << FLAG_BIG_DECIMAL),
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
-  TYPE_NUMBER =
-      (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
-  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING |
-                    TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL),
+  TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
+  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT |
+                    TYPE_BIG_INT | TYPE_BIG_DECIMAL),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -613,12 +608,8 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
       ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      if(!JS_GetOwnPropertyNames(ctx,
-                                 &tab_atom,
-                                 &tab_atom_len,
-                                 value,
-                                 JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
-                                     JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(
+             ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
         uint32_t i;
         for(i = 0; i < tab_atom_len; i++) {
           JSValue prop;
@@ -659,12 +650,7 @@ static void input_value_free_default(JSContext* ctx, const char* str){
 
 static inline void
 input_value_dump(const InputValue* input, DynBuf* db) {
-  dbuf_printf(db,
-              "(InputValue){ .x = %p, .n = %zx, .p = %zx, .free = %p }",
-              input->x,
-              input->n,
-              input->p,
-              input->free);
+  dbuf_printf(db, "(InputValue){ .x = %p, .n = %zx, .p = %zx, .free = %p }", input->x, input->n, input->p, input->free);
 }
 
 static inline InputValue
@@ -690,20 +676,20 @@ js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value) {
   return r;
 }
 
-#define js_value_free(ctx, value)                                                        \
-  do {                                                                                   \
-    JS_FreeValue((ctx), (value));                                                        \
-    (value) = JS_UNDEFINED;                                                              \
+#define js_value_free(ctx, value)                                                                                      \
+  do {                                                                                                                 \
+    JS_FreeValue((ctx), (value));                                                                                      \
+    (value) = JS_UNDEFINED;                                                                                            \
   } while(0);
-#define js_value_free_rt(ctx, value)                                                     \
-  do {                                                                                   \
-    JS_FreeValueRT((ctx), (value));                                                      \
-    (value) = JS_UNDEFINED;                                                              \
+#define js_value_free_rt(ctx, value)                                                                                   \
+  do {                                                                                                                 \
+    JS_FreeValueRT((ctx), (value));                                                                                    \
+    (value) = JS_UNDEFINED;                                                                                            \
   } while(0);
 
-#define js_object_tmpmark_set(value)                                                     \
+#define js_object_tmpmark_set(value)                                                                                   \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
-#define js_object_tmpmark_clear(value)                                                   \
+#define js_object_tmpmark_clear(value)                                                                                 \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
 
@@ -961,8 +947,7 @@ js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
 }
 
 static inline void
-js_object_propertystr_setstr(
-    JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
+js_object_propertystr_setstr(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
   JSValue value;
   value = JS_NewStringLen(ctx, str, len);
   JS_SetPropertyStr(ctx, obj, prop, value);
@@ -1064,8 +1049,7 @@ js_object_is_typedarray(JSContext* ctx, JSValueConst value) {
   JSValue buf;
   size_t byte_offset, byte_length, bytes_per_element;
 
-  buf =
-      JS_GetTypedArrayBuffer(ctx, value, &byte_offset, &byte_length, &bytes_per_element);
+  buf = JS_GetTypedArrayBuffer(ctx, value, &byte_offset, &byte_length, &bytes_per_element);
   ret = js_object_is_arraybuffer(ctx, buf);
   JS_FreeValue(ctx, buf);
   return ret;
@@ -1097,17 +1081,9 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   assert(ta == TYPE_OBJECT);
   assert(tb == TYPE_OBJECT);
 
-  if(JS_GetOwnPropertyNames(ctx,
-                            &atoms_a,
-                            &natoms_a,
-                            a,
-                            JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     return FALSE;
-  if(JS_GetOwnPropertyNames(ctx,
-                            &atoms_b,
-                            &natoms_b,
-                            b,
-                            JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     return FALSE;
 
   if(natoms_a != natoms_b)
@@ -1148,8 +1124,7 @@ js_strvec_to_array(JSContext* ctx, char** strv) {
   JSValue ret = JS_NewArray(ctx);
   if(strv) {
     size_t i;
-    for(i = 0; strv[i]; i++)
-      JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, strv[i]));
+    for(i = 0; strv[i]; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, strv[i]));
   }
   return ret;
 }

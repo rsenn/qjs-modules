@@ -16,15 +16,11 @@ js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   JSValue obj = JS_UNDEFINED;
   if(!(pred = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
-
   pred->id = PREDICATE_NONE;
-
   obj = JS_NewObjectProtoClass(ctx, proto, js_predicate_class_id);
-
   if(JS_IsException(obj))
     goto fail;
   JS_SetOpaque(obj, pred);
-
   return obj;
 fail:
   js_free(ctx, pred);
@@ -36,28 +32,23 @@ JSValue
 js_predicate_wrap(JSContext* ctx, Predicate pred) {
   JSValue obj;
   Predicate* ret;
-
   if(!(ret = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
-
   *ret = pred;
-
   obj = JS_NewObjectProtoClass(ctx, predicate_proto, js_predicate_class_id);
   JS_SetOpaque(obj, ret);
   return obj;
 }
 
 int32_t
-js_predicate_call(JSContext* ctx, JSValueConst value, JSValueConst arg) {
+js_predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv) {
   Predicate* pred;
   int32_t result = 0;
-
   if((pred = JS_GetOpaque2(ctx, value, js_predicate_class_id)))
-    return predicate_eval(pred, ctx, arg);
-
+    return predicate_eval(pred, ctx, argc, argv);
   if(JS_IsFunction(ctx, value)) {
     JSValue ret = JS_UNDEFINED;
-    ret = JS_Call(ctx, value, JS_UNDEFINED, 1, &arg);
+    ret = JS_Call(ctx, value, JS_UNDEFINED, argc, argv);
     if(JS_IsException(ret)) {
       result = -1;
     } else {
@@ -66,24 +57,17 @@ js_predicate_call(JSContext* ctx, JSValueConst value, JSValueConst arg) {
     }
     return result;
   }
-  
   assert(0);
-
   return -1;
 }
 
 static JSValue
-js_predicate_constructor(JSContext* ctx,
-                         JSValueConst new_target,
-                         int argc,
-                         JSValueConst* argv) {
-  Predicate* w;
+js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+  Predicate* pred;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
-
-  if(!(w = js_mallocz(ctx, sizeof(Predicate))))
+  if(!(pred = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
-
   /* using new_target to get the prototype is necessary when the
      class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -93,18 +77,57 @@ js_predicate_constructor(JSContext* ctx,
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
-  JS_SetOpaque(obj, w);
+  JS_SetOpaque(obj, pred);
 
+  if(argc > 0) {
+    int32_t id;
+    JS_ToInt32(ctx, &id, argv[0]);
+
+    switch(id) {
+      case PREDICATE_CHARSET: {
+        size_t len;
+        const char* str = JS_ToCStringLen(ctx, &len, argv[1]);
+        if(argc > 2 && JS_IsNumber(argv[2]))
+          js_value_to_size(ctx, &len, argv[2]);
+
+        *pred = predicate_charset(str, len);
+
+        JS_FreeCString(ctx, str);
+        break;
+      }
+      case PREDICATE_TYPE: {
+        int32_t id = -1;
+        JS_ToInt32(ctx, &id, argv[0]);
+        *pred = predicate_type(id);
+        break;
+      }
+      case PREDICATE_NOT: {
+        *pred = predicate_not(argv[1]);
+        break;
+      }
+      case PREDICATE_AND: {
+        *pred = predicate_and(argv[1], argv[2]);
+        break;
+      }
+      case PREDICATE_OR: {
+        *pred = predicate_or(argv[1], argv[2]);
+        break;
+      }
+      case PREDICATE_XOR: {
+        *pred = predicate_xor(argv[1], argv[2]);
+        break;
+      }
+    }
+  }
   return obj;
 fail:
-  js_free(ctx, w);
+  js_free(ctx, pred);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
 static JSValue
-js_predicate_method(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
   if(!(pred = JS_GetOpaque2(ctx, this_val, js_predicate_class_id)))
@@ -112,9 +135,9 @@ js_predicate_method(
 
   switch(magic) {
     case METHOD_EVAL: {
-      int32_t r = predicate_eval(pred, ctx, argv[0]);
+      int32_t r = predicate_eval(pred, ctx, argc, argv);
 
-      //ret = JS_NewBool(ctx, r);
+      // ret = JS_NewBool(ctx, r);
       ret = JS_NewInt32(ctx, r);
 
       //  printf("predicate_eval() = %i\n", r);
@@ -125,10 +148,7 @@ js_predicate_method(
 }
 
 static JSValue
-js_predicate_tostring(JSContext* ctx,
-                      JSValueConst this_val,
-                      int argc,
-                      JSValueConst* argv) {
+js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Predicate* pred;
   DynBuf dbuf;
   JSValue ret;
@@ -168,8 +188,7 @@ js_predicate_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int 
 }
 
 static JSValue
-js_predicate_funcs(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   JSValue ret = JS_UNDEFINED;
   switch(magic) {
     case PREDICATE_AND: {
@@ -230,7 +249,14 @@ static const JSCFunctionListEntry js_predicate_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("and", 2, js_predicate_funcs, PREDICATE_AND),
     JS_CFUNC_MAGIC_DEF("xor", 2, js_predicate_funcs, PREDICATE_XOR),
     JS_CFUNC_MAGIC_DEF("charset", 1, js_predicate_funcs, PREDICATE_CHARSET),
-    JS_CFUNC_MAGIC_DEF("type", 1, js_predicate_funcs, PREDICATE_TYPE)};
+    JS_CFUNC_MAGIC_DEF("type", 1, js_predicate_funcs, PREDICATE_TYPE),
+    JS_PROP_INT32_DEF("PREDICATE_AND", PREDICATE_AND, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_CHARSET", PREDICATE_CHARSET, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_NONE", PREDICATE_NONE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_NOT", PREDICATE_NOT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_OR", PREDICATE_OR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_TYPE", PREDICATE_TYPE, JS_PROP_ENUMERABLE),
+};
 
 static int
 js_predicate_init(JSContext* ctx, JSModuleDef* m) {
@@ -239,20 +265,13 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_predicate_class_id, &js_predicate_class);
 
   predicate_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             predicate_proto,
-                             js_predicate_proto_funcs,
-                             countof(js_predicate_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, predicate_proto, js_predicate_proto_funcs, countof(js_predicate_proto_funcs));
   JS_SetClassProto(ctx, js_predicate_class_id, predicate_proto);
 
-  predicate_ctor = JS_NewCFunction2(
-      ctx, js_predicate_constructor, "Predicate", 1, JS_CFUNC_constructor, 0);
+  predicate_ctor = JS_NewCFunction2(ctx, js_predicate_constructor, "Predicate", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, predicate_ctor, predicate_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             predicate_ctor,
-                             js_predicate_static_funcs,
-                             countof(js_predicate_static_funcs));
+  JS_SetPropertyFunctionList(ctx, predicate_ctor, js_predicate_static_funcs, countof(js_predicate_static_funcs));
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Predicate", predicate_ctor);
