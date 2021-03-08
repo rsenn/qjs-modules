@@ -98,10 +98,7 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
   // JS_FreeValueRT(rt, val);
 }
 
-JSClassDef js_predicate_class = {
-    .class_name = "Predicate",
-    .finalizer = js_predicate_finalizer,
-};
+JSClassDef js_predicate_class = {.class_name = "Predicate", js_predicate_finalizer};
 
 static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("eval", 1, js_predicate_method, METHOD_EVAL),
@@ -120,9 +117,10 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
                              countof(js_predicate_proto_funcs));
   JS_SetClassProto(ctx, js_predicate_class_id, predicate_proto);
 
-  predicate_ctor = JS_NewCFunction2(ctx, js_predicate_constructor, "Predicate", 1, JS_CFUNC_constructor, 0);
+  /*predicate_ctor = JS_NewCFunction2(ctx, js_predicate_constructor, "Predicate", 1, JS_CFUNC_constructor,
+  0);
 
-  JS_SetConstructor(ctx, predicate_ctor, predicate_proto);
+  JS_SetConstructor(ctx, predicate_ctor, predicate_proto);*/
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Predicate", predicate_ctor);
