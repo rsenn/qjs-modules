@@ -56,7 +56,7 @@ predicate_charset(const char* str, size_t len) {
   Predicate ret = {PREDICATE_CHARSET};
   ret.charset.set = str;
   ret.charset.len = len;
-  return ret;
+  return ret; 
 }
 
 static inline Predicate
