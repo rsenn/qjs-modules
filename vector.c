@@ -97,6 +97,15 @@ vector_at(const vector* vec, size_t elsz, int32_t pos) {
   return vec->data + offs;
 }
 
+int32_t
+vector_indexof(const vector* vec, size_t elsz, void* ptr) {
+  uint32_t ret;
+  if(ptr < vector_begin(vec) || ptr > vector_back(vec, elsz))
+    return -1;
+
+  return ((size_t)vector_begin(vec) - (size_t)ptr) / elsz;
+}
+
 void
 vector_shrink(vector* vec, size_t elsz, int32_t len) {
   uint64_t need;

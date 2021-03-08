@@ -36,7 +36,7 @@ enum tree_walker_getters {
 enum tree_iterator_return {
   RETURN_VALUE = 0,
   RETURN_PATH = 1 << 24,
-  RETURN_TUPLE = 2 << 24,
+  RETURN_VALUE_PATH = 2 << 24,
   RETURN_MASK = 3 << 24
 };
 
@@ -53,7 +53,7 @@ tree_walker_reset(TreeWalker* w, JSContext* ctx) {
   vector_foreach_t(&w->frames, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
   vector_clear(&w->frames);
 
-  w->tag_mask = MASK_ALL;
+  w->tag_mask = TYPE_ALL;
 }
 
 static PropertyEnumeration*
@@ -118,7 +118,7 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   JSValue ret;
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
-  dbuf_init(&dbuf);
+  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
   tree_walker_dump(w, ctx, &dbuf);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
@@ -129,10 +129,10 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 static PropertyEnumeration*
 js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValueConst pred) {
   PropertyEnumeration* it;
-  int32_t type, mask = w->tag_mask & MASK_ALL;
+  int32_t type, mask = w->tag_mask & TYPE_ALL;
 
   for(; (it = property_enumeration_recurse(&w->frames, ctx));) {
-    if(mask && mask != MASK_ALL) {
+    if(mask && mask != TYPE_ALL) {
       JSValue value;
       value = property_enumeration_value(it, ctx);
       type = js_value_type(value);
@@ -371,7 +371,7 @@ js_tree_iterator_next(
     switch(r) {
       case RETURN_VALUE: return property_enumeration_value(it, ctx);
       case RETURN_PATH: return property_enumeration_path(&w->frames, ctx);
-      case RETURN_TUPLE:
+      case RETURN_VALUE_PATH:
       default: {
         JSValue ret = JS_NewArray(ctx);
         JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
@@ -433,21 +433,21 @@ static const JSCFunctionListEntry js_tree_walker_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TreeWalker", JS_PROP_CONFIGURABLE)};
 
 static const JSCFunctionListEntry js_tree_walker_static_funcs[] = {
-    JS_PROP_INT32_DEF("MASK_UNDEFINED", MASK_UNDEFINED, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_NULL", MASK_NULL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_BOOL", MASK_BOOL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_INT", MASK_INT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_OBJECT", MASK_OBJECT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_STRING", MASK_STRING, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_SYMBOL", MASK_SYMBOL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_BIG_FLOAT", MASK_BIG_FLOAT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_BIG_INT", MASK_BIG_INT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_BIG_DECIMAL", MASK_BIG_DECIMAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_ALL", MASK_ALL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("MASK_PRIMITIVE", MASK_PRIMITIVE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_UNDEFINED", TYPE_UNDEFINED, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_NULL", TYPE_NULL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_BOOL", TYPE_BOOL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_INT", TYPE_INT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_OBJECT", TYPE_OBJECT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_STRING", TYPE_STRING, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_SYMBOL", TYPE_SYMBOL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_BIG_FLOAT", TYPE_BIG_FLOAT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_BIG_INT", TYPE_BIG_INT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_BIG_DECIMAL", TYPE_BIG_DECIMAL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_ALL", TYPE_ALL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_PRIMITIVE", TYPE_PRIMITIVE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("RETURN_VALUE", RETURN_VALUE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("RETURN_PATH", RETURN_PATH, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("RETURN_TUPLE", RETURN_TUPLE, JS_PROP_ENUMERABLE)};
+    JS_PROP_INT32_DEF("RETURN_VALUE_PATH", RETURN_VALUE_PATH, JS_PROP_ENUMERABLE)};
 
 static const JSCFunctionListEntry js_tree_iterator_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_tree_iterator_next, 0),

@@ -42,35 +42,16 @@ function main(...args) {
 
   let found = deep.find(result, n => typeof n == 'object' && n != null && n.tagName == 'elements');
 
-  //deep.find(result, n => console.log(n));
-
+ 
   console.log('found:', inspect(found, inspectOptions));
 
-  /* console.log('get:',
-    inspect(deep.get(result, [2, 'children', 0, 'children', 3, 'children', 0]), inspectOptions)
-  );
-   console.log('set:',
-    inspect(
-      deep.set(result,
-        [2, 'children', 0, 'children', 3, 'children', 1, 'children', 6, 'XXX', 'a', 'b', 'c', 'd'],
-        'blah'
-      ),
-      inspectOptions
-    )
-  );
-  console.log('get:',
-    inspect(
-      deep.get(result, [2, 'children', 0, 'children', 3, 'children', 1, 'children']),
-      inspectOptions
-    )
-  );*/
+ 
   console.log('array:', inspect([, , , , 4, 5, 6, , ,], inspectOptions));
   let testObj = {};
 
   deep.set(testObj, 'a.0.b.0.c\\.x.0', null);
   deep.unset(testObj, 'a.0.b.0');
   console.log('testObj: ' + inspect(testObj, inspectOptions));
-
 
   let out = new Map();
 
@@ -90,20 +71,49 @@ function main(...args) {
   }
 
   let node = deep.get(result, '2.children.0.children.3.children.8.children.13.children.20');
-console.log("get():", node);
+  console.log('get():', node);
   let path = deep.pathOf(result, node);
-console.log("pathOf():", path);
+  console.log('pathOf():', path);
 
-
-let obj1 = {
-  a: 1,b:2,c:3,d:4,e: [1,2,3,4,5]
-};
-let obj2 = {
-  d:4,c:3,b:2,a:1,e: [1,2,3,4,5]
-};
-
+  let obj1 = {
+    a: [undefined, 1, 1234n],
+    b: 2,
+    c: 3,
+    d: 4,
+    e: [NaN, true, false, Infinity, null]
+  };
+  let obj2 = {
+    d: 4,
+    c: 3,
+    b: 2,
+    a: [undefined, 1, 1234n],
+    e: [NaN, true, false, Infinity, null]
+  };
 
   console.log('equals():', deep.equals(obj1, obj2));
+  for(let o of [obj1]) {
+    let it = deep.iterate(o);
+    console.log('it:', it);
+    for(let item of it) console.log('item:', item);
+  }
+  console.log('deep.RETURN_PATH:', deep.RETURN_PATH);
+  console.log('deep.RETURN_VALUE:', deep.RETURN_VALUE);
+  console.log('deep.RETURN_VALUE_PATH:', deep.RETURN_VALUE_PATH);
+  console.log('deep.RETURN_PATH_VALUE:', deep.RETURN_PATH_VALUE);
+  console.log('find():',
+    deep.find(obj1, n => n == Infinity, deep.RETURN_PATH_VALUE)
+  );
+
+  deep.forEach(obj2, (n, p) => console.log('deep.forEach', { n, p }));
+  console.log('obj1:', obj1);
+  console.log('clone():', deep.clone(result));
+  console.log('select():',
+    deep.select(
+      result,
+      node => typeof node == 'object' && node.tagName == 'wire',
+      deep.RETURN_PATH_VALUE
+    )
+  );
 
   std.gc();
 }

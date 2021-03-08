@@ -67,7 +67,7 @@ pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, int index) {
 void
 pointer_debug(Pointer* ptr, JSContext* ctx) {
   DynBuf db;
-  dbuf_init(&db);
+  dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
   pointer_dump(ptr, ctx, &db, TRUE, -1);
   dbuf_0(&db);
 

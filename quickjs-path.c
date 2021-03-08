@@ -157,7 +157,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       b = JS_ToCStringLen(ctx, &blen, argv[1]);
   }
 
-  dbuf_init(&db);
+  dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
 
   switch(magic) {
     case METHOD_ABSOLUTE: path_absolute(a, &db); break;
@@ -188,7 +188,8 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   DynBuf db;
   size_t i, len = 0, pos;
   JSValue ret = JS_UNDEFINED;
-  dbuf_init(&db);
+  dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
   for(i = 0; i < argc; i++) {
     str = JS_ToCStringLen(ctx, &len, argv[i]);
     path_append(str, len, &db);
@@ -231,7 +232,7 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   JSValue ret = JS_UNDEFINED;
   DynBuf db;
 
-  dbuf_init(&db);
+  dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
 
   if((dir = js_object_propertystr_getstr(ctx, obj, "dir"))) {
     dbuf_putstr(&db, dir);
@@ -269,7 +270,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   ssize_t i;
   size_t len = 0, pos;
   JSValue ret = JS_UNDEFINED;
-  dbuf_init(&db);
+  dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
   dbuf_0(&db);
 
   for(i = argc - 1; i >= 0; i--) {
@@ -288,7 +289,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   }
 
   if(!path_is_absolute((const char*)db.buf, db.size)) {
-    dbuf_init(&cwd);
+    dbuf_init2(&cwd, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
     str = path_getcwd(&cwd);
     len = cwd.size;
     if(dbuf_reserve_start(&db, len + 1))

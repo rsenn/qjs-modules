@@ -439,23 +439,23 @@ enum value_types {
 };
 
 enum value_mask {
-  MASK_UNDEFINED = (1 << FLAG_UNDEFINED),
-  MASK_NULL = (1 << FLAG_NULL),
-  MASK_BOOL = (1 << FLAG_BOOL),
-  MASK_INT = (1 << FLAG_INT),
-  MASK_OBJECT = (1 << FLAG_OBJECT),
-  MASK_STRING = (1 << FLAG_STRING),
-  MASK_SYMBOL = (1 << FLAG_SYMBOL),
-  MASK_BIG_FLOAT = (1 << FLAG_BIG_FLOAT),
-  MASK_BIG_INT = (1 << FLAG_BIG_INT),
-  MASK_BIG_DECIMAL = (1 << FLAG_BIG_DECIMAL),
-  MASK_FLOAT64 = (1 << FLAG_FLOAT64),
-  MASK_NUMBER = (MASK_INT | MASK_BIG_FLOAT | MASK_BIG_INT | MASK_BIG_DECIMAL | MASK_FLOAT64),
-  MASK_PRIMITIVE = (MASK_UNDEFINED | MASK_NULL | MASK_BOOL | MASK_INT | MASK_STRING | MASK_SYMBOL |
-                    MASK_BIG_FLOAT | MASK_BIG_INT | MASK_BIG_DECIMAL),
-  MASK_ALL = (MASK_PRIMITIVE | MASK_OBJECT),
-  MASK_FUNCTION = (1 << FLAG_FUNCTION),
-  MASK_ARRAY = (1 << FLAG_ARRAY),
+  TYPE_UNDEFINED = (1 << FLAG_UNDEFINED),
+  TYPE_NULL = (1 << FLAG_NULL),
+  TYPE_BOOL = (1 << FLAG_BOOL),
+  TYPE_INT = (1 << FLAG_INT),
+  TYPE_OBJECT = (1 << FLAG_OBJECT),
+  TYPE_STRING = (1 << FLAG_STRING),
+  TYPE_SYMBOL = (1 << FLAG_SYMBOL),
+  TYPE_BIG_FLOAT = (1 << FLAG_BIG_FLOAT),
+  TYPE_BIG_INT = (1 << FLAG_BIG_INT),
+  TYPE_BIG_DECIMAL = (1 << FLAG_BIG_DECIMAL),
+  TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
+  TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
+  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL |
+                    TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL),
+  TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
+  TYPE_FUNCTION = (1 << FLAG_FUNCTION),
+  TYPE_ARRAY = (1 << FLAG_ARRAY),
 };
 
 static inline int32_t
@@ -497,34 +497,34 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   if(ta != tb)
     return FALSE;
 
-  if(ta & MASK_INT) {
+  if(ta & TYPE_INT) {
     int32_t inta, intb;
 
     inta = JS_VALUE_GET_INT(a);
     intb = JS_VALUE_GET_INT(b);
     ret = inta == intb;
-  } else if(ta & MASK_BOOL) {
+  } else if(ta & TYPE_BOOL) {
     BOOL boola, boolb;
 
     boola = !!JS_VALUE_GET_BOOL(a);
     boolb = !!JS_VALUE_GET_BOOL(b);
     ret = boola == boolb;
 
-  } else if(ta & MASK_FLOAT64) {
+  } else if(ta & TYPE_FLOAT64) {
     double flta, fltb;
 
     flta = JS_VALUE_GET_FLOAT64(a);
     fltb = JS_VALUE_GET_FLOAT64(b);
     ret = flta == fltb;
 
-  } else if(ta & MASK_OBJECT) {
+  } else if(ta & TYPE_OBJECT) {
     void *obja, *objb;
 
     obja = JS_VALUE_GET_OBJ(a);
     objb = JS_VALUE_GET_OBJ(b);
 
     ret = obja == objb;
-  } else if(ta & MASK_STRING) {
+  } else if(ta & TYPE_STRING) {
     const char *stra, *strb;
 
     stra = JS_ToCString(ctx, a);
@@ -551,6 +551,77 @@ js_value_dump(JSContext* ctx, JSValue value, DynBuf* db) {
     dbuf_append(db, (const uint8_t*)str, len);
     JS_FreeCString(ctx, str);
   }
+}
+
+static inline JSValue
+js_value_clone(JSContext* ctx, JSValueConst value) {
+
+  int32_t type = js_value_type(value);
+  JSValue ret = JS_UNDEFINED;
+  switch(type) {
+
+      /* case TYPE_NULL: {
+         ret = JS_NULL;
+         break;
+       }
+       case TYPE_UNDEFINED: {
+         ret = JS_UNDEFINED;
+         break;
+       }
+       case TYPE_STRING: {
+         size_t len;
+         const char* str;
+         str = JS_ToCStringLen(ctx, &len, value);
+         ret = JS_NewStringLen(ctx, str, len);
+         JS_FreeCString(ctx, str);
+         break;
+       }*/
+    case TYPE_INT: {
+      ret = JS_NewInt32(ctx, JS_VALUE_GET_INT(value));
+      break;
+    }
+    case TYPE_FLOAT64: {
+      ret = JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(value));
+      break;
+    }
+    case TYPE_BOOL: {
+      ret = JS_NewBool(ctx, JS_VALUE_GET_BOOL(value));
+      break;
+    }
+    case TYPE_OBJECT: {
+      JSPropertyEnum* tab_atom;
+      uint32_t tab_atom_len;
+      ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
+      if(!JS_GetOwnPropertyNames(ctx,
+                                 &tab_atom,
+                                 &tab_atom_len,
+                                 value,
+                                 JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+        uint32_t i;
+        for(i = 0; i < tab_atom_len; i++) {
+          JSValue prop;
+          prop = JS_GetProperty(ctx, value, tab_atom[i].atom);
+          JS_SetProperty(ctx, ret, tab_atom[i].atom, js_value_clone(ctx, prop));
+        }
+      }
+      break;
+    }
+    case TYPE_UNDEFINED:
+    case TYPE_NULL:
+    case TYPE_SYMBOL:
+    case TYPE_STRING:
+    case TYPE_BIG_DECIMAL:
+    case TYPE_BIG_INT:
+    case TYPE_BIG_FLOAT: {
+      ret = JS_DupValue(ctx, value);
+      break;
+    }
+    default: {
+      ret = JS_ThrowTypeError(ctx, "No such type: %08x\n", type);
+      break;
+    }
+  }
+  return ret;
 }
 
 #define js_value_free(ctx, value)                                                                          \

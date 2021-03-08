@@ -27,6 +27,7 @@ typedef struct {
 int umult64(uint64_t a, uint64_t b, uint64_t* c);
 void* vector_allocate(vector* vec, size_t elsz, int32_t pos);
 void* vector_at(const vector* vec, size_t elsz, int32_t pos);
+int32_t vector_indexof(const vector* vec, size_t elsz, void* ptr);
 void vector_put(vector* vec, const void* bytes, size_t len);
 void vector_free(vector* vec);
 void vector_shrink(vector* vec, size_t elsz, int32_t len);

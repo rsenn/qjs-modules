@@ -796,7 +796,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   JSValue ret;
 
   js_inspect_constructors_get(ctx);
-  dbuf_init(&dbuf);
+  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
   inspect_options_init(&options);
 
   if(argc > 1 && JS_IsNumber(argv[1]))
