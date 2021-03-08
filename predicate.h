@@ -10,7 +10,6 @@ typedef struct {
   int32_t flags;
 } TypePredicate;
 
-
 typedef struct {
   const char* set;
   size_t len;
@@ -39,7 +38,25 @@ typedef struct Predicate {
   };
 } Predicate;
 
-BOOL predicate_eval(const Predicate*, JSContext*, JSValue);
+BOOL predicate_eval(const Predicate*, JSContext*, JSValueConst);
+
+#define predicate_undefined() predicate_type(TYPE_UNDEFINED)
+#define predicate_null() predicate_type(TYPE_NULL)
+#define predicate_bool() predicate_type(TYPE_BOOL)
+#define predicate_int() predicate_type(TYPE_INT)
+#define predicate_object() predicate_type(TYPE_OBJECT)
+#define predicate_string() predicate_type(TYPE_STRING)
+#define predicate_symbol() predicate_type(TYPE_SYMBOL)
+#define predicate_big_float() predicate_type(TYPE_BIG_FLOAT)
+#define predicate_big_int() predicate_type(TYPE_BIG_INT)
+#define predicate_big_decimal() predicate_type(TYPE_BIG_DECIMAL)
+#define predicate_float64() predicate_type(TYPE_FLOAT64)
+#define predicate_number() predicate_type(TYPE_NUMBER)
+#define predicate_primitive() predicate_type(TYPE_PRIMITIVE)
+#define predicate_all() predicate_type(TYPE_ALL)
+#define predicate_function() predicate_type(TYPE_FUNCTION)
+#define predicate_array() predicate_type(TYPE_ARRAY)
+
 
 static inline Predicate
 predicate_type(int32_t type) {
