@@ -24,12 +24,6 @@
 static int chars[256] = {0};
 
 typedef struct {
-  const uint8_t* x;
-  size_t n;
-  void (*free)(JSContext*, const char*);
-} InputValue;
-
-typedef struct {
   uint32_t idx;
   JSValue obj;
   const uint8_t* name;
@@ -51,21 +45,6 @@ character_classes_init(int c[256]) {
   c['?'] = SPECIAL | QUESTION;
   c['\\'] = BACKSLASH;
   c['-'] = HYPHEN;
-}
-
-static void input_value_free_default(JSContext* ctx, const char* str){};
-
-static InputValue
-js_value_to_bytes(JSContext* ctx, JSValueConst value) {
-  InputValue ret = {0, 0, input_value_free_default};
-
-  if(JS_IsString(value)) {
-    ret.x = (const uint8_t*)JS_ToCStringLen(ctx, &ret.n, value);
-    ret.free = JS_FreeCString;
-  } else {
-    ret.x = JS_GetArrayBuffer(ctx, &ret.n, value);
-  }
-  return ret;
 }
 
 #define pop()                                                                                              \

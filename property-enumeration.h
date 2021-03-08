@@ -147,7 +147,6 @@ property_enumeration_predicate(PropertyEnumeration* it,
   return result;
 }
 
-
 static inline void
 property_enumeration_sort(PropertyEnumeration* it, JSContext* ctx) {
   qsort_r(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);

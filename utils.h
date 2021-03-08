@@ -628,6 +628,30 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
+typedef struct {
+  const uint8_t* x;
+  size_t n;
+  size_t p;
+  void (*free)(JSContext*, const char*);
+} InputValue;
+
+static void input_value_free_default(JSContext* ctx, const char* str){
+
+};
+
+static inline InputValue
+js_value_to_bytes(JSContext* ctx, JSValueConst value) {
+  InputValue ret = {0, 0, 0, &input_value_free_default};
+
+  if(JS_IsString(value)) {
+    ret.x = (const uint8_t*)JS_ToCStringLen(ctx, &ret.n, value);
+    ret.free = JS_FreeCString;
+  } else {
+    ret.x = JS_GetArrayBuffer(ctx, &ret.n, value);
+  }
+  return ret;
+}
+
 #define js_value_free(ctx, value)                                                                          \
   do {                                                                                                     \
     JS_FreeValue((ctx), (value));                                                                          \
@@ -1024,42 +1048,36 @@ js_propenum_cmp(const void* a, const void* b, void* ptr) {
 
 static BOOL
 js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
-BOOL ret = FALSE;
+  BOOL ret = FALSE;
 
+  JSPropertyEnum *atoms_a, *atoms_b;
+  uint32_t i, natoms_a, natoms_b;
+  int32_t ta, tb;
 
-JSPropertyEnum* atoms_a,*atoms_b;
-uint32_t i, natoms_a,natoms_b;
-int32_t ta,tb;
+  ta = js_value_type(a);
+  tb = js_value_type(b);
+  assert(ta == TYPE_OBJECT);
+  assert(tb == TYPE_OBJECT);
 
-ta = js_value_type(a);
-tb = js_value_type(b);
-assert(ta == TYPE_OBJECT);
-assert(tb == TYPE_OBJECT);
+  if(JS_GetOwnPropertyNames(
+         ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+    return FALSE;
+  if(JS_GetOwnPropertyNames(
+         ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+    return FALSE;
 
-
-if(JS_GetOwnPropertyNames(ctx, &atoms_a,  &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
-return FALSE;
-if(JS_GetOwnPropertyNames(ctx, &atoms_b,  &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
-return FALSE;
-
-if(natoms_a != natoms_b) 
-  return FALSE;
+  if(natoms_a != natoms_b)
+    return FALSE;
 
   qsort_r(&atoms_a, natoms_a, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
   qsort_r(&atoms_b, natoms_b, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
 
-for(i = 0; i < natoms_a; i++) 
-  if(atoms_a[i].atom != atoms_b[i].atom)
-    return FALSE;
+  for(i = 0; i < natoms_a; i++)
+    if(atoms_a[i].atom != atoms_b[i].atom)
+      return FALSE;
 
-return TRUE;  
-
+  return TRUE;
 }
-
-
-
-
-
 
 static inline int64_t
 js_array_length(JSContext* ctx, JSValueConst array) {

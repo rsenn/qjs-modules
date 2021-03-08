@@ -1,6 +1,6 @@
 project(quickjs-modules C)
 
-set(QUICKJS_MODULES deep mmap path pointer inspect tree-walker xml)
+set(QUICKJS_MODULES deep lexer mmap path pointer inspect tree-walker xml)
 
 set(deep_SOURCES vector.c vector.h pointer.c pointer.h virtual-properties.c virtual-properties.h)
 set(deep_LIBRARIES pointer)

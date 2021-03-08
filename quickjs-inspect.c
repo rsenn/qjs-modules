@@ -598,11 +598,14 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       uint32_t nprops, pos, len, limit;
       JSPropertyEnum* props = 0;
       const char* s;
+      compact = FALSE;
 
-      compact = /*INSPECT_INT32T_INRANGE(opts->compact)
-                    ? opts->compact >= property_enumeration_depth(ctx, value)
-                    :*/
-          0;
+      if(INSPECT_INT32T_INRANGE(opts->compact)) {
+        int32_t depth = property_enumeration_depth(ctx, value);
+        // printf("opts->compact %d depth = %d\n", opts->compact, depth);
+
+        compact = opts->compact >= depth;
+      }
 
       if(JS_IsInstanceOf(ctx, value, array_buffer_ctor) ||
          JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor))

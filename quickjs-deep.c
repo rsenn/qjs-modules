@@ -205,7 +205,6 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     }
   } while((it = property_enumeration_recurse(&frames, ctx)));
 
-  
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
   return ret;
 }
