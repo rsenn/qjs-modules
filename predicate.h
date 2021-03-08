@@ -4,7 +4,12 @@
 #include "vector.h"
 #include "utils.h"
 
-enum { PREDICATE_CHARSET, PREDICATE_NOT, PREDICATE_OR, PREDICATE_AND };
+enum { PREDICATE_TYPE, PREDICATE_CHARSET, PREDICATE_NOT, PREDICATE_OR, PREDICATE_AND };
+
+typedef struct {
+  int32_t flags;
+} TypePredicate;
+
 
 typedef struct {
   const char* set;
@@ -24,8 +29,9 @@ typedef struct {
 } AndPredicate;
 
 typedef struct Predicate {
-  int type;
+  int id;
   union {
+    TypePredicate type;
     CharsetPredicate charset;
     NotPredicate not ;
     OrPredicate or ;
@@ -35,6 +41,12 @@ typedef struct Predicate {
 
 BOOL predicate_eval(const Predicate*, JSContext*, JSValue);
 
+static inline Predicate
+predicate_type(int32_t type) {
+  Predicate ret = {PREDICATE_TYPE};
+  ret.type.flags = type;
+  return ret;
+}
 static inline Predicate
 predicate_or(JSValueConst a, JSValueConst b) {
   Predicate ret = {PREDICATE_OR};
@@ -56,7 +68,7 @@ predicate_charset(const char* str, size_t len) {
   Predicate ret = {PREDICATE_CHARSET};
   ret.charset.set = str;
   ret.charset.len = len;
-  return ret; 
+  return ret;
 }
 
 static inline Predicate

@@ -9,7 +9,7 @@ set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
 set(path_SOURCES path.c path.h)
 set(pointer_SOURCES quickjs-pointer.h pointer.c pointer.h)
-set(lexer_SOURCES predicate.c predicate.h)
+set(lexer_SOURCES utils.h predicate.c predicate.h)
 
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"

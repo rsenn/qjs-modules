@@ -5,7 +5,12 @@ BOOL
 predicate_eval(const Predicate* pr, JSContext* ctx, JSValueConst arg) {
   BOOL ret = FALSE;
 
-  switch(pr->type) {
+  switch(pr->id) {
+    case PREDICATE_TYPE: {
+      int32_t id = js_value_type(arg);
+      ret = pr->type.flags == id;
+      break;
+    }
     case PREDICATE_CHARSET: {
       size_t len;
       const char* str = JS_ToCStringLen(ctx, &len, arg);
