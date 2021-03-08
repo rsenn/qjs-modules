@@ -10,7 +10,8 @@ enum predicate_id {
   PREDICATE_CHARSET,
   PREDICATE_NOT,
   PREDICATE_OR,
-  PREDICATE_AND
+  PREDICATE_AND,
+  PREDICATE_XOR
 };
 
 typedef struct {
@@ -24,24 +25,19 @@ typedef struct {
 
 typedef struct {
   JSValueConst fn;
-} NotPredicate;
+} UnaryPredicate;
 
 typedef struct {
   JSValueConst a, b;
-} OrPredicate;
-
-typedef struct {
-  JSValueConst a, b;
-} AndPredicate;
+} BinaryPredicate;
 
 typedef struct Predicate {
   enum predicate_id id;
   union {
     TypePredicate type;
     CharsetPredicate charset;
-    NotPredicate not ;
-    OrPredicate or ;
-    AndPredicate and;
+    UnaryPredicate unary;
+    BinaryPredicate binary;
   };
 } Predicate;
 
@@ -74,16 +70,16 @@ predicate_type(int32_t type) {
 static inline Predicate
 predicate_or(JSValueConst a, JSValueConst b) {
   Predicate ret = {PREDICATE_OR};
-  ret.or.a = a;
-  ret.or.b = b;
+  ret.binary.a = a;
+  ret.binary.b = b;
   return ret;
 }
 
 static inline Predicate
 predicate_and(JSValueConst a, JSValueConst b) {
   Predicate ret = {PREDICATE_AND};
-  ret.and.a = a;
-  ret.and.b = b;
+  ret.binary.a = a;
+  ret.binary.b = b;
   return ret;
 }
 
@@ -98,7 +94,7 @@ predicate_charset(const char* str, size_t len) {
 static inline Predicate
 predicate_not(JSValueConst fn) {
   Predicate ret = {PREDICATE_NOT};
-  ret.not .fn = fn;
+  ret.unary.fn = fn;
   return ret;
 }
 

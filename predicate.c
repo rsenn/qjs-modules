@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include "predicate.h"
+#include "quickjs-predicate.h"
 
 int32_t
 predicate_eval(const Predicate* pr, JSContext* ctx, JSValueConst arg) {
@@ -12,40 +13,40 @@ predicate_eval(const Predicate* pr, JSContext* ctx, JSValueConst arg) {
       break;
     }
     case PREDICATE_CHARSET: {
-      size_t len;
+      size_t i, len;
       const char* str = JS_ToCStringLen(ctx, &len, arg);
-      ret = !!(byte_chr(pr->charset.set, pr->charset.len, str[0]) < pr->charset.len);
+
+      ret = 1;
+
+      for(i = 0; i < len; i++)
+        if(byte_chr(pr->charset.set, pr->charset.len, str[0]) == pr->charset.len) {
+          ret = 0;
+          break;
+        }
+
       break;
     }
     case PREDICATE_NOT: {
       JSValue value;
-      value = JS_Call(ctx, pr->not .fn, JS_UNDEFINED, 1, &arg);
-      ret = !!JS_ToBool(ctx, value);
+      ret = js_predicate_call(ctx, pr->unary.fn, arg) == 0;
       JS_FreeValue(ctx, value);
       break;
     }
     case PREDICATE_OR: {
-      JSValue va, vb;
-      va = JS_Call(ctx, pr->or.a, JS_UNDEFINED, 1, &arg);
-      ret = !!JS_ToBool(ctx, va);
-      JS_FreeValue(ctx, va);
-      if(!ret) {
-        vb = JS_Call(ctx, pr->or.b, JS_UNDEFINED, 1, &arg);
-        ret = JS_ToBool(ctx, vb);
-        JS_FreeValue(ctx, vb);
-      }
+      ret = js_predicate_call(ctx, pr->binary.a, arg);
+      if(!ret)
+        ret = js_predicate_call(ctx, pr->binary.b, arg);
       break;
     }
     case PREDICATE_AND: {
-      JSValue va, vb;
-      va = JS_Call(ctx, pr->and.a, JS_UNDEFINED, 1, &arg);
-      ret = !!JS_ToBool(ctx, va);
-      JS_FreeValue(ctx, va);
-      if(ret) {
-        vb = JS_Call(ctx, pr->and.b, JS_UNDEFINED, 1, &arg);
-        ret = !!JS_ToBool(ctx, vb);
-        JS_FreeValue(ctx, vb);
-      }
+      ret = js_predicate_call(ctx, pr->binary.a, arg);
+      if(ret)
+        ret = js_predicate_call(ctx, pr->binary.b, arg);
+      break;
+    }
+    case PREDICATE_XOR: {
+      ret = js_predicate_call(ctx, pr->binary.a, arg) ^
+            js_predicate_call(ctx, pr->binary.b, arg);
       break;
     }
 
@@ -66,18 +67,28 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       break;
     }
     case PREDICATE_CHARSET: {
-      dbuf_putstr(dbuf, "charset '");
+      dbuf_putstr(dbuf, "[ '");
       dbuf_put_escaped(dbuf, pr->charset.set, pr->charset.len);
-      dbuf_printf(dbuf, "' setlen=%zx\n", pr->charset.len);
+      dbuf_printf(dbuf, "' len=%zx ]", pr->charset.len);
       break;
     }
     case PREDICATE_NOT: {
+      dbuf_putstr(dbuf, "!( ");
+      dbuf_put_value(dbuf, ctx, pr->unary.fn);
+      dbuf_putstr(dbuf, " )");
       break;
     }
-    case PREDICATE_OR: {
-      break;
-    }
-    case PREDICATE_AND: {
+    case PREDICATE_AND:
+    case PREDICATE_OR:
+    case PREDICATE_XOR: {
+      dbuf_putstr(dbuf, "( ");
+      dbuf_put_value(dbuf, ctx, pr->binary.a);
+      dbuf_putstr(dbuf,
+                  pr->id == PREDICATE_XOR ? " ^ "
+                                          : pr->id == PREDICATE_AND ? " && " : " || ");
+      dbuf_put_value(dbuf, ctx, pr->binary.a);
+      dbuf_putstr(dbuf, " )");
+
       break;
     }
 

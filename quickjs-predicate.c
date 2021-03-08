@@ -47,6 +47,31 @@ js_predicate_wrap(JSContext* ctx, Predicate pred) {
   return obj;
 }
 
+int32_t
+js_predicate_call(JSContext* ctx, JSValueConst value, JSValueConst arg) {
+  Predicate* pred;
+  int32_t result = 0;
+
+  if((pred = JS_GetOpaque2(ctx, value, js_predicate_class_id)))
+    return predicate_eval(pred, ctx, arg);
+
+  if(JS_IsFunction(ctx, value)) {
+    JSValue ret = JS_UNDEFINED;
+    ret = JS_Call(ctx, value, JS_UNDEFINED, 1, &arg);
+    if(JS_IsException(ret)) {
+      result = -1;
+    } else {
+      result = JS_ToBool(ctx, ret);
+      JS_FreeValue(ctx, ret);
+    }
+    return result;
+  }
+  
+  assert(0);
+
+  return -1;
+}
+
 static JSValue
 js_predicate_constructor(JSContext* ctx,
                          JSValueConst new_target,
@@ -89,9 +114,10 @@ js_predicate_method(
     case METHOD_EVAL: {
       int32_t r = predicate_eval(pred, ctx, argv[0]);
 
+      //ret = JS_NewBool(ctx, r);
       ret = JS_NewInt32(ctx, r);
 
-      printf("predicate_eval() = %i\n", r);
+      //  printf("predicate_eval() = %i\n", r);
       break;
     }
   }

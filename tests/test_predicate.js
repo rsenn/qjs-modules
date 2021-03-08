@@ -33,16 +33,37 @@ function main(...args) {
   let len = str.length;
   console.log('len', len);
   let isNL = Predicate.charset('\n', 1);
+  let isUpper = Predicate.charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 26);
+  let isLower = Predicate.charset('abcdefghijklmnopqrstuvwxyz', 26);
+  let isDigit = Predicate.charset('0123456789', 10);
+  let isXDigit = Predicate.charset('0123456789ABCDEFabcdef', 22);
 
- let isNotNL = Predicate.not(isNL);
+  let isNotNL = Predicate.not(isNL);
+  let isNotUpper = Predicate.not(isUpper);
+  let isNotLower = Predicate.not(isLower);
+  let isAlpha = Predicate.or(isLower, isUpper);
+  let isAlnum = Predicate.or(isAlpha, isDigit);
 
- let predicates=[isNL,isNotNL];
 
-for(let p of predicates)
-  console.log('p:', p.toString());
+  let predicates = [isUpper, isLower, isNL, isNotNL, isNotUpper, isNotLower];
+
+  for(let p of predicates) console.log('p:', p.toString());
+  console.log(`isUpper.eval('a')`, isUpper.eval('a'));
+  console.log(`isLower.eval('a')`, isLower.eval('a'));
+  console.log(`isNotUpper.eval('a')`, isNotUpper.eval('a'));
+  console.log(`isNotLower.eval('a')`, isNotLower.eval('a'));
   console.log(`isNotNL.eval('\\n')`, isNotNL.eval('\n'));
   console.log(`isNotNL.eval('\\r')`, isNotNL.eval('\r'));
   console.log(`isNL.eval('\\r')`, isNL.eval('\r'));
+
+for(let ch of ['_','2','A','a','Z','z','?','-'])
+  console.log(`isXDigit.eval('${ch}') =`, isXDigit.eval(ch));
+
+for(let ch of ['_','2','A','a','?','-'])
+  console.log(`isAlpha.eval('${ch}') =`, isAlpha.eval(ch));
+
+for(let ch of ['_','2','A','a','?','-'])
+  console.log(`isAlnum.eval('${ch}') =`, isAlnum.eval(ch));
 
   std.gc();
 }

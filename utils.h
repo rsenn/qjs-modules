@@ -320,6 +320,16 @@ dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
   return dbuf_put_escaped_pred(db, str, len, is_escape_char);
 }
 
+static inline void
+dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value) {
+
+  const char* str;
+  size_t len;
+  str = JS_ToCStringLen(ctx, &len, value);
+  dbuf_put(db, str, len);
+  JS_FreeCString(ctx, str);
+}
+
 static inline size_t
 dbuf_token_push(DynBuf* db, const char* str, size_t len, char delim) {
   size_t pos;
