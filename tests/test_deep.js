@@ -114,16 +114,17 @@ function main(...args) {
     )
   );
 
-  let it = deep.iterate(result, (n,p) => typeof n == 'object' && n && typeof n.tagName == 'string' );
+  let it = deep.iterate(result,
+    (n, p) => typeof n == 'object' && n && typeof n.tagName == 'string'
+  );
   let item;
- for(let item of it) {
-   let [value,path] = item;
-
+  for(let item of it) {
+    let [value, path] = item;
 
     console.log('value:', value);
     console.log('path:', path);
     // console.log('it:', it);
-  //console.log("item.value:", item.value);
+    //console.log("item.value:", item.value);
   }
   std.gc();
 }

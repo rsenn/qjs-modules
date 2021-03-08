@@ -189,11 +189,13 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     JS_ToInt32(ctx, &return_flag, argv[2]);
 
   if(!JS_IsFunction(ctx, argv[1]))
-    return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
+    return JS_ThrowTypeError(ctx, "argument 2 (predicate) is not a function");
+  if(!JS_IsObject(argv[0]))
+    return JS_ThrowTypeError(ctx, "argument 1 (root) is not an object");
   vector_init2(&frames, ctx);
-  ;
 
-  it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  it = vector_back(&frames, sizeof(PropertyEnumeration));
 
   do {
     BOOL result = property_enumeration_predicate(it, ctx, argv[1], this_arg);
@@ -210,7 +212,7 @@ static JSValue
 js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   JSValue ret;
   JSValueConst this_arg = argc > 3 ? argv[3] : JS_UNDEFINED;
-  int32_t i = 0, return_flag = 0;
+  int32_t i = 0, return_flag = RETURN_VALUE_PATH;
   PropertyEnumeration* it;
   vector frames;
 
@@ -220,7 +222,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   if(!JS_IsFunction(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
   vector_init2(&frames, ctx);
-  
+
   ret = JS_NewArray(ctx);
   property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   it = vector_back(&frames, sizeof(PropertyEnumeration));
