@@ -77,4 +77,22 @@ lexer_token(const Lexer* lex, JSContext* ctx, int id) {
   return tok;
 }
 
+static inline void
+lexer_init(Lexer* lex) {
+  memset(lex, 0, sizeof(Lexer));
+}
+
+static inline uint8_t
+lexer_next(Lexer* lex) {
+  uint8_t c = lex->data[lex->pos];
+  if(c == '\n') {
+    lex->loc.line++;
+    lex->loc.column = 0;
+  } else {
+    lex->loc.column++;
+  }
+  lex->pos++;
+  return c;
+}
+
 #endif /* defined(QUICKJS_LEXER_H) */

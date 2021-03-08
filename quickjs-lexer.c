@@ -186,26 +186,6 @@ enum lexer_ctype {
   IS_WHITESPACE
 };
 
-void
-lexer_init(Lexer* lex) {
-  // lex->data = 0; lex->size = 0; lex->pos = 0; lex->start = 0; lex->line = 0;
-  // lex->column = 0; lex->free = 0;
-  memset(lex, 0, sizeof(Lexer));
-}
-
-static uint8_t
-lexer_next(Lexer* lex) {
-  uint8_t c = lex->data[lex->pos];
-  if(c == '\n') {
-    lex->loc.line++;
-    lex->loc.column = 0;
-  } else {
-    lex->loc.column++;
-  }
-  lex->pos++;
-  return c;
-}
-
 static Line
 lexer_line(Lexer* lex) {
   Line ret = {0, 0};
@@ -462,9 +442,6 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
 
 static JSValue
 js_lexer_tokens(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-
-
-  
 }
 
 static JSValue
