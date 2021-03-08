@@ -145,9 +145,9 @@ JSValue lexer_proto, lexer_constructor, lexer_ctor;
 static const char punctuator_chars[] = "=.-%}>,*[<!/]~&(;?|):+^{@";
 
 enum lexer_methods {
-  METHOD_PEEK = 0,
-  METHOD_NEXT,
-  METHOD_SKIP,
+  METHOD_PEEKC = 0,
+  METHOD_GETC,
+  METHOD_SKIPC,
   METHOD_IGNORE,
   METHOD_GET_RANGE,
   METHOD_ACCEPT_RUN,
@@ -275,21 +275,21 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     return JS_EXCEPTION;
 
   switch(magic) {
-    case METHOD_PEEK: {
+    case METHOD_PEEKC: {
       ret = JS_NewStringLen(ctx, &lex->data[lex->pos], 1);
       break;
     }
-    case METHOD_NEXT: {
-      uint8_t c = lexer_next(lex);
+    case METHOD_GETC: {
+      uint8_t c = lexer_getc(lex);
       ret = JS_NewStringLen(ctx, &c, 1);
       break;
     }
-    case METHOD_SKIP: {
+    case METHOD_SKIPC: {
       int32_t ntimes = 1;
       uint8_t c;
       if(argc > 0)
         JS_ToInt32(ctx, &ntimes, argv[0]);
-      while(ntimes-- > 0) { c = lexer_next(lex); }
+      while(ntimes-- > 0) { c = lexer_getc(lex); }
       ret = JS_NewStringLen(ctx, &c, 1);
       break;
     }
@@ -440,8 +440,8 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
   return JS_UNDEFINED;
 }
 
-static JSValue
-js_lexer_tokens(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+JSValue
+js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
 }
 
 static JSValue
@@ -498,15 +498,15 @@ JSClassDef js_lexer_class = {
 };
 
 static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("next", 0, js_lexer_method, METHOD_NEXT),
-    JS_CFUNC_MAGIC_DEF("peek", 0, js_lexer_method, METHOD_PEEK),
-    JS_CFUNC_MAGIC_DEF("skip", 0, js_lexer_method, METHOD_SKIP),
+    JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, 0),
+    JS_CFUNC_MAGIC_DEF("getc", 0, js_lexer_method, METHOD_GETC),
+    JS_CFUNC_MAGIC_DEF("peek", 0, js_lexer_method, METHOD_PEEKC),
+    JS_CFUNC_MAGIC_DEF("skip", 0, js_lexer_method, METHOD_SKIPC),
     JS_CFUNC_MAGIC_DEF("ignore", 0, js_lexer_method, METHOD_IGNORE),
     JS_CFUNC_MAGIC_DEF("getRange", 0, js_lexer_method, METHOD_GET_RANGE),
     JS_CFUNC_MAGIC_DEF("acceptRun", 1, js_lexer_method, METHOD_ACCEPT_RUN),
     JS_CFUNC_MAGIC_DEF("backup", 0, js_lexer_method, METHOD_BACKUP),
-    JS_CFUNC_DEF("tokens", 0, js_lexer_tokens),
-    JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_SIZE),
+     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_SIZE),
     JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_POS),
     JS_CGETSET_MAGIC_DEF("start", js_lexer_get, js_lexer_set, LEXER_START),
     JS_CGETSET_MAGIC_DEF("line", js_lexer_get, js_lexer_set, LEXER_LINE),

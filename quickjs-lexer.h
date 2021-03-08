@@ -83,7 +83,7 @@ lexer_init(Lexer* lex) {
 }
 
 static inline uint8_t
-lexer_next(Lexer* lex) {
+lexer_getc(Lexer* lex) {
   uint8_t c = lex->data[lex->pos];
   if(c == '\n') {
     lex->loc.line++;
