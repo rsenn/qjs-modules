@@ -24,6 +24,13 @@ tok.length = lex->pos - lex->start;
 tok.id =id;
 return tok;
 }
+static Location lexer_location (Lexer*lex) {
+
+  Location loc;
+  loc.line = lex->line;
+  loc.column = lex->column;
+  return loc;
+}
 
 static JSValue
 js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
