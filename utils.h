@@ -167,6 +167,8 @@ str_rchrs(const char* in, const char needles[], size_t nn) {
   return (size_t)((found ? found : s) - in);
 }
 
+#define str_contains(s, needle) (!!strchr((s), (needle)))
+
 #define COLOR_RED "\x1b[31m"
 #define COLOR_GREEN "\x1b[32m"
 #define COLOR_YELLOW "\x1b[33m"
@@ -1108,6 +1110,41 @@ js_array_length(JSContext* ctx, JSValueConst array) {
     JS_FreeValue(ctx, length);
   }
   return len;
+}
+
+static inline void
+js_strvec_free(JSContext* ctx, char** strv) {
+  size_t i;
+  if(strv == 0)
+    return;
+  for(i = 0; strv[i]; i++) { js_free(ctx, strv[i]); }
+  js_free(ctx, strv);
+}
+
+static inline JSValue
+js_strvec_to_array(JSContext* ctx, char** strv) {
+  JSValue ret = JS_NewArray(ctx);
+  if(strv) {
+    size_t i;
+    for(i = 0; strv[i]; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, strv[i]));
+  }
+  return ret;
+}
+
+static inline char**
+js_array_to_strvec(JSContext* ctx, JSValueConst array) {
+  int64_t i, len = js_array_length(ctx, array);
+  char** ret = js_mallocz(ctx, sizeof(char*) * (len + 1));
+  for(i = 0; i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, array, i);
+    size_t len;
+    const char* str;
+    str = JS_ToCStringLen(ctx, &len, item);
+    ret[i] = js_strndup(ctx, str, len);
+    JS_FreeCString(ctx, str);
+    JS_FreeValue(ctx, item);
+  }
+  return ret;
 }
 
 #endif /* defined(UTILS_H) */

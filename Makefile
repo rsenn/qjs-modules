@@ -48,6 +48,9 @@ $(BUILDDIR)deep.$(SUFFIX): quickjs-deep.c vector.c
 $(BUILDDIR)inspect.$(SUFFIX): quickjs-inspect.c vector.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
+$(BUILDDIR)lexer.$(SUFFIX): quickjs-lexer.c predicate.c
+	$(CC) $(CFLAGS) -shared -o $@ $^
+
 $(BUILDDIR)mmap.$(SUFFIX): quickjs-mmap.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 

@@ -2,10 +2,13 @@
 
 #include "quickjs.h"
 #include "utils.h"
+#include "vector.h"
 #include <string.h>
+#include <ctype.h>
 
 JSClassID js_lexer_class_id = 0;
 JSValue lexer_proto, lexer_constructor, lexer_ctor;
+static const char punctuator_chars[] = "=.-%}>,*[<!/]~&(;?|):+^{@";
 
 typedef struct {
   uint32_t line;
@@ -26,6 +29,8 @@ typedef union Lexer {
     void (*free)(JSContext*, const char*);
     size_t start;
     Location loc;
+    size_t nkeywords;
+    char** keywords;
   };
 } Lexer;
 
@@ -52,7 +57,23 @@ enum lexer_getters {
   PROP_EOF,
   PROP_TOKEN,
   PROP_COLUMN_INDEX,
-  PROP_CURRENT_LINE
+  PROP_CURRENT_LINE,
+  PROP_KEYWORDS
+};
+
+enum lexer_ctype {
+  IS_ALPHA_CHAR = 0,
+  IS_DECIMAL_DIGIT,
+  IS_HEX_DIGIT,
+  IS_IDENTIFIER_CHAR,
+  IS_KEYWORD,
+  IS_LINE_TERMINATOR,
+  IS_OCTAL_DIGIT,
+  IS_PUNCTUATOR,
+  IS_PUNCTUATOR_CHAR,
+  IS_QUOTE_CHAR,
+  IS_REG_EXP_CHAR,
+  IS_WHITESPACE
 };
 
 void
@@ -288,8 +309,17 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt32(ctx, lex->pos - index);
       break;
     }
+    case PROP_KEYWORDS: {
+      ret = js_strvec_to_array(ctx, lex->keywords);
+      break;
+    }
   }
   return ret;
+}
+
+int
+keywords_cmp(const char** w1, const char** w2) {
+  return strcmp(*w1, *w2);
 }
 
 static JSValue
@@ -302,33 +332,60 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
   switch(magic) {
     case PROP_POS: js_value_to_size(ctx, &lex->pos, value); break;
     case PROP_SIZE: js_value_to_size(ctx, &lex->size, value); break;
-    case PROP_START:
-      js_value_to_size(ctx, &lex->start, value);
+    case PROP_START: js_value_to_size(ctx, &lex->start, value); break;
+    /*  case PROP_LINE: JS_ToUint32(ctx, &lex->loc.line, value); break;
+      case PROP_COLUMN: JS_ToUint32(ctx, &lex->loc.column, value); break;*/
+    case PROP_KEYWORDS: {
+
+      js_strvec_free(ctx, lex->keywords);
+
+      lex->nkeywords = js_array_length(ctx, value);
+      lex->keywords = js_array_to_strvec(ctx, value);
+
+      qsort(lex->keywords,
+            lex->nkeywords,
+            sizeof(char*),
+            (int (*)(const void*, const void*)) & keywords_cmp);
       break;
-      /*  case PROP_LINE: JS_ToUint32(ctx, &lex->loc.line, value); break;
-        case PROP_COLUMN: JS_ToUint32(ctx, &lex->loc.column, value); break;*/
+    }
   }
   return JS_UNDEFINED;
 }
 
 static JSValue
-js_lexer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_lexer_ctype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   JSValue ret;
+  char c;
+
+  if(JS_IsString(argv[0])) {
+    const char* str;
+    str = JS_ToCString(ctx, argv[0]);
+    c = *str;
+    JS_FreeCString(ctx, str);
+  } else {
+    int32_t num = 0;
+
+    JS_ToInt32(ctx, &num, argv[0]);
+    c = num;
+  }
 
   switch(magic) {
-    case STATIC_FROM: {
-      return js_lexer_new(ctx, lexer_proto, argc > 0 ? argv[0] : JS_UNDEFINED);
-    }
-    case STATIC_OF: {
-      int i;
-      Lexer* lex;
+    case IS_ALPHA_CHAR: ret = JS_NewBool(ctx, isalpha(c)); break;
 
-      if(!(lex = js_mallocz(ctx, sizeof(Lexer))))
-        return JS_ThrowOutOfMemory(ctx);
+    case IS_PUNCTUATOR: ret = JS_NewBool(ctx, ispunct(c)); break;
 
-      ret = js_lexer_wrap(ctx, *lex);
+    case IS_WHITESPACE: ret = JS_NewBool(ctx, c == 9 || c == 0xb || c == 0xc || c == ' '); break;
+
+    case IS_DECIMAL_DIGIT: ret = JS_NewBool(ctx, str_contains("0123456789", c)); break;
+    case IS_HEX_DIGIT: ret = JS_NewBool(ctx, str_contains("0123456789ABCDEFabcdef", c)); break;
+    case IS_LINE_TERMINATOR: ret = JS_NewBool(ctx, c == '\r' || c == '\n'); break;
+    case IS_OCTAL_DIGIT: ret = JS_NewBool(ctx, c >= '0' && c <= '7'); break;
+    case IS_QUOTE_CHAR: ret = JS_NewBool(ctx, c == '"' || c == '\'' || c == '`'); break;
+    case IS_PUNCTUATOR_CHAR: ret = JS_NewBool(ctx, str_contains("=.-%}>,*[<!/]~&(;?|):+^{@", c)); break;
+    case IS_IDENTIFIER_CHAR:
+      ret = JS_NewBool(ctx,
+                       str_contains("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_", c));
       break;
-    }
   }
   return ret;
 }
@@ -365,16 +422,28 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("lineStart", js_lexer_get, 0, PROP_LINESTART),
     JS_CGETSET_MAGIC_DEF("lineLength", js_lexer_get, 0, PROP_LINELEN),
     JS_CGETSET_MAGIC_DEF("lineEnd", js_lexer_get, 0, PROP_LINEEND),
-    JS_CGETSET_MAGIC_DEF("linePos", js_lexer_get, 0, PROP_LINEPOS),
+    // JS_CGETSET_MAGIC_DEF("linePos", js_lexer_get, 0, PROP_LINEPOS),
     JS_CGETSET_MAGIC_DEF("columnIndex", js_lexer_get, 0, PROP_COLUMN_INDEX),
     JS_CGETSET_MAGIC_DEF("currentLine", js_lexer_get, 0, PROP_CURRENT_LINE),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, PROP_EOF),
     JS_CGETSET_MAGIC_DEF("token", js_lexer_get, 0, PROP_TOKEN),
+    JS_CGETSET_MAGIC_DEF("keywords", js_lexer_get, js_lexer_set, PROP_KEYWORDS),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_C_W_E)};
 
 static const JSCFunctionListEntry js_lexer_static_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("from", 1, js_lexer_funcs, STATIC_FROM),
-    JS_CFUNC_MAGIC_DEF("of", 0, js_lexer_funcs, STATIC_OF)};
+    JS_CFUNC_MAGIC_DEF("isAlphaChar", 1, js_lexer_ctype, IS_ALPHA_CHAR),
+    JS_CFUNC_MAGIC_DEF("isDecimalDigit", 1, js_lexer_ctype, IS_DECIMAL_DIGIT),
+    JS_CFUNC_MAGIC_DEF("isHexDigit", 1, js_lexer_ctype, IS_HEX_DIGIT),
+    JS_CFUNC_MAGIC_DEF("isIdentifierChar", 1, js_lexer_ctype, IS_IDENTIFIER_CHAR),
+    JS_CFUNC_MAGIC_DEF("isKeyword", 1, js_lexer_ctype, IS_KEYWORD),
+    JS_CFUNC_MAGIC_DEF("isLineTerminator", 1, js_lexer_ctype, IS_LINE_TERMINATOR),
+    JS_CFUNC_MAGIC_DEF("isOctalDigit", 1, js_lexer_ctype, IS_OCTAL_DIGIT),
+    JS_CFUNC_MAGIC_DEF("isPunctuator", 1, js_lexer_ctype, IS_PUNCTUATOR),
+    JS_CFUNC_MAGIC_DEF("isPunctuatorChar", 1, js_lexer_ctype, IS_PUNCTUATOR_CHAR),
+    JS_CFUNC_MAGIC_DEF("isQuoteChar", 1, js_lexer_ctype, IS_QUOTE_CHAR),
+    JS_CFUNC_MAGIC_DEF("isRegExpChar", 1, js_lexer_ctype, IS_REG_EXP_CHAR),
+    JS_CFUNC_MAGIC_DEF("isWhitespace", 1, js_lexer_ctype, IS_WHITESPACE),
+};
 
 static int
 js_lexer_init(JSContext* ctx, JSModuleDef* m) {
