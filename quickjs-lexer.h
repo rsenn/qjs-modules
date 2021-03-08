@@ -47,9 +47,11 @@ typedef union Lexer {
     Location loc;
     size_t nkeywords;
     char** keywords;
+    JSValue state_fn;
+    size_t ref_count;
   };
 } Lexer;
-extern JSClassID js_token_class_id;
+extern JSClassID js_token_class_id, js_lexer_class_id;
 
 static inline Token*
 js_token_data(JSContext* ctx, JSValueConst value) {
@@ -57,6 +59,13 @@ js_token_data(JSContext* ctx, JSValueConst value) {
 }
 
 JSValue js_token_wrap(JSContext*, Token*);
+
+static inline Lexer*
+js_lexer_data(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_lexer_class_id);
+}
+
+JSValue js_lexer_wrap(JSContext*, Lexer*);
 
 static inline Location
 lexer_location(const Lexer* lex) {
