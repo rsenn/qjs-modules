@@ -599,9 +599,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       JSPropertyEnum* props = 0;
       const char* s;
 
-      compact = INSPECT_INT32T_INRANGE(opts->compact)
+      compact = /*INSPECT_INT32T_INRANGE(opts->compact)
                     ? opts->compact >= property_enumeration_depth(ctx, value)
-                    : 0;
+                    :*/
+          0;
 
       if(JS_IsInstanceOf(ctx, value, array_buffer_ctor) ||
          JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor))

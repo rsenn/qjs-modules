@@ -204,6 +204,8 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
       break;
     }
   } while((it = property_enumeration_recurse(&frames, ctx)));
+
+  
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
   return ret;
 }
@@ -418,6 +420,11 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     JSAtom akey, bkey;
     const char *astr, *bstr;
     BOOL result = TRUE;
+
+    if(!aenum || !benum) {
+      ret = JS_FALSE;
+      break;
+    }
 
     akey = aenum->tab_atom[aenum->idx].atom;
     bkey = benum->tab_atom[benum->idx].atom;

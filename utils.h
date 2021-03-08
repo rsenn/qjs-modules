@@ -1,10 +1,14 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#define _GNU_SOURCE
+
 #include "quickjs.h"
 #include "cutils.h"
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
+#include <assert.h>
 
 #define max_num(a, b) ((a) > (b) ? (a) : (b))
 
@@ -1004,6 +1008,58 @@ js_object_is_typedarray(JSContext* ctx, JSValueConst value) {
   JS_FreeValue(ctx, buf);
   return ret;
 }
+
+static inline int
+js_propenum_cmp(const void* a, const void* b, void* ptr) {
+  JSContext* ctx = ptr;
+  const char *stra, *strb;
+  int ret;
+  stra = JS_AtomToCString(ctx, ((const JSPropertyEnum*)a)->atom);
+  strb = JS_AtomToCString(ctx, ((const JSPropertyEnum*)b)->atom);
+  ret = strverscmp(stra, strb);
+  JS_FreeCString(ctx, stra);
+  JS_FreeCString(ctx, strb);
+  return ret;
+}
+
+static BOOL
+js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
+BOOL ret = FALSE;
+
+
+JSPropertyEnum* atoms_a,*atoms_b;
+uint32_t i, natoms_a,natoms_b;
+int32_t ta,tb;
+
+ta = js_value_type(a);
+tb = js_value_type(b);
+assert(ta == TYPE_OBJECT);
+assert(tb == TYPE_OBJECT);
+
+
+if(JS_GetOwnPropertyNames(ctx, &atoms_a,  &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+return FALSE;
+if(JS_GetOwnPropertyNames(ctx, &atoms_b,  &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+return FALSE;
+
+if(natoms_a != natoms_b) 
+  return FALSE;
+
+  qsort_r(&atoms_a, natoms_a, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
+  qsort_r(&atoms_b, natoms_b, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
+
+for(i = 0; i < natoms_a; i++) 
+  if(atoms_a[i].atom != atoms_b[i].atom)
+    return FALSE;
+
+return TRUE;  
+
+}
+
+
+
+
+
 
 static inline int64_t
 js_array_length(JSContext* ctx, JSValueConst array) {
