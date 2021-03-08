@@ -91,7 +91,7 @@ predicate_charset(const char* str, size_t len) {
 static inline Predicate
 predicate_not(JSValueConst fn) {
   Predicate ret = {PREDICATE_NOT};
-  ret.not .fn = fn;
+  ret.not.fn = fn;
   return ret;
 }
 
