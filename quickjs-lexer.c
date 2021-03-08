@@ -26,7 +26,8 @@ enum lexer_methods {
   METHOD_IGNORE,
   METHOD_GET_RANGE,
   METHOD_ACCEPT_RUN,
-  METHOD_BACKUP
+  METHOD_BACKUP,
+  METHOD_SKIPUNTIL
 };
 enum lexer_functions { STATIC_FROM = 0, STATIC_OF };
 enum lexer_getters {
@@ -79,7 +80,7 @@ js_token_new(JSContext* ctx, Token arg) {
   if(!(tok = js_mallocz(ctx, sizeof(Token))))
     return JS_EXCEPTION;
 
-  *tok = arg;
+  memcpy(tok, &arg, sizeof(Token));
 
   obj = JS_NewObjectProtoClass(ctx, token_proto, js_token_class_id);
   JS_SetOpaque(obj, tok);
@@ -122,11 +123,36 @@ js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
     return JS_EXCEPTION;
   dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
 
+  dbuf_put(&dbuf, &tok->data[tok->offset], tok->length);
+
   // token_dump(tok, ctx, &dbuf);
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
 
+  return ret;
+}
+static JSValue
+js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  Token* tok;
+  DynBuf dbuf;
+  JSValue ret;
+
+  if(!(tok = JS_GetOpaque2(ctx, this_val, js_token_class_id)))
+    return JS_EXCEPTION;
+
+  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+
+  dbuf_printf(&dbuf,
+              "Token { offset=%" PRIu32 ", length=%" PRIu32 ", loc={ line=%" PRIu32 ", column=%" PRIu32 " } }",
+              tok->offset,
+              tok->length,
+              tok->loc.line,
+              tok->loc.column);
+  // token_dump(tok, ctx, &dbuf, color, -1);
+
+  ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+  dbuf_free(&dbuf);
   return ret;
 }
 
@@ -194,6 +220,7 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("length", js_token_get, NULL, PROP_LENGTH),
     JS_CGETSET_MAGIC_DEF("offset", js_token_get, NULL, PROP_OFFSET),
     JS_CFUNC_DEF("toString", 0, js_token_tostring),
+    JS_CFUNC_DEF("inspect", 0, js_token_inspect),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE)};
 
 static const JSCFunctionListEntry js_token_static_funcs[] = {
@@ -305,6 +332,23 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
         JS_ToInt32(ctx, &ntimes, argv[0]);
       while(ntimes-- > 0) { c = lexer_getc(lex); }
       ret = JS_NewStringLen(ctx, &c, 1);
+      break;
+    }
+    case METHOD_SKIPUNTIL: {
+
+      JSValueConst pred;
+      if(!JS_IsFunction(ctx, argv[0]))
+        return JS_ThrowTypeError(ctx, "argument 1 is not a function");
+
+      pred = argv[0];
+
+      while(lex->pos < lex->size) {
+        uint8_t c = lexer_peekc(lex);
+
+        JSValue str = JS_NewStringLen(ctx, &c, 1);
+
+        JS_Call(ctx, pred, this_val, 1, &str);
+      }
       break;
     }
     case METHOD_IGNORE: {
@@ -487,11 +531,14 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 
   ret = JS_Call(ctx, lex->state_fn, this_val, 0, 0);
 
-
+  if(JS_IsFunction(ctx, ret)) {
+    JS_FreeValue(ctx, lex->state_fn);
+    lex->state_fn = ret;
+  }
 
   ret = js_token_new(ctx, lexer_token(lex, ctx, STRING_LITERAL));
 
-  lex->start = lex->pos;
+  // lex->start = lex->pos;
 
   return ret;
 }
@@ -557,6 +604,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getc", 0, js_lexer_method, METHOD_GETC),
     JS_CFUNC_MAGIC_DEF("peek", 0, js_lexer_method, METHOD_PEEKC),
     JS_CFUNC_MAGIC_DEF("skip", 0, js_lexer_method, METHOD_SKIPC),
+    JS_CFUNC_MAGIC_DEF("skipUntil", 0, js_lexer_method, METHOD_SKIPUNTIL),
     JS_CFUNC_MAGIC_DEF("ignore", 0, js_lexer_method, METHOD_IGNORE),
     JS_CFUNC_MAGIC_DEF("getRange", 0, js_lexer_method, METHOD_GET_RANGE),
     JS_CFUNC_MAGIC_DEF("acceptRun", 1, js_lexer_method, METHOD_ACCEPT_RUN),

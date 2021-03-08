@@ -2,6 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
 import * as xml from 'xml.so';
+import { Predicate } from 'predicate.so';
 import { Lexer } from 'lexer.so';
 import Console from './console.js';
 
@@ -21,9 +22,9 @@ function DumpLexer(lex) {
   return `Lexer ${inspect({ size, pos, start, line, column, lineStart, lineEnd, columnIndex })}`;
 }
 function DumpToken(tok) {
-  const { size, pos, start, loc } = lex;
+  const { length, offset, loc } = tok;
 
-  return `Lexer ${inspect({ size, pos, start, loc })}`;
+  return `Token ${inspect({ length, offset, loc }, { depth: Infinity })}`;
 }
 
 function main(...args) {
@@ -39,147 +40,31 @@ function main(...args) {
   console.log('len', len);
   let lexer = new Lexer(str, len);
 
-  lexer.keywords = [
-    'if',
-    'in',
-    'do',
-    'of',
-    'as',
-    'for',
-    'new',
-    'var',
-    'try',
-    'let',
-    'else',
-    'this',
-    'void',
-    'with',
-    'case',
-    'enum',
-    'from',
-    'break',
-    'while',
-    'catch',
-    'class',
-    'const',
-    'super',
-    'throw',
-    'await',
-    'yield',
-    'async',
-    'delete',
-    'return',
-    'typeof',
-    'import',
-    'switch',
-    'export',
-    'static',
-    'default',
-    'extends',
-    'finally',
-    'continue',
-    'function',
-    'debugger',
-    'instanceof'
-  ];
-  lexer.punctuators = [
-    '!',
-    '!=',
-    '!==',
-    '${',
-    '%',
-    '%=',
-    '&&',
-    '&&=',
-    '&',
-    '&=',
-    '(',
-    ')',
-    '*',
-    '**',
-    '**=',
-    '*=',
-    '+',
-    '++',
-    '+=',
-    ',',
-    '-',
-    '--',
-    '-->>',
-    '-->>=',
-    '-=',
-    '.',
-    '...',
-    '/',
-    '/=',
-    ':',
-    ';',
-    '<',
-    '<<',
-    '<<=',
-    '<=',
-    '=',
-    '==',
-    '===',
-    '=>',
-    '>',
-    '>=',
-    '>>',
-    '>>=',
-    '>>>',
-    '>>>=',
-    '?',
-    '?.',
-    '??',
-    '??=',
-    '@',
-    '[',
-    '^',
-    '^=',
-    '{',
-    '|',
-    '|=',
-    '||',
-    '||=',
-    '}',
-    '~'
-  ];
+  /* prettier-ignore */ lexer.keywords = ['if', 'in', 'do', 'of', 'as', 'for', 'new', 'var', 'try', 'let', 'else', 'this', 'void', 'with', 'case', 'enum', 'from', 'break', 'while', 'catch', 'class', 'const', 'super', 'throw', 'await', 'yield', 'async', 'delete', 'return', 'typeof', 'import', 'switch', 'export', 'static', 'default', 'extends', 'finally', 'continue', 'function', 'debugger', 'instanceof'];
+  /* prettier-ignore */ lexer.punctuators = [ '!', '!=', '!==', '${', '%', '%=', '&&', '&&=', '&', '&=', '(', ')', '*', '**', '**=', '*=', '+', '++', '+=', ',', '-', '--', '-->>', '-->>=', '-=', '.', '...', '/', '/=', ':', ';', '<', '<<', '<<=', '<=', '=', '==', '===', '=>', '>', '>=', '>>', '>>=', '>>>', '>>>=', '?', '?.', '??', '??=', '@', '[', '^', '^=', '{', '|', '|=', '||', '||=', '}', '~'];
   console.log('lexer', lexer);
 
   console.log('lexer', DumpLexer(lexer));
-//  console.log('lexer.peek()', lexer.peek());
- //console.log('lexer.next()', lexer.next());
+  //  console.log('lexer.peek()', lexer.peek());
+  //console.log('lexer.next()', lexer.next());
+  lexer.lexNumber = function lexNumber() {};
+  lexer.stateFn = function lex() {
+    console.log('stateFn');
 
+    return lexer.stateFn;
+  };
   lexer.acceptRun(c => /^[A-Za-z_]/.test(c));
-let data;
-  for(let data of lexer)
-     {
-    console.log(`data:`,data);
 
+  let data;
+  for(let data of lexer) {
+    console.log('data', data.toString());
 
+//      console.log(`peek() = '${lexer.peek()}'`);
+   lexer.acceptRun( Lexer.isWhitespace);
+    
+    ;
     console.log('lexer', DumpLexer(lexer));
-  }
-  /*console.log('lexer.keywords', lexer.keywords);
-
-  for(let char of 'Ff2_-/abc$') {
-    for(let name of [
-      'isAlphaChar',
-      'isDecimalDigit',
-      'isHexDigit',
-      'isIdentifierChar',
-     'isLineTerminator',
-      'isOctalDigit',
-       'isPunctuatorChar',
-      'isQuoteChar',
-      'isRegExpChar',
-      'isWhitespace'
-    ]) {
-      let method = `${name}('${char}')`;
-      let b = Lexer[name](char);
-
-      if(b) console.log(`Lexer.${method.padEnd(20)} =`, b);
-    }
-  }*/
+  } 
 
   std.gc();
 }
