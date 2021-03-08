@@ -9,6 +9,7 @@ set(inspect_SOURCES vector.c vector.h)
 set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
 set(path_SOURCES path.c path.h)
+set(predicate_SOURCES predicate.c predicate.h)
 set(pointer_SOURCES quickjs-pointer.h pointer.c pointer.h)
 set(lexer_SOURCES utils.h predicate.c predicate.h ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h   ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
 
