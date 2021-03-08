@@ -485,7 +485,14 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
     return ret;
   }
 
+  ret = JS_Call(ctx, lex->state_fn, this_val, 0, 0);
+
+
+
   ret = js_token_new(ctx, lexer_token(lex, ctx, STRING_LITERAL));
+
+  lex->start = lex->pos;
+
   return ret;
 }
 
