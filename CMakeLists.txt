@@ -1,17 +1,20 @@
 project(quickjs-modules C)
 
-set(QUICKJS_MODULES deep lexer mmap path pointer predicate inspect tree-walker xml)
+set(QUICKJS_MODULES deep lexer mmap path pointer predicate inspect tree-walker
+                    xml)
 
-set(deep_SOURCES vector.c vector.h pointer.c pointer.h virtual-properties.c virtual-properties.h)
+set(deep_SOURCES vector.c vector.h pointer.c pointer.h virtual-properties.c
+                 virtual-properties.h)
 set(deep_LIBRARIES quickjs-pointer)
-set(lexer_LIBRARIES quickjs-predicate)
 set(inspect_SOURCES vector.c vector.h)
 set(tree_walker_SOURCES vector.c vector.h)
 set(xml_SOURCES vector.c vector.h)
 set(path_SOURCES path.c path.h)
 set(predicate_SOURCES predicate.c predicate.h)
 set(pointer_SOURCES quickjs-pointer.h pointer.c pointer.h)
-set(lexer_SOURCES utils.h predicate.c predicate.h ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h   ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
+set(lexer_SOURCES utils.h ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h
+                  ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
+set(lexer_LIBRARIES quickjs-predicate)
 
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
@@ -56,7 +59,8 @@ if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
 endif(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
 
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
-  file(RELATIVE_PATH QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/..")
+  file(RELATIVE_PATH QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}"
+       "${CMAKE_CURRENT_SOURCE_DIR}/..")
   list(APPEND QUICKJS_INCLUDE_DIRS "${QUICKJS_INCLUDE_DIR}")
   list(APPEND QUICKJS_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/..")
 endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
@@ -65,7 +69,8 @@ if(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
   list(APPEND QUICKJS_INCLUDE_DIRS "${QUICKJS_PREFIX}/include/quickjs")
 endif(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
 
-set(QUICKJS_INCLUDE_DIRS "${QUICKJS_INCLUDE_DIRS}" CACHE STRING "QuickJS include dirs" FORCE)
+set(QUICKJS_INCLUDE_DIRS "${QUICKJS_INCLUDE_DIRS}"
+    CACHE STRING "QuickJS include dirs" FORCE)
 
 set(CMAKE_REQUIRED_INCLUDES "${QUICKJS_INCLUDE_DIRS}")
 
@@ -96,17 +101,16 @@ foreach(NAME ${QUICKJS_MODULES})
   string(REGEX REPLACE "[-/]" "_" PFX "${NAME}")
   add_library(quickjs-${NAME} SHARED quickjs-${NAME}.c ${${PFX}_SOURCES})
   set_target_properties(
-    quickjs-${NAME} PROPERTIES
-    PREFIX ""
-    INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs"
-    OUTPUT_NAME "${NAME}"
-  )
+    quickjs-${NAME}
+    PROPERTIES PREFIX "" INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs"
+               OUTPUT_NAME "${NAME}")
   if(${${PFX}_LIBRARIES})
     target_link_libraries(quickjs-${NAME} PUBLIC ${${PFX}_LIBRARIES})
   endif(${${PFX}_LIBRARIES})
 
   target_compile_definitions(quickjs-${NAME} PRIVATE -DJS_SHARED_LIBRARY)
-  target_include_directories(quickjs-${NAME} BEFORE PUBLIC ${QUICKJS_INCLUDE_DIRS})
+  target_include_directories(quickjs-${NAME} BEFORE
+                             PUBLIC ${QUICKJS_INCLUDE_DIRS})
   install(TARGETS quickjs-${NAME} DESTINATION lib/quickjs
           PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
                       GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
