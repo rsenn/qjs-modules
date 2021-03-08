@@ -114,13 +114,13 @@ function main(...args) {
     )
   );
 
-  let it = deep.iterate(result, null, deep.RETURN_PATH_VALUE);
+  let it = deep.iterate(result, (n,p) => typeof n == 'object' && n && typeof n.tagName == 'string' );
   let item;
  while((item = it.next())) {
   if(item.done) break;
 
 
-    console.log('item:', item.value[0]);
+    console.log('item:', item.value);
     // console.log('it:', it);
   //console.log("item.value:", item.value);
   }

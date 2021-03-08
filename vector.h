@@ -17,9 +17,9 @@ typedef union {
     char* data;
     size_t size;
     size_t capacity;
-     BOOL error;
-  DynBufReallocFunc* realloc_func;
-  void* opaque;
+    BOOL error;
+    DynBufReallocFunc* realloc_func;
+    void* opaque;
   };
 } vector;
 
@@ -27,8 +27,9 @@ typedef union {
   { 0, 0, 0 }
 
 #define vector_init(vec) memset((vec), 0, sizeof(vector))
-  #define vector_init2(vec, ctx) dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&js_realloc)
-  #define VECTOR2(ctx) (vector){ 0,0,0,0, (DynBufReallocFunc*)&js_realloc,  ctx }
+#define vector_init2(vec, ctx) dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&js_realloc)
+#define VECTOR2(ctx)                                                                                       \
+  (vector) { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }
 
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
 #define vector_foreach(a, msz, p)                                                                          \
@@ -51,7 +52,6 @@ void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, vector*, vector*
 
 #define vector_search(vec, elsz, elem)                                                                     \
   array_search(array_begin((vec)), array_size((vec), (elsz)), (elsz), (elem))
-
 
 static inline uint32_t
 vector_size(const vector* vec, size_t elsz) {

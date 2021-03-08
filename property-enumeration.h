@@ -277,9 +277,9 @@ static inline JSValue
 property_enumeration_pathstr_value(vector* vec, JSContext* ctx) {
   DynBuf dbuf;
   JSValue ret;
-  dbuf_init2(&dbuf,0,0);
+  dbuf_init2(&dbuf, 0, 0);
   property_enumeration_pathstr(vec, ctx, &dbuf);
-dbuf_0(&dbuf);
+  dbuf_0(&dbuf);
   ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
   return ret;
@@ -345,7 +345,6 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
   PropertyEnumeration* it;
   JSValue root = JS_DupValue(ctx, object);
 
- 
   if(JS_IsObject(root)) {
     for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS);
         (it = property_enumeration_recurse(&vec, ctx));) {
