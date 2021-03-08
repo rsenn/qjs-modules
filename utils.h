@@ -639,6 +639,16 @@ static void input_value_free_default(JSContext* ctx, const char* str){
 
 };
 
+static inline void
+input_value_dump(const InputValue* input, DynBuf* db) {
+  dbuf_printf(db,
+              "(InputValue){ .x = %p, .n = %zx, .p = %zx, .free = %p }",
+              input->x,
+              input->n,
+              input->p,
+              input->free);
+}
+
 static inline InputValue
 js_value_to_bytes(JSContext* ctx, JSValueConst value) {
   InputValue ret = {0, 0, 0, &input_value_free_default};
@@ -650,6 +660,16 @@ js_value_to_bytes(JSContext* ctx, JSValueConst value) {
     ret.x = JS_GetArrayBuffer(ctx, &ret.n, value);
   }
   return ret;
+}
+
+static inline int
+js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value) {
+  uint64_t u64 = 0;
+  int r;
+
+  r = JS_ToIndex(ctx, &u64, value);
+  *sz = u64;
+  return r;
 }
 
 #define js_value_free(ctx, value)                                                                          \
