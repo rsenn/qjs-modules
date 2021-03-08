@@ -2,7 +2,6 @@
 
 #include "quickjs.h"
 #include "quickjs-lexer.h"
-#include "utils.h"
 #include "vector.h"
 #include <string.h>
 #include <ctype.h>
@@ -15,6 +14,12 @@ JSValue tree_iterator_proto, tree_iterator_constructor, tree_iterator_ctor;
 enum token_methods { TO_STRING = 0 };
 
 enum token_getters { PROP_LENGTH = 0, PROP_OFFSET };
+
+static Token lexer_token(Lexer*lex, JSContext*ctx) {
+
+  Token tok={0};
+
+}
 
 static JSValue
 js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
@@ -145,19 +150,6 @@ JSClassID js_lexer_class_id = 0;
 JSValue lexer_proto, lexer_constructor, lexer_ctor;
 static const char punctuator_chars[] = "=.-%}>,*[<!/]~&(;?|):+^{@";
 
-typedef union Lexer {
-  InputValue input;
-  struct {
-    const uint8_t* data;
-    size_t size;
-    size_t pos;
-    void (*free)(JSContext*, const char*);
-    size_t start;
-    Location loc;
-    size_t nkeywords;
-    char** keywords;
-  };
-} Lexer;
 
 enum lexer_methods {
   METHOD_PEEK = 0,

@@ -1,6 +1,8 @@
 #ifndef QUICKJS_LEXER_H
 #define QUICKJS_LEXER_H
 
+#include "utils.h"
+
 enum token_types {
   COMMENT = 0,
   STRING_LITERAL,
@@ -27,12 +29,26 @@ typedef struct {
 } Line;
 
 typedef struct {
-  enum token_types type;
+const uint8_t* data;
   uint32_t length;
   uint32_t offset;
+  enum token_types type;
   Location loc;
 } Token;
 
+typedef union Lexer {
+  InputValue input;
+  struct {
+    const uint8_t* data;
+    size_t size;
+    size_t pos;
+    void (*free)(JSContext*, const char*);
+    size_t start;
+    Location loc;
+    size_t nkeywords;
+    char** keywords;
+  };
+} Lexer;
 extern JSClassID js_token_class_id;
 
 static inline Token*
