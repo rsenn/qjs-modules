@@ -20,11 +20,16 @@ function DumpLexer(lex) {
 
   return `Lexer ${inspect({ size, pos, start, line, column, lineStart, lineEnd, columnIndex })}`;
 }
+function DumpToken(tok) {
+  const { size, pos, start, loc } = lex;
+
+  return `Lexer ${inspect({ size, pos, start, loc })}`;
+}
 
 function main(...args) {
   console = new Console({
     colors: true,
-    depth: 4,
+    depth: 8,
     maxArrayLength: 100,
     maxStringLength: 100,
     compact: false
@@ -142,22 +147,19 @@ function main(...args) {
   console.log('lexer', lexer);
 
   console.log('lexer', DumpLexer(lexer));
-  console.log('lexer.peek()', lexer.peek());
-  console.log('lexer.next()', lexer.next());
+//  console.log('lexer.peek()', lexer.peek());
+ //console.log('lexer.next()', lexer.next());
 
   lexer.acceptRun(c => /^[A-Za-z_]/.test(c));
+let data;
+  for(let data of lexer)
+     {
+    console.log(`data:`,data);
 
-  while(!lexer.eof) {
-    console.log(`tok = '${lexer.token}'`);
-    console.log(`lexer.currentLine(${lexer.line}) = '${lexer.currentLine}'`);
-    lexer.ignore();
-    lexer.skip(lexer.lineLength + 1);
 
-    /*  lexer.ignore();
-  lexer.acceptRun( c => /\s/.test(c));*/
     console.log('lexer', DumpLexer(lexer));
   }
-  console.log('lexer.keywords', lexer.keywords);
+  /*console.log('lexer.keywords', lexer.keywords);
 
   for(let char of 'Ff2_-/abc$') {
     for(let name of [
@@ -165,11 +167,9 @@ function main(...args) {
       'isDecimalDigit',
       'isHexDigit',
       'isIdentifierChar',
-      //'isKeyword',
-      'isLineTerminator',
+     'isLineTerminator',
       'isOctalDigit',
-      // 'isPunctuator',
-      'isPunctuatorChar',
+       'isPunctuatorChar',
       'isQuoteChar',
       'isRegExpChar',
       'isWhitespace'
@@ -179,7 +179,7 @@ function main(...args) {
 
       if(b) console.log(`Lexer.${method.padEnd(20)} =`, b);
     }
-  }
+  }*/
 
   std.gc();
 }

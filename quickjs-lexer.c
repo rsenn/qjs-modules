@@ -71,6 +71,21 @@ lexer_line(Lexer* lex) {
   return ret;
 }
 
+JSValue
+js_token_new(JSContext* ctx, Token arg) {
+  Token* tok;
+  JSValue obj = JS_UNDEFINED;
+
+  if(!(tok = js_mallocz(ctx, sizeof(Token))))
+    return JS_EXCEPTION;
+
+  *tok = arg;
+
+  obj = JS_NewObjectProtoClass(ctx, token_proto, js_token_class_id);
+  JS_SetOpaque(obj, tok);
+  return obj;
+}
+
 static JSValue
 js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   Token* tok;
@@ -411,6 +426,10 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
+static JSValue
+js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  return this_val;
+}
 int
 keywords_cmp(const char** w1, const char** w2) {
   return strcmp(*w1, *w2);
@@ -453,6 +472,21 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
 
 JSValue
 js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
+  JSValue ret = JS_UNDEFINED;
+  Lexer* lex;
+
+  if(!(lex = JS_GetOpaque2(ctx, this_val, js_lexer_class_id)))
+    return JS_EXCEPTION;
+
+  *pdone = FALSE;
+
+  if(lex->start >= lex->size) {
+    *pdone = TRUE;
+    return ret;
+  }
+
+  ret = js_token_new(ctx, lexer_token(lex, ctx, STRING_LITERAL));
+  return ret;
 }
 
 static JSValue
@@ -535,6 +569,8 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("token", js_lexer_get, 0, LEXER_TOKEN),
     JS_CGETSET_MAGIC_DEF("keywords", js_lexer_get, js_lexer_set, LEXER_KEYWORDS),
     JS_CGETSET_MAGIC_DEF("stateFn", js_lexer_get, js_lexer_set, LEXER_STATEFN),
+    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_lexer_iterator),
+
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_C_W_E)};
 
 static const JSCFunctionListEntry js_lexer_static_funcs[] = {

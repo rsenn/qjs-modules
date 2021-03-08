@@ -59,6 +59,7 @@ js_token_data(JSContext* ctx, JSValueConst value) {
 }
 
 JSValue js_token_wrap(JSContext*, Token*);
+JSValue js_token_new(JSContext*, Token);
 
 static inline Lexer*
 js_lexer_data(JSContext* ctx, JSValueConst value) {
