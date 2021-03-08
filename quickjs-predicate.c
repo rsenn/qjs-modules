@@ -102,6 +102,8 @@ JSClassDef js_predicate_class = {.class_name = "Predicate", js_predicate_finaliz
 
 static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("eval", 1, js_predicate_method, METHOD_EVAL),
+    JS_ALIAS_DEF("call", "eval"),
+    JS_CGETSET_MAGIC_DEF("id", js_predicate_get, 0, PROP_ID),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E)};
 
 static int
