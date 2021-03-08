@@ -1,4 +1,4 @@
-MODULES = deep inspect lexer mmap path pointer tree-walker xml
+MODULES = deep inspect lexer mmap path pointer predicate tree-walker xml
 
 QUICKJS_PREFIX ?= /usr/local
 
