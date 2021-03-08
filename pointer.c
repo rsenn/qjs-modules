@@ -164,7 +164,8 @@ pointer_deref(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
 
     if(!JS_HasProperty(ctx, obj, atom)) {
       DynBuf dbuf;
-      dbuf_init(&dbuf);
+      dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+
       pointer_dump(ptr, ctx, &dbuf, TRUE, i);
       dbuf_0(&dbuf);
       obj = JS_ThrowReferenceError(ctx, "%s", dbuf.buf);

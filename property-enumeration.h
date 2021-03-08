@@ -255,25 +255,31 @@ property_enumeration_path(vector* vec, JSContext* ctx) {
   return ret;
 }
 
-static JSValue
-property_enumeration_pathstr(vector* vec, JSContext* ctx) {
-  DynBuf dbuf;
+static void
+property_enumeration_pathstr(vector* vec, JSContext* ctx, DynBuf* buf) {
   PropertyEnumeration* it;
   size_t i = 0;
   JSValue ret;
-  dbuf_init(&dbuf);
 
   vector_foreach_t(vec, it) {
     const char* key;
     if(i++ > 0)
-      dbuf_putc(&dbuf, '.');
+      dbuf_putc(buf, '.');
 
     key = property_enumeration_keystr(it, ctx);
-    dbuf_putstr(&dbuf, key);
+    dbuf_putstr(buf, key);
     JS_FreeCString(ctx, key);
   }
-  dbuf_0(&dbuf);
+  dbuf_0(buf);
+}
 
+static inline JSValue
+property_enumeration_pathstr_value(vector* vec, JSContext* ctx) {
+  DynBuf dbuf;
+  JSValue ret;
+  dbuf_init2(&dbuf,0,0);
+  property_enumeration_pathstr(vec, ctx, &dbuf);
+dbuf_0(&dbuf);
   ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
   return ret;
@@ -334,12 +340,12 @@ property_enumeration_recurse(vector* vec, JSContext* ctx) {
 
 static int32_t
 property_enumeration_depth(JSContext* ctx, JSValueConst object) {
-  vector vec;
+  vector vec = VECTOR2(ctx);
   int32_t depth, max_depth = 0;
   PropertyEnumeration* it;
   JSValue root = JS_DupValue(ctx, object);
 
-  vector_init(&vec);
+ 
   if(JS_IsObject(root)) {
     for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS);
         (it = property_enumeration_recurse(&vec, ctx));) {
@@ -358,12 +364,12 @@ property_enumeration_level(const PropertyEnumeration* it, const vector* vec) {
   return it - (const PropertyEnumeration*)vec->data;
 }
 
-static void
+static inline void
 property_enumeration_free(vector* vec, JSRuntime* rt) {
   PropertyEnumeration* it;
 
-  vector_foreach_t(vec, it) { property_enumeration_reset(it, rt); }
-  vector_free(vec);
+  vector_foreach(vec, sizeof(PropertyEnumeration), it) { property_enumeration_reset(it, rt); }
+  // vector_free(vec);
 }
 
 #endif /* defined(PROPERTY_ENUMERATION_H) */

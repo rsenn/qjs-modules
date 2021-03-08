@@ -42,10 +42,8 @@ function main(...args) {
 
   let found = deep.find(result, n => typeof n == 'object' && n != null && n.tagName == 'elements');
 
- 
   console.log('found:', inspect(found, inspectOptions));
 
- 
   console.log('array:', inspect([, , , , 4, 5, 6, , ,], inspectOptions));
   let testObj = {};
 
@@ -58,9 +56,10 @@ function main(...args) {
   //out.set = function(...args) { console.log("args:", args); }
   //  out.set('@', ['blah']);
 
-  let flat = deep.flatten(result, out, deep.MASK_PRIMITIVE | deep.MASK_STRING && ~deep.MASK_OBJECT);
+  /*let flat = deep.flatten(result, out, deep.MASK_PRIMITIVE | deep.MASK_STRING && ~deep.MASK_OBJECT);
   console.log('flat:', flat);
-  console.log('flat.keys():', [...flat.keys()]);
+  console.log('flat.keys():', [...flat.keys()]);*/
+
   console.log('deep.MASK_STRING:', deep.MASK_NUMBER);
   console.log('deep:', deep);
 
@@ -115,6 +114,16 @@ function main(...args) {
     )
   );
 
+  let it = deep.iterate(result, null, deep.RETURN_PATH_VALUE);
+  let item;
+ while((item = it.next())) {
+  if(item.done) break;
+
+
+    console.log('item:', item.value[0]);
+    // console.log('it:', it);
+  //console.log("item.value:", item.value);
+  }
   std.gc();
 }
 

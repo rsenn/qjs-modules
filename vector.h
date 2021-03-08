@@ -2,6 +2,7 @@
 #define VECTOR_H
 
 #include "quickjs.h"
+#include "cutils.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -10,19 +11,28 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-typedef struct {
-  char* data;
-  size_t size;
-  size_t capacity;
+typedef union {
+  DynBuf dbuf;
+  struct {
+    char* data;
+    size_t size;
+    size_t capacity;
+     BOOL error;
+  DynBufReallocFunc* realloc_func;
+  void* opaque;
+  };
 } vector;
 
 #define VECTOR_INIT()                                                                                      \
   { 0, 0, 0 }
 
 #define vector_init(vec) memset((vec), 0, sizeof(vector))
-#define vector_foreach_t(a, p) for((p) = vector_begin(a); (char*)(p) < (char*)vector_end(a); ++(p))
+  #define vector_init2(vec, ctx) dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&js_realloc)
+  #define VECTOR2(ctx) (vector){ 0,0,0,0, (DynBufReallocFunc*)&js_realloc,  ctx }
+
+#define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
 #define vector_foreach(a, msz, p)                                                                          \
-  for((p) = vector_begin(a); (char*)(p) < (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
+  for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
 
 int umult64(uint64_t a, uint64_t b, uint64_t* c);
 void* vector_allocate(vector* vec, size_t elsz, int32_t pos);
@@ -41,6 +51,7 @@ void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, vector*, vector*
 
 #define vector_search(vec, elsz, elem)                                                                     \
   array_search(array_begin((vec)), array_size((vec), (elsz)), (elsz), (elem))
+
 
 static inline uint32_t
 vector_size(const vector* vec, size_t elsz) {

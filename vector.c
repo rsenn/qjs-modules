@@ -53,24 +53,25 @@ void*
 vector_allocate(vector* vec, size_t elsz, int32_t pos) {
   uint64_t need;
   void* tmp;
+      size_t capacity;
   if(pos < 0)
     return 0;
   if(!umult64(elsz, pos + 1, &need))
     return 0;
 
   if(need > vec->size) {
-    if(need > vec->capacity) {
+    capacity = vec->capacity;
+    if(need > capacity) {
       if(elsz < 8)
         roundto(need, 1000);
       else
         roundto(need, 8000);
       assert(need >= 1000);
-      if(!(tmp = realloc(vec->data, need)))
+      if(dbuf_realloc(&vec->dbuf,   need))
         return 0;
-      vec->data = tmp;
-      if(need > vec->capacity)
-        memset(vec->data + vec->capacity, 0, need - vec->capacity);
-      vec->capacity += need;
+       if(vec->capacity > capacity)
+        memset(vec->data + capacity, 0, vec->capacity > capacity);
+      //vec->capacity += need;
     }
     vec->size = ((uint32_t)pos + 1) * elsz;
   }

@@ -304,7 +304,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
   uint8_t c;
   OutputValue* out;
   JSValue element = JS_UNDEFINED;
-  vector st = VECTOR_INIT();
+  vector st = VECTOR2(ctx);
   ptr = buf;
   end = buf + len;
 
