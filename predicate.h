@@ -8,6 +8,7 @@ enum predicate_id {
   PREDICATE_NONE = -1,
   PREDICATE_TYPE,
   PREDICATE_CHARSET,
+  PREDICATE_NOTNOT,
   PREDICATE_NOT,
   PREDICATE_OR,
   PREDICATE_AND,
@@ -92,11 +93,19 @@ predicate_charset(const char* str, size_t len) {
 }
 
 static inline Predicate
+predicate_notnot(JSValueConst fn) {
+  Predicate ret = {PREDICATE_NOTNOT};
+  ret.unary.fn = fn;
+  return ret;
+}
+
+static inline Predicate
 predicate_not(JSValueConst fn) {
   Predicate ret = {PREDICATE_NOT};
   ret.unary.fn = fn;
   return ret;
 }
+
 static inline Predicate
 predicate_xor(JSValueConst a, JSValueConst b) {
   Predicate ret = {PREDICATE_XOR};

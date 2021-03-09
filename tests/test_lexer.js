@@ -59,12 +59,11 @@ function main(...args) {
   for(let data of lexer) {
     console.log('data', data.toString());
 
-//      console.log(`peek() = '${lexer.peek()}'`);
-   lexer.acceptRun( Lexer.isWhitespace);
-    
-    ;
+    //      console.log(`peek() = '${lexer.peek()}'`);
+    lexer.acceptRun(Lexer.isWhitespace);
+
     console.log('lexer', DumpLexer(lexer));
-  } 
+  }
 
   std.gc();
 }

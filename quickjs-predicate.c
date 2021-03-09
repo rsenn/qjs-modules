@@ -13,7 +13,7 @@ enum { PROP_ID = 0 };
 JSValue
 js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Predicate* pred;
-  JSValue obj = JS_UNDEFINED;
+  JSValue obj;
   if(!(pred = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
   pred->id = PREDICATE_NONE;
@@ -32,9 +32,12 @@ JSValue
 js_predicate_wrap(JSContext* ctx, Predicate pred) {
   JSValue obj;
   Predicate* ret;
+
   if(!(ret = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
+
   *ret = pred;
+
   obj = JS_NewObjectProtoClass(ctx, predicate_proto, js_predicate_class_id);
   JS_SetOpaque(obj, ret);
   return obj;
@@ -43,11 +46,13 @@ js_predicate_wrap(JSContext* ctx, Predicate pred) {
 int32_t
 js_predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv) {
   Predicate* pred;
-  int32_t result = 0;
+
   if((pred = JS_GetOpaque2(ctx, value, js_predicate_class_id)))
     return predicate_eval(pred, ctx, argc, argv);
+
   if(JS_IsFunction(ctx, value)) {
-    JSValue ret = JS_UNDEFINED;
+    int32_t result = 0;
+    JSValue ret;
     ret = JS_Call(ctx, value, JS_UNDEFINED, argc, argv);
     if(JS_IsException(ret)) {
       result = -1;
@@ -64,10 +69,11 @@ js_predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* ar
 static JSValue
 js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   Predicate* pred;
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  JSValue obj, proto;
+
   if(!(pred = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
+
   /* using new_target to get the prototype is necessary when the
      class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -77,6 +83,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
+
   JS_SetOpaque(obj, pred);
 
   if(argc > 0) {
@@ -84,21 +91,25 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
     JS_ToInt32(ctx, &id, argv[0]);
 
     switch(id) {
+      case PREDICATE_TYPE: {
+        id = -1;
+        JS_ToInt32(ctx, &id, argv[0]);
+        *pred = predicate_type(id);
+        break;
+      }
       case PREDICATE_CHARSET: {
         size_t len;
         const char* str = JS_ToCStringLen(ctx, &len, argv[1]);
         if(argc > 2 && JS_IsNumber(argv[2]))
           js_value_to_size(ctx, &len, argv[2]);
 
-        *pred = predicate_charset(str, len);
+        *pred = predicate_charset(js_strndup(ctx, str, len), len);
 
         JS_FreeCString(ctx, str);
         break;
       }
-      case PREDICATE_TYPE: {
-        int32_t id = -1;
-        JS_ToInt32(ctx, &id, argv[0]);
-        *pred = predicate_type(id);
+      case PREDICATE_NOTNOT: {
+        *pred = predicate_notnot(argv[1]);
         break;
       }
       case PREDICATE_NOT: {
@@ -177,32 +188,26 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_predicate_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  Predicate* pred;
-
-  if(!(pred = JS_GetOpaque2(ctx, this_val, js_predicate_class_id)))
-    return JS_EXCEPTION;
-
-  switch(magic) {}
-  return JS_UNDEFINED;
-}
-
-static JSValue
 js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   JSValue ret = JS_UNDEFINED;
   switch(magic) {
-    case PREDICATE_AND: {
-      ret = js_predicate_wrap(ctx, predicate_and(argv[0], argv[1]));
 
+    case PREDICATE_TYPE: {
+      int32_t type = 0;
+      JS_ToInt32(ctx, &type, argv[0]);
+      ret = js_predicate_wrap(ctx, predicate_type(type));
       break;
     }
     case PREDICATE_CHARSET: {
       const char* str;
       size_t size;
       str = JS_ToCStringLen(ctx, &size, argv[0]);
-      ret = js_predicate_wrap(ctx, predicate_charset(str_ndup(str, size), size));
+      ret = js_predicate_wrap(ctx, predicate_charset(js_strndup(ctx, str, size), size));
       JS_FreeCString(ctx, str);
-
+      break;
+    }
+    case PREDICATE_NOTNOT: {
+      ret = js_predicate_wrap(ctx, predicate_notnot(argv[0]));
       break;
     }
     case PREDICATE_NOT: {
@@ -213,10 +218,12 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = js_predicate_wrap(ctx, predicate_or(argv[0], argv[1]));
       break;
     }
-    case PREDICATE_TYPE: {
-      int32_t type = 0;
-      JS_ToInt32(ctx, &type, argv[0]);
-      ret = js_predicate_wrap(ctx, predicate_type(type));
+    case PREDICATE_AND: {
+      ret = js_predicate_wrap(ctx, predicate_and(argv[0], argv[1]));
+      break;
+    }
+    case PREDICATE_XOR: {
+      ret = js_predicate_wrap(ctx, predicate_xor(argv[0], argv[1]));
       break;
     }
   }
@@ -228,6 +235,9 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
   Predicate* pred;
 
   if((pred = JS_GetOpaque(val, js_predicate_class_id))) {
+
+    if(pred->id == PREDICATE_CHARSET)
+      js_free_rt(rt, (void*)pred->charset.set);
 
     js_free_rt(rt, pred);
   }
@@ -244,19 +254,19 @@ static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E)};
 
 static const JSCFunctionListEntry js_predicate_static_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("type", 1, js_predicate_funcs, PREDICATE_TYPE),
     JS_CFUNC_MAGIC_DEF("oneOf", 1, js_predicate_funcs, PREDICATE_CHARSET),
     JS_CFUNC_MAGIC_DEF("not", 1, js_predicate_funcs, PREDICATE_NOT),
     JS_CFUNC_MAGIC_DEF("or", 2, js_predicate_funcs, PREDICATE_OR),
     JS_CFUNC_MAGIC_DEF("and", 2, js_predicate_funcs, PREDICATE_AND),
     JS_CFUNC_MAGIC_DEF("xor", 2, js_predicate_funcs, PREDICATE_XOR),
-    JS_CFUNC_MAGIC_DEF("type", 1, js_predicate_funcs, PREDICATE_TYPE),
-    JS_PROP_INT32_DEF("PREDICATE_AND", PREDICATE_AND, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_TYPE", PREDICATE_TYPE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_CHARSET", PREDICATE_CHARSET, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("PREDICATE_NONE", PREDICATE_NONE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_NOTNOT", PREDICATE_NOTNOT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_NOT", PREDICATE_NOT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_OR", PREDICATE_OR, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("PREDICATE_TYPE", PREDICATE_TYPE, JS_PROP_ENUMERABLE),
-};
+    JS_PROP_INT32_DEF("PREDICATE_AND", PREDICATE_AND, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_XOR", PREDICATE_XOR, JS_PROP_ENUMERABLE)};
 
 static int
 js_predicate_init(JSContext* ctx, JSModuleDef* m) {

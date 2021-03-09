@@ -522,6 +522,7 @@ js_deep_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExportList(ctx, m, js_deep_funcs, countof(js_deep_funcs));
     // JS_SetModuleExport(ctx, m, "DeepIterator", deep_iterator_ctor);
   }
+  return 0;
 }
 
 #ifdef JS_SHARED_LIBRARY

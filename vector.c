@@ -70,7 +70,7 @@ vector_allocate(vector* vec, size_t elsz, int32_t pos) {
       if(dbuf_realloc(&vec->dbuf, need))
         return 0;
       if(vec->capacity > capacity)
-        memset(vec->data + capacity, 0, vec->capacity > capacity);
+        memset(vec->data + capacity, 0, vec->capacity - capacity);
       // vec->capacity += need;
     }
     vec->size = ((uint32_t)pos + 1) * elsz;

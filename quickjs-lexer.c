@@ -66,9 +66,10 @@ enum lexer_ctype {
 static Line
 lexer_line(Lexer* lex) {
   Line ret = {0, 0};
+  const char* x = (const char*)lex->data;
   ret.start = lex->pos;
-  while(ret.start > 0 && lex->data[ret.start - 1] != '\n') ret.start--;
-  ret.length = byte_chr(&lex->data[ret.start], lex->size - ret.start, '\n');
+  while(ret.start > 0 && x[ret.start - 1] != '\n') ret.start--;
+  ret.length = byte_chr(&x[ret.start], lex->size - ret.start, '\n');
   return ret;
 }
 
@@ -317,12 +318,12 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
   switch(magic) {
     case METHOD_PEEKC: {
-      ret = JS_NewStringLen(ctx, &lex->data[lex->pos], 1);
+      ret = js_value_from_char(ctx, lex->data[lex->pos]);
       break;
     }
     case METHOD_GETC: {
       uint8_t c = lexer_getc(lex);
-      ret = JS_NewStringLen(ctx, &c, 1);
+      ret = js_value_from_char(ctx, c);
       break;
     }
     case METHOD_SKIPC: {
@@ -331,7 +332,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       if(argc > 0)
         JS_ToInt32(ctx, &ntimes, argv[0]);
       while(ntimes-- > 0) { c = lexer_getc(lex); }
-      ret = JS_NewStringLen(ctx, &c, 1);
+      ret = js_value_from_char(ctx, c);
       break;
     }
     case METHOD_SKIPUNTIL: {
@@ -345,7 +346,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       while(lex->pos < lex->size) {
         uint8_t c = lexer_peekc(lex);
 
-        JSValue str = JS_NewStringLen(ctx, &c, 1);
+        JSValue str = js_value_from_char(ctx, c);
 
         JS_Call(ctx, pred, this_val, 1, &str);
       }
@@ -364,7 +365,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
         if(argc > 1)
           js_value_to_size(ctx, &end, argv[1]);
       }
-      ret = JS_NewStringLen(ctx, &lex->data[start], end - start);
+      ret = JS_NewStringLen(ctx, (const char*)&lex->data[start], end - start);
       break;
     }
     case METHOD_ACCEPT_RUN: {
@@ -376,7 +377,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
         JSValueConst ch;
         JSValue ret;
         c = lex->data[lex->pos];
-        ch = JS_NewStringLen(ctx, &c, 1);
+        ch = js_value_from_char(ctx, c);
         ret = JS_Call(ctx, pred, this_val, 1, &ch);
         JS_FreeValue(ctx, ch);
 
@@ -403,7 +404,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
         printf("c = %u\n", lex->data[lex->pos]);
       }
       c = lex->data[lex->pos];
-      ret = JS_NewStringLen(ctx, &c, 1);
+      ret = js_value_from_char(ctx, c);
       break;
     }
   }
@@ -440,16 +441,16 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case LEXER_TOKEN: {
       size_t size = lex->pos - lex->start;
 
-      ret = JS_NewStringLen(ctx, &lex->data[lex->start], size);
+      ret = JS_NewStringLen(ctx, (const char*)&lex->data[lex->start], size);
       break;
     }
     case LEXER_CURRENT_LINE: {
       Line ln = lexer_line(lex);
-      ret = JS_NewStringLen(ctx, &lex->data[ln.start], ln.length);
+      ret = JS_NewStringLen(ctx, (const char*)&lex->data[ln.start], ln.length);
       break;
     }
     case LEXER_COLUMN_INDEX: {
-      size_t index = lex->pos;
+      size_t index;
 
       for(index = lex->pos; index > 0; index--) {
         if(lex->data[index - 1] == '\n')

@@ -309,14 +309,14 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   JSAtom inspect_custom;
   const char* str = 0;
   inspect_custom = js_inspect_custom_atom(ctx);
-  // printf("inspect_custom ref_count=%d\n",
-  // JS_GetRuntime(ctx)->atom_array[inspect_custom]->header.ref_count);
   inspect = JS_GetProperty(ctx, obj, inspect_custom);
   JS_FreeAtom(ctx, inspect_custom);
   if(!JS_IsFunction(ctx, inspect)) {
     JS_FreeValue(ctx, inspect);
     inspect = JS_GetPropertyStr(ctx, obj, "inspect");
   }
+  /*printf("js_inspect_custom_call ");
+  js_value_print(ctx, inspect);*/
   if(JS_IsFunction(ctx, inspect)) {
     JSValueConst args[2];
     JSValue ret;
@@ -618,7 +618,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         return -1;
       }
 
-      if((s = js_inspect_custom_call(ctx, value, opts, depth))) {
+      if(opts->custom_inspect && (s = js_inspect_custom_call(ctx, value, opts, depth))) {
         dbuf_putstr(buf, s);
         JS_FreeCString(ctx, s);
         return 0;

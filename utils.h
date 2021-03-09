@@ -322,7 +322,7 @@ dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value) {
   const char* str;
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
-  dbuf_put(db, str, len);
+  dbuf_put(db, (const uint8_t*)str, len);
   JS_FreeCString(ctx, str);
 }
 
@@ -556,7 +556,7 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
 }
 
 static inline void
-js_value_dump(JSContext* ctx, JSValue value, DynBuf* db) {
+js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   const char* str;
   size_t len;
 
@@ -567,6 +567,15 @@ js_value_dump(JSContext* ctx, JSValue value, DynBuf* db) {
     dbuf_append(db, (const uint8_t*)str, len);
     JS_FreeCString(ctx, str);
   }
+}
+
+static inline void
+js_value_print(JSContext* ctx, JSValueConst value) {
+  const char* str;
+
+  str = JS_ToCString(ctx, value);
+  printf("%s\n", str);
+  JS_FreeCString(ctx, str);
 }
 
 static inline JSValue
@@ -674,6 +683,12 @@ js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value) {
   r = JS_ToIndex(ctx, &u64, value);
   *sz = u64;
   return r;
+}
+
+static inline JSValue
+js_value_from_char(JSContext* ctx, int c) {
+  char ch = c;
+  return JS_NewStringLen(ctx, &ch, 1);
 }
 
 #define js_value_free(ctx, value)                                                                                      \

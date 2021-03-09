@@ -10,7 +10,7 @@ js_predicate_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_predicate_class_id);
 }
 
-JSValue js_predicate_wrap(JSContext*, Predicate*);
+JSValue js_predicate_wrap(JSContext*, Predicate);
 JSValue js_predicate_new(JSContext*, JSValue proto, JSValue);
 int32_t js_predicate_call(JSContext*, JSValue, int argc, JSValueConst* argv);
 

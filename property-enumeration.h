@@ -264,7 +264,7 @@ property_enumeration_pathstr_value(vector* vec, JSContext* ctx) {
   dbuf_init2(&dbuf, 0, 0);
   property_enumeration_pathstr(vec, ctx, &dbuf);
   dbuf_0(&dbuf);
-  ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
+  ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
   return ret;
 }

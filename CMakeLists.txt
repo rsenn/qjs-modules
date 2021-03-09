@@ -6,21 +6,20 @@ set(QUICKJS_MODULES deep lexer mmap path pointer predicate inspect tree-walker
 set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
 set(QUICKJS_H ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h)
 
-if(EXISTS "${QUICKJS_H}") 
+if(EXISTS "${QUICKJS_H}")
 
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
 
-set(deep_SOURCES vector.c vector.h pointer.c pointer.h virtual-properties.c
-                 virtual-properties.h)
+set(deep_SOURCES vector.c  virtual-properties.c property-enumeration.h vector.h utils.h pointer.h virtual-properties.h)
 set(deep_LIBRARIES quickjs-pointer)
-set(inspect_SOURCES vector.c vector.h)
-set(tree_walker_SOURCES vector.c vector.h)
-set(xml_SOURCES vector.c vector.h)
-set(path_SOURCES path.c path.h)
-set(predicate_SOURCES predicate.c predicate.h ${COMMON_HEADERS})
-set(pointer_SOURCES quickjs-pointer.h pointer.c pointer.h ${COMMON_HEADERS})
-set(lexer_SOURCES utils.h quickjs-predicate.h predicate.h)
+set(inspect_SOURCES vector.c iteration.h utils.h property-enumeration.h vector.h quickjs-internal.h)
+set(tree_walker_SOURCES vector.c property-enumeration.h vector.h utils.h)
+set(xml_SOURCES vector.c property-enumeration.h vector.h utils.h)
+set(path_SOURCES path.c path.h utils.h)
+set(predicate_SOURCES quickjs-predicate.h predicate.c predicate.h vector.h utils.h)
+set(pointer_SOURCES quickjs-pointer.h pointer.h utils.h)
+set(lexer_SOURCES quickjs-lexer.h utils.h quickjs-predicate.h predicate.h vector.h)
 set(lexer_LIBRARIES quickjs-predicate)
 
 if(NOT QUICKJS_PREFIX)
