@@ -587,8 +587,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       return js_inspect_string(ctx, buf, value, opts, depth);
     }
     case JS_TAG_OBJECT: {
-      int is_array = JS_IsArray(ctx, value), is_typedarray = js_object_is_typedarray(ctx, value);
-      int is_function = JS_IsFunction(ctx, value);
+      BOOL is_array = 0, is_typedarray = 0, is_function = 0;
       uint32_t nprops, pos, len, limit;
       JSPropertyEnum* props = 0;
       const char* s;
@@ -599,6 +598,12 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         // printf("opts->compact %d depth = %d\n", opts->compact, depth);
 
         compact = opts->compact >= depth;
+      }
+
+      if(opts->custom_inspect && (s = js_inspect_custom_call(ctx, value, opts, depth))) {
+        dbuf_putstr(buf, s);
+        JS_FreeCString(ctx, s);
+        return 0;
       }
 
       if(JS_IsInstanceOf(ctx, value, array_buffer_ctor) || JS_IsInstanceOf(ctx, value, shared_array_buffer_ctor))
@@ -615,17 +620,17 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         return -1;
       }
 
-      if(opts->custom_inspect && (s = js_inspect_custom_call(ctx, value, opts, depth))) {
-        dbuf_putstr(buf, s);
-        JS_FreeCString(ctx, s);
-        return 0;
-      }
       s = js_object_tostring(ctx, value);
       if(!strcmp(s, "[object Generator]")) {
         dbuf_putstr(buf, "Object [Generator] {}");
         JS_FreeCString(ctx, s);
         return 0;
       }
+
+      if(!(is_function = JS_IsFunction(ctx, value)))
+        if(!(is_array = JS_IsArray(ctx, value)))
+          is_typedarray = js_object_is_typedarray(ctx, value);
+
       if(!is_array && !is_function && !strncmp(s, "[object ", 8)) {
         const char* e = strchr(s, ']');
         size_t slen = e - (s + 8);

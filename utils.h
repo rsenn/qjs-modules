@@ -718,6 +718,16 @@ js_value_from_char(JSContext* ctx, int c) {
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
 
+#define js_runtime_exception_set(rt, value)                                                                            \
+  do { *(JSValue*)((uint8_t*)(rt) + 216) = value; } while(0);
+#define js_runtime_exception_get(rt) (*(JSValue*)((uint8_t*)(rt) + 216))
+#define js_runtime_exception_clear(rt)                                                                                 \
+  do {                                                                                                                 \
+    if(!JS_IsNull(js_runtime_exception_get(rt)))                                                                       \
+      JS_FreeValueRT((rt), js_runtime_exception_get(rt));                                                              \
+    js_runtime_exception_set(rt, JS_NULL);                                                                             \
+  } while(0)
+
 static inline void
 js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
   uint32_t i;
@@ -1076,8 +1086,9 @@ js_object_is_typedarray(JSContext* ctx, JSValueConst value) {
 
   buf = JS_GetTypedArrayBuffer(ctx, value, &byte_offset, &byte_length, &bytes_per_element);
 
-  if(JS_IsException(buf)){
-    JS_ResetUncatchableError(ctx);
+  if(JS_IsException(buf)) {
+   //js_runtime_exception_clear(JS_GetRuntime(ctx));
+    JS_FreeValue(ctx, JS_GetException(ctx));
     return 0;
   }
 
