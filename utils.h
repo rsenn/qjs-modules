@@ -662,6 +662,16 @@ input_value_dump(const InputValue* input, DynBuf* db) {
   dbuf_printf(db, "(InputValue){ .x = %p, .n = %zx, .p = %zx, .free = %p }", input->x, input->n, input->p, input->free);
 }
 
+static inline void
+input_value_free(InputValue* input, JSContext* ctx) {
+  if(input->x) {
+    input->free(ctx, input->x);
+    input->x = 0;
+    input->n = 0;
+    input->p = 0;
+  }
+}
+
 static inline InputValue
 js_value_to_bytes(JSContext* ctx, JSValueConst value) {
   InputValue ret = {0, 0, 0, &input_value_free_default};
@@ -1058,13 +1068,19 @@ js_object_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
-static int
+static inline int
 js_object_is_typedarray(JSContext* ctx, JSValueConst value) {
   int ret;
   JSValue buf;
   size_t byte_offset, byte_length, bytes_per_element;
 
   buf = JS_GetTypedArrayBuffer(ctx, value, &byte_offset, &byte_length, &bytes_per_element);
+
+  if(JS_IsException(buf)){
+    JS_ResetUncatchableError(ctx);
+    return 0;
+  }
+
   ret = js_object_is_arraybuffer(ctx, buf);
   JS_FreeValue(ctx, buf);
   return ret;

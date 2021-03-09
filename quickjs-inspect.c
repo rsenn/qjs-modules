@@ -337,11 +337,8 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
   BOOL ret, finish = FALSE;
   size_t i = 0;
   int compact = INSPECT_IS_COMPACT(opts);
-  printf("js_inspect_map level=%u opts->depth=%ld depth=%ld compact=%i\n",
-         INSPECT_LEVEL(opts),
-         (long)(int32_t)opts->depth,
-         (long)(int32_t)depth,
-         compact);
+  // printf("js_inspect_map level=%u opts->depth=%" PRId32 " depth=%" PRId32 " compact=%i\n", INSPECT_LEVEL(opts),
+  // opts->depth, depth, compact);
   JSValue data, key, value;
   Iteration it;
   if(!(ret = iteration_method_symbol(&it, ctx, obj, "iterator"))) {

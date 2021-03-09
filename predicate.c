@@ -13,17 +13,15 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
       break;
     }
     case PREDICATE_CHARSET: {
-      size_t i, len;
-      const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
-
+      InputValue input = js_value_to_bytes(ctx, argv[0]);
       ret = 1;
-
-      for(i = 0; i < len; i++)
-        if(byte_chr(pr->charset.set, pr->charset.len, str[0]) == pr->charset.len) {
+      for(input.p = 0; input.p < input.n; input.p++) {
+        if(byte_chr(pr->charset.set, pr->charset.len, input.x[input.p]) == pr->charset.len) {
           ret = 0;
           break;
         }
-
+      }
+      input_value_free(&input, ctx);
       break;
     }
     case PREDICATE_NOTNOT: {
