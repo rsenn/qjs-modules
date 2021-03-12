@@ -784,6 +784,23 @@ js_symbol_atom(JSContext* ctx, const char* name) {
   return ret;
 }
 
+static inline BOOL
+js_is_iterable(JSContext* ctx, JSValueConst obj) {
+  JSAtom atom;
+  BOOL ret = FALSE;
+  atom = js_symbol_atom(ctx, "iterator");
+  if(JS_HasProperty(ctx, obj, atom))
+    ret = TRUE;
+  JS_FreeAtom(ctx, atom);
+  if(!ret) {
+    atom = js_symbol_atom(ctx, "asyncIterator");
+    if(JS_HasProperty(ctx, obj, atom))
+      ret = TRUE;
+    JS_FreeAtom(ctx, atom);
+  }
+  return ret;
+}
+
 static inline JSValue
 js_iterator_method(JSContext* ctx, JSValueConst obj) {
   JSAtom atom;

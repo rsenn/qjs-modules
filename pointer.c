@@ -244,6 +244,7 @@ pointer_fromiterable(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
     pointer_push(ptr, JS_ValueToAtom(ctx, item.value));
     JS_FreeValue(ctx, item.value);
   }
+  JS_FreeValue(ctx, iter);
 }
 
 int
