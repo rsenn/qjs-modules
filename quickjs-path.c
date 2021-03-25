@@ -59,7 +59,16 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   }
 
   switch(magic) {
-    case METHOD_BASENAME: ret = JS_NewString(ctx, basename(a)); break;
+    case METHOD_BASENAME: {
+      const char* o = basename(a);
+      size_t len = strlen(o);
+
+      if(b && str_end(o, b))
+        len -= strlen(b);
+
+      ret = JS_NewStringLen(ctx, o, len);
+      break;
+    }
     case METHOD_DIRNAME:
       pos = str_rchrs(a, "/\\", 2);
       if(pos < alen)

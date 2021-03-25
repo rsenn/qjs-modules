@@ -167,6 +167,19 @@ str_rchrs(const char* in, const char needles[], size_t nn) {
   return (size_t)((found ? found : s) - in);
 }
 
+static inline int
+str_endb(const char* a, const char* x, size_t n) {
+  size_t alen = strlen(a);
+  a += alen - n;
+  return alen >= n && !memcmp(a, x, n);
+}
+
+/* str_end returns 1 if the b is a suffix of a, 0 otherwise */
+static inline int
+str_end(const char* a, const char* b) {
+  return str_endb(a, b, strlen(b));
+}
+
 #define str_contains(s, needle) (!!strchr((s), (needle)))
 
 #define COLOR_RED "\x1b[31m"
@@ -1104,7 +1117,7 @@ js_object_is_typedarray(JSContext* ctx, JSValueConst value) {
   buf = JS_GetTypedArrayBuffer(ctx, value, &byte_offset, &byte_length, &bytes_per_element);
 
   if(JS_IsException(buf)) {
-   //js_runtime_exception_clear(JS_GetRuntime(ctx));
+    // js_runtime_exception_clear(JS_GetRuntime(ctx));
     JS_FreeValue(ctx, JS_GetException(ctx));
     return 0;
   }
