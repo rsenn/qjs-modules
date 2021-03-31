@@ -441,7 +441,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 
   dbuf_printf(buf, " { byteLength: %zu [", size);
   for(i = 0; i < size; i++) {
-    if(i == opts->max_array_length)
+    if(i == (size_t)opts->max_array_length)
       break;
     if(column == break_len) {
       inspect_newline(buf, (opts->depth - depth) + 1);

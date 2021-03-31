@@ -24,12 +24,16 @@ typedef union {
 } vector;
 
 #define VECTOR_INIT()                                                                                                  \
-  { 0, 0, 0 }
+  {                                                                                                                    \
+    { 0, 0, 0, 0, 0, 0 }                                                                                               \
+  }
 
 #define vector_init(vec) memset((vec), 0, sizeof(vector))
 #define vector_init2(vec, ctx) dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&js_realloc)
 #define VECTOR2(ctx)                                                                                                   \
-  (vector) { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }
+  (vector) {                                                                                                           \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }                                                               \
+  }
 
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
 #define vector_foreach(a, msz, p)                                                                                      \

@@ -25,15 +25,11 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
       break;
     }
     case PREDICATE_NOTNOT: {
-      JSValue value;
       ret = !!js_predicate_call(ctx, pr->unary.fn, argc, argv);
-      JS_FreeValue(ctx, value);
       break;
     }
     case PREDICATE_NOT: {
-      JSValue value;
       ret = !js_predicate_call(ctx, pr->unary.fn, argc, argv);
-      JS_FreeValue(ctx, value);
       break;
     }
     case PREDICATE_OR: {

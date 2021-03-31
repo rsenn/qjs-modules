@@ -678,7 +678,7 @@ input_value_dump(const InputValue* input, DynBuf* db) {
 static inline void
 input_value_free(InputValue* input, JSContext* ctx) {
   if(input->x) {
-    input->free(ctx, input->x);
+    input->free(ctx, (const char*)input->x);
     input->x = 0;
     input->n = 0;
     input->p = 0;

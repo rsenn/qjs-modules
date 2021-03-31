@@ -328,7 +328,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     }
     case METHOD_SKIPC: {
       int32_t ntimes = 1;
-      uint8_t c;
+      uint8_t c = 0;
       if(argc > 0)
         JS_ToInt32(ctx, &ntimes, argv[0]);
       while(ntimes-- > 0) { c = lexer_getc(lex); }
@@ -576,8 +576,12 @@ js_lexer_ctype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     case IS_IDENTIFIER_CHAR:
       result = (str_contains("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_", c));
       break;
+    default:
+      result = -1;
+      JS_ThrowRangeError(ctx, "js_lexer_ctype invalid magic: %d", magic);
+      break;
   }
-  b = JS_NewInt32(ctx, !!result);
+  b = JS_NewInt32(ctx, result);
   return b;
 }
 

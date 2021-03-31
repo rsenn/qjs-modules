@@ -133,7 +133,7 @@ vector_put(vector* vec, const void* bytes, size_t len) {
 void __attribute__((format(printf, 2, 3))) vector_printf(vector* vec, const char* fmt, ...) {
   va_list ap;
   char buf[128];
-  int len;
+  size_t len;
   va_start(ap, fmt);
   len = vsnprintf(buf, sizeof(buf), fmt, ap);
   va_end(ap);
@@ -169,9 +169,8 @@ vector_symmetricdiff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* 
 
 void
 vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out) {
-  int j = 0;
-  int k = 0;
-  for(int i = 0; i < m + n; i++) {
+  size_t i, j = 0, k = 0;
+  for(i = 0; i < m + n; i++) {
     void* aptr = (char*)a + j * elsz;
     void* bptr = (char*)b + k * elsz;
     int r = memcmp(aptr, bptr, elsz);

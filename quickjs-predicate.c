@@ -69,7 +69,7 @@ js_predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* ar
 static JSValue
 js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   Predicate* pred;
-  JSValue obj, proto;
+  JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED;
 
   if(!(pred = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;

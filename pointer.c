@@ -46,7 +46,7 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
 #define pointer_color(s) ((index) >= 0 && (i) >= (index) ? "\x1b[31m" : (is_integer(s) ? "\x1b[1;30m" : "\x1b[0;33m"))
 
 void
-pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, int index) {
+pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index) {
   size_t i;
   const char* s;
 
@@ -55,10 +55,11 @@ pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, int index) {
   for(i = 0; i < ptr->n; i++) {
     if(i > 0)
       dbuf_putstr(db, color ? "\x1b[1;36m." : ".");
+    s = JS_AtomToCString(ctx, ptr->atoms[i]);
     dbuf_putstr(db, color ? pointer_color(s) : "");
     // if(index == i) dbuf_putstr(db, "\x1b[31m");
-    s = JS_AtomToCString(ctx, ptr->atoms[i]);
     dbuf_putstr(db, s);
+    JS_FreeCString(ctx, s);
   }
   dbuf_putstr(db, color ? "\x1b[m" : "");
 }
@@ -70,7 +71,7 @@ pointer_debug(Pointer* ptr, JSContext* ctx) {
   pointer_dump(ptr, ctx, &db, TRUE, -1);
   dbuf_0(&db);
 
-  puts(db.buf);
+  puts((const char*)db.buf);
 
   dbuf_free(&db);
 }
@@ -140,10 +141,10 @@ pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
 
 JSValue
 pointer_shift(Pointer* ptr, JSContext* ctx, JSValueConst obj) {
-  JSValue ret;
+  JSValue ret = JS_UNDEFINED;
   if(ptr->n) {
     JSAtom atom;
-    int64_t i;
+    size_t i;
     atom = ptr->atoms[0];
     for(i = 1; i < ptr->n; i++) { ptr->atoms[i - 1] = ptr->atoms[i]; }
     ptr->n--;

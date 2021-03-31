@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 typedef struct Pointer {
-  int64_t n;
+  size_t n;
   JSAtom* atoms;
 } Pointer;
 
@@ -15,7 +15,7 @@ typedef Pointer* DataFunc(JSContext*, JSValueConst);
 void pointer_copy(Pointer*, Pointer*, JSContext*);
 JSValue pointer_deref(Pointer*, JSContext*, JSValue);
 JSValue pointer_acquire(Pointer*, JSContext*, JSValue);
-void pointer_dump(Pointer*, JSContext*, DynBuf*, BOOL, int);
+void pointer_dump(Pointer*, JSContext*, DynBuf*, BOOL, size_t);
 void pointer_debug(Pointer*, JSContext*);
 int pointer_from(Pointer*, JSContext*, JSValue, DataFunc* data);
 void pointer_fromarray(Pointer*, JSContext*, JSValue);

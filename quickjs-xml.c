@@ -428,7 +428,6 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
 
 static JSValue
 js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-
   vector enumerations = VECTOR_INIT();
   DynBuf output = {0};
   JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;

@@ -117,7 +117,7 @@ property_enumeration_keystrlen(PropertyEnumeration* it, size_t* len, JSContext* 
 }
 
 static inline int
-property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
+property_enumeration_setpos(PropertyEnumeration* it, uint32_t idx) {
   if((idx < 0 ? -idx : idx) >= it->tab_atom_len)
     return 0;
   if(idx < 0)

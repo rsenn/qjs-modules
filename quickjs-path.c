@@ -195,7 +195,8 @@ static JSValue
 js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   const char* str;
   DynBuf db;
-  size_t i, len = 0, pos;
+  int i;
+  size_t len = 0, pos;
   JSValue ret = JS_UNDEFINED;
   dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
   dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);

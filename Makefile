@@ -42,7 +42,7 @@ install:
 .c.o:
 	$(CC) $(CFLAGS) -c $< 
 
-$(BUILDDIR)deep.$(SUFFIX): quickjs-deep.c vector.c
+$(BUILDDIR)deep.$(SUFFIX): quickjs-deep.c vector.c pointer.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 $(BUILDDIR)inspect.$(SUFFIX): quickjs-inspect.c vector.c
@@ -58,6 +58,9 @@ $(BUILDDIR)path.$(SUFFIX): quickjs-path.c path.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 $(BUILDDIR)pointer.$(SUFFIX): quickjs-pointer.c
+	$(CC) $(CFLAGS) -shared -o $@ $^
+	
+$(BUILDDIR)predicate.$(SUFFIX): quickjs-predicate.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
 
 $(BUILDDIR)tree-walker.$(SUFFIX): quickjs-tree-walker.c vector.c

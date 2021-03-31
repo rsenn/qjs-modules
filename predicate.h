@@ -42,6 +42,13 @@ typedef struct Predicate {
   };
 } Predicate;
 
+#define PREDICATE_INIT(id)                                                                                             \
+  {                                                                                                                    \
+    id, {                                                                                                              \
+      { 0 }                                                                                                            \
+    }                                                                                                                  \
+  }
+
 int32_t predicate_eval(const Predicate*, JSContext*, int argc, JSValueConst* argv);
 void predicate_tostring(const Predicate*, JSContext*, DynBuf*);
 
@@ -64,13 +71,13 @@ void predicate_tostring(const Predicate*, JSContext*, DynBuf*);
 
 static inline Predicate
 predicate_type(int32_t type) {
-  Predicate ret = {PREDICATE_TYPE};
+  Predicate ret = PREDICATE_INIT(PREDICATE_TYPE);
   ret.type.flags = type;
   return ret;
 }
 static inline Predicate
 predicate_or(JSValueConst a, JSValueConst b) {
-  Predicate ret = {PREDICATE_OR};
+  Predicate ret = PREDICATE_INIT(PREDICATE_OR);
   ret.binary.a = a;
   ret.binary.b = b;
   return ret;
@@ -78,7 +85,7 @@ predicate_or(JSValueConst a, JSValueConst b) {
 
 static inline Predicate
 predicate_and(JSValueConst a, JSValueConst b) {
-  Predicate ret = {PREDICATE_AND};
+  Predicate ret = PREDICATE_INIT(PREDICATE_AND);
   ret.binary.a = a;
   ret.binary.b = b;
   return ret;
@@ -86,7 +93,7 @@ predicate_and(JSValueConst a, JSValueConst b) {
 
 static inline Predicate
 predicate_charset(const char* str, size_t len) {
-  Predicate ret = {PREDICATE_CHARSET};
+  Predicate ret = PREDICATE_INIT(PREDICATE_CHARSET);
   ret.charset.set = str;
   ret.charset.len = len;
   return ret;
@@ -94,21 +101,21 @@ predicate_charset(const char* str, size_t len) {
 
 static inline Predicate
 predicate_notnot(JSValueConst fn) {
-  Predicate ret = {PREDICATE_NOTNOT};
+  Predicate ret = PREDICATE_INIT(PREDICATE_NOTNOT);
   ret.unary.fn = fn;
   return ret;
 }
 
 static inline Predicate
 predicate_not(JSValueConst fn) {
-  Predicate ret = {PREDICATE_NOT};
+  Predicate ret = PREDICATE_INIT(PREDICATE_NOT);
   ret.unary.fn = fn;
   return ret;
 }
 
 static inline Predicate
 predicate_xor(JSValueConst a, JSValueConst b) {
-  Predicate ret = {PREDICATE_XOR};
+  Predicate ret = PREDICATE_INIT(PREDICATE_XOR);
   ret.binary.a = a;
   ret.binary.b = b;
   return ret;
