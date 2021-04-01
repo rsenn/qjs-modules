@@ -36,7 +36,12 @@ message("QuickJS install directory: ${QUICKJS_PREFIX}")
 
 set(CMAKE_REQUIRED_QUIET TRUE CACHE BOOLEAN "Quiet" FORCE)
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
+
+check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
+dump(VISIBILITY_HIDDEN)
+dump(MODULE_COMPILE_FLAGS)
 
 check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type" CMAKE_C_FLAGS)
 #message("CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
@@ -124,7 +129,8 @@ foreach(NAME ${QUICKJS_MODULES})
   set_target_properties(
     quickjs-${NAME}
     PROPERTIES PREFIX "" INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs"
-               OUTPUT_NAME "${NAME}")
+               OUTPUT_NAME "${NAME}"
+               COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
   if(${${PFX}_LIBRARIES})
     target_link_libraries(quickjs-${NAME} PUBLIC ${${PFX}_LIBRARIES})
   endif(${${PFX}_LIBRARIES})

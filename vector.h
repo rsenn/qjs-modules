@@ -25,10 +25,10 @@ typedef union {
 
 #define VECTOR_INIT()                                                                                                  \
   {                                                                                                                    \
-    { 0, 0, 0, 0, 0, 0 }                                                                                               \
+    { 0, 0, 0, 0, &vector_default_realloc, 0 }                                                                                               \
   }
 
-#define vector_init(vec) memset((vec), 0, sizeof(vector))
+#define vector_init(vec) dbuf_init(&((vec)->dbuf))
 #define vector_init2(vec, ctx) dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&js_realloc)
 #define VECTOR2(ctx)                                                                                                   \
   (vector) {                                                                                                           \
@@ -55,6 +55,11 @@ void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, vector*, vector*
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 
 #define vector_search(vec, elsz, elem) array_search(array_begin((vec)), array_size((vec), (elsz)), (elsz), (elem))
+
+static inline void*
+vector_default_realloc(void* opaque, void* ptr, size_t size) {
+  return realloc(ptr, size);
+}
 
 static inline uint32_t
 vector_size(const vector* vec, size_t elsz) {

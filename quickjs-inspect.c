@@ -850,7 +850,7 @@ js_inspect_init(JSContext* ctx, JSModuleDef* m) {
 #define JS_INIT_MODULE js_init_module_inspect
 #endif
 
-JSModuleDef*
+VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
   m = JS_NewCModule(ctx, module_name, js_inspect_init);

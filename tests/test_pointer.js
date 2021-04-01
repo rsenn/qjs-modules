@@ -37,7 +37,7 @@ function main(...args) {
 
   let pointer;
 
-  pointer = new Pointer(2, 'children', 0, 'children', 2);
+  pointer = new Pointer([2, 'children', 0, 'children', 2]);
   try {
     console.log('deref pointer:', pointer.deref(result));
   } catch(e) {

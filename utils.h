@@ -10,6 +10,15 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#if defined(_WIN32) || defined(__MINGW32__)
+#define VISIBLE __declspec(dllexport)
+#define HIDDEN
+#else
+#define VISIBLE __attribute__((visibility("default")))
+#define HIDDEN __attribute__((visibility("hidden")))
+#endif
+
+
 #define max_num(a, b) ((a) > (b) ? (a) : (b))
 
 #define is_control_char(c)                                                                                             \
