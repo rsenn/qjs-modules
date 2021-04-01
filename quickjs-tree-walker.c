@@ -326,7 +326,7 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(!(w = js_mallocz(ctx, sizeof(TreeWalker))))
     return JS_EXCEPTION;
 
-  tree_walker_reset(w, ctx);
+  vector_init2(&w->frames, ctx);
 
   /* using new_target to get the prototype is necessary when the
      class is extended. */

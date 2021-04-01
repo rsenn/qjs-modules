@@ -67,8 +67,8 @@ function main(...args) {
   function TestIterator() {
     let it = new TreeIterator(result, TreeIterator.MASK_OBJECT | TreeIterator.RETURN_TUPLE);
 
-    for(let [node, path] of it) {
-      console.log('path:', path.join('.'), 'node:', node);
+    for(let entry of it) {
+      console.log('entry:',entry);
     }
   }
   console.log(result.slice(2));
