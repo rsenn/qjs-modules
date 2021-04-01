@@ -4,7 +4,6 @@
 #include "quickjs.h"
 
 #include <limits.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "path.h"
@@ -161,6 +160,9 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   JSValue ret = JS_UNDEFINED;
 
   if(argc > 0) {
+    if(!JS_IsString(argv[0]))
+      return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
     a = JS_ToCStringLen(ctx, &alen, argv[0]);
     if(argc > 1)
       b = JS_ToCStringLen(ctx, &blen, argv[1]);
@@ -169,12 +171,40 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
 
   switch(magic) {
-    case METHOD_ABSOLUTE: path_absolute(a, &db); break;
-    case METHOD_APPEND: path_append(a, alen, &db); break;
-    case METHOD_CANONICAL: path_canonical(a, &db); break;
-    case METHOD_CONCAT: path_concat(a, alen, b, blen, &db); break;
-    case METHOD_FIND: path_find(a, b, &db); break;
-    case METHOD_RELATIVE: path_relative(a, b, &db); break;
+    case METHOD_ABSOLUTE: {
+      path_absolute(a, &db);
+      break;
+    }
+    case METHOD_APPEND: {
+      path_append(a, alen, &db);
+      break;
+    }
+    case METHOD_CANONICAL: {
+      path_canonical(a, &db);
+      break;
+    }
+    case METHOD_CONCAT: {
+      path_concat(a, alen, b, blen, &db);
+      break;
+    }
+    case METHOD_FIND: {
+      path_find(a, b, &db);
+      break;
+    }
+    case METHOD_RELATIVE: {
+      DynBuf cwd = {0, 0, 0, 0, 0};
+
+      if(b == NULL) {
+        dbuf_init(&cwd);
+        b = path_getcwd(&cwd);
+      }
+      path_relative(a, b, &db);
+      if(b == (const char*)cwd.buf) {
+        dbuf_free(&db);
+        b = NULL;
+      }
+      break;
+    }
     case METHOD_NORMALIZE: {
       BOOL symbolic = FALSE;
       if(argc > 1)
@@ -184,11 +214,12 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
   }
 
-  if(db.size) {
-    ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
-  }
-  dbuf_free(&db);
-  return ret;
+  if(a)
+    JS_FreeCString(ctx, a);
+  if(b)
+    JS_FreeCString(ctx, b);
+
+  return dbuf_tostring_free(&db, ctx);
 }
 
 static JSValue

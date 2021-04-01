@@ -50,7 +50,6 @@ async function main(...args) {
   CallPathFunction('readlink', '/home/roman/Sources');
   CallPathFunction('normalize', '/home/roman/Sources');
   CallPathFunction('realpath', '/home/roman/Sources');
-  CallPathFunction('relative', '/home/roman/Sources/plot-cv/quickjs', '/home/roman');
   CallPathFunction('join', '/home/roman', 'Sources', 'plot-cv/quickjs', 'modules');
   CallPathFunction('isAbsolute', 'c:/windows');
   CallPathFunction('isAbsolute', '/etc');
@@ -69,6 +68,13 @@ async function main(...args) {
   CallPathFunction('resolve', 'wwwroot', 'static_files/png/', '../gif/image.gif');
   CallPathFunction('resolve', '..');
   CallPathFunction('resolve', '/etc', 'fonts', 'fonts.conf');
+
+
+  CallPathFunction('getcwd');
+  let cwd = path.getcwd();
+  console.log(`cwd = ${cwd}`);
+  CallPathFunction('relative', '/home/roman/Projects/plot-cv/quickjs', cwd);
+  CallPathFunction('relative', '/home/roman/Projects/editline' , cwd );
 
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));

@@ -1,6 +1,6 @@
 project(quickjs-modules C)
 
-set(QUICKJS_MODULES deep lexer mmap path pointer predicate inspect tree-walker
+set(QUICKJS_MODULES deep lexer mmap path pointer predicate repeater inspect tree-walker
                     xml)
 
 set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
@@ -22,6 +22,8 @@ set(pointer_SOURCES pointer.c pointer.h utils.h)
 set(lexer_SOURCES utils.h quickjs-predicate.h predicate.h vector.h)
 set(lexer_LIBRARIES quickjs-predicate)
 
+set(repeater_SOURCES utils.h)
+ 
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
       CACHE PATH "QuickJS install directory")
@@ -31,6 +33,7 @@ endif(NOT QUICKJS_PREFIX)
 
 set(CMAKE_INSTALL_PREFIX "${QUICKJS_PREFIX}" CACHE PATH "Install directory"
                                                    FORCE)
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 
 message("QuickJS install directory: ${QUICKJS_PREFIX}")
 

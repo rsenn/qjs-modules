@@ -459,6 +459,14 @@ dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len) {
   return 0;
 }
 
+static inline JSValue
+dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
+ JSValue r;
+  r = JS_NewStringLen(ctx, s->buf ? (const char*)s->buf : "", s->buf ? s->size : 0);
+  dbuf_free(s);
+  return r;
+}
+
 enum value_types {
   FLAG_UNDEFINED = 0,
   FLAG_NULL,        // 1
@@ -856,14 +864,11 @@ js_iterator_next(JSContext* ctx, JSValueConst obj) {
   IteratorValue ret;
 
   fn = JS_GetPropertyStr(ctx, obj, "next");
-
   result = JS_Call(ctx, fn, obj, 0, 0);
   JS_FreeValue(ctx, fn);
-
   done = JS_GetPropertyStr(ctx, result, "done");
   ret.value = JS_GetPropertyStr(ctx, result, "value");
   JS_FreeValue(ctx, result);
-
   ret.done = JS_ToBool(ctx, done);
   JS_FreeValue(ctx, done);
 

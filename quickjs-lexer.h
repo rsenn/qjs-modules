@@ -16,7 +16,6 @@ enum token_types {
   IDENTIFIER,
   REGEXP_LITERAL,
   PROP_EOF
-
 };
 
 typedef struct {
@@ -52,6 +51,7 @@ typedef union Lexer {
     size_t ref_count;
   };
 } Lexer;
+
 extern JSClassID js_token_class_id, js_lexer_class_id;
 
 static inline Token*

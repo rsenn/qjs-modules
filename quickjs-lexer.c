@@ -63,6 +63,11 @@ enum lexer_ctype {
   IS_WHITESPACE
 };
 
+static inline int
+keywords_cmp(const char** w1, const char** w2) {
+  return strcmp(*w1, *w2);
+}
+
 static Line
 lexer_line(Lexer* lex) {
   Line ret = {0, 0};
@@ -235,9 +240,7 @@ static const JSCFunctionListEntry js_token_static_funcs[] = {
     JS_PROP_INT32_DEF("KEYWORD", KEYWORD, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("IDENTIFIER", IDENTIFIER, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("REGEXP_LITERAL", REGEXP_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("EOF", EOF, JS_PROP_ENUMERABLE)
-
-};
+    JS_PROP_INT32_DEF("EOF", EOF, JS_PROP_ENUMERABLE)};
 
 JSValue
 js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
@@ -475,10 +478,6 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 static JSValue
 js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   return this_val;
-}
-int
-keywords_cmp(const char** w1, const char** w2) {
-  return strcmp(*w1, *w2);
 }
 
 static JSValue

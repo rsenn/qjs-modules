@@ -298,7 +298,6 @@ property_enumeration_recurse(vector* vec, JSContext* ctx) {
         if(property_enumeration_setpos(it, it->idx + 1))
           break;
       }
-      // return 0;
     }
     for(;;) {
       if((it = property_enumeration_pop(vec, ctx)) == 0)
@@ -306,12 +305,9 @@ property_enumeration_recurse(vector* vec, JSContext* ctx) {
       if(property_enumeration_setpos(it, it->idx + 1))
         break;
     }
-  end:
-    /* if(!it)
-       break;*/
-
     break;
   }
+
   return it;
 }
 
