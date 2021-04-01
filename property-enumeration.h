@@ -67,7 +67,6 @@ property_enumeration_reset(PropertyEnumeration* it, JSRuntime* rt) {
 
 static inline JSValue
 property_enumeration_value(PropertyEnumeration* it, JSContext* ctx) {
-  assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx].atom);
 }
@@ -82,7 +81,6 @@ property_enumeration_valuestr(PropertyEnumeration* it, JSContext* ctx) {
 
 static inline JSAtom
 property_enumeration_atom(PropertyEnumeration* it) {
-  assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   return it->tab_atom[it->idx].atom;
 }
@@ -90,7 +88,6 @@ property_enumeration_atom(PropertyEnumeration* it) {
 static inline JSValue
 property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
   JSValue key;
-  assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   key = JS_AtomToValue(ctx, it->tab_atom[it->idx].atom);
   if(it->is_array) {
@@ -104,26 +101,23 @@ property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
 
 static inline const char*
 property_enumeration_keystr(PropertyEnumeration* it, JSContext* ctx) {
-  assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   return JS_AtomToCString(ctx, it->tab_atom[it->idx].atom);
 }
 
 static inline const char*
 property_enumeration_keystrlen(PropertyEnumeration* it, size_t* len, JSContext* ctx) {
-  assert(it->idx >= 0);
   assert(it->idx < it->tab_atom_len);
   return js_atom_tocstringlen(ctx, len, it->tab_atom[it->idx].atom);
 }
 
 static inline int
-property_enumeration_setpos(PropertyEnumeration* it, uint32_t idx) {
-  if((idx < 0 ? -idx : idx) >= it->tab_atom_len)
+property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
+  if(idx >= (int32_t)it->tab_atom_len)
     return 0;
   if(idx < 0)
     idx += it->tab_atom_len;
-  assert(idx >= 0);
-  assert(idx < it->tab_atom_len);
+  assert((uint32_t)idx < it->tab_atom_len);
   it->idx = idx;
   return 1;
 }

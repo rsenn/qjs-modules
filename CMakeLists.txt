@@ -38,6 +38,10 @@ set(CMAKE_REQUIRED_QUIET TRUE CACHE BOOLEAN "Quiet" FORCE)
 
 include(CheckCCompilerFlag)
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
+
+check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-argument")
+
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
@@ -53,6 +57,13 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
           CACHE STRING "C compiler options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
+  check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
+  if(G_WARN_EXTRA)
+    if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra"
+          CACHE STRING "C compiler options" FORCE)
+    endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
+  endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 include(CheckIncludeFile)

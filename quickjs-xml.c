@@ -413,7 +413,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
 static JSValue
 js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   JSValue ret;
-  InputValue input = js_value_to_bytes(ctx, argv[0]);
+  InputBuffer input = js_input_buffer(ctx, argv[0]);
 
   if(input.x == 0 || input.n == 0) {
     JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
@@ -422,7 +422,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
 
   ret = js_xml_parse(ctx, input.x, input.n);
 
-  input.free(ctx, (void*)input.x);
+  input_buffer_free(&input, ctx);
   return ret;
 }
 

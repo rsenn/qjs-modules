@@ -664,19 +664,19 @@ typedef struct {
   size_t n;
   size_t p;
   void (*free)(JSContext*, const char*);
-} InputValue;
+} InputBuffer;
 
-static void input_value_free_default(JSContext* ctx, const char* str){
+static void input_buffer_free_default(JSContext* ctx, const char* str){
 
 };
 
 static inline void
-input_value_dump(const InputValue* input, DynBuf* db) {
-  dbuf_printf(db, "(InputValue){ .x = %p, .n = %zx, .p = %zx, .free = %p }", input->x, input->n, input->p, input->free);
+input_buffer_dump(const InputBuffer* input, DynBuf* db) {
+  dbuf_printf(db, "(InputBuffer){ .x = %p, .n = %zx, .p = %zx, .free = %p }", input->x, input->n, input->p, input->free);
 }
 
 static inline void
-input_value_free(InputValue* input, JSContext* ctx) {
+input_buffer_free(InputBuffer* input, JSContext* ctx) {
   if(input->x) {
     input->free(ctx, (const char*)input->x);
     input->x = 0;
@@ -685,9 +685,9 @@ input_value_free(InputValue* input, JSContext* ctx) {
   }
 }
 
-static inline InputValue
-js_value_to_bytes(JSContext* ctx, JSValueConst value) {
-  InputValue ret = {0, 0, 0, &input_value_free_default};
+static inline InputBuffer
+js_input_buffer(JSContext* ctx, JSValueConst value) {
+  InputBuffer ret = {0, 0, 0, &input_buffer_free_default};
 
   if(JS_IsString(value)) {
     ret.x = (const uint8_t*)JS_ToCStringLen(ctx, &ret.n, value);

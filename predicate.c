@@ -13,7 +13,7 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
       break;
     }
     case PREDICATE_CHARSET: {
-      InputValue input = js_value_to_bytes(ctx, argv[0]);
+      InputBuffer input = js_input_buffer(ctx, argv[0]);
       ret = 1;
       for(input.p = 0; input.p < input.n; input.p++) {
         if(byte_chr(pr->charset.set, pr->charset.len, input.x[input.p]) == pr->charset.len) {
@@ -21,7 +21,7 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
           break;
         }
       }
-      input_value_free(&input, ctx);
+      input_buffer_free(&input, ctx);
       break;
     }
     case PREDICATE_NOTNOT: {

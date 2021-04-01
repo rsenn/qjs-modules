@@ -252,7 +252,7 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
     goto fail;
   JS_SetOpaque(obj, lex);
 
-  lex->input = js_value_to_bytes(ctx, value);
+  lex->input = js_input_buffer(ctx, value);
   lex->state_fn = JS_UNDEFINED;
 
   return obj;
@@ -385,6 +385,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
           break;
         lex->pos++;
       }
+      break;
     }
     case METHOD_BACKUP: {
       int32_t ntimes = 1;

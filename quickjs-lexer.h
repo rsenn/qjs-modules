@@ -38,7 +38,7 @@ typedef struct {
 } Token;
 
 typedef union Lexer {
-  InputValue input;
+  InputBuffer input;
   struct {
     const uint8_t* data;
     size_t size;
