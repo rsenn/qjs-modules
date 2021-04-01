@@ -18,7 +18,6 @@
 #define HIDDEN __attribute__((visibility("hidden")))
 #endif
 
-
 #define max_num(a, b) ((a) > (b) ? (a) : (b))
 
 #define is_control_char(c)                                                                                             \
@@ -681,7 +680,8 @@ static void input_buffer_free_default(JSContext* ctx, const char* str){
 
 static inline void
 input_buffer_dump(const InputBuffer* input, DynBuf* db) {
-  dbuf_printf(db, "(InputBuffer){ .x = %p, .n = %zx, .p = %zx, .free = %p }", input->x, input->n, input->p, input->free);
+  dbuf_printf(
+      db, "(InputBuffer){ .x = %p, .n = %zx, .p = %zx, .free = %p }", input->x, input->n, input->p, input->free);
 }
 
 static inline void

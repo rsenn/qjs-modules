@@ -25,7 +25,7 @@ typedef union {
 
 #define VECTOR_INIT()                                                                                                  \
   {                                                                                                                    \
-    { 0, 0, 0, 0, &vector_default_realloc, 0 }                                                                                               \
+    { 0, 0, 0, 0, &vector_default_realloc, 0 }                                                                         \
   }
 
 #define vector_init(vec) dbuf_init(&((vec)->dbuf))

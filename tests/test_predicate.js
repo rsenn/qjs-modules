@@ -32,11 +32,14 @@ function main(...args) {
   let str = std.loadFile(args[0] ?? scriptArgs[0], 'utf-8');
   let len = str.length;
   console.log('len', len);
-  let isNL = Predicate.charset('\n', 1);
-  let isUpper = Predicate.charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 26);
-  let isLower = Predicate.charset('abcdefghijklmnopqrstuvwxyz', 26);
-  let isDigit = Predicate.charset('0123456789', 10);
-  let isXDigit = Predicate.charset('0123456789ABCDEFabcdef', 22);
+  console.log('Predicate', Predicate);
+  console.log('Predicate.oneOf', Predicate.oneOf);
+
+  let isNL = Predicate.oneOf('\n', 1);
+  let isUpper = Predicate.oneOf('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 26);
+  let isLower = Predicate.oneOf('abcdefghijklmnopqrstuvwxyz', 26);
+  let isDigit = Predicate.oneOf('0123456789', 10);
+  let isXDigit = Predicate.oneOf('0123456789ABCDEFabcdef', 22);
 
   let isNotNL = Predicate.not(isNL);
   let isNotUpper = Predicate.not(isUpper);
