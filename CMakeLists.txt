@@ -11,15 +11,15 @@ if(EXISTS "${QUICKJS_H}")
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
 
-set(deep_SOURCES vector.c  virtual-properties.c property-enumeration.h vector.h utils.h pointer.h virtual-properties.h)
+set(deep_SOURCES vector.c pointer.c virtual-properties.c property-enumeration.h vector.h utils.h pointer.h virtual-properties.h)
 set(deep_LIBRARIES quickjs-pointer)
 set(inspect_SOURCES vector.c iteration.h utils.h property-enumeration.h vector.h quickjs-internal.h)
 set(tree_walker_SOURCES vector.c property-enumeration.h vector.h utils.h)
 set(xml_SOURCES vector.c property-enumeration.h vector.h utils.h)
 set(path_SOURCES path.c path.h utils.h)
-set(predicate_SOURCES quickjs-predicate.h predicate.c predicate.h vector.h utils.h)
-set(pointer_SOURCES quickjs-pointer.h pointer.h utils.h)
-set(lexer_SOURCES quickjs-lexer.h utils.h quickjs-predicate.h predicate.h vector.h)
+set(predicate_SOURCES predicate.c predicate.h vector.h utils.h)
+set(pointer_SOURCES pointer.c pointer.h utils.h)
+set(lexer_SOURCES utils.h quickjs-predicate.h predicate.h vector.h)
 set(lexer_LIBRARIES quickjs-predicate)
 
 if(NOT QUICKJS_PREFIX)
@@ -38,8 +38,8 @@ set(CMAKE_REQUIRED_QUIET TRUE CACHE BOOLEAN "Quiet" FORCE)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 
-check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-argument;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type" CMAKE_C_FLAGS)
-message("CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type" CMAKE_C_FLAGS)
+#message("CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
@@ -115,7 +115,12 @@ endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
 foreach(NAME ${QUICKJS_MODULES})
   string(REGEX REPLACE "[-/]" "_" PFX "${NAME}")
-  add_library(quickjs-${NAME} SHARED quickjs-${NAME}.c ${${PFX}_SOURCES})
+  set(SOURCES quickjs-${NAME}.c)
+  if(EXISTS quickjs-${NAME}.h)
+    list(APPEND SOURCES quickjs-${NAME}.h)
+  endif(EXISTS quickjs-${NAME}.h)
+  list(APPEND SOURCES ${${PFX}_SOURCES})
+  add_library(quickjs-${NAME} SHARED ${SOURCES})
   set_target_properties(
     quickjs-${NAME}
     PROPERTIES PREFIX "" INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs"

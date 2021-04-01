@@ -43,7 +43,7 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
   }
 }
 
-#define pointer_color(s) ((index) >= 0 && (i) >= (index) ? "\x1b[31m" : (is_integer(s) ? "\x1b[1;30m" : "\x1b[0;33m"))
+#define pointer_color(s) (/*(index) >= 0 &&*/ (i) >= (index) ? "\x1b[31m" : (is_integer(s) ? "\x1b[1;30m" : "\x1b[0;33m"))
 
 void
 pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index) {
@@ -220,15 +220,15 @@ pointer_fromarray(Pointer* ptr, JSContext* ctx, JSValueConst array) {
   len = js_array_length(ctx, array);
   pointer_reset(ptr, ctx);
 
-  if(len >= 0) {
-    ptr->atoms = malloc(sizeof(JSAtom) * len);
-    for(i = 0; i < len; i++) {
-      prop = JS_GetPropertyUint32(ctx, array, i);
-      ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
-      JS_FreeValue(ctx, prop);
-    }
-    ptr->n = len;
+  assert(len > 0);
+
+  ptr->atoms = malloc(sizeof(JSAtom) * len);
+  for(i = 0; i < len; i++) {
+    prop = JS_GetPropertyUint32(ctx, array, i);
+    ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
+    JS_FreeValue(ctx, prop);
   }
+  ptr->n = len;
 }
 
 void
