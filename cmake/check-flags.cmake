@@ -1,6 +1,7 @@
 include(CheckCCompilerFlag)
 
 macro(append_vars STR)
+  #message("append_vars(${STR} ${ARGN})")
   foreach(L ${ARGN})
     set(LIST "${${L}}")
     if(NOT LIST MATCHES ".*${STR}.*")
@@ -12,10 +13,8 @@ macro(append_vars STR)
 
     endif(NOT LIST MATCHES ".*${STR}.*")
     string(REPLACE ";" " " LIST "${LIST}")
-    # message("New value for ${L}: ${LIST}")
-    set("${L}"
-        "${LIST}"
-        PARENT_SCOPE)
+    #message("New value for ${L}: ${LIST}")
+    set("${L}" "${LIST}" PARENT_SCOPE)
   endforeach(L ${ARGN})
 endmacro(append_vars STR)
 
@@ -31,16 +30,13 @@ function(check_flag FLAG VAR)
   set(RESULT "${${VAR}}")
   if(RESULT)
     append_vars(${FLAG} ${ARGN})
-    message(STATUS "Compiler flag ${FLAG} ... supported")
+    #message(STATUS "Compiler flag ${FLAG} ... supported [${VAR}] [${ARGN}]")
     # message("append_vars(${FLAG} ${ARGN})")
   endif(RESULT)
-endfunction(
-  check_flag
-  FLAG
-  VAR)
+endfunction(check_flag FLAG VAR)
 
 macro(check_flags FLAGS)
-  message("Checking flags ${FLAGS} ${ARGN}")
+  #message("Checking flags ${FLAGS} ${ARGN}")
   foreach(FLAG ${FLAGS})
     check_flag(${FLAG} "" ${ARGN})
   endforeach(FLAG ${FLAGS})

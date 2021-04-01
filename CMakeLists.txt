@@ -36,11 +36,10 @@ message("QuickJS install directory: ${QUICKJS_PREFIX}")
 
 set(CMAKE_REQUIRED_QUIET TRUE CACHE BOOLEAN "Quiet" FORCE)
 
-include(CheckCCompilerFlag)
-
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 
-check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-argument")
+check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-argument;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type" CMAKE_C_FLAGS)
+message("CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
