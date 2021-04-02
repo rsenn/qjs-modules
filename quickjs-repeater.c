@@ -5,24 +5,21 @@
 
 JSClassID js_repeater_class_id = 0;
 JSValue repeater_proto, repeater_constructor, repeater_ctor;
- 
+
 enum repeater_functions { STATIC_RACE = 0, STATIC_MERGE, STATIC_ZIP };
 enum repeater_getters { PROP_LENGTH = 0, PROP_PATH };
 
 typedef union {
-  struct {
-    JSValue promise;
-    JSValue push,stop;
-  };
-  JSValue data[3];
+  JSValue promise;
+  JSValue push, stop;
 } Repeater;
 
-static JSValue js_repeater_push(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
+static JSValue
+js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
 }
 
-static JSValue js_repeater_stop(    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
-
+static JSValue
+js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
 }
 
 JSValue
@@ -37,9 +34,9 @@ js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
     goto fail;
   JS_SetOpaque(obj, rpt);
 
-   rpt->promise = JS_UNDEFINED;
-   rpt->push = JS_NewCFunctionData(ctx, &js_repeater_push, 0, 0, 1, (JSValueConst*)&obj);
-rpt->stop = JS_NewCFunctionData(ctx, &js_repeater_stop, 0, 0, 1, (JSValueConst*)&obj);
+  rpt->promise = JS_UNDEFINED;
+  rpt->push = JS_NewCFunctionData(ctx, &js_repeater_push, 0, 0, 1, (JSValueConst*)&obj);
+  rpt->stop = JS_NewCFunctionData(ctx, &js_repeater_stop, 0, 0, 1, (JSValueConst*)&obj);
 
   return obj;
 fail:
@@ -55,7 +52,7 @@ js_repeater_wrap(JSContext* ctx, Repeater* rpt) {
   JS_SetOpaque(obj, rpt);
   return obj;
 }
- 
+
 static JSValue
 js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   JSValue proto;
@@ -67,25 +64,24 @@ js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
   return js_repeater_new(ctx, proto, argc > 0 ? argv[0] : JS_UNDEFINED);
 }
- 
+
 static JSValue
 js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
   Repeater* rpt;
 
   if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
-    return JS_EXCEPTION; 
-
+    return JS_EXCEPTION;
 
   return JS_UNDEFINED;
 }
- 
+
 static JSValue
 js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
-    Repeater* rpt;
+  Repeater* rpt;
   JSValue ret = JS_UNDEFINED;
 
   if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
-    return JS_EXCEPTION; 
+    return JS_EXCEPTION;
 
   switch(magic) {
     case STATIC_RACE: break;
@@ -115,9 +111,10 @@ JSClassDef js_repeater_class = {
     .finalizer = js_repeater_finalizer,
 };
 
-static const JSCFunctionListEntry js_repeater_proto_funcs[] = {
-    JS_ITERATOR_NEXT_DEF("next", 0, js_repeater_next, 0),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Repeater", JS_PROP_C_W_E)};
+static const JSCFunctionListEntry js_repeater_proto_funcs[] = {JS_ITERATOR_NEXT_DEF("next", 0, js_repeater_next, 0),
+                                                               JS_PROP_STRING_DEF("[Symbol.toStringTag]",
+                                                                                  "Repeater",
+                                                                                  JS_PROP_C_W_E)};
 
 static const JSCFunctionListEntry js_repeater_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("race", 1, js_repeater_funcs, STATIC_RACE),

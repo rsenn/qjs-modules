@@ -202,60 +202,39 @@ path_find(const char* path, const char* name, DynBuf* db) {
 }
 
 int
-path_relative(const char* path, const char* relative_to, DynBuf* db) {
-  char *s, *s1, *s2;
-  size_t n1, n2, i, n;
-  DynBuf rel, p, r;
-  dbuf_init(&rel);
-  dbuf_init(&p);
-  dbuf_init(&r);
-  db->size = 0;
+path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out) {
+  SizePair p;
+  size_t i;
 
-  dbuf_putstr(&r, relative_to);
-  dbuf_putstr(&p, path);
+  p = path_common_prefix(s1, n1, s2, n2);
 
-  if(r.size >= 2 && !memcmp(r.buf, "..", 2))
-    path_absolute_db(&r);
-  if(p.size >= 2 && !memcmp(p.buf, "..", 2))
-    path_absolute_db(&p);
-  if(r.size == p.size && !memcmp(r.buf, p.buf, p.size)) {
-    dbuf_putstr(db, ".");
-    return 1;
+  dbuf_zero(out);
+
+  s1 += p.sz1;
+  n1 -= p.sz1;
+  s2 += p.sz2;
+  n2 -= p.sz2;
+
+  while((i = path_skip(s2, n2))) {
+    dbuf_putstr(out, ".." PATHSEP_S);
+    s2 += i;
+    n2 -= i;
   }
 
-  n1 = dbuf_count(&p, PATHSEP_C) + 1;
-  n2 = dbuf_count(&r, PATHSEP_C) + 1;
-  n = max_num(n1, n2);
-  for(i = 0; i < n; ++i) {
-    size_t l1, l2;
-    s1 = dbuf_at_n(&p, i, &l1, PATHSEP_C);
-    s2 = dbuf_at_n(&r, i, &l2, PATHSEP_C);
-    if(l1 != l2)
-      break;
-    if(memcmp(s1, s2, l1))
-      break;
-  }
+  i = path_skip_separator(s1, n1, 0);
 
-  while(n2-- > i) { dbuf_putstr(&rel, "..."); }
-  while(i < n1) {
-    if(rel.size)
-      dbuf_putc(&rel, PATHSEP_C);
+  dbuf_put(out, (const uint8_t*)s1 + i, n1 - i);
 
-    s = dbuf_at_n(&p, i, &n, PATHSEP_C);
-    dbuf_append(&rel, (const uint8_t*)s, n);
-    ++i;
-  }
+  if(out->size == 0)
+    dbuf_putc(out, '.');
 
-  if(rel.size == 0) {
-    dbuf_putstr(db, ".");
-  } else {
-    db->size = 0;
-    dbuf_append(db, (const uint8_t*)rel.buf, rel.size);
-  }
-  dbuf_free(&p);
-  dbuf_free(&r);
-  dbuf_free(&rel);
+  dbuf_0(out);
   return 1;
+}
+
+int
+path_relative(const char* path, const char* relative_to, DynBuf* out) {
+  return path_relative_b(path, strlen(path), relative_to, strlen(relative_to), out);
 }
 
 int
@@ -408,4 +387,35 @@ path_getcwd(DynBuf* db) {
   db->size = strlen((const char*)db->buf);
   dbuf_0(db);
   return (char*)db->buf;
+}
+
+SizePair
+path_common_prefix(const char* s1, size_t n1, const char* s2, size_t n2) {
+  SizePair r;
+
+  for(r.sz1 = 0, r.sz2 = 0; r.sz1 != n1 && r.sz2 != n2;) {
+    size_t i1, i2;
+
+    i1 = path_skip_separator(s1, n1, r.sz1);
+    i2 = path_skip_separator(s2, n2, r.sz2);
+
+    if((i1 > r.sz1) != (i2 > r.sz2))
+      break;
+
+    r.sz1 = i1;
+    r.sz2 = i2;
+
+    i1 = path_skip_component(s1, n1, r.sz1);
+    i2 = path_skip_component(s2, n2, r.sz2);
+
+    if(i1 != i2)
+      break;
+
+    if(byte_diff(&s1[i1], n1 - i1, &s2[i2]))
+      break;
+
+    r.sz1 = i1;
+    r.sz2 = i2;
+  }
+  return r;
 }

@@ -461,7 +461,7 @@ dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len) {
 
 static inline JSValue
 dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
- JSValue r;
+  JSValue r;
   r = JS_NewStringLen(ctx, s->buf ? (const char*)s->buf : "", s->buf ? s->size : 0);
   dbuf_free(s);
   return r;

@@ -45,6 +45,10 @@
 #define path_isrel(p) (!path_isabs(p))
 #define path_isname(p) ((p)[str_chr((p), '/')] != '\0')
 
+typedef struct {
+  size_t sz1, sz2;
+} SizePair;
+
 int path_absolute_db(DynBuf*);
 int path_absolute(const char*, DynBuf* db);
 int path_normalize(const char*, DynBuf* db, int symbolic);
@@ -54,7 +58,9 @@ int path_find(const char*, const char* name, DynBuf* db);
 int path_fnmatch(const char*, unsigned int plen, const char* string, unsigned int slen, int flags);
 char* path_gethome(int);
 char* path_getcwd(DynBuf*);
-int path_relative(const char*, const char* relative_to, DynBuf* db);
+SizePair path_common_prefix(const char* s1, size_t n1, const char* s2, size_t n2);
+int path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
+int path_relative(const char* path, const char* relative_to, DynBuf* out);
 
 static inline size_t
 path_length(const char* s, size_t n) {
