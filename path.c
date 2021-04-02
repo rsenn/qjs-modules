@@ -205,8 +205,10 @@ int
 path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out) {
   SizePair p;
   size_t i;
+  printf("relative '%.*s' '%.*s'\n", n1, s1, n2, s2);
 
   p = path_common_prefix(s1, n1, s2, n2);
+  printf("common [%zx,%zx] '%.*s'\n", p.sz1, p.sz2, p.sz1, s1);
 
   dbuf_zero(out);
 
@@ -215,13 +217,19 @@ path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* ou
   s2 += p.sz2;
   n2 -= p.sz2;
 
+  printf("remain '%.*s' '%.*s'\n", n1, s1, n2, s2);
+
   while((i = path_skip(s2, n2))) {
+    printf("skip %zx '%.*s'\n", i, i, s2);
+
     dbuf_putstr(out, ".." PATHSEP_S);
     s2 += i;
     n2 -= i;
   }
 
   i = path_skip_separator(s1, n1, 0);
+
+  printf("append '%.*s'\n", n1 - i, s1 + i);
 
   dbuf_put(out, (const uint8_t*)s1 + i, n1 - i);
 
@@ -396,26 +404,26 @@ path_common_prefix(const char* s1, size_t n1, const char* s2, size_t n2) {
   for(r.sz1 = 0, r.sz2 = 0; r.sz1 != n1 && r.sz2 != n2;) {
     size_t i1, i2;
 
-    i1 = path_skip_separator(s1, n1, r.sz1);
-    i2 = path_skip_separator(s2, n2, r.sz2);
+    i1 = path_skip_separator(&s1[r.sz1], n1 - r.sz1, 0);
+    i2 = path_skip_separator(&s2[r.sz2], n2 - r.sz2, 0);
 
-    if((i1 > r.sz1) != (i2 > r.sz2))
+    if(!!i1 != !!i2)
       break;
 
-    r.sz1 = i1;
-    r.sz2 = i2;
+    r.sz1 += i1;
+    r.sz2 += i2;
 
-    i1 = path_skip_component(s1, n1, r.sz1);
-    i2 = path_skip_component(s2, n2, r.sz2);
+    i1 = path_skip_component(&s1[r.sz1], n1 - r.sz1, 0);
+    i2 = path_skip_component(&s2[r.sz2], n2 - r.sz2, 0);
 
     if(i1 != i2)
       break;
 
-    if(byte_diff(&s1[i1], n1 - i1, &s2[i2]))
+    if(byte_diff(&s1[r.sz1], i1, &s2[r.sz2]))
       break;
 
-    r.sz1 = i1;
-    r.sz2 = i2;
+    r.sz1 += i1;
+    r.sz2 += i2;
   }
   return r;
 }

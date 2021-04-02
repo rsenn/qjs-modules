@@ -79,8 +79,8 @@ path_length_s(const char* s) {
 static inline size_t
 path_skip(const char* s, size_t n) {
   const char *p = s, *e = s + n;
-  while(p < e && !path_issep(*p)) ++p;
-  while(p + 1 < e && path_issep(*p)) ++p;
+  while(p < e && path_issep(*p)) ++p;
+  while(p + 1 < e && !path_issep(*p)) ++p;
   return p - s;
 }
 
@@ -91,6 +91,16 @@ path_skip_separator(const char* p, size_t len, size_t pos) {
     pos = len;
   p += pos;
   while(p < end && path_issep(*p)) ++p;
+  return p - start;
+}
+
+static inline size_t
+path_skip_component(const char* p, size_t len, size_t pos) {
+  const char *start = p, *end = p + len;
+  if(pos > len)
+    pos = len;
+  p += pos;
+  while(p < end && !path_issep(*p)) ++p;
   return p - start;
 }
 
