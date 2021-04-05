@@ -438,16 +438,16 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
       JS_ToInt32(ctx, &tokId, argv[0]);
 
-      tok = js_mallocz(ctx, sizeof(Token));
+      if((tok = js_mallocz(ctx, sizeof(Token)))) {
+        tok->data = lex->data;
+        tok->offset = lex->start;
+        tok->length = lex->pos - lex->start;
 
-      tok->data = lex->data;
-      tok->offset = lex->start;
-      tok->length = lex->pos - lex->start;
+        tok->loc = lex->loc;
+        tok->id = tokId;
 
-      tok->loc = lex->loc;
-      tok->id = tokId;
-
-      list_add(&tok->link, &lex->tokens);
+        list_add(&tok->link, &lex->tokens);
+      }
     }
   }
   return ret;
