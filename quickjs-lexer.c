@@ -143,10 +143,8 @@ js_token_new(JSContext* ctx, Token arg) {
   Token* tok;
   JSValue obj = JS_UNDEFINED;
 
-  if(!(tok = js_mallocz(ctx, sizeof(Token))))
+  if(!(tok = token_new(arg, JS_GetRuntime(ctx))))
     return JS_EXCEPTION;
-
-  memcpy(tok, &arg, sizeof(Token));
 
   obj = JS_NewObjectProtoClass(ctx, token_proto, js_token_class_id);
   JS_SetOpaque(obj, tok);
@@ -269,7 +267,8 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_ID: {
       ret = JS_NewInt32(ctx, tok->id);
       break;
-    }  case PROP_TYPE: {
+    }
+    case PROP_TYPE: {
       ret = JS_NewString(ctx, token_type(tok));
       break;
     }
@@ -296,7 +295,10 @@ js_token_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok = JS_GetOpaque(val, js_token_class_id);
-  if(tok) {}
+  if(tok) {
+
+    token_free(tok, rt);
+  }
   // JS_FreeValueRT(rt, val);
 }
 
@@ -381,6 +383,91 @@ enum lexer_ctype {
   IS_WHITESPACE
 };
 
+void
+lexer_init(Lexer* lex, JSContext* ctx) {
+  memset(lex, 0, sizeof(Lexer));
+  init_list_head(&lex->tokens);
+  vector_init2(&lex->charlengths, ctx);
+  lex->ref_count = 1;
+}
+
+void
+lexer_free(Lexer* lex, JSRuntime* rt) {
+  struct list_head *el, *el1;
+  list_for_each_safe(el, el1, &lex->tokens) { js_free_rt(rt, el); }
+  vector_free(&lex->charlengths);
+  JS_FreeValueRT(rt, lex->state_fn);
+  // js_free_rt(rt, lex);
+}
+
+Token
+lexer_token(Lexer* lex, JSContext* ctx, int id) {
+  Token tok;
+  tok.data = lex->data;
+  tok.offset = lex->start;
+  tok.length = lex->pos - lex->start;
+  tok.id = id;
+  tok.loc = lexer_location(lex);
+  lexer_ignore(lex);
+  return tok;
+}
+
+void
+lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred) {
+  while(!lexer_eof(lex)) {
+    size_t len;
+    uint8_t* p = lexer_peek(lex, &len);
+    JSValue str = JS_NewStringLen(ctx, p, len);
+    if(predicate_eval(pred, ctx, 1, &str) > 0)
+      break;
+
+    lexer_get(lex, 0);
+  }
+}
+
+void
+lexer_ignore(Lexer* lex) {
+  uint8_t *p, *end, *next;
+  p = &lex->data[lex->start];
+  end = &lex->data[lex->pos];
+  while(p < end) {
+    uint32_t c = unicode_from_utf8(p, end - p, &next);
+    if(c == '\n') {
+      lex->loc.line++;
+      lex->loc.column = 0;
+    } else {
+      lex->loc.column++;
+    }
+    p = next;
+  }
+  assert(lex->start + lexer_distance(lex) == lex->pos);
+  lex->start = p - lex->data;
+  vector_clear(&lex->charlengths);
+}
+
+uint32_t
+lexer_getc(Lexer* lex, size_t* lenp) {
+  uint32_t ret;
+  size_t n;
+  if(lenp == 0)
+    lenp = &n;
+
+  ret = js_input_buffer_getc(&lex->input, lenp);
+  vector_put(&lex->charlengths, lenp, sizeof(size_t));
+  return ret;
+}
+
+uint8_t*
+lexer_get(Lexer* lex, size_t* lenp) {
+  uint8_t* ret;
+  size_t n;
+  if(lenp == 0)
+    lenp = &n;
+
+  ret = js_input_buffer_get(&lex->input, lenp);
+  vector_put(&lex->charlengths, lenp, sizeof(size_t));
+  return ret;
+}
 JSValue
 js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Lexer *lex, *ptr2;
@@ -780,6 +867,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   if(!list_empty(&lex->tokens)) {
     Token* tok = (Token*)lex->tokens.next;
     list_del(&tok->link);
+    tok->lexer = lex;
     return js_token_new(ctx, *tok);
   }
 

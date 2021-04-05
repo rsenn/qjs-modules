@@ -38,15 +38,6 @@ typedef struct {
   const char* message;
 } SyntaxError;
 
-typedef struct {
-  struct list_head link;
-  const uint8_t* data;
-  uint32_t length;
-  uint32_t offset;
-  enum token_types id;
-  Location loc;
-} Token;
-
 typedef union Lexer {
   struct InputBuffer input;
   struct {
@@ -65,6 +56,16 @@ typedef union Lexer {
   };
 } Lexer;
 
+typedef struct {
+  struct list_head link;
+  const uint8_t* data;
+  uint32_t length;
+  uint32_t offset;
+  enum token_types id;
+  Location loc;
+  Lexer* lexer;
+} Token;
+
 extern JSClassID js_token_class_id, js_lexer_class_id;
 
 JSValue js_syntax_error_new(JSContext*, SyntaxError arg);
@@ -75,6 +76,24 @@ js_token_data(JSContext* ctx, JSValueConst value) {
 }
 
 JSValue js_token_wrap(JSContext*, Token*);
+
+static inline void
+token_free(Token* tok, JSRuntime* rt) {
+  if(tok->lexer)
+    if(--tok->lexer->ref_count == 0)
+      lexer_free(tok->lexer, rt);
+  js_free_rt(rt, tok);
+}
+
+static inline Token*
+token_new(Token tok, JSRuntime* rt) {
+  Token* ret = js_mallocz_rt(rt, sizeof(Token));
+  memcpy(ret, &tok, sizeof(Token));
+  if(ret->lexer)
+    ret->lexer->ref_count++;
+  return ret;
+}
+
 JSValue js_token_new(JSContext*, Token);
 
 static inline const char*
@@ -92,12 +111,13 @@ token_type(const Token* tok) {
                                 0})[tok->id];
 }
 
-static inline Lexer*
-js_lexer_data(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_lexer_class_id);
-}
-
-JSValue js_lexer_wrap(JSContext*, Lexer*);
+uint8_t* lexer_get(Lexer* lex, size_t* lenp);
+uint32_t lexer_getc(Lexer* lex, size_t* lenp);
+void lexer_ignore(Lexer* lex);
+void lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred);
+Token lexer_token(Lexer* lex, JSContext* ctx, int id);
+void lexer_init(Lexer* lex, JSContext* ctx);
+void lexer_free(Lexer* lex, JSRuntime* rt);
 
 static inline Location
 lexer_location(const Lexer* lex) {
@@ -130,54 +150,6 @@ lexer_peekc(Lexer* lex, size_t* lenp) {
   return js_input_buffer_peekc(&lex->input, lenp);
 }
 
-static inline uint8_t*
-lexer_get(Lexer* lex, size_t* lenp) {
-  uint8_t* ret;
-  size_t n;
-  if(lenp == 0)
-    lenp = &n;
-  ret = js_input_buffer_get(&lex->input, lenp);
-  vector_put(&lex->charlengths, lenp, sizeof(size_t));
-  return ret;
-}
-
-static inline uint32_t
-lexer_getc(Lexer* lex, size_t* lenp) {
-  uint32_t ret;
-  size_t n;
-  if(lenp == 0)
-    lenp = &n;
-  ret = js_input_buffer_getc(&lex->input, lenp);
-  vector_put(&lex->charlengths, lenp, sizeof(size_t));
-  return ret;
-}
-
-static inline void
-lexer_ignore(Lexer* lex) {
-  uint8_t *p, *end, *next;
-
-  p = &lex->data[lex->start];
-  end = &lex->data[lex->pos];
-
-  while(p < end) {
-    uint32_t c = unicode_from_utf8(p, end - p, &next);
-
-    if(c == '\n') {
-      lex->loc.line++;
-      lex->loc.column = 0;
-    } else {
-      lex->loc.column++;
-    }
-    p = next;
-  }
-
-  assert(lex->start + lexer_distance(lex) == lex->pos);
-
-  lex->start = p - lex->data;
-
-  vector_clear(&lex->charlengths);
-}
-
 static inline size_t
 lexer_remain(Lexer* lex) {
   return js_input_buffer_remain(&lex->input);
@@ -188,46 +160,11 @@ lexer_eof(Lexer* lex) {
   return js_input_buffer_eof(&lex->input);
 }
 
-static inline void
-lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred) {
-  while(!lexer_eof(lex)) {
-    size_t len;
-    uint8_t* p = lexer_peek(lex, &len);
-    JSValue str = JS_NewStringLen(ctx, p, len);
-    if(predicate_eval(pred, ctx, 1, &str) > 0)
-      break;
-    lexer_get(lex, 0);
-  }
+static inline Lexer*
+js_lexer_data(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_lexer_class_id);
 }
 
-static inline Token
-lexer_token(Lexer* lex, JSContext* ctx, int id) {
-  Token tok;
-  tok.data = lex->data;
-  tok.offset = lex->start;
-  tok.length = lex->pos - lex->start;
-  tok.id = id;
-  tok.loc = lexer_location(lex);
-
-  lexer_ignore(lex);
-
-  return tok;
-}
-
-static inline void
-lexer_init(Lexer* lex, JSContext* ctx) {
-  memset(lex, 0, sizeof(Lexer));
-  init_list_head(&lex->tokens);
-  vector_init2(&lex->charlengths, ctx);
-}
-
-static inline void
-lexer_free(Lexer* lex, JSRuntime* rt) {
-  struct list_head *el, *el1;
-  list_for_each_safe(el, el1, &lex->tokens) { js_free_rt(rt, el); }
-  vector_free(&lex->charlengths);
-  JS_FreeValueRT(rt, lex->state_fn);
-  js_free_rt(rt, lex);
-}
+JSValue js_lexer_wrap(JSContext*, Lexer*);
 
 #endif /* defined(QUICKJS_LEXER_H) */
