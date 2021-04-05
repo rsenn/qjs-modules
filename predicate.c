@@ -361,8 +361,7 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
       break;
     }
     case PREDICATE_REGEXP: {
-      if(pred->regexp.bytecode)
-        js_free_rt(rt, pred->regexp.bytecode);
+      // if(pred->regexp.bytecode) js_free_rt(rt, pred->regexp.bytecode);
       js_free_rt(rt, pred->regexp.expr);
       break;
     }

@@ -1,6 +1,7 @@
 #ifndef QUICKJS_LEXER_H
 #define QUICKJS_LEXER_H
 
+#include "list.h"
 #include "utils.h"
 #include "quickjs-predicate.h"
 
@@ -29,6 +30,7 @@ typedef struct {
 } Line;
 
 typedef struct {
+  struct list_head link;
   const uint8_t* data;
   uint32_t length;
   uint32_t offset;
@@ -49,6 +51,7 @@ typedef union Lexer {
     char** keywords;
     JSValue state_fn;
     size_t ref_count;
+    struct list_head tokens;
   };
 } Lexer;
 
@@ -160,6 +163,7 @@ lexer_token(Lexer* lex, JSContext* ctx, int id) {
 static inline void
 lexer_init(Lexer* lex) {
   memset(lex, 0, sizeof(Lexer));
+  init_list_head(&lex->tokens);
 }
 
 #endif /* defined(QUICKJS_LEXER_H) */

@@ -28,7 +28,8 @@ enum lexer_methods {
   METHOD_GET_RANGE,
   METHOD_ACCEPT_RUN,
   METHOD_BACKUP,
-  METHOD_SKIPUNTIL
+  METHOD_SKIPUNTIL,
+  METHOD_ADD_TOKEN
 };
 enum lexer_functions { STATIC_FROM = 0, STATIC_OF };
 enum lexer_getters {
@@ -325,7 +326,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case METHOD_PEEKC: {
       if(js_input_buffer_remain(&lex->input)) {
         size_t len;
-        uint8_t *buf = lexer_peek(lex, &len);
+        uint8_t* buf = lexer_peek(lex, &len);
         ret = JS_NewStringLen(ctx, buf, len);
       }
       break;
@@ -333,7 +334,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case METHOD_GETC: {
       if(js_input_buffer_remain(&lex->input)) {
         size_t len;
-        uint8_t *buf = lexer_get(lex, &len);
+        uint8_t* buf = lexer_get(lex, &len);
         ret = JS_NewStringLen(ctx, buf, len);
       }
       break;
@@ -430,6 +431,23 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       p = js_input_buffer_peek(&lex->input, &len);
       ret = JS_NewStringLen(ctx, p, len);
       break;
+    }
+    case METHOD_ADD_TOKEN: {
+      int32_t tokId;
+      Token* tok;
+
+      JS_ToInt32(ctx, &tokId, argv[0]);
+
+      tok = js_mallocz(ctx, sizeof(Token));
+
+      tok->data = lex->data;
+      tok->offset =lex->start;
+      tok->length = lex->pos - lex->start;
+
+      tok->loc = lex->loc;
+      tok->id = tokId;
+
+list_add(&tok->link, &lex->tokens);
     }
   }
   return ret;
@@ -553,11 +571,16 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 
   pos = lex->pos;
 
-  ret = JS_Call(ctx, lex->state_fn, this_val, 0, 0);
+  for(;;) {
+    ret = JS_Call(ctx, lex->state_fn, this_val, 0, 0);
 
-  if(JS_IsFunction(ctx, ret)) {
-    JS_FreeValue(ctx, lex->state_fn);
-    lex->state_fn = ret;
+    if(JS_IsFunction(ctx, ret)) {
+      JS_FreeValue(ctx, lex->state_fn);
+      lex->state_fn = ret;
+      if(pos == lex->pos)
+        continue;
+    }
+    break;
   }
 
   if(pos == lex->pos) {
