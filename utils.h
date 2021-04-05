@@ -406,7 +406,7 @@ js_value_typestr(JSContext* ctx, JSValueConst value) {
 
 BOOL js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
 void js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
-void js_value_print(JSContext* ctx, JSValueConst value);
+void js_value_print(JSContext* ctx, JSValueConst value, DynBuf* db);
 JSValue js_value_clone(JSContext* ctx, JSValueConst valpe);
 JSValue* js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values);
 // void js_values_free(JSContext* ctx, int nvalues, JSValueConst* values);

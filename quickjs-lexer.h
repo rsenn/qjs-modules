@@ -28,12 +28,12 @@ typedef struct {
 
 typedef struct {
   uint32_t start;
-  uint32_t length;
+  uint32_t byte_length;
 } Line;
 
 typedef struct {
   const uint8_t* data;
-  uint32_t length;
+  uint32_t byte_length;
   uint32_t offset;
   Location loc;
   const char* message;
@@ -54,14 +54,14 @@ typedef union Lexer {
     JSValue state_fn;
     size_t ref_count;
     struct list_head tokens;
-    const char* filename;
-  };
+   };
 } Lexer;
 
 typedef struct {
   struct list_head link;
   const uint8_t* data;
-  uint32_t length;
+  uint32_t byte_length;
+  uint32_t num_chars;
   uint32_t offset;
   enum token_types id;
   Location loc;
@@ -83,11 +83,6 @@ js_token_data(JSContext* ctx, JSValueConst value) {
 }
 
 JSValue js_token_wrap(JSContext*, Token*);
-
-static inline void
-location_dump(DynBuf* dbuf, const Location* loc) {
-  dbuf_printf(dbuf, "{ line: %3zu, column: %3zu }", loc->line + 1, loc->column + 1);
-}
 
 static inline Lexer*
 js_lexer_data(JSContext* ctx, JSValueConst value) {

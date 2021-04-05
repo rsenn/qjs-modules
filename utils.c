@@ -901,10 +901,11 @@ js_value_from_char(JSContext* ctx, int c) {
 }
 
 void
-js_value_print(JSContext* ctx, JSValueConst value) {
+js_value_print(JSContext* ctx, JSValueConst value, DynBuf* dbuf) {
   const char* str;
-  str = JS_ToCString(ctx, value);
-  // printf("%s\n", str);
+  size_t len;
+  str = JS_ToCStringLen(ctx, &len, value);
+  dbuf_put(dbuf, str, len);
   JS_FreeCString(ctx, str);
 }
 

@@ -40,10 +40,11 @@ function main(...args) {
     maxStringLength: 100,
     compact: false
   });
-  let str = std.loadFile(args[0] ?? scriptArgs[0], 'utf-8');
+  let file =args[0] ?? scriptArgs[0];
+  let str = std.loadFile(file, 'utf-8');
   let len = str.length;
   console.log('len', len);
-  let lexer = new Lexer(str, len);
+  let lexer = new Lexer(str, file);
 
   const isKeyword = word =>
   //  /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
@@ -352,8 +353,9 @@ function main(...args) {
 
   let data;
 
+ 
   for(let data of lexer) {
-    console.log(data.type.padEnd(20), data.toString());
+    console.log((data.loc+'').padEnd(16), data.type.padEnd(20), data.toString());
 
     if(data == null) {
       break;
