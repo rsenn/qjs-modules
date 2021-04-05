@@ -178,22 +178,26 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         return JS_UNDEFINED;
       break;
     }
+
     case LAST_CHILD: {
       if((it = property_enumeration_enter(&w->frames, ctx, PROPENUM_DEFAULT_FLAGS)) == 0 ||
          !property_enumeration_setpos(it, -1))
         return JS_UNDEFINED;
       break;
     }
+
     case NEXT_SIBLING: {
       if(!property_enumeration_setpos(it, it->idx + 1))
         return JS_UNDEFINED;
       break;
     }
+
     case PARENT_NODE: {
       if((it = property_enumeration_pop(&w->frames, ctx)) == 0)
         return JS_UNDEFINED;
       break;
     }
+
     case PREVIOUS_SIBLING: {
       if(!property_enumeration_setpos(it, it->idx - 1))
         return JS_UNDEFINED;
@@ -221,28 +225,35 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
       }
       break;
     }
+
     case PROP_CURRENT_NODE: {
       if(it)
         return property_enumeration_value(it, ctx);
       break;
     }
+
     case PROP_CURRENT_KEY: {
       if(it)
         return property_enumeration_key(it, ctx);
       break;
     }
+
     case PROP_CURRENT_PATH: {
       return property_enumeration_path(&w->frames, ctx);
     }
+
     case PROP_DEPTH: {
       return JS_NewUint32(ctx, vector_size(&w->frames, sizeof(PropertyEnumeration)) - 1);
     }
+
     case PROP_INDEX: {
       return JS_NewUint32(ctx, property_enumeration_index(it));
     }
+
     case PROP_LENGTH: {
       return JS_NewUint32(ctx, property_enumeration_length(it));
     }
+
     case PROP_TAG_MASK: {
       return JS_NewUint32(ctx, w->tag_mask);
     }
@@ -269,6 +280,7 @@ js_tree_walker_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       it->idx = index;
       break;
     }
+
     case PROP_TAG_MASK: {
       uint32_t tag_mask = 0;
       JS_ToUint32(ctx, &tag_mask, value);

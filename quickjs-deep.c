@@ -36,10 +36,12 @@ js_deep_return(JSContext* ctx, vector* frames, int32_t return_flag) {
       ret = property_enumeration_value(penum, ctx);
       break;
     }
+
     case RETURN_PATH: {
       ret = property_enumeration_path(frames, ctx);
       break;
     }
+
     case RETURN_VALUE_PATH:
     case RETURN_PATH_VALUE: {
       JSValue path, value;

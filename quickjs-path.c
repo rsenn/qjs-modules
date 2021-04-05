@@ -61,19 +61,20 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     case METHOD_BASENAME: {
       const char* o = basename(a);
       size_t len = strlen(o);
-
       if(b && str_end(o, b))
         len -= strlen(b);
-
       ret = JS_NewStringLen(ctx, o, len);
       break;
     }
-    case METHOD_DIRNAME:
+
+    case METHOD_DIRNAME: {
       pos = str_rchrs(a, "/\\", 2);
       if(pos < alen)
         alen = pos;
       ret = JS_NewStringLen(ctx, a, alen);
       break;
+    }
+
     case METHOD_READLINK: {
       ssize_t r;
       memset(buf, 0, sizeof(buf));
@@ -82,33 +83,57 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       }
       break;
     }
-    case METHOD_REALPATH:
+
+    case METHOD_REALPATH: {
       if(realpath(a, buf))
         ret = JS_NewString(ctx, buf);
       break;
-    case METHOD_EXISTS: ret = JS_NewBool(ctx, path_exists(a)); break;
+    }
 
-    case METHOD_EXTNAME: ret = JS_NewString(ctx, path_extname(a)); break;
+    case METHOD_EXISTS: {
+      ret = JS_NewBool(ctx, path_exists(a));
+      break;
+    }
 
-    case METHOD_GETCWD:
+    case METHOD_EXTNAME: {
+      ret = JS_NewString(ctx, path_extname(a));
+      break;
+    }
+
+    case METHOD_GETCWD: {
       if(getcwd(buf, sizeof(buf)))
         ret = JS_NewString(ctx, buf);
       break;
+    }
 
-    case METHOD_IS_ABSOLUTE:
+    case METHOD_IS_ABSOLUTE: {
       if(a && a[0])
         ret = JS_NewBool(ctx, path_isabs(a));
       break;
-    case METHOD_IS_RELATIVE:
+    }
+
+    case METHOD_IS_RELATIVE: {
       if(a && a[0])
         ret = JS_NewBool(ctx, !path_isabs(a));
       break;
-    case METHOD_IS_DIRECTORY: ret = JS_NewBool(ctx, path_is_directory(a)); break;
-    case METHOD_IS_SYMLINK: ret = JS_NewBool(ctx, path_is_symlink(a)); break;
-    case METHOD_IS_SEPARATOR:
+    }
+
+    case METHOD_IS_DIRECTORY: {
+      ret = JS_NewBool(ctx, path_is_directory(a));
+      break;
+    }
+
+    case METHOD_IS_SYMLINK: {
+      ret = JS_NewBool(ctx, path_is_symlink(a));
+      break;
+    }
+
+    case METHOD_IS_SEPARATOR: {
       if(a && a[0])
         ret = JS_NewBool(ctx, path_issep(a[0]));
       break;
+    }
+
     case METHOD_COLLAPSE: {
       char* s = str_ndup(a, alen);
       size_t newlen;
@@ -117,6 +142,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       free(s);
       break;
     }
+
     case METHOD_FNMATCH: {
       int32_t flags = 0;
       if(argc > 2)
@@ -124,14 +150,24 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       ret = JS_NewInt32(ctx, path_fnmatch(a, alen, b, blen, flags));
       break;
     }
-    case METHOD_GETHOME: ret = JS_NewString(ctx, path_gethome(getuid())); break;
+
+    case METHOD_GETHOME: {
+      ret = JS_NewString(ctx, path_gethome(getuid()));
+      break;
+    }
+
     case METHOD_GETSEP: {
       char c;
       if((c = path_getsep(a)) != '\0')
         ret = JS_NewStringLen(ctx, &c, 1);
       break;
     }
-    case METHOD_LENGTH: ret = JS_NewUint32(ctx, path_length(a, alen)); break;
+
+    case METHOD_LENGTH: {
+      ret = JS_NewUint32(ctx, path_length(a, alen));
+      break;
+    }
+
     case METHOD_COMPONENTS: {
       uint32_t n = UINT32_MAX;
       if(argc > 1)
@@ -139,8 +175,17 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       ret = JS_NewUint32(ctx, path_components(a, alen, n));
       break;
     }
-    case METHOD_RIGHT: ret = JS_NewUint32(ctx, path_right(a, alen)); break;
-    case METHOD_SKIP: ret = JS_NewUint32(ctx, path_skip(a, alen)); break;
+
+    case METHOD_RIGHT: {
+      ret = JS_NewUint32(ctx, path_right(a, alen));
+      break;
+    }
+
+    case METHOD_SKIP: {
+      ret = JS_NewUint32(ctx, path_skip(a, alen));
+      break;
+    }
+
     case METHOD_SKIP_SEPARATOR: {
       int64_t n = 0;
       if(argc > 1)
@@ -175,22 +220,27 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       path_absolute(a, &db);
       break;
     }
+
     case METHOD_APPEND: {
       path_append(a, alen, &db);
       break;
     }
+
     case METHOD_CANONICAL: {
       path_canonical(a, &db);
       break;
     }
+
     case METHOD_CONCAT: {
       path_concat(a, alen, b, blen, &db);
       break;
     }
+
     case METHOD_FIND: {
       path_find(a, b, &db);
       break;
     }
+
     case METHOD_RELATIVE: {
       DynBuf cwd = {0, 0, 0, 0, 0};
 
@@ -205,6 +255,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       }
       break;
     }
+
     case METHOD_NORMALIZE: {
       BOOL symbolic = FALSE;
       if(argc > 1)

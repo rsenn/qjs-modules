@@ -13,7 +13,7 @@ enum { PROP_ID = 0, PROP_VALUES };
 JSValue
 js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Predicate* pred;
-  JSValue obj;install 
+  JSValue obj;
   if(!(pred = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
   pred->id = PREDICATE_NONE;
@@ -38,9 +38,7 @@ js_predicate_wrap(JSContext* ctx, Predicate pred) {
 
   *ret = pred;
 
-  obj
-
-         JS_NewObjectProtoClass(ctx, predicate_proto, js_predicate_class_id);
+  obj = JS_NewObjectProtoClass(ctx, predicate_proto, js_predicate_class_id);
   JS_SetOpaque(obj, ret);
   return obj;
 }
@@ -85,6 +83,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         *pred = predicate_type(id);
         break;
       }
+
       case PREDICATE_CHARSET: {
         size_t len;
         const char* str = JS_ToCStringLen(ctx, &len, argv[1]);
@@ -96,26 +95,32 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         JS_FreeCString(ctx, str);
         break;
       }
+
       case PREDICATE_NOTNOT: {
         *pred = predicate_notnot(JS_DupValue(ctx, argv[1]));
         break;
       }
+
       case PREDICATE_NOT: {
         *pred = predicate_not(JS_DupValue(ctx, argv[1]));
         break;
       }
+
       case PREDICATE_OR: {
         *pred = predicate_or(argc, js_values_dup(ctx, argc, argv));
         break;
       }
+
       case PREDICATE_AND: {
         *pred = predicate_and(argc, js_values_dup(ctx, argc, argv));
         break;
       }
+
       case PREDICATE_XOR: {
         *pred = predicate_xor(argc, js_values_dup(ctx, argc, argv));
         break;
       }
+
       case PREDICATE_REGEXP: {
         size_t exprlen;
         const char* expr = JS_ToCStringLen(ctx, &exprlen, argv[1]);
@@ -128,14 +133,17 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
           JS_FreeCString(ctx, flagstr);
         break;
       }
+
       case PREDICATE_INSTANCEOF: {
         *pred = predicate_instanceof(JS_DupValue(ctx, argv[1]));
         break;
       }
+
       case PREDICATE_PROTOTYPEIS: {
         *pred = predicate_prototype(JS_DupValue(ctx, argv[1]));
         break;
       }
+
       case PREDICATE_EQUAL: {
         *pred = predicate_equal(JS_DupValue(ctx, argv[1]));
         break;
@@ -198,6 +206,7 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt32(ctx, pred->id);
       break;
     }
+
     case PROP_VALUES: {
       ret = predicate_values(pred, ctx);
       break;
@@ -217,6 +226,7 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = js_predicate_wrap(ctx, predicate_type(type));
       break;
     }
+
     case PREDICATE_CHARSET: {
       const char* str;
       size_t size;
@@ -225,26 +235,32 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       JS_FreeCString(ctx, str);
       break;
     }
+
     case PREDICATE_NOTNOT: {
       ret = js_predicate_wrap(ctx, predicate_notnot(JS_DupValue(ctx, argv[0])));
       break;
     }
+
     case PREDICATE_NOT: {
       ret = js_predicate_wrap(ctx, predicate_not(JS_DupValue(ctx, argv[0])));
       break;
     }
+
     case PREDICATE_OR: {
       ret = js_predicate_wrap(ctx, predicate_or(argc, js_values_dup(ctx, argc, argv)));
       break;
     }
+
     case PREDICATE_AND: {
       ret = js_predicate_wrap(ctx, predicate_and(argc, js_values_dup(ctx, argc, argv)));
       break;
     }
+
     case PREDICATE_XOR: {
       ret = js_predicate_wrap(ctx, predicate_xor(argc, js_values_dup(ctx, argc, argv)));
       break;
     }
+
     case PREDICATE_REGEXP: {
       size_t exprlen;
       const char* expr = JS_ToCStringLen(ctx, &exprlen, argv[0]);
@@ -257,14 +273,17 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         JS_FreeCString(ctx, flagstr);
       break;
     }
+
     case PREDICATE_INSTANCEOF: {
       ret = js_predicate_wrap(ctx, predicate_instanceof(JS_DupValue(ctx, argv[0])));
       break;
     }
+
     case PREDICATE_PROTOTYPEIS: {
       ret = js_predicate_wrap(ctx, predicate_prototype(JS_DupValue(ctx, argv[0])));
       break;
     }
+
     case PREDICATE_EQUAL: {
       ret = js_predicate_wrap(ctx, predicate_equal(JS_DupValue(ctx, argv[0])));
       break;

@@ -758,11 +758,13 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
      ret = JS_NULL;
      break;
      }
-     case TYPE_UNDEFINED: {
+
+    case TYPE_UNDEFINED: {
      ret = JS_UNDEFINED;
      break;
      }
-     case TYPE_STRING: {
+
+    case TYPE_STRING: {
      size_t len;
      const char* str;
      str = JS_ToCStringLen(ctx, &len, value);
@@ -774,14 +776,17 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       ret = JS_NewInt32(ctx, JS_VALUE_GET_INT(value));
       break;
     }
+
     case TYPE_FLOAT64: {
       ret = JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(value));
       break;
     }
+
     case TYPE_BOOL: {
       ret = JS_NewBool(ctx, JS_VALUE_GET_BOOL(value));
       break;
     }
+
     case TYPE_OBJECT: {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
@@ -797,6 +802,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       }
       break;
     }
+
     case TYPE_UNDEFINED:
     case TYPE_NULL:
     case TYPE_SYMBOL:

@@ -560,6 +560,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
     case JS_TAG_BIG_FLOAT: {
       return js_inspect_number(ctx, buf, value, opts, depth);
     }
+
     case JS_TAG_INT: {
       int i = JS_VALUE_GET_INT(value);
       if(opts->colors)
@@ -569,6 +570,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         dbuf_putstr(buf, COLOR_NONE);
       break;
     }
+
     case JS_TAG_BOOL: {
       if(opts->colors)
         dbuf_putstr(buf, COLOR_YELLOW);
@@ -577,18 +579,22 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         dbuf_putstr(buf, COLOR_NONE);
       break;
     }
+
     case JS_TAG_NULL: {
       dbuf_putstr(buf, opts->colors ? "\x1b[38;5;129mnull\x1b[m" : "null");
       break;
     }
+
     case JS_TAG_UNDEFINED: {
       dbuf_put_colorstr(buf, "undefined", COLOR_GRAY, opts->colors);
       break;
     }
+
     case JS_TAG_EXCEPTION: {
       dbuf_put_colorstr(buf, "[exception]", COLOR_RED, opts->colors);
       break;
     }
+
     case JS_TAG_SYMBOL: {
       value = js_symbol_to_string(ctx, value);
       if(opts->colors)
@@ -596,9 +602,11 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       dbuf_putstr(buf, "Symbol");
       __attribute__((fallthrough));
     }
+
     case JS_TAG_STRING: {
       return js_inspect_string(ctx, buf, value, opts, depth);
     }
+
     case JS_TAG_OBJECT: {
       BOOL is_array = 0, is_typedarray = 0, is_function = 0;
       uint32_t pos, len, limit;

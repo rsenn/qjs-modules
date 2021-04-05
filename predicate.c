@@ -27,6 +27,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       ret = !!(id & pr->type.flags);
       break;
     }
+
     case PREDICATE_CHARSET: {
       InputBuffer input = js_input_buffer(ctx, argv[0]);
       const uint8_t *p, *next, *end;
@@ -49,14 +50,17 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       input_buffer_free(&input, ctx);
       break;
     }
+
     case PREDICATE_NOTNOT: {
       ret = !!predicate_call(ctx, pr->unary.predicate, argc, argv);
       break;
     }
+
     case PREDICATE_NOT: {
       ret = !predicate_call(ctx, pr->unary.predicate, argc, argv);
       break;
     }
+
     case PREDICATE_OR: {
       size_t i;
 
@@ -66,6 +70,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       }
       break;
     }
+
     case PREDICATE_AND: {
       size_t i;
 
@@ -75,6 +80,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       }
       break;
     }
+
     case PREDICATE_XOR: {
       size_t i;
 
@@ -83,6 +89,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       }
       break;
     }
+
     case PREDICATE_REGEXP: {
       const size_t CAPTURE_COUNT_MAX = 255;
       InputBuffer input = js_input_buffer(ctx, argv[0]);
@@ -126,16 +133,19 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
 
       break;
     }
+
     case PREDICATE_INSTANCEOF: {
       ret = JS_IsInstanceOf(ctx, argv[0], pr->unary.predicate);
       break;
     }
+
     case PREDICATE_PROTOTYPEIS: {
       JSValue proto = JS_GetPrototype(ctx, argv[0]);
 
       ret = JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(pr->unary.predicate);
       break;
     }
+
     case PREDICATE_EQUAL: {
       ret = js_value_equals(ctx, argv[0], pr->unary.predicate);
       break;
@@ -234,6 +244,7 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       dbuf_putstr(dbuf, " )");
       break;
     }
+
     case PREDICATE_AND:
     case PREDICATE_OR:
     case PREDICATE_XOR: {
@@ -250,6 +261,7 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
       break;
     }
+
     case PREDICATE_REGEXP: {
       char flagbuf[16];
 
@@ -260,18 +272,21 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       dbuf_0(dbuf);
       break;
     }
+
     case PREDICATE_INSTANCEOF: {
       const char* name = js_function_name(ctx, pr->unary.predicate);
       dbuf_putstr(dbuf, name);
       JS_FreeCString(ctx, name);
       break;
     }
+
     case PREDICATE_PROTOTYPEIS: {
       const char* name = js_object_tostring(ctx, pr->unary.predicate);
       dbuf_putstr(dbuf, name);
       JS_FreeCString(ctx, name);
       break;
     }
+
     case PREDICATE_EQUAL: {
       js_value_dump(ctx, pr->unary.predicate, dbuf);
       break;
@@ -346,6 +361,7 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
       vector_free(&pred->charset.chars);
       break;
     }
+
     case PREDICATE_EQUAL:
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
@@ -354,12 +370,14 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
       JS_FreeValueRT(rt, pred->unary.predicate);
       break;
     }
+
     case PREDICATE_AND:
     case PREDICATE_OR:
     case PREDICATE_XOR: {
       js_values_free_rt(rt, pred->boolean.npredicates, pred->boolean.predicates);
       break;
     }
+
     case PREDICATE_REGEXP: {
       // if(pred->regexp.bytecode) js_free_rt(rt, pred->regexp.bytecode);
       js_free_rt(rt, pred->regexp.expr);
@@ -381,6 +399,7 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
       ret = js_values_toarray(ctx, 1, &pred->unary.predicate);
       break;
     }
+
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {

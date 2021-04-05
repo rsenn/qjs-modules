@@ -301,6 +301,7 @@ start:
       }
       return 0;
     }
+
     case '?': {
       if(*string == '/' && (flags & PATH_FNM_PATHNAME))
         break;

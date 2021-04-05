@@ -119,33 +119,40 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
     case METHOD_DEREF: {
       return js_pointer_deref(ctx, ptr, this_val, argv[0]);
     }
+
     case METHOD_TO_STRING: {
       return js_pointer_tostring(ctx, this_val);
     }
+
     case METHOD_TO_ARRAY: {
       return js_pointer_toarray(ctx, ptr);
     }
+
     case METHOD_INSPECT: {
       return js_pointer_inspect(ctx, this_val, TRUE);
     }
+
     case METHOD_SLICE: {
       int64_t s = js_int64_default(ctx, argv[0], 0);
       int64_t e = js_int64_default(ctx, argv[1], 0);
 
       return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, s, e));
     }
+
     case METHOD_KEYS: {
       JSValue array = js_pointer_toarray(ctx, ptr);
       JSValue iter = js_iterator_new(ctx, array);
       JS_FreeValue(ctx, array);
       return iter;
     }
+
     case METHOD_VALUES: {
       JSValue array = js_pointer_toarray(ctx, ptr);
       JSValue iter = js_iterator_new(ctx, array);
       JS_FreeValue(ctx, array);
       return iter;
     }
+
     case METHOD_SHIFT: {
       return pointer_shift(ptr, ctx, argv[0]);
     }
@@ -164,6 +171,7 @@ js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_LENGTH: {
       return JS_NewUint32(ctx, ptr->n);
     }
+
     case PROP_PATH: {
       return js_pointer_toarray(ctx, ptr);
     }
@@ -195,6 +203,7 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
     case STATIC_FROM: {
       return js_pointer_new(ctx, pointer_proto, argc > 0 ? argv[0] : JS_UNDEFINED);
     }
+
     case STATIC_OF: {
       int i;
       Pointer* ptr;
