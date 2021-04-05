@@ -11,19 +11,19 @@ if(EXISTS "${QUICKJS_H}")
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
 
-set(deep_SOURCES vector.c pointer.c virtual-properties.c property-enumeration.h vector.h utils.c utils.h pointer.h virtual-properties.h)
+set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.h utils.c utils.h pointer.h virtual-properties.h)
 set(deep_LIBRARIES quickjs-pointer)
-set(inspect_SOURCES vector.c iteration.h utils.c utils.h property-enumeration.h vector.h quickjs-internal.h)
-set(tree_walker_SOURCES vector.c property-enumeration.h vector.h utils.h)
-set(xml_SOURCES vector.c property-enumeration.h vector.h utils.c utils.h)
-set(path_SOURCES path.c path.h utils.h)
-set(predicate_SOURCES predicate.c predicate.h vector.h utils.c utils.h)
+set(inspect_SOURCES vector.c vector.h iteration.h utils.c utils.h property-enumeration.h quickjs-internal.h)
+set(tree_walker_SOURCES vector.c vector.h property-enumeration.h utils.c utils.h)
+set(xml_SOURCES vector.c vector.h property-enumeration.h utils.c utils.h)
+set(path_SOURCES path.c path.h utils.c utils.h)
+set(predicate_SOURCES predicate.c predicate.h utils.c utils.h)
 set(pointer_SOURCES pointer.c pointer.h utils.c utils.h)
-set(lexer_SOURCES utils.c utils.h quickjs-predicate.h predicate.h vector.h)
+set(lexer_SOURCES utils.c utils.h quickjs-predicate.h predicate.h)
 set(lexer_LIBRARIES quickjs-predicate)
 
 set(repeater_SOURCES utils.h)
- 
+
 if(NOT QUICKJSs_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}"
       CACHE PATH "QuickJS install directory")

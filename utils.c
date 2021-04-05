@@ -319,7 +319,7 @@ dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int))
   }
 }
 
-static size_t
+size_t
 ansi_skip(const char* str, size_t len) {
   size_t pos = 0;
   if(str[pos] == 0x1b) {
@@ -335,7 +335,7 @@ ansi_skip(const char* str, size_t len) {
   return 0;
 }
 
-static size_t
+size_t
 ansi_length(const char* str, size_t len) {
   size_t i, n = 0, p;
   for(i = 0; i < len;) {
@@ -349,7 +349,7 @@ ansi_length(const char* str, size_t len) {
   return n;
 }
 
-static size_t
+size_t
 ansi_truncate(const char* str, size_t len, size_t limit) {
   size_t i, n = 0, p;
   for(i = 0; i < len;) {
@@ -366,7 +366,7 @@ ansi_truncate(const char* str, size_t len, size_t limit) {
   return i;
 }
 
-static size_t
+size_t
 token_length(const char* str, size_t len, char delim) {
   const char *s, *e;
   size_t pos;
@@ -383,7 +383,7 @@ token_length(const char* str, size_t len, char delim) {
   return s - str;
 }
 
-static int64_t
+int64_t
 array_search(void* a, size_t m, size_t elsz, void* needle) {
   char* ptr = a;
   int64_t n, ret;
@@ -397,7 +397,7 @@ array_search(void* a, size_t m, size_t elsz, void* needle) {
   return -1;
 }
 
-static void
+void
 dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value) {
   const char* str;
   size_t len;
@@ -406,7 +406,7 @@ dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value) {
   JS_FreeCString(ctx, str);
 }
 
-static size_t
+size_t
 dbuf_token_push(DynBuf* db, const char* str, size_t len, char delim) {
   size_t pos;
   if(db->size)
@@ -417,7 +417,7 @@ dbuf_token_push(DynBuf* db, const char* str, size_t len, char delim) {
   return db->size - pos;
 }
 
-static size_t
+size_t
 dbuf_token_pop(DynBuf* db, char delim) {
   const char* x;
   size_t n, p, len;
@@ -437,7 +437,7 @@ dbuf_token_pop(DynBuf* db, char delim) {
   return len - db->size;
 }
 
-static char*
+char*
 dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
   size_t p, l = 0;
   for(p = 0; p < db->size; ++p) {
@@ -452,7 +452,7 @@ dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
   return 0;
 }
 
-static const char*
+const char*
 dbuf_last_line(DynBuf* db, size_t* len) {
   size_t i;
   for(i = db->size; i > 0; i--)
@@ -464,7 +464,7 @@ dbuf_last_line(DynBuf* db, size_t* len) {
   return (const char*)&db->buf[i];
 }
 
-static int32_t
+int32_t
 dbuf_get_column(DynBuf* db) {
   size_t len;
   const char* str;
@@ -475,7 +475,7 @@ dbuf_get_column(DynBuf* db) {
   return 0;
 }
 
-static void
+void
 dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color) {
   if(with_color)
     dbuf_putstr(db, color);
@@ -485,7 +485,7 @@ dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color
     dbuf_putstr(db, COLOR_NONE);
 }
 
-static int
+int
 dbuf_reserve_start(DynBuf* s, size_t len) {
   if(unlikely((s->size + len) > s->allocated_size)) {
     if(dbuf_realloc(s, s->size + len))
@@ -498,7 +498,7 @@ dbuf_reserve_start(DynBuf* s, size_t len) {
   return 0;
 }
 
-static int
+int
 dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len) {
   int ret;
   if(!(ret = dbuf_reserve_start(s, len)))
@@ -507,7 +507,7 @@ dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len) {
   return 0;
 }
 
-static JSValue
+JSValue
 dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
   JSValue r;
   r = JS_NewStringLen(ctx, s->buf ? (const char*)s->buf : "", s->buf ? s->size : 0);
@@ -515,7 +515,7 @@ dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
   return r;
 }
 
-static JSValue
+JSValue
 js_global_get(JSContext* ctx, const char* prop) {
   JSValue global_obj, ret;
   global_obj = JS_GetGlobalObject(ctx);
@@ -524,7 +524,7 @@ js_global_get(JSContext* ctx, const char* prop) {
   return ret;
 }
 
-static JSValue
+JSValue
 js_global_prototype(JSContext* ctx, const char* class_name) {
   JSValue ctor, ret;
   ctor = js_global_get(ctx, class_name);
@@ -533,7 +533,7 @@ js_global_prototype(JSContext* ctx, const char* class_name) {
   return ret;
 }
 
-static int32_t
+int32_t
 js_value_type_flag(JSValueConst value) {
   switch(JS_VALUE_GET_TAG(value)) {
     case JS_TAG_UNDEFINED: return FLAG_UNDEFINED;
@@ -551,7 +551,7 @@ js_value_type_flag(JSValueConst value) {
   return -1;
 }
 
-static void
+void
 js_value_print(JSContext* ctx, JSValueConst value) {
   const char* str;
   str = JS_ToCString(ctx, value);
@@ -559,7 +559,7 @@ js_value_print(JSContext* ctx, JSValueConst value) {
   JS_FreeCString(ctx, str);
 }
 
-static JSValue*
+JSValue*
 js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values) {
   JSValue* ret = js_mallocz(ctx, sizeof(JSValue) * nvalues);
   int i;
@@ -567,21 +567,21 @@ js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values) {
   return ret;
 }
 
-static void
+void
 js_values_free(JSContext* ctx, int nvalues, JSValueConst* values) {
   int i;
   for(i = 0; i < nvalues; i++) JS_FreeValue(ctx, values[i]);
   js_free(ctx, values);
 }
 
-static void
+void
 js_values_free_rt(JSRuntime* rt, int nvalues, JSValueConst* values) {
   int i;
   for(i = 0; i < nvalues; i++) JS_FreeValueRT(rt, values[i]);
   js_free_rt(rt, values);
 }
 
-static JSValue
+JSValue
 js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
   int i;
   JSValue ret = JS_NewArray(ctx);
@@ -589,13 +589,13 @@ js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
   return ret;
 }
 
-static void
+void
 input_buffer_dump(const InputBuffer* input, DynBuf* db) {
   dbuf_printf(
       db, "(InputBuffer){ .x = %p, .n = %zx, .p = %zx, .free = %p }", input->x, input->n, input->p, input->free);
 }
 
-static void
+void
 input_buffer_free(InputBuffer* input, JSContext* ctx) {
   if(input->x) {
     input->free(ctx, (const char*)input->x);
@@ -605,7 +605,7 @@ input_buffer_free(InputBuffer* input, JSContext* ctx) {
   }
 }
 
-static int
+int
 js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value) {
   uint64_t u64 = 0;
   int r;
@@ -614,27 +614,27 @@ js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value) {
   return r;
 }
 
-static JSValue
+JSValue
 js_value_from_char(JSContext* ctx, int c) {
   char ch = c;
   return JS_NewStringLen(ctx, &ch, 1);
 }
 
-static void
+void
 js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
   uint32_t i;
   for(i = 0; i < len; i++) JS_FreeAtom(ctx, props[i].atom);
   js_free(ctx, props);
 }
 
-static void
+void
 js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
   JS_FreeValue(ctx, desc->value);
   JS_FreeValue(ctx, desc->getter);
   JS_FreeValue(ctx, desc->setter);
 }
 
-static JSValue
+JSValue
 js_symbol_get_static(JSContext* ctx, const char* name) {
   JSValue symbol_ctor, ret;
   symbol_ctor = js_symbol_ctor(ctx);
@@ -643,7 +643,7 @@ js_symbol_get_static(JSContext* ctx, const char* name) {
   return ret;
 }
 
-static JSAtom
+JSAtom
 js_symbol_atom(JSContext* ctx, const char* name) {
   JSValue sym = js_symbol_get_static(ctx, name);
   JSAtom ret = JS_ValueToAtom(ctx, sym);
@@ -651,7 +651,7 @@ js_symbol_atom(JSContext* ctx, const char* name) {
   return ret;
 }
 
-static BOOL
+BOOL
 js_is_iterable(JSContext* ctx, JSValueConst obj) {
   JSAtom atom;
   BOOL ret = FALSE;
@@ -670,7 +670,7 @@ js_is_iterable(JSContext* ctx, JSValueConst obj) {
   return ret;
 }
 
-static JSValue
+JSValue
 js_iterator_method(JSContext* ctx, JSValueConst obj) {
   JSAtom atom;
   JSValue ret = JS_UNDEFINED;
@@ -689,7 +689,7 @@ js_iterator_method(JSContext* ctx, JSValueConst obj) {
   return ret;
 }
 
-static JSValue
+JSValue
 js_iterator_new(JSContext* ctx, JSValueConst obj) {
   JSValue fn, ret;
   fn = js_iterator_method(ctx, obj);
@@ -698,7 +698,7 @@ js_iterator_new(JSContext* ctx, JSValueConst obj) {
   return ret;
 }
 
-static IteratorValue
+IteratorValue
 js_iterator_next(JSContext* ctx, JSValueConst obj) {
   JSValue fn, result, done;
   IteratorValue ret;
@@ -720,7 +720,7 @@ js_iterator_next(JSContext* ctx, JSValueConst obj) {
     if((atom) > 0) \
       JS_FreeAtom((ctx), (atom)); \ } while(0)
  */
-static int
+int
 js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
   int ret;
   JSValue value;
@@ -731,7 +731,7 @@ js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
   return ret;
 }
 
-static int32_t
+int32_t
 js_atom_toint32(JSContext* ctx, JSAtom atom) {
   if(!js_atom_isint(atom)) {
     int64_t i = INT64_MIN;
@@ -741,7 +741,7 @@ js_atom_toint32(JSContext* ctx, JSAtom atom) {
   return -atom;
 }
 
-static JSValue
+JSValue
 js_atom_tovalue(JSContext* ctx, JSAtom atom) {
   if(js_atom_isint(atom))
     return JS_MKVAL(JS_TAG_INT, -atom);
@@ -765,7 +765,7 @@ js_atom_tovalue(JSContext* ctx, JSAtom atom) {
 
  return JS_NewAtomUInt32(i);
  }*/
-static unsigned int
+unsigned int
 js_atom_tobinary(JSAtom atom) {
   ssize_t ret;
   if(js_atom_isint(atom)) {
@@ -777,7 +777,7 @@ js_atom_tobinary(JSAtom atom) {
   return ret;
 }
 
-static const char*
+const char*
 js_atom_tocstringlen(JSContext* ctx, size_t* len, JSAtom atom) {
   JSValue v;
   const char* s;
@@ -787,7 +787,7 @@ js_atom_tocstringlen(JSContext* ctx, size_t* len, JSAtom atom) {
   return s;
 }
 
-static const char*
+const char*
 js_object_tostring(JSContext* ctx, JSValueConst value) {
   JSValue str = js_value_tostring(ctx, "Object", value);
   const char* s = JS_ToCString(ctx, str);
@@ -795,7 +795,7 @@ js_object_tostring(JSContext* ctx, JSValueConst value) {
   return s;
 }
 
-static BOOL
+BOOL
 js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
   BOOL ret = FALSE;
   JSValue value;
@@ -807,14 +807,14 @@ js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
   return ret;
 }
 
-static void
+void
 js_object_propertystr_setstr(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
   JSValue value;
   value = JS_NewStringLen(ctx, str, len);
   JS_SetPropertyStr(ctx, obj, prop, value);
 }
 
-static const char*
+const char*
 js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop) {
   JSValue value;
   const char* ret;
@@ -827,7 +827,7 @@ js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop)
   return ret;
 }
 
-static int
+int
 js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
   int ret;
   const char* str;
@@ -837,7 +837,7 @@ js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
   return ret;
 }
 
-static int
+int
 js_is_typedarray(JSContext* ctx, JSValueConst value) {
   int ret;
   JSValue buf;
@@ -853,7 +853,7 @@ js_is_typedarray(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
-static int
+int
 js_propenum_cmp(const void* a, const void* b, void* ptr) {
   JSContext* ctx = ptr;
   const char *stra, *strb;
@@ -866,7 +866,7 @@ js_propenum_cmp(const void* a, const void* b, void* ptr) {
   return ret;
 }
 
-static int64_t
+int64_t
 js_array_length(JSContext* ctx, JSValueConst array) {
   int64_t len = -1;
   if(JS_IsArray(ctx, array) || js_is_typedarray(ctx, array)) {
@@ -877,7 +877,7 @@ js_array_length(JSContext* ctx, JSValueConst array) {
   return len;
 }
 
-static void
+void
 js_strvec_free(JSContext* ctx, char** strv) {
   size_t i;
   if(strv == 0)
@@ -887,7 +887,7 @@ js_strvec_free(JSContext* ctx, char** strv) {
   js_free(ctx, strv);
 }
 
-static JSValue
+JSValue
 js_strvec_to_array(JSContext* ctx, char** strv) {
   JSValue ret = JS_NewArray(ctx);
   if(strv) {
@@ -897,7 +897,7 @@ js_strvec_to_array(JSContext* ctx, char** strv) {
   return ret;
 }
 
-static char**
+char**
 js_array_to_strvec(JSContext* ctx, JSValueConst array) {
   int64_t i, len = js_array_length(ctx, array);
   char** ret = js_mallocz(ctx, sizeof(char*) * (len + 1));
