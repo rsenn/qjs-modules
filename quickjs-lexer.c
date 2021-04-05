@@ -719,6 +719,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     }
 
     case LEXER_METHOD_MATCH: {
+      uint32_t pos = lex->pos;
+
       if(!lexer_eof(lex)) {
         Predicate* pred = js_predicate_data(ctx, argv[0]);
         int capture_count = 0;
@@ -746,12 +748,14 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
           printf("capture[0] %u - %u\n", start, end);
 
-          if(start == 0 && end > 0)
+          if(start == 0 && end > 0) 
             lexer_skip(lex, end);
         }
 
         predicate_free(pred, ctx);
       }
+
+      ret = JS_NewUint32(ctx, lex->pos - pos);
       break;
     }
 

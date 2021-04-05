@@ -354,7 +354,9 @@ function main(...args) {
   let data;
 
 
-lexer.match(Predicate.regexp('[A-Za-z0-9_]+ [^ ]','g'));
+//lexer.match(Predicate.regexp("([^'\\\n]|\\[^\n])+",'g'));
+let result=lexer.match(new Predicate(/([^'\\\n]|\\[^\n])+/g));
+console.log(result);
 console.log(lexer.getRange());
 return;
  
