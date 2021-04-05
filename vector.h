@@ -29,9 +29,9 @@ typedef union vector {
   }
 
 #define vector_init(vec, ctx) js_dbuf_init(ctx, &((vec)->dbuf))
-#define VECTOR(ctx)                                                                                                   \
+#define VECTOR(ctx)                                                                                                    \
   (vector) {                                                                                                           \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, JS_GetRuntime(ctx) }                                                               \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, JS_GetRuntime(ctx) }                                             \
   }
 
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))

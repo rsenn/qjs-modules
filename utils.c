@@ -904,7 +904,7 @@ void
 js_value_print(JSContext* ctx, JSValueConst value) {
   const char* str;
   str = JS_ToCString(ctx, value);
-  //printf("%s\n", str);
+  // printf("%s\n", str);
   JS_FreeCString(ctx, str);
 }
 

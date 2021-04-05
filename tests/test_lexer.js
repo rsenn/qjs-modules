@@ -48,7 +48,7 @@ function main(...args) {
   const isKeyword = word =>
   //  /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
   /^(_Alignas|_Alignof|_Atomic|_Bool|_Complex|_Generic|_Imaginary|_Noreturn|_Static_assert|_Thread_local|auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for|goto|if|inline|int|long|register|restrict|return|short|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile)$/.test(word);
-  
+
   const isPunctuator = word =>
     /^(=|\.|-|%|}|>|,|\*|\[|<|!|\/|\]|~|\&|\(|;|\?|\||\)|:|\+|\^|{|@|!=|\*=|\&\&|<<|\/=|\|\||>>|\&=|==|\+\+|\|=|<=|--|\+=|\^=|>=|-=|%=|=>|\${|\?\.|\*\*|\?\?|!==|===|>>>|>>=|-->>|<<=|\.\.\.|\*\*=|\|\|=|\&\&=|\?\?=|>>>=|-->>=)$/.test(word
     );
@@ -66,6 +66,8 @@ function main(...args) {
         return this.lexMultiLineComment;
       } else if(nextTwo === '\\\n') {
         this.skip(2);
+        this.ignore();
+        continue;
         return this.lexText;
       }
       const c = this.getc();

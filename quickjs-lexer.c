@@ -9,6 +9,8 @@
 
 #define ALPHA_CHARS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
+static void lexer_free(Lexer*, JSRuntime*);
+
 static JSValue
 js_position_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   int32_t line, column;
@@ -105,7 +107,7 @@ void
 js_syntax_error_finalizer(JSRuntime* rt, JSValue val) {
   SyntaxError* err = JS_GetOpaque(val, js_syntax_error_class_id);
   if(err) {
-    //printf("js_syntax_error_finalizer\n");
+    // printf("js_syntax_error_finalizer\n");
   }
   // JS_FreeValueRT(rt, val);
 }
@@ -130,16 +132,37 @@ keywords_cmp(const char** w1, const char** w2) {
   return strcmp(*w1, *w2);
 }
 
-static Line
-lexer_line(Lexer* lex) {
-  Line ret = {0, 0};
-  const char* x = (const char*)lex->data;
-  ret.start = lex->pos;
-  while(ret.start > 0 && x[ret.start - 1] != '\n') ret.start--;
-  ret.length = byte_chr(&x[ret.start], lex->size - ret.start, '\n');
+static  Token*
+token_new(Lexer* lex, JSRuntime* rt) {
+  Token* ret = js_mallocz_rt(rt, sizeof(Token));
+  if((ret->lexer = lex))
+    ret->lexer->ref_count++;
+
   return ret;
 }
 
+static void
+token_free(Token* tok, JSRuntime* rt) {
+  if(tok->lexer)
+    if(--tok->lexer->ref_count == 0)
+      lexer_free(tok->lexer, rt);
+  js_free_rt(rt, tok);
+}
+
+static const char*
+token_type(const Token* tok) {
+  return ((const char* const[]){"COMMENT",
+                                "STRING_LITERAL",
+                                "TEMPLATE_LITERAL",
+                                "NUMERIC_LITERAL",
+                                "BOOLEAN_LITERAL",
+                                "NULL_LITERAL",
+                                "PUNCTUATOR",
+                                "KEYWORD",
+                                "IDENTIFIER",
+                                "REGEXP_LITERAL",
+                                0})[tok->id];
+}
 static JSValue
 js_token_new(JSContext* ctx, Token* tok) {
   JSValue obj = JS_UNDEFINED;
@@ -299,7 +322,7 @@ static void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok = JS_GetOpaque(val, js_token_class_id);
   if(tok) {
-    //printf("js_token_finalizer\n");
+    // printf("js_token_finalizer\n");
     // token_free(tok, rt);
   }
   // JS_FreeValueRT(rt, val);
@@ -368,6 +391,7 @@ enum lexer_getters {
   LEXER_CURRENT_LINE,
   LEXER_KEYWORDS,
   LEXER_STATEFN,
+  LEXER_FILENAME,
   LEXER_POSITION
 };
 
@@ -386,7 +410,7 @@ enum lexer_ctype {
   IS_WHITESPACE
 };
 
-void
+static void
 lexer_init(Lexer* lex, JSContext* ctx) {
   memset(lex, 0, sizeof(Lexer));
   init_list_head(&lex->tokens);
@@ -394,7 +418,7 @@ lexer_init(Lexer* lex, JSContext* ctx) {
   lex->ref_count = 1;
 }
 
-void
+static void
 lexer_free(Lexer* lex, JSRuntime* rt) {
   struct list_head *el, *el1;
   list_for_each_safe(el, el1, &lex->tokens) { token_free((Token*)el, rt); }
@@ -403,32 +427,69 @@ lexer_free(Lexer* lex, JSRuntime* rt) {
   // js_free_rt(rt, lex);
 }
 
-Token
+static Line
+lexer_line(Lexer* lex) {
+  Line ret = {0, 0};
+  const char* x = (const char*)lex->data;
+  ret.start = lex->pos;
+  while(ret.start > 0 && x[ret.start - 1] != '\n') ret.start--;
+  ret.length = byte_chr(&x[ret.start], lex->size - ret.start, '\n');
+  return ret;
+}
+
+static Location
+lexer_location(const Lexer* lex) {
+  Location loc;
+  loc.file = lex->filename;
+  loc.line = lex->loc.line;
+  loc.column = lex->loc.column;
+  return loc;
+}
+
+static Token*
 lexer_token(Lexer* lex, JSContext* ctx, int id) {
-  Token tok;
-  tok.data = lex->data;
-  tok.offset = lex->start;
-  tok.length = lex->pos - lex->start;
-  tok.id = id;
-  tok.loc = lexer_location(lex);
-  lexer_ignore(lex);
+  Token* tok;
+  if((tok = js_mallocz(ctx, sizeof(Token)))) {
+    tok->data = lex->data;
+    tok->offset = lex->start;
+    tok->length = lex->pos - lex->start;
+    tok->id = id;
+    tok->lexer = lex;
+    tok->loc = lexer_location(lex);
+    lex->ref_count++;
+  }
   return tok;
 }
 
-void
-lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred) {
-  while(!lexer_eof(lex)) {
-    size_t len;
-    uint8_t* p = lexer_peek(lex, &len);
-    JSValue str = JS_NewStringLen(ctx, p, len);
-    if(predicate_eval(pred, ctx, 1, &str) > 0)
-      break;
-
-    lexer_get(lex, 0);
-  }
+static size_t
+lexer_distance(Lexer* lex) {
+  size_t* p;
+  size_t n = 0;
+  vector_foreach_t(&lex->charlengths, p) { n += *p; }
+  return n;
 }
 
-void
+static uint8_t*
+lexer_peek(Lexer* lex, size_t* lenp) {
+  return js_input_buffer_peek(&lex->input, lenp);
+}
+
+static uint32_t
+lexer_peekc(Lexer* lex, size_t* lenp) {
+  return js_input_buffer_peekc(&lex->input, lenp);
+}
+
+static size_t
+lexer_remain(Lexer* lex) {
+  return js_input_buffer_remain(&lex->input);
+}
+
+static size_t
+lexer_eof(Lexer* lex) {
+  return js_input_buffer_eof(&lex->input);
+}
+
+static void
 lexer_ignore(Lexer* lex) {
   uint8_t *p, *end, *next;
   p = &lex->data[lex->start];
@@ -448,7 +509,7 @@ lexer_ignore(Lexer* lex) {
   vector_clear(&lex->charlengths);
 }
 
-uint32_t
+static uint32_t
 lexer_getc(Lexer* lex, size_t* lenp) {
   uint32_t ret;
   size_t n;
@@ -460,7 +521,7 @@ lexer_getc(Lexer* lex, size_t* lenp) {
   return ret;
 }
 
-uint8_t*
+static uint8_t*
 lexer_get(Lexer* lex, size_t* lenp) {
   uint8_t* ret;
   size_t n;
@@ -470,6 +531,19 @@ lexer_get(Lexer* lex, size_t* lenp) {
   ret = js_input_buffer_get(&lex->input, lenp);
   vector_put(&lex->charlengths, lenp, sizeof(size_t));
   return ret;
+}
+
+static void
+lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred) {
+  while(!lexer_eof(lex)) {
+    size_t len;
+    uint8_t* p = lexer_peek(lex, &len);
+    JSValue str = JS_NewStringLen(ctx, p, len);
+    if(predicate_eval(pred, ctx, 1, &str) > 0)
+      break;
+
+    lexer_get(lex, 0);
+  }
 }
 
 JSValue
@@ -699,14 +773,10 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       Token* tok;
       JS_ToInt32(ctx, &tokId, argv[0]);
 
-      if((tok = token_new(lex, JS_GetRuntime(ctx)))) {
-        tok->data = lex->data;
-        tok->offset = lex->start;
-        tok->length = lex->pos - lex->start;
-        tok->loc = lex->loc;
-        tok->id = tokId;
+      if((tok = lexer_token(lex, ctx, tokId)))
+
         list_add_tail(&tok->link, &lex->tokens);
-      }
+
       // printf("lexer addToken %s «%.*s»\n", token_type(tok), lex->pos - lex->start, &lex->data[lex->start]);
       lexer_ignore(lex);
       break;
@@ -788,6 +858,10 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
+    case LEXER_FILENAME: {
+      ret = lex->filename ? JS_NewString(ctx, lex->filename) : JS_UNDEFINED;
+      break;
+    }
     case LEXER_POSITION: {
       ret = js_position_new(ctx, &lex->loc);
       break;
@@ -818,6 +892,15 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       lex->keywords = js_array_to_strvec(ctx, value);
       qsort(lex->keywords, lex->nkeywords, sizeof(char*), (int (*)(const void*, const void*)) & keywords_cmp); break;
     }*/
+    case LEXER_FILENAME: {
+      const char* s;
+      if(lex->filename)
+        js_free(ctx, lex->filename);
+      s = JS_ToCString(ctx, value);
+      lex->filename = js_strdup(ctx, s);
+      JS_FreeCString(ctx, s);
+      break;
+    }
     case LEXER_STATEFN: {
       if(!JS_IsUndefined(lex->state_fn))
         JS_FreeValue(ctx, lex->state_fn);
@@ -846,7 +929,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
       ret = JS_Call(ctx, lex->state_fn, this_val, 0, 0);
       except = JS_GetException(ctx);
       if(JS_IsObject(except)) {
-        //printf("except = %s\n", JS_ToCString(ctx, except));
+        // printf("except = %s\n", JS_ToCString(ctx, except));
         JS_SetPropertyStr(ctx, this_val, "exception", except);
         *pdone = FALSE;
         return JS_NULL;
@@ -923,9 +1006,9 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
 
   if((lex = JS_GetOpaque(val, js_lexer_class_id))) {
-    //printf("lex->ref_count=%zu\n", lex->ref_count);
+    // printf("lex->ref_count=%zu\n", lex->ref_count);
     if(--lex->ref_count == 0) {
-      //printf("js_lexer_finalizer\n");
+      // printf("js_lexer_finalizer\n");
       lexer_free(lex, rt);
     }
   }
@@ -967,6 +1050,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("token", js_lexer_get, 0, LEXER_TOKEN),
     JS_CGETSET_MAGIC_DEF("keywords", js_lexer_get, js_lexer_set, LEXER_KEYWORDS),
     JS_CGETSET_MAGIC_DEF("stateFn", js_lexer_get, js_lexer_set, LEXER_STATEFN),
+    JS_CGETSET_MAGIC_DEF("filename", js_lexer_get, js_lexer_set, LEXER_FILENAME),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_lexer_iterator),
 
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_C_W_E)};
