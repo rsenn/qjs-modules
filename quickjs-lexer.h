@@ -86,15 +86,13 @@ token_free(Token* tok, JSRuntime* rt) {
 }
 
 static inline Token*
-token_new(Token tok, JSRuntime* rt) {
+token_new(const Token* tok, JSRuntime* rt) {
   Token* ret = js_mallocz_rt(rt, sizeof(Token));
-  memcpy(ret, &tok, sizeof(Token));
+  memcpy(ret, tok, sizeof(Token));
   if(ret->lexer)
     ret->lexer->ref_count++;
   return ret;
 }
-
-JSValue js_token_new(JSContext*, Token);
 
 static inline const char*
 token_type(const Token* tok) {

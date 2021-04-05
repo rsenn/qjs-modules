@@ -138,8 +138,8 @@ lexer_line(Lexer* lex) {
   return ret;
 }
 
-JSValue
-js_token_new(JSContext* ctx, Token arg) {
+static JSValue
+js_token_new(JSContext* ctx, const Token* arg) {
   Token* tok;
   JSValue obj = JS_UNDEFINED;
 
@@ -292,7 +292,7 @@ js_token_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   return JS_UNDEFINED;
 }
 
-void
+static void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok = JS_GetOpaque(val, js_token_class_id);
   if(tok) {
@@ -868,7 +868,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
     Token* tok = (Token*)lex->tokens.next;
     list_del(&tok->link);
     tok->lexer = lex;
-    return js_token_new(ctx, *tok);
+    return js_token_new(ctx, tok);
   }
 
   *pdone = TRUE;
