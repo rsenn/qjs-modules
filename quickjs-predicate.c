@@ -89,7 +89,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         if(argc > 2 && JS_IsNumber(argv[2]))
           js_value_to_size(ctx, &len, argv[2]);
 
-        *pred = predicate_charset(js_strndup(ctx, str, len), len, ctx);
+        *pred = predicate_charset(js_strndup(ctx, str, len), len);
 
         JS_FreeCString(ctx, str);
         break;
@@ -220,7 +220,7 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       const char* str;
       size_t size;
       str = JS_ToCStringLen(ctx, &size, argv[0]);
-      ret = js_predicate_wrap(ctx, predicate_charset(js_strndup(ctx, str, size), size, ctx));
+      ret = js_predicate_wrap(ctx, predicate_charset(js_strndup(ctx, str, size), size));
       JS_FreeCString(ctx, str);
       break;
     }

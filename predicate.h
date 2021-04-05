@@ -141,7 +141,7 @@ predicate_xor(size_t npredicates, JSValue* predicates) {
   return ret;
 }
 
-Predicate predicate_charset(const char* str, size_t len, JSContext* ctx);
+Predicate predicate_charset(const char* str, size_t len);
 
 static inline Predicate
 predicate_equal(JSValue value) {

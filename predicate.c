@@ -4,13 +4,11 @@
 #include "quickjs-predicate.h"
 #include "cutils.h"
 
-size_t
+static size_t
 utf8_to_unicode(const char* str, size_t len, vector* out) {
   uint8_t *p, *next, *end;
-  p = (uint8_t*)str;
-  end = p + len;
 
-  while(p != end) {
+  for(p = (uint8_t*)str, end = p + len; p != end; p = next) {
     uint32_t codepoint = unicode_from_utf8(p, end - p, &next);
     vector_put(out, &codepoint, sizeof(uint32_t));
     p = next;
@@ -32,6 +30,12 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
     case PREDICATE_CHARSET: {
       InputBuffer input = js_input_buffer(ctx, argv[0]);
       const uint8_t *p, *next, *end;
+
+      if(pr->charset.chars.size == 0 && pr->charset.chars.data == 0) {
+        vector_init2(&pr->charset.chars, ctx);
+        utf8_to_unicode(pr->charset.set, pr->charset.len, &pr->charset.chars);
+      }
+
       ret = 1;
       for(p = input.x, end = input.x + input.n; p != end; p = next) {
         uint32_t codepoint = unicode_from_utf8(p, end - p, &next);
@@ -41,7 +45,7 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
           break;
         }
       }
-  
+
       input_buffer_free(&input, ctx);
       break;
     }
@@ -196,12 +200,24 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
                                            "ARRAY"}));
       break;
     }
+
     case PREDICATE_CHARSET: {
-      dbuf_putstr(dbuf, "[ \"");
-      dbuf_put_escaped(dbuf, pr->charset.set, pr->charset.len);
-      dbuf_printf(dbuf, "\" len = %zu ]", pr->charset.len);
+      uint32_t i = 0, *p;
+      dbuf_putstr(dbuf, "[ ");
+
+      vector_foreach(&pr->charset.chars, sizeof(uint32_t), p) {
+        if(i > 0)
+          dbuf_putstr(dbuf, ", ");
+        if(*p < 128)
+          dbuf_printf(dbuf, "'%c'", (char)*p);
+        else
+          dbuf_printf(dbuf, *p > 0xffffff ? "'\\u%08x'" : *p > 0xffff ? "\\u%06x" : "'\\u%04x'", *p);
+        i++;
+      }
+      dbuf_printf(dbuf, " (len = %zu) ]", pr->charset.len);
       break;
     }
+
     case PREDICATE_NOTNOT: dbuf_putc(dbuf, '!');
 
     case PREDICATE_NOT: {
@@ -380,12 +396,11 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
 }
 
 Predicate
-predicate_charset(const char* str, size_t len, JSContext* ctx) {
+predicate_charset(const char* str, size_t len) {
   uint8_t *p, *next, *end;
   Predicate ret = PREDICATE_INIT(PREDICATE_CHARSET);
   ret.charset.set = str;
   ret.charset.len = len;
-  vector_init2(&ret.charset.chars, ctx);
-  utf8_to_unicode(str, len, &ret.charset.chars);
+
   return ret;
 }
