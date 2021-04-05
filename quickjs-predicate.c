@@ -63,7 +63,13 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
   JS_SetOpaque(obj, pred);
 
-  if(argc > 0 && js_is_regexp(ctx, argv[0])) {
+  if(argc > 0 && JS_IsString(argv[0])) {
+    size_t len;
+    const char* str = js_tostringlen(ctx, &len, argv[0]);
+
+    *pred = predicate_string(str, len);
+
+  } else if(argc > 0 && js_is_regexp(ctx, argv[0])) {
     size_t p, len;
     const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
     p = byte_rchr(str, len, '/');
@@ -127,12 +133,10 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
       case PREDICATE_REGEXP: {
         size_t exprlen;
-        const char* expr = JS_ToCStringLen(ctx, &exprlen, argv[1]);
+        const char* expr = js_tostringlen(ctx, &exprlen, argv[1]);
         const char* flagstr = argv > 1 ? JS_ToCString(ctx, argv[2]) : 0;
-        *pred = predicate_regexp(js_strndup(ctx, expr, exprlen),
-                                 exprlen,
-                                 flagstr ? predicate_regexp_str2flags(flagstr) : 0);
-        JS_FreeCString(ctx, expr);
+        *pred = predicate_regexp(expr, exprlen, flagstr ? predicate_regexp_str2flags(flagstr) : 0);
+
         if(flagstr)
           JS_FreeCString(ctx, flagstr);
         break;
@@ -272,12 +276,11 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
     case PREDICATE_REGEXP: {
       size_t exprlen;
-      const char* expr = JS_ToCStringLen(ctx, &exprlen, argv[0]);
+      const char* expr = js_tostringlen(ctx, &exprlen, argv[0]);
       const char* flagstr = argv > 1 ? JS_ToCString(ctx, argv[1]) : 0;
       int flags = flagstr ? predicate_regexp_str2flags(flagstr) : 0;
-      Predicate pred = predicate_regexp(js_strndup(ctx, expr, exprlen), exprlen, flags);
+      Predicate pred = predicate_regexp(expr, exprlen, flags);
       ret = js_predicate_wrap(ctx, pred);
-      JS_FreeCString(ctx, expr);
       if(flagstr)
         JS_FreeCString(ctx, flagstr);
       break;
