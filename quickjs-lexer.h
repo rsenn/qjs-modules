@@ -37,7 +37,7 @@ typedef struct {
 } Token;
 
 typedef union Lexer {
-  InputBuffer input;
+  struct InputBuffer input;
   struct {
     const uint8_t* data;
     size_t size;
@@ -77,27 +77,53 @@ lexer_location(const Lexer* lex) {
   return loc;
 }
 
+static inline uint8_t*
+lexer_peek(Lexer* lex, size_t* lenp) {
+  if(lex->pos < lex->size) {
+    uint8_t* ret = js_input_buffer_peek(&lex->input, lenp);
+    return ret;
+  }
+  return 0;
+}
+
 static inline int
 lexer_peekc(Lexer* lex) {
   if(lex->pos < lex->size) {
-    uint8_t c = lex->data[lex->pos];
+    uint32_t c = js_input_buffer_peekc(&lex->input, 0);
     return c;
   }
   return -1;
 }
 
-static inline int
-lexer_getc(Lexer* lex) {
-  uint8_t c = lex->data[lex->pos];
+static inline uint8_t*
+lexer_get(Lexer* lex, size_t* lenp) {
+  uint8_t* ret;
+  uint32_t c;
+  size_t n = 0;
+  if(lenp == 0)
+    lenp = &n;
+  ret = js_input_buffer_peek(lex, lenp);
+  c = js_input_buffer_get(&lex->input);
   if(c == '\n') {
     lex->loc.line++;
     lex->loc.column = 0;
   } else {
     lex->loc.column++;
   }
-  lex->pos++;
+  return ret;
+}
+static inline int
+lexer_getc(Lexer* lex) {
+  uint32_t c = js_input_buffer_get(&lex->input);
+  if(c == '\n') {
+    lex->loc.line++;
+    lex->loc.column = 0;
+  } else {
+    lex->loc.column++;
+  }
   return c;
 }
+
 static inline void
 lexer_ignore(Lexer* lex) {
   lex->start = lex->pos;

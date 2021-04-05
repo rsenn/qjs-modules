@@ -37,8 +37,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       }
 
       ret = 1;
-      for(p = input.x, end = input.x + input.n; p != end; p = next) {
-        uint32_t codepoint = unicode_from_utf8(p, end - p, &next);
+      while(!js_input_buffer_eof(&input)) {
+        uint32_t codepoint = js_input_buffer_get(&input);
         ssize_t idx = vector_find(&pr->charset.chars, sizeof(uint32_t), &codepoint);
         if(idx == -1) {
           ret = 0;
@@ -95,13 +95,13 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
             lre_compile(&len, error_msg, sizeof(error_msg), pr->regexp.expr, pr->regexp.exprlen, pr->regexp.flags, ctx);
       }
 
-      ret = lre_exec(capture, pr->regexp.bytecode, (uint8_t*)input.x, 0, input.n, 0, ctx);
+      ret = lre_exec(capture, pr->regexp.bytecode, (uint8_t*)input.data, 0, input.size, 0, ctx);
 
       if(ret && argc > 1) {
         int capture_count = lre_get_capture_count(pr->regexp.bytecode);
 
         if(JS_IsFunction(ctx, argv[1])) {
-          JSValue args[] = {predicate_regexp_capture(capture, capture_count, input.x, ctx), argv[0]};
+          JSValue args[] = {predicate_regexp_capture(capture, capture_count, input.data, ctx), argv[0]};
 
           JS_Call(ctx, argv[1], JS_NULL, 2, args);
 
@@ -115,8 +115,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
 
             if(capture[i]) {
               a = JS_NewArray(ctx);
-              JS_SetPropertyUint32(ctx, a, 0, JS_NewUint32(ctx, capture[i] - input.x));
-              JS_SetPropertyUint32(ctx, a, 1, JS_NewUint32(ctx, capture[i + 1] - input.x));
+              JS_SetPropertyUint32(ctx, a, 0, JS_NewUint32(ctx, capture[i] - input.data));
+              JS_SetPropertyUint32(ctx, a, 1, JS_NewUint32(ctx, capture[i + 1] - input.data));
             }
 
             JS_SetPropertyUint32(ctx, argv[1], i >> 1, a);
@@ -281,15 +281,6 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
   }
 }
 
-Predicate
-predicate_regexp(const char* regexp, size_t rlen, int flags) {
-  Predicate ret = PREDICATE_INIT(PREDICATE_REGEXP);
-  ret.regexp.expr = regexp;
-  ret.regexp.exprlen = rlen;
-  ret.regexp.flags = flags;
-  return ret;
-}
-
 int
 predicate_regexp_str2flags(const char* s) {
   int flags = 0;
@@ -352,6 +343,7 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
   switch(pred->id) {
     case PREDICATE_CHARSET: {
       js_free_rt(rt, pred->charset.set);
+      vector_free(&pred->charset.chars);
       break;
     }
     case PREDICATE_EQUAL:
@@ -369,7 +361,8 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
       break;
     }
     case PREDICATE_REGEXP: {
-      js_free_rt(rt, pred->regexp.bytecode);
+      if(pred->regexp.bytecode)
+        js_free_rt(rt, pred->regexp.bytecode);
       js_free_rt(rt, pred->regexp.expr);
       break;
     }
@@ -396,15 +389,5 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
       break;
     }
   }
-  return ret;
-}
-
-Predicate
-predicate_charset(const char* str, size_t len) {
-  uint8_t *p, *next, *end;
-  Predicate ret = PREDICATE_INIT(PREDICATE_CHARSET);
-  ret.charset.set = str;
-  ret.charset.len = len;
-
   return ret;
 }

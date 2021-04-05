@@ -19,7 +19,11 @@ function WriteFile(file, data) {
 function DumpLexer(lex) {
   const { size, pos, start, line, column, lineStart, lineEnd, columnIndex } = lex;
 
-  return `Lexer ${inspect({ size, pos, start, line, column, lineStart, lineEnd, columnIndex })}`;
+  return `Lexer ${inspect({
+    size,
+    pos,
+    start /*, line, column, lineStart, lineEnd, columnIndex*/
+  })}`;
 }
 function DumpToken(tok) {
   const { length, offset, loc } = tok;
@@ -38,31 +42,72 @@ function main(...args) {
   let str = std.loadFile(args[0] ?? scriptArgs[0], 'utf-8');
   let len = str.length;
   console.log('len', len);
+  console.log('str', str);
   let lexer = new Lexer(str, len);
 
-  /* prettier-ignore */ lexer.keywords = ['if', 'in', 'do', 'of', 'as', 'for', 'new', 'var', 'try', 'let', 'else', 'this', 'void', 'with', 'case', 'enum', 'from', 'break', 'while', 'catch', 'class', 'const', 'super', 'throw', 'await', 'yield', 'async', 'delete', 'return', 'typeof', 'import', 'switch', 'export', 'static', 'default', 'extends', 'finally', 'continue', 'function', 'debugger', 'instanceof'];
-  /* prettier-ignore */ lexer.punctuators = [ '!', '!=', '!==', '${', '%', '%=', '&&', '&&=', '&', '&=', '(', ')', '*', '**', '**=', '*=', '+', '++', '+=', ',', '-', '--', '-->>', '-->>=', '-=', '.', '...', '/', '/=', ':', ';', '<', '<<', '<<=', '<=', '=', '==', '===', '=>', '>', '>=', '>>', '>>=', '>>>', '>>>=', '?', '?.', '??', '??=', '@', '[', '^', '^=', '{', '|', '|=', '||', '||=', '}', '~'];
-  console.log('lexer', lexer);
-
-  console.log('lexer', DumpLexer(lexer));
+  // /* prettier-ignore */ lexer.keywords = ['if', 'in', 'do', 'of', 'as', 'for', 'new', 'var', 'try', 'let', 'else', 'this', 'void', 'with', 'case', 'enum', 'from', 'break', 'while', 'catch', 'class', 'const', 'super', 'throw', 'await', 'yield', 'async', 'delete', 'return', 'typeof', 'import', 'switch', 'export', 'static', 'default', 'extends', 'finally', 'continue', 'function', 'debugger', 'instanceof'];
+  // /* prettier-ignore */ lexer.punctuators = [ '!', '!=', '!==', '${', '%', '%=', '&&', '&&=', '&', '&=', '(', ')', '*', '**', '**=', '*=', '+', '++', '+=', ',', '-', '--', '-->>', '-->>=', '-=', '.', '...', '/', '/=', ':', ';', '<', '<<', '<<=', '<=', '=', '==', '===', '=>', '>', '>=', '>>', '>>=', '>>>', '>>>=', '?', '?.', '??', '??=', '@', '[', '^', '^=', '{', '|', '|=', '||', '||=', '}', '~'];
   //  console.log('lexer.peek()', lexer.peek());
   //console.log('lexer.next()', lexer.next());
   lexer.lexNumber = function lexNumber() {};
-  lexer.stateFn = function lex() {
-    console.log('stateFn');
 
-    return lexer.stateFn;
-  };
-  lexer.acceptRun(c => /^[A-Za-z_]/.test(c));
+  function lexText() {
+    do {
+      //Examine the next 2 characters to see if we're encountering code comments
+      const nextTwo = this.getRange(this.pos, this.pos + 2);
+      if(nextTwo === '//') {
+        this.skip(2);
+        return this.lexSingleLineComment;
+      } else if(nextTwo === '/*') {
+        this.skip(2);
+        return this.lexMultiLineComment;
+      }
+
+      //Consume the next character and decide what to do
+      const c = this.getc();
+      if(c === null) {
+        //EOF
+        return null;
+      } else if(!this.noRegex && isRegExpChar(c)) {
+        return this.lexRegExp;
+      } else if(isQuoteChar(c)) {
+        return this.lexQuote(c);
+      } else if(isDecimalDigit(c) || (c === '.' && isDecimalDigit(this.peek()))) {
+        this.backup();
+        return this.lexNumber;
+      } else if(isWhitespace(c)) {
+        this.ignore();
+      } else if(isPunctuatorChar(c)) {
+        this.backup();
+        return this.lexPunctuator;
+      } else if(isIdentifierChar(c)) {
+        this.backup();
+        return this.lexIdentifier;
+      } else if(isLineTerminator(c)) {
+        this.ignore();
+      } else {
+        throw this.error(`Unexpected character: ${c}`);
+      }
+    } while(true);
+  }
+  lexer.lexText = lexText;
+
+  lexer.stateFn = lexText;
+
+  lexer.acceptRun(new Predicate(/^[A-Za-z_]$/));
+  console.log('lexer', DumpLexer(lexer));
+
+  //lexer.acceptRun(c => /^\s/.test(c));
+  lexer.acceptRun(new Predicate(/^\s$/));
+  console.log('lexer', DumpLexer(lexer));
 
   let data;
   for(let data of lexer) {
     console.log('data', data.toString());
 
-    //      console.log(`peek() = '${lexer.peek()}'`);
-    lexer.acceptRun(Lexer.isWhitespace);
+    /* lexer.acceptRun(Lexer.isWhitespace);
 
-    console.log('lexer', DumpLexer(lexer));
+    console.log('lexer', DumpLexer(lexer));*/
   }
 
   std.gc();

@@ -99,8 +99,24 @@ predicate_free(Predicate* pred, JSContext* ctx) {
 #define predicate_function() predicate_type(TYPE_FUNCTION)
 #define predicate_array() predicate_type(TYPE_ARRAY)
 
-Predicate predicate_charset(const char* str, size_t len);
-Predicate predicate_regexp(const char* regexp, size_t rlen, int flags);
+static inline Predicate
+predicate_charset(const char* str, size_t len) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_CHARSET);
+  ret.charset.set = str;
+  ret.charset.len = len;
+  memset(&ret.charset.chars, 0, sizeof(vector));
+  return ret;
+}
+
+static inline Predicate
+predicate_regexp(const char* regexp, size_t rlen, int flags) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_REGEXP);
+  ret.regexp.bytecode = 0;
+  ret.regexp.expr = regexp;
+  ret.regexp.exprlen = rlen;
+  ret.regexp.flags = flags;
+  return ret;
+}
 
 static inline Predicate
 predicate_type(int type) {

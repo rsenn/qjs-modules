@@ -200,20 +200,71 @@ dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
   return r;
 }
 
-void
-input_buffer_dump(const InputBuffer* input, DynBuf* db) {
-  dbuf_printf(
-      db, "(InputBuffer){ .x = %p, .n = %zx, .p = %zx, .free = %p }", input->x, input->n, input->p, input->free);
+InputBuffer
+js_input_buffer(JSContext* ctx, JSValueConst value) {
+  InputBuffer ret = {0, 0, 0, &input_buffer_free_default};
+
+  if(JS_IsString(value)) {
+    ret.data = (const uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
+    ret.free = JS_FreeCString;
+  } else if(js_is_arraybuffer(ctx, value)) {
+    ret.data = JS_GetArrayBuffer(ctx, &ret.size, value);
+  } else {
+    JS_ThrowTypeError(ctx, "Invalid type for input buffer");
+  }
+  return ret;
 }
 
 void
-input_buffer_free(InputBuffer* input, JSContext* ctx) {
-  if(input->x) {
-    input->free(ctx, (const char*)input->x);
-    input->x = 0;
-    input->n = 0;
-    input->p = 0;
+input_buffer_dump(const InputBuffer* in, DynBuf* db) {
+  dbuf_printf(db,
+              "(InputBuffer){ .data = %pos, .size = %zx, .pos = %zx, .free = %pos }",
+              in->data,
+              in->size,
+              in->pos,
+              in->free);
+}
+
+void
+input_buffer_free(InputBuffer* in, JSContext* ctx) {
+  if(in->data) {
+    in->free(ctx, (const char*)in->data);
+    in->data = 0;
+    in->size = 0;
+    in->pos = 0;
   }
+}
+
+uint8_t*
+js_input_buffer_peek(InputBuffer* in, size_t* lenp) {
+  uint8_t *pos, *end, *next;
+  pos = in->data + in->pos;
+  end = in->data + in->size;
+  unicode_from_utf8(pos, end - pos, &next);
+  if(lenp)
+    *lenp = next - pos;
+  return pos;
+}
+
+uint32_t
+js_input_buffer_peekc(InputBuffer* in, size_t* lenp) {
+  uint8_t *pos, *end, *next;
+  uint32_t cp;
+  pos = in->data + in->pos;
+  end = in->data + in->size;
+  cp = unicode_from_utf8(pos, end - pos, &next);
+  if(lenp)
+    *lenp = next - pos;
+  return cp;
+}
+
+uint32_t
+js_input_buffer_get(InputBuffer* in) {
+  size_t len;
+  uint32_t ret;
+  ret = js_input_buffer_peekc(in, &len);
+  in->pos += len;
+  return ret;
 }
 
 int64_t
@@ -364,21 +415,6 @@ js_global_prototype(JSContext* ctx, const char* class_name) {
   ctor = js_global_get(ctx, class_name);
   ret = JS_GetPropertyStr(ctx, ctor, "prototype");
   JS_FreeValue(ctx, ctor);
-  return ret;
-}
-
-InputBuffer
-js_input_buffer(JSContext* ctx, JSValueConst value) {
-  InputBuffer ret = {0, 0, 0, &input_buffer_free_default};
-
-  if(JS_IsString(value)) {
-    ret.x = (const uint8_t*)JS_ToCStringLen(ctx, &ret.n, value);
-    ret.free = JS_FreeCString;
-  } else if(js_is_arraybuffer(ctx, value)) {
-    ret.x = JS_GetArrayBuffer(ctx, &ret.n, value);
-  } else {
-    JS_ThrowTypeError(ctx, "Invalid type for input buffer");
-  }
   return ret;
 }
 
@@ -828,8 +864,9 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
 
 JSValue
 js_value_from_char(JSContext* ctx, int c) {
-  char ch = c;
-  return JS_NewStringLen(ctx, &ch, 1);
+  char buf[16];
+  size_t len = unicode_to_utf8(buf, c);
+  return JS_NewStringLen(ctx, buf, len);
 }
 
 void
@@ -896,15 +933,4 @@ token_length(const char* str, size_t len, char delim) {
     }
   }
   return s - str;
-}
-
-uint32_t
-js_input_buffer_get(InputBuffer* input) {
-  uint8_t *p, *end, *next;
-  uint32_t cp;
-  p = input->x + input->p;
-  end = input->x + input->n;
-  cp = unicode_from_utf8(p, end - p, &next);
-  input->p += next - p;
-  return cp;
 }

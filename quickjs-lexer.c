@@ -139,6 +139,7 @@ js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
 
   return ret;
 }
+
 static JSValue
 js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Token* tok;
@@ -322,37 +323,52 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
   switch(magic) {
     case METHOD_PEEKC: {
-      ret = js_value_from_char(ctx, lex->data[lex->pos]);
+      if(js_input_buffer_remain(&lex->input)) {
+        size_t len;
+        uint8_t *buf = lexer_peek(lex, &len);
+        ret = JS_NewStringLen(ctx, buf, len);
+      }
       break;
     }
     case METHOD_GETC: {
-      uint8_t c = lexer_getc(lex);
-      ret = js_value_from_char(ctx, c);
+      if(js_input_buffer_remain(&lex->input)) {
+        size_t len;
+        uint8_t *buf = lexer_get(lex, &len);
+        ret = JS_NewStringLen(ctx, buf, len);
+      }
       break;
     }
     case METHOD_SKIPC: {
-      int32_t ntimes = 1;
-      uint8_t c = 0;
-      if(argc > 0)
-        JS_ToInt32(ctx, &ntimes, argv[0]);
-      while(ntimes-- > 0) { c = lexer_getc(lex); }
-      ret = js_value_from_char(ctx, c);
+      if(js_input_buffer_remain(&lex->input)) {
+        int32_t ntimes = 1;
+        uint8_t* p;
+        size_t n;
+        if(argc > 0)
+          JS_ToInt32(ctx, &ntimes, argv[0]);
+        while(ntimes-- > 0) { p = lexer_get(lex, &n); }
+        ret = JS_NewStringLen(ctx, p, n);
+      }
       break;
     }
     case METHOD_SKIPUNTIL: {
-
-      JSValueConst pred;
-      if(!JS_IsFunction(ctx, argv[0]))
-        return JS_ThrowTypeError(ctx, "argument 1 is not a function");
-
-      pred = argv[0];
-
-      while(lex->pos < lex->size) {
-        uint8_t c = lexer_peekc(lex);
-
-        JSValue str = js_value_from_char(ctx, c);
-
-        JS_Call(ctx, pred, this_val, 1, &str);
+      if(js_input_buffer_remain(&lex->input)) {
+        JSValueConst pred;
+        if(!JS_IsFunction(ctx, argv[0]))
+          return JS_ThrowTypeError(ctx, "argument 1 is not a function");
+        pred = argv[0];
+        while(lex->pos < lex->size) {
+          size_t n;
+          uint8_t* p = lexer_peek(lex, &n);
+          JSValue str = JS_NewStringLen(ctx, p, n);
+          JSValue ret = JS_Call(ctx, pred, this_val, 1, &str);
+          BOOL b = JS_ToBool(ctx, ret);
+          JS_FreeValue(ctx, ret);
+          if(b) {
+            ret = str;
+            break;
+          }
+          JS_FreeValue(ctx, str);
+        }
       }
       break;
     }
@@ -373,26 +389,29 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
     case METHOD_ACCEPT_RUN: {
-      JSValueConst pred = argv[0];
-      size_t started = lex->pos;
-      uint8_t c;
-
-      while(lex->pos < lex->size) {
-        JSValueConst ch;
-        JSValue ret;
-        c = lex->data[lex->pos];
-        ch = js_value_from_char(ctx, c);
-        ret = JS_Call(ctx, pred, this_val, 1, &ch);
-        JS_FreeValue(ctx, ch);
-
-        if(!JS_ToBool(ctx, ret))
-          break;
-        lex->pos++;
+      if(js_input_buffer_remain(&lex->input)) {
+        JSValueConst pred = argv[0];
+        size_t started = lex->pos;
+        while(!js_input_buffer_eof(&lex->input)) {
+          JSValue ch, r;
+          uint8_t* p;
+          size_t len;
+          BOOL b;
+          p = js_input_buffer_peek(&lex->input, &len);
+          ch = JS_NewStringLen(ctx, p, len);
+          b = predicate_call(ctx, pred, 1, &ch);
+          JS_FreeValue(ctx, ch);
+          if(!b)
+            break;
+          lex->pos += len;
+        }
       }
       break;
     }
     case METHOD_BACKUP: {
       int32_t ntimes = 1;
+      uint8_t* p;
+      size_t len;
       uint8_t c;
       if(argc > 0)
         JS_ToInt32(ctx, &ntimes, argv[0]);
@@ -408,8 +427,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
         lex->pos--;
         printf("c = %u\n", lex->data[lex->pos]);
       }
-      c = lex->data[lex->pos];
-      ret = js_value_from_char(ctx, c);
+      p = js_input_buffer_peek(&lex->input, &len);
+      ret = JS_NewStringLen(ctx, p, len);
       break;
     }
   }
@@ -520,6 +539,7 @@ JSValue
 js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
   JSValue ret = JS_UNDEFINED;
   Lexer* lex;
+  size_t pos;
 
   if(!(lex = JS_GetOpaque2(ctx, this_val, js_lexer_class_id)))
     return JS_EXCEPTION;
@@ -531,11 +551,18 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
     return ret;
   }
 
+  pos = lex->pos;
+
   ret = JS_Call(ctx, lex->state_fn, this_val, 0, 0);
 
   if(JS_IsFunction(ctx, ret)) {
     JS_FreeValue(ctx, lex->state_fn);
     lex->state_fn = ret;
+  }
+
+  if(pos == lex->pos) {
+    *pdone = TRUE;
+    return JS_ThrowRangeError(ctx, "Lexer pos before=%zu after=%zu", pos, lex->pos);
   }
 
   ret = js_token_new(ctx, lexer_token(lex, ctx, STRING_LITERAL));

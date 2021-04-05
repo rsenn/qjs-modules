@@ -395,10 +395,10 @@ void js_values_free(JSContext* ctx, int nvalues, JSValueConst* values);
 void js_values_free_rt(JSRuntime* rt, int nvalues, JSValueConst* values);
 JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
 
-typedef struct {
-  const uint8_t* x;
-  size_t n;
-  size_t p;
+typedef struct InputBuffer {
+  const uint8_t* data;
+  size_t size;
+  size_t pos;
   void (*free)(JSContext*, const char*);
 } InputBuffer;
 
@@ -406,10 +406,21 @@ static inline void input_buffer_free_default(JSContext* ctx, const char* str){
 
 };
 
-void input_buffer_dump(const InputBuffer* input, DynBuf* db);
-void input_buffer_free(InputBuffer* input, JSContext* ctx);
+void input_buffer_dump(const InputBuffer* in, DynBuf* db);
+void input_buffer_free(InputBuffer* in, JSContext* ctx);
 InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
-uint32_t js_input_buffer_get(InputBuffer* input);
+uint32_t js_input_buffer_get(InputBuffer* in);
+uint8_t* js_input_buffer_peek(InputBuffer* in, size_t* lenp);
+uint32_t js_input_buffer_peekc(InputBuffer*, size_t* lenp);
+
+static inline BOOL
+js_input_buffer_eof(InputBuffer* in) {
+  return in->pos == in->size;
+}
+static inline size_t
+js_input_buffer_remain(InputBuffer* in) {
+  return in->size - in->pos;
+}
 
 JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value);
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);

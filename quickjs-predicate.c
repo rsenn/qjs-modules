@@ -3,7 +3,7 @@
 #include "quickjs.h"
 #include "predicate.h"
 
-JSClassID js_predicate_class_id = 0;
+VISIBLE JSClassID js_predicate_class_id = 0;
 JSValue predicate_proto, predicate_constructor, predicate_ctor;
 
 enum { METHOD_EVAL = 0, METHOD_TOSTRING };

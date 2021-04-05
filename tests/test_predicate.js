@@ -135,7 +135,7 @@ function main(...args) {
   console.log(`eqBLAH =`, eqBLAH.toString());
 
   for(let s2 of ['-120', '0.12345', '+12.345678', '-.9090']) {
-     console.log(`pr.eval('${s2}') =`, pr.eval(s2));
+    console.log(`pr.eval('${s2}') =`, pr.eval(s2));
   }
   let mt = Predicate.type(Predicate.TYPE_INT | Predicate.TYPE_OBJECT);
   console.log(`mt =`, mt.toString());

@@ -415,12 +415,12 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
   JSValue ret;
   InputBuffer input = js_input_buffer(ctx, argv[0]);
 
-  if(input.x == 0 || input.n == 0) {
+  if(input.data == 0 || input.size == 0) {
     JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
     return JS_EXCEPTION;
   }
 
-  ret = js_xml_parse(ctx, input.x, input.n);
+  ret = js_xml_parse(ctx, input.data, input.size);
 
   input_buffer_free(&input, ctx);
   return ret;
