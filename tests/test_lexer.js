@@ -40,15 +40,16 @@ function main(...args) {
     maxStringLength: 100,
     compact: false
   });
-  let file =args[0] ?? scriptArgs[0];
+  let file = args[0] ?? scriptArgs[0];
   let str = std.loadFile(file, 'utf-8');
   let len = str.length;
   console.log('len', len);
   let lexer = new Lexer(str, file);
 
   const isKeyword = word =>
-  //  /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
-  /^(_Alignas|_Alignof|_Atomic|_Bool|_Complex|_Generic|_Imaginary|_Noreturn|_Static_assert|_Thread_local|auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for|goto|if|inline|int|long|register|restrict|return|short|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile)$/.test(word);
+    //  /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
+    /^(_Alignas|_Alignof|_Atomic|_Bool|_Complex|_Generic|_Imaginary|_Noreturn|_Static_assert|_Thread_local|auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for|goto|if|inline|int|long|register|restrict|return|short|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile)$/.test(word
+    );
 
   const isPunctuator = word =>
     /^(=|\.|-|%|}|>|,|\*|\[|<|!|\/|\]|~|\&|\(|;|\?|\||\)|:|\+|\^|{|@|!=|\*=|\&\&|<<|\/=|\|\||>>|\&=|==|\+\+|\|=|<=|--|\+=|\^=|>=|-=|%=|=>|\${|\?\.|\*\*|\?\?|!==|===|>>>|>>=|-->>|<<=|\.\.\.|\*\*=|\|\|=|\&\&=|\?\?=|>>>=|-->>=)$/.test(word
@@ -295,7 +296,7 @@ function main(...args) {
       return this.lexTemplate(inSubst);
     }
     pred = Predicate.and(Predicate.not(Lexer.isLineTerminator),
-      Predicate.not(c => c=='\\'|| c == quoteChar)
+      Predicate.not(c => c == '\\' || c == quoteChar)
       //Predicate.regexp(`^[^\\${quoteChar}]`, 'g')
     );
     do {
@@ -303,12 +304,12 @@ function main(...args) {
       prevChar = c;
       c = this.getc();
 
-      
       if(c === null) {
         throw this.error(`Illegal token(1)`);
       } else if(!escapeEncountered) {
         if(Lexer.isLineTerminator(c) && quoteChar !== '`') {
-          throw this.error(`Illegal token(2) c=${c.codePointAt(0)} quoteChar=${quoteChar} range=${this.getRange()}`);
+          throw this.error(`Illegal token(2) c=${c.codePointAt(0)} quoteChar=${quoteChar} range=${this.getRange()}`
+          );
         } else if(c === quoteChar) {
           this.addToken(Token.STRING_LITERAL);
           return this.lexText;
@@ -316,7 +317,7 @@ function main(...args) {
           escapeEncountered = true;
         }
       } else {
-        escapeEncountered = false;  
+        escapeEncountered = false;
       }
     } while(!this.eof);
   }
@@ -353,16 +354,15 @@ function main(...args) {
 
   let data;
 
+  //lexer.match(Predicate.regexp("([^'\\\n]|\\[^\n])+",'g'));
+  let result; //=lexer.match(new Predicate(/([^'\\\n]|\\[^\n])+/g));
+  result = lexer.match('import ');
+  console.log(result);
+  console.log(lexer.getRange());
+  //return;
 
-//lexer.match(Predicate.regexp("([^'\\\n]|\\[^\n])+",'g'));
-let result; //=lexer.match(new Predicate(/([^'\\\n]|\\[^\n])+/g));
-result=lexer.match("import ");
-console.log(result);
-console.log(lexer.getRange());
-//return;
- 
   for(let data of lexer) {
-    console.log((data.loc+'').padEnd(16), data.type.padEnd(20), data.toString());
+    console.log((data.loc + '').padEnd(16), data.type.padEnd(20), data.toString());
 
     if(data == null) {
       break;
