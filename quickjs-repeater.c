@@ -3,7 +3,7 @@
 #include "utils.h"
 #include <string.h>
 
-JSClassID js_repeater_class_id = 0;
+VISIBLE JSClassID js_repeater_class_id = 0;
 JSValue repeater_proto, repeater_constructor, repeater_ctor;
 
 enum repeater_functions { STATIC_RACE = 0, STATIC_MERGE, STATIC_ZIP };

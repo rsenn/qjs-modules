@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 
-JSClassID js_deep_iterator_class_id = 0;
+VISIBLE JSClassID js_deep_iterator_class_id = 0;
 JSValue deep_iterator_proto, deep_iterator_constructor, deep_iterator_ctor;
 
 typedef struct DeepIterator {

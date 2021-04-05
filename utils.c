@@ -615,6 +615,18 @@ js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop)
   return ret;
 }
 
+int32_t
+js_object_propertystr_getint32(JSContext* ctx, JSValueConst obj, const char* prop) {
+  JSValue value;
+  int32_t ret;
+  value = JS_GetPropertyStr(ctx, obj, prop);
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+  JS_ToInt32(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 void
 js_object_propertystr_setstr(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
   JSValue value;

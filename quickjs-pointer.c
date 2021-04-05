@@ -4,7 +4,7 @@
 #include "utils.h"
 #include <string.h>
 
-JSClassID js_pointer_class_id = 0;
+VISIBLE JSClassID js_pointer_class_id = 0;
 JSValue pointer_proto, pointer_constructor, pointer_ctor;
 
 enum pointer_methods {

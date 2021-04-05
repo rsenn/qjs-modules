@@ -6,9 +6,9 @@
 #include "quickjs.h"
 #include <string.h>
 
-JSClassID js_tree_walker_class_id;
+VISIBLE JSClassID js_tree_walker_class_id;
 JSValue tree_walker_proto, tree_walker_constructor, tree_walker_ctor;
-JSClassID js_tree_iterator_class_id;
+VISIBLE JSClassID js_tree_iterator_class_id;
 JSValue tree_iterator_proto, tree_iterator_constructor, tree_iterator_ctor;
 
 enum tree_walker_methods {

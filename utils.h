@@ -508,6 +508,7 @@ const char* js_function_name(JSContext* ctx, JSValueConst value);
 BOOL js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
 void js_object_propertystr_setstr(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop);
+int32_t js_object_propertystr_getint32(JSContext* ctx, JSValueConst obj, const char* prop);
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
 

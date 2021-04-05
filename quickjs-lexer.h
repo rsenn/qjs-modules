@@ -30,6 +30,14 @@ typedef struct {
 } Line;
 
 typedef struct {
+  const uint8_t* data;
+  uint32_t length;
+  uint32_t offset;
+  Location loc;
+  const char* message;
+} SyntaxError;
+
+typedef struct {
   struct list_head link;
   const uint8_t* data;
   uint32_t length;
@@ -56,6 +64,8 @@ typedef union Lexer {
 } Lexer;
 
 extern JSClassID js_token_class_id, js_lexer_class_id;
+
+JSValue js_syntax_error_new(JSContext*, SyntaxError arg);
 
 static inline Token*
 js_token_data(JSContext* ctx, JSValueConst value) {
@@ -115,6 +125,7 @@ lexer_get(Lexer* lex, size_t* lenp) {
   }
   return ret;
 }
+
 static inline int
 lexer_getc(Lexer* lex) {
   uint32_t c = js_input_buffer_get(&lex->input);
