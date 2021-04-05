@@ -68,13 +68,19 @@ typedef struct Predicate {
     }                                                                                                                  \
   }
 
-int predicate_eval(Predicate*, JSContext*, int argc, JSValueConst* argv);
-JSValue predicate_values(const Predicate* pred, JSContext* ctx);
-int predicate_call(JSContext* ctx, JSValue value, int argc, JSValue* argv);
-void predicate_tostring(const Predicate*, JSContext*, DynBuf*);
-int predicate_regexp_str2flags(const char* s);
-int predicate_regexp_flags2str(int flags, char* out);
-JSValue predicate_regexp_capture(uint8_t* capture[], int capture_count, uint8_t* input, JSContext* ctx);
+int       predicate_call(JSContext*, JSValue, int argc, JSValue* argv);
+int       predicate_eval(Predicate*, JSContext*, int argc, JSValue* argv);
+void      predicate_free_rt(Predicate*, JSRuntime*);
+JSValue   predicate_regexp_capture(uint8_t**, int, uint8_t* input, JSContext* ctx);
+int       predicate_regexp_flags2str(int, char*);
+int       predicate_regexp_str2flags(const char*);
+void      predicate_tostring(const Predicate*, JSContext*, DynBuf* dbuf);
+JSValue   predicate_values(const Predicate*, JSContext*);
+
+static inline void
+predicate_free(Predicate* pred, JSContext* ctx) {
+  predicate_free_rt(pred, JS_GetRuntime(ctx));
+}
 
 #define predicate_undefined() predicate_type(TYPE_UNDEFINED)
 #define predicate_null() predicate_type(TYPE_NULL)
@@ -92,6 +98,9 @@ JSValue predicate_regexp_capture(uint8_t* capture[], int capture_count, uint8_t*
 #define predicate_all() predicate_type(TYPE_ALL)
 #define predicate_function() predicate_type(TYPE_FUNCTION)
 #define predicate_array() predicate_type(TYPE_ARRAY)
+
+Predicate predicate_charset(const char* str, size_t len);
+Predicate predicate_regexp(const char* regexp, size_t rlen, int flags);
 
 static inline Predicate
 predicate_type(int type) {
@@ -141,8 +150,6 @@ predicate_xor(size_t npredicates, JSValue* predicates) {
   return ret;
 }
 
-Predicate predicate_charset(const char* str, size_t len);
-
 static inline Predicate
 predicate_equal(JSValue value) {
   Predicate ret = PREDICATE_INIT(PREDICATE_EQUAL);
@@ -163,14 +170,5 @@ predicate_not(JSValue value) {
   ret.unary.predicate = value;
   return ret;
 }
-
-void predicate_free_rt(Predicate* pred, JSRuntime* rt);
-
-static inline void
-predicate_free(Predicate* pred, JSContext* ctx) {
-  predicate_free_rt(pred, JS_GetRuntime(ctx));
-}
-
-Predicate predicate_regexp(const char* regexp, size_t rlen, int flags);
 
 #endif /* defined(PREDICATE_H) */

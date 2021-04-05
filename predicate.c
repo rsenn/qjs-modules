@@ -332,7 +332,7 @@ predicate_regexp_flags2str(int flags, char* buf) {
 }
 
 JSValue
-predicate_regexp_capture(uint8_t* capture[], int capture_count, uint8_t* input, JSContext* ctx) {
+predicate_regexp_capture(uint8_t** capture, int capture_count, uint8_t* input, JSContext* ctx) {
   int i;
   uint32_t buf[capture_count * 2];
   memset(buf, 0, sizeof(buf));
