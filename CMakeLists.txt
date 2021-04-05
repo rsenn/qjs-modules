@@ -159,9 +159,12 @@ endfunction()
   install(TARGETS quickjs-${NAME} DESTINATION lib/quickjs PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 endforeach(NAME mmap inspect)]]
 
+link_libraries(efence)
+
 foreach(JS_MODULE ${QUICKJS_MODULES})
   make_shared_module(${JS_MODULE})
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
 target_link_libraries(quickjs-lexer quickjs-predicate)
 add_dependencies(quickjs-lexer quickjs-predicate)
+

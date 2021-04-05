@@ -112,50 +112,22 @@ location_dump(DynBuf* dbuf, const Location* loc) {
 
 static inline uint8_t*
 lexer_peek(Lexer* lex, size_t* lenp) {
-  if(lex->pos < lex->size) {
-    uint8_t* ret = js_input_buffer_peek(&lex->input, lenp);
-    return ret;
-  }
-  return 0;
+  return js_input_buffer_peek(&lex->input, lenp);
 }
 
-static inline int
-lexer_peekc(Lexer* lex) {
-  if(lex->pos < lex->size) {
-    uint32_t c = js_input_buffer_peekc(&lex->input, 0);
-    return c;
-  }
-  return -1;
+static inline uint32_t
+lexer_peekc(Lexer* lex, size_t* lenp) {
+  return js_input_buffer_peekc(&lex->input, lenp);
 }
 
 static inline uint8_t*
 lexer_get(Lexer* lex, size_t* lenp) {
-  uint8_t* ret;
-  uint32_t c;
-  size_t n = 0;
-  if(lenp == 0)
-    lenp = &n;
-  ret = js_input_buffer_peek(lex, lenp);
-  c = js_input_buffer_get(&lex->input);
-  /*  if(c == '\n') {
-      lex->loc.line++;
-      lex->loc.column = 0;
-    } else {
-      lex->loc.column++;
-    }*/
-  return ret;
+  return js_input_buffer_get(&lex->input, lenp);
 }
 
-static inline int
-lexer_getc(Lexer* lex) {
-  uint32_t c = js_input_buffer_get(&lex->input);
-  /*  if(c == '\n') {
-      lex->loc.line++;
-      lex->loc.column = 0;
-    } else {
-      lex->loc.column++;
-    }*/
-  return c;
+static inline uint32_t
+lexer_getc(Lexer* lex, size_t* lenp) {
+  return js_input_buffer_getc(&lex->input, lenp);
 }
 
 static inline void
@@ -183,6 +155,7 @@ static inline size_t
 lexer_remain(Lexer* lex) {
   return js_input_buffer_remain(&lex->input);
 }
+
 static inline size_t
 lexer_eof(Lexer* lex) {
   return js_input_buffer_eof(&lex->input);
@@ -190,15 +163,16 @@ lexer_eof(Lexer* lex) {
 
 static inline void
 lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred) {
-  while(lex->pos < lex->size) {
-    int c = lexer_peekc(lex);
+  while(!lexer_eof(lex)) {
+    size_t len;
+    uint8_t* p = lexer_peek(lex, &len);
 
-    JSValue str = JS_NewStringLen(ctx, (const char*)&c, 1);
+    JSValue str = JS_NewStringLen(ctx, p, len);
 
     if(predicate_eval(pred, ctx, 1, &str) > 0)
       break;
 
-    c = lexer_getc(lex);
+lex->pos += len;
   }
 }
 

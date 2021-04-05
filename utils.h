@@ -409,7 +409,8 @@ static inline void input_buffer_free_default(JSContext* ctx, const char* str){
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
 InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
-uint32_t js_input_buffer_get(InputBuffer* in);
+uint8_t* js_input_buffer_get(InputBuffer* in, size_t* lenp);
+uint32_t js_input_buffer_getc(InputBuffer* in, size_t* lenp);
 uint8_t* js_input_buffer_peek(InputBuffer* in, size_t* lenp);
 uint32_t js_input_buffer_peekc(InputBuffer*, size_t* lenp);
 

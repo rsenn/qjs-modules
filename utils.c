@@ -258,12 +258,25 @@ js_input_buffer_peekc(InputBuffer* in, size_t* lenp) {
   return cp;
 }
 
+uint8_t*
+js_input_buffer_get(InputBuffer* in, size_t* lenp) {
+  size_t n;
+  uint8_t* ret;
+  if(lenp == 0)
+    lenp = &n;
+  ret = js_input_buffer_peek(in, lenp);
+  in->pos += *lenp;
+  return ret;
+}
+
 uint32_t
-js_input_buffer_get(InputBuffer* in) {
-  size_t len;
+js_input_buffer_getc(InputBuffer* in, size_t* lenp) {
+  size_t n;
   uint32_t ret;
-  ret = js_input_buffer_peekc(in, &len);
-  in->pos += len;
+  if(lenp == 0)
+    lenp = &n;
+  ret = js_input_buffer_peekc(in, lenp);
+  in->pos += *lenp;
   return ret;
 }
 

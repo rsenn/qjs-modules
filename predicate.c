@@ -38,7 +38,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
 
       ret = 1;
       while(!js_input_buffer_eof(&input)) {
-        uint32_t codepoint = js_input_buffer_get(&input);
+        uint32_t codepoint = js_input_buffer_get(&input, 0);
         ssize_t idx = vector_find(&pr->charset.chars, sizeof(uint32_t), &codepoint);
         if(idx == -1) {
           ret = 0;
