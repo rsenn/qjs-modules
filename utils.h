@@ -441,6 +441,17 @@ js_input_buffer_remain(InputBuffer* in) {
   return in->size - in->pos;
 }
 
+static inline const char*
+js_tostring(JSContext* ctx, JSValueConst value) {
+  size_t len;
+  const char *cstr, *ret = 0;
+  if((cstr = JS_ToCStringLen(ctx, &len, value))) {
+    ret = js_strndup(ctx, cstr, len);
+    JS_FreeCString(ctx, cstr);
+  }
+  return ret;
+}
+
 JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value);
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
 JSValue js_value_from_char(JSContext* ctx, int c);

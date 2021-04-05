@@ -194,6 +194,10 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       break;
     }
   }
+
+  if(a) JS_FreeCString(ctx, a);
+  if(b) JS_FreeCString(ctx, b);
+
   return ret;
 }
 
@@ -285,6 +289,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   for(i = 0; i < argc; i++) {
     str = JS_ToCStringLen(ctx, &len, argv[i]);
     path_append(str, len, &db);
+    JS_FreeCString(ctx, str);
   }
   if(db.size) {
     ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
@@ -313,6 +318,8 @@ js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   js_object_propertystr_setstr(ctx, ret, "base", base, strlen(base));
   js_object_propertystr_setstr(ctx, ret, "ext", ext, strlen(ext));
   js_object_propertystr_setstr(ctx, ret, "name", base, strlen(base) - strlen(ext));
+
+  JS_FreeCString(ctx, str);
 
   return ret;
 }
@@ -378,6 +385,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       memcpy(db.buf, str, len);
       db.buf[len] = PATHSEP_C;
     }
+    JS_FreeCString(ctx, str);
   }
 
   if(!path_is_absolute((const char*)db.buf, db.size)) {

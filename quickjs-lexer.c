@@ -671,10 +671,8 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   if((lex = js_lexer_data(ctx, ret))) {
     if(argc > 1) {
-      const char* s = JS_ToCString(ctx, argv[1]);
-      lex->loc.file = js_strdup(ctx, s);
-      JS_FreeCString(ctx, s);
-    }
+      lex->loc.file = js_tostring(ctx, argv[1]);
+       }
   }
   return ret;
 }
@@ -844,11 +842,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
     case LEXER_METHOD_ERROR: {
       SyntaxError error;
-      const char* str;
-      size_t len;
-      str = JS_ToCStringLen(ctx, &len, argv[0]);
-      error.message = js_strndup(ctx, str, len);
-      JS_FreeCString(ctx, str);
+      error.message =js_tostring(ctx, argv[0]);
       error.offset = lex->start;
       error.byte_length = lex->pos - lex->start;
       error.loc = location_dup(&lex->loc, ctx);
@@ -945,9 +939,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       const char* s;
       if(lex->loc.file)
         js_free(ctx, lex->loc.file);
-      s = JS_ToCString(ctx, value);
-      lex->loc.file = js_strdup(ctx, s);
-      JS_FreeCString(ctx, s);
+      lex->loc.file = js_tostring(ctx, value);
       break;
     }
 
@@ -1166,10 +1158,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_syntaxerror_class_id, &js_syntaxerror_class);
 
   syntaxerror_proto = JS_NewError(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             syntaxerror_proto,
-                             js_syntaxerror_proto_funcs,
-                             countof(js_syntaxerror_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, syntaxerror_proto, js_syntaxerror_proto_funcs, countof(js_syntaxerror_proto_funcs));
   JS_SetClassProto(ctx, js_syntaxerror_class_id, syntaxerror_proto);
 
   syntaxerror_ctor = JS_NewCFunction2(ctx, js_syntaxerror_constructor, "SyntaxError", 1, JS_CFUNC_constructor, 0);

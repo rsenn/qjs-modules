@@ -409,7 +409,7 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   do {
     JSValue aval, bval;
     JSAtom akey, bkey;
-    const char *astr, *bstr;
+    const char *astr=0, *bstr=0;
     BOOL result = TRUE;
 
     if(!aenum || !benum) {
@@ -423,8 +423,8 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     aval = property_enumeration_value(aenum, ctx);
     bval = property_enumeration_value(benum, ctx);
 
-    astr = JS_ToCString(ctx, aval);
-    bstr = JS_ToCString(ctx, bval);
+/*    astr = JS_ToCString(ctx, aval);
+    bstr = JS_ToCString(ctx, bval);*/
 
     if(JS_IsObject(aval) && JS_IsObject(bval))
       result = TRUE;
