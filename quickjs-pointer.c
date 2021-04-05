@@ -5,7 +5,7 @@
 #include <string.h>
 
 VISIBLE JSClassID js_pointer_class_id = 0;
-JSValue pointer_proto, pointer_constructor, pointer_ctor;
+static JSValue pointer_proto, pointer_constructor, pointer_ctor;
 
 enum pointer_methods {
   METHOD_DEREF = 0,
@@ -222,7 +222,7 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   return ret;
 }
 
-void
+static void
 js_pointer_finalizer(JSRuntime* rt, JSValue val) {
   Pointer* ptr;
 
@@ -237,7 +237,7 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
   // JS_FreeValueRT(rt, val);
 }
 
-JSClassDef js_pointer_class = {
+static JSClassDef js_pointer_class = {
     .class_name = "Pointer",
     .finalizer = js_pointer_finalizer,
 };

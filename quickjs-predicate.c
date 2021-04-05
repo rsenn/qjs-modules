@@ -4,7 +4,7 @@
 #include "predicate.h"
 
 VISIBLE JSClassID js_predicate_class_id = 0;
-JSValue predicate_proto, predicate_constructor, predicate_ctor;
+static JSValue predicate_proto, predicate_constructor, predicate_ctor;
 
 enum { METHOD_EVAL = 0, METHOD_TOSTRING };
 
@@ -292,7 +292,7 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   return ret;
 }
 
-void
+static void
 js_predicate_finalizer(JSRuntime* rt, JSValue val) {
   Predicate* pred;
 
@@ -305,7 +305,7 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
   // JS_FreeValueRT(rt, val);
 }
 
-JSClassDef js_predicate_class = {.class_name = "Predicate", js_predicate_finalizer};
+static JSClassDef js_predicate_class = {.class_name = "Predicate", js_predicate_finalizer};
 
 static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("eval", 1, js_predicate_method, METHOD_EVAL),

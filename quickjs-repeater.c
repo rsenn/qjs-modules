@@ -4,7 +4,7 @@
 #include <string.h>
 
 VISIBLE JSClassID js_repeater_class_id = 0;
-JSValue repeater_proto, repeater_constructor, repeater_ctor;
+static JSValue repeater_proto, repeater_constructor, repeater_ctor;
 
 enum repeater_functions { STATIC_RACE = 0, STATIC_MERGE, STATIC_ZIP };
 enum repeater_getters { PROP_LENGTH = 0, PROP_PATH };
@@ -91,7 +91,7 @@ js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
   return ret;
 }
 
-void
+static void
 js_repeater_finalizer(JSRuntime* rt, JSValue val) {
   Repeater* rpt;
 
@@ -106,7 +106,7 @@ js_repeater_finalizer(JSRuntime* rt, JSValue val) {
   // JS_FreeValueRT(rt, val);
 }
 
-JSClassDef js_repeater_class = {
+static JSClassDef js_repeater_class = {
     .class_name = "Repeater",
     .finalizer = js_repeater_finalizer,
 };

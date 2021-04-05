@@ -7,9 +7,9 @@
 #include <string.h>
 
 VISIBLE JSClassID js_tree_walker_class_id;
-JSValue tree_walker_proto, tree_walker_constructor, tree_walker_ctor;
+static JSValue tree_walker_proto, tree_walker_constructor, tree_walker_ctor;
 VISIBLE JSClassID js_tree_iterator_class_id;
-JSValue tree_iterator_proto, tree_iterator_constructor, tree_iterator_ctor;
+static JSValue tree_iterator_proto, tree_iterator_constructor, tree_iterator_ctor;
 
 enum tree_walker_methods {
   FIRST_CHILD = 0,
@@ -313,7 +313,7 @@ js_tree_walker_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return obj;
 }
 
-void
+static void
 js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
   TreeWalker* w = JS_GetOpaque(val, js_tree_walker_class_id);
   if(w) {
@@ -394,7 +394,7 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return JS_UNDEFINED;
 }
 
-void
+static void
 js_tree_iterator_finalizer(JSRuntime* rt, JSValue val) {
   TreeWalker* w = JS_GetOpaque(val, js_tree_iterator_class_id);
   if(w) {
@@ -409,12 +409,12 @@ js_tree_iterator_finalizer(JSRuntime* rt, JSValue val) {
   // JS_FreeValueRT(rt, val);
 }
 
-JSClassDef js_tree_walker_class = {
+static JSClassDef js_tree_walker_class = {
     .class_name = "TreeWalker",
     .finalizer = js_tree_walker_finalizer,
 };
 
-JSClassDef js_tree_iterator_class = {
+static JSClassDef js_tree_iterator_class = {
     .class_name = "TreeIterator",
     .finalizer = js_tree_iterator_finalizer,
 };

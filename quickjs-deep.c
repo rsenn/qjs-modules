@@ -10,7 +10,7 @@
 #include <stdint.h>
 
 VISIBLE JSClassID js_deep_iterator_class_id = 0;
-JSValue deep_iterator_proto, deep_iterator_constructor, deep_iterator_ctor;
+static JSValue deep_iterator_proto, deep_iterator_constructor, deep_iterator_ctor;
 
 typedef struct DeepIterator {
   JSValue root;
@@ -148,7 +148,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return ret;
 }
 
-void
+static void
 js_deep_iterator_finalizer(JSRuntime* rt, JSValue val) {
   DeepIterator* it = JS_GetOpaque(val, js_deep_iterator_class_id);
   if(it) {
@@ -458,7 +458,7 @@ js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   return js_value_clone(ctx, argv[0]);
 }
 
-JSClassDef js_deep_iterator_class = {
+static JSClassDef js_deep_iterator_class = {
     .class_name = "DeepIterator",
     .finalizer = js_deep_iterator_finalizer,
 };

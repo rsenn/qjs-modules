@@ -49,12 +49,10 @@ typedef union Lexer {
     size_t start;
     Location loc;
     vector charlengths;
-    /*size_t nkeywords;
-    char** keywords;*/
     JSValue state_fn;
-    size_t ref_count;
+    ssize_t ref_count;
     struct list_head tokens;
-   };
+  };
 } Lexer;
 
 typedef struct {
@@ -66,15 +64,16 @@ typedef struct {
   enum token_types id;
   Location loc;
   Lexer* lexer;
+  ssize_t ref_count;
 } Token;
 
-extern JSClassID js_syntax_error_class_id, js_token_class_id, js_lexer_class_id;
+extern JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;
 
-JSValue js_syntax_error_new(JSContext*, SyntaxError arg);
+JSValue js_syntaxerror_new(JSContext*, SyntaxError arg);
 
 static inline Token*
-js_syntax_error_data(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_syntax_error_class_id);
+js_syntaxerror_data(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_syntaxerror_class_id);
 }
 
 static inline Token*
@@ -89,6 +88,7 @@ js_lexer_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_lexer_class_id);
 }
 
-JSValue js_lexer_wrap(JSContext*, Lexer*);
+JSValue js_lexer_new(JSContext* ctx, JSValue proto, JSValue value);
+JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);
 
 #endif /* defined(QUICKJS_LEXER_H) */
