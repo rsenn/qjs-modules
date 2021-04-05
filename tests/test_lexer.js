@@ -50,8 +50,9 @@ function main(...args) {
   const isOctalDigit = c => /^[0-7]$/.test(c);
   const isIdentifierChar = c => /^[A-Za-z_]$/.test(c);
   const isQuoteChar = c => /^['"`]$/.test(c);
-const isKeyword = word => /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|stat
-ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
+  const isKeyword = word =>
+    /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word
+    );
 
   function lexText() {
     do {
@@ -63,7 +64,6 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
         this.skip(2);
         return this.lexMultiLineComment;
       }
-
       const c = this.getc();
       if(c === null) {
         return null;
@@ -73,7 +73,6 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
         this.backup();
         return this.lexQuote;
       } else if(c == '`') {
-        // this.backup();
         return this.lexTemplate;
       } else if(/^[0-9]$/.test(c) || (c === '.' && /^[0-9]$/.test(this.peek()))) {
         this.backup();
@@ -123,59 +122,51 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
       }
     }
     const c = this.peek();
-    /*
-     * l = BigFloat
-     * m = BigDecimal
-     * n = BigInt
-     */
+    /* l = BigFloat, m = BigDecimal, n = BigInt */
     if(/^[lmn]/.test(c)) this.skip();
     else if(isIdentifierChar(c) || isQuoteChar(c) || /^[.eE]$/.test(c))
       throw this.error(`Invalid number (3): ${this.getRange(this.start, this.pos + 1)}`);
-
     this.addToken(Token.NUMERIC_LITERAL);
     return this.lexText;
   }
 
   function lexRegExp() {
-    let i = 0;
-    let word = '',
-      prev = '';
-    let slashes = 1;
-    let bracket = false;
-    let validator = c => {
-      i++;
-      if(c == '[' && prev != '\\') if (!bracket) bracket = true;
-      if(c == ']' && prev != '\\') if (bracket) bracket = false;
-      if(((i == 1 && /^\s$/.test(c)) || c == '\n') && prev != '\\') {
-        return false;
-      } else if(slashes == 1 && c == ' ' && prev == '/') {
-        return false;
-      } else if(c == '/' && prev != '\\' && !bracket) {
-        slashes++;
-      } else if(c == 'n' && prev == '\\') {
-        word += '\n';
+    let i = 0,
+      word = '',
+      prev = '',
+      slashes = 1,
+      bracket = false,
+      validator = c => {
+        i++;
+        if(c == '[' && prev != '\\') if (!bracket) bracket = true;
+        if(c == ']' && prev != '\\') if (bracket) bracket = false;
+        if(((i == 1 && /^\s$/.test(c)) || c == '\n') && prev != '\\') {
+          return false;
+        } else if(slashes == 1 && c == ' ' && prev == '/') {
+          return false;
+        } else if(c == '/' && prev != '\\' && !bracket) {
+          slashes++;
+        } else if(c == 'n' && prev == '\\') {
+          word += '\n';
+          prev = c;
+          return true;
+        } else if(prev == '\\') {
+          word += c;
+          prev = undefined;
+          return true;
+        } else if(slashes == 2 && ' \t'.indexOf(c) != -1) {
+          return true;
+        } else if(slashes == 2 && 'gimsuy'.indexOf(c) != -1) {
+        } else if(slashes == 2) {
+          if(/^[_0-9A-Za-z]/.test(c)) slashes = 1;
+          return false;
+        } else if(c == '\\') {
+        }
+        word += c;
         prev = c;
         return true;
-      } else if(prev == '\\') {
-        word += c;
-        prev = undefined;
-        return true;
-      } else if(slashes == 2 && ' \t'.indexOf(c) != -1) {
-        return true;
-      } else if(slashes == 2 && 'gimsuy'.indexOf(c) != -1) {
-      } else if(slashes == 2) {
-        if(/^[_0-9A-Za-z]/.test(c)) slashes = 1;
-        return false;
-      } else if(c == '\\') {
-      }
-      word += c;
-      prev = c;
-      return true;
-    };
-    const print = () => {
-      word = this.getRange(this.start, this.pos);
-    };
-
+      };
+    const print = () => (word = this.getRange(this.start, this.pos));
     if(this.acceptRun(validator) && slashes == 2) {
       print();
       this.addToken(Token.REGEXP_LITERAL);
@@ -228,10 +219,9 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
       };
       return self;
     };
-    let prevChar = this.peek();
-    let c;
-    let startToken = this.tokenIndex;
-    console.log('lexTemplate', { cont, prevChar, c });
+    let c,
+      prevChar = this.peek(),
+      startToken = this.tokenIndex;
     function template() {
       let escapeEncountered = false;
       let n = 0;
@@ -244,34 +234,15 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
           escapeEncountered = false;
         prevChar = c;
         c = this.getc();
-        // console.log("lexTemplate", {c,escapeEncountered ,prevChar   }, this.pos,this.start);
-
         ++n;
         if(c === null) {
           throw this.error(`Illegal template token (${n})  '${this.source[this.start]}'`);
         } else if(!escapeEncountered) {
           if(c == '{' && prevChar == '$') {
             this.backup(2);
-            console.log('lexTemplate', this.getRange(), 'subst', ` pos=${this.pos}`);
             this.addToken(Token.TEMPLATE_LITERAL);
-            console.log('lexTemplate',
-              this.getRange(this.start, this.pos + 10),
-              'subst(2)',
-              ` start=${this.start}, pos=${this.pos}`
-            );
             this.pos = this.start + 2; //(2);
-            console.log('lexTemplate',
-              this.getRange(this.start, this.pos + 10),
-              'subst(3)',
-              ` start=${this.start}, pos=${this.pos}`
-            );
             this.ignore();
-            console.log('lexTemplate',
-              this.getRange(),
-              'subst(4)',
-              ` start=${this.start}, pos=${this.pos}`
-            );
-
             this.inSubst = (this.inSubst || 0) + 1;
             return done(this.inSubst, this.lexTemplate);
           } else if((cont || !this.inSubst) && c === '`') {
@@ -290,7 +261,6 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
   }
 
   function lexIdentifier() {
-    //console.log('lexIdentifier(1)', DumpLexer(this));
     this.acceptRun(c => /^[A-Za-z0-9_]$/.test(c));
     const firstChar = this.getRange(this.start, this.start + 1);
     if(/^[0-9]$/.test(firstChar)) throw this.error(`Invalid IDENTIFIER\n`);
@@ -302,26 +272,19 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
     }
     if(/^['"]$/.test(c)) throw this.error(`Invalid IDENTIFIER`);
     const word = this.getRange(this.start, this.pos);
-    //console.log(`word '${word}'`);
     if(word === 'true' || word === 'false') this.addToken(Token.BOOLEAN_LITERAL);
     else if(word === 'null') this.addToken(Token.NULL_LITERAL);
-   else if(isKeyword(word)) this.addToken(Token.KEYWORD);
-    else {
-      this.addToken(Token.IDENTIFIER);
-    }
-
+    else if(isKeyword(word)) this.addToken(Token.KEYWORD);
+    else this.addToken(Token.IDENTIFIER);
     return this.lexText;
   }
 
-  lexer.lexText = lexText;
-  lexer.lexQuote = function lexQuote() {
+  function lexQuote() {
     let quoteChar = this.getc();
-
     if(quoteChar === '`') {
       const { inSubst } = this;
       return this.lexTemplate(inSubst);
     }
-
     let prevChar = '';
     let c = '';
     let escapeEncountered = false;
@@ -331,18 +294,14 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
         )
       )
         escapeEncountered = false;
-
-
       prevChar = c;
       c = this.getc();
-
       if(c === null) {
         throw this.error(`Illegal token(1)`);
       } else if(!escapeEncountered) {
         if(c == '\n' && quoteChar !== '`') {
           throw this.error(`Illegal token(2) c=0x${c.codePointAt(0).toString(16)} quoteChar=${quoteChar} `
           );
-          break;
         } else if(c === quoteChar) {
           this.addToken(Token.STRING_LITERAL);
           return this.lexText;
@@ -353,8 +312,10 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
         escapeEncountered = false;
       }
     } while(!this.eof);
-  };
+  }
 
+  lexer.lexText = lexText;
+  lexer.lexQuote = lexQuote;
   lexer.lexNumber = lexNumber;
   lexer.lexRegExp = lexRegExp;
   lexer.lexPunctuator = lexPunctuator;
@@ -372,8 +333,8 @@ ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
   let data;
 
   for(let data of lexer) {
-//        console.log(`data `, data);
-    console.log(`data `, data );
+    //        console.log(`data `, data);
+    console.log(`data `, data);
 
     if(data == null) {
       console.log('Exception:', lexer.exception);
