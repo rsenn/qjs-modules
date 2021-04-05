@@ -12,11 +12,14 @@ enum predicate_id {
   PREDICATE_NOT,
   PREDICATE_OR,
   PREDICATE_AND,
-  PREDICATE_XOR
+  PREDICATE_XOR,
+  PREDICATE_REGEXP,
+  PREDICATE_INSTANCEOF,
+  PREDICATE_PROTOTYPE
 };
 
 typedef struct {
-  int32_t flags;
+  int flags;
 } TypePredicate;
 
 typedef struct {
@@ -25,12 +28,23 @@ typedef struct {
 } CharsetPredicate;
 
 typedef struct {
-  JSValueConst fn;
+  JSValueConst value;
 } UnaryPredicate;
 
 typedef struct {
   JSValueConst a, b;
 } BinaryPredicate;
+
+typedef struct {
+  size_t nvalues;
+  JSValueConst* values;
+} BooleanPredicate;
+
+typedef struct {
+  uint8_t* bytecode;
+  int len;
+  char* expr;
+} RegExpPredicate;
 
 typedef struct Predicate {
   enum predicate_id id;
@@ -39,6 +53,8 @@ typedef struct Predicate {
     CharsetPredicate charset;
     UnaryPredicate unary;
     BinaryPredicate binary;
+    BooleanPredicate boolean;
+    RegExpPredicate regexp;
   };
 } Predicate;
 
@@ -49,8 +65,12 @@ typedef struct Predicate {
     }                                                                                                                  \
   }
 
-int32_t predicate_eval(const Predicate*, JSContext*, int argc, JSValueConst* argv);
+int predicate_eval(const Predicate*, JSContext*, int argc, JSValueConst* argv);
+int predicate_call(JSContext* ctx, JSValue value, int argc, JSValue* argv);
 void predicate_tostring(const Predicate*, JSContext*, DynBuf*);
+int predicate_regexp_str2flags(const char* s);
+int predicate_regexp_flags2str(int flags, char* out);
+JSValue predicate_regexp_capture(uint8_t* capture[], int capture_count, uint8_t* input, JSContext* ctx);
 
 #define predicate_undefined() predicate_type(TYPE_UNDEFINED)
 #define predicate_null() predicate_type(TYPE_NULL)
@@ -70,24 +90,50 @@ void predicate_tostring(const Predicate*, JSContext*, DynBuf*);
 #define predicate_array() predicate_type(TYPE_ARRAY)
 
 static inline Predicate
-predicate_type(int32_t type) {
+predicate_type(int type) {
   Predicate ret = PREDICATE_INIT(PREDICATE_TYPE);
   ret.type.flags = type;
   return ret;
 }
+
 static inline Predicate
-predicate_or(JSValueConst a, JSValueConst b) {
-  Predicate ret = PREDICATE_INIT(PREDICATE_OR);
-  ret.binary.a = a;
-  ret.binary.b = b;
+predicate_înstanceof(JSValue ctor) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_INSTANCEOF);
+  ret.unary.value = ctor;
   return ret;
 }
 
 static inline Predicate
-predicate_and(JSValueConst a, JSValueConst b) {
+predicate_prototype(JSValue proto) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_PROTOTYPE);
+  ret.unary.value = proto;
+  return ret;
+}
+
+static inline Predicate
+predicate_or(size_t nvalues, JSValue* values) {
+  size_t i;
+  Predicate ret = PREDICATE_INIT(PREDICATE_OR);
+  ret.boolean.nvalues = nvalues;
+  ret.boolean.values = values;
+  return ret;
+}
+
+static inline Predicate
+predicate_and(size_t nvalues, JSValue* values) {
+  size_t i;
   Predicate ret = PREDICATE_INIT(PREDICATE_AND);
-  ret.binary.a = a;
-  ret.binary.b = b;
+  ret.boolean.nvalues = nvalues;
+  ret.boolean.values = values;
+  return ret;
+}
+
+static inline Predicate
+predicate_xor(size_t nvalues, JSValue* values) {
+  size_t i;
+  Predicate ret = PREDICATE_INIT(PREDICATE_XOR);
+  ret.boolean.nvalues = nvalues;
+  ret.boolean.values = values;
   return ret;
 }
 
@@ -100,25 +146,26 @@ predicate_charset(const char* str, size_t len) {
 }
 
 static inline Predicate
-predicate_notnot(JSValueConst fn) {
+predicate_notnot(JSValue value) {
   Predicate ret = PREDICATE_INIT(PREDICATE_NOTNOT);
-  ret.unary.fn = fn;
+  ret.unary.value = value;
   return ret;
 }
 
 static inline Predicate
-predicate_not(JSValueConst fn) {
+predicate_not(JSValue value) {
   Predicate ret = PREDICATE_INIT(PREDICATE_NOT);
-  ret.unary.fn = fn;
+  ret.unary.value = value;
   return ret;
 }
 
-static inline Predicate
-predicate_xor(JSValueConst a, JSValueConst b) {
-  Predicate ret = PREDICATE_INIT(PREDICATE_XOR);
-  ret.binary.a = a;
-  ret.binary.b = b;
-  return ret;
+void predicate_free_rt(Predicate* pred, JSRuntime* rt);
+
+static inline void
+predicate_free(Predicate* pred, JSContext* ctx) {
+  predicate_free_rt(pred, JS_GetRuntime(ctx));
 }
+
+Predicate predicate_regexp(const char* regexp, int flags, void* opaque);
 
 #endif /* defined(PREDICATE_H) */

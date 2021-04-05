@@ -27,7 +27,7 @@ function main(...args) {
     depth: 4,
     maxArrayLength: 100,
     maxStringLength: 100,
-    compact: false
+    compact: 1
   });
   let str = std.loadFile(args[0] ?? scriptArgs[0], 'utf-8');
   let len = str.length;
@@ -46,6 +46,10 @@ function main(...args) {
   let isNotLower = Predicate.not(isLower);
   let isAlpha = Predicate.or(isLower, isUpper);
   let isAlnum = Predicate.or(isAlpha, isDigit);
+  let isIdentifier = Predicate.regexp('^([A-Za-z_]+)([A-Za-z0-9_]*)$', 'g');
+  let isNumber = Predicate.regexp('^([-+]?)([0-9]*).([0-9]+)$', 'g');
+  console.log(`isIdentifier.toString()`, isIdentifier.toString());
+  console.log(`isNumber.toString()`, isNumber.toString());
 
   let predicates = [isUpper, isLower, isNL, isNotNL, isNotUpper, isNotLower];
 
@@ -66,6 +70,47 @@ function main(...args) {
 
   for(let ch of ['_', '2', 'A', 'a', '?', '-'])
     console.log(`isAlnum.eval('${ch}') =`, isAlnum.eval(ch));
+
+  for(let str of ['_ABC3', '1ABC', '_1ABC', 'A1B2C3'])
+    console.log(`isIdentifier.eval('${str}') =`,
+      isIdentifier.eval(str, captures => {
+        captures = new Uint32Array(captures);
+        console.log('captures:', captures);
+      })
+    );
+
+  for(let str of ['_ABC3', '1ABC', '_1ABC', 'A1B2C3']) {
+    let a = [];
+    console.log(`isIdentifier.eval('${str}') =`, isIdentifier.eval(str, a));
+    console.log('a:', a);
+  }
+
+  for(let str of ['-120', '.0707', '+3.141592', '10000.00', '0.12345e08']) {
+    let a = [];
+    console.log(`isNumber.eval('${str}') =`, isNumber.eval(str, a));
+    console.log('a:', a);
+  }
+
+  let combined = Predicate.or(isIdentifier, isNumber, isNL, isUpper);
+  console.log('combined:', combined.toString());
+  let s = '1abc';
+  for(let pred of [isIdentifier, isNumber, isNL, isUpper]) {
+    console.log(`pred.eval('${s}') =`, pred.eval(s));
+  }
+
+  for(let str of ['-120', '0.12345e08', 'ABC', '1abc']) {
+    let a = [];
+    console.log(`combined.eval('${str}') =`, combined.eval(str, a));
+    //  console.log("a:", a);
+  }
+    console.log(`combined.values =`, combined.values);
+    console.log(`combined.values =`, combined.values.map(v => v.toString()));
+let re = /^([-+]?)([0-9]*).([0-9]+)$/g;
+    console.log(`re =`, re);
+    console.log(`re =`, re+'');
+    console.log(`re =`, re.toString());
+    console.log(`re =`, Object.prototype.toString.call(re));
+
 
   std.gc();
 }

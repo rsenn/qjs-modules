@@ -439,7 +439,7 @@ dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color
     dbuf_putstr(db, COLOR_NONE);
 }
 
-static int
+static inline int
 dbuf_reserve_start(DynBuf* s, size_t len) {
   if(unlikely((s->size + len) > s->allocated_size)) {
     if(dbuf_realloc(s, s->size + len))
@@ -675,6 +675,36 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
+static inline JSValue*
+js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values) {
+  JSValue* ret = js_mallocz(ctx, sizeof(JSValue) * nvalues);
+  int i;
+  for(i = 0; i < nvalues; i++) ret[i] = JS_DupValue(ctx, values[i]);
+  return ret;
+}
+
+static inline void
+js_values_free(JSContext* ctx, int nvalues, JSValueConst* values) {
+  int i;
+  for(i = 0; i < nvalues; i++) JS_FreeValue(ctx, values[i]);
+  js_free(ctx, values);
+}
+
+static inline void
+js_values_free_rt(JSRuntime* rt, int nvalues, JSValueConst* values) {
+  int i;
+  for(i = 0; i < nvalues; i++) JS_FreeValueRT(rt, values[i]);
+  js_free_rt(rt, values);
+}
+
+static inline JSValue
+js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
+  int i;
+  JSValue ret = JS_NewArray(ctx);
+  for(i = 0; i < nvalues; i++) JS_SetPropertyUint32(ctx, ret, i, JS_DupValue(ctx, values[i]));
+  return ret;
+}
+
 typedef struct {
   const uint8_t* x;
   size_t n;
@@ -682,7 +712,7 @@ typedef struct {
   void (*free)(JSContext*, const char*);
 } InputBuffer;
 
-static void input_buffer_free_default(JSContext* ctx, const char* str){
+static inline void input_buffer_free_default(JSContext* ctx, const char* str){
 
 };
 
@@ -733,6 +763,7 @@ js_value_from_char(JSContext* ctx, int c) {
 
 #define js_value_free(ctx, value)                                                                                      \
   do {                                                                                                                 \
+                                                                                                                       \
     JS_FreeValue((ctx), (value));                                                                                      \
     (value) = JS_UNDEFINED;                                                                                            \
   } while(0);
@@ -979,7 +1010,7 @@ js_atom_tocstringlen(JSContext* ctx, size_t* len, JSAtom atom) {
   return s;
 }
 
-static void
+static inline void
 js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
   const char* str;
   BOOL is_int;
@@ -1069,7 +1100,7 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   return name;
 }
 
-static int
+static inline int
 js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
   int ret;
   const char* str;
@@ -1079,22 +1110,27 @@ js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
   return ret;
 }
 
-static int
+static inline int
 js_object_is_map(JSContext* ctx, JSValueConst value) {
   return js_object_is(ctx, value, "[object Map]");
 }
 
-static int
+static inline int
 js_object_is_set(JSContext* ctx, JSValueConst value) {
   return js_object_is(ctx, value, "[object Set]");
 }
 
-static int
+static inline int
 js_object_is_generator(JSContext* ctx, JSValueConst value) {
   return js_object_is(ctx, value, "[object Generator]");
 }
 
-static int
+static inline int
+js_object_is_regexp(JSContext* ctx, JSValueConst value) {
+  return js_object_is(ctx, value, "[object RegExp]");
+}
+
+static inline int
 js_object_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   int ret = 0;
   int n, m;
@@ -1154,7 +1190,7 @@ js_propenum_cmp(const void* a, const void* b, void* ptr) {
   return ret;
 }
 
-static BOOL
+static inline BOOL
 js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   BOOL ret = FALSE;
 

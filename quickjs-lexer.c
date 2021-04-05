@@ -1,6 +1,7 @@
 #define _GNU_SOURCE
 
 #include "quickjs.h"
+#include "libregexp.h"
 #include "quickjs-lexer.h"
 #include "vector.h"
 #include <string.h>

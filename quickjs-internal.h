@@ -1,8 +1,10 @@
 #ifndef QJS_MODULES_INTERNAL_H
 #define QJS_MODULES_INTERNAL_H
 
-#include <libbf.h>
-#include <quickjs.h>
+#include "../list.h"
+#include "../cutils.h"
+#include "../libbf.h"
+#include "../quickjs.h"
 
 #ifdef HAVE_QUICKJS_CONFIG_H
 #include <quickjs-config.h>
@@ -36,6 +38,7 @@ struct JSString {
   } u;
 };
 
+typedef struct JSString JSString;
 typedef struct JSString JSAtomStruct;
 typedef struct JSShape JSShape;
 

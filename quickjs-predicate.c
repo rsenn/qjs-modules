@@ -8,7 +8,7 @@ JSValue predicate_proto, predicate_constructor, predicate_ctor;
 
 enum { METHOD_EVAL = 0, METHOD_TOSTRING };
 
-enum { PROP_ID = 0 };
+enum { PROP_ID = 0, PROP_VALUES };
 
 JSValue
 js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
@@ -43,29 +43,6 @@ js_predicate_wrap(JSContext* ctx, Predicate pred) {
   return obj;
 }
 
-int32_t
-js_predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv) {
-  Predicate* pred;
-
-  if((pred = JS_GetOpaque2(ctx, value, js_predicate_class_id)))
-    return predicate_eval(pred, ctx, argc, argv);
-
-  if(JS_IsFunction(ctx, value)) {
-    int32_t result = 0;
-    JSValue ret;
-    ret = JS_Call(ctx, value, JS_UNDEFINED, argc, argv);
-    if(JS_IsException(ret)) {
-      result = -1;
-    } else {
-      result = JS_ToBool(ctx, ret);
-      JS_FreeValue(ctx, ret);
-    }
-    return result;
-  }
-  assert(0);
-  return -1;
-}
-
 static JSValue
 js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   Predicate* pred;
@@ -86,15 +63,30 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
   JS_SetOpaque(obj, pred);
 
-  if(argc > 0) {
+  if(argc > 0 && js_object_is_regexp(ctx, argv[0])) {
+
+    const char* regexp = JS_ToCString(ctx, argv[0]);
+    printf("regexp: %s\n", regexp);
+
+    JS_FreeCString(ctx, regexp);
+
+  } else if(argc > 0 && JS_IsNumber(argv[0])) {
     int32_t id;
     JS_ToInt32(ctx, &id, argv[0]);
 
     switch(id) {
       case PREDICATE_TYPE: {
         id = -1;
-        JS_ToInt32(ctx, &id, argv[0]);
+        JS_ToInt32(ctx, &id, argv[1]);
         *pred = predicate_type(id);
+        break;
+      }
+      case PREDICATE_INSTANCEOF: {
+        *pred = predicate_înstanceof(JS_DupValue(ctx, argv[1]));
+        break;
+      }
+      case PREDICATE_PROTOTYPE: {
+        *pred = predicate_prototype(JS_DupValue(ctx, argv[1]));
         break;
       }
       case PREDICATE_CHARSET: {
@@ -109,23 +101,32 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         break;
       }
       case PREDICATE_NOTNOT: {
-        *pred = predicate_notnot(argv[1]);
+        *pred = predicate_notnot(JS_DupValue(ctx, argv[1]));
         break;
       }
       case PREDICATE_NOT: {
-        *pred = predicate_not(argv[1]);
-        break;
-      }
-      case PREDICATE_AND: {
-        *pred = predicate_and(argv[1], argv[2]);
+        *pred = predicate_not(JS_DupValue(ctx, argv[1]));
         break;
       }
       case PREDICATE_OR: {
-        *pred = predicate_or(argv[1], argv[2]);
+        *pred = predicate_or(argc, js_values_dup(ctx, argc, argv));
+        break;
+      }
+      case PREDICATE_AND: {
+        *pred = predicate_and(argc, js_values_dup(ctx, argc, argv));
         break;
       }
       case PREDICATE_XOR: {
-        *pred = predicate_xor(argv[1], argv[2]);
+        *pred = predicate_xor(argc, js_values_dup(ctx, argc, argv));
+        break;
+      }
+      case PREDICATE_REGEXP: {
+        const char* expr = JS_ToCString(ctx, argv[1]);
+        const char* flagstr = argv > 1 ? JS_ToCString(ctx, argv[2]) : 0;
+        *pred = predicate_regexp(expr, flagstr ? predicate_regexp_str2flags(flagstr) : 0, ctx);
+        JS_FreeCString(ctx, expr);
+        if(flagstr)
+          JS_FreeCString(ctx, flagstr);
         break;
       }
     }
@@ -182,7 +183,28 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PROP_ID: ret = JS_NewInt32(ctx, pred->id); break;
+    case PROP_ID: {
+      ret = JS_NewInt32(ctx, pred->id);
+      break;
+    }
+    case PROP_VALUES: {
+
+      switch(pred->id) {
+        case PREDICATE_NOT:
+        case PREDICATE_NOTNOT: {
+          ret = js_values_toarray(ctx, 1, &pred->unary.value);
+          break;
+        }
+
+        case PREDICATE_OR:
+        case PREDICATE_AND:
+        case PREDICATE_XOR: {
+          ret = js_values_toarray(ctx, pred->boolean.nvalues, pred->boolean.values);
+          break;
+        }
+      }
+      break;
+    }
   }
   return ret;
 }
@@ -198,6 +220,14 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = js_predicate_wrap(ctx, predicate_type(type));
       break;
     }
+    case PREDICATE_INSTANCEOF: {
+      ret = js_predicate_wrap(ctx, predicate_înstanceof(JS_DupValue(ctx, argv[0])));
+      break;
+    }
+    case PREDICATE_PROTOTYPE: {
+      ret = js_predicate_wrap(ctx, predicate_prototype(JS_DupValue(ctx, argv[0])));
+      break;
+    }
     case PREDICATE_CHARSET: {
       const char* str;
       size_t size;
@@ -207,23 +237,33 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
     case PREDICATE_NOTNOT: {
-      ret = js_predicate_wrap(ctx, predicate_notnot(argv[0]));
+      ret = js_predicate_wrap(ctx, predicate_notnot(JS_DupValue(ctx, argv[0])));
       break;
     }
     case PREDICATE_NOT: {
-      ret = js_predicate_wrap(ctx, predicate_not(argv[0]));
+      ret = js_predicate_wrap(ctx, predicate_not(JS_DupValue(ctx, argv[0])));
       break;
     }
     case PREDICATE_OR: {
-      ret = js_predicate_wrap(ctx, predicate_or(argv[0], argv[1]));
+      ret = js_predicate_wrap(ctx, predicate_or(argc, js_values_dup(ctx, argc, argv)));
       break;
     }
     case PREDICATE_AND: {
-      ret = js_predicate_wrap(ctx, predicate_and(argv[0], argv[1]));
+      ret = js_predicate_wrap(ctx, predicate_and(argc, js_values_dup(ctx, argc, argv)));
       break;
     }
     case PREDICATE_XOR: {
-      ret = js_predicate_wrap(ctx, predicate_xor(argv[0], argv[1]));
+      ret = js_predicate_wrap(ctx, predicate_xor(argc, js_values_dup(ctx, argc, argv)));
+      break;
+    }
+    case PREDICATE_REGEXP: {
+      const char* expr = JS_ToCString(ctx, argv[0]);
+      const char* flagstr = argv > 1 ? JS_ToCString(ctx, argv[1]) : 0;
+
+      ret = js_predicate_wrap(ctx, predicate_regexp(expr, flagstr ? predicate_regexp_str2flags(flagstr) : 0, ctx));
+      JS_FreeCString(ctx, expr);
+      if(flagstr)
+        JS_FreeCString(ctx, flagstr);
       break;
     }
   }
@@ -236,8 +276,7 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
 
   if((pred = JS_GetOpaque(val, js_predicate_class_id))) {
 
-    if(pred->id == PREDICATE_CHARSET)
-      js_free_rt(rt, (void*)pred->charset.set);
+    predicate_free_rt(pred, rt);
 
     js_free_rt(rt, pred);
   }
@@ -251,6 +290,7 @@ static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_DEF("toString", 0, js_predicate_tostring),
     JS_ALIAS_DEF("call", "eval"),
     JS_CGETSET_MAGIC_DEF("id", js_predicate_get, 0, PROP_ID),
+    JS_CGETSET_MAGIC_DEF("values", js_predicate_get, 0, PROP_VALUES),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E)};
 
 static const JSCFunctionListEntry js_predicate_static_funcs[] = {
@@ -260,13 +300,19 @@ static const JSCFunctionListEntry js_predicate_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("or", 2, js_predicate_funcs, PREDICATE_OR),
     JS_CFUNC_MAGIC_DEF("and", 2, js_predicate_funcs, PREDICATE_AND),
     JS_CFUNC_MAGIC_DEF("xor", 2, js_predicate_funcs, PREDICATE_XOR),
+    JS_CFUNC_MAGIC_DEF("regexp", 1, js_predicate_funcs, PREDICATE_REGEXP),
+    JS_CFUNC_MAGIC_DEF("instanceOf", 1, js_predicate_funcs, PREDICATE_INSTANCEOF),
+    JS_CFUNC_MAGIC_DEF("prototypeIs", 1, js_predicate_funcs, PREDICATE_PROTOTYPE),
     JS_PROP_INT32_DEF("PREDICATE_TYPE", PREDICATE_TYPE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_CHARSET", PREDICATE_CHARSET, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_NOTNOT", PREDICATE_NOTNOT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_NOT", PREDICATE_NOT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_OR", PREDICATE_OR, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_AND", PREDICATE_AND, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("PREDICATE_XOR", PREDICATE_XOR, JS_PROP_ENUMERABLE)};
+    JS_PROP_INT32_DEF("PREDICATE_XOR", PREDICATE_XOR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_REGEXP", PREDICATE_REGEXP, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_INSTANCEOF", PREDICATE_INSTANCEOF, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_PROTOTYPE", PREDICATE_PROTOTYPE, JS_PROP_ENUMERABLE)};
 
 static int
 js_predicate_init(JSContext* ctx, JSModuleDef* m) {

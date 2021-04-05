@@ -225,7 +225,7 @@ path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* ou
 
   if(out->size == 0)
     dbuf_putc(out, '.');
-  else if(out->buf[out->size-1] == PATHSEP_C)
+  else if(out->buf[out->size - 1] == PATHSEP_C)
     out->size--;
 
   dbuf_0(out);

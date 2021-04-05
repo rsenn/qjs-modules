@@ -68,7 +68,7 @@ function main(...args) {
     let it = new TreeIterator(result, TreeIterator.MASK_OBJECT | TreeIterator.RETURN_TUPLE);
 
     for(let entry of it) {
-      console.log('entry:',entry);
+      console.log('entry:', entry);
     }
   }
   console.log(result.slice(2));

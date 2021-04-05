@@ -69,12 +69,11 @@ async function main(...args) {
   CallPathFunction('resolve', '..');
   CallPathFunction('resolve', '/etc', 'fonts', 'fonts.conf');
 
-
   CallPathFunction('getcwd');
   let cwd = path.getcwd();
   console.log(`cwd = ${cwd}`);
   CallPathFunction('relative', '/home/roman/Projects/plot-cv/quickjs', cwd);
-  CallPathFunction('relative', '/home/roman/Projects/editline' , cwd );
+  CallPathFunction('relative', '/home/roman/Projects/editline', cwd);
 
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));
