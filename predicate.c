@@ -91,21 +91,16 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
     }
 
     case PREDICATE_REGEXP: {
-      const size_t CAPTURE_COUNT_MAX = 255;
       InputBuffer input = js_input_buffer(ctx, argv[0]);
       uint8_t* capture[CAPTURE_COUNT_MAX * 2];
+      int capture_count = 0;
 
-      if(pr->regexp.bytecode == 0) {
-        char error_msg[64];
-        int len = 0;
-        pr->regexp.bytecode =
-            lre_compile(&len, error_msg, sizeof(error_msg), pr->regexp.expr, pr->regexp.exprlen, pr->regexp.flags, ctx);
-      }
+      if(pr->regexp.bytecode == 0)
+        capture_count = predicate_regexp_compile(pr, ctx);
 
       ret = lre_exec(capture, pr->regexp.bytecode, (uint8_t*)input.data, 0, input.size, 0, ctx);
 
       if(ret && argc > 1) {
-        int capture_count = lre_get_capture_count(pr->regexp.bytecode);
 
         if(JS_IsFunction(ctx, argv[1])) {
           JSValue args[] = {predicate_regexp_capture(capture, capture_count, input.data, ctx), argv[0]};
@@ -408,4 +403,67 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
     }
   }
   return ret;
+}
+
+Predicate*
+predicate_dup(const Predicate* pred, JSContext* ctx) {
+  Predicate* ret = js_mallocz(ctx, sizeof(Predicate));
+
+  ret->id = pred->id;
+
+  switch(pred->id) {
+    case PREDICATE_TYPE: {
+      ret->type.flags = pred->type.flags;
+      break;
+    }
+
+    case PREDICATE_CHARSET: {
+      ret->charset.len = pred->charset.len;
+      ret->charset.set = js_strndup(ctx, pred->charset.set, pred->charset.len);
+      vector_copy(&ret->charset.chars, &pred->charset.chars);
+      break;
+    }
+
+    case PREDICATE_EQUAL:
+    case PREDICATE_INSTANCEOF:
+    case PREDICATE_PROTOTYPEIS:
+    case PREDICATE_NOTNOT:
+    case PREDICATE_NOT: {
+      ret->unary.predicate = JS_DupValue(ctx, pred->unary.predicate);
+      break;
+    }
+
+    case PREDICATE_OR:
+    case PREDICATE_AND:
+    case PREDICATE_XOR: {
+      ret->boolean.npredicates = ctx, pred->boolean.npredicates;
+      ret->boolean.predicates = js_values_dup(ctx, pred->boolean.npredicates, pred->boolean.predicates);
+      break;
+    }
+
+    case PREDICATE_REGEXP: {
+      ret->regexp.expr = js_strndup(ctx, pred->regexp.expr, pred->regexp.exprlen);
+      ret->regexp.exprlen = pred->regexp.exprlen;
+      ret->regexp.flags = pred->regexp.flags;
+      ret->regexp.bytecode = 0;
+      break;
+    }
+  }
+
+  return ret;
+}
+
+int
+predicate_regexp_compile(Predicate* pred, JSContext* ctx) {
+  char error_msg[64];
+  int len = 0;
+
+  assert(pred->id == PREDICATE_REGEXP);
+  assert(pred->bytecode == 0);
+
+  if((pred->regexp.bytecode = lre_compile(
+          &len, error_msg, sizeof(error_msg), pred->regexp.expr, pred->regexp.exprlen, pred->regexp.flags, ctx)))
+    return lre_get_capture_count(pred->regexp.bytecode);
+
+  return 0;
 }

@@ -46,10 +46,10 @@ void vector_put(vector* vec, const void* bytes, size_t len);
 void vector_free(vector* vec);
 void vector_shrink(vector* vec, size_t elsz, int32_t len);
 void vector_printf(vector* vec, const char*, ...);
-
 void vector_intersection(void*, size_t, void*, size_t, size_t, vector*);
 void vector_diff(void*, size_t, void*, size_t, size_t, vector*);
 void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, vector*, vector*);
+int vector_copy(vector* dst, const vector* src);
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 

@@ -353,6 +353,10 @@ function main(...args) {
 
   let data;
 
+
+lexer.match(Predicate.regexp('[A-Za-z0-9_]+ [^ ]','g'));
+console.log(lexer.getRange());
+return;
  
   for(let data of lexer) {
     console.log((data.loc+'').padEnd(16), data.type.padEnd(20), data.toString());

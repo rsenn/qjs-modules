@@ -112,7 +112,6 @@ function main(...args) {
   console.log(`re =`, re);
   console.log(`re =`, re + '');
   console.log(`re =`, re.toString());
-  console.log(`re =`, Object.prototype.toString.call(re));
   /*console.log(`ArrayBuffer =`, ArrayBuffer+'');
     console.log(`ArrayBuffer =`,  Function.prototype.toString.call(ArrayBuffer));*/
 
@@ -147,6 +146,7 @@ function main(...args) {
   console.log(`cp =`, cp.toString());
 
   for(let str2 of ['abcd', 'X⦿Y', '❔X', 'ABC★']) console.log(`cp.eval(${str2}) =`, cp.eval(str2));
+  console.log(`re =`, Object.prototype.toString.call(re));
 
   std.gc();
 }

@@ -197,3 +197,16 @@ vector_find(vector* vec, size_t elsz, const void* ptr) {
   }
   return -1;
 }
+
+int
+vector_copy(vector* dst, const vector* src) {
+  dst->realloc_func = src->realloc_func;
+  dst->opaque = src->opaque;
+  dst->data = 0;
+  dst->capacity = 0;
+  if(!dbuf_realloc(&dst->dbuf, src->size)) {
+    memcpy(dst->data, src->data, src->size);
+    return 1;
+  }
+  return 0;
+}

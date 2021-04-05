@@ -4,6 +4,7 @@
 #include "libregexp.h"
 #include "quickjs-lexer.h"
 #include "vector.h"
+#include "quickjs-predicate.h"
 #include <string.h>
 #include <ctype.h>
 
@@ -422,6 +423,7 @@ enum lexer_methods {
   LEXER_METHOD_ACCEPT,
   LEXER_METHOD_ACCEPT_RUN,
   LEXER_METHOD_BACKUP,
+  LEXER_METHOD_MATCH,
   LEXER_METHOD_SKIPUNTIL,
   LEXER_METHOD_ADD_TOKEN,
   LEXER_METHOD_ERROR
@@ -587,6 +589,19 @@ lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred) {
   }
 }
 
+static size_t
+lexer_skip(Lexer* lex, int ntimes) {
+  size_t r = 0;
+  if(!lexer_eof(lex)) {
+   size_t n;
+    while(ntimes-- > 0) {
+      lexer_get(lex, &n);
+      r += n;
+    }
+  }
+  return r;
+}
+
 JSValue
 js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Lexer *lex, *ptr2;
@@ -699,6 +714,43 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
           JS_ToInt32(ctx, &ntimes, argv[0]);
         while(ntimes-- > 0) { p = lexer_get(lex, &n); }
         ret = JS_NewStringLen(ctx, p, n);
+      }
+      break;
+    }
+
+    case LEXER_METHOD_MATCH: {
+      if(!lexer_eof(lex)) {
+        Predicate* pred = js_predicate_data(ctx, argv[0]);
+        int capture_count = 0;
+        uint8_t* capture[CAPTURE_COUNT_MAX * 2];
+
+        if(pred == 0)
+          return JS_ThrowTypeError(ctx, "argument 1 is not a Predicate");
+
+        if(pred->id != PREDICATE_REGEXP)
+          return JS_ThrowTypeError(ctx, "argument 1 is not a RegExp predicate");
+
+        pred = predicate_dup(pred, ctx);
+
+        if(pred->regexp.expr[0] != '^') {
+          str0_insert(&pred->regexp.expr, ctx, 0, "^", 1);
+          pred->regexp.exprlen += 1;
+        }
+
+        capture_count = predicate_regexp_compile(pred, ctx);
+
+        if(lre_exec(capture, pred->regexp.bytecode, &lex->data[lex->pos], 0, lex->size - lex->pos, 0, ctx)) {
+          size_t start, end;
+          start = capture[0] - &lex->data[lex->pos];
+          end = capture[1] - &lex->data[lex->pos];
+
+          printf("capture[0] %u - %u\n", start, end);
+
+          if(start == 0 && end > 0)
+            lexer_skip(lex, end);
+        }
+
+        predicate_free(pred, ctx);
       }
       break;
     }
@@ -1103,6 +1155,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getc", 0, js_lexer_method, LEXER_METHOD_GETC),
     JS_CFUNC_MAGIC_DEF("peek", 0, js_lexer_method, LEXER_METHOD_PEEKC),
     JS_CFUNC_MAGIC_DEF("skip", 0, js_lexer_method, LEXER_METHOD_SKIPC),
+    JS_CFUNC_MAGIC_DEF("match", 1, js_lexer_method, LEXER_METHOD_MATCH),
     JS_CFUNC_MAGIC_DEF("skipUntil", 0, js_lexer_method, LEXER_METHOD_SKIPUNTIL),
     JS_CFUNC_MAGIC_DEF("ignore", 0, js_lexer_method, LEXER_METHOD_IGNORE),
     JS_CFUNC_MAGIC_DEF("getRange", 0, js_lexer_method, LEXER_METHOD_GET_RANGE),

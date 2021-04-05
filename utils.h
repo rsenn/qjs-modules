@@ -5,6 +5,7 @@
 
 #include "quickjs.h"
 #include "cutils.h"
+#include <string.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
@@ -198,6 +199,57 @@ str_end(const char* a, const char* b) {
 
 #define str_contains(s, needle) (!!strchr((s), (needle)))
 
+static inline char*
+str_insert(char* s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {
+  size_t slen = strlen(s);
+  char* x;
+  if(!(x = js_malloc(ctx, slen + tlen + 1)))
+    return 0;
+  if(pos > 0)
+    memcpy(x, s, pos);
+  if(pos < slen)
+    memmove(&x[pos + tlen], &s[pos], slen - pos);
+  memcpy(&x[pos], t, tlen);
+  x[slen + tlen] = 0;
+  return x;
+}
+
+static inline char*
+str_append(char* s, JSContext* ctx, const char* t) {
+  return str_insert(s, ctx, strlen(s), t, strlen(t));
+}
+
+static inline char*
+str_prepend(char* s, JSContext* ctx, const char* t) {
+  return str_insert(s, ctx, 0, t, strlen(t));
+}
+
+static inline size_t
+str0_insert(char** s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {
+  size_t slen = strlen(*s);
+  char* x;
+  if(!(x = js_realloc(ctx, *s, slen + tlen + 1))) {
+    *s = 0;
+    return 0;
+  }
+  if(pos < slen)
+    memmove(&x[pos + tlen], &x[pos], slen - pos);
+  memcpy(&x[pos], t, tlen);
+  x[slen + tlen] = 0;
+  *s = x;
+  return slen + tlen;
+}
+
+static inline int
+str0_append(char** s, JSContext* ctx, const char* t) {
+  return str0_insert(s, ctx, strlen(*s), t, strlen(t));
+}
+
+static inline size_t
+str0_prepend(char** s, JSContext* ctx, const char* t) {
+  return str0_insert(s, ctx, 0, t, strlen(t));
+}
+
 #define COLOR_RED "\x1b[31m"
 #define COLOR_GREEN "\x1b[32m"
 #define COLOR_YELLOW "\x1b[33m"
@@ -294,7 +346,7 @@ int dbuf_reserve_start(DynBuf* s, size_t len);
 int dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len);
 JSValue dbuf_tostring_free(DynBuf* s, JSContext* ctx);
 
-static inline void
+static inline size_t
 dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
   size_t i, n = 0;
   for(i = 0; i < sizeof(bits) * 8; i++) {
@@ -304,7 +356,7 @@ dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
         n++;
         dbuf_putstr(db, "|");
       }
-      dbuf_put(db, names[i], len);
+      dbuf_put(db, (const uint8_t*)names[i], len);
       n += len;
     }
   }
