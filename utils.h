@@ -209,7 +209,7 @@ size_t ansi_skip(const char* str, size_t len);
 size_t ansi_length(const char* str, size_t len);
 size_t ansi_truncate(const char* str, size_t len, size_t limit);
 
-static inline char*
+/*static inline char*
 str_ndup(const char* s, size_t n) {
   char* r = malloc(n + 1);
   if(r == NULL)
@@ -217,7 +217,7 @@ str_ndup(const char* s, size_t n) {
   memcpy(r, s, n);
   r[n] = '\0';
   return r;
-}
+}*/
 
 static inline size_t
 predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
@@ -250,6 +250,16 @@ int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 #define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 void dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int));
+
+static inline void
+js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
+  dbuf_init2(s, rt, (DynBufReallocFunc*)js_realloc_rt);
+}
+
+static inline void
+js_dbuf_init(JSContext* ctx, DynBuf* s) {
+  js_dbuf_init_rt(JS_GetRuntime(ctx), s);
+}
 
 static inline void
 dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
@@ -399,8 +409,8 @@ void js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
 void js_value_print(JSContext* ctx, JSValueConst value);
 JSValue js_value_clone(JSContext* ctx, JSValueConst valpe);
 JSValue* js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values);
-void js_values_free(JSContext* ctx, int nvalues, JSValueConst* values);
-void js_values_free_rt(JSRuntime* rt, int nvalues, JSValueConst* values);
+// void js_values_free(JSContext* ctx, int nvalues, JSValueConst* values);
+void js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values);
 JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
 
 typedef struct InputBuffer {

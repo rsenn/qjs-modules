@@ -720,21 +720,21 @@ js_symbol_get_static(JSContext* ctx, const char* name) {
 
 JSValue*
 js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values) {
-  JSValue* ret = js_mallocz(ctx, sizeof(JSValue) * nvalues);
+  JSValue* ret = js_mallocz_rt(JS_GetRuntime(ctx), sizeof(JSValue) * nvalues);
   int i;
-  for(i = 0; i < nvalues; i++) ret[i] = JS_DupValue(ctx, values[i]);
+  for(i = 0; i < nvalues; i++) ret[i] = JS_DupValueRT(JS_GetRuntime(ctx), values[i]);
   return ret;
 }
-
+/*
 void
 js_values_free(JSContext* ctx, int nvalues, JSValueConst* values) {
   int i;
   for(i = 0; i < nvalues; i++) JS_FreeValue(ctx, values[i]);
   js_free(ctx, values);
 }
-
+*/
 void
-js_values_free_rt(JSRuntime* rt, int nvalues, JSValueConst* values) {
+js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values) {
   int i;
   for(i = 0; i < nvalues; i++) JS_FreeValueRT(rt, values[i]);
   js_free_rt(rt, values);
@@ -904,7 +904,7 @@ void
 js_value_print(JSContext* ctx, JSValueConst value) {
   const char* str;
   str = JS_ToCString(ctx, value);
-  printf("%s\n", str);
+  //printf("%s\n", str);
   JS_FreeCString(ctx, str);
 }
 

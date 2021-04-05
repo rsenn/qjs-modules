@@ -17,7 +17,7 @@ js_position_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   line = js_object_propertystr_getint32(ctx, this_val, "line");
   column = js_object_propertystr_getint32(ctx, this_val, "column");
 
-  dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &db);
   dbuf_printf(&db, "%" PRId32 ":%" PRId32, line, column);
 
   ret = JS_NewStringLen(ctx, db.buf, db.size);
@@ -104,7 +104,9 @@ js_syntax_error_get(JSContext* ctx, JSValueConst this_val, int magic) {
 void
 js_syntax_error_finalizer(JSRuntime* rt, JSValue val) {
   SyntaxError* err = JS_GetOpaque(val, js_syntax_error_class_id);
-  if(err) {}
+  if(err) {
+    //printf("js_syntax_error_finalizer\n");
+  }
   // JS_FreeValueRT(rt, val);
 }
 
@@ -139,12 +141,13 @@ lexer_line(Lexer* lex) {
 }
 
 static JSValue
-js_token_new(JSContext* ctx, const Token* arg) {
-  Token* tok;
+js_token_new(JSContext* ctx, Token* tok) {
   JSValue obj = JS_UNDEFINED;
 
-  if(!(tok = token_new(arg, JS_GetRuntime(ctx))))
-    return JS_EXCEPTION;
+  /* if(tok->lexer)
+     tok->lexer->ref_count++;*/
+  /*  if(!(tok = token_new(arg, JS_GetRuntime(ctx))))
+      return JS_EXCEPTION;*/
 
   obj = JS_NewObjectProtoClass(ctx, token_proto, js_token_class_id);
   JS_SetOpaque(obj, tok);
@@ -185,7 +188,7 @@ js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
   JSValue ret;
   if(!(tok = JS_GetOpaque2(ctx, this_val, js_token_class_id)))
     return JS_EXCEPTION;
-  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &dbuf);
 
   dbuf_put(&dbuf, &tok->data[tok->offset], tok->length);
 
@@ -206,7 +209,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   if(!(tok = JS_GetOpaque2(ctx, this_val, js_token_class_id)))
     return JS_EXCEPTION;
 
-  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &dbuf);
 
   dbuf_putstr(&dbuf, "Token { loc: ");
   location_dump(&dbuf, &tok->loc);
@@ -296,8 +299,8 @@ static void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok = JS_GetOpaque(val, js_token_class_id);
   if(tok) {
-
-    token_free(tok, rt);
+    //printf("js_token_finalizer\n");
+    // token_free(tok, rt);
   }
   // JS_FreeValueRT(rt, val);
 }
@@ -387,14 +390,14 @@ void
 lexer_init(Lexer* lex, JSContext* ctx) {
   memset(lex, 0, sizeof(Lexer));
   init_list_head(&lex->tokens);
-  vector_init2(&lex->charlengths, ctx);
+  vector_init(&lex->charlengths, ctx);
   lex->ref_count = 1;
 }
 
 void
 lexer_free(Lexer* lex, JSRuntime* rt) {
   struct list_head *el, *el1;
-  list_for_each_safe(el, el1, &lex->tokens) { js_free_rt(rt, el); }
+  list_for_each_safe(el, el1, &lex->tokens) { token_free((Token*)el, rt); }
   vector_free(&lex->charlengths);
   JS_FreeValueRT(rt, lex->state_fn);
   // js_free_rt(rt, lex);
@@ -468,6 +471,7 @@ lexer_get(Lexer* lex, size_t* lenp) {
   vector_put(&lex->charlengths, lenp, sizeof(size_t));
   return ret;
 }
+
 JSValue
 js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Lexer *lex, *ptr2;
@@ -485,6 +489,7 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
 
   lex->input = js_input_buffer(ctx, value);
   lex->state_fn = JS_UNDEFINED;
+  lex->ref_count++;
 
   return obj;
 fail:
@@ -514,7 +519,7 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, BOOL color) {
   if(!(lex = JS_GetOpaque2(ctx, this_val, js_lexer_class_id)))
     return JS_EXCEPTION;
 
-  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &dbuf);
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
@@ -693,7 +698,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       int32_t tokId;
       Token* tok;
       JS_ToInt32(ctx, &tokId, argv[0]);
-      if((tok = js_mallocz(ctx, sizeof(Token)))) {
+
+      if((tok = token_new(lex, JS_GetRuntime(ctx)))) {
         tok->data = lex->data;
         tok->offset = lex->start;
         tok->length = lex->pos - lex->start;
@@ -840,7 +846,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
       ret = JS_Call(ctx, lex->state_fn, this_val, 0, 0);
       except = JS_GetException(ctx);
       if(JS_IsObject(except)) {
-        printf("except = %s\n", JS_ToCString(ctx, except));
+        //printf("except = %s\n", JS_ToCString(ctx, except));
         JS_SetPropertyStr(ctx, this_val, "exception", except);
         *pdone = FALSE;
         return JS_NULL;
@@ -867,7 +873,6 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   if(!list_empty(&lex->tokens)) {
     Token* tok = (Token*)lex->tokens.next;
     list_del(&tok->link);
-    tok->lexer = lex;
     return js_token_new(ctx, tok);
   }
 
@@ -918,8 +923,11 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
 
   if((lex = JS_GetOpaque(val, js_lexer_class_id))) {
-    if(--lex->ref_count == 0)
+    //printf("lex->ref_count=%zu\n", lex->ref_count);
+    if(--lex->ref_count == 0) {
+      //printf("js_lexer_finalizer\n");
       lexer_free(lex, rt);
+    }
   }
   // JS_FreeValueRT(rt, val);
 }

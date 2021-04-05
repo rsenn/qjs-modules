@@ -187,7 +187,7 @@ js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!(pred = JS_GetOpaque2(ctx, this_val, js_predicate_class_id)))
     return JS_EXCEPTION;
 
-  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &dbuf);
   predicate_tostring(pred, ctx, &dbuf);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
@@ -300,7 +300,7 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
 
     predicate_free_rt(pred, rt);
 
-    js_free_rt(rt, pred);
+    //   js_free_rt(rt, pred);
   }
   // JS_FreeValueRT(rt, val);
 }

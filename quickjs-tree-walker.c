@@ -118,7 +118,7 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   JSValue ret;
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
-  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &dbuf);
   tree_walker_dump(w, ctx, &dbuf);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
@@ -338,7 +338,7 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(!(w = js_mallocz(ctx, sizeof(TreeWalker))))
     return JS_EXCEPTION;
 
-  vector_init2(&w->frames, ctx);
+  vector_init(&w->frames, ctx);
 
   /* using new_target to get the prototype is necessary when the
      class is extended. */

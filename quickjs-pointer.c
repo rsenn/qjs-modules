@@ -60,7 +60,7 @@ js_pointer_tostring(JSContext* ctx, JSValueConst this_val) {
   if(!(ptr = JS_GetOpaque2(ctx, this_val, js_pointer_class_id)))
     return JS_EXCEPTION;
 
-  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &dbuf);
   pointer_tostring(ptr, ctx, &dbuf);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
@@ -76,7 +76,7 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, BOOL color) {
   if(!(ptr = JS_GetOpaque2(ctx, this_val, js_pointer_class_id)))
     return JS_EXCEPTION;
 
-  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &dbuf);
   pointer_dump(ptr, ctx, &dbuf, color, -1);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
@@ -230,7 +230,7 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
     if(ptr->atoms) {
       uint32_t i;
       for(i = 0; i < ptr->n; i++) JS_FreeAtomRT(rt, ptr->atoms[i]);
-      free(ptr->atoms);
+      js_free_rt(rt, ptr->atoms);
     }
     js_free_rt(rt, ptr);
   }

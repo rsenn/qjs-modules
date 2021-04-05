@@ -28,11 +28,10 @@ typedef union vector {
     { 0, 0, 0, 0, &vector_default_realloc, 0 }                                                                         \
   }
 
-#define vector_init(vec) dbuf_init(&((vec)->dbuf))
-#define vector_init2(vec, ctx) dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&js_realloc)
-#define VECTOR2(ctx)                                                                                                   \
+#define vector_init(vec, ctx) js_dbuf_init(ctx, &((vec)->dbuf))
+#define VECTOR(ctx)                                                                                                   \
   (vector) {                                                                                                           \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }                                                               \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, JS_GetRuntime(ctx) }                                                               \
   }
 
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))

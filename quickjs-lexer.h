@@ -86,11 +86,11 @@ token_free(Token* tok, JSRuntime* rt) {
 }
 
 static inline Token*
-token_new(const Token* tok, JSRuntime* rt) {
+token_new(Lexer* lex, JSRuntime* rt) {
   Token* ret = js_mallocz_rt(rt, sizeof(Token));
-  memcpy(ret, tok, sizeof(Token));
-  if(ret->lexer)
+  if((ret->lexer = lex))
     ret->lexer->ref_count++;
+
   return ret;
 }
 

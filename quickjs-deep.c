@@ -69,7 +69,7 @@ js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSVa
   if(!(it = js_mallocz(ctx, sizeof(DeepIterator))))
     return JS_EXCEPTION;
 
-  vector_init2(&it->frames, ctx);
+  vector_init(&it->frames, ctx);
   ;
   it->pred = JS_UNDEFINED;
 
@@ -190,7 +190,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     return JS_ThrowTypeError(ctx, "argument 2 (predicate) is not a function");
   if(!JS_IsObject(argv[0]))
     return JS_ThrowTypeError(ctx, "argument 1 (root) is not an object");
-  vector_init2(&frames, ctx);
+  vector_init(&frames, ctx);
 
   property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   it = vector_back(&frames, sizeof(PropertyEnumeration));
@@ -220,7 +220,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 
   if(!JS_IsFunction(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
-  vector_init2(&frames, ctx);
+  vector_init(&frames, ctx);
 
   ret = JS_NewArray(ctx);
   property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
@@ -300,16 +300,16 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   int32_t level, prev;
   uint32_t mask = 0;
   VirtualProperties vmap;
-  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &dbuf);
   this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
   dest = argc > 1 ? argv[1] : JS_NewObject(ctx);
   if(js_is_map(ctx, dest))
     vmap = virtual_properties_map(ctx, dest);
   else
     vmap = virtual_properties_object(ctx, dest);
-  vector_init2(&frames, ctx);
+  vector_init(&frames, ctx);
   ;
-  vector_init2(&offsets, ctx);
+  vector_init(&offsets, ctx);
   ;
   it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   prev = 0;
@@ -345,7 +345,7 @@ js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   PropertyEnumeration* it;
   vector frames;
 
-  vector_init2(&frames, ctx);
+  vector_init(&frames, ctx);
   ;
 
   it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
@@ -370,7 +370,7 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   JSValueConst fn, this_arg;
   vector frames;
 
-  vector_init2(&frames, ctx);
+  vector_init(&frames, ctx);
   ;
 
   fn = argv[1];
@@ -397,9 +397,9 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   PropertyEnumeration *aenum, *benum;
   vector aframes, bframes;
 
-  vector_init2(&aframes, ctx);
+  vector_init(&aframes, ctx);
   ;
-  vector_init2(&bframes, ctx);
+  vector_init(&bframes, ctx);
   ;
 
   aenum =

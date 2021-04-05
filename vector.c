@@ -81,7 +81,7 @@ vector_allocate(vector* vec, size_t elsz, int32_t pos) {
 void
 vector_free(vector* vec) {
   if(vec->data)
-    free(vec->data);
+    dbuf_free(&vec->dbuf);
   vec->data = 0;
   vec->capacity = vec->size = 0;
 }

@@ -280,7 +280,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
   uint8_t c;
   OutputValue* out;
   JSValue element = JS_UNDEFINED;
-  vector st = VECTOR2(ctx);
+  vector st = VECTOR(ctx);
   ptr = buf;
   end = buf + len;
 
@@ -436,7 +436,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   JSValue str;
   it = property_enumeration_push(&enumerations, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
   //  dbuf_init(&output);
-  dbuf_init2(&output, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &output);
 
   do {
     int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;

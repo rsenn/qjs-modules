@@ -667,7 +667,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       }
       JS_FreeCString(ctx, s);
 
-      vector_init2(&propenum_tab, ctx);
+      vector_init(&propenum_tab, ctx);
 
       if(js_object_getpropertynames(ctx,
                                     &propenum_tab,
@@ -820,7 +820,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   JSValue ret;
 
   js_inspect_constructors_get(ctx);
-  dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &dbuf);
   inspect_options_init(&options);
 
   if(argc > 1 && JS_IsNumber(argv[1]))

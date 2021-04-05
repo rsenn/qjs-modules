@@ -33,7 +33,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       const uint8_t *p, *next, *end;
 
       if(pr->charset.chars.size == 0 && pr->charset.chars.data == 0) {
-        vector_init2(&pr->charset.chars, ctx);
+        vector_init(&pr->charset.chars, ctx);
         utf8_to_unicode(pr->charset.set, pr->charset.len, &pr->charset.chars);
       }
 
@@ -374,7 +374,7 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
     case PREDICATE_AND:
     case PREDICATE_OR:
     case PREDICATE_XOR: {
-      js_values_free_rt(rt, pred->boolean.npredicates, pred->boolean.predicates);
+      js_values_free(rt, pred->boolean.npredicates, pred->boolean.predicates);
       break;
     }
 

@@ -10,7 +10,7 @@ pointer_reset(Pointer* ptr, JSContext* ctx) {
 
   if(ptr->atoms) {
     for(i = 0; i < ptr->n; i++) JS_FreeAtom(ctx, ptr->atoms[i]);
-    free(ptr->atoms);
+    js_free(ctx, ptr->atoms);
     ptr->atoms = 0;
   }
   ptr->n = 0;
@@ -21,7 +21,7 @@ pointer_copy(Pointer* dst, Pointer* src, JSContext* ctx) {
   if(dst->n)
     pointer_reset(dst, ctx);
 
-  if((dst->atoms = malloc(sizeof(JSAtom) * src->n))) {
+  if((dst->atoms = js_mallocz(ctx, sizeof(JSAtom) * src->n))) {
     size_t i;
     dst->n = src->n;
     for(i = 0; i < src->n; i++) dst->atoms[i] = JS_DupAtom(ctx, src->atoms[i]);
@@ -38,7 +38,7 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
     size_t i;
     for(i = ptr->n - 1; i >= size; i--) JS_FreeAtom(ctx, ptr->atoms[i]);
 
-    ptr->atoms = realloc(ptr->atoms, sizeof(JSAtom) * size);
+    ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * size);
     ptr->n = size;
   }
 }
@@ -68,7 +68,7 @@ pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index)
 void
 pointer_debug(Pointer* ptr, JSContext* ctx) {
   DynBuf db;
-  dbuf_init2(&db, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+  js_dbuf_init(ctx, &db);
   pointer_dump(ptr, ctx, &db, TRUE, -1);
   dbuf_0(&db);
 
@@ -133,7 +133,7 @@ pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
     end = ptr->n;
 
   ret->n = end - start;
-  ret->atoms = ret->n ? malloc(sizeof(JSAtom) * ret->n) : 0;
+  ret->atoms = ret->n ? js_mallocz(ctx, sizeof(JSAtom) * ret->n) : 0;
 
   for(i = start; i < end; i++) ret->atoms[i - start] = JS_DupAtom(ctx, ptr->atoms[i]);
 
@@ -165,7 +165,7 @@ pointer_deref(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
 
     if(!JS_HasProperty(ctx, obj, atom)) {
       DynBuf dbuf;
-      dbuf_init2(&dbuf, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+      js_dbuf_init(ctx, &dbuf);
 
       pointer_dump(ptr, ctx, &dbuf, TRUE, i);
       dbuf_0(&dbuf);
@@ -223,7 +223,7 @@ pointer_fromarray(Pointer* ptr, JSContext* ctx, JSValueConst array) {
 
   assert(len > 0);
 
-  ptr->atoms = malloc(sizeof(JSAtom) * len);
+  ptr->atoms = js_malloc(ctx, sizeof(JSAtom) * len);
   for(i = 0; i < len; i++) {
     prop = JS_GetPropertyUint32(ctx, array, i);
     ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
