@@ -172,7 +172,7 @@ lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred) {
     if(predicate_eval(pred, ctx, 1, &str) > 0)
       break;
 
-lex->pos += len;
+    lex->pos += len;
   }
 }
 

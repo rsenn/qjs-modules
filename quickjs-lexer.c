@@ -48,6 +48,9 @@ js_syntax_error_new(JSContext* ctx, SyntaxError arg) {
 
   obj = JS_NewObjectProtoClass(ctx, syntax_error_proto, js_syntax_error_class_id);
   JS_SetOpaque(obj, err);
+
+  JS_SetPropertyStr(ctx, obj, "message", JS_NewString(ctx, err->message));
+
   return obj;
 }
 
@@ -70,12 +73,30 @@ js_syntax_error_constructor(JSContext* ctx, JSValueConst new_target, int argc, J
   if(JS_IsException(obj))
     goto fail;
   JS_SetOpaque(obj, err);
+  if(argc > 0)
+    JS_SetPropertyStr(ctx, obj, "message", argv[0]);
 
   return obj;
 fail:
   js_free(ctx, err);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
+}
+
+static JSValue
+js_syntax_error_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  SyntaxError* err;
+  JSValue ret = JS_UNDEFINED;
+  if(!(err = JS_GetOpaque2(ctx, this_val, js_syntax_error_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case 0: {
+      ret = js_position_new(ctx, err->loc);
+      break;
+    }
+  }
+  return ret;
 }
 
 void
@@ -91,6 +112,7 @@ JSClassDef js_syntax_error_class = {
 };
 
 static const JSCFunctionListEntry js_syntax_error_proto_funcs[] = {
+    JS_CGETSET_ENUMERABLE_DEF("loc", js_syntax_error_get, 0, 0),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyntaxError", JS_PROP_CONFIGURABLE)};
 
 VISIBLE JSClassID js_token_class_id;
@@ -580,6 +602,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       error.length = lex->pos - lex->start;
       error.loc = lex->loc;
 
+      printf("lexer SyntaxError('%s', %u:%u)\n", error.message, lex->loc.line + 1, lex->loc.column + 1);
+
       ret = js_syntax_error_new(ctx, error);
       break;
     }
@@ -706,7 +730,21 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
     pos = lex->pos;
 
     for(;;) {
+      JSValue except;
       ret = JS_Call(ctx, lex->state_fn, this_val, 0, 0);
+
+      except = JS_GetException(ctx);
+
+      if(JS_IsObject(except)) {
+
+        printf("except = %s\n", JS_ToCString(ctx, except));
+        JS_SetPropertyStr(ctx, this_val, "exception", except);
+        // JS_Throw(ctx, except);
+        // return except;
+        *pdone = FALSE;
+        return JS_NULL;
+      }
+
       if(JS_IsFunction(ctx, ret)) {
         const char* name;
         JS_FreeValue(ctx, lex->state_fn);
@@ -852,7 +890,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_syntax_error_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_syntax_error_class_id, &js_syntax_error_class);
 
-  syntax_error_proto = JS_NewObject(ctx);
+  syntax_error_proto = JS_NewError(ctx);
   JS_SetPropertyFunctionList(ctx,
                              syntax_error_proto,
                              js_syntax_error_proto_funcs,

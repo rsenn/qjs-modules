@@ -149,7 +149,7 @@ int
 predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv) {
   Predicate* pred;
 
-  if((pred = JS_GetOpaque2(ctx, value, js_predicate_class_id)))
+  if((pred = JS_GetOpaque(value, js_predicate_class_id)))
     return predicate_eval(pred, ctx, argc, argv);
 
   if(JS_IsFunction(ctx, value)) {

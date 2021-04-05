@@ -79,7 +79,8 @@ function main(...args) {
       } else if(c == '\n') {
         this.ignore();
       } else {
-        throw this.error(`Unexpected character: ${c}`);
+        return this.error(`Unexpected character: ${c}`);
+        break;
       }
     } while(true);
   }
@@ -135,7 +136,7 @@ function main(...args) {
   }
   function lexPunctuator() {
     for(;;) {
- //     console.log('lexPunctuator', this.peek().codePointAt(0), isPunctuator(this.peek()));
+      //     console.log('lexPunctuator', this.peek().codePointAt(0), isPunctuator(this.peek()));
 
       if(!this.accept(isPunctuator)) break;
 
@@ -155,7 +156,7 @@ function main(...args) {
       this.addToken(Token.PUNCTUATOR);
       return this.lexText;
     }
-    throw this.error(`Invalid PUNCTUATOR: ${word}`);
+    return this.error(`Invalid PUNCTUATOR: ${word}`);
   }
   function lexTemplate(cont = false) {
     const done = (doSubst, defaultFn = null, level) => {
@@ -194,8 +195,7 @@ function main(...args) {
         c = this.getc();
         ++n;
         if(c === null) {
-          throw this.error(`Illegal template token (${n})  '${this.source[this.start]}': ${this.getRange()}`
-          );
+          return this.error(`Illegal template token (${n})  '${this.source[this.start]}'`);
         } else if(!escapeEncountered) {
           if(c == '{' && prevChar == '$') {
             this.backup(2);
@@ -223,17 +223,14 @@ function main(...args) {
     //console.log('lexIdentifier(1)', DumpLexer(this));
     this.acceptRun(c => /^[A-Za-z0-9_]$/.test(c));
     const firstChar = this.getRange(this.start, this.start + 1);
-    if(/^[0-9]$/.test(firstChar))
-      throw this.error(`Invalid IDENTIFIER: ${this.getRange()}\n${this.currentLine()}`);
+    if(/^[0-9]$/.test(firstChar)) return this.error(`Invalid IDENTIFIER\n`);
     const c = this.peek();
     if(c == '`') {
       const { pos, start } = this;
       this.addToken(Token.IDENTIFIER);
       return this.lexText;
     }
-    if(/^['"]$/.test(c))
-      throw this.error(`Invalid IDENTIFIER: ${this.getRange(this.start, this.pos + 1)}${this.currentLine()}`
-      );
+    if(/^['"]$/.test(c)) return this.error(`Invalid IDENTIFIER`);
     const word = this.getRange(this.start, this.pos);
     //console.log(`word '${word}'`);
     if(word === 'true' || word === 'false') this.addToken(Token.BOOLEAN_LITERAL);
@@ -265,11 +262,14 @@ function main(...args) {
         escapeEncountered = false;
       prevChar = c;
       c = this.getc();
+
       if(c === null) {
-        throw this.error(`Illegal token: ${this.getRange()}`);
+        return this.error(`Illegal token(1)`);
+        
       } else if(!escapeEncountered) {
         if(c == '\n' && quoteChar !== '`') {
-          throw this.error(`Illegal token: ${this.getRange()}`);
+          throw   this.error(`Illegal token(2) c=0x${c.codePointAt(0).toString(16)} quoteChar=${quoteChar} `);
+          break;
         } else if(c === quoteChar) {
           this.addToken(Token.STRING_LITERAL);
           return this.lexText;
@@ -291,13 +291,19 @@ function main(...args) {
 
   /* lexer.acceptRun(new Predicate(/^[A-Za-z_]$/));
   console.log('lexer', DumpLexer(lexer));
-
+  
    lexer.acceptRun(new Predicate(/^\s$/));
   console.log('lexer', DumpLexer(lexer));
 */
   let data;
+  
   for(let data of lexer) {
     console.log(`data `, data);
+
+    if(data == null) {
+      console.log("Exception:", lexer.exception);
+      break;
+    }
 
     /* lexer.acceptRun(Lexer.isWhitespace);
 
