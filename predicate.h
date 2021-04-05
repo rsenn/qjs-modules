@@ -47,6 +47,7 @@ typedef struct {
   int len;
   char* expr;
   size_t exprlen;
+  int flags;
 } RegExpPredicate;
 
 typedef struct Predicate {
@@ -68,7 +69,7 @@ typedef struct Predicate {
     }                                                                                                                  \
   }
 
-int predicate_eval(const Predicate*, JSContext*, int argc, JSValueConst* argv);
+int predicate_eval(Predicate*, JSContext*, int argc, JSValueConst* argv);
 JSValue predicate_values(const Predicate* pred, JSContext* ctx);
 int predicate_call(JSContext* ctx, JSValue value, int argc, JSValue* argv);
 void predicate_tostring(const Predicate*, JSContext*, DynBuf*);

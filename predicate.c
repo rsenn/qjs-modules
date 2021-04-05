@@ -18,7 +18,7 @@ utf8_to_unicode(const char* str, size_t len, vector* out) {
 }
 
 int
-predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
+predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
   int ret = 0;
 
   switch(pr->id) {
@@ -87,6 +87,13 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
       const size_t CAPTURE_COUNT_MAX = 255;
       InputBuffer input = js_input_buffer(ctx, argv[0]);
       uint8_t* capture[CAPTURE_COUNT_MAX * 2];
+
+      if(pr->regexp.bytecode == 0) {
+        char error_msg[64];
+        pr->regexp.bytecode = lre_compile(
+            &pr->regexp.len, error_msg, sizeof(error_msg), pr->regexp.expr, pr->regexp.exprlen, pr->regexp.flags, ctx);
+      }
+
       ret = lre_exec(capture, pr->regexp.bytecode, (uint8_t*)input.x, 0, input.n, 0, ctx);
 
       if(ret && argc > 1) {
@@ -243,13 +250,12 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       break;
     }
     case PREDICATE_REGEXP: {
-      int flags = lre_get_flags(pr->regexp.bytecode);
       char flagbuf[16];
 
       dbuf_putc(dbuf, '/');
-      dbuf_putstr(dbuf, pr->regexp.expr);
+      dbuf_put(dbuf, pr->regexp.expr, pr->regexp.exprlen);
       dbuf_putc(dbuf, '/');
-      dbuf_put(dbuf, flagbuf, predicate_regexp_flags2str(flags, flagbuf));
+      dbuf_put(dbuf, flagbuf, predicate_regexp_flags2str(pr->regexp.flags, flagbuf));
       dbuf_0(dbuf);
       break;
     }
@@ -277,12 +283,8 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 Predicate
 predicate_regexp(const char* regexp, size_t rlen, int flags, void* opaque) {
   Predicate ret = PREDICATE_INIT(PREDICATE_REGEXP);
-  uint8_t* bc;
-  char error_msg[64];
   ret.regexp.expr = regexp;
   ret.regexp.exprlen = rlen;
-  ret.regexp.bytecode =
-      lre_compile(&ret.regexp.len, error_msg, sizeof(error_msg), regexp, strlen(regexp), flags, opaque);
   return ret;
 }
 
