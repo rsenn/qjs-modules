@@ -6,7 +6,7 @@
 #include "predicate.h"
 #include "vector.h"
 
-enum token_types {
+typedef enum TokId {
   TOKEN_ID_COMMENT = 0,
   TOKEN_ID_STRING_LITERAL,
   TOKEN_ID_TEMPLATE_LITERAL,
@@ -18,7 +18,7 @@ enum token_types {
   TOKEN_ID_IDENTIFIER,
   TOKEN_ID_REGEXP_LITERAL,
   TOKEN_ID_EOF
-};
+} TokenType;
 
 typedef struct {
   const char* file;
@@ -34,7 +34,7 @@ typedef struct {
   const char* message;
 } SyntaxError;
 
-typedef union Lexer {
+typedef union {
   struct InputBuffer input;
   struct {
     const uint8_t* data;
@@ -51,15 +51,15 @@ typedef union Lexer {
 } Lexer;
 
 typedef struct {
-  struct list_head link;
   const uint8_t* data;
   uint32_t byte_length;
   uint32_t num_chars;
   uint32_t offset;
-  enum token_types id;
+  TokenType id;
   Location loc;
   Lexer* lexer;
   ssize_t ref_count;
+  struct list_head link;
 } Token;
 
 extern JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;
@@ -84,4 +84,4 @@ js_lexer_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_lexer_class_id);
 }
 
-#endif /* defined(QUICKJS_LEXER_H) */
+#endif /* defined(QUICKJS_LEXER_H) */ struct list_head link;

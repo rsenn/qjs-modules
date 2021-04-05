@@ -827,7 +827,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       } else if((tok = lexer_token(lex, ctx, tokId))) {
         list_add_tail(&tok->link, &lex->tokens);
         lexer_ignore(lex);
-        //printf("lexer addToken %s «%.*s»\n", token_type(tok), lex->pos - lex->start, &lex->data[lex->start]);
+        // printf("lexer addToken %s «%.*s»\n", token_type(tok), lex->pos - lex->start, &lex->data[lex->start]);
       }
       break;
     }
