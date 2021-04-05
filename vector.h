@@ -11,7 +11,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-typedef union {
+typedef union vector {
   DynBuf dbuf;
   struct {
     char* data;

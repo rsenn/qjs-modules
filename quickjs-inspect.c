@@ -218,6 +218,16 @@ inspect_screen_width(void) {
   ioctl(1, TIOCGWINSZ, &w);
   return w.ws_col;
 }
+static int
+js_object_getpropertynames(JSContext* ctx, union vector* propenum_tab, JSValueConst obj, int flags) {
+  int ret;
+  JSPropertyEnum* tmp_tab;
+  uint32_t tmp_len;
+  ret = JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, flags);
+  vector_put(propenum_tab, tmp_tab, sizeof(JSPropertyEnum) * tmp_len);
+  js_free(ctx, tmp_tab);
+  return ret;
+}
 
 static JSValue
 js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
@@ -591,8 +601,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
     }
     case JS_TAG_OBJECT: {
       BOOL is_array = 0, is_typedarray = 0, is_function = 0;
-      uint32_t nprops, pos, len, limit;
-      JSPropertyEnum* props = 0;
+      uint32_t pos, len, limit;
+      vector propenum_tab;
       const char* s;
       compact = FALSE;
 
@@ -649,11 +659,13 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       }
       JS_FreeCString(ctx, s);
 
-      if(JS_GetOwnPropertyNames(ctx,
-                                &props,
-                                &nprops,
-                                value,
-                                JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+      vector_init2(&propenum_tab, ctx);
+
+      if(js_object_getpropertynames(ctx,
+                                    &propenum_tab,
+                                    value,
+                                    JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
+                                        (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(is_function) {
@@ -670,7 +682,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         }
         JS_FreeValue(ctx, name);
         dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE : "]");
-        if(nprops && depth >= 0)
+        if(vector_size(&propenum_tab, sizeof(JSPropertyDescriptor)) && depth >= 0)
           dbuf_putc(buf, ' ');
         else
           goto end_obj;
@@ -726,17 +738,18 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       }
 
       if(!is_array && !is_typedarray) {
-        dbuf_putstr(buf, (compact && nprops) ? "{ " : "{");
+        dbuf_putstr(buf, (compact && vector_size(&propenum_tab, sizeof(JSPropertyEnum))) ? "{ " : "{");
         len = 0;
       }
 
-      for(pos = 0; pos < nprops; pos++) {
+      for(pos = 0; pos < vector_size(&propenum_tab, sizeof(JSPropertyEnum)); pos++) {
         JSPropertyDescriptor desc;
         const char* name;
-        JSValue key = js_atom_tovalue(ctx, props[pos].atom);
-        name = JS_AtomToCString(ctx, props[pos].atom);
+        JSPropertyEnum* propenum = (JSPropertyEnum*)vector_at(&propenum_tab, sizeof(JSPropertyEnum), pos);
+        JSValue key = js_atom_tovalue(ctx, propenum->atom);
+        name = JS_AtomToCString(ctx, propenum->atom);
         if(!JS_IsSymbol(key)) {
-          if(((is_array || is_typedarray) && is_integer(name)) || inspect_options_hidden(opts, props[pos].atom)) {
+          if(((is_array || is_typedarray) && is_integer(name)) || inspect_options_hidden(opts, propenum->atom)) {
             JS_FreeValue(ctx, key);
             JS_FreeCString(ctx, name);
             continue;
@@ -758,7 +771,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         dbuf_putstr(buf, ": ");
         JS_FreeCString(ctx, name);
         JS_FreeValue(ctx, key);
-        JS_GetOwnProperty(ctx, &desc, value, props[pos].atom);
+        JS_GetOwnProperty(ctx, &desc, value, propenum->atom);
         if(desc.flags & JS_PROP_GETSET)
           dbuf_put_colorstr(buf,
                             JS_IsUndefined(desc.getter) ? "[Setter]"
@@ -777,8 +790,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       dbuf_putstr(buf, (is_array || is_typedarray) ? (compact && len ? " ]" : "]") : (compact && len ? " }" : "}"));
 
     end_obj:
-      if(props)
-        js_propertyenums_free(ctx, props, nprops);
+      if(!vector_empty(&propenum_tab))
+        js_propertyenums_free(ctx, vector_begin(&propenum_tab), vector_size(&propenum_tab, sizeof(JSPropertyEnum)));
       break;
     }
 

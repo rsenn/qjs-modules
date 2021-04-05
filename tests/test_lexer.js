@@ -44,8 +44,15 @@ function main(...args) {
   console.log('len', len);
   let lexer = new Lexer(str, len);
 
-  lexer.lexNumber = function lexNumber() {};
-  const isPunctuator = c => /^[-=.%}>,*<!/~&\(;?|\):+^{@]$/.test(c);
+  const isPunctuator = c => /^(\[|\]|[-=.%}>,*<!/~&\(;?|\):+^{@])$/.test(c);
+  const isDecimalDigit = c => /^[0-9]$/.test(c);
+  const isHexDigit = c => /^[0-9A-Fa-f]$/.test(c);
+  const isOctalDigit = c => /^[0-7]$/.test(c);
+  const isIdentifierChar = c => /^[A-Za-z_]$/.test(c);
+  const isQuoteChar = c => /^['"`]$/.test(c);
+const isKeyword = word => /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|stat
+ic|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
+
   function lexText() {
     do {
       const nextTwo = this.getRange(this.pos, this.pos + 2);
@@ -62,9 +69,12 @@ function main(...args) {
         return null;
       } else if(!this.noRegex && /^\/$/.test(c)) {
         return this.lexRegExp;
-      } else if(/^['"`]$/.test(c)) {
+      } else if(/^['"]$/.test(c)) {
         this.backup();
         return this.lexQuote;
+      } else if(c == '`') {
+        // this.backup();
+        return this.lexTemplate;
       } else if(/^[0-9]$/.test(c) || (c === '.' && /^[0-9]$/.test(this.peek()))) {
         this.backup();
         return this.lexNumber;
@@ -79,10 +89,51 @@ function main(...args) {
       } else if(c == '\n') {
         this.ignore();
       } else {
-        return this.error(`Unexpected character: ${c}`);
+        throw this.error(`Unexpected character: ${c}`);
         break;
       }
-    } while(true);
+    } while(!this.eof);
+  }
+
+  function lexNumber() {
+    let validator = isDecimalDigit;
+    if(this.accept(Predicate.charset('0'))) {
+      if(this.accept(Predicate.charset('xX'))) {
+        validator = isHexDigit;
+        if(!this.accept(validator))
+          throw this.error(`Invalid number (x): ${this.getRange(this.start, this.pos + 1)}`);
+      } else if(this.accept(Predicate.charset('oO'))) {
+        validator = isOctalDigit;
+        if(!this.accept(validator))
+          throw this.error(`Invalid number (o): ${this.getRange(this.start, this.pos + 1)}`);
+      } else if(this.accept(isOctalDigit)) {
+        validator = isOctalDigit;
+      } else if(this.accept(isDecimalDigit)) {
+        throw this.error(`Invalid number (1): ${this.getRange()}`);
+      }
+    }
+    this.acceptRun(validator);
+    if(validator == isDecimalDigit) {
+      if(this.accept(Predicate.charset('.'))) this.acceptRun(validator);
+      if(this.accept(Predicate.charset('eE'))) {
+        this.accept(Predicate.charset('+-'));
+        if(!this.accept(validator))
+          throw this.error(`Invalid number (2): ${this.getRange(this.start, this.pos + 1)}`);
+        this.acceptRun(validator);
+      }
+    }
+    const c = this.peek();
+    /*
+     * l = BigFloat
+     * m = BigDecimal
+     * n = BigInt
+     */
+    if(/^[lmn]/.test(c)) this.skip();
+    else if(isIdentifierChar(c) || isQuoteChar(c) || /^[.eE]$/.test(c))
+      throw this.error(`Invalid number (3): ${this.getRange(this.start, this.pos + 1)}`);
+
+    this.addToken(Token.NUMERIC_LITERAL);
+    return this.lexText;
   }
 
   function lexRegExp() {
@@ -95,7 +146,6 @@ function main(...args) {
       i++;
       if(c == '[' && prev != '\\') if (!bracket) bracket = true;
       if(c == ']' && prev != '\\') if (bracket) bracket = false;
-
       if(((i == 1 && /^\s$/.test(c)) || c == '\n') && prev != '\\') {
         return false;
       } else if(slashes == 1 && c == ' ' && prev == '/') {
@@ -134,14 +184,11 @@ function main(...args) {
     this.backup(this.pos - this.start - 1);
     return this.lexPunctuator();
   }
+
   function lexPunctuator() {
     for(;;) {
-      //     console.log('lexPunctuator', this.peek().codePointAt(0), isPunctuator(this.peek()));
-
       if(!this.accept(isPunctuator)) break;
-
       let word = this.getRange(this.start, this.pos);
-      //console.log(`word(1) '${word}'`, isPunctuator(word));
       if(word != '..' && !isPunctuator(word)) {
         this.backup();
         this.addToken(Token.PUNCTUATOR);
@@ -149,15 +196,13 @@ function main(...args) {
       }
     }
     const word = this.getRange(this.start, this.pos);
-
-    //console.log(`word(2) '${word}'`);
-
     if(isPunctuator(word)) {
       this.addToken(Token.PUNCTUATOR);
       return this.lexText;
     }
-    return this.error(`Invalid PUNCTUATOR: ${word}`);
+    throw this.error(`Invalid PUNCTUATOR: ${word}`);
   }
+
   function lexTemplate(cont = false) {
     const done = (doSubst, defaultFn = null, level) => {
       let self = () => {
@@ -186,22 +231,47 @@ function main(...args) {
     let prevChar = this.peek();
     let c;
     let startToken = this.tokenIndex;
+    console.log('lexTemplate', { cont, prevChar, c });
     function template() {
       let escapeEncountered = false;
       let n = 0;
-      do {
-        if(this.acceptRun(not(or(c => c === '$', oneOf('\\`{$'))))) escapeEncountered = false;
+      while(this.pos < this.size) {
+        if(this.acceptRun(
+            Predicate.not(Predicate.or(c => c === '$', Predicate.regexp('^[$`{]'), Predicate.charset('\\`'))
+            )
+          )
+        )
+          escapeEncountered = false;
         prevChar = c;
         c = this.getc();
+        // console.log("lexTemplate", {c,escapeEncountered ,prevChar   }, this.pos,this.start);
+
         ++n;
         if(c === null) {
-          return this.error(`Illegal template token (${n})  '${this.source[this.start]}'`);
+          throw this.error(`Illegal template token (${n})  '${this.source[this.start]}'`);
         } else if(!escapeEncountered) {
           if(c == '{' && prevChar == '$') {
             this.backup(2);
+            console.log('lexTemplate', this.getRange(), 'subst', ` pos=${this.pos}`);
             this.addToken(Token.TEMPLATE_LITERAL);
-            this.skip(2);
+            console.log('lexTemplate',
+              this.getRange(this.start, this.pos + 10),
+              'subst(2)',
+              ` start=${this.start}, pos=${this.pos}`
+            );
+            this.pos = this.start + 2; //(2);
+            console.log('lexTemplate',
+              this.getRange(this.start, this.pos + 10),
+              'subst(3)',
+              ` start=${this.start}, pos=${this.pos}`
+            );
             this.ignore();
+            console.log('lexTemplate',
+              this.getRange(),
+              'subst(4)',
+              ` start=${this.start}, pos=${this.pos}`
+            );
+
             this.inSubst = (this.inSubst || 0) + 1;
             return done(this.inSubst, this.lexTemplate);
           } else if((cont || !this.inSubst) && c === '`') {
@@ -214,7 +284,7 @@ function main(...args) {
         } else {
           escapeEncountered = false;
         }
-      } while(true);
+      }
     }
     return template.call(this);
   }
@@ -223,19 +293,19 @@ function main(...args) {
     //console.log('lexIdentifier(1)', DumpLexer(this));
     this.acceptRun(c => /^[A-Za-z0-9_]$/.test(c));
     const firstChar = this.getRange(this.start, this.start + 1);
-    if(/^[0-9]$/.test(firstChar)) return this.error(`Invalid IDENTIFIER\n`);
+    if(/^[0-9]$/.test(firstChar)) throw this.error(`Invalid IDENTIFIER\n`);
     const c = this.peek();
     if(c == '`') {
       const { pos, start } = this;
       this.addToken(Token.IDENTIFIER);
       return this.lexText;
     }
-    if(/^['"]$/.test(c)) return this.error(`Invalid IDENTIFIER`);
+    if(/^['"]$/.test(c)) throw this.error(`Invalid IDENTIFIER`);
     const word = this.getRange(this.start, this.pos);
     //console.log(`word '${word}'`);
     if(word === 'true' || word === 'false') this.addToken(Token.BOOLEAN_LITERAL);
     else if(word === 'null') this.addToken(Token.NULL_LITERAL);
-    // else if(isKeyword(word)) this.addToken(Token.KEYWORD);
+   else if(isKeyword(word)) this.addToken(Token.KEYWORD);
     else {
       this.addToken(Token.IDENTIFIER);
     }
@@ -246,29 +316,32 @@ function main(...args) {
   lexer.lexText = lexText;
   lexer.lexQuote = function lexQuote() {
     let quoteChar = this.getc();
+
     if(quoteChar === '`') {
       const { inSubst } = this;
       return this.lexTemplate(inSubst);
     }
-    //console.log(`lexQuote <${quoteChar}>`);
+
     let prevChar = '';
     let c = '';
     let escapeEncountered = false;
     do {
       if(this.acceptRun(
-          Predicate.not(Predicate.or(c => c == '\n', Predicate.charset(`\\${quoteChar}`)))
+          Predicate.and(Predicate.regexp('^[^\n]$'), Predicate.regexp(`[^\\${quoteChar}]`, 'g'))
         )
       )
         escapeEncountered = false;
+
+
       prevChar = c;
       c = this.getc();
 
       if(c === null) {
-        return this.error(`Illegal token(1)`);
-        
+        throw this.error(`Illegal token(1)`);
       } else if(!escapeEncountered) {
         if(c == '\n' && quoteChar !== '`') {
-          throw   this.error(`Illegal token(2) c=0x${c.codePointAt(0).toString(16)} quoteChar=${quoteChar} `);
+          throw this.error(`Illegal token(2) c=0x${c.codePointAt(0).toString(16)} quoteChar=${quoteChar} `
+          );
           break;
         } else if(c === quoteChar) {
           this.addToken(Token.STRING_LITERAL);
@@ -279,13 +352,14 @@ function main(...args) {
       } else {
         escapeEncountered = false;
       }
-    } while(true);
+    } while(!this.eof);
   };
 
+  lexer.lexNumber = lexNumber;
   lexer.lexRegExp = lexRegExp;
   lexer.lexPunctuator = lexPunctuator;
-  lexer.lexTemplate = lexTemplate;
   lexer.lexIdentifier = lexIdentifier;
+  lexer.lexTemplate = lexTemplate;
 
   lexer.stateFn = lexText;
 
@@ -296,12 +370,13 @@ function main(...args) {
   console.log('lexer', DumpLexer(lexer));
 */
   let data;
-  
+
   for(let data of lexer) {
-    console.log(`data `, data);
+//        console.log(`data `, data);
+    console.log(`data `, data );
 
     if(data == null) {
-      console.log("Exception:", lexer.exception);
+      console.log('Exception:', lexer.exception);
       break;
     }
 

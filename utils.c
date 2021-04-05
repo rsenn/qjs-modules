@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "cutils.h"
+#include "vector.h"
 
 size_t
 ansi_length(const char* str, size_t len) {
@@ -393,7 +394,6 @@ js_function_name(JSContext* ctx, JSValueConst value) {
   if(i != 0) {
     JS_FreeAtom(ctx, atom);
     JS_FreeValue(ctx, str);
-    JS_FreeValue(ctx, args[0]);
     return 0;
   }
   args[0] = JS_NewString(ctx, "(");
@@ -678,7 +678,7 @@ void
 js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
   uint32_t i;
   for(i = 0; i < len; i++) JS_FreeAtom(ctx, props[i].atom);
-  js_free(ctx, props);
+  // js_free(ctx, props);
 }
 
 void

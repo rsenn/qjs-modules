@@ -247,11 +247,9 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       size_t exprlen;
       const char* expr = JS_ToCStringLen(ctx, &exprlen, argv[0]);
       const char* flagstr = argv > 1 ? JS_ToCString(ctx, argv[1]) : 0;
-
-      ret = js_predicate_wrap(ctx,
-                              predicate_regexp(js_strndup(ctx, expr, exprlen),
-                                               exprlen,
-                                               flagstr ? predicate_regexp_str2flags(flagstr) : 0));
+      int flags = flagstr ? predicate_regexp_str2flags(flagstr) : 0;
+      Predicate pred = predicate_regexp(js_strndup(ctx, expr, exprlen), exprlen, flags);
+      ret = js_predicate_wrap(ctx, pred);
       JS_FreeCString(ctx, expr);
       if(flagstr)
         JS_FreeCString(ctx, flagstr);
