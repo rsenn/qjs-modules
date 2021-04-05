@@ -63,7 +63,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
   JS_SetOpaque(obj, pred);
 
-  if(argc > 0 && js_object_is_regexp(ctx, argv[0])) {
+  if(argc > 0 && js_is_regexp(ctx, argv[0])) {
 
     const char* regexp = JS_ToCString(ctx, argv[0]);
     printf("regexp: %s\n", regexp);

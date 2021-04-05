@@ -634,7 +634,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           return 0;
         }
         if(!(is_array = JS_IsArray(ctx, value)))
-          is_typedarray = js_object_is_typedarray(ctx, value);
+          is_typedarray = js_is_typedarray(ctx, value);
       }
 
       if(!is_array && !is_function && !strncmp(s, "[object ", 8)) {
