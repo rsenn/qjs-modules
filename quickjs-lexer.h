@@ -69,7 +69,10 @@ typedef struct {
 
 extern JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;
 
-JSValue js_syntaxerror_new(JSContext*, SyntaxError arg);
+JSValue js_lexer_new(JSContext* ctx, JSValue proto, JSValue value);
+JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);
+JSValue js_syntaxerror_new(JSContext* ctx, SyntaxError arg);
+JSValue js_token_wrap(JSContext* ctx, Token* tok);
 
 static inline Token*
 js_syntaxerror_data(JSContext* ctx, JSValueConst value) {
@@ -81,14 +84,9 @@ js_token_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_token_class_id);
 }
 
-JSValue js_token_wrap(JSContext*, Token*);
-
 static inline Lexer*
 js_lexer_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_lexer_class_id);
 }
-
-JSValue js_lexer_new(JSContext* ctx, JSValue proto, JSValue value);
-JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);
 
 #endif /* defined(QUICKJS_LEXER_H) */

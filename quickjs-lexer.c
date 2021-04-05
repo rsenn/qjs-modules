@@ -672,7 +672,7 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if((lex = js_lexer_data(ctx, ret))) {
     if(argc > 1) {
       lex->loc.file = js_tostring(ctx, argv[1]);
-       }
+    }
   }
   return ret;
 }
@@ -842,7 +842,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
     case LEXER_METHOD_ERROR: {
       SyntaxError error;
-      error.message =js_tostring(ctx, argv[0]);
+      error.message = js_tostring(ctx, argv[0]);
       error.offset = lex->start;
       error.byte_length = lex->pos - lex->start;
       error.loc = location_dup(&lex->loc, ctx);

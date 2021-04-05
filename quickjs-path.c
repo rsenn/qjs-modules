@@ -195,8 +195,10 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     }
   }
 
-  if(a) JS_FreeCString(ctx, a);
-  if(b) JS_FreeCString(ctx, b);
+  if(a)
+    JS_FreeCString(ctx, a);
+  if(b)
+    JS_FreeCString(ctx, b);
 
   return ret;
 }
