@@ -44,7 +44,6 @@ function main(...args) {
   console.log('len', len);
   let lexer = new Lexer(str, len);
 
-  const isPunctuator = c => /^(\[|\]|[-=.%}>,*<!/~&\(;?|\):+^{@])$/.test(c);
     const isKeyword = word =>
     /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word
     );
@@ -74,7 +73,7 @@ function main(...args) {
         return this.lexNumber;
       } else if(/^\s$/.test(c)) {
         this.ignore();
-      } else if(isPunctuator(c)) {
+      } else if(Lexer.isPunctuatorChar(c)) {
         this.backup();
         return this.lexPunctuator;
       } else if(/^[A-Za-z_]$/.test(c)) {
@@ -173,16 +172,16 @@ function main(...args) {
 
   function lexPunctuator() {
     for(;;) {
-      if(!this.accept(isPunctuator)) break;
+      if(!this.accept(Lexer.isPunctuatorChar)) break;
       let word = this.getRange(this.start, this.pos);
-      if(word != '..' && !isPunctuator(word)) {
+      if(word != '..' && !Lexer.isPunctuatorChar(word)) {
         this.backup();
         this.addToken(Token.PUNCTUATOR);
         return this.lexText;
       }
     }
     const word = this.getRange(this.start, this.pos);
-    if(isPunctuator(word)) {
+    if(Lexer.isPunctuatorChar(word)) {
       this.addToken(Token.PUNCTUATOR);
       return this.lexText;
     }
