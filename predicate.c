@@ -10,9 +10,6 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
   switch(pr->id) {
     case PREDICATE_TYPE: {
       int id = js_value_type(ctx,argv[0]);
-
-     // printf("PREDICATE_TYPE: %s\n", js_value_typestr(ctx,argv[0]));
-
       ret = !!(id & pr->type.flags);
       break;
     }
