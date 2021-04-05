@@ -45,12 +45,7 @@ function main(...args) {
   let lexer = new Lexer(str, len);
 
   const isPunctuator = c => /^(\[|\]|[-=.%}>,*<!/~&\(;?|\):+^{@])$/.test(c);
-  const isDecimalDigit = c => /^[0-9]$/.test(c);
-  const isHexDigit = c => /^[0-9A-Fa-f]$/.test(c);
-  const isOctalDigit = c => /^[0-7]$/.test(c);
-  const isIdentifierChar = c => /^[A-Za-z_]$/.test(c);
-  const isQuoteChar = c => /^['"`]$/.test(c);
-  const isKeyword = word =>
+    const isKeyword = word =>
     /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word
     );
 
@@ -95,24 +90,24 @@ function main(...args) {
   }
 
   function lexNumber() {
-    let validator = isDecimalDigit;
+    let validator = Lexer.isDecimalDigit;
     if(this.accept(Predicate.charset('0'))) {
       if(this.accept(Predicate.charset('xX'))) {
-        validator = isHexDigit;
+        validator = Lexer.isHexDigit;
         if(!this.accept(validator))
           throw this.error(`Invalid number (x): ${this.getRange(this.start, this.pos + 1)}`);
       } else if(this.accept(Predicate.charset('oO'))) {
-        validator = isOctalDigit;
+        validator = Lexer.isOctalDigit;
         if(!this.accept(validator))
           throw this.error(`Invalid number (o): ${this.getRange(this.start, this.pos + 1)}`);
-      } else if(this.accept(isOctalDigit)) {
-        validator = isOctalDigit;
-      } else if(this.accept(isDecimalDigit)) {
+      } else if(this.accept(Lexer.isOctalDigit)) {
+        validator = Lexer.isOctalDigit;
+      } else if(this.accept(Lexer.isDecimalDigit)) {
         throw this.error(`Invalid number (1): ${this.getRange()}`);
       }
     }
     this.acceptRun(validator);
-    if(validator == isDecimalDigit) {
+    if(validator == Lexer.isDecimalDigit) {
       if(this.accept(Predicate.charset('.'))) this.acceptRun(validator);
       if(this.accept(Predicate.charset('eE'))) {
         this.accept(Predicate.charset('+-'));
@@ -124,7 +119,7 @@ function main(...args) {
     const c = this.peek();
     /* l = BigFloat, m = BigDecimal, n = BigInt */
     if(/^[lmn]/.test(c)) this.skip();
-    else if(isIdentifierChar(c) || isQuoteChar(c) || /^[.eE]$/.test(c))
+    else if(Lexer.isIdentifierChar(c) || Lexer.isQuoteChar(c) || /^[.eE]$/.test(c))
       throw this.error(`Invalid number (3): ${this.getRange(this.start, this.pos + 1)}`);
     this.addToken(Token.NUMERIC_LITERAL);
     return this.lexText;
@@ -261,7 +256,7 @@ function main(...args) {
   }
 
   function lexIdentifier() {
-    this.acceptRun(c => /^[A-Za-z0-9_]$/.test(c));
+    this.acceptRun(Lexer.isIdentifierChar);
     const firstChar = this.getRange(this.start, this.start + 1);
     if(/^[0-9]$/.test(firstChar)) throw this.error(`Invalid IDENTIFIER\n`);
     const c = this.peek();
@@ -324,26 +319,15 @@ function main(...args) {
 
   lexer.stateFn = lexText;
 
-  /* lexer.acceptRun(new Predicate(/^[A-Za-z_]$/));
-  console.log('lexer', DumpLexer(lexer));
-  
-   lexer.acceptRun(new Predicate(/^\s$/));
-  console.log('lexer', DumpLexer(lexer));
-*/
   let data;
 
   for(let data of lexer) {
-    //        console.log(`data `, data);
     console.log(`data `, data);
 
     if(data == null) {
       console.log('Exception:', lexer.exception);
       break;
     }
-
-    /* lexer.acceptRun(Lexer.isWhitespace);
-
-    console.log('lexer', DumpLexer(lexer));*/
   }
 
   std.gc();

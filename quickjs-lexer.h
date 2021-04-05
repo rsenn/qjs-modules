@@ -4,6 +4,7 @@
 #include "list.h"
 #include "utils.h"
 #include "quickjs-predicate.h"
+#include "vector.h"
 
 enum token_types {
   COMMENT = 0,
@@ -55,8 +56,9 @@ typedef union Lexer {
     void (*free)(JSContext*, const char*);
     size_t start;
     Location loc;
-    size_t nkeywords;
-    char** keywords;
+    vector charlengths;
+    /*size_t nkeywords;
+    char** keywords;*/
     JSValue state_fn;
     size_t ref_count;
     struct list_head tokens;
@@ -110,6 +112,14 @@ location_dump(DynBuf* dbuf, const Location* loc) {
   dbuf_printf(dbuf, "{ line: %3zu, column: %3zu }", loc->line + 1, loc->column + 1);
 }
 
+static inline size_t
+lexer_distance(Lexer* lex) {
+  size_t* p;
+  size_t n = 0;
+  vector_foreach_t(&lex->charlengths, p) { n += *p; }
+  return n;
+}
+
 static inline uint8_t*
 lexer_peek(Lexer* lex, size_t* lenp) {
   return js_input_buffer_peek(&lex->input, lenp);
@@ -122,12 +132,24 @@ lexer_peekc(Lexer* lex, size_t* lenp) {
 
 static inline uint8_t*
 lexer_get(Lexer* lex, size_t* lenp) {
-  return js_input_buffer_get(&lex->input, lenp);
+  uint8_t* ret;
+  size_t n;
+  if(lenp == 0)
+    lenp = &n;
+  ret = js_input_buffer_get(&lex->input, lenp);
+  vector_put(&lex->charlengths, lenp, sizeof(size_t));
+  return ret;
 }
 
 static inline uint32_t
 lexer_getc(Lexer* lex, size_t* lenp) {
-  return js_input_buffer_getc(&lex->input, lenp);
+  uint32_t ret;
+  size_t n;
+  if(lenp == 0)
+    lenp = &n;
+  ret = js_input_buffer_getc(&lex->input, lenp);
+  vector_put(&lex->charlengths, lenp, sizeof(size_t));
+  return ret;
 }
 
 static inline void
@@ -148,7 +170,12 @@ lexer_ignore(Lexer* lex) {
     }
     p = next;
   }
+
+  assert(lex->start + lexer_distance(lex) == lex->pos);
+
   lex->start = p - lex->data;
+
+  vector_clear(&lex->charlengths);
 }
 
 static inline size_t
@@ -166,13 +193,10 @@ lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred) {
   while(!lexer_eof(lex)) {
     size_t len;
     uint8_t* p = lexer_peek(lex, &len);
-
     JSValue str = JS_NewStringLen(ctx, p, len);
-
     if(predicate_eval(pred, ctx, 1, &str) > 0)
       break;
-
-    lex->pos += len;
+    lexer_get(lex, 0);
   }
 }
 
@@ -191,9 +215,19 @@ lexer_token(Lexer* lex, JSContext* ctx, int id) {
 }
 
 static inline void
-lexer_init(Lexer* lex) {
+lexer_init(Lexer* lex, JSContext* ctx) {
   memset(lex, 0, sizeof(Lexer));
   init_list_head(&lex->tokens);
+  vector_init2(&lex->charlengths, ctx);
+}
+
+static inline void
+lexer_free(Lexer* lex, JSRuntime* rt) {
+  struct list_head *el, *el1;
+  list_for_each_safe(el, el1, &lex->tokens) { js_free_rt(rt, el); }
+  vector_free(&lex->charlengths);
+  JS_FreeValueRT(rt, lex->state_fn);
+  js_free_rt(rt, lex);
 }
 
 #endif /* defined(QUICKJS_LEXER_H) */
