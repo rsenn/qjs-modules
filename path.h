@@ -49,30 +49,30 @@ typedef struct {
   size_t sz1, sz2;
 } SizePair;
 
-int path_absolute_db(DynBuf*);
-int path_absolute(const char*, DynBuf* db);
-int path_normalize(const char*, DynBuf* db, int symbolic);
-size_t path_collapse(char*, size_t n);
-void path_concat(const char*, size_t alen, const char* b, size_t blen, DynBuf* db);
-int path_find(const char*, const char* name, DynBuf* db);
-int path_fnmatch(const char*, unsigned int plen, const char* string, unsigned int slen, int flags);
-char* path_gethome(int);
-char* path_getcwd(DynBuf*);
-SizePair path_common_prefix(const char* s1, size_t n1, const char* s2, size_t n2);
-int path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
-int path_relative(const char* path, const char* relative_to, DynBuf* out);
-size_t path_skip_separator(const char* p, size_t len, size_t pos);
-size_t path_skip_component(const char* p, size_t len, size_t pos);
+int path_absolute_db(DynBuf* db);
+int path_absolute(const char* path, DynBuf* db);
 void path_append(const char* x, size_t len, DynBuf* db);
-int path_exists(const char* p);
-int path_is_absolute(const char* x, size_t n);
-size_t path_root(const char* x, size_t n);
-int path_is_directory(const char* p);
-int path_is_symlink(const char* p);
 int path_canonical_buf(DynBuf* db);
 int path_canonical(const char* path, DynBuf* db);
+size_t path_collapse(char* path, size_t n);
+SizePair path_common_prefix(const char* s1, size_t n1, const char* s2, size_t n2);
 size_t path_components(const char* p, size_t len, uint32_t n);
+void path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db);
+int path_exists(const char* p);
 const char* path_extname(const char* p);
+int path_find(const char* path, const char* name, DynBuf* db);
+int path_fnmatch(const char* pattern, unsigned int plen, const char* string, unsigned int slen, int flags);
+char* path_getcwd(DynBuf* db);
+char* path_gethome(int uid);
+int path_is_absolute(const char* x, size_t n);
+int path_is_directory(const char* p);
+int path_is_symlink(const char* p);
+int path_normalize(const char* path, DynBuf* db, int symbolic);
+int path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
+int path_relative(const char* path, const char* relative_to, DynBuf* out);
+size_t path_root(const char* x, size_t n);
+size_t path_skip_component(const char* p, size_t len, size_t pos);
+size_t path_skip_separator(const char* p, size_t len, size_t pos);
 
 static inline size_t
 path_length(const char* s, size_t n) {
@@ -100,7 +100,6 @@ path_right(const char* s, size_t n) {
   return p - s;
 }
 
-
 static inline int
 path_getsep(const char* path) {
   while(*path) {
@@ -110,6 +109,5 @@ path_getsep(const char* path) {
   }
   return '\0';
 }
-
 
 #endif /* defined(PATH_H) */

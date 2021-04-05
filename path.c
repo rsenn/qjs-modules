@@ -545,4 +545,3 @@ path_skip_separator(const char* p, size_t len, size_t pos) {
   while(p < end && path_issep(*p)) ++p;
   return p - start;
 }
-
