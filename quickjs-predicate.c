@@ -13,7 +13,7 @@ enum { PROP_ID = 0, PROP_VALUES };
 JSValue
 js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Predicate* pred;
-  JSValue obj;
+  JSValue obj;install 
   if(!(pred = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
   pred->id = PREDICATE_NONE;
@@ -38,7 +38,9 @@ js_predicate_wrap(JSContext* ctx, Predicate pred) {
 
   *ret = pred;
 
-  obj = JS_NewObjectProtoClass(ctx, predicate_proto, js_predicate_class_id);
+  obj
+
+         JS_NewObjectProtoClass(ctx, predicate_proto, js_predicate_class_id);
   JS_SetOpaque(obj, ret);
   return obj;
 }
