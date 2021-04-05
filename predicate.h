@@ -8,6 +8,7 @@ enum predicate_id {
   PREDICATE_NONE = -1,
   PREDICATE_TYPE,
   PREDICATE_CHARSET,
+  PREDICATE_STRING,
   PREDICATE_NOTNOT,
   PREDICATE_NOT,
   PREDICATE_OR,
@@ -25,9 +26,14 @@ typedef struct {
 
 typedef struct {
   const char* set;
-  vector chars;
   size_t len;
+  vector chars;
 } CharsetPredicate;
+
+typedef struct {
+  const char* str;
+  size_t len;
+} StringPredicate;
 
 typedef struct {
   JSValue predicate;
@@ -54,6 +60,7 @@ typedef struct Predicate {
   union {
     TypePredicate type;
     CharsetPredicate charset;
+    StringPredicate string;
     UnaryPredicate unary;
     BinaryPredicate binary;
     BooleanPredicate boolean;
@@ -85,22 +92,22 @@ predicate_free(Predicate* pred, JSContext* ctx) {
   predicate_free_rt(pred, JS_GetRuntime(ctx));
 }
 
-#define predicate_undefined() predicate_type(TYPE_UNDEFINED)
-#define predicate_null() predicate_type(TYPE_NULL)
-#define predicate_bool() predicate_type(TYPE_BOOL)
-#define predicate_int() predicate_type(TYPE_INT)
-#define predicate_object() predicate_type(TYPE_OBJECT)
-#define predicate_string() predicate_type(TYPE_STRING)
-#define predicate_symbol() predicate_type(TYPE_SYMBOL)
-#define predicate_big_float() predicate_type(TYPE_BIG_FLOAT)
-#define predicate_big_int() predicate_type(TYPE_BIG_INT)
-#define predicate_big_decimal() predicate_type(TYPE_BIG_DECIMAL)
-#define predicate_float64() predicate_type(TYPE_FLOAT64)
-#define predicate_number() predicate_type(TYPE_NUMBER)
-#define predicate_primitive() predicate_type(TYPE_PRIMITIVE)
-#define predicate_all() predicate_type(TYPE_ALL)
-#define predicate_function() predicate_type(TYPE_FUNCTION)
-#define predicate_array() predicate_type(TYPE_ARRAY)
+#define predicate_is_undefined() predicate_type(TYPE_UNDEFINED)
+#define predicate_is_null() predicate_type(TYPE_NULL)
+#define predicate_is_bool() predicate_type(TYPE_BOOL)
+#define predicate_is_int() predicate_type(TYPE_INT)
+#define predicate_is_object() predicate_type(TYPE_OBJECT)
+#define predicate_is_string() predicate_type(TYPE_STRING)
+#define predicate_is_symbol() predicate_type(TYPE_SYMBOL)
+#define predicate_is_big_float() predicate_type(TYPE_BIG_FLOAT)
+#define predicate_is_big_int() predicate_type(TYPE_BIG_INT)
+#define predicate_is_big_decimal() predicate_type(TYPE_BIG_DECIMAL)
+#define predicate_is_float64() predicate_type(TYPE_FLOAT64)
+#define predicate_is_number() predicate_type(TYPE_NUMBER)
+#define predicate_is_primitive() predicate_type(TYPE_PRIMITIVE)
+#define predicate_is_all() predicate_type(TYPE_ALL)
+#define predicate_is_function() predicate_type(TYPE_FUNCTION)
+#define predicate_is_array() predicate_type(TYPE_ARRAY)
 
 static inline Predicate
 predicate_charset(const char* str, size_t len) {
@@ -108,6 +115,14 @@ predicate_charset(const char* str, size_t len) {
   ret.charset.set = str;
   ret.charset.len = len;
   memset(&ret.charset.chars, 0, sizeof(vector));
+  return ret;
+}
+
+static inline Predicate
+predicate_string(const char* str, size_t len) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_STRING);
+  ret.string.str = str;
+  ret.string.len = len;
   return ret;
 }
 

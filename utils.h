@@ -494,14 +494,21 @@ js_input_buffer_remain(InputBuffer* in) {
 }
 
 static inline const char*
-js_tostring(JSContext* ctx, JSValueConst value) {
+js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
   size_t len;
   const char *cstr, *ret = 0;
   if((cstr = JS_ToCStringLen(ctx, &len, value))) {
     ret = js_strndup(ctx, cstr, len);
+    if(lenp)
+      *lenp = len;
     JS_FreeCString(ctx, cstr);
   }
   return ret;
+}
+
+static inline const char*
+js_tostring(JSContext* ctx, JSValueConst value) {
+  return js_tostringlen(ctx, 0, value);
 }
 
 JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value);

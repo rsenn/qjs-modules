@@ -86,13 +86,17 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
       case PREDICATE_CHARSET: {
         size_t len;
-        const char* str = JS_ToCStringLen(ctx, &len, argv[1]);
+        const char* str = js_tostringlen(ctx, &len, argv[1]);
         if(argc > 2 && JS_IsNumber(argv[2]))
           js_value_to_size(ctx, &len, argv[2]);
+        *pred = predicate_charset(str, len);
+        break;
+      }
 
-        *pred = predicate_charset(js_strndup(ctx, str, len), len);
-
-        JS_FreeCString(ctx, str);
+      case PREDICATE_STRING: {
+        size_t len;
+        const char* str = js_tostringlen(ctx, &len, argv[1]);
+        *pred = predicate_string(str, len);
         break;
       }
 
@@ -228,11 +232,16 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     }
 
     case PREDICATE_CHARSET: {
-      const char* str;
       size_t size;
-      str = JS_ToCStringLen(ctx, &size, argv[0]);
-      ret = js_predicate_wrap(ctx, predicate_charset(js_strndup(ctx, str, size), size));
-      JS_FreeCString(ctx, str);
+      const char* str = js_tostringlen(ctx, &size, argv[0]);
+      ret = js_predicate_wrap(ctx, predicate_charset(str, size));
+      break;
+    }
+
+    case PREDICATE_STRING: {
+      size_t size;
+      const char* str = js_tostringlen(ctx, &size, argv[0]);
+      ret = js_predicate_wrap(ctx, predicate_string(str, size));
       break;
     }
 
@@ -318,6 +327,7 @@ static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
 static const JSCFunctionListEntry js_predicate_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("type", 1, js_predicate_funcs, PREDICATE_TYPE),
     JS_CFUNC_MAGIC_DEF("charset", 1, js_predicate_funcs, PREDICATE_CHARSET),
+    JS_CFUNC_MAGIC_DEF("string", 1, js_predicate_funcs, PREDICATE_STRING),
     JS_CFUNC_MAGIC_DEF("not", 1, js_predicate_funcs, PREDICATE_NOT),
     JS_CFUNC_MAGIC_DEF("or", 2, js_predicate_funcs, PREDICATE_OR),
     JS_CFUNC_MAGIC_DEF("and", 2, js_predicate_funcs, PREDICATE_AND),
@@ -328,6 +338,7 @@ static const JSCFunctionListEntry js_predicate_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("equal", 1, js_predicate_funcs, PREDICATE_EQUAL),
     JS_PROP_INT32_DEF("PREDICATE_TYPE", PREDICATE_TYPE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_CHARSET", PREDICATE_CHARSET, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PREDICATE_STRING", PREDICATE_STRING, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_NOTNOT", PREDICATE_NOTNOT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_NOT", PREDICATE_NOT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_OR", PREDICATE_OR, JS_PROP_ENUMERABLE),

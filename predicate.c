@@ -31,12 +31,10 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
     case PREDICATE_CHARSET: {
       InputBuffer input = js_input_buffer(ctx, argv[0]);
       const uint8_t *p, *next, *end;
-
       if(pr->charset.chars.size == 0 && pr->charset.chars.data == 0) {
         vector_init(&pr->charset.chars, ctx);
         utf8_to_unicode(pr->charset.set, pr->charset.len, &pr->charset.chars);
       }
-
       ret = 1;
       while(!js_input_buffer_eof(&input)) {
         uint32_t codepoint = js_input_buffer_get(&input, 0);
@@ -46,8 +44,17 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
           break;
         }
       }
-
       input_buffer_free(&input, ctx);
+      break;
+    }
+
+    case PREDICATE_STRING: {
+      InputBuffer input = js_input_buffer(ctx, argv[0]);
+
+      if(input.size >= pr->string.len) {
+        if(!memcmp(input.data, pr->string.str, pr->string.len))
+          ret = 1;
+      }
       break;
     }
 
@@ -231,6 +238,15 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       break;
     }
 
+    case PREDICATE_STRING: {
+      uint32_t i = 0, *p;
+      dbuf_putc(dbuf, '"');
+      dbuf_put(dbuf, pr->string.str, pr->string.len);
+      dbuf_putc(dbuf, '"');
+      dbuf_printf(dbuf, " (len = %zu)", pr->string.len);
+      break;
+    }
+
     case PREDICATE_NOTNOT: dbuf_putc(dbuf, '!');
 
     case PREDICATE_NOT: {
@@ -357,6 +373,11 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
       break;
     }
 
+    case PREDICATE_STRING: {
+      js_free_rt(rt, pred->string.str);
+      break;
+    }
+
     case PREDICATE_EQUAL:
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
@@ -421,6 +442,12 @@ predicate_dup(const Predicate* pred, JSContext* ctx) {
       ret->charset.len = pred->charset.len;
       ret->charset.set = js_strndup(ctx, pred->charset.set, pred->charset.len);
       vector_copy(&ret->charset.chars, &pred->charset.chars);
+      break;
+    }
+
+    case PREDICATE_STRING: {
+      ret->string.len = pred->string.len;
+      ret->string.str = js_strndup(ctx, pred->string.str, pred->string.len);
       break;
     }
 
