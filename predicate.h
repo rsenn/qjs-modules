@@ -5,8 +5,8 @@
 #include "utils.h"
 
 enum predicate_id {
-  PREDICATE_NONE = -1,
-  PREDICATE_TYPE,
+  // PREDICATE_NONE = -1,
+  PREDICATE_TYPE = 0,
   PREDICATE_CHARSET,
   PREDICATE_STRING,
   PREDICATE_NOTNOT,
@@ -25,13 +25,13 @@ typedef struct {
 } TypePredicate;
 
 typedef struct {
-  const char* set;
+  char* set;
   size_t len;
   vector chars;
 } CharsetPredicate;
 
 typedef struct {
-  const char* str;
+  char* str;
   size_t len;
 } StringPredicate;
 
@@ -112,7 +112,7 @@ predicate_free(Predicate* pred, JSContext* ctx) {
 static inline Predicate
 predicate_charset(const char* str, size_t len) {
   Predicate ret = PREDICATE_INIT(PREDICATE_CHARSET);
-  ret.charset.set = str;
+  ret.charset.set = (char*)str;
   ret.charset.len = len;
   memset(&ret.charset.chars, 0, sizeof(vector));
   return ret;
@@ -121,7 +121,7 @@ predicate_charset(const char* str, size_t len) {
 static inline Predicate
 predicate_string(const char* str, size_t len) {
   Predicate ret = PREDICATE_INIT(PREDICATE_STRING);
-  ret.string.str = str;
+  ret.string.str = (char*)str;
   ret.string.len = len;
   return ret;
 }
@@ -130,7 +130,7 @@ static inline Predicate
 predicate_regexp(const char* regexp, size_t rlen, int flags) {
   Predicate ret = PREDICATE_INIT(PREDICATE_REGEXP);
   ret.regexp.bytecode = 0;
-  ret.regexp.expr = regexp;
+  ret.regexp.expr = (char*)regexp;
   ret.regexp.exprlen = rlen;
   ret.regexp.flags = flags;
   return ret;

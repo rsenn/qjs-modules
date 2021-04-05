@@ -6,7 +6,7 @@
 
 static size_t
 utf8_to_unicode(const char* str, size_t len, vector* out) {
-  uint8_t *p, *next, *end;
+  const uint8_t *p, *next, *end;
 
   for(p = (uint8_t*)str, end = p + len; p != end; p = next) {
     uint32_t codepoint = unicode_from_utf8(p, end - p, &next);
@@ -37,7 +37,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       }
       ret = 1;
       while(!js_input_buffer_eof(&input)) {
-        uint32_t codepoint = js_input_buffer_get(&input, 0);
+        uint32_t codepoint = js_input_buffer_getc(&input, 0);
         ssize_t idx = vector_find(&pr->charset.chars, sizeof(uint32_t), &codepoint);
         if(idx == -1) {
           ret = 0;
@@ -241,7 +241,7 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     case PREDICATE_STRING: {
       uint32_t i = 0, *p;
       dbuf_putc(dbuf, '"');
-      dbuf_put(dbuf, pr->string.str, pr->string.len);
+      dbuf_put(dbuf, (const uint8_t*)pr->string.str, pr->string.len);
       dbuf_putc(dbuf, '"');
       dbuf_printf(dbuf, " (len = %zu)", pr->string.len);
       break;
@@ -259,7 +259,7 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     case PREDICATE_AND:
     case PREDICATE_OR:
     case PREDICATE_XOR: {
-      int i;
+      size_t i;
       dbuf_putstr(dbuf, "( ");
 
       for(i = 0; i < pr->boolean.npredicates; i++) {
@@ -277,9 +277,9 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       char flagbuf[16];
 
       dbuf_putc(dbuf, '/');
-      dbuf_put(dbuf, pr->regexp.expr, pr->regexp.exprlen);
+      dbuf_put(dbuf, (const uint8_t*)pr->regexp.expr, pr->regexp.exprlen);
       dbuf_putc(dbuf, '/');
-      dbuf_put(dbuf, flagbuf, predicate_regexp_flags2str(pr->regexp.flags, flagbuf));
+      dbuf_put(dbuf, (const uint8_t*)flagbuf, predicate_regexp_flags2str(pr->regexp.flags, flagbuf));
       dbuf_0(dbuf);
       break;
     }
@@ -361,12 +361,16 @@ predicate_regexp_capture(uint8_t** capture, int capture_count, uint8_t* input, J
     }
   }
 
-  return JS_NewArrayBufferCopy(ctx, buf, (capture_count * 2) * sizeof(uint32_t));
+  return JS_NewArrayBufferCopy(ctx, (const uint8_t*)buf, (capture_count * 2) * sizeof(uint32_t));
 }
 
 void
 predicate_free_rt(Predicate* pred, JSRuntime* rt) {
   switch(pred->id) {
+    case PREDICATE_TYPE: {
+      break;
+    }
+
     case PREDICATE_CHARSET: {
       js_free_rt(rt, pred->charset.set);
       vector_free(&pred->charset.chars);
@@ -407,12 +411,19 @@ JSValue
 predicate_values(const Predicate* pred, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   switch(pred->id) {
+    case PREDICATE_TYPE:
+    case PREDICATE_CHARSET:
+    case PREDICATE_STRING:
+    case PREDICATE_REGEXP: {
+      break;
+    }
+
     case PREDICATE_EQUAL:
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
     case PREDICATE_NOTNOT:
     case PREDICATE_NOT: {
-      ret = js_values_toarray(ctx, 1, &pred->unary.predicate);
+      ret = js_values_toarray(ctx, 1, (JSValue*)&pred->unary.predicate);
       break;
     }
 
@@ -463,7 +474,7 @@ predicate_dup(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
-      ret->boolean.npredicates = ctx, pred->boolean.npredicates;
+      ret->boolean.npredicates = pred->boolean.npredicates;
       ret->boolean.predicates = js_values_dup(ctx, pred->boolean.npredicates, pred->boolean.predicates);
       break;
     }
@@ -486,7 +497,7 @@ predicate_regexp_compile(Predicate* pred, JSContext* ctx) {
   int len = 0;
 
   assert(pred->id == PREDICATE_REGEXP);
-  assert(pred->bytecode == 0);
+  assert(pred->regexp.bytecode == 0);
 
   if((pred->regexp.bytecode = lre_compile(
           &len, error_msg, sizeof(error_msg), pred->regexp.expr, pred->regexp.exprlen, pred->regexp.flags, ctx)))

@@ -466,7 +466,7 @@ void js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values);
 JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
 
 typedef struct InputBuffer {
-  const uint8_t* data;
+  uint8_t* data;
   size_t size;
   size_t pos;
   void (*free)(JSContext*, const char*);
@@ -479,9 +479,9 @@ static inline void input_buffer_free_default(JSContext* ctx, const char* str){
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
 InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
-uint8_t* js_input_buffer_get(InputBuffer* in, size_t* lenp);
+const uint8_t* js_input_buffer_get(InputBuffer* in, size_t* lenp);
 uint32_t js_input_buffer_getc(InputBuffer* in, size_t* lenp);
-uint8_t* js_input_buffer_peek(InputBuffer* in, size_t* lenp);
+const uint8_t* js_input_buffer_peek(InputBuffer* in, size_t* lenp);
 uint32_t js_input_buffer_peekc(InputBuffer*, size_t* lenp);
 
 static inline BOOL

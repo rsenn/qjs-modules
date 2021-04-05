@@ -69,7 +69,7 @@ JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);
 JSValue js_syntaxerror_new(JSContext* ctx, SyntaxError arg);
 JSValue js_token_wrap(JSContext* ctx, Token* tok);
 
-static inline Token*
+static inline SyntaxError*
 js_syntaxerror_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_syntaxerror_class_id);
 }
@@ -84,4 +84,4 @@ js_lexer_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_lexer_class_id);
 }
 
-#endif /* defined(QUICKJS_LEXER_H) */ struct list_head link;
+#endif /* defined(QUICKJS_LEXER_H) */

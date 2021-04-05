@@ -16,7 +16,7 @@ js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   JSValue obj;
   if(!(pred = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
-  pred->id = PREDICATE_NONE;
+  pred->id = -1;
   obj = JS_NewObjectProtoClass(ctx, proto, js_predicate_class_id);
   if(JS_IsException(obj))
     goto fail;
@@ -134,7 +134,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       case PREDICATE_REGEXP: {
         size_t exprlen;
         const char* expr = js_tostringlen(ctx, &exprlen, argv[1]);
-        const char* flagstr = argv > 1 ? JS_ToCString(ctx, argv[2]) : 0;
+        const char* flagstr = argc > 1 ? JS_ToCString(ctx, argv[2]) : 0;
         *pred = predicate_regexp(expr, exprlen, flagstr ? predicate_regexp_str2flags(flagstr) : 0);
 
         if(flagstr)
@@ -277,7 +277,7 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     case PREDICATE_REGEXP: {
       size_t exprlen;
       const char* expr = js_tostringlen(ctx, &exprlen, argv[0]);
-      const char* flagstr = argv > 1 ? JS_ToCString(ctx, argv[1]) : 0;
+      const char* flagstr = argc > 1 ? JS_ToCString(ctx, argv[1]) : 0;
       int flags = flagstr ? predicate_regexp_str2flags(flagstr) : 0;
       Predicate pred = predicate_regexp(expr, exprlen, flags);
       ret = js_predicate_wrap(ctx, pred);

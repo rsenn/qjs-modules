@@ -36,7 +36,7 @@ location_dup(const Location* loc, JSContext* ctx) {
 static void
 location_free(Location* loc, JSRuntime* rt) {
   if(loc->file)
-    js_free_rt(rt, loc->file);
+    js_free_rt(rt, (char*)loc->file);
   memset(loc, 0, sizeof(Location));
 }
 
@@ -62,7 +62,7 @@ js_position_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   js_dbuf_init(ctx, &db);
   js_position_dump(ctx, this_val, &db);
 
-  ret = JS_NewStringLen(ctx, db.buf, db.size);
+  ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   dbuf_free(&db);
   return ret;
 }
@@ -152,7 +152,7 @@ js_syntaxerror_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   if(!(err = js_syntaxerror_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  js_dbuf_init(&db, ctx);
+  js_dbuf_init(ctx, &db);
   location_dump(&err->loc, &db);
 
   if(err->message) {
@@ -160,7 +160,7 @@ js_syntaxerror_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     dbuf_putstr(&db, err->message);
   }
 
-  ret = JS_NewStringLen(ctx, db.buf, db.size);
+  ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   dbuf_free(&db);
   return ret;
 }
@@ -171,7 +171,7 @@ js_syntaxerror_finalizer(JSRuntime* rt, JSValue val) {
   if(err) {
 
     if(err->message)
-      js_free_rt(rt, err->message);
+      js_free_rt(rt, (char*)err->message);
     location_free(&err->loc, rt);
     // printf("js_syntaxerror_finalizer\n");
   }
@@ -290,7 +290,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   js_dbuf_init(ctx, &dbuf);
 
   dbuf_putstr(&dbuf, "Token { loc: ");
-  location_dump(&dbuf, &tok->loc);
+  location_dump(&tok->loc, &dbuf);
 
   dbuf_printf(&dbuf,
               ", offset: %3" PRIu32 ", byte_length: %3" PRIu32 ", type: Token.%-15s, chars: '",
@@ -298,7 +298,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
               tok->byte_length,
               token_type(tok));
 
-  dbuf_put_escaped(&dbuf, &tok->data[tok->offset], tok->byte_length);
+  dbuf_put_escaped(&dbuf, (const char*)&tok->data[tok->offset], tok->byte_length);
   dbuf_putstr(&dbuf, "' }");
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
@@ -330,7 +330,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case TOKEN_PROP_CHARS: {
-      ret = JS_NewStringLen(ctx, &tok->data[tok->offset], tok->byte_length);
+      ret = JS_NewStringLen(ctx, (const char*)&tok->data[tok->offset], tok->byte_length);
       break;
     }
 
@@ -511,7 +511,7 @@ lexer_distance(Lexer* lex) {
   return n;
 }
 
-static uint8_t*
+static const uint8_t*
 lexer_peek(Lexer* lex, size_t* lenp) {
   return js_input_buffer_peek(&lex->input, lenp);
 }
@@ -533,7 +533,7 @@ lexer_eof(Lexer* lex) {
 
 static size_t
 lexer_ignore(Lexer* lex) {
-  uint8_t *p, *end, *next;
+  const uint8_t *p, *end, *next;
   size_t n;
   p = &lex->data[lex->start];
   end = &lex->data[lex->pos];
@@ -566,9 +566,9 @@ lexer_getc(Lexer* lex, size_t* lenp) {
   return ret;
 }
 
-static uint8_t*
+static const uint8_t*
 lexer_get(Lexer* lex, size_t* lenp) {
-  uint8_t* ret;
+  const uint8_t* ret;
   size_t n;
   if(lenp == 0)
     lenp = &n;
@@ -581,8 +581,8 @@ static void
 lexer_skip_until(Lexer* lex, JSContext* ctx, Predicate* pred) {
   while(!lexer_eof(lex)) {
     size_t len;
-    uint8_t* p = lexer_peek(lex, &len);
-    JSValue str = JS_NewStringLen(ctx, p, len);
+    const uint8_t* p = lexer_peek(lex, &len);
+    JSValue str = JS_NewStringLen(ctx, (const char*)p, len);
     if(predicate_eval(pred, ctx, 1, &str) > 0)
       break;
     lexer_get(lex, 0);
@@ -600,6 +600,21 @@ lexer_skip(Lexer* lex, int ntimes) {
     }
   }
   return r;
+}
+
+static size_t
+lexer_accept(Lexer* lex, JSContext* ctx, JSValueConst pred) {
+  size_t started = lex->pos;
+  if(!lexer_eof(lex)) {
+    JSValue ch;
+    size_t len;
+    const uint8_t* p = lexer_peek(lex, &len);
+    ch = JS_NewStringLen(ctx, (const char*)p, len);
+    if(predicate_call(ctx, pred, 1, &ch) == 1)
+      lexer_get(lex, 0);
+    JS_FreeValue(ctx, ch);
+  }
+  return lex->pos - started;
 }
 
 JSValue
@@ -690,8 +705,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case LEXER_METHOD_PEEKC: {
       if(!lexer_eof(lex)) {
         size_t len;
-        uint8_t* buf = lexer_peek(lex, &len);
-        ret = JS_NewStringLen(ctx, buf, len);
+        const uint8_t* buf = lexer_peek(lex, &len);
+        ret = JS_NewStringLen(ctx, (const char*)buf, len);
       }
       break;
     }
@@ -699,8 +714,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case LEXER_METHOD_GETC: {
       if(!lexer_eof(lex)) {
         size_t len;
-        uint8_t* buf = lexer_get(lex, &len);
-        ret = JS_NewStringLen(ctx, buf, len);
+        const uint8_t* buf = lexer_get(lex, &len);
+        ret = JS_NewStringLen(ctx, (const char*)buf, len);
       }
       break;
     }
@@ -708,19 +723,19 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case LEXER_METHOD_SKIPC: {
       if(!lexer_eof(lex)) {
         int32_t ntimes = 1;
-        uint8_t* p;
+        const uint8_t* p;
         size_t n;
         if(argc > 0)
           JS_ToInt32(ctx, &ntimes, argv[0]);
         while(ntimes-- > 0) { p = lexer_get(lex, &n); }
-        ret = JS_NewStringLen(ctx, p, n);
+        ret = JS_NewStringLen(ctx, (const char*)p, n);
       }
       break;
     }
 
     case LEXER_METHOD_MATCH: {
       uint32_t pos = lex->pos;
-      uint8_t* ptr = &lex->data[lex->pos];
+      const uint8_t* ptr = &lex->data[lex->pos];
 
       if(!lexer_eof(lex)) {
         Predicate* pred = js_predicate_data(ctx, argv[0]);
@@ -771,8 +786,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
         pred = argv[0];
         while(lex->pos < lex->size) {
           size_t n;
-          uint8_t* p = lexer_peek(lex, &n);
-          JSValue str = JS_NewStringLen(ctx, p, n);
+          const uint8_t* p = lexer_peek(lex, &n);
+          JSValue str = JS_NewStringLen(ctx, (const char*)p, n);
           JSValue ret = JS_Call(ctx, pred, this_val, 1, &str);
           BOOL b = JS_ToBool(ctx, ret);
           JS_FreeValue(ctx, ret);
@@ -816,60 +831,41 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     }
 
     case LEXER_METHOD_ACCEPT: {
-      if(!lexer_eof(lex)) {
-        JSValueConst pred = argv[0];
-        size_t started = lex->pos;
-        JSValue ch, r;
-        uint8_t* p;
-        size_t len;
-        BOOL b;
-        p = lexer_peek(lex, &len);
-        ch = JS_NewStringLen(ctx, p, len);
-        b = predicate_call(ctx, pred, 1, &ch);
-        JS_FreeValue(ctx, ch);
-        ret = JS_NewBool(ctx, b);
-        if(b)
-          lexer_get(lex, 0);
-      }
+      ret = JS_NewUint32(ctx, lexer_accept(lex, ctx, argv[0]));
       break;
     }
 
     case LEXER_METHOD_ACCEPT_RUN: {
+      size_t started = lex->pos;
       if(!lexer_eof(lex)) {
         JSValueConst pred = argv[0];
-        size_t started = lex->pos;
         while(lexer_remain(lex)) {
-          JSValue ch, r;
-          uint8_t* p;
           size_t len;
-          BOOL b;
-          p = lexer_peek(lex, &len);
-          ch = JS_NewStringLen(ctx, p, len);
-          b = predicate_call(ctx, pred, 1, &ch);
+          const uint8_t* p = lexer_peek(lex, &len);
+          JSValue ch = JS_NewStringLen(ctx, (const char*)p, len);
+          BOOL b = predicate_call(ctx, pred, 1, &ch);
           // printf("acceptRun %.*s = %i\n", len, p, b);
           JS_FreeValue(ctx, ch);
           if(!b)
             break;
           lexer_get(lex, 0);
         }
-        ret = JS_NewUint32(ctx, lex->pos - started);
       }
+      ret = JS_NewUint32(ctx, lex->pos - started);
       break;
     }
 
     case LEXER_METHOD_BACKUP: {
+      size_t started = lex->pos;
       int32_t ntimes = 1;
-      uint8_t c, *p;
-      size_t len;
       if(argc > 0)
         JS_ToInt32(ctx, &ntimes, argv[0]);
-      while(ntimes-- > 0 && lex->pos > 0) {
+      while(ntimes-- > 0 && lex->pos > 0 && vector_size(&lex->charlengths, sizeof(size_t))) {
         size_t n = *(size_t*)vector_back(&lex->charlengths, sizeof(size_t));
         vector_pop(&lex->charlengths, sizeof(size_t));
         lex->pos -= n;
       }
-      p = js_input_buffer_peek(&lex->input, &len);
-      ret = JS_NewStringLen(ctx, p, len);
+      ret = JS_NewStringLen(ctx, (const char*)&lex->data[lex->pos], started - lex->pos);
       break;
     }
 
@@ -984,7 +980,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
 
     case LEXER_PROP_FILENAME: {
       if(lex->loc.file)
-        js_free(ctx, lex->loc.file);
+        js_free(ctx, (char*)lex->loc.file);
       lex->loc.file = js_tostring(ctx, value);
       break;
     }

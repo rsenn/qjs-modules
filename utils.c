@@ -206,7 +206,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = {0, 0, 0, &input_buffer_free_default};
 
   if(JS_IsString(value)) {
-    ret.data = (const uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
+    ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
     ret.free = JS_FreeCString;
   } else if(js_is_arraybuffer(ctx, value)) {
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, value);
@@ -236,9 +236,9 @@ input_buffer_free(InputBuffer* in, JSContext* ctx) {
   }
 }
 
-uint8_t*
+const uint8_t*
 js_input_buffer_peek(InputBuffer* in, size_t* lenp) {
-  uint8_t *pos, *end, *next;
+  const uint8_t *pos, *end, *next;
   pos = in->data + in->pos;
   end = in->data + in->size;
   unicode_from_utf8(pos, end - pos, &next);
@@ -249,7 +249,7 @@ js_input_buffer_peek(InputBuffer* in, size_t* lenp) {
 
 uint32_t
 js_input_buffer_peekc(InputBuffer* in, size_t* lenp) {
-  uint8_t *pos, *end, *next;
+  const uint8_t *pos, *end, *next;
   uint32_t cp;
   pos = in->data + in->pos;
   end = in->data + in->size;
@@ -259,10 +259,10 @@ js_input_buffer_peekc(InputBuffer* in, size_t* lenp) {
   return cp;
 }
 
-uint8_t*
+const uint8_t*
 js_input_buffer_get(InputBuffer* in, size_t* lenp) {
   size_t n;
-  uint8_t* ret;
+  const uint8_t* ret;
   if(lenp == 0)
     lenp = &n;
   ret = js_input_buffer_peek(in, lenp);
@@ -895,9 +895,9 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
 
 JSValue
 js_value_from_char(JSContext* ctx, int c) {
-  char buf[16];
+  uint8_t buf[16];
   size_t len = unicode_to_utf8(buf, c);
-  return JS_NewStringLen(ctx, buf, len);
+  return JS_NewStringLen(ctx, (const char*)buf, len);
 }
 
 void
@@ -905,7 +905,7 @@ js_value_print(JSContext* ctx, JSValueConst value, DynBuf* dbuf) {
   const char* str;
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
-  dbuf_put(dbuf, str, len);
+  dbuf_put(dbuf, (const uint8_t*)str, len);
   JS_FreeCString(ctx, str);
 }
 

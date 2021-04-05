@@ -248,10 +248,10 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
 
     case METHOD_RELATIVE: {
-      DynBuf cwd = {0, 0, 0, 0, 0};
+      DynBuf cwd = {0, 0, 0, 0, 0, 0};
 
       if(b == NULL) {
-        dbuf_init(&cwd);
+        dbuf_init2(&cwd, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
         b = path_getcwd(&cwd);
       }
       path_relative(a, b, &db);
