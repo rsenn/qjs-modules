@@ -9,6 +9,8 @@
 
 #define ALPHA_CHARS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
+VISIBLE JSClassID js_syntax_error_class_id = 0, js_token_class_id = 0, js_lexer_class_id = 0;
+
 static void lexer_free(Lexer*, JSRuntime*);
 
 static JSValue
@@ -32,12 +34,10 @@ js_position_new(JSContext* ctx, const Location* loc) {
   JSValue ret = JS_NewObject(ctx);
   JS_SetPropertyStr(ctx, ret, "line", JS_NewUint32(ctx, loc->line + 1));
   JS_SetPropertyStr(ctx, ret, "column", JS_NewUint32(ctx, loc->column + 1));
-
   JS_SetPropertyStr(ctx, ret, "toString", JS_NewCFunction(ctx, &js_position_tostring, "toString", 0));
   return ret;
 }
 
-VISIBLE JSClassID js_syntax_error_class_id;
 JSValue syntax_error_proto, syntax_error_constructor, syntax_error_ctor;
 
 JSValue
@@ -121,18 +121,24 @@ static const JSCFunctionListEntry js_syntax_error_proto_funcs[] = {
     JS_CGETSET_ENUMERABLE_DEF("loc", js_syntax_error_get, 0, 0),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyntaxError", JS_PROP_CONFIGURABLE)};
 
-VISIBLE JSClassID js_token_class_id;
 JSValue token_proto, token_constructor, token_ctor;
 
 enum token_methods { TO_STRING = 0 };
-enum token_getters { PROP_LENGTH = 0, PROP_OFFSET, PROP_CHARS, PROP_LOC, PROP_ID, PROP_TYPE };
+enum token_getters {
+  TOKEN_PROP_LENGTH = 0,
+  TOKEN_PROP_OFFSET,
+  TOKEN_PROP_CHARS,
+  TOKEN_PROP_LOC,
+  TOKEN_PROP_ID,
+  TOKEN_PROP_TYPE
+};
 
 static inline int
 keywords_cmp(const char** w1, const char** w2) {
   return strcmp(*w1, *w2);
 }
 
-static  Token*
+static Token*
 token_new(Lexer* lex, JSRuntime* rt) {
   Token* ret = js_mallocz_rt(rt, sizeof(Token));
   if((ret->lexer = lex))
@@ -252,18 +258,6 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
 }
 
 static JSValue
-js_token_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
-  Token* tok;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(tok = JS_GetOpaque2(ctx, this_val, js_token_class_id)))
-    return JS_EXCEPTION;
-
-  switch(magic) {}
-  return ret;
-}
-
-static JSValue
 js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Token* tok;
   JSValue ret = JS_UNDEFINED;
@@ -271,30 +265,32 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PROP_LENGTH: {
+    case TOKEN_PROP_LENGTH: {
       ret = JS_NewInt64(ctx, tok->length);
       break;
     }
 
-    case PROP_OFFSET: {
+    case TOKEN_PROP_OFFSET: {
       ret = JS_NewInt64(ctx, tok->offset);
       break;
     }
 
-    case PROP_CHARS: {
+    case TOKEN_PROP_CHARS: {
       ret = JS_NewStringLen(ctx, &tok->data[tok->offset], tok->length);
       break;
     }
 
-    case PROP_LOC: {
+    case TOKEN_PROP_LOC: {
       ret = js_position_new(ctx, &tok->loc);
       break;
     }
-    case PROP_ID: {
+
+    case TOKEN_PROP_ID: {
       ret = JS_NewInt32(ctx, tok->id);
       break;
     }
-    case PROP_TYPE: {
+
+    case TOKEN_PROP_TYPE: {
       ret = JS_NewString(ctx, token_type(tok));
       break;
     }
@@ -334,80 +330,79 @@ JSClassDef js_token_class = {
 };
 
 static const JSCFunctionListEntry js_token_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("length", js_token_get, NULL, PROP_LENGTH),
-    JS_CGETSET_MAGIC_DEF("offset", js_token_get, NULL, PROP_OFFSET),
-    JS_CGETSET_MAGIC_DEF("loc", js_token_get, NULL, PROP_LOC),
-    JS_CGETSET_MAGIC_DEF("id", js_token_get, NULL, PROP_ID),
-    JS_CGETSET_MAGIC_DEF("type", js_token_get, NULL, PROP_TYPE),
+    JS_CGETSET_MAGIC_DEF("length", js_token_get, NULL, TOKEN_PROP_LENGTH),
+    JS_CGETSET_MAGIC_DEF("offset", js_token_get, NULL, TOKEN_PROP_OFFSET),
+    JS_CGETSET_MAGIC_DEF("loc", js_token_get, NULL, TOKEN_PROP_LOC),
+    JS_CGETSET_MAGIC_DEF("id", js_token_get, NULL, TOKEN_PROP_ID),
+    JS_CGETSET_MAGIC_DEF("type", js_token_get, NULL, TOKEN_PROP_TYPE),
     JS_CFUNC_DEF("toString", 0, js_token_tostring),
     JS_CFUNC_DEF("inspect", 0, js_token_inspect),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE)};
 
 static const JSCFunctionListEntry js_token_static_funcs[] = {
-    JS_PROP_INT32_DEF("COMMENT", COMMENT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("STRING_LITERAL", STRING_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TEMPLATE_LITERAL", TEMPLATE_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("NUMERIC_LITERAL", NUMERIC_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("BOOLEAN_LITERAL", BOOLEAN_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("NULL_LITERAL", NULL_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("PUNCTUATOR", PUNCTUATOR, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("KEYWORD", KEYWORD, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("IDENTIFIER", IDENTIFIER, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("REGEXP_LITERAL", REGEXP_LITERAL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("COMMENT", TOKEN_ID_COMMENT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("STRING_LITERAL", TOKEN_ID_STRING_LITERAL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TEMPLATE_LITERAL", TOKEN_ID_TEMPLATE_LITERAL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NUMERIC_LITERAL", TOKEN_ID_NUMERIC_LITERAL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("BOOLEAN_LITERAL", TOKEN_ID_BOOLEAN_LITERAL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NULL_LITERAL", TOKEN_ID_NULL_LITERAL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PUNCTUATOR", TOKEN_ID_PUNCTUATOR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("KEYWORD", TOKEN_ID_KEYWORD, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("IDENTIFIER", TOKEN_ID_IDENTIFIER, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("REGEXP_LITERAL", TOKEN_ID_REGEXP_LITERAL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("EOF", EOF, JS_PROP_ENUMERABLE)};
 
-VISIBLE JSClassID js_lexer_class_id = 0;
 JSValue lexer_proto, lexer_constructor, lexer_ctor;
+
 static const char punctuator_chars[] = "=.-%}>,*[<!/]~&(;?|):+^{@";
 
 enum lexer_methods {
-  METHOD_PEEKC = 0,
-  METHOD_GETC,
-  METHOD_SKIPC,
-  METHOD_IGNORE,
-  METHOD_GET_RANGE,
-  METHOD_CURRENT_LINE,
-  METHOD_ACCEPT,
-  METHOD_ACCEPT_RUN,
-  METHOD_BACKUP,
-  METHOD_SKIPUNTIL,
-  METHOD_ADD_TOKEN,
-  METHOD_ERROR
+  LEXER_METHOD_PEEKC = 0,
+  LEXER_METHOD_GETC,
+  LEXER_METHOD_SKIPC,
+  LEXER_METHOD_IGNORE,
+  LEXER_METHOD_GET_RANGE,
+  LEXER_METHOD_CURRENT_LINE,
+  LEXER_METHOD_ACCEPT,
+  LEXER_METHOD_ACCEPT_RUN,
+  LEXER_METHOD_BACKUP,
+  LEXER_METHOD_SKIPUNTIL,
+  LEXER_METHOD_ADD_TOKEN,
+  LEXER_METHOD_ERROR
 };
 enum lexer_functions { STATIC_FROM = 0, STATIC_OF };
 enum lexer_getters {
-  LEXER_SIZE = 0,
-  LEXER_POS,
-  LEXER_START,
-  LEXER_LINE,
-  LEXER_COLUMN,
-  LEXER_LINESTART,
-  LEXER_LINELEN,
-  LEXER_LINEEND,
-  LEXER_LINEPOS,
-  LEXER_EOF,
-  LEXER_TOKEN,
-  LEXER_COLUMN_INDEX,
-  LEXER_CURRENT_LINE,
-  LEXER_KEYWORDS,
-  LEXER_STATEFN,
-  LEXER_FILENAME,
-  LEXER_POSITION
+  LEXER_PROP_SIZE = 0,
+  LEXER_PROP_POS,
+  LEXER_PROP_START,
+  LEXER_PROP_LINE,
+  LEXER_PROP_COLUMN,
+  LEXER_PROP_LINESTART,
+  LEXER_PROP_LINELEN,
+  LEXER_PROP_LINEEND,
+  LEXER_PROP_LINEPOS,
+  LEXER_PROP_EOF,
+  //  LEXER_PROP_TOKEN,
+  LEXER_PROP_COLUMN_INDEX,
+  LEXER_PROP_CURRENT_LINE,
+  LEXER_PROP_STATEFN,
+  LEXER_PROP_FILENAME,
+  LEXER_PROP_POSITION
 };
 
 enum lexer_ctype {
-  IS_ALPHA_CHAR = 0,
-  IS_DECIMAL_DIGIT,
-  IS_HEX_DIGIT,
-  IS_IDENTIFIER_CHAR,
-  IS_IDENTIFIER_FIRST_CHAR,
-  IS_LINE_TERMINATOR,
-  IS_OCTAL_DIGIT,
-  IS_PUNCTUATOR,
-  IS_PUNCTUATOR_CHAR,
-  IS_QUOTE_CHAR,
-  IS_REGEXP_CHAR,
-  IS_WHITESPACE
+  LEXER_CTYPE_ALPHA = 0,
+  LEXER_CTYPE_DIGIT,
+  LEXER_CTYPE_XDIGIT,
+  LEXER_CTYPE_IDENTIFIER,
+  LEXER_CTYPE_IDENTIFIER_FIRST,
+  LEXER_CTYPE_NEWLINE,
+  LEXER_CTYPE_ODIGIT,
+  LEXER_CTYPE_PUNCT,
+  LEXER_CTYPE_PUNCT_CHAR,
+  LEXER_CTYPE_QUOTE,
+  LEXER_CTYPE_REGEXP,
+  LEXER_CTYPE_SPACE
 };
 
 static void
@@ -627,7 +622,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     return JS_EXCEPTION;
 
   switch(magic) {
-    case METHOD_PEEKC: {
+    case LEXER_METHOD_PEEKC: {
       if(lexer_remain(lex)) {
         size_t len;
         uint8_t* buf = lexer_peek(lex, &len);
@@ -636,7 +631,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_GETC: {
+    case LEXER_METHOD_GETC: {
       if(lexer_remain(lex)) {
         size_t len;
         uint8_t* buf = lexer_get(lex, &len);
@@ -645,7 +640,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_SKIPC: {
+    case LEXER_METHOD_SKIPC: {
       if(lexer_remain(lex)) {
         int32_t ntimes = 1;
         uint8_t* p;
@@ -658,7 +653,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_SKIPUNTIL: {
+    case LEXER_METHOD_SKIPUNTIL: {
       if(lexer_remain(lex)) {
         JSValueConst pred;
         if(!JS_IsFunction(ctx, argv[0]))
@@ -682,12 +677,12 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_IGNORE: {
+    case LEXER_METHOD_IGNORE: {
       lexer_ignore(lex);
       break;
     }
 
-    case METHOD_GET_RANGE: {
+    case LEXER_METHOD_GET_RANGE: {
       size_t start, end;
       start = lex->start;
       end = lex->pos;
@@ -700,7 +695,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_CURRENT_LINE: {
+    case LEXER_METHOD_CURRENT_LINE: {
       size_t start, end;
       start = lex->start;
       end = lex->pos;
@@ -710,7 +705,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_ACCEPT: {
+    case LEXER_METHOD_ACCEPT: {
       if(!lexer_eof(lex)) {
         JSValueConst pred = argv[0];
         size_t started = lex->pos;
@@ -729,7 +724,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_ACCEPT_RUN: {
+    case LEXER_METHOD_ACCEPT_RUN: {
       if(!lexer_eof(lex)) {
         JSValueConst pred = argv[0];
         size_t started = lex->pos;
@@ -752,7 +747,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_BACKUP: {
+    case LEXER_METHOD_BACKUP: {
       int32_t ntimes = 1;
       uint8_t c, *p;
       size_t len;
@@ -768,7 +763,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_ADD_TOKEN: {
+    case LEXER_METHOD_ADD_TOKEN: {
       int32_t tokId;
       Token* tok;
       JS_ToInt32(ctx, &tokId, argv[0]);
@@ -782,7 +777,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
-    case METHOD_ERROR: {
+    case LEXER_METHOD_ERROR: {
       SyntaxError error;
       const char* str;
       size_t len;
@@ -808,39 +803,65 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case LEXER_POS: ret = JS_NewInt64(ctx, lex->pos); break;
-    case LEXER_SIZE: ret = JS_NewInt64(ctx, lex->size); break;
-    case LEXER_START: ret = JS_NewInt64(ctx, lex->start); break;
-    case LEXER_LINE: ret = JS_NewUint32(ctx, lex->loc.line + 1); break;
-    case LEXER_COLUMN: ret = JS_NewUint32(ctx, lex->loc.column + 1); break;
-    case LEXER_LINESTART: ret = JS_NewUint32(ctx, lexer_line(lex).start); break;
-    case LEXER_LINELEN: ret = JS_NewUint32(ctx, lexer_line(lex).length); break;
-    case LEXER_LINEEND: {
+    case LEXER_PROP_POS: {
+      ret = JS_NewInt64(ctx, lex->pos);
+      break;
+    }
+
+    case LEXER_PROP_SIZE: {
+      ret = JS_NewInt64(ctx, lex->size);
+      break;
+    }
+
+    case LEXER_PROP_START: {
+      ret = JS_NewInt64(ctx, lex->start);
+      break;
+    }
+
+    case LEXER_PROP_LINE: {
+      ret = JS_NewUint32(ctx, lex->loc.line + 1);
+      break;
+    }
+
+    case LEXER_PROP_COLUMN: {
+      ret = JS_NewUint32(ctx, lex->loc.column + 1);
+      break;
+    }
+
+    case LEXER_PROP_LINESTART: {
+      ret = JS_NewUint32(ctx, lexer_line(lex).start);
+      break;
+    }
+
+    case LEXER_PROP_LINELEN: {
+      ret = JS_NewUint32(ctx, lexer_line(lex).length);
+      break;
+    }
+
+    case LEXER_PROP_LINEEND: {
       Line ln = lexer_line(lex);
       ret = JS_NewUint32(ctx, ln.start + ln.length);
       break;
     }
 
-    case LEXER_LINEPOS: {
+    case LEXER_PROP_LINEPOS: {
       Line ln = lexer_line(lex);
       ret = JS_NewUint32(ctx, lex->pos - ln.start);
       break;
     }
 
-    case LEXER_EOF: ret = JS_NewBool(ctx, lex->pos >= lex->size); break;
-    case LEXER_TOKEN: {
-      size_t size = lex->pos - lex->start;
-      ret = JS_NewStringLen(ctx, (const char*)&lex->data[lex->start], size);
+    case LEXER_PROP_EOF: {
+      ret = JS_NewBool(ctx, lex->pos >= lex->size);
       break;
     }
 
-    case LEXER_CURRENT_LINE: {
+    case LEXER_PROP_CURRENT_LINE: {
       Line ln = lexer_line(lex);
       ret = JS_NewStringLen(ctx, (const char*)&lex->data[ln.start], ln.length);
       break;
     }
 
-    case LEXER_COLUMN_INDEX: {
+    case LEXER_PROP_COLUMN_INDEX: {
       size_t index;
       for(index = lex->pos; index > 0; index--) {
         if(lex->data[index - 1] == '\n')
@@ -849,20 +870,18 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt32(ctx, lex->pos - index);
       break;
     }
-      /*    case LEXER_KEYWORDS: {
-            ret = js_strvec_to_array(ctx, lex->keywords);
-            break;
-          }*/
-    case LEXER_STATEFN: {
+
+    case LEXER_PROP_STATEFN: {
       ret = JS_DupValue(ctx, lex->state_fn);
       break;
     }
 
-    case LEXER_FILENAME: {
+    case LEXER_PROP_FILENAME: {
       ret = lex->filename ? JS_NewString(ctx, lex->filename) : JS_UNDEFINED;
       break;
     }
-    case LEXER_POSITION: {
+
+    case LEXER_PROP_POSITION: {
       ret = js_position_new(ctx, &lex->loc);
       break;
     }
@@ -883,16 +902,22 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
     return JS_EXCEPTION;
 
   switch(magic) {
-    case LEXER_POS: js_value_to_size(ctx, &lex->pos, value); break;
-    case LEXER_SIZE: js_value_to_size(ctx, &lex->size, value); break;
-    case LEXER_START: js_value_to_size(ctx, &lex->start, value); break;
-    /*case LEXER_KEYWORDS: {
-      js_strvec_free(ctx, lex->keywords);
-      lex->nkeywords = js_array_length(ctx, value);
-      lex->keywords = js_array_to_strvec(ctx, value);
-      qsort(lex->keywords, lex->nkeywords, sizeof(char*), (int (*)(const void*, const void*)) & keywords_cmp); break;
-    }*/
-    case LEXER_FILENAME: {
+    case LEXER_PROP_POS: {
+      js_value_to_size(ctx, &lex->pos, value);
+      break;
+    }
+    
+    case LEXER_PROP_SIZE: {
+      js_value_to_size(ctx, &lex->size, value);
+      break;
+    }
+
+    case LEXER_PROP_START: {
+      js_value_to_size(ctx, &lex->start, value);
+      break;
+    }
+
+    case LEXER_PROP_FILENAME: {
       const char* s;
       if(lex->filename)
         js_free(ctx, lex->filename);
@@ -901,7 +926,8 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       JS_FreeCString(ctx, s);
       break;
     }
-    case LEXER_STATEFN: {
+
+    case LEXER_PROP_STATEFN: {
       if(!JS_IsUndefined(lex->state_fn))
         JS_FreeValue(ctx, lex->state_fn);
       lex->state_fn = JS_DupValue(ctx, value);
@@ -981,21 +1007,65 @@ js_lexer_ctype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   }
 
   switch(magic) {
-    case IS_ALPHA_CHAR: result = str_contains(ALPHA_CHARS, c); break;
-    case IS_WHITESPACE: result = (c == 9 || c == 0xb || c == 0xc || c == ' '); break;
-    case IS_DECIMAL_DIGIT: result = str_contains("0123456789", c); break;
-    case IS_HEX_DIGIT: result = str_contains("0123456789ABCDEFabcdef", c); break;
-    case IS_OCTAL_DIGIT: result = c >= '0' && c <= '7'; break;
-    case IS_LINE_TERMINATOR: result = c == '\r' || c == '\n'; break;
-    case IS_QUOTE_CHAR: result = c == '"' || c == '\'' || c == '`'; break;
-    case IS_REGEXP_CHAR: result = c == '/'; break;
-    case IS_PUNCTUATOR_CHAR: result = (str_contains("=.-%}>,*[<!/]~&(;?|):+^{@", c)); break;
-    case IS_IDENTIFIER_CHAR: result = (str_contains(ALPHA_CHARS "0123456789$_", c)); break;
-    case IS_IDENTIFIER_FIRST_CHAR: result = (str_contains(ALPHA_CHARS "$_", c)); break;
-    default:
+    case LEXER_CTYPE_ALPHA: {
+      result = str_contains(ALPHA_CHARS, c);
+      break;
+    }
+
+    case LEXER_CTYPE_SPACE: {
+      result = (c == 9 || c == 0xb || c == 0xc || c == ' ');
+      break;
+    }
+
+    case LEXER_CTYPE_DIGIT: {
+      result = str_contains("0123456789", c);
+      break;
+    }
+
+    case LEXER_CTYPE_XDIGIT: {
+      result = str_contains("0123456789ABCDEFabcdef", c);
+      break;
+    }
+
+    case LEXER_CTYPE_ODIGIT: {
+      result = c >= '0' && c <= '7';
+      break;
+    }
+
+    case LEXER_CTYPE_NEWLINE: {
+      result = c == '\r' || c == '\n';
+      break;
+    }
+
+    case LEXER_CTYPE_QUOTE: {
+      result = c == '"' || c == '\'' || c == '`';
+      break;
+    }
+
+    case LEXER_CTYPE_REGEXP: {
+      result = c == '/';
+      break;
+    }
+
+    case LEXER_CTYPE_PUNCT_CHAR: {
+      result = (str_contains("=.-%}>,*[<!/]~&(;?|):+^{@", c));
+      break;
+    }
+
+    case LEXER_CTYPE_IDENTIFIER: {
+      result = (str_contains(ALPHA_CHARS "0123456789$_", c));
+      break;
+    }
+
+    case LEXER_CTYPE_IDENTIFIER_FIRST: {
+      result = (str_contains(ALPHA_CHARS "$_", c));
+      break;
+    }
+    default: {
       result = -1;
       JS_ThrowRangeError(ctx, "js_lexer_ctype invalid magic: %d", magic);
       break;
+    }
   }
   b = JS_NewInt32(ctx, result);
   return b;
@@ -1022,52 +1092,51 @@ JSClassDef js_lexer_class = {
 
 static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, 0),
-    JS_CFUNC_MAGIC_DEF("getc", 0, js_lexer_method, METHOD_GETC),
-    JS_CFUNC_MAGIC_DEF("peek", 0, js_lexer_method, METHOD_PEEKC),
-    JS_CFUNC_MAGIC_DEF("skip", 0, js_lexer_method, METHOD_SKIPC),
-    JS_CFUNC_MAGIC_DEF("skipUntil", 0, js_lexer_method, METHOD_SKIPUNTIL),
-    JS_CFUNC_MAGIC_DEF("ignore", 0, js_lexer_method, METHOD_IGNORE),
-    JS_CFUNC_MAGIC_DEF("getRange", 0, js_lexer_method, METHOD_GET_RANGE),
-    JS_CFUNC_MAGIC_DEF("currentLine", 0, js_lexer_method, METHOD_CURRENT_LINE),
-    JS_CFUNC_MAGIC_DEF("accept", 1, js_lexer_method, METHOD_ACCEPT),
-    JS_CFUNC_MAGIC_DEF("acceptRun", 1, js_lexer_method, METHOD_ACCEPT_RUN),
-    JS_CFUNC_MAGIC_DEF("backup", 0, js_lexer_method, METHOD_BACKUP),
-    JS_CFUNC_MAGIC_DEF("addToken", 0, js_lexer_method, METHOD_ADD_TOKEN),
-    JS_CFUNC_MAGIC_DEF("error", 1, js_lexer_method, METHOD_ERROR),
-    JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_SIZE),
-    JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_POS),
-    JS_CGETSET_MAGIC_DEF("start", js_lexer_get, js_lexer_set, LEXER_START),
-    /* JS_CGETSET_MAGIC_DEF("line", js_lexer_get, js_lexer_set, LEXER_LINE),
-     JS_CGETSET_MAGIC_DEF("column", js_lexer_get, js_lexer_set, LEXER_COLUMN),*/
-    JS_CGETSET_MAGIC_DEF("position", js_lexer_get, 0, LEXER_POSITION),
-    JS_CGETSET_MAGIC_DEF("lineStart", js_lexer_get, 0, LEXER_LINESTART),
-    JS_CGETSET_MAGIC_DEF("lineLength", js_lexer_get, 0, LEXER_LINELEN),
-    JS_CGETSET_MAGIC_DEF("lineEnd", js_lexer_get, 0, LEXER_LINEEND),
-    // JS_CGETSET_MAGIC_DEF("linePos", js_lexer_get, 0, LEXER_LINEPOS),
-    JS_CGETSET_MAGIC_DEF("columnIndex", js_lexer_get, 0, LEXER_COLUMN_INDEX),
-    JS_CGETSET_MAGIC_DEF("currentLine", js_lexer_get, 0, LEXER_CURRENT_LINE),
-    JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_EOF),
-    JS_CGETSET_MAGIC_DEF("token", js_lexer_get, 0, LEXER_TOKEN),
-    JS_CGETSET_MAGIC_DEF("keywords", js_lexer_get, js_lexer_set, LEXER_KEYWORDS),
-    JS_CGETSET_MAGIC_DEF("stateFn", js_lexer_get, js_lexer_set, LEXER_STATEFN),
-    JS_CGETSET_MAGIC_DEF("filename", js_lexer_get, js_lexer_set, LEXER_FILENAME),
+    JS_CFUNC_MAGIC_DEF("getc", 0, js_lexer_method, LEXER_METHOD_GETC),
+    JS_CFUNC_MAGIC_DEF("peek", 0, js_lexer_method, LEXER_METHOD_PEEKC),
+    JS_CFUNC_MAGIC_DEF("skip", 0, js_lexer_method, LEXER_METHOD_SKIPC),
+    JS_CFUNC_MAGIC_DEF("skipUntil", 0, js_lexer_method, LEXER_METHOD_SKIPUNTIL),
+    JS_CFUNC_MAGIC_DEF("ignore", 0, js_lexer_method, LEXER_METHOD_IGNORE),
+    JS_CFUNC_MAGIC_DEF("getRange", 0, js_lexer_method, LEXER_METHOD_GET_RANGE),
+    JS_CFUNC_MAGIC_DEF("currentLine", 0, js_lexer_method, LEXER_METHOD_CURRENT_LINE),
+    JS_CFUNC_MAGIC_DEF("accept", 1, js_lexer_method, LEXER_METHOD_ACCEPT),
+    JS_CFUNC_MAGIC_DEF("acceptRun", 1, js_lexer_method, LEXER_METHOD_ACCEPT_RUN),
+    JS_CFUNC_MAGIC_DEF("backup", 0, js_lexer_method, LEXER_METHOD_BACKUP),
+    JS_CFUNC_MAGIC_DEF("addToken", 0, js_lexer_method, LEXER_METHOD_ADD_TOKEN),
+    JS_CFUNC_MAGIC_DEF("error", 1, js_lexer_method, LEXER_METHOD_ERROR),
+    JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_PROP_SIZE),
+    JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_PROP_POS),
+    JS_CGETSET_MAGIC_DEF("start", js_lexer_get, js_lexer_set, LEXER_PROP_START),
+    /* JS_CGETSET_MAGIC_DEF("line", js_lexer_get, js_lexer_set, LEXER_PROP_LINE),
+     JS_CGETSET_MAGIC_DEF("column", js_lexer_get, js_lexer_set, LEXER_PROP_COLUMN),*/
+    JS_CGETSET_MAGIC_DEF("position", js_lexer_get, 0, LEXER_PROP_POSITION),
+    JS_CGETSET_MAGIC_DEF("lineStart", js_lexer_get, 0, LEXER_PROP_LINESTART),
+    JS_CGETSET_MAGIC_DEF("lineLength", js_lexer_get, 0, LEXER_PROP_LINELEN),
+    JS_CGETSET_MAGIC_DEF("lineEnd", js_lexer_get, 0, LEXER_PROP_LINEEND),
+    // JS_CGETSET_MAGIC_DEF("linePos", js_lexer_get, 0, LEXER_PROP_LINEPOS),
+    JS_CGETSET_MAGIC_DEF("columnIndex", js_lexer_get, 0, LEXER_PROP_COLUMN_INDEX),
+    JS_CGETSET_MAGIC_DEF("currentLine", js_lexer_get, 0, LEXER_PROP_CURRENT_LINE),
+    JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_PROP_EOF),
+    //    JS_CGETSET_MAGIC_DEF("token", js_lexer_get, 0, LEXER_PROP_TOKEN),
+    JS_CGETSET_MAGIC_DEF("stateFn", js_lexer_get, js_lexer_set, LEXER_PROP_STATEFN),
+    JS_CGETSET_MAGIC_DEF("filename", js_lexer_get, js_lexer_set, LEXER_PROP_FILENAME),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_lexer_iterator),
 
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_C_W_E)};
 
 static const JSCFunctionListEntry js_lexer_static_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("isAlphaChar", 1, js_lexer_ctype, IS_ALPHA_CHAR),
-    JS_CFUNC_MAGIC_DEF("isDecimalDigit", 1, js_lexer_ctype, IS_DECIMAL_DIGIT),
-    JS_CFUNC_MAGIC_DEF("isHexDigit", 1, js_lexer_ctype, IS_HEX_DIGIT),
-    JS_CFUNC_MAGIC_DEF("isIdentifierChar", 1, js_lexer_ctype, IS_IDENTIFIER_CHAR),
-    JS_CFUNC_MAGIC_DEF("isIdentifierFirstChar", 1, js_lexer_ctype, IS_IDENTIFIER_FIRST_CHAR),
-    JS_CFUNC_MAGIC_DEF("isLineTerminator", 1, js_lexer_ctype, IS_LINE_TERMINATOR),
-    JS_CFUNC_MAGIC_DEF("isOctalDigit", 1, js_lexer_ctype, IS_OCTAL_DIGIT),
-    JS_CFUNC_MAGIC_DEF("isPunctuator", 1, js_lexer_ctype, IS_PUNCTUATOR),
-    JS_CFUNC_MAGIC_DEF("isPunctuatorChar", 1, js_lexer_ctype, IS_PUNCTUATOR_CHAR),
-    JS_CFUNC_MAGIC_DEF("isQuoteChar", 1, js_lexer_ctype, IS_QUOTE_CHAR),
-    JS_CFUNC_MAGIC_DEF("isRegExpChar", 1, js_lexer_ctype, IS_REGEXP_CHAR),
-    JS_CFUNC_MAGIC_DEF("isWhitespace", 1, js_lexer_ctype, IS_WHITESPACE),
+    JS_CFUNC_MAGIC_DEF("isAlphaChar", 1, js_lexer_ctype, LEXER_CTYPE_ALPHA),
+    JS_CFUNC_MAGIC_DEF("isDecimalDigit", 1, js_lexer_ctype, LEXER_CTYPE_DIGIT),
+    JS_CFUNC_MAGIC_DEF("isHexDigit", 1, js_lexer_ctype, LEXER_CTYPE_XDIGIT),
+    JS_CFUNC_MAGIC_DEF("isIdentifierChar", 1, js_lexer_ctype, LEXER_CTYPE_IDENTIFIER),
+    JS_CFUNC_MAGIC_DEF("isIdentifierFirstChar", 1, js_lexer_ctype, LEXER_CTYPE_IDENTIFIER_FIRST),
+    JS_CFUNC_MAGIC_DEF("isLineTerminator", 1, js_lexer_ctype, LEXER_CTYPE_NEWLINE),
+    JS_CFUNC_MAGIC_DEF("isOctalDigit", 1, js_lexer_ctype, LEXER_CTYPE_ODIGIT),
+    JS_CFUNC_MAGIC_DEF("isPunctuator", 1, js_lexer_ctype, LEXER_CTYPE_PUNCT),
+    JS_CFUNC_MAGIC_DEF("isPunctuatorChar", 1, js_lexer_ctype, LEXER_CTYPE_PUNCT_CHAR),
+    JS_CFUNC_MAGIC_DEF("isQuoteChar", 1, js_lexer_ctype, LEXER_CTYPE_QUOTE),
+    JS_CFUNC_MAGIC_DEF("isRegExpChar", 1, js_lexer_ctype, LEXER_CTYPE_REGEXP),
+    JS_CFUNC_MAGIC_DEF("isWhitespace", 1, js_lexer_ctype, LEXER_CTYPE_SPACE),
 };
 
 static int

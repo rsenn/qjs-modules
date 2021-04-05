@@ -7,17 +7,17 @@
 #include "vector.h"
 
 enum token_types {
-  COMMENT = 0,
-  STRING_LITERAL,
-  TEMPLATE_LITERAL,
-  NUMERIC_LITERAL,
-  BOOLEAN_LITERAL,
-  NULL_LITERAL,
-  PUNCTUATOR,
-  KEYWORD,
-  IDENTIFIER,
-  REGEXP_LITERAL,
-  PROP_EOF
+  TOKEN_ID_COMMENT = 0,
+  TOKEN_ID_STRING_LITERAL,
+  TOKEN_ID_TEMPLATE_LITERAL,
+  TOKEN_ID_NUMERIC_LITERAL,
+  TOKEN_ID_BOOLEAN_LITERAL,
+  TOKEN_ID_NULL_LITERAL,
+  TOKEN_ID_PUNCTUATOR,
+  TOKEN_ID_KEYWORD,
+  TOKEN_ID_IDENTIFIER,
+  TOKEN_ID_REGEXP_LITERAL,
+  TOKEN_ID_PROP_EOF
 };
 
 typedef struct {
@@ -68,9 +68,14 @@ typedef struct {
   Lexer* lexer;
 } Token;
 
-extern JSClassID js_token_class_id, js_lexer_class_id;
+extern JSClassID js_syntax_error_class_id, js_token_class_id, js_lexer_class_id;
 
 JSValue js_syntax_error_new(JSContext*, SyntaxError arg);
+
+static inline Token*
+js_syntax_error_data(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_syntax_error_class_id);
+}
 
 static inline Token*
 js_token_data(JSContext* ctx, JSValueConst value) {
