@@ -593,7 +593,7 @@ static size_t
 lexer_skip(Lexer* lex, int ntimes) {
   size_t r = 0;
   if(!lexer_eof(lex)) {
-   size_t n;
+    size_t n;
     while(ntimes-- > 0) {
       lexer_get(lex, &n);
       r += n;
@@ -720,39 +720,43 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
     case LEXER_METHOD_MATCH: {
       uint32_t pos = lex->pos;
+      uint8_t* ptr = &lex->data[lex->pos];
 
       if(!lexer_eof(lex)) {
         Predicate* pred = js_predicate_data(ctx, argv[0]);
-        int capture_count = 0;
-        uint8_t* capture[CAPTURE_COUNT_MAX * 2];
 
-        if(pred == 0)
-          return JS_ThrowTypeError(ctx, "argument 1 is not a Predicate");
+        if(pred && pred->id == PREDICATE_REGEXP) {
+          int capture_count = 0;
+          uint8_t* capture[CAPTURE_COUNT_MAX * 2];
 
-        if(pred->id != PREDICATE_REGEXP)
-          return JS_ThrowTypeError(ctx, "argument 1 is not a RegExp predicate");
+          pred = predicate_dup(pred, ctx);
 
-        pred = predicate_dup(pred, ctx);
+          if(pred->regexp.expr[0] != '^') {
+            str0_insert(&pred->regexp.expr, ctx, 0, "^", 1);
+            pred->regexp.exprlen += 1;
+          }
 
-        if(pred->regexp.expr[0] != '^') {
-          str0_insert(&pred->regexp.expr, ctx, 0, "^", 1);
-          pred->regexp.exprlen += 1;
+          capture_count = predicate_regexp_compile(pred, ctx);
+
+          if(lre_exec(capture, pred->regexp.bytecode, ptr, 0, lex->size - lex->pos, 0, ctx)) {
+            size_t start, end;
+            start = capture[0] - ptr;
+            end = capture[1] - ptr;
+
+            // printf("capture[0] %u - %u\n", start, end);
+
+            if(start == 0 && end > 0)
+              lexer_skip(lex, end);
+          }
+
+          predicate_free(pred, ctx);
+        } else if(JS_IsString(argv[0])) {
+          size_t len;
+          const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
+
+          if(lexer_remain(lex) >= len && !memcmp(ptr, str, len))
+            lexer_skip(lex, len);
         }
-
-        capture_count = predicate_regexp_compile(pred, ctx);
-
-        if(lre_exec(capture, pred->regexp.bytecode, &lex->data[lex->pos], 0, lex->size - lex->pos, 0, ctx)) {
-          size_t start, end;
-          start = capture[0] - &lex->data[lex->pos];
-          end = capture[1] - &lex->data[lex->pos];
-
-          printf("capture[0] %u - %u\n", start, end);
-
-          if(start == 0 && end > 0) 
-            lexer_skip(lex, end);
-        }
-
-        predicate_free(pred, ctx);
       }
 
       ret = JS_NewUint32(ctx, lex->pos - pos);

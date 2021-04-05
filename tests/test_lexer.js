@@ -355,7 +355,8 @@ function main(...args) {
 
 
 //lexer.match(Predicate.regexp("([^'\\\n]|\\[^\n])+",'g'));
-let result=lexer.match(new Predicate(/([^'\\\n]|\\[^\n])+/g));
+let result; //=lexer.match(new Predicate(/([^'\\\n]|\\[^\n])+/g));
+result=lexer.match("import ");
 console.log(result);
 console.log(lexer.getRange());
 return;
