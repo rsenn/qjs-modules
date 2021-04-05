@@ -13,7 +13,7 @@ globalThis.inspect = inspect;
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);
-  console.log(`Wrote '${file}': ${data.length} bytes`);
+  console.log('Wrote "' + file + '": ' + data.length + ' bytes');
 }
 
 const inspectOptions = {

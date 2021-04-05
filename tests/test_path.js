@@ -10,7 +10,7 @@ import Console from './console.js';
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);
-  console.log(`Wrote '${file}': ${data.length} bytes`);
+  console.log('Wrote "' + file + '": ' + data.length + ' bytes');
 }
 
 function CallPathFunction(name, ...args) {
@@ -85,11 +85,9 @@ async function main(...args) {
   let str = xml.write(result);
   console.log('write:', str);
 
-  console.log(`Writing '${base + '.json'}'...`);
-  WriteFile(base + '.json', JSON.stringify(result, null, 2));
+   WriteFile(base + '.json', JSON.stringify(result, null, 2));
 
-  console.log(`Writing '${base + '.xml'}'...`);
-  WriteFile(base + '.xml', str);
+   WriteFile(base + '.xml', str);
 
   await import('std').then(std => std.gc());
 }

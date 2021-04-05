@@ -2,6 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
 import * as xml from 'xml.so';
+import * as path from 'path.so';
 import Console from './console.js';
 
 ('use strict');
@@ -10,7 +11,7 @@ import Console from './console.js';
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);
-  console.log(`Wrote '${file}': ${data.length} bytes`);
+  console.log('Wrote "' + file + '": ' + data.length + ' bytes');
 }
 
 async function main(...args) {
@@ -33,7 +34,7 @@ async function main(...args) {
   let file = args[0] ?? '/etc/fonts/fonts.conf';
   console.log('file:', file);
 
-  let base = file.replace(/.*\//g, '').replace(/\.[^.]*$/, '');
+  let base = path.basename(file, path.extname(file));
   console.log('base:', base);
 
   let data = std.loadFile(file, 'utf-8');
@@ -46,11 +47,9 @@ async function main(...args) {
   let str = xml.write(result);
   console.log('write:', str);
 
-  console.log(`Writing '${base + '.json'}'...`);
-  WriteFile(base + '.json', JSON.stringify(result, null, 2));
+   WriteFile(base + '.json', JSON.stringify(result, null, 2));
 
-  console.log(`Writing '${base + '.xml'}'...`);
-  WriteFile(base + '.xml', str);
+   WriteFile(base + '.xml', str);
 
   await import('std').then(std => std.gc());
 }

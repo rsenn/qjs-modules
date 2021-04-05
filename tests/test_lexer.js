@@ -14,8 +14,9 @@ globalThis.inspect = inspect;
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);
-  console.log(`Wrote '${file}': ${data.length} bytes`);
+  console.log('Wrote "' + file + '": ' + data.length + ' bytes');
 }
+
 function DumpLexer(lex) {
   const { size, pos, start, line, column, lineStart, lineEnd, columnIndex } = lex;
 
@@ -44,7 +45,7 @@ function main(...args) {
   console.log('len', len);
   let lexer = new Lexer(str, len);
 
-    const isKeyword = word =>
+  const isKeyword = word =>
     /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word
     );
 
@@ -61,25 +62,25 @@ function main(...args) {
       const c = this.getc();
       if(c === null) {
         return null;
-      } else if(!this.noRegex && /^\/$/.test(c)) {
+      } else if(!this.noRegex && Lexer.isRegExpChar(c)) {
         return this.lexRegExp;
-      } else if(/^['"]$/.test(c)) {
-        this.backup();
-        return this.lexQuote;
       } else if(c == '`') {
         return this.lexTemplate;
-      } else if(/^[0-9]$/.test(c) || (c === '.' && /^[0-9]$/.test(this.peek()))) {
+      } else if(Lexer.isQuoteChar(c)) {
+        this.backup();
+        return this.lexQuote;
+      } else if(Lexer.isDecimalDigit(c) || (c === '.' && Lexer.isDecimalDigit(this.peek()))) {
         this.backup();
         return this.lexNumber;
-      } else if(/^\s$/.test(c)) {
+      } else if(Lexer.isWhitespace(c)) {
         this.ignore();
       } else if(Lexer.isPunctuatorChar(c)) {
         this.backup();
         return this.lexPunctuator;
-      } else if(/^[A-Za-z_]$/.test(c)) {
+      } else if(Lexer.isIdentifierFirstChar(c)) {
         this.backup();
         return this.lexIdentifier;
-      } else if(c == '\n') {
+      } else if(Lexer.isLineTerminator(c)) {
         this.ignore();
       } else {
         throw this.error(`Unexpected character: ${c}`);
@@ -257,14 +258,14 @@ function main(...args) {
   function lexIdentifier() {
     this.acceptRun(Lexer.isIdentifierChar);
     const firstChar = this.getRange(this.start, this.start + 1);
-    if(/^[0-9]$/.test(firstChar)) throw this.error(`Invalid IDENTIFIER\n`);
+    if(Lexer.isDecimalDigit(firstChar)) throw this.error(`Invalid IDENTIFIER`);
     const c = this.peek();
     if(c == '`') {
       const { pos, start } = this;
       this.addToken(Token.IDENTIFIER);
       return this.lexText;
     }
-    if(/^['"]$/.test(c)) throw this.error(`Invalid IDENTIFIER`);
+    if(Lexer.isQuoteChar(c)) throw this.error(`Invalid IDENTIFIER`);
     const word = this.getRange(this.start, this.pos);
     if(word === 'true' || word === 'false') this.addToken(Token.BOOLEAN_LITERAL);
     else if(word === 'null') this.addToken(Token.NULL_LITERAL);
@@ -284,7 +285,9 @@ function main(...args) {
     let escapeEncountered = false;
     do {
       if(this.acceptRun(
-          Predicate.and(Predicate.regexp('^[^\n]$'), Predicate.regexp(`[^\\${quoteChar}]`, 'g'))
+          Predicate.and(Predicate.not(Lexer.isLineTerminator),
+            Predicate.regexp(`[^\\${quoteChar}]`, 'g')
+          )
         )
       )
         escapeEncountered = false;
@@ -293,7 +296,7 @@ function main(...args) {
       if(c === null) {
         throw this.error(`Illegal token(1)`);
       } else if(!escapeEncountered) {
-        if(c == '\n' && quoteChar !== '`') {
+        if(Lexer.isLineTerminator(c) && quoteChar !== '`') {
           throw this.error(`Illegal token(2) c=0x${c.codePointAt(0).toString(16)} quoteChar=${quoteChar} `
           );
         } else if(c === quoteChar) {

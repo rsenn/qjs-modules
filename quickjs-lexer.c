@@ -6,7 +6,7 @@
 #include "vector.h"
 #include <string.h>
 #include <ctype.h>
-
+#define ALPHA_CHARS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 static JSValue
 js_position_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   int32_t line, column;
@@ -357,13 +357,13 @@ enum lexer_ctype {
   IS_DECIMAL_DIGIT,
   IS_HEX_DIGIT,
   IS_IDENTIFIER_CHAR,
-  IS_KEYWORD,
+  IS_IDENTIFIER_FIRST_CHAR,
   IS_LINE_TERMINATOR,
   IS_OCTAL_DIGIT,
   IS_PUNCTUATOR,
   IS_PUNCTUATOR_CHAR,
   IS_QUOTE_CHAR,
-  IS_REG_EXP_CHAR,
+  IS_REGEXP_CHAR,
   IS_WHITESPACE
 };
 
@@ -725,7 +725,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
       if(JS_IsObject(except)) {
         printf("except = %s\n", JS_ToCString(ctx, except));
         JS_SetPropertyStr(ctx, this_val, "exception", except);
-           *pdone = FALSE;
+        *pdone = FALSE;
         return JS_NULL;
       }
       if(JS_IsFunction(ctx, ret)) {
@@ -775,19 +775,17 @@ js_lexer_ctype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   }
 
   switch(magic) {
-    case IS_ALPHA_CHAR: result = str_contains("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz", c); break;
-    // case IS_PUNCTUATOR: result = str_contains("=.-%}>,*[<!/]~&(;?|):+^{@", c); break;
+    case IS_ALPHA_CHAR: result = str_contains(ALPHA_CHARS, c); break;
     case IS_WHITESPACE: result = (c == 9 || c == 0xb || c == 0xc || c == ' '); break;
     case IS_DECIMAL_DIGIT: result = str_contains("0123456789", c); break;
     case IS_HEX_DIGIT: result = str_contains("0123456789ABCDEFabcdef", c); break;
     case IS_OCTAL_DIGIT: result = c >= '0' && c <= '7'; break;
     case IS_LINE_TERMINATOR: result = c == '\r' || c == '\n'; break;
     case IS_QUOTE_CHAR: result = c == '"' || c == '\'' || c == '`'; break;
-    case IS_REG_EXP_CHAR: result = c == '/'; break;
+    case IS_REGEXP_CHAR: result = c == '/'; break;
     case IS_PUNCTUATOR_CHAR: result = (str_contains("=.-%}>,*[<!/]~&(;?|):+^{@", c)); break;
-    case IS_IDENTIFIER_CHAR:
-      result = (str_contains("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789$_", c));
-      break;
+    case IS_IDENTIFIER_CHAR: result = (str_contains(ALPHA_CHARS "0123456789$_", c)); break;
+    case IS_IDENTIFIER_FIRST_CHAR: result = (str_contains(ALPHA_CHARS "$_", c)); break;
     default:
       result = -1;
       JS_ThrowRangeError(ctx, "js_lexer_ctype invalid magic: %d", magic);
@@ -852,13 +850,13 @@ static const JSCFunctionListEntry js_lexer_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isDecimalDigit", 1, js_lexer_ctype, IS_DECIMAL_DIGIT),
     JS_CFUNC_MAGIC_DEF("isHexDigit", 1, js_lexer_ctype, IS_HEX_DIGIT),
     JS_CFUNC_MAGIC_DEF("isIdentifierChar", 1, js_lexer_ctype, IS_IDENTIFIER_CHAR),
-    JS_CFUNC_MAGIC_DEF("isKeyword", 1, js_lexer_ctype, IS_KEYWORD),
+    JS_CFUNC_MAGIC_DEF("isIdentifierFirstChar", 1, js_lexer_ctype, IS_IDENTIFIER_FIRST_CHAR),
     JS_CFUNC_MAGIC_DEF("isLineTerminator", 1, js_lexer_ctype, IS_LINE_TERMINATOR),
     JS_CFUNC_MAGIC_DEF("isOctalDigit", 1, js_lexer_ctype, IS_OCTAL_DIGIT),
     JS_CFUNC_MAGIC_DEF("isPunctuator", 1, js_lexer_ctype, IS_PUNCTUATOR),
     JS_CFUNC_MAGIC_DEF("isPunctuatorChar", 1, js_lexer_ctype, IS_PUNCTUATOR_CHAR),
     JS_CFUNC_MAGIC_DEF("isQuoteChar", 1, js_lexer_ctype, IS_QUOTE_CHAR),
-    JS_CFUNC_MAGIC_DEF("isRegExpChar", 1, js_lexer_ctype, IS_REG_EXP_CHAR),
+    JS_CFUNC_MAGIC_DEF("isRegExpChar", 1, js_lexer_ctype, IS_REGEXP_CHAR),
     JS_CFUNC_MAGIC_DEF("isWhitespace", 1, js_lexer_ctype, IS_WHITESPACE),
 };
 

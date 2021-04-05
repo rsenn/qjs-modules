@@ -37,7 +37,7 @@ async function main(...args) {
     '{' +
     Object.entries(obj)
       .map(([k, v]) =>
-          `\n${'  '.repeat(options.depth - depth + 1)}${k}=${inspect(v, depth - 1, options)}`
+          '\n' + '  '.repeat(options.depth - depth + 1) + k + '=' + inspect(v, depth - 1, options)
       )
       .join(',') +
     '}';
