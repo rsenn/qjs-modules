@@ -170,7 +170,7 @@ predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv)
       result = -1;
     } else {
       result = !!JS_ToBool(ctx, ret);
-      JS_FreeValue(ctx, ret);
+    // JS_FreeValue(ctx, ret);
     }
     return result;
   }

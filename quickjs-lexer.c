@@ -6,7 +6,9 @@
 #include "vector.h"
 #include <string.h>
 #include <ctype.h>
+
 #define ALPHA_CHARS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
 static JSValue
 js_position_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   int32_t line, column;
@@ -249,17 +251,14 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt64(ctx, tok->length);
       break;
     }
-
     case PROP_OFFSET: {
       ret = JS_NewInt64(ctx, tok->offset);
       break;
     }
-
     case PROP_CHARS: {
       ret = JS_NewStringLen(ctx, &tok->data[tok->offset], tok->length);
       break;
     }
-
     case PROP_LOC: {
       ret = js_position_new(ctx, &tok->loc);
       break;
@@ -458,7 +457,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       }
       break;
     }
-
     case METHOD_GETC: {
       if(lexer_remain(lex)) {
         size_t len;
@@ -467,7 +465,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       }
       break;
     }
-
     case METHOD_SKIPC: {
       if(lexer_remain(lex)) {
         int32_t ntimes = 1;
@@ -480,7 +477,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       }
       break;
     }
-
     case METHOD_SKIPUNTIL: {
       if(lexer_remain(lex)) {
         JSValueConst pred;
@@ -504,12 +500,10 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       }
       break;
     }
-
     case METHOD_IGNORE: {
       lexer_ignore(lex);
       break;
     }
-
     case METHOD_GET_RANGE: {
       size_t start, end;
       start = lex->start;
@@ -522,7 +516,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       ret = JS_NewStringLen(ctx, (const char*)&lex->data[start], end - start);
       break;
     }
-
     case METHOD_CURRENT_LINE: {
       size_t start, end;
       start = lex->start;
@@ -532,7 +525,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       ret = JS_NewStringLen(ctx, (const char*)&lex->data[start], end - start);
       break;
     }
-
     case METHOD_ACCEPT: {
       if(!lexer_eof(lex)) {
         JSValueConst pred = argv[0];
@@ -551,7 +543,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       }
       break;
     }
-
     case METHOD_ACCEPT_RUN: {
       if(!lexer_eof(lex)) {
         JSValueConst pred = argv[0];
@@ -574,7 +565,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       }
       break;
     }
-
     case METHOD_BACKUP: {
       int32_t ntimes = 1;
       uint8_t c, *p;
@@ -590,7 +580,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       ret = JS_NewStringLen(ctx, p, len);
       break;
     }
-
     case METHOD_ADD_TOKEN: {
       int32_t tokId;
       Token* tok;
@@ -607,7 +596,6 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       lexer_ignore(lex);
       break;
     }
-
     case METHOD_ERROR: {
       SyntaxError error;
       const char* str;
@@ -646,26 +634,22 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, ln.start + ln.length);
       break;
     }
-
     case LEXER_LINEPOS: {
       Line ln = lexer_line(lex);
       ret = JS_NewUint32(ctx, lex->pos - ln.start);
       break;
     }
-
     case LEXER_EOF: ret = JS_NewBool(ctx, lex->pos >= lex->size); break;
     case LEXER_TOKEN: {
       size_t size = lex->pos - lex->start;
       ret = JS_NewStringLen(ctx, (const char*)&lex->data[lex->start], size);
       break;
     }
-
     case LEXER_CURRENT_LINE: {
       Line ln = lexer_line(lex);
       ret = JS_NewStringLen(ctx, (const char*)&lex->data[ln.start], ln.length);
       break;
     }
-
     case LEXER_COLUMN_INDEX: {
       size_t index;
       for(index = lex->pos; index > 0; index--) {
@@ -683,7 +667,6 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_DupValue(ctx, lex->state_fn);
       break;
     }
-
     case LEXER_POSITION: {
       ret = js_position_new(ctx, &lex->loc);
       break;
@@ -750,8 +733,8 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
       if(JS_IsFunction(ctx, ret)) {
         const char* name;
         JS_FreeValue(ctx, lex->state_fn);
-        lex->state_fn = ret;
-        name = js_function_name(ctx, ret);
+        lex->state_fn = JS_DupValue(ctx,ret);
+        name = js_function_name(ctx, lex->state_fn);
         // printf("lexer state_fn='%s' @=<%.*s>\n", name ? name : "<anonymous>", 10, &lex->data[lex->start]);
         if(name)
           JS_FreeCString(ctx, name);

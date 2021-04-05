@@ -46,8 +46,9 @@ function main(...args) {
   let lexer = new Lexer(str, len);
 
   const isKeyword = word =>
-    /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word
-    );
+  //  /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word);
+  /^(_Alignas|_Alignof|_Atomic|_Bool|_Complex|_Generic|_Imaginary|_Noreturn|_Static_assert|_Thread_local|auto|break|case|char|const|continue|default|do|double|else|enum|extern|float|for|goto|if|inline|int|long|register|restrict|return|short|signed|sizeof|static|struct|switch|typedef|union|unsigned|void|volatile)$/.test(word);
+  
   const isPunctuator = word =>
     /^(=|\.|-|%|}|>|,|\*|\[|<|!|\/|\]|~|\&|\(|;|\?|\||\)|:|\+|\^|{|@|!=|\*=|\&\&|<<|\/=|\|\||>>|\&=|==|\+\+|\|=|<=|--|\+=|\^=|>=|-=|%=|=>|\${|\?\.|\*\*|\?\?|!==|===|>>>|>>=|-->>|<<=|\.\.\.|\*\*=|\|\|=|\&\&=|\?\?=|>>>=|-->>=)$/.test(word
     );
@@ -128,7 +129,7 @@ function main(...args) {
     }
     const c = this.peek();
     /* l = BigFloat, m = BigDecimal, n = BigInt */
-    if(/^[lmn]/.test(c)) this.skip();
+    if(/^[ul]/i.test(c) /*/^[lmn]/.test(c)*/) this.skip();
     else if(isIdentifierChar(c) || Lexer.isQuoteChar(c) || /^[.eE]$/.test(c))
       throw this.error(`Invalid number (3): c=${c} ${this.getRange(this.start, this.pos + 1)}`);
     this.addToken(Token.NUMERIC_LITERAL);
@@ -299,7 +300,6 @@ function main(...args) {
       prevChar = c;
       c = this.getc();
 
-        console.log('lexQuote', `c=${c.codePointAt(0)}`, this.getRange(), `escapeEncountered=${escapeEncountered}`);
       
       if(c === null) {
         throw this.error(`Illegal token(1)`);
@@ -314,7 +314,6 @@ function main(...args) {
         }
       } else {
         escapeEncountered = false;  
-        console.log('lexQuote', this.getRange());
       }
     } while(!this.eof);
   }
@@ -352,10 +351,9 @@ function main(...args) {
   let data;
 
   for(let data of lexer) {
-    console.log(`data `, data);
+    console.log(data.type.padEnd(20), data.toString());
 
     if(data == null) {
-      console.log('Exception:', lexer.exception);
       break;
     }
   }

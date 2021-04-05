@@ -226,8 +226,8 @@ lexer_free(Lexer* lex, JSRuntime* rt) {
   struct list_head *el, *el1;
   list_for_each_safe(el, el1, &lex->tokens) { js_free_rt(rt, el); }
   vector_free(&lex->charlengths);
-  JS_FreeValueRT(rt, lex->state_fn);
-  js_free_rt(rt, lex);
+  //JS_FreeValueRT(rt, lex->state_fn);
+  //js_free_rt(rt, lex);
 }
 
 #endif /* defined(QUICKJS_LEXER_H) */
