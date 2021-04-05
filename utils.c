@@ -778,8 +778,8 @@ BOOL
 js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   int32_t ta, tb;
   BOOL ret = FALSE;
-  ta = js_value_type(ctx,a);
-  tb = js_value_type(ctx,b);
+  ta = js_value_type(ctx, a);
+  tb = js_value_type(ctx, b);
   if(ta != tb)
     return FALSE;
 

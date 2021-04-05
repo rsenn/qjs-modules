@@ -17,7 +17,7 @@ set(inspect_SOURCES vector.c vector.h iteration.h utils.c utils.h property-enume
 set(tree_walker_SOURCES vector.c vector.h property-enumeration.h utils.c utils.h)
 set(xml_SOURCES vector.c vector.h property-enumeration.h utils.c utils.h)
 set(path_SOURCES path.c path.h utils.c utils.h)
-set(predicate_SOURCES predicate.c predicate.h utils.c utils.h)
+set(predicate_SOURCES predicate.c predicate.h vector.c vector.h utils.c utils.h)
 set(pointer_SOURCES pointer.c pointer.h utils.c utils.h)
 set(lexer_SOURCES utils.c utils.h quickjs-predicate.h predicate.h)
 set(lexer_LIBRARIES quickjs-predicate)

@@ -185,3 +185,15 @@ vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, vector* o
     }
   }
 }
+
+ssize_t
+vector_find(vector* vec, size_t elsz, const void* ptr) {
+  size_t i, j;
+  for(i = 0, j = 0; i < vec->size; i += elsz) {
+    if(!memcmp(&vec->data[i], ptr, elsz))
+      return j;
+
+    j++;
+  }
+  return -1;
+}

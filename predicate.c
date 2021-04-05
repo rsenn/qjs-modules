@@ -2,6 +2,22 @@
 #include "predicate.h"
 #include "libregexp.h"
 #include "quickjs-predicate.h"
+#include "cutils.h"
+
+size_t
+utf8_to_unicode(const char* str, size_t len, vector* out) {
+  uint8_t *p, *next, *end;
+  p = (uint8_t*)str;
+  end = p + len;
+
+  while(p != end) {
+    uint32_t codepoint = unicode_from_utf8(p, end - p, &next);
+    vector_put(out, &codepoint, sizeof(uint32_t));
+    p = next;
+  }
+
+  return vector_size(out, sizeof(uint32_t));
+}
 
 int
 predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
@@ -9,19 +25,33 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
 
   switch(pr->id) {
     case PREDICATE_TYPE: {
-      int id = js_value_type(ctx,argv[0]);
+      int id = js_value_type(ctx, argv[0]);
       ret = !!(id & pr->type.flags);
       break;
     }
     case PREDICATE_CHARSET: {
       InputBuffer input = js_input_buffer(ctx, argv[0]);
+      const uint8_t *p, *next, *end;
       ret = 1;
-      for(input.p = 0; input.p < input.n; input.p++) {
-        if(byte_chr(pr->charset.set, pr->charset.len, input.x[input.p]) == pr->charset.len) {
+      p = input.x;
+      end = input.x + input.n;
+
+      for(; p != end; p = next) {
+        uint32_t codepoint = unicode_from_utf8(p, end - p, &next);
+        ssize_t idx = vector_find(&pr->charset.chars, sizeof(uint32_t), &codepoint);
+
+        if(idx == -1) {
           ret = 0;
           break;
         }
       }
+      /*      for(input.p = 0; input.p < input.n; input.p++) {
+              if(byte_chr(pr->charset.set, pr->charset.len, input.x[input.p]) == pr->charset.len) {
+                ret = 0;
+                break;
+              }
+            }
+      */
       input_buffer_free(&input, ctx);
       break;
     }
@@ -356,5 +386,16 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
       break;
     }
   }
+  return ret;
+}
+
+Predicate
+predicate_charset(const char* str, size_t len, JSContext* ctx) {
+  uint8_t *p, *next, *end;
+  Predicate ret = PREDICATE_INIT(PREDICATE_CHARSET);
+  ret.charset.set = str;
+  ret.charset.len = len;
+  vector_init2(&ret.charset.chars, ctx);
+  utf8_to_unicode(str, len, &ret.charset.chars);
   return ret;
 }

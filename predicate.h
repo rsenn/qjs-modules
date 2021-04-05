@@ -25,6 +25,7 @@ typedef struct {
 
 typedef struct {
   const char* set;
+  vector chars;
   size_t len;
 } CharsetPredicate;
 
@@ -140,13 +141,7 @@ predicate_xor(size_t npredicates, JSValue* predicates) {
   return ret;
 }
 
-static inline Predicate
-predicate_charset(const char* str, size_t len) {
-  Predicate ret = PREDICATE_INIT(PREDICATE_CHARSET);
-  ret.charset.set = str;
-  ret.charset.len = len;
-  return ret;
-}
+Predicate predicate_charset(const char* str, size_t len, JSContext* ctx);
 
 static inline Predicate
 predicate_equal(JSValue value) {

@@ -147,4 +147,6 @@ vector_catlong(vector* vec, long l, int radix) {
   vector_put(vec, buf, len);
 }
 
+ssize_t vector_find(vector* vec, size_t elsz, const void* ptr);
+
 #endif /* defined(VECTOR_H) */

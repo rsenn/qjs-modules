@@ -140,6 +140,10 @@ let eqBLAH = Predicate.equal('BLAH');
 
   for(let item of [1234, /*Symbol.iterator,*/ 'abcd', {}]) 
     console.log(`mt.eval(${item}) = `, mt.eval(item));
+  let cp = Predicate.charset("ABCDEFGHIJKLMNOPQRSTUVWXYZ\u2605\u29bf\u2754");
+  
+for(let  str2 of ['abcd','X⦿Y','❔X','ABC★'])
+  console.log(`cp.eval(${str2}) =`, cp.eval(str2));
 
   std.gc();
 }

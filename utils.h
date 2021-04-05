@@ -350,13 +350,12 @@ js_value_type2flag(uint32_t type) {
 }
 
 static inline int32_t
-js_value_type(JSContext*ctx,JSValueConst value) {
+js_value_type(JSContext* ctx, JSValueConst value) {
   int32_t flag, type = 0;
   if((flag = js_value_type_get(ctx, value)) != -1)
     type = 1 << flag;
   return type;
 }
-
 
 static inline const char* const*
 js_value_types() {
@@ -382,9 +381,9 @@ js_value_type_name(int32_t type) {
 }
 
 static inline const char*
-js_value_typestr(JSContext*ctx,JSValueConst value) {
- int32_t type = js_value_type(ctx, value);
- return js_value_type_name(type);
+js_value_typestr(JSContext* ctx, JSValueConst value) {
+  int32_t type = js_value_type(ctx, value);
+  return js_value_type_name(type);
 }
 
 BOOL js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
