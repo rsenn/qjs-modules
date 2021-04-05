@@ -33,25 +33,15 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
       InputBuffer input = js_input_buffer(ctx, argv[0]);
       const uint8_t *p, *next, *end;
       ret = 1;
-      p = input.x;
-      end = input.x + input.n;
-
-      for(; p != end; p = next) {
+      for(p = input.x, end = input.x + input.n; p != end; p = next) {
         uint32_t codepoint = unicode_from_utf8(p, end - p, &next);
         ssize_t idx = vector_find(&pr->charset.chars, sizeof(uint32_t), &codepoint);
-
         if(idx == -1) {
           ret = 0;
           break;
         }
       }
-      /*      for(input.p = 0; input.p < input.n; input.p++) {
-              if(byte_chr(pr->charset.set, pr->charset.len, input.x[input.p]) == pr->charset.len) {
-                ret = 0;
-                break;
-              }
-            }
-      */
+  
       input_buffer_free(&input, ctx);
       break;
     }

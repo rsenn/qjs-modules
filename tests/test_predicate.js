@@ -121,11 +121,11 @@ function main(...args) {
   let io = Predicate.instanceOf(ArrayBuffer);
   let pt = Predicate.prototypeIs(ArrayBuffer.prototype);
   let pr = new Predicate(re);
-  let eq1234 =   Predicate.equal(1234);
-let eqBLAH = Predicate.equal('BLAH');
-    console.log(`io =`, io);
+  let eq1234 = Predicate.equal(1234);
+  let eqBLAH = Predicate.equal('BLAH');
+  console.log(`io =`, io);
   console.log(`io =`, io.toString());
- console.log(`pt =`, pt.toString());
+  console.log(`pt =`, pt.toString());
   console.log(`pr =`, pr.toString());
   console.log(`io.eval(dummy) =`, io.eval(dummy));
   console.log(`pt.eval(dummy) =`, pt.eval(dummy));
@@ -134,16 +134,14 @@ let eqBLAH = Predicate.equal('BLAH');
   console.log(`eq1234 =`, eq1234.toString());
   console.log(`eqBLAH =`, eqBLAH.toString());
 
-
-  let mt = Predicate.type(Predicate.TYPE_INT|Predicate.TYPE_OBJECT);
+  let mt = Predicate.type(Predicate.TYPE_INT | Predicate.TYPE_OBJECT);
   console.log(`mt =`, mt.toString());
 
-  for(let item of [1234, /*Symbol.iterator,*/ 'abcd', {}]) 
+  for(let item of [1234, /*Symbol.iterator,*/ 'abcd', {}])
     console.log(`mt.eval(${item}) = `, mt.eval(item));
-  let cp = Predicate.charset("ABCDEFGHIJKLMNOPQRSTUVWXYZ\u2605\u29bf\u2754");
-  
-for(let  str2 of ['abcd','X⦿Y','❔X','ABC★'])
-  console.log(`cp.eval(${str2}) =`, cp.eval(str2));
+  let cp = Predicate.charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ\u2605\u29bf\u2754');
+
+  for(let str2 of ['abcd', 'X⦿Y', '❔X', 'ABC★']) console.log(`cp.eval(${str2}) =`, cp.eval(str2));
 
   std.gc();
 }
