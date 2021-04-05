@@ -75,6 +75,21 @@ js_token_data(JSContext* ctx, JSValueConst value) {
 JSValue js_token_wrap(JSContext*, Token*);
 JSValue js_token_new(JSContext*, Token);
 
+static inline const char*
+token_type(const Token* tok) {
+  return ((const char* const[]){"COMMENT",
+                                "STRING_LITERAL",
+                                "TEMPLATE_LITERAL",
+                                "NUMERIC_LITERAL",
+                                "BOOLEAN_LITERAL",
+                                "NULL_LITERAL",
+                                "PUNCTUATOR",
+                                "KEYWORD",
+                                "IDENTIFIER",
+                                "REGEXP_LITERAL",
+                                0})[tok->id];
+}
+
 static inline Lexer*
 js_lexer_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_lexer_class_id);
@@ -88,6 +103,11 @@ lexer_location(const Lexer* lex) {
   loc.line = lex->loc.line;
   loc.column = lex->loc.column;
   return loc;
+}
+
+static inline void
+location_dump(DynBuf* dbuf, const Location* loc) {
+  dbuf_printf(dbuf, "{ line: %3zu, column: %3zu }", loc->line + 1, loc->column + 1);
 }
 
 static inline uint8_t*
@@ -117,30 +137,55 @@ lexer_get(Lexer* lex, size_t* lenp) {
     lenp = &n;
   ret = js_input_buffer_peek(lex, lenp);
   c = js_input_buffer_get(&lex->input);
-  if(c == '\n') {
-    lex->loc.line++;
-    lex->loc.column = 0;
-  } else {
-    lex->loc.column++;
-  }
+  /*  if(c == '\n') {
+      lex->loc.line++;
+      lex->loc.column = 0;
+    } else {
+      lex->loc.column++;
+    }*/
   return ret;
 }
 
 static inline int
 lexer_getc(Lexer* lex) {
   uint32_t c = js_input_buffer_get(&lex->input);
-  if(c == '\n') {
-    lex->loc.line++;
-    lex->loc.column = 0;
-  } else {
-    lex->loc.column++;
-  }
+  /*  if(c == '\n') {
+      lex->loc.line++;
+      lex->loc.column = 0;
+    } else {
+      lex->loc.column++;
+    }*/
   return c;
 }
 
 static inline void
 lexer_ignore(Lexer* lex) {
-  lex->start = lex->pos;
+  uint8_t *p, *end, *next;
+
+  p = &lex->data[lex->start];
+  end = &lex->data[lex->pos];
+
+  while(p < end) {
+    uint32_t c = unicode_from_utf8(p, end - p, &next);
+
+    if(c == '\n') {
+      lex->loc.line++;
+      lex->loc.column = 0;
+    } else {
+      lex->loc.column++;
+    }
+    p = next;
+  }
+  lex->start = p - lex->data;
+}
+
+static inline size_t
+lexer_remain(Lexer* lex) {
+  return js_input_buffer_remain(&lex->input);
+}
+static inline size_t
+lexer_eof(Lexer* lex) {
+  return js_input_buffer_eof(&lex->input);
 }
 
 static inline void

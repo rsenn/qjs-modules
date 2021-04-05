@@ -26,9 +26,9 @@ function DumpLexer(lex) {
   })}`;
 }
 function DumpToken(tok) {
-  const { length, offset, loc } = tok;
+  const { length, offset, chars, loc } = tok;
 
-  return `Token ${inspect({ length, offset, loc }, { depth: Infinity })}`;
+  return `Token ${inspect({ chars, offset, length, loc }, { depth: Infinity })}`;
 }
 
 function main(...args) {
@@ -42,20 +42,13 @@ function main(...args) {
   let str = std.loadFile(args[0] ?? scriptArgs[0], 'utf-8');
   let len = str.length;
   console.log('len', len);
-  console.log('str', str);
   let lexer = new Lexer(str, len);
 
-  // /* prettier-ignore */ lexer.keywords = ['if', 'in', 'do', 'of', 'as', 'for', 'new', 'var', 'try', 'let', 'else', 'this', 'void', 'with', 'case', 'enum', 'from', 'break', 'while', 'catch', 'class', 'const', 'super', 'throw', 'await', 'yield', 'async', 'delete', 'return', 'typeof', 'import', 'switch', 'export', 'static', 'default', 'extends', 'finally', 'continue', 'function', 'debugger', 'instanceof'];
-  // /* prettier-ignore */ lexer.punctuators = [ '!', '!=', '!==', '${', '%', '%=', '&&', '&&=', '&', '&=', '(', ')', '*', '**', '**=', '*=', '+', '++', '+=', ',', '-', '--', '-->>', '-->>=', '-=', '.', '...', '/', '/=', ':', ';', '<', '<<', '<<=', '<=', '=', '==', '===', '=>', '>', '>=', '>>', '>>=', '>>>', '>>>=', '?', '?.', '??', '??=', '@', '[', '^', '^=', '{', '|', '|=', '||', '||=', '}', '~'];
-  //  console.log('lexer.peek()', lexer.peek());
-  //console.log('lexer.next()', lexer.next());
   lexer.lexNumber = function lexNumber() {};
-const isPunctuator = c => /^[.,;]$/.test(c);
+  const isPunctuator = c => /^[-=.%}>,*<!/~&\(;?|\):+^{@]$/.test(c);
   function lexText() {
     do {
-      //Examine the next 2 characters to see if we're encountering code comments
       const nextTwo = this.getRange(this.pos, this.pos + 2);
-      //console.log('nextTwo', nextTwo);
       if(nextTwo === '//') {
         this.skip(2);
         return this.lexSingleLineComment;
@@ -65,14 +58,13 @@ const isPunctuator = c => /^[.,;]$/.test(c);
       }
 
       const c = this.getc();
-      //console.log(`lexText c='${c}'`);
       if(c === null) {
         return null;
       } else if(!this.noRegex && /^\/$/.test(c)) {
         return this.lexRegExp;
       } else if(/^['"`]$/.test(c)) {
-            this.backup();
-    return this.lexQuote;
+        this.backup();
+        return this.lexQuote;
       } else if(/^[0-9]$/.test(c) || (c === '.' && /^[0-9]$/.test(this.peek()))) {
         this.backup();
         return this.lexNumber;
@@ -93,14 +85,12 @@ const isPunctuator = c => /^[.,;]$/.test(c);
   }
 
   function lexRegExp() {
-    //console.log('lexRegExp', this.pos);
     let i = 0;
     let word = '',
       prev = '';
     let slashes = 1;
     let bracket = false;
     let validator = c => {
-      //console.log('validator', { c, i, prev, slashes, word, bracket, ws: isWhitespace(c) });
       i++;
       if(c == '[' && prev != '\\') if (!bracket) bracket = true;
       if(c == ']' && prev != '\\') if (bracket) bracket = false;
@@ -116,30 +106,23 @@ const isPunctuator = c => /^[.,;]$/.test(c);
         prev = c;
         return true;
       } else if(prev == '\\') {
-        //word += c;
         word += c;
         prev = undefined;
         return true;
       } else if(slashes == 2 && ' \t'.indexOf(c) != -1) {
         return true;
       } else if(slashes == 2 && 'gimsuy'.indexOf(c) != -1) {
-        /*  word += c;
-        prev = c;*/
       } else if(slashes == 2) {
         if(/^[_0-9A-Za-z]/.test(c)) slashes = 1;
         return false;
       } else if(c == '\\') {
-        //      prev = c;
-        //        return true;
       }
-      //    if(prev == ';') return false;
       word += c;
       prev = c;
       return true;
     };
     const print = () => {
       word = this.getRange(this.start, this.pos);
-      //console.log("word: " + word + " lexText: " + this.getRange(this.start, this.pos));
     };
 
     if(this.acceptRun(validator) && slashes == 2) {
@@ -151,8 +134,13 @@ const isPunctuator = c => /^[.,;]$/.test(c);
     return this.lexPunctuator();
   }
   function lexPunctuator() {
-    while(this.accept(isPunctuator)) {
+    for(;;) {
+ //     console.log('lexPunctuator', this.peek().codePointAt(0), isPunctuator(this.peek()));
+
+      if(!this.accept(isPunctuator)) break;
+
       let word = this.getRange(this.start, this.pos);
+      //console.log(`word(1) '${word}'`, isPunctuator(word));
       if(word != '..' && !isPunctuator(word)) {
         this.backup();
         this.addToken(Token.PUNCTUATOR);
@@ -160,6 +148,9 @@ const isPunctuator = c => /^[.,;]$/.test(c);
       }
     }
     const word = this.getRange(this.start, this.pos);
+
+    //console.log(`word(2) '${word}'`);
+
     if(isPunctuator(word)) {
       this.addToken(Token.PUNCTUATOR);
       return this.lexText;
@@ -229,7 +220,7 @@ const isPunctuator = c => /^[.,;]$/.test(c);
   }
 
   function lexIdentifier() {
-    console.log('lexIdentifier(1)', DumpLexer(this));
+    //console.log('lexIdentifier(1)', DumpLexer(this));
     this.acceptRun(c => /^[A-Za-z0-9_]$/.test(c));
     const firstChar = this.getRange(this.start, this.start + 1);
     if(/^[0-9]$/.test(firstChar))
@@ -244,8 +235,7 @@ const isPunctuator = c => /^[.,;]$/.test(c);
       throw this.error(`Invalid IDENTIFIER: ${this.getRange(this.start, this.pos + 1)}${this.currentLine()}`
       );
     const word = this.getRange(this.start, this.pos);
-    console.log(`word '${word}'`);
-    //console.log(`this.position '${this.position}'`);
+    //console.log(`word '${word}'`);
     if(word === 'true' || word === 'false') this.addToken(Token.BOOLEAN_LITERAL);
     else if(word === 'null') this.addToken(Token.NULL_LITERAL);
     // else if(isKeyword(word)) this.addToken(Token.KEYWORD);
@@ -263,42 +253,35 @@ const isPunctuator = c => /^[.,;]$/.test(c);
       const { inSubst } = this;
       return this.lexTemplate(inSubst);
     }
-    console.log(`lexQuote <${quoteChar}>`);
-//    return function lexQuote() {
-      let prevChar = '';
-      let c = '';
-      let escapeEncountered = false;
-      do {
-        //Keep consuming characters unless we encounter line
-        //terminator, \, or the quote char.
-        if(this.acceptRun(
-            Predicate.not(Predicate.or(c => c == '\n', Predicate.charset(`\\${quoteChar}`)))
-          )
+    //console.log(`lexQuote <${quoteChar}>`);
+    let prevChar = '';
+    let c = '';
+    let escapeEncountered = false;
+    do {
+      if(this.acceptRun(
+          Predicate.not(Predicate.or(c => c == '\n', Predicate.charset(`\\${quoteChar}`)))
         )
-          escapeEncountered = false;
-        prevChar = c;
-        c = this.getc();
-        if(c === null) {
-          //If we reached EOF without the closing quote char, then this string is
-          //incomplete.
+      )
+        escapeEncountered = false;
+      prevChar = c;
+      c = this.getc();
+      if(c === null) {
+        throw this.error(`Illegal token: ${this.getRange()}`);
+      } else if(!escapeEncountered) {
+        if(c == '\n' && quoteChar !== '`') {
           throw this.error(`Illegal token: ${this.getRange()}`);
-        } else if(!escapeEncountered) {
-          if(c == '\n' && quoteChar !== '`') {
-            //If we somehow reached EOL without encountering the
-            //ending quote char then this string is incomplete.
-            throw this.error(`Illegal token: ${this.getRange()}`);
-          } else if(c === quoteChar) {
-            this.addToken(Token.STRING_LITERAL);
-            return this.lexText;
-          } else if(c === '\\') {
-            escapeEncountered = true;
-          }
-        } else {
-          escapeEncountered = false;
+        } else if(c === quoteChar) {
+          this.addToken(Token.STRING_LITERAL);
+          return this.lexText;
+        } else if(c === '\\') {
+          escapeEncountered = true;
         }
-      } while(true);
-  //  };
+      } else {
+        escapeEncountered = false;
+      }
+    } while(true);
   };
+
   lexer.lexRegExp = lexRegExp;
   lexer.lexPunctuator = lexPunctuator;
   lexer.lexTemplate = lexTemplate;
@@ -314,7 +297,7 @@ const isPunctuator = c => /^[.,;]$/.test(c);
 */
   let data;
   for(let data of lexer) {
-    console.log(`data tok=«${data.toString()}»`, data);
+    console.log(`data `, data);
 
     /* lexer.acceptRun(Lexer.isWhitespace);
 
