@@ -68,14 +68,14 @@ typedef struct Predicate {
     }                                                                                                                  \
   }
 
-int       predicate_call(JSContext*, JSValue, int argc, JSValue* argv);
-int       predicate_eval(Predicate*, JSContext*, int argc, JSValue* argv);
-void      predicate_free_rt(Predicate*, JSRuntime*);
-JSValue   predicate_regexp_capture(uint8_t**, int, uint8_t* input, JSContext* ctx);
-int       predicate_regexp_flags2str(int, char*);
-int       predicate_regexp_str2flags(const char*);
-void      predicate_tostring(const Predicate*, JSContext*, DynBuf* dbuf);
-JSValue   predicate_values(const Predicate*, JSContext*);
+int predicate_call(JSContext*, JSValue, int argc, JSValue* argv);
+int predicate_eval(Predicate*, JSContext*, int argc, JSValue* argv);
+void predicate_free_rt(Predicate*, JSRuntime*);
+JSValue predicate_regexp_capture(uint8_t**, int, uint8_t* input, JSContext* ctx);
+int predicate_regexp_flags2str(int, char*);
+int predicate_regexp_str2flags(const char*);
+void predicate_tostring(const Predicate*, JSContext*, DynBuf* dbuf);
+JSValue predicate_values(const Predicate*, JSContext*);
 
 static inline void
 predicate_free(Predicate* pred, JSContext* ctx) {

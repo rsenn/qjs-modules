@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "cutils.h"
 
 size_t
 ansi_length(const char* str, size_t len) {
@@ -895,4 +896,15 @@ token_length(const char* str, size_t len, char delim) {
     }
   }
   return s - str;
+}
+
+uint32_t
+js_input_buffer_get(InputBuffer* input) {
+  uint8_t *p, *end, *next;
+  uint32_t cp;
+  p = input->x + input->p;
+  end = input->x + input->n;
+  cp = unicode_from_utf8(p, end - p, &next);
+  input->p += next - p;
+  return cp;
 }

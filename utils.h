@@ -409,6 +409,7 @@ static inline void input_buffer_free_default(JSContext* ctx, const char* str){
 void input_buffer_dump(const InputBuffer* input, DynBuf* db);
 void input_buffer_free(InputBuffer* input, JSContext* ctx);
 InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
+uint32_t js_input_buffer_get(InputBuffer* input);
 
 JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value);
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
