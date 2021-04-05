@@ -359,7 +359,7 @@ let result; //=lexer.match(new Predicate(/([^'\\\n]|\\[^\n])+/g));
 result=lexer.match("import ");
 console.log(result);
 console.log(lexer.getRange());
-return;
+//return;
  
   for(let data of lexer) {
     console.log((data.loc+'').padEnd(16), data.type.padEnd(20), data.toString());
