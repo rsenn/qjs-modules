@@ -61,47 +61,35 @@ char* path_getcwd(DynBuf*);
 SizePair path_common_prefix(const char* s1, size_t n1, const char* s2, size_t n2);
 int path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
 int path_relative(const char* path, const char* relative_to, DynBuf* out);
+size_t path_skip_separator(const char* p, size_t len, size_t pos);
+size_t path_skip_component(const char* p, size_t len, size_t pos);
+void path_append(const char* x, size_t len, DynBuf* db);
+int path_exists(const char* p);
+int path_is_absolute(const char* x, size_t n);
+size_t path_root(const char* x, size_t n);
+int path_is_directory(const char* p);
+int path_is_symlink(const char* p);
+int path_canonical_buf(DynBuf* db);
+int path_canonical(const char* path, DynBuf* db);
+size_t path_components(const char* p, size_t len, uint32_t n);
+const char* path_extname(const char* p);
 
 static inline size_t
 path_length(const char* s, size_t n) {
-  const char *p = s, *e = s + n;
-  while(p < e && !path_issep(*p)) ++p;
-  return p - s;
+  return path_skip_component(s, n, 0);
 }
 
 static inline size_t
 path_length_s(const char* s) {
-  const char* p = s;
-  while(*p && !path_issep(*p)) ++p;
-  return p - s;
+  return path_skip_component(s, strlen(s), 0);
 }
 
 static inline size_t
 path_skip(const char* s, size_t n) {
   const char *p = s, *e = s + n;
-  while(p < e && path_issep(*p)) ++p;
-  while(p + 1 < e && !path_issep(*p)) ++p;
+  p += path_skip_separator(s, n, 0);
+  p += path_skip_component(p, e - p, 0);
   return p - s;
-}
-
-static inline size_t
-path_skip_separator(const char* p, size_t len, size_t pos) {
-  const char *start = p, *end = p + len;
-  if(pos > len)
-    pos = len;
-  p += pos;
-  while(p < end && path_issep(*p)) ++p;
-  return p - start;
-}
-
-static inline size_t
-path_skip_component(const char* p, size_t len, size_t pos) {
-  const char *start = p, *end = p + len;
-  if(pos > len)
-    pos = len;
-  p += pos;
-  while(p < end && !path_issep(*p)) ++p;
-  return p - start;
 }
 
 static inline size_t
@@ -112,17 +100,7 @@ path_right(const char* s, size_t n) {
   return p - s;
 }
 
-static inline void
-path_append(const char* x, size_t len, DynBuf* db) {
-  if(db->size > 0 && db->buf[db->size - 1] != PATHSEP_C)
-    dbuf_putc(db, PATHSEP_C);
 
-  if(len > 2 && x[0] == '.' && x[1] == PATHSEP_C) {
-    x += 2;
-    len -= 2;
-  }
-  dbuf_append(db, (const uint8_t*)x, len);
-}
 static inline int
 path_getsep(const char* path) {
   while(*path) {
@@ -133,103 +111,5 @@ path_getsep(const char* path) {
   return '\0';
 }
 
-static inline int
-path_exists(const char* p) {
-  struct stat st;
-  int r;
-#ifdef WINDOWS_NATIVE
-  if(access(p, 0) == 0)
-    return 1;
-#endif
-  return ((r = lstat(p, &st)) == 0);
-}
-
-static inline int
-path_is_absolute(const char* x, size_t n) {
-  if(n > 0 && x[0] == PATHSEP_C)
-    return 1;
-#ifdef WINDOWS
-  if(n >= 3 && isalnum(x[0]) && x[1] == ':' && path_issep(x[2]))
-    return 1;
-#endif
-  return 0;
-}
-
-static inline size_t
-path_root(const char* x, size_t n) {
-  if(n > 0 && x[0] == PATHSEP_C)
-    return 1;
-#if 1 // def WINDOWS
-  if(n >= 3 && isalnum(x[0]) && x[1] == ':' && path_issep(x[2]))
-    return 3;
-#endif
-  return 0;
-}
-
-static inline int
-path_is_directory(const char* p) {
-  struct stat st;
-  int r;
-  if((r = lstat(p, &st) == 0)) {
-    if(S_ISDIR(st.st_mode))
-      return 1;
-  }
-  return 0;
-}
-
-static inline int
-path_is_symlink(const char* p) {
-  struct stat st;
-  int r;
-  if((r = lstat(p, &st) == 0)) {
-    if(S_ISLNK(st.st_mode))
-      return 1;
-  }
-  return 0;
-}
-
-static inline int
-path_canonical_buf(DynBuf* db) {
-  db->size = path_collapse((char*)db->buf, db->size);
-  dbuf_putc(db, '\0');
-  db->size--;
-  return 1;
-}
-
-static inline int
-path_canonical(const char* path, DynBuf* db) {
-  db->size = 0;
-  dbuf_putstr(db, path);
-  dbuf_putc(db, '\0');
-  db->size--;
-  return path_canonical_buf(db);
-}
-
-static inline size_t
-path_components(const char* p, size_t len, uint32_t n) {
-  const char *s = p, *e = p + len;
-  size_t count = 0;
-  while(s < e) {
-    s += path_skip_separator(s, e - s, 0);
-    if(s == e)
-      break;
-    s += path_length(s, e - s);
-    if(--n <= 0)
-      break;
-    count++;
-  }
-  return count;
-}
-
-static inline const char*
-path_extname(const char* p) {
-  size_t pos;
-  char* q;
-  if((q = strrchr(p, PATHSEP_C)))
-    p = q + 1;
-  pos = str_rchr(p, '.');
-  p += pos;
-  return p;
-}
 
 #endif /* defined(PATH_H) */

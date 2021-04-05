@@ -43,7 +43,7 @@ typedef struct {
 } BooleanPredicate;
 
 typedef struct {
-   char* expr;
+  char* expr;
   size_t exprlen;
   int flags;
   uint8_t* bytecode;

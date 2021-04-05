@@ -91,7 +91,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       if(pr->regexp.bytecode == 0) {
         char error_msg[64];
         int len = 0;
-        pr->regexp.bytecode = lre_compile(&len, error_msg, sizeof(error_msg), pr->regexp.expr, pr->regexp.exprlen, pr->regexp.flags, ctx);
+        pr->regexp.bytecode =
+            lre_compile(&len, error_msg, sizeof(error_msg), pr->regexp.expr, pr->regexp.exprlen, pr->regexp.flags, ctx);
       }
 
       ret = lre_exec(capture, pr->regexp.bytecode, (uint8_t*)input.x, 0, input.n, 0, ctx);
