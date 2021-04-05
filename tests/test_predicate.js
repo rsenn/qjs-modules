@@ -107,7 +107,7 @@ function main(...args) {
   console.log(`combined.values =`,
     combined.values.map(v => v.toString())
   );
-  let re = /^([-+]?)([0-9]*).([0-9]+)$/g;
+  let re = /^([-+])?([0-9]*\.)?([0-9]+)$/g;
   console.log(`re =`, re);
   console.log(`re =`, re + '');
   console.log(`re =`, re.toString());
@@ -134,6 +134,9 @@ function main(...args) {
   console.log(`eq1234 =`, eq1234.toString());
   console.log(`eqBLAH =`, eqBLAH.toString());
 
+  for(let s2 of ['-120', '0.12345', '+12.345678', '-.9090']) {
+     console.log(`pr.eval('${s2}') =`, pr.eval(s2));
+  }
   let mt = Predicate.type(Predicate.TYPE_INT | Predicate.TYPE_OBJECT);
   console.log(`mt =`, mt.toString());
 

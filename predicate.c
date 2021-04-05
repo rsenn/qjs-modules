@@ -90,8 +90,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
 
       if(pr->regexp.bytecode == 0) {
         char error_msg[64];
-        pr->regexp.bytecode = lre_compile(
-            &pr->regexp.len, error_msg, sizeof(error_msg), pr->regexp.expr, pr->regexp.exprlen, pr->regexp.flags, ctx);
+        int len = 0;
+        pr->regexp.bytecode = lre_compile(&len, error_msg, sizeof(error_msg), pr->regexp.expr, pr->regexp.exprlen, pr->regexp.flags, ctx);
       }
 
       ret = lre_exec(capture, pr->regexp.bytecode, (uint8_t*)input.x, 0, input.n, 0, ctx);
@@ -281,10 +281,11 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 }
 
 Predicate
-predicate_regexp(const char* regexp, size_t rlen, int flags, void* opaque) {
+predicate_regexp(const char* regexp, size_t rlen, int flags) {
   Predicate ret = PREDICATE_INIT(PREDICATE_REGEXP);
   ret.regexp.expr = regexp;
   ret.regexp.exprlen = rlen;
+  ret.regexp.flags = flags;
   return ret;
 }
 

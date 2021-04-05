@@ -43,11 +43,10 @@ typedef struct {
 } BooleanPredicate;
 
 typedef struct {
-  uint8_t* bytecode;
-  int len;
-  char* expr;
+   char* expr;
   size_t exprlen;
   int flags;
+  uint8_t* bytecode;
 } RegExpPredicate;
 
 typedef struct Predicate {
@@ -172,6 +171,6 @@ predicate_free(Predicate* pred, JSContext* ctx) {
   predicate_free_rt(pred, JS_GetRuntime(ctx));
 }
 
-Predicate predicate_regexp(const char* regexp, size_t rlen, int flags, void* opaque);
+Predicate predicate_regexp(const char* regexp, size_t rlen, int flags);
 
 #endif /* defined(PREDICATE_H) */
