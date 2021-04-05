@@ -33,13 +33,13 @@ function main(...args) {
   let len = str.length;
   console.log('len', len);
   console.log('Predicate', Predicate);
-  console.log('Predicate.oneOf', Predicate.oneOf);
+  console.log('Predicate.charset', Predicate.charset);
 
-  let isNL = Predicate.oneOf('\n', 1);
-  let isUpper = Predicate.oneOf('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 26);
-  let isLower = Predicate.oneOf('abcdefghijklmnopqrstuvwxyz', 26);
-  let isDigit = Predicate.oneOf('0123456789', 10);
-  let isXDigit = Predicate.oneOf('0123456789ABCDEFabcdef', 22);
+  let isNL = Predicate.charset('\n', 1);
+  let isUpper = Predicate.charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 26);
+  let isLower = Predicate.charset('abcdefghijklmnopqrstuvwxyz', 26);
+  let isDigit = Predicate.charset('0123456789', 10);
+  let isXDigit = Predicate.charset('0123456789ABCDEFabcdef', 22);
 
   let isNotNL = Predicate.not(isNL);
   let isNotUpper = Predicate.not(isUpper);
@@ -120,14 +120,26 @@ function main(...args) {
 
   let io = Predicate.instanceOf(ArrayBuffer);
   let pt = Predicate.prototypeIs(ArrayBuffer.prototype);
-  console.log(`io =`, io);
+  let pr = new Predicate(re);
+  let eq1234 =   Predicate.equal(1234);
+let eqBLAH = Predicate.equal('BLAH');
+    console.log(`io =`, io);
   console.log(`io =`, io.toString());
-  console.log(`pt =`, pt);
-  console.log(`pt =`, pt.toString());
+ console.log(`pt =`, pt.toString());
+  console.log(`pr =`, pr.toString());
   console.log(`io.eval(dummy) =`, io.eval(dummy));
   console.log(`pt.eval(dummy) =`, pt.eval(dummy));
   console.log(`io.eval(arri32.buffer) =`, io.eval(arri32.buffer));
   console.log(`pt.eval(arri32.buffer) =`, pt.eval(arri32.buffer));
+  console.log(`eq1234 =`, eq1234.toString());
+  console.log(`eqBLAH =`, eqBLAH.toString());
+
+
+  let mt = Predicate.type(Predicate.TYPE_INT|Predicate.TYPE_OBJECT);
+  console.log(`mt =`, mt.toString());
+
+  for(let item of [1234, /*Symbol.iterator,*/ 'abcd', {}]) 
+    console.log(`mt.eval(${item}) = `, mt.eval(item));
 
   std.gc();
 }

@@ -321,7 +321,7 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     prev = level;
     if(mask) {
       JSValue value = property_enumeration_value(it, ctx);
-      int32_t type = js_value_type(value);
+      int32_t type = js_value_type(ctx, value);
       JS_FreeValue(ctx, value);
       if((mask & (1 << type)) == 0)
         continue;

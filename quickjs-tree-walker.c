@@ -135,7 +135,7 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValu
     if(mask && mask != TYPE_ALL) {
       JSValue value;
       value = property_enumeration_value(it, ctx);
-      type = js_value_type(value);
+      type = js_value_type(ctx, value);
       JS_FreeValue(ctx, value);
       if((mask & (1 << type)) == 0)
         continue;

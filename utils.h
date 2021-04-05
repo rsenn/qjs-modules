@@ -275,6 +275,24 @@ void dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_
 int dbuf_reserve_start(DynBuf* s, size_t len);
 int dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len);
 JSValue dbuf_tostring_free(DynBuf* s, JSContext* ctx);
+
+static inline void
+dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
+  size_t i, n = 0;
+  for(i = 0; i < sizeof(bits) * 8; i++) {
+    if(bits & (1 << i)) {
+      size_t len = strlen(names[i]);
+      if(n) {
+        n++;
+        dbuf_putstr(db, "|");
+      }
+      dbuf_put(db, names[i], len);
+      n += len;
+    }
+  }
+  return n;
+}
+
 JSValue js_global_get(JSContext* ctx, const char* prop);
 JSValue js_global_prototype(JSContext* ctx, const char* class_name);
 
@@ -289,9 +307,9 @@ enum value_types {
   FLAG_BIG_FLOAT,   // 7
   FLAG_BIG_INT,     // 8
   FLAG_BIG_DECIMAL, // 9
-  FLAG_FLOAT64,
-  FLAG_FUNCTION = 16,
-  FLAG_ARRAY = 17
+  FLAG_FLOAT64,     // 10
+  FLAG_FUNCTION,    // 11
+  FLAG_ARRAY        // 12
 };
 
 enum value_mask {
@@ -315,13 +333,58 @@ enum value_mask {
 };
 
 int32_t js_value_type_flag(JSValueConst value);
+static inline int32_t
+js_value_type_get(JSContext* ctx, JSValueConst value) {
+  if(JS_IsArray(ctx, value))
+    return FLAG_ARRAY;
+  if(JS_IsFunction(ctx, value))
+    return FLAG_FUNCTION;
+  return js_value_type_flag(value);
+}
 
 static inline int32_t
-js_value_type(JSValueConst value) {
+js_value_type2flag(uint32_t type) {
+  int32_t flag;
+  for(flag = 0; (type >>= 1); flag++) {}
+  return flag;
+}
+
+static inline int32_t
+js_value_type(JSContext*ctx,JSValueConst value) {
   int32_t flag, type = 0;
-  if((flag = js_value_type_flag(value)) != -1)
+  if((flag = js_value_type_get(ctx, value)) != -1)
     type = 1 << flag;
   return type;
+}
+
+
+static inline const char* const*
+js_value_types() {
+  return (const char* const[]){"UNDEFINED",
+                               "NULL",
+                               "BOOL",
+                               "INT",
+                               "OBJECT",
+                               "STRING",
+                               "SYMBOL",
+                               "BIG_FLOAT",
+                               "BIG_INT",
+                               "BIG_DECIMAL",
+                               "FLOAT64",
+                               "FUNCTION",
+                               "ARRAY",
+                               0};
+}
+
+static inline const char*
+js_value_type_name(int32_t type) {
+  return js_value_types()[js_value_type2flag(type)];
+}
+
+static inline const char*
+js_value_typestr(JSContext*ctx,JSValueConst value) {
+ int32_t type = js_value_type(ctx, value);
+ return js_value_type_name(type);
 }
 
 BOOL js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b);

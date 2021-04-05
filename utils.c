@@ -204,7 +204,7 @@ input_buffer_dump(const InputBuffer* input, DynBuf* db) {
   dbuf_printf(
       db, "(InputBuffer){ .x = %p, .n = %zx, .p = %zx, .free = %p }", input->x, input->n, input->p, input->free);
 }
- 
+
 void
 input_buffer_free(InputBuffer* input, JSContext* ctx) {
   if(input->x) {
@@ -367,7 +367,7 @@ js_global_prototype(JSContext* ctx, const char* class_name) {
 }
 
 InputBuffer
- js_input_buffer (JSContext* ctx, JSValueConst value) {
+js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = {0, 0, 0, &input_buffer_free_default};
 
   if(JS_IsString(value)) {
@@ -522,8 +522,8 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   JSPropertyEnum *atoms_a, *atoms_b;
   uint32_t i, natoms_a, natoms_b;
   int32_t ta, tb;
-  ta = js_value_type(a);
-  tb = js_value_type(b);
+  ta = js_value_type(ctx, a);
+  tb = js_value_type(ctx, b);
   assert(ta == TYPE_OBJECT);
   assert(tb == TYPE_OBJECT);
   if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
@@ -688,7 +688,7 @@ js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
 
 JSValue
 js_value_clone(JSContext* ctx, JSValueConst value) {
-  int32_t type = js_value_type(value);
+  int32_t type = js_value_type(ctx, value);
   JSValue ret = JS_UNDEFINED;
   switch(type) {
 
@@ -760,9 +760,17 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   if(JS_IsArray(ctx, value)) {
     dbuf_putstr(db, "[object Array]");
   } else {
+    int is_string = JS_IsString(value);
+
+    if(is_string)
+      dbuf_putc(db, '"');
+
     str = JS_ToCStringLen(ctx, &len, value);
     dbuf_append(db, (const uint8_t*)str, len);
     JS_FreeCString(ctx, str);
+
+    if(is_string)
+      dbuf_putc(db, '"');
   }
 }
 
@@ -770,8 +778,8 @@ BOOL
 js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   int32_t ta, tb;
   BOOL ret = FALSE;
-  ta = js_value_type(a);
-  tb = js_value_type(a);
+  ta = js_value_type(ctx,a);
+  tb = js_value_type(ctx,b);
   if(ta != tb)
     return FALSE;
 
@@ -872,7 +880,6 @@ js_value_type_flag(JSValueConst value) {
   return -1;
 }
 
-
 size_t
 token_length(const char* str, size_t len, char delim) {
   const char *s, *e;
@@ -889,4 +896,3 @@ token_length(const char* str, size_t len, char delim) {
   }
   return s - str;
 }
-
