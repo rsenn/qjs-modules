@@ -3,7 +3,7 @@
 
 #include "list.h"
 #include "utils.h"
-#include "quickjs-predicate.h"
+#include "predicate.h"
 #include "vector.h"
 
 enum token_types {
