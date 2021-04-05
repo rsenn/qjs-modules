@@ -15,7 +15,7 @@ enum predicate_id {
   PREDICATE_XOR,
   PREDICATE_REGEXP,
   PREDICATE_INSTANCEOF,
-  PREDICATE_PROTOTYPE
+  PREDICATE_PROTOTYPEIS
 };
 
 typedef struct {
@@ -105,7 +105,7 @@ predicate_înstanceof(JSValue ctor) {
 
 static inline Predicate
 predicate_prototype(JSValue proto) {
-  Predicate ret = PREDICATE_INIT(PREDICATE_PROTOTYPE);
+  Predicate ret = PREDICATE_INIT(PREDICATE_PROTOTYPEIS);
   ret.unary.value = proto;
   return ret;
 }

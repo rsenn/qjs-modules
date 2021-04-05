@@ -103,14 +103,31 @@ function main(...args) {
     console.log(`combined.eval('${str}') =`, combined.eval(str, a));
     //  console.log("a:", a);
   }
-    console.log(`combined.values =`, combined.values);
-    console.log(`combined.values =`, combined.values.map(v => v.toString()));
-let re = /^([-+]?)([0-9]*).([0-9]+)$/g;
-    console.log(`re =`, re);
-    console.log(`re =`, re+'');
-    console.log(`re =`, re.toString());
-    console.log(`re =`, Object.prototype.toString.call(re));
+  console.log(`combined.values =`, combined.values);
+  console.log(`combined.values =`,
+    combined.values.map(v => v.toString())
+  );
+  let re = /^([-+]?)([0-9]*).([0-9]+)$/g;
+  console.log(`re =`, re);
+  console.log(`re =`, re + '');
+  console.log(`re =`, re.toString());
+  console.log(`re =`, Object.prototype.toString.call(re));
+  /*console.log(`ArrayBuffer =`, ArrayBuffer+'');
+    console.log(`ArrayBuffer =`,  Function.prototype.toString.call(ArrayBuffer));*/
 
+  let dummy = new ArrayBuffer(1024);
+  let arri32 = new Int32Array(1024);
+
+  let io = Predicate.instanceOf(ArrayBuffer);
+  let pt = Predicate.prototypeIs(ArrayBuffer.prototype);
+  console.log(`io =`, io);
+  console.log(`io =`, io.toString());
+  console.log(`pt =`, pt);
+  console.log(`pt =`, pt.toString());
+  console.log(`io.eval(dummy) =`, io.eval(dummy));
+  console.log(`pt.eval(dummy) =`, pt.eval(dummy));
+  console.log(`io.eval(arri32.buffer) =`, io.eval(arri32.buffer));
+  console.log(`pt.eval(arri32.buffer) =`, pt.eval(arri32.buffer));
 
   std.gc();
 }

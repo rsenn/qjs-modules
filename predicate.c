@@ -17,7 +17,7 @@ predicate_eval(const Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv
       ret = JS_IsInstanceOf(ctx, argv[0], pr->unary.value);
       break;
     }
-    case PREDICATE_PROTOTYPE: {
+    case PREDICATE_PROTOTYPEIS: {
       JSValue proto = JS_GetPrototype(ctx, argv[0]);
 
       ret = JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(pr->unary.value);
@@ -135,12 +135,27 @@ void
 predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
   int ret = 0;
 
-  dbuf_putstr(dbuf, ((const char*[]){"TYPE", "CHARSET", "NOTNOT", "NOT", "OR", "AND", "XOR", "REGEXP", 0})[pr->id]);
+  dbuf_putstr(
+      dbuf,
+      ((const char*[]){
+          "TYPE", "CHARSET", "NOTNOT", "NOT", "OR", "AND", "XOR", "REGEXP", "INSTANCEOF", "PROTOTYPEIS", 0})[pr->id]);
   dbuf_putc(dbuf, ' ');
 
   switch(pr->id) {
     case PREDICATE_TYPE: {
-      dbuf_printf(dbuf, "id == %d\n", pr->type.flags);
+      dbuf_printf(dbuf, "id == %d", pr->type.flags);
+      break;
+    }
+    case PREDICATE_INSTANCEOF: {
+      const char* name = js_function_name(ctx, pr->unary.value);
+      dbuf_putstr(dbuf, name);
+      JS_FreeCString(ctx, name);
+      break;
+    }
+    case PREDICATE_PROTOTYPEIS: {
+      const char* name = js_object_tostring(ctx, pr->unary.value);
+      dbuf_putstr(dbuf, name);
+      JS_FreeCString(ctx, name);
       break;
     }
     case PREDICATE_CHARSET: {

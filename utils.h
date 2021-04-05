@@ -467,6 +467,25 @@ dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
   return r;
 }
 
+static inline JSValue
+js_global_get(JSContext* ctx, const char* prop) {
+  JSValue global_obj, ret;
+
+  global_obj = JS_GetGlobalObject(ctx);
+  ret = JS_GetPropertyStr(ctx, global_obj, prop);
+  JS_FreeValue(ctx, global_obj);
+  return ret;
+}
+
+static inline JSValue
+js_global_prototype(JSContext* ctx, const char* class_name) {
+  JSValue ctor, ret;
+  ctor = js_global_get(ctx, class_name);
+  ret = JS_GetPropertyStr(ctx, ctor, "prototype");
+  JS_FreeValue(ctx, ctor);
+  return ret;
+}
+
 enum value_types {
   FLAG_UNDEFINED = 0,
   FLAG_NULL,        // 1
@@ -745,6 +764,20 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
+static inline JSValue
+js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value) {
+  JSAtom atom;
+  JSValue proto, tostring, str;
+  proto = js_global_prototype(ctx, class_name);
+  atom = JS_NewAtom(ctx, "toString");
+  tostring = JS_GetProperty(ctx, proto, atom);
+  JS_FreeValue(ctx, proto);
+  JS_FreeAtom(ctx, atom);
+  str = JS_Call(ctx, tostring, value, 0, 0);
+  JS_FreeValue(ctx, tostring);
+  return str;
+}
+
 static inline int
 js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value) {
   uint64_t u64 = 0;
@@ -801,25 +834,6 @@ js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
   JS_FreeValue(ctx, desc->value);
   JS_FreeValue(ctx, desc->getter);
   JS_FreeValue(ctx, desc->setter);
-}
-
-static inline JSValue
-js_global_get(JSContext* ctx, const char* prop) {
-  JSValue global_obj, ret;
-
-  global_obj = JS_GetGlobalObject(ctx);
-  ret = JS_GetPropertyStr(ctx, global_obj, prop);
-  JS_FreeValue(ctx, global_obj);
-  return ret;
-}
-
-static inline JSValue
-js_global_prototype(JSContext* ctx, const char* class_name) {
-  JSValue ctor, ret;
-  ctor = js_global_get(ctx, class_name);
-  ret = JS_GetPropertyStr(ctx, ctor, "prototype");
-  JS_FreeValue(ctx, ctor);
-  return ret;
 }
 
 static inline JSValue
@@ -1029,18 +1043,44 @@ js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
 
 static inline const char*
 js_object_tostring(JSContext* ctx, JSValueConst value) {
-  JSAtom atom;
-  JSValue proto, tostring, str;
-  const char* s;
-  proto = js_global_prototype(ctx, "Object");
-  atom = JS_NewAtom(ctx, "toString");
-  tostring = JS_GetProperty(ctx, proto, atom);
-  JS_FreeValue(ctx, proto);
-  JS_FreeAtom(ctx, atom);
-  str = JS_Call(ctx, tostring, value, 0, 0);
-  JS_FreeValue(ctx, tostring);
-  s = JS_ToCString(ctx, str);
+  JSValue str = js_value_tostring(ctx, "Object", value);
+  const char* s = JS_ToCString(ctx, str);
   JS_FreeValue(ctx, str);
+  return s;
+}
+
+static inline const char*
+js_function_name(JSContext* ctx, JSValueConst value) {
+  JSAtom atom;
+  JSValue str, name, args[2], idx;
+  const char* s = 0;
+  int32_t i = -1;
+  str = js_value_tostring(ctx, "Function", value);
+  atom = JS_NewAtom(ctx, "indexOf");
+  args[0] = JS_NewString(ctx, "function ");
+  idx = JS_Invoke(ctx, str, atom, 1, args);
+  JS_FreeValue(ctx, args[0]);
+  JS_ToInt32(ctx, &i, idx);
+  if(i != 0) {
+    JS_FreeAtom(ctx, atom);
+    JS_FreeValue(ctx, str);
+    JS_FreeValue(ctx, args[0]);
+    return 0;
+  }
+  args[0] = JS_NewString(ctx, "(");
+  idx = JS_Invoke(ctx, str, atom, 1, args);
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeAtom(ctx, atom);
+  atom = JS_NewAtom(ctx, "substring");
+  args[0] = JS_NewUint32(ctx, 9);
+  args[1] = idx;
+  name = JS_Invoke(ctx, str, atom, 2, args);
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, args[1]);
+  JS_FreeValue(ctx, str);
+  JS_FreeAtom(ctx, atom);
+  s = JS_ToCString(ctx, name);
+  JS_FreeValue(ctx, name);
   return s;
 }
 

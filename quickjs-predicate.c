@@ -85,7 +85,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         *pred = predicate_înstanceof(JS_DupValue(ctx, argv[1]));
         break;
       }
-      case PREDICATE_PROTOTYPE: {
+      case PREDICATE_PROTOTYPEIS: {
         *pred = predicate_prototype(JS_DupValue(ctx, argv[1]));
         break;
       }
@@ -224,7 +224,7 @@ js_predicate_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = js_predicate_wrap(ctx, predicate_înstanceof(JS_DupValue(ctx, argv[0])));
       break;
     }
-    case PREDICATE_PROTOTYPE: {
+    case PREDICATE_PROTOTYPEIS: {
       ret = js_predicate_wrap(ctx, predicate_prototype(JS_DupValue(ctx, argv[0])));
       break;
     }
@@ -302,7 +302,7 @@ static const JSCFunctionListEntry js_predicate_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("xor", 2, js_predicate_funcs, PREDICATE_XOR),
     JS_CFUNC_MAGIC_DEF("regexp", 1, js_predicate_funcs, PREDICATE_REGEXP),
     JS_CFUNC_MAGIC_DEF("instanceOf", 1, js_predicate_funcs, PREDICATE_INSTANCEOF),
-    JS_CFUNC_MAGIC_DEF("prototypeIs", 1, js_predicate_funcs, PREDICATE_PROTOTYPE),
+    JS_CFUNC_MAGIC_DEF("prototypeIs", 1, js_predicate_funcs, PREDICATE_PROTOTYPEIS),
     JS_PROP_INT32_DEF("PREDICATE_TYPE", PREDICATE_TYPE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_CHARSET", PREDICATE_CHARSET, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_NOTNOT", PREDICATE_NOTNOT, JS_PROP_ENUMERABLE),
@@ -312,7 +312,7 @@ static const JSCFunctionListEntry js_predicate_static_funcs[] = {
     JS_PROP_INT32_DEF("PREDICATE_XOR", PREDICATE_XOR, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_REGEXP", PREDICATE_REGEXP, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PREDICATE_INSTANCEOF", PREDICATE_INSTANCEOF, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("PREDICATE_PROTOTYPE", PREDICATE_PROTOTYPE, JS_PROP_ENUMERABLE)};
+    JS_PROP_INT32_DEF("PREDICATE_PROTOTYPEIS", PREDICATE_PROTOTYPEIS, JS_PROP_ENUMERABLE)};
 
 static int
 js_predicate_init(JSContext* ctx, JSModuleDef* m) {
