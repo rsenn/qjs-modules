@@ -27,11 +27,6 @@ typedef struct {
 } Location;
 
 typedef struct {
-  uint32_t start;
-  uint32_t byte_length;
-} Line;
-
-typedef struct {
   const uint8_t* data;
   uint32_t byte_length;
   uint32_t offset;

@@ -432,7 +432,7 @@ enum lexer_getters {
   LEXER_PROP_POS,
   LEXER_PROP_START,
   LEXER_PROP_EOF,
-  LEXER_PROP_CURRENT_LINE,
+//  LEXER_PROP_CURRENT_LINE,
   LEXER_PROP_STATEFN,
   LEXER_PROP_FILENAME,
   LEXER_PROP_LOC
@@ -479,16 +479,6 @@ lexer_free(Lexer* lex, JSRuntime* rt) {
 
   if(--lex->ref_count == 0)
     js_free_rt(rt, lex);
-}
-
-static Line
-lexer_line(Lexer* lex) {
-  Line ret = {0, 0};
-  const char* x = (const char*)lex->data;
-  ret.start = lex->pos;
-  while(ret.start > 0 && x[ret.start - 1] != '\n') ret.start--;
-  ret.byte_length = byte_chr(&x[ret.start], lex->size - ret.start, '\n');
-  return ret;
 }
 
 static Token*
@@ -883,11 +873,11 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case LEXER_PROP_CURRENT_LINE: {
+ /*   case LEXER_PROP_CURRENT_LINE: {
       Line ln = lexer_line(lex);
       ret = JS_NewStringLen(ctx, (const char*)&lex->data[ln.start], ln.byte_length);
       break;
-    }
+    }*/
 
     case LEXER_PROP_STATEFN: {
       ret = JS_DupValue(ctx, lex->state_fn);
@@ -1128,9 +1118,8 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_PROP_SIZE),
     JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_PROP_POS),
     JS_CGETSET_MAGIC_DEF("start", js_lexer_get, js_lexer_set, LEXER_PROP_START),
-    JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, LEXER_PROP_LOC),
-    // JS_CGETSET_MAGIC_DEF("columnIndex", js_lexer_get, 0, LEXER_PROP_COLUMN_INDEX),
-    JS_CGETSET_MAGIC_DEF("currentLine", js_lexer_get, 0, LEXER_PROP_CURRENT_LINE),
+    JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, LEXER_PROP_LOC),   // JS_CGETSET_MAGIC_DEF("columnIndex", js_lexer_get, 0, LEXER_PROP_COLUMN_INDEX),
+   // JS_CGETSET_MAGIC_DEF("currentLine", js_lexer_get, 0, LEXER_PROP_CURRENT_LINE),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_PROP_EOF),
     JS_CGETSET_MAGIC_DEF("stateFn", js_lexer_get, js_lexer_set, LEXER_PROP_STATEFN),
     JS_CGETSET_MAGIC_DEF("filename", js_lexer_get, js_lexer_set, LEXER_PROP_FILENAME),
