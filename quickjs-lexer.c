@@ -818,11 +818,11 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       Token* tok;
       JS_ToInt32(ctx, &tokId, argv[0]);
 
-      if(tokId > TOKEN_ID_PROP_EOF || tokId < TOKEN_ID_COMMENT) {
+      if(tokId > TOKEN_ID_EOF || tokId < TOKEN_ID_COMMENT) {
         JS_ThrowRangeError(ctx,
-                           "Token id not between TOKEN_ID_COMMENT (%d) and TOKEN_ID_PROP_EOF (%d)",
+                           "Token id not between TOKEN_ID_COMMENT (%d) and TOKEN_ID_EOF (%d)",
                            TOKEN_ID_COMMENT,
-                           TOKEN_ID_PROP_EOF);
+                           TOKEN_ID_EOF);
         ret = JS_EXCEPTION;
       } else if((tok = lexer_token(lex, ctx, tokId))) {
         list_add_tail(&tok->link, &lex->tokens);

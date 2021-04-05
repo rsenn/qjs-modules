@@ -17,7 +17,7 @@ enum token_types {
   TOKEN_ID_KEYWORD,
   TOKEN_ID_IDENTIFIER,
   TOKEN_ID_REGEXP_LITERAL,
-  TOKEN_ID_PROP_EOF
+  TOKEN_ID_EOF
 };
 
 typedef struct {
