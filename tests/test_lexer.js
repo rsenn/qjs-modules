@@ -48,7 +48,9 @@ function main(...args) {
   const isKeyword = word =>
     /^(if|in|do|of|as|for|new|var|try|let|else|this|void|with|case|enum|from|break|while|catch|class|const|super|throw|await|yield|async|delete|return|typeof|import|switch|export|static|default|extends|finally|continue|function|debugger|instanceof)$/.test(word
     );
-    const isPunctuator = word => /^(=|\.|-|%|}|>|,|\*|\[|<|!|\/|\]|~|\&|\(|;|\?|\||\)|:|\+|\^|{|@|!=|\*=|\&\&|<<|\/=|\|\||>>|\&=|==|\+\+|\|=|<=|--|\+=|\^=|>=|-=|%=|=>|\${|\?\.|\*\*|\?\?|!==|===|>>>|>>=|-->>|<<=|\.\.\.|\*\*=|\|\|=|\&\&=|\?\?=|>>>=|-->>=)$/.test(word);
+  const isPunctuator = word =>
+    /^(=|\.|-|%|}|>|,|\*|\[|<|!|\/|\]|~|\&|\(|;|\?|\||\)|:|\+|\^|{|@|!=|\*=|\&\&|<<|\/=|\|\||>>|\&=|==|\+\+|\|=|<=|--|\+=|\^=|>=|-=|%=|=>|\${|\?\.|\*\*|\?\?|!==|===|>>>|>>=|-->>|<<=|\.\.\.|\*\*=|\|\|=|\&\&=|\?\?=|>>>=|-->>=)$/.test(word
+    );
 
   function lexText() {
     do {
@@ -173,21 +175,19 @@ function main(...args) {
   }
 
   function lexPunctuator() {
-    for(;;) {
-      if(!this.accept(Lexer.isPunctuatorChar)) break;
-      let word = this.getRange(this.start, this.pos);
-      if(word != '..' && !isPunctuator(word)) {
+    let word;
+    while(this.accept(Lexer.isPunctuatorChar)) {
+      if((word = this.getRange(this.start, this.pos)) != '..' && !isPunctuator(word)) {
         this.backup();
         this.addToken(Token.PUNCTUATOR);
         return this.lexText;
       }
     }
-    const word = this.getRange(this.start, this.pos);
-    if(isPunctuator(word)) {
+    if(isPunctuator((word = this.getRange(this.start, this.pos)))) {
       this.addToken(Token.PUNCTUATOR);
       return this.lexText;
     }
-    throw this.error(`Invalid PUNCTUATOR: ${word}`);
+    throw this.error(`Invalid punctuator: ${word}`);
   }
 
   function lexTemplate(cont = false) {
@@ -219,15 +219,12 @@ function main(...args) {
       prevChar = this.peek(),
       startToken = this.tokenIndex;
     function template() {
-      let escapeEncountered = false;
-      let n = 0;
-      while(this.pos < this.size) {
-        if(this.acceptRun(
-            Predicate.not(Predicate.or(c => c === '$', Predicate.regexp('^[$`{]'), Predicate.charset('\\`'))
-            )
-          )
-        )
-          escapeEncountered = false;
+      let pred = Predicate.not(Predicate.or(c => c === '$', Predicate.regexp('^[$`{]'), Predicate.charset('\\`'))
+        ),
+        escapeEncountered = false,
+        n = 0;
+      while(!this.eof) {
+        if(this.acceptRun(pred)) escapeEncountered = false;
         prevChar = c;
         c = this.getc();
         ++n;
@@ -257,18 +254,19 @@ function main(...args) {
   }
 
   function lexIdentifier() {
+    let c, firstChar, word;
     this.acceptRun(Lexer.isIdentifierChar);
-    const firstChar = this.getRange(this.start, this.start + 1);
-    if(Lexer.isDecimalDigit(firstChar)) throw this.error(`Invalid IDENTIFIER`);
-    const c = this.peek();
-    if(c == '`') {
+    if(Lexer.isDecimalDigit((firstChar = this.getRange(this.start, this.start + 1))))
+      throw this.error(`Invalid IDENTIFIER`);
+
+    if((c = this.peek()) == '`') {
       const { pos, start } = this;
       this.addToken(Token.IDENTIFIER);
       return this.lexText;
     }
     if(Lexer.isQuoteChar(c)) throw this.error(`Invalid IDENTIFIER`);
-    const word = this.getRange(this.start, this.pos);
-    if(word === 'true' || word === 'false') this.addToken(Token.BOOLEAN_LITERAL);
+    if((word = this.getRange(this.start, this.pos)) === 'true' || word === 'false')
+      this.addToken(Token.BOOLEAN_LITERAL);
     else if(word === 'null') this.addToken(Token.NULL_LITERAL);
     else if(isKeyword(word)) this.addToken(Token.KEYWORD);
     else this.addToken(Token.IDENTIFIER);
@@ -276,30 +274,26 @@ function main(...args) {
   }
 
   function lexQuote() {
-    let quoteChar = this.getc();
+    let quoteChar = this.getc(),
+      prevChar = '',
+      c = '',
+      escapeEncountered = false,
+      pred;
     if(quoteChar === '`') {
       const { inSubst } = this;
       return this.lexTemplate(inSubst);
     }
-    let prevChar = '';
-    let c = '';
-    let escapeEncountered = false;
+    pred = Predicate.and(Predicate.not(Lexer.isLineTerminator),
+      Predicate.regexp(`[^\\${quoteChar}]`, 'g')
+    );
     do {
-      if(this.acceptRun(
-          Predicate.and(Predicate.not(Lexer.isLineTerminator),
-            Predicate.regexp(`[^\\${quoteChar}]`, 'g')
-          )
-        )
-      )
-        escapeEncountered = false;
+      if(this.acceptRun(pred)) escapeEncountered = false;
       prevChar = c;
-      c = this.getc();
-      if(c === null) {
+      if((c = this.getc()) === null) {
         throw this.error(`Illegal token(1)`);
       } else if(!escapeEncountered) {
         if(Lexer.isLineTerminator(c) && quoteChar !== '`') {
-          throw this.error(`Illegal token(2) c=0x${c.codePointAt(0).toString(16)} quoteChar=${quoteChar} `
-          );
+          throw this.error(`Illegal token(2)`);
         } else if(c === quoteChar) {
           this.addToken(Token.STRING_LITERAL);
           return this.lexText;

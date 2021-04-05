@@ -85,9 +85,9 @@ async function main(...args) {
   let str = xml.write(result);
   console.log('write:', str);
 
-   WriteFile(base + '.json', JSON.stringify(result, null, 2));
+  WriteFile(base + '.json', JSON.stringify(result, null, 2));
 
-   WriteFile(base + '.xml', str);
+  WriteFile(base + '.xml', str);
 
   await import('std').then(std => std.gc());
 }
