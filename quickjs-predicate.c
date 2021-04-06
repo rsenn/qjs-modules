@@ -333,38 +333,45 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
 
 static JSClassDef js_predicate_class = {.class_name = "Predicate", .finalizer = js_predicate_finalizer, .call = js_predicate_call};
 
-static const JSCFunctionListEntry js_predicate_proto_funcs[] = {JS_CFUNC_MAGIC_DEF("eval", 1, js_predicate_method, METHOD_EVAL),
-                                                                JS_CFUNC_DEF("toString", 0, js_predicate_tostring),
-                                                                JS_ALIAS_DEF("call", "eval"),
-                                                                JS_CGETSET_MAGIC_DEF("id", js_predicate_get, 0, PROP_ID),
-                                                                JS_CGETSET_MAGIC_DEF("values", js_predicate_get, 0, PROP_VALUES),
-                                                                JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E)};
+static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
+  JS_CFUNC_MAGIC_DEF("eval", 1, js_predicate_method, METHOD_EVAL),
+  JS_CFUNC_DEF("toString", 0, js_predicate_tostring),
+  JS_ALIAS_DEF("call", "eval"),
+  JS_CGETSET_MAGIC_DEF("id", js_predicate_get, 0, PROP_ID),
+  JS_CGETSET_MAGIC_DEF("values", js_predicate_get, 0, PROP_VALUES),
+  JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E)
+};
 
-static const JSCFunctionListEntry js_predicate_funcs[] = {JS_CFUNC_MAGIC_DEF("type", 1, js_predicate_function, PREDICATE_TYPE),
-                                                          JS_CFUNC_MAGIC_DEF("charset", 1, js_predicate_function, PREDICATE_CHARSET),
-                                                          JS_CFUNC_MAGIC_DEF("string", 1, js_predicate_function, PREDICATE_STRING),
-                                                          JS_CFUNC_MAGIC_DEF("not", 1, js_predicate_function, PREDICATE_NOT),
-                                                          JS_CFUNC_MAGIC_DEF("or", 2, js_predicate_function, PREDICATE_OR),
-                                                          JS_CFUNC_MAGIC_DEF("and", 2, js_predicate_function, PREDICATE_AND),
-                                                          JS_CFUNC_MAGIC_DEF("xor", 2, js_predicate_function, PREDICATE_XOR),
-                                                          JS_CFUNC_MAGIC_DEF("regexp", 1, js_predicate_function, PREDICATE_REGEXP),
-                                                          JS_CFUNC_MAGIC_DEF("instanceOf", 1, js_predicate_function, PREDICATE_INSTANCEOF),
-                                                          JS_CFUNC_MAGIC_DEF("prototypeIs", 1, js_predicate_function, PREDICATE_PROTOTYPEIS),
-                                                          JS_CFUNC_MAGIC_DEF("equal", 1, js_predicate_function, PREDICATE_EQUAL)};
-static const JSCFunctionListEntry js_predicate_ids[] = {JS_PROP_INT32_DEF("TYPE", PREDICATE_TYPE, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("CHARSET", PREDICATE_CHARSET, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("STRING", PREDICATE_STRING, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("NOTNOT", PREDICATE_NOTNOT, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("NOT", PREDICATE_NOT, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("OR", PREDICATE_OR, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("AND", PREDICATE_AND, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("XOR", PREDICATE_XOR, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("REGEXP", PREDICATE_REGEXP, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("INSTANCEOF", PREDICATE_INSTANCEOF, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("PROTOTYPEIS", PREDICATE_PROTOTYPEIS, JS_PROP_ENUMERABLE),
-                                                        JS_PROP_INT32_DEF("EQUAL", PREDICATE_EQUAL, JS_PROP_ENUMERABLE)};
+static const JSCFunctionListEntry js_predicate_funcs[] = {
+  JS_CFUNC_MAGIC_DEF("type", 1, js_predicate_function, PREDICATE_TYPE),
+  JS_CFUNC_MAGIC_DEF("charset", 1, js_predicate_function, PREDICATE_CHARSET),
+  JS_CFUNC_MAGIC_DEF("string", 1, js_predicate_function, PREDICATE_STRING),
+  JS_CFUNC_MAGIC_DEF("not", 1, js_predicate_function, PREDICATE_NOT),
+  JS_CFUNC_MAGIC_DEF("or", 2, js_predicate_function, PREDICATE_OR),
+  JS_CFUNC_MAGIC_DEF("and", 2, js_predicate_function, PREDICATE_AND),
+  JS_CFUNC_MAGIC_DEF("xor", 2, js_predicate_function, PREDICATE_XOR),
+  JS_CFUNC_MAGIC_DEF("regexp", 1, js_predicate_function, PREDICATE_REGEXP),
+  JS_CFUNC_MAGIC_DEF("instanceOf", 1, js_predicate_function, PREDICATE_INSTANCEOF),
+  JS_CFUNC_MAGIC_DEF("prototypeIs", 1, js_predicate_function, PREDICATE_PROTOTYPEIS),
+  JS_CFUNC_MAGIC_DEF("equal", 1, js_predicate_function, PREDICATE_EQUAL)
+};
+
+static const JSCFunctionListEntry js_predicate_ids[] = {
+  JS_PROP_INT32_DEF("TYPE", PREDICATE_TYPE, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("CHARSET", PREDICATE_CHARSET, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("STRING", PREDICATE_STRING, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("NOTNOT", PREDICATE_NOTNOT, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("NOT", PREDICATE_NOT, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("OR", PREDICATE_OR, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("AND", PREDICATE_AND, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("XOR", PREDICATE_XOR, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("REGEXP", PREDICATE_REGEXP, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("INSTANCEOF", PREDICATE_INSTANCEOF, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("PROTOTYPEIS", PREDICATE_PROTOTYPEIS, JS_PROP_ENUMERABLE),
+  JS_PROP_INT32_DEF("EQUAL", PREDICATE_EQUAL, JS_PROP_ENUMERABLE)
+};
+
 static const JSCFunctionListEntry js_predicate_types[] = {
-
     JS_PROP_INT32_DEF("TYPE_UNDEFINED", TYPE_UNDEFINED, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_NULL", TYPE_NULL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_BOOL", TYPE_BOOL, JS_PROP_ENUMERABLE),
