@@ -361,6 +361,17 @@ dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
   return n;
 }
 
+typedef struct {
+  char* source;
+  size_t len;
+  int flags;
+} RegExp;
+
+int regexp_flags_tostring(int, char*);
+int regexp_flags_fromstring(const char*);
+RegExp regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx);
+uint8_t* regexp_compile(const RegExp* re, JSContext* ctx);
+
 JSValue js_global_get(JSContext* ctx, const char* prop);
 JSValue js_global_prototype(JSContext* ctx, const char* class_name);
 
@@ -610,12 +621,15 @@ const char* js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom);
 void js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color);
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
-BOOL js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
-void js_object_propertystr_setstr(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
-const char* js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop);
-int32_t js_object_propertystr_getint32(JSContext* ctx, JSValueConst obj, const char* prop);
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
+
+BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
+void js_set_propertystr_strlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
+const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
+const char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
+const char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
+int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
 
 static inline int
 js_is_map(JSContext* ctx, JSValueConst value) {

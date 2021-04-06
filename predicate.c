@@ -258,9 +258,9 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       char flagbuf[16];
 
       dbuf_putc(dbuf, '/');
-      dbuf_put(dbuf, (const uint8_t*)pr->regexp.expr, pr->regexp.exprlen);
+      dbuf_put(dbuf, (const uint8_t*)pr->regexp.expr.source, pr->regexp.expr.len);
       dbuf_putc(dbuf, '/');
-      dbuf_put(dbuf, (const uint8_t*)flagbuf, predicate_regexp_flags2str(pr->regexp.flags, flagbuf));
+      dbuf_put(dbuf, (const uint8_t*)flagbuf, regexp_flags_tostring(pr->regexp.expr.flags, flagbuf));
       dbuf_0(dbuf);
       break;
     }
@@ -286,47 +286,6 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
     default: assert(0); break;
   }
-}
-
-int
-predicate_regexp_str2flags(const char* s) {
-  int flags = 0;
-
-  if(str_contains(s, 'g'))
-    flags |= LRE_FLAG_GLOBAL;
-  if(str_contains(s, 'i'))
-    flags |= LRE_FLAG_IGNORECASE;
-  if(str_contains(s, 'm'))
-    flags |= LRE_FLAG_MULTILINE;
-  if(str_contains(s, 's'))
-    flags |= LRE_FLAG_DOTALL;
-  if(str_contains(s, 'u'))
-    flags |= LRE_FLAG_UTF16;
-  if(str_contains(s, 'y'))
-    flags |= LRE_FLAG_STICKY;
-
-  return flags;
-}
-
-int
-predicate_regexp_flags2str(int flags, char* buf) {
-  char* out = buf;
-
-  if(flags & LRE_FLAG_GLOBAL)
-    *out++ = 'g';
-  if(flags & LRE_FLAG_IGNORECASE)
-    *out++ = 'i';
-  if(flags & LRE_FLAG_MULTILINE)
-    *out++ = 'm';
-  if(flags & LRE_FLAG_DOTALL)
-    *out++ = 's';
-  if(flags & LRE_FLAG_UTF16)
-    *out++ = 'u';
-  if(flags & LRE_FLAG_STICKY)
-    *out++ = 'y';
-
-  *out = '\0';
-  return out - buf;
 }
 
 JSValue
@@ -381,7 +340,7 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
 
     case PREDICATE_REGEXP: {
       // if(pred->regexp.bytecode) js_free_rt(rt, pred->regexp.bytecode);
-      js_free_rt(rt, pred->regexp.expr);
+      js_free_rt(rt, pred->regexp.expr.source);
       break;
     }
   }
@@ -461,9 +420,9 @@ predicate_dup(const Predicate* pred, JSContext* ctx) {
     }
 
     case PREDICATE_REGEXP: {
-      ret->regexp.expr = js_strndup(ctx, pred->regexp.expr, pred->regexp.exprlen);
-      ret->regexp.exprlen = pred->regexp.exprlen;
-      ret->regexp.flags = pred->regexp.flags;
+      ret->regexp.expr.source = js_strndup(ctx, pred->regexp.expr.source, pred->regexp.expr.len);
+      ret->regexp.expr.len = pred->regexp.expr.len;
+      ret->regexp.expr.flags = pred->regexp.expr.flags;
       ret->regexp.bytecode = 0;
       break;
     }
@@ -474,13 +433,10 @@ predicate_dup(const Predicate* pred, JSContext* ctx) {
 
 int
 predicate_regexp_compile(Predicate* pred, JSContext* ctx) {
-  char error_msg[64];
-  int len = 0;
-
   assert(pred->id == PREDICATE_REGEXP);
   assert(pred->regexp.bytecode == 0);
 
-  if((pred->regexp.bytecode = lre_compile(&len, error_msg, sizeof(error_msg), pred->regexp.expr, pred->regexp.exprlen, pred->regexp.flags, ctx)))
+  if((pred->regexp.bytecode = regexp_compile(&pred->regexp.expr, ctx)))
     return lre_get_capture_count(pred->regexp.bytecode);
 
   return 0;

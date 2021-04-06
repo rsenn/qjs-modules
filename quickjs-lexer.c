@@ -49,7 +49,7 @@ js_position_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
     dbuf_putc(dbuf, ':');
     JS_FreeValue(ctx, file);
   }
-  dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, js_object_propertystr_getint32(ctx, this_val, "line"), js_object_propertystr_getint32(ctx, this_val, "column"));
+  dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, js_get_propertystr_int32(ctx, this_val, "line"), js_get_propertystr_int32(ctx, this_val, "column"));
 }
 
 static JSValue
@@ -728,9 +728,9 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
           pred = predicate_dup(pred, ctx);
 
-          if(pred->regexp.expr[0] != '^') {
-            str0_insert(&pred->regexp.expr, ctx, 0, "^", 1);
-            pred->regexp.exprlen += 1;
+          if(pred->regexp.expr.source[0] != '^') {
+            str0_insert(&pred->regexp.expr.source, ctx, 0, "^", 1);
+            pred->regexp.expr.len += 1;
           }
 
           capture_count = predicate_regexp_compile(pred, ctx);

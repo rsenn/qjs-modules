@@ -1,6 +1,7 @@
 #include "utils.h"
 #include "cutils.h"
 #include "vector.h"
+#include "libregexp.h"
 
 size_t
 ansi_length(const char* str, size_t len) {
@@ -199,6 +200,73 @@ dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
   r = JS_NewStringLen(ctx, s->buf ? (const char*)s->buf : "", s->buf ? s->size : 0);
   dbuf_free(s);
   return r;
+}
+
+int
+regexp_flags_fromstring(const char* s) {
+  int flags = 0;
+
+  if(str_contains(s, 'g'))
+    flags |= LRE_FLAG_GLOBAL;
+  if(str_contains(s, 'i'))
+    flags |= LRE_FLAG_IGNORECASE;
+  if(str_contains(s, 'm'))
+    flags |= LRE_FLAG_MULTILINE;
+  if(str_contains(s, 's'))
+    flags |= LRE_FLAG_DOTALL;
+  if(str_contains(s, 'u'))
+    flags |= LRE_FLAG_UTF16;
+  if(str_contains(s, 'y'))
+    flags |= LRE_FLAG_STICKY;
+
+  return flags;
+}
+
+int
+regexp_flags_tostring(int flags, char* buf) {
+  char* out = buf;
+
+  if(flags & LRE_FLAG_GLOBAL)
+    *out++ = 'g';
+  if(flags & LRE_FLAG_IGNORECASE)
+    *out++ = 'i';
+  if(flags & LRE_FLAG_MULTILINE)
+    *out++ = 'm';
+  if(flags & LRE_FLAG_DOTALL)
+    *out++ = 's';
+  if(flags & LRE_FLAG_UTF16)
+    *out++ = 'u';
+  if(flags & LRE_FLAG_STICKY)
+    *out++ = 'y';
+
+  *out = '\0';
+  return out - buf;
+}
+
+RegExp
+regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
+  RegExp re = {0, 0, 0};
+  const char* flagstr;
+  assert(argc > 0);
+  if(js_is_regexp(ctx, argv[0])) {
+    re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
+    re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
+    JS_FreeCString(ctx, flagstr);
+  } else {
+    re.source = js_tostringlen(ctx, &re.len, argv[0]);
+    if(argc > 1) {
+      re.flags = regexp_flags_fromstring((flagstr = JS_ToCString(ctx, argv[1])));
+      JS_FreeCString(ctx, flagstr);
+    }
+  }
+  return re;
+}
+
+uint8_t*
+regexp_compile(const RegExp* re, JSContext* ctx) {
+  char error_msg[64];
+  int len = 0;
+  return lre_compile(&len, error_msg, sizeof(error_msg), re->source, re->len, re->flags, ctx);
 }
 
 InputBuffer
@@ -599,7 +667,7 @@ js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
 }
 
 BOOL
-js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
+js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
   BOOL ret = FALSE;
   JSValue value;
   value = JS_GetPropertyStr(ctx, obj, str);
@@ -611,7 +679,7 @@ js_object_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
 }
 
 const char*
-js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop) {
+js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop) {
   JSValue value;
   const char* ret;
   value = JS_GetPropertyStr(ctx, obj, prop);
@@ -623,8 +691,34 @@ js_object_propertystr_getstr(JSContext* ctx, JSValueConst obj, const char* prop)
   return ret;
 }
 
+const char*
+js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop) {
+  JSValue value;
+  const char* ret;
+  value = JS_GetPropertyStr(ctx, obj, prop);
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  ret = js_tostring(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+const char*
+js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp) {
+  JSValue value;
+  const char* ret;
+  value = JS_GetPropertyStr(ctx, obj, prop);
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  ret = js_tostringlen(ctx, lenp, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 int32_t
-js_object_propertystr_getint32(JSContext* ctx, JSValueConst obj, const char* prop) {
+js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop) {
   JSValue value;
   int32_t ret;
   value = JS_GetPropertyStr(ctx, obj, prop);
@@ -636,7 +730,7 @@ js_object_propertystr_getint32(JSContext* ctx, JSValueConst obj, const char* pro
 }
 
 void
-js_object_propertystr_setstr(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
+js_set_propertystr_strlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
   JSValue value;
   value = JS_NewStringLen(ctx, str, len);
   JS_SetPropertyStr(ctx, obj, prop, value);

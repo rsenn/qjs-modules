@@ -49,9 +49,7 @@ typedef struct {
 } BooleanPredicate;
 
 typedef struct {
-  char* expr;
-  size_t exprlen;
-  int flags;
+  RegExp expr;
   uint8_t* bytecode;
 } RegExpPredicate;
 
@@ -80,8 +78,7 @@ int predicate_call(JSContext*, JSValue, int argc, JSValue* argv);
 int predicate_eval(Predicate*, JSContext*, int argc, JSValue* argv);
 void predicate_free_rt(Predicate*, JSRuntime*);
 JSValue predicate_regexp_capture(uint8_t**, int, uint8_t* input, JSContext* ctx);
-int predicate_regexp_flags2str(int, char*);
-int predicate_regexp_str2flags(const char*);
+
 int predicate_regexp_compile(Predicate* pred, JSContext* ctx);
 void predicate_tostring(const Predicate*, JSContext*, DynBuf* dbuf);
 JSValue predicate_values(const Predicate*, JSContext*);
@@ -127,12 +124,12 @@ predicate_string(const char* str, size_t len) {
 }
 
 static inline Predicate
-predicate_regexp(const char* regexp, size_t rlen, int flags) {
+predicate_regexp(char* source, size_t len, int flags) {
   Predicate ret = PREDICATE_INIT(PREDICATE_REGEXP);
   ret.regexp.bytecode = 0;
-  ret.regexp.expr = (char*)regexp;
-  ret.regexp.exprlen = rlen;
-  ret.regexp.flags = flags;
+  ret.regexp.expr.source = source;
+  ret.regexp.expr.len = len;
+  ret.regexp.expr.flags = flags;
   return ret;
 }
 

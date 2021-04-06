@@ -78,7 +78,7 @@ iteration_next(Iteration* it, JSContext* ctx) {
   if(JS_IsObject(it->data))
     JS_FreeValue(ctx, it->data);
   it->data = JS_Call(ctx, it->next, it->iter, 0, 0);
-  it->done = js_object_propertystr_bool(ctx, it->data, "done");
+  it->done = js_get_propertystr_bool(ctx, it->data, "done");
   return it->done;
 }
 

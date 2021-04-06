@@ -315,11 +315,11 @@ js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 
   ret = JS_NewObject(ctx);
 
-  js_object_propertystr_setstr(ctx, ret, "root", str, rootlen);
-  js_object_propertystr_setstr(ctx, ret, "dir", str, dirlen);
-  js_object_propertystr_setstr(ctx, ret, "base", base, strlen(base));
-  js_object_propertystr_setstr(ctx, ret, "ext", ext, strlen(ext));
-  js_object_propertystr_setstr(ctx, ret, "name", base, strlen(base) - strlen(ext));
+  js_set_propertystr_strlen(ctx, ret, "root", str, rootlen);
+  js_set_propertystr_strlen(ctx, ret, "dir", str, dirlen);
+  js_set_propertystr_strlen(ctx, ret, "base", base, strlen(base));
+  js_set_propertystr_strlen(ctx, ret, "ext", ext, strlen(ext));
+  js_set_propertystr_strlen(ctx, ret, "name", base, strlen(base) - strlen(ext));
 
   JS_FreeCString(ctx, str);
 
@@ -335,10 +335,10 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 
   js_dbuf_init(ctx, &db);
 
-  if((dir = js_object_propertystr_getstr(ctx, obj, "dir"))) {
+  if((dir = js_get_propertystr_cstring(ctx, obj, "dir"))) {
     dbuf_putstr(&db, dir);
     JS_FreeCString(ctx, dir);
-  } else if((root = js_object_propertystr_getstr(ctx, obj, "root"))) {
+  } else if((root = js_get_propertystr_cstring(ctx, obj, "root"))) {
     dbuf_putstr(&db, root);
     JS_FreeCString(ctx, root);
   }
@@ -346,13 +346,13 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   if(db.size)
     dbuf_putc(&db, PATHSEP_C);
 
-  if((base = js_object_propertystr_getstr(ctx, obj, "base"))) {
+  if((base = js_get_propertystr_cstring(ctx, obj, "base"))) {
     dbuf_putstr(&db, base);
     JS_FreeCString(ctx, base);
-  } else if((name = js_object_propertystr_getstr(ctx, obj, "name"))) {
+  } else if((name = js_get_propertystr_cstring(ctx, obj, "name"))) {
     dbuf_putstr(&db, name);
     JS_FreeCString(ctx, name);
-    if((ext = js_object_propertystr_getstr(ctx, obj, "ext"))) {
+    if((ext = js_get_propertystr_cstring(ctx, obj, "ext"))) {
       dbuf_putstr(&db, ext);
       JS_FreeCString(ctx, ext);
     }
