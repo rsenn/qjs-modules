@@ -339,8 +339,7 @@ js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   vector frames;
 
   vector_init(&frames, ctx);
-  ;
-
+ 
   it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   do {
     JSValue value = property_enumeration_value(it, ctx);
@@ -364,8 +363,7 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   vector frames;
 
   vector_init(&frames, ctx);
-  ;
-
+ 
   fn = argv[1];
   this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
 
@@ -391,10 +389,8 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   vector aframes, bframes;
 
   vector_init(&aframes, ctx);
-  ;
-  vector_init(&bframes, ctx);
-  ;
-
+     vector_init(&bframes, ctx);
+ 
   aenum = property_enumeration_push(&aframes, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
   benum = property_enumeration_push(&bframes, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
   do {
