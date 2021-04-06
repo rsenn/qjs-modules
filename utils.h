@@ -457,7 +457,6 @@ void js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
 void js_value_print(JSContext* ctx, JSValueConst value, DynBuf* db);
 JSValue js_value_clone(JSContext* ctx, JSValueConst valpe);
 JSValue* js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values);
-// void js_values_free(JSContext* ctx, int nvalues, JSValueConst* values);
 void js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values);
 JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
 
@@ -468,9 +467,8 @@ typedef struct InputBuffer {
   void (*free)(JSContext*, const char*);
 } InputBuffer;
 
-static inline void input_buffer_free_default(JSContext* ctx, const char* str){
-
-};
+static inline void
+input_buffer_free_default(JSContext* ctx, const char* str) {}
 
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);

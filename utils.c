@@ -914,10 +914,10 @@ void
 js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   const char* str;
   size_t len;
-  if(JS_IsObject( value)) {
+  if(JS_IsObject(value)) {
     const char* str = js_object_tostring(ctx, value);
-     dbuf_putstr(db, str);
-     JS_FreeCString(ctx, str);
+    dbuf_putstr(db, str);
+    JS_FreeCString(ctx, str);
   } else {
     int is_string = JS_IsString(value);
 
