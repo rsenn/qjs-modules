@@ -44,10 +44,7 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
   }
 
   if(flags & PROPENUM_SORT_ATOMS)
-    qsort(it->tab_atom,
-          it->tab_atom_len,
-          sizeof(JSPropertyEnum),
-          (int (*)(const void*, const void*)) & compare_jspropertyenum);
+    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void*, const void*)) & compare_jspropertyenum);
 
   return 0;
 }
@@ -108,7 +105,7 @@ property_enumeration_keystr(PropertyEnumeration* it, JSContext* ctx) {
 static inline const char*
 property_enumeration_keystrlen(PropertyEnumeration* it, size_t* len, JSContext* ctx) {
   assert(it->idx < it->tab_atom_len);
-  return js_atom_tocstringlen(ctx, len, it->tab_atom[it->idx].atom);
+  return js_atom_to_cstringlen(ctx, len, it->tab_atom[it->idx].atom);
 }
 
 static inline int
@@ -335,8 +332,7 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
   JSValue root = JS_DupValue(ctx, object);
 
   if(JS_IsObject(root)) {
-    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it;
-        (it = property_enumeration_recurse(&vec, ctx))) {
+    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it; (it = property_enumeration_recurse(&vec, ctx))) {
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
       if(max_depth < depth)
         max_depth = depth;

@@ -19,13 +19,7 @@ typedef struct DeepIterator {
   uint32_t flags;
 } DeepIterator;
 
-enum deep_iterator_return {
-  RETURN_VALUE = 0,
-  RETURN_PATH = 1 << 24,
-  RETURN_VALUE_PATH = 2 << 24,
-  RETURN_PATH_VALUE = 3 << 24,
-  RETURN_MASK = 7 << 24
-};
+enum deep_iterator_return { RETURN_VALUE = 0, RETURN_PATH = 1 << 24, RETURN_VALUE_PATH = 2 << 24, RETURN_PATH_VALUE = 3 << 24, RETURN_MASK = 7 << 24 };
 
 static JSValue
 js_deep_return(JSContext* ctx, vector* frames, int32_t return_flag) {
@@ -124,9 +118,8 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     return JS_EXCEPTION;
 
   for(;;) {
-    if(!(penum = vector_empty(&it->frames)
-                     ? property_enumeration_push(&it->frames, ctx, it->root, PROPENUM_DEFAULT_FLAGS)
-                     : property_enumeration_recurse(&it->frames, ctx))) {
+    if(!(penum = vector_empty(&it->frames) ? property_enumeration_push(&it->frames, ctx, it->root, PROPENUM_DEFAULT_FLAGS)
+                                           : property_enumeration_recurse(&it->frames, ctx))) {
 
       *pdone = TRUE;
       return ret;
@@ -402,10 +395,8 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   vector_init(&bframes, ctx);
   ;
 
-  aenum =
-      property_enumeration_push(&aframes, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
-  benum =
-      property_enumeration_push(&bframes, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
+  aenum = property_enumeration_push(&aframes, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
+  benum = property_enumeration_push(&bframes, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
   do {
     JSValue aval, bval;
     JSAtom akey, bkey;
@@ -437,8 +428,7 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       ret = JS_FALSE;
       break;
     }
-  } while(
-      ((aenum = property_enumeration_recurse(&aframes, ctx)), (benum = property_enumeration_recurse(&bframes, ctx))));
+  } while(((aenum = property_enumeration_recurse(&aframes, ctx)), (benum = property_enumeration_recurse(&bframes, ctx))));
 
   property_enumeration_free(&aframes, JS_GetRuntime(ctx));
   property_enumeration_free(&bframes, JS_GetRuntime(ctx));
@@ -463,38 +453,37 @@ static JSClassDef js_deep_iterator_class = {
     .finalizer = js_deep_iterator_finalizer,
 };
 
-static const JSCFunctionListEntry js_deep_funcs[] = {
-    JS_CFUNC_DEF("find", 2, js_deep_find),
-    JS_CFUNC_DEF("select", 2, js_deep_select),
-    JS_CFUNC_DEF("get", 2, js_deep_get),
-    JS_CFUNC_DEF("set", 3, js_deep_set),
-    JS_CFUNC_DEF("unset", 2, js_deep_unset),
-    JS_CFUNC_DEF("flatten", 1, js_deep_flatten),
-    JS_CFUNC_DEF("pathOf", 2, js_deep_pathof),
-    JS_CFUNC_DEF("equals", 2, js_deep_equals),
-    JS_CFUNC_DEF("iterate", 1, js_deep_iterate),
-    JS_CFUNC_DEF("forEach", 2, js_deep_foreach),
-    JS_CFUNC_DEF("clone", 1, js_deep_clone),
-    JS_PROP_INT32_DEF("TYPE_UNDEFINED", TYPE_UNDEFINED, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_NULL", TYPE_NULL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BOOL", TYPE_BOOL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_INT", TYPE_INT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_OBJECT", TYPE_OBJECT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_STRING", TYPE_STRING, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_SYMBOL", TYPE_SYMBOL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BIG_FLOAT", TYPE_BIG_FLOAT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BIG_INT", TYPE_BIG_INT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BIG_DECIMAL", TYPE_BIG_DECIMAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_FLOAT64", TYPE_FLOAT64, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_NUMBER", TYPE_NUMBER, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_ALL", TYPE_ALL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_PRIMITIVE", TYPE_PRIMITIVE, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_ARRAY", TYPE_ARRAY, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_FUNCTION", TYPE_FUNCTION, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("RETURN_VALUE", RETURN_VALUE, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("RETURN_PATH", RETURN_PATH, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("RETURN_VALUE_PATH", RETURN_VALUE_PATH, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("RETURN_PATH_VALUE", RETURN_PATH_VALUE, JS_PROP_ENUMERABLE)};
+static const JSCFunctionListEntry js_deep_funcs[] = {JS_CFUNC_DEF("find", 2, js_deep_find),
+                                                     JS_CFUNC_DEF("select", 2, js_deep_select),
+                                                     JS_CFUNC_DEF("get", 2, js_deep_get),
+                                                     JS_CFUNC_DEF("set", 3, js_deep_set),
+                                                     JS_CFUNC_DEF("unset", 2, js_deep_unset),
+                                                     JS_CFUNC_DEF("flatten", 1, js_deep_flatten),
+                                                     JS_CFUNC_DEF("pathOf", 2, js_deep_pathof),
+                                                     JS_CFUNC_DEF("equals", 2, js_deep_equals),
+                                                     JS_CFUNC_DEF("iterate", 1, js_deep_iterate),
+                                                     JS_CFUNC_DEF("forEach", 2, js_deep_foreach),
+                                                     JS_CFUNC_DEF("clone", 1, js_deep_clone),
+                                                     JS_PROP_INT32_DEF("TYPE_UNDEFINED", TYPE_UNDEFINED, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_NULL", TYPE_NULL, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_BOOL", TYPE_BOOL, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_INT", TYPE_INT, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_OBJECT", TYPE_OBJECT, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_STRING", TYPE_STRING, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_SYMBOL", TYPE_SYMBOL, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_BIG_FLOAT", TYPE_BIG_FLOAT, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_BIG_INT", TYPE_BIG_INT, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_BIG_DECIMAL", TYPE_BIG_DECIMAL, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_FLOAT64", TYPE_FLOAT64, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_NUMBER", TYPE_NUMBER, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_ALL", TYPE_ALL, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_PRIMITIVE", TYPE_PRIMITIVE, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_ARRAY", TYPE_ARRAY, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("TYPE_FUNCTION", TYPE_FUNCTION, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("RETURN_VALUE", RETURN_VALUE, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("RETURN_PATH", RETURN_PATH, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("RETURN_VALUE_PATH", RETURN_VALUE_PATH, JS_PROP_ENUMERABLE),
+                                                     JS_PROP_INT32_DEF("RETURN_PATH_VALUE", RETURN_PATH_VALUE, JS_PROP_ENUMERABLE)};
 
 static const JSCFunctionListEntry js_deep_iterator_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_deep_iterator_next, 0),
@@ -510,10 +499,7 @@ js_deep_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_deep_iterator_class_id, &js_deep_iterator_class);
 
   deep_iterator_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             deep_iterator_proto,
-                             js_deep_iterator_proto_funcs,
-                             countof(js_deep_iterator_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, deep_iterator_proto, js_deep_iterator_proto_funcs, countof(js_deep_iterator_proto_funcs));
   JS_SetClassProto(ctx, js_deep_iterator_class_id, deep_iterator_proto);
 
   deep_iterator_ctor = JS_NewCFunction2(ctx, js_deep_iterator_constructor, "DeepIterator", 1, JS_CFUNC_constructor, 0);

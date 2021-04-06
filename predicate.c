@@ -91,9 +91,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
     case PREDICATE_XOR: {
       size_t i;
 
-      for(i = 0; i < pr->boolean.npredicates; i++) {
-        ret ^= predicate_call(ctx, pr->boolean.predicates[i], argc, argv);
-      }
+      for(i = 0; i < pr->boolean.npredicates; i++) { ret ^= predicate_call(ctx, pr->boolean.predicates[i], argc, argv); }
       break;
     }
 
@@ -180,44 +178,27 @@ predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv)
   return -1;
 }
 
+const char*
+predicate_typename(const Predicate* pr) {
+  return ((const char*[]){"TYPE", "CHARSET", "STRING", "NOTNOT", "NOT", "OR", "AND", "XOR", "REGEXP", "INSTANCEOF", "PROTOTYPEIS", "EQUAL", 0})[pr->id];
+}
+
 void
 predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
   int ret = 0;
+  const char* type = predicate_typename(pr);
 
-  dbuf_putstr(dbuf,
-              ((const char*[]){"TYPE",
-                               "CHARSET",
-                               "NOTNOT",
-                               "NOT",
-                               "OR",
-                               "AND",
-                               "XOR",
-                               "REGEXP",
-                               "INSTANCEOF",
-                               "PROTOTYPEIS",
-                               "EQUAL",
-                               0})[pr->id]);
+  dbuf_putstr(dbuf, type);
   dbuf_putc(dbuf, ' ');
 
   switch(pr->id) {
     case PREDICATE_TYPE: {
       dbuf_putstr(dbuf, "type == ");
-
-      dbuf_bitflags(dbuf,
-                    pr->type.flags,
-                    ((const char* const[]){"UNDEFINED",
-                                           "NULL",
-                                           "BOOL",
-                                           "INT",
-                                           "OBJECT",
-                                           "STRING",
-                                           "SYMBOL",
-                                           "BIG_FLOAT",
-                                           "BIG_INT",
-                                           "BIG_DECIMAL",
-                                           "FLOAT64",
-                                           "FUNCTION",
-                                           "ARRAY"}));
+      dbuf_bitflags(
+          dbuf,
+          pr->type.flags,
+          ((const char* const[]){
+              "UNDEFINED", "NULL", "BOOL", "INT", "OBJECT", "STRING", "SYMBOL", "BIG_FLOAT", "BIG_INT", "BIG_DECIMAL", "FLOAT64", "FUNCTION", "ARRAY"}));
       break;
     }
 
@@ -499,8 +480,7 @@ predicate_regexp_compile(Predicate* pred, JSContext* ctx) {
   assert(pred->id == PREDICATE_REGEXP);
   assert(pred->regexp.bytecode == 0);
 
-  if((pred->regexp.bytecode = lre_compile(
-          &len, error_msg, sizeof(error_msg), pred->regexp.expr, pred->regexp.exprlen, pred->regexp.flags, ctx)))
+  if((pred->regexp.bytecode = lre_compile(&len, error_msg, sizeof(error_msg), pred->regexp.expr, pred->regexp.exprlen, pred->regexp.flags, ctx)))
     return lre_get_capture_count(pred->regexp.bytecode);
 
   return 0;

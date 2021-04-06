@@ -218,12 +218,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 
 void
 input_buffer_dump(const InputBuffer* in, DynBuf* db) {
-  dbuf_printf(db,
-              "(InputBuffer){ .data = %pos, .size = %zx, .pos = %zx, .free = %pos }",
-              in->data,
-              in->size,
-              in->pos,
-              in->free);
+  dbuf_printf(db, "(InputBuffer){ .data = %pos, .size = %zx, .pos = %zx, .free = %pos }", in->data, in->size, in->pos, in->free);
 }
 
 void
@@ -341,7 +336,7 @@ js_atom_tobinary(JSAtom atom) {
 }
 
 const char*
-js_atom_tocstringlen(JSContext* ctx, size_t* len, JSAtom atom) {
+js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom) {
   JSValue v;
   const char* s;
   v = JS_AtomToValue(ctx, atom);
@@ -791,8 +786,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
       ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      if(!JS_GetOwnPropertyNames(
-             ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
         uint32_t i;
         for(i = 0; i < tab_atom_len; i++) {
           JSValue prop;

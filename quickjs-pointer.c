@@ -7,16 +7,7 @@
 VISIBLE JSClassID js_pointer_class_id = 0;
 static JSValue pointer_proto, pointer_constructor, pointer_ctor;
 
-enum pointer_methods {
-  METHOD_DEREF = 0,
-  METHOD_TO_STRING,
-  METHOD_TO_ARRAY,
-  METHOD_INSPECT,
-  METHOD_SHIFT,
-  METHOD_SLICE,
-  METHOD_KEYS,
-  METHOD_VALUES
-};
+enum pointer_methods { METHOD_DEREF = 0, METHOD_TO_STRING, METHOD_TO_ARRAY, METHOD_INSPECT, METHOD_SHIFT, METHOD_SLICE, METHOD_KEYS, METHOD_VALUES };
 enum pointer_functions { STATIC_FROM = 0, STATIC_OF };
 enum pointer_getters { PROP_LENGTH = 0, PROP_PATH };
 
@@ -242,24 +233,22 @@ static JSClassDef js_pointer_class = {
     .finalizer = js_pointer_finalizer,
 };
 
-static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("deref", 1, js_pointer_method, METHOD_DEREF),
-    JS_CFUNC_MAGIC_DEF("toString", 0, js_pointer_method, METHOD_TO_STRING),
-    JS_CFUNC_MAGIC_DEF("toArray", 0, js_pointer_method, METHOD_TO_ARRAY),
-    JS_CFUNC_MAGIC_DEF("inspect", 0, js_pointer_method, METHOD_INSPECT),
-    JS_CFUNC_MAGIC_DEF("shift", 1, js_pointer_method, METHOD_SHIFT),
-    JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, METHOD_SLICE),
-    JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
-    JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, METHOD_VALUES),
-    JS_ALIAS_DEF("toPrimitive", "toString"),
-    JS_ALIAS_DEF("[Symbol.iterator]", "keys"),
-    JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),
-    JS_CGETSET_MAGIC_DEF("path", js_pointer_get, js_pointer_set, PROP_PATH),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Pointer", JS_PROP_C_W_E)};
+static const JSCFunctionListEntry js_pointer_proto_funcs[] = {JS_CFUNC_MAGIC_DEF("deref", 1, js_pointer_method, METHOD_DEREF),
+                                                              JS_CFUNC_MAGIC_DEF("toString", 0, js_pointer_method, METHOD_TO_STRING),
+                                                              JS_CFUNC_MAGIC_DEF("toArray", 0, js_pointer_method, METHOD_TO_ARRAY),
+                                                              JS_CFUNC_MAGIC_DEF("inspect", 0, js_pointer_method, METHOD_INSPECT),
+                                                              JS_CFUNC_MAGIC_DEF("shift", 1, js_pointer_method, METHOD_SHIFT),
+                                                              JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, METHOD_SLICE),
+                                                              JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
+                                                              JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, METHOD_VALUES),
+                                                              JS_ALIAS_DEF("toPrimitive", "toString"),
+                                                              JS_ALIAS_DEF("[Symbol.iterator]", "keys"),
+                                                              JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),
+                                                              JS_CGETSET_MAGIC_DEF("path", js_pointer_get, js_pointer_set, PROP_PATH),
+                                                              JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Pointer", JS_PROP_C_W_E)};
 
-static const JSCFunctionListEntry js_pointer_static_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("from", 1, js_pointer_funcs, STATIC_FROM),
-    JS_CFUNC_MAGIC_DEF("of", 0, js_pointer_funcs, STATIC_OF)};
+static const JSCFunctionListEntry js_pointer_static_funcs[] = {JS_CFUNC_MAGIC_DEF("from", 1, js_pointer_funcs, STATIC_FROM),
+                                                               JS_CFUNC_MAGIC_DEF("of", 0, js_pointer_funcs, STATIC_OF)};
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {

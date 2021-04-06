@@ -49,10 +49,7 @@ js_position_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
     dbuf_putc(dbuf, ':');
     JS_FreeValue(ctx, file);
   }
-  dbuf_printf(dbuf,
-              "%" PRId32 ":%" PRId32,
-              js_object_propertystr_getint32(ctx, this_val, "line"),
-              js_object_propertystr_getint32(ctx, this_val, "column"));
+  dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, js_object_propertystr_getint32(ctx, this_val, "line"), js_object_propertystr_getint32(ctx, this_val, "column"));
 }
 
 static JSValue
@@ -183,23 +180,14 @@ static JSClassDef js_syntaxerror_class = {
     .finalizer = js_syntaxerror_finalizer,
 };
 
-static const JSCFunctionListEntry js_syntaxerror_proto_funcs[] = {
-    JS_CGETSET_ENUMERABLE_DEF("loc", js_syntaxerror_get, 0, SYNTAXERROR_PROP_LOC),
-    JS_CFUNC_DEF("toString", 0, js_syntaxerror_tostring),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyntaxError", JS_PROP_CONFIGURABLE)};
+static const JSCFunctionListEntry js_syntaxerror_proto_funcs[] = {JS_CGETSET_ENUMERABLE_DEF("loc", js_syntaxerror_get, 0, SYNTAXERROR_PROP_LOC),
+                                                                  JS_CFUNC_DEF("toString", 0, js_syntaxerror_tostring),
+                                                                  JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyntaxError", JS_PROP_CONFIGURABLE)};
 
 static JSValue token_proto, token_constructor, token_ctor;
 
 enum token_methods { TO_STRING = 0 };
-enum token_getters {
-  TOKEN_PROP_BYTELENGTH = 0,
-  TOKEN_PROP_CHARLENGTH,
-  TOKEN_PROP_OFFSET,
-  TOKEN_PROP_LEXEME,
-  TOKEN_PROP_LOC,
-  TOKEN_PROP_ID,
-  TOKEN_PROP_TYPE
-};
+enum token_getters { TOKEN_PROP_BYTELENGTH = 0, TOKEN_PROP_CHARLENGTH, TOKEN_PROP_OFFSET, TOKEN_PROP_LEXEME, TOKEN_PROP_LOC, TOKEN_PROP_ID, TOKEN_PROP_TYPE };
 
 static inline int
 keywords_cmp(const char** w1, const char** w2) {
@@ -292,11 +280,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   dbuf_putstr(&dbuf, "Token { loc: ");
   location_dump(&tok->loc, &dbuf);
 
-  dbuf_printf(&dbuf,
-              ", offset: %3" PRIu32 ", byte_length: %3" PRIu32 ", type: Token.%-15s, lexeme: '",
-              tok->offset,
-              tok->byte_length,
-              token_type(tok));
+  dbuf_printf(&dbuf, ", offset: %3" PRIu32 ", byte_length: %3" PRIu32 ", type: Token.%-15s, lexeme: '", tok->offset, tok->byte_length, token_type(tok));
 
   dbuf_put_escaped(&dbuf, (const char*)&tok->data[tok->offset], tok->byte_length);
   dbuf_putstr(&dbuf, "' }");
@@ -384,30 +368,28 @@ static JSClassDef js_token_class = {
     .finalizer = js_token_finalizer,
 };
 
-static const JSCFunctionListEntry js_token_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, NULL, TOKEN_PROP_BYTELENGTH),
-    JS_CGETSET_MAGIC_DEF("charLength", js_token_get, NULL, TOKEN_PROP_CHARLENGTH),
-    JS_CGETSET_MAGIC_DEF("offset", js_token_get, NULL, TOKEN_PROP_OFFSET),
-    JS_CGETSET_MAGIC_DEF("loc", js_token_get, NULL, TOKEN_PROP_LOC),
-    JS_CGETSET_MAGIC_DEF("id", js_token_get, NULL, TOKEN_PROP_ID),
-    JS_CGETSET_MAGIC_DEF("type", js_token_get, NULL, TOKEN_PROP_TYPE),
-    JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
-    JS_CFUNC_DEF("toString", 0, js_token_tostring),
-    JS_CFUNC_DEF("inspect", 0, js_token_inspect),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE)};
+static const JSCFunctionListEntry js_token_proto_funcs[] = {JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, NULL, TOKEN_PROP_BYTELENGTH),
+                                                            JS_CGETSET_MAGIC_DEF("charLength", js_token_get, NULL, TOKEN_PROP_CHARLENGTH),
+                                                            JS_CGETSET_MAGIC_DEF("offset", js_token_get, NULL, TOKEN_PROP_OFFSET),
+                                                            JS_CGETSET_MAGIC_DEF("loc", js_token_get, NULL, TOKEN_PROP_LOC),
+                                                            JS_CGETSET_MAGIC_DEF("id", js_token_get, NULL, TOKEN_PROP_ID),
+                                                            JS_CGETSET_MAGIC_DEF("type", js_token_get, NULL, TOKEN_PROP_TYPE),
+                                                            JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
+                                                            JS_CFUNC_DEF("toString", 0, js_token_tostring),
+                                                            JS_CFUNC_DEF("inspect", 0, js_token_inspect),
+                                                            JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE)};
 
-static const JSCFunctionListEntry js_token_static_funcs[] = {
-    JS_PROP_INT32_DEF("COMMENT", TOKEN_ID_COMMENT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("STRING_LITERAL", TOKEN_ID_STRING_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TEMPLATE_LITERAL", TOKEN_ID_TEMPLATE_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("NUMERIC_LITERAL", TOKEN_ID_NUMERIC_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("BOOLEAN_LITERAL", TOKEN_ID_BOOLEAN_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("NULL_LITERAL", TOKEN_ID_NULL_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("PUNCTUATOR", TOKEN_ID_PUNCTUATOR, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("KEYWORD", TOKEN_ID_KEYWORD, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("IDENTIFIER", TOKEN_ID_IDENTIFIER, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("REGEXP_LITERAL", TOKEN_ID_REGEXP_LITERAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("EOF", EOF, JS_PROP_ENUMERABLE)};
+static const JSCFunctionListEntry js_token_static_funcs[] = {JS_PROP_INT32_DEF("COMMENT", TOKEN_ID_COMMENT, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("STRING_LITERAL", TOKEN_ID_STRING_LITERAL, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("TEMPLATE_LITERAL", TOKEN_ID_TEMPLATE_LITERAL, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("NUMERIC_LITERAL", TOKEN_ID_NUMERIC_LITERAL, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("BOOLEAN_LITERAL", TOKEN_ID_BOOLEAN_LITERAL, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("NULL_LITERAL", TOKEN_ID_NULL_LITERAL, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("PUNCTUATOR", TOKEN_ID_PUNCTUATOR, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("KEYWORD", TOKEN_ID_KEYWORD, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("IDENTIFIER", TOKEN_ID_IDENTIFIER, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("REGEXP_LITERAL", TOKEN_ID_REGEXP_LITERAL, JS_PROP_ENUMERABLE),
+                                                             JS_PROP_INT32_DEF("EOF", EOF, JS_PROP_ENUMERABLE)};
 
 static JSValue lexer_proto, lexer_constructor, lexer_ctor;
 
@@ -875,10 +857,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       JS_ToInt32(ctx, &tokId, argv[0]);
 
       if(tokId > TOKEN_ID_EOF || tokId < TOKEN_ID_COMMENT) {
-        JS_ThrowRangeError(ctx,
-                           "Token id not between TOKEN_ID_COMMENT (%d) and TOKEN_ID_EOF (%d)",
-                           TOKEN_ID_COMMENT,
-                           TOKEN_ID_EOF);
+        JS_ThrowRangeError(ctx, "Token id not between TOKEN_ID_COMMENT (%d) and TOKEN_ID_EOF (%d)", TOKEN_ID_COMMENT, TOKEN_ID_EOF);
         ret = JS_EXCEPTION;
       } else if((tok = lexer_token(lex, ctx, tokId))) {
         list_add_tail(&tok->link, &lex->tokens);

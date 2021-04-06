@@ -401,11 +401,7 @@ _mem_print(t_mem* head) {
         return;
       }
     }
-    printf("%sADDR <%p> | SIZE %04lu | STATUS %s | ",
-           (tmp->stat == 1) ? (CL_GR) : (CL_RD),
-           tmp->addr,
-           tmp->size,
-           ((tmp->stat == 0) ? "Leaked" : "Freed "));
+    printf("%sADDR <%p> | SIZE %04lu | STATUS %s | ", (tmp->stat == 1) ? (CL_GR) : (CL_RD), tmp->addr, tmp->size, ((tmp->stat == 0) ? "Leaked" : "Freed "));
     if(tmp->id < 127) {
       printf("ID %c ", (_WRAP_t_byte)tmp->id);
     } else {

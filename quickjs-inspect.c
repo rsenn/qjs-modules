@@ -42,8 +42,8 @@ typedef struct prop_key {
 
 static int js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth);
 
-static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor,
-    set_ctor, regexp_ctor, symbol_ctor, proxy_ctor;
+static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor, set_ctor, regexp_ctor /*, symbol_ctor*/,
+    proxy_ctor;
 
 static void
 inspect_options_init(inspect_options_t* opts) {
@@ -218,6 +218,7 @@ inspect_screen_width(void) {
   ioctl(1, TIOCGWINSZ, &w);
   return w.ws_col;
 }
+
 static int
 js_object_getpropertynames(JSContext* ctx, union vector* propenum_tab, JSValueConst obj, int flags) {
   int ret;
@@ -229,37 +230,6 @@ js_object_getpropertynames(JSContext* ctx, union vector* propenum_tab, JSValueCo
   return ret;
 }
 
-static JSValue
-js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
-  JSValue ret;
-  JSAtom method_name = JS_NewAtom(ctx, name);
-  ret = JS_Invoke(ctx, symbol_ctor, method_name, 1, &arg);
-  JS_FreeAtom(ctx, method_name);
-  return ret;
-}
-
-static inline JSValue
-js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
-  JSValue value, str;
-  JSAtom atom;
-  value = js_symbol_invoke_static(ctx, "keyFor", sym);
-  if(!JS_IsUndefined(value))
-    return value;
-  atom = JS_ValueToAtom(ctx, sym);
-  str = JS_AtomToString(ctx, atom);
-  JS_FreeAtom(ctx, atom);
-  return str;
-}
-
-static inline const char*
-js_symbol_to_c_string(JSContext* ctx, JSValueConst sym) {
-  JSValue value = js_symbol_to_string(ctx, sym);
-  const char* str;
-  str = JS_ToCString(ctx, value);
-  JS_FreeValue(ctx, value);
-  return str;
-}
-
 static void
 js_inspect_constructors_get(JSContext* ctx) {
   global_object = JS_GetGlobalObject(ctx);
@@ -269,7 +239,7 @@ js_inspect_constructors_get(JSContext* ctx) {
   map_ctor = JS_GetPropertyStr(ctx, global_object, "Map");
   set_ctor = JS_GetPropertyStr(ctx, global_object, "Set");
   regexp_ctor = JS_GetPropertyStr(ctx, global_object, "RegExp");
-  symbol_ctor = JS_GetPropertyStr(ctx, global_object, "Symbol");
+  // symbol_ctor = JS_GetPropertyStr(ctx, global_object, "Symbol");
   proxy_ctor = JS_GetPropertyStr(ctx, global_object, "Proxy");
 
   if(!JS_IsConstructor(ctx, array_buffer_ctor))
@@ -282,8 +252,8 @@ js_inspect_constructors_get(JSContext* ctx) {
     JS_ThrowTypeError(ctx, "Set is not a constructor");
   if(!JS_IsConstructor(ctx, regexp_ctor))
     JS_ThrowTypeError(ctx, "RegExp is not a constructor");
-  if(!JS_IsConstructor(ctx, symbol_ctor))
-    JS_ThrowTypeError(ctx, "Symbol is not a constructor");
+  /*if(!JS_IsConstructor(ctx, symbol_ctor))
+    JS_ThrowTypeError(ctx, "Symbol is not a constructor");*/
   if(!JS_IsConstructor(ctx, proxy_ctor))
     JS_ThrowTypeError(ctx, "Proxy is not a constructor");
 
@@ -299,7 +269,7 @@ js_inspect_constructors_free(JSContext* ctx) {
   JS_FreeValue(ctx, map_ctor);
   JS_FreeValue(ctx, set_ctor);
   JS_FreeValue(ctx, regexp_ctor);
-  JS_FreeValue(ctx, symbol_ctor);
+  // JS_FreeValue(ctx, symbol_ctor);
   JS_FreeValue(ctx, global_object);
 }
 
@@ -669,11 +639,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       vector_init(&propenum_tab, ctx);
 
-      if(js_object_getpropertynames(ctx,
-                                    &propenum_tab,
-                                    value,
-                                    JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
-                                        (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+      if(js_object_getpropertynames(ctx, &propenum_tab, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(is_function) {
@@ -782,8 +748,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         JS_GetOwnProperty(ctx, &desc, value, propenum->atom);
         if(desc.flags & JS_PROP_GETSET)
           dbuf_put_colorstr(buf,
-                            JS_IsUndefined(desc.getter) ? "[Setter]"
-                                                        : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
+                            JS_IsUndefined(desc.getter) ? "[Setter]" : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
                             COLOR_MARINE,
                             opts->colors);
         else

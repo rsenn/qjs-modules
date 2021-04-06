@@ -68,11 +68,11 @@ typedef struct Predicate {
   };
 } Predicate;
 
-#define PREDICATE_INIT(id)                                                                                             \
-  {                                                                                                                    \
-    id, {                                                                                                              \
-      { 0 }                                                                                                            \
-    }                                                                                                                  \
+#define PREDICATE_INIT(id)                                                                                                                                     \
+  {                                                                                                                                                            \
+    id, {                                                                                                                                                      \
+      { 0 }                                                                                                                                                    \
+    }                                                                                                                                                          \
   }
 static const size_t CAPTURE_COUNT_MAX = 255;
 
