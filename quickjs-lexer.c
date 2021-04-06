@@ -193,9 +193,9 @@ static JSValue token_proto, token_constructor, token_ctor;
 enum token_methods { TO_STRING = 0 };
 enum token_getters {
   TOKEN_PROP_BYTELENGTH = 0,
-  TOKEN_PROP_NUMCHARS,
+  TOKEN_PROP_CHARLENGTH,
   TOKEN_PROP_OFFSET,
-  TOKEN_PROP_CHARS,
+  TOKEN_PROP_LEXEME,
   TOKEN_PROP_LOC,
   TOKEN_PROP_ID,
   TOKEN_PROP_TYPE
@@ -293,7 +293,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   location_dump(&tok->loc, &dbuf);
 
   dbuf_printf(&dbuf,
-              ", offset: %3" PRIu32 ", byte_length: %3" PRIu32 ", type: Token.%-15s, chars: '",
+              ", offset: %3" PRIu32 ", byte_length: %3" PRIu32 ", type: Token.%-15s, lexeme: '",
               tok->offset,
               tok->byte_length,
               token_type(tok));
@@ -319,8 +319,8 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case TOKEN_PROP_NUMCHARS: {
-      ret = JS_NewUint32(ctx, tok->num_chars);
+    case TOKEN_PROP_CHARLENGTH: {
+      ret = JS_NewUint32(ctx, tok->char_length);
       break;
     }
 
@@ -329,7 +329,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case TOKEN_PROP_CHARS: {
+    case TOKEN_PROP_LEXEME: {
       ret = JS_NewStringLen(ctx, (const char*)&tok->data[tok->offset], tok->byte_length);
       break;
     }
@@ -386,12 +386,12 @@ static JSClassDef js_token_class = {
 
 static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, NULL, TOKEN_PROP_BYTELENGTH),
-    JS_CGETSET_MAGIC_DEF("numChars", js_token_get, NULL, TOKEN_PROP_NUMCHARS),
+    JS_CGETSET_MAGIC_DEF("charLength", js_token_get, NULL, TOKEN_PROP_CHARLENGTH),
     JS_CGETSET_MAGIC_DEF("offset", js_token_get, NULL, TOKEN_PROP_OFFSET),
     JS_CGETSET_MAGIC_DEF("loc", js_token_get, NULL, TOKEN_PROP_LOC),
     JS_CGETSET_MAGIC_DEF("id", js_token_get, NULL, TOKEN_PROP_ID),
     JS_CGETSET_MAGIC_DEF("type", js_token_get, NULL, TOKEN_PROP_TYPE),
-    JS_CGETSET_MAGIC_DEF("chars", js_token_get, NULL, TOKEN_PROP_CHARS),
+    JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CFUNC_DEF("toString", 0, js_token_tostring),
     JS_CFUNC_DEF("inspect", 0, js_token_inspect),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE)};
@@ -494,7 +494,7 @@ lexer_token(Lexer* lex, JSContext* ctx, int id) {
       tok->data = lex->data;
       tok->offset = lex->start;
       tok->byte_length = lex->pos - lex->start;
-      tok->num_chars = vector_size(&lex->charlengths, sizeof(size_t));
+      tok->char_length = vector_size(&lex->charlengths, sizeof(size_t));
       tok->loc = location_dup(&lex->loc, ctx);
 
       lex->ref_count++;

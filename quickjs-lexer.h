@@ -53,7 +53,7 @@ typedef union {
 typedef struct {
   const uint8_t* data;
   uint32_t byte_length;
-  uint32_t num_chars;
+  uint32_t char_length;
   uint32_t offset;
   TokenType id;
   Location loc;
