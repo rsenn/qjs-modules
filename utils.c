@@ -893,14 +893,15 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
 
     case TYPE_UNDEFINED:
     case TYPE_NULL:
-    case TYPE_SYMBOL:
     case TYPE_STRING:
+    case TYPE_SYMBOL:
     case TYPE_BIG_DECIMAL:
     case TYPE_BIG_INT:
     case TYPE_BIG_FLOAT: {
       ret = JS_DupValue(ctx, value);
       break;
     }
+
     default: {
       ret = JS_ThrowTypeError(ctx, "No such type: %08x\n", type);
       break;
@@ -913,8 +914,10 @@ void
 js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   const char* str;
   size_t len;
-  if(JS_IsArray(ctx, value)) {
-    dbuf_putstr(db, "[object Array]");
+  if(JS_IsObject( value)) {
+    const char* str = js_object_tostring(ctx, value);
+     dbuf_putstr(db, str);
+     JS_FreeCString(ctx, str);
   } else {
     int is_string = JS_IsString(value);
 
@@ -923,10 +926,17 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
 
     str = JS_ToCStringLen(ctx, &len, value);
     dbuf_append(db, (const uint8_t*)str, len);
+
     JS_FreeCString(ctx, str);
 
     if(is_string)
       dbuf_putc(db, '"');
+    else if(JS_IsBigFloat(value))
+      dbuf_putc(db, 'l');
+    else if(JS_IsBigDecimal(value))
+      dbuf_putc(db, 'm');
+    else if(JS_IsBigInt(ctx, value))
+      dbuf_putc(db, 'n');
   }
 }
 

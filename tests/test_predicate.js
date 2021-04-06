@@ -167,6 +167,12 @@ async function main(...args) {
 
   for(let str2 of ['abcd', 'X⦿Y', '❔X', 'ABC★']) console.log(`cp(${str2}) =`, cp(str2));
   console.log(`re =`, Object.prototype.toString.call(re));
+  console.log(`  =`, BigFloat.prototype.toString.call(31337l));
+  console.log(`  =`, BigDecimal.prototype.toString.call(31337m));
+  console.log(`  =`, BigInt.prototype.toString.call(31337n));
+  console.log(`  =`, eval('31337l'));
+  console.log(`  =`, eval('31337m'));
+  console.log(`  =`, eval('31337n'));
 
   std.gc();
 }
