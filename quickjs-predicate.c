@@ -397,6 +397,18 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Predicate", predicate_ctor);
+
+    JS_SetModuleExport(ctx, m, "type", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "type", 1, JS_CFUNC_generic_magic, PREDICATE_TYPE));
+    JS_SetModuleExport(ctx, m, "charset", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "charset", 1, JS_CFUNC_generic_magic, PREDICATE_CHARSET));
+    JS_SetModuleExport(ctx, m, "string", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "string", 1, JS_CFUNC_generic_magic, PREDICATE_STRING));
+    JS_SetModuleExport(ctx, m, "not", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "not", 1, JS_CFUNC_generic_magic, PREDICATE_NOT));
+    JS_SetModuleExport(ctx, m, "or", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "or", 1, JS_CFUNC_generic_magic, PREDICATE_OR));
+    JS_SetModuleExport(ctx, m, "and", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "and", 1, JS_CFUNC_generic_magic, PREDICATE_AND));
+    JS_SetModuleExport(ctx, m, "xor", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "xor", 1, JS_CFUNC_generic_magic, PREDICATE_XOR));
+    JS_SetModuleExport(ctx, m, "regexp", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "regexp", 1, JS_CFUNC_generic_magic, PREDICATE_REGEXP));
+    JS_SetModuleExport(ctx, m, "instanceOf", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "instanceOf", 1, JS_CFUNC_generic_magic, PREDICATE_INSTANCEOF));
+    JS_SetModuleExport(ctx, m, "prototypeIs", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "prototypeIs", 1, JS_CFUNC_generic_magic, PREDICATE_PROTOTYPEIS));
+    JS_SetModuleExport(ctx, m, "equal", JS_NewCFunctionMagic(ctx, js_predicate_funcs, "equal", 1, JS_CFUNC_generic_magic, PREDICATE_EQUAL));
   }
 
   return 0;
@@ -415,5 +427,16 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExport(ctx, m, "Predicate");
+  JS_AddModuleExport(ctx, m, "type");
+  JS_AddModuleExport(ctx, m, "charset");
+  JS_AddModuleExport(ctx, m, "string");
+  JS_AddModuleExport(ctx, m, "not");
+  JS_AddModuleExport(ctx, m, "or");
+  JS_AddModuleExport(ctx, m, "and");
+  JS_AddModuleExport(ctx, m, "xor");
+  JS_AddModuleExport(ctx, m, "regexp");
+  JS_AddModuleExport(ctx, m, "instanceOf");
+  JS_AddModuleExport(ctx, m, "prototypeIs");
+  JS_AddModuleExport(ctx, m, "equal");
   return m;
 }

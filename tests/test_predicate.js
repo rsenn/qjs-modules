@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
 import * as xml from 'xml.so';
-import { Predicate } from 'predicate.so';
+import { Predicate,type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal } from 'predicate.so';
 import Console from './console.js';
 
 ('use strict');
@@ -47,9 +47,9 @@ async function main(...args) {
   let len = str.length;
   console.log('len', len);
   console.log('Predicate', Predicate);
-  console.log('Predicate.charset', Predicate.charset);
+  console.log('Predicate.charset', charset);
 
-  let eq1234 = Predicate.equal(1234);
+  let eq1234 = equal(1234);
   console.log(`eq1234 =`, eq1234.toString());
 /*  console.log(`eq1234(1234) =`, eq1234(1234));
   console.log(`eq1234('1234') =`, eq1234('1234'));*/
@@ -60,19 +60,19 @@ async function main(...args) {
   console.log('promise', promise);
   console.log('result', await result);
 
-  let isNL = Predicate.charset('\n', 1);
-  let isUpper = Predicate.charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 26);
-  let isLower = Predicate.charset('abcdefghijklmnopqrstuvwxyz', 26);
-  let isDigit = Predicate.charset('0123456789', 10);
-  let isXDigit = Predicate.charset('0123456789ABCDEFabcdef', 22);
+  let isNL = charset('\n', 1);
+  let isUpper = charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ', 26);
+  let isLower = charset('abcdefghijklmnopqrstuvwxyz', 26);
+  let isDigit = charset('0123456789', 10);
+  let isXDigit = charset('0123456789ABCDEFabcdef', 22);
 
-  let isNotNL = Predicate.not(isNL);
-  let isNotUpper = Predicate.not(isUpper);
-  let isNotLower = Predicate.not(isLower);
-  let isAlpha = Predicate.or(isLower, isUpper);
-  let isAlnum = Predicate.or(isAlpha, isDigit);
-  let isIdentifier = Predicate.regexp('^([A-Za-z_]+)([A-Za-z0-9_]*)$', 'g');
-  let isNumber = Predicate.regexp('^([-+]?)([0-9]*).([0-9]+)$', 'g');
+  let isNotNL = not(isNL);
+  let isNotUpper = not(isUpper);
+  let isNotLower = not(isLower);
+  let isAlpha = or(isLower, isUpper);
+  let isAlnum = or(isAlpha, isDigit);
+  let isIdentifier = regexp('^([A-Za-z_]+)([A-Za-z0-9_]*)$', 'g');
+  let isNumber = regexp('^([-+]?)([0-9]*).([0-9]+)$', 'g');
   console.log(`isIdentifier.toString()`, isIdentifier.toString());
   console.log(`isNumber.toString()`, isNumber.toString());
 
@@ -114,7 +114,7 @@ async function main(...args) {
     console.log('a:', a);
   }
 
-  let combined = Predicate.or(isIdentifier, isNumber, isNL, isUpper);
+  let combined = or(isIdentifier, isNumber, isNL, isUpper);
   console.log('combined:', combined.toString());
   let s = '1abc';
   for(let pred of [isIdentifier, isNumber, isNL, isUpper]) {
@@ -140,10 +140,10 @@ async function main(...args) {
   let dummy = new ArrayBuffer(1024);
   let arri32 = new Int32Array(1024);
 
-  let io = Predicate.instanceOf(ArrayBuffer);
-  let pt = Predicate.prototypeIs(ArrayBuffer.prototype);
+  let io = instanceOf(ArrayBuffer);
+  let pt = prototypeIs(ArrayBuffer.prototype);
   let pr = new Predicate(re);
-  let eqBLAH = Predicate.equal('BLAH');
+  let eqBLAH = equal('BLAH');
   console.log(`io =`, io);
   console.log(`io =`, io.toString());
   console.log(`pt =`, pt.toString());
@@ -158,11 +158,11 @@ async function main(...args) {
   for(let s2 of ['-120', '0.12345', '+12.345678', '-.9090']) {
     console.log(`pr('${s2}') =`, pr(s2));
   }
-  let mt = Predicate.type(Predicate.TYPE_INT | Predicate.TYPE_OBJECT);
+  let mt = type(Predicate.TYPE_INT | Predicate.TYPE_OBJECT);
   console.log(`mt =`, mt.toString());
 
   for(let item of [1234, /*Symbol.iterator,*/ 'abcd', {}]) console.log(`mt(${item}) = `, mt(item));
-  let cp = Predicate.charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ\u2605\u29bf\u2754');
+  let cp = charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ\u2605\u29bf\u2754');
   console.log(`cp =`, cp.toString());
 
   for(let str2 of ['abcd', 'X⦿Y', '❔X', 'ABC★']) console.log(`cp(${str2}) =`, cp(str2));
