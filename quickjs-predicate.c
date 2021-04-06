@@ -70,13 +70,6 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
     *pred = predicate_string(str, len);
 
   } else if(argc > 0 && js_is_regexp(ctx, argv[0])) {
-    /*  size_t p, len;
-      const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
-      p = byte_rchr(str, len, '/');
-
-      *pred = predicate_regexp(js_strndup(ctx, str + 1, p - 1), p - 1, regexp_flags_fromstring(str + p + 1));
-
-      JS_FreeCString(ctx, str);*/
     argc++;
     argv--;
     goto regexp;

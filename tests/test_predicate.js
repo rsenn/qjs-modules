@@ -54,7 +54,7 @@ async function main(...args) {
 /*  console.log(`eq1234(1234) =`, eq1234(1234));
   console.log(`eq1234('1234') =`, eq1234('1234'));*/
 
-  let promise = waitFor(5000).then(() => 1234);
+  let promise = waitFor(100).then(() => 1234);
 
   let result = eq1234(promise);
   console.log('promise', promise);

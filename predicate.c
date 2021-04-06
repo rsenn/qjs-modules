@@ -163,15 +163,16 @@ predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv)
     return predicate_eval(pred, ctx, argc, argv);
 
   if(JS_IsFunction(ctx, value)) {
-    int result = 0;
+    int32_t result = 0;
     JSValue ret;
     ret = JS_Call(ctx, value, JS_UNDEFINED, argc, argv);
     if(JS_IsException(ret)) {
       result = -1;
     } else {
-      result = !!JS_ToBool(ctx, ret);
-      // JS_FreeValue(ctx, ret);
+      JS_ToInt32(ctx, &result, ret);
+      // result = !!JS_ToBool(ctx, ret);
     }
+    JS_FreeValue(ctx, ret);
     return result;
   }
   assert(0);
