@@ -70,13 +70,16 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
     *pred = predicate_string(str, len);
 
   } else if(argc > 0 && js_is_regexp(ctx, argv[0])) {
-    size_t p, len;
-    const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
-    p = byte_rchr(str, len, '/');
+    /*  size_t p, len;
+      const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
+      p = byte_rchr(str, len, '/');
 
-    *pred = predicate_regexp(js_strndup(ctx, str + 1, p - 1), p - 1, regexp_flags_fromstring(str + p + 1));
+      *pred = predicate_regexp(js_strndup(ctx, str + 1, p - 1), p - 1, regexp_flags_fromstring(str + p + 1));
 
-    JS_FreeCString(ctx, str);
+      JS_FreeCString(ctx, str);*/
+    argc++;
+    argv--;
+    goto regexp;
 
   } else if(argc > 0 && JS_IsNumber(argv[0])) {
     int32_t id;
@@ -132,13 +135,10 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       }
 
       case PREDICATE_REGEXP: {
-        size_t exprlen;
-        const char* expr = js_tostringlen(ctx, &exprlen, argv[1]);
-        const char* flagstr = argc > 1 ? JS_ToCString(ctx, argv[2]) : 0;
-        *pred = predicate_regexp(expr, exprlen, flagstr ? regexp_flags_fromstring(flagstr) : 0);
-
-        if(flagstr)
-          JS_FreeCString(ctx, flagstr);
+        RegExp expr;
+      regexp:
+        expr = regexp_from_argv(argc - 1, argv + 1, ctx);
+        *pred = predicate_regexp(expr.source, expr.len, expr.flags);
         break;
       }
 
