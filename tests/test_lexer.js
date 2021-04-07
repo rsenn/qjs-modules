@@ -158,20 +158,20 @@ function AddECMAScriptDefines(lexer) {
     `{DecimalIntegerLiteral}\\.{DecimalDigit}*({ExponentPart})?|\\.{DecimalDigits}({ExponentPart})?|{DecimalIntegerLiteral}({ExponentPart})?`
   );
   lexer.define('LineContinuation', `\\\\(\\r\\n|\\r|\\n)`);
-  lexer.define('OctalEscapeSequence', `(?:[1-7][0-7]{0,2}|[0-7]{2,3})`);
+  lexer.define('OctalEscapeSequence', `(?:[1-7][0-7]{0,2}|[0-7]{1,3})`);
   lexer.define('HexEscapeSequence', `[x]{HexDigit}{2}`);
   lexer.define('UnicodeEscapeSequence', `[u]{HexDigit}{4}`);
   lexer.define('SingleEscapeCharacter', `[\\'\\"\\\\bfnrtv]`);
   lexer.define('NonEscapeCharacter', `[^\\'\\"\\\\bfnrtv0-9xu]`);
   lexer.define('CharacterEscapeSequence', `{SingleEscapeCharacter}|{NonEscapeCharacter}`);
   lexer.define('EscapeSequence',
-    `{CharacterEscapeSequence}|{OctalEscapeSequence}|{HexEscapeSequence}|{UnicodeEscapeSequence}`
+    `\\\\{CharacterEscapeSequence}|\\\\{OctalEscapeSequence}|\\\\{HexEscapeSequence}|\\\\{UnicodeEscapeSequence}`
   );
   lexer.define('DoubleStringCharacter',
-    `([^\\"\\\\\\n\\r]+|\\\\{EscapeSequence}|{LineContinuation})`
+    `([^\\"\\\\\\n\\r]+|{EscapeSequence}|{LineContinuation})`
   );
   lexer.define('SingleStringCharacter',
-    `([^\\'\\\\\\n\\r]+|\\\\{EscapeSequence}|{LineContinuation})`
+    `([^\\'\\\\\\n\\r]+|{EscapeSequence}|{LineContinuation})`
   );
   lexer.define('StringLiteral',
     `(\\"{DoubleStringCharacter}*\\")|(\\'{SingleStringCharacter}*\\')`
@@ -244,12 +244,8 @@ function main(...args) {
     let tok;
 
     for(let tok of lexer) {
-      console.log(`tok[${tok.byteLength}] '${tok.lexeme}':`,
-        +tok,
-        lexer.tokenClass(tok),
-        tok + '',
-        tok.loc + ''
-      );
+      const cols = [`tok[${tok.byteLength}]`, `'${tok.lexeme}'`, +tok, lexer.tokenClass(tok), tok.loc];
+      console.log(...cols.map(col => (col+'').replace(/\n/g, '\\n').padEnd(20)));
       //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
     }
   } catch(err) {
