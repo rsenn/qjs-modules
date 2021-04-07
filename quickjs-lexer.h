@@ -14,7 +14,7 @@ typedef struct {
 
 typedef struct {
   int id;
-  const char* lexeme;
+  char* lexeme;
   uint32_t offset;
   uint32_t byte_length;
   Location loc;

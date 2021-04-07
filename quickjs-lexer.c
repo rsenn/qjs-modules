@@ -410,7 +410,7 @@ lexer_token(Lexer* lex, int id, Location loc, JSContext* ctx) {
     tok->id = id;
     tok->loc = location_dup(&loc, ctx);
     tok->byte_length = lex->input.pos - lex->start;
-    tok->lexeme = js_strndup(ctx, &lex->input.data[lex->start], tok->byte_length);
+    tok->lexeme = js_strndup(ctx, (const char*)&lex->input.data[lex->start], tok->byte_length);
     tok->offset = lex->start;
   }
   return tok;
@@ -819,7 +819,7 @@ js_lexer_next(
         loc.file,
         loc.line + 1,
         loc.column + 1,
-        byte_chr(&lex->input.data[lex->start], lex->input.size - lex->start, '\n') + loc.column,
+        (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') + loc.column),
         &lex->input.data[lex->start - loc.column],
         loc.column + 1,
         "^");

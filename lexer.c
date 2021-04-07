@@ -186,7 +186,7 @@ lexer_next(Lexer* lex, JSContext* ctx) {
            capture[1] - capture[0],
              capture[0]); */
 
-      if(lex->mode != LEXER_LONGEST || ret < 0 || (capture[1] - capture[0]) > len) {
+      if(lex->mode != LEXER_LONGEST || ret < 0 || (size_t)(capture[1] - capture[0]) > len) {
         ret = i;
         len = capture[1] - capture[0];
 
@@ -217,7 +217,7 @@ lexer_next(Lexer* lex, JSContext* ctx) {
   return ret;
 }
 
-static int
+static void
 lexer_free_rule(LexerRule* rule, JSContext* ctx) {
   js_free(ctx, rule->name);
   js_free(ctx, rule->expr);

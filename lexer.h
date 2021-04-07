@@ -19,7 +19,6 @@ typedef struct {
   char* name;
   char* expr;
   uint8_t* bytecode;
-  unsigned definition : 1;
 } LexerRule;
 
 enum { LEXER_FIRST = 0, LEXER_LONGEST, LEXER_LAST };
