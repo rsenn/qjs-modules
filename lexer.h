@@ -19,9 +19,10 @@ typedef struct {
   char* name;
   char* expr;
   uint8_t* bytecode;
+  unsigned definition : 1;
 } LexerRule;
 
-enum { LEXER_FIRST = 0, LEXER_LONGEST };
+enum { LEXER_FIRST = 0, LEXER_LONGEST, LEXER_LAST };
 
 enum { LEXER_EOF = -1, LEXER_ERROR_NOMATCH = -2, LEXER_ERROR_COMPILE = -3, LEXER_ERROR_EXEC = -4 };
 
@@ -30,13 +31,15 @@ typedef struct {
   size_t start;
   InputBuffer input;
   Location loc;
+  Vector defines;
   Vector rules;
 } Lexer;
 
 void lexer_init(Lexer* lex, int mode, JSContext* ctx);
 void lexer_set_input(Lexer* lex, InputBuffer input, char* filename);
+void lexer_define(Lexer* lex, char* name, char* expr);
 int lexer_add_rule(Lexer* lex, char* name, char* expr);
-LexerRule* lexer_find_rule(Lexer* lex, const char* name, size_t namelen);
+LexerRule* lexer_find_definition(Lexer* lex, const char* name, size_t namelen);
 LexerRule* lexer_get_rule(Lexer* lex, int id);
 BOOL lexer_compile_rules(Lexer* lex, JSContext* ctx);
 int lexer_next(Lexer* lex, JSContext* ctx);

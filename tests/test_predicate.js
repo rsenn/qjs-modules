@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
 import * as xml from 'xml.so';
-import { Predicate,type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal } from 'predicate.so';
+import { Predicate, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal } from 'predicate.so';
 import Console from './console.js';
 
 ('use strict');
@@ -51,7 +51,7 @@ async function main(...args) {
 
   let eq1234 = equal(1234);
   console.log(`eq1234 =`, eq1234.toString());
-/*  console.log(`eq1234(1234) =`, eq1234(1234));
+  /*  console.log(`eq1234(1234) =`, eq1234(1234));
   console.log(`eq1234('1234') =`, eq1234('1234'));*/
 
   let promise = waitFor(100).then(() => 1234);
@@ -167,7 +167,6 @@ async function main(...args) {
 
   for(let str2 of ['abcd', 'X⦿Y', '❔X', 'ABC★']) console.log(`cp(${str2}) =`, cp(str2));
   console.log(`re =`, Object.prototype.toString.call(re));
-  console.log(`  =`, BigFloat.prototype.toString.call(31337l));
   console.log(`  =`, BigDecimal.prototype.toString.call(31337m));
   console.log(`  =`, BigInt.prototype.toString.call(31337n));
   console.log(`  =`, eval('31337l'));

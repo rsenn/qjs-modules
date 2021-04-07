@@ -44,10 +44,11 @@ js_location_new(JSContext* ctx, const Location* loc) {
     JS_SetPropertyStr(ctx, ret, "file", JS_NewString(ctx, loc->file));
   JS_SetPropertyStr(ctx, ret, "line", JS_NewUint32(ctx, loc->line + 1));
   JS_SetPropertyStr(ctx, ret, "column", JS_NewUint32(ctx, loc->column + 1));
-  JS_SetPropertyStr(ctx,
-                    ret,
-                    "toString",
-                    JS_NewCFunction(ctx, &js_location_tostring, "toString", 0));
+  JS_DefinePropertyValueStr(ctx,
+                            ret,
+                            "toString",
+                            JS_NewCFunction(ctx, &js_location_tostring, "toString", 0),
+                            JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
   return ret;
 }
 
@@ -246,10 +247,10 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   hint = JS_ToCString(ctx, argv[0]);
 
-  if(!strcmp(hint, "string"))
-    ret = js_token_tostring(ctx, this_val, argc, argv);
-  else
+  if(!strcmp(hint, "number"))
     ret = JS_NewInt32(ctx, tok->id);
+  else
+    ret = js_token_tostring(ctx, this_val, argc, argv);
 
   JS_FreeCString(ctx, hint);
 
@@ -536,7 +537,7 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
 }
 
 static JSValue
-js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Lexer* lex;
   char *name, *expr;
 
@@ -546,7 +547,12 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
   name = js_tostring(ctx, argv[0]);
   expr = js_tostring(ctx, argv[1]);
 
-  return JS_NewInt32(ctx, lexer_add_rule(lex, name, expr));
+  if(magic)
+    return JS_NewInt32(ctx, lexer_add_rule(lex, name, expr));
+
+  lexer_define(lex, name, expr);
+
+  return JS_UNDEFINED;
 }
 
 static JSValue
@@ -853,7 +859,8 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_PROP_EOF),
     /* JS_CGETSET_MAGIC_DEF("stateFn", js_lexer_get, js_lexer_set, LEXER_PROP_STATEFN),
      JS_CGETSET_MAGIC_DEF("filename", js_lexer_get, js_lexer_set, LEXER_PROP_FILENAME),*/
-    JS_CFUNC_DEF("addRule", 2, js_lexer_add_rule),
+    JS_CFUNC_MAGIC_DEF("define", 2, js_lexer_add_rule, 0),
+    JS_CFUNC_MAGIC_DEF("addRule", 2, js_lexer_add_rule, 1),
     JS_CFUNC_DEF("inspect", 0, js_lexer_inspect),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_lexer_iterator),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_C_W_E),
@@ -862,6 +869,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
 static const JSCFunctionListEntry js_lexer_static_funcs[] = {
     JS_PROP_INT32_DEF("FIRST", LEXER_FIRST, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("LONGEST", LEXER_LONGEST, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("LAST", LEXER_LAST, JS_PROP_ENUMERABLE),
 };
 
 static int
