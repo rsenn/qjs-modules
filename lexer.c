@@ -182,9 +182,9 @@ lexer_next(Lexer* lex, JSContext* ctx) {
              i,
              rule->name,
              rule->expr,
-             len,
-            (int)len,
-             capture[0]);*/
+             capture[1] - capture[0],
+           capture[1] - capture[0],
+             capture[0]); */
 
       if(lex->mode != LEXER_LONGEST || ret < 0 || (capture[1] - capture[0]) > len) {
         ret = i;
