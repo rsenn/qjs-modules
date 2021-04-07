@@ -214,7 +214,7 @@ function main(...args) {
 
   AddECMAScriptDefines(lexer);
 
-/*  
+  /*  
   lexer.addRule('IDENTIFIER', '[A-Za-z_]\\w*');
   lexer.addRule('DOUBLE_STRING_LITERAL', '"(\\\\.|[^"\\n])*"');
   lexer.addRule('SINGLE_STRING_LITERAL', "'(\\\\.|[^'\\n])*'");
@@ -229,8 +229,10 @@ function main(...args) {
   lexer.addRule('LINE_TERMINATORS', '[\r\n\u2028\u2029]');
 */
 
-  lexer.addRule('keyword', 'instanceof|debugger|function|continue|finally|extends|default|static|export|switch|import|typeof|return|delete|async|yield|await|throw|super|const|class|catch|while|break|from|enum|case|with|void|this|else|let|try|var|new|for|as|of|do|in|if'); 
-    lexer.addRule('comment', '//[^\n]*|/\\*([^\\*]|[\\r\\n]|(\\*+([^/\\*]|[\\n\\r])))*\\*+/');
+  lexer.addRule('keyword',
+    'instanceof|debugger|function|continue|finally|extends|default|static|export|switch|import|typeof|return|delete|async|yield|await|throw|super|const|class|catch|while|break|from|enum|case|with|void|this|else|let|try|var|new|for|as|of|do|in|if'
+  );
+  lexer.addRule('comment', '//[^\n]*|/\\*([^\\*]|[\\r\\n]|(\\*+([^/\\*]|[\\n\\r])))*\\*+/');
   lexer.addRule('whitespace', '{LineTerminators}+|[ \\t\\v\\f]+');
   lexer.addRule('stringLiteral', '{StringLiteral}');
   lexer.addRule('numericLiteral', '{OctalIntegerLiteral}|{HexIntegerLiteral}|{DecimalLiteral}');
