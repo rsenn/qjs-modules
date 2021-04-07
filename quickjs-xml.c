@@ -87,15 +87,6 @@ xml_set_attr_bytes(JSContext* ctx,
 }
 
 static void
-xml_write_value(JSContext* ctx, JSValueConst value, DynBuf* db) {
-  const char* str;
-  size_t len;
-  str = JS_ToCStringLen(ctx, &len, value);
-  dbuf_append(db, (const uint8_t*)str, len);
-  JS_FreeCString(ctx, str);
-}
-
-static void
 xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
   size_t i;
   PropertyEnumeration props = {0};
@@ -163,7 +154,7 @@ xml_write_string(JSContext* ctx, const char* textStr, size_t textLen, DynBuf* db
 
 static void
 xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
-  const char *textStr, *p;
+  const char *textStr;
   size_t textLen;
   textStr = JS_ToCStringLen(ctx, &textLen, text);
   xml_write_indent(db, depth);
@@ -174,74 +165,60 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
 
 static void
 xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
-  JSValue tagName = JS_GetPropertyStr(ctx, element, "tagName");
-  JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
+   JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
   JSValue children = JS_GetPropertyStr(ctx, element, "children");
-
-  const char* tagStr = JS_ToCString(ctx, tagName);
-  BOOL isComment = !strncmp(tagStr, "!--", 3);
+  size_t tagLen;
+  const char* tagName = js_get_propertystr_cstringlen(ctx,  element, "tagName", &tagLen);
+  BOOL isComment = !strncmp(tagName, "!--", 3);
 
   xml_write_indent(db, depth);
 
   dbuf_putc(db, '<');
 
   if(isComment) {
-    size_t i = 0, tagLen = strlen(tagStr);
-
-    if(byte_chr(tagStr, tagLen, '\n') < tagLen) {
-      xml_write_string(ctx, tagStr, tagLen - 2, db, depth + 1);
+    if(byte_chr(tagName, tagLen, '\n') < tagLen) {
+      xml_write_string(ctx, tagName, tagLen - 2, db, depth + 1);
       dbuf_putc(db, '\n');
       xml_write_indent(db, depth);
       dbuf_putc(db, '-');
       dbuf_putc(db, '-');
     } else {
-      xml_write_string(ctx, tagStr, tagLen, db, depth + 1);
+      xml_write_string(ctx, tagName, tagLen, db, depth + 1);
     }
   } else if(JS_IsObject(attributes)) {
-    dbuf_putstr(db, tagStr);
+    dbuf_putstr(db, tagName);
     xml_write_attributes(ctx, attributes, db);
   }
 
   dbuf_putstr(db,
               (JS_IsObject(children) || isComment)
                   ? ">"
-                  : tagStr[0] == '?' ? "?>" : tagStr[0] == '!' ? "!>" : " />");
+                  : tagName[0] == '?' ? "?>" : tagName[0] == '!' ? "!>" : " />");
   dbuf_putc(db, '\n');
 
-  JS_FreeCString(ctx, tagStr);
-
-  JS_FreeValue(ctx, tagName);
-  JS_FreeValue(ctx, attributes);
+  JS_FreeCString(ctx, tagName);
+   JS_FreeValue(ctx, attributes);
   JS_FreeValue(ctx, children);
 }
 
 static void
 xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
-  JSAtom tagName = JS_NewAtom(ctx, "tagName");
-  JSAtom children = JS_NewAtom(ctx, "children");
-
-  JSValue tag = JS_GetProperty(ctx, element, tagName);
-  JSValue childNodes = JS_GetProperty(ctx, element, children);
+  JSValue childNodes = JS_GetPropertyStr(ctx, element, "children");
 
   if(JS_IsArray(ctx, childNodes)) {
-    const char* tagStr;
     size_t tagLen;
-
-    tagStr = JS_ToCStringLen(ctx, &tagLen, tag);
+      const char* tagName = js_get_propertystr_cstringlen(ctx,  element, "tagName", &tagLen);
 
     xml_write_indent(db, depth);
 
     dbuf_putstr(db, "</");
-    dbuf_append(db, (const uint8_t*)tagStr, tagLen);
+    dbuf_append(db, (const uint8_t*)tagName, tagLen);
     dbuf_putstr(db, ">");
     dbuf_putc(db, '\n');
-    JS_FreeCString(ctx, tagStr);
+    JS_FreeCString(ctx, tagName);
   }
 
-  JS_FreeValue(ctx, tag);
   JS_FreeValue(ctx, childNodes);
-  JS_FreeAtom(ctx, tagName);
-  JS_FreeAtom(ctx, children);
 }
 
 static PropertyEnumeration*
@@ -437,7 +414,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
 
 static JSValue
 js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  Vector enumerations = VECTOR_INIT();
+  Vector enumerations = VECTOR(ctx);
   DynBuf output = {0};
   JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
   PropertyEnumeration* it;

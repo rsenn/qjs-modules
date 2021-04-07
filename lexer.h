@@ -21,7 +21,7 @@ typedef struct {
   uint8_t* bytecode;
 } LexerRule;
 
-enum { LEXER_FIRST = 0, LEXER_LONGEST, LEXER_LAST };
+enum { LEXER_FIRST = 0, LEXER_LAST = 1, LEXER_LONGEST = 2 };
 
 enum { LEXER_EOF = -1, LEXER_ERROR_NOMATCH = -2, LEXER_ERROR_COMPILE = -3, LEXER_ERROR_EXEC = -4 };
 

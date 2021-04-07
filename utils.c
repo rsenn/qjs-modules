@@ -704,6 +704,19 @@ js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop) {
   return ret;
 }
 
+const char*
+js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp) {
+  JSValue value;
+  const char* ret;
+  value = JS_GetPropertyStr(ctx, obj, prop);
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  ret = JS_ToCStringLen(ctx, lenp, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 char*
 js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop) {
   JSValue value;

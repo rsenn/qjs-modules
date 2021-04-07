@@ -7,9 +7,9 @@
 #include <string.h>
 
 VISIBLE JSClassID js_tree_walker_class_id;
-static JSValue tree_walker_proto, tree_walker_constructor, tree_walker_ctor;
+static JSValue tree_walker_proto, tree_walker_ctor;
 VISIBLE JSClassID js_tree_iterator_class_id;
-static JSValue tree_iterator_proto, tree_iterator_constructor, tree_iterator_ctor;
+static JSValue tree_iterator_proto, tree_iterator_ctor;
 
 enum tree_walker_methods {
   FIRST_CHILD = 0,
@@ -67,8 +67,6 @@ tree_walker_setroot(TreeWalker* w, JSContext* ctx, JSValueConst object) {
 
 static void
 tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
-  PropertyEnumeration* it;
-  size_t i;
   dbuf_printf(db,
               "TreeWalker {\n  depth: %u",
               vector_size(&w->frames, sizeof(PropertyEnumeration)));
@@ -294,12 +292,6 @@ js_tree_walker_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       break;
     }
   }
-  return JS_UNDEFINED;
-}
-
-static JSValue
-js_tree_walker_funcs(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   return JS_UNDEFINED;
 }
 

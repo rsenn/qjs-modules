@@ -4,7 +4,7 @@
 #include <string.h>
 
 VISIBLE JSClassID js_repeater_class_id = 0;
-static JSValue repeater_proto, repeater_constructor, repeater_ctor;
+static JSValue repeater_proto, repeater_ctor;
 
 enum repeater_functions { STATIC_RACE = 0, STATIC_MERGE, STATIC_ZIP };
 enum repeater_getters { PROP_LENGTH = 0, PROP_PATH };
@@ -34,7 +34,7 @@ js_repeater_stop(JSContext* ctx,
 
 JSValue
 js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
-  Repeater *rpt, *ptr2;
+  Repeater *rpt;
   JSValue obj = JS_UNDEFINED;
   if(!(rpt = js_mallocz(ctx, sizeof(Repeater))))
     return JS_EXCEPTION;

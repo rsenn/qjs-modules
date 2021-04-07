@@ -30,7 +30,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
 
     case PREDICATE_CHARSET: {
       InputBuffer input = js_input_buffer(ctx, argv[0]);
-      const uint8_t *p, *next, *end;
       if(pr->charset.chars.size == 0 && pr->charset.chars.data == 0) {
         vector_init(&pr->charset.chars, ctx);
         utf8_to_unicode(pr->charset.set, pr->charset.len, &pr->charset.chars);
@@ -201,7 +200,6 @@ predicate_typename(const Predicate* pr) {
 
 void
 predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
-  int ret = 0;
   const char* type = predicate_typename(pr);
 
   dbuf_putstr(dbuf, type);
@@ -248,7 +246,6 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     }
 
     case PREDICATE_STRING: {
-      uint32_t i = 0, *p;
       dbuf_putc(dbuf, '"');
       dbuf_append(dbuf, pr->string.str, pr->string.len);
       dbuf_putc(dbuf, '"');

@@ -2,7 +2,6 @@
 
 int
 path_absolute(const char* path, DynBuf* db) {
-  int ret = 0;
   if(!path_isabs(path)) {
     dbuf_realloc(db, PATH_MAX + 1);
     if(getcwd((char*)db->buf, PATH_MAX + 1))
@@ -341,7 +340,6 @@ path_getcwd(DynBuf* db) {
 char*
 path_gethome(int uid) {
   FILE* fp;
-  long id;
 
   char *line, *ret = 0;
   char buf[1024];
@@ -410,7 +408,7 @@ path_is_symlink(const char* p) {
 
 int
 path_normalize(const char* path, DynBuf* db, int symbolic) {
-  size_t l1, l2, n;
+  size_t n;
   struct stat st;
   int ret = 1;
   char sep, buf[PATH_MAX + 1];

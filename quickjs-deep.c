@@ -10,7 +10,7 @@
 #include <stdint.h>
 
 VISIBLE JSClassID js_deep_iterator_class_id = 0;
-static JSValue deep_iterator_proto, deep_iterator_constructor, deep_iterator_ctor;
+static JSValue deep_iterator_proto, deep_iterator_ctor;
 
 typedef struct DeepIterator {
   JSValue root;
@@ -174,7 +174,6 @@ js_deep_iterator_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 static JSValue
 js_deep_iterator_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   DeepIterator* it;
-  JSValue ret = JS_NULL;
   if(!(it = JS_GetOpaque2(ctx, this_val, js_deep_iterator_class_id)))
     return JS_EXCEPTION;
 
@@ -304,7 +303,6 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   JSValueConst this_arg, dest;
   PropertyEnumeration* it;
   Vector frames, offsets;
-  BOOL result;
   DynBuf dbuf;
   int32_t level, prev;
   uint32_t mask = 0;
@@ -325,7 +323,7 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   if(argc > 2)
     JS_ToUint32(ctx, &mask, argv[2]);
   do {
-    int dir, idx;
+    int dir;
     path = property_enumeration_pathstr_value(&frames, ctx);
     level = property_enumeration_level(it, &frames);
     dir = level - prev;
@@ -420,7 +418,6 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   do {
     JSValue aval, bval;
     JSAtom akey, bkey;
-    const char *astr = 0, *bstr = 0;
     BOOL result = TRUE;
 
     if(!aenum || !benum) {
@@ -458,8 +455,6 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 
 static JSValue
 js_deep_iterate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  JSValue ret = JS_TRUE;
-
   return js_deep_iterator_constructor(ctx, deep_iterator_ctor, argc, argv);
 }
 

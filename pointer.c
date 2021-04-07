@@ -98,7 +98,7 @@ pointer_tostring(Pointer* ptr, JSContext* ctx, DynBuf* db) {
 
 size_t
 pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
-  size_t pos, delim;
+  size_t delim;
   JSAtom atom;
   while(len) {
     delim = 0;
@@ -217,7 +217,6 @@ void
 pointer_fromarray(Pointer* ptr, JSContext* ctx, JSValueConst array) {
   size_t i, len;
   JSValueConst prop;
-  JSAtom atom;
   len = js_array_length(ctx, array);
   pointer_reset(ptr, ctx);
 

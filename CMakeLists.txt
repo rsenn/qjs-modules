@@ -1,5 +1,7 @@
 project(quickjs-modules C)
 
+cmake_minimum_required(VERSION 3.2)
+
 set(QUICKJS_MODULES deep lexer mmap path pointer predicate repeater inspect tree-walker xml)
 
 set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
@@ -20,10 +22,10 @@ set(predicate_SOURCES predicate.c predicate.h vector.c vector.h utils.c utils.h)
 set(pointer_SOURCES pointer.c pointer.h utils.c utils.h)
 set(lexer_SOURCES utils.c utils.h vector.c vector.h lexer.c lexer.h)
 set(lexer_LIBRARIES quickjs-predicate)
+set(mmap_SOURCES utils.c utils.h)
+set(repeater_SOURCES utils.c utils.h)
 
-set(repeater_SOURCES utils.h)
-
-if(NOT QUICKJSs_PREFIX)
+if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
 else(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${QUICKJS_PREFIX}" CACHE PATH "QuickJS install directory")
@@ -34,7 +36,7 @@ set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel Re
 
 message("QuickJS install directory: ${QUICKJS_PREFIX}")
 
-set(CMAKE_REQUIRED_QUIET TRUE CACHE BOOLEAN "Quiet" FORCE)
+set(CMAKE_REQUIRED_QUIET TRUE)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)

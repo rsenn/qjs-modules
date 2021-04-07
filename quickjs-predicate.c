@@ -4,7 +4,7 @@
 #include "predicate.h"
 
 VISIBLE JSClassID js_predicate_class_id = 0;
-static JSValue predicate_proto, predicate_constructor, predicate_ctor;
+static JSValue predicate_proto, predicate_ctor;
 
 enum { METHOD_EVAL = 0, METHOD_TOSTRING };
 

@@ -46,7 +46,6 @@ enum path_methods {
 static JSValue
 js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   const char *a = 0, *b = 0;
-  struct stat st;
   char buf[PATH_MAX + 1];
   size_t alen = 0, blen = 0, pos;
   JSValue ret = JS_UNDEFINED;
@@ -208,8 +207,7 @@ js_path_method_dbuf(
     JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   const char *a = 0, *b = 0;
   DynBuf db;
-  size_t alen = 0, blen = 0, pos;
-  JSValue ret = JS_UNDEFINED;
+  size_t alen = 0, blen = 0;
 
   if(argc > 0) {
     if(!JS_IsString(argv[0]))
@@ -285,7 +283,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   const char* str;
   DynBuf db;
   int i;
-  size_t len = 0, pos;
+  size_t len = 0;
   JSValue ret = JS_UNDEFINED;
   js_dbuf_init(ctx, &db);
   js_dbuf_init(ctx, &db);
@@ -304,7 +302,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 static JSValue
 js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   const char *str, *base, *ext;
-  size_t i, len = 0, rootlen, dirlen;
+  size_t len = 0, rootlen, dirlen;
   JSValue ret = JS_UNDEFINED;
 
   str = JS_ToCStringLen(ctx, &len, argv[0]);
@@ -370,7 +368,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   const char* str;
   DynBuf db, cwd;
   ssize_t i;
-  size_t len = 0, pos;
+  size_t len = 0;
   JSValue ret = JS_UNDEFINED;
   js_dbuf_init(ctx, &db);
   dbuf_0(&db);

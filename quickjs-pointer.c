@@ -5,7 +5,7 @@
 #include <string.h>
 
 VISIBLE JSClassID js_pointer_class_id = 0;
-static JSValue pointer_proto, pointer_constructor, pointer_ctor;
+static JSValue pointer_proto, pointer_ctor;
 
 enum pointer_methods {
   METHOD_DEREF = 0,
@@ -22,7 +22,7 @@ enum pointer_getters { PROP_LENGTH = 0, PROP_PATH };
 
 JSValue
 js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
-  Pointer *ptr, *ptr2;
+  Pointer *ptr;
   JSValue obj = JS_UNDEFINED;
   if(!(ptr = js_mallocz(ctx, sizeof(Pointer))))
     return JS_EXCEPTION;

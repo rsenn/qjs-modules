@@ -156,7 +156,6 @@ predicate_prototype(JSValue proto) {
 
 static inline Predicate
 predicate_or(size_t npredicates, JSValue* predicates) {
-  size_t i;
   Predicate ret = PREDICATE_INIT(PREDICATE_OR);
   ret.boolean.npredicates = npredicates;
   ret.boolean.predicates = predicates;
@@ -165,7 +164,6 @@ predicate_or(size_t npredicates, JSValue* predicates) {
 
 static inline Predicate
 predicate_and(size_t npredicates, JSValue* predicates) {
-  size_t i;
   Predicate ret = PREDICATE_INIT(PREDICATE_AND);
   ret.boolean.npredicates = npredicates;
   ret.boolean.predicates = predicates;
@@ -174,7 +172,6 @@ predicate_and(size_t npredicates, JSValue* predicates) {
 
 static inline Predicate
 predicate_xor(size_t npredicates, JSValue* predicates) {
-  size_t i;
   Predicate ret = PREDICATE_INIT(PREDICATE_XOR);
   ret.boolean.npredicates = npredicates;
   ret.boolean.predicates = predicates;

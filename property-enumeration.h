@@ -128,7 +128,7 @@ property_enumeration_predicate(PropertyEnumeration* it,
                                JSValueConst fn,
                                JSValueConst this_arg) {
   BOOL result;
-  JSValue key, value, ret;
+  JSValue ret;
   JSValueConst argv[3];
   argv[0] = property_enumeration_value(it, ctx);
   argv[1] = property_enumeration_key(it, ctx);
@@ -243,7 +243,6 @@ static inline void
 property_enumeration_pathstr(Vector* vec, JSContext* ctx, DynBuf* buf) {
   PropertyEnumeration* it;
   size_t i = 0;
-  JSValue ret;
 
   vector_foreach_t(vec, it) {
     const char* key;
@@ -338,7 +337,7 @@ static inline int32_t
 property_enumeration_depth(JSContext* ctx, JSValueConst object) {
   Vector vec = VECTOR(ctx);
   int32_t depth, max_depth = 0;
-  PropertyEnumeration *it, *end;
+  PropertyEnumeration *it;
   JSValue root = JS_DupValue(ctx, object);
 
   if(JS_IsObject(root)) {

@@ -33,7 +33,7 @@ lexer_expand_rule(Lexer* lex, LexerRule* rule, DynBuf* db) {
   size_t len;
 
   for(p = rule->expr; *p; p++) {
-    if(*p == '{' /* && !(p > rule->expr && *(p - 1) == '\\')*/) {
+    if(*p == '{') {
       if(p[len = str_chr(p, '}')]) {
         LexerRule* subst;
         if((subst = lexer_find_definition(lex, p + 1, len - 1))) {
@@ -110,7 +110,7 @@ lexer_set_input(Lexer* lex, InputBuffer input, char* filename) {
 void
 lexer_define(Lexer* lex, char* name, char* expr) {
   LexerRule definition = {name, expr, 0};
-  int ret = vector_size(&lex->defines, sizeof(LexerRule));
+  vector_size(&lex->defines, sizeof(LexerRule));
   vector_push(&lex->defines, definition);
 }
 
@@ -150,7 +150,6 @@ lexer_compile_rules(Lexer* lex, JSContext* ctx) {
 
 int
 lexer_next(Lexer* lex, JSContext* ctx) {
-
   LexerRule* rule;
   uint8_t* capture[512];
   int i = 0, ret = LEXER_ERROR_NOMATCH;
@@ -174,7 +173,7 @@ lexer_next(Lexer* lex, JSContext* ctx) {
       ret = LEXER_ERROR_EXEC;
       break;
     } else if(result > 0 && (capture[1] - capture[0]) > 0) {
-      size_t start, end;
+
       /*printf("%s:%" PRIu32 ":%" PRIu32 " #%i %-20s - /%s/ [%zu] %.*s\n",
              lex->loc.file,
              lex->loc.line + 1,
@@ -183,20 +182,15 @@ lexer_next(Lexer* lex, JSContext* ctx) {
              rule->name,
              rule->expr,
              capture[1] - capture[0],
-           capture[1] - capture[0],
+             capture[1] - capture[0],
              capture[0]); */
 
-      if(lex->mode != LEXER_LONGEST || ret < 0 || (size_t)(capture[1] - capture[0]) > len) {
+      if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 || (size_t)(capture[1] - capture[0]) >= len) {
         ret = i;
         len = capture[1] - capture[0];
 
         if(lex->mode == LEXER_FIRST)
           break;
-
-        /* start = capture[0] - lex->input.data;
-         end = capture[1] - lex->input.data;
-
-       */
       }
     }
     i++;
@@ -213,7 +207,6 @@ lexer_next(Lexer* lex, JSContext* ctx) {
     }
   }
 
-  // assert(ret >= 0);
   return ret;
 }
 
@@ -229,7 +222,6 @@ lexer_free_rule(LexerRule* rule, JSContext* ctx) {
 void
 lexer_dump(Lexer* lex, DynBuf* dbuf) {
   dbuf_printf(dbuf, "Lexer {\n  mode: %x,\n  start: %zu", lex->mode, lex->start);
-
   dbuf_putstr(dbuf, ",\n  input: ");
   input_buffer_dump(&lex->input, dbuf);
   dbuf_putstr(dbuf, ",\n  location: ");
