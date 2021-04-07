@@ -468,15 +468,16 @@ typedef struct InputBuffer {
 } InputBuffer;
 
 static inline void
-input_buffer_free_default(JSContext* ctx, const char* str) {}
+input_buffer_free_default(JSContext* ctx, const char* str) {
+}
 
+InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
-InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
-const uint8_t* js_input_buffer_get(InputBuffer* in, size_t* lenp);
-uint32_t js_input_buffer_getc(InputBuffer* in, size_t* lenp);
-const uint8_t* js_input_buffer_peek(InputBuffer* in, size_t* lenp);
-uint32_t js_input_buffer_peekc(InputBuffer*, size_t* lenp);
+const uint8_t* input_buffer_get(InputBuffer* in, size_t* lenp);
+int input_buffer_getc(InputBuffer* in, size_t* lenp);
+const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
+int input_buffer_peekc(InputBuffer*, size_t* lenp);
 
 static inline BOOL
 js_input_buffer_eof(InputBuffer* in) {
@@ -487,10 +488,11 @@ js_input_buffer_remain(InputBuffer* in) {
   return in->size - in->pos;
 }
 
-static inline const char*
+static inline char*
 js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
   size_t len;
-  const char *cstr, *ret = 0;
+  const char* cstr;
+  char* ret = 0;
   if((cstr = JS_ToCStringLen(ctx, &len, value))) {
     ret = js_strndup(ctx, cstr, len);
     if(lenp)
@@ -500,7 +502,7 @@ js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
   return ret;
 }
 
-static inline const char*
+static inline char*
 js_tostring(JSContext* ctx, JSValueConst value) {
   return js_tostringlen(ctx, 0, value);
 }
@@ -625,8 +627,8 @@ int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
 void js_set_propertystr_strlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
-const char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
-const char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
+char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
+char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
 
 static inline int

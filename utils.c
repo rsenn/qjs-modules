@@ -165,7 +165,6 @@ dbuf_reserve_start(DynBuf* s, size_t len) {
 
 size_t
 dbuf_token_pop(DynBuf* db, char delim) {
-  const char* x;
   size_t n, p, len;
   len = db->size;
   for(n = db->size; n > 0;) {
@@ -299,21 +298,10 @@ input_buffer_free(InputBuffer* in, JSContext* ctx) {
   }
 }
 
-const uint8_t*
-js_input_buffer_peek(InputBuffer* in, size_t* lenp) {
+int
+input_buffer_peekc(InputBuffer* in, size_t* lenp) {
   const uint8_t *pos, *end, *next;
-  pos = in->data + in->pos;
-  end = in->data + in->size;
-  unicode_from_utf8(pos, end - pos, &next);
-  if(lenp)
-    *lenp = next - pos;
-  return pos;
-}
-
-uint32_t
-js_input_buffer_peekc(InputBuffer* in, size_t* lenp) {
-  const uint8_t *pos, *end, *next;
-  uint32_t cp;
+  int cp;
   pos = in->data + in->pos;
   end = in->data + in->size;
   cp = unicode_from_utf8(pos, end - pos, &next);
@@ -323,23 +311,29 @@ js_input_buffer_peekc(InputBuffer* in, size_t* lenp) {
 }
 
 const uint8_t*
-js_input_buffer_get(InputBuffer* in, size_t* lenp) {
+input_buffer_peek(InputBuffer* in, size_t* lenp) {
+  input_buffer_peekc(in, lenp);
+  return in->data + in->pos;
+}
+
+int
+input_buffer_getc(InputBuffer* in, size_t* lenp) {
   size_t n;
-  const uint8_t* ret;
+  int ret;
   if(lenp == 0)
     lenp = &n;
-  ret = js_input_buffer_peek(in, lenp);
+  ret = input_buffer_peekc(in, lenp);
   in->pos += *lenp;
   return ret;
 }
 
-uint32_t
-js_input_buffer_getc(InputBuffer* in, size_t* lenp) {
+const uint8_t*
+input_buffer_get(InputBuffer* in, size_t* lenp) {
   size_t n;
-  uint32_t ret;
+  const uint8_t* ret;
   if(lenp == 0)
     lenp = &n;
-  ret = js_input_buffer_peekc(in, lenp);
+  ret = input_buffer_peek(in, lenp);
   in->pos += *lenp;
   return ret;
 }
@@ -498,7 +492,6 @@ int
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   int ret = 0;
   int n, m;
-  void* obj = JS_VALUE_GET_OBJ(value);
   char* name = 0;
   if((name = js_object_classname(ctx, value))) {
     n = strlen(name);
@@ -631,7 +624,6 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
-  BOOL ret = FALSE;
   JSPropertyEnum *atoms_a, *atoms_b;
   uint32_t i, natoms_a, natoms_b;
   int32_t ta, tb;
@@ -691,10 +683,10 @@ js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop) {
   return ret;
 }
 
-const char*
+char*
 js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop) {
   JSValue value;
-  const char* ret;
+  char* ret;
   value = JS_GetPropertyStr(ctx, obj, prop);
   if(JS_IsUndefined(value) || JS_IsException(value))
     return 0;
@@ -704,10 +696,10 @@ js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop) {
   return ret;
 }
 
-const char*
+char*
 js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp) {
   JSValue value;
-  const char* ret;
+  char* ret;
   value = JS_GetPropertyStr(ctx, obj, prop);
   if(JS_IsUndefined(value) || JS_IsException(value))
     return 0;

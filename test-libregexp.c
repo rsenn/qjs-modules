@@ -2,40 +2,7 @@
 #include "../quickjs.h"
 #include "quickjs-internal.h"
 #include <string.h>
-/*
-int
-main(int argc, char* argv[]) {
-  uint8_t* re_bytecode;
-  int re_bytecode_len;
-  char error_msg[64];
-  size_t len;
-  uint8_t **capture, *str_buf;
-  int ret, capture_count, shift;
-  int64_t last_index = 0;
-  int re_flags = LRE_FLAG_GLOBAL;
 
-  str_buf = (uint8_t*)"^([ABC])(.*)$";
-  len = strlen((char*)str_buf);
-
-  re_bytecode = lre_compile(&re_bytecode_len, error_msg, sizeof(error_msg), (const char*)str_buf, len, re_flags, 0);
-
-  capture_count = lre_get_capture_count(re_bytecode);
-  capture = NULL;
-
-  if(capture_count > 0) {
-    capture = calloc(sizeof(capture[0]), capture_count * 2);
-    if(!capture) {
-      return 126;
-    }
-  }
-
-  shift = 0;
-  str_buf = (uint8_t*)(argc > 1 ? argv[1] : "BLAH");
-  last_index = strlen((char*)str_buf);
-
-  ret = lre_exec(capture, re_bytecode, str_buf, last_index, strlen((char*)str_buf), shift, 0);
-  return !ret;
-}*/
 #define CAPTURE_COUNT_MAX 255
 
 int
