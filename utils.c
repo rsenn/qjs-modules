@@ -298,7 +298,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 
 void
 input_buffer_dump(const InputBuffer* in, DynBuf* db) {
-  dbuf_printf(db, "(InputBuffer){ .data = %pos, .size = %zx, .pos = %zx, .free = %pos }", in->data, in->size, in->pos, in->free);
+  dbuf_printf(db, "(InputBuffer){ .data = %p, .size = %zu, .pos = %zu, .free = %p }", in->data, in->size, in->pos, in->free);
 }
 
 void

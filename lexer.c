@@ -1,6 +1,32 @@
 #include "lexer.h"
 #include "libregexp.h"
 
+void
+location_dump(const Location* loc, DynBuf* dbuf) {
+  if(loc->file) {
+    dbuf_putstr(dbuf, loc->file);
+    dbuf_putc(dbuf, ':');
+  }
+  dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, loc->line, loc->column);
+}
+
+Location
+location_dup(const Location* loc, JSContext* ctx) {
+  Location ret = {0, 0, 0};
+  if(loc->file)
+    ret.file = js_strdup(ctx, loc->file);
+  ret.line = loc->line;
+  ret.column = loc->column;
+  return ret;
+}
+
+void
+location_free(Location* loc, JSRuntime* rt) {
+  if(loc->file)
+    js_free_rt(rt, (char*)loc->file);
+  memset(loc, 0, sizeof(Location));
+}
+
 static BOOL
 lexer_expand_rule(Lexer* lex, LexerRule* rule, DynBuf* db) {
   char* p;
@@ -177,6 +203,17 @@ lexer_free_rule(LexerRule* rule, JSContext* ctx) {
 
   if(rule->bytecode)
     js_free(ctx, rule->bytecode);
+}
+
+void
+lexer_dump(Lexer* lex, DynBuf* dbuf) {
+  dbuf_printf(dbuf, "Lexer {\n  mode: %x,\n  start: %zu", lex->mode, lex->start);
+
+  dbuf_putstr(dbuf, ",\n  input: ");
+  input_buffer_dump(&lex->input, dbuf);
+  dbuf_putstr(dbuf, ",\n  location: ");
+  location_dump(&lex->loc, dbuf);
+  dbuf_putstr(dbuf, "\n}");
 }
 
 void
