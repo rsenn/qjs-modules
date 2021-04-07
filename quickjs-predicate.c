@@ -159,7 +159,8 @@ fail:
 }
 
 static JSValue
-js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_predicate_method(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
   if(!(pred = JS_GetOpaque2(ctx, this_val, js_predicate_class_id)))
@@ -217,7 +218,8 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_predicate_function(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   JSValue ret = JS_UNDEFINED;
   switch(magic) {
 
@@ -293,7 +295,12 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 JSValue
-js_predicate_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst* argv, int flags) {
+js_predicate_call(JSContext* ctx,
+                  JSValueConst func_obj,
+                  JSValueConst this_val,
+                  int argc,
+                  JSValueConst* argv,
+                  int flags) {
   Predicate* pred;
   int32_t result;
   JSValue ret = JS_UNDEFINED;
@@ -331,7 +338,9 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
   // JS_FreeValueRT(rt, val);
 }
 
-static JSClassDef js_predicate_class = {.class_name = "Predicate", .finalizer = js_predicate_finalizer, .call = js_predicate_call};
+static JSClassDef js_predicate_class = {.class_name = "Predicate",
+                                        .finalizer = js_predicate_finalizer,
+                                        .call = js_predicate_call};
 
 static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("eval", 1, js_predicate_method, METHOD_EVAL),
@@ -397,10 +406,14 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_predicate_class_id, &js_predicate_class);
 
   predicate_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, predicate_proto, js_predicate_proto_funcs, countof(js_predicate_proto_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             predicate_proto,
+                             js_predicate_proto_funcs,
+                             countof(js_predicate_proto_funcs));
   JS_SetClassProto(ctx, js_predicate_class_id, predicate_proto);
 
-  predicate_ctor = JS_NewCFunction2(ctx, js_predicate_constructor, "Predicate", 1, JS_CFUNC_constructor, 0);
+  predicate_ctor =
+      JS_NewCFunction2(ctx, js_predicate_constructor, "Predicate", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, predicate_ctor, predicate_proto);
   JS_SetPropertyFunctionList(ctx, predicate_ctor, js_predicate_funcs, countof(js_predicate_funcs));

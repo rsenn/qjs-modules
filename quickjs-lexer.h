@@ -4,8 +4,6 @@
 #include "lexer.h"
 #include "list.h"
 
-enum { LEXER_EOF = -1 };
-
 typedef struct {
   const uint8_t* data;
   uint32_t byte_length;
@@ -16,14 +14,10 @@ typedef struct {
 
 typedef struct {
   int id;
-  const uint8_t* data;
-  uint32_t byte_length;
-  uint32_t char_length;
+  const char* lexeme;
   uint32_t offset;
+  uint32_t byte_length;
   Location loc;
-  Lexer* lexer;
-  ssize_t ref_count;
-  struct list_head link;
 } Token;
 
 extern JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;

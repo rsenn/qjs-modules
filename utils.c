@@ -249,7 +249,8 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
   assert(argc > 0);
   if(js_is_regexp(ctx, argv[0])) {
     re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
-    re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
+    re.flags =
+        regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
     JS_FreeCString(ctx, flagstr);
   } else {
     re.source = js_tostringlen(ctx, &re.len, argv[0]);
@@ -275,8 +276,10 @@ regexp_compile(RegExp re, JSContext* ctx) {
   char error_msg[64];
   int len = 0;
   uint8_t* bytecode;
-  if(!(bytecode = lre_compile(&len, error_msg, sizeof(error_msg), re.source, re.len, re.flags, ctx)))
-    JS_ThrowInternalError(ctx, "Error compiling regex /%.*s/: %s", (int)re.len, re.source, error_msg);
+  if(!(bytecode =
+           lre_compile(&len, error_msg, sizeof(error_msg), re.source, re.len, re.flags, ctx)))
+    JS_ThrowInternalError(
+        ctx, "Error compiling regex /%.*s/: %s", (int)re.len, re.source, error_msg);
 
   return bytecode;
 }
@@ -298,7 +301,12 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 
 void
 input_buffer_dump(const InputBuffer* in, DynBuf* db) {
-  dbuf_printf(db, "(InputBuffer){ .data = %p, .size = %zu, .pos = %zu, .free = %p }", in->data, in->size, in->pos, in->free);
+  dbuf_printf(db,
+              "(InputBuffer){ .data = %p, .size = %zu, .pos = %zu, .free = %p }",
+              in->data,
+              in->size,
+              in->pos,
+              in->free);
 }
 
 void
@@ -642,10 +650,12 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   tb = js_value_type(ctx, b);
   assert(ta == TYPE_OBJECT);
   assert(tb == TYPE_OBJECT);
-  if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(
+         ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     return FALSE;
 
-  if(JS_GetOwnPropertyNames(ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(
+         ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     return FALSE;
 
   if(natoms_a != natoms_b)
@@ -733,7 +743,8 @@ js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop) {
 }
 
 void
-js_set_propertystr_strlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
+js_set_propertystr_strlen(
+    JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
   JSValue value;
   value = JS_NewStringLen(ctx, str, len);
   JS_SetPropertyStr(ctx, obj, prop, value);
@@ -883,7 +894,11 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
       ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      if(!JS_GetOwnPropertyNames(ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(ctx,
+                                 &tab_atom,
+                                 &tab_atom_len,
+                                 value,
+                                 JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
         uint32_t i;
         for(i = 0; i < tab_atom_len; i++) {
           JSValue prop;

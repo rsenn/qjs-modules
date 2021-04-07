@@ -232,7 +232,8 @@ _get_stack_trace(int full) {
     }
     if(ret == 0) {
       if(!full) {
-        if(!(stack_trace = _str_jointo(stack_trace, ((j > nptrs - 4) ? ("") : (" < ")), &stack_trace))) {
+        if(!(stack_trace =
+                 _str_jointo(stack_trace, ((j > nptrs - 4) ? ("") : (" < ")), &stack_trace))) {
           return (NULL);
         }
       } else {
@@ -401,7 +402,11 @@ _mem_print(t_mem* head) {
         return;
       }
     }
-    printf("%sADDR <%p> | SIZE %04lu | STATUS %s | ", (tmp->stat == 1) ? (CL_GR) : (CL_RD), tmp->addr, tmp->size, ((tmp->stat == 0) ? "Leaked" : "Freed "));
+    printf("%sADDR <%p> | SIZE %04lu | STATUS %s | ",
+           (tmp->stat == 1) ? (CL_GR) : (CL_RD),
+           tmp->addr,
+           tmp->size,
+           ((tmp->stat == 0) ? "Leaked" : "Freed "));
     if(tmp->id < 127) {
       printf("ID %c ", (_WRAP_t_byte)tmp->id);
     } else {

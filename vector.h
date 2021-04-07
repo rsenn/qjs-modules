@@ -23,24 +23,25 @@ typedef union Vector {
   };
 } Vector;
 
-#define VECTOR_INIT()                                                                                                                                          \
-  {                                                                                                                                                            \
-    { 0, 0, 0, 0, &vector_default_realloc, 0 }                                                                                                                 \
+#define VECTOR_INIT()                                                                              \
+  {                                                                                                \
+    { 0, 0, 0, 0, &vector_default_realloc, 0 }                                                     \
   }
 
 #define vector_init(vec, ctx) js_dbuf_init(ctx, &((vec)->dbuf))
 #define vector_init_rt(vec, rt) js_dbuf_init_rt(rt, &((vec)->dbuf))
-#define VECTOR(ctx)                                                                                                                                            \
-  (Vector) {                                                                                                                                                   \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }                                                                                                       \
+#define VECTOR(ctx)                                                                                \
+  (Vector) {                                                                                       \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }                                           \
   }
-#define VECTOR_RT(rt)                                                                                                                                          \
-  (Vector) {                                                                                                                                                   \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                                                                                                     \
+#define VECTOR_RT(rt)                                                                              \
+  (Vector) {                                                                                       \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                                         \
   }
 
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
-#define vector_foreach(a, msz, p) for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
+#define vector_foreach(a, msz, p)                                                                  \
+  for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
 
 int umult64(uint64_t a, uint64_t b, uint64_t* c);
 void* vector_allocate(Vector* vec, size_t elsz, int32_t pos);

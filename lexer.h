@@ -23,6 +23,8 @@ typedef struct {
 
 enum { LEXER_FIRST = 0, LEXER_LONGEST };
 
+enum { LEXER_EOF = -1, LEXER_ERROR_NOMATCH = -2, LEXER_ERROR_COMPILE = -3, LEXER_ERROR_EXEC = -4 };
+
 typedef struct {
   int mode;
   size_t start;

@@ -11,11 +11,12 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num)                                                                                      \
-  {                                                                                                                                                            \
-    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = {                   \
-      .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}}                                                                           \
-    }                                                                                                                                                          \
+#define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num)                          \
+  {                                                                                                \
+    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE,                    \
+    .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = {                                   \
+      .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}}               \
+    }                                                                                              \
   }
 
 #if defined(_WIN32) || defined(__MINGW32__)
@@ -28,12 +29,16 @@
 
 #define max_num(a, b) ((a) > (b) ? (a) : (b))
 
-#define is_control_char(c) ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
+#define is_control_char(c)                                                                         \
+  ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' ||       \
+   (c) == '\r')
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_newline_char(c) ((c) == '\n')
-#define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
-#define is_whitespace_char(c) ((c) == ' ' || (c) == '\t' || (c) == '\v' || (c) == '\n' || (c) == '\r')
+#define is_identifier_char(c)                                                                      \
+  (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
+#define is_whitespace_char(c)                                                                      \
+  ((c) == ' ' || (c) == '\t' || (c) == '\v' || (c) == '\n' || (c) == '\r')
 
 typedef struct {
   BOOL done;
@@ -414,7 +419,8 @@ enum value_mask {
   TYPE_BIG_DECIMAL = (1 << FLAG_BIG_DECIMAL),
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
-  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL),
+  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL |
+                    TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -447,8 +453,20 @@ js_value_type(JSContext* ctx, JSValueConst value) {
 
 static inline const char* const*
 js_value_types() {
-  return (const char* const[]){
-      "UNDEFINED", "NULL", "BOOL", "INT", "OBJECT", "STRING", "SYMBOL", "BIG_FLOAT", "BIG_INT", "BIG_DECIMAL", "FLOAT64", "FUNCTION", "ARRAY", 0};
+  return (const char* const[]){"UNDEFINED",
+                               "NULL",
+                               "BOOL",
+                               "INT",
+                               "OBJECT",
+                               "STRING",
+                               "SYMBOL",
+                               "BIG_FLOAT",
+                               "BIG_INT",
+                               "BIG_DECIMAL",
+                               "FLOAT64",
+                               "FUNCTION",
+                               "ARRAY",
+                               0};
 }
 
 static inline const char*
@@ -521,31 +539,31 @@ JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst v
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
 JSValue js_value_from_char(JSContext* ctx, int c);
 
-#define js_value_free(ctx, value)                                                                                                                              \
-  do {                                                                                                                                                         \
-    JS_FreeValue((ctx), (value));                                                                                                                              \
-    (value) = JS_UNDEFINED;                                                                                                                                    \
+#define js_value_free(ctx, value)                                                                  \
+  do {                                                                                             \
+    JS_FreeValue((ctx), (value));                                                                  \
+    (value) = JS_UNDEFINED;                                                                        \
   } while(0);
-#define js_value_free_rt(ctx, value)                                                                                                                           \
-  do {                                                                                                                                                         \
-    JS_FreeValueRT((ctx), (value));                                                                                                                            \
-    (value) = JS_UNDEFINED;                                                                                                                                    \
+#define js_value_free_rt(ctx, value)                                                               \
+  do {                                                                                             \
+    JS_FreeValueRT((ctx), (value));                                                                \
+    (value) = JS_UNDEFINED;                                                                        \
   } while(0);
 
-#define js_object_tmpmark_set(value)                                                                                                                           \
+#define js_object_tmpmark_set(value)                                                               \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
-#define js_object_tmpmark_clear(value)                                                                                                                         \
+#define js_object_tmpmark_clear(value)                                                             \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
 
-#define js_runtime_exception_set(rt, value)                                                                                                                    \
+#define js_runtime_exception_set(rt, value)                                                        \
   do { *(JSValue*)((uint8_t*)(rt) + 216) = value; } while(0);
 #define js_runtime_exception_get(rt) (*(JSValue*)((uint8_t*)(rt) + 216))
-#define js_runtime_exception_clear(rt)                                                                                                                         \
-  do {                                                                                                                                                         \
-    if(!JS_IsNull(js_runtime_exception_get(rt)))                                                                                                               \
-      JS_FreeValueRT((rt), js_runtime_exception_get(rt));                                                                                                      \
-    js_runtime_exception_set(rt, JS_NULL);                                                                                                                     \
+#define js_runtime_exception_clear(rt)                                                             \
+  do {                                                                                             \
+    if(!JS_IsNull(js_runtime_exception_get(rt)))                                                   \
+      JS_FreeValueRT((rt), js_runtime_exception_get(rt));                                          \
+    js_runtime_exception_set(rt, JS_NULL);                                                         \
   } while(0)
 
 void js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len);
@@ -635,10 +653,12 @@ char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
 
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
-void js_set_propertystr_strlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
+void js_set_propertystr_strlen(
+    JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
 char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
-char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
+char*
+js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
 
 static inline int

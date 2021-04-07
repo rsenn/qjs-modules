@@ -65,7 +65,6 @@ export function Console(opts = {}) {
       let tempOpts = new ConsoleOptions(this.options);
       let acc = [];
       let i = 0;
-      //console.reallog("args:", args);
 
       for(let arg of args) {
         try {
@@ -88,6 +87,7 @@ export function Console(opts = {}) {
           //console.reallog("error:", error);
         }
       }
+      //console.reallog('args:', acc);
       return log.call(this, acc.join(' '));
     }
   });

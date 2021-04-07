@@ -7,7 +7,7 @@ location_dump(const Location* loc, DynBuf* dbuf) {
     dbuf_putstr(dbuf, loc->file);
     dbuf_putc(dbuf, ':');
   }
-  dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, loc->line, loc->column);
+  dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, loc->line + 1, loc->column + 1);
 }
 
 Location
@@ -82,10 +82,11 @@ lexer_match_rule(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
 
   if(rule->bytecode == 0) {
     if(!lexer_compile_rule(lex, rule, ctx))
-      return -2;
+      return LEXER_ERROR_COMPILE;
   }
 
-  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->input.data, lex->input.pos, lex->input.size, 0, ctx);
+  return lre_exec(
+      capture, rule->bytecode, (uint8_t*)lex->input.data, lex->input.pos, lex->input.size, 0, ctx);
 }
 
 void
@@ -135,47 +136,45 @@ lexer_next(Lexer* lex, JSContext* ctx) {
 
   LexerRule* rule;
   uint8_t* capture[512];
-  int i = 0, ret = -2;
+  int i = 0, ret = LEXER_ERROR_NOMATCH;
   size_t len;
 
   if(input_buffer_eof(&lex->input))
-    return -1;
+    return LEXER_EOF;
 
   lex->start = lex->input.pos;
 
   vector_foreach_t(&lex->rules, rule) {
-    size_t start, end;
     int result;
 
     result = lexer_match_rule(lex, rule, capture, ctx);
 
-    if(result < 0) {
-
-      JSValue exception = JS_GetException(ctx);
-      const char* error = JS_ToCString(ctx, exception);
-
-      printf(
-          "%s:%" PRIu32 ":%" PRIu32 " #%i %-20s - result: %i error: %s\n", lex->loc.file, lex->loc.line + 1, lex->loc.column + 1, i, rule->name, result, error);
-      JS_FreeCString(ctx, error);
-
+    if(result == LEXER_ERROR_COMPILE) {
+      ret = result;
+      break;
+    } else if(result < 0) {
+      JS_ThrowInternalError(ctx, "Error matching regex /%s/", rule->expr);
+      ret = LEXER_ERROR_EXEC;
+      break;
     } else if(result > 0) {
+      size_t start, end;
 
       if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 || (capture[1] - capture[0]) > len) {
         ret = i;
         len = capture[1] - capture[0];
 
-        start = capture[0] - lex->input.data;
-        end = capture[1] - lex->input.data;
+        /* start = capture[0] - lex->input.data;
+         end = capture[1] - lex->input.data;
 
-        printf("%s:%" PRIu32 ":%" PRIu32 " #%i %-20s - [%zu] %.*s\n",
-               lex->loc.file,
-               lex->loc.line + 1,
-               lex->loc.column + 1,
-               i,
-               rule->name,
-               len,
-               (int)len,
-               capture[0]);
+         printf("%s:%" PRIu32 ":%" PRIu32 " #%i %-20s - [%zu] %.*s\n",
+                lex->loc.file,
+                lex->loc.line + 1,
+                lex->loc.column + 1,
+                i,
+                rule->name,
+                len,
+                (int)len,
+                capture[0]);*/
       }
     }
     i++;
