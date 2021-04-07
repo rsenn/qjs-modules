@@ -50,9 +50,8 @@ umult64(uint64_t a, uint64_t b, uint64_t* c) {
 #define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
 
 void*
-vector_allocate(vector* vec, size_t elsz, int32_t pos) {
+vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
   uint64_t need;
-  void* tmp;
   size_t capacity;
   if(pos < 0)
     return 0;
@@ -79,7 +78,7 @@ vector_allocate(vector* vec, size_t elsz, int32_t pos) {
 }
 
 void
-vector_free(vector* vec) {
+vector_free(Vector* vec) {
   if(vec->data)
     dbuf_free(&vec->dbuf);
   vec->data = 0;
@@ -87,7 +86,7 @@ vector_free(vector* vec) {
 }
 
 void*
-vector_at(const vector* vec, size_t elsz, int32_t pos) {
+vector_at(const Vector* vec, size_t elsz, int32_t pos) {
   uint64_t offs;
   if(pos < 0)
     return 0;
@@ -99,8 +98,7 @@ vector_at(const vector* vec, size_t elsz, int32_t pos) {
 }
 
 int32_t
-vector_indexof(const vector* vec, size_t elsz, void* ptr) {
-  uint32_t ret;
+vector_indexof(const Vector* vec, size_t elsz, void* ptr) {
   if(ptr < vector_begin(vec) || ptr > vector_back(vec, elsz))
     return -1;
 
@@ -108,7 +106,7 @@ vector_indexof(const vector* vec, size_t elsz, void* ptr) {
 }
 
 void
-vector_shrink(vector* vec, size_t elsz, int32_t len) {
+vector_shrink(Vector* vec, size_t elsz, int32_t len) {
   uint64_t need;
   if(len < 0)
     return;
@@ -120,7 +118,7 @@ vector_shrink(vector* vec, size_t elsz, int32_t len) {
 }
 
 void
-vector_put(vector* vec, const void* bytes, size_t len) {
+vector_put(Vector* vec, const void* bytes, size_t len) {
   size_t pos;
   if(!len)
     return;
@@ -130,7 +128,7 @@ vector_put(vector* vec, const void* bytes, size_t len) {
   memcpy(vec->data + pos, bytes, len);
 }
 
-void __attribute__((format(printf, 2, 3))) vector_printf(vector* vec, const char* fmt, ...) {
+void __attribute__((format(printf, 2, 3))) vector_printf(Vector* vec, const char* fmt, ...) {
   va_list ap;
   char buf[128];
   size_t len;
@@ -151,7 +149,7 @@ void __attribute__((format(printf, 2, 3))) vector_printf(vector* vec, const char
 }
 
 void
-vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out) {
+vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
   char* ptr = a;
   size_t i;
   for(i = 0; i < m; i++) {
@@ -162,13 +160,13 @@ vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out) {
 }
 
 void
-vector_symmetricdiff(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out_a, vector* out_b) {
+vector_symmetricdiff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out_a, Vector* out_b) {
   vector_diff(a, m, b, n, elsz, out_a);
   vector_diff(b, n, a, m, elsz, out_b);
 }
 
 void
-vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, vector* out) {
+vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
   size_t i, j = 0, k = 0;
   for(i = 0; i < m + n; i++) {
     void* aptr = (char*)a + j * elsz;
@@ -187,7 +185,7 @@ vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, vector* o
 }
 
 ssize_t
-vector_find(vector* vec, size_t elsz, const void* ptr) {
+vector_find(Vector* vec, size_t elsz, const void* ptr) {
   size_t i, j;
   for(i = 0, j = 0; i < vec->size; i += elsz) {
     if(!memcmp(&vec->data[i], ptr, elsz))
@@ -199,7 +197,7 @@ vector_find(vector* vec, size_t elsz, const void* ptr) {
 }
 
 int
-vector_copy(vector* dst, const vector* src) {
+vector_copy(Vector* dst, const Vector* src) {
   dst->realloc_func = src->realloc_func;
   dst->opaque = src->opaque;
   dst->data = 0;

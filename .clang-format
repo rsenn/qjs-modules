@@ -21,7 +21,7 @@ BraceWrapping:
   AfterEnum: false
   AfterFunction: false
   AfterNamespace: false
-  AfterStruct: false
+  AfterStruct: true
   AfterUnion: false
   BeforeCatch: false
   BeforeElse: false

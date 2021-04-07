@@ -1,5 +1,8 @@
 MODULES = deep inspect lexer mmap path pointer predicate repeater tree-walker xml
 
+TESTS = test-lexer test-libregexp test-str0
+
+
 QUICKJS_PREFIX ?= /usr/local
 
 INSTALL = install
@@ -8,9 +11,9 @@ CC = gcc
 SUFFIX = so
 
 DEFS = -DJS_SHARED_LIBRARY -DHAVE_QUICKJS_CONFIG_H
-INCLUDES = -I$(QUICKJS_PREFIX)/include/quickjs
+INCLUDES = -I.. -I$(QUICKJS_PREFIX)/include/quickjs
 
-CFLAGS = $(DEFS) $(INCLUDES) -Wall -fPIC -fvisibility=hidden
+CFLAGS = $(DEFS) $(INCLUDES) -Wall
 
 ifneq ($(DEBUG),)
 CFLAGS += -g -ggdb -O0
@@ -26,12 +29,13 @@ OBJECTS = $(MODULES:%=%.o)
 BUILDDIR := bin/
 SHARED_OBJECTS = $(MODULES:%=$(BUILDDIR)%.$(SUFFIX))
 
-.PHONY: bin all clean install
+.PHONY: all tests clean install
 all: bin $(SHARED_OBJECTS)
 
-.PHONY: bin
 bin:
 	mkdir -p $@
+
+tests: $(TESTS:%=$(BUILDDIR)%)
 
 clean:
 	$(RM) $(OBJECTS) $(SHARED_OBJECTS)
@@ -42,6 +46,8 @@ install: all
 
 .c.o:
 	$(CC) $(CFLAGS) -c $< 
+
+$(SHARED_OBJECTS): CFLAGS += -fPIC -fvisibility=hidden
 
 $(BUILDDIR)deep.$(SUFFIX): quickjs-deep.c vector.c pointer.c utils.c virtual-properties.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
@@ -72,3 +78,9 @@ $(BUILDDIR)tree-walker.$(SUFFIX): quickjs-tree-walker.c vector.c utils.c
 
 $(BUILDDIR)xml.$(SUFFIX): quickjs-xml.c vector.c utils.c
 	$(CC) $(CFLAGS) -shared -o $@ $^
+ 
+
+$(BUILDDIR)test-lexer: lexer.c
+$(TESTS:%=$(BUILDDIR)%): utils.c vector.c
+$(TESTS:%=$(BUILDDIR)%): $(BUILDDIR)%: %.c
+	$(CC) $(CFLAGS) -o $@ $^ -lquickjs

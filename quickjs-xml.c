@@ -234,7 +234,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 }
 
 static PropertyEnumeration*
-xml_enumeration_next(vector* vec, JSContext* ctx, DynBuf* db) {
+xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db) {
   PropertyEnumeration* it;
   JSValue value = JS_UNDEFINED, children;
 
@@ -276,7 +276,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
   uint8_t c;
   OutputValue* out;
   JSValue element = JS_UNDEFINED;
-  vector st = VECTOR(ctx);
+  Vector st = VECTOR(ctx);
   ptr = buf;
   end = buf + len;
 
@@ -424,7 +424,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
 
 static JSValue
 js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  vector enumerations = VECTOR_INIT();
+  Vector enumerations = VECTOR_INIT();
   DynBuf output = {0};
   JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
   PropertyEnumeration* it;

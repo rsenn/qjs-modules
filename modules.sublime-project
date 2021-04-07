@@ -1,5 +1,12 @@
 {
   "folders": [
     { "path": ".", "file_exclude_patterns": [ "*.log", "*.sublime-*", "*.tmTheme", "*.brd", "*.sch", "tags", "*.es", "*.bz2", "*.gz", "*.txz", "*.xz", "*.zip", "*.tmp", "*.vcxproj", "*.scr", "*.json", "*.xml", "*.filters", "*.tsbuildinfo", "*.cjs", "*.flow", "*.o", "*.yml", "*.map", "*.texi", "*.plist", "*.pdf", "*.pbxproj", "*.patch", "*.pack", "*.opts", "*.nvmrc", "*.m", "*.ls", "*.lib", "*.idx", "*.gitattributes", "*.git", "*.conf", "*.check_cache", "*.sample", "*.tsx", "*.storyboard", "*.sed", "*.nycrc", "*.marks", "*.gitignore", "*.editorconfig", "*.un~", "*.out", "*.gitkeep", "*.DS_Store", "*.diff", "*.coffee", "*.BSD", "*.a", "*.internal", "*.includecache", "*.pem", "*.mm", "*.lock", "*.def", "*.bnf", "*.bin", "*.1", "*.png", "*.make", "*.npmignore", "*.priv", "*.eslintignore", "*.?#?" ], "folder_exclude_patterns": [ ".*", ".git", ".git/*", "node_modules", "build", "inst", "htm", "*/htm/*", "npm", ".next", "*.next/*", "quickjs-*", "tmp", "data", "Sources/[!p][!l]*", "[!q][!u]*", "[!q][!u]*", "Sources/a*", "Sources/b*", "Sources/c*", "Sources/d*", "Sources/e*", "Sources/f*", "Sources/g*", "Sources/h*", "Sources/i*", "Sources/j*", "Sources/k*", "Sources/l*", "Sources/m*", "Sources/n*", "Sources/o*", "Sources/q*", "Sources/r*", "Sources/s*", "Sources/t*", "Sources/u*", "Sources/v*", "Sources/w*", "Sources/x*", "Sources/y*", "Sources/z*" ] }
+  ],
+  "build_systems": [
+    { "name": "List", "shell_cmd": "ls -l" },
+    { "name": "Build all", "shell_cmd": "make", "working_dir": "${project_path}" },
+    { "name": "Build tests", "shell_cmd": "make tests", "working_dir": "${project_path}" },
+    { "name": "Rebuild CTags", "shell_cmd": "ctags -R .", "working_dir": "${project_path}" },
+    { "name": "clang-format", "shell_cmd": "clang-format -verbose -style=file -i *.[ch]", "working_dir": "${project_path}" }
   ]
 }

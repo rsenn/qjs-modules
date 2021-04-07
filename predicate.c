@@ -5,7 +5,7 @@
 #include "cutils.h"
 
 static size_t
-utf8_to_unicode(const char* str, size_t len, vector* out) {
+utf8_to_unicode(const char* str, size_t len, Vector* out) {
   const uint8_t *p, *next, *end;
 
   for(p = (uint8_t*)str, end = p + len; p != end; p = next) {
@@ -36,8 +36,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
         utf8_to_unicode(pr->charset.set, pr->charset.len, &pr->charset.chars);
       }
       ret = 1;
-      while(!js_input_buffer_eof(&input)) {
-        uint32_t codepoint = js_input_buffer_getc(&input, 0);
+      while(!input_buffer_eof(&input)) {
+        uint32_t codepoint = input_buffer_getc(&input);
         ssize_t idx = vector_find(&pr->charset.chars, sizeof(uint32_t), &codepoint);
         if(idx == -1) {
           ret = 0;
@@ -223,7 +223,7 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     case PREDICATE_STRING: {
       uint32_t i = 0, *p;
       dbuf_putc(dbuf, '"');
-      dbuf_put(dbuf, (const uint8_t*)pr->string.str, pr->string.len);
+      dbuf_append(dbuf, pr->string.str, pr->string.len);
       dbuf_putc(dbuf, '"');
       dbuf_printf(dbuf, " (len = %zu)", pr->string.len);
       break;
@@ -259,9 +259,9 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       char flagbuf[16];
 
       dbuf_putc(dbuf, '/');
-      dbuf_put(dbuf, (const uint8_t*)pr->regexp.expr.source, pr->regexp.expr.len);
+      dbuf_append(dbuf, pr->regexp.expr.source, pr->regexp.expr.len);
       dbuf_putc(dbuf, '/');
-      dbuf_put(dbuf, (const uint8_t*)flagbuf, regexp_flags_tostring(pr->regexp.expr.flags, flagbuf));
+      dbuf_append(dbuf, flagbuf, regexp_flags_tostring(pr->regexp.expr.flags, flagbuf));
       dbuf_0(dbuf);
       break;
     }
@@ -437,7 +437,7 @@ predicate_regexp_compile(Predicate* pred, JSContext* ctx) {
   assert(pred->id == PREDICATE_REGEXP);
   assert(pred->regexp.bytecode == 0);
 
-  if((pred->regexp.bytecode = regexp_compile(&pred->regexp.expr, ctx)))
+  if((pred->regexp.bytecode = regexp_compile(pred->regexp.expr, ctx)))
     return lre_get_capture_count(pred->regexp.bytecode);
 
   return 0;

@@ -1,30 +1,10 @@
 #ifndef QUICKJS_LEXER_H
 #define QUICKJS_LEXER_H
 
+#include "lexer.h"
 #include "list.h"
-#include "utils.h"
-#include "predicate.h"
-#include "vector.h"
 
-typedef enum TokId {
-  TOKEN_ID_COMMENT = 0,
-  TOKEN_ID_STRING_LITERAL,
-  TOKEN_ID_TEMPLATE_LITERAL,
-  TOKEN_ID_NUMERIC_LITERAL,
-  TOKEN_ID_BOOLEAN_LITERAL,
-  TOKEN_ID_NULL_LITERAL,
-  TOKEN_ID_PUNCTUATOR,
-  TOKEN_ID_KEYWORD,
-  TOKEN_ID_IDENTIFIER,
-  TOKEN_ID_REGEXP_LITERAL,
-  TOKEN_ID_EOF
-} TokenType;
-
-typedef struct {
-  const char* file;
-  uint32_t line;
-  uint32_t column;
-} Location;
+enum { LEXER_EOF = -1 };
 
 typedef struct {
   const uint8_t* data;
@@ -34,28 +14,12 @@ typedef struct {
   const char* message;
 } SyntaxError;
 
-typedef union {
-  struct InputBuffer input;
-  struct {
-    const uint8_t* data;
-    size_t size;
-    size_t pos;
-    void (*free)(JSContext*, const char*);
-    size_t start;
-    Location loc;
-    vector charlengths;
-    JSValue state_fn;
-    ssize_t ref_count;
-    struct list_head tokens;
-  };
-} Lexer;
-
 typedef struct {
+  int id;
   const uint8_t* data;
   uint32_t byte_length;
   uint32_t char_length;
   uint32_t offset;
-  TokenType id;
   Location loc;
   Lexer* lexer;
   ssize_t ref_count;

@@ -308,7 +308,7 @@ js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
 
 static inline void
 js_dbuf_init(JSContext* ctx, DynBuf* s) {
-  js_dbuf_init_rt(JS_GetRuntime(ctx), s);
+  dbuf_init2(s, ctx, (DynBufReallocFunc*)js_realloc);
 }
 
 static inline void
@@ -354,7 +354,7 @@ dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
         n++;
         dbuf_putstr(db, "|");
       }
-      dbuf_put(db, (const uint8_t*)names[i], len);
+      dbuf_append(db, names[i], len);
       n += len;
     }
   }
@@ -370,7 +370,17 @@ typedef struct {
 int regexp_flags_tostring(int, char*);
 int regexp_flags_fromstring(const char*);
 RegExp regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx);
-uint8_t* regexp_compile(const RegExp* re, JSContext* ctx);
+RegExp regexp_from_dbuf(DynBuf* dbuf, int flags);
+uint8_t* regexp_compile(RegExp re, JSContext* ctx);
+
+static inline void
+regexp_free_rt(RegExp re, JSRuntime* rt) {
+  js_free_rt(rt, re.source);
+}
+static inline void
+regexp_free(RegExp re, JSContext* ctx) {
+  regexp_free_rt(re, JS_GetRuntime(ctx));
+}
 
 JSValue js_global_get(JSContext* ctx, const char* prop);
 JSValue js_global_prototype(JSContext* ctx, const char* class_name);
@@ -475,16 +485,16 @@ InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
 const uint8_t* input_buffer_get(InputBuffer* in, size_t* lenp);
-int input_buffer_getc(InputBuffer* in, size_t* lenp);
+int input_buffer_getc(InputBuffer* in);
 const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
 int input_buffer_peekc(InputBuffer*, size_t* lenp);
 
 static inline BOOL
-js_input_buffer_eof(InputBuffer* in) {
+input_buffer_eof(const InputBuffer* in) {
   return in->pos == in->size;
 }
 static inline size_t
-js_input_buffer_remain(InputBuffer* in) {
+input_buffer_remain(const InputBuffer* in) {
   return in->size - in->pos;
 }
 

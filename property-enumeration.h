@@ -169,7 +169,7 @@ property_enumeration_next(PropertyEnumeration* it) {
 }
 
 static inline PropertyEnumeration*
-property_enumeration_push(vector* vec, JSContext* ctx, JSValue object, int flags) {
+property_enumeration_push(Vector* vec, JSContext* ctx, JSValue object, int flags) {
   PropertyEnumeration* it;
 
   if(!JS_IsObject(object)) {
@@ -185,7 +185,7 @@ property_enumeration_push(vector* vec, JSContext* ctx, JSValue object, int flags
 }
 
 static inline PropertyEnumeration*
-property_enumeration_pop(vector* vec, JSContext* ctx) {
+property_enumeration_pop(Vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
   assert(!vector_empty(vec));
   it = vector_back(vec, sizeof(PropertyEnumeration));
@@ -195,7 +195,7 @@ property_enumeration_pop(vector* vec, JSContext* ctx) {
 }
 
 static inline PropertyEnumeration*
-property_enumeration_enter(vector* vec, JSContext* ctx, int flags) {
+property_enumeration_enter(Vector* vec, JSContext* ctx, int flags) {
   PropertyEnumeration* it;
   JSValue value;
 
@@ -207,7 +207,7 @@ property_enumeration_enter(vector* vec, JSContext* ctx, int flags) {
 }
 
 static inline void
-property_enumeration_dumpall(vector* vec, JSContext* ctx, DynBuf* out) {
+property_enumeration_dumpall(Vector* vec, JSContext* ctx, DynBuf* out) {
   size_t i, n = vector_size(vec, sizeof(PropertyEnumeration));
   dbuf_printf(out, "(%zu) [", n);
   for(i = 0; i < n; i++) {
@@ -218,7 +218,7 @@ property_enumeration_dumpall(vector* vec, JSContext* ctx, DynBuf* out) {
 }
 
 static inline JSValue
-property_enumeration_path(vector* vec, JSContext* ctx) {
+property_enumeration_path(Vector* vec, JSContext* ctx) {
   JSValue ret;
   PropertyEnumeration* it;
   size_t i = 0;
@@ -231,7 +231,7 @@ property_enumeration_path(vector* vec, JSContext* ctx) {
 }
 
 static inline void
-property_enumeration_pathstr(vector* vec, JSContext* ctx, DynBuf* buf) {
+property_enumeration_pathstr(Vector* vec, JSContext* ctx, DynBuf* buf) {
   PropertyEnumeration* it;
   size_t i = 0;
   JSValue ret;
@@ -249,7 +249,7 @@ property_enumeration_pathstr(vector* vec, JSContext* ctx, DynBuf* buf) {
 }
 
 static inline JSValue
-property_enumeration_pathstr_value(vector* vec, JSContext* ctx) {
+property_enumeration_pathstr_value(Vector* vec, JSContext* ctx) {
   DynBuf dbuf;
   JSValue ret;
   js_dbuf_init(ctx, &dbuf);
@@ -261,12 +261,12 @@ property_enumeration_pathstr_value(vector* vec, JSContext* ctx) {
 }
 
 /*static void
-property_enumeration_pointer(vector* vec, JSContext* ctx, struct Pointer* ptr) {
+property_enumeration_pointer(Vector* vec, JSContext* ctx, struct Pointer* ptr) {
   pointer_fromarray(ptr, ctx, property_enumeration_path(vec,ctx));
 }*/
 
 static inline int
-property_enumeration_insideof(vector* vec, JSValueConst val) {
+property_enumeration_insideof(Vector* vec, JSValueConst val) {
   PropertyEnumeration* it;
   void* obj = JS_VALUE_GET_OBJ(val);
   vector_foreach_t(vec, it) {
@@ -278,7 +278,7 @@ property_enumeration_insideof(vector* vec, JSValueConst val) {
 }
 
 static inline PropertyEnumeration*
-property_enumeration_recurse(vector* vec, JSContext* ctx) {
+property_enumeration_recurse(Vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
   JSValue value = JS_UNDEFINED;
   int32_t type;
@@ -309,12 +309,12 @@ property_enumeration_recurse(vector* vec, JSContext* ctx) {
 }
 
 static inline int32_t
-property_enumeration_level(const PropertyEnumeration* it, const vector* vec) {
+property_enumeration_level(const PropertyEnumeration* it, const Vector* vec) {
   return it - (const PropertyEnumeration*)vec->data;
 }
 
 static inline void
-property_enumeration_free(vector* vec, JSRuntime* rt) {
+property_enumeration_free(Vector* vec, JSRuntime* rt) {
   PropertyEnumeration *it, *end;
 
   it = vector_begin(vec);
@@ -326,7 +326,7 @@ property_enumeration_free(vector* vec, JSRuntime* rt) {
 
 static inline int32_t
 property_enumeration_depth(JSContext* ctx, JSValueConst object) {
-  vector vec = VECTOR(ctx);
+  Vector vec = VECTOR(ctx);
   int32_t depth, max_depth = 0;
   PropertyEnumeration *it, *end;
   JSValue root = JS_DupValue(ctx, object);

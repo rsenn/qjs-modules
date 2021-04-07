@@ -27,7 +27,7 @@ typedef struct {
 typedef struct {
   char* set;
   size_t len;
-  vector chars;
+  Vector chars;
 } CharsetPredicate;
 
 typedef struct {
@@ -111,7 +111,7 @@ predicate_charset(const char* str, size_t len) {
   Predicate ret = PREDICATE_INIT(PREDICATE_CHARSET);
   ret.charset.set = (char*)str;
   ret.charset.len = len;
-  memset(&ret.charset.chars, 0, sizeof(vector));
+  memset(&ret.charset.chars, 0, sizeof(Vector));
   return ret;
 }
 

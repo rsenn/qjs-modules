@@ -503,7 +503,7 @@ path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* ou
   }
 
   i = path_skip_separator(s1, n1, 0);
-  dbuf_put(out, (const uint8_t*)s1 + i, n1 - i);
+  dbuf_append(out, s1 + i, n1 - i);
 
   if(out->size == 0)
     dbuf_putc(out, '.');

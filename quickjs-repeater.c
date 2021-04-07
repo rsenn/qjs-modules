@@ -111,12 +111,16 @@ static JSClassDef js_repeater_class = {
     .finalizer = js_repeater_finalizer,
 };
 
-static const JSCFunctionListEntry js_repeater_proto_funcs[] = {JS_ITERATOR_NEXT_DEF("next", 0, js_repeater_next, 0),
-                                                               JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Repeater", JS_PROP_C_W_E)};
+static const JSCFunctionListEntry js_repeater_proto_funcs[] = {
+    JS_ITERATOR_NEXT_DEF("next", 0, js_repeater_next, 0),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Repeater", JS_PROP_C_W_E),
+};
 
-static const JSCFunctionListEntry js_repeater_static_funcs[] = {JS_CFUNC_MAGIC_DEF("race", 1, js_repeater_funcs, STATIC_RACE),
-                                                                JS_CFUNC_MAGIC_DEF("merge", 1, js_repeater_funcs, STATIC_MERGE),
-                                                                JS_CFUNC_MAGIC_DEF("zip", 1, js_repeater_funcs, STATIC_ZIP)};
+static const JSCFunctionListEntry js_repeater_static_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("race", 1, js_repeater_funcs, STATIC_RACE),
+    JS_CFUNC_MAGIC_DEF("merge", 1, js_repeater_funcs, STATIC_MERGE),
+    JS_CFUNC_MAGIC_DEF("zip", 1, js_repeater_funcs, STATIC_ZIP),
+};
 
 static int
 js_repeater_init(JSContext* ctx, JSModuleDef* m) {

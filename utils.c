@@ -146,7 +146,7 @@ dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value) {
   const char* str;
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
-  dbuf_put(db, (const uint8_t*)str, len);
+  dbuf_append(db, str, len);
   JS_FreeCString(ctx, str);
 }
 
@@ -261,11 +261,24 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
   return re;
 }
 
+RegExp
+regexp_from_dbuf(DynBuf* dbuf, int flags) {
+  RegExp re = {(char*)dbuf->buf, dbuf->size, flags};
+  dbuf->buf = 0;
+  dbuf->allocated_size = 0;
+  dbuf->size = 0;
+  return re;
+}
+
 uint8_t*
-regexp_compile(const RegExp* re, JSContext* ctx) {
+regexp_compile(RegExp re, JSContext* ctx) {
   char error_msg[64];
   int len = 0;
-  return lre_compile(&len, error_msg, sizeof(error_msg), re->source, re->len, re->flags, ctx);
+  uint8_t* bytecode;
+  if(!(bytecode = lre_compile(&len, error_msg, sizeof(error_msg), re.source, re.len, re.flags, ctx)))
+    JS_ThrowInternalError(ctx, "Error compiling regex /%.*s/: %s", (int)re.len, re.source, error_msg);
+
+  return bytecode;
 }
 
 InputBuffer
@@ -317,13 +330,11 @@ input_buffer_peek(InputBuffer* in, size_t* lenp) {
 }
 
 int
-input_buffer_getc(InputBuffer* in, size_t* lenp) {
+input_buffer_getc(InputBuffer* in) {
   size_t n;
   int ret;
-  if(lenp == 0)
-    lenp = &n;
-  ret = input_buffer_peekc(in, lenp);
-  in->pos += *lenp;
+  ret = input_buffer_peekc(in, &n);
+  in->pos += n;
   return ret;
 }
 
@@ -995,7 +1006,7 @@ js_value_print(JSContext* ctx, JSValueConst value, DynBuf* dbuf) {
   const char* str;
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
-  dbuf_put(dbuf, (const uint8_t*)str, len);
+  dbuf_append(dbuf, str, len);
   JS_FreeCString(ctx, str);
 }
 

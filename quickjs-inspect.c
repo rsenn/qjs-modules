@@ -220,7 +220,7 @@ inspect_screen_width(void) {
 }
 
 static int
-js_object_getpropertynames(JSContext* ctx, union vector* propenum_tab, JSValueConst obj, int flags) {
+js_object_getpropertynames(JSContext* ctx, union Vector* propenum_tab, JSValueConst obj, int flags) {
   int ret;
   JSPropertyEnum* tmp_tab;
   uint32_t tmp_len;
@@ -580,7 +580,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
     case JS_TAG_OBJECT: {
       BOOL is_array = 0, is_typedarray = 0, is_function = 0;
       uint32_t pos, len, limit;
-      vector propenum_tab;
+      Vector propenum_tab;
       const char* s;
       compact = FALSE;
 
@@ -816,7 +816,9 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   return ret;
 }
 
-static const JSCFunctionListEntry js_inspect_funcs[] = {JS_CFUNC_DEF("inspect", 1, js_inspect)};
+static const JSCFunctionListEntry js_inspect_funcs[] = {
+    JS_CFUNC_DEF("inspect", 1, js_inspect),
+};
 
 static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {
