@@ -37,6 +37,7 @@ void lexer_init(Lexer* lex, int mode, JSContext* ctx);
 void lexer_set_input(Lexer* lex, InputBuffer input, char* filename);
 int lexer_add_rule(Lexer* lex, char* name, char* expr);
 LexerRule* lexer_find_rule(Lexer* lex, const char* name, size_t namelen);
+LexerRule* lexer_get_rule(Lexer* lex, int id);
 BOOL lexer_compile_rules(Lexer* lex, JSContext* ctx);
 int lexer_next(Lexer* lex, JSContext* ctx);
 void lexer_dump(Lexer* lex, DynBuf* dbuf);

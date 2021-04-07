@@ -236,6 +236,27 @@ js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
 }
 
 static JSValue
+js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  Token* tok;
+  const char* hint;
+  JSValue ret;
+
+  if(!(tok = js_token_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  hint = JS_ToCString(ctx, argv[0]);
+
+  if(!strcmp(hint, "string"))
+    ret = js_token_tostring(ctx, this_val, argc, argv);
+  else
+    ret = JS_NewInt32(ctx, tok->id);
+
+  JS_FreeCString(ctx, hint);
+
+  return ret;
+}
+
+static JSValue
 js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Token* tok;
   DynBuf dbuf;
@@ -341,6 +362,7 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("type", js_token_get, NULL, TOKEN_PROP_TYPE),
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CFUNC_DEF("toString", 0, js_token_tostring),
+    JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
     JS_CFUNC_DEF("inspect", 0, js_token_inspect),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
 };
@@ -360,6 +382,7 @@ enum lexer_methods {
   LEXER_METHOD_IGNORE,
   LEXER_METHOD_GET_RANGE,
   LEXER_METHOD_CURRENT_LINE,
+  LEXER_METHOD_TOKEN_CLASS,
   /*  LEXER_METHOD_ACCEPT,
     LEXER_METHOD_ACCEPT_RUN,
     LEXER_METHOD_BACKUP,
@@ -648,6 +671,21 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       break;
     }
 
+    case LEXER_METHOD_TOKEN_CLASS: {
+      Token* tok;
+      LexerRule* rule;
+      int32_t id = -1;
+
+      if((tok = JS_GetOpaque(argv[0], js_token_class_id)))
+        id = tok->id;
+      else
+        JS_ToInt32(ctx, &id, argv[0]);
+
+      if((rule = lexer_get_rule(lex, id)))
+        ret = JS_NewString(ctx, rule->name);
+      break;
+    }
+
     case LEXER_METHOD_ERROR: {
       SyntaxError error;
 
@@ -780,7 +818,7 @@ js_lexer_next(
         loc.column + 1,
         "^");
   } else if(id != LEXER_EOF) {
-    ret = JS_GetException(ctx);
+    ret = JS_EXCEPTION;
   }
 
   *pdone = id < 0;
@@ -811,6 +849,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("start", js_lexer_get, js_lexer_set, LEXER_PROP_START),
     JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, LEXER_PROP_LOC),
     JS_CFUNC_MAGIC_DEF("currentLine", 0, js_lexer_method, LEXER_METHOD_CURRENT_LINE),
+    JS_CFUNC_MAGIC_DEF("tokenClass", 1, js_lexer_method, LEXER_METHOD_TOKEN_CLASS),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_PROP_EOF),
     /* JS_CGETSET_MAGIC_DEF("stateFn", js_lexer_get, js_lexer_set, LEXER_PROP_STATEFN),
      JS_CGETSET_MAGIC_DEF("filename", js_lexer_get, js_lexer_set, LEXER_PROP_FILENAME),*/

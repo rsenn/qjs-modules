@@ -34,9 +34,12 @@ lexer_expand_rule(Lexer* lex, LexerRule* rule, DynBuf* db) {
 
   for(p = rule->expr; *p; p += len) {
     if(*p == '{') {
-      LexerRule* subst;
+      LexerRule* subst = 0;
       len = str_chr(p + 1, '}');
-      subst = lexer_find_rule(lex, p + 1, len);
+
+      if(len)
+        subst = lexer_find_rule(lex, p + 1, len);
+      
       len += 2;
       if(subst) {
         lexer_expand_rule(lex, subst, db);
@@ -118,6 +121,11 @@ lexer_find_rule(Lexer* lex, const char* name, size_t namelen) {
       return rule;
   }
   return 0;
+}
+
+LexerRule*
+lexer_get_rule(Lexer* lex, int id) {
+  return vector_at(&lex->rules, sizeof(LexerRule), id);
 }
 
 BOOL

@@ -148,24 +148,30 @@ function main(...args) {
   console.log('lexer:', lexer);
 
   lexer.addRule('IDENTIFIER', '[A-Za-z_]\\w*');
+  lexer.addRule('DOUBLE_STRING_LITERAL', '"(\\\\.|[^"\\n])*"');
+  lexer.addRule('SINGLE_STRING_LITERAL', "'(\\\\.|[^'\\n])*'");
+  lexer.addRule('SEMI_COLON', ';');
+ lexer.addRule('OPEN_BRACE', '{');
+ //  lexer.addRule('CLOSE_BRACE', '}');
   lexer.addRule('ASSIGN_OP', '>>=|<<=|\\+=|\\-=|\\*=|/=|%=|&=|\\^=|\\|=');
   lexer.addRule('ARITH_OP', '\\+\\+|--|\\+|-|/|\\*|%');
   lexer.addRule('LOGIC_OP', '==|!=|>|<|>=|<=|&&|\\|\\||!|<=>');
   lexer.addRule('BIT_OP', '&|\\||\\^|<<|>>|~');
-  lexer.addRule( "WHITESPACE", "[ \\t\\v\\r\\n\\f]+");
-
+lexer.addRule('LINE_TERMINATORS', '[\r\n\u2028\u2029]');
+  lexer.addRule('WHITESPACE', '{LINE_TERMINATORS}+|[ \\t\\v\\f]+');
+  
   try {
     let tok;
 
     for(let tok of lexer) {
-      console.log('tok:', tok);
+      console.log('tok:', +tok, lexer.tokenClass(tok));
       //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
     }
   } catch(err) {
     console.log('err:', err.message);
     /*console.log(lexer.currentLine());
     console.log('^'.padStart(lexer.loc.column));*/
-      }
+  }
   return;
 
   std.gc();
