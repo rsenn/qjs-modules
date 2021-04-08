@@ -228,8 +228,9 @@ function main(...args) {
   lexer.addRule('BIT_OP', '&|\\||\\^|<<|>>|~');
   lexer.addRule('LINE_TERMINATORS', '[\r\n\u2028\u2029]');
 */
-
+  lexer.addRule('preprocessor', "#[^\n]*");
   lexer.addRule('keyword',
+
     'instanceof|debugger|function|continue|finally|extends|default|static|export|switch|import|typeof|return|delete|async|yield|await|throw|super|const|class|catch|while|break|from|enum|case|with|void|this|else|let|try|var|new|for|as|of|do|in|if'
   );
   lexer.addRule('comment', '//[^\n]*|/\\*([^\\*]|[\\r\\n]|(\\*+([^/\\*]|[\\n\\r])))*\\*+/');

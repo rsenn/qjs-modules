@@ -337,7 +337,7 @@ static inline int32_t
 property_enumeration_depth(JSContext* ctx, JSValueConst object) {
   Vector vec = VECTOR(ctx);
   int32_t depth, max_depth = 0;
-  PropertyEnumeration *it;
+  PropertyEnumeration* it;
   JSValue root = JS_DupValue(ctx, object);
 
   if(JS_IsObject(root)) {

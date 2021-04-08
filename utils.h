@@ -501,6 +501,7 @@ typedef struct InputBuffer {
   size_t size;
   size_t pos;
   void (*free)(JSContext*, const char*);
+
 } InputBuffer;
 
 static inline void
@@ -661,10 +662,13 @@ char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
 
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
-void js_set_propertystr_strlen(
+void js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str);
+void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);
+void js_set_propertystr_stringlen(
     JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
-const char* js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
+const char*
+js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
 char*
 js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);

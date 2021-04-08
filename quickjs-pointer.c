@@ -22,7 +22,7 @@ enum pointer_getters { PROP_LENGTH = 0, PROP_PATH };
 
 JSValue
 js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
-  Pointer *ptr;
+  Pointer* ptr;
   JSValue obj = JS_UNDEFINED;
   if(!(ptr = js_mallocz(ctx, sizeof(Pointer))))
     return JS_EXCEPTION;

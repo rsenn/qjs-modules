@@ -314,11 +314,11 @@ js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 
   ret = JS_NewObject(ctx);
 
-  js_set_propertystr_strlen(ctx, ret, "root", str, rootlen);
-  js_set_propertystr_strlen(ctx, ret, "dir", str, dirlen);
-  js_set_propertystr_strlen(ctx, ret, "base", base, strlen(base));
-  js_set_propertystr_strlen(ctx, ret, "ext", ext, strlen(ext));
-  js_set_propertystr_strlen(ctx, ret, "name", base, strlen(base) - strlen(ext));
+  js_set_propertystr_stringlen(ctx, ret, "root", str, rootlen);
+  js_set_propertystr_stringlen(ctx, ret, "dir", str, dirlen);
+  js_set_propertystr_stringlen(ctx, ret, "base", base, strlen(base));
+  js_set_propertystr_stringlen(ctx, ret, "ext", ext, strlen(ext));
+  js_set_propertystr_stringlen(ctx, ret, "name", base, strlen(base) - strlen(ext));
 
   JS_FreeCString(ctx, str);
 

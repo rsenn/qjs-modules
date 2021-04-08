@@ -34,7 +34,7 @@ js_repeater_stop(JSContext* ctx,
 
 JSValue
 js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
-  Repeater *rpt;
+  Repeater* rpt;
   JSValue obj = JS_UNDEFINED;
   if(!(rpt = js_mallocz(ctx, sizeof(Repeater))))
     return JS_EXCEPTION;

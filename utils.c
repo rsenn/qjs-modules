@@ -756,7 +756,21 @@ js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop) {
 }
 
 void
-js_set_propertystr_strlen(
+js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str) {
+  JSValue value;
+  value = JS_NewString(ctx, str);
+  JS_SetPropertyUint32(ctx, obj, i, value);
+}
+
+void
+js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str) {
+  JSValue value;
+  value = JS_NewString(ctx, str);
+  JS_SetPropertyStr(ctx, obj, prop, value);
+}
+
+void
+js_set_propertystr_stringlen(
     JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
   JSValue value;
   value = JS_NewStringLen(ctx, str, len);

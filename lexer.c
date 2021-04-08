@@ -28,7 +28,7 @@ location_free(Location* loc, JSRuntime* rt) {
 }
 
 static BOOL
-lexer_expand_rule(Lexer* lex, LexerRule* rule, DynBuf* db) {
+lexer_rule_expand(Lexer* lex, LexerRule* rule, DynBuf* db) {
   char* p;
   size_t len;
 
@@ -37,7 +37,7 @@ lexer_expand_rule(Lexer* lex, LexerRule* rule, DynBuf* db) {
       if(p[len = str_chr(p, '}')]) {
         LexerRule* subst;
         if((subst = lexer_find_definition(lex, p + 1, len - 1))) {
-          lexer_expand_rule(lex, subst, db);
+          lexer_rule_expand(lex, subst, db);
           p += len;
           continue;
         }
@@ -56,7 +56,7 @@ lexer_expand_rule(Lexer* lex, LexerRule* rule, DynBuf* db) {
 }
 
 static BOOL
-lexer_compile_rule(Lexer* lex, LexerRule* rule, JSContext* ctx) {
+lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
   DynBuf dbuf;
   BOOL ret;
 
@@ -65,7 +65,7 @@ lexer_compile_rule(Lexer* lex, LexerRule* rule, JSContext* ctx) {
 
   js_dbuf_init(ctx, &dbuf);
 
-  if(lexer_expand_rule(lex, rule, &dbuf)) {
+  if(lexer_rule_expand(lex, rule, &dbuf)) {
     RegExp re = regexp_from_dbuf(&dbuf, LRE_FLAG_GLOBAL | LRE_FLAG_STICKY);
 
     printf("rule %s /%s/\n", rule->name, re.source);
@@ -82,10 +82,10 @@ lexer_compile_rule(Lexer* lex, LexerRule* rule, JSContext* ctx) {
 }
 
 static int
-lexer_match_rule(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx) {
+lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx) {
 
   if(rule->bytecode == 0) {
-    if(!lexer_compile_rule(lex, rule, ctx))
+    if(!lexer_rule_compile(lex, rule, ctx))
       return LEXER_ERROR_COMPILE;
   }
 
@@ -109,14 +109,14 @@ lexer_set_input(Lexer* lex, InputBuffer input, char* filename) {
 
 void
 lexer_define(Lexer* lex, char* name, char* expr) {
-  LexerRule definition = {name, expr, 0};
+  LexerRule definition = {name, expr, MASK_ALL};
   vector_size(&lex->defines, sizeof(LexerRule));
   vector_push(&lex->defines, definition);
 }
 
 int
-lexer_add_rule(Lexer* lex, char* name, char* expr) {
-  LexerRule rule = {name, expr, 0};
+lexer_rule_add(Lexer* lex, char* name, char* expr) {
+  LexerRule rule = {name, expr, MASK_ALL};
   int ret = vector_size(&lex->rules, sizeof(LexerRule));
   vector_push(&lex->rules, rule);
   return ret;
@@ -132,24 +132,19 @@ lexer_find_definition(Lexer* lex, const char* name, size_t namelen) {
   return 0;
 }
 
-LexerRule*
-lexer_get_rule(Lexer* lex, int id) {
-  return vector_at(&lex->rules, sizeof(LexerRule), id);
-}
-
 BOOL
 lexer_compile_rules(Lexer* lex, JSContext* ctx) {
   LexerRule* rule;
 
   vector_foreach_t(&lex->rules, rule) {
-    if(!lexer_compile_rule(lex, rule, ctx))
+    if(!lexer_rule_compile(lex, rule, ctx))
       return FALSE;
   }
   return TRUE;
 }
 
 int
-lexer_next(Lexer* lex, JSContext* ctx) {
+lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
   LexerRule* rule;
   uint8_t* capture[512];
   int i = 0, ret = LEXER_ERROR_NOMATCH;
@@ -163,7 +158,10 @@ lexer_next(Lexer* lex, JSContext* ctx) {
   vector_foreach_t(&lex->rules, rule) {
     int result;
 
-    result = lexer_match_rule(lex, rule, capture, ctx);
+
+    if((state & rule->mask) == 0) continue;
+
+    result = lexer_rule_match(lex, rule, capture, ctx);
 
     if(result == LEXER_ERROR_COMPILE) {
       ret = result;
@@ -211,7 +209,7 @@ lexer_next(Lexer* lex, JSContext* ctx) {
 }
 
 static void
-lexer_free_rule(LexerRule* rule, JSContext* ctx) {
+lexer_rule_free(LexerRule* rule, JSContext* ctx) {
   js_free(ctx, rule->name);
   js_free(ctx, rule->expr);
 
@@ -238,7 +236,7 @@ lexer_free(Lexer* lex, JSContext* ctx) {
 
   input_buffer_free(&lex->input, ctx);
 
-  vector_foreach_t(&lex->rules, rule) { lexer_free_rule(rule, ctx); }
+  vector_foreach_t(&lex->rules, rule) { lexer_rule_free(rule, ctx); }
 
   vector_free(&lex->rules);
 }

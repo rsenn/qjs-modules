@@ -154,7 +154,7 @@ xml_write_string(JSContext* ctx, const char* textStr, size_t textLen, DynBuf* db
 
 static void
 xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
-  const char *textStr;
+  const char* textStr;
   size_t textLen;
   textStr = JS_ToCStringLen(ctx, &textLen, text);
   xml_write_indent(db, depth);
@@ -165,10 +165,10 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
 
 static void
 xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
-   JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
+  JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
   JSValue children = JS_GetPropertyStr(ctx, element, "children");
   size_t tagLen;
-  const char* tagName = js_get_propertystr_cstringlen(ctx,  element, "tagName", &tagLen);
+  const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
   BOOL isComment = !strncmp(tagName, "!--", 3);
 
   xml_write_indent(db, depth);
@@ -197,7 +197,7 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   dbuf_putc(db, '\n');
 
   JS_FreeCString(ctx, tagName);
-   JS_FreeValue(ctx, attributes);
+  JS_FreeValue(ctx, attributes);
   JS_FreeValue(ctx, children);
 }
 
@@ -207,7 +207,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 
   if(JS_IsArray(ctx, childNodes)) {
     size_t tagLen;
-      const char* tagName = js_get_propertystr_cstringlen(ctx,  element, "tagName", &tagLen);
+    const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
 
     xml_write_indent(db, depth);
 

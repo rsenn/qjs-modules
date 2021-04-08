@@ -308,7 +308,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
   }
   return ret;
-} 
+}
 
 static void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
@@ -342,13 +342,14 @@ static const JSCFunctionListEntry js_token_static_funcs[] = {
 
 static JSValue lexer_proto, lexer_ctor;
 
-enum lexer_methods {
+enum {
   LEXER_METHOD_PEEKC = 0,
   LEXER_METHOD_GETC,
   LEXER_METHOD_SKIPC,
-   LEXER_METHOD_GET_RANGE,
+  LEXER_METHOD_GET_RANGE,
   LEXER_METHOD_CURRENT_LINE,
-  LEXER_METHOD_TOKEN_CLASS, 
+  LEXER_METHOD_TOKEN_CLASS,
+  LEXER_METHOD_GET_RULE,
   LEXER_METHOD_SKIPUNTIL,
   LEXER_METHOD_ERROR
 };
@@ -358,7 +359,7 @@ enum lexer_getters {
   LEXER_PROP_POS,
   LEXER_PROP_START,
   LEXER_PROP_EOF,
-   LEXER_PROP_FILENAME,
+  LEXER_PROP_FILENAME,
   LEXER_PROP_LOC
 };
 
@@ -374,10 +375,10 @@ lexer_token(Lexer* lex, int id, Location loc, JSContext* ctx) {
   }
   return tok;
 }
- 
+
 JSValue
 js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
-  Lexer *lex;
+  Lexer* lex;
   JSValue obj = JS_UNDEFINED;
   if(!(lex = js_mallocz(ctx, sizeof(Lexer))))
     return JS_EXCEPTION;
@@ -426,6 +427,7 @@ static JSValue
 js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Lexer* lex;
   char *name, *expr;
+  int64_t mask = -1;
 
   if(!(lex = js_lexer_data(ctx, this_val)))
     return JS_EXCEPTION;
@@ -433,10 +435,19 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
   name = js_tostring(ctx, argv[0]);
   expr = js_tostring(ctx, argv[1]);
 
-  if(magic)
-    return JS_NewInt32(ctx, lexer_add_rule(lex, name, expr));
+  if(argc > 2)
+    JS_ToInt64(ctx, &mask, argv[2]);
 
-  lexer_define(lex, name, expr);
+  if(magic) {
+    int index = lexer_rule_add(lex, name, expr);
+    LexerRule* rule = lexer_rule_at(lex, index);
+
+    rule->mask = mask;
+
+    return JS_NewInt32(ctx, index);
+  } else {
+    lexer_define(lex, name, expr);
+  }
 
   return JS_UNDEFINED;
 }
@@ -568,8 +579,25 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       else
         JS_ToInt32(ctx, &id, argv[0]);
 
-      if((rule = lexer_get_rule(lex, id)))
+      if((rule = lexer_rule_at(lex, id)))
         ret = JS_NewString(ctx, rule->name);
+      break;
+    }
+
+    case LEXER_METHOD_GET_RULE: {
+      LexerRule* rule;
+      int32_t id = -1;
+
+      JS_ToInt32(ctx, &id, argv[0]);
+
+      if((rule = lexer_rule_at(lex, id))) {
+        ret = JS_NewArray(ctx);
+        js_set_propertyint_string(ctx, ret, 0, rule->name);
+        js_set_propertyint_string(ctx, ret, 1, rule->expr);
+        JS_SetPropertyUint32(ctx, ret, 2, JS_NewInt64(ctx, rule->mask));
+
+        ret = JS_NewString(ctx, rule->name);
+      }
       break;
     }
 
@@ -656,10 +684,10 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       break;
     }
 
-    /*case LEXER_PROP_START: {
-      js_value_to_size(ctx, &lex->start, value);
-      break;
-    }*/
+      /*case LEXER_PROP_START: {
+        js_value_to_size(ctx, &lex->start, value);
+        break;
+      }*/
 
     case LEXER_PROP_FILENAME: {
       if(lex->loc.file)
@@ -678,27 +706,33 @@ js_lexer_next(
   Lexer* lex;
   int id;
   Location loc;
+  int64_t state = MASK_ALL;
 
   if(!(lex = js_lexer_data(ctx, this_val)))
     return JS_EXCEPTION;
 
   loc = lex->loc;
 
-  if((id = lexer_next(lex, ctx)) >= 0) {
+  if(argc > 0)
+    JS_ToInt64(ctx, &state, argv[0]);
+
+  if((id = lexer_next(lex, state, ctx)) >= 0) {
     Token* tok = lexer_token(lex, id, loc, ctx);
 
     ret = js_token_wrap(ctx, tok);
   } else if(id == LEXER_ERROR_NOMATCH) {
-    ret = JS_ThrowInternalError(
-        ctx,
-        "%s:%" PRIu32 ":%" PRIu32 ": No matching token at:\n%.*s\n%*s",
-        loc.file,
-        loc.line + 1,
-        loc.column + 1,
-        (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') + loc.column),
-        &lex->input.data[lex->start - loc.column],
-        loc.column + 1,
-        "^");
+    ret = JS_ThrowInternalError(ctx,
+                                "%s:%" PRIu32 ":%" PRIu32 ": No matching token at:\n%.*s\n%*s",
+                                loc.file,
+                                loc.line + 1,
+                                loc.column + 1,
+                                (int)(byte_chr((const char*)&lex->input.data[lex->start],
+                                               lex->input.size - lex->start,
+                                               '\n') +
+                                      loc.column),
+                                &lex->input.data[lex->start - loc.column],
+                                loc.column + 1,
+                                "^");
   } else if(id != LEXER_EOF) {
     ret = JS_EXCEPTION;
   }
@@ -713,7 +747,7 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
 
   if((lex = JS_GetOpaque(val, js_lexer_class_id)))
-     lexer_free(lex, 0);
+    lexer_free(lex, 0);
   // JS_FreeValueRT(rt, val);
 }
 
@@ -726,13 +760,14 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, 0),
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_PROP_SIZE),
     JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_PROP_POS),
-    //JS_CGETSET_MAGIC_DEF("start", js_lexer_get, js_lexer_set, LEXER_PROP_START),
+    // JS_CGETSET_MAGIC_DEF("start", js_lexer_get, js_lexer_set, LEXER_PROP_START),
     JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, LEXER_PROP_LOC),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_PROP_EOF),
     JS_CFUNC_MAGIC_DEF("currentLine", 0, js_lexer_method, LEXER_METHOD_CURRENT_LINE),
     JS_CFUNC_MAGIC_DEF("tokenClass", 1, js_lexer_method, LEXER_METHOD_TOKEN_CLASS),
-       JS_CFUNC_MAGIC_DEF("define", 2, js_lexer_add_rule, 0),
+    JS_CFUNC_MAGIC_DEF("define", 2, js_lexer_add_rule, 0),
     JS_CFUNC_MAGIC_DEF("addRule", 2, js_lexer_add_rule, 1),
+    JS_CFUNC_MAGIC_DEF("getRule", 1, js_lexer_method, LEXER_METHOD_GET_RULE),
     JS_CFUNC_DEF("inspect", 0, js_lexer_inspect),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_lexer_iterator),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_C_W_E),
