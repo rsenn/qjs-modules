@@ -47,18 +47,18 @@ character_classes_init(int c[256]) {
   c['-'] = HYPHEN;
 }
 
-#define pop()                                                                                      \
-  (vector_size(&st, sizeof(OutputValue)) >= 2                                                      \
-       ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue)))       \
+#define pop()                                                                                                          \
+  (vector_size(&st, sizeof(OutputValue)) >= 2                                                                          \
+       ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue)))                           \
        : 0)
 #define next() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
-#define skip(cond)                                                                                 \
-  do {                                                                                             \
-    c = *ptr;                                                                                      \
-    if(!(cond))                                                                                    \
-      break;                                                                                       \
-    if(++ptr >= end)                                                                               \
-      done = TRUE;                                                                                 \
+#define skip(cond)                                                                                                     \
+  do {                                                                                                                 \
+    c = *ptr;                                                                                                          \
+    if(!(cond))                                                                                                        \
+      break;                                                                                                           \
+    if(++ptr >= end)                                                                                                   \
+      done = TRUE;                                                                                                     \
   } while(!done)
 
 #define skip_until(cond) skip(!(cond))
@@ -74,12 +74,7 @@ xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t al
 }
 
 static void
-xml_set_attr_bytes(JSContext* ctx,
-                   JSValueConst obj,
-                   const char* attr,
-                   size_t alen,
-                   const uint8_t* str,
-                   size_t slen) {
+xml_set_attr_bytes(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, const uint8_t* str, size_t slen) {
   JSValue value;
   value = JS_NewStringLen(ctx, (const char*)str, slen);
   xml_set_attr_value(ctx, obj, attr, alen, value);
@@ -191,9 +186,7 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   }
 
   dbuf_putstr(db,
-              (JS_IsObject(children) || isComment)
-                  ? ">"
-                  : tagName[0] == '?' ? "?>" : tagName[0] == '!' ? "!>" : " />");
+              (JS_IsObject(children) || isComment) ? ">" : tagName[0] == '?' ? "?>" : tagName[0] == '!' ? "!>" : " />");
   dbuf_putc(db, '\n');
 
   JS_FreeCString(ctx, tagName);
@@ -316,14 +309,12 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
       if(namelen && (char_is(name[0], (QUESTION | EXCLAM))))
         self_closing = TRUE;
 
-      if(namelen >= 3 && char_is(start[0], EXCLAM) && char_is(start[1], HYPHEN) &&
-         char_is(start[2], HYPHEN)) {
+      if(namelen >= 3 && char_is(start[0], EXCLAM) && char_is(start[1], HYPHEN) && char_is(start[2], HYPHEN)) {
         /*  next();
           next();*/
         while(!done) {
           next();
-          if(end - ptr >= 3 && char_is(ptr[0], HYPHEN) && char_is(ptr[1], HYPHEN) &&
-             char_is(ptr[2], CLOSE)) {
+          if(end - ptr >= 3 && char_is(ptr[0], HYPHEN) && char_is(ptr[1], HYPHEN) && char_is(ptr[2], CLOSE)) {
             ptr += 2;
             break;
           }
@@ -433,8 +424,8 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
       xml_write_text(ctx, value, &output, depth);
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, &output)));
-  while(output.size > 0 && (output.buf[output.size - 1] == '\0' ||
-                            byte_chr("\r\n\t ", 4, output.buf[output.size - 1]) < 4))
+  while(output.size > 0 &&
+        (output.buf[output.size - 1] == '\0' || byte_chr("\r\n\t ", 4, output.buf[output.size - 1]) < 4))
     output.size--;
   dbuf_putc(&output, '\0');
 

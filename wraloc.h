@@ -232,8 +232,7 @@ _get_stack_trace(int full) {
     }
     if(ret == 0) {
       if(!full) {
-        if(!(stack_trace =
-                 _str_jointo(stack_trace, ((j > nptrs - 4) ? ("") : (" < ")), &stack_trace))) {
+        if(!(stack_trace = _str_jointo(stack_trace, ((j > nptrs - 4) ? ("") : (" < ")), &stack_trace))) {
           return (NULL);
         }
       } else {

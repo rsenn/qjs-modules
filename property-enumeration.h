@@ -123,10 +123,7 @@ property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
 }
 
 static inline int
-property_enumeration_predicate(PropertyEnumeration* it,
-                               JSContext* ctx,
-                               JSValueConst fn,
-                               JSValueConst this_arg) {
+property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueConst fn, JSValueConst this_arg) {
   BOOL result;
   JSValue ret;
   JSValueConst argv[3];
@@ -151,10 +148,7 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
   size_t i;
   const char* s;
   dbuf_putstr(out, "{ obj: 0x");
-  dbuf_printf(out,
-              "%ld",
-              (int64_t)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj)
-                                                                   : 0));
+  dbuf_printf(out, "%ld", (int64_t)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : 0));
   dbuf_putstr(out, ", idx: ");
   dbuf_printf(out, "%u", it->idx);
   dbuf_putstr(out, ", len: ");
@@ -297,8 +291,7 @@ property_enumeration_recurse(Vector* vec, JSContext* ctx) {
       type = JS_VALUE_GET_TAG(value);
       JS_FreeValue(ctx, value);
       if(type == JS_TAG_OBJECT) {
-        if((it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS)) &&
-           property_enumeration_setpos(it, 0))
+        if((it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS)) && property_enumeration_setpos(it, 0))
           break;
       } else {
         if(property_enumeration_setpos(it, it->idx + 1))

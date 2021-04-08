@@ -15,21 +15,11 @@ typedef union {
 } Repeater;
 
 static JSValue
-js_repeater_push(JSContext* ctx,
-                 JSValueConst this_val,
-                 int argc,
-                 JSValueConst* argv,
-                 int magic,
-                 JSValue* func_data) {
+js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
 }
 
 static JSValue
-js_repeater_stop(JSContext* ctx,
-                 JSValueConst this_val,
-                 int argc,
-                 JSValueConst* argv,
-                 int magic,
-                 JSValue* func_data) {
+js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
 }
 
 JSValue
@@ -76,8 +66,7 @@ js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 }
 
 static JSValue
-js_repeater_next(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
+js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
   Repeater* rpt;
 
   if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
@@ -140,20 +129,13 @@ js_repeater_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_repeater_class_id, &js_repeater_class);
 
   repeater_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             repeater_proto,
-                             js_repeater_proto_funcs,
-                             countof(js_repeater_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, repeater_proto, js_repeater_proto_funcs, countof(js_repeater_proto_funcs));
   JS_SetClassProto(ctx, js_repeater_class_id, repeater_proto);
 
-  repeater_ctor =
-      JS_NewCFunction2(ctx, js_repeater_constructor, "Repeater", 1, JS_CFUNC_constructor, 0);
+  repeater_ctor = JS_NewCFunction2(ctx, js_repeater_constructor, "Repeater", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, repeater_ctor, repeater_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             repeater_ctor,
-                             js_repeater_static_funcs,
-                             countof(js_repeater_static_funcs));
+  JS_SetPropertyFunctionList(ctx, repeater_ctor, js_repeater_static_funcs, countof(js_repeater_static_funcs));
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Repeater", repeater_ctor);

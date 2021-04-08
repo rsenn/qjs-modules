@@ -109,8 +109,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       if(ret && argc > 1) {
 
         if(JS_IsFunction(ctx, argv[1])) {
-          JSValue args[] = {predicate_regexp_capture(capture, capture_count, input.data, ctx),
-                            argv[0]};
+          JSValue args[] = {predicate_regexp_capture(capture, capture_count, input.data, ctx), argv[0]};
 
           JS_Call(ctx, argv[1], JS_NULL, 2, args);
 
@@ -236,9 +235,7 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
         if(*p < 128)
           dbuf_printf(dbuf, "'%c'", (char)*p);
         else
-          dbuf_printf(dbuf,
-                      *p > 0xffffff ? "'\\u%08x'" : *p > 0xffff ? "\\u%06x" : "'\\u%04x'",
-                      *p);
+          dbuf_printf(dbuf, *p > 0xffffff ? "'\\u%08x'" : *p > 0xffff ? "\\u%06x" : "'\\u%04x'", *p);
         i++;
       }
       dbuf_printf(dbuf, " (len = %zu) ]", pr->charset.len);
@@ -270,8 +267,7 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
       for(i = 0; i < pr->boolean.npredicates; i++) {
         if(i > 0)
-          dbuf_putstr(dbuf,
-                      pr->id == PREDICATE_XOR ? " ^ " : pr->id == PREDICATE_AND ? " && " : " || ");
+          dbuf_putstr(dbuf, pr->id == PREDICATE_XOR ? " ^ " : pr->id == PREDICATE_AND ? " && " : " || ");
 
         dbuf_put_value(dbuf, ctx, pr->boolean.predicates[i]);
       }
@@ -441,8 +437,7 @@ predicate_dup(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_AND:
     case PREDICATE_XOR: {
       ret->boolean.npredicates = pred->boolean.npredicates;
-      ret->boolean.predicates =
-          js_values_dup(ctx, pred->boolean.npredicates, pred->boolean.predicates);
+      ret->boolean.predicates = js_values_dup(ctx, pred->boolean.npredicates, pred->boolean.predicates);
       break;
     }
 

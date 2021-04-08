@@ -61,8 +61,7 @@ void path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf*
 int path_exists(const char* p);
 const char* path_extname(const char* p);
 int path_find(const char* path, const char* name, DynBuf* db);
-int path_fnmatch(
-    const char* pattern, unsigned int plen, const char* string, unsigned int slen, int flags);
+int path_fnmatch(const char* pattern, unsigned int plen, const char* string, unsigned int slen, int flags);
 char* path_getcwd(DynBuf* db);
 char* path_gethome(int uid);
 int path_is_absolute(const char* x, size_t n);

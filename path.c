@@ -223,8 +223,7 @@ path_find(const char* path, const char* name, DynBuf* db) {
 }
 
 int
-path_fnmatch(
-    const char* pattern, unsigned int plen, const char* string, unsigned int slen, int flags) {
+path_fnmatch(const char* pattern, unsigned int plen, const char* string, unsigned int slen, int flags) {
 start:
   if(slen == 0) {
     while(plen && *pattern == '*') {
@@ -294,8 +293,7 @@ start:
         goto match;
     } break;
     case '*': {
-      if((*string == '/' && (flags & PATH_FNM_PATHNAME)) ||
-         path_fnmatch(pattern, plen, string + 1, slen - 1, flags)) {
+      if((*string == '/' && (flags & PATH_FNM_PATHNAME)) || path_fnmatch(pattern, plen, string + 1, slen - 1, flags)) {
         pattern++;
         plen--;
         goto start;
