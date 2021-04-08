@@ -2,7 +2,17 @@
 #include "cutils.h"
 #include "vector.h"
 #include "libregexp.h"
-
+#include "quickjs-internal.h"
+ char*
+js_dup_cstring(JSContext* ctx, const char* str) {
+  JSString* p;
+  if(!str)
+    return;
+  /* purposely removing constness */
+  p = (JSString*)(void*)(str - offsetof(JSString, u));
+  JS_DupValue(ctx, JS_MKPTR(JS_TAG_STRING, p));
+  return str;
+}
 size_t
 ansi_length(const char* str, size_t len) {
   size_t i, n = 0, p;
@@ -254,7 +264,7 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
     JS_FreeCString(ctx, flagstr);
   } else {
     re.source = js_tostringlen(ctx, &re.len, argv[0]);
-    if(argc > 1) {
+    if(argc > 1 && JS_IsString(argv[1])) {
       re.flags = regexp_flags_fromstring((flagstr = JS_ToCString(ctx, argv[1])));
       JS_FreeCString(ctx, flagstr);
     }

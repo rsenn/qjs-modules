@@ -127,7 +127,7 @@ js_syntaxerror_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     return JS_EXCEPTION;
 
   js_dbuf_init(ctx, &db);
-  location_dump(&err->loc, &db);
+  location_print(&err->loc, &db);
 
   if(err->message) {
     dbuf_putc(&db, ' ');
@@ -266,7 +266,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
               "',\n  offset: %" PRIu32 ",\n  byte_length: %" PRIu32 ",\n  loc: ",
               tok->offset,
               tok->byte_length);
-  location_dump(&tok->loc, &dbuf);
+  location_print(&tok->loc, &dbuf);
   dbuf_putstr(&dbuf, "\n}");
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
@@ -426,27 +426,28 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
 static JSValue
 js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Lexer* lex;
-  char *name, *expr;
+  char* name;
   int64_t mask = -1;
+  RegExp expr;
 
   if(!(lex = js_lexer_data(ctx, this_val)))
     return JS_EXCEPTION;
 
   name = js_tostring(ctx, argv[0]);
-  expr = js_tostring(ctx, argv[1]);
+  expr = regexp_from_argv(argc - 1, argv + 1, ctx);
 
-  if(argc > 2)
-    JS_ToInt64(ctx, &mask, argv[2]);
+  if(JS_IsNumber(argv[argc-1]))
+    JS_ToInt64(ctx, &mask, argv[argc-1]);
 
   if(magic) {
-    int index = lexer_rule_add(lex, name, expr);
+    int index = lexer_rule_add(lex, name, expr.source);
     LexerRule* rule = lexer_rule_at(lex, index);
 
     rule->mask = mask;
 
     return JS_NewInt32(ctx, index);
   } else {
-    lexer_define(lex, name, expr);
+    lexer_define(lex, name, expr.source);
   }
 
   return JS_UNDEFINED;

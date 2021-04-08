@@ -11,7 +11,7 @@ typedef struct {
   uint32_t column;
 } Location;
 
-void location_dump(const Location* loc, DynBuf* dbuf);
+void location_print(const Location* loc, DynBuf* dbuf);
 Location location_dup(const Location* loc, JSContext* ctx);
 void location_free(Location* loc, JSRuntime* rt);
 
@@ -37,7 +37,7 @@ typedef struct {
   Vector rules;
 } Lexer;
 
-void location_dump(const Location* loc, DynBuf* dbuf);
+void location_print(const Location* loc, DynBuf* dbuf);
 Location location_dup(const Location* loc, JSContext* ctx);
 void location_free(Location* loc, JSRuntime* rt);
 

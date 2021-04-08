@@ -2,7 +2,7 @@
 #include "libregexp.h"
 
 void
-location_dump(const Location* loc, DynBuf* dbuf) {
+location_print(const Location* loc, DynBuf* dbuf) {
   if(loc->file) {
     dbuf_putstr(dbuf, loc->file);
     dbuf_putc(dbuf, ':');
@@ -158,8 +158,8 @@ lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
   vector_foreach_t(&lex->rules, rule) {
     int result;
 
-
-    if((state & rule->mask) == 0) continue;
+    if((state & rule->mask) == 0)
+      continue;
 
     result = lexer_rule_match(lex, rule, capture, ctx);
 
@@ -223,7 +223,7 @@ lexer_dump(Lexer* lex, DynBuf* dbuf) {
   dbuf_putstr(dbuf, ",\n  input: ");
   input_buffer_dump(&lex->input, dbuf);
   dbuf_putstr(dbuf, ",\n  location: ");
-  location_dump(&lex->loc, dbuf);
+  location_print(&lex->loc, dbuf);
   dbuf_putstr(dbuf, "\n}");
 }
 

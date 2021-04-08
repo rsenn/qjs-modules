@@ -544,6 +544,8 @@ js_tostring(JSContext* ctx, JSValueConst value) {
   return js_tostringlen(ctx, 0, value);
 }
 
+char* js_dup_cstring(JSContext* ctx, const char* str);
+
 JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value);
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
 JSValue js_value_from_char(JSContext* ctx, int c);
