@@ -36,7 +36,7 @@ iteration_method(Iteration* it, JSContext* ctx, JSValueConst object, JSAtom atom
     iterator = JS_Call(ctx, method, object, 0, 0);
     ret = iteration_init_free(it, ctx, iterator);
   }
-  JS_FreeValue(ctx, method);
+  js_value_free(ctx, method);
   return ret;
 }
 
@@ -63,11 +63,11 @@ iteration_method_symbol(Iteration* it, JSContext* ctx, JSValueConst object, cons
 static inline void
 iteration_reset(Iteration* it, JSRuntime* rt) {
   if(JS_IsObject(it->iter))
-    JS_FreeValueRT(rt, it->iter);
+    js_value_free_rt(rt, it->iter);
   if(JS_IsObject(it->next))
-    JS_FreeValueRT(rt, it->next);
+    js_value_free_rt(rt, it->next);
   if(JS_IsObject(it->data))
-    JS_FreeValueRT(rt, it->data);
+    js_value_free_rt(rt, it->data);
   it->data = it->iter = it->next = JS_UNDEFINED;
   it->done = FALSE;
 }
@@ -76,7 +76,7 @@ static inline BOOL
 iteration_next(Iteration* it, JSContext* ctx) {
   assert(!it->done);
   if(JS_IsObject(it->data))
-    JS_FreeValue(ctx, it->data);
+    js_value_free(ctx, it->data);
   it->data = JS_Call(ctx, it->next, it->iter, 0, 0);
   it->done = js_get_propertystr_bool(ctx, it->data, "done");
   return it->done;
@@ -94,7 +94,7 @@ static inline const char*
 iteration_valuestr(Iteration* it, JSContext* ctx) {
   JSValue value = iteration_value(it, ctx);
   const char* str = JS_ToCString(ctx, value);
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return str;
 }
 

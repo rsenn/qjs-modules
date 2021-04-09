@@ -499,6 +499,7 @@ js_value_has_ref_count(JSValue v) {
 }
 
 void js_value_free(JSContext* ctx, JSValue v);
+void js_value_free_rt(JSRuntime* rt, JSValue v);
 
 BOOL js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
 void js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
@@ -537,6 +538,9 @@ input_buffer_remain(const InputBuffer* in) {
   return in->size - in->pos;
 }
 
+char* js_cstring_dup(JSContext* ctx, const char* str);
+void js_cstring_free(JSContext* ctx, const char* ptr);
+
 static inline char*
 js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
   size_t len;
@@ -546,7 +550,7 @@ js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
     ret = js_strndup(ctx, cstr, len);
     if(lenp)
       *lenp = len;
-    JS_FreeCString(ctx, cstr);
+    js_cstring_free(ctx, cstr);
   }
   return ret;
 }
@@ -556,22 +560,20 @@ js_tostring(JSContext* ctx, JSValueConst value) {
   return js_tostringlen(ctx, 0, value);
 }
 
-char* js_dup_cstring(JSContext* ctx, const char* str);
-
 JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value);
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
 JSValue js_value_from_char(JSContext* ctx, int c);
 
-/*#define js_value_free(ctx, value)                                                                                      \
+/*#define js_value_free(ctx, value) \
   do {                                                                                                                 \
-    JS_FreeValue((ctx), (value));                                                                                      \
-    (value) = JS_UNDEFINED;                                                                                            \
-  } while(0);*/
-#define js_value_free_rt(ctx, value)                                                                                   \
-  do {                                                                                                                 \
-    JS_FreeValueRT((ctx), (value));                                                                                    \
+    js_value_free((ctx), (value)); \
     (value) = JS_UNDEFINED;                                                                                            \
   } while(0);
+#define js_value_free_rt(ctx, value)                                                                                   \
+  do {                                                                                                                 \
+    js_value_free_rt((ctx), (value));                                                                                  \
+    (value) = JS_UNDEFINED;                                                                                            \
+  } while(0);*/
 
 #define js_object_tmpmark_set(value)                                                                                   \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
@@ -585,7 +587,7 @@ JSValue js_value_from_char(JSContext* ctx, int c);
 #define js_runtime_exception_clear(rt)                                                                                 \
   do {                                                                                                                 \
     if(!JS_IsNull(js_runtime_exception_get(rt)))                                                                       \
-      JS_FreeValueRT((rt), js_runtime_exception_get(rt));                                                              \
+      js_value_free_rt((rt), js_runtime_exception_get(rt));                                                            \
     js_runtime_exception_set(rt, JS_NULL);                                                                             \
   } while(0)
 
@@ -624,7 +626,7 @@ js_symbol_to_cstring(JSContext* ctx, JSValueConst sym) {
   JSValue value = js_symbol_to_string(ctx, sym);
   const char* str;
   str = JS_ToCString(ctx, value);
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return str;
 }
 

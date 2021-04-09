@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
 import * as deep from 'deep.so';
-import * as xml from 'xml.so';
+//import * as xml from 'xml.so';
 import Console from './console.js';
 
 ('use strict');
@@ -32,12 +32,12 @@ const inspectOptions = {
 function main(...args) {
   console = new Console(inspectOptions);
 
-  let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
+  /*  let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
 
   let result = xml.read(data);
-  console.log('result:', inspect(result, inspectOptions));
+  console.log('result:', inspect(result, inspectOptions));*/
 
- /* let found = deep.find(result, n => typeof n == 'object' && n != null && n.tagName == 'elements');
+  /* let found = deep.find(result, n => typeof n == 'object' && n != null && n.tagName == 'elements');
 
   console.log('found:', inspect(found, inspectOptions));
 
@@ -64,7 +64,7 @@ function main(...args) {
   let path = deep.pathOf(result, node);
   console.log('pathOf():', path);
 */
-/*  let obj1 = {
+  let obj1 = {
     a: [undefined, 1, 1234n],
     b: 2,
     c: 3,
@@ -79,13 +79,13 @@ function main(...args) {
     z: [NaN, true, false, Infinity, null]
   };
 
-  for(let o of [obj1,obj2]) {
+  for(let o of [obj1, obj2]) {
     let it = deep.iterate(o);
     console.log('it:', it);
-    for(let [value,path] of it) console.log('item:', {value,path});
-  }*/
- // console.log('equals():', deep.equals(obj1, obj2));
-/*
+    for(let [value, path] of it) console.log('item:', { value, path });
+  }
+  // console.log('equals():', deep.equals(obj1, obj2));
+  /*
   console.log('deep.RETURN_PATH:', deep.RETURN_PATH);
   console.log('deep.RETURN_VALUE:', deep.RETURN_VALUE);
   console.log('deep.RETURN_VALUE_PATH:', deep.RETURN_VALUE_PATH);
@@ -94,7 +94,7 @@ function main(...args) {
     deep.find(obj1, n => n == Infinity, deep.RETURN_PATH_VALUE)
   );*/
 
- /* deep.forEach(obj2, (n, p) => console.log('deep.forEach', { n, p }));
+  /* deep.forEach(obj2, (n, p) => console.log('deep.forEach', { n, p }));
   console.log('obj1:', obj1);
   console.log('clone():', deep.clone(result));
   console.log('select():',
@@ -105,7 +105,7 @@ function main(...args) {
     )
   );*/
 
- let it = deep.iterate(result,
+  /* let it = deep.iterate(result,
     (n, p) => typeof n == 'object' && n && typeof n.tagName == 'string'
   );
 
@@ -116,16 +116,16 @@ function main(...args) {
 
     console.log('value:', value);
     console.log('path:', path);
-  }
-  std.gc();
+  }*/
+  //std.gc();
 }
 
 try {
   main(...scriptArgs.slice(1));
 } catch(error) {
-     console.log('FAIL:', error.message);
+  console.log('FAIL:', error.message);
   std.exit(1);
 } finally {
-     console.log('SUCCESS');
- std.exit(0);
+  console.log('SUCCESS');
+  std.exit(0);
 }

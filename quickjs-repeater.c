@@ -41,7 +41,7 @@ js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   return obj;
 fail:
   js_free(ctx, rpt);
-  JS_FreeValue(ctx, obj);
+  js_value_free(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -97,13 +97,13 @@ js_repeater_finalizer(JSRuntime* rt, JSValue val) {
 
   if((rpt = JS_GetOpaque(val, js_repeater_class_id))) {
 
-    JS_FreeValueRT(rt, rpt->promise);
-    JS_FreeValueRT(rt, rpt->push);
-    JS_FreeValueRT(rt, rpt->stop);
+    js_value_free_rt(rt, rpt->promise);
+    js_value_free_rt(rt, rpt->push);
+    js_value_free_rt(rt, rpt->stop);
 
     js_free_rt(rt, rpt);
   }
-  // JS_FreeValueRT(rt, val);
+  // js_value_free_rt(rt, val);
 }
 
 static JSClassDef js_repeater_class = {

@@ -2,7 +2,8 @@ project(quickjs-modules C)
 
 cmake_minimum_required(VERSION 3.2)
 
-set(QUICKJS_MODULES deep lexer mmap path pointer predicate repeater inspect tree-walker xml)
+set(QUICKJS_MODULES child-process deep lexer mmap path pointer predicate repeater inspect
+                    tree-walker xml)
 
 set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
 set(QUICKJS_H ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h)
@@ -11,7 +12,7 @@ if(EXISTS "${QUICKJS_H}")
 
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
-
+set(child_process_SOURCES utils.c utils.h)
 set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.h utils.c
                  utils.h pointer.h virtual-properties.h)
 set(deep_LIBRARIES quickjs-pointer)

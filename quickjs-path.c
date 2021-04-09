@@ -195,9 +195,9 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   }
 
   if(a)
-    JS_FreeCString(ctx, a);
+    js_cstring_free(ctx, a);
   if(b)
-    JS_FreeCString(ctx, b);
+    js_cstring_free(ctx, b);
 
   return ret;
 }
@@ -270,9 +270,9 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   }
 
   if(a)
-    JS_FreeCString(ctx, a);
+    js_cstring_free(ctx, a);
   if(b)
-    JS_FreeCString(ctx, b);
+    js_cstring_free(ctx, b);
 
   return dbuf_tostring_free(&db, ctx);
 }
@@ -289,7 +289,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   for(i = 0; i < argc; i++) {
     str = JS_ToCStringLen(ctx, &len, argv[i]);
     path_append(str, len, &db);
-    JS_FreeCString(ctx, str);
+    js_cstring_free(ctx, str);
   }
   if(db.size) {
     ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
@@ -319,7 +319,7 @@ js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   js_set_propertystr_stringlen(ctx, ret, "ext", ext, strlen(ext));
   js_set_propertystr_stringlen(ctx, ret, "name", base, strlen(base) - strlen(ext));
 
-  JS_FreeCString(ctx, str);
+  js_cstring_free(ctx, str);
 
   return ret;
 }
@@ -335,10 +335,10 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 
   if((dir = js_get_propertystr_cstring(ctx, obj, "dir"))) {
     dbuf_putstr(&db, dir);
-    JS_FreeCString(ctx, dir);
+    js_cstring_free(ctx, dir);
   } else if((root = js_get_propertystr_cstring(ctx, obj, "root"))) {
     dbuf_putstr(&db, root);
-    JS_FreeCString(ctx, root);
+    js_cstring_free(ctx, root);
   }
 
   if(db.size)
@@ -346,13 +346,13 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 
   if((base = js_get_propertystr_cstring(ctx, obj, "base"))) {
     dbuf_putstr(&db, base);
-    JS_FreeCString(ctx, base);
+    js_cstring_free(ctx, base);
   } else if((name = js_get_propertystr_cstring(ctx, obj, "name"))) {
     dbuf_putstr(&db, name);
-    JS_FreeCString(ctx, name);
+    js_cstring_free(ctx, name);
     if((ext = js_get_propertystr_cstring(ctx, obj, "ext"))) {
       dbuf_putstr(&db, ext);
-      JS_FreeCString(ctx, ext);
+      js_cstring_free(ctx, ext);
     }
   }
 
@@ -385,7 +385,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       memcpy(db.buf, str, len);
       db.buf[len] = PATHSEP_C;
     }
-    JS_FreeCString(ctx, str);
+    js_cstring_free(ctx, str);
   }
 
   if(!path_is_absolute((const char*)db.buf, db.size)) {

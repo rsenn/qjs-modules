@@ -4,17 +4,6 @@
 #include "libregexp.h"
 #include "quickjs-internal.h"
 
-char*
-js_dup_cstring(JSContext* ctx, const char* str) {
-  JSString* p;
-  if(!str)
-    return 0;
-  /* purposely removing constness */
-  p = (JSString*)(void*)(str - offsetof(JSString, u));
-  JS_DupValue(ctx, JS_MKPTR(JS_TAG_STRING, p));
-  return (char*)str;
-}
-
 size_t
 ansi_length(const char* str, size_t len) {
   size_t i, n = 0, p;
@@ -159,7 +148,7 @@ dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value) {
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
   dbuf_append(db, str, len);
-  JS_FreeCString(ctx, str);
+  js_cstring_free(ctx, str);
 }
 
 int
@@ -262,12 +251,12 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
   if(js_is_regexp(ctx, argv[0])) {
     re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
     re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
-    JS_FreeCString(ctx, flagstr);
+    js_cstring_free(ctx, flagstr);
   } else {
     re.source = js_tostringlen(ctx, &re.len, argv[0]);
     if(argc > 1 && JS_IsString(argv[1])) {
       re.flags = regexp_flags_fromstring((flagstr = JS_ToCString(ctx, argv[1])));
-      JS_FreeCString(ctx, flagstr);
+      js_cstring_free(ctx, flagstr);
     }
   }
   return re;
@@ -299,7 +288,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 
   if(JS_IsString(value)) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
-    ret.free = JS_FreeCString;
+    ret.free = js_cstring_free;
   } else if(js_is_arraybuffer(ctx, value)) {
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, value);
   } else {
@@ -368,7 +357,7 @@ js_array_length(JSContext* ctx, JSValueConst array) {
   if(JS_IsArray(ctx, array) || js_is_typedarray(ctx, array)) {
     JSValue length = JS_GetPropertyStr(ctx, array, "length");
     JS_ToInt64(ctx, &len, length);
-    JS_FreeValue(ctx, length);
+    js_value_free(ctx, length);
   }
   return len;
 }
@@ -383,8 +372,8 @@ js_array_to_strvec(JSContext* ctx, JSValueConst array) {
     const char* str;
     str = JS_ToCStringLen(ctx, &len, item);
     ret[i] = js_strndup(ctx, str, len);
-    JS_FreeCString(ctx, str);
-    JS_FreeValue(ctx, item);
+    js_cstring_free(ctx, str);
+    js_value_free(ctx, item);
   }
   return ret;
 }
@@ -427,7 +416,7 @@ js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom) {
   const char* s;
   v = JS_AtomToValue(ctx, atom);
   s = JS_ToCStringLen(ctx, len, v);
-  JS_FreeValue(ctx, v);
+  js_value_free(ctx, v);
   return s;
 }
 
@@ -448,7 +437,7 @@ js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
   *i = INT64_MAX;
   value = JS_AtomToValue(ctx, atom);
   ret = !JS_ToInt64(ctx, i, value);
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return ret;
 }
 
@@ -470,27 +459,27 @@ js_function_name(JSContext* ctx, JSValueConst value) {
   atom = JS_NewAtom(ctx, "indexOf");
   args[0] = JS_NewString(ctx, "function ");
   idx = JS_Invoke(ctx, str, atom, 1, args);
-  JS_FreeValue(ctx, args[0]);
+  js_value_free(ctx, args[0]);
   JS_ToInt32(ctx, &i, idx);
   if(i != 0) {
     JS_FreeAtom(ctx, atom);
-    JS_FreeValue(ctx, str);
+    js_value_free(ctx, str);
     return 0;
   }
   args[0] = JS_NewString(ctx, "(");
   idx = JS_Invoke(ctx, str, atom, 1, args);
-  JS_FreeValue(ctx, args[0]);
+  js_value_free(ctx, args[0]);
   JS_FreeAtom(ctx, atom);
   atom = JS_NewAtom(ctx, "substring");
   args[0] = JS_NewUint32(ctx, 9);
   args[1] = idx;
   name = JS_Invoke(ctx, str, atom, 2, args);
-  JS_FreeValue(ctx, args[0]);
-  JS_FreeValue(ctx, args[1]);
-  JS_FreeValue(ctx, str);
+  js_value_free(ctx, args[0]);
+  js_value_free(ctx, args[1]);
+  js_value_free(ctx, str);
   JS_FreeAtom(ctx, atom);
   s = JS_ToCString(ctx, name);
-  JS_FreeValue(ctx, name);
+  js_value_free(ctx, name);
   return s;
 }
 
@@ -499,7 +488,7 @@ js_global_get(JSContext* ctx, const char* prop) {
   JSValue global_obj, ret;
   global_obj = JS_GetGlobalObject(ctx);
   ret = JS_GetPropertyStr(ctx, global_obj, prop);
-  JS_FreeValue(ctx, global_obj);
+  js_value_free(ctx, global_obj);
   return ret;
 }
 
@@ -508,7 +497,7 @@ js_global_prototype(JSContext* ctx, const char* class_name) {
   JSValue ctor, ret;
   ctor = js_global_get(ctx, class_name);
   ret = JS_GetPropertyStr(ctx, ctor, "prototype");
-  JS_FreeValue(ctx, ctor);
+  js_value_free(ctx, ctor);
   return ret;
 }
 
@@ -530,10 +519,10 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
       ret = 1;
     else if(!JS_IsArray(ctx, value) && (str = js_object_tostring(ctx, value))) {
       ret = strstr(str, "ArrayBuffer]") != 0;
-      JS_FreeCString(ctx, str);
+      js_cstring_free(ctx, str);
     }
 
-    JS_FreeValue(ctx, ctor);
+    js_value_free(ctx, ctor);
   }
   if(name)
     js_free(ctx, (void*)name);
@@ -568,11 +557,11 @@ js_is_typedarray(JSContext* ctx, JSValueConst value) {
   buf = JS_GetTypedArrayBuffer(ctx, value, &byte_offset, &byte_length, &bytes_per_element);
   if(JS_IsException(buf)) {
     // js_runtime_exception_clear(JS_GetRuntime(ctx));
-    JS_FreeValue(ctx, JS_GetException(ctx));
+    js_value_free(ctx, JS_GetException(ctx));
     return 0;
   }
   ret = js_is_arraybuffer(ctx, buf);
-  JS_FreeValue(ctx, buf);
+  js_value_free(ctx, buf);
   return ret;
 }
 
@@ -600,7 +589,7 @@ js_iterator_new(JSContext* ctx, JSValueConst obj) {
   JSValue fn, ret;
   fn = js_iterator_method(ctx, obj);
   ret = JS_Call(ctx, fn, obj, 0, 0);
-  JS_FreeValue(ctx, fn);
+  js_value_free(ctx, fn);
   return ret;
 }
 
@@ -610,12 +599,12 @@ js_iterator_next(JSContext* ctx, JSValueConst obj) {
   IteratorValue ret;
   fn = JS_GetPropertyStr(ctx, obj, "next");
   result = JS_Call(ctx, fn, obj, 0, 0);
-  JS_FreeValue(ctx, fn);
+  js_value_free(ctx, fn);
   done = JS_GetPropertyStr(ctx, result, "done");
   ret.value = JS_GetPropertyStr(ctx, result, "value");
-  JS_FreeValue(ctx, result);
+  js_value_free(ctx, result);
   ret.done = JS_ToBool(ctx, done);
-  JS_FreeValue(ctx, done);
+  js_value_free(ctx, done);
   return ret;
 }
 
@@ -635,13 +624,13 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   }
   if(!name) {
     if(str)
-      JS_FreeCString(ctx, str);
+      js_cstring_free(ctx, str);
 
     if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
       name = js_strdup(ctx, str);
   }
   if(str)
-    JS_FreeCString(ctx, str);
+    js_cstring_free(ctx, str);
 
   return name;
 }
@@ -678,7 +667,7 @@ js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
   const char* str;
   str = js_object_tostring(ctx, value);
   ret = strcmp(str, cmp) == 0;
-  JS_FreeCString(ctx, str);
+  js_cstring_free(ctx, str);
   return ret;
 }
 
@@ -690,7 +679,7 @@ js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
   if(!JS_IsException(value))
     ret = JS_ToBool(ctx, value);
 
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return ret;
 }
 
@@ -703,7 +692,7 @@ js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop) {
     return 0;
 
   ret = JS_ToCString(ctx, value);
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return ret;
 }
 
@@ -716,7 +705,7 @@ js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop
     return 0;
 
   ret = JS_ToCStringLen(ctx, lenp, value);
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return ret;
 }
 
@@ -729,7 +718,7 @@ js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop) {
     return 0;
 
   ret = js_tostring(ctx, value);
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return ret;
 }
 
@@ -742,7 +731,7 @@ js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop,
     return 0;
 
   ret = js_tostringlen(ctx, lenp, value);
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return ret;
 }
 
@@ -754,7 +743,7 @@ js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop) {
   if(JS_IsUndefined(value) || JS_IsException(value))
     return 0;
   JS_ToInt32(ctx, &ret, value);
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return ret;
 }
 
@@ -783,7 +772,7 @@ const char*
 js_object_tostring(JSContext* ctx, JSValueConst value) {
   JSValue str = js_value_tostring(ctx, "Object", value);
   const char* s = JS_ToCString(ctx, str);
-  JS_FreeValue(ctx, str);
+  js_value_free(ctx, str);
   return s;
 }
 int
@@ -794,16 +783,16 @@ js_propenum_cmp(const void* a, const void* b, void* ptr) {
   stra = JS_AtomToCString(ctx, ((const JSPropertyEnum*)a)->atom);
   strb = JS_AtomToCString(ctx, ((const JSPropertyEnum*)b)->atom);
   ret = strverscmp(stra, strb);
-  JS_FreeCString(ctx, stra);
-  JS_FreeCString(ctx, strb);
+  js_cstring_free(ctx, stra);
+  js_cstring_free(ctx, strb);
   return ret;
 }
 
 void
 js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
-  JS_FreeValue(ctx, desc->value);
-  JS_FreeValue(ctx, desc->getter);
-  JS_FreeValue(ctx, desc->setter);
+  js_value_free(ctx, desc->value);
+  js_value_free(ctx, desc->getter);
+  js_value_free(ctx, desc->setter);
 }
 
 void
@@ -837,7 +826,7 @@ JSAtom
 js_symbol_atom(JSContext* ctx, const char* name) {
   JSValue sym = js_symbol_get_static(ctx, name);
   JSAtom ret = JS_ValueToAtom(ctx, sym);
-  JS_FreeValue(ctx, sym);
+  js_value_free(ctx, sym);
   return ret;
 }
 
@@ -846,7 +835,7 @@ js_symbol_get_static(JSContext* ctx, const char* name) {
   JSValue symbol_ctor, ret;
   symbol_ctor = js_symbol_ctor(ctx);
   ret = JS_GetPropertyStr(ctx, symbol_ctor, name);
-  JS_FreeValue(ctx, symbol_ctor);
+  js_value_free(ctx, symbol_ctor);
   return ret;
 }
 
@@ -861,14 +850,14 @@ js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values) {
 void
 js_values_free(JSContext* ctx, int nvalues, JSValueConst* values) {
   int i;
-  for(i = 0; i < nvalues; i++) JS_FreeValue(ctx, values[i]);
+  for(i = 0; i < nvalues; i++) js_value_free(ctx, values[i]);
   js_free(ctx, values);
 }
 */
 void
 js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values) {
   int i;
-  for(i = 0; i < nvalues; i++) JS_FreeValueRT(rt, values[i]);
+  for(i = 0; i < nvalues; i++) js_value_free_rt(rt, values[i]);
   js_free_rt(rt, values);
 }
 
@@ -884,8 +873,11 @@ void
 js_value_free(JSContext* ctx, JSValue v) {
   if(js_value_has_ref_count(v)) {
     JSRefCountHeader* p = (JSRefCountHeader*)js_value_get_ptr(v);
-    if(p->ref_count > 0)
-      p->ref_count--;
+    if(p->ref_count > 0) {
+      --p->ref_count;
+      if(p->ref_count == 0)
+        __JS_FreeValue(ctx, v);
+    }
   }
 }
 
@@ -910,7 +902,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
      const char* str;
      str = JS_ToCStringLen(ctx, &len, value);
      ret = JS_NewStringLen(ctx, str, len);
-     JS_FreeCString(ctx, str);
+     js_cstring_free(ctx, str);
      break;
      }*/
     case TYPE_INT: {
@@ -972,7 +964,7 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   if(JS_IsObject(value)) {
     const char* str = js_object_tostring(ctx, value);
     dbuf_putstr(db, str);
-    JS_FreeCString(ctx, str);
+    js_cstring_free(ctx, str);
   } else {
     int is_string = JS_IsString(value);
 
@@ -982,7 +974,7 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
     str = JS_ToCStringLen(ctx, &len, value);
     dbuf_append(db, (const uint8_t*)str, len);
 
-    JS_FreeCString(ctx, str);
+    js_cstring_free(ctx, str);
 
     if(is_string)
       dbuf_putc(db, '"');
@@ -1039,8 +1031,8 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
 
     ret = !strcmp(stra, strb);
 
-    JS_FreeCString(ctx, stra);
-    JS_FreeCString(ctx, strb);
+    js_cstring_free(ctx, stra);
+    js_cstring_free(ctx, strb);
   }
 
   return ret;
@@ -1059,7 +1051,7 @@ js_value_print(JSContext* ctx, JSValueConst value, DynBuf* dbuf) {
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
   dbuf_append(dbuf, str, len);
-  JS_FreeCString(ctx, str);
+  js_cstring_free(ctx, str);
 }
 
 JSValue
@@ -1069,10 +1061,10 @@ js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value) {
   proto = js_global_prototype(ctx, class_name);
   atom = JS_NewAtom(ctx, "toString");
   tostring = JS_GetProperty(ctx, proto, atom);
-  JS_FreeValue(ctx, proto);
+  js_value_free(ctx, proto);
   JS_FreeAtom(ctx, atom);
   str = JS_Call(ctx, tostring, value, 0, 0);
-  JS_FreeValue(ctx, tostring);
+  js_value_free(ctx, tostring);
   return str;
 }
 
@@ -1101,6 +1093,37 @@ js_value_type_flag(JSValueConst value) {
     case JS_TAG_FLOAT64: return FLAG_FLOAT64;
   }
   return -1;
+}
+
+void
+js_value_free_rt(JSRuntime* rt, JSValue v) {
+  if(js_value_has_ref_count(v)) {
+    JSRefCountHeader* p = (JSRefCountHeader*)js_value_get_ptr(v);
+    --p->ref_count;
+    if(p->ref_count == 0)
+      __JS_FreeValueRT(rt, v);
+  }
+}
+
+char*
+js_cstring_dup(JSContext* ctx, const char* str) {
+  JSString* p;
+  if(!str)
+    return 0;
+  /* purposely removing constness */
+  p = (JSString*)(void*)(str - offsetof(JSString, u));
+  JS_DupValue(ctx, JS_MKPTR(JS_TAG_STRING, p));
+  return (char*)str;
+}
+
+void
+js_cstring_free(JSContext* ctx, const char* ptr) {
+  JSString* p;
+  if(!ptr)
+    return;
+
+  p = (JSString*)(void*)(ptr - offsetof(JSString, u));
+  JS_FreeValue(ctx, JS_MKPTR(JS_TAG_STRING, p));
 }
 
 size_t

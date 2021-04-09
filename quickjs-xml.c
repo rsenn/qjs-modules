@@ -78,7 +78,7 @@ xml_set_attr_bytes(JSContext* ctx, JSValueConst obj, const char* attr, size_t al
   JSValue value;
   value = JS_NewStringLen(ctx, (const char*)str, slen);
   xml_set_attr_value(ctx, obj, attr, alen, value);
-  // JS_FreeValue(ctx, value);
+  // js_value_free(ctx, value);
 }
 
 static void
@@ -100,11 +100,11 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
       valuestr = property_enumeration_valuestr(&props, ctx);
       dbuf_putstr(db, "=\"");
       dbuf_putstr(db, valuestr);
-      JS_FreeCString(ctx, valuestr);
+      js_cstring_free(ctx, valuestr);
     }
     dbuf_putc(db, '"');
-    JS_FreeCString(ctx, keystr);
-    JS_FreeValue(ctx, value);
+    js_cstring_free(ctx, keystr);
+    js_value_free(ctx, value);
   }
 
   property_enumeration_reset(&props, JS_GetRuntime(ctx));
@@ -154,7 +154,7 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
   textStr = JS_ToCStringLen(ctx, &textLen, text);
   xml_write_indent(db, depth);
   xml_write_string(ctx, textStr, textLen, db, depth);
-  JS_FreeCString(ctx, textStr);
+  js_cstring_free(ctx, textStr);
   dbuf_putc(db, '\n');
 }
 
@@ -189,9 +189,9 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
               (JS_IsObject(children) || isComment) ? ">" : tagName[0] == '?' ? "?>" : tagName[0] == '!' ? "!>" : " />");
   dbuf_putc(db, '\n');
 
-  JS_FreeCString(ctx, tagName);
-  JS_FreeValue(ctx, attributes);
-  JS_FreeValue(ctx, children);
+  js_cstring_free(ctx, tagName);
+  js_value_free(ctx, attributes);
+  js_value_free(ctx, children);
 }
 
 static void
@@ -208,10 +208,10 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     dbuf_append(db, (const uint8_t*)tagName, tagLen);
     dbuf_putstr(db, ">");
     dbuf_putc(db, '\n');
-    JS_FreeCString(ctx, tagName);
+    js_cstring_free(ctx, tagName);
   }
 
-  JS_FreeValue(ctx, childNodes);
+  js_value_free(ctx, childNodes);
 }
 
 static PropertyEnumeration*
@@ -224,14 +224,14 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db) {
 
   if(JS_IsObject(value)) {
     children = JS_GetPropertyStr(ctx, value, "children");
-    JS_FreeValue(ctx, value);
+    js_value_free(ctx, value);
     if(!JS_IsUndefined(children)) {
       if((it = property_enumeration_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)))
         if(property_enumeration_setpos(it, 0))
           return it;
     }
   } else {
-    JS_FreeValue(ctx, value);
+    js_value_free(ctx, value);
   }
 
   for(;;) {
@@ -243,7 +243,7 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db) {
 
     value = property_enumeration_value(it, ctx);
     xml_close_element(ctx, value, db, (int32_t)vector_size(vec, sizeof(PropertyEnumeration)) - 1);
-    JS_FreeValue(ctx, value);
+    js_value_free(ctx, value);
   }
 
   return it;
@@ -422,7 +422,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
       xml_write_element(ctx, value, &output, depth);
     else if(JS_IsString(value))
       xml_write_text(ctx, value, &output, depth);
-    JS_FreeValue(ctx, value);
+    js_value_free(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, &output)));
   while(output.size > 0 &&
         (output.buf[output.size - 1] == '\0' || byte_chr("\r\n\t ", 4, output.buf[output.size - 1]) < 4))

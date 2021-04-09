@@ -33,13 +33,13 @@ js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   JS_SetOpaque(obj, ptr);
 
   if(!pointer_from(ptr, ctx, value, &js_pointer_data)) {
-    JS_FreeValue(ctx, obj);
+    js_value_free(ctx, obj);
     obj = JS_ThrowTypeError(ctx, "Pointer: argument 1 unknown type");
   }
   return obj;
 fail:
   js_free(ctx, ptr);
-  JS_FreeValue(ctx, obj);
+  js_value_free(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -142,14 +142,14 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
     case METHOD_KEYS: {
       JSValue array = js_pointer_toarray(ctx, ptr);
       JSValue iter = js_iterator_new(ctx, array);
-      JS_FreeValue(ctx, array);
+      js_value_free(ctx, array);
       return iter;
     }
 
     case METHOD_VALUES: {
       JSValue array = js_pointer_toarray(ctx, ptr);
       JSValue iter = js_iterator_new(ctx, array);
-      JS_FreeValue(ctx, array);
+      js_value_free(ctx, array);
       return iter;
     }
 
@@ -234,7 +234,7 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
     }
     js_free_rt(rt, ptr);
   }
-  // JS_FreeValueRT(rt, val);
+  // js_value_free_rt(rt, val);
 }
 
 static JSClassDef js_pointer_class = {

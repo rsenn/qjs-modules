@@ -60,7 +60,7 @@ pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index)
     dbuf_putstr(db, color ? pointer_color(s) : "");
     // if(index == i) dbuf_putstr(db, "\x1b[31m");
     dbuf_putstr(db, s);
-    JS_FreeCString(ctx, s);
+    js_cstring_free(ctx, s);
   }
   dbuf_putstr(db, color ? "\x1b[m" : "");
 }
@@ -210,7 +210,7 @@ pointer_fromstring(Pointer* ptr, JSContext* ctx, JSValueConst value) {
   const char* str;
   str = JS_ToCStringLen(ctx, &len, value);
   pointer_parse(ptr, ctx, str, len);
-  JS_FreeCString(ctx, str);
+  js_cstring_free(ctx, str);
 }
 
 void

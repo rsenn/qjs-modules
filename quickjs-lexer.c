@@ -17,7 +17,7 @@ js_location_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
   if(JS_IsString(file)) {
     js_value_print(ctx, file, dbuf);
     dbuf_putc(dbuf, ':');
-    JS_FreeValue(ctx, file);
+    js_value_free(ctx, file);
   }
   dbuf_printf(dbuf,
               "%" PRId32 ":%" PRId32,
@@ -87,7 +87,7 @@ js_syntaxerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(JS_IsException(proto))
     goto fail;
   obj = JS_NewObjectProtoClass(ctx, proto, js_syntaxerror_class_id);
-  JS_FreeValue(ctx, proto);
+  js_value_free(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
   JS_SetOpaque(obj, err);
@@ -97,7 +97,7 @@ js_syntaxerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   return obj;
 fail:
   js_free(ctx, err);
-  JS_FreeValue(ctx, obj);
+  js_value_free(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -147,7 +147,7 @@ js_syntaxerror_finalizer(JSRuntime* rt, JSValue val) {
       js_free_rt(rt, (char*)err->message);
     location_free(&err->loc, rt);
   }
-  // JS_FreeValueRT(rt, val);
+  // js_value_free_rt(rt, val);
 }
 
 static JSClassDef js_syntaxerror_class = {
@@ -206,7 +206,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if(JS_IsException(proto))
     goto fail;
   obj = JS_NewObjectProtoClass(ctx, proto, js_token_class_id);
-  JS_FreeValue(ctx, proto);
+  js_value_free(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
   JS_SetOpaque(obj, tok);
@@ -214,7 +214,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   return obj;
 fail:
   js_free(ctx, tok);
-  JS_FreeValue(ctx, obj);
+  js_value_free(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -244,7 +244,7 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   else
     ret = js_token_tostring(ctx, this_val, argc, argv);
 
-  JS_FreeCString(ctx, hint);
+  js_cstring_free(ctx, hint);
 
   return ret;
 }
@@ -312,7 +312,7 @@ js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok = JS_GetOpaque(val, js_token_class_id);
   if(tok)
     token_free(tok, rt);
-  // JS_FreeValueRT(rt, val);
+  // js_value_free_rt(rt, val);
 }
 
 static JSClassDef js_token_class = {
@@ -393,7 +393,7 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   return obj;
 fail:
   js_free(ctx, lex);
-  JS_FreeValue(ctx, obj);
+  js_value_free(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -532,12 +532,12 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
           JSValue str = JS_NewStringLen(ctx, (const char*)p, n);
           JSValue ret = JS_Call(ctx, pred, this_val, 1, &str);
           BOOL b = JS_ToBool(ctx, ret);
-          JS_FreeValue(ctx, ret);
+          js_value_free(ctx, ret);
           if(b) {
             ret = str;
             break;
           }
-          JS_FreeValue(ctx, str);
+          js_value_free(ctx, str);
           input_buffer_getc(&lex->input);
         }
       }
@@ -712,7 +712,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   } else {
     JSValue mask = JS_GetPropertyStr(ctx, this_val, "mask");
     state = js_int64_default(ctx, mask, INT64_MIN);
-    JS_FreeValue(ctx, mask);
+    js_value_free(ctx, mask);
   }
 
   if(argc > 1 && JS_IsNumber(argv[1])) {
@@ -720,7 +720,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   } else {
     JSValue mask = JS_GetPropertyStr(ctx, this_val, "skip");
     skip = js_int64_default(ctx, mask, 0);
-    JS_FreeValue(ctx, mask);
+    js_value_free(ctx, mask);
   }
 
   // printf("state = 0x%016"PRIx64", skip = 0x%016" PRIx64 "\n", state,skip);
@@ -745,8 +745,8 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 
         ret = JS_Call(ctx, handler, this_val, 2, args);
 
-        JS_FreeValue(ctx, args[0]);
-        JS_FreeValue(ctx, args[1]);
+        js_value_free(ctx, args[0]);
+        js_value_free(ctx, args[1]);
 
         if(JS_IsNumber(ret)) {
           JS_ToInt64(ctx, &newState, ret);
@@ -807,7 +807,7 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
 
   if((lex = JS_GetOpaque(val, js_lexer_class_id)))
     lexer_free(lex, 0);
-  // JS_FreeValueRT(rt, val);
+  // js_value_free_rt(rt, val);
 }
 
 static JSClassDef js_lexer_class = {.class_name = "Lexer", .finalizer = js_lexer_finalizer, .call = js_lexer_call};

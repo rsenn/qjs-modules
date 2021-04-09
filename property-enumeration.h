@@ -61,7 +61,7 @@ property_enumeration_reset(PropertyEnumeration* it, JSRuntime* rt) {
     it->tab_atom = 0;
     it->tab_atom_len = 0;
   }
-  JS_FreeValueRT(rt, it->obj);
+  js_value_free_rt(rt, it->obj);
   it->obj = JS_UNDEFINED;
 }
 
@@ -161,7 +161,7 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
     dbuf_putstr(out, i == it->idx ? "\x1b[1;31m" : "\x1b[1;30m");
     dbuf_putstr(out, s);
     dbuf_putstr(out, "\x1b[m");
-    JS_FreeCString(ctx, s);
+    js_cstring_free(ctx, s);
   }
   dbuf_putstr(out, " ] }");
 }
@@ -245,7 +245,7 @@ property_enumeration_pathstr(Vector* vec, JSContext* ctx, DynBuf* buf) {
 
     key = property_enumeration_keystr(it, ctx);
     dbuf_putstr(buf, key);
-    JS_FreeCString(ctx, key);
+    js_cstring_free(ctx, key);
   }
   dbuf_0(buf);
 }

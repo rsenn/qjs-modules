@@ -91,7 +91,7 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(JS_IsException(proto))
     goto fail;
   obj = JS_NewObjectProtoClass(ctx, proto, js_tree_walker_class_id);
-  JS_FreeValue(ctx, proto);
+  js_value_free(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
   JS_SetOpaque(obj, w);
@@ -105,7 +105,7 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   return obj;
 fail:
   js_free(ctx, w);
-  JS_FreeValue(ctx, obj);
+  js_value_free(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -134,7 +134,7 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValu
       JSValue value;
       value = property_enumeration_value(it, ctx);
       type = js_value_type(ctx, value);
-      JS_FreeValue(ctx, value);
+      js_value_free(ctx, value);
       if((mask & (1 << type)) == 0)
         continue;
     }
@@ -318,7 +318,7 @@ js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
       js_free_rt(rt, w);
     }
   }
-  // JS_FreeValueRT(rt, val);
+  // js_value_free_rt(rt, val);
 }
 
 static JSValue
@@ -339,7 +339,7 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(JS_IsException(proto))
     goto fail;
   obj = JS_NewObjectProtoClass(ctx, proto, js_tree_iterator_class_id);
-  JS_FreeValue(ctx, proto);
+  js_value_free(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
   JS_SetOpaque(obj, w);
@@ -353,7 +353,7 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   return obj;
 fail:
   js_free(ctx, w);
-  JS_FreeValue(ctx, obj);
+  js_value_free(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -399,7 +399,7 @@ js_tree_iterator_finalizer(JSRuntime* rt, JSValue val) {
       js_free_rt(rt, w);
     }
   }
-  // JS_FreeValueRT(rt, val);
+  // js_value_free_rt(rt, val);
 }
 
 static JSClassDef js_tree_walker_class = {

@@ -113,7 +113,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
 
           JS_Call(ctx, argv[1], JS_NULL, 2, args);
 
-          JS_FreeValue(ctx, args[0]);
+          js_value_free(ctx, args[0]);
 
         } else if(JS_IsArray(ctx, argv[1])) {
           int i;
@@ -173,7 +173,7 @@ predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv)
       JS_ToInt32(ctx, &result, ret);
       // result = !!JS_ToBool(ctx, ret);
     }
-    JS_FreeValue(ctx, ret);
+    js_value_free(ctx, ret);
     return result;
   }
   assert(0);
@@ -250,9 +250,8 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       break;
     }
 
-    case PREDICATE_NOTNOT: dbuf_putc(dbuf, '!');
-
-     __attribute__ ((fallthrough)); case PREDICATE_NOT: {
+    case PREDICATE_NOTNOT: dbuf_putc(dbuf, '!'); __attribute__((fallthrough));
+    case PREDICATE_NOT: {
       dbuf_putstr(dbuf, "!( ");
       dbuf_put_value(dbuf, ctx, pr->unary.predicate);
       dbuf_putstr(dbuf, " )");
@@ -290,14 +289,14 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     case PREDICATE_INSTANCEOF: {
       const char* name = js_function_name(ctx, pr->unary.predicate);
       dbuf_putstr(dbuf, name);
-      JS_FreeCString(ctx, name);
+      js_cstring_free(ctx, name);
       break;
     }
 
     case PREDICATE_PROTOTYPEIS: {
       const char* name = js_object_tostring(ctx, pr->unary.predicate);
       dbuf_putstr(dbuf, name);
-      JS_FreeCString(ctx, name);
+      js_cstring_free(ctx, name);
       break;
     }
 
@@ -349,7 +348,7 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
     case PREDICATE_PROTOTYPEIS:
     case PREDICATE_NOTNOT:
     case PREDICATE_NOT: {
-      JS_FreeValueRT(rt, pred->unary.predicate);
+      js_value_free_rt(rt, pred->unary.predicate);
       break;
     }
 

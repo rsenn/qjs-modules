@@ -110,7 +110,7 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
     JS_ToInt32(ctx, &flags, argv[2]);
 
   obj = js_deep_iterator_new(ctx, proto, argc >= 1 ? argv[0] : JS_UNDEFINED, argc >= 2 ? argv[1] : JS_UNDEFINED, flags);
-  js_value_free(ctx, proto);
+  // js_value_free(ctx, proto);
 
   return obj;
 }
