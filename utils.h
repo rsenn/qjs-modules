@@ -485,6 +485,21 @@ js_value_typestr(JSContext* ctx, JSValueConst value) {
   return js_value_type_name(type);
 }
 
+static inline void*
+js_value_get_ptr(JSValue v) {
+  return v.u.ptr;
+}
+static inline int32_t
+js_value_get_tag(JSValue v) {
+  return v.tag;
+}
+static inline BOOL
+js_value_has_ref_count(JSValue v) {
+  return ((unsigned)js_value_get_tag(v) >= (unsigned)JS_TAG_FIRST);
+}
+
+void js_value_free(JSContext* ctx, JSValue v);
+
 BOOL js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
 void js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
 void js_value_print(JSContext* ctx, JSValueConst value, DynBuf* db);
@@ -547,11 +562,11 @@ JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst v
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
 JSValue js_value_from_char(JSContext* ctx, int c);
 
-#define js_value_free(ctx, value)                                                                                      \
+/*#define js_value_free(ctx, value)                                                                                      \
   do {                                                                                                                 \
     JS_FreeValue((ctx), (value));                                                                                      \
     (value) = JS_UNDEFINED;                                                                                            \
-  } while(0);
+  } while(0);*/
 #define js_value_free_rt(ctx, value)                                                                                   \
   do {                                                                                                                 \
     JS_FreeValueRT((ctx), (value));                                                                                    \
@@ -622,7 +637,7 @@ IteratorValue js_iterator_next(JSContext* ctx, JSValueConst obj);
 
 static inline int64_t
 js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
-  if(!JS_IsUndefined(value))
+  if(JS_IsNumber(value))
     JS_ToInt64(ctx, &i, value);
   return i;
 }

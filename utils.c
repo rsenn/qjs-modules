@@ -3,16 +3,18 @@
 #include "vector.h"
 #include "libregexp.h"
 #include "quickjs-internal.h"
+
 char*
 js_dup_cstring(JSContext* ctx, const char* str) {
   JSString* p;
   if(!str)
-    return;
+    return 0;
   /* purposely removing constness */
   p = (JSString*)(void*)(str - offsetof(JSString, u));
   JS_DupValue(ctx, JS_MKPTR(JS_TAG_STRING, p));
-  return str;
+  return (char*)str;
 }
+
 size_t
 ansi_length(const char* str, size_t len) {
   size_t i, n = 0, p;
@@ -878,6 +880,15 @@ js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
   return ret;
 }
 
+void
+js_value_free(JSContext* ctx, JSValue v) {
+  if(js_value_has_ref_count(v)) {
+    JSRefCountHeader* p = (JSRefCountHeader*)js_value_get_ptr(v);
+    if(p->ref_count > 0)
+      p->ref_count--;
+  }
+}
+
 JSValue
 js_value_clone(JSContext* ctx, JSValueConst value) {
   int32_t type = js_value_type(ctx, value);
@@ -917,6 +928,8 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       break;
     }
 
+    case TYPE_FUNCTION:
+    case TYPE_ARRAY:
     case TYPE_OBJECT: {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
@@ -945,7 +958,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
     }
 
     default: {
-      ret = JS_ThrowTypeError(ctx, "No such type: %08x\n", type);
+      ret = JS_ThrowTypeError(ctx, "No such type: %s (0x%08x)\n", js_value_type_name(type), type);
       break;
     }
   }

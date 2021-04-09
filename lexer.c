@@ -108,15 +108,19 @@ lexer_set_input(Lexer* lex, InputBuffer input, char* filename) {
 
 void
 lexer_define(Lexer* lex, char* name, char* expr) {
-  LexerRule definition = {name, expr, MASK_ALL};
+  LexerRule definition = {name, expr, MASK_ALL ,0};
   vector_size(&lex->defines, sizeof(LexerRule));
   vector_push(&lex->defines, definition);
 }
 
 int
 lexer_rule_add(Lexer* lex, char* name, char* expr) {
-  LexerRule rule = {name, expr, MASK_ALL};
+  LexerRule rule = {name, expr, MASK_ALL,0}, *previous;
   int ret = vector_size(&lex->rules, sizeof(LexerRule));
+  if(ret) {
+    previous = vector_back(&lex->rules, sizeof(LexerRule));
+    rule.mask = previous->mask;
+  }
   vector_push(&lex->rules, rule);
   return ret;
 }

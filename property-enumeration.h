@@ -75,7 +75,7 @@ static inline const char*
 property_enumeration_valuestr(PropertyEnumeration* it, JSContext* ctx) {
   JSValue value = property_enumeration_value(it, ctx);
   const char* str = JS_ToCString(ctx, value);
-  JS_FreeValue(ctx, value);
+  js_value_free(ctx, value);
   return str;
 }
 
@@ -93,7 +93,7 @@ property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
   if(it->is_array) {
     int64_t idx;
     JS_ToInt64(ctx, &idx, key);
-    JS_FreeValue(ctx, key);
+    js_value_free(ctx, key);
     key = JS_NewInt64(ctx, idx);
   }
   return key;
@@ -132,9 +132,9 @@ property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueC
   argv[2] = this_arg;
   ret = JS_Call(ctx, fn, JS_UNDEFINED, 3, argv);
   result = JS_ToBool(ctx, ret);
-  JS_FreeValue(ctx, argv[0]);
-  JS_FreeValue(ctx, argv[1]);
-  JS_FreeValue(ctx, ret);
+  js_value_free(ctx, argv[0]);
+  js_value_free(ctx, argv[1]);
+  js_value_free(ctx, ret);
   return result;
 }
 
@@ -289,7 +289,7 @@ property_enumeration_recurse(Vector* vec, JSContext* ctx) {
     if(it->tab_atom_len > 0) {
       value = property_enumeration_value(it, ctx);
       type = JS_VALUE_GET_TAG(value);
-      JS_FreeValue(ctx, value);
+      js_value_free(ctx, value);
       if(type == JS_TAG_OBJECT) {
         if((it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS)) && property_enumeration_setpos(it, 0))
           break;

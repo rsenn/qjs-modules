@@ -175,7 +175,7 @@ pointer_deref(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
     }
 
     JSValue child = JS_GetProperty(ctx, obj, atom);
-    JS_FreeValue(ctx, obj);
+    js_value_free(ctx, obj);
 
     obj = child;
   }
@@ -197,7 +197,7 @@ pointer_acquire(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
     } else {
       child = JS_GetProperty(ctx, obj, atom);
     }
-    JS_FreeValue(ctx, obj);
+    js_value_free(ctx, obj);
 
     obj = child;
   }
@@ -226,7 +226,7 @@ pointer_fromarray(Pointer* ptr, JSContext* ctx, JSValueConst array) {
   for(i = 0; i < len; i++) {
     prop = JS_GetPropertyUint32(ctx, array, i);
     ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
-    JS_FreeValue(ctx, prop);
+    js_value_free(ctx, prop);
   }
   ptr->n = len;
 }
@@ -243,9 +243,9 @@ pointer_fromiterable(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
     if(item.done)
       break;
     pointer_push(ptr, JS_ValueToAtom(ctx, item.value));
-    JS_FreeValue(ctx, item.value);
+    js_value_free(ctx, item.value);
   }
-  JS_FreeValue(ctx, iter);
+  js_value_free(ctx, iter);
 }
 
 int

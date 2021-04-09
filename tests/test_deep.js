@@ -22,25 +22,22 @@ const inspectOptions = {
   customInspect: true,
   showProxy: false,
   getters: false,
-  depth: Infinity,
-  maxArrayLength: 100,
+  depth: 4,
+  maxArrayLength: 10,
   maxStringLength: 200,
   compact: 2,
   hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
 };
+
 function main(...args) {
   console = new Console(inspectOptions);
 
-  console.log('args:', args);
-
   let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
-
-  console.log('data:', data);
 
   let result = xml.read(data);
   console.log('result:', inspect(result, inspectOptions));
 
-  let found = deep.find(result, n => typeof n == 'object' && n != null && n.tagName == 'elements');
+ /* let found = deep.find(result, n => typeof n == 'object' && n != null && n.tagName == 'elements');
 
   console.log('found:', inspect(found, inspectOptions));
 
@@ -53,13 +50,6 @@ function main(...args) {
 
   let out = new Map();
 
-  //out.set = function(...args) { console.log("args:", args); }
-  //  out.set('@', ['blah']);
-
-  /*let flat = deep.flatten(result, out, deep.MASK_PRIMITIVE | deep.MASK_STRING && ~deep.MASK_OBJECT);
-  console.log('flat:', flat);
-  console.log('flat.keys():', [...flat.keys()]);*/
-
   console.log('deep.MASK_STRING:', deep.MASK_NUMBER);
   console.log('deep:', deep);
 
@@ -69,12 +59,12 @@ function main(...args) {
     deep.set(clone, pointer, value);
   }
 
-  let node = deep.get(result, '2.children.0.children.3.children.8.children.13.children.20');
+ let node = deep.get(result, '2.children.0.children.3.children.8.children.13.children.20');
   console.log('get():', node);
   let path = deep.pathOf(result, node);
   console.log('pathOf():', path);
-
-  let obj1 = {
+*/
+/*  let obj1 = {
     a: [undefined, 1, 1234n],
     b: 2,
     c: 3,
@@ -82,28 +72,29 @@ function main(...args) {
     e: [NaN, true, false, Infinity, null]
   };
   let obj2 = {
-    d: 4,
-    c: 3,
-    b: 2,
-    a: [undefined, 1, 1234n],
-    e: [NaN, true, false, Infinity, null]
+    v: 4,
+    w: 3,
+    x: 2,
+    y: [undefined, 1, 1234n],
+    z: [NaN, true, false, Infinity, null]
   };
 
-  console.log('equals():', deep.equals(obj1, obj2));
-  for(let o of [obj1]) {
+  for(let o of [obj1,obj2]) {
     let it = deep.iterate(o);
     console.log('it:', it);
-    for(let item of it) console.log('item:', item);
-  }
+    for(let [value,path] of it) console.log('item:', {value,path});
+  }*/
+ // console.log('equals():', deep.equals(obj1, obj2));
+/*
   console.log('deep.RETURN_PATH:', deep.RETURN_PATH);
   console.log('deep.RETURN_VALUE:', deep.RETURN_VALUE);
   console.log('deep.RETURN_VALUE_PATH:', deep.RETURN_VALUE_PATH);
   console.log('deep.RETURN_PATH_VALUE:', deep.RETURN_PATH_VALUE);
   console.log('find():',
     deep.find(obj1, n => n == Infinity, deep.RETURN_PATH_VALUE)
-  );
+  );*/
 
-  deep.forEach(obj2, (n, p) => console.log('deep.forEach', { n, p }));
+ /* deep.forEach(obj2, (n, p) => console.log('deep.forEach', { n, p }));
   console.log('obj1:', obj1);
   console.log('clone():', deep.clone(result));
   console.log('select():',
@@ -112,21 +103,29 @@ function main(...args) {
       node => typeof node == 'object' && node.tagName == 'wire',
       deep.RETURN_PATH_VALUE
     )
-  );
+  );*/
 
-  let it = deep.iterate(result,
+ let it = deep.iterate(result,
     (n, p) => typeof n == 'object' && n && typeof n.tagName == 'string'
   );
+
   let item;
+ 
   for(let item of it) {
     let [value, path] = item;
 
     console.log('value:', value);
     console.log('path:', path);
-    // console.log('it:', it);
-    //console.log("item.value:", item.value);
   }
   std.gc();
 }
 
-main(...scriptArgs.slice(1));
+try {
+  main(...scriptArgs.slice(1));
+} catch(error) {
+     console.log('FAIL:', error.message);
+  std.exit(1);
+} finally {
+     console.log('SUCCESS');
+ std.exit(0);
+}

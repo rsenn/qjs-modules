@@ -6,6 +6,7 @@
 #include "vector.h"
 #include <string.h>
 #include <ctype.h>
+#include <stdint.h>
 
 VISIBLE JSClassID js_syntaxerror_class_id = 0, js_token_class_id = 0, js_lexer_class_id = 0;
 
@@ -699,33 +700,79 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   Lexer* lex;
   int id;
   Location loc;
-  int64_t state = MASK_ALL;
+  int64_t state = MASK_ALL, skip = 0;
 
   if(!(lex = js_lexer_data(ctx, this_val)))
     return JS_EXCEPTION;
 
   loc = lex->loc;
 
-  if(argc > 0)
+  if(argc > 0 && JS_IsNumber(argv[0])) {
     JS_ToInt64(ctx, &state, argv[0]);
+  } else {
+    JSValue mask = JS_GetPropertyStr(ctx, this_val, "mask");
+    state = js_int64_default(ctx, mask, INT64_MIN);
+    JS_FreeValue(ctx, mask);
+  }
 
-  if((id = lexer_next(lex, state, ctx)) >= 0) {
-    Token* tok = lexer_token(lex, id, loc, ctx);
+  if(argc > 1 && JS_IsNumber(argv[1])) {
+    JS_ToInt64(ctx, &skip, argv[1]);
+  } else {
+    JSValue mask = JS_GetPropertyStr(ctx, this_val, "skip");
+    skip = js_int64_default(ctx, mask, 0);
+    JS_FreeValue(ctx, mask);
+  }
 
-    ret = js_token_wrap(ctx, tok);
-  } else if(id == LEXER_ERROR_NOMATCH) {
-    ret = JS_ThrowInternalError(
-        ctx,
-        "%s:%" PRIu32 ":%" PRIu32 ": No matching token at:\n%.*s\n%*s",
-        loc.file,
-        loc.line + 1,
-        loc.column + 1,
-        (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') + loc.column),
-        &lex->input.data[lex->start - loc.column],
-        loc.column + 1,
-        "^");
-  } else if(id != LEXER_EOF) {
-    ret = JS_EXCEPTION;
+  // printf("state = 0x%016"PRIx64", skip = 0x%016" PRIx64 "\n", state,skip);
+
+  for(;;) {
+    if((id = lexer_next(lex, state, ctx)) >= 0) {
+      LexerRule* rule = lexer_rule_at(lex, id);
+      Token* tok = lexer_token(lex, id, loc, ctx);
+
+      if(((~rule->mask) & skip))
+        continue;
+
+      ret = js_token_wrap(ctx, tok);
+    } else if(id == LEXER_ERROR_NOMATCH) {
+
+      JSValue handler = JS_GetPropertyStr(ctx, this_val, "handler");
+
+      if(JS_IsFunction(ctx, handler)) {
+        JSValue args[] = {JS_NewInt64(ctx, state), JS_NewInt64(ctx, skip)};
+        JSValue ret;
+        int64_t newState;
+
+        ret = JS_Call(ctx, handler, this_val, 2, args);
+
+        JS_FreeValue(ctx, args[0]);
+        JS_FreeValue(ctx, args[1]);
+
+        if(JS_IsNumber(ret)) {
+          JS_ToInt64(ctx, &newState, ret);
+
+          if(newState != state) {
+            state = newState;
+            continue;
+          }
+        }
+      }
+      ret = JS_ThrowInternalError(
+          ctx,
+          "%s:%" PRIu32 ":%" PRIu32 ": No matching token at:\n%.*s\n%*s",
+          loc.file,
+          loc.line + 1,
+          loc.column + 1,
+          (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') + loc.column),
+          &lex->input.data[lex->start - loc.column],
+          loc.column + 1,
+          "^");
+    } else if(id != LEXER_EOF) {
+      ret = JS_EXCEPTION;
+    } else if(id == LEXER_EOF) {
+      break;
+    }
+    break;
   }
 
   *pdone = id < 0;

@@ -91,7 +91,7 @@ js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSVa
   return obj;
 fail:
   js_free(ctx, it);
-  JS_FreeValue(ctx, obj);
+  js_value_free(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -110,7 +110,7 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
     JS_ToInt32(ctx, &flags, argv[2]);
 
   obj = js_deep_iterator_new(ctx, proto, argc >= 1 ? argv[0] : JS_UNDEFINED, argc >= 2 ? argv[1] : JS_UNDEFINED, flags);
-  JS_FreeValue(ctx, proto);
+  js_value_free(ctx, proto);
 
   return obj;
 }
@@ -119,13 +119,13 @@ static JSValue
 js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
   DeepIterator* it;
   PropertyEnumeration* penum;
-  JSValue ret = JS_NULL;
+  JSValue ret = JS_UNDEFINED;
   if(!(it = JS_GetOpaque2(ctx, this_val, js_deep_iterator_class_id)))
     return JS_EXCEPTION;
 
   for(;;) {
     if(!(penum = vector_empty(&it->frames)
-                     ? property_enumeration_push(&it->frames, ctx, it->root, PROPENUM_DEFAULT_FLAGS)
+                     ? property_enumeration_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS)
                      : property_enumeration_recurse(&it->frames, ctx))) {
 
       *pdone = TRUE;
@@ -140,14 +140,21 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       JSValue ret;
       ret = JS_Call(ctx, it->pred, this_val, 2, args);
 
+      js_value_free(ctx, args[0]);
+      js_value_free(ctx, args[1]);
+
       if(!JS_ToBool(ctx, ret))
         continue;
     }
 
+    if(!JS_IsUndefined(ret))
+      js_value_free(ctx, ret);
+
+    ret = js_deep_return(ctx, &it->frames, it->flags);
     *pdone = FALSE;
     break;
   }
-  ret = js_deep_return(ctx, &it->frames, it->flags);
+
   return ret;
 }
 
@@ -325,14 +332,14 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     if(mask) {
       JSValue value = property_enumeration_value(it, ctx);
       int32_t type = js_value_type(ctx, value);
-      JS_FreeValue(ctx, value);
+      js_value_free(ctx, value);
       if((mask & (1 << type)) == 0)
         continue;
     }
     value = property_enumeration_value(it, ctx);
     virtual_properties_set(&vmap, ctx, path, value);
-    JS_FreeValue(ctx, value);
-    JS_FreeValue(ctx, path);
+    js_value_free(ctx, value);
+    js_value_free(ctx, path);
   } while((it = property_enumeration_recurse(&frames, ctx)));
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
   ret = vmap.this_obj;
@@ -352,7 +359,7 @@ js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   do {
     JSValue value = property_enumeration_value(it, ctx);
     BOOL result = js_value_equals(ctx, argv[1], value);
-    JS_FreeValue(ctx, value);
+    js_value_free(ctx, value);
 
     if(result) {
       ret = property_enumeration_path(&frames, ctx);
@@ -381,8 +388,8 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
     JS_Call(ctx, fn, this_arg, 3, args);
 
-    JS_FreeValue(ctx, args[0]);
-    JS_FreeValue(ctx, args[1]);
+    js_value_free(ctx, args[0]);
+    js_value_free(ctx, args[1]);
 
   } while((it = property_enumeration_recurse(&frames, ctx)));
 
@@ -426,8 +433,8 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
       result = TRUE;
     else
       result = js_value_equals(ctx, aval, bval);
-    JS_FreeValue(ctx, aval);
-    JS_FreeValue(ctx, bval);
+    js_value_free(ctx, aval);
+    js_value_free(ctx, bval);
 
     if(!result) {
       ret = JS_FALSE;

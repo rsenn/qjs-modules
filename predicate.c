@@ -252,7 +252,7 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
     case PREDICATE_NOTNOT: dbuf_putc(dbuf, '!');
 
-    case PREDICATE_NOT: {
+     __attribute__ ((fallthrough)); case PREDICATE_NOT: {
       dbuf_putstr(dbuf, "!( ");
       dbuf_put_value(dbuf, ctx, pr->unary.predicate);
       dbuf_putstr(dbuf, " )");

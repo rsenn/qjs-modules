@@ -9,6 +9,12 @@ import Console from './console.js';
 ('use strict');
 ('use math');
 
+let gettime;
+const CLOCK_REALTIME = 0;
+const CLOCK_MONOTONIC = 1;
+const CLOCK_MONOTONIC_RAW = 4;
+const CLOCK_BOOTTIME = 7;
+
 globalThis.inspect = inspect;
 
 function WriteFile(file, tok) {
@@ -30,6 +36,20 @@ function DumpToken(tok) {
   const { length, offset, chars, loc } = tok;
 
   return `Token ${inspect({ chars, offset, length, loc }, { depth: Infinity })}`;
+}
+function hrtime(clock = CLOCK_MONOTONIC_RAW) {
+  let data = new ArrayBuffer(16);
+
+  gettime(clock, data);
+  return new BigUint64Array(data, 0, 2);
+}
+function now(clock = CLOCK_MONOTONIC_RAW) {
+  let data = new ArrayBuffer(16);
+
+  gettime(clock, data);
+  let [secs, nsecs] = new BigUint64Array(data, 0, 2);
+
+  return Number(secs) * 10e3 + Number(nsecs) * 10e-6;
 }
 
 const tokenRules = {
@@ -167,12 +187,8 @@ function AddECMAScriptDefines(lexer) {
   lexer.define('EscapeSequence',
     `\\\\{CharacterEscapeSequence}|\\\\{OctalEscapeSequence}|\\\\{HexEscapeSequence}|\\\\{UnicodeEscapeSequence}`
   );
-  lexer.define('DoubleStringCharacter',
-    `([^\\"\\\\\\n\\r]+|{EscapeSequence}|{LineContinuation})`
-  );
-  lexer.define('SingleStringCharacter',
-    `([^\\'\\\\\\n\\r]+|{EscapeSequence}|{LineContinuation})`
-  );
+  lexer.define('DoubleStringCharacter', `([^\\"\\\\\\n\\r]+|{EscapeSequence}|{LineContinuation})`);
+  lexer.define('SingleStringCharacter', `([^\\'\\\\\\n\\r]+|{EscapeSequence}|{LineContinuation})`);
   lexer.define('StringLiteral',
     `(\\"{DoubleStringCharacter}*\\")|(\\'{SingleStringCharacter}*\\')`
   );
@@ -194,7 +210,7 @@ function AddECMAScriptDefines(lexer) {
   lexer.define('LineTerminators', `[\\r\\n\\u2028\\u2029]`);
 }
 
-function main(...args) {
+async function main(...args) {
   console = new Console({
     colors: true,
     depth: 8,
@@ -203,6 +219,13 @@ function main(...args) {
     compact: false,
     showHidden: false
   });
+  if(!gettime) {
+    const { dlsym, RTLD_DEFAULT, define, call } = await import('ffi.so');
+    const clock_gettime = dlsym(RTLD_DEFAULT, 'clock_gettime');
+    define('clock_gettime', clock_gettime, null, 'int', 'int', 'void *');
+    gettime = (clk_id, tp) => call('clock_gettime', clk_id, tp);
+  }
+
   let file = args[0] ?? scriptArgs[0];
   let str = std.loadFile(file, 'utf-8');
   let len = str.length;
@@ -228,25 +251,33 @@ function main(...args) {
   lexer.addRule('BIT_OP', '&|\\||\\^|<<|>>|~');
   lexer.addRule('LINE_TERMINATORS', '[\r\n\u2028\u2029]');
 */
-  lexer.addRule('preprocessor', "#[^\n]*");
+  lexer.addRule('preprocessor', '#[^\n]*');
   lexer.addRule('keyword',
 
     'instanceof|debugger|function|continue|finally|extends|default|static|export|switch|import|typeof|return|delete|async|yield|await|throw|super|const|class|catch|while|break|from|enum|case|with|void|this|else|let|try|var|new|for|as|of|do|in|if'
   );
   lexer.addRule('comment', '//[^\n]*|/\\*([^\\*]|[\\r\\n]|(\\*+([^/\\*]|[\\n\\r])))*\\*+/');
-  lexer.addRule('whitespace', '{LineTerminators}+|[ \\t\\v\\f]+');
   lexer.addRule('stringLiteral', '{StringLiteral}');
   lexer.addRule('numericLiteral', '{OctalIntegerLiteral}|{HexIntegerLiteral}|{DecimalLiteral}');
   lexer.addRule('identifier', '{Identifier}');
   lexer.addRule('punctuator',
     '-->>=|>>>=|\\?\\?=|&&=|\\|\\|=|\\*\\*=|\\.\\.\\.|<<=|-->>|>>=|>>>|===|!==|\\?\\?|\\*\\*|\\?\\.|$\\{|=>|%=|-=|>=|\\^=|\\+=|--|<=|\\|=|\\+\\+|==|&=|>>|\\|\\||/=|<<|&&|\\*=|!=|@|\\{|\\^|\\+|:|\\)|\\||\\?|;|\\(|&|~|\\]|/|!|<|\\[|\\*|,|>|\\}|%|-|\\.|='
   );
+  lexer.addRule('whitespace', '{LineTerminators}+|[ \\t\\v\\f]+', ~1);
+
+  lexer.handler = function(state, skip) {
+    console.log(`handler state=${state} skip=${skip}`);
+  };
+
   try {
     let tok;
+    const colSizes = [8, 32, 4, 16, 0];
 
-    for(let tok of lexer) {
-      const cols = [`tok[${tok.byteLength}]`, `'${tok.lexeme}'`, +tok, lexer.tokenClass(tok), tok.loc];
-      console.log(...cols.map(col => (col+'').replace(/\n/g, '\\n').padEnd(20)));
+    console.log('now', now());
+
+    for(let tok of lexer(-1, 1)) {
+      const cols = [`tok[${tok.byteLength}]`, tok.lexeme, +tok, lexer.tokenClass(tok), tok.loc];
+      console.log(...cols.map((col, i) => (col + '').replace(/\n/g, '\\n').padEnd(colSizes[i])));
       //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
     }
   } catch(err) {
