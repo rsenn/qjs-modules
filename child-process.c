@@ -1,7 +1,13 @@
 #include "child-process.h"
 #include "utils.h"
- #include "property-enumeration.h"
- 
+#include "property-enumeration.h"
+
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif
+
 ChildProcess*
 child_process_new(JSContext* ctx) {
   return js_mallocz(ctx, sizeof(ChildProcess));
@@ -41,4 +47,30 @@ child_process_environment(JSContext* ctx, JSValueConst object) {
 
   vector_emplace(&args, sizeof(char*));
   return (char**)args.data;
+}
+
+int
+child_process_spawn(ChildProcess* cp) {
+  int pid;
+  if((pid = fork()) == 0) {
+
+    if(cp->child_fds) {
+      for(int i = 0; i < cp->num_fds; i++) {
+        if(cp->child_fds[i] >= 0)
+          dup2(cp->child_fds[i], i);
+      }
+    }
+
+    if(cp->cwd)
+      chdir(cp->cwd);
+
+    setuid(cp->uid);
+    setgid(cp->gid);
+
+    execvp(cp->file, cp->args, cp->env);
+    perror("execvp()");
+    exit(errno);
+  }
+
+  return cp->pid = pid;
 }

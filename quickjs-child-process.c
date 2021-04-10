@@ -10,7 +10,14 @@
 #include <unistd.h>
 #endif
 
-enum { CHILD_PROCESS_FILE = 0, CHILD_PROCESS_ARGS = 1, CHILD_PROCESS_ENV = 2, CHILD_PROCESS_STDIO = 3 };
+enum {
+  CHILD_PROCESS_FILE = 0,
+  CHILD_PROCESS_CWD,
+  CHILD_PROCESS_ARGS,
+  CHILD_PROCESS_ENV,
+  CHILD_PROCESS_STDIO,
+  CHILD_PROCESS_PID
+};
 
 extern char** environ;
 
@@ -162,7 +169,8 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     len = js_array_length(ctx, stdio);
     parent_fds = cp->parent_fds = js_malloc(ctx, sizeof(int) * len);
-    child_fds = cp->child_fds =js_malloc(ctx, sizeof(int) * len);
+    child_fds = cp->child_fds = js_malloc(ctx, sizeof(int) * len);
+    cp->num_fds = len;
 
     for(i = 0; i < len; i++) {
       JSValue item = JS_GetPropertyUint32(ctx, stdio, i);
@@ -201,6 +209,8 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     JS_FreeValue(ctx, stdio);
   }
 
+  child_process_spawn(cp);
+
   return ret;
 }
 
@@ -217,6 +227,10 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, cp->file);
       break;
     }
+    case CHILD_PROCESS_CWD: {
+      ret = cp->cwd ? JS_NewString(ctx, cp->cwd) : JS_NULL;
+      break;
+    }
     case CHILD_PROCESS_ARGS: {
       ret = js_argv_to_array(ctx, cp->args);
       break;
@@ -226,11 +240,11 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case CHILD_PROCESS_STDIO: {
-      if(cp->parent_fds)  {
-        ret = js_intv_to_array(ctx, cp->parent_fds);
-      } else {
-        ret = JS_NULL;
-      }
+      ret = cp->parent_fds ? js_intv_to_array(ctx, cp->parent_fds) : JS_NULL;
+      break;
+    }
+    case CHILD_PROCESS_PID: {
+      ret = JS_NewInt32(ctx, cp->pid);
       break;
     }
   }
@@ -245,9 +259,11 @@ static JSClassDef js_child_process_class = {
 
 static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("file", js_child_process_get, 0, CHILD_PROCESS_FILE),
+    JS_CGETSET_MAGIC_DEF("cwd", js_child_process_get, 0, CHILD_PROCESS_CWD),
     JS_CGETSET_MAGIC_DEF("args", js_child_process_get, 0, CHILD_PROCESS_ARGS),
     JS_CGETSET_MAGIC_DEF("env", js_child_process_get, 0, CHILD_PROCESS_ENV),
     JS_CGETSET_MAGIC_DEF("stdio", js_child_process_get, 0, CHILD_PROCESS_STDIO),
+    JS_CGETSET_MAGIC_DEF("pid", js_child_process_get, 0, CHILD_PROCESS_PID),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", JS_PROP_C_W_E),
 };
 
