@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include "child-process.h"
 #include "utils.h"
 #include "property-enumeration.h"
@@ -7,6 +9,7 @@
 #else
 #include <unistd.h>
 #endif
+#include <errno.h>
 
 ChildProcess*
 child_process_new(JSContext* ctx) {
@@ -55,7 +58,8 @@ child_process_spawn(ChildProcess* cp) {
   if((pid = fork()) == 0) {
 
     if(cp->child_fds) {
-      for(int i = 0; i < cp->num_fds; i++) {
+      unsigned i;
+      for( i = 0; i < cp->num_fds; i++) {
         if(cp->child_fds[i] >= 0)
           dup2(cp->child_fds[i], i);
       }
@@ -67,7 +71,7 @@ child_process_spawn(ChildProcess* cp) {
     setuid(cp->uid);
     setgid(cp->gid);
 
-    execvp(cp->file, cp->args, cp->env);
+    execvpe(cp->file, cp->args, cp->env);
     perror("execvp()");
     exit(errno);
   }

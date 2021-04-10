@@ -12,7 +12,7 @@ if(EXISTS "${QUICKJS_H}")
 
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
-set(child_process_SOURCES utils.c utils.h vector.c vector.h)
+set(child_process_SOURCES child-process.c child-process.h utils.c utils.h vector.c vector.h)
 set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.h utils.c
                  utils.h pointer.h virtual-properties.h)
 set(deep_LIBRARIES quickjs-pointer)
@@ -77,6 +77,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 include(CheckIncludeFile)
+include(CheckFunctionExists)
 
 set(QUICKJS_INCLUDE_DIRS "")
 
@@ -123,6 +124,22 @@ find_program(QJSC qjsc PATHS "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}
 
 message(STATUS "QuickJS interpreter: ${QJS}")
 message(STATUS "QuickJS compiler: ${QJSC}")
+
+set(CMAKE_REQUIRED_QUIET OFF)
+check_include_file(spawn.h HAVE_SPAWN_H)
+
+if(HAVE_SPAWN_H) 
+  list(APPEND CMAKE_REQUIRED_INCLUDES spawn.h)
+
+  check_function_exists(posix_spawnp HAVE_POSIX_SPAWNP)
+  message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
+
+  if(HAVE_POSIX_SPAWNP)
+  add_definitions(-DPOSIX_SPAWN=1)
+  endif(HAVE_POSIX_SPAWNP)
+  
+endif(HAVE_SPAWN_H) 
+
 
 file(GLOB TESTS tests/test_*.js)
 
