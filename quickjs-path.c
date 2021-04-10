@@ -9,6 +9,8 @@
 #include "path.h"
 #include "utils.h"
 
+static JSValue path_object;
+
 enum path_methods {
   METHOD_ABSOLUTE = 0,
   METHOD_APPEND,
@@ -452,7 +454,16 @@ static const JSCFunctionListEntry js_path_funcs[] = {
 
 static int
 js_path_init(JSContext* ctx, JSModuleDef* m) {
-  return JS_SetModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
+
+  path_object = JS_NewObject(ctx);
+
+     JS_SetPropertyFunctionList(ctx, path_object, js_path_funcs, countof(js_path_funcs));
+
+if(m) {
+    JS_SetModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
+    JS_SetModuleExport (ctx, m, "default", path_object);
+  }
+
 }
 
 #ifdef JS_SHARED_LIBRARY
@@ -468,5 +479,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
+  JS_AddModuleExport (ctx, m, "default");
   return m;
 }

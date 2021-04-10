@@ -829,10 +829,12 @@ static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   JSValue inspect;
 
-  JS_SetModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));
-
   inspect = JS_NewCFunction(ctx, js_inspect, "inspect", 2);
-  JS_SetModuleExport(ctx, m, "default", inspect);
+
+  if(m) {
+    JS_SetModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));
+    JS_SetModuleExport(ctx, m, "default", inspect);
+  }
 
   return 0;
 }

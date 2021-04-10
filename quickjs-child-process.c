@@ -89,10 +89,12 @@ js_child_process_init(JSContext* ctx, JSModuleDef* m) {
   child_process_ctor = JS_NewCFunction2(ctx, js_child_process_constructor, "ChildProcess", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, child_process_ctor, child_process_proto);
+  JS_SetPropertyFunctionList(ctx, child_process_ctor, js_child_process_funcs, countof(js_child_process_funcs));
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_child_process_funcs, countof(js_child_process_funcs));
-    // JS_SetModuleExport(ctx, m, "ChildProcess", child_process_ctor);
+    JS_SetModuleExport(ctx, m, "ChildProcess", child_process_ctor);
+    JS_SetModuleExport(ctx, m, "default", child_process_ctor);
   }
   return 0;
 }
@@ -110,6 +112,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExportList(ctx, m, js_child_process_funcs, countof(js_child_process_funcs));
+  JS_AddModuleExport(ctx, m, "ChildProcess");
   JS_AddModuleExport(ctx, m, "default");
   return m;
 }
