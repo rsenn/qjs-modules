@@ -10,6 +10,8 @@
 #include <unistd.h>
 #endif
 
+enum { CHILD_PROCESS_FILE = 0, CHILD_PROCESS_ARGS = 1, CHILD_PROCESS_ENV = 2, CHILD_PROCESS_STDIO = 3 };
+
 extern char** environ;
 
 VISIBLE JSClassID js_child_process_class_id = 0;
@@ -54,6 +56,11 @@ child_process_environment(JSContext* ctx, JSValueConst object) {
 
   vector_emplace(&args, sizeof(char*));
   return (char**)args.data;
+}
+
+ChildProcess*
+js_child_process_data(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_child_process_class_id);
 }
 
 JSValue
@@ -106,10 +113,16 @@ js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   return ret;
 }
+
 static JSValue
 js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   JSValue ret = JS_UNDEFINED;
-  ChildProcess* cp = child_process_new(ctx);
+  ChildProcess* cp;
+
+  if(!(cp = child_process_new(ctx)))
+    return JS_EXCEPTION;
+
+  ret = js_child_process_wrap(ctx, cp);
 
   cp->file = js_tostring(ctx, argv[0]);
 
@@ -148,8 +161,8 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     }
 
     len = js_array_length(ctx, stdio);
-    parent_fds = js_malloc(ctx, sizeof(int) * len);
-    child_fds = js_malloc(ctx, sizeof(int) * len);
+    parent_fds = cp->parent_fds = js_malloc(ctx, sizeof(int) * len);
+    child_fds = cp->child_fds =js_malloc(ctx, sizeof(int) * len);
 
     for(i = 0; i < len; i++) {
       JSValue item = JS_GetPropertyUint32(ctx, stdio, i);
@@ -182,10 +195,44 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
           child_fds[i] = i;
         }
 
-        JS_FreeCString(ctx, s);
+        //        JS_FreeCString(ctx, s);
       }
     }
     JS_FreeValue(ctx, stdio);
+  }
+
+  return ret;
+}
+
+static JSValue
+js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  ChildProcess* cp;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(cp = js_child_process_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case CHILD_PROCESS_FILE: {
+      ret = JS_NewString(ctx, cp->file);
+      break;
+    }
+    case CHILD_PROCESS_ARGS: {
+      ret = js_argv_to_array(ctx, cp->args);
+      break;
+    }
+    case CHILD_PROCESS_ENV: {
+      ret = js_argv_to_array(ctx, cp->env);
+      break;
+    }
+    case CHILD_PROCESS_STDIO: {
+      if(cp->parent_fds)  {
+        ret = js_intv_to_array(ctx, cp->parent_fds);
+      } else {
+        ret = JS_NULL;
+      }
+      break;
+    }
   }
 
   return ret;
@@ -197,14 +244,16 @@ static JSClassDef js_child_process_class = {
 };
 
 static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
+    JS_CGETSET_MAGIC_DEF("file", js_child_process_get, 0, CHILD_PROCESS_FILE),
+    JS_CGETSET_MAGIC_DEF("args", js_child_process_get, 0, CHILD_PROCESS_ARGS),
+    JS_CGETSET_MAGIC_DEF("env", js_child_process_get, 0, CHILD_PROCESS_ENV),
+    JS_CGETSET_MAGIC_DEF("stdio", js_child_process_get, 0, CHILD_PROCESS_STDIO),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", JS_PROP_C_W_E),
-
 };
 
 static const JSCFunctionListEntry js_child_process_funcs[] = {
     JS_CFUNC_DEF("exec", 1, js_child_process_exec),
     JS_CFUNC_DEF("spawn", 1, js_child_process_spawn),
-
 };
 
 static int

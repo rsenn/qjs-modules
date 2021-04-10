@@ -14,6 +14,11 @@ function WriteFile(file, data) {
   console.log('Wrote "' + file + '": ' + data.length + ' bytes');
 }
 
+function DumpChildProcess(cp) {
+  const {file,args,env,stdio} = cp;
+
+  console.log(`ChildProcess`, { file,args,env,stdio });
+}
 const inspectOptions = {
   colors: true,
   showHidden: false,
@@ -31,7 +36,9 @@ function main(...args) {
   console = new Console(inspectOptions);
 
   let cp = child_process.spawn('ls', ['-la'], { stdio: 'pipe' });
-  console.log('cp:', cp);
+ 
+  DumpChildProcess(cp);
+
 }
 
 try {

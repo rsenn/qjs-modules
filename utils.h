@@ -737,6 +737,7 @@ js_argv_dup(JSContext* ctx, char** strv) {
 }
 void js_argv_free(JSContext* ctx, char** strv);
 JSValue js_argv_to_array(JSContext* ctx, char** strv);
+JSValue js_intv_to_array(JSContext* ctx, int* intv);
 char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 
 #endif /* defined(UTILS_H) */

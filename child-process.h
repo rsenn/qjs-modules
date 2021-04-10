@@ -9,6 +9,7 @@ typedef struct ChildProcess {
   char** args;
   char** env;
   uint32_t uid, gid;
+  int* child_fds, *parent_fds;
 } ChildProcess;
 
 #endif /* defined(CHILD_PROCESS_H) */
