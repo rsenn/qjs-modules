@@ -8,6 +8,7 @@
 #include <io.h>
 #else
 #include <unistd.h>
+#include <signal.h>
 #endif
 
 enum {
@@ -241,7 +242,26 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!(cp = js_child_process_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  ret = JS_NewInt32(ctx, child_process_wait(cp));
+  //if(cp->exitcode == -1 && cp->termsig == -1)
+    ret = JS_NewInt32(ctx, child_process_wait(cp));
+
+  return ret;
+}
+
+static JSValue
+js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  ChildProcess* cp;
+  JSValue ret = JS_UNDEFINED;
+  int32_t signum = SIGTERM;
+
+  if(!(cp = js_child_process_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  if(argc > 0)
+    JS_ToInt32(ctx, &signum, argv[0]);
+
+  //if(cp->exitcode == -1 && cp->termsig == -1)
+    ret = JS_NewInt32(ctx, child_process_kill(cp, signum));
 
   return ret;
 }
@@ -263,12 +283,44 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("exited", js_child_process_get, 0, CHILD_PROCESS_EXITED),
     JS_CGETSET_MAGIC_DEF("signaled", js_child_process_get, 0, CHILD_PROCESS_SIGNALED),
     JS_CFUNC_DEF("wait", 0, js_child_process_wait),
+    JS_CFUNC_DEF("kill", 0, js_child_process_kill),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", JS_PROP_C_W_E),
 };
 
 static const JSCFunctionListEntry js_child_process_funcs[] = {
     JS_CFUNC_DEF("exec", 1, js_child_process_exec),
     JS_CFUNC_DEF("spawn", 1, js_child_process_spawn),
+    JS_PROP_INT32_DEF("SIGHUP", SIGHUP, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGINT", SIGINT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGQUIT", SIGQUIT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGILL", SIGILL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGTRAP", SIGTRAP, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGABRT", SIGABRT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGBUS", SIGBUS, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGFPE", SIGFPE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGKILL", SIGKILL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGUSR1", SIGUSR1, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGSEGV", SIGSEGV, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGUSR2", SIGUSR2, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGPIPE", SIGPIPE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGALRM", SIGALRM, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGTERM", SIGTERM, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGSTKFLT", SIGSTKFLT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGCHLD", SIGCHLD, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGCONT", SIGCONT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGSTOP", SIGSTOP, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGTSTP", SIGTSTP, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGTTIN", SIGTTIN, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGTTOU", SIGTTOU, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGURG", SIGURG, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGXCPU", SIGXCPU, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGXFSZ", SIGXFSZ, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGVTALRM", SIGVTALRM, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGPROF", SIGPROF, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGWINCH", SIGWINCH, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGIO", SIGIO, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGPWR", SIGPWR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SIGSYS", SIGSYS, JS_PROP_ENUMERABLE),
 };
 
 static int

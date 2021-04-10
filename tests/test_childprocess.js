@@ -3,7 +3,7 @@ import * as std from 'std';
 import inspect from 'inspect.so';
 import child_process from 'child-process.so';
 import Console from './console.js';
-import {   toString } from 'mmap.so';
+import { toString } from 'mmap.so';
 
 ('use strict');
 
@@ -36,7 +36,7 @@ const inspectOptions = {
 function main(...args) {
   console = new Console(inspectOptions);
 
-  let cp = child_process.spawn('ls', ['-la'], { stdio: 'pipe' });
+  let cp = child_process.spawn('/opt/diet/bin/ls', ['-la'], { stdio: 'pipe' });
 
   DumpChildProcess(cp);
 
@@ -45,17 +45,21 @@ function main(...args) {
 
   let buf = new ArrayBuffer(4096);
 
-/*  os.sleep(1);
+  /*  os.sleep(1);
   ret = os.read(stdout, buf, 0, buf.byteLength);
   ret = os.read(stdout, buf, 0, buf.byteLength);
   ret = os.read(stdout, buf, 0, buf.byteLength);
 */
-  cp.wait();
-   let ret = os.read(stdout, buf, 0, buf.byteLength);
-  console.log('ret:', ret);
-  if(ret > 0)
-  console.log('buf:', toString(buf.slice(0,ret)));
-DumpChildProcess(cp);
+  //cp.kill(child_process.SIGTERM);
+
+  let ret;
+
+  while((ret = os.read(stdout, buf, 0, buf.byteLength)) > 0) {
+    console.log('buf:', toString(buf.slice(0, ret)));
+  }
+cp.wait();
+  
+  DumpChildProcess(cp);
 }
 
 try {

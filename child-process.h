@@ -22,5 +22,6 @@ char** child_process_environment(JSContext*, JSValue object);
 ChildProcess* child_process_new(JSContext*);
 int child_process_spawn(ChildProcess*);
 int child_process_wait(ChildProcess*);
+int child_process_kill(ChildProcess*, int);
 
 #endif /* defined(CHILD_PROCESS_H) */
