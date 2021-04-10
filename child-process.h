@@ -11,13 +11,16 @@ typedef struct ChildProcess {
   char** args;
   char** env;
   int pid;
+  int exitcode;
+  int termsig;
   uint32_t uid, gid;
-  unsigned num_fds;
+  int num_fds;
   int *child_fds, *parent_fds;
 } ChildProcess;
 
 char** child_process_environment(JSContext*, JSValue object);
 ChildProcess* child_process_new(JSContext*);
 int child_process_spawn(ChildProcess*);
+int child_process_wait(ChildProcess*);
 
 #endif /* defined(CHILD_PROCESS_H) */

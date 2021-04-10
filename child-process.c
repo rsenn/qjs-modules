@@ -8,6 +8,7 @@
 #include <io.h>
 #else
 #include <unistd.h>
+#include <sys/wait.h>
 #endif
 #include <errno.h>
 
@@ -54,14 +55,24 @@ child_process_environment(JSContext* ctx, JSValueConst object) {
 
 int
 child_process_spawn(ChildProcess* cp) {
-  int pid;
+  int pid, i;
   if((pid = fork()) == 0) {
 
+    if(cp->parent_fds) {
+      for(i = 0; i < cp->num_fds; i++) {
+        if(cp->parent_fds && cp->parent_fds[i] >= 0)
+          close(cp->parent_fds[i]);
+      }
+    }
+
     if(cp->child_fds) {
-      unsigned i;
-      for( i = 0; i < cp->num_fds; i++) {
-        if(cp->child_fds[i] >= 0)
-          dup2(cp->child_fds[i], i);
+      for(i = 0; i < cp->num_fds; i++) {
+        if(cp->child_fds[i] >= 0) {
+          if(cp->child_fds[i] != i) {
+            dup2(cp->child_fds[i], i);
+            close(cp->child_fds[i]);
+          }
+        }
       }
     }
 
@@ -75,6 +86,32 @@ child_process_spawn(ChildProcess* cp) {
     perror("execvp()");
     exit(errno);
   }
-
+  if(cp->child_fds) {
+    for(i = 0; i < cp->num_fds; i++) {
+      if(cp->child_fds[i] >= 0 && cp->child_fds[i] != i)
+        close(cp->child_fds[i]);
+    }
+  }
   return cp->pid = pid;
+}
+
+int
+child_process_wait(ChildProcess* cp) {
+  int status;
+  if(waitpid(cp->pid, &status, WNOHANG) == -1)
+    return 0;
+
+  cp->exitcode = -1;
+  cp->termsig = -1;
+
+  if(WIFEXITED(status)) {
+    cp->exitcode = WEXITSTATUS(status);
+    return 1;
+  }
+
+  if(WIFSIGNALED(status)) {
+    cp->termsig = WTERMSIG(status);
+    return 1;
+  }
+  return 0;
 }

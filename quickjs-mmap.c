@@ -11,7 +11,7 @@ js_mmap_free_func(JSRuntime* rt, void* opaque, void* ptr) {
 }
 
 static JSValue
-js_mmap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   uint64_t addr, length, offset;
   int32_t prot, flags, fd;
   void* ptr;
@@ -38,14 +38,28 @@ js_mmap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
 }
 
 static JSValue
-js_munmap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_mmap_unmap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   JS_DetachArrayBuffer(ctx, argv[0]);
   return JS_UNDEFINED;
 }
 
+static JSValue
+js_mmap_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  JSValue ret = JS_UNDEFINED;
+  if(js_is_arraybuffer(ctx, argv[0])) {
+    uint8_t* data;
+    size_t len;
+    if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+      ret = JS_NewStringLen(ctx, (const char*)data, len);
+    }
+  }
+  return ret;
+}
+
 static const JSCFunctionListEntry js_mmap_funcs[] = {
-    JS_CFUNC_DEF("mmap", 2, js_mmap),
-    JS_CFUNC_DEF("munmap", 1, js_munmap),
+    JS_CFUNC_DEF("mmap", 2, js_mmap_map),
+    JS_CFUNC_DEF("munmap", 1, js_mmap_unmap),
+    JS_CFUNC_DEF("toString", 1, js_mmap_tostring),
     JS_PROP_INT32_DEF("PROT_READ", 0x01, 0),
     JS_PROP_INT32_DEF("PROT_WRITE", 0x02, 0),
     JS_PROP_INT32_DEF("PROT_EXEC", 0x04, 0),

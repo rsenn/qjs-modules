@@ -16,14 +16,18 @@ enum {
   CHILD_PROCESS_ARGS,
   CHILD_PROCESS_ENV,
   CHILD_PROCESS_STDIO,
-  CHILD_PROCESS_PID
+  CHILD_PROCESS_PID,
+  CHILD_PROCESS_EXITED,
+  CHILD_PROCESS_EXITCODE,
+  CHILD_PROCESS_SIGNALED,
+  CHILD_PROCESS_TERMSIG
 };
 
 extern char** environ;
 
 VISIBLE JSClassID js_child_process_class_id = 0;
 static JSValue child_process_proto, child_process_ctor;
- 
+
 ChildProcess*
 js_child_process_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_child_process_class_id);
@@ -206,7 +210,38 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt32(ctx, cp->pid);
       break;
     }
+    case CHILD_PROCESS_EXITED: {
+      ret = JS_NewBool(ctx, cp->exitcode != -1);
+      break;
+    }
+    case CHILD_PROCESS_EXITCODE: {
+      if(cp->exitcode != -1)
+        ret = JS_NewInt32(ctx, cp->exitcode);
+      break;
+    }
+    case CHILD_PROCESS_SIGNALED: {
+      ret = JS_NewBool(ctx, cp->termsig != -1);
+      break;
+    }
+    case CHILD_PROCESS_TERMSIG: {
+      if(cp->termsig != -1)
+        ret = JS_NewInt32(ctx, cp->termsig);
+      break;
+    }
   }
+
+  return ret;
+}
+
+static JSValue
+js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  ChildProcess* cp;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(cp = js_child_process_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  ret = JS_NewInt32(ctx, child_process_wait(cp));
 
   return ret;
 }
@@ -223,6 +258,11 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("env", js_child_process_get, 0, CHILD_PROCESS_ENV),
     JS_CGETSET_MAGIC_DEF("stdio", js_child_process_get, 0, CHILD_PROCESS_STDIO),
     JS_CGETSET_MAGIC_DEF("pid", js_child_process_get, 0, CHILD_PROCESS_PID),
+    JS_CGETSET_MAGIC_DEF("exitcode", js_child_process_get, 0, CHILD_PROCESS_EXITCODE),
+    JS_CGETSET_MAGIC_DEF("termsig", js_child_process_get, 0, CHILD_PROCESS_TERMSIG),
+    JS_CGETSET_MAGIC_DEF("exited", js_child_process_get, 0, CHILD_PROCESS_EXITED),
+    JS_CGETSET_MAGIC_DEF("signaled", js_child_process_get, 0, CHILD_PROCESS_SIGNALED),
+    JS_CFUNC_DEF("wait", 0, js_child_process_wait),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", JS_PROP_C_W_E),
 };
 
