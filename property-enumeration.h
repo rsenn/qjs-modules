@@ -79,6 +79,14 @@ property_enumeration_valuestr(PropertyEnumeration* it, JSContext* ctx) {
   return str;
 }
 
+static inline const char*
+property_enumeration_valuestrlen(PropertyEnumeration* it, size_t* len, JSContext* ctx) {
+  JSValue value = property_enumeration_value(it, ctx);
+  const char* str = JS_ToCStringLen(ctx, len, value);
+  js_value_free(ctx, value);
+  return str;
+}
+
 static inline JSAtom
 property_enumeration_atom(PropertyEnumeration* it) {
   assert(it->idx < it->tab_atom_len);

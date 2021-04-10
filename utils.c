@@ -363,18 +363,16 @@ js_array_length(JSContext* ctx, JSValueConst array) {
 }
 
 char**
-js_array_to_strvec(JSContext* ctx, JSValueConst array) {
-  int64_t i, len = js_array_length(ctx, array);
+js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array) {
+  int i, len = js_array_length(ctx, array);
   char** ret = js_mallocz(ctx, sizeof(char*) * (len + 1));
   for(i = 0; i < len; i++) {
     JSValue item = JS_GetPropertyUint32(ctx, array, i);
-    size_t len;
-    const char* str;
-    str = JS_ToCStringLen(ctx, &len, item);
-    ret[i] = js_strndup(ctx, str, len);
-    js_cstring_free(ctx, str);
+    ret[i] = js_tostring(ctx, item);
     js_value_free(ctx, item);
   }
+  if(argcp)
+    *argcp = len;
   return ret;
 }
 
@@ -710,6 +708,19 @@ js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop
 }
 
 char*
+js_get_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t prop) {
+  JSValue value;
+  char* ret;
+  value = JS_GetPropertyUint32(ctx, obj, prop);
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  ret = js_tostring(ctx, value);
+  js_value_free(ctx, value);
+  return ret;
+}
+
+char*
 js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop) {
   JSValue value;
   char* ret;
@@ -803,7 +814,7 @@ js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
 }
 
 void
-js_strvec_free(JSContext* ctx, char** strv) {
+js_argv_free(JSContext* ctx, char** strv) {
   size_t i;
   if(strv == 0)
     return;
@@ -813,7 +824,7 @@ js_strvec_free(JSContext* ctx, char** strv) {
 }
 
 JSValue
-js_strvec_to_array(JSContext* ctx, char** strv) {
+js_argv_to_array(JSContext* ctx, char** strv) {
   JSValue ret = JS_NewArray(ctx);
   if(strv) {
     size_t i;

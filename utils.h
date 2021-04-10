@@ -681,6 +681,7 @@ BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
 void js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str);
 void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);
 void js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
+const char* js_get_propertyint_cstring(JSContext* ctx, JSValueConst obj, uint32_t i);
 const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
 const char* js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
@@ -717,8 +718,25 @@ int js_is_typedarray(JSContext* ctx, JSValueConst value);
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
 BOOL js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
 int64_t js_array_length(JSContext* ctx, JSValueConst array);
-void js_strvec_free(JSContext* ctx, char** strv);
-JSValue js_strvec_to_array(JSContext* ctx, char** strv);
-char** js_array_to_strvec(JSContext* ctx, JSValueConst array);
+static inline size_t
+js_argv_length(char** strv) {
+  size_t i;
+  for(i = 0; strv[i]; i++) {}
+  return i;
+}
+static inline char**
+js_argv_dup(JSContext* ctx, char** strv) {
+  char** ret;
+  size_t i, len = js_argv_length(strv);
+
+  ret = js_malloc(ctx, (len + 1) * sizeof(char*));
+
+  for(i = 0; i < len; i++) { ret[i] = js_strdup(ctx, strv[i]); }
+  ret[i] = 0;
+  return ret;
+}
+void js_argv_free(JSContext* ctx, char** strv);
+JSValue js_argv_to_array(JSContext* ctx, char** strv);
+char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 
 #endif /* defined(UTILS_H) */
