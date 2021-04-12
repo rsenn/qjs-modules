@@ -8,6 +8,16 @@ import Console from './console.js';
 
 globalThis.inspect = inspect;
 
+Map.prototype.emplace = function emplace(key, handler) {
+  var map = this;
+  var value = (map.has(key) && 'update' in handler)
+    ? handler.update(map.get(key), key, map)
+    : handler.insert(key, map);
+  map.set(key, value);
+  return value;
+};
+
+
 async function main(...args) {
   console.log('main:', args);
 
@@ -111,8 +121,22 @@ async function main(...args) {
   //for(let item of s) console.log('item:', item);
 
   std.gc();
-  let map = new Map();
-  [
+  const re = /[a-z].*!$/g;
+  console.log('inspect(re)', re);
+  console.log('inspect(str)', 'DEADBEEF');
+
+  console.log('inspect(num)', Math.PI);
+
+  /*const PI_STR =
+    '3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962';
+  BigFloatEnv.setPrec(() => {
+    console.log('BigFloatEnv.prec', BigFloatEnv.prec);
+    console.log('inspect(BigFloat)', BigFloat(PI_STR));
+    console.log('inspect(BigDecimal)', BigDecimal(PI_STR));
+    console.log('inspect(BigInt)', BigInt(PI_STR));
+  }, 1024);*/
+
+  let map = new Map([
     ['A', 'a'],
     ['B', 'b'],
     ['C', 'c'],
@@ -121,24 +145,15 @@ async function main(...args) {
     ['2', 2],
     ['3', 3],
     ['4', 4],
-    ['5', 'x']
-  ].forEach(([k, v]) => map.set(k, v));
+    ['5', 5]
+  ]);
+  
+  map.emplace('E', { insert: () => 0, update: v => v+1 })
+  map.emplace('E', { insert: () => 0, update: v => v+1 })
+  map.emplace('6', { insert: () => 6, update: v => -v })
 
-  console.log('inspect(map)', map);
-  const re = /[a-z].*!$/g;
-  console.log('inspect(re)', re);
-  console.log('inspect(str)', 'DEADBEEF');
+  console.log('inspect(map)', inspect(map));
 
-  console.log('inspect(num)', Math.PI);
-
-  const PI_STR =
-    '3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962';
-  BigFloatEnv.setPrec(() => {
-    console.log('BigFloatEnv.prec', BigFloatEnv.prec);
-    console.log('inspect(BigFloat)', BigFloat(PI_STR));
-    console.log('inspect(BigDecimal)', BigDecimal(PI_STR));
-    console.log('inspect(BigInt)', BigInt(PI_STR));
-  }, 1024);
   std.gc();
   return;
 }
