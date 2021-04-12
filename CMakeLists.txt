@@ -2,8 +2,18 @@ project(quickjs-modules C)
 
 cmake_minimum_required(VERSION 3.2)
 
-set(QUICKJS_MODULES child-process deep lexer mmap path pointer predicate repeater inspect
-                    tree-walker xml)
+set(QUICKJS_MODULES
+    child-process
+    deep
+    lexer
+    mmap
+    path
+    pointer
+    predicate
+    repeater
+    inspect
+    tree-walker
+    xml)
 
 set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
 set(QUICKJS_H ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h)
@@ -12,13 +22,29 @@ if(EXISTS "${QUICKJS_H}")
 
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
-set(child_process_SOURCES child-process.c child-process.h utils.c utils.h vector.c vector.h)
-set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.h utils.c
-                 utils.h pointer.h virtual-properties.h)
+set(child_process_SOURCES child-process.c child-process.h utils.c utils.h
+                          vector.c vector.h)
+set(deep_SOURCES
+    vector.c
+    vector.h
+    pointer.c
+    virtual-properties.c
+    property-enumeration.h
+    utils.c
+    utils.h
+    pointer.h
+    virtual-properties.h)
 set(deep_LIBRARIES quickjs-pointer)
-set(inspect_SOURCES vector.c vector.h iteration.h utils.c utils.h property-enumeration.h
-                    quickjs-internal.h)
-set(tree_walker_SOURCES vector.c vector.h property-enumeration.h utils.c utils.h)
+set(inspect_SOURCES
+    vector.c
+    vector.h
+    iteration.h
+    utils.c
+    utils.h
+    property-enumeration.h
+    quickjs-internal.h)
+set(tree_walker_SOURCES vector.c vector.h property-enumeration.h utils.c
+                        utils.h)
 set(xml_SOURCES vector.c vector.h property-enumeration.h utils.c utils.h)
 set(path_SOURCES path.c path.h utils.c utils.h)
 set(predicate_SOURCES predicate.c predicate.h vector.c vector.h utils.c utils.h)
@@ -29,13 +55,20 @@ set(mmap_SOURCES utils.c utils.h)
 set(repeater_SOURCES utils.c utils.h)
 
 if(NOT QUICKJS_PREFIX)
-  set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
+  set(QUICKJS_PREFIX
+      "${CMAKE_INSTALL_PREFIX}"
+      CACHE PATH "QuickJS install directory")
 else(NOT QUICKJS_PREFIX)
-  set(QUICKJS_PREFIX "${QUICKJS_PREFIX}" CACHE PATH "QuickJS install directory")
+  set(QUICKJS_PREFIX
+      "${QUICKJS_PREFIX}"
+      CACHE PATH "QuickJS install directory")
 endif(NOT QUICKJS_PREFIX)
 
-set(CMAKE_INSTALL_PREFIX "${QUICKJS_PREFIX}" CACHE PATH "Install directory" FORCE)
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
+set(CMAKE_INSTALL_PREFIX
+    "${QUICKJS_PREFIX}"
+    CACHE PATH "Install directory" FORCE)
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel
+                                             RelWithDebInfo)
 
 message("QuickJS install directory: ${QUICKJS_PREFIX}")
 
@@ -57,21 +90,25 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG} -O0"
+          CACHE STRING "C compiler options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options"
-                                                                   FORCE)
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG} -ggdb"
+          CACHE STRING "C compiler options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options"
-                                                                     FORCE)
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG} -Wextra"
+          CACHE STRING "C compiler options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -97,7 +134,9 @@ if(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
   list(APPEND QUICKJS_INCLUDE_DIRS "${QUICKJS_PREFIX}/include/quickjs")
 endif(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
 
-set(QUICKJS_INCLUDE_DIRS "${QUICKJS_INCLUDE_DIRS}" CACHE STRING "QuickJS include dirs" FORCE)
+set(QUICKJS_INCLUDE_DIRS
+    "${QUICKJS_INCLUDE_DIRS}"
+    CACHE STRING "QuickJS include dirs" FORCE)
 
 set(CMAKE_REQUIRED_INCLUDES "${QUICKJS_INCLUDE_DIRS}")
 
@@ -117,10 +156,14 @@ endif(HAVE_QUICKJS_CONFIG_H)
 
 include(CheckCSourceRuns)
 
-find_program(QJS qjs PATHS "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH
-             NO_DEFAULT_PATH)
-find_program(QJSC qjsc PATHS "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH
-             NO_DEFAULT_PATH)
+find_program(
+  QJS qjs
+  PATHS "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH
+  NO_DEFAULT_PATH)
+find_program(
+  QJSC qjsc
+  PATHS "${CMAKE_CURRENT_BINARY_DIR}/.." "${QUICKJS_PREFIX}/bin" ENV PATH
+  NO_DEFAULT_PATH)
 
 message(STATUS "QuickJS interpreter: ${QJS}")
 message(STATUS "QuickJS compiler: ${QJSC}")
@@ -128,18 +171,17 @@ message(STATUS "QuickJS compiler: ${QJSC}")
 set(CMAKE_REQUIRED_QUIET OFF)
 check_include_file(spawn.h HAVE_SPAWN_H)
 
-if(HAVE_SPAWN_H) 
+if(HAVE_SPAWN_H)
   list(APPEND CMAKE_REQUIRED_INCLUDES spawn.h)
 
   check_function_exists(posix_spawnp HAVE_POSIX_SPAWNP)
   message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
 
   if(HAVE_POSIX_SPAWNP)
-  add_definitions(-DPOSIX_SPAWN=1)
+    add_definitions(-DPOSIX_SPAWN=1)
   endif(HAVE_POSIX_SPAWNP)
-  
-endif(HAVE_SPAWN_H) 
 
+endif(HAVE_SPAWN_H)
 
 file(GLOB TESTS tests/test_*.js)
 
@@ -147,8 +189,13 @@ function(BASENAME OUT_VAR FILEPATH)
   set(OUTPUT "${FILEPATH}")
   string(REGEX REPLACE ".*/" "" OUTPUT "${OUTPUT}")
   string(REGEX REPLACE "\\.[^/.]*$" "" OUTPUT "${OUTPUT}")
-  set("${OUT_VAR}" "${OUTPUT}" PARENT_SCOPE)
-endfunction(BASENAME OUT_VAR FILEPATH)
+  set("${OUT_VAR}"
+      "${OUTPUT}"
+      PARENT_SCOPE)
+endfunction(
+  BASENAME
+  OUT_VAR
+  FILEPATH)
 
 function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
   set(LIST "")
@@ -158,8 +205,13 @@ function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
     list(APPEND LIST "${ARG}")
   endforeach(ARG ${ARGN})
 
-  set("${OUT_VAR}" "${LIST}" PARENT_SCOPE)
-endfunction(RELATIVE_PATH RELATIVE_TO OUT_VAR)
+  set("${OUT_VAR}"
+      "${LIST}"
+      PARENT_SCOPE)
+endfunction(
+  RELATIVE_PATH
+  RELATIVE_TO
+  OUT_VAR)
 
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
 
@@ -169,14 +221,20 @@ if(DO_TESTS)
   foreach(TEST ${TESTS})
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
-    add_test(NAME "${BASE}"
-             COMMAND env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR}
-                     "${QJS}" --bignum "${TEST}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(
+      NAME "${BASE}"
+      COMMAND
+        env
+        QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR}
+        "${QJS}" --bignum "${TEST}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_custom_target(
       "${BASE}" ALL
       COMMAND
-        env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR} "${QJSC}"
-        -fbignum -M std -M os -M ${NAME} -o "${BASE}" "${CMAKE_CURRENT_SOURCE_DIR}/${TEST}"
+        env
+        QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR}
+        "${QJSC}" -fbignum -M std -M os -M ${NAME} -o "${BASE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/${TEST}"
       WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
       SOURCES "${TEST}")
   endforeach(TEST ${TESTS})
@@ -214,18 +272,29 @@ function(make_shared_module FNAME)
   set_target_properties(
     ${TARGET_NAME}
     PROPERTIES
-      PREFIX "" # BUILD_RPATH "${OPENCV_LIBRARY_DIRS}:${CMAKE_CURRENT_BINARY_DIR}"
-      RPATH "${OPENCV_LIBRARY_DIRS}:${CMAKE_INSTALL_PREFIX}/lib:${CMAKE_INSTALL_PREFIX}/lib/quickjs"
+      PREFIX "" # BUILD_RPATH
+                # "${OPENCV_LIBRARY_DIRS}:${CMAKE_CURRENT_BINARY_DIR}"
+      RPATH
+      "${OPENCV_LIBRARY_DIRS}:${CMAKE_INSTALL_PREFIX}/lib:${CMAKE_INSTALL_PREFIX}/lib/quickjs"
       OUTPUT_NAME "${NAME}" # COMPILE_FLAGS "-fvisibility=hidden"
       BUILD_RPATH
       "${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_BINARY_DIR}:${CMAKE_BINARY_DIR}/quickjs:${CMAKE_CURRENT_BINARY_DIR}/quickjs"
       COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
   target_compile_definitions(
-    ${TARGET_NAME} PRIVATE JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1
-                           CONFIG_PREFIX="${CMAKE_INSTALL_PREFIX}" ${PLOTCV_DEFS})
-  install(TARGETS ${TARGET_NAME} DESTINATION lib/quickjs
-          PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ
-                      WORLD_EXECUTE)
+    ${TARGET_NAME}
+    PRIVATE JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1
+            CONFIG_PREFIX="${CMAKE_INSTALL_PREFIX}" ${PLOTCV_DEFS})
+  install(
+    TARGETS ${TARGET_NAME}
+    DESTINATION lib/quickjs
+    PERMISSIONS
+      OWNER_READ
+      OWNER_WRITE
+      OWNER_EXECUTE
+      GROUP_READ
+      GROUP_EXECUTE
+      WORLD_READ
+      WORLD_EXECUTE)
 
   config_shared_module(${TARGET_NAME})
 endfunction()
