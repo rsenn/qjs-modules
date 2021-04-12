@@ -10,13 +10,13 @@ globalThis.inspect = inspect;
 
 Map.prototype.emplace = function emplace(key, handler) {
   var map = this;
-  var value = (map.has(key) && 'update' in handler)
-    ? handler.update(map.get(key), key, map)
-    : handler.insert(key, map);
+  var value =
+    map.has(key) && 'update' in handler
+      ? handler.update(map.get(key), key, map)
+      : handler.insert(key, map);
   map.set(key, value);
   return value;
 };
-
 
 async function main(...args) {
   console.log('main:', args);
@@ -147,10 +147,10 @@ async function main(...args) {
     ['4', 4],
     ['5', 5]
   ]);
-  
-  map.emplace('E', { insert: () => 0, update: v => v+1 })
-  map.emplace('E', { insert: () => 0, update: v => v+1 })
-  map.emplace('6', { insert: () => 6, update: v => -v })
+
+  map.emplace('E', { insert: () => 0, update: v => v + 1 });
+  map.emplace('E', { insert: () => 0, update: v => v + 1 });
+  map.emplace('6', { insert: () => 6, update: v => -v });
 
   console.log('inspect(map)', inspect(map));
 

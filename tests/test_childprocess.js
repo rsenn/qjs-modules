@@ -57,8 +57,8 @@ function main(...args) {
   while((ret = os.read(stdout, buf, 0, buf.byteLength)) > 0) {
     console.log('buf:', toString(buf.slice(0, ret)));
   }
-cp.wait();
-  
+  cp.wait();
+
   DumpChildProcess(cp);
 }
 

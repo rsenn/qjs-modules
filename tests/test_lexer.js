@@ -17,6 +17,41 @@ const CLOCK_BOOTTIME = 7;
 
 globalThis.inspect = inspect;
 
+Object.defineProperties(Array.prototype, {
+  last: {
+    get() {
+      return this[this.length - 1];
+    }
+  },
+  at: {
+    value(index) {
+      const { length } = this;
+      return this[((index % length) + length) % length];
+    }
+  },
+  clear: {
+    value() {
+      this.splice(0, this.length);
+    }
+  },
+  findLastIndex: {
+    value(predicate) {
+      for(let i = this.length - 1; i >= 0; --i) {
+        const x = this[i];
+        if(predicate(x, i, this)) return i;
+      }
+      return -1;
+    }
+  },
+  findLast: {
+    value(predicate) {
+      let i;
+      if((i = this.findLastIndex(predicate)) == -1) return null;
+      return this[i];
+    }
+  }
+});
+
 function WriteFile(file, tok) {
   let f = std.open(file, 'w+');
   f.puts(tok);
@@ -181,11 +216,11 @@ function AddECMAScriptDefines(lexer) {
   lexer.define('OctalEscapeSequence', `(?:[1-7][0-7]{0,2}|[0-7]{1,3})`);
   lexer.define('HexEscapeSequence', `[x]{HexDigit}{2}`);
   lexer.define('UnicodeEscapeSequence', `[u]{HexDigit}{4}`);
-  lexer.define('SingleEscapeCharacter', `[\\'\\"\\\\bfnrtv]`);
-  lexer.define('NonEscapeCharacter', `[^\\'\\"\\\\bfnrtv0-9xu]`);
-  lexer.define('CharacterEscapeSequence', `{SingleEscapeCharacter}|{NonEscapeCharacter}`);
+  lexer.define('SingleEscapeCharacter', `[\\'\\"\\\\abfnrtv]`);
+  lexer.define('NonEscapeCharacter', `[^\\'\\"\\\\abfnrtv0-9xu]`);
+  lexer.define('CharacterEscapeSequence', `({SingleEscapeCharacter}|{NonEscapeCharacter})`);
   lexer.define('EscapeSequence',
-    `\\\\{CharacterEscapeSequence}|\\\\{OctalEscapeSequence}|\\\\{HexEscapeSequence}|\\\\{UnicodeEscapeSequence}`
+    `\\\\{SingleEscapeCharacter}|\\\\{OctalEscapeSequence}|\\\\{HexEscapeSequence}|\\\\{UnicodeEscapeSequence}`
   );
   lexer.define('DoubleStringCharacter', `([^\\"\\\\\\n\\r]+|{EscapeSequence}|{LineContinuation})`);
   lexer.define('SingleStringCharacter', `([^\\'\\\\\\n\\r]+|{EscapeSequence}|{LineContinuation})`);
@@ -215,7 +250,7 @@ async function main(...args) {
     colors: true,
     depth: 8,
     maxArrayLength: 100,
-    maxStringLength: 100,
+    maxStringLength: Infinity,
     compact: false,
     showHidden: false
   });
@@ -251,7 +286,7 @@ async function main(...args) {
   lexer.addRule('BIT_OP', '&|\\||\\^|<<|>>|~');
   lexer.addRule('LINE_TERMINATORS', '[\r\n\u2028\u2029]');
 */
-  lexer.addRule('preprocessor', '#[^\n]*');
+  lexer.addRule('preprocessor', '#[^\n\\\\]*(({LineContinuation}|\\\\.)[^\n\\\\]*)*');
   lexer.addRule('keyword',
 
     'instanceof|debugger|function|continue|finally|extends|default|static|export|switch|import|typeof|return|delete|async|yield|await|throw|super|const|class|catch|while|break|from|enum|case|with|void|this|else|let|try|var|new|for|as|of|do|in|if'
@@ -263,11 +298,20 @@ async function main(...args) {
   lexer.addRule('punctuator',
     '-->>=|>>>=|\\?\\?=|&&=|\\|\\|=|\\*\\*=|\\.\\.\\.|<<=|-->>|>>=|>>>|===|!==|\\?\\?|\\*\\*|\\?\\.|$\\{|=>|%=|-=|>=|\\^=|\\+=|--|<=|\\|=|\\+\\+|==|&=|>>|\\|\\||/=|<<|&&|\\*=|!=|@|\\{|\\^|\\+|:|\\)|\\||\\?|;|\\(|&|~|\\]|/|!|<|\\[|\\*|,|>|\\}|%|-|\\.|='
   );
-  lexer.addRule('whitespace', '{LineTerminators}+|[ \\t\\v\\f]+', ~1);
+  lexer.addRule('whitespace', '({LineTerminators}|[ \\t\\v\\f]|\\\\\\n)+', ~1);
 
   lexer.handler = function(state, skip) {
     console.log(`handler state=${state} skip=${skip}`);
   };
+
+  let tokenList = [];
+  let declarations = [];
+
+  function printTok(tok) {
+    const cols = [`tok[${tok.byteLength}]`, tok.lexeme, +tok, lexer.tokenClass(tok), tok.loc];
+    console.log(...cols.map((col, i) => (col + '').replace(/\n/g, '\\n').padEnd(colSizes[i])));
+    //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
+  }
 
   try {
     let tok;
@@ -275,15 +319,27 @@ async function main(...args) {
 
     console.log('now', now());
 
-    for(let tok of lexer(-1, 1)) {
-      const cols = [`tok[${tok.byteLength}]`, tok.lexeme, +tok, lexer.tokenClass(tok), tok.loc];
-      console.log(...cols.map((col, i) => (col + '').replace(/\n/g, '\\n').padEnd(colSizes[i])));
-      //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
+    for(let tok of lexer(-1, 0 /*1*/)) {
+      tokenList.push(tok);
+      console.log('tokenList.at(-1).lexeme:', tokenList.at(-1).lexeme);
+
+      if((tokenList.at(-1).lexeme == ';' && tokenList.at(-2).lexeme == ')') ||
+        (tokenList.last.lexeme == '}' && tokenList.last.loc.column == 1) ||
+        lexer.tokenClass(tok) == 'preprocessor'
+      ) {
+        declarations.push(tokenList);
+        tokenList = [];
+      }
     }
   } catch(err) {
     console.log('err:', err.message);
     /*console.log(lexer.currentLine());
     console.log('^'.padStart(lexer.loc.column));*/
+  }
+
+  for(let decl of declarations) {
+    console.log('\n'+decl[0].loc);
+    console.log('declaration', decl.join('').trim() /*.replace(/[ \t\n]+/g, ' ')*/);
   }
   return;
 
