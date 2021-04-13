@@ -229,6 +229,22 @@ property_enumeration_dumpall(Vector* vec, JSContext* ctx, DynBuf* out) {
 }
 
 static inline JSValue
+property_enumeration_path_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+
+  JSValue ret, separator;
+  JSAtom join;
+
+  separator = JS_NewString(ctx, ".");
+  join = JS_NewAtom(ctx, "join");
+
+  ret = JS_Invoke(ctx, this_val, join, 1, &separator);
+  JS_FreeAtom(ctx, join);
+  JS_FreeValue(ctx, separator);
+
+  return ret;
+}
+
+static inline JSValue
 property_enumeration_path(Vector* vec, JSContext* ctx) {
   JSValue ret;
   PropertyEnumeration* it;
@@ -238,6 +254,11 @@ property_enumeration_path(Vector* vec, JSContext* ctx) {
     JSValue key = property_enumeration_key(it, ctx);
     JS_SetPropertyUint32(ctx, ret, i++, key);
   }
+  JS_DefinePropertyValueStr(ctx,
+                            ret,
+                            "toString",
+                            JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0),
+                            JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   return ret;
 }
 

@@ -26,18 +26,18 @@ function main(...args) {
   });
   console.log('args:', args);
 
-  let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
+  let data = std.loadFile(args[0] ?? '/etc/fonts/fonts.conf', 'utf-8');
 
-  console.log('data:', data);
+  console.log('data:', data.substring(0, 100).replace(/\n/g, '\\n') + '...');
 
   let result = xml.read(data);
   console.log('result:', result);
 
-  console.log('xml:', xml.write(result));
+  //console.log('xml:', xml.write(result));
 
   let pointer;
 
-  pointer = new Pointer([2, 'children', 0, 'children', 2]);
+  pointer = new Pointer([3, 'children', 0, 'children', 0]);
   try {
     console.log('deref pointer:', pointer.deref(result));
   } catch(e) {
@@ -49,7 +49,7 @@ function main(...args) {
 
   WriteFile('output.json', JSON.stringify(result, null, 2));
 
-  let ptr2 = new Pointer('2.children.0.children.2');
+  let ptr2 = new Pointer('3.children.0.children.0');
 
   console.log('deref ptr2:', ptr2.deref(result));
   console.log('dump ptr2:', ptr2);

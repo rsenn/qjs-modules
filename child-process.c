@@ -97,24 +97,24 @@ child_process_spawn(ChildProcess* cp) {
 
 int
 child_process_wait(ChildProcess* cp) {
-  int pid,status;
-  if((pid=waitpid(cp->pid, &status, 0)) == -1)
+  int pid, status;
+  if((pid = waitpid(cp->pid, &status, 0)) == -1)
     return 0;
 
   cp->exitcode = -1;
   cp->termsig = -1;
 
-if(pid == cp->pid) {
-  if(WIFEXITED(status)) {
-    cp->exitcode = WEXITSTATUS(status);
-    return 1;
-  }
+  if(pid == cp->pid) {
+    if(WIFEXITED(status)) {
+      cp->exitcode = WEXITSTATUS(status);
+      return 1;
+    }
 
-  if(WIFSIGNALED(status)) {
-    cp->termsig = WTERMSIG(status);
-    return 1;
+    if(WIFSIGNALED(status)) {
+      cp->termsig = WTERMSIG(status);
+      return 1;
+    }
   }
-}
   return 0;
 }
 

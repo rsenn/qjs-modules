@@ -323,3 +323,16 @@ endforeach(JS_MODULE ${QUICKJS_MODULES})
 
 target_link_libraries(quickjs-lexer quickjs-predicate)
 add_dependencies(quickjs-lexer quickjs-predicate)
+
+
+file(GLOB TESTS_SOURCES tests/test_*.js)
+source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
+
+ include(CTest)
+
+foreach(TEST_SOURCE ${TESTS_SOURCES})
+    file(RELATIVE_PATH TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}" "${TEST_SOURCE}")
+  basename(TEST_NAME ${TEST_SOURCE} .js)
+  add_test(NAME "${TEST_NAME}" COMMAND qjs --bignum "${TEST_SOURCE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
+endforeach(TEST_SOURCE ${TESTS_SOURCES})

@@ -70,7 +70,7 @@ js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSVa
     return JS_EXCEPTION;
 
   vector_init(&it->frames, ctx);
-  ;
+
   it->pred = JS_UNDEFINED;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_deep_iterator_class_id);
@@ -147,8 +147,8 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         continue;
     }
 
-    if(!JS_IsUndefined(ret))
-      js_value_free(ctx, ret);
+    /*if(!JS_IsUndefined(ret))
+      js_value_free(ctx, ret);*/
 
     ret = js_deep_return(ctx, &it->frames, it->flags);
     *pdone = FALSE;
@@ -162,8 +162,7 @@ static void
 js_deep_iterator_finalizer(JSRuntime* rt, JSValue val) {
   DeepIterator* it = JS_GetOpaque(val, js_deep_iterator_class_id);
   if(it) {
-    property_enumeration_free(&it->frames, rt);
-    // js_free_rt(rt, it);
+    // property_enumeration_free(&it->frames, rt);
   }
 }
 

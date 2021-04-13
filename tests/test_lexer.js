@@ -338,7 +338,7 @@ async function main(...args) {
   }
 
   for(let decl of declarations) {
-    console.log('\n'+decl[0].loc);
+    console.log('\n' + decl[0].loc);
     console.log('declaration', decl.join('').trim() /*.replace(/[ \t\n]+/g, ' ')*/);
   }
   return;

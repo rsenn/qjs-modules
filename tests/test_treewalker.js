@@ -15,14 +15,27 @@ function WriteFile(file, data) {
 }
 
 function main(...args) {
-  console = new Console({ colors: true, depth: 1 });
+  console = new Console({
+    colors: true,
+    depth: 2,
+    maxArrayLength: 4,
+    maxStringLength: 60,
+    compact: 1
+  });
 
   console.log('args:', args);
-  let data = std.loadFile(args[0] ?? 'Simple-NPN-Regen-Receiver.xml', 'utf-8');
+  let data = std.loadFile(args[0] ?? '/etc/fonts/fonts.conf', 'utf-8');
 
-  //console.log('data:', data);
+  console.log('data:', data.substring(0, 100).replace(/\n/g, '\\n') + '...');
 
-  let result = xml.read(data);
+  let result;
+  try {
+    result = JSON.parse(data);
+  } catch(err) {
+    try {
+      result = xml.read(data);
+    } catch(err) {}
+  }
   console.log('result:', result);
 
   TestIterator();
@@ -65,10 +78,10 @@ function main(...args) {
   }
 
   function TestIterator() {
-    let it = new TreeIterator(result, TreeIterator.MASK_OBJECT | TreeIterator.RETURN_TUPLE);
+    let it = new TreeIterator(result, TreeIterator.MASK_OBJECT | TreeIterator.RETURN_VALUE_PATH);
 
-    for(let entry of it) {
-      console.log('entry:', entry);
+    for(let [entry,pointer] of it) {
+      console.log(`pointer: ${pointer.join()}, entry:`, entry);
     }
   }
   console.log(result.slice(2));

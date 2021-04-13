@@ -242,8 +242,8 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!(cp = js_child_process_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  //if(cp->exitcode == -1 && cp->termsig == -1)
-    ret = JS_NewInt32(ctx, child_process_wait(cp));
+  // if(cp->exitcode == -1 && cp->termsig == -1)
+  ret = JS_NewInt32(ctx, child_process_wait(cp));
 
   return ret;
 }
@@ -260,8 +260,8 @@ js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(argc > 0)
     JS_ToInt32(ctx, &signum, argv[0]);
 
-  //if(cp->exitcode == -1 && cp->termsig == -1)
-    ret = JS_NewInt32(ctx, child_process_kill(cp, signum));
+  // if(cp->exitcode == -1 && cp->termsig == -1)
+  ret = JS_NewInt32(ctx, child_process_kill(cp, signum));
 
   return ret;
 }
