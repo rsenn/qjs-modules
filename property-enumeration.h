@@ -87,6 +87,14 @@ property_enumeration_valuestrlen(PropertyEnumeration* it, size_t* len, JSContext
   return str;
 }
 
+static inline enum value_mask
+property_enumeration_type(PropertyEnumeration* it, JSContext* ctx) {
+  JSValue value = property_enumeration_value(it, ctx);
+  enum value_mask ret = js_value_type(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 static inline JSAtom
 property_enumeration_atom(PropertyEnumeration* it) {
   assert(it->idx < it->tab_atom_len);

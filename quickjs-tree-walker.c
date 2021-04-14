@@ -127,7 +127,7 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 static PropertyEnumeration*
 js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValueConst pred) {
   PropertyEnumeration* it;
-  int32_t type, mask = w->tag_mask & TYPE_ALL;
+  enum value_mask type, mask = w->tag_mask & TYPE_ALL;
 
   for(; (it = property_enumeration_recurse(&w->frames, ctx));) {
     if(mask && mask != TYPE_ALL) {
@@ -135,7 +135,7 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValu
       value = property_enumeration_value(it, ctx);
       type = js_value_type(ctx, value);
       js_value_free(ctx, value);
-      if((mask & (1 << type)) == 0)
+      if((mask & type) == 0)
         continue;
     }
     if(JS_IsFunction(ctx, pred)) {
@@ -362,29 +362,46 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   PropertyEnumeration* it;
   TreeWalker* w;
   enum tree_iterator_return r;
+  enum value_mask t;
+  JSValue ret = JS_UNDEFINED;
 
   w = JS_GetOpaque(this_val, js_tree_iterator_class_id);
 
   r = w->tag_mask & RETURN_MASK;
+  t = w->tag_mask & 0xffffff;
 
-  if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {
-    *pdone = FALSE;
+  for(;;) {
+    if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {
+      enum value_mask vtype;
+      *pdone = FALSE;
 
-    switch(r) {
-      case RETURN_VALUE: return property_enumeration_value(it, ctx);
-      case RETURN_PATH: return property_enumeration_path(&w->frames, ctx);
-      case RETURN_VALUE_PATH:
-      default: {
-        JSValue ret = JS_NewArray(ctx);
-        JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
-        JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->frames, ctx));
-        return ret;
+     /* if(t) {
+        vtype = property_enumeration_type(it, ctx);
+
+        if((vtype & t) == 0)
+          continue;
+      }*/
+
+      switch(r) {
+        case RETURN_VALUE: ret = property_enumeration_value(it, ctx); break;
+        case RETURN_PATH: ret = property_enumeration_path(&w->frames, ctx); break;
+        case RETURN_VALUE_PATH:
+        default: {
+           ret = JS_NewArray(ctx);
+          JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
+          JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->frames, ctx));
+          break;
+        }
       }
-    }
-  }
 
-  *pdone = TRUE;
-  return JS_UNDEFINED;
+    } else {
+      *pdone = TRUE;
+      ret = JS_UNDEFINED;
+    }
+
+    break;
+  }
+  return ret;
 }
 
 static void

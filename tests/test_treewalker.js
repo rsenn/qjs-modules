@@ -78,13 +78,17 @@ function main(...args) {
   }
 
   function TestIterator() {
-    let it = new TreeIterator(result, TreeIterator.MASK_OBJECT | TreeIterator.RETURN_VALUE_PATH);
+    for(let c of ['TYPE_OBJECT', 'RETURN_VALUE_PATH']) {
+      console.log(`${c} = `, TreeIterator[c]);
+    }
+    let it = new TreeIterator(result, TreeIterator.TYPE_OBJECT | TreeIterator.RETURN_VALUE_PATH);
 
-    for(let [entry,pointer] of it) {
-      console.log(`pointer: ${pointer.join()}, entry:`, entry);
+    for(let [entry, pointer] of it) {
+      console.log(`pointer: ${pointer}, entry:`, entry);
     }
   }
-  console.log(result.slice(2));
+  console.log('result', result);
+  //console.log(result.slice(2));
 
   std.gc();
 }

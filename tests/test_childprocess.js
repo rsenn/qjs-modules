@@ -33,33 +33,42 @@ const inspectOptions = {
   hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
 };
 
-function main(...args) {
-  console = new Console(inspectOptions);
-
-  let cp = child_process.spawn('/opt/diet/bin/ls', ['-la'], { stdio: 'pipe' });
-
+function ReadChild(...args) {
+  let cmd = args.shift();
+  let cp = child_process.spawn(cmd, args, { stdio: 'pipe' });
+  let data = '';
   DumpChildProcess(cp);
 
   let [stdin, stdout, stderr] = cp.stdio;
   console.log('stdio:', { stdin, stdout, stderr });
 
   let buf = new ArrayBuffer(4096);
-
-  /*  os.sleep(1);
-  ret = os.read(stdout, buf, 0, buf.byteLength);
-  ret = os.read(stdout, buf, 0, buf.byteLength);
-  ret = os.read(stdout, buf, 0, buf.byteLength);
-*/
-  //cp.kill(child_process.SIGTERM);
-
   let ret;
 
   while((ret = os.read(stdout, buf, 0, buf.byteLength)) > 0) {
-    console.log('buf:', toString(buf.slice(0, ret)));
+    let chunk = toString(buf.slice(0, ret));
+    console.log('chunk:', chunk);
+    data += chunk;
   }
   cp.wait();
 
   DumpChildProcess(cp);
+  return data;
+}
+
+function main(...args) {
+  console = new Console(inspectOptions);
+
+  let data = ReadChild('ls', '-la');
+
+  console.log('data:', data);
+
+  data = ReadChild('lz4', '-9', '-f','/etc/services', 'services.lz4');
+
+  console.log('data:', data);
+  data = ReadChild('lz4', '-dc', 'services.lz4');
+
+  console.log('data:', data);
 }
 
 try {
