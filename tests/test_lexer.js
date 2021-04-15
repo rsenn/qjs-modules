@@ -11,7 +11,10 @@ import CLexer from './clexer.js';
 ('use strict');
 ('use math');
 
+const code = `const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`;
+
 let gettime;
+
 const CLOCK_REALTIME = 0;
 const CLOCK_MONOTONIC = 1;
 const CLOCK_MONOTONIC_RAW = 4;
@@ -106,20 +109,17 @@ async function main(...args) {
   }
 
   let file = args[0] ?? scriptArgs[0];
-  let str = std.loadFile(file, 'utf-8');
+  let str = args[0] ? std.loadFile(args[0], 'utf-8') : code;
   let len = str.length;
-  /*console.log('len', len);
-let loc = new Location(10,20,'test.js');
-  console.log("loc",loc);
-  console.log("loc",new Location(loc));
-  console.log("loc",new Location('test.js:123:456'));
-  console.log("loc",new Location('123:456'));
-  console.log("loc",new Location('test.js:123:456')+'');
-*/
+
   let jslex = new JSLexer(str, file, Lexer.FIRST);
   let clex = new CLexer(str, file, CLexer.LONGEST);
 
   console.log('lexers:', { jslex, clex });
+  console.log('jslex.tokens:', jslex.tokens);
+  console.log('clex.tokens:', clex.tokens);
+  let e = new SyntaxError();
+  console.log('new SyntaxError()', e);
 
   jslex.handler = function(state, skip) {
     console.log(`handler state=${state} skip=${skip}`);
@@ -143,13 +143,16 @@ let loc = new Location(10,20,'test.js');
 
     for(let tok of jslex(-1, 0 /*1*/)) {
       if(tok.rule[0] == 'whitespace') continue;
-      //     console.log(`token(${i}):`,tok);
+      console.log(`token(${i}).value:`, tok.value);
 
       tokenList.push(tok);
       //      console.log(`token(${i}) ${tok.rule[0]}: '${Lexer.escape(tokenList.at(-1).lexeme)}'`);
       printTok(tok);
 
-      if((tokenList.at(-1).lexeme == ';' && tokenList.at(-2).lexeme == ')') || (tokenList.last.lexeme == '}' && tokenList.last.loc.column == 1) || jslex.tokenClass(tok) == 'preprocessor') {
+      if((tokenList.at(-1).lexeme == ';' && tokenList.at(-2).lexeme == ')') ||
+        (tokenList.last.lexeme == '}' && tokenList.last.loc.column == 1) ||
+        jslex.tokenClass(tok) == 'preprocessor'
+      ) {
         declarations.push(tokenList);
         tokenList = [];
       }

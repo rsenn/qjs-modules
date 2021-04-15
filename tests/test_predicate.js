@@ -87,7 +87,8 @@ async function main(...args) {
   console.log(`isNotNL('\\r')`, isNotNL('\r'));
   console.log(`isNL('\\r')`, isNL('\r'));
 
-  for(let ch of ['_', '2', 'A', 'a', 'Z', 'z', '?', '-']) console.log(`isXDigit('${ch}') =`, isXDigit(ch));
+  for(let ch of ['_', '2', 'A', 'a', 'Z', 'z', '?', '-'])
+    console.log(`isXDigit('${ch}') =`, isXDigit(ch));
 
   for(let ch of ['_', '2', 'A', 'a', '?', '-']) console.log(`isAlpha('${ch}') =`, isAlpha(ch));
 

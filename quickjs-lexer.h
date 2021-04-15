@@ -5,10 +5,8 @@
 #include "list.h"
 
 typedef struct {
-  const uint8_t* data;
-  uint32_t byte_length;
-  uint32_t offset;
   Location loc;
+  const char* line;
   const char* message;
 } SyntaxError;
 

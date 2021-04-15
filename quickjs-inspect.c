@@ -43,7 +43,7 @@ typedef struct prop_key {
 static int js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth);
 
 static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor,
-    set_ctor, regexp_ctor /*, symbol_ctor*/, proxy_ctor;
+    set_ctor, regexp_ctor, proxy_ctor;
 
 static void
 inspect_options_init(inspect_options_t* opts) {
@@ -239,7 +239,6 @@ js_inspect_constructors_get(JSContext* ctx) {
   map_ctor = JS_GetPropertyStr(ctx, global_object, "Map");
   set_ctor = JS_GetPropertyStr(ctx, global_object, "Set");
   regexp_ctor = JS_GetPropertyStr(ctx, global_object, "RegExp");
-  // symbol_ctor = JS_GetPropertyStr(ctx, global_object, "Symbol");
   proxy_ctor = JS_GetPropertyStr(ctx, global_object, "Proxy");
 
   if(!JS_IsConstructor(ctx, array_buffer_ctor))
@@ -252,8 +251,6 @@ js_inspect_constructors_get(JSContext* ctx) {
     JS_ThrowTypeError(ctx, "Set is not a constructor");
   if(!JS_IsConstructor(ctx, regexp_ctor))
     JS_ThrowTypeError(ctx, "RegExp is not a constructor");
-  /*if(!JS_IsConstructor(ctx, symbol_ctor))
-    JS_ThrowTypeError(ctx, "Symbol is not a constructor");*/
   if(!JS_IsConstructor(ctx, proxy_ctor))
     JS_ThrowTypeError(ctx, "Proxy is not a constructor");
 
@@ -269,7 +266,6 @@ js_inspect_constructors_free(JSContext* ctx) {
   js_value_free(ctx, map_ctor);
   js_value_free(ctx, set_ctor);
   js_value_free(ctx, regexp_ctor);
-  // js_value_free(ctx, symbol_ctor);
   js_value_free(ctx, global_object);
 }
 

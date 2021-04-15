@@ -10,6 +10,73 @@
 #include <quickjs-config.h>
 #endif
 
+enum JSClassIds {
+  /* classid tag        */ /* union usage   | properties */
+  JS_CLASS_OBJECT = 1,     /* must be first */
+  JS_CLASS_ARRAY,          /* u.array       | length */
+  JS_CLASS_ERROR,
+  JS_CLASS_NUMBER,           /* u.object_data */
+  JS_CLASS_STRING,           /* u.object_data */
+  JS_CLASS_BOOLEAN,          /* u.object_data */
+  JS_CLASS_SYMBOL,           /* u.object_data */
+  JS_CLASS_ARGUMENTS,        /* u.array       | length */
+  JS_CLASS_MAPPED_ARGUMENTS, /*               | length */
+  JS_CLASS_DATE,             /* u.object_data */
+  JS_CLASS_MODULE_NS,
+  JS_CLASS_C_FUNCTION,          /* u.cfunc */
+  JS_CLASS_BYTECODE_FUNCTION,   /* u.func */
+  JS_CLASS_BOUND_FUNCTION,      /* u.bound_function */
+  JS_CLASS_C_FUNCTION_DATA,     /* u.c_function_data_record */
+  JS_CLASS_GENERATOR_FUNCTION,  /* u.func */
+  JS_CLASS_FOR_IN_ITERATOR,     /* u.for_in_iterator */
+  JS_CLASS_REGEXP,              /* u.regexp */
+  JS_CLASS_ARRAY_BUFFER,        /* u.array_buffer */
+  JS_CLASS_SHARED_ARRAY_BUFFER, /* u.array_buffer */
+  JS_CLASS_UINT8C_ARRAY,        /* u.array (typed_array) */
+  JS_CLASS_INT8_ARRAY,          /* u.array (typed_array) */
+  JS_CLASS_UINT8_ARRAY,         /* u.array (typed_array) */
+  JS_CLASS_INT16_ARRAY,         /* u.array (typed_array) */
+  JS_CLASS_UINT16_ARRAY,        /* u.array (typed_array) */
+  JS_CLASS_INT32_ARRAY,         /* u.array (typed_array) */
+  JS_CLASS_UINT32_ARRAY,        /* u.array (typed_array) */
+#ifdef CONFIG_BIGNUM
+  JS_CLASS_BIG_INT64_ARRAY,  /* u.array (typed_array) */
+  JS_CLASS_BIG_UINT64_ARRAY, /* u.array (typed_array) */
+#endif
+  JS_CLASS_FLOAT32_ARRAY, /* u.array (typed_array) */
+  JS_CLASS_FLOAT64_ARRAY, /* u.array (typed_array) */
+  JS_CLASS_DATAVIEW,      /* u.typed_array */
+#ifdef CONFIG_BIGNUM
+  JS_CLASS_BIG_INT,      /* u.object_data */
+  JS_CLASS_BIG_FLOAT,    /* u.object_data */
+  JS_CLASS_FLOAT_ENV,    /* u.float_env */
+  JS_CLASS_BIG_DECIMAL,  /* u.object_data */
+  JS_CLASS_OPERATOR_SET, /* u.operator_set */
+#endif
+  JS_CLASS_MAP,                      /* u.map_state */
+  JS_CLASS_SET,                      /* u.map_state */
+  JS_CLASS_WEAKMAP,                  /* u.map_state */
+  JS_CLASS_WEAKSET,                  /* u.map_state */
+  JS_CLASS_MAP_ITERATOR,             /* u.map_iterator_data */
+  JS_CLASS_SET_ITERATOR,             /* u.map_iterator_data */
+  JS_CLASS_ARRAY_ITERATOR,           /* u.array_iterator_data */
+  JS_CLASS_STRING_ITERATOR,          /* u.array_iterator_data */
+  JS_CLASS_REGEXP_STRING_ITERATOR,   /* u.regexp_string_iterator_data */
+  JS_CLASS_GENERATOR,                /* u.generator_data */
+  JS_CLASS_PROXY,                    /* u.proxy_data */
+  JS_CLASS_PROMISE,                  /* u.promise_data */
+  JS_CLASS_PROMISE_RESOLVE_FUNCTION, /* u.promise_function_data */
+  JS_CLASS_PROMISE_REJECT_FUNCTION,  /* u.promise_function_data */
+  JS_CLASS_ASYNC_FUNCTION,           /* u.func */
+  JS_CLASS_ASYNC_FUNCTION_RESOLVE,   /* u.async_function_data */
+  JS_CLASS_ASYNC_FUNCTION_REJECT,    /* u.async_function_data */
+  JS_CLASS_ASYNC_FROM_SYNC_ITERATOR, /* u.async_from_sync_iterator_data */
+  JS_CLASS_ASYNC_GENERATOR_FUNCTION, /* u.func */
+  JS_CLASS_ASYNC_GENERATOR,          /* u.async_generator_data */
+
+  JS_CLASS_INIT_COUNT, /* last entry for predefined classes */
+};
+
 typedef enum JSErrorEnum {
   JS_EVAL_ERROR,
   JS_RANGE_ERROR,
@@ -22,21 +89,7 @@ typedef enum JSErrorEnum {
   JS_NATIVE_ERROR_COUNT
 } JSErrorEnum;
 
-struct JSString {
-  JSRefCountHeader header;
-  uint32_t len : 31;
-  uint8_t is_wide_char : 1;
-  uint32_t hash : 30;
-  uint8_t atom_type : 2;
-  uint32_t hash_next;
-#ifdef DUMP_LEAKS
-  struct list_head link;
-#endif
-  union {
-    uint8_t str8[0];
-    uint16_t str16[0];
-  } u;
-};
+typedef enum OPCodeEnum OPCodeEnum;
 
 typedef struct JSString JSString;
 typedef struct JSString JSAtomStruct;
@@ -48,41 +101,20 @@ typedef enum {
   JS_GC_PHASE_REMOVE_CYCLES,
 } JSGCPhaseEnum;
 
-typedef enum {
-  JS_GC_OBJ_TYPE_JS_OBJECT,
-  JS_GC_OBJ_TYPE_FUNCTION_BYTECODE,
-  JS_GC_OBJ_TYPE_SHAPE,
-  JS_GC_OBJ_TYPE_VAR_REF,
-  JS_GC_OBJ_TYPE_ASYNC_FUNCTION,
-  JS_GC_OBJ_TYPE_JS_CONTEXT,
-} JSGCObjectTypeEnum;
-
-struct JSGCObjectHeader {
-  int ref_count;
-  JSGCObjectTypeEnum gc_obj_type : 4;
-  uint8_t mark : 4;
-  uint8_t dummy1;
-  uint16_t dummy2;
-  struct list_head link;
-};
-
-typedef enum OPCodeEnum { OPCODEENUM_DUMMY } OPCodeEnum;
-
-typedef struct JSFloatEnv {
-  limb_t prec;
-  bf_flags_t flags;
-  unsigned int status;
-} JSFloatEnv;
-
+#ifdef CONFIG_BIGNUM
+/* function pointers are used for numeric operations so that it is
+   possible to remove some numeric types */
 typedef struct {
   JSValue (*to_string)(JSContext* ctx, JSValueConst val);
   JSValue (*from_string)(JSContext* ctx, const char* buf, int radix, int flags, slimb_t* pexponent);
   int (*unary_arith)(JSContext* ctx, JSValue* pres, OPCodeEnum op, JSValue op1);
   int (*binary_arith)(JSContext* ctx, OPCodeEnum op, JSValue* pres, JSValue op1, JSValue op2);
   int (*compare)(JSContext* ctx, OPCodeEnum op, JSValue op1, JSValue op2);
+  /* only for bigfloat: */
   JSValue (*mul_pow10_to_float64)(JSContext* ctx, const bf_t* a, int64_t exponent);
   int (*mul_pow10)(JSContext* ctx, JSValue* sp);
 } JSNumericOperations;
+#endif
 
 typedef struct JSRuntime {
   JSMallocFunctions mf;
@@ -135,48 +167,6 @@ typedef struct JSRuntime {
   void* user_opaque;
 } JSRuntime;
 
-struct JSContext {
-  JSGCObjectHeader header;
-  JSRuntime* rt;
-  struct list_head link;
-  uint16_t binary_object_count;
-  int binary_object_size;
-  JSShape* array_shape;
-  JSValue* class_proto;
-  JSValue function_proto;
-  JSValue function_ctor;
-  JSValue array_ctor;
-  JSValue regexp_ctor;
-  JSValue promise_ctor;
-  JSValue native_error_proto[JS_NATIVE_ERROR_COUNT];
-  JSValue iterator_proto;
-  JSValue async_iterator_proto;
-  JSValue array_proto_values;
-  JSValue throw_type_error;
-  JSValue eval_obj;
-  JSValue global_obj;
-  JSValue global_var_obj;
-  uint64_t random_state;
-#ifdef CONFIG_BIGNUM
-  bf_context_t* bf_ctx;
-  JSFloatEnv fp_env;
-  BOOL bignum_ext : 8;
-  BOOL allow_operator_overloading : 8;
-#endif
-  int interrupt_counter;
-  BOOL is_error_property_enabled;
-  struct list_head loaded_modules;
-  JSValue (*compile_regexp)(JSContext* ctx, JSValueConst pattern, JSValueConst flags);
-  JSValue (*eval_internal)(JSContext* ctx,
-                           JSValueConst this_obj,
-                           const char* input,
-                           size_t input_len,
-                           const char* filename,
-                           int flags,
-                           int scope_idx);
-  void* user_opaque;
-};
-
 struct JSClass {
   uint32_t class_id; /* 0 means free entry */
   JSAtom class_name;
@@ -206,6 +196,24 @@ typedef struct JSStackFrame {
   JSValue* cur_sp;
 } JSStackFrame;
 
+typedef enum {
+  JS_GC_OBJ_TYPE_JS_OBJECT,
+  JS_GC_OBJ_TYPE_FUNCTION_BYTECODE,
+  JS_GC_OBJ_TYPE_SHAPE,
+  JS_GC_OBJ_TYPE_VAR_REF,
+  JS_GC_OBJ_TYPE_ASYNC_FUNCTION,
+  JS_GC_OBJ_TYPE_JS_CONTEXT,
+} JSGCObjectTypeEnum;
+
+struct JSGCObjectHeader {
+  int ref_count;
+  JSGCObjectTypeEnum gc_obj_type : 4;
+  uint8_t mark : 4;
+  uint8_t dummy1;
+  uint16_t dummy2;
+  struct list_head link;
+};
+
 typedef struct JSVarRef {
   union {
     JSGCObjectHeader header; /* must come first */
@@ -227,6 +235,106 @@ typedef struct JSVarRef {
                       to 'value' */
   JSValue value;   /* used when the variable is no longer on the stack */
 } JSVarRef;
+
+#ifdef CONFIG_BIGNUM
+typedef struct JSFloatEnv {
+  limb_t prec;
+  bf_flags_t flags;
+  unsigned int status;
+} JSFloatEnv;
+
+/* the same structure is used for big integers and big floats. Big
+   integers are never infinite or NaNs */
+typedef struct JSBigFloat {
+  JSRefCountHeader header; /* must come first, 32-bit */
+  bf_t num;
+} JSBigFloat;
+
+typedef struct JSBigDecimal {
+  JSRefCountHeader header; /* must come first, 32-bit */
+  bfdec_t num;
+} JSBigDecimal;
+#endif
+
+typedef enum {
+  JS_AUTOINIT_ID_PROTOTYPE,
+  JS_AUTOINIT_ID_MODULE_NS,
+  JS_AUTOINIT_ID_PROP,
+} JSAutoInitIDEnum;
+
+/* must be large enough to have a negligible runtime cost and small
+   enough to call the interrupt callback often. */
+#define JS_INTERRUPT_COUNTER_INIT 10000
+
+struct JSContext {
+  JSGCObjectHeader header; /* must come first */
+  JSRuntime* rt;
+  struct list_head link;
+
+  uint16_t binary_object_count;
+  int binary_object_size;
+
+  JSShape* array_shape; /* initial shape for Array objects */
+
+  JSValue* class_proto;
+  JSValue function_proto;
+  JSValue function_ctor;
+  JSValue array_ctor;
+  JSValue regexp_ctor;
+  JSValue promise_ctor;
+  JSValue native_error_proto[JS_NATIVE_ERROR_COUNT];
+  JSValue iterator_proto;
+  JSValue async_iterator_proto;
+  JSValue array_proto_values;
+  JSValue throw_type_error;
+  JSValue eval_obj;
+
+  JSValue global_obj;     /* global object */
+  JSValue global_var_obj; /* contains the global let/const definitions */
+
+  uint64_t random_state;
+#ifdef CONFIG_BIGNUM
+  bf_context_t* bf_ctx; /* points to rt->bf_ctx, shared by all contexts */
+  JSFloatEnv fp_env;    /* global FP environment */
+  BOOL bignum_ext : 8;  /* enable math mode */
+  BOOL allow_operator_overloading : 8;
+#endif
+  /* when the counter reaches zero, JSRutime.interrupt_handler is called */
+  int interrupt_counter;
+  BOOL is_error_property_enabled;
+
+  struct list_head loaded_modules; /* list of JSModuleDef.link */
+
+  /* if NULL, RegExp compilation is not supported */
+  JSValue (*compile_regexp)(JSContext* ctx, JSValueConst pattern, JSValueConst flags);
+  /* if NULL, eval is not supported */
+  JSValue (*eval_internal)(JSContext* ctx,
+                           JSValueConst this_obj,
+                           const char* input,
+                           size_t input_len,
+                           const char* filename,
+                           int flags,
+                           int scope_idx);
+  void* user_opaque;
+};
+
+struct JSString {
+  JSRefCountHeader header;
+  uint32_t len : 31;
+  uint8_t is_wide_char : 1;
+  uint32_t hash : 30;
+  uint8_t atom_type : 2;
+  uint32_t hash_next;
+#ifdef DUMP_LEAKS
+  struct list_head link;
+#endif
+  union {
+    uint8_t str8[0];
+    uint16_t str16[0];
+  } u;
+};
+
+typedef enum OPCodeEnum { OPCODEENUM_DUMMY } OPCodeEnum;
 
 typedef struct JSProperty {
   union {
