@@ -12,11 +12,12 @@ location_print(const Location* loc, DynBuf* dbuf) {
 
 Location
 location_dup(const Location* loc, JSContext* ctx) {
-  Location ret = {0, 0, 0};
+  Location ret = {0, 0, 0, 0};
   if(loc->file)
     ret.file = js_strdup(ctx, loc->file);
   ret.line = loc->line;
   ret.column = loc->column;
+  ret.pos = loc->pos;
   return ret;
 }
 
@@ -68,7 +69,7 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
   if(lexer_rule_expand(lex, rule, &dbuf)) {
     RegExp re = regexp_from_dbuf(&dbuf, LRE_FLAG_GLOBAL | LRE_FLAG_STICKY);
 
-    printf("rule %s /%s/\n", rule->name, re.source);
+    // printf("rule %s /%s/\n", rule->name, re.source);
 
     rule->bytecode = regexp_compile(re, ctx);
     ret = rule->bytecode != 0;
@@ -93,7 +94,7 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
 }
 
 void
-lexer_init(Lexer* lex, int mode, JSContext* ctx) {
+lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
   memset(lex, 0, sizeof(Lexer));
   lex->mode = mode;
   vector_init(&lex->defines, ctx);
@@ -147,7 +148,7 @@ lexer_compile_rules(Lexer* lex, JSContext* ctx) {
 }
 
 int
-lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
+lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   LexerRule* rule;
   uint8_t* capture[512];
   int i = 0, ret = LEXER_ERROR_NOMATCH;
@@ -198,15 +199,45 @@ lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
   }
 
   if(ret >= 0) {
-    while(len-- > 0) {
-      if(input_buffer_getc(&lex->input) == '\n') {
-        lex->loc.line++;
-        lex->loc.column = 0;
-      } else {
-        lex->loc.column++;
-      }
-    }
+    lex->bytelen = len;
+    lex->tokid = i;
   }
+
+  return ret;
+}
+
+size_t
+lexer_skip(Lexer* lex) {
+  size_t end = lex->input.pos + lex->bytelen;
+  size_t n = 0;
+
+  while(lex->input.pos < end) {
+    size_t prev = lex->input.pos;
+
+    if(input_buffer_getc(&lex->input) == '\n') {
+      lex->loc.line++;
+      lex->loc.column = 0;
+    } else {
+      lex->loc.column++;
+    }
+    lex->loc.pos++;
+    n++;
+  }
+
+  // printf("skipped %lu chars (%lu bytes)\n", n, lex->bytelen);
+  lex->bytelen = 0;
+
+  return n;
+}
+
+int
+lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
+  int ret;
+
+  ret = lexer_peek(lex, state, ctx);
+
+  if(ret >= 0)
+    lexer_skip(lex);
 
   return ret;
 }

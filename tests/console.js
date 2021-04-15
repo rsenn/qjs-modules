@@ -78,8 +78,7 @@ export function Console(opts = {}) {
             }
           }
           if(i++ > 0) {
-            acc.push(typeof arg == 'string' /*&& arg.indexOf('\x1b') != -1*/ ? arg : inspect(arg, tempOpts)
-            );
+            acc.push(typeof arg == 'string' /*&& arg.indexOf('\x1b') != -1*/ ? arg : inspect(arg, tempOpts));
             continue;
           }
           acc.push(arg);

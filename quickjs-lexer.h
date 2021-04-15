@@ -15,14 +15,16 @@ typedef struct {
 typedef struct {
   int id;
   char* lexeme;
-  uint32_t offset;
+  uint32_t byte_offset;
   uint32_t byte_length;
+  uint32_t char_length;
   Location loc;
+  Lexer* lexer;
 } Token;
 
 extern JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;
 
-JSValue js_lexer_new(JSContext* ctx, JSValue proto, JSValue value);
+JSValue js_lexer_new(JSContext* ctx, JSValue proto, JSValueConst in, JSValue mode);
 JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);
 JSValue js_syntaxerror_new(JSContext* ctx, SyntaxError arg);
 JSValue js_token_wrap(JSContext* ctx, Token* tok);

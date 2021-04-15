@@ -375,19 +375,19 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       enum value_mask vtype;
       *pdone = FALSE;
 
-     /* if(t) {
-        vtype = property_enumeration_type(it, ctx);
+      /* if(t) {
+         vtype = property_enumeration_type(it, ctx);
 
-        if((vtype & t) == 0)
-          continue;
-      }*/
+         if((vtype & t) == 0)
+           continue;
+       }*/
 
       switch(r) {
         case RETURN_VALUE: ret = property_enumeration_value(it, ctx); break;
         case RETURN_PATH: ret = property_enumeration_path(&w->frames, ctx); break;
         case RETURN_VALUE_PATH:
         default: {
-           ret = JS_NewArray(ctx);
+          ret = JS_NewArray(ctx);
           JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
           JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->frames, ctx));
           break;

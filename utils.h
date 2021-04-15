@@ -432,14 +432,7 @@ enum value_mask {
 };
 
 int32_t js_value_type_flag(JSValueConst value);
-static inline int32_t
-js_value_type_get(JSContext* ctx, JSValueConst value) {
-  if(JS_IsArray(ctx, value))
-    return FLAG_ARRAY;
-  if(JS_IsFunction(ctx, value))
-    return FLAG_FUNCTION;
-  return js_value_type_flag(value);
-}
+int32_t js_value_type_get(JSContext* ctx, JSValueConst value);
 
 static inline int32_t
 js_value_type2flag(uint32_t type) {
@@ -448,13 +441,7 @@ js_value_type2flag(uint32_t type) {
   return flag;
 }
 
-static inline int32_t
-js_value_type(JSContext* ctx, JSValueConst value) {
-  int32_t flag, type = 0;
-  if((flag = js_value_type_get(ctx, value)) != -1)
-    type = 1 << flag;
-  return type;
-}
+int32_t js_value_type(JSContext* ctx, JSValueConst value);
 
 static inline const char* const*
 js_value_types() {
@@ -474,29 +461,13 @@ js_value_types() {
                                0};
 }
 
-static inline const char*
-js_value_type_name(int32_t type) {
-  return js_value_types()[js_value_type2flag(type)];
-}
+const char* js_value_type_name(int32_t type);
 
-static inline const char*
-js_value_typestr(JSContext* ctx, JSValueConst value) {
-  int32_t type = js_value_type(ctx, value);
-  return js_value_type_name(type);
-}
+const char* js_value_typestr(JSContext* ctx, JSValueConst value);
 
-static inline void*
-js_value_get_ptr(JSValue v) {
-  return v.u.ptr;
-}
-static inline int32_t
-js_value_get_tag(JSValue v) {
-  return v.tag;
-}
-static inline BOOL
-js_value_has_ref_count(JSValue v) {
-  return ((unsigned)js_value_get_tag(v) >= (unsigned)JS_TAG_FIRST);
-}
+void* js_value_get_ptr(JSValue v);
+int32_t js_value_get_tag(JSValue v);
+BOOL js_value_has_ref_count(JSValue v);
 
 void js_value_free(JSContext* ctx, JSValue v);
 void js_value_free_rt(JSRuntime* rt, JSValue v);
@@ -529,6 +500,14 @@ int input_buffer_getc(InputBuffer* in);
 const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
 int input_buffer_peekc(InputBuffer*, size_t* lenp);
 
+static inline const uint8_t*
+input_buffer_begin(const InputBuffer* in) {
+  return in->data;
+}
+static inline const uint8_t*
+input_buffer_end(const InputBuffer* in) {
+  return in->data + in->size;
+}
 static inline BOOL
 input_buffer_eof(const InputBuffer* in) {
   return in->pos == in->size;
@@ -536,6 +515,21 @@ input_buffer_eof(const InputBuffer* in) {
 static inline size_t
 input_buffer_remain(const InputBuffer* in) {
   return in->size - in->pos;
+}
+
+static inline const char*
+js_cstring_new(JSContext* ctx, const char* str) {
+  JSValue v = JS_NewString(ctx, str);
+  const char* s = JS_ToCString(ctx, v);
+  JS_FreeValue(ctx, v);
+  return s;
+}
+static inline const char*
+js_cstring_newlen(JSContext* ctx, const char* str, size_t len) {
+  JSValue v = JS_NewStringLen(ctx, str, len);
+  const char* s = JS_ToCString(ctx, v);
+  JS_FreeValue(ctx, v);
+  return s;
 }
 
 char* js_cstring_dup(JSContext* ctx, const char* str);
@@ -677,8 +671,10 @@ const char* js_function_name(JSContext* ctx, JSValueConst value);
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
 
+BOOL js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
 void js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str);
+void js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_t value);
 void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);
 void js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_get_propertyint_cstring(JSContext* ctx, JSValueConst obj, uint32_t i);
@@ -687,6 +683,7 @@ const char* js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, cons
 char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
 char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
+uint64_t js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop);
 
 static inline int
 js_is_map(JSContext* ctx, JSValueConst value) {
@@ -715,6 +712,12 @@ js_is_promise(JSContext* ctx, JSValueConst value) {
 
 int js_is_arraybuffer(JSContext* ctx, JSValueConst value);
 int js_is_typedarray(JSContext* ctx, JSValueConst value);
+
+static inline BOOL
+js_is_input(JSContext* ctx, JSValueConst value) {
+  return JS_IsString(value) || js_is_arraybuffer(ctx, value);
+}
+
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
 BOOL js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
 int64_t js_array_length(JSContext* ctx, JSValueConst array);

@@ -670,6 +670,16 @@ js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
 }
 
 BOOL
+js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
+  JSAtom atom;
+  BOOL ret = FALSE;
+  atom = JS_NewAtom(ctx, str);
+  ret = JS_HasProperty(ctx, obj, atom);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+
+BOOL
 js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
   BOOL ret = FALSE;
   JSValue value;
@@ -758,11 +768,28 @@ js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop) {
   return ret;
 }
 
+uint64_t
+js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop) {
+  JSValue value;
+  uint64_t ret;
+  value = JS_GetPropertyStr(ctx, obj, prop);
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+  JS_ToIndex(ctx, &ret, value);
+  js_value_free(ctx, value);
+  return ret;
+}
+
 void
 js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str) {
   JSValue value;
   value = JS_NewString(ctx, str);
   JS_SetPropertyUint32(ctx, obj, i, value);
+}
+
+void
+js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_t value) {
+  JS_SetPropertyUint32(ctx, obj, i, JS_NewInt32(ctx, value));
 }
 
 void
@@ -888,6 +915,52 @@ js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
   JSValue ret = JS_NewArray(ctx);
   for(i = 0; i < nvalues; i++) JS_SetPropertyUint32(ctx, ret, i, JS_DupValue(ctx, values[i]));
   return ret;
+}
+
+const char*
+js_value_type_name(int32_t type) {
+  return js_value_types()[js_value_type2flag(type)];
+}
+
+const char*
+js_value_typestr(JSContext* ctx, JSValueConst value) {
+  int32_t type = js_value_type(ctx, value);
+  return js_value_type_name(type);
+}
+
+void*
+js_value_get_ptr(JSValue v) {
+  return v.u.ptr;
+}
+
+int32_t
+js_value_get_tag(JSValue v) {
+  return v.tag;
+}
+
+BOOL
+js_value_has_ref_count(JSValue v) {
+  return ((unsigned)js_value_get_tag(v) >= (unsigned)JS_TAG_FIRST);
+}
+
+int32_t
+js_value_type(JSContext* ctx, JSValueConst value) {
+  int32_t flag, type = 0;
+  if((flag = js_value_type_get(ctx, value)) != -1)
+    type = 1 << flag;
+
+  return type;
+}
+
+int32_t
+js_value_type_get(JSContext* ctx, JSValueConst value) {
+  if(JS_IsArray(ctx, value))
+    return FLAG_ARRAY;
+
+  if(JS_IsFunction(ctx, value))
+    return FLAG_FUNCTION;
+
+  return js_value_type_flag(value);
 }
 
 void

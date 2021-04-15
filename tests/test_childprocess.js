@@ -63,7 +63,7 @@ function main(...args) {
 
   console.log('data:', data);
 
-  data = ReadChild('lz4', '-9', '-f','/etc/services', 'services.lz4');
+  data = ReadChild('lz4', '-9', '-f', '/etc/services', 'services.lz4');
 
   console.log('data:', data);
   data = ReadChild('lz4', '-dc', 'services.lz4');

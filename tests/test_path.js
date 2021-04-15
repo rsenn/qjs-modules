@@ -17,11 +17,7 @@ function CallPathFunction(name, ...args) {
   let fn = path[name];
 
   let ret = fn.call(path, ...args);
-  console.log(`path.${name}(`,
-    ...args.reduce((acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]), []),
-    `) =`,
-    ret
-  );
+  console.log(`path.${name}(`, ...args.reduce((acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]), []), `) =`, ret);
   return ret;
 }
 
