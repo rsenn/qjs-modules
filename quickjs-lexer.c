@@ -548,7 +548,8 @@ enum lexer_getters {
   LEXER_PROP_START,
   LEXER_PROP_EOF,
   LEXER_PROP_FILENAME,
-  LEXER_PROP_LOC
+  LEXER_PROP_LOC,
+  LEXER_PROP_RULENAMES
 };
 
 static Token*
@@ -852,6 +853,14 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = js_location_new(ctx, &lex->loc);
       break;
     }
+    case LEXER_PROP_RULENAMES: {
+      LexerRule* rule;
+      uint32_t i = 0;
+      ret = JS_NewArray(ctx);
+
+      vector_foreach_t(&lex->rules, rule) { JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, rule->name)); }
+      break;
+    }
   }
   return ret;
 }
@@ -1068,6 +1077,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("define", 2, js_lexer_add_rule, 0),
     JS_CFUNC_MAGIC_DEF("addRule", 2, js_lexer_add_rule, 1),
     JS_CFUNC_MAGIC_DEF("getRule", 1, js_lexer_method, LEXER_METHOD_GET_RULE),
+    JS_CGETSET_MAGIC_DEF("ruleNames", js_lexer_get, 0, LEXER_PROP_RULENAMES),
     JS_CFUNC_DEF("lex", 0, js_lexer_lex),
     JS_CFUNC_DEF("inspect", 0, js_lexer_inspect),
     JS_CGETSET_DEF("tokens", js_lexer_tokens, 0),

@@ -12,7 +12,13 @@ import CLexer from './clexer.js';
 ('use math');
 
 //const code = [`const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`, `/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);` ];
-const code = [`const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`, `const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);` , `/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);` ];
+const code = [
+  `const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`,
+ `/Reg.*Ex/i.test(n)`,
+ `/\\n/g`,
+  `const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);`,
+  `/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);`
+];
 
 let gettime;
 
@@ -110,10 +116,10 @@ async function main(...args) {
   }
 
   let file = args[0] ?? scriptArgs[0];
-  let str = args[0] ? std.loadFile(args[0], 'utf-8') : code[1] ;
+  let str = args[0] ? std.loadFile(args[0], 'utf-8') : code[1];
   let len = str.length;
 
-  let jslex = new JSLexer(str, file, Lexer.FIRST);
+  let jslex = new JSLexer(str, file);
   let clex = new CLexer(str, file, CLexer.LONGEST);
 
   console.log('lexers:', { jslex, clex });
@@ -132,16 +138,20 @@ async function main(...args) {
 
   function printTok(tok) {
     const cols = [`tok[${tok.byteLength}]`, +tok, tok.type, tok.lexeme, tok.loc];
-    console.log(...cols.map((col, i) => (col + '').replace(/\n/g, '\\n').padEnd(colSizes[i])));
+    console.log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
     //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
   }
 
-console.log("RULE:",jslex.getRule('RegularExpressionClass')[1]);
-  try {
+for(let name of [...jslex.ruleNames, 'RegularExpressionNonTerminator', 'RegularExpressionBackslashSequence', 'RegularExpressionClassChar', 'RegularExpressionClass', 'RegularExpressionFlags', 'RegularExpressionFirstChar', 'RegularExpressionChar', 'RegularExpressionBody', 'RegularExpressionLiteral'
+].filter(n => new RegExp('reg.*ex','i').test(n)))
+  console.log(`RULE ${name}`, jslex.getRule(name)[1]);
+   try {
+
     let tok,
       i = 0;
 
     console.log('now', now());
+    console.log('jslex.ruleNames', jslex.ruleNames);
 
     for(let tok of jslex(-1, 0 /*1*/)) {
       if(tok.rule[0] == 'whitespace') continue;

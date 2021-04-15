@@ -5,8 +5,8 @@ export { Location, SyntaxError, Token } from 'lexer.so';
 console.log('JSLexer', globalThis);
 
 export class JSLexer extends Lexer {
-  constructor(input, filename, flags = Lexer.LAST | Lexer.LONGEST) {
-    super(input, filename, flags);
+  constructor(input, filename) {
+    super(input, filename, Lexer.LAST);
 
     this.addDefines();
     this.addRules();
@@ -58,19 +58,19 @@ export class JSLexer extends Lexer {
     this.define('StringLiteral', /(\"{DoubleStringCharacter}*\")|(\'{SingleStringCharacter}*\')/);
     this.define('RegularExpressionNonTerminator', /[^\n\r]/);
     this.define('RegularExpressionBackslashSequence', /\\{RegularExpressionNonTerminator}/);
-    this.define('RegularExpressionClassChar', /([^\n\r\]\\]|{RegularExpressionBackslashSequence})/);
-    this.define('RegularExpressionClass', /\[{RegularExpressionClassChar}*\]/);
+    this.define('RegularExpressionClassChar', /[^\n\r\]\\]|{RegularExpressionBackslashSequence}/);
+    this.define('RegularExpressionClass', /\[({RegularExpressionClassChar})*\]/);
     this.define('RegularExpressionFlags', /({IdentifierPart})*/);
     this.define('RegularExpressionFirstChar',
-      /([^\n\r\*\\\/\[]|{RegularExpressionBackslashSequence}|{RegularExpressionClass})/
+      /[^\n\r\*\\\/\[]|{RegularExpressionBackslashSequence}|{RegularExpressionClass}/
     );
     this.define('RegularExpressionChar',
-      /([^\n\r\\\/\[]|{RegularExpressionBackslashSequence}|{RegularExpressionClass})/
+      /[^\n\r\\\\[]|{RegularExpressionBackslashSequence}|{RegularExpressionClass}/
     );
-    this.define('RegularExpressionBody', /{RegularExpressionFirstChar}{RegularExpressionChar}*/);
-    this.define('RegularExpressionLiteral',
-      /\/({RegularExpressionBody})\/{RegularExpressionFlags}/
+    this.define('RegularExpressionBody',
+      /({RegularExpressionFirstChar})({RegularExpressionChar})*/
     );
+    this.define('RegularExpressionLiteral', /\/{RegularExpressionBody}\/{RegularExpressionFlags}/);
     this.define('BooleanValue', /(true|false)/);
     this.define('NullValue', /null/);
     this.define('LineTerminators', /[\r\n\u2028\u2029]/);
@@ -82,13 +82,12 @@ export class JSLexer extends Lexer {
 
   addRules() {
     this.addRule('preprocessor', '#[^\n\\\\]*(({LineContinuation}|\\\\.)[^\n\\\\]*)*');
-    this.addRule('regexpLiteral', '{RegularExpressionLiteral}');
-    this.addRule('regexpLiteral', '{RegularExpressionLiteral}');
-    this.addRule('keyword',
-      'instanceof|debugger|function|continue|finally|extends|default|static|export|switch|import|typeof|return|delete|async|yield|await|throw|super|const|class|catch|while|break|from|enum|case|with|void|this|else|let|try|var|new|for|as|of|do|in|if'
+    this.addRule('punctuator',
+      '-->>=|>>>=|\\?\\?=|&&=|\\|\\|=|\\*\\*=|\\.\\.\\.|<<=|-->>|>>=|>>>|===|!==|\\?\\?|\\*\\*|\\?\\.|$\\{|=>|%=|-=|>=|\\^=|\\+=|--|<=|\\|=|\\+\\+|==|&=|>>|\\|\\||/=|<<|&&|\\*=|!=|@|\\{|\\^|\\+|:|\\)|\\||\\?|;|\\(|&|~|\\]|/|!|<|\\[|\\*|,|>|\\}|%|-|\\.|='
     );
 
-    this.addRule('comment', '//[^\n]*|/\\*([^\\*]|[\\r\\n]|(\\*+([^/\\*]|[\\n\\r])))*\\*+/');
+    this.addRule('regexpLiteral', '{RegularExpressionLiteral}');
+
     this.addRule('booleanLiteral', '{BooleanValue}');
     this.addRule('nullLiteral', '{NullValue}');
     this.addRule('stringLiteral', '{StringLiteral}');
@@ -96,9 +95,10 @@ export class JSLexer extends Lexer {
     this.addRule('numericLiteral', '{OctalIntegerLiteral}|{HexIntegerLiteral}|{DecimalLiteral}');
 
     this.addRule('identifier', '{Identifier}');
-    this.addRule('punctuator',
-      '-->>=|>>>=|\\?\\?=|&&=|\\|\\|=|\\*\\*=|\\.\\.\\.|<<=|-->>|>>=|>>>|===|!==|\\?\\?|\\*\\*|\\?\\.|$\\{|=>|%=|-=|>=|\\^=|\\+=|--|<=|\\|=|\\+\\+|==|&=|>>|\\|\\||/=|<<|&&|\\*=|!=|@|\\{|\\^|\\+|:|\\)|\\||\\?|;|\\(|&|~|\\]|/|!|<|\\[|\\*|,|>|\\}|%|-|\\.|='
+    this.addRule('keyword',
+      '(instanceof|debugger|function|continue|finally|extends|default|static|export|switch|import|typeof|return|delete|async|yield|await|throw|super|const|class|catch|while|break|from|enum|case|with|void|this|else|let|try|var|new|for|as|of|do|in|if)\\b'
     );
+    this.addRule('comment', '//[^\n]*|/\\*([^\\*]|[\\r\\n]|(\\*+([^/\\*]|[\\n\\r])))*\\*+/');
     this.addRule('whitespace', '({LineTerminators}|[ \\t\\v\\f]|\\\\\\n)+', ~1);
   }
 }
