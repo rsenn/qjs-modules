@@ -11,7 +11,8 @@ import CLexer from './clexer.js';
 ('use strict');
 ('use math');
 
-const code = `const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`;
+//const code = [`const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`, `/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);` ];
+const code = [`const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`, `const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);` , `/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);` ];
 
 let gettime;
 
@@ -109,7 +110,7 @@ async function main(...args) {
   }
 
   let file = args[0] ?? scriptArgs[0];
-  let str = args[0] ? std.loadFile(args[0], 'utf-8') : code;
+  let str = args[0] ? std.loadFile(args[0], 'utf-8') : code[1] ;
   let len = str.length;
 
   let jslex = new JSLexer(str, file, Lexer.FIRST);
@@ -135,6 +136,7 @@ async function main(...args) {
     //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
   }
 
+console.log("RULE:",jslex.getRule('RegularExpressionClass')[1]);
   try {
     let tok,
       i = 0;

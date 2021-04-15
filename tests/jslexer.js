@@ -58,11 +58,11 @@ export class JSLexer extends Lexer {
     this.define('StringLiteral', /(\"{DoubleStringCharacter}*\")|(\'{SingleStringCharacter}*\')/);
     this.define('RegularExpressionNonTerminator', /[^\n\r]/);
     this.define('RegularExpressionBackslashSequence', /\\{RegularExpressionNonTerminator}/);
-    this.define('RegularExpressionClassChar', /[^\n\r\]\\]|{RegularExpressionBackslashSequence}/);
+    this.define('RegularExpressionClassChar', /([^\n\r\]\\]|{RegularExpressionBackslashSequence})/);
     this.define('RegularExpressionClass', /\[{RegularExpressionClassChar}*\]/);
     this.define('RegularExpressionFlags', /({IdentifierPart})*/);
     this.define('RegularExpressionFirstChar',
-      /([^\n\r\*\\\/\[])|{RegularExpressionBackslashSequence}|{RegularExpressionClass}/
+      /([^\n\r\*\\\/\[]|{RegularExpressionBackslashSequence}|{RegularExpressionClass})/
     );
     this.define('RegularExpressionChar',
       /([^\n\r\\\/\[]|{RegularExpressionBackslashSequence}|{RegularExpressionClass})/
@@ -82,6 +82,7 @@ export class JSLexer extends Lexer {
 
   addRules() {
     this.addRule('preprocessor', '#[^\n\\\\]*(({LineContinuation}|\\\\.)[^\n\\\\]*)*');
+    this.addRule('regexpLiteral', '{RegularExpressionLiteral}');
     this.addRule('regexpLiteral', '{RegularExpressionLiteral}');
     this.addRule('keyword',
       'instanceof|debugger|function|continue|finally|extends|default|static|export|switch|import|typeof|return|delete|async|yield|await|throw|super|const|class|catch|while|break|from|enum|case|with|void|this|else|let|try|var|new|for|as|of|do|in|if'

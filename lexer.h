@@ -48,6 +48,7 @@ void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_set_input(Lexer*, InputBuffer input, char* filename);
 void lexer_define(Lexer*, char* name, char* expr);
 int lexer_rule_add(Lexer*, char* name, char* expr);
+BOOL lexer_rule_expand(Lexer*, LexerRule* rule, DynBuf* db);
 LexerRule* lexer_find_definition(Lexer*, const char* name, size_t namelen);
 BOOL lexer_compile_rules(Lexer*, JSContext* ctx);
 int lexer_peek(Lexer*, uint64_t state, JSContext* ctx);
@@ -60,5 +61,7 @@ static inline LexerRule*
 lexer_rule_at(Lexer* lex, int id) {
   return vector_at(&lex->rules, sizeof(LexerRule), id);
 }
+
+LexerRule* lexer_rule_find(Lexer* lex, const char* name);
 
 #endif /* defined(LEXER_H) */

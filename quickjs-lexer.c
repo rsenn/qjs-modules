@@ -142,12 +142,19 @@ js_location_constructor(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 }
 
 static JSValue
-js_lexer_rule_new(JSContext* ctx, LexerRule* rule) {
+js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
+
+  DynBuf dbuf;
+  js_dbuf_init(ctx, &dbuf);
+  lexer_rule_expand(lex, rule, &dbuf);
+  dbuf_0(&dbuf);
 
   JSValue ret = JS_NewArray(ctx);
   js_set_propertyint_string(ctx, ret, 0, rule->name);
-  js_set_propertyint_string(ctx, ret, 1, rule->expr);
+  js_set_propertyint_string(ctx, ret, 1, (const char*)dbuf.buf);
   JS_SetPropertyUint32(ctx, ret, 2, JS_NewInt64(ctx, rule->mask));
+
+  dbuf_free(&dbuf);
   return ret;
 }
 
@@ -474,7 +481,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case TOKEN_PROP_RULE: {
       LexerRule* rule = lexer_rule_at(tok->lexer, tok->id);
 
-      ret = js_lexer_rule_new(ctx, rule);
+      ret = js_lexer_rule_new(ctx, tok->lexer, rule);
       break;
     }
     case TOKEN_PROP_TYPE: {
@@ -773,12 +780,21 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
     case LEXER_METHOD_GET_RULE: {
       LexerRule* rule;
-      int32_t id = -1;
 
-      JS_ToInt32(ctx, &id, argv[0]);
+      if(JS_IsString(argv[0])) {
+        size_t len;
+        const char* name = JS_ToCStringLen(ctx, &len, argv[0]);
+        if(!(rule = lexer_rule_find(lex, name)))
+          rule = lexer_find_definition(lex, name, len);
+        JS_FreeCString(ctx, name);
+      } else {
+        int32_t id = -1;
+        JS_ToInt32(ctx, &id, argv[0]);
+        rule = lexer_rule_at(lex, id);
+      }
 
-      if((rule = lexer_rule_at(lex, id)))
-        ret = js_lexer_rule_new(ctx, rule);
+      if(rule)
+        ret = js_lexer_rule_new(ctx, lex, rule);
 
       break;
     }

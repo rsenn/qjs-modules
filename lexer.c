@@ -28,7 +28,7 @@ location_free(Location* loc, JSRuntime* rt) {
   memset(loc, 0, sizeof(Location));
 }
 
-static BOOL
+BOOL
 lexer_rule_expand(Lexer* lex, LexerRule* rule, DynBuf* db) {
   char* p;
   size_t len;
@@ -47,10 +47,8 @@ lexer_rule_expand(Lexer* lex, LexerRule* rule, DynBuf* db) {
 
     if(*p == '\\')
       dbuf_putc(db, *p++);
-
     dbuf_putc(db, *p);
   }
-
   dbuf_0(db);
 
   return TRUE;
@@ -73,6 +71,7 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
 
     rule->bytecode = regexp_compile(re, ctx);
     ret = rule->bytecode != 0;
+
   } else {
     JS_ThrowInternalError(ctx, "Error expanding rule '%s'", rule->name);
     ret = FALSE;
@@ -124,6 +123,16 @@ lexer_rule_add(Lexer* lex, char* name, char* expr) {
   }
   vector_push(&lex->rules, rule);
   return ret;
+}
+
+LexerRule*
+lexer_rule_find(Lexer* lex, const char* name) {
+  LexerRule* rule;
+  vector_foreach_t(&lex->rules, rule) {
+    if(!strcmp(rule->name, name))
+      return rule;
+  }
+  return 0;
 }
 
 LexerRule*
