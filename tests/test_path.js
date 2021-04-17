@@ -65,15 +65,16 @@ async function main(...args) {
     name: 'tcpip',
     ext: '.sys'
   });
-  CallPathFunction('resolve', 'wwwroot', 'static_files/png/', '../gif/image.gif');
+ /* CallPathFunction('resolve', 'wwwroot', 'static_files/png/', '../gif/image.gif');
   CallPathFunction('resolve', '..');
-  CallPathFunction('resolve', '/etc', 'fonts', 'fonts.conf');
+  CallPathFunction('resolve', '/etc', 'fonts', 'fonts.conf');*/
 
   CallPathFunction('getcwd');
   let cwd = path.getcwd();
   console.log(`cwd = ${cwd}`);
   CallPathFunction('relative', '/home/roman/Projects/plot-cv/quickjs', cwd);
   CallPathFunction('relative', '/home/roman/Projects/editline', cwd);
+  CallPathFunction('collapse', '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..');
 
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));
