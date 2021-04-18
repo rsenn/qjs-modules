@@ -175,7 +175,15 @@ async function main(...args) {
 
   for(let tok of lex[type]()) {
     if(tok.rule[0] == 'whitespace') continue;
-    //console.log(`token(${i}).value:`, tok.value);
+
+
+  if(tok.rule[0] == 'lbrace') {
+     /* lex.c.setInput(lex[type]);
+      throw new Error('X'+ inspect(lex.c.next()));*/
+    lex[type].mode=Lexer.LONGEST;
+    lex[type].mask=0b110;
+    }
+   console.log(`lex[type].mask = ${lex[type].mask} token(${i})`, inspect(tok,{ colors: true }));
 
     tokenList.push(tok);
     //      console.log(`token(${i}) ${tok.rule[0]}: '${Lexer.escape(tokenList.at(-1).lexeme)}'`);
@@ -205,4 +213,4 @@ async function main(...args) {
 
 main(...scriptArgs.slice(1))
   .then(() => console.log('SUCCESS'))
-  .catch(error => console.log(`FAIL: ${error.message}\n${error.stack}`));
+  .catch(error => { console.log(`FAIL: ${error.message}\n${error.stack}`); std.exit(1); });

@@ -409,7 +409,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
 
   rule = lexer_rule_at(tok->lexer, tok->id);
 
-  dbuf_printf(&dbuf, multiline ? "Token {\n  type: '%s' ,\n  lexeme: '" : "Token { id: %s, lexeme: '", rule->name);
+  dbuf_printf(&dbuf, multiline ? "Token {\n  id: %i, type: '%s' ,\n  lexeme: '" : "Token { id: %i, type: %s, lexeme: '", tok->id, rule->name);
   dbuf_put_escaped(&dbuf, (const char*)tok->lexeme, tok->byte_length);
   /*dbuf_printf(&dbuf,
               multiline ? "',\n  offset: %" PRIu32 ",\n  byte_length: %" PRIu32 ",\n  char_length: %" PRIu32 ",\n  loc:
@@ -531,7 +531,8 @@ static const JSCFunctionListEntry js_token_static_funcs[] = {
 };
 
 enum {
-  LEXER_METHOD_PEEKC = 0,
+  LEXER_METHOD_SET_INPUT = 0,
+  LEXER_METHOD_PEEKC,
   LEXER_METHOD_GETC,
   LEXER_METHOD_SKIPC,
   LEXER_METHOD_GET_RANGE,
@@ -549,7 +550,8 @@ enum lexer_getters {
   LEXER_PROP_EOF,
   LEXER_PROP_FILENAME,
   LEXER_PROP_LOC,
-  LEXER_PROP_RULENAMES
+  LEXER_PROP_RULENAMES,
+  LEXER_PROP_MODE
 };
 
 static Token*
@@ -686,6 +688,25 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     return JS_EXCEPTION;
 
   switch(magic) {
+    case LEXER_METHOD_SET_INPUT: {
+      Lexer* other;
+      InputBuffer input;
+      Location loc = {0, 0, 0, 0};
+
+      if((other = JS_GetOpaque(argv[0], js_lexer_class_id))) {
+        input = input_buffer_dup(&other->input, ctx);
+        loc = other->loc;
+        lex->start = other->start;
+      } else {
+        input = js_input_buffer(ctx, argv[0]);
+      }
+
+      input_buffer_free(&lex->input, ctx);
+      lex->input = input;
+      location_free(&lex->loc, JS_GetRuntime(ctx));
+      lex->loc = loc;
+      break;
+    }
     case LEXER_METHOD_PEEKC: {
       if(!input_buffer_eof(&lex->input)) {
         size_t len;
@@ -861,6 +882,10 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       vector_foreach_t(&lex->rules, rule) { JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, rule->name)); }
       break;
     }
+     case LEXER_PROP_MODE: {
+       ret = JS_NewInt32(ctx, lex->mode);
+      break;
+    }
   }
   return ret;
 }
@@ -922,6 +947,12 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       if(lex->loc.file)
         js_free(ctx, (char*)lex->loc.file);
       lex->loc.file = js_tostring(ctx, value);
+      break;
+    } 
+    case LEXER_PROP_MODE: {
+      int32_t m;
+      JS_ToInt32(ctx, &m, value);
+      lex->mode = m;
       break;
     }
   }
@@ -1075,6 +1106,8 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     // JS_CGETSET_MAGIC_DEF("start", js_lexer_get, js_lexer_set, LEXER_PROP_START),
     JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, LEXER_PROP_LOC),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_PROP_EOF),
+    JS_CGETSET_MAGIC_DEF("mode", js_lexer_get, js_lexer_set, LEXER_PROP_MODE),
+    JS_CFUNC_MAGIC_DEF("setInput", 1, js_lexer_method, LEXER_METHOD_SET_INPUT),
     JS_CFUNC_MAGIC_DEF("currentLine", 0, js_lexer_method, LEXER_METHOD_CURRENT_LINE),
     JS_CFUNC_MAGIC_DEF("tokenClass", 1, js_lexer_method, LEXER_METHOD_TOKEN_CLASS),
     JS_CFUNC_MAGIC_DEF("define", 2, js_lexer_add_rule, 0),

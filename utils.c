@@ -299,7 +299,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 }
 
 InputBuffer
-input_buffer_dup(const InputBuffer* in, JSContext*ctx) {
+input_buffer_dup(const InputBuffer* in, JSContext* ctx) {
   InputBuffer ret = js_input_buffer(ctx, in->value);
 
   ret.pos = in->pos;

@@ -97,4 +97,4 @@ async function main(...args) {
 
 main(...scriptArgs.slice(1))
   .then(() => console.log('SUCCESS'))
-  .catch(error => console.log(`FAIL: ${error.message}\n${error.stack}`));
+  .catch(error => { console.log(`FAIL: ${error.message}\n${error.stack}`); std.exit(1); });
