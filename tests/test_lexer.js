@@ -151,7 +151,7 @@ async function main(...args) {
     //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
   }
 
-/*  for(let name of [
+  /*  for(let name of [
     ...lex.js.ruleNames,
     'RegularExpressionNonTerminator',
     'RegularExpressionBackslashSequence',
@@ -205,4 +205,4 @@ async function main(...args) {
 
 main(...scriptArgs.slice(1))
   .then(() => console.log('SUCCESS'))
-  .catch(error => console.log('FAIL:', error.message, error.stack));
+  .catch(error => console.log(`FAIL: ${error.message}\n${error.stack}`));

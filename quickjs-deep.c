@@ -52,8 +52,8 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
 
       JS_SetPropertyUint32(ctx, ret, return_flag == RETURN_VALUE_PATH ? 0 : 1, value);
       JS_SetPropertyUint32(ctx, ret, return_flag == RETURN_VALUE_PATH ? 1 : 0, path);
-      JS_DefinePropertyValueStr(ctx, ret, "value", JS_DupValue(ctx, value), JS_PROP_CONFIGURABLE);
-      JS_DefinePropertyValueStr(ctx, ret, "path", JS_DupValue(ctx, path), JS_PROP_CONFIGURABLE);
+      /*      JS_DefinePropertyValueStr(ctx, ret, "value", JS_DupValue(ctx, value), JS_PROP_CONFIGURABLE);
+            JS_DefinePropertyValueStr(ctx, ret, "path", JS_DupValue(ctx, path), JS_PROP_CONFIGURABLE);*/
 
       break;
     }
@@ -78,13 +78,11 @@ js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSVa
     goto fail;
   JS_SetOpaque(obj, it);
 
-  if(!JS_IsUndefined(root)) {
+  if(!JS_IsUndefined(root))
     it->root = JS_DupValue(ctx, root);
-  }
 
-  if(JS_IsFunction(ctx, pred)) {
+  if(JS_IsFunction(ctx, pred))
     it->pred = JS_DupValue(ctx, pred);
-  }
 
   it->flags = flags;
 
@@ -168,7 +166,7 @@ js_deep_iterator_finalizer(JSRuntime* rt, JSValue val) {
 
 static JSValue
 js_deep_iterator_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  return this_val;
+  return JS_DupValue(ctx, this_val);
 }
 
 static JSValue
@@ -412,6 +410,7 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   do {
     JSValue aval, bval;
     JSAtom akey, bkey;
+    const char *astr, *bstr, *avstr, *bvstr;
     BOOL result = TRUE;
 
     if(!aenum || !benum) {
@@ -425,15 +424,25 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     aval = property_enumeration_value(aenum, ctx);
     bval = property_enumeration_value(benum, ctx);
 
-    /*    astr = JS_ToCString(ctx, aval);
-        bstr = JS_ToCString(ctx, bval);*/
+    astr = JS_AtomToCString(ctx, akey);
+    bstr = JS_AtomToCString(ctx, bkey);
+    avstr = JS_ToCString(ctx, aval);
+    bvstr = JS_ToCString(ctx, bval);
 
     if(JS_IsObject(aval) && JS_IsObject(bval))
       result = TRUE;
     else
       result = js_value_equals(ctx, aval, bval);
+
     js_value_free(ctx, aval);
     js_value_free(ctx, bval);
+
+    printf("a %s: %s b %s: %s result: %d\n", astr, avstr, bstr, bvstr, result);
+
+    JS_FreeCString(ctx, astr);
+    JS_FreeCString(ctx, bstr);
+    JS_FreeCString(ctx, avstr);
+    JS_FreeCString(ctx, bvstr);
 
     if(!result) {
       ret = JS_FALSE;

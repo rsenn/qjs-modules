@@ -74,9 +74,7 @@ function main(...args) {
 try {
   main(...scriptArgs.slice(1));
 } catch(error) {
-  console.log('FAIL:', error.message);
-  std.exit(1);
+  console.log(`FAIL: ${error.message}\n${error.stack}`);
 } finally {
   console.log('SUCCESS');
-  std.exit(0);
 }

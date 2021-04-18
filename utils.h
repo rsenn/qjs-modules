@@ -407,8 +407,9 @@ enum value_types {
   FLAG_BIG_INT,     // 8
   FLAG_BIG_DECIMAL, // 9
   FLAG_FLOAT64,     // 10
-  FLAG_FUNCTION,    // 11
-  FLAG_ARRAY        // 12
+  FLAG_NAN,         // 11
+  FLAG_FUNCTION,    // 12
+  FLAG_ARRAY        // 13
 };
 
 enum value_mask {
@@ -426,6 +427,7 @@ enum value_mask {
   TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
   TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT |
                     TYPE_BIG_INT | TYPE_BIG_DECIMAL),
+  TYPE_NAN = (1 << FLAG_NAN),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -465,8 +467,8 @@ const char* js_value_type_name(int32_t type);
 
 const char* js_value_typestr(JSContext* ctx, JSValueConst value);
 
-void* js_value_get_ptr(JSValue v);
-int32_t js_value_get_tag(JSValue v);
+VISIBLE void* js_value_get_ptr(JSValue v);
+VISIBLE int32_t js_value_get_tag(JSValue v);
 BOOL js_value_has_ref_count(JSValue v);
 
 void js_value_free(JSContext* ctx, JSValue v);

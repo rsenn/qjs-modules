@@ -94,5 +94,7 @@ async function main(...args) {
 
   await import('std').then(std => std.gc());
 }
-console.log('test');
-main(...scriptArgs.slice(1));
+
+main(...scriptArgs.slice(1))
+  .then(() => console.log('SUCCESS'))
+  .catch(error => console.log(`FAIL: ${error.message}\n${error.stack}`));

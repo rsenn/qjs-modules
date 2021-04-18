@@ -53,7 +53,7 @@ lexer_rule_expand(Lexer* lex, LexerRule* rule, DynBuf* db) {
   }
   dbuf_0(db);
 
-  //printf("expand %s %s\n", rule->name, db->buf);
+  // printf("expand %s %s\n", rule->name, db->buf);
 
   return TRUE;
 }

@@ -957,7 +957,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     js_value_free(ctx, mask);
   }
 
-  //printf("state = 0x%016" PRIx64 ", skip = 0x%016" PRIx64 "\n", state, skip);
+  // printf("state = 0x%016" PRIx64 ", skip = 0x%016" PRIx64 "\n", state, skip);
 
   for(;;) {
     if((id = lexer_peek(lex, state | skip, ctx)) >= 0) {
@@ -968,8 +968,10 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
       bytelen = lex->bytelen;
       charlen = lexer_skip(lex);
 
-      if((rule->mask & skip))
+      if((rule->mask & skip)) {
+        loc = lex->loc;
         continue;
+      }
 
       tok = lexer_token(lex, id, bytelen, charlen, loc, ctx);
       ret = js_token_wrap(ctx, tok);

@@ -30,9 +30,11 @@ async function main(...args) {
   munmap(map);
 }
 
-main(...scriptArgs.slice(1));
-
 function ArrayBufToString(buf, offset, length) {
   let arr = new Uint8Array(buf, offset, length);
   return arr.reduce((s, code) => s + String.fromCodePoint(code), '');
 }
+
+main(...scriptArgs.slice(1))
+  .then(() => console.log('SUCCESS'))
+  .catch(error => console.log(`FAIL: ${error.message}\n${error.stack}`));

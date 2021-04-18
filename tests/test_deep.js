@@ -78,54 +78,64 @@ function main(...args) {
     y: [undefined, 1, 1234n],
     z: [NaN, true, false, Infinity, null]
   };
+  let obj3 = {
+    v: 4,
+    w: 3,
+    x: 2,
+    y: [undefined, 1, 1234n],
+    z: [NaN, true, false, Infinity, null]
+  };
 
   for(let o of [obj1, obj2]) {
     let it = deep.iterate(o);
     console.log('it:', it);
     for(let [value, path] of it) console.log('item:', { value, path });
   }
-  // console.log('equals():', deep.equals(obj1, obj2));
-  /*
+  console.log('equals():', deep.equals(obj1, obj2));
+  console.log('equals():', deep.equals(obj3, obj2));
+
   console.log('deep.RETURN_PATH:', deep.RETURN_PATH);
   console.log('deep.RETURN_VALUE:', deep.RETURN_VALUE);
   console.log('deep.RETURN_VALUE_PATH:', deep.RETURN_VALUE_PATH);
   console.log('deep.RETURN_PATH_VALUE:', deep.RETURN_PATH_VALUE);
   console.log('find():',
     deep.find(obj1, n => n == Infinity, deep.RETURN_PATH_VALUE)
-  );*/
-
-  /* deep.forEach(obj2, (n, p) => console.log('deep.forEach', { n, p }));
-  console.log('obj1:', obj1);
-  console.log('clone():', deep.clone(result));
-  console.log('select():',
-    deep.select(
-      result,
-      node => typeof node == 'object' && node.tagName == 'wire',
-      deep.RETURN_PATH_VALUE
-    )
-  );*/
-
-  /* let it = deep.iterate(result,
-    (n, p) => typeof n == 'object' && n && typeof n.tagName == 'string'
   );
 
+  deep.forEach(obj2, (n, p) => console.log('deep.forEach', { n, p }));
+  console.log('obj1:', obj1);
+  console.log('clone():', deep.clone(obj3));
+
+  const IsNumeric = v => Number.isFinite(v) || (typeof v).startsWith('big');
+  const IsObject = v => typeof v == 'object' && v !== null;
+  console.log('select():',
+    deep.select(obj2, node => IsObject(node) || IsNumeric(node), deep.RETURN_PATH_VALUE)
+  );
+  console.log('select():',
+    deep.select(
+      obj2,
+      //node => typeof node == 'object',
+      node => !(IsObject(node) || IsNumeric(node)),
+      deep.RETURN_PATH_VALUE
+    )
+  );
+
+  let it = deep.iterate(obj2, (n, p) => IsObject(n) || !IsNumeric(n));
+
   let item;
- 
+
   for(let item of it) {
     let [value, path] = item;
 
-    console.log('value:', value);
-    console.log('path:', path);
-  }*/
-  //std.gc();
+    console.log(`path: ${(path+'').padEnd(10)} value:`, value);
+  }
+  std.gc();
 }
 
 try {
   main(...scriptArgs.slice(1));
 } catch(error) {
-  console.log('FAIL:', error.message);
-  std.exit(1);
+  console.log(`FAIL: ${error.message}\n${error.stack}`);
 } finally {
   console.log('SUCCESS');
-  std.exit(0);
 }

@@ -960,6 +960,9 @@ js_value_type_get(JSContext* ctx, JSValueConst value) {
   if(JS_IsFunction(ctx, value))
     return FLAG_FUNCTION;
 
+  if(JS_VALUE_IS_NAN(value))
+    return FLAG_NAN;
+
   return js_value_type_flag(value);
 }
 
@@ -1087,10 +1090,23 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   BOOL ret = FALSE;
   ta = js_value_type(ctx, a);
   tb = js_value_type(ctx, b);
-  if(ta != tb)
-    return FALSE;
 
-  if(ta & TYPE_INT) {
+  if(ta != tb) {
+    ret = FALSE;
+  } else if(ta & tb & (TYPE_NULL | TYPE_UNDEFINED | TYPE_NAN)) {
+    ret = TRUE;
+  } else if(ta & tb & (TYPE_BIG_INT | TYPE_BIG_FLOAT | TYPE_BIG_DECIMAL)) {
+    const char *astr, *bstr;
+
+    astr = JS_ToCString(ctx, a);
+    bstr = JS_ToCString(ctx, b);
+
+    ret = !strcmp(astr, bstr);
+
+    JS_FreeCString(ctx, astr);
+    JS_FreeCString(ctx, bstr);
+
+  } else if(ta & TYPE_INT) {
     int32_t inta, intb;
 
     inta = JS_VALUE_GET_INT(a);
@@ -1111,12 +1127,13 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
     ret = flta == fltb;
 
   } else if(ta & TYPE_OBJECT) {
-    void *obja, *objb;
+    ret = js_object_equals(ctx, a, b);
+    /*void *obja, *objb;
 
     obja = JS_VALUE_GET_OBJ(a);
     objb = JS_VALUE_GET_OBJ(b);
 
-    ret = obja == objb;
+    ret = obja == objb;*/
   } else if(ta & TYPE_STRING) {
     const char *stra, *strb;
 
