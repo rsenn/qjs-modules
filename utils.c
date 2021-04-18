@@ -291,7 +291,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
   } else if(JS_IsString(value)) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
-    ret.value = js_cstring_value(ctx, ret.data);
+    ret.value = js_cstring_value(ctx, (const char*)ret.data);
   } else {
     JS_ThrowTypeError(ctx, "Invalid type for input buffer");
   }
