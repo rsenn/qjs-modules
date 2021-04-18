@@ -3,7 +3,7 @@ import * as std from 'std';
 import inspect from 'inspect.so';
 import * as xml from 'xml.so';
 import { Predicate, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal } from 'predicate.so';
-import Console from './console.js';
+import Console from '../lib/console.js';
 
 ('use strict');
 ('use math');

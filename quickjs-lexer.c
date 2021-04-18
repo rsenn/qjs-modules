@@ -945,7 +945,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     JS_ToInt64(ctx, &state, argv[0]);
   } else {
     JSValue mask = JS_GetPropertyStr(ctx, this_val, "mask");
-    state = js_int64_default(ctx, mask, INT64_MIN);
+    JS_ToInt64(ctx, &state, mask);
     js_value_free(ctx, mask);
   }
 
@@ -953,23 +953,24 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     JS_ToInt64(ctx, &skip, argv[1]);
   } else {
     JSValue mask = JS_GetPropertyStr(ctx, this_val, "skip");
-    skip = js_int64_default(ctx, mask, 0);
+    JS_ToInt64(ctx, &skip, mask);
     js_value_free(ctx, mask);
   }
 
-  // printf("state = 0x%016"PRIx64", skip = 0x%016" PRIx64 "\n", state,skip);
+  //printf("state = 0x%016" PRIx64 ", skip = 0x%016" PRIx64 "\n", state, skip);
 
   for(;;) {
-    if((id = lexer_peek(lex, state, ctx)) >= 0) {
+    if((id = lexer_peek(lex, state | skip, ctx)) >= 0) {
       LexerRule* rule = lexer_rule_at(lex, id);
       Token* tok;
       size_t bytelen, charlen;
 
+      bytelen = lex->bytelen;
+      charlen = lexer_skip(lex);
+
       if((rule->mask & skip))
         continue;
 
-      bytelen = lex->bytelen;
-      charlen = lexer_skip(lex);
       tok = lexer_token(lex, id, bytelen, charlen, loc, ctx);
       ret = js_token_wrap(ctx, tok);
 

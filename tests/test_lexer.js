@@ -4,10 +4,10 @@ import inspect from 'inspect.so';
 import * as path from 'path.so';
 import { Predicate } from 'predicate.so';
 import { Location, Lexer, Token, SyntaxError } from 'lexer.so';
-import Console from './console.js';
-import JSLexer from './jslexer.js';
-import CLexer from './clexer.js';
-import BNFLexer from './bnflexer.js';
+import Console from '../lib/console.js';
+import JSLexer from '../lib/jslexer.js';
+import CLexer from '../lib/clexer.js';
+import BNFLexer from '../lib/bnflexer.js';
 
 ('use strict');
 ('use math');
@@ -128,6 +128,7 @@ async function main(...args) {
   };
 
   lex.g4 = lex.bnf;
+  lex.ebnf = lex.bnf;
 
   console.log('lexers:', lex.js, lex.c, lex.bnf);
   console.log('lex.js.tokens:', lex.js.tokens);
@@ -150,7 +151,7 @@ async function main(...args) {
     //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
   }
 
-  for(let name of [
+/*  for(let name of [
     ...lex.js.ruleNames,
     'RegularExpressionNonTerminator',
     'RegularExpressionBackslashSequence',
@@ -162,17 +163,19 @@ async function main(...args) {
     'RegularExpressionBody',
     'RegularExpressionLiteral'
   ].filter(n => new RegExp('reg.*ex', 'i').test(n)))
-    console.log(`RULE ${name}`, lex.js.getRule(name)[1]);
+    console.log(`RULE ${name}`, lex.js.getRule(name)[1]);*/
 
   let tok,
     i = 0;
 
   console.log('now', now());
   console.log('lex.js.ruleNames', lex.js.ruleNames);
+  console.log('lex[type].mask', lex[type].mask);
+  console.log('lex[type].skip', lex[type].skip);
 
-  for(let tok of lex[type](-1, 0 /*1*/)) {
+  for(let tok of lex[type]()) {
     if(tok.rule[0] == 'whitespace') continue;
-    console.log(`token(${i}).value:`, tok.value);
+    //console.log(`token(${i}).value:`, tok.value);
 
     tokenList.push(tok);
     //      console.log(`token(${i}) ${tok.rule[0]}: '${Lexer.escape(tokenList.at(-1).lexeme)}'`);

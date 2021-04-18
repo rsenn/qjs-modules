@@ -1,7 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
-import Console from './console.js';
+import Console from '../lib/console.js';
 
 ('use strict');
 ('use math');
