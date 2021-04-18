@@ -486,15 +486,18 @@ typedef struct InputBuffer {
   uint8_t* data;
   size_t size;
   size_t pos;
-  void (*free)(JSContext*, const char*);
-
+  void (*free)(JSContext*, const char*, JSValue);
+  JSValue value;
 } InputBuffer;
 
 static inline void
-input_buffer_free_default(JSContext* ctx, const char* str) {
+input_buffer_free_default(JSContext* ctx, const char* str, JSValue val) {
+  if(!JS_IsUndefined(val))
+    JS_FreeValue(ctx, val);
 }
 
 InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
+InputBuffer input_buffer_dup(const InputBuffer* in, JSContext* ctx);
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
 const uint8_t* input_buffer_get(InputBuffer* in, size_t* lenp);
@@ -536,6 +539,7 @@ js_cstring_newlen(JSContext* ctx, const char* str, size_t len) {
 
 char* js_cstring_dup(JSContext* ctx, const char* str);
 void js_cstring_free(JSContext* ctx, const char* ptr);
+JSValueConst js_cstring_value(JSContext* ctx, const char* ptr);
 
 static inline char*
 js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {

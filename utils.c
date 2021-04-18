@@ -284,16 +284,28 @@ regexp_compile(RegExp re, JSContext* ctx) {
 
 InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
-  InputBuffer ret = {0, 0, 0, &input_buffer_free_default};
+  InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED};
 
-  if(JS_IsString(value)) {
+  if(js_is_arraybuffer(ctx, value)) {
+    ret.value = JS_DupValue(ctx, value);
+    ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
+  } else if(JS_IsString(value)) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
-    ret.free = js_cstring_free;
-  } else if(js_is_arraybuffer(ctx, value)) {
-    ret.data = JS_GetArrayBuffer(ctx, &ret.size, value);
+    ret.value = js_cstring_value(ctx, ret.data);
   } else {
     JS_ThrowTypeError(ctx, "Invalid type for input buffer");
   }
+  return ret;
+}
+
+InputBuffer
+input_buffer_dup(const InputBuffer* in, JSContext*ctx) {
+  InputBuffer ret = js_input_buffer(ctx, in->value);
+
+  ret.pos = in->pos;
+  ret.size = in->size;
+  ret.free = in->free;
+
   return ret;
 }
 
@@ -306,10 +318,11 @@ input_buffer_dump(const InputBuffer* in, DynBuf* db) {
 void
 input_buffer_free(InputBuffer* in, JSContext* ctx) {
   if(in->data) {
-    in->free(ctx, (const char*)in->data);
+    in->free(ctx, (const char*)in->data, in->value);
     in->data = 0;
     in->size = 0;
     in->pos = 0;
+    in->value = JS_UNDEFINED;
   }
 }
 
@@ -1235,6 +1248,16 @@ js_cstring_free(JSContext* ctx, const char* ptr) {
 
   p = (JSString*)(void*)(ptr - offsetof(JSString, u));
   JS_FreeValue(ctx, JS_MKPTR(JS_TAG_STRING, p));
+}
+
+JSValueConst
+js_cstring_value(JSContext* ctx, const char* ptr) {
+  JSString* p;
+  if(!ptr)
+    return JS_UNDEFINED;
+
+  p = (JSString*)(void*)(ptr - offsetof(JSString, u));
+  return JS_MKPTR(JS_TAG_STRING, p);
 }
 
 size_t
