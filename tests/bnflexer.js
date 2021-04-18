@@ -6,37 +6,42 @@ export class BNFLexer extends Lexer {
     super(input, filename, Lexer.FIRST);
 
     this.addRules();
+
+    this.mask = 0b01;
+    this.skip = 0x80;
   }
 
   addRules() {
-    this.define('CHAR', /'(\\.|[^'\n])'/);
-    this.define('CHARS', /'([^'\n])*'/);
-    this.define('MINUS', /\-/);
-    this.addRule('LBRACE', /{/);
-    this.addRule('RBRACE', /}/);
+    this.define('char', /'(\\.|[^'\n])'/);
+    this.define('chars', /'([^'\n])*'/);
+    this.define('minus', /\-/);
+    this.addRule('lbrace', /{/, 0b01);
+    this.addRule('rbrace', /}/, 0b01);
 
-    this.addRule('MULTILINE_COMMENT', /\/\*([^\*]|[\r\n]|(\*+([^\/\*]|[\n\r])))*\*+\//);
-    this.addRule('SINGLELINE_COMMENT', /\/\/.*/);
-    this.addRule('IDENTIFIER', /[@A-Za-z_]\w*/);
-    this.addRule('CHAR_CLASS', /\[[^\]]+\]/);
-    this.addRule('RANGE', "'.'\\.\\.'.'");
-    this.addRule('LITERAL', /'(\\.|[^'\n])*\'/);
-    this.addRule('BAR', /\|/);
-    this.addRule('SEMI', /;/);
-    this.addRule('DCOLON', /::/);
-    this.addRule('COLON', /:/);
-    this.addRule('ASTERISK', /\*/);
-    this.addRule('DOT', /\./);
-    this.addRule('PLUS', /\+/);
-    this.addRule('TILDE', /\~/);
-    this.addRule('ARROW', /->/);
-    this.addRule('EQUALS', /=/);
-    // this.addRule('ACTION', /{LBRACE}[^${RBRACE}]*{RBRACE}/);
+    this.addRule('multiline_comment', /\/\*([^\*]|[\r\n]|(\*+([^\/\*]|[\n\r])))*\*+\//, 0b01);
+    this.addRule('singleline_comment', /\/\/.*/, 0b01);
+    this.addRule('identifier', /[@A-Za-z_]\w*/, 0b01);
+    this.addRule('char_class', /\[[^\]]+\]/, 0b01);
+    this.addRule('range', "'.'\\.\\.'.'", 0b01);
+    this.addRule('literal', /'(\\.|[^'\n])*\'/, 0b01);
+    this.addRule('bar', /\|/, 0b01);
+    this.addRule('semi', /;/, 0b01);
+    this.addRule('dcolon', /::/, 0b01);
+    this.addRule('colon', /:/, 0b01);
+    this.addRule('asterisk', /\*/, 0b01);
+    this.addRule('dot', /\./, 0b01);
+    this.addRule('plus', /\+/, 0b01);
+    this.addRule('tilde', /\~/, 0b01);
+    this.addRule('arrow', /->/, 0b01);
+    this.addRule('equals', /=/, 0b01);
+    // this.addRule('action', /{lbrace}[^${rbrace}]*{rbrace}/, 0b01);
 
-    this.addRule('QUESTION', /\?/);
-    this.addRule('LP', /\(/);
-    this.addRule('RP', /\)/);
-    this.addRule('WS', /[ \t\r\n]+/);
+    this.addRule('question', /\?/, 0b01);
+    this.addRule('lparen', /\(/, 0b01);
+    this.addRule('rparen', /\)/, 0b01);
+    this.addRule('ws', /[ \t\r\n]+/, 0x80);
+
+    for(let name in CTokens) this.addRule(name, CTokens[name], 0b10);
   }
 }
 

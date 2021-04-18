@@ -965,7 +965,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
       Token* tok;
       size_t bytelen, charlen;
 
-      if(((~rule->mask) & skip))
+      if((rule->mask & skip))
         continue;
 
       bytelen = lex->bytelen;
