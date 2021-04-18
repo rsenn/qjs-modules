@@ -539,7 +539,7 @@ js_cstring_newlen(JSContext* ctx, const char* str, size_t len) {
 
 char* js_cstring_dup(JSContext* ctx, const char* str);
 void js_cstring_free(JSContext* ctx, const char* ptr);
-JSValueConst js_cstring_value(JSContext* ctx, const char* ptr);
+JSValueConst js_cstring_value(const char* ptr);
 
 static inline char*
 js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {

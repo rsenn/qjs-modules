@@ -291,7 +291,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
   } else if(JS_IsString(value)) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
-    ret.value = js_cstring_value(ctx, (const char*)ret.data);
+    ret.value = js_cstring_value((const char*)ret.data);
   } else {
     JS_ThrowTypeError(ctx, "Invalid type for input buffer");
   }
@@ -1251,7 +1251,7 @@ js_cstring_free(JSContext* ctx, const char* ptr) {
 }
 
 JSValueConst
-js_cstring_value(JSContext* ctx, const char* ptr) {
+js_cstring_value(const char* ptr) {
   JSString* p;
   if(!ptr)
     return JS_UNDEFINED;
