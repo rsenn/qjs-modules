@@ -33,6 +33,8 @@ lexer_rule_expand(Lexer* lex, LexerRule* rule, DynBuf* db) {
   char* p;
   size_t len;
 
+  dbuf_zero(db);
+
   for(p = rule->expr; *p; p++) {
     if(*p == '{') {
       if(p[len = str_chr(p, '}')]) {
@@ -51,6 +53,9 @@ lexer_rule_expand(Lexer* lex, LexerRule* rule, DynBuf* db) {
   }
   dbuf_0(db);
 
+    printf("expand %s %s\n", rule->name, db->buf);
+
+
   return TRUE;
 }
 
@@ -66,8 +71,6 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
 
   if(lexer_rule_expand(lex, rule, &dbuf)) {
     RegExp re = regexp_from_dbuf(&dbuf, LRE_FLAG_GLOBAL | LRE_FLAG_STICKY);
-
-    // printf("rule %s /%s/\n", rule->name, re.source);
 
     rule->bytecode = regexp_compile(re, ctx);
     ret = rule->bytecode != 0;

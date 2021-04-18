@@ -1,4 +1,4 @@
-project(quickjs-modules C)
+project(qjs-modules C)
 
 cmake_minimum_required(VERSION 3.2)
 
@@ -52,7 +52,7 @@ set(lexer_SOURCES utils.c utils.h vector.c vector.h lexer.c lexer.h)
 set(lexer_LIBRARIES quickjs-predicate)
 set(mmap_SOURCES utils.c utils.h)
 set(repeater_SOURCES utils.c utils.h)
- 
+
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel
                                              RelWithDebInfo)
 

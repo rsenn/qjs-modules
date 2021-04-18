@@ -1,6 +1,6 @@
 import { Lexer, Token, SyntaxError } from 'lexer.so';
 
-const tokenRules = {
+export const CTokens = {
   singleLineComment: /\/\/.*/,
   multiLineComment: /\/\*([^\*]|[\r\n]|(\*+([^\/\*]|[\n\r])))*\*+\//,
   while: /while/,
@@ -107,7 +107,7 @@ export class CLexer extends Lexer {
   }
 
   addRules() {
-    for(let name in tokenRules) this.addRule(name, tokenRules[name]);
+    for(let name in CTokens) this.addRule(name, CTokens[name]);
   }
 }
 

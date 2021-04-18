@@ -1,12 +1,13 @@
 import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect.so';
-import * as xml from 'xml.so';
+import * as path from 'path.so';
 import { Predicate } from 'predicate.so';
 import { Location, Lexer, Token, SyntaxError } from 'lexer.so';
 import Console from './console.js';
 import JSLexer from './jslexer.js';
 import CLexer from './clexer.js';
+import BNFLexer from './bnflexer.js';
 
 ('use strict');
 ('use math');
@@ -14,8 +15,8 @@ import CLexer from './clexer.js';
 //const code = [`const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`, `/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);` ];
 const code = [
   `const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`,
- `/Reg.*Ex/i.test(n)`,
- `/\\n/g`,
+  `/Reg.*Ex/i.test(n)`,
+  `/\\n/g`,
   `const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);`,
   `/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);`
 ];
@@ -100,7 +101,7 @@ function now(clock = CLOCK_MONOTONIC_RAW) {
 }
 
 async function main(...args) {
-  console = new Console({
+  globalThis.console = new Console({
     colors: true,
     depth: 8,
     maxArrayLength: 100,
@@ -116,19 +117,26 @@ async function main(...args) {
   }
 
   let file = args[0] ?? scriptArgs[0];
-  let str = args[0] ? std.loadFile(args[0], 'utf-8') : code[1];
+  let str = args[0] ? std.loadFile(file, 'utf-8') : code[1];
   let len = str.length;
+  let type = path.extname(file).substring(1);
 
-  let jslex = new JSLexer(str, file);
-  let clex = new CLexer(str, file, CLexer.LONGEST);
+  let lex = {
+    js: new JSLexer(str, file),
+    c: new CLexer(str, file, CLexer.LONGEST),
+    bnf: new BNFLexer(str, file)
+  };
 
-  console.log('lexers:', { jslex, clex });
-  console.log('jslex.tokens:', jslex.tokens);
-  console.log('clex.tokens:', clex.tokens);
+  lex.g4 = lex.bnf;
+
+  console.log('lexers:', lex.js, lex.c, lex.bnf);
+  console.log('lex.js.tokens:', lex.js.tokens);
+  console.log('lex.c.tokens:', lex.c.tokens);
+  //  console.log('lex.bnf.tokens:', lex.bnf.tokens);
   let e = new SyntaxError();
   console.log('new SyntaxError()', e);
 
-  jslex.handler = function(state, skip) {
+  lex.js.handler = function(state, skip) {
     console.log(`handler state=${state} skip=${skip}`);
   };
 
@@ -142,40 +150,46 @@ async function main(...args) {
     //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
   }
 
-for(let name of [...jslex.ruleNames, 'RegularExpressionNonTerminator', 'RegularExpressionBackslashSequence', 'RegularExpressionClassChar', 'RegularExpressionClass', 'RegularExpressionFlags', 'RegularExpressionFirstChar', 'RegularExpressionChar', 'RegularExpressionBody', 'RegularExpressionLiteral'
-].filter(n => new RegExp('reg.*ex','i').test(n)))
-  console.log(`RULE ${name}`, jslex.getRule(name)[1]);
-   try {
+  for(let name of [
+    ...lex.js.ruleNames,
+    'RegularExpressionNonTerminator',
+    'RegularExpressionBackslashSequence',
+    'RegularExpressionClassChar',
+    'RegularExpressionClass',
+    'RegularExpressionFlags',
+    'RegularExpressionFirstChar',
+    'RegularExpressionChar',
+    'RegularExpressionBody',
+    'RegularExpressionLiteral'
+  ].filter(n => new RegExp('reg.*ex', 'i').test(n)))
+    console.log(`RULE ${name}`, lex.js.getRule(name)[1]);
 
-    let tok,
-      i = 0;
+  let tok,
+    i = 0;
 
-    console.log('now', now());
-    console.log('jslex.ruleNames', jslex.ruleNames);
+  console.log('now', now());
+  console.log('lex.js.ruleNames', lex.js.ruleNames);
 
-    for(let tok of jslex(-1, 0 /*1*/)) {
-      if(tok.rule[0] == 'whitespace') continue;
-      console.log(`token(${i}).value:`, tok.value);
+  for(let tok of lex[type](-1, 0 /*1*/)) {
+    if(tok.rule[0] == 'whitespace') continue;
+    console.log(`token(${i}).value:`, tok.value);
 
-      tokenList.push(tok);
-      //      console.log(`token(${i}) ${tok.rule[0]}: '${Lexer.escape(tokenList.at(-1).lexeme)}'`);
-      printTok(tok);
+    tokenList.push(tok);
+    //      console.log(`token(${i}) ${tok.rule[0]}: '${Lexer.escape(tokenList.at(-1).lexeme)}'`);
+    printTok(tok);
 
-      if((tokenList.at(-1).lexeme == ';' && tokenList.at(-2).lexeme == ')') ||
-        (tokenList.last.lexeme == '}' && tokenList.last.loc.column == 1) ||
-        jslex.tokenClass(tok) == 'preprocessor'
-      ) {
-        declarations.push(tokenList);
-        tokenList = [];
-      }
-      i++;
+    if((tokenList.at(-1).lexeme == ';' && tokenList.at(-2).lexeme == ')') ||
+      (tokenList.last.lexeme == '}' && tokenList.last.loc.column == 1) ||
+      lex.js.tokenClass(tok) == 'preprocessor'
+    ) {
+      declarations.push(tokenList);
+      tokenList = [];
     }
-  } catch(err) {
-    console.log('err:', err.message);
-    return;
-    /*console.log(jslex.currentLine());
-    console.log('^'.padStart(jslex.loc.column));*/
+    i++;
   }
+
+  /*console.log(lex.js.currentLine());
+    console.log('^'.padStart(lex.js.loc.column));*/
 
   /*  for(let decl of declarations) {
     console.log('\n' + decl[0].loc);
@@ -186,4 +200,6 @@ for(let name of [...jslex.ruleNames, 'RegularExpressionNonTerminator', 'RegularE
   std.gc();
 }
 
-main(...scriptArgs.slice(1));
+main(...scriptArgs.slice(1))
+  .then(() => console.log('SUCCESS'))
+  .catch(error => console.log('FAIL:', error.message, error.stack));
