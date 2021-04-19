@@ -106,7 +106,7 @@ async function main(...args) {
     depth: 8,
     maxArrayLength: 100,
     maxStringLength: Infinity,
-    compact: 1,
+    compact: false,
     showHidden: false
   });
   if(!gettime) {
@@ -129,11 +129,11 @@ async function main(...args) {
 
   lex.g4 = lex.bnf;
   lex.ebnf = lex.bnf;
+  lex.l = lex.bnf;
+  lex.y = lex.bnf;
 
   console.log('lexers:', lex.js, lex.c, lex.bnf);
-  console.log('lex.js.tokens:', lex.js.tokens);
-  console.log('lex.c.tokens:', lex.c.tokens);
-  //  console.log('lex.bnf.tokens:', lex.bnf.tokens);
+ // console.log('lex[type].tokens:', lex[type].tokens);
   let e = new SyntaxError();
   console.log('new SyntaxError()', e);
 
@@ -176,14 +176,19 @@ async function main(...args) {
   for(let tok of lex[type]()) {
     if(tok.rule[0] == 'whitespace') continue;
 
-
-  if(tok.rule[0] == 'lbrace') {
-     /* lex.c.setInput(lex[type]);
+    if(tok.type == 'lbrace') {
+      /* lex.c.setInput(lex[type]);
       throw new Error('X'+ inspect(lex.c.next()));*/
-    lex[type].mode=Lexer.LONGEST;
-    lex[type].mask=0b110;
+      lex[type].mode = Lexer.LONGEST;
+      lex[type].mask = 0b110;
     }
-   console.log(`lex[type].mask = ${lex[type].mask} token(${i})`, inspect(tok,{ colors: true }));
+
+    if(tok.type == '}') {
+      lex[type].mode = Lexer.FIRST;
+      lex[type].mask = 0b001;
+    }
+//    console.log(`lex[type].mask = 0b${lex[type].mask.toString(2)}`);
+    //console.log(`token(${i})`, inspect(tok, { colors: true }));
 
     tokenList.push(tok);
     //      console.log(`token(${i}) ${tok.rule[0]}: '${Lexer.escape(tokenList.at(-1).lexeme)}'`);
@@ -213,4 +218,7 @@ async function main(...args) {
 
 main(...scriptArgs.slice(1))
   .then(() => console.log('SUCCESS'))
-  .catch(error => { console.log(`FAIL: ${error.message}\n${error.stack}`); std.exit(1); });
+  .catch(error => {
+    console.log(`FAIL: ${error.message}\n${error.stack}`);
+    std.exit(1);
+  });

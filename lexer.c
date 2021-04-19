@@ -173,8 +173,10 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   vector_foreach_t(&lex->rules, rule) {
     int result;
 
-    if((state & rule->mask) == 0)
+    if((state & rule->mask) == 0) {
+      i++;
       continue;
+    }
 
     result = lexer_rule_match(lex, rule, capture, ctx);
 
