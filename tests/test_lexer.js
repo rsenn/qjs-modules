@@ -220,10 +220,10 @@ console.log(tok.loc.toString());*/
       lexer.mask = code == 'js' ? 0b1000 : 0b0100;
     }
 
-    if(lexer.mask > 0b1 && tok.type == '}') {
+   /* if(lexer.mask > 0b1 && tok.type == '}') {
       lexer.mode = Lexer.FIRST;
       lexer.mask = 0b001;
-    }
+    }*/
 
     tokenList.push(tok);
     printTok(tok, `${state /*mask*/}`);
