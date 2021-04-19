@@ -21,6 +21,7 @@ typedef struct {
   char* expr;
   uint64_t mask;
   uint8_t* bytecode;
+  void* opaque;
 } LexerRule;
 
 static const uint64_t MASK_ALL = ~(uint64_t)0;

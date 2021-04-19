@@ -127,7 +127,7 @@ function main(...args) {
   for(let item of it) {
     let [value, path] = item;
 
-    console.log(`path: ${(path+'').padEnd(10)} value:`, value);
+    console.log(`path: ${(path + '').padEnd(10)} value:`, value);
   }
   std.gc();
 }

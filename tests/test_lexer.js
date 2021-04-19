@@ -12,6 +12,9 @@ import BNFLexer from '../lib/bnflexer.js';
 ('use strict');
 ('use math');
 
+const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
+const IntToBinary = i => (i == -1 ? i : '0b' + IntToDWord(i).toString(2));
+
 //const code = [`const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`, `/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);` ];
 const code = [
   `const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`,
@@ -62,6 +65,11 @@ Object.defineProperties(Array.prototype, {
       if((i = this.findLastIndex(predicate)) == -1) return null;
       return this[i];
     }
+  },
+  unique: {
+    value() {
+      return [...new Set(this)];
+    }
   }
 });
 
@@ -106,7 +114,7 @@ async function main(...args) {
     depth: 8,
     maxArrayLength: 100,
     maxStringLength: Infinity,
-    compact: false,
+    compact: 1,
     showHidden: false
   });
   if(!gettime) {
@@ -115,15 +123,25 @@ async function main(...args) {
     define('clock_gettime', clock_gettime, null, 'int', 'int', 'void *');
     gettime = (clk_id, tp) => call('clock_gettime', clk_id, tp);
   }
+  let optind = 0;
+  let code = 'c';
 
-  let file = args[0] ?? scriptArgs[0];
-  let str = args[0] ? std.loadFile(file, 'utf-8') : code[1];
+  while(args[optind] && args[optind].startsWith('-')) {
+    if(/code/.test(args[optind])) {
+      code = args[++optind];
+    }
+
+    optind++;
+  }
+
+  let file = args[optind] ?? scriptArgs[optind];
+  let str = args[optind] ? std.loadFile(file, 'utf-8') : code[1];
   let len = str.length;
   let type = path.extname(file).substring(1);
 
   let lex = {
     js: new JSLexer(str, file),
-    c: new CLexer(str, file, CLexer.LONGEST),
+    c: new CLexer(str, CLexer.LONGEST, file),
     bnf: new BNFLexer(str, file)
   };
 
@@ -132,68 +150,85 @@ async function main(...args) {
   lex.l = lex.bnf;
   lex.y = lex.bnf;
 
-  console.log('lexers:', lex.js, lex.c, lex.bnf);
- // console.log('lex[type].tokens:', lex[type].tokens);
+  const lexer = lex[type];
+
+  console.log('lexer:', lexer[Symbol.toStringTag]);
+  console.log('code:', code);
+  // console.log('lexer.tokens:', lexer.tokens);N
   let e = new SyntaxError();
   console.log('new SyntaxError()', e);
 
-  lex.js.handler = function(state, skip) {
-    console.log(`handler state=${state} skip=${skip}`);
+  lexer.handler = function(state, skip) {
+    const { mode, pos, start, byteLength } = this;
+    console.log(`handler mode=${IntToBinary(mode)} state=${
+        this.state || IntToBinary(state)
+      } skip=${IntToBinary(skip)}`,
+      { pos, start, byteLength }
+    );
   };
 
   let tokenList = [];
   let declarations = [];
-  const colSizes = [8, 4, 16, 32, 0];
+  const colSizes = [12, 8, 4, 16, 32, 10, 0];
 
-  function printTok(tok) {
-    const cols = [`tok[${tok.byteLength}]`, +tok, tok.type, tok.lexeme, tok.loc];
+  function printTok(tok, prefix) {
+    const range = tok.charRange;
+    const cols = [
+      prefix,
+      `tok[${tok.byteLength}]`,
+      +tok,
+      tok.type,
+      tok.lexeme,
+      tok.lexeme.length,
+      range,
+      tok.loc
+    ];
     console.log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
     //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
   }
-
-  /*  for(let name of [
-    ...lex.js.ruleNames,
-    'RegularExpressionNonTerminator',
-    'RegularExpressionBackslashSequence',
-    'RegularExpressionClassChar',
-    'RegularExpressionClass',
-    'RegularExpressionFlags',
-    'RegularExpressionFirstChar',
-    'RegularExpressionChar',
-    'RegularExpressionBody',
-    'RegularExpressionLiteral'
-  ].filter(n => new RegExp('reg.*ex', 'i').test(n)))
-    console.log(`RULE ${name}`, lex.js.getRule(name)[1]);*/
 
   let tok,
     i = 0;
 
   console.log('now', now());
-  console.log('lex.js.ruleNames', lex.js.ruleNames);
-  console.log('lex[type].mask', lex[type].mask);
-  console.log('lex[type].skip', lex[type].skip);
 
-  for(let tok of lex[type]()) {
+  /* for(let j = 0; j < lexer.ruleNames.length; j++) {
+    console.log(`lexer.rule[${j}]`, lexer.getRule(j));
+  }*/
+
+  console.log(lexer.ruleNames.length, 'rules', lexer.ruleNames.unique().length, 'unique rules');
+
+  console.log('lexer.mask', IntToBinary(lexer.mask));
+  console.log('lexer.skip', lexer.skip);
+  console.log('lexer.skip', IntToBinary(lexer.skip));
+  let mask = IntToBinary(lexer.mask);
+  let state = lexer.state;
+  lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
+
+  for(let tok of lexer()) {
     if(tok.rule[0] == 'whitespace') continue;
 
-    if(tok.type == 'lbrace') {
-      /* lex.c.setInput(lex[type]);
-      throw new Error('X'+ inspect(lex.c.next()));*/
-      lex[type].mode = Lexer.LONGEST;
-      lex[type].mask = 0b110;
+    /*console.log(tok.loc[Symbol.toStringTag]);
+console.log(tok.loc.toString());*/
+
+    if(tok.type == 'cstart') {
+      lexer.mode = code == 'js' ? Lexer.LAST : Lexer.LONGEST;
+      lexer.mask = code == 'js' ? 0b1000 : 0b0100;
+    }
+    if(tok.type == 'lbrace' || tok.type == 'inline') {
+      lexer.mode = code == 'js' ? Lexer.LAST : Lexer.LONGEST;
+      lexer.mask = code == 'js' ? 0b1000 : 0b0100;
     }
 
-    if(tok.type == '}') {
-      lex[type].mode = Lexer.FIRST;
-      lex[type].mask = 0b001;
+    if(lexer.mask > 0b1 && tok.type == '}') {
+      lexer.mode = Lexer.FIRST;
+      lexer.mask = 0b001;
     }
-//    console.log(`lex[type].mask = 0b${lex[type].mask.toString(2)}`);
-    //console.log(`token(${i})`, inspect(tok, { colors: true }));
 
     tokenList.push(tok);
-    //      console.log(`token(${i}) ${tok.rule[0]}: '${Lexer.escape(tokenList.at(-1).lexeme)}'`);
-    printTok(tok);
-
+    printTok(tok, `${state /*mask*/}`);
+    mask = IntToBinary(lexer.mask);
+    state = lexer.state;
     if((tokenList.at(-1).lexeme == ';' && tokenList.at(-2).lexeme == ')') ||
       (tokenList.last.lexeme == '}' && tokenList.last.loc.column == 1) ||
       lex.js.tokenClass(tok) == 'preprocessor'

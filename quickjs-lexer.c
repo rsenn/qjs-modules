@@ -8,11 +8,18 @@
 #include <ctype.h>
 #include <stdint.h>
 
+typedef struct {
+  JSValue action;
+  BOOL skip;
+} JSLexerRule;
+
 VISIBLE JSClassID js_syntaxerror_class_id = 0, js_token_class_id = 0, js_lexer_class_id = 0;
 static JSValue location_ctor;
 static JSValue syntaxerror_proto, syntaxerror_ctor;
 static JSValue token_proto, token_ctor;
 static JSValue lexer_proto, lexer_ctor;
+
+static JSValue js_location_new(JSContext* ctx, const Location* loc);
 
 static void
 js_location_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
@@ -38,24 +45,6 @@ js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   dbuf_free(&db);
-  return ret;
-}
-
-static JSValue
-js_location_new(JSContext* ctx, const Location* loc) {
-  JSValue ret = JS_NewObject(ctx);
-  if(loc->file)
-    JS_SetPropertyStr(ctx, ret, "file", JS_NewString(ctx, loc->file));
-  JS_SetPropertyStr(ctx, ret, "line", JS_NewUint32(ctx, loc->line + 1));
-  JS_SetPropertyStr(ctx, ret, "column", JS_NewUint32(ctx, loc->column + 1));
-
-  if(loc->pos >= 0)
-    JS_SetPropertyStr(ctx, ret, "pos", JS_NewInt64(ctx, loc->pos));
-  JS_DefinePropertyValueStr(ctx,
-                            ret,
-                            "toString",
-                            JS_NewCFunction(ctx, &js_location_tostring, "toString", 0),
-                            JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
   return ret;
 }
 
@@ -138,6 +127,26 @@ js_location_constructor(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   if(loc.file)
     JS_FreeCString(ctx, loc.file);
 
+  return ret;
+}
+
+static const JSCFunctionListEntry js_location_funcs[] = {
+    JS_CFUNC_DEF("toString", 0, js_location_tostring),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Location", JS_PROP_CONFIGURABLE),
+};
+
+static JSValue
+js_location_new(JSContext* ctx, const Location* loc) {
+  JSValue ret = JS_NewObject(ctx);
+  if(loc->file)
+    JS_SetPropertyStr(ctx, ret, "file", JS_NewString(ctx, loc->file));
+  JS_SetPropertyStr(ctx, ret, "line", JS_NewUint32(ctx, loc->line + 1));
+  JS_SetPropertyStr(ctx, ret, "column", JS_NewUint32(ctx, loc->column + 1));
+
+  if(loc->pos >= 0)
+    JS_SetPropertyStr(ctx, ret, "pos", JS_NewInt64(ctx, loc->pos));
+
+  JS_SetPropertyFunctionList(ctx, ret, js_location_funcs, countof(js_location_funcs));
   return ret;
 }
 
@@ -409,7 +418,10 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
 
   rule = lexer_rule_at(tok->lexer, tok->id);
 
-  dbuf_printf(&dbuf, multiline ? "Token {\n  id: %i, type: '%s' ,\n  lexeme: '" : "Token { id: %i, type: %s, lexeme: '", tok->id, rule->name);
+  dbuf_printf(&dbuf,
+              multiline ? "Token {\n  id: %i, type: '%s' ,\n  lexeme: '" : "Token { id: %i, type: %s, lexeme: '",
+              tok->id,
+              rule->name);
   dbuf_put_escaped(&dbuf, (const char*)tok->lexeme, tok->byte_length);
   /*dbuf_printf(&dbuf,
               multiline ? "',\n  offset: %" PRIu32 ",\n  byte_length: %" PRIu32 ",\n  char_length: %" PRIu32 ",\n  loc:
@@ -460,7 +472,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case TOKEN_PROP_CHARRANGE: {
       ret = JS_NewArray(ctx);
       js_set_propertyint_int(ctx, ret, 0, tok->loc.pos);
-      js_set_propertyint_int(ctx, ret, 0, tok->loc.pos + tok->char_length);
+      js_set_propertyint_int(ctx, ret, 1, tok->loc.pos + tok->char_length);
       break;
     }
 
@@ -551,7 +563,8 @@ enum lexer_getters {
   LEXER_PROP_FILENAME,
   LEXER_PROP_LOC,
   LEXER_PROP_RULENAMES,
-  LEXER_PROP_MODE
+  LEXER_PROP_MODE,
+  LEXER_PROP_BYTE_LENGTH
 };
 
 static Token*
@@ -623,23 +636,37 @@ static JSValue
 js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Lexer* lex;
   char* name;
-  int64_t mask = -1;
+  int64_t mask = -1, skip = 0;
   RegExp expr;
+  JSLexerRule* jsrule = 0;
 
   if(!(lex = js_lexer_data(ctx, this_val)))
     return JS_EXCEPTION;
 
   name = js_tostring(ctx, argv[0]);
-  expr = regexp_from_argv(argc - 1, argv + 1, ctx);
+  expr = regexp_from_argv(argc - 1, &argv[1], ctx);
 
-  if(JS_IsNumber(argv[argc - 1]))
-    JS_ToInt64(ctx, &mask, argv[argc - 1]);
+  if(JS_IsNumber(argv[2]))
+    JS_ToInt64(ctx, &mask, argv[2]);
+
+  JSValue skipv = JS_GetPropertyStr(ctx, this_val, "skip");
+  if(JS_IsNumber(skipv))
+    JS_ToInt64(ctx, &skip, skipv);
+  js_value_free(ctx, skipv);
+
+  if(argc > 3) {
+    jsrule = js_malloc(ctx, sizeof(JSLexerRule));
+
+    jsrule->action = JS_DupValue(ctx, argv[3]);
+    jsrule->skip = !!(mask & skip);
+  }
 
   if(magic) {
     int index = lexer_rule_add(lex, name, expr.source);
     LexerRule* rule = lexer_rule_at(lex, index);
 
-    rule->mask = mask;
+    rule->mask = jsrule ? mask & (~skip) : mask;
+    rule->opaque = jsrule;
 
     return JS_NewInt32(ctx, index);
   } else {
@@ -653,6 +680,7 @@ static JSValue
 js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   JSValue proto, ret;
   Lexer* lex;
+  int64_t mask = MASK_ALL;
   /* using new_target to get the prototype is necessary when the
       class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -662,20 +690,22 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   ret = js_lexer_new(ctx, proto, argc > 0 ? argv[0] : JS_UNDEFINED, argc > 1 ? argv[1] : JS_UNDEFINED);
 
   if((lex = js_lexer_data(ctx, ret))) {
-    int i;
+    int i = 2;
 
-    for(i = 1; i < argc; i++) {
+    if(lex->loc.file == 0 && i < argc && JS_IsString(argv[i]))
+      lex->loc.file = js_tostring(ctx, argv[i++]);
 
-      if(lex->loc.file == 0 && JS_IsString(argv[i]))
-        lex->loc.file = js_tostring(ctx, argv[i]);
-
-      if(JS_IsNumber(argv[i])) {
-        uint32_t mode = 0;
-        JS_ToUint32(ctx, &mode, argv[i]);
-        lex->mode |= mode;
-      }
+    if(i < argc && JS_IsNumber(argv[i])) {
+      uint32_t mode = 0;
+      JS_ToUint32(ctx, &mode, argv[i++]);
+      lex->mode |= mode;
     }
+    if(i < argc && JS_IsNumber(argv[i]))
+      JS_ToInt64(ctx, &mask, argv[i++]);
   }
+
+  JS_SetPropertyStr(ctx, ret, "mask", JS_NewInt64(ctx, mask));
+
   return ret;
 }
 
@@ -882,8 +912,12 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       vector_foreach_t(&lex->rules, rule) { JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, rule->name)); }
       break;
     }
-     case LEXER_PROP_MODE: {
-       ret = JS_NewInt32(ctx, lex->mode);
+    case LEXER_PROP_MODE: {
+      ret = JS_NewInt32(ctx, lex->mode);
+      break;
+    }
+    case LEXER_PROP_BYTE_LENGTH: {
+      ret = JS_NewUint32(ctx, lex->bytelen);
       break;
     }
   }
@@ -948,7 +982,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         js_free(ctx, (char*)lex->loc.file);
       lex->loc.file = js_tostring(ctx, value);
       break;
-    } 
+    }
     case LEXER_PROP_MODE: {
       int32_t m;
       JS_ToInt32(ctx, &m, value);
@@ -976,7 +1010,9 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     JS_ToInt64(ctx, &state, argv[0]);
   } else {
     JSValue mask = JS_GetPropertyStr(ctx, this_val, "mask");
-    JS_ToInt64(ctx, &state, mask);
+
+    if(JS_IsNumber(mask))
+      JS_ToInt64(ctx, &state, mask);
     js_value_free(ctx, mask);
   }
 
@@ -984,7 +1020,8 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     JS_ToInt64(ctx, &skip, argv[1]);
   } else {
     JSValue mask = JS_GetPropertyStr(ctx, this_val, "skip");
-    JS_ToInt64(ctx, &skip, mask);
+    if(JS_IsNumber(mask))
+      JS_ToInt64(ctx, &skip, mask);
     js_value_free(ctx, mask);
   }
 
@@ -993,6 +1030,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   for(;;) {
     if((id = lexer_peek(lex, state | skip, ctx)) >= 0) {
       LexerRule* rule = lexer_rule_at(lex, id);
+      JSLexerRule* jsrule = rule->opaque;
       Token* tok;
       size_t bytelen, charlen;
 
@@ -1002,6 +1040,30 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
       if((rule->mask & skip)) {
         loc = lex->loc;
         continue;
+      }
+
+      if(jsrule) {
+        if(JS_IsFunction(ctx, jsrule->action)) {
+
+          JSValue args[] = {JS_NewInt32(ctx, id),
+                            JS_NewStringLen(ctx, (const char*)&lex->input.data[lex->start], bytelen),
+                            JS_NewInt64(ctx, state)};
+          ret = JS_Call(ctx, jsrule->action, this_val, 3, args);
+          JS_FreeValue(ctx, args[0]);
+          JS_FreeValue(ctx, args[1]);
+          JS_FreeValue(ctx, args[2]);
+
+          if(JS_IsNumber(ret)) {
+            JS_ToInt64(ctx, &state, ret);
+            //printf("new state: %" PRIi64 "\n", state);
+            JS_SetPropertyStr(ctx, this_val, "mask", ret);
+          }
+        }
+
+        if(jsrule->skip) {
+          loc = lex->loc;
+          continue;
+        }
       }
 
       tok = lexer_token(lex, id, bytelen, charlen, loc, ctx);
@@ -1103,10 +1165,11 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, 0),
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_PROP_SIZE),
     JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_PROP_POS),
-    // JS_CGETSET_MAGIC_DEF("start", js_lexer_get, js_lexer_set, LEXER_PROP_START),
+    JS_CGETSET_MAGIC_DEF("start", js_lexer_get, 0, LEXER_PROP_START),
     JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, LEXER_PROP_LOC),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_PROP_EOF),
     JS_CGETSET_MAGIC_DEF("mode", js_lexer_get, js_lexer_set, LEXER_PROP_MODE),
+    JS_CGETSET_MAGIC_DEF("byteLength", js_lexer_get, 0, LEXER_PROP_BYTE_LENGTH),
     JS_CFUNC_MAGIC_DEF("setInput", 1, js_lexer_method, LEXER_METHOD_SET_INPUT),
     JS_CFUNC_MAGIC_DEF("currentLine", 0, js_lexer_method, LEXER_METHOD_CURRENT_LINE),
     JS_CFUNC_MAGIC_DEF("tokenClass", 1, js_lexer_method, LEXER_METHOD_TOKEN_CLASS),
