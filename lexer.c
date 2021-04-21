@@ -29,18 +29,17 @@ location_free(Location* loc, JSRuntime* rt) {
 }
 
 BOOL
-lexer_rule_expand(Lexer* lex, LexerRule* rule, DynBuf* db) {
-  char* p;
+lexer_rule_expand(Lexer* lex, char* p, DynBuf* db) {
   size_t len;
 
   dbuf_zero(db);
 
-  for(p = rule->expr; *p; p++) {
+  for(; *p; p++) {
     if(*p == '{') {
       if(p[len = str_chr(p, '}')]) {
         LexerRule* subst;
         if((subst = lexer_find_definition(lex, p + 1, len - 1))) {
-          lexer_rule_expand(lex, subst, db);
+          lexer_rule_expand(lex, subst->expr, db);
           p += len;
           continue;
         }
@@ -62,13 +61,20 @@ static BOOL
 lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
   DynBuf dbuf;
   BOOL ret;
+  char* p;
 
   if(rule->bytecode)
     return TRUE;
 
   js_dbuf_init(ctx, &dbuf);
 
-  if(lexer_rule_expand(lex, rule, &dbuf)) {
+  if(*(p = rule->expr) == '<') {
+    p += str_chr(p, '>');
+    if(*p)
+      p++;
+  }
+
+  if(lexer_rule_expand(lex, p, &dbuf)) {
     RegExp re = regexp_from_dbuf(&dbuf, LRE_FLAG_GLOBAL | LRE_FLAG_STICKY);
 
     rule->bytecode = regexp_compile(re, ctx);
@@ -98,7 +104,9 @@ void
 lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
   memset(lex, 0, sizeof(Lexer));
   lex->mode = mode;
+  lex->state = -1;
   vector_init(&lex->defines, ctx);
+  vector_init(&lex->states, ctx);
   vector_init(&lex->rules, ctx);
 }
 
@@ -110,19 +118,44 @@ lexer_set_input(Lexer* lex, InputBuffer input, char* filename) {
 
 void
 lexer_define(Lexer* lex, char* name, char* expr) {
-  LexerRule definition = {name, expr, MASK_ALL, 0, 0};
+  LexerRule definition = {name, expr, -1, MASK_ALL, 0, 0};
   vector_size(&lex->defines, sizeof(LexerRule));
   vector_push(&lex->defines, definition);
 }
 
 int
+lexer_state(Lexer* lex, char* expr) {
+  char *state, **statep;
+  size_t slen;
+  int ret = -1;
+
+  slen = str_chr(expr + 1, '>');
+
+  vector_foreach_t(&lex->states, statep) {
+    ++ret;
+
+    if(strlen((*statep)) == slen && !strncmp((*statep), expr + 1, slen))
+      return ret;
+  }
+
+  state = str_ndup(expr + 1, slen);
+  ret = vector_size(&lex->states, sizeof(char*));
+  vector_push(&lex->states, state);
+  return ret;
+}
+
+int
 lexer_rule_add(Lexer* lex, char* name, char* expr) {
-  LexerRule rule = {name, expr, MASK_ALL, 0, 0}, *previous;
+  LexerRule rule = {name, expr, -1, MASK_ALL, 0, 0}, *previous;
   int ret = vector_size(&lex->rules, sizeof(LexerRule));
   if(ret) {
     previous = vector_back(&lex->rules, sizeof(LexerRule));
     rule.mask = previous->mask;
   }
+
+  if(rule.expr[0] == '<')
+    rule.state = lexer_state(lex, rule.expr);
+
   vector_push(&lex->rules, rule);
   return ret;
 }
@@ -277,12 +310,15 @@ lexer_dump(Lexer* lex, DynBuf* dbuf) {
 void
 lexer_free(Lexer* lex, JSContext* ctx) {
   LexerRule* rule;
+  char** state;
 
   if(!ctx)
     ctx = lex->rules.opaque;
 
   input_buffer_free(&lex->input, ctx);
 
+  vector_foreach_t(&lex->defines, rule) { lexer_rule_free(rule, ctx); }
+  vector_foreach_t(&lex->states, state) { free(*state); }
   vector_foreach_t(&lex->rules, rule) { lexer_rule_free(rule, ctx); }
 
   vector_free(&lex->rules);

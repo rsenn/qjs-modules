@@ -269,7 +269,7 @@ size_t ansi_skip(const char* str, size_t len);
 size_t ansi_length(const char* str, size_t len);
 size_t ansi_truncate(const char* str, size_t len, size_t limit);
 
-/*static inline char*
+static inline char*
 str_ndup(const char* s, size_t n) {
   char* r = malloc(n + 1);
   if(r == NULL)
@@ -277,7 +277,7 @@ str_ndup(const char* s, size_t n) {
   memcpy(r, s, n);
   r[n] = '\0';
   return r;
-}*/
+}
 
 static inline size_t
 predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {

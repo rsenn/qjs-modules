@@ -19,6 +19,7 @@ void location_free(Location* loc, JSRuntime* rt);
 typedef struct {
   char* name;
   char* expr;
+  int state;
   uint64_t mask;
   uint8_t* bytecode;
   void* opaque;
@@ -35,9 +36,11 @@ typedef struct {
   size_t start;
   size_t bytelen;
   int tokid;
+  int state;
   InputBuffer input;
   Location loc;
   Vector defines;
+  Vector states;
   Vector rules;
 } Lexer;
 
@@ -49,7 +52,7 @@ void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_set_input(Lexer*, InputBuffer input, char* filename);
 void lexer_define(Lexer*, char* name, char* expr);
 int lexer_rule_add(Lexer*, char* name, char* expr);
-BOOL lexer_rule_expand(Lexer*, LexerRule* rule, DynBuf* db);
+BOOL lexer_rule_expand(Lexer*, char* expr, DynBuf* db);
 LexerRule* lexer_find_definition(Lexer*, const char* name, size_t namelen);
 BOOL lexer_compile_rules(Lexer*, JSContext* ctx);
 int lexer_peek(Lexer*, uint64_t state, JSContext* ctx);

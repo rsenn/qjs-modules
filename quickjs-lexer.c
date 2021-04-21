@@ -155,7 +155,7 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
 
   DynBuf dbuf;
   js_dbuf_init(ctx, &dbuf);
-  lexer_rule_expand(lex, rule, &dbuf);
+  lexer_rule_expand(lex, rule->expr, &dbuf);
   dbuf_0(&dbuf);
 
   JSValue ret = JS_NewArray(ctx);

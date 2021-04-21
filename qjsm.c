@@ -71,7 +71,6 @@ JSModuleDef* js_init_module_repeater(JSContext*, const char*);
 JSModuleDef* js_init_module_tree_walker(JSContext*, const char*);
 JSModuleDef* js_init_module_xml(JSContext*, const char*);
 
-
 static int
 eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
   JSValue val;
