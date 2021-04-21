@@ -89,7 +89,7 @@ function(make_module FNAME)
   set(TARGET_NAME qjs-${NAME})
   set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES})
 
-  dump(VNAME ${VNAME}_SOURCES)
+  #dump(VNAME ${VNAME}_SOURCES)
   add_library(${TARGET_NAME} SHARED ${SOURCES})
   add_library(${TARGET_NAME}-static STATIC ${SOURCES})
 

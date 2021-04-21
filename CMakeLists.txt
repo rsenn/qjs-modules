@@ -34,8 +34,9 @@ set(CMAKE_REQUIRED_QUIET TRUE)
 
 
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
-dump(VISIBILITY_HIDDEN)
-dump(MODULE_COMPILE_FLAGS)
+
+#dump(VISIBILITY_HIDDEN)
+#dump(MODULE_COMPILE_FLAGS)
 
 check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type" CMAKE_C_FLAGS)
 # message("CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
@@ -120,8 +121,7 @@ endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
 addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
-
-dump(STATIC_TARGETS)
+#dump(STATIC_TARGETS)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})
