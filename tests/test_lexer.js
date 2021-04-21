@@ -1,9 +1,9 @@
 import * as os from 'os';
 import * as std from 'std';
-import inspect from 'inspect.so';
-import * as path from 'path.so';
-import { Predicate } from 'predicate.so';
-import { Location, Lexer, Token, SyntaxError } from 'lexer.so';
+import inspect from 'inspect';
+import * as path from 'path';
+import { Predicate } from 'predicate';
+import { Location, Lexer, Token, SyntaxError } from 'lexer';
 import Console from '../lib/console.js';
 import JSLexer from '../lib/jslexer.js';
 import CLexer from '../lib/clexer.js';
@@ -180,7 +180,7 @@ async function main(...args) {
       tok.type,
       tok.lexeme,
       tok.lexeme.length,
-      range,
+      //range,
       tok.loc
     ];
     console.log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
@@ -205,11 +205,10 @@ async function main(...args) {
   let state = lexer.state;
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
 
+  let start = Date.now();
+
   for(let tok of lexer()) {
     if(tok.rule[0] == 'whitespace') continue;
-
-    /*console.log(tok.loc[Symbol.toStringTag]);
-console.log(tok.loc.toString());*/
 
     if(tok.type == 'cstart') {
       lexer.mode = code == 'js' ? Lexer.LAST : Lexer.LONGEST;
@@ -219,33 +218,17 @@ console.log(tok.loc.toString());*/
       lexer.mode = code == 'js' ? Lexer.LAST : Lexer.LONGEST;
       lexer.mask = code == 'js' ? 0b1000 : 0b0100;
     }
-
-   /* if(lexer.mask > 0b1 && tok.type == '}') {
-      lexer.mode = Lexer.FIRST;
-      lexer.mask = 0b001;
-    }*/
-
-    tokenList.push(tok);
-    printTok(tok, `${state /*mask*/}`);
+    
+    printTok(tok, state);
+    
     mask = IntToBinary(lexer.mask);
     state = lexer.state;
-    if((tokenList.at(-1).lexeme == ';' && tokenList.at(-2).lexeme == ')') ||
-      (tokenList.last.lexeme == '}' && tokenList.last.loc.column == 1) ||
-      lex.js.tokenClass(tok) == 'preprocessor'
-    ) {
-      declarations.push(tokenList);
-      tokenList = [];
-    }
-    i++;
   }
 
-  /*console.log(lex.js.currentLine());
-    console.log('^'.padStart(lex.js.loc.column));*/
+  let end = Date.now();
 
-  /*  for(let decl of declarations) {
-    console.log('\n' + decl[0].loc);
-    console.log('declaration', decl.join('').trim());
-  }*/
+  console.log(`took ${end - start}ms`);
+
   return;
 
   std.gc();

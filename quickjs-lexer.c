@@ -1055,7 +1055,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 
           if(JS_IsNumber(ret)) {
             JS_ToInt64(ctx, &state, ret);
-            //printf("new state: %" PRIi64 "\n", state);
+            // printf("new state: %" PRIi64 "\n", state);
             JS_SetPropertyStr(ctx, this_val, "mask", ret);
           }
         }

@@ -1,8 +1,8 @@
 import * as os from 'os';
 import * as std from 'std';
-import inspect from 'inspect.so';
-import * as xml from 'xml.so';
-import { Predicate, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal } from 'predicate.so';
+import inspect from 'inspect';
+import * as xml from 'xml';
+import { Predicate, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal } from 'predicate';
 import Console from '../lib/console.js';
 
 ('use strict');

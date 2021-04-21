@@ -1,8 +1,8 @@
 import * as os from 'os';
 import * as std from 'std';
-import inspect from 'inspect.so';
-import * as xml from 'xml.so';
-import { TreeWalker, TreeIterator } from 'tree-walker.so';
+import inspect from 'inspect';
+import * as xml from 'xml';
+import { TreeWalker, TreeIterator } from 'tree-walker';
 import Console from '../lib/console.js';
 
 ('use strict');

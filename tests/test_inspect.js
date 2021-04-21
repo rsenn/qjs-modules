@@ -1,6 +1,6 @@
 import * as os from 'os';
 import * as std from 'std';
-import inspect from 'inspect.so';
+import inspect from 'inspect';
 import Console from '../lib/console.js';
 
 ('use strict');

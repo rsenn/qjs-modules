@@ -1,9 +1,9 @@
 import * as os from 'os';
 import * as std from 'std';
-import inspect from 'inspect.so';
-import child_process from 'child-process.so';
+import inspect from 'inspect';
+import child_process from 'child-process';
 import Console from '../lib/console.js';
-import { toString } from 'mmap.so';
+import { toString } from 'mmap';
 
 ('use strict');
 

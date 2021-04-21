@@ -1,7 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
-import inspect from 'inspect.so';
-import * as deep from 'deep.so';
+import inspect from 'inspect';
+import * as deep from 'deep';
 //import * as xml from 'xml.so';
 import Console from '../lib/console.js';
 

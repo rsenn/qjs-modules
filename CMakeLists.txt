@@ -12,7 +12,7 @@ if(EXISTS "${QUICKJS_H}")
 endif()
 set(child_process_SOURCES child-process.c child-process.h utils.c utils.h vector.c vector.h)
 set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.h utils.c utils.h pointer.h virtual-properties.h)
-set(deep_LIBRARIES quickjs-pointer)
+set(deep_LIBRARIES qjs-pointer)
 set(inspect_SOURCES vector.c vector.h iteration.h utils.c utils.h property-enumeration.h quickjs-internal.h)
 set(tree_walker_SOURCES vector.c vector.h property-enumeration.h utils.c utils.h)
 set(xml_SOURCES vector.c vector.h property-enumeration.h utils.c utils.h)
@@ -118,30 +118,18 @@ if(HAVE__BUILTIN_MUL_OVERFLOW)
   add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
 endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
-#[[foreach(NAME ${QUICKJS_MODULES})
-  string(REGEX REPLACE "[-/]" "_" PFX "${NAME}")
-  set(SOURCES quickjs-${NAME}.c)
-  if(EXISTS quickjs-${NAME}.h)
-    list(APPEND SOURCES quickjs-${NAME}.h)
-  endif(EXISTS quickjs-${NAME}.h)
-  list(APPEND SOURCES ${${PFX}_SOURCES})
-  message("quickjs-${NAME} SOURCES ${SOURCES}")
-  add_library(quickjs-${NAME} SHARED ${SOURCES})
-  set_target_properties(quickjs-${NAME} PROPERTIES PREFIX ""
-  INCLUDE_DIRECTORIES "${QUICKJS_PREFIX}/include/quickjs" OUTPUT_NAME "${NAME}"
-)
 
-  target_compile_definitions(quickjs-${NAME} PRIVATE -DJS_SHARED_LIBRARY)
-  target_include_directories(quickjs-${NAME} BEFORE PUBLIC ${QUICKJS_INCLUDE_DIRS})
-  install(TARGETS quickjs-${NAME} DESTINATION lib/quickjs PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-endforeach(NAME mmap inspect)]]
+addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
+addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
+
+dump(STATIC_TARGETS)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
-  make_shared_module(${JS_MODULE})
+  make_module(${JS_MODULE})
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
-target_link_libraries(quickjs-lexer quickjs-predicate)
-add_dependencies(quickjs-lexer quickjs-predicate)
+target_link_libraries(qjs-lexer qjs-predicate)
+add_dependencies(qjs-lexer qjs-predicate)
 
 file(GLOB TESTS_SOURCES tests/test_*.js)
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
@@ -157,3 +145,23 @@ endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
 file(GLOB LIBJS lib/*.js)
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}")
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
+  set(quickjs_sources_root ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+  include(${quickjs_sources_root}/defs.cmake)
+  include(${quickjs_sources_root}/cmake/check-libraries.cmake)
+  add_custom_command(OUTPUT repl.c COMMAND ${QJSC} -c -o ./repl.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../repl.js DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} COMMENT "Generate from repl.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/repl.js)
+
+  add_custom_command(OUTPUT qjscalc.c COMMAND ${QJSC} -fbignum -c -o ./qjscalc.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
+  add_executable(qjsm qjsm.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h ${CMAKE_CURRENT_SOURCE_DIR}/../libregexp.c ${CMAKE_CURRENT_SOURCE_DIR}/../libunicode.c ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.h ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-find-module.c
+                      ${CMAKE_CURRENT_SOURCE_DIR}/../libbf.c ${CMAKE_CURRENT_BINARY_DIR}/repl.c ${CMAKE_CURRENT_BINARY_DIR}/qjscalc.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger-transport-${TRANSPORT_PLATFORM}.c)
+
+  # target_link_libraries(qjs ${QUICKJS_LIBRARY})
+  target_link_libraries(qjsm ${STATIC_TARGETS} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
+  set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT}" COMPILE_FLAGS "-w")
+
+  target_compile_definitions(qjsm PRIVATE CONFIG_VERSION="${quickjs_version}" _GNU_SOURCE=1 CONFIG_PREFIX="${CMAKE_INSTALL_PREFIX}" CONFIG_BIGNUM=1)
+  install(TARGETS qjsm DESTINATION bin)
+
+endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
