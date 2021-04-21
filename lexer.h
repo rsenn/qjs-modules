@@ -40,8 +40,9 @@ typedef struct {
   InputBuffer input;
   Location loc;
   Vector defines;
-  Vector states;
   Vector rules;
+  Vector conditions;
+  Vector conditionStack;
 } Lexer;
 
 void location_print(const Location*, DynBuf* dbuf);
@@ -51,6 +52,11 @@ void location_free(Location*, JSRuntime* rt);
 void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_set_input(Lexer*, InputBuffer input, char* filename);
 void lexer_define(Lexer*, char* name, char* expr);
+int lexer_state_find(Lexer*, const char*);
+int lexer_state_new(Lexer*, char*);
+int lexer_state_push(Lexer*, const char*);
+int lexer_state_pop(Lexer*);
+const char* lexer_state_name(Lexer*, int);
 int lexer_rule_add(Lexer*, char* name, char* expr);
 BOOL lexer_rule_expand(Lexer*, char* expr, DynBuf* db);
 LexerRule* lexer_find_definition(Lexer*, const char* name, size_t namelen);

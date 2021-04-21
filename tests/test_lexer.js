@@ -201,6 +201,7 @@ async function main(...args) {
   console.log('lexer.mask', IntToBinary(lexer.mask));
   console.log('lexer.skip', lexer.skip);
   console.log('lexer.skip', IntToBinary(lexer.skip));
+  console.log('lexer.states',  (lexer.states));
   let mask = IntToBinary(lexer.mask);
   let state = lexer.state;
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);

@@ -102,12 +102,15 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
 
 void
 lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
+  char* initial = strdup("INITIAL");
   memset(lex, 0, sizeof(Lexer));
   lex->mode = mode;
-  lex->state = -1;
+  lex->state = 0;
   vector_init(&lex->defines, ctx);
-  vector_init(&lex->states, ctx);
   vector_init(&lex->rules, ctx);
+  vector_init(&lex->conditions, ctx);
+  vector_push(&lex->conditions, initial);
+  vector_init(&lex->conditionStack, ctx);
 }
 
 void
@@ -124,29 +127,72 @@ lexer_define(Lexer* lex, char* name, char* expr) {
 }
 
 int
-lexer_state(Lexer* lex, char* expr) {
-  char *state, **statep;
+lexer_state_find(Lexer* lex, const char* condition) {
+  const char *state, **statep;
   size_t slen;
   int ret = -1;
 
-  slen = str_chr(expr + 1, '>');
+  state = *condition == '<' ? condition + 1 : condition;
+  slen = str_chr(state, '>');
 
-  vector_foreach_t(&lex->states, statep) {
+  vector_foreach_t(&lex->conditions, statep) {
     ++ret;
 
-    if(strlen((*statep)) == slen && !strncmp((*statep), expr + 1, slen))
+    if(strlen((*statep)) == slen && !strncmp((*statep), state, slen))
       return ret;
   }
 
+  return -1;
+}
+
+int
+lexer_state_new(Lexer* lex, char* expr) {
+  char *state, **statep;
+  size_t slen;
+  int ret;
+
+  if((ret = lexer_state_find(lex, expr)) != -1)
+    return ret;
+
+  slen = str_chr(expr + 1, '>');
   state = str_ndup(expr + 1, slen);
-  ret = vector_size(&lex->states, sizeof(char*));
-  vector_push(&lex->states, state);
+  ret = vector_size(&lex->conditions, sizeof(char*));
+  vector_push(&lex->conditions, state);
   return ret;
 }
 
 int
+lexer_state_push(Lexer* lex, const char* state) {
+  int id;
+  id = lexer_state_find(lex, state);
+  assert(id >= 0);
+  vector_push(&lex->conditionStack, lex->state);
+  lex->state = id;
+  return id;
+}
+
+int
+lexer_state_pop(Lexer* lex) {
+  int id;
+  assert(!vector_empty(&lex->conditionStack));
+  id = lex->state;
+  lex->state = *(int*)vector_back(&lex->conditionStack, sizeof(int));
+  vector_pop(&lex->conditionStack, sizeof(int));
+  return id;
+}
+
+const char*
+lexer_state_name(Lexer* lex, int state) {
+  const char** name_p;
+
+  name_p = vector_at(&lex->conditions, sizeof(char*), state);
+
+  return name_p ? *name_p : 0;
+}
+
+int
 lexer_rule_add(Lexer* lex, char* name, char* expr) {
-  LexerRule rule = {name, expr, -1, MASK_ALL, 0, 0}, *previous;
+  LexerRule rule = {name, expr, 0, MASK_ALL, 0, 0}, *previous;
   int ret = vector_size(&lex->rules, sizeof(LexerRule));
   if(ret) {
     previous = vector_back(&lex->rules, sizeof(LexerRule));
@@ -154,7 +200,7 @@ lexer_rule_add(Lexer* lex, char* name, char* expr) {
   }
 
   if(rule.expr[0] == '<')
-    rule.state = lexer_state(lex, rule.expr);
+    rule.state = lexer_state_new(lex, rule.expr);
 
   vector_push(&lex->rules, rule);
   return ret;
@@ -318,8 +364,11 @@ lexer_free(Lexer* lex, JSContext* ctx) {
   input_buffer_free(&lex->input, ctx);
 
   vector_foreach_t(&lex->defines, rule) { lexer_rule_free(rule, ctx); }
-  vector_foreach_t(&lex->states, state) { free(*state); }
   vector_foreach_t(&lex->rules, rule) { lexer_rule_free(rule, ctx); }
+  vector_foreach_t(&lex->conditions, state) { free(*state); }
 
+  vector_free(&lex->defines);
   vector_free(&lex->rules);
+  vector_free(&lex->conditions);
+  vector_free(&lex->conditionStack);
 }
