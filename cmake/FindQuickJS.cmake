@@ -1,4 +1,5 @@
 include(CheckIncludeFile)
+#include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
@@ -13,22 +14,26 @@ message("QuickJS install directory: ${QUICKJS_PREFIX}")
 
 set(CMAKE_REQUIRED_QUIET TRUE)
 
+set(QUICKJS_INCLUDE_DIR "${QUICKJS_PREFIX}/include/quickjs")
 set(QUICKJS_INCLUDE_DIRS "")
 
-if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
-  list(APPEND QUICKJS_INCLUDE_DIRS ..)
-  list(APPEND QUICKJS_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/..")
-endif(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
-
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
-  file(RELATIVE_PATH QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/..")
+if(EXISTS "${QUICKJS_INCLUDE_DIR}/quickjs-config.h")
   list(APPEND QUICKJS_INCLUDE_DIRS "${QUICKJS_INCLUDE_DIR}")
-  list(APPEND QUICKJS_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/..")
-endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
-
-if(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
-  list(APPEND QUICKJS_INCLUDE_DIRS "${QUICKJS_PREFIX}/include/quickjs")
-endif(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
+else(EXISTS "${QUICKJS_INCLUDE_DIR}/quickjs-config.h")
+  if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
+    list(APPEND QUICKJS_INCLUDE_DIRS ..)
+    list(APPEND QUICKJS_INCLUDE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/..")
+  else(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
+      file(RELATIVE_PATH QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/..")
+      list(APPEND QUICKJS_INCLUDE_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    else(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
+      if(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
+        list(APPEND QUICKJS_INCLUDE_DIRS "${QUICKJS_PREFIX}/include/quickjs")
+      endif(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
+    endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
+  endif(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
+endif(EXISTS "${QUICKJS_INCLUDE_DIR}/quickjs-config.h")
 
 set(QUICKJS_LIBRARY_DIR "${QUICKJS_PREFIX}/lib/quickjs" CACHE PATH "QuickJS library directory")
 
@@ -38,6 +43,11 @@ set(CMAKE_REQUIRED_INCLUDES "${QUICKJS_INCLUDE_DIRS}")
 
 check_include_file(quickjs.h HAVE_QUICKJS_H)
 check_include_file(quickjs-config.h HAVE_QUICKJS_CONFIG_H)
+
+if(HAVE_QUICKJS_CONFIG_H)
+dump(HAVE_QUICKJS_CONFIG_H)
+  add_definitions(-DHAVE_QUICKJS_CONFIG_H=1)
+endif(HAVE_QUICKJS_CONFIG_H)
 
 if(NOT HAVE_QUICKJS_H)
   message(FATAL_ERROR "QuickJS headers not found")
@@ -83,7 +93,7 @@ function(make_module FNAME)
   add_library(${TARGET_NAME} SHARED ${SOURCES})
   add_library(${TARGET_NAME}-static STATIC ${SOURCES})
 
-   set_target_properties(${TARGET_NAME} PROPERTIES PREFIX "" RPATH "${OPENCV_LIBRARY_DIRS}:${QUICKJS_PREFIX}/lib:${QUICKJS_PREFIX}/lib/quickjs" OUTPUT_NAME "${NAME}" BUILD_RPATH "${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_BINARY_DIR}:${CMAKE_BINARY_DIR}/quickjs:${CMAKE_CURRENT_BINARY_DIR}/quickjs" COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
+  set_target_properties(${TARGET_NAME} PROPERTIES PREFIX "" RPATH "${OPENCV_LIBRARY_DIRS}:${QUICKJS_PREFIX}/lib:${QUICKJS_PREFIX}/lib/quickjs" OUTPUT_NAME "${NAME}" BUILD_RPATH "${CMAKE_BINARY_DIR}:${CMAKE_CURRENT_BINARY_DIR}:${CMAKE_BINARY_DIR}/quickjs:${CMAKE_CURRENT_BINARY_DIR}/quickjs" COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
   set_target_properties(${TARGET_NAME}-static PROPERTIES PREFIX "" OUTPUT_NAME "${NAME}" COMPILE_FLAGS "")
   target_compile_definitions(${TARGET_NAME} PRIVATE JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1 CONFIG_PREFIX="${QUICKJS_PREFIX}")
   target_compile_definitions(${TARGET_NAME}-static PRIVATE JS_${UNAME}_MODULE=1 CONFIG_PREFIX="${QUICKJS_PREFIX}")

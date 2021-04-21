@@ -2,6 +2,8 @@ project(qjs-modules C)
 
 cmake_minimum_required(VERSION 3.2)
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
 set(QUICKJS_MODULES child-process deep lexer mmap path pointer predicate repeater inspect tree-walker xml)
@@ -30,8 +32,6 @@ message("QuickJS install directory: ${QUICKJS_PREFIX}")
 
 set(CMAKE_REQUIRED_QUIET TRUE)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 dump(VISIBILITY_HIDDEN)
@@ -117,7 +117,6 @@ check_c_source_runs("#include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   
 if(HAVE__BUILTIN_MUL_OVERFLOW)
   add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
 endif(HAVE__BUILTIN_MUL_OVERFLOW)
-
 
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
 addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
