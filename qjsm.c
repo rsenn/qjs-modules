@@ -262,7 +262,7 @@ JS_NewCustomContext(JSRuntime* rt) {
   /* system modules */
   js_init_module_std(ctx, "std");
   js_init_module_os(ctx, "os");
-  js_init_module_child_process(ctx, "child-process");
+  js_init_module_child_process(ctx, "child_process");
   js_init_module_deep(ctx, "deep");
   js_init_module_inspect(ctx, "inspect");
   js_init_module_lexer(ctx, "lexer");
@@ -429,7 +429,7 @@ static const JSMallocFunctions trace_mf = {
 #endif
 };
 
-#define PROG_NAME "qjs"
+#define PROG_NAME "qjsm"
 
 void
 help(void) {

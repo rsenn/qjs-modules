@@ -1,7 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
-import child_process from 'child-process';
+import child_process from 'child_process';
 import Console from '../lib/console.js';
 import { toString } from 'mmap';
 
