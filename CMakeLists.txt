@@ -13,7 +13,7 @@ if(EXISTS "${QUICKJS_H}")
 
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
-set(child_process_SOURCES child-process.c child-process.h utils.c utils.h vector.c vector.h)
+set(child_process_SOURCES child-process.c child-process.h property-enumeration.c property-enumeration.h utils.c utils.h vector.c vector.h)
 set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.c
                  property-enumeration.h utils.c utils.h pointer.h virtual-properties.h)
 set(deep_LIBRARIES qjs-pointer)

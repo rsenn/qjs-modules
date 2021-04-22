@@ -28,6 +28,8 @@ async function main(...args) {
   try {
     winsz = await os.ttyGetWinSize(1);
   } catch(err) {}
+
+  winsz ??= [];
   console.log('winsz:', winsz);
 
   const options = {
