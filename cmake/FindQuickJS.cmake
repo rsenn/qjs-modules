@@ -1,5 +1,5 @@
 include(CheckIncludeFile)
-#include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
+# include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 
 if(NOT QUICKJS_PREFIX)
   set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
@@ -45,7 +45,7 @@ check_include_file(quickjs.h HAVE_QUICKJS_H)
 check_include_file(quickjs-config.h HAVE_QUICKJS_CONFIG_H)
 
 if(HAVE_QUICKJS_CONFIG_H)
-dump(HAVE_QUICKJS_CONFIG_H)
+  dump(HAVE_QUICKJS_CONFIG_H)
   add_definitions(-DHAVE_QUICKJS_CONFIG_H=1)
 endif(HAVE_QUICKJS_CONFIG_H)
 
@@ -89,7 +89,7 @@ function(make_module FNAME)
   set(TARGET_NAME qjs-${NAME})
   set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES})
 
-  #dump(VNAME ${VNAME}_SOURCES)
+  # dump(VNAME ${VNAME}_SOURCES)
   add_library(${TARGET_NAME} SHARED ${SOURCES})
   add_library(${TARGET_NAME}-static STATIC ${SOURCES})
 

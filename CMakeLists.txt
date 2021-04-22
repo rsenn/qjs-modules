@@ -6,17 +6,21 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
-set(QUICKJS_MODULES child-process deep lexer mmap path pointer predicate repeater inspect tree-walker xml)
+set(QUICKJS_MODULES child-process deep lexer mmap path pointer predicate repeater inspect
+                    tree-walker xml)
 
 if(EXISTS "${QUICKJS_H}")
 
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
 set(child_process_SOURCES child-process.c child-process.h utils.c utils.h vector.c vector.h)
-set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.c property-enumeration.h utils.c utils.h pointer.h virtual-properties.h)
+set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.c
+                 property-enumeration.h utils.c utils.h pointer.h virtual-properties.h)
 set(deep_LIBRARIES qjs-pointer)
-set(inspect_SOURCES vector.c vector.h iteration.h utils.c utils.h property-enumeration.c property-enumeration.h quickjs-internal.h)
-set(tree_walker_SOURCES vector.c vector.h property-enumeration.c property-enumeration.h utils.c utils.h)
+set(inspect_SOURCES vector.c vector.h iteration.h utils.c utils.h property-enumeration.c
+                    property-enumeration.h quickjs-internal.h)
+set(tree_walker_SOURCES vector.c vector.h property-enumeration.c property-enumeration.h utils.c
+                        utils.h)
 set(xml_SOURCES vector.c vector.h property-enumeration.c property-enumeration.h utils.c utils.h)
 set(path_SOURCES path.c path.h utils.c utils.h)
 set(predicate_SOURCES predicate.c predicate.h vector.c vector.h utils.c utils.h)
@@ -32,13 +36,13 @@ message("QuickJS install directory: ${QUICKJS_PREFIX}")
 
 set(CMAKE_REQUIRED_QUIET TRUE)
 
-
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
-#dump(VISIBILITY_HIDDEN)
-#dump(MODULE_COMPILE_FLAGS)
+# dump(VISIBILITY_HIDDEN) dump(MODULE_COMPILE_FLAGS)
 
-check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type" CMAKE_C_FLAGS)
+check_flags(
+  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type"
+  CMAKE_C_FLAGS)
 # message("CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -51,13 +55,15 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options"
+                                                                   FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options"
+                                                                     FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -109,19 +115,29 @@ if(DO_TESTS)
   foreach(TEST ${TESTS})
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
-    add_test(NAME "${BASE}" COMMAND env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR} "${QJS}" --bignum "${TEST}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-    add_custom_target("${BASE}" ALL COMMAND env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR} "${QJSC}" -fbignum -M std -M os -M ${NAME} -o "${BASE}" "${CMAKE_CURRENT_SOURCE_DIR}/${TEST}" WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" SOURCES "${TEST}")
+    add_test(NAME "${BASE}"
+             COMMAND env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR}
+                     "${QJS}" --bignum "${TEST}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_custom_target(
+      "${BASE}" ALL
+      COMMAND
+        env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR} "${QJSC}"
+        -fbignum -M std -M os -M ${NAME} -o "${BASE}" "${CMAKE_CURRENT_SOURCE_DIR}/${TEST}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+      SOURCES "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 
-check_c_source_runs("#include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   return __builtin_mul_overflow(a, b, c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n   return 0;\n}" HAVE__BUILTIN_MUL_OVERFLOW)
+check_c_source_runs(
+  "#include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   return __builtin_mul_overflow(a, b, c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n   return 0;\n}"
+  HAVE__BUILTIN_MUL_OVERFLOW)
 if(HAVE__BUILTIN_MUL_OVERFLOW)
   add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
 endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
 addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
-#dump(STATIC_TARGETS)
+# dump(STATIC_TARGETS)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})
@@ -138,7 +154,8 @@ include(CTest)
 foreach(TEST_SOURCE ${TESTS_SOURCES})
   file(RELATIVE_PATH TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}" "${TEST_SOURCE}")
   basename(TEST_NAME ${TEST_SOURCE} .js)
-  add_test(NAME "${TEST_NAME}" COMMAND qjs --bignum "${TEST_SOURCE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+  add_test(NAME "${TEST_NAME}" COMMAND qjs --bignum "${TEST_SOURCE}"
+           WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
@@ -150,17 +167,43 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
   include(${quickjs_sources_root}/defs.cmake)
   include(${quickjs_sources_root}/cmake/check-libraries.cmake)
-  add_custom_command(OUTPUT repl.c COMMAND ${QJSC} -c -o ./repl.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../repl.js DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} COMMENT "Generate from repl.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/repl.js)
+  add_custom_command(
+    OUTPUT repl.c COMMAND ${QJSC} -c -o ./repl.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../repl.js
+    DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Generate from repl.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/repl.js)
 
-  add_custom_command(OUTPUT qjscalc.c COMMAND ${QJSC} -fbignum -c -o ./qjscalc.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
-  add_executable(qjsm qjsm.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h ${CMAKE_CURRENT_SOURCE_DIR}/../libregexp.c ${CMAKE_CURRENT_SOURCE_DIR}/../libunicode.c ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.h ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-find-module.c
-                      ${CMAKE_CURRENT_SOURCE_DIR}/../libbf.c ${CMAKE_CURRENT_BINARY_DIR}/repl.c ${CMAKE_CURRENT_BINARY_DIR}/qjscalc.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger-transport-${TRANSPORT_PLATFORM}.c)
+  add_custom_command(
+    OUTPUT qjscalc.c
+    COMMAND ${QJSC} -fbignum -c -o ./qjscalc.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js
+    DEPENDS ${QJSC_DEPS}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
+  set(QJSM_SOURCES
+      qjsm.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h
+      ${CMAKE_CURRENT_SOURCE_DIR}/../libregexp.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/../libunicode.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.h
+      ${CMAKE_CURRENT_SOURCE_DIR}/../libbf.c
+      ${CMAKE_CURRENT_BINARY_DIR}/repl.c
+      ${CMAKE_CURRENT_BINARY_DIR}/qjscalc.c)
+  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
+    set(QJSM_SOURCES
+        ${QJSM_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger-transport-${TRANSPORT_PLATFORM}.c)
+  endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
+  add_executable(qjsm ${QJSM_SOURCES})
 
   # target_link_libraries(qjs ${QUICKJS_LIBRARY})
   target_link_libraries(qjsm ${STATIC_TARGETS} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
   set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT}" COMPILE_FLAGS "-w")
 
-  target_compile_definitions(qjsm PRIVATE CONFIG_VERSION="${quickjs_version}" _GNU_SOURCE=1 CONFIG_PREFIX="${CMAKE_INSTALL_PREFIX}" CONFIG_BIGNUM=1)
+  target_compile_definitions(qjsm PRIVATE CONFIG_VERSION="${quickjs_version}" _GNU_SOURCE=1
+                                          CONFIG_PREFIX="${CMAKE_INSTALL_PREFIX}" CONFIG_BIGNUM=1)
   install(TARGETS qjsm DESTINATION bin)
 
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
