@@ -154,7 +154,7 @@ async function main(...args) {
   map.emplace('E', { insert: () => 0, update: v => v + 1 });
   map.emplace('6', { insert: () => 6, update: v => -v });
 
-  console.log('inspect(map)', inspect(map, {compact: Infinity }));
+  console.log('inspect(map)', inspect(map, { compact: Infinity }));
 
   std.gc();
   return;

@@ -13,7 +13,7 @@ import BNFLexer from '../lib/bnflexer.js';
 ('use math');
 
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
-const IntToBinary = i => ((i == -1 || i == undefined) ? i : '0b' + IntToDWord(i).toString(2));
+const IntToBinary = i => (i == -1 || i == undefined ? i : '0b' + IntToDWord(i).toString(2));
 
 //const code = [`const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`, `/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);` ];
 const code = [
@@ -135,7 +135,7 @@ async function main(...args) {
   }
 
   let file = args[optind] ?? 'tests/test_lexer.js';
-  console.log("file:", file);
+  console.log('file:', file);
   let str = file ? std.loadFile(file, 'utf-8') : code[1];
   let len = str.length;
   let type = path.extname(file).substring(1);

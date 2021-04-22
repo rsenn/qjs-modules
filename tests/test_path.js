@@ -81,7 +81,7 @@ async function main(...args) {
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));
 
-/*  let result = xml.read(data);
+  /*  let result = xml.read(data);
   console.log('result:', result);
   let str = xml.write(result);
   console.log('write:', str);
