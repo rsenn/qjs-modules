@@ -15,7 +15,10 @@
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
-#define INSPECT_IS_COMPACT(opts) ((opts)->compact == INT32_MAX ? TRUE : INSPECT_INT32T_INRANGE((opts)->compact) ? INSPECT_LEVEL(opts) >= (opts)->compact : 0)
+#define INSPECT_IS_COMPACT(opts)                                                                                       \
+  ((opts)->compact == INT32_MAX                                                                                        \
+       ? TRUE                                                                                                          \
+       : INSPECT_INT32T_INRANGE((opts)->compact) ? INSPECT_LEVEL(opts) >= (opts)->compact : 0)
 
 typedef struct {
   int colors : 1;
@@ -578,7 +581,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       uint32_t pos, len, limit;
       Vector propenum_tab;
       const char* s;
-      //compact = FALSE;
+      // compact = FALSE;
 
       if(INSPECT_INT32T_INRANGE(opts->compact)) {
         int32_t depth = property_enumeration_depth(ctx, value);
