@@ -56,7 +56,7 @@ extern const uint32_t qjsc_repl_size;
 #ifdef CONFIG_BIGNUM
 extern const uint8_t qjsc_qjscalc[];
 extern const uint32_t qjsc_qjscalc_size;
-static int bignum_ext;
+static int bignum_ext = 1;
 #endif
 
 JSModuleDef* js_init_module_child_process(JSContext*, const char*);
@@ -320,7 +320,7 @@ help(void) {
          "-I  --include file include an additional file\n"
          "    --std          make 'std' and 'os' available to the loaded script\n"
 #ifdef CONFIG_BIGNUM
-         "    --bignum       enable the bignum extensions (BigFloat, BigDecimal)\n"
+         "    --no-bignum    disable the bignum extensions (BigFloat, BigDecimal)\n"
          "    --qjscalc      load the QJSCalc runtime (default if invoked as qjscalc)\n"
 #endif
          "-T  --trace        trace memory allocation\n"
@@ -446,8 +446,8 @@ main(int argc, char** argv) {
         continue;
       }
 #ifdef CONFIG_BIGNUM
-      if(!strcmp(longopt, "bignum")) {
-        bignum_ext = 1;
+      if(!strcmp(longopt, "no-bignum")) {
+        bignum_ext = 0;
         continue;
       }
       if(!strcmp(longopt, "qjscalc")) {

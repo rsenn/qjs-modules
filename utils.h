@@ -443,7 +443,7 @@ js_value_type2flag(uint32_t type) {
   return flag;
 }
 
-int32_t js_value_type(JSContext* ctx, JSValueConst value);
+uint32_t js_value_type(JSContext* ctx, JSValueConst value);
 
 static inline const char* const*
 js_value_types() {

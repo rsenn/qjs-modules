@@ -1,5 +1,6 @@
 #include "lexer.h"
 #include "libregexp.h"
+#include <ctype.h>
 
 void
 location_print(const Location* loc, DynBuf* dbuf) {
@@ -126,6 +127,24 @@ lexer_define(Lexer* lex, char* name, char* expr) {
   vector_push(&lex->defines, definition);
 }
 
+static size_t
+lexer_state_parse(const char* expr, const char** state) {
+  size_t i, end;
+  if(expr[0] != '<')
+    return 0;
+
+  if(expr[end = str_chr(expr, '>')] == 0)
+    return 0;
+
+  for(i = 1; i < end; i++)
+    if(!isalnum(expr[i]))
+      return 0;
+  if(state)
+    *state = expr + 1;
+
+  return end - 1;
+}
+
 int
 lexer_state_find(Lexer* lex, const char* condition) {
   const char *state, **statep;
@@ -147,15 +166,15 @@ lexer_state_find(Lexer* lex, const char* condition) {
 
 int
 lexer_state_new(Lexer* lex, char* expr) {
-  char *state, **statep;
+  const char* state;
   size_t slen;
   int ret;
 
   if((ret = lexer_state_find(lex, expr)) != -1)
     return ret;
 
-  slen = str_chr(expr + 1, '>');
-  state = str_ndup(expr + 1, slen);
+  slen = lexer_state_parse(expr, &state);
+  state = str_ndup(state, slen);
   ret = vector_size(&lex->conditions, sizeof(char*));
   vector_push(&lex->conditions, state);
   return ret;
@@ -181,6 +200,16 @@ lexer_state_pop(Lexer* lex) {
   return id;
 }
 
+int
+lexer_state_top(Lexer* lex, int i) {
+  int sz;
+  if(i == 0)
+    return lex->state;
+  sz = vector_size(&lex->conditionStack, sizeof(int));
+  assert(sz >= i);
+  return *(int*)vector_at(&lex->conditionStack, sizeof(int), sz - i);
+}
+
 const char*
 lexer_state_name(Lexer* lex, int state) {
   const char** name_p;
@@ -199,7 +228,7 @@ lexer_rule_add(Lexer* lex, char* name, char* expr) {
     rule.mask = previous->mask;
   }
 
-  if(rule.expr[0] == '<')
+  if(lexer_state_parse(rule.expr, 0))
     rule.state = lexer_state_new(lex, rule.expr);
 
   vector_push(&lex->rules, rule);

@@ -373,15 +373,27 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   PropertyEnumeration* it;
   JSValueConst fn, this_arg;
   Vector frames;
+  uint32_t type_mask = TYPE_ALL;
 
   vector_init(&frames, ctx);
 
   fn = argv[1];
   this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
 
+  if(argc > 3)
+    JS_ToUint32(ctx, &type_mask, argv[3]);
+
   it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   do {
-    JSValueConst args[3] = {property_enumeration_value(it, ctx), property_enumeration_path(&frames, ctx), argv[0]};
+    JSValueConst args[3] = {property_enumeration_value(it, ctx), JS_UNDEFINED, argv[0]};
+    uint32_t type = js_value_type(ctx, args[0]);
+
+    if((type & type_mask) == 0) {
+      js_value_free(ctx, args[0]);
+      continue;
+    }
+
+    args[1] = property_enumeration_path(&frames, ctx);
 
     JS_Call(ctx, fn, this_arg, 3, args);
 

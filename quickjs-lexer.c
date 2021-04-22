@@ -554,7 +554,8 @@ enum {
   LEXER_METHOD_SKIPUNTIL,
   LEXER_METHOD_ERROR,
   LEXER_METHOD_PUSH_STATE,
-  LEXER_METHOD_POP_STATE
+  LEXER_METHOD_POP_STATE,
+  LEXER_METHOD_TOP_STATE
 };
 
 enum lexer_getters {
@@ -566,7 +567,9 @@ enum lexer_getters {
   LEXER_PROP_LOC,
   LEXER_PROP_RULENAMES,
   LEXER_PROP_MODE,
-  LEXER_PROP_BYTE_LENGTH
+  LEXER_PROP_BYTE_LENGTH,
+  LEXER_PROP_STATE,
+  LEXER_PROP_SOURCE
 };
 
 static Token*
@@ -878,6 +881,15 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       ret = JS_NewInt32(ctx, id);
       break;
     }
+    case LEXER_METHOD_TOP_STATE: {
+      int32_t index = 0, id;
+      if(argc > 0)
+        JS_ToInt32(ctx, &index, argv[0]);
+
+      id = lexer_state_top(lex, index);
+      ret = JS_NewString(ctx, lexer_state_name(lex, id));
+      break;
+    }
   }
   return ret;
 }
@@ -934,6 +946,14 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case LEXER_PROP_BYTE_LENGTH: {
       ret = JS_NewUint32(ctx, lex->bytelen);
+      break;
+    }
+    case LEXER_PROP_STATE: {
+      ret = JS_NewInt32(ctx, lex->state);
+      break;
+    }
+    case LEXER_PROP_SOURCE: {
+      ret = JS_NewStringLen(ctx, (const char*)lex->input.data, lex->input.size);
       break;
     }
   }
@@ -1219,6 +1239,8 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, LEXER_PROP_EOF),
     JS_CGETSET_MAGIC_DEF("mode", js_lexer_get, js_lexer_set, LEXER_PROP_MODE),
     JS_CGETSET_MAGIC_DEF("byteLength", js_lexer_get, 0, LEXER_PROP_BYTE_LENGTH),
+    JS_CGETSET_MAGIC_DEF("state", js_lexer_get, 0, LEXER_PROP_STATE),
+    JS_CGETSET_MAGIC_DEF("source", js_lexer_get, 0, LEXER_PROP_SOURCE),
     JS_CFUNC_MAGIC_DEF("setInput", 1, js_lexer_method, LEXER_METHOD_SET_INPUT),
     JS_CFUNC_MAGIC_DEF("currentLine", 0, js_lexer_method, LEXER_METHOD_CURRENT_LINE),
     JS_CFUNC_MAGIC_DEF("tokenClass", 1, js_lexer_method, LEXER_METHOD_TOKEN_CLASS),
@@ -1226,7 +1248,9 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("addRule", 2, js_lexer_add_rule, 1),
     JS_CFUNC_MAGIC_DEF("getRule", 1, js_lexer_method, LEXER_METHOD_GET_RULE),
     JS_CFUNC_MAGIC_DEF("pushState", 1, js_lexer_method, LEXER_METHOD_PUSH_STATE),
+    JS_ALIAS_DEF("begin", "pushState"),
     JS_CFUNC_MAGIC_DEF("popState", 0, js_lexer_method, LEXER_METHOD_POP_STATE),
+    JS_CFUNC_MAGIC_DEF("topState", 0, js_lexer_method, LEXER_METHOD_TOP_STATE),
     JS_CGETSET_MAGIC_DEF("ruleNames", js_lexer_get, 0, LEXER_PROP_RULENAMES),
     JS_CFUNC_DEF("lex", 0, js_lexer_lex),
     JS_CFUNC_DEF("inspect", 0, js_lexer_inspect),

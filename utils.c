@@ -956,10 +956,11 @@ js_value_has_ref_count(JSValue v) {
   return ((unsigned)js_value_get_tag(v) >= (unsigned)JS_TAG_FIRST);
 }
 
-int32_t
+uint32_t
 js_value_type(JSContext* ctx, JSValueConst value) {
-  int32_t flag, type = 0;
-  if((flag = js_value_type_get(ctx, value)) != -1)
+  int32_t flag;
+  uint32_t type = 0;
+  if((flag = js_value_type_flag(value)) != -1)
     type = 1 << flag;
 
   return type;
@@ -977,6 +978,24 @@ js_value_type_get(JSContext* ctx, JSValueConst value) {
     return FLAG_NAN;
 
   return js_value_type_flag(value);
+}
+
+int32_t
+js_value_type_flag(JSValueConst value) {
+  switch(JS_VALUE_GET_TAG(value)) {
+    case JS_TAG_UNDEFINED: return FLAG_UNDEFINED;
+    case JS_TAG_NULL: return FLAG_NULL;
+    case JS_TAG_BOOL: return FLAG_BOOL;
+    case JS_TAG_INT: return FLAG_INT;
+    case JS_TAG_OBJECT: return FLAG_OBJECT;
+    case JS_TAG_STRING: return FLAG_STRING;
+    case JS_TAG_SYMBOL: return FLAG_SYMBOL;
+    case JS_TAG_BIG_FLOAT: return FLAG_BIG_FLOAT;
+    case JS_TAG_BIG_INT: return FLAG_BIG_INT;
+    case JS_TAG_BIG_DECIMAL: return FLAG_BIG_DECIMAL;
+    case JS_TAG_FLOAT64: return FLAG_FLOAT64;
+  }
+  return -1;
 }
 
 void
@@ -1199,24 +1218,6 @@ js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value) {
   r = JS_ToIndex(ctx, &u64, value);
   *sz = u64;
   return r;
-}
-
-int32_t
-js_value_type_flag(JSValueConst value) {
-  switch(JS_VALUE_GET_TAG(value)) {
-    case JS_TAG_UNDEFINED: return FLAG_UNDEFINED;
-    case JS_TAG_NULL: return FLAG_NULL;
-    case JS_TAG_BOOL: return FLAG_BOOL;
-    case JS_TAG_INT: return FLAG_INT;
-    case JS_TAG_OBJECT: return FLAG_OBJECT;
-    case JS_TAG_STRING: return FLAG_STRING;
-    case JS_TAG_SYMBOL: return FLAG_SYMBOL;
-    case JS_TAG_BIG_FLOAT: return FLAG_BIG_FLOAT;
-    case JS_TAG_BIG_INT: return FLAG_BIG_INT;
-    case JS_TAG_BIG_DECIMAL: return FLAG_BIG_DECIMAL;
-    case JS_TAG_FLOAT64: return FLAG_FLOAT64;
-  }
-  return -1;
 }
 
 void

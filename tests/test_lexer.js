@@ -192,16 +192,18 @@ async function main(...args) {
 
   console.log('now', now());
 
-  /* for(let j = 0; j < lexer.ruleNames.length; j++) {
+   for(let j = 0; j < lexer.ruleNames.length; j++) {
     console.log(`lexer.rule[${j}]`, lexer.getRule(j));
-  }*/
+  } 
 
   console.log(lexer.ruleNames.length, 'rules', lexer.ruleNames.unique().length, 'unique rules');
 
   console.log('lexer.mask', IntToBinary(lexer.mask));
   console.log('lexer.skip', lexer.skip);
   console.log('lexer.skip', IntToBinary(lexer.skip));
-  console.log('lexer.states',  (lexer.states));
+  console.log('lexer.states', lexer.states);
+  console.log('lexer.pushState("JS")', lexer.pushState("JS"));
+  console.log('lexer.topState()', lexer.topState());
   let mask = IntToBinary(lexer.mask);
   let state = lexer.state;
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);

@@ -64,6 +64,9 @@ function main(...args) {
   let path = deep.pathOf(result, node);
   console.log('pathOf():', path);
 */
+  deep.forEach([], (n, p) => console.log('deep.forEach', { n, p }));
+
+
   let obj1 = {
     a: [undefined, 1, 1234n],
     b: 2,

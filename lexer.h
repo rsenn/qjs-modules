@@ -56,6 +56,7 @@ int lexer_state_find(Lexer*, const char*);
 int lexer_state_new(Lexer*, char*);
 int lexer_state_push(Lexer*, const char*);
 int lexer_state_pop(Lexer*);
+int lexer_state_top(Lexer*, int i);
 const char* lexer_state_name(Lexer*, int);
 int lexer_rule_add(Lexer*, char* name, char* expr);
 BOOL lexer_rule_expand(Lexer*, char* expr, DynBuf* db);
