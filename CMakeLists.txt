@@ -162,6 +162,9 @@ endforeach(TEST_SOURCE ${TESTS_SOURCES})
 file(GLOB LIBJS lib/*.js)
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}")
 
+
+
+
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set(quickjs_sources_root ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
@@ -179,7 +182,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES
             ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
-  set(QJSM_SOURCES
+ compile_module(${CMAKE_CURRENT_SOURCE_DIR}/lib/console.js)
+ set(QJSM_SOURCES
       qjsm.c
       ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c
       ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h
@@ -190,7 +194,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
       ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.h
       ${CMAKE_CURRENT_SOURCE_DIR}/../libbf.c
       ${CMAKE_CURRENT_BINARY_DIR}/repl.c
-      ${CMAKE_CURRENT_BINARY_DIR}/qjscalc.c)
+      ${CMAKE_CURRENT_BINARY_DIR}/qjscalc.c
+      ${CMAKE_CURRENT_BINARY_DIR}/console.c)
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
     set(QJSM_SOURCES
         ${QJSM_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c

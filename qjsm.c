@@ -53,6 +53,8 @@ extern size_t malloc_usable_size();
 
 extern const uint8_t qjsc_repl[];
 extern const uint32_t qjsc_repl_size;
+extern const uint8_t qjsc_console[];
+extern const uint32_t qjsc_console_size;
 #ifdef CONFIG_BIGNUM
 extern const uint8_t qjsc_qjscalc[];
 extern const uint32_t qjsc_qjscalc_size;
@@ -645,12 +647,14 @@ main(int argc, char** argv) {
       js_std_eval_binary(ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
     }
 #endif
-    js_std_add_helpers(ctx, argc - optind, argv + optind);
+      js_std_eval_binary(ctx, qjsc_console, qjsc_console_size, 0);
+  js_std_add_helpers(ctx, argc - optind, argv + optind);
 
     /* make 'std' and 'os' visible to non module code */
     if(load_std) {
       const char* str = "import * as std from 'std';\n"
                         "import * as os from 'os';\n"
+                        "import Console from 'console';\n"
                         "globalThis.std = std;\n"
                         "globalThis.os = os;\n";
       eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);

@@ -102,3 +102,12 @@ function(make_module FNAME)
 
   config_module(${TARGET_NAME})
 endfunction()
+
+function(compile_module SOURCE)
+ basename(BASE "${SOURCE}")
+  add_custom_command(
+    OUTPUT ${BASE}.c COMMAND ${QJSC} -D ${BASE} -c -o ./${BASE}.c -m ${SOURCE}
+    DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Generate ${BASE}.c from ${SOURCE} using qjs compiler" SOURCES ${SOURCE})
+
+endfunction(compile_module SOURCE)
