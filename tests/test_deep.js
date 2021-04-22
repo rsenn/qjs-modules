@@ -64,8 +64,6 @@ function main(...args) {
   let path = deep.pathOf(result, node);
   console.log('pathOf():', path);
 */
-  deep.forEach([], (n, p) => console.log('deep.forEach', { n, p }));
-
 
   let obj1 = {
     a: [undefined, 1, 1234n],
@@ -88,6 +86,18 @@ function main(...args) {
     y: [undefined, 1, 1234n],
     z: [NaN, true, false, Infinity, null]
   };
+
+  deep.forEach([], (n, p) => console.log('deep.forEach', { n, p }));
+
+  for(let [n, p] of deep.iterate([])) console.log('deep.iterate', { n, p });
+
+  /*  for(let [n,p] of deep.iterate(obj3,  n => typeof n == 'object' && n != null))
+    console.log('deep.iterate', { n, p });*/
+
+  for(let [n, p] of deep.iterate(obj3, deep.TYPE_OBJECT))
+    console.log(`deep.iterate(${deep.TYPE_OBJECT.toString(2)})`, { n, p });
+
+  return;
 
   for(let o of [obj1, obj2]) {
     let it = deep.iterate(o);

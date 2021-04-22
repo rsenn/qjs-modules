@@ -674,4 +674,35 @@ typedef struct JSJobEntry {
   JSValue argv[0];
 } JSJobEntry;
 
+/* Set/Map/WeakSet/WeakMap */
+
+typedef struct JSMapRecord {
+  int ref_count; /* used during enumeration to avoid freeing the record */
+  BOOL empty;    /* TRUE if the record is deleted */
+  struct JSMapState* map;
+  struct JSMapRecord* next_weak_ref;
+  struct list_head link;
+  struct list_head hash_link;
+  JSValue key;
+  JSValue value;
+} JSMapRecord;
+
+typedef struct JSMapState {
+  BOOL is_weak;             /* TRUE if WeakSet/WeakMap */
+  struct list_head records; /* list of JSMapRecord.link */
+  uint32_t record_count;
+  struct list_head* hash_table;
+  uint32_t hash_size;              /* must be a power of two */
+  uint32_t record_count_threshold; /* count at which a hash table resize is needed */
+} JSMapState;
+
+#define MAGIC_SET (1 << 0)
+#define MAGIC_WEAK (1 << 1)
+
+typedef struct JSMapIteratorData {
+  JSValue obj;
+  JSIteratorKindEnum kind;
+  JSMapRecord* cur_record;
+} JSMapIteratorData;
+
 #endif /* defined(QJS_MODULES_INTERNAL_H) */

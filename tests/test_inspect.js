@@ -21,7 +21,7 @@ Map.prototype.emplace = function emplace(key, handler) {
 async function main(...args) {
   console.log('main:', args);
 
-  console = new Console({ colors: true, depth: 1 });
+  console = new Console({ colors: true, depth: 1, compact: Infinity });
 
   let winsz;
 
@@ -39,7 +39,7 @@ async function main(...args) {
     depth: 50,
     maxStringLength: 200,
     breakLength: winsz[0] || 80,
-    compact: 2,
+    compact: Infinity,
     hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
   };
 
@@ -152,7 +152,7 @@ async function main(...args) {
   map.emplace('E', { insert: () => 0, update: v => v + 1 });
   map.emplace('6', { insert: () => 6, update: v => -v });
 
-  console.log('inspect(map)', inspect(map));
+  console.log('inspect(map)', inspect(map, {compact: Infinity }));
 
   std.gc();
   return;

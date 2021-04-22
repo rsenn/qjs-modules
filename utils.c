@@ -960,8 +960,13 @@ uint32_t
 js_value_type(JSContext* ctx, JSValueConst value) {
   int32_t flag;
   uint32_t type = 0;
-  if((flag = js_value_type_flag(value)) != -1)
-    type = 1 << flag;
+  if((flag = js_value_type_get(ctx, value)) == -1)
+    return 0;
+
+  if(flag == FLAG_ARRAY /*|| flag == FLAG_FUNCTION*/)
+    type |= TYPE_OBJECT;
+
+  type |= 1 << flag;
 
   return type;
 }

@@ -886,8 +886,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       if(argc > 0)
         JS_ToInt32(ctx, &index, argv[0]);
 
-      id = lexer_state_top(lex, index);
-      ret = JS_NewString(ctx, lexer_state_name(lex, id));
+      if((id = lexer_state_top(lex, index)) >= 0)
+        ret = JS_NewString(ctx, lexer_state_name(lex, id));
       break;
     }
   }

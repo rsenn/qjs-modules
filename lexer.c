@@ -183,10 +183,11 @@ lexer_state_new(Lexer* lex, char* expr) {
 int
 lexer_state_push(Lexer* lex, const char* state) {
   int id;
-  id = lexer_state_find(lex, state);
+  if((id = lexer_state_find(lex, state)) >= 0) {
+    vector_push(&lex->conditionStack, lex->state);
+    lex->state = id;
+  }
   assert(id >= 0);
-  vector_push(&lex->conditionStack, lex->state);
-  lex->state = id;
   return id;
 }
 

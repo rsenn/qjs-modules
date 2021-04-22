@@ -17,6 +17,7 @@ typedef struct DeepIterator {
   Vector frames;
   JSValue pred;
   uint32_t flags;
+  uint32_t type_mask;
 } DeepIterator;
 
 enum deep_iterator_return {
@@ -72,6 +73,7 @@ js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSVa
   vector_init(&it->frames, ctx);
 
   it->pred = JS_UNDEFINED;
+  it->type_mask = TYPE_ALL;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_deep_iterator_class_id);
   if(JS_IsException(obj))
@@ -83,6 +85,8 @@ js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSVa
 
   if(JS_IsFunction(ctx, pred))
     it->pred = JS_DupValue(ctx, pred);
+  else if(JS_IsNumber(pred))
+    JS_ToUint32(ctx, &it->type_mask, pred);
 
   it->flags = flags;
 
@@ -122,6 +126,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     return JS_EXCEPTION;
 
   for(;;) {
+
     if(!(penum = vector_empty(&it->frames)
                      ? property_enumeration_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS)
                      : property_enumeration_recurse(&it->frames, ctx))) {
@@ -129,6 +134,9 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       *pdone = TRUE;
       return ret;
     }
+
+    if(property_enumeration_length(penum) == 0)
+      continue;
 
     if(JS_IsFunction(ctx, it->pred)) {
       JSValueConst args[] = {
@@ -142,6 +150,13 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       js_value_free(ctx, args[1]);
 
       if(!JS_ToBool(ctx, ret))
+        continue;
+    } else if(it->type_mask != TYPE_ALL) {
+      JSValue value = property_enumeration_value(penum, ctx);
+      uint32_t type = js_value_type(ctx, value);
+      js_value_free(ctx, value);
+
+      if((type & it->type_mask) == 0)
         continue;
     }
 
@@ -385,20 +400,22 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
   it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   do {
-    JSValueConst args[3] = {property_enumeration_value(it, ctx), JS_UNDEFINED, argv[0]};
-    uint32_t type = js_value_type(ctx, args[0]);
+    if(property_enumeration_length(it)) {
+      JSValueConst args[3] = {property_enumeration_value(it, ctx), JS_UNDEFINED, argv[0]};
+      uint32_t type = js_value_type(ctx, args[0]);
 
-    if((type & type_mask) == 0) {
+      if((type & type_mask) == 0) {
+        js_value_free(ctx, args[0]);
+        continue;
+      }
+
+      args[1] = property_enumeration_path(&frames, ctx);
+
+      JS_Call(ctx, fn, this_arg, 3, args);
+
       js_value_free(ctx, args[0]);
-      continue;
+      js_value_free(ctx, args[1]);
     }
-
-    args[1] = property_enumeration_path(&frames, ctx);
-
-    JS_Call(ctx, fn, this_arg, 3, args);
-
-    js_value_free(ctx, args[0]);
-    js_value_free(ctx, args[1]);
 
   } while((it = property_enumeration_recurse(&frames, ctx)));
 
@@ -508,6 +525,7 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_PROP_INT32_DEF("TYPE_BIG_DECIMAL", TYPE_BIG_DECIMAL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_FLOAT64", TYPE_FLOAT64, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_NUMBER", TYPE_NUMBER, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_NAN", TYPE_NAN, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_ALL", TYPE_ALL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_PRIMITIVE", TYPE_PRIMITIVE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_ARRAY", TYPE_ARRAY, JS_PROP_ENUMERABLE),

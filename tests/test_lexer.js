@@ -13,7 +13,7 @@ import BNFLexer from '../lib/bnflexer.js';
 ('use math');
 
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
-const IntToBinary = i => (i == -1 ? i : '0b' + IntToDWord(i).toString(2));
+const IntToBinary = i => ((i == -1 || i == undefined) ? i : '0b' + IntToDWord(i).toString(2));
 
 //const code = [`const str = stack.toString().replace(/\\n\\s*at /g, '\\n');`, `/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);` ];
 const code = [
@@ -192,9 +192,9 @@ async function main(...args) {
 
   console.log('now', now());
 
-   for(let j = 0; j < lexer.ruleNames.length; j++) {
+  for(let j = 0; j < lexer.ruleNames.length; j++) {
     console.log(`lexer.rule[${j}]`, lexer.getRule(j));
-  } 
+  }
 
   console.log(lexer.ruleNames.length, 'rules', lexer.ruleNames.unique().length, 'unique rules');
 
@@ -202,10 +202,10 @@ async function main(...args) {
   console.log('lexer.skip', lexer.skip);
   console.log('lexer.skip', IntToBinary(lexer.skip));
   console.log('lexer.states', lexer.states);
-  console.log('lexer.pushState("JS")', lexer.pushState("JS"));
+  console.log('lexer.pushState("JS")', lexer.pushState('JS'));
   console.log('lexer.topState()', lexer.topState());
   let mask = IntToBinary(lexer.mask);
-  let state = lexer.state;
+  let state = lexer.topState();
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
 
   let start = Date.now();
@@ -221,11 +221,11 @@ async function main(...args) {
       lexer.mode = code == 'js' ? Lexer.LAST : Lexer.LONGEST;
       lexer.mask = code == 'js' ? 0b1000 : 0b0100;
     }
-    
+
     printTok(tok, state);
-    
+
     mask = IntToBinary(lexer.mask);
-    state = lexer.state;
+    state = lexer.topState();
   }
 
   let end = Date.now();

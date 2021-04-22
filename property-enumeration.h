@@ -31,9 +31,13 @@ compare_jspropertyenum(JSPropertyEnum* a, JSPropertyEnum* b) {
   return a->atom < b->atom ? -1 : a->atom > b->atom ? 1 : 0;
 }
 
-int property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags);
-
-void property_enumeration_reset(PropertyEnumeration* it, JSRuntime* rt);
+int property_enumeration_init(PropertyEnumeration*, JSContext* ctx, JSValue object, int flags);
+void property_enumeration_reset(PropertyEnumeration*, JSRuntime* rt);
+void property_enumeration_dump(PropertyEnumeration*, JSContext* ctx, DynBuf* out);
+void property_enumeration_dumpall(Vector*, JSContext* ctx, DynBuf* out);
+JSValue property_enumeration_path_tostring(JSContext*, JSValue this_val, int argc, JSValue argv[]);
+PropertyEnumeration* property_enumeration_recurse(Vector*, JSContext* ctx);
+int32_t property_enumeration_depth(JSContext*, JSValue object);
 
 static inline JSValue
 property_enumeration_value(PropertyEnumeration* it, JSContext* ctx) {
@@ -129,8 +133,6 @@ property_enumeration_sort(PropertyEnumeration* it, JSContext* ctx) {
   qsort_r(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
 }
 
-void property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out);
-
 static inline PropertyEnumeration*
 property_enumeration_next(PropertyEnumeration* it) {
   return property_enumeration_setpos(it, it->idx + 1) ? it : 0;
@@ -173,10 +175,6 @@ property_enumeration_enter(Vector* vec, JSContext* ctx, int flags) {
 
   return property_enumeration_push(vec, ctx, value, flags);
 }
-
-void property_enumeration_dumpall(Vector* vec, JSContext* ctx, DynBuf* out);
-
-JSValue property_enumeration_path_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]);
 
 static inline JSValue
 property_enumeration_path(Vector* vec, JSContext* ctx) {
@@ -242,8 +240,6 @@ property_enumeration_insideof(Vector* vec, JSValueConst val) {
   return 0;
 }
 
-PropertyEnumeration* property_enumeration_recurse(Vector* vec, JSContext* ctx);
-
 static inline int32_t
 property_enumeration_level(const PropertyEnumeration* it, const Vector* vec) {
   return it - (const PropertyEnumeration*)vec->data;
@@ -260,5 +256,4 @@ property_enumeration_free(Vector* vec, JSRuntime* rt) {
   // vector_free(vec);
 }
 
-int32_t property_enumeration_depth(JSContext* ctx, JSValueConst object);
 #endif /* defined(PROPERTY_ENUMERATION_H) */

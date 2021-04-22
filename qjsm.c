@@ -71,6 +71,60 @@ JSModuleDef* js_init_module_repeater(JSContext*, const char*);
 JSModuleDef* js_init_module_tree_walker(JSContext*, const char*);
 JSModuleDef* js_init_module_xml(JSContext*, const char*);
 
+static void
+js_dump_obj(JSContext* ctx, FILE* f, JSValueConst val) {
+  const char* str;
+
+  str = JS_ToCString(ctx, val);
+  if(str) {
+    fprintf(f, "%s\n", str);
+    JS_FreeCString(ctx, str);
+  } else {
+    fprintf(f, "[exception]\n");
+  }
+}
+
+static void
+js_std_dump_error1(JSContext* ctx, JSValueConst exception_val) {
+  JSValue val;
+  BOOL is_error;
+
+  is_error = JS_IsError(ctx, exception_val);
+  js_dump_obj(ctx, stderr, exception_val);
+  if(is_error) {
+    val = JS_GetPropertyStr(ctx, exception_val, "stack");
+    if(!JS_IsUndefined(val)) {
+      js_dump_obj(ctx, stderr, val);
+    }
+    JS_FreeValue(ctx, val);
+  }
+}
+
+void js_std_dump_error(JSContext* ctx);
+
+/* main loop which calls the user JS callbacks */
+void
+js_loop(JSContext* ctx) {
+  JSContext* ctx1;
+  int err;
+
+  for(;;) {
+    /* execute the pending jobs */
+    for(;;) {
+      err = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1);
+      if(err <= 0) {
+        if(err < 0) {
+          js_std_dump_error(ctx1);
+        }
+        break;
+      }
+    }
+
+    /*if(!os_poll_func || os_poll_func(ctx))
+      break;*/
+  }
+}
+
 static int
 eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
   JSValue val;
