@@ -531,8 +531,8 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("rule", js_token_get, NULL, TOKEN_PROP_RULE),
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CGETSET_MAGIC_DEF("value", js_token_get, NULL, TOKEN_PROP_LEXEME),
-    JS_CFUNC_DEF("toString", 0, js_token_tostring),
-    JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
+    // JS_CFUNC_DEF("toString", 0, js_token_tostring),
+    // JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
     JS_CFUNC_DEF("inspect", 0, js_token_inspect),
     JS_ALIAS_DEF("position", "loc"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
@@ -740,6 +740,13 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       lex->input = input;
       location_free(&lex->loc, JS_GetRuntime(ctx));
       lex->loc = loc;
+
+      if(argc > 1 && JS_IsString(argv[1])) {
+        if(lex->loc.file)
+          js_free(ctx, (char*)lex->loc.file);
+        lex->loc.file = js_tostring(ctx, argv[1]);
+      }
+
       break;
     }
     case LEXER_METHOD_PEEKC: {
@@ -763,12 +770,13 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case LEXER_METHOD_SKIPC: {
       if(!input_buffer_eof(&lex->input)) {
         int32_t ntimes = 1;
-        const uint8_t* p;
+        const uint8_t* p = 0;
         size_t n;
         if(argc > 0)
           JS_ToInt32(ctx, &ntimes, argv[0]);
         while(ntimes-- > 0) { p = input_buffer_get(&lex->input, &n); }
-        ret = JS_NewStringLen(ctx, (const char*)p, n);
+        if(p)
+          ret = JS_NewStringLen(ctx, (const char*)p, n);
       }
       break;
     }

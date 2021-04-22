@@ -271,7 +271,7 @@ JS_NewCustomContext(JSRuntime* rt) {
   js_init_module_pointer(ctx, "pointer");
   js_init_module_predicate(ctx, "predicate");
   js_init_module_repeater(ctx, "repeater");
-  js_init_module_tree_walker(ctx, "tree-walker");
+  js_init_module_tree_walker(ctx, "tree_walker");
   js_init_module_xml(ctx, "xml");
 
   return ctx;

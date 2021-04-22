@@ -32,6 +32,7 @@ typedef struct {
   int32_t max_string_length;
   int32_t break_length;
   int32_t compact;
+  int32_t proto_chain;
   struct list_head hide_keys;
 } inspect_options_t;
 
@@ -61,6 +62,7 @@ inspect_options_init(inspect_options_t* opts) {
   opts->max_string_length = INT32_MAX;
   opts->break_length = 80;
   opts->compact = 5;
+  opts->proto_chain = 5;
   init_list_head(&opts->hide_keys);
 }
 
@@ -169,6 +171,10 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
     }
     js_value_free(ctx, value);
   }
+  value = JS_GetPropertyStr(ctx, object, "protoChain");
+  if(JS_IsNumber(value))
+    JS_ToInt32(ctx, &opts->proto_chain, value);
+  js_value_free(ctx, value);
 }
 
 static JSValue
@@ -188,6 +194,8 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
   JS_SetPropertyStr(ctx, ret, "maxStringLength", js_new_number(ctx, opts->max_string_length));
   JS_SetPropertyStr(ctx, ret, "breakLength", js_new_number(ctx, opts->break_length));
   JS_SetPropertyStr(ctx, ret, "compact", js_new_bool_or_number(ctx, opts->compact));
+  if(opts->proto_chain)
+    JS_SetPropertyStr(ctx, ret, "protoChain", js_new_number(ctx, opts->proto_chain));
   arr = JS_NewArray(ctx);
   n = 0;
   list_for_each(el, &opts->hide_keys) {
@@ -640,7 +648,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       if(js_object_getpropertynames(ctx,
                                     &propenum_tab,
-                                    value,
+                                    opts->proto_chain ? JS_GetPrototype(ctx, value) : value,
                                     JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
                                         (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;

@@ -7,7 +7,6 @@
 #include "vector.h"
 #include "utils.h"
 
-
 typedef struct PropertyEnumeration {
   JSValue obj;
   uint32_t idx;
