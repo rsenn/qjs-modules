@@ -91,7 +91,8 @@ async function main(...args) {
     customInspect: true
   });
 
-  let file = args[0] ?? scriptArgs[0];
+  let file = args[0] ?? 'tests/ANSI-C-grammar-2011.y';
+  console.log('file:',file);
   let str = std.loadFile(file, 'utf-8');
   let len = str.length;
   let type = path.extname(file).substring(1);

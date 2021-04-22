@@ -8,6 +8,7 @@ import Console from '../lib/console.js';
 import JSLexer from '../lib/jslexer.js';
 import CLexer from '../lib/clexer.js';
 import BNFLexer from '../lib/bnflexer.js';
+import extendArray from '../lib/extendArray.js';
 
 ('use strict');
 ('use math');
@@ -24,54 +25,7 @@ const code = [
   `/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);`
 ];
 
-let gettime;
-
-const CLOCK_REALTIME = 0;
-const CLOCK_MONOTONIC = 1;
-const CLOCK_MONOTONIC_RAW = 4;
-const CLOCK_BOOTTIME = 7;
-
-globalThis.inspect = inspect;
-
-Object.defineProperties(Array.prototype, {
-  last: {
-    get() {
-      return this[this.length - 1];
-    }
-  },
-  at: {
-    value(index) {
-      const { length } = this;
-      return this[((index % length) + length) % length];
-    }
-  },
-  clear: {
-    value() {
-      this.splice(0, this.length);
-    }
-  },
-  findLastIndex: {
-    value(predicate) {
-      for(let i = this.length - 1; i >= 0; --i) {
-        const x = this[i];
-        if(predicate(x, i, this)) return i;
-      }
-      return -1;
-    }
-  },
-  findLast: {
-    value(predicate) {
-      let i;
-      if((i = this.findLastIndex(predicate)) == -1) return null;
-      return this[i];
-    }
-  },
-  unique: {
-    value() {
-      return [...new Set(this)];
-    }
-  }
-});
+extendArray(Array.prototype);
 
 function WriteFile(file, tok) {
   let f = std.open(file, 'w+');
@@ -93,23 +47,9 @@ function DumpToken(tok) {
 
   return `★ Token ${inspect({ chars, offset, length, loc }, { depth: Infinity })}`;
 }
-function hrtime(clock = CLOCK_MONOTONIC_RAW) {
-  let data = new ArrayBuffer(16);
-
-  gettime(clock, data);
-  return new BigUint64Array(data, 0, 2);
-}
-function now(clock = CLOCK_MONOTONIC_RAW) {
-  let data = new ArrayBuffer(16);
-
-  gettime(clock, data);
-  let [secs, nsecs] = new BigUint64Array(data, 0, 2);
-
-  return Number(secs) * 10e3 + Number(nsecs) * 10e-6;
-}
 
 async function main(...args) {
-  globalThis.console = new Console({
+  new Console({
     colors: true,
     depth: 8,
     maxArrayLength: 100,
@@ -117,12 +57,7 @@ async function main(...args) {
     compact: 1,
     showHidden: false
   });
-  if(!gettime) {
-    const { dlsym, RTLD_DEFAULT, define, call } = await import('ffi.so');
-    const clock_gettime = dlsym(RTLD_DEFAULT, 'clock_gettime');
-    define('clock_gettime', clock_gettime, null, 'int', 'int', 'void *');
-    gettime = (clk_id, tp) => call('clock_gettime', clk_id, tp);
-  }
+
   let optind = 0;
   let code = 'c';
 
@@ -191,7 +126,7 @@ async function main(...args) {
   let tok,
     i = 0;
 
-  console.log('now', now());
+  console.log('now', Date.now());
 
   for(let j = 0; j < lexer.ruleNames.length; j++) {
     console.log(`lexer.rule[${j}]`, lexer.getRule(j));

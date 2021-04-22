@@ -62,7 +62,7 @@ inspect_options_init(inspect_options_t* opts) {
   opts->max_string_length = INT32_MAX;
   opts->break_length = 80;
   opts->compact = 5;
-  opts->proto_chain = 5;
+  opts->proto_chain = 0;
   init_list_head(&opts->hide_keys);
 }
 
