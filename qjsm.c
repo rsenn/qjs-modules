@@ -647,8 +647,14 @@ main(int argc, char** argv) {
       js_std_eval_binary(ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
     }
 #endif
-      js_std_eval_binary(ctx, qjsc_console, qjsc_console_size, 0);
-  js_std_add_helpers(ctx, argc - optind, argv + optind);
+    js_std_eval_binary(ctx, qjsc_console, qjsc_console_size, 0);
+    js_std_add_helpers(ctx, argc - optind, argv + optind);
+
+    {
+      const char* str = "import Console from 'console';\n"
+                        "globalThis.console = new Console();\n";
+      eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);
+    }
 
     /* make 'std' and 'os' visible to non module code */
     if(load_std) {
@@ -657,6 +663,7 @@ main(int argc, char** argv) {
                         "import Console from 'console';\n"
                         "globalThis.std = std;\n"
                         "globalThis.os = os;\n";
+      "globalThis.console = new Console();\n";
       eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);
     }
 
