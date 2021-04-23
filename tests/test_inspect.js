@@ -18,8 +18,16 @@ Map.prototype.emplace = function emplace(key, handler) {
   return value;
 };
 
+class Test {
+  constructor() {}
+
+  inspect(level, options = {}) {
+    inspect(this, options);
+  }
+}
+
 async function main(...args) {
-  console.log('main:', args);
+  //console.log('main:', args);
 
   console = new Console({ colors: true, depth: 1, compact: Infinity });
 
@@ -30,7 +38,7 @@ async function main(...args) {
   } catch(err) {}
 
   winsz ??= [];
-  console.log('winsz:', winsz);
+  //console.log('winsz:', winsz);
 
   const options = {
     colors: true,
@@ -45,6 +53,7 @@ async function main(...args) {
     hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
   };
 
+  console.log('inspect(Test.prototype)', inspect(Test.prototype, options));
   const dumpObj = (obj, depth, options) =>
     '{' +
     Object.entries(obj)
@@ -76,6 +85,7 @@ async function main(...args) {
   fn.test = 'ABCD';
   let obj = {
     '@nan': NaN,
+
     '-inf': Number.NEGATIVE_INFINITY,
     '+inf': Number.POSITIVE_INFINITY,
     1337: -0,

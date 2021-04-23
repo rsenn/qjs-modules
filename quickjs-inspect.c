@@ -7,6 +7,7 @@
 #include "quickjs-internal.h"
 #include "quickjs.h"
 #include "utils.h"
+#include "vector.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -33,7 +34,7 @@ typedef struct {
   int32_t break_length;
   int32_t compact;
   int32_t proto_chain;
-  struct list_head hide_keys;
+  Vector hide_keys;
 } inspect_options_t;
 
 struct prop_key;
@@ -50,7 +51,7 @@ static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor,
     set_ctor, regexp_ctor, proxy_ctor;
 
 static void
-inspect_options_init(inspect_options_t* opts) {
+inspect_options_init(inspect_options_t* opts, JSContext* ctx) {
   opts->colors = TRUE;
   opts->show_hidden = FALSE;
   opts->custom_inspect = TRUE;
@@ -63,22 +64,19 @@ inspect_options_init(inspect_options_t* opts) {
   opts->break_length = 80;
   opts->compact = 5;
   opts->proto_chain = 0;
-  init_list_head(&opts->hide_keys);
+  vector_init(&opts->hide_keys, ctx);
 }
 
 static void
 inspect_options_free(inspect_options_t* opts, JSContext* ctx) {
-  union {
-    struct list_head* link;
-    prop_key_t* key;
-  } item, next;
 
-  list_for_each_safe(item.link, next.link, &opts->hide_keys) {
-    JS_FreeAtom(ctx, item.key->atom);
-    js_cstring_free(ctx, item.key->name);
-    js_free(ctx, item.key);
+  prop_key_t* key;
+
+  vector_foreach_t(&opts->hide_keys, key) {
+    JS_FreeAtom(ctx, key->atom);
+    js_cstring_free(ctx, key->name);
   }
-  memset(&opts->hide_keys, 0, sizeof(opts->hide_keys));
+  vector_free(&opts->hide_keys);
 }
 
 static void
@@ -163,10 +161,10 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
 
     for(pos = 0; pos < len; pos++) {
       JSValue item = JS_GetPropertyUint32(ctx, value, pos);
-      prop_key_t* key = js_mallocz(ctx, sizeof(prop_key_t));
-      key->name = JS_ToCString(ctx, item);
-      key->atom = JS_ValueToAtom(ctx, item);
-      list_add(&key->link, &opts->hide_keys);
+      prop_key_t key;
+      key.name = JS_ToCString(ctx, item);
+      key.atom = JS_ValueToAtom(ctx, item);
+      vector_push(&opts->hide_keys, key);
       js_value_free(ctx, item);
     }
     js_value_free(ctx, value);
@@ -181,7 +179,7 @@ static JSValue
 inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
   JSValue arr, ret = JS_NewObject(ctx);
   uint32_t n;
-  struct list_head* el;
+  prop_key_t* key;
 
   JS_SetPropertyStr(ctx, ret, "colors", JS_NewBool(ctx, opts->colors));
   JS_SetPropertyStr(ctx, ret, "showHidden", JS_NewBool(ctx, opts->show_hidden));
@@ -198,19 +196,15 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
     JS_SetPropertyStr(ctx, ret, "protoChain", js_new_number(ctx, opts->proto_chain));
   arr = JS_NewArray(ctx);
   n = 0;
-  list_for_each(el, &opts->hide_keys) {
-    prop_key_t* key = list_entry(el, prop_key_t, link);
-    JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom));
-  }
+  vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   return ret;
 }
 
 static int
 inspect_options_hidden(inspect_options_t* opts, JSAtom atom) {
-  struct list_head* el;
-  list_for_each(el, &opts->hide_keys) {
-    prop_key_t* key = list_entry(el, prop_key_t, link);
+  prop_key_t* key;
+  vector_foreach_t(&opts->hide_keys, key) {
     if(key->atom == atom) //! strcmp(key->name, str))
       return 1;
   }
@@ -308,10 +302,16 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   /*printf("js_inspect_custom_call ");
   js_value_print(ctx, inspect);*/
   if(JS_IsFunction(ctx, inspect)) {
+
     JSValueConst args[2];
     JSValue ret;
+    inspect_options_t opts_nocustom;
+
+    memcpy(&opts_nocustom, opts, sizeof(inspect_options_t));
+    opts_nocustom.custom_inspect = FALSE;
+
     args[0] = js_new_number(ctx, INSPECT_LEVEL(opts));
-    args[1] = inspect_options_object(opts, ctx);
+    args[1] = inspect_options_object(&opts_nocustom, ctx);
     ret = JS_Call(ctx, inspect, obj, 2, args);
     js_value_free(ctx, args[0]);
     js_value_free(ctx, args[1]);
@@ -588,7 +588,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       BOOL is_array = 0, is_typedarray = 0, is_function = 0;
       uint32_t pos, len, limit;
       Vector propenum_tab;
-      const char* s;
+      const char* s = 0;
       // compact = FALSE;
 
       if(INSPECT_INT32T_INRANGE(opts->compact)) {
@@ -798,7 +798,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
 
   js_inspect_constructors_get(ctx);
   js_dbuf_init(ctx, &dbuf);
-  inspect_options_init(&options);
+  inspect_options_init(&options, ctx);
 
   if(argc > 1 && JS_IsNumber(argv[1]))
     optsind++;
