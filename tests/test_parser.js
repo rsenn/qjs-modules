@@ -92,7 +92,7 @@ async function main(...args) {
   });
 
   let file = args[0] ?? 'tests/ANSI-C-grammar-2011.y';
-  console.log('file:',file);
+  console.log('file:', file);
   let str = std.loadFile(file, 'utf-8');
   let len = str.length;
   let type = path.extname(file).substring(1);

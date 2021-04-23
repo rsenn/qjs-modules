@@ -35,14 +35,14 @@ typedef struct {
   enum lexer_mode mode;
   size_t start;
   size_t bytelen;
-  int tokid;
-  int state;
+  int32_t tokid;
+  int32_t state;
   InputBuffer input;
   Location loc;
   Vector defines;
   Vector rules;
-  Vector conditions;
-  Vector conditionStack;
+  Vector states;
+  Vector state_stack;
 } Lexer;
 
 void location_print(const Location*, DynBuf* dbuf);
@@ -52,6 +52,7 @@ void location_free(Location*, JSRuntime* rt);
 void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_set_input(Lexer*, InputBuffer input, char* filename);
 void lexer_define(Lexer*, char* name, char* expr);
+size_t lexer_state_parse(const char*, const char** state);
 int lexer_state_find(Lexer*, const char*);
 int lexer_state_new(Lexer*, char*);
 int lexer_state_push(Lexer*, const char*);

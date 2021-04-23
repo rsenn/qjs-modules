@@ -184,15 +184,15 @@ function test_operators() {
         return new Expr('>>', ...args);
       },
       '>>>'(...args) {
-        console.log(`method '>>>'`, ...args);
+        console.log("method '>>>'", ...args);
         return new Expr('>>>', ...args);
       },
       '=='(...args) {
-        console.log(`method '=='`, ...args);
+        console.log("method '=='", ...args);
         return new Expr('==', ...args);
       },
       '<'(...args) {
-        console.log(`method '<'`, ...args);
+        console.log("method '<'", ...args);
         return new Expr('<', ...args);
       },
       pos(...args) {

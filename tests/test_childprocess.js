@@ -18,7 +18,7 @@ function WriteFile(file, data) {
 function DumpChildProcess(cp) {
   const { file, cwd, args, env, stdio, pid, exitcode, termsig } = cp;
 
-  console.log(`ChildProcess`, { file, cwd, args, env, stdio, pid, exitcode, termsig });
+  console.log('ChildProcess', { file, cwd, args, env, stdio, pid, exitcode, termsig });
 }
 const inspectOptions = {
   colors: true,

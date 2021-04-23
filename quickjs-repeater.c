@@ -16,10 +16,12 @@ typedef union {
 
 static JSValue
 js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
+  return JS_UNDEFINED;
 }
 
 static JSValue
 js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
+  return JS_UNDEFINED;
 }
 
 JSValue

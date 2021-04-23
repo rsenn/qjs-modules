@@ -873,6 +873,23 @@ js_argv_to_array(JSContext* ctx, char** strv) {
   return ret;
 }
 
+size_t
+js_argv_length(char** strv) {
+  size_t i;
+  for(i = 0; strv[i]; i++) {}
+  return i;
+}
+
+char**
+js_argv_dup(JSContext* ctx, char** strv) {
+  char** ret;
+  size_t i, len = js_argv_length(strv);
+  ret = js_malloc(ctx, (len + 1) * sizeof(char*));
+  for(i = 0; i < len; i++) { ret[i] = js_strdup(ctx, strv[i]); }
+  ret[i] = 0;
+  return ret;
+}
+
 JSValue
 js_intv_to_array(JSContext* ctx, int* intv) {
   JSValue ret = JS_NewArray(ctx);
@@ -898,6 +915,43 @@ js_symbol_get_static(JSContext* ctx, const char* name) {
   ret = JS_GetPropertyStr(ctx, symbol_ctor, name);
   js_value_free(ctx, symbol_ctor);
   return ret;
+}
+
+JSValue
+js_symbol_ctor(JSContext* ctx) {
+  return js_global_get(ctx, "Symbol");
+}
+
+JSValue
+js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
+  JSValue ret;
+  JSAtom method_name = JS_NewAtom(ctx, name);
+  ret = JS_Invoke(ctx, js_symbol_ctor(ctx), method_name, 1, &arg);
+  JS_FreeAtom(ctx, method_name);
+  return ret;
+}
+
+JSValue
+js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
+  JSValue value, str;
+  JSAtom atom;
+  value = js_symbol_invoke_static(ctx, "keyFor", sym);
+  if(!JS_IsUndefined(value))
+    return value;
+
+  atom = JS_ValueToAtom(ctx, sym);
+  str = JS_AtomToString(ctx, atom);
+  JS_FreeAtom(ctx, atom);
+  return str;
+}
+
+const char*
+js_symbol_to_cstring(JSContext* ctx, JSValueConst sym) {
+  JSValue value = js_symbol_to_string(ctx, sym);
+  const char* str;
+  str = JS_ToCString(ctx, value);
+  js_value_free(ctx, value);
+  return str;
 }
 
 JSValue*

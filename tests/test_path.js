@@ -19,7 +19,7 @@ function CallPathFunction(name, ...args) {
   let ret = fn.call(path, ...args);
   console.log(`path.${name}(`,
     ...args.reduce((acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]), []),
-    `) =`,
+    ') =',
     ret
   );
   return ret;
@@ -42,9 +42,9 @@ async function main(...args) {
   console.log('path:', path);
   console.log('base:', base);
   console.log(`exists(${file}):`, path.exists(file));
-  console.log(`gethome(1000):`, path.gethome(1000));
-  console.log(`gethome(1000):`, path.gethome(1000));
-  console.log(`path.delimiter:`, path.delimiter);
+  console.log('gethome(1000):', path.gethome(1000));
+  console.log('gethome(1000):', path.gethome(1000));
+  console.log('path.delimiter:', path.delimiter);
 
   CallPathFunction('extname', file);
   CallPathFunction('readlink', '/home/roman/Sources');

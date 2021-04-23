@@ -50,9 +50,9 @@ async function main(...args) {
   console.log('Predicate.charset', charset);
 
   let eq1234 = equal(1234);
-  console.log(`eq1234 =`, eq1234.toString());
-  /*  console.log(`eq1234(1234) =`, eq1234(1234));
-  console.log(`eq1234('1234') =`, eq1234('1234'));*/
+  console.log('eq1234 =', eq1234.toString());
+  /*  console.log("eq1234(1234) =", eq1234(1234));
+  console.log("eq1234('1234') =", eq1234('1234'));*/
 
   let promise = waitFor(100).then(() => 1234);
 
@@ -73,19 +73,19 @@ async function main(...args) {
   let isAlnum = or(isAlpha, isDigit);
   let isIdentifier = regexp('^([A-Za-z_]+)([A-Za-z0-9_]*)$', 'g');
   let isNumber = regexp('^([-+]?)([0-9]*).([0-9]+)$', 'g');
-  console.log(`isIdentifier.toString()`, isIdentifier.toString());
-  console.log(`isNumber.toString()`, isNumber.toString());
+  console.log('isIdentifier.toString()', isIdentifier.toString());
+  console.log('isNumber.toString()', isNumber.toString());
 
   let predicates = [isUpper, isLower, isNL, isNotNL, isNotUpper, isNotLower];
 
   for(let p of predicates) console.log('p:', p.toString());
-  console.log(`isUpper('a')`, isUpper('a'));
-  console.log(`isLower('a')`, isLower('a'));
-  console.log(`isNotUpper('a')`, isNotUpper('a'));
-  console.log(`isNotLower('a')`, isNotLower('a'));
-  console.log(`isNotNL('\\n')`, isNotNL('\n'));
-  console.log(`isNotNL('\\r')`, isNotNL('\r'));
-  console.log(`isNL('\\r')`, isNL('\r'));
+  console.log("isUpper('a')", isUpper('a'));
+  console.log("isLower('a')", isLower('a'));
+  console.log("isNotUpper('a')", isNotUpper('a'));
+  console.log("isNotLower('a')", isNotLower('a'));
+  console.log("isNotNL('\\n')", isNotNL('\n'));
+  console.log("isNotNL('\\r')", isNotNL('\r'));
+  console.log("isNL('\\r')", isNL('\r'));
 
   for(let ch of ['_', '2', 'A', 'a', 'Z', 'z', '?', '-'])
     console.log(`isXDigit('${ch}') =`, isXDigit(ch));
@@ -126,16 +126,16 @@ async function main(...args) {
     console.log(`combined('${str}') =`, combined(str, a));
     //  console.log("a:", a);
   }
-  console.log(`combined.values =`, combined.values);
-  console.log(`combined.values =`,
+  console.log('combined.values =', combined.values);
+  console.log('combined.values =',
     combined.values.map(v => v.toString())
   );
   let re = /^([-+])?([0-9]*\.)?([0-9]+)$/g;
-  console.log(`re =`, re);
-  console.log(`re =`, re + '');
-  console.log(`re =`, re.toString());
-  /*console.log(`ArrayBuffer =`, ArrayBuffer+'');
-    console.log(`ArrayBuffer =`,  Function.prototype.toString.call(ArrayBuffer));*/
+  console.log('re =', re);
+  console.log('re =', re + '');
+  console.log('re =', re.toString());
+  /*console.log("ArrayBuffer =", ArrayBuffer+'');
+    console.log("ArrayBuffer =",  Function.prototype.toString.call(ArrayBuffer));*/
 
   let dummy = new ArrayBuffer(1024);
   let arri32 = new Int32Array(1024);
@@ -144,34 +144,34 @@ async function main(...args) {
   let pt = prototypeIs(ArrayBuffer.prototype);
   let pr = new Predicate(re);
   let eqBLAH = equal('BLAH');
-  console.log(`io =`, io);
-  console.log(`io =`, io.toString());
-  console.log(`pt =`, pt.toString());
-  console.log(`pr =`, pr.toString());
-  console.log(`io(dummy) =`, io(dummy));
-  console.log(`pt(dummy) =`, pt(dummy));
-  console.log(`io(arri32.buffer) =`, io(arri32.buffer));
-  console.log(`pt(arri32.buffer) =`, pt(arri32.buffer));
-  console.log(`eqBLAH =`, eqBLAH.toString());
-  console.log(`eqBLAH('BLAH') =`, eqBLAH('BLAH'));
+  console.log('io =', io);
+  console.log('io =', io.toString());
+  console.log('pt =', pt.toString());
+  console.log('pr =', pr.toString());
+  console.log('io(dummy) =', io(dummy));
+  console.log('pt(dummy) =', pt(dummy));
+  console.log('io(arri32.buffer) =', io(arri32.buffer));
+  console.log('pt(arri32.buffer) =', pt(arri32.buffer));
+  console.log('eqBLAH =', eqBLAH.toString());
+  console.log("eqBLAH('BLAH') =", eqBLAH('BLAH'));
 
   for(let s2 of ['-120', '0.12345', '+12.345678', '-.9090']) {
     console.log(`pr('${s2}') =`, pr(s2));
   }
   let mt = type(Predicate.TYPE_INT | Predicate.TYPE_OBJECT);
-  console.log(`mt =`, mt.toString());
+  console.log('mt =', mt.toString());
 
   for(let item of [1234, /*Symbol.iterator,*/ 'abcd', {}]) console.log(`mt(${item}) = `, mt(item));
   let cp = charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ\u2605\u29bf\u2754');
-  console.log(`cp =`, cp.toString());
+  console.log('cp =', cp.toString());
 
   for(let str2 of ['abcd', 'X⦿Y', '❔X', 'ABC★']) console.log(`cp(${str2}) =`, cp(str2));
-  console.log(`re =`, Object.prototype.toString.call(re));
-  console.log(`  =`, BigDecimal.prototype.toString.call(31337m));
-  console.log(`  =`, BigInt.prototype.toString.call(31337n));
-  console.log(`  =`, eval('31337l'));
-  console.log(`  =`, eval('31337m'));
-  console.log(`  =`, eval('31337n'));
+  console.log('re =', Object.prototype.toString.call(re));
+  console.log('  =', BigDecimal.prototype.toString.call(31337m));
+  console.log('  =', BigInt.prototype.toString.call(31337n));
+  console.log('  =', eval('31337l'));
+  console.log('  =', eval('31337m'));
+  console.log('  =', eval('31337n'));
 
   std.gc();
 }

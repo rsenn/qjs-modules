@@ -463,6 +463,7 @@ js_path_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
     JS_SetModuleExport(ctx, m, "default", path_object);
   }
+  return 0;
 }
 
 #ifdef JS_SHARED_LIBRARY

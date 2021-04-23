@@ -25,13 +25,18 @@ enum deep_iterator_return {
   RETURN_PATH = 1 << 24,
   RETURN_VALUE_PATH = 2 << 24,
   RETURN_PATH_VALUE = 3 << 24,
-  RETURN_MASK = 7 << 24
+  RETURN_MASK = 7 << 24,
+  PATH_AS_STRING = 1 << 28
 };
 
 static JSValue
 js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
   JSValue ret;
   PropertyEnumeration* penum = vector_back(frames, sizeof(PropertyEnumeration));
+  JSValue (*path_fn)(Vector*, JSContext*);
+
+  path_fn = return_flag & PATH_AS_STRING ? property_enumeration_pathstr_value : property_enumeration_path;
+
   switch(return_flag & RETURN_MASK) {
     case RETURN_VALUE: {
       ret = property_enumeration_value(penum, ctx);
@@ -39,7 +44,7 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
     }
 
     case RETURN_PATH: {
-      ret = property_enumeration_path(frames, ctx);
+      ret = path_fn(frames, ctx);
       break;
     }
 
@@ -49,7 +54,7 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
       ret = JS_NewArray(ctx);
 
       value = property_enumeration_value(penum, ctx);
-      path = property_enumeration_path(frames, ctx);
+      path = path_fn(frames, ctx);
 
       JS_SetPropertyUint32(ctx, ret, return_flag == RETURN_VALUE_PATH ? 0 : 1, value);
       JS_SetPropertyUint32(ctx, ret, return_flag == RETURN_VALUE_PATH ? 1 : 0, path);
@@ -534,6 +539,7 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_PROP_INT32_DEF("RETURN_PATH", RETURN_PATH, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("RETURN_VALUE_PATH", RETURN_VALUE_PATH, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("RETURN_PATH_VALUE", RETURN_PATH_VALUE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PATH_AS_STRING", PATH_AS_STRING, JS_PROP_ENUMERABLE),
 };
 
 static const JSCFunctionListEntry js_deep_iterator_proto_funcs[] = {
