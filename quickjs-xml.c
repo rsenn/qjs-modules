@@ -164,7 +164,9 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   JSValue children = JS_GetPropertyStr(ctx, element, "children");
   size_t tagLen;
   const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
-  BOOL isComment = !strncmp(tagName, "!--", 3);
+  BOOL isComment;
+  assert(tagName);
+  isComment = !strncmp(tagName, "!--", 3);
 
   xml_write_indent(db, depth);
 
@@ -418,7 +420,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   do {
     int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
     value = property_enumeration_value(it, ctx);
-    if(JS_IsObject(value))
+    if(JS_IsObject(value) && !JS_IsArray(ctx, value))
       xml_write_element(ctx, value, &output, depth);
     else if(JS_IsString(value))
       xml_write_text(ctx, value, &output, depth);

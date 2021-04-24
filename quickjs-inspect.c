@@ -828,6 +828,21 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   return ret;
 }
 
+const char*
+js_inspect_tostring(JSContext* ctx, JSValueConst value) {
+  JSValue output;
+  inspect_options_t opts;
+  JSValueConst args[] = {value, JS_UNDEFINED};
+  inspect_options_init(&opts, ctx);
+  opts.colors = FALSE;
+  args[1] = inspect_options_object(&opts, ctx);
+  inspect_options_free(&opts, ctx);
+
+  output = js_inspect(ctx, JS_UNDEFINED, 2, args);
+  JS_FreeValue(ctx, args[1]);
+  return JS_ToCString(ctx, output);
+}
+
 static const JSCFunctionListEntry js_inspect_funcs[] = {
     JS_CFUNC_DEF("inspect", 1, js_inspect),
 };
