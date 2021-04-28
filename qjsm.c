@@ -470,7 +470,7 @@ main(int argc, char** argv) {
   int dump_memory = 0;
   int trace_memory = 0;
   int empty_run = 0;
-  int module = -1;
+  int module = 1;
   int load_std = 0;
   int dump_unhandled_promise_rejection = 0;
   size_t memory_limit = 0;
@@ -499,10 +499,18 @@ main(int argc, char** argv) {
   while(optind < argc && *argv[optind] == '-') {
     char* arg = argv[optind] + 1;
     const char* longopt = "";
+    const char* optarg;
+
     /* a single - is not an option, it also stops argument scanning */
     if(!*arg)
       break;
-    optind++;
+
+    if(arg[1]) {
+      optarg = &arg[1];
+    } else {
+      optarg = argv[++optind];
+    }
+
     if(*arg == '-') {
       longopt = arg + 1;
       arg += strlen(arg);
@@ -539,8 +547,9 @@ main(int argc, char** argv) {
           fprintf(stderr, "too many included files");
           exit(1);
         }
-        include_list[include_count++] = argv[optind++];
-        continue;
+        include_list[include_count++] = optarg;
+        optind++;
+        break;
       }
       if(opt == 'i' || !strcmp(longopt, "interactive")) {
         interactive++;

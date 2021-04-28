@@ -214,6 +214,11 @@ lexer_state_top(Lexer* lex, int i) {
   return *(int32_t*)vector_at(&lex->state_stack, sizeof(int32_t), sz - i);
 }
 
+size_t
+lexer_state_depth(Lexer* lex) {
+  return vector_size(&lex->state_stack, sizeof(int32_t));
+}
+
 const char*
 lexer_state_name(Lexer* lex, int state) {
   const char** name_p;
@@ -232,8 +237,8 @@ lexer_rule_add(Lexer* lex, char* name, char* expr) {
     rule.mask = previous->mask;
   }
 
-  if(lexer_state_parse(rule.name, 0))
-    rule.state = lexer_state_new(lex, rule.name);
+  if(lexer_state_parse(rule.expr, 0))
+    rule.state = lexer_state_new(lex, rule.expr);
 
   vector_push(&lex->rules, rule);
   return ret;
@@ -290,7 +295,7 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   vector_foreach_t(&lex->rules, rule) {
     int result;
 
-    if((state & rule->mask) == 0 || rule->state != lex->state) {
+    if(/*(state & rule->mask) == 0 ||*/ rule->state != lex->state) {
       i++;
       continue;
     }
@@ -378,7 +383,8 @@ lexer_rule_free(LexerRule* rule, JSContext* ctx) {
 
 void
 lexer_dump(Lexer* lex, DynBuf* dbuf) {
-  dbuf_printf(dbuf, "Lexer {\n  mode: %x,\n  start: %zu", lex->mode, lex->start);
+  dbuf_printf(
+      dbuf, "Lexer {\n  mode: %x,\n  start: %zu, state: %s", lex->mode, lex->start, lexer_state_name(lex, lex->state));
   dbuf_putstr(dbuf, ",\n  input: ");
   input_buffer_dump(&lex->input, dbuf);
   dbuf_putstr(dbuf, ",\n  location: ");

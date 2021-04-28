@@ -369,15 +369,15 @@ fail:
   return JS_EXCEPTION;
 }
 
-/*static JSValue
+static JSValue
 js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Token* tok;
   if(!(tok = js_token_data(ctx, this_val)))
     return JS_EXCEPTION;
   return JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length);
-}*/
+}
 
-/*static JSValue
+static JSValue
 js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Token* tok;
   const char* hint;
@@ -385,13 +385,14 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   if(!(tok = js_token_data(ctx, this_val)))
     return JS_EXCEPTION;
   hint = JS_ToCString(ctx, argv[0]);
+
   if(!strcmp(hint, "number"))
     ret = JS_NewInt32(ctx, tok->id);
   else
-    ret = js_token_tostring(ctx, this_val, argc, argv);
+    ret = JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length);
   js_cstring_free(ctx, hint);
   return ret;
-}*/
+}
 
 static JSValue
 js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
@@ -412,7 +413,8 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   rule = lexer_rule_at(tok->lexer, tok->id);
 
   dbuf_printf(&dbuf,
-              multiline ? "Token {\n  id: %i, type: '%s' ,\n  lexeme: '" : "Token { id: %i, type: %s, lexeme: '",
+              multiline ? "Token {\n  id: %3i, type: '%-16s' ,\n  lexeme: '"
+                        : "Token { id: %3i, type: %-16s, lexeme: '",
               tok->id,
               rule->name);
   dbuf_put_escaped(&dbuf, (const char*)tok->lexeme, tok->byte_length);
@@ -512,8 +514,8 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("rule", js_token_get, NULL, TOKEN_PROP_RULE),
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CGETSET_MAGIC_DEF("value", js_token_get, NULL, TOKEN_PROP_LEXEME),
-    // JS_CFUNC_DEF("toString", 0, js_token_tostring),
-    // JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
+    JS_CFUNC_DEF("toString", 0, js_token_tostring),
+    JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
     JS_CFUNC_DEF("inspect", 0, js_token_inspect),
     JS_ALIAS_DEF("position", "loc"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
@@ -594,6 +596,9 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val) {
   for(;;) {
     if((id = lexer_peek(lex, state | skip, ctx)) >= 0) {
       LexerRule* rule = lexer_rule_at(lex, id);
+
+      // printf("state %i rule %s\n", lex->state, rule->name);
+
       JSLexerRule* jsrule = rule->opaque;
       if((rule->mask & skip)) {
         lexer_skip(lex);
@@ -953,7 +958,9 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case LEXER_METHOD_PUSH_STATE: {
       const char* state = JS_ToCString(ctx, argv[0]);
       int id;
+
       id = lexer_state_push(lex, state);
+      printf("[%zu] pushState('%s')\n", lexer_state_depth(lex), state);
       ret = JS_NewInt32(ctx, id);
       JS_FreeCString(ctx, state);
       break;
@@ -962,6 +969,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case LEXER_METHOD_POP_STATE: {
       int id;
       id = lexer_state_pop(lex);
+      printf("[%zu] popState() = '%s'\n", lexer_state_depth(lex), lexer_state_name(lex, id));
       ret = JS_NewInt32(ctx, id);
       break;
     }

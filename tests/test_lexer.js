@@ -141,11 +141,11 @@ async function main(...args) {
   let mask = IntToBinary(lexer.mask);
   let state = lexer.topState();
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
-    let stack = [];
+  let stack = [];
 
   let start = Date.now();
   const balancer = (() => {
-    const table={'}': '{',']': '[',')': '(' };
+    const table = { '}': '{', ']': '[', ')': '(' };
     return function ParentheseBalancer(tok) {
       switch (tok.lexeme) {
         case '{':
@@ -157,7 +157,9 @@ async function main(...args) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.last != table[tok.lexeme])
+            throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
+            );
 
           stack.pop();
           break;
