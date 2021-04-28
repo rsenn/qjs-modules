@@ -36,4 +36,3 @@ function(ADDSUFFIX OUTPUT_VAR SUFFIX)
   endforeach(ARG ${ARGN})
   set("${OUTPUT_VAR}" "${OUTPUT}" PARENT_SCOPE)
 endfunction(ADDSUFFIX OUTPUT_VAR SUFFIX)
-

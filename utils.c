@@ -142,9 +142,8 @@ dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int))
 
       dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(str[i])) ? c : str[i]);
 
-      if(r == 'u'|| r== 'x')
+      if(r == 'u' || r == 'x')
         dbuf_printf(db, r == 'u' ? "%04x" : "%02x", str[i]);
-      
     }
     i++;
   }
