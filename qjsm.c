@@ -143,21 +143,21 @@ jsm_loop(JSContext* ctx) {
 #include <string.h>
 #include <sys/stat.h>
 
-const char js_default_module_path[] = "."
+const char jsm_default_module_path[] = "."
 #ifdef CONFIG_PREFIX
                                       ":" CONFIG_PREFIX "/lib/quickjs"
 #endif
     ;
 
 char*
-js_find_module_ext(JSContext* ctx, const char* module_name, const char* ext) {
+jsm_find_module_ext(JSContext* ctx, const char* module_name, const char* ext) {
   const char *module_path, *p, *q;
   char* filename = NULL;
   size_t n, m;
   struct stat st;
 
   if((module_path = getenv("QUICKJS_MODULE_PATH")) == NULL)
-    module_path = js_default_module_path;
+    module_path = jsm_default_module_path;
 
   for(p = module_path; *p; p = q) {
     if((q = strchr(p, ':')) == NULL)
@@ -180,7 +180,7 @@ js_find_module_ext(JSContext* ctx, const char* module_name, const char* ext) {
 }
 
 char*
-js_find_module(JSContext* ctx, const char* module_name) {
+jsm_find_module(JSContext* ctx, const char* module_name) {
   char* ret = NULL;
   size_t len;
 
@@ -188,18 +188,18 @@ js_find_module(JSContext* ctx, const char* module_name) {
   len = strlen(module_name);
 
   if(strchr(module_name, '/') == NULL || (len >= 3 && !strcmp(&module_name[len - 3], ".so")))
-    ret = js_find_module_ext(ctx, module_name, ".so");
+    ret = jsm_find_module_ext(ctx, module_name, ".so");
 
   if(ret == NULL)
-    ret = js_find_module_ext(ctx, module_name, ".js");
+    ret = jsm_find_module_ext(ctx, module_name, ".js");
   return ret;
 }
 
 JSModuleDef*
-js_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
+jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   char* filename;
   JSModuleDef* ret = NULL;
-  filename = module_name[0] == '/' ? js_strdup(ctx, module_name) : js_find_module(ctx, module_name);
+  filename = module_name[0] == '/' ? js_strdup(ctx, module_name) : jsm_find_module(ctx, module_name);
   if(filename) {
     ret = js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
@@ -208,7 +208,7 @@ js_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
 }
 
 static int
-eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
+jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
   JSValue val;
   int ret;
 
@@ -234,7 +234,7 @@ eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int
 }
 
 static int
-eval_file(JSContext* ctx, const char* filename, int module) {
+jsm_eval_file(JSContext* ctx, const char* filename, int module) {
   uint8_t* buf;
   int ret, eval_flags;
   size_t buf_len;
@@ -252,7 +252,7 @@ eval_file(JSContext* ctx, const char* filename, int module) {
     eval_flags = JS_EVAL_TYPE_MODULE;
   else
     eval_flags = JS_EVAL_TYPE_GLOBAL;
-  ret = eval_buf(ctx, buf, buf_len, filename, eval_flags);
+  ret = jsm_eval_buf(ctx, buf, buf_len, filename, eval_flags);
   js_free(ctx, buf);
   return ret;
 }
@@ -301,13 +301,13 @@ struct trace_malloc_data {
 };
 
 static inline unsigned long long
-js_trace_malloc_ptr_offset(uint8_t* ptr, struct trace_malloc_data* dp) {
+jsm_trace_malloc_ptr_offset(uint8_t* ptr, struct trace_malloc_data* dp) {
   return ptr - dp->base;
 }
 
 /* default memory allocation functions with memory limitation */
 static inline size_t
-js_trace_malloc_usable_size(void* ptr) {
+jsm_trace_malloc_usable_size(void* ptr) {
 #if defined(__APPLE__)
   return malloc_size(ptr);
 #elif defined(_WIN32)
@@ -329,7 +329,7 @@ static void
 #else
     __attribute__((format(printf, 2, 3)))
 #endif
-    js_trace_malloc_printf(JSMallocState* s, const char* fmt, ...) {
+    jsm_trace_malloc_printf(JSMallocState* s, const char* fmt, ...) {
   va_list ap;
   int c;
 
@@ -342,7 +342,7 @@ static void
         if(ptr == NULL) {
           printf("NULL");
         } else {
-          printf("H%+06lld.%zd", js_trace_malloc_ptr_offset(ptr, s->opaque), js_trace_malloc_usable_size(ptr));
+          printf("H%+06lld.%zd", jsm_trace_malloc_ptr_offset(ptr, s->opaque), jsm_trace_malloc_usable_size(ptr));
         }
         fmt++;
         continue;
@@ -360,12 +360,12 @@ static void
 }
 
 static void
-js_trace_malloc_init(struct trace_malloc_data* s) {
+jsm_trace_malloc_init(struct trace_malloc_data* s) {
   free(s->base = malloc(8));
 }
 
 static void*
-js_trace_malloc(JSMallocState* s, size_t size) {
+jsm_trace_malloc(JSMallocState* s, size_t size) {
   void* ptr;
 
   /* Do not allocate zero bytes: behavior is platform dependent */
@@ -374,37 +374,37 @@ js_trace_malloc(JSMallocState* s, size_t size) {
   if(unlikely(s->malloc_size + size > s->malloc_limit))
     return NULL;
   ptr = malloc(size);
-  js_trace_malloc_printf(s, "A %zd -> %p\n", size, ptr);
+  jsm_trace_malloc_printf(s, "A %zd -> %p\n", size, ptr);
   if(ptr) {
     s->malloc_count++;
-    s->malloc_size += js_trace_malloc_usable_size(ptr) + MALLOC_OVERHEAD;
+    s->malloc_size += jsm_trace_malloc_usable_size(ptr) + MALLOC_OVERHEAD;
   }
   return ptr;
 }
 
 static void
-js_trace_free(JSMallocState* s, void* ptr) {
+jsm_trace_free(JSMallocState* s, void* ptr) {
   if(!ptr)
     return;
 
-  js_trace_malloc_printf(s, "F %p\n", ptr);
+  jsm_trace_malloc_printf(s, "F %p\n", ptr);
   s->malloc_count--;
-  s->malloc_size -= js_trace_malloc_usable_size(ptr) + MALLOC_OVERHEAD;
+  s->malloc_size -= jsm_trace_malloc_usable_size(ptr) + MALLOC_OVERHEAD;
   free(ptr);
 }
 
 static void*
-js_trace_realloc(JSMallocState* s, void* ptr, size_t size) {
+jsm_trace_realloc(JSMallocState* s, void* ptr, size_t size) {
   size_t old_size;
 
   if(!ptr) {
     if(size == 0)
       return NULL;
-    return js_trace_malloc(s, size);
+    return jsm_trace_malloc(s, size);
   }
-  old_size = js_trace_malloc_usable_size(ptr);
+  old_size = jsm_trace_malloc_usable_size(ptr);
   if(size == 0) {
-    js_trace_malloc_printf(s, "R %zd %p\n", size, ptr);
+    jsm_trace_malloc_printf(s, "R %zd %p\n", size, ptr);
     s->malloc_count--;
     s->malloc_size -= old_size + MALLOC_OVERHEAD;
     free(ptr);
@@ -413,20 +413,20 @@ js_trace_realloc(JSMallocState* s, void* ptr, size_t size) {
   if(s->malloc_size + size - old_size > s->malloc_limit)
     return NULL;
 
-  js_trace_malloc_printf(s, "R %zd %p", size, ptr);
+  jsm_trace_malloc_printf(s, "R %zd %p", size, ptr);
 
   ptr = realloc(ptr, size);
-  js_trace_malloc_printf(s, " -> %p\n", ptr);
+  jsm_trace_malloc_printf(s, " -> %p\n", ptr);
   if(ptr) {
-    s->malloc_size += js_trace_malloc_usable_size(ptr) - old_size;
+    s->malloc_size += jsm_trace_malloc_usable_size(ptr) - old_size;
   }
   return ptr;
 }
 
 static const JSMallocFunctions trace_mf = {
-    js_trace_malloc,
-    js_trace_free,
-    js_trace_realloc,
+    jsm_trace_malloc,
+    jsm_trace_free,
+    jsm_trace_realloc,
 #if defined(__APPLE__)
     malloc_size,
 #elif defined(_WIN32)
@@ -445,7 +445,7 @@ static const JSMallocFunctions trace_mf = {
 #define PROG_NAME "qjsm"
 
 void
-help(void) {
+jsm_help(void) {
   printf("QuickJS version " CONFIG_VERSION "\n"
          "usage: " PROG_NAME " [options] [file [args]]\n"
          "-h  --help         list options\n"
@@ -468,7 +468,7 @@ help(void) {
   exit(1);
 }
 
-JSModuleDef* js_module_loader_path(JSContext* ctx, const char* module_name, void* opaque);
+JSModuleDef* jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque);
 
 int
 main(int argc, char** argv) {
@@ -534,7 +534,7 @@ main(int argc, char** argv) {
       if(opt)
         arg++;
       if(opt == 'h' || opt == '?' || !strcmp(longopt, "help")) {
-        help();
+        jsm_help();
         continue;
       }
       if(opt == 'e' || !strcmp(longopt, "eval")) {
@@ -624,7 +624,7 @@ main(int argc, char** argv) {
       } else {
         fprintf(stderr, "qjs: unknown option '--%s'\n", longopt);
       }
-      help();
+      jsm_help();
     }
     optind++;
   }
@@ -633,7 +633,7 @@ main(int argc, char** argv) {
     bignum_ext = 1;
 
   if(trace_memory) {
-    js_trace_malloc_init(&trace_data);
+    jsm_trace_malloc_init(&trace_data);
     rt = JS_NewRuntime2(&trace_mf, &trace_data);
   } else {
     rt = JS_NewRuntime();
@@ -655,7 +655,7 @@ main(int argc, char** argv) {
   }
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, NULL, js_module_loader_path, NULL);
+  JS_SetModuleLoaderFunc(rt, NULL, jsm_module_loader_path, NULL);
 
   if(dump_unhandled_promise_rejection) {
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, NULL);
@@ -673,29 +673,29 @@ main(int argc, char** argv) {
     {
       const char* str =
           "import Console from 'console';\nglobalThis.console = new Console();\n";
-      eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);
+      jsm_eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);
     }
     js_std_eval_binary(ctx, qjsc_require, qjsc_require_size, 0);
 
     {
       const char* str = "import require from 'require';\nglobalThis.require = require;\n";
-      eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);
+      jsm_eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);
     }
 
     /* make 'std' and 'os' visible to non module code */
     if(load_std) {
       const char* str =
           "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = std;\nglobalThis.os = os;\n";
-      eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);
+      jsm_eval_buf(ctx, str, strlen(str), "<input>", JS_EVAL_TYPE_MODULE);
     }
 
     for(i = 0; i < include_count; i++) {
-      if(eval_file(ctx, include_list[i], module))
+      if(jsm_eval_file(ctx, include_list[i], module))
         goto fail;
     }
 
     if(expr) {
-      if(eval_buf(ctx, expr, strlen(expr), "<cmdline>", 0))
+      if(jsm_eval_buf(ctx, expr, strlen(expr), "<cmdline>", 0))
         goto fail;
     } else if(optind >= argc) {
       /* interactive mode */
@@ -703,7 +703,7 @@ main(int argc, char** argv) {
     } else {
       const char* filename;
       filename = argv[optind];
-      if(eval_file(ctx, filename, module))
+      if(jsm_eval_file(ctx, filename, module))
         goto fail;
     }
     if(interactive) {
