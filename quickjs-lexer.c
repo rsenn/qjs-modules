@@ -652,12 +652,39 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val) {
 static BOOL
 lexer_escape_pred(int c) {
   switch(c) {
+    case '*':
+    case '?':
+    case '+':
+    case '[':
+    case ']':
+    case '(':
+    case ')':
+    case '.':
+    case '^':
+    case '$':
+    case '|':
     case '\r':
     case '\n':
     case '\t':
+    case '\v':
+    case '\f':
     case '\\': return TRUE;
   }
   return FALSE;
+}
+static BOOL
+lexer_unescape_pred(int c) {
+  switch(c) {
+    case 'r': return '\r';
+    case 'n': return '\n';
+    case 't': return '\t';
+    case 'v': return '\v';
+    case 'f': return '\f';
+    case '/':
+      return '/';
+      // case '\\': return '\\';
+  }
+  return 0;
 }
 
 JSValue
@@ -1132,11 +1159,12 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
 }
 
 static JSValue
-js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   InputBuffer input = js_input_buffer(ctx, argv[0]);
   DynBuf output;
   js_dbuf_init(ctx, &output);
-  dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
+  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred)
+        : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
   return dbuf_tostring_free(&output, ctx);
 }
 
@@ -1350,7 +1378,8 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_lexer_static_funcs[] = {
-    JS_CFUNC_DEF("escape", 1, js_lexer_escape),
+    JS_CFUNC_MAGIC_DEF("escape", 1, js_lexer_escape, 0),
+    JS_CFUNC_MAGIC_DEF("unescape", 1, js_lexer_escape, 1),
     JS_CFUNC_DEF("toString", 1, js_lexer_tostring),
     JS_PROP_INT32_DEF("FIRST", LEXER_FIRST, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("LONGEST", LEXER_LONGEST, JS_PROP_ENUMERABLE),

@@ -50,6 +50,23 @@ static int js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, ins
 static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor,
     set_ctor, regexp_ctor, proxy_ctor;
 
+static int
+regexp_predicate(int c) {
+
+  switch(c) {
+
+    case 8: return 'u';
+    case 12: return 'f';
+    case 10: return 'n';
+    case 13: return 'r';
+    case 9: return 't';
+    case 11: return 'v';
+  }
+  if(c < 0x20)
+    return 'u';
+  return 0;
+}
+
 static void
 inspect_options_init(inspect_options_t* opts, JSContext* ctx) {
   opts->colors = TRUE;
@@ -450,10 +467,11 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 static int
 js_inspect_regexp(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   const char* str;
-  str = JS_ToCString(ctx, value);
+  size_t len;
+  str = JS_ToCStringLen(ctx, &len, value);
   if(opts->colors)
     dbuf_putstr(buf, "\x1b[0;31m");
-  dbuf_putstr(buf, str);
+  dbuf_put_escaped_pred(buf, str, len, regexp_predicate);
   if(opts->colors)
     dbuf_putstr(buf, "\x1b[m");
   js_cstring_free(ctx, str);
@@ -508,7 +526,7 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
         n = ansi_truncate(&str[pos], eol, max_len);
       }
     }
-    dbuf_put_escaped(buf, &str[pos], n);
+    dbuf_put_escaped_pred(buf, &str[pos], n, escape_char_pred);
     pos += n;
   }
   js_cstring_free(ctx, str);

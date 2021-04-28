@@ -43,10 +43,10 @@ ansi_truncate(const char* str, size_t len, size_t limit) {
       continue;
     }
     n += is_escape_char(str[i]) ? 2 : 1;
-    if(n > limit)
-      break;
 
     i++;
+    if(n > limit)
+      break;
   }
   return i;
 }
@@ -125,6 +125,7 @@ dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color
 void
 dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
   size_t i = 0, j;
+  char c;
   while(i < len) {
     if((j = predicate_find(&str[i], len - i, pred))) {
       dbuf_append(db, (const uint8_t*)&str[i], j);
@@ -134,10 +135,38 @@ dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int))
       break;
     dbuf_putc(db, '\\');
 
-    if(str[i] == 0x1b)
+    if(str[i] == 0x1b) {
       dbuf_append(db, (const uint8_t*)"x1b", 3);
-    else
-      dbuf_putc(db, escape_char_letter(str[i]));
+    } else {
+      int r = pred(str[i]);
+
+      dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(str[i])) ? c : str[i]);
+
+      if(r == 'u'|| r== 'x')
+        dbuf_printf(db, r == 'u' ? "%04x" : "%02x", str[i]);
+      
+    }
+    i++;
+  }
+}
+
+void
+dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
+  size_t i = 0, j;
+  char c;
+  int r;
+  while(i < len) {
+    if((j = predicate_find(&str[i], len - i, is_backslash_char))) {
+      dbuf_append(db, (const uint8_t*)&str[i], j);
+      i += j;
+    }
+    if(i == len)
+      break;
+
+    if(!(r = pred(str[++i])))
+      dbuf_putc(db, '\\');
+
+    dbuf_putc(db, (r > 1 && r < 256) ? r : str[i]);
     i++;
   }
 }

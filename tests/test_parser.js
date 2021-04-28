@@ -15,10 +15,13 @@ import extendArray from '../lib/extendArray.js';
 
 extendArray(Array.prototype);
 
-function WriteFile(file, tok) {
+function WriteFile(file, str) {
   let f = std.open(file, 'w+');
-  f.puts(tok);
-  console.log('Wrote "' + file + '": ' + tok.length + ' bytes');
+  f.puts(str);
+  let pos = f.tell();
+  console.log('Wrote "' + file + '": ' + pos + ' bytes');
+  f.close();
+  return pos;
 }
 
 function DumpLexer(lex) {
@@ -27,13 +30,140 @@ function DumpLexer(lex) {
   return `Lexer ${inspect({ start, pos, size })}`;
 }
 
+function TokenSeq(tokens) {
+  return tokens.map(tok => tok.lexeme);
+}
+
+function ConcatPattern(tokens) {
+  let out = '';
+  for(let tok of tokens) {
+    let str = tok.lexeme;
+    if(tok.type.endsWith('literal')) {
+      str = Lexer.escape(str.slice(1, -1));
+      if(/^[A-Za-z0-9_]+$/.test(str)) str += '\\b';
+    }
+    out += str;
+  }
+  return out;
+}
+
+function TokenName(act) {
+  let idx, tok;
+  if((idx = act.findIndex(tok => tok.type == 'return')) != -1) {
+    act = act.slice(idx);
+    while((tok = act.pop())) {
+      if(tok.type.endsWith('identifier')) return tok.lexeme;
+      if(tok.type.endsWith('literal')) return tok.lexeme.slice(1, -1);
+    }
+  }
+}
+
+function TokenToString(tok) {
+  let str = tok.lexeme;
+  if(tok.type.endsWith('literal')) str = str.slice(1, -1);
+  return str;
+}
+
+function InstanceOf(obj, ctor) {
+  return typeof obj == 'object' && obj != null && obj instanceof ctor;
+}
+function IsRegExp(regexp) {
+  return InstanceOf(regexp, RegExp);
+}
+
+function RegExpToArray(regexp) {
+  //console.log("RegExpToArray", regexp);
+  const { source, flags } = regexp;
+  return [Lexer.unescape(source), flags];
+}
+
+function RegExpCompare(r1, r2) {
+  //console.log("RegExpCompare", r1,r2);
+  [r1, r2] = [r1, r2].map(RegExpToString);
+  return r1 === undefined ? -1 : r2 === undefined ? 1 : r1.localeCompare(r2);
+}
+
+function RegExpToString(regexp) {
+  if(typeof regexp == 'string') return regexp;
+  if(IsRegExp(regexp)) return RegExpToArray(regexp)[0];
+}
+
+function LoadScript(file) {
+  let code = std.loadFile(file);
+  //console.log('LoadScript', { code });
+  return std.evalScript(code, {});
+}
+
+function WriteObject(file, obj, fn = arg => arg) {
+  return WriteFile(file,
+    fn(
+      inspect(obj, {
+        colors: false,
+        breakLength: 80,
+        maxStringLength: Infinity,
+        maxArrayLength: Infinity,
+        compact: 1
+      })
+    )
+  );
+}
+
+function* Range(start, end) {
+  for(let i = start | 0; i <= end; i++) yield i;
+}
+
+function* MatchAll(regexp, str) {
+  let match;
+  while((match = regexp.exec(str))) yield match;
+}
+
+function SubstDefines(str, definitions) {
+  //console.log('SubstDefines', { str, definitions });
+  let pos = 0;
+  let out = '';
+  for(let match of MatchAll(/{([A-Za-z0-9_]+)}/g, str)) {
+    const { index, 0: raw, 1: name } = match;
+    if(index > pos) out += str.slice(pos, index);
+    if(!(name in definitions)) throw new Error(`No definition for ${raw}`);
+    out += definitions[name];
+    pos = index + raw.length;
+    //console.log('match', match, { index, raw, name });
+  }
+  out += str.slice(pos, str.length);
+  console.log('SubstDefines', { str, out });
+  return out;
+}
+
+function TryCatch(fn) {
+  let success = [],
+    error = [];
+
+  let ret = function(...args) {
+    let ret;
+    try {
+      ret = fn.call(this, ...args);
+    } catch(e) {
+      console.log('TryCatch ERROR', e.message);
+      for(let handler of error) ret = handler(e);
+      return ret;
+    } finally {
+      // console.log('TryCatch SUCCESS', ret);
+      for(let handler of success) ret = handler(ret);
+      return ret;
+    }
+  };
+  ret['then'] = handler => (success.push(handler), ret);
+  ret['catch'] = handler => (error.push(handler), ret);
+  return ret;
+}
+
 /*Token.prototype.inspect = function(options = {}) {
   const { byteLength,start,length,offset,lexeme,loc} = this;
   return inspect({ byteLength, start, length,offset,lexeme,loc});
 }
 */
 class EBNFParser extends Parser {
-  constructor() {
+  constructor(grammar) {
     super(new BNFLexer());
 
     console.log('lexer.states', this.lexer.states);
@@ -46,9 +176,9 @@ class EBNFParser extends Parser {
       );
 
     this.section = 0;
-    this.grammar = {
+    this.grammar = grammar ?? {
       productions: [],
-      lexer: { definitions: [], rules: [] }
+      lexer: { definitions: {}, rules: [] }
     };
   }
 
@@ -59,19 +189,49 @@ class EBNFParser extends Parser {
     return lexer.setInput(source, file);
   }
 
-  addToken(token) {
+  findRule(token, regexp) {
     const { rules } = this.grammar.lexer;
+    let rule = rules.find((rule, i) => {
+      const re = RegExpToString(rule.regexp);
 
-    if(rules.find(rule => rule.token == token)) return;
+      if(token === undefined) console.log(`findRule[${i}]`, { regexp, re });
 
-    rules.push({ token });
+      return typeof token == 'string'
+        ? rule.token == token
+        : 0 === RegExpCompare(regexp, rule.regexp);
+    });
+    if(token === undefined) console.log('findRule', { token, regexp, rule });
+    return rule;
   }
+
+  addToken(token, regexp) {
+    console.log('addToken', { token, regexp });
+    const { rules, definitions } = this.grammar.lexer;
+    let rule,
+      add = r => rules.push(r);
+    if((regexp = RegExpToString(regexp))) regexp = SubstDefines(regexp, definitions);
+
+    if((rule = this.findRule(token, regexp))) add = () => {};
+
+    rule ??= {};
+    if(typeof token == 'string') rule.token = token;
+    if(regexp) rule.regexp = new RegExp(regexp);
+    /*TryCatch(() => (rule.regexp = new RegExp(regexp))).catch(error => console.log('ERROR: regexp =', regexp)
+      )();*/
+
+    if(['token', 'regexp'].some(prop => prop in rule)) {
+      add(rule);
+      return rule;
+    }
+  }
+
   addDefinition(name, expr) {
     const { definitions } = this.grammar.lexer;
+    console.log('addDefinition', { name, expr });
 
-    if(definitions.find(def => def.name == name)) return;
+    if('name' in definitions) return;
 
-    definitions.push({ name, expr });
+    definitions[name] = expr;
   }
 
   parseDirective() {
@@ -79,10 +239,11 @@ class EBNFParser extends Parser {
     let tok,
       d = this.expect(directive).lexeme.slice(1);
     while(+(tok = this.next()) != newline) {
-      DumpToken('parseDirective'.padEnd(20), tok);
+      // DumpToken('parseDirective'.padEnd(20), tok);
       switch (d) {
         case 'token': {
-          this.addToken(tok.lexeme);
+          let rule = this.findRule(tok.lexeme);
+          if(!rule) throw new Error(`No such token ${tok.lexeme}`);
           break;
         }
         default: {
@@ -92,34 +253,67 @@ class EBNFParser extends Parser {
       this.consume();
       if(tok.type == 'newline') break;
     }
-    //this.expect(newline);
+  }
+
+  addProduction(symbol, rhs) {
+    const { productions } = this.grammar;
+    let production = { symbol, rhs };
+    productions.push(production);
+    return production;
   }
 
   parseProduction() {
     let id = this.expect('identifier');
-    let toks = [];
+    let tok;
+    let tokens = [];
+    let results = [];
     this.expect('colon');
-    while(!this.match('semi')) toks.push(this.expect(tok => true));
-    this.expect('semi');
+    const add = () => {
+      if(tokens.length) {
+        let rhs = [...tokens].map(TokenToString);
+        results.push(rhs);
+        tokens.clear();
+      }
+    };
 
-    toks.forEach(tok => {
+    while((tok = this.consume())) {
+      if(tok.type.endsWith('semi')) break;
+      if(tok.type == 'bar') {
+        add();
+        continue;
+      }
+
+      tokens.push(tok);
+    }
+
+    add();
+    //   this.expect('semi');
+
+    tokens.forEach(tok => {
       if(tok.type == 'literal') this.addToken(tok.lexeme.slice(1, -1));
     });
 
-    console.log(id.lexeme + ':');
-    console.log(toks.map(t => `\t${t.type.padEnd(20)} ${t.lexeme}`).join('\n'));
+    console.log(id.lexeme + ':', results);
+
+    for(let result of results) {
+      this.addProduction(id.lexeme, result);
+    }
+    //   console.log(tokens.map(t => `\t${t.type.padEnd(20)} ${t.lexeme}`).join('\n'));
+    //     console.log('results', ));
   }
 
   parseDefinition() {
     const { l_pattern, l_newline, identifier, l_identifier } = this.tokens;
     this.lexer.pushState('LEXDEFINE');
 
-    let tok,
+    let expr,
       name = this.expect(['identifier', 'l_identifier']).lexeme;
     // console.log('parseDefinition', this.lexer.stateStack);
 
-    tok = this.next();
-    DumpToken('parseDefinition'.padEnd(20), tok);
+    expr = this.next();
+    //DumpToken('parseDefinition'.padEnd(20), expr);
+
+    this.addDefinition(name, expr.lexeme);
 
     this.consume();
 
@@ -128,16 +322,28 @@ class EBNFParser extends Parser {
 
   parsePattern() {
     const { lexer } = this;
-
-    let tok;
+    let tok,
+      pat = [],
+      act = [];
+    let arr = pat;
     while((tok = this.consume())) {
-      DumpToken('parsePattern'.padEnd(20), tok);
-
+      //DumpToken('parsePattern'.padEnd(20), tok);
+      if(tok.type.endsWith('cstart')) arr = act;
       if(tok.type.endsWith('newline')) {
         if(lexer.topState() != 'LEXPATTERN') lexer.popState();
         break;
       }
+      arr.push(tok);
     }
+    let ret;
+    if(!(ret = this.addToken(TokenName(act), '^' + ConcatPattern(pat))))
+      console.log('parsePattern', {
+        pat: TokenSeq(pat),
+        act: TokenSeq(act),
+        expr: ConcatPattern(pat)
+      });
+    console.log('parsePattern', ret);
+    return ret;
   }
 
   parse() {
@@ -220,20 +426,45 @@ async function main(...args) {
     showHidden: false,
     customInspect: true
   });
+  /*console.log('newline', '\n');
+
+  function TestRegExp(char) {
+    let re;
+    TryCatch(() => (re = new RegExp(char))).catch(err => (re = new RegExp((char = Lexer.escape(char))))
+    )();
+    let source = re ? RegExpToString(re) : undefined;
+    if(char != source) throw new Error(`'${char}' != '${source}'`);
+    console.log({ char, re, source, ok: char == source });
+  }
+
+  [...Range(0, 127)].map(code => {
+    let char = String.fromCharCode(code);
+    TestRegExp(char);
+  });
+  TestRegExp('\b');
+  TestRegExp('\\b');*/
 
   let file = args[0] ?? 'tests/ANSI-C-grammar-2011.y';
+  let outputFile = args[1] ?? 'grammar.kison';
   console.log('file:', file);
   let str = std.loadFile(file, 'utf-8');
   let len = str.length;
   let type = path.extname(file).substring(1);
 
-  let parser = new EBNFParser();
+  let grammar = LoadScript(outputFile);
+  //  console.log('grammar:', grammar);
+
+  let parser = new EBNFParser(grammar);
 
   parser.setInput(str, file);
 
-  let ast = parser.parse();
+  grammar = parser.parse();
 
-  console.log('ast:', ast);
+  WriteObject('grammar.kison',
+    grammar,
+    str => `(function () {\n    return ${str.replace(/\n/g, '\n    ')};\n\n})();`
+  );
+  console.log('grammar:', grammar);
 
   std.gc();
 }

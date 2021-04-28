@@ -51,8 +51,46 @@ typedef struct {
 } IteratorValue;
 
 static inline int
+escape_char_pred(int c) {
+  switch(c) {
+    case 8: return 'b';
+    case 12: return 'f';
+    case 10: return 'n';
+    case 13: return 'r';
+    case 9: return 't';
+    case 11: return 'v';
+    case 39: return '\'';
+    case 92: return '\\';
+  }
+  if(c < 0x20 || c == 127)
+    return 'x';
+
+  return 0;
+}
+
+static inline int
+unescape_char_pred(int c) {
+  switch(c) {
+    case 'b': return 8;
+    case 'f': return 12;
+    case 'n': return 10;
+    case 'r': return 13;
+    case 't': return 9;
+    case 'v': return 11;
+    case '\'': return 39;
+    case '\\': return 92;
+  }
+  return 0;
+}
+
+static inline int
 is_escape_char(int c) {
   return is_control_char(c) || c == '\\' || c == '\'' || c == 0x1b || c == 0;
+}
+
+static inline int
+is_backslash_char(int c) {
+  return c == '\\';
 }
 
 static inline int
@@ -310,6 +348,7 @@ int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 #define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 void dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int));
+void dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int));
 
 static inline void
 js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
@@ -323,7 +362,7 @@ js_dbuf_init(JSContext* ctx, DynBuf* s) {
 
 static inline void
 dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
-  return dbuf_put_escaped_pred(db, str, len, is_escape_char);
+  return dbuf_put_escaped_pred(db, str, len, escape_char_pred);
 }
 
 void dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value);
