@@ -906,6 +906,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
           }
           js_value_free(ctx, str);
           input_buffer_getc(&lex->input);
+          lex->start = lex->input.pos;
         }
       }
       break;
@@ -925,12 +926,13 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     }
 
     case LEXER_METHOD_CURRENT_LINE: {
-      size_t start, end;
+      size_t start, end, size;
       start = lex->start;
       end = lex->input.pos;
       while(start > 0 && lex->input.data[start - 1] != '\n') start--;
-      while(end < lex->input.size && lex->input.data[end] != '\n') end++;
-      ret = JS_NewStringLen(ctx, (const char*)&lex->input.data[start], end - start);
+      size = byte_chr((const char*)&lex->input.data[start], lex->input.size - start, '\n');
+      // while(end < lex->input.size && lex->input.data[end] != '\n') end++;
+      ret = JS_NewStringLen(ctx, (const char*)&lex->input.data[start], size);
       break;
     }
 
@@ -1357,6 +1359,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("source", js_lexer_get, 0, LEXER_PROP_SOURCE),
     JS_CFUNC_MAGIC_DEF("setInput", 1, js_lexer_method, LEXER_METHOD_SET_INPUT),
     JS_CFUNC_MAGIC_DEF("skip", 0, js_lexer_method, LEXER_METHOD_SKIP),
+    JS_CFUNC_MAGIC_DEF("skipUntil", 1, js_lexer_method, LEXER_METHOD_SKIPUNTIL),
     JS_CFUNC_MAGIC_DEF("tokenClass", 1, js_lexer_method, LEXER_METHOD_TOKEN_CLASS),
     JS_CFUNC_MAGIC_DEF("define", 2, js_lexer_add_rule, 0),
     JS_CFUNC_MAGIC_DEF("addRule", 2, js_lexer_add_rule, 1),

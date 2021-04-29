@@ -48,13 +48,26 @@ function ConcatPattern(tokens) {
 }
 
 function TokenName(act) {
-  let idx, tok;
-  if((idx = act.findIndex(tok => tok.type == 'return')) != -1) {
-    act = act.slice(idx);
-    while((tok = act.pop())) {
-      if(tok.type.endsWith('identifier')) return tok.lexeme;
-      if(tok.type.endsWith('literal')) return tok.lexeme.slice(1, -1);
+  let idx, tok, ret;
+  if((idx = act.findIndex(tok => ['return', 'BEGIN'].indexOf(tok.lexeme) != -1)) != -1) {
+    act = act.slice(idx + 1);
+    if(act[0].type.endsWith('paren')) act.shift();
+    //console.log("TokenName", act.map(InspectToken));
+    while((tok = act.shift())) {
+      console.log('TokenName', tok);
+      if(tok.type.endsWith('identifier')) {
+        ret = tok.lexeme;
+        break;
+      }
+      if(tok.type.endsWith('literal')) {
+        ret = tok.lexeme.slice(1, -1);
+        break;
+      }
+      break;
     }
+    console.log('TokenName', ret);
+
+    return ret;
   }
 }
 
@@ -121,11 +134,15 @@ function SubstDefines(str, definitions) {
   //console.log('SubstDefines', { str, definitions });
   let pos = 0;
   let out = '';
+  let get = typeof definitions == 'function' ? definitions : name => definitions[name];
+
   for(let match of MatchAll(/{([A-Za-z0-9_]+)}/g, str)) {
     const { index, 0: raw, 1: name } = match;
     if(index > pos) out += str.slice(pos, index);
-    if(!(name in definitions)) throw new Error(`No definition for ${raw}`);
-    out += definitions[name];
+    let value = get(name);
+    if(typeof value != 'string') throw new Error(`No definition for ${name}`);
+    if(/^[^\(]*[^\\]\|/.test(value)) value = `(${value})`;
+    out += value;
     pos = index + raw.length;
     //console.log('match', match, { index, raw, name });
   }
@@ -157,6 +174,30 @@ function TryCatch(fn) {
   return ret;
 }
 
+function TokenPredicate(char_or_fn) {
+  if(typeof char_or_fn == 'function') return char_or_fn;
+  return tok => tok.type == char_or_fn || tok.lexeme == char_or_fn;
+}
+function InspectToken(tok) {
+  return [tok.loc + '', tok.type, tok.lexeme];
+}
+
+function Balancer(open, close, debug) {
+  let is = { open: TokenPredicate(open), close: TokenPredicate(close) };
+  let stack = [];
+  return function Balancer(tok) {
+    const open = is.open(tok);
+    const close = is.close(tok);
+
+    if(open) stack.push(tok);
+    if(close) stack.pop();
+
+    if(debug && (open || close))
+      console.log('Balancer', { tok: InspectToken(tok), stack: stack.map(InspectToken) });
+    return stack.length == 0;
+  };
+}
+
 /*Token.prototype.inspect = function(options = {}) {
   const { byteLength,start,length,offset,lexeme,loc} = this;
   return inspect({ byteLength, start, length,offset,lexeme,loc});
@@ -170,7 +211,9 @@ class EBNFParser extends Parser {
     console.log('lexer.tokens', this.lexer.tokens);
 
     this.lexer.handler = (arg, tok) =>
-      console.log(`Unmatched token at ${arg.loc} section=${this.section} state=${
+      console.log(`Unmatched token at ${arg.loc} char='${Lexer.escape(
+          arg.currentLine()[arg.loc.column - 1]
+        )}' section=${this.section} state=${
           arg.states[arg.state]
         }\n${arg.currentLine()}\n${' '.repeat(arg.loc.column - 1)}^`
       );
@@ -194,22 +237,23 @@ class EBNFParser extends Parser {
     let rule = rules.find((rule, i) => {
       const re = RegExpToString(rule.regexp);
 
-      if(token === undefined) console.log(`findRule[${i}]`, { regexp, re });
+      //if(token === undefined) console.log(`findRule[${i}]`, { regexp, re });
 
       return typeof token == 'string'
         ? rule.token == token
         : 0 === RegExpCompare(regexp, rule.regexp);
     });
-    if(token === undefined) console.log('findRule', { token, regexp, rule });
+    //if(token === undefined) console.log('findRule', { token, regexp, rule });
     return rule;
   }
 
-  addToken(token, regexp) {
-    console.log('addToken', { token, regexp });
+  addRule(token, regexp) {
+    console.log('addRule', { token, regexp });
     const { rules, definitions } = this.grammar.lexer;
     let rule,
       add = r => rules.push(r);
-    if((regexp = RegExpToString(regexp))) regexp = SubstDefines(regexp, definitions);
+    if((regexp = RegExpToString(regexp)))
+      regexp = SubstDefines(regexp, name => this.getDefinition(name));
 
     if((rule = this.findRule(token, regexp))) add = () => {};
 
@@ -226,24 +270,51 @@ class EBNFParser extends Parser {
   }
 
   addDefinition(name, expr) {
-    const { definitions } = this.grammar.lexer;
+    const { grammar } = this;
+    if(grammar.lexer == undefined) grammar.lexer = { definitions: {}, rules: [] };
+
     console.log('addDefinition', { name, expr });
 
-    if('name' in definitions) return;
+    if(name in grammar.lexer.definitions) return;
 
-    definitions[name] = expr;
+    grammar.lexer.definitions[name] = expr;
+  }
+
+  getDefinition(name) {
+    const { definitions } = this.grammar.lexer;
+
+    let value = definitions[name];
+
+    while(/{[A-Za-z0-9_]+}/.test(value)) {
+      let newVal = SubstDefines(value, definitions);
+      if(newVal != value) console.log('getDefinition', { newVal, value });
+      else break;
+      value = newVal;
+    }
+
+    return value;
+  }
+
+  error(tok, message) {
+    const { lexer } = this;
+    return new Error(`${tok.loc} ${tok.type} '${Lexer.escape(tok.lexeme)}' ${message}\n${lexer.currentLine()}\n${
+        ' '.repeat(tok.loc.column - 1) + '^'
+      }`
+    );
   }
 
   parseDirective() {
     const { directive, newline, identifier } = this.tokens;
     let tok,
       d = this.expect(directive).lexeme.slice(1);
-    while(+(tok = this.next()) != newline) {
-      // DumpToken('parseDirective'.padEnd(20), tok);
+    while(+(tok = this.next()) >= 0) {
+      if(tok.type == 'newline') break;
+      DumpToken('parseDirective'.padEnd(20), tok);
+      console.log('d', d);
       switch (d) {
         case 'token': {
           let rule = this.findRule(tok.lexeme);
-          if(!rule) throw new Error(`No such token ${tok.lexeme}`);
+          if(!rule) throw this.error(tok, `No such token`);
           break;
         }
         default: {
@@ -251,7 +322,6 @@ class EBNFParser extends Parser {
         }
       }
       this.consume();
-      if(tok.type == 'newline') break;
     }
   }
 
@@ -275,74 +345,97 @@ class EBNFParser extends Parser {
         tokens.clear();
       }
     };
-
     while((tok = this.consume())) {
       if(tok.type.endsWith('semi')) break;
       if(tok.type == 'bar') {
         add();
         continue;
       }
-
       tokens.push(tok);
     }
-
     add();
-    //   this.expect('semi');
-
-    tokens.forEach(tok => {
-      if(tok.type == 'literal') this.addToken(tok.lexeme.slice(1, -1));
-    });
-
+    /*  tokens.forEach(tok => {
+      if(tok.type == 'literal') this.addRule(tok.lexeme.slice(1, -1));
+    });*/
     console.log(id.lexeme + ':', results);
-
     for(let result of results) {
       this.addProduction(id.lexeme, result);
     }
-    //   console.log(tokens.map(t => `\t${t.type.padEnd(20)} ${t.lexeme}`).join('\n'));
-    //     console.log('results', ));
   }
 
   parseDefinition() {
-    const { l_pattern, l_newline, identifier, l_identifier } = this.tokens;
     this.lexer.pushState('LEXDEFINE');
-
+    const { l_pattern, l_newline, identifier, l_identifier } = this.tokens;
     let expr,
       name = this.expect(['identifier', 'l_identifier']).lexeme;
-    // console.log('parseDefinition', this.lexer.stateStack);
-
-    expr = this.next();
-    //DumpToken('parseDefinition'.padEnd(20), expr);
-
-    this.addDefinition(name, expr.lexeme);
-
-    this.consume();
-
-    //  this.expect(l_newline);
+    DumpToken(`parseDefinition(${this.lexer.topState()})`.padEnd(20), this.next());
+    this.expect('l_ws');
+    this.lexer.pushState('LEXPATTERN');
+    expr = this.parsePattern();
+    this.lexer.popState();
+    DumpToken(`parseDefinition(${this.lexer.topState()})`.padEnd(20), this.next());
+    // console.log(`parseDefinition(${this.lexer.topState()})`.padEnd(20), expr.map(InspectToken));
+    this.addDefinition(name, ConcatPattern(expr));
+    this.lexer.popState();
   }
 
-  parsePattern() {
+  parsePattern(endCond = tok => tok.type.endsWith('newline')) {
+    let tok,
+      pattern = [];
+    if(this.lexer.topState() != 'LEXPATTERN') this.lexer.pushState('LEXPATTERN');
+    while((tok = this.next())) {
+      if(endCond(tok)) break;
+      pattern.push(tok);
+      this.consume();
+    }
+    //  console.log(`parsePattern(${this.lexer.topState()})`.padEnd(20), pattern.map(InspectToken));
+    return pattern;
+  }
+
+  parseRule() {
+    DumpToken(`parseRule(${this.lexer.topState()})`.padEnd(20), this.next());
     const { lexer } = this;
     let tok,
-      pat = [],
+      pat = this.parsePattern(tok => tok.type.endsWith('newline') || tok.type.endsWith('cstart')),
       act = [];
-    let arr = pat;
-    while((tok = this.consume())) {
-      //DumpToken('parsePattern'.padEnd(20), tok);
-      if(tok.type.endsWith('cstart')) arr = act;
-      if(tok.type.endsWith('newline')) {
-        if(lexer.topState() != 'LEXPATTERN') lexer.popState();
-        break;
+
+    if(this.next().type.endsWith('cstart')) {
+      const balancer = new Balancer(tok => tok.lexeme.trim() == '{',
+        tok => tok.lexeme.trim() == '}'
+      );
+
+      lexer.pushState('C');
+
+      while((tok = this.consume())) {
+        if(!tok.type.endsWith('newline')) act.push(tok);
+        if(balancer(tok)) {
+          if(lexer.topState() == 'C') lexer.popState();
+          break;
+        }
       }
-      arr.push(tok);
     }
+
+    /* while((tok = this.consume())) {
+       if(tok.type.endsWith('cstart')) {
+        arr = act;
+        balancer = new Balancer(tok => tok.lexeme.trim() == '{',
+          tok => tok.lexeme.trim() == '}'
+        );      }
+      if(!tok.type.endsWith('newline')) arr.push(tok);
+      if(balancer(tok)) {
+         if(lexer.topState() == 'C') lexer.popState();
+         break;
+      }
+    }*/
+    console.log(`parseRule(${this.lexer.topState()})`.padEnd(20), act.map(InspectToken));
     let ret;
-    if(!(ret = this.addToken(TokenName(act), '^' + ConcatPattern(pat))))
-      console.log('parsePattern', {
+    if(!(ret = this.addRule(TokenName(act), '^' + ConcatPattern(pat))))
+      console.log(`parseRule(${this.lexer.topState()})`.padEnd(20), {
         pat: TokenSeq(pat),
         act: TokenSeq(act),
         expr: ConcatPattern(pat)
       });
-    console.log('parsePattern', ret);
+    console.log(`parseRule(${this.lexer.topState()})`.padEnd(20), ret);
     return ret;
   }
 
@@ -356,6 +449,8 @@ class EBNFParser extends Parser {
     for(;;) {
       let tok = this.next();
 
+      if(!tok) break;
+
       if(tok.type.endsWith('newline')) {
         this.consume();
         continue;
@@ -364,16 +459,21 @@ class EBNFParser extends Parser {
       if(lexer.topState() == 'LEXPATTERN') {
         if(tok.type == 'p_section') {
           lexer.popState();
-        } else this.parsePattern();
+        } else this.parseRule();
         continue;
       }
-      DumpToken('parse'.padEnd(20), tok);
+      if(lexer.topState() == 'LEXDEFINE' && tok.type == 'l_identifier') {
+        this.parseDefinition();
+        continue;
+      }
+      DumpToken(`parse(${lexer.topState()})`.padEnd(20), tok);
 
       switch (tok.type) {
         case 'directive': {
           this.parseDirective();
           break;
         }
+        case 'l_section':
         case 'p_section':
         case 'section': {
           this.section++;
@@ -417,17 +517,18 @@ class EBNFParser extends Parser {
 }
 
 async function main(...args) {
-  new Console({
+  /*console =*/ new Console({
     colors: true,
-    depth: 8,
+    depth: Infinity,
     maxArrayLength: Infinity,
     maxStringLength: Infinity,
+    breakLength: 80,
     compact: 1,
     showHidden: false,
     customInspect: true
   });
-  /*console.log('newline', '\n');
-
+  console.log('console.options', console.options);
+  /*
   function TestRegExp(char) {
     let re;
     TryCatch(() => (re = new RegExp(char))).catch(err => (re = new RegExp((char = Lexer.escape(char))))

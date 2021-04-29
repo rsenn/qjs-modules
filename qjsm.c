@@ -330,7 +330,7 @@ jsm_load_script(JSContext* ctx, const char* filename, int module) {
   val = jsm_eval_file(ctx, filename, module);
   if(JS_IsException(val)) {
     jsm_std_dump_error(ctx, JS_GetException(ctx));
-   return -1;
+    return -1;
   }
   if(JS_IsNumber(val))
     JS_ToInt32(ctx, &ret, val);
