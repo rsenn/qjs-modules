@@ -174,13 +174,14 @@ foreach(TEST_SOURCE ${TESTS_SOURCES})
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
 file(GLOB LIBJS lib/*.js)
-list(FILTER LIBJS EXCLUDE REGEX "lib/require.js|lib/console.js")
+list(FILTER LIBJS EXCLUDE REGEX "lib/require.js|lib/console.js|lib/fs.js")
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}")
 
 compile_module(lib/console.js)
 compile_module(lib/require.js)
 compile_module(lib/repl.js)
+compile_module(lib/fs.js)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set(quickjs_sources_root ${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -217,7 +218,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
       ${CMAKE_CURRENT_BINARY_DIR}/repl.c
       ${CMAKE_CURRENT_BINARY_DIR}/qjscalc.c
       ${CMAKE_CURRENT_BINARY_DIR}/console.c
-      ${CMAKE_CURRENT_BINARY_DIR}/require.c)
+      ${CMAKE_CURRENT_BINARY_DIR}/require.c
+      ${CMAKE_CURRENT_BINARY_DIR}/fs.c)
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
     set(QJSM_SOURCES
         ${QJSM_SOURCES}

@@ -1025,12 +1025,12 @@ js_value_typestr(JSContext* ctx, JSValueConst value) {
 
 void*
 js_value_get_ptr(JSValue v) {
-  return v.u.ptr;
+  return JS_VALUE_GET_PTR(v);
 }
 
 int32_t
 js_value_get_tag(JSValue v) {
-  return v.tag;
+  return JS_VALUE_GET_TAG(v);
 }
 
 BOOL
@@ -1363,4 +1363,23 @@ token_length(const char* str, size_t len, char delim) {
     }
   }
   return s - str;
+}
+
+JSValue
+js_module_name(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* module;
+  JSValue name = JS_UNDEFINED;
+
+  if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE && (module = JS_VALUE_GET_PTR(value)))
+    name = JS_AtomToValue(ctx, module->module_name);
+
+  return name;
+}
+
+char*
+js_module_namestr(JSContext* ctx, JSValueConst value) {
+  JSValue name = js_module_name(ctx, value);
+  char* s = js_tostring(ctx, name);
+  JS_FreeValue(ctx, name);
+  return s;
 }

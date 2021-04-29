@@ -69,10 +69,12 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     }
 
     case METHOD_DIRNAME: {
-      pos = str_rchrs(a, "/\\", 2);
-      if(pos < alen)
-        alen = pos;
-      ret = JS_NewStringLen(ctx, a, alen);
+      if((pos = str_rchrs(a, "/\\", 2)) < alen)
+        ret = JS_NewStringLen(ctx, a, pos);
+      else if(alen == 1 && a[0] == '.')
+        ret = JS_NULL;
+      else
+        ret = JS_NewStringLen(ctx, ".", 1);
       break;
     }
 

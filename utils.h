@@ -602,6 +602,13 @@ js_tostring(JSContext* ctx, JSValueConst value) {
 JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value);
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
 JSValue js_value_from_char(JSContext* ctx, int c);
+static inline int
+js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
+  const char* str = JS_ToCString(ctx, value);
+  int ret = strcmp(str, other);
+  JS_FreeCString(ctx, str);
+  return ret;
+}
 
 /*#define js_value_free(ctx, value) \
   do {                                                                                                                 \
@@ -747,5 +754,8 @@ void js_argv_free(JSContext* ctx, char** strv);
 JSValue js_argv_to_array(JSContext* ctx, char** strv);
 JSValue js_intv_to_array(JSContext* ctx, int* intv);
 char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
+
+JSValue js_module_name(JSContext*, JSValueConst);
+char* js_module_namestr(JSContext* ctx, JSValueConst value);
 
 #endif /* defined(UTILS_H) */
