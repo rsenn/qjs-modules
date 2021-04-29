@@ -643,7 +643,7 @@ main(int argc, char** argv) {
   int trace_memory = 0;
   int empty_run = 0;
   int module = 1;
-  int load_std = 0;
+  int load_std = 1;
   int dump_unhandled_promise_rejection = 0;
   size_t memory_limit = 0;
   char* include_list[32];

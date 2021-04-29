@@ -13,7 +13,7 @@ import extendArray from '../lib/extendArray.js';
 
 ('use math');
 
-  let code = 'C';
+let code = 'C';
 
 extendArray(Array.prototype);
 
@@ -493,7 +493,7 @@ class EBNFParser extends Parser {
 
       if(!tok) break;
 
-      if((tok.type+'').endsWith('newline')) {
+      if((tok.type + '').endsWith('newline')) {
         this.consume();
         continue;
       }
@@ -570,14 +570,14 @@ async function main(...args) {
     customInspect: true
   });
   console.log('console.options', console.options);
- let optind = 0;
+  let optind = 0;
   while(args[optind] && args[optind].startsWith('-')) {
     if(/code/.test(args[optind])) {
-      code =globalThis.code= args[++optind].toUpperCase();
+      code = globalThis.code = args[++optind].toUpperCase();
     }
 
     optind++;
-  }  /*
+  } /*
   function TestRegExp(char) {
     let re;
     TryCatch(() => (re = new RegExp(char))).catch(err => (re = new RegExp((char = Lexer.escape(char))))
@@ -595,7 +595,7 @@ async function main(...args) {
   TestRegExp('\\b');*/
 
   let file = args[optind] ?? 'tests/ANSI-C-grammar-2011.y';
-  let outputFile = args[optind+1] ?? 'grammar.kison';
+  let outputFile = args[optind + 1] ?? 'grammar.kison';
   console.log('file:', file);
   let str = std.loadFile(file, 'utf-8');
   let len = str.length;
