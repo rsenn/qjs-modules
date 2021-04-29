@@ -254,15 +254,15 @@ class EBNFParser extends Parser {
     return rule;
   }
 
-  addRule(token, regexp) {
-    console.log('addRule', { token, regexp });
+  addRule(token, regexp, states) {
+    console.log('addRule', { token, regexp, states });
     const { rules, definitions } = this.grammar.lexer;
     let rule,
       add = r => rules.push(r);
     if((regexp = RegExpToString(regexp)))
       regexp = SubstDefines(regexp, name => this.getDefinition(name));
 
-    if((rule = this.findRule(token, regexp))) add = () => {};
+    //if((rule = this.findRule(token, regexp))) add = () => {};
 
     rule ??= {};
     if(typeof token == 'string') rule.token = token;
@@ -271,6 +271,8 @@ class EBNFParser extends Parser {
       TryCatch(() => (rule.regexp = new RegExp(regexp))).catch(error =>
         console.log('ERROR: regexp =', regexp)
       )();
+
+    if(states) rule.state = states.length == 1 ? states[0] : states;
 
     if(['token', 'regexp'].some(prop => prop in rule)) {
       add(rule);
@@ -451,33 +453,23 @@ class EBNFParser extends Parser {
           tok.type.endsWith('ws') || tok.type.endsWith('newline') || tok.type.endsWith('cstart')
       ),
       act = [];
-
     tok = this.next();
-
     if(tok.type.endsWith('cstart')) act = this.parseAction();
     else {
-lexer.pushState('C');
+      this.consume();
+      lexer.pushState('C');
       act = this.parseUntil();
-lexer.popState();
-}
-    /* while((tok = this.consume())) {
-       if(tok.type.endsWith('cstart')) {
-        arr = act;
-        balancer = new Balancer(tok => tok.lexeme.trim() == '{',
-          tok => tok.lexeme.trim() == '}'
-        );      }
-      if(!tok.type.endsWith('newline')) arr.push(tok);
-      if(balancer(tok)) {
-         if(lexer.topState() == 'C') lexer.popState();
-         break;
-      }
-    }*/
+      lexer.popState();
+    }
     console.log(`parseRule(${this.lexer.topState()})`.padEnd(20), {
       pat: pat.map(InspectToken),
       act: act.map(InspectToken)
     });
     let ret;
-    if(!(ret = this.addRule(TokenName(act), '^' + ConcatPattern(pat))))
+    let pattern = ConcatPattern(pat);
+    let match = /^(<[^>]*>|)/.exec(pattern);
+    let states = match[0].length ? match[0].slice(1, -1).split(',') : null;
+    if(!(ret = this.addRule(TokenName(act), '^' + pattern.slice(match[0].length), states)))
       console.log(`parseRule(${this.lexer.topState()})`.padEnd(20), {
         pat: TokenSeq(pat),
         act: TokenSeq(act),
