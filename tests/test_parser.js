@@ -266,9 +266,11 @@ class EBNFParser extends Parser {
 
     rule ??= {};
     if(typeof token == 'string') rule.token = token;
-    if(regexp) rule.regexp = new RegExp(regexp);
-    /*TryCatch(() => (rule.regexp = new RegExp(regexp))).catch(error => console.log('ERROR: regexp =', regexp)
-      )();*/
+    if(regexp)
+      //rule.regexp = new RegExp(regexp);
+      TryCatch(() => (rule.regexp = new RegExp(regexp))).catch(error =>
+        console.log('ERROR: regexp =', regexp)
+      )();
 
     if(['token', 'regexp'].some(prop => prop in rule)) {
       add(rule);
@@ -317,7 +319,6 @@ class EBNFParser extends Parser {
     while(+(tok = this.next()) >= 0) {
       if(tok.type == 'newline') break;
       DumpToken('parseDirective'.padEnd(20), tok);
-      console.log('d', d);
       switch (d) {
         case 'token': {
           let rule = this.findRule(tok.lexeme);
@@ -385,7 +386,9 @@ class EBNFParser extends Parser {
     let expr,
       name = this.expect(['identifier', 'l_identifier']).lexeme;
     DumpToken(`parseDefinition(${this.lexer.topState()})`.padEnd(20), this.next());
-    this.expect('l_ws');
+    let tok = this.next();
+
+    if(tok.type.endsWith('ws')) this.expect(tok.type);
     this.lexer.pushState('LEXPATTERN');
     expr = this.parsePattern();
     this.lexer.popState();
@@ -428,16 +431,35 @@ class EBNFParser extends Parser {
     return act;
   }
 
+  parseUntil(endCond = tok => tok.type.endsWith('newline')) {
+    let tok,
+      arr = [];
+    while((tok = this.next())) {
+      DumpToken(`parseUntil(${this.lexer.topState()})`.padEnd(20), tok);
+      if(!tok.type.endsWith('newline')) arr.push(tok);
+      if(endCond(tok)) break;
+      this.consume();
+    }
+    return arr;
+  }
+
   parseRule() {
     DumpToken(`parseRule(${this.lexer.topState()})`.padEnd(20), this.next());
     const { lexer } = this;
     let tok,
-      pat = this.parsePattern(tok => tok.type.endsWith('newline') || tok.type.endsWith('cstart')),
+      pat = this.parsePattern(tok =>
+          tok.type.endsWith('ws') || tok.type.endsWith('newline') || tok.type.endsWith('cstart')
+      ),
       act = [];
 
     tok = this.next();
-    if(tok.type.endsWith('cstart')) act = this.parseAction();
 
+    if(tok.type.endsWith('cstart')) act = this.parseAction();
+    else {
+lexer.pushState('C');
+      act = this.parseUntil();
+lexer.popState();
+}
     /* while((tok = this.consume())) {
        if(tok.type.endsWith('cstart')) {
         arr = act;
@@ -450,7 +472,10 @@ class EBNFParser extends Parser {
          break;
       }
     }*/
-    console.log(`parseRule(${this.lexer.topState()})`.padEnd(20), act.map(InspectToken));
+    console.log(`parseRule(${this.lexer.topState()})`.padEnd(20), {
+      pat: pat.map(InspectToken),
+      act: act.map(InspectToken)
+    });
     let ret;
     if(!(ret = this.addRule(TokenName(act), '^' + ConcatPattern(pat))))
       console.log(`parseRule(${this.lexer.topState()})`.padEnd(20), {
