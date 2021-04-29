@@ -210,13 +210,20 @@ class EBNFParser extends Parser {
     console.log('lexer.states', this.lexer.states);
     console.log('lexer.tokens', this.lexer.tokens);
 
-    this.lexer.handler = (arg, tok) =>
-      console.log(`Unmatched token at ${arg.loc} char='${Lexer.escape(
-          arg.currentLine()[arg.loc.column - 1]
-        )}' section=${this.section} state=${
-          arg.states[arg.state]
-        }\n${arg.currentLine()}\n${' '.repeat(arg.loc.column - 1)}^`
+    this.lexer.handler = (arg, tok) => {
+      let line = arg.currentLine();
+      let index = arg.loc.column - 1;
+      let error = new Error(`Unmatched token at ${arg.loc} char='${Lexer.escape(line[index])}' section=${
+          this.section
+        } state=${arg.states[arg.state]}\n${line}\n${[...line]
+          .slice(0, index)
+          .map(c => (c != '\t' ? ' ' : c))
+          .join('')}^`
       );
+      console.log(error.message);
+      console.log('tokens', [...this.processed, ...this.buffer].slice(-10).map(InspectToken));
+      throw error;
+    };
 
     this.section = 0;
     this.grammar = grammar ?? {
@@ -336,6 +343,7 @@ class EBNFParser extends Parser {
     let id = this.expect('identifier');
     let tok;
     let tokens = [];
+    let action = [];
     let results = [];
     this.expect('colon');
     const add = () => {
@@ -345,12 +353,20 @@ class EBNFParser extends Parser {
         tokens.clear();
       }
     };
-    while((tok = this.consume())) {
-      if(tok.type.endsWith('semi')) break;
+    while((tok = this.next())) {
+      if(this.lexer.topState() != 'INITIAL') {
+        action = this.parseAction();
+      } else if(tok.type.endsWith('lbrace') || tok.type.endsWith('cstart')) {
+        this.lexer.pushState('C');
+      }
+
+      tok = this.consume();
+
       if(tok.type == 'bar') {
         add();
         continue;
       }
+      if(tok.type.endsWith('semi')) break;
       tokens.push(tok);
     }
     add();
@@ -392,6 +408,26 @@ class EBNFParser extends Parser {
     return pattern;
   }
 
+  parseAction() {
+    const { lexer } = this;
+    let tok,
+      act = [];
+    const balancer = new Balancer(tok => tok.lexeme.trim() == '{',
+      tok => tok.lexeme.trim() == '}'
+    );
+
+    if(lexer.topState() != 'C') lexer.pushState('C');
+
+    while((tok = this.consume())) {
+      if(!tok.type.endsWith('newline')) act.push(tok);
+      if(balancer(tok)) {
+        if(lexer.topState() == 'C') lexer.popState();
+        break;
+      }
+    }
+    return act;
+  }
+
   parseRule() {
     DumpToken(`parseRule(${this.lexer.topState()})`.padEnd(20), this.next());
     const { lexer } = this;
@@ -399,21 +435,8 @@ class EBNFParser extends Parser {
       pat = this.parsePattern(tok => tok.type.endsWith('newline') || tok.type.endsWith('cstart')),
       act = [];
 
-    if(this.next().type.endsWith('cstart')) {
-      const balancer = new Balancer(tok => tok.lexeme.trim() == '{',
-        tok => tok.lexeme.trim() == '}'
-      );
-
-      lexer.pushState('C');
-
-      while((tok = this.consume())) {
-        if(!tok.type.endsWith('newline')) act.push(tok);
-        if(balancer(tok)) {
-          if(lexer.topState() == 'C') lexer.popState();
-          break;
-        }
-      }
-    }
+    tok = this.next();
+    if(tok.type.endsWith('cstart')) act = this.parseAction();
 
     /* while((tok = this.consume())) {
        if(tok.type.endsWith('cstart')) {
@@ -560,19 +583,21 @@ async function main(...args) {
   parser.setInput(str, file);
 
   grammar = parser.parse();
-
-  WriteObject('grammar.kison',
-    grammar,
-    str => `(function () {\n    return ${str.replace(/\n/g, '\n    ')};\n\n})();`
-  );
-  console.log('grammar:', grammar);
-
+  if(grammar) {
+    WriteObject('grammar.kison',
+      grammar,
+      str => `(function () {\n    return ${str.replace(/\n/g, '\n    ')};\n\n})();`
+    );
+    console.log('grammar:', grammar);
+  }
   std.gc();
+  return !!grammar;
 }
 
 main(...scriptArgs.slice(1))
-  .then(() => console.log('SUCCESS'))
+  .then(ret => console.log(ret ? 'SUCCESS' : 'FAIL'))
   .catch(error => {
     console.log(`FAIL: ${error.message}\n${error.stack}`);
     std.exit(1);
   });
+111;
