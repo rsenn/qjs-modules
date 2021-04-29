@@ -13,6 +13,8 @@ import extendArray from '../lib/extendArray.js';
 
 ('use math');
 
+  let code = 'C';
+
 extendArray(Array.prototype);
 
 function WriteFile(file, str) {
@@ -360,7 +362,7 @@ class EBNFParser extends Parser {
       if(this.lexer.topState() != 'INITIAL') {
         action = this.parseAction();
       } else if(tok.type.endsWith('lbrace') || tok.type.endsWith('cstart')) {
-        this.lexer.pushState('C');
+        this.lexer.pushState(code);
       }
 
       tok = this.consume();
@@ -421,12 +423,12 @@ class EBNFParser extends Parser {
       tok => tok.lexeme.trim() == '}'
     );
 
-    if(lexer.topState() != 'C') lexer.pushState('C');
+    if(lexer.topState() != code) lexer.pushState(code);
 
     while((tok = this.consume())) {
       if(!tok.type.endsWith('newline')) act.push(tok);
       if(balancer(tok)) {
-        if(lexer.topState() == 'C') lexer.popState();
+        if(lexer.topState() == code) lexer.popState();
         break;
       }
     }
@@ -457,7 +459,7 @@ class EBNFParser extends Parser {
     if(tok.type.endsWith('cstart')) act = this.parseAction();
     else {
       this.consume();
-      lexer.pushState('C');
+      lexer.pushState(code);
       act = this.parseUntil();
       lexer.popState();
     }
@@ -491,7 +493,7 @@ class EBNFParser extends Parser {
 
       if(!tok) break;
 
-      if(tok.type.endsWith('newline')) {
+      if((tok.type+'').endsWith('newline')) {
         this.consume();
         continue;
       }
@@ -538,7 +540,7 @@ class EBNFParser extends Parser {
         }
         case 'cstart': {
           while((tok = this.consume())) {
-            console.log('tok', tok);
+            console.log('tok', InspectToken(tok));
 
             if(tok.type == 'cend') break;
           }
@@ -568,7 +570,14 @@ async function main(...args) {
     customInspect: true
   });
   console.log('console.options', console.options);
-  /*
+ let optind = 0;
+  while(args[optind] && args[optind].startsWith('-')) {
+    if(/code/.test(args[optind])) {
+      code =globalThis.code= args[++optind].toUpperCase();
+    }
+
+    optind++;
+  }  /*
   function TestRegExp(char) {
     let re;
     TryCatch(() => (re = new RegExp(char))).catch(err => (re = new RegExp((char = Lexer.escape(char))))
@@ -585,8 +594,8 @@ async function main(...args) {
   TestRegExp('\b');
   TestRegExp('\\b');*/
 
-  let file = args[0] ?? 'tests/ANSI-C-grammar-2011.y';
-  let outputFile = args[1] ?? 'grammar.kison';
+  let file = args[optind] ?? 'tests/ANSI-C-grammar-2011.y';
+  let outputFile = args[optind+1] ?? 'grammar.kison';
   console.log('file:', file);
   let str = std.loadFile(file, 'utf-8');
   let len = str.length;
