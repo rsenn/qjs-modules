@@ -79,6 +79,76 @@ JSModuleDef* js_init_module_repeater(JSContext*, const char*);
 JSModuleDef* js_init_module_tree_walker(JSContext*, const char*);
 JSModuleDef* js_init_module_xml(JSContext*, const char*);
 
+static JSValue
+jsm_module_exports(JSContext* ctx, JSModuleDef* module) {
+  JSValue exports = JS_NewObject(ctx);
+  size_t i;
+
+  for(i = 0; i < module->export_entries_count; i++) {
+    JSExportEntry* entry = &module->export_entries[i];
+    JSVarRef* ref = entry->u.local.var_ref;
+
+    if(ref) {
+      JSValue export = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
+      JS_SetProperty(ctx, exports, entry->export_name, export);
+    }
+  }
+  return exports;
+}
+
+static JSModuleDef*
+jsm_module_find(JSContext* ctx, const char* name) {
+  struct list_head* el;
+  size_t namelen = strlen(name);
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    const char *n, *str = JS_AtomToCString(ctx, m->module_name);
+    size_t len;
+    n = basename(str);
+    len = str_rchr(n, '.');
+    // printf("jsm_module_find %s\n", n);
+    if(!strcmp(str, name) || !strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
+      return m;
+
+    JS_FreeCString(ctx, str);
+  }
+  return 0;
+}
+
+static JSModuleDef*
+jsm_module_get(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* m = 0;
+  if(JS_IsString(value)) {
+    const char* name = JS_ToCString(ctx, value);
+
+    m = jsm_module_find(ctx, name);
+
+    JS_FreeCString(ctx, name);
+  } else if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE) {
+    m = JS_VALUE_GET_PTR(value);
+  }
+  return m;
+}
+
+static JSValue
+jsm_module_list(JSContext* ctx, JSValueConst this_val) {
+  struct list_head* el;
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i = 0;
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    JSValue moduleName = JS_AtomToValue(ctx, m->module_name);
+    const char* str = JS_ToCString(ctx, moduleName);
+
+    if(str[0] != '<')
+      JS_SetPropertyUint32(ctx, ret, i++, JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
+
+    JS_FreeCString(ctx, str);
+    JS_FreeValue(ctx, moduleName);
+  }
+  return ret;
+}
+
 static void
 jsm_dump_obj(JSContext* ctx, FILE* f, JSValueConst val) {
   const char* str;
@@ -200,6 +270,11 @@ JSModuleDef*
 jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   char* filename;
   JSModuleDef* ret = NULL;
+
+  if(!strchr(module_name, '/'))
+    if((ret = jsm_module_find(ctx, module_name)))
+      return ret;
+
   filename = module_name[0] == '/' ? js_strdup(ctx, module_name) : jsm_find_module(ctx, module_name);
   if(filename) {
     ret = js_module_loader(ctx, filename, opaque);
@@ -285,42 +360,6 @@ jsm_eval_file(JSContext* ctx, const char* filename, int module) {
     eval_flags = JS_EVAL_TYPE_GLOBAL;
 
   return jsm_eval_buf(ctx, buf, buf_len, filename, eval_flags);
-}
-
-static JSValue
-jsm_module_exports(JSContext* ctx, JSModuleDef* module) {
-  JSValue exports = JS_NewObject(ctx);
-  size_t i;
-
-  for(i = 0; i < module->export_entries_count; i++) {
-    JSExportEntry* entry = &module->export_entries[i];
-    JSVarRef* ref = entry->u.local.var_ref;
-
-    if(ref) {
-      JSValue export = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
-      JS_SetProperty(ctx, exports, entry->export_name, export);
-    }
-  }
-  return exports;
-}
-
-static JSModuleDef*
-jsm_module_find(JSContext* ctx, const char* name) {
-  struct list_head* el;
-  size_t namelen = strlen(name);
-  list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    const char *n, *str = JS_AtomToCString(ctx, m->module_name);
-    size_t len;
-    n = basename(str);
-    len = str_rchr(n, '.');
-    // printf("jsm_module_find %s\n", n);
-    if(!strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
-      return m;
-
-    JS_FreeCString(ctx, str);
-  }
-  return 0;
 }
 
 static int
@@ -550,8 +589,6 @@ jsm_help(void) {
   exit(1);
 }
 
-JSModuleDef* jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque);
-
 static JSValue
 js_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char* str;
@@ -590,12 +627,14 @@ js_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
+enum { FIND_MODULE, GET_MODULE_NAME, GET_MODULE_EXPORTS };
+
 static JSValue
 js_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_EXCEPTION;
   switch(magic) {
 
-    case 0: {
+    case FIND_MODULE: {
       const char* name = JS_ToCString(ctx, argv[0]);
       JSModuleDef* module = jsm_module_find(ctx, name);
 
@@ -604,19 +643,20 @@ js_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, module));
       break;
     }
-    case 1: {
-      if(JS_VALUE_GET_TAG(argv[0]) == JS_TAG_MODULE)
+    case GET_MODULE_NAME: {
+      JSModuleDef* m;
+
+      if((m = jsm_module_get(ctx, argv[0])))
         ret = js_module_name(ctx, argv[0]);
 
       break;
     }
-    case 2: {
-      if(JS_VALUE_GET_TAG(argv[0]) == JS_TAG_MODULE) {
-        JSModuleDef* module;
+    case GET_MODULE_EXPORTS: {
+      JSModuleDef* m;
 
-        if((module = JS_VALUE_GET_PTR(argv[0])))
-          ret = jsm_module_exports(ctx, module);
-      }
+      if((m = jsm_module_get(ctx, argv[0])))
+        ret = jsm_module_exports(ctx, m);
+
       break;
     }
   }
@@ -626,9 +666,10 @@ js_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, js_eval_script, 0),
     JS_CFUNC_MAGIC_DEF("evalScript", 1, js_eval_script, 1),
-    JS_CFUNC_MAGIC_DEF("findModule", 1, js_module_func, 0),
-    JS_CFUNC_MAGIC_DEF("getModuleName", 1, js_module_func, 1),
-    JS_CFUNC_MAGIC_DEF("getModuleExports", 1, js_module_func, 2),
+    JS_CGETSET_DEF("moduleList", jsm_module_list, 0),
+    JS_CFUNC_MAGIC_DEF("findModule", 1, js_module_func, FIND_MODULE),
+    JS_CFUNC_MAGIC_DEF("getModuleName", 1, js_module_func, GET_MODULE_NAME),
+    JS_CFUNC_MAGIC_DEF("getModuleExports", 1, js_module_func, GET_MODULE_EXPORTS),
 };
 
 int

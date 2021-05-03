@@ -180,8 +180,13 @@ function TokenPredicate(char_or_fn) {
   if(typeof char_or_fn == 'function') return char_or_fn;
   return tok => tok.type == char_or_fn || tok.lexeme == char_or_fn;
 }
+
 function InspectToken(tok) {
   return [tok.loc + '', tok.type, tok.lexeme];
+}
+
+function MatchString(str) {
+  return tok => tok.lexeme.trim() == str;
 }
 
 function Balancer(open, close, debug) {
@@ -190,27 +195,138 @@ function Balancer(open, close, debug) {
   return function Balancer(tok) {
     const open = is.open(tok);
     const close = is.close(tok);
-
     if(open) stack.push(tok);
     if(close) stack.pop();
-
     if(debug && (open || close))
       console.log('Balancer', { tok: InspectToken(tok), stack: stack.map(InspectToken) });
     return stack.length == 0;
   };
 }
 
-/*Token.prototype.inspect = function(options = {}) {
-  const { byteLength,start,length,offset,lexeme,loc} = this;
-  return inspect({ byteLength, start, length,offset,lexeme,loc});
+function Node(token) {
+  let obj = this ?? new Node();
+  if(token) {
+    const { type, lexeme } = token;
+    let ctor = Node;
+    switch (type) {
+      case 'identifier':
+        ctor = NonTerminal;
+        break;
+      case 'char_class':
+      case 'literal':
+        ctor = Terminal;
+        break;
+      default: throw new Error(`Unhandled token type: ${type}`);
+        break;
+    }
+    if(ctor !== Node) obj = new ctor(lexeme);
+  }
+  return obj;
 }
-*/
+
+Object.defineProperties(Node.prototype, {
+  type: {
+    get() {
+      return this.constructor.name;
+    }
+  },
+  toJSON: {
+    value() {
+      return { type: this.type, ...this };
+    }
+  }
+});
+Object.assign(Node, {
+  from(arr) {}
+});
+
+class Terminal extends Node {
+  constructor(value) {
+    super();
+    this.value = value;
+  }
+  toString() {
+    return this.value;
+  }
+}
+
+class NonTerminal extends Node {
+  constructor(name) {
+    super();
+    this.name = name;
+  }
+  toString() {
+    return `${this.name}`;
+  }
+}
+
+class List extends Node {
+  constructor(nodes, separator) {
+    super();
+    this.nodes = nodes;
+    this.separator = separator;
+  }
+
+  toString(parens_if_multiple) {
+    let s = this.nodes.map(node => node.toString()).join(this.separator);
+    if(parens_if_multiple && this.nodes.length > 1) s = `(${s})`;
+    return s;
+  }
+}
+
+class Alternatives extends List {
+  constructor(nodes) {
+    super(nodes, ' | ');
+  }
+}
+
+class Sequence extends List {
+  constructor(nodes) {
+    super(nodes, ' ');
+  }
+}
+
+class Operator extends Node {
+  constructor(node, operator) {
+    super();
+    this.node = node;
+    this.operator = operator;
+  }
+  toString() {
+    return this.operator(this.node.toString(true));
+  }
+}
+
+class Optional extends Operator {
+  constructor(node) {
+    super(node, s => s + '?');
+  }
+}
+
+class OneOrMany extends Operator {
+  constructor(node) {
+    super(node, s => s + '+');
+  }
+}
+
+class Any extends Operator {
+  constructor(node) {
+    super(node, s => s + '*');
+  }
+}
+
+class Not extends Operator {
+  constructor(node) {
+    super(node, s => '~' + s);
+  }
+}
+
 class EBNFParser extends Parser {
   constructor(grammar) {
     super(new BNFLexer());
 
-    console.log('lexer.states', this.lexer.states);
-    console.log('lexer.tokens', this.lexer.tokens);
+    /* console.log('lexer.states', this.lexer.states);
+    console.log('lexer.tokens', this.lexer.tokens);*/
 
     this.lexer.handler = (arg, tok) => {
       let line = arg.currentLine();
@@ -245,14 +361,10 @@ class EBNFParser extends Parser {
     const { rules } = this.grammar.lexer;
     let rule = rules.find((rule, i) => {
       const re = RegExpToString(rule.regexp);
-
-      //if(token === undefined) console.log(`findRule[${i}]`, { regexp, re });
-
       return typeof token == 'string'
         ? rule.token == token
         : 0 === RegExpCompare(regexp, rule.regexp);
     });
-    //if(token === undefined) console.log('findRule', { token, regexp, rule });
     return rule;
   }
 
@@ -263,9 +375,6 @@ class EBNFParser extends Parser {
       add = r => rules.push(r);
     if((regexp = RegExpToString(regexp)))
       regexp = SubstDefines(regexp, name => this.getDefinition(name));
-
-    //if((rule = this.findRule(token, regexp))) add = () => {};
-
     rule ??= {};
     if(typeof token == 'string') rule.token = token;
     if(regexp)
@@ -273,9 +382,7 @@ class EBNFParser extends Parser {
       TryCatch(() => (rule.regexp = new RegExp(regexp))).catch(error =>
         console.log('ERROR: regexp =', regexp)
       )();
-
     if(states) rule.state = states.length == 1 ? states[0] : states;
-
     if(['token', 'regexp'].some(prop => prop in rule)) {
       add(rule);
       return rule;
@@ -285,26 +392,20 @@ class EBNFParser extends Parser {
   addDefinition(name, expr) {
     const { grammar } = this;
     if(grammar.lexer == undefined) grammar.lexer = { definitions: {}, rules: [] };
-
     console.log('addDefinition', { name, expr });
-
     if(name in grammar.lexer.definitions) return;
-
     grammar.lexer.definitions[name] = expr;
   }
 
   getDefinition(name) {
     const { definitions } = this.grammar.lexer;
-
     let value = definitions[name];
-
     while(/{[A-Za-z0-9_]+}/.test(value)) {
       let newVal = SubstDefines(value, definitions);
       if(newVal != value) console.log('getDefinition', { newVal, value });
       else break;
       value = newVal;
     }
-
     return value;
   }
 
@@ -322,7 +423,7 @@ class EBNFParser extends Parser {
       d = this.expect(directive).lexeme.slice(1);
     while(+(tok = this.next()) >= 0) {
       if(tok.type == 'newline') break;
-      DumpToken('parseDirective'.padEnd(20), tok);
+      //DumpToken('parseDirective'.padEnd(20), tok);
       switch (d) {
         case 'token': {
           let rule = this.findRule(tok.lexeme);
@@ -341,47 +442,8 @@ class EBNFParser extends Parser {
     const { productions } = this.grammar;
     let production = { symbol, rhs };
     productions.push(production);
+    console.log(`addProduction(${this.lexer.topState()})`.padEnd(20), { symbol, rhs });
     return production;
-  }
-
-  parseProduction() {
-    let id = this.expect('identifier');
-    let tok;
-    let tokens = [];
-    let action = [];
-    let results = [];
-    this.expect('colon');
-    const add = () => {
-      if(tokens.length) {
-        let rhs = [...tokens].map(TokenToString);
-        results.push(rhs);
-        tokens.clear();
-      }
-    };
-    while((tok = this.next())) {
-      if(this.lexer.topState() != 'INITIAL') {
-        action = this.parseAction();
-      } else if(tok.type.endsWith('lbrace') || tok.type.endsWith('cstart')) {
-        this.lexer.pushState(code);
-      }
-
-      tok = this.consume();
-
-      if(tok.type == 'bar') {
-        add();
-        continue;
-      }
-      if(tok.type.endsWith('semi')) break;
-      tokens.push(tok);
-    }
-    add();
-    /*  tokens.forEach(tok => {
-      if(tok.type == 'literal') this.addRule(tok.lexeme.slice(1, -1));
-    });*/
-    console.log(id.lexeme + ':', results);
-    for(let result of results) {
-      this.addProduction(id.lexeme, result);
-    }
   }
 
   parseDefinition() {
@@ -389,14 +451,14 @@ class EBNFParser extends Parser {
     const { l_pattern, l_newline, identifier, l_identifier } = this.tokens;
     let expr,
       name = this.expect(['identifier', 'l_identifier']).lexeme;
-    DumpToken(`parseDefinition(${this.lexer.topState()})`.padEnd(20), this.next());
+    //DumpToken(`parseDefinition(${this.lexer.topState()})`.padEnd(20), this.next());
     let tok = this.next();
 
     if(tok.type.endsWith('ws')) this.expect(tok.type);
     this.lexer.pushState('LEXPATTERN');
     expr = this.parsePattern();
     this.lexer.popState();
-    DumpToken(`parseDefinition(${this.lexer.topState()})`.padEnd(20), this.next());
+    //DumpToken(`parseDefinition(${this.lexer.topState()})`.padEnd(20), this.next());
     // console.log(`parseDefinition(${this.lexer.topState()})`.padEnd(20), expr.map(InspectToken));
     this.addDefinition(name, ConcatPattern(expr));
     this.lexer.popState();
@@ -419,12 +481,8 @@ class EBNFParser extends Parser {
     const { lexer } = this;
     let tok,
       act = [];
-    const balancer = new Balancer(tok => tok.lexeme.trim() == '{',
-      tok => tok.lexeme.trim() == '}'
-    );
-
+    const balancer = new Balancer(MatchString('{'), MatchString('}'));
     if(lexer.topState() != code) lexer.pushState(code);
-
     while((tok = this.consume())) {
       if(!tok.type.endsWith('newline')) act.push(tok);
       if(balancer(tok)) {
@@ -439,7 +497,7 @@ class EBNFParser extends Parser {
     let tok,
       arr = [];
     while((tok = this.next())) {
-      DumpToken(`parseUntil(${this.lexer.topState()})`.padEnd(20), tok);
+      //DumpToken(`parseUntil(${this.lexer.topState()})`.padEnd(20), tok);
       if(!tok.type.endsWith('newline')) arr.push(tok);
       if(endCond(tok)) break;
       this.consume();
@@ -448,7 +506,7 @@ class EBNFParser extends Parser {
   }
 
   parseRule() {
-    DumpToken(`parseRule(${this.lexer.topState()})`.padEnd(20), this.next());
+    //DumpToken(`parseRule(${this.lexer.topState()})`.padEnd(20), this.next());
     const { lexer } = this;
     let tok,
       pat = this.parsePattern(tok =>
@@ -481,23 +539,126 @@ class EBNFParser extends Parser {
     return ret;
   }
 
+  parseProduction() {
+    let tok;
+    let id = (tok = this.expect('identifier'));
+    //DumpToken(`parseProduction(${this.lexer.topState()})`.padEnd(20), this.next());
+    let tokens = [];
+    let action = [];
+    let results = [];
+    this.expect('colon');
+    const add = () => {
+      if(tokens.length) {
+        results.push([[...tokens], [...action]]);
+        tokens.clear();
+        action.clear();
+      }
+    };
+    while((tok = this.next())) {
+      if(this.lexer.topState() != 'INITIAL') {
+        action = this.parseAction();
+      } else if(tok.type == 'arrow') {
+        this.lexer.pushState(code);
+        action = this.parseUntil();
+        this.lexer.popState();
+        continue;
+      } else if(['lbrace', 'cstart', 'arrow'].some(t => tok.type.endsWith(t))) {
+        this.lexer.pushState(code);
+        continue;
+      }
+
+      if(this.extname == '.g4') this.parseTree();
+
+      tok = this.consume();
+      if(tok.type == 'bar') {
+        add();
+        continue;
+      }
+      if(tok.type.endsWith('semi')) break;
+      tokens.push(tok);
+    }
+    add();
+    console.log(id.lexeme + ':',
+      results.map(([tokens, action]) => {
+        let obj = { tokens: tokens.map(InspectToken) };
+        if(action.length) obj.action = action.map(InspectToken);
+        return obj;
+      })
+    );
+    for(let [tokens, action] of results) {
+      let node = new Node(tokens[0]);
+      console.log('node:', node.toJSON());
+      this.addProduction(id.lexeme, tokens.map(TokenToString), action);
+    }
+  }
+  parseTree(level = 0) {
+    let tok, node;
+    while((tok = this.next())) {
+      DumpToken(`parseTree(${level})`.padEnd(20), tok);
+      if(['semi', 'bar'].some(t => tok.type == t)) break;
+      if([';', '|'].some(l => tok.lexeme == l)) break;
+      tok = this.consume();
+
+      switch (tok.type) {
+        case 'literal':
+        case 'identifier': {
+          node = new Node(tok);
+          break;
+        }
+        case 'tilde': {
+          break;
+        }
+
+        case 'lparen': {
+          let list = [];
+          while((tok = this.next())) {
+            if(tok.type == 'rparen') {
+              this.consume();
+              break;
+            }
+
+            list.push(this.parseTree(level + 1));
+          }
+          node = new Sequence(list);
+
+          break;
+        }
+        default: {
+          throw new Error(`parseTree: unhandled token: ${tok.type}`);
+          break;
+        }
+      }
+      if(node) {
+        while((tok = this.next())) {
+          DumpToken(`parseTree(${level})`.padEnd(20), tok);
+          let ctor = { question: Optional, plus: OneOrMany, asterisk: Any }[tok.type];
+
+          if(!ctor) break;
+
+          node = new ctor(node);
+          this.consume();
+        }
+      }
+
+      //   break;
+    }
+
+    return node;
+  }
+
   parse() {
     const {
       lexer,
       extname,
       tokens: { directive, section, identifier, l_identifier, cstart, cend }
     } = this;
-
     for(;;) {
       let tok = this.next();
-
-      if(!tok) break;
-
+      if(!tok || tok == -1) return this.grammar;
       if((tok.type + '').endsWith('newline')) {
         this.consume();
         continue;
       }
-
       if(lexer.topState() == 'LEXPATTERN') {
         if(tok.type == 'p_section') {
           lexer.popState();
@@ -508,8 +669,7 @@ class EBNFParser extends Parser {
         this.parseDefinition();
         continue;
       }
-      DumpToken(`parse(${lexer.topState()})`.padEnd(20), tok);
-
+      console.log(`parse(${lexer.topState()})`.padEnd(20), tok);
       switch (tok.type) {
         case 'directive': {
           this.parseDirective();
@@ -520,7 +680,6 @@ class EBNFParser extends Parser {
         case 'section': {
           this.section++;
           this.consume();
-
           if(extname == '.y' && this.section == 2) return this.grammar;
           if(extname == '.l') {
             if(this.section == 2) {
@@ -534,8 +693,20 @@ class EBNFParser extends Parser {
           break;
         }
         case 'identifier': {
-          if(extname == '.y' && this.section == 1) this.parseProduction();
-          if(extname == '.l' && this.section == 0) this.parseDefinition();
+          if(extname == '.g4') {
+            if(this.section == 0 && tok.lexeme == 'grammar') {
+              while((tok = this.consume())) {
+                if(tok.lexeme == ';') break;
+              }
+              continue;
+            }
+            if(tok.lexeme == 'fragment') this.consume();
+            this.parseProduction();
+          } else if(extname == '.y' && this.section == 1) {
+            this.parseProduction();
+          } else if(extname == '.l' && this.section == 0) {
+            this.parseDefinition();
+          }
           break;
         }
         case 'cstart': {
@@ -614,7 +785,7 @@ async function main(...args) {
       grammar,
       str => `(function () {\n    return ${str.replace(/\n/g, '\n    ')};\n\n})();`
     );
-    console.log('grammar:', grammar);
+    //  console.log('grammar:', grammar);
   }
   std.gc();
   return !!grammar;
