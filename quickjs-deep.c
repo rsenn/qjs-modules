@@ -21,15 +21,37 @@ typedef struct DeepIterator {
 } DeepIterator;
 
 enum deep_iterator_return {
-  RETURN_VALUE = 0,
+  RETURN_VALUE_PATH = 0,
   MAXDEPTH_MASK = 0xffffff,
   RETURN_PATH = 1 << 24,
-  RETURN_VALUE_PATH = 2 << 24,
+  RETURN_VALUE = 2 << 24,
   RETURN_PATH_VALUE = 3 << 24,
   RETURN_MASK = 7 << 24,
   PATH_AS_STRING = 1 << 28,
   NO_THROW = 1 << 29
 };
+
+static uint32_t
+js_deep_parseflags(JSContext* ctx, int argc, JSValueConst argv[]) {
+  uint32_t flags = RETURN_VALUE_PATH;
+  int i = 0;
+
+  /*  if(i < argc && JS_IsNumber(argv[i]))
+      flags = 0;*/
+
+  for(; i < argc; i++) {
+    uint32_t num = 0;
+    if(JS_IsNumber(argv[i])) {
+      JS_ToUint32(ctx, &num, argv[i]);
+      if(num & RETURN_MASK)
+        flags &= ~RETURN_MASK;
+      if(num & MAXDEPTH_MASK)
+        flags &= ~MAXDEPTH_MASK;
+      flags |= num;
+    }
+  }
+  return flags;
+}
 
 static JSValue
 js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
@@ -37,7 +59,7 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
   PropertyEnumeration* penum = vector_back(frames, sizeof(PropertyEnumeration));
   JSValue (*path_fn)(Vector*, JSContext*);
 
-  path_fn = return_flag & PATH_AS_STRING ? property_enumeration_pathstr_value : property_enumeration_path;
+  path_fn = (return_flag & PATH_AS_STRING) ? property_enumeration_pathstr_value : property_enumeration_path;
 
   switch(return_flag & RETURN_MASK) {
     case RETURN_VALUE: {
@@ -58,8 +80,8 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
       value = property_enumeration_value(penum, ctx);
       path = path_fn(frames, ctx);
 
-      JS_SetPropertyUint32(ctx, ret, return_flag == RETURN_VALUE_PATH ? 0 : 1, value);
-      JS_SetPropertyUint32(ctx, ret, return_flag == RETURN_VALUE_PATH ? 1 : 0, path);
+      JS_SetPropertyUint32(ctx, ret, (return_flag & RETURN_MASK) == RETURN_VALUE_PATH ? 0 : 1, value);
+      JS_SetPropertyUint32(ctx, ret, (return_flag & RETURN_MASK) == RETURN_VALUE_PATH ? 1 : 0, path);
       /*      JS_DefinePropertyValueStr(ctx, ret, "value", JS_DupValue(ctx, value), JS_PROP_CONFIGURABLE);
             JS_DefinePropertyValueStr(ctx, ret, "path", JS_DupValue(ctx, path), JS_PROP_CONFIGURABLE);*/
 
@@ -110,26 +132,20 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   JSValue proto;
   uint32_t flags = RETURN_VALUE_PATH;
   JSValue root = JS_UNDEFINED, pred = JS_UNDEFINED;
-  int i;
+  int i = 0;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     return JS_EXCEPTION;
 
-  if(argc > 0)
-    root = argv[0];
-  if(argc > 1)
-    pred = argv[1];
-  if(argc > 2)
-    JS_ToUint32(ctx, &flags, argv[2]);
-  for(i = 3; i < argc; i++) {
-    uint32_t num = 0;
-    if(JS_IsNumber(argv[i])) {
-      JS_ToUint32(ctx, &num, argv[i]);
-      flags |= num;
-    }
-  }
+  if(i < argc)
+    root = argv[i++];
+  if(i < argc && JS_IsFunction(ctx, argv[i]))
+    pred = argv[i++];
+
+  if(i < argc)
+    flags = js_deep_parseflags(ctx, argc - i, argv + i);
 
   obj = js_deep_iterator_new(ctx, proto, root, pred, flags);
   // JS_FreeValue(ctx, proto);
@@ -238,12 +254,15 @@ static JSValue
 js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   JSValue ret = JS_UNDEFINED;
   JSValueConst this_arg = argc > 3 ? argv[3] : JS_UNDEFINED;
-  int32_t return_flag = 0;
+  uint32_t flags = RETURN_VALUE_PATH, max_depth;
   PropertyEnumeration* it;
   Vector frames;
 
   if(argc > 2)
-    JS_ToInt32(ctx, &return_flag, argv[2]);
+    flags = js_deep_parseflags(ctx, argc - 2, argv + 2);
+
+  if((max_depth = (flags & MAXDEPTH_MASK)) == 0)
+    max_depth = INT32_MAX;
 
   if(!JS_IsFunction(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 2 (predicate) is not a function");
@@ -259,10 +278,13 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   do {
     BOOL result = property_enumeration_predicate(it, ctx, argv[1], this_arg);
     if(result) {
-      ret = js_deep_return(ctx, &frames, return_flag);
+      ret = js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK);
       break;
     }
-  } while((it = property_enumeration_recurse(&frames, ctx)));
+    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx)
+                                                                        : property_enumeration_recurse(&frames, ctx);
+
+  } while(it);
 
   /*t = time_us() - t;
 
@@ -276,14 +298,15 @@ static JSValue
 js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   JSValue ret;
   JSValueConst this_arg = argc > 3 ? argv[3] : JS_UNDEFINED;
-  int32_t i = 0, return_flag = RETURN_VALUE_PATH, max_depth = INT32_MAX;
+  uint32_t i = 0, flags = RETURN_VALUE_PATH, max_depth;
   PropertyEnumeration* it;
   Vector frames;
 
   if(argc > 2)
-    JS_ToInt32(ctx, &return_flag, argv[2]);
-  if(argc > 3)
-    JS_ToInt32(ctx, &max_depth, argv[3]);
+    flags = js_deep_parseflags(ctx, argc - 2, argv + 2);
+
+  if((max_depth = (flags & MAXDEPTH_MASK)) == 0)
+    max_depth = INT32_MAX;
 
   if(!JS_IsFunction(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
@@ -296,9 +319,10 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   do {
     BOOL result = property_enumeration_predicate(it, ctx, argv[1], this_arg);
     if(result)
-      JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, return_flag));
+      JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK));
 
-    it = property_enumeration_recurse(&frames, ctx);
+    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx)
+                                                                        : property_enumeration_recurse(&frames, ctx);
 
   } while(it);
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
