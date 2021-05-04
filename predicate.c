@@ -113,7 +113,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
 
           JS_Call(ctx, argv[1], JS_NULL, 2, args);
 
-          js_value_free(ctx, args[0]);
+          JS_FreeValue(ctx, args[0]);
 
         } else if(JS_IsArray(ctx, argv[1])) {
           int i;
@@ -173,7 +173,7 @@ predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv)
       JS_ToInt32(ctx, &result, ret);
       // result = !!JS_ToBool(ctx, ret);
     }
-    js_value_free(ctx, ret);
+    JS_FreeValue(ctx, ret);
     return result;
   }
   assert(0);
@@ -348,7 +348,7 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
     case PREDICATE_PROTOTYPEIS:
     case PREDICATE_NOTNOT:
     case PREDICATE_NOT: {
-      js_value_free_rt(rt, pred->unary.predicate);
+      JS_FreeValueRT(rt, pred->unary.predicate);
       break;
     }
 

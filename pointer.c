@@ -54,12 +54,16 @@ pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index)
   dbuf_printf(db, "Pointer(%zx) ", ptr->n);
 
   for(i = 0; i < ptr->n; i++) {
-    if(i > 0)
-      dbuf_putstr(db, color ? "\x1b[1;36m." : ".");
+    BOOL is_int;
     s = JS_AtomToCString(ctx, ptr->atoms[i]);
+    is_int = is_integer(s);
+    dbuf_putstr(db, color ? (is_int ? "\x1b[1;36m[" : "\x1b[1;36m.") : (is_integer(s) ? "[" : "."));
     dbuf_putstr(db, color ? pointer_color(s) : "");
     // if(index == i) dbuf_putstr(db, "\x1b[31m");
     dbuf_putstr(db, s);
+    if(is_int)
+      dbuf_putstr(db, color ? "\x1b[1;36m]" : "]");
+
     js_cstring_free(ctx, s);
   }
   dbuf_putstr(db, color ? "\x1b[m" : "");
@@ -175,7 +179,7 @@ pointer_deref(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
     }
 
     JSValue child = JS_GetProperty(ctx, obj, atom);
-    js_value_free(ctx, obj);
+    JS_FreeValue(ctx, obj);
 
     obj = child;
   }
@@ -197,7 +201,7 @@ pointer_acquire(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
     } else {
       child = JS_GetProperty(ctx, obj, atom);
     }
-    js_value_free(ctx, obj);
+    JS_FreeValue(ctx, obj);
 
     obj = child;
   }
@@ -226,7 +230,7 @@ pointer_fromarray(Pointer* ptr, JSContext* ctx, JSValueConst array) {
   for(i = 0; i < len; i++) {
     prop = JS_GetPropertyUint32(ctx, array, i);
     ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
-    js_value_free(ctx, prop);
+    JS_FreeValue(ctx, prop);
   }
   ptr->n = len;
 }
@@ -243,9 +247,9 @@ pointer_fromiterable(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
     if(item.done)
       break;
     pointer_push(ptr, JS_ValueToAtom(ctx, item.value));
-    js_value_free(ctx, item.value);
+    JS_FreeValue(ctx, item.value);
   }
-  js_value_free(ctx, iter);
+  JS_FreeValue(ctx, iter);
 }
 
 int

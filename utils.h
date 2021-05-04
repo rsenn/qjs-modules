@@ -390,11 +390,21 @@ dbuf_zero(DynBuf* db) {
 
 char* dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep);
 const char* dbuf_last_line(DynBuf* db, size_t* len);
-int32_t dbuf_get_column(DynBuf* db);
 void dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color);
 int dbuf_reserve_start(DynBuf* s, size_t len);
 int dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len);
 JSValue dbuf_tostring_free(DynBuf* s, JSContext* ctx);
+
+static inline int32_t
+dbuf_get_column(DynBuf* db) {
+  size_t len;
+  const char* str;
+  if(db->size) {
+    str = dbuf_last_line(db, &len);
+    return ansi_length(str, len);
+  }
+  return 0;
+}
 
 static inline size_t
 dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
@@ -615,12 +625,12 @@ js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
 
 #define JS_VALUE_FREE(ctx, value)                                                                                      \
   do {                                                                                                                 \
-    js_value_free((ctx), (value));                                                                                     \
+    JS_FreeValue((ctx), (value));                                                                                      \
     (value) = JS_UNDEFINED;                                                                                            \
   } while(0);
 #define JS_VALUE_FREE_RT(ctx, value)                                                                                   \
   do {                                                                                                                 \
-    js_value_free_rt((ctx), (value));                                                                                  \
+    JS_FreeValueRT((ctx), (value));                                                                                    \
     (value) = JS_UNDEFINED;                                                                                            \
   } while(0);
 
@@ -636,7 +646,7 @@ js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
 #define js_runtime_exception_clear(rt)                                                                                 \
   do {                                                                                                                 \
     if(!JS_IsNull(js_runtime_exception_get(rt)))                                                                       \
-      js_value_free_rt((rt), js_runtime_exception_get(rt));                                                            \
+      JS_FreeValueRT((rt), js_runtime_exception_get(rt));                                                              \
     js_runtime_exception_set(rt, JS_NULL);                                                                             \
   } while(0)
 

@@ -50,7 +50,7 @@ static inline int
 virtual_properties_setstr(VirtualProperties* vprop, JSContext* ctx, const char* prop, JSValue value) {
   JSValue key = JS_NewString(ctx, prop);
   int ret = virtual_properties_set(vprop, ctx, key, value);
-  js_value_free(ctx, key);
+  JS_FreeValue(ctx, key);
   return ret;
 }
 

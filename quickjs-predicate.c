@@ -24,7 +24,7 @@ js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   return obj;
 fail:
   js_free(ctx, pred);
-  js_value_free(ctx, obj);
+  JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -57,7 +57,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   if(JS_IsException(proto))
     goto fail;
   obj = JS_NewObjectProtoClass(ctx, proto, js_predicate_class_id);
-  js_value_free(ctx, proto);
+  JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
 
@@ -154,7 +154,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   return obj;
 fail:
   js_free(ctx, pred);
-  js_value_free(ctx, obj);
+  JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -329,7 +329,7 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
 
     //   js_free_rt(rt, pred);
   }
-  // js_value_free_rt(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_predicate_class = {.class_name = "Predicate",
