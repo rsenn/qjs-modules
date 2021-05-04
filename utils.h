@@ -297,6 +297,7 @@ str0_prepend(char** s, JSContext* ctx, const char* t) {
 }
 
 #define COLOR_RED "\x1b[31m"
+#define COLOR_LIGHTRED "\x1b[1;31m"
 #define COLOR_GREEN "\x1b[32m"
 #define COLOR_YELLOW "\x1b[33m"
 #define COLOR_MARINE "\x1b[36m"
@@ -316,6 +317,8 @@ str_ndup(const char* s, size_t n) {
   r[n] = '\0';
   return r;
 }
+
+uint64_t time_us(void);
 
 static inline size_t
 predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
@@ -515,7 +518,7 @@ void js_value_free_rt(JSRuntime* rt, JSValue v);
 
 BOOL js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
 void js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
-void js_value_print(JSContext* ctx, JSValueConst value, DynBuf* db);
+void js_value_print(JSContext* ctx, JSValueConst value);
 JSValue js_value_clone(JSContext* ctx, JSValueConst valpe);
 JSValue* js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values);
 void js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values);
@@ -610,16 +613,16 @@ js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
   return ret;
 }
 
-/*#define js_value_free(ctx, value) \
+#define JS_VALUE_FREE(ctx, value)                                                                                      \
   do {                                                                                                                 \
-    js_value_free((ctx), (value)); \
+    js_value_free((ctx), (value));                                                                                     \
     (value) = JS_UNDEFINED;                                                                                            \
   } while(0);
-#define js_value_free_rt(ctx, value)                                                                                   \
+#define JS_VALUE_FREE_RT(ctx, value)                                                                                   \
   do {                                                                                                                 \
     js_value_free_rt((ctx), (value));                                                                                  \
     (value) = JS_UNDEFINED;                                                                                            \
-  } while(0);*/
+  } while(0);
 
 #define js_object_tmpmark_set(value)                                                                                   \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);

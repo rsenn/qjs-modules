@@ -3,6 +3,24 @@
 #include "vector.h"
 #include "libregexp.h"
 #include "quickjs-internal.h"
+#include <time.h>
+
+#if defined(__linux__) || defined(__APPLE__)
+uint64_t
+time_us(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (uint64_t)ts.tv_sec * 1000000 + (ts.tv_nsec / 1000);
+}
+#else
+/* more portable, but does not work if the date is updated */
+uint64_t
+time_us(void) {
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
+}
+#endif
 
 size_t
 ansi_length(const char* str, size_t len) {
@@ -866,6 +884,7 @@ js_object_tostring(JSContext* ctx, JSValueConst value) {
   js_value_free(ctx, str);
   return s;
 }
+
 int
 js_propenum_cmp(const void* a, const void* b, void* ptr) {
   JSContext* ctx = ptr;
@@ -1193,6 +1212,8 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
     const char* str = js_object_tostring(ctx, value);
     dbuf_putstr(db, str);
     js_cstring_free(ctx, str);
+    if(db->size && db->buf[db->size - 1] == '\n')
+      db->size--;
   } else {
     int is_string = JS_IsString(value);
 
@@ -1288,12 +1309,13 @@ js_value_from_char(JSContext* ctx, int c) {
 }
 
 void
-js_value_print(JSContext* ctx, JSValueConst value, DynBuf* dbuf) {
-  const char* str;
-  size_t len;
-  str = JS_ToCStringLen(ctx, &len, value);
-  dbuf_append(dbuf, str, len);
-  js_cstring_free(ctx, str);
+js_value_print(JSContext* ctx, JSValueConst value) {
+  DynBuf dbuf;
+  js_dbuf_init(ctx, &dbuf);
+  js_value_dump(ctx, value, &dbuf);
+  dbuf_0(&dbuf);
+  fputs((const char*)dbuf.buf, stdout);
+  dbuf_free(&dbuf);
 }
 
 JSValue

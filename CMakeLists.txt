@@ -19,7 +19,7 @@ set(child_process_SOURCES
 set(deep_SOURCES
     vector.c vector.h pointer.c virtual-properties.c property-enumeration.c
     property-enumeration.h utils.c utils.h pointer.h virtual-properties.h)
-set(deep_LIBRARIES qjs-pointer)
+set(deep_LIBRARIES qjs-pointer qjs-predicate)
 set(inspect_SOURCES
     vector.c vector.h iteration.h utils.c utils.h property-enumeration.c
     property-enumeration.h quickjs-internal.h)
@@ -207,14 +207,14 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
   set(QJSM_SOURCES
       qjsm.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c
+    #[[  ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c
       ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h
       ${CMAKE_CURRENT_SOURCE_DIR}/../libregexp.c
       ${CMAKE_CURRENT_SOURCE_DIR}/../libunicode.c
       ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.c
       ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.c
       ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.h
-      ${CMAKE_CURRENT_SOURCE_DIR}/../libbf.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/../libbf.c]]
       ${CMAKE_CURRENT_BINARY_DIR}/repl.c
       ${CMAKE_CURRENT_BINARY_DIR}/qjscalc.c
       ${CMAKE_CURRENT_BINARY_DIR}/console.c
@@ -230,7 +230,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   add_executable(qjsm ${QJSM_SOURCES})
 
   # target_link_libraries(qjs ${QUICKJS_LIBRARY})
-  target_link_libraries(qjsm ${STATIC_TARGETS} ${LIBPTHREAD} ${LIBM} ${LIBDL}
+  target_link_libraries(qjsm quickjs ${STATIC_TARGETS} ${LIBPTHREAD} ${LIBM} ${LIBDL}
                         ${LIBWS2_32})
   set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT}"
                                         COMPILE_FLAGS "-w")

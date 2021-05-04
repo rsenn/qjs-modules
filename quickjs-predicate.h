@@ -7,7 +7,7 @@ extern JSClassID js_predicate_class_id;
 
 static inline Predicate*
 js_predicate_data(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_predicate_class_id);
+  return JS_GetOpaque(value, js_predicate_class_id);
 }
 
 JSValue js_predicate_wrap(JSContext*, Predicate);

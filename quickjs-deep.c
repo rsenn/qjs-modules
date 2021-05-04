@@ -218,6 +218,10 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     return JS_ThrowTypeError(ctx, "argument 1 (root) is not an object");
   vector_init(&frames, ctx);
 
+  uint64_t t;
+
+  t = time_us();
+
   property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   it = vector_back(&frames, sizeof(PropertyEnumeration));
 
@@ -228,6 +232,10 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
       break;
     }
   } while((it = property_enumeration_recurse(&frames, ctx)));
+
+  t = time_us() - t;
+
+  printf("js_deep_find took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);
 
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
   return ret;
@@ -262,57 +270,97 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   return ret;
 }
 
+static JSValue js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+
+static JSValue
+js_deep_get2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
+  JSValueConst args[] = {func_data[0], argv[0]};
+  return js_deep_get(ctx, this_val, 2, args);
+}
+
 static JSValue
 js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  Pointer* ptr;
   JSValue ret;
-  if(!(ptr = pointer_new(ctx)))
-    return JS_ThrowOutOfMemory(ctx);
 
-  pointer_from(ptr, ctx, argv[1], 0);
-  ret = pointer_deref(ptr, ctx, argv[0]);
-  pointer_free(ptr, ctx);
+  if(argc > 1) {
+    Pointer* ptr;
+    if(!(ptr = pointer_new(ctx)))
+      return JS_ThrowOutOfMemory(ctx);
+
+    pointer_from(ptr, ctx, argv[1], 0);
+    ret = pointer_deref(ptr, ctx, argv[0]);
+    pointer_free(ptr, ctx);
+  } else {
+    ret = JS_NewCFunctionData(ctx, js_deep_get2, 1, 0, 1, &argv[0]);
+  }
   return ret;
+}
+
+static JSValue js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+
+static JSValue
+js_deep_set2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
+  JSValueConst args[] = {func_data[0], argv[0], argv[1]};
+  return js_deep_set(ctx, this_val, 3, args);
 }
 
 static JSValue
 js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  Pointer* ptr;
-  JSValue obj;
-  JSAtom prop;
-  if(!(ptr = pointer_new(ctx)))
-    return JS_ThrowOutOfMemory(ctx);
+  if(argc > 1) {
+    JSValue obj;
+    JSAtom prop;
+    Pointer* ptr;
 
-  pointer_from(ptr, ctx, argv[1], 0);
-  prop = pointer_pop(ptr);
-  obj = pointer_acquire(ptr, ctx, argv[0]);
+    if(!(ptr = pointer_new(ctx)))
+      return JS_ThrowOutOfMemory(ctx);
 
-  if(!JS_IsException(obj))
-    JS_SetProperty(ctx, obj, prop, argv[2]);
-  JS_FreeAtom(ctx, prop);
-  pointer_free(ptr, ctx);
-  // return JS_UNDEFINED;
-  return JS_DupValue(ctx, obj);
+    pointer_from(ptr, ctx, argv[1], 0);
+    prop = pointer_pop(ptr);
+    obj = pointer_acquire(ptr, ctx, argv[0]);
+
+    if(!JS_IsException(obj))
+      JS_SetProperty(ctx, obj, prop, argv[2]);
+
+    JS_FreeAtom(ctx, prop);
+    pointer_free(ptr, ctx);
+
+    // return JS_UNDEFINED;
+    return JS_DupValue(ctx, obj);
+  }
+
+  return JS_NewCFunctionData(ctx, js_deep_set2, 2, 0, 1, &argv[0]);
+}
+
+static JSValue js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv);
+
+static JSValue
+js_deep_unset2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
+  JSValueConst args[] = {func_data[0], argv[0]};
+  return js_deep_unset(ctx, this_val, 2, args);
 }
 
 static JSValue
 js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  Pointer* ptr;
-  JSValue obj;
-  JSAtom prop;
-  if(!(ptr = pointer_new(ctx)))
-    return JS_ThrowOutOfMemory(ctx);
+  if(argc > 1) {
+    JSValue obj;
+    JSAtom prop;
+    Pointer* ptr;
+    if(!(ptr = pointer_new(ctx)))
+      return JS_ThrowOutOfMemory(ctx);
 
-  pointer_from(ptr, ctx, argv[1], 0);
-  prop = pointer_pop(ptr);
-  obj = pointer_deref(ptr, ctx, argv[0]);
+    pointer_from(ptr, ctx, argv[1], 0);
+    prop = pointer_pop(ptr);
+    obj = pointer_deref(ptr, ctx, argv[0]);
 
-  if(!JS_IsException(obj))
-    JS_DeleteProperty(ctx, obj, prop, 0);
+    if(!JS_IsException(obj))
+      JS_DeleteProperty(ctx, obj, prop, 0);
 
-  JS_FreeAtom(ctx, prop);
-  pointer_free(ptr, ctx);
-  return JS_DupValue(ctx, obj);
+    JS_FreeAtom(ctx, prop);
+    pointer_free(ptr, ctx);
+    return JS_DupValue(ctx, obj);
+  }
+
+  return JS_NewCFunctionData(ctx, js_deep_unset2, 1, 0, 1, &argv[0]);
 }
 
 static JSValue
@@ -471,7 +519,7 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     js_value_free(ctx, aval);
     js_value_free(ctx, bval);
 
-    printf("a %s: %s b %s: %s result: %d\n", astr, avstr, bstr, bvstr, result);
+    // printf("a %s: %s b %s: %s result: %d\n", astr, avstr, bstr, bvstr, result);
 
     JS_FreeCString(ctx, astr);
     JS_FreeCString(ctx, bstr);

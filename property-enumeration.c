@@ -127,6 +127,8 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
   PropertyEnumeration *prev, *it;
   JSValue root = JS_DupValue(ctx, object);
   if(JS_IsObject(root)) {
+    uint64_t t = time_us();
+
     for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it;
         (it = property_enumeration_recurse(&vec, ctx))) {
       JSValue value = property_enumeration_value(it, ctx);
@@ -154,6 +156,9 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
 
       prev = it;
     }
+    t = time_us() - t;
+
+    printf("property_enumeration_depth took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);
   }
   property_enumeration_free(&vec, JS_GetRuntime(ctx));
   /*
@@ -246,6 +251,12 @@ property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueC
   argv[1] = property_enumeration_key(it, ctx);
   argv[2] = this_arg;
   ret = JS_Call(ctx, fn, JS_UNDEFINED, 3, argv);
+
+  if(JS_IsException(ret)) {
+    JS_GetException(ctx);
+    ret = JS_FALSE;
+  }
+
   result = JS_ToBool(ctx, ret);
   js_value_free(ctx, argv[0]);
   js_value_free(ctx, argv[1]);

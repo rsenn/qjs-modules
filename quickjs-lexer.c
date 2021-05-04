@@ -26,7 +26,7 @@ js_location_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
   JSValue file;
   file = JS_GetPropertyStr(ctx, this_val, "file");
   if(JS_IsString(file)) {
-    js_value_print(ctx, file, dbuf);
+    js_value_dump(ctx, file, dbuf);
     dbuf_putc(dbuf, ':');
     js_value_free(ctx, file);
   }
