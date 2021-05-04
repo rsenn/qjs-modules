@@ -63,7 +63,7 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
   adapter->get = JS_NewAtom(ctx, "get");
   adapter->set = JS_NewAtom(ctx, "set");
 
-  js_value_free(ctx, map_prototype);
+  JS_FreeValue(ctx, map_prototype);
 
   return (VirtualProperties){map_obj, map_has, map_delete, map_get, map_set, map_finalizer, adapter};
 }

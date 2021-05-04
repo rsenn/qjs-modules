@@ -26,7 +26,8 @@ enum deep_iterator_return {
   RETURN_VALUE_PATH = 2 << 24,
   RETURN_PATH_VALUE = 3 << 24,
   RETURN_MASK = 7 << 24,
-  PATH_AS_STRING = 1 << 28
+  PATH_AS_STRING = 1 << 28,
+  NO_THROW = 1 << 29
 };
 
 static JSValue
@@ -98,7 +99,7 @@ js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSVa
   return obj;
 fail:
   js_free(ctx, it);
-  js_value_free(ctx, obj);
+  JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
@@ -117,7 +118,7 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
     JS_ToInt32(ctx, &flags, argv[2]);
 
   obj = js_deep_iterator_new(ctx, proto, argc >= 1 ? argv[0] : JS_UNDEFINED, argc >= 2 ? argv[1] : JS_UNDEFINED, flags);
-  // js_value_free(ctx, proto);
+  // JS_FreeValue(ctx, proto);
 
   return obj;
 }
@@ -151,22 +152,22 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       JSValue ret;
       ret = JS_Call(ctx, it->pred, this_val, 2, args);
 
-      js_value_free(ctx, args[0]);
-      js_value_free(ctx, args[1]);
+      JS_FreeValue(ctx, args[0]);
+      JS_FreeValue(ctx, args[1]);
 
       if(!JS_ToBool(ctx, ret))
         continue;
     } else if(it->type_mask != TYPE_ALL) {
       JSValue value = property_enumeration_value(penum, ctx);
       uint32_t type = js_value_type(ctx, value);
-      js_value_free(ctx, value);
+      JS_FreeValue(ctx, value);
 
       if((type & it->type_mask) == 0)
         continue;
     }
 
     /*if(!JS_IsUndefined(ret))
-      js_value_free(ctx, ret);*/
+      JS_FreeValue(ctx, ret);*/
 
     ret = js_deep_return(ctx, &it->frames, it->flags);
     *pdone = FALSE;
@@ -218,9 +219,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     return JS_ThrowTypeError(ctx, "argument 1 (root) is not an object");
   vector_init(&frames, ctx);
 
-  uint64_t t;
-
-  t = time_us();
+  // uint64_t t = time_us();
 
   property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   it = vector_back(&frames, sizeof(PropertyEnumeration));
@@ -233,9 +232,9 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     }
   } while((it = property_enumeration_recurse(&frames, ctx)));
 
-  t = time_us() - t;
+  /*t = time_us() - t;
 
-  printf("js_deep_find took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);
+  printf("js_deep_find took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
 
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
   return ret;
@@ -284,11 +283,22 @@ js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
 
   if(argc > 1) {
     Pointer* ptr;
+    uint32_t flags;
+
     if(!(ptr = pointer_new(ctx)))
       return JS_ThrowOutOfMemory(ctx);
 
+    if(argc > 2)
+      JS_ToUint32(ctx, &flags, argv[2]);
+
     pointer_from(ptr, ctx, argv[1], 0);
     ret = pointer_deref(ptr, ctx, argv[0]);
+
+    if(JS_IsException(ret) && (flags & NO_THROW)) {
+      JS_GetException(ctx);
+      ret = JS_NULL;
+    }
+
     pointer_free(ptr, ctx);
   } else {
     ret = JS_NewCFunctionData(ctx, js_deep_get2, 1, 0, 1, &argv[0]);
@@ -397,14 +407,14 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     if(mask) {
       JSValue value = property_enumeration_value(it, ctx);
       int32_t type = js_value_type(ctx, value);
-      js_value_free(ctx, value);
+      JS_FreeValue(ctx, value);
       if((mask & (1 << type)) == 0)
         continue;
     }
     value = property_enumeration_value(it, ctx);
     virtual_properties_set(&vmap, ctx, path, value);
-    js_value_free(ctx, value);
-    js_value_free(ctx, path);
+    JS_FreeValue(ctx, value);
+    JS_FreeValue(ctx, path);
   } while((it = property_enumeration_recurse(&frames, ctx)));
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
   ret = vmap.this_obj;
@@ -424,7 +434,7 @@ js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   do {
     JSValue value = property_enumeration_value(it, ctx);
     BOOL result = js_value_equals(ctx, argv[1], value);
-    js_value_free(ctx, value);
+    JS_FreeValue(ctx, value);
 
     if(result) {
       ret = property_enumeration_path(&frames, ctx);
@@ -458,7 +468,7 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       uint32_t type = js_value_type(ctx, args[0]);
 
       if((type & type_mask) == 0) {
-        js_value_free(ctx, args[0]);
+        JS_FreeValue(ctx, args[0]);
         continue;
       }
 
@@ -466,8 +476,8 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 
       JS_Call(ctx, fn, this_arg, 3, args);
 
-      js_value_free(ctx, args[0]);
-      js_value_free(ctx, args[1]);
+      JS_FreeValue(ctx, args[0]);
+      JS_FreeValue(ctx, args[1]);
     }
 
   } while((it = property_enumeration_recurse(&frames, ctx)));
@@ -516,8 +526,8 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
     else
       result = js_value_equals(ctx, aval, bval);
 
-    js_value_free(ctx, aval);
-    js_value_free(ctx, bval);
+    JS_FreeValue(ctx, aval);
+    JS_FreeValue(ctx, bval);
 
     // printf("a %s: %s b %s: %s result: %d\n", astr, avstr, bstr, bvstr, result);
 
@@ -588,6 +598,7 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_PROP_INT32_DEF("RETURN_VALUE_PATH", RETURN_VALUE_PATH, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("RETURN_PATH_VALUE", RETURN_PATH_VALUE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PATH_AS_STRING", PATH_AS_STRING, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("NO_THROW", NO_THROW, JS_PROP_ENUMERABLE),
 };
 
 static const JSCFunctionListEntry js_deep_iterator_proto_funcs[] = {

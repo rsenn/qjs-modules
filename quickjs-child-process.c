@@ -57,7 +57,7 @@ js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(JS_IsException(proto))
     goto fail;
   obj = JS_NewObjectProtoClass(ctx, proto, js_child_process_class_id);
-  js_value_free(ctx, proto);
+  JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
 
@@ -66,7 +66,7 @@ js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   return obj;
 fail:
   js_free(ctx, cp);
-  js_value_free(ctx, obj);
+  JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
