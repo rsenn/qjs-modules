@@ -36,8 +36,12 @@ function main(...args) {
   //console.log('xml:', xml.write(result));
 
   let pointer;
-
-  pointer = new Pointer([3, 'children', 0, 'children', 0]);
+  pointer = new Pointer('[1].children[2].children[3]');
+  console.log('[...pointer]:', [...pointer]);
+  console.log('pointer:', pointer);
+  console.log('pointer.toString()):', pointer.toString());
+  console.log('pointer.toArray()):', pointer.toArray());
+  /*pointer = new Pointer([3, 'children', 0, 'children', 0]);
   try {
     console.log('deref pointer:', pointer.deref(result));
   } catch(e) {
@@ -52,7 +56,7 @@ function main(...args) {
   let ptr2 = new Pointer('3.children.0.children.0');
 
   console.log('deref ptr2:', ptr2.deref(result));
-  console.log('dump ptr2:', ptr2);
+  console.log('dump ptr2:', ptr2);*/
 
   std.gc();
 }

@@ -84,14 +84,6 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, BOOL color) {
 }
 
 static JSValue
-js_pointer_toarray(JSContext* ctx, Pointer* ptr) {
-  size_t i;
-  JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++) JS_SetPropertyUint32(ctx, array, i, JS_AtomToValue(ctx, ptr->atoms[i]));
-  return array;
-}
-
-static JSValue
 js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   JSValue proto;
   /* using new_target to get the prototype is necessary when the
@@ -125,7 +117,7 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
     }
 
     case METHOD_TO_ARRAY: {
-      return js_pointer_toarray(ctx, ptr);
+      return pointer_toarray(ptr, ctx);
     }
 
     case METHOD_INSPECT: {
@@ -140,14 +132,14 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
     }
 
     case METHOD_KEYS: {
-      JSValue array = js_pointer_toarray(ctx, ptr);
+      JSValue array = pointer_toarray(ptr, ctx);
       JSValue iter = js_iterator_new(ctx, array);
       JS_FreeValue(ctx, array);
       return iter;
     }
 
     case METHOD_VALUES: {
-      JSValue array = js_pointer_toarray(ctx, ptr);
+      JSValue array = pointer_toarray(ptr, ctx);
       JSValue iter = js_iterator_new(ctx, array);
       JS_FreeValue(ctx, array);
       return iter;
@@ -173,7 +165,7 @@ js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_PATH: {
-      return js_pointer_toarray(ctx, ptr);
+      return pointer_toarray(ptr, ctx);
     }
   }
   return JS_UNDEFINED;

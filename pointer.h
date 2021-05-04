@@ -26,6 +26,7 @@ void pointer_reset(Pointer*, JSContext*);
 JSValue pointer_shift(Pointer*, JSContext*, JSValue);
 Pointer* pointer_slice(Pointer*, JSContext*, int64_t, int64_t);
 void pointer_tostring(Pointer*, JSContext*, DynBuf*);
+JSValue pointer_toarray(Pointer* ptr, JSContext* ctx);
 void pointer_truncate(Pointer*, JSContext*, size_t);
 
 static inline Pointer*

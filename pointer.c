@@ -50,20 +50,15 @@ void
 pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index) {
   size_t i;
   const char* s;
-
-  dbuf_printf(db, "Pointer(%zx) ", ptr->n);
-
   for(i = 0; i < ptr->n; i++) {
     BOOL is_int;
     s = JS_AtomToCString(ctx, ptr->atoms[i]);
     is_int = is_integer(s);
     dbuf_putstr(db, color ? (is_int ? "\x1b[1;36m[" : "\x1b[1;36m.") : (is_integer(s) ? "[" : "."));
     dbuf_putstr(db, color ? pointer_color(s) : "");
-    // if(index == i) dbuf_putstr(db, "\x1b[31m");
     dbuf_putstr(db, s);
     if(is_int)
       dbuf_putstr(db, color ? "\x1b[1;36m]" : "]");
-
     js_cstring_free(ctx, s);
   }
   dbuf_putstr(db, color ? "\x1b[m" : "");
@@ -85,13 +80,14 @@ void
 pointer_tostring(Pointer* ptr, JSContext* ctx, DynBuf* db) {
   size_t i, j;
   const char* str;
-
   for(i = 0; i < ptr->n; i++) {
+    if(js_atom_isint(ptr->atoms[i])) {
+      dbuf_printf(db, "[%" PRIu32 "]", js_atom_toint(ptr->atoms[i]));
+      continue;
+    }
     if(i > 0)
       dbuf_putc(db, '.');
-
     str = JS_AtomToCString(ctx, ptr->atoms[i]);
-
     for(j = 0; str[j]; j++) {
       if(str[j] == '.')
         dbuf_putc(db, '\\');
@@ -100,24 +96,52 @@ pointer_tostring(Pointer* ptr, JSContext* ctx, DynBuf* db) {
   }
 }
 
+JSValue
+pointer_toarray(Pointer* ptr, JSContext* ctx) {
+  size_t i;
+  JSValue array = JS_NewArray(ctx);
+  for(i = 0; i < ptr->n; i++) { JS_SetPropertyUint32(ctx, array, i, js_atom_tovalue(ctx, ptr->atoms[i])); }
+  return array;
+}
 size_t
 pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
-  size_t delim;
+  size_t start, delim, n;
   JSAtom atom;
+  char* endptr;
+  unsigned long val;
+
   while(len) {
-    delim = 0;
+    char c = str[0];
+    start = c == '[' ? 1 : 0;
+    delim = start;
     for(;;) {
-      delim += byte_chr(&str[delim], len - delim, '.');
+      delim += byte_chrs(&str[delim], len - delim, c == '[' ? "." : ".[", c == '[' ? 2 : 2);
       if(delim < len && delim > 0 && str[delim - 1] == '\\') {
         ++delim;
         continue;
       }
       break;
     }
-    atom = JS_NewAtomLen(ctx, str, delim);
+
+    n = delim - start;
+    endptr = 0;
+    val = 0;
+    if(delim && str[delim - 1] == ']') {
+      n--;
+    }
+    if(is_digit_char(str[start]))
+      val = strtoul(&str[start], &endptr, 10);
+
+    if(endptr && *endptr == &str[start + n])
+      atom = js_atom_fromint(val);
+    else
+      atom = JS_NewAtomLen(ctx, &str[start], n);
+
     pointer_push(ptr, atom);
+
     str += delim;
     len -= delim;
+
     if(len > 0) {
       ++str;
       --len;
