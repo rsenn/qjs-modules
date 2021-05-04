@@ -48,12 +48,6 @@ typedef struct prop_key {
 
 static int js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth);
 
-static struct {
-  int ref_count;
-  JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor, shared_array_buffer_ctor, map_ctor,
-      set_ctor, regexp_ctor, proxy_ctor;
-} constructors;
-
 static int
 regexp_predicate(int c) {
   switch(c) {
@@ -261,53 +255,6 @@ js_object_getpropertynames(JSContext* ctx, union Vector* propenum_tab, JSValueCo
   return ret;
 }
 
-static void
-js_inspect_constructors_get(JSContext* ctx) {
-  constructors.ref_count++;
-
-  if(!JS_IsUndefined(constructors.global_object))
-    return;
-
-  constructors.global_object = JS_GetGlobalObject(ctx);
-  constructors.object_ctor = JS_GetPropertyStr(ctx, constructors.global_object, "Object");
-  constructors.array_buffer_ctor = JS_GetPropertyStr(ctx, constructors.global_object, "ArrayBuffer");
-  constructors.shared_array_buffer_ctor = JS_GetPropertyStr(ctx, constructors.global_object, "SharedArrayBuffer");
-  constructors.map_ctor = JS_GetPropertyStr(ctx, constructors.global_object, "Map");
-  constructors.set_ctor = JS_GetPropertyStr(ctx, constructors.global_object, "Set");
-  constructors.regexp_ctor = JS_GetPropertyStr(ctx, constructors.global_object, "RegExp");
-  constructors.proxy_ctor = JS_GetPropertyStr(ctx, constructors.global_object, "Proxy");
-
-  if(!JS_IsConstructor(ctx, constructors.array_buffer_ctor))
-    JS_ThrowTypeError(ctx, "ArrayBuffer is not a constructor");
-  if(!JS_IsConstructor(ctx, constructors.shared_array_buffer_ctor))
-    JS_ThrowTypeError(ctx, "SharedArrayBuffer is not a constructor");
-  if(!JS_IsConstructor(ctx, constructors.map_ctor))
-    JS_ThrowTypeError(ctx, "Map is not a constructor");
-  if(!JS_IsConstructor(ctx, constructors.set_ctor))
-    JS_ThrowTypeError(ctx, "Set is not a constructor");
-  if(!JS_IsConstructor(ctx, constructors.regexp_ctor))
-    JS_ThrowTypeError(ctx, "RegExp is not a constructor");
-  if(!JS_IsConstructor(ctx, constructors.proxy_ctor))
-    JS_ThrowTypeError(ctx, "Proxy is not a constructor");
-
-  constructors.object_proto = JS_GetPropertyStr(ctx, constructors.object_ctor, "prototype");
-}
-
-static void
-js_inspect_constructors_free(JSContext* ctx) {
-  if(--constructors.ref_count > 0)
-    return;
-
-  JS_FreeValue(ctx, constructors.object_ctor);
-  JS_FreeValue(ctx, constructors.object_proto);
-  JS_FreeValue(ctx, constructors.array_buffer_ctor);
-  JS_FreeValue(ctx, constructors.shared_array_buffer_ctor);
-  JS_FreeValue(ctx, constructors.map_ctor);
-  JS_FreeValue(ctx, constructors.set_ctor);
-  JS_FreeValue(ctx, constructors.regexp_ctor);
-  JS_VALUE_FREE(ctx, constructors.global_object);
-}
-
 static JSAtom
 js_inspect_custom_atom(JSContext* ctx, const char* sym_for) {
   JSValue key, sym;
@@ -456,9 +403,9 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     slen = byte_chr(str2, strlen(str2), ']');
     dbuf_append(buf, (const uint8_t*)str2, slen);
   } else {
-    if(JS_IsInstanceOf(ctx, value, constructors.array_buffer_ctor))
+    if(js_is_arraybuffer(ctx, value))
       dbuf_putstr(buf, "ArrayBuffer");
-    if(JS_IsInstanceOf(ctx, value, constructors.shared_array_buffer_ctor))
+    if(js_is_sharedarraybuffer(ctx, value))
       dbuf_putstr(buf, "SharedArrayBuffer");
   }
   if(str)
@@ -666,15 +613,14 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         return 0;
       }
       if(!(is_function = JS_IsFunction(ctx, value))) {
-        if(JS_IsInstanceOf(ctx, value, constructors.array_buffer_ctor) ||
-           JS_IsInstanceOf(ctx, value, constructors.shared_array_buffer_ctor))
+        if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
           return js_inspect_arraybuffer(ctx, buf, value, opts, depth + 1);
 
-        if(JS_IsInstanceOf(ctx, value, constructors.map_ctor))
+        if(js_is_map(ctx, value))
           return js_inspect_map(ctx, buf, value, opts, depth /*+ 1*/);
-        if(JS_IsInstanceOf(ctx, value, constructors.set_ctor))
+        if(js_is_set(ctx, value))
           return js_inspect_set(ctx, buf, value, opts, depth + 1);
-        if(JS_IsInstanceOf(ctx, value, constructors.regexp_ctor))
+        if(js_is_regexp(ctx, value))
           return js_inspect_regexp(ctx, buf, value, opts, depth + 1);
         /*if(JS_IsInstanceOf(ctx, value, proxy_ctor)) {
           dbuf_putstr(buf, "[Proxy]");
@@ -862,7 +808,6 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   int optind = 1;
   JSValue ret;
 
-  js_inspect_constructors_get(ctx);
   js_dbuf_init(ctx, &dbuf);
   inspect_options_init(&options, ctx);
 
@@ -889,7 +834,6 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) 
   dbuf_free(&dbuf);
 
   inspect_options_free(&options, ctx);
-  js_inspect_constructors_free(ctx);
 
   return ret;
 }
@@ -916,9 +860,6 @@ static const JSCFunctionListEntry js_inspect_funcs[] = {
 static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   JSValue inspect;
-
-  if(JS_VALUE_GET_TAG(constructors.global_object) == 0)
-    constructors.global_object = JS_UNDEFINED;
 
   inspect = JS_NewCFunction(ctx, js_inspect, "inspect", 2);
 

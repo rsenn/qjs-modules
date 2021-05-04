@@ -723,38 +723,28 @@ char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char*
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
 uint64_t js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop);
 
+int js_class_id(JSContext* ctx, int id);
+
 static inline int
-js_is_map(JSContext* ctx, JSValueConst value) {
-  return js_object_is(ctx, value, "[object Map]");
+js_object_isclass(JSValue obj, int32_t class_id) {
+  return JS_GetOpaque(obj, class_id) != 0;
 }
 
 static inline int
-js_is_set(JSContext* ctx, JSValueConst value) {
-  return js_object_is(ctx, value, "[object Set]");
+js_value_isclass(JSContext* ctx, JSValue obj, int id) {
+  return js_object_isclass(obj, js_class_id(ctx, id));
 }
+int js_is_arraybuffer(JSContext*, JSValue);
+int js_is_sharedarraybuffer(JSContext*, JSValue);
+int js_is_map(JSContext*, JSValue);
+int js_is_set(JSContext*, JSValue);
+int js_is_generator(JSContext*, JSValue);
+int js_is_regexp(JSContext*, JSValue);
+int js_is_promise(JSContext*, JSValue);
 
-static inline int
-js_is_generator(JSContext* ctx, JSValueConst value) {
-  return js_object_is(ctx, value, "[object Generator]");
-}
-
-static inline int
-js_is_regexp(JSContext* ctx, JSValueConst value) {
-  return js_object_is(ctx, value, "[object RegExp]");
-}
-
-static inline int
-js_is_promise(JSContext* ctx, JSValueConst value) {
-  return js_object_is(ctx, value, "[object Promise]");
-}
-
-int js_is_arraybuffer(JSContext* ctx, JSValueConst value);
 int js_is_typedarray(JSContext* ctx, JSValueConst value);
 
-static inline BOOL
-js_is_input(JSContext* ctx, JSValueConst value) {
-  return JS_IsString(value) || js_is_arraybuffer(ctx, value);
-}
+BOOL js_is_input(JSContext* ctx, JSValueConst value);
 
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
 BOOL js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b);

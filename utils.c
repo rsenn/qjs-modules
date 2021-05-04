@@ -284,7 +284,7 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
   RegExp re = {0, 0, 0};
   const char* flagstr;
   assert(argc > 0);
-  if(js_is_regexp(ctx, argv[0])) {
+  if(js_value_isclass(ctx, argv[0], JS_CLASS_REGEXP)) {
     re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
     re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
     js_cstring_free(ctx, flagstr);
@@ -322,7 +322,7 @@ InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED};
 
-  if(js_is_arraybuffer(ctx, value)) {
+  if(js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER)) {
     ret.value = JS_DupValue(ctx, value);
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
   } else if(JS_IsString(value)) {
@@ -548,7 +548,7 @@ js_global_prototype(JSContext* ctx, const char* class_name) {
   return ret;
 }
 
-int
+/*int
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   int ret = 0;
   int n, m;
@@ -575,7 +575,7 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
     js_free(ctx, (void*)name);
 
   return ret;
-}
+}*/
 
 BOOL
 js_is_iterable(JSContext* ctx, JSValueConst obj) {
@@ -607,7 +607,7 @@ js_is_typedarray(JSContext* ctx, JSValueConst value) {
     JS_FreeValue(ctx, JS_GetException(ctx));
     return 0;
   }
-  ret = js_is_arraybuffer(ctx, buf);
+  ret = js_value_isclass(ctx, buf, JS_CLASS_ARRAY_BUFFER);
   JS_FreeValue(ctx, buf);
   return ret;
 }
@@ -655,14 +655,25 @@ js_iterator_next(JSContext* ctx, JSValueConst obj) {
   return ret;
 }
 
+JSValue
+js_object_constructor(JSContext* ctx, JSValueConst value) {
+  JSValue ctor = JS_UNDEFINED;
+  if(JS_IsObject(value))
+    ctor = JS_GetPropertyStr(ctx, value, "constructor");
+  return ctor;
+}
+
 char*
 js_object_classname(JSContext* ctx, JSValueConst value) {
   JSValue proto, ctor;
   const char* str;
   char* name = 0;
   int namelen;
-  proto = JS_GetPrototype(ctx, value);
-  ctor = JS_GetPropertyStr(ctx, proto, "constructor");
+  ctor = js_object_constructor(ctx, value);
+  if(!JS_IsFunction(ctx, ctor)) {
+    proto = JS_GetPrototype(ctx, value);
+    ctor = js_object_constructor(ctx, proto);
+  }
   if((str = JS_ToCString(ctx, ctor))) {
     if(!strncmp(str, "function ", 9)) {
       namelen = byte_chr(str + 9, strlen(str) - 9, '(');
@@ -672,13 +683,11 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   if(!name) {
     if(str)
       js_cstring_free(ctx, str);
-
     if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
       name = js_strdup(ctx, str);
   }
   if(str)
     js_cstring_free(ctx, str);
-
   return name;
 }
 
@@ -867,12 +876,22 @@ js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop,
   JS_SetPropertyStr(ctx, obj, prop, value);
 }
 
+int
+js_class_id(JSContext* ctx, int id) {
+  return JS_GetRuntime(ctx)->class_array[id].class_id;
+}
+
 const char*
 js_object_tostring(JSContext* ctx, JSValueConst value) {
   JSValue str = js_value_tostring(ctx, "Object", value);
   const char* s = JS_ToCString(ctx, str);
   JS_FreeValue(ctx, str);
   return s;
+}
+
+BOOL
+js_is_input(JSContext* ctx, JSValueConst value) {
+  return JS_IsString(value) || js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
 }
 
 int
@@ -1403,4 +1422,34 @@ js_module_namestr(JSContext* ctx, JSValueConst value) {
   char* s = js_tostring(ctx, name);
   JS_FreeValue(ctx, name);
   return s;
+}
+
+int
+js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
+  return js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) || js_object_is(ctx, value, "[object ArrayBuffer]");
+}
+int
+js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
+  return js_value_isclass(ctx, value, JS_CLASS_SHARED_ARRAY_BUFFER) ||
+         js_object_is(ctx, value, "[object SharedArrayBuffer]");
+}
+int
+js_is_map(JSContext* ctx, JSValueConst value) {
+  return js_value_isclass(ctx, value, JS_CLASS_MAP) || js_object_is(ctx, value, "[object Map]");
+}
+int
+js_is_set(JSContext* ctx, JSValueConst value) {
+  return js_value_isclass(ctx, value, JS_CLASS_SET) || js_object_is(ctx, value, "[object Set]");
+}
+int
+js_is_generator(JSContext* ctx, JSValueConst value) {
+  return js_value_isclass(ctx, value, JS_CLASS_GENERATOR) || js_object_is(ctx, value, "[object Generator]");
+}
+int
+js_is_regexp(JSContext* ctx, JSValueConst value) {
+  return js_value_isclass(ctx, value, JS_CLASS_REGEXP) || js_object_is(ctx, value, "[object RegExp]");
+}
+int
+js_is_promise(JSContext* ctx, JSValueConst value) {
+  return js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]");
 }

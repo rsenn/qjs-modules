@@ -1,10 +1,17 @@
 #ifndef QJS_MODULES_INTERNAL_H
 #define QJS_MODULES_INTERNAL_H
 
-#include "../list.h"
-#include "../cutils.h"
-//#include "../libbf.h"
-#include "../quickjs.h"
+#ifndef CONFIG_BIGNUM
+#define CONFIG_BIGNUM 1
+#endif
+
+#ifdef CONFIG_BIGNUM
+#include "libbf.h"
+#endif
+
+#include "list.h"
+#include "cutils.h"
+#include "quickjs.h"
 
 #ifdef HAVE_QUICKJS_CONFIG_H
 #include <quickjs-config.h>
@@ -101,7 +108,7 @@ typedef enum {
   JS_GC_PHASE_REMOVE_CYCLES,
 } JSGCPhaseEnum;
 
-#if 0 // def CONFIG_BIGNUM
+#if CONFIG_BIGNUM
 /* function pointers are used for numeric operations so that it is
    possible to remove some numeric types */
 typedef struct {
@@ -157,7 +164,7 @@ typedef struct JSRuntime {
   int shape_hash_size;
   int shape_hash_count;
   JSShape** shape_hash;
-#if 0 // def CONFIG_BIGNUM
+#ifdef CONFIG_BIGNUM
   bf_context_t bf_ctx;
   JSNumericOperations bigint_ops;
   JSNumericOperations bigfloat_ops;
@@ -182,17 +189,15 @@ struct JSClass {
 #define JS_MODE_MATH (1 << 2)
 
 typedef struct JSStackFrame {
-  struct JSStackFrame* prev_frame; /* NULL if first stack frame */
-  JSValue cur_func;                /* current function, JS_UNDEFINED if the frame is detached */
-  JSValue* arg_buf;                /* arguments */
-  JSValue* var_buf;                /* variables */
-  struct list_head var_ref_list;   /* list of JSVarRef.link */
-  const uint8_t* cur_pc;           /* only used in bytecode functions : PC of the
-                                instruction after the call */
+  struct JSStackFrame* prev_frame;
+  JSValue cur_func;
+  JSValue* arg_buf;              /* arguments */
+  JSValue* var_buf;              /* variables */
+  struct list_head var_ref_list; /* list of JSVarRef.link */
+  const uint8_t* cur_pc;         /* bytecode functions : PC of the instruction after the call */
   int arg_count;
   int js_mode; /* 0 or JS_MODE_MATH for C functions */
-  /* only used in generators. Current stack pointer value. NULL if
-     the function is running. */
+  /* only used in generators. Current stack pointer value or NULL if the function is running. */
   JSValue* cur_sp;
 } JSStackFrame;
 
@@ -216,23 +221,20 @@ struct JSGCObjectHeader {
 
 typedef struct JSVarRef {
   union {
-    JSGCObjectHeader header; /* must come first */
+    JSGCObjectHeader header;
     struct {
-      int __gc_ref_count; /* corresponds to header.ref_count */
-      uint8_t __gc_mark;  /* corresponds to header.mark/gc_obj_type */
-
+      int __gc_ref_count;
+      uint8_t __gc_mark;
       /* 0 : the JSVarRef is on the stack. header.link is an element
          of JSStackFrame.var_ref_list.
          1 : the JSVarRef is detached. header.link has the normal meanning
       */
       uint8_t is_detached : 1;
       uint8_t is_arg : 1;
-      uint16_t var_idx; /* index of the corresponding function variable on
-                           the stack */
+      uint16_t var_idx; /* index of the corresponding function variable on the stack */
     };
   };
-  JSValue* pvalue; /* pointer to the value, either on the stack or
-                      to 'value' */
+  JSValue* pvalue; /* pointer to the value, either on the stack or to 'value' */
   JSValue value;   /* used when the variable is no longer on the stack */
 } JSVarRef;
 
@@ -242,7 +244,7 @@ typedef struct JSFloatEnv {
   unsigned int status;
 } JSFloatEnv;
 
-#if 0 // def CONFIG_BIGNUM
+#ifdef CONFIG_BIGNUM
 /* the same structure is used for big integers and big floats. Big
    integers are never infinite or NaNs */
 typedef struct JSBigFloat {
@@ -262,8 +264,7 @@ typedef enum {
   JS_AUTOINIT_ID_PROP,
 } JSAutoInitIDEnum;
 
-/* must be large enough to have a negligible runtime cost and small
-   enough to call the interrupt callback often. */
+/* must be large enough to have a negligible runtime cost and small enough to call the interrupt callback often. */
 #define JS_INTERRUPT_COUNTER_INIT 10000
 
 struct JSContext {

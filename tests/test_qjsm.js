@@ -6,8 +6,9 @@ import util from 'util';
 function main(...args) {
   //console.log('console.options:', console.options);
 
+  console.log('regexp:', /TEST/);
   console.log('util:', inspect(util));
-  console.log('os:', inspect(os, { compact: false, breakLength: 80 }));
+  console.log('os:', inspect(os, {/* compact: false,*/ breakLength: 80 }));
 
   /*   console.log('modules:', moduleList);
  let moduleExports =  moduleList.map(module => [
