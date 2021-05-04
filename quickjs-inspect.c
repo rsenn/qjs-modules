@@ -309,10 +309,10 @@ js_inspect_constructors_free(JSContext* ctx) {
 }
 
 static JSAtom
-js_inspect_custom_atom(JSContext* ctx) {
+js_inspect_custom_atom(JSContext* ctx, const char* sym_for) {
   JSValue key, sym;
   JSAtom atom;
-  key = JS_NewString(ctx, "nodejs.util.inspect.custom");
+  key = JS_NewString(ctx, sym_for ? sym_for : "nodejs.util.inspect.custom");
   sym = js_symbol_invoke_static(ctx, "for", key);
   JS_FreeValue(ctx, key);
   atom = JS_ValueToAtom(ctx, sym);
@@ -323,29 +323,28 @@ js_inspect_custom_atom(JSContext* ctx) {
 
 static const char*
 js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
-  JSValue inspect;
-  JSAtom inspect_custom;
+  JSValue inspect = JS_UNDEFINED;
+  JSAtom inspect_custom_node, inspect_custom, prop;
   const char* str = 0;
-  inspect_custom = js_inspect_custom_atom(ctx);
-  inspect = JS_GetProperty(ctx, obj, inspect_custom);
+  inspect_custom_node = js_inspect_custom_atom(ctx, NULL);
+  inspect_custom = js_inspect_custom_atom(ctx, "quickjs.util.inspect.custom");
+  if(JS_HasProperty(ctx, obj, inspect_custom))
+    inspect = JS_GetProperty(ctx, obj, inspect_custom);
+  else if(JS_HasProperty(ctx, obj, inspect_custom_node))
+    inspect = JS_GetProperty(ctx, obj, inspect_custom_node);
+
+  JS_FreeAtom(ctx, inspect_custom_node);
   JS_FreeAtom(ctx, inspect_custom);
-  if(!JS_IsFunction(ctx, inspect)) {
-    JS_FreeValue(ctx, inspect);
-    inspect = JS_GetPropertyStr(ctx, obj, "inspect");
-  }
-  /*printf("js_inspect_custom_call ");
-  js_value_print(ctx, obj);
-  printf("\n");*/
+
+  if(JS_IsUndefined(inspect))
+    return 0;
 
   if(JS_IsFunction(ctx, inspect)) {
-
     JSValueConst args[2];
     JSValue ret;
     inspect_options_t opts_nocustom;
-
     memcpy(&opts_nocustom, opts, sizeof(inspect_options_t));
     opts_nocustom.custom_inspect = FALSE;
-
     args[0] = js_new_number(ctx, INSPECT_LEVEL(opts));
     args[1] = inspect_options_object(&opts_nocustom, ctx);
     ret = JS_Call(ctx, inspect, obj, 2, args);
@@ -670,6 +669,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         if(JS_IsInstanceOf(ctx, value, constructors.array_buffer_ctor) ||
            JS_IsInstanceOf(ctx, value, constructors.shared_array_buffer_ctor))
           return js_inspect_arraybuffer(ctx, buf, value, opts, depth + 1);
+
         if(JS_IsInstanceOf(ctx, value, constructors.map_ctor))
           return js_inspect_map(ctx, buf, value, opts, depth /*+ 1*/);
         if(JS_IsInstanceOf(ctx, value, constructors.set_ctor))
@@ -917,6 +917,9 @@ static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   JSValue inspect;
 
+  if(JS_VALUE_GET_TAG(constructors.global_object) == 0)
+    constructors.global_object = JS_UNDEFINED;
+
   inspect = JS_NewCFunction(ctx, js_inspect, "inspect", 2);
 
   if(m) {
@@ -927,7 +930,7 @@ js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   return 0;
 }
 
-#ifdef JS_SHARED_LIBRARY
+#if defined(JS_SHARED_LIBRARY) && defined(JS_INSPECT_MODULE)
 #define JS_INIT_MODULE js_init_module
 #else
 #define JS_INIT_MODULE js_init_module_inspect

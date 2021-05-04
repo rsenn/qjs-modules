@@ -34,7 +34,7 @@ js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
   if(ptr == 0)
     return JS_EXCEPTION;
 
-  return JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)length, flags & MAP_SHARED);
+  return JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)length, !!(flags & MAP_SHARED));
 }
 
 static JSValue

@@ -35,6 +35,7 @@ set(lexer_SOURCES quickjs-lexer.h utils.c utils.h vector.c vector.h lexer.c
 set(lexer_LIBRARIES quickjs-predicate)
 set(mmap_SOURCES utils.c utils.h)
 set(repeater_SOURCES utils.c utils.h)
+set(util_SOURCES utils.c utils.h quickjs-inspect.c)
 
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel
                                              RelWithDebInfo)
@@ -182,6 +183,7 @@ compile_module(lib/console.js)
 compile_module(lib/require.js)
 compile_module(lib/repl.js)
 compile_module(lib/fs.js)
+compile_module(lib/util.js)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set(quickjs_sources_root ${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -219,7 +221,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
       ${CMAKE_CURRENT_BINARY_DIR}/qjscalc.c
       ${CMAKE_CURRENT_BINARY_DIR}/console.c
       ${CMAKE_CURRENT_BINARY_DIR}/require.c
-      ${CMAKE_CURRENT_BINARY_DIR}/fs.c)
+      ${CMAKE_CURRENT_BINARY_DIR}/fs.c
+      ${CMAKE_CURRENT_BINARY_DIR}/util.c)
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
     set(QJSM_SOURCES
         ${QJSM_SOURCES}

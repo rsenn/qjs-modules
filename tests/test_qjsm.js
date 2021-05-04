@@ -1,15 +1,21 @@
 import * as os from 'os';
 import * as std from 'std';
+import { inspect } from 'util';
+import util from 'util';
 
 function main(...args) {
-  console.log('modules:', moduleList);
+  //console.log('console.options:', console.options);
 
-  let moduleExports = /*new Map*/ moduleList.map(module => [
+  console.log('util:', inspect(util));
+  console.log('os:', inspect(os, { compact: false, breakLength: 80 }));
+
+  /*   console.log('modules:', moduleList);
+ let moduleExports =  moduleList.map(module => [
     getModuleName(module),
     getModuleExports(module)
   ]);
   console.log('moduleExports:', moduleExports);
-
+*/
   std.gc();
 }
 

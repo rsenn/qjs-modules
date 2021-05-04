@@ -61,6 +61,8 @@ extern const uint8_t qjsc_require[];
 extern const uint32_t qjsc_require_size;
 extern const uint8_t qjsc_fs[];
 extern const uint32_t qjsc_fs_size;
+extern const uint8_t qjsc_util[];
+extern const uint32_t qjsc_util_size;
 #ifdef CONFIG_BIGNUM
 extern const uint8_t qjsc_qjscalc[];
 extern const uint32_t qjsc_qjscalc_size;
@@ -872,6 +874,7 @@ main(int argc, char** argv) {
     js_std_add_helpers(ctx, argc - optind, argv + optind);
 
     jsm_eval_binary(ctx, qjsc_fs, qjsc_fs_size, 0);
+    jsm_eval_binary(ctx, qjsc_util, qjsc_util_size, 0);
     jsm_eval_binary(ctx, qjsc_console, qjsc_console_size, 0);
     jsm_eval_binary(ctx, qjsc_require, qjsc_require_size, 0);
     /*

@@ -132,7 +132,7 @@ pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
     if(is_digit_char(str[start]))
       val = strtoul(&str[start], &endptr, 10);
 
-    if(endptr && *endptr == &str[start + n])
+    if(endptr == &str[start + n])
       atom = js_atom_fromint(val);
     else
       atom = JS_NewAtomLen(ctx, &str[start], n);
