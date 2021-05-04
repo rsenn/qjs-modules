@@ -655,7 +655,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       BOOL compact = FALSE;
 
       if(INSPECT_INT32T_INRANGE(opts->compact) && opts->compact > 0) {
-        int32_t depth = property_enumeration_depth(ctx, value);
+        int32_t depth = property_enumeration_deepest(ctx, value);
         // printf("opts->compact %d depth = %d\n", opts->compact, depth);
 
         compact = opts->compact >= depth;

@@ -495,7 +495,7 @@ js_value_type2flag(uint32_t type) {
   return flag;
 }
 
-uint32_t js_value_type(JSContext* ctx, JSValueConst value);
+enum value_mask js_value_type(JSContext* ctx, JSValueConst value);
 
 static inline const char* const*
 js_value_types() {

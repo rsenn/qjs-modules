@@ -120,8 +120,31 @@ property_enumeration_recurse(Vector* vec, JSContext* ctx) {
   return it;
 }
 
+PropertyEnumeration*
+property_enumeration_skip(Vector* vec, JSContext* ctx) {
+  PropertyEnumeration* it;
+  JSValue value = JS_UNDEFINED;
+  if(vector_empty(vec))
+    return 0;
+
+  for(it = vector_back(vec, sizeof(PropertyEnumeration)); it;) {
+    if(it->tab_atom_len > 0) {
+      if(property_enumeration_setpos(it, it->idx + 1))
+        break;
+    }
+    for(;;) {
+      if((it = property_enumeration_pop(vec, ctx)) == 0)
+        return it;
+      if(property_enumeration_setpos(it, it->idx + 1))
+        break;
+    }
+    break;
+  }
+  return it;
+}
+
 int32_t
-property_enumeration_depth(JSContext* ctx, JSValueConst object) {
+property_enumeration_deepest(JSContext* ctx, JSValueConst object) {
   Vector vec = VECTOR(ctx);
   int32_t depth, max_depth = 0;
   PropertyEnumeration *prev, *it;
@@ -150,7 +173,7 @@ property_enumeration_depth(JSContext* ctx, JSValueConst object) {
     }
     /*t = time_us() - t;
 
-    printf("property_enumeration_depth took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
+    printf("property_enumeration_deepest took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
   }
   property_enumeration_free(&vec, JS_GetRuntime(ctx));
   /*
@@ -299,4 +322,56 @@ property_enumeration_check(Vector* vec) {
     }
   }
   return (IndexTuple){-1, -1};
+}
+
+int
+property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
+  if(idx < 0)
+    idx += it->tab_atom_len;
+
+  if(idx >= (int32_t)it->tab_atom_len)
+    return 0;
+
+  assert((uint32_t)idx < it->tab_atom_len);
+  it->idx = idx;
+  return 1;
+}
+
+PropertyEnumeration*
+property_enumeration_push(Vector* vec, JSContext* ctx, JSValue object, int flags) {
+  PropertyEnumeration* it;
+  assert(JS_IsObject(object));
+  /*if(!JS_IsObject(object)) {
+   JS_ThrowTypeError(ctx, "not an object");
+   return 0;
+   }*/
+  if((it = vector_emplace(vec, sizeof(PropertyEnumeration)))) {
+    property_enumeration_init(it, ctx, object, flags);
+    return vector_back(vec, sizeof(PropertyEnumeration));
+  }
+  return it;
+}
+
+PropertyEnumeration*
+property_enumeration_pop(Vector* vec, JSContext* ctx) {
+  PropertyEnumeration* it;
+  assert(!vector_empty(vec));
+  it = vector_back(vec, sizeof(PropertyEnumeration));
+  property_enumeration_reset(it, JS_GetRuntime(ctx));
+  vector_pop(vec, sizeof(PropertyEnumeration));
+  return vector_empty(vec) ? 0 : it - 1;
+}
+
+PropertyEnumeration*
+property_enumeration_enter(Vector* vec, JSContext* ctx, int32_t idx, int flags) {
+  PropertyEnumeration* it;
+  JSValue value;
+  assert(!vector_empty(vec));
+  it = vector_back(vec, sizeof(PropertyEnumeration));
+  value = property_enumeration_value(it, ctx);
+  if((it = property_enumeration_push(vec, ctx, value, flags)))
+    if(!property_enumeration_setpos(it, idx))
+      return 0;
+
+  return it;
 }

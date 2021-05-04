@@ -354,6 +354,37 @@ typedef struct JSProperty {
   } u;
 } JSProperty;
 
+#define JS_PROP_INITIAL_SIZE 2
+#define JS_PROP_INITIAL_HASH_SIZE 4 /* must be a power of two */
+#define JS_ARRAY_INITIAL_SIZE 2
+
+typedef struct JSShapeProperty {
+  uint32_t hash_next : 26; /* 0 if last in list */
+  uint32_t flags : 6;      /* JS_PROP_XXX */
+  JSAtom atom;             /* JS_ATOM_NULL = free property entry */
+} JSShapeProperty;
+
+struct JSShape {
+  /* hash table of size hash_mask + 1 before the start of the
+     structure (see prop_hash_end()). */
+  JSGCObjectHeader header;
+  /* true if the shape is inserted in the shape hash table. If not,
+     JSShape.hash is not valid */
+  uint8_t is_hashed;
+  /* If true, the shape may have small array index properties 'n' with 0
+     <= n <= 2^31-1. If false, the shape is guaranteed not to have
+     small array index properties */
+  uint8_t has_small_array_index;
+  uint32_t hash; /* current hash value */
+  uint32_t prop_hash_mask;
+  int prop_size;  /* allocated properties */
+  int prop_count; /* include deleted properties */
+  int deleted_prop_count;
+  JSShape* shape_hash_next; /* in JSRuntime.shape_hash[h] list */
+  JSObject* proto;
+  JSShapeProperty prop[0]; /* prop_size elements */
+};
+
 typedef struct JSRegExp {
   JSString* pattern;
   JSString* bytecode; /* also contains the flags */

@@ -847,7 +847,7 @@ main(int argc, char** argv) {
   if(memory_limit != 0)
     JS_SetMemoryLimit(rt, memory_limit);
   // if (stack_size != 0)
-  JS_SetMaxStackSize(rt, stack_size != 0 ? stack_size : 8 * 1048576);
+  JS_SetMaxStackSize(rt, stack_size != 0 ? stack_size : 256 * 1048576);
   js_std_set_worker_new_context_func(JS_NewCustomContext);
   js_std_init_handlers(rt);
   ctx = JS_NewCustomContext(rt);

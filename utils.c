@@ -1059,7 +1059,7 @@ js_value_has_ref_count(JSValue v) {
   return ((unsigned)js_value_get_tag(v) >= (unsigned)JS_TAG_FIRST);
 }
 
-uint32_t
+enum value_mask
 js_value_type(JSContext* ctx, JSValueConst value) {
   int32_t flag;
   uint32_t type = 0;
