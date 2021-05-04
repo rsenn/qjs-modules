@@ -38,6 +38,8 @@ typedef union Vector {
   (Vector) {                                                                                                           \
     { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                                                             \
   }
+#define vector_begin(vec) ((void*)((vec)->data))
+#define vector_end(vec) ((void*)((vec)->data + (vec)->size))
 
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
 #define vector_foreach(a, msz, p)                                                                                      \
@@ -71,16 +73,6 @@ vector_size(const Vector* vec, size_t elsz) {
 static inline int
 vector_empty(const Vector* vec) {
   return vec->size == 0;
-}
-
-static inline void*
-vector_begin(const Vector* vec) {
-  return vec->data;
-}
-
-static inline void*
-vector_end(const Vector* vec) {
-  return vec->data + vec->size;
 }
 
 static inline void*

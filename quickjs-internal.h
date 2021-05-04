@@ -3,7 +3,7 @@
 
 #include "../list.h"
 #include "../cutils.h"
-#include "../libbf.h"
+//#include "../libbf.h"
 #include "../quickjs.h"
 
 #ifdef HAVE_QUICKJS_CONFIG_H
@@ -101,7 +101,7 @@ typedef enum {
   JS_GC_PHASE_REMOVE_CYCLES,
 } JSGCPhaseEnum;
 
-#ifdef CONFIG_BIGNUM
+#if 0 // def CONFIG_BIGNUM
 /* function pointers are used for numeric operations so that it is
    possible to remove some numeric types */
 typedef struct {
@@ -157,7 +157,7 @@ typedef struct JSRuntime {
   int shape_hash_size;
   int shape_hash_count;
   JSShape** shape_hash;
-#ifdef CONFIG_BIGNUM
+#if 0 // def CONFIG_BIGNUM
   bf_context_t bf_ctx;
   JSNumericOperations bigint_ops;
   JSNumericOperations bigfloat_ops;
@@ -236,13 +236,13 @@ typedef struct JSVarRef {
   JSValue value;   /* used when the variable is no longer on the stack */
 } JSVarRef;
 
-#ifdef CONFIG_BIGNUM
 typedef struct JSFloatEnv {
-  limb_t prec;
-  bf_flags_t flags;
+  uintptr_t prec;
+  uint32_t flags;
   unsigned int status;
 } JSFloatEnv;
 
+#if 0 // def CONFIG_BIGNUM
 /* the same structure is used for big integers and big floats. Big
    integers are never infinite or NaNs */
 typedef struct JSBigFloat {
@@ -294,9 +294,9 @@ struct JSContext {
 
   uint64_t random_state;
 #ifdef CONFIG_BIGNUM
-  bf_context_t* bf_ctx; /* points to rt->bf_ctx, shared by all contexts */
-  JSFloatEnv fp_env;    /* global FP environment */
-  BOOL bignum_ext : 8;  /* enable math mode */
+  /*bf_context_t*/ void* bf_ctx; /* points to rt->bf_ctx, shared by all contexts */
+  JSFloatEnv fp_env;             /* global FP environment */
+  BOOL bignum_ext : 8;           /* enable math mode */
   BOOL allow_operator_overloading : 8;
 #endif
   /* when the counter reaches zero, JSRutime.interrupt_handler is called */

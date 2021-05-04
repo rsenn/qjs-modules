@@ -171,15 +171,15 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   switch(magic) {
     case FIRST_CHILD: {
-      if((it = property_enumeration_enter(&w->frames, ctx, PROPENUM_DEFAULT_FLAGS)) == 0 ||
-         !property_enumeration_setpos(it, 0))
+      if((it = property_enumeration_enter(&w->frames, ctx, 0, PROPENUM_DEFAULT_FLAGS)) == 0 /*||
+         !property_enumeration_setpos(it, 0)*/)
         return JS_UNDEFINED;
       break;
     }
 
     case LAST_CHILD: {
-      if((it = property_enumeration_enter(&w->frames, ctx, PROPENUM_DEFAULT_FLAGS)) == 0 ||
-         !property_enumeration_setpos(it, -1))
+      if((it = property_enumeration_enter(&w->frames, ctx, -1, PROPENUM_DEFAULT_FLAGS)) == 0 /*||
+         !property_enumeration_setpos(it, -1)*/)
         return JS_UNDEFINED;
       break;
     }

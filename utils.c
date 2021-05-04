@@ -711,6 +711,18 @@ js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
 }
 
 BOOL
+js_object_same(JSValueConst a, JSValueConst b) {
+  JSObject *aobj, *bobj;
+
+  if(!JS_IsObject(a) || !JS_IsObject(b))
+    return FALSE;
+
+  aobj = JS_VALUE_GET_OBJ(a);
+  bobj = JS_VALUE_GET_OBJ(b);
+  return aobj == bobj;
+}
+
+BOOL
 js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
   JSAtom atom;
   BOOL ret = FALSE;

@@ -694,6 +694,7 @@ const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
+BOOL js_object_same(JSValueConst a, JSValueConst b);
 
 BOOL js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
@@ -757,5 +758,15 @@ char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 
 JSValue js_module_name(JSContext*, JSValueConst);
 char* js_module_namestr(JSContext* ctx, JSValueConst value);
+
+static inline JSValue
+js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst* argv) {
+  JSAtom atom;
+  JSValue ret;
+  atom = JS_NewAtom(ctx, method);
+  ret = JS_Invoke(ctx, this_obj, atom, argc, argv);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
 
 #endif /* defined(UTILS_H) */

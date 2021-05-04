@@ -91,6 +91,7 @@ property_enumeration_recurse(Vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
   JSValue value = JS_UNDEFINED;
   int32_t type;
+  BOOL circular;
   if(vector_empty(vec))
     return 0;
 
@@ -98,9 +99,10 @@ property_enumeration_recurse(Vector* vec, JSContext* ctx) {
     if(it->tab_atom_len > 0) {
       value = property_enumeration_value(it, ctx);
       type = JS_VALUE_GET_TAG(value);
+      circular = type == JS_TAG_OBJECT && property_enumeration_circular(vec, value);
       js_value_free(ctx, value);
-      if(type == JS_TAG_OBJECT) {
-        if((it = property_enumeration_enter(vec, ctx, PROPENUM_DEFAULT_FLAGS)) && property_enumeration_setpos(it, 0))
+      if(type == JS_TAG_OBJECT && !circular) {
+        if((it = property_enumeration_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS)))
           break;
       } else {
         if(property_enumeration_setpos(it, it->idx + 1))
@@ -122,14 +124,35 @@ int32_t
 property_enumeration_depth(JSContext* ctx, JSValueConst object) {
   Vector vec = VECTOR(ctx);
   int32_t depth, max_depth = 0;
-  PropertyEnumeration* it;
+  PropertyEnumeration *prev, *it;
   JSValue root = JS_DupValue(ctx, object);
   if(JS_IsObject(root)) {
     for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it;
         (it = property_enumeration_recurse(&vec, ctx))) {
-      depth = vector_size(&vec, sizeof(PropertyEnumeration));
-      if(max_depth < depth)
+      JSValue value = property_enumeration_value(it, ctx);
+
+      IndexTuple t = property_enumeration_check(&vec);
+
+      if(t.a != -1)
+        printf("property_enumeration_circular[%" PRIu32 "] %i %i\n",
+               vector_size(&vec, sizeof(PropertyEnumeration)),
+               t.a,
+               t.b);
+
+      /* if(JS_IsObject(value))
+         printf("property_enumeration_circular[%" PRIu32 "] %i\n",
+                vector_size(&vec, sizeof(PropertyEnumeration)),
+                property_enumeration_circular(&vec, value));*/
+      js_value_free(ctx, value);
+
+      /*  if(it != prev)
+          printf("property_enumeration_depth[%" PRIu32 "] %p\n",
+                 vector_size(&vec, sizeof(PropertyEnumeration)),
+                 JS_VALUE_GET_OBJ(it->obj));*/
+      if(max_depth < (depth = vector_size(&vec, sizeof(PropertyEnumeration))))
         max_depth = depth;
+
+      prev = it;
     }
   }
   property_enumeration_free(&vec, JS_GetRuntime(ctx));
@@ -242,4 +265,35 @@ property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
     key = JS_NewInt64(ctx, idx);
   }
   return key;
+}
+
+BOOL
+property_enumeration_circular(Vector* vec, JSValueConst object) {
+  PropertyEnumeration* it;
+
+  vector_foreach_t(vec, it) {
+    if(js_object_same(it->obj, object)) {
+      // printf("circular reference %p\n", ptr);
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+IndexTuple
+property_enumeration_check(Vector* vec) {
+  PropertyEnumeration *i, *j;
+
+  vector_foreach_t(vec, i) {
+    vector_foreach_t(vec, j) {
+      if(i == j)
+        continue;
+
+      if(js_object_same(i->obj, j->obj)) {
+        return (IndexTuple){vector_indexof(vec, sizeof(PropertyEnumeration), i),
+                            vector_indexof(vec, sizeof(PropertyEnumeration), j)};
+      }
+    }
+  }
+  return (IndexTuple){-1, -1};
 }

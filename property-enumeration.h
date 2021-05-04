@@ -15,6 +15,10 @@ typedef struct PropertyEnumeration {
   BOOL is_array;
 } PropertyEnumeration;
 
+typedef struct {
+  int32_t a, b;
+} IndexTuple;
+
 #define PROPENUM_SORT_ATOMS (1 << 6)
 
 #define PROPENUM_DEFAULT_FLAGS (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)
@@ -42,6 +46,7 @@ int property_enumeration_insideof(Vector*, JSValue val);
 void property_enumeration_free(Vector*, JSRuntime* rt);
 int property_enumeration_predicate(PropertyEnumeration*, JSContext* ctx, JSValue fn, JSValue this_arg);
 JSValue property_enumeration_key(PropertyEnumeration*, JSContext* ctx);
+BOOL property_enumeration_circular(Vector* vec, JSValueConst object);
 
 static inline JSValue
 property_enumeration_value(PropertyEnumeration* it, JSContext* ctx) {
@@ -116,10 +121,13 @@ static inline PropertyEnumeration*
 property_enumeration_push(Vector* vec, JSContext* ctx, JSValue object, int flags) {
   PropertyEnumeration* it;
 
-  if(!JS_IsObject(object)) {
+  assert(JS_IsObject(object));
+
+  /*if(!JS_IsObject(object)) {
     JS_ThrowTypeError(ctx, "not an object");
     return 0;
-  }
+  }*/
+
   if((it = vector_emplace(vec, sizeof(PropertyEnumeration)))) {
     property_enumeration_init(it, ctx, object, flags);
     return vector_back(vec, sizeof(PropertyEnumeration));
@@ -139,20 +147,27 @@ property_enumeration_pop(Vector* vec, JSContext* ctx) {
 }
 
 static inline PropertyEnumeration*
-property_enumeration_enter(Vector* vec, JSContext* ctx, int flags) {
+property_enumeration_enter(Vector* vec, JSContext* ctx, int32_t idx, int flags) {
   PropertyEnumeration* it;
   JSValue value;
 
   assert(!vector_empty(vec));
+
   it = vector_back(vec, sizeof(PropertyEnumeration));
   value = property_enumeration_value(it, ctx);
 
-  return property_enumeration_push(vec, ctx, value, flags);
+  if((it = property_enumeration_push(vec, ctx, value, flags)))
+    if(!property_enumeration_setpos(it, idx))
+      return 0;
+
+  return it;
 }
 
 static inline int32_t
 property_enumeration_level(const PropertyEnumeration* it, const Vector* vec) {
   return it - (const PropertyEnumeration*)vec->data;
 }
+
+IndexTuple property_enumeration_check(Vector* vec);
 
 #endif /* defined(PROPERTY_ENUMERATION_H) */

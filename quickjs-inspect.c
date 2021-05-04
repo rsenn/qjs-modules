@@ -34,6 +34,7 @@ typedef struct {
   int32_t break_length;
   int32_t compact;
   int32_t proto_chain;
+  int32_t number_base;
   Vector hide_keys;
 } inspect_options_t;
 
@@ -52,9 +53,7 @@ static JSValueConst global_object, object_ctor, object_proto, array_buffer_ctor,
 
 static int
 regexp_predicate(int c) {
-
   switch(c) {
-
     case 8: return 'u';
     case 12: return 'f';
     case 10: return 'n';
@@ -81,6 +80,7 @@ inspect_options_init(inspect_options_t* opts, JSContext* ctx) {
   opts->break_length = 80;
   opts->compact = 5;
   opts->proto_chain = 0;
+  opts->number_base = 10;
   vector_init(&opts->hide_keys, ctx);
 }
 
@@ -190,6 +190,11 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
   if(JS_IsNumber(value))
     JS_ToInt32(ctx, &opts->proto_chain, value);
   js_value_free(ctx, value);
+
+  value = JS_GetPropertyStr(ctx, object, "numberBase");
+  if(JS_IsNumber(value))
+    JS_ToInt32(ctx, &opts->number_base, value);
+  js_value_free(ctx, value);
 }
 
 static JSValue
@@ -215,6 +220,7 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
   n = 0;
   vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
+  JS_SetPropertyStr(ctx, ret, "numberBase", js_new_number(ctx, opts->number_base));
   return ret;
 }
 
@@ -483,9 +489,27 @@ js_inspect_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
   int tag = JS_VALUE_GET_TAG(value);
   const char* str;
   size_t len;
-  str = JS_ToCStringLen(ctx, &len, value);
+  JSValue number, base;
   if(tag != JS_TAG_SYMBOL && opts->colors)
     dbuf_putstr(buf, COLOR_YELLOW);
+  if(opts->number_base && opts->number_base != 10) {
+    base = JS_NewInt32(ctx, 16);
+    number = js_invoke(ctx, value, "toString", 1, &base);
+    JS_FreeValue(ctx, base);
+
+  } else {
+    number = JS_DupValue(ctx, value);
+  }
+  str = JS_ToCStringLen(ctx, &len, number);
+  JS_FreeValue(ctx, number);
+
+  if(is_digit_char(str[0]))
+    switch(opts->number_base) {
+      case 16: dbuf_putstr(buf, "0x"); break;
+      case 2: dbuf_putstr(buf, "0b"); break;
+      case 8: dbuf_putstr(buf, "0"); break;
+    }
+
   dbuf_append(buf, (const uint8_t*)str, len);
   js_cstring_free(ctx, str);
   if(tag <= JS_TAG_BIG_FLOAT)
@@ -501,9 +525,9 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
   int compact = INSPECT_IS_COMPACT(opts);
 
   const char* str;
-  size_t pos, len, max_len, limit;
+  size_t pos, len, max_len, limit, column_start = (INSPECT_LEVEL(opts) * 2);
   str = JS_ToCStringLen(ctx, &len, value);
-  max_len = min_size(opts->break_length - dbuf_get_column(buf) - 4, len);
+  max_len = min_size(opts->break_length - dbuf_get_column(buf) - 12, len);
 
   if(tag != JS_TAG_SYMBOL && opts->colors)
     dbuf_putstr(buf, COLOR_GREEN);
@@ -511,19 +535,26 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
   limit = min_size(opts->max_string_length, len);
 
   for(pos = 0; pos < limit;) {
-    size_t n, eol;
+    size_t i, n, eol;
     n = limit - pos;
     if(pos > 0) {
       dbuf_putstr(buf, opts->colors ? "'" COLOR_NONE " +" : "' +");
+      max_len = opts->break_length - column_start - 8;
       inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
-      max_len = opts->break_length - (INSPECT_LEVEL(opts) * 2) - 4;
       dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
     }
-    if(!compact && opts->string_break_newline) {
-      eol = byte_chr(&str[pos], n, '\n');
-      if(str[pos + eol] == '\n') {
-        eol++;
-        n = ansi_truncate(&str[pos], eol, max_len);
+    if(compact) {
+      n = ansi_truncate(&str[pos], n, max_len);
+    } else if(opts->string_break_newline) {
+      for(i = pos; i < limit; i += eol) {
+        eol = byte_chr(&str[i], limit - i, '\n');
+        if(str[i + eol] == '\n')
+          eol++;
+
+        if(i > pos && ansi_truncate(&str[pos], i + eol - pos, max_len) < i + eol - pos) {
+          n = i - pos;
+          break;
+        }
       }
     }
     dbuf_put_escaped_pred(buf, &str[pos], n, escape_char_pred);
@@ -552,19 +583,20 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
     case JS_TAG_FLOAT64:
     case JS_TAG_BIG_DECIMAL:
     case JS_TAG_BIG_INT:
+    case JS_TAG_INT:
     case JS_TAG_BIG_FLOAT: {
       return js_inspect_number(ctx, buf, value, opts, depth);
     }
 
-    case JS_TAG_INT: {
-      int i = JS_VALUE_GET_INT(value);
-      if(opts->colors)
-        dbuf_putstr(buf, COLOR_YELLOW);
-      dbuf_printf(buf, "%i", i);
-      if(opts->colors)
-        dbuf_putstr(buf, COLOR_NONE);
-      break;
-    }
+      /* case JS_TAG_INT: {
+         int i = JS_VALUE_GET_INT(value);
+         if(opts->colors)
+           dbuf_putstr(buf, COLOR_YELLOW);
+         dbuf_printf(buf, "%i", i);
+         if(opts->colors)
+           dbuf_putstr(buf, COLOR_NONE);
+         break;
+       }*/
 
     case JS_TAG_BOOL: {
       if(opts->colors)
@@ -725,7 +757,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
             static const char* const strs[4] = {0, "[Getter]", "[Setter]", "[Getter/Setter]"};
             if(idx)
               dbuf_put_colorstr(buf, strs[idx], COLOR_MARINE, opts->colors);
-          } else if(!JS_IsUndefined(desc.value)) {
+          } else if(JS_HasProperty(ctx, value, JS_ATOM_TAG_INT | pos)) {
             /* if(!compact)*/ dbuf_putc(buf, ' ');
             js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
           }
