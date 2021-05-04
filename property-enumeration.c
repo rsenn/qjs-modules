@@ -173,16 +173,10 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object) {
     }
     /*t = time_us() - t;
 
-    printf("property_enumeration_deepest took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
+     printf("property_enumeration_deepest took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
   }
   property_enumeration_free(&vec, JS_GetRuntime(ctx));
-  /*
-   if(!vector_empty(&vec)) {
-   for(it = vector_begin(&vec), end = vector_end(&vec); it != end; it++) {
-   property_enumeration_reset(it, JS_GetRuntime(ctx));
-   }
-   }
-   vector_free(&vec);*/
+
   return max_depth;
 }
 

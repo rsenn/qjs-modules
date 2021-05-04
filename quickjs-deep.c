@@ -194,15 +194,12 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       };
       JSValue ret;
       ret = JS_Call(ctx, it->pred, this_val, 2, args);
-
       if(JS_IsException(ret)) {
         JS_GetException(ctx);
         ret = JS_FALSE;
       }
-
       JS_FreeValue(ctx, args[0]);
       JS_FreeValue(ctx, args[1]);
-
       if(!JS_ToBool(ctx, ret))
         continue;
     } else if((it->type_mask & TYPE_ALL) != TYPE_ALL) {
@@ -288,6 +285,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 
   /*t = time_us() - t;
 
+>>>>>>> 2f9be62faa7be19a6210a674621876e5b4a106e8
   printf("js_deep_find took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
 
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
