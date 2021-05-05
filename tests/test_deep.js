@@ -2,6 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
 import * as deep from 'deep';
+import { Predicate } from 'predicate';
 //import * as xml from 'xml.so';
 import Console from '../lib/console.js';
 
@@ -80,22 +81,26 @@ function main(...args) {
     z: [NaN, true, false, Infinity, null]
   };
   let obj3 = {
+    0: true,
     v: 4,
     w: 3,
-    x: 2,
+    x: { name: 'x', a: 2 },
     y: [undefined, 1, 1234n],
     z: [NaN, true, false, Infinity, null]
   };
 
   deep.forEach([], (n, p) => console.log('deep.forEach', { n, p }));
 
-  for(let [n, p] of deep.iterate([])) console.log('deep.iterate', { n, p });
+  //for(let [n, p] of deep.iterate(obj1)) console.log('deep.iterate', { n, p });
 
   /*  for(let [n,p] of deep.iterate(obj3,  n => typeof n == 'object' && n != null))
     console.log('deep.iterate', { n, p });*/
 
-  for(let [n, p] of deep.iterate(obj3, deep.TYPE_OBJECT)) console.log(`deep.iterate(${deep.TYPE_OBJECT.toString(2)})`, { n, p });
-
+  for(let [n, p] of deep.iterate(obj3, Predicate.property('4')))
+    console.log(`deep.iterate(${deep.TYPE_OBJECT.toString(2)})`, { n, p });
+  console.log('select():',
+    deep.select(obj3, Predicate.property('name', Predicate.equal('x')), deep.RETURN_PATH_VALUE)
+  );
   return;
 
   for(let o of [obj1, obj2]) {
@@ -120,9 +125,7 @@ function main(...args) {
 
   const IsNumeric = v => Number.isFinite(v) || (typeof v).startsWith('big');
   const IsObject = v => typeof v == 'object' && v !== null;
-  console.log('select():',
-    deep.select(obj2, node => IsObject(node) || IsNumeric(node), deep.RETURN_PATH_VALUE)
-  );
+
   console.log('select():',
     deep.select(
       obj2,

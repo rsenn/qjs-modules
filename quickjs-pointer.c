@@ -68,13 +68,18 @@ js_pointer_tostring(JSContext* ctx, JSValueConst this_val) {
 }
 
 static JSValue
-js_pointer_inspect(JSContext* ctx, JSValueConst this_val, BOOL color) {
+js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Pointer* ptr;
   DynBuf dbuf;
   JSValue ret;
+  BOOL color = FALSE;
 
   if(!(ptr = JS_GetOpaque2(ctx, this_val, js_pointer_class_id)))
     return JS_EXCEPTION;
+
+  if(argc > 1 && JS_IsObject(argv[1])) {
+    color = js_get_propertystr_bool(ctx, argv[1], "colors");
+  }
 
   js_dbuf_init(ctx, &dbuf);
   pointer_dump(ptr, ctx, &dbuf, color, -1);
@@ -120,10 +125,10 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
       return pointer_toarray(ptr, ctx);
     }
 
-    case METHOD_INSPECT: {
-      return js_pointer_inspect(ctx, this_val, TRUE);
-    }
-
+      /*  case METHOD_INSPECT: {
+          return js_pointer_inspect(ctx, this_val, TRUE);
+        }
+    */
     case METHOD_SLICE: {
       int64_t s = js_int64_default(ctx, argv[0], 0);
       int64_t e = js_int64_default(ctx, argv[1], 0);
@@ -238,7 +243,6 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("deref", 1, js_pointer_method, METHOD_DEREF),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_pointer_method, METHOD_TO_STRING),
     JS_CFUNC_MAGIC_DEF("toArray", 0, js_pointer_method, METHOD_TO_ARRAY),
-    JS_CFUNC_MAGIC_DEF("inspect", 0, js_pointer_method, METHOD_INSPECT),
     JS_CFUNC_MAGIC_DEF("shift", 1, js_pointer_method, METHOD_SHIFT),
     JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, METHOD_SLICE),
     JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
@@ -257,12 +261,18 @@ static const JSCFunctionListEntry js_pointer_static_funcs[] = {
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {
-
+  JSAtom inspectAtom;
   JS_NewClassID(&js_pointer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_pointer_class_id, &js_pointer_class);
 
   pointer_proto = JS_NewObject(ctx);
   JS_SetPropertyFunctionList(ctx, pointer_proto, js_pointer_proto_funcs, countof(js_pointer_proto_funcs));
+
+  inspectAtom = js_symbol_for_atom(ctx, "quickjs.util.inspect.custom");
+  JS_SetPropertyStr(ctx, js_symbol_ctor(ctx), "inspect", js_atom_tovalue(ctx, inspectAtom));
+  JS_SetProperty(ctx, pointer_proto, inspectAtom, JS_NewCFunction(ctx, js_pointer_inspect, "inspect", 1));
+  JS_FreeAtom(ctx, inspectAtom);
+
   JS_SetClassProto(ctx, js_pointer_class_id, pointer_proto);
 
   pointer_ctor = JS_NewCFunction2(ctx, js_pointer_constructor, "Pointer", 1, JS_CFUNC_constructor, 0);

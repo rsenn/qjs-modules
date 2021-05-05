@@ -149,6 +149,10 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         *pred = predicate_equal(JS_DupValue(ctx, argv[1]));
         break;
       }
+      case PREDICATE_PROPERTY: {
+        *pred = predicate_property(JS_ValueToAtom(ctx, argv[1]), argc > 2 ? JS_DupValue(ctx, argv[2]) : JS_UNDEFINED);
+        break;
+      }
     }
   }
   return obj;
@@ -288,6 +292,13 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       ret = js_predicate_wrap(ctx, predicate_equal(JS_DupValue(ctx, argv[0])));
       break;
     }
+
+    case PREDICATE_PROPERTY: {
+      ret = js_predicate_wrap(ctx,
+                              predicate_property(JS_ValueToAtom(ctx, argv[0]),
+                                                 argc > 1 ? JS_DupValue(ctx, argv[1]) : JS_UNDEFINED));
+      break;
+    }
   }
   return ret;
 }
@@ -357,6 +368,7 @@ static const JSCFunctionListEntry js_predicate_funcs[] = {
     JS_CFUNC_MAGIC_DEF("instanceOf", 1, js_predicate_function, PREDICATE_INSTANCEOF),
     JS_CFUNC_MAGIC_DEF("prototypeIs", 1, js_predicate_function, PREDICATE_PROTOTYPEIS),
     JS_CFUNC_MAGIC_DEF("equal", 1, js_predicate_function, PREDICATE_EQUAL),
+    JS_CFUNC_MAGIC_DEF("property", 1, js_predicate_function, PREDICATE_PROPERTY),
 };
 
 static const JSCFunctionListEntry js_predicate_ids[] = {
@@ -372,6 +384,7 @@ static const JSCFunctionListEntry js_predicate_ids[] = {
     JS_PROP_INT32_DEF("INSTANCEOF", PREDICATE_INSTANCEOF, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PROTOTYPEIS", PREDICATE_PROTOTYPEIS, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("EQUAL", PREDICATE_EQUAL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PROPERTY", PREDICATE_EQUAL, JS_PROP_ENUMERABLE),
 };
 
 static const JSCFunctionListEntry js_predicate_types[] = {

@@ -1000,6 +1000,24 @@ js_symbol_invoke_static(JSContext* ctx, const char* name, JSValueConst arg) {
 }
 
 JSValue
+js_symbol_for(JSContext* ctx, const char* sym_for) {
+  JSValue key, sym;
+  JSAtom atom;
+  key = JS_NewString(ctx, sym_for);
+  sym = js_symbol_invoke_static(ctx, "for", key);
+  JS_FreeValue(ctx, key);
+  return sym;
+}
+
+JSAtom
+js_symbol_for_atom(JSContext* ctx, const char* sym_for) {
+  JSValue sym = js_symbol_for(ctx, sym_for);
+  JSAtom atom = JS_ValueToAtom(ctx, sym);
+  JS_FreeValue(ctx, sym);
+  return atom;
+}
+
+JSValue
 js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
   JSValue value, str;
   JSAtom atom;

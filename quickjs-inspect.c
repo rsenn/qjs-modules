@@ -259,7 +259,7 @@ static JSAtom
 js_inspect_custom_atom(JSContext* ctx, const char* sym_for) {
   JSValue key, sym;
   JSAtom atom;
-  key = JS_NewString(ctx, sym_for ? sym_for : "nodejs.util.inspect.custom");
+  key = JS_NewString(ctx, sym_for ? sym_for : "quickjs.util.inspect.custom");
   sym = js_symbol_invoke_static(ctx, "for", key);
   JS_FreeValue(ctx, key);
   atom = JS_ValueToAtom(ctx, sym);
@@ -273,8 +273,8 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   JSValue inspect = JS_UNDEFINED;
   JSAtom inspect_custom_node, inspect_custom, prop;
   const char* str = 0;
-  inspect_custom_node = js_inspect_custom_atom(ctx, NULL);
-  inspect_custom = js_inspect_custom_atom(ctx, "quickjs.util.inspect.custom");
+  inspect_custom_node = js_inspect_custom_atom(ctx, "nodejs.util.inspect.custom");
+  inspect_custom = js_inspect_custom_atom(ctx, 0);
   if(JS_HasProperty(ctx, obj, inspect_custom))
     inspect = JS_GetProperty(ctx, obj, inspect_custom);
   else if(JS_HasProperty(ctx, obj, inspect_custom_node))

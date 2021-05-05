@@ -667,6 +667,8 @@ BOOL js_is_iterable(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_method(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_new(JSContext* ctx, JSValueConst obj);
 IteratorValue js_iterator_next(JSContext* ctx, JSValueConst obj);
+JSValue js_symbol_for(JSContext* ctx, const char* sym_for);
+JSAtom js_symbol_for_atom(JSContext* ctx, const char* sym_for);
 
 static inline int64_t
 js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {

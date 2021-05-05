@@ -151,6 +151,17 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
       ret = js_value_equals(ctx, argv[0], pr->unary.predicate);
       break;
     }
+
+    case PREDICATE_PROPERTY: {
+      if(JS_IsUndefined(pr->property.predicate)) {
+        ret = JS_HasProperty(ctx, argv[0], pr->property.atom);
+      } else {
+        JSValueConst args[] = {JS_GetProperty(ctx, argv[0], pr->property.atom)};
+
+        ret = predicate_call(ctx, pr->property.predicate, 1, args);
+      }
+      break;
+    }
     default: assert(0); break;
   }
   return ret;
@@ -194,6 +205,7 @@ predicate_typename(const Predicate* pr) {
                           "INSTANCEOF",
                           "PROTOTYPEIS",
                           "EQUAL",
+                          "PROPERTY",
                           0})[pr->id];
 }
 
@@ -305,6 +317,14 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       break;
     }
 
+    case PREDICATE_PROPERTY: {
+      js_atom_dump(ctx, pr->property.atom, dbuf, TRUE);
+      dbuf_putc(dbuf, ' ');
+
+      js_value_dump(ctx, pr->property.predicate, dbuf);
+      break;
+    }
+
     default: assert(0); break;
   }
 }
@@ -364,6 +384,12 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
       js_free_rt(rt, pred->regexp.expr.source);
       break;
     }
+    case PREDICATE_PROPERTY: {
+      JS_FreeAtomRT(rt, pred->property.atom);
+      JS_FreeValueRT(rt, pred->property.predicate);
+
+      break;
+    }
   }
   memset(pred, 0, sizeof(Predicate));
 }
@@ -392,6 +418,11 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_AND:
     case PREDICATE_XOR: {
       ret = js_values_toarray(ctx, pred->boolean.npredicates, pred->boolean.predicates);
+      break;
+    }
+
+    case PREDICATE_PROPERTY: {
+      ret = JS_DupValue(ctx, pred->property.predicate);
       break;
     }
   }
@@ -445,6 +476,11 @@ predicate_dup(const Predicate* pred, JSContext* ctx) {
       ret->regexp.expr.len = pred->regexp.expr.len;
       ret->regexp.expr.flags = pred->regexp.expr.flags;
       ret->regexp.bytecode = 0;
+      break;
+    }
+    case PREDICATE_PROPERTY: {
+      ret->property.atom = JS_DupAtom(ctx, pred->property.atom);
+      ret->property.predicate = JS_DupValue(ctx, pred->property.predicate);
       break;
     }
   }

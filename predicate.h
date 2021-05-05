@@ -17,7 +17,8 @@ enum predicate_id {
   PREDICATE_REGEXP,
   PREDICATE_INSTANCEOF,
   PREDICATE_PROTOTYPEIS,
-  PREDICATE_EQUAL
+  PREDICATE_EQUAL,
+  PREDICATE_PROPERTY
 };
 
 typedef struct {
@@ -53,6 +54,11 @@ typedef struct {
   uint8_t* bytecode;
 } RegExpPredicate;
 
+typedef struct {
+  JSAtom atom;
+  JSValue predicate;
+} PropertyPredicate;
+
 typedef struct Predicate {
   enum predicate_id id;
   union {
@@ -63,6 +69,7 @@ typedef struct Predicate {
     BinaryPredicate binary;
     BooleanPredicate boolean;
     RegExpPredicate regexp;
+    PropertyPredicate property;
   };
 } Predicate;
 
@@ -196,6 +203,14 @@ static inline Predicate
 predicate_not(JSValue value) {
   Predicate ret = PREDICATE_INIT(PREDICATE_NOT);
   ret.unary.predicate = value;
+  return ret;
+}
+
+static inline Predicate
+predicate_property(JSAtom prop, JSValue pred) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_PROPERTY);
+  ret.property.atom = prop;
+  ret.property.predicate = pred;
   return ret;
 }
 

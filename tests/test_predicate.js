@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
 import * as xml from 'xml';
-import { Predicate, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal } from 'predicate';
+import { Predicate, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal, property } from 'predicate';
 import Console from '../lib/console.js';
 
 ('use strict');
@@ -94,6 +94,19 @@ async function main(...args) {
 
   for(let ch of ['_', '2', 'A', 'a', '?', '-']) console.log(`isAlnum('${ch}') =`, isAlnum(ch));
 
+  let propToString = property('toString');
+  let propTest = property('test');
+
+  console.log('propToString(Object.create(null, {}))', propToString(Object.create(null, {})));
+  console.log('propToString(function(){})',
+    propToString(function () {})
+  );
+
+  console.log('propTest({})', propTest({}));
+  console.log('propTest({test: undefined})', propTest({ test: undefined }));
+
+  /*
+
   for(let str of ['_ABC3', '1ABC', '_1ABC', 'A1B2C3'])
     console.log(`isIdentifier('${str}') =`,
       isIdentifier(str, captures => {
@@ -120,11 +133,10 @@ async function main(...args) {
   for(let pred of [isIdentifier, isNumber, isNL, isUpper]) {
     console.log(`pred('${s}') =`, pred(s));
   }
-
   for(let str of ['-120', '0.12345e08', 'ABC', '1abc']) {
     let a = [];
     console.log(`combined('${str}') =`, combined(str, a));
-    //  console.log("a:", a);
+
   }
   console.log('combined.values =', combined.values);
   console.log('combined.values =',
@@ -134,8 +146,7 @@ async function main(...args) {
   console.log('re =', re);
   console.log('re =', re + '');
   console.log('re =', re.toString());
-  /*console.log("ArrayBuffer =", ArrayBuffer+'');
-    console.log("ArrayBuffer =",  Function.prototype.toString.call(ArrayBuffer));*/
+
 
   let dummy = new ArrayBuffer(1024);
   let arri32 = new Int32Array(1024);
@@ -161,7 +172,7 @@ async function main(...args) {
   let mt = type(Predicate.TYPE_INT | Predicate.TYPE_OBJECT);
   console.log('mt =', mt.toString());
 
-  for(let item of [1234, /*Symbol.iterator,*/ 'abcd', {}]) console.log(`mt(${item}) = `, mt(item));
+  for(let item of [1234,  'abcd', {}]) console.log(`mt(${item}) = `, mt(item));
   let cp = charset('ABCDEFGHIJKLMNOPQRSTUVWXYZ\u2605\u29bf\u2754');
   console.log('cp =', cp.toString());
 
@@ -172,6 +183,7 @@ async function main(...args) {
   console.log('  =', eval('31337l'));
   console.log('  =', eval('31337m'));
   console.log('  =', eval('31337n'));
+*/
 
   std.gc();
 }

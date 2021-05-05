@@ -22,7 +22,7 @@
  * THE SOFTWARE.
  */
 #include "quickjs-libc.h"
-#include "cutils.h"
+#include "utils.h"
 
 static JSValue
 js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
@@ -31,13 +31,13 @@ js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
   JSValue obj;
   size_t size;
   int flags;
-
-  if(JS_ToIndex(ctx, &pos, argv[1]))
+  if(!(buf = JS_GetArrayBuffer(ctx, &size, argv[0])))
     return JS_EXCEPTION;
-  if(JS_ToIndex(ctx, &len, argv[2]))
+  pos = 0;
+  len = size;
+  if(argc > 1 && JS_ToIndex(ctx, &pos, argv[1]))
     return JS_EXCEPTION;
-  buf = JS_GetArrayBuffer(ctx, &size, argv[0]);
-  if(!buf)
+  if(argc > 2 && JS_ToIndex(ctx, &len, argv[2]))
     return JS_EXCEPTION;
   if(pos + len > size)
     return JS_ThrowRangeError(ctx, "array buffer overflow");
@@ -82,7 +82,7 @@ js_bjson_init(JSContext* ctx, JSModuleDef* m) {
 #define JS_INIT_MODULE js_init_module_bjson
 #endif
 
-JSModuleDef*
+VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
   m = JS_NewCModule(ctx, module_name, js_bjson_init);
