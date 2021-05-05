@@ -175,7 +175,7 @@ foreach(TEST_SOURCE ${TESTS_SOURCES})
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
 file(GLOB LIBJS lib/*.js)
-list(FILTER LIBJS EXCLUDE REGEX "lib/require.js|lib/console.js|lib/fs.js")
+list(FILTER LIBJS EXCLUDE REGEX "lib/require.js|lib/fs.js")
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}")
 
