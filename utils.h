@@ -747,21 +747,8 @@ BOOL js_is_promise(JSContext*, JSValue);
 
 BOOL js_is_typedarray(JSContext* ctx, JSValueConst value);
 
-static JSValue
-js_typedarray_prototype(JSContext* ctx) {
-  JSValue u8arr_proto = js_global_prototype(ctx, "Uint8Array");
-  JSValue typedarr_proto = JS_GetPrototype(ctx, u8arr_proto);
-  JS_FreeValue(ctx, u8arr_proto);
-  return typedarr_proto;
-}
-
-static JSValue
-js_typedarray_constructor(JSContext* ctx) {
-  JSValue typedarr_proto = js_typedarray_prototype(ctx);
-  JSValue typedarr_ctor = JS_GetPropertyStr(ctx, typedarr_proto, "constructor");
-  JS_FreeValue(ctx, typedarr_proto);
-  return typedarr_ctor;
-}
+JSValue js_typedarray_prototype(JSContext* ctx);
+JSValue js_typedarray_constructor(JSContext* ctx);
 
 static inline BOOL
 js_is_array(JSContext* ctx, JSValueConst value) {

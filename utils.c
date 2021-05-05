@@ -1470,3 +1470,19 @@ BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
   return js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]");
 }
+
+JSValue
+js_typedarray_prototype(JSContext* ctx) {
+  JSValue u8arr_proto = js_global_prototype(ctx, "Uint8Array");
+  JSValue typedarr_proto = JS_GetPrototype(ctx, u8arr_proto);
+  JS_FreeValue(ctx, u8arr_proto);
+  return typedarr_proto;
+}
+
+JSValue
+js_typedarray_constructor(JSContext* ctx) {
+  JSValue typedarr_proto = js_typedarray_prototype(ctx);
+  JSValue typedarr_ctor = JS_GetPropertyStr(ctx, typedarr_proto, "constructor");
+  JS_FreeValue(ctx, typedarr_proto);
+  return typedarr_ctor;
+}
