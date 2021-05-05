@@ -598,17 +598,10 @@ js_is_iterable(JSContext* ctx, JSValueConst obj) {
 
 int
 js_is_typedarray(JSContext* ctx, JSValueConst value) {
-  int ret;
-  JSValue buf;
-  size_t byte_offset, byte_length, bytes_per_element;
-  buf = JS_GetTypedArrayBuffer(ctx, value, &byte_offset, &byte_length, &bytes_per_element);
-  if(JS_IsException(buf)) {
-    // js_runtime_exception_clear(JS_GetRuntime(ctx));
-    JS_FreeValue(ctx, JS_GetException(ctx));
-    return 0;
-  }
-  ret = js_value_isclass(ctx, buf, JS_CLASS_ARRAY_BUFFER);
-  JS_FreeValue(ctx, buf);
+  JSValue ctor = js_typedarray_constructor(ctx);
+  BOOL ret;
+  ret = JS_IsInstanceOf(ctx, value, ctor);
+  JS_FreeValue(ctx, ctor);
   return ret;
 }
 
@@ -1442,32 +1435,38 @@ js_module_namestr(JSContext* ctx, JSValueConst value) {
   return s;
 }
 
-int
+BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   return js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) || js_object_is(ctx, value, "[object ArrayBuffer]");
 }
-int
+
+BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
   return js_value_isclass(ctx, value, JS_CLASS_SHARED_ARRAY_BUFFER) ||
          js_object_is(ctx, value, "[object SharedArrayBuffer]");
 }
-int
+
+BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
   return js_value_isclass(ctx, value, JS_CLASS_MAP) || js_object_is(ctx, value, "[object Map]");
 }
-int
+
+BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
   return js_value_isclass(ctx, value, JS_CLASS_SET) || js_object_is(ctx, value, "[object Set]");
 }
-int
+
+BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
   return js_value_isclass(ctx, value, JS_CLASS_GENERATOR) || js_object_is(ctx, value, "[object Generator]");
 }
-int
+
+BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
   return js_value_isclass(ctx, value, JS_CLASS_REGEXP) || js_object_is(ctx, value, "[object RegExp]");
 }
-int
+
+BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
   return js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]");
 }

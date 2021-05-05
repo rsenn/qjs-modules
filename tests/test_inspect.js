@@ -10,7 +10,10 @@ globalThis.inspect = inspect;
 
 Map.prototype.emplace = function emplace(key, handler) {
   var map = this;
-  var value = map.has(key) && 'update' in handler ? handler.update(map.get(key), key, map) : handler.insert(key, map);
+  var value =
+    map.has(key) && 'update' in handler
+      ? handler.update(map.get(key), key, map)
+      : handler.insert(key, map);
   map.set(key, value);
   return value;
 };
@@ -51,12 +54,14 @@ async function main(...args) {
   };
   let arr = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   console.log('arr', arr);
-return;
+  return;
   console.log('inspect(Test.prototype)', inspect(Test.prototype, options));
   const dumpObj = (obj, depth, options) =>
     '{' +
     Object.entries(obj)
-      .map(([k, v]) => '\n' + '  '.repeat(options.depth - depth + 1) + k + '=' + inspect(v, depth - 1, options))
+      .map(([k, v]) =>
+          '\n' + '  '.repeat(options.depth - depth + 1) + k + '=' + inspect(v, depth - 1, options)
+      )
       .join(',') +
     '}';
   console.log('main', args);

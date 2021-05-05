@@ -727,24 +727,46 @@ uint64_t js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char*
 
 int js_class_id(JSContext* ctx, int id);
 
-static inline int
+static inline BOOL
 js_object_isclass(JSValue obj, int32_t class_id) {
   return JS_GetOpaque(obj, class_id) != 0;
 }
 
-static inline int
+static inline BOOL
 js_value_isclass(JSContext* ctx, JSValue obj, int id) {
   return js_object_isclass(obj, js_class_id(ctx, id));
 }
-int js_is_arraybuffer(JSContext*, JSValue);
-int js_is_sharedarraybuffer(JSContext*, JSValue);
-int js_is_map(JSContext*, JSValue);
-int js_is_set(JSContext*, JSValue);
-int js_is_generator(JSContext*, JSValue);
-int js_is_regexp(JSContext*, JSValue);
-int js_is_promise(JSContext*, JSValue);
 
-int js_is_typedarray(JSContext* ctx, JSValueConst value);
+BOOL js_is_arraybuffer(JSContext*, JSValue);
+BOOL js_is_sharedarraybuffer(JSContext*, JSValue);
+BOOL js_is_map(JSContext*, JSValue);
+BOOL js_is_set(JSContext*, JSValue);
+BOOL js_is_generator(JSContext*, JSValue);
+BOOL js_is_regexp(JSContext*, JSValue);
+BOOL js_is_promise(JSContext*, JSValue);
+
+BOOL js_is_typedarray(JSContext* ctx, JSValueConst value);
+
+static JSValue
+js_typedarray_prototype(JSContext* ctx) {
+  JSValue u8arr_proto = js_global_prototype(ctx, "Uint8Array");
+  JSValue typedarr_proto = JS_GetPrototype(ctx, u8arr_proto);
+  JS_FreeValue(ctx, u8arr_proto);
+  return typedarr_proto;
+}
+
+static JSValue
+js_typedarray_constructor(JSContext* ctx) {
+  JSValue typedarr_proto = js_typedarray_prototype(ctx);
+  JSValue typedarr_ctor = JS_GetPropertyStr(ctx, typedarr_proto, "constructor");
+  JS_FreeValue(ctx, typedarr_proto);
+  return typedarr_ctor;
+}
+
+static inline BOOL
+js_is_array(JSContext* ctx, JSValueConst value) {
+  return JS_IsArray(ctx, value) || js_is_typedarray(ctx, value);
+}
 
 BOOL js_is_input(JSContext* ctx, JSValueConst value);
 
