@@ -94,8 +94,7 @@ function main(...args) {
   /*  for(let [n,p] of deep.iterate(obj3,  n => typeof n == 'object' && n != null))
     console.log('deep.iterate', { n, p });*/
 
-  for(let [n, p] of deep.iterate(obj3, deep.TYPE_OBJECT))
-    console.log(`deep.iterate(${deep.TYPE_OBJECT.toString(2)})`, { n, p });
+  for(let [n, p] of deep.iterate(obj3, deep.TYPE_OBJECT)) console.log(`deep.iterate(${deep.TYPE_OBJECT.toString(2)})`, { n, p });
 
   return;
 

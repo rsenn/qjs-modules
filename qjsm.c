@@ -629,36 +629,86 @@ js_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
-enum { FIND_MODULE, GET_MODULE_NAME, GET_MODULE_EXPORTS };
+enum {
+  FIND_MODULE,
+  GET_MODULE_NAME,
+  GET_MODULE_OBJECT,
+  GET_MODULE_EXPORTS,
+  GET_MODULE_NAMESPACE,
+  GET_MODULE_FUNCTION,
+  GET_MODULE_EXCEPTION,
+  GET_MODULE_META_OBJ
+};
 
 static JSValue
 js_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_EXCEPTION;
+  JSModuleDef* m;
   switch(magic) {
 
     case FIND_MODULE: {
       const char* name = JS_ToCString(ctx, argv[0]);
-      JSModuleDef* module = jsm_module_find(ctx, name);
-
+      m = jsm_module_find(ctx, name);
       JS_FreeCString(ctx, name);
-
-      ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, module));
+      ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
       break;
     }
     case GET_MODULE_NAME: {
-      JSModuleDef* m;
-
       if((m = jsm_module_get(ctx, argv[0])))
         ret = js_module_name(ctx, argv[0]);
+      break;
+    }
+    case GET_MODULE_OBJECT: {
+      if((m = jsm_module_get(ctx, argv[0]))) {
+        ret = JS_NewObject(ctx);
 
+        JS_SetPropertyStr(ctx, ret, "name", js_module_name(ctx, argv[0]));
+        JS_SetPropertyStr(ctx, ret, "resolved", JS_NewBool(ctx, m->resolved));
+        JS_SetPropertyStr(ctx, ret, "func_created", JS_NewBool(ctx, m->func_created));
+        JS_SetPropertyStr(ctx, ret, "instantiated", JS_NewBool(ctx, m->instantiated));
+        JS_SetPropertyStr(ctx, ret, "evaluated", JS_NewBool(ctx, m->evaluated));
+        if(m->eval_has_exception)
+          JS_SetPropertyStr(ctx, ret, "exception", JS_DupValue(ctx, m->eval_exception));
+        if(!JS_IsUndefined(m->module_ns))
+          JS_SetPropertyStr(ctx, ret, "namespace", JS_DupValue(ctx, m->module_ns));
+        if(!JS_IsUndefined(m->func_obj))
+          JS_SetPropertyStr(ctx, ret, "func", JS_DupValue(ctx, m->func_obj));
+        if(!JS_IsUndefined(m->meta_obj))
+          JS_SetPropertyStr(ctx, ret, "meta", JS_DupValue(ctx, m->meta_obj));
+      }
       break;
     }
     case GET_MODULE_EXPORTS: {
-      JSModuleDef* m;
-
       if((m = jsm_module_get(ctx, argv[0])))
         ret = jsm_module_exports(ctx, m);
-
+      break;
+    }
+    case GET_MODULE_NAMESPACE: {
+      if((m = jsm_module_get(ctx, argv[0])))
+        ret = JS_DupValue(ctx, m->module_ns);
+      break;
+    }
+    case GET_MODULE_FUNCTION: {
+      if((m = jsm_module_get(ctx, argv[0]))) {
+        if(m->func_created)
+          ret = JS_DupValue(ctx, m->func_obj);
+        else
+          ret = JS_NULL;
+      }
+      break;
+    }
+    case GET_MODULE_EXCEPTION: {
+      if((m = jsm_module_get(ctx, argv[0]))) {
+        if(m->eval_has_exception)
+          ret = JS_DupValue(ctx, m->eval_exception);
+        else
+          ret = JS_NULL;
+      }
+      break;
+    }
+    case GET_MODULE_META_OBJ: {
+      if((m = jsm_module_get(ctx, argv[0])))
+        ret = JS_DupValue(ctx, m->meta_obj);
       break;
     }
   }
@@ -671,7 +721,12 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CGETSET_DEF("moduleList", jsm_module_list, 0),
     JS_CFUNC_MAGIC_DEF("findModule", 1, js_module_func, FIND_MODULE),
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, js_module_func, GET_MODULE_NAME),
+    JS_CFUNC_MAGIC_DEF("getModuleObject", 1, js_module_func, GET_MODULE_OBJECT),
     JS_CFUNC_MAGIC_DEF("getModuleExports", 1, js_module_func, GET_MODULE_EXPORTS),
+    JS_CFUNC_MAGIC_DEF("getModuleNamespace", 1, js_module_func, GET_MODULE_NAMESPACE),
+    JS_CFUNC_MAGIC_DEF("getModuleFunction", 1, js_module_func, GET_MODULE_FUNCTION),
+    JS_CFUNC_MAGIC_DEF("getModuleException", 1, js_module_func, GET_MODULE_EXCEPTION),
+    JS_CFUNC_MAGIC_DEF("getModuleMetaObject", 1, js_module_func, GET_MODULE_META_OBJ),
 };
 
 int
