@@ -6,7 +6,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
-set(QUICKJS_MODULES child-process deep lexer mmap path pointer predicate
+set(QUICKJS_MODULES bjson child-process deep lexer mmap path pointer predicate
                     repeater inspect tree-walker xml)
 
 if(EXISTS "${QUICKJS_H}")
