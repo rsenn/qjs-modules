@@ -1486,3 +1486,13 @@ js_typedarray_constructor(JSContext* ctx) {
   JS_FreeValue(ctx, typedarr_proto);
   return typedarr_ctor;
 }
+
+JSValue
+js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst* argv) {
+  JSAtom atom;
+  JSValue ret;
+  atom = JS_NewAtom(ctx, method);
+  ret = JS_Invoke(ctx, this_obj, atom, argc, argv);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}

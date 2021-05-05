@@ -773,14 +773,6 @@ char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 JSValue js_module_name(JSContext*, JSValueConst);
 char* js_module_namestr(JSContext* ctx, JSValueConst value);
 
-static inline JSValue
-js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst* argv) {
-  JSAtom atom;
-  JSValue ret;
-  atom = JS_NewAtom(ctx, method);
-  ret = JS_Invoke(ctx, this_obj, atom, argc, argv);
-  JS_FreeAtom(ctx, atom);
-  return ret;
-}
+JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst* argv);
 
 #endif /* defined(UTILS_H) */
