@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "vector.h"
 #include "utils.h"
 #include <assert.h>

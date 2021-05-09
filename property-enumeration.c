@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "property-enumeration.h"
 #include <assert.h>
 #include <stdint.h>
@@ -145,38 +149,25 @@ int32_t
 property_enumeration_deepest(JSContext* ctx, JSValueConst object) {
   Vector vec = VECTOR(ctx);
   int32_t depth, max_depth = 0;
-  PropertyEnumeration *prev, *it;
+  PropertyEnumeration* it;
   JSValue root = JS_DupValue(ctx, object);
-  if(JS_IsObject(root)) {
-    // uint64_t t = time_us();
 
+  if(JS_IsObject(root)) {
     for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it;
         (it = property_enumeration_recurse(&vec, ctx))) {
-      JSValue value = property_enumeration_value(it, ctx);
 
-      IndexTuple t = property_enumeration_check(&vec);
 
-      if(t.a != -1)
-        printf("property_enumeration_circular[%" PRIu32 "] %i %i\n",
-               vector_size(&vec, sizeof(PropertyEnumeration)),
-               t.a,
-               t.b);
-
-      JS_FreeValue(ctx, value);
-
-      if(max_depth < (depth = vector_size(&vec, sizeof(PropertyEnumeration))))
+      depth = vector_size(&vec, sizeof(PropertyEnumeration));
+printf("depth = %zu, key = %s\n",depth,  property_enumeration_keystr(it,ctx));
+      if(max_depth < depth)
         max_depth = depth;
-
-      prev = it;
     }
-    /*t = time_us() - t;
-
-     printf("property_enumeration_deepest took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
   }
   property_enumeration_free(&vec, JS_GetRuntime(ctx));
-
+ 
   return max_depth;
 }
+
 
 JSValue
 property_enumeration_path(Vector* vec, JSContext* ctx) {

@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "cutils.h"
 #include "iteration.h"
 #include "list.h"
@@ -457,12 +461,11 @@ js_inspect_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
   str = JS_ToCStringLen(ctx, &len, number);
   JS_FreeValue(ctx, number);
 
-  if(is_digit_char(str[0]))
-    switch(opts->number_base) {
-      case 16: dbuf_putstr(buf, "0x"); break;
-      case 2: dbuf_putstr(buf, "0b"); break;
-      case 8: dbuf_putstr(buf, "0"); break;
-    }
+  switch(opts->number_base) {
+    case 16: dbuf_putstr(buf, "0x"); break;
+    case 2: dbuf_putstr(buf, "0b"); break;
+    case 8: dbuf_putstr(buf, "0"); break;
+  }
 
   dbuf_append(buf, (const uint8_t*)str, len);
   js_cstring_free(ctx, str);
@@ -593,14 +596,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       uint32_t pos, len, limit;
       Vector propenum_tab;
       const char* s = 0;
-      BOOL compact = FALSE;
-
-      if(INSPECT_INT32T_INRANGE(opts->compact) && opts->compact > 0) {
-        int32_t depth = property_enumeration_deepest(ctx, value);
-        // printf("opts->compact %d depth = %d\n", opts->compact, depth);
-
-        compact = opts->compact >= depth;
-      }
+      int compact = opts->compact;
 
       if(opts->custom_inspect) {
         JSValue tmp = js_inspect_custom_call(ctx, value, opts, depth);
@@ -616,7 +612,15 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
             return js_inspect_print(ctx, buf, tmp, opts, depth);
 
           value = tmp;
+          compact++;
         }
+      }
+
+      if(INSPECT_INT32T_INRANGE(opts->compact) && opts->compact > 0) {
+        int32_t deepest = property_enumeration_deepest(ctx, value);
+        printf("%s opts->compact = %d, deepest = %d, depth = %d\n", js_value_typestr(ctx, value), opts->compact, deepest, depth);
+
+        compact = compact >= depth;
       }
 
       if(!(is_function = JS_IsFunction(ctx, value))) {

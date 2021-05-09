@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "cutils.h"
 #include "property-enumeration.h"
 #include "quickjs.h"

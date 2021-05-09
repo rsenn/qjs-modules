@@ -508,6 +508,7 @@ js_value_types() {
                                "BIG_INT",
                                "BIG_DECIMAL",
                                "FLOAT64",
+                               "NAN",
                                "FUNCTION",
                                "ARRAY",
                                0};

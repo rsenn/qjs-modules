@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "utils.h"
 #include "cutils.h"
 #include "vector.h"
@@ -1065,7 +1069,9 @@ js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
 
 const char*
 js_value_type_name(int32_t type) {
-  return js_value_types()[js_value_type2flag(type)];
+  int32_t flag = js_value_type2flag(type);
+  const char* const* types = js_value_types();
+  return types[flag];
 }
 
 const char*

@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "quickjs.h"
 #include "libregexp.h"
 #include "quickjs-lexer.h"

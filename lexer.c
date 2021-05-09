@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "lexer.h"
 #include "libregexp.h"
 #include <ctype.h>
