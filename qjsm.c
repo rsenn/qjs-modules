@@ -283,7 +283,7 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
 
   filename = module_name[0] == '/' ? js_strdup(ctx, module_name) : jsm_find_module(ctx, module_name);
   if(filename) {
-    printf("jsm_module_loader_path filename=%s\n", filename);
+    //printf("jsm_module_loader_path filename=%s\n", filename);
 
     ret = js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);

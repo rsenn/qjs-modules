@@ -156,18 +156,16 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object) {
     for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it;
         (it = property_enumeration_recurse(&vec, ctx))) {
 
-
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
-printf("depth = %zu, key = %s\n",depth,  property_enumeration_keystr(it,ctx));
+      printf("depth = %zu, atom = %x\n", depth, it->tab_atom[it->idx].atom);
       if(max_depth < depth)
         max_depth = depth;
     }
   }
   property_enumeration_free(&vec, JS_GetRuntime(ctx));
- 
+
   return max_depth;
 }
-
 
 JSValue
 property_enumeration_path(Vector* vec, JSContext* ctx) {
