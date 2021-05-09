@@ -279,6 +279,8 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
 
   filename = module_name[0] == '/' ? js_strdup(ctx, module_name) : jsm_find_module(ctx, module_name);
   if(filename) {
+    printf("jsm_module_loader_path filename=%s\n", filename);
+
     ret = js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
   }
@@ -974,6 +976,15 @@ main(int argc, char** argv) {
       jsm_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
     }
     js_std_loop(ctx);
+  }
+
+  {
+
+    JSValue exception = JS_GetException(ctx);
+
+    if(!JS_IsNull(exception)) {
+      jsm_std_dump_error(ctx, exception);
+    }
   }
 
   if(dump_memory) {

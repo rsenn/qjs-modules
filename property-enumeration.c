@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "property-enumeration.h"
 #include <assert.h>
 #include <stdint.h>

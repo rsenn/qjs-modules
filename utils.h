@@ -1,8 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#define _GNU_SOURCE
-
 #include "quickjs.h"
 #include "cutils.h"
 #include <string.h>

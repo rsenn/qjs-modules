@@ -1,7 +1,6 @@
 #ifndef ITERATION_H
 #define ITERATION_H
 
-#define _GNU_SOURCE
 
 #include "quickjs.h"
 #include "utils.h"

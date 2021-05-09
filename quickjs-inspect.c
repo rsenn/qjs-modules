@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "cutils.h"
 #include "iteration.h"
 #include "list.h"
@@ -259,7 +257,7 @@ static JSAtom
 js_inspect_custom_atom(JSContext* ctx, const char* sym_for) {
   JSValue key, sym;
   JSAtom atom;
-  key = JS_NewString(ctx, sym_for ? sym_for : "quickjs.util.inspect.custom");
+  key = JS_NewString(ctx, sym_for ? sym_for : "quickjs.inspect.custom");
   sym = js_symbol_invoke_static(ctx, "for", key);
   JS_FreeValue(ctx, key);
   atom = JS_ValueToAtom(ctx, sym);
@@ -268,13 +266,14 @@ js_inspect_custom_atom(JSContext* ctx, const char* sym_for) {
   return atom;
 }
 
-static const char*
+static JSValue
 js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
+  JSValue ret = JS_UNDEFINED;
   JSValue inspect = JS_UNDEFINED;
   JSAtom inspect_custom_node, inspect_custom, prop;
-  const char* str = 0;
   inspect_custom_node = js_inspect_custom_atom(ctx, "nodejs.util.inspect.custom");
   inspect_custom = js_inspect_custom_atom(ctx, 0);
+
   if(JS_HasProperty(ctx, obj, inspect_custom))
     inspect = JS_GetProperty(ctx, obj, inspect_custom);
   else if(JS_HasProperty(ctx, obj, inspect_custom_node))
@@ -283,12 +282,8 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   JS_FreeAtom(ctx, inspect_custom_node);
   JS_FreeAtom(ctx, inspect_custom);
 
-  if(JS_IsUndefined(inspect))
-    return 0;
-
   if(JS_IsFunction(ctx, inspect)) {
     JSValueConst args[2];
-    JSValue ret;
     inspect_options_t opts_nocustom;
     memcpy(&opts_nocustom, opts, sizeof(inspect_options_t));
     opts_nocustom.custom_inspect = FALSE;
@@ -297,11 +292,11 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
     ret = JS_Call(ctx, inspect, obj, 2, args);
     JS_FreeValue(ctx, args[0]);
     JS_FreeValue(ctx, args[1]);
-    str = JS_ToCString(ctx, ret);
-    JS_FreeValue(ctx, ret);
+    /*   str = JS_ToCString(ctx, ret);
+       JS_FreeValue(ctx, ret);*/
   }
   JS_FreeValue(ctx, inspect);
-  return str;
+  return ret;
 }
 
 static int
@@ -607,11 +602,23 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         compact = opts->compact >= depth;
       }
 
-      if(opts->custom_inspect && (s = js_inspect_custom_call(ctx, value, opts, depth))) {
-        dbuf_putstr(buf, s);
-        js_cstring_free(ctx, s);
-        return 0;
+      if(opts->custom_inspect) {
+        JSValue tmp = js_inspect_custom_call(ctx, value, opts, depth);
+        if(JS_IsString(tmp)) {
+          const char* s = JS_ToCString(ctx, tmp);
+          dbuf_putstr(buf, s);
+          js_cstring_free(ctx, s);
+          return 0;
+        }
+
+        if(!JS_IsUndefined(tmp)) {
+          if(!JS_IsObject(tmp))
+            return js_inspect_print(ctx, buf, tmp, opts, depth);
+
+          value = tmp;
+        }
       }
+
       if(!(is_function = JS_IsFunction(ctx, value))) {
         if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
           return js_inspect_arraybuffer(ctx, buf, value, opts, depth + 1);
@@ -859,9 +866,17 @@ static const JSCFunctionListEntry js_inspect_funcs[] = {
 
 static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {
-  JSValue inspect;
+  JSValue inspect, inspect_symbol, symbol_ctor;
 
   inspect = JS_NewCFunction(ctx, js_inspect, "inspect", 2);
+
+  inspect_symbol = js_symbol_for(ctx, "quickjs.inspect.custom");
+  JS_SetPropertyStr(ctx, inspect, "symbol", JS_DupValue(ctx, inspect_symbol));
+  symbol_ctor = js_symbol_ctor(ctx);
+  JS_SetPropertyStr(ctx, symbol_ctor, "inspect", JS_DupValue(ctx, inspect_symbol));
+
+  JS_FreeValue(ctx, symbol_ctor);
+  JS_FreeValue(ctx, inspect_symbol);
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));

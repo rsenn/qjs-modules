@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "virtual-properties.h"
 #include "utils.h"
 

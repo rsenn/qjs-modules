@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "quickjs-pointer.h"
 #include "utils.h"
 #include <string.h>
@@ -268,7 +266,7 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   pointer_proto = JS_NewObject(ctx);
   JS_SetPropertyFunctionList(ctx, pointer_proto, js_pointer_proto_funcs, countof(js_pointer_proto_funcs));
 
-  inspectAtom = js_symbol_for_atom(ctx, "quickjs.util.inspect.custom");
+  inspectAtom = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
   JS_SetPropertyStr(ctx, js_symbol_ctor(ctx), "inspect", js_atom_tovalue(ctx, inspectAtom));
   JS_SetProperty(ctx, pointer_proto, inspectAtom, JS_NewCFunction(ctx, js_pointer_inspect, "inspect", 1));
   JS_FreeAtom(ctx, inspectAtom);

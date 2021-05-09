@@ -1,7 +1,6 @@
 #ifndef PROPERTY_ENUMERATION_H
 #define PROPERTY_ENUMERATION_H
 
-#define _GNU_SOURCE
 
 #include "quickjs.h"
 #include "vector.h"

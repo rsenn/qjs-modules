@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "vector.h"
 #include "utils.h"
 #include <assert.h>

@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "quickjs-pointer.h"
 #include "pointer.h"
 #include "utils.h"

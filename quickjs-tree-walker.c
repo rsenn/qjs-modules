@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "cutils.h"
 #include "libregexp.h"
 #include "property-enumeration.h"

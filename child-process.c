@@ -1,5 +1,3 @@
-#define _GNU_SOURCE
-
 #include "child-process.h"
 #include "utils.h"
 #include "property-enumeration.h"
