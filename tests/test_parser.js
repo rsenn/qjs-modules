@@ -14,6 +14,7 @@ import extendArray from '../lib/extendArray.js';
 ('use math');
 
 let code = 'C';
+Error.stackTraceLimit = Infinity;
 
 extendArray(Array.prototype);
 
@@ -729,16 +730,18 @@ class EBNFParser extends Parser {
   }
 }
 
-async function main(...args) {
-  /*console =*/ new Console({
-    colors: true,
-    depth: Infinity,
-    maxArrayLength: Infinity,
-    maxStringLength: Infinity,
-    breakLength: 80,
-    compact: 1,
-    showHidden: false,
-    customInspect: true
+function main(...args) {
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      depth: 2,
+      maxArrayLength: Infinity,
+      maxStringLength: Infinity,
+      breakLength: 80,
+      compact: 2,
+      showHidden: false,
+      customInspect: true
+    }
   });
   console.log('console.options', console.options);
   let optind = 0;
@@ -765,7 +768,7 @@ async function main(...args) {
   TestRegExp('\b');
   TestRegExp('\\b');*/
 
-  let file = args[optind] ?? 'tests/ANSI-C-grammar-2011.y';
+  let file = args[optind] ?? 'tests/Shell-Grammar.y';
   let outputFile = args[optind + 1] ?? 'grammar.kison';
   console.log('file:', file);
   let str = std.loadFile(file, 'utf-8');
@@ -791,10 +794,11 @@ async function main(...args) {
   return !!grammar;
 }
 
-main(...scriptArgs.slice(1))
-  .then(ret => console.log(ret ? 'SUCCESS' : 'FAIL'))
-  .catch(error => {
-    console.log(`FAIL: ${error.message}\n${error.stack}`);
-    std.exit(1);
-  });
-111;
+try {
+  main(...scriptArgs.slice(1));
+} catch(error) {
+  console.log(`FAIL: ${error.message}\n${error.stack}`);
+  std.exit(1);
+} finally {
+  console.log('SUCCESS');
+}

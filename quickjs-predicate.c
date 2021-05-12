@@ -12,6 +12,11 @@ enum { METHOD_EVAL = 0, METHOD_TOSTRING };
 
 enum { PROP_ID = 0, PROP_VALUES };
 
+VISIBLE Predicate*
+js_predicate_data(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque(value, js_predicate_class_id);
+}
+
 JSValue
 js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Predicate* pred;

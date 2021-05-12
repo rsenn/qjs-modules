@@ -31,7 +31,7 @@ const inspectOptions = {
 };
 
 function main(...args) {
-  console = new Console(inspectOptions);
+  globalThis.console = new Console({ inspectOptions });
 
   /*  let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
 

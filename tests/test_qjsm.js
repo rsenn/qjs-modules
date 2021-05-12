@@ -18,14 +18,17 @@ function main(...args) {
   std.puts(format('%s %o\n', 'TEST', { x: 1, y: 2, z: 3 }));
 
   console.log('modules:', moduleList);
-  let moduleExports = moduleList.map(module => getModuleObject(module) /*({
+  let moduleExports = moduleList.map(module =>
+      getModuleObject(module
+      ) /*({
     name: getModuleName(module),
     exports: getModuleExports(module),
     namespace: getModuleNamespace(module),
     func: getModuleFunction(module),
     exception: getModuleException(module),
     meta: getModuleMetaObject(module)
-  })*/);
+  })*/
+  );
   console.log('moduleExports:', moduleExports);
 
   std.gc();

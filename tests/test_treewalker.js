@@ -15,12 +15,14 @@ function WriteFile(file, data) {
 }
 
 function main(...args) {
-  console = new Console({
-    colors: true,
-    depth: 2,
-    maxArrayLength: 4,
-    maxStringLength: 60,
-    compact: 1
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      depth: 2,
+      maxArrayLength: 4,
+      maxStringLength: 60,
+      compact: 1
+    }
   });
 
   console.log('args:', args);
@@ -54,7 +56,12 @@ function main(...args) {
     const { flags, tagMask } = walk;
     console.log(' walk', { flags, tagMask });
     while(walk.nextNode((v, k, w) => typeof v != 'object')) {
-      console.log('type:', typeof walk.currentNode, 'path:', walk.currentPath.join('.'), typeof walk.currentNode != 'object' ? walk.currentNode : '');
+      console.log('type:',
+        typeof walk.currentNode,
+        'path:',
+        walk.currentPath.join('.'),
+        typeof walk.currentNode != 'object' ? walk.currentNode : ''
+      );
       let node = walk.currentNode;
 
       if(typeof node == 'object') {

@@ -65,6 +65,8 @@ extern const uint8_t qjsc_require[];
 extern const uint32_t qjsc_require_size;
 extern const uint8_t qjsc_fs[];
 extern const uint32_t qjsc_fs_size;
+extern const uint8_t qjsc_process[];
+extern const uint32_t qjsc_process_size;
 extern const uint8_t qjsc_util[];
 extern const uint32_t qjsc_util_size;
 #ifdef CONFIG_BIGNUM
@@ -756,18 +758,17 @@ main(int argc, char** argv) {
   int load_jscalc;
 #endif
   size_t stack_size = 0;
+  const char* exename;
 
-#ifdef CONFIG_BIGNUM
-  /* load jscalc runtime if invoked as 'qjscalc' */
   {
-    const char *p, *exename;
+    const char* p;
     exename = argv[0];
     p = strrchr(exename, '/');
     if(p)
       exename = p + 1;
+    /* load jscalc runtime if invoked as 'qjscalc' */
     load_jscalc = !strcmp(exename, "qjscalc");
   }
-#endif
 
   /* cannot use getopt because we want to pass the command line to
      the script */
@@ -811,7 +812,7 @@ main(int argc, char** argv) {
           expr = argv[optind++];
           break;
         }
-        fprintf(stderr, "qjs: missing expression for -e\n");
+        fprintf(stderr, "%s: missing expression for -e\n", exename);
         exit(2);
       }
       if(opt == 'I' || !strcmp(longopt, "include")) {
@@ -859,6 +860,10 @@ main(int argc, char** argv) {
         bignum_ext = 0;
         break;
       }
+      if(!strcmp(longopt, "bignum")) {
+        bignum_ext = 1;
+        break;
+      }
       if(!strcmp(longopt, "qjscalc")) {
         load_jscalc = 1;
         break;
@@ -885,9 +890,9 @@ main(int argc, char** argv) {
         break;
       }
       if(opt) {
-        fprintf(stderr, "qjs: unknown option '-%c'\n", opt);
+        fprintf(stderr, "%s: unknown option '-%c'\n", exename, opt);
       } else {
-        fprintf(stderr, "qjs: unknown option '--%s'\n", longopt);
+        fprintf(stderr, "%s: unknown option '--%s'\n", exename, longopt);
       }
       jsm_help();
     }
@@ -904,7 +909,7 @@ main(int argc, char** argv) {
     rt = JS_NewRuntime();
   }
   if(!rt) {
-    fprintf(stderr, "qjs: cannot allocate JS runtime\n");
+    fprintf(stderr, "%s: cannot allocate JS runtime\n", exename);
     exit(2);
   }
   if(memory_limit != 0)
@@ -915,7 +920,7 @@ main(int argc, char** argv) {
   js_std_init_handlers(rt);
   ctx = JS_NewCustomContext(rt);
   if(!ctx) {
-    fprintf(stderr, "qjs: cannot allocate JS context\n");
+    fprintf(stderr, "%s: cannot allocate JS context\n", exename);
     exit(2);
   }
 
@@ -935,6 +940,11 @@ main(int argc, char** argv) {
     js_std_add_helpers(ctx, argc - optind, argv + optind);
 
     jsm_eval_binary(ctx, qjsc_fs, qjsc_fs_size, 0);
+    jsm_eval_binary(ctx, qjsc_process, qjsc_process_size, 0);
+    {
+      const char* str = "import process from 'process';\nglobalThis.process = process;\n";
+      jsm_eval_str(ctx, str, "<input>", TRUE);
+    }
     jsm_eval_binary(ctx, qjsc_util, qjsc_util_size, 0);
     jsm_eval_binary(ctx, qjsc_console, qjsc_console_size, 0);
     jsm_eval_binary(ctx, qjsc_require, qjsc_require_size, 0);

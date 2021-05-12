@@ -17,18 +17,24 @@ function CallPathFunction(name, ...args) {
   let fn = path[name];
 
   let ret = fn.call(path, ...args);
-  console.log(`path.${name}(`, ...args.reduce((acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]), []), ') =', ret);
+  console.log(`path.${name}(`,
+    ...args.reduce((acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]), []),
+    ') =',
+    ret
+  );
   return ret;
 }
 
 async function main(...args) {
-  console = new Console({
-    colors: true,
-    depth: 5,
-    _stringBreakNewline: false,
-    maxArrayLength: 10,
-    compact: 1,
-    maxStringLength: 120
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      depth: 5,
+      _stringBreakNewline: false,
+      maxArrayLength: 10,
+      compact: 1,
+      maxStringLength: 120
+    }
   });
 
   let file = args[0] ?? '/etc/fonts/fonts.conf';
@@ -70,7 +76,9 @@ async function main(...args) {
   console.log(`cwd = ${cwd}`);
   CallPathFunction('relative', '/home/roman/Projects/plot-cv/quickjs', cwd);
   CallPathFunction('relative', '/home/roman/Projects/editline', cwd);
-  CallPathFunction('collapse', '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..');
+  CallPathFunction('collapse',
+    '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..'
+  );
 
   /*let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));

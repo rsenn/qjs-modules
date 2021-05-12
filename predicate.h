@@ -82,7 +82,7 @@ typedef struct Predicate {
 static const size_t CAPTURE_COUNT_MAX = 255;
 
 int predicate_call(JSContext*, JSValue, int argc, JSValue* argv);
-int predicate_eval(Predicate*, JSContext*, int argc, JSValue* argv);
+VISIBLE int predicate_eval(Predicate*, JSContext*, int argc, JSValue* argv);
 void predicate_free_rt(Predicate*, JSRuntime*);
 JSValue predicate_regexp_capture(uint8_t**, int, uint8_t* input, JSContext* ctx);
 

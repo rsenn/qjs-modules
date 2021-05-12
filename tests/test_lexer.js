@@ -17,7 +17,13 @@ const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 429496729
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 
 //const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", "/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);" ];
-const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", '/Reg.*Ex/i.test(n)', '/\\n/g', 'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);', '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'];
+const code = [
+  "const str = stack.toString().replace(/\\n\\s*at /g, '\\n');",
+  '/Reg.*Ex/i.test(n)',
+  '/\\n/g',
+  'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);',
+  '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'
+];
 
 extendArray(Array.prototype);
 
@@ -39,13 +45,15 @@ function DumpToken(tok) {
 }
 
 async function main(...args) {
-  new Console({
-    colors: true,
-    depth: 8,
-    maxArrayLength: 100,
-    maxStringLength: Infinity,
-    compact: 1,
-    showHidden: false
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      depth: 8,
+      maxArrayLength: 100,
+      maxStringLength: Infinity,
+      compact: 1,
+      showHidden: false
+    }
   });
 
   let optind = 0;
@@ -59,7 +67,7 @@ async function main(...args) {
     optind++;
   }
 
-  let file = args[optind] ?? 'tests/test_lexer.js';
+  let file = args[optind] ?? 'tests/Shell-Grammar.l';
   console.log('file:', file);
   let str = file ? std.loadFile(file, 'utf-8') : code[1];
   let len = str.length;
@@ -87,7 +95,9 @@ async function main(...args) {
   lexer.handler = lex => {
     const { loc, mode, pos, start, byteLength, state } = lex;
     //console.log(`${this.currentLine()}`);
-    console.log(`handler loc=${loc} mode=${IntToBinary(mode)} state=${lex.topState()}`, { pos, start, byteLength }, `\n${lex.currentLine()}`);
+    console.log(`handler loc=${loc} mode=${IntToBinary(mode)} state=${lex.topState()}`, { pos, start, byteLength },
+      `\n${lex.currentLine()}`
+    );
     console.log(' '.repeat(loc.column - 1) + '^');
   };
 
@@ -139,7 +149,7 @@ async function main(...args) {
   const balancer = (() => {
     const table = { '}': '{', ']': '[', ')': '(' };
     return function ParentheseBalancer(tok) {
-      switch (tok.lexeme) {
+      switch (tok?.lexeme) {
         case '{':
         case '[':
         case '(': {
@@ -149,7 +159,9 @@ async function main(...args) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.last != table[tok.lexeme])
+            throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
+            );
 
           stack.pop();
           break;

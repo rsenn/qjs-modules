@@ -17,12 +17,14 @@ function WriteFile(file, data) {
 }
 
 function main(...args) {
-  console = new Console({
-    colors: true,
-    depth: 1,
-    maxArrayLength: 10,
-    maxStringLength: 100,
-    compact: false
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      depth: 1,
+      maxArrayLength: 10,
+      maxStringLength: 100,
+      compact: false
+    }
   });
   console.log('args:', args);
 

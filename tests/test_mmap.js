@@ -5,12 +5,14 @@ import Console from '../lib/console.js';
 import { mmap, munmap, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_SHARED, MAP_ANONYMOUS, toString } from 'mmap';
 
 async function main(...args) {
-  console = new Console({
-    colors: true,
-    depth: 5,
-    maxArrayLength: 10,
-    compact: 1,
-    maxStringLength: 120
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      depth: 5,
+      maxArrayLength: 10,
+      compact: 1,
+      maxStringLength: 120
+    }
   });
   let filename = args[0] ?? scriptArgs[0];
   console.log('filename', filename);

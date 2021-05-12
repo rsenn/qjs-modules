@@ -57,7 +57,7 @@ function ReadChild(...args) {
 }
 
 function main(...args) {
-  console = new Console(inspectOptions);
+  globalThis.console = new Console({ inspectOptions });
 
   let data = ReadChild('ls', '-la');
 

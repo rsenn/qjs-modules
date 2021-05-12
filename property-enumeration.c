@@ -157,7 +157,7 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object) {
         (it = property_enumeration_recurse(&vec, ctx))) {
 
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
-      printf("depth = %zu, atom = %x\n", depth, it->tab_atom[it->idx].atom);
+      // printf("depth = %zu, atom = %x\n", depth, it->tab_atom[it->idx].atom);
       if(max_depth < depth)
         max_depth = depth;
     }

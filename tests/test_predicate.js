@@ -36,12 +36,14 @@ async function waitFor(msecs) {
 }
 
 async function main(...args) {
-  console = new Console({
-    colors: true,
-    depth: 4,
-    maxArrayLength: 100,
-    maxStringLength: 100,
-    compact: 1
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      depth: 4,
+      maxArrayLength: 100,
+      maxStringLength: 100,
+      compact: 1
+    }
   });
   let str = std.loadFile(args[0] ?? scriptArgs[0], 'utf-8');
   let len = str.length;

@@ -333,9 +333,15 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
     ret.value = js_cstring_value((const char*)ret.data);
   } else {
-    JS_ThrowTypeError(ctx, "Invalid type for input buffer");
+    ret.value = JS_EXCEPTION;
+    //    JS_ThrowTypeError(ctx, "Invalid type for input buffer");
   }
   return ret;
+}
+
+BOOL
+input_buffer_valid(const InputBuffer* in) {
+  return !JS_IsException(in->value);
 }
 
 InputBuffer

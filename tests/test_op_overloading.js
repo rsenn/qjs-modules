@@ -268,12 +268,14 @@ function test_default_op() {
 }
 
 function main() {
-  console = new Console({
-    colors: true,
-    depth: 5,
-    maxArrayLength: 10,
-    compact: 1,
-    maxStringLength: 120
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      depth: 5,
+      maxArrayLength: 10,
+      compact: 1,
+      maxStringLength: 120
+    }
   });
 
   try {

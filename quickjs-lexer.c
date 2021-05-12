@@ -633,7 +633,7 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val) {
       if(JS_IsFunction(ctx, handler)) {
         JSValue data[1] = {JS_NewArray(ctx)};
         JSValue args[] = {JS_DupValue(ctx, this_val), JS_NewCFunctionData(ctx, lexer_continue, 0, 0, 1, data)};
-        JSValue do_resume;
+        JSValue do_resume = JS_FALSE;
 
         /*   ret = */ JS_Call(ctx, handler, this_val, 2, args);
         JS_FreeValue(ctx, args[0]);
@@ -644,6 +644,8 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val) {
         if(JS_IsBool(do_resume))
           if(JS_ToBool(ctx, do_resume))
             continue;
+
+        id = LEXER_ERROR_NOMATCH;
       }
     }
     break;
@@ -796,7 +798,7 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   ret = js_lexer_new(ctx, proto, argc > 0 ? argv[0] : JS_UNDEFINED, argc > 1 ? argv[1] : JS_UNDEFINED);
 
-  if((lex = js_lexer_data(ctx, ret))) {
+  if((lex = JS_GetOpaque(ret, js_lexer_class_id))) {
     int i = 2;
 
     if(lex->loc.file == 0 && i < argc && JS_IsString(argv[i]))
@@ -810,7 +812,6 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     if(i < argc && JS_IsNumber(argv[i]))
       JS_ToInt64(ctx, &mask, argv[i++]);
   }
-
   JS_SetPropertyStr(ctx, ret, "mask", JS_NewInt64(ctx, mask));
 
   return ret;
@@ -978,10 +979,8 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       SyntaxError error;
 
       error.message = js_tostring(ctx, argv[0]);
-      // error.byte_length = lex->input.pos - lex->start;
       error.loc = location_dup(&lex->loc, ctx);
-      // error.loc.offset = lex->start;
-      printf("lexer SyntaxError('%s', %u:%u)\n", error.message, lex->loc.line + 1, lex->loc.column + 1);
+      // printf("lexer SyntaxError('%s', %u:%u)\n", error.message, lex->loc.line + 1, lex->loc.column + 1);
       ret = js_syntaxerror_new(ctx, error);
       break;
     }
@@ -991,7 +990,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       int id;
 
       id = lexer_state_push(lex, state);
-      printf("[%zu] pushState('%s')\n", lexer_state_depth(lex), state);
+      // printf("[%zu] pushState('%s')\n", lexer_state_depth(lex), state);
       ret = JS_NewInt32(ctx, id);
       JS_FreeCString(ctx, state);
       break;
@@ -1000,7 +999,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case LEXER_METHOD_POP_STATE: {
       int id;
       id = lexer_state_pop(lex);
-      printf("[%zu] popState() = '%s'\n", lexer_state_depth(lex), lexer_state_name(lex, id));
+      // printf("[%zu] popState() = '%s'\n", lexer_state_depth(lex), lexer_state_name(lex, id));
       ret = JS_NewInt32(ctx, id);
       break;
     }
@@ -1242,33 +1241,21 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 
   switch(id) {
     case LEXER_ERROR_NOMATCH: {
-      JSValue handler = JS_GetPropertyStr(ctx, this_val, "handler");
 
-      if(JS_IsFunction(ctx, handler)) {
-        JSValue args[] = {JS_DupValue(ctx, this_val)};
-        JSValue ret;
-        int64_t newState;
+      ret = JS_ThrowInternalError(
+          ctx,
+          "%s:%" PRIu32 ":%" PRIu32 ": No matching token (%d: %s)\n%.*s\n%*s",
+          lex->loc.file,
+          lex->loc.line + 1,
+          lex->loc.column + 1,
+          lexer_state_top(lex, 0),
+          lexer_state_name(lex, lexer_state_top(lex, 0)),
+          (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') +
+                lex->loc.column),
+          &lex->input.data[lex->start - lex->loc.column],
+          lex->loc.column + 1,
+          "^");
 
-        ret = JS_Call(ctx, handler, this_val, 1, args);
-
-        JS_FreeValue(ctx, args[0]);
-
-        if(JS_IsNumber(ret))
-          JS_ToInt64(ctx, &newState, ret);
-
-      } else {
-        ret = JS_ThrowInternalError(
-            ctx,
-            "%s:%" PRIu32 ":%" PRIu32 ": No matching token at:\n%.*s\n%*s",
-            lex->loc.file,
-            lex->loc.line + 1,
-            lex->loc.column + 1,
-            (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') +
-                  lex->loc.column),
-            &lex->input.data[lex->start - lex->loc.column],
-            lex->loc.column + 1,
-            "^");
-      }
       break;
     }
     case LEXER_EOF: {

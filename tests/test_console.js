@@ -5,14 +5,16 @@ import * as deep from 'deep';
 import Console from 'console';
 
 function main(...args) {
-  console = new Console({
-    colors: true,
-    showHidden: false,
-    showProxy: false,
-    stringBreakNewline: true,
-    maxStringLength: Infinity,
-    compact: 1,
-    numberBase: 16
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      showHidden: false,
+      showProxy: false,
+      stringBreakNewline: true,
+      maxStringLength: Infinity,
+      compact: 1,
+      numberBase: 16
+    }
   });
 
   const testString =

@@ -29,7 +29,9 @@ class Test {
 async function main(...args) {
   //console.log('main:', args);
 
-  console = new Console({ colors: true, depth: 1, compact: Infinity });
+  globalThis.console = new Console({
+    inspectOptions: { colors: true, depth: 1, compact: Infinity }
+  });
 
   let winsz;
 

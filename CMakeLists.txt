@@ -18,7 +18,7 @@ set(child_process_SOURCES
     property-enumeration.h utils.c utils.h vector.c vector.h)
 set(deep_SOURCES
     vector.c vector.h pointer.c virtual-properties.c property-enumeration.c
-    property-enumeration.h utils.c utils.h pointer.h virtual-properties.h)
+    property-enumeration.h utils.c utils.h predicate.c predicate.h pointer.h virtual-properties.h)
 set(deep_LIBRARIES qjs-pointer qjs-predicate)
 set(inspect_SOURCES
     vector.c vector.h iteration.h utils.c utils.h property-enumeration.c
@@ -158,6 +158,7 @@ foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
+target_link_libraries(qjs-deep qjs-predicate)
 target_link_libraries(qjs-lexer qjs-predicate)
 add_dependencies(qjs-lexer qjs-predicate)
 
@@ -169,7 +170,7 @@ include(CTest)
 foreach(TEST_SOURCE ${TESTS_SOURCES})
   file(RELATIVE_PATH TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}" "${TEST_SOURCE}")
   basename(TEST_NAME ${TEST_SOURCE} .js)
-  add_test(NAME "${TEST_NAME}" COMMAND qjs --bignum "${TEST_SOURCE}"
+  add_test(NAME "${TEST_NAME}" COMMAND qjsm --bignum "${TEST_SOURCE}"
            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
@@ -184,6 +185,7 @@ compile_module(lib/require.js)
 compile_module(lib/repl.js)
 compile_module(lib/fs.js)
 compile_module(lib/util.js)
+compile_module(lib/process.js)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set(quickjs_sources_root ${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -222,6 +224,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
       ${CMAKE_CURRENT_BINARY_DIR}/console.c
       ${CMAKE_CURRENT_BINARY_DIR}/require.c
       ${CMAKE_CURRENT_BINARY_DIR}/fs.c
+      ${CMAKE_CURRENT_BINARY_DIR}/process.c
       ${CMAKE_CURRENT_BINARY_DIR}/util.c)
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
     set(QJSM_SOURCES

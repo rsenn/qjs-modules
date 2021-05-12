@@ -15,13 +15,15 @@ function WriteFile(file, data) {
 }
 
 async function main(...args) {
-  console = new Console({
-    colors: true,
-    depth: 5,
-    _stringBreakNewline: false,
-    maxArrayLength: 10,
-    compact: 1,
-    maxStringLength: 60
+  globalThis.console = new Console({
+    inspectOptions: {
+      colors: true,
+      depth: 5,
+      _stringBreakNewline: false,
+      maxArrayLength: 10,
+      compact: 1,
+      maxStringLength: 60
+    }
   });
 
   let winsz;

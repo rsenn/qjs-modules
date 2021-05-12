@@ -289,10 +289,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 
   } while(it);
 
-  /*t = time_us() - t;
-
->>>>>>> 2f9be62faa7be19a6210a674621876e5b4a106e8
-  printf("js_deep_find took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
+  /*t = time_us() - t; printf("js_deep_find took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
 
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
   return ret;
