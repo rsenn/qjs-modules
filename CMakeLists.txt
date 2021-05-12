@@ -163,6 +163,7 @@ target_link_libraries(qjs-lexer qjs-predicate)
 add_dependencies(qjs-lexer qjs-predicate)
 
 file(GLOB TESTS_SOURCES tests/test_*.js)
+list(FILTER TESTS_SOURCES EXCLUDE REGEX "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
 include(CTest)
