@@ -49,9 +49,38 @@ typedef union Vector {
 #define vector_foreach(a, msz, p)                                                                                      \
   for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
 
+#if(defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
+static inline int
+umult64(uint64_t a, uint64_t b, uint64_t* c) {
+  return !__builtin_mul_overflow(a, b, c);
+}
+#elif defined(HAVE_UINT128)
+static inline int
+umult64(uint64_t a, uint64_t b, uint64_t* c) {
+  __uint128_t x = ((__uint128_t)a) * b;
+  if((*c = (uint64_t)x) != x)
+    return 0;
+  return 1;
+}
+#else
 int umult64(uint64_t a, uint64_t b, uint64_t* c);
+#endif
+
 void* vector_allocate(Vector* vec, size_t elsz, int32_t pos);
-void* vector_at(const Vector* vec, size_t elsz, int32_t pos);
+static inline void*
+vector_at(const Vector* vec, size_t elsz, int32_t pos) {
+  uint64_t offs;
+  if(pos < 0)
+    return 0;
+
+  if(!umult64(elsz, pos, &offs))
+    return 0;
+
+  if(offs >= vec->size)
+    return 0;
+
+  return vec->data + offs;
+}
 int32_t vector_indexof(const Vector* vec, size_t elsz, void* ptr);
 void vector_put(Vector* vec, const void* bytes, size_t len);
 void vector_free(Vector* vec);

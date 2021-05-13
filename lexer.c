@@ -17,7 +17,7 @@ location_print(const Location* loc, DynBuf* dbuf) {
 
 Location
 location_dup(const Location* loc, JSContext* ctx) {
-  Location ret = {0, 0, 0, 0};
+  Location ret = {0, 0, 0, 0, 0};
   if(loc->file)
     ret.file = js_strdup(ctx, loc->file);
   ret.line = loc->line;
@@ -30,6 +30,8 @@ void
 location_free(Location* loc, JSContext* ctx) {
   if(loc->file)
     js_free(ctx, (char*)loc->file);
+  if(loc->str)
+    js_free(ctx, (char*)loc->str);
   memset(loc, 0, sizeof(Location));
 }
 
@@ -37,6 +39,8 @@ void
 location_free_rt(Location* loc, JSRuntime* rt) {
   if(loc->file)
     js_free_rt(rt, (char*)loc->file);
+  if(loc->str)
+    js_free_rt(rt, (char*)loc->str);
   memset(loc, 0, sizeof(Location));
 }
 

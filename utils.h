@@ -2,12 +2,17 @@
 #define UTILS_H
 
 #include "quickjs.h"
+#include "quickjs-internal.h"
 #include "cutils.h"
 #include <string.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+
+#ifndef offsetof
+#define offsetof(type, field) ((size_t) & ((type*)0)->field)
+#endif
 
 #define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num)                                              \
   {                                                                                                                    \
@@ -90,6 +95,9 @@ static inline int
 is_backslash_char(int c) {
   return c == '\\';
 }
+
+//#define is_dot_char(c) ((c) == '.')0
+//#define is_backslash_char(c) ((c) == '\\')
 
 static inline int
 is_dot_char(int c) {
@@ -590,7 +598,13 @@ js_cstring_newlen(JSContext* ctx, const char* str, size_t len) {
 }
 
 char* js_cstring_dup(JSContext* ctx, const char* str);
-void js_cstring_free(JSContext* ctx, const char* ptr);
+static inline void
+js_cstring_free(JSContext* ctx, const char* ptr) {
+  if(!ptr)
+    return;
+
+  JS_FreeValue(ctx, JS_MKPTR(JS_TAG_STRING, (void*)(ptr - offsetof(JSString, u))));
+}
 JSValueConst js_cstring_value(const char* ptr);
 void js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
 
@@ -710,7 +724,16 @@ const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
-BOOL js_object_same(JSValueConst a, JSValueConst b);
+static inline BOOL
+js_object_same(JSValueConst a, JSValueConst b) {
+  JSObject *aobj, *bobj;
+  if(!JS_IsObject(a) || !JS_IsObject(b))
+    return FALSE;
+
+  aobj = JS_VALUE_GET_OBJ(a);
+  bobj = JS_VALUE_GET_OBJ(b);
+  return aobj == bobj;
+}
 JSValue js_object_construct(JSContext* ctx, JSValueConst ctor);
 JSValue js_object_error(JSContext* ctx, const char* message);
 

@@ -5,11 +5,12 @@
 #include "vector.h"
 #include <string.h>
 
-typedef struct {
+typedef struct Location {
   char* file;
   uint32_t line;
   uint32_t column;
   int64_t pos;
+  char* str;
 } Location;
 
 void location_print(const Location* loc, DynBuf* dbuf);

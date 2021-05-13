@@ -51,30 +51,26 @@ fail:
   return JS_EXCEPTION;
 }
 
-static void
-js_location_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
-  Location* loc;
-  JSValue file;
-
-  if(!(loc = js_location_data(ctx, this_val)))
-    return;
-
-  if(loc->file) {
-    dbuf_putstr(dbuf, (const char*)loc->file);
-    dbuf_putc(dbuf, ':');
-  }
-  dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, loc->line + 1, loc->column + 1);
-}
-
-static JSValue
+JSValue
 js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  DynBuf db;
-  JSValue ret;
-  js_dbuf_init(ctx, &db);
-  js_location_dump(ctx, this_val, &db);
+  Location* loc;
+  JSValue ret = JS_UNDEFINED;
+  size_t len;
+  if(!(loc = js_location_data(ctx, this_val)))
+    return ret;
 
-  ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
-  dbuf_free(&db);
+  if(!loc->str) {
+    len = loc->file ? strlen(loc->file) : 0;
+    len += 46;
+    loc->str = js_malloc(ctx, len);
+
+    if(loc->file)
+      snprintf(loc->str, len, "%s:%" PRIi32 ":%" PRIi32 "", loc->file, loc->line, loc->column);
+    else
+      snprintf(loc->str, len, "%" PRIi32 ":%" PRIi32 "", loc->line, loc->column);
+  }
+
+  ret = JS_NewString(ctx, loc->str);
   return ret;
 }
 
@@ -132,7 +128,7 @@ js_location_get(JSContext* ctx, JSValueConst this_val) {
   return loc;
 }
 
-static JSValue
+JSValue
 js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Location* loc;
   const char* hint;
@@ -153,7 +149,7 @@ js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return ret;
 }
 
-static JSValue
+JSValue
 js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
@@ -222,7 +218,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-static void
+void
 js_location_finalizer(JSRuntime* rt, JSValue val) {
   Location* loc = JS_GetOpaque(val, js_location_class_id);
   if(loc) {
@@ -472,7 +468,7 @@ js_token_wrap(JSContext* ctx, Token* tok) {
   return obj;
 }
 
-static JSValue
+JSValue
 js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   Token* tok;
   JSValue obj = JS_UNDEFINED;
@@ -509,7 +505,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-static JSValue
+JSValue
 js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Token* tok;
   if(!(tok = js_token_data(ctx, this_val)))
@@ -517,7 +513,7 @@ js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
   return JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length);
 }
 
-static JSValue
+JSValue
 js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Token* tok;
   const char* hint;
@@ -534,7 +530,7 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return ret;
 }
 
-static JSValue
+JSValue
 js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Token* tok;
   LexerRule* rule;
@@ -559,7 +555,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   return obj;
 }
 
-static JSValue
+JSValue
 js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Token* tok;
   JSValue ret = JS_UNDEFINED;
@@ -616,7 +612,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-static void
+void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok = JS_GetOpaque(val, js_token_class_id);
   if(tok) {
@@ -878,7 +874,7 @@ js_lexer_wrap(JSContext* ctx, Lexer* lex) {
   return obj;
 }
 
-static JSValue
+JSValue
 js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Lexer* lex;
   DynBuf dbuf;
@@ -892,7 +888,7 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   return dbuf_tostring_free(&dbuf, ctx);
 }
 
-static JSValue
+JSValue
 js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Lexer* lex;
   char* name;
@@ -936,7 +932,7 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
   return JS_UNDEFINED;
 }
 
-static JSValue
+JSValue
 js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
   JSValue proto, ret;
   Lexer* lex;
@@ -968,7 +964,7 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   return ret;
 }
 
-static JSValue
+JSValue
 js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   Lexer* lex;
   JSValue ret = JS_UNDEFINED;
@@ -1163,7 +1159,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   return ret;
 }
 
-static JSValue
+JSValue
 js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Lexer* lex;
   JSValue ret = JS_UNDEFINED;
@@ -1274,7 +1270,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-static JSValue
+JSValue
 js_lexer_tokens(JSContext* ctx, JSValueConst this_val) {
   Lexer* lex;
   LexerRule* rule;
@@ -1295,7 +1291,7 @@ js_lexer_tokens(JSContext* ctx, JSValueConst this_val) {
   return ret;
 }
 
-static JSValue
+JSValue
 js_lexer_states(JSContext* ctx, JSValueConst this_val) {
   Lexer* lex;
   char** cond;
@@ -1312,7 +1308,7 @@ js_lexer_states(JSContext* ctx, JSValueConst this_val) {
   return ret;
 }
 
-static JSValue
+JSValue
 js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
   Lexer* lex;
   int32_t* stack;
@@ -1342,12 +1338,12 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
   return ret;
 }
 
-static JSValue
+JSValue
 js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   return JS_DupValue(ctx, this_val);
 }
 
-static JSValue
+JSValue
 js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
   InputBuffer input = js_input_buffer(ctx, argv[0]);
   DynBuf output;
@@ -1357,7 +1353,7 @@ js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
   return dbuf_tostring_free(&output, ctx);
 }
 
-static JSValue
+JSValue
 js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   JSValue ret = JS_UNDEFINED;
 
@@ -1374,7 +1370,7 @@ js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
   return ret;
 }
 
-static JSValue
+JSValue
 js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
   Lexer* lex;
 
@@ -1414,7 +1410,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
   return JS_UNDEFINED;
 }
 
-static JSValue
+JSValue
 js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   JSValue ret = JS_UNDEFINED;
   Lexer* lex;
@@ -1461,7 +1457,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   return ret;
 }
 
-static JSValue
+JSValue
 js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
   JSValue ret;
   Lexer* lex;
@@ -1512,7 +1508,7 @@ js_lexer_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int 
   return JS_DupValue(ctx, func_obj);
 }
 
-static void
+void
 js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
 
@@ -1570,7 +1566,7 @@ static const JSCFunctionListEntry js_lexer_static_funcs[] = {
     JS_PROP_INT32_DEF("LAST", LEXER_LAST, JS_PROP_ENUMERABLE),
 };
 
-static int
+int
 js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_location_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_location_class_id, &js_location_class);

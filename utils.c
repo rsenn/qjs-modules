@@ -167,7 +167,7 @@ dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int
   char c;
   int r;
   while(i < len) {
-    if((j = predicate_find(&str[i], len - i, is_backslash_char))) {
+    if((j = byte_chr(&str[i], len - i, '\\'))) {
       dbuf_append(db, (const uint8_t*)&str[i], j);
       i += j;
     }
@@ -728,18 +728,6 @@ js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
   ret = strcmp(str, cmp) == 0;
   js_cstring_free(ctx, str);
   return ret;
-}
-
-BOOL
-js_object_same(JSValueConst a, JSValueConst b) {
-  JSObject *aobj, *bobj;
-
-  if(!JS_IsObject(a) || !JS_IsObject(b))
-    return FALSE;
-
-  aobj = JS_VALUE_GET_OBJ(a);
-  bobj = JS_VALUE_GET_OBJ(b);
-  return aobj == bobj;
 }
 
 JSValue
@@ -1417,13 +1405,6 @@ js_cstring_dup(JSContext* ctx, const char* str) {
   p = (JSString*)(void*)(str - offsetof(JSString, u));
   JS_DupValue(ctx, JS_MKPTR(JS_TAG_STRING, p));
   return (char*)str;
-}
-
-void
-js_cstring_free(JSContext* ctx, const char* ptr) {
-  if(!ptr)
-    return;
-  JS_FreeValue(ctx, JS_MKPTR(JS_TAG_STRING, (void*)(ptr - offsetof(JSString, u))));
 }
 
 JSValueConst
