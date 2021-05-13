@@ -57,6 +57,8 @@ extern size_t malloc_usable_size();
 #endif
 #endif
 
+#define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
+
 extern const uint8_t qjsc_repl[];
 extern const uint32_t qjsc_repl_size;
 extern const uint8_t qjsc_console[];
@@ -86,6 +88,23 @@ JSModuleDef* js_init_module_predicate(JSContext*, const char*);
 JSModuleDef* js_init_module_repeater(JSContext*, const char*);
 JSModuleDef* js_init_module_tree_walker(JSContext*, const char*);
 JSModuleDef* js_init_module_xml(JSContext*, const char*);
+
+static JSValue
+jsm_load_package_json(JSContext* ctx, const char* filename) {
+  uint8_t* buf;
+  size_t buf_len;
+  JSValue ret;
+
+  if(filename == 0)
+    filename = "package.json";
+
+  if(!(buf = js_load_file(ctx, &buf_len, filename)))
+    return JS_NULL;
+
+  ret = JS_ParseJSON(ctx, buf, buf_len, filename);
+
+  return ret;
+}
 
 static JSValue
 jsm_module_exports(JSContext* ctx, JSModuleDef* module) {
@@ -263,7 +282,7 @@ jsm_find_module(JSContext* ctx, const char* module_name) {
   char* ret = NULL;
   size_t len;
 
-  while(!strncmp(module_name, "./", 2)) module_name += 2;
+  while(!strncmp(module_name, "./", 2)) module_name = trim_dotslash(module_name);
   len = strlen(module_name);
 
   if(strchr(module_name, '/') == NULL || (len >= 3 && !strcmp(&module_name[len - 3], ".so")))
@@ -276,20 +295,43 @@ jsm_find_module(JSContext* ctx, const char* module_name) {
 
 JSModuleDef*
 jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
-  char* filename;
+  char *module, *filename = 0;
   JSModuleDef* ret = NULL;
-
-  if(!strchr(module_name, '/'))
-    if((ret = jsm_module_find(ctx, module_name)))
+  module = js_strdup(ctx, trim_dotslash(module_name));
+  for(;;) {
+    if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
+      // printf("jsm_module_loader_path %s %s\n", trim_dotslash(module_name), trim_dotslash(module));
       return ret;
-
-  filename = module_name[0] == '/' ? js_strdup(ctx, module_name) : jsm_find_module(ctx, module_name);
+    }
+    if(!filename) {
+      JSValue package = jsm_load_package_json(ctx, 0);
+      if(!JS_IsNull(package)) {
+        JSValue aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
+        JSValue target = JS_UNDEFINED;
+        if(!JS_IsUndefined(aliases)) {
+          target = JS_GetPropertyStr(ctx, aliases, module);
+        }
+        JS_FreeValue(ctx, aliases);
+        JS_FreeValue(ctx, package);
+        if(!JS_IsUndefined(target)) {
+          const char* str = JS_ToCString(ctx, target);
+          js_free(ctx, module);
+          module = js_strdup(ctx, str);
+          JS_FreeCString(ctx, str);
+          continue;
+        }
+      }
+    }
+    if(!filename)
+      filename = module[0] == '/' ? js_strdup(ctx, module) : jsm_find_module(ctx, module);
+    break;
+  }
   if(filename) {
-    // printf("jsm_module_loader_path filename=%s\n", filename);
-
+    // printf("jsm_module_loader_path %s %s\n", trim_dotslash(module_name), trim_dotslash(filename));
     ret = js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
   }
+  js_free(ctx, module);
   return ret;
 }
 
