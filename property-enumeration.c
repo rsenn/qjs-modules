@@ -29,19 +29,6 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
 }
 
 void
-property_enumeration_reset(PropertyEnumeration* it, JSRuntime* rt) {
-  uint32_t i;
-  if(it->tab_atom) {
-    for(i = 0; i < it->tab_atom_len; i++) JS_FreeAtomRT(rt, it->tab_atom[i].atom);
-    js_free_rt(rt, it->tab_atom);
-    it->tab_atom = 0;
-    it->tab_atom_len = 0;
-  }
-  JS_FreeValueRT(rt, it->obj);
-  it->obj = JS_UNDEFINED;
-}
-
-void
 property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) {
   size_t i;
   const char* s;
@@ -226,20 +213,6 @@ property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueC
   return result;
 }
 
-JSValue
-property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
-  JSValue key;
-  assert(it->idx < it->tab_atom_len);
-  key = JS_AtomToValue(ctx, it->tab_atom[it->idx].atom);
-  if(it->is_array) {
-    int64_t idx;
-    JS_ToInt64(ctx, &idx, key);
-    JS_FreeValue(ctx, key);
-    key = JS_NewInt64(ctx, idx);
-  }
-  return key;
-}
-
 BOOL
 property_enumeration_circular(Vector* vec, JSValueConst object) {
   PropertyEnumeration* it;
@@ -269,56 +242,4 @@ property_enumeration_check(Vector* vec) {
     }
   }
   return (IndexTuple){-1, -1};
-}
-
-int
-property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
-  if(idx < 0)
-    idx += it->tab_atom_len;
-
-  if(idx >= (int32_t)it->tab_atom_len)
-    return 0;
-
-  assert((uint32_t)idx < it->tab_atom_len);
-  it->idx = idx;
-  return 1;
-}
-
-PropertyEnumeration*
-property_enumeration_push(Vector* vec, JSContext* ctx, JSValue object, int flags) {
-  PropertyEnumeration* it;
-  assert(JS_IsObject(object));
-  /*if(!JS_IsObject(object)) {
-   JS_ThrowTypeError(ctx, "not an object");
-   return 0;
-   }*/
-  if((it = vector_emplace(vec, sizeof(PropertyEnumeration)))) {
-    property_enumeration_init(it, ctx, object, flags);
-    return vector_back(vec, sizeof(PropertyEnumeration));
-  }
-  return it;
-}
-
-PropertyEnumeration*
-property_enumeration_pop(Vector* vec, JSContext* ctx) {
-  PropertyEnumeration* it;
-  assert(!vector_empty(vec));
-  it = vector_back(vec, sizeof(PropertyEnumeration));
-  property_enumeration_reset(it, JS_GetRuntime(ctx));
-  vector_pop(vec, sizeof(PropertyEnumeration));
-  return vector_empty(vec) ? 0 : it - 1;
-}
-
-PropertyEnumeration*
-property_enumeration_enter(Vector* vec, JSContext* ctx, int32_t idx, int flags) {
-  PropertyEnumeration* it;
-  JSValue value;
-  assert(!vector_empty(vec));
-  it = vector_back(vec, sizeof(PropertyEnumeration));
-  value = property_enumeration_value(it, ctx);
-  if((it = property_enumeration_push(vec, ctx, value, flags)))
-    if(!property_enumeration_setpos(it, idx))
-      return 0;
-
-  return it;
 }

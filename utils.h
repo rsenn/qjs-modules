@@ -561,9 +561,28 @@ BOOL input_buffer_valid(const InputBuffer* in);
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
 const uint8_t* input_buffer_get(InputBuffer* in, size_t* lenp);
-int input_buffer_getc(InputBuffer* in);
 const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
-int input_buffer_peekc(InputBuffer*, size_t* lenp);
+
+static inline int
+input_buffer_peekc(InputBuffer* in, size_t* lenp) {
+  const uint8_t *pos, *end, *next;
+  int cp;
+  pos = in->data + in->pos;
+  end = in->data + in->size;
+  cp = unicode_from_utf8(pos, end - pos, &next);
+  if(lenp)
+    *lenp = next - pos;
+  return cp;
+}
+
+static inline int
+input_buffer_getc(InputBuffer* in) {
+  size_t n;
+  int ret;
+  ret = input_buffer_peekc(in, &n);
+  in->pos += n;
+  return ret;
+}
 
 static inline const uint8_t*
 input_buffer_begin(const InputBuffer* in) {
@@ -627,7 +646,19 @@ js_tostring(JSContext* ctx, JSValueConst value) {
   return js_tostringlen(ctx, 0, value);
 }
 
-JSValue js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value);
+static inline JSValue
+js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value) {
+  JSAtom atom;
+  JSValue proto, tostring, str;
+  proto = js_global_prototype(ctx, class_name);
+  atom = JS_NewAtom(ctx, "toString");
+  tostring = JS_GetProperty(ctx, proto, atom);
+  JS_FreeValue(ctx, proto);
+  JS_FreeAtom(ctx, atom);
+  str = JS_Call(ctx, tostring, value, 0, 0);
+  JS_FreeValue(ctx, tostring);
+  return str;
+}
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
 JSValue js_value_from_char(JSContext* ctx, int c);
 static inline int

@@ -15,6 +15,8 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
+
 typedef union Vector {
   DynBuf dbuf;
   struct {
@@ -66,25 +68,9 @@ umult64(uint64_t a, uint64_t b, uint64_t* c) {
 int umult64(uint64_t a, uint64_t b, uint64_t* c);
 #endif
 
-void* vector_allocate(Vector* vec, size_t elsz, int32_t pos);
-static inline void*
-vector_at(const Vector* vec, size_t elsz, int32_t pos) {
-  uint64_t offs;
-  if(pos < 0)
-    return 0;
-
-  if(!umult64(elsz, pos, &offs))
-    return 0;
-
-  if(offs >= vec->size)
-    return 0;
-
-  return vec->data + offs;
-}
 int32_t vector_indexof(const Vector* vec, size_t elsz, void* ptr);
 void vector_put(Vector* vec, const void* bytes, size_t len);
 void vector_free(Vector* vec);
-void vector_shrink(Vector* vec, size_t elsz, int32_t len);
 void vector_printf(Vector* vec, const char*, ...);
 void vector_intersection(void*, size_t, void*, size_t, size_t, Vector*);
 void vector_diff(void*, size_t, void*, size_t, size_t, Vector*);
@@ -92,6 +78,56 @@ void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, Vector*, Vector*
 int vector_copy(Vector* dst, const Vector* src);
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
+
+static inline void*
+vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
+  uint64_t need;
+  size_t capacity;
+  if(pos < 0)
+    return 0;
+  if(!umult64(elsz, pos + 1, &need))
+    return 0;
+  if(need > vec->size) {
+    capacity = vec->capacity;
+    if(need > capacity) {
+      if(elsz < 8)
+        roundto(need, 1000);
+      else
+        roundto(need, 8000);
+      assert(need >= 1000);
+      if(dbuf_realloc(&vec->dbuf, need))
+        return 0;
+      if(vec->capacity > capacity)
+        memset(vec->data + capacity, 0, vec->capacity - capacity);
+    }
+    vec->size = ((uint32_t)pos + 1) * elsz;
+  }
+  return vec->data + (uint32_t)pos * elsz;
+}
+
+static inline void
+vector_shrink(Vector* vec, size_t elsz, int32_t len) {
+  uint64_t need;
+  if(len < 0)
+    return;
+  if(!umult64(elsz, len, &need))
+    return;
+  if(need > vec->size)
+    return;
+  vec->size = need;
+}
+
+static inline void*
+vector_at(const Vector* vec, size_t elsz, int32_t pos) {
+  uint64_t offs;
+  if(pos < 0)
+    return 0;
+  if(!umult64(elsz, pos, &offs))
+    return 0;
+  if(offs >= vec->size)
+    return 0;
+  return vec->data + offs;
+}
 
 static inline void*
 vector_default_realloc(void* opaque, void* ptr, size_t size) {

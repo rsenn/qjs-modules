@@ -300,7 +300,7 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   LexerRule* rule;
   uint8_t* capture[512];
   int i = 0, ret = LEXER_ERROR_NOMATCH;
-  size_t len;
+  size_t len = 0;
 
   if(input_buffer_eof(&lex->input))
     return LEXER_EOF;

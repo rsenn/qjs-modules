@@ -71,7 +71,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   JS_SetOpaque(obj, pred);
 
   if(argc > 0 && JS_IsString(argv[0])) {
-    size_t len;
+    size_t len = 0;
     const char* str = js_tostringlen(ctx, &len, argv[0]);
 
     *pred = predicate_string(str, len);
@@ -94,7 +94,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       }
 
       case PREDICATE_CHARSET: {
-        size_t len;
+        size_t len = 0;
         const char* str = js_tostringlen(ctx, &len, argv[1]);
         if(argc > 2 && JS_IsNumber(argv[2]))
           js_value_to_size(ctx, &len, argv[2]);
@@ -103,7 +103,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       }
 
       case PREDICATE_STRING: {
-        size_t len;
+        size_t len = 0;
         const char* str = js_tostringlen(ctx, &len, argv[1]);
         *pred = predicate_string(str, len);
         break;
@@ -240,14 +240,14 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
     case PREDICATE_CHARSET: {
-      size_t size;
+      size_t size = 0;
       const char* str = js_tostringlen(ctx, &size, argv[0]);
       ret = js_predicate_wrap(ctx, predicate_charset(str, size));
       break;
     }
 
     case PREDICATE_STRING: {
-      size_t size;
+      size_t size = 0;
       const char* str = js_tostringlen(ctx, &size, argv[0]);
       ret = js_predicate_wrap(ctx, predicate_string(str, size));
       break;

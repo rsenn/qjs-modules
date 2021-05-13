@@ -372,31 +372,10 @@ input_buffer_free(InputBuffer* in, JSContext* ctx) {
   }
 }
 
-int
-input_buffer_peekc(InputBuffer* in, size_t* lenp) {
-  const uint8_t *pos, *end, *next;
-  int cp;
-  pos = in->data + in->pos;
-  end = in->data + in->size;
-  cp = unicode_from_utf8(pos, end - pos, &next);
-  if(lenp)
-    *lenp = next - pos;
-  return cp;
-}
-
 const uint8_t*
 input_buffer_peek(InputBuffer* in, size_t* lenp) {
   input_buffer_peekc(in, lenp);
   return in->data + in->pos;
-}
-
-int
-input_buffer_getc(InputBuffer* in) {
-  size_t n;
-  int ret;
-  ret = input_buffer_peekc(in, &n);
-  in->pos += n;
-  return ret;
 }
 
 const uint8_t*
@@ -1361,20 +1340,6 @@ js_value_print(JSContext* ctx, JSValueConst value) {
   dbuf_0(&dbuf);
   fputs((const char*)dbuf.buf, stdout);
   dbuf_free(&dbuf);
-}
-
-JSValue
-js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value) {
-  JSAtom atom;
-  JSValue proto, tostring, str;
-  proto = js_global_prototype(ctx, class_name);
-  atom = JS_NewAtom(ctx, "toString");
-  tostring = JS_GetProperty(ctx, proto, atom);
-  JS_FreeValue(ctx, proto);
-  JS_FreeAtom(ctx, atom);
-  str = JS_Call(ctx, tostring, value, 0, 0);
-  JS_FreeValue(ctx, tostring);
-  return str;
 }
 
 int
