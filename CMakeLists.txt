@@ -6,6 +6,8 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
+find_quickjs()
+
 set(QUICKJS_MODULES bjson child-process deep lexer mmap path pointer predicate
                     repeater inspect tree-walker xml)
 

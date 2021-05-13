@@ -391,7 +391,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   if(break_len > opts->break_length)
     break_len = opts->break_length;
   ptr = JS_GetArrayBuffer(ctx, &size, value);
- printf("maxArrayLength: %i\n", opts->max_array_length);
+  printf("maxArrayLength: %i\n", opts->max_array_length);
   proto = JS_GetPrototype(ctx, value);
   str = js_object_tostring(ctx, proto);
   JS_FreeValue(ctx, proto);
@@ -866,6 +866,25 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   output = js_inspect(ctx, JS_UNDEFINED, 2, args);
   JS_FreeValue(ctx, args[1]);
   return JS_ToCString(ctx, output);
+}
+
+JSValue js_debugger_build_backtrace(JSContext* ctx, const uint8_t* cur_pc);
+
+JSValue
+js_inspect_stacktrace_value(JSContext* ctx) {
+  JSRuntime* rt = JS_GetRuntime(ctx);
+  struct JSStackFrame* frame;
+  JSValue ret = JS_UNDEFINED;
+  if((frame = rt->current_stack_frame)) {
+    ret = js_debugger_build_backtrace(ctx, frame->cur_pc);
+  }
+  return ret;
+}
+
+const char*
+js_inspect_stacktrace(JSContext* ctx) {
+  JSValue stack = js_inspect_stacktrace_value(ctx);
+  return js_inspect_tostring(ctx, stack);
 }
 
 static const JSCFunctionListEntry js_inspect_funcs[] = {

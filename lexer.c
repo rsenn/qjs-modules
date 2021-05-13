@@ -308,7 +308,8 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   lex->start = lex->input.pos;
 
   vector_foreach_t(&lex->rules, rule) {
-    int result;    if(rule->state != lex->state) {
+    int result;
+    if(rule->state != lex->state) {
       i++;
       continue;
     }
@@ -351,7 +352,8 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
 size_t
 lexer_skip(Lexer* lex) {
   size_t end = lex->start + lex->bytelen;
-  size_t n = 0;  while(lex->input.pos < end) {
+  size_t n = 0;
+  while(lex->input.pos < end) {
     size_t prev = lex->input.pos;
     if(input_buffer_getc(&lex->input) == '\n') {
       lex->loc.line++;
