@@ -27,7 +27,14 @@ location_dup(const Location* loc, JSContext* ctx) {
 }
 
 void
-location_free(Location* loc, JSRuntime* rt) {
+location_free(Location* loc, JSContext* ctx) {
+  if(loc->file)
+    js_free(ctx, (char*)loc->file);
+  memset(loc, 0, sizeof(Location));
+}
+
+void
+location_free_rt(Location* loc, JSRuntime* rt) {
   if(loc->file)
     js_free_rt(rt, (char*)loc->file);
   memset(loc, 0, sizeof(Location));
@@ -95,6 +102,7 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
 
 static int
 lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx) {
+  // printf("lexer_rule_match %s %s %s\n", rule->name, rule->expr, rule->expansion);
 
   if(rule->bytecode == 0) {
     if(!lexer_rule_compile(lex, rule, ctx))
@@ -362,6 +370,15 @@ lexer_skip(Lexer* lex) {
     n++;
   }
   return n;
+}
+
+char*
+lexer_lexeme(Lexer* lex, size_t* lenp) {
+  size_t len = lex->input.pos - lex->start;
+  char* s = (char*)lex->input.data + lex->start;
+  if(lenp)
+    *lenp = len;
+  return s;
 }
 
 int

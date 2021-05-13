@@ -742,6 +742,31 @@ js_object_same(JSValueConst a, JSValueConst b) {
   return aobj == bobj;
 }
 
+JSValue
+js_object_construct(JSContext* ctx, JSValueConst ctor) {
+  JSValueConst args[] = {JS_UNDEFINED};
+  return JS_CallConstructor(ctx, ctor, 0, args);
+}
+
+JSValue
+js_object_error(JSContext* ctx, const char* message) {
+  JSValueConst ctor = js_global_get(ctx, "Error");
+  JSValueConst args[] = {JS_NewString(ctx, message)};
+  JSValue ret;
+  ret = JS_CallConstructor(ctx, ctor, 1, args);
+  JS_FreeValue(ctx, ctor);
+  JS_FreeValue(ctx, args[0]);
+  return ret;
+}
+
+JSValue
+js_object_stack(JSContext* ctx) {
+  JSValue error = js_object_error(ctx, "");
+  JSValue stack = JS_GetPropertyStr(ctx, error, "stack");
+  JS_FreeValue(ctx, error);
+  return stack;
+}
+
 BOOL
 js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
   JSAtom atom;

@@ -317,14 +317,14 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
     return 0;
   }
   dbuf_putstr(buf, "Map {");
-  if(!compact)
+  if(!compact && opts->break_length != INT32_MAX)
     inspect_newline(buf, INSPECT_LEVEL(opts));
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
       data = iteration_value(&it, ctx);
       if(i) {
         dbuf_putstr(buf, ",");
-        if(!compact)
+        if(!compact && opts->break_length != INT32_MAX)
           inspect_newline(buf, INSPECT_LEVEL(opts));
       }
       dbuf_putstr(buf, compact ? " " : "  ");
@@ -338,7 +338,7 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
       JS_FreeValue(ctx, data);
     }
   }
-  if(!compact)
+  if(!compact && opts->break_length != INT32_MAX)
     inspect_newline(buf, INSPECT_LEVEL(opts));
   dbuf_putstr(buf, compact ? " }" : "}");
   iteration_reset(&it, JS_GetRuntime(ctx));
@@ -358,14 +358,14 @@ js_inspect_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
     return 0;
   }
   dbuf_putstr(buf, "Set [");
-  if(!compact)
+  if(!compact && opts->break_length != INT32_MAX)
     inspect_newline(buf, INSPECT_LEVEL(opts));
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
       value = iteration_value(&it, ctx);
       if(i) {
         dbuf_putstr(buf, ",");
-        if(!compact)
+        if(!compact && opts->break_length != INT32_MAX)
           inspect_newline(buf, INSPECT_LEVEL(opts));
       }
       dbuf_putstr(buf, compact ? " " : "  ");
@@ -373,7 +373,7 @@ js_inspect_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
       JS_FreeValue(ctx, value);
     }
   }
-  if(!compact)
+  if(!compact && opts->break_length != INT32_MAX)
     inspect_newline(buf, INSPECT_LEVEL(opts));
   dbuf_putstr(buf, compact ? " ]" : "]");
   iteration_reset(&it, JS_GetRuntime(ctx));
@@ -414,7 +414,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   for(i = 0; i < size; i++) {
     if(i == (size_t)opts->max_array_length)
       break;
-    if(column == break_len) {
+    if(column == break_len && opts->break_length != INT32_MAX) {
       inspect_newline(buf, (opts->depth - depth) + 1);
       column = 0;
     } else {
@@ -524,7 +524,7 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
     dbuf_putstr(buf, COLOR_NONE);
 
   if(limit < len) {
-    if(dbuf_get_column(buf) + 26 > opts->break_length)
+    if(opts->break_length != INT32_MAX && dbuf_get_column(buf) + 26 > opts->break_length)
       inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
     dbuf_printf(buf, "... %zu more characters", len - pos);
   }
@@ -706,9 +706,9 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       if(is_array || is_typedarray) {
         len = js_array_length(ctx, value);
-        dbuf_putstr(buf, compact ? "[ " : "[");
+        dbuf_putstr(buf, compact && opts->break_length != INT32_MAX ? "[ " : "[");
         limit = min_size(opts->max_array_length, len);
-        if(len && !compact)
+        if(len && !compact && opts->break_length != INT32_MAX)
           inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
         for(pos = 0; pos < len; pos++) {
           JSPropertyDescriptor desc;
@@ -718,7 +718,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           if(pos > 0) {
             dbuf_putc(buf, ',');
             //            dbuf_putstr(buf, compact ? ", " : ",");
-            if(!compact)
+            if(!compact && opts->break_length != INT32_MAX)
               inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           }
           prop = JS_NewAtomUInt32(ctx, pos);
@@ -739,7 +739,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           js_propertydescriptor_free(ctx, &desc);
         }
         if(len && limit < len) {
-          if(!compact)
+          if(!compact && opts->break_length != INT32_MAX)
             inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           dbuf_printf(buf, "... %u more item", len - pos);
           if(pos + 1 < len)
@@ -767,7 +767,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         }
         if(pos > 0)
           dbuf_putstr(buf, compact ? ", " : ",");
-        if(!compact)
+        if(!compact && opts->break_length != INT32_MAX)
           inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
         if(!JS_IsSymbol(key) && (is_identifier(name) || is_integer(name))) {
           dbuf_putstr(buf, name);
@@ -795,9 +795,11 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       }
       js_object_tmpmark_clear(value);
 
-      if(!compact && len)
+      if(!compact && len && opts->break_length != INT32_MAX)
         inspect_newline(buf, INSPECT_LEVEL(opts));
-      dbuf_putstr(buf, (is_array || is_typedarray) ? (compact && len ? " ]" : "]") : (compact && len ? " }" : "}"));
+      dbuf_putstr(buf,
+                  (is_array || is_typedarray) ? ((compact || opts->break_length == INT32_MAX) && len ? " ]" : "]")
+                                              : (compact && len ? " }" : "}"));
 
     end_obj:
       if(!vector_empty(&propenum_tab))

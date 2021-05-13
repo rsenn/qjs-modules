@@ -14,12 +14,12 @@ typedef struct {
 
 void location_print(const Location* loc, DynBuf* dbuf);
 Location location_dup(const Location* loc, JSContext* ctx);
-void location_free(Location* loc, JSRuntime* rt);
+void location_free_rt(Location* loc, JSRuntime* rt);
 
-static inline BOOL location_isnull(const Location* loc) {
+static inline BOOL
+location_isnull(const Location* loc) {
   return !loc->file && !loc->line && !loc->column && !loc->pos;
 }
-
 
 typedef struct {
   char* name;
@@ -53,7 +53,8 @@ typedef struct {
 
 void location_print(const Location*, DynBuf* dbuf);
 Location location_dup(const Location*, JSContext* ctx);
-void location_free(Location*, JSRuntime* rt);
+void location_free(Location*, JSContext* ctx);
+void location_free_rt(Location*, JSRuntime* rt);
 
 void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_set_input(Lexer*, InputBuffer input, char* filename);
@@ -72,6 +73,7 @@ LexerRule* lexer_find_definition(Lexer*, const char* name, size_t namelen);
 BOOL lexer_compile_rules(Lexer*, JSContext* ctx);
 int lexer_peek(Lexer*, uint64_t state, JSContext* ctx);
 size_t lexer_skip(Lexer*);
+char* lexer_lexeme(Lexer*, size_t* lenp);
 int lexer_next(Lexer*, uint64_t state, JSContext* ctx);
 void lexer_dump(Lexer*, DynBuf* dbuf);
 void lexer_free(Lexer*, JSContext* ctx);

@@ -199,7 +199,10 @@ function Balancer(open, close, debug) {
     if(open) stack.push(tok);
     if(close) stack.pop();
     if(debug && (open || close))
-      console.log('Balancer', { tok: InspectToken(tok), stack: stack.map(InspectToken) });
+      console.log('Balancer', {
+        tok: InspectToken(tok),
+        stack: stack.map(InspectToken)
+      });
     return stack.length == 0;
   };
 }
@@ -443,7 +446,10 @@ class EBNFParser extends Parser {
     const { productions } = this.grammar;
     let production = { symbol, rhs };
     productions.push(production);
-    console.log(`addProduction(${this.lexer.topState()})`.padEnd(20), { symbol, rhs });
+    console.log(`addProduction(${this.lexer.topState()})`.padEnd(20), {
+      symbol,
+      rhs
+    });
     return production;
   }
 

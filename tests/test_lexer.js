@@ -143,7 +143,9 @@ async function main(...args) {
   console.log('lexer.topState()', lexer.topState());
   console.log('lexer.states ', lexer.states);
 
-  console.log('new SyntaxError("test")', new SyntaxError('test', new Location(10,3,28,'file.txt')));
+  console.log('new SyntaxError("test")',
+    new SyntaxError('test', new Location(10, 3, 28, 'file.txt'))
+  );
   let mask = IntToBinary(lexer.mask);
   let state = lexer.topState();
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
@@ -216,7 +218,7 @@ async function main(...args) {
 
       if(n > 0 && balancers.last.depth == 0) console.log('balancer');
     }
-//    console.log('loc', lexer.loc+'');
+    //    console.log('loc', lexer.loc+'');
     //console.log('tok', tok);
 
     printTok(tok, lexer.topState());
