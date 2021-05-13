@@ -68,7 +68,7 @@ async function main(...args) {
     optind++;
   }
 
-  let file = args[optind] ?? 'tests/Shell-Grammar.l';
+  let file = args[optind] ?? 'tests/test_lexer.js';
   console.log('file:', file);
   let str = file ? std.loadFile(file, 'utf-8') : code[1];
   let len = str.length;
