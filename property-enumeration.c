@@ -89,40 +89,6 @@ property_enumeration_path_tostring(JSContext* ctx, JSValueConst this_val, int ar
 }
 
 PropertyEnumeration*
-property_enumeration_recurse(Vector* vec, JSContext* ctx) {
-  PropertyEnumeration* it;
-  JSValue value = JS_UNDEFINED;
-  int32_t type;
-  BOOL circular;
-  if(vector_empty(vec))
-    return 0;
-
-  for(it = vector_back(vec, sizeof(PropertyEnumeration)); it;) {
-    if(it->tab_atom_len > 0) {
-      value = property_enumeration_value(it, ctx);
-      type = JS_VALUE_GET_TAG(value);
-      circular = type == JS_TAG_OBJECT && property_enumeration_circular(vec, value);
-      JS_FreeValue(ctx, value);
-      if(type == JS_TAG_OBJECT && !circular) {
-        if((it = property_enumeration_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS)))
-          break;
-      } else {
-        if(property_enumeration_setpos(it, it->idx + 1))
-          break;
-      }
-    }
-    for(;;) {
-      if((it = property_enumeration_pop(vec, ctx)) == 0)
-        return it;
-      if(property_enumeration_setpos(it, it->idx + 1))
-        break;
-    }
-    break;
-  }
-  return it;
-}
-
-PropertyEnumeration*
 property_enumeration_skip(Vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
   JSValue value = JS_UNDEFINED;

@@ -117,7 +117,7 @@ js_location_getter(JSContext* ctx, JSValueConst this_val, int magic) {
 
 static Location
 js_location_get(JSContext* ctx, JSValueConst this_val) {
-  Location loc = {0, 0, 0, -1};
+  Location loc = {0, 0, 0, -1, 0};
 
   loc.line = js_get_propertystr_int32(ctx, this_val, "line");
   loc.column = js_get_propertystr_int32(ctx, this_val, "column");
@@ -431,6 +431,9 @@ token_free(Token* tok, JSContext* ctx) {
 
   location_free(&tok->loc, ctx);
 
+  if(!JS_IsUndefined(tok->loc_val))
+    js_value_free(ctx, tok->loc_val);
+
   js_free(ctx, tok->lexeme);
   js_free(ctx, tok);
 }
@@ -439,6 +442,9 @@ static void
 token_free_rt(Token* tok, JSRuntime* rt) {
 
   location_free_rt(&tok->loc, rt);
+
+  if(!JS_IsUndefined(tok->loc_val))
+    js_value_free_rt(rt, tok->loc_val);
 
   js_free_rt(rt, tok->lexeme);
   js_free_rt(rt, tok);
@@ -454,6 +460,7 @@ js_token_new(JSContext* ctx, int id, const char* lexeme, const Location* loc, ui
   tok->id = id;
   tok->lexeme = js_strdup(ctx, lexeme);
   tok->loc = *loc;
+  tok->loc_val = JS_UNDEFINED;
   tok->byte_offset = byte_offset;
 
   return tok;
@@ -489,6 +496,8 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   JS_SetOpaque(obj, tok);
 
+  tok->loc_val = JS_UNDEFINED;
+
   if(argc > 0)
     JS_ToInt32(ctx, &tok->id, argv[0]);
   if(argc > 1)
@@ -520,13 +529,15 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   JSValue ret;
   if(!(tok = js_token_data(ctx, this_val)))
     return JS_EXCEPTION;
-  hint = JS_ToCString(ctx, argv[0]);
+  hint = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
 
-  if(!strcmp(hint, "number"))
+  if(hint && !strcmp(hint, "number"))
     ret = JS_NewInt32(ctx, tok->id);
   else
     ret = JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length);
-  js_cstring_free(ctx, hint);
+
+  if(hint)
+    js_cstring_free(ctx, hint);
   return ret;
 }
 
@@ -591,7 +602,10 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case TOKEN_PROP_LOC: {
-      ret = js_location_new(ctx, &tok->loc);
+      if(JS_IsUndefined(tok->loc_val))
+        tok->loc_val = js_location_new(ctx, &tok->loc);
+
+      ret = JS_DupValue(ctx, tok->loc_val);
       break;
     }
     case TOKEN_PROP_ID: {
@@ -690,6 +704,7 @@ lexer_token(Lexer* lex, int id, size_t charlen, Location loc, JSContext* ctx) {
   if((tok = js_mallocz(ctx, sizeof(Token)))) {
     tok->id = id;
     tok->loc = location_dup(&loc, ctx);
+    tok->loc_val = JS_UNDEFINED;
     tok->byte_length = lex->bytelen;
     tok->char_length = charlen;
     tok->lexeme = js_strndup(ctx, (const char*)&lex->input.data[lex->start], tok->byte_length);
@@ -976,7 +991,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     case LEXER_METHOD_SET_INPUT: {
       Lexer* other;
       InputBuffer input;
-      Location loc = {0, 0, 0, 0};
+      Location loc = {0, 0, 0, -1, 0};
 
       if((other = JS_GetOpaque(argv[0], js_lexer_class_id))) {
         input = input_buffer_dup(&other->input, ctx);

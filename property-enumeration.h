@@ -40,7 +40,7 @@ void property_enumeration_reset(PropertyEnumeration*, JSRuntime*);
 void property_enumeration_dump(PropertyEnumeration*, JSContext*, DynBuf* out);
 void property_enumeration_dumpall(Vector*, JSContext*, DynBuf* out);
 JSValue property_enumeration_path_tostring(JSContext*, JSValue, int argc, JSValue argv[]);
-PropertyEnumeration* property_enumeration_recurse(Vector*, JSContext*);
+
 PropertyEnumeration* property_enumeration_skip(Vector*, JSContext*);
 static inline int32_t
 property_enumeration_depth(Vector* vec) {
@@ -134,4 +134,37 @@ property_enumeration_level(const PropertyEnumeration* it, const Vector* vec) {
 
 IndexTuple property_enumeration_check(Vector* vec);
 
+static inline PropertyEnumeration*
+property_enumeration_recurse(Vector* vec, JSContext* ctx) {
+  PropertyEnumeration* it;
+  JSValue value = JS_UNDEFINED;
+  int32_t type;
+  BOOL circular;
+  if(vector_empty(vec))
+    return 0;
+
+  for(it = vector_back(vec, sizeof(PropertyEnumeration)); it;) {
+    if(it->tab_atom_len > 0) {
+      value = property_enumeration_value(it, ctx);
+      type = JS_VALUE_GET_TAG(value);
+      circular = type == JS_TAG_OBJECT && property_enumeration_circular(vec, value);
+      JS_FreeValue(ctx, value);
+      if(type == JS_TAG_OBJECT && !circular) {
+        if((it = property_enumeration_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS)))
+          break;
+      } else {
+        if(property_enumeration_setpos(it, it->idx + 1))
+          break;
+      }
+    }
+    for(;;) {
+      if((it = property_enumeration_pop(vec, ctx)) == 0)
+        return it;
+      if(property_enumeration_setpos(it, it->idx + 1))
+        break;
+    }
+    break;
+  }
+  return it;
+}
 #endif /* defined(PROPERTY_ENUMERATION_H) */

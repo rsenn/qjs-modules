@@ -17,6 +17,7 @@ typedef struct {
   uint32_t byte_length;
   uint32_t char_length;
   Location loc;
+  JSValue loc_val;
   Lexer* lexer;
 } Token;
 
