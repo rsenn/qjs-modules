@@ -308,15 +308,11 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   lex->start = lex->input.pos;
 
   vector_foreach_t(&lex->rules, rule) {
-    int result;
-
-    if(/*(state & rule->mask) == 0 ||*/ rule->state != lex->state) {
+    int result;    if(rule->state != lex->state) {
       i++;
       continue;
     }
-
     result = lexer_rule_match(lex, rule, capture, ctx);
-
     if(result == LEXER_ERROR_COMPILE) {
       ret = result;
       break;
@@ -325,7 +321,6 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
       ret = LEXER_ERROR_EXEC;
       break;
     } else if(result > 0 && (capture[1] - capture[0]) > 0) {
-
       /*printf("%s:%" PRIu32 ":%" PRIu32 " #%i %-20s - /%s/ [%zu] %.*s\n",
              lex->loc.file,
              lex->loc.line + 1,
@@ -336,18 +331,15 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
              capture[1] - capture[0],
              capture[1] - capture[0],
              capture[0]); */
-
       if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 || (size_t)(capture[1] - capture[0]) >= len) {
         ret = i;
         len = capture[1] - capture[0];
-
         if(lex->mode == LEXER_FIRST)
           break;
       }
     }
     i++;
   }
-
   if(ret >= 0) {
     lex->bytelen = len;
     lex->tokid = i;
@@ -359,11 +351,8 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
 size_t
 lexer_skip(Lexer* lex) {
   size_t end = lex->start + lex->bytelen;
-  size_t n = 0;
-
-  while(lex->input.pos < end) {
+  size_t n = 0;  while(lex->input.pos < end) {
     size_t prev = lex->input.pos;
-
     if(input_buffer_getc(&lex->input) == '\n') {
       lex->loc.line++;
       lex->loc.column = 0;
