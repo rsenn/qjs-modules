@@ -716,6 +716,27 @@ IteratorValue js_iterator_next(JSContext* ctx, JSValueConst obj);
 JSValue js_symbol_for(JSContext* ctx, const char* sym_for);
 JSAtom js_symbol_for_atom(JSContext* ctx, const char* sym_for);
 
+static inline JSValue
+js_symbol_operatorset_value(JSContext* ctx) {
+  return js_symbol_get_static(ctx, "operatorSet");
+}
+
+static inline JSAtom
+js_symbol_operatorset_atom(JSContext* ctx) {
+  JSValue operator_set = js_symbol_operatorset_value(ctx);
+  JSAtom atom = JS_ValueToAtom(ctx, operator_set);
+  JS_FreeValue(ctx, operator_set);
+  return atom;
+}
+
+static inline JSValue
+js_operators_create(JSContext* ctx) {
+  JSValue operators = js_global_get(ctx, "Operators");
+  JSValue create_fun = JS_GetPropertyStr(ctx, operators, "create");
+  JS_FreeValue(ctx, operators);
+  return create_fun;
+}
+
 static inline int64_t
 js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
   if(JS_IsNumber(value))

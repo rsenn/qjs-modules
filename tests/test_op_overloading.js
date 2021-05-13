@@ -25,6 +25,9 @@ const OverloadNames = [
   '~'
 ];
 
+const CreateOperatorSet = Operators.create;
+
+
 const OperatorsObjects = Expr => [
   {
     '+'(...args) {
@@ -122,23 +125,47 @@ function assert(actual, expected, message) {
   );
 }
 
-/* operators overloading with Operators.create() */
+/* operators overloading with CreateOperatorSet() */
 function test_operators_create() {
-  class Expr {
+  class Expr1 {
     constructor(op, ...args) {
       this.op = op;
       this.children = args;
     }
 
     toString() {
-      return `Expr{${this.op}}(` + this.children.map(e => e.toString()).join(', ') + ')';
+      return `Expr1{${this.op}}(` + this.children.map(e => e.toString()).join(', ') + ')';
     }
   }
 
-  Expr.prototype[Symbol.operatorSet] = Operators.create(...OperatorsObjects(Expr));
+  Expr1.prototype[Symbol.operatorSet] = CreateOperatorSet(...OperatorsObjects(Expr1));
 
-  let a = new Expr(3);
-  let b = new Expr(6);
+  let a = new Expr1(3);
+  let b = new Expr1(6);
+
+  console.log('a+b', a + b);
+  console.log('a*b', a * b);
+  console.log('-(a/b)', -(a / b));
+  console.log('+(a/b)', +(a / b));
+}
+
+
+function test_operators_ctor() {
+  class Expr2 {
+    constructor(op, ...args) {
+      this.op = op;
+      this.children = args;
+    }
+
+    toString() {
+      return `Expr2{${this.op}}(` + this.children.map(e => e.toString()).join(', ') + ')';
+    }
+  }
+
+  Expr2.prototype[Symbol.operatorSet] = CreateOperatorSet(...OperatorsObjects(Expr2));
+
+  let a = new Expr2(3);
+  let b = new Expr2(6);
 
   console.log('a+b', a + b);
   console.log('a*b', a * b);
@@ -147,85 +174,85 @@ function test_operators_create() {
 }
 
 /* operators overloading thru inheritance */
-function test_operators() {
-  let Expr;
+function test_operators_class() {
+  let Expr3;
   const ExprOps = Operators({
       '+'(...args) {
-        return new Expr('+', ...args);
+        return new Expr3('+', ...args);
       },
       '-'(...args) {
-        return new Expr('-', ...args);
+        return new Expr3('-', ...args);
       },
       '*'(...args) {
-        return new Expr('*', ...args);
+        return new Expr3('*', ...args);
       },
       '/'(...args) {
-        return new Expr('/', ...args);
+        return new Expr3('/', ...args);
       },
       '%'(...args) {
-        return new Expr('%', ...args);
+        return new Expr3('%', ...args);
       },
       '**'(...args) {
-        return new Expr('**', ...args);
+        return new Expr3('**', ...args);
       },
       '|'(...args) {
-        return new Expr('|', ...args);
+        return new Expr3('|', ...args);
       },
       '&'(...args) {
-        return new Expr('&', ...args);
+        return new Expr3('&', ...args);
       },
       '^'(...args) {
-        return new Expr('^', ...args);
+        return new Expr3('^', ...args);
       },
       '<<'(...args) {
-        return new Expr('<<', ...args);
+        return new Expr3('<<', ...args);
       },
       '>>'(...args) {
-        return new Expr('>>', ...args);
+        return new Expr3('>>', ...args);
       },
       '>>>'(...args) {
         console.log("method '>>>'", ...args);
-        return new Expr('>>>', ...args);
+        return new Expr3('>>>', ...args);
       },
       '=='(...args) {
         console.log("method '=='", ...args);
-        return new Expr('==', ...args);
+        return new Expr3('==', ...args);
       },
       '<'(...args) {
         console.log("method '<'", ...args);
-        return new Expr('<', ...args);
+        return new Expr3('<', ...args);
       },
       pos(...args) {
-        return new Expr('pos', ...args);
+        return new Expr3('pos', ...args);
       },
       neg(...args) {
-        return new Expr('neg', ...args);
+        return new Expr3('neg', ...args);
       },
       '++'(...args) {
-        return new Expr('++', ...args);
+        return new Expr3('++', ...args);
       },
       '--'(...args) {
-        return new Expr('--', ...args);
+        return new Expr3('--', ...args);
       },
       '~'(...args) {
-        return new Expr('~', ...args);
+        return new Expr3('~', ...args);
       }
     },
     {
       left: String,
       '*'(a, b) {
-        return new Expr('*', a, b);
+        return new Expr3('*', a, b);
       }
     },
     {
       right: String,
       '*'(a, b) {
-        return new Expr('*', a, b);
+        return new Expr3('*', a, b);
       }
     }
   );
 
-  Expr = class Expr extends ExprOps {
+  Expr3 = class Expr3 extends ExprOps {
     constructor(op, ...args) {
       super();
       this.op = op;
@@ -233,12 +260,12 @@ function test_operators() {
     }
 
     toString() {
-      return `Expr{${this.op}}(` + this.children.map(e => e.toString()).join(', ') + ')';
+      return `Expr3{${this.op}}(` + this.children.map(e => e.toString()).join(', ') + ')';
     }
   };
 
-  let a = new Expr(3);
-  let b = new Expr(6);
+  let a = new Expr3(3);
+  let b = new Expr3(6);
 
   console.log('a + b', a + b);
   console.log('a - b', a - b);
@@ -280,7 +307,8 @@ function main() {
 
   try {
     test_operators_create();
-    test_operators();
+    test_operators_class();
+    test_operators_ctor();
     test_default_op();
   } catch(error) {
     console.log('ERROR:', error.message);
