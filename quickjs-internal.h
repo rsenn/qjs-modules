@@ -108,7 +108,7 @@ typedef enum {
   JS_GC_PHASE_REMOVE_CYCLES,
 } JSGCPhaseEnum;
 
-#if CONFIG_BIGNUM
+#ifdef CONFIG_BIGNUM
 /* function pointers are used for numeric operations so that it is
    possible to remove some numeric types */
 typedef struct {
