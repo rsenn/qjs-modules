@@ -1490,3 +1490,24 @@ js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, J
   JS_FreeAtom(ctx, atom);
   return ret;
 }
+
+JSValue
+js_symbol_operatorset_value(JSContext* ctx) {
+  return js_symbol_get_static(ctx, "operatorSet");
+}
+
+JSAtom
+js_symbol_operatorset_atom(JSContext* ctx) {
+  JSValue operator_set = js_symbol_operatorset_value(ctx);
+  JSAtom atom = JS_ValueToAtom(ctx, operator_set);
+  JS_FreeValue(ctx, operator_set);
+  return atom;
+}
+
+JSValue
+js_operators_create(JSContext* ctx) {
+  JSValue operators = js_global_get(ctx, "Operators");
+  JSValue create_fun = JS_GetPropertyStr(ctx, operators, "create");
+  JS_FreeValue(ctx, operators);
+  return create_fun;
+}
