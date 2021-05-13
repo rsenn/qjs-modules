@@ -551,7 +551,7 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CGETSET_MAGIC_DEF("value", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CFUNC_DEF("toString", 0, js_token_tostring),
-    JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
+   // JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
     // JS_CFUNC_DEF("inspect", 0, js_token_inspect),
     JS_ALIAS_DEF("position", "loc"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
