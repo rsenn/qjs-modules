@@ -755,6 +755,10 @@ const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
+JSValue js_object_construct(JSContext* ctx, JSValueConst ctor);
+JSValue js_object_error(JSContext* ctx, const char* message);
+JSValue js_object_stack(JSContext* ctx);
+
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {
   JSObject *aobj, *bobj;
@@ -765,10 +769,6 @@ js_object_same(JSValueConst a, JSValueConst b) {
   bobj = JS_VALUE_GET_OBJ(b);
   return aobj == bobj;
 }
-JSValue js_object_construct(JSContext* ctx, JSValueConst ctor);
-JSValue js_object_error(JSContext* ctx, const char* message);
-
-JSValue js_object_stack(JSContext* ctx);
 
 BOOL js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
