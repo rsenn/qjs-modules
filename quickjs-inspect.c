@@ -391,7 +391,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   if(break_len > opts->break_length)
     break_len = opts->break_length;
   ptr = JS_GetArrayBuffer(ctx, &size, value);
-  // printf("maxArrayLength: %i\n", opts->max_array_length);
+ printf("maxArrayLength: %i\n", opts->max_array_length);
   proto = JS_GetPrototype(ctx, value);
   str = js_object_tostring(ctx, proto);
   JS_FreeValue(ctx, proto);
