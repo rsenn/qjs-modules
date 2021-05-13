@@ -1411,6 +1411,17 @@ js_cstring_value(const char* ptr) {
   return JS_MKPTR(JS_TAG_STRING, p);
 }
 
+void
+js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
+  const char* str;
+  size_t len;
+
+  str = JS_ToCStringLen(ctx, &len, value);
+  dbuf_append(db, (const uint8_t*)str, len);
+
+  js_cstring_free(ctx, str);
+}
+
 size_t
 token_length(const char* str, size_t len, char delim) {
   const char *s, *e;

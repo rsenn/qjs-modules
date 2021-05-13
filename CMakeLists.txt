@@ -240,7 +240,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   target_link_libraries(qjsm quickjs ${STATIC_TARGETS} ${LIBPTHREAD} ${LIBM} ${LIBDL}
                         ${LIBWS2_32})
   set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT}"
-                                        COMPILE_FLAGS "-w")
+                                        COMPILE_FLAGS "-w"
+                                        RPATH "${CMAKE_INSTALL_PREFIX}/lib/quickjs")
 
   target_compile_definitions(
     qjsm PRIVATE CONFIG_VERSION="${quickjs_version}" _GNU_SOURCE=1

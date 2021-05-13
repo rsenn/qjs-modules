@@ -6,7 +6,7 @@
 #include <string.h>
 
 typedef struct {
-  const char* file;
+  char* file;
   uint32_t line;
   uint32_t column;
   int64_t pos;
@@ -16,6 +16,11 @@ void location_print(const Location* loc, DynBuf* dbuf);
 Location location_dup(const Location* loc, JSContext* ctx);
 void location_free(Location* loc, JSRuntime* rt);
 
+static inline BOOL location_isnull(const Location* loc) {
+  return !loc->file && !loc->line && !loc->column && !loc->pos;
+}
+
+
 typedef struct {
   char* name;
   char* expr;
@@ -23,6 +28,7 @@ typedef struct {
   uint64_t mask;
   uint8_t* bytecode;
   void* opaque;
+  char* expansion;
 } LexerRule;
 
 static const uint64_t MASK_ALL = ~(uint64_t)0;

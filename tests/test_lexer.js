@@ -4,7 +4,7 @@ import inspect from 'inspect';
 import * as path from 'path';
 import { Predicate } from 'predicate';
 import { Location, Lexer, Token, SyntaxError } from 'lexer';
-import Console from '../lib/console.js';
+import { Console } from 'console';
 import JSLexer from '../lib/jslexer.js';
 import CLexer from '../lib/clexer.js';
 import BNFLexer from '../lib/bnflexer.js';
@@ -51,10 +51,11 @@ async function main(...args) {
       depth: 8,
       maxArrayLength: 100,
       maxStringLength: Infinity,
-      compact: 1,
+      compact: 2,
       showHidden: false
     }
   });
+  console.log('console.options', console.options);
 
   let optind = 0;
   let code = 'c';
@@ -137,18 +138,22 @@ async function main(...args) {
   console.log('lexer.skip', IntToBinary(lexer.skip));
   console.log('lexer.states', lexer.states);
   console.log('lexer.tokens', lexer.tokens);
-  console.log('lexer.pushState("JS")', lexer.pushState('JS'));
+  //console.log('lexer.pushState("JS")', lexer.pushState('JS'));
   console.log('lexer.stateStack', lexer.stateStack);
   console.log('lexer.topState()', lexer.topState());
+  console.log('lexer.states ', lexer.states);
+
+  console.log('new SyntaxError("test")', new SyntaxError('test', new Location(10,3,28,'file.txt')));
   let mask = IntToBinary(lexer.mask);
   let state = lexer.topState();
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
-  let stack = [];
 
   let start = Date.now();
-  const balancer = (() => {
+  const balancer = () => {
+    let self;
+    let stack = [];
     const table = { '}': '{', ']': '[', ')': '(' };
-    return function ParentheseBalancer(tok) {
+    self = function ParentheseBalancer(tok) {
       switch (tok?.lexeme) {
         case '{':
         case '[':
@@ -168,33 +173,53 @@ async function main(...args) {
         }
       }
     };
-  })();
+    Object.assign(self, {
+      stack,
+      reset() {
+        stack.clear();
+      },
+      get depth() {
+        return stack.length;
+      }
+    });
 
-  for(let tok of lexer()) {
-    // console.log(lexer.topState(), 'tok', tok);
-    //console.log(`[${lexer.stateStack.length}]` + lexer.topState(1));
-    balancer(tok);
+    return self;
+  };
+  let balancers = [balancer()];
 
-    if(lexer.topState(1) == 'TEMPLATE' && tok.lexeme == '}') {
+  for(;;) {
+    let { stateDepth } = lexer;
+
+    let newState,
+      state = lexer.topState();
+
+    let { done, value } = lexer.next();
+    if(done) break;
+
+    newState = lexer.topState();
+    tok = value;
+
+    if(newState != state) {
+      if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
+
+      if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
+    }
+    //console.log('lexer.topState()', state);
+
+    let n = balancers.last.depth;
+
+    if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
       continue;
-    }
+    } else {
+      balancer(tok);
 
-    if(tok.rule[0] == 'whitespace') continue;
-
-    if(tok.type == 'cstart') {
-      lexer.mode = code == 'js' ? Lexer.LAST : Lexer.LONGEST;
-      lexer.mask = code == 'js' ? 0b1000 : 0b0100;
+      if(n > 0 && balancers.last.depth == 0) console.log('balancer');
     }
-    if(tok.type == 'lbrace' || tok.type == 'inline') {
-      lexer.mode = code == 'js' ? Lexer.LAST : Lexer.LONGEST;
-      lexer.mask = code == 'js' ? 0b1000 : 0b0100;
-    }
+//    console.log('loc', lexer.loc+'');
+    //console.log('tok', tok);
 
     printTok(tok, lexer.topState());
-
-    mask = IntToBinary(lexer.mask);
-    state = lexer.topState();
   }
 
   let end = Date.now();

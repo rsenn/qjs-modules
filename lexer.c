@@ -80,9 +80,8 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
   }
 
   if(lexer_rule_expand(lex, p, &dbuf)) {
-    RegExp re = regexp_from_dbuf(&dbuf, LRE_FLAG_GLOBAL | LRE_FLAG_STICKY);
-
-    rule->bytecode = regexp_compile(re, ctx);
+    rule->expansion = js_strndup(ctx, (const char*)dbuf.buf, dbuf.size);
+    rule->bytecode = regexp_compile(regexp_from_dbuf(&dbuf, LRE_FLAG_GLOBAL | LRE_FLAG_STICKY), ctx);
     ret = rule->bytecode != 0;
 
   } else {
@@ -126,7 +125,7 @@ lexer_set_input(Lexer* lex, InputBuffer input, char* filename) {
 
 void
 lexer_define(Lexer* lex, char* name, char* expr) {
-  LexerRule definition = {name, expr, -1, MASK_ALL, 0, 0};
+  LexerRule definition = {name, expr, -1, MASK_ALL, 0, 0, 0};
   vector_size(&lex->defines, sizeof(LexerRule));
   vector_push(&lex->defines, definition);
 }
@@ -234,7 +233,7 @@ lexer_state_name(Lexer* lex, int state) {
 
 int
 lexer_rule_add(Lexer* lex, char* name, char* expr) {
-  LexerRule rule = {name, expr, 0, MASK_ALL, 0, 0}, *previous;
+  LexerRule rule = {name, expr, 0, MASK_ALL, 0, 0, 0}, *previous;
   int ret = vector_size(&lex->rules, sizeof(LexerRule));
   if(ret) {
     previous = vector_back(&lex->rules, sizeof(LexerRule));

@@ -592,6 +592,7 @@ js_cstring_newlen(JSContext* ctx, const char* str, size_t len) {
 char* js_cstring_dup(JSContext* ctx, const char* str);
 void js_cstring_free(JSContext* ctx, const char* ptr);
 JSValueConst js_cstring_value(const char* ptr);
+void js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
 
 static inline char*
 js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
@@ -724,6 +725,13 @@ char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* pr
 char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
 uint64_t js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop);
+
+static inline void
+js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
+  JSAtom inspect_symbol = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
+  JS_SetProperty(ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1));
+  JS_FreeAtom(ctx, inspect_symbol);
+}
 
 int js_class_id(JSContext* ctx, int id);
 
