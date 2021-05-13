@@ -1,10 +1,6 @@
 #ifndef QJS_MODULES_INTERNAL_H
 #define QJS_MODULES_INTERNAL_H
 
-#ifndef CONFIG_BIGNUM
-#define CONFIG_BIGNUM 1
-#endif
-
 #ifdef CONFIG_BIGNUM
 #include "libbf.h"
 #endif
