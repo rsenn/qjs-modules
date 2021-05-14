@@ -1,12 +1,12 @@
 #ifndef QJS_MODULES_INTERNAL_H
 #define QJS_MODULES_INTERNAL_H
 
-#include <quickjs/list.h>
-#include <quickjs/cutils.h>
-#include <quickjs/quickjs.h>
+#include <list.h>
+#include <cutils.h>
+#include <quickjs.h>
 
 #ifdef HAVE_QUICKJS_CONFIG_H
-#include <quickjs/quickjs-config.h>
+#include <quickjs-config.h>
 #endif
 #ifdef CONFIG_BIGNUM
 #include "libbf.h"

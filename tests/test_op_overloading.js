@@ -27,7 +27,6 @@ const OverloadNames = [
 
 const CreateOperatorSet = Operators.create;
 
-
 const OperatorsObjects = Expr => [
   {
     '+'(...args) {
@@ -148,7 +147,6 @@ function test_operators_create() {
   console.log('-(a/b)', -(a / b));
   console.log('+(a/b)', +(a / b));
 }
-
 
 function test_operators_ctor() {
   class Expr2 {
