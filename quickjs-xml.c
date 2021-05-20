@@ -460,7 +460,7 @@ static JSValue
 js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   DynBuf output = {0};
   JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
-  JSValue ret;
+  JSValue ret, arr = JS_UNDEFINED;
   int32_t max_depth = INT32_MAX;
 
   js_dbuf_init(ctx, &output);
@@ -468,9 +468,18 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
   if(argc >= 2)
     JS_ToInt32(ctx, &max_depth, argv[1]);
 
+  if(!JS_IsArray(ctx, obj)) {
+    arr = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, arr, 0, JS_DupValue(ctx, obj));
+    obj = arr;
+  }
+
   ret = js_xml_write_obj(ctx, obj, max_depth, &output);
 
   dbuf_free(&output);
+
+  if(!JS_IsUndefined(arr))
+    JS_FreeValue(ctx, arr);
 
   return ret;
 }
