@@ -391,7 +391,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   if(break_len > opts->break_length)
     break_len = opts->break_length;
   ptr = JS_GetArrayBuffer(ctx, &size, value);
-  //printf("maxArrayLength: %i\n", opts->max_array_length);
+  // printf("maxArrayLength: %i\n", opts->max_array_length);
   proto = JS_GetPrototype(ctx, value);
   str = js_object_tostring(ctx, proto);
   JS_FreeValue(ctx, proto);
@@ -651,11 +651,11 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           js_cstring_free(ctx, s);
           return 0;
         }
-        is_array = JS_IsArray(ctx, value);
+        is_array = js_is_array(ctx, value);
         is_typedarray = js_is_typedarray(ctx, value);
       }
 
-      if(!is_array && !is_function && !strncmp(s, "[object ", 8)) {
+      if(!js_is_basic_array(ctx, value) && !is_function && !strncmp(s, "[object ", 8)) {
         const char* e = strchr(s, ']');
         size_t slen = e - (s + 8);
 
@@ -733,7 +733,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
             if(idx)
               dbuf_put_colorstr(buf, strs[idx], COLOR_MARINE, opts->colors);
           } else if(JS_HasProperty(ctx, value, JS_ATOM_TAG_INT | pos)) {
-            /* if(!compact)*/ dbuf_putc(buf, ' ');
+            if(compact || opts->break_length == INT32_MAX)
+              dbuf_putc(buf, ' ');
             js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
           }
           js_propertydescriptor_free(ctx, &desc);

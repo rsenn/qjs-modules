@@ -1154,7 +1154,7 @@ js_value_free(JSContext* ctx, JSValue v) {
 
 JSValue
 js_value_clone(JSContext* ctx, JSValueConst value) {
-  int32_t type = js_value_type(ctx, value);
+  enum value_mask type = 1 << js_value_type_get(ctx, value);
   JSValue ret = JS_UNDEFINED;
   switch(type) {
 

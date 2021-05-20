@@ -827,6 +827,11 @@ js_is_array(JSContext* ctx, JSValueConst value) {
   return JS_IsArray(ctx, value) || js_is_typedarray(ctx, value);
 }
 
+static inline BOOL
+js_is_basic_array(JSContext* ctx, JSValueConst value) {
+  return js_value_isclass(ctx, value, JS_CLASS_ARRAY);
+}
+
 BOOL js_is_input(JSContext* ctx, JSValueConst value);
 
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
