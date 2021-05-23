@@ -1440,7 +1440,7 @@ js_is_iterable(JSContext* ctx, JSValueConst obj) {
 
 int
 js_is_typedarray(JSContext* ctx, JSValueConst value) {
-  JSClassID id = JS_GetClassID(value);
+  JSClassID id = js_get_classid(value);
   return id >= JS_CLASS_UINT8C_ARRAY && id <= JS_CLASS_FLOAT64_ARRAY;
 }
 
