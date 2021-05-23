@@ -81,6 +81,7 @@ JSModuleDef* js_init_module_child_process(JSContext*, const char*);
 JSModuleDef* js_init_module_deep(JSContext*, const char*);
 JSModuleDef* js_init_module_inspect(JSContext*, const char*);
 JSModuleDef* js_init_module_lexer(JSContext*, const char*);
+JSModuleDef* js_init_module_misc(JSContext*, const char*);
 JSModuleDef* js_init_module_mmap(JSContext*, const char*);
 JSModuleDef* js_init_module_path(JSContext*, const char*);
 JSModuleDef* js_init_module_pointer(JSContext*, const char*);
@@ -452,6 +453,7 @@ JS_NewCustomContext(JSRuntime* rt) {
   js_init_module_deep(ctx, "deep");
   js_init_module_inspect(ctx, "inspect");
   js_init_module_lexer(ctx, "lexer");
+  js_init_module_misc(ctx, "misc");
   js_init_module_mmap(ctx, "mmap");
   js_init_module_path(ctx, "path");
   js_init_module_pointer(ctx, "pointer");

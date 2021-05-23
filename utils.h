@@ -659,6 +659,7 @@ js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value) {
   JS_FreeValue(ctx, tostring);
   return str;
 }
+
 int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
 JSValue js_value_from_char(JSContext* ctx, int c);
 static inline int

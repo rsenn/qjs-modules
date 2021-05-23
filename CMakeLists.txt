@@ -8,8 +8,8 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
 find_quickjs()
 
-set(QUICKJS_MODULES bjson child-process deep lexer mmap path pointer predicate repeater inspect
-                    tree-walker xml)
+set(QUICKJS_MODULES bjson child-process deep lexer misc mmap path pointer predicate repeater
+                    inspect tree-walker xml)
 
 if(EXISTS "${QUICKJS_H}")
 
@@ -94,24 +94,6 @@ endif(HAVE_SPAWN_H)
 
 file(GLOB TESTS tests/test_*.js)
 
-function(BASENAME OUT_VAR FILEPATH)
-  set(OUTPUT "${FILEPATH}")
-  string(REGEX REPLACE ".*/" "" OUTPUT "${OUTPUT}")
-  string(REGEX REPLACE "\\.[^/.]*$" "" OUTPUT "${OUTPUT}")
-  set("${OUT_VAR}" "${OUTPUT}" PARENT_SCOPE)
-endfunction(BASENAME OUT_VAR FILEPATH)
-
-function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
-  set(LIST "")
-
-  foreach(ARG ${ARGN})
-    file(RELATIVE_PATH ARG "${RELATIVE_TO}" "${ARG}")
-    list(APPEND LIST "${ARG}")
-  endforeach(ARG ${ARGN})
-
-  set("${OUT_VAR}" "${LIST}" PARENT_SCOPE)
-endfunction(RELATIVE_PATH RELATIVE_TO OUT_VAR)
-
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
 
 if(DO_TESTS)
@@ -145,6 +127,7 @@ addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
 # dump(STATIC_TARGETS)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
+  message(STATUS "Building module '${JS_MODULE}'")
   make_module(${JS_MODULE})
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
@@ -183,14 +166,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
   include(${quickjs_sources_root}/defs.cmake)
   include(${quickjs_sources_root}/cmake/check-libraries.cmake)
-  #[[ add_custom_command(
-    OUTPUT repl.c
-    COMMAND ${QJSC} -c -o ./repl.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../repl.js
-    DEPENDS ${QJSC_DEPS}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Generate from repl.js using qjs compiler" SOURCES
-            ${CMAKE_CURRENT_SOURCE_DIR}/repl.js)
-]]
+
   add_custom_command(
     OUTPUT qjscalc.c
     COMMAND ${QJSC} -fbignum -c -o ./qjscalc.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js
@@ -201,14 +177,6 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
   set(QJSM_SOURCES
       qjsm.c
-      #[[  ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h
-      ${CMAKE_CURRENT_SOURCE_DIR}/../libregexp.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/../libunicode.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-libc.h
-      ${CMAKE_CURRENT_SOURCE_DIR}/../libbf.c]]
       ${CMAKE_CURRENT_BINARY_DIR}/repl.c
       ${CMAKE_CURRENT_BINARY_DIR}/qjscalc.c
       ${CMAKE_CURRENT_BINARY_DIR}/console.c
@@ -216,11 +184,14 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
       ${CMAKE_CURRENT_BINARY_DIR}/fs.c
       ${CMAKE_CURRENT_BINARY_DIR}/process.c
       ${CMAKE_CURRENT_BINARY_DIR}/util.c)
+
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
     set(QJSM_SOURCES
         ${QJSM_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c
         ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger-transport-${TRANSPORT_PLATFORM}.c)
   endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
+
+  dump(QJSM_SOURCES)
   add_executable(qjsm ${QJSM_SOURCES})
 
   # target_link_libraries(qjs ${QUICKJS_LIBRARY})
