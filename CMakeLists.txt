@@ -9,7 +9,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 find_quickjs()
 
 set(QUICKJS_MODULES bjson child-process deep lexer misc mmap path pointer predicate repeater
-                    inspect tree-walker xml)
+                    sockets inspect tree-walker xml)
 
 if(EXISTS "${QUICKJS_H}")
 
