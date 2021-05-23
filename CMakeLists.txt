@@ -159,6 +159,7 @@ compile_module(lib/require.js)
 compile_module(lib/repl.js)
 compile_module(lib/fs.js)
 compile_module(lib/util.js)
+compile_module(lib/performance.js)
 compile_module(lib/process.js)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
@@ -182,6 +183,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
       ${CMAKE_CURRENT_BINARY_DIR}/console.c
       ${CMAKE_CURRENT_BINARY_DIR}/require.c
       ${CMAKE_CURRENT_BINARY_DIR}/fs.c
+      ${CMAKE_CURRENT_BINARY_DIR}/performance.c
       ${CMAKE_CURRENT_BINARY_DIR}/process.c
       ${CMAKE_CURRENT_BINARY_DIR}/util.c)
 

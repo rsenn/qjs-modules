@@ -4,6 +4,7 @@
 
 #include "quickjs-internal.h"
 #include "utils.h"
+#include <time.h>
 
 static void
 js_string_free_func(JSRuntime* rt, void* opaque, void* ptr) {
@@ -41,9 +42,19 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return ret;
 }
 
+static JSValue
+js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  struct timespec ts;
+
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+
+  return JS_NewFloat64(ctx, (double)ts.tv_sec * 1000 + ((double)ts.tv_nsec / 1e06));
+}
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
+    JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
 };
 
 static int

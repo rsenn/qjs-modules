@@ -537,63 +537,6 @@ js_global_prototype(JSContext* ctx, const char* class_name) {
   return ret;
 }
 
-/*int
-js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
-  int ret = 0;
-  int n, m;
-  char* name = 0;
-  if((name = js_object_classname(ctx, value))) {
-    n = strlen(name);
-    m = n >= 11 ? n - 11 : 0;
-    if(!strcmp(name + m, "ArrayBuffer"))
-      ret = 1;
-  }
-  if(!ret) {
-    const char* str;
-    JSValue ctor = js_global_get(ctx, "ArrayBuffer");
-    if(JS_IsInstanceOf(ctx, value, ctor))
-      ret = 1;
-    else if(!JS_IsArray(ctx, value) && (str = js_object_tostring(ctx, value))) {
-      ret = strstr(str, "ArrayBuffer]") != 0;
-      js_cstring_free(ctx, str);
-    }
-
-    JS_FreeValue(ctx, ctor);
-  }
-  if(name)
-    js_free(ctx, (void*)name);
-
-  return ret;
-}*/
-
-BOOL
-js_is_iterable(JSContext* ctx, JSValueConst obj) {
-  JSAtom atom;
-  BOOL ret = FALSE;
-  atom = js_symbol_atom(ctx, "iterator");
-  if(JS_HasProperty(ctx, obj, atom))
-    ret = TRUE;
-
-  JS_FreeAtom(ctx, atom);
-  if(!ret) {
-    atom = js_symbol_atom(ctx, "asyncIterator");
-    if(JS_HasProperty(ctx, obj, atom))
-      ret = TRUE;
-
-    JS_FreeAtom(ctx, atom);
-  }
-  return ret;
-}
-
-int
-js_is_typedarray(JSContext* ctx, JSValueConst value) {
-  JSValue ctor = js_typedarray_constructor(ctx);
-  BOOL ret;
-  ret = JS_IsInstanceOf(ctx, value, ctor);
-  JS_FreeValue(ctx, ctor);
-  return ret;
-}
-
 JSValue
 js_iterator_method(JSContext* ctx, JSValueConst obj) {
   JSAtom atom;
@@ -1463,6 +1406,31 @@ js_is_regexp(JSContext* ctx, JSValueConst value) {
 BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
   return js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]");
+}
+
+BOOL
+js_is_iterable(JSContext* ctx, JSValueConst obj) {
+  JSAtom atom;
+  BOOL ret = FALSE;
+  atom = js_symbol_atom(ctx, "iterator");
+  if(JS_HasProperty(ctx, obj, atom))
+    ret = TRUE;
+
+  JS_FreeAtom(ctx, atom);
+  if(!ret) {
+    atom = js_symbol_atom(ctx, "asyncIterator");
+    if(JS_HasProperty(ctx, obj, atom))
+      ret = TRUE;
+
+    JS_FreeAtom(ctx, atom);
+  }
+  return ret;
+}
+
+int
+js_is_typedarray(JSContext* ctx, JSValueConst value) {
+  JSClassID id = JS_GetClassID(value);
+  return id >= JS_CLASS_UINT8C_ARRAY && id <= JS_CLASS_FLOAT64_ARRAY;
 }
 
 JSValue
