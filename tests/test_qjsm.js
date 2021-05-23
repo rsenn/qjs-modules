@@ -17,19 +17,10 @@ function main(...args) {
   console.log('os:', inspect(os, { /* compact: false,*/ breakLength: 80 }));
   std.puts(format('%s %o\n', 'TEST', { x: 1, y: 2, z: 3 }));
 
-  console.log('modules:', moduleList);
-  let moduleExports = moduleList.map(module =>
-      getModuleObject(module
-      ) /*({
-    name: getModuleName(module),
-    exports: getModuleExports(module),
-    namespace: getModuleNamespace(module),
-    func: getModuleFunction(module),
-    exception: getModuleException(module),
-    meta: getModuleMetaObject(module)
-  })*/
-  );
+  //console.log('modules:', moduleList);
+  let moduleExports = moduleList.map(module => getModuleObject(module));
   console.log('moduleExports:', moduleExports);
+  console.log('process.hrtime():', process.hrtime());
 
   std.gc();
 }
