@@ -139,7 +139,9 @@ async function main(...args) {
   console.log('lexer.skip', IntToBinary(lexer.skip));
   console.log('lexer.states', lexer.states);
   console.log('lexer.tokens', lexer.tokens);
-  console.log('lexer.rules', lexer.ruleNames.map(name => [name,lexer.getRule(name)]));
+  console.log('lexer.rules',
+    lexer.ruleNames.map(name => [name, lexer.getRule(name)])
+  );
   //console.log('lexer.pushState("JS")', lexer.pushState('JS'));
   console.log('lexer.stateStack', lexer.stateStack);
   console.log('lexer.topState()', lexer.topState());
