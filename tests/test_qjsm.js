@@ -1,5 +1,3 @@
-import * as os from 'os';
-import * as std from 'std';
 import { inspect, format, formatWithOptions } from 'util';
 import util from 'util';
 
@@ -9,27 +7,25 @@ function main(...args) {
   console.log('format:', format);
   console.log('regexp:', /TEST/);
   console.log('util:', inspect(util));
-  console.log('util.hasBuiltIn:', util.hasBuiltIn);
+ /* console.log('util.hasBuiltIn:', util.hasBuiltIn);
   console.log(`util.hasBuiltIn({}, 'toString'):`, util.hasBuiltIn({}, 'toString'));
   console.log(`util.hasBuiltIn(function(){}, 'toString'):`,
     util.hasBuiltIn(function () {}, 'toString')
   );
-  console.log('os:', inspect(os, { /* compact: false,*/ breakLength: 80 }));
-  std.puts(format('%s %o\n', 'TEST', { x: 1, y: 2, z: 3 }));
+  console.log('os:', inspect(os, { breakLength: 80 }));*/
+  console.log(format('%s %o\n', 'TEST', { x: 1, y: 2, z: 3 }));
 
-  //console.log('modules:', moduleList);
-  let moduleExports = moduleList.map(module => getModuleObject(module));
-  console.log('moduleExports:', moduleExports);
+ /*  let moduleExports = moduleList.map(module => getModuleObject(module));
+  console.log('moduleExports:', moduleExports);*/
   console.log('process.hrtime():', process.hrtime());
+  console.log('process.arch:', process.arch);
 
-  std.gc();
-}
+ }
 
 try {
-  main(...scriptArgs.slice(1));
+  main(...process.argv.slice(2));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
-  std.exit(1);
-} finally {
+ } finally {
   console.log('SUCCESS');
 }

@@ -5,6 +5,7 @@
 #include "quickjs-internal.h"
 #include "utils.h"
 #include <time.h>
+#include <sys/utsname.h>
 
 static void
 js_string_free_func(JSRuntime* rt, void* opaque, void* ptr) {
@@ -86,11 +87,29 @@ js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   return ret;
 }
 
+static JSValue
+js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  struct utsname un;
+  JSValue ret = JS_UNDEFINED;
+
+  if(uname(&un) != -1) {
+    ret = JS_NewObject(ctx);
+
+    JS_SetPropertyStr(ctx, ret, "sysname", JS_NewString(ctx, un.sysname));
+    JS_SetPropertyStr(ctx, ret, "nodename", JS_NewString(ctx, un.nodename));
+    JS_SetPropertyStr(ctx, ret, "release", JS_NewString(ctx, un.release));
+    JS_SetPropertyStr(ctx, ret, "version", JS_NewString(ctx, un.version));
+    JS_SetPropertyStr(ctx, ret, "machine", JS_NewString(ctx, un.machine));
+  }
+
+  return ret;
+}
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
+    JS_CFUNC_DEF("uname", 0, js_misc_uname),
 };
 
 static int
