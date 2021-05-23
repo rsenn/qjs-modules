@@ -7,11 +7,40 @@
 #include <time.h>
 #include <sys/utsname.h>
 
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
 static void
 js_string_free_func(JSRuntime* rt, void* opaque, void* ptr) {
-  JSValue value = js_cstring_value(ptr);
+  JSValue value = js_cstring_value(opaque);
 
   JS_FreeValueRT(rt, value);
+}
+
+typedef struct OffsetLength {
+  int64_t offset;
+  int64_t length;
+} OffsetLength;
+
+static OffsetLength
+get_offset_length(JSContext* ctx, int64_t len, int argc, JSValueConst* argv) {
+  int64_t offset = 0, length = len;
+  if(argc >= 2)
+    JS_ToInt64(ctx, &offset, argv[1]);
+  if(argc >= 3)
+    JS_ToInt64(ctx, &length, argv[2]);
+
+  if(offset >= 0)
+    offset = min(offset, len);
+  else
+    offset = ((offset % len) + offset) % len;
+
+  if(length >= 0)
+    length = min(length, len - offset);
+  else
+    length = len - offset;
+
+  return (OffsetLength){.offset = offset, .length = length};
 }
 
 static JSValue
@@ -20,8 +49,13 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   if(js_is_arraybuffer(ctx, argv[0])) {
     uint8_t* data;
     size_t len;
+
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-      ret = JS_NewStringLen(ctx, (const char*)data, len);
+      OffsetLength ol;
+
+      ol = get_offset_length(ctx, len, argc, argv);
+
+      ret = JS_NewStringLen(ctx, (const char*)data + ol.offset, ol.length);
     }
   }
   return ret;
@@ -36,7 +70,11 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     size_t len;
     const char* str;
     if((str = JS_ToCStringLen(ctx, &len, value))) {
-      ret = JS_NewArrayBuffer(ctx, (uint8_t*)str, len, js_string_free_func, 0, FALSE);
+      OffsetLength ol;
+
+      ol = get_offset_length(ctx, len, argc, argv);
+
+      ret = JS_NewArrayBuffer(ctx, (uint8_t*)str + ol.offset, ol.length, js_string_free_func, (void*)str, FALSE);
     }
   }
 
