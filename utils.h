@@ -777,6 +777,8 @@ js_object_same(JSValueConst a, JSValueConst b) {
   return aobj == bobj;
 }
 
+JSClassID js_get_classid(JSValue v);
+
 BOOL js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
 void js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str);

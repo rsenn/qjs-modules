@@ -677,6 +677,17 @@ js_object_stack(JSContext* ctx) {
   return stack;
 }
 
+JSClassID
+js_get_classid(JSValue v) {
+  JSObject* p;
+
+  if(JS_VALUE_GET_TAG(v) != JS_TAG_OBJECT)
+    return 0;
+  p = JS_VALUE_GET_OBJ(v);
+  assert(p != 0);
+  return p->class_id;
+}
+
 BOOL
 js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
   JSAtom atom;
