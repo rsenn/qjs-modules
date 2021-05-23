@@ -807,7 +807,8 @@ js_object_isclass(JSValue obj, int32_t class_id) {
 
 static inline BOOL
 js_value_isclass(JSContext* ctx, JSValue obj, int id) {
-  return js_object_isclass(obj, js_class_id(ctx, id));
+  int32_t class_id = js_class_id(ctx, id);
+  return js_object_isclass(obj, class_id);
 }
 
 BOOL js_is_arraybuffer(JSContext*, JSValue);

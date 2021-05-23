@@ -16,6 +16,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 
+static JSAtom inspect_custom_atom, inspect_custom_atom_node;
+
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
 #define INSPECT_IS_COMPACT(opts)                                                                                       \
@@ -274,17 +276,12 @@ static JSValue
 js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   JSValue ret = JS_UNDEFINED;
   JSValue inspect = JS_UNDEFINED;
-  JSAtom inspect_custom_node, inspect_custom, prop;
-  inspect_custom_node = js_inspect_custom_atom(ctx, "nodejs.util.inspect.custom");
-  inspect_custom = js_inspect_custom_atom(ctx, 0);
+  JSAtom prop;
 
-  if(JS_HasProperty(ctx, obj, inspect_custom))
-    inspect = JS_GetProperty(ctx, obj, inspect_custom);
-  else if(JS_HasProperty(ctx, obj, inspect_custom_node))
-    inspect = JS_GetProperty(ctx, obj, inspect_custom_node);
-
-  JS_FreeAtom(ctx, inspect_custom_node);
-  JS_FreeAtom(ctx, inspect_custom);
+  if(JS_HasProperty(ctx, obj, inspect_custom_atom))
+    inspect = JS_GetProperty(ctx, obj, inspect_custom_atom);
+  else if(JS_HasProperty(ctx, obj, inspect_custom_atom_node))
+    inspect = JS_GetProperty(ctx, obj, inspect_custom_atom_node);
 
   if(JS_IsFunction(ctx, inspect)) {
     JSValueConst args[2];
@@ -626,19 +623,24 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       }
 
       if(!(is_function = JS_IsFunction(ctx, value))) {
-        if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
-          return js_inspect_arraybuffer(ctx, buf, value, opts, depth + 1);
+        is_array = js_is_array(ctx, value);
+        is_typedarray = js_is_typedarray(ctx, value);
 
-        if(js_is_map(ctx, value))
-          return js_inspect_map(ctx, buf, value, opts, depth /*+ 1*/);
-        if(js_is_set(ctx, value))
-          return js_inspect_set(ctx, buf, value, opts, depth + 1);
-        if(js_is_regexp(ctx, value))
-          return js_inspect_regexp(ctx, buf, value, opts, depth + 1);
-        /*if(JS_IsInstanceOf(ctx, value, proxy_ctor)) {
-          dbuf_putstr(buf, "[Proxy]");
-          return 0;
-        }*/
+        if(!is_array && !is_typedarray) {
+          if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
+            return js_inspect_arraybuffer(ctx, buf, value, opts, depth + 1);
+
+          if(js_is_map(ctx, value))
+            return js_inspect_map(ctx, buf, value, opts, depth /*+ 1*/);
+          if(js_is_set(ctx, value))
+            return js_inspect_set(ctx, buf, value, opts, depth + 1);
+          if(js_is_regexp(ctx, value))
+            return js_inspect_regexp(ctx, buf, value, opts, depth + 1);
+          /*if(JS_IsInstanceOf(ctx, value, proxy_ctor)) {
+            dbuf_putstr(buf, "[Proxy]");
+            return 0;
+          }*/
+        }
 
         if(js_object_tmpmark_isset(value)) {
           JS_ThrowTypeError(ctx, "circular reference");
@@ -651,8 +653,6 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           js_cstring_free(ctx, s);
           return 0;
         }
-        is_array = js_is_array(ctx, value);
-        is_typedarray = js_is_typedarray(ctx, value);
       }
 
       if(!js_is_basic_array(ctx, value) && !is_function && !strncmp(s, "[object ", 8)) {
@@ -905,6 +905,9 @@ js_inspect_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_FreeValue(ctx, symbol_ctor);
   JS_FreeValue(ctx, inspect_symbol);
+
+  inspect_custom_atom = js_inspect_custom_atom(ctx, "quickjs.inspect.custom");
+  inspect_custom_atom_node = js_inspect_custom_atom(ctx, "nodejs.util.inspect.custom");
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));

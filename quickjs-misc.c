@@ -34,7 +34,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     size_t len;
     const char* str;
     if((str = JS_ToCStringLen(ctx, &len, value))) {
-      ret = JS_NewArrayBuffer(ctx, str, len, js_string_free_func, 0, FALSE);
+      ret = JS_NewArrayBuffer(ctx, (uint8_t*)str, len, js_string_free_func, 0, FALSE);
     }
   }
 
