@@ -51,10 +51,46 @@ js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, J
   return JS_NewFloat64(ctx, (double)ts.tv_sec * 1000 + ((double)ts.tv_nsec / 1e06));
 }
 
+static JSValue
+js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  struct timespec ts;
+  JSValue ret;
+
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+
+  if(argc >= 1 && JS_IsArray(ctx, argv[0])) {
+    int64_t sec, nsec;
+    JSValue psec, pnsec;
+
+    psec = JS_GetPropertyUint32(ctx, argv[0], 0);
+    pnsec = JS_GetPropertyUint32(ctx, argv[0], 1);
+
+    JS_ToInt64(ctx, &sec, psec);
+    JS_ToInt64(ctx, &nsec, pnsec);
+    JS_FreeValue(ctx, psec);
+    JS_FreeValue(ctx, pnsec);
+
+    if(nsec > ts.tv_nsec) {
+      ts.tv_sec -= 1;
+      ts.tv_nsec += 1000000000;
+    }
+
+    ts.tv_sec -= sec;
+    ts.tv_nsec -= nsec;
+  }
+
+  ret = JS_NewArray(ctx);
+  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, ts.tv_sec));
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, ts.tv_nsec));
+
+  return ret;
+}
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
+    JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
 };
 
 static int
