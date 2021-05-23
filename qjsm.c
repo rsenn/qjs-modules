@@ -67,8 +67,8 @@ extern const uint8_t qjsc_require[];
 extern const uint32_t qjsc_require_size;
 extern const uint8_t qjsc_fs[];
 extern const uint32_t qjsc_fs_size;
-extern const uint8_t qjsc_performance[];
-extern const uint32_t qjsc_performance_size;
+extern const uint8_t qjsc_perf_hooks[];
+extern const uint32_t qjsc_perf_hooks_size;
 extern const uint8_t qjsc_process[];
 extern const uint32_t qjsc_process_size;
 extern const uint8_t qjsc_util[];
@@ -986,7 +986,7 @@ main(int argc, char** argv) {
     js_std_add_helpers(ctx, argc - optind, argv + optind);
 
     jsm_eval_binary(ctx, qjsc_fs, qjsc_fs_size, 0);
-    jsm_eval_binary(ctx, qjsc_performance, qjsc_performance_size, 0);
+    jsm_eval_binary(ctx, qjsc_perf_hooks, qjsc_perf_hooks_size, 0);
     jsm_eval_binary(ctx, qjsc_process, qjsc_process_size, 0);
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";

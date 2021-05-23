@@ -1,18 +1,13 @@
-import * as os from 'os';
-import * as std from 'std';
-import { now } from 'performance';
+import { performance } from 'perf_hooks';
 
 function main(...args) {
-  console.log('now()', now());
-
-  std.gc();
+  console.log('now()', performance.now());
 }
 
 try {
-  main(...scriptArgs.slice(1));
+  main(...process.argv.slice(2));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
-  std.exit(1);
 } finally {
   console.log('SUCCESS');
 }
