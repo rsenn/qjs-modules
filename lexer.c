@@ -68,7 +68,7 @@ lexer_rule_expand(Lexer* lex, char* p, DynBuf* db) {
   }
   dbuf_0(db);
 
-  // printf("expand %s %s\n", rule->name, db->buf);
+  // printf("expand %s %s\n", p, db->buf);
 
   return TRUE;
 }
@@ -106,12 +106,13 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
 
 static int
 lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx) {
-  // printf("lexer_rule_match %s %s %s\n", rule->name, rule->expr, rule->expansion);
 
   if(rule->bytecode == 0) {
     if(!lexer_rule_compile(lex, rule, ctx))
       return LEXER_ERROR_COMPILE;
   }
+
+  // printf("lexer_rule_match %s %s %s\n", rule->name, rule->expr, rule->expansion);
 
   return lre_exec(capture, rule->bytecode, (uint8_t*)lex->input.data, lex->input.pos, lex->input.size, 0, ctx);
 }

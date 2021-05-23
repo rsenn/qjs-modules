@@ -288,7 +288,7 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
   RegExp re = {0, 0, 0};
   const char* flagstr;
   assert(argc > 0);
-  if(js_value_isclass(ctx, argv[0], JS_CLASS_REGEXP)) {
+  if(js_is_regexp(ctx, argv[0])) {
     re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
     re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
     js_cstring_free(ctx, flagstr);
