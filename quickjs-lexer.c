@@ -65,9 +65,9 @@ js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     loc->str = js_malloc(ctx, len);
 
     if(loc->file)
-      snprintf(loc->str, len, "%s:%" PRIi32 ":%" PRIi32 "", loc->file, loc->line, loc->column);
+      snprintf(loc->str, len, "%s:%" PRIi32 ":%" PRIi32 "", loc->file, loc->line + 1, loc->column + 1);
     else
-      snprintf(loc->str, len, "%" PRIi32 ":%" PRIi32 "", loc->line, loc->column);
+      snprintf(loc->str, len, "%" PRIi32 ":%" PRIi32 "", loc->line + 1, loc->column + 1);
   }
 
   ret = JS_NewString(ctx, loc->str);
@@ -96,11 +96,11 @@ js_location_getter(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case LOCATION_PROP_LINE: {
-      ret = JS_NewUint32(ctx, loc->line);
+      ret = JS_NewUint32(ctx, loc->line + 1);
       break;
     }
     case LOCATION_PROP_COLUMN: {
-      ret = JS_NewUint32(ctx, loc->column);
+      ret = JS_NewUint32(ctx, loc->column + 1);
       break;
     }
     case LOCATION_PROP_POS: {
@@ -119,8 +119,8 @@ static Location
 js_location_get(JSContext* ctx, JSValueConst this_val) {
   Location loc = {0, 0, 0, -1, 0};
 
-  loc.line = js_get_propertystr_int32(ctx, this_val, "line");
-  loc.column = js_get_propertystr_int32(ctx, this_val, "column");
+  loc.line = js_get_propertystr_int32(ctx, this_val, "line") - 1;
+  loc.column = js_get_propertystr_int32(ctx, this_val, "column") - 1;
   loc.file = js_get_propertystr_string(ctx, this_val, "file");
   if(js_has_propertystr(ctx, this_val, "pos"))
     loc.pos = js_get_propertystr_uint64(ctx, this_val, "pos");
@@ -192,7 +192,8 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       loc->line = n[0];
       loc->column = n[1];
     }
-
+    loc->line--;
+    loc->column--;
     /* Dup from object */
   } else if(JS_IsObject(argv[0]) && (other = js_location_data(ctx, argv[0]))) {
 
@@ -203,13 +204,15 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
     JS_ToUint32(ctx, &loc->line, argv[0]);
     JS_ToUint32(ctx, &loc->column, argv[1]);
+
+    loc->line--;
+    loc->column--;
+
     if(argc > 2)
       JS_ToIndex(ctx, (uint64_t*)&loc->pos, argv[2]);
     if(argc > 3)
       loc->file = js_tostring(ctx, argv[3]);
   }
-  loc->line--;
-  loc->column--;
 
   return obj;
 fail:
