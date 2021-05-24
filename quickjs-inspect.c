@@ -382,7 +382,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   const char *str, *str2;
   uint8_t* ptr;
   size_t i, slen, size;
-  int break_len = inspect_screen_width();
+  int break_len = opts->break_length; // inspect_screen_width();
   int column = dbuf_get_column(buf);
   JSValue proto;
   if(break_len > opts->break_length)
@@ -393,17 +393,16 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   str = js_object_tostring(ctx, proto);
   JS_FreeValue(ctx, proto);
 
-  if(str && (str2 = strstr(str, "ArrayBuffer"))) {
-    while(str2 > str && !isspace(*--str2))
-      ;
+  if(js_is_arraybuffer(ctx, value))
+    dbuf_putstr(buf, "ArrayBuffer");
+  else if(js_is_sharedarraybuffer(ctx, value))
+    dbuf_putstr(buf, "SharedArrayBuffer");
+  else if(str && (str2 = strchr(str, ' '))) {
+    str2++;
     slen = byte_chr(str2, strlen(str2), ']');
     dbuf_append(buf, (const uint8_t*)str2, slen);
-  } else {
-    if(js_is_arraybuffer(ctx, value))
-      dbuf_putstr(buf, "ArrayBuffer");
-    if(js_is_sharedarraybuffer(ctx, value))
-      dbuf_putstr(buf, "SharedArrayBuffer");
   }
+
   if(str)
     js_cstring_free(ctx, str);
 

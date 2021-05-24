@@ -17,6 +17,13 @@ js_string_free_func(JSRuntime* rt, void* opaque, void* ptr) {
   JS_FreeValueRT(rt, value);
 }
 
+static void
+js_arraybuffer_free_func(JSRuntime* rt, void* opaque, void* ptr) {
+  JSValue value = JS_MKPTR(JS_TAG_OBJECT, ptr);
+
+  JS_FreeValueRT(rt, value);
+}
+
 typedef struct OffsetLength {
   int64_t offset;
   int64_t length;
@@ -46,7 +53,9 @@ get_offset_length(JSContext* ctx, int64_t len, int argc, JSValueConst* argv) {
 static JSValue
 js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   JSValue ret = JS_UNDEFINED;
-  if(js_is_arraybuffer(ctx, argv[0])) {
+  JSValue arraybuffer_ctor = js_global_get(ctx, "ArrayBuffer");
+
+  if(JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
     uint8_t* data;
     size_t len;
 
@@ -58,6 +67,9 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
       ret = JS_NewStringLen(ctx, (const char*)data + ol.offset, ol.length);
     }
   }
+
+  JS_FreeValue(ctx, arraybuffer_ctor);
+
   return ret;
 }
 
@@ -66,7 +78,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   JSValue ret = JS_UNDEFINED;
 
   if(JS_IsString(argv[0])) {
-    JSValue value = JS_DupValue(ctx, argv[0]);
+    JSValueConst value = argv[0]; // JS_DupValue(ctx, argv[0]);
     size_t len;
     const char* str;
     if((str = JS_ToCStringLen(ctx, &len, value))) {
@@ -77,6 +89,29 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       ret = JS_NewArrayBuffer(ctx, (uint8_t*)str + ol.offset, ol.length, js_string_free_func, (void*)str, FALSE);
     }
   }
+
+  return ret;
+}
+
+static JSValue
+js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  JSValue ret = JS_UNDEFINED;
+  JSValue arraybuffer_ctor = js_global_get(ctx, "ArrayBuffer");
+
+  if(JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
+    JSValue value = JS_DupValue(ctx, argv[0]);
+    uint8_t* data;
+    size_t len;
+
+    if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+      OffsetLength ol = get_offset_length(ctx, len, argc, argv);
+      JSObject* obj = JS_VALUE_GET_OBJ(value);
+
+      ret = JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, FALSE);
+    }
+  }
+
+  JS_FreeValue(ctx, arraybuffer_ctor);
 
   return ret;
 }
@@ -145,6 +180,7 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
+    JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
     JS_CFUNC_DEF("uname", 0, js_misc_uname),

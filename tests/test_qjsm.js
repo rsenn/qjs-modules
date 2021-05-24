@@ -7,7 +7,7 @@ function main(...args) {
   console.log('format:', format);
   console.log('regexp:', /TEST/);
   console.log('util:', inspect(util));
- /* console.log('util.hasBuiltIn:', util.hasBuiltIn);
+  /* console.log('util.hasBuiltIn:', util.hasBuiltIn);
   console.log(`util.hasBuiltIn({}, 'toString'):`, util.hasBuiltIn({}, 'toString'));
   console.log(`util.hasBuiltIn(function(){}, 'toString'):`,
     util.hasBuiltIn(function () {}, 'toString')
@@ -15,17 +15,16 @@ function main(...args) {
   console.log('os:', inspect(os, { breakLength: 80 }));*/
   console.log(format('%s %o\n', 'TEST', { x: 1, y: 2, z: 3 }));
 
- /*  let moduleExports = moduleList.map(module => getModuleObject(module));
+  /*  let moduleExports = moduleList.map(module => getModuleObject(module));
   console.log('moduleExports:', moduleExports);*/
   console.log('process.hrtime():', process.hrtime());
   console.log('process.arch:', process.arch);
-
- }
+}
 
 try {
   main(...process.argv.slice(2));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
- } finally {
+} finally {
   console.log('SUCCESS');
 }

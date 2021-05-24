@@ -250,7 +250,7 @@ pointer_fromarray(Pointer* ptr, JSContext* ctx, JSValueConst array) {
   len = js_array_length(ctx, array);
   pointer_reset(ptr, ctx);
 
-  assert(len > 0);
+  assert(len >= 0);
 
   ptr->atoms = js_malloc(ctx, sizeof(JSAtom) * len);
   for(i = 0; i < len; i++) {
