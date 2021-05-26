@@ -145,30 +145,30 @@ lexer_define(Lexer* lex, char* name, char* expr) {
 }
 
 size_t
-lexer_state_parse(const char* name, const char** state) {
+lexer_state_parse(const char* expr, const char** state) {
   size_t i, end;
-  if(name[0] != '<')
+  if(expr[0] != '<')
     return 0;
 
-  if(name[end = str_chr(name, '>')] == 0)
+  if(expr[end = str_chr(expr, '>')] == 0)
     return 0;
 
   for(i = 1; i < end; i++)
-    if(!isalnum(name[i]))
+    if(!isalnum(expr[i]))
       return 0;
   if(state)
-    *state = name + 1 + end;
+    *state = expr + 1 + end;
 
   return end - 1;
 }
 
 int
-lexer_state_find(Lexer* lex, const char* condition) {
+lexer_state_find(Lexer* lex, const char* expr) {
   const char *state, **statep;
   size_t slen;
   int ret = -1;
 
-  state = *condition == '<' ? condition + 1 : condition;
+  state = *expr == '<' ? expr + 1 : expr;
   slen = str_chr(state, '>');
 
   vector_foreach_t(&lex->states, statep) {
@@ -182,16 +182,16 @@ lexer_state_find(Lexer* lex, const char* condition) {
 }
 
 int
-lexer_state_new(Lexer* lex, char* name) {
+lexer_state_new(Lexer* lex, char* expr) {
   const char* state;
   size_t slen;
   int ret;
 
-  if((ret = lexer_state_find(lex, name)) != -1)
+  if((ret = lexer_state_find(lex, expr)) != -1)
     return ret;
 
-  slen = lexer_state_parse(name, &state);
-  state = str_ndup(name + 1, slen);
+  slen = lexer_state_parse(expr, &state);
+  state = str_ndup(expr + 1, slen);
   ret = vector_size(&lex->states, sizeof(char*));
   vector_push(&lex->states, state);
   return ret;
