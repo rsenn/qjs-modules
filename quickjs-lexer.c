@@ -86,7 +86,7 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
     }
   }
   JS_SetPropertyUint32(ctx, ret, 2, states);
- // JS_SetPropertyUint32(ctx, ret, 3, JS_NewInt64(ctx, rule->mask));
+  // JS_SetPropertyUint32(ctx, ret, 3, JS_NewInt64(ctx, rule->mask));
   dbuf_free(&dbuf);
   return ret;
 }

@@ -234,9 +234,7 @@ function main(...args) {
   console.log(`lexer.stateStack`, lexer.stateStack);
   console.log(`lexer.topState()`, lexer.topState());
   console.log(`lexer.states `, lexer.states);
-  console.log(`tokens`,
-    tokens.map((tok, i) => [i, tok])
-  );
+  //console.log(`tokens`, tokens.map((tok, i) => [i, tok]));
   const tokindex = 1;
   console.log(`tokens[tokindex]`, tokens[tokindex]);
   console.log(`lexer.back(tokens[tokindex])`, lexer.back(tokens[tokindex]));
@@ -252,9 +250,9 @@ function main(...args) {
     Location.count('blah\nblah\nblah\nblah')
   );
 
-  for(let j = 0; j < lexer.ruleNames.length; j++) {
+  /*for(let j = 0; j < lexer.ruleNames.length; j++) {
     console.log(`lexer.rule[${j}]`, lexer.getRule(j));
-  }
+  }*/
   return;
 
   std.gc();

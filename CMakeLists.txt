@@ -132,7 +132,6 @@ addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
 # dump(STATIC_TARGETS)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
-  message(STATUS "Building module '${JS_MODULE}'")
   make_module(${JS_MODULE})
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
