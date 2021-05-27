@@ -1,26 +1,9 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "utils.h"
+#include "location.h"
 #include "vector.h"
 #include <string.h>
-
-typedef struct Location {
-  char* file;
-  uint32_t line;
-  uint32_t column;
-  int64_t pos;
-  char* str;
-} Location;
-
-void location_print(const Location* loc, DynBuf* dbuf);
-Location location_dup(const Location* loc, JSContext* ctx);
-void location_free_rt(Location* loc, JSRuntime* rt);
-
-static inline BOOL
-location_isnull(const Location* loc) {
-  return !loc->file && !loc->line && !loc->column && !loc->pos;
-}
 
 typedef struct {
   char* name;
@@ -51,15 +34,6 @@ typedef struct {
   Vector state_stack;
 } Lexer;
 
-void location_print(const Location*, DynBuf* dbuf);
-Location location_dup(const Location*, JSContext* ctx);
-void location_init(Location*);
-void location_zero(Location*);
-void location_add(Location*, const Location* other);
-void location_sub(Location*, const Location* other);
-void location_count(Location*, const char* x, size_t n);
-void location_free(Location*, JSContext* ctx);
-void location_free_rt(Location*, JSRuntime* rt);
 int lexer_state_findb(Lexer*, const char* state, size_t slen);
 int lexer_state_new(Lexer*, const char* name, size_t len);
 int lexer_state_push(Lexer*, const char* state);

@@ -278,6 +278,17 @@ js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 static JSValue
+js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  JSValue ret = JS_UNDEFINED;
+  Location* loc;
+
+  if(argc < 1 || !(loc = js_location_data(ctx, argv[0])))
+    return JS_EXCEPTION;
+
+  return js_location_new(ctx, loc);
+}
+
+static JSValue
 js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
   Location loc;
   InputBuffer input;
@@ -318,6 +329,7 @@ static const JSCFunctionListEntry js_location_funcs[] = {
     JS_CGETSET_MAGIC_DEF("pos", js_location_getter, 0, LOCATION_PROP_POS),
     JS_CGETSET_MAGIC_DEF("file", js_location_getter, 0, LOCATION_PROP_FILE),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
+    JS_CFUNC_DEF("clone", 0, js_location_clone),
     JS_CFUNC_DEF("toString", 0, js_location_tostring),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Location", JS_PROP_CONFIGURABLE),
 };
