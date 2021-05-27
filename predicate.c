@@ -433,7 +433,7 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
 }
 
 Predicate*
-predicate_dup(const Predicate* pred, JSContext* ctx) {
+predicate_clone(const Predicate* pred, JSContext* ctx) {
   Predicate* ret = js_mallocz(ctx, sizeof(Predicate));
 
   ret->id = pred->id;

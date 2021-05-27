@@ -69,7 +69,7 @@ js_location_new(JSContext* ctx, const Location* location) {
   if(!(loc = js_mallocz(ctx, sizeof(Location))))
     return JS_EXCEPTION;
 
-  *loc = location_dup(location, ctx);
+  *loc = location_clone(location, ctx);
 
   /* using new_target to get the prototype is necessary when the
      class is extended. */
@@ -233,7 +233,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     /* Dup from object */
   } else if(JS_IsObject(argv[0]) && (other = js_location_data(ctx, argv[0]))) {
 
-    *loc = location_dup(other, ctx);
+    *loc = location_clone(other, ctx);
 
     /* From arguments (line,column,pos,file) */
   } else if(argc > 1) {
@@ -775,7 +775,7 @@ lexer_token(Lexer* lex, int id, size_t charlen, Location loc, JSContext* ctx) {
   Token* tok;
   if((tok = js_mallocz(ctx, sizeof(Token)))) {
     tok->id = id;
-    tok->loc = location_dup(&loc, ctx);
+    tok->loc = location_clone(&loc, ctx);
     tok->loc_val = JS_UNDEFINED;
     tok->byte_length = lex->bytelen;
     tok->char_length = charlen;
@@ -1064,7 +1064,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       Location loc = {0, 0, 0, -1, 0};
 
       if((other = JS_GetOpaque(argv[0], js_lexer_class_id))) {
-        input = input_buffer_dup(&other->input, ctx);
+        input = input_buffer_clone(&other->input, ctx);
         loc = other->loc;
         lex->start = other->start;
       } else {
@@ -1237,7 +1237,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
       SyntaxError error;
 
       error.message = js_tostring(ctx, argv[0]);
-      error.loc = location_dup(&lex->loc, ctx);
+      error.loc = location_clone(&lex->loc, ctx);
       error.line = lexer_current_line(lex, ctx);
       // printf("lexer SyntaxError('%s', %u:%u)\n", error.message, lex->loc.line + 1, lex->loc.column + 1);
       ret = js_syntaxerror_new(ctx, error);

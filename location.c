@@ -15,7 +15,7 @@ location_print(const Location* loc, DynBuf* dbuf) {
 }
 
 Location
-location_dup(const Location* loc, JSContext* ctx) {
+location_clone(const Location* loc, JSContext* ctx) {
   Location ret = {0, 0, 0, 0, 0};
   if(loc->file)
     ret.file = js_strdup(ctx, loc->file);

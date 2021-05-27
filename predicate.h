@@ -89,7 +89,7 @@ JSValue predicate_regexp_capture(uint8_t**, int, uint8_t* input, JSContext* ctx)
 int predicate_regexp_compile(Predicate* pred, JSContext* ctx);
 void predicate_tostring(const Predicate*, JSContext*, DynBuf* dbuf);
 JSValue predicate_values(const Predicate*, JSContext*);
-Predicate* predicate_dup(const Predicate* pred, JSContext* ctx);
+Predicate* predicate_clone(const Predicate* pred, JSContext* ctx);
 
 static inline void
 predicate_free(Predicate* pred, JSContext* ctx) {

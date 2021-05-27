@@ -41,7 +41,7 @@ pointer_free(Pointer* ptr, JSContext* ctx) {
 }
 
 static inline Pointer*
-pointer_dup(Pointer* other, JSContext* ctx) {
+pointer_clone(Pointer* other, JSContext* ctx) {
   Pointer* ptr;
   if((ptr = pointer_new(ctx)))
     pointer_copy(ptr, other, ctx);

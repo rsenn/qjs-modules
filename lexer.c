@@ -377,7 +377,7 @@ lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
   lex->bytelen = 0;
   lex->input.pos = loc->pos;
   location_free(&lex->loc, ctx);
-  lex->loc = location_dup(loc, ctx);
+  lex->loc = location_clone(loc, ctx);
 }
 
 void
