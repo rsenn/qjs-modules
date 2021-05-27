@@ -277,6 +277,27 @@ js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return obj;
 }
 
+static JSValue
+js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+  Location loc;
+  InputBuffer input;
+  size_t i;
+  int64_t limit = -1;
+  location_init(&loc);
+
+  if(argc >= 2)
+    JS_ToInt64(ctx, &limit, argv[1]);
+
+  input = js_input_buffer(ctx, argv[0]);
+
+  if(limit == -1 || (size_t)limit > input.size)
+    limit = input.size;
+
+  location_count(&loc, (const char*)input.data, limit);
+
+  return js_location_new(ctx, &loc);
+}
+
 void
 js_location_finalizer(JSRuntime* rt, JSValue val) {
   Location* loc = JS_GetOpaque(val, js_location_class_id);
@@ -299,6 +320,10 @@ static const JSCFunctionListEntry js_location_funcs[] = {
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
     JS_CFUNC_DEF("toString", 0, js_location_tostring),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Location", JS_PROP_CONFIGURABLE),
+};
+static const JSCFunctionListEntry js_location_static_funcs[] = {
+    JS_CFUNC_DEF("count", 1, js_location_count),
+
 };
 
 static JSValue
@@ -755,24 +780,37 @@ lexer_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
   return JS_UNDEFINED;
 }
 
+static int32_t
+lexer_to_state(Lexer* lex, JSContext* ctx, JSValueConst value) {
+  int32_t num;
+  if(JS_IsNumber(value)) {
+    int32_t num;
+    JS_ToInt32(ctx, &num, value);
+  } else {
+    const char* str = JS_ToCString(ctx, value);
+    num = lexer_state_find(lex, str);
+  }
+  if(num >= 0 && (size_t)num < lexer_num_states(lex))
+    return num;
+  return -1;
+}
+
 static int
-lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val) {
+lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int id = -1;
-  int64_t state = MASK_ALL, skip = 0;
-  {
-    JSValue mask = JS_GetPropertyStr(ctx, this_val, "mask");
-    if(JS_IsNumber(mask))
-      JS_ToInt64(ctx, &state, mask);
-    JS_FreeValue(ctx, mask);
-  }
-  {
-    JSValue mask = JS_GetPropertyStr(ctx, this_val, "skip");
-    if(JS_IsNumber(mask))
-      JS_ToInt64(ctx, &skip, mask);
-    JS_FreeValue(ctx, mask);
-  }
+  int64_t skip = 0;
+  /*
+    {
+      JSValue mask = JS_GetPropertyStr(ctx, this_val, "skip");
+      if(JS_IsNumber(mask))
+        JS_ToInt64(ctx, &skip, mask);
+      JS_FreeValue(ctx, mask);
+    }
+  */
+  if(argc >= 1 && (skip = lexer_to_state(lex, ctx, argv[0]))) {}
+
   for(;;) {
-    if((id = lexer_peek(lex, state | skip, ctx)) >= 0) {
+    if((id = lexer_peek(lex, skip == -1 ? 0 : skip, ctx)) >= 0) {
       LexerRule* rule = lexer_rule_at(lex, id);
 
       // printf("state %i rule %s\n", lex->state, rule->name);
@@ -1061,7 +1099,9 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
             location_sub(&lex->loc, &diff);
             ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, ctx));
           } else {
-            ret = JS_ThrowInternalError(ctx, "Lexer.prototype.back('%s')", str);
+            char* buf = byte_escape((const char*)&lex->input.data[lex->input.pos - len], len);
+            ret = JS_ThrowInternalError(ctx, "Lexer.prototype.back('%s') `%s` ...", str, buf);
+            free(buf);
           }
           JS_FreeCString(ctx, str);
         }
@@ -1494,7 +1534,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
     JS_FreeCString(ctx, name);
   }
 
-  id = lexer_lex(lex, ctx, this_val);
+  id = lexer_lex(lex, ctx, this_val, argc, argv);
 
   if(state > -1)
     lexer_state_pop(lex);
@@ -1671,6 +1711,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   location_ctor = JS_NewCFunction2(ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
   location_proto = JS_NewObject(ctx);
   JS_SetPropertyFunctionList(ctx, location_proto, js_location_funcs, countof(js_location_funcs));
+  JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
   js_set_inspect_method(ctx, location_proto, js_location_inspect);
   JS_SetClassProto(ctx, js_location_class_id, location_proto);
 

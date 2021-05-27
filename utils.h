@@ -204,6 +204,8 @@ byte_charlen(const char* in, size_t len) {
   return next - pos;
 }
 
+char* byte_escape(const char*, size_t n);
+
 static inline size_t
 str_chr(const char* in, char needle) {
   const char* t = in;
@@ -300,6 +302,7 @@ static inline char*
 str_prepend(char* s, JSContext* ctx, const char* t) {
   return str_insert(s, ctx, 0, t, strlen(t));
 }
+char* str_escape(const char*);
 
 static inline size_t
 str0_insert(char** s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {

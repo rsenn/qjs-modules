@@ -236,12 +236,23 @@ function main(...args) {
   console.log(`lexer.stateStack`, lexer.stateStack);
   console.log(`lexer.topState()`, lexer.topState());
   console.log(`lexer.states `, lexer.states);
-  console.log(`tokens`, tokens);
-const tokindex = 30;
+  console.log(`tokens`,
+    tokens.map((tok, i) => [i, tok])
+  );
+  const tokindex = 1;
   console.log(`tokens[tokindex]`, tokens[tokindex]);
   console.log(`lexer.back(tokens[tokindex])`, lexer.back(tokens[tokindex]));
-    console.log(`lexer.next() `, lexer.next());
-
+  console.log(`lexer.lex() `, lexer.lex());
+  console.log(`lexer.loc`, lexer.loc + '');
+  const lexeme = tokens[tokindex - 1].lexeme;
+  console.log(`lexeme`, lexeme);
+  console.log(`lexer.back(lexeme)`, lexer.back(lexeme));
+  console.log(`lexer.next() `, lexer.next());
+  console.log(`lexer.next() `, lexer.next());
+  console.log(`lexer.next() `, lexer.next());
+  console.log(`Location.count('blah\\nblah\\nblah\\nblah')`,
+    Location.count('blah\nblah\nblah\nblah')
+  );
 
   return;
 

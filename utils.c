@@ -86,7 +86,23 @@ array_search(void* a, size_t m, size_t elsz, void* needle) {
   }
   return -1;
 }
+char*
+str_escape(const char* s) {
+  DynBuf dbuf;
+  dbuf_init2(&dbuf, 0, 0);
+  dbuf_put_escaped(&dbuf, s, strlen(s));
+  dbuf_0(&dbuf);
+  return (char*)dbuf.buf;
+}
 
+char*
+byte_escape(const char* s, size_t n) {
+  DynBuf dbuf;
+  dbuf_init2(&dbuf, 0, 0);
+  dbuf_put_escaped(&dbuf, s, n);
+  dbuf_0(&dbuf);
+  return (char*)dbuf.buf;
+}
 char*
 dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
   size_t p, l = 0;

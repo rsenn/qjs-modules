@@ -53,6 +53,7 @@ typedef struct {
 
 void location_print(const Location*, DynBuf* dbuf);
 Location location_dup(const Location*, JSContext* ctx);
+void location_init(Location*);
 void location_zero(Location*);
 void location_add(Location*, const Location* other);
 void location_sub(Location*, const Location* other);
@@ -88,6 +89,7 @@ void lexer_dump(Lexer*, DynBuf* dbuf);
 static inline void
 lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
   lex->start = loc->pos;
+  lex->bytelen = 0;
   lex->input.pos = loc->pos;
   location_free(&lex->loc, ctx);
   lex->loc = location_dup(loc, ctx);
@@ -108,26 +110,16 @@ lexer_state_depth(Lexer* lex) {
   return vector_size(&lex->state_stack, sizeof(int32_t));
 }
 
+static inline size_t
+lexer_num_states(Lexer* lex) {
+  return vector_size(&lex->states, sizeof(char*));
+}
+
 static inline char*
 lexer_state_topname(Lexer* lex) {
   return lexer_state_name(lex, lexer_state_top(lex, 0));
 }
 
-static inline size_t
-input_skip(InputBuffer* input, size_t end, Location* loc) {
-  size_t n = 0;
-  while(input->pos < end) {
-    size_t prev = input->pos;
-    if(input_buffer_getc(input) == '\n') {
-      loc->line++;
-      loc->column = 0;
-    } else {
-      loc->column++;
-    }
-    loc->pos++;
-    n++;
-  }
-  return n;
-}
+size_t input_skip(InputBuffer* input, size_t end, Location* loc);
 
 #endif /* defined(LEXER_H) */

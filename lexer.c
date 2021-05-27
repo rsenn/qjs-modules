@@ -27,6 +27,13 @@ location_dup(const Location* loc, JSContext* ctx) {
 }
 
 void
+location_init(Location* loc) {
+  loc->file = 0;
+  loc->str = 0;
+  location_zero(loc);
+}
+
+void
 location_zero(Location* loc) {
   loc->line = 0;
   loc->column = 0;
@@ -59,6 +66,7 @@ location_count(Location* loc, const char* x, size_t n) {
       loc->column++;
     }
 
+    loc->pos++;
     i += bytes;
   }
 }
@@ -487,4 +495,21 @@ lexer_dump(Lexer* lex, DynBuf* dbuf) {
   dbuf_putstr(dbuf, ",\n  location: ");
   location_print(&lex->loc, dbuf);
   dbuf_putstr(dbuf, "\n}");
+}
+
+size_t
+input_skip(InputBuffer* input, size_t end, Location* loc) {
+  size_t n = 0;
+  while(input->pos < end) {
+    size_t prev = input->pos;
+    if(input_buffer_getc(input) == '\n') {
+      loc->line++;
+      loc->column = 0;
+    } else {
+      loc->column++;
+    }
+    loc->pos++;
+    n++;
+  }
+  return n;
 }
