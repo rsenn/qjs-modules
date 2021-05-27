@@ -86,14 +86,7 @@ void lexer_free(Lexer*, JSContext* ctx);
 void lexer_free_rt(Lexer*, JSRuntime* rt);
 void lexer_dump(Lexer*, DynBuf* dbuf);
 
-static inline void
-lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
-  lex->start = loc->pos;
-  lex->bytelen = 0;
-  lex->input.pos = loc->pos;
-  location_free(&lex->loc, ctx);
-  lex->loc = location_dup(loc, ctx);
-}
+void lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx);
 
 static inline int
 lexer_state_find(Lexer* lex, const char* state) {

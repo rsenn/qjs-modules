@@ -454,6 +454,15 @@ lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
 }
 
 void
+lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
+  lex->start = loc->pos;
+  lex->bytelen = 0;
+  lex->input.pos = loc->pos;
+  location_free(&lex->loc, ctx);
+  lex->loc = location_dup(loc, ctx);
+}
+
+void
 lexer_free(Lexer* lex, JSContext* ctx) {
   LexerRule* rule;
   char** state;
