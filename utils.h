@@ -186,7 +186,7 @@ byte_rchr(const void* str, size_t len, char c) {
 }
 
 static inline size_t
-byte_chrs(const char* str, size_t len, char needle[], size_t nl) {
+byte_chrs(const char* str, size_t len, const char needle[], size_t nl) {
   const char *s, *t;
   for(s = str, t = str + len; s != t; s++)
     if(byte_chr(needle, nl, *s) < nl)
@@ -220,7 +220,7 @@ str_chr(const char* in, char needle) {
 }
 
 static inline size_t
-str_chrs(const char* in, char needles[], size_t nn) {
+str_chrs(const char* in, const char needles[], size_t nn) {
   const char* t = in;
   size_t i;
   for(;;) {

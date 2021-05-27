@@ -70,10 +70,10 @@ function main(...args) {
   }
 
   let file = args[optind] ?? 'tests/test_lexer.js';
-  console.log('file:', file);
   let str = file ? std.loadFile(file, 'utf-8') : code[1];
   let len = str.length;
   let type = path.extname(file).substring(1);
+  console.log('file:', file);
 
   let lex = {
     js: new JSLexer(str, file),

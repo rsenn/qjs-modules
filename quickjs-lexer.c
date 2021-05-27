@@ -1401,6 +1401,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("stateStack", js_lexer_get, 0, LEXER_PROP_STATE_STACK),
     JS_CGETSET_MAGIC_DEF("source", js_lexer_get, 0, LEXER_PROP_SOURCE),
     JS_CGETSET_MAGIC_DEF("lexeme", js_lexer_get, 0, LEXER_PROP_LEXEME),
+    JS_CGETSET_MAGIC_DEF("fileName", js_lexer_get, js_lexer_set, LEXER_PROP_FILENAME),
     JS_CFUNC_MAGIC_DEF("setInput", 1, js_lexer_method, LEXER_METHOD_SET_INPUT),
     JS_CFUNC_MAGIC_DEF("skip", 0, js_lexer_method, LEXER_METHOD_SKIP),
     JS_CFUNC_MAGIC_DEF("skipUntil", 1, js_lexer_method, LEXER_METHOD_SKIPUNTIL),
