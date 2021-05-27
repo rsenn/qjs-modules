@@ -20,19 +20,19 @@ function main(...args) {
   });
   console.log('console.options', console.options);
   let loc = new Location('test.js:12:1');
-   console.log('loc', loc);
-  loc = new Location('test.js',12,1);
-   console.log('loc', loc);
+  console.log('loc', loc);
+  loc = new Location('test.js', 12, 1);
+  console.log('loc', loc);
   let loc2 = new Location(loc);
-   console.log('loc2', loc2);
- 
+  console.log('loc2', loc2);
+
   console.log('loc.toString()', loc.toString());
   std.gc();
 }
 
 try {
   main(...scriptArgs.slice(1));
-  } catch(error) {
+} catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
   std.exit(1);
 } finally {
