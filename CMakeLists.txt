@@ -154,13 +154,12 @@ list(FILTER LIBJS EXCLUDE REGEX "lib/require.js|lib/fs.js")
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}")
 
-compile_module(lib/console.js)
-compile_module(lib/require.js)
-compile_module(lib/repl.js)
-compile_module(lib/fs.js)
-compile_module(lib/util.js)
-compile_module(lib/perf_hooks.js)
-compile_module(lib/process.js)
+file(GLOB LIB_SCRIPTS lib/*.js)
+set(LIB_MODULES console fs perf_hooks process repl require stack util)
+
+foreach(LIB_MODULE ${LIB_MODULES})
+  compile_module(lib/${LIB_MODULE}.js)
+endforeach(LIB_MODULE ${LIB_MODULES})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set(quickjs_sources_root ${CMAKE_CURRENT_SOURCE_DIR}/..)

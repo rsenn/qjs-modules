@@ -318,10 +318,12 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
         JS_FreeValue(ctx, package);
         if(!JS_IsUndefined(target)) {
           const char* str = JS_ToCString(ctx, target);
-          js_free(ctx, module);
-          module = js_strdup(ctx, str);
-          JS_FreeCString(ctx, str);
-          continue;
+          if(str) {
+            js_free(ctx, module);
+            module = js_strdup(ctx, str);
+            JS_FreeCString(ctx, str);
+            continue;
+          }
         }
       }
     }

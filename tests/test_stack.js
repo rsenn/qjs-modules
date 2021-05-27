@@ -36,6 +36,8 @@ function main(...args) {
 
   console.log('frame', frame);
   console.log('frame.toString()', frame.toString());
+  console.log('stack.toString()', stack.toString());
+  console.log('stack.entries()', stack.entries());
 
   std.gc();
 }
