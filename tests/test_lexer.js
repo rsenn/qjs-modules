@@ -44,15 +44,15 @@ function DumpToken(tok) {
   return `★ Token ${inspect({ chars, offset, length, loc }, { depth: 1 })}`;
 }
 
-async function main(...args) {
+function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
       colors: true,
       depth: 8,
-      maxArrayLength: 100,
-      breakLength: Infinity,
+      breakLength: 100,
       maxStringLength: Infinity,
-      compact: 2,
+      maxArrayLength: Infinity,
+      compact: 0,
       showHidden: false
     }
   });
@@ -138,14 +138,6 @@ async function main(...args) {
   console.log('lexer.skip', lexer.skip);
   console.log('lexer.skip', IntToBinary(lexer.skip));
   console.log('lexer.states', lexer.states);
-  console.log('lexer.tokens', lexer.tokens);
-  console.log('lexer.rules',
-    lexer.ruleNames.map(name => [name, lexer.getRule(name)])
-  );
-  //console.log('lexer.pushState("JS")', lexer.pushState('JS'));
-  console.log('lexer.stateStack', lexer.stateStack);
-  console.log('lexer.topState()', lexer.topState());
-  console.log('lexer.states ', lexer.states);
 
   console.log('new SyntaxError("test")',
     new SyntaxError('test', new Location(10, 3, 28, 'file.txt'))
@@ -153,7 +145,7 @@ async function main(...args) {
   let mask = IntToBinary(lexer.mask);
   let state = lexer.topState();
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
-
+  let tokens = [];
   let start = Date.now();
   const balancer = () => {
     let self;
@@ -226,20 +218,41 @@ async function main(...args) {
     //console.log('tok', tok);
 
     printTok(tok, lexer.topState());
+    tokens.push(tok);
   }
 
   let end = Date.now();
 
   console.log(`took ${end - start}ms`);
+  console.log('lexer.tokens', lexer.tokens);
+  console.log('lexer.rules',
+    new Map(
+      lexer.ruleNames
+        .map(name => lexer.getRule(name))
+        .map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])
+    )
+  );
+  //console.log('lexer.pushState("JS")', lexer.pushState('JS'));
+  console.log(`lexer.stateStack`, lexer.stateStack);
+  console.log(`lexer.topState()`, lexer.topState());
+  console.log(`lexer.states `, lexer.states);
+  console.log(`tokens`, tokens);
+const tokindex = 30;
+  console.log(`tokens[tokindex]`, tokens[tokindex]);
+  console.log(`lexer.back(tokens[tokindex])`, lexer.back(tokens[tokindex]));
+    console.log(`lexer.next() `, lexer.next());
+
 
   return;
 
   std.gc();
 }
 
-main(...scriptArgs.slice(1))
-  .then(() => console.log('SUCCESS'))
-  .catch(error => {
-    console.log(`FAIL: ${error.message}\n${error.stack}`);
-    std.exit(1);
-  });
+try {
+  main(...scriptArgs.slice(1));
+} catch(error) {
+  console.log(`FAIL: ${error.message}\n${error.stack}`);
+  std.exit(1);
+} finally {
+  console.log('SUCCESS');
+}

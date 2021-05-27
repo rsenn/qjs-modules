@@ -618,7 +618,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         // printf("%s opts->compact = %d, deepest = %d, depth = %d\n", typestr ? typestr : "(null)", opts->compact,
         // deepest, depth);
 
-        compact = compact >= depth;
+        compact = compact >= deepest;
       }
 
       if(!(is_function = JS_IsFunction(ctx, value))) {
