@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
 import { Console } from 'console';
-import {Stack,StackFrame} from '../lib/stackframe.js';
+import {Stack,StackFrame} from '../lib/stack.js';
 
 function Func1() {
   return Func2();
