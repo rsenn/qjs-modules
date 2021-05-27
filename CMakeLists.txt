@@ -34,13 +34,11 @@ set(lexer_LIBRARIES quickjs-predicate)
 set(mmap_SOURCES utils.c utils.h)
 set(repeater_SOURCES utils.c utils.h)
 set(util_SOURCES utils.c utils.h quickjs-inspect.c)
+set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h)
 
+set(misc_SOURCES ${LOCATION_SOURCES})
 
-set(QJSM_EXTRA_SOURCES 
-      ${CMAKE_CURRENT_SOURCE_DIR}/location.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/location.h
-      ${CMAKE_CURRENT_SOURCE_DIR}/quickjs-location.c
-      ${CMAKE_CURRENT_SOURCE_DIR}/quickjs-location.h)
+set(QJSM_EXTRA_SOURCES  ${location_SOURCES})
 
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 

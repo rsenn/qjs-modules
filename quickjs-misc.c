@@ -3,6 +3,7 @@
 #endif
 
 #include "quickjs-internal.h"
+#include "quickjs-location.h"
 #include "utils.h"
 #include <time.h>
 #include <sys/utsname.h>
@@ -189,6 +190,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 static int
 js_misc_init(JSContext* ctx, JSModuleDef* m) {
 
+  js_location_init(ctx, m);
+
   if(m) {
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
   }
@@ -208,6 +211,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   m = JS_NewCModule(ctx, module_name, js_misc_init);
   if(!m)
     return NULL;
+  JS_AddModuleExport(ctx, m, "Location");
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
   return m;
 }
