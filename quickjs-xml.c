@@ -203,6 +203,8 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   } else if(JS_IsObject(attributes)) {
     dbuf_putstr(db, tagName);
     xml_write_attributes(ctx, attributes, db);
+  } else if(tagName[0] == '!') {
+    dbuf_putstr(db, tagName);
   }
 
   num_children = xml_num_children(ctx, element);
