@@ -152,9 +152,8 @@ endforeach(TEST_SOURCE ${TESTS_SOURCES})
 file(GLOB LIBJS lib/*.js)
 list(FILTER LIBJS EXCLUDE REGEX "lib/require.js|lib/fs.js")
 
-install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}")
+install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}/quickjs")
 
-file(GLOB LIB_SCRIPTS lib/*.js)
 set(LIB_MODULES console fs perf_hooks process repl require stack util)
 
 foreach(LIB_MODULE ${LIB_MODULES})
