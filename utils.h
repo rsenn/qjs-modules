@@ -157,10 +157,10 @@ mod_int32(int32_t a, int32_t b) {
 
 static inline size_t
 byte_count(const void* s, size_t n, char c) {
-  const unsigned char* t;
-  unsigned char ch = (unsigned char)c;
+  const uint8_t* t;
+  uint8_t ch = (uint8_t)c;
   size_t count;
-  for(t = (unsigned char*)s, count = 0; n; ++t, --n) {
+  for(t = (uint8_t*)s, count = 0; n; ++t, --n) {
     if(*t == ch)
       ++count;
   }
@@ -303,6 +303,15 @@ str_prepend(char* s, JSContext* ctx, const char* t) {
   return str_insert(s, ctx, 0, t, strlen(t));
 }
 char* str_escape(const char*);
+
+static inline size_t
+str_count(const char* s, char c) {
+  size_t i, count = 0;
+  for(i = 0; s[i]; i++)
+    if(s[i] == c)
+      ++count;
+  return count;
+}
 
 static inline size_t
 str0_insert(char** s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {

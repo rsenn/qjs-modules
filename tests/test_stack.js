@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
 import { Console } from 'console';
-import { Stack, StackFrame } from '../lib/stack.js';
+import { Location, Stack, StackFrame } from '../lib/stack.js';
 
 function Func1() {
   return Func2();
@@ -37,7 +37,12 @@ function main(...args) {
   console.log('frame', frame);
   console.log('frame.toString()', frame.toString());
   console.log('stack.toString()', stack.toString());
-  console.log('stack.entries()', stack.entries());
+  console.log(`stack.map(fr => fr+'')`,
+    [...stack].map(fr => fr + '')
+  );
+  console.log(`stack.map(fr => fr.loc)`,
+    [...stack].map(fr => fr.loc)
+  );
 
   std.gc();
 }
