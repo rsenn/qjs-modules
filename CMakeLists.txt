@@ -35,6 +35,13 @@ set(mmap_SOURCES utils.c utils.h)
 set(repeater_SOURCES utils.c utils.h)
 set(util_SOURCES utils.c utils.h quickjs-inspect.c)
 
+
+set(QJSM_EXTRA_SOURCES 
+      ${CMAKE_CURRENT_SOURCE_DIR}/location.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/location.h
+      ${CMAKE_CURRENT_SOURCE_DIR}/quickjs-location.c
+      ${CMAKE_CURRENT_SOURCE_DIR}/quickjs-location.h)
+
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 
 message("QuickJS install directory: ${QUICKJS_PREFIX}")
@@ -183,7 +190,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
       ${CMAKE_CURRENT_BINARY_DIR}/fs.c
       ${CMAKE_CURRENT_BINARY_DIR}/perf_hooks.c
       ${CMAKE_CURRENT_BINARY_DIR}/process.c
-      ${CMAKE_CURRENT_BINARY_DIR}/util.c)
+      ${CMAKE_CURRENT_BINARY_DIR}/util.c
+      ${QJSM_EXTRA_SOURCES})
 
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
     set(QJSM_SOURCES

@@ -5,6 +5,7 @@
 #include "quickjs.h"
 #include "libregexp.h"
 #include "quickjs-lexer.h"
+#include "quickjs-location.h"
 #include "vector.h"
 #include <string.h>
 #include <ctype.h>
@@ -51,292 +52,10 @@ typedef struct {
   BOOL skip;
 } JSLexerRule;
 
-VISIBLE JSClassID js_location_class_id = 0, js_syntaxerror_class_id = 0, js_token_class_id = 0, js_lexer_class_id = 0;
-static JSValue location_proto, location_ctor;
+VISIBLE JSClassID js_syntaxerror_class_id = 0, js_token_class_id = 0, js_lexer_class_id = 0;
 static JSValue syntaxerror_proto, syntaxerror_ctor;
 static JSValue token_proto, token_ctor;
 static JSValue lexer_proto, lexer_ctor;
-
-enum { LOCATION_PROP_LINE, LOCATION_PROP_COLUMN, LOCATION_PROP_POS, LOCATION_PROP_FILE };
-
-static JSValue js_location_new(JSContext* ctx, const Location* loc);
-
-static JSValue
-js_location_new(JSContext* ctx, const Location* location) {
-  JSValue obj;
-  Location* loc;
-
-  if(!(loc = js_mallocz(ctx, sizeof(Location))))
-    return JS_EXCEPTION;
-
-  *loc = location_clone(location, ctx);
-
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
-
-  obj = JS_NewObjectProtoClass(ctx, location_proto, js_location_class_id);
-  if(JS_IsException(obj))
-    goto fail;
-
-  JS_SetOpaque(obj, loc);
-
-  return obj;
-fail:
-  js_free(ctx, loc);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
-}
-
-JSValue
-js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  Location* loc;
-  JSValue ret = JS_UNDEFINED;
-  size_t len;
-  if(!(loc = js_location_data(ctx, this_val)))
-    return ret;
-
-  if(!loc->str) {
-    len = loc->file ? strlen(loc->file) : 0;
-    len += 46;
-    loc->str = js_malloc(ctx, len);
-
-    if(loc->file)
-      snprintf(loc->str, len, "%s:%" PRIi32 ":%" PRIi32 "", loc->file, loc->line + 1, loc->column + 1);
-    else
-      snprintf(loc->str, len, "%" PRIi32 ":%" PRIi32 "", loc->line + 1, loc->column + 1);
-  }
-
-  ret = JS_NewString(ctx, loc->str);
-  return ret;
-}
-
-static BOOL
-js_is_location(JSContext* ctx, JSValueConst obj) {
-  BOOL ret;
-  JSAtom line, column;
-  line = JS_NewAtom(ctx, "line");
-  column = JS_NewAtom(ctx, "column");
-  ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) && JS_HasProperty(ctx, obj, column);
-  JS_FreeAtom(ctx, line);
-  JS_FreeAtom(ctx, column);
-  return ret;
-}
-
-static JSValue
-js_location_getter(JSContext* ctx, JSValueConst this_val, int magic) {
-  Location* loc;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(loc = js_location_data(ctx, this_val)))
-    return ret;
-
-  switch(magic) {
-    case LOCATION_PROP_LINE: {
-      ret = JS_NewUint32(ctx, loc->line + 1);
-      break;
-    }
-    case LOCATION_PROP_COLUMN: {
-      ret = JS_NewUint32(ctx, loc->column + 1);
-      break;
-    }
-    case LOCATION_PROP_POS: {
-      ret = JS_NewInt64(ctx, loc->pos);
-      break;
-    }
-    case LOCATION_PROP_FILE: {
-      ret = JS_NewString(ctx, loc->file);
-      break;
-    }
-  }
-  return ret;
-}
-
-static Location
-js_location_get(JSContext* ctx, JSValueConst this_val) {
-  Location loc = {0, 0, 0, -1, 0};
-
-  loc.line = js_get_propertystr_int32(ctx, this_val, "line") - 1;
-  loc.column = js_get_propertystr_int32(ctx, this_val, "column") - 1;
-  loc.file = js_get_propertystr_string(ctx, this_val, "file");
-  if(js_has_propertystr(ctx, this_val, "pos"))
-    loc.pos = js_get_propertystr_uint64(ctx, this_val, "pos");
-
-  return loc;
-}
-
-JSValue
-js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  Location* loc;
-  const char* hint;
-  JSValue ret;
-
-  if(!(loc = js_location_data(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  hint = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
-
-  if(hint && !strcmp(hint, "number"))
-    ret = JS_NewInt64(ctx, loc->pos);
-  else
-    ret = js_location_tostring(ctx, this_val, argc, argv);
-
-  if(hint)
-    js_cstring_free(ctx, hint);
-  return ret;
-}
-
-JSValue
-js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
-  Location *loc, *other;
-
-  if(!(loc = js_mallocz(ctx, sizeof(Location))))
-    return JS_EXCEPTION;
-
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    goto fail;
-  obj = JS_NewObjectProtoClass(ctx, proto, js_location_class_id);
-  JS_FreeValue(ctx, proto);
-  if(JS_IsException(obj))
-    goto fail;
-  JS_SetOpaque(obj, loc);
-
-  /* From string */
-  if(argc == 1 && js_is_input(ctx, argv[0])) {
-    InputBuffer in = js_input_buffer(ctx, argv[0]);
-    const uint8_t *p, *begin = input_buffer_begin(&in), *end = input_buffer_end(&in);
-    unsigned long v, n[2];
-    size_t ni = 2;
-
-    while(end > begin) {
-      for(p = end; p > begin && *(p - 1) != ':'; p--) {}
-      if(ni > 0) {
-        v = strtoul((const char*)p, (char**)&end, 10);
-        if(end > p)
-          n[--ni] = v;
-      } else {
-        loc->file = js_strndup(ctx, (const char*)p, end - p);
-        break;
-      }
-      end = p - 1;
-    }
-    if(ni == 0) {
-      loc->line = n[0];
-      loc->column = n[1];
-    }
-    loc->line--;
-    loc->column--;
-    /* Dup from object */
-  } else if(JS_IsObject(argv[0]) && (other = js_location_data(ctx, argv[0]))) {
-
-    *loc = location_clone(other, ctx);
-
-    /* From arguments (line,column,pos,file) */
-  } else if(argc > 1) {
-
-    JS_ToUint32(ctx, &loc->line, argv[0]);
-    JS_ToUint32(ctx, &loc->column, argv[1]);
-
-    loc->line--;
-    loc->column--;
-
-    if(argc > 2)
-      JS_ToIndex(ctx, (uint64_t*)&loc->pos, argv[2]);
-    if(argc > 3)
-      loc->file = js_tostring(ctx, argv[3]);
-  }
-
-  return obj;
-fail:
-  js_free(ctx, loc);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
-}
-
-static JSValue
-js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  Location* loc;
-
-  if(!(loc = js_location_data(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  JSValue obj = JS_NewObjectProto(ctx, location_proto);
-
-  JS_DefinePropertyValueStr(ctx, obj, "line", JS_NewUint32(ctx, loc->line), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "column", JS_NewUint32(ctx, loc->column), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "pos", JS_NewInt64(ctx, loc->pos), JS_PROP_ENUMERABLE);
-  if(loc->file)
-    JS_DefinePropertyValueStr(ctx, obj, "file", JS_NewString(ctx, loc->file), JS_PROP_ENUMERABLE);
-  if(loc->str)
-    JS_DefinePropertyValueStr(ctx, obj, "str", JS_NewString(ctx, loc->str), JS_PROP_ENUMERABLE);
-
-  return obj;
-}
-
-static JSValue
-js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  JSValue ret = JS_UNDEFINED;
-  Location* loc;
-
-  if(argc < 1 || !(loc = js_location_data(ctx, argv[0])))
-    return JS_EXCEPTION;
-
-  return js_location_new(ctx, loc);
-}
-
-static JSValue
-js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-  Location loc;
-  InputBuffer input;
-  size_t i;
-  int64_t limit = -1;
-  location_init(&loc);
-
-  if(argc >= 2)
-    JS_ToInt64(ctx, &limit, argv[1]);
-
-  input = js_input_buffer(ctx, argv[0]);
-
-  if(limit == -1 || (size_t)limit > input.size)
-    limit = input.size;
-
-  location_count(&loc, (const char*)input.data, limit);
-
-  return js_location_new(ctx, &loc);
-}
-
-void
-js_location_finalizer(JSRuntime* rt, JSValue val) {
-  Location* loc = JS_GetOpaque(val, js_location_class_id);
-  if(loc) {
-    location_free_rt(loc, rt);
-  }
-  // JS_FreeValueRT(rt, val);
-}
-
-static JSClassDef js_location_class = {
-    .class_name = "Location",
-    .finalizer = js_location_finalizer,
-};
-
-static const JSCFunctionListEntry js_location_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("line", js_location_getter, 0, LOCATION_PROP_LINE),
-    JS_CGETSET_MAGIC_DEF("column", js_location_getter, 0, LOCATION_PROP_COLUMN),
-    JS_CGETSET_MAGIC_DEF("pos", js_location_getter, 0, LOCATION_PROP_POS),
-    JS_CGETSET_MAGIC_DEF("file", js_location_getter, 0, LOCATION_PROP_FILE),
-    JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
-    JS_CFUNC_DEF("clone", 0, js_location_clone),
-    JS_CFUNC_DEF("toString", 0, js_location_tostring),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Location", JS_PROP_CONFIGURABLE),
-};
-static const JSCFunctionListEntry js_location_static_funcs[] = {
-    JS_CFUNC_DEF("count", 1, js_location_count),
-
-};
 
 static JSValue
 js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
@@ -416,7 +135,7 @@ js_syntaxerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
     } else if(JS_IsString(argv[i]) && !err->line) {
       err->line = js_tostring(ctx, argv[i]);
     } else if(js_is_location(ctx, argv[i])) {
-      err->loc = js_location_get(ctx, argv[i]);
+      err->loc = js_location_from(ctx, argv[i]);
     }
   }
 
@@ -611,7 +330,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if(argc > 1)
     tok->lexeme = js_tostring(ctx, argv[1]);
   if(argc > 2)
-    tok->loc = js_location_get(ctx, argv[2]);
+    tok->loc = js_location_from(ctx, argv[2]);
   if(argc > 3)
     JS_ToInt64(ctx, &tok->loc.pos, argv[3]);
 
@@ -1717,15 +1436,8 @@ static const JSCFunctionListEntry js_lexer_static_funcs[] = {
 
 int
 js_lexer_init(JSContext* ctx, JSModuleDef* m) {
-  JS_NewClassID(&js_location_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_location_class_id, &js_location_class);
 
-  location_ctor = JS_NewCFunction2(ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
-  location_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, location_proto, js_location_funcs, countof(js_location_funcs));
-  JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
-  js_set_inspect_method(ctx, location_proto, js_location_inspect);
-  JS_SetClassProto(ctx, js_location_class_id, location_proto);
+  js_location_init(ctx, m);
 
   JS_NewClassID(&js_syntaxerror_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_syntaxerror_class_id, &js_syntaxerror_class);
@@ -1770,7 +1482,6 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, lexer_ctor, js_lexer_static_funcs, countof(js_lexer_static_funcs));
 
   if(m) {
-    JS_SetModuleExport(ctx, m, "Location", location_ctor);
     JS_SetModuleExport(ctx, m, "SyntaxError", syntaxerror_ctor);
     JS_SetModuleExport(ctx, m, "Token", token_ctor);
     JS_SetModuleExport(ctx, m, "Lexer", lexer_ctor);
@@ -1788,9 +1499,9 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, &js_lexer_init);
-  if(!m)
-    return NULL;
+  if(!(m = JS_NewCModule(ctx, module_name, &js_lexer_init)))
+    return m;
+
   JS_AddModuleExport(ctx, m, "Location");
   JS_AddModuleExport(ctx, m, "SyntaxError");
   JS_AddModuleExport(ctx, m, "Token");
