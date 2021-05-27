@@ -605,7 +605,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
         if(!JS_IsUndefined(tmp)) {
           if(!JS_IsObject(tmp))
-            return js_inspect_print(ctx, buf, tmp, opts, depth);
+            return js_inspect_print(ctx, buf, tmp, opts, depth + 1);
 
           value = tmp;
           compact++;

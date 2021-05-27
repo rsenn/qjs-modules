@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
 import { Console } from 'console';
-import {Stack,StackFrame} from '../lib/stack.js';
+import { Stack, StackFrame } from '../lib/stack.js';
 
 function Func1() {
   return Func2();
@@ -15,9 +15,7 @@ function Func3() {
 }
 
 function Func4() {
-  let err = new Error();
-
-  return new Stack (err.stack );
+  return new Stack();
 }
 
 function main(...args) {
@@ -28,13 +26,13 @@ function main(...args) {
       breakLength: 100,
       maxStringLength: Infinity,
       maxArrayLength: Infinity,
-      compact: 0,
+      compact: 1,
       showHidden: false
     }
   });
   let stack = Func1();
   console.log('stack', stack);
-let frame = stack[0];
+  let frame = stack[0];
 
   console.log('frame', frame);
   console.log('frame.toString()', frame.toString());
