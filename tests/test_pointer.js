@@ -23,9 +23,10 @@ function main(...args) {
       depth: 1,
       maxArrayLength: 10,
       maxStringLength: 100,
-      compact: false
+      compact: 1
     }
   });
+
   console.log('args:', args);
 
   let data = std.loadFile(args[0] ?? '/etc/fonts/fonts.conf', 'utf-8');

@@ -115,8 +115,8 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
       dbuf_putstr(db, "=\"");
       dbuf_putstr(db, valuestr);
       js_cstring_free(ctx, valuestr);
+      dbuf_putc(db, '"');
     }
-    dbuf_putc(db, '"');
     js_cstring_free(ctx, keystr);
     JS_FreeValue(ctx, value);
   }
@@ -186,19 +186,19 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   assert(tagName);
   isComment = !strncmp(tagName, "!--", 3);
 
-  xml_write_indent(db, depth);
+  xml_write_indent(db, depth - 1);
 
   dbuf_putc(db, '<');
 
   if(isComment) {
     if(byte_chr(tagName, tagLen, '\n') < tagLen) {
-      xml_write_string(ctx, tagName, tagLen - 2, db, depth + 1);
+      xml_write_string(ctx, tagName, tagLen - 2, db, depth - 1);
       dbuf_putc(db, '\n');
       xml_write_indent(db, depth);
       dbuf_putc(db, '-');
       dbuf_putc(db, '-');
     } else {
-      xml_write_string(ctx, tagName, tagLen, db, depth + 1);
+      xml_write_string(ctx, tagName, tagLen, db, depth - 1);
     }
   } else if(JS_IsObject(attributes)) {
     dbuf_putstr(db, tagName);
@@ -209,7 +209,7 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 
   num_children = xml_num_children(ctx, element);
 
-  dbuf_putstr(db, (num_children > 0 || isComment) ? ">" : tagName[0] == '?' ? "?>" : tagName[0] == '!' ? "!>" : " />");
+  dbuf_putstr(db, (num_children > 0 || isComment) ? tagName[0] == '?' ? "?>" : ">" : tagName[0] == '!' ? ">" : " />");
   dbuf_putc(db, '\n');
 
   js_cstring_free(ctx, tagName);
@@ -224,12 +224,14 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     size_t tagLen;
     const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
 
-    xml_write_indent(db, depth);
+    if(tagName[0] != '?') {
+      xml_write_indent(db, depth);
 
-    dbuf_putstr(db, "</");
-    dbuf_append(db, (const uint8_t*)tagName, tagLen);
-    dbuf_putstr(db, ">");
-    dbuf_putc(db, '\n');
+      dbuf_putstr(db, "</");
+      dbuf_append(db, (const uint8_t*)tagName, tagLen);
+      dbuf_putstr(db, ">");
+      dbuf_putc(db, '\n');
+    }
     js_cstring_free(ctx, tagName);
   }
 }
@@ -327,7 +329,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
       }
       element = JS_NewObject(ctx);
       JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
-      if(namelen && (char_is(name[0], (QUESTION | EXCLAM))))
+      if(namelen && (char_is(name[0], (/*QUESTION | */ EXCLAM))))
         self_closing = TRUE;
 
       if(namelen >= 3 && char_is(start[0], EXCLAM) && char_is(start[1], HYPHEN) && char_is(start[2], HYPHEN)) {
@@ -390,7 +392,9 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
           if(chars[c] == chars[name[0]])
             next();
           pop();
-        } else if(!self_closing) {
+        }
+
+        if(!self_closing) {
           out = vector_emplace(&st, sizeof(OutputValue));
           out->obj = JS_NewArray(ctx);
           out->idx = 0;
@@ -439,6 +443,7 @@ js_xml_write_obj(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output
 
     if(JS_IsObject(value) && !JS_IsArray(ctx, value))
       xml_write_element(ctx, value, output, depth);
+
     else if(JS_IsString(value))
       xml_write_text(ctx, value, output, depth);
 
