@@ -78,6 +78,20 @@ lexer_state_name(Lexer* lex, int state) {
 
   return name_p ? *name_p : 0;
 }
+
+char*
+lexer_states_skip(char* expr) {
+  char* re = expr;
+
+  if(*re == '<') {
+    size_t offset = str_chr(re, '>');
+
+    if(re[offset])
+      re += offset + 1;
+  }
+  return re;
+}
+
 void
 lexer_states_dump(Lexer* lex, uint64_t mask, DynBuf* dbuf) {
   int state = 0;
@@ -93,6 +107,11 @@ lexer_states_dump(Lexer* lex, uint64_t mask, DynBuf* dbuf) {
       state++;
     }
   }
+}
+
+char*
+lexer_rule_regex(LexerRule* rule) {
+  return lexer_states_skip(rule->expr);
 }
 
 BOOL
@@ -128,20 +147,13 @@ static BOOL
 lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
   DynBuf dbuf;
   BOOL ret;
-  char* p;
 
   if(rule->bytecode)
     return TRUE;
 
   js_dbuf_init(ctx, &dbuf);
 
-  if(*(p = rule->expr) == '<') {
-    p += str_chr(p, '>');
-    if(*p)
-      p++;
-  }
-
-  if(lexer_rule_expand(lex, p, &dbuf)) {
+  if(lexer_rule_expand(lex, lexer_rule_regex(rule), &dbuf)) {
     rule->expansion = js_strndup(ctx, (const char*)dbuf.buf, dbuf.size);
     rule->bytecode =
         regexp_compile(regexp_from_dbuf(&dbuf, LRE_FLAG_GLOBAL | LRE_FLAG_MULTILINE | LRE_FLAG_STICKY), ctx);
@@ -192,8 +204,6 @@ lexer_rule_add(Lexer* lex, char* name, char* expr) {
         s++;
     }
 
-    strcpy(rule.expr, ++s);
-
     rule.mask = flags;
   }
 
@@ -238,11 +248,11 @@ lexer_rule_free_rt(LexerRule* rule, JSRuntime* rt) {
 
 void
 lexer_rule_dump(Lexer* lex, LexerRule* rule, DynBuf* dbuf) {
-  if(rule->mask != 0) {
-    dbuf_putc(dbuf, '<');
-    lexer_states_dump(lex, rule->mask, dbuf);
-    dbuf_putc(dbuf, '>');
-  }
+  /*  if(rule->mask != 0) {
+      dbuf_putc(dbuf, '<');
+      lexer_states_dump(lex, rule->mask, dbuf);
+      dbuf_putc(dbuf, '>');
+    }*/
   lexer_rule_expand(lex, rule->expr, dbuf);
 }
 

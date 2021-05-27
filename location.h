@@ -12,6 +12,8 @@ typedef struct Location {
 } Location;
 
 void location_print(const Location*, DynBuf* dbuf);
+char* location_tostring(const Location*, JSContext* ctx);
+JSValue location_tovalue(const Location*, JSContext* ctx);
 Location location_clone(const Location*, JSContext* ctx);
 void location_init(Location*);
 void location_zero(Location*);

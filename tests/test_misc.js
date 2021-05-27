@@ -2,9 +2,12 @@ import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
 import { Location } from 'misc';
+import { extendArray } from 'util';
 
 ('use strict');
 ('use math');
+
+extendArray(Array.prototype);
 
 function main(...args) {
   globalThis.console = new Console({

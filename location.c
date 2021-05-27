@@ -11,7 +11,29 @@ location_print(const Location* loc, DynBuf* dbuf) {
     dbuf_putstr(dbuf, loc->file);
     dbuf_putc(dbuf, ':');
   }
-  dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, loc->line + 1, loc->column + 1);
+  if(loc->column != UINT32_MAX)
+    dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, loc->line + 1, loc->column + 1);
+  else
+    dbuf_printf(dbuf, "%" PRId32, loc->line + 1);
+}
+
+char*
+location_tostring(const Location* loc, JSContext* ctx) {
+  DynBuf dbuf;
+  js_dbuf_init(ctx, &dbuf);
+
+  location_print(loc, &dbuf);
+  dbuf_0(&dbuf);
+
+  return (char*)dbuf.buf;
+}
+
+JSValue
+location_tovalue(const Location* loc, JSContext* ctx) {
+  char* str = location_tostring(loc, ctx);
+  JSValue ret = JS_NewString(ctx, str);
+  js_free(ctx, str);
+  return ret;
 }
 
 Location

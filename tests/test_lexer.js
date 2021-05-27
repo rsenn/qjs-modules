@@ -8,10 +8,12 @@ import { Console } from 'console';
 import JSLexer from '../lib/jslexer.js';
 import CLexer from '../lib/clexer.js';
 import BNFLexer from '../lib/bnflexer.js';
-import extendArray from '../lib/extendArray.js';
+import { extendArray } from 'util';
 
 ('use strict');
 ('use math');
+
+extendArray(Array.prototype);
 
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
@@ -127,10 +129,6 @@ function main(...args) {
     i = 0;
 
   console.log('now', Date.now());
-
-  for(let j = 0; j < lexer.ruleNames.length; j++) {
-    console.log(`lexer.rule[${j}]`, lexer.getRule(j));
-  }
 
   console.log(lexer.ruleNames.length, 'rules', lexer.ruleNames.unique().length, 'unique rules');
 
@@ -254,6 +252,9 @@ function main(...args) {
     Location.count('blah\nblah\nblah\nblah')
   );
 
+  for(let j = 0; j < lexer.ruleNames.length; j++) {
+    console.log(`lexer.rule[${j}]`, lexer.getRule(j));
+  }
   return;
 
   std.gc();

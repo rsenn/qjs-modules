@@ -40,7 +40,9 @@ int lexer_state_push(Lexer*, const char* state);
 int lexer_state_pop(Lexer*);
 int lexer_state_top(Lexer*, int i);
 char* lexer_state_name(Lexer*, int state);
+char* lexer_states_skip(char*);
 void lexer_states_dump(Lexer*, uint64_t mask, DynBuf* dbuf);
+char* lexer_rule_regex(LexerRule*);
 BOOL lexer_rule_expand(Lexer*, char* p, DynBuf* db);
 int lexer_rule_add(Lexer*, char* name, char* expr);
 LexerRule* lexer_rule_find(Lexer*, const char* name);
@@ -56,11 +58,11 @@ int lexer_peek(Lexer*, uint64_t state, JSContext* ctx);
 size_t lexer_skip(Lexer*);
 char* lexer_lexeme(Lexer*, size_t* lenp);
 int lexer_next(Lexer*, uint64_t state, JSContext* ctx);
+void lexer_set_location(Lexer*, const Location* loc, JSContext* ctx);
 void lexer_free(Lexer*, JSContext* ctx);
 void lexer_free_rt(Lexer*, JSRuntime* rt);
 void lexer_dump(Lexer*, DynBuf* dbuf);
-
-void lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx);
+size_t input_skip(InputBuffer*, size_t end, Location* loc);
 
 static inline int
 lexer_state_find(Lexer* lex, const char* state) {

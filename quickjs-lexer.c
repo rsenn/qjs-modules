@@ -67,9 +67,13 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
   lexer_rule_dump(lex, rule, &dbuf);
   dbuf_0(&dbuf);
 
+  if(rule->expr[0] == '<') {
+    assert(!strncmp(rule->expr, (const char*)dbuf.buf, str_chr(rule->expr, '>')));
+  }
+
   ret = JS_NewArray(ctx);
   js_set_propertyint_string(ctx, ret, 0, rule->name);
-  js_set_propertyint_string(ctx, ret, 1, (const char*)dbuf.buf);
+  js_set_propertyint_string(ctx, ret, 1, lexer_states_skip((char*)dbuf.buf));
 
   states = JS_NewArray(ctx);
 
@@ -82,6 +86,7 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
     }
   }
   JS_SetPropertyUint32(ctx, ret, 2, states);
+ // JS_SetPropertyUint32(ctx, ret, 3, JS_NewInt64(ctx, rule->mask));
   dbuf_free(&dbuf);
   return ret;
 }
@@ -387,8 +392,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   JS_DefinePropertyValueStr(ctx, obj, "byte_length", JS_NewUint32(ctx, tok->byte_length), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "char_length", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_new(ctx, &tok->loc), JS_PROP_ENUMERABLE);
-
+  JS_DefinePropertyValueStr(ctx, obj, "loc", location_tovalue(&tok->loc, ctx), JS_PROP_ENUMERABLE);
   return obj;
 }
 
