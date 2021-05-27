@@ -389,6 +389,29 @@ input_buffer_get(InputBuffer* in, size_t* lenp) {
   return ret;
 }
 
+const char*
+input_buffer_currentline(InputBuffer* in, size_t* len) {
+  size_t i;
+
+  if((i = byte_rchr(in->data, in->pos, '\n')) < in->pos)
+    i++;
+
+  if(len)
+    *len = in->pos - i;
+
+  return (const char*)&in->data[i];
+}
+
+size_t
+input_buffer_column(InputBuffer* in, size_t* len) {
+  size_t i;
+
+  if((i = byte_rchr(in->data, in->pos, '\n')) < in->pos)
+    i++;
+
+  return in->pos - i;
+}
+
 int64_t
 js_array_length(JSContext* ctx, JSValueConst array) {
   int64_t len = -1;

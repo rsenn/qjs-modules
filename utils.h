@@ -195,6 +195,16 @@ byte_chrs(const char* str, size_t len, char needle[], size_t nl) {
 }
 
 static inline size_t
+byte_charlen(const char* in, size_t len) {
+  const uint8_t *pos, *end, *next;
+  int cp;
+  pos = (const uint8_t*)in;
+  end = pos + len;
+  cp = unicode_from_utf8(pos, end - pos, &next);
+  return next - pos;
+}
+
+static inline size_t
 str_chr(const char* in, char needle) {
   const char* t = in;
   const char c = needle;
@@ -558,8 +568,8 @@ JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
 
 typedef struct InputBuffer {
   uint8_t* data;
-  size_t size;
   size_t pos;
+  size_t size;
   void (*free)(JSContext*, const char*, JSValue);
   JSValue value;
 } InputBuffer;
@@ -577,6 +587,8 @@ void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
 const uint8_t* input_buffer_get(InputBuffer* in, size_t* lenp);
 const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
+const char* input_buffer_currentline(InputBuffer*, size_t* len);
+size_t input_buffer_column(InputBuffer*, size_t* len);
 
 static inline int
 input_buffer_peekc(InputBuffer* in, size_t* lenp) {

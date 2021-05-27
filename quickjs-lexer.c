@@ -627,10 +627,9 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, rule->name), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, tok->lexeme), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(ctx, obj, "end", JS_NewUint32(ctx, tok->loc.pos + tok->char_length), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "byte_offset", JS_NewUint32(ctx, tok->byte_offset), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "char_length", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "byte_length", JS_NewUint32(ctx, tok->byte_length), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "char_length", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
 
   JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_new(ctx, &tok->loc), JS_PROP_ENUMERABLE);
 
@@ -1042,13 +1041,32 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
     }
 
     case LEXER_METHOD_BACK: {
-      Token* tok;
-      if(argc >= 1 && (tok = js_token_data(ctx, argv[0]))) {
-        lexer_set_location(lex, &tok->loc, ctx);
-        lex->bytelen = tok->byte_length;
-
-        ret = JS_NewInt32(ctx, tok->id);
+      if(argc >= 1) {
+        Token* tok;
+        Location* loc;
+        if((loc = js_location_data(ctx, argv[0]))) {
+          lexer_set_location(lex, loc, ctx);
+          ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, ctx));
+        } else if((tok = js_token_data(ctx, argv[0]))) {
+          lexer_set_location(lex, &tok->loc, ctx);
+          lex->bytelen = tok->byte_length;
+          ret = JS_NewInt32(ctx, tok->id);
+        } else if(JS_IsString(argv[0])) {
+          size_t len;
+          const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
+          if(lex->input.pos >= len && !memcmp(&lex->input.data[lex->input.pos - len], str, len)) {
+            Location diff;
+            location_zero(&diff);
+            location_count(&diff, (const char*)&lex->input.data[lex->input.pos - len], len);
+            location_sub(&lex->loc, &diff);
+            ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, ctx));
+          } else {
+            ret = JS_ThrowInternalError(ctx, "Lexer.prototype.back('%s')", str);
+          }
+          JS_FreeCString(ctx, str);
+        }
       }
+
       break;
     }
 

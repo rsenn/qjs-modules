@@ -36,8 +36,31 @@ location_zero(Location* loc) {
 void
 location_add(Location* loc, const Location* other) {
   loc->line += other->line;
-  loc->column = other->column;
-  loc->pos = other->pos;
+  loc->column += other->column;
+  loc->pos += other->pos;
+}
+void
+location_sub(Location* loc, const Location* other) {
+  loc->line -= other->line;
+  loc->column -= other->column;
+  loc->pos -= other->pos;
+}
+
+void
+location_count(Location* loc, const char* x, size_t n) {
+  size_t i;
+  for(i = 0; i < n;) {
+    size_t bytes = byte_charlen(&x[i], n - i);
+
+    if(x[i] == '\n') {
+      loc->line++;
+      loc->column = 0;
+    } else {
+      loc->column++;
+    }
+
+    i += bytes;
+  }
 }
 
 void
