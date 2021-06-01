@@ -11,6 +11,9 @@
 #ifdef CONFIG_BIGNUM
 #include "libbf.h"
 #endif
+#ifdef CONFIG_DEBUGGER
+#include <quickjs-debugger.h>
+#endif
 
 enum JSClassIds {
   /* classid tag        */ /* union usage   | properties */
@@ -331,7 +334,119 @@ struct JSString {
   } u;
 };
 
-typedef enum OPCodeEnum { OPCODEENUM_DUMMY } OPCodeEnum;
+typedef struct JSClosureVar {
+  uint8_t is_local : 1;
+  uint8_t is_arg : 1;
+  uint8_t is_const : 1;
+  uint8_t is_lexical : 1;
+  uint8_t var_kind : 4; /* see JSVarKindEnum */
+  /* 8 bits available */
+  uint16_t var_idx; /* is_local = TRUE: index to a normal variable of the
+                  parent function. otherwise: index to a closure
+                  variable of the parent function */
+  JSAtom var_name;
+} JSClosureVar;
+
+typedef struct JSVarScope {
+  int parent; /* index into fd->scopes of the enclosing scope */
+  int first;  /* index into fd->vars of the last variable in this scope */
+} JSVarScope;
+
+typedef enum {
+  /* XXX: add more variable kinds here instead of using bit fields */
+  JS_VAR_NORMAL,
+  JS_VAR_FUNCTION_DECL,     /* lexical var with function declaration */
+  JS_VAR_NEW_FUNCTION_DECL, /* lexical var with async/generator
+                               function declaration */
+  JS_VAR_CATCH,
+  JS_VAR_FUNCTION_NAME, /* function expression name */
+  JS_VAR_PRIVATE_FIELD,
+  JS_VAR_PRIVATE_METHOD,
+  JS_VAR_PRIVATE_GETTER,
+  JS_VAR_PRIVATE_SETTER,        /* must come after JS_VAR_PRIVATE_GETTER */
+  JS_VAR_PRIVATE_GETTER_SETTER, /* must come after JS_VAR_PRIVATE_SETTER */
+} JSVarKindEnum;
+
+/* XXX: could use a different structure in bytecode functions to save
+   memory */
+typedef struct JSVarDef {
+  JSAtom var_name;
+  /* index into fd->scopes of this variable lexical scope */
+  int scope_level;
+  /* during compilation:
+      - if scope_level = 0: scope in which the variable is defined
+      - if scope_level != 0: index into fd->vars of the next
+        variable in the same or enclosing lexical scope
+     in a bytecode function:
+     index into fd->vars of the next
+     variable in the same or enclosing lexical scope
+  */
+  int scope_next;
+  uint8_t is_const : 1;
+  uint8_t is_lexical : 1;
+  uint8_t is_captured : 1;
+  uint8_t var_kind : 4; /* see JSVarKindEnum */
+  /* only used during compilation: function pool index for lexical
+     variables with var_kind =
+     JS_VAR_FUNCTION_DECL/JS_VAR_NEW_FUNCTION_DECL or scope level of
+     the definition of the 'var' variables (they have scope_level =
+     0) */
+  int func_pool_idx : 24; /* only used during compilation : index in
+                             the constant pool for hoisted function
+                             definition */
+} JSVarDef;
+
+typedef enum JSFunctionKindEnum {
+  JS_FUNC_NORMAL = 0,
+  JS_FUNC_GENERATOR = (1 << 0),
+  JS_FUNC_ASYNC = (1 << 1),
+  JS_FUNC_ASYNC_GENERATOR = (JS_FUNC_GENERATOR | JS_FUNC_ASYNC),
+} JSFunctionKindEnum;
+
+typedef struct JSFunctionBytecode {
+  JSGCObjectHeader header; /* must come first */
+  uint8_t js_mode;
+  uint8_t has_prototype : 1; /* true if a prototype field is necessary */
+  uint8_t has_simple_parameter_list : 1;
+  uint8_t is_derived_class_constructor : 1;
+  /* true if home_object needs to be initialized */
+  uint8_t need_home_object : 1;
+  uint8_t func_kind : 2;
+  uint8_t new_target_allowed : 1;
+  uint8_t super_call_allowed : 1;
+  uint8_t super_allowed : 1;
+  uint8_t arguments_allowed : 1;
+  uint8_t has_debug : 1;
+  uint8_t backtrace_barrier : 1; /* stop backtrace on this function */
+  uint8_t read_only_bytecode : 1;
+  /* XXX: 4 bits available */
+  uint8_t* byte_code_buf; /* (self pointer) */
+  int byte_code_len;
+  JSAtom func_name;
+  JSVarDef* vardefs;         /* arguments + local variables (arg_count + var_count) (self pointer) */
+  JSClosureVar* closure_var; /* list of variables in the closure (self pointer) */
+  uint16_t arg_count;
+  uint16_t var_count;
+  uint16_t defined_arg_count; /* for length function property */
+  uint16_t stack_size;        /* maximum stack size */
+  JSContext* realm;           /* function realm */
+  JSValue* cpool;             /* constant pool (self pointer) */
+  int cpool_count;
+  int closure_var_count;
+  struct {
+    /* debug info, move to separate structure to save memory? */
+    JSAtom filename;
+    int line_num;
+    int source_len;
+    int pc2line_len;
+    uint8_t* pc2line_buf;
+    char* source;
+  } debug;
+#ifdef CONFIG_DEBUGGER
+  struct JSDebuggerFunctionInfo debugger;
+#endif
+} JSFunctionBytecode;
+
 
 typedef struct JSProperty {
   union {
@@ -475,6 +590,36 @@ struct JSObject {
     JSValue object_data; /* for JS_SetObjectData(): 8/16/16 bytes */
   } u;
   /* byte sizes: 40/48/72 */
+};
+
+typedef enum OPCodeFormat {
+#define FMT(f) OP_FMT_ ## f,
+#define DEF(id, size, n_pop, n_push, f)
+#include "quickjs-opcode.h"
+#undef DEF
+#undef FMT
+} OPCodeFormat;
+
+enum OPCodeEnum {
+#define FMT(f)
+#define DEF(id, size, n_pop, n_push, f) OP_ ## id,
+#define def(id, size, n_pop, n_push, f)
+#include "quickjs-opcode.h"
+#undef def
+#undef DEF
+#undef FMT
+    OP_COUNT, /* excluding temporary opcodes */
+    /* temporary opcodes : overlap with the short opcodes */
+    OP_TEMP_START = OP_nop + 1,
+    OP___dummy = OP_TEMP_START - 1,
+#define FMT(f)
+#define DEF(id, size, n_pop, n_push, f)
+#define def(id, size, n_pop, n_push, f) OP_ ## id,
+#include "quickjs-opcode.h"
+#undef def
+#undef DEF
+#undef FMT
+    OP_TEMP_END,
 };
 
 typedef struct StringBuffer {
@@ -732,5 +877,17 @@ typedef struct JSMapIteratorData {
   JSIteratorKindEnum kind;
   JSMapRecord* cur_record;
 } JSMapIteratorData;
+
+typedef struct JSOpCode {
+    uint8_t size; /* in bytes */
+    /* the opcodes remove n_pop items from the top of the stack, then
+       pushes n_push items */
+    uint8_t n_pop;
+    uint8_t n_push;
+    uint8_t fmt;
+    const char *name;
+} JSOpCode;
+
+extern   const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];
 
 #endif /* defined(QJS_MODULES_INTERNAL_H) */

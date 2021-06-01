@@ -281,12 +281,29 @@ js_misc_read_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 static JSValue
-js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
 
-  const char* typestr = js_value_typestr(ctx, argv[0]);
+  switch(magic) {
+    case 0: {
+      const char* typestr = js_value_typestr(ctx, argv[0]);
+      ret = JS_NewString(ctx, typestr);
+      break;
+    }
+    case 1: {
+      ret = JS_NewInt32(ctx, JS_VALUE_GET_TAG(argv[0]));
+      break;
+    }
+    case 2: {
+      void* ptr = JS_VALUE_GET_PTR(argv[0]);
+      char buf[128];
 
-  return JS_NewString(ctx, typestr);
+      snprintf(buf, sizeof(buf), "%p", ptr);
+      ret = JS_NewString(ctx, buf);
+      break;
+    }
+  }
+  return ret;
 }
 
 static JSValue
@@ -340,7 +357,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("compileFile", 1, js_misc_compile_file),
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
     JS_CFUNC_DEF("readObject", 1, js_misc_read_object),
-    JS_CFUNC_DEF("valueType", 1, js_misc_valuetype),
+    JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, 0),
+    JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, 1),
+    JS_CFUNC_MAGIC_DEF("valuePtr", 1, js_misc_valuetype, 2),
     JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
 };
 

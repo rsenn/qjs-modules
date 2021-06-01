@@ -16,9 +16,8 @@ function main(...args) {
     inspectOptions: {
       colors: true,
       depth: 8,
-      breakLength: 100,
       maxStringLength: Infinity,
-      maxArrayLength: Infinity,
+      maxArrayLength: 256,
       compact: 0,
       showHidden: false
     }
@@ -41,6 +40,12 @@ let s = misc.btoa(b);
   console.log('misc.toArrayBuffer()',b );
   console.log('misc.btoa()', s);
   console.log('misc.atob()', misc.atob(s));
+  let mod = misc.compileFile('lib/fs.js',true);
+  let bc = misc.writeObject(mod);
+  console.log('misc.compileFile()', mod);
+  console.log('getModuleFunction()', getModuleFunction(mod));
+  console.log('misc.writeObject()', bc);
+  fs.writeFileSync('bytecode.bin',bc);
   std.gc();
 }
 

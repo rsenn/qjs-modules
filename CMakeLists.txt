@@ -29,15 +29,16 @@ set(xml_SOURCES vector.c vector.h property-enumeration.c property-enumeration.h 
 set(path_SOURCES path.c path.h utils.c utils.h)
 set(predicate_SOURCES predicate.c predicate.h vector.c vector.h utils.c utils.h)
 set(pointer_SOURCES pointer.c pointer.h utils.c utils.h)
-set(lexer_SOURCES quickjs-lexer.h location.c location.h utils.c utils.h vector.c vector.h lexer.c lexer.h)
+set(lexer_SOURCES quickjs-lexer.h location.c location.h utils.c utils.h vector.c vector.h lexer.c
+                  lexer.h)
 set(lexer_LIBRARIES quickjs-predicate)
 set(mmap_SOURCES utils.c utils.h)
 set(repeater_SOURCES utils.c utils.h)
 set(util_SOURCES utils.c utils.h quickjs-inspect.c)
 set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h)
-set(misc_SOURCES base64.c base64.h ${LOCATION_SOURCES})
+set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${LOCATION_SOURCES})
 
-set(QJSM_EXTRA_SOURCES  ${location_SOURCES})
+set(QJSM_EXTRA_SOURCES ${location_SOURCES})
 
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 

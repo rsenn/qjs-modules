@@ -1365,7 +1365,7 @@ js_cstring_ptr(JSValueConst v) {
 
   if(JS_IsString(v)) {
     p = JS_VALUE_GET_PTR(v);
-    return p->u.str8;
+    return (char*)p->u.str8;
   }
   return 0;
 }

@@ -399,6 +399,9 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   int break_len = opts->break_length; // inspect_screen_width();
   int column = dbuf_get_column(buf);
   JSValue proto;
+  break_len = (break_len+1)/3;
+  break_len *= 3;
+
   if(break_len > opts->break_length)
     break_len = opts->break_length;
   ptr = JS_GetArrayBuffer(ctx, &size, value);
@@ -424,13 +427,13 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   for(i = 0; i < size; i++) {
     if(i == (size_t)opts->max_array_length)
       break;
-    if(column == break_len && opts->break_length != INT32_MAX) {
+    if(column  + 3 >= break_len && opts->break_length != INT32_MAX) {
       inspect_newline(buf, (opts->depth - depth) + 1);
       column = 0;
     } else {
       column += 3;
     }
-    dbuf_printf(buf, " %02x", ptr[i]);
+    dbuf_printf(buf, column ? " %02x" : "%02x", ptr[i]);
   }
   if(i < size)
     dbuf_printf(buf, "... %zu more bytes", size - i);
@@ -818,6 +821,17 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
     end_obj:
       if(!vector_empty(&propenum_tab))
         js_propertyenums_free(ctx, vector_begin(&propenum_tab), vector_size(&propenum_tab, sizeof(JSPropertyEnum)));
+      break;
+    }
+
+    case JS_TAG_FUNCTION_BYTECODE: {
+dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED "[bytecode]" COLOR_NONE : "[bytecode]");
+      break;
+    }
+
+
+    case JS_TAG_MODULE: {
+dbuf_putstr(buf, opts->colors ? COLOR_LIGHTMARINE "[module]" COLOR_NONE : "[module]");
       break;
     }
 
