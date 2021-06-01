@@ -259,6 +259,20 @@ js_object_getpropertynames(JSContext* ctx, union Vector* propenum_tab, JSValueCo
   return ret;
 }
 
+static int
+js_object_getpropertynames_recursive(JSContext* ctx, union Vector* propenum_tab, JSValueConst obj, int flags) {
+  int ret;
+
+  if((ret = js_object_getpropertynames(ctx, propenum_tab, obj, flags)) >= 0) {
+    JSValue proto = JS_GetPrototype(ctx, obj);
+
+    if(JS_IsObject(proto))
+      ret = js_object_getpropertynames_recursive(ctx, propenum_tab, proto, flags);
+  }
+
+  return ret;
+}
+
 static JSAtom
 js_inspect_custom_atom(JSContext* ctx, const char* sym_for) {
   JSValue key, sym;
@@ -670,11 +684,11 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       vector_init(&propenum_tab, ctx);
 
-      if(js_object_getpropertynames(ctx,
-                                    &propenum_tab,
-                                    opts->proto_chain ? JS_GetPrototype(ctx, value) : value,
-                                    JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
-                                        (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+      if(js_object_getpropertynames_recursive(ctx,
+                                              &propenum_tab,
+                                              opts->proto_chain ? JS_GetPrototype(ctx, value) : value,
+                                              JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
+                                                  (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(is_function) {
@@ -816,7 +830,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 }
 
 static JSValue
-js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   DynBuf dbuf;
   inspect_options_t options;
   int32_t level;

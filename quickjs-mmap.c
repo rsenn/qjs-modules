@@ -13,7 +13,7 @@ js_mmap_free_func(JSRuntime* rt, void* opaque, void* ptr) {
 }
 
 static JSValue
-js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint64_t addr, length, offset;
   int32_t prot, flags, fd;
   void* ptr;
@@ -40,13 +40,13 @@ js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv)
 }
 
 static JSValue
-js_mmap_unmap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_mmap_unmap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JS_DetachArrayBuffer(ctx, argv[0]);
   return JS_UNDEFINED;
 }
 
 static JSValue
-js_mmap_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_mmap_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   if(js_is_arraybuffer(ctx, argv[0])) {
     uint8_t* data;

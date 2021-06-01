@@ -91,7 +91,7 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 }
 
 static JSValue
-js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto;
   /* using new_target to get the prototype is necessary when the
      class is extended. */
@@ -108,7 +108,7 @@ js_pointer_deref(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueCon
 }
 
 static JSValue
-js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Pointer* ptr;
 
   if(!(ptr = JS_GetOpaque2(ctx, this_val, js_pointer_class_id)))
@@ -195,7 +195,7 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
 }
 
 static JSValue
-js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret;
 
   switch(magic) {

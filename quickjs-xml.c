@@ -413,7 +413,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
 }
 
 static JSValue
-js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
   InputBuffer input = js_input_buffer(ctx, argv[0]);
 
@@ -464,7 +464,7 @@ js_xml_write_obj(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output
 }
 
 static JSValue
-js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   DynBuf output = {0};
   JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
   JSValue ret, arr = JS_UNDEFINED;

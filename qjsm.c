@@ -48,6 +48,7 @@
 
 #include "cutils.h"
 #include "utils.h"
+#include "vector.h"
 #include "quickjs-libc.h"
 #include "quickjs-internal.h"
 
@@ -297,13 +298,13 @@ jsm_find_module(JSContext* ctx, const char* module_name) {
 }
 
 JSModuleDef*
-jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
+jsm_load_moduleer_path(JSContext* ctx, const char* module_name, void* opaque) {
   char *module, *filename = 0;
   JSModuleDef* ret = NULL;
   module = js_strdup(ctx, trim_dotslash(module_name));
   for(;;) {
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-      // printf("jsm_module_loader_path %s %s\n", trim_dotslash(module_name), trim_dotslash(module));
+      // printf("jsm_load_moduleer_path %s %s\n", trim_dotslash(module_name), trim_dotslash(module));
       return ret;
     }
     if(!filename) {
@@ -332,7 +333,7 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
     break;
   }
   if(filename) {
-    // printf("jsm_module_loader_path %s %s\n", trim_dotslash(module_name), trim_dotslash(filename));
+    // printf("jsm_load_moduleer_path %s %s\n", trim_dotslash(module_name), trim_dotslash(filename));
     ret = js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
   }
@@ -433,6 +434,19 @@ jsm_load_script(JSContext* ctx, const char* filename, int module) {
   if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE)
     JS_FreeValue(ctx, val);
   return ret;
+}
+
+static JSModuleDef*
+jsm_load_module(JSContext* ctx, const char* name) {
+  DynBuf buf;
+  JSModuleDef* m;
+  js_dbuf_init(ctx, &buf);
+  dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
+  dbuf_0(&buf);
+  jsm_eval_buf(ctx, buf.buf, buf.size, "<input>", TRUE);
+  m = jsm_module_find(ctx, name);
+
+  return m;
 }
 
 /* also used to initialize the worker context */
@@ -630,8 +644,7 @@ jsm_help(void) {
          "-h  --help         list options\n"
          "-e  --eval EXPR    evaluate EXPR\n"
          "-i  --interactive  go to interactive mode\n"
-         "-m  --module       load as ES6 module (default=autodetect)\n"
-         "    --script       load as ES6 script (default=autodetect)\n"
+         "-m  --module NAME  load an ES6 module\n"
          "-I  --include file include an additional file\n"
          "    --std          make 'std' and 'os' available to the loaded script\n"
 #ifdef CONFIG_BIGNUM
@@ -687,6 +700,8 @@ js_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 enum {
   FIND_MODULE,
+  LOAD_MODULE,
+  RESOLVE_MODULE,
   GET_MODULE_NAME,
   GET_MODULE_OBJECT,
   GET_MODULE_EXPORTS,
@@ -707,6 +722,20 @@ js_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       m = jsm_module_find(ctx, name);
       JS_FreeCString(ctx, name);
       ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+      break;
+    }
+    case LOAD_MODULE: {
+      const char* name = JS_ToCString(ctx, argv[0]);
+      JSModuleDef* m;
+
+      if((m = jsm_load_module(ctx, name)))
+        ret = JS_MKPTR(JS_TAG_MODULE, m);
+
+      JS_FreeCString(ctx, name);
+      break;
+    }
+    case RESOLVE_MODULE: {
+      ret = JS_NewInt32(ctx, JS_ResolveModule(ctx, argv[0]));
       break;
     }
     case GET_MODULE_NAME: {
@@ -746,7 +775,7 @@ js_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
     case GET_MODULE_FUNCTION: {
       if((m = jsm_module_get(ctx, argv[0]))) {
-        if(m->func_created)
+        if(TRUE || m->func_created)
           ret = JS_DupValue(ctx, m->func_obj);
         else
           ret = JS_NULL;
@@ -776,6 +805,8 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalScript", 1, js_eval_script, 1),
     JS_CGETSET_DEF("moduleList", jsm_module_list, 0),
     JS_CFUNC_MAGIC_DEF("findModule", 1, js_module_func, FIND_MODULE),
+    JS_CFUNC_MAGIC_DEF("loadModule", 1, js_module_func, LOAD_MODULE),
+    JS_CFUNC_MAGIC_DEF("resolveModule", 1, js_module_func, RESOLVE_MODULE),
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, js_module_func, GET_MODULE_NAME),
     JS_CFUNC_MAGIC_DEF("getModuleObject", 1, js_module_func, GET_MODULE_OBJECT),
     JS_CFUNC_MAGIC_DEF("getModuleExports", 1, js_module_func, GET_MODULE_EXPORTS),
@@ -807,6 +838,7 @@ main(int argc, char** argv) {
 #endif
   size_t stack_size = 0;
   const char* exename;
+  Vector module_list = VECTOR_INIT();
 
   {
     const char* p;
@@ -880,11 +912,17 @@ main(int argc, char** argv) {
         break;
       }
       if(opt == 'm' || !strcmp(longopt, "module")) {
-        module = 1;
-        break;
-      }
-      if(!strcmp(longopt, "script")) {
-        module = 0;
+        const char* modules = argv[optind++];
+        size_t i, len;
+
+        for(i = 0; modules[i]; i += len) {
+          len = str_chr(&modules[i], ',');
+          vector_putptr(&module_list, str_ndup(&modules[i], len));
+
+          if(modules[i + len] == ',')
+            len++;
+        }
+
         break;
       }
       if(opt == 'd' || !strcmp(longopt, "dump")) {
@@ -973,7 +1011,7 @@ main(int argc, char** argv) {
   }
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, NULL, jsm_module_loader_path, NULL);
+  JS_SetModuleLoaderFunc(rt, NULL, jsm_load_moduleer_path, NULL);
 
   if(dump_unhandled_promise_rejection) {
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, NULL);
@@ -1016,6 +1054,19 @@ main(int argc, char** argv) {
       const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = std;\nglobalThis.os "
                         "= os;\nglobalThis.setTimeout = os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
       jsm_eval_str(ctx, str, "<input>", TRUE);
+    }
+
+    {
+      char** name;
+      JSModuleDef* m;
+      vector_foreach_t(&module_list, name) {
+        if(!(m = jsm_load_module(ctx, *name))) {
+          fprintf(stderr, "error loading module '%s'\n", *name);
+          exit(1);
+        }
+        free(*name);
+      }
+      vector_free(&module_list);
     }
 
     for(i = 0; i < include_count; i++) {

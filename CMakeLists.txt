@@ -35,8 +35,7 @@ set(mmap_SOURCES utils.c utils.h)
 set(repeater_SOURCES utils.c utils.h)
 set(util_SOURCES utils.c utils.h quickjs-inspect.c)
 set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h)
-
-set(misc_SOURCES ${LOCATION_SOURCES})
+set(misc_SOURCES base64.c base64.h ${LOCATION_SOURCES})
 
 set(QJSM_EXTRA_SOURCES  ${location_SOURCES})
 

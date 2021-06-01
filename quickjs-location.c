@@ -57,7 +57,7 @@ js_location_new(JSContext* ctx, const Location* location) {
 }
 
 JSValue
-js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc;
   JSValue ret = JS_UNDEFINED;
   size_t len;
@@ -171,7 +171,7 @@ js_location_from(JSContext* ctx, JSValueConst this_val) {
 }
 
 JSValue
-js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc;
   const char* hint;
   JSValue ret;
@@ -190,7 +190,7 @@ js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 }
 
 JSValue
-js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
   Location loc;
@@ -263,7 +263,7 @@ fail:
 }
 
 static JSValue
-js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc;
 
   if(!(loc = js_location_data(ctx, this_val)))
@@ -284,7 +284,7 @@ js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 static JSValue
-js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   Location* loc;
 
@@ -295,7 +295,7 @@ js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
 }
 
 static JSValue
-js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location loc;
   InputBuffer input;
   size_t i;

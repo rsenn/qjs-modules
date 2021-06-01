@@ -29,7 +29,7 @@
 #include "utils.h"
 
 static JSValue
-js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* buf;
   uint64_t pos, len;
   JSValue obj;
@@ -53,7 +53,7 @@ js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 }
 
 static JSValue
-js_bjson_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_bjson_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t len;
   uint8_t* buf;
   JSValue array;

@@ -342,7 +342,7 @@ InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED};
 
-  if(js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER)) {
+  if(js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, value)) {
     ret.value = JS_DupValue(ctx, value);
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
   } else if(JS_IsString(value)) {
@@ -1118,16 +1118,21 @@ js_value_type_get(JSContext* ctx, JSValueConst value) {
 int32_t
 js_value_type_flag(JSValueConst value) {
   switch(JS_VALUE_GET_TAG(value)) {
-    case JS_TAG_UNDEFINED: return FLAG_UNDEFINED;
-    case JS_TAG_NULL: return FLAG_NULL;
-    case JS_TAG_BOOL: return FLAG_BOOL;
-    case JS_TAG_INT: return FLAG_INT;
-    case JS_TAG_OBJECT: return FLAG_OBJECT;
-    case JS_TAG_STRING: return FLAG_STRING;
-    case JS_TAG_SYMBOL: return FLAG_SYMBOL;
-    case JS_TAG_BIG_FLOAT: return FLAG_BIG_FLOAT;
-    case JS_TAG_BIG_INT: return FLAG_BIG_INT;
     case JS_TAG_BIG_DECIMAL: return FLAG_BIG_DECIMAL;
+    case JS_TAG_BIG_INT: return FLAG_BIG_INT;
+    case JS_TAG_BIG_FLOAT: return FLAG_BIG_FLOAT;
+    case JS_TAG_SYMBOL: return FLAG_SYMBOL;
+    case JS_TAG_STRING: return FLAG_STRING;
+    case JS_TAG_MODULE: return FLAG_MODULE;
+    case JS_TAG_FUNCTION_BYTECODE: return FLAG_FUNCTION_BYTECODE;
+    case JS_TAG_OBJECT: return FLAG_OBJECT;
+    case JS_TAG_INT: return FLAG_INT;
+    case JS_TAG_BOOL: return FLAG_BOOL;
+    case JS_TAG_NULL: return FLAG_NULL;
+    case JS_TAG_UNDEFINED: return FLAG_UNDEFINED;
+    case JS_TAG_UNINITIALIZED: return FLAG_UNINITIALIZED;
+    case JS_TAG_CATCH_OFFSET: return FLAG_CATCH_OFFSET;
+    case JS_TAG_EXCEPTION: return FLAG_EXCEPTION;
     case JS_TAG_FLOAT64: return FLAG_FLOAT64;
   }
   return -1;
@@ -1355,6 +1360,16 @@ js_value_free_rt(JSRuntime* rt, JSValue v) {
 }
 
 char*
+js_cstring_ptr(JSValueConst v) {
+  JSString* p;
+
+  if(JS_IsString(v)) {
+    p = JS_VALUE_GET_PTR(v);
+    return p->u.str8;
+  }
+  return 0;
+}
+char*
 js_cstring_dup(JSContext* ctx, const char* str) {
   JSString* p;
   if(!str)
@@ -1500,7 +1515,7 @@ js_typedarray_constructor(JSContext* ctx) {
 }
 
 JSValue
-js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst* argv) {
+js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]) {
   JSAtom atom;
   JSValue ret;
   atom = JS_NewAtom(ctx, method);

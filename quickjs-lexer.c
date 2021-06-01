@@ -115,7 +115,7 @@ js_syntaxerror_new(JSContext* ctx, SyntaxError arg) {
 }
 
 static JSValue
-js_syntaxerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_syntaxerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   SyntaxError* err;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
@@ -177,7 +177,7 @@ js_syntaxerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_syntaxerror_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_syntaxerror_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   SyntaxError* err;
   DynBuf db;
   JSValue ret;
@@ -199,7 +199,7 @@ js_syntaxerror_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 }
 
 static JSValue
-js_syntaxerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_syntaxerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   SyntaxError* err;
 
   if(!(err = js_syntaxerror_data(ctx, this_val)))
@@ -308,7 +308,7 @@ js_token_wrap(JSContext* ctx, Token* tok) {
 }
 
 JSValue
-js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Token* tok;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
@@ -347,7 +347,7 @@ fail:
 }
 
 JSValue
-js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Token* tok;
   if(!(tok = js_token_data(ctx, this_val)))
     return JS_EXCEPTION;
@@ -355,7 +355,7 @@ js_token_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
 }
 
 JSValue
-js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Token* tok;
   const char* hint;
   JSValue ret;
@@ -374,7 +374,7 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 }
 
 JSValue
-js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Token* tok;
   LexerRule* rule;
 
@@ -510,7 +510,7 @@ lexer_token(Lexer* lex, int id, size_t charlen, Location loc, JSContext* ctx) {
 }
 
 static JSValue
-lexer_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* data) {
+lexer_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* data) {
   JS_SetPropertyUint32(ctx, data[0], 0, JS_NewBool(ctx, TRUE));
   return JS_UNDEFINED;
 }
@@ -698,7 +698,7 @@ js_lexer_wrap(JSContext* ctx, Lexer* lex) {
 }
 
 JSValue
-js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Lexer* lex;
   char* name;
   int64_t mask = -1, skip = 0;
@@ -741,7 +741,7 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
 }
 
 JSValue
-js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, ret;
   Lexer* lex;
   int64_t mask = MASK_ALL;
@@ -773,7 +773,7 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 }
 
 JSValue
-js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Lexer* lex;
   JSValue ret = JS_UNDEFINED;
 
@@ -1221,12 +1221,12 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
 }
 
 JSValue
-js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return JS_DupValue(ctx, this_val);
 }
 
 JSValue
-js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   InputBuffer input = js_input_buffer(ctx, argv[0]);
   DynBuf output;
   js_dbuf_init(ctx, &output);
@@ -1236,7 +1236,7 @@ js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* a
 }
 
 JSValue
-js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
 
   if(js_is_regexp(ctx, argv[0]) || JS_IsString(argv[0])) {
@@ -1253,7 +1253,7 @@ js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst*
 }
 
 JSValue
-js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   Lexer* lex;
   int id, state = -1;
@@ -1311,7 +1311,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv
 }
 
 JSValue
-js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
+js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   JSValue ret;
   Lexer* lex;
 
@@ -1341,7 +1341,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 }
 
 JSValue
-js_lexer_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst* argv, int flags) {
+js_lexer_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
   Lexer* lex;
   int32_t result;
   JSValue ret = JS_UNDEFINED;
@@ -1362,7 +1362,7 @@ js_lexer_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int 
 }
 
 static JSValue
-js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Lexer* lex;
 
   if(!(lex = js_lexer_data(ctx, this_val)))

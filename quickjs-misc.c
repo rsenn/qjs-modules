@@ -4,7 +4,9 @@
 
 #include "quickjs-internal.h"
 #include "quickjs-location.h"
+#include "quickjs-libc.h"
 #include "utils.h"
+#include "base64.h"
 #include <time.h>
 #include <sys/utsname.h>
 
@@ -31,7 +33,7 @@ typedef struct OffsetLength {
 } OffsetLength;
 
 static OffsetLength
-get_offset_length(JSContext* ctx, int64_t len, int argc, JSValueConst* argv) {
+get_offset_length(JSContext* ctx, int64_t len, int argc, JSValueConst argv[]) {
   int64_t offset = 0, length = len;
   if(argc >= 2)
     JS_ToInt64(ctx, &offset, argv[1]);
@@ -52,11 +54,12 @@ get_offset_length(JSContext* ctx, int64_t len, int argc, JSValueConst* argv) {
 }
 
 static JSValue
-js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   JSValue arraybuffer_ctor = js_global_get(ctx, "ArrayBuffer");
 
-  if(JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
+  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, argv[0]) ||
+     JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
     uint8_t* data;
     size_t len;
 
@@ -75,7 +78,30 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
 }
 
 static JSValue
-js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  void* ptr = 0;
+  char buf[128];
+
+  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, argv[0])) {
+    size_t len;
+    ptr = JS_GetArrayBuffer(ctx, &len, argv[0]);
+  } else if(JS_IsString(argv[0])) {
+    ptr = js_cstring_ptr(argv[0]);
+  }
+
+  if(ptr) {
+    snprintf(buf, sizeof(buf), "%p", ptr);
+    ret = JS_NewString(ctx, buf);
+  } else {
+    ret = JS_NULL;
+  }
+
+  return ret;
+}
+
+static JSValue
+js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
 
   if(JS_IsString(argv[0])) {
@@ -95,7 +121,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 static JSValue
-js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   JSValue arraybuffer_ctor = js_global_get(ctx, "ArrayBuffer");
 
@@ -118,7 +144,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 }
 
 static JSValue
-js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct timespec ts;
 
   clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -127,7 +153,7 @@ js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, J
 }
 
 static JSValue
-js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct timespec ts;
   JSValue ret;
 
@@ -162,7 +188,7 @@ js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* ar
 }
 
 static JSValue
-js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct utsname un;
   JSValue ret = JS_UNDEFINED;
 
@@ -178,13 +204,144 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* arg
 
   return ret;
 }
+
+static JSValue
+js_misc_btoa(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret;
+  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  size_t enclen = b64_get_encoded_buffer_size(input.size);
+  uint8_t* encbuf = js_malloc(ctx, enclen);
+
+  b64_encode(input.data, input.size, encbuf);
+
+  ret = JS_NewStringLen(ctx, (const char*)encbuf, enclen);
+  js_free(ctx, encbuf);
+  return ret;
+}
+
+static JSValue
+js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret;
+  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  size_t declen = b64_get_decoded_buffer_size(input.size);
+  uint8_t* decbuf = js_malloc(ctx, declen);
+
+  b64_decode(input.data, input.size, decbuf);
+
+  ret = JS_NewArrayBufferCopy(ctx, (const char*)decbuf, declen);
+  js_free(ctx, decbuf);
+  return ret;
+}
+
+static JSValue
+js_misc_compile_file(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  const char* filename = JS_ToCString(ctx, argv[0]);
+  BOOL module = FALSE;
+  uint8_t* buf;
+  size_t buf_len;
+
+  if(argc >= 2)
+    module = JS_ToBool(ctx, argv[1]);
+  else if(str_end(filename, ".jsm"))
+    module = TRUE;
+
+  /* load JS from file to buffer */
+  if((buf = js_load_file(ctx, &buf_len, filename))) {
+
+    int eval_flags = JS_EVAL_FLAG_COMPILE_ONLY | (module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
+
+    ret = JS_Eval(ctx, (const char*)buf, buf_len, filename, eval_flags);
+  }
+
+  return ret;
+}
+static void
+js_misc_free_bytecode(JSRuntime* rt, void* opaque, void* ptr) {
+  js_free_rt(rt, ptr);
+}
+
+static JSValue
+js_misc_write_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  size_t size;
+  uint8_t* bytecode;
+
+  if((bytecode = JS_WriteObject(ctx, &size, argv[0], JS_WRITE_OBJ_BYTECODE))) {
+    ret = JS_NewArrayBuffer(ctx, bytecode, size, js_misc_free_bytecode, 0, FALSE);
+  }
+  return ret;
+}
+
+static JSValue
+js_misc_read_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_buffer(ctx, argv[0]);
+
+  return JS_ReadObject(ctx, input.data, input.size, JS_READ_OBJ_BYTECODE);
+}
+
+static JSValue
+js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+
+  const char* typestr = js_value_typestr(ctx, argv[0]);
+
+  return JS_NewString(ctx, typestr);
+}
+
+static JSValue
+js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  BOOL load_only = FALSE;
+  JSValueConst obj;
+
+  if(argc >= 2)
+    load_only = JS_ToBool(ctx, argv[1]);
+
+  if(JS_VALUE_GET_TAG(argv[0]) != JS_TAG_MODULE && JS_VALUE_GET_TAG(argv[0]) != JS_TAG_FUNCTION_BYTECODE)
+    obj = js_misc_read_object(ctx, this_val, argc, argv);
+  else
+    obj = argv[0];
+
+  if(JS_IsException(obj))
+    return obj;
+
+  if(load_only) {
+    if(JS_VALUE_GET_TAG(obj) == JS_TAG_MODULE)
+      js_module_set_import_meta(ctx, obj, FALSE, FALSE);
+  } else {
+    if(JS_VALUE_GET_TAG(obj) == JS_TAG_MODULE) {
+      if(JS_ResolveModule(ctx, obj) < 0) {
+        JSModuleDef* m = JS_VALUE_GET_PTR(obj);
+        const char* name = JS_AtomToCString(ctx, m->module_name);
+        ret = JS_ThrowInternalError(ctx, "Failed resolving module '%s'", name);
+        JS_FreeCString(ctx, name);
+        JS_FreeValue(ctx, obj);
+        return ret;
+      }
+      js_module_set_import_meta(ctx, obj, FALSE, TRUE);
+    }
+    ret = JS_EvalFunction(ctx, obj);
+  }
+
+  return ret;
+}
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
+    JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
+    JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
+    JS_CFUNC_DEF("atob", 1, js_misc_atob),
+    JS_CFUNC_DEF("compileFile", 1, js_misc_compile_file),
+    JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
+    JS_CFUNC_DEF("readObject", 1, js_misc_read_object),
+    JS_CFUNC_DEF("valueType", 1, js_misc_valuetype),
+    JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
 };
 
 static int

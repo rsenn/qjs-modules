@@ -199,6 +199,11 @@ vector_putlong(Vector* vec, long l, int radix) {
 }
 
 static inline void
+vector_putptr(Vector* vec, void* p) {
+  vector_put(vec, &p, sizeof(p));
+}
+
+static inline void
 vector_sort(Vector* vec, size_t elsz, int (*compar)(const void*, const void*, void*), void* arg) {
   qsort_r(vector_begin(vec), vector_size(vec, elsz), elsz, compar, arg);
 }

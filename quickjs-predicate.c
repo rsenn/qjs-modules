@@ -51,7 +51,7 @@ js_predicate_wrap(JSContext* ctx, Predicate pred) {
 }
 
 static JSValue
-js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Predicate* pred;
   JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED;
 
@@ -170,7 +170,7 @@ fail:
 }
 
 static JSValue
-js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
   if(!(pred = JS_GetOpaque2(ctx, this_val, js_predicate_class_id)))
@@ -191,7 +191,7 @@ js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 static JSValue
-js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Predicate* pred;
   DynBuf dbuf;
   JSValue ret;
@@ -228,7 +228,7 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   switch(magic) {
 
@@ -312,7 +312,7 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 JSValue
 js_predicate_call(
-    JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst* argv, int flags) {
+    JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
   Predicate* pred;
   int32_t result;
   JSValue ret = JS_UNDEFINED;

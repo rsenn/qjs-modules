@@ -504,7 +504,13 @@ enum value_types {
   FLAG_FLOAT64,     // 10
   FLAG_NAN,         // 11
   FLAG_FUNCTION,    // 12
-  FLAG_ARRAY        // 13
+  FLAG_ARRAY,       // 13
+  FLAG_MODULE,
+  FLAG_FUNCTION_BYTECODE,
+  FLAG_UNINITIALIZED,
+  FLAG_CATCH_OFFSET,
+  FLAG_EXCEPTION
+
 };
 
 enum value_mask {
@@ -542,21 +548,11 @@ enum value_mask js_value_type(JSContext* ctx, JSValueConst value);
 
 static inline const char* const*
 js_value_types() {
-  return (const char* const[]){"UNDEFINED",
-                               "NULL",
-                               "BOOL",
-                               "INT",
-                               "OBJECT",
-                               "STRING",
-                               "SYMBOL",
-                               "BIG_FLOAT",
-                               "BIG_INT",
-                               "BIG_DECIMAL",
-                               "FLOAT64",
-                               "NAN",
-                               "FUNCTION",
-                               "ARRAY",
-                               0};
+  return (const char* const[]){
+      "UNDEFINED",     "NULL",         "BOOL",      "INT", "OBJECT",   "STRING", "SYMBOL", "BIG_FLOAT",
+      "BIG_INT",       "BIG_DECIMAL",  "FLOAT64",   "NAN", "FUNCTION", "ARRAY",  "MODULE", "FUNCTION_BYTECODE",
+      "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION", 0,
+  };
 }
 
 const char* js_value_type_name(int32_t type);
@@ -640,6 +636,11 @@ input_buffer_remain(const InputBuffer* in) {
   return in->size - in->pos;
 }
 
+char* js_cstring_dup(JSContext* ctx, const char* str);
+char* js_cstring_ptr(JSValueConst v);
+JSValueConst js_cstring_value(const char* ptr);
+void js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
+
 static inline const char*
 js_cstring_new(JSContext* ctx, const char* str) {
   JSValue v = JS_NewString(ctx, str);
@@ -655,7 +656,6 @@ js_cstring_newlen(JSContext* ctx, const char* str, size_t len) {
   return s;
 }
 
-char* js_cstring_dup(JSContext* ctx, const char* str);
 static inline void
 js_cstring_free(JSContext* ctx, const char* ptr) {
   if(!ptr)
@@ -663,8 +663,6 @@ js_cstring_free(JSContext* ctx, const char* ptr) {
 
   JS_FreeValue(ctx, JS_MKPTR(JS_TAG_STRING, (void*)(ptr - offsetof(JSString, u))));
 }
-JSValueConst js_cstring_value(const char* ptr);
-void js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
 
 static inline char*
 js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
@@ -893,6 +891,6 @@ char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 JSValue js_module_name(JSContext*, JSValueConst);
 char* js_module_namestr(JSContext* ctx, JSValueConst value);
 
-JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst* argv);
+JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]);
 
 #endif /* defined(UTILS_H) */

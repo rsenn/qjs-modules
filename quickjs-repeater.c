@@ -17,12 +17,12 @@ typedef union {
 } Repeater;
 
 static JSValue
-js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
+js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* func_data) {
   return JS_UNDEFINED;
 }
 
 static JSValue
-js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* func_data) {
+js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* func_data) {
   return JS_UNDEFINED;
 }
 
@@ -58,7 +58,7 @@ js_repeater_wrap(JSContext* ctx, Repeater* rpt) {
 }
 
 static JSValue
-js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto;
   /* using new_target to get the prototype is necessary when the
      class is extended. */
@@ -70,7 +70,7 @@ js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 }
 
 static JSValue
-js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
+js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   Repeater* rpt;
 
   if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
@@ -80,7 +80,7 @@ js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
 }
 
 static JSValue
-js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Repeater* rpt;
   JSValue ret = JS_UNDEFINED;
 

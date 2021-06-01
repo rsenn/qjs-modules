@@ -75,7 +75,7 @@ tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
 }
 
 static JSValue
-js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
   PropertyEnumeration* it = 0;
   JSValue obj = JS_UNDEFINED;
@@ -112,7 +112,7 @@ fail:
 }
 
 static JSValue
-js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   TreeWalker* w;
   DynBuf dbuf;
   JSValue ret;
@@ -151,7 +151,7 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValu
 }
 
 static JSValue
-js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic) {
+js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   TreeWalker* w;
   PropertyEnumeration* it;
 
@@ -292,7 +292,7 @@ js_tree_walker_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
 }
 
 static JSValue
-js_tree_walker_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_tree_walker_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   TreeWalker* w;
   JSValue obj;
 
@@ -324,7 +324,7 @@ js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static JSValue
-js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
   PropertyEnumeration* it = 0;
   JSValue obj = JS_UNDEFINED;
@@ -360,7 +360,7 @@ fail:
 }
 
 JSValue
-js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
+js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   PropertyEnumeration* it;
   TreeWalker* w;
   enum tree_iterator_return r;

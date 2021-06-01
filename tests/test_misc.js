@@ -3,6 +3,8 @@ import * as std from 'std';
 import { Console } from 'console';
 import { Location } from 'misc';
 import { extendArray } from 'util';
+import * as misc from 'misc';
+import * as fs from 'fs';
 
 ('use strict');
 ('use math');
@@ -30,6 +32,15 @@ function main(...args) {
   console.log('loc2', loc2);
 
   console.log('loc.toString()', loc.toString());
+
+let f = fs.readFileSync('/home/roman/Downloads/GBC_ROMS/SpongeBob SquarePants - Legend of the Lost Spatula (U).gbc', null);
+let b = f.slice(0,1024) ?? misc.toArrayBuffer("TEST DATA");
+let s = misc.btoa(b);
+  console.log('b', b);
+
+  console.log('misc.toArrayBuffer()',b );
+  console.log('misc.btoa()', s);
+  console.log('misc.atob()', misc.atob(s));
   std.gc();
 }
 

@@ -46,7 +46,7 @@ js_child_process_wrap(JSContext* ctx, ChildProcess* cp) {
 }
 
 static JSValue
-js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst* argv) {
+js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
   JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED;
 
@@ -81,14 +81,14 @@ js_child_process_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static JSValue
-js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
 
   return ret;
 }
 
 static JSValue
-js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   ChildProcess* cp;
 
@@ -237,7 +237,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
   JSValue ret = JS_UNDEFINED;
 
@@ -251,7 +251,7 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 static JSValue
-js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
+js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
   JSValue ret = JS_UNDEFINED;
   int32_t signum = SIGTERM;

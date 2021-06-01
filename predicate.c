@@ -21,7 +21,7 @@ utf8_to_unicode(const char* str, size_t len, Vector* out) {
 }
 
 int
-predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
+predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst argv[]) {
   int ret = 0;
 
   switch(pr->id) {
@@ -171,7 +171,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst* argv) {
 }
 
 int
-predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst* argv) {
+predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst argv[]) {
   Predicate* pred;
 
   if((pred = JS_GetOpaque(value, js_predicate_class_id)))
