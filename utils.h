@@ -29,6 +29,12 @@
       .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}}                                   \
     }                                                                                                                  \
   }
+#define JS_CFUNC_DEF_FLAGS(prop_name, length, func1, flags)                                                            \
+  {                                                                                                                    \
+    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {                               \
+      .func = {length, JS_CFUNC_generic, {.generic = func1}}                                                           \
+    }                                                                                                                  \
+  }
 
 #if defined(_WIN32) || defined(__MINGW32__)
 #define VISIBLE __declspec(dllexport)
@@ -569,9 +575,10 @@ const char* js_value_type_name(int32_t type);
 
 const char* js_value_typestr(JSContext* ctx, JSValueConst value);
 
-VISIBLE void* js_value_get_ptr(JSValue v);
-VISIBLE int32_t js_value_get_tag(JSValue v);
-BOOL js_value_has_ref_count(JSValue v);
+VISIBLE void* js_value_get_ptr(JSValueConst v);
+VISIBLE JSObject* js_value_get_obj(JSValueConst v);
+VISIBLE int32_t js_value_get_tag(JSValueConst v);
+BOOL js_value_has_ref_count(JSValueConst v);
 
 void js_value_free(JSContext* ctx, JSValue v);
 void js_value_free_rt(JSRuntime* rt, JSValue v);
@@ -807,6 +814,9 @@ const char* js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom);
 void js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color);
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
+const char* js_function_tostring(JSContext* ctx, JSValueConst value);
+BOOL js_function_isnative(JSContext* ctx, JSValueConst value);
+
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
 JSValue js_object_construct(JSContext* ctx, JSValueConst ctor);
@@ -843,11 +853,16 @@ uint64_t js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char*
 static inline void
 js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
   JSAtom inspect_symbol = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
-  JS_SetProperty(ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1));
+  JS_DefinePropertyValue(
+      ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   JS_FreeAtom(ctx, inspect_symbol);
 }
 
-int js_class_id(JSContext* ctx, int id);
+JSClassID js_class_id(JSContext* ctx, int id);
+JSClassID js_class_newid(void);
+JSClass* js_class_get(JSContext* ctx, JSClassID id);
+JSAtom js_class_atom(JSContext* ctx, JSClassID id);
+const char* js_class_name(JSContext* ctx, JSClassID id);
 
 static inline BOOL
 js_object_isclass(JSValue obj, int32_t class_id) {
@@ -902,5 +917,15 @@ JSValue js_module_name(JSContext*, JSValueConst);
 char* js_module_namestr(JSContext* ctx, JSValueConst value);
 
 JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]);
+
+static inline size_t
+js_arraybuffer_length(JSContext* ctx, JSValueConst buffer) {
+  uint8_t* ptr;
+  size_t len;
+
+  if(JS_GetArrayBuffer(ctx, &len, buffer))
+    return len;
+  return 0;
+}
 
 #endif /* defined(UTILS_H) */

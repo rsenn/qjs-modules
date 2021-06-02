@@ -447,7 +447,6 @@ typedef struct JSFunctionBytecode {
 #endif
 } JSFunctionBytecode;
 
-
 typedef struct JSProperty {
   union {
     JSValue value;      /* JS_PROP_NORMAL */
@@ -592,8 +591,12 @@ struct JSObject {
   /* byte sizes: 40/48/72 */
 };
 
+#ifndef SHORT_OPCODES
+#define SHORT_OPCODES 1
+#endif
+
 typedef enum OPCodeFormat {
-#define FMT(f) OP_FMT_ ## f,
+#define FMT(f) OP_FMT_##f,
 #define DEF(id, size, n_pop, n_push, f)
 #include "quickjs-opcode.h"
 #undef DEF
@@ -602,25 +605,30 @@ typedef enum OPCodeFormat {
 
 enum OPCodeEnum {
 #define FMT(f)
-#define DEF(id, size, n_pop, n_push, f) OP_ ## id,
+#define DEF(id, size, n_pop, n_push, f) OP_##id,
 #define def(id, size, n_pop, n_push, f)
 #include "quickjs-opcode.h"
 #undef def
 #undef DEF
 #undef FMT
-    OP_COUNT, /* excluding temporary opcodes */
-    /* temporary opcodes : overlap with the short opcodes */
-    OP_TEMP_START = OP_nop + 1,
-    OP___dummy = OP_TEMP_START - 1,
+  OP_COUNT, /* excluding temporary opcodes */
+  /* temporary opcodes : overlap with the short opcodes */
+  OP_TEMP_START = OP_nop + 1,
+  OP___dummy = OP_TEMP_START - 1,
 #define FMT(f)
 #define DEF(id, size, n_pop, n_push, f)
-#define def(id, size, n_pop, n_push, f) OP_ ## id,
+#define def(id, size, n_pop, n_push, f) OP_##id,
 #include "quickjs-opcode.h"
 #undef def
 #undef DEF
 #undef FMT
-    OP_TEMP_END,
+  OP_TEMP_END,
 };
+/* JSAtom support */
+
+#define JS_ATOM_TAG_INT (1U << 31)
+#define JS_ATOM_MAX_INT (JS_ATOM_TAG_INT - 1)
+#define JS_ATOM_MAX ((1U << 30) - 1)
 
 typedef struct StringBuffer {
   JSContext* ctx;
@@ -879,15 +887,181 @@ typedef struct JSMapIteratorData {
 } JSMapIteratorData;
 
 typedef struct JSOpCode {
-    uint8_t size; /* in bytes */
-    /* the opcodes remove n_pop items from the top of the stack, then
-       pushes n_push items */
-    uint8_t n_pop;
-    uint8_t n_push;
-    uint8_t fmt;
-    const char *name;
+  uint8_t size; /* in bytes */
+  /* the opcodes remove n_pop items from the top of the stack, then
+     pushes n_push items */
+  uint8_t n_pop;
+  uint8_t n_push;
+  uint8_t fmt;
+  const char* name;
 } JSOpCode;
 
-extern   const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];
+#if SHORT_OPCODES
+/* After the final compilation pass, short opcodes are used. Their
+   opcodes overlap with the temporary opcodes which cannot appear in
+   the final bytecode. Their description is after the temporary
+   opcodes in opcode_info[]. */
+#define short_opcode_info(op) opcode_info[(op) >= OP_TEMP_START ? (op) + (OP_TEMP_END - OP_TEMP_START) : (op)]
+#else
+#define short_opcode_info(op) opcode_info[op]
+#endif
 
+extern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];
+
+typedef struct JSParsePos {
+  int last_line_num;
+  int line_num;
+  BOOL got_lf;
+  const uint8_t* ptr;
+} JSParsePos;
+
+typedef struct JSResolveEntry {
+  JSModuleDef* module;
+  JSAtom name;
+} JSResolveEntry;
+
+typedef struct JSResolveState {
+  JSResolveEntry* array;
+  int size;
+  int count;
+} JSResolveState;
+
+typedef enum {
+  EXPORTED_NAME_AMBIGUOUS,
+  EXPORTED_NAME_NORMAL,
+  EXPORTED_NAME_NS,
+} ExportedNameEntryEnum;
+
+typedef struct ExportedNameEntry {
+  JSAtom export_name;
+  ExportedNameEntryEnum export_type;
+  union {
+    JSExportEntry* me;   /* using when the list is built */
+    JSVarRef* var_ref;   /* EXPORTED_NAME_NORMAL */
+    JSModuleDef* module; /* for EXPORTED_NAME_NS */
+  } u;
+} ExportedNameEntry;
+
+typedef struct GetExportNamesState {
+  JSModuleDef** modules;
+  int modules_size;
+  int modules_count;
+
+  ExportedNameEntry* exported_names;
+  int exported_names_size;
+  int exported_names_count;
+} GetExportNamesState;
+
+typedef struct CodeContext {
+  const uint8_t* bc_buf; /* code buffer */
+  int bc_len;            /* length of the code buffer */
+  int pos;               /* position past the matched code pattern */
+  int line_num;          /* last visited OP_line_num parameter or -1 */
+  int op;
+  int idx;
+  int label;
+  int val;
+  JSAtom atom;
+} CodeContext;
+
+typedef struct StackSizeState {
+  int bc_len;
+  int stack_len_max;
+  uint16_t* stack_level_tab;
+  int* pc_stack;
+  int pc_stack_len;
+  int pc_stack_size;
+} StackSizeState;
+
+typedef struct {
+  JSObject* obj;
+  uint32_t hash_next; /* -1 if no next entry */
+} JSObjectListEntry;
+
+/* XXX: reuse it to optimize weak references */
+typedef struct {
+  JSObjectListEntry* object_tab;
+  int object_count;
+  int object_size;
+  uint32_t* hash_table;
+  uint32_t hash_size;
+} JSObjectList;
+
+typedef enum BCTagEnum {
+  BC_TAG_NULL = 1,
+  BC_TAG_UNDEFINED,
+  BC_TAG_BOOL_FALSE,
+  BC_TAG_BOOL_TRUE,
+  BC_TAG_INT32,
+  BC_TAG_FLOAT64,
+  BC_TAG_STRING,
+  BC_TAG_OBJECT,
+  BC_TAG_ARRAY,
+  BC_TAG_BIG_INT,
+  BC_TAG_BIG_FLOAT,
+  BC_TAG_BIG_DECIMAL,
+  BC_TAG_TEMPLATE_OBJECT,
+  BC_TAG_FUNCTION_BYTECODE,
+  BC_TAG_MODULE,
+  BC_TAG_TYPED_ARRAY,
+  BC_TAG_ARRAY_BUFFER,
+  BC_TAG_SHARED_ARRAY_BUFFER,
+  BC_TAG_DATE,
+  BC_TAG_OBJECT_VALUE,
+  BC_TAG_OBJECT_REFERENCE,
+} BCTagEnum;
+
+#ifdef CONFIG_BIGNUM
+#define BC_BASE_VERSION 2
+#else
+#define BC_BASE_VERSION 1
+#endif
+#define BC_BE_VERSION 0x40
+#ifdef WORDS_BIGENDIAN
+#define BC_VERSION (BC_BASE_VERSION | BC_BE_VERSION)
+#else
+#define BC_VERSION BC_BASE_VERSION
+#endif
+
+typedef struct BCWriterState {
+  JSContext* ctx;
+  DynBuf dbuf;
+  BOOL byte_swap : 8;
+  BOOL allow_bytecode : 8;
+  BOOL allow_sab : 8;
+  BOOL allow_reference : 8;
+  uint32_t first_atom;
+  uint32_t* atom_to_idx;
+  int atom_to_idx_size;
+  JSAtom* idx_to_atom;
+  int idx_to_atom_count;
+  int idx_to_atom_size;
+  uint8_t** sab_tab;
+  int sab_tab_len;
+  int sab_tab_size;
+  /* list of referenced objects (used if allow_reference = TRUE) */
+  JSObjectList object_list;
+} BCWriterState;
+
+typedef struct BCReaderState {
+  JSContext* ctx;
+  const uint8_t *buf_start, *ptr, *buf_end;
+  uint32_t first_atom;
+  uint32_t idx_to_atom_count;
+  JSAtom* idx_to_atom;
+  int error_state;
+  BOOL allow_sab : 8;
+  BOOL allow_bytecode : 8;
+  BOOL is_rom_data : 8;
+  BOOL allow_reference : 8;
+  /* object references */
+  JSObject** objects;
+  int objects_count;
+  int objects_size;
+
+#ifdef DUMP_READ_OBJECT
+  const uint8_t* ptr_last;
+  int level;
+#endif
+} BCReaderState;
 #endif /* defined(QJS_MODULES_INTERNAL_H) */

@@ -252,9 +252,14 @@ static int
 js_object_getpropertynames(JSContext* ctx, union Vector* propenum_tab, JSValueConst obj, int flags) {
   int ret;
   JSPropertyEnum* tmp_tab;
-  uint32_t tmp_len;
+  uint32_t i, tmp_len;
   ret = JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, flags);
-  vector_put(propenum_tab, tmp_tab, sizeof(JSPropertyEnum) * tmp_len);
+
+  for(i = 0; i < tmp_len; i++) {
+    if(vector_find(propenum_tab, sizeof(JSPropertyEnum), &tmp_tab[i]) == -1)
+      vector_put(propenum_tab, &tmp_tab[i], sizeof(JSPropertyEnum));
+  }
+
   js_free(ctx, tmp_tab);
   return ret;
 }
@@ -310,6 +315,7 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
     /*   str = JS_ToCString(ctx, ret);
        JS_FreeValue(ctx, ret);*/
   }
+
   JS_FreeValue(ctx, inspect);
   return ret;
 }
@@ -399,7 +405,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   int break_len = opts->break_length; // inspect_screen_width();
   int column = dbuf_get_column(buf);
   JSValue proto;
-  break_len = (break_len+1)/3;
+  break_len = (break_len + 1) / 3;
   break_len *= 3;
 
   if(break_len > opts->break_length)
@@ -423,21 +429,32 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   if(str)
     js_cstring_free(ctx, str);
 
-  dbuf_printf(buf, " { byteLength: %zu [", size);
+  dbuf_putstr(buf, " {");
+  inspect_newline(buf, (opts->depth - depth) + 2);
+  dbuf_printf(buf, "byteLength: %zu [", size);
+  inspect_newline(buf, (opts->depth - depth) + 3);
+  break_len -= ((opts->depth - depth) + 3) * 2;
+  column = 0;
+
   for(i = 0; i < size; i++) {
     if(i == (size_t)opts->max_array_length)
       break;
-    if(column  + 3 >= break_len && opts->break_length != INT32_MAX) {
-      inspect_newline(buf, (opts->depth - depth) + 1);
+    if(column + 3 >= break_len && opts->break_length != INT32_MAX) {
+      inspect_newline(buf, (opts->depth - depth) + 3);
       column = 0;
-    } else {
-      column += 3;
     }
     dbuf_printf(buf, column ? " %02x" : "%02x", ptr[i]);
+    column += column ? 3 : 2;
   }
-  if(i < size)
+  if(i < size) {
+    inspect_newline(buf, (opts->depth - depth) + 3);
+
     dbuf_printf(buf, "... %zu more bytes", size - i);
-  dbuf_putstr(buf, " ] }");
+  }
+  inspect_newline(buf, (opts->depth - depth) + 2);
+  dbuf_putstr(buf, "]");
+  inspect_newline(buf, (opts->depth - depth) + 1);
+  dbuf_putstr(buf, "}");
   return 0;
 }
 
@@ -620,7 +637,13 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           return 0;
         }
 
-        if(!JS_IsUndefined(tmp)) {
+        if(JS_IsException(tmp)) {
+          JSValue exception = JS_GetException(ctx);
+
+          // dbuf_printf(buf, "exception: %s\n", JS_ToCString(ctx, exception));
+          // return 0;
+
+        } else if(!JS_IsUndefined(tmp)) {
           if(!JS_IsObject(tmp))
             return js_inspect_print(ctx, buf, tmp, opts, depth + 1);
 
@@ -825,13 +848,12 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
     }
 
     case JS_TAG_FUNCTION_BYTECODE: {
-dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED "[bytecode]" COLOR_NONE : "[bytecode]");
+      dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED "[bytecode]" COLOR_NONE : "[bytecode]");
       break;
     }
 
-
     case JS_TAG_MODULE: {
-dbuf_putstr(buf, opts->colors ? COLOR_LIGHTMARINE "[module]" COLOR_NONE : "[module]");
+      dbuf_putstr(buf, opts->colors ? COLOR_LIGHTMARINE "[module]" COLOR_NONE : "[module]");
       break;
     }
 

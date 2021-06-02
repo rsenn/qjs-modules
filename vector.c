@@ -56,6 +56,21 @@ vector_indexof(const Vector* vec, size_t elsz, void* ptr) {
   return ((size_t)vector_begin(vec) - (size_t)ptr) / elsz;
 }
 
+int32_t
+vector_find(const Vector* vec, size_t elsz, void* ptr) {
+  void* x;
+  int32_t i = 0;
+  if(vector_empty(vec))
+    return -1;
+
+  vector_foreach(vec, elsz, x) {
+    if(!memcmp(x, ptr, elsz))
+      return i;
+    i++;
+  }
+  return -1;
+}
+
 void
 vector_put(Vector* vec, const void* bytes, size_t len) {
   size_t pos;
@@ -122,7 +137,7 @@ vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* o
     }
   }
 }
-
+/*
 ssize_t
 vector_find(Vector* vec, size_t elsz, const void* ptr) {
   size_t i, j;
@@ -134,7 +149,7 @@ vector_find(Vector* vec, size_t elsz, const void* ptr) {
   }
   return -1;
 }
-
+*/
 int
 vector_copy(Vector* dst, const Vector* src) {
   dst->realloc_func = src->realloc_func;

@@ -69,6 +69,7 @@ int umult64(uint64_t a, uint64_t b, uint64_t* c);
 #endif
 
 int32_t vector_indexof(const Vector* vec, size_t elsz, void* ptr);
+int32_t vector_find(const Vector* vec, size_t elsz, void* ptr);
 void vector_put(Vector* vec, const void* bytes, size_t len);
 void vector_free(Vector* vec);
 void vector_printf(Vector* vec, const char*, ...);
@@ -214,7 +215,5 @@ vector_catlong(Vector* vec, long l, int radix) {
   size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
   vector_put(vec, buf, len);
 }
-
-ssize_t vector_find(Vector* vec, size_t elsz, const void* ptr);
 
 #endif /* defined(VECTOR_H) */

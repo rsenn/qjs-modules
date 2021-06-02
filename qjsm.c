@@ -298,13 +298,13 @@ jsm_find_module(JSContext* ctx, const char* module_name) {
 }
 
 JSModuleDef*
-jsm_load_moduleer_path(JSContext* ctx, const char* module_name, void* opaque) {
+jsm_load_module_path(JSContext* ctx, const char* module_name, void* opaque) {
   char *module, *filename = 0;
   JSModuleDef* ret = NULL;
   module = js_strdup(ctx, trim_dotslash(module_name));
   for(;;) {
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-      // printf("jsm_load_moduleer_path %s %s\n", trim_dotslash(module_name), trim_dotslash(module));
+      // printf("jsm_load_module_path %s %s\n", trim_dotslash(module_name), trim_dotslash(module));
       return ret;
     }
     if(!filename) {
@@ -333,7 +333,7 @@ jsm_load_moduleer_path(JSContext* ctx, const char* module_name, void* opaque) {
     break;
   }
   if(filename) {
-    // printf("jsm_load_moduleer_path %s %s\n", trim_dotslash(module_name), trim_dotslash(filename));
+    // printf("jsm_load_module_path %s %s\n", trim_dotslash(module_name), trim_dotslash(filename));
     ret = js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
   }
@@ -1011,7 +1011,7 @@ main(int argc, char** argv) {
   }
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, NULL, jsm_load_moduleer_path, NULL);
+  JS_SetModuleLoaderFunc(rt, NULL, jsm_load_module_path, NULL);
 
   if(dump_unhandled_promise_rejection) {
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, NULL);

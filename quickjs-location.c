@@ -350,9 +350,9 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
 
     location_ctor = JS_NewCFunction2(ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
     location_proto = JS_NewObject(ctx);
+
     JS_SetPropertyFunctionList(ctx, location_proto, js_location_funcs, countof(js_location_funcs));
     JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
-    js_set_inspect_method(ctx, location_proto, js_location_inspect);
     JS_SetClassProto(ctx, js_location_class_id, location_proto);
 
     js_set_inspect_method(ctx, location_proto, js_location_inspect);

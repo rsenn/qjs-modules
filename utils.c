@@ -864,9 +864,36 @@ js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop,
   JS_SetPropertyStr(ctx, obj, prop, value);
 }
 
-int
+JSClassID
 js_class_id(JSContext* ctx, int id) {
   return JS_GetRuntime(ctx)->class_array[id].class_id;
+}
+
+JSClassID
+js_class_newid(void) {
+  JSClassID id;
+  JS_NewClassID(&id);
+  return id;
+}
+
+JSClass*
+js_class_get(JSContext* ctx, JSClassID id) {
+  JSClass* ret = &ctx->rt->class_array[id];
+  return ret->class_id == id ? ret : 0;
+}
+
+JSAtom
+js_class_atom(JSContext* ctx, JSClassID id) {
+  JSAtom atom = 0;
+  if(id > 0 && id < ctx->rt->class_count)
+    atom = ctx->rt->class_array[id].class_name;
+  return atom;
+}
+
+const char*
+js_class_name(JSContext* ctx, JSClassID id) {
+  JSAtom atom = ctx->rt->class_array[id].class_name;
+  return JS_AtomToCString(ctx, atom);
 }
 
 const char*
@@ -875,6 +902,22 @@ js_object_tostring(JSContext* ctx, JSValueConst value) {
   const char* s = JS_ToCString(ctx, str);
   JS_FreeValue(ctx, str);
   return s;
+}
+
+const char*
+js_function_tostring(JSContext* ctx, JSValueConst value) {
+  JSValue str = js_value_tostring(ctx, "Function", value);
+  const char* s = JS_ToCString(ctx, str);
+  JS_FreeValue(ctx, str);
+  return s;
+}
+
+BOOL
+js_function_isnative(JSContext* ctx, JSValueConst value) {
+  const char* fn = js_function_tostring(ctx, value);
+  BOOL ret = !!strstr(fn, "\n    [native code]\n");
+  JS_FreeCString(ctx, fn);
+  return ret;
 }
 
 BOOL
@@ -1072,12 +1115,17 @@ js_value_typestr(JSContext* ctx, JSValueConst value) {
 }
 
 void*
-js_value_get_ptr(JSValue v) {
+js_value_get_ptr(JSValueConst v) {
   return JS_VALUE_GET_PTR(v);
 }
 
+JSObject*
+js_value_get_obj(JSValueConst v) {
+  return JS_VALUE_GET_TAG(v) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(v) : 0;
+}
+
 int32_t
-js_value_get_tag(JSValue v) {
+js_value_get_tag(JSValueConst v) {
   return JS_VALUE_GET_TAG(v);
 }
 
