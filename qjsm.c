@@ -285,7 +285,6 @@ jsm_find_module(JSContext* ctx, const char* module_name) {
     ret = jsm_find_module_ext(ctx, module_name, ".js");
   return ret;
 }
-
 char*
 jsm_normalize_module(JSContext* ctx, const char* base_name, const char* name, void* opaque) {
   size_t p;
@@ -352,7 +351,6 @@ jsm_module_loader_so(JSContext* ctx, const char* module_name) {
   } else {
     filename = (char*)module_name;
   }
-
   /* C module */
   hd = dlopen(filename, RTLD_NOW | RTLD_LOCAL);
   if(filename != module_name)
@@ -378,32 +376,18 @@ jsm_module_loader_so(JSContext* ctx, const char* module_name) {
   }
   return m;
 }
+
 JSModuleDef*
-jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
+jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   char *module, *filename = 0;
   JSModuleDef* ret = NULL;
-
   module = js_strdup(ctx, trim_dotslash(module_name));
-
-  /* printf("builtins ");
-   dump_vector(&builtins);*/
-#define is_builtin(module_name) (vector_finds(&builtins, (module_name)) != -1)
-
-  if(!strchr(module, '/')) {
-    printf("jsm_module_loader\x1b[1;48;5;27m(1)\x1b[0m %s %-40s -> %s\n",
-           is_builtin(module_name) ? "builtin" : "-     ",
-           module_name,
-           module);
-    if(/*is_builtin(module_name) && */(ret = jsm_module_find(ctx, module))) {
-      js_free(ctx, module);
+  for(;;) {
+    if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
+      printf("jsm_module_loader_path %s -> %s\n", trim_dotslash(module_name), trim_dotslash(module));
       return ret;
     }
-  }
-
-  for(;;) {
-    // if(filename) printf("jsm_module_loader\x1b[1;48;5;28m(2)\x1b[0m %-40s -> %s\n", module, filename);
-
-    if(!filename || access(filename, R_OK) != 0) {
+    if(!filename) {
       JSValue package = jsm_load_package_json(ctx, 0);
       if(!JS_IsNull(package)) {
         JSValue aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
@@ -1126,7 +1110,7 @@ main(int argc, char** argv) {
   }
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, jsm_normalize_module, jsm_module_loader, NULL);
+  JS_SetModuleLoaderFunc(rt, jsm_normalize_module, jsm_module_loader_path, NULL);
 
   if(dump_unhandled_promise_rejection) {
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, NULL);
@@ -1173,7 +1157,7 @@ main(int argc, char** argv) {
     jsm_builtin_compiled(fs);
     jsm_builtin_compiled(perf_hooks);
     jsm_builtin_compiled(process);
-    //jsm_builtin_compiled(repl);
+    // jsm_builtin_compiled(repl);
     jsm_builtin_compiled(require);
     jsm_builtin_compiled(util);
 
@@ -1181,7 +1165,6 @@ main(int argc, char** argv) {
 
     printf("compiled builtins: ");
     dump_vector(&builtins, num_native);
-
 
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
