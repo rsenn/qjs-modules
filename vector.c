@@ -71,6 +71,21 @@ vector_find(const Vector* vec, size_t elsz, void* ptr) {
   return -1;
 }
 
+int32_t
+vector_finds(const Vector* vec, const char* str) {
+  char** x;
+  int32_t i = 0;
+  if(vector_empty(vec))
+    return -1;
+
+  vector_foreach_t(vec, x) {
+    if(!strcmp(*x, str))
+      return i;
+    i++;
+  }
+  return -1;
+}
+
 void
 vector_put(Vector* vec, const void* bytes, size_t len) {
   size_t pos;

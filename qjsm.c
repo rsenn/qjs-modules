@@ -61,38 +61,26 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-extern const uint8_t qjsc_repl[];
-extern const uint32_t qjsc_repl_size;
-extern const uint8_t qjsc_console[];
-extern const uint32_t qjsc_console_size;
-extern const uint8_t qjsc_require[];
-extern const uint32_t qjsc_require_size;
-extern const uint8_t qjsc_fs[];
-extern const uint32_t qjsc_fs_size;
-extern const uint8_t qjsc_perf_hooks[];
-extern const uint32_t qjsc_perf_hooks_size;
-extern const uint8_t qjsc_process[];
-extern const uint32_t qjsc_process_size;
-extern const uint8_t qjsc_util[];
-extern const uint32_t qjsc_util_size;
+#define jsm_declare_module(name)                                                                                       \
+  extern const uint8_t qjsc_##name[];                                                                                  \
+  extern const uint32_t qjsc_##name##_size;                                                                            \
+  JSModuleDef* js_init_module_##name(JSContext*, const char*);
+
+jsm_declare_module(console);
+jsm_declare_module(fs);
+jsm_declare_module(perf_hooks);
+jsm_declare_module(process);
+jsm_declare_module(repl);
+jsm_declare_module(require);
+jsm_declare_module(util);
+
 #ifdef CONFIG_BIGNUM
-extern const uint8_t qjsc_qjscalc[];
-extern const uint32_t qjsc_qjscalc_size;
+jsm_declare_module(qjscalc);
 static int bignum_ext = 1;
 #endif
 
-JSModuleDef* js_init_module_child_process(JSContext*, const char*);
-JSModuleDef* js_init_module_deep(JSContext*, const char*);
-JSModuleDef* js_init_module_inspect(JSContext*, const char*);
-JSModuleDef* js_init_module_lexer(JSContext*, const char*);
-JSModuleDef* js_init_module_misc(JSContext*, const char*);
-JSModuleDef* js_init_module_mmap(JSContext*, const char*);
-JSModuleDef* js_init_module_path(JSContext*, const char*);
-JSModuleDef* js_init_module_pointer(JSContext*, const char*);
-JSModuleDef* js_init_module_predicate(JSContext*, const char*);
-JSModuleDef* js_init_module_repeater(JSContext*, const char*);
-JSModuleDef* js_init_module_tree_walker(JSContext*, const char*);
-JSModuleDef* js_init_module_xml(JSContext*, const char*);
+static Vector module_list = VECTOR_INIT();
+static Vector builtins = VECTOR_INIT();
 
 static JSValue
 jsm_load_package_json(JSContext* ctx, const char* filename) {
@@ -397,13 +385,21 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
   module = js_strdup(ctx, trim_dotslash(module_name));
 
-  // printf("jsm_module_loader\x1b[1;48;5;27m(1)\x1b[0m %-40s -> %s\n", module_name, module);
-  /*
-     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-       js_free(ctx, module);
-       return ret;
-     }
-   */
+  /* printf("builtins ");
+   dump_vector(&builtins);*/
+#define is_builtin(module_name) (vector_finds(&builtins, (module_name)) != -1)
+
+  if(!strchr(module, '/')) {
+    printf("jsm_module_loader\x1b[1;48;5;27m(1)\x1b[0m %s %-40s -> %s\n",
+           is_builtin(module_name) ? "builtin" : "-     ",
+           module_name,
+           module);
+    if(is_builtin(module_name) && (ret = jsm_module_find(ctx, module))) {
+      js_free(ctx, module);
+      return ret;
+    }
+  }
+
   for(;;) {
     // if(filename) printf("jsm_module_loader\x1b[1;48;5;28m(2)\x1b[0m %-40s -> %s\n", module, filename);
 
@@ -558,17 +554,15 @@ jsm_load_module(JSContext* ctx, const char* name) {
   return m;
 }
 
- 
-
-static 
-void jsm_list_modules(JSContext* ctx) {
-   struct list_head* el;
-   list_for_each(el, &ctx->loaded_modules) {
+static void
+jsm_list_modules(JSContext* ctx) {
+  struct list_head* el;
+  list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     const char *n, *str = JS_AtomToCString(ctx, m->module_name);
     size_t len = strlen(str);
 
-printf("Module '%s'\n", str);
+    printf("Module '%s'\n", str);
 
     JS_FreeCString(ctx, str);
   }
@@ -590,22 +584,6 @@ JS_NewCustomContext(JSRuntime* rt) {
   }
 #endif
 
-  #define jsm_init_module(name) js_init_module_ ## name(ctx, #name)
-    jsm_init_module(std);
-  jsm_init_module(os);
-  jsm_init_module(child_process);
-  jsm_init_module(deep);
-  jsm_init_module(inspect);
-  jsm_init_module(lexer);
-  jsm_init_module(misc);
-  jsm_init_module(mmap);
-  jsm_init_module(path);
-  jsm_init_module(pointer);
-  jsm_init_module(predicate);
-  jsm_init_module(repeater);
-  jsm_init_module(tree_walker);
-  jsm_init_module(xml);
-
   return ctx;
 }
 
@@ -618,6 +596,18 @@ JS_NewCustomContext(JSRuntime* rt) {
 struct trace_malloc_data {
   uint8_t* base;
 };
+
+static void
+dump_vector(const Vector* vec, size_t start) {
+  size_t i, len = vector_size(vec, sizeof(char*));
+  for(i = start; i < len; i++) {
+    const char* str = *(char**)vector_at(vec, sizeof(char*), i);
+    fputs(i > start ? "',\n  '" : "[\n  '", stdout);
+    fputs(str, stdout);
+    if(i + 1 == len)
+      puts("'\n]");
+  }
+}
 
 static inline unsigned long long
 jsm_trace_malloc_ptr_offset(uint8_t* ptr, struct trace_malloc_data* dp) {
@@ -964,7 +954,6 @@ main(int argc, char** argv) {
 #endif
   size_t stack_size = 0;
   const char* exename;
-  Vector module_list = VECTOR_INIT();
 
   {
     const char* p;
@@ -1151,27 +1140,63 @@ main(int argc, char** argv) {
 #endif
     js_std_add_helpers(ctx, argc - optind, argv + optind);
 
-    jsm_eval_binary(ctx, qjsc_fs, qjsc_fs_size, 0);
-    jsm_eval_binary(ctx, qjsc_perf_hooks, qjsc_perf_hooks_size, 0);
-    jsm_eval_binary(ctx, qjsc_process, qjsc_process_size, 0);
+    int num_native, num_compiled;
+
+#define jsm_builtin_native(name)                                                                                       \
+  js_init_module_##name(ctx, #name);                                                                                   \
+  vector_putptr(&builtins, #name)
+
+    jsm_builtin_native(std);
+    jsm_builtin_native(os);
+    jsm_builtin_native(child_process);
+    jsm_builtin_native(deep);
+    jsm_builtin_native(inspect);
+    jsm_builtin_native(lexer);
+    jsm_builtin_native(misc);
+    jsm_builtin_native(mmap);
+    jsm_builtin_native(path);
+    jsm_builtin_native(pointer);
+    jsm_builtin_native(predicate);
+    jsm_builtin_native(repeater);
+    jsm_builtin_native(tree_walker);
+    jsm_builtin_native(xml);
+    num_native = vector_size(&builtins, sizeof(char*));
+
+    printf("native builtins: ");
+    dump_vector(&builtins, 0);
+
+#define jsm_builtin_compiled(name)                                                                                     \
+  jsm_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                            \
+  vector_putptr(&builtins, #name)
+
+    jsm_builtin_compiled(console);
+    jsm_builtin_compiled(fs);
+    jsm_builtin_compiled(perf_hooks);
+    jsm_builtin_compiled(process);
+    jsm_builtin_compiled(repl);
+    jsm_builtin_compiled(require);
+    jsm_builtin_compiled(util);
+
+    num_compiled = vector_size(&builtins, sizeof(char*)) - num_native;
+
+    printf("compiled builtins: ");
+    dump_vector(&builtins, num_native);
+
+
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
       jsm_eval_str(ctx, str, "<input>", TRUE);
-    }
-    jsm_eval_binary(ctx, qjsc_util, qjsc_util_size, 0);
-    jsm_eval_binary(ctx, qjsc_console, qjsc_console_size, 0);
-    jsm_eval_binary(ctx, qjsc_require, qjsc_require_size, 0);
-    /*
-        {
-          const char* str = "import Console from 'console';\nglobalThis.console = new Console();\n";
-          jsm_eval_str(ctx, str, "<input>", TRUE);
-        }
-        jsm_eval_binary(ctx, qjsc_require, qjsc_require_size, 0);
+    } /*
+     {
+       const char* str = "import Console from 'console';\nglobalThis.console = new Console();\n";
+       jsm_eval_str(ctx, str, "<input>", TRUE);
+     }
+     jsm_eval_binary(ctx, qjsc_require, qjsc_require_size, 0);
 
-        {
-          const char* str = "import require from 'require';\nglobalThis.require = require;\n";
-          jsm_eval_str(ctx, str, "<input>", TRUE);
-        }*/
+     {
+       const char* str = "import require from 'require';\nglobalThis.require = require;\n";
+       jsm_eval_str(ctx, str, "<input>", TRUE);
+     }*/
 
     /* make 'std' and 'os' visible to non module code */
 

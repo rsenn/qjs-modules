@@ -70,6 +70,7 @@ int umult64(uint64_t a, uint64_t b, uint64_t* c);
 
 int32_t vector_indexof(const Vector* vec, size_t elsz, void* ptr);
 int32_t vector_find(const Vector* vec, size_t elsz, void* ptr);
+int32_t vector_finds(const Vector* vec, const char* str);
 void vector_put(Vector* vec, const void* bytes, size_t len);
 void vector_free(Vector* vec);
 void vector_printf(Vector* vec, const char*, ...);
