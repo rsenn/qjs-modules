@@ -35,6 +35,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <dlfcn.h>
 #include <time.h>
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
@@ -297,17 +298,116 @@ jsm_find_module(JSContext* ctx, const char* module_name) {
   return ret;
 }
 
+char*
+jsm_normalize_module(JSContext* ctx, const char* base_name, const char* name, void* opaque) {
+  size_t p;
+  const char* r;
+  DynBuf file = {0, 0, 0};
+  size_t n;
+  if(name[0] != '.')
+    return js_strdup(ctx, name);
+
+  js_dbuf_init(ctx, &file);
+
+  n = base_name[(p = str_rchr(base_name, '/'))] ? p : 0;
+
+  dbuf_put(&file, base_name, n);
+  dbuf_0(&file);
+
+  for(r = name;;) {
+    if(r[0] == '.' && r[1] == '/') {
+      r += 2;
+    } else if(r[0] == '.' && r[1] == '.' && r[2] == '/') {
+      /* remove the last path element of file, except if "." or ".." */
+      if(file.size == 0)
+        break;
+      if((p = byte_rchr(file.buf, file.size, '/')) < file.size)
+        p++;
+      else
+        p = 0;
+      if(!strcmp(&file.buf[p], ".") || !strcmp(&file.buf[p], ".."))
+        break;
+      if(p > 0)
+        p--;
+      file.size = p;
+      r += 3;
+    } else {
+      break;
+    }
+  }
+  if(file.size == 0)
+    dbuf_putc(&file, '.');
+
+  dbuf_putc(&file, '/');
+  dbuf_putstr(&file, r);
+  dbuf_0(&file);
+
+  // printf("jsm_normalize_module\x1b[1;48;5;27m(1)\x1b[0m %-40s %-40s -> %s\n", base_name, name, file.buf);
+
+  return file.buf;
+}
+static JSModuleDef*
+jsm_module_loader_so(JSContext* ctx, const char* module_name) {
+  JSModuleDef* m;
+  void* hd;
+  JSModuleDef* (*init)(JSContext*, const char*);
+  char* filename;
+
+  if(!strchr(module_name, '/')) {
+    /* must add a '/' so that the DLL is not searched in the
+       system library paths */
+    filename = js_malloc(ctx, strlen(module_name) + 2 + 1);
+    if(!filename)
+      return NULL;
+    strcpy(filename, "./");
+    strcpy(filename + 2, module_name);
+  } else {
+    filename = (char*)module_name;
+  }
+
+  /* C module */
+  hd = dlopen(filename, RTLD_NOW | RTLD_LOCAL);
+  if(filename != module_name)
+    js_free(ctx, filename);
+  if(!hd) {
+    JS_ThrowReferenceError(ctx, "could not load module filename '%s' as shared library: %s", module_name, dlerror());
+    goto fail;
+  }
+
+  init = dlsym(hd, "js_init_module");
+  if(!init) {
+    JS_ThrowReferenceError(ctx, "could not load module filename '%s': js_init_module not found", module_name);
+    goto fail;
+  }
+
+  m = init(ctx, module_name);
+  if(!m) {
+    JS_ThrowReferenceError(ctx, "could not load module filename '%s': initialization error", module_name);
+  fail:
+    if(hd)
+      dlclose(hd);
+    return NULL;
+  }
+  return m;
+}
 JSModuleDef*
-jsm_load_module_path(JSContext* ctx, const char* module_name, void* opaque) {
+jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char *module, *filename = 0;
   JSModuleDef* ret = NULL;
+
   module = js_strdup(ctx, trim_dotslash(module_name));
+
+  // printf("jsm_module_loader\x1b[1;48;5;27m(1)\x1b[0m %-40s -> %s\n", module_name, module);
+  /*
+     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
+       js_free(ctx, module);
+       return ret;
+     }
+   */
   for(;;) {
-    if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-      printf("jsm_load_module_path %s %s\n", trim_dotslash(module_name), trim_dotslash(module));
-      return ret;
-    }
-    if(!filename) {
+    // if(filename) printf("jsm_module_loader\x1b[1;48;5;28m(2)\x1b[0m %-40s -> %s\n", module, filename);
+
+    if(!filename || access(filename, R_OK) != 0) {
       JSValue package = jsm_load_package_json(ctx, 0);
       if(!JS_IsNull(package)) {
         JSValue aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
@@ -328,13 +428,22 @@ jsm_load_module_path(JSContext* ctx, const char* module_name, void* opaque) {
         }
       }
     }
-    if(!filename)
-      filename = module[0] == '/' ? js_strdup(ctx, module) : jsm_find_module(ctx, module);
+
+    if(!filename) {
+      if(strchr("./", module[0]))
+        filename = js_strdup(ctx, module);
+      else
+        filename = jsm_find_module(ctx, module);
+      continue;
+    }
+
     break;
   }
+
   if(filename) {
-    // printf("jsm_load_module_path %s %s\n", trim_dotslash(module_name), trim_dotslash(filename));
-    ret = js_module_loader(ctx, filename, opaque);
+    if(strcmp(trim_dotslash(module_name), trim_dotslash(filename)))
+      printf("jsm_module_loader\x1b[1;48;5;124m(3)\x1b[0m %-40s -> %s\n", module, filename);
+    ret = has_suffix(filename, ".so") ? jsm_module_loader_so(ctx, filename) : js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
   }
   js_free(ctx, module);
@@ -449,6 +558,22 @@ jsm_load_module(JSContext* ctx, const char* name) {
   return m;
 }
 
+ 
+
+static 
+void jsm_list_modules(JSContext* ctx) {
+   struct list_head* el;
+   list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    const char *n, *str = JS_AtomToCString(ctx, m->module_name);
+    size_t len = strlen(str);
+
+printf("Module '%s'\n", str);
+
+    JS_FreeCString(ctx, str);
+  }
+}
+
 /* also used to initialize the worker context */
 static JSContext*
 JS_NewCustomContext(JSRuntime* rt) {
@@ -464,21 +589,22 @@ JS_NewCustomContext(JSRuntime* rt) {
     JS_EnableBignumExt(ctx, TRUE);
   }
 #endif
-  /* system modules */
-  js_init_module_std(ctx, "std");
-  js_init_module_os(ctx, "os");
-  js_init_module_child_process(ctx, "child_process");
-  js_init_module_deep(ctx, "deep");
-  js_init_module_inspect(ctx, "inspect");
-  js_init_module_lexer(ctx, "lexer");
-  js_init_module_misc(ctx, "misc");
-  js_init_module_mmap(ctx, "mmap");
-  js_init_module_path(ctx, "path");
-  js_init_module_pointer(ctx, "pointer");
-  js_init_module_predicate(ctx, "predicate");
-  js_init_module_repeater(ctx, "repeater");
-  js_init_module_tree_walker(ctx, "tree_walker");
-  js_init_module_xml(ctx, "xml");
+
+  #define jsm_init_module(name) js_init_module_ ## name(ctx, #name)
+    jsm_init_module(std);
+  jsm_init_module(os);
+  jsm_init_module(child_process);
+  jsm_init_module(deep);
+  jsm_init_module(inspect);
+  jsm_init_module(lexer);
+  jsm_init_module(misc);
+  jsm_init_module(mmap);
+  jsm_init_module(path);
+  jsm_init_module(pointer);
+  jsm_init_module(predicate);
+  jsm_init_module(repeater);
+  jsm_init_module(tree_walker);
+  jsm_init_module(xml);
 
   return ctx;
 }
@@ -1011,7 +1137,7 @@ main(int argc, char** argv) {
   }
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, NULL, jsm_load_module_path, NULL);
+  JS_SetModuleLoaderFunc(rt, jsm_normalize_module, jsm_module_loader, NULL);
 
   if(dump_unhandled_promise_rejection) {
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, NULL);
@@ -1055,6 +1181,7 @@ main(int argc, char** argv) {
                         "= os;\nglobalThis.setTimeout = os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
       jsm_eval_str(ctx, str, "<input>", TRUE);
     }
+    jsm_list_modules(ctx);
 
     {
       char** name;

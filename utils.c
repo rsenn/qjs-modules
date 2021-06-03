@@ -1494,14 +1494,11 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   if(!ret) {
 
     JSObject* obj;
-    if((obj = js_value_get_obj(value)) && obj->class_id)
-      ret |= TRUE;
-  }
-
-  if(!ret) {
-    JSValue ctor = js_global_get(ctx, "ArrayBuffer");
-    ret = JS_IsInstanceOf(ctx, value, ctor);
-    JS_FreeValue(ctx, ctor);
+    if((obj = js_value_get_obj(value)) && obj->class_id) {
+      JSValue ctor = js_global_get(ctx, "ArrayBuffer");
+      ret = JS_IsInstanceOf(ctx, value, ctor);
+      JS_FreeValue(ctx, ctor);
+    }
   }
   return ret;
 }

@@ -73,6 +73,7 @@ int path_relative(const char* path, const char* relative_to, DynBuf* out);
 size_t path_root(const char* x, size_t n);
 size_t path_skip_component(const char* p, size_t len, size_t pos);
 size_t path_skip_separator(const char* p, size_t len, size_t pos);
+char* path_dirname(const char* path, DynBuf* dir);
 
 static inline size_t
 path_length(const char* s, size_t n) {

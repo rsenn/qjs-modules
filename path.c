@@ -558,3 +558,17 @@ path_skip_separator(const char* p, size_t len, size_t pos) {
   while(p < end && path_issep(*p)) ++p;
   return p - start;
 }
+
+char*
+path_dirname(const char* path, DynBuf* dir) {
+  size_t i = str_rchrs(path, "/\\", 2);
+  if(path == NULL || path[i] == '\0') {
+    dbuf_putstr(dir, ".");
+  } else {
+    /* remove trailing slashes */
+    while(i > 0 && path_issep(path[i - 1])) --i;
+    dbuf_put(dir, path, i);
+  }
+  dbuf_0(dir);
+  return dir->buf;
+}
