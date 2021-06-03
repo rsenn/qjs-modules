@@ -895,7 +895,10 @@ js_is_array(JSContext* ctx, JSValueConst value) {
 
 static inline BOOL
 js_is_basic_array(JSContext* ctx, JSValueConst value) {
-  return js_value_isclass(ctx, value, JS_CLASS_ARRAY);
+  JSValue ctor = js_global_get(ctx, "Array");
+  BOOL ret = JS_IsInstanceOf(ctx, value, ctor);
+  JS_FreeValue(ctx, ctor);
+  return ret;
 }
 
 BOOL js_is_input(JSContext* ctx, JSValueConst value);

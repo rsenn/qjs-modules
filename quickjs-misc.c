@@ -465,6 +465,7 @@ js_misc_get_bytecode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   return ret;
 }
+
 enum { ATOM_TO_STRING = 0, ATOM_TO_VALUE, VALUE_TO_ATOM };
 
 static JSValue

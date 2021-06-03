@@ -1487,7 +1487,23 @@ js_module_namestr(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
-  return js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) || js_object_is(ctx, value, "[object ArrayBuffer]");
+  BOOL ret = FALSE;
+  if(!ret)
+    ret |= js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
+  // if(!ret) ret |= js_object_is(ctx, value, "[object ArrayBuffer]");
+  if(!ret) {
+
+    JSObject* obj;
+    if((obj = js_value_get_obj(value)) && obj->class_id)
+      ret |= TRUE;
+  }
+
+  if(!ret) {
+    JSValue ctor = js_global_get(ctx, "ArrayBuffer");
+    ret = JS_IsInstanceOf(ctx, value, ctor);
+    JS_FreeValue(ctx, ctor);
+  }
+  return ret;
 }
 
 BOOL

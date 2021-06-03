@@ -297,11 +297,12 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
   JSValue inspect = JS_UNDEFINED;
   JSAtom prop;
 
-  if(JS_HasProperty(ctx, obj, inspect_custom_atom))
-    inspect = JS_GetProperty(ctx, obj, inspect_custom_atom);
-  else if(JS_HasProperty(ctx, obj, inspect_custom_atom_node))
-    inspect = JS_GetProperty(ctx, obj, inspect_custom_atom_node);
-
+  if(JS_VALUE_GET_OBJ(obj)->class_id) {
+    if(JS_HasProperty(ctx, obj, inspect_custom_atom))
+      inspect = JS_GetProperty(ctx, obj, inspect_custom_atom);
+    else if(JS_HasProperty(ctx, obj, inspect_custom_atom_node))
+      inspect = JS_GetProperty(ctx, obj, inspect_custom_atom_node);
+  }
   if(JS_IsFunction(ctx, inspect)) {
     JSValueConst args[2];
     inspect_options_t opts_nocustom;
@@ -627,6 +628,12 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       Vector propenum_tab;
       const char* s = 0;
       int compact = opts->compact;
+      JSObject* obj = JS_VALUE_GET_OBJ(value);
+
+      if(!obj->prop || !obj->shape) {
+        dbuf_printf(buf, "js_inspect_print Object prop = %p, shape = %p ", obj->prop, obj->shape);
+        return -1;
+      }
 
       if(opts->custom_inspect) {
         JSValue tmp = js_inspect_custom_call(ctx, value, opts, depth);
@@ -653,7 +660,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       }
 
       if(INSPECT_INT32T_INRANGE(opts->compact) && opts->compact > 0) {
-        int32_t deepest = property_enumeration_deepest(ctx, value);
+        int32_t deepest = 1;
+
+        if(!js_is_arraybuffer(ctx, value))
+          deepest = property_enumeration_deepest(ctx, value);
         const char* typestr = js_value_typestr(ctx, value);
         // printf("%s opts->compact = %d, deepest = %d, depth = %d\n", typestr ? typestr : "(null)", opts->compact,
         // deepest, depth);
@@ -694,7 +704,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         }
       }
 
-      if(!js_is_basic_array(ctx, value) && !is_function && !strncmp(s, "[object ", 8)) {
+      if(!JS_IsArray(ctx, value) && !is_function && !strncmp(s, "[object ", 8)) {
         const char* e = strchr(s, ']');
         size_t slen = e - (s + 8);
 

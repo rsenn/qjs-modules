@@ -304,7 +304,7 @@ jsm_load_module_path(JSContext* ctx, const char* module_name, void* opaque) {
   module = js_strdup(ctx, trim_dotslash(module_name));
   for(;;) {
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-      // printf("jsm_load_module_path %s %s\n", trim_dotslash(module_name), trim_dotslash(module));
+      printf("jsm_load_module_path %s %s\n", trim_dotslash(module_name), trim_dotslash(module));
       return ret;
     }
     if(!filename) {
