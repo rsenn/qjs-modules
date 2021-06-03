@@ -394,7 +394,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
            is_builtin(module_name) ? "builtin" : "-     ",
            module_name,
            module);
-    if(is_builtin(module_name) && (ret = jsm_module_find(ctx, module))) {
+    if(/*is_builtin(module_name) && */(ret = jsm_module_find(ctx, module))) {
       js_free(ctx, module);
       return ret;
     }
@@ -1173,7 +1173,7 @@ main(int argc, char** argv) {
     jsm_builtin_compiled(fs);
     jsm_builtin_compiled(perf_hooks);
     jsm_builtin_compiled(process);
-    jsm_builtin_compiled(repl);
+    //jsm_builtin_compiled(repl);
     jsm_builtin_compiled(require);
     jsm_builtin_compiled(util);
 
