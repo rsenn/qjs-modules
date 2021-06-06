@@ -27,6 +27,7 @@ void pointer_push(Pointer*, JSContext*, JSValueConst);
 Pointer* pointer_slice(Pointer*, JSContext*, int64_t, int64_t);
 void pointer_truncate(Pointer*, JSContext*, size_t);
 int pointer_from(Pointer* ptr, JSContext* ctx, JSValueConst value);
+Pointer* pointer_concat(Pointer* ptr, JSContext* ctx, JSValueConst arr);
 
 static inline Pointer*
 pointer_new(JSContext* ctx) {

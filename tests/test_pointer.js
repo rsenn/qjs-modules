@@ -45,7 +45,11 @@ function main(...args) {
   console.log('pointer.toString()):', pointer.toString());
   console.log('pointer.toArray()):', pointer.toArray());
   console.log('pointer.atoms', pointer.atoms);
- 
+  let pointer2 = Pointer.fromAtoms(pointer.atoms);
+  console.log('pointer2', pointer2);
+  console.log('[...pointer2]', [...pointer2]);
+  console.log('pointer2.concat(pointer)', pointer2.push('children').concat(pointer));
+
   for(let i = 0; i < pointer.length; i++)
   console.log(`pointer[${i}]`, pointer[i]);
 

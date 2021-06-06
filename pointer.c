@@ -270,3 +270,23 @@ pointer_from(Pointer* ptr, JSContext* ctx, JSValueConst value) {
 
   return 1;
 }
+
+Pointer*
+pointer_concat(Pointer* ptr, JSContext* ctx, JSValueConst arr) {
+  JSValue iterator;
+  Pointer* ret = pointer_new(ctx);
+  size_t i;
+  ret->n = ptr->n;
+  ret->atoms = js_realloc(ctx, ret->atoms, sizeof(JSAtom) * ret->n);
+
+  for(i = 0; i < ptr->n; i++) ret->atoms[i] = JS_DupAtom(ctx, ptr->atoms[i]);
+
+  iterator = js_iterator_new(ctx, arr);
+  for(;;) {
+    IteratorValue item = js_iterator_next(ctx, iterator);
+    if(item.done)
+      break;
+    pointer_push(ret, ctx, item.value);
+  }
+  return ret;
+}
