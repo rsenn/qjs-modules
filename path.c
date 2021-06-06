@@ -567,8 +567,8 @@ path_dirname(const char* path, DynBuf* dir) {
   } else {
     /* remove trailing slashes */
     while(i > 0 && path_issep(path[i - 1])) --i;
-    dbuf_put(dir, path, i);
+    dbuf_put(dir, (const uint8_t*)path, i);
   }
   dbuf_0(dir);
-  return dir->buf;
+  return (char*)dir->buf;
 }

@@ -15,8 +15,9 @@
 #include <math.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <threads.h>
 
-static JSAtom inspect_custom_atom, inspect_custom_atom_node;
+thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
@@ -180,7 +181,7 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
     for(pos = 0; pos < len; pos++) {
       JSValue item = JS_GetPropertyUint32(ctx, value, pos);
       prop_key_t key;
-      key.name = JS_ToCString(ctx, item);
+      key.name = JS_VALUE_GET_TAG(item) == JS_TAG_SYMBOL ? 0 : JS_ToCString(ctx, item);
       key.atom = JS_ValueToAtom(ctx, item);
       vector_push(&opts->hide_keys, key);
       JS_FreeValue(ctx, item);
@@ -782,8 +783,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
             if(idx)
               dbuf_put_colorstr(buf, strs[idx], COLOR_MARINE, opts->colors);
           } else if(JS_HasProperty(ctx, value, JS_ATOM_TAG_INT | pos)) {
-            if(compact || opts->break_length == INT32_MAX)
-              dbuf_putc(buf, ' ');
+            /*  if(compact || opts->break_length == INT32_MAX)
+                dbuf_putc(buf, ' ');*/
             js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
           }
           js_propertydescriptor_free(ctx, &desc);

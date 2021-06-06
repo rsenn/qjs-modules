@@ -7,11 +7,12 @@
 #include "property-enumeration.h"
 #include "quickjs.h"
 #include <string.h>
+#include <threads.h>
 
-VISIBLE JSClassID js_tree_walker_class_id;
-static JSValue tree_walker_proto, tree_walker_ctor;
-VISIBLE JSClassID js_tree_iterator_class_id;
-static JSValue tree_iterator_proto, tree_iterator_ctor;
+thread_local VISIBLE JSClassID js_tree_walker_class_id = 0;
+thread_local JSValue tree_walker_proto = {.tag = JS_TAG_UNDEFINED}, tree_walker_ctor = {.tag = JS_TAG_UNDEFINED};
+thread_local VISIBLE JSClassID js_tree_iterator_class_id = 0;
+thread_local JSValue tree_iterator_proto = {.tag = JS_TAG_UNDEFINED}, tree_iterator_ctor = {.tag = JS_TAG_UNDEFINED};
 
 enum tree_walker_methods {
   FIRST_CHILD = 0,

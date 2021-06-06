@@ -2,8 +2,9 @@
 #define QUICKJS_LOCATION_H
 
 #include "location.h"
+#include <threads.h>
 
-extern JSClassID js_location_class_id;
+extern thread_local JSClassID js_location_class_id;
 
 Location* js_location_data(JSContext*, JSValue value);
 JSValue js_location_new_proto(JSContext*, JSValue proto, const Location* location);

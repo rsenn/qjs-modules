@@ -525,7 +525,7 @@ js_atom_tovalue(JSContext* ctx, JSAtom atom) {
 }
 
 BOOL
-js_atom_is_index(JSContext* ctx, uint32_t* pval, JSAtom atom) {
+js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
   JSValue value;
   BOOL ret = FALSE;
   int64_t index;
@@ -542,14 +542,14 @@ js_atom_is_index(JSContext* ctx, uint32_t* pval, JSAtom atom) {
     ret = TRUE;
   } else if(JS_IsString(value)) {
     const char* s = JS_ToCString(ctx, value);
-    if(is_digit_char(s[0])) {
+    if(s[0] == '-' && is_digit_char(s[s[0] == '-'])) {
       index = atoi(s);
       ret = TRUE;
     }
     JS_FreeCString(ctx, s);
   }
 
-  if(ret == TRUE && index >= 0 && index <= UINT32_MAX)
+  if(ret == TRUE)
     *pval = index;
 
   return ret;
@@ -999,6 +999,16 @@ js_argv_free(JSContext* ctx, char** strv) {
 
   for(i = 0; strv[i]; i++) { js_free(ctx, strv[i]); }
   js_free(ctx, strv);
+}
+
+void
+js_argv_free_rt(JSRuntime* rt, char** strv) {
+  size_t i;
+  if(strv == 0)
+    return;
+
+  for(i = 0; strv[i]; i++) { js_free_rt(rt, strv[i]); }
+  js_free_rt(rt, strv);
 }
 
 JSValue

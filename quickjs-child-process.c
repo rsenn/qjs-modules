@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <signal.h>
 #endif
+#include <threads.h>
 
 enum {
   CHILD_PROCESS_FILE = 0,
@@ -28,8 +29,8 @@ enum {
 
 extern char** environ;
 
-VISIBLE JSClassID js_child_process_class_id = 0;
-static JSValue child_process_proto, child_process_ctor;
+thread_local VISIBLE JSClassID js_child_process_class_id = 0;
+thread_local JSValue child_process_proto = {.tag = JS_TAG_UNDEFINED}, child_process_ctor = {.tag = JS_TAG_UNDEFINED};
 
 ChildProcess*
 js_child_process_data(JSContext* ctx, JSValueConst value) {
@@ -72,11 +73,37 @@ fail:
   return JS_EXCEPTION;
 }
 
+static JSValue
+js_child_process_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  ChildProcess* cp;
+
+  if(!(cp = js_child_process_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  JSValue obj = JS_NewObjectProto(ctx, child_process_proto);
+
+  if(cp->file)
+    JS_DefinePropertyValueStr(ctx, obj, "file", JS_NewString(ctx, cp->file), JS_PROP_ENUMERABLE);
+  if(cp->cwd)
+    JS_DefinePropertyValueStr(ctx, obj, "cwd", JS_NewString(ctx, cp->cwd), JS_PROP_ENUMERABLE);
+
+  JS_DefinePropertyValueStr(ctx, obj, "args", js_argv_to_array(ctx, cp->args), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "env", js_argv_to_array(ctx, cp->env), JS_PROP_ENUMERABLE);
+
+  JS_DefinePropertyValueStr(ctx, obj, "pid", JS_NewUint32(ctx, cp->pid), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "exitcode", JS_NewInt32(ctx, cp->exitcode), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "termsig", JS_NewInt32(ctx, cp->termsig), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "uid", JS_NewUint32(ctx, cp->uid), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "gid", JS_NewUint32(ctx, cp->gid), JS_PROP_ENUMERABLE);
+
+  return obj;
+}
+
 static void
 js_child_process_finalizer(JSRuntime* rt, JSValue val) {
   ChildProcess* cp = JS_GetOpaque(val, js_child_process_class_id);
   if(cp) {
-    // js_free_rt(rt, cp);
+    child_process_free_rt(cp, rt);
   }
 }
 
@@ -240,12 +267,15 @@ static JSValue
 js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
   JSValue ret = JS_UNDEFINED;
+  int32_t flags = 0;
 
   if(!(cp = js_child_process_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  // if(cp->exitcode == -1 && cp->termsig == -1)
-  ret = JS_NewInt32(ctx, child_process_wait(cp));
+  if(argc >= 1)
+    JS_ToInt32(ctx, &flags, argv[0]);
+
+  ret = JS_NewInt32(ctx, child_process_wait(cp, flags));
 
   return ret;
 }
@@ -292,6 +322,9 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
 static const JSCFunctionListEntry js_child_process_funcs[] = {
     JS_CFUNC_DEF("exec", 1, js_child_process_exec),
     JS_CFUNC_DEF("spawn", 1, js_child_process_spawn),
+    JS_PROP_INT32_DEF("WNOHANG", WNOHANG, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("WNOWAIT", WNOWAIT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("WUNTRACED", WUNTRACED, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGHUP", SIGHUP, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGINT", SIGINT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGQUIT", SIGQUIT, JS_PROP_ENUMERABLE),
@@ -342,6 +375,7 @@ js_child_process_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, child_process_ctor, child_process_proto);
   JS_SetPropertyFunctionList(ctx, child_process_ctor, js_child_process_funcs, countof(js_child_process_funcs));
+  js_set_inspect_method(ctx, child_process_proto, js_child_process_inspect);
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_child_process_funcs, countof(js_child_process_funcs));

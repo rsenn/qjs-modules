@@ -86,15 +86,16 @@ vector_finds(const Vector* vec, const char* str) {
   return -1;
 }
 
-void
+void*
 vector_put(Vector* vec, const void* bytes, size_t len) {
   size_t pos;
   if(!len)
-    return;
+    return 0;
   pos = vec->size;
   if(!vector_allocate(vec, 1, vec->size + len - 1))
-    return;
+    return 0;
   memcpy(vec->data + pos, bytes, len);
+  return vec->data + pos;
 }
 
 void __attribute__((format(printf, 2, 3))) vector_printf(Vector* vec, const char* fmt, ...) {

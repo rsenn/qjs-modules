@@ -11,9 +11,10 @@
 #include "quickjs-predicate.h"
 
 #include <stdint.h>
+#include <threads.h>
 
-VISIBLE JSClassID js_deep_iterator_class_id = 0;
-static JSValue deep_iterator_proto, deep_iterator_ctor;
+thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
+thread_local JSValue deep_iterator_proto = {.tag = JS_TAG_UNDEFINED}, deep_iterator_ctor = {.tag = JS_TAG_UNDEFINED};
 
 typedef struct DeepIterator {
   JSValue root;

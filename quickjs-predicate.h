@@ -2,8 +2,9 @@
 #define QUICKJS_PREDICATE_H
 
 #include "predicate.h"
+#include <threads.h>
 
-extern JSClassID js_predicate_class_id;
+extern VISIBLE thread_local JSClassID js_predicate_class_id;
 
 Predicate* js_predicate_data(JSContext* ctx, JSValueConst value);
 JSValue js_predicate_wrap(JSContext*, Predicate);

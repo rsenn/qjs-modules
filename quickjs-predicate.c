@@ -3,10 +3,10 @@
 #endif
 
 #include "quickjs.h"
-#include "predicate.h"
+#include "quickjs-predicate.h"
 
-VISIBLE JSClassID js_predicate_class_id = 0;
-static JSValue predicate_proto, predicate_ctor;
+thread_local VISIBLE JSClassID js_predicate_class_id = 0;
+thread_local JSValue predicate_proto = {.tag = JS_TAG_UNDEFINED}, predicate_ctor = {.tag = JS_TAG_UNDEFINED};
 
 enum { METHOD_EVAL = 0, METHOD_TOSTRING };
 

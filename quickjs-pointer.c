@@ -5,9 +5,10 @@
 #include "quickjs-pointer.h"
 #include "utils.h"
 #include <string.h>
+#include <threads.h>
 
-VISIBLE JSClassID js_pointer_class_id = 0;
-static JSValue pointer_proto, pointer_ctor;
+thread_local VISIBLE JSClassID js_pointer_class_id = 0;
+thread_local JSValue pointer_proto = {.tag = JS_TAG_UNDEFINED}, pointer_ctor = {.tag = JS_TAG_UNDEFINED};
 
 enum {
   METHOD_DEREF = 0,
@@ -359,10 +360,13 @@ js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValue
   Pointer* pointer = js_pointer_data2(ctx, obj);
 
   JSValue value = JS_UNDEFINED;
-  uint32_t index;
+  int64_t index;
 
   if(js_atom_is_index(ctx, &index, prop)) {
-    if(index < pointer->n) {
+    if(index < 0)
+      index = ((index % pointer->n) + pointer->n) % pointer->n;
+
+    if(index < (int64_t)pointer->n) {
       JSAtom key = pointer->atoms[index];
       value = (key & (1U << 31)) ? JS_NewUint32(ctx, key & (~(1U << 31))) : JS_AtomToValue(ctx, key);
 
@@ -409,10 +413,13 @@ js_pointer_get_own_property_names(JSContext* ctx, JSPropertyEnum** ptab, uint32_
 static int
 js_pointer_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
-  uint32_t index;
+  int64_t index;
 
   if(js_atom_is_index(ctx, &index, prop)) {
-    if(index < pointer->n)
+    if(index < 0)
+      index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
+
+    if(index < (int64_t)pointer->n)
       return TRUE;
   } else if(js_atom_is_length(ctx, prop)) {
     return TRUE;
@@ -429,11 +436,14 @@ static JSValue
 js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst receiver) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
   JSValue value = JS_UNDEFINED;
-  uint32_t index;
+  int64_t index;
   int32_t entry;
 
   if(js_atom_is_index(ctx, &index, prop)) {
-    if(index < pointer->n) {
+    if(index < 0)
+      index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
+
+    if(index < (int64_t)pointer->n) {
       JSAtom key = pointer->atoms[index];
       value = (key & (1U << 31)) ? JS_NewUint32(ctx, key & (~(1U << 31))) : JS_AtomToValue(ctx, key);
     }
@@ -458,12 +468,15 @@ static int
 js_pointer_set_property(
     JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
-  uint32_t index;
+  int64_t index;
 
   if(js_atom_is_index(ctx, &index, prop)) {
-    if(index == pointer->n)
+    if(index < 0)
+      index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
+
+    if(index == (int64_t)pointer->n)
       pointer_push(pointer, ctx, value);
-    else if(index < pointer->n)
+    else if(index < (int64_t)pointer->n)
       pointer->atoms[index] = JS_ValueToAtom(ctx, value);
     return TRUE;
   }

@@ -2,8 +2,9 @@
 #define QUICKJS_POINTER_H
 
 #include "pointer.h"
+#include <threads.h>
 
-extern JSClassID js_pointer_class_id;
+extern thread_local JSClassID js_pointer_class_id;
 
 static inline Pointer*
 js_pointer_data2(JSContext* ctx, JSValueConst value) {

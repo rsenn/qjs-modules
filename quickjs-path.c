@@ -7,11 +7,12 @@
 
 #include <limits.h>
 #include <string.h>
+#include <threads.h>
 
 #include "path.h"
 #include "utils.h"
 
-static JSValue path_object;
+thread_local JSValue path_object = {.tag = JS_TAG_UNDEFINED};
 
 enum path_methods {
   METHOD_ABSOLUTE = 0,

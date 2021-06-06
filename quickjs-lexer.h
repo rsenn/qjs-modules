@@ -3,6 +3,7 @@
 
 #include "lexer.h"
 #include "list.h"
+#include <threads.h>
 
 typedef struct {
   Location loc;
@@ -21,7 +22,7 @@ typedef struct {
   Lexer* lexer;
 } Token;
 
-extern JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;
+extern thread_local JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;
 
 JSValue js_lexer_new(JSContext* ctx, JSValue proto, JSValueConst in, JSValue mode);
 JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);

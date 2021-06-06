@@ -4,9 +4,10 @@
 
 #include "utils.h"
 #include <string.h>
+#include <threads.h>
 
-VISIBLE JSClassID js_repeater_class_id = 0;
-static JSValue repeater_proto, repeater_ctor;
+thread_local VISIBLE JSClassID js_repeater_class_id = 0;
+thread_local JSValue repeater_proto = {.tag = JS_TAG_UNDEFINED}, repeater_ctor = {.tag = JS_TAG_UNDEFINED};
 
 enum repeater_functions { STATIC_RACE = 0, STATIC_MERGE, STATIC_ZIP };
 enum repeater_getters { PROP_LENGTH = 0, PROP_PATH };

@@ -10,6 +10,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdint.h>
+#include <threads.h>
 
 enum {
   LEXER_METHOD_SET_INPUT = 0,
@@ -52,10 +53,10 @@ typedef struct {
   BOOL skip;
 } JSLexerRule;
 
-VISIBLE JSClassID js_syntaxerror_class_id = 0, js_token_class_id = 0, js_lexer_class_id = 0;
-static JSValue syntaxerror_proto, syntaxerror_ctor;
-static JSValue token_proto, token_ctor;
-static JSValue lexer_proto, lexer_ctor;
+thread_local VISIBLE JSClassID js_syntaxerror_class_id = 0, js_token_class_id = 0, js_lexer_class_id = 0;
+thread_local JSValue syntaxerror_proto = {.tag = JS_TAG_UNDEFINED}, syntaxerror_ctor = {.tag = JS_TAG_UNDEFINED};
+thread_local JSValue token_proto = {.tag = JS_TAG_UNDEFINED}, token_ctor = {.tag = JS_TAG_UNDEFINED};
+thread_local JSValue lexer_proto = {.tag = JS_TAG_UNDEFINED}, lexer_ctor = {.tag = JS_TAG_UNDEFINED};
 
 static JSValue
 js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {

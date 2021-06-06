@@ -827,7 +827,7 @@ JSValue js_atom_tovalue(JSContext* ctx, JSAtom atom);
 unsigned int js_atom_tobinary(JSAtom atom);
 const char* js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom);
 void js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color);
-BOOL js_atom_is_index(JSContext* ctx, uint32_t* pval, JSAtom atom);
+BOOL js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom);
 BOOL js_atom_is_length(JSContext* ctx, JSAtom atom);
 
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);
@@ -930,6 +930,7 @@ size_t js_argv_length(char** strv);
 char** js_argv_dup(JSContext* ctx, char** strv);
 
 void js_argv_free(JSContext* ctx, char** strv);
+void js_argv_free_rt(JSRuntime* rt, char** strv);
 JSValue js_argv_to_array(JSContext* ctx, char** strv);
 JSValue js_intv_to_array(JSContext* ctx, int* intv);
 char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);

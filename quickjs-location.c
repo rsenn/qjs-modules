@@ -4,11 +4,12 @@
 
 #include "quickjs-location.h"
 #include "utils.h"
+#include <threads.h>
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
-VISIBLE JSClassID js_location_class_id = 0;
-static JSValue location_proto, location_ctor;
+thread_local VISIBLE JSClassID js_location_class_id = 0;
+thread_local JSValue location_proto = {.tag = JS_TAG_UNDEFINED}, location_ctor = {.tag = JS_TAG_UNDEFINED};
 
 enum { LOCATION_PROP_LINE, LOCATION_PROP_COLUMN, LOCATION_PROP_POS, LOCATION_PROP_FILE };
 

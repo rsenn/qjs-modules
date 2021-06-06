@@ -37,14 +37,26 @@
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <time.h>
+#include <threads.h>
+#include <signal.h>
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
 #elif defined(__linux__)
 #include <malloc.h>
 #endif
 
-#ifdef HAVE_QUICKJS_CONFIG_H
+#if 1 //def HAVE_QUICKJS_CONFIG_H
 #include "quickjs-config.h"
+#endif
+
+#ifdef USE_WORKER
+#include <pthread.h>
+#include <stdatomic.h>
+
+static int atomic_add_int(int *ptr, int v)
+{
+    return atomic_fetch_add((_Atomic(uint32_t) *)ptr, v) + v;
+}
 #endif
 
 #include "cutils.h"
@@ -52,6 +64,10 @@
 #include "vector.h"
 #include "quickjs-libc.h"
 #include "quickjs-internal.h"
+
+thread_local uint64_t jsm_pending_signals = 0;
+
+void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 
 #ifdef HAVE_MALLOC_USABLE_SIZE
 #ifndef HAVE_MALLOC_USABLE_SIZE_DEFINITION
@@ -79,9 +95,140 @@ jsm_declare_module(qjscalc);
 static int bignum_ext = 1;
 #endif
 
+void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
+
 static Vector module_list = VECTOR_INIT();
 static Vector builtins = VECTOR_INIT();
 
+static int64_t jsm_time_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000);
+}
+
+ int jsm_interrupt_handler(JSRuntime *rt, void *opaque)
+{
+    return (jsm_pending_signals >> SIGINT) & 1;
+}
+
+
+void jsm_unlink_timer(JSRuntime *rt, JSOSTimer *th)
+{
+    if (th->link.prev) {
+        list_del(&th->link);
+        th->link.prev = th->link.next = NULL;
+    }
+}
+
+ void jsm_free_timer(JSRuntime *rt, JSOSTimer *th)
+{
+    JS_FreeValueRT(rt, th->func);
+    js_free_rt(rt, th);
+}
+
+  void jsm_call_handler(JSContext *ctx, JSValueConst func)
+{
+    JSValue ret, func1;
+    /* 'func' might be destroyed when calling itself (if it frees the
+       handler), so must take extra care */
+    func1 = JS_DupValue(ctx, func);
+    ret = JS_Call(ctx, func1, JS_UNDEFINED, 0, NULL);
+    JS_FreeValue(ctx, func1);
+    if (JS_IsException(ret))
+    jsm_std_dump_error(ctx, JS_GetException(ctx));
+    JS_FreeValue(ctx, ret);
+}
+
+ void jsm_sab_free(void *opaque, void *ptr)
+{
+    JSSABHeader *sab;
+    int ref_count;
+    sab = (JSSABHeader *)((uint8_t *)ptr - sizeof(JSSABHeader));
+    ref_count = atomic_add_int(&sab->ref_count, -1);
+    assert(ref_count >= 0);
+    if (ref_count == 0) {
+        free(sab);
+    }
+}
+
+  void jsm_free_message(JSWorkerMessage *msg)
+{
+    size_t i;
+    /* free the SAB */
+    for(i = 0; i < msg->sab_tab_len; i++) {
+        jsm_sab_free(NULL, msg->sab_tab[i]);
+    }
+    free(msg->sab_tab);
+    free(msg->data);
+    free(msg);
+}
+
+/* return 1 if a message was handled, 0 if no message */
+static int jsm_handle_posted_message(JSRuntime *rt, JSContext *ctx,
+                                 JSWorkerMessageHandler *port)
+{
+    JSWorkerMessagePipe *ps = port->recv_pipe;
+    int ret;
+    struct list_head *el;
+    JSWorkerMessage *msg;
+    JSValue obj, data_obj, func, retval;
+    
+    pthread_mutex_lock(&ps->mutex);
+    if (!list_empty(&ps->msg_queue)) {
+        el = ps->msg_queue.next;
+        msg = list_entry(el, JSWorkerMessage, link);
+
+        /* remove the message from the queue */
+        list_del(&msg->link);
+
+        if (list_empty(&ps->msg_queue)) {
+            uint8_t buf[16];
+            int ret;
+            for(;;) {
+                ret = read(ps->read_fd, buf, sizeof(buf));
+                if (ret >= 0)
+                    break;
+                if (errno != EAGAIN && errno != EINTR)
+                    break;
+            }
+        }
+
+        pthread_mutex_unlock(&ps->mutex);
+
+        data_obj = JS_ReadObject(ctx, msg->data, msg->data_len,
+                                 JS_READ_OBJ_SAB | JS_READ_OBJ_REFERENCE);
+
+        jsm_free_message(msg);
+        
+        if (JS_IsException(data_obj))
+            goto fail;
+        obj = JS_NewObject(ctx);
+        if (JS_IsException(obj)) {
+            JS_FreeValue(ctx, data_obj);
+            goto fail;
+        }
+        JS_DefinePropertyValueStr(ctx, obj, "data", data_obj, JS_PROP_C_W_E);
+
+        /* 'func' might be destroyed when calling itself (if it frees the
+           handler), so must take extra care */
+        func = JS_DupValue(ctx, port->on_message_func);
+        retval = JS_Call(ctx, func, JS_UNDEFINED, 1, (JSValueConst *)&obj);
+        JS_FreeValue(ctx, obj);
+        JS_FreeValue(ctx, func);
+        if (JS_IsException(retval)) {
+        fail:
+            js_std_dump_error(ctx);
+        } else {
+            JS_FreeValue(ctx, retval);
+        }
+        ret = 1;
+    } else {
+        pthread_mutex_unlock(&ps->mutex);
+        ret = 0;
+    }
+    return ret;
+}
 static JSValue
 jsm_load_package_json(JSContext* ctx, const char* filename) {
   uint8_t* buf;
@@ -206,28 +353,7 @@ jsm_std_dump_error(JSContext* ctx, JSValue exception_val) {
   JS_FreeValue(ctx, exception_val);
 }
 
-/* main loop which calls the user JS callbacks */
-void
-jsm_loop(JSContext* ctx) {
-  JSContext* ctx1;
-  int err;
 
-  for(;;) {
-    /* execute the pending jobs */
-    for(;;) {
-      err = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1);
-      if(err <= 0) {
-        if(err < 0) {
-          jsm_std_dump_error(ctx1, JS_GetException(ctx));
-        }
-        break;
-      }
-    }
-
-    /*if(!os_poll_func || os_poll_func(ctx))
-      break;*/
-  }
-}
 #include "quickjs.h"
 #include "quickjs-libc.h"
 #include <stdlib.h>
@@ -384,7 +510,7 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   module = js_strdup(ctx, trim_dotslash(module_name));
   for(;;) {
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-      // printf("jsm_module_loader_path %s -> %s\n", trim_dotslash(module_name), trim_dotslash(module));
+      //printf("jsm_module_loader_path[%x] %s -> %s\n", pthread_self(), trim_dotslash(module_name), trim_dotslash(module));
       return ret;
     }
     if(!filename) {
@@ -421,8 +547,7 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   }
 
   if(filename) {
-    // if(strcmp(trim_dotslash(module_name), trim_dotslash(filename)))
-    // printf("jsm_module_loader\x1b[1;48;5;124m(3)\x1b[0m %-40s -> %s\n", module, filename);
+    //if(strcmp(trim_dotslash(module_name), trim_dotslash(filename))) printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(3)\x1b[0m %-40s -> %s\n", pthread_self(), module, filename);
     ret = has_suffix(filename, ".so") ? jsm_module_loader_so(ctx, filename) : js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
   }
@@ -552,7 +677,7 @@ jsm_list_modules(JSContext* ctx) {
 
 /* also used to initialize the worker context */
 static JSContext*
-JS_NewCustomContext(JSRuntime* rt) {
+jsm_context_new(JSRuntime* rt) {
   JSContext* ctx;
   ctx = JS_NewContext(rt);
   if(!ctx)
@@ -566,7 +691,167 @@ JS_NewCustomContext(JSRuntime* rt) {
   }
 #endif
 
+#define jsm_module_native(name) js_init_module_##name(ctx, #name);
+
+  jsm_module_native(std);
+  jsm_module_native(os);
+  jsm_module_native(child_process);
+  jsm_module_native(deep);
+  jsm_module_native(inspect);
+  jsm_module_native(lexer);
+  jsm_module_native(misc);
+  jsm_module_native(mmap);
+  jsm_module_native(path);
+  jsm_module_native(pointer);
+  jsm_module_native(predicate);
+  jsm_module_native(repeater);
+  jsm_module_native(tree_walker);
+  jsm_module_native(xml);
   return ctx;
+}
+
+static int
+jsm_os_poll(JSContext* ctx, uint32_t timeout) {
+  JSRuntime* rt = JS_GetRuntime(ctx);
+  JSThreadState* ts = JS_GetRuntimeOpaque(rt);
+  int ret, fd_max, min_delay;
+  int64_t cur_time, delay;
+  fd_set rfds, wfds;
+  JSOSRWHandler* rh;
+  struct list_head* el;
+  struct timeval tv, *tvp;
+
+  /* only check signals in the main thread */
+ /* if(!ts->recv_pipe && unlikely(jsm_pending_signals != 0)) {
+    JSOSSignalHandler* sh;
+    uint64_t mask;
+
+    list_for_each(el, &ts->os_signal_handlers) {
+      sh = list_entry(el, JSOSSignalHandler, link);
+      mask = (uint64_t)1 << sh->sig_num;
+      if(jsm_pending_signals & mask) {
+        jsm_pending_signals &= ~mask;
+        jsm_call_handler(ctx, sh->func);
+        return 0;
+      }
+    }
+  }*/
+
+  if(list_empty(&ts->os_rw_handlers) && list_empty(&ts->os_timers) && list_empty(&ts->port_list))
+    return -1; /* no more events */
+
+  if(!list_empty(&ts->os_timers)) {
+    cur_time = jsm_time_ms();
+    min_delay = 10000;
+    list_for_each(el, &ts->os_timers) {
+      JSOSTimer* th = list_entry(el, JSOSTimer, link);
+      delay = th->timeout - cur_time;
+      if(delay <= 0) {
+        JSValue func;
+        /* the timer expired */
+        func = th->func;
+        th->func = JS_UNDEFINED;
+        jsm_unlink_timer(rt, th);
+        if(!th->has_object)
+          jsm_free_timer(rt, th);
+        jsm_call_handler(ctx, func);
+        JS_FreeValue(ctx, func);
+        return 0;
+      } else if(delay < min_delay) {
+        min_delay = delay;
+      }
+    }
+    tv.tv_sec = min_delay / 1000;
+    tv.tv_usec = (min_delay % 1000) * 1000;
+    tvp = &tv;
+  } else {
+    if(timeout) {
+      tv.tv_sec = timeout / 1000;
+      tv.tv_usec = (timeout % 1000) * 1000;
+      tvp = &tv;
+    } else {
+      tvp = NULL;
+    }
+  }
+
+  FD_ZERO(&rfds);
+  FD_ZERO(&wfds);
+  fd_max = -1;
+  list_for_each(el, &ts->os_rw_handlers) {
+    rh = list_entry(el, JSOSRWHandler, link);
+    fd_max = max_int(fd_max, rh->fd);
+    if(!JS_IsNull(rh->rw_func[0]))
+      FD_SET(rh->fd, &rfds);
+    if(!JS_IsNull(rh->rw_func[1]))
+      FD_SET(rh->fd, &wfds);
+  }
+
+  list_for_each(el, &ts->port_list) {
+    JSWorkerMessageHandler* port = list_entry(el, JSWorkerMessageHandler, link);
+    if(!JS_IsNull(port->on_message_func)) {
+      JSWorkerMessagePipe* ps = port->recv_pipe;
+      fd_max = max_int(fd_max, ps->read_fd);
+      FD_SET(ps->read_fd, &rfds);
+    }
+  }
+
+  ret = select(fd_max + 1, &rfds, &wfds, NULL, tvp);
+  if(ret > 0) {
+    list_for_each(el, &ts->os_rw_handlers) {
+      rh = list_entry(el, JSOSRWHandler, link);
+      if(!JS_IsNull(rh->rw_func[0]) && FD_ISSET(rh->fd, &rfds)) {
+        jsm_call_handler(ctx, rh->rw_func[0]);
+        /* must stop because the list may have been modified */
+        goto done;
+      }
+      if(!JS_IsNull(rh->rw_func[1]) && FD_ISSET(rh->fd, &wfds)) {
+        jsm_call_handler(ctx, rh->rw_func[1]);
+        /* must stop because the list may have been modified */
+        goto done;
+      }
+    }
+
+    list_for_each(el, &ts->port_list) {
+      JSWorkerMessageHandler* port = list_entry(el, JSWorkerMessageHandler, link);
+      if(!JS_IsNull(port->on_message_func)) {
+        JSWorkerMessagePipe* ps = port->recv_pipe;
+        if(FD_ISSET(ps->read_fd, &rfds)) {
+          if(jsm_handle_posted_message(rt, ctx, port))
+            goto done;
+        }
+      }
+    }
+  }
+done:
+  return 0;
+}
+
+
+/* main loop which calls the user JS callbacks */
+void
+jsm_std_loop(JSContext* ctx, uint32_t timeout) {
+  JSContext* ctx1;
+  int err;
+  uint64_t t = jsm_time_ms();
+
+  for(;;) {
+    /* execute the pending jobs */
+    for(;;) {
+      err = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1);
+      if(err <= 0) {
+        if(err < 0) {
+          jsm_std_dump_error(ctx1, JS_GetException(ctx));
+        }
+        break;
+      }
+    }
+
+    if(jsm_os_poll(ctx, timeout))
+      break;
+
+    if(timeout > 0 && jsm_time_ms() - t >= timeout)
+      break;
+  }
 }
 
 #if defined(__APPLE__)
@@ -937,6 +1222,8 @@ main(int argc, char** argv) {
   size_t stack_size = 0;
   const char* exename;
 
+  js_std_set_module_loader_func(jsm_module_loader_path);
+
   {
     const char* p;
     exename = argv[0];
@@ -1099,9 +1386,11 @@ main(int argc, char** argv) {
     JS_SetMemoryLimit(rt, memory_limit);
   // if (stack_size != 0)
   JS_SetMaxStackSize(rt, stack_size != 0 ? stack_size : 256 * 1048576);
-  js_std_set_worker_new_context_func(JS_NewCustomContext);
+
+  js_std_set_worker_new_context_func(jsm_context_new);
+
   js_std_init_handlers(rt);
-  ctx = JS_NewCustomContext(rt);
+  ctx = jsm_context_new(rt);
   if(!ctx) {
     fprintf(stderr, "%s: cannot allocate JS context\n", exename);
     exit(2);
@@ -1124,9 +1413,7 @@ main(int argc, char** argv) {
 
     int num_native, num_compiled;
 
-#define jsm_builtin_native(name)                                                                                       \
-  js_init_module_##name(ctx, #name);                                                                                   \
-  vector_putptr(&builtins, #name)
+#define jsm_builtin_native(name) vector_putptr(&builtins, #name)
 
     jsm_builtin_native(std);
     jsm_builtin_native(os);
@@ -1160,24 +1447,10 @@ main(int argc, char** argv) {
 
     num_compiled = vector_size(&builtins, sizeof(char*)) - num_native;
 
-    // printf("compiled builtins: "); dump_vector(&builtins, num_native);
-
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
       jsm_eval_str(ctx, str, "<input>", TRUE);
-    } /*
-     {
-       const char* str = "import Console from 'console';\nglobalThis.console = new Console();\n";
-       jsm_eval_str(ctx, str, "<input>", TRUE);
-     }
-     jsm_eval_binary(ctx, qjsc_require, qjsc_require_size, 0);
-
-     {
-       const char* str = "import require from 'require';\nglobalThis.require = require;\n";
-       jsm_eval_str(ctx, str, "<input>", TRUE);
-     }*/
-
-    /* make 'std' and 'os' visible to non module code */
+    }
 
     JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
     if(load_std) {
@@ -1185,7 +1458,8 @@ main(int argc, char** argv) {
                         "= os;\nglobalThis.setTimeout = os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
       jsm_eval_str(ctx, str, "<input>", TRUE);
     }
-    jsm_list_modules(ctx);
+
+    // jsm_list_modules(ctx);
 
     {
       char** name;
@@ -1220,7 +1494,7 @@ main(int argc, char** argv) {
     if(interactive) {
       jsm_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
     }
-    js_std_loop(ctx);
+    jsm_std_loop(ctx, 0);
   }
 
   {

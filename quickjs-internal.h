@@ -5,7 +5,7 @@
 #include <cutils.h>
 #include <quickjs.h>
 
-#ifdef HAVE_QUICKJS_CONFIG_H
+#if 1 // def HAVE_QUICKJS_CONFIG_H
 #include <quickjs-config.h>
 #endif
 #ifdef CONFIG_BIGNUM
@@ -1064,4 +1064,66 @@ typedef struct BCReaderState {
   int level;
 #endif
 } BCReaderState;
+
+typedef struct {
+  struct list_head link;
+  int fd;
+  JSValue rw_func[2];
+  ssize_t ipfd;
+} JSOSRWHandler;
+
+typedef struct {
+  struct list_head link;
+  int sig_num;
+  JSValue func;
+} JSOSSignalHandler;
+
+typedef struct {
+  struct list_head link;
+  BOOL has_object;
+  int64_t timeout;
+  JSValue func;
+} JSOSTimer;
+
+typedef struct {
+  struct list_head link;
+  uint8_t* data;
+  size_t data_len;
+  /* list of SharedArrayBuffers, necessary to free the message */
+  uint8_t** sab_tab;
+  size_t sab_tab_len;
+} JSWorkerMessage;
+
+typedef struct {
+  int ref_count;
+#ifdef USE_WORKER
+  pthread_mutex_t mutex;
+#endif
+  struct list_head msg_queue; /* list of JSWorkerMessage.link */
+  int read_fd;
+  int write_fd;
+  ssize_t ipfd;
+} JSWorkerMessagePipe;
+
+typedef struct {
+  struct list_head link;
+  JSWorkerMessagePipe* recv_pipe;
+  JSValue on_message_func;
+} JSWorkerMessageHandler;
+
+typedef struct JSThreadState {
+  struct list_head os_rw_handlers;     /* list of JSOSRWHandler.link */
+  struct list_head os_signal_handlers; /* list JSOSSignalHandler.link */
+  struct list_head os_timers;          /* list of JSOSTimer.link */
+  struct list_head port_list;          /* list of JSWorkerMessageHandler.link */
+  int eval_script_recurse;             /* only used in the main thread */
+  /* not used in the main thread */
+  JSWorkerMessagePipe *recv_pipe, *send_pipe;
+} JSThreadState;
+
+typedef struct {
+  int ref_count;
+  uint64_t buf[0];
+} JSSABHeader;
+
 #endif /* defined(QJS_MODULES_INTERNAL_H) */

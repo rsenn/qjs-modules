@@ -14,9 +14,33 @@
 #endif
 #include <errno.h>
 
+static struct list_head child_process_list = LIST_HEAD_INIT(child_process_list);
+
+void
+child_process_sigchld(int pid) {
+}
+
+ChildProcess*
+child_process_get(int pid) {
+  struct list_head* el;
+  list_for_each(el, &child_process_list) {
+    ChildProcess* cp = list_entry(el, ChildProcess, link);
+    if(cp->pid == pid)
+      return cp;
+  }
+  return 0;
+}
+
 ChildProcess*
 child_process_new(JSContext* ctx) {
-  return js_mallocz(ctx, sizeof(ChildProcess));
+  ChildProcess* child;
+  child = js_mallocz(ctx, sizeof(ChildProcess));
+  list_add_tail(&child->link, &child_process_list);
+  child->exitcode = -1;
+  child->termsig = -1;
+  child->stopsig = -1;
+  child->pid = -1;
+  return child;
 }
 
 char**
@@ -98,26 +122,23 @@ child_process_spawn(ChildProcess* cp) {
 }
 
 int
-child_process_wait(ChildProcess* cp) {
+child_process_wait(ChildProcess* cp, int flags) {
   int pid, status;
-  if((pid = waitpid(cp->pid, &status, 0)) == -1)
-    return 0;
 
-  cp->exitcode = -1;
-  cp->termsig = -1;
+  if((pid = waitpid(cp->pid, &status, flags)) != cp->pid)
+    return pid;
 
-  if(pid == cp->pid) {
-    if(WIFEXITED(status)) {
-      cp->exitcode = WEXITSTATUS(status);
-      return 1;
-    }
+  if(WIFEXITED(status))
+    cp->exitcode = WEXITSTATUS(status);
 
-    if(WIFSIGNALED(status)) {
-      cp->termsig = WTERMSIG(status);
-      return 1;
-    }
-  }
-  return 0;
+  if(WIFSIGNALED(status))
+    cp->termsig = WTERMSIG(status);
+  if(WIFSTOPPED(status))
+    cp->stopsig = WSTOPSIG(status);
+  if(WIFCONTINUED(status))
+    cp->stopsig = -1;
+
+  return pid;
 }
 
 int
@@ -134,4 +155,33 @@ child_process_kill(ChildProcess* cp, int signum) {
       cp->termsig = WTERMSIG(status);
   }
   return ret;
+}
+
+void
+child_process_free(ChildProcess* cp, JSContext* ctx) {
+  list_del(&cp->link);
+  if(cp->file)
+    js_free(ctx, cp->file);
+  if(cp->cwd)
+    js_free(ctx, cp->cwd);
+  if(cp->args)
+    js_argv_free(ctx, cp->args);
+  if(cp->env)
+    js_argv_free(ctx, cp->env);
+
+  js_free(ctx, cp);
+}
+void
+child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
+  list_del(&cp->link);
+  if(cp->file)
+    js_free_rt(rt, cp->file);
+  if(cp->cwd)
+    js_free_rt(rt, cp->cwd);
+  if(cp->args)
+    js_argv_free_rt(rt, cp->args);
+  if(cp->env)
+    js_argv_free_rt(rt, cp->env);
+
+  js_free_rt(rt, cp);
 }

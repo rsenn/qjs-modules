@@ -15,11 +15,6 @@ function WriteFile(file, data) {
   console.log('Wrote "' + file + '": ' + data.length + ' bytes');
 }
 
-function DumpChildProcess(cp) {
-  const { file, cwd, args, env, stdio, pid, exitcode, termsig } = cp;
-
-  console.log('ChildProcess', { file, cwd, args, env, stdio, pid, exitcode, termsig });
-}
 const inspectOptions = {
   colors: true,
   showHidden: false,
@@ -35,11 +30,11 @@ const inspectOptions = {
 
 function ReadChild(...args) {
   let cmd = args.shift();
-  let cp = child_process.spawn(cmd, args, { stdio: 'pipe' });
+  let child = child_process.spawn(cmd, args, { stdio: 'pipe' });
   let data = '';
-  DumpChildProcess(cp);
+  console.log('child', child);
 
-  let [stdin, stdout, stderr] = cp.stdio;
+  let [stdin, stdout, stderr] = child.stdio;
   console.log('stdio:', { stdin, stdout, stderr });
 
   let buf = new ArrayBuffer(4096);
@@ -47,12 +42,12 @@ function ReadChild(...args) {
 
   while((ret = os.read(stdout, buf, 0, buf.byteLength)) > 0) {
     let chunk = toString(buf.slice(0, ret));
-    console.log('chunk:', chunk);
+    // console.log('chunk:', chunk);
     data += chunk;
   }
-  cp.wait();
+  child.wait();
 
-  DumpChildProcess(cp);
+  console.log('child', child);
   return data;
 }
 
@@ -61,14 +56,14 @@ function main(...args) {
 
   let data = ReadChild('ls', '-la');
 
-  console.log('data:', data);
+  console.log('data:', data.slice(0, 100));
 
   data = ReadChild('lz4', '-9', '-f', '/etc/services', 'services.lz4');
 
-  console.log('data:', data);
+  console.log('data:', data.slice(0, 100));
   data = ReadChild('lz4', '-dc', 'services.lz4');
 
-  console.log('data:', data);
+  console.log('data:', data.slice(0, 100));
 }
 
 try {
