@@ -384,7 +384,7 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   module = js_strdup(ctx, trim_dotslash(module_name));
   for(;;) {
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-      printf("jsm_module_loader_path %s -> %s\n", trim_dotslash(module_name), trim_dotslash(module));
+      // printf("jsm_module_loader_path %s -> %s\n", trim_dotslash(module_name), trim_dotslash(module));
       return ret;
     }
     if(!filename) {
@@ -421,8 +421,8 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   }
 
   if(filename) {
-    if(strcmp(trim_dotslash(module_name), trim_dotslash(filename)))
-      printf("jsm_module_loader\x1b[1;48;5;124m(3)\x1b[0m %-40s -> %s\n", module, filename);
+    // if(strcmp(trim_dotslash(module_name), trim_dotslash(filename)))
+    // printf("jsm_module_loader\x1b[1;48;5;124m(3)\x1b[0m %-40s -> %s\n", module, filename);
     ret = has_suffix(filename, ".so") ? jsm_module_loader_so(ctx, filename) : js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
   }
@@ -545,8 +545,6 @@ jsm_list_modules(JSContext* ctx) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     const char *n, *str = JS_AtomToCString(ctx, m->module_name);
     size_t len = strlen(str);
-
-    printf("Module '%s'\n", str);
 
     JS_FreeCString(ctx, str);
   }
@@ -1146,8 +1144,7 @@ main(int argc, char** argv) {
     jsm_builtin_native(xml);
     num_native = vector_size(&builtins, sizeof(char*));
 
-    printf("native builtins: ");
-    dump_vector(&builtins, 0);
+    // printf("native builtins: "); dump_vector(&builtins, 0);
 
 #define jsm_builtin_compiled(name)                                                                                     \
   jsm_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                            \
@@ -1163,8 +1160,7 @@ main(int argc, char** argv) {
 
     num_compiled = vector_size(&builtins, sizeof(char*)) - num_native;
 
-    printf("compiled builtins: ");
-    dump_vector(&builtins, num_native);
+    // printf("compiled builtins: "); dump_vector(&builtins, num_native);
 
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";

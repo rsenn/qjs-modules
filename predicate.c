@@ -7,6 +7,9 @@
 #include "quickjs-predicate.h"
 #include "cutils.h"
 
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
 static size_t
 utf8_to_unicode(const char* str, size_t len, Vector* out) {
   const uint8_t *p, *next, *end;
@@ -165,6 +168,13 @@ predicate_eval(Predicate* pr, JSContext* ctx, int argc, JSValueConst argv[]) {
       }
       break;
     }
+    case PREDICATE_SHIFT: {
+      int shift = min(argc, pr->shift.n);
+
+      if(pr->shift.n < argc)
+        ret = predicate_call(ctx, pr->shift.predicate, argc - shift, argv + shift);
+      break;
+    }
     default: assert(0); break;
   }
   return ret;
@@ -209,6 +219,7 @@ predicate_typename(const Predicate* pr) {
                           "PROTOTYPEIS",
                           "EQUAL",
                           "PROPERTY",
+                          "SHIFT",
                           0})[pr->id];
 }
 
@@ -328,6 +339,13 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       break;
     }
 
+    case PREDICATE_SHIFT: {
+      dbuf_printf(dbuf, ">> %d", pr->shift.n);
+      dbuf_putc(dbuf, ' ');
+      js_value_dump(ctx, pr->shift.predicate, dbuf);
+      break;
+    }
+
     default: assert(0); break;
   }
 }
@@ -393,6 +411,10 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
 
       break;
     }
+    case PREDICATE_SHIFT: {
+      JS_FreeValueRT(rt, pred->shift.predicate);
+      break;
+    }
   }
   memset(pred, 0, sizeof(Predicate));
 }
@@ -426,6 +448,10 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
 
     case PREDICATE_PROPERTY: {
       ret = JS_DupValue(ctx, pred->property.predicate);
+      break;
+    }
+    case PREDICATE_SHIFT: {
+      ret = JS_DupValue(ctx, pred->shift.predicate);
       break;
     }
   }
@@ -484,6 +510,11 @@ predicate_clone(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_PROPERTY: {
       ret->property.atom = JS_DupAtom(ctx, pred->property.atom);
       ret->property.predicate = JS_DupValue(ctx, pred->property.predicate);
+      break;
+    }
+    case PREDICATE_SHIFT: {
+      ret->shift.n = pred->shift.n;
+      ret->shift.predicate = JS_DupValue(ctx, pred->shift.predicate);
       break;
     }
   }

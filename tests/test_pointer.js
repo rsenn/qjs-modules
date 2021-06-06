@@ -44,6 +44,11 @@ function main(...args) {
   console.log('pointer:', pointer);
   console.log('pointer.toString()):', pointer.toString());
   console.log('pointer.toArray()):', pointer.toArray());
+  console.log('pointer.atoms', pointer.atoms);
+ 
+  for(let i = 0; i < pointer.length; i++)
+  console.log(`pointer[${i}]`, pointer[i]);
+
   /*pointer = new Pointer([3, 'children', 0, 'children', 0]);
   try {
     console.log('deref pointer:', pointer.deref(result));

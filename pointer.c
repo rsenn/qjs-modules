@@ -78,33 +78,6 @@ pointer_debug(Pointer* ptr, JSContext* ctx) {
   dbuf_free(&db);
 }
 
-void
-pointer_tostring(Pointer* ptr, JSContext* ctx, DynBuf* db) {
-  size_t i, j;
-  const char* str;
-  for(i = 0; i < ptr->n; i++) {
-    if(js_atom_isint(ptr->atoms[i])) {
-      dbuf_printf(db, "[%" PRIu32 "]", js_atom_toint(ptr->atoms[i]));
-      continue;
-    }
-    if(i > 0)
-      dbuf_putc(db, '.');
-    str = JS_AtomToCString(ctx, ptr->atoms[i]);
-    for(j = 0; str[j]; j++) {
-      if(str[j] == '.')
-        dbuf_putc(db, '\\');
-      dbuf_putc(db, str[j]);
-    }
-  }
-}
-
-JSValue
-pointer_toarray(Pointer* ptr, JSContext* ctx) {
-  size_t i;
-  JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++) { JS_SetPropertyUint32(ctx, array, i, js_atom_tovalue(ctx, ptr->atoms[i])); }
-  return array;
-}
 size_t
 pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
   size_t start, delim, n;
@@ -139,7 +112,7 @@ pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
     else
       atom = JS_NewAtomLen(ctx, &str[start], n);
 
-    pointer_push(ptr, atom);
+    pointer_pushatom(ptr, ctx, atom);
 
     str += delim;
     len -= delim;
@@ -183,6 +156,12 @@ pointer_shift(Pointer* ptr, JSContext* ctx, JSValueConst obj) {
     JS_FreeAtom(ctx, atom);
   }
   return ret;
+}
+
+void
+pointer_push(Pointer* ptr, JSContext* ctx, JSValueConst key) {
+  if((ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * (ptr->n + 1))))
+    ptr->atoms[ptr->n++] = JS_ValueToAtom(ctx, key);
 }
 
 JSValue
@@ -270,17 +249,17 @@ pointer_fromiterable(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
     item = js_iterator_next(ctx, iter);
     if(item.done)
       break;
-    pointer_push(ptr, JS_ValueToAtom(ctx, item.value));
+    pointer_push(ptr, ctx, item.value);
     JS_FreeValue(ctx, item.value);
   }
   JS_FreeValue(ctx, iter);
 }
 
 int
-pointer_from(Pointer* ptr, JSContext* ctx, JSValueConst value, DataFunc* data) {
+pointer_from(Pointer* ptr, JSContext* ctx, JSValueConst value) {
   Pointer* ptr2;
 
-  if(data && (ptr2 = data(ctx, value)))
+  if((ptr2 = js_pointer_data(value)))
     pointer_copy(ptr, ptr2, ctx);
   else if(JS_IsString(value))
     pointer_fromstring(ptr, ctx, value);

@@ -827,6 +827,9 @@ JSValue js_atom_tovalue(JSContext* ctx, JSAtom atom);
 unsigned int js_atom_tobinary(JSAtom atom);
 const char* js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom);
 void js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color);
+BOOL js_atom_is_index(JSContext* ctx, uint32_t* pval, JSAtom atom);
+BOOL js_atom_is_length(JSContext* ctx, JSAtom atom);
+
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 const char* js_function_tostring(JSContext* ctx, JSValueConst value);
@@ -946,4 +949,22 @@ js_arraybuffer_length(JSContext* ctx, JSValueConst buffer) {
   return 0;
 }
 
+static inline int
+js_find_cfunction_entry(const JSCFunctionListEntry* entries, size_t n_entries, const char* name, int def_type) {
+  size_t i;
+  for(i = 0; i < n_entries; i++)
+    if(entries[i].def_type == def_type && !strcmp(entries[i].name, name))
+      return i;
+  return -1;
+}
+
+static inline int
+js_find_cfunction_atom(
+    JSContext* ctx, const JSCFunctionListEntry* entries, size_t n_entries, JSAtom atom, int def_type) {
+  const char* name = JS_AtomToCString(ctx, atom);
+  int i;
+  i = js_find_cfunction_entry(entries, n_entries, name, def_type);
+  JS_FreeCString(ctx, name);
+  return i;
+}
 #endif /* defined(UTILS_H) */

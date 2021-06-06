@@ -18,7 +18,8 @@ enum predicate_id {
   PREDICATE_INSTANCEOF,
   PREDICATE_PROTOTYPEIS,
   PREDICATE_EQUAL,
-  PREDICATE_PROPERTY
+  PREDICATE_PROPERTY,
+  PREDICATE_SHIFT
 };
 
 typedef struct {
@@ -59,6 +60,11 @@ typedef struct {
   JSValue predicate;
 } PropertyPredicate;
 
+typedef struct {
+  int n;
+  JSValue predicate;
+} ShiftPredicate;
+
 typedef struct Predicate {
   enum predicate_id id;
   union {
@@ -70,6 +76,7 @@ typedef struct Predicate {
     BooleanPredicate boolean;
     RegExpPredicate regexp;
     PropertyPredicate property;
+    ShiftPredicate shift;
   };
 } Predicate;
 
@@ -211,6 +218,14 @@ predicate_property(JSAtom prop, JSValue pred) {
   Predicate ret = PREDICATE_INIT(PREDICATE_PROPERTY);
   ret.property.atom = prop;
   ret.property.predicate = pred;
+  return ret;
+}
+
+static inline Predicate
+predicate_shift(int n, JSValue pred) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_SHIFT);
+  ret.shift.n = n;
+  ret.shift.predicate = pred;
   return ret;
 }
 

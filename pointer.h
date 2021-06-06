@@ -17,17 +17,16 @@ JSValue pointer_deref(Pointer*, JSContext*, JSValue);
 JSValue pointer_acquire(Pointer*, JSContext*, JSValue);
 void pointer_dump(Pointer*, JSContext*, DynBuf*, BOOL, size_t);
 void pointer_debug(Pointer*, JSContext*);
-int pointer_from(Pointer*, JSContext*, JSValue, DataFunc* data);
 void pointer_fromarray(Pointer*, JSContext*, JSValue);
 void pointer_fromiterable(Pointer*, JSContext*, JSValue);
 void pointer_fromstring(Pointer*, JSContext*, JSValue);
 size_t pointer_parse(Pointer*, JSContext*, const char*, size_t);
 void pointer_reset(Pointer*, JSContext*);
-JSValue pointer_shift(Pointer*, JSContext*, JSValue);
+JSValue pointer_shift(Pointer*, JSContext*, JSValueConst);
+void pointer_push(Pointer*, JSContext*, JSValueConst);
 Pointer* pointer_slice(Pointer*, JSContext*, int64_t, int64_t);
-void pointer_tostring(Pointer*, JSContext*, DynBuf*);
-JSValue pointer_toarray(Pointer* ptr, JSContext* ctx);
 void pointer_truncate(Pointer*, JSContext*, size_t);
+int pointer_from(Pointer* ptr, JSContext* ctx, JSValueConst value);
 
 static inline Pointer*
 pointer_new(JSContext* ctx) {
@@ -49,9 +48,9 @@ pointer_clone(Pointer* other, JSContext* ctx) {
 }
 
 static inline void
-pointer_push(Pointer* ptr, JSAtom atom) {
-  ptr->atoms = realloc(ptr->atoms, (ptr->n + 1) * sizeof(JSAtom));
-  ptr->atoms[ptr->n++] = atom;
+pointer_pushatom(Pointer* ptr, JSContext* ctx, JSAtom atom) {
+  if((ptr->atoms = js_realloc(ctx, ptr->atoms, (ptr->n + 1) * sizeof(JSAtom))))
+    ptr->atoms[ptr->n++] = atom;
 }
 
 static inline JSAtom

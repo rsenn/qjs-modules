@@ -353,7 +353,7 @@ js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     if(argc > 2)
       JS_ToUint32(ctx, &flags, argv[2]);
 
-    pointer_from(ptr, ctx, argv[1], 0);
+    pointer_from(ptr, ctx, argv[1]);
     ret = pointer_deref(ptr, ctx, argv[0]);
 
     if(JS_IsException(ret) && (flags & NO_THROW)) {
@@ -386,7 +386,7 @@ js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     if(!(ptr = pointer_new(ctx)))
       return JS_ThrowOutOfMemory(ctx);
 
-    pointer_from(ptr, ctx, argv[1], 0);
+    pointer_from(ptr, ctx, argv[1]);
     prop = pointer_pop(ptr);
     obj = pointer_acquire(ptr, ctx, argv[0]);
 
@@ -420,7 +420,7 @@ js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     if(!(ptr = pointer_new(ctx)))
       return JS_ThrowOutOfMemory(ctx);
 
-    pointer_from(ptr, ctx, argv[1], 0);
+    pointer_from(ptr, ctx, argv[1]);
     prop = pointer_pop(ptr);
     obj = pointer_deref(ptr, ctx, argv[0]);
 

@@ -524,6 +524,45 @@ js_atom_tovalue(JSContext* ctx, JSAtom atom) {
   return JS_AtomToValue(ctx, atom);
 }
 
+BOOL
+js_atom_is_index(JSContext* ctx, uint32_t* pval, JSAtom atom) {
+  JSValue value;
+  BOOL ret = FALSE;
+  int64_t index;
+
+  if(atom & (1U << 31)) {
+    *pval = atom & (~(1U << 31));
+    return TRUE;
+  }
+
+  value = JS_AtomToValue(ctx, atom);
+
+  if(JS_IsNumber(value)) {
+    JS_ToInt64(ctx, &index, value);
+    ret = TRUE;
+  } else if(JS_IsString(value)) {
+    const char* s = JS_ToCString(ctx, value);
+    if(is_digit_char(s[0])) {
+      index = atoi(s);
+      ret = TRUE;
+    }
+    JS_FreeCString(ctx, s);
+  }
+
+  if(ret == TRUE && index >= 0 && index <= UINT32_MAX)
+    *pval = index;
+
+  return ret;
+}
+
+BOOL
+js_atom_is_length(JSContext* ctx, JSAtom atom) {
+  const char* str = JS_AtomToCString(ctx, atom);
+  BOOL ret = !strcmp(str, "length");
+  JS_FreeCString(ctx, str);
+  return ret;
+}
+
 const char*
 js_function_name(JSContext* ctx, JSValueConst value) {
   JSAtom atom;
@@ -885,7 +924,7 @@ js_class_get(JSContext* ctx, JSClassID id) {
 JSAtom
 js_class_atom(JSContext* ctx, JSClassID id) {
   JSAtom atom = 0;
-  if(id > 0 && id < ctx->rt->class_count)
+  if(id > 0 && id < (JSClassID)ctx->rt->class_count)
     atom = ctx->rt->class_array[id].class_name;
   return atom;
 }

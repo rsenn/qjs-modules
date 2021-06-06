@@ -156,7 +156,7 @@ js_misc_resizearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   if(js_is_arraybuffer(ctx, argv[0])) {
     JSObject* obj = JS_VALUE_GET_OBJ(argv[0]);
     JSArrayBuffer* arraybuf = obj->u.array_buffer;
-    int64_t newlen;
+    uint64_t newlen;
     JS_ToIndex(ctx, &newlen, argv[1]);
 
     if(arraybuf->shared)
@@ -288,7 +288,7 @@ js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   b64_decode(input.data, input.size, decbuf);
 
-  ret = JS_NewArrayBufferCopy(ctx, (const char*)decbuf, declen);
+  ret = JS_NewArrayBufferCopy(ctx, (const uint8_t*)decbuf, declen);
   js_free(ctx, decbuf);
   return ret;
 }
@@ -310,7 +310,7 @@ js_misc_compile_file(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   /* load JS from file to buffer */
   if((buf = js_load_file(ctx, &buf_len, filename))) {
 
-    if(!module && JS_DetectModule(buf, buf_len))
+    if(!module && JS_DetectModule((const char*)buf, buf_len))
       module = TRUE;
 
     eval_flags |= (module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
