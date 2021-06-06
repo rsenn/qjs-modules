@@ -99,9 +99,7 @@ function main(...args) {
   lexer.handler = lex => {
     const { loc, mode, pos, start, byteLength, state } = lex;
     //console.log(`${this.currentLine()}`);
-    console.log(`handler loc=${loc} mode=${IntToBinary(mode)} state=${lex.topState()}`, { pos, start, byteLength },
-      `\n${lex.currentLine()}`
-    );
+    //console.log(`handler loc=${loc} mode=${IntToBinary(mode)} state=${lex.topState()}`, { pos, start, byteLength }, `\n${lex.currentLine()}` );
     console.log(' '.repeat(loc.column - 1) + '^');
   };
 

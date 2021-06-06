@@ -1451,7 +1451,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   syntaxerror_proto = JS_NewError(ctx);
   JS_SetPropertyFunctionList(ctx, syntaxerror_proto, js_syntaxerror_proto_funcs, countof(js_syntaxerror_proto_funcs));
 
-  js_set_inspect_method(ctx, syntaxerror_proto, js_syntaxerror_inspect);
+ // js_set_inspect_method(ctx, syntaxerror_proto, js_syntaxerror_inspect);
 
   JS_SetClassProto(ctx, js_syntaxerror_class_id, syntaxerror_proto);
 
