@@ -23,7 +23,7 @@ function main(...args) {
       depth: 1,
       maxArrayLength: 10,
       maxStringLength: 100,
-      compact: 1
+      compact: 2
     }
   });
 
@@ -50,10 +50,9 @@ function main(...args) {
   console.log('[...pointer2]', [...pointer2]);
   console.log('pointer2.concat(pointer)', pointer2.push('children').concat(pointer));
 
-  for(let i = 0; i < pointer.length; i++)
-  console.log(`pointer[${i}]`, pointer[i]);
+  //for(let i = 0; i < pointer.length; i++) console.log(`pointer[${i}]`, pointer[i]);
 
-  /*pointer = new Pointer([3, 'children', 0, 'children', 0]);
+  pointer = new Pointer([3, 'children', 0, 'children', 0]);
   try {
     console.log('deref pointer:', pointer.deref(result));
   } catch(e) {
@@ -61,15 +60,14 @@ function main(...args) {
   }
   console.log('keys:', [...pointer]);
   console.log('values:', [...pointer.values()]);
-  console.log('pointer:', pointer.slice(0).inspect());
+  console.log('pointer:', pointer.slice(0));
 
   WriteFile('output.json', JSON.stringify(result, null, 2));
 
-  let ptr2 = new Pointer('3.children.0.children.0');
+  let ptr2 = new Pointer('0.children.0');
 
   console.log('deref ptr2:', ptr2.deref(result));
-  console.log('dump ptr2:', ptr2);*/
-
+  console.log('dump ptr2:', ptr2);
   std.gc();
 }
 

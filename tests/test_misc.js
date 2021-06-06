@@ -158,9 +158,11 @@ console.log("i =",i);
   console.log('misc.getClassCount()', misc.getClassCount());
   console.log('misc.getClassName()',
     new Map(
-      Range(1, misc.getClassCount())
-        .map((id, idx) => [idx, [misc.getClassName(id), misc.getClassConstructor(id)]])
-     )
+      Range(1, misc.getClassCount()).map((id, idx) => [
+        idx,
+        [misc.getClassName(id), misc.getClassConstructor(id)]
+      ])
+    )
   );
 
   std.gc();
