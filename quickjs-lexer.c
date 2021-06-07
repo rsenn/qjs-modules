@@ -531,6 +531,25 @@ lexer_to_state(Lexer* lex, JSContext* ctx, JSValueConst value) {
   return -1;
 }
 
+static BOOL
+lexer_handle(Lexer* lex, JSContext* ctx, JSValueConst this_val, JSValueConst handler) {
+  JSValue data[1] = {JS_NewArray(ctx)};
+  JSValue args[] = {JS_DupValue(ctx, this_val), JS_NewCFunctionData(ctx, lexer_continue, 0, 0, 1, data)};
+  JSValue do_resume = JS_FALSE;
+
+  /*   ret = */ JS_Call(ctx, handler, this_val, 2, args);
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, args[1]);
+
+  do_resume = JS_GetPropertyUint32(ctx, data[0], 0);
+
+  if(JS_IsBool(do_resume))
+    if(JS_ToBool(ctx, do_resume))
+      return TRUE;
+
+  return FALSE;
+}
+
 static int
 lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int id = -1;
@@ -543,7 +562,11 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       JS_FreeValue(ctx, mask);
     }
   */
+  JSValue callback = JS_UNDEFINED;
+
   if(argc >= 1 && (skip = lexer_to_state(lex, ctx, argv[0]))) {}
+
+  callback = JS_GetPropertyStr(ctx, this_val, "callback");
 
   for(;;) {
     if((id = lexer_peek(lex, skip == -1 ? 0 : skip, ctx)) >= 0) {
@@ -578,22 +601,17 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
           continue;
         }
       }
+
+      if(JS_IsFunction(ctx, callback)) {
+        lexer_handle(lex, ctx, this_val, callback);
+      }
+
     } else if(id == LEXER_ERROR_NOMATCH) {
       JSValue handler = JS_GetPropertyStr(ctx, this_val, "handler");
       if(JS_IsFunction(ctx, handler)) {
-        JSValue data[1] = {JS_NewArray(ctx)};
-        JSValue args[] = {JS_DupValue(ctx, this_val), JS_NewCFunctionData(ctx, lexer_continue, 0, 0, 1, data)};
-        JSValue do_resume = JS_FALSE;
 
-        /*   ret = */ JS_Call(ctx, handler, this_val, 2, args);
-        JS_FreeValue(ctx, args[0]);
-        JS_FreeValue(ctx, args[1]);
-
-        do_resume = JS_GetPropertyUint32(ctx, data[0], 0);
-
-        if(JS_IsBool(do_resume))
-          if(JS_ToBool(ctx, do_resume))
-            continue;
+        if(lexer_handle(lex, ctx, this_val, handler) == TRUE)
+          continue;
 
         id = LEXER_ERROR_NOMATCH;
       }
@@ -661,7 +679,6 @@ lexer_lexeme_s(Lexer* lex, JSContext* ctx) {
 
   return js_strndup(ctx, s, len);
 }
-
 JSValue
 js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst vinput, JSValueConst vmode) {
   Lexer* lex;
@@ -1451,7 +1468,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   syntaxerror_proto = JS_NewError(ctx);
   JS_SetPropertyFunctionList(ctx, syntaxerror_proto, js_syntaxerror_proto_funcs, countof(js_syntaxerror_proto_funcs));
 
- // js_set_inspect_method(ctx, syntaxerror_proto, js_syntaxerror_inspect);
+  // js_set_inspect_method(ctx, syntaxerror_proto, js_syntaxerror_inspect);
 
   JS_SetClassProto(ctx, js_syntaxerror_class_id, syntaxerror_proto);
 

@@ -229,7 +229,7 @@ function main(...args) {
     )
   );
   //console.log('lexer.pushState("JS")', lexer.pushState('JS'));
-  console.log(`lexer.stateStack`, lexer.stateStack);
+//  console.log(`lexer.stateStack`, lexer.stateStack);
   console.log(`lexer.topState()`, lexer.topState());
   console.log(`lexer.states `, lexer.states);
   //console.log(`tokens`, tokens.map((tok, i) => [i, tok]));
