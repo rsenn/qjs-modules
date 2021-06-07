@@ -75,7 +75,7 @@ typedef struct pollhandler {
 } pollhandler_t;
 
 thread_local uint64_t jsm_pending_signals = 0;
-thread_local struct list_head pollhandlers;
+  struct list_head pollhandlers;
 
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 
@@ -1252,6 +1252,7 @@ main(int argc, char** argv) {
   size_t stack_size = 0;
   const char* exename;
 
+    init_list_head(&pollhandlers);
   js_std_set_module_loader_func(jsm_module_loader_path);
 
   {
@@ -1525,7 +1526,6 @@ main(int argc, char** argv) {
       jsm_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
     }
 
-    init_list_head(&pollhandlers);
 
     jsm_std_loop(ctx, 0);
   }
