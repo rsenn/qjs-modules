@@ -39,6 +39,7 @@
 #include <time.h>
 #include <threads.h>
 #include <signal.h>
+#include <sys/poll.h>
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
 #elif defined(__linux__)
@@ -59,13 +60,22 @@ atomic_add_int(int* ptr, int v) {
 }
 #endif
 
+#include "list.h"
 #include "cutils.h"
 #include "utils.h"
 #include "vector.h"
 #include "quickjs-libc.h"
 #include "quickjs-internal.h"
 
+typedef struct pollhandler {
+  struct pollfd pf;
+  void (*handler)(void* opaque, struct pollfd*);
+  void* opaque;
+  struct list_head link;
+} pollhandler_t;
+
 thread_local uint64_t jsm_pending_signals = 0;
+thread_local struct list_head pollhandlers;
 
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 
@@ -733,8 +743,21 @@ jsm_os_poll(JSContext* ctx, uint32_t timeout) {
      }
    }*/
 
-  if(list_empty(&ts->os_rw_handlers) && list_empty(&ts->os_timers) && list_empty(&ts->port_list))
+  if(list_empty(&ts->os_rw_handlers) && list_empty(&ts->os_timers) && list_empty(&ts->port_list) &&
+     list_empty(&pollhandlers))
     return -1; /* no more events */
+
+  if(!list_empty(&pollhandlers)) {
+    list_for_each(el, &pollhandlers) {
+      pollhandler_t* ph = list_entry(el, pollhandler_t, link);
+      if(ph->pf.events) {
+        if(ph->pf.events & POLLIN)
+          FD_SET(ph->pf.fd, &rfds);
+        if(ph->pf.events & POLLOUT)
+          FD_SET(ph->pf.fd, &wfds);
+      }
+    }
+  }
 
   if(!list_empty(&ts->os_timers)) {
     cur_time = jsm_time_ms();
@@ -793,6 +816,18 @@ jsm_os_poll(JSContext* ctx, uint32_t timeout) {
 
   ret = select(fd_max + 1, &rfds, &wfds, NULL, tvp);
   if(ret > 0) {
+
+    if(!list_empty(&pollhandlers)) {
+      list_for_each(el, &pollhandlers) {
+        pollhandler_t* ph = list_entry(el, pollhandler_t, link);
+        if(ph->pf.events) {
+          ph->pf.revents = (FD_ISSET(ph->pf.fd, &rfds) ? POLLIN : 0) | (FD_ISSET(ph->pf.fd, &wfds) ? POLLOUT : 0);
+
+          if(ph->pf.revents && ph->handler)
+            ph->handler(ph->opaque, &ph->pf);
+        }
+      }
+    }
     list_for_each(el, &ts->os_rw_handlers) {
       rh = list_entry(el, JSOSRWHandler, link);
       if(!JS_IsNull(rh->rw_func[0]) && FD_ISSET(rh->fd, &rfds)) {
@@ -1489,6 +1524,9 @@ main(int argc, char** argv) {
     if(interactive) {
       jsm_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
     }
+
+    init_list_head(&pollhandlers);
+
     jsm_std_loop(ctx, 0);
   }
 
