@@ -135,7 +135,8 @@ function main(...args) {
   console.log('lexer.skip', IntToBinary(lexer.skip));
   console.log('lexer.states', lexer.states);
 
-  console.log('new SyntaxError("test")',
+  console.log(
+    'new SyntaxError("test")',
     new SyntaxError('test', new Location(10, 3, 28, 'file.txt'))
   );
   let mask = IntToBinary(lexer.mask);
@@ -159,7 +160,8 @@ function main(...args) {
         case ']':
         case ')': {
           if(stack.last != table[tok.lexeme])
-            throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
+            throw new Error(
+              `top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
             );
 
           stack.pop();
@@ -172,7 +174,7 @@ function main(...args) {
       reset() {
         stack.clear();
       },
-      get depth() {
+      /* prettier-ignore */ get depth() {
         return stack.length;
       }
     });
@@ -221,7 +223,8 @@ function main(...args) {
 
   console.log(`took ${end - start}ms`);
   console.log('lexer.tokens', lexer.tokens);
-  console.log('lexer.rules',
+  console.log(
+    'lexer.rules',
     new Map(
       lexer.ruleNames
         .map(name => lexer.getRule(name))
@@ -229,7 +232,7 @@ function main(...args) {
     )
   );
   //console.log('lexer.pushState("JS")', lexer.pushState('JS'));
-//  console.log(`lexer.stateStack`, lexer.stateStack);
+  //  console.log(`lexer.stateStack`, lexer.stateStack);
   console.log(`lexer.topState()`, lexer.topState());
   console.log(`lexer.states `, lexer.states);
   //console.log(`tokens`, tokens.map((tok, i) => [i, tok]));
@@ -244,7 +247,8 @@ function main(...args) {
   console.log(`lexer.next() `, lexer.next());
   console.log(`lexer.next() `, lexer.next());
   console.log(`lexer.next() `, lexer.next());
-  console.log(`Location.count('blah\\nblah\\nblah\\nblah')`,
+  console.log(
+    `Location.count('blah\\nblah\\nblah\\nblah')`,
     Location.count('blah\nblah\nblah\nblah')
   );
 

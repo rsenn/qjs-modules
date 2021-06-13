@@ -75,7 +75,7 @@ typedef struct pollhandler {
 } pollhandler_t;
 
 thread_local uint64_t jsm_pending_signals = 0;
-  struct list_head pollhandlers;
+struct list_head pollhandlers;
 
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 
@@ -106,6 +106,8 @@ static int bignum_ext = 1;
 #endif
 
 void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
+
+void jsm_std_dump_error(JSContext* ctx, JSValue exception_val);
 
 static Vector module_list = VECTOR_INIT();
 static Vector builtins = VECTOR_INIT();
@@ -1252,7 +1254,7 @@ main(int argc, char** argv) {
   size_t stack_size = 0;
   const char* exename;
 
-    init_list_head(&pollhandlers);
+  init_list_head(&pollhandlers);
   js_std_set_module_loader_func(jsm_module_loader_path);
 
   {
@@ -1525,7 +1527,6 @@ main(int argc, char** argv) {
     if(interactive) {
       jsm_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
     }
-
 
     jsm_std_loop(ctx, 0);
   }

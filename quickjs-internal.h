@@ -501,6 +501,47 @@ typedef struct JSRegExp {
   JSString* bytecode; /* also contains the flags */
 } JSRegExp;
 
+typedef struct JSProxyData {
+  JSValue target;
+  JSValue handler;
+  uint8_t is_func;
+  uint8_t is_revoked;
+} JSProxyData;
+
+typedef struct JSArrayBuffer {
+  int byte_length; /* 0 if detached */
+  uint8_t detached;
+  uint8_t shared; /* if shared, the array buffer cannot be detached */
+  uint8_t* data;  /* NULL if detached */
+  struct list_head array_list;
+  void* opaque;
+  JSFreeArrayBufferDataFunc* free_func;
+} JSArrayBuffer;
+
+typedef struct JSTypedArray {
+  struct list_head link; /* link to arraybuffer */
+  JSObject* obj;         /* back pointer to the TypedArray/DataView object */
+  JSObject* buffer;      /* based array buffer */
+  uint32_t offset;       /* offset in the array buffer */
+  uint32_t length;       /* length in the array buffer */
+} JSTypedArray;
+
+typedef struct JSAsyncFunctionState {
+  JSValue this_val; /* 'this' generator argument */
+  int argc;         /* number of function arguments */
+  BOOL throw_flag;  /* used to throw an exception in JS_CallInternal() */
+  JSStackFrame frame;
+} JSAsyncFunctionState;
+
+/* XXX: could use an object instead to avoid the
+   JS_TAG_ASYNC_FUNCTION tag for the GC */
+typedef struct JSAsyncFunctionData {
+  JSGCObjectHeader header; /* must come first */
+  JSValue resolving_funcs[2];
+  BOOL is_active; /* true if the async function state is valid */
+  JSAsyncFunctionState func_state;
+} JSAsyncFunctionData;
+
 struct JSObject {
   union {
     JSGCObjectHeader header;
@@ -639,6 +680,72 @@ typedef struct StringBuffer {
   int error_status;
 } StringBuffer;
 
+typedef struct JSCFunctionDataRecord {
+  JSCFunctionData* func;
+  uint8_t length;
+  uint8_t data_len;
+  uint16_t magic;
+  JSValue data[0];
+} JSCFunctionDataRecord;
+
+typedef struct JSCClosureRecord {
+  JSCClosure* func;
+  uint16_t length;
+  uint16_t magic;
+  void* opaque;
+  void (*opaque_finalize)(void*);
+} JSCClosureRecord;
+
+typedef struct JSMemoryUsage_helper {
+  double memory_used_count;
+  double str_count;
+  double str_size;
+  int64_t js_func_count;
+  double js_func_size;
+  int64_t js_func_code_size;
+  int64_t js_func_pc2line_count;
+  int64_t js_func_pc2line_size;
+} JSMemoryUsage_helper;
+
+typedef enum JSGeneratorStateEnum {
+  JS_GENERATOR_STATE_SUSPENDED_START,
+  JS_GENERATOR_STATE_SUSPENDED_YIELD,
+  JS_GENERATOR_STATE_SUSPENDED_YIELD_STAR,
+  JS_GENERATOR_STATE_EXECUTING,
+  JS_GENERATOR_STATE_COMPLETED,
+} JSGeneratorStateEnum;
+
+typedef struct JSGeneratorData {
+  JSGeneratorStateEnum state;
+  JSAsyncFunctionState func_state;
+} JSGeneratorData;
+
+typedef enum JSAsyncGeneratorStateEnum {
+  JS_ASYNC_GENERATOR_STATE_SUSPENDED_START,
+  JS_ASYNC_GENERATOR_STATE_SUSPENDED_YIELD,
+  JS_ASYNC_GENERATOR_STATE_SUSPENDED_YIELD_STAR,
+  JS_ASYNC_GENERATOR_STATE_EXECUTING,
+  JS_ASYNC_GENERATOR_STATE_AWAITING_RETURN,
+  JS_ASYNC_GENERATOR_STATE_COMPLETED,
+} JSAsyncGeneratorStateEnum;
+
+typedef struct JSAsyncGeneratorRequest {
+  struct list_head link;
+  /* completion */
+  int completion_type; /* GEN_MAGIC_x */
+  JSValue result;
+  /* promise capability */
+  JSValue promise;
+  JSValue resolving_funcs[2];
+} JSAsyncGeneratorRequest;
+
+typedef struct JSAsyncGeneratorData {
+  JSObject* generator; /* back pointer to the object (const) */
+  JSAsyncGeneratorStateEnum state;
+  JSAsyncFunctionState func_state;
+  struct list_head queue; /* list of JSAsyncGeneratorRequest.link */
+} JSAsyncGeneratorData;
+
 typedef enum JSPromiseStateEnum {
   JS_PROMISE_PENDING,
   JS_PROMISE_FULFILLED,
@@ -688,47 +795,6 @@ typedef struct JSForInIterator {
   uint32_t array_length;
   uint32_t idx;
 } JSForInIterator;
-
-typedef struct JSProxyData {
-  JSValue target;
-  JSValue handler;
-  uint8_t is_func;
-  uint8_t is_revoked;
-} JSProxyData;
-
-typedef struct JSArrayBuffer {
-  int byte_length; /* 0 if detached */
-  uint8_t detached;
-  uint8_t shared; /* if shared, the array buffer cannot be detached */
-  uint8_t* data;  /* NULL if detached */
-  struct list_head array_list;
-  void* opaque;
-  JSFreeArrayBufferDataFunc* free_func;
-} JSArrayBuffer;
-
-typedef struct JSTypedArray {
-  struct list_head link; /* link to arraybuffer */
-  JSObject* obj;         /* back pointer to the TypedArray/DataView object */
-  JSObject* buffer;      /* based array buffer */
-  uint32_t offset;       /* offset in the array buffer */
-  uint32_t length;       /* length in the array buffer */
-} JSTypedArray;
-
-typedef struct JSAsyncFunctionState {
-  JSValue this_val; /* 'this' generator argument */
-  int argc;         /* number of function arguments */
-  BOOL throw_flag;  /* used to throw an exception in JS_CallInternal() */
-  JSStackFrame frame;
-} JSAsyncFunctionState;
-
-/* XXX: could use an object instead to avoid the
-   JS_TAG_ASYNC_FUNCTION tag for the GC */
-typedef struct JSAsyncFunctionData {
-  JSGCObjectHeader header; /* must come first */
-  JSValue resolving_funcs[2];
-  BOOL is_active; /* true if the async function state is valid */
-  JSAsyncFunctionState func_state;
-} JSAsyncFunctionData;
 
 typedef enum {
   /* binary operators */
