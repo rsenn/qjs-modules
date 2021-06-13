@@ -98,7 +98,8 @@ function main(...args) {
 
   for(let [n, p] of deep.iterate(obj3, Predicate.property('4')))
     console.log(`deep.iterate(${deep.TYPE_OBJECT.toString(2)})`, { n, p });
-  console.log('select():',
+  console.log(
+    'select():',
     deep.select(obj3, Predicate.property('name', Predicate.equal('x')), deep.RETURN_PATH_VALUE)
   );
   return;
@@ -115,7 +116,8 @@ function main(...args) {
   console.log('deep.RETURN_VALUE:', deep.RETURN_VALUE);
   console.log('deep.RETURN_VALUE_PATH:', deep.RETURN_VALUE_PATH);
   console.log('deep.RETURN_PATH_VALUE:', deep.RETURN_PATH_VALUE);
-  console.log('find():',
+  console.log(
+    'find():',
     deep.find(obj1, n => n == Infinity, deep.RETURN_PATH_VALUE)
   );
 
@@ -126,7 +128,8 @@ function main(...args) {
   const IsNumeric = v => Number.isFinite(v) || (typeof v).startsWith('big');
   const IsObject = v => typeof v == 'object' && v !== null;
 
-  console.log('select():',
+  console.log(
+    'select():',
     deep.select(
       obj2,
       //node => typeof node == 'object',

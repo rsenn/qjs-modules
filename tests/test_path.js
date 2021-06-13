@@ -17,7 +17,8 @@ function CallPathFunction(name, ...args) {
   let fn = path[name];
 
   let ret = fn.call(path, ...args);
-  console.log(`path.${name}(`,
+  console.log(
+    `path.${name}(`,
     ...args.reduce((acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]), []),
     ') =',
     ret
@@ -76,7 +77,8 @@ async function main(...args) {
   console.log(`cwd = ${cwd}`);
   CallPathFunction('relative', '/home/roman/Projects/plot-cv/quickjs', cwd);
   CallPathFunction('relative', '/home/roman/Projects/editline', cwd);
-  CallPathFunction('collapse',
+  CallPathFunction(
+    'collapse',
     '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..'
   );
 

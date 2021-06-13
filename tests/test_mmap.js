@@ -2,7 +2,16 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
 import Console from '../lib/console.js';
-import { mmap, munmap, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_SHARED, MAP_ANONYMOUS, toString } from 'mmap';
+import {
+  mmap,
+  munmap,
+  PROT_READ,
+  PROT_WRITE,
+  MAP_PRIVATE,
+  MAP_SHARED,
+  MAP_ANONYMOUS,
+  toString
+} from 'mmap';
 
 async function main(...args) {
   globalThis.console = new Console({

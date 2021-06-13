@@ -56,7 +56,8 @@ function main(...args) {
     const { flags, tagMask } = walk;
     console.log(' walk', { flags, tagMask });
     while(walk.nextNode((v, k, w) => typeof v != 'object')) {
-      console.log('type:',
+      console.log(
+        'type:',
         typeof walk.currentNode,
         'path:',
         walk.currentPath.join('.'),
@@ -65,7 +66,8 @@ function main(...args) {
       let node = walk.currentNode;
 
       if(typeof node == 'object') {
-        console.log('object:',
+        console.log(
+          'object:',
           inspect(node, { depth: 0, colors: true }) ||
             Object.getOwnPropertyNames(node)
               .filter(n => typeof node[n] != 'object')

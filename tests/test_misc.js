@@ -32,7 +32,8 @@ function main(...args) {
 
   console.log('loc.toString()', loc.toString());
 
-  let f = fs.readFileSync('/home/roman/Downloads/GBC_ROMS/SpongeBob SquarePants - Legend of the Lost Spatula (U).gbc',
+  let f = fs.readFileSync(
+    '/home/roman/Downloads/GBC_ROMS/SpongeBob SquarePants - Legend of the Lost Spatula (U).gbc',
     null
   );
   let b = f.slice(0, 1024) ?? misc.toArrayBuffer('TEST DATA');
@@ -74,7 +75,8 @@ console.log("i =",i);
       const code = ba[i];
       opcode = opcodes[code];
 
-      console.log(i.toString(16).padStart(8, '0') + ': ',
+      console.log(
+        i.toString(16).padStart(8, '0') + ': ',
         toHex(code),
         opcode.name.padEnd(32),
         ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n))
@@ -156,7 +158,8 @@ console.log("i =",i);
   console.log('misc.getClassID()', misc.getClassID(Symbol.for('quickjs.inspect.custom')));
   console.log('misc.getClassID()', misc.getClassID(Symbol));
   console.log('misc.getClassCount()', misc.getClassCount());
-  console.log('misc.getClassName()',
+  console.log(
+    'misc.getClassName()',
     new Map(
       Range(1, misc.getClassCount()).map((id, idx) => [
         idx,

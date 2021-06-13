@@ -111,7 +111,8 @@ function LoadScript(file) {
 }
 
 function WriteObject(file, obj, fn = arg => arg) {
-  return WriteFile(file,
+  return WriteFile(
+    file,
     fn(
       inspect(obj, {
         colors: false,
@@ -220,7 +221,8 @@ function Node(token) {
       case 'literal':
         ctor = Terminal;
         break;
-      default: throw new Error(`Unhandled token type: ${type}`);
+      default:
+        throw new Error(`Unhandled token type: ${type}`);
         break;
     }
     if(ctor !== Node) obj = new ctor(lexeme);
@@ -335,7 +337,8 @@ class EBNFParser extends Parser {
     this.lexer.handler = (arg, tok) => {
       let line = arg.currentLine();
       let index = arg.loc.column - 1;
-      let error = new Error(`Unmatched token at ${arg.loc} char='${Lexer.escape(line[index])}' section=${
+      let error = new Error(
+        `Unmatched token at ${arg.loc} char='${Lexer.escape(line[index])}' section=${
           this.section
         } state=${arg.states[arg.state]}\n${line}\n${[...line]
           .slice(0, index)
@@ -415,7 +418,8 @@ class EBNFParser extends Parser {
 
   error(tok, message) {
     const { lexer } = this;
-    return new Error(`${tok.loc} ${tok.type} '${Lexer.escape(tok.lexeme)}' ${message}\n${lexer.currentLine()}\n${
+    return new Error(
+      `${tok.loc} ${tok.type} '${Lexer.escape(tok.lexeme)}' ${message}\n${lexer.currentLine()}\n${
         ' '.repeat(tok.loc.column - 1) + '^'
       }`
     );
@@ -516,7 +520,8 @@ class EBNFParser extends Parser {
     //DumpToken(`parseRule(${this.lexer.topState()})`.padEnd(20), this.next());
     const { lexer } = this;
     let tok,
-      pat = this.parsePattern(tok =>
+      pat = this.parsePattern(
+        tok =>
           tok.type.endsWith('ws') || tok.type.endsWith('newline') || tok.type.endsWith('cstart')
       ),
       act = [];
@@ -585,7 +590,8 @@ class EBNFParser extends Parser {
       tokens.push(tok);
     }
     add();
-    console.log(id.lexeme + ':',
+    console.log(
+      id.lexeme + ':',
       results.map(([tokens, action]) => {
         let obj = { tokens: tokens.map(InspectToken) };
         if(action.length) obj.action = action.map(InspectToken);
@@ -790,7 +796,8 @@ function main(...args) {
 
   grammar = parser.parse();
   if(grammar) {
-    WriteObject('grammar.kison',
+    WriteObject(
+      'grammar.kison',
       grammar,
       str => `(function () {\n    return ${str.replace(/\n/g, '\n    ')};\n\n})();`
     );

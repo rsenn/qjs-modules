@@ -93,11 +93,13 @@ extern size_t malloc_usable_size();
   JSModuleDef* js_init_module_##name(JSContext*, const char*);
 
 jsm_declare_module(console);
+jsm_declare_module(events);
 jsm_declare_module(fs);
 jsm_declare_module(perf_hooks);
 jsm_declare_module(process);
 jsm_declare_module(repl);
 jsm_declare_module(require);
+jsm_declare_module(tty);
 jsm_declare_module(util);
 
 #ifdef CONFIG_BIGNUM
@@ -1471,11 +1473,13 @@ main(int argc, char** argv) {
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
+    jsm_builtin_compiled(events);
     jsm_builtin_compiled(fs);
     jsm_builtin_compiled(perf_hooks);
     jsm_builtin_compiled(process);
     // jsm_builtin_compiled(repl);
     jsm_builtin_compiled(require);
+    jsm_builtin_compiled(tty);
     jsm_builtin_compiled(util);
 
     num_compiled = vector_size(&builtins, sizeof(char*)) - num_native;

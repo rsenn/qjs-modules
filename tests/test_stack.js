@@ -37,10 +37,12 @@ function main(...args) {
   console.log('frame', frame);
   console.log('frame.toString()', frame.toString());
   console.log('stack.toString()', stack.toString());
-  console.log(`stack.map(fr => fr+'')`,
+  console.log(
+    `stack.map(fr => fr+'')`,
     [...stack].map(fr => fr + '')
   );
-  console.log(`stack.map(fr => fr.loc)`,
+  console.log(
+    `stack.map(fr => fr.loc)`,
     [...stack].map(fr => fr.loc)
   );
 

@@ -61,7 +61,8 @@ async function main(...args) {
   const dumpObj = (obj, depth, options) =>
     '{' +
     Object.entries(obj)
-      .map(([k, v]) =>
+      .map(
+        ([k, v]) =>
           '\n' + '  '.repeat(options.depth - depth + 1) + k + '=' + inspect(v, depth - 1, options)
       )
       .join(',') +
@@ -102,9 +103,9 @@ async function main(...args) {
     fn,
     bigint: 314159265358979323846264n,
     object: obj2,
-    get value() { return value; },
-    set value(v) { value = v; },
-    set v(v) { value = v; },
+    /* prettier-ignore */ get value() { return value; },
+    /* prettier-ignore */ set value(v) { value = v; },
+    /* prettier-ignore */ set v(v) { value = v; },
     inspect(depth, options) {
       const { hideKeys, ...opts } = options;
       print('inspect hideKeys ' + hideKeys.join(','));

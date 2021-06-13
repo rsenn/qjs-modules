@@ -106,7 +106,8 @@ function assert(actual, expected, message) {
 
   if(actual === expected) return;
 
-  if(actual !== null &&
+  if(
+    actual !== null &&
     expected !== null &&
     typeof actual == 'object' &&
     typeof expected == 'object' &&
@@ -114,7 +115,8 @@ function assert(actual, expected, message) {
   )
     return;
 
-  throw Error('assertion failed: got |' +
+  throw Error(
+    'assertion failed: got |' +
       actual +
       '|' +
       ', expected |' +
@@ -174,7 +176,8 @@ function test_operators_ctor() {
 /* operators overloading thru inheritance */
 function test_operators_class() {
   let Expr3;
-  const ExprOps = Operators({
+  const ExprOps = Operators(
+    {
       '+'(...args) {
         return new Expr3('+', ...args);
       },

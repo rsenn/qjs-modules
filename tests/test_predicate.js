@@ -2,7 +2,21 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
 import * as xml from 'xml';
-import { Predicate, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal, property } from 'predicate';
+import {
+  Predicate,
+  type,
+  charset,
+  string,
+  not,
+  or,
+  and,
+  xor,
+  regexp,
+  instanceOf,
+  prototypeIs,
+  equal,
+  property
+} from 'predicate';
 import Console from '../lib/console.js';
 
 ('use strict');
@@ -100,7 +114,8 @@ async function main(...args) {
   let propTest = property('test');
 
   console.log('propToString(Object.create(null, {}))', propToString(Object.create(null, {})));
-  console.log('propToString(function(){})',
+  console.log(
+    'propToString(function(){})',
     propToString(function () {})
   );
 
