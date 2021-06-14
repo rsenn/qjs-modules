@@ -210,7 +210,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
       ${MODULES_DIR}/perf_hooks.c
       ${MODULES_DIR}/process.c
       ${MODULES_DIR}/tty.c
-      ${MODULES_DIR}/util.c
+      #${MODULES_DIR}/util.c
       ${QJSM_EXTRA_SOURCES})
 
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)

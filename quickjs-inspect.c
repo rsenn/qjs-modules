@@ -546,7 +546,7 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
         }
       }
     }
-    dbuf_put_escaped_pred(buf, &str[pos], n, escape_char_pred);
+    dbuf_put_escaped(buf, &str[pos], n);
     pos += n;
   }
   js_cstring_free(ctx, str);

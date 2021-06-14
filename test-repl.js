@@ -101,24 +101,9 @@ function main(...args) {
   };
   let debugLog = fs.fopen('debug.log', 'a');
   repl.debugLog = debugLog;
-  //  console.log = repl.wrapPrintFunction(log, console);
-
-  /*os.ttySetRaw(0, true);
-  os.setReadHandler(0, () => repl.term_read_handler());
-*/
-  console.log('repl.run()', repl.runSync(name));
-
-  /*  let client = new rpc.Socket();
-  client.log = repl.wrapPrintFunction(log, console);
-
-  import('os').then(os =>
-    import('net').then(({ client }) =>
-      client.connect((url, callbacks) => client({ ...url, ...callbacks }), os)
-    )
-  );
-  console.log('client', client);*/
 
   Object.assign(globalThis, { repl, WriteFile, ReadFile, ReadJSON });
+  console.log('repl.run()', repl.runSync(name));
 }
 
 try {
