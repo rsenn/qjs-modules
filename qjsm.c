@@ -238,6 +238,7 @@ jsm_handle_posted_message(JSRuntime* rt, JSContext* ctx, JSWorkerMessageHandler*
   }
   return ret;
 }
+
 static JSValue
 jsm_load_package_json(JSContext* ctx, const char* filename) {
   uint8_t* buf;
@@ -518,8 +519,7 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   module = js_strdup(ctx, trim_dotslash(module_name));
   for(;;) {
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-      // printf("jsm_module_loader_path[%x] %s -> %s\n", pthread_self(), trim_dotslash(module_name),
-      // trim_dotslash(module));
+       printf("jsm_module_loader_path[%x] %s -> %s\n", pthread_self(), trim_dotslash(module_name), trim_dotslash(module));
       return ret;
     }
     if(!filename) {
@@ -556,8 +556,7 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   }
 
   if(filename) {
-    // if(strcmp(trim_dotslash(module_name), trim_dotslash(filename))) printf("jsm_module_loader_path[%x]
-    // \x1b[1;48;5;124m(3)\x1b[0m %-40s -> %s\n", pthread_self(), module, filename);
+    if(strcmp(trim_dotslash(module_name), trim_dotslash(filename))) printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(3)\x1b[0m %-40s -> %s\n", pthread_self(), module, filename);
     ret = has_suffix(filename, ".so") ? jsm_module_loader_so(ctx, filename) : js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
   }
