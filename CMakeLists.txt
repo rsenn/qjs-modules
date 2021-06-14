@@ -144,10 +144,17 @@ endif(HAVE__BUILTIN_MUL_OVERFLOW)
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
 addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
 # dump(STATIC_TARGETS)
+unset(QJSM_LDADD)
+
+set(QJSM_LIBDIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})
+  string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
+  list(APPEND QJSM_LDADD "${QJSM_MODULE}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
+
+dump(QJSM_LDADD QJSM_LIBDIR)
 
 target_link_libraries(qjs-deep qjs-predicate)
 target_link_libraries(qjs-lexer qjs-predicate)
@@ -225,7 +232,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   add_executable(qjsm ${QJSM_SOURCES})
 
   # target_link_libraries(qjs ${QUICKJS_LIBRARY})
-  target_link_libraries(qjsm quickjs ${STATIC_TARGETS} ${LIBPTHREAD} ${LIBM}
+  target_link_directories(qjsm PRIVATE ${QJSM_LIBDIR})
+  target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM}
                         ${LIBDL} ${LIBWS2_32})
   set_target_properties(
     qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT}" COMPILE_FLAGS "-w"
