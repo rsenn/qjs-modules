@@ -111,6 +111,9 @@ void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
 
 void jsm_std_dump_error(JSContext* ctx, JSValue exception_val);
 
+static BOOL debug_module_loader = FALSE;
+
+static Vector module_debug = VECTOR_INIT();
 static Vector module_list = VECTOR_INIT();
 static Vector builtins = VECTOR_INIT();
 
@@ -238,7 +241,6 @@ jsm_handle_posted_message(JSRuntime* rt, JSContext* ctx, JSWorkerMessageHandler*
   }
   return ret;
 }
-
 static JSValue
 jsm_load_package_json(JSContext* ctx, const char* filename) {
   uint8_t* buf;
@@ -519,7 +521,11 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   module = js_strdup(ctx, trim_dotslash(module_name));
   for(;;) {
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-       printf("jsm_module_loader_path[%x] %s -> %s\n", pthread_self(), trim_dotslash(module_name), trim_dotslash(module));
+      if(debug_module_loader)
+        printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(1)\x1b[0m %-20s -> %s\n",
+               pthread_self(),
+               trim_dotslash(module_name),
+               trim_dotslash(module));
       return ret;
     }
     if(!filename) {
@@ -556,7 +562,9 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   }
 
   if(filename) {
-    if(strcmp(trim_dotslash(module_name), trim_dotslash(filename))) printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(3)\x1b[0m %-40s -> %s\n", pthread_self(), module, filename);
+    if(debug_module_loader)
+      if(strcmp(trim_dotslash(module_name), trim_dotslash(filename)))
+        printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, filename);
     ret = has_suffix(filename, ".so") ? jsm_module_loader_so(ctx, filename) : js_module_loader(ctx, filename, opaque);
     js_free(ctx, filename);
   }
@@ -719,7 +727,7 @@ jsm_context_new(JSRuntime* rt) {
   return ctx;
 }
 
-static int
+/*static int
 jsm_os_poll(JSContext* ctx, uint32_t timeout) {
   JSRuntime* rt = JS_GetRuntime(ctx);
   JSThreadState* ts = JS_GetRuntimeOpaque(rt);
@@ -730,25 +738,25 @@ jsm_os_poll(JSContext* ctx, uint32_t timeout) {
   struct list_head* el;
   struct timeval tv, *tvp;
 
-  /* only check signals in the main thread */
-  /* if(!ts->recv_pipe && unlikely(jsm_pending_signals != 0)) {
-     JSOSSignalHandler* sh;
-     uint64_t mask;
+  // only check signals in the main thread
+  if(!ts->recv_pipe && unlikely(jsm_pending_signals != 0)) {
+   JSOSSignalHandler* sh;
+   uint64_t mask;
 
-     list_for_each(el, &ts->os_signal_handlers) {
-       sh = list_entry(el, JSOSSignalHandler, link);
-       mask = (uint64_t)1 << sh->sig_num;
-       if(jsm_pending_signals & mask) {
-         jsm_pending_signals &= ~mask;
-         jsm_call_handler(ctx, sh->func);
-         return 0;
-       }
+   list_for_each(el, &ts->os_signal_handlers) {
+     sh = list_entry(el, JSOSSignalHandler, link);
+     mask = (uint64_t)1 << sh->sig_num;
+     if(jsm_pending_signals & mask) {
+       jsm_pending_signals &= ~mask;
+       jsm_call_handler(ctx, sh->func);
+       return 0;
      }
-   }*/
+   }
+ }
 
-  if(list_empty(&ts->os_rw_handlers) && list_empty(&ts->os_timers) && list_empty(&ts->port_list) &&
-     list_empty(&pollhandlers))
-    return -1; /* no more events */
+ if(list_empty(&ts->os_rw_handlers) && list_empty(&ts->os_timers) && list_empty(&ts->port_list) &&
+   list_empty(&pollhandlers))
+    return -1; // no more events
 
   if(!list_empty(&pollhandlers)) {
     list_for_each(el, &pollhandlers) {
@@ -770,7 +778,7 @@ jsm_os_poll(JSContext* ctx, uint32_t timeout) {
       delay = th->timeout - cur_time;
       if(delay <= 0) {
         JSValue func;
-        /* the timer expired */
+        // the timer expired
         func = th->func;
         th->func = JS_UNDEFINED;
         jsm_unlink_timer(rt, th);
@@ -825,7 +833,6 @@ jsm_os_poll(JSContext* ctx, uint32_t timeout) {
         pollhandler_t* ph = list_entry(el, pollhandler_t, link);
         if(ph->pf.events) {
           ph->pf.revents = (FD_ISSET(ph->pf.fd, &rfds) ? POLLIN : 0) | (FD_ISSET(ph->pf.fd, &wfds) ? POLLOUT : 0);
-
           if(ph->pf.revents && ph->handler)
             ph->handler(ph->opaque, &ph->pf);
         }
@@ -835,12 +842,12 @@ jsm_os_poll(JSContext* ctx, uint32_t timeout) {
       rh = list_entry(el, JSOSRWHandler, link);
       if(!JS_IsNull(rh->rw_func[0]) && FD_ISSET(rh->fd, &rfds)) {
         jsm_call_handler(ctx, rh->rw_func[0]);
-        /* must stop because the list may have been modified */
+        // must stop because the list may have been modified
         goto done;
       }
       if(!JS_IsNull(rh->rw_func[1]) && FD_ISSET(rh->fd, &wfds)) {
         jsm_call_handler(ctx, rh->rw_func[1]);
-        /* must stop because the list may have been modified */
+        // must stop because the list may have been modified
         goto done;
       }
     }
@@ -858,17 +865,16 @@ jsm_os_poll(JSContext* ctx, uint32_t timeout) {
   }
 done:
   return 0;
-}
+}*/
 
-/* main loop which calls the user JS callbacks */
+/*// main loop which calls the user JS callbacks
 void
 jsm_std_loop(JSContext* ctx, uint32_t timeout) {
   JSContext* ctx1;
   int err;
   uint64_t t = jsm_time_ms();
-
   for(;;) {
-    /* execute the pending jobs */
+    // execute the pending jobs
     for(;;) {
       err = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1);
       if(err <= 0) {
@@ -878,14 +884,12 @@ jsm_std_loop(JSContext* ctx, uint32_t timeout) {
         break;
       }
     }
-
     if(jsm_os_poll(ctx, timeout))
       break;
-
     if(timeout > 0 && jsm_time_ms() - t >= timeout)
       break;
   }
-}
+}*/
 
 #if defined(__APPLE__)
 #define MALLOC_OVERHEAD 0
@@ -1403,6 +1407,24 @@ main(int argc, char** argv) {
     optind++;
   }
 
+  {
+    const char* modules;
+
+    if((modules = getenv("DEBUG"))) {
+      size_t i, len;
+      for(i = 0; modules[i]; i += len) {
+        len = str_chr(&modules[i], ',');
+        vector_putptr(&module_debug, str_ndup(&modules[i], len));
+
+        if(modules[i + len] == ',')
+          len++;
+      }
+
+      if(vector_finds(&module_debug, "modules") != -1)
+        debug_module_loader = TRUE;
+    }
+  }
+
   if(load_jscalc)
     bignum_ext = 1;
 
@@ -1528,10 +1550,12 @@ main(int argc, char** argv) {
         goto fail;
     }
     if(interactive) {
+      const char* str = "import REPL from 'repl'; globalThis.repl = new REPL('qjsm').runSync();\n";
       jsm_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
+      jsm_eval_str(ctx, str, "<input>", TRUE);
     }
 
-    jsm_std_loop(ctx, 0);
+    js_std_loop(ctx);
   }
 
   {
