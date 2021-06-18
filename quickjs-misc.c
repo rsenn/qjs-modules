@@ -559,6 +559,77 @@ js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return ret;
 }
 
+static JSValue
+
+js_misc_bitfield_to_array(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const uint8_t* buf;
+  size_t len;
+  int64_t offset = 0;
+  JSValue ret = JS_UNDEFINED;
+
+  if(argc >= 2)
+    JS_ToInt64(ctx, &offset, argv[1]);
+
+  if((buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+    size_t i, j = 0, bits = len * 8;
+    ret = JS_NewArray(ctx);
+
+    for(i = 0; i < bits; i++) {
+      if(buf[i >> 3] & (1u << (i & 0x7))) {
+        JS_SetPropertyUint32(ctx, ret, j++, JS_NewInt64(ctx, i + offset));
+      }
+    }
+  }
+  return ret;
+}
+
+static JSValue
+js_misc_array_to_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  size_t len;
+  int64_t offset = 0;
+  JSValue ret = JS_UNDEFINED;
+
+  if(argc >= 2)
+    JS_ToInt64(ctx, &offset, argv[1]);
+
+  if(!JS_IsArray(ctx, argv[0]))
+    return JS_ThrowTypeError(ctx, "argument must be an array");
+
+  if((len = js_array_length(ctx, argv[0]))) {
+    size_t i;
+    int64_t max = -1;
+    uint8_t* bufptr;
+    size_t bufsize;
+
+    for(i = 0; i < len; i++) {
+      JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
+      uint32_t number;
+      JS_ToUint32(ctx, &number, value);
+      JS_FreeValue(ctx, value);
+
+      if(max < number)
+        max = number;
+    }
+    bufsize = ((max + 1) + 7) >> 3;
+    if((bufptr = js_mallocz(ctx, bufsize)) == 0)
+      return JS_ThrowOutOfMemory(ctx);
+
+    for(i = 0; i < len; i++) {
+      JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
+      uint32_t number;
+      JS_ToUint32(ctx, &number, value);
+      JS_FreeValue(ctx, value);
+
+      number -= offset;
+
+      bufptr[number >> 3] |= 1u << (number & 0x7);
+    }
+
+    ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_func, NULL, FALSE);
+  }
+  return ret;
+}
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
@@ -571,6 +642,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
+    JS_CFUNC_DEF("bitfieldToArray", 1, js_misc_bitfield_to_array),
+    JS_CFUNC_DEF("arrayToBitfield", 1, js_misc_array_to_bitfield),
     JS_CFUNC_DEF("compileFile", 1, js_misc_compile_file),
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
     JS_CFUNC_DEF("readObject", 1, js_misc_read_object),
