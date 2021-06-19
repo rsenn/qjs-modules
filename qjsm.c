@@ -1334,7 +1334,7 @@ main(int argc, char** argv) {
         break;
       }
       if(opt == 'm' || !strcmp(longopt, "module")) {
-        const char* modules = argv[optind++];
+        const char* modules = argv[optind];
         size_t i, len;
 
         for(i = 0; modules[i]; i += len) {

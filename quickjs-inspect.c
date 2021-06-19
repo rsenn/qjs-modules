@@ -69,6 +69,13 @@ regexp_predicate(int c) {
   return 0;
 }
 
+static inline int
+inspect_screen_width(void) {
+  struct winsize w = {.ws_col = -1, .ws_row = -1};
+  ioctl(1, TIOCGWINSZ, &w);
+  return w.ws_col;
+}
+
 static void
 inspect_options_init(inspect_options_t* opts, JSContext* ctx) {
   opts->colors = TRUE;
@@ -76,11 +83,11 @@ inspect_options_init(inspect_options_t* opts, JSContext* ctx) {
   opts->custom_inspect = TRUE;
   opts->show_proxy = FALSE;
   opts->getters = FALSE;
-  opts->string_break_newline = TRUE;
+  opts->string_break_newline = FALSE;
   opts->depth = INT32_MAX;
-  opts->max_array_length = 100;
+  opts->max_array_length = 300;
   opts->max_string_length = INT32_MAX;
-  opts->break_length = 80;
+  opts->break_length = inspect_screen_width();
   opts->compact = 5;
   opts->proto_chain = 0;
   opts->number_base = 10;
@@ -241,13 +248,6 @@ static void
 inspect_newline(DynBuf* buf, int32_t depth) {
   dbuf_putc(buf, '\n');
   while(depth-- > 0) dbuf_putstr(buf, "  ");
-}
-
-static inline int
-inspect_screen_width(void) {
-  struct winsize w = {.ws_col = -1, .ws_row = -1};
-  ioctl(1, TIOCGWINSZ, &w);
-  return w.ws_col;
 }
 
 static int
@@ -517,7 +517,7 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
   const char* str;
   size_t pos, len, max_len, limit, column_start = (INSPECT_LEVEL(opts) * 2);
   str = JS_ToCStringLen(ctx, &len, value);
-  max_len = min_size(opts->break_length - dbuf_get_column(buf) - 12, len);
+  max_len = min_size(opts->break_length - dbuf_get_column(buf) - 10, len);
 
   if(tag != JS_TAG_SYMBOL && opts->colors)
     dbuf_putstr(buf, COLOR_GREEN);
@@ -901,11 +901,12 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
     double d;
     JS_ToFloat64(ctx, &d, argv[1]);
     level = isinf(d) ? INT32_MAX : d;
-  } else
+  } else {
     level = 0;
+  }
 
-  // if(level)
-  // printf("js_inspect level: %d\n", level);
+  /*printf("js_inspect break_length: %d, max_array_length: %d, max_string_length: %d\n",
+         options.break_length, options.max_array_length, options.max_string_length);*/
 
   js_inspect_print(ctx, &dbuf, argv[0], &options, options.depth - level);
 

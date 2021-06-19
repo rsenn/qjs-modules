@@ -585,7 +585,8 @@ path_readlink(const char* path, DynBuf* dir) {
     /* reserve some space */
     n <<= 1;
     dbuf_realloc(dir, n);
-    sz = readlink(path, dir->buf, n);
+    if((sz = readlink(path, dir->buf, n)) == -1)
+      return -1;
     /* repeat until we have reserved enough space */
   } while(sz == n);
 

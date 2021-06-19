@@ -15,6 +15,28 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
+enum {
+  FUNC_GETEXECUTABLE = 0,
+  FUNC_GETCWD,
+  FUNC_GETROOT,
+  FUNC_GETFD,
+  FUNC_GETCOMMANDLINE,
+  FUNC_GETPROCMAPS,
+  FUNC_GETPROCMOUNTS,
+  FUNC_GETPROCSTAT,
+  FUNC_GETPID,
+  FUNC_GETPPID,
+  FUNC_GETSID,
+  FUNC_GETUID,
+  FUNC_GETGID,
+  FUNC_GETEUID,
+  FUNC_GETEGID,
+  FUNC_SETUID,
+  FUNC_SETGID,
+  FUNC_SETEUID,
+  FUNC_SETEGID
+};
+
 static const char* const errors[] = {
     0,
     "EPERM",
@@ -610,34 +632,81 @@ js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, J
 }
 
 static JSValue
-js_misc_getinterpreter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf = {0};
+  const char *link, path[256];
+  size_t n;
+  ssize_t r;
+
+  switch(magic) {
+    case FUNC_GETEXECUTABLE: link = "exe"; break;
+    case FUNC_GETCWD: link = "cwd"; break;
+    case FUNC_GETROOT: link = "root"; break;
+    case FUNC_GETFD: link = "fd/"; break;
+  }
+
+  n = snprintf(path, sizeof(path), "/proc/self/%s", link);
+
+  if(magic == FUNC_GETFD) {
+    int32_t fd;
+    if(argc < 1 || !JS_IsNumber(argv[0]))
+      return JS_ThrowTypeError(ctx, "argument 1 must be Number");
+
+    JS_ToInt32(ctx, &fd, argv[0]);
+    snprintf(&path[n], sizeof(path) - n, "%d", fd);
+  }
 
   js_dbuf_init(ctx, &dbuf);
 
-  if(path_readlink("/proc/self/exe", &dbuf))
+  if((r = path_readlink(path, &dbuf)) > 0) {
     ret = dbuf_tostring_free(&dbuf, ctx);
+  } else if(r < 0) {
+    ret = js_syscallerror_throw(ctx, "readlink");
+  }
 
   return ret;
 }
 
 static JSValue
-js_misc_getcommandline(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf = {0};
   ssize_t i, j = 0, size, n;
+  const char* file;
+  char sep = '\n';
+
+  switch(magic) {
+    case FUNC_GETCOMMANDLINE:
+      file = "/proc/self/cmdline";
+      sep = '\0';
+      break;
+    case FUNC_GETPROCMAPS:
+      file = "/proc/self/maps";
+      sep = '\n';
+      break;
+    case FUNC_GETPROCMOUNTS:
+      file = "/proc/self/mounts";
+      sep = '\n';
+      break;
+    case FUNC_GETPROCSTAT:
+      file = "/proc/self/stat";
+      sep = ' ';
+      break;
+  }
 
   js_dbuf_init(ctx, &dbuf);
 
-  if((size = dbuf_load(&dbuf, "/proc/self/cmdline")) > 0) {
-    dbuf_0(&dbuf);
+  if((size = dbuf_load(&dbuf, file)) > 0) {
+
+    while(size > 0 && dbuf.buf[size - 1] == '\n') size--;
+
     ret = JS_NewArray(ctx);
-
     for(i = 0; i < size; i += n + 1) {
-      n = strlen(&dbuf.buf[i]);
-
-      JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, &dbuf.buf[i], n));
+      size_t len;
+      len = n = byte_chr(&dbuf.buf[i], size - i, sep);
+      while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1])) len--;
+      JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, &dbuf.buf[i], len));
     }
   }
 
@@ -791,20 +860,6 @@ js_misc_read_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   return JS_ReadObject(ctx, input.data, input.size, JS_READ_OBJ_BYTECODE);
 }
-
-enum {
-  FUNC_GETPID = 0,
-  FUNC_GETPPID,
-  FUNC_GETSID,
-  FUNC_GETUID,
-  FUNC_GETGID,
-  FUNC_GETEUID,
-  FUNC_GETEGID,
-  FUNC_SETUID,
-  FUNC_SETGID,
-  FUNC_SETEUID,
-  FUNC_SETEGID
-};
 
 static JSValue
 js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -1183,8 +1238,14 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
     JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
-    JS_CFUNC_DEF("getInterpreter", 0, js_misc_getinterpreter),
-    JS_CFUNC_DEF("getCommandLine", 0, js_misc_getcommandline),
+    JS_CFUNC_MAGIC_DEF("getExecutable", 0, js_misc_proclink, FUNC_GETEXECUTABLE),
+    JS_CFUNC_MAGIC_DEF("getCurrentWorkingDirectory", 0, js_misc_proclink, FUNC_GETCWD),
+    JS_CFUNC_MAGIC_DEF("getRootDirectory", 0, js_misc_proclink, FUNC_GETROOT),
+    JS_CFUNC_MAGIC_DEF("getFileDescriptor", 0, js_misc_proclink, FUNC_GETFD),
+    JS_CFUNC_MAGIC_DEF("getCommandLine", 0, js_misc_procread, FUNC_GETCOMMANDLINE),
+    JS_CFUNC_MAGIC_DEF("getProcMaps", 0, js_misc_procread, FUNC_GETPROCMAPS),
+    JS_CFUNC_MAGIC_DEF("getProcMounts", 0, js_misc_procread, FUNC_GETPROCMOUNTS),
+    JS_CFUNC_MAGIC_DEF("getProcStat", 0, js_misc_procread, FUNC_GETPROCSTAT),
     JS_CFUNC_DEF("getPrototypeChain", 0, js_misc_getprototypechain),
     JS_CFUNC_MAGIC_DEF("getpid", 0, js_misc_getx, FUNC_GETPID),
     JS_CFUNC_MAGIC_DEF("getppid", 0, js_misc_getx, FUNC_GETPPID),
