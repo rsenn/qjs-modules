@@ -545,10 +545,9 @@ predicate_dump(JSValueConst value, JSContext* ctx, DynBuf* dbuf, Arguments* args
   if((pred = JS_GetOpaque(value, js_predicate_class_id)))
     predicate_tosource(pred, ctx, dbuf, args);
   else if(JS_IsUndefined(value))
-  dbuf_putstr(dbuf, arguments_shift(args));
-    else
+    dbuf_putstr(dbuf, arguments_shift(args));
+  else
     js_value_dump(ctx, value, dbuf);
-  
 }
 
 JSValue
