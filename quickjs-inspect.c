@@ -25,7 +25,9 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 #define INSPECT_IS_COMPACT(opts)                                                                                       \
   ((opts)->compact == INT32_MAX                                                                                        \
        ? TRUE                                                                                                          \
-       : INSPECT_INT32T_INRANGE((opts)->compact) ? INSPECT_LEVEL(opts) >= (opts)->compact : 0)
+       : INSPECT_INT32T_INRANGE((opts)->compact) ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact)      \
+                                                                        : INSPECT_LEVEL(opts) >= (opts)->compact)      \
+                                                 : 0)
 
 typedef struct {
   int colors : 1;
@@ -661,7 +663,9 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         }
       }
 
-      if(INSPECT_INT32T_INRANGE(opts->compact) && opts->compact > 0) {
+      if(opts->compact < 0) {
+        compact = depth >= -opts->compact;
+      } else if(INSPECT_INT32T_INRANGE(opts->compact) && opts->compact > 0) {
         int32_t deepest = 1;
 
         if(!js_is_arraybuffer(ctx, value))
