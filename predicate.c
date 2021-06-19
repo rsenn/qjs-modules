@@ -24,7 +24,7 @@ utf8_to_unicode(const char* str, size_t len, Vector* out) {
 }
 
 JSValue
-predicate_eval(Predicate* pr, JSContext* ctx, Arguments* args) {
+predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
   JSValue ret = JS_UNDEFINED;
 
   switch(pr->id) {
@@ -246,7 +246,7 @@ predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst argv[]
   JSValue ret = JS_UNDEFINED;
 
   if((pred = JS_GetOpaque(value, js_predicate_class_id))) {
-    Arguments args = js_arguments_new(argc, argv);
+    JSArguments args = js_arguments_new(argc, argv);
     return predicate_eval(pred, ctx, &args);
   }
 
@@ -265,7 +265,7 @@ predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst argv[]
 }
 
 JSValue
-predicate_value(JSContext* ctx, JSValueConst value, Arguments* args) {
+predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
   Predicate* pred;
   JSValue ret = JS_EXCEPTION;
 
@@ -431,6 +431,124 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
     default: assert(0); break;
   }
+}
+
+void
+predicate_tosource(const Predicate* pred, JSContext* ctx, DynBuf* dbuf, Arguments* args) {
+  int i;
+  Arguments fn_args, save_args;
+
+  if(args == 0) {
+    char c[2] = {0, 0};
+    fn_args.c = predicate_recursive_num_args(pred);
+    fn_args.v = js_mallocz(ctx, sizeof(const char*) * (fn_args.c + 1));
+
+    if(fn_args.c != 1)
+      dbuf_putc(dbuf, '(');
+
+    for(i = 0; i < fn_args.c; i++) {
+      c[0] = 'a' + i;
+      fn_args.v[i] = js_strdup(ctx, c);
+
+      if(i > 0)
+        dbuf_putstr(dbuf, ", ");
+      dbuf_putstr(dbuf, fn_args.v[i]);
+    }
+    save_args = fn_args;
+
+    if(fn_args.c != 1)
+      dbuf_putc(dbuf, ')');
+    dbuf_putstr(dbuf, " => ");
+    args = &fn_args;
+  }
+
+  switch(pred->id) {
+    case PREDICATE_TYPE: {
+      const char* arg = arguments_shift(args);
+      dbuf_printf(dbuf, "typeof %s == %s", arg, js_value_type_name(pred->type.flags));
+      break;
+    }
+
+    case PREDICATE_CHARSET: {
+      const char* arg = arguments_shift(args);
+      dbuf_printf(dbuf, "'%s'.indexOf(%s) != -1", pred->charset.set, arg);
+      break;
+    }
+
+    case PREDICATE_STRING: {
+      const char* arg = arguments_shift(args);
+      dbuf_printf(dbuf, "%s == '%s'", arg, pred->string.str);
+      break;
+    }
+
+    case PREDICATE_EQUAL:
+    case PREDICATE_INSTANCEOF:
+    case PREDICATE_PROTOTYPEIS: {
+      const char* arg = arguments_shift(args);
+
+      if(pred->id == PREDICATE_EQUAL)
+        dbuf_printf(dbuf, "%s == ", arg);
+      else if(pred->id == PREDICATE_INSTANCEOF)
+        dbuf_printf(dbuf, "%s instanceof ", arg);
+      else if(pred->id == PREDICATE_PROTOTYPEIS)
+        dbuf_printf(dbuf, "Object.getPrototypeOf(%s) == ", arg);
+
+      predicate_dump(pred->unary.predicate, ctx, dbuf, args);
+      break;
+    }
+
+    case PREDICATE_NOTNOT: {
+      const char* arg = arguments_shift(args);
+      dbuf_printf(dbuf, "!!%s", arg);
+      break;
+    }
+
+    case PREDICATE_NOT: {
+      dbuf_putstr(dbuf, "arg => !arg");
+      break;
+    }
+
+    case PREDICATE_ADD:
+    case PREDICATE_SUB:
+    case PREDICATE_MUL:
+    case PREDICATE_DIV:
+    case PREDICATE_MOD: {
+      dbuf_putc(dbuf, '(');
+      predicate_dump(pred->binary.left, ctx, dbuf, args);
+      dbuf_putstr(dbuf, ((const char* const[]){" + ", " - ", " * ", " / ", " % "})[pred->id - PREDICATE_ADD]);
+      predicate_dump(pred->binary.right, ctx, dbuf, args);
+      dbuf_putc(dbuf, ')');
+      break;
+    }
+
+    case PREDICATE_OR:
+    case PREDICATE_AND:
+    case PREDICATE_XOR: {
+      break;
+    }
+
+    case PREDICATE_REGEXP: {
+      break;
+    }
+    case PREDICATE_PROPERTY: {
+      break;
+    }
+    case PREDICATE_SHIFT: {
+      break;
+    }
+  }
+}
+void
+predicate_dump(JSValueConst value, JSContext* ctx, DynBuf* dbuf, Arguments* args) {
+  Predicate* pred;
+
+  if((pred = JS_GetOpaque(value, js_predicate_class_id)))
+    predicate_tosource(pred, ctx, dbuf, args);
+  else if(JS_IsUndefined(value))
+  dbuf_putstr(dbuf, arguments_shift(args));
+    else
+    js_value_dump(ctx, value, dbuf);
+  
 }
 
 JSValue
@@ -643,4 +761,116 @@ predicate_regexp_compile(Predicate* pred, JSContext* ctx) {
     return lre_get_capture_count(pred->regexp.bytecode);
 
   return 0;
+}
+
+int
+predicate_recursive_num_args(const Predicate* pred) {
+  Predicate* other;
+
+  switch(pred->id) {
+    case PREDICATE_TYPE:
+    case PREDICATE_CHARSET:
+    case PREDICATE_STRING:
+    case PREDICATE_EQUAL:
+    case PREDICATE_INSTANCEOF:
+    case PREDICATE_PROTOTYPEIS:
+    case PREDICATE_NOTNOT:
+    case PREDICATE_NOT: {
+      return predicate_recursive_num_args(&pred->unary.predicate);
+    }
+    case PREDICATE_ADD:
+    case PREDICATE_SUB:
+    case PREDICATE_MUL:
+    case PREDICATE_DIV:
+    case PREDICATE_MOD: {
+      int n = 0;
+      if(js_is_null_or_undefined(pred->binary.left))
+        n++;
+      else if((pred = JS_GetOpaque(pred->binary.left, js_predicate_class_id)))
+        n += predicate_recursive_num_args(pred);
+
+      if(js_is_null_or_undefined(pred->binary.right))
+        n++;
+      else if((other = JS_GetOpaque(pred->binary.right, js_predicate_class_id)))
+        n += predicate_recursive_num_args(other);
+
+      return n;
+    }
+    case PREDICATE_OR:
+    case PREDICATE_AND:
+    case PREDICATE_XOR: {
+      int i, n = 0;
+      for(i = 0; i < pred->boolean.npredicates; i++)
+        if((other = JS_GetOpaque(pred->boolean.predicates[i], js_predicate_class_id)))
+          n += predicate_recursive_num_args(other);
+      return n;
+    }
+    case PREDICATE_REGEXP: {
+      return 1;
+    }
+    case PREDICATE_PROPERTY: {
+      int n = 0;
+      if(pred->property.atom == 0)
+        n++;
+
+      if(js_is_null_or_undefined(pred->property.predicate))
+        n++;
+      else if((other = JS_GetOpaque(pred->property.predicate, js_predicate_class_id)))
+        n += predicate_recursive_num_args(other);
+
+      return n;
+    }
+    case PREDICATE_SHIFT: {
+      return 1;
+    }
+  }
+}
+
+int
+predicate_direct_num_args(const Predicate* pred) {
+  switch(pred->id) {
+    case PREDICATE_TYPE:
+    case PREDICATE_CHARSET:
+    case PREDICATE_STRING:
+    case PREDICATE_EQUAL:
+    case PREDICATE_INSTANCEOF:
+    case PREDICATE_PROTOTYPEIS:
+    case PREDICATE_NOTNOT:
+    case PREDICATE_NOT: return 1;
+    case PREDICATE_ADD:
+    case PREDICATE_SUB:
+    case PREDICATE_MUL:
+    case PREDICATE_DIV:
+    case PREDICATE_MOD: {
+      int n = 0;
+      if(js_is_null_or_undefined(pred->binary.left))
+        n++;
+
+      if(js_is_null_or_undefined(pred->binary.right))
+        n++;
+
+      return n;
+    }
+    case PREDICATE_OR:
+    case PREDICATE_AND:
+    case PREDICATE_XOR: {
+      return 0;
+    }
+    case PREDICATE_REGEXP: {
+      return 1;
+    }
+    case PREDICATE_PROPERTY: {
+      int n = 0;
+      if(pred->property.atom == 0)
+        n++;
+
+      if(js_is_null_or_undefined(pred->property.predicate))
+        n++;
+
+      return n;
+    }
+    case PREDICATE_SHIFT: {
+      return 1;
+    }
+  }
 }

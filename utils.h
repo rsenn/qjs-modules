@@ -61,19 +61,61 @@ typedef struct {
 
 typedef struct {
   int c;
-  JSValueConst* v;
+  const char** v;
 } Arguments;
 
 static inline Arguments
-js_arguments_new(int argc, JSValueConst* argv) {
+arguments_new(int argc, const char* argv[]) {
   Arguments args;
   args.c = argc;
   args.v = argv;
   return args;
 }
 
+static inline const char*
+arguments_shift(Arguments* args) {
+  const char* ret = 0;
+  if(args->c > 0) {
+    ret = args->v[0];
+    args->c--;
+    args->v++;
+  }
+  return ret;
+}
+
+static inline const char*
+arguments_at(Arguments* args, uint32_t i) {
+  return i < args->c ? args->v[i] : 0;
+}
+
+static inline uint32_t
+arguments_shiftn(Arguments* args, uint32_t n) {
+  uint32_t i = 0;
+
+  while(n > 0) {
+    if(!arguments_shift(args))
+      break;
+    i++;
+    n--;
+  }
+  return i;
+}
+
+typedef struct {
+  int c;
+  JSValueConst* v;
+} JSArguments;
+
+static inline JSArguments
+js_arguments_new(int argc, JSValueConst* argv) {
+  JSArguments args;
+  args.c = argc;
+  args.v = argv;
+  return args;
+}
+
 static inline JSValueConst
-js_arguments_shift(Arguments* args) {
+js_arguments_shift(JSArguments* args) {
   JSValue ret = JS_EXCEPTION;
   if(args->c > 0) {
     ret = args->v[0];
@@ -84,12 +126,12 @@ js_arguments_shift(Arguments* args) {
 }
 
 static inline JSValueConst
-js_arguments_at(Arguments* args, uint32_t i) {
+js_arguments_at(JSArguments* args, uint32_t i) {
   return i < args->c ? args->v[i] : JS_UNDEFINED;
 }
 
 static inline uint32_t
-js_arguments_shiftn(Arguments* args, uint32_t n) {
+js_arguments_shiftn(JSArguments* args, uint32_t n) {
   uint32_t i = 0;
 
   while(n > 0) {

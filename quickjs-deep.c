@@ -67,7 +67,7 @@ js_deep_predicate(JSContext* ctx, JSValueConst value, PropertyEnumeration* penum
   };
 
   if((pred = js_predicate_data2(ctx, value))) {
-    Arguments a = js_arguments_new(2, args);
+    JSArguments a = js_arguments_new(2, args);
     result = js_value_tobool_free(ctx, predicate_eval(pred, ctx, &a));
 
   } else if(JS_IsFunction(ctx, value)) {

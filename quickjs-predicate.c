@@ -26,6 +26,14 @@ predicate_constant(const Predicate* pr, JSContext* ctx) {
   return dbuf_tostring_free(&dbuf, ctx);
 }
 
+static JSValue
+predicate_argument(JSContext* ctx, JSValueConst value) {
+  if(js_is_null_or_undefined(value))
+    return JS_UNDEFINED;
+
+  return JS_DupValue(ctx, value);
+}
+
 VISIBLE Predicate*
 js_predicate_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_predicate_class_id);
@@ -129,37 +137,37 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       }
 
       case PREDICATE_NOTNOT: {
-        *pred = predicate_notnot(JS_DupValue(ctx, argv[1]));
+        *pred = predicate_notnot(predicate_argument(ctx, argv[1]));
         break;
       }
 
       case PREDICATE_NOT: {
-        *pred = predicate_not(JS_DupValue(ctx, argv[1]));
+        *pred = predicate_not(predicate_argument(ctx, argv[1]));
         break;
       }
 
       case PREDICATE_ADD: {
-        *pred = predicate_add(JS_DupValue(ctx, argv[1]), JS_DupValue(ctx, argv[2]));
+        *pred = predicate_add(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
         break;
       }
 
       case PREDICATE_SUB: {
-        *pred = predicate_sub(JS_DupValue(ctx, argv[1]), JS_DupValue(ctx, argv[2]));
+        *pred = predicate_sub(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
         break;
       }
 
       case PREDICATE_MUL: {
-        *pred = predicate_mul(JS_DupValue(ctx, argv[1]), JS_DupValue(ctx, argv[2]));
+        *pred = predicate_mul(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
         break;
       }
 
       case PREDICATE_DIV: {
-        *pred = predicate_div(JS_DupValue(ctx, argv[1]), JS_DupValue(ctx, argv[2]));
+        *pred = predicate_div(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
         break;
       }
 
       case PREDICATE_MOD: {
-        *pred = predicate_mod(JS_DupValue(ctx, argv[1]), JS_DupValue(ctx, argv[2]));
+        *pred = predicate_mod(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
         break;
       }
 
@@ -238,7 +246,7 @@ js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   switch(magic) {
     case METHOD_EVAL: {
-      Arguments args = js_arguments_new(argc, argv);
+      JSArguments args = js_arguments_new(argc, argv);
       ret = predicate_eval(pred, ctx, &args);
       break;
     }
@@ -249,7 +257,7 @@ js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 static JSValue
 js_predicate_operator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
-  Arguments args = js_arguments_new(argc, argv);
+  JSArguments args = js_arguments_new(argc, argv);
 
   switch(magic) {
     case OPERATOR_PLUS: {
@@ -278,7 +286,7 @@ js_predicate_operator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 static JSValue
-js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Predicate* pred;
   DynBuf dbuf;
   JSValue ret;
@@ -287,7 +295,12 @@ js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     return JS_EXCEPTION;
 
   js_dbuf_init(ctx, &dbuf);
-  predicate_tostring(pred, ctx, &dbuf);
+
+  if(magic)
+    predicate_tosource(pred, ctx, &dbuf, 0);
+  else
+    predicate_tostring(pred, ctx, &dbuf);
+
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
   return ret;
@@ -450,7 +463,7 @@ js_predicate_call(
     ret = JS_Invoke(ctx, arg, then, 1, &func_obj);
     JS_FreeAtom(ctx, then);
   } else {
-    Arguments args = js_arguments_new(argc, argv);
+    JSArguments args = js_arguments_new(argc, argv);
     ret = predicate_eval(pred, ctx, &args);
     /*
         switch(result) {
@@ -572,7 +585,8 @@ static const JSCFunctionListEntry js_predicate_operator_mul_number[] = {
 
 static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("eval", 1, js_predicate_method, METHOD_EVAL),
-    JS_CFUNC_DEF("toString", 0, js_predicate_tostring),
+    JS_CFUNC_MAGIC_DEF("toString", 0, js_predicate_tostring, 0),
+    JS_CFUNC_MAGIC_DEF("toSource", 0, js_predicate_tostring, 1),
     JS_ALIAS_DEF("call", "eval"),
     JS_CGETSET_MAGIC_DEF("id", js_predicate_get, 0, PROP_ID),
     JS_CGETSET_MAGIC_DEF("values", js_predicate_get, 0, PROP_VALUES),

@@ -56,9 +56,10 @@ async function main(...args) {
     inspectOptions: {
       colors: true,
       depth: 4,
+      breakLength: 80,
       maxArrayLength: 100,
       maxStringLength: 100,
-      compact: 1
+      compact: false
     }
   });
   let str = std.loadFile(args[0] ?? scriptArgs[0], 'utf-8');
@@ -220,6 +221,8 @@ async function main(...args) {
   console.log('add.toString()', add.toString());
   console.log('term', term);
   console.log('term.toString()', term.toString());
+  console.log('term.toSource()', term.toSource());
+  console.log('term.args', term.args);
   console.log('div(18)', div(18));
   console.log('mul(10)', mul(10));
   console.log('add(20)', add(20));
@@ -241,20 +244,6 @@ async function main(...args) {
   console.log('op_set', op_set);
   console.log('PredicateOperatorSet', PredicateOperatorSet);
   console.log("PredicateOperatorSet['*']", PredicateOperatorSet['*']);
-  console.log(
-    'Predicate.prototype[Symbol.operatorSet] == PredicateOperatorSet',
-    Predicate.prototype[Symbol.operatorSet] == PredicateOperatorSet
-  );
-  console.log('Predicate.prototype[Symbol.operatorSet]', Predicate.prototype[Symbol.operatorSet]);
-  console.log(
-    "Predicate.prototype[Symbol.operatorSet]['*']",
-    Predicate.prototype[Symbol.operatorSet]['*']
-  );
-  console.log(
-    'Object.getOwnPropertyNames(Predicate.prototype[Symbol.operatorSet])',
-    Object.getOwnPropertyNames(Predicate.prototype[Symbol.operatorSet])
-  );
-  console.log('Predicate.prototype[Symbol.toStringTag]', Predicate.prototype[Symbol.toStringTag]);
 
   std.gc();
 }

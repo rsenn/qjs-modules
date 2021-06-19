@@ -93,16 +93,20 @@ typedef struct Predicate {
   }
 static const size_t CAPTURE_COUNT_MAX = 255;
 
-JSValue predicate_eval(Predicate*, JSContext* ctx, Arguments* args);
+JSValue predicate_eval(Predicate*, JSContext* ctx, JSArguments* args);
 JSValue predicate_call(JSContext*, JSValue value, int argc, JSValue argv[]);
-JSValue predicate_value(JSContext*, JSValue value, Arguments* args);
+JSValue predicate_value(JSContext*, JSValue value, JSArguments* args);
 const char* predicate_typename(const Predicate*);
 void predicate_tostring(const Predicate*, JSContext* ctx, DynBuf* dbuf);
+void predicate_tosource(const Predicate*, JSContext* ctx, DynBuf* dbuf, Arguments* args);
+void predicate_dump(JSValue, JSContext* ctx, DynBuf* dbuf, Arguments* args);
 JSValue predicate_regexp_capture(uint8_t**, int capture_count, uint8_t* input, JSContext* ctx);
 void predicate_free_rt(Predicate*, JSRuntime* rt);
 JSValue predicate_values(const Predicate*, JSContext* ctx);
 Predicate* predicate_clone(const Predicate*, JSContext* ctx);
 int predicate_regexp_compile(Predicate*, JSContext* ctx);
+int predicate_recursive_num_args(const Predicate*);
+int predicate_direct_num_args(const Predicate*);
 
 static inline void
 predicate_free(Predicate* pred, JSContext* ctx) {
@@ -177,40 +181,40 @@ predicate_prototype(JSValue proto) {
 static inline Predicate
 predicate_add(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_ADD);
-  ret.binary.left = left;
-  ret.binary.right = right;
+  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
 static inline Predicate
 predicate_sub(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_SUB);
-  ret.binary.left = left;
-  ret.binary.right = right;
+  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
 static inline Predicate
 predicate_mul(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_MUL);
-  ret.binary.left = left;
-  ret.binary.right = right;
+  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
 static inline Predicate
 predicate_div(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_DIV);
-  ret.binary.left = left;
-  ret.binary.right = right;
+  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
 static inline Predicate
 predicate_mod(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_MOD);
-  ret.binary.left = left;
-  ret.binary.right = right;
+  ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;
+  ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;
   return ret;
 }
 
