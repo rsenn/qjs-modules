@@ -219,11 +219,12 @@ async function main(...args) {
   console.log('add.toString()', add.toString());
   console.log('term', term);
   console.log('term.toString()', term.toString());
+  console.log('term.toSource()', term.toSource());
   console.log('term.args', term.args);
-  /*  console.log('div(18)', div(18));
+  console.log('div(18)', div(18));
   console.log('mul(10)', mul(10));
   console.log('add(20)', add(20));
-  console.log('term(19)', term(19));*/
+  console.log('term(19)', term(19));
 
   let pred = 2 ** mul;
   console.log('pred.toString()', pred.toString());
