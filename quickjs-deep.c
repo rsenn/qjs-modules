@@ -66,9 +66,9 @@ js_deep_predicate(JSContext* ctx, JSValueConst value, PropertyEnumeration* penum
       property_enumeration_key(penum, ctx),
   };
 
-  if((pred = js_predicate_data(ctx, value))) {
-
-    result = predicate_eval(pred, ctx, 2, args);
+  if((pred = js_predicate_data2(ctx, value))) {
+    Arguments a = js_arguments_new(2, args);
+    result = js_value_tobool_free(ctx, predicate_eval(pred, ctx, &a));
 
   } else if(JS_IsFunction(ctx, value)) {
 
@@ -78,7 +78,7 @@ js_deep_predicate(JSContext* ctx, JSValueConst value, PropertyEnumeration* penum
       JS_GetException(ctx);
       ret = JS_FALSE;
     }
-    result = JS_ToBool(ctx, ret);
+    result = js_value_tobool_free(ctx, ret);
   }
   JS_FreeValue(ctx, args[0]);
   JS_FreeValue(ctx, args[1]);
@@ -310,7 +310,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if((max_depth = (flags & MAXDEPTH_MASK)) == 0)
     max_depth = INT32_MAX;
 
-  if(!JS_IsFunction(ctx, argv[1]) && !js_predicate_data(ctx, argv[1]))
+  if(!JS_IsFunction(ctx, argv[1]) && !js_predicate_data2(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
 
   vector_init(&frames, ctx);

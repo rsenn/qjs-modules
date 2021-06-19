@@ -11,6 +11,11 @@ enum predicate_id {
   PREDICATE_STRING,
   PREDICATE_NOTNOT,
   PREDICATE_NOT,
+  PREDICATE_ADD,
+  PREDICATE_SUB,
+  PREDICATE_MUL,
+  PREDICATE_DIV,
+  PREDICATE_MOD,
   PREDICATE_OR,
   PREDICATE_AND,
   PREDICATE_XOR,
@@ -88,15 +93,16 @@ typedef struct Predicate {
   }
 static const size_t CAPTURE_COUNT_MAX = 255;
 
-int predicate_call(JSContext*, JSValue, int argc, JSValue* argv);
-VISIBLE int predicate_eval(Predicate*, JSContext*, int argc, JSValue* argv);
-void predicate_free_rt(Predicate*, JSRuntime*);
-JSValue predicate_regexp_capture(uint8_t**, int, uint8_t* input, JSContext* ctx);
-
-int predicate_regexp_compile(Predicate* pred, JSContext* ctx);
-void predicate_tostring(const Predicate*, JSContext*, DynBuf* dbuf);
-JSValue predicate_values(const Predicate*, JSContext*);
-Predicate* predicate_clone(const Predicate* pred, JSContext* ctx);
+JSValue predicate_eval(Predicate*, JSContext* ctx, Arguments* args);
+JSValue predicate_call(JSContext*, JSValue value, int argc, JSValue argv[]);
+JSValue predicate_value(JSContext*, JSValue value, Arguments* args);
+const char* predicate_typename(const Predicate*);
+void predicate_tostring(const Predicate*, JSContext* ctx, DynBuf* dbuf);
+JSValue predicate_regexp_capture(uint8_t**, int capture_count, uint8_t* input, JSContext* ctx);
+void predicate_free_rt(Predicate*, JSRuntime* rt);
+JSValue predicate_values(const Predicate*, JSContext* ctx);
+Predicate* predicate_clone(const Predicate*, JSContext* ctx);
+int predicate_regexp_compile(Predicate*, JSContext* ctx);
 
 static inline void
 predicate_free(Predicate* pred, JSContext* ctx) {
@@ -165,6 +171,46 @@ static inline Predicate
 predicate_prototype(JSValue proto) {
   Predicate ret = PREDICATE_INIT(PREDICATE_PROTOTYPEIS);
   ret.unary.predicate = proto;
+  return ret;
+}
+
+static inline Predicate
+predicate_add(JSValue a, JSValue b) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_ADD);
+  ret.binary.a = a;
+  ret.binary.b = b;
+  return ret;
+}
+
+static inline Predicate
+predicate_sub(JSValue a, JSValue b) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_SUB);
+  ret.binary.a = a;
+  ret.binary.b = b;
+  return ret;
+}
+
+static inline Predicate
+predicate_mul(JSValue a, JSValue b) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_MUL);
+  ret.binary.a = a;
+  ret.binary.b = b;
+  return ret;
+}
+
+static inline Predicate
+predicate_div(JSValue a, JSValue b) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_DIV);
+  ret.binary.a = a;
+  ret.binary.b = b;
+  return ret;
+}
+
+static inline Predicate
+predicate_mod(JSValue a, JSValue b) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_MOD);
+  ret.binary.a = a;
+  ret.binary.b = b;
   return ret;
 }
 

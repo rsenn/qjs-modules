@@ -338,6 +338,18 @@ regexp_compile(RegExp re, JSContext* ctx) {
   return bytecode;
 }
 
+JSValue
+regexp_to_value(RegExp re, JSContext* ctx) {
+  char flagstr[32] = {0};
+  size_t flaglen = regexp_flags_tostring(re.flags, flagstr);
+  JSValueConst args[2] = {JS_NewStringLen(ctx, re.source, re.len), JS_NewStringLen(ctx, flagstr, flaglen)};
+  JSValue regex, ctor = js_global_get(ctx, "RegExp");
+  regex = JS_CallConstructor(ctx, ctor, 2, args);
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, args[1]);
+  return regex;
+}
+
 InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED};
@@ -619,13 +631,13 @@ JSValue
 js_iterator_method(JSContext* ctx, JSValueConst obj) {
   JSAtom atom;
   JSValue ret = JS_UNDEFINED;
-  atom = js_symbol_atom(ctx, "iterator");
+  atom = js_symbol_static_atom(ctx, "iterator");
   if(JS_HasProperty(ctx, obj, atom))
     ret = JS_GetProperty(ctx, obj, atom);
 
   JS_FreeAtom(ctx, atom);
   if(!JS_IsFunction(ctx, ret)) {
-    atom = js_symbol_atom(ctx, "asyncIterator");
+    atom = js_symbol_static_atom(ctx, "asyncIterator");
     if(JS_HasProperty(ctx, obj, atom))
       ret = JS_GetProperty(ctx, obj, atom);
 
@@ -1049,15 +1061,15 @@ js_intv_to_array(JSContext* ctx, int* intv) {
 }
 
 JSAtom
-js_symbol_atom(JSContext* ctx, const char* name) {
-  JSValue sym = js_symbol_get_static(ctx, name);
+js_symbol_static_atom(JSContext* ctx, const char* name) {
+  JSValue sym = js_symbol_static_value(ctx, name);
   JSAtom ret = JS_ValueToAtom(ctx, sym);
   JS_FreeValue(ctx, sym);
   return ret;
 }
 
 JSValue
-js_symbol_get_static(JSContext* ctx, const char* name) {
+js_symbol_static_value(JSContext* ctx, const char* name) {
   JSValue symbol_ctor, ret;
   symbol_ctor = js_symbol_ctor(ctx);
   ret = JS_GetPropertyStr(ctx, symbol_ctor, name);
@@ -1438,7 +1450,7 @@ js_value_print(JSContext* ctx, JSValueConst value) {
 }
 
 int
-js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value) {
+js_value_tosize(JSContext* ctx, size_t* sz, JSValueConst value) {
   uint64_t u64 = 0;
   int r;
   r = JS_ToIndex(ctx, &u64, value);
@@ -1587,13 +1599,13 @@ BOOL
 js_is_iterable(JSContext* ctx, JSValueConst obj) {
   JSAtom atom;
   BOOL ret = FALSE;
-  atom = js_symbol_atom(ctx, "iterator");
+  atom = js_symbol_static_atom(ctx, "iterator");
   if(JS_HasProperty(ctx, obj, atom))
     ret = TRUE;
 
   JS_FreeAtom(ctx, atom);
   if(!ret) {
-    atom = js_symbol_atom(ctx, "asyncIterator");
+    atom = js_symbol_static_atom(ctx, "asyncIterator");
     if(JS_HasProperty(ctx, obj, atom))
       ret = TRUE;
 
@@ -1636,7 +1648,7 @@ js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, J
 
 JSValue
 js_symbol_operatorset_value(JSContext* ctx) {
-  return js_symbol_get_static(ctx, "operatorSet");
+  return js_symbol_static_value(ctx, "operatorSet");
 }
 
 JSAtom
@@ -1648,9 +1660,12 @@ js_symbol_operatorset_atom(JSContext* ctx) {
 }
 
 JSValue
-js_operators_create(JSContext* ctx) {
+js_operators_create(JSContext* ctx, JSValue* this_obj) {
   JSValue operators = js_global_get(ctx, "Operators");
   JSValue create_fun = JS_GetPropertyStr(ctx, operators, "create");
-  JS_FreeValue(ctx, operators);
+  if(this_obj)
+    *this_obj = operators;
+  else
+    JS_FreeValue(ctx, operators);
   return create_fun;
 }

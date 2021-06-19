@@ -925,9 +925,9 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       start = lex->start;
       end = lex->input.pos;
       if(argc > 0) {
-        js_value_to_size(ctx, &start, argv[0]);
+        js_value_tosize(ctx, &start, argv[0]);
         if(argc > 1)
-          js_value_to_size(ctx, &end, argv[1]);
+          js_value_tosize(ctx, &end, argv[1]);
       }
       ret = JS_NewStringLen(ctx, (const char*)&lex->input.data[start], end - start);
       break;
@@ -1148,7 +1148,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
     case LEXER_PROP_BYTE_LENGTH: {
       Token* tok;
       if(JS_IsNumber(value)) {
-        js_value_to_size(ctx, &lex->bytelen, value);
+        js_value_tosize(ctx, &lex->bytelen, value);
       } else if((tok = js_token_data(ctx, value))) {
         lex->bytelen = tok->byte_length;
       }

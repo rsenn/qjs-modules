@@ -4,6 +4,8 @@ import inspect from 'inspect';
 import * as xml from 'xml';
 import {
   Predicate,
+  PredicateOperators,
+  PredicateOperatorSet,
   type,
   charset,
   string,
@@ -201,6 +203,58 @@ async function main(...args) {
   console.log('  =', eval('31337m'));
   console.log('  =', eval('31337n'));
 */
+  console.log('Object.getOwnPropertyNames(Predicate)', Object.getOwnPropertyNames(Predicate));
+
+  console.log('PredicateOperators', PredicateOperators);
+  console.log("PredicateOperators['*']", PredicateOperators['*']);
+
+  Predicate.prototype[Symbol.operatorSet] = PredicateOperatorSet;
+
+  console.log('Predicate', new Map(Object.entries(Predicate)));
+
+  let div = Predicate.div(null, 2);
+  let mul = Predicate.mul(div, 10);
+  let add = Predicate.add(mul, 5);
+  let term = Predicate.mod(add, 2);
+  console.log('add', add);
+  console.log('add.toString()', add.toString());
+  console.log('term', term);
+  console.log('term.toString()', term.toString());
+  console.log('div(18)', div(18));
+  console.log('mul(10)', mul(10));
+  console.log('add(20)', add(20));
+  console.log('term(19)', term(19));
+  console.log('div * 10', div * 10);
+
+  let check = Predicate.instanceOf(Predicate);
+  let getProp = Predicate.property('and');
+  let getProp2 = Predicate.property(null, Predicate);
+
+  console.log('check(add)', check(add));
+  console.log('check(new Date())', check(new Date()));
+  console.log('getProp(Predicate)', getProp(Predicate));
+  console.log("getProp2('sub')", getProp2('sub'));
+
+  let op_create = Operators.create;
+  console.log('op_create', op_create);
+  let op_set = Symbol.operatorSet;
+  console.log('op_set', op_set);
+  console.log('PredicateOperatorSet', PredicateOperatorSet);
+  console.log("PredicateOperatorSet['*']", PredicateOperatorSet['*']);
+  console.log(
+    'Predicate.prototype[Symbol.operatorSet] == PredicateOperatorSet',
+    Predicate.prototype[Symbol.operatorSet] == PredicateOperatorSet
+  );
+  console.log('Predicate.prototype[Symbol.operatorSet]', Predicate.prototype[Symbol.operatorSet]);
+  console.log(
+    "Predicate.prototype[Symbol.operatorSet]['*']",
+    Predicate.prototype[Symbol.operatorSet]['*']
+  );
+  console.log(
+    'Object.getOwnPropertyNames(Predicate.prototype[Symbol.operatorSet])',
+    Object.getOwnPropertyNames(Predicate.prototype[Symbol.operatorSet])
+  );
+  console.log('Predicate.prototype[Symbol.toStringTag]', Predicate.prototype[Symbol.toStringTag]);
 
   std.gc();
 }

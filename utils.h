@@ -59,6 +59,48 @@ typedef struct {
   JSValue value;
 } IteratorValue;
 
+typedef struct {
+  int c;
+  JSValueConst* v;
+} Arguments;
+
+static inline Arguments
+js_arguments_new(int argc, JSValueConst* argv) {
+  Arguments args;
+  args.c = argc;
+  args.v = argv;
+  return args;
+}
+
+static inline JSValueConst
+js_arguments_shift(Arguments* args) {
+  JSValue ret = JS_EXCEPTION;
+  if(args->c > 0) {
+    ret = args->v[0];
+    args->c--;
+    args->v++;
+  }
+  return ret;
+}
+
+static inline JSValueConst
+js_arguments_at(Arguments* args, uint32_t i) {
+  return i < args->c ? args->v[i] : JS_UNDEFINED;
+}
+
+static inline uint32_t
+js_arguments_shiftn(Arguments* args, uint32_t n) {
+  uint32_t i = 0;
+
+  while(n > 0) {
+    if(JS_IsException(js_arguments_shift(args)))
+      break;
+    i++;
+    n--;
+  }
+  return i;
+}
+
 static inline int
 escape_char_pred(int c) {
   static const unsigned char table[256] = {
@@ -510,6 +552,7 @@ int regexp_flags_fromstring(const char*);
 RegExp regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx);
 RegExp regexp_from_dbuf(DynBuf* dbuf, int flags);
 uint8_t* regexp_compile(RegExp re, JSContext* ctx);
+JSValue regexp_to_value(RegExp re, JSContext* ctx);
 
 static inline void
 regexp_free_rt(RegExp re, JSRuntime* rt) {
@@ -731,7 +774,22 @@ js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value) {
   return str;
 }
 
-int js_value_to_size(JSContext* ctx, size_t* sz, JSValueConst value);
+int js_value_tosize(JSContext* ctx, size_t* sz, JSValueConst value);
+
+static inline BOOL
+js_value_tobool_free(JSContext* ctx, JSValueConst value) {
+  BOOL ret = JS_ToBool(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+static inline JSAtom
+js_value_toatom_free(JSContext* ctx, JSValueConst value) {
+  JSAtom atom = JS_ValueToAtom(ctx, value);
+  JS_FreeValue(ctx, value);
+  return atom;
+}
+
 JSValue js_value_from_char(JSContext* ctx, int c);
 static inline int
 js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
@@ -779,8 +837,8 @@ JSValue js_symbol_to_string(JSContext* ctx, JSValueConst sym);
 
 const char* js_symbol_to_cstring(JSContext* ctx, JSValueConst sym);
 
-JSValue js_symbol_get_static(JSContext* ctx, const char* name);
-JSAtom js_symbol_atom(JSContext* ctx, const char* name);
+JSValue js_symbol_static_value(JSContext* ctx, const char* name);
+JSAtom js_symbol_static_atom(JSContext* ctx, const char* name);
 BOOL js_is_iterable(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_method(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_new(JSContext* ctx, JSValueConst obj);
@@ -792,7 +850,7 @@ JSValue js_symbol_operatorset_value(JSContext* ctx);
 
 JSAtom js_symbol_operatorset_atom(JSContext* ctx);
 
-JSValue js_operators_create(JSContext* ctx);
+JSValue js_operators_create(JSContext* ctx, JSValue* this_obj);
 
 static inline int64_t
 js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
@@ -878,6 +936,13 @@ js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
   JS_FreeAtom(ctx, inspect_symbol);
 }
 
+static inline void
+js_set_tostring_tag(JSContext* ctx, JSValueConst obj, const char* str) {
+  JSAtom tostring_tag = js_symbol_static_atom(ctx, "toStringTag");
+  JS_DefinePropertyValue(ctx, obj, tostring_tag, JS_NewString(ctx, str), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_FreeAtom(ctx, tostring_tag);
+}
+
 JSClassID js_class_id(JSContext* ctx, int id);
 JSClassID js_class_newid(void);
 JSClass* js_class_get(JSContext* ctx, JSClassID id);
@@ -904,6 +969,37 @@ BOOL js_is_regexp(JSContext*, JSValue);
 BOOL js_is_promise(JSContext*, JSValue);
 
 BOOL js_is_typedarray(JSContext* ctx, JSValueConst value);
+static inline BOOL
+js_is_null_or_undefined(JSValueConst value) {
+  return JS_IsUndefined(value) || JS_IsNull(value);
+}
+
+static inline BOOL
+js_is_falsish(JSValueConst value) {
+  switch(JS_VALUE_GET_TAG(value)) {
+    case JS_TAG_NULL: return TRUE;
+    case JS_TAG_UNDEFINED: return TRUE;
+    case JS_TAG_INT: return JS_VALUE_GET_INT(value) == 0;
+    case JS_TAG_BOOL: return !JS_VALUE_GET_BOOL(value);
+    case JS_TAG_FLOAT64: return JS_VALUE_GET_FLOAT64(value) == 0;
+    default: return FALSE;
+  }
+}
+
+static inline BOOL
+js_is_truish(JSValueConst value) {
+  return !js_is_falsish(value);
+}
+
+static inline BOOL
+js_is_nullish(JSContext* ctx, JSValueConst value) {
+  int64_t i = -1;
+
+  if(JS_IsUndefined(value) || JS_IsNull(value))
+    return TRUE;
+  JS_ToInt64(ctx, &i, value);
+  return i == 0;
+}
 
 JSValue js_typedarray_prototype(JSContext* ctx);
 JSValue js_typedarray_constructor(JSContext* ctx);

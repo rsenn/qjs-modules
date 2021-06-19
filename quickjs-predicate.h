@@ -6,9 +6,14 @@
 
 extern VISIBLE thread_local JSClassID js_predicate_class_id;
 
-Predicate* js_predicate_data(JSContext* ctx, JSValueConst value);
+Predicate* js_predicate_data2(JSContext* ctx, JSValueConst value);
+Predicate* js_predicate_data(JSValueConst value);
+static inline BOOL
+js_is_predicate(JSValueConst value) {
+  return !!js_predicate_data(value);
+}
+
 JSValue js_predicate_wrap(JSContext*, Predicate);
 JSValue js_predicate_new(JSContext*, JSValue proto, JSValue);
-int32_t predicate_call(JSContext*, JSValue, int argc, JSValueConst argv[]);
 
 #endif /* defined(QUICKJS_PREDICATE_H) */

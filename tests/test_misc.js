@@ -168,10 +168,9 @@ console.log("i =",i);
     )
   );
 
-
-  let bits = misc.arrayToBitfield([0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30],0);
+  let bits = misc.arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
   let arr = misc.bitfieldToArray(bits, 0);
-  console.log("bitfield", {bits,arr});
+  console.log('bitfield', { bits, arr });
   std.gc();
 }
 

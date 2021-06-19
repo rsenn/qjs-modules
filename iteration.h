@@ -52,7 +52,7 @@ static inline BOOL
 iteration_method_symbol(Iteration* it, JSContext* ctx, JSValueConst object, const char* sym) {
   JSAtom atom;
   BOOL ret;
-  atom = js_symbol_atom(ctx, sym);
+  atom = js_symbol_static_atom(ctx, sym);
   ret = iteration_method(it, ctx, object, atom);
   JS_FreeAtom(ctx, atom);
   return ret;
