@@ -675,6 +675,7 @@ jsm_load_module(JSContext* ctx, const char* name) {
   dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
   dbuf_0(&buf);
   jsm_eval_buf(ctx, buf.buf, buf.size, "<input>", TRUE);
+
   m = jsm_module_find(ctx, name);
 
   return m;

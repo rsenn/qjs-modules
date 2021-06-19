@@ -834,7 +834,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         js_cstring_free(ctx, name);
         JS_FreeValue(ctx, key);
 
-        if(JS_GetOwnProperty(ctx, &desc, value, propenum->atom) == TRUE) {
+        if(js_get_propertydescriptor(ctx, &desc, value, propenum->atom) == TRUE) {
           if(desc.flags & JS_PROP_GETSET)
             dbuf_put_colorstr(buf,
                               JS_IsUndefined(desc.getter)

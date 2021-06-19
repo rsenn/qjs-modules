@@ -940,6 +940,22 @@ js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop,
   JS_SetPropertyStr(ctx, obj, prop, value);
 }
 
+int
+js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueConst value, JSAtom prop) {
+  JSValue obj, proto;
+  obj = JS_DupValue(ctx, value);
+  do {
+    if(JS_GetOwnProperty(ctx, desc, obj, prop) == TRUE)
+      return TRUE;
+    proto = JS_GetPrototype(ctx, obj);
+    if(JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(obj))
+      break;
+    JS_FreeValue(ctx, obj);
+    obj = proto;
+  } while(JS_IsObject(obj));
+  return FALSE;
+}
+
 JSClassID
 js_class_id(JSContext* ctx, int id) {
   return JS_GetRuntime(ctx)->class_array[id].class_id;
