@@ -217,7 +217,14 @@ get_offset_length(JSContext* ctx, int64_t len, int argc, JSValueConst argv[]) {
 thread_local VISIBLE JSClassID js_syscallerror_class_id = 0;
 thread_local JSValue syscallerror_proto = {.tag = JS_TAG_UNDEFINED}, syscallerror_ctor = {.tag = JS_TAG_UNDEFINED};
 
-enum { SYSCALLERROR_TOSTRING = 0, SYSCALLERROR_SYSCALL, SYSCALLERROR_CODE, SYSCALLERROR_ERRNO, SYSCALLERROR_STACK };
+enum {
+  SYSCALLERROR_TOSTRING = 0,
+  SYSCALLERROR_SYSCALL,
+  SYSCALLERROR_CODE,
+  SYSCALLERROR_ERRNO,
+  SYSCALLERROR_STACK,
+  SYSCALLERROR_MESSAGE
+};
 
 extern thread_local JSClassID js_syscallerror_class_id;
 
@@ -319,6 +326,30 @@ js_syscallerror_throw(JSContext* ctx, const char* syscall) {
   return JS_Throw(ctx, error);
 }
 
+static void
+js_syscallerror_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
+  SyscallError* err;
+  if(!(err = js_syscallerror_data(ctx, this_val)))
+    return;
+
+  dbuf_putstr(dbuf, "SyscallError: ");
+  if(err->syscall) {
+    dbuf_putstr(dbuf, err->syscall);
+    dbuf_putstr(dbuf, "() ");
+  }
+  if(err->errnum) {
+    const char* msg;
+
+    if((msg = strerror(err->errnum)))
+      dbuf_putstr(dbuf, msg);
+  }
+  if(err->stack) {
+    dbuf_putc(dbuf, '\n');
+    dbuf_putstr(dbuf, err->stack);
+  }
+  dbuf_0(dbuf);
+};
+
 static JSValue
 js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
@@ -328,28 +359,10 @@ js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   switch(magic) {
     case SYSCALLERROR_TOSTRING: {
-
       DynBuf dbuf = {0};
       js_dbuf_init(ctx, &dbuf);
 
-      dbuf_putstr(&dbuf, "SyscallError: ");
-      if(err->syscall) {
-        dbuf_putstr(&dbuf, err->syscall);
-        dbuf_putstr(&dbuf, "() ");
-      }
-      if(err->errnum) {
-        const char* msg;
-
-        if((msg = strerror(err->errnum))) {
-          dbuf_putstr(&dbuf, msg);
-          dbuf_putc(&dbuf, ' ');
-        }
-      }
-      if(err->stack) {
-        dbuf_putc(&dbuf, '\n');
-        dbuf_putstr(&dbuf, err->stack);
-      }
-      dbuf_0(&dbuf);
+      js_syscallerror_dump(ctx, this_val, &dbuf);
 
       ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
       break;
@@ -374,6 +387,8 @@ js_syscallerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   }
   if(js_has_propertystr(ctx, obj, "stack"))
     JS_DefinePropertyValueStr(ctx, obj, "stack", JS_GetPropertyStr(ctx, this_val, "stack"), JS_PROP_ENUMERABLE);
+
+  JS_DefinePropertyValueStr(ctx, obj, "message", JS_GetPropertyStr(ctx, this_val, "message"), JS_PROP_ENUMERABLE);
   return obj;
 }
 
@@ -403,6 +418,15 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = err->stack ? JS_NewString(ctx, err->stack) : JS_UNDEFINED;
       break;
     }
+    case SYSCALLERROR_MESSAGE: {
+      DynBuf dbuf = {0};
+      js_dbuf_init(ctx, &dbuf);
+
+      js_syscallerror_dump(ctx, this_val, &dbuf);
+
+      ret = JS_NewStringLen(ctx, dbuf.buf, byte_chr(dbuf.buf, dbuf.size, '\n'));
+      break;
+    }
   }
   return ret;
 }
@@ -413,6 +437,7 @@ static const JSCFunctionListEntry js_syscallerror_funcs[] = {
     JS_CGETSET_MAGIC_DEF("code", js_syscallerror_get, 0, SYSCALLERROR_CODE),
     JS_CGETSET_MAGIC_DEF("errno", js_syscallerror_get, 0, SYSCALLERROR_ERRNO),
     JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, 0, SYSCALLERROR_STACK),
+    JS_CGETSET_MAGIC_DEF("message", js_syscallerror_get, 0, SYSCALLERROR_MESSAGE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyscallError", JS_PROP_CONFIGURABLE),
 };
 
@@ -618,6 +643,24 @@ js_misc_getcommandline(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   dbuf_free(&dbuf);
 
+  return ret;
+}
+
+static JSValue
+js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+
+  if(argc >= 1 && JS_IsObject(argv[0])) {
+    JSValue proto = JS_GetPrototype(ctx, argv[0]);
+    size_t j = 0;
+    ret = JS_NewArray(ctx);
+
+    do {
+      JS_SetPropertyUint32(ctx, ret, j++, proto);
+      proto = JS_GetPrototype(ctx, proto);
+
+    } while(JS_IsObject(proto));
+  }
   return ret;
 }
 
@@ -1142,6 +1185,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_DEF("getInterpreter", 0, js_misc_getinterpreter),
     JS_CFUNC_DEF("getCommandLine", 0, js_misc_getcommandline),
+    JS_CFUNC_DEF("getPrototypeChain", 0, js_misc_getprototypechain),
     JS_CFUNC_MAGIC_DEF("getpid", 0, js_misc_getx, FUNC_GETPID),
     JS_CFUNC_MAGIC_DEF("getppid", 0, js_misc_getx, FUNC_GETPPID),
     JS_CFUNC_MAGIC_DEF("getsid", 0, js_misc_getx, FUNC_GETSID),
