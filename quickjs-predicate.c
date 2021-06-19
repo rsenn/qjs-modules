@@ -13,6 +13,19 @@ enum { OPERATOR_PLUS = 0, OPERATOR_MINUS, OPERATOR_MUL, OPERATOR_DIV, OPERATOR_M
 
 enum { PROP_ID = 0, PROP_VALUES };
 
+static JSValue
+predicate_constant(const Predicate* pr, JSContext* ctx) {
+  DynBuf dbuf = {0};
+  dbuf_init2(&dbuf, 0, 0);
+  // js_dbuf_init(ctx, &dbuf);
+
+  dbuf_putstr(&dbuf, "Predicate(");
+  dbuf_putstr(&dbuf, predicate_typename(pr));
+  dbuf_putc(&dbuf, ')');
+
+  return dbuf_tostring_free(&dbuf, ctx);
+}
+
 VISIBLE Predicate*
 js_predicate_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_predicate_class_id);
@@ -460,7 +473,7 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewInt32(ctx, pred->id), JS_PROP_ENUMERABLE);
 
-  js_set_tostring_tag(ctx, obj, predicate_typename(pred));
+  js_set_tostringtag_value(ctx, obj, predicate_constant(pred, ctx));
 
   switch(pred->id) {
     case PREDICATE_TYPE: {
@@ -489,8 +502,8 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     case PREDICATE_MUL:
     case PREDICATE_DIV:
     case PREDICATE_MOD: {
-      JS_DefinePropertyValueStr(ctx, obj, "a", JS_DupValue(ctx, pred->binary.a), JS_PROP_ENUMERABLE);
-      JS_DefinePropertyValueStr(ctx, obj, "b", JS_DupValue(ctx, pred->binary.b), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "left", JS_DupValue(ctx, pred->binary.left), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "right", JS_DupValue(ctx, pred->binary.right), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_OR:
@@ -563,7 +576,7 @@ static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_ALIAS_DEF("call", "eval"),
     JS_CGETSET_MAGIC_DEF("id", js_predicate_get, 0, PROP_ID),
     JS_CGETSET_MAGIC_DEF("values", js_predicate_get, 0, PROP_VALUES),
-   // JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E),
+    // JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E),
 };
 
 static const JSCFunctionListEntry js_predicate_funcs[] = {

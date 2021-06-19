@@ -937,10 +937,15 @@ js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
 }
 
 static inline void
-js_set_tostring_tag(JSContext* ctx, JSValueConst obj, const char* str) {
+js_set_tostringtag_value(JSContext* ctx, JSValueConst obj, JSValue value) {
   JSAtom tostring_tag = js_symbol_static_atom(ctx, "toStringTag");
-  JS_DefinePropertyValue(ctx, obj, tostring_tag, JS_NewString(ctx, str), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValue(ctx, obj, tostring_tag, value, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   JS_FreeAtom(ctx, tostring_tag);
+}
+
+static inline void
+js_set_tostringtag_str(JSContext* ctx, JSValueConst obj, const char* str) {
+  js_set_tostringtag_value(ctx, obj, JS_NewString(ctx, str));
 }
 
 JSClassID js_class_id(JSContext* ctx, int id);

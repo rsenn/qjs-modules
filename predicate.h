@@ -47,7 +47,7 @@ typedef struct {
 } UnaryPredicate;
 
 typedef struct {
-  JSValueConst a, b;
+  JSValueConst left, right;
 } BinaryPredicate;
 
 typedef struct {
@@ -175,42 +175,42 @@ predicate_prototype(JSValue proto) {
 }
 
 static inline Predicate
-predicate_add(JSValue a, JSValue b) {
+predicate_add(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_ADD);
-  ret.binary.a = a;
-  ret.binary.b = b;
+  ret.binary.left = left;
+  ret.binary.right = right;
   return ret;
 }
 
 static inline Predicate
-predicate_sub(JSValue a, JSValue b) {
+predicate_sub(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_SUB);
-  ret.binary.a = a;
-  ret.binary.b = b;
+  ret.binary.left = left;
+  ret.binary.right = right;
   return ret;
 }
 
 static inline Predicate
-predicate_mul(JSValue a, JSValue b) {
+predicate_mul(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_MUL);
-  ret.binary.a = a;
-  ret.binary.b = b;
+  ret.binary.left = left;
+  ret.binary.right = right;
   return ret;
 }
 
 static inline Predicate
-predicate_div(JSValue a, JSValue b) {
+predicate_div(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_DIV);
-  ret.binary.a = a;
-  ret.binary.b = b;
+  ret.binary.left = left;
+  ret.binary.right = right;
   return ret;
 }
 
 static inline Predicate
-predicate_mod(JSValue a, JSValue b) {
+predicate_mod(JSValue left, JSValue right) {
   Predicate ret = PREDICATE_INIT(PREDICATE_MOD);
-  ret.binary.a = a;
-  ret.binary.b = b;
+  ret.binary.left = left;
+  ret.binary.right = right;
   return ret;
 }
 

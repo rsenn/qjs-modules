@@ -7,8 +7,8 @@
 #include "quickjs-predicate.h"
 #include "cutils.h"
 
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(left, right) ((left) > (right) ? (left) : (right))
+#define min(left, right) ((left) < (right) ? (left) : (right))
 
 static size_t
 utf8_to_unicode(const char* str, size_t len, Vector* out) {
@@ -78,10 +78,10 @@ predicate_eval(Predicate* pr, JSContext* ctx, Arguments* args) {
     case PREDICATE_MUL:
     case PREDICATE_DIV:
     case PREDICATE_MOD: {
-      JSValue values[2] = {pr->binary.a, pr->binary.b};
-      BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.a), js_is_null_or_undefined(pr->binary.b)};
+      JSValue values[2] = {pr->binary.left, pr->binary.right};
+      BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.left), js_is_null_or_undefined(pr->binary.right)};
       size_t i, j = 0;
-      int64_t a, b, r;
+      int64_t left, right, r;
       for(i = 0; i < 2; i++) {
         if(nullish[i]) {
           values[i] = js_arguments_shift(args);
@@ -89,16 +89,16 @@ predicate_eval(Predicate* pr, JSContext* ctx, Arguments* args) {
         values[i] = predicate_value(ctx, values[0], args);
       }
 
-      JS_ToInt64(ctx, &a, values[0]);
-      JS_ToInt64(ctx, &b, values[1]);
+      JS_ToInt64(ctx, &left, values[0]);
+      JS_ToInt64(ctx, &right, values[1]);
 
       switch(pr->id) {
 
-        case PREDICATE_ADD: r = a + b; break;
-        case PREDICATE_SUB: r = a - b; break;
-        case PREDICATE_MUL: r = a * b; break;
-        case PREDICATE_DIV: r = a / b; break;
-        case PREDICATE_MOD: r = a % b; break;
+        case PREDICATE_ADD: r = left + right; break;
+        case PREDICATE_SUB: r = left - right; break;
+        case PREDICATE_MUL: r = left * right; break;
+        case PREDICATE_DIV: r = left / right; break;
+        case PREDICATE_MOD: r = left % right; break;
         default: break;
       }
 
@@ -163,15 +163,15 @@ predicate_eval(Predicate* pr, JSContext* ctx, Arguments* args) {
           int i;
           JS_SetPropertyStr(ctx, arg, "length", JS_NewUint32(ctx, capture_count));
           for(i = 0; i < 2 * capture_count; i += 2) {
-            JSValue a = JS_NULL;
+            JSValue left = JS_NULL;
 
             if(capture[i]) {
-              a = JS_NewArray(ctx);
-              JS_SetPropertyUint32(ctx, a, 0, JS_NewUint32(ctx, capture[i] - input.data));
-              JS_SetPropertyUint32(ctx, a, 1, JS_NewUint32(ctx, capture[i + 1] - input.data));
+              left = JS_NewArray(ctx);
+              JS_SetPropertyUint32(ctx, left, 0, JS_NewUint32(ctx, capture[i] - input.data));
+              JS_SetPropertyUint32(ctx, left, 1, JS_NewUint32(ctx, capture[i + 1] - input.data));
             }
 
-            JS_SetPropertyUint32(ctx, arg, i >> 1, a);
+            JS_SetPropertyUint32(ctx, arg, i >> 1, left);
           }
         }
       }
@@ -359,10 +359,10 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       size_t i;
       static const char* op_str[] = {" + ", " - ", " * ", " / ", " % "};
       dbuf_putstr(dbuf, "(");
-      dbuf_put_value(dbuf, ctx, pr->binary.a);
+      dbuf_put_value(dbuf, ctx, pr->binary.left);
 
       dbuf_putstr(dbuf, op_str[pr->id - PREDICATE_ADD]);
-      dbuf_put_value(dbuf, ctx, pr->binary.b);
+      dbuf_put_value(dbuf, ctx, pr->binary.right);
       dbuf_putstr(dbuf, ")");
       break;
     }
@@ -481,8 +481,8 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
     case PREDICATE_MUL:
     case PREDICATE_DIV:
     case PREDICATE_MOD: {
-      JS_FreeValueRT(rt, pred->binary.a);
-      JS_FreeValueRT(rt, pred->binary.b);
+      JS_FreeValueRT(rt, pred->binary.left);
+      JS_FreeValueRT(rt, pred->binary.right);
       break;
     }
 
@@ -537,7 +537,7 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_MUL:
     case PREDICATE_DIV:
     case PREDICATE_MOD: {
-      ret = js_values_toarray(ctx, 2, (JSValue*)&pred->binary.a);
+      ret = js_values_toarray(ctx, 2, (JSValue*)&pred->binary.left);
       break;
     }
 
@@ -599,8 +599,8 @@ predicate_clone(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_MUL:
     case PREDICATE_DIV:
     case PREDICATE_MOD: {
-      ret->binary.a = JS_DupValue(ctx, pred->binary.a);
-      ret->binary.b = JS_DupValue(ctx, pred->binary.b);
+      ret->binary.left = JS_DupValue(ctx, pred->binary.left);
+      ret->binary.right = JS_DupValue(ctx, pred->binary.right);
       break;
     }
 
