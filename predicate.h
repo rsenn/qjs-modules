@@ -3,6 +3,7 @@
 
 #include "vector.h"
 #include "utils.h"
+#include "cutils.h"
 
 enum predicate_id {
   // PREDICATE_NONE = -1,
@@ -11,11 +12,17 @@ enum predicate_id {
   PREDICATE_STRING,
   PREDICATE_NOTNOT,
   PREDICATE_NOT,
+  PREDICATE_BNOT,
+  PREDICATE_SQRT,
   PREDICATE_ADD,
   PREDICATE_SUB,
   PREDICATE_MUL,
   PREDICATE_DIV,
   PREDICATE_MOD,
+  PREDICATE_BOR,
+  PREDICATE_BAND,
+  PREDICATE_POW,
+  PREDICATE_ATAN2,
   PREDICATE_OR,
   PREDICATE_AND,
   PREDICATE_XOR,
@@ -93,13 +100,14 @@ typedef struct Predicate {
   }
 static const size_t CAPTURE_COUNT_MAX = 255;
 
+BOOL predicate_is(JSValue);
+enum predicate_id predicate_id(JSValue);
 JSValue predicate_eval(Predicate*, JSContext* ctx, JSArguments* args);
 JSValue predicate_call(JSContext*, JSValue value, int argc, JSValue argv[]);
 JSValue predicate_value(JSContext*, JSValue value, JSArguments* args);
 const char* predicate_typename(const Predicate*);
 void predicate_tostring(const Predicate*, JSContext* ctx, DynBuf* dbuf);
 void predicate_tosource(const Predicate*, JSContext* ctx, DynBuf* dbuf, Arguments* args);
-void predicate_dump(JSValue, JSContext* ctx, DynBuf* dbuf, Arguments* args);
 JSValue predicate_regexp_capture(uint8_t**, int capture_count, uint8_t* input, JSContext* ctx);
 void predicate_free_rt(Predicate*, JSRuntime* rt);
 JSValue predicate_values(const Predicate*, JSContext* ctx);
@@ -107,6 +115,7 @@ Predicate* predicate_clone(const Predicate*, JSContext* ctx);
 int predicate_regexp_compile(Predicate*, JSContext* ctx);
 int predicate_recursive_num_args(const Predicate*);
 int predicate_direct_num_args(const Predicate*);
+JSPrecedence predicate_precedence(const Predicate*);
 
 static inline void
 predicate_free(Predicate* pred, JSContext* ctx) {
@@ -218,6 +227,24 @@ predicate_mod(JSValue left, JSValue right) {
   return ret;
 }
 
+#define PREDICATE_BINARY(op, id)                                                                                       \
+  static inline Predicate predicate_##op(JSValue left, JSValue right) {                                                \
+    Predicate ret = PREDICATE_INIT(PREDICATE_##id);                                                                    \
+    ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;                                             \
+    ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;                                          \
+    return ret;                                                                                                        \
+  }
+#define PREDICATE_UNARY(op, id)                                                                                        \
+  static inline Predicate predicate_##op(JSValue value) {                                                              \
+    Predicate ret = PREDICATE_INIT(PREDICATE_##id);                                                                    \
+    ret.unary.predicate = value;                                                                                       \
+    return ret;                                                                                                        \
+  }
+
+PREDICATE_BINARY(bor, BOR)
+PREDICATE_BINARY(band, BAND)
+PREDICATE_BINARY(pow, POW)
+
 static inline Predicate
 predicate_or(size_t npredicates, JSValue* predicates) {
   Predicate ret = PREDICATE_INIT(PREDICATE_OR);
@@ -242,26 +269,11 @@ predicate_xor(size_t npredicates, JSValue* predicates) {
   return ret;
 }
 
-static inline Predicate
-predicate_equal(JSValue value) {
-  Predicate ret = PREDICATE_INIT(PREDICATE_EQUAL);
-  ret.unary.predicate = value;
-  return ret;
-}
-
-static inline Predicate
-predicate_notnot(JSValue value) {
-  Predicate ret = PREDICATE_INIT(PREDICATE_NOTNOT);
-  ret.unary.predicate = value;
-  return ret;
-}
-
-static inline Predicate
-predicate_not(JSValue value) {
-  Predicate ret = PREDICATE_INIT(PREDICATE_NOT);
-  ret.unary.predicate = value;
-  return ret;
-}
+PREDICATE_UNARY(equal, EQUAL)
+PREDICATE_UNARY(notnot, NOTNOT)
+PREDICATE_UNARY(not, NOT)
+PREDICATE_UNARY(bnot, BNOT)
+PREDICATE_UNARY(sqrt, SQRT)
 
 static inline Predicate
 predicate_property(JSAtom prop, JSValue pred) {

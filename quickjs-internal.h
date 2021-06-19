@@ -14,6 +14,9 @@
 #ifdef CONFIG_DEBUGGER
 #include <quickjs-debugger.h>
 #endif
+#ifdef USE_WORKER
+#include <pthread.h>
+#endif
 
 enum JSClassIds {
   /* classid tag        */ /* union usage   | properties */

@@ -16,6 +16,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <threads.h>
+#include <termios.h>
 
 thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 

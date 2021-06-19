@@ -1,6 +1,8 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#undef _ISOC99_SOURCE
+#define _ISOC99_SOURCE 1
 
 #include "utils.h"
 #include "cutils.h"
@@ -8,6 +10,11 @@
 #include "libregexp.h"
 #include "quickjs-internal.h"
 #include <time.h>
+#include <math.h>
+
+#ifndef INFINITY
+#define INFINITY __builtin_inf()
+#endif
 
 #if defined(__linux__) || defined(__APPLE__)
 uint64_t
@@ -1668,4 +1675,12 @@ js_operators_create(JSContext* ctx, JSValue* this_obj) {
   else
     JS_FreeValue(ctx, operators);
   return create_fun;
+}
+
+JSValue
+js_new_number(JSContext* ctx, int32_t n) {
+  if(n == INT32_MAX)
+    return JS_NewFloat64(ctx, INFINITY);
+
+  return JS_NewInt32(ctx, n);
 }

@@ -64,14 +64,12 @@ async function main(...args) {
   });
   let str = std.loadFile(args[0] ?? scriptArgs[0], 'utf-8');
   let len = str.length;
-  console.log('len', len);
+  /* console.log('len', len);
   console.log('Predicate', Predicate);
   console.log('Predicate.charset', charset);
 
   let eq1234 = equal(1234);
-  console.log('eq1234 =', eq1234.toString());
-  /*  console.log("eq1234(1234) =", eq1234(1234));
-  console.log("eq1234('1234') =", eq1234('1234'));*/
+  console.log('eq1234 =', eq1234.toString()); 
 
   let promise = waitFor(100).then(() => 1234);
 
@@ -124,7 +122,7 @@ async function main(...args) {
 
   console.log('propTest({})', propTest({}));
   console.log('propTest({test: undefined})', propTest({ test: undefined }));
-
+*/
   /*
 
   for(let str of ['_ABC3', '1ABC', '_1ABC', 'A1B2C3'])
@@ -213,21 +211,36 @@ async function main(...args) {
 
   console.log('Predicate', new Map(Object.entries(Predicate)));
 
-  let div = Predicate.div(null, 2);
-  let mul = Predicate.mul(div, 10);
-  let add = Predicate.add(mul, 5);
+  let mul = Predicate.mul(null, 8);
+  let div = Predicate.div(mul, 0.5);
+  let add = Predicate.add(div, 5);
   let term = Predicate.mod(add, 2);
   console.log('add', add);
   console.log('add.toString()', add.toString());
   console.log('term', term);
   console.log('term.toString()', term.toString());
-  console.log('term.toSource()', term.toSource());
   console.log('term.args', term.args);
-  console.log('div(18)', div(18));
+  /*  console.log('div(18)', div(18));
   console.log('mul(10)', mul(10));
   console.log('add(20)', add(20));
-  console.log('term(19)', term(19));
-  console.log('div * 10', div * 10);
+  console.log('term(19)', term(19));*/
+
+  let pred = 2 ** mul;
+  console.log('pred.toString()', pred.toString());
+  console.log('pred', pred);
+  console.log('pred.toSource()', pred.toSource());
+  console.log('pred(1)', pred(1));
+  console.log('pred(2)', pred(2));
+  console.log('pred(3)', pred(3));
+  console.log('pred(4)', pred(4));
+
+  console.log(
+    new Map([
+      ['2 ** mul', [pred.toSource(), [1, 2, 3, 4].map(n => pred(n))]],
+      ['mul & 2', (mul & 0b11111111111111111111111111111101).toSource()],
+      ['mul | 2', (mul | 2).toSource()]
+    ])
+  );
 
   let check = Predicate.instanceOf(Predicate);
   let getProp = Predicate.property('and');

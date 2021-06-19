@@ -14,6 +14,34 @@
 #define offsetof(type, field) ((size_t) & ((type*)0)->field)
 #endif
 
+#ifndef inrange
+#define inrange(value, min, max) ((value) >= (min) && (value) <= (max))
+#endif
+
+typedef enum precedence {
+  PRECEDENCE_COMMA_SEQUENCE = 1,
+  PRECEDENCE_YIELD,
+  PRECEDENCE_ASSIGNMENT,
+  PRECEDENCE_TERNARY,
+  PRECEDENCE_NULLISH_COALESCING,
+  PRECEDENCE_LOGICAL_OR,
+  PRECEDENCE_LOGICAL_AND,
+  PRECEDENCE_BITWISE_OR,
+  PRECEDENCE_BITWISE_XOR,
+  PRECEDENCE_BITWISE_AND,
+  PRECEDENCE_EQUALITY,
+  PRECEDENCE_LESS_GREATER_IN,
+  PRECEDENCE_BITWISE_SHIFT,
+  PRECEDENCE_ADDITIVE,
+  PRECEDENCE_MULTIPLICATIVE,
+  PRECEDENCE_EXPONENTIATION,
+  PRECEDENCE_UNARY,
+  PRECEDENCE_POSTFIX,
+  PRECEDENCE_NEW,
+  PRECEDENCE_MEMBER_ACCESS,
+  PRECEDENCE_GROUPING,
+} JSPrecedence;
+
 #define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num)                                              \
   {                                                                                                                    \
     .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC,      \
@@ -84,8 +112,8 @@ arguments_shift(Arguments* args) {
 }
 
 static inline const char*
-arguments_at(Arguments* args, uint32_t i) {
-  return i < args->c ? args->v[i] : 0;
+arguments_at(Arguments* args, int i) {
+  return i >= 0 && i < args->c ? args->v[i] : 0;
 }
 
 static inline uint32_t
@@ -126,8 +154,8 @@ js_arguments_shift(JSArguments* args) {
 }
 
 static inline JSValueConst
-js_arguments_at(JSArguments* args, uint32_t i) {
-  return i < args->c ? args->v[i] : JS_UNDEFINED;
+js_arguments_at(JSArguments* args, int i) {
+  return i >= 0 && i < args->c ? args->v[i] : JS_UNDEFINED;
 }
 
 static inline uint32_t
@@ -673,6 +701,16 @@ js_value_types() {
   };
 }
 
+static inline const char*
+js_value_typeof(JSValueConst value) {
+  int32_t flag = js_value_type_flag(value);
+  return ((const char* const[]){
+      "undefined",     "object",       "boolean",   "number", "object",   "string", "symbol", "bigfloat",
+      "bigint",        "bigdecimal",   "number",    "number", "function", "object", "module", "function_bytecode",
+      "uninitialized", "catch_offset", "exception", 0,
+  })[flag];
+}
+
 const char* js_value_type_name(int32_t type);
 
 const char* js_value_typestr(JSContext* ctx, JSValueConst value);
@@ -818,6 +856,22 @@ js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value) {
 
 int js_value_tosize(JSContext* ctx, size_t* sz, JSValueConst value);
 
+static inline double
+js_value_todouble_free(JSContext* ctx, JSValueConst value) {
+  double ret = 0;
+  JS_ToFloat64(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+static inline int64_t
+js_value_toint64_free(JSContext* ctx, JSValueConst value) {
+  int64_t ret = 0;
+  JS_ToInt64(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 static inline BOOL
 js_value_tobool_free(JSContext* ctx, JSValueConst value) {
   BOOL ret = JS_ToBool(ctx, value);
@@ -901,12 +955,7 @@ js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
   return i;
 }
 
-static inline JSValue
-js_new_number(JSContext* ctx, int32_t n) {
-  if(n == INT32_MAX)
-    return JS_NewFloat64(ctx, INFINITY);
-  return JS_NewInt32(ctx, n);
-}
+JSValue js_new_number(JSContext* ctx, int32_t n);
 
 static inline JSValue
 js_new_bool_or_number(JSContext* ctx, int32_t n) {

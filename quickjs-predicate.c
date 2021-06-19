@@ -8,30 +8,53 @@
 thread_local VISIBLE JSClassID js_predicate_class_id = 0;
 thread_local JSValue predicate_proto = {.tag = JS_TAG_UNDEFINED}, predicate_ctor = {.tag = JS_TAG_UNDEFINED};
 
-enum { METHOD_EVAL = 0, METHOD_TOSTRING };
-enum { OPERATOR_PLUS = 0, OPERATOR_MINUS, OPERATOR_MUL, OPERATOR_DIV, OPERATOR_MOD };
+enum {
+  METHOD_EVAL = 0,
+};
 
-enum { PROP_ID = 0, PROP_VALUES };
+enum {
+  OPERATOR_PLUS = 0,
+  OPERATOR_MINUS,
+  OPERATOR_MUL,
+  OPERATOR_DIV,
+  OPERATOR_MOD,
+  OPERATOR_BOR,
+  OPERATOR_BAND,
+  OPERATOR_POW,
+};
+
+enum {
+  PROP_ID = 0,
+  PROP_VALUES,
+  PROP_ARGS,
+};
 
 static JSValue
-predicate_constant(const Predicate* pr, JSContext* ctx) {
+predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
   DynBuf dbuf = {0};
   dbuf_init2(&dbuf, 0, 0);
   // js_dbuf_init(ctx, &dbuf);
 
-  dbuf_putstr(&dbuf, "Predicate(");
+  dbuf_putstr(&dbuf, color ? "Predicate" COLOR_LIGHTMARINE : "Predicate");
+  dbuf_putstr(&dbuf, color ? "." COLOR_LIGHTYELLOW : ".");
   dbuf_putstr(&dbuf, predicate_typename(pr));
-  dbuf_putc(&dbuf, ')');
+  dbuf_putstr(&dbuf, color ? COLOR_NONE : "");
 
   return dbuf_tostring_free(&dbuf, ctx);
 }
 
 static JSValue
-predicate_argument(JSContext* ctx, JSValueConst value) {
+predicate_duparg(JSContext* ctx, JSValueConst value) {
   if(js_is_null_or_undefined(value))
     return JS_UNDEFINED;
 
   return JS_DupValue(ctx, value);
+}
+
+static JSValue
+predicate_nextarg(JSContext* ctx, JSArguments* args) {
+  JSValue arg = js_arguments_shift(args);
+  return predicate_duparg(ctx, arg);
 }
 
 VISIBLE Predicate*
@@ -110,64 +133,97 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
   } else if(argc > 0 && JS_IsNumber(argv[0])) {
     int32_t id;
-    JS_ToInt32(ctx, &id, argv[0]);
+    JSArguments args = js_arguments_new(argc, argv);
+    JS_ToInt32(ctx, &id, js_arguments_shift(&args));
 
     switch(id) {
       case PREDICATE_TYPE: {
         id = -1;
-        JS_ToInt32(ctx, &id, argv[1]);
+        JS_ToInt32(ctx, &id, js_arguments_shift(&args));
         *pred = predicate_type(id);
         break;
       }
 
       case PREDICATE_CHARSET: {
         size_t len = 0;
-        const char* str = js_tostringlen(ctx, &len, argv[1]);
-        if(argc > 2 && JS_IsNumber(argv[2]))
-          js_value_tosize(ctx, &len, argv[2]);
+        JSValue lenv;
+        const char* str = js_tostringlen(ctx, &len, js_arguments_shift(&args));
+        if(JS_IsNumber((lenv = js_arguments_shift(&args))))
+          js_value_tosize(ctx, &len, lenv);
         *pred = predicate_charset(str, len);
         break;
       }
 
       case PREDICATE_STRING: {
         size_t len = 0;
-        const char* str = js_tostringlen(ctx, &len, argv[1]);
+        const char* str = js_tostringlen(ctx, &len, js_arguments_shift(&args));
         *pred = predicate_string(str, len);
         break;
       }
 
       case PREDICATE_NOTNOT: {
-        *pred = predicate_notnot(predicate_argument(ctx, argv[1]));
+        *pred = predicate_notnot(predicate_nextarg(ctx, &args));
         break;
       }
 
       case PREDICATE_NOT: {
-        *pred = predicate_not(predicate_argument(ctx, argv[1]));
+        *pred = predicate_not(predicate_nextarg(ctx, &args));
         break;
       }
 
       case PREDICATE_ADD: {
-        *pred = predicate_add(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
+        JSValue left, right;
+        left = predicate_nextarg(ctx, &args);
+        right = predicate_nextarg(ctx, &args);
+        *pred = predicate_add(left, right);
         break;
       }
 
       case PREDICATE_SUB: {
-        *pred = predicate_sub(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
+        JSValue left, right;
+        left = predicate_nextarg(ctx, &args);
+        right = predicate_nextarg(ctx, &args);
+        *pred = predicate_sub(left, right);
         break;
       }
 
       case PREDICATE_MUL: {
-        *pred = predicate_mul(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
+        JSValue left, right;
+        left = predicate_nextarg(ctx, &args);
+        right = predicate_nextarg(ctx, &args);
+        *pred = predicate_mul(left, right);
         break;
       }
 
       case PREDICATE_DIV: {
-        *pred = predicate_div(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
+        JSValue left, right;
+        left = predicate_nextarg(ctx, &args);
+        right = predicate_nextarg(ctx, &args);
+        *pred = predicate_div(left, right);
         break;
       }
 
       case PREDICATE_MOD: {
-        *pred = predicate_mod(predicate_argument(ctx, argv[1]), predicate_argument(ctx, argv[2]));
+        JSValue left, right;
+        left = predicate_nextarg(ctx, &args);
+        right = predicate_nextarg(ctx, &args);
+        *pred = predicate_mod(left, right);
+        break;
+      }
+
+      case PREDICATE_BOR: {
+        JSValue left, right;
+        left = predicate_nextarg(ctx, &args);
+        right = predicate_nextarg(ctx, &args);
+        *pred = predicate_bor(left, right);
+        break;
+      }
+
+      case PREDICATE_BAND: {
+        JSValue left, right;
+        left = predicate_nextarg(ctx, &args);
+        right = predicate_nextarg(ctx, &args);
+        *pred = predicate_band(left, right);
         break;
       }
 
@@ -195,17 +251,17 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       }
 
       case PREDICATE_INSTANCEOF: {
-        *pred = predicate_instanceof(JS_DupValue(ctx, argv[1]));
+        *pred = predicate_instanceof(predicate_nextarg(ctx, &args));
         break;
       }
 
       case PREDICATE_PROTOTYPEIS: {
-        *pred = predicate_prototype(JS_DupValue(ctx, argv[1]));
+        *pred = predicate_prototype(predicate_nextarg(ctx, &args));
         break;
       }
 
       case PREDICATE_EQUAL: {
-        *pred = predicate_equal(JS_DupValue(ctx, argv[1]));
+        *pred = predicate_equal(predicate_nextarg(ctx, &args));
         break;
       }
 
@@ -213,10 +269,12 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         JSAtom prop = 0;
         JSValue obj = JS_UNDEFINED;
 
-        if(argc >= 2 && !JS_IsNull(argv[1]) && !JS_IsUndefined(argv[1]))
-          prop = JS_ValueToAtom(ctx, argv[1]);
-        if(argc >= 3 && !JS_IsNull(argv[2]) && !JS_IsUndefined(argv[2]))
-          obj = JS_DupValue(ctx, argv[2]);
+        JSValue propv, objv;
+
+        if(!js_is_null_or_undefined((propv = js_arguments_shift(&args))))
+          prop = JS_ValueToAtom(ctx, propv);
+        if(!js_is_null_or_undefined((objv = js_arguments_shift(&args))))
+          obj = JS_DupValue(ctx, objv);
 
         *pred = predicate_property(prop, obj);
         break;
@@ -224,8 +282,8 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
       case PREDICATE_SHIFT: {
         int32_t shift;
-        JS_ToInt32(ctx, &shift, argv[1]);
-        *pred = predicate_shift(shift, argc > 2 ? JS_DupValue(ctx, argv[2]) : JS_UNDEFINED);
+        JS_ToInt32(ctx, &shift, js_arguments_shift(&args));
+        *pred = predicate_shift(shift, js_arguments_shift(&args));
         break;
       }
     }
@@ -241,7 +299,8 @@ static JSValue
 js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
-  if(!(pred = JS_GetOpaque2(ctx, this_val, js_predicate_class_id)))
+
+  if(!(pred = js_predicate_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -258,27 +317,40 @@ static JSValue
 js_predicate_operator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   JSArguments args = js_arguments_new(argc, argv);
-
+  JSValue left, right;
+  left = predicate_nextarg(ctx, &args);
+  right = predicate_nextarg(ctx, &args);
   switch(magic) {
     case OPERATOR_PLUS: {
-      ret = js_predicate_wrap(ctx, predicate_add(js_arguments_at(&args, 0), js_arguments_at(&args, 1)));
+      ret = js_predicate_wrap(ctx, predicate_add(left, right));
       break;
     }
     case OPERATOR_MINUS: {
-      ret = js_predicate_wrap(ctx, predicate_sub(js_arguments_at(&args, 0), js_arguments_at(&args, 1)));
+      ret = js_predicate_wrap(ctx, predicate_sub(left, right));
       break;
     }
     case OPERATOR_MUL: {
-
-      ret = js_predicate_wrap(ctx, predicate_mul(js_arguments_at(&args, 0), js_arguments_at(&args, 1)));
+      ret = js_predicate_wrap(ctx, predicate_mul(left, right));
       break;
     }
     case OPERATOR_DIV: {
-      ret = js_predicate_wrap(ctx, predicate_div(js_arguments_at(&args, 0), js_arguments_at(&args, 1)));
+      ret = js_predicate_wrap(ctx, predicate_div(left, right));
       break;
     }
     case OPERATOR_MOD: {
-      ret = js_predicate_wrap(ctx, predicate_mod(js_arguments_at(&args, 0), js_arguments_at(&args, 1)));
+      ret = js_predicate_wrap(ctx, predicate_mod(left, right));
+      break;
+    }
+    case OPERATOR_BOR: {
+      ret = js_predicate_wrap(ctx, predicate_bor(left, right));
+      break;
+    }
+    case OPERATOR_BAND: {
+      ret = js_predicate_wrap(ctx, predicate_band(left, right));
+      break;
+    }
+    case OPERATOR_POW: {
+      ret = js_predicate_wrap(ctx, predicate_pow(left, right));
       break;
     }
   }
@@ -287,14 +359,14 @@ js_predicate_operator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static JSValue
 js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  Predicate* pred;
-  DynBuf dbuf;
-  JSValue ret;
-
-  if(!(pred = JS_GetOpaque2(ctx, this_val, js_predicate_class_id)))
-    return JS_EXCEPTION;
+  DynBuf dbuf = {0};
+  Predicate* pred = 0;
+  JSValue ret = JS_UNDEFINED;
 
   js_dbuf_init(ctx, &dbuf);
+
+  if(!(pred = js_predicate_data2(ctx, this_val)))
+    return JS_EXCEPTION;
 
   if(magic)
     predicate_tosource(pred, ctx, &dbuf, 0);
@@ -310,7 +382,8 @@ static JSValue
 js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
-  if(!(pred = JS_GetOpaque2(ctx, this_val, js_predicate_class_id)))
+
+  if(!(pred = js_predicate_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -323,6 +396,10 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = predicate_values(pred, ctx);
       break;
     }
+    case PROP_ARGS: {
+      ret = JS_NewUint32(ctx, predicate_recursive_num_args(pred));
+      break;
+    }
   }
   return ret;
 }
@@ -330,6 +407,9 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
 static JSValue
 js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
+
+  JSArguments args = js_arguments_new(argc, argv);
+
   switch(magic) {
 
     case PREDICATE_TYPE: {
@@ -359,32 +439,69 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
     case PREDICATE_NOT: {
-      ret = js_predicate_wrap(ctx, predicate_not(JS_DupValue(ctx, argv[0])));
+      ret = js_predicate_wrap(ctx, predicate_not(predicate_nextarg(ctx, &args)));
       break;
     }
 
     case PREDICATE_ADD: {
-      ret = js_predicate_wrap(ctx, predicate_add(JS_DupValue(ctx, argv[0]), JS_DupValue(ctx, argv[1])));
+      JSValue left, right;
+      left = predicate_nextarg(ctx, &args);
+      right = predicate_nextarg(ctx, &args);
+      ret = js_predicate_wrap(ctx, predicate_add(left, right));
       break;
     }
 
     case PREDICATE_SUB: {
-      ret = js_predicate_wrap(ctx, predicate_sub(JS_DupValue(ctx, argv[0]), JS_DupValue(ctx, argv[1])));
+      JSValue left, right;
+      left = predicate_nextarg(ctx, &args);
+      right = predicate_nextarg(ctx, &args);
+      ret = js_predicate_wrap(ctx, predicate_sub(left, right));
       break;
     }
 
     case PREDICATE_MUL: {
-      ret = js_predicate_wrap(ctx, predicate_mul(JS_DupValue(ctx, argv[0]), JS_DupValue(ctx, argv[1])));
+      JSValue left, right;
+      left = predicate_nextarg(ctx, &args);
+      right = predicate_nextarg(ctx, &args);
+      ret = js_predicate_wrap(ctx, predicate_mul(left, right));
       break;
     }
 
     case PREDICATE_DIV: {
-      ret = js_predicate_wrap(ctx, predicate_div(JS_DupValue(ctx, argv[0]), JS_DupValue(ctx, argv[1])));
+      JSValue left, right;
+      left = predicate_nextarg(ctx, &args);
+      right = predicate_nextarg(ctx, &args);
+      ret = js_predicate_wrap(ctx, predicate_div(left, right));
       break;
     }
 
     case PREDICATE_MOD: {
-      ret = js_predicate_wrap(ctx, predicate_mod(JS_DupValue(ctx, argv[0]), JS_DupValue(ctx, argv[1])));
+      JSValue left, right;
+      left = predicate_nextarg(ctx, &args);
+      right = predicate_nextarg(ctx, &args);
+      ret = js_predicate_wrap(ctx, predicate_mod(left, right));
+      break;
+    }
+
+    case PREDICATE_BOR: {
+      JSValue left, right;
+      left = predicate_nextarg(ctx, &args);
+      right = predicate_nextarg(ctx, &args);
+      ret = js_predicate_wrap(ctx, predicate_bor(left, right));
+      break;
+    }
+    case PREDICATE_BAND: {
+      JSValue left, right;
+      left = predicate_nextarg(ctx, &args);
+      right = predicate_nextarg(ctx, &args);
+      ret = js_predicate_wrap(ctx, predicate_band(left, right));
+      break;
+    }
+    case PREDICATE_POW: {
+      JSValue left, right;
+      left = predicate_nextarg(ctx, &args);
+      right = predicate_nextarg(ctx, &args);
+      ret = js_predicate_wrap(ctx, predicate_pow(left, right));
       break;
     }
 
@@ -411,17 +528,17 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
     case PREDICATE_INSTANCEOF: {
-      ret = js_predicate_wrap(ctx, predicate_instanceof(JS_DupValue(ctx, argv[0])));
+      ret = js_predicate_wrap(ctx, predicate_instanceof(predicate_nextarg(ctx, &args)));
       break;
     }
 
     case PREDICATE_PROTOTYPEIS: {
-      ret = js_predicate_wrap(ctx, predicate_prototype(JS_DupValue(ctx, argv[0])));
+      ret = js_predicate_wrap(ctx, predicate_prototype(predicate_nextarg(ctx, &args)));
       break;
     }
 
     case PREDICATE_EQUAL: {
-      ret = js_predicate_wrap(ctx, predicate_equal(JS_DupValue(ctx, argv[0])));
+      ret = js_predicate_wrap(ctx, predicate_equal(predicate_nextarg(ctx, &args)));
       break;
     }
 
@@ -439,8 +556,8 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
     case PREDICATE_SHIFT: {
       int32_t shift;
-      JS_ToInt32(ctx, &shift, argv[0]);
-      ret = js_predicate_wrap(ctx, predicate_shift(shift, argc > 1 ? JS_DupValue(ctx, argv[1]) : JS_UNDEFINED));
+      JS_ToInt32(ctx, &shift, predicate_nextarg(ctx, &args));
+      ret = js_predicate_wrap(ctx, predicate_shift(shift, predicate_nextarg(ctx, &args)));
       break;
     }
   }
@@ -455,7 +572,7 @@ js_predicate_call(
   JSValue ret = JS_UNDEFINED;
   JSValueConst arg = argc > 0 ? argv[0] : JS_UNDEFINED;
 
-  if(!(pred = JS_GetOpaque2(ctx, func_obj, js_predicate_class_id)))
+  if(!(pred = js_predicate_data2(ctx, func_obj)))
     return JS_EXCEPTION;
 
   if(js_is_promise(ctx, arg)) {
@@ -486,7 +603,7 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewInt32(ctx, pred->id), JS_PROP_ENUMERABLE);
 
-  js_set_tostringtag_value(ctx, obj, predicate_constant(pred, ctx));
+  js_set_tostringtag_value(ctx, obj, predicate_constant(pred, ctx, TRUE));
 
   switch(pred->id) {
     case PREDICATE_TYPE: {
@@ -577,10 +694,9 @@ static const JSCFunctionListEntry js_predicate_operator_funcs[] = {
     JS_CFUNC_MAGIC_DEF("*", 2, js_predicate_operator, OPERATOR_MUL),
     JS_CFUNC_MAGIC_DEF("/", 2, js_predicate_operator, OPERATOR_DIV),
     JS_CFUNC_MAGIC_DEF("%", 2, js_predicate_operator, OPERATOR_MOD),
-};
-
-static const JSCFunctionListEntry js_predicate_operator_mul_number[] = {
-    JS_CFUNC_MAGIC_DEF("*", 2, js_predicate_operator, OPERATOR_MUL),
+    JS_CFUNC_MAGIC_DEF("|", 2, js_predicate_operator, OPERATOR_BOR),
+    JS_CFUNC_MAGIC_DEF("&", 2, js_predicate_operator, OPERATOR_BAND),
+    JS_CFUNC_MAGIC_DEF("**", 2, js_predicate_operator, OPERATOR_POW),
 };
 
 static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
@@ -590,6 +706,7 @@ static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_ALIAS_DEF("call", "eval"),
     JS_CGETSET_MAGIC_DEF("id", js_predicate_get, 0, PROP_ID),
     JS_CGETSET_MAGIC_DEF("values", js_predicate_get, 0, PROP_VALUES),
+    JS_CGETSET_MAGIC_DEF("args", js_predicate_get, 0, PROP_ARGS),
     // JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E),
 };
 
@@ -598,11 +715,18 @@ static const JSCFunctionListEntry js_predicate_funcs[] = {
     JS_CFUNC_MAGIC_DEF("charset", 1, js_predicate_function, PREDICATE_CHARSET),
     JS_CFUNC_MAGIC_DEF("string", 1, js_predicate_function, PREDICATE_STRING),
     JS_CFUNC_MAGIC_DEF("not", 1, js_predicate_function, PREDICATE_NOT),
+    JS_CFUNC_MAGIC_DEF("notnot", 1, js_predicate_function, PREDICATE_NOTNOT),
+    JS_CFUNC_MAGIC_DEF("bnot", 1, js_predicate_function, PREDICATE_BNOT),
+    JS_CFUNC_MAGIC_DEF("sqrt", 1, js_predicate_function, PREDICATE_SQRT),
     JS_CFUNC_MAGIC_DEF("add", 2, js_predicate_function, PREDICATE_ADD),
     JS_CFUNC_MAGIC_DEF("sub", 2, js_predicate_function, PREDICATE_SUB),
     JS_CFUNC_MAGIC_DEF("mul", 2, js_predicate_function, PREDICATE_MUL),
     JS_CFUNC_MAGIC_DEF("div", 2, js_predicate_function, PREDICATE_DIV),
     JS_CFUNC_MAGIC_DEF("mod", 2, js_predicate_function, PREDICATE_MOD),
+    JS_CFUNC_MAGIC_DEF("bor", 2, js_predicate_function, PREDICATE_BOR),
+    JS_CFUNC_MAGIC_DEF("band", 2, js_predicate_function, PREDICATE_BAND),
+    JS_CFUNC_MAGIC_DEF("pow", 2, js_predicate_function, PREDICATE_POW),
+    JS_CFUNC_MAGIC_DEF("atan2", 2, js_predicate_function, PREDICATE_ATAN2),
     JS_CFUNC_MAGIC_DEF("or", 2, js_predicate_function, PREDICATE_OR),
     JS_CFUNC_MAGIC_DEF("and", 2, js_predicate_function, PREDICATE_AND),
     JS_CFUNC_MAGIC_DEF("xor", 2, js_predicate_function, PREDICATE_XOR),
@@ -620,11 +744,17 @@ static const JSCFunctionListEntry js_predicate_ids[] = {
     JS_PROP_INT32_DEF("STRING", PREDICATE_STRING, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("NOTNOT", PREDICATE_NOTNOT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("NOT", PREDICATE_NOT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("BNOT", PREDICATE_BNOT, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SQRT", PREDICATE_SQRT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("ADD", PREDICATE_ADD, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SUB", PREDICATE_SUB, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MUL", PREDICATE_MUL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("DIV", PREDICATE_DIV, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("MOD", PREDICATE_MOD, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("BOR", PREDICATE_BOR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("BAND", PREDICATE_BAND, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("POW", PREDICATE_POW, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ATAN2", PREDICATE_ATAN2, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("OR", PREDICATE_OR, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("AND", PREDICATE_AND, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("XOR", PREDICATE_XOR, JS_PROP_ENUMERABLE),
@@ -632,7 +762,7 @@ static const JSCFunctionListEntry js_predicate_ids[] = {
     JS_PROP_INT32_DEF("INSTANCEOF", PREDICATE_INSTANCEOF, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("PROTOTYPEIS", PREDICATE_PROTOTYPEIS, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("EQUAL", PREDICATE_EQUAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("PROPERTY", PREDICATE_EQUAL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("PROPERTY", PREDICATE_PROPERTY, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SHIFT", PREDICATE_SHIFT, JS_PROP_ENUMERABLE),
 };
 
@@ -685,21 +815,20 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
                              js_predicate_operator_funcs,
                              countof(js_predicate_operator_funcs));
 
-  JSValueConst args[] = {predicate_operators, JS_NewObject(ctx), JS_NewObject(ctx)};
+  JSValueConst args[3] = {predicate_operators, JS_NewObject(ctx), JS_NewObject(ctx)};
 
-  JS_SetPropertyFunctionList(ctx, args[1], js_predicate_operator_mul_number, countof(js_predicate_operator_mul_number));
+  JS_SetPropertyFunctionList(ctx, args[1], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
 
   JS_SetPropertyStr(ctx, args[1], "left", js_global_get(ctx, "Number"));
 
-  JS_SetPropertyFunctionList(ctx, args[2], js_predicate_operator_mul_number, countof(js_predicate_operator_mul_number));
+  JS_SetPropertyFunctionList(ctx, args[2], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
 
   JS_SetPropertyStr(ctx, args[2], "right", js_global_get(ctx, "Number"));
 
-  JSValue predicate_operatorset = JS_Call(ctx, operators_create, operators, countof(args), args);
+  JSValue predicate_operatorset = JS_Call(ctx, operators_create, operators, 3, args);
+  JS_DefinePropertyValue(
+      ctx, predicate_proto, operators_set, predicate_operatorset, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
 
-  /* JS_DefinePropertyValue(
-       ctx, predicate_proto, operators_set, predicate_operatorset, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
- */
   JS_FreeValue(ctx, operators);
   JS_FreeValue(ctx, operators_create);
   // JS_FreeValue(ctx, predicate_operators);
