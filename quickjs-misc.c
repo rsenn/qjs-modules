@@ -10,9 +10,163 @@
 #include <time.h>
 #include <sys/utsname.h>
 #include <threads.h>
+#include <errno.h>
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))
+
+static const char* const errors[] = {
+    0,
+    "EPERM",
+    "ENOENT",
+    "ESRCH",
+    "EINTR",
+    "EIO",
+    "ENXIO",
+    "E2BIG",
+    "ENOEXEC",
+    "EBADF",
+    "ECHILD",
+    "EAGAIN",
+    "ENOMEM",
+    "EACCES",
+    "EFAULT",
+    "ENOTBLK",
+    "EBUSY",
+    "EEXIST",
+    "EXDEV",
+    "ENODEV",
+    "ENOTDIR",
+    "EISDIR",
+    "EINVAL",
+    "ENFILE",
+    "EMFILE",
+    "ENOTTY",
+    "ETXTBSY",
+    "EFBIG",
+    "ENOSPC",
+    "ESPIPE",
+    "EROFS",
+    "EMLINK",
+    "EPIPE",
+    "EDOM",
+    "ERANGE",
+    "EDEADLK",
+    "ENAMETOOLONG",
+    "ENOLCK",
+    "ENOSYS",
+    "ENOTEMPTY",
+    0,
+    0,
+    "ENOMSG",
+    "EIDRM",
+    "ECHRNG",
+    "EL2NSYNC",
+    "EL3HLT",
+    "EL3RST",
+    "ELNRNG",
+    "EUNATCH",
+    "ENOCSI",
+    "EL2HLT",
+    "EBADE",
+    "EBADR",
+    "EXFULL",
+    "ENOANO",
+    "EBADRQC",
+    0,
+    0,
+    "EBFONT",
+    "ENOSTR",
+    "ENODATA",
+    "ETIME",
+    "ENOSR",
+    "ENONET",
+    "ENOPKG",
+    "EREMOTE",
+    "ENOLINK",
+    "EADV",
+    "ESRMNT",
+    "ECOMM",
+    "EPROTO",
+    "EMULTIHOP",
+    "EDOTDOT",
+    "EBADMSG",
+    "EOVERFLOW",
+    "ENOTUNIQ",
+    "EBADFD",
+    "EREMCHG",
+    "ELIBACC",
+    "ELIBBAD",
+    "ELIBSCN",
+    "ELIBMAX",
+    "ELIBEXEC",
+    "EILSEQ",
+    "ERESTART",
+    "ESTRPIPE",
+    "EUSERS",
+    "ENOTSOCK",
+    "EDESTADDRREQ",
+    "EMSGSIZE",
+    "EPROTOTYPE",
+    "ENOPROTOOPT",
+    "EPROTONOSUPPORT",
+    "ESOCKTNOSUPPORT",
+    "EOPNOTSUPP",
+    "EPFNOSUPPORT",
+    "EAFNOSUPPORT",
+    "EADDRINUSE",
+    "EADDRNOTAVAIL",
+    "ENETDOWN",
+    "ENETUNREACH",
+    "ENETRESET",
+    "ECONNABORTED",
+    "ECONNRESET",
+    "ENOBUFS",
+    "EISCONN",
+    "ENOTCONN",
+    "ESHUTDOWN",
+    "ETOOMANYREFS",
+    "ETIMEDOUT",
+    "ECONNREFUSED",
+    "EHOSTDOWN",
+    "EHOSTUNREACH",
+    "EALREADY",
+    "EINPROGRESS",
+    "ESTALE",
+    "EUCLEAN",
+    "ENOTNAM",
+    "ENAVAIL",
+    "EISNAM",
+    "EREMOTEIO",
+    "EDQUOT",
+    "ENOMEDIUM",
+    "EMEDIUMTYPE",
+    "ECANCELED",
+    "ENOKEY",
+    "EKEYEXPIRED",
+    "EKEYREVOKED",
+    "EKEYREJECTED",
+    "EOWNERDEAD",
+    "ENOTRECOVERABLE",
+    "ERFKILL",
+};
+
+static const char*
+get_error(int errnum) {
+  if(errnum >= 0 && errnum < countof(errors))
+    return errors[errnum];
+  return 0;
+}
+
+static int
+find_error(const char* code) {
+  int i, len = countof(errors);
+  for(i = 1; i < len; i++) {
+    if(errors[i] && !strcmp(code, errors[i]))
+      return i;
+  }
+  return 0;
+}
 
 static void
 js_bytecode_free_func(JSRuntime* rt, void* opaque, void* ptr) {
@@ -59,6 +213,223 @@ get_offset_length(JSContext* ctx, int64_t len, int argc, JSValueConst argv[]) {
 
   return (OffsetLength){.offset = offset, .length = length};
 }
+
+thread_local VISIBLE JSClassID js_syscallerror_class_id = 0;
+thread_local JSValue syscallerror_proto = {.tag = JS_TAG_UNDEFINED}, syscallerror_ctor = {.tag = JS_TAG_UNDEFINED};
+
+enum { SYSCALLERROR_TOSTRING = 0, SYSCALLERROR_SYSCALL, SYSCALLERROR_CODE, SYSCALLERROR_ERRNO, SYSCALLERROR_STACK };
+
+extern thread_local JSClassID js_syscallerror_class_id;
+
+typedef struct {
+  const char* syscall;
+  int errnum;
+  const char* stack;
+} SyscallError;
+
+SyscallError*
+js_syscallerror_data(JSContext* ctx, JSValueConst value) {
+  SyscallError* err;
+  err = JS_GetOpaque(value, js_syscallerror_class_id);
+  return err;
+}
+
+static JSValue
+js_syscallerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  SyscallError* err;
+  JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED, error = js_global_new(ctx, "Error", 0, 0), st;
+  if(!(err = js_mallocz(ctx, sizeof(SyscallError))))
+    return JS_EXCEPTION;
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    goto fail;
+  obj = JS_NewObjectProtoClass(ctx, proto, js_syscallerror_class_id);
+  JS_FreeValue(ctx, proto);
+  if(JS_IsException(obj))
+    goto fail;
+  if(argc >= 1)
+    err->syscall = js_tostring(ctx, argv[0]);
+  if(argc >= 2) {
+    int32_t errnum;
+    if(JS_IsNumber(argv[1])) {
+      JS_ToInt32(ctx, &errnum, argv[1]);
+    } else {
+      const char* code = JS_ToCString(ctx, argv[1]);
+      errnum = find_error(code);
+      JS_FreeCString(ctx, code);
+    }
+    err->errnum = errnum;
+  }
+  if(!JS_IsUndefined((st = JS_GetPropertyStr(ctx, error, "stack")))) {
+    const char* stack = JS_ToCString(ctx, st);
+    size_t pos = str_chr(stack, '\n');
+    if(stack[pos])
+      pos++;
+    err->stack = js_strdup(ctx, stack + pos);
+    JS_FreeCString(ctx, stack);
+  }
+  JS_FreeValue(ctx, st);
+  JS_FreeValue(ctx, error);
+
+  JS_SetOpaque(obj, err);
+  return obj;
+fail:
+  js_free(ctx, err);
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
+static JSValue
+js_syscallerror_new(JSContext* ctx, const char* syscall, int errnum) {
+
+  SyscallError* err;
+  JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED, error = js_global_new(ctx, "Error", 0, 0), st;
+  if(!(err = js_mallocz(ctx, sizeof(SyscallError))))
+    return JS_EXCEPTION;
+
+  obj = JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
+  if(JS_IsException(obj))
+    goto fail;
+
+  err->syscall = js_strdup(ctx, syscall);
+  err->errnum = errnum;
+
+  if(!JS_IsUndefined((st = JS_GetPropertyStr(ctx, error, "stack")))) {
+    const char* stack = JS_ToCString(ctx, st);
+    size_t pos = str_chr(stack, '\n');
+    if(stack[pos])
+      pos++;
+    err->stack = js_strdup(ctx, stack + pos);
+    JS_FreeCString(ctx, stack);
+  }
+  JS_FreeValue(ctx, st);
+  JS_FreeValue(ctx, error);
+
+  JS_SetOpaque(obj, err);
+  return obj;
+fail:
+  js_free(ctx, err);
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
+static JSValue
+js_syscallerror_throw(JSContext* ctx, const char* syscall) {
+  JSValue error = js_syscallerror_new(ctx, syscall, errno);
+  return JS_Throw(ctx, error);
+}
+
+static JSValue
+js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret = JS_UNDEFINED;
+  SyscallError* err;
+  if(!(err = js_syscallerror_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case SYSCALLERROR_TOSTRING: {
+
+      DynBuf dbuf = {0};
+      js_dbuf_init(ctx, &dbuf);
+
+      dbuf_putstr(&dbuf, "SyscallError: ");
+      if(err->syscall) {
+        dbuf_putstr(&dbuf, err->syscall);
+        dbuf_putstr(&dbuf, "() ");
+      }
+      if(err->errnum) {
+        const char* msg;
+
+        if((msg = strerror(err->errnum))) {
+          dbuf_putstr(&dbuf, msg);
+          dbuf_putc(&dbuf, ' ');
+        }
+      }
+      if(err->stack) {
+        dbuf_putc(&dbuf, '\n');
+        dbuf_putstr(&dbuf, err->stack);
+      }
+      dbuf_0(&dbuf);
+
+      ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
+      break;
+    }
+  }
+  return ret;
+}
+
+static JSValue
+js_syscallerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  SyscallError* err;
+  const char* code = 0;
+
+  if(!(err = js_syscallerror_data(ctx, this_val)))
+    return JS_EXCEPTION;
+  JSValue obj = JS_NewObjectProto(ctx, syscallerror_proto);
+  if(err->syscall)
+    JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, err->syscall), JS_PROP_ENUMERABLE);
+  if((code = get_error(err->errnum))) {
+    JS_DefinePropertyValueStr(ctx, obj, "code", JS_NewString(ctx, code), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewInt32(ctx, err->errnum), JS_PROP_ENUMERABLE);
+  }
+  if(js_has_propertystr(ctx, obj, "stack"))
+    JS_DefinePropertyValueStr(ctx, obj, "stack", JS_GetPropertyStr(ctx, this_val, "stack"), JS_PROP_ENUMERABLE);
+  return obj;
+}
+
+static JSValue
+js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  JSValue ret = JS_UNDEFINED;
+  SyscallError* err;
+
+  if(!(err = js_syscallerror_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case SYSCALLERROR_SYSCALL: {
+      ret = err->syscall ? JS_NewString(ctx, err->syscall) : JS_NULL;
+      break;
+    }
+    case SYSCALLERROR_CODE: {
+      const char* code;
+      ret = (code = get_error(err->errnum)) ? JS_NewString(ctx, code) : JS_NULL;
+      break;
+    }
+    case SYSCALLERROR_ERRNO: {
+      ret = JS_NewInt32(ctx, err->errnum);
+      break;
+    }
+    case SYSCALLERROR_STACK: {
+      ret = err->stack ? JS_NewString(ctx, err->stack) : JS_UNDEFINED;
+      break;
+    }
+  }
+  return ret;
+}
+
+static const JSCFunctionListEntry js_syscallerror_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("toString", 0, js_syscallerror_method, SYSCALLERROR_TOSTRING),
+    JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, 0, SYSCALLERROR_SYSCALL),
+    JS_CGETSET_MAGIC_DEF("code", js_syscallerror_get, 0, SYSCALLERROR_CODE),
+    JS_CGETSET_MAGIC_DEF("errno", js_syscallerror_get, 0, SYSCALLERROR_ERRNO),
+    JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, 0, SYSCALLERROR_STACK),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyscallError", JS_PROP_CONFIGURABLE),
+};
+
+void
+js_syscallerror_finalizer(JSRuntime* rt, JSValue val) {
+  SyscallError* err = JS_GetOpaque(val, js_syscallerror_class_id);
+  if(err) {
+    if(err->syscall)
+      js_free_rt(rt, err->syscall);
+    js_free_rt(rt, err);
+  }
+}
+
+static JSClassDef js_syscallerror_class = {
+    .class_name = "SyscallError",
+    .finalizer = js_syscallerror_finalizer,
+};
 
 static JSValue
 js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -214,6 +585,43 @@ js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, J
 }
 
 static JSValue
+js_misc_getinterpreter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  DynBuf dbuf = {0};
+
+  js_dbuf_init(ctx, &dbuf);
+
+  if(path_readlink("/proc/self/exe", &dbuf))
+    ret = dbuf_tostring_free(&dbuf, ctx);
+
+  return ret;
+}
+
+static JSValue
+js_misc_getcommandline(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  DynBuf dbuf = {0};
+  ssize_t i, j = 0, size, n;
+
+  js_dbuf_init(ctx, &dbuf);
+
+  if((size = dbuf_load(&dbuf, "/proc/self/cmdline")) > 0) {
+    dbuf_0(&dbuf);
+    ret = JS_NewArray(ctx);
+
+    for(i = 0; i < size; i += n + 1) {
+      n = strlen(&dbuf.buf[i]);
+
+      JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, &dbuf.buf[i], n));
+    }
+  }
+
+  dbuf_free(&dbuf);
+
+  return ret;
+}
+
+static JSValue
 js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct timespec ts;
   JSValue ret;
@@ -340,6 +748,100 @@ js_misc_read_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   return JS_ReadObject(ctx, input.data, input.size, JS_READ_OBJ_BYTECODE);
 }
+
+enum {
+  FUNC_GETPID = 0,
+  FUNC_GETPPID,
+  FUNC_GETSID,
+  FUNC_GETUID,
+  FUNC_GETGID,
+  FUNC_GETEUID,
+  FUNC_GETEGID,
+  FUNC_SETUID,
+  FUNC_SETGID,
+  FUNC_SETEUID,
+  FUNC_SETEGID
+};
+
+static JSValue
+js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+
+  int32_t ret = 0;
+
+  switch(magic) {
+    case FUNC_GETPID: {
+      ret = getpid();
+      break;
+    }
+    case FUNC_GETPPID: {
+      ret = getppid();
+      break;
+    }
+    case FUNC_GETSID: {
+      ret = getsid();
+      break;
+    }
+    case FUNC_GETUID: {
+      ret = getuid();
+      break;
+    }
+    case FUNC_GETGID: {
+      ret = getgid();
+      break;
+    }
+    case FUNC_GETEUID: {
+      ret = geteuid();
+      break;
+    }
+    case FUNC_GETEGID: {
+      ret = getegid();
+      break;
+    }
+    case FUNC_SETUID: {
+      int32_t uid;
+      JS_ToInt32(ctx, &uid, argv[0]);
+      ret = setuid(uid);
+      break;
+    }
+    case FUNC_SETGID: {
+      int32_t gid;
+      JS_ToInt32(ctx, &gid, argv[0]);
+      ret = setgid(gid);
+      break;
+    }
+    case FUNC_SETEUID: {
+      int32_t euid;
+      JS_ToInt32(ctx, &euid, argv[0]);
+      ret = setuid(euid);
+      break;
+      break;
+    }
+    case FUNC_SETEGID: {
+      int32_t egid;
+      JS_ToInt32(ctx, &egid, argv[0]);
+      ret = setgid(egid);
+      break;
+    }
+  }
+  if(ret == -1)
+    return js_syscallerror_throw(ctx,
+                                 ((const char* const[]){
+                                     "getpid",
+                                     "getppid",
+                                     "getsid",
+                                     "getuid",
+                                     "getgid",
+                                     "geteuid",
+                                     "getegid",
+                                     "setuid",
+                                     "setgid",
+                                     "seteuid",
+                                     "setegid",
+                                 })[magic - FUNC_GETPID]);
+
+  return JS_NewInt32(ctx, ret);
+}
+
 enum { VALUE_TYPE = 0, VALUE_TAG, VALUE_PTR };
 
 static JSValue
@@ -638,6 +1140,19 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
     JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
+    JS_CFUNC_DEF("getInterpreter", 0, js_misc_getinterpreter),
+    JS_CFUNC_DEF("getCommandLine", 0, js_misc_getcommandline),
+    JS_CFUNC_MAGIC_DEF("getpid", 0, js_misc_getx, FUNC_GETPID),
+    JS_CFUNC_MAGIC_DEF("getppid", 0, js_misc_getx, FUNC_GETPPID),
+    JS_CFUNC_MAGIC_DEF("getsid", 0, js_misc_getx, FUNC_GETSID),
+    JS_CFUNC_MAGIC_DEF("getuid", 0, js_misc_getx, FUNC_GETUID),
+    JS_CFUNC_MAGIC_DEF("getgid", 0, js_misc_getx, FUNC_GETGID),
+    JS_CFUNC_MAGIC_DEF("geteuid", 0, js_misc_getx, FUNC_GETEUID),
+    JS_CFUNC_MAGIC_DEF("getegid", 0, js_misc_getx, FUNC_GETEGID),
+    JS_CFUNC_MAGIC_DEF("setuid", 1, js_misc_getx, FUNC_SETUID),
+    JS_CFUNC_MAGIC_DEF("setgid", 1, js_misc_getx, FUNC_SETGID),
+    JS_CFUNC_MAGIC_DEF("seteuid", 1, js_misc_getx, FUNC_SETEUID),
+    JS_CFUNC_MAGIC_DEF("setegid", 1, js_misc_getx, FUNC_SETEGID),
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
@@ -669,9 +1184,23 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
 
   js_location_init(ctx, m);
 
+  JS_NewClassID(&js_syscallerror_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_syscallerror_class_id, &js_syscallerror_class);
+
+  syscallerror_ctor = JS_NewCFunction2(ctx, js_syscallerror_constructor, "SyscallError", 1, JS_CFUNC_constructor, 0);
+  syscallerror_proto = js_global_new(ctx, "Error", 0, 0);
+
+  JS_SetPropertyFunctionList(ctx, syscallerror_proto, js_syscallerror_funcs, countof(js_syscallerror_funcs));
+  JS_SetClassProto(ctx, js_syscallerror_class_id, syscallerror_proto);
+
+  js_set_inspect_method(ctx, syscallerror_proto, js_syscallerror_inspect);
+
+  JS_SetConstructor(ctx, syscallerror_ctor, syscallerror_proto);
+
   if(m) {
     // JS_SetModuleExportList(ctx, m, location_ctor);
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
+    JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
   }
 
   // printf("%s\n", js_opcodes[0].name);
@@ -691,7 +1220,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   m = JS_NewCModule(ctx, module_name, js_misc_init);
   if(!m)
     return NULL;
-  JS_AddModuleExport(ctx, m, "Location");
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
+  JS_AddModuleExport(ctx, m, "SyscallError");
   return m;
 }

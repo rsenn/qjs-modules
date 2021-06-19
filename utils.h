@@ -581,6 +581,7 @@ const char* dbuf_last_line(DynBuf* db, size_t* len);
 void dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color);
 int dbuf_reserve_start(DynBuf* s, size_t len);
 int dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len);
+ssize_t dbuf_load(DynBuf* s, const char* filename);
 JSValue dbuf_tostring_free(DynBuf* s, JSContext* ctx);
 
 static inline int32_t
@@ -634,6 +635,14 @@ regexp_free(RegExp re, JSContext* ctx) {
 }
 
 JSValue js_global_get(JSContext* ctx, const char* prop);
+static inline JSValue
+js_global_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]) {
+  JSValue ctor = js_global_get(ctx, class_name);
+  JSValue obj = JS_CallConstructor(ctx, ctor, argc, argv);
+  JS_FreeValue(ctx, ctor);
+  return obj;
+}
+
 JSValue js_global_prototype(JSContext* ctx, const char* class_name);
 
 enum value_types {
@@ -819,6 +828,13 @@ js_cstring_free(JSContext* ctx, const char* ptr) {
     return;
 
   JS_FreeValue(ctx, JS_MKPTR(JS_TAG_STRING, (void*)(ptr - offsetof(JSString, u))));
+}
+
+static inline int64_t
+js_toint64(JSContext* ctx, JSValueConst value) {
+  int64_t ret = 0;
+  JS_ToInt64(ctx, &ret, value);
+  return ret;
 }
 
 static inline char*

@@ -572,3 +572,24 @@ path_dirname(const char* path, DynBuf* dir) {
   dbuf_0(dir);
   return (char*)dir->buf;
 }
+
+#define START ((PATH_MAX + 1) >> 7)
+
+int
+path_readlink(const char* path, DynBuf* dir) {
+  /* do not allocate PATH_MAX from the beginning,
+     most paths will be smaller */
+  ssize_t n = (START ? START : 32);
+  ssize_t sz;
+  do {
+    /* reserve some space */
+    n <<= 1;
+    dbuf_realloc(dir, n);
+    sz = readlink(path, dir->buf, n);
+    /* repeat until we have reserved enough space */
+  } while(sz == n);
+
+  dir->size = sz;
+  /* now truncate to effective length */
+  return dir->size;
+}

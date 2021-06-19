@@ -265,6 +265,24 @@ dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
   return r;
 }
 
+ssize_t
+dbuf_load(DynBuf* s, const char* filename) {
+  FILE* fp;
+  size_t nbytes = 0;
+  if((fp = fopen(filename, "rb"))) {
+    char buf[4096];
+    size_t r;
+    while(!feof(fp)) {
+      if((r = fread(buf, 1, sizeof(buf), fp)) == 0)
+        return -1;
+      dbuf_put(s, buf, r);
+      nbytes += r;
+    }
+    fclose(fp);
+  }
+  return nbytes;
+}
+
 int
 regexp_flags_fromstring(const char* s) {
   int flags = 0;
