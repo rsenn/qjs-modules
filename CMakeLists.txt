@@ -17,19 +17,19 @@ if(EXISTS "${QUICKJS_H}")
 endif()
 set(child_process_SOURCES
     child-process.c child-process.h property-enumeration.c
-    property-enumeration.h utils.c utils.h vector.c vector.h)
+    property-enumeration.h utils.c utils.h vector.c vector.h qsort_r.c)
 set(deep_SOURCES
     vector.c vector.h pointer.c virtual-properties.c property-enumeration.c
     property-enumeration.h utils.c utils.h predicate.c predicate.h pointer.h
-    virtual-properties.h)
+    virtual-properties.h qsort_r.c)
 set(deep_LIBRARIES qjs-pointer qjs-predicate)
 set(inspect_SOURCES
     vector.c vector.h iteration.h utils.c utils.h property-enumeration.c
-    property-enumeration.h quickjs-internal.h)
+    property-enumeration.h quickjs-internal.h qsort_r.c)
 set(tree_walker_SOURCES vector.c vector.h property-enumeration.c
                         property-enumeration.h utils.c utils.h)
 set(xml_SOURCES vector.c vector.h property-enumeration.c property-enumeration.h
-                utils.c utils.h)
+                utils.c utils.h qsort_r.c)
 set(path_SOURCES path.c path.h utils.c utils.h)
 set(predicate_SOURCES predicate.c predicate.h vector.c vector.h utils.c utils.h)
 set(pointer_SOURCES pointer.c pointer.h utils.c utils.h)
