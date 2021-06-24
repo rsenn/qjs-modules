@@ -5,7 +5,6 @@
 #include "quickjs-pointer.h"
 #include "utils.h"
 #include <string.h>
-#include <threads.h>
 
 thread_local VISIBLE JSClassID js_pointer_class_id = 0;
 thread_local JSValue pointer_proto = {.tag = JS_TAG_UNDEFINED}, pointer_ctor = {.tag = JS_TAG_UNDEFINED};

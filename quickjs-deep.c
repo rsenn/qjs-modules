@@ -11,7 +11,6 @@
 #include "quickjs-predicate.h"
 
 #include <stdint.h>
-#include <threads.h>
 
 thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
 thread_local JSValue deep_iterator_proto = {.tag = JS_TAG_UNDEFINED}, deep_iterator_ctor = {.tag = JS_TAG_UNDEFINED};

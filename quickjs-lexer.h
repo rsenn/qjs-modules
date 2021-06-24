@@ -3,7 +3,6 @@
 
 #include "lexer.h"
 #include "list.h"
-#include <threads.h>
 
 typedef struct {
   Location loc;

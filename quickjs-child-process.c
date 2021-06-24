@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include <signal.h>
 #endif
-#include <threads.h>
 
 enum {
   CHILD_PROCESS_FILE = 0,

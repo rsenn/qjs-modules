@@ -7,7 +7,6 @@
 #include "property-enumeration.h"
 #include "quickjs.h"
 #include <string.h>
-#include <threads.h>
 
 thread_local VISIBLE JSClassID js_tree_walker_class_id = 0;
 thread_local JSValue tree_walker_proto = {.tag = JS_TAG_UNDEFINED}, tree_walker_ctor = {.tag = JS_TAG_UNDEFINED};

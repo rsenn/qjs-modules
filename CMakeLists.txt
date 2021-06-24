@@ -143,6 +143,7 @@ endif(HAVE__BUILTIN_MUL_OVERFLOW)
 
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
 addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
+
 # dump(STATIC_TARGETS)
 unset(QJSM_LDADD)
 

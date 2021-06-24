@@ -37,7 +37,6 @@
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <time.h>
-#include <threads.h>
 #include <signal.h>
 #include <sys/poll.h>
 #if defined(__APPLE__)

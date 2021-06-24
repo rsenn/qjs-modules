@@ -4,7 +4,6 @@
 
 #include "utils.h"
 #include <string.h>
-#include <threads.h>
 
 thread_local VISIBLE JSClassID js_repeater_class_id = 0;
 thread_local JSValue repeater_proto = {.tag = JS_TAG_UNDEFINED}, repeater_ctor = {.tag = JS_TAG_UNDEFINED};
