@@ -13,6 +13,7 @@
 #include <signal.h>
 #endif
 #include <threads.h>
+#include <sys/wait.h>
 
 enum {
   CHILD_PROCESS_FILE = 0,

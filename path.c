@@ -4,6 +4,10 @@
 
 #include "path.h"
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
+
 int
 path_absolute(const char* path, DynBuf* db) {
   if(!path_isabs(path)) {
