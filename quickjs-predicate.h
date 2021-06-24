@@ -2,7 +2,6 @@
 #define QUICKJS_PREDICATE_H
 
 #include "predicate.h"
-#include <threads.h>
 
 extern VISIBLE thread_local JSClassID js_predicate_class_id;
 

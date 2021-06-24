@@ -4,7 +4,6 @@
 
 #include "quickjs-location.h"
 #include "utils.h"
-#include <threads.h>
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 

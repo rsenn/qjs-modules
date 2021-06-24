@@ -7,7 +7,6 @@
 
 #include <limits.h>
 #include <string.h>
-#include <threads.h>
 
 #include "path.h"
 #include "utils.h"

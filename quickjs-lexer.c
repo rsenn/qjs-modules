@@ -10,7 +10,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdint.h>
-#include <threads.h>
 
 enum {
   LEXER_METHOD_SET_INPUT = 0,

@@ -2,7 +2,7 @@
 #define QUICKJS_LOCATION_H
 
 #include "location.h"
-#include <threads.h>
+#include "utils.h"
 
 extern thread_local JSClassID js_location_class_id;
 

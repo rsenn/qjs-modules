@@ -12,7 +12,6 @@
 #include <unistd.h>
 #include <signal.h>
 #endif
-#include <threads.h>
 #include <sys/wait.h>
 
 enum {
