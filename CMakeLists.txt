@@ -4,10 +4,15 @@ cmake_minimum_required(VERSION 3.2)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
-find_quickjs()
-
+#[[if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
+  find_quickjs("${CMAKE_CURRENT_SOURCE_DIR}/..")
+else()
+  find_quickjs()
+endif()
+]]
 set(QUICKJS_MODULES bjson child-process deep lexer misc mmap path pointer predicate repeater
                     sockets inspect tree-walker xml)
 
@@ -43,7 +48,11 @@ set(QJSM_EXTRA_SOURCES ${location_SOURCES})
 
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 
-message("QuickJS install directory: ${QUICKJS_PREFIX}")
+message(
+  "QuickJS
+  install
+  directory:
+  ${QUICKJS_PREFIX}")
 
 set(CMAKE_REQUIRED_QUIET TRUE)
 
@@ -52,29 +61,41 @@ check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 # dump(VISIBILITY_HIDDEN) dump(MODULE_COMPILE_FLAGS)
 
 check_flags(
-  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type"
-  CMAKE_C_FLAGS)
-# message("CMAKE_C_FLAGS: ${CMAKE_C_FLAGS}")
+  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type"CMAKE_C_FLAGS
+)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG}
+  -O0"
+          CACHE STRING "C
+  compiler
+  options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options"
-                                                                   FORCE)
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG}
+  -ggdb"
+          CACHE STRING "C
+  compiler
+  options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options"
-                                                                     FORCE)
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG}
+  -Wextra"
+          CACHE STRING "C
+  compiler
+  options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -90,7 +111,8 @@ if(HAVE_SPAWN_H)
   list(APPEND CMAKE_REQUIRED_INCLUDES spawn.h)
 
   check_function_exists(posix_spawnp HAVE_POSIX_SPAWNP)
-  message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
+  message(STATUS "HAVE_POSIX_SPAWNP:
+  ${HAVE_POSIX_SPAWNP}")
 
   if(HAVE_POSIX_SPAWNP)
     add_definitions(-DPOSIX_SPAWN=1)
@@ -122,8 +144,9 @@ if(DO_TESTS)
 endif(DO_TESTS)
 
 check_c_source_runs(
-  "#include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   return __builtin_mul_overflow(a, b, c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n   return 0;\n}"
-  HAVE__BUILTIN_MUL_OVERFLOW)
+  " # include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   return __builtin_mul_overflow(a, b,
+    # c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n return
+    # 0;\n}" HAVE__BUILTIN_MUL_OVERFLOW)
 if(HAVE__BUILTIN_MUL_OVERFLOW)
   add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
 endif(HAVE__BUILTIN_MUL_OVERFLOW)
