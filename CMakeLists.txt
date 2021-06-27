@@ -180,10 +180,10 @@ foreach(LIB_MODULE ${LIB_MODULES})
 endforeach(LIB_MODULE ${LIB_MODULES})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
-  set(quickjs_sources_root ${CMAKE_CURRENT_SOURCE_DIR}/..)
+  set(QUICKJS_SOURCES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-  include(${quickjs_sources_root}/defs.cmake)
-  include(${quickjs_sources_root}/cmake/check-libraries.cmake)
+  include(${QUICKJS_SOURCES_ROOT}/defs.cmake)
+  include(${QUICKJS_SOURCES_ROOT}/cmake/check-libraries.cmake)
 
   add_custom_command(
     OUTPUT ${MODULES_DIR}/qjscalc.c
@@ -223,7 +223,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT}" COMPILE_FLAGS "-w"
                                         RPATH "${CMAKE_INSTALL_PREFIX}/lib/quickjs")
 
-  target_compile_definitions(qjsm PRIVATE CONFIG_VERSION="${quickjs_version}" _GNU_SOURCE=1
+  target_compile_definitions(qjsm PRIVATE CONFIG_VERSION="${QUICKJS_VERSION}" _GNU_SOURCE=1
                                           CONFIG_PREFIX="${CMAKE_INSTALL_PREFIX}" CONFIG_BIGNUM=1)
   install(TARGETS qjsm DESTINATION bin)
 
