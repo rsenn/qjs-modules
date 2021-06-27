@@ -7,12 +7,8 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
-#[[if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
-  find_quickjs("${CMAKE_CURRENT_SOURCE_DIR}/..")
-else()
-  find_quickjs()
-endif()
-]]
+find_quickjs()
+
 set(QUICKJS_MODULES bjson child-process deep lexer misc mmap path pointer predicate repeater
                     sockets inspect tree-walker xml)
 

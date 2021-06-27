@@ -107,9 +107,10 @@ macro(find_quickjs)
 
   message(STATUS "QuickJS interpreter: ${QJS}")
   message(STATUS "QuickJS compiler: ${QJSC}")
-  if(QUICKJS_PREFIX)
-    message("QuickJS install directory (1): ${QUICKJS_PREFIX}")
-  endif(QUICKJS_PREFIX)
+  message("QuickJS install directory: ${QUICKJS_PREFIX}")
+  message("QuickJS library directory: ${QUICKJS_LIBRARY_DIR}")
+  message("QuickJS include directory: ${QUICKJS_INCLUDE_DIR}")
+  message("QuickJS module directory: ${QUICKJS_MODULE_DIR}")
 
   set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
   set(QUICKJS_H ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h)
