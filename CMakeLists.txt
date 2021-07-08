@@ -64,34 +64,19 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
-      set(CMAKE_C_FLAGS_DEBUG
-          "${CMAKE_C_FLAGS_DEBUG}
-  -O0"
-          CACHE STRING "C
-  compiler
-  options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG
-          "${CMAKE_C_FLAGS_DEBUG}
-  -ggdb"
-          CACHE STRING "C
-  compiler
-  options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG
-          "${CMAKE_C_FLAGS_DEBUG}
-  -Wextra"
-          CACHE STRING "C
-  compiler
-  options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -107,8 +92,7 @@ if(HAVE_SPAWN_H)
   list(APPEND CMAKE_REQUIRED_INCLUDES spawn.h)
 
   check_function_exists(posix_spawnp HAVE_POSIX_SPAWNP)
-  message(STATUS "HAVE_POSIX_SPAWNP:
-  ${HAVE_POSIX_SPAWNP}")
+  message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
 
   if(HAVE_POSIX_SPAWNP)
     add_definitions(-DPOSIX_SPAWN=1)
@@ -203,6 +187,8 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
   include(${QUICKJS_SOURCES_ROOT}/defs.cmake)
   include(${QUICKJS_SOURCES_ROOT}/cmake/check-libraries.cmake)
+
+  set(MODULES_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
   add_custom_command(
     OUTPUT ${MODULES_DIR}/qjscalc.c

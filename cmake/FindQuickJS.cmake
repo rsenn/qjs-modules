@@ -168,6 +168,7 @@ function(make_module FNAME)
 
   config_module(${TARGET_NAME})
 endfunction()
+
 function(compile_module SOURCE)
   basename(BASE "${SOURCE}" .js)
   message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
