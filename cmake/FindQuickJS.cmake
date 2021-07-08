@@ -151,6 +151,7 @@ function(make_module FNAME)
     ${TARGET_NAME}
     PROPERTIES
       PREFIX ""
+      IMPORT_PREFIX ""
       RPATH "${OPENCV_LIBRARY_DIRS}:${QUICKJS_PREFIX}/lib:${QUICKJS_PREFIX}/lib/quickjs"
       OUTPUT_NAME "${VNAME}"
       BUILD_RPATH
@@ -188,3 +189,7 @@ function(compile_module SOURCE)
     DEPENDS qjs-inspect qjs-misc)
 
 endfunction(compile_module SOURCE)
+
+
+set(MODULES_DIR "${CMAKE_BINARY_DIR}/modules")
+file(MAKE_DIRECTORY "${MODULES_DIR}")

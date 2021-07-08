@@ -177,6 +177,8 @@ string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 # target_compile_definitions(qjsm -DBUILTIN_MODULES=\\\"${BUILTIN_LIBS}\\\")
 # message("${BUILTIN_LIBS}"
 
+list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
+
 foreach(LIB_MODULE ${LIB_MODULES})
   # message("Compile Module: ${LIB_MODULE}")
   compile_module(lib/${LIB_MODULE}.js)
@@ -188,7 +190,6 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   include(${QUICKJS_SOURCES_ROOT}/defs.cmake)
   include(${QUICKJS_SOURCES_ROOT}/cmake/check-libraries.cmake)
 
-  set(MODULES_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
   add_custom_command(
     OUTPUT ${MODULES_DIR}/qjscalc.c
