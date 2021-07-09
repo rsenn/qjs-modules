@@ -107,9 +107,10 @@ macro(find_quickjs)
 
   message(STATUS "QuickJS interpreter: ${QJS}")
   message(STATUS "QuickJS compiler: ${QJSC}")
-  if(QUICKJS_PREFIX)
-    message("QuickJS install directory (1): ${QUICKJS_PREFIX}")
-  endif(QUICKJS_PREFIX)
+  message("QuickJS install directory: ${QUICKJS_PREFIX}")
+  message("QuickJS library directory: ${QUICKJS_LIBRARY_DIR}")
+  message("QuickJS include directory: ${QUICKJS_INCLUDE_DIR}")
+  message("QuickJS module directory: ${QUICKJS_MODULE_DIR}")
 
   set(CUTILS_H ${CMAKE_CURRENT_SOURCE_DIR}/../cutils.h)
   set(QUICKJS_H ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h)
@@ -145,11 +146,14 @@ function(make_module FNAME)
   # dump(VNAME ${VNAME}_SOURCES)
   add_library(${TARGET_NAME} SHARED ${SOURCES})
   add_library(${TARGET_NAME}-static STATIC ${SOURCES})
+  append_parent(QJS_MODULES_SHARED ${TARGET_NAME})
+  append_parent(QJS_MODULES_STATIC ${TARGET_NAME}-static)
 
   set_target_properties(
     ${TARGET_NAME}
     PROPERTIES
       PREFIX ""
+      IMPORT_PREFIX ""
       RPATH "${OPENCV_LIBRARY_DIRS}:${QUICKJS_PREFIX}/lib:${QUICKJS_PREFIX}/lib/quickjs"
       OUTPUT_NAME "${VNAME}"
       BUILD_RPATH
@@ -167,6 +171,7 @@ function(make_module FNAME)
 
   config_module(${TARGET_NAME})
 endfunction()
+
 function(compile_module SOURCE)
   basename(BASE "${SOURCE}" .js)
   message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
@@ -174,7 +179,7 @@ function(compile_module SOURCE)
   if(ARGN)
     set(OUTPUT_FILE ${ARGN})
   else(ARGN)
-    set(OUTPUT_FILE ${BASE}.c)
+    set(OUTPUT_FILE "${MODULES_DIR}/${BASE}.c")
   endif(ARGN)
   add_custom_command(
     OUTPUT "${OUTPUT_FILE}"
@@ -186,3 +191,7 @@ function(compile_module SOURCE)
     DEPENDS qjs-inspect qjs-misc)
 
 endfunction(compile_module SOURCE)
+
+
+set(MODULES_DIR "${CMAKE_BINARY_DIR}/modules")
+file(MAKE_DIRECTORY "${MODULES_DIR}")

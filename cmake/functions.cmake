@@ -55,3 +55,10 @@ function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
 
   set("${OUT_VAR}" "${LIST}" PARENT_SCOPE)
 endfunction(RELATIVE_PATH RELATIVE_TO OUT_VAR)
+
+
+macro(APPEND_PARENT VAR)
+  set(LIST "${${VAR}}")
+  list(APPEND LIST ${ARGN})
+  set("${VAR}" "${LIST}" PARENT_SCOPE)
+endmacro(APPEND_PARENT VAR)
