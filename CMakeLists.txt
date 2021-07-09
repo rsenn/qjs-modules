@@ -7,8 +7,12 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
-find_quickjs()
-
+#[[if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
+  find_quickjs("${CMAKE_CURRENT_SOURCE_DIR}/..")
+else()
+  find_quickjs()
+endif()
+]]
 set(QUICKJS_MODULES bjson child-process deep lexer misc mmap path pointer predicate repeater
                     sockets inspect tree-walker xml)
 
@@ -64,19 +68,34 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG}
+  -O0"
+          CACHE STRING "C
+  compiler
+  options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG}
+  -ggdb"
+          CACHE STRING "C
+  compiler
+  options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options" FORCE)
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG}
+  -Wextra"
+          CACHE STRING "C
+  compiler
+  options" FORCE)
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -92,7 +111,8 @@ if(HAVE_SPAWN_H)
   list(APPEND CMAKE_REQUIRED_INCLUDES spawn.h)
 
   check_function_exists(posix_spawnp HAVE_POSIX_SPAWNP)
-  message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
+  message(STATUS "HAVE_POSIX_SPAWNP:
+  ${HAVE_POSIX_SPAWNP}")
 
   if(HAVE_POSIX_SPAWNP)
     add_definitions(-DPOSIX_SPAWN=1)
@@ -177,8 +197,6 @@ string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 # target_compile_definitions(qjsm -DBUILTIN_MODULES=\\\"${BUILTIN_LIBS}\\\")
 # message("${BUILTIN_LIBS}"
 
-list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
-
 foreach(LIB_MODULE ${LIB_MODULES})
   # message("Compile Module: ${LIB_MODULE}")
   compile_module(lib/${LIB_MODULE}.js)
@@ -189,7 +207,6 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
   include(${QUICKJS_SOURCES_ROOT}/defs.cmake)
   include(${QUICKJS_SOURCES_ROOT}/cmake/check-libraries.cmake)
-
 
   add_custom_command(
     OUTPUT ${MODULES_DIR}/qjscalc.c
@@ -222,9 +239,6 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
   dump(QJSM_SOURCES)
   add_executable(qjsm ${QJSM_SOURCES})
-
-  add_dependencies(qjsm ${QJS_MODULES_STATIC})
-
 
   # target_link_libraries(qjs ${QUICKJS_LIBRARY})
   target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
