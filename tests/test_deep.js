@@ -96,12 +96,8 @@ function main(...args) {
   /*  for(let [n,p] of deep.iterate(obj3,  n => typeof n == 'object' && n != null))
     console.log('deep.iterate', { n, p });*/
 
-  for(let [n, p] of deep.iterate(obj3, Predicate.property('4')))
-    console.log(`deep.iterate(${deep.TYPE_OBJECT.toString(2)})`, { n, p });
-  console.log(
-    'select():',
-    deep.select(obj3, Predicate.property('name', Predicate.equal('x')), deep.RETURN_PATH_VALUE)
-  );
+  for(let [n, p] of deep.iterate(obj3, Predicate.property('4'))) console.log(`deep.iterate(${deep.TYPE_OBJECT.toString(2)})`, { n, p });
+  console.log('select():', deep.select(obj3, Predicate.property('name', Predicate.equal('x')), deep.RETURN_PATH_VALUE));
   return;
 
   for(let o of [obj1, obj2]) {
