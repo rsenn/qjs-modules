@@ -6,6 +6,7 @@
 #include "quickjs-location.h"
 #include "quickjs-libc.h"
 #include "utils.h"
+#include "path.h"
 #include "base64.h"
 #include <time.h>
 #include <sys/utsname.h>
@@ -768,6 +769,23 @@ js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 
 static JSValue
+js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  size_t plen, slen;
+  int32_t flags = 0, ret;
+
+  const char* pattern = JS_ToCStringLen(ctx, &plen, argv[0]);
+  const char* string = JS_ToCStringLen(ctx, &slen, argv[1]);
+
+  if(argc >= 3)
+    JS_ToInt32(ctx, &flags, argv[2]);
+
+  ret = path_fnmatch(pattern, plen, string, slen, flags);
+  JS_FreeCString(ctx, pattern);
+  JS_FreeCString(ctx, string);
+  return JS_NewBool(ctx, !ret);
+}
+
+static JSValue
 js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct utsname un;
   JSValue ret = JS_UNDEFINED;
@@ -875,7 +893,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
     case FUNC_GETSID: {
-      ret = getsid();
+      //sret = getsid();
       break;
     }
     case FUNC_GETUID: {
@@ -1230,6 +1248,7 @@ js_misc_array_to_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 }
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
+    JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
