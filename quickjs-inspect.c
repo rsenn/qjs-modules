@@ -945,7 +945,9 @@ js_inspect_stacktrace_value(JSContext* ctx) {
   struct JSStackFrame* frame;
   JSValue ret = JS_UNDEFINED;
   if((frame = rt->current_stack_frame)) {
+#ifdef CONFIG_DEBUGGER
     ret = js_debugger_build_backtrace(ctx, frame->cur_pc);
+#endif
   }
   return ret;
 }

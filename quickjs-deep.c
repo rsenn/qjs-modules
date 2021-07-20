@@ -34,9 +34,11 @@ enum deep_iterator_return {
   NO_THROW = 1 << 29
 };
 
+static const uint32_t js_deep_defaultflags =RETURN_VALUE;
+
 static uint32_t
 js_deep_parseflags(JSContext* ctx, int argc, JSValueConst argv[]) {
-  uint32_t flags = RETURN_VALUE_PATH;
+  uint32_t flags = 0;
   int i = 0;
 
   /*  if(i < argc && JS_IsNumber(argv[i]))
@@ -46,14 +48,36 @@ js_deep_parseflags(JSContext* ctx, int argc, JSValueConst argv[]) {
     uint32_t num = 0;
     if(JS_IsNumber(argv[i])) {
       JS_ToUint32(ctx, &num, argv[i]);
-      if(num & RETURN_MASK)
-        flags &= ~RETURN_MASK;
-      if(num & MAXDEPTH_MASK)
-        flags &= ~MAXDEPTH_MASK;
-      flags |= num;
+      if(num & (RETURN_MASK|MAXDEPTH_MASK))
+        flags |= num;
     }
   }
   return flags;
+}
+
+static uint32_t
+js_deep_thisflags(JSContext* ctx,   JSValueConst this_val) {
+   uint32_t ret=0;
+   if(JS_IsObject(this_val)) {
+    JSValue flags = JS_GetPropertyStr(ctx, this_val, "flags");
+
+    if(JS_IsNumber(flags))
+    JS_ToUint32(ctx, &ret, flags);
+
+JS_FreeValue(ctx, flags);
+  }
+  return ret;
+}
+
+static uint32_t
+js_deep_getflags(JSContext* ctx,   JSValueConst this_val, int argc, JSValueConst argv[]) {
+
+uint32_t flags=0;
+
+if((flags |= js_deep_parseflags(ctx, argc, argv)) == 0)
+  flags |= js_deep_thisflags(ctx, this_val);
+
+return flags;
 }
 
 static BOOL
@@ -164,7 +188,7 @@ static JSValue
 js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
-  uint32_t flags = RETURN_VALUE_PATH;
+  uint32_t flags = js_deep_defaultflags;
   JSValue root = JS_UNDEFINED, pred = JS_UNDEFINED;
   int i = 0;
 
@@ -257,12 +281,12 @@ static JSValue
 js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   JSValueConst this_arg = argc > 3 ? argv[3] : JS_UNDEFINED;
-  uint32_t flags = RETURN_VALUE_PATH, max_depth;
+  uint32_t flags = js_deep_defaultflags, max_depth;
   PropertyEnumeration* it;
   Vector frames;
 
   if(argc > 2)
-    flags = js_deep_parseflags(ctx, argc - 2, argv + 2);
+    flags = js_deep_getflags(ctx, this_val, argc - 2, argv + 2);
 
   if((max_depth = (flags & MAXDEPTH_MASK)) == 0)
     max_depth = INT32_MAX;
@@ -299,12 +323,12 @@ static JSValue
 js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
   JSValueConst this_arg = argc > 3 ? argv[3] : JS_UNDEFINED;
-  uint32_t i = 0, flags = RETURN_VALUE_PATH, max_depth;
+  uint32_t i = 0, flags = js_deep_defaultflags, max_depth;
   PropertyEnumeration* it;
   Vector frames;
 
   if(argc > 2)
-    flags = js_deep_parseflags(ctx, argc - 2, argv + 2);
+    flags = js_deep_getflags(ctx,this_val, argc - 2, argv + 2);
 
   if((max_depth = (flags & MAXDEPTH_MASK)) == 0)
     max_depth = INT32_MAX;
@@ -621,9 +645,16 @@ js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   return js_value_clone(ctx, argv[0]);
 }
 
+JSValue
+js_deep_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
+ 
+
+  return JS_UNDEFINED;
+}
+
 static JSClassDef js_deep_iterator_class = {
     .class_name = "DeepIterator",
-    .finalizer = js_deep_iterator_finalizer,
+    .finalizer = js_deep_iterator_finalizer
 };
 
 static const JSCFunctionListEntry js_deep_funcs[] = {
@@ -638,6 +669,8 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_CFUNC_DEF("iterate", 1, js_deep_iterate),
     JS_CFUNC_DEF("forEach", 2, js_deep_foreach),
     JS_CFUNC_DEF("clone", 1, js_deep_clone),
+  };
+static const JSCFunctionListEntry js_deep_flags[] = {
     JS_PROP_INT32_DEF("TYPE_UNDEFINED", TYPE_UNDEFINED, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_NULL", TYPE_NULL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_BOOL", TYPE_BOOL, JS_PROP_ENUMERABLE),
@@ -689,6 +722,7 @@ js_deep_init(JSContext* ctx, JSModuleDef* m) {
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_deep_funcs, countof(js_deep_funcs));
+    JS_SetModuleExportList(ctx, m, js_deep_flags, countof(js_deep_flags));
     // JS_SetModuleExport(ctx, m, "DeepIterator", deep_iterator_ctor);
   }
   return 0;

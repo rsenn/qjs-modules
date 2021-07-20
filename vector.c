@@ -14,8 +14,8 @@
 
 #if(defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
 
-#elif defined(HAVE_UINT128)
-
+/*#elif defined(HAVE_UINT128)
+#warning No umult64 implementation*/
 #else
 int
 umult64(uint64_t a, uint64_t b, uint64_t* c) {

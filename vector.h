@@ -65,7 +65,7 @@ umult64(uint64_t a, uint64_t b, uint64_t* c) {
   return 1;
 }
 #else
-int umult64(uint64_t a, uint64_t b, uint64_t* c);
+extern int umult64(uint64_t a, uint64_t b, uint64_t* c);
 #endif
 
 int32_t vector_indexof(const Vector* vec, size_t elsz, void* ptr);
