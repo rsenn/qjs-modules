@@ -893,7 +893,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
     case FUNC_GETSID: {
-      //sret = getsid();
+      // sret = getsid();
       break;
     }
     case FUNC_GETUID: {

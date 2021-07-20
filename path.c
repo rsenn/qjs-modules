@@ -243,103 +243,103 @@ path_find(const char* path, const char* name, DynBuf* db) {
 int
 path_fnmatch(const char* pattern, unsigned int plen, const char* string, unsigned int slen, int flags) {
 start:
-if(slen == 0) {
-  while(plen && *pattern == '*') {
-    pattern++;
-    plen--;
+  if(slen == 0) {
+    while(plen && *pattern == '*') {
+      pattern++;
+      plen--;
+    }
+    return (plen ? PATH_FNM_NOMATCH : 0);
   }
-  return (plen ? PATH_FNM_NOMATCH : 0);
-}
-if(plen == 0)
-  return PATH_FNM_NOMATCH;
-if(*string == '.' && *pattern != '.' && (flags & PATH_FNM_PERIOD)) {
-  if(!(flags & PATH_NOTFIRST))
+  if(plen == 0)
     return PATH_FNM_NOMATCH;
-  if((flags & PATH_FNM_PATHNAME) && string[-1] == '/')
-    return PATH_FNM_NOMATCH;
-}
-flags |= PATH_NOTFIRST;
-switch(*pattern) {
-  case '[': {
-    const char* start;
-    int neg = 0;
-    pattern++;
-    plen--;
-    if(*string == '/' && (flags & PATH_FNM_PATHNAME))
+  if(*string == '.' && *pattern != '.' && (flags & PATH_FNM_PERIOD)) {
+    if(!(flags & PATH_NOTFIRST))
       return PATH_FNM_NOMATCH;
-    neg = (*pattern == '!');
-    pattern += neg;
-    plen -= neg;
-    start = pattern;
-    while(plen) {
-      int res = 0;
-      if(*pattern == ']' && pattern != start)
-        break;
-      if(*pattern == '[' && pattern[1] == ':') {
-      } else {
-        if(plen > 1 && pattern[1] == '-' && pattern[2] != ']') {
-          res = (*string >= *pattern && *string <= pattern[2]);
-          pattern += 3;
-          plen -= 3;
+    if((flags & PATH_FNM_PATHNAME) && string[-1] == '/')
+      return PATH_FNM_NOMATCH;
+  }
+  flags |= PATH_NOTFIRST;
+  switch(*pattern) {
+    case '[': {
+      const char* start;
+      int neg = 0;
+      pattern++;
+      plen--;
+      if(*string == '/' && (flags & PATH_FNM_PATHNAME))
+        return PATH_FNM_NOMATCH;
+      neg = (*pattern == '!');
+      pattern += neg;
+      plen -= neg;
+      start = pattern;
+      while(plen) {
+        int res = 0;
+        if(*pattern == ']' && pattern != start)
+          break;
+        if(*pattern == '[' && pattern[1] == ':') {
         } else {
-          res = (*pattern == *string);
-          pattern++;
-          plen--;
+          if(plen > 1 && pattern[1] == '-' && pattern[2] != ']') {
+            res = (*string >= *pattern && *string <= pattern[2]);
+            pattern += 3;
+            plen -= 3;
+          } else {
+            res = (*pattern == *string);
+            pattern++;
+            plen--;
+          }
         }
+        if((res && !neg) || ((!res && neg) && *pattern == ']')) {
+          while(plen && *pattern != ']') {
+            pattern++;
+            plen--;
+          }
+          pattern += !!plen;
+          plen -= !!plen;
+          string++;
+          slen--;
+          goto start;
+        } else if(res && neg)
+          break;
       }
-      if((res && !neg) || ((!res && neg) && *pattern == ']')) {
-        while(plen && *pattern != ']') {
-          pattern++;
-          plen--;
-        }
-        pattern += !!plen;
-        plen -= !!plen;
-        string++;
-        slen--;
-        goto start;
-      } else if(res && neg)
-        break;
-    }
-  } break;
-  case '\\': {
-    if(!(flags & PATH_FNM_NOESCAPE)) {
-      pattern++;
-      plen--;
-      if(plen)
+    } break;
+    case '\\': {
+      if(!(flags & PATH_FNM_NOESCAPE)) {
+        pattern++;
+        plen--;
+        if(plen)
+          goto match;
+      } else
         goto match;
-    } else
-      goto match;
-  } break;
-  case '*': {
-    if((*string == '/' && (flags & PATH_FNM_PATHNAME)) || path_fnmatch(pattern, plen, string + 1, slen - 1, flags)) {
-      pattern++;
-      plen--;
-      goto start;
+    } break;
+    case '*': {
+      if((*string == '/' && (flags & PATH_FNM_PATHNAME)) || path_fnmatch(pattern, plen, string + 1, slen - 1, flags)) {
+        pattern++;
+        plen--;
+        goto start;
+      }
+      return 0;
     }
-    return 0;
-  }
 
-  case '?': {
-    if(*string == '/' && (flags & PATH_FNM_PATHNAME))
-      break;
-    pattern++;
-    plen--;
-    string++;
-    slen--;
-  }
-    goto start;
-  default:
-  match : {
-    if(*pattern == *string) {
+    case '?': {
+      if(*string == '/' && (flags & PATH_FNM_PATHNAME))
+        break;
       pattern++;
       plen--;
       string++;
       slen--;
-      goto start;
     }
-  } break;
-}
-return PATH_FNM_NOMATCH;
+      goto start;
+    default:
+    match : {
+      if(*pattern == *string) {
+        pattern++;
+        plen--;
+        string++;
+        slen--;
+        goto start;
+      }
+    } break;
+  }
+  return PATH_FNM_NOMATCH;
 }
 
 char*
