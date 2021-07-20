@@ -781,11 +781,12 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           JS_GetOwnProperty(ctx, &desc, value, prop);
           JS_FreeAtom(ctx, prop);
 
-          if(desc.flags & JS_PROP_GETSET) {
+          if((desc.flags & JS_PROP_GETSET) && opts->getters) {
             int idx = (JS_IsUndefined(desc.getter) ? 0 : 1) | (JS_IsUndefined(desc.setter) ? 0 : 2);
             static const char* const strs[4] = {0, "[Getter]", "[Setter]", "[Getter/Setter]"};
             if(idx)
               dbuf_put_colorstr(buf, strs[idx], COLOR_MARINE, opts->colors);
+
           } else if(JS_HasProperty(ctx, value, JS_ATOM_TAG_INT | pos)) {
             /*  if(compact || opts->break_length == INT32_MAX)
                 dbuf_putc(buf, ' ');*/
@@ -838,14 +839,19 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         JS_FreeValue(ctx, key);
 
         if(js_get_propertydescriptor(ctx, &desc, value, propenum->atom) == TRUE) {
-          if(desc.flags & JS_PROP_GETSET)
-            dbuf_put_colorstr(buf,
-                              JS_IsUndefined(desc.getter)
-                                  ? "[Setter]"
-                                  : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
-                              COLOR_MARINE,
-                              opts->colors);
-          else
+          if((desc.flags & JS_PROP_GETSET)) {
+            if(!opts->getters) {
+              JSValue v = JS_GetProperty(ctx, value, propenum->atom);
+              js_inspect_print(ctx, buf, v, opts, depth - 1);
+              JS_FreeValue(ctx, v);
+            } else
+              dbuf_put_colorstr(buf,
+                                JS_IsUndefined(desc.getter)
+                                    ? "[Setter]"
+                                    : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
+                                COLOR_MARINE,
+                                opts->colors);
+          } else
             js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
         }
         js_propertydescriptor_free(ctx, &desc);
