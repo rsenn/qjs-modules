@@ -1260,7 +1260,6 @@ main(int argc, char** argv) {
   const char* exename;
 
   init_list_head(&pollhandlers);
-  js_std_set_module_loader_func(jsm_module_loader_path);
 
   {
     const char* p;
@@ -1438,6 +1437,9 @@ main(int argc, char** argv) {
     fprintf(stderr, "%s: cannot allocate JS runtime\n", exename);
     exit(2);
   }
+
+  JS_SetModuleLoaderFunc(rt, 0, jsm_module_loader_path, 0);
+
   if(memory_limit != 0)
     JS_SetMemoryLimit(rt, memory_limit);
   // if (stack_size != 0)
