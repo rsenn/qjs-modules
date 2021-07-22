@@ -275,7 +275,7 @@ dbuf_load(DynBuf* s, const char* filename) {
     while(!feof(fp)) {
       if((r = fread(buf, 1, sizeof(buf), fp)) == 0)
         return -1;
-      dbuf_put(s, buf, r);
+      dbuf_put(s, (uint8_t const *)buf, r);
       nbytes += r;
     }
     fclose(fp);
