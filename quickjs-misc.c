@@ -37,6 +37,50 @@ enum {
   FUNC_SETEGID
 };
 
+typedef struct pcg_state_setseq_64 {
+  uint64_t state, inc;
+} pcg32_random_t;
+
+static pcg32_random_t pcg32_global = {0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL};
+
+static inline uint32_t
+pcg32_random_r(pcg32_random_t* rng) {
+  uint64_t oldstate = rng->state;
+  rng->state = oldstate * 6364136223846793005ULL + rng->inc;
+  uint32_t xorshifted = (uint32_t)(((oldstate >> 18u) ^ oldstate) >> 27u);
+  uint32_t rot = oldstate >> 59u;
+  return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
+}
+
+static uint32_t
+pcg32_random(void) {
+  return pcg32_random_r(&pcg32_global);
+}
+
+static void
+pcg32_init_state(uint32_t state) {
+  pcg32_global.state = state;
+}
+
+static uint32_t
+pcg32_random_bounded_divisionless(uint32_t range) {
+  uint64_t random32bit, multiresult;
+  uint32_t leftover;
+  uint32_t threshold;
+  random32bit = pcg32_random();
+  multiresult = random32bit * range;
+  leftover = (uint32_t)multiresult;
+  if(leftover < range) {
+    threshold = -range % range;
+    while(leftover < threshold) {
+      random32bit = pcg32_random();
+      multiresult = random32bit * range;
+      leftover = (uint32_t)multiresult;
+    }
+  }
+  return multiresult >> 32; // [0, range)
+}
+
 static const char* const errors[] = {
     0,
     "EPERM",
@@ -535,9 +579,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     const char* str;
     if((str = JS_ToCStringLen(ctx, &len, value))) {
       OffsetLength ol;
-
       ol = get_offset_length(ctx, len, argc, argv);
-
       ret = JS_NewArrayBuffer(ctx, (uint8_t*)str + ol.offset, ol.length, js_string_free_func, (void*)str, FALSE);
     }
   }
@@ -558,7 +600,6 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
       OffsetLength ol = get_offset_length(ctx, len, argc, argv);
       JSObject* obj = JS_VALUE_GET_OBJ(value);
-
       ret = JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, FALSE);
     }
   }
@@ -1247,6 +1288,35 @@ js_misc_array_to_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return ret;
 }
 
+static JSValue
+js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  uint32_t bound = 0;
+  if(argc > 0 && JS_IsNumber(argv[0]))
+    JS_ToUint32(ctx, &bound, argv[0]);
+
+  switch(magic) {
+    case 0: {
+      uint32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound) : pcg32_random();
+      return JS_NewUint32(ctx, num);
+    }
+    case 1: {
+      int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound*2)-bound : pcg32_random();
+      return JS_NewInt32(ctx, num);
+    }  
+
+    case 2: {
+      uint32_t num =   pcg32_random();
+      return JS_NewFloat64(ctx, (double)num / UINT32_MAX);
+    }
+    case 3: {
+      uint32_t st = 0;
+      JS_ToUint32(ctx, &st, argv[0]);
+      pcg32_init_state(st);
+      return JS_UNDEFINED;
+    }
+  }
+}
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
@@ -1300,6 +1370,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getClassCount", 1, js_misc_classid, GET_CLASS_COUNT),
     JS_CFUNC_MAGIC_DEF("getClassProto", 1, js_misc_classid, GET_CLASS_PROTO),
     JS_CFUNC_MAGIC_DEF("getClassConstructor", 1, js_misc_classid, GET_CLASS_CONSTRUCTOR),
+    JS_CFUNC_MAGIC_DEF("rand", 0, js_misc_random, 0),
+    JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, 1),
+    JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, 2),
+    JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, 3),
 };
 
 static int

@@ -275,7 +275,7 @@ dbuf_load(DynBuf* s, const char* filename) {
     while(!feof(fp)) {
       if((r = fread(buf, 1, sizeof(buf), fp)) == 0)
         return -1;
-      dbuf_put(s, (uint8_t const *)buf, r);
+      dbuf_put(s, (uint8_t const*)buf, r);
       nbytes += r;
     }
     fclose(fp);
@@ -680,19 +680,18 @@ js_iterator_new(JSContext* ctx, JSValueConst obj) {
   return ret;
 }
 
-IteratorValue
-js_iterator_next(JSContext* ctx, JSValueConst obj) {
-  JSValue fn, result, done;
-  IteratorValue ret;
+JSValue
+js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p) {
+  JSValue fn, result, done, value;
   fn = JS_GetPropertyStr(ctx, obj, "next");
   result = JS_Call(ctx, fn, obj, 0, 0);
   JS_FreeValue(ctx, fn);
   done = JS_GetPropertyStr(ctx, result, "done");
-  ret.value = JS_GetPropertyStr(ctx, result, "value");
+  value = JS_GetPropertyStr(ctx, result, "value");
   JS_FreeValue(ctx, result);
-  ret.done = JS_ToBool(ctx, done);
+  *done_p = JS_ToBool(ctx, done);
   JS_FreeValue(ctx, done);
-  return ret;
+  return value;
 }
 
 JSValue
@@ -1653,6 +1652,17 @@ js_is_iterable(JSContext* ctx, JSValueConst obj) {
     JS_FreeAtom(ctx, atom);
   }
   return ret;
+}
+
+BOOL
+js_is_iterator(JSContext* ctx, JSValueConst obj) {
+  if(JS_IsObject(obj)) {
+    JSValue next = JS_GetPropertyStr(ctx, obj, "next");
+
+    if(JS_IsFunction(ctx, next))
+      return TRUE;
+  }
+  return FALSE;
 }
 
 int

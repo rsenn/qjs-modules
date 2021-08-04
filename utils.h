@@ -962,9 +962,10 @@ const char* js_symbol_to_cstring(JSContext* ctx, JSValueConst sym);
 JSValue js_symbol_static_value(JSContext* ctx, const char* name);
 JSAtom js_symbol_static_atom(JSContext* ctx, const char* name);
 BOOL js_is_iterable(JSContext* ctx, JSValueConst obj);
+BOOL js_is_iterator(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_method(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_new(JSContext* ctx, JSValueConst obj);
-IteratorValue js_iterator_next(JSContext* ctx, JSValueConst obj);
+JSValue js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p);
 JSValue js_symbol_for(JSContext* ctx, const char* sym_for);
 JSAtom js_symbol_for_atom(JSContext* ctx, const char* sym_for);
 

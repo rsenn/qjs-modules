@@ -525,7 +525,7 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
                pthread_self(),
                trim_dotslash(module_name),
                trim_dotslash(module));
-      return ret;
+      goto end;
     }
     if(!filename) {
       JSValue package = jsm_load_package_json(ctx, 0);
@@ -565,9 +565,18 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
       if(strcmp(trim_dotslash(module_name), trim_dotslash(filename)))
         printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, filename);
     ret = has_suffix(filename, ".so") ? jsm_module_loader_so(ctx, filename) : js_module_loader(ctx, filename, opaque);
-    js_free(ctx, filename);
   }
-  js_free(ctx, module);
+end:
+  if(vector_finds(&module_debug, "import") != -1) {
+    fprintf(stderr,
+            (!filename || strcmp(module, filename)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n",
+            module,
+            filename);
+  }
+  if(module)
+    js_free(ctx, module);
+  if(filename)
+    js_free(ctx, filename);
   return ret;
 }
 
@@ -726,170 +735,6 @@ jsm_context_new(JSRuntime* rt) {
   jsm_module_native(xml);
   return ctx;
 }
-
-/*static int
-jsm_os_poll(JSContext* ctx, uint32_t timeout) {
-  JSRuntime* rt = JS_GetRuntime(ctx);
-  JSThreadState* ts = JS_GetRuntimeOpaque(rt);
-  int ret, fd_max, min_delay;
-  int64_t cur_time, delay;
-  fd_set rfds, wfds;
-  JSOSRWHandler* rh;
-  struct list_head* el;
-  struct timeval tv, *tvp;
-
-  // only check signals in the main thread
-  if(!ts->recv_pipe && unlikely(jsm_pending_signals != 0)) {
-   JSOSSignalHandler* sh;
-   uint64_t mask;
-
-   list_for_each(el, &ts->os_signal_handlers) {
-     sh = list_entry(el, JSOSSignalHandler, link);
-     mask = (uint64_t)1 << sh->sig_num;
-     if(jsm_pending_signals & mask) {
-       jsm_pending_signals &= ~mask;
-       jsm_call_handler(ctx, sh->func);
-       return 0;
-     }
-   }
- }
-
- if(list_empty(&ts->os_rw_handlers) && list_empty(&ts->os_timers) && list_empty(&ts->port_list) &&
-   list_empty(&pollhandlers))
-    return -1; // no more events
-
-  if(!list_empty(&pollhandlers)) {
-    list_for_each(el, &pollhandlers) {
-      pollhandler_t* ph = list_entry(el, pollhandler_t, link);
-      if(ph->pf.events) {
-        if(ph->pf.events & POLLIN)
-          FD_SET(ph->pf.fd, &rfds);
-        if(ph->pf.events & POLLOUT)
-          FD_SET(ph->pf.fd, &wfds);
-      }
-    }
-  }
-
-  if(!list_empty(&ts->os_timers)) {
-    cur_time = jsm_time_ms();
-    min_delay = 10000;
-    list_for_each(el, &ts->os_timers) {
-      JSOSTimer* th = list_entry(el, JSOSTimer, link);
-      delay = th->timeout - cur_time;
-      if(delay <= 0) {
-        JSValue func;
-        // the timer expired
-        func = th->func;
-        th->func = JS_UNDEFINED;
-        jsm_unlink_timer(rt, th);
-        if(!th->has_object)
-          jsm_free_timer(rt, th);
-        jsm_call_handler(ctx, func);
-        JS_FreeValue(ctx, func);
-        return 0;
-      } else if(delay < min_delay) {
-        min_delay = delay;
-      }
-    }
-    tv.tv_sec = min_delay / 1000;
-    tv.tv_usec = (min_delay % 1000) * 1000;
-    tvp = &tv;
-  } else {
-    if(timeout) {
-      tv.tv_sec = timeout / 1000;
-      tv.tv_usec = (timeout % 1000) * 1000;
-      tvp = &tv;
-    } else {
-      tvp = NULL;
-    }
-  }
-
-  FD_ZERO(&rfds);
-  FD_ZERO(&wfds);
-  fd_max = -1;
-  list_for_each(el, &ts->os_rw_handlers) {
-    rh = list_entry(el, JSOSRWHandler, link);
-    fd_max = max_int(fd_max, rh->fd);
-    if(!JS_IsNull(rh->rw_func[0]))
-      FD_SET(rh->fd, &rfds);
-    if(!JS_IsNull(rh->rw_func[1]))
-      FD_SET(rh->fd, &wfds);
-  }
-
-  list_for_each(el, &ts->port_list) {
-    JSWorkerMessageHandler* port = list_entry(el, JSWorkerMessageHandler, link);
-    if(!JS_IsNull(port->on_message_func)) {
-      JSWorkerMessagePipe* ps = port->recv_pipe;
-      fd_max = max_int(fd_max, ps->read_fd);
-      FD_SET(ps->read_fd, &rfds);
-    }
-  }
-
-  ret = select(fd_max + 1, &rfds, &wfds, NULL, tvp);
-  if(ret > 0) {
-
-    if(!list_empty(&pollhandlers)) {
-      list_for_each(el, &pollhandlers) {
-        pollhandler_t* ph = list_entry(el, pollhandler_t, link);
-        if(ph->pf.events) {
-          ph->pf.revents = (FD_ISSET(ph->pf.fd, &rfds) ? POLLIN : 0) | (FD_ISSET(ph->pf.fd, &wfds) ? POLLOUT : 0);
-          if(ph->pf.revents && ph->handler)
-            ph->handler(ph->opaque, &ph->pf);
-        }
-      }
-    }
-    list_for_each(el, &ts->os_rw_handlers) {
-      rh = list_entry(el, JSOSRWHandler, link);
-      if(!JS_IsNull(rh->rw_func[0]) && FD_ISSET(rh->fd, &rfds)) {
-        jsm_call_handler(ctx, rh->rw_func[0]);
-        // must stop because the list may have been modified
-        goto done;
-      }
-      if(!JS_IsNull(rh->rw_func[1]) && FD_ISSET(rh->fd, &wfds)) {
-        jsm_call_handler(ctx, rh->rw_func[1]);
-        // must stop because the list may have been modified
-        goto done;
-      }
-    }
-
-    list_for_each(el, &ts->port_list) {
-      JSWorkerMessageHandler* port = list_entry(el, JSWorkerMessageHandler, link);
-      if(!JS_IsNull(port->on_message_func)) {
-        JSWorkerMessagePipe* ps = port->recv_pipe;
-        if(FD_ISSET(ps->read_fd, &rfds)) {
-          if(jsm_handle_posted_message(rt, ctx, port))
-            goto done;
-        }
-      }
-    }
-  }
-done:
-  return 0;
-}*/
-
-/*// main loop which calls the user JS callbacks
-void
-jsm_std_loop(JSContext* ctx, uint32_t timeout) {
-  JSContext* ctx1;
-  int err;
-  uint64_t t = jsm_time_ms();
-  for(;;) {
-    // execute the pending jobs
-    for(;;) {
-      err = JS_ExecutePendingJob(JS_GetRuntime(ctx), &ctx1);
-      if(err <= 0) {
-        if(err < 0) {
-          jsm_std_dump_error(ctx1, JS_GetException(ctx));
-        }
-        break;
-      }
-    }
-    if(jsm_os_poll(ctx, timeout))
-      break;
-    if(timeout > 0 && jsm_time_ms() - t >= timeout)
-      break;
-  }
-}*/
 
 #if defined(__APPLE__)
 #define MALLOC_OVERHEAD 0

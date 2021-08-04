@@ -240,17 +240,17 @@ pointer_fromarray(Pointer* ptr, JSContext* ctx, JSValueConst array) {
 
 void
 pointer_fromiterable(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
-  IteratorValue item;
-  JSValue iter = js_iterator_new(ctx, arg);
+  BOOL done = FALSE;
+  JSValue item, iter = js_iterator_new(ctx, arg);
 
   pointer_reset(ptr, ctx);
 
   for(;;) {
-    item = js_iterator_next(ctx, iter);
-    if(item.done)
+    item = js_iterator_next(ctx, iter, &done);
+    if(done)
       break;
-    pointer_push(ptr, ctx, item.value);
-    JS_FreeValue(ctx, item.value);
+    pointer_push(ptr, ctx, item);
+    JS_FreeValue(ctx, item);
   }
   JS_FreeValue(ctx, iter);
 }
@@ -283,10 +283,11 @@ pointer_concat(Pointer* ptr, JSContext* ctx, JSValueConst arr) {
 
   iterator = js_iterator_new(ctx, arr);
   for(;;) {
-    IteratorValue item = js_iterator_next(ctx, iterator);
-    if(item.done)
+    BOOL done = FALSE;
+    JSValue item = js_iterator_next(ctx, iterator, &done);
+    if(done)
       break;
-    pointer_push(ret, ctx, item.value);
+    pointer_push(ret, ctx, item);
   }
   return ret;
 }

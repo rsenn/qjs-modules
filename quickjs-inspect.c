@@ -483,7 +483,7 @@ js_inspect_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
   size_t len;
   JSValue number, base;
   if(tag != JS_TAG_SYMBOL && opts->colors)
-    dbuf_putstr(buf, COLOR_YELLOW);
+    dbuf_putstr(buf, COLOR_LIGHTYELLOW);
   if(opts->number_base && opts->number_base != 10) {
     base = JS_NewInt32(ctx, 16);
     number = js_invoke(ctx, value, "toString", 1, &base);
