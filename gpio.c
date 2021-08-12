@@ -45,7 +45,7 @@ static const int lvl[] = {
 static const int* lvl_shift = set_shift;
 
 bool
-gpio_init(struct gpio* gpio) {
+gpio_open(struct gpio* gpio) {
   if((gpio->fd = open("/dev/gpiomem", O_RDWR | O_SYNC | O_CLOEXEC)) < 0) {
     fprintf(stderr, "Could not open /dev/gpiomem: %s\n", strerror(errno));
     return false;
@@ -62,7 +62,7 @@ gpio_init(struct gpio* gpio) {
 }
 
 void
-gpio_exit(struct gpio* gpio) {
+gpio_close(struct gpio* gpio) {
   munmap(gpio->map, MAP_SIZE);
   close(gpio->fd);
 }

@@ -9,8 +9,8 @@ struct gpio {
   uint32_t* map;
 };
 
-bool gpio_init(struct gpio*);
-void gpio_exit(struct gpio*);
+bool gpio_open(struct gpio*);
+void gpio_close(struct gpio*);
 void gpio_init_pin(struct gpio*, const uint8_t pin, const bool output);
 void gpio_set_pin(struct gpio*, const uint8_t pin, const bool value);
 bool gpio_get_pin(struct gpio*, const uint8_t pin);

@@ -12,18 +12,17 @@
 thread_local VISIBLE JSClassID js_gpio_class_id = 0;
 thread_local JSValue gpio_proto = {.tag = JS_TAG_UNDEFINED}, gpio_ctor = {.tag = JS_TAG_UNDEFINED};
 
-enum { GPIO_METHOD_READ, GPIO_METHOD_WRITE, GPIO_METHOD_READFILE, GPIO_METHOD_WRITEFILE };
-enum { GPIO_PROP_FORMAT, GPIO_PROP_COMPRESSION, GPIO_PROP_FILTERS, GPIO_PROP_FILECOUNT };
+enum { GPIO_METHOD_INIT_PIN, GPIO_METHOD_SET_PIN, GPIO_METHOD_GET_PIN };
 
 struct gpio*
 js_gpio_data(JSContext* ctx, JSValueConst value) {
-  struct gpio* ar;
-  ar = JS_GetOpaque2(ctx, value, js_gpio_class_id);
-  return ar;
+  struct gpio* gpio;
+  gpio = JS_GetOpaque2(ctx, value, js_gpio_class_id);
+  return gpio;
 }
 
 static JSValue
-js_gpio_wrap_proto(JSContext* ctx, JSValueConst proto, struct gpio* ar) {
+js_gpio_wrap_proto(JSContext* ctx, JSValueConst proto, struct gpio* gpio) {
   JSValue obj;
 
   if(js_gpio_class_id == 0)
@@ -37,7 +36,7 @@ js_gpio_wrap_proto(JSContext* ctx, JSValueConst proto, struct gpio* ar) {
   if(JS_IsException(obj))
     goto fail;
 
-  JS_SetOpaque(obj, ar);
+  JS_SetOpaque(obj, gpio);
 
   return obj;
 fail:
@@ -46,60 +45,65 @@ fail:
 }
 
 static JSValue
-js_gpio_wrap(JSContext* ctx, struct gpio* ar) {
-  return js_gpio_wrap_proto(ctx, gpio_proto, ar);
+js_gpio_wrap(JSContext* ctx, struct gpio* gpio) {
+  return js_gpio_wrap_proto(ctx, gpio_proto, gpio);
 }
 
 static JSValue
 js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  struct gpio* ar = 0;
-  JSValue proto = JS_GetPropertyStr(ctx, this_val, "prototype");
+  struct gpio* gpio;
   JSValue ret = JS_UNDEFINED;
 
-  switch(magic) {}
+  if(!(gpio = js_gpio_data(ctx, this_val)))
+    return ret;
+
+  switch(magic) {
+
+    case GPIO_METHOD_INIT_PIN: {
+      uint32_t pin = 0;
+      BOOL output = JS_ToBool(ctx, argv[1]);
+      JS_ToUint32(ctx, &pin, argv[0]);
+      gpio_init_pin(gpio, pin, output);
+      break;
+    }
+    case GPIO_METHOD_SET_PIN: {
+      uint32_t pin = 0;
+      BOOL value = JS_ToBool(ctx, argv[1]);
+      JS_ToUint32(ctx, &pin, argv[0]);
+      gpio_set_pin(gpio, pin, value);
+      break;
+    }
+    case GPIO_METHOD_GET_PIN: {
+      uint32_t pin = 0;
+      BOOL value;
+      JS_ToUint32(ctx, &pin, argv[0]);
+      value = gpio_get_pin(gpio, pin);
+      ret = JS_NewInt32(ctx, value);
+      break;
+    }
+  }
 
   return ret;
 }
 
 static JSValue
 js_gpio_getter(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct gpio* ar;
+  struct gpio* gpio;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(ar = js_gpio_data(ctx, this_val)))
+  if(!(gpio = js_gpio_data(ctx, this_val)))
     return ret;
 
-  switch(magic) {
-    case GPIO_PROP_FORMAT: {
-      ret = JS_NewString(ctx, gpio_format_name(ar));
-      break;
-    }
-    case GPIO_PROP_COMPRESSION: {
-      ret = JS_NewString(ctx, gpio_compression_name(ar));
-      break;
-    }
-    case GPIO_PROP_FILTERS: {
-      int i, num_filters = gpio_filter_count(ar);
-      ret = JS_NewArray(ctx);
-      for(i = 0; i < num_filters; i++) {
-        JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, gpio_filter_name(ar, i)));
-      }
-      break;
-    }
-    case GPIO_PROP_FILECOUNT: {
-      ret = JS_NewUint32(ctx, gpio_file_count(ar));
-      break;
-    }
-  }
+  switch(magic) {}
   return ret;
 }
 
 static JSValue
 js_gpio_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  struct gpio* ar;
+  struct gpio* gpio;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(ar = js_gpio_data(ctx, this_val)))
+  if(!(gpio = js_gpio_data(ctx, this_val)))
     return ret;
 
   switch(magic) {}
@@ -108,16 +112,27 @@ js_gpio_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
 
 static JSValue
 js_gpio_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  struct gpio* gpio;
+  JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED;
+
+  if(!(gpio = js_mallocz(ctx, sizeof(struct gpio))))
+    return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the
      class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
+  obj = JS_NewObjectProtoClass(ctx, proto, js_gpio_class_id);
+  JS_FreeValue(ctx, proto);
+  if(JS_IsException(obj))
+    goto fail;
 
-  return js_gpio_wrap_proto(ctx, proto, 0);
+  if(!gpio_open(gpio))
+    return JS_ThrowInternalError(ctx, "gpio_open() failed");
+
+  JS_SetOpaque(obj, gpio);
+  return obj;
 
 fail:
   JS_FreeValue(ctx, obj);
@@ -126,9 +141,9 @@ fail:
 
 static void
 js_gpio_finalizer(JSRuntime* rt, JSValue val) {
-  struct gpio* ar = JS_GetOpaque(val, js_gpio_class_id);
-  if(ar) {
-    gpio_free(ar);
+  struct gpio* gpio = JS_GetOpaque(val, js_gpio_class_id);
+  if(gpio) {
+    gpio_close(gpio);
   }
   JS_FreeValueRT(rt, val);
 }
@@ -139,14 +154,17 @@ static JSClassDef js_gpio_class = {
 };
 
 static const JSCFunctionListEntry js_gpio_funcs[] = {
-
+    JS_CFUNC_MAGIC_DEF("initPin", 2, js_gpio_functions, GPIO_METHOD_INIT_PIN),
+    JS_CFUNC_MAGIC_DEF("setPing", 2, js_gpio_functions, GPIO_METHOD_SET_PIN),
+    JS_CFUNC_MAGIC_DEF("getPin", 1, js_gpio_functions, GPIO_METHOD_GET_PIN),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "GPIO", JS_PROP_CONFIGURABLE),
 };
 
 static const JSCFunctionListEntry js_gpio_static_funcs[] = {
     JS_PROP_INT32_DEF("INPUT", 0, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("OUTPUT", 1, JS_PROP_ENUMERABLE),
-
+    JS_PROP_INT32_DEF("LOW", 0, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("HIGH", 1, JS_PROP_ENUMERABLE),
 };
 
 int
