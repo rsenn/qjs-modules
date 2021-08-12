@@ -56,7 +56,13 @@ function main(...args) {
     const { flags, tagMask } = walk;
     console.log(' walk', { flags, tagMask });
     while(walk.nextNode((v, k, w) => typeof v != 'object')) {
-      console.log('type:', typeof walk.currentNode, 'path:', walk.currentPath.join('.'), typeof walk.currentNode != 'object' ? walk.currentNode : '');
+      console.log(
+        'type:',
+        typeof walk.currentNode,
+        'path:',
+        walk.currentPath.join('.'),
+        typeof walk.currentNode != 'object' ? walk.currentNode : ''
+      );
       let node = walk.currentNode;
 
       if(typeof node == 'object') {

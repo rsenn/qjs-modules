@@ -1300,12 +1300,12 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       return JS_NewUint32(ctx, num);
     }
     case 1: {
-      int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound*2)-bound : pcg32_random();
+      int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
       return JS_NewInt32(ctx, num);
-    }  
+    }
 
     case 2: {
-      uint32_t num =   pcg32_random();
+      uint32_t num = pcg32_random();
       return JS_NewFloat64(ctx, (double)num / UINT32_MAX);
     }
     case 3: {

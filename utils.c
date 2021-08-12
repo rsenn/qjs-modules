@@ -681,8 +681,8 @@ js_iterator_new(JSContext* ctx, JSValueConst obj) {
 }
 
 JSValue
-js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL*done_p) {
-  JSValue fn, result, done,value;
+js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p) {
+  JSValue fn, result, done, value;
   fn = JS_GetPropertyStr(ctx, obj, "next");
   result = JS_Call(ctx, fn, obj, 0, 0);
   JS_FreeValue(ctx, fn);
@@ -1659,9 +1659,9 @@ js_is_iterator(JSContext* ctx, JSValueConst obj) {
   if(JS_IsObject(obj)) {
     JSValue next = JS_GetPropertyStr(ctx, obj, "next");
 
-    if(JS_IsFunction(ctx,next))
+    if(JS_IsFunction(ctx, next))
       return TRUE;
-  } 
+  }
   return FALSE;
 }
 
