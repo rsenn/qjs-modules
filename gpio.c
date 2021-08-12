@@ -57,7 +57,7 @@ gpio_open(struct gpio* gpio) {
     return false;
   }
 
-  fputs("GPIO initialized\n", stdout);
+  fprintf(stdout, "GPIO initialized (%d, %p)\n", gpio->fd, gpio->map);
   return true;
 }
 

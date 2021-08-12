@@ -155,7 +155,7 @@ static JSClassDef js_gpio_class = {
 
 static const JSCFunctionListEntry js_gpio_funcs[] = {
     JS_CFUNC_MAGIC_DEF("initPin", 2, js_gpio_functions, GPIO_METHOD_INIT_PIN),
-    JS_CFUNC_MAGIC_DEF("setPing", 2, js_gpio_functions, GPIO_METHOD_SET_PIN),
+    JS_CFUNC_MAGIC_DEF("setPin", 2, js_gpio_functions, GPIO_METHOD_SET_PIN),
     JS_CFUNC_MAGIC_DEF("getPin", 1, js_gpio_functions, GPIO_METHOD_GET_PIN),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "GPIO", JS_PROP_CONFIGURABLE),
 };
@@ -179,7 +179,8 @@ js_gpio_init(JSContext* ctx, JSModuleDef* m) {
 
     JS_SetPropertyFunctionList(ctx, gpio_proto, js_gpio_funcs, countof(js_gpio_funcs));
     JS_SetPropertyFunctionList(ctx, gpio_ctor, js_gpio_static_funcs, countof(js_gpio_static_funcs));
-    JS_SetClassProto(ctx, js_gpio_class_id, gpio_proto);
+   JS_SetConstructor(ctx, gpio_ctor, gpio_proto);
+   //JS_SetClassProto(ctx, js_gpio_class_id, gpio_proto);
   }
 
   if(m) {
