@@ -15,7 +15,7 @@ if(NOT LibArchive_FOUND)
   message(ERROR "libarchive not found")
 endif(NOT LibArchive_FOUND)
 
-set(QUICKJS_MODULES archive bjson child-process deep lexer misc mmap path pointer predicate repeater sockets inspect tree-walker xml)
+set(QUICKJS_MODULES archive bjson child-process deep gpio lexer misc mmap path pointer predicate repeater sockets inspect tree-walker xml)
 
 if(EXISTS "${QUICKJS_H}")
 
@@ -37,6 +37,7 @@ set(repeater_SOURCES utils.c utils.h)
 set(util_SOURCES utils.c utils.h quickjs-inspect.c)
 set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h)
 set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${LOCATION_SOURCES})
+set(gpio_SOURCES gpio.c gpio.h)
 
 include_directories(${LibArchive_INCLUDE_DIRS})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
