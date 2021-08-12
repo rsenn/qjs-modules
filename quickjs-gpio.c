@@ -10,7 +10,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_gpio_class_id = 0;
-thread_local JSValue gpio_proto = {  JS_TAG_UNDEFINED}, gpio_ctor = {  JS_TAG_UNDEFINED};
+thread_local JSValue gpio_proto = {JS_TAG_UNDEFINED}, gpio_ctor = {JS_TAG_UNDEFINED};
 
 enum { GPIO_METHOD_INIT_PIN, GPIO_METHOD_SET_PIN, GPIO_METHOD_GET_PIN };
 
@@ -179,8 +179,8 @@ js_gpio_init(JSContext* ctx, JSModuleDef* m) {
 
     JS_SetPropertyFunctionList(ctx, gpio_proto, js_gpio_funcs, countof(js_gpio_funcs));
     JS_SetPropertyFunctionList(ctx, gpio_ctor, js_gpio_static_funcs, countof(js_gpio_static_funcs));
-   JS_SetConstructor(ctx, gpio_ctor, gpio_proto);
-   //JS_SetClassProto(ctx, js_gpio_class_id, gpio_proto);
+    JS_SetConstructor(ctx, gpio_ctor, gpio_proto);
+    // JS_SetClassProto(ctx, js_gpio_class_id, gpio_proto);
   }
 
   if(m) {

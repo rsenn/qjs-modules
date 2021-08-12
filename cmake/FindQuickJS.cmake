@@ -25,6 +25,15 @@ macro(find_quickjs)
     endif(QUICKJS_H)
   endif(NOT QUICKJS_PREFIX)
 
+  
+  if(NOT "${CMAKE_SYSROOT}" STREQUAL "")
+    string(REPLACE "${CMAKE_SYSROOT}" "" QUICKJS_INSTALL_DIR "${QUICKJS_PREFIX}")
+  endif(NOT "${CMAKE_SYSROOT}" STREQUAL "")
+
+  dump(CMAKE_SYSROOT)
+  dump(QUICKJS_PREFIX)
+  dump(QUICKJS_INSTALL_DIR)
+
   # set(CMAKE_INSTALL_PREFIX "${QUICKJS_PREFIX}" CACHE PATH "Install directory" FORCE)
 
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)

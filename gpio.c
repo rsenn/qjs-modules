@@ -46,18 +46,27 @@ static const int* lvl_shift = set_shift;
 
 bool
 gpio_open(struct gpio* gpio) {
+
+  const char* dbg = getenv("DEBUG");
+
+  if(dbg && strstr(dbg, "gpio"))
+    gpio->debug = true;
+
   if((gpio->fd = open("/dev/gpiomem", O_RDWR | O_SYNC | O_CLOEXEC)) < 0) {
-    fprintf(stderr, "Could not open /dev/gpiomem: %s\n", strerror(errno));
+    if(gpio->debug)
+      fprintf(stderr, "Could not open /dev/gpiomem: %s\n", strerror(errno));
     return false;
   }
 
   if((gpio->map = mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, gpio->fd, PERIPHERALS_BASE_ADDR)) ==
      MAP_FAILED) {
-    fprintf(stderr, "Could not map gpio memory: %s\n", strerror(errno));
+    if(gpio->debug)
+      fprintf(stderr, "Could not map gpio memory: %s\n", strerror(errno));
     return false;
   }
 
-  fprintf(stdout, "GPIO initialized (%d, %p)\n", gpio->fd, gpio->map);
+  if(gpio->debug)
+    fprintf(stdout, "GPIO initialized (%d, %p)\n", gpio->fd, gpio->map);
   return true;
 }
 
@@ -72,7 +81,8 @@ gpio_init_pin(struct gpio* gpio, const uint8_t pin, const bool output) {
   *(gpio->map + fsel[pin]) &= ~(1 << fsel_shift[pin]);
   *(gpio->map + fsel[pin]) |= (output << fsel_shift[pin]);
 
-  fprintf(stdout, "Pin %d set to %s\n", pin, output ? "output" : "input");
+  if(gpio->debug)
+    fprintf(stdout, "Pin %d set to %s\n", pin, output ? "output" : "input");
 }
 
 void
@@ -85,14 +95,16 @@ gpio_set_pin(struct gpio* gpio, const uint8_t pin, const bool value) {
     *(gpio->map + clr[pin]) |= (1 << clr_shift[pin]);
   }
 
-  fprintf(stdout, "Set pin %d to value %d\n", pin, value);
+  if(gpio->debug)
+    fprintf(stdout, "Set pin %d to value %d\n", pin, value);
 }
 
 bool
 gpio_get_pin(struct gpio* gpio, const uint8_t pin) {
   const bool value = *(gpio->map + lvl[pin]) & (1 << lvl_shift[pin]);
 
-  fprintf(stdout, "Get pin %d at value %d\n", pin, value);
+  if(gpio->debug)
+    fprintf(stdout, "Get pin %d at value %d\n", pin, value);
 
   return value;
 }

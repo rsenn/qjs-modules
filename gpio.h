@@ -7,6 +7,7 @@
 struct gpio {
   int fd;
   uint32_t* map;
+  bool debug;
 };
 
 bool gpio_open(struct gpio*);
