@@ -229,7 +229,7 @@ js_syntaxerror_finalizer(JSRuntime* rt, JSValue val) {
 
     location_free_rt(&err->loc, rt);
   }
-  // JS_FreeValueRT(rt, val);
+  JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_syntaxerror_class = {
@@ -462,7 +462,7 @@ js_token_finalizer(JSRuntime* rt, JSValue val) {
   if(tok) {
     token_free_rt(tok, rt);
   }
-  // JS_FreeValueRT(rt, val);
+  JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_token_class = {
@@ -1402,7 +1402,7 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
 
   if((lex = JS_GetOpaque(val, js_lexer_class_id)))
     lexer_free_rt(lex, rt);
-  // JS_FreeValueRT(rt, val);
+  JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_lexer_class = {.class_name = "Lexer", .finalizer = js_lexer_finalizer, .call = js_lexer_call};

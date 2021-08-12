@@ -30,8 +30,8 @@ js_location_new_proto(JSContext* ctx, JSValueConst proto, const Location* locati
   *loc = location_clone(location, ctx);
   if(js_location_class_id == 0)
     js_location_init(ctx, 0);
-  if(JS_IsNull(proto) || JS_IsUndefined(proto))
-    proto = JS_DupValue(ctx, location_proto);
+  if(js_is_nullish(ctx, proto))
+    proto = location_proto;
 
   /* using new_target to get the prototype is necessary when the
      class is extended. */
@@ -318,7 +318,7 @@ js_location_finalizer(JSRuntime* rt, JSValue val) {
   if(loc) {
     location_free_rt(loc, rt);
   }
-  // JS_FreeValueRT(rt, val);
+  JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_location_class = {

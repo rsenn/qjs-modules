@@ -107,7 +107,7 @@ js_repeater_finalizer(JSRuntime* rt, JSValue val) {
 
     js_free_rt(rt, rpt);
   }
-  // JS_FreeValueRT(rt, val);
+  JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_repeater_class = {

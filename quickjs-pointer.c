@@ -326,7 +326,7 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
     }
     js_free_rt(rt, ptr);
   }
-  // JS_FreeValueRT(rt, val);
+  JS_FreeValueRT(rt, val);
 }
 
 static const JSCFunctionListEntry js_pointer_proto_funcs[] = {

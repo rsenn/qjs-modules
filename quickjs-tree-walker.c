@@ -320,7 +320,7 @@ js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
       js_free_rt(rt, w);
     }
   }
-  // JS_FreeValueRT(rt, val);
+  JS_FreeValueRT(rt, val);
 }
 
 static JSValue
@@ -418,7 +418,7 @@ js_tree_iterator_finalizer(JSRuntime* rt, JSValue val) {
       js_free_rt(rt, w);
     }
   }
-  // JS_FreeValueRT(rt, val);
+  JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_tree_walker_class = {
