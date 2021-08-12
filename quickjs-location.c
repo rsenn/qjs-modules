@@ -8,7 +8,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_location_class_id = 0;
-thread_local JSValue location_proto = {.tag = JS_TAG_UNDEFINED}, location_ctor = {.tag = JS_TAG_UNDEFINED};
+thread_local JSValue location_proto = {  JS_TAG_UNDEFINED}, location_ctor = {  JS_TAG_UNDEFINED};
 
 enum { LOCATION_PROP_LINE, LOCATION_PROP_COLUMN, LOCATION_PROP_POS, LOCATION_PROP_FILE };
 

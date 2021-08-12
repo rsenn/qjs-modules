@@ -281,7 +281,7 @@ get_offset_length(JSContext* ctx, int64_t len, int argc, JSValueConst argv[]) {
 }
 
 thread_local VISIBLE JSClassID js_syscallerror_class_id = 0;
-thread_local JSValue syscallerror_proto = {.tag = JS_TAG_UNDEFINED}, syscallerror_ctor = {.tag = JS_TAG_UNDEFINED};
+thread_local JSValue syscallerror_proto = {  JS_TAG_UNDEFINED}, syscallerror_ctor = {  JS_TAG_UNDEFINED};
 
 enum {
   SYSCALLERROR_TOSTRING = 0,

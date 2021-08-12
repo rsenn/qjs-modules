@@ -11,10 +11,10 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_archive_class_id = 0;
-thread_local JSValue archive_proto = {.tag = JS_TAG_UNDEFINED}, archive_ctor = {.tag = JS_TAG_UNDEFINED};
+thread_local JSValue archive_proto = {  JS_TAG_UNDEFINED}, archive_ctor = {  JS_TAG_UNDEFINED};
 
 thread_local VISIBLE JSClassID js_archiveentry_class_id = 0;
-thread_local JSValue archiveentry_proto = {.tag = JS_TAG_UNDEFINED}, archiveentry_ctor = {.tag = JS_TAG_UNDEFINED};
+thread_local JSValue archiveentry_proto = {  JS_TAG_UNDEFINED}, archiveentry_ctor = {  JS_TAG_UNDEFINED};
 
 enum { ARCHIVE_METHOD_READ, ARCHIVE_METHOD_WRITE, ARCHIVE_METHOD_READFILE, ARCHIVE_METHOD_WRITEFILE };
 enum { ARCHIVE_PROP_FORMAT, ARCHIVE_PROP_COMPRESSION, ARCHIVE_PROP_FILTERS, ARCHIVE_PROP_FILECOUNT };

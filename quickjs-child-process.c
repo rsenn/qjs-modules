@@ -30,7 +30,7 @@ enum {
 extern char** environ;
 
 thread_local VISIBLE JSClassID js_child_process_class_id = 0;
-thread_local JSValue child_process_proto = {.tag = JS_TAG_UNDEFINED}, child_process_ctor = {.tag = JS_TAG_UNDEFINED};
+thread_local JSValue child_process_proto = {  JS_TAG_UNDEFINED}, child_process_ctor = {  JS_TAG_UNDEFINED};
 
 ChildProcess*
 js_child_process_data(JSContext* ctx, JSValueConst value) {

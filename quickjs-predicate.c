@@ -6,7 +6,7 @@
 #include "quickjs-predicate.h"
 
 thread_local VISIBLE JSClassID js_predicate_class_id = 0;
-thread_local JSValue predicate_proto = {.tag = JS_TAG_UNDEFINED}, predicate_ctor = {.tag = JS_TAG_UNDEFINED};
+thread_local JSValue predicate_proto = {  JS_TAG_UNDEFINED}, predicate_ctor = {  JS_TAG_UNDEFINED};
 
 enum {
   METHOD_EVAL = 0,
