@@ -11,6 +11,8 @@ find_quickjs()
 
 include(FindLibArchive)
 
+link_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 if(NOT LibArchive_FOUND)
   message(ERROR "libarchive not found")
 endif(NOT LibArchive_FOUND)
