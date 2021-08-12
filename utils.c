@@ -185,6 +185,33 @@ dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int))
 }
 
 void
+dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const char table[256]) {
+  size_t i = 0, j;
+  char c;
+  while(i < len) {
+    if((j = lookup_find(&str[i], len - i, table))) {
+      dbuf_append(db, (const uint8_t*)&str[i], j);
+      i += j;
+    }
+    if(i == len)
+      break;
+    dbuf_putc(db, '\\');
+
+    if(str[i] == 0x1b) {
+      dbuf_append(db, (const uint8_t*)"x1b", 3);
+    } else {
+      int r = table[(unsigned char)str[i]];
+
+      dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(str[i])) ? c : str[i]);
+
+      if(r == 'u' || r == 'x')
+        dbuf_printf(db, r == 'u' ? "%04x" : "%02x", str[i]);
+    }
+    i++;
+  }
+}
+
+void
 dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
   size_t i = 0, j;
   char c;
@@ -203,6 +230,29 @@ dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int
     dbuf_putc(db, (r > 1 && r < 256) ? r : str[i]);
     i++;
   }
+}
+
+void
+dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
+  return dbuf_put_escaped_table(
+      db, str, len, (const char[256]){'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x',
+                                      'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x',  'x',  'x',  'x',  'x',  'x',  'x',
+                                      'x', 'x', 0,    0,   0,   0,   0,   0,   0,    0x27, 0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0x5c, 0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   'x', 0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
+                                      0});
 }
 
 void
@@ -468,7 +518,7 @@ input_buffer_column(InputBuffer* in, size_t* len) {
 int64_t
 js_array_length(JSContext* ctx, JSValueConst array) {
   int64_t len = -1;
-  if(JS_IsArray(ctx, array) || js_is_typedarray(ctx, array)) {
+  if(JS_IsArray(ctx, array) || js_is_typedarray(array)) {
     JSValue length = JS_GetPropertyStr(ctx, array, "length");
     JS_ToInt64(ctx, &len, length);
     JS_FreeValue(ctx, length);
@@ -551,14 +601,6 @@ js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
   ret = !JS_ToInt64(ctx, i, value);
   JS_FreeValue(ctx, value);
   return ret;
-}
-
-JSValue
-js_atom_tovalue(JSContext* ctx, JSAtom atom) {
-  if(js_atom_isint(atom))
-    return JS_MKVAL(JS_TAG_INT, js_atom_toint(atom));
-
-  return JS_AtomToValue(ctx, atom);
 }
 
 BOOL
@@ -791,17 +833,6 @@ js_object_stack(JSContext* ctx) {
   return stack;
 }
 
-JSClassID
-js_get_classid(JSValue v) {
-  JSObject* p;
-
-  if(JS_VALUE_GET_TAG(v) != JS_TAG_OBJECT)
-    return 0;
-  p = JS_VALUE_GET_OBJ(v);
-  assert(p != 0);
-  return p->class_id;
-}
-
 BOOL
 js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
   JSAtom atom;
@@ -957,7 +988,7 @@ js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueCon
 
 JSClassID
 js_class_id(JSContext* ctx, int id) {
-  return JS_GetRuntime(ctx)->class_array[id].class_id;
+  return ctx->rt->class_array[id].class_id;
 }
 
 JSClassID
@@ -1027,13 +1058,6 @@ js_propenum_cmp(const void* a, const void* b, void* ptr) {
   js_cstring_free(ctx, stra);
   js_cstring_free(ctx, strb);
   return ret;
-}
-
-void
-js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
-  JS_FreeValue(ctx, desc->value);
-  JS_FreeValue(ctx, desc->getter);
-  JS_FreeValue(ctx, desc->setter);
 }
 
 void
@@ -1174,9 +1198,9 @@ js_symbol_to_cstring(JSContext* ctx, JSValueConst sym) {
 
 JSValue*
 js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values) {
-  JSValue* ret = js_mallocz_rt(JS_GetRuntime(ctx), sizeof(JSValue) * nvalues);
+  JSValue* ret = js_mallocz_rt(ctx->rt, sizeof(JSValue) * nvalues);
   int i;
-  for(i = 0; i < nvalues; i++) ret[i] = JS_DupValueRT(JS_GetRuntime(ctx), values[i]);
+  for(i = 0; i < nvalues; i++) ret[i] = JS_DupValueRT(ctx->rt, values[i]);
   return ret;
 }
 /*
@@ -1304,18 +1328,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
   enum value_mask type = 1 << js_value_type_get(ctx, value);
   JSValue ret = JS_UNDEFINED;
   switch(type) {
-
-    /* case TYPE_NULL: {
-     ret = JS_NULL;
-     break;
-     }
-
-    case TYPE_UNDEFINED: {
-     ret = JS_UNDEFINED;
-     break;
-     }
-
-    case TYPE_STRING: {
+    /*case TYPE_STRING: {
      size_t len;
      const char* str;
      str = JS_ToCStringLen(ctx, &len, value);
@@ -1327,17 +1340,14 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       ret = JS_NewInt32(ctx, JS_VALUE_GET_INT(value));
       break;
     }
-
     case TYPE_FLOAT64: {
       ret = JS_NewFloat64(ctx, JS_VALUE_GET_FLOAT64(value));
       break;
     }
-
     case TYPE_BOOL: {
       ret = JS_NewBool(ctx, JS_VALUE_GET_BOOL(value));
       break;
     }
-
     case TYPE_FUNCTION:
     case TYPE_ARRAY:
     case TYPE_OBJECT: {
@@ -1355,7 +1365,6 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       }
       break;
     }
-
     case TYPE_UNDEFINED:
     case TYPE_NULL:
     case TYPE_STRING:
@@ -1366,7 +1375,6 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       ret = JS_DupValue(ctx, value);
       break;
     }
-
     default: {
       ret = JS_ThrowTypeError(ctx, "No such type: %s (0x%08x)\n", js_value_type_name(type), type);
       break;
@@ -1589,50 +1597,56 @@ js_module_namestr(JSContext* ctx, JSValueConst value) {
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   BOOL ret = FALSE;
+  if(!JS_IsObject(value))
+    return ret;
   if(!ret)
     ret |= js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
   // if(!ret) ret |= js_object_is(ctx, value, "[object ArrayBuffer]");
-  if(!ret) {
-
-    JSObject* obj;
-    if((obj = js_value_get_obj(value)) && obj->class_id) {
-      JSValue ctor = js_global_get(ctx, "ArrayBuffer");
-      ret = JS_IsInstanceOf(ctx, value, ctor);
-      JS_FreeValue(ctx, ctor);
-    }
-  }
+  /*  if(!ret) {
+      JSObject* obj;
+      if((obj = js_value_get_obj(value)) && obj->class_id) {
+        JSValue ctor = js_global_get(ctx, "ArrayBuffer");
+        ret = JS_IsInstanceOf(ctx, value, ctor);
+        JS_FreeValue(ctx, ctor);
+      }
+    }*/
   return ret;
 }
 
 BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
-  return js_value_isclass(ctx, value, JS_CLASS_SHARED_ARRAY_BUFFER) ||
-         js_object_is(ctx, value, "[object SharedArrayBuffer]");
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SHARED_ARRAY_BUFFER)/* ||
+                                js_object_is(ctx, value, "[object SharedArrayBuffer]")*/);
 }
 
 BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
-  return js_value_isclass(ctx, value, JS_CLASS_MAP) || js_object_is(ctx, value, "[object Map]");
+  return JS_IsObject(value) &&
+         (js_value_isclass(ctx, value, JS_CLASS_MAP) /*|| js_object_is(ctx, value, "[object Map]")*/);
 }
 
 BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
-  return js_value_isclass(ctx, value, JS_CLASS_SET) || js_object_is(ctx, value, "[object Set]");
+  return JS_IsObject(value) &&
+         (js_value_isclass(ctx, value, JS_CLASS_SET) /* || js_object_is(ctx, value, "[object Set]")*/);
 }
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
-  return js_value_isclass(ctx, value, JS_CLASS_GENERATOR) || js_object_is(ctx, value, "[object Generator]");
+  return JS_IsObject(value) &&
+         (js_value_isclass(ctx, value, JS_CLASS_GENERATOR) /*|| js_object_is(ctx, value, "[object Generator]")*/);
 }
 
 BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
-  return js_value_isclass(ctx, value, JS_CLASS_REGEXP) || js_object_is(ctx, value, "[object RegExp]");
+  return JS_IsObject(value) &&
+         (js_value_isclass(ctx, value, JS_CLASS_REGEXP) /*|| js_object_is(ctx, value, "[object RegExp]")*/);
 }
 
 BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
-  return js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]");
+  return JS_IsObject(value) &&
+         (js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]"));
 }
 
 BOOL
@@ -1663,12 +1677,6 @@ js_is_iterator(JSContext* ctx, JSValueConst obj) {
       return TRUE;
   }
   return FALSE;
-}
-
-int
-js_is_typedarray(JSContext* ctx, JSValueConst value) {
-  JSClassID id = js_get_classid(value);
-  return id >= JS_CLASS_UINT8C_ARRAY && id <= JS_CLASS_FLOAT64_ARRAY;
 }
 
 JSValue

@@ -527,6 +527,15 @@ predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
   return pos;
 }
 
+static inline size_t
+lookup_find(const char* str, size_t len, const char table[256]) {
+  size_t pos;
+  for(pos = 0; pos < len; pos++)
+    if(table[(unsigned char)str[pos]])
+      break;
+  return pos;
+}
+
 static inline char
 escape_char_letter(char c) {
   switch(c) {
@@ -549,7 +558,9 @@ int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 #define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 void dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int));
+void dbuf_put_escaped_table(DynBuf*, const char* str, size_t len, const char table[256]);
 void dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int));
+void dbuf_put_escaped(DynBuf* db, const char* str, size_t len);
 
 static inline void
 js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
@@ -559,11 +570,6 @@ js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
 static inline void
 js_dbuf_init(JSContext* ctx, DynBuf* s) {
   dbuf_init2(s, ctx, (DynBufReallocFunc*)js_realloc);
-}
-
-static inline void
-dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
-  return dbuf_put_escaped_pred(db, str, len, escape_char_pred);
 }
 
 void dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value);
@@ -883,7 +889,7 @@ js_towstringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
   return ret;
 }
 
-static inline char*
+static inline wchar_t*
 js_towstring(JSContext* ctx, JSValueConst value) {
   return js_towstringlen(ctx, 0, value);
 }
@@ -971,7 +977,13 @@ js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
   } while(0)
 
 void js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len);
-void js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc);
+
+static inline void
+js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
+  JS_FreeValue(ctx, desc->value);
+  JS_FreeValue(ctx, desc->getter);
+  JS_FreeValue(ctx, desc->setter);
+}
 
 JSValue js_symbol_ctor(JSContext* ctx);
 
@@ -1022,7 +1034,14 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
 
 int js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom);
 int32_t js_atom_toint32(JSContext* ctx, JSAtom atom);
-JSValue js_atom_tovalue(JSContext* ctx, JSAtom atom);
+
+static inline JSValue
+js_atom_tovalue(JSContext* ctx, JSAtom atom) {
+  if(js_atom_isint(atom))
+    return JS_MKVAL(JS_TAG_INT, js_atom_toint(atom));
+
+  return JS_AtomToValue(ctx, atom);
+}
 
 unsigned int js_atom_tobinary(JSAtom atom);
 const char* js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom);
@@ -1052,7 +1071,15 @@ js_object_same(JSValueConst a, JSValueConst b) {
   return aobj == bobj;
 }
 
-JSClassID js_get_classid(JSValue v);
+static inline JSClassID
+js_get_classid(JSValue v) {
+  JSObject* p;
+  /* if(JS_VALUE_GET_TAG(v) != JS_TAG_OBJECT)
+     return 0;*/
+  p = JS_VALUE_GET_OBJ(v);
+  assert(p != 0);
+  return p->class_id;
+}
 
 BOOL js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
@@ -1113,7 +1140,6 @@ BOOL js_is_generator(JSContext*, JSValue);
 BOOL js_is_regexp(JSContext*, JSValue);
 BOOL js_is_promise(JSContext*, JSValue);
 
-BOOL js_is_typedarray(JSContext* ctx, JSValueConst value);
 static inline BOOL
 js_is_null_or_undefined(JSValueConst value) {
   return JS_IsUndefined(value) || JS_IsNull(value);
@@ -1150,16 +1176,25 @@ JSValue js_typedarray_prototype(JSContext* ctx);
 JSValue js_typedarray_constructor(JSContext* ctx);
 
 static inline BOOL
-js_is_array(JSContext* ctx, JSValueConst value) {
-  return JS_IsArray(ctx, value) || js_is_typedarray(ctx, value);
-}
-
-static inline BOOL
 js_is_basic_array(JSContext* ctx, JSValueConst value) {
   JSValue ctor = js_global_get(ctx, "Array");
   BOOL ret = JS_IsInstanceOf(ctx, value, ctor);
   JS_FreeValue(ctx, ctor);
   return ret;
+}
+
+static inline BOOL
+js_is_typedarray(JSValueConst value) {
+  if(JS_IsObject(value)) {
+    JSClassID id = js_get_classid(value);
+    return id >= JS_CLASS_UINT8C_ARRAY && id <= JS_CLASS_FLOAT64_ARRAY;
+  }
+  return FALSE;
+}
+
+static inline BOOL
+js_is_array(JSContext* ctx, JSValueConst value) {
+  return JS_IsArray(ctx, value) || js_is_typedarray(value);
 }
 
 BOOL js_is_input(JSContext* ctx, JSValueConst value);

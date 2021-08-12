@@ -117,7 +117,7 @@ js_archive_wrap(JSContext* ctx, struct archive* ar) {
 
 static JSValue
 js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  struct archive* ar;
+  struct archive* ar = 0;
   JSValue proto = JS_GetPropertyStr(ctx, this_val, "prototype");
   JSValue ret = JS_UNDEFINED;
 
@@ -135,23 +135,37 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       if(argc > 1 && JS_IsNumber(argv[1])) {
         JS_ToUint32(ctx, &block_size, argv[1]);
       }
-      if(argc > 0 && JS_IsString(argv[0])) {
+      if(JS_IsString(argv[0])) {
         wchar_t* filename = js_towstring(ctx, argv[0]);
         int r = archive_read_open_filename_w(ar, filename, block_size);
         js_free(ctx, filename);
 
-        if(r == ARCHIVE_OK) {
-          ret = js_archive_wrap_proto(ctx, proto, ar);
-        } else {
+        if(r != ARCHIVE_OK) {
           ret = JS_ThrowInternalError(ctx, archive_error_string(ar));
           archive_read_free(ar);
+          return ret;
         }
       }
+
+      ret = js_archive_wrap_proto(ctx, proto, ar);
       break;
     }
     case ARCHIVE_METHOD_WRITE: {
       if(!(ar = archive_write_new()))
         return JS_ThrowOutOfMemory(ctx);
+
+      if(JS_IsString(argv[0])) {
+        wchar_t* filename = js_towstring(ctx, argv[0]);
+        int r = archive_write_open_filename_w(ar, filename);
+        js_free(ctx, filename);
+
+        if(r != ARCHIVE_OK) {
+          ret = JS_ThrowInternalError(ctx, archive_error_string(ar));
+          archive_read_free(ar);
+          return ret;
+        }
+      }
+      ret = js_archive_wrap_proto(ctx, proto, ar);
       break;
     }
   }

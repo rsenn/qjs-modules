@@ -677,7 +677,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       if(!(is_function = JS_IsFunction(ctx, value))) {
         is_array = js_is_array(ctx, value);
-        is_typedarray = js_is_typedarray(ctx, value);
+        is_typedarray = js_is_typedarray(value);
 
         if(!is_array && !is_typedarray) {
           if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
@@ -700,24 +700,28 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           return -1;
         }
 
-        s = js_object_tostring(ctx, value);
-        if(!strcmp(s, "[object Generator]")) {
+        if(js_is_generator(ctx, value)) {
           dbuf_putstr(buf, "Object [Generator] {}");
           js_cstring_free(ctx, s);
           return 0;
         }
       }
 
-      if(!JS_IsArray(ctx, value) && !is_function && !strncmp(s, "[object ", 8)) {
-        const char* e = strchr(s, ']');
-        size_t slen = e - (s + 8);
+      if(!JS_IsArray(ctx, value) && !is_function) {
+        if(s == 0)
+          s = js_object_tostring(ctx, value);
 
-        if(slen != 6 || memcmp(s + 8, "Object", 6)) {
-          dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED : "[");
-          // dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[" : "[");
-          dbuf_append(buf, (const uint8_t*)s + 8, e - (s + 8));
-          // dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE " " : "] ");
-          dbuf_putstr(buf, opts->colors ? COLOR_NONE " " : "] ");
+        if(!strncmp(s, "[object ", 8)) {
+          const char* e = strchr(s, ']');
+          size_t slen = e - (s + 8);
+
+          if(slen != 6 || memcmp(s + 8, "Object", 6)) {
+            dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED : "[");
+            // dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[" : "[");
+            dbuf_append(buf, (const uint8_t*)s + 8, e - (s + 8));
+            // dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE " " : "] ");
+            dbuf_putstr(buf, opts->colors ? COLOR_NONE " " : "] ");
+          }
         }
       }
       js_cstring_free(ctx, s);
