@@ -626,7 +626,9 @@ js_archiveentry_getter(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case ENTRY_FFLAGS: {
-      ret = JS_NewString(ctx, archive_entry_fflags_text(ent));
+      const char* str;
+      if((str = archive_entry_fflags_text(ent)))
+        ret = JS_NewString(ctx, str);
       break;
     }
     case ENTRY_GID: {
@@ -634,11 +636,15 @@ js_archiveentry_getter(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case ENTRY_GNAME: {
-      ret = JS_NewString(ctx, archive_entry_gname_utf8(ent));
+      const char* str;
+      if((str = archive_entry_gname_utf8(ent)))
+        ret = JS_NewString(ctx, str);
       break;
     }
     case ENTRY_HARDLINK: {
-      ret = JS_NewString(ctx, archive_entry_hardlink_utf8(ent));
+      const char* str;
+      if((str = archive_entry_hardlink_utf8(ent)))
+        ret = JS_NewString(ctx, str);
       break;
     }
     case ENTRY_INO: {
@@ -659,7 +665,9 @@ js_archiveentry_getter(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case ENTRY_PATHNAME: {
-      ret = JS_NewString(ctx, archive_entry_pathname_utf8(ent));
+      const char* str;
+      if((str = archive_entry_pathname_utf8(ent)))
+        ret = JS_NewString(ctx, str);
       break;
     }
     case ENTRY_PERM: {
@@ -684,7 +692,9 @@ js_archiveentry_getter(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case ENTRY_SYMLINK: {
-      ret = JS_NewString(ctx, archive_entry_symlink_utf8(ent));
+      const char* str;
+      if((str = archive_entry_symlink_utf8(ent)))
+        ret = JS_NewString(ctx, str);
       break;
     }
     case ENTRY_UID: {
@@ -692,7 +702,9 @@ js_archiveentry_getter(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case ENTRY_UNAME: {
-      ret = JS_NewString(ctx, archive_entry_uname_utf8(ent));
+      const char* str;
+      if((str = archive_entry_uname_utf8(ent)))
+        ret = JS_NewString(ctx, str);
       break;
     }
   }
@@ -781,6 +793,8 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
           archive_entry_set_fflags(ent, set, clr);
         JS_FreeValue(ctx, arr[0]);
         JS_FreeValue(ctx, arr[1]);
+      } else {
+        archive_entry_copy_fflags_text(ent, 0);
       }
       break;
     }
@@ -791,15 +805,23 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       break;
     }
     case ENTRY_GNAME: {
-      const char* str = JS_ToCString(ctx, value);
-      archive_entry_set_gname_utf8(ent, str);
-      JS_FreeCString(ctx, str);
+      if(js_is_nullish(ctx, value)) {
+        archive_entry_set_gname_utf8(ent, 0);
+      } else {
+        const char* str = JS_ToCString(ctx, value);
+        archive_entry_set_gname_utf8(ent, str);
+        JS_FreeCString(ctx, str);
+      }
       break;
     }
     case ENTRY_HARDLINK: {
-      const char* str = JS_ToCString(ctx, value);
-      archive_entry_set_hardlink_utf8(ent, str);
-      JS_FreeCString(ctx, str);
+      if(js_is_nullish(ctx, value)) {
+        archive_entry_set_hardlink_utf8(ent, 0);
+      } else {
+        const char* str = JS_ToCString(ctx, value);
+        archive_entry_set_hardlink_utf8(ent, str);
+        JS_FreeCString(ctx, str);
+      }
       break;
     }
     case ENTRY_INO: {
@@ -809,9 +831,13 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       break;
     }
     case ENTRY_LINK: {
-      const char* str = JS_ToCString(ctx, value);
-      archive_entry_set_link_utf8(ent, str);
-      JS_FreeCString(ctx, str);
+      if(js_is_nullish(ctx, value)) {
+        archive_entry_set_link_utf8(ent, 0);
+      } else {
+        const char* str = JS_ToCString(ctx, value);
+        archive_entry_set_link_utf8(ent, str);
+        JS_FreeCString(ctx, str);
+      }
       break;
     }
     case ENTRY_MODE: {
@@ -827,9 +853,13 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       break;
     }
     case ENTRY_PATHNAME: {
-      const char* str = JS_ToCString(ctx, value);
-      archive_entry_set_pathname_utf8(ent, str);
-      JS_FreeCString(ctx, str);
+      if(js_is_nullish(ctx, value)) {
+        archive_entry_set_pathname_utf8(ent, 0);
+      } else {
+        const char* str = JS_ToCString(ctx, value);
+        archive_entry_set_pathname_utf8(ent, str);
+        JS_FreeCString(ctx, str);
+      }
       break;
     }
     case ENTRY_PERM: {
@@ -867,9 +897,13 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       break;
     }
     case ENTRY_SYMLINK: {
-      const char* str = JS_ToCString(ctx, value);
-      archive_entry_set_symlink_utf8(ent, str);
-      JS_FreeCString(ctx, str);
+      if(js_is_nullish(ctx, value)) {
+        archive_entry_set_symlink_utf8(ent, 0);
+      } else {
+        const char* str = JS_ToCString(ctx, value);
+        archive_entry_set_symlink_utf8(ent, str);
+        JS_FreeCString(ctx, str);
+      }
       break;
     }
     case ENTRY_UID: {
@@ -879,9 +913,13 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       break;
     }
     case ENTRY_UNAME: {
-      const char* str = JS_ToCString(ctx, value);
-      archive_entry_set_uname_utf8(ent, str);
-      JS_FreeCString(ctx, str);
+      if(js_is_nullish(ctx, value)) {
+        archive_entry_set_uname_utf8(ent, 0);
+      } else {
+        const char* str = JS_ToCString(ctx, value);
+        archive_entry_set_uname_utf8(ent, str);
+        JS_FreeCString(ctx, str);
+      }
       break;
     }
   }
