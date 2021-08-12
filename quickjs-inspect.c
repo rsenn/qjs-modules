@@ -219,18 +219,18 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
   JS_SetPropertyStr(ctx, ret, "showProxy", JS_NewBool(ctx, opts->show_proxy));
   JS_SetPropertyStr(ctx, ret, "getters", JS_NewBool(ctx, opts->getters));
   JS_SetPropertyStr(ctx, ret, "stringBreakNewline", JS_NewBool(ctx, opts->string_break_newline));
-  JS_SetPropertyStr(ctx, ret, "depth", js_new_number(ctx, opts->depth));
-  JS_SetPropertyStr(ctx, ret, "maxArrayLength", js_new_number(ctx, opts->max_array_length));
-  JS_SetPropertyStr(ctx, ret, "maxStringLength", js_new_number(ctx, opts->max_string_length));
-  JS_SetPropertyStr(ctx, ret, "breakLength", js_new_number(ctx, opts->break_length));
+  JS_SetPropertyStr(ctx, ret, "depth", js_number_new(ctx, opts->depth));
+  JS_SetPropertyStr(ctx, ret, "maxArrayLength", js_number_new(ctx, opts->max_array_length));
+  JS_SetPropertyStr(ctx, ret, "maxStringLength", js_number_new(ctx, opts->max_string_length));
+  JS_SetPropertyStr(ctx, ret, "breakLength", js_number_new(ctx, opts->break_length));
   JS_SetPropertyStr(ctx, ret, "compact", js_new_bool_or_number(ctx, opts->compact));
   if(opts->proto_chain)
-    JS_SetPropertyStr(ctx, ret, "protoChain", js_new_number(ctx, opts->proto_chain));
+    JS_SetPropertyStr(ctx, ret, "protoChain", js_number_new(ctx, opts->proto_chain));
   arr = JS_NewArray(ctx);
   n = 0;
   vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
-  JS_SetPropertyStr(ctx, ret, "numberBase", js_new_number(ctx, opts->number_base));
+  JS_SetPropertyStr(ctx, ret, "numberBase", js_number_new(ctx, opts->number_base));
   return ret;
 }
 
@@ -310,7 +310,7 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
     inspect_options_t opts_nocustom;
     memcpy(&opts_nocustom, opts, sizeof(inspect_options_t));
     opts_nocustom.custom_inspect = FALSE;
-    args[0] = js_new_number(ctx, INSPECT_LEVEL(opts));
+    args[0] = js_number_new(ctx, INSPECT_LEVEL(opts));
     args[1] = inspect_options_object(&opts_nocustom, ctx);
     ret = JS_Call(ctx, inspect, obj, 2, args);
     JS_FreeValue(ctx, args[0]);

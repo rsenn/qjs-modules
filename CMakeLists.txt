@@ -9,6 +9,12 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
 find_quickjs()
 
+include(FindLibArchive)
+
+if(NOT LibArchive_FOUND)
+  message(ERROR "libarchive not found")
+endif(NOT LibArchive_FOUND)
+
 set(QUICKJS_MODULES archive bjson child-process deep lexer misc mmap path pointer predicate repeater sockets inspect tree-walker xml)
 
 if(EXISTS "${QUICKJS_H}")
@@ -17,7 +23,7 @@ if(EXISTS "${QUICKJS_H}")
 endif()
 set(child_process_SOURCES child-process.c child-process.h property-enumeration.c property-enumeration.h utils.c utils.h vector.c vector.h qsort_r.c)
 set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.c property-enumeration.h utils.c utils.h predicate.c predicate.h pointer.h virtual-properties.h qsort_r.c)
-set(deep_LIBRARIES qjs-pointer qjs-predicate)
+# set(deep_LIBRARIES qjs-pointer qjs-predicate)
 set(inspect_SOURCES vector.c vector.h iteration.h utils.c utils.h property-enumeration.c property-enumeration.h quickjs-internal.h qsort_r.c)
 set(tree_walker_SOURCES vector.c vector.h property-enumeration.c property-enumeration.h utils.c utils.h)
 set(xml_SOURCES vector.c vector.h property-enumeration.c property-enumeration.h utils.c utils.h qsort_r.c)
@@ -25,12 +31,15 @@ set(path_SOURCES path.c path.h utils.c utils.h)
 set(predicate_SOURCES predicate.c predicate.h vector.c vector.h utils.c utils.h)
 set(pointer_SOURCES pointer.c pointer.h utils.c utils.h)
 set(lexer_SOURCES quickjs-lexer.h location.c location.h utils.c utils.h vector.c vector.h lexer.c lexer.h)
-set(lexer_LIBRARIES quickjs-predicate)
+# set(lexer_LIBRARIES quickjs-predicate)
 set(mmap_SOURCES utils.c utils.h)
 set(repeater_SOURCES utils.c utils.h)
 set(util_SOURCES utils.c utils.h quickjs-inspect.c)
 set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h)
 set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${LOCATION_SOURCES})
+
+include_directories(${LibArchive_INCLUDE_DIRS})
+set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(QJSM_EXTRA_SOURCES ${location_SOURCES})
 
@@ -48,7 +57,7 @@ check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
 # dump(VISIBILITY_HIDDEN) dump(MODULE_COMPILE_FLAGS)
 
-check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type"CMAKE_C_FLAGS)
+check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type" CMAKE_C_FLAGS)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
@@ -183,7 +192,9 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   dump(QJSM_SOURCES)
   add_executable(qjsm ${QJSM_SOURCES})
 
-  add_dependencies(qjsm ${QJS_MODULES_STATIC})
+  if(QJS_MODULES_STATIC)
+    add_dependencies(qjsm ${QJS_MODULES_STATIC})
+  endif(QJS_MODULES_STATIC)
 
   # target_link_libraries(qjs ${QUICKJS_LIBRARY})
   target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})

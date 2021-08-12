@@ -866,6 +866,28 @@ js_tostring(JSContext* ctx, JSValueConst value) {
   return js_tostringlen(ctx, 0, value);
 }
 
+static inline wchar_t*
+js_towstringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
+  size_t i, len;
+  const char* cstr;
+  wchar_t* ret = 0;
+  if((cstr = JS_ToCStringLen(ctx, &len, value))) {
+    ret = js_mallocz(ctx, sizeof(wchar_t) * (len + 1));
+    uint8_t *ptr = (uint8_t*)cstr, *end = (uint8_t*)cstr + len;
+
+    for(i = 0; ptr < end;) { ret[i++] = unicode_from_utf8(ptr, end - ptr, &ptr); }
+
+    if(lenp)
+      *lenp = i;
+  }
+  return ret;
+}
+
+static inline char*
+js_towstring(JSContext* ctx, JSValueConst value) {
+  return js_towstringlen(ctx, 0, value);
+}
+
 static inline JSValue
 js_value_tostring(JSContext* ctx, const char* class_name, JSValueConst value) {
   JSAtom atom;
@@ -982,13 +1004,13 @@ js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
   return i;
 }
 
-JSValue js_new_number(JSContext* ctx, int32_t n);
+JSValue js_number_new(JSContext* ctx, int32_t n);
 
 static inline JSValue
 js_new_bool_or_number(JSContext* ctx, int32_t n) {
   if(n == 0)
     return JS_NewBool(ctx, FALSE);
-  return js_new_number(ctx, n);
+  return js_number_new(ctx, n);
 }
 
 #define JS_ATOM_TAG_INT (1U << 31)
@@ -1189,4 +1211,13 @@ js_find_cfunction_atom(
   JS_FreeCString(ctx, name);
   return i;
 }
+
+JSValue js_date_new(JSContext*, JSValue arg);
+JSValue js_date_from_ms(JSContext*, int64_t ms);
+JSValue js_date_from_time_ns(JSContext*, time_t t, long ns);
+JSValue js_date_from_timespec(JSContext*, const struct timespec ts);
+int64_t js_date_gettime(JSContext*, JSValue arg);
+int64_t js_date_time(JSContext*, JSValue arg);
+struct timespec js_date_timespec(JSContext*, JSValue arg);
+
 #endif /* defined(UTILS_H) */

@@ -1722,9 +1722,66 @@ js_operators_create(JSContext* ctx, JSValue* this_obj) {
 }
 
 JSValue
-js_new_number(JSContext* ctx, int32_t n) {
+js_number_new(JSContext* ctx, int32_t n) {
   if(n == INT32_MAX)
     return JS_NewFloat64(ctx, INFINITY);
 
   return JS_NewInt32(ctx, n);
+}
+
+JSValue
+js_date_new(JSContext* ctx, JSValueConst arg) {
+  JSValue ctor = js_global_get(ctx, "Date");
+  JSValue ret = JS_CallConstructor(ctx, ctor, 1, &arg);
+  JS_FreeValue(ctx, ctor);
+  return ret;
+}
+
+JSValue
+js_date_from_ms(JSContext* ctx, int64_t ms) {
+  JSValue arg = JS_NewInt64(ctx, ms);
+  JSValue ret = js_date_new(ctx, arg);
+  JS_FreeValue(ctx, arg);
+  return ret;
+}
+
+JSValue
+js_date_from_time_ns(JSContext* ctx, time_t t, long ns) {
+  return js_date_from_ms(ctx, t * 1000ull + ns / 1000000ull);
+}
+
+JSValue
+js_date_from_timespec(JSContext* ctx, const struct timespec ts) {
+  return js_date_from_time_ns(ctx, ts.tv_sec, ts.tv_nsec);
+}
+
+int64_t
+js_date_gettime(JSContext* ctx, JSValueConst arg) {
+  int64_t r = -1;
+  JSAtom method = JS_NewAtom(ctx, "getTime");
+  JSValue value = JS_Invoke(ctx, arg, method, 0, 0);
+  JS_FreeAtom(ctx, method);
+  if(JS_IsNumber(value))
+    JS_ToInt64(ctx, &r, value);
+  JS_FreeValue(ctx, value);
+  return r;
+}
+
+int64_t
+js_date_time(JSContext* ctx, JSValue arg) {
+  int64_t r = -1;
+  if(JS_IsObject(arg))
+    r = js_date_gettime(ctx, arg);
+  else if(!js_is_nullish(ctx, arg))
+    JS_ToInt64(ctx, &r, arg);
+  return r;
+}
+
+struct timespec
+js_date_timespec(JSContext* ctx, JSValue arg) {
+  struct timespec ts;
+  int64_t r = js_date_time(ctx, arg);
+  ts.tv_sec = r / 1000ull;
+  ts.tv_nsec = (r - ts.tv_sec) * 1000000ull;
+  return ts;
 }
