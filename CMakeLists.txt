@@ -206,9 +206,9 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   # target_link_libraries(qjs ${QUICKJS_LIBRARY})
   target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
-  set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT}" COMPILE_FLAGS "-w" RPATH "${QUICKJS_INSTALL_DIR}/lib/quickjs")
+  set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT}" COMPILE_FLAGS "-w" RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
 
-  target_compile_definitions(qjsm PRIVATE CONFIG_VERSION="${QUICKJS_VERSION}" _GNU_SOURCE=1 CONFIG_PREFIX="${QUICKJS_INSTALL_DIR}" CONFIG_BIGNUM=1)
+  target_compile_definitions(qjsm PRIVATE CONFIG_VERSION="${QUICKJS_VERSION}" _GNU_SOURCE=1 CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}" CONFIG_BIGNUM=1)
   install(TARGETS qjsm DESTINATION bin)
 
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)

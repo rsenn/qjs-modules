@@ -517,16 +517,14 @@ JSModuleDef*
 jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   char *module, *filename = 0;
   JSModuleDef* ret = NULL;
-  if(debug_module_loader)
-    printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(1)\x1b[0m %-20s\n", pthread_self(), trim_dotslash(module_name));
   module = js_strdup(ctx, trim_dotslash(module_name));
   for(;;) {
+    if(debug_module_loader)
+      printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(1)\x1b[0m %-20s -> %s\n",
+             pthread_self(),
+             trim_dotslash(module_name),
+             trim_dotslash(module));
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
-      if(debug_module_loader)
-        printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(1)\x1b[0m %-20s -> %s\n",
-               pthread_self(),
-               trim_dotslash(module_name),
-               trim_dotslash(module));
       goto end;
     }
     if(!has_suffix(module_name, ".so") && !filename) {
