@@ -883,7 +883,7 @@ js_misc_compile_file(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   if(argc >= 2)
     module = JS_ToBool(ctx, argv[1]);
-  else if(str_end(filename, ".jsm"))
+  else if(str_ends(filename, ".jsm"))
     module = TRUE;
 
   /* load JS from file to buffer */

@@ -64,7 +64,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case METHOD_BASENAME: {
       const char* o = basename(a);
       size_t len = strlen(o);
-      if(b && str_end(o, b))
+      if(b && str_ends(o, b))
         len -= strlen(b);
       ret = JS_NewStringLen(ctx, o, len);
       break;
