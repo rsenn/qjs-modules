@@ -6,6 +6,7 @@
 //#include <threads.h>
 #include "quickjs-gpio.h"
 #include "utils.h"
+#include <fcntl.h>
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
