@@ -3,7 +3,7 @@
 #endif
 
 #include "gpio.h"
-#include <threads.h>
+//#include <threads.h>
 #include "quickjs-gpio.h"
 #include "utils.h"
 

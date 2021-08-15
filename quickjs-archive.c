@@ -4,7 +4,6 @@
 
 #include <archive.h>
 #include <archive_entry.h>
-#include <threads.h>
 #include "quickjs-archive.h"
 #include "utils.h"
 
@@ -281,7 +280,7 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc < 1 || !js_is_arraybuffer(ctx, argv[0])) {
     void* data;
     size_t size;
-    la_int64_t offset;
+    __LA_INT64_T offset;
     switch(archive_read_data_block(ar, &data, &size, &offset)) {
       case ARCHIVE_OK: {
         struct ArchiveInstance* abuf = js_malloc(ctx, sizeof(struct ArchiveInstance));

@@ -4,6 +4,8 @@
 #include <list.h>
 #include <cutils.h>
 #include <quickjs.h>
+#include <stddef.h>
+#include <sys/types.h>
 
 #if 1 // def HAVE_QUICKJS_CONFIG_H
 #include <quickjs-config.h>
