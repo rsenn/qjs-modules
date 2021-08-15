@@ -180,7 +180,7 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
   BOOL isComment;
 
-  if(!tagName)
+  if(!tagName || !tagName[0])
     return;
 
   assert(tagName);
@@ -188,7 +188,8 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 
   xml_write_indent(db, depth - 1);
 
-  dbuf_putc(db, '<');
+  if(tagName[0])
+    dbuf_putc(db, '<');
 
   if(isComment) {
     if(byte_chr(tagName, tagLen, '\n') < tagLen) {
@@ -209,7 +210,8 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   }
   num_children = xml_num_children(ctx, element);
 
-  dbuf_putstr(db, (num_children > 0 || isComment) ? tagName[0] == '?' ? "?>" : ">" : tagName[0] == '!' ? ">" : " />");
+  if(tagName[0])
+    dbuf_putstr(db, (num_children > 0 || isComment) ? tagName[0] == '?' ? "?>" : ">" : tagName[0] == '!' ? ">" : " />");
   dbuf_putc(db, '\n');
 
   js_cstring_free(ctx, tagName);
@@ -224,7 +226,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     size_t tagLen;
     const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
 
-    if(tagName[0] != '?') {
+    if(tagName[0] != '?' && tagName[0]) {
       xml_write_indent(db, depth);
 
       dbuf_putstr(db, "</");
