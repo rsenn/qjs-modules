@@ -7,7 +7,6 @@
 #include "quickjs-gpio.h"
 #include "utils.h"
 
-
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_gpio_class_id = 0;

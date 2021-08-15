@@ -200,13 +200,13 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     } else {
       xml_write_string(ctx, tagName, tagLen, db, depth - 1);
     }
-  } else if(JS_IsObject(attributes)) {
-    dbuf_putstr(db, tagName);
-    xml_write_attributes(ctx, attributes, db);
   } else if(tagName[0] == '!') {
     dbuf_putstr(db, tagName);
+  } else {
+    dbuf_putstr(db, tagName);
+    if(JS_IsObject(attributes))
+      xml_write_attributes(ctx, attributes, db);
   }
-
   num_children = xml_num_children(ctx, element);
 
   dbuf_putstr(db, (num_children > 0 || isComment) ? tagName[0] == '?' ? "?>" : ">" : tagName[0] == '!' ? ">" : " />");
