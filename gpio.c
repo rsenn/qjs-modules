@@ -7,6 +7,10 @@
 
 #include "gpio.h"
 
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 02000000
+#endif
+
 #define PERIPHERALS_BASE_ADDR (0x20200000)
 #define MAP_SIZE (0xA0)
 
