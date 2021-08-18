@@ -12,7 +12,7 @@ endfunction(config_module TARGET_NAME)
 
 function(compile_module SOURCE)
   basename(BASE "${SOURCE}" .js)
-  message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
+  #message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
 
   if(ARGN)
     set(OUTPUT_FILE ${ARGN})
@@ -24,7 +24,7 @@ function(compile_module SOURCE)
 endfunction(compile_module SOURCE)
 
 function(make_module FNAME)
-  message(STATUS "Building QuickJS module: ${FNAME}")
+  #message(STATUS "Building QuickJS module: ${FNAME}")
   string(REGEX REPLACE "_" "-" NAME "${FNAME}")
   string(REGEX REPLACE "-" "_" VNAME "${FNAME}")
   string(TOUPPER "${FNAME}" UUNAME)
