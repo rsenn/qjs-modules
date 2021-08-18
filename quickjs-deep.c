@@ -97,14 +97,16 @@ js_deep_predicate(JSContext* ctx, JSValueConst value, PropertyEnumeration* penum
   } else if(JS_IsFunction(ctx, value)) {
     ret = JS_Call(ctx, value, JS_UNDEFINED, 2, args);
   }
+
   JS_FreeValue(ctx, args[0]);
   JS_FreeValue(ctx, args[1]);
+
   if(JS_IsException(ret)) {
     JS_GetException(ctx);
     ret = JS_FALSE;
   }
-  result = js_value_tobool_free(ctx, ret);
 
+  result = js_value_tobool_free(ctx, ret);
   return result;
 }
 
@@ -290,7 +292,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   if((max_depth = (flags & MAXDEPTH_MASK)) == 0)
     max_depth = INT32_MAX;
 
-  if(!JS_IsFunction(ctx, argv[1]))
+  if(!predicate_callable(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 2 (predicate) is not a function");
   if(!JS_IsObject(argv[0]))
     return JS_ThrowTypeError(ctx, "argument 1 (root) is not an object");
@@ -332,7 +334,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if((max_depth = (flags & MAXDEPTH_MASK)) == 0)
     max_depth = INT32_MAX;
 
-  if(!JS_IsFunction(ctx, argv[1]) && !js_predicate_data2(ctx, argv[1]))
+  if(!predicate_callable(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
 
   vector_init(&frames, ctx);

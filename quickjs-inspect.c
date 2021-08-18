@@ -328,8 +328,8 @@ js_inspect_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t*
   BOOL ret, finish = FALSE;
   size_t i = 0;
   int compact = INSPECT_IS_COMPACT(opts);
-  // printf("js_inspect_map level=%u opts->depth=%" PRId32 " depth=%" PRId32 " compact=%i\n",
-  // INSPECT_LEVEL(opts), opts->depth, depth, compact);
+  //printf("js_inspect_map level=%u opts->depth=%" PRId32 " depth=%" PRId32 " compact=%i\n",
+  //INSPECT_LEVEL(opts), opts->depth, depth, compact);
   JSValue data, key, value;
   Iteration it;
   if(!(ret = iteration_method_symbol(&it, ctx, obj, "iterator"))) {
@@ -405,7 +405,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   const char *str, *str2;
   uint8_t* ptr;
   size_t i, slen, size;
-  int break_len = opts->break_length; // inspect_screen_width();
+  int break_len = opts->break_length; //inspect_screen_width();
   int column = dbuf_get_column(buf);
   JSValue proto;
   break_len = (break_len + 1) / 3;
@@ -414,7 +414,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   if(break_len > opts->break_length)
     break_len = opts->break_length;
   ptr = JS_GetArrayBuffer(ctx, &size, value);
-  // printf("maxArrayLength: %i\n", opts->max_array_length);
+  //printf("maxArrayLength: %i\n", opts->max_array_length);
   proto = JS_GetPrototype(ctx, value);
   str = js_object_tostring(ctx, proto);
   JS_FreeValue(ctx, proto);
@@ -567,8 +567,8 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
 static int
 js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   int tag = JS_VALUE_GET_TAG(value);
-  // int compact = INSPECT_IS_COMPACT(opts);
-  // printf("js_inspect_print level: %d\n", INSPECT_LEVEL(opts));
+  //int compact = INSPECT_IS_COMPACT(opts);
+  //printf("js_inspect_print level: %d\n", INSPECT_LEVEL(opts));
   switch(tag) {
     case JS_TAG_FLOAT64:
     case JS_TAG_BIG_DECIMAL:
@@ -649,8 +649,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         if(JS_IsException(tmp)) {
           JSValue exception = JS_GetException(ctx);
 
-          // dbuf_printf(buf, "exception: %s\n", JS_ToCString(ctx, exception));
-          // return 0;
+          //dbuf_printf(buf, "exception: %s\n", JS_ToCString(ctx, exception));
+          //return 0;
 
         } else if(!JS_IsUndefined(tmp)) {
           if(!JS_IsObject(tmp))
@@ -669,8 +669,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         if(!js_is_arraybuffer(ctx, value))
           deepest = property_enumeration_deepest(ctx, value);
         const char* typestr = js_value_typestr(ctx, value);
-        // printf("%s opts->compact = %d, deepest = %d, depth = %d\n", typestr ? typestr : "(null)", opts->compact,
-        // deepest, depth);
+        //printf("%s opts->compact = %d, deepest = %d, depth = %d\n", typestr ? typestr : "(null)", opts->compact,
+        //deepest, depth);
 
         compact = compact > deepest;
       }
@@ -717,9 +717,9 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
           if(slen != 6 || memcmp(s + 8, "Object", 6)) {
             dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED : "[");
-            // dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[" : "[");
+            //dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[" : "[");
             dbuf_append(buf, (const uint8_t*)s + 8, e - (s + 8));
-            // dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE " " : "] ");
+            //dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE " " : "] ");
             dbuf_putstr(buf, opts->colors ? COLOR_NONE " " : "] ");
           }
         }
@@ -773,8 +773,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           if(pos == limit)
             break;
           if(pos > 0) {
-            dbuf_putc(buf, ',');
-            //            dbuf_putstr(buf, compact ? ", " : ",");
+            dbuf_putstr(buf, ", ");
+            //dbuf_putstr(buf, compact ? ", " : ",");
             if(!compact && opts->break_length != INT32_MAX)
               inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
           }
