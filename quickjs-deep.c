@@ -13,7 +13,8 @@
 #include <stdint.h>
 
 thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
-thread_local JSValue deep_iterator_proto = {  JS_TAG_UNDEFINED}, deep_iterator_ctor = {  JS_TAG_UNDEFINED};
+thread_local JSValue deep_functions = {JS_TAG_UNDEFINED}, deep_iterator_proto = {JS_TAG_UNDEFINED},
+                     deep_iterator_ctor = {JS_TAG_UNDEFINED};
 
 typedef struct DeepIterator {
   JSValue root;
@@ -25,16 +26,16 @@ typedef struct DeepIterator {
 
 enum deep_iterator_return {
   RETURN_VALUE_PATH = 0,
-  MAXDEPTH_MASK = 0xffffff,
   RETURN_PATH = 1 << 24,
   RETURN_VALUE = 2 << 24,
   RETURN_PATH_VALUE = 3 << 24,
   RETURN_MASK = 7 << 24,
   PATH_AS_STRING = 1 << 28,
-  NO_THROW = 1 << 29
+  NO_THROW = 1 << 29,
+  MAXDEPTH_MASK = 0xffffff,
 };
 
-static const uint32_t js_deep_defaultflags = RETURN_VALUE;
+static const uint32_t js_deep_defaultflags = 0;
 
 static uint32_t
 js_deep_parseflags(JSContext* ctx, int argc, JSValueConst argv[]) {
@@ -84,27 +85,25 @@ static BOOL
 js_deep_predicate(JSContext* ctx, JSValueConst value, PropertyEnumeration* penum) {
   BOOL result = TRUE;
   Predicate* pred;
+  JSValue ret;
   JSValueConst args[] = {
       property_enumeration_value(penum, ctx),
       property_enumeration_key(penum, ctx),
   };
 
-  if((pred = js_predicate_data2(ctx, value))) {
+  if((pred = js_predicate_data(value))) {
     JSArguments a = js_arguments_new(2, args);
-    result = js_value_tobool_free(ctx, predicate_eval(pred, ctx, &a));
-
+    ret = predicate_eval(pred, ctx, &a);
   } else if(JS_IsFunction(ctx, value)) {
-
-    JSValue ret;
     ret = JS_Call(ctx, value, JS_UNDEFINED, 2, args);
-    if(JS_IsException(ret)) {
-      JS_GetException(ctx);
-      ret = JS_FALSE;
-    }
-    result = js_value_tobool_free(ctx, ret);
   }
   JS_FreeValue(ctx, args[0]);
   JS_FreeValue(ctx, args[1]);
+  if(JS_IsException(ret)) {
+    JS_GetException(ctx);
+    ret = JS_FALSE;
+  }
+  result = js_value_tobool_free(ctx, ret);
 
   return result;
 }
@@ -665,8 +664,6 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_CFUNC_DEF("iterate", 1, js_deep_iterate),
     JS_CFUNC_DEF("forEach", 2, js_deep_foreach),
     JS_CFUNC_DEF("clone", 1, js_deep_clone),
-};
-static const JSCFunctionListEntry js_deep_flags[] = {
     JS_PROP_INT32_DEF("TYPE_UNDEFINED", TYPE_UNDEFINED, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_NULL", TYPE_NULL, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE_BOOL", TYPE_BOOL, JS_PROP_ENUMERABLE),
@@ -716,10 +713,14 @@ js_deep_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, deep_iterator_ctor, deep_iterator_proto);
 
+  deep_functions = JS_NewObject(ctx);
+
+  JS_SetPropertyFunctionList(ctx, deep_functions, js_deep_funcs, countof(js_deep_funcs));
+
   if(m) {
     JS_SetModuleExportList(ctx, m, js_deep_funcs, countof(js_deep_funcs));
-    JS_SetModuleExportList(ctx, m, js_deep_flags, countof(js_deep_flags));
-    // JS_SetModuleExport(ctx, m, "DeepIterator", deep_iterator_ctor);
+    JS_SetModuleExport(ctx, m, "DeepIterator", deep_iterator_ctor);
+    JS_SetModuleExport(ctx, m, "default", deep_functions);
   }
   return 0;
 }
@@ -736,7 +737,9 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   m = JS_NewCModule(ctx, module_name, js_deep_init);
   if(!m)
     return NULL;
+
   JS_AddModuleExportList(ctx, m, js_deep_funcs, countof(js_deep_funcs));
+  JS_AddModuleExport(ctx, m, "DeepIterator");
   JS_AddModuleExport(ctx, m, "default");
   return m;
 }

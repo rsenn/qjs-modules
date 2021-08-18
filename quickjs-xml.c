@@ -227,7 +227,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
 
     if(tagName[0] != '?' && tagName[0]) {
-      xml_write_indent(db, depth);
+      xml_write_indent(db, depth - 2);
 
       dbuf_putstr(db, "</");
       dbuf_append(db, (const uint8_t*)tagName, tagLen);
@@ -443,11 +443,10 @@ js_xml_write_obj(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output
 
     value = property_enumeration_value(it, ctx);
 
-    if(JS_IsObject(value) && !JS_IsArray(ctx, value))
-      xml_write_element(ctx, value, output, depth);
-
-    else if(JS_IsString(value))
+    if(JS_IsString(value))
       xml_write_text(ctx, value, output, depth);
+    else if(JS_IsObject(value) && !JS_IsArray(ctx, value))
+      xml_write_element(ctx, value, output, depth);
 
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, output, max_depth)));

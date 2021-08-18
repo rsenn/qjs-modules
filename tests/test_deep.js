@@ -26,13 +26,14 @@ const inspectOptions = {
   depth: 4,
   maxArrayLength: 10,
   maxStringLength: 200,
-  compact: 2,
+  compact: false,
   hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
 };
 
 function main(...args) {
   globalThis.console = new Console({ inspectOptions });
-
+console.options.compact=3;
+  // console.log('deep:', deep);
   /*  let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
 
   let result = xml.read(data);
@@ -91,17 +92,28 @@ function main(...args) {
 
   deep.forEach([], (n, p) => console.log('deep.forEach', { n, p }));
 
-  //for(let [n, p] of deep.iterate(obj1)) console.log('deep.iterate', { n, p });
+  let it = deep.iterate(obj1, () => true, deep.RETURN_VALUE_PATH);
+
+  console.log('it', it);
+  console.log('it[Symbol.iterator]', it[Symbol.iterator]);
+  console.log('it.next', it.next);
+  for(let item of it) console.log('deep.iterate', item);
 
   /*  for(let [n,p] of deep.iterate(obj3,  n => typeof n == 'object' && n != null))
     console.log('deep.iterate', { n, p });*/
 
-  for(let [n, p] of deep.iterate(obj3, Predicate.property('4')))
-    console.log(`deep.iterate(${deep.TYPE_OBJECT.toString(2)})`, { n, p });
-  console.log(
-    'select():',
-    deep.select(obj3, Predicate.property('name', Predicate.equal('x')), deep.RETURN_PATH_VALUE)
-  );
+  let pred = Predicate.property('name', Predicate.equal('x'));
+  let pred2 = Predicate.property('name');
+
+  console.log('pred:', pred);
+  console.log('pred2:', pred2);
+
+  for(let [n, p] of deep.iterate(obj3, Predicate.property('4'), deep.RETURN_VALUE_PATH))
+    console.log(`deep.iterate()`, { n, p });
+
+
+  console.log('select():', deep.select(obj3, pred, deep.RETURN_VALUE_PATH));
+  console.log('select()2:', deep.select(obj3, (n,p) => typeof n == 'object', deep.RETURN_VALUE_PATH));
   return;
 
   for(let o of [obj1, obj2]) {
@@ -138,7 +150,7 @@ function main(...args) {
     )
   );
 
-  let it = deep.iterate(obj2, (n, p) => IsObject(n) || !IsNumeric(n));
+  it = deep.iterate(obj2, (n, p) => IsObject(n) || !IsNumeric(n));
 
   let item;
 

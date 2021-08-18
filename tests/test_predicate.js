@@ -245,11 +245,20 @@ async function main(...args) {
 
   let check = Predicate.instanceOf(Predicate);
   let getProp = Predicate.property('and');
-  let getProp2 = Predicate.property(null, Predicate);
+  let getProp2 = Predicate.member(Predicate);
+  console.log('Predicate.property', Predicate.property);
+  console.log('Predicate.member', Predicate.member);
+
+  let getMember = Predicate.member({ [1]: 'one', [2]: 'two', [3]: 'three' });
+
+  console.log('getMember', getMember);
+  console.log('getMember(1)', getMember(1));
 
   console.log('check(add)', check(add));
   console.log('check(new Date())', check(new Date()));
+  console.log('getProp', getProp);
   console.log('getProp(Predicate)', getProp(Predicate));
+  console.log('getProp2', getProp2);
   console.log("getProp2('sub')", getProp2('sub'));
 
   let op_create = Operators.create;

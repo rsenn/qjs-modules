@@ -31,6 +31,7 @@ enum predicate_id {
   PREDICATE_PROTOTYPEIS,
   PREDICATE_EQUAL,
   PREDICATE_PROPERTY,
+  PREDICATE_MEMBER,
   PREDICATE_SHIFT
 };
 
@@ -73,6 +74,10 @@ typedef struct {
 } PropertyPredicate;
 
 typedef struct {
+  JSValue object;
+} MemberPredicate;
+
+typedef struct {
   int n;
   JSValue predicate;
 } ShiftPredicate;
@@ -88,6 +93,7 @@ typedef struct Predicate {
     BooleanPredicate boolean;
     RegExpPredicate regexp;
     PropertyPredicate property;
+    MemberPredicate member;
     ShiftPredicate shift;
   };
 } Predicate;
@@ -100,7 +106,8 @@ typedef struct Predicate {
   }
 static const size_t CAPTURE_COUNT_MAX = 255;
 
-BOOL predicate_is(JSValue);
+BOOL predicate_is(JSValueConst);
+BOOL predicate_callable(JSContext*, JSValueConst);
 enum predicate_id predicate_id(JSValue);
 JSValue predicate_eval(Predicate*, JSContext* ctx, JSArguments* args);
 JSValue predicate_call(JSContext*, JSValue value, int argc, JSValue argv[]);
@@ -280,6 +287,13 @@ predicate_property(JSAtom prop, JSValue pred) {
   Predicate ret = PREDICATE_INIT(PREDICATE_PROPERTY);
   ret.property.atom = prop;
   ret.property.predicate = pred;
+  return ret;
+}
+
+static inline Predicate
+predicate_member(JSValue obj) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_MEMBER);
+  ret.member.object = obj;
   return ret;
 }
 

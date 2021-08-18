@@ -48,6 +48,11 @@ predicate_is(JSValueConst value) {
   return !!JS_GetOpaque(value, js_predicate_class_id);
 }
 
+BOOL
+predicate_callable(JSContext* ctx, JSValueConst value) {
+  return predicate_is(value) || JS_IsFunction(ctx, value);
+}
+
 enum predicate_id
 predicate_id(JSValueConst value) {
   Predicate* pred;
@@ -251,29 +256,54 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_PROPERTY: {
-      int j = 0;
-      JSAtom prop = pr->property.atom;
-      JSValue obj = pr->property.predicate;
 
-      if(!prop && j < args->c)
-        prop = JS_ValueToAtom(ctx, js_arguments_shift(args));
+      //   JSValue prop = JS_AtomToValue(ctx, pr->property.atom);
 
-      if(js_is_falsish(obj) && j < args->c && JS_IsObject(args->v[j]))
-        obj = js_arguments_shift(args);
-
-      if(JS_GetOpaque(obj, js_predicate_class_id))
-        obj = predicate_value(ctx, obj, args);
-      else // if(JS_IsObject(ctx, obj))
-        obj = JS_DupValue(ctx, obj);
+      JSValue obj = js_arguments_shift(args);
 
       if(JS_IsObject(obj)) {
-        ret = JS_GetProperty(ctx, obj, prop);
+        ret = JS_GetProperty(ctx, obj, pr->property.atom);
+
+        if(!JS_IsUndefined(pr->property.predicate) && predicate_callable(ctx, pr->property.predicate)) {
+          JSValue result = predicate_call(ctx, pr->property.predicate, 1, &ret);
+          JS_FreeValue(ctx, ret);
+          ret = result;
+        }
 
       } else {
         ret = JS_ThrowTypeError(ctx, "target must be object, but is %s", js_value_typestr(ctx, obj));
       }
+
+      /*    JSValue obj = pr->property.predicate;
+
+          if(!prop && j < args->c)
+            prop = JS_ValueToAtom(ctx, js_arguments_shift(args));
+
+          if(js_is_falsish(obj) && j < args->c && JS_IsObject(args->v[j]))
+            obj = js_arguments_shift(args);
+
+          if(JS_GetOpaque(obj, js_predicate_class_id))
+            obj = predicate_value(ctx, obj, args);
+          else
+            obj = JS_DupValue(ctx, obj);
+
+         */
       break;
     }
+
+    case PREDICATE_MEMBER: {
+      JSValue obj = pr->member.object;
+      JSValue member = js_arguments_shift(args);
+      JSAtom atom = JS_ValueToAtom(ctx, member);
+      JS_FreeValue(ctx, member);
+
+      if(JS_HasProperty(ctx, obj, atom))
+        ret = JS_GetProperty(ctx, obj, atom);
+      else
+        ret = JS_UNDEFINED;
+      break;
+    }
+
     case PREDICATE_SHIFT: {
       int shift = min(args->c, pr->shift.n);
 
@@ -327,13 +357,14 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 const char*
 predicate_typename(const Predicate* pr) {
   return ((const char*[]){
-      "TYPE", "CHARSET", "STRING",     "NOTNOT",      "NOT",   "BNOT",     "SQRT",  "ADD", "SUB",
-      "MUL",  "DIV",     "MOD",        "BOR",         "BAND",  "POW",      "ATAN2", "OR",  "AND",
-      "XOR",  "REGEXP",  "INSTANCEOF", "PROTOTYPEIS", "EQUAL", "PROPERTY", "SHIFT", 0,
+      "TYPE", "CHARSET", "STRING",     "NOTNOT",      "NOT",   "BNOT",     "SQRT",   "ADD",   "SUB",
+      "MUL",  "DIV",     "MOD",        "BOR",         "BAND",  "POW",      "ATAN2",  "OR",    "AND",
+      "XOR",  "REGEXP",  "INSTANCEOF", "PROTOTYPEIS", "EQUAL", "PROPERTY", "MEMBER", "SHIFT", 0,
   })[pr->id];
 }
 
 void
+
 predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
   const char* type = predicate_typename(pr);
 
@@ -465,9 +496,17 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
     case PREDICATE_PROPERTY: {
       js_atom_dump(ctx, pr->property.atom, dbuf, TRUE);
-      dbuf_putc(dbuf, ' ');
 
-      js_value_dump(ctx, pr->property.predicate, dbuf);
+      if(!js_is_nullish(ctx, pr->property.predicate)) {
+        dbuf_putc(dbuf, ' ');
+
+        js_value_dump(ctx, pr->property.predicate, dbuf);
+      }
+      break;
+    }
+
+    case PREDICATE_MEMBER: {
+      js_value_dump(ctx, pr->member.object, dbuf);
       break;
     }
 
@@ -623,6 +662,13 @@ predicate_tosource(const Predicate* pred, JSContext* ctx, DynBuf* dbuf, Argument
       }
       break;
     }
+
+    case PREDICATE_PROPERTY: {
+      break;
+    }
+    case PREDICATE_MEMBER: {
+      break;
+    }
       /*
           case PREDICATE_REGEXP: {
             break;
@@ -712,6 +758,10 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
 
       break;
     }
+    case PREDICATE_MEMBER: {
+      JS_FreeValueRT(rt, pred->member.object);
+      break;
+    }
     case PREDICATE_SHIFT: {
       JS_FreeValueRT(rt, pred->shift.predicate);
       break;
@@ -757,9 +807,15 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
     }
 
     case PREDICATE_PROPERTY: {
-      ret = JS_DupValue(ctx, pred->property.predicate);
+      ret = JS_AtomToValue(ctx, pred->property.atom);
       break;
     }
+
+    case PREDICATE_MEMBER: {
+      ret = JS_DupValue(ctx, pred->member.object);
+      break;
+    }
+
     case PREDICATE_SHIFT: {
       ret = JS_DupValue(ctx, pred->shift.predicate);
       break;
@@ -830,6 +886,10 @@ predicate_clone(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_PROPERTY: {
       ret->property.atom = JS_DupAtom(ctx, pred->property.atom);
       ret->property.predicate = JS_DupValue(ctx, pred->property.predicate);
+      break;
+    }
+    case PREDICATE_MEMBER: {
+      ret->member.object = JS_DupValue(ctx, pred->member.object);
       break;
     }
     case PREDICATE_SHIFT: {
@@ -916,6 +976,10 @@ predicate_recursive_num_args(const Predicate* pred) {
 
       break;
     }
+    case PREDICATE_MEMBER: {
+      n++;
+      break;
+    }
     case PREDICATE_SHIFT: {
       n++;
       break;
@@ -967,6 +1031,9 @@ predicate_direct_num_args(const Predicate* pred) {
 
       return n;
     }
+    case PREDICATE_MEMBER: {
+      return 1;
+    }
     case PREDICATE_SHIFT: {
       return 1;
     }
@@ -1000,6 +1067,7 @@ predicate_precedence(const Predicate* pred) {
     case PREDICATE_AND: ret = PRECEDENCE_LOGICAL_AND; break;
     case PREDICATE_XOR: ret = PRECEDENCE_BITWISE_XOR; break;
     case PREDICATE_PROPERTY: ret = PRECEDENCE_MEMBER_ACCESS; break;
+    case PREDICATE_MEMBER: ret = PRECEDENCE_MEMBER_ACCESS; break;
   }
   assert(ret != -1);
   return ret;
