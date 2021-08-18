@@ -199,9 +199,12 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   dump(QJSM_SOURCES)
   add_executable(qjsm ${QJSM_SOURCES})
 
+  # dump(QJS_MODULES_STATIC)
   if(QJS_MODULES_STATIC)
     add_dependencies(qjsm ${QJS_MODULES_STATIC})
   endif(QJS_MODULES_STATIC)
+
+  # target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
 
   # target_link_libraries(qjs ${QUICKJS_LIBRARY})
   target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})

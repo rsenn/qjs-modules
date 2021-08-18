@@ -25,7 +25,6 @@ macro(find_quickjs)
     endif(QUICKJS_H)
   endif(NOT QUICKJS_PREFIX)
 
-  
   if(NOT "${CMAKE_SYSROOT}" STREQUAL "")
     string(REPLACE "${CMAKE_SYSROOT}" "" QUICKJS_INSTALL_DIR "${QUICKJS_PREFIX}")
   else(NOT "${CMAKE_SYSROOT}" STREQUAL "")
