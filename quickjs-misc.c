@@ -1403,6 +1403,9 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
   }
 
+  js_stringdecoder_init(ctx,m);
+  
+
   // printf("%s\n", js_opcodes[0].name);
 
   return 0;
