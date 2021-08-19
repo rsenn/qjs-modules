@@ -117,7 +117,7 @@ js_stringdecoder_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetPropertyFunctionList(ctx, stringdecoder_proto, js_stringdecoder_funcs, countof(js_stringdecoder_funcs));
     JS_SetClassProto(ctx, js_stringdecoder_class_id, stringdecoder_proto);
 
-    //js_set_inspect_method(ctx, stringdecoder_proto, js_stringdecoder_inspect);
+    // js_set_inspect_method(ctx, stringdecoder_proto, js_stringdecoder_inspect);
   }
 
   if(m) {
@@ -127,7 +127,7 @@ js_stringdecoder_init(JSContext* ctx, JSModuleDef* m) {
   return 0;
 }
 
-#if 0 //def JS_SHARED_LIBRARY
+#if 0 // def JS_SHARED_LIBRARY
 #define JS_INIT_MODULE js_init_module
 #else
 #define JS_INIT_MODULE js_init_module_stringdecoder

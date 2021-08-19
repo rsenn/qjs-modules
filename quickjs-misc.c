@@ -41,7 +41,7 @@ enum {
 typedef struct pcg_state_setseq_64 {
   uint64_t state, inc;
 } pcg32_random_t;
- 
+
 static pcg32_random_t pcg32_global = {0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL};
 
 static inline uint32_t
@@ -1403,8 +1403,7 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
   }
 
-  js_stringdecoder_init(ctx,m);
-  
+  js_stringdecoder_init(ctx, m);
 
   // printf("%s\n", js_opcodes[0].name);
 
