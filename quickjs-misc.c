@@ -2,9 +2,10 @@
 #define _GNU_SOURCE
 #endif
 
+#include <quickjs-libc.h>
 #include "quickjs-internal.h"
 #include "quickjs-location.h"
-#include "quickjs-libc.h"
+#include "quickjs-stringdecoder.h"
 #include "utils.h"
 #include "path.h"
 #include "base64.h"
@@ -40,7 +41,7 @@ enum {
 typedef struct pcg_state_setseq_64 {
   uint64_t state, inc;
 } pcg32_random_t;
-
+ 
 static pcg32_random_t pcg32_global = {0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL};
 
 static inline uint32_t
@@ -1374,6 +1375,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, 1),
     JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, 2),
     JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, 3),
+    //   JS_OBJECT_DEF("StringDecoder", js_stringdecoder_props, countof(js_stringdecoder_props), JS_PROP_CONFIGURABLE),
+
 };
 
 static int
