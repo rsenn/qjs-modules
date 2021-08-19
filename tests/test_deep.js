@@ -32,7 +32,7 @@ const inspectOptions = {
 
 function main(...args) {
   globalThis.console = new Console({ inspectOptions });
-console.options.compact=3;
+  console.options.compact = 3;
   // console.log('deep:', deep);
   /*  let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
 
@@ -111,10 +111,15 @@ console.options.compact=3;
   for(let [n, p] of deep.iterate(obj3, Predicate.property('4'), deep.RETURN_VALUE_PATH))
     console.log(`deep.iterate()`, { n, p });
 
-
   console.log('select():', deep.select(obj3, pred, deep.RETURN_VALUE_PATH));
-  console.log('select()2:', deep.select(obj3, (n,p) => typeof n == 'object', deep.RETURN_VALUE_PATH));
-  console.log('select()3:', deep.select(obj3, () => true, deep.RETURN_VALUE_PATH));
+  console.log(
+    'select()2:',
+    deep.select(obj3, (n, p) => typeof n == 'object', deep.RETURN_VALUE_PATH)
+  );
+  console.log(
+    'select()3:',
+    deep.select(obj3, () => true, deep.RETURN_VALUE_PATH)
+  );
   return;
 
   for(let o of [obj1, obj2]) {
