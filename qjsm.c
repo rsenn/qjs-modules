@@ -515,29 +515,24 @@ jsm_module_loader_so(JSContext* ctx, const char* module_name) {
 }
 
 JSModuleDef*
-jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
-  char *module, *filename = 0;
+jsm_module_loader_path(JSContext* ctx, const char* name, void* opaque) {
+  char *module, *file = 0;
   JSModuleDef* ret = NULL;
-  module = js_strdup(ctx, trim_dotslash(module_name));
+  module = js_strdup(ctx, trim_dotslash(name));
   for(;;) {
-
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
       goto end;
     }
     if(debug_module_loader) {
-      if(filename)
+      if(file)
         printf("jsm_module_loader_path[%x] \x1b[48;5;220m(2)\x1b[0m %-20s '%s'\n",
                pthread_self(),
-               trim_dotslash(module_name),
-               filename);
-      /*  else
-          printf("jsm_module_loader_path[%x] \x1b[48;5;124m(1)\x1b[0m %-20s -> %s\n",
-                 pthread_self(),
-                 trim_dotslash(module_name),
-                 trim_dotslash(module));*/
+               trim_dotslash(name),
+               file);
+      /*  else  printf("jsm_module_loader_path[%x] \x1b[48;5;124m(1)\x1b[0m %-20s -> %s\n", pthread_self(),
+       * trim_dotslash(name), trim_dotslash(module));*/
     }
-
-    if(!has_suffix(module_name, ".so") && !filename) {
+    if(!has_suffix(name, ".so") && !file) {
       JSValue package = jsm_load_package_json(ctx, 0);
       if(!JS_IsNull(package)) {
         JSValue aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
@@ -558,36 +553,29 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
         }
       }
     }
-
-    if(!filename) {
+    if(!file) {
       if(strchr("./", module[0]))
-        filename = js_strdup(ctx, module);
-      else if(!(filename = jsm_find_module(ctx, module)))
+        file = js_strdup(ctx, module);
+      else if(!(file = jsm_find_module(ctx, module)))
         break;
-
       continue;
     }
-
     break;
   }
-
-  if(filename) {
+  if(file) {
     if(debug_module_loader)
-      if(strcmp(trim_dotslash(module_name), trim_dotslash(filename)))
-        printf("jsm_module_loader_path[%x] \x1b[48;5;28m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, filename);
-    ret = has_suffix(filename, ".so") ? jsm_module_loader_so(ctx, filename) : js_module_loader(ctx, filename, opaque);
+      if(strcmp(trim_dotslash(name), trim_dotslash(file)))
+        printf("jsm_module_loader_path[%x] \x1b[48;5;28m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, file);
+    ret = has_suffix(file, ".so") ? jsm_module_loader_so(ctx, file) : js_module_loader(ctx, file, opaque);
   }
 end:
   if(vector_finds(&module_debug, "import") != -1) {
-    fprintf(stderr,
-            (!filename || strcmp(module, filename)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n",
-            module,
-            filename);
+    fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
   }
   if(module)
     js_free(ctx, module);
-  if(filename)
-    js_free(ctx, filename);
+  if(file)
+    js_free(ctx, file);
   return ret;
 }
 
