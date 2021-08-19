@@ -116,6 +116,8 @@ static Vector module_debug = VECTOR_INIT();
 static Vector module_list = VECTOR_INIT();
 static Vector builtins = VECTOR_INIT();
 
+JSValue package_json;
+
 static int64_t
 jsm_time_ms(void) {
   struct timespec ts;
@@ -240,21 +242,20 @@ jsm_handle_posted_message(JSRuntime* rt, JSContext* ctx, JSWorkerMessageHandler*
   }
   return ret;
 }
+
 static JSValue
 jsm_load_package_json(JSContext* ctx, const char* filename) {
-  uint8_t* buf;
-  size_t buf_len;
-  JSValue ret;
-
-  if(filename == 0)
-    filename = "package.json";
-
-  if(!(buf = js_load_file(ctx, &buf_len, filename)))
-    return JS_NULL;
-
-  ret = JS_ParseJSON(ctx, buf, buf_len, filename);
-
-  return ret;
+  if(JS_IsUndefined(package_json)) {
+    uint8_t* buf;
+    size_t buf_len;
+    if(filename == 0)
+      filename = "package.json";
+    if(!(buf = js_load_file(ctx, &buf_len, filename)))
+      package_json = JS_NULL;
+    else
+      package_json = JS_ParseJSON(ctx, buf, buf_len, filename);
+  }
+  return JS_DupValue(ctx, package_json);
 }
 
 static JSValue
@@ -519,14 +520,23 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   JSModuleDef* ret = NULL;
   module = js_strdup(ctx, trim_dotslash(module_name));
   for(;;) {
-    if(debug_module_loader)
-      printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(1)\x1b[0m %-20s -> %s\n",
-             pthread_self(),
-             trim_dotslash(module_name),
-             trim_dotslash(module));
+
     if(!strchr(module, '/') && (ret = jsm_module_find(ctx, module))) {
       goto end;
     }
+    if(debug_module_loader) {
+      if(filename)
+        printf("jsm_module_loader_path[%x] \x1b[48;5;220m(2)\x1b[0m %-20s '%s'\n",
+               pthread_self(),
+               trim_dotslash(module_name),
+               filename);
+      /*  else
+          printf("jsm_module_loader_path[%x] \x1b[48;5;124m(1)\x1b[0m %-20s -> %s\n",
+                 pthread_self(),
+                 trim_dotslash(module_name),
+                 trim_dotslash(module));*/
+    }
+
     if(!has_suffix(module_name, ".so") && !filename) {
       JSValue package = jsm_load_package_json(ctx, 0);
       if(!JS_IsNull(package)) {
@@ -553,8 +563,8 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
       if(strchr("./", module[0]))
         filename = js_strdup(ctx, module);
       else if(!(filename = jsm_find_module(ctx, module)))
-
         break;
+
       continue;
     }
 
@@ -564,7 +574,7 @@ jsm_module_loader_path(JSContext* ctx, const char* module_name, void* opaque) {
   if(filename) {
     if(debug_module_loader)
       if(strcmp(trim_dotslash(module_name), trim_dotslash(filename)))
-        printf("jsm_module_loader_path[%x] \x1b[1;48;5;124m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, filename);
+        printf("jsm_module_loader_path[%x] \x1b[48;5;28m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, filename);
     ret = has_suffix(filename, ".so") ? jsm_module_loader_so(ctx, filename) : js_module_loader(ctx, filename, opaque);
   }
 end:
@@ -1104,6 +1114,8 @@ main(int argc, char** argv) {
 #endif
   size_t stack_size = 0;
   const char* exename;
+
+  package_json = JS_UNDEFINED;
 
   init_list_head(&pollhandlers);
 
