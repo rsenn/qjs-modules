@@ -119,6 +119,20 @@ vector_shrink(Vector* vec, size_t elsz, int32_t len) {
   vec->size = need;
 }
 
+static inline BOOL
+vector_grow(Vector* vec, size_t elsz, int32_t len) {
+  uint64_t need;
+  if(len < 0)
+    return FALSE;
+  if(!umult64(elsz, len, &need))
+    return FALSE;
+  if(need <= vec->size)
+    return FALSE;
+  vec->data = realloc(vec->data, need);
+  vec->size = need;
+  return TRUE;
+}
+
 static inline void*
 vector_at(const Vector* vec, size_t elsz, int32_t pos) {
   uint64_t offs;

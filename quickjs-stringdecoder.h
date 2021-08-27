@@ -1,12 +1,11 @@
 #ifndef QUICKJS_STRING_DECODER_H
 #define QUICKJS_STRING_DECODER_H
 
-#include <quickjs.h>
-#include <cutils.h>
-#include "utils.h"
+#include <threads.h>
+#include "ringbuffer.h"
 
 typedef struct string_decoder {
-  DynBuf input;
+  RingBuffer buffer;
 } StringDecoder;
 
 extern thread_local JSClassID js_stringdecoder_class_id;
