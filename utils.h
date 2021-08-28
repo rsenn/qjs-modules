@@ -82,7 +82,8 @@ typedef enum precedence {
 #define HIDDEN __attribute__((visibility("hidden")))
 #endif
 
-#define max_num(a, b) ((a) > (b) ? (a) : (b))
+#define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
+#define MIN_NUM(a, b) ((a) < (b) ? (a) : (b))
 
 #define is_control_char(c)                                                                                             \
   ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
@@ -758,10 +759,10 @@ JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
 
 typedef struct InputBuffer {
   uint8_t* data;
-  size_t pos;
-  size_t size;
+  size_t pos, size;
   void (*free)(JSContext*, const char*, JSValue);
   JSValue value;
+  uint32_t offset, length;
 } InputBuffer;
 
 static inline void
@@ -775,22 +776,23 @@ InputBuffer input_buffer_clone(const InputBuffer* in, JSContext* ctx);
 BOOL input_buffer_valid(const InputBuffer* in);
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
+
+static inline uint8_t*
+input_buffer_data(InputBuffer* in) {
+  return in->data + in->offset;
+}
+
+static inline size_t
+input_buffer_length(InputBuffer* in) {
+  return MIN_NUM(in->length, in->size);
+}
+
 const uint8_t* input_buffer_get(InputBuffer* in, size_t* lenp);
 const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
 const char* input_buffer_currentline(InputBuffer*, size_t* len);
 size_t input_buffer_column(InputBuffer*, size_t* len);
 
-static inline int
-input_buffer_peekc(InputBuffer* in, size_t* lenp) {
-  const uint8_t *pos, *end, *next;
-  int cp;
-  pos = in->data + in->pos;
-  end = in->data + in->size;
-  cp = unicode_from_utf8(pos, end - pos, &next);
-  if(lenp)
-    *lenp = next - pos;
-  return cp;
-}
+int input_buffer_peekc(InputBuffer* in, size_t* lenp);
 
 static inline int
 input_buffer_getc(InputBuffer* in) {
@@ -803,19 +805,19 @@ input_buffer_getc(InputBuffer* in) {
 
 static inline const uint8_t*
 input_buffer_begin(const InputBuffer* in) {
-  return in->data;
+  return input_buffer_data(in);
 }
 static inline const uint8_t*
 input_buffer_end(const InputBuffer* in) {
-  return in->data + in->size;
+  return input_buffer_data(in) + input_buffer_length(in);
 }
 static inline BOOL
 input_buffer_eof(const InputBuffer* in) {
-  return in->pos == in->size;
+  return in->pos == input_buffer_length(in);
 }
 static inline size_t
 input_buffer_remain(const InputBuffer* in) {
-  return in->size - in->pos;
+  return input_buffer_length(in) - in->pos;
 }
 
 char* js_cstring_dup(JSContext* ctx, const char* str);
@@ -1139,6 +1141,7 @@ BOOL js_is_set(JSContext*, JSValue);
 BOOL js_is_generator(JSContext*, JSValue);
 BOOL js_is_regexp(JSContext*, JSValue);
 BOOL js_is_promise(JSContext*, JSValue);
+BOOL js_is_dataview(JSContext*, JSValue);
 
 static inline BOOL
 js_is_null_or_undefined(JSValueConst value) {

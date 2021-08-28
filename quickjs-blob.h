@@ -18,10 +18,21 @@ typedef union blob {
 
 extern thread_local JSClassID js_blob_class_id;
 
-Blob* js_blob_data(JSContext* ctx, JSValue value);
-JSValue js_blob_constructor(JSContext* ctx, JSValue new_target, int argc, JSValue argv[]);
-void js_blob_finalizer(JSRuntime* rt, JSValue val);
-int js_blob_init(JSContext* ctx, JSModuleDef* m);
-JSModuleDef* js_init_module_blob(JSContext* ctx, const char* module_name);
+Blob* js_blob_data(JSContext*, JSValue value);
+JSValue js_blob_wrap(JSContext*, Blob* blob);
+JSValue js_blob_new(JSContext*, const void* x, size_t len, const char* type);
+JSValue js_blob_constructor(JSContext*, JSValue new_target, int argc, JSValue argv[]);
+void js_blob_finalizer(JSRuntime*, JSValue val);
+int js_blob_init(JSContext*, JSModuleDef* m);
+
+static inline void*
+blob_data(Blob* blob) {
+  return blob->data;
+}
+
+static inline size_t
+blob_size(Blob* blob) {
+  return blob->size;
+}
 
 #endif /* defined(QUICKJS_BLOB_H) */

@@ -30,6 +30,32 @@ blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
   return blob;
 }
 
+static ssize_t
+blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
+  uint8_t* ptr;
+  if((ptr = vector_put(&blob->vec, x, len)))
+    return len;
+  return -1;
+}
+
+static void
+blob_free(JSContext* ctx, Blob* blob) {
+  vector_free(&blob->vec);
+  js_free(ctx, blob);
+}
+
+static void
+blob_free_rt(JSRuntime* rt, Blob* blob) {
+  vector_free(&blob->vec);
+  js_free_rt(rt, blob);
+}
+
+static InputBuffer
+blob_input(JSContext* ctx, Blob* blob) {
+  InputBuffer ret = {blob->data, 0, blob->size, &input_buffer_free_default, JS_UNDEFINED, 0, INT64_MAX};
+  return ret;
+}
+
 static void
 js_blob_free_func(JSRuntime* rt, void* opaque, void* ptr) {
   // js_free_rt(rt, ptr);
@@ -79,22 +105,6 @@ js_blob_get(JSContext* ctx, JSValueConst this_val, int magic) {
   }
   return ret;
 }
-/*
-static JSValue
-js_blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
-  Blob* blob = blob_new(ctx, x, len, type);
-  return js_blob_wrap(ctx, blob);
-}
-*/
-static JSValue
-js_blob_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  Blob* blob;
-  JSValue ret = JS_UNDEFINED;
-  if(!(blob = js_blob_data(ctx, this_val)))
-    return ret;
-  switch(magic) {}
-  return ret;
-}
 
 JSValue
 js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
@@ -123,31 +133,31 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
 
   {
     uint8_t* ptr;
-    size_t byte_length = 0, byte_offset = 0;
+    size_t size = 0, offs = 0;
     blob->type = 0;
 
     if(argc >= 1) {
       uint32_t i, len = js_array_length(ctx, argv[0]);
-      InputBuffer* inputs = js_malloc(ctx, sizeof(InputBuffer) * len);
+      InputBuffer* parts = js_malloc(ctx, sizeof(InputBuffer) * len);
 
       for(i = 0; i < len; i++) {
+        Blob* other;
         JSValue item = JS_GetPropertyUint32(ctx, argv[0], i);
-        inputs[i] = js_input_buffer(ctx, item);
-
-        byte_length += inputs[i].size;
-        //        vector_put(&blob->vec, in.data, in.size);
-
-        //      input_buffer_free(&in, ctx);
+        parts[i] = (other = js_blob_data(ctx, item)) ? blob_input(ctx, other) : js_input_buffer(ctx, item);
+        size += parts[i].size;
         JS_FreeValue(ctx, item);
       }
 
-      vector_allocate(&blob->vec, 1, byte_length - 1);
-
-      ptr = vector_begin(&blob->vec);
       for(i = 0; i < len; i++) {
-        memcpy(ptr + byte_offset, inputs[i].data, inputs[i].size);
-        byte_offset += inputs[i].size;
+        if(blob_write(ctx, blob, input_buffer_data(&parts[i]), input_buffer_length(&parts[i])) == -1) {
+          while(i < len) input_buffer_free(&parts[i++], ctx);
+          blob_free(ctx, blob);
+          return JS_ThrowInternalError(ctx, "blob_write returned -1");
+        }
+
+        input_buffer_free(&parts[i], ctx);
       }
+      js_free(ctx, parts);
     }
 
     if(argc >= 2 && JS_IsObject(argv[1])) {
@@ -184,6 +194,29 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_arraybuffer_fromvalue(ctx, blob->data, blob->size, this_val);
       break;
     }
+    case BLOB_SLICE: {
+      int32_t start = 0, end = INT32_MAX;
+
+      if(argc >= 1)
+        JS_ToInt32(ctx, &start, argv[0]);
+      if(argc >= 2)
+        JS_ToInt32(ctx, &end, argv[1]);
+      if(start < 0)
+        start = blob->size + (start % blob->size);
+      if(end < 0)
+        end = blob->size + (end % (int64_t)blob->size);
+      if(start > blob->size)
+        start = blob->size;
+      if(end > blob->size)
+        end = blob->size;
+
+      ret = js_blob_new(ctx, &blob->data[start], end - start, blob->type);
+      break;
+    }
+    case BLOB_STREAM: {
+      ret = JS_UNDEFINED;
+      break;
+    }
     case BLOB_TEXT: {
       ret = JS_NewStringLen(ctx, blob->data, blob->size);
       break;
@@ -192,14 +225,24 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
+static JSValue
+js_blob_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  Blob* blob;
+
+  if(!(blob = js_blob_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  JSValue obj = JS_NewObjectProto(ctx, blob_proto);
+  JS_DefinePropertyValueStr(ctx, obj, "size", JS_NewUint32(ctx, blob->size), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, blob->type), JS_PROP_ENUMERABLE);
+  return obj;
+}
+
 void
 js_blob_finalizer(JSRuntime* rt, JSValue val) {
   Blob* blob = JS_GetOpaque(val, js_blob_class_id);
   if(blob) {
-    vector_free(&blob->vec);
-
-    js_free_rt(rt, blob->type);
-    js_free_rt(rt, blob);
+    blob_free_rt(rt, blob);
   }
   JS_FreeValueRT(rt, val);
 }
@@ -232,7 +275,7 @@ js_blob_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetPropertyFunctionList(ctx, blob_proto, js_blob_funcs, countof(js_blob_funcs));
     JS_SetClassProto(ctx, js_blob_class_id, blob_proto);
 
-    // js_set_inspect_method(ctx, blob_proto, js_blob_inspect);
+    js_set_inspect_method(ctx, blob_proto, js_blob_inspect);
   }
 
   if(m) {
