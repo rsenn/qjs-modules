@@ -254,31 +254,26 @@ js_arraybuffer_free_func(JSRuntime* rt, void* opaque, void* ptr) {
   JS_FreeValueRT(rt, value);
 }
 
-typedef struct OffsetLength {
-  int64_t offset;
-  int64_t length;
-} OffsetLength;
-
 static OffsetLength
-get_offset_length(JSContext* ctx, int64_t len, int argc, JSValueConst argv[]) {
-  int64_t offset = 0, length = len;
+get_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[]) {
+  int64_t off = 0, len = size;
 
   if(argc >= 2 && JS_IsNumber(argv[1]))
-    JS_ToInt64(ctx, &offset, argv[1]);
+    JS_ToInt64(ctx, &off, argv[1]);
   if(argc >= 3 && JS_IsNumber(argv[2]))
-    JS_ToInt64(ctx, &length, argv[2]);
+    JS_ToInt64(ctx, &len, argv[2]);
 
-  if(offset >= 0)
-    offset = min(offset, len);
+  if(off >= 0)
+    off = min(off, size);
   else
-    offset = ((offset % len) + offset) % len;
+    off = ((off % size) + off) % size;
 
-  if(length >= 0)
-    length = min(length, len - offset);
+  if(len >= 0)
+    len = min(len, size - off);
   else
-    length = len - offset;
+    len = size - off;
 
-  return (OffsetLength){.offset = offset, .length = length};
+  return (OffsetLength){off, len};
 }
 
 thread_local VISIBLE JSClassID js_syscallerror_class_id = 0;
@@ -573,16 +568,25 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 static JSValue
 js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
+  MemoryBlock b;
+  OffsetLength o = get_offset_length(ctx, INT64_MAX, argc, argv);
+  JSFreeArrayBufferDataFunc* f;
+  void* opaque;
 
-  if(JS_IsString(argv[0])) {
-    JSValueConst value = argv[0]; // JS_DupValue(ctx, argv[0]);
-    size_t len;
-    const char* str;
-    if((str = JS_ToCStringLen(ctx, &len, value))) {
-      OffsetLength ol;
-      ol = get_offset_length(ctx, len, argc, argv);
-      ret = JS_NewArrayBuffer(ctx, (uint8_t*)str + ol.offset, ol.length, js_string_free_func, (void*)str, FALSE);
-    }
+  /*  if(JS_IsString(argv[0])) {
+      JSValueConst value = argv[0]; // JS_DupValue(ctx, argv[0]);
+      b.base = JS_ToCStringLen(ctx, &b.size, value);
+      f = &js_string_free_func;
+      opaque = b.base;
+      ret =
+          JS_NewArrayBuffer(ctx, b.base + o.offset, MIN_NUM(b.size, o.length), js_string_free_func, (void*)b.base,
+    FALSE); } else*/
+  {
+    InputBuffer input = js_input_buffer(ctx, argv[0]);
+    b = input_buffer_block(&input);
+    //    b = block_range(&b, &input.range);
+    b = block_range(&b, &o);
+    ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
   }
 
   return ret;
@@ -1318,6 +1322,15 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   }
 }
 
+JSValue
+js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  DynBuf output;
+  js_dbuf_init(ctx, &output);
+  dbuf_put_escaped(&output, (const char*)input.data, input.size);
+  return dbuf_tostring_free(&output, ctx);
+}
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
@@ -1375,6 +1388,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, 1),
     JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, 2),
     JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, 3),
+    JS_CFUNC_DEF("escape", 1, js_misc_escape),
     //   JS_OBJECT_DEF("StringDecoder", js_stringdecoder_props, countof(js_stringdecoder_props), JS_PROP_CONFIGURABLE),
 
 };
@@ -1384,6 +1398,8 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
 
   if(!js_location_class_id)
     js_location_init(ctx, 0);
+  /* if(!js_stringdecoder_class_id)
+     js_stringdecoder_init(ctx, 0);*/
 
   JS_NewClassID(&js_syscallerror_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_syscallerror_class_id, &js_syscallerror_class);
@@ -1403,6 +1419,7 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
     JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
     JS_SetModuleExport(ctx, m, "Location", location_ctor);
+    // JS_SetModuleExport(ctx, m, "StringDecoder", stringdecoder_ctor);
   }
 
   // js_stringdecoder_init(ctx, m);
@@ -1427,5 +1444,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
   JS_AddModuleExport(ctx, m, "SyscallError");
   JS_AddModuleExport(ctx, m, "Location");
+  // JS_AddModuleExport(ctx, m, "StringDecoder");
   return m;
 }

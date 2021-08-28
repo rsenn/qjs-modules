@@ -13,7 +13,7 @@ thread_local JSValue blob_proto = {JS_TAG_UNDEFINED}, blob_ctor = {JS_TAG_UNDEFI
 enum { BLOB_SIZE, BLOB_TYPE };
 enum { BLOB_ARRAYBUFFER, BLOB_SLICE, BLOB_STREAM, BLOB_TEXT };
 
-static Blob*
+Blob*
 blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
   Blob* blob;
 
@@ -30,7 +30,7 @@ blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
   return blob;
 }
 
-static ssize_t
+ssize_t
 blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
   uint8_t* ptr;
   if((ptr = vector_put(&blob->vec, x, len)))
@@ -38,7 +38,7 @@ blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
   return -1;
 }
 
-static void
+void
 blob_free(JSContext* ctx, Blob* blob) {
   vector_free(&blob->vec);
   js_free(ctx, blob);
@@ -50,7 +50,7 @@ blob_free_rt(JSRuntime* rt, Blob* blob) {
   js_free_rt(rt, blob);
 }
 
-static InputBuffer
+InputBuffer
 blob_input(JSContext* ctx, Blob* blob) {
   InputBuffer ret = {blob->data, 0, blob->size, &input_buffer_free_default, JS_UNDEFINED, 0, INT64_MAX};
   return ret;
@@ -59,13 +59,6 @@ blob_input(JSContext* ctx, Blob* blob) {
 static void
 js_blob_free_func(JSRuntime* rt, void* opaque, void* ptr) {
   // js_free_rt(rt, ptr);
-}
-
-Blob*
-js_blob_data(JSContext* ctx, JSValueConst value) {
-  Blob* blob;
-  blob = JS_GetOpaque(value, js_blob_class_id);
-  return blob;
 }
 
 JSValue
@@ -106,7 +99,7 @@ js_blob_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-JSValue
+static JSValue
 js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
@@ -195,22 +188,31 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case BLOB_SLICE: {
-      int32_t start = 0, end = INT32_MAX;
+      int64_t n = blob->size, s = 0, e = INT64_MAX;
+      char* type = 0;
 
-      if(argc >= 1)
-        JS_ToInt32(ctx, &start, argv[0]);
-      if(argc >= 2)
-        JS_ToInt32(ctx, &end, argv[1]);
-      if(start < 0)
-        start = blob->size + (start % blob->size);
-      if(end < 0)
-        end = blob->size + (end % (int64_t)blob->size);
-      if(start > blob->size)
-        start = blob->size;
-      if(end > blob->size)
-        end = blob->size;
+      if(argc >= 1) {
+        JS_ToInt64(ctx, &s, argv[0]);
+        if(s < 0)
+          s = n + s % n;
+        else if(s > n)
+          s = n;
 
-      ret = js_blob_new(ctx, &blob->data[start], end - start, blob->type);
+        if(argc >= 2) {
+          JS_ToInt64(ctx, &e, argv[1]);
+          if(e < 0)
+            e = n + e % n;
+          else if(e > n)
+            e = n;
+
+          if(argc >= 3)
+            type = js_tostring(ctx, argv[2]);
+        }
+      }
+
+      ret = js_blob_new(ctx, &blob->data[s], e - s, type ? type : blob->type);
+      if(type)
+        js_free(ctx, type);
       break;
     }
     case BLOB_STREAM: {
@@ -238,7 +240,7 @@ js_blob_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return obj;
 }
 
-void
+static void
 js_blob_finalizer(JSRuntime* rt, JSValue val) {
   Blob* blob = JS_GetOpaque(val, js_blob_class_id);
   if(blob) {

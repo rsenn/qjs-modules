@@ -38,10 +38,10 @@ function main(...args) {
   console.log('blob.type', blob.type);
   console.log('blob.text()', blob.text());
   console.log('blob.arrayBuffer()', blob.arrayBuffer());
-  let sl = blob.slice(1, -1);
+  let sl = blob.slice(1, -10, 'text/plain');
   console.log('blob.slice(1)', sl);
   console.log('sl.arrayBuffer()', sl.arrayBuffer());
-  console.log('sl.text()', sl.text());
+  console.log('sl.text()', misc.escape(sl.text()));
   for(let i = 0; i < 4; i++) {}
 }
 

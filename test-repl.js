@@ -28,7 +28,9 @@ function LoadHistory(filename) {
     if(data) return data;
   };
 
-  return (parse() ?? []).filter(entry => (entry + '').trim() != '').map(entry => entry.replace(/\\n/g, '\n'));
+  return (parse() ?? [])
+    .filter(entry => (entry + '').trim() != '')
+    .map(entry => entry.replace(/\\n/g, '\n'));
 }
 
 function ReadJSON(filename) {

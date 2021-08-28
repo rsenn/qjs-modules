@@ -427,8 +427,10 @@ regexp_to_value(RegExp re, JSContext* ctx) {
 
 InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
-  InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED, 0, INT64_MAX};
+  InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED};
   int64_t offset = 0, length = INT64_MAX;
+
+  offset_init(&ret.range);
 
   if(js_is_typedarray(value) || js_is_dataview(ctx, value)) {
     JSValue arraybuf, byteoffs, bytelen;
@@ -454,20 +456,21 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
   } else if(JS_IsString(value)) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
     ret.value = js_cstring_value((const char*)ret.data);
+    ret.free = &input_buffer_free_default;
   } else {
     ret.value = JS_EXCEPTION;
     //    JS_ThrowTypeError(ctx, "Invalid type for input buffer");
   }
 
   if(offset < 0)
-    ret.offset = ret.size + offset % ret.size;
+    ret.range.offset = ret.size + offset % ret.size;
   else if(offset > ret.size)
-    ret.offset = ret.size;
+    ret.range.offset = ret.size;
   else
-    ret.offset = offset;
+    ret.range.offset = offset;
 
   if(length >= 0 && length < ret.size)
-    ret.length = length;
+    ret.range.length = length;
 
   return ret;
 }

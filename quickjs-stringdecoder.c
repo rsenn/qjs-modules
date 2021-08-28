@@ -11,6 +11,9 @@ thread_local VISIBLE JSClassID js_stringdecoder_class_id = 0;
 thread_local JSValue stringdecoder_proto = {JS_TAG_UNDEFINED}, stringdecoder_ctor = {JS_TAG_UNDEFINED};
 
 enum { STRINGDECODER_WRITE, STRINGDECODER_END };
+enum { STRINGDECODER_ENCODING, STRINGDECODER_BUFFERED };
+
+const char* const stringdecoder_encodings[] = {"unknown", "utf8", "utf16"};
 
 static size_t
 stringdecoder_try(const void* in, size_t len) {
@@ -54,34 +57,26 @@ stringdecoder_read(StringDecoder* sd, JSContext* ctx) {
   return ret;
 }
 
-StringDecoder*
-js_stringdecoder_data(JSContext* ctx, JSValueConst value) {
-  StringDecoder* dec;
-  dec = JS_GetOpaque(value, js_stringdecoder_class_id);
-  return dec;
-}
-
 static JSValue
 js_stringdecoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
   StringDecoder* dec;
   JSValue ret = JS_UNDEFINED;
   if(!(dec = js_stringdecoder_data(ctx, this_val)))
     return ret;
-  switch(magic) {}
+  switch(magic) {
+    case STRINGDECODER_ENCODING: {
+      ret = JS_NewString(ctx, dec->encoding == UTF8 ? "utf-8" : dec->encoding == UTF16 ? "utf-16" : "unknown");
+      break;
+    }
+    case STRINGDECODER_BUFFERED: {
+      ret = JS_NewUint32(ctx, ringbuffer_length(&dec->buffer));
+      break;
+    }
+  }
   return ret;
 }
 
 static JSValue
-js_stringdecoder_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  StringDecoder* dec;
-  JSValue ret = JS_UNDEFINED;
-  if(!(dec = js_stringdecoder_data(ctx, this_val)))
-    return ret;
-  switch(magic) {}
-  return ret;
-}
-
-JSValue
 js_stringdecoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
@@ -106,6 +101,20 @@ js_stringdecoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
 
   ringbuffer_init(&dec->buffer, ctx);
 
+  if(argc >= 1) {
+    const char* encoding = JS_ToCString(ctx, argv[0]);
+
+    if(!strcasecmp(encoding, "utf16") || !strcasecmp(encoding, "utf-16"))
+      dec->encoding = UTF16;
+    else if(!strcasecmp(encoding, "utf8") || !strcasecmp(encoding, "utf-8"))
+      dec->encoding = UTF8;
+    else {
+      return JS_ThrowInternalError(ctx, "StringDecoder '%s' is invalid encoding", encoding);
+    }
+    JS_FreeCString(ctx, encoding);
+  } else {
+    dec->encoding = UTF8;
+  }
   JS_SetOpaque(obj, dec);
 
   return obj;
@@ -117,7 +126,7 @@ fail:
 }
 
 static JSValue
-js_stringdecoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_stringdecoder_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   StringDecoder* dec;
   JSValue ret = JS_UNDEFINED;
 
@@ -154,7 +163,22 @@ js_stringdecoder_method(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return ret;
 }
 
-void
+static JSValue
+js_stringdecoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  StringDecoder* dec;
+
+  if(!(dec = js_stringdecoder_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  JSValue obj = JS_NewObjectProto(ctx, stringdecoder_proto);
+  JS_DefinePropertyValueStr(
+      ctx, obj, "encoding", JS_NewString(ctx, stringdecoder_encodings[dec->encoding]), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(
+      ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&dec->buffer)), JS_PROP_ENUMERABLE);
+  return obj;
+}
+
+static void
 js_stringdecoder_finalizer(JSRuntime* rt, JSValue val) {
   StringDecoder* dec = JS_GetOpaque(val, js_stringdecoder_class_id);
   if(dec) {
@@ -170,8 +194,10 @@ static JSClassDef js_stringdecoder_class = {
 };
 
 static const JSCFunctionListEntry js_stringdecoder_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("write", 1, js_stringdecoder_method, STRINGDECODER_WRITE),
-    JS_CFUNC_MAGIC_DEF("end", 1, js_stringdecoder_method, STRINGDECODER_END),
+    JS_CFUNC_MAGIC_DEF("write", 1, js_stringdecoder_write, STRINGDECODER_WRITE),
+    JS_CFUNC_MAGIC_DEF("end", 1, js_stringdecoder_write, STRINGDECODER_END),
+    JS_CGETSET_ENUMERABLE_DEF("encoding", js_stringdecoder_get, 0, STRINGDECODER_ENCODING),
+    JS_CGETSET_ENUMERABLE_DEF("buffered", js_stringdecoder_get, 0, STRINGDECODER_BUFFERED),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StringDecoder", JS_PROP_CONFIGURABLE),
 };
 
