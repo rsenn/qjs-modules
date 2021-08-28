@@ -1,6 +1,11 @@
 #ifndef BUFFER_UTILS_H
 #define BUFFER_UTILS_H
 
+#include <quickjs.h>
+#include <cutils.h>
+#include "quickjs-internal.h"
+#include "utils.h"
+
 struct memory_block;
 struct pointer_range;
 struct offset_length;
