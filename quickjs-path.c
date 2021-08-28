@@ -4,6 +4,7 @@
 
 #include "cutils.h"
 #include "quickjs.h"
+#include "buffer-utils.h"
 
 #include <limits.h>
 #include <string.h>

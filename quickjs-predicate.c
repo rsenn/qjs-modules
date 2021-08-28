@@ -4,6 +4,7 @@
 
 #include "quickjs.h"
 #include "quickjs-predicate.h"
+#include "buffer-utils.h"
 
 thread_local VISIBLE JSClassID js_predicate_class_id = 0;
 thread_local JSValue predicate_proto = {JS_TAG_UNDEFINED}, predicate_ctor = {JS_TAG_UNDEFINED};

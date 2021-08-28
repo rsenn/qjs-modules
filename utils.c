@@ -34,7 +34,6 @@ time_us(void) {
 }
 #endif
 
-
 int
 regexp_flags_fromstring(const char* s) {
   int flags = 0;
@@ -126,7 +125,7 @@ regexp_to_value(RegExp re, JSContext* ctx) {
   JS_FreeValue(ctx, args[1]);
   return regex;
 }
- 
+
 int64_t
 js_array_length(JSContext* ctx, JSValueConst array) {
   int64_t len = -1;

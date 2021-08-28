@@ -82,16 +82,66 @@ typedef enum precedence {
 #define HIDDEN __attribute__((visibility("hidden")))
 #endif
 
+#ifndef MAX_NUM
 #define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
+#endif
+#ifndef MIN_NUM
 #define MIN_NUM(a, b) ((a) < (b) ? (a) : (b))
+#endif
 
-#define is_control_char(c)                                                                                             \
-  ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
-#define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
-#define is_digit_char(c) ((c) >= '0' && (c) <= '9')
-#define is_newline_char(c) ((c) == '\n')
-#define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
-#define is_whitespace_char(c) ((c) == ' ' || (c) == '\t' || (c) == '\v' || (c) == '\n' || (c) == '\r')
+#include "char-utils.h"
+
+static inline char*
+js_str_insert(char* s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {
+  size_t slen = strlen(s);
+  char* x;
+  if(!(x = js_malloc(ctx, slen + tlen + 1)))
+    return 0;
+  if(pos > 0)
+    memcpy(x, s, pos);
+  if(pos < slen)
+    memmove(&x[pos + tlen], &s[pos], slen - pos);
+  memcpy(&x[pos], t, tlen);
+  x[slen + tlen] = 0;
+  return x;
+}
+
+static inline char*
+js_str_append(char* s, JSContext* ctx, const char* t) {
+  return js_str_insert(s, ctx, strlen(s), t, strlen(t));
+}
+
+static inline char*
+js_str_prepend(char* s, JSContext* ctx, const char* t) {
+  return js_str_insert(s, ctx, 0, t, strlen(t));
+}
+
+static inline size_t
+str0_insert(char** s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {
+  size_t slen = strlen(*s);
+  char* x;
+  if(!(x = js_realloc(ctx, *s, slen + tlen + 1))) {
+    *s = 0;
+    return 0;
+  }
+  if(pos < slen)
+    memmove(&x[pos + tlen], &x[pos], slen - pos);
+  memcpy(&x[pos], t, tlen);
+  x[slen + tlen] = 0;
+  *s = x;
+  return slen + tlen;
+}
+
+static inline int
+js_str0_append(char** s, JSContext* ctx, const char* t) {
+  return str0_insert(s, ctx, strlen(*s), t, strlen(t));
+}
+
+static inline size_t
+js_str0_prepend(char** s, JSContext* ctx, const char* t) {
+  return str0_insert(s, ctx, 0, t, strlen(t));
+}
+
 
 typedef struct {
   BOOL done;
@@ -182,80 +232,6 @@ js_arguments_shiftn(JSArguments* args, uint32_t n) {
   return i;
 }
 
-static inline int
-escape_char_pred(int c) {
-  static const unsigned char table[256] = {
-      'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x',
-      'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x',  'x',  'x',  0,    0,    0,   0,   0,   0,   0,   0x27,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0x5c, 0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   'x', 0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0};
-
-  return table[(unsigned char)c];
-}
-
-static inline int
-unescape_char_pred(int c) {
-  switch(c) {
-    case 'b': return 8;
-    case 'f': return 12;
-    case 'n': return 10;
-    case 'r': return 13;
-    case 't': return 9;
-    case 'v': return 11;
-    case '\'': return 39;
-    case '\\': return 92;
-  }
-  return 0;
-}
-
-static inline int
-is_escape_char(int c) {
-  return is_control_char(c) || c == '\\' || c == '\'' || c == 0x1b || c == 0;
-}
-
-static inline int
-is_backslash_char(int c) {
-  return c == '\\';
-}
-
-//#define is_dot_char(c) ((c) == '.')0
-//#define is_backslash_char(c) ((c) == '\\')
-
-static inline int
-is_dot_char(int c) {
-  return c == '.';
-}
-
-static inline int
-is_identifier(const char* str) {
-  if(!((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z') || *str == '$'))
-    return 0;
-  while(*++str) {
-    if(!is_identifier_char(*str))
-      return 0;
-  }
-  return 1;
-}
-
-static inline int
-is_integer(const char* str) {
-  if(!(*str >= '1' && *str <= '9') && !(*str == '0' && str[1] == '\0'))
-    return 0;
-  while(*++str) {
-    if(!is_digit_char(*str))
-      return 0;
-  }
-  return 1;
-}
 
 static inline size_t
 min_size(size_t a, size_t b) {
@@ -286,205 +262,6 @@ mod_int32(int32_t a, int32_t b) {
   return (c < 0) ? c + b : c;
 }
 
-static inline size_t
-byte_count(const void* s, size_t n, char c) {
-  const uint8_t* t;
-  uint8_t ch = (uint8_t)c;
-  size_t count;
-  for(t = (uint8_t*)s, count = 0; n; ++t, --n) {
-    if(*t == ch)
-      ++count;
-  }
-  return count;
-}
-
-static inline size_t
-byte_chr(const char* str, size_t len, char c) {
-  const char *s, *t;
-  for(s = str, t = s + len; s < t; ++s)
-    if(*s == c)
-      break;
-  return s - str;
-}
-
-static inline size_t
-byte_rchr(const void* str, size_t len, char c) {
-  const char *s, *t;
-  for(s = (const char*)str, t = s + len; --t >= s;)
-    if(*t == c)
-      return (size_t)(t - s);
-  return len;
-}
-
-static inline size_t
-byte_chrs(const char* str, size_t len, const char needle[], size_t nl) {
-  const char *s, *t;
-  for(s = str, t = str + len; s != t; s++)
-    if(byte_chr(needle, nl, *s) < nl)
-      break;
-  return s - (const char*)str;
-}
-
-static inline size_t
-byte_charlen(const char* in, size_t len) {
-  const uint8_t *pos, *end, *next;
-  int cp;
-  pos = (const uint8_t*)in;
-  end = pos + len;
-  cp = unicode_from_utf8(pos, end - pos, &next);
-  return next - pos;
-}
-
-char* byte_escape(const char*, size_t n);
-
-static inline size_t
-str_chr(const char* in, char needle) {
-  const char* t = in;
-  const char c = needle;
-  for(;;) {
-    if(!*t || *t == c) {
-      break;
-    };
-    ++t;
-  }
-  return (size_t)(t - in);
-}
-
-static inline size_t
-str_chrs(const char* in, const char needles[], size_t nn) {
-  const char* t = in;
-  size_t i;
-  for(;;) {
-    if(!*t)
-      break;
-    for(i = 0; i < nn; i++)
-      if(*t == needles[i])
-        return (size_t)(t - in);
-    ++t;
-  }
-  return (size_t)(t - in);
-}
-
-static inline size_t
-str_rchr(const char* s, char needle) {
-  const char *in = s, *found = 0;
-  for(;;) {
-    if(!*in)
-      break;
-    if(*in == needle)
-      found = in;
-    ++in;
-  }
-  return (size_t)((found ? found : in) - s);
-}
-
-static inline size_t
-str_rchrs(const char* in, const char needles[], size_t nn) {
-  const char *s = in, *found = 0;
-  size_t i;
-  for(;;) {
-    if(!*s)
-      break;
-    for(i = 0; i < nn; ++i) {
-      if(*s == needles[i])
-        found = s;
-    }
-    ++s;
-  }
-  return (size_t)((found ? found : s) - in);
-}
-
-static inline int
-str_endb(const char* a, const char* x, size_t n) {
-  size_t alen = strlen(a);
-  a += alen - n;
-  return alen >= n && !memcmp(a, x, n);
-}
-
-/* str_ends returns 1 if the b is a suffix of a, 0 otherwise */
-static inline int
-str_ends(const char* a, const char* b) {
-  return str_endb(a, b, strlen(b));
-}
-
-#define str_contains(s, needle) (!!strchr((s), (needle)))
-
-static inline char*
-str_insert(char* s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {
-  size_t slen = strlen(s);
-  char* x;
-  if(!(x = js_malloc(ctx, slen + tlen + 1)))
-    return 0;
-  if(pos > 0)
-    memcpy(x, s, pos);
-  if(pos < slen)
-    memmove(&x[pos + tlen], &s[pos], slen - pos);
-  memcpy(&x[pos], t, tlen);
-  x[slen + tlen] = 0;
-  return x;
-}
-
-static inline char*
-str_append(char* s, JSContext* ctx, const char* t) {
-  return str_insert(s, ctx, strlen(s), t, strlen(t));
-}
-
-static inline char*
-str_prepend(char* s, JSContext* ctx, const char* t) {
-  return str_insert(s, ctx, 0, t, strlen(t));
-}
-char* str_escape(const char*);
-
-static inline size_t
-str_count(const char* s, char c) {
-  size_t i, count = 0;
-  for(i = 0; s[i]; i++)
-    if(s[i] == c)
-      ++count;
-  return count;
-}
-
-static inline size_t
-str_copy(char* out, const char* in) {
-  char* s;
-  for(s = out; (*s = *in); ++s) ++in;
-  return (size_t)(s - out);
-}
-
-static inline size_t
-str_copyn(char* out, const char* in, size_t n) {
-  char* s;
-  for(s = out; n-- && (*s = *in); ++s) ++in;
-  *s = '\0';
-  return (size_t)(s - out);
-}
-
-static inline size_t
-str0_insert(char** s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {
-  size_t slen = strlen(*s);
-  char* x;
-  if(!(x = js_realloc(ctx, *s, slen + tlen + 1))) {
-    *s = 0;
-    return 0;
-  }
-  if(pos < slen)
-    memmove(&x[pos + tlen], &x[pos], slen - pos);
-  memcpy(&x[pos], t, tlen);
-  x[slen + tlen] = 0;
-  *s = x;
-  return slen + tlen;
-}
-
-static inline int
-str0_append(char** s, JSContext* ctx, const char* t) {
-  return str0_insert(s, ctx, strlen(*s), t, strlen(t));
-}
-
-static inline size_t
-str0_prepend(char** s, JSContext* ctx, const char* t) {
-  return str0_insert(s, ctx, 0, t, strlen(t));
-}
-
 #define COLOR_RED "\x1b[31m"
 #define COLOR_GREEN "\x1b[32m"
 #define COLOR_YELLOW "\x1b[33m"
@@ -503,65 +280,10 @@ str0_prepend(char** s, JSContext* ctx, const char* t) {
 #define COLOR_LIGHTMARINE "\x1b[1;36m"
 #define COLOR_WHITE "\x1b[1;37m"
 
-size_t ansi_skip(const char* str, size_t len);
-size_t ansi_length(const char* str, size_t len);
-size_t ansi_truncate(const char* str, size_t len, size_t limit);
-
-static inline char*
-str_ndup(const char* s, size_t n) {
-  char* r = malloc(n + 1);
-  if(r == NULL)
-    return NULL;
-  memcpy(r, s, n);
-  r[n] = '\0';
-  return r;
-}
-
 uint64_t time_us(void);
 
-static inline size_t
-predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
-  size_t pos;
-  for(pos = 0; pos < len; pos++)
-    if(pred(str[pos]))
-      break;
-  return pos;
-}
-
-static inline size_t
-lookup_find(const char* str, size_t len, const char table[256]) {
-  size_t pos;
-  for(pos = 0; pos < len; pos++)
-    if(table[(unsigned char)str[pos]])
-      break;
-  return pos;
-}
-
-static inline char
-escape_char_letter(char c) {
-  switch(c) {
-    case '\0': return '0';
-    case '\a': return 'a';
-    case '\b': return 'b';
-    case '\t': return 't';
-    case '\n': return 'n';
-    case '\v': return 'v';
-    case '\f': return 'f';
-    case '\r': return 'r';
-    case '\\': return '\\';
-    case '\'': return '\'';
-  }
-  return 0;
-}
-
-size_t token_length(const char* str, size_t len, char delim);
 int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 #define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
-#define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
-void dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int));
-void dbuf_put_escaped_table(DynBuf*, const char* str, size_t len, const char table[256]);
-void dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int));
-void dbuf_put_escaped(DynBuf* db, const char* str, size_t len);
 
 static inline void
 js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
@@ -571,62 +293,6 @@ js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
 static inline void
 js_dbuf_init(JSContext* ctx, DynBuf* s) {
   dbuf_init2(s, ctx, (DynBufReallocFunc*)js_realloc);
-}
-
-void dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value);
-size_t dbuf_token_push(DynBuf* db, const char* str, size_t len, char delim);
-size_t dbuf_token_pop(DynBuf* db, char delim);
-
-static inline size_t
-dbuf_count(DynBuf* db, int ch) {
-  return byte_count(db->buf, db->size, ch);
-}
-
-static inline void
-dbuf_0(DynBuf* db) {
-  dbuf_putc(db, '\0');
-  db->size--;
-}
-
-static inline void
-dbuf_zero(DynBuf* db) {
-  dbuf_realloc(db, 0);
-}
-
-char* dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep);
-const char* dbuf_last_line(DynBuf* db, size_t* len);
-void dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color);
-int dbuf_reserve_start(DynBuf* s, size_t len);
-int dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len);
-ssize_t dbuf_load(DynBuf* s, const char* filename);
-JSValue dbuf_tostring_free(DynBuf* s, JSContext* ctx);
-
-static inline int32_t
-dbuf_get_column(DynBuf* db) {
-  size_t len;
-  const char* str;
-  if(db->size) {
-    str = dbuf_last_line(db, &len);
-    return ansi_length(str, len);
-  }
-  return 0;
-}
-
-static inline size_t
-dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
-  size_t i, n = 0;
-  for(i = 0; i < sizeof(bits) * 8; i++) {
-    if(bits & (1 << i)) {
-      size_t len = strlen(names[i]);
-      if(n) {
-        n++;
-        dbuf_putstr(db, "|");
-      }
-      dbuf_append(db, names[i], len);
-      n += len;
-    }
-  }
-  return n;
 }
 
 typedef struct {

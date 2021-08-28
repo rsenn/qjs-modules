@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include "location.h"
+#include "buffer-utils.h"
 
 void
 location_print(const Location* loc, DynBuf* dbuf) {

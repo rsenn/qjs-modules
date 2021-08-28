@@ -10,6 +10,7 @@
 #include "quickjs.h"
 #include "utils.h"
 #include "vector.h"
+#include "buffer-utils.h"
 
 #include <ctype.h>
 #include <math.h>

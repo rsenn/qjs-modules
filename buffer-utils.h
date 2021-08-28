@@ -6,6 +6,79 @@
 #include "quickjs-internal.h"
 #include "utils.h"
 
+#ifndef MAX_NUM
+#define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
+#endif
+#ifndef MIN_NUM
+#define MIN_NUM(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+size_t ansi_length(const char*, size_t);
+size_t ansi_skip(const char*, size_t);
+size_t ansi_truncate(const char*, size_t, size_t limit);
+int64_t array_search(void*, size_t, size_t elsz, void* needle);
+char* str_escape(const char*);
+char* byte_escape(const char*, size_t);
+char* dbuf_at_n(const DynBuf*, size_t, size_t* n, char sep);
+const char* dbuf_last_line(DynBuf*, size_t*);
+int dbuf_prepend(DynBuf*, const uint8_t*, size_t len);
+void dbuf_put_colorstr(DynBuf*, const char*, const char* color, int with_color);
+void dbuf_put_escaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
+void dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const char table[256]);
+void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
+void dbuf_put_escaped(DynBuf*, const char*, size_t len);
+void dbuf_put_value(DynBuf*, JSContext*, JSValue value);
+int dbuf_reserve_start(DynBuf*, size_t);
+size_t dbuf_token_pop(DynBuf*, char);
+size_t dbuf_token_push(DynBuf*, const char*, size_t len, char delim);
+JSValue dbuf_tostring_free(DynBuf*, JSContext*);
+ssize_t dbuf_load(DynBuf*, const char*);
+
+#define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
+
+static inline size_t
+dbuf_count(DynBuf* db, int ch) {
+  return byte_count(db->buf, db->size, ch);
+}
+
+static inline void
+dbuf_0(DynBuf* db) {
+  dbuf_putc(db, '\0');
+  db->size--;
+}
+
+static inline void
+dbuf_zero(DynBuf* db) {
+  dbuf_realloc(db, 0);
+}
+static inline int32_t
+dbuf_get_column(DynBuf* db) {
+  size_t len;
+  const char* str;
+  if(db->size) {
+    str = dbuf_last_line(db, &len);
+    return ansi_length(str, len);
+  }
+  return 0;
+}
+
+static inline size_t
+dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
+  size_t i, n = 0;
+  for(i = 0; i < sizeof(bits) * 8; i++) {
+    if(bits & (1 << i)) {
+      size_t len = strlen(names[i]);
+      if(n) {
+        n++;
+        dbuf_putstr(db, "|");
+      }
+      dbuf_append(db, names[i], len);
+      n += len;
+    }
+  }
+  return n;
+}
+
 struct memory_block;
 struct pointer_range;
 struct offset_length;

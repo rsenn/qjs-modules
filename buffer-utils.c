@@ -1,3 +1,4 @@
+#include "char-utils.h"
 #include "buffer-utils.h"
 #include "utils.h"
 

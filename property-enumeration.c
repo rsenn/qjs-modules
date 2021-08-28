@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include "buffer-utils.h"
 
 int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {

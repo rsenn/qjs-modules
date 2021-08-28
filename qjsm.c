@@ -65,6 +65,7 @@ atomic_add_int(int* ptr, int v) {
 #include "vector.h"
 #include "quickjs-libc.h"
 #include "quickjs-internal.h"
+#include "buffer-utils.h"
 
 typedef struct pollhandler {
   struct pollfd pf;

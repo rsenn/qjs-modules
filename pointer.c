@@ -5,6 +5,7 @@
 #include "quickjs-pointer.h"
 #include "pointer.h"
 #include "utils.h"
+#include "buffer-utils.h"
 
 void
 pointer_reset(Pointer* ptr, JSContext* ctx) {

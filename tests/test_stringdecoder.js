@@ -24,9 +24,9 @@ function main(...args) {
   console.log('decoder', Object.getOwnPropertyNames(Object.getPrototypeOf(decoder)));
   console.log('decoder', decoder);
   console.log('decoder.encoding', decoder.encoding);
-  let u8 = new Uint8Array([0,10,65535,1024,100,200,300]);
+  let u8 = new Uint8Array([0, 10, 65535, 1024, 100, 200, 300]);
   console.log(`misc.toArrayBuffer('TEST\xc3', 0, 5) =`, misc.toArrayBuffer('TEST\xc3', 0, 5));
-  console.log(`misc.toArrayBuffer(u8) =`, misc.toArrayBuffer(u8, 1,-1));
+  console.log(`misc.toArrayBuffer(u8) =`, misc.toArrayBuffer(u8, 1, -1));
 
   for(let i = 0; i < 4; i++) {
     let buf = misc.toArrayBuffer('TEST\xc3', 0, 5); // new Uint8Array([...['T', 'E', 'S', 'T'].map(ch => ch.charCodeAt(0)), 0xc3]).buffer;
