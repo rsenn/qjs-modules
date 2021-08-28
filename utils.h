@@ -89,59 +89,7 @@ typedef enum precedence {
 #define MIN_NUM(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-#include "char-utils.h"
-
-static inline char*
-js_str_insert(char* s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {
-  size_t slen = strlen(s);
-  char* x;
-  if(!(x = js_malloc(ctx, slen + tlen + 1)))
-    return 0;
-  if(pos > 0)
-    memcpy(x, s, pos);
-  if(pos < slen)
-    memmove(&x[pos + tlen], &s[pos], slen - pos);
-  memcpy(&x[pos], t, tlen);
-  x[slen + tlen] = 0;
-  return x;
-}
-
-static inline char*
-js_str_append(char* s, JSContext* ctx, const char* t) {
-  return js_str_insert(s, ctx, strlen(s), t, strlen(t));
-}
-
-static inline char*
-js_str_prepend(char* s, JSContext* ctx, const char* t) {
-  return js_str_insert(s, ctx, 0, t, strlen(t));
-}
-
-static inline size_t
-str0_insert(char** s, JSContext* ctx, size_t pos, const char* t, size_t tlen) {
-  size_t slen = strlen(*s);
-  char* x;
-  if(!(x = js_realloc(ctx, *s, slen + tlen + 1))) {
-    *s = 0;
-    return 0;
-  }
-  if(pos < slen)
-    memmove(&x[pos + tlen], &x[pos], slen - pos);
-  memcpy(&x[pos], t, tlen);
-  x[slen + tlen] = 0;
-  *s = x;
-  return slen + tlen;
-}
-
-static inline int
-js_str0_append(char** s, JSContext* ctx, const char* t) {
-  return str0_insert(s, ctx, strlen(*s), t, strlen(t));
-}
-
-static inline size_t
-js_str0_prepend(char** s, JSContext* ctx, const char* t) {
-  return str0_insert(s, ctx, 0, t, strlen(t));
-}
-
+//#include "char-utils.h"
 
 typedef struct {
   BOOL done;

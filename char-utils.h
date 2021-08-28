@@ -3,7 +3,8 @@
 
 #include <cutils.h>
 
-#define is_control_char(c) ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
+#define is_control_char(c)                                                                                             \
+  ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_newline_char(c) ((c) == '\n')
@@ -280,4 +281,5 @@ escape_char_letter(char c) {
 }
 
 size_t token_length(const char* str, size_t len, char delim);
+
 #endif /* defined(CHAR_UTILS_H) */

@@ -4,7 +4,8 @@
 #include <quickjs.h>
 #include <cutils.h>
 #include "quickjs-internal.h"
-#include "utils.h"
+//#include "utils.h"
+#include "char-utils.h"
 
 #ifndef MAX_NUM
 #define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
