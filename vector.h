@@ -107,16 +107,17 @@ vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
   return vec->data + (uint32_t)pos * elsz;
 }
 
-static inline void
+static inline BOOL
 vector_shrink(Vector* vec, size_t elsz, int32_t len) {
   uint64_t need;
   if(len < 0)
-    return;
+    return FALSE;
   if(!umult64(elsz, len, &need))
-    return;
+    return FALSE;
   if(need > vec->size)
-    return;
+    return FALSE;
   vec->size = need;
+  return TRUE;
 }
 
 static inline BOOL

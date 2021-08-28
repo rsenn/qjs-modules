@@ -1382,7 +1382,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 static int
 js_misc_init(JSContext* ctx, JSModuleDef* m) {
 
-  js_location_init(ctx, m);
+  if(!js_location_class_id)
+    js_location_init(ctx, 0);
 
   JS_NewClassID(&js_syscallerror_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_syscallerror_class_id, &js_syscallerror_class);
@@ -1401,9 +1402,10 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
     // JS_SetModuleExportList(ctx, m, location_ctor);
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
     JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
+    JS_SetModuleExport(ctx, m, "Location", location_ctor);
   }
 
-  js_stringdecoder_init(ctx, m);
+  // js_stringdecoder_init(ctx, m);
 
   // printf("%s\n", js_opcodes[0].name);
 
@@ -1424,5 +1426,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     return NULL;
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
   JS_AddModuleExport(ctx, m, "SyscallError");
+  JS_AddModuleExport(ctx, m, "Location");
   return m;
 }

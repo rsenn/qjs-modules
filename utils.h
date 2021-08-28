@@ -1255,4 +1255,7 @@ int64_t js_date_gettime(JSContext*, JSValue arg);
 int64_t js_date_time(JSContext*, JSValue arg);
 struct timespec js_date_timespec(JSContext*, JSValue arg);
 
+void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
+JSValue js_arraybuffer_fromvalue(JSContext*, const void* x, size_t n, JSValue val);
+
 #endif /* defined(UTILS_H) */

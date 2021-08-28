@@ -201,6 +201,8 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
+  if(!JS_IsObject(proto))
+    proto = location_proto;
 
   loc.pos = -1;
 
@@ -360,12 +362,19 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Location", location_ctor);
+
+    const char* module_name = JS_AtomToCString(ctx, m->module_name);
+
+    if(!strcmp(module_name, "location"))
+      JS_SetModuleExport(ctx, m, "default", location_ctor);
+
+    JS_FreeCString(ctx, module_name);
   }
 
   return 0;
 }
 
-#if 0 // def JS_SHARED_LIBRARY
+#ifdef JS_LOCATION_MODULE
 #define JS_INIT_MODULE js_init_module
 #else
 #define JS_INIT_MODULE js_init_module_location
@@ -377,5 +386,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!(m = JS_NewCModule(ctx, module_name, &js_location_init)))
     return m;
   JS_AddModuleExport(ctx, m, "Location");
+
+  if(!strcmp(module_name, "location"))
+    JS_AddModuleExport(ctx, m, "default");
   return m;
 }

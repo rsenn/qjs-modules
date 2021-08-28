@@ -3,14 +3,14 @@
 
 #include "vector.h"
 
-typedef union RingBuffer {
+typedef union ringbuffer {
   struct {
     uint8_t* data;
     size_t size, capacity;
     BOOL error;
     DynBufReallocFunc* realloc_func;
     void* opaque;
-    volatile uint32_t rd, wr;
+    volatile uint32_t tail, head;
   };
   DynBuf dbuf;
   Vector vec;
@@ -22,8 +22,16 @@ typedef union RingBuffer {
     { 0, 0, 0, 0, &ringbuffer_default_realloc, 0 }                                                                     \
   }
 
-#define ringbuffer_init(rb, ctx) vector_init(&(rb)->vec, ctx)
-#define ringbuffer_init_rt(rb, rt) vector_init_rt(&(rb)->vec, rt)
+#define ringbuffer_init(rb, ctx)                                                                                       \
+  do {                                                                                                                 \
+    vector_init(&(rb)->vec, ctx);                                                                                      \
+    vector_allocate(&(rb)->vec, 1, 1023);                                                                              \
+  } while(0)
+#define ringbuffer_init_rt(rb, rt)                                                                                     \
+  do {                                                                                                                 \
+    vector_init_rt(&(rb)->vec, rt);                                                                                    \
+    vector_allocate(&(rb)->vec, 1, 1023);                                                                              \
+  } while(0)
 #define RINGBUFFER(ctx)                                                                                                \
   (RingBuffer) {                                                                                                       \
     { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx, 0, 0 }                                                         \
@@ -32,34 +40,49 @@ typedef union RingBuffer {
   (RingBuffer) {                                                                                                       \
     { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                                                             \
   }
-#define ringbuffer_begin(rb) vector_begin(&(rb)->vec)
-#define ringbuffer_end(rb) vector_end(&(rb)->vec)
-#define ringbuffer_allocate(rb, elsz, pos) vector_allocate(&(rb)->vec, elsz, pos)
-#define ringbuffer_shrink(rb, elsz, len) vector_shrink(&(rb)->vec, elsz, len)
+#define ringbuffer_free(rb) vector_free(&(rb)->vec)
+#define ringbuffer_begin(rb) &ringbuffer_tail(rb)
+#define ringbuffer_end(rb) &ringbuffer_head(rb)
+#define ringbuffer_head(rb) (rb)->data[(rb)->head]
+#define ringbuffer_tail(rb) (rb)->data[(rb)->tail]
 
-#define ringbuffer_empty(rb) ((rb)->rd == (rb)->wr)
-#define ringbuffer_full(rb) ((rb)->size == (rb)->wr - (rb)->rd)
+#define ringbuffer_empty(rb) ((rb)->tail == (rb)->head)
+#define ringbuffer_full(rb) ((rb)->size == (rb)->head - (rb)->tail)
+#define ringbuffer_wrapped(rb) ((rb)->head < (rb)->tail)
+#define ringbuffer_continuous(rb) ((rb)->head >= (rb)->tail)
 
 void ringbuffer_reset(RingBuffer*);
 void ringbuffer_queue(RingBuffer*, uint8_t data);
-uint8_t ringbuffer_dequeue(RingBuffer*, uint8_t* data);
+BOOL ringbuffer_dequeue(RingBuffer*, uint8_t* data);
 ssize_t ringbuffer_write(RingBuffer*, const void* x, size_t len);
 ssize_t ringbuffer_read(RingBuffer*, void* x, size_t len);
-uint8_t ringbuffer_peek(RingBuffer*, uint8_t* data, size_t index);
+uint8_t* ringbuffer_peek(RingBuffer*, size_t index);
 void ringbuffer_normalize(RingBuffer*);
-void ringbuffer_resize(RingBuffer*, size_t newsize);
+BOOL ringbuffer_resize(RingBuffer*, size_t);
+BOOL ringbuffer_allocate(RingBuffer*, size_t);
 
 static inline size_t
 ringbuffer_length(RingBuffer* rb) {
-  return ((rb->wr - rb->rd) % rb->size);
+  if(ringbuffer_continuous(rb))
+    return rb->head - rb->tail;
+
+  return (rb->size - rb->tail) + rb->head;
+}
+
+static inline size_t
+ringbuffer_continuous_length(RingBuffer* rb) {
+  if(ringbuffer_wrapped(rb))
+    return rb->size - rb->tail;
+
+  return ringbuffer_length(rb);
 }
 
 static inline uint32_t
 ringbuffer_avail(RingBuffer* rb) {
-  if(rb->wr > rb->rd)
-    return rb->wr - rb->rd;
+  /*if(ringbuffer_continuous(rb))
+    return rb->head - rb->tail;*/
 
-  return rb->size - rb->wr + rb->rd;
+  return rb->size - ringbuffer_length(rb);
 }
 
 #endif /* defined(RINGBUFFER_H) */

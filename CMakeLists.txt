@@ -18,7 +18,7 @@ if(NOT LibArchive_FOUND)
   message(ERROR "libarchive not found")
 endif(NOT LibArchive_FOUND)
 
-set(QUICKJS_MODULES archive bjson child-process deep gpio lexer misc mmap path pointer predicate repeater sockets inspect tree-walker xml)
+set(QUICKJS_MODULES archive bjson blob child-process deep gpio lexer location misc mmap path pointer predicate repeater stringdecoder sockets inspect tree-walker xml)
 
 if(EXISTS "${QUICKJS_H}")
 
@@ -38,8 +38,9 @@ set(lexer_SOURCES quickjs-lexer.h location.c location.h utils.c utils.h vector.c
 set(mmap_SOURCES utils.c utils.h)
 set(repeater_SOURCES utils.c utils.h)
 set(util_SOURCES utils.c utils.h quickjs-inspect.c)
-set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h)
-set(stringdecoder_SOURCES  quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h)
+set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h utils.c utils.h)
+set(blob_SOURCES  vector.c vector.h utils.c utils.h)
+set(stringdecoder_SOURCES  quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h utils.c utils.h)
 set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${location_SOURCES} ${stringdecoder_SOURCES})
 set(gpio_SOURCES gpio.c gpio.h)
 if(pigpio_LIBRARY)

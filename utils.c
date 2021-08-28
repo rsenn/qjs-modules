@@ -1793,3 +1793,21 @@ js_date_timespec(JSContext* ctx, JSValue arg) {
   ts.tv_nsec = (r - ts.tv_sec) * 1000000ull;
   return ts;
 }
+
+void
+js_arraybuffer_freevalue(JSRuntime* rt, void* opaque, void* ptr) {
+  JSValue* valptr = opaque;
+  JS_FreeValueRT(rt, *valptr);
+  js_free_rt(rt, opaque);
+}
+
+JSValue
+js_arraybuffer_fromvalue(JSContext* ctx, const void* x, size_t n, JSValueConst val) {
+  JSValue* valptr;
+  if(!(valptr = js_malloc(ctx, sizeof(JSValue*))))
+    return JS_ThrowOutOfMemory(ctx);
+
+  *valptr = JS_DupValue(ctx, val);
+
+  return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freevalue, valptr, FALSE);
+}
