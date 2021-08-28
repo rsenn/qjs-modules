@@ -5,6 +5,7 @@
 #include "predicate.h"
 #include "libregexp.h"
 #include "quickjs-predicate.h"
+#include "buffer-utils.h"
 
 #define max(left, right) ((left) > (right) ? (left) : (right))
 #define min(left, right) ((left) < (right) ? (left) : (right))

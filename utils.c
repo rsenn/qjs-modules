@@ -9,6 +9,7 @@
 #include "vector.h"
 #include "libregexp.h"
 #include "quickjs-internal.h"
+#include "buffer-utils.h"
 #include <time.h>
 #include <math.h>
 

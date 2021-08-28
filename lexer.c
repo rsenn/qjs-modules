@@ -6,6 +6,7 @@
 #include "location.h"
 #include "libregexp.h"
 #include <ctype.h>
+#include "buffer-utils.h"
 
 int
 lexer_state_findb(Lexer* lex, const char* state, size_t slen) {

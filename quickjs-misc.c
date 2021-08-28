@@ -12,6 +12,7 @@
 #include <time.h>
 #include <sys/utsname.h>
 #include <errno.h>
+#include "buffer-utils.h"
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define min(a, b) ((a) < (b) ? (a) : (b))

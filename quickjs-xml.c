@@ -7,6 +7,7 @@
 #include "quickjs.h"
 #include "utils.h"
 #include "vector.h"
+#include "buffer-utils.h"
 
 #include <stdint.h>
 

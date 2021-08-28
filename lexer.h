@@ -3,6 +3,7 @@
 
 #include "location.h"
 #include "vector.h"
+#include "buffer-utils.h"
 #include <string.h>
 
 typedef struct {
