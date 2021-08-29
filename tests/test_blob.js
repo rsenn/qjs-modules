@@ -8,29 +8,32 @@ import * as misc from 'misc';
 ('use math');
 
 function main(...args) {
-  globalThis.console = new Console({
+   globalThis.console = new Console({
     inspectOptions: {
       colors: true,
       depth: 8,
       maxStringLength: Infinity,
       maxArrayLength: 256,
       compact: 2,
-      showHidden: false
+      showHidden: false,
+      customInspect: false
     }
   });
   console.log('Blob', Blob);
 
-  let childBlob = new Blob(['\nx\ny\nz\n']);
-
+  //  let childBlob = new Blob(['\nx\ny\nz\n']);
   let blob = new Blob(
     [
       '<html></html>',
+      new Uint8Array([0xa]),
       new Uint8Array(misc.toArrayBuffer('BLAH blah BLAH'), 5, 4),
-      childBlob,
+      //childBlob,
       new DataView(misc.toArrayBuffer('TEST test TEST'), 5, 4)
     ],
     { type: 'text/html', endings: 'transparent' }
   );
+  console.log('blob', blob);
+
   console.log('blob', Object.getPrototypeOf(blob));
   console.log('blob', Object.getOwnPropertyNames(Object.getPrototypeOf(blob)));
   console.log('blob', blob);
@@ -38,11 +41,15 @@ function main(...args) {
   console.log('blob.type', blob.type);
   console.log('blob.text()', blob.text());
   console.log('blob.arrayBuffer()', blob.arrayBuffer());
-  let sl = blob.slice(1, -10, 'text/plain');
+  let sl = blob.slice(1, 14, 'text/plain');
   console.log('blob.slice(1)', sl);
   console.log('sl.arrayBuffer()', sl.arrayBuffer());
   console.log('sl.text()', misc.escape(sl.text()));
-  for(let i = 0; i < 4; i++) {}
+  let blobs = [];
+  for(let i = 0; i < 4; i++) {
+    sl = blobs[i] = new Blob([sl, misc.toArrayBuffer(`line #${i}\n`)]);
+    console.log(`sl[${i}]`, misc.escape(sl.text()));
+  }
 }
 
 try {

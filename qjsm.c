@@ -423,6 +423,7 @@ jsm_find_module(JSContext* ctx, const char* module_name) {
     ret = jsm_find_module_ext(ctx, module_name, ".js");
   return ret;
 }
+
 char*
 jsm_normalize_module(JSContext* ctx, const char* base_name, const char* name, void* opaque) {
   size_t p;
@@ -573,6 +574,8 @@ end:
   if(vector_finds(&module_debug, "import") != -1) {
     fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
   }
+  if(!ret)
+    printf("jsm_module_loader_path(\"%s\") = %p\n", name, ret);
   if(module)
     js_free(ctx, module);
   if(file)
@@ -600,13 +603,13 @@ jsm_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, int load_onl
 }
 
 static JSValue
-jsm_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename, int module) {
+jsm_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename, int flags) {
   JSValue val;
 
-  if(module) {
+  if(flags &JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set
        import.meta */
-    val = JS_Eval(ctx, buf, buf_len, filename, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    val = JS_Eval(ctx, buf, buf_len, filename, flags | JS_EVAL_FLAG_COMPILE_ONLY);
 
     if(JS_IsException(val)) {
       if(JS_IsNull(JS_GetRuntime(ctx)->current_exception)) {
@@ -620,15 +623,15 @@ jsm_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename,
       /*val =*/JS_EvalFunction(ctx, val);
     }
   } else {
-    val = JS_Eval(ctx, buf, buf_len, filename, module & (~(JS_EVAL_TYPE_MODULE)));
+    val = JS_Eval(ctx, buf, buf_len, filename, flags & (~(JS_EVAL_TYPE_MODULE)));
   }
 
   return val;
 }
 
 static int
-jsm_eval_str(JSContext* ctx, const char* str, const char* filename, int module) {
-  JSValue val = jsm_eval_buf(ctx, str, strlen(str), filename, module);
+jsm_eval_str(JSContext* ctx, const char* str, const char* filename, int flags) {
+  JSValue val = jsm_eval_buf(ctx, str, strlen(str), filename, flags);
   int32_t ret = -1;
 
   if(JS_IsNumber(val))
@@ -643,6 +646,7 @@ jsm_eval_file(JSContext* ctx, const char* filename, int module) {
   int eval_flags;
 
   if(!(buf = js_load_file(ctx, &buf_len, filename))) {
+    fprintf(stderr, "Failed loading '%s': %s\n", filename, strerror(errno));
     return JS_ThrowInternalError(ctx, "Failed loading '%s': %s", filename, strerror(errno));
     /* perror(filename);
      exit(1);*/
@@ -660,17 +664,18 @@ jsm_eval_file(JSContext* ctx, const char* filename, int module) {
 }
 
 static int
-jsm_load_script(JSContext* ctx, const char* filename, int module) {
+jsm_load_script(JSContext* ctx, const char* filename, BOOL module) {
   JSValue val;
   int32_t ret = 0;
   val = jsm_eval_file(ctx, filename, module);
   if(JS_IsException(val)) {
-    jsm_std_dump_error(ctx, JS_GetException(ctx));
+    jsm_dump_obj(ctx, stderr, val);
+    //jsm_std_dump_error(ctx, JS_GetException(ctx));
     return -1;
   }
   if(JS_IsNumber(val))
     JS_ToInt32(ctx, &ret, val);
-  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE)
+  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE && JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
     JS_FreeValue(ctx, val);
   return ret;
 }
@@ -682,7 +687,7 @@ jsm_load_module(JSContext* ctx, const char* name) {
   js_dbuf_init(ctx, &buf);
   dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
   dbuf_0(&buf);
-  jsm_eval_buf(ctx, buf.buf, buf.size, "<input>", TRUE);
+  jsm_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
 
   m = jsm_module_find(ctx, name);
 
@@ -1356,14 +1361,14 @@ main(int argc, char** argv) {
 
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
-      jsm_eval_str(ctx, str, "<input>", TRUE);
+      jsm_eval_str(ctx, str, "<input>", JS_EVAL_TYPE_MODULE);
     }
 
     JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
     if(load_std) {
       const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = std;\nglobalThis.os "
                         "= os;\nglobalThis.setTimeout = os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
-      jsm_eval_str(ctx, str, "<input>", TRUE);
+      jsm_eval_str(ctx, str, "<input>", JS_EVAL_TYPE_MODULE);
     }
 
     // jsm_list_modules(ctx);
@@ -1395,13 +1400,17 @@ main(int argc, char** argv) {
     } else {
       const char* filename;
       filename = argv[optind];
-      if(jsm_load_script(ctx, filename, module) == -1)
+      if(jsm_load_script(ctx, filename, module) == -1) {
+
+        jsm_dump_obj(ctx, stderr, JS_GetException(ctx));
+
         goto fail;
+      }
     }
     if(interactive) {
       const char* str = "import REPL from 'repl'; globalThis.repl = new REPL('qjsm').runSync();\n";
       jsm_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
-      jsm_eval_str(ctx, str, "<input>", TRUE);
+      jsm_eval_str(ctx, str, "<input>", JS_EVAL_TYPE_MODULE);
     }
 
     js_std_loop(ctx);

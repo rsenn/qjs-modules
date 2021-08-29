@@ -180,7 +180,6 @@ js_arguments_shiftn(JSArguments* args, uint32_t n) {
   return i;
 }
 
-
 static inline size_t
 min_size(size_t a, size_t b) {
   if(a < b)

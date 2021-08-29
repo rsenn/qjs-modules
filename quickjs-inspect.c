@@ -111,69 +111,74 @@ static void
 inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object) {
   JSValue value;
   value = JS_GetPropertyStr(ctx, object, "colors");
-  if(!JS_IsException(value) && !JS_IsUndefined(value))
+  if(!JS_IsException(value) && !JS_IsUndefined(value)) {
     opts->colors = JS_ToBool(ctx, value);
-  JS_FreeValue(ctx, value);
+    JS_FreeValue(ctx, value);
+  }
 
   value = JS_GetPropertyStr(ctx, object, "showHidden");
-  if(!JS_IsException(value) && !JS_IsUndefined(value))
+  if(!JS_IsException(value) && !JS_IsUndefined(value)) {
     opts->show_hidden = JS_ToBool(ctx, value);
-  JS_FreeValue(ctx, value);
-
+    JS_FreeValue(ctx, value);
+  }
   value = JS_GetPropertyStr(ctx, object, "customInspect");
-  if(!JS_IsException(value) && !JS_IsUndefined(value))
+  if(!JS_IsException(value) && !JS_IsUndefined(value)) {
     opts->custom_inspect = JS_ToBool(ctx, value);
-  JS_FreeValue(ctx, value);
+    JS_FreeValue(ctx, value);
+  }
 
   value = JS_GetPropertyStr(ctx, object, "showProxy");
-  if(!JS_IsException(value) && !JS_IsUndefined(value))
+  if(!JS_IsException(value) && !JS_IsUndefined(value)) {
     opts->show_proxy = JS_ToBool(ctx, value);
-  JS_FreeValue(ctx, value);
+    JS_FreeValue(ctx, value);
+  }
 
   value = JS_GetPropertyStr(ctx, object, "getters");
-  if(!JS_IsException(value) && !JS_IsUndefined(value))
+  if(!JS_IsException(value) && !JS_IsUndefined(value)) {
     opts->getters = JS_ToBool(ctx, value);
-  JS_FreeValue(ctx, value);
+    JS_FreeValue(ctx, value);
+  }
 
   value = JS_GetPropertyStr(ctx, object, "stringBreakNewline");
-  if(!JS_IsException(value) && !JS_IsUndefined(value))
+  if(!JS_IsException(value) && !JS_IsUndefined(value)) {
     opts->string_break_newline = JS_ToBool(ctx, value);
-  JS_FreeValue(ctx, value);
+    JS_FreeValue(ctx, value);
+  }
 
   value = JS_GetPropertyStr(ctx, object, "depth");
-  if(!JS_IsException(value) && !JS_IsUndefined(value)) {
-    if(isinf(JS_VALUE_GET_FLOAT64(value)))
+  if(!JS_IsUndefined(value) && !JS_IsException(value)) {
+    if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))
       opts->depth = INT32_MAX;
     else
       JS_ToInt32(ctx, &opts->depth, value);
     JS_FreeValue(ctx, value);
   }
   value = JS_GetPropertyStr(ctx, object, "maxArrayLength");
-  if(!JS_IsUndefined(value)) {
-    if(isinf(JS_VALUE_GET_FLOAT64(value)))
+  if(!JS_IsUndefined(value) && !JS_IsException(value)) {
+    if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))
       opts->max_array_length = INT32_MAX;
     else
       JS_ToInt32(ctx, &opts->max_array_length, value);
     JS_FreeValue(ctx, value);
   }
   value = JS_GetPropertyStr(ctx, object, "maxStringLength");
-  if(!JS_IsUndefined(value)) {
-    if(isinf(JS_VALUE_GET_FLOAT64(value)))
+  if(!JS_IsUndefined(value) && !JS_IsException(value)) {
+    if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))
       opts->max_string_length = INT32_MAX;
     else
       JS_ToInt32(ctx, &opts->max_string_length, value);
     JS_FreeValue(ctx, value);
   }
   value = JS_GetPropertyStr(ctx, object, "breakLength");
-  if(!JS_IsUndefined(value)) {
-    if(isinf(JS_VALUE_GET_FLOAT64(value)))
+  if(!JS_IsUndefined(value) && !JS_IsException(value)) {
+    if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))
       opts->break_length = INT32_MAX;
     else
       JS_ToInt32(ctx, &opts->break_length, value);
     JS_FreeValue(ctx, value);
   }
   value = JS_GetPropertyStr(ctx, object, "compact");
-  if(!JS_IsUndefined(value)) {
+  if(!JS_IsUndefined(value) && !JS_IsException(value)) {
     if(JS_VALUE_GET_TAG(value) == JS_TAG_BOOL && JS_VALUE_GET_BOOL(value) == 0)
       opts->compact = INT32_MIN;
     else if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))

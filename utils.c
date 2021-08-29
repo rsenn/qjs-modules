@@ -840,8 +840,14 @@ js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
 const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
-  const char* const* types = js_value_types();
-  return types[flag];
+  const char* const types[] = {
+      "UNDEFINED",     "NULL",         "BOOL",      "INT", "OBJECT",   "STRING", "SYMBOL", "BIG_FLOAT",
+      "BIG_INT",       "BIG_DECIMAL",  "FLOAT64",   "NAN", "FUNCTION", "ARRAY",  "MODULE", "FUNCTION_BYTECODE",
+      "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION",
+  };
+  if(flag >= 0 && flag < countof(types))
+    return types[flag];
+  return 0;
 }
 
 const char*
@@ -1404,7 +1410,7 @@ js_arraybuffer_freevalue(JSRuntime* rt, void* opaque, void* ptr) {
 JSValue
 js_arraybuffer_fromvalue(JSContext* ctx, const void* x, size_t n, JSValueConst val) {
   JSValue* valptr;
-  if(!(valptr = js_malloc(ctx, sizeof(JSValue*))))
+  if(!(valptr = js_malloc(ctx, sizeof(JSValue))))
     return JS_ThrowOutOfMemory(ctx);
 
   *valptr = JS_DupValue(ctx, val);

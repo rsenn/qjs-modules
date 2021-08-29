@@ -14,6 +14,15 @@ thread_local JSValue blob_proto = {JS_TAG_UNDEFINED}, blob_ctor = {JS_TAG_UNDEFI
 enum { BLOB_SIZE, BLOB_TYPE };
 enum { BLOB_ARRAYBUFFER, BLOB_SLICE, BLOB_STREAM, BLOB_TEXT };
 
+void
+blob_init(JSContext* ctx, Blob* blob, const void* x, size_t len, const char* type) {
+  blob->vec = VECTOR(ctx);
+  blob->type = type ? js_strdup(ctx, type) : 0;
+
+  if(x && len)
+    blob_write(ctx, blob, x, len);
+}
+
 Blob*
 blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
   Blob* blob;
@@ -21,13 +30,8 @@ blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
   if(!(blob = js_mallocz(ctx, sizeof(Blob))))
     return 0;
 
-  blob->vec = VECTOR(ctx);
-  if(x) {
-    vector_allocate(&blob->vec, 1, len - 1);
-    memcpy(blob->vec.data, x, len);
-  }
+  blob_init(ctx, blob, x, len, type);
 
-  blob->type = js_strdup(ctx, type);
   return blob;
 }
 
@@ -41,13 +45,15 @@ blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
 
 void
 blob_free(JSContext* ctx, Blob* blob) {
-  vector_free(&blob->vec);
+  if(blob->vec.data)
+    vector_free(&blob->vec);
   js_free(ctx, blob);
 }
 
 static void
 blob_free_rt(JSRuntime* rt, Blob* blob) {
-  vector_free(&blob->vec);
+  if(blob->vec.data)
+    vector_free(&blob->vec);
   js_free_rt(rt, blob);
 }
 
@@ -106,7 +112,7 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   JSValue proto;
   Blob* blob;
 
-  if(!(blob = js_mallocz(ctx, sizeof(Blob))))
+  if(!(blob = blob_new(ctx, 0, 0, 0)))
     return JS_ThrowOutOfMemory(ctx);
 
   /* using new_target to get the prototype is necessary when the
@@ -123,35 +129,39 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   if(JS_IsException(obj))
     goto fail;
 
-  blob->vec = VECTOR(ctx);
-
   {
     uint8_t* ptr;
     size_t size = 0, offs = 0;
     blob->type = 0;
 
     if(argc >= 1) {
-      uint32_t i, len = js_array_length(ctx, argv[0]);
-      InputBuffer* parts = js_malloc(ctx, sizeof(InputBuffer) * len);
+      if(js_is_array(ctx, argv[0])) {
+        uint32_t i, len = js_array_length(ctx, argv[0]);
+        InputBuffer* parts = js_malloc(ctx, sizeof(InputBuffer) * len);
 
-      for(i = 0; i < len; i++) {
-        Blob* other;
-        JSValue item = JS_GetPropertyUint32(ctx, argv[0], i);
-        parts[i] = (other = js_blob_data(ctx, item)) ? blob_input(ctx, other) : js_input_buffer(ctx, item);
-        size += parts[i].size;
-        JS_FreeValue(ctx, item);
-      }
-
-      for(i = 0; i < len; i++) {
-        if(blob_write(ctx, blob, input_buffer_data(&parts[i]), input_buffer_length(&parts[i])) == -1) {
-          while(i < len) input_buffer_free(&parts[i++], ctx);
-          blob_free(ctx, blob);
-          return JS_ThrowInternalError(ctx, "blob_write returned -1");
+        for(i = 0; i < len; i++) {
+          Blob* other;
+          JSValue item = JS_GetPropertyUint32(ctx, argv[0], i);
+          parts[i] = (other = js_blob_data(ctx, item)) ? blob_input(ctx, other) : js_input_buffer(ctx, item);
+          size += parts[i].size;
+          JS_FreeValue(ctx, item);
         }
 
-        input_buffer_free(&parts[i], ctx);
+        for(i = 0; i < len; i++) {
+          if(blob_write(ctx, blob, input_buffer_data(&parts[i]), input_buffer_length(&parts[i])) == -1) {
+            while(i < len) input_buffer_free(&parts[i++], ctx);
+            blob_free(ctx, blob);
+            js_free(ctx, parts);
+            return JS_ThrowInternalError(ctx, "blob_write returned -1");
+          }
+
+          input_buffer_free(&parts[i], ctx);
+        }
+        js_free(ctx, parts);
+      } else {
+        JS_ThrowInternalError(ctx, "argument 1 must be array");
+        goto fail;
       }
-      js_free(ctx, parts);
     }
 
     if(argc >= 2 && JS_IsObject(argv[1])) {
@@ -283,13 +293,13 @@ js_blob_init(JSContext* ctx, JSModuleDef* m) {
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Blob", blob_ctor);
+    /*
+        const char* module_name = JS_AtomToCString(ctx, m->module_name);
 
-    const char* module_name = JS_AtomToCString(ctx, m->module_name);
+        if(!strcmp(module_name, "blob"))
+          JS_SetModuleExport(ctx, m, "default", blob_ctor);
 
-    if(!strcmp(module_name, "blob"))
-      JS_SetModuleExport(ctx, m, "default", blob_ctor);
-
-    JS_FreeCString(ctx, module_name);
+        JS_FreeCString(ctx, module_name);*/
   }
 
   return 0;
@@ -307,7 +317,9 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!(m = JS_NewCModule(ctx, module_name, &js_blob_init)))
     return m;
   JS_AddModuleExport(ctx, m, "Blob");
-  if(!strcmp(module_name, "blob"))
-    JS_AddModuleExport(ctx, m, "default");
+
+  /* if(!strcmp(module_name, "blob"))
+     JS_AddModuleExport(ctx, m, "default");*/
+
   return m;
 }

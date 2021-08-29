@@ -43,7 +43,7 @@ umult64(uint64_t a, uint64_t b, uint64_t* c) {
 void
 vector_free(Vector* vec) {
   if(vec->data)
-    dbuf_free(&vec->dbuf);
+    vec->realloc_func(vec->opaque, vec->data, 0);
   vec->data = 0;
   vec->capacity = vec->size = 0;
 }
