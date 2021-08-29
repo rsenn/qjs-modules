@@ -3,8 +3,7 @@
 
 #include <quickjs.h>
 #include <cutils.h>
-#include "quickjs-internal.h"
-//#include "utils.h"
+//#include "quickjs-internal.h"
 #include "char-utils.h"
 
 #ifndef MAX_NUM
