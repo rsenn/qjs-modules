@@ -100,6 +100,8 @@ dbuf_last_line(DynBuf* db, size_t* len) {
 
   if((i = byte_rchr(db->buf, db->size, '\n')) < db->size)
     i++;
+  else
+    i = 0;
 
   if(len)
     *len = db->size - i;
@@ -332,7 +334,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
   } else if(JS_IsString(value)) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);
-    ret.value = js_cstring_value((const char*)ret.data);
+    ret.value = JS_DupValue(ctx, value);
     ret.free = &input_buffer_free_default;
   } else {
     ret.value = JS_EXCEPTION;

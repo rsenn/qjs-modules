@@ -860,8 +860,13 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
                                                               : "[Getter/Setter]",
                                 COLOR_MARINE,
                                 opts->colors);
-          } else
-            js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
+          } else {
+
+            if(JS_IsObject(desc.value) && js_object_tmpmark_isset(desc.value))
+              dbuf_putstr(buf, "\x1b[0;31m[Circular Reference]\x1b[0m");
+            else
+              js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
+          }
         }
         js_propertydescriptor_free(ctx, &desc);
         len++;

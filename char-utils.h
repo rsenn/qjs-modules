@@ -66,7 +66,7 @@ is_dot_char(int c) {
 
 static inline int
 is_identifier(const char* str) {
-  if(!((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z') || *str == '$'))
+  if(!((*str >= 'A' && *str <= 'Z') || (*str >= 'a' && *str <= 'z') || *str == '$' || *str == '_'))
     return 0;
   while(*++str) {
     if(!is_identifier_char(*str))

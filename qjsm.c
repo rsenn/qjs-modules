@@ -606,7 +606,7 @@ static JSValue
 jsm_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename, int flags) {
   JSValue val;
 
-  if(flags &JS_EVAL_TYPE_MODULE) {
+  if(flags & JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set
        import.meta */
     val = JS_Eval(ctx, buf, buf_len, filename, flags | JS_EVAL_FLAG_COMPILE_ONLY);
@@ -670,7 +670,7 @@ jsm_load_script(JSContext* ctx, const char* filename, BOOL module) {
   val = jsm_eval_file(ctx, filename, module);
   if(JS_IsException(val)) {
     jsm_dump_obj(ctx, stderr, val);
-    //jsm_std_dump_error(ctx, JS_GetException(ctx));
+    // jsm_std_dump_error(ctx, JS_GetException(ctx));
     return -1;
   }
   if(JS_IsNumber(val))

@@ -6,13 +6,8 @@ function main(...args) {
 
   console.log('format:', format);
   console.log('regexp:', /TEST/);
-  console.log('util:', inspect(util));
-  /* console.log('util.hasBuiltIn:', util.hasBuiltIn);
-  console.log(`util.hasBuiltIn({}, 'toString'):`, util.hasBuiltIn({}, 'toString'));
-  console.log(`util.hasBuiltIn(function(){}, 'toString'):`,
-    util.hasBuiltIn(function () {}, 'toString')
-  );
-  console.log('os:', inspect(os, { breakLength: 80 }));*/
+  //console.log('util:', inspect(util));
+
   console.log(format('%s %o\n', 'TEST', { x: 1, y: 2, z: 3 }));
 
   /*  let moduleExports = moduleList.map(module => getModuleObject(module));
