@@ -34,7 +34,7 @@ function(make_module FNAME)
   set(TARGET_NAME qjs-${NAME})
 
   if(ARGN)
-    set(SOURCES ${ARGN})
+    set(SOURCES ${ARGN} ${${VNAME}_SOURCES})
   else(ARGN)
     set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES})
   endif(ARGN)
