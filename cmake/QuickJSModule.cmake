@@ -34,12 +34,16 @@ function(make_module FNAME)
   set(TARGET_NAME qjs-${NAME})
 
   if(ARGN)
-    set(SOURCES ${ARGN})
+    set(SOURCES ${ARGN} ${${VNAME}_SOURCES})
   else(ARGN)
     set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES})
   endif(ARGN)
 
+<<<<<<< HEAD
   dump(VNAME ${VNAME}_SOURCES SOURCES)
+=======
+  dump(SOURCES)
+>>>>>>> ff9a754ccfd0354c85403774ae8f9e1b0def9201
   add_library(${TARGET_NAME} SHARED ${SOURCES})
   add_library(${TARGET_NAME}-static STATIC ${SOURCES})
 
