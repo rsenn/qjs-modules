@@ -161,7 +161,7 @@ foreach(JS_MODULE ${QUICKJS_MODULES})
   list(APPEND QJSM_LDADD "${QJSM_MODULE}.a")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
-dump(QJSM_LDADD QJSM_LIBDIR)
+##dump(QJSM_LDADD QJSM_LIBDIR)
 
 target_link_libraries(qjs-deep qjs-predicate)
 target_link_libraries(qjs-lexer qjs-predicate)
@@ -216,7 +216,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
     endif(QUICKJS_DEBUGGER)
   endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 
-  dump(QJSM_SOURCES)
+  ##dump(QJSM_SOURCES)
   add_executable(qjsm ${QJSM_SOURCES})
 
   # dump(QJS_MODULES_STATIC)
