@@ -39,7 +39,7 @@ function(make_module FNAME)
     set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES})
   endif(ARGN)
 
-  dump(SOURCES)
+  #dump(SOURCES)
   add_library(${TARGET_NAME} SHARED ${SOURCES})
   add_library(${TARGET_NAME}-static STATIC ${SOURCES})
 
