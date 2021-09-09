@@ -556,7 +556,7 @@ jsm_module_loader_path(JSContext* ctx, const char* name, void* opaque) {
       }
     }
     if(!file) {
-      if(strchr("./", module[0]))
+      if(strchr("./", name[0]))
         file = js_strdup(ctx, module);
       else if(!(file = jsm_find_module(ctx, module)))
         break;

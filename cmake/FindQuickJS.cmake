@@ -85,7 +85,7 @@ macro(find_quickjs)
     set(QUICKJS_INCLUDE_DIR "${QUICKJS_PREFIX}/include" CACHE STRING "QuickJS include dirs")
   endif(NOT QUICKJS_INCLUDE_DIR)]]
   if(EXISTS "${QUICKJS_PREFIX}/lib/quickjs")
-    set(QUICKJS_MODULE_DIR "${QUICKJS_PREFIX}/lib/quickjs")
+    set(QUICKJS_MODULE_DIR "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
   endif(EXISTS "${QUICKJS_PREFIX}/lib/quickjs")
 
   set(CMAKE_REQUIRED_INCLUDES "${QUICKJS_INCLUDE_DIR}")
