@@ -3,7 +3,7 @@
 
 #include "pointer.h"
 #include "utils.h"
-#include <threads.h>
+#include "utils.h"
 
 extern thread_local JSClassID js_pointer_class_id;
 

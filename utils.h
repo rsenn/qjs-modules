@@ -9,6 +9,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#if __STDC_VERSION__ >= 201112L
+#include <threads.h>
+#endif
 
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) & ((type*)0)->field)

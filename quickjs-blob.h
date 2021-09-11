@@ -1,7 +1,7 @@
 #ifndef QUICKJS_BLOB_H
 #define QUICKJS_BLOB_H
 
-#include <threads.h>
+#include "utils.h"
 #include "vector.h"
 #include "utils.h"
 #include "buffer-utils.h"

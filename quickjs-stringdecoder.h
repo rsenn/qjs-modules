@@ -1,7 +1,7 @@
 #ifndef QUICKJS_STRINGDECODER_H
 #define QUICKJS_STRINGDECODER_H
 
-#include <threads.h>
+#include "utils.h"
 #include "ringbuffer.h"
 
 typedef enum string_encoding { UNKNOWN = 0, UTF8, UTF16 } StringEncoding;
