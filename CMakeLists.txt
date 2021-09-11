@@ -41,7 +41,7 @@ if(EXISTS "${QUICKJS_H}")
 
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
-set(predicate_SOURCES predicate.c predicate.h quickjs-predicate.c quickjs-predicate.h utils.c utils.h)
+set(predicate_SOURCES predicate.c predicate.h utils.c utils.h)
 set(util_SOURCES utils.c utils.h char-utils.c char-utils.h buffer-utils.c buffer-utils.h)
 set(child_process_SOURCES child-process.c child-process.h property-enumeration.c property-enumeration.h ${util_SOURCES} vector.c vector.h qsort_r.c)
 set(deep_SOURCES vector.c vector.h pointer.c virtual-properties.c property-enumeration.c property-enumeration.h ${util_SOURCES} ${predicate_SOURCES} pointer.h virtual-properties.h qsort_r.c)
