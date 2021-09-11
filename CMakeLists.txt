@@ -124,6 +124,10 @@ if(HAVE_SPAWN_H)
   endif(HAVE_POSIX_SPAWNP)
 
 endif(HAVE_SPAWN_H)
+check_include_file(threads.h HAVE_THREADS_H)
+if(HAVE_THREADS_H)
+  add_definitions(-DHAVE_THREADS_H)
+endif(HAVE_THREADS_H)
 
 file(GLOB TESTS tests/test_*.js)
 

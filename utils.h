@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#if __STDC_VERSION__ >= 201112L
+#ifdef HAVE_THREADS_H
 #include <threads.h>
 #endif
 
@@ -21,7 +21,7 @@
 #define inrange(value, min, max) ((value) >= (min) && (value) <= (max))
 #endif
 
-#if defined(_Thread_local) || (defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201102L))
+#ifdef _Thread_local
 #define thread_local _Thread_local
 #elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__SUNPRO_CC) || defined(__IBMCPP__)
 #define thread_local __thread
