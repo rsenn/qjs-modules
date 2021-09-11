@@ -2,6 +2,8 @@ project(modules C)
 
 cmake_minimum_required(VERSION 3.2)
 
+set(CMAKE_C_STANDARD 11)
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
