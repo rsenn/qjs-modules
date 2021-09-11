@@ -99,7 +99,7 @@ macro(find_quickjs)
   endif(HAVE_QUICKJS_CONFIG_H)
 
   if(NOT HAVE_QUICKJS_H)
-    message(FATAL_ERROR "QuickJS headers not found in ${QUICKJS_INCLUDE_DIR}")
+    #message(FATAL_ERROR "QuickJS headers not found in ${QUICKJS_INCLUDE_DIR}")
   endif(NOT HAVE_QUICKJS_H)
 
   include_directories(${QUICKJS_INCLUDE_DIR})
