@@ -11,6 +11,12 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
 option(BUILD_LIBARCHIVE "Build archive library" OFF)
 option(BUILD_PIGPIO "Build pigpio library" OFF)
+option(DEBUG_OUTPUT  "Debug output" OFF)
+
+if(DEBUG_OUTPUT)
+  add_definitions(-DDEBUG_OUTPUT)
+endif(DEBUG_OUTPUT)
+
 
 find_quickjs()
 

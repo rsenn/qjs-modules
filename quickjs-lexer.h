@@ -19,6 +19,7 @@ typedef struct {
   Location loc;
   JSValue loc_val;
   Lexer* lexer;
+  uint64_t seq;
 } Token;
 
 extern thread_local JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;

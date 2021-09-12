@@ -255,6 +255,7 @@ enum token_getters {
   TOKEN_PROP_LEXEME,
   TOKEN_PROP_LOC,
   TOKEN_PROP_ID,
+  TOKEN_PROP_SEQ,
   TOKEN_PROP_TYPE,
   TOKEN_PROP_RULE
 };
@@ -386,6 +387,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   rule = lexer_rule_at(tok->lexer, tok->id);
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewUint32(ctx, tok->id), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, rule->name), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, tok->lexeme), JS_PROP_ENUMERABLE);
 
@@ -443,7 +445,11 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt32(ctx, tok->id);
       break;
     }
-    case TOKEN_PROP_RULE: {
+   case TOKEN_PROP_SEQ: {
+      ret = JS_NewUint32(ctx, tok->seq);
+      break;
+    }
+     case TOKEN_PROP_RULE: {
       LexerRule* rule = lexer_rule_at(tok->lexer, tok->id);
       ret = js_lexer_rule_new(ctx, tok->lexer, rule);
       break;
@@ -453,6 +459,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, rule->name);
       break;
     }
+
   }
   return ret;
 }
@@ -479,6 +486,7 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("charRange", js_token_get, NULL, TOKEN_PROP_CHARRANGE),
     JS_CGETSET_MAGIC_DEF("loc", js_token_get, NULL, TOKEN_PROP_LOC),
     JS_CGETSET_MAGIC_DEF("id", js_token_get, NULL, TOKEN_PROP_ID),
+    JS_CGETSET_MAGIC_DEF("seq", js_token_get, NULL, TOKEN_PROP_SEQ),
     JS_CGETSET_MAGIC_DEF("type", js_token_get, NULL, TOKEN_PROP_TYPE),
     JS_CGETSET_MAGIC_DEF("rule", js_token_get, NULL, TOKEN_PROP_RULE),
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
@@ -505,6 +513,7 @@ lexer_token(Lexer* lex, int id, size_t charlen, Location loc, JSContext* ctx) {
     tok->lexeme = js_strndup(ctx, (const char*)&lex->input.data[lex->start], tok->byte_length);
     tok->byte_offset = lex->start;
     tok->lexer = lex;
+    tok->seq = lex->seq;
   }
   return tok;
 }
@@ -841,6 +850,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         } else if((tok = js_token_data(ctx, argv[i]))) {
           lexer_set_location(lex, &tok->loc, ctx);
           lex->byte_length = tok->byte_length;
+          lex->seq = tok->seq;
           ret = JS_NewInt32(ctx, tok->id);
         } else if(JS_IsString(argv[i])) {
           size_t len;
