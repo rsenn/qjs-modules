@@ -204,9 +204,7 @@ function main(...args) {
 
   console.log(`took ${end - start}ms`);
   console.log('lexer.tokens', lexer.tokens);
-  console.log('lexer.rules', new Map(lexer.ruleNames.map(name => lexer.getRule(name)).map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])));
-  //console.log('lexer.pushState("JS")', lexer.pushState('JS'));
-  //  console.log(`lexer.stateStack`, lexer.stateStack);
+  // console.log('lexer.rules', new Map(lexer.ruleNames.map(name => lexer.getRule(name)).map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])));
   console.log(`lexer.topState()`, lexer.topState());
   console.log(`lexer.states `, lexer.states);
   //console.log(`tokens`, tokens.map((tok, i) => [i, tok]));

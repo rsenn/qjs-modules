@@ -23,16 +23,15 @@ enum { LEXER_EOF = -1, LEXER_ERROR_NOMATCH = -2, LEXER_ERROR_COMPILE = -3, LEXER
 
 typedef struct {
   enum lexer_mode mode;
-  size_t start;
-  size_t bytelen;
-  int32_t tokid;
-  int32_t state;
+  size_t start, byte_length;
+  int32_t token_id, state;
   InputBuffer input;
   Location loc;
   Vector defines;
   Vector rules;
   Vector states;
   Vector state_stack;
+  uint64_t seq;
 } Lexer;
 
 int lexer_state_findb(Lexer*, const char* state, size_t slen);

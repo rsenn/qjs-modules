@@ -40,7 +40,7 @@ lexer_state_new(Lexer* lex, const char* name, size_t len) {
 int
 lexer_state_push(Lexer* lex, const char* state) {
   int32_t id;
-  //printf("lexer_state_push(%zu): %s\n", vector_size(&lex->state_stack, sizeof(int32_t)), state);
+  printf("lexer_state_push(%zu): %s\n", vector_size(&lex->state_stack, sizeof(int32_t)), state);
   if((id = lexer_state_findb(lex, state, strlen(state))) >= 0) {
     vector_push(&lex->state_stack, lex->state);
     lex->state = id;
@@ -52,11 +52,15 @@ lexer_state_push(Lexer* lex, const char* state) {
 int
 lexer_state_pop(Lexer* lex) {
   int32_t id;
-  assert(!vector_empty(&lex->state_stack));
+  size_t n = vector_size(&lex->state_stack, sizeof(int32_t)) - 1;
   id = lex->state;
-  lex->state = *(int32_t*)vector_back(&lex->state_stack, sizeof(int32_t));
-  //printf("lexer_state_pop(%zu): %s\n", vector_size(&lex->state_stack, sizeof(int32_t)), lexer_state_name(lex,id));
-  vector_pop(&lex->state_stack, sizeof(int32_t));
+  printf("lexer_state_pop(%zu): %s\n", n, lexer_state_name(lex, id));
+  if(!vector_empty(&lex->state_stack)) {
+    lex->state = *(int32_t*)vector_back(&lex->state_stack, sizeof(int32_t));
+    vector_pop(&lex->state_stack, sizeof(int32_t));
+  } else {
+    lex->state = -1;
+  }
   return id;
 }
 
@@ -265,6 +269,7 @@ lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
   memset(lex, 0, sizeof(Lexer));
   lex->mode = mode;
   lex->state = 0;
+  lex->seq = 0;
   vector_init(&lex->defines, ctx);
   vector_init(&lex->rules, ctx);
   vector_init(&lex->states, ctx);
@@ -353,8 +358,8 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
     i++;
   }
   if(ret >= 0) {
-    lex->bytelen = len;
-    lex->tokid = i;
+    lex->byte_length = len;
+    lex->token_id = i;
   }
 
   return ret;
@@ -362,7 +367,9 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
 
 size_t
 lexer_skip(Lexer* lex) {
-  return input_skip(&lex->input, lex->start + lex->bytelen, &lex->loc);
+  size_t len = input_skip(&lex->input, lex->start + lex->byte_length, &lex->loc);
+  lex->seq++;
+  return len;
 }
 
 char*
@@ -387,7 +394,7 @@ lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
 void
 lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
   lex->start = loc->pos;
-  lex->bytelen = 0;
+  lex->byte_length = 0;
   lex->input.pos = loc->pos;
   location_free(&lex->loc, ctx);
   lex->loc = location_clone(loc, ctx);

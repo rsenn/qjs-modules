@@ -484,8 +484,7 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CGETSET_MAGIC_DEF("value", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CFUNC_DEF("toString", 0, js_token_tostring),
-    JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
-    // JS_CFUNC_DEF("inspect", 0, js_token_inspect),
+    // JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
     JS_ALIAS_DEF("position", "loc"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
 };
@@ -501,7 +500,7 @@ lexer_token(Lexer* lex, int id, size_t charlen, Location loc, JSContext* ctx) {
     tok->id = id;
     tok->loc = location_clone(&loc, ctx);
     tok->loc_val = JS_UNDEFINED;
-    tok->byte_length = lex->bytelen;
+    tok->byte_length = lex->byte_length;
     tok->char_length = charlen;
     tok->lexeme = js_strndup(ctx, (const char*)&lex->input.data[lex->start], tok->byte_length);
     tok->byte_offset = lex->start;
@@ -841,7 +840,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, ctx));
         } else if((tok = js_token_data(ctx, argv[i]))) {
           lexer_set_location(lex, &tok->loc, ctx);
-          lex->bytelen = tok->byte_length;
+          lex->byte_length = tok->byte_length;
           ret = JS_NewInt32(ctx, tok->id);
         } else if(JS_IsString(argv[i])) {
           size_t len;
@@ -1077,7 +1076,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case LEXER_PROP_BYTE_LENGTH: {
-      ret = JS_NewUint32(ctx, lex->bytelen);
+      ret = JS_NewUint32(ctx, lex->byte_length);
       break;
     }
 
@@ -1149,9 +1148,9 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
     case LEXER_PROP_BYTE_LENGTH: {
       Token* tok;
       if(JS_IsNumber(value)) {
-        js_value_tosize(ctx, &lex->bytelen, value);
+        js_value_tosize(ctx, &lex->byte_length, value);
       } else if((tok = js_token_data(ctx, value))) {
-        lex->bytelen = tok->byte_length;
+        lex->byte_length = tok->byte_length;
       }
       break;
     }
@@ -1390,8 +1389,8 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JSValue obj = JS_NewObjectProto(ctx, lexer_proto);
 
   JS_DefinePropertyValueStr(ctx, obj, "start", JS_NewUint32(ctx, lex->start), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "bytelen", JS_NewUint32(ctx, lex->bytelen), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "tokid", JS_NewInt32(ctx, lex->tokid), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "bytelen", JS_NewUint32(ctx, lex->byte_length), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "tokid", JS_NewInt32(ctx, lex->token_id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "state", JS_NewInt32(ctx, lex->state), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_new(ctx, &lex->loc), JS_PROP_ENUMERABLE);
 
