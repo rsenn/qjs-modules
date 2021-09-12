@@ -8,7 +8,7 @@ import * as misc from 'misc';
 ('use math');
 
 function main(...args) {
-   globalThis.console = new Console({
+  globalThis.console = new Console({
     inspectOptions: {
       colors: true,
       depth: 8,

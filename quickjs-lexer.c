@@ -166,11 +166,11 @@ js_syntaxerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case SYNTAXERROR_PROP_MESSAGE: {
-      ret = JS_NewString(ctx, err->message);
+      ret = err->message ? JS_NewString(ctx, err->message) : JS_NULL;
       break;
     }
     case SYNTAXERROR_PROP_LINE: {
-      ret = JS_NewString(ctx, err->line);
+      ret = err->line ? JS_NewString(ctx, err->line) : JS_NULL;
       break;
     }
   }
@@ -832,19 +832,20 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case LEXER_METHOD_BACK: {
-      if(argc >= 1) {
+      int i;
+      for(i = 0; i < argc; i++) {
         Token* tok;
         Location* loc;
-        if((loc = js_location_data(ctx, argv[0]))) {
+        if((loc = js_location_data(ctx, argv[i]))) {
           lexer_set_location(lex, loc, ctx);
           ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, ctx));
-        } else if((tok = js_token_data(ctx, argv[0]))) {
+        } else if((tok = js_token_data(ctx, argv[i]))) {
           lexer_set_location(lex, &tok->loc, ctx);
           lex->bytelen = tok->byte_length;
           ret = JS_NewInt32(ctx, tok->id);
-        } else if(JS_IsString(argv[0])) {
+        } else if(JS_IsString(argv[i])) {
           size_t len;
-          const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
+          const char* str = JS_ToCStringLen(ctx, &len, argv[i]);
           if(lex->input.pos >= len && !memcmp(&lex->input.data[lex->input.pos - len], str, len)) {
             Location diff;
             location_zero(&diff);

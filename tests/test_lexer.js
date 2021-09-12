@@ -19,13 +19,7 @@ const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 429496729
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 
 //const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", "/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);" ];
-const code = [
-  "const str = stack.toString().replace(/\\n\\s*at /g, '\\n');",
-  '/Reg.*Ex/i.test(n)',
-  '/\\n/g',
-  'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);',
-  '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'
-];
+const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", '/Reg.*Ex/i.test(n)', '/\\n/g', 'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);', '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'];
 
 extendArray(Array.prototype);
 
@@ -72,7 +66,10 @@ function main(...args) {
   }
 
   let file = args[optind] ?? 'tests/test_lexer.js';
+  console.log(`Loading '${file}'...`);
+
   let str = file ? std.loadFile(file, 'utf-8') : code[1];
+  str = '  return new Map(ret.map(([name, description]) => [name, { url: `https://github.com/${user}/${name}`, description }]));';
   let len = str.length;
   let type = path.extname(file).substring(1);
   console.log('file:', file);
@@ -103,24 +100,14 @@ function main(...args) {
     console.log(' '.repeat(loc.column - 1) + '^');
   };
 
-  let tokenList = [];
-  let declarations = [];
+  let tokenList = [],
+    declarations = [];
   const colSizes = [12, 8, 4, 16, 32, 10, 0];
 
   function printTok(tok, prefix) {
     const range = tok.charRange;
-    const cols = [
-      prefix,
-      `tok[${tok.byteLength}]`,
-      tok.id,
-      tok.type,
-      tok.lexeme,
-      tok.lexeme.length,
-      //range,
-      tok.loc
-    ];
+    const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
     console.log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
-    //console.log((tok.loc + '').padEnd(16), tok.type.padEnd(20), tok.toString());
   }
 
   let tok,
@@ -135,10 +122,7 @@ function main(...args) {
   console.log('lexer.skip', IntToBinary(lexer.skip));
   console.log('lexer.states', lexer.states);
 
-  console.log(
-    'new SyntaxError("test")',
-    new SyntaxError('test', new Location(10, 3, 28, 'file.txt'))
-  );
+  console.log('new SyntaxError("test")', new SyntaxError('test', new Location(10, 3, 28, 'file.txt')));
   let mask = IntToBinary(lexer.mask);
   let state = lexer.topState();
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
@@ -159,10 +143,7 @@ function main(...args) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme])
-            throw new Error(
-              `top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
-            );
+          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
           stack.pop();
           break;
@@ -223,14 +204,7 @@ function main(...args) {
 
   console.log(`took ${end - start}ms`);
   console.log('lexer.tokens', lexer.tokens);
-  console.log(
-    'lexer.rules',
-    new Map(
-      lexer.ruleNames
-        .map(name => lexer.getRule(name))
-        .map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])
-    )
-  );
+  console.log('lexer.rules', new Map(lexer.ruleNames.map(name => lexer.getRule(name)).map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])));
   //console.log('lexer.pushState("JS")', lexer.pushState('JS'));
   //  console.log(`lexer.stateStack`, lexer.stateStack);
   console.log(`lexer.topState()`, lexer.topState());
@@ -247,10 +221,7 @@ function main(...args) {
   console.log(`lexer.next() `, lexer.next());
   console.log(`lexer.next() `, lexer.next());
   console.log(`lexer.next() `, lexer.next());
-  console.log(
-    `Location.count('blah\\nblah\\nblah\\nblah')`,
-    Location.count('blah\nblah\nblah\nblah')
-  );
+  console.log(`Location.count('blah\\nblah\\nblah\\nblah')`, Location.count('blah\nblah\nblah\nblah'));
 
   /*for(let j = 0; j < lexer.ruleNames.length; j++) {
     console.log(`lexer.rule[${j}]`, lexer.getRule(j));

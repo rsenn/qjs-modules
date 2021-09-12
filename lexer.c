@@ -40,6 +40,7 @@ lexer_state_new(Lexer* lex, const char* name, size_t len) {
 int
 lexer_state_push(Lexer* lex, const char* state) {
   int32_t id;
+  //printf("lexer_state_push(%zu): %s\n", vector_size(&lex->state_stack, sizeof(int32_t)), state);
   if((id = lexer_state_findb(lex, state, strlen(state))) >= 0) {
     vector_push(&lex->state_stack, lex->state);
     lex->state = id;
@@ -54,6 +55,7 @@ lexer_state_pop(Lexer* lex) {
   assert(!vector_empty(&lex->state_stack));
   id = lex->state;
   lex->state = *(int32_t*)vector_back(&lex->state_stack, sizeof(int32_t));
+  //printf("lexer_state_pop(%zu): %s\n", vector_size(&lex->state_stack, sizeof(int32_t)), lexer_state_name(lex,id));
   vector_pop(&lex->state_stack, sizeof(int32_t));
   return id;
 }
