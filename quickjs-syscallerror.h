@@ -12,18 +12,17 @@ typedef struct {
   const char* stack;
 } SyscallError;
 
-#define js_syscall(name, retval)                                               \
-  js_syscall_return(name, retval, JS_NewInt32(ctx, result))
+#define js_syscall(name, retval) js_syscall_return(name, retval, JS_NewInt32(ctx, result))
 
-#define js_syscall_return(name, retval, successval)                            \
-  do {                                                                         \
-    int prev_errno = errno, result = retval;                                   \
-    if(result == -1) {                                                         \
-      ret = js_syscallerror_new(ctx, name, errno);                            \
-      errno = prev_errno;                                                      \
-    } else {                                                                   \
-      ret = successval;                                                        \
-    }                                                                          \
+#define js_syscall_return(name, retval, successval)                                                                    \
+  do {                                                                                                                 \
+    int prev_errno = errno, result = retval;                                                                           \
+    if(result == -1) {                                                                                                 \
+      ret = js_syscallerror_new(ctx, name, errno);                                                                     \
+      errno = prev_errno;                                                                                              \
+    } else {                                                                                                           \
+      ret = successval;                                                                                                \
+    }                                                                                                                  \
   } while(0)
 
 SyscallError* syscallerror_new(JSContext*, const char*, int errnum);

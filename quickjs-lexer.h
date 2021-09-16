@@ -22,11 +22,9 @@ typedef struct {
   uint64_t seq;
 } Token;
 
-extern thread_local JSClassID js_syntaxerror_class_id, js_token_class_id,
-    js_lexer_class_id;
+extern thread_local JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;
 
-JSValue
-js_lexer_new(JSContext* ctx, JSValue proto, JSValueConst in, JSValue mode);
+JSValue js_lexer_new(JSContext* ctx, JSValue proto, JSValueConst in, JSValue mode);
 JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);
 JSValue js_syntaxerror_new(JSContext* ctx, SyntaxError arg);
 JSValue js_token_wrap(JSContext* ctx, Token* tok);
