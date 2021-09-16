@@ -24,8 +24,10 @@ const char* dbuf_last_line(DynBuf*, size_t*);
 int dbuf_prepend(DynBuf*, const uint8_t*, size_t len);
 void dbuf_put_colorstr(DynBuf*, const char*, const char* color, int with_color);
 void dbuf_put_escaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
-void dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const char table[256]);
-void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
+void
+dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const char table[256]);
+void
+dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
 void dbuf_put_escaped(DynBuf*, const char*, size_t len);
 void dbuf_put_value(DynBuf*, JSContext*, JSValue value);
 int dbuf_reserve_start(DynBuf*, size_t);
@@ -135,7 +137,8 @@ offset_is_default(const OffsetLength* ol) {
 
 static inline MemoryBlock
 offset_block(const OffsetLength* ol, const void* x, size_t n) {
-  return (MemoryBlock){MIN_NUM(n, ol->offset), MIN_NUM(ol->length, n - ol->offset)};
+  return (MemoryBlock){MIN_NUM(n, ol->offset),
+                       MIN_NUM(ol->length, n - ol->offset)};
 }
 
 static inline PointerRange
