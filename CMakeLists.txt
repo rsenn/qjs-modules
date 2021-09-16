@@ -74,7 +74,7 @@ set(lexer_SOURCES quickjs-lexer.h location.c location.h ${util_SOURCES} vector.c
 set(mmap_SOURCES ${util_SOURCES})
 set(repeater_SOURCES ${util_SOURCES})
 set(sockets_SOURCES ${util_SOURCES})
-set(sockets_LIBRARIES qjs-syscallerror)
+#set(sockets_LIBRARIES qjs-syscallerror)
 set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h utils.c utils.h)
 set(blob_SOURCES vector.c vector.h ${util_SOURCES})
 set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h ${util_SOURCES})

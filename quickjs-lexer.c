@@ -1236,8 +1236,7 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
 
   stack[size - 1] = lex->state;
 
-  buf = JS_NewArrayBuffer(
-      ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
+  buf = JS_NewArrayBuffer(ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
 
   ctor = js_global_get(ctx, "Int32Array");
 
@@ -1259,8 +1258,7 @@ js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   InputBuffer input = js_input_buffer(ctx, argv[0]);
   DynBuf output;
   js_dbuf_init(ctx, &output);
-  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred)
-        : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
+  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred) : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
   return dbuf_tostring_free(&output, ctx);
 }
 
@@ -1307,20 +1305,18 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     case LEXER_ERROR_NOMATCH: {
       char* lexeme = lexer_lexeme_s(lex, ctx);
 
-      ret = JS_ThrowInternalError(
-          ctx,
-          "%s:%" PRIu32 ":%" PRIu32 ": No matching token (%d: %s) '%s'\n%.*s\n%*s",
-          lex->loc.file,
-          lex->loc.line + 1,
-          lex->loc.column + 1,
-          lexer_state_top(lex, 0),
-          lexer_state_name(lex, lexer_state_top(lex, 0)),
-          lexeme,
-          (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') +
-                lex->loc.column),
-          &lex->input.data[lex->start - lex->loc.column],
-          lex->loc.column + 1,
-          "^");
+      ret = JS_ThrowInternalError(ctx,
+                                  "%s:%" PRIu32 ":%" PRIu32 ": No matching token (%d: %s) '%s'\n%.*s\n%*s",
+                                  lex->loc.file,
+                                  lex->loc.line + 1,
+                                  lex->loc.column + 1,
+                                  lexer_state_top(lex, 0),
+                                  lexer_state_name(lex, lexer_state_top(lex, 0)),
+                                  lexeme,
+                                  (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') + lex->loc.column),
+                                  &lex->input.data[lex->start - lex->loc.column],
+                                  lex->loc.column + 1,
+                                  "^");
       js_free(ctx, lexeme);
       break;
     }

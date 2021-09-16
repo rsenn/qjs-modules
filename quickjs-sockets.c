@@ -13,9 +13,23 @@
 
 #define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_ENUMERABLE)
 
+#define JS_SOCKETCALL(s, name, retval) JS_SOCKETCALL_RETURN(s, name, retval, JS_NewInt32(ctx, result))
+
+#define JS_SOCKETCALL_RETURN(s, name, retval, successval)                                                                                                                                              \
+  do {                                                                                                                                                                                                 \
+    int prev_errno = errno, result = retval;                                                                                                                                                           \
+    if(result == -1) {                                                                                                                                                                                 \
+      s.error = errno;                                                                                                                                                                                 \
+    } else {                                                                                                                                                                                           \
+      s.error = 0;                                                                                                                                                                                     \
+    }                                                                                                                                                                                                  \
+    ret = successval;                                                                                                                                                                                  \
+    errno = prev_errno;                                                                                                                                                                                \
+    JS_SetOpaque(this_val, s.ptr);                                                                                                                                                                     \
+                                                                                                                                                                                                       \
+  } while(0)
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
-thread_local JSValue sockaddr_proto = {JS_TAG_UNDEFINED}, sockaddr_ctor = {JS_TAG_UNDEFINED},
-                     socket_proto = {JS_TAG_UNDEFINED}, socket_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue sockaddr_proto = {JS_TAG_UNDEFINED}, sockaddr_ctor = {JS_TAG_UNDEFINED}, socket_proto = {JS_TAG_UNDEFINED}, socket_ctor = {JS_TAG_UNDEFINED};
 
 typedef union {
   uint16_t family;
@@ -101,11 +115,7 @@ js_sockaddr_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   if(argc >= 2) {
     const char* str = JS_ToCString(ctx, argv[1]);
 
-    inet_pton(sa->family,
-              str,
-              sa->family == AF_INET    ? &sa->in.sin_addr
-              : sa->family == AF_INET6 ? &sa->in6.sin6_addr
-                                       : 0);
+    inet_pton(sa->family, str, sa->family == AF_INET ? &sa->in.sin_addr : sa->family == AF_INET6 ? &sa->in6.sin6_addr : 0);
     JS_FreeCString(ctx, str);
   }
   if(argc >= 3) {
@@ -140,35 +150,31 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
 static JSValue
 js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  SockAddr* sa;
   JSValue ret = JS_UNDEFINED;
+  SockAddr* sa = js_sockaddr_data(this_val);
 
-  if(!(sa = js_sockaddr_data2(ctx, this_val)))
-    return JS_EXCEPTION;
+  /* if(!(sa = js_sockaddr_data2(ctx, this_val)))
+     return JS_EXCEPTION;*/
 
   switch(magic) {
     case SOCKADDR_PROP_FAMILY: {
-      ret = JS_NewUint32(ctx, sa->family);
+      if(sa)
+        ret = JS_NewUint32(ctx, sa->family);
       break;
     }
     case SOCKADDR_PROP_ADDR: {
-      char buf[INET6_ADDRSTRLEN] = {0};
+      if(sa) {
+        char buf[INET6_ADDRSTRLEN] = {0};
 
-      inet_ntop(sa->family,
-                sa->family == AF_INET    ? &sa->in.sin_addr
-                : sa->family == AF_INET6 ? &sa->in6.sin6_addr
-                                         : 0,
-                buf,
-                sizeof(buf));
+        inet_ntop(sa->family, sa->family == AF_INET ? &sa->in.sin_addr : sa->family == AF_INET6 ? &sa->in6.sin6_addr : 0, buf, sizeof(buf));
 
-      ret = JS_NewString(ctx, buf);
+        ret = JS_NewString(ctx, buf);
+      }
       break;
     }
     case SOCKADDR_PROP_PORT: {
-      ret = JS_NewUint32(ctx,
-                         ntohs(sa->family == AF_INET    ? sa->in.sin_port
-                               : sa->family == AF_INET6 ? sa->in6.sin6_port
-                                                        : 0));
+      if(sa)
+        ret = JS_NewUint32(ctx, ntohs(sa->family == AF_INET ? sa->in.sin_port : sa->family == AF_INET6 ? sa->in6.sin6_port : 0));
       break;
     }
   }
@@ -186,17 +192,15 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
     case SOCKADDR_PROP_FAMILY: {
       int32_t af;
       JS_ToInt32(ctx, &af, value);
-      sa->family = af;
+      if(sa)
+        sa->family = af;
       break;
     }
     case SOCKADDR_PROP_ADDR: {
       const char* str = JS_ToCString(ctx, value);
 
-      inet_pton(sa->family,
-                str,
-                sa->family == AF_INET    ? &sa->in.sin_addr
-                : sa->family == AF_INET6 ? &sa->in6.sin6_addr
-                                         : 0);
+      if(sa)
+        inet_pton(sa->family, str, sa->family == AF_INET ? &sa->in.sin_addr : sa->family == AF_INET6 ? &sa->in6.sin6_addr : 0);
       JS_FreeCString(ctx, str);
       break;
     }
@@ -204,11 +208,12 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
       uint32_t port;
       JS_ToUint32(ctx, &port, value);
 
-      if(sa->family == AF_INET)
-        sa->in.sin_port = htons(port);
-      else if(sa->family == AF_INET6)
-        sa->in6.sin6_port = htons(port);
-
+      if(sa) {
+        if(sa->family == AF_INET)
+          sa->in.sin_port = htons(port);
+        else if(sa->family == AF_INET6)
+          sa->in6.sin6_port = htons(port);
+      }
       break;
     }
   }
@@ -226,30 +231,25 @@ js_sockaddr_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 static JSValue
 js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   SockAddr* sa;
+  uint16_t port;
   char buf[INET6_ADDRSTRLEN] = {0};
 
   if(!(sa = js_sockaddr_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProtoClass(ctx, sockaddr_proto, js_sockaddr_class_id);
-  JS_DefinePropertyValueStr(ctx, obj, "sin_family", JS_NewUint32(ctx, sa->family), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx,
-                            obj,
-                            "sin_port",
-                            JS_NewUint32(ctx,
-                                         ntohs(sa->family == AF_INET    ? sa->in.sin_port
-                                               : sa->family == AF_INET6 ? sa->in6.sin6_port
-                                                                        : 0)),
-                            JS_PROP_ENUMERABLE);
+  JSValue obj = JS_NewObjectProto(ctx, sockaddr_proto);
 
-  inet_ntop(sa->family,
-            sa->family == AF_INET    ? &sa->in.sin_addr
-            : sa->family == AF_INET6 ? &sa->in6.sin6_addr
-                                     : 0,
-            buf,
-            sizeof(buf));
+  if(sa->family)
+    JS_DefinePropertyValueStr(ctx, obj, "family", JS_NewUint32(ctx, sa->family), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(ctx, obj, "sin_addr", JS_NewString(ctx, buf), JS_PROP_ENUMERABLE);
+  if((port = ntohs(sa->family == AF_INET ? sa->in.sin_port : sa->family == AF_INET6 ? sa->in6.sin6_port : 0)))
+    JS_DefinePropertyValueStr(ctx, obj, "port", JS_NewUint32(ctx, port), JS_PROP_ENUMERABLE);
+
+  inet_ntop(sa->family, sa->family == AF_INET ? &sa->in.sin_addr : sa->family == AF_INET6 ? &sa->in6.sin6_addr : 0, buf, sizeof(buf));
+
+  if(buf[0])
+    JS_DefinePropertyValueStr(ctx, obj, "addr", JS_NewString(ctx, buf), JS_PROP_ENUMERABLE);
+
   return obj;
 }
 
@@ -265,12 +265,12 @@ js_sockaddr_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static const JSCFunctionListEntry js_sockaddr_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("sin_family", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PROP_FAMILY),
-    JS_ALIAS_DEF("family", "sin_family"),
-    JS_CGETSET_MAGIC_DEF("sin_addr", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PROP_ADDR),
-    JS_ALIAS_DEF("addr", "sin_addr"),
-    JS_CGETSET_MAGIC_DEF("sin_port", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PROP_PORT),
-    JS_ALIAS_DEF("port", "sin_port"),
+    JS_CGETSET_MAGIC_DEF("family", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PROP_FAMILY),
+    JS_ALIAS_DEF("sin_family", "family"),
+    JS_CGETSET_MAGIC_DEF("addr", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PROP_ADDR),
+    JS_ALIAS_DEF("sin_addr", "addr"),
+    JS_CGETSET_MAGIC_DEF("port", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PROP_PORT),
+    JS_ALIAS_DEF("sin_port", "port"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SockAddr", JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
 };
 
@@ -292,6 +292,7 @@ static JSValue
 js_sockets_socket(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   int32_t af, type = SOCK_STREAM, proto = IPPROTO_IP;
+  Socket s;
 
   JS_ToInt32(ctx, &af, argv[0]);
   if(argc >= 2)
@@ -300,7 +301,7 @@ js_sockets_socket(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   if(argc >= 3)
     JS_ToInt32(ctx, &proto, argv[2]);
 
-  js_syscall("socket", socket(af, type, proto));
+  JS_SOCKETCALL(s, "socket", s.fd = socket(af, type, proto));
 
   return ret;
 }
@@ -424,17 +425,21 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, sock);
       break;
     }
+    case SOCKET_PROP_ERROR: {
+      ret = JS_NewUint32(ctx, s.error);
+      break;
+    }
     case SOCKET_PROP_LOCAL: {
-      SockAddr* sa = sockaddr_new(ctx, -1);
+      SockAddr* sa = sockaddr_new(ctx, 0);
       socklen_t len = sizeof(SockAddr);
-      js_syscall_return("getsockname", getpeername(sock, (struct sockaddr*)sa, &len), js_sockaddr_wrap(ctx, sa));
+      JS_SOCKETCALL_RETURN(s, "getsockname", getsockname(sock, (struct sockaddr*)sa, &len), js_sockaddr_wrap(ctx, sa));
       break;
     }
     case SOCKET_PROP_REMOTE: {
-      SockAddr* sa = sockaddr_new(ctx, -1);
+      SockAddr* sa = sockaddr_new(ctx, 0);
       socklen_t len = sizeof(SockAddr);
 
-      js_syscall_return("getpeername", getpeername(sock, (struct sockaddr*)sa, &len), js_sockaddr_wrap(ctx, sa));
+      JS_SOCKETCALL_RETURN(s, "getpeername", getpeername(sock, (struct sockaddr*)sa, &len), js_sockaddr_wrap(ctx, sa));
       break;
     }
   }
@@ -476,7 +481,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       newflags = state ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
       if(oldflags != newflags)
 
-        js_syscall("fcntl", fcntl(sock, F_SETFL, newflags));
+        JS_SOCKETCALL(s, "fcntl", fcntl(sock, F_SETFL, newflags));
       break;
     }
     case SOCKET_METHOD_BIND: {
@@ -485,12 +490,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(!(sa = js_sockaddr_data2(ctx, argv[0])))
         return JS_ThrowTypeError(ctx, "argument 1 must be of type SockAddr");
 
-      js_syscall("bind",
-                 bind(sock,
-                      (struct sockaddr*)sa,
-                      sa->family == AF_INET    ? sizeof(struct sockaddr_in)
-                      : sa->family == AF_INET6 ? sizeof(struct sockaddr_in6)
-                                               : sizeof(struct sockaddr)));
+      JS_SOCKETCALL(s, "bind", bind(sock, (struct sockaddr*)sa, sa->family == AF_INET ? sizeof(struct sockaddr_in) : sa->family == AF_INET6 ? sizeof(struct sockaddr_in6) : sizeof(struct sockaddr)));
       break;
     }
     case SOCKET_METHOD_ACCEPT: {
@@ -501,7 +501,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(!(sa = js_sockaddr_data2(ctx, argv[0])))
         return JS_ThrowTypeError(ctx, "argument 1 must be of type SockAddr");
 
-      js_syscall("accept", accept(sock, (struct sockaddr*)sa, &addrlen));
+      JS_SOCKETCALL(s, "accept", accept(sock, (struct sockaddr*)sa, &addrlen));
       break;
     }
     case SOCKET_METHOD_CONNECT: {
@@ -511,19 +511,20 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(!(sa = js_sockaddr_data2(ctx, argv[0])))
         return JS_ThrowTypeError(ctx, "argument 1 must be of type SockAddr");
 
-      js_syscall("connect",
-                 connect(sock,
-                         (struct sockaddr*)sa,
-                         sa->family == AF_INET    ? sizeof(struct sockaddr_in)
-                         : sa->family == AF_INET6 ? sizeof(struct sockaddr_in6)
-                                                  : sizeof(struct sockaddr)));
+      JS_SOCKETCALL(s,
+                    "connect",
+                    connect(sock,
+                            (struct sockaddr*)sa,
+                            sa->family == AF_INET    ? sizeof(struct sockaddr_in)
+                            : sa->family == AF_INET6 ? sizeof(struct sockaddr_in6)
+                                                     : sizeof(struct sockaddr)));
       break;
     }
     case SOCKET_METHOD_LISTEN: {
       int32_t backlog = 5;
       if(argc >= 1)
         JS_ToInt32(ctx, &backlog, argv[0]);
-      js_syscall("listen", listen(sock, backlog));
+      JS_SOCKETCALL(s, "listen", listen(sock, backlog));
       break;
     }
     case SOCKET_METHOD_RECV: {
@@ -536,7 +537,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         len = buf.size;
       if(argc >= 3)
         JS_ToInt32(ctx, &flags, argv[2]);
-      js_syscall("recv", recv(sock, buf.data, len, flags));
+      JS_SOCKETCALL(s, "recv", recv(sock, buf.data, len, flags));
       break;
     }
     case SOCKET_METHOD_SEND: {
@@ -549,17 +550,17 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         len = buf.size;
       if(argc >= 3)
         JS_ToInt32(ctx, &flags, argv[2]);
-      js_syscall("send", send(sock, buf.data, len, flags));
+      JS_SOCKETCALL(s, "send", send(sock, buf.data, len, flags));
       break;
     }
     case SOCKET_METHOD_SHUTDOWN: {
       int32_t how;
       JS_ToInt32(ctx, &how, argv[0]);
-      js_syscall("shutdown", shutdown(sock, how));
+      JS_SOCKETCALL(s, "shutdown", shutdown(sock, how));
       break;
     }
     case SOCKET_METHOD_CLOSE: {
-      js_syscall("close", close(sock));
+      JS_SOCKETCALL(s, "close", close(sock));
       break;
     }
     case SOCKET_METHOD_GETSOCKOPT: {
@@ -569,7 +570,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       JS_ToInt32(ctx, &level, argv[0]);
       JS_ToInt32(ctx, &optname, argv[1]);
 
-      js_syscall("getsockopt", getsockopt(sock, level, optname, optval.data, &len));
+      JS_SOCKETCALL(s, "getsockopt", getsockopt(sock, level, optname, optval.data, &len));
       break;
     }
     case SOCKET_METHOD_SETSOCKOPT: {
@@ -579,7 +580,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       JS_ToInt32(ctx, &level, argv[0]);
       JS_ToInt32(ctx, &optname, argv[1]);
 
-      js_syscall("setsockopt", setsockopt(sock, level, optname, optval.data, len));
+      JS_SOCKETCALL(s, "setsockopt", setsockopt(sock, level, optname, optval.data, len));
       break;
     }
   }
@@ -629,6 +630,8 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   JSValue obj = JS_NewObjectProto(ctx, socket_proto);
   JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewUint32(ctx, sock), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "error", JS_NewUint32(ctx, s.error), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "stack", JS_NULL, 0);
   return obj;
 }
 
@@ -824,9 +827,17 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "SockAddr");
   JS_AddModuleExport(ctx, m, "Socket");
 
-  if(!strcmp(module_name, "socket"))
+  size_t len, n = str_rchr(module_name, '/');
+  if(module_name[n])
+    ++n;
+  len = str_rchr(&module_name[n], '.');
+
+  printf("JS_INIT_MODULE %.*s\n", len, module_name + n);
+
+  if(!strncmp(&module_name[n], "sockets", len)) {
     JS_AddModuleExport(ctx, m, "default");
-  JS_AddModuleExportList(ctx, m, js_sockets_funcs, countof(js_sockets_funcs));
-  JS_AddModuleExportList(ctx, m, js_sockets_defines, countof(js_sockets_defines));
+    JS_AddModuleExportList(ctx, m, js_sockets_funcs, countof(js_sockets_funcs));
+    //  JS_AddModuleExportList(ctx, m, js_sockets_defines, countof(js_sockets_defines));
+  }
   return m;
 }

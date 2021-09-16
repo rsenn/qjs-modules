@@ -131,8 +131,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JSValue ret = JS_UNDEFINED;
   JSValue arraybuffer_ctor = js_global_get(ctx, "ArrayBuffer");
 
-  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, argv[0]) ||
-     JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
+  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, argv[0]) || JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
     uint8_t* data;
     size_t len;
 
@@ -713,10 +712,7 @@ js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     if(i >= OP_TEMP_START && i < OP_TEMP_END)
       continue;
 
-    JS_SetPropertyUint32(ctx,
-                         ret,
-                         j++,
-                         (as_object ? js_misc_opcode_object : js_misc_opcode_array)(ctx, &js_opcodes[i]));
+    JS_SetPropertyUint32(ctx, ret, j++, (as_object ? js_misc_opcode_object : js_misc_opcode_array)(ctx, &js_opcodes[i]));
   }
 
   return ret;
@@ -1025,13 +1021,13 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
 
   if(!js_location_class_id)
     js_location_init(ctx, 0);
-  if(!js_syscallerror_class_id)
-    js_syscallerror_init(ctx, 0);
+  /*  if(!js_syscallerror_class_id)
+      js_syscallerror_init(ctx, 0);*/
 
   if(m) {
     // JS_SetModuleExportList(ctx, m, location_ctor);
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-    JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
+    // JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
     JS_SetModuleExport(ctx, m, "Location", location_ctor);
     // JS_SetModuleExport(ctx, m, "StringDecoder", stringdecoder_ctor);
   }
@@ -1056,7 +1052,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-  JS_AddModuleExport(ctx, m, "SyscallError");
+  // JS_AddModuleExport(ctx, m, "SyscallError");
   JS_AddModuleExport(ctx, m, "Location");
   // JS_AddModuleExport(ctx, m, "StringDecoder");
   return m;
