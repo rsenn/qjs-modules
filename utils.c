@@ -1299,7 +1299,7 @@ js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
     JSModuleDef* def = list_entry(el, JSModuleDef, link);
     const char* name = module_namestr(ctx, def);
     JSValue entry = JS_NewArray(ctx);
-    JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, basename(name)));
+    JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, /*basename*/(name)));
     JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, def) : module_object(ctx, def));
     if(name[0] != '<')
       JS_SetPropertyUint32(ctx, ret, i++, entry);
