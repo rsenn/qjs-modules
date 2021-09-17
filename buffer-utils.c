@@ -430,14 +430,15 @@ get_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[]) {
   int64_t off = 0, len = size;
 
   if(argc >= 1 && JS_IsNumber(argv[0]))
-    JS_ToInt64(ctx, &off, argv[1]);
+    JS_ToInt64(ctx, &off, argv[0]);
   if(argc >= 2 && JS_IsNumber(argv[1]))
     JS_ToInt64(ctx, &len, argv[1]);
 
-  if(off >= 0)
-    off = MIN_NUM(off, size);
-  else
-    off = ((off % size) + off) % size;
+  /* if(off >= 0)
+     off = MIN_NUM(off, size);
+   else
+  */
+  off = ((off % size) + off) % size;
 
   if(len >= 0)
     len = MIN_NUM(len, size - off);

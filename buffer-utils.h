@@ -224,6 +224,19 @@ input_buffer_block(InputBuffer* in) {
   return (MemoryBlock){input_buffer_data(in), input_buffer_length(in)};
 }
 
+static inline InputBuffer
+input_buffer_offset(InputBuffer in, OffsetLength off) {
+  InputBuffer ret = in;
+
+  ret.data += off.offset;
+  ret.size -= off.offset;
+
+  if(ret.size > off.length)
+    ret.size = off.length;
+
+  return ret;
+}
+
 const uint8_t* input_buffer_get(InputBuffer* in, size_t* lenp);
 const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
 const char* input_buffer_currentline(InputBuffer*, size_t* len);

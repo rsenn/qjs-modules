@@ -963,14 +963,13 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
     case SOCKET_METHOD_RECV: {
       int32_t flags = 0;
-      InputBuffer buf = js_input_buffer(ctx, argv[0]);
-      OffsetLength off = get_offset_length(ctx, buf.size, argc - 1, argv + 1);
+      InputBuffer buf = input_buffer_offset(js_input_buffer(ctx, argv[0]), get_offset_length(ctx, buf.size, argc - 1, argv + 1));
 
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
 
-      printf("RECV { offset: %zu, length: %zu } data: %p size: %zu\n", off.offset, off.length, offset_data(&off, buf.data, buf.size), offset_size(&off, buf.data, buf.size));
-      JS_SOCKETCALL(sock, SYSCALL_RECV, recv(sock.fd, offset_data(&off, buf.data, buf.size), offset_size(&off, buf.data, buf.size), flags));
+      // printf("RECV { offset: %zu, length: %zu } data: %p size: %zu\n", off.offset, off.length, offset_data(&off, buf.data, buf.size), offset_size(&off, buf.data, buf.size));
+      JS_SOCKETCALL(sock, SYSCALL_RECV, recv(sock.fd, input_buffer_begin(&buf), input_buffer_size(&buf), flags));
       break;
     }
     case SOCKET_METHOD_SEND: {
