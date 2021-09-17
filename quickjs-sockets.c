@@ -22,13 +22,13 @@
 
 #define JS_SOCKETCALL_FAIL(s, fn, failval) JS_SOCKETCALL_RETURN(s, fn, retval, JS_NewInt32(ctx, result), failval)
 
-#define JS_SOCKETCALL_RETURN(s, fn, retval, successval, failval) \
-  do { \
-    s.ret = retval; \
-    s.syscall = fn; \
-    s.error = s.ret < 0 ? errno : 0; \
-    ret = s.ret < 0 ? failval : successval; \
-    JS_SetOpaque(this_val, s.ptr); \
+#define JS_SOCKETCALL_RETURN(s, fn, retval, successval, failval)                                                                                                                                                                                                                                           \
+  do {                                                                                                                                                                                                                                                                                                     \
+    s.ret = retval;                                                                                                                                                                                                                                                                                        \
+    s.syscall = fn;                                                                                                                                                                                                                                                                                        \
+    s.error = s.ret < 0 ? errno : 0;                                                                                                                                                                                                                                                                       \
+    ret = s.ret < 0 ? failval : successval;                                                                                                                                                                                                                                                                \
+    JS_SetOpaque(this_val, s.ptr);                                                                                                                                                                                                                                                                         \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
@@ -276,9 +276,6 @@ static const JSCFunctionListEntry js_sockaddr_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("family", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PROP_FAMILY),
     JS_CGETSET_MAGIC_DEF("addr", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PROP_ADDR),
     JS_CGETSET_MAGIC_DEF("port", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PROP_PORT),
-    /*   JS_ALIAS_DEF("sin_family", "family"),
-       JS_ALIAS_DEF("sin_addr", "addr"),
-       JS_ALIAS_DEF("sin_port", "port"),*/
     JS_CFUNC_MAGIC_DEF("clone", 0, js_sockaddr_method, SOCKADDR_METHOD_CLONE),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_sockaddr_method, SOCKADDR_METHOD_TOSTRING),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SockAddr", JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
@@ -288,13 +285,11 @@ static JSClassDef js_sockaddr_class = {.class_name = "SockAddr", .finalizer = js
 
 static inline ssize_t
 socket_send(int sock, const void* buf, size_t len, int flags) {
-  // if(flags == 0) return syscall(SYS_write, sock, buf, len);
   return syscall(SYS_sendto, sock, buf, len, flags, 0, 0);
 }
 
 static inline ssize_t
 socket_recv(int sock, void* buf, size_t len, int flags) {
-  // if(flags == 0) return syscall(SYS_read, sock, buf, len);
   return syscall(SYS_recvfrom, sock, buf, len, flags, 0, 0);
 }
 
@@ -762,7 +757,7 @@ static const JSCFunctionListEntry js_sockets_funcs[] = {
 JSValue
 js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd) {
   JSValue obj;
-  Socket sock = {fd, 0};
+  Socket sock = {fd, 0, 0, -1};
 
   if(js_socket_class_id == 0)
     js_sockets_init(ctx, 0);
@@ -794,10 +789,8 @@ enum { SOCKET_PROP_FD, SOCKET_PROP_ERRNO, SOCKET_PROP_SYSCALL, SOCKET_PROP_ERROR
 
 static JSValue
 js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  Socket sock;
+  Socket sock = js_socket_data(this_val);
   JSValue ret = JS_UNDEFINED;
-
-  sock = js_socket_data2(ctx, this_val);
 
   switch(magic) {
     case SOCKET_PROP_FD: {
@@ -861,31 +854,8 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
 static JSValue
 js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  Socket sock;
+  Socket sock = js_socket_data(this_val);
   JSValue ret = JS_UNDEFINED;
-
-  sock = js_socket_data2(ctx, this_val);
-
-  switch(magic) {
-    case SOCKET_PROP_FD: {
-      break;
-    }
-    case SOCKET_PROP_ERRNO: {
-      break;
-    }
-    case SOCKET_PROP_SYSCALL: {
-      break;
-    }
-    case SOCKET_PROP_ERROR: {
-      break;
-    }
-    case SOCKET_PROP_LOCAL: {
-      break;
-    }
-    case SOCKET_PROP_REMOTE: {
-      break;
-    }
-  }
 
   return ret;
 }
@@ -1026,7 +996,7 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   JSValue proto;
   int32_t af, type = SOCK_STREAM, protocol = IPPROTO_IP;
   int sock = -1;
- 
+
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
@@ -1054,11 +1024,20 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   sock = js_socket_data2(ctx, this_val);
 
-  JSValue obj = JS_NewObject(ctx); // JS_NewObjectProto(ctx, socket_proto);
+  JSValue obj = /*JS_NewObject(ctx); //*/ JS_NewObjectProto(ctx, socket_proto);
   JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewUint32(ctx, sock.fd), JS_PROP_ENUMERABLE);
 
-  if(sock.error)
-    JS_DefinePropertyValueStr(ctx, obj, "error", sock.error ? js_syscallerror_new(ctx, socket_syscalls[sock.syscall], sock.error) : JS_NULL, JS_PROP_ENUMERABLE);
+  if(sock.error) {
+    const char* syscall = socket_syscalls[sock.syscall];
+
+    JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(ctx, obj, "error", js_syscallerror_new(ctx, syscall, sock.error), JS_PROP_C_W_E);
+  }
+
+  if(sock.ret >= 0) {
+    JS_DefinePropertyValueStr(ctx, obj, "ret", JS_NewUint32(ctx, sock.ret), JS_PROP_C_W_E);
+  }
+
   JS_DefinePropertyValueStr(ctx, obj, "stack", JS_NULL, 0);
   return obj;
 }
@@ -1096,11 +1075,11 @@ static JSClassDef js_socket_class = {
 
 static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("fd", js_socket_get, js_socket_set, SOCKET_PROP_FD, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_socket_get, js_socket_set, SOCKET_PROP_ERRNO, JS_PROP_CONFIGURABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("syscall", js_socket_get, js_socket_set, SOCKET_PROP_SYSCALL, JS_PROP_CONFIGURABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("error", js_socket_get, js_socket_set, SOCKET_PROP_ERROR, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_FLAGS_DEF("local", js_socket_get, js_socket_set, SOCKET_PROP_LOCAL, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_FLAGS_DEF("remote", js_socket_get, js_socket_set, SOCKET_PROP_REMOTE, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_DEF("errno", js_socket_get, js_socket_set, SOCKET_PROP_ERRNO),
+    JS_CGETSET_MAGIC_DEF("syscall", js_socket_get, js_socket_set, SOCKET_PROP_SYSCALL),
+    JS_CGETSET_MAGIC_DEF("error", js_socket_get, js_socket_set, SOCKET_PROP_ERROR),
+    JS_CGETSET_MAGIC_DEF("local", js_socket_get, js_socket_set, SOCKET_PROP_LOCAL),
+    JS_CGETSET_MAGIC_DEF("remote", js_socket_get, js_socket_set, SOCKET_PROP_REMOTE),
     JS_CFUNC_MAGIC_DEF("ndelay", 0, js_socket_method, SOCKET_METHOD_NDELAY),
     JS_CFUNC_MAGIC_DEF("bind", 1, js_socket_method, SOCKET_METHOD_BIND),
     JS_CFUNC_MAGIC_DEF("connect", 1, js_socket_method, SOCKET_METHOD_CONNECT),

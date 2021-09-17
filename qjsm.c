@@ -87,9 +87,9 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-#define jsm_declare_module(name)                                                                                       \
-  extern const uint8_t qjsc_##name[];                                                                                  \
-  extern const uint32_t qjsc_##name##_size;                                                                            \
+#define jsm_declare_module(name)                                                                                                                                                                                                                                                                           \
+  extern const uint8_t qjsc_##name[];                                                                                                                                                                                                                                                                      \
+  extern const uint32_t qjsc_##name##_size;                                                                                                                                                                                                                                                                \
   JSModuleDef* js_init_module_##name(JSContext*, const char*);
 
 jsm_declare_module(console);
@@ -527,10 +527,7 @@ jsm_module_loader_path(JSContext* ctx, const char* name, void* opaque) {
     }
     if(debug_module_loader) {
       if(file)
-        printf("jsm_module_loader_path[%x] \x1b[48;5;220m(2)\x1b[0m %-20s '%s'\n",
-               pthread_self(),
-               trim_dotslash(name),
-               file);
+        printf("jsm_module_loader_path[%x] \x1b[48;5;220m(2)\x1b[0m %-20s '%s'\n", pthread_self(), trim_dotslash(name), file);
       /*  else  printf("jsm_module_loader_path[%x] \x1b[48;5;124m(1)\x1b[0m %-20s -> %s\n", pthread_self(),
        * trim_dotslash(name), trim_dotslash(module));*/
     }
@@ -894,8 +891,7 @@ static const JSMallocFunctions trace_mf = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t(*)(const void*))_msize,
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) ||                                             \
-    defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
     NULL,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
     (size_t(*)(const void*))malloc_usable_size,
@@ -968,18 +964,7 @@ js_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
-enum {
-  FIND_MODULE,
-  LOAD_MODULE,
-  RESOLVE_MODULE,
-  GET_MODULE_NAME,
-  GET_MODULE_OBJECT,
-  GET_MODULE_EXPORTS,
-  GET_MODULE_NAMESPACE,
-  GET_MODULE_FUNCTION,
-  GET_MODULE_EXCEPTION,
-  GET_MODULE_META_OBJ
-};
+enum { FIND_MODULE, LOAD_MODULE, RESOLVE_MODULE, GET_MODULE_NAME, GET_MODULE_OBJECT, GET_MODULE_EXPORTS, GET_MODULE_NAMESPACE, GET_MODULE_FUNCTION, GET_MODULE_EXCEPTION, GET_MODULE_META_OBJ };
 
 static JSValue
 js_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -1343,8 +1328,8 @@ main(int argc, char** argv) {
 
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
-#define jsm_builtin_compiled(name)                                                                                     \
-  jsm_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                            \
+#define jsm_builtin_compiled(name)                                                                                                                                                                                                                                                                         \
+  jsm_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                                                                                                                                                                                \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
@@ -1454,12 +1439,7 @@ main(int argc, char** argv) {
           best[j] = ms;
       }
     }
-    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n",
-           best[1] + best[2] + best[3] + best[4],
-           best[1],
-           best[2],
-           best[3],
-           best[4]);
+    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
   }
   return 0;
 fail:

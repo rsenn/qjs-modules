@@ -88,17 +88,7 @@ enum JSClassIds {
   JS_CLASS_INIT_COUNT, /* last entry for predefined classes */
 };
 
-typedef enum JSErrorEnum {
-  JS_EVAL_ERROR,
-  JS_RANGE_ERROR,
-  JS_REFERENCE_ERROR,
-  JS_SYNTAX_ERROR,
-  JS_TYPE_ERROR,
-  JS_URI_ERROR,
-  JS_INTERNAL_ERROR,
-  JS_AGGREGATE_ERROR,
-  JS_NATIVE_ERROR_COUNT
-} JSErrorEnum;
+typedef enum JSErrorEnum { JS_EVAL_ERROR, JS_RANGE_ERROR, JS_REFERENCE_ERROR, JS_SYNTAX_ERROR, JS_TYPE_ERROR, JS_URI_ERROR, JS_INTERNAL_ERROR, JS_AGGREGATE_ERROR, JS_NATIVE_ERROR_COUNT } JSErrorEnum;
 
 typedef enum OPCodeEnum OPCodeEnum;
 
@@ -313,13 +303,7 @@ struct JSContext {
   /* if NULL, RegExp compilation is not supported */
   JSValue (*compile_regexp)(JSContext* ctx, JSValueConst pattern, JSValueConst flags);
   /* if NULL, eval is not supported */
-  JSValue (*eval_internal)(JSContext* ctx,
-                           JSValueConst this_obj,
-                           const char* input,
-                           size_t input_len,
-                           const char* filename,
-                           int flags,
-                           int scope_idx);
+  JSValue (*eval_internal)(JSContext* ctx, JSValueConst this_obj, const char* input, size_t input_len, const char* filename, int flags, int scope_idx);
   void* user_opaque;
 };
 
@@ -555,10 +539,10 @@ struct JSObject {
       uint8_t __gc_mark;  /* corresponds to header.mark/gc_obj_type */
 
       uint8_t extensible : 1;
-      uint8_t free_mark : 1;  /* only used when freeing objects with cycles */
-      uint8_t is_exotic : 1;  /* TRUE if object has exotic property handlers */
-      uint8_t fast_array : 1; /* TRUE if u.array is used for get/put (for JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS and typed
-                                 arrays) */
+      uint8_t free_mark : 1;            /* only used when freeing objects with cycles */
+      uint8_t is_exotic : 1;            /* TRUE if object has exotic property handlers */
+      uint8_t fast_array : 1;           /* TRUE if u.array is used for get/put (for JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS and typed
+                                           arrays) */
       uint8_t is_constructor : 1;       /* TRUE if object is a constructor function */
       uint8_t is_uncatchable_error : 1; /* if TRUE, error is not catchable */
       uint8_t tmp_mark : 1;             /* used in JS_WriteObjectRec() */
@@ -583,17 +567,15 @@ struct JSObject {
     struct JSFloatEnv* float_env;           /* JS_CLASS_FLOAT_ENV */
     struct JSOperatorSetData* operator_set; /* JS_CLASS_OPERATOR_SET */
 #endif
-    struct JSMapState* map_state;                    /* JS_CLASS_MAP..JS_CLASS_WEAKSET */
-    struct JSMapIteratorData* map_iterator_data;     /* JS_CLASS_MAP_ITERATOR, JS_CLASS_SET_ITERATOR */
-    struct JSArrayIteratorData* array_iterator_data; /* JS_CLASS_ARRAY_ITERATOR, JS_CLASS_STRING_ITERATOR */
-    struct JSRegExpStringIteratorData* regexp_string_iterator_data; /* JS_CLASS_REGEXP_STRING_ITERATOR */
-    struct JSGeneratorData* generator_data;                         /* JS_CLASS_GENERATOR */
-    struct JSProxyData* proxy_data;                                 /* JS_CLASS_PROXY */
-    struct JSPromiseData* promise_data;                             /* JS_CLASS_PROMISE */
-    struct JSPromiseFunctionData*
-        promise_function_data; /* JS_CLASS_PROMISE_RESOLVE_FUNCTION, JS_CLASS_PROMISE_REJECT_FUNCTION */
-    struct JSAsyncFunctionData*
-        async_function_data; /* JS_CLASS_ASYNC_FUNCTION_RESOLVE, JS_CLASS_ASYNC_FUNCTION_REJECT */
+    struct JSMapState* map_state;                                      /* JS_CLASS_MAP..JS_CLASS_WEAKSET */
+    struct JSMapIteratorData* map_iterator_data;                       /* JS_CLASS_MAP_ITERATOR, JS_CLASS_SET_ITERATOR */
+    struct JSArrayIteratorData* array_iterator_data;                   /* JS_CLASS_ARRAY_ITERATOR, JS_CLASS_STRING_ITERATOR */
+    struct JSRegExpStringIteratorData* regexp_string_iterator_data;    /* JS_CLASS_REGEXP_STRING_ITERATOR */
+    struct JSGeneratorData* generator_data;                            /* JS_CLASS_GENERATOR */
+    struct JSProxyData* proxy_data;                                    /* JS_CLASS_PROXY */
+    struct JSPromiseData* promise_data;                                /* JS_CLASS_PROMISE */
+    struct JSPromiseFunctionData* promise_function_data;               /* JS_CLASS_PROMISE_RESOLVE_FUNCTION, JS_CLASS_PROMISE_REJECT_FUNCTION */
+    struct JSAsyncFunctionData* async_function_data;                   /* JS_CLASS_ASYNC_FUNCTION_RESOLVE, JS_CLASS_ASYNC_FUNCTION_REJECT */
     struct JSAsyncFromSyncIteratorData* async_from_sync_iterator_data; /* JS_CLASS_ASYNC_FROM_SYNC_ITERATOR */
     struct JSAsyncGeneratorData* async_generator_data;                 /* JS_CLASS_ASYNC_GENERATOR */
     struct {                                                           /* JS_CLASS_BYTECODE_FUNCTION: 12/24 bytes */

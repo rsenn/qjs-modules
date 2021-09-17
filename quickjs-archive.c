@@ -18,12 +18,7 @@ thread_local JSValue archiveentry_proto = {JS_TAG_UNDEFINED}, archiveentry_ctor 
 enum { ARCHIVE_METHOD_READ, ARCHIVE_METHOD_WRITE, ARCHIVE_METHOD_READFILE, ARCHIVE_METHOD_WRITEFILE };
 enum { ARCHIVE_PROP_FORMAT, ARCHIVE_PROP_COMPRESSION, ARCHIVE_PROP_FILTERS, ARCHIVE_PROP_FILECOUNT };
 
-enum {
-  ARCHIVEENTRY_METHOD_READ,
-  ARCHIVEENTRY_METHOD_WRITE,
-  ARCHIVEENTRY_METHOD_READFILE,
-  ARCHIVEENTRY_METHOD_WRITEFILE
-};
+enum { ARCHIVEENTRY_METHOD_READ, ARCHIVEENTRY_METHOD_WRITE, ARCHIVEENTRY_METHOD_READFILE, ARCHIVEENTRY_METHOD_WRITEFILE };
 enum {
   ENTRY_ATIME,
   ENTRY_BIRTHTIME,
@@ -192,9 +187,7 @@ js_archive_getter(JSContext* ctx, JSValueConst this_val, int magic) {
     case ARCHIVE_PROP_FILTERS: {
       int i, num_filters = archive_filter_count(ar);
       ret = JS_NewArray(ctx);
-      for(i = 0; i < num_filters; i++) {
-        JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, archive_filter_name(ar, i)));
-      }
+      for(i = 0; i < num_filters; i++) { JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, archive_filter_name(ar, i))); }
       break;
     }
     case ARCHIVE_PROP_FILECOUNT: {
