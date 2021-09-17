@@ -17,7 +17,7 @@ function main(...args) {
       colors: true,
       depth: 8,
       maxStringLength: Infinity,
-      maxArrayLength: 256,
+      maxArrayLength: 8,
       compact: 2,
       showHidden: false
     }
