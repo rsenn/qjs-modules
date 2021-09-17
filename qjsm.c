@@ -482,7 +482,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case LOAD_MODULE: {
-      if((def = js_module_load(ctx, name)))
+      if((def = js_module_import_namespace(ctx, name)))
         val = JS_MKPTR(JS_TAG_MODULE, def);
       break;
     }
@@ -855,7 +855,7 @@ main(int argc, char** argv) {
       char** name;
       JSModuleDef* m;
       vector_foreach_t(&module_list, name) {
-        if(!(m = js_module_load(ctx, *name))) {
+        if(!(m = js_module_import_namespace(ctx, *name))) {
           fprintf(stderr, "error loading module '%s'\n", *name);
           exit(1);
         }

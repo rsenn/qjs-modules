@@ -1467,11 +1467,24 @@ js_module_find(JSContext* ctx, const char* name) {
 }
 
 JSModuleDef*
-js_module_load(JSContext* ctx, const char* name) {
+js_module_import_namespace(JSContext* ctx, const char* path, const char* ns) {
   DynBuf buf;
+  const char* name;
+  size_t namelen;
+
+
+  name  = basename(path);
+  namelen = strlen(name);
+
+  while(name[namelen] && is_identifier_char(name[namelen])) ++namelen;
+
+     ns = ns ? js_strdup(ctx, ns) :  js_strndup(ctx,  name, namelen);
+
+
   js_dbuf_init(ctx, &buf);
-  dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
+  dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%.*s = %s;",ns, path, name, namelen, ns);
   dbuf_0(&buf);
+  printf("js_module_import_namespace: '%s'\n", buf.buf);
   js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
   return js_module_find(ctx, name);
 }

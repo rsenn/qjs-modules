@@ -851,7 +851,7 @@ char* js_module_search_ext(JSContext*, const char*, const char* ext);
 char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
 JSModuleDef* js_module_def(JSContext*, JSValueConst);
 JSModuleDef* js_module_find(JSContext*, const char*);
-JSModuleDef* js_module_load(JSContext*, const char*);
+JSModuleDef* js_module_import_namespace(JSContext*, const char*file, const char*ns);
 JSModuleDef* js_module_loader_so(JSContext*, const char*);
 
 JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);

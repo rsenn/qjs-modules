@@ -476,12 +476,12 @@ js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if((buf = js_load_file(ctx, &len, file))) {
     if(!is_mod && JS_DetectModule((const char*)buf, len))
       is_mod = TRUE;
-    if(is_mod) {
-      flags |= (is_mod ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
-      if(magic == 0)
-        flags |= JS_EVAL_FLAG_COMPILE_ONLY;
+    flags |= (is_mod ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
+    ret = JS_Eval(ctx, (const char*)buf, len, file, flags | (is_mod ? JS_EVAL_FLAG_COMPILE_ONLY : 0));
+
+    if(is_mod && !(flags & JS_EVAL_FLAG_COMPILE_ONLY)) {
+      ret = JS_EvalFunction(ctx, ret);
     }
-    ret = JS_Eval(ctx, (const char*)buf, len, file, flags);
   }
   return ret;
 }
