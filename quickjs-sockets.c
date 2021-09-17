@@ -446,14 +446,14 @@ pollfd_write(JSContext* ctx, const struct pollfd* pfd, JSValueConst arg) {
   if(js_is_array(ctx, arg)) {
     js_array_clear(ctx, arg);
     JS_SetPropertyUint32(ctx, arg, 0, JS_NewInt32(ctx, pfd->fd));
-    JS_SetPropertyUint32(ctx, arg, 1, JS_NewUint32(ctx, pfd->events));
-    JS_SetPropertyUint32(ctx, arg, 2, JS_NewUint32(ctx, pfd->revents));
+    JS_SetPropertyUint32(ctx, arg, 1, JS_NewInt32(ctx, pfd->events));
+    JS_SetPropertyUint32(ctx, arg, 2, JS_NewInt32(ctx, pfd->revents));
     return TRUE;
   }
   if(JS_IsObject(arg) && !JS_IsNull(arg)) {
     JS_SetPropertyStr(ctx, arg, "fd", JS_NewInt32(ctx, pfd->fd));
-    JS_SetPropertyStr(ctx, arg, "events", JS_NewUint32(ctx, pfd->events));
-    JS_SetPropertyStr(ctx, arg, "revents", JS_NewUint32(ctx, pfd->revents));
+    JS_SetPropertyStr(ctx, arg, "events", JS_NewInt32(ctx, pfd->events));
+    JS_SetPropertyStr(ctx, arg, "revents", JS_NewInt32(ctx, pfd->revents));
     return TRUE;
   }
   if(js_is_arraybuffer(ctx, arg)) {
@@ -848,14 +848,14 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
         assert(syscall);
 
         /*if(0 && js_syscallerror_class_id && !JS_IsUndefined(syscallerror_proto)) */ {
-         // ret = JS_IsObject(syscallerror_proto) ? JS_NewObjectProto(ctx, syscallerror_proto) : JS_NewObject(ctx);
+          // ret = JS_IsObject(syscallerror_proto) ? JS_NewObjectProto(ctx, syscallerror_proto) : JS_NewObject(ctx);
 
           ret = js_syscallerror_new(ctx, syscall, sock.error);
           // } else {
           // ret = JS_NewObject(ctx);
-         /* JS_SetPropertyStr(ctx, ret, "errno", JS_NewUint32(ctx, sock.error));
-          JS_SetPropertyStr(ctx, ret, "syscall", JS_NewString(ctx, syscall));
-          JS_SetPropertyStr(ctx, ret, "message", JS_NewString(ctx, strerror(sock.error)));*/
+          /* JS_SetPropertyStr(ctx, ret, "errno", JS_NewUint32(ctx, sock.error));
+           JS_SetPropertyStr(ctx, ret, "syscall", JS_NewString(ctx, syscall));
+           JS_SetPropertyStr(ctx, ret, "message", JS_NewString(ctx, strerror(sock.error)));*/
 
           /*if(JS_IsObject(syscallerror_proto))
             JS_SetPrototype(ctx, ret, syscallerror_proto);*/
