@@ -1273,22 +1273,25 @@ js_modules_list(JSContext* ctx) {
 }
 
 JSValue
-js_modules_array(JSContext* ctx) {
+js_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
   struct list_head* el;
   JSValue ret = JS_NewArray(ctx);
   uint32_t i = 0;
   list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    const char* str = module_namestr(ctx, m);
+    JSModuleDef* def = list_entry(el, JSModuleDef, link);
+    const char* str = module_namestr(ctx, def);
+    JSValue entry = magic ? module_entry(ctx, def) : module_object(ctx, def);
     if(str[0] != '<')
-      JS_SetPropertyUint32(ctx, ret, i++, JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
+      JS_SetPropertyUint32(ctx, ret, i++, entry);
+    else
+      JS_FreeValue(ctx, entry);
     js_free(ctx, str);
   }
   return ret;
 }
 
 JSValue
-js_modules_entries(JSContext* ctx) {
+js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
   struct list_head* el;
   JSValue ret = JS_NewArray(ctx);
   uint32_t i = 0;
@@ -1296,8 +1299,8 @@ js_modules_entries(JSContext* ctx) {
     JSModuleDef* def = list_entry(el, JSModuleDef, link);
     const char* name = module_namestr(ctx, def);
     JSValue entry = JS_NewArray(ctx);
-    JS_SetPropertyUint32(ctx, entry, 0, module_name(ctx, def));
-    JS_SetPropertyUint32(ctx, entry, 1, JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def)));
+    JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, basename(name)));
+    JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, def) : module_object(ctx, def));
     if(name[0] != '<')
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
@@ -1308,25 +1311,42 @@ js_modules_entries(JSContext* ctx) {
 }
 
 JSValue
-js_modules_map(JSContext* ctx) {
-  JSValue map, entries = js_modules_entries(ctx);
+js_modules_map(JSContext* ctx, JSValueConst this_val, int magic) {
+  JSValue map, entries = js_modules_entries(ctx, this_val, magic);
   map = js_map_new(ctx, entries);
   JS_FreeValue(ctx, entries);
   return map;
 }
 
 JSValue
-js_modules_object(JSContext* ctx) {
+js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
   struct list_head* it;
   JSValue obj = JS_NewObject(ctx);
   list_for_each(it, &ctx->loaded_modules) {
     JSModuleDef* def = list_entry(it, JSModuleDef, link);
     const char* name = module_namestr(ctx, def);
+    JSValue entry = magic ? module_entry(ctx, def) : module_object(ctx, def);
     if(name[0] != '<')
-      JS_SetPropertyStr(ctx, obj, basename(name), JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def)));
+      JS_SetPropertyStr(ctx, obj, basename(name), entry);
+    else
+      JS_FreeValue(ctx, entry);
     js_free(ctx, name);
   }
   return obj;
+}
+
+JSValue
+module_object(JSContext* ctx, JSModuleDef* def) {
+  return JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def));
+}
+
+JSValue
+module_entry(JSContext* ctx, JSModuleDef* def) {
+  JSValue entry = JS_NewArray(ctx);
+  JS_SetPropertyUint32(ctx, entry, 0, module_ns(ctx, def));
+  JS_SetPropertyUint32(ctx, entry, 1, module_exports(ctx, def));
+  JS_SetPropertyUint32(ctx, entry, 2, module_func(ctx, def));
+  return entry;
 }
 
 char*

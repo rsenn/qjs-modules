@@ -547,9 +547,9 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, 0),
     JS_CFUNC_MAGIC_DEF("evalScript", 1, jsm_eval_script, 1),
-    JS_CGETSET_DEF("moduleList", js_modules_array, 0),
-    JS_CGETSET_DEF("moduleObject", js_modules_object, 0),
-    JS_CGETSET_DEF("moduleMap", js_modules_map, 0),
+    JS_CGETSET_MAGIC_DEF("moduleList", js_modules_array, 0, 0),
+    JS_CGETSET_MAGIC_DEF("moduleObject", js_modules_object, 0, 0),
+    JS_CGETSET_MAGIC_DEF("moduleMap", js_modules_map, 0, 0),
     JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
