@@ -491,8 +491,9 @@ js_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) 
     if(timeval_read(ctx, argv[4], &tv))
       timeout = &tv;
 
-  if((ret = select(n, rset, wset, eset, timeout)) == -1)
-    return js_syscallerror_new(ctx, "select", errno);
+  ret = select(n, rset, wset, eset, timeout);
+
+  // if(ret == -1) return js_syscallerror_new(ctx, "select", errno);
 
   if(rset)
     fdset_write(ctx, rset, argv[1]);
@@ -513,22 +514,20 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t timeout = -1;
   struct pollfd* pfds;
   BOOL is_array = js_is_array(ctx, argv[0]), is_arraybuffer = js_is_arraybuffer(ctx, argv[0]);
-
+ 
   if(argc >= 2 && JS_IsNumber(argv[1]))
     JS_ToUint32(ctx, &nfds, argv[1]);
   if(argc >= 3 && JS_IsNumber(argv[2]))
     JS_ToInt32(ctx, &timeout, argv[2]);
-
   if(nfds == 0) {
     if(is_array)
       nfds = js_array_length(ctx, argv[0]);
     else if(is_arraybuffer)
       nfds = js_arraybuffer_bytelength(ctx, argv[0]) / sizeof(struct pollfd);
   }
-
   assert(nfds);
   pfds = alloca(sizeof(struct pollfd) * nfds);
-
+  
   if(is_array) {
     uint32_t i;
     for(i = 0; i < nfds; i++) {
@@ -551,8 +550,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
     }
   }
 
-  if((ret = poll(pfds, nfds, timeout)) == -1)
-    return js_syscallerror_new(ctx, "poll", errno);
+  ret = poll(pfds, nfds, timeout);
 
   if(is_array) {
     uint32_t i;

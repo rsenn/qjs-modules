@@ -101,7 +101,7 @@ function main() {
     ret = poll((pfds = [new PollFD(sock.fd, flags | POLLERR)]), pfds.length, (timeout = 3000));
 
     // console.log(`poll(${pfds.map(pfd => pfd.inspect()).join(', ')}, ${pfds.length}, ${timeout}) =`, ret);
-    //console.log(`poll =`, ioFlags(pfds[0].revents));
+  console.log(`poll =`, ret, ioFlags(pfds[0].revents));
   }
 
   waitIO(POLLOUT);
