@@ -1467,26 +1467,33 @@ js_module_find(JSContext* ctx, const char* name) {
 }
 
 JSModuleDef*
-js_module_import_namespace(JSContext* ctx, const char* path, const char* ns) {
+js_module_import_default(JSContext* ctx, const char* path) {
+  js_module_import(ctx, path, 0, TRUE);
+  return js_module_find(ctx, path);
+}
+
+JSModuleDef*
+js_module_import_ns(JSContext* ctx, const char* path, const char* ns) {
+  js_module_import(ctx, path, ns, FALSE);
+  return js_module_find(ctx, path);
+}
+
+JSValue
+js_module_import(JSContext* ctx, const char* path, const char* ns, BOOL imp_default) {
   DynBuf buf;
   const char* name;
   size_t namelen;
-
-
-  name  = basename(path);
-  namelen = strlen(name);
-
+  name = basename(path);
+  namelen = 0;
   while(name[namelen] && is_identifier_char(name[namelen])) ++namelen;
 
-     ns = ns ? js_strdup(ctx, ns) :  js_strndup(ctx,  name, namelen);
-
-
+  ns = ns ? js_strdup(ctx, ns) : js_strndup(ctx, name, namelen);
   js_dbuf_init(ctx, &buf);
-  dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%.*s = %s;",ns, path, name, namelen, ns);
+  dbuf_printf(&buf, "import %s%s from '%s'; globalThis.%.*s = %s;", imp_default ? "" : "* as ", ns, path, namelen, name, ns);
   dbuf_0(&buf);
-  printf("js_module_import_namespace: '%s'\n", buf.buf);
-  js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
-  return js_module_find(ctx, name);
+  printf("js_module_import: buf='%s' ns='%s\n'", buf.buf, ns);
+  return js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
+  // return js_module_find(ctx, name);
 }
 
 JSModuleDef*

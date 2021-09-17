@@ -3,7 +3,7 @@ import * as std from 'std';
 import { Console } from 'console';
 import { Location } from 'misc';
 import { extendArray } from 'util';
-import { toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileFile, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
+import { toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
 import * as fs from 'fs';
 
 ('use strict');
@@ -41,13 +41,13 @@ function main(...args) {
   console.log('misc.btoa()', s);
   console.log('misc.atob()', atob(s));
 
-  let mod = compileFile('lib/fs.js', true);
+  let mod = compileScript('lib/fs.js', true);
   let modfn = getModuleFunction(mod);
   let bc = writeObject(mod);
   let fbc = writeObject(modfn);
   let opcodes = getOpCodes(true);
 
-  console.log('misc.compileFile()', mod);
+  console.log('misc.compileScript()', mod);
   console.log('getModuleFunction(mod)', modfn);
   console.log('misc.writeObject(mod)', bc);
   console.log('misc.writeObject(modfn)', fbc);

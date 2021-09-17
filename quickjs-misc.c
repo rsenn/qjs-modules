@@ -3,7 +3,6 @@
 #include "quickjs-internal.h"
 #include "quickjs-location.h"
 #include "quickjs-stringdecoder.h"
-#include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "path.h"
 #include "base64.h"
@@ -286,7 +285,6 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if((r = path_readlink(path, &dbuf)) > 0) {
     ret = dbuf_tostring_free(&dbuf, ctx);
   } else if(r < 0) {
-    ret = js_syscallerror_throw(ctx, "readlink");
   }
 
   return ret;
@@ -566,7 +564,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     }
   }
   if(ret == -1)
-    return js_syscallerror_throw(ctx,
+    return JS_ThrowInternalError(ctx, "%s() failed: %d",  
                                  ((const char* const[]){
                                      "getpid",
                                      "getppid",
@@ -579,7 +577,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                                      "setgid",
                                      "seteuid",
                                      "setegid",
-                                 })[magic - FUNC_GETPID]);
+                                 })[magic - FUNC_GETPID], ret);
 
   return JS_NewInt32(ctx, ret);
 }
@@ -962,10 +960,14 @@ js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(argc >= 2)
     syscall = JS_ToCString(ctx, argv[1]);
 
-  err = js_syscallerror_new(ctx, syscall, errnum);
+  err = JS_NewObject(ctx);
+
+  JS_SetPropertyStr(ctx, err, "errno", JS_NewInt32(ctx, errnum));
+  JS_SetPropertyStr(ctx, err, "syscall", JS_NewString(ctx,syscall));
 
   if(syscall)
     JS_FreeCString(ctx, syscall);
+
   return err;
 }
 
@@ -1049,14 +1051,11 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
 
   if(!js_location_class_id)
     js_location_init(ctx, 0);
-  if(!js_syscallerror_class_id)
-    js_syscallerror_init(ctx, 0);
 
   if(m) {
     // JS_SetModuleExportList(ctx, m, location_ctor);
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-    // JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
-    JS_SetModuleExport(ctx, m, "Location", location_ctor);
+     JS_SetModuleExport(ctx, m, "Location", location_ctor);
     // JS_SetModuleExport(ctx, m, "StringDecoder", stringdecoder_ctor);
   }
 

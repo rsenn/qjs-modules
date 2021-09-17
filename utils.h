@@ -851,8 +851,9 @@ char* js_module_search_ext(JSContext*, const char*, const char* ext);
 char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
 JSModuleDef* js_module_def(JSContext*, JSValueConst);
 JSModuleDef* js_module_find(JSContext*, const char*);
-JSModuleDef* js_module_import_namespace(JSContext*, const char*file, const char*ns);
-JSModuleDef* js_module_loader_so(JSContext*, const char*);
+JSModuleDef* js_module_import_default(JSContext*, const char*);
+JSModuleDef* js_module_import_ns(JSContext*, const char*, const char* ns);
+JSValue js_module_import(JSContext*, const char*, const char* ns, BOOL imp_default);
 
 JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);

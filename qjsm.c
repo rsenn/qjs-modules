@@ -482,8 +482,15 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case LOAD_MODULE: {
-      if((def = js_module_import_namespace(ctx, name)))
+      const char* ns = 0;
+      if(argc >= 2)
+        ns = JS_ToCString(ctx, argv[1]);
+
+      if((def = js_module_import_ns(ctx, name, ns)))
         val = JS_MKPTR(JS_TAG_MODULE, def);
+
+      if(ns)
+        JS_FreeCString(ctx, ns);
       break;
     }
     case RESOLVE_MODULE: {
@@ -855,7 +862,7 @@ main(int argc, char** argv) {
       char** name;
       JSModuleDef* m;
       vector_foreach_t(&module_list, name) {
-        if(!(m = js_module_import_namespace(ctx, *name))) {
+        if(!(m = js_module_import_ns(ctx, *name, 0))) {
           fprintf(stderr, "error loading module '%s'\n", *name);
           exit(1);
         }
