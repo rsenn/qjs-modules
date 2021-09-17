@@ -34,23 +34,6 @@
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
 thread_local JSValue sockaddr_proto = {JS_TAG_UNDEFINED}, sockaddr_ctor = {JS_TAG_UNDEFINED}, socket_proto = {JS_TAG_UNDEFINED}, socket_ctor = {JS_TAG_UNDEFINED};
 
-typedef union {
-  uint16_t family;
-  struct sockaddr_in in;
-  struct sockaddr_in6 in6;
-} SockAddr;
-
-typedef union {
-  struct {
-    int32_t fd;
-    uint16_t error, syscall;
-  };
-  uint64_t u64;
-  void* ptr;
-} Socket;
-
-enum SocketCalls { SYSCALL_SOCKET = 1, SYSCALL_GETSOCKNAME, SYSCALL_GETPEERNAME, SYSCALL_FCNTL, SYSCALL_BIND, SYSCALL_ACCEPT, SYSCALL_CONNECT, SYSCALL_LISTEN, SYSCALL_RECV, SYSCALL_SEND, SYSCALL_SHUTDOWN, SYSCALL_CLOSE, SYSCALL_GETSOCKOPT, SYSCALL_SETSOCKOPT };
-
 static const char* socket_syscalls[] = {0, "socket", "getsockname", "getpeername", "fcntl", "bind", "accept", "connect", "listen", "recv", "send", "shutdown", "close", "getsockopt", "setsockopt"};
 static const size_t socket_syscalls_size = countof(socket_syscalls);
 
@@ -64,16 +47,6 @@ sockaddr_new(JSContext* ctx, int af) {
   sa->family = af;
 
   return sa;
-}
-
-static inline SockAddr*
-js_sockaddr_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_sockaddr_class_id);
-}
-
-static inline SockAddr*
-js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_sockaddr_class_id);
 }
 
 static JSValue
@@ -779,20 +752,6 @@ static const JSCFunctionListEntry js_sockets_funcs[] = {
     JS_CONSTANT(POLLWRNORM),
 };
 
-static inline Socket
-js_socket_data(JSValueConst value) {
-  Socket sock;
-  sock.ptr = JS_GetOpaque(value, js_socket_class_id);
-  return sock;
-}
-
-static inline Socket
-js_socket_data2(JSContext* ctx, JSValueConst value) {
-  Socket sock;
-  sock.ptr = JS_GetOpaque2(ctx, value, js_socket_class_id);
-  return sock;
-}
-
 JSValue
 js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd) {
   JSValue obj;
@@ -1142,6 +1101,28 @@ static JSClassDef js_socket_class = {
     .finalizer = js_socket_finalizer,
 };
 
+static const JSCFunctionListEntry js_socket_proto_funcs[] = {
+    JS_CGETSET_MAGIC_FLAGS_DEF("fd", js_socket_get, js_socket_set, SOCKET_PROP_FD, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_socket_get, js_socket_set, SOCKET_PROP_ERRNO, JS_PROP_CONFIGURABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("syscall", js_socket_get, js_socket_set, SOCKET_PROP_SYSCALL, JS_PROP_CONFIGURABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("error", js_socket_get, js_socket_set, SOCKET_PROP_ERROR, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_FLAGS_DEF("local", js_socket_get, js_socket_set, SOCKET_PROP_LOCAL, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_FLAGS_DEF("remote", js_socket_get, js_socket_set, SOCKET_PROP_REMOTE, JS_PROP_C_W_E),
+    JS_CFUNC_MAGIC_DEF("ndelay", 0, js_socket_method, SOCKET_METHOD_NDELAY),
+    JS_CFUNC_MAGIC_DEF("bind", 1, js_socket_method, SOCKET_METHOD_BIND),
+    JS_CFUNC_MAGIC_DEF("connect", 1, js_socket_method, SOCKET_METHOD_CONNECT),
+    JS_CFUNC_MAGIC_DEF("listen", 0, js_socket_method, SOCKET_METHOD_LISTEN),
+    JS_CFUNC_MAGIC_DEF("send", 1, js_socket_method, SOCKET_METHOD_SEND),
+    JS_CFUNC_MAGIC_DEF("recv", 1, js_socket_method, SOCKET_METHOD_RECV),
+    JS_CFUNC_MAGIC_DEF("shutdown", 1, js_socket_method, SOCKET_METHOD_SHUTDOWN),
+    JS_CFUNC_MAGIC_DEF("close", 0, js_socket_method, SOCKET_METHOD_CLOSE),
+    JS_CFUNC_MAGIC_DEF("getsockopt", 3, js_socket_method, SOCKET_METHOD_GETSOCKOPT),
+    JS_CFUNC_MAGIC_DEF("setsockopt", 3, js_socket_method, SOCKET_METHOD_SETSOCKOPT),
+    JS_CFUNC_DEF("valueOf", 0, js_socket_valueof),
+    JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Socket", JS_PROP_CONFIGURABLE),
+};
+
 static const JSCFunctionListEntry js_sockets_defines[] = {
     JS_PROP_INT32_DEF("SHUT_RD", SHUT_RD, 0),
     JS_PROP_INT32_DEF("SHUT_WR", SHUT_WR, 0),
@@ -1227,28 +1208,6 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
     JS_PROP_INT32_DEF("SOL_ALG", SOL_ALG, 0),
     JS_PROP_INT32_DEF("SOL_NFC", SOL_NFC, 0),
     JS_PROP_INT32_DEF("SOL_KCM", SOL_KCM, 0),
-};
-
-static const JSCFunctionListEntry js_socket_proto_funcs[] = {
-    JS_CGETSET_MAGIC_FLAGS_DEF("fd", js_socket_get, js_socket_set, SOCKET_PROP_FD, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_socket_get, js_socket_set, SOCKET_PROP_ERRNO, JS_PROP_CONFIGURABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("syscall", js_socket_get, js_socket_set, SOCKET_PROP_SYSCALL, JS_PROP_CONFIGURABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("error", js_socket_get, js_socket_set, SOCKET_PROP_ERROR, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_FLAGS_DEF("local", js_socket_get, js_socket_set, SOCKET_PROP_LOCAL, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_FLAGS_DEF("remote", js_socket_get, js_socket_set, SOCKET_PROP_REMOTE, JS_PROP_C_W_E),
-    JS_CFUNC_MAGIC_DEF("ndelay", 0, js_socket_method, SOCKET_METHOD_NDELAY),
-    JS_CFUNC_MAGIC_DEF("bind", 1, js_socket_method, SOCKET_METHOD_BIND),
-    JS_CFUNC_MAGIC_DEF("connect", 1, js_socket_method, SOCKET_METHOD_CONNECT),
-    JS_CFUNC_MAGIC_DEF("listen", 0, js_socket_method, SOCKET_METHOD_LISTEN),
-    JS_CFUNC_MAGIC_DEF("send", 1, js_socket_method, SOCKET_METHOD_SEND),
-    JS_CFUNC_MAGIC_DEF("recv", 1, js_socket_method, SOCKET_METHOD_RECV),
-    JS_CFUNC_MAGIC_DEF("shutdown", 1, js_socket_method, SOCKET_METHOD_SHUTDOWN),
-    JS_CFUNC_MAGIC_DEF("close", 0, js_socket_method, SOCKET_METHOD_CLOSE),
-    JS_CFUNC_MAGIC_DEF("getsockopt", 3, js_socket_method, SOCKET_METHOD_GETSOCKOPT),
-    JS_CFUNC_MAGIC_DEF("setsockopt", 3, js_socket_method, SOCKET_METHOD_SETSOCKOPT),
-    JS_CFUNC_DEF("valueOf", 0, js_socket_valueof),
-    JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Socket", JS_PROP_CONFIGURABLE),
 };
 
 int
