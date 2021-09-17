@@ -25,3 +25,25 @@ fmt_ulong(char* dest, unsigned long i) {
     for(tmp = i, dest += len, len2 = len + 1; --len2; tmp /= 10) *--dest = (char)((tmp % 10) + '0');
   return len;
 }
+
+size_t
+scan_ushort(const char* src, unsigned short* dest) {
+  if(sizeof(unsigned short) == sizeof(unsigned int))
+    return scan_uint(src, (unsigned int*)dest);
+  if(sizeof(unsigned short) < sizeof(unsigned long)) {
+    const char* cur;
+    unsigned short l;
+    for(cur = src, l = 0; *cur >= '0' && *cur <= '9'; ++cur) {
+      unsigned long tmp = l * 10ul + *cur - '0';
+      if((unsigned short)tmp != tmp)
+        break;
+      l = tmp;
+    }
+    if(cur > src)
+      *dest = l;
+    return (size_t)(cur - src);
+  } else {
+    char compileerror[sizeof(unsigned long) - sizeof(unsigned short)];
+    (void)compileerror;
+  }
+}

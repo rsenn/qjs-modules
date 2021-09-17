@@ -279,5 +279,6 @@ size_t token_length(const char*, size_t, char delim);
 #define FMT_ULONG 40 /* enough space to hold 2^128 - 1 in decimal, plus \0 */
 
 size_t fmt_ulong(char*, unsigned long);
+size_t scan_ushort(const char*, unsigned short*);
 
 #endif /* defined(CHAR_UTILS_H) */

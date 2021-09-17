@@ -68,48 +68,55 @@ js_sockaddr_new(JSContext* ctx, int family) {
 
 static BOOL
 js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* sa) {
-  size_t size;
+  size_t size = 0;
 
-  if(argc >= 1) {
-    if(JS_IsNumber(argv[0])) {
-      int32_t family;
-      JS_ToInt32(ctx, &family, argv[0]);
-      sa->family = family;
+  if(argc >= 2 && JS_IsNumber(argv[0])) {
+    int32_t family;
+    JS_ToInt32(ctx, &family, argv[0]);
+    sa->family = family;
+    size = sockaddr_size(sa);
+    argc--;
+    argv++;
+  }
+
+  if(argc >= 2) {
+    if(JS_IsString(argv[0])) {
+      const char* str = JS_ToCString(ctx, argv[0]);
+      if(sa->family == 0) {
+        if(inet_pton(AF_INET, str, &sa->in.sin_addr) > 0)
+          sa->family = AF_INET;
+        else if(inet_pton(AF_INET6, str, &sa->in6.sin6_addr) > 0)
+          sa->family = AF_INET;
+      } else {
+        inet_pton(sa->family, str, sockaddr_addr(sa));
+      }
+      JS_FreeCString(ctx, str);
     } else if(js_is_arraybuffer(ctx, argv[0])) {
       uint8_t* data;
       size_t len;
       if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-        if(len > 0)
-          memcpy(sockaddr_addr(sa), data, MIN_NUM(len, sizeof(SockAddr)));
-      }
-    }
-  }
-
-  size = sockaddr_size(sa);
-
-  if(argc >= 2) {
-    if(JS_IsString(argv[1])) {
-      const char* str = JS_ToCString(ctx, argv[1]);
-      inet_pton(sa->family, str, sockaddr_addr(sa));
-      JS_FreeCString(ctx, str);
-    } else if(js_is_arraybuffer(ctx, argv[1])) {
-      uint8_t* data;
-      size_t len;
-      if((data = JS_GetArrayBuffer(ctx, &len, argv[1]))) {
-        if(len > 0)
+        if(len > 0) {
           memcpy(sockaddr_addr(sa), data, MIN_NUM(len, size));
+          if(size == 0)
+            size = len;
+        }
+      }
+
+      if(JS_IsNumber(argv[1])) {
+        uint32_t port;
+        JS_ToUint32(ctx, &port, argv[1]);
+        if(sa->family == AF_INET)
+          sa->in.sin_port = htons(port);
+        else if(sa->family == AF_INET6)
+          sa->in6.sin6_port = htons(port);
       }
     }
-  }
-  if(argc >= 3) {
-    if(JS_IsNumber(argv[2])) {
-      uint32_t port;
-      JS_ToUint32(ctx, &port, argv[2]);
-
-      if(sa->family == AF_INET)
-        sa->in.sin_port = htons(port);
-      else if(sa->family == AF_INET6)
-        sa->in6.sin6_port = htons(port);
+  } else if(argc == 1 && js_is_arraybuffer(ctx, argv[0])) {
+    uint8_t* data;
+    size_t len;
+    if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+      if(len > 0)
+        memcpy(sockaddr_addr(sa), data, MIN_NUM(len, sizeof(SockAddr)));
     }
   }
   return TRUE;
@@ -901,11 +908,11 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
             len = sizeof(num);
           }
           if(!buf && JS_IsArray(ctx, argv[2])) {
-            int i,n =  MIN_NUM(js_array_length(ctx, argv[2]), 1);
+            int i, n = MIN_NUM(js_array_length(ctx, argv[2]), 1);
             len = n * sizeof(int32_t);
             tmp = buf = alloca(len);
             for(i = 0; i < n; i++) {
-              JSValue el =JS_GetPropertyUint32(ctx, argv[2], i);
+              JSValue el = JS_GetPropertyUint32(ctx, argv[2], i);
               JS_ToInt32(ctx, &tmp[i], el);
               JS_FreeValue(ctx, el);
             }
