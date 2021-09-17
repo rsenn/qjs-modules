@@ -338,7 +338,9 @@ class EBNFParser extends Parser {
       let line = arg.currentLine();
       let index = arg.loc.column - 1;
       let error = new Error(
-        `Unmatched token at ${arg.loc} char='${Lexer.escape(line[index])}' section=${this.section} state=${arg.states[arg.state]}\n${line}\n${[...line]
+        `Unmatched token at ${arg.loc} char='${Lexer.escape(line[index])}' section=${
+          this.section
+        } state=${arg.states[arg.state]}\n${line}\n${[...line]
           .slice(0, index)
           .map(c => (c != '\t' ? ' ' : c))
           .join('')}^`
@@ -366,7 +368,9 @@ class EBNFParser extends Parser {
     const { rules } = this.grammar.lexer;
     let rule = rules.find((rule, i) => {
       const re = RegExpToString(rule.regexp);
-      return typeof token == 'string' ? rule.token == token : 0 === RegExpCompare(regexp, rule.regexp);
+      return typeof token == 'string'
+        ? rule.token == token
+        : 0 === RegExpCompare(regexp, rule.regexp);
     });
     return rule;
   }
@@ -376,12 +380,15 @@ class EBNFParser extends Parser {
     const { rules, definitions } = this.grammar.lexer;
     let rule,
       add = r => rules.push(r);
-    if((regexp = RegExpToString(regexp))) regexp = SubstDefines(regexp, name => this.getDefinition(name));
+    if((regexp = RegExpToString(regexp)))
+      regexp = SubstDefines(regexp, name => this.getDefinition(name));
     rule ??= {};
     if(typeof token == 'string') rule.token = token;
     if(regexp)
       //rule.regexp = new RegExp(regexp);
-      TryCatch(() => (rule.regexp = new RegExp(regexp))).catch(error => console.log('ERROR: regexp =', regexp))();
+      TryCatch(() => (rule.regexp = new RegExp(regexp))).catch(error =>
+        console.log('ERROR: regexp =', regexp)
+      )();
     if(states) rule.state = states.length == 1 ? states[0] : states;
     if(['token', 'regexp'].some(prop => prop in rule)) {
       add(rule);
@@ -411,7 +418,11 @@ class EBNFParser extends Parser {
 
   error(tok, message) {
     const { lexer } = this;
-    return new Error(`${tok.loc} ${tok.type} '${Lexer.escape(tok.lexeme)}' ${message}\n${lexer.currentLine()}\n${' '.repeat(tok.loc.column - 1) + '^'}`);
+    return new Error(
+      `${tok.loc} ${tok.type} '${Lexer.escape(tok.lexeme)}' ${message}\n${lexer.currentLine()}\n${
+        ' '.repeat(tok.loc.column - 1) + '^'
+      }`
+    );
   }
 
   parseDirective() {
@@ -509,7 +520,10 @@ class EBNFParser extends Parser {
     //DumpToken(`parseRule(${this.lexer.topState()})`.padEnd(20), this.next());
     const { lexer } = this;
     let tok,
-      pat = this.parsePattern(tok => tok.type.endsWith('ws') || tok.type.endsWith('newline') || tok.type.endsWith('cstart')),
+      pat = this.parsePattern(
+        tok =>
+          tok.type.endsWith('ws') || tok.type.endsWith('newline') || tok.type.endsWith('cstart')
+      ),
       act = [];
     tok = this.next();
     if(tok.type.endsWith('cstart')) act = this.parseAction();
@@ -782,7 +796,11 @@ function main(...args) {
 
   grammar = parser.parse();
   if(grammar) {
-    WriteObject('grammar.kison', grammar, str => `(function () {\n    return ${str.replace(/\n/g, '\n    ')};\n\n})();`);
+    WriteObject(
+      'grammar.kison',
+      grammar,
+      str => `(function () {\n    return ${str.replace(/\n/g, '\n    ')};\n\n})();`
+    );
     //  console.log('grammar:', grammar);
   }
   std.gc();
