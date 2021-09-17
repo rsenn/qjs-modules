@@ -98,11 +98,11 @@ typedef struct Predicate {
   };
 } Predicate;
 
-#define PREDICATE_INIT(id)                                                                                                                                                                                                                                                                                 \
-  {                                                                                                                                                                                                                                                                                                        \
-    id, {                                                                                                                                                                                                                                                                                                  \
-      { 0 }                                                                                                                                                                                                                                                                                                \
-    }                                                                                                                                                                                                                                                                                                      \
+#define PREDICATE_INIT(id)                                                                                                                                                                             \
+  {                                                                                                                                                                                                    \
+    id, {                                                                                                                                                                                              \
+      { 0 }                                                                                                                                                                                            \
+    }                                                                                                                                                                                                  \
   }
 static const size_t CAPTURE_COUNT_MAX = 255;
 
@@ -234,18 +234,18 @@ predicate_mod(JSValue left, JSValue right) {
   return ret;
 }
 
-#define PREDICATE_BINARY(op, id)                                                                                                                                                                                                                                                                           \
-  static inline Predicate predicate_##op(JSValue left, JSValue right) {                                                                                                                                                                                                                                    \
-    Predicate ret = PREDICATE_INIT(PREDICATE_##id);                                                                                                                                                                                                                                                        \
-    ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;                                                                                                                                                                                                                                 \
-    ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;                                                                                                                                                                                                                              \
-    return ret;                                                                                                                                                                                                                                                                                            \
+#define PREDICATE_BINARY(op, id)                                                                                                                                                                       \
+  static inline Predicate predicate_##op(JSValue left, JSValue right) {                                                                                                                                \
+    Predicate ret = PREDICATE_INIT(PREDICATE_##id);                                                                                                                                                    \
+    ret.binary.left = js_is_null_or_undefined(left) ? JS_UNDEFINED : left;                                                                                                                             \
+    ret.binary.right = js_is_null_or_undefined(right) ? JS_UNDEFINED : right;                                                                                                                          \
+    return ret;                                                                                                                                                                                        \
   }
-#define PREDICATE_UNARY(op, id)                                                                                                                                                                                                                                                                            \
-  static inline Predicate predicate_##op(JSValue value) {                                                                                                                                                                                                                                                  \
-    Predicate ret = PREDICATE_INIT(PREDICATE_##id);                                                                                                                                                                                                                                                        \
-    ret.unary.predicate = value;                                                                                                                                                                                                                                                                           \
-    return ret;                                                                                                                                                                                                                                                                                            \
+#define PREDICATE_UNARY(op, id)                                                                                                                                                                        \
+  static inline Predicate predicate_##op(JSValue value) {                                                                                                                                              \
+    Predicate ret = PREDICATE_INIT(PREDICATE_##id);                                                                                                                                                    \
+    ret.unary.predicate = value;                                                                                                                                                                       \
+    return ret;                                                                                                                                                                                        \
   }
 
 PREDICATE_BINARY(bor, BOR)

@@ -23,7 +23,8 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
-#define INSPECT_IS_COMPACT(opts) ((opts)->compact == INT32_MAX ? TRUE : INSPECT_INT32T_INRANGE((opts)->compact) ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) : 0)
+#define INSPECT_IS_COMPACT(opts)                                                                                                                                                                       \
+  ((opts)->compact == INT32_MAX ? TRUE : INSPECT_INT32T_INRANGE((opts)->compact) ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) : 0)
 
 typedef struct {
   int colors : 1;
@@ -742,7 +743,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       vector_init(&propenum_tab, ctx);
 
-      if(js_object_getpropertynames_recursive(ctx, &propenum_tab, opts->proto_chain ? JS_GetPrototype(ctx, value) : value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+      if(js_object_getpropertynames_recursive(
+             ctx, &propenum_tab, opts->proto_chain ? JS_GetPrototype(ctx, value) : value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(is_function) {

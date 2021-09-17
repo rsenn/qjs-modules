@@ -358,7 +358,8 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 const char*
 predicate_typename(const Predicate* pr) {
   return ((const char*[]){
-      "TYPE", "CHARSET", "STRING", "NOTNOT", "NOT", "BNOT", "SQRT", "ADD", "SUB", "MUL", "DIV", "MOD", "BOR", "BAND", "POW", "ATAN2", "OR", "AND", "XOR", "REGEXP", "INSTANCEOF", "PROTOTYPEIS", "EQUAL", "PROPERTY", "MEMBER", "SHIFT", 0,
+      "TYPE", "CHARSET", "STRING", "NOTNOT", "NOT", "BNOT",   "SQRT",       "ADD",         "SUB",   "MUL",      "DIV",    "MOD",   "BOR", "BAND",
+      "POW",  "ATAN2",   "OR",     "AND",    "XOR", "REGEXP", "INSTANCEOF", "PROTOTYPEIS", "EQUAL", "PROPERTY", "MEMBER", "SHIFT", 0,
   })[pr->id];
 }
 

@@ -29,20 +29,20 @@ typedef union Vector {
   };
 } Vector;
 
-#define VECTOR_INIT()                                                                                                                                                                                                                                                                                      \
-  {                                                                                                                                                                                                                                                                                                        \
-    { 0, 0, 0, 0, &vector_default_realloc, 0 }                                                                                                                                                                                                                                                             \
+#define VECTOR_INIT()                                                                                                                                                                                  \
+  {                                                                                                                                                                                                    \
+    { 0, 0, 0, 0, &vector_default_realloc, 0 }                                                                                                                                                         \
   }
 
 #define vector_init(vec, ctx) js_dbuf_init(ctx, &((vec)->dbuf))
 #define vector_init_rt(vec, rt) js_dbuf_init_rt(rt, &((vec)->dbuf))
-#define VECTOR(ctx)                                                                                                                                                                                                                                                                                        \
-  (Vector) {                                                                                                                                                                                                                                                                                               \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }                                                                                                                                                                                                                                                   \
+#define VECTOR(ctx)                                                                                                                                                                                    \
+  (Vector) {                                                                                                                                                                                           \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }                                                                                                                                               \
   }
-#define VECTOR_RT(rt)                                                                                                                                                                                                                                                                                      \
-  (Vector) {                                                                                                                                                                                                                                                                                               \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                                                                                                                                                                                                                                                 \
+#define VECTOR_RT(rt)                                                                                                                                                                                  \
+  (Vector) {                                                                                                                                                                                           \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                                                                                                                                             \
   }
 #define vector_begin(vec) ((void*)((vec)->data))
 #define vector_end(vec) ((void*)((vec)->data + (vec)->size))

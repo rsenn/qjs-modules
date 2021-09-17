@@ -7,8 +7,7 @@
 #include "buffer-utils.h"
 
 thread_local VISIBLE JSClassID js_predicate_class_id = 0;
-thread_local JSValue predicate_proto = {JS_TAG_UNDEFINED},
-                     predicate_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue predicate_proto = {JS_TAG_UNDEFINED}, predicate_ctor = {JS_TAG_UNDEFINED};
 
 enum {
   METHOD_EVAL = 0,
@@ -103,10 +102,7 @@ js_predicate_wrap(JSContext* ctx, Predicate pr) {
 }
 
 static JSValue
-js_predicate_constructor(JSContext* ctx,
-                         JSValueConst new_target,
-                         int argc,
-                         JSValueConst argv[]) {
+js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Predicate* pr;
   JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED;
 
@@ -308,8 +304,7 @@ fail:
 }
 
 static JSValue
-js_predicate_method(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Predicate* pr;
   JSValue ret = JS_UNDEFINED;
 
@@ -327,8 +322,7 @@ js_predicate_method(
 }
 
 static JSValue
-js_predicate_operator(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_predicate_operator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   JSArguments args = js_arguments_new(argc, argv);
   JSValue left, right;
@@ -372,8 +366,7 @@ js_predicate_operator(
 }
 
 static JSValue
-js_predicate_tostring(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   DynBuf dbuf = {0};
   Predicate* pr = 0;
   JSValue ret = JS_UNDEFINED;
@@ -420,8 +413,7 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_predicate_function(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
 
   JSArguments args = js_arguments_new(argc, argv);
@@ -588,12 +580,7 @@ js_predicate_function(
 }
 
 JSValue
-js_predicate_call(JSContext* ctx,
-                  JSValueConst func_obj,
-                  JSValueConst this_val,
-                  int argc,
-                  JSValueConst argv[],
-                  int flags) {
+js_predicate_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
   Predicate* pr;
   int32_t result;
   JSValue ret = JS_UNDEFINED;
@@ -620,10 +607,7 @@ js_predicate_call(JSContext* ctx,
 }
 
 static JSValue
-js_predicate_inspect(JSContext* ctx,
-                     JSValueConst this_val,
-                     int argc,
-                     JSValueConst argv[]) {
+js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Predicate* pr;
 
   if(!(pr = js_predicate_data2(ctx, this_val)))
@@ -637,37 +621,22 @@ js_predicate_inspect(JSContext* ctx,
 
   switch(pr->id) {
     case PREDICATE_TYPE: {
-      JS_DefinePropertyValueStr(
-          ctx, obj, "flags", JS_NewInt32(ctx, pr->type.flags), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "flags", JS_NewInt32(ctx, pr->type.flags), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_CHARSET: {
-      JS_DefinePropertyValueStr(ctx,
-                                obj,
-                                "set",
-                                JS_NewStringLen(ctx, pr->charset.set, pr->charset.len),
-                                JS_PROP_ENUMERABLE);
-      JS_DefinePropertyValueStr(
-          ctx, obj, "len", JS_NewUint32(ctx, pr->charset.len), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "set", JS_NewStringLen(ctx, pr->charset.set, pr->charset.len), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "len", JS_NewUint32(ctx, pr->charset.len), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_STRING: {
-      JS_DefinePropertyValueStr(ctx,
-                                obj,
-                                "str",
-                                JS_NewStringLen(ctx, pr->string.str, pr->string.len),
-                                JS_PROP_ENUMERABLE);
-      JS_DefinePropertyValueStr(
-          ctx, obj, "len", JS_NewUint32(ctx, pr->string.len), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "str", JS_NewStringLen(ctx, pr->string.str, pr->string.len), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "len", JS_NewUint32(ctx, pr->string.len), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_NOT:
     case PREDICATE_NOTNOT: {
-      JS_DefinePropertyValueStr(ctx,
-                                obj,
-                                "predicate",
-                                JS_DupValue(ctx, pr->unary.predicate),
-                                JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->unary.predicate), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_ADD:
@@ -675,79 +644,47 @@ js_predicate_inspect(JSContext* ctx,
     case PREDICATE_MUL:
     case PREDICATE_DIV:
     case PREDICATE_MOD: {
-      JS_DefinePropertyValueStr(
-          ctx, obj, "left", JS_DupValue(ctx, pr->binary.left), JS_PROP_ENUMERABLE);
-      JS_DefinePropertyValueStr(
-          ctx, obj, "right", JS_DupValue(ctx, pr->binary.right), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "left", JS_DupValue(ctx, pr->binary.left), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "right", JS_DupValue(ctx, pr->binary.right), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
-      JS_DefinePropertyValueStr(ctx,
-                                obj,
-                                "values",
-                                js_values_toarray(ctx,
-                                                  pr->boolean.npredicates,
-                                                  pr->boolean.predicates),
-                                JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "values", js_values_toarray(ctx, pr->boolean.npredicates, pr->boolean.predicates), JS_PROP_ENUMERABLE);
 
       break;
     }
     case PREDICATE_REGEXP: {
-      JS_DefinePropertyValueStr(
-          ctx, obj, "expr", regexp_to_value(pr->regexp.expr, ctx), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "expr", regexp_to_value(pr->regexp.expr, ctx), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_INSTANCEOF: {
-      JS_DefinePropertyValueStr(ctx,
-                                obj,
-                                "constructor",
-                                JS_DupValue(ctx, pr->unary.predicate),
-                                JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "constructor", JS_DupValue(ctx, pr->unary.predicate), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_PROTOTYPEIS: {
-      JS_DefinePropertyValueStr(ctx,
-                                obj,
-                                "prototype",
-                                JS_DupValue(ctx, pr->unary.predicate),
-                                JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "prototype", JS_DupValue(ctx, pr->unary.predicate), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_EQUAL: {
-      JS_DefinePropertyValueStr(ctx,
-                                obj,
-                                "predicate",
-                                JS_DupValue(ctx, pr->unary.predicate),
-                                JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->unary.predicate), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_PROPERTY: {
-      JS_DefinePropertyValueStr(
-          ctx, obj, "atom", JS_AtomToValue(ctx, pr->property.atom), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "atom", JS_AtomToValue(ctx, pr->property.atom), JS_PROP_ENUMERABLE);
       if(!JS_IsUndefined(pr->property.predicate))
         if(predicate_callable(ctx, pr->property.predicate))
-          JS_DefinePropertyValueStr(ctx,
-                                    obj,
-                                    "predicate",
-                                    JS_DupValue(ctx, pr->property.predicate),
-                                    JS_PROP_ENUMERABLE);
+          JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->property.predicate), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_MEMBER: {
-      JS_DefinePropertyValueStr(
-          ctx, obj, "object", JS_DupValue(ctx, pr->member.object), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "object", JS_DupValue(ctx, pr->member.object), JS_PROP_ENUMERABLE);
       break;
     }
     case PREDICATE_SHIFT: {
-      JS_DefinePropertyValueStr(
-          ctx, obj, "n", JS_NewInt32(ctx, pr->shift.n), JS_PROP_ENUMERABLE);
-      JS_DefinePropertyValueStr(ctx,
-                                obj,
-                                "predicate",
-                                JS_DupValue(ctx, pr->shift.predicate),
-                                JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "n", JS_NewInt32(ctx, pr->shift.n), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->shift.predicate), JS_PROP_ENUMERABLE);
       break;
     }
   }
@@ -768,9 +705,7 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
   JS_FreeValueRT(rt, val);
 }
 
-static JSClassDef js_predicate_class = {.class_name = "Predicate",
-                                        .finalizer = js_predicate_finalizer,
-                                        .call = js_predicate_call};
+static JSClassDef js_predicate_class = {.class_name = "Predicate", .finalizer = js_predicate_finalizer, .call = js_predicate_call};
 
 static const JSCFunctionListEntry js_predicate_operator_funcs[] = {
     JS_CFUNC_MAGIC_DEF("+", 2, js_predicate_operator, OPERATOR_PLUS),
@@ -878,28 +813,15 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_predicate_class_id, &js_predicate_class);
 
   predicate_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             predicate_proto,
-                             js_predicate_proto_funcs,
-                             countof(js_predicate_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, predicate_proto, js_predicate_proto_funcs, countof(js_predicate_proto_funcs));
   JS_SetClassProto(ctx, js_predicate_class_id, predicate_proto);
 
-  predicate_ctor = JS_NewCFunction2(
-      ctx, js_predicate_constructor, "Predicate", 1, JS_CFUNC_constructor, 0);
+  predicate_ctor = JS_NewCFunction2(ctx, js_predicate_constructor, "Predicate", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, predicate_ctor, predicate_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             predicate_ctor,
-                             js_predicate_funcs,
-                             countof(js_predicate_funcs));
-  JS_SetPropertyFunctionList(ctx,
-                             predicate_ctor,
-                             js_predicate_ids,
-                             countof(js_predicate_ids));
-  JS_SetPropertyFunctionList(ctx,
-                             predicate_ctor,
-                             js_predicate_types,
-                             countof(js_predicate_types));
+  JS_SetPropertyFunctionList(ctx, predicate_ctor, js_predicate_funcs, countof(js_predicate_funcs));
+  JS_SetPropertyFunctionList(ctx, predicate_ctor, js_predicate_ids, countof(js_predicate_ids));
+  JS_SetPropertyFunctionList(ctx, predicate_ctor, js_predicate_types, countof(js_predicate_types));
 
   js_set_inspect_method(ctx, predicate_proto, js_predicate_inspect);
 
@@ -909,33 +831,20 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
   operators_create = js_operators_create(ctx, &operators);
 
   JSValue predicate_operators = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             predicate_operators,
-                             js_predicate_operator_funcs,
-                             countof(js_predicate_operator_funcs));
+  JS_SetPropertyFunctionList(ctx, predicate_operators, js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
 
   JSValueConst args[3] = {predicate_operators, JS_NewObject(ctx), JS_NewObject(ctx)};
 
-  JS_SetPropertyFunctionList(ctx,
-                             args[1],
-                             js_predicate_operator_funcs,
-                             countof(js_predicate_operator_funcs));
+  JS_SetPropertyFunctionList(ctx, args[1], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
 
   JS_SetPropertyStr(ctx, args[1], "left", js_global_get(ctx, "Number"));
 
-  JS_SetPropertyFunctionList(ctx,
-                             args[2],
-                             js_predicate_operator_funcs,
-                             countof(js_predicate_operator_funcs));
+  JS_SetPropertyFunctionList(ctx, args[2], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
 
   JS_SetPropertyStr(ctx, args[2], "right", js_global_get(ctx, "Number"));
 
   JSValue predicate_operatorset = JS_Call(ctx, operators_create, operators, 3, args);
-  JS_DefinePropertyValue(ctx,
-                         predicate_proto,
-                         operators_set,
-                         predicate_operatorset,
-                         JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValue(ctx, predicate_proto, operators_set, predicate_operatorset, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
 
   JS_FreeValue(ctx, operators);
   JS_FreeValue(ctx, operators_create);

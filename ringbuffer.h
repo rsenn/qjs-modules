@@ -17,28 +17,28 @@ typedef union ringbuffer {
 
 } RingBuffer;
 
-#define RINGBUFFER_INIT()                                                                                                                                                                                                                                                                                  \
-  {                                                                                                                                                                                                                                                                                                        \
-    { 0, 0, 0, 0, &ringbuffer_default_realloc, 0 }                                                                                                                                                                                                                                                         \
+#define RINGBUFFER_INIT()                                                                                                                                                                              \
+  {                                                                                                                                                                                                    \
+    { 0, 0, 0, 0, &ringbuffer_default_realloc, 0 }                                                                                                                                                     \
   }
 
-#define ringbuffer_init(rb, ctx)                                                                                                                                                                                                                                                                           \
-  do {                                                                                                                                                                                                                                                                                                     \
-    vector_init(&(rb)->vec, ctx);                                                                                                                                                                                                                                                                          \
-    vector_allocate(&(rb)->vec, 1, 1023);                                                                                                                                                                                                                                                                  \
+#define ringbuffer_init(rb, ctx)                                                                                                                                                                       \
+  do {                                                                                                                                                                                                 \
+    vector_init(&(rb)->vec, ctx);                                                                                                                                                                      \
+    vector_allocate(&(rb)->vec, 1, 1023);                                                                                                                                                              \
   } while(0)
-#define ringbuffer_init_rt(rb, rt)                                                                                                                                                                                                                                                                         \
-  do {                                                                                                                                                                                                                                                                                                     \
-    vector_init_rt(&(rb)->vec, rt);                                                                                                                                                                                                                                                                        \
-    vector_allocate(&(rb)->vec, 1, 1023);                                                                                                                                                                                                                                                                  \
+#define ringbuffer_init_rt(rb, rt)                                                                                                                                                                     \
+  do {                                                                                                                                                                                                 \
+    vector_init_rt(&(rb)->vec, rt);                                                                                                                                                                    \
+    vector_allocate(&(rb)->vec, 1, 1023);                                                                                                                                                              \
   } while(0)
-#define RINGBUFFER(ctx)                                                                                                                                                                                                                                                                                    \
-  (RingBuffer) {                                                                                                                                                                                                                                                                                           \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx, 0, 0 }                                                                                                                                                                                                                                             \
+#define RINGBUFFER(ctx)                                                                                                                                                                                \
+  (RingBuffer) {                                                                                                                                                                                       \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx, 0, 0 }                                                                                                                                         \
   }
-#define RINGBUFFER_RT(rt)                                                                                                                                                                                                                                                                                  \
-  (RingBuffer) {                                                                                                                                                                                                                                                                                           \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                                                                                                                                                                                                                                                 \
+#define RINGBUFFER_RT(rt)                                                                                                                                                                              \
+  (RingBuffer) {                                                                                                                                                                                       \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                                                                                                                                             \
   }
 #define ringbuffer_free(rb) vector_free(&(rb)->vec)
 #define ringbuffer_begin(rb) &ringbuffer_tail(rb)
