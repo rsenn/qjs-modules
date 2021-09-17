@@ -456,35 +456,36 @@ js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 
 static JSValue
-js_misc_compile_file(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
-  const char* filename = JS_ToCString(ctx, argv[0]);
-  BOOL module = FALSE;
+  const char* file = JS_ToCString(ctx, argv[0]);
+  BOOL is_mod = FALSE;
   uint8_t* buf;
-  size_t buf_len;
-  int32_t eval_flags = JS_EVAL_FLAG_COMPILE_ONLY;
+  size_t len;
+  int32_t flags = JS_EVAL_TYPE_GLOBAL;
 
   if(argc >= 2 && JS_IsNumber(argv[1])) {
-    JS_ToInt32(ctx, &eval_flags, argv[1]);
+    JS_ToInt32(ctx, &flags, argv[1]);
   } else if(argc >= 2 && JS_IsBool(argv[1])) {
     if(JS_ToBool(ctx, argv[1]))
-      eval_flags |= JS_EVAL_TYPE_MODULE;
-  }
-  module = !!(eval_flags & JS_EVAL_TYPE_MODULE);
-  if(str_ends(filename, ".jsm"))
-    module = TRUE;
-
-  if(module)
-    eval_flags |= JS_EVAL_TYPE_MODULE;
-
-  /* load JS from file to buffer */
-  if((buf = js_load_file(ctx, &buf_len, filename))) {
-    if(!module && JS_DetectModule((const char*)buf, buf_len))
-      module = TRUE;
-    eval_flags |= (module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
-    ret = JS_Eval(ctx, (const char*)buf, buf_len, filename, eval_flags);
+      flags |= JS_EVAL_TYPE_MODULE;
   }
 
+  if(magic == 0)
+    flags |= JS_EVAL_FLAG_COMPILE_ONLY;
+
+  is_mod = !!(flags & JS_EVAL_TYPE_MODULE);
+
+  if(str_ends(file, ".jsm"))
+    is_mod = TRUE;
+  if(is_mod)
+    flags |= JS_EVAL_TYPE_MODULE;
+  if((buf = js_load_file(ctx, &len, file))) {
+    if(!is_mod && JS_DetectModule((const char*)buf, len))
+      is_mod = TRUE;
+    flags |= (is_mod ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
+    ret = JS_Eval(ctx, (const char*)buf, len, file, flags);
+  }
   return ret;
 }
 
@@ -1003,7 +1004,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
     JS_CFUNC_DEF("bitfieldToArray", 1, js_misc_bitfield_to_array),
     JS_CFUNC_DEF("arrayToBitfield", 1, js_misc_array_to_bitfield),
-    JS_CFUNC_DEF("compileFile", 1, js_misc_compile_file),
+    JS_CFUNC_MAGIC_DEF("compileScript", 1, js_misc_compile, 0),
+    JS_CFUNC_MAGIC_DEF("evalScript", 1, js_misc_compile, 1),
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
     JS_CFUNC_DEF("readObject", 1, js_misc_read_object),
     JS_CFUNC_DEF("getOpCodes", 0, js_misc_opcodes),
