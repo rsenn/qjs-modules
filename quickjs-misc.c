@@ -43,7 +43,7 @@ pcg32_random(void) {
 
 static void
 pcg32_init_state(uint32_t state) {
-  pcg32_global.state = state;
+  pcg32_global.state = ~(((uint64_t)state) << 32) | state;
 }
 
 static uint32_t
@@ -877,6 +877,8 @@ js_misc_array_to_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return ret;
 }
 
+enum { RANDOM_RAND,RANDOM_RANDI,RANDOM_RANDF,RANDOM_SRAND};
+
 static JSValue
 js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   uint32_t bound = 0;
@@ -884,20 +886,20 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     JS_ToUint32(ctx, &bound, argv[0]);
 
   switch(magic) {
-    case 0: {
+    case RANDOM_RAND: {
       uint32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound) : pcg32_random();
       return JS_NewUint32(ctx, num);
     }
-    case 1: {
+    case RANDOM_RANDI: {
       int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
       return JS_NewInt32(ctx, num);
     }
 
-    case 2: {
+    case RANDOM_RANDF: {
       uint32_t num = pcg32_random();
       return JS_NewFloat64(ctx, (double)num / UINT32_MAX);
     }
-    case 3: {
+    case RANDOM_SRAND: {
       uint32_t st = 0;
       JS_ToUint32(ctx, &st, argv[0]);
       pcg32_init_state(st);
@@ -1020,10 +1022,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getClassCount", 1, js_misc_classid, GET_CLASS_COUNT),
     JS_CFUNC_MAGIC_DEF("getClassProto", 1, js_misc_classid, GET_CLASS_PROTO),
     JS_CFUNC_MAGIC_DEF("getClassConstructor", 1, js_misc_classid, GET_CLASS_CONSTRUCTOR),
-    JS_CFUNC_MAGIC_DEF("rand", 0, js_misc_random, 0),
-    JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, 1),
-    JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, 2),
-    JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, 3),
+    JS_CFUNC_MAGIC_DEF("rand", 0, js_misc_random, RANDOM_RAND),
+    JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, RANDOM_RANDI),
+    JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, RANDOM_RANDF),
+    JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, RANDOM_SRAND),
     JS_CFUNC_DEF("escape", 1, js_misc_escape),
     JS_CFUNC_DEF("quote", 1, js_misc_quote),
     JS_CFUNC_DEF("error", 0, js_misc_error),
