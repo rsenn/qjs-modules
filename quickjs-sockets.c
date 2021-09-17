@@ -648,7 +648,7 @@ js_socket_new(JSContext* ctx, int sock) {
   return js_socket_new_proto(ctx, socket_proto, sock);
 }
 
-enum { SOCKET_PROP_FD, SOCKET_PROP_OPEN, SOCKET_PROP_EOF, SOCKET_PROP_MODE, SOCKET_PROP_ERRNO, SOCKET_PROP_SYSCALL, SOCKET_PROP_ERROR, SOCKET_PROP_LOCAL, SOCKET_PROP_REMOTE };
+enum { SOCKET_PROP_FD, SOCKET_PROP_OPEN, SOCKET_PROP_EOF, SOCKET_PROP_MODE, SOCKET_PROP_RET, SOCKET_PROP_ERRNO, SOCKET_PROP_SYSCALL, SOCKET_PROP_ERROR, SOCKET_PROP_LOCAL, SOCKET_PROP_REMOTE };
 
 static JSValue
 js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -666,6 +666,10 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case SOCKET_PROP_EOF: {
       ret = JS_NewBool(ctx, socket_eof(sock));
+      break;
+    }
+    case SOCKET_PROP_RET: {
+      ret = JS_NewInt32(ctx, sock.ret);
       break;
     }
     case SOCKET_PROP_MODE: {
@@ -948,6 +952,7 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("open", js_socket_get, 0, SOCKET_PROP_OPEN),
     JS_CGETSET_MAGIC_DEF("eof", js_socket_get, 0, SOCKET_PROP_EOF),
     JS_CGETSET_MAGIC_DEF("mode", js_socket_get, js_socket_set, SOCKET_PROP_MODE),
+    JS_CGETSET_MAGIC_DEF("ret", js_socket_get, js_socket_set, SOCKET_PROP_RET),
     JS_CFUNC_MAGIC_DEF("ndelay", 0, js_socket_method, SOCKET_METHOD_NDELAY),
     JS_CFUNC_MAGIC_DEF("bind", 1, js_socket_method, SOCKET_METHOD_BIND),
     JS_CFUNC_MAGIC_DEF("connect", 1, js_socket_method, SOCKET_METHOD_CONNECT),
