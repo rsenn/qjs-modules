@@ -845,7 +845,6 @@ JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const char*, int buf_len, const char* filename, int flags);
 int js_eval_str(JSContext*, const char*, const char* filename, int flags);
-JSValue js_eval_file(JSContext*, const char*, int module);
 
 JSModuleDef* js_load_module(JSContext*, const char*);
 

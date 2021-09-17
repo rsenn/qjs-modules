@@ -1657,34 +1657,6 @@ js_eval_str(JSContext* ctx, const char* str, const char* filename, int flags) {
   return ret;
 }
 
-JSValue
-js_eval_file(JSContext* ctx, const char* filename, int module) {
-  uint8_t* buf;
-  size_t len;
-  int flags;
-  if(!(buf = js_load_file(ctx, &len, filename))) {
-    fprintf(stderr, "Failed loading '%s': %s\n", filename, strerror(errno));
-    return JS_ThrowInternalError(ctx, "Failed loading '%s': %s", filename, strerror(errno));
-  }
-  if(module < 0)
-    module = (has_suffix(filename, ".mjs") || JS_DetectModule((const char*)buf, len));
-  flags = module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
-  return js_eval_buf(ctx, buf, len, filename, flags);
-}
-/*
-int
-js_load_script(JSContext* ctx, const char* filename, BOOL module) {
-  int32_t ret = 0;
-  JSValue val = js_eval_file(ctx, filename, module);
-  if(JS_IsException(val))
-    return -1;
-  if(JS_IsNumber(val))
-    JS_ToInt32(ctx, &ret, val);
-  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE && JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
-    JS_FreeValue(ctx, val);
-  return ret;
-}
-*/
 JSModuleDef*
 js_load_module(JSContext* ctx, const char* name) {
   DynBuf buf;
