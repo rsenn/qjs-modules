@@ -32,10 +32,7 @@ function main(...args) {
 
   console.log('loc.toString()', loc.toString());
 
-  let f = fs.readFileSync(
-    '/home/roman/Downloads/GBC_ROMS/SpongeBob SquarePants - Legend of the Lost Spatula (U).gbc',
-    null
-  );
+  let f = fs.readFileSync('/home/roman/Downloads/GBC_ROMS/SpongeBob SquarePants - Legend of the Lost Spatula (U).gbc', null);
   let b = f.slice(0, 1024) ?? misc.toArrayBuffer('TEST DATA');
   let s = misc.btoa(b);
   console.log('b', b);
@@ -75,12 +72,7 @@ console.log("i =",i);
       const code = ba[i];
       opcode = opcodes[code];
 
-      console.log(
-        i.toString(16).padStart(8, '0') + ': ',
-        toHex(code),
-        opcode.name.padEnd(32),
-        ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n))
-      );
+      console.log(i.toString(16).padStart(8, '0') + ': ', toHex(code), opcode.name.padEnd(32), ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n)));
     }
   } catch(e) {}
   console.log('ba.length', toHex(ba.length));
@@ -141,10 +133,8 @@ console.log("i =",i);
 
   console.log('valueToAtom()', (max = misc.valueToAtom('BLAH XXXX')));
 
-  for(let atom = 0; atom <= 1000; atom++)
-    console.log(`atom[${toHex32(atom)}] =`, misc.atomToValue(atom));
-  for(let atom = 0x80000000; atom <= 0x800001ff; atom++)
-    console.log(`atom[${toHex32(atom)}] =`, misc.atomToValue(atom));
+  for(let atom = 0; atom <= 1000; atom++) console.log(`atom[${toHex32(atom)}] =`, misc.atomToValue(atom));
+  for(let atom = 0x80000000; atom <= 0x800001ff; atom++) console.log(`atom[${toHex32(atom)}] =`, misc.atomToValue(atom));
 
   const Range = (from, to) => [...new Array(to - from).keys()].map(n => n + from);
 
@@ -158,15 +148,7 @@ console.log("i =",i);
   console.log('misc.getClassID()', misc.getClassID(Symbol.for('quickjs.inspect.custom')));
   console.log('misc.getClassID()', misc.getClassID(Symbol));
   console.log('misc.getClassCount()', misc.getClassCount());
-  console.log(
-    'misc.getClassName()',
-    new Map(
-      Range(1, misc.getClassCount()).map((id, idx) => [
-        idx,
-        [misc.getClassName(id), misc.getClassConstructor(id)]
-      ])
-    )
-  );
+  console.log('misc.getClassName()', new Map(Range(1, misc.getClassCount()).map((id, idx) => [idx, [misc.getClassName(id), misc.getClassConstructor(id)]])));
 
   let bits = misc.arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
   let arr = misc.bitfieldToArray(bits, 0);
