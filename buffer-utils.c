@@ -426,7 +426,7 @@ input_buffer_column(InputBuffer* in, size_t* len) {
 }
 
 OffsetLength
-get_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[]) {
+js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[]) {
   int64_t off = 0, len = size;
 
   if(argc >= 1 && JS_IsNumber(argv[0]))

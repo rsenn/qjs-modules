@@ -11,13 +11,18 @@ typedef union {
   struct sockaddr_in6 in6;
 } SockAddr;
 
-typedef union {
+__attribute__((packed)) union socket_state {
   struct {
-    uint16_t fd, ret, error, syscall;
+    uint16_t fd;
+    uint8_t error;
+    uint8_t syscall;
+    int32_t ret;
   };
   uint64_t u64;
   void* ptr;
-} Socket;
+};
+
+typedef union socket_state Socket;
 
 extern thread_local VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id;
 extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor;

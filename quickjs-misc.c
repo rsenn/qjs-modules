@@ -93,7 +93,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
       OffsetLength ol;
 
-      ol = get_offset_length(ctx, len, argc - 1, argv + 1);
+      ol = js_offset_length(ctx, len, argc - 1, argv + 1);
 
       ret = JS_NewStringLen(ctx, (const char*)data + ol.offset, ol.length);
     }
@@ -131,7 +131,7 @@ static JSValue
 js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   MemoryBlock b;
-  OffsetLength o = get_offset_length(ctx, INT64_MAX, argc - 1, argv + 1);
+  OffsetLength o = js_offset_length(ctx, INT64_MAX, argc - 1, argv + 1);
   JSFreeArrayBufferDataFunc* f;
   void* opaque;
 
@@ -165,7 +165,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     size_t len;
 
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-      OffsetLength ol = get_offset_length(ctx, len, argc - 1, argv + 1);
+      OffsetLength ol = js_offset_length(ctx, len, argc - 1, argv + 1);
       JSObject* obj = JS_VALUE_GET_OBJ(value);
       ret = JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, FALSE);
     }

@@ -133,27 +133,25 @@ offset_is_default(const OffsetLength* ol) {
   return ol->offset == 0 && ol->length == INT64_MAX;
 }
 
+static inline uint8_t*
+offset_data(const OffsetLength* ol, const void* x) {
+  return (uint8_t)x + ol->offset;
+}
+
+static inline size_t
+offset_size(const OffsetLength* ol, size_t n) {
+  return MIN_NUM(ol->length, n - ol->offset);
+}
+
 static inline MemoryBlock
 offset_block(const OffsetLength* ol, const void* x, size_t n) {
-  return (MemoryBlock){MIN_NUM(n, ol->offset), MIN_NUM(ol->length, n - ol->offset)};
+  return (MemoryBlock){offset_data(ol, x), offset_size(ol, n)};
 }
 
 static inline PointerRange
 offset_range(const OffsetLength* ol, const void* x, size_t n) {
   MemoryBlock mb = offset_block(ol, x, n);
   return range_from(&mb);
-}
-
-static inline uint8_t*
-offset_data(const OffsetLength* ol, const void* x, size_t n) {
-  MemoryBlock mb = offset_block(ol, x, n);
-  return (uintptr_t)x + mb.base;
-}
-
-static inline size_t
-offset_size(const OffsetLength* ol, const void* x, size_t n) {
-  MemoryBlock mb = offset_block(ol, x, n);
-  return mb.size;
 }
 
 static inline OffsetLength
@@ -270,6 +268,6 @@ input_buffer_remain(const InputBuffer* in) {
   return input_buffer_length(in) - in->pos;
 }
 
-OffsetLength get_offset_length(JSContext*, int64_t size, int argc, JSValue argv[]);
+OffsetLength js_offset_length(JSContext*, int64_t size, int argc, JSValue argv[]);
 
 #endif /* defined(BUFFER_UTILS) */
