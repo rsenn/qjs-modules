@@ -1,7 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
-import { Location } from 'location';
+import { Location } from 'misc';
 
 ('use strict');
 ('use math');
