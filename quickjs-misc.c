@@ -460,29 +460,6 @@ js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 
 static JSValue
-js_misc_compile_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-  BOOL module = FALSE;
-  InputBuffer input = js_input_buffer(ctx, argv[0]);
-  uint8_t* buf = input.data;
-  size_t buf_len = input.size;
-  int eval_flags = JS_EVAL_FLAG_COMPILE_ONLY;
-
-  if(argc >= 2)
-    module = JS_ToBool(ctx, argv[1]);
-  else if(byte_finds(buf, buf_len, "export") < input.size)
-    module = TRUE;
-
-  if(!module && JS_DetectModule((const char*)buf, buf_len))
-    module = TRUE;
-
-  eval_flags |= (module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
-  ret = JS_Eval(ctx, (const char*)buf, buf_len, "<internal>", eval_flags);
-
-  return ret;
-}
-
-static JSValue
 js_misc_compile_file(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   const char* filename = JS_ToCString(ctx, argv[0]);
@@ -1022,7 +999,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
     JS_CFUNC_DEF("bitfieldToArray", 1, js_misc_bitfield_to_array),
     JS_CFUNC_DEF("arrayToBitfield", 1, js_misc_array_to_bitfield),
-    JS_CFUNC_DEF("compileScript", 1, js_misc_compile_script),
     JS_CFUNC_DEF("compileFile", 1, js_misc_compile_file),
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
     JS_CFUNC_DEF("readObject", 1, js_misc_read_object),

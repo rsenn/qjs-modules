@@ -581,25 +581,6 @@ end:
   return ret;
 }
 
-JSValue
-jsm_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, int load_only) {
-  JSValue obj, val;
-  obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
-
-  if(JS_IsException(obj))
-    return obj;
-
-  if(JS_VALUE_GET_TAG(obj) == JS_TAG_MODULE) {
-    if(!load_only && JS_ResolveModule(ctx, obj) < 0) {
-      JS_FreeValue(ctx, obj);
-      return JS_ThrowInternalError(ctx, "Failed resolving module");
-    }
-    js_module_set_import_meta(ctx, obj, FALSE, !load_only);
-    val = JS_EvalFunction(ctx, obj);
-  }
-  return obj;
-}
-
 static JSValue
 jsm_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename, int flags) {
   JSValue val;
@@ -1302,7 +1283,7 @@ main(int argc, char** argv) {
   if(!empty_run) {
 #ifdef CONFIG_BIGNUM
     if(load_jscalc) {
-      jsm_eval_binary(ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
+      js_eval_binary(ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
     }
 #endif
     js_std_add_helpers(ctx, argc - optind, argv + optind);
@@ -1330,7 +1311,7 @@ main(int argc, char** argv) {
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
 #define jsm_builtin_compiled(name)                                                                                                                                                                     \
-  jsm_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                                                                            \
+  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                                                                             \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
@@ -1397,7 +1378,7 @@ main(int argc, char** argv) {
     }
     if(interactive) {
       const char* str = "import REPL from 'repl'; globalThis.repl = new REPL('qjsm').runSync();\n";
-      jsm_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
+      js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
       jsm_eval_str(ctx, str, "<input>", JS_EVAL_TYPE_MODULE);
     }
 

@@ -1456,3 +1456,39 @@ js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value) {
   }
   return len;
 }
+
+JSValue
+js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
+  JSValue ret = JS_UNDEFINED;
+  int tag = JS_VALUE_GET_TAG(obj);
+  switch(tag) {
+    case JS_TAG_MODULE: {
+      if(!load_only && JS_ResolveModule(ctx, obj) < 0) {
+        JS_FreeValue(ctx, obj);
+        ret = JS_ThrowInternalError(ctx, "Failed resolving module");
+      } else {
+        js_module_set_import_meta(ctx, obj, FALSE, !load_only);
+        ret = JS_EvalFunction(ctx, obj);
+      }
+      break;
+    }
+    case JS_TAG_FUNCTION_BYTECODE: {
+      ret = obj;
+      break;
+    }
+    default: {
+      ret = JS_ThrowInternalError(ctx, "invalid tag %i", tag);
+      break;
+    }
+  }
+  return ret;
+}
+
+JSValue
+js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, int load_only) {
+  JSValue obj;
+  obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
+  if(JS_IsException(obj))
+    return obj;
+  return js_eval_module(ctx, obj, load_only);
+}

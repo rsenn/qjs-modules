@@ -97,7 +97,12 @@ byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
 
 size_t
 byte_finds(const void* haystack, size_t hlen, const char* what) {
-  return byte_findb(haystack, hlen, what, str_len(what));
+  return byte_findb(haystack, hlen, what, strlen(what));
+}
+
+size_t
+byte_equal(const void* s, size_t n, const void* t) {
+  return memcmp(s, t, n) == 0;
 }
 
 char*

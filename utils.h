@@ -815,4 +815,7 @@ struct timespec js_date_timespec(JSContext*, JSValue arg);
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromvalue(JSContext*, const void* x, size_t n, JSValue val);
 
+JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
+JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, int load_only);
+
 #endif /* defined(UTILS_H) */

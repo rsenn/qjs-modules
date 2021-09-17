@@ -1310,25 +1310,11 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
 
     js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
-    const char fd_set[] = "export default class fd_set extends ArrayBuffer {\n  constructor() {\n    "
-                          "super(FD_SETSIZE / 8);\n   }\n  get size() {\n    return this.byteLength * 8;\n  }\n  get "
-                          "maxfd() {\n    const a "
-                          "= this.array;\n    return a[a.length - 1];\n  }\n  get array() {\n    const a = new "
-                          "Uint8Array(this);\n    const n = a.byteLength;\n    const r = [];\n    for(let i = 0; i "
-                          "< n; i++) for (let j = 0; j < 8; j++) if(a[i] & (1 << j)) r.push(i * 8 + j);\n    return "
-                          "r;\n  }\n  toString() {\n    return `[ ${this.array.join(', ')} ]`;\n  }\n  "
-                          "[Symbol.inspect]() {\n    return this.toString();\n  } \n}";
+    fdset_module = js_eval_binary(ctx, qjsm_fd_set, qjsm_fd_set_size, TRUE);
+    fdset_ctor = JS_DupValue(ctx, fdset_module);
 
-    fdset_module = JS_Eval(ctx, fd_set, strlen(fd_set), "<internal>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
-    fdset_ctor = JS_EvalFunction(ctx, fdset_module);
-
-    const char socklen[] = "export default class socklen_t extends ArrayBuffer {\n  constructor(v) {\n    super(4);\n "
-                           "   Object.setPrototypeOf(this, new ArrayBuffer(4));\n    if(v != undefined) new "
-                           "Uint32Array(this)[0] = v | 0;\n  }\n  [Symbol.toPrimitive](hint) {\n    return new "
-                           "Uint32Array(this)[0];\n  }\n  [Symbol.toStringTag] = `[object socklen_t]`;\n}\n";
-
-    socklen_module = JS_Eval(ctx, socklen, strlen(socklen), "<internal>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
-    socklen_ctor = JS_EvalFunction(ctx, socklen_module);
+    socklen_module = js_eval_binary(ctx, qjsm_socklen_t, qjsm_socklen_t_size, TRUE);
+    socklen_ctor = JS_DupValue(ctx, socklen_module);
   }
 
   if(m) {
