@@ -470,20 +470,17 @@ js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     if(JS_ToBool(ctx, argv[1]))
       flags |= JS_EVAL_TYPE_MODULE;
   }
-
-  if(magic == 0)
-    flags |= JS_EVAL_FLAG_COMPILE_ONLY;
-
   is_mod = !!(flags & JS_EVAL_TYPE_MODULE);
-
   if(str_ends(file, ".jsm"))
     is_mod = TRUE;
-  if(is_mod)
-    flags |= JS_EVAL_TYPE_MODULE;
   if((buf = js_load_file(ctx, &len, file))) {
     if(!is_mod && JS_DetectModule((const char*)buf, len))
       is_mod = TRUE;
-    flags |= (is_mod ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
+    if(is_mod) {
+      flags |= (is_mod ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
+      if(magic == 0)
+        flags |= JS_EVAL_FLAG_COMPILE_ONLY;
+    }
     ret = JS_Eval(ctx, (const char*)buf, len, file, flags);
   }
   return ret;
@@ -620,23 +617,27 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   JSValue ret = JS_UNDEFINED;
   BOOL load_only = FALSE;
   JSValueConst obj;
-
+  int tag = JS_VALUE_GET_TAG(argv[0]);
   if(argc >= 2)
     load_only = JS_ToBool(ctx, argv[1]);
 
-  if(JS_VALUE_GET_TAG(argv[0]) != JS_TAG_MODULE && JS_VALUE_GET_TAG(argv[0]) != JS_TAG_FUNCTION_BYTECODE)
+  if(tag != JS_TAG_MODULE && tag != JS_TAG_FUNCTION_BYTECODE)
     obj = js_misc_read_object(ctx, this_val, argc, argv);
   else
     obj = argv[0];
-
   if(JS_IsException(obj))
     return obj;
 
+  tag = JS_VALUE_GET_TAG(obj);
+
+  if(tag != JS_TAG_MODULE && tag != JS_TAG_FUNCTION_BYTECODE)
+    return JS_ThrowTypeError(ctx, "obj is not MODULE nor BYTECODE");
+
   if(load_only) {
-    if(JS_VALUE_GET_TAG(obj) == JS_TAG_MODULE)
+    if(tag == JS_TAG_MODULE)
       js_module_set_import_meta(ctx, obj, FALSE, FALSE);
   } else {
-    if(JS_VALUE_GET_TAG(obj) == JS_TAG_MODULE) {
+    if(tag == JS_TAG_MODULE) {
       if(JS_ResolveModule(ctx, obj) < 0) {
         JSModuleDef* m = JS_VALUE_GET_PTR(obj);
         const char* name = JS_AtomToCString(ctx, m->module_name);
@@ -649,7 +650,6 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     }
     ret = JS_EvalFunction(ctx, obj);
   }
-
   return ret;
 }
 
