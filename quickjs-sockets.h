@@ -29,6 +29,42 @@ JSValue js_socket_new_proto(JSContext*, JSValue, int fd);
 JSValue js_socket_new(JSContext*, int);
 JSValue js_socket_constructor(JSContext*, JSValue, int argc, JSValue argv[]);
 
+static inline int
+sockaddr_port(const SockAddr* sa) {
+  switch(sa->family) {
+    case AF_INET: return ntohs(sa->in.sin_port);
+    case AF_INET6: return ntohs(sa->in6.sin6_port);
+  }
+  return -1;
+}
+
+static inline void*
+sockaddr_addr(const SockAddr* sa) {
+  switch(sa->family) {
+    case AF_INET: return &sa->in.sin_addr;
+    case AF_INET6: return &sa->in6.sin6_addr;
+  }
+  return 0;
+}
+
+static inline socklen_t
+sockaddr_addrlen(const SockAddr* sa) {
+  switch(sa->family) {
+    case AF_INET: return sizeof(sa->in.sin_addr);
+    case AF_INET6: return sizeof(sa->in6.sin6_addr);
+  }
+  return 0;
+}
+
+static inline size_t
+sockaddr_size(const SockAddr* sa) {
+  switch(sa->family) {
+    case AF_INET: return sizeof(struct sockaddr_in);
+    case AF_INET6: return sizeof(struct sockaddr_in6);
+  }
+  return 0;
+}
+
 static inline SockAddr*
 js_sockaddr_data(JSValueConst value) {
   return JS_GetOpaque(value, js_sockaddr_class_id);
