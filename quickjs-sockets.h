@@ -14,8 +14,8 @@ typedef union {
 __attribute__((packed)) union socket_state {
   struct {
     uint16_t fd;
-    uint8_t error;
-    uint8_t syscall;
+    unsigned error : 12;
+    unsigned syscall : 4;
     int32_t ret;
   };
   uint64_t u64;

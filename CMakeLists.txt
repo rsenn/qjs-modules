@@ -73,7 +73,7 @@ set(lexer_SOURCES quickjs-lexer.h location.c location.h ${util_SOURCES} vector.c
 # set(lexer_LIBRARIES quickjs-predicate)
 set(mmap_SOURCES ${util_SOURCES})
 set(repeater_SOURCES ${util_SOURCES})
-set(sockets_SOURCES ${util_SOURCES} )
+set(sockets_SOURCES ${util_SOURCES} bc-fd_set.c bc-socklen_t.c )
 #set(sockets_LIBRARIES qjs-syscallerror)
 set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h utils.c utils.h)
 set(blob_SOURCES vector.c vector.h ${util_SOURCES})

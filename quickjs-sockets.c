@@ -16,6 +16,11 @@
 #include <errno.h>
 #include <alloca.h>
 
+extern const uint32_t qjsm_fd_set_size;
+extern const uint8_t qjsm_fd_set[1030];
+extern const uint32_t qjsm_socklen_t_size;
+extern const uint8_t qjsm_socklen_t[1030];
+
 #define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_ENUMERABLE)
 
 #define JS_SOCKETCALL(syscall_index, socket, retval) JS_SOCKETCALL_RETURN(syscall_index, socket, retval, JS_NewInt32(ctx, socket.ret), JS_NewInt32(ctx, -1))
@@ -514,7 +519,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t timeout = -1;
   struct pollfd* pfds;
   BOOL is_array = js_is_array(ctx, argv[0]), is_arraybuffer = js_is_arraybuffer(ctx, argv[0]);
- 
+
   if(argc >= 2 && JS_IsNumber(argv[1]))
     JS_ToUint32(ctx, &nfds, argv[1]);
   if(argc >= 3 && JS_IsNumber(argv[2]))
@@ -527,7 +532,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   }
   assert(nfds);
   pfds = alloca(sizeof(struct pollfd) * nfds);
-  
+
   if(is_array) {
     uint32_t i;
     for(i = 0; i < nfds; i++) {
@@ -572,7 +577,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
       }
     }
   }
-  return JS_NewUint32(ctx, ret);
+  return JS_NewInt32(ctx, ret);
 }
 
 static JSValue
@@ -703,21 +708,13 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
         syscall = socket_syscall(sock);
         assert(syscall);
 
-        /*if(0 && js_syscallerror_class_id && !JS_IsUndefined(syscallerror_proto)) */ {
-          // ret = JS_IsObject(syscallerror_proto) ? JS_NewObjectProto(ctx,
-          // syscallerror_proto) : JS_NewObject(ctx);
+        ret = JS_NewObject(ctx);
+        JS_SetPropertyStr(ctx, ret, "errno", JS_NewUint32(ctx, sock.error));
+        JS_SetPropertyStr(ctx, ret, "syscall", JS_NewString(ctx, syscall));
+        JS_SetPropertyStr(ctx, ret, "message", JS_NewString(ctx, strerror(sock.error)));
 
-          ret = js_syscallerror_new(ctx, syscall, sock.error);
-          // } else {
-          // ret = JS_NewObject(ctx);
-          /* JS_SetPropertyStr(ctx, ret, "errno", JS_NewUint32(ctx, sock.error));
-           JS_SetPropertyStr(ctx, ret, "syscall", JS_NewString(ctx, syscall));
-           JS_SetPropertyStr(ctx, ret, "message", JS_NewString(ctx,
-           strerror(sock.error)));*/
-
-          /*if(JS_IsObject(syscallerror_proto))
-            JS_SetPrototype(ctx, ret, syscallerror_proto);*/
-        }
+        /*if(JS_IsObject(syscallerror_proto))
+          JS_SetPrototype(ctx, ret, syscallerror_proto);*/
       } else {
         ret = JS_NULL;
       }
@@ -984,7 +981,7 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   } else {
     const char* syscall = socket_syscall(sock);
     JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_ENUMERABLE);
-    JS_DefinePropertyValueStr(ctx, obj, "error", js_syscallerror_new(ctx, syscall, sock.error), JS_PROP_ENUMERABLE);
+    // JS_DefinePropertyValueStr(ctx, obj, "error", js_syscallerror_new(ctx, syscall, sock.error), JS_PROP_ENUMERABLE);
   }
   if(sock.syscall > 0 && sock.syscall < socket_syscalls_size)
     JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, socket_syscall(sock)), JS_PROP_ENUMERABLE);
@@ -1282,6 +1279,7 @@ int
 js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   /* if(js_syscallerror_class_id == 0)
      js_syscallerror_init(ctx, 0);*/
+JSValue socklen_ctor;
 
   /*if(js_socket_class_id == 0)*/ {
 
@@ -1307,11 +1305,16 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetClassProto(ctx, js_socket_class_id, socket_proto);
 
     js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
-  }
+
+  const char  code[] = "export class socklen_t extends ArrayBuffer {\n  constructor(v) {\n    super(4);\n    Object.setPrototypeOf(this, new ArrayBuffer(4));\n    if(v != undefined) new Uint32Array(this)[0] = v | 0;\n  }\n  [Symbol.toPrimitive](hint) {\n    return new Uint32Array(this)[0];\n  }\n  [Symbol.toStringTag] = `[object socklen_t]`;\n}\n";
+  socklen_ctor= JS_Eval(ctx, code, strlen(code), "<internal>",  JS_EVAL_TYPE_MODULE|JS_EVAL_FLAG_COMPILE_ONLY);
+
+   }
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SockAddr", sockaddr_ctor);
     JS_SetModuleExport(ctx, m, "Socket", socket_ctor);
+    JS_SetModuleExport(ctx, m, "socklen_t", socklen_ctor);
 
     const char* module_name = JS_AtomToCString(ctx, m->module_name);
 
@@ -1339,6 +1342,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     return m;
   JS_AddModuleExport(ctx, m, "SockAddr");
   JS_AddModuleExport(ctx, m, "Socket");
+  JS_AddModuleExport(ctx, m, "socklen_t");
 
   size_t len, n = str_rchr(module_name, '/');
   if(module_name[n])

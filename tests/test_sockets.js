@@ -66,8 +66,11 @@ function main() {
   console.log(`connect(`, ra, `) =`, sock.connect(ra), sock.error);
 
   function DumpSock(s) {
-    //  return [inspect(s, {colors:true})];
-    return [s.fd >= 0 && `fd=${s.fd}`, s.eof ? 'EOF' : s.open ? 'open' : 'closed', s.ret !== undefined && `r=${s.ret}`, s.syscall !== undefined && `f=${s.syscall}`, s.errno && `e=${s.errno}`].filter(p => !!p);
+    let { fd, errno, syscall, error, local, remote, open, eof, mode } = s;
+
+    return [inspect({ fd, errno, syscall, error, /*open, eof,*/ mode }, { colors: true })];
+
+    //  return [s.fd >= 0 && `fd=${s.fd}`, s.eof ? 'EOF' : s.open ? 'open' : 'closed', s.ret !== undefined && `r=${s.ret}`, s.syscall !== undefined && `f=${s.syscall}`,  'e=', s.errno/*,  `e=${s.err}`*/].filter(p => !!p);
   }
 
   function ioFlags(flags = 0) {
@@ -101,7 +104,7 @@ function main() {
     ret = poll((pfds = [new PollFD(sock.fd, flags | POLLERR)]), pfds.length, (timeout = 3000));
 
     // console.log(`poll(${pfds.map(pfd => pfd.inspect()).join(', ')}, ${pfds.length}, ${timeout}) =`, ret);
-  console.log(`poll =`, ret, ioFlags(pfds[0].revents));
+    //console.log(`poll() =`, ret, ioFlags(pfds[0].revents));
   }
 
   waitIO(POLLOUT);
@@ -133,11 +136,13 @@ function main() {
     if(pfds[0].revents & POLLIN) {
       data = toString(buf, 0, (n = sock.recv(buf)));
       console.log(
-        `recv(ArrayBuffer ${buf.byteLength})`,
-        /*inspect(buf, {colors: true, maxArrayLength: 4, maxStringLength: 10, multiline: false, breakLength: Infinity, compact: 2 }).replace(/\s+/g, ' '),*/
-        '=',
-        n,
-        (n >= 0 ? quote(data, "'") : sock.error + '').padEnd(60),
+        (
+          `recv(ArrayBuffer ${buf.byteLength})` +
+          /*inspect(buf, {colors: true, maxArrayLength: 4, maxStringLength: 10, multiline: false, breakLength: Infinity, compact: 2 }).replace(/\s+/g, ' '),*/
+          ' = ' +
+          n +
+          (n >= 0 ? quote(data, "'") : sock.error + '')
+        ).padEnd(70),
         ...DumpSock(sock)
       );
 
@@ -155,10 +160,8 @@ function main() {
   console.log('O_NONBLOCK', O_NONBLOCK.toString(2).padStart(16, '0'));
   console.log('O_ASYNC   ', O_ASYNC.toString(2).padStart(16, '0'));
   console.log('sock.mode ', sock.mode.toString(2).padStart(16, '0'));
-  // DumpSock(sock);
-  sock.close();
 
-  // DumpSock(sock);
+  console.log(('sock.close() ' + sock.close() + '').padEnd(70), ...DumpSock(sock));
 }
 
 main();
