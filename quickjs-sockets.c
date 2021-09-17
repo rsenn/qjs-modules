@@ -815,7 +815,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
       case SOCKET_METHOD_RECV: {
         int32_t flags = 0;
-        InputBuffer buf = js_input_chars(ctx, argv[0]);
+        InputBuffer buf = js_input_buffer(ctx, argv[0]);
         OffsetLength off = js_offset_length(ctx, buf.size, argc - 1, argv + 1);
         if(argc >= 4)
           JS_ToInt32(ctx, &flags, argv[3]);
@@ -847,7 +847,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       case SOCKET_METHOD_GETSOCKOPT: {
         int32_t level, optname;
         uint32_t optlen = sizeof(int);
-        /*  InputBuffer optval = js_input_chars(ctx, argv[2]);
+        /*  InputBuffer optval = js_input_buffer(ctx, argv[2]);
           socklen_t len = optval.size;*/
         uint8_t *buf, *tmp = 0;
         int32_t* val;
@@ -891,27 +891,43 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         break;
       }
       case SOCKET_METHOD_SETSOCKOPT: {
-        int32_t level, optname;
-        uint32_t len;
-        int64_t num;
-        uint8_t* buf;
-        InputBuffer optval;
-        if(JS_IsNumber(argv[2])) {
-          JS_ToInt64(ctx, &num, argv[2]);
+        int32_t level, optname, num = 0, *tmp = 0;
+        uint32_t len = 0;
+        uint8_t* buf = 0;
+        if(argc >= 3) {
+          if(!JS_IsObject(argv[2])) {
+            JS_ToInt32(ctx, &num, argv[2]);
+            buf = &num;
+            len = sizeof(num);
+          }
+          if(!buf && JS_IsArray(ctx, argv[2])) {
+            int i,n =  MIN_NUM(js_array_length(ctx, argv[2]), 1);
+            len = n * sizeof(int32_t);
+            tmp = buf = alloca(len);
+            for(i = 0; i < n; i++) {
+              JSValue el =JS_GetPropertyUint32(ctx, argv[2], i);
+              JS_ToInt32(ctx, &tmp[i], el);
+              JS_FreeValue(ctx, el);
+            }
+          }
+          if(!buf) {
+            InputBuffer optval = js_input_chars(ctx, argv[2]);
+            buf = optval.data;
+            len = optval.size;
+          }
+        }
+        if(!buf) {
           buf = &num;
-          len = sizeof(int64_t);
-        } else {
-          optval = js_input_chars(ctx, argv[2]);
-          buf = optval.data;
-          len = optval.size;
+          len = sizeof(num);
         }
         JS_ToInt32(ctx, &level, argv[0]);
         JS_ToInt32(ctx, &optname, argv[1]);
-        if(argc >= 4 && JS_IsNumber(argv[3])) {
+        if(argc >= 4) {
           uint32_t newlen = 0;
           if(!JS_ToUint32(ctx, &newlen, argv[3])) {
             newlen = MIN_NUM(newlen, len);
-            len = newlen;
+            if(newlen)
+              len = newlen;
           }
         }
         JS_SOCKETCALL(SYSCALL_SETSOCKOPT, sock, setsockopt(sock.fd, level, optname, buf, len));

@@ -319,9 +319,9 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
   if(js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, value)) {
     ret.value = JS_DupValue(ctx, value);
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
-  } else  {
+  } else {
     ret.value = JS_EXCEPTION;
-    //JS_ThrowTypeError(ctx, "Invalid type for input buffer");
+    // JS_ThrowTypeError(ctx, "Invalid type for input buffer");
   }
 
   if(offset < 0)
@@ -367,7 +367,7 @@ js_input_chars(JSContext* ctx, JSValueConst value) {
     ret.free = &input_buffer_free_default;
   } else {
     ret.value = JS_EXCEPTION;
-    //JS_ThrowTypeError(ctx, "Invalid type for input buffer");
+    // JS_ThrowTypeError(ctx, "Invalid type for input buffer");
   }
 
   if(offset < 0)
