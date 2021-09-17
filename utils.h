@@ -767,8 +767,10 @@ JSValue js_argv_to_array(JSContext* ctx, char** strv);
 JSValue js_intv_to_array(JSContext* ctx, int* intv);
 char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 
-JSValue js_module_name(JSContext*, JSValueConst);
-char* js_module_namestr(JSContext* ctx, JSValueConst value);
+JSModuleDef* js_module_def(JSContext*, JSValue);
+JSValue js_module_name(JSContext*, JSValue);
+JSValue js_module_func(JSContext*, JSValue);
+char* js_module_namestr(JSContext*, JSValue);
 
 JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]);
 

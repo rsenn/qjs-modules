@@ -475,12 +475,9 @@ js_misc_compile_file(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   /* load JS from file to buffer */
   if((buf = js_load_file(ctx, &buf_len, filename))) {
-
     if(!module && JS_DetectModule((const char*)buf, buf_len))
       module = TRUE;
-
     eval_flags |= (module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
-
     ret = JS_Eval(ctx, (const char*)buf, buf_len, filename, eval_flags);
   }
 

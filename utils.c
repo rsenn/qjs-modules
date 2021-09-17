@@ -1196,15 +1196,27 @@ js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   js_cstring_free(ctx, str);
 }
 
+JSModuleDef*
+js_module_def(JSContext* ctx, JSValueConst value) {
+  if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE)
+    return JS_VALUE_GET_PTR(value);
+  return 0;
+}
+
 JSValue
 js_module_name(JSContext* ctx, JSValueConst value) {
   JSModuleDef* module;
-  JSValue name = JS_UNDEFINED;
+  if((module = js_module_def(ctx, value)))
+    return JS_AtomToValue(ctx, module->module_name);
+  return JS_NULL;
+}
 
-  if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE && (module = JS_VALUE_GET_PTR(value)))
-    name = JS_AtomToValue(ctx, module->module_name);
-
-  return name;
+JSValue
+js_module_func(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* module;
+  if((module = js_module_def(ctx, value)))
+    return JS_DupValue(ctx, module->func_obj);
+  return JS_NULL;
 }
 
 char*

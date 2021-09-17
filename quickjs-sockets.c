@@ -21,7 +21,7 @@ extern const uint8_t qjsm_fd_set[1030];
 extern const uint32_t qjsm_socklen_t_size;
 extern const uint8_t qjsm_socklen_t[1030];
 
-#define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_ENUMERABLE)
+#define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE)
 
 #define JS_SOCKETCALL(syscall_index, socket, retval) JS_SOCKETCALL_RETURN(syscall_index, socket, retval, JS_NewInt32(ctx, socket.ret), JS_NewInt32(ctx, -1))
 
@@ -1279,7 +1279,8 @@ int
 js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   /* if(js_syscallerror_class_id == 0)
      js_syscallerror_init(ctx, 0);*/
-JSValue socklen_ctor;
+  JSValue fdset_ctor, socklen_ctor;
+  JSValue fdset_module, socklen_module;
 
   /*if(js_socket_class_id == 0)*/ {
 
@@ -1306,15 +1307,26 @@ JSValue socklen_ctor;
 
     js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
-  const char  code[] = "export class socklen_t extends ArrayBuffer {\n  constructor(v) {\n    super(4);\n    Object.setPrototypeOf(this, new ArrayBuffer(4));\n    if(v != undefined) new Uint32Array(this)[0] = v | 0;\n  }\n  [Symbol.toPrimitive](hint) {\n    return new Uint32Array(this)[0];\n  }\n  [Symbol.toStringTag] = `[object socklen_t]`;\n}\n";
-  socklen_ctor= JS_Eval(ctx, code, strlen(code), "<internal>",  JS_EVAL_TYPE_MODULE|JS_EVAL_FLAG_COMPILE_ONLY);
+    const char fd_set[] =
+        "export default class fd_set extends ArrayBuffer {\n  constructor() {\n    super(FD_SETSIZE / 8);\n   }\n  get size() {\n    return this.byteLength * 8;\n  }\n  get maxfd() {\n    const a "
+        "= this.array;\n    return a[a.length - 1];\n  }\n  get array() {\n    const a = new Uint8Array(this);\n    const n = a.byteLength;\n    const r = [];\n    for(let i = 0; i "
+        "< n; i++) for (let j = 0; j < 8; j++) if(a[i] & (1 << j)) r.push(i * 8 + j);\n    return r;\n  }\n  toString() {\n    return `[ ${this.array.join(', ')} ]`;\n  }\n  "
+        "[Symbol.inspect]() {\n    return this.toString();\n  } \n}";
+    fdset_module = JS_Eval(ctx, fd_set, strlen(fd_set), "<internal>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    fdset_ctor = js_module_func(ctx, fdset_module);
 
-   }
+    const char socklen[] = "export default class socklen_t extends ArrayBuffer {\n  constructor(v) {\n    super(4);\n    Object.setPrototypeOf(this, new ArrayBuffer(4));\n    if(v != undefined) new "
+                           "Uint32Array(this)[0] = v | 0;\n  }\n  [Symbol.toPrimitive](hint) {\n    return new Uint32Array(this)[0];\n  }\n  [Symbol.toStringTag] = `[object socklen_t]`;\n}\n";
+
+    socklen_module = JS_Eval(ctx, socklen, strlen(socklen), "<internal>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    socklen_ctor = js_module_func(ctx, socklen_module);
+  }
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SockAddr", sockaddr_ctor);
     JS_SetModuleExport(ctx, m, "Socket", socket_ctor);
     JS_SetModuleExport(ctx, m, "socklen_t", socklen_ctor);
+    JS_SetModuleExport(ctx, m, "fd_set", fdset_ctor);
 
     const char* module_name = JS_AtomToCString(ctx, m->module_name);
 
@@ -1343,6 +1355,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "SockAddr");
   JS_AddModuleExport(ctx, m, "Socket");
   JS_AddModuleExport(ctx, m, "socklen_t");
+  JS_AddModuleExport(ctx, m, "fd_set");
 
   size_t len, n = str_rchr(module_name, '/');
   if(module_name[n])

@@ -1,7 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
-import { SockAddr, Socket, select, poll, AF_INET, SOCK_STREAM, IPPROTO_TCP, POLLIN, POLLOUT, POLLERR, POLLHUP, O_NONBLOCK, O_ASYNC, SO_ERROR, SO_DEBUG, SO_REUSEPORT, SO_REUSEADDR, SO_KEEPALIVE, SO_DONTROUTE, SO_BROADCAST, SO_OOBINLINE, SO_SNDBUF, SO_RCVBUF, SOL_SOCKET } from 'sockets';
+import { socklen_t, fd_set, SockAddr, Socket, select, poll, AF_INET, SOCK_STREAM, IPPROTO_TCP, POLLIN, POLLOUT, POLLERR, POLLHUP, O_NONBLOCK, O_ASYNC, SO_ERROR, SO_DEBUG, SO_REUSEPORT, SO_REUSEADDR, SO_KEEPALIVE, SO_DONTROUTE, SO_BROADCAST, SO_OOBINLINE, SO_SNDBUF, SO_RCVBUF, SOL_SOCKET } from 'sockets';
 import { error, escape, quote, toString, toArrayBuffer, randi, randf, srand } from 'misc';
 import { define } from 'util';
 //import { SyscallError, EAGAIN, ENETDOWN, EPROTO, ENOPROTOOPT, EHOSTUNREACH, EOPNOTSUPP, ENETUNREACH, EBADF, ECONNABORTED, EINVAL, ENOBUFS, ENOTSOCK, ESOCKTNOSUPPORT, EPROTONOSUPPORT, ETIMEDOUT, EADDRINUSE, EADDRNOTAVAIL, EIO, EAFNOSUPPORT, EALREADY, ECONNREFUSED, EINPROGRESS, EISCONN, EPROTOTYPE, ENOTCONN, EMSGSIZE, ECONNRESET, EDESTADDRREQ } from 'syscallerror';
@@ -25,6 +25,7 @@ function main() {
   let la = new SockAddr(AF_INET, new Uint8Array([192, 168, 8, 151]).buffer, 31337);
   la = new SockAddr(AF_INET, '0.0.0.0', randi() & 0xffff);
   let ra = new SockAddr(AF_INET, '192.168.8.156', 22);
+  console.log(`classes`,{socklen_t, fd_set,SockAddr, Socket});
   console.log(`la.clone() =`, la.clone());
   console.log(`la.toString() =`, la.toString());
   console.log(`ra.toString() =`, ra.toString());

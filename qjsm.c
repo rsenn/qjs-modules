@@ -967,7 +967,7 @@ js_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 enum { FIND_MODULE, LOAD_MODULE, RESOLVE_MODULE, GET_MODULE_NAME, GET_MODULE_OBJECT, GET_MODULE_EXPORTS, GET_MODULE_NAMESPACE, GET_MODULE_FUNCTION, GET_MODULE_EXCEPTION, GET_MODULE_META_OBJ };
 
 static JSValue
-js_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_EXCEPTION;
   JSModuleDef* m;
   switch(magic) {
@@ -1059,16 +1059,16 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, js_eval_script, 0),
     JS_CFUNC_MAGIC_DEF("evalScript", 1, js_eval_script, 1),
     JS_CGETSET_DEF("moduleList", jsm_module_list, 0),
-    JS_CFUNC_MAGIC_DEF("findModule", 1, js_module_func, FIND_MODULE),
-    JS_CFUNC_MAGIC_DEF("loadModule", 1, js_module_func, LOAD_MODULE),
-    JS_CFUNC_MAGIC_DEF("resolveModule", 1, js_module_func, RESOLVE_MODULE),
-    JS_CFUNC_MAGIC_DEF("getModuleName", 1, js_module_func, GET_MODULE_NAME),
-    JS_CFUNC_MAGIC_DEF("getModuleObject", 1, js_module_func, GET_MODULE_OBJECT),
-    JS_CFUNC_MAGIC_DEF("getModuleExports", 1, js_module_func, GET_MODULE_EXPORTS),
-    JS_CFUNC_MAGIC_DEF("getModuleNamespace", 1, js_module_func, GET_MODULE_NAMESPACE),
-    JS_CFUNC_MAGIC_DEF("getModuleFunction", 1, js_module_func, GET_MODULE_FUNCTION),
-    JS_CFUNC_MAGIC_DEF("getModuleException", 1, js_module_func, GET_MODULE_EXCEPTION),
-    JS_CFUNC_MAGIC_DEF("getModuleMetaObject", 1, js_module_func, GET_MODULE_META_OBJ),
+    JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
+    JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
+    JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
+    JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
+    JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
+    JS_CFUNC_MAGIC_DEF("getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
+    JS_CFUNC_MAGIC_DEF("getModuleNamespace", 1, jsm_module_func, GET_MODULE_NAMESPACE),
+    JS_CFUNC_MAGIC_DEF("getModuleFunction", 1, jsm_module_func, GET_MODULE_FUNCTION),
+    JS_CFUNC_MAGIC_DEF("getModuleException", 1, jsm_module_func, GET_MODULE_EXCEPTION),
+    JS_CFUNC_MAGIC_DEF("getModuleMetaObject", 1, jsm_module_func, GET_MODULE_META_OBJ),
 };
 
 int
