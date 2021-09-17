@@ -18,17 +18,17 @@
 
 #define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_ENUMERABLE)
 
-#define JS_SOCKETCALL(s, fn, retval) JS_SOCKETCALL_RETURN(s, fn, retval, JS_NewInt32(ctx, result), JS_NewInt32(ctx, -1))
+#define JS_SOCKETCALL(s, fn, retval) JS_SOCKETCALL_RETURN(s, fn, retval, JS_NewInt32(ctx, s.ret), JS_NewInt32(ctx, -1))
 
 #define JS_SOCKETCALL_FAIL(s, fn, failval) JS_SOCKETCALL_RETURN(s, fn, retval, JS_NewInt32(ctx, result), failval)
 
-#define JS_SOCKETCALL_RETURN(s, fn, retval, successval, failval) \
-  do { \
-    int result = retval; \
-    s.syscall = fn; \
-    s.error = result < 0 ? errno : 0; \
-    ret = result < 0 ? failval : successval; \
-    JS_SetOpaque(this_val, s.ptr); \
+#define JS_SOCKETCALL_RETURN(s, fn, retval, successval, failval)                                                                                                                                                                                                                                           \
+  do {                                                                                                                                                                                                                                                                                                     \
+    s.ret = retval;                                                                                                                                                                                                                                                                                        \
+    s.syscall = fn;                                                                                                                                                                                                                                                                                        \
+    s.error = s.ret < 0 ? errno : 0;                                                                                                                                                                                                                                                                       \
+    ret = s.ret < 0 ? failval : successval;                                                                                                                                                                                                                                                                \
+    JS_SetOpaque(this_val, s.ptr);                                                                                                                                                                                                                                                                         \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
@@ -962,32 +962,26 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       break;
     }
     case SOCKET_METHOD_RECV: {
-      uint64_t len;
       int32_t flags = 0;
       InputBuffer buf = js_input_buffer(ctx, argv[0]);
-      if(argc >= 2)
-        JS_ToIndex(ctx, &len, argv[1]);
-      else
-        len = buf.size;
-      if(argc >= 3)
-        JS_ToInt32(ctx, &flags, argv[2]);
+      OffsetLength off = get_offset_length(ctx, buf.size, argc - 1, argv + 1);
 
-      JS_SOCKETCALL(sock, SYSCALL_RECV, socket_recv(sock.fd, buf.data, len, flags));
+      if(argc >= 4)
+        JS_ToInt32(ctx, &flags, argv[3]);
+
+      printf("RECV { offset: %zu, length: %zu } data: %p size: %zu\n", off.offset, off.length, offset_data(&off, buf.data, buf.size), offset_size(&off, buf.data, buf.size));
+      JS_SOCKETCALL(sock, SYSCALL_RECV, recv(sock.fd, offset_data(&off, buf.data, buf.size), offset_size(&off, buf.data, buf.size), flags));
       break;
     }
     case SOCKET_METHOD_SEND: {
-      uint64_t len;
       int32_t flags = 0;
       InputBuffer buf = js_input_buffer(ctx, argv[0]);
-      if(argc >= 2)
-        JS_ToIndex(ctx, &len, argv[1]);
-      else
-        len = buf.size;
-      if(argc >= 3)
-        JS_ToInt32(ctx, &flags, argv[2]);
+      OffsetLength off = get_offset_length(ctx, buf.size, argc - 1, argv + 1);
 
-      JS_SOCKETCALL(sock, SYSCALL_SEND, socket_send(sock.fd, buf.data, len, flags));
-      //      JS_SOCKETCALL(sock, SYSCALL_SEND, send(sock.fd, buf.data, len, flags));
+      if(argc >= 4)
+        JS_ToInt32(ctx, &flags, argv[3]);
+
+      JS_SOCKETCALL(sock, SYSCALL_SEND, socket_send(sock.fd, offset_data(&off, buf.data, buf.size), offset_size(&off, buf.data, buf.size), flags));
       break;
     }
     case SOCKET_METHOD_SHUTDOWN: {
@@ -1279,7 +1273,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     ++n;
   len = str_rchr(&module_name[n], '.');
 
- // printf("JS_INIT_MODULE %.*s\n", len, module_name + n);
+  // printf("JS_INIT_MODULE %.*s\n", len, module_name + n);
 
   if(!strncmp(&module_name[n], "sockets", len)) {
     JS_AddModuleExport(ctx, m, "default");

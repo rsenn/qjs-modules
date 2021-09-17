@@ -16,9 +16,6 @@
 #include <errno.h>
 #include "buffer-utils.h"
 
-#define max(a, b) ((a) > (b) ? (a) : (b))
-#define min(a, b) ((a) < (b) ? (a) : (b))
-
 enum { FUNC_GETEXECUTABLE = 0, FUNC_GETCWD, FUNC_GETROOT, FUNC_GETFD, FUNC_GETCOMMANDLINE, FUNC_GETPROCMAPS, FUNC_GETPROCMOUNTS, FUNC_GETPROCSTAT, FUNC_GETPID, FUNC_GETPPID, FUNC_GETSID, FUNC_GETUID, FUNC_GETGID, FUNC_GETEUID, FUNC_GETEGID, FUNC_SETUID, FUNC_SETGID, FUNC_SETEUID, FUNC_SETEGID };
 
 typedef struct pcg_state_setseq_64 {
@@ -84,28 +81,6 @@ js_arraybuffer_free_func(JSRuntime* rt, void* opaque, void* ptr) {
   JS_FreeValueRT(rt, value);
 }
 
-static OffsetLength
-get_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[]) {
-  int64_t off = 0, len = size;
-
-  if(argc >= 2 && JS_IsNumber(argv[1]))
-    JS_ToInt64(ctx, &off, argv[1]);
-  if(argc >= 3 && JS_IsNumber(argv[2]))
-    JS_ToInt64(ctx, &len, argv[2]);
-
-  if(off >= 0)
-    off = min(off, size);
-  else
-    off = ((off % size) + off) % size;
-
-  if(len >= 0)
-    len = min(len, size - off);
-  else
-    len = size - off;
-
-  return (OffsetLength){off, len};
-}
-
 static JSValue
 js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -118,7 +93,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
       OffsetLength ol;
 
-      ol = get_offset_length(ctx, len, argc, argv);
+      ol = get_offset_length(ctx, len, argc - 1, argv + 1);
 
       ret = JS_NewStringLen(ctx, (const char*)data + ol.offset, ol.length);
     }
@@ -156,7 +131,7 @@ static JSValue
 js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   MemoryBlock b;
-  OffsetLength o = get_offset_length(ctx, INT64_MAX, argc, argv);
+  OffsetLength o = get_offset_length(ctx, INT64_MAX, argc - 1, argv + 1);
   JSFreeArrayBufferDataFunc* f;
   void* opaque;
 
@@ -190,7 +165,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     size_t len;
 
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-      OffsetLength ol = get_offset_length(ctx, len, argc, argv);
+      OffsetLength ol = get_offset_length(ctx, len, argc - 1, argv + 1);
       JSObject* obj = JS_VALUE_GET_OBJ(value);
       ret = JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, FALSE);
     }
@@ -877,7 +852,7 @@ js_misc_array_to_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return ret;
 }
 
-enum { RANDOM_RAND,RANDOM_RANDI,RANDOM_RANDF,RANDOM_SRAND};
+enum { RANDOM_RAND, RANDOM_RANDI, RANDOM_RANDF, RANDOM_SRAND };
 
 static JSValue
 js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {

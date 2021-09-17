@@ -144,6 +144,18 @@ offset_range(const OffsetLength* ol, const void* x, size_t n) {
   return range_from(&mb);
 }
 
+static inline uint8_t*
+offset_data(const OffsetLength* ol, const void* x, size_t n) {
+  MemoryBlock mb = offset_block(ol, x, n);
+  return (uintptr_t)x + mb.base;
+}
+
+static inline size_t
+offset_size(const OffsetLength* ol, const void* x, size_t n) {
+  MemoryBlock mb = offset_block(ol, x, n);
+  return mb.size;
+}
+
 static inline OffsetLength
 offset_slice(const OffsetLength ol, int64_t start, int64_t end) {
   if(start < 0)
@@ -244,5 +256,7 @@ static inline size_t
 input_buffer_remain(const InputBuffer* in) {
   return input_buffer_length(in) - in->pos;
 }
+
+OffsetLength get_offset_length(JSContext*, int64_t size, int argc, JSValue argv[]);
 
 #endif /* defined(BUFFER_UTILS) */

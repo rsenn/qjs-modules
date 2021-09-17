@@ -205,25 +205,11 @@ dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int
 
 void
 dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
-  return dbuf_put_escaped_table(
-      db, str, len, (const char[256]){'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x',
-                                      'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x',  'x',  'x',  'x',  'x',  'x',  'x',
-                                      'x', 'x', 0,    0,   0,   0,   0,   0,   0,    0x27, 0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0x5c, 0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   'x', 0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0,   0,   0,    0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,
-                                      0});
+  return dbuf_put_escaped_table(db, str, len, (const char[256]){'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0, 0, 0, 0, 0, 0, 0, 0x27, 0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0,    0x5c, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   'x', 0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0,    0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0,    0,    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                                0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0,    0,    0, 0, 0, 0, 0, 0, 0});
 }
 
 void
@@ -372,8 +358,7 @@ input_buffer_clone(const InputBuffer* in, JSContext* ctx) {
 
 void
 input_buffer_dump(const InputBuffer* in, DynBuf* db) {
-  dbuf_printf(
-      db, "(InputBuffer){ .data = %p, .size = %zu, .pos = %zu, .free = %p }", in->data, in->size, in->pos, in->free);
+  dbuf_printf(db, "(InputBuffer){ .data = %p, .size = %zu, .pos = %zu, .free = %p }", in->data, in->size, in->pos, in->free);
 }
 
 void
@@ -438,4 +423,26 @@ input_buffer_column(InputBuffer* in, size_t* len) {
     i++;
 
   return in->pos - i;
+}
+
+OffsetLength
+get_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[]) {
+  int64_t off = 0, len = size;
+
+  if(argc >= 1 && JS_IsNumber(argv[0]))
+    JS_ToInt64(ctx, &off, argv[1]);
+  if(argc >= 2 && JS_IsNumber(argv[1]))
+    JS_ToInt64(ctx, &len, argv[1]);
+
+  if(off >= 0)
+    off = MIN_NUM(off, size);
+  else
+    off = ((off % size) + off) % size;
+
+  if(len >= 0)
+    len = MIN_NUM(len, size - off);
+  else
+    len = size - off;
+
+  return (OffsetLength){off, len};
 }

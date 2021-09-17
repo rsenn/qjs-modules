@@ -13,8 +13,7 @@ typedef union {
 
 typedef union {
   struct {
-    int32_t fd;
-    uint16_t error, syscall;
+    uint16_t fd, ret, error, syscall;
   };
   uint64_t u64;
   void* ptr;
