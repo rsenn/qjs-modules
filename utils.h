@@ -837,15 +837,13 @@ const char* module_namestr(JSContext*, JSModuleDef*);
 JSValue module_func(JSContext*, JSModuleDef*);
 JSValue module_ns(JSContext*, JSModuleDef*);
 JSValue module_exports(JSContext*, JSModuleDef*);
-JSValue module_entry(JSContext*, JSModuleDef*);
-JSValue module_object(JSContext*, JSModuleDef*);
-
 struct list_head* js_modules_list(JSContext*);
-JSValue js_modules_array(JSContext*, JSValue, int magic);
-JSValue js_modules_entries(JSContext*, JSValue, int magic);
-JSValue js_modules_map(JSContext*, JSValue, int magic);
-JSValue js_modules_object(JSContext*, JSValue, int magic);
-
+JSValue js_modules_array(JSContext*, JSValueConst, int magic);
+JSValue js_modules_entries(JSContext*, JSValueConst, int magic);
+JSValue js_modules_map(JSContext*, JSValueConst, int magic);
+JSValue js_modules_object(JSContext*, JSValueConst, int magic);
+JSValue module_object(JSContext*, JSModuleDef*);
+JSValue module_entry(JSContext*, JSModuleDef*);
 char* js_module_search(JSContext*, const char*);
 char* js_module_search_ext(JSContext*, const char*, const char* ext);
 char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
