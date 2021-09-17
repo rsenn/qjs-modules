@@ -74,6 +74,8 @@ typedef enum precedence {
     .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {.func = {length, JS_CFUNC_generic, {.generic = func1}} }                                                       \
   }
 
+#define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE)
+
 #if defined(_WIN32) || defined(__MINGW32__)
 #define VISIBLE __declspec(dllexport)
 #define HIDDEN
@@ -847,7 +849,7 @@ JSValue module_entry(JSContext*, JSModuleDef*);
 char* js_module_search(JSContext*, const char*);
 char* js_module_search_ext(JSContext*, const char*, const char* ext);
 char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
-JSModuleDef* js_module_get(JSContext*, JSValueConst);
+JSModuleDef* js_module_def(JSContext*, JSValueConst);
 JSModuleDef* js_module_find(JSContext*, const char*);
 JSModuleDef* js_module_load(JSContext*, const char*);
 JSModuleDef* js_module_loader_so(JSContext*, const char*);

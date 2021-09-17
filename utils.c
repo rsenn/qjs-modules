@@ -1437,16 +1437,16 @@ js_module_normalize(JSContext* ctx, const char* path, const char* name, void* op
 }
 
 JSModuleDef*
-js_module_get(JSContext* ctx, JSValueConst value) {
-  JSModuleDef* mod = 0;
+js_module_def(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* def = 0;
   if(JS_IsString(value)) {
     const char* name = JS_ToCString(ctx, value);
-    mod = js_module_search(ctx, name);
+    def = js_module_find(ctx, name);
     JS_FreeCString(ctx, name);
   } else if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE) {
-    mod = JS_VALUE_GET_PTR(value);
+    def = JS_VALUE_GET_PTR(value);
   }
-  return mod;
+  return def;
 }
 
 JSModuleDef*
@@ -1473,7 +1473,7 @@ js_module_load(JSContext* ctx, const char* name) {
   dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
   dbuf_0(&buf);
   js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
-  return js_module_search(ctx, name);
+  return js_module_find(ctx, name);
 }
 
 JSModuleDef*

@@ -469,7 +469,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   const char* name = 0;
 
   if(magic >= GET_MODULE_NAME) {
-    if(!(def = js_module_get(ctx, argv[0])))
+    if(!(def = js_module_def(ctx, argv[0])))
       return JS_ThrowTypeError(ctx, "argument 1 expecting module");
   } else {
     name = JS_ToCString(ctx, argv[0]);

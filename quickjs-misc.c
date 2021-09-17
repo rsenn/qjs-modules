@@ -462,12 +462,20 @@ js_misc_compile_file(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   BOOL module = FALSE;
   uint8_t* buf;
   size_t buf_len;
-  int eval_flags = JS_EVAL_FLAG_COMPILE_ONLY;
+  int32_t eval_flags = JS_EVAL_FLAG_COMPILE_ONLY;
 
-  if(argc >= 2)
-    module = JS_ToBool(ctx, argv[1]);
-  else if(str_ends(filename, ".jsm"))
+  if(argc >= 2 && JS_IsNumber(argv[1])) {
+    JS_ToInt32(ctx, &eval_flags, argv[1]);
+  } else if(argc >= 2 && JS_IsBool(argv[1])) {
+    if(JS_ToBool(ctx, argv[1]))
+      eval_flags |= JS_EVAL_TYPE_MODULE;
+  }
+  module = !!(eval_flags & JS_EVAL_TYPE_MODULE);
+  if(str_ends(filename, ".jsm"))
     module = TRUE;
+
+  if(module)
+    eval_flags |= JS_EVAL_TYPE_MODULE;
 
   /* load JS from file to buffer */
   if((buf = js_load_file(ctx, &buf_len, filename))) {
@@ -1020,6 +1028,15 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("escape", 1, js_misc_escape),
     JS_CFUNC_DEF("quote", 1, js_misc_quote),
     JS_CFUNC_DEF("error", 0, js_misc_error),
+    JS_CONSTANT(JS_EVAL_TYPE_GLOBAL),
+    JS_CONSTANT(JS_EVAL_TYPE_MODULE),
+    JS_CONSTANT(JS_EVAL_TYPE_DIRECT),
+    JS_CONSTANT(JS_EVAL_TYPE_INDIRECT),
+    JS_CONSTANT(JS_EVAL_TYPE_MASK),
+    JS_CONSTANT(JS_EVAL_FLAG_STRICT),
+    JS_CONSTANT(JS_EVAL_FLAG_STRIP),
+    JS_CONSTANT(JS_EVAL_FLAG_COMPILE_ONLY),
+    JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
     //   JS_OBJECT_DEF("StringDecoder", js_stringdecoder_props,
     //   countof(js_stringdecoder_props), JS_PROP_CONFIGURABLE),
 

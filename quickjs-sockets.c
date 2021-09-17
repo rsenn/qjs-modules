@@ -17,8 +17,6 @@ extern const uint8_t qjsm_fd_set[1030];
 extern const uint32_t qjsm_socklen_t_size;
 extern const uint8_t qjsm_socklen_t[1030];
 
-#define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE)
-
 #define JS_SOCKETCALL(syscall_index, socket, retval) JS_SOCKETCALL_RETURN(syscall_index, socket, retval, JS_NewInt32(ctx, socket.ret), JS_NewInt32(ctx, -1))
 
 #define JS_SOCKETCALL_FAIL(syscall_index, socket, failval) JS_SOCKETCALL_RETURN(syscall_index, socket, retval, JS_NewInt32(ctx, result), failval)
