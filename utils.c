@@ -1204,6 +1204,14 @@ js_module_func(JSContext* ctx, JSValueConst value) {
   return JS_NULL;
 }
 
+JSValue
+js_module_namespace(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* module;
+  if((module = js_module_def(ctx, value)))
+    return JS_DupValue(ctx, module->module_ns);
+  return JS_NULL;
+}
+
 char*
 js_module_namestr(JSContext* ctx, JSValueConst value) {
   JSValue name = js_module_name(ctx, value);

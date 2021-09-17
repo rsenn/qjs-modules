@@ -1282,8 +1282,7 @@ int
 js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   /* if(js_syscallerror_class_id == 0)
      js_syscallerror_init(ctx, 0);*/
-  JSValue fdset_ctor = JS_UNDEFINED, socklen_ctor = JS_UNDEFINED;
-  JSValue fdset_module, socklen_module;
+  JSValue fdset_module, fdset_ns, fdset_ctor = JS_UNDEFINED, socklen_module, socklen_ns, socklen_ctor = JS_UNDEFINED;
 
   /*if(js_socket_class_id == 0)*/ {
 
@@ -1310,18 +1309,20 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
 
     js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
-    fdset_module = js_eval_binary(ctx, qjsm_fd_set, qjsm_fd_set_size, FALSE);
+    fdset_module = js_eval_binary(ctx, qjsm_fd_set, qjsm_fd_set_size, TRUE);
+    fdset_ns = js_module_namespace(ctx, fdset_module);
     fdset_ctor = js_module_func(ctx, fdset_module);
 
-    socklen_module = js_eval_binary(ctx, qjsm_socklen_t, qjsm_socklen_t_size, FALSE);
+    socklen_module = js_eval_binary(ctx, qjsm_socklen_t, qjsm_socklen_t_size, TRUE);
+    socklen_ns = js_module_namespace(ctx, socklen_module);
     socklen_ctor = js_module_func(ctx, socklen_module);
   }
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SockAddr", sockaddr_ctor);
     JS_SetModuleExport(ctx, m, "Socket", socket_ctor);
-    JS_SetModuleExport(ctx, m, "socklen_t", socklen_ctor);
     JS_SetModuleExport(ctx, m, "fd_set", fdset_ctor);
+    JS_SetModuleExport(ctx, m, "socklen_t", socklen_ctor);
 
     const char* module_name = JS_AtomToCString(ctx, m->module_name);
 
@@ -1349,8 +1350,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     return m;
   JS_AddModuleExport(ctx, m, "SockAddr");
   JS_AddModuleExport(ctx, m, "Socket");
-  JS_AddModuleExport(ctx, m, "socklen_t");
   JS_AddModuleExport(ctx, m, "fd_set");
+  JS_AddModuleExport(ctx, m, "socklen_t");
 
   size_t len, n = str_rchr(module_name, '/');
   if(module_name[n])
