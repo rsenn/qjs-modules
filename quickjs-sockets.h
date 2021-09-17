@@ -24,13 +24,16 @@ __attribute__((packed)) union socket_state {
 
 typedef union socket_state Socket;
 
-#define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)
-#define socket_open(sock) !socket_closed(sock)
-
 extern thread_local VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id;
 extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor;
 
 enum SocketCalls { SYSCALL_SOCKET = 1, SYSCALL_GETSOCKNAME, SYSCALL_GETPEERNAME, SYSCALL_FCNTL, SYSCALL_BIND, SYSCALL_ACCEPT, SYSCALL_CONNECT, SYSCALL_LISTEN, SYSCALL_RECV, SYSCALL_SEND, SYSCALL_SHUTDOWN, SYSCALL_CLOSE, SYSCALL_GETSOCKOPT, SYSCALL_SETSOCKOPT };
+
+#define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)
+#define socket_eof(sock) ((sock).syscall == SYSCALL_RECV && (sock).ret == 0)
+#define socket_open(sock) !socket_closed(sock)
+#define socket_error(sock) ((sock).ret < 0 && (sock).error)
+#define socket_syscall(sock) socket_syscalls[(sock).syscall]
 
 JSValue js_socket_new_proto(JSContext*, JSValue, int fd);
 JSValue js_socket_new(JSContext*, int);
@@ -96,4 +99,4 @@ js_socket_data2(JSContext* ctx, JSValueConst value) {
   return sock;
 }
 
-#endif /* defined(QUICKJS_SOCKETS_H) */
+#endif /* defined(QUICKJS_SOCKETS_H)         */

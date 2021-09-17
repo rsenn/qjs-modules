@@ -614,7 +614,7 @@ static const JSCFunctionListEntry js_sockets_funcs[] = {
     JS_CFUNC_DEF("socketpair", 4, js_socketpair),
     JS_CFUNC_DEF("select", 1, js_select),
     JS_CFUNC_DEF("poll", 1, js_poll),
-  
+
 };
 
 JSValue
@@ -648,7 +648,7 @@ js_socket_new(JSContext* ctx, int sock) {
   return js_socket_new_proto(ctx, socket_proto, sock);
 }
 
-enum { SOCKET_PROP_FD, SOCKET_PROP_OPEN, SOCKET_PROP_MODE, SOCKET_PROP_ERRNO, SOCKET_PROP_SYSCALL, SOCKET_PROP_ERROR, SOCKET_PROP_LOCAL, SOCKET_PROP_REMOTE };
+enum { SOCKET_PROP_FD, SOCKET_PROP_OPEN, SOCKET_PROP_EOF, SOCKET_PROP_MODE, SOCKET_PROP_ERRNO, SOCKET_PROP_SYSCALL, SOCKET_PROP_ERROR, SOCKET_PROP_LOCAL, SOCKET_PROP_REMOTE };
 
 static JSValue
 js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -664,20 +664,24 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewBool(ctx, socket_open(sock));
       break;
     }
+    case SOCKET_PROP_EOF: {
+      ret = JS_NewBool(ctx, socket_eof(sock));
+      break;
+    }
     case SOCKET_PROP_MODE: {
       int fl = fcntl(sock.fd, F_GETFL);
       ret = JS_NewInt32(ctx, fl);
       break;
     }
     case SOCKET_PROP_ERRNO: {
-      ret = JS_NewUint32(ctx, sock.error);
+      ret = JS_NewUint32(ctx, socket_error(sock));
       break;
     }
     case SOCKET_PROP_SYSCALL: {
       const char* syscall;
       assert(sock.syscall > 0);
       assert(sock.syscall < socket_syscalls_size);
-      if((syscall = socket_syscalls[sock.syscall]))
+      if((syscall = socket_syscall(sock)))
         ret = JS_NewString(ctx, syscall);
       break;
     }
@@ -687,7 +691,7 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
         assert(sock.syscall > 0);
         assert(sock.syscall < socket_syscalls_size);
 
-        syscall = socket_syscalls[sock.syscall];
+        syscall = socket_syscall(sock);
         assert(syscall);
 
         /*if(0 && js_syscallerror_class_id && !JS_IsUndefined(syscallerror_proto)) */ {
@@ -893,12 +897,12 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   if(sock.ret >= 0) {
     JS_DefinePropertyValueStr(ctx, obj, "ret", JS_NewUint32(ctx, sock.ret), JS_PROP_ENUMERABLE);
   } else {
-    const char* syscall = socket_syscalls[sock.syscall];
+    const char* syscall = socket_syscall(sock);
     JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_ENUMERABLE);
     JS_DefinePropertyValueStr(ctx, obj, "error", js_syscallerror_new(ctx, syscall, sock.error), JS_PROP_ENUMERABLE);
   }
   if(sock.syscall > 0 && sock.syscall < socket_syscalls_size)
-    JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, socket_syscalls[sock.syscall]), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, socket_syscall(sock)), JS_PROP_ENUMERABLE);
 
   // JS_DefinePropertyValueStr(ctx, obj, "stack", JS_NULL, JS_PROP_ENUMERABLE);
   return obj;
@@ -942,6 +946,7 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("local", js_socket_get, 0, SOCKET_PROP_LOCAL),
     JS_CGETSET_MAGIC_DEF("remote", js_socket_get, 0, SOCKET_PROP_REMOTE),
     JS_CGETSET_MAGIC_DEF("open", js_socket_get, 0, SOCKET_PROP_OPEN),
+    JS_CGETSET_MAGIC_DEF("eof", js_socket_get, 0, SOCKET_PROP_EOF),
     JS_CGETSET_MAGIC_DEF("mode", js_socket_get, js_socket_set, SOCKET_PROP_MODE),
     JS_CFUNC_MAGIC_DEF("ndelay", 0, js_socket_method, SOCKET_METHOD_NDELAY),
     JS_CFUNC_MAGIC_DEF("bind", 1, js_socket_method, SOCKET_METHOD_BIND),
@@ -1043,7 +1048,7 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
     JS_PROP_INT32_DEF("SOL_ALG", SOL_ALG, 0),
     JS_PROP_INT32_DEF("SOL_NFC", SOL_NFC, 0),
     JS_PROP_INT32_DEF("SOL_KCM", SOL_KCM, 0),
-      JS_CONSTANT(AF_UNSPEC),
+    JS_CONSTANT(AF_UNSPEC),
     JS_CONSTANT(AF_UNIX),
     JS_CONSTANT(AF_LOCAL),
     JS_CONSTANT(AF_INET),
