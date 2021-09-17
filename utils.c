@@ -20,9 +20,9 @@
 #define INFINITY __builtin_inf()
 #endif
 
-VISIBLE const char js_default_module_path[] = "."
+VISIBLE const char* js_default_module_path = "."
 #ifdef CONFIG_PREFIX
-                                              ":" CONFIG_PREFIX "/lib/quickjs"
+                                             ":" CONFIG_PREFIX "/lib/quickjs"
 #endif
     ;
 
@@ -1219,7 +1219,7 @@ js_module_get(JSContext* ctx, JSValueConst value) {
   JSModuleDef* m = 0;
   if(JS_IsString(value)) {
     const char* name = JS_ToCString(ctx, value);
-    m = js_module_find(ctx, name);
+    m = js_module_search(ctx, name);
     JS_FreeCString(ctx, name);
   } else if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE) {
     m = JS_VALUE_GET_PTR(value);
@@ -1306,7 +1306,7 @@ js_module_namestr(JSContext* ctx, JSValueConst value) {
 }
 
 JSModuleDef*
-js_module_search(JSContext* ctx, const char* name) {
+js_module_find(JSContext* ctx, const char* name) {
   struct list_head* el;
   size_t namelen = strlen(name);
   list_for_each(el, &ctx->loaded_modules) {
@@ -1323,7 +1323,7 @@ js_module_search(JSContext* ctx, const char* name) {
 }
 
 char*
-js_module_find(JSContext* ctx, const char* module) {
+js_module_search(JSContext* ctx, const char* module) {
   char* path = 0;
   size_t len;
 
@@ -1331,16 +1331,16 @@ js_module_find(JSContext* ctx, const char* module) {
   len = strlen(module);
 
   if(!str_contains(module, '/') || str_ends(module, ".so"))
-    path = js_module_find_ext(ctx, module, ".so");
+    path = js_module_search_ext(ctx, module, ".so");
 
   if(!path)
-    path = js_module_find_ext(ctx, module, ".js");
+    path = js_module_search_ext(ctx, module, ".js");
 
   return path;
 }
 
 char*
-js_module_find_ext(JSContext* ctx, const char* module_name, const char* ext) {
+js_module_search_ext(JSContext* ctx, const char* module_name, const char* ext) {
   const char *module_path, *p, *q;
   char* filename = NULL;
   size_t n, m;
@@ -1692,7 +1692,7 @@ js_load_module(JSContext* ctx, const char* name) {
   dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
   dbuf_0(&buf);
   js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
-  return js_module_find(ctx, name);
+  return js_module_search(ctx, name);
 }
 
 thread_local uint64_t js_pending_signals = 0;

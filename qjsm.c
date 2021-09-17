@@ -135,52 +135,6 @@ jsm_load_package_json(JSContext* ctx, const char* file) {
 }
 
 char*
-jsm_find_module_ext(JSContext* ctx, const char* module, const char* ext) {
-  const char *path, *p, *q;
-  char* file = NULL;
-  size_t n, m;
-  struct stat st;
-
-  if((path = getenv("QUICKJS_MODULE_PATH")) == NULL)
-    path = js_default_module_path;
-
-  for(p = path; *p; p = q) {
-    if((q = strchr(p, ':')) == NULL)
-      q = p + strlen(p);
-    n = q - p;
-    file = js_malloc(ctx, n + 1 + strlen(module) + 3 + 1);
-    strncpy(file, p, n);
-    file[n] = '/';
-    strcpy(&file[n + 1], module);
-    m = strlen(module);
-    if(!(m >= 3 && !strcmp(&module[m - 3], ext)))
-      strcpy(&file[n + 1 + m], ext);
-    if(!stat(file, &st))
-      return file;
-    js_free(ctx, file);
-    if(*q == ':')
-      ++q;
-  }
-  return NULL;
-}
-
-char*
-jsm_find_module(JSContext* ctx, const char* module) {
-  char* path = NULL;
-  size_t len;
-
-  while(!strncmp(module, "./", 2)) module = trim_dotslash(module);
-  len = strlen(module);
-
-  if(strchr(module, '/') == NULL || (len >= 3 && !strcmp(&module[len - 3], ".so")))
-    path = jsm_find_module_ext(ctx, module, ".so");
-
-  if(path == NULL)
-    path = jsm_find_module_ext(ctx, module, ".js");
-  return path;
-}
-
-char*
 jsm_normalize_module(JSContext* ctx, const char* base_name, const char* name, void* opaque) {
   size_t p;
   const char* r;
@@ -278,7 +232,7 @@ jsm_module_loader_path(JSContext* ctx, const char* name, void* opaque) {
   JSModuleDef* ret = NULL;
   module = js_strdup(ctx, trim_dotslash(name));
   for(;;) {
-    if(!strchr(module, '/') && (ret = js_module_search(ctx, module))) {
+    if(!strchr(module, '/') && (ret = js_module_find(ctx, module))) {
       goto end;
     }
     if(debug_module_loader) {
@@ -311,7 +265,7 @@ jsm_module_loader_path(JSContext* ctx, const char* name, void* opaque) {
     if(!file) {
       if(strchr("./", module[0]))
         file = js_strdup(ctx, module);
-      else if(!(file = jsm_find_module(ctx, module)))
+      else if(!(file = js_module_search(ctx, module)))
         break;
       continue;
     }
@@ -339,26 +293,21 @@ end:
 static JSValue
 jsm_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename, int flags) {
   JSValue val;
-
   if(flags & JS_EVAL_TYPE_MODULE) {
-    /* for the modules, we compile then run to be able to set import.meta */
     val = JS_Eval(ctx, buf, buf_len, filename, flags | JS_EVAL_FLAG_COMPILE_ONLY);
-
     if(JS_IsException(val)) {
       if(JS_IsNull(JS_GetRuntime(ctx)->current_exception)) {
         JS_GetException(ctx);
         val = JS_UNDEFINED;
       }
     }
-
     if(!JS_IsException(val)) {
       js_module_set_import_meta(ctx, val, FALSE, TRUE);
-      /*val =*/JS_EvalFunction(ctx, val);
+      JS_EvalFunction(ctx, val);
     }
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, flags & (~(JS_EVAL_TYPE_MODULE)));
   }
-
   return val;
 }
 
@@ -392,16 +341,6 @@ jsm_load_script(JSContext* ctx, const char* filename, BOOL module) {
     JS_FreeValue(ctx, val);
   return ret;
 }
-
-/*static JSModuleDef*
-jsm_load_module(JSContext* ctx, const char* name) {
-  DynBuf buf;
-  js_dbuf_init(ctx, &buf);
-  dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
-  dbuf_0(&buf);
-  jsm_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
-  return js_module_search(ctx, name);
-}*/
 
 /* also used to initialize the worker context */
 static JSContext*
@@ -627,7 +566,7 @@ jsm_help(void) {
 }
 
 static JSValue
-js_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char* str;
   size_t len;
   JSValue ret;
@@ -674,7 +613,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
     case FIND_MODULE: {
       const char* name = JS_ToCString(ctx, argv[0]);
-      m = js_module_search(ctx, name);
+      m = js_module_find(ctx, name);
       JS_FreeCString(ctx, name);
       ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
       break;
@@ -756,8 +695,8 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 
 static const JSCFunctionListEntry jsm_global_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("evalFile", 1, js_eval_script, 0),
-    JS_CFUNC_MAGIC_DEF("evalScript", 1, js_eval_script, 1),
+    JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, 0),
+    JS_CFUNC_MAGIC_DEF("evalScript", 1, jsm_eval_script, 1),
     JS_CGETSET_DEF("moduleList", js_module_list, 0),
     JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),

@@ -89,7 +89,7 @@ typedef enum precedence {
 #define MIN_NUM(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
-//#include "char-utils.h"
+extern VISIBLE const char* js_default_module_path;
 
 typedef struct {
   BOOL done;
@@ -787,19 +787,6 @@ JSValue js_argv_to_array(JSContext* ctx, char** strv);
 JSValue js_intv_to_array(JSContext* ctx, int* intv);
 char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 
-extern VISIBLE const char js_default_module_path[];
-
-JSModuleDef* js_module_get(JSContext*, JSValueConst);
-JSValue js_module_list(JSContext*, JSValueConst);
-JSValue js_module_name(JSContext*, JSValueConst);
-JSValue js_module_func(JSContext*, JSValueConst);
-JSValue js_module_ns(JSContext*, JSValueConst);
-JSValue js_module_exports(JSContext*, JSValueConst);
-char* js_module_namestr(JSContext*, JSValueConst);
-JSModuleDef* js_module_search(JSContext*, const char*);
-char* js_module_find(JSContext*, const char*);
-char* js_module_find_ext(JSContext*, const char*, const char* ext);
-
 JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]);
 
 static inline size_t
@@ -843,13 +830,23 @@ struct timespec js_date_timespec(JSContext*, JSValue arg);
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromvalue(JSContext*, const void* x, size_t n, JSValue val);
 
-JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
+JSModuleDef* js_module_get(JSContext*, JSValueConst);
+JSValue js_module_list(JSContext*, JSValueConst);
+JSValue js_module_name(JSContext*, JSValueConst);
+JSValue js_module_func(JSContext*, JSValueConst);
+JSValue js_module_ns(JSContext*, JSValueConst);
+JSValue js_module_exports(JSContext*, JSValueConst);
+char* js_module_namestr(JSContext*, JSValueConst);
+JSModuleDef* js_module_find(JSContext*, const char*);
+char* js_module_search(JSContext*, const char*);
+char* js_module_search_ext(JSContext*, const char*, const char* ext);
+
+JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const char*, int buf_len, const char* filename, int flags);
 int js_eval_str(JSContext*, const char*, const char* filename, int flags);
 JSValue js_eval_file(JSContext*, const char*, int module);
 
-int js_load_script(JSContext*, const char*, BOOL module);
 JSModuleDef* js_load_module(JSContext*, const char*);
 
 int64_t js_time_ms(void);
