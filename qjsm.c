@@ -118,7 +118,7 @@ static Vector builtins = VECTOR_INIT();
 JSValue package_json;
 
 static JSValue
-jsm_load_package_json(JSContext* ctx, const char* file) {
+jsm_load_package(JSContext* ctx, const char* file) {
   if(JS_IsUndefined(package_json)) {
     uint8_t* buf;
     size_t len;
@@ -131,101 +131,9 @@ jsm_load_package_json(JSContext* ctx, const char* file) {
   }
   return JS_DupValue(ctx, package_json);
 }
-
-char*
-jsm_normalize_module(JSContext* ctx, const char* base_name, const char* name, void* opaque) {
-  size_t p;
-  const char* r;
-  DynBuf file = {0, 0, 0};
-  size_t n;
-  if(name[0] != '.')
-    return js_strdup(ctx, name);
-
-  js_dbuf_init(ctx, &file);
-
-  n = base_name[(p = str_rchr(base_name, '/'))] ? p : 0;
-
-  dbuf_put(&file, base_name, n);
-  dbuf_0(&file);
-
-  for(r = name;;) {
-    if(r[0] == '.' && r[1] == '/') {
-      r += 2;
-    } else if(r[0] == '.' && r[1] == '.' && r[2] == '/') {
-      /* remove the last path element of file, except if "." or ".." */
-      if(file.size == 0)
-        break;
-      if((p = byte_rchr(file.buf, file.size, '/')) < file.size)
-        p++;
-      else
-        p = 0;
-      if(!strcmp(&file.buf[p], ".") || !strcmp(&file.buf[p], ".."))
-        break;
-      if(p > 0)
-        p--;
-      file.size = p;
-      r += 3;
-    } else {
-      break;
-    }
-  }
-  if(file.size == 0)
-    dbuf_putc(&file, '.');
-
-  dbuf_putc(&file, '/');
-  dbuf_putstr(&file, r);
-  dbuf_0(&file);
-
-  // printf("jsm_normalize_module\x1b[1;48;5;27m(1)\x1b[0m %-40s %-40s -> %s\n", base_name, name,
-  // file.buf);
-
-  return file.buf;
-}
-
-static JSModuleDef*
-jsm_module_loader_so(JSContext* ctx, const char* module) {
-  JSModuleDef* m;
-  void* hd;
-  JSModuleDef* (*init)(JSContext*, const char*);
-  char* file;
-
-  if(!strchr(module, '/')) {
-    /* must add a '/' so that the DLL is not searched in the system library paths */
-    if(!(file = js_malloc(ctx, strlen(module) + 2 + 1)))
-      return NULL;
-    strcpy(file, "./");
-    strcpy(file + 2, module);
-  } else {
-    file = (char*)module;
-  }
-  /* C module */
-  hd = dlopen(file, RTLD_NOW | RTLD_LOCAL);
-  if(file != module)
-    js_free(ctx, file);
-  if(!hd) {
-    JS_ThrowReferenceError(ctx, "could not load module file '%s' as shared library: %s", module, dlerror());
-    goto fail;
-  }
-
-  init = dlsym(hd, "js_init_module");
-  if(!init) {
-    JS_ThrowReferenceError(ctx, "could not load module file '%s': js_init_module not found", module);
-    goto fail;
-  }
-
-  m = init(ctx, module);
-  if(!m) {
-    JS_ThrowReferenceError(ctx, "could not load module file '%s': initialization error", module);
-  fail:
-    if(hd)
-      dlclose(hd);
-    return NULL;
-  }
-  return m;
-}
-
+ 
 JSModuleDef*
-jsm_module_loader_path(JSContext* ctx, const char* name, void* opaque) {
+jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   char *module, *file = 0;
   JSModuleDef* ret = NULL;
   module = js_strdup(ctx, trim_dotslash(name));
@@ -235,12 +143,12 @@ jsm_module_loader_path(JSContext* ctx, const char* name, void* opaque) {
     }
     if(debug_module_loader) {
       if(file)
-        printf("jsm_module_loader_path[%x] \x1b[48;5;220m(2)\x1b[0m %-20s '%s'\n", pthread_self(), trim_dotslash(name), file);
-      /*  else  printf("jsm_module_loader_path[%x] \x1b[48;5;124m(1)\x1b[0m %-20s -> %s\n",
+        printf("jsm_module_loader[%x] \x1b[48;5;220m(2)\x1b[0m %-20s '%s'\n", pthread_self(), trim_dotslash(name), file);
+      /*  else  printf("jsm_module_loader[%x] \x1b[48;5;124m(1)\x1b[0m %-20s -> %s\n",
        * pthread_self(), trim_dotslash(name), trim_dotslash(module));*/
     }
     if(!has_suffix(name, ".so") && !file) {
-      JSValue package = jsm_load_package_json(ctx, 0);
+      JSValue package = jsm_load_package(ctx, 0);
       if(!JS_IsNull(package)) {
         JSValue aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
         JSValue target = JS_UNDEFINED;
@@ -272,15 +180,15 @@ jsm_module_loader_path(JSContext* ctx, const char* name, void* opaque) {
   if(file) {
     if(debug_module_loader)
       if(strcmp(trim_dotslash(name), trim_dotslash(file)))
-        printf("jsm_module_loader_path[%x] \x1b[48;5;28m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, file);
-    ret = has_suffix(file, ".so") ? jsm_module_loader_so(ctx, file) : js_module_loader(ctx, file, opaque);
+        printf("jsm_module_loader[%x] \x1b[48;5;28m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, file);
+    ret = has_suffix(file, ".so") ? js_module_loader_so(ctx, file) : js_module_loader(ctx, file, opaque);
   }
 end:
   if(vector_finds(&module_debug, "import") != -1) {
     fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
   }
   if(!ret)
-    printf("jsm_module_loader_path(\"%s\") = %p\n", name, ret);
+    printf("jsm_module_loader(\"%s\") = %p\n", name, ret);
   if(module)
     js_free(ctx, module);
   if(file)
@@ -304,10 +212,10 @@ jsm_eval_file(JSContext* ctx, const char* file, int module) {
 }
 
 static int
-jsm_load_script(JSContext* ctx, const char* filename, BOOL module) {
+jsm_load_script(JSContext* ctx, const char* file, BOOL module) {
   JSValue val;
   int32_t ret = 0;
-  val = jsm_eval_file(ctx, filename, module);
+  val = jsm_eval_file(ctx, file, module);
   if(JS_IsException(val)) {
     js_value_fwrite(ctx, val, stderr);
     return -1;
@@ -891,7 +799,7 @@ main(int argc, char** argv) {
     exit(2);
   }
 
-  JS_SetModuleLoaderFunc(rt, 0, jsm_module_loader_path, 0);
+  JS_SetModuleLoaderFunc(rt, 0, jsm_module_loader, 0);
 
   if(memory_limit != 0)
     JS_SetMemoryLimit(rt, memory_limit);
@@ -908,7 +816,7 @@ main(int argc, char** argv) {
   }
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, jsm_normalize_module, jsm_module_loader_path, NULL);
+  JS_SetModuleLoaderFunc(rt, js_module_normalize, jsm_module_loader, NULL);
 
   if(dump_unhandled_promise_rejection) {
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, NULL);

@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <dlfcn.h>
 
 #ifndef INFINITY
 #define INFINITY __builtin_inf()
@@ -1340,33 +1341,115 @@ js_module_search(JSContext* ctx, const char* module) {
 }
 
 char*
-js_module_search_ext(JSContext* ctx, const char* module_name, const char* ext) {
-  const char *module_path, *p, *q;
-  char* filename = NULL;
+js_module_search_ext(JSContext* ctx, const char* module, const char* ext) {
+  const char *path, *p, *q;
+  char* file = NULL;
   size_t n, m;
   struct stat st;
 
-  if((module_path = getenv("QUICKJS_MODULE_PATH")) == NULL)
-    module_path = js_default_module_path;
+  if((path = getenv("QUICKJS_MODULE_PATH")) == NULL)
+    path = js_default_module_path;
 
-  for(p = module_path; *p; p = q) {
+  for(p = path; *p; p = q) {
     if((q = strchr(p, ':')) == NULL)
       q = p + strlen(p);
     n = q - p;
-    filename = js_malloc(ctx, n + 1 + strlen(module_name) + 3 + 1);
-    strncpy(filename, p, n);
-    filename[n] = '/';
-    strcpy(&filename[n + 1], module_name);
-    m = strlen(module_name);
-    if(!(m >= 3 && !strcmp(&module_name[m - 3], ext)))
-      strcpy(&filename[n + 1 + m], ext);
-    if(!stat(filename, &st))
-      return filename;
-    js_free(ctx, filename);
+    file = js_malloc(ctx, n + 1 + strlen(module) + 3 + 1);
+    strncpy(file, p, n);
+    file[n] = '/';
+    strcpy(&file[n + 1], module);
+    m = strlen(module);
+    if(!(m >= 3 && !strcmp(&module[m - 3], ext)))
+      strcpy(&file[n + 1 + m], ext);
+    if(!stat(file, &st))
+      return file;
+    js_free(ctx, file);
     if(*q == ':')
       ++q;
   }
   return NULL;
+}
+
+JSModuleDef*
+js_module_loader_so(JSContext* ctx, const char* module) {
+  JSModuleDef* m;
+  JSModuleDef* (*init)(JSContext*, const char*);
+  void* hd;
+  char* file;
+
+  if(!strchr(module, '/')) {
+    /* must add a '/' so that the DLL is not searched in the system library paths */
+    if(!(file = js_malloc(ctx, strlen(module) + 2 + 1)))
+      return NULL;
+    strcpy(file, "./");
+    strcpy(file + 2, module);
+  } else {
+    file = (char*)module;
+  }
+  /* C module */
+  hd = dlopen(file, RTLD_NOW | RTLD_LOCAL);
+  if(file != module)
+    js_free(ctx, file);
+  if(!hd) {
+    JS_ThrowReferenceError(ctx, "could not load module file '%s' as shared library: %s", module, dlerror());
+    goto fail;
+  }
+
+  init = dlsym(hd, "js_init_module");
+  if(!init) {
+    JS_ThrowReferenceError(ctx, "could not load module file '%s': js_init_module not found", module);
+    goto fail;
+  }
+
+  m = init(ctx, module);
+  if(!m) {
+    JS_ThrowReferenceError(ctx, "could not load module file '%s': initialization error", module);
+  fail:
+    if(hd)
+      dlclose(hd);
+    return NULL;
+  }
+  return m;
+}
+
+char*
+js_module_normalize(JSContext* ctx, const char* base_name, const char* name, void* opaque) {
+  size_t p;
+  const char* r;
+  DynBuf file = {0, 0, 0};
+  size_t n;
+  if(name[0] != '.')
+    return js_strdup(ctx, name);
+  js_dbuf_init(ctx, &file);
+  n = base_name[(p = str_rchr(base_name, '/'))] ? p : 0;
+  dbuf_put(&file, base_name, n);
+  dbuf_0(&file);
+  for(r = name;;) {
+    if(r[0] == '.' && r[1] == '/') {
+      r += 2;
+    } else if(r[0] == '.' && r[1] == '.' && r[2] == '/') {
+      if(file.size == 0)
+        break;
+      if((p = byte_rchr(file.buf, file.size, '/')) < file.size)
+        p++;
+      else
+        p = 0;
+      if(!strcmp(&file.buf[p], ".") || !strcmp(&file.buf[p], ".."))
+        break;
+      if(p > 0)
+        p--;
+      file.size = p;
+      r += 3;
+    } else {
+      break;
+    }
+  }
+  if(file.size == 0)
+    dbuf_putc(&file, '.');
+  dbuf_putc(&file, '/');
+  dbuf_putstr(&file, r);
+  dbuf_0(&file);
+  return file.buf;
 }
 
 BOOL
@@ -1630,11 +1713,11 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
 }
 
 JSValue
-js_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename, int flags) {
+js_eval_buf(JSContext* ctx, const char* buf, int len, const char* file, int flags) {
   JSValue val = JS_UNDEFINED;
   if(flags & JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set import.meta */
-    val = JS_Eval(ctx, buf, buf_len, filename, flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    val = JS_Eval(ctx, buf, len, file, flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(JS_IsException(val)) {
       if(JS_IsNull(JS_GetRuntime(ctx)->current_exception))
         JS_GetException(ctx);
@@ -1643,14 +1726,14 @@ js_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename, 
     js_module_set_import_meta(ctx, val, FALSE, TRUE);
     /*val =*/JS_EvalFunction(ctx, val);
   } else {
-    val = JS_Eval(ctx, buf, buf_len, filename, flags & (~(JS_EVAL_TYPE_MODULE)));
+    val = JS_Eval(ctx, buf, len, file, flags & (~(JS_EVAL_TYPE_MODULE)));
   }
   return val;
 }
 
 int
-js_eval_str(JSContext* ctx, const char* str, const char* filename, int flags) {
-  JSValue val = js_eval_buf(ctx, str, strlen(str), filename, flags);
+js_eval_str(JSContext* ctx, const char* str, const char* file, int flags) {
+  JSValue val = js_eval_buf(ctx, str, strlen(str), file, flags);
   int32_t ret = -1;
   if(JS_IsNumber(val))
     JS_ToInt32(ctx, &ret, val);
@@ -1705,7 +1788,15 @@ js_call_handler(JSContext* ctx, JSValueConst func) {
     js_std_dump_error(ctx);
   JS_FreeValue(ctx, ret);
 }
-
+void*
+js_sab_alloc(void* opaque, size_t size) {
+  JSSABHeader* sab;
+  sab = malloc(sizeof(JSSABHeader) + size);
+  if(!sab)
+    return NULL;
+  sab->ref_count = 1;
+  return sab->buf;
+}
 void
 js_sab_free(void* opaque, void* ptr) {
   JSSABHeader* sab;
@@ -1717,12 +1808,70 @@ js_sab_free(void* opaque, void* ptr) {
     free(sab);
   }
 }
+void
+js_sab_dup(void* opaque, void* ptr) {
+  JSSABHeader* sab;
+  sab = (JSSABHeader*)((uint8_t*)ptr - sizeof(JSSABHeader));
+  atomic_add_int(&sab->ref_count, 1);
+}
+
+JSWorkerMessagePipe*
+js_new_message_pipe(void) {
+  JSWorkerMessagePipe* ps;
+  int pipe_fds[2];
+
+  if(pipe(pipe_fds) < 0)
+    return NULL;
+
+  ps = malloc(sizeof(*ps));
+  if(!ps) {
+    close(pipe_fds[0]);
+    close(pipe_fds[1]);
+    return NULL;
+  }
+  ps->ref_count = 1;
+  init_list_head(&ps->msg_queue);
+  pthread_mutex_init(&ps->mutex, NULL);
+  ps->read_fd = pipe_fds[0];
+  ps->write_fd = pipe_fds[1];
+  return ps;
+}
+
+JSWorkerMessagePipe*
+js_dup_message_pipe(JSWorkerMessagePipe* ps) {
+  atomic_add_int(&ps->ref_count, 1);
+  return ps;
+}
 
 void
 js_free_message(JSWorkerMessage* msg) {
   size_t i;
+
   for(i = 0; i < msg->sab_tab_len; i++) { js_sab_free(NULL, msg->sab_tab[i]); }
   free(msg->sab_tab);
   free(msg->data);
   free(msg);
+}
+
+void
+js_free_message_pipe(JSWorkerMessagePipe* ps) {
+  struct list_head *el, *el1;
+  JSWorkerMessage* msg;
+  int ref_count;
+
+  if(!ps)
+    return;
+
+  ref_count = atomic_add_int(&ps->ref_count, -1);
+  assert(ref_count >= 0);
+  if(ref_count == 0) {
+    list_for_each_safe(el, el1, &ps->msg_queue) {
+      msg = list_entry(el, JSWorkerMessage, link);
+      js_free_message(msg);
+    }
+    pthread_mutex_destroy(&ps->mutex);
+    close(ps->read_fd);
+    close(ps->write_fd);
+    free(ps);
+  }
 }

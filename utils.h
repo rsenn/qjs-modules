@@ -830,18 +830,20 @@ struct timespec js_date_timespec(JSContext*, JSValue arg);
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromvalue(JSContext*, const void* x, size_t n, JSValue val);
 
-JSModuleDef* js_module_get(JSContext*, JSValueConst);
-JSValue js_module_list(JSContext*, JSValueConst);
-JSValue js_module_name(JSContext*, JSValueConst);
-JSValue js_module_func(JSContext*, JSValueConst);
-JSValue js_module_ns(JSContext*, JSValueConst);
-JSValue js_module_exports(JSContext*, JSValueConst);
-char* js_module_namestr(JSContext*, JSValueConst);
+JSModuleDef* js_module_get(JSContext*, JSValue);
+JSValue js_module_list(JSContext*, JSValue);
+JSValue js_module_name(JSContext*, JSValue);
+JSValue js_module_func(JSContext*, JSValue);
+JSValue js_module_ns(JSContext*, JSValue);
+JSValue js_module_exports(JSContext*, JSValue);
+char* js_module_namestr(JSContext*, JSValue);
 JSModuleDef* js_module_find(JSContext*, const char*);
 char* js_module_search(JSContext*, const char*);
 char* js_module_search_ext(JSContext*, const char*, const char* ext);
+JSModuleDef* js_module_loader_so(JSContext*, const char*);
+char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
 
-JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
+JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const char*, int buf_len, const char* filename, int flags);
 int js_eval_str(JSContext*, const char*, const char* filename, int flags);
@@ -850,11 +852,19 @@ JSModuleDef* js_load_module(JSContext*, const char*);
 
 int64_t js_time_ms(void);
 int js_interrupt_handler(JSRuntime*, void*);
+
 void js_timer_unlink(JSRuntime*, JSOSTimer*);
 void js_timer_free(JSRuntime*, JSOSTimer*);
-void js_call_handler(JSContext*, JSValueConst);
 
+void js_call_handler(JSContext*, JSValue);
+
+void* js_sab_alloc(void*, size_t);
 void js_sab_free(void*, void*);
+void js_sab_dup(void*, void*);
+
+JSWorkerMessagePipe* js_new_message_pipe(void);
+JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);
 void js_free_message(JSWorkerMessage*);
+void js_free_message_pipe(JSWorkerMessagePipe*);
 
 #endif /* defined(UTILS_H) */
