@@ -101,15 +101,14 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* sa) {
             size = len;
         }
       }
-
-      if(JS_IsNumber(argv[1])) {
-        uint32_t port;
-        JS_ToUint32(ctx, &port, argv[1]);
-        if(sa->family == AF_INET)
-          sa->in.sin_port = htons(port);
-        else if(sa->family == AF_INET6)
-          sa->in6.sin6_port = htons(port);
-      }
+    }
+    if(JS_IsNumber(argv[1])) {
+      uint32_t port;
+      JS_ToUint32(ctx, &port, argv[1]);
+      if(sa->family == AF_INET)
+        sa->in.sin_port = htons(port);
+      else if(sa->family == AF_INET6)
+        sa->in6.sin6_port = htons(port);
     }
   } else if(argc == 1 && js_is_arraybuffer(ctx, argv[0])) {
     uint8_t* data;
@@ -177,6 +176,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       dbuf_putc(&dbuf, ':');
       dbuf_put(&dbuf, port, fmt_ulong(port, sockaddr_port(sa)));
       ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
+      dbuf_free(&dbuf);
       break;
     }
   }
