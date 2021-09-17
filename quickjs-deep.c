@@ -138,8 +138,10 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
 
       JS_SetPropertyUint32(ctx, ret, (return_flag & RETURN_MASK) == RETURN_VALUE_PATH ? 0 : 1, value);
       JS_SetPropertyUint32(ctx, ret, (return_flag & RETURN_MASK) == RETURN_VALUE_PATH ? 1 : 0, path);
-      /*      JS_DefinePropertyValueStr(ctx, ret, "value", JS_DupValue(ctx, value), JS_PROP_CONFIGURABLE);
-            JS_DefinePropertyValueStr(ctx, ret, "path", JS_DupValue(ctx, path), JS_PROP_CONFIGURABLE);*/
+      /*      JS_DefinePropertyValueStr(ctx, ret, "value", JS_DupValue(ctx, value),
+         JS_PROP_CONFIGURABLE);
+            JS_DefinePropertyValueStr(ctx, ret, "path", JS_DupValue(ctx, path),
+         JS_PROP_CONFIGURABLE);*/
 
       break;
     }
@@ -220,7 +222,8 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if((max_depth = (uint32_t)it->flags & 0xffffff) == 0)
     max_depth = INT32_MAX;
 
-  // penum = property_enumeration_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS);
+  // penum = property_enumeration_push(&it->frames, ctx, JS_DupValue(ctx, it->root),
+  // PROPENUM_DEFAULT_FLAGS);
 
   for(;;) {
     depth = property_enumeration_depth(&it->frames);
@@ -312,7 +315,8 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   } while(it);
 
-  /*t = time_us() - t; printf("js_deep_find took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t % 1000000);*/
+  /*t = time_us() - t; printf("js_deep_find took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t %
+   * 1000000);*/
 
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
   return ret;

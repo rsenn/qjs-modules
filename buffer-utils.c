@@ -79,6 +79,27 @@ byte_escape(const char* s, size_t n) {
   dbuf_0(&dbuf);
   return (char*)dbuf.buf;
 }
+
+size_t
+byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
+  size_t i, last;
+  const char* s = (const char*)haystack;
+  if(hlen < wlen)
+    return hlen;
+  last = hlen - wlen;
+  for(i = 0; i <= last; i++) {
+    if(byte_equal(s, wlen, what))
+      return i;
+    s++;
+  }
+  return hlen;
+}
+
+size_t
+byte_finds(const void* haystack, size_t hlen, const char* what) {
+  return byte_findb(haystack, hlen, what, str_len(what));
+}
+
 char*
 dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
   size_t p, l = 0;

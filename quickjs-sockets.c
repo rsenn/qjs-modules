@@ -889,7 +889,8 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         val = (void*)buf;
         if(tmp)
           js_free(ctx, tmp);
-        /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", sock.fd, level, optname, ((ptrdiff_t*)val)[0], val, len, sock.ret);*/
+        /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", sock.fd, level, optname,
+         * ((ptrdiff_t*)val)[0], val, len, sock.ret);*/
         break;
       }
       case SOCKET_METHOD_SETSOCKOPT: {
@@ -933,7 +934,8 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           }
         }
         JS_SOCKETCALL(SYSCALL_SETSOCKOPT, sock, setsockopt(sock.fd, level, optname, buf, len));
-        /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", sock.fd, level, optname, *(int*)buf, buf, len, sock.ret);*/
+        /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", sock.fd, level, optname,
+         * *(int*)buf, buf, len, sock.ret);*/
         break;
       }
     }
@@ -981,7 +983,8 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   } else {
     const char* syscall = socket_syscall(sock);
     JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_ENUMERABLE);
-    // JS_DefinePropertyValueStr(ctx, obj, "error", js_syscallerror_new(ctx, syscall, sock.error), JS_PROP_ENUMERABLE);
+    // JS_DefinePropertyValueStr(ctx, obj, "error", js_syscallerror_new(ctx, syscall, sock.error),
+    // JS_PROP_ENUMERABLE);
   }
   if(sock.syscall > 0 && sock.syscall < socket_syscalls_size)
     JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, socket_syscall(sock)), JS_PROP_ENUMERABLE);
@@ -1279,7 +1282,7 @@ int
 js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   /* if(js_syscallerror_class_id == 0)
      js_syscallerror_init(ctx, 0);*/
-  JSValue fdset_ctor, socklen_ctor;
+  JSValue fdset_ctor = JS_UNDEFINED, socklen_ctor = JS_UNDEFINED;
   JSValue fdset_module, socklen_module;
 
   /*if(js_socket_class_id == 0)*/ {
@@ -1307,26 +1310,32 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
 
     js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
-    const char fd_set[] =
-        " class fd_set extends ArrayBuffer {\n  constructor() {\n    super(FD_SETSIZE / 8);\n   }\n  get size() {\n    return this.byteLength * 8;\n  }\n  get maxfd() {\n    const a "
-        "= this.array;\n    return a[a.length - 1];\n  }\n  get array() {\n    const a = new Uint8Array(this);\n    const n = a.byteLength;\n    const r = [];\n    for(let i = 0; i "
-        "< n; i++) for (let j = 0; j < 8; j++) if(a[i] & (1 << j)) r.push(i * 8 + j);\n    return r;\n  }\n  toString() {\n    return `[ ${this.array.join(', ')} ]`;\n  }\n  "
-        "[Symbol.inspect]() {\n    return this.toString();\n  } \n}";
-    fdset_ctor = fdset_module = JS_Eval(ctx, fd_set, strlen(fd_set), "<internal>",/* JS_EVAL_TYPE_MODULE | */JS_EVAL_FLAG_COMPILE_ONLY);
-    
+    const char fd_set[] = "export default class fd_set extends ArrayBuffer {\n  constructor() {\n    "
+                          "super(FD_SETSIZE / 8);\n   }\n  get size() {\n    return this.byteLength * 8;\n  }\n  get "
+                          "maxfd() {\n    const a "
+                          "= this.array;\n    return a[a.length - 1];\n  }\n  get array() {\n    const a = new "
+                          "Uint8Array(this);\n    const n = a.byteLength;\n    const r = [];\n    for(let i = 0; i "
+                          "< n; i++) for (let j = 0; j < 8; j++) if(a[i] & (1 << j)) r.push(i * 8 + j);\n    return "
+                          "r;\n  }\n  toString() {\n    return `[ ${this.array.join(', ')} ]`;\n  }\n  "
+                          "[Symbol.inspect]() {\n    return this.toString();\n  } \n}";
 
-    const char socklen[] = " class socklen_t extends ArrayBuffer {\n  constructor(v) {\n    super(4);\n    Object.setPrototypeOf(this, new ArrayBuffer(4));\n    if(v != undefined) new "
-                           "Uint32Array(this)[0] = v | 0;\n  }\n  [Symbol.toPrimitive](hint) {\n    return new Uint32Array(this)[0];\n  }\n  [Symbol.toStringTag] = `[object socklen_t]`;\n}\n";
+    fdset_module = JS_Eval(ctx, fd_set, strlen(fd_set), "<internal>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    fdset_ctor = JS_EvalFunction(ctx, fdset_module);
 
-    socklen_ctor = socklen_module = JS_Eval(ctx, socklen, strlen(socklen), "<internal>", /*JS_EVAL_TYPE_MODULE |*/ JS_EVAL_FLAG_COMPILE_ONLY);
-    
+    const char socklen[] = "export default class socklen_t extends ArrayBuffer {\n  constructor(v) {\n    super(4);\n "
+                           "   Object.setPrototypeOf(this, new ArrayBuffer(4));\n    if(v != undefined) new "
+                           "Uint32Array(this)[0] = v | 0;\n  }\n  [Symbol.toPrimitive](hint) {\n    return new "
+                           "Uint32Array(this)[0];\n  }\n  [Symbol.toStringTag] = `[object socklen_t]`;\n}\n";
+
+    socklen_module = JS_Eval(ctx, socklen, strlen(socklen), "<internal>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    socklen_ctor = JS_EvalFunction(ctx, socklen_module);
   }
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SockAddr", sockaddr_ctor);
     JS_SetModuleExport(ctx, m, "Socket", socket_ctor);
-    JS_SetModuleExport(ctx, m, "socklen_t", socklen_ctor);
-    JS_SetModuleExport(ctx, m, "fd_set", fdset_ctor);
+    JS_SetModuleExport(ctx, m, "socklen_t", JS_IsUndefined(socklen_ctor) ? socklen_module : socklen_ctor);
+    JS_SetModuleExport(ctx, m, "fd_set", JS_IsUndefined(fdset_ctor) ? fdset_module : fdset_ctor);
 
     const char* module_name = JS_AtomToCString(ctx, m->module_name);
 

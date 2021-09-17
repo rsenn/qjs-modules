@@ -19,6 +19,8 @@ size_t ansi_truncate(const char*, size_t, size_t limit);
 int64_t array_search(void*, size_t, size_t elsz, void* needle);
 char* str_escape(const char*);
 char* byte_escape(const char*, size_t);
+size_t byte_findb(const void*, size_t, const void* what, size_t wlen);
+size_t byte_finds(const void*, size_t, const char* what);
 char* dbuf_at_n(const DynBuf*, size_t, size_t* n, char sep);
 const char* dbuf_last_line(DynBuf*, size_t*);
 int dbuf_prepend(DynBuf*, const uint8_t*, size_t len);

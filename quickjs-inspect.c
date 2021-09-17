@@ -684,8 +684,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         if(!js_is_arraybuffer(ctx, value))
           deepest = property_enumeration_deepest(ctx, value);
         const char* typestr = js_value_typestr(ctx, value);
-        // printf("%s opts->compact = %d, deepest = %d, depth = %d\n", typestr ? typestr : "(null)", opts->compact,
-        // deepest, depth);
+        // printf("%s opts->compact = %d, deepest = %d, depth = %d\n", typestr ? typestr : "(null)",
+        // opts->compact, deepest, depth);
 
         compact = compact > deepest;
       }

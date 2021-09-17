@@ -258,7 +258,8 @@ typedef enum {
   JS_AUTOINIT_ID_PROP,
 } JSAutoInitIDEnum;
 
-/* must be large enough to have a negligible runtime cost and small enough to call the interrupt callback often. */
+/* must be large enough to have a negligible runtime cost and small enough to call the interrupt
+ * callback often. */
 #define JS_INTERRUPT_COUNTER_INIT 10000
 
 struct JSContext {
@@ -541,8 +542,8 @@ struct JSObject {
       uint8_t extensible : 1;
       uint8_t free_mark : 1;            /* only used when freeing objects with cycles */
       uint8_t is_exotic : 1;            /* TRUE if object has exotic property handlers */
-      uint8_t fast_array : 1;           /* TRUE if u.array is used for get/put (for JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS and typed
-                                           arrays) */
+      uint8_t fast_array : 1;           /* TRUE if u.array is used for get/put (for JS_CLASS_ARRAY,
+                                           JS_CLASS_ARGUMENTS and typed           arrays) */
       uint8_t is_constructor : 1;       /* TRUE if object is a constructor function */
       uint8_t is_uncatchable_error : 1; /* if TRUE, error is not catchable */
       uint8_t tmp_mark : 1;             /* used in JS_WriteObjectRec() */
@@ -574,12 +575,14 @@ struct JSObject {
     struct JSGeneratorData* generator_data;                            /* JS_CLASS_GENERATOR */
     struct JSProxyData* proxy_data;                                    /* JS_CLASS_PROXY */
     struct JSPromiseData* promise_data;                                /* JS_CLASS_PROMISE */
-    struct JSPromiseFunctionData* promise_function_data;               /* JS_CLASS_PROMISE_RESOLVE_FUNCTION, JS_CLASS_PROMISE_REJECT_FUNCTION */
+    struct JSPromiseFunctionData* promise_function_data;               /* JS_CLASS_PROMISE_RESOLVE_FUNCTION,
+                                                                          JS_CLASS_PROMISE_REJECT_FUNCTION */
     struct JSAsyncFunctionData* async_function_data;                   /* JS_CLASS_ASYNC_FUNCTION_RESOLVE, JS_CLASS_ASYNC_FUNCTION_REJECT */
     struct JSAsyncFromSyncIteratorData* async_from_sync_iterator_data; /* JS_CLASS_ASYNC_FROM_SYNC_ITERATOR */
     struct JSAsyncGeneratorData* async_generator_data;                 /* JS_CLASS_ASYNC_GENERATOR */
     struct {                                                           /* JS_CLASS_BYTECODE_FUNCTION: 12/24 bytes */
-      /* also used by JS_CLASS_GENERATOR_FUNCTION, JS_CLASS_ASYNC_FUNCTION and JS_CLASS_ASYNC_GENERATOR_FUNCTION */
+      /* also used by JS_CLASS_GENERATOR_FUNCTION, JS_CLASS_ASYNC_FUNCTION and
+       * JS_CLASS_ASYNC_GENERATOR_FUNCTION */
       struct JSFunctionBytecode* function_bytecode;
       JSVarRef** var_refs;
       JSObject* home_object; /* for 'super' access */

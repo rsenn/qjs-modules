@@ -468,7 +468,8 @@ jsm_normalize_module(JSContext* ctx, const char* base_name, const char* name, vo
   dbuf_putstr(&file, r);
   dbuf_0(&file);
 
-  // printf("jsm_normalize_module\x1b[1;48;5;27m(1)\x1b[0m %-40s %-40s -> %s\n", base_name, name, file.buf);
+  // printf("jsm_normalize_module\x1b[1;48;5;27m(1)\x1b[0m %-40s %-40s -> %s\n", base_name, name,
+  // file.buf);
 
   return file.buf;
 }
@@ -528,8 +529,8 @@ jsm_module_loader_path(JSContext* ctx, const char* name, void* opaque) {
     if(debug_module_loader) {
       if(file)
         printf("jsm_module_loader_path[%x] \x1b[48;5;220m(2)\x1b[0m %-20s '%s'\n", pthread_self(), trim_dotslash(name), file);
-      /*  else  printf("jsm_module_loader_path[%x] \x1b[48;5;124m(1)\x1b[0m %-20s -> %s\n", pthread_self(),
-       * trim_dotslash(name), trim_dotslash(module));*/
+      /*  else  printf("jsm_module_loader_path[%x] \x1b[48;5;124m(1)\x1b[0m %-20s -> %s\n",
+       * pthread_self(), trim_dotslash(name), trim_dotslash(module));*/
     }
     if(!has_suffix(name, ".so") && !file) {
       JSValue package = jsm_load_package_json(ctx, 0);
@@ -1351,8 +1352,10 @@ main(int argc, char** argv) {
 
     JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
     if(load_std) {
-      const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = std;\nglobalThis.os "
-                        "= os;\nglobalThis.setTimeout = os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
+      const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = "
+                        "std;\nglobalThis.os "
+                        "= os;\nglobalThis.setTimeout = os.setTimeout;\nglobalThis.clearTimeout = "
+                        "os.clearTimeout;\n";
       jsm_eval_str(ctx, str, "<input>", JS_EVAL_TYPE_MODULE);
     }
 
