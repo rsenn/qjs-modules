@@ -22,13 +22,13 @@
 
 #define JS_SOCKETCALL_FAIL(syscall_index, socket, failval) JS_SOCKETCALL_RETURN(syscall_index, socket, retval, JS_NewInt32(ctx, result), failval)
 
-#define JS_SOCKETCALL_RETURN(syscall_index, socket, retval, successval, failval) \
-  do { \
-    socket.ret = retval; \
-    socket.syscall = syscall_index; \
-    socket.error = socket.ret < 0 ? errno : 0; \
-    ret = socket.ret < 0 ? failval : successval; \
-    JS_SetOpaque(this_val, socket.ptr); \
+#define JS_SOCKETCALL_RETURN(syscall_index, socket, retval, successval, failval)                                                                                                                       \
+  do {                                                                                                                                                                                                 \
+    socket.ret = retval;                                                                                                                                                                               \
+    socket.syscall = syscall_index;                                                                                                                                                                    \
+    socket.error = socket.ret < 0 ? errno : 0;                                                                                                                                                         \
+    ret = socket.ret < 0 ? failval : successval;                                                                                                                                                       \
+    JS_SetOpaque(this_val, socket.ptr);                                                                                                                                                                \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
@@ -855,14 +855,28 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
       case SOCKET_METHOD_SETSOCKOPT: {
         int32_t level, optname;
-        InputBuffer optval = js_input_buffer(ctx, argv[2]);
-        uint32_t len = optval.size;
+        uint32_t len;
+        int64_t num;
+        uint8_t* buf;
+        InputBuffer optval;
+        if(JS_IsNumber(argv[2])) {
+          JS_ToInt64(ctx, &num, argv[2]);
+          buf = &num;
+          len = sizeof(int64_t);
+        } else {
+          optval = js_input_buffer(ctx, argv[2]);
+          buf = optval.data;
+          len = optval.size;
+        }
+
         JS_ToInt32(ctx, &level, argv[0]);
         JS_ToInt32(ctx, &optname, argv[1]);
         if(argc >= 4 && JS_IsNumber(argv[3]))
           JS_ToUint32(ctx, &len, argv[3]);
 
-        JS_SOCKETCALL(SYSCALL_SETSOCKOPT, sock, setsockopt(sock.fd, level, optname, optval.data, len));
+        printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %zu, %zu)\n", sock.fd, level, optname, buf, len);
+
+        JS_SOCKETCALL(SYSCALL_SETSOCKOPT, sock, setsockopt(sock.fd, level, optname, buf, len));
         break;
       }
     }
