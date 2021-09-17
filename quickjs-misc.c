@@ -745,7 +745,7 @@ js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc >= 1) {
     if(JS_IsNumber(argv[0]))
       JS_ToInt32(ctx, &class_id, argv[0]);
-    else if((obj = js_value_get_obj(argv[0])))
+    else if((obj = js_value_obj(argv[0])))
       class_id = obj->class_id;
   }
 

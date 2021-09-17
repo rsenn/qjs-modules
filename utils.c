@@ -878,24 +878,9 @@ js_value_typestr(JSContext* ctx, JSValueConst value) {
   return js_value_type_name(type);
 }
 
-void*
-js_value_get_ptr(JSValueConst v) {
-  return JS_VALUE_GET_PTR(v);
-}
-
-JSObject*
-js_value_get_obj(JSValueConst v) {
-  return JS_VALUE_GET_TAG(v) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(v) : 0;
-}
-
-int32_t
-js_value_get_tag(JSValueConst v) {
-  return JS_VALUE_GET_TAG(v);
-}
-
 BOOL
 js_value_has_ref_count(JSValue v) {
-  return ((unsigned)js_value_get_tag(v) >= (unsigned)JS_TAG_FIRST);
+  return ((unsigned)js_value_tag(v) >= (unsigned)JS_TAG_FIRST);
 }
 
 enum value_mask
@@ -953,7 +938,7 @@ js_value_type_flag(JSValueConst value) {
 void
 js_value_free(JSContext* ctx, JSValue v) {
   if(js_value_has_ref_count(v)) {
-    JSRefCountHeader* p = (JSRefCountHeader*)js_value_get_ptr(v);
+    JSRefCountHeader* p = (JSRefCountHeader*)js_value_ptr(v);
     if(p->ref_count > 0) {
       --p->ref_count;
       if(p->ref_count == 0)
@@ -1147,7 +1132,7 @@ js_value_tosize(JSContext* ctx, size_t* sz, JSValueConst value) {
 void
 js_value_free_rt(JSRuntime* rt, JSValue v) {
   if(js_value_has_ref_count(v)) {
-    JSRefCountHeader* p = (JSRefCountHeader*)js_value_get_ptr(v);
+    JSRefCountHeader* p = (JSRefCountHeader*)js_value_ptr(v);
     --p->ref_count;
     if(p->ref_count == 0)
       __JS_FreeValueRT(rt, v);
@@ -1238,7 +1223,7 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
     ret |= js_object_is(ctx, value, "[object ArrayBuffer]");
   /*  if(!ret) {
       JSObject* obj;
-      if((obj = js_value_get_obj(value)) && obj->class_id) {
+      if((obj = js_value_obj(value)) && obj->class_id) {
         JSValue ctor = js_global_get(ctx, "ArrayBuffer");
         ret = JS_IsInstanceOf(ctx, value, ctor);
         JS_FreeValue(ctx, ctor);
@@ -1461,34 +1446,31 @@ JSValue
 js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
   JSValue ret = JS_UNDEFINED;
   int tag = JS_VALUE_GET_TAG(obj);
-  switch(tag) {
-    case JS_TAG_MODULE: {
-      if(!load_only && JS_ResolveModule(ctx, obj) < 0) {
-        JS_FreeValue(ctx, obj);
-        ret = JS_ThrowInternalError(ctx, "Failed resolving module");
-      } else {
-        js_module_set_import_meta(ctx, obj, FALSE, !load_only);
-        ret = JS_EvalFunction(ctx, obj);
-      }
-      break;
+  if(tag == JS_TAG_MODULE) {
+    if(!load_only && JS_ResolveModule(ctx, obj) < 0) {
+      JS_FreeValue(ctx, obj);
+      return JS_ThrowInternalError(ctx, "Failed resolving module");
     }
-    case JS_TAG_FUNCTION_BYTECODE: {
-      ret = obj;
-      break;
-    }
-    default: {
-      ret = JS_ThrowInternalError(ctx, "invalid tag %i", tag);
-      break;
-    }
+    js_module_set_import_meta(ctx, obj, FALSE, !load_only);
+    return load_only ? JS_DupValue(ctx, obj) : JS_EvalFunction(ctx, obj);
   }
-  return ret;
+  return JS_ThrowInternalError(ctx, "invalid tag %i", tag);
 }
 
 JSValue
-js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, int load_only) {
-  JSValue obj;
-  obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
+js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_only) {
+  JSValue obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
   if(JS_IsException(obj))
     return obj;
-  return js_eval_module(ctx, obj, load_only);
+
+  if(!load_only) {
+    JSValue tmp = js_eval_module(ctx, obj, load_only);
+    int tag = JS_VALUE_GET_TAG(tmp);
+    if(tag >= JS_TAG_FIRST && tag <= JS_TAG_FLOAT64)
+      return tmp;
+
+    printf("js_eval_binary tag=%i\n", tag);
+  }
+
+  return obj;
 }

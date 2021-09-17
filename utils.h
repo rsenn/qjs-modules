@@ -351,9 +351,26 @@ const char* js_value_type_name(int32_t type);
 
 const char* js_value_typestr(JSContext* ctx, JSValueConst value);
 
-VISIBLE void* js_value_get_ptr(JSValueConst v);
-VISIBLE JSObject* js_value_get_obj(JSValueConst v);
-VISIBLE int32_t js_value_get_tag(JSValueConst v);
+/*VISIBLE void* js_value_ptr(JSValueConst v);
+VISIBLE JSObject* js_value_obj(JSValueConst v);
+VISIBLE int32_t js_value_tag(JSValueConst v);
+*/
+
+static inline void*
+js_value_ptr(JSValueConst v) {
+  return JS_VALUE_GET_PTR(v);
+}
+
+static inline JSObject*
+js_value_obj(JSValueConst v) {
+  return JS_IsObject(v) ? JS_VALUE_GET_OBJ(v) : 0;
+}
+
+static inline int
+js_value_tag(JSValueConst v) {
+  return JS_VALUE_GET_TAG(v);
+}
+
 BOOL js_value_has_ref_count(JSValueConst v);
 
 void js_value_free(JSContext* ctx, JSValue v);
@@ -816,6 +833,6 @@ void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromvalue(JSContext*, const void* x, size_t n, JSValue val);
 
 JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
-JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, int load_only);
+JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
 
 #endif /* defined(UTILS_H) */
