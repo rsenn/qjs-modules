@@ -1,31 +1,4 @@
-#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
-#endif
-
-/*
- * QuickJS stand alone interpreter
- *
- * Copyright (c) 2017-2021 Fabrice Bellard
- * Copyright (c) 2017-2021 Charlie Gordon
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following states:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -87,9 +60,9 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-#define jsm_declare_module(name)                                                                                                                                                                       \
-  extern const uint8_t qjsc_##name[];                                                                                                                                                                  \
-  extern const uint32_t qjsc_##name##_size;                                                                                                                                                            \
+#define jsm_declare_module(name) \
+  extern const uint8_t qjsc_##name[]; \
+  extern const uint32_t qjsc_##name##_size; \
   JSModuleDef* js_init_module_##name(JSContext*, const char*);
 
 jsm_declare_module(console);
@@ -852,8 +825,8 @@ main(int argc, char** argv) {
 
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
-#define jsm_builtin_compiled(name)                                                                                                                                                                     \
-  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                                                                             \
+#define jsm_builtin_compiled(name) \
+  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0); \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
