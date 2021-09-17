@@ -82,7 +82,8 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
   assert(argc > 0);
   if(js_is_regexp(ctx, argv[0])) {
     re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
-    re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
+    re.flags =
+        regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
     js_cstring_free(ctx, flagstr);
   } else {
     re.source = js_tostringlen(ctx, &re.len, argv[0]);
@@ -108,8 +109,10 @@ regexp_compile(RegExp re, JSContext* ctx) {
   char error_msg[64];
   int len = 0;
   uint8_t* bytecode;
-  if(!(bytecode = lre_compile(&len, error_msg, sizeof(error_msg), re.source, re.len, re.flags, ctx)))
-    JS_ThrowInternalError(ctx, "Error compiling regex /%.*s/: %s", (int)re.len, re.source, error_msg);
+  if(!(bytecode =
+           lre_compile(&len, error_msg, sizeof(error_msg), re.source, re.len, re.flags, ctx)))
+    JS_ThrowInternalError(
+        ctx, "Error compiling regex /%.*s/: %s", (int)re.len, re.source, error_msg);
 
   return bytecode;
 }
@@ -118,7 +121,8 @@ JSValue
 regexp_to_value(RegExp re, JSContext* ctx) {
   char flagstr[32] = {0};
   size_t flaglen = regexp_flags_tostring(re.flags, flagstr);
-  JSValueConst args[2] = {JS_NewStringLen(ctx, re.source, re.len), JS_NewStringLen(ctx, flagstr, flaglen)};
+  JSValueConst args[2] = {JS_NewStringLen(ctx, re.source, re.len),
+                          JS_NewStringLen(ctx, flagstr, flaglen)};
   JSValue regex, ctor = js_global_get(ctx, "RegExp");
   regex = JS_CallConstructor(ctx, ctor, 2, args);
   JS_FreeValue(ctx, args[0]);
@@ -392,10 +396,12 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   tb = js_value_type(ctx, b);
   assert(ta == TYPE_OBJECT);
   assert(tb == TYPE_OBJECT);
-  if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(
+         ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     return FALSE;
 
-  if(JS_GetOwnPropertyNames(ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(
+         ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     return FALSE;
 
   if(natoms_a != natoms_b)
@@ -575,14 +581,18 @@ js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, co
 }
 
 void
-js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
+js_set_propertystr_stringlen(
+    JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
   JSValue value;
   value = JS_NewStringLen(ctx, str, len);
   JS_SetPropertyStr(ctx, obj, prop, value);
 }
 
 int
-js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueConst value, JSAtom prop) {
+js_get_propertydescriptor(JSContext* ctx,
+                          JSPropertyDescriptor* desc,
+                          JSValueConst value,
+                          JSAtom prop) {
   JSValue obj, proto;
   obj = JS_DupValue(ctx, value);
   do {
@@ -841,8 +851,10 @@ const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
   const char* const types[] = {
-      "UNDEFINED",     "NULL",         "BOOL",      "INT", "OBJECT",   "STRING", "SYMBOL", "BIG_FLOAT",
-      "BIG_INT",       "BIG_DECIMAL",  "FLOAT64",   "NAN", "FUNCTION", "ARRAY",  "MODULE", "FUNCTION_BYTECODE",
+      "UNDEFINED",     "NULL",         "BOOL",      "INT",
+      "OBJECT",        "STRING",       "SYMBOL",    "BIG_FLOAT",
+      "BIG_INT",       "BIG_DECIMAL",  "FLOAT64",   "NAN",
+      "FUNCTION",      "ARRAY",        "MODULE",    "FUNCTION_BYTECODE",
       "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION",
   };
   if(flag >= 0 && flag < countof(types))
@@ -971,8 +983,11 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
       ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      if(!JS_GetOwnPropertyNames(
-             ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(ctx,
+                                 &tab_atom,
+                                 &tab_atom_len,
+                                 value,
+                                 JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
         uint32_t i;
         for(i = 0; i < tab_atom_len; i++) {
           JSValue prop;
@@ -1201,7 +1216,8 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
     return ret;
   if(!ret)
     ret |= js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
-  // if(!ret) ret |= js_object_is(ctx, value, "[object ArrayBuffer]");
+  if(!ret)
+    ret |= js_object_is(ctx, value, "[object ArrayBuffer]");
   /*  if(!ret) {
       JSObject* obj;
       if((obj = js_value_get_obj(value)) && obj->class_id) {
@@ -1222,37 +1238,46 @@ js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
 BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_MAP) /*|| js_object_is(ctx, value, "[object Map]")*/);
+         (js_value_isclass(ctx,
+                           value,
+                           JS_CLASS_MAP) /*|| js_object_is(ctx, value, "[object Map]")*/);
 }
 
 BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_SET) /* || js_object_is(ctx, value, "[object Set]")*/);
+         (js_value_isclass(ctx,
+                           value,
+                           JS_CLASS_SET) /* || js_object_is(ctx, value, "[object Set]")*/);
 }
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_GENERATOR) /*|| js_object_is(ctx, value, "[object Generator]")*/);
+         (js_value_isclass(
+             ctx, value, JS_CLASS_GENERATOR) /*|| js_object_is(ctx, value, "[object Generator]")*/);
 }
 
 BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_REGEXP) /*|| js_object_is(ctx, value, "[object RegExp]")*/);
+         (js_value_isclass(ctx,
+                           value,
+                           JS_CLASS_REGEXP) /*|| js_object_is(ctx, value, "[object RegExp]")*/);
 }
 
 BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]"));
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_PROMISE) ||
+                                js_object_is(ctx, value, "[object Promise]"));
 }
 
 BOOL
 js_is_dataview(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_DATAVIEW) /*|| js_object_is(ctx, value, "[object DataView]")*/);
+         (js_value_isclass(ctx,
+                           value,
+                           JS_CLASS_DATAVIEW) /*|| js_object_is(ctx, value, "[object DataView]")*/);
 }
 
 BOOL
@@ -1302,7 +1327,8 @@ js_typedarray_constructor(JSContext* ctx) {
 }
 
 JSValue
-js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]) {
+js_invoke(
+    JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]) {
   JSAtom atom;
   JSValue ret;
   atom = JS_NewAtom(ctx, method);

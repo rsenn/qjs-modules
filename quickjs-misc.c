@@ -131,7 +131,8 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JSValue ret = JS_UNDEFINED;
   JSValue arraybuffer_ctor = js_global_get(ctx, "ArrayBuffer");
 
-  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, argv[0]) || JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
+  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, argv[0]) ||
+     JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
     uint8_t* data;
     size_t len;
 
@@ -212,7 +213,8 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
       OffsetLength ol = get_offset_length(ctx, len, argc, argv);
       JSObject* obj = JS_VALUE_GET_OBJ(value);
-      ret = JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, FALSE);
+      ret = JS_NewArrayBuffer(
+          ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, FALSE);
     }
   }
 
@@ -276,7 +278,10 @@ js_misc_concatarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 }
 
 static JSValue
-js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_getperformancecounter(JSContext* ctx,
+                              JSValueConst this_val,
+                              int argc,
+                              JSValueConst argv[]) {
   struct timespec ts;
 
   clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -647,7 +652,8 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   if(argc >= 2)
     load_only = JS_ToBool(ctx, argv[1]);
 
-  if(JS_VALUE_GET_TAG(argv[0]) != JS_TAG_MODULE && JS_VALUE_GET_TAG(argv[0]) != JS_TAG_FUNCTION_BYTECODE)
+  if(JS_VALUE_GET_TAG(argv[0]) != JS_TAG_MODULE &&
+     JS_VALUE_GET_TAG(argv[0]) != JS_TAG_FUNCTION_BYTECODE)
     obj = js_misc_read_object(ctx, this_val, argc, argv);
   else
     obj = argv[0];
@@ -712,7 +718,11 @@ js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     if(i >= OP_TEMP_START && i < OP_TEMP_END)
       continue;
 
-    JS_SetPropertyUint32(ctx, ret, j++, (as_object ? js_misc_opcode_object : js_misc_opcode_array)(ctx, &js_opcodes[i]));
+    JS_SetPropertyUint32(ctx,
+                         ret,
+                         j++,
+                         (as_object ? js_misc_opcode_object
+                                    : js_misc_opcode_array)(ctx, &js_opcodes[i]));
   }
 
   return ret;
@@ -762,7 +772,14 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
-enum { GET_CLASS_ID = 0, GET_CLASS_NAME, GET_CLASS_ATOM, GET_CLASS_COUNT, GET_CLASS_PROTO, GET_CLASS_CONSTRUCTOR };
+enum {
+  GET_CLASS_ID = 0,
+  GET_CLASS_NAME,
+  GET_CLASS_ATOM,
+  GET_CLASS_COUNT,
+  GET_CLASS_PROTO,
+  GET_CLASS_CONSTRUCTOR
+};
 
 static JSValue
 js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -909,7 +926,8 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       return JS_NewUint32(ctx, num);
     }
     case 1: {
-      int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
+      int32_t num =
+          argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
       return JS_NewInt32(ctx, num);
     }
 

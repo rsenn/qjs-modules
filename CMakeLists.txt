@@ -80,8 +80,8 @@ set(blob_SOURCES vector.c vector.h ${util_SOURCES})
 set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h ${util_SOURCES})
 
 set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${location_SOURCES} ${syscallerror_SOURCES})
-set(misc_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/syscallerror.so)
-set(misc_LIBRARIES -L${CMAKE_CURRENT_BINARY_DIR} -lsyscallerror)
+#[[set(misc_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/syscallerror.so)
+set(misc_LIBRARIES -L${CMAKE_CURRENT_BINARY_DIR} -lsyscallerror)]]
 
 set(gpio_SOURCES gpio.c gpio.h)
 set(syscallerror_SOURCES ${util_SOURCES} char-utils.c char-utils.h)

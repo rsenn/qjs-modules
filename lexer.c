@@ -166,7 +166,10 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
 
   if(lexer_rule_expand(lex, lexer_rule_regex(rule), &dbuf)) {
     rule->expansion = js_strndup(ctx, (const char*)dbuf.buf, dbuf.size);
-    rule->bytecode = regexp_compile(regexp_from_dbuf(&dbuf, LRE_FLAG_GLOBAL | LRE_FLAG_MULTILINE | LRE_FLAG_STICKY), ctx);
+    rule->bytecode =
+        regexp_compile(regexp_from_dbuf(&dbuf,
+                                        LRE_FLAG_GLOBAL | LRE_FLAG_MULTILINE | LRE_FLAG_STICKY),
+                       ctx);
     ret = rule->bytecode != 0;
 
   } else {
@@ -189,7 +192,8 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
   // printf("lexer_rule_match %s %s %s\n", rule->name, rule->expr,
   // rule->expansion);
 
-  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->input.data, lex->input.pos, lex->input.size, 0, ctx);
+  return lre_exec(
+      capture, rule->bytecode, (uint8_t*)lex->input.data, lex->input.pos, lex->input.size, 0, ctx);
 }
 
 int
@@ -439,7 +443,11 @@ lexer_free_rt(Lexer* lex, JSRuntime* rt) {
 
 void
 lexer_dump(Lexer* lex, DynBuf* dbuf) {
-  dbuf_printf(dbuf, "Lexer {\n  mode: %x,\n  start: %zu, state: %s", lex->mode, lex->start, lexer_state_name(lex, lex->state));
+  dbuf_printf(dbuf,
+              "Lexer {\n  mode: %x,\n  start: %zu, state: %s",
+              lex->mode,
+              lex->start,
+              lexer_state_name(lex, lex->state));
   dbuf_putstr(dbuf, ",\n  input: ");
   input_buffer_dump(&lex->input, dbuf);
   dbuf_putstr(dbuf, ",\n  location: ");
