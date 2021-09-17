@@ -2,13 +2,15 @@
 #define _GNU_SOURCE
 #endif
 
-#include "quickjs-internal.h"
+#include "quickjs-sockets.h"
 #include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "buffer-utils.h"
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <sys/poll.h>
+#include <linux/net.h>
+#include <sys/syscall.h>
 #include <netinet/in.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -292,6 +294,18 @@ socket_getaf(int sock) {
   }
 
   return -1;
+}
+
+static inline ssize_t
+socket_send(int sock, const void* buf, size_t len, int flags) {
+  // if(flags == 0) return syscall(SYS_write, sock, buf, len);
+  return syscall(SYS_sendto, sock, buf, len, flags, 0, 0);
+}
+
+static inline ssize_t
+socket_recv(int sock, void* buf, size_t len, int flags) {
+  // if(flags == 0) return syscall(SYS_read, sock, buf, len);
+  return syscall(SYS_recvfrom, sock, buf, len, flags, 0, 0);
 }
 
 static BOOL
@@ -936,7 +950,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   switch(magic) {
     case SOCKET_METHOD_NDELAY: {
-      BOOL state = FALSE;
+      BOOL state = TRUE;
       int oldflags, newflags;
       if(argc >= 1)
         state = JS_ToBool(ctx, argv[0]);
@@ -997,7 +1011,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(argc >= 3)
         JS_ToInt32(ctx, &flags, argv[2]);
 
-      JS_SOCKETCALL(sock, SYSCALL_RECV, recv(sock.fd, buf.data, len, flags));
+      JS_SOCKETCALL(sock, SYSCALL_RECV, socket_recv(sock.fd, buf.data, len, flags));
       break;
     }
     case SOCKET_METHOD_SEND: {
@@ -1010,7 +1024,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         len = buf.size;
       if(argc >= 3)
         JS_ToInt32(ctx, &flags, argv[2]);
-      JS_SOCKETCALL(sock, SYSCALL_SEND, send(sock.fd, buf.data, len, flags));
+
+      JS_SOCKETCALL(sock, SYSCALL_SEND, socket_send(sock.fd, buf.data, len, flags));
+      //      JS_SOCKETCALL(sock, SYSCALL_SEND, send(sock.fd, buf.data, len, flags));
       break;
     }
     case SOCKET_METHOD_SHUTDOWN: {
@@ -1237,7 +1253,6 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
 
 int
 js_sockets_init(JSContext* ctx, JSModuleDef* m) {
-
   /* if(js_syscallerror_class_id == 0)
      js_syscallerror_init(ctx, 0);*/
 
