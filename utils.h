@@ -55,26 +55,19 @@ typedef enum precedence {
   PRECEDENCE_GROUPING,
 } JSPrecedence;
 
-#define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num)                                              \
-  {                                                                                                                    \
-    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC,      \
-    .magic = magic_num, .u = {                                                                                         \
-      .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}}                                   \
-    }                                                                                                                  \
+#define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num)                                                                                                                                                                                                                                  \
+  {                                                                                                                                                                                                                                                                                                        \
+    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = {.getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} }                                                                               \
   }
 
-#define JS_CGETSET_MAGIC_FLAGS_DEF(prop_name, fgetter, fsetter, magic_num, flags)                                      \
-  {                                                                                                                    \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = {               \
-      .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}}                                   \
-    }                                                                                                                  \
+#define JS_CGETSET_MAGIC_FLAGS_DEF(prop_name, fgetter, fsetter, magic_num, flags)                                                                                                                                                                                                                          \
+  {                                                                                                                                                                                                                                                                                                        \
+    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = {.getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} }                                                                                                                   \
   }
 
-#define JS_CFUNC_DEF_FLAGS(prop_name, length, func1, flags)                                                            \
-  {                                                                                                                    \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {                               \
-      .func = {length, JS_CFUNC_generic, {.generic = func1}}                                                           \
-    }                                                                                                                  \
+#define JS_CFUNC_DEF_FLAGS(prop_name, length, func1, flags)                                                                                                                                                                                                                                                \
+  {                                                                                                                                                                                                                                                                                                        \
+    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {.func = {length, JS_CFUNC_generic, {.generic = func1}} }                                                                                                                                                           \
   }
 
 #if defined(_WIN32) || defined(__MINGW32__)
@@ -223,6 +216,7 @@ mod_int32(int32_t a, int32_t b) {
 #define COLOR_NONE "\x1b[m"
 
 #define COLOR_LIGHTRED "\x1b[1;31m"
+
 #define COLOR_LIGHTGREEN "\x1b[1;32m"
 #define COLOR_LIGHTYELLOW "\x1b[1;33m"
 #define COLOR_LIGHTBLUE "\x1b[1;34m"
@@ -268,6 +262,7 @@ regexp_free(RegExp re, JSContext* ctx) {
 }
 
 JSValue js_global_get(JSContext* ctx, const char* prop);
+
 static inline JSValue
 js_global_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]) {
   JSValue ctor = js_global_get(ctx, class_name);
@@ -315,8 +310,7 @@ enum value_mask {
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NAN = (1 << FLAG_NAN),
   TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
-  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT |
-                    TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
+  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -337,9 +331,7 @@ enum value_mask js_value_type(JSContext* ctx, JSValueConst value);
 static inline const char* const*
 js_value_types() {
   return (const char* const[]){
-      "UNDEFINED",     "NULL",         "BOOL",      "INT", "OBJECT",   "STRING", "SYMBOL", "BIG_FLOAT",
-      "BIG_INT",       "BIG_DECIMAL",  "FLOAT64",   "NAN", "FUNCTION", "ARRAY",  "MODULE", "FUNCTION_BYTECODE",
-      "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION", 0,
+      "UNDEFINED", "NULL", "BOOL", "INT", "OBJECT", "STRING", "SYMBOL", "BIG_FLOAT", "BIG_INT", "BIG_DECIMAL", "FLOAT64", "NAN", "FUNCTION", "ARRAY", "MODULE", "FUNCTION_BYTECODE", "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION", 0,
   };
 }
 
@@ -347,9 +339,7 @@ static inline const char*
 js_value_typeof(JSValueConst value) {
   int32_t flag = js_value_type_flag(value);
   return ((const char* const[]){
-      "undefined",     "object",       "boolean",   "number", "object",   "string", "symbol", "bigfloat",
-      "bigint",        "bigdecimal",   "number",    "number", "function", "object", "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception", 0,
+      "undefined", "object", "boolean", "number", "object", "string", "symbol", "bigfloat", "bigint", "bigdecimal", "number", "number", "function", "object", "module", "function_bytecode", "uninitialized", "catch_offset", "exception", 0,
   })[flag];
 }
 
@@ -506,31 +496,31 @@ js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
   return ret;
 }
 
-#define JS_VALUE_FREE(ctx, value)                                                                                      \
-  do {                                                                                                                 \
-    JS_FreeValue((ctx), (value));                                                                                      \
-    (value) = JS_UNDEFINED;                                                                                            \
+#define JS_VALUE_FREE(ctx, value)                                                                                                                                                                                                                                                                          \
+  do {                                                                                                                                                                                                                                                                                                     \
+    JS_FreeValue((ctx), (value));                                                                                                                                                                                                                                                                          \
+    (value) = JS_UNDEFINED;                                                                                                                                                                                                                                                                                \
   } while(0);
-#define JS_VALUE_FREE_RT(ctx, value)                                                                                   \
-  do {                                                                                                                 \
-    JS_FreeValueRT((ctx), (value));                                                                                    \
-    (value) = JS_UNDEFINED;                                                                                            \
+#define JS_VALUE_FREE_RT(ctx, value)                                                                                                                                                                                                                                                                       \
+  do {                                                                                                                                                                                                                                                                                                     \
+    JS_FreeValueRT((ctx), (value));                                                                                                                                                                                                                                                                        \
+    (value) = JS_UNDEFINED;                                                                                                                                                                                                                                                                                \
   } while(0);
 
-#define js_object_tmpmark_set(value)                                                                                   \
+#define js_object_tmpmark_set(value)                                                                                                                                                                                                                                                                       \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
-#define js_object_tmpmark_clear(value)                                                                                 \
+#define js_object_tmpmark_clear(value)                                                                                                                                                                                                                                                                     \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
 
-#define js_runtime_exception_set(rt, value)                                                                            \
+#define js_runtime_exception_set(rt, value)                                                                                                                                                                                                                                                                \
   do { *(JSValue*)((uint8_t*)(rt) + 216) = value; } while(0);
 #define js_runtime_exception_get(rt) (*(JSValue*)((uint8_t*)(rt) + 216))
-#define js_runtime_exception_clear(rt)                                                                                 \
-  do {                                                                                                                 \
-    if(!JS_IsNull(js_runtime_exception_get(rt)))                                                                       \
-      JS_FreeValueRT((rt), js_runtime_exception_get(rt));                                                              \
-    js_runtime_exception_set(rt, JS_NULL);                                                                             \
+#define js_runtime_exception_clear(rt)                                                                                                                                                                                                                                                                     \
+  do {                                                                                                                                                                                                                                                                                                     \
+    if(!JS_IsNull(js_runtime_exception_get(rt)))                                                                                                                                                                                                                                                           \
+      JS_FreeValueRT((rt), js_runtime_exception_get(rt));                                                                                                                                                                                                                                                  \
+    js_runtime_exception_set(rt, JS_NULL);                                                                                                                                                                                                                                                                 \
   } while(0)
 
 void js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len);
@@ -645,6 +635,7 @@ void js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_
 void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);
 void js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_get_propertyint_cstring(JSContext* ctx, JSValueConst obj, uint32_t i);
+int32_t js_get_propertyint_int32(JSContext* ctx, JSValueConst obj, uint32_t i);
 const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
 const char* js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
@@ -652,11 +643,11 @@ char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char*
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
 uint64_t js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop);
 int js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueConst obj, JSAtom prop);
+
 static inline void
 js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
   JSAtom inspect_symbol = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
-  JS_DefinePropertyValue(
-      ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValue(ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   JS_FreeAtom(ctx, inspect_symbol);
 }
 
@@ -760,6 +751,7 @@ BOOL js_is_input(JSContext* ctx, JSValueConst value);
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
 BOOL js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
 int64_t js_array_length(JSContext* ctx, JSValueConst array);
+void js_array_clear(JSContext* ctx, JSValueConst array);
 
 size_t js_argv_length(char** strv);
 
@@ -786,6 +778,8 @@ js_arraybuffer_length(JSContext* ctx, JSValueConst buffer) {
   return 0;
 }
 
+int64_t js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value);
+
 static inline int
 js_find_cfunction_entry(const JSCFunctionListEntry* entries, size_t n_entries, const char* name, int def_type) {
   size_t i;
@@ -796,8 +790,7 @@ js_find_cfunction_entry(const JSCFunctionListEntry* entries, size_t n_entries, c
 }
 
 static inline int
-js_find_cfunction_atom(
-    JSContext* ctx, const JSCFunctionListEntry* entries, size_t n_entries, JSAtom atom, int def_type) {
+js_find_cfunction_atom(JSContext* ctx, const JSCFunctionListEntry* entries, size_t n_entries, JSAtom atom, int def_type) {
   const char* name = JS_AtomToCString(ctx, atom);
   int i;
   i = js_find_cfunction_entry(entries, n_entries, name, def_type);

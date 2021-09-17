@@ -13,34 +13,11 @@ thread_local JSValue tree_walker_proto = {JS_TAG_UNDEFINED}, tree_walker_ctor = 
 thread_local VISIBLE JSClassID js_tree_iterator_class_id = 0;
 thread_local JSValue tree_iterator_proto = {JS_TAG_UNDEFINED}, tree_iterator_ctor = {JS_TAG_UNDEFINED};
 
-enum tree_walker_methods {
-  FIRST_CHILD = 0,
-  LAST_CHILD,
-  NEXT_NODE,
-  NEXT_SIBLING,
-  PARENT_NODE,
-  PREVIOUS_NODE,
-  PREVIOUS_SIBLING
-};
+enum tree_walker_methods { FIRST_CHILD = 0, LAST_CHILD, NEXT_NODE, NEXT_SIBLING, PARENT_NODE, PREVIOUS_NODE, PREVIOUS_SIBLING };
 
-enum tree_walker_getters {
-  PROP_ROOT = 0,
-  PROP_CURRENT_NODE,
-  PROP_CURRENT_KEY,
-  PROP_CURRENT_PATH,
-  PROP_DEPTH,
-  PROP_INDEX,
-  PROP_LENGTH,
-  PROP_TAG_MASK,
-  PROP_FLAGS
-};
+enum tree_walker_getters { PROP_ROOT = 0, PROP_CURRENT_NODE, PROP_CURRENT_KEY, PROP_CURRENT_PATH, PROP_DEPTH, PROP_INDEX, PROP_LENGTH, PROP_TAG_MASK, PROP_FLAGS };
 
-enum tree_iterator_return {
-  RETURN_VALUE = 0,
-  RETURN_PATH = 1 << 24,
-  RETURN_VALUE_PATH = 2 << 24,
-  RETURN_MASK = 3 << 24
-};
+enum tree_iterator_return { RETURN_VALUE = 0, RETURN_PATH = 1 << 24, RETURN_VALUE_PATH = 2 << 24, RETURN_MASK = 3 << 24 };
 
 typedef struct {
   Vector frames;
@@ -495,19 +472,13 @@ js_tree_walker_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_tree_iterator_class_id, &js_tree_iterator_class);
 
   tree_iterator_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             tree_iterator_proto,
-                             js_tree_iterator_proto_funcs,
-                             countof(js_tree_iterator_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, tree_iterator_proto, js_tree_iterator_proto_funcs, countof(js_tree_iterator_proto_funcs));
   JS_SetClassProto(ctx, js_tree_iterator_class_id, tree_iterator_proto);
 
   tree_iterator_ctor = JS_NewCFunction2(ctx, js_tree_iterator_constructor, "TreeIterator", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, tree_iterator_ctor, tree_iterator_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             tree_iterator_ctor,
-                             js_tree_walker_static_funcs,
-                             countof(js_tree_walker_static_funcs));
+  JS_SetPropertyFunctionList(ctx, tree_iterator_ctor, js_tree_walker_static_funcs, countof(js_tree_walker_static_funcs));
 
   if(m) {
     JS_SetModuleExport(ctx, m, "TreeWalker", tree_walker_ctor);

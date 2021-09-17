@@ -9,19 +9,7 @@
 thread_local VISIBLE JSClassID js_pointer_class_id = 0;
 thread_local JSValue pointer_proto = {JS_TAG_UNDEFINED}, pointer_ctor = {JS_TAG_UNDEFINED};
 
-enum {
-  METHOD_DEREF = 0,
-  METHOD_TO_STRING,
-  METHOD_TO_ARRAY,
-  METHOD_INSPECT,
-  METHOD_SHIFT,
-  METHOD_PUSH,
-  METHOD_CONCAT,
-  METHOD_SLICE,
-  METHOD_KEYS,
-  METHOD_VALUES,
-  METHOD_HIER
-};
+enum { METHOD_DEREF = 0, METHOD_TO_STRING, METHOD_TO_ARRAY, METHOD_INSPECT, METHOD_SHIFT, METHOD_PUSH, METHOD_CONCAT, METHOD_SLICE, METHOD_KEYS, METHOD_VALUES, METHOD_HIER };
 enum { STATIC_FROM = 0, STATIC_FROM_ATOMS, STATIC_OF, STATIC_OF_ATOMS };
 enum { PROP_LENGTH = 0, PROP_PATH, PROP_ATOMS };
 
@@ -448,8 +436,7 @@ js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
     }
   } else if(js_atom_is_length(ctx, prop)) {
     value = JS_NewUint32(ctx, pointer->n);
-  } else if((entry = js_find_cfunction_atom(
-                 ctx, js_pointer_proto_funcs, countof(js_pointer_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
+  } else if((entry = js_find_cfunction_atom(ctx, js_pointer_proto_funcs, countof(js_pointer_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
 
     // printf("entry: %d magic: %d\n", entry, js_pointer_proto_funcs[entry].magic);
     value = js_pointer_get(ctx, obj, js_pointer_proto_funcs[entry].magic);
@@ -464,8 +451,7 @@ js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
 }
 
 static int
-js_pointer_set_property(
-    JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
+js_pointer_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
   int64_t index;
 
@@ -491,9 +477,7 @@ static JSClassExoticMethods js_pointer_exotic_methods = {
     .set_property = js_pointer_set_property,
 };
 
-static JSClassDef js_pointer_class = {.class_name = "Pointer",
-                                      .finalizer = js_pointer_finalizer,
-                                      .exotic = &js_pointer_exotic_methods};
+static JSClassDef js_pointer_class = {.class_name = "Pointer", .finalizer = js_pointer_finalizer, .exotic = &js_pointer_exotic_methods};
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {
