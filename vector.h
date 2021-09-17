@@ -77,6 +77,7 @@ void vector_intersection(void*, size_t, void*, size_t, size_t, Vector*);
 void vector_diff(void*, size_t, void*, size_t, size_t, Vector*);
 void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, Vector*, Vector*);
 int vector_copy(Vector* dst, const Vector* src);
+void vector_fwrite(const Vector*, size_t, FILE* out);
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 

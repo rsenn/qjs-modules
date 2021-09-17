@@ -21,6 +21,8 @@
 #define inrange(value, min, max) ((value) >= (min) && (value) <= (max))
 #endif
 
+#define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
+
 #ifdef _Thread_local
 #define thread_local _Thread_local
 #elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__SUNPRO_CC) || defined(__IBMCPP__)
@@ -377,12 +379,13 @@ void js_value_free(JSContext* ctx, JSValue v);
 void js_value_free_rt(JSRuntime* rt, JSValue v);
 
 BOOL js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
-void js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
 void js_value_print(JSContext* ctx, JSValueConst value);
 JSValue js_value_clone(JSContext* ctx, JSValueConst valpe);
 JSValue* js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values);
 void js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values);
 JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
+void js_value_fwrite(JSContext*, JSValue, FILE* f);
+void js_value_dump(JSContext*, JSValue, DynBuf* db);
 
 //#include "buffer-utils.h"
 
@@ -701,14 +704,14 @@ js_value_isclass(JSContext* ctx, JSValue obj, int id) {
   return js_object_isclass(obj, class_id);
 }
 
-BOOL js_is_arraybuffer(JSContext*, JSValue);
-BOOL js_is_sharedarraybuffer(JSContext*, JSValue);
-BOOL js_is_map(JSContext*, JSValue);
-BOOL js_is_set(JSContext*, JSValue);
-BOOL js_is_generator(JSContext*, JSValue);
-BOOL js_is_regexp(JSContext*, JSValue);
-BOOL js_is_promise(JSContext*, JSValue);
-BOOL js_is_dataview(JSContext*, JSValue);
+BOOL js_is_arraybuffer(JSContext*, JSValueConst);
+BOOL js_is_sharedarraybuffer(JSContext*, JSValueConst);
+BOOL js_is_map(JSContext*, JSValueConst);
+BOOL js_is_set(JSContext*, JSValueConst);
+BOOL js_is_generator(JSContext*, JSValueConst);
+BOOL js_is_regexp(JSContext*, JSValueConst);
+BOOL js_is_promise(JSContext*, JSValueConst);
+BOOL js_is_dataview(JSContext*, JSValueConst);
 
 static inline BOOL
 js_is_null_or_undefined(JSValueConst value) {
@@ -784,11 +787,18 @@ JSValue js_argv_to_array(JSContext* ctx, char** strv);
 JSValue js_intv_to_array(JSContext* ctx, int* intv);
 char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 
-JSModuleDef* js_module_def(JSContext*, JSValue);
-JSValue js_module_name(JSContext*, JSValue);
-JSValue js_module_func(JSContext*, JSValue);
-JSValue js_module_namespace(JSContext*, JSValue);
-char* js_module_namestr(JSContext*, JSValue);
+extern VISIBLE const char js_default_module_path[];
+
+JSModuleDef* js_module_get(JSContext*, JSValueConst);
+JSValue js_module_list(JSContext*, JSValueConst);
+JSValue js_module_name(JSContext*, JSValueConst);
+JSValue js_module_func(JSContext*, JSValueConst);
+JSValue js_module_ns(JSContext*, JSValueConst);
+JSValue js_module_exports(JSContext*, JSValueConst);
+char* js_module_namestr(JSContext*, JSValueConst);
+JSModuleDef* js_module_search(JSContext*, const char*);
+char* js_module_find(JSContext*, const char*);
+char* js_module_find_ext(JSContext*, const char*, const char* ext);
 
 JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]);
 
@@ -837,5 +847,18 @@ JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const char*, int buf_len, const char* filename, int flags);
 int js_eval_str(JSContext*, const char*, const char* filename, int flags);
+JSValue js_eval_file(JSContext*, const char*, int module);
+
+int js_load_script(JSContext*, const char*, BOOL module);
+JSModuleDef* js_load_module(JSContext*, const char*);
+
+int64_t js_time_ms(void);
+int js_interrupt_handler(JSRuntime*, void*);
+void js_timer_unlink(JSRuntime*, JSOSTimer*);
+void js_timer_free(JSRuntime*, JSOSTimer*);
+void js_call_handler(JSContext*, JSValueConst);
+
+void js_sab_free(void*, void*);
+void js_free_message(JSWorkerMessage*);
 
 #endif /* defined(UTILS_H) */

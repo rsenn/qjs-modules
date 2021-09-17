@@ -27,13 +27,13 @@ extern const uint8_t qjsm_socklen_t[1030];
 
 #define JS_SOCKETCALL_FAIL(syscall_index, socket, failval) JS_SOCKETCALL_RETURN(syscall_index, socket, retval, JS_NewInt32(ctx, result), failval)
 
-#define JS_SOCKETCALL_RETURN(syscall_index, socket, retval, successval, failval) \
-  do { \
-    socket.ret = retval; \
-    socket.syscall = syscall_index; \
-    socket.error = socket.ret < 0 ? errno : 0; \
-    ret = socket.ret < 0 ? failval : successval; \
-    JS_SetOpaque(this_val, socket.ptr); \
+#define JS_SOCKETCALL_RETURN(syscall_index, socket, retval, successval, failval)                                                                                                                       \
+  do {                                                                                                                                                                                                 \
+    socket.ret = retval;                                                                                                                                                                               \
+    socket.syscall = syscall_index;                                                                                                                                                                    \
+    socket.error = socket.ret < 0 ? errno : 0;                                                                                                                                                         \
+    ret = socket.ret < 0 ? failval : successval;                                                                                                                                                       \
+    JS_SetOpaque(this_val, socket.ptr);                                                                                                                                                                \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
@@ -1309,13 +1309,13 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
 
     js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
-    fdset_module = js_eval_binary(ctx, qjsm_fd_set, qjsm_fd_set_size, TRUE);
-    fdset_ns = js_module_namespace(ctx, fdset_module);
-    fdset_ctor = js_module_func(ctx, fdset_module);
+    /*  fdset_module = js_eval_binary(ctx, qjsm_fd_set, qjsm_fd_set_size, FALSE);
+      fdset_ns = js_module_ns(ctx, fdset_module);
+      fdset_ctor = js_module_func(ctx, fdset_module);
 
-    socklen_module = js_eval_binary(ctx, qjsm_socklen_t, qjsm_socklen_t_size, TRUE);
-    socklen_ns = js_module_namespace(ctx, socklen_module);
-    socklen_ctor = js_module_func(ctx, socklen_module);
+      socklen_module = js_eval_binary(ctx, qjsm_socklen_t, qjsm_socklen_t_size, FALSE);
+      socklen_ns = js_module_ns(ctx, socklen_module);
+      socklen_ctor = js_module_func(ctx, socklen_module);*/
   }
 
   if(m) {

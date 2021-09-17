@@ -13,9 +13,27 @@
 #include <time.h>
 #include <math.h>
 #include <errno.h>
+#include <signal.h>
+#include <sys/stat.h>
 
 #ifndef INFINITY
 #define INFINITY __builtin_inf()
+#endif
+
+VISIBLE const char js_default_module_path[] = "."
+#ifdef CONFIG_PREFIX
+                                              ":" CONFIG_PREFIX "/lib/quickjs"
+#endif
+    ;
+
+#ifdef USE_WORKER
+#include <pthread.h>
+#include <stdatomic.h>
+
+static int
+atomic_add_int(int* ptr, int v) {
+  return atomic_fetch_add((_Atomic(uint32_t)*)ptr, v) + v;
+}
 #endif
 
 #if defined(__linux__) || defined(__APPLE__)
@@ -1008,6 +1026,20 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
 }
 
 void
+js_value_fwrite(JSContext* ctx, JSValueConst val, FILE* f) {
+  DynBuf dbuf = {0};
+  size_t n;
+  js_dbuf_init(ctx, &dbuf);
+  js_value_dump(ctx, val, &dbuf);
+  dbuf_putc(&dbuf, '\n');
+  n = dbuf.size;
+  dbuf_0(&dbuf);
+  fwrite(dbuf.buf, 1, n, f);
+  fflush(f);
+  dbuf_free(&dbuf);
+}
+
+void
 js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   const char* str;
   size_t len;
@@ -1183,16 +1215,45 @@ js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
 }
 
 JSModuleDef*
-js_module_def(JSContext* ctx, JSValueConst value) {
+js_module_get(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* m = 0;
+  if(JS_IsString(value)) {
+    const char* name = JS_ToCString(ctx, value);
+    m = js_module_find(ctx, name);
+    JS_FreeCString(ctx, name);
+  } else if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE) {
+    m = JS_VALUE_GET_PTR(value);
+  }
+  return m;
+}
+
+JSValue
+js_module_list(JSContext* ctx, JSValueConst this_val) {
+  struct list_head* el;
+  JSValue name, ret = JS_NewArray(ctx);
+  uint32_t i = 0;
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    name = JS_AtomToValue(ctx, m->module_name);
+    const char* str = JS_ToCString(ctx, name);
+    if(str[0] != '<')
+      JS_SetPropertyUint32(ctx, ret, i++, JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
+    JS_FreeCString(ctx, str);
+    JS_FreeValue(ctx, name);
+  }
+  return ret;
+}
+/*JSModuleDef*
+js_module_get(JSContext* ctx, JSValueConst value) {
   if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE)
     return JS_VALUE_GET_PTR(value);
   return 0;
-}
+}*/
 
 JSValue
 js_module_name(JSContext* ctx, JSValueConst value) {
   JSModuleDef* module;
-  if((module = js_module_def(ctx, value)))
+  if((module = js_module_get(ctx, value)))
     return JS_AtomToValue(ctx, module->module_name);
   return JS_NULL;
 }
@@ -1200,16 +1261,39 @@ js_module_name(JSContext* ctx, JSValueConst value) {
 JSValue
 js_module_func(JSContext* ctx, JSValueConst value) {
   JSModuleDef* module;
-  if((module = js_module_def(ctx, value)))
+  if((module = js_module_get(ctx, value)))
     return JS_DupValue(ctx, module->func_obj);
   return JS_NULL;
 }
 
 JSValue
-js_module_namespace(JSContext* ctx, JSValueConst value) {
+js_module_ns(JSContext* ctx, JSValueConst value) {
   JSModuleDef* module;
-  if((module = js_module_def(ctx, value)))
+  if((module = js_module_get(ctx, value)))
     return JS_DupValue(ctx, module->module_ns);
+  return JS_NULL;
+}
+
+static JSValue
+module_exports(JSContext* ctx, JSModuleDef* module) {
+  JSValue exports = JS_NewObject(ctx);
+  size_t i;
+  for(i = 0; i < module->export_entries_count; i++) {
+    JSExportEntry* entry = &module->export_entries[i];
+    JSVarRef* ref = entry->u.local.var_ref;
+    if(ref) {
+      JSValue export = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
+      JS_SetProperty(ctx, exports, entry->export_name, export);
+    }
+  }
+  return exports;
+}
+
+JSValue
+js_module_exports(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* m;
+  if((m = js_module_get(ctx, value)))
+    return module_exports(ctx, m);
   return JS_NULL;
 }
 
@@ -1219,6 +1303,70 @@ js_module_namestr(JSContext* ctx, JSValueConst value) {
   char* s = js_tostring(ctx, name);
   JS_FreeValue(ctx, name);
   return s;
+}
+
+JSModuleDef*
+js_module_search(JSContext* ctx, const char* name) {
+  struct list_head* el;
+  size_t namelen = strlen(name);
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    const char *n, *str = JS_AtomToCString(ctx, m->module_name);
+    size_t len;
+    n = basename(str);
+    len = str_rchr(n, '.');
+    if(!strcmp(str, name) || !strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
+      return m;
+    JS_FreeCString(ctx, str);
+  }
+  return 0;
+}
+
+char*
+js_module_find(JSContext* ctx, const char* module) {
+  char* path = 0;
+  size_t len;
+
+  while(!strncmp(module, "./", 2)) module = trim_dotslash(module);
+  len = strlen(module);
+
+  if(!str_contains(module, '/') || str_ends(module, ".so"))
+    path = js_module_find_ext(ctx, module, ".so");
+
+  if(!path)
+    path = js_module_find_ext(ctx, module, ".js");
+
+  return path;
+}
+
+char*
+js_module_find_ext(JSContext* ctx, const char* module_name, const char* ext) {
+  const char *module_path, *p, *q;
+  char* filename = NULL;
+  size_t n, m;
+  struct stat st;
+
+  if((module_path = getenv("QUICKJS_MODULE_PATH")) == NULL)
+    module_path = js_default_module_path;
+
+  for(p = module_path; *p; p = q) {
+    if((q = strchr(p, ':')) == NULL)
+      q = p + strlen(p);
+    n = q - p;
+    filename = js_malloc(ctx, n + 1 + strlen(module_name) + 3 + 1);
+    strncpy(filename, p, n);
+    filename[n] = '/';
+    strcpy(&filename[n + 1], module_name);
+    m = strlen(module_name);
+    if(!(m >= 3 && !strcmp(&module_name[m - 3], ext)))
+      strcpy(&filename[n + 1 + m], ext);
+    if(!stat(filename, &st))
+      return filename;
+    js_free(ctx, filename);
+    if(*q == ':')
+      ++q;
+  }
+  return NULL;
 }
 
 BOOL
@@ -1434,9 +1582,7 @@ js_arraybuffer_fromvalue(JSContext* ctx, const void* x, size_t n, JSValueConst v
   JSValue* valptr;
   if(!(valptr = js_malloc(ctx, sizeof(JSValue))))
     return JS_ThrowOutOfMemory(ctx);
-
   *valptr = JS_DupValue(ctx, val);
-
   return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freevalue, valptr, FALSE);
 }
 
@@ -1471,36 +1617,31 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
   JSValue obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
   if(JS_IsException(obj))
     return obj;
-
+  printf("js_eval_binary obj=%s\n", js_value_typestr(ctx, obj));
   if(!load_only) {
     JSValue tmp = js_eval_module(ctx, obj, load_only);
     int tag = JS_VALUE_GET_TAG(tmp);
-    if(tag >= JS_TAG_FIRST && tag <= JS_TAG_FLOAT64)
-      return tmp;
-
-    printf("js_eval_binary tag=%i\n", tag);
+    printf("js_eval_binary tmp=%s\n", js_value_typestr(ctx, tmp));
+    if(!JS_IsException(tmp) && !JS_IsUndefined(tmp))
+      if(tag >= JS_TAG_FIRST && tag <= JS_TAG_FLOAT64)
+        return tmp;
   }
-
   return obj;
 }
 
 JSValue
 js_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename, int flags) {
-  JSValue val;
+  JSValue val = JS_UNDEFINED;
   if(flags & JS_EVAL_TYPE_MODULE) {
-    /* for the modules, we compile then run to be able to set
-       import.meta */
+    /* for the modules, we compile then run to be able to set import.meta */
     val = JS_Eval(ctx, buf, buf_len, filename, flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(JS_IsException(val)) {
-      if(JS_IsNull(JS_GetRuntime(ctx)->current_exception)) {
+      if(JS_IsNull(JS_GetRuntime(ctx)->current_exception))
         JS_GetException(ctx);
-        val = JS_UNDEFINED;
-      }
+      return JS_UNDEFINED;
     }
-    if(!JS_IsException(val)) {
-      js_module_set_import_meta(ctx, val, FALSE, TRUE);
-      /*val =*/JS_EvalFunction(ctx, val);
-    }
+    js_module_set_import_meta(ctx, val, FALSE, TRUE);
+    /*val =*/JS_EvalFunction(ctx, val);
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, flags & (~(JS_EVAL_TYPE_MODULE)));
   }
@@ -1511,8 +1652,105 @@ int
 js_eval_str(JSContext* ctx, const char* str, const char* filename, int flags) {
   JSValue val = js_eval_buf(ctx, str, strlen(str), filename, flags);
   int32_t ret = -1;
-
   if(JS_IsNumber(val))
     JS_ToInt32(ctx, &ret, val);
   return ret;
+}
+
+JSValue
+js_eval_file(JSContext* ctx, const char* filename, int module) {
+  uint8_t* buf;
+  size_t len;
+  int flags;
+  if(!(buf = js_load_file(ctx, &len, filename))) {
+    fprintf(stderr, "Failed loading '%s': %s\n", filename, strerror(errno));
+    return JS_ThrowInternalError(ctx, "Failed loading '%s': %s", filename, strerror(errno));
+  }
+  if(module < 0)
+    module = (has_suffix(filename, ".mjs") || JS_DetectModule((const char*)buf, len));
+  flags = module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
+  return js_eval_buf(ctx, buf, len, filename, flags);
+}
+/*
+int
+js_load_script(JSContext* ctx, const char* filename, BOOL module) {
+  int32_t ret = 0;
+  JSValue val = js_eval_file(ctx, filename, module);
+  if(JS_IsException(val))
+    return -1;
+  if(JS_IsNumber(val))
+    JS_ToInt32(ctx, &ret, val);
+  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE && JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
+    JS_FreeValue(ctx, val);
+  return ret;
+}
+*/
+JSModuleDef*
+js_load_module(JSContext* ctx, const char* name) {
+  DynBuf buf;
+  js_dbuf_init(ctx, &buf);
+  dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
+  dbuf_0(&buf);
+  js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
+  return js_module_find(ctx, name);
+}
+
+thread_local uint64_t js_pending_signals = 0;
+
+int64_t
+js_time_ms(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (uint64_t)ts.tv_sec * 1000 + (ts.tv_nsec / 1000000);
+}
+
+int
+js_interrupt_handler(JSRuntime* rt, void* opaque) {
+  return (js_pending_signals >> SIGINT) & 1;
+}
+
+void
+js_timer_unlink(JSRuntime* rt, JSOSTimer* th) {
+  if(th->link.prev) {
+    list_del(&th->link);
+    th->link.prev = th->link.next = NULL;
+  }
+}
+
+void
+js_timer_free(JSRuntime* rt, JSOSTimer* th) {
+  JS_FreeValueRT(rt, th->func);
+  js_free_rt(rt, th);
+}
+
+void
+js_call_handler(JSContext* ctx, JSValueConst func) {
+  JSValue ret, func1;
+  func1 = JS_DupValue(ctx, func);
+  ret = JS_Call(ctx, func1, JS_UNDEFINED, 0, NULL);
+  JS_FreeValue(ctx, func1);
+  if(JS_IsException(ret))
+    js_std_dump_error(ctx);
+  JS_FreeValue(ctx, ret);
+}
+
+void
+js_sab_free(void* opaque, void* ptr) {
+  JSSABHeader* sab;
+  int ref_count;
+  sab = (JSSABHeader*)((uint8_t*)ptr - sizeof(JSSABHeader));
+  ref_count = atomic_add_int(&sab->ref_count, -1);
+  assert(ref_count >= 0);
+  if(ref_count == 0) {
+    free(sab);
+  }
+}
+
+void
+js_free_message(JSWorkerMessage* msg) {
+  size_t i;
+  for(i = 0; i < msg->sab_tab_len; i++) { js_sab_free(NULL, msg->sab_tab[i]); }
+  free(msg->sab_tab);
+  free(msg->data);
+  free(msg);
 }

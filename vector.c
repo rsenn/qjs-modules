@@ -178,3 +178,16 @@ vector_copy(Vector* dst, const Vector* src) {
   }
   return 0;
 }
+
+void
+vector_fwrite(const Vector* vec, size_t start, FILE* out) {
+  size_t i, len = vector_size(vec, sizeof(char*));
+  for(i = start; i < len; i++) {
+    const char* str = *(char**)vector_at(vec, sizeof(char*), i);
+    fputs(i > start ? "',\n  '" : "[\n  '", out);
+    fputs(str, out);
+    if(i + 1 == len)
+      fputs("'\n]", out);
+  }
+  fflush(out);
+}
