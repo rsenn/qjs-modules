@@ -76,7 +76,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_CHARSET: {
-      InputBuffer input = js_input_buffer(ctx, js_arguments_shift(args));
+      InputBuffer input = js_input_chars(ctx, js_arguments_shift(args));
       if(pr->charset.chars.size == 0 && pr->charset.chars.data == 0) {
         vector_init(&pr->charset.chars, ctx);
         utf8_to_unicode(pr->charset.set, pr->charset.len, &pr->charset.chars);
@@ -95,7 +95,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_STRING: {
-      InputBuffer input = js_input_buffer(ctx, js_arguments_shift(args));
+      InputBuffer input = js_input_chars(ctx, js_arguments_shift(args));
 
       if(input.size >= pr->string.len) {
         if(!memcmp(input.data, pr->string.str, pr->string.len))
@@ -199,7 +199,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
     case PREDICATE_REGEXP: {
       JSValue re = js_arguments_shift(args);
-      InputBuffer input = js_input_buffer(ctx, re);
+      InputBuffer input = js_input_chars(ctx, re);
       uint8_t* capture[CAPTURE_COUNT_MAX * 2];
       int capture_count = 0, result;
 

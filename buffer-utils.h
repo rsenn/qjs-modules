@@ -202,6 +202,7 @@ input_buffer_free_default(JSContext* ctx, const char* str, JSValue val) {
 }
 
 InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
+InputBuffer js_input_chars(JSContext* ctx, JSValueConst value);
 InputBuffer input_buffer_clone(const InputBuffer* in, JSContext* ctx);
 BOOL input_buffer_valid(const InputBuffer* in);
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);

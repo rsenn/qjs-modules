@@ -414,7 +414,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
 static JSValue
 js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  InputBuffer input = js_input_chars(ctx, argv[0]);
 
   if(input.data == 0 || input.size == 0) {
     JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");

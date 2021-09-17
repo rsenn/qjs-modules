@@ -137,7 +137,7 @@ js_stringdecoder_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   switch(magic) {
     case STRINGDECODER_END:
     case STRINGDECODER_WRITE: {
-      InputBuffer in = js_input_buffer(ctx, argv[0]);
+      InputBuffer in = js_input_chars(ctx, argv[0]);
 
       // printf("StringDecoder.%s '%.*s' size=%zu\n", magic == STRINGDECODER_WRITE ?
       // "write" : "end", in.size, in.data, in.size);

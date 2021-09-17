@@ -815,7 +815,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
       case SOCKET_METHOD_RECV: {
         int32_t flags = 0;
-        InputBuffer buf = js_input_buffer(ctx, argv[0]);
+        InputBuffer buf = js_input_chars(ctx, argv[0]);
         OffsetLength off = js_offset_length(ctx, buf.size, argc - 1, argv + 1);
         if(argc >= 4)
           JS_ToInt32(ctx, &flags, argv[3]);
@@ -827,7 +827,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
       case SOCKET_METHOD_SEND: {
         int32_t flags = 0;
-        InputBuffer buf = js_input_buffer(ctx, argv[0]);
+        InputBuffer buf = js_input_chars(ctx, argv[0]);
         OffsetLength off = js_offset_length(ctx, buf.size, argc - 1, argv + 1);
         if(argc >= 4)
           JS_ToInt32(ctx, &flags, argv[3]);
@@ -846,11 +846,48 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
       case SOCKET_METHOD_GETSOCKOPT: {
         int32_t level, optname;
-        InputBuffer optval = js_input_buffer(ctx, argv[2]);
-        socklen_t len = optval.size;
+        uint32_t optlen = sizeof(int);
+        /*  InputBuffer optval = js_input_chars(ctx, argv[2]);
+          socklen_t len = optval.size;*/
+        uint8_t *buf, *tmp = 0;
+        int32_t* val;
+        size_t len;
         JS_ToInt32(ctx, &level, argv[0]);
         JS_ToInt32(ctx, &optname, argv[1]);
-        JS_SOCKETCALL(SYSCALL_GETSOCKOPT, sock, getsockopt(sock.fd, level, optname, optval.data, &len));
+        if(argc >= 4)
+          JS_ToUint32(ctx, &optlen, argv[3]);
+        JS_ToInt32(ctx, &optname, argv[1]);
+        if(js_is_arraybuffer(ctx, argv[2])) {
+          buf = JS_GetArrayBuffer(ctx, &len, argv[2]);
+        } else if(js_is_array(ctx, argv[2])) {
+          int i, n = js_array_length(ctx, argv[2]);
+          len = MAX_NUM(MAX_NUM(n, 16) * sizeof(int), optlen);
+          tmp = js_mallocz(ctx, len);
+          val = (void*)tmp;
+
+          for(i = 0; i < n; i++) {
+            JSValue elem = JS_GetPropertyUint32(ctx, argv[2], i);
+            int32_t num;
+            JS_ToInt32(ctx, &num, elem);
+            val[i] = num;
+            JS_FreeValue(ctx, elem);
+          }
+          for(; i < 16; i++) { val[i] = 2; }
+
+          if(n < i)
+            n = i;
+
+          buf = tmp;
+        }
+        JS_SOCKETCALL(SYSCALL_GETSOCKOPT, sock, getsockopt(sock.fd, level, optname, buf, &len));
+        if(tmp) {
+          js_array_clear(ctx, argv[2]);
+          JS_SetPropertyUint32(ctx, argv[2], 0, JS_NewInt32(ctx, *(int32_t*)buf));
+        }
+        val = (void*)buf;
+        if(tmp)
+          js_free(ctx, tmp);
+        /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", sock.fd, level, optname, ((ptrdiff_t*)val)[0], val, len, sock.ret);*/
         break;
       }
       case SOCKET_METHOD_SETSOCKOPT: {
@@ -864,19 +901,21 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           buf = &num;
           len = sizeof(int64_t);
         } else {
-          optval = js_input_buffer(ctx, argv[2]);
+          optval = js_input_chars(ctx, argv[2]);
           buf = optval.data;
           len = optval.size;
         }
-
         JS_ToInt32(ctx, &level, argv[0]);
         JS_ToInt32(ctx, &optname, argv[1]);
-        if(argc >= 4 && JS_IsNumber(argv[3]))
-          JS_ToUint32(ctx, &len, argv[3]);
-
-        printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %zu, %zu)\n", sock.fd, level, optname, buf, len);
-
+        if(argc >= 4 && JS_IsNumber(argv[3])) {
+          uint32_t newlen = 0;
+          if(!JS_ToUint32(ctx, &newlen, argv[3])) {
+            newlen = MIN_NUM(newlen, len);
+            len = newlen;
+          }
+        }
         JS_SOCKETCALL(SYSCALL_SETSOCKOPT, sock, setsockopt(sock.fd, level, optname, buf, len));
+        /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", sock.fd, level, optname, *(int*)buf, buf, len, sock.ret);*/
         break;
       }
     }
@@ -990,90 +1029,90 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_sockets_defines[] = {
-    JS_PROP_INT32_DEF("SHUT_RD", SHUT_RD, 0),
-    JS_PROP_INT32_DEF("SHUT_WR", SHUT_WR, 0),
-    JS_PROP_INT32_DEF("SHUT_RDWR", SHUT_RDWR, 0),
-    JS_PROP_INT32_DEF("SO_ERROR", SO_ERROR, 0),
-    JS_PROP_INT32_DEF("SO_DEBUG", SO_DEBUG, 0),
-    JS_PROP_INT32_DEF("SO_REUSEADDR", SO_REUSEADDR, 0),
-    JS_PROP_INT32_DEF("SO_KEEPALIVE", SO_KEEPALIVE, 0),
-    JS_PROP_INT32_DEF("SO_DONTROUTE", SO_DONTROUTE, 0),
-    JS_PROP_INT32_DEF("SO_BROADCAST", SO_BROADCAST, 0),
-    JS_PROP_INT32_DEF("SO_OOBINLINE", SO_OOBINLINE, 0),
-    JS_PROP_INT32_DEF("SO_REUSEPORT", SO_REUSEPORT, 0),
-    JS_PROP_INT32_DEF("SO_SNDBUF", SO_SNDBUF, 0),
-    JS_PROP_INT32_DEF("SO_RCVBUF", SO_RCVBUF, 0),
-    JS_PROP_INT32_DEF("SO_NO_CHECK", SO_NO_CHECK, 0),
-    JS_PROP_INT32_DEF("SO_PRIORITY", SO_PRIORITY, 0),
-    JS_PROP_INT32_DEF("SO_BSDCOMPAT", SO_BSDCOMPAT, 0),
-    JS_PROP_INT32_DEF("SO_PASSCRED", SO_PASSCRED, 0),
-    JS_PROP_INT32_DEF("SO_PEERCRED", SO_PEERCRED, 0),
-    JS_PROP_INT32_DEF("SO_SECURITY_AUTHENTICATION", SO_SECURITY_AUTHENTICATION, 0),
-    JS_PROP_INT32_DEF("SO_SECURITY_ENCRYPTION_TRANSPORT", SO_SECURITY_ENCRYPTION_TRANSPORT, 0),
-    JS_PROP_INT32_DEF("SO_SECURITY_ENCRYPTION_NETWORK", SO_SECURITY_ENCRYPTION_NETWORK, 0),
-    JS_PROP_INT32_DEF("SO_BINDTODEVICE", SO_BINDTODEVICE, 0),
-    JS_PROP_INT32_DEF("SO_ATTACH_FILTER", SO_ATTACH_FILTER, 0),
-    JS_PROP_INT32_DEF("SO_DETACH_FILTER", SO_DETACH_FILTER, 0),
-    JS_PROP_INT32_DEF("SO_GET_FILTER", SO_GET_FILTER, 0),
-    JS_PROP_INT32_DEF("SO_PEERNAME", SO_PEERNAME, 0),
-    JS_PROP_INT32_DEF("SO_TIMESTAMP", SO_TIMESTAMP, 0),
-    JS_PROP_INT32_DEF("SO_PEERSEC", SO_PEERSEC, 0),
-    JS_PROP_INT32_DEF("SO_PASSSEC", SO_PASSSEC, 0),
-    JS_PROP_INT32_DEF("SO_TIMESTAMPNS", SO_TIMESTAMPNS, 0),
-    JS_PROP_INT32_DEF("SO_MARK", SO_MARK, 0),
-    JS_PROP_INT32_DEF("SO_TIMESTAMPING", SO_TIMESTAMPING, 0),
-    JS_PROP_INT32_DEF("SO_RXQ_OVFL", SO_RXQ_OVFL, 0),
-    JS_PROP_INT32_DEF("SO_WIFI_STATUS", SO_WIFI_STATUS, 0),
-    JS_PROP_INT32_DEF("SO_PEEK_OFF", SO_PEEK_OFF, 0),
-    JS_PROP_INT32_DEF("SO_NOFCS", SO_NOFCS, 0),
-    JS_PROP_INT32_DEF("SO_LOCK_FILTER", SO_LOCK_FILTER, 0),
-    JS_PROP_INT32_DEF("SO_SELECT_ERR_QUEUE", SO_SELECT_ERR_QUEUE, 0),
-    JS_PROP_INT32_DEF("SO_BUSY_POLL", SO_BUSY_POLL, 0),
-    JS_PROP_INT32_DEF("SO_MAX_PACING_RATE", SO_MAX_PACING_RATE, 0),
-    JS_PROP_INT32_DEF("SO_BPF_EXTENSIONS", SO_BPF_EXTENSIONS, 0),
-    JS_PROP_INT32_DEF("SO_SNDBUFFORCE", SO_SNDBUFFORCE, 0),
-    JS_PROP_INT32_DEF("SO_RCVBUFFORCE", SO_RCVBUFFORCE, 0),
-    JS_PROP_INT32_DEF("SO_RCVLOWAT", SO_RCVLOWAT, 0),
-    JS_PROP_INT32_DEF("SO_SNDLOWAT", SO_SNDLOWAT, 0),
-    JS_PROP_INT32_DEF("SO_RCVTIMEO", SO_RCVTIMEO, 0),
-    JS_PROP_INT32_DEF("SO_SNDTIMEO", SO_SNDTIMEO, 0),
-    JS_PROP_INT32_DEF("SO_ACCEPTCONN", SO_ACCEPTCONN, 0),
-    JS_PROP_INT32_DEF("SO_PROTOCOL", SO_PROTOCOL, 0),
-    JS_PROP_INT32_DEF("SO_DOMAIN", SO_DOMAIN, 0),
-    JS_PROP_INT32_DEF("SO_INCOMING_CPU", SO_INCOMING_CPU, 0),
-    JS_PROP_INT32_DEF("SO_ATTACH_BPF", SO_ATTACH_BPF, 0),
-    JS_PROP_INT32_DEF("SO_DETACH_BPF", SO_DETACH_BPF, 0),
-    JS_PROP_INT32_DEF("SO_ATTACH_REUSEPORT_CBPF", SO_ATTACH_REUSEPORT_CBPF, 0),
-    JS_PROP_INT32_DEF("SO_ATTACH_REUSEPORT_EBPF", SO_ATTACH_REUSEPORT_EBPF, 0),
-    JS_PROP_INT32_DEF("SO_CNX_ADVICE", SO_CNX_ADVICE, 0),
-    JS_PROP_INT32_DEF("SO_MEMINFO", SO_MEMINFO, 0),
-    JS_PROP_INT32_DEF("SO_INCOMING_NAPI_ID", SO_INCOMING_NAPI_ID, 0),
-    JS_PROP_INT32_DEF("SO_COOKIE", SO_COOKIE, 0),
-    JS_PROP_INT32_DEF("SO_PEERGROUPS", SO_PEERGROUPS, 0),
-    JS_PROP_INT32_DEF("SO_ZEROCOPY", SO_ZEROCOPY, 0),
-    JS_PROP_INT32_DEF("SOL_SOCKET", SOL_SOCKET, 0),
-    JS_PROP_INT32_DEF("SOL_IPV6", SOL_IPV6, 0),
-    JS_PROP_INT32_DEF("SOL_ICMPV6", SOL_ICMPV6, 0),
-    JS_PROP_INT32_DEF("SOL_RAW", SOL_RAW, 0),
-    JS_PROP_INT32_DEF("SOL_DECNET", SOL_DECNET, 0),
-    JS_PROP_INT32_DEF("SOL_PACKET", SOL_PACKET, 0),
-    JS_PROP_INT32_DEF("SOL_ATM", SOL_ATM, 0),
-    JS_PROP_INT32_DEF("SOL_IRDA", SOL_IRDA, 0),
-    JS_PROP_INT32_DEF("SOL_NETBEUI", SOL_NETBEUI, 0),
-    JS_PROP_INT32_DEF("SOL_LLC", SOL_LLC, 0),
-    JS_PROP_INT32_DEF("SOL_DCCP", SOL_DCCP, 0),
-    JS_PROP_INT32_DEF("SOL_NETLINK", SOL_NETLINK, 0),
-    JS_PROP_INT32_DEF("SOL_TIPC", SOL_TIPC, 0),
-    JS_PROP_INT32_DEF("SOL_RXRPC", SOL_RXRPC, 0),
-    JS_PROP_INT32_DEF("SOL_PPPOL2TP", SOL_PPPOL2TP, 0),
-    JS_PROP_INT32_DEF("SOL_BLUETOOTH", SOL_BLUETOOTH, 0),
-    JS_PROP_INT32_DEF("SOL_PNPIPE", SOL_PNPIPE, 0),
-    JS_PROP_INT32_DEF("SOL_RDS", SOL_RDS, 0),
-    JS_PROP_INT32_DEF("SOL_IUCV", SOL_IUCV, 0),
-    JS_PROP_INT32_DEF("SOL_CAIF", SOL_CAIF, 0),
-    JS_PROP_INT32_DEF("SOL_ALG", SOL_ALG, 0),
-    JS_PROP_INT32_DEF("SOL_NFC", SOL_NFC, 0),
-    JS_PROP_INT32_DEF("SOL_KCM", SOL_KCM, 0),
+    JS_CONSTANT(SHUT_RD),
+    JS_CONSTANT(SHUT_WR),
+    JS_CONSTANT(SHUT_RDWR),
+    JS_CONSTANT(SO_ERROR),
+    JS_CONSTANT(SO_DEBUG),
+    JS_CONSTANT(SO_REUSEADDR),
+    JS_CONSTANT(SO_KEEPALIVE),
+    JS_CONSTANT(SO_DONTROUTE),
+    JS_CONSTANT(SO_BROADCAST),
+    JS_CONSTANT(SO_OOBINLINE),
+    JS_CONSTANT(SO_REUSEPORT),
+    JS_CONSTANT(SO_SNDBUF),
+    JS_CONSTANT(SO_RCVBUF),
+    JS_CONSTANT(SO_NO_CHECK),
+    JS_CONSTANT(SO_PRIORITY),
+    JS_CONSTANT(SO_BSDCOMPAT),
+    JS_CONSTANT(SO_PASSCRED),
+    JS_CONSTANT(SO_PEERCRED),
+    JS_CONSTANT(SO_SECURITY_AUTHENTICATION),
+    JS_CONSTANT(SO_SECURITY_ENCRYPTION_TRANSPORT),
+    JS_CONSTANT(SO_SECURITY_ENCRYPTION_NETWORK),
+    JS_CONSTANT(SO_BINDTODEVICE),
+    JS_CONSTANT(SO_ATTACH_FILTER),
+    JS_CONSTANT(SO_DETACH_FILTER),
+    JS_CONSTANT(SO_GET_FILTER),
+    JS_CONSTANT(SO_PEERNAME),
+    JS_CONSTANT(SO_TIMESTAMP),
+    JS_CONSTANT(SO_PEERSEC),
+    JS_CONSTANT(SO_PASSSEC),
+    JS_CONSTANT(SO_TIMESTAMPNS),
+    JS_CONSTANT(SO_MARK),
+    JS_CONSTANT(SO_TIMESTAMPING),
+    JS_CONSTANT(SO_RXQ_OVFL),
+    JS_CONSTANT(SO_WIFI_STATUS),
+    JS_CONSTANT(SO_PEEK_OFF),
+    JS_CONSTANT(SO_NOFCS),
+    JS_CONSTANT(SO_LOCK_FILTER),
+    JS_CONSTANT(SO_SELECT_ERR_QUEUE),
+    JS_CONSTANT(SO_BUSY_POLL),
+    JS_CONSTANT(SO_MAX_PACING_RATE),
+    JS_CONSTANT(SO_BPF_EXTENSIONS),
+    JS_CONSTANT(SO_SNDBUFFORCE),
+    JS_CONSTANT(SO_RCVBUFFORCE),
+    JS_CONSTANT(SO_RCVLOWAT),
+    JS_CONSTANT(SO_SNDLOWAT),
+    JS_CONSTANT(SO_RCVTIMEO),
+    JS_CONSTANT(SO_SNDTIMEO),
+    JS_CONSTANT(SO_ACCEPTCONN),
+    JS_CONSTANT(SO_PROTOCOL),
+    JS_CONSTANT(SO_DOMAIN),
+    JS_CONSTANT(SO_INCOMING_CPU),
+    JS_CONSTANT(SO_ATTACH_BPF),
+    JS_CONSTANT(SO_DETACH_BPF),
+    JS_CONSTANT(SO_ATTACH_REUSEPORT_CBPF),
+    JS_CONSTANT(SO_ATTACH_REUSEPORT_EBPF),
+    JS_CONSTANT(SO_CNX_ADVICE),
+    JS_CONSTANT(SO_MEMINFO),
+    JS_CONSTANT(SO_INCOMING_NAPI_ID),
+    JS_CONSTANT(SO_COOKIE),
+    JS_CONSTANT(SO_PEERGROUPS),
+    JS_CONSTANT(SO_ZEROCOPY),
+    JS_CONSTANT(SOL_SOCKET),
+    JS_CONSTANT(SOL_IPV6),
+    JS_CONSTANT(SOL_ICMPV6),
+    JS_CONSTANT(SOL_RAW),
+    JS_CONSTANT(SOL_DECNET),
+    JS_CONSTANT(SOL_PACKET),
+    JS_CONSTANT(SOL_ATM),
+    JS_CONSTANT(SOL_IRDA),
+    JS_CONSTANT(SOL_NETBEUI),
+    JS_CONSTANT(SOL_LLC),
+    JS_CONSTANT(SOL_DCCP),
+    JS_CONSTANT(SOL_NETLINK),
+    JS_CONSTANT(SOL_TIPC),
+    JS_CONSTANT(SOL_RXRPC),
+    JS_CONSTANT(SOL_PPPOL2TP),
+    JS_CONSTANT(SOL_BLUETOOTH),
+    JS_CONSTANT(SOL_PNPIPE),
+    JS_CONSTANT(SOL_RDS),
+    JS_CONSTANT(SOL_IUCV),
+    JS_CONSTANT(SOL_CAIF),
+    JS_CONSTANT(SOL_ALG),
+    JS_CONSTANT(SOL_NFC),
+    JS_CONSTANT(SOL_KCM),
     JS_CONSTANT(AF_UNSPEC),
     JS_CONSTANT(AF_UNIX),
     JS_CONSTANT(AF_LOCAL),

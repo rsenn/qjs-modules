@@ -164,7 +164,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
           JS_NewArrayBuffer(ctx, b.base + o.offset, MIN_NUM(b.size, o.length),
     js_string_free_func, (void*)b.base, FALSE); } else*/
   {
-    InputBuffer input = js_input_buffer(ctx, argv[0]);
+    InputBuffer input = js_input_chars(ctx, argv[0]);
     b = input_buffer_block(&input);
     //    b = block_range(&b, &input.range);
     b = block_range(&b, &o);
@@ -434,7 +434,7 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 static JSValue
 js_misc_btoa(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  InputBuffer input = js_input_chars(ctx, argv[0]);
   size_t enclen = b64_get_encoded_buffer_size(input.size);
   uint8_t* encbuf = js_malloc(ctx, enclen);
 
@@ -448,7 +448,7 @@ js_misc_btoa(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 static JSValue
 js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  InputBuffer input = js_input_chars(ctx, argv[0]);
   size_t declen = b64_get_decoded_buffer_size(input.size);
   uint8_t* decbuf = js_malloc(ctx, declen);
 
@@ -501,7 +501,7 @@ js_misc_write_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
 static JSValue
 js_misc_read_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  InputBuffer input = js_input_chars(ctx, argv[0]);
 
   return JS_ReadObject(ctx, input.data, input.size, JS_READ_OBJ_BYTECODE);
 }
@@ -905,7 +905,7 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 JSValue
 js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  InputBuffer input = js_input_chars(ctx, argv[0]);
   DynBuf output;
   js_dbuf_init(ctx, &output);
   dbuf_put_escaped(&output, (const char*)input.data, input.size);
@@ -914,7 +914,7 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 JSValue
 js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  InputBuffer input = js_input_chars(ctx, argv[0]);
   DynBuf output;
   char quote = '"', table[256] = {
                         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'b',  't',  'n',  'v',  'f',  'r',  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,

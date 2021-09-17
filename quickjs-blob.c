@@ -142,7 +142,7 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
         for(i = 0; i < len; i++) {
           Blob* other;
           JSValue item = JS_GetPropertyUint32(ctx, argv[0], i);
-          parts[i] = (other = js_blob_data(ctx, item)) ? blob_input(ctx, other) : js_input_buffer(ctx, item);
+          parts[i] = (other = js_blob_data(ctx, item)) ? blob_input(ctx, other) : js_input_chars(ctx, item);
           size += parts[i].size;
           JS_FreeValue(ctx, item);
         }

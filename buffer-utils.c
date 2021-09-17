@@ -304,19 +304,57 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 
   if(js_is_typedarray(value) || js_is_dataview(ctx, value)) {
     JSValue arraybuf, byteoffs, bytelen;
-
     arraybuf = JS_GetPropertyStr(ctx, value, "buffer");
-
     bytelen = JS_GetPropertyStr(ctx, value, "byteLength");
     if(JS_IsNumber(bytelen))
       JS_ToInt64(ctx, &length, bytelen);
     JS_FreeValue(ctx, bytelen);
-
     byteoffs = JS_GetPropertyStr(ctx, value, "byteOffset");
     if(JS_IsNumber(byteoffs))
       JS_ToInt64(ctx, &offset, byteoffs);
     JS_FreeValue(ctx, byteoffs);
+    value = arraybuf;
+  }
 
+  if(js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, value)) {
+    ret.value = JS_DupValue(ctx, value);
+    ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
+  } else  {
+    ret.value = JS_EXCEPTION;
+    //JS_ThrowTypeError(ctx, "Invalid type for input buffer");
+  }
+
+  if(offset < 0)
+    ret.range.offset = ret.size + offset % ret.size;
+  else if(offset > ret.size)
+    ret.range.offset = ret.size;
+  else
+    ret.range.offset = offset;
+
+  if(length >= 0 && length < ret.size)
+    ret.range.length = length;
+
+  return ret;
+}
+
+InputBuffer
+js_input_chars(JSContext* ctx, JSValueConst value) {
+  InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED};
+  int64_t offset = 0, length = INT64_MAX;
+
+  offset_init(&ret.range);
+
+  if(js_is_typedarray(value) || js_is_dataview(ctx, value)) {
+    JSValue arraybuf, byteoffs, bytelen;
+    arraybuf = JS_GetPropertyStr(ctx, value, "buffer");
+    bytelen = JS_GetPropertyStr(ctx, value, "byteLength");
+    if(JS_IsNumber(bytelen))
+      JS_ToInt64(ctx, &length, bytelen);
+    JS_FreeValue(ctx, bytelen);
+    byteoffs = JS_GetPropertyStr(ctx, value, "byteOffset");
+    if(JS_IsNumber(byteoffs))
+      JS_ToInt64(ctx, &offset, byteoffs);
+    JS_FreeValue(ctx, byteoffs);
     value = arraybuf;
   }
 
@@ -329,7 +367,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     ret.free = &input_buffer_free_default;
   } else {
     ret.value = JS_EXCEPTION;
-    //    JS_ThrowTypeError(ctx, "Invalid type for input buffer");
+    //JS_ThrowTypeError(ctx, "Invalid type for input buffer");
   }
 
   if(offset < 0)

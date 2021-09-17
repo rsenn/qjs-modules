@@ -704,7 +704,7 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst vinput, JSValueCon
     goto fail;
   JS_SetOpaque(obj, lex);
 
-  lex->input = js_input_buffer(ctx, vinput);
+  lex->input = js_input_chars(ctx, vinput);
 
   return obj;
 fail:
@@ -816,7 +816,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         loc = other->loc;
         lex->start = other->start;
       } else {
-        input = js_input_buffer(ctx, argv[0]);
+        input = js_input_chars(ctx, argv[0]);
       }
 
       input_buffer_free(&lex->input, ctx);
@@ -1255,7 +1255,7 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 JSValue
 js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  InputBuffer input = js_input_buffer(ctx, argv[0]);
+  InputBuffer input = js_input_chars(ctx, argv[0]);
   DynBuf output;
   js_dbuf_init(ctx, &output);
   magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred) : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
@@ -1272,7 +1272,7 @@ js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     ret = JS_NewString(ctx, re.source);
   } else {
     InputBuffer input;
-    input = js_input_buffer(ctx, argv[0]);
+    input = js_input_chars(ctx, argv[0]);
     ret = JS_NewStringLen(ctx, (const char*)input.data, input.size);
     input_buffer_free(&input, ctx);
   }
