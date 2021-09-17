@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include "cutils.h"
 #include "iteration.h"
 #include "list.h"
@@ -23,7 +19,7 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
-#define INSPECT_IS_COMPACT(opts) \
+#define INSPECT_IS_COMPACT(opts)                                                                                                                                                                       \
   ((opts)->compact == INT32_MAX ? TRUE : INSPECT_INT32T_INRANGE((opts)->compact) ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) : 0)
 
 typedef struct {

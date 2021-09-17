@@ -57,21 +57,21 @@ typedef enum precedence {
   PRECEDENCE_GROUPING,
 } JSPrecedence;
 
-#define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num) \
-  { \
-    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = { \
-      .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} \
-    } \
+#define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num)                                                                                                                              \
+  {                                                                                                                                                                                                    \
+    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = {                                                           \
+      .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}}                                                                                                                   \
+    }                                                                                                                                                                                                  \
   }
 
-#define JS_CGETSET_MAGIC_FLAGS_DEF(prop_name, fgetter, fsetter, magic_num, flags) \
-  { \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = {.getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} } \
+#define JS_CGETSET_MAGIC_FLAGS_DEF(prop_name, fgetter, fsetter, magic_num, flags)                                                                                                                      \
+  {                                                                                                                                                                                                    \
+    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = {.getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} }               \
   }
 
-#define JS_CFUNC_DEF_FLAGS(prop_name, length, func1, flags) \
-  { \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {.func = {length, JS_CFUNC_generic, {.generic = func1}} } \
+#define JS_CFUNC_DEF_FLAGS(prop_name, length, func1, flags)                                                                                                                                            \
+  {                                                                                                                                                                                                    \
+    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {.func = {length, JS_CFUNC_generic, {.generic = func1}} }                                                       \
   }
 
 #if defined(_WIN32) || defined(__MINGW32__)
@@ -520,31 +520,31 @@ js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
   return ret;
 }
 
-#define JS_VALUE_FREE(ctx, value) \
-  do { \
-    JS_FreeValue((ctx), (value)); \
-    (value) = JS_UNDEFINED; \
+#define JS_VALUE_FREE(ctx, value)                                                                                                                                                                      \
+  do {                                                                                                                                                                                                 \
+    JS_FreeValue((ctx), (value));                                                                                                                                                                      \
+    (value) = JS_UNDEFINED;                                                                                                                                                                            \
   } while(0);
-#define JS_VALUE_FREE_RT(ctx, value) \
-  do { \
-    JS_FreeValueRT((ctx), (value)); \
-    (value) = JS_UNDEFINED; \
+#define JS_VALUE_FREE_RT(ctx, value)                                                                                                                                                                   \
+  do {                                                                                                                                                                                                 \
+    JS_FreeValueRT((ctx), (value));                                                                                                                                                                    \
+    (value) = JS_UNDEFINED;                                                                                                                                                                            \
   } while(0);
 
-#define js_object_tmpmark_set(value) \
+#define js_object_tmpmark_set(value)                                                                                                                                                                   \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
-#define js_object_tmpmark_clear(value) \
+#define js_object_tmpmark_clear(value)                                                                                                                                                                 \
   do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
 
-#define js_runtime_exception_set(rt, value) \
+#define js_runtime_exception_set(rt, value)                                                                                                                                                            \
   do { *(JSValue*)((uint8_t*)(rt) + 216) = value; } while(0);
 #define js_runtime_exception_get(rt) (*(JSValue*)((uint8_t*)(rt) + 216))
-#define js_runtime_exception_clear(rt) \
-  do { \
-    if(!JS_IsNull(js_runtime_exception_get(rt))) \
-      JS_FreeValueRT((rt), js_runtime_exception_get(rt)); \
-    js_runtime_exception_set(rt, JS_NULL); \
+#define js_runtime_exception_clear(rt)                                                                                                                                                                 \
+  do {                                                                                                                                                                                                 \
+    if(!JS_IsNull(js_runtime_exception_get(rt)))                                                                                                                                                       \
+      JS_FreeValueRT((rt), js_runtime_exception_get(rt));                                                                                                                                              \
+    js_runtime_exception_set(rt, JS_NULL);                                                                                                                                                             \
   } while(0)
 
 void js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len);
@@ -830,25 +830,35 @@ struct timespec js_date_timespec(JSContext*, JSValue arg);
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromvalue(JSContext*, const void* x, size_t n, JSValue val);
 
-JSModuleDef* js_module_get(JSContext*, JSValue);
-JSValue js_module_list(JSContext*, JSValue);
-JSValue js_module_name(JSContext*, JSValue);
-JSValue js_module_func(JSContext*, JSValue);
-JSValue js_module_ns(JSContext*, JSValue);
-JSValue js_module_exports(JSContext*, JSValue);
-char* js_module_namestr(JSContext*, JSValue);
-JSModuleDef* js_module_find(JSContext*, const char*);
+JSValue js_map_new(JSContext*, JSValueConst);
+
+JSValue module_name(JSContext*, JSModuleDef*);
+const char* module_namestr(JSContext*, JSModuleDef*);
+JSValue module_func(JSContext*, JSModuleDef*);
+JSValue module_ns(JSContext*, JSModuleDef*);
+JSValue module_exports(JSContext*, JSModuleDef*);
+struct list_head* js_modules_list(JSContext*);
+JSValue js_modules_array(JSContext*);
+JSValue js_modules_entries(JSContext*);
+JSValue js_modules_object(JSContext*);
+JSValue js_modules_map(JSContext*);
 char* js_module_search(JSContext*, const char*);
 char* js_module_search_ext(JSContext*, const char*, const char* ext);
-JSModuleDef* js_module_loader_so(JSContext*, const char*);
 char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
+JSModuleDef* js_module_get(JSContext*, JSValueConst);
+JSModuleDef* js_module_find(JSContext*, const char*);
+JSModuleDef* js_module_load(JSContext*, const char*);
+JSModuleDef* js_module_loader_so(JSContext*, const char*);
 
-JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
+JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
-JSValue js_eval_buf(JSContext*, const char*, int buf_len, const char* filename, int flags);
-int js_eval_str(JSContext*, const char*, const char* filename, int flags);
+JSValue js_eval_buf(JSContext*, const char*, int len, const char* file, int flags);
+int js_eval_str(JSContext*, const char*, const char* file, int flags);
 
-JSModuleDef* js_load_module(JSContext*, const char*);
+JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
+JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
+JSValue js_eval_buf(JSContext*, const char*, int len, const char* file, int flags);
+int js_eval_str(JSContext*, const char*, const char* file, int flags);
 
 int64_t js_time_ms(void);
 int js_interrupt_handler(JSRuntime*, void*);
@@ -866,5 +876,4 @@ JSWorkerMessagePipe* js_new_message_pipe(void);
 JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);
 void js_free_message(JSWorkerMessage*);
 void js_free_message_pipe(JSWorkerMessagePipe*);
-
 #endif /* defined(UTILS_H) */

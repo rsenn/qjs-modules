@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include "cutils.h"
 #include "quickjs.h"
 #include "utils.h"

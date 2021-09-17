@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include "quickjs-sockets.h"
 #include "quickjs-syscallerror.h"
 #include "utils.h"
@@ -27,13 +23,13 @@ extern const uint8_t qjsm_socklen_t[1030];
 
 #define JS_SOCKETCALL_FAIL(syscall_index, socket, failval) JS_SOCKETCALL_RETURN(syscall_index, socket, retval, JS_NewInt32(ctx, result), failval)
 
-#define JS_SOCKETCALL_RETURN(syscall_index, socket, retval, successval, failval) \
-  do { \
-    socket.ret = retval; \
-    socket.syscall = syscall_index; \
-    socket.error = socket.ret < 0 ? errno : 0; \
-    ret = socket.ret < 0 ? failval : successval; \
-    JS_SetOpaque(this_val, socket.ptr); \
+#define JS_SOCKETCALL_RETURN(syscall_index, socket, retval, successval, failval)                                                                                                                       \
+  do {                                                                                                                                                                                                 \
+    socket.ret = retval;                                                                                                                                                                               \
+    socket.syscall = syscall_index;                                                                                                                                                                    \
+    socket.error = socket.ret < 0 ? errno : 0;                                                                                                                                                         \
+    ret = socket.ret < 0 ? failval : successval;                                                                                                                                                       \
+    JS_SetOpaque(this_val, socket.ptr);                                                                                                                                                                \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
@@ -1269,12 +1265,10 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
     JS_CONSTANT(POLLRDNORM),
     JS_CONSTANT(POLLRDBAND),
     JS_CONSTANT(POLLWRBAND),
-    JS_CONSTANT(POLLMSG),
+    /*   JS_CONSTANT(POLLMSG),*/
     JS_CONSTANT(POLLREMOVE),
     JS_CONSTANT(POLLWRNORM),
     JS_CONSTANT(O_ASYNC),
-    JS_CONSTANT(O_DIRECT),
-    JS_CONSTANT(O_NDELAY),
     JS_CONSTANT(O_NONBLOCK),
 };
 

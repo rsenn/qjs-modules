@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include "gpio.h"
 //#include "utils.h"
 #include "quickjs-gpio.h"

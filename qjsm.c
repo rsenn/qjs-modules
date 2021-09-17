@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -60,9 +59,9 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-#define jsm_declare_module(name) \
-  extern const uint8_t qjsc_##name[]; \
-  extern const uint32_t qjsc_##name##_size; \
+#define jsm_declare_module(name)                                                                                                                                                                       \
+  extern const uint8_t qjsc_##name[];                                                                                                                                                                  \
+  extern const uint32_t qjsc_##name##_size;                                                                                                                                                            \
   JSModuleDef* js_init_module_##name(JSContext*, const char*);
 
 jsm_declare_module(console);
@@ -104,11 +103,11 @@ jsm_load_package(JSContext* ctx, const char* file) {
   }
   return JS_DupValue(ctx, package_json);
 }
- 
+
 JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   char *module, *file = 0;
-  JSModuleDef* ret = NULL;
+  JSModuleDef* ret = 0;
   module = js_strdup(ctx, trim_dotslash(name));
   for(;;) {
     if(!strchr(module, '/') && (ret = js_module_find(ctx, module))) {
@@ -206,7 +205,7 @@ jsm_context_new(JSRuntime* rt) {
   JSContext* ctx;
   ctx = JS_NewContext(rt);
   if(!ctx)
-    return NULL;
+    return 0;
 #ifdef CONFIG_BIGNUM
   if(bignum_ext) {
     JS_AddIntrinsicBigFloat(ctx);
@@ -296,8 +295,8 @@ static void
       /* only handle %p and %zd */
       if(*fmt == 'p') {
         uint8_t* ptr = va_arg(ap, void*);
-        if(ptr == NULL) {
-          printf("NULL");
+        if(ptr == 0) {
+          printf("0");
         } else {
           printf("H%+06lld.%zd", jsm_trace_malloc_ptr_offset(ptr, s->opaque), jsm_trace_malloc_usable_size(ptr));
         }
@@ -329,7 +328,7 @@ jsm_trace_malloc(JSMallocState* s, size_t size) {
   assert(size != 0);
 
   if(unlikely(s->malloc_size + size > s->malloc_limit))
-    return NULL;
+    return 0;
   ptr = malloc(size);
   jsm_trace_malloc_printf(s, "A %zd -> %p\n", size, ptr);
   if(ptr) {
@@ -356,7 +355,7 @@ jsm_trace_realloc(JSMallocState* s, void* ptr, size_t size) {
 
   if(!ptr) {
     if(size == 0)
-      return NULL;
+      return 0;
     return jsm_trace_malloc(s, size);
   }
   old_size = jsm_trace_malloc_usable_size(ptr);
@@ -365,10 +364,10 @@ jsm_trace_realloc(JSMallocState* s, void* ptr, size_t size) {
     s->malloc_count--;
     s->malloc_size -= old_size + MALLOC_OVERHEAD;
     free(ptr);
-    return NULL;
+    return 0;
   }
   if(s->malloc_size + size - old_size > s->malloc_limit)
-    return NULL;
+    return 0;
 
   jsm_trace_malloc_printf(s, "R %zd %p", size, ptr);
 
@@ -389,11 +388,11 @@ static const JSMallocFunctions trace_mf = {
 #elif defined(_WIN32)
     (size_t(*)(const void*))_msize,
 #elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
-    NULL,
+    0,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
     (size_t(*)(const void*))malloc_usable_size,
 #else
-    /* change this to `NULL,` if compilation fails */
+    /* change this to `0,` if compilation fails */
     malloc_usable_size,
 #endif
 };
@@ -451,10 +450,10 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
   }
   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE) {
-    JSModuleDef* module = JS_VALUE_GET_PTR(ret);
-    JSValue exports, obj = JS_NewObject(ctx);
-    JS_SetPropertyStr(ctx, obj, "name", js_module_name(ctx, ret));
-    JS_SetPropertyStr(ctx, obj, "exports", js_module_exports(ctx, ret));
+    JSModuleDef* def = JS_VALUE_GET_PTR(ret);
+    JSValue obj = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, def));
+    JS_SetPropertyStr(ctx, obj, "exports", module_exports(ctx, def));
     ret = obj;
   }
   JS_FreeCString(ctx, str);
@@ -465,97 +464,92 @@ enum { FIND_MODULE, LOAD_MODULE, RESOLVE_MODULE, GET_MODULE_NAME, GET_MODULE_OBJ
 
 static JSValue
 jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret = JS_EXCEPTION;
-  JSModuleDef* m;
-  switch(magic) {
+  JSValue val = JS_EXCEPTION;
+  JSModuleDef* def = 0;
+  const char* name = 0;
 
+  if(magic >= GET_MODULE_NAME) {
+    if(!(def = js_module_get(ctx, argv[0])))
+      return JS_ThrowTypeError(ctx, "argument 1 expecting module");
+  } else {
+    name = JS_ToCString(ctx, argv[0]);
+  }
+
+  switch(magic) {
     case FIND_MODULE: {
-      const char* name = JS_ToCString(ctx, argv[0]);
-      m = js_module_find(ctx, name);
-      JS_FreeCString(ctx, name);
-      ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+      def = js_module_find(ctx, name);
+      val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def));
       break;
     }
     case LOAD_MODULE: {
-      const char* name = JS_ToCString(ctx, argv[0]);
-      JSModuleDef* m;
-
-      if((m = js_load_module(ctx, name)))
-        ret = JS_MKPTR(JS_TAG_MODULE, m);
-
-      JS_FreeCString(ctx, name);
+      if((def = js_module_load(ctx, name)))
+        val = JS_MKPTR(JS_TAG_MODULE, def);
       break;
     }
     case RESOLVE_MODULE: {
-      ret = JS_NewInt32(ctx, JS_ResolveModule(ctx, argv[0]));
+      val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, def)));
       break;
     }
     case GET_MODULE_NAME: {
-      if((m = js_module_get(ctx, argv[0])))
-        ret = js_module_name(ctx, argv[0]);
+      val = module_name(ctx, def);
       break;
     }
     case GET_MODULE_OBJECT: {
-      if((m = js_module_get(ctx, argv[0]))) {
-        ret = JS_NewObject(ctx);
-
-        JS_SetPropertyStr(ctx, ret, "name", js_module_name(ctx, argv[0]));
-        JS_SetPropertyStr(ctx, ret, "resolved", JS_NewBool(ctx, m->resolved));
-        JS_SetPropertyStr(ctx, ret, "func_created", JS_NewBool(ctx, m->func_created));
-        JS_SetPropertyStr(ctx, ret, "instantiated", JS_NewBool(ctx, m->instantiated));
-        JS_SetPropertyStr(ctx, ret, "evaluated", JS_NewBool(ctx, m->evaluated));
-        if(m->eval_has_exception)
-          JS_SetPropertyStr(ctx, ret, "exception", JS_DupValue(ctx, m->eval_exception));
-        if(!JS_IsUndefined(m->module_ns))
-          JS_SetPropertyStr(ctx, ret, "namespace", JS_DupValue(ctx, m->module_ns));
-        if(!JS_IsUndefined(m->func_obj))
-          JS_SetPropertyStr(ctx, ret, "func", JS_DupValue(ctx, m->func_obj));
-        if(!JS_IsUndefined(m->meta_obj))
-          JS_SetPropertyStr(ctx, ret, "meta", JS_DupValue(ctx, m->meta_obj));
-      }
+      val = JS_NewObject(ctx);
+      JS_SetPropertyStr(ctx, val, "name", module_name(ctx, def));
+      JS_SetPropertyStr(ctx, val, "resolved", JS_NewBool(ctx, def->resolved));
+      JS_SetPropertyStr(ctx, val, "func_created", JS_NewBool(ctx, def->func_created));
+      JS_SetPropertyStr(ctx, val, "instantiated", JS_NewBool(ctx, def->instantiated));
+      JS_SetPropertyStr(ctx, val, "evaluated", JS_NewBool(ctx, def->evaluated));
+      if(def->eval_has_exception)
+        JS_SetPropertyStr(ctx, val, "exception", JS_DupValue(ctx, def->eval_exception));
+      if(!JS_IsUndefined(def->module_ns))
+        JS_SetPropertyStr(ctx, val, "namespace", JS_DupValue(ctx, def->module_ns));
+      if(!JS_IsUndefined(def->func_obj))
+        JS_SetPropertyStr(ctx, val, "func", JS_DupValue(ctx, def->func_obj));
+      if(!JS_IsUndefined(def->meta_obj))
+        JS_SetPropertyStr(ctx, val, "meta", JS_DupValue(ctx, def->meta_obj));
       break;
     }
     case GET_MODULE_EXPORTS: {
-      //      if((m = js_module_get(ctx, argv[0])))
-      ret = js_module_exports(ctx, argv[0]);
+      val = module_exports(ctx, def);
       break;
     }
     case GET_MODULE_NAMESPACE: {
-      if((m = js_module_get(ctx, argv[0])))
-        ret = JS_DupValue(ctx, m->module_ns);
+      val = JS_DupValue(ctx, def->module_ns);
       break;
     }
     case GET_MODULE_FUNCTION: {
-      if((m = js_module_get(ctx, argv[0]))) {
-        if(TRUE || m->func_created)
-          ret = JS_DupValue(ctx, m->func_obj);
-        else
-          ret = JS_NULL;
-      }
+      if(TRUE || def->func_created)
+        val = JS_DupValue(ctx, def->func_obj);
+      else
+        val = JS_NULL;
       break;
     }
     case GET_MODULE_EXCEPTION: {
-      if((m = js_module_get(ctx, argv[0]))) {
-        if(m->eval_has_exception)
-          ret = JS_DupValue(ctx, m->eval_exception);
-        else
-          ret = JS_NULL;
-      }
+      if(def->eval_has_exception)
+        val = JS_DupValue(ctx, def->eval_exception);
+      else
+        val = JS_NULL;
       break;
     }
     case GET_MODULE_META_OBJ: {
-      if((m = js_module_get(ctx, argv[0])))
-        ret = JS_DupValue(ctx, m->meta_obj);
+      val = JS_DupValue(ctx, def->meta_obj);
       break;
     }
   }
-  return ret;
+  if(name)
+    JS_FreeCString(ctx, name);
+
+  return val;
 }
 
 static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, 0),
     JS_CFUNC_MAGIC_DEF("evalScript", 1, jsm_eval_script, 1),
-    JS_CGETSET_DEF("moduleList", js_module_list, 0),
+    JS_CGETSET_DEF("moduleList", js_modules_array, 0),
+    JS_CGETSET_DEF("moduleObject", js_modules_object, 0),
+    JS_CGETSET_DEF("moduleMap", js_modules_map, 0),
     JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
@@ -572,9 +566,9 @@ int
 main(int argc, char** argv) {
   JSRuntime* rt;
   JSContext* ctx;
-  struct trace_malloc_data trace_data = {NULL};
+  struct trace_malloc_data trace_data = {0};
   int optind;
-  char* expr = NULL;
+  char* expr = 0;
   int interactive = 0;
   int dump_memory = 0;
   int trace_memory = 0;
@@ -719,7 +713,7 @@ main(int argc, char** argv) {
           fprintf(stderr, "expecting memory limit");
           exit(1);
         }
-        memory_limit = (size_t)strtod(argv[optind++], NULL);
+        memory_limit = (size_t)strtod(argv[optind++], 0);
         break;
       }
       if(!strcmp(longopt, "stack-size")) {
@@ -727,7 +721,7 @@ main(int argc, char** argv) {
           fprintf(stderr, "expecting stack size");
           exit(1);
         }
-        stack_size = (size_t)strtod(argv[optind++], NULL);
+        stack_size = (size_t)strtod(argv[optind++], 0);
         break;
       }
       if(opt) {
@@ -789,10 +783,10 @@ main(int argc, char** argv) {
   }
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, js_module_normalize, jsm_module_loader, NULL);
+  JS_SetModuleLoaderFunc(rt, js_module_normalize, jsm_module_loader, 0);
 
   if(dump_unhandled_promise_rejection) {
-    JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, NULL);
+    JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, 0);
   }
 
   if(!empty_run) {
@@ -825,8 +819,8 @@ main(int argc, char** argv) {
 
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
-#define jsm_builtin_compiled(name) \
-  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0); \
+#define jsm_builtin_compiled(name)                                                                                                                                                                     \
+  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                                                                             \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
@@ -861,7 +855,7 @@ main(int argc, char** argv) {
       char** name;
       JSModuleDef* m;
       vector_foreach_t(&module_list, name) {
-        if(!(m = js_load_module(ctx, *name))) {
+        if(!(m = js_module_load(ctx, *name))) {
           fprintf(stderr, "error loading module '%s'\n", *name);
           exit(1);
         }

@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include "quickjs-stringdecoder.h"
 #include "utils.h"
 #include "buffer-utils.h"

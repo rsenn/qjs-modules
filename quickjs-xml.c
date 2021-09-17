@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include "cutils.h"
 #include "property-enumeration.h"
 #include "quickjs.h"
@@ -52,13 +48,13 @@ character_classes_init(int c[256]) {
 
 #define pop() (vector_size(&st, sizeof(OutputValue)) >= 2 ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue))) : 0)
 #define next() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
-#define skip(cond) \
-  do { \
-    c = *ptr; \
-    if(!(cond)) \
-      break; \
-    if(++ptr >= end) \
-      done = TRUE; \
+#define skip(cond)                                                                                                                                                                                     \
+  do {                                                                                                                                                                                                 \
+    c = *ptr;                                                                                                                                                                                          \
+    if(!(cond))                                                                                                                                                                                        \
+      break;                                                                                                                                                                                           \
+    if(++ptr >= end)                                                                                                                                                                                   \
+      done = TRUE;                                                                                                                                                                                     \
   } while(!done)
 
 #define skip_until(cond) skip(!(cond))

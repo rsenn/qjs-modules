@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include <quickjs-libc.h>
 #include "quickjs-misc.h"
 #include "quickjs-internal.h"

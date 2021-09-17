@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include "predicate.h"
 #include "libregexp.h"
 #include "quickjs-predicate.h"

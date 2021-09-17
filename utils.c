@@ -1,10 +1,8 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #undef _ISOC99_SOURCE
 #define _ISOC99_SOURCE 1
 
 #include "utils.h"
+#include "list.h"
 #include "cutils.h"
 #include "vector.h"
 #include "libregexp.h"
@@ -49,7 +47,7 @@ time_us(void) {
 uint64_t
 time_us(void) {
   struct timeval tv;
-  gettimeofday(&tv, NULL);
+  gettimeofday(&tv, 0);
   return (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
 #endif
@@ -884,8 +882,16 @@ const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
   const char* const types[] = {
-      "UNDEFINED",         "NULL",          "BOOL",         "INT",       "OBJECT", "STRING", "SYMBOL", "BIG_FLOAT", "BIG_INT", "BIG_DECIMAL", "FLOAT64", "NAN", "FUNCTION", "ARRAY", "MODULE",
-      "FUNCTION_BYTECODE", "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION",
+      "UNDEFINED",     "0",
+      "BOOL",          "INT",
+      "OBJECT",        "STRING",
+      "SYMBOL",        "BIG_FLOAT",
+      "BIG_INT",       "BIG_DECIMAL",
+      "FLOAT64",       "NAN",
+      "FUNCTION",      "ARRAY",
+      "MODULE",        "FUNCTION_BYTECODE",
+      "UNINITIALIZED", "CATCH_OFFSET",
+      "EXCEPTION",
   };
   if(flag >= 0 && flag < countof(types))
     return types[flag];
@@ -1215,67 +1221,38 @@ js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   js_cstring_free(ctx, str);
 }
 
-JSModuleDef*
-js_module_get(JSContext* ctx, JSValueConst value) {
-  JSModuleDef* m = 0;
-  if(JS_IsString(value)) {
-    const char* name = JS_ToCString(ctx, value);
-    m = js_module_search(ctx, name);
-    JS_FreeCString(ctx, name);
-  } else if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE) {
-    m = JS_VALUE_GET_PTR(value);
-  }
-  return m;
+JSValue
+js_map_new(JSContext* ctx, JSValueConst entries) {
+  JSValue map, ctor = js_global_get(ctx, "Map");
+  map = JS_CallConstructor(ctx, ctor, 1, &entries);
+  JS_FreeValue(ctx, ctor);
+  return map;
 }
 
 JSValue
-js_module_list(JSContext* ctx, JSValueConst this_val) {
-  struct list_head* el;
-  JSValue name, ret = JS_NewArray(ctx);
-  uint32_t i = 0;
-  list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    name = JS_AtomToValue(ctx, m->module_name);
-    const char* str = JS_ToCString(ctx, name);
-    if(str[0] != '<')
-      JS_SetPropertyUint32(ctx, ret, i++, JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
-    JS_FreeCString(ctx, str);
-    JS_FreeValue(ctx, name);
-  }
-  return ret;
+module_name(JSContext* ctx, JSModuleDef* module) {
+  return JS_AtomToValue(ctx, module->module_name);
 }
-/*JSModuleDef*
-js_module_get(JSContext* ctx, JSValueConst value) {
-  if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE)
-    return JS_VALUE_GET_PTR(value);
-  return 0;
-}*/
 
-JSValue
-js_module_name(JSContext* ctx, JSValueConst value) {
-  JSModuleDef* module;
-  if((module = js_module_get(ctx, value)))
-    return JS_AtomToValue(ctx, module->module_name);
-  return JS_NULL;
+const char*
+module_namestr(JSContext* ctx, JSModuleDef* module) {
+  const char *str, *name = JS_AtomToCString(ctx, module->module_name);
+  str = js_strdup(ctx, name);
+  JS_FreeCString(ctx, name);
+  return str;
 }
 
 JSValue
-js_module_func(JSContext* ctx, JSValueConst value) {
-  JSModuleDef* module;
-  if((module = js_module_get(ctx, value)))
-    return JS_DupValue(ctx, module->func_obj);
-  return JS_NULL;
+module_func(JSContext* ctx, JSModuleDef* module) {
+  return JS_DupValue(ctx, module->func_obj);
 }
 
 JSValue
-js_module_ns(JSContext* ctx, JSValueConst value) {
-  JSModuleDef* module;
-  if((module = js_module_get(ctx, value)))
-    return JS_DupValue(ctx, module->module_ns);
-  return JS_NULL;
+module_ns(JSContext* ctx, JSModuleDef* module) {
+  return JS_DupValue(ctx, module->module_ns);
 }
 
-static JSValue
+JSValue
 module_exports(JSContext* ctx, JSModuleDef* module) {
   JSValue exports = JS_NewObject(ctx);
   size_t i;
@@ -1290,37 +1267,66 @@ module_exports(JSContext* ctx, JSModuleDef* module) {
   return exports;
 }
 
+struct list_head*
+js_modules_list(JSContext* ctx) {
+  return &ctx->loaded_modules;
+}
+
 JSValue
-js_module_exports(JSContext* ctx, JSValueConst value) {
-  JSModuleDef* m;
-  if((m = js_module_get(ctx, value)))
-    return module_exports(ctx, m);
-  return JS_NULL;
-}
-
-char*
-js_module_namestr(JSContext* ctx, JSValueConst value) {
-  JSValue name = js_module_name(ctx, value);
-  char* s = js_tostring(ctx, name);
-  JS_FreeValue(ctx, name);
-  return s;
-}
-
-JSModuleDef*
-js_module_find(JSContext* ctx, const char* name) {
+js_modules_array(JSContext* ctx) {
   struct list_head* el;
-  size_t namelen = strlen(name);
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i = 0;
   list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    const char *n, *str = JS_AtomToCString(ctx, m->module_name);
-    size_t len;
-    n = basename(str);
-    len = str_rchr(n, '.');
-    if(!strcmp(str, name) || !strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
-      return m;
-    JS_FreeCString(ctx, str);
+    const char* str = module_namestr(ctx, m);
+    if(str[0] != '<')
+      JS_SetPropertyUint32(ctx, ret, i++, JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
+    js_free(ctx, str);
   }
-  return 0;
+  return ret;
+}
+
+JSValue
+js_modules_entries(JSContext* ctx) {
+  struct list_head* el;
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i = 0;
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* def = list_entry(el, JSModuleDef, link);
+    const char* name = module_namestr(ctx, def);
+    JSValue entry = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, entry, 0, module_name(ctx, def));
+    JS_SetPropertyUint32(ctx, entry, 1, JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def)));
+    if(name[0] != '<')
+      JS_SetPropertyUint32(ctx, ret, i++, entry);
+    else
+      JS_FreeValue(ctx, entry);
+    js_free(ctx, name);
+  }
+  return ret;
+}
+
+JSValue
+js_modules_map(JSContext* ctx) {
+  JSValue map, entries = js_modules_entries(ctx);
+  map = js_map_new(ctx, entries);
+  JS_FreeValue(ctx, entries);
+  return map;
+}
+
+JSValue
+js_modules_object(JSContext* ctx) {
+  struct list_head* it;
+  JSValue obj = JS_NewObject(ctx);
+  list_for_each(it, &ctx->loaded_modules) {
+    JSModuleDef* def = list_entry(it, JSModuleDef, link);
+    const char* name = module_namestr(ctx, def);
+    if(name[0] != '<')
+      JS_SetPropertyStr(ctx, obj, basename(name), JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def)));
+    js_free(ctx, name);
+  }
+  return obj;
 }
 
 char*
@@ -1341,79 +1347,37 @@ js_module_search(JSContext* ctx, const char* module) {
 }
 
 char*
-js_module_search_ext(JSContext* ctx, const char* module, const char* ext) {
+js_module_search_ext(JSContext* ctx, const char* name, const char* ext) {
   const char *path, *p, *q;
-  char* file = NULL;
-  size_t n, m;
+  char* file = 0;
+  size_t i, j;
   struct stat st;
 
-  if((path = getenv("QUICKJS_MODULE_PATH")) == NULL)
+  if((path = getenv("QUICKJS_MODULE_PATH")) == 0)
     path = js_default_module_path;
 
   for(p = path; *p; p = q) {
-    if((q = strchr(p, ':')) == NULL)
+    if((q = strchr(p, ':')) == 0)
       q = p + strlen(p);
-    n = q - p;
-    file = js_malloc(ctx, n + 1 + strlen(module) + 3 + 1);
-    strncpy(file, p, n);
-    file[n] = '/';
-    strcpy(&file[n + 1], module);
-    m = strlen(module);
-    if(!(m >= 3 && !strcmp(&module[m - 3], ext)))
-      strcpy(&file[n + 1 + m], ext);
+    i = q - p;
+    file = js_malloc(ctx, i + 1 + strlen(name) + 3 + 1);
+    strncpy(file, p, i);
+    file[i] = '/';
+    strcpy(&file[i + 1], name);
+    j = strlen(name);
+    if(!(j >= 3 && !strcmp(&name[j - 3], ext)))
+      strcpy(&file[i + 1 + j], ext);
     if(!stat(file, &st))
       return file;
     js_free(ctx, file);
     if(*q == ':')
       ++q;
   }
-  return NULL;
-}
-
-JSModuleDef*
-js_module_loader_so(JSContext* ctx, const char* module) {
-  JSModuleDef* m;
-  JSModuleDef* (*init)(JSContext*, const char*);
-  void* hd;
-  char* file;
-
-  if(!strchr(module, '/')) {
-    /* must add a '/' so that the DLL is not searched in the system library paths */
-    if(!(file = js_malloc(ctx, strlen(module) + 2 + 1)))
-      return NULL;
-    strcpy(file, "./");
-    strcpy(file + 2, module);
-  } else {
-    file = (char*)module;
-  }
-  /* C module */
-  hd = dlopen(file, RTLD_NOW | RTLD_LOCAL);
-  if(file != module)
-    js_free(ctx, file);
-  if(!hd) {
-    JS_ThrowReferenceError(ctx, "could not load module file '%s' as shared library: %s", module, dlerror());
-    goto fail;
-  }
-
-  init = dlsym(hd, "js_init_module");
-  if(!init) {
-    JS_ThrowReferenceError(ctx, "could not load module file '%s': js_init_module not found", module);
-    goto fail;
-  }
-
-  m = init(ctx, module);
-  if(!m) {
-    JS_ThrowReferenceError(ctx, "could not load module file '%s': initialization error", module);
-  fail:
-    if(hd)
-      dlclose(hd);
-    return NULL;
-  }
-  return m;
+  return 0;
 }
 
 char*
-js_module_normalize(JSContext* ctx, const char* base_name, const char* name, void* opaque) {
+js_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
   size_t p;
   const char* r;
   DynBuf file = {0, 0, 0};
@@ -1421,8 +1385,8 @@ js_module_normalize(JSContext* ctx, const char* base_name, const char* name, voi
   if(name[0] != '.')
     return js_strdup(ctx, name);
   js_dbuf_init(ctx, &file);
-  n = base_name[(p = str_rchr(base_name, '/'))] ? p : 0;
-  dbuf_put(&file, base_name, n);
+  n = path[(p = str_rchr(path, '/'))] ? p : 0;
+  dbuf_put(&file, path, n);
   dbuf_0(&file);
   for(r = name;;) {
     if(r[0] == '.' && r[1] == '/') {
@@ -1450,6 +1414,85 @@ js_module_normalize(JSContext* ctx, const char* base_name, const char* name, voi
   dbuf_putstr(&file, r);
   dbuf_0(&file);
   return file.buf;
+}
+
+JSModuleDef*
+js_module_get(JSContext* ctx, JSValueConst value) {
+  JSModuleDef* mod = 0;
+  if(JS_IsString(value)) {
+    const char* name = JS_ToCString(ctx, value);
+    mod = js_module_search(ctx, name);
+    JS_FreeCString(ctx, name);
+  } else if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE) {
+    mod = JS_VALUE_GET_PTR(value);
+  }
+  return mod;
+}
+
+JSModuleDef*
+js_module_find(JSContext* ctx, const char* name) {
+  struct list_head* el;
+  size_t namelen = strlen(name);
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* mod = list_entry(el, JSModuleDef, link);
+    const char *n, *str = module_namestr(ctx, mod);
+    size_t len;
+    n = basename(str);
+    len = str_rchr(n, '.');
+    if(!strcmp(str, name) || !strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
+      return mod;
+    js_free(ctx, str);
+  }
+  return 0;
+}
+
+JSModuleDef*
+js_module_load(JSContext* ctx, const char* name) {
+  DynBuf buf;
+  js_dbuf_init(ctx, &buf);
+  dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
+  dbuf_0(&buf);
+  js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
+  return js_module_search(ctx, name);
+}
+
+JSModuleDef*
+js_module_loader_so(JSContext* ctx, const char* module) {
+  JSModuleDef* def;
+  JSModuleLoaderFunc* init;
+  void* hd;
+  char* file;
+  static const char* errors[3] = {"dlopen() failed", "js_init_module not found", "initialization error"};
+  if(!strchr(module, '/')) {
+    if(!(file = js_malloc(ctx, strlen(module) + 2 + 1)))
+      return 0;
+    strcpy(file, "./");
+    strcpy(file + 2, module);
+  } else {
+    file = (char*)module;
+  }
+  hd = dlopen(file, RTLD_NOW | RTLD_LOCAL);
+  if(file != module)
+    js_free(ctx, file);
+  if(hd) {
+    if((init = dlsym(hd, "js_init_module"))) {
+      if(!(def = init(ctx, module, 0))) {
+        JS_ThrowReferenceError(ctx, "could not load module file '%s': %s", errors[2]);
+        goto fail;
+      }
+    } else {
+      JS_ThrowReferenceError(ctx, "could not load module file '%s': %s", errors[1]);
+      goto fail;
+    }
+  } else {
+    JS_ThrowReferenceError(ctx, "could not load module file '%s': %s: %s", module, errors[0], dlerror());
+    goto fail;
+  }
+  return def;
+fail:
+  if(hd)
+    dlclose(hd);
+  return 0;
 }
 
 BOOL
@@ -1740,16 +1783,6 @@ js_eval_str(JSContext* ctx, const char* str, const char* file, int flags) {
   return ret;
 }
 
-JSModuleDef*
-js_load_module(JSContext* ctx, const char* name) {
-  DynBuf buf;
-  js_dbuf_init(ctx, &buf);
-  dbuf_printf(&buf, "import * as %s from '%s'; globalThis.%s = %s;", name, name, name, name);
-  dbuf_0(&buf);
-  js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
-  return js_module_search(ctx, name);
-}
-
 thread_local uint64_t js_pending_signals = 0;
 
 int64_t
@@ -1768,7 +1801,7 @@ void
 js_timer_unlink(JSRuntime* rt, JSOSTimer* th) {
   if(th->link.prev) {
     list_del(&th->link);
-    th->link.prev = th->link.next = NULL;
+    th->link.prev = th->link.next = 0;
   }
 }
 
@@ -1782,7 +1815,7 @@ void
 js_call_handler(JSContext* ctx, JSValueConst func) {
   JSValue ret, func1;
   func1 = JS_DupValue(ctx, func);
-  ret = JS_Call(ctx, func1, JS_UNDEFINED, 0, NULL);
+  ret = JS_Call(ctx, func1, JS_UNDEFINED, 0, 0);
   JS_FreeValue(ctx, func1);
   if(JS_IsException(ret))
     js_std_dump_error(ctx);
@@ -1793,7 +1826,7 @@ js_sab_alloc(void* opaque, size_t size) {
   JSSABHeader* sab;
   sab = malloc(sizeof(JSSABHeader) + size);
   if(!sab)
-    return NULL;
+    return 0;
   sab->ref_count = 1;
   return sab->buf;
 }
@@ -1821,17 +1854,17 @@ js_new_message_pipe(void) {
   int pipe_fds[2];
 
   if(pipe(pipe_fds) < 0)
-    return NULL;
+    return 0;
 
   ps = malloc(sizeof(*ps));
   if(!ps) {
     close(pipe_fds[0]);
     close(pipe_fds[1]);
-    return NULL;
+    return 0;
   }
   ps->ref_count = 1;
   init_list_head(&ps->msg_queue);
-  pthread_mutex_init(&ps->mutex, NULL);
+  pthread_mutex_init(&ps->mutex, 0);
   ps->read_fd = pipe_fds[0];
   ps->write_fd = pipe_fds[1];
   return ps;
@@ -1847,7 +1880,7 @@ void
 js_free_message(JSWorkerMessage* msg) {
   size_t i;
 
-  for(i = 0; i < msg->sab_tab_len; i++) { js_sab_free(NULL, msg->sab_tab[i]); }
+  for(i = 0; i < msg->sab_tab_len; i++) { js_sab_free(0, msg->sab_tab[i]); }
   free(msg->sab_tab);
   free(msg->data);
   free(msg);

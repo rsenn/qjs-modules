@@ -1,7 +1,3 @@
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include "quickjs-syscallerror.h"
 #include "buffer-utils.h"
 #include "char-utils.h"
