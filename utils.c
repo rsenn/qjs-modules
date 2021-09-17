@@ -12,6 +12,7 @@
 #include "buffer-utils.h"
 #include <time.h>
 #include <math.h>
+#include <errno.h>
 
 #ifndef INFINITY
 #define INFINITY __builtin_inf()
@@ -1481,4 +1482,37 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
   }
 
   return obj;
+}
+
+JSValue
+js_eval_buf(JSContext* ctx, const char* buf, int buf_len, const char* filename, int flags) {
+  JSValue val;
+  if(flags & JS_EVAL_TYPE_MODULE) {
+    /* for the modules, we compile then run to be able to set
+       import.meta */
+    val = JS_Eval(ctx, buf, buf_len, filename, flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    if(JS_IsException(val)) {
+      if(JS_IsNull(JS_GetRuntime(ctx)->current_exception)) {
+        JS_GetException(ctx);
+        val = JS_UNDEFINED;
+      }
+    }
+    if(!JS_IsException(val)) {
+      js_module_set_import_meta(ctx, val, FALSE, TRUE);
+      /*val =*/JS_EvalFunction(ctx, val);
+    }
+  } else {
+    val = JS_Eval(ctx, buf, buf_len, filename, flags & (~(JS_EVAL_TYPE_MODULE)));
+  }
+  return val;
+}
+
+int
+js_eval_str(JSContext* ctx, const char* str, const char* filename, int flags) {
+  JSValue val = js_eval_buf(ctx, str, strlen(str), filename, flags);
+  int32_t ret = -1;
+
+  if(JS_IsNumber(val))
+    JS_ToInt32(ctx, &ret, val);
+  return ret;
 }

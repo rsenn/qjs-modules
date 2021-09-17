@@ -27,13 +27,13 @@ extern const uint8_t qjsm_socklen_t[1030];
 
 #define JS_SOCKETCALL_FAIL(syscall_index, socket, failval) JS_SOCKETCALL_RETURN(syscall_index, socket, retval, JS_NewInt32(ctx, result), failval)
 
-#define JS_SOCKETCALL_RETURN(syscall_index, socket, retval, successval, failval)                                                                                                                       \
-  do {                                                                                                                                                                                                 \
-    socket.ret = retval;                                                                                                                                                                               \
-    socket.syscall = syscall_index;                                                                                                                                                                    \
-    socket.error = socket.ret < 0 ? errno : 0;                                                                                                                                                         \
-    ret = socket.ret < 0 ? failval : successval;                                                                                                                                                       \
-    JS_SetOpaque(this_val, socket.ptr);                                                                                                                                                                \
+#define JS_SOCKETCALL_RETURN(syscall_index, socket, retval, successval, failval) \
+  do { \
+    socket.ret = retval; \
+    socket.syscall = syscall_index; \
+    socket.error = socket.ret < 0 ? errno : 0; \
+    ret = socket.ret < 0 ? failval : successval; \
+    JS_SetOpaque(this_val, socket.ptr); \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;

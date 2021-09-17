@@ -835,5 +835,7 @@ JSValue js_arraybuffer_fromvalue(JSContext*, const void* x, size_t n, JSValue va
 
 JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
+JSValue js_eval_buf(JSContext*, const char*, int buf_len, const char* filename, int flags);
+int js_eval_str(JSContext*, const char*, const char* filename, int flags);
 
 #endif /* defined(UTILS_H) */

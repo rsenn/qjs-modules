@@ -216,7 +216,7 @@ list(FILTER LIBJS EXCLUDE REGEX "lib/require.js|lib/fs.js")
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}/quickjs")
 
-set(LIB_MODULES console events fs perf_hooks process repl require tty util)
+set(LIB_MODULES console events fd_set fs jslexer parser perf_hooks process repl require socklen_t stack tty util)
 
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 
