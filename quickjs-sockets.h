@@ -24,6 +24,9 @@ __attribute__((packed)) union socket_state {
 
 typedef union socket_state Socket;
 
+#define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)
+#define socket_open(sock) !socket_closed(sock)
+
 extern thread_local VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id;
 extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor;
 
