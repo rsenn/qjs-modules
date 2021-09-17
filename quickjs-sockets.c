@@ -1027,8 +1027,6 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   int32_t af, type = SOCK_STREAM, protocol = IPPROTO_IP;
   int sock = -1;
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
@@ -1036,14 +1034,11 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
     proto = socket_proto;
 
   JS_ToInt32(ctx, &af, argv[0]);
-
   if(argc >= 2) {
     JS_ToInt32(ctx, &type, argv[1]);
-
     if(argc >= 3)
       JS_ToInt32(ctx, &protocol, argv[2]);
   }
-
   sock = socket(af, type, protocol);
 
   return js_socket_new_proto(ctx, proto, sock);
@@ -1059,7 +1054,7 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   sock = js_socket_data2(ctx, this_val);
 
-  JSValue obj = JS_NewObject(ctx); // JS_NewObjectProto(ctx, socket_proto);
+  JSValue obj = /*JS_NewObject(ctx); //*/ JS_NewObjectProto(ctx, socket_proto);
   JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewUint32(ctx, sock.fd), JS_PROP_ENUMERABLE);
 
   if(sock.error)
