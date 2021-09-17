@@ -22,13 +22,13 @@
 
 #define JS_SOCKETCALL_FAIL(s, fn, failval) JS_SOCKETCALL_RETURN(s, fn, retval, JS_NewInt32(ctx, result), failval)
 
-#define JS_SOCKETCALL_RETURN(s, fn, retval, successval, failval)                                                                                                                                                                                                                                           \
-  do {                                                                                                                                                                                                                                                                                                     \
-    s.ret = retval;                                                                                                                                                                                                                                                                                        \
-    s.syscall = fn;                                                                                                                                                                                                                                                                                        \
-    s.error = s.ret < 0 ? errno : 0;                                                                                                                                                                                                                                                                       \
-    ret = s.ret < 0 ? failval : successval;                                                                                                                                                                                                                                                                \
-    JS_SetOpaque(this_val, s.ptr);                                                                                                                                                                                                                                                                         \
+#define JS_SOCKETCALL_RETURN(s, fn, retval, successval, failval) \
+  do { \
+    s.ret = retval; \
+    s.syscall = fn; \
+    s.error = s.ret < 0 ? errno : 0; \
+    ret = s.ret < 0 ? failval : successval; \
+    JS_SetOpaque(this_val, s.ptr); \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
@@ -1026,7 +1026,7 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   JSValue proto;
   int32_t af, type = SOCK_STREAM, protocol = IPPROTO_IP;
   int sock = -1;
-
+ 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
@@ -1054,7 +1054,7 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   sock = js_socket_data2(ctx, this_val);
 
-  JSValue obj = /*JS_NewObject(ctx); //*/ JS_NewObjectProto(ctx, socket_proto);
+  JSValue obj = JS_NewObject(ctx); // JS_NewObjectProto(ctx, socket_proto);
   JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewUint32(ctx, sock.fd), JS_PROP_ENUMERABLE);
 
   if(sock.error)
