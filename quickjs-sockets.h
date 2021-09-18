@@ -8,8 +8,8 @@
 typedef union {
   uint16_t family;
   struct sockaddr s;
-  struct sockaddr_in in;
-  struct sockaddr_in6 in6;
+  struct sockaddr_in sai;
+  struct sockaddr_in6 sai6;
 } SockAddr;
 
 __attribute__((packed)) union socket_state {
@@ -60,8 +60,8 @@ JSValue js_socket_constructor(JSContext*, JSValue, int argc, JSValue argv[]);
 static inline int
 sockaddr_port(const SockAddr* sa) {
   switch(sa->family) {
-    case AF_INET: return ntohs(sa->in.sin_port);
-    case AF_INET6: return ntohs(sa->in6.sin6_port);
+    case AF_INET: return ntohs(sa->sai.sin_port);
+    case AF_INET6: return ntohs(sa->sai6.sin6_port);
   }
   return -1;
 }
@@ -69,8 +69,8 @@ sockaddr_port(const SockAddr* sa) {
 static inline void*
 sockaddr_addr(const SockAddr* sa) {
   switch(sa->family) {
-    case AF_INET: return &sa->in.sin_addr;
-    case AF_INET6: return &sa->in6.sin6_addr;
+    case AF_INET: return &sa->sai.sin_addr;
+    case AF_INET6: return &sa->sai6.sin6_addr;
   }
   return 0;
 }
@@ -78,8 +78,8 @@ sockaddr_addr(const SockAddr* sa) {
 static inline socklen_t
 sockaddr_addrlen(const SockAddr* sa) {
   switch(sa->family) {
-    case AF_INET: return sizeof(sa->in.sin_addr);
-    case AF_INET6: return sizeof(sa->in6.sin6_addr);
+    case AF_INET: return sizeof(sa->sai.sin_addr);
+    case AF_INET6: return sizeof(sa->sai6.sin6_addr);
   }
   return 0;
 }

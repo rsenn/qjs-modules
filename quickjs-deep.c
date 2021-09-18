@@ -9,8 +9,7 @@
 #include <stdint.h>
 
 thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
-thread_local JSValue deep_functions = {JS_TAG_UNDEFINED}, deep_iterator_proto = {JS_TAG_UNDEFINED},
-                     deep_iterator_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue deep_functions = {JS_TAG_UNDEFINED}, deep_iterator_proto = {JS_TAG_UNDEFINED}, deep_iterator_ctor = {JS_TAG_UNDEFINED};
 
 typedef struct DeepIterator {
   JSValue root;
@@ -308,8 +307,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK);
       break;
     }
-    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx)
-                                                                        : property_enumeration_recurse(&frames, ctx);
+    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx) : property_enumeration_recurse(&frames, ctx);
 
   } while(it);
 
@@ -348,8 +346,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     if(result)
       JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK));
 
-    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx)
-                                                                        : property_enumeration_recurse(&frames, ctx);
+    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx) : property_enumeration_recurse(&frames, ctx);
 
   } while(it);
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
@@ -582,10 +579,8 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   vector_init(&aframes, ctx);
   vector_init(&bframes, ctx);
 
-  aenum =
-      property_enumeration_push(&aframes, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
-  benum =
-      property_enumeration_push(&bframes, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
+  aenum = property_enumeration_push(&aframes, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
+  benum = property_enumeration_push(&bframes, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
   do {
     JSValue aval, bval;
     JSAtom akey, bkey;
@@ -628,8 +623,7 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_FALSE;
       break;
     }
-  } while(
-      ((aenum = property_enumeration_recurse(&aframes, ctx)), (benum = property_enumeration_recurse(&bframes, ctx))));
+  } while(((aenum = property_enumeration_recurse(&aframes, ctx)), (benum = property_enumeration_recurse(&bframes, ctx))));
 
   property_enumeration_free(&aframes, JS_GetRuntime(ctx));
   property_enumeration_free(&bframes, JS_GetRuntime(ctx));
@@ -706,10 +700,7 @@ js_deep_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_deep_iterator_class_id, &js_deep_iterator_class);
 
   deep_iterator_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             deep_iterator_proto,
-                             js_deep_iterator_proto_funcs,
-                             countof(js_deep_iterator_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, deep_iterator_proto, js_deep_iterator_proto_funcs, countof(js_deep_iterator_proto_funcs));
   JS_SetClassProto(ctx, js_deep_iterator_class_id, deep_iterator_proto);
 
   deep_iterator_ctor = JS_NewCFunction2(ctx, js_deep_iterator_constructor, "DeepIterator", 1, JS_CFUNC_constructor, 0);

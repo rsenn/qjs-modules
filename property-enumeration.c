@@ -17,10 +17,7 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
   }
 
   if(flags & PROPENUM_SORT_ATOMS)
-    qsort(it->tab_atom,
-          it->tab_atom_len,
-          sizeof(JSPropertyEnum),
-          (int (*)(const void*, const void*)) & compare_jspropertyenum);
+    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void*, const void*)) & compare_jspropertyenum);
 
   return 0;
 }
@@ -103,8 +100,7 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object) {
   JSValue root = JS_DupValue(ctx, object);
 
   if(JS_IsObject(root)) {
-    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it;
-        (it = property_enumeration_recurse(&vec, ctx))) {
+    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it; (it = property_enumeration_recurse(&vec, ctx))) {
 
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
       // printf("depth = %zu, atom = %x\n", depth, it->tab_atom[it->idx].atom);
@@ -127,11 +123,7 @@ property_enumeration_path(Vector* vec, JSContext* ctx) {
     JSValue key = property_enumeration_key(it, ctx);
     JS_SetPropertyUint32(ctx, ret, i++, key);
   }
-  JS_DefinePropertyValueStr(ctx,
-                            ret,
-                            "toString",
-                            JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0),
-                            JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValueStr(ctx, ret, "toString", JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   return ret;
 }
 
@@ -233,8 +225,7 @@ property_enumeration_check(Vector* vec) {
         continue;
 
       if(js_object_same(i->obj, j->obj)) {
-        return (IndexTuple){vector_indexof(vec, sizeof(PropertyEnumeration), i),
-                            vector_indexof(vec, sizeof(PropertyEnumeration), j)};
+        return (IndexTuple){vector_indexof(vec, sizeof(PropertyEnumeration), i), vector_indexof(vec, sizeof(PropertyEnumeration), j)};
       }
     }
   }

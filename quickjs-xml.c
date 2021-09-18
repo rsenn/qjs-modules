@@ -46,18 +46,15 @@ character_classes_init(int c[256]) {
   c['-'] = HYPHEN;
 }
 
-#define pop()                                                                                                          \
-  (vector_size(&st, sizeof(OutputValue)) >= 2                                                                          \
-       ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue)))                           \
-       : 0)
+#define pop() (vector_size(&st, sizeof(OutputValue)) >= 2 ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue))) : 0)
 #define next() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
-#define skip(cond)                                                                                                     \
-  do {                                                                                                                 \
-    c = *ptr;                                                                                                          \
-    if(!(cond))                                                                                                        \
-      break;                                                                                                           \
-    if(++ptr >= end)                                                                                                   \
-      done = TRUE;                                                                                                     \
+#define skip(cond) \
+  do { \
+    c = *ptr; \
+    if(!(cond)) \
+      break; \
+    if(++ptr >= end) \
+      done = TRUE; \
   } while(!done)
 
 #define skip_until(cond) skip(!(cond))
@@ -246,8 +243,7 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth)
   if(JS_IsObject(value)) {
     children = JS_GetPropertyStr(ctx, value, "children");
     JS_FreeValue(ctx, value);
-    if(!JS_IsUndefined(children) &&
-       (max_depth == INT32_MAX || vector_size(vec, sizeof(PropertyEnumeration)) < (uint32_t)max_depth)) {
+    if(!JS_IsUndefined(children) && (max_depth == INT32_MAX || vector_size(vec, sizeof(PropertyEnumeration)) < (uint32_t)max_depth)) {
       if((it = property_enumeration_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)))
         if(property_enumeration_setpos(it, 0))
           return it;
@@ -448,9 +444,7 @@ js_xml_write_obj(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, output, max_depth)));
 
-  while(output->size > 0 &&
-        (output->buf[output->size - 1] == '\0' || byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4))
-    output->size--;
+  while(output->size > 0 && (output->buf[output->size - 1] == '\0' || byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4)) output->size--;
   dbuf_putc(output, '\0');
 
   str = JS_NewString(ctx, (const char*)output->buf);

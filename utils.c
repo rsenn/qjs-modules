@@ -920,16 +920,7 @@ const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
   const char* const types[] = {
-      "UNDEFINED",     "0",
-      "BOOL",          "INT",
-      "OBJECT",        "STRING",
-      "SYMBOL",        "BIG_FLOAT",
-      "BIG_INT",       "BIG_DECIMAL",
-      "FLOAT64",       "NAN",
-      "FUNCTION",      "ARRAY",
-      "MODULE",        "FUNCTION_BYTECODE",
-      "UNINITIALIZED", "CATCH_OFFSET",
-      "EXCEPTION",
+      "UNDEFINED", "0", "BOOL", "INT", "OBJECT", "STRING", "SYMBOL", "BIG_FLOAT", "BIG_INT", "BIG_DECIMAL", "FLOAT64", "NAN", "FUNCTION", "ARRAY", "MODULE", "FUNCTION_BYTECODE", "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION",
   };
   if(flag >= 0 && flag < countof(types))
     return types[flag];
@@ -1042,8 +1033,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
       ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      if(!JS_GetOwnPropertyNames(
-             ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
         uint32_t i;
         for(i = 0; i < tab_atom_len; i++) {
           JSValue prop;
@@ -1672,38 +1662,32 @@ js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_MAP) /*|| js_object_is(ctx, value, "[object Map]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_MAP) /*|| js_object_is(ctx, value, "[object Map]")*/);
 }
 
 BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_SET) /* || js_object_is(ctx, value, "[object Set]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SET) /* || js_object_is(ctx, value, "[object Set]")*/);
 }
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_GENERATOR) /*|| js_object_is(ctx, value, "[object Generator]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_GENERATOR) /*|| js_object_is(ctx, value, "[object Generator]")*/);
 }
 
 BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_REGEXP) /*|| js_object_is(ctx, value, "[object RegExp]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_REGEXP) /*|| js_object_is(ctx, value, "[object RegExp]")*/);
 }
 
 BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]"));
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]"));
 }
 
 BOOL
 js_is_dataview(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_DATAVIEW) /*|| js_object_is(ctx, value, "[object DataView]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_DATAVIEW) /*|| js_object_is(ctx, value, "[object DataView]")*/);
 }
 
 BOOL
