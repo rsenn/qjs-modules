@@ -3,7 +3,8 @@
 
 #include <quickjs.h>
 #include <cutils.h>
-//#include "quickjs-internal.h"
+#include <stdarg.h>
+
 #include "char-utils.h"
 
 #ifndef MAX_NUM
@@ -36,6 +37,19 @@ size_t dbuf_token_pop(DynBuf*, char);
 size_t dbuf_token_push(DynBuf*, const char*, size_t len, char delim);
 JSValue dbuf_tostring_free(DynBuf*, JSContext*);
 ssize_t dbuf_load(DynBuf*, const char*);
+
+static inline int
+dbuf_putm(DynBuf* db, ...) {
+  int r = 0;
+  va_list a;
+  const char* s;
+  va_start(a, db);
+  while((s = va_arg(a, char*)))
+    if(dbuf_putstr(db, s))
+      return -1;
+  va_end(a);
+  return r;
+}
 
 #define dbuf_append(d, x, n) dbuf_put((d), (const uint8_t*)(x), (n))
 

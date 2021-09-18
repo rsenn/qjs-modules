@@ -1,7 +1,6 @@
 #include "char-utils.h"
 #include "buffer-utils.h"
 #include "utils.h"
-#include <stdarg.h>
 
 size_t
 ansi_length(const char* str, size_t len) {
@@ -319,19 +318,6 @@ dbuf_load(DynBuf* s, const char* filename) {
     fclose(fp);
   }
   return nbytes;
-}
-
-int
-dbuf_putm(DynBuf* db, ...) {
-  int r = 0;
-  va_list a;
-  const char* s;
-  va_start(a, db);
-  while((s = va_arg(a, char*)))
-    if(dbuf_putstr(db, s))
-      return -1;
-  va_end(a);
-  return r;
 }
 
 InputBuffer
