@@ -101,18 +101,16 @@ set(lexer_SOURCES quickjs-lexer.h location.c location.h ${util_SOURCES} vector.c
 set(mmap_SOURCES ${util_SOURCES})
 set(repeater_SOURCES ${util_SOURCES})
 set(sockets_SOURCES ${util_SOURCES} bc-fd_set.c bc-socklen_t.c)
-#set(sockets_LIBRARIES qjs-syscallerror)
 set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h utils.c utils.h)
 set(blob_SOURCES vector.c vector.h ${util_SOURCES})
 set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
                           ${util_SOURCES})
 
 set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${location_SOURCES})
-#[[set(misc_LIBRARIES ${CMAKE_CURRENT_BINARY_DIR}/syscallerror.so)
-set(misc_LIBRARIES -L${CMAKE_CURRENT_BINARY_DIR} -lsyscallerror)]]
 
 set(gpio_SOURCES gpio.c gpio.h)
 set(syscallerror_SOURCES ${util_SOURCES} char-utils.c char-utils.h)
+
 if(pigpio_LIBRARY)
   set(gpio_LIBRARIES ${pigpio_LIBRARY})
 endif(pigpio_LIBRARY)
