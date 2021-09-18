@@ -46,15 +46,19 @@ character_classes_init(int c[256]) {
   c['-'] = HYPHEN;
 }
 
-#define pop() (vector_size(&st, sizeof(OutputValue)) >= 2 ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue))) : 0)
+#define pop()                                                                  \
+  (vector_size(&st, sizeof(OutputValue)) >= 2                                  \
+       ? (vector_pop(&st, sizeof(OutputValue)),                                \
+          out = vector_back(&st, sizeof(OutputValue)))                         \
+       : 0)
 #define next() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
-#define skip(cond)                                                                                                                                                                                     \
-  do {                                                                                                                                                                                                 \
-    c = *ptr;                                                                                                                                                                                          \
-    if(!(cond))                                                                                                                                                                                        \
-      break;                                                                                                                                                                                           \
-    if(++ptr >= end)                                                                                                                                                                                   \
-      done = TRUE;                                                                                                                                                                                     \
+#define skip(cond)                                                             \
+  do {                                                                         \
+    c = *ptr;                                                                  \
+    if(!(cond))                                                                \
+      break;                                                                   \
+    if(++ptr >= end)                                                           \
+      done = TRUE;                                                             \
   } while(!done)
 
 #define skip_until(cond) skip(!(cond))
@@ -74,7 +78,11 @@ xml_num_children(JSContext* ctx, JSValueConst element) {
 }
 
 static void
-xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, JSValue value) {
+xml_set_attr_value(JSContext* ctx,
+                   JSValueConst obj,
+                   const char* attr,
+                   size_t alen,
+                   JSValue value) {
   JSAtom prop;
   prop = JS_NewAtomLen(ctx, (const char*)attr, alen);
   JS_SetProperty(ctx, obj, prop, value);
@@ -82,7 +90,12 @@ xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t al
 }
 
 static void
-xml_set_attr_bytes(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, const uint8_t* str, size_t slen) {
+xml_set_attr_bytes(JSContext* ctx,
+                   JSValueConst obj,
+                   const char* attr,
+                   size_t alen,
+                   const uint8_t* str,
+                   size_t slen) {
   JSValue value;
   value = JS_NewStringLen(ctx, (const char*)str, slen);
   xml_set_attr_value(ctx, obj, attr, alen, value);
@@ -94,7 +107,10 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
   size_t i;
   PropertyEnumeration props = {0};
 
-  property_enumeration_init(&props, ctx, JS_DupValue(ctx, attributes), PROPENUM_DEFAULT_FLAGS);
+  property_enumeration_init(&props,
+                            ctx,
+                            JS_DupValue(ctx, attributes),
+                            PROPENUM_DEFAULT_FLAGS);
 
   for(i = 0; i < props.tab_atom_len; i++) {
     const char *keystr, *valuestr;
@@ -124,7 +140,11 @@ xml_write_indent(DynBuf* db, int32_t depth) {
 }
 
 static void
-xml_write_string(JSContext* ctx, const char* textStr, size_t textLen, DynBuf* db, int32_t depth) {
+xml_write_string(JSContext* ctx,
+                 const char* textStr,
+                 size_t textLen,
+                 DynBuf* db,
+                 int32_t depth) {
   const char* p;
   for(p = textStr;;) {
     size_t n;
@@ -167,11 +187,15 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
 }
 
 static void
-xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
+xml_write_element(JSContext* ctx,
+                  JSValueConst element,
+                  DynBuf* db,
+                  int32_t depth) {
   JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
   uint32_t num_children;
   size_t tagLen;
-  const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
+  const char* tagName =
+      js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
   BOOL isComment;
 
   if(!tagName || !tagName[0])
@@ -205,7 +229,10 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   num_children = xml_num_children(ctx, element);
 
   if(tagName[0])
-    dbuf_putstr(db, (num_children > 0 || isComment) ? tagName[0] == '?' ? "?>" : ">" : tagName[0] == '!' ? ">" : " />");
+    dbuf_putstr(db,
+                (num_children > 0 || isComment) ? tagName[0] == '?' ? "?>" : ">"
+                : tagName[0] == '!'             ? ">"
+                                                : " />");
   dbuf_putc(db, '\n');
 
   js_cstring_free(ctx, tagName);
@@ -213,12 +240,16 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 }
 
 static void
-xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
+xml_close_element(JSContext* ctx,
+                  JSValueConst element,
+                  DynBuf* db,
+                  int32_t depth) {
   uint32_t num_children = xml_num_children(ctx, element);
 
   if(num_children > 0) {
     size_t tagLen;
-    const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
+    const char* tagName =
+        js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
 
     if(tagName[0] != '?' && tagName[0]) {
       xml_write_indent(db, depth - 2);
@@ -233,7 +264,10 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 }
 
 static PropertyEnumeration*
-xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth) {
+xml_enumeration_next(Vector* vec,
+                     JSContext* ctx,
+                     DynBuf* db,
+                     int32_t max_depth) {
   PropertyEnumeration* it;
   JSValue value = JS_UNDEFINED, children;
 
@@ -243,8 +277,11 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth)
   if(JS_IsObject(value)) {
     children = JS_GetPropertyStr(ctx, value, "children");
     JS_FreeValue(ctx, value);
-    if(!JS_IsUndefined(children) && (max_depth == INT32_MAX || vector_size(vec, sizeof(PropertyEnumeration)) < (uint32_t)max_depth)) {
-      if((it = property_enumeration_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)))
+    if(!JS_IsUndefined(children) &&
+       (max_depth == INT32_MAX ||
+        vector_size(vec, sizeof(PropertyEnumeration)) < (uint32_t)max_depth)) {
+      if((it = property_enumeration_push(
+              vec, ctx, children, PROPENUM_DEFAULT_FLAGS)))
         if(property_enumeration_setpos(it, 0))
           return it;
     }
@@ -260,7 +297,11 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth)
       break;
 
     value = property_enumeration_value(it, ctx);
-    xml_close_element(ctx, value, db, (int32_t)vector_size(vec, sizeof(PropertyEnumeration)) - 1);
+    xml_close_element(ctx,
+                      value,
+                      db,
+                      (int32_t)vector_size(vec, sizeof(PropertyEnumeration)) -
+                          1);
     JS_FreeValue(ctx, value);
   }
 
@@ -327,12 +368,14 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
       if(namelen && (char_is(name[0], (/*QUESTION | */ EXCLAM))))
         self_closing = TRUE;
 
-      if(namelen >= 3 && char_is(start[0], EXCLAM) && char_is(start[1], HYPHEN) && char_is(start[2], HYPHEN)) {
+      if(namelen >= 3 && char_is(start[0], EXCLAM) &&
+         char_is(start[1], HYPHEN) && char_is(start[2], HYPHEN)) {
         /*  next();
           next();*/
         while(!done) {
           next();
-          if(end - ptr >= 3 && char_is(ptr[0], HYPHEN) && char_is(ptr[1], HYPHEN) && char_is(ptr[2], CLOSE)) {
+          if(end - ptr >= 3 && char_is(ptr[0], HYPHEN) &&
+             char_is(ptr[1], HYPHEN) && char_is(ptr[2], CLOSE)) {
             ptr += 2;
             break;
           }
@@ -363,7 +406,11 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
           if((alen = ptr - attr) == 0)
             break;
           if(char_is(c, WS | CLOSE | SLASH)) {
-            xml_set_attr_value(ctx, attributes, (const char*)attr, alen, JS_NewBool(ctx, TRUE));
+            xml_set_attr_value(ctx,
+                               attributes,
+                               (const char*)attr,
+                               alen,
+                               JS_NewBool(ctx, TRUE));
             continue;
           }
           if(char_is(c, EQUAL)) {
@@ -375,7 +422,8 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
             vlen = ptr - value;
             if(char_is(c, QUOTE))
               next();
-            xml_set_attr_bytes(ctx, attributes, (const char*)attr, alen, value, vlen);
+            xml_set_attr_bytes(
+                ctx, attributes, (const char*)attr, alen, value, vlen);
           }
         }
         if(char_is(c, SLASH)) {
@@ -408,7 +456,10 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
 }
 
 static JSValue
-js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_xml_read(JSContext* ctx,
+            JSValueConst this_val,
+            int argc,
+            JSValueConst argv[]) {
   JSValue ret;
   InputBuffer input = js_input_chars(ctx, argv[0]);
 
@@ -424,12 +475,18 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
 }
 
 static JSValue
-js_xml_write_obj(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output) {
+js_xml_write_obj(JSContext* ctx,
+                 JSValueConst obj,
+                 int max_depth,
+                 DynBuf* output) {
   Vector enumerations = VECTOR(ctx);
   PropertyEnumeration* it;
   JSValue str, value = JS_UNDEFINED;
 
-  it = property_enumeration_push(&enumerations, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
+  it = property_enumeration_push(&enumerations,
+                                 ctx,
+                                 JS_DupValue(ctx, obj),
+                                 PROPENUM_DEFAULT_FLAGS);
 
   do {
     int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
@@ -444,19 +501,27 @@ js_xml_write_obj(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, output, max_depth)));
 
-  while(output->size > 0 && (output->buf[output->size - 1] == '\0' || byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4)) output->size--;
+  while(output->size > 0 &&
+        (output->buf[output->size - 1] == '\0' ||
+         byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4))
+    output->size--;
   dbuf_putc(output, '\0');
 
   str = JS_NewString(ctx, (const char*)output->buf);
   // str = JS_NewStringLen(ctx, output->buf, output->size);
 
-  vector_foreach_t(&enumerations, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
+  vector_foreach_t(&enumerations, it) {
+    property_enumeration_reset(it, JS_GetRuntime(ctx));
+  }
   vector_free(&enumerations);
   return str;
 }
 
 static JSValue
-js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_xml_write(JSContext* ctx,
+             JSValueConst this_val,
+             int argc,
+             JSValueConst argv[]) {
   DynBuf output = {0};
   JSValueConst obj = argc > 0 ? argv[0] : JS_UNDEFINED;
   JSValue ret, arr = JS_UNDEFINED;

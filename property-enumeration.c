@@ -5,29 +5,42 @@
 #include "buffer-utils.h"
 
 int
-property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
+property_enumeration_init(PropertyEnumeration* it,
+                          JSContext* ctx,
+                          JSValueConst object,
+                          int flags) {
   it->obj = object;
   it->idx = 0;
   it->is_array = JS_IsArray(ctx, object);
 
-  if(JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, object, flags & 0x3f)) {
+  if(JS_GetOwnPropertyNames(
+         ctx, &it->tab_atom, &it->tab_atom_len, object, flags & 0x3f)) {
     it->tab_atom_len = 0;
     it->tab_atom = 0;
     return -1;
   }
 
   if(flags & PROPENUM_SORT_ATOMS)
-    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void*, const void*)) & compare_jspropertyenum);
+    qsort(it->tab_atom,
+          it->tab_atom_len,
+          sizeof(JSPropertyEnum),
+          (int (*)(const void*, const void*)) & compare_jspropertyenum);
 
   return 0;
 }
 
 void
-property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) {
+property_enumeration_dump(PropertyEnumeration* it,
+                          JSContext* ctx,
+                          DynBuf* out) {
   size_t i;
   const char* s;
   dbuf_putstr(out, "{ obj: 0x");
-  dbuf_printf(out, "%ld", (int64_t)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : 0));
+  dbuf_printf(out,
+              "%ld",
+              (int64_t)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT
+                            ? JS_VALUE_GET_OBJ(it->obj)
+                            : 0));
   dbuf_putstr(out, ", idx: ");
   dbuf_printf(out, "%u", it->idx);
   dbuf_putstr(out, ", len: ");
@@ -52,13 +65,18 @@ property_enumeration_dumpall(Vector* vec, JSContext* ctx, DynBuf* out) {
   dbuf_printf(out, "(%zu) [", n);
   for(i = 0; i < n; i++) {
     dbuf_putstr(out, i ? ",\n    " : "\n    ");
-    property_enumeration_dump(vector_at(vec, sizeof(PropertyEnumeration), i), ctx, out);
+    property_enumeration_dump(vector_at(vec, sizeof(PropertyEnumeration), i),
+                              ctx,
+                              out);
   }
   dbuf_putstr(out, i ? "\n  ]" : "]");
 }
 
 JSValue
-property_enumeration_path_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+property_enumeration_path_tostring(JSContext* ctx,
+                                   JSValueConst this_val,
+                                   int argc,
+                                   JSValueConst argv[]) {
   JSValue ret, separator;
   JSAtom join;
   separator = JS_NewString(ctx, ".");
@@ -100,7 +118,9 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object) {
   JSValue root = JS_DupValue(ctx, object);
 
   if(JS_IsObject(root)) {
-    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it; (it = property_enumeration_recurse(&vec, ctx))) {
+    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS);
+        it;
+        (it = property_enumeration_recurse(&vec, ctx))) {
 
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
       // printf("depth = %zu, atom = %x\n", depth, it->tab_atom[it->idx].atom);
@@ -123,7 +143,12 @@ property_enumeration_path(Vector* vec, JSContext* ctx) {
     JSValue key = property_enumeration_key(it, ctx);
     JS_SetPropertyUint32(ctx, ret, i++, key);
   }
-  JS_DefinePropertyValueStr(ctx, ret, "toString", JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValueStr(
+      ctx,
+      ret,
+      "toString",
+      JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0),
+      JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   return ret;
 }
 
@@ -156,8 +181,8 @@ property_enumeration_pathstr_value(Vector* vec, JSContext* ctx) {
 }
 
 /*static void
- property_enumeration_pointer(Vector* vec, JSContext* ctx, struct Pointer* ptr) {
- pointer_fromarray(ptr, ctx, property_enumeration_path(vec,ctx));
+ property_enumeration_pointer(Vector* vec, JSContext* ctx, struct Pointer* ptr)
+ { pointer_fromarray(ptr, ctx, property_enumeration_path(vec,ctx));
  }*/
 int
 property_enumeration_insideof(Vector* vec, JSValueConst val) {
@@ -181,7 +206,10 @@ property_enumeration_free(Vector* vec, JSRuntime* rt) {
 }
 
 int
-property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueConst fn, JSValueConst this_arg) {
+property_enumeration_predicate(PropertyEnumeration* it,
+                               JSContext* ctx,
+                               JSValueConst fn,
+                               JSValueConst this_arg) {
   BOOL result;
   JSValue ret;
   JSValueConst argv[3];
@@ -225,7 +253,9 @@ property_enumeration_check(Vector* vec) {
         continue;
 
       if(js_object_same(i->obj, j->obj)) {
-        return (IndexTuple){vector_indexof(vec, sizeof(PropertyEnumeration), i), vector_indexof(vec, sizeof(PropertyEnumeration), j)};
+        return (
+            IndexTuple){vector_indexof(vec, sizeof(PropertyEnumeration), i),
+                        vector_indexof(vec, sizeof(PropertyEnumeration), j)};
       }
     }
   }

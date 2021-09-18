@@ -27,8 +27,10 @@ const char* dbuf_last_line(DynBuf*, size_t*);
 int dbuf_prepend(DynBuf*, const uint8_t*, size_t len);
 void dbuf_put_colorstr(DynBuf*, const char*, const char* color, int with_color);
 void dbuf_put_escaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
-void dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const char table[256]);
-void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
+void
+dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const char table[256]);
+void
+dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
 void dbuf_put_escaped(DynBuf*, const char*, size_t len);
 void dbuf_put_value(DynBuf*, JSContext*, JSValue value);
 int dbuf_reserve_start(DynBuf*, size_t);
@@ -272,6 +274,7 @@ input_buffer_remain(const InputBuffer* in) {
   return input_buffer_length(in) - in->pos;
 }
 
-OffsetLength js_offset_length(JSContext*, int64_t size, int argc, JSValue argv[]);
+OffsetLength
+js_offset_length(JSContext*, int64_t size, int argc, JSValue argv[]);
 
 #endif /* defined(BUFFER_UTILS) */

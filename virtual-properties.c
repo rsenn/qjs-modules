@@ -28,7 +28,10 @@ map_get(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 }
 
 static int
-map_set(VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
+map_set(VirtualProperties* vp,
+        JSContext* ctx,
+        JSValueConst prop,
+        JSValue value) {
   struct MapAdapter* adapter = vp->opaque;
   int32_t r = -1;
   JSValueConst args[2] = {prop, value};
@@ -63,7 +66,8 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
 
   JS_FreeValue(ctx, map_prototype);
 
-  return (VirtualProperties){map_obj, map_has, map_delete, map_get, map_set, map_finalizer, adapter};
+  return (VirtualProperties){
+      map_obj, map_has, map_delete, map_get, map_set, map_finalizer, adapter};
 }
 
 static BOOL
@@ -97,7 +101,10 @@ object_get(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 }
 
 static int
-object_set(VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
+object_set(VirtualProperties* vp,
+           JSContext* ctx,
+           JSValueConst prop,
+           JSValue value) {
   JSAtom atom;
   int ret;
   atom = JS_ValueToAtom(ctx, prop);
@@ -112,5 +119,11 @@ object_finalizer(VirtualProperties* vp, JSContext* ctx) {
 
 VirtualProperties
 virtual_properties_object(JSContext* ctx, JSValueConst obj) {
-  return (VirtualProperties){JS_DupValue(ctx, obj), object_has, object_delete, object_get, object_set, object_finalizer, 0};
+  return (VirtualProperties){JS_DupValue(ctx, obj),
+                             object_has,
+                             object_delete,
+                             object_get,
+                             object_set,
+                             object_finalizer,
+                             0};
 }

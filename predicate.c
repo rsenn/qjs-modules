@@ -20,7 +20,11 @@ utf8_to_unicode(const char* str, size_t len, Vector* out) {
 }
 
 static void
-predicate_dump(JSValueConst value, JSContext* ctx, DynBuf* dbuf, Arguments* args, BOOL parens) {
+predicate_dump(JSValueConst value,
+               JSContext* ctx,
+               DynBuf* dbuf,
+               Arguments* args,
+               BOOL parens) {
   Predicate* pred;
 
   if(js_is_null_or_undefined(value)) {
@@ -80,7 +84,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       ret = JS_NewInt32(ctx, 1);
       while(!input_buffer_eof(&input)) {
         uint32_t codepoint = input_buffer_getc(&input);
-        ssize_t idx = vector_find(&pr->charset.chars, sizeof(uint32_t), &codepoint);
+        ssize_t idx =
+            vector_find(&pr->charset.chars, sizeof(uint32_t), &codepoint);
         if(idx == -1) {
           ret = JS_NewInt32(ctx, 0);
           break;
@@ -101,21 +106,32 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_NOTNOT: {
-      ret = JS_NewBool(ctx, !!JS_ToBool(ctx, predicate_value(ctx, pr->unary.predicate, args)));
+      ret = JS_NewBool(
+          ctx,
+          !!JS_ToBool(ctx, predicate_value(ctx, pr->unary.predicate, args)));
       break;
     }
 
     case PREDICATE_NOT: {
-      ret = JS_NewBool(ctx, !JS_ToBool(ctx, predicate_value(ctx, pr->unary.predicate, args)));
+      ret = JS_NewBool(
+          ctx,
+          !JS_ToBool(ctx, predicate_value(ctx, pr->unary.predicate, args)));
       break;
     }
     case PREDICATE_BNOT: {
-      ret = JS_NewInt64(ctx, ~js_value_toint64_free(ctx, predicate_value(ctx, pr->unary.predicate, args)));
+      ret = JS_NewInt64(ctx,
+                        ~js_value_toint64_free(
+                            ctx,
+                            predicate_value(ctx, pr->unary.predicate, args)));
       break;
     }
 
     case PREDICATE_SQRT: {
-      ret = JS_NewFloat64(ctx, sqrt(js_value_todouble_free(ctx, predicate_value(ctx, pr->unary.predicate, args))));
+      ret =
+          JS_NewFloat64(ctx,
+                        sqrt(js_value_todouble_free(
+                            ctx,
+                            predicate_value(ctx, pr->unary.predicate, args))));
       break;
     }
 
@@ -129,7 +145,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_POW:
     case PREDICATE_ATAN2: {
       JSValue values[2] = {pr->binary.left, pr->binary.right};
-      BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.left), js_is_null_or_undefined(pr->binary.right)};
+      BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.left),
+                         js_is_null_or_undefined(pr->binary.right)};
       size_t i, j = 0;
       double left, right, r;
 
@@ -165,7 +182,9 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       size_t i;
 
       for(i = 0; i < pr->boolean.npredicates; i++) {
-        if(JS_ToBool(ctx, (ret = predicate_value(ctx, pr->boolean.predicates[i], args))))
+        if(JS_ToBool(
+               ctx,
+               (ret = predicate_value(ctx, pr->boolean.predicates[i], args))))
           break;
       }
       break;
@@ -175,7 +194,9 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       size_t i;
 
       for(i = 0; i < pr->boolean.npredicates; i++) {
-        if(!JS_ToBool(ctx, (ret = predicate_value(ctx, pr->boolean.predicates[i], args))))
+        if(!JS_ToBool(
+               ctx,
+               (ret = predicate_value(ctx, pr->boolean.predicates[i], args))))
           break;
       }
       break;
@@ -186,7 +207,9 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       int64_t r = 0;
       for(i = 0; i < pr->boolean.npredicates; i++) {
         int64_t i64 = 0;
-        JS_ToInt64(ctx, &i64, predicate_value(ctx, pr->boolean.predicates[i], args));
+        JS_ToInt64(ctx,
+                   &i64,
+                   predicate_value(ctx, pr->boolean.predicates[i], args));
         r ^= i64;
       }
       ret = JS_NewInt64(ctx, r);
@@ -202,13 +225,21 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       if(pr->regexp.bytecode == 0)
         capture_count = predicate_regexp_compile(pr, ctx);
 
-      result = lre_exec(capture, pr->regexp.bytecode, (uint8_t*)input.data, 0, input.size, 0, ctx);
+      result = lre_exec(capture,
+                        pr->regexp.bytecode,
+                        (uint8_t*)input.data,
+                        0,
+                        input.size,
+                        0,
+                        ctx);
 
       if(result && args->c > 1) {
         JSValue arg = js_arguments_shift(args);
 
         if(JS_IsFunction(ctx, arg)) {
-          JSValue args[] = {predicate_regexp_capture(capture, capture_count, input.data, ctx), re};
+          JSValue args[] = {
+              predicate_regexp_capture(capture, capture_count, input.data, ctx),
+              re};
 
           JS_Call(ctx, arg, JS_NULL, 2, args);
 
@@ -216,14 +247,21 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
         } else if(JS_IsArray(ctx, arg)) {
           int i;
-          JS_SetPropertyStr(ctx, arg, "length", JS_NewUint32(ctx, capture_count));
+          JS_SetPropertyStr(ctx,
+                            arg,
+                            "length",
+                            JS_NewUint32(ctx, capture_count));
           for(i = 0; i < 2 * capture_count; i += 2) {
             JSValue left = JS_NULL;
 
             if(capture[i]) {
               left = JS_NewArray(ctx);
-              JS_SetPropertyUint32(ctx, left, 0, JS_NewUint32(ctx, capture[i] - input.data));
-              JS_SetPropertyUint32(ctx, left, 1, JS_NewUint32(ctx, capture[i + 1] - input.data));
+              JS_SetPropertyUint32(ctx,
+                                   left,
+                                   0,
+                                   JS_NewUint32(ctx, capture[i] - input.data));
+              JS_SetPropertyUint32(
+                  ctx, left, 1, JS_NewUint32(ctx, capture[i + 1] - input.data));
             }
 
             JS_SetPropertyUint32(ctx, arg, i >> 1, left);
@@ -236,19 +274,27 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_INSTANCEOF: {
-      ret = JS_NewBool(ctx, JS_IsInstanceOf(ctx, js_arguments_shift(args), pr->unary.predicate));
+      ret = JS_NewBool(ctx,
+                       JS_IsInstanceOf(ctx,
+                                       js_arguments_shift(args),
+                                       pr->unary.predicate));
       break;
     }
 
     case PREDICATE_PROTOTYPEIS: {
       JSValue proto = JS_GetPrototype(ctx, js_arguments_shift(args));
 
-      ret = JS_NewBool(ctx, JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(pr->unary.predicate));
+      ret = JS_NewBool(ctx,
+                       JS_VALUE_GET_OBJ(proto) ==
+                           JS_VALUE_GET_OBJ(pr->unary.predicate));
       break;
     }
 
     case PREDICATE_EQUAL: {
-      ret = JS_NewBool(ctx, js_value_equals(ctx, js_arguments_shift(args), pr->unary.predicate));
+      ret = JS_NewBool(ctx,
+                       js_value_equals(ctx,
+                                       js_arguments_shift(args),
+                                       pr->unary.predicate));
       break;
     }
 
@@ -261,14 +307,17 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       if(JS_IsObject(obj)) {
         ret = JS_GetProperty(ctx, obj, pr->property.atom);
 
-        if(!JS_IsUndefined(pr->property.predicate) && predicate_callable(ctx, pr->property.predicate)) {
+        if(!JS_IsUndefined(pr->property.predicate) &&
+           predicate_callable(ctx, pr->property.predicate)) {
           JSValue result = predicate_call(ctx, pr->property.predicate, 1, &ret);
           JS_FreeValue(ctx, ret);
           ret = result;
         }
 
       } else {
-        ret = JS_ThrowTypeError(ctx, "target must be object, but is %s", js_value_typestr(ctx, obj));
+        ret = JS_ThrowTypeError(ctx,
+                                "target must be object, but is %s",
+                                js_value_typestr(ctx, obj));
       }
 
       /*    JSValue obj = pr->property.predicate;
@@ -321,7 +370,10 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 }
 
 JSValue
-predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst argv[]) {
+predicate_call(JSContext* ctx,
+               JSValueConst value,
+               int argc,
+               JSValueConst argv[]) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
 
@@ -354,8 +406,13 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 const char*
 predicate_typename(const Predicate* pr) {
   return ((const char*[]){
-      "TYPE", "CHARSET", "STRING", "NOTNOT", "NOT", "BNOT",   "SQRT",       "ADD",         "SUB",   "MUL",      "DIV",    "MOD",   "BOR", "BAND",
-      "POW",  "ATAN2",   "OR",     "AND",    "XOR", "REGEXP", "INSTANCEOF", "PROTOTYPEIS", "EQUAL", "PROPERTY", "MEMBER", "SHIFT", 0,
+      "TYPE",       "CHARSET",     "STRING", "NOTNOT",
+      "NOT",        "BNOT",        "SQRT",   "ADD",
+      "SUB",        "MUL",         "DIV",    "MOD",
+      "BOR",        "BAND",        "POW",    "ATAN2",
+      "OR",         "AND",         "XOR",    "REGEXP",
+      "INSTANCEOF", "PROTOTYPEIS", "EQUAL",  "PROPERTY",
+      "MEMBER",     "SHIFT",       0,
   })[pr->id];
 }
 
@@ -401,7 +458,11 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
         if(*p < 128)
           dbuf_printf(dbuf, "'%c'", (char)*p);
         else
-          dbuf_printf(dbuf, *p > 0xffffff ? "'\\u%08x'" : *p > 0xffff ? "\\u%06x" : "'\\u%04x'", *p);
+          dbuf_printf(dbuf,
+                      *p > 0xffffff ? "'\\u%08x'"
+                      : *p > 0xffff ? "\\u%06x"
+                                    : "'\\u%04x'",
+                      *p);
         i++;
       }
       dbuf_printf(dbuf, " (len = %zu) ]", pr->charset.len);
@@ -433,7 +494,8 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     case PREDICATE_BAND:
     case PREDICATE_POW: {
       size_t i;
-      static const char* op_str[] = {" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** "};
+      static const char* op_str[] = {
+          " + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** "};
       dbuf_putstr(dbuf, "(");
       dbuf_put_value(dbuf, ctx, pr->binary.left);
 
@@ -451,7 +513,10 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 
       for(i = 0; i < pr->boolean.npredicates; i++) {
         if(i > 0)
-          dbuf_putstr(dbuf, pr->id == PREDICATE_XOR ? " ^ " : pr->id == PREDICATE_AND ? " && " : " || ");
+          dbuf_putstr(dbuf,
+                      pr->id == PREDICATE_XOR   ? " ^ "
+                      : pr->id == PREDICATE_AND ? " && "
+                                                : " || ");
 
         dbuf_put_value(dbuf, ctx, pr->boolean.predicates[i]);
       }
@@ -466,7 +531,9 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       dbuf_putc(dbuf, '/');
       dbuf_append(dbuf, pr->regexp.expr.source, pr->regexp.expr.len);
       dbuf_putc(dbuf, '/');
-      dbuf_append(dbuf, flagbuf, regexp_flags_tostring(pr->regexp.expr.flags, flagbuf));
+      dbuf_append(dbuf,
+                  flagbuf,
+                  regexp_flags_tostring(pr->regexp.expr.flags, flagbuf));
       dbuf_0(dbuf);
       break;
     }
@@ -518,7 +585,10 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
 }
 
 void
-predicate_tosource(const Predicate* pred, JSContext* ctx, DynBuf* dbuf, Arguments* args) {
+predicate_tosource(const Predicate* pred,
+                   JSContext* ctx,
+                   DynBuf* dbuf,
+                   Arguments* args) {
   int i;
   Arguments fn_args, save_args;
 
@@ -549,7 +619,10 @@ predicate_tosource(const Predicate* pred, JSContext* ctx, DynBuf* dbuf, Argument
   switch(pred->id) {
     case PREDICATE_TYPE: {
       const char* arg = arguments_shift(args);
-      dbuf_printf(dbuf, "typeof %s == %s", arg, js_value_type_name(pred->type.flags));
+      dbuf_printf(dbuf,
+                  "typeof %s == %s",
+                  arg,
+                  js_value_type_name(pred->type.flags));
       break;
     }
 
@@ -614,7 +687,8 @@ predicate_tosource(const Predicate* pred, JSContext* ctx, DynBuf* dbuf, Argument
 
       JSPrecedence prec = predicate_precedence(pred);
 
-      BOOL parens[2] = {!JS_IsNumber(pred->binary.left), !JS_IsNumber(pred->binary.right)};
+      BOOL parens[2] = {!JS_IsNumber(pred->binary.left),
+                        !JS_IsNumber(pred->binary.right)};
 
       Predicate* other;
 
@@ -628,7 +702,16 @@ predicate_tosource(const Predicate* pred, JSContext* ctx, DynBuf* dbuf, Argument
 
       predicate_dump(pred->binary.left, ctx, dbuf, args, parens[0]);
 
-      dbuf_putstr(dbuf, ((const char* const[]){" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pred->id - PREDICATE_ADD]);
+      dbuf_putstr(dbuf,
+                  ((const char* const[]){" + ",
+                                         " - ",
+                                         " * ",
+                                         " / ",
+                                         " % ",
+                                         " | ",
+                                         " & ",
+                                         " ** ",
+                                         " atan2 "})[pred->id - PREDICATE_ADD]);
 
       predicate_dump(pred->binary.right, ctx, dbuf, args, parens[1]);
       break;
@@ -650,7 +733,10 @@ predicate_tosource(const Predicate* pred, JSContext* ctx, DynBuf* dbuf, Argument
             parens = FALSE;
 
         if(i > 0)
-          dbuf_putstr(dbuf, ((const char* const[]){" || ", " && ", " ^ "})[pred->id - PREDICATE_OR]);
+          dbuf_putstr(dbuf,
+                      ((const char* const[]){" || ",
+                                             " && ",
+                                             " ^ "})[pred->id - PREDICATE_OR]);
 
         predicate_dump(pred->boolean.predicates[i], ctx, dbuf, args, parens);
       }
@@ -682,7 +768,10 @@ predicate_tosource(const Predicate* pred, JSContext* ctx, DynBuf* dbuf, Argument
 }
 
 JSValue
-predicate_regexp_capture(uint8_t** capture, int capture_count, uint8_t* input, JSContext* ctx) {
+predicate_regexp_capture(uint8_t** capture,
+                         int capture_count,
+                         uint8_t* input,
+                         JSContext* ctx) {
   int i;
   uint32_t buf[capture_count * 2];
   memset(buf, 0, sizeof(buf));
@@ -694,7 +783,9 @@ predicate_regexp_capture(uint8_t** capture, int capture_count, uint8_t* input, J
     }
   }
 
-  return JS_NewArrayBufferCopy(ctx, (const uint8_t*)buf, (capture_count * 2) * sizeof(uint32_t));
+  return JS_NewArrayBufferCopy(ctx,
+                               (const uint8_t*)buf,
+                               (capture_count * 2) * sizeof(uint32_t));
 }
 
 void
@@ -796,7 +887,9 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
-      ret = js_values_toarray(ctx, pred->boolean.npredicates, pred->boolean.predicates);
+      ret = js_values_toarray(ctx,
+                              pred->boolean.npredicates,
+                              pred->boolean.predicates);
       break;
     }
 
@@ -866,12 +959,15 @@ predicate_clone(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_AND:
     case PREDICATE_XOR: {
       ret->boolean.npredicates = pred->boolean.npredicates;
-      ret->boolean.predicates = js_values_dup(ctx, pred->boolean.npredicates, pred->boolean.predicates);
+      ret->boolean.predicates = js_values_dup(ctx,
+                                              pred->boolean.npredicates,
+                                              pred->boolean.predicates);
       break;
     }
 
     case PREDICATE_REGEXP: {
-      ret->regexp.expr.source = js_strndup(ctx, pred->regexp.expr.source, pred->regexp.expr.len);
+      ret->regexp.expr.source =
+          js_strndup(ctx, pred->regexp.expr.source, pred->regexp.expr.len);
       ret->regexp.expr.len = pred->regexp.expr.len;
       ret->regexp.expr.flags = pred->regexp.expr.flags;
       ret->regexp.bytecode = 0;

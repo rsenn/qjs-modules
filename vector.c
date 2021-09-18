@@ -94,7 +94,8 @@ vector_put(Vector* vec, const void* bytes, size_t len) {
   return vec->data + pos;
 }
 
-void __attribute__((format(printf, 2, 3))) vector_printf(Vector* vec, const char* fmt, ...) {
+void __attribute__((format(printf, 2, 3)))
+vector_printf(Vector* vec, const char* fmt, ...) {
   va_list ap;
   char buf[128];
   size_t len;
@@ -126,13 +127,20 @@ vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
 }
 
 void
-vector_symmetricdiff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out_a, Vector* out_b) {
+vector_symmetricdiff(void* a,
+                     size_t m,
+                     void* b,
+                     size_t n,
+                     size_t elsz,
+                     Vector* out_a,
+                     Vector* out_b) {
   vector_diff(a, m, b, n, elsz, out_a);
   vector_diff(b, n, a, m, elsz, out_b);
 }
 
 void
-vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
+vector_intersection(
+    void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
   size_t i, j = 0, k = 0;
   for(i = 0; i < m + n; i++) {
     void* aptr = (char*)a + j * elsz;

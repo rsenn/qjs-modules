@@ -100,12 +100,14 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
   assert(argc > 0);
   if(js_is_regexp(ctx, argv[0])) {
     re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
-    re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
+    re.flags = regexp_flags_fromstring(
+        (flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
     js_cstring_free(ctx, flagstr);
   } else {
     re.source = js_tostringlen(ctx, &re.len, argv[0]);
     if(argc > 1 && JS_IsString(argv[1])) {
-      re.flags = regexp_flags_fromstring((flagstr = JS_ToCString(ctx, argv[1])));
+      re.flags =
+          regexp_flags_fromstring((flagstr = JS_ToCString(ctx, argv[1])));
       js_cstring_free(ctx, flagstr);
     }
   }
@@ -126,8 +128,18 @@ regexp_compile(RegExp re, JSContext* ctx) {
   char error_msg[64];
   int len = 0;
   uint8_t* bytecode;
-  if(!(bytecode = lre_compile(&len, error_msg, sizeof(error_msg), re.source, re.len, re.flags, ctx)))
-    JS_ThrowInternalError(ctx, "Error compiling regex /%.*s/: %s", (int)re.len, re.source, error_msg);
+  if(!(bytecode = lre_compile(&len,
+                              error_msg,
+                              sizeof(error_msg),
+                              re.source,
+                              re.len,
+                              re.flags,
+                              ctx)))
+    JS_ThrowInternalError(ctx,
+                          "Error compiling regex /%.*s/: %s",
+                          (int)re.len,
+                          re.source,
+                          error_msg);
 
   return bytecode;
 }
@@ -136,7 +148,8 @@ JSValue
 regexp_to_value(RegExp re, JSContext* ctx) {
   char flagstr[32] = {0};
   size_t flaglen = regexp_flags_tostring(re.flags, flagstr);
-  JSValueConst args[2] = {JS_NewStringLen(ctx, re.source, re.len), JS_NewStringLen(ctx, flagstr, flaglen)};
+  JSValueConst args[2] = {JS_NewStringLen(ctx, re.source, re.len),
+                          JS_NewStringLen(ctx, flagstr, flaglen)};
   JSValue regex, ctor = js_global_get(ctx, "RegExp");
   regex = JS_CallConstructor(ctx, ctor, 2, args);
   JS_FreeValue(ctx, args[0]);
@@ -181,6 +194,31 @@ js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array) {
   if(argcp)
     *argcp = len;
   return ret;
+}
+
+int
+js_array_copys(JSContext* ctx, JSValueConst array, int n, char** stra) {
+  int i, len = MIN_NUM(n, js_array_length(ctx, array));
+  for(i = 0; i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, array, i);
+    if(stra[i])
+      js_free(ctx, stra[i]);
+    stra[i] = js_tostring(ctx, item);
+    JS_FreeValue(ctx, item);
+  }
+  return i;
+}
+
+int
+js_argv_copys(
+    JSContext* ctx, int argc, JSValueConst argv[], int n, char** stra) {
+  int i, len = MIN_NUM(n, argc);
+  for(i = 0; i < len; i++) {
+    if(stra[i])
+      js_free(ctx, stra[i]);
+    stra[i] = js_tostring(ctx, argv[i]);
+  }
+  return i;
 }
 
 void
@@ -424,10 +462,20 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   tb = js_value_type(ctx, b);
   assert(ta == TYPE_OBJECT);
   assert(tb == TYPE_OBJECT);
-  if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(ctx,
+                            &atoms_a,
+                            &natoms_a,
+                            a,
+                            JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
+                                JS_GPN_ENUM_ONLY))
     return FALSE;
 
-  if(JS_GetOwnPropertyNames(ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(ctx,
+                            &atoms_b,
+                            &natoms_b,
+                            b,
+                            JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
+                                JS_GPN_ENUM_ONLY))
     return FALSE;
 
   if(natoms_a != natoms_b)
@@ -512,7 +560,10 @@ js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop) {
 }
 
 const char*
-js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp) {
+js_get_propertystr_cstringlen(JSContext* ctx,
+                              JSValueConst obj,
+                              const char* prop,
+                              size_t* lenp) {
   JSValue value;
   const char* ret;
   value = JS_GetPropertyStr(ctx, obj, prop);
@@ -560,7 +611,10 @@ js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop) {
 }
 
 char*
-js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp) {
+js_get_propertystr_stringlen(JSContext* ctx,
+                             JSValueConst obj,
+                             const char* prop,
+                             size_t* lenp) {
   JSValue value;
   char* ret;
   value = JS_GetPropertyStr(ctx, obj, prop);
@@ -597,33 +651,49 @@ js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop) {
 }
 
 void
-js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str) {
+js_set_propertyint_string(JSContext* ctx,
+                          JSValueConst obj,
+                          uint32_t i,
+                          const char* str) {
   JSValue value;
   value = JS_NewString(ctx, str);
   JS_SetPropertyUint32(ctx, obj, i, value);
 }
 
 void
-js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_t value) {
+js_set_propertyint_int(JSContext* ctx,
+                       JSValueConst obj,
+                       uint32_t i,
+                       int32_t value) {
   JS_SetPropertyUint32(ctx, obj, i, JS_NewInt32(ctx, value));
 }
 
 void
-js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str) {
+js_set_propertystr_string(JSContext* ctx,
+                          JSValueConst obj,
+                          const char* prop,
+                          const char* str) {
   JSValue value;
   value = JS_NewString(ctx, str);
   JS_SetPropertyStr(ctx, obj, prop, value);
 }
 
 void
-js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
+js_set_propertystr_stringlen(JSContext* ctx,
+                             JSValueConst obj,
+                             const char* prop,
+                             const char* str,
+                             size_t len) {
   JSValue value;
   value = JS_NewStringLen(ctx, str, len);
   JS_SetPropertyStr(ctx, obj, prop, value);
 }
 
 int
-js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueConst value, JSAtom prop) {
+js_get_propertydescriptor(JSContext* ctx,
+                          JSPropertyDescriptor* desc,
+                          JSValueConst value,
+                          JSAtom prop) {
   JSValue obj, proto;
   obj = JS_DupValue(ctx, value);
   do {
@@ -696,7 +766,8 @@ js_function_isnative(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_input(JSContext* ctx, JSValueConst value) {
-  return JS_IsString(value) || js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
+  return JS_IsString(value) ||
+         js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
 }
 
 int
@@ -744,7 +815,8 @@ js_argv_to_array(JSContext* ctx, char** strv) {
   JSValue ret = JS_NewArray(ctx);
   if(strv) {
     size_t i;
-    for(i = 0; strv[i]; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, strv[i]));
+    for(i = 0; strv[i]; i++)
+      JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, strv[i]));
   }
   return ret;
 }
@@ -771,7 +843,8 @@ js_intv_to_array(JSContext* ctx, int* intv) {
   JSValue ret = JS_NewArray(ctx);
   if(intv) {
     size_t i;
-    for(i = 0; intv[i]; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
+    for(i = 0; intv[i]; i++)
+      JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
   }
   return ret;
 }
@@ -874,7 +947,8 @@ JSValue
 js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
   int i;
   JSValue ret = JS_NewArray(ctx);
-  for(i = 0; i < nvalues; i++) JS_SetPropertyUint32(ctx, ret, i, JS_DupValue(ctx, values[i]));
+  for(i = 0; i < nvalues; i++)
+    JS_SetPropertyUint32(ctx, ret, i, JS_DupValue(ctx, values[i]));
   return ret;
 }
 
@@ -1004,7 +1078,12 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
       ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      if(!JS_GetOwnPropertyNames(ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(ctx,
+                                 &tab_atom,
+                                 &tab_atom_len,
+                                 value,
+                                 JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK |
+                                     JS_GPN_ENUM_ONLY)) {
         uint32_t i;
         for(i = 0; i < tab_atom_len; i++) {
           JSValue prop;
@@ -1025,7 +1104,10 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       break;
     }
     default: {
-      ret = JS_ThrowTypeError(ctx, "No such type: %s (0x%08x)\n", js_value_type_name(type), type);
+      ret = JS_ThrowTypeError(ctx,
+                              "No such type: %s (0x%08x)\n",
+                              js_value_type_name(type),
+                              type);
       break;
     }
   }
@@ -1260,7 +1342,8 @@ module_exports(JSContext* ctx, JSModuleDef* module) {
     JSExportEntry* entry = &module->export_entries[i];
     JSVarRef* ref = entry->u.local.var_ref;
     if(ref) {
-      JSValue export = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
+      JSValue export =
+          JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
       JS_SetProperty(ctx, exports, entry->export_name, export);
     }
   }
@@ -1300,7 +1383,11 @@ js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
     const char* name = module_namestr(ctx, def);
     JSValue entry = JS_NewArray(ctx);
     JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, /*basename*/ (name)));
-    JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, def) : module_object(ctx, def));
+    JS_SetPropertyUint32(ctx,
+                         entry,
+                         1,
+                         magic ? module_entry(ctx, def)
+                               : module_object(ctx, def));
     if(name[0] != '<')
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
@@ -1397,7 +1484,10 @@ js_module_search_ext(JSContext* ctx, const char* name, const char* ext) {
 }
 
 char*
-js_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
+js_module_normalize(JSContext* ctx,
+                    const char* path,
+                    const char* name,
+                    void* opaque) {
   size_t p;
   const char* r;
   DynBuf file = {0, 0, 0};
@@ -1459,41 +1549,114 @@ js_module_find(JSContext* ctx, const char* name) {
     size_t len;
     n = basename(str);
     len = str_rchr(n, '.');
-    if(!strcmp(str, name) || !strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
+    if(!strcmp(str, name) || !strcmp(n, name) ||
+       (len == namelen && !strncmp(n, name, len)))
       return mod;
     js_free(ctx, str);
   }
   return 0;
 }
 
+static void
+js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
+  char* var;
+
+ 
+  dbuf_putstr(db, "import ");
+  if(imp.spec) {
+    dbuf_putstr(db, imp.spec);
+    if(imp.spec[0] == '*') {
+      if(!imp.ns) {
+        const char* base = basename(imp.path);
+        imp.ns = js_strndup(ctx, base, str_chr(base, '.'));
+      }
+    }
+  }
+  if(imp.ns)
+    dbuf_putm(db, " as ", imp.ns, 0);
+  if(imp.path)
+    dbuf_putm(db, " from '", imp.path, "'", 0);
+  
+  if(!(var = imp.var))
+   if(!(var = imp.ns))
+     var = imp.spec;
+
+  dbuf_putm(db, ";\n", "globalThis.",var, " = ", imp.ns ? imp.ns : imp.spec, 0);
+  if(imp.prop && imp.prop[0])
+    dbuf_putm(db, ".", imp.prop, 0);
+  dbuf_putm(db, ";", 0);
+  dbuf_0(db);
+}
+
+JSValue
+js_import_eval(JSContext* ctx, ImportDirective imp) {
+  DynBuf buf;
+  js_dbuf_init(ctx, &buf);
+  js_import_directive(ctx, imp, &buf);
+  printf("js_import_eval: '%.*s'\n", buf.size, buf.buf);
+  return js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
+}
+
 JSModuleDef*
-js_module_import_default(JSContext* ctx, const char* path) {
-  js_module_import(ctx, path, 0, TRUE);
+js_module_import_default(JSContext* ctx, const char* path, const char* var) {
+  js_import_eval(ctx,
+                 (ImportDirective){
+                     .path = path,
+                     .spec = "default",
+                     .ns = 0,
+                     .prop = "default",
+                     .var = 0,
+                 });
+  // printf("js_import_eval: '%.*s'\n", buf.size, buf.buf);
   return js_module_find(ctx, path);
 }
 
 JSModuleDef*
-js_module_import_ns(JSContext* ctx, const char* path, const char* ns) {
-  js_module_import(ctx, path, ns, FALSE);
+js_module_import_namespace(JSContext* ctx, const char* path, const char* ns) {
+  js_import_eval(ctx,
+                 (ImportDirective){
+                     .path = path,
+                     .spec = "*",
+                     .ns = ns,
+                     .prop = 0,
+                     .var = 0,
+                 });
+  // js_module_import(ctx, path, ns, 0, 0);
+
   return js_module_find(ctx, path);
 }
 
 JSValue
-js_module_import(JSContext* ctx, const char* path, const char* ns, BOOL imp_default) {
+js_module_import(JSContext* ctx,
+                 const char* path,
+                 const char* ns,
+                 const char* var,
+                 const char* prop) {
   DynBuf buf;
   const char* name;
-  size_t namelen;
+  size_t len, nslen;
   name = basename(path);
-  namelen = 0;
-  while(name[namelen] && is_identifier_char(name[namelen])) ++namelen;
-
-  ns = ns ? js_strdup(ctx, ns) : js_strndup(ctx, name, namelen);
+  len = 0;
+  while(name[len] && is_identifier_char(name[len])) ++len;
+  nslen = ns ? strlen(ns) : len;
+  ns = ns ? js_strdup(ctx, ns) : js_strndup(ctx, name, len);
   js_dbuf_init(ctx, &buf);
-  dbuf_printf(&buf, "import %s%s from '%s'; globalThis.%.*s = %s;", imp_default ? "" : "* as ", ns, path, namelen, name, ns);
+  dbuf_printf(&buf,
+              "import %s%s from '%s'; globalThis.%s = %s",
+              ns ? "* as " : "",
+              ns,
+              path,
+              var ? var : ns,
+              ns);
+
+  if(prop && *prop) {
+    dbuf_putc(&buf, '.');
+    dbuf_putstr(&buf, prop);
+  }
+  dbuf_putc(&buf, ';');
   dbuf_0(&buf);
-  printf("js_module_import: buf='%s' ns='%s\n'", buf.buf, ns);
+  printf("js_module_import: '%s'\n", buf.buf);
   return js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
-  // return js_module_find(ctx, name);
 }
 
 JSModuleDef*
@@ -1502,7 +1665,9 @@ js_module_loader_so(JSContext* ctx, const char* module) {
   JSModuleLoaderFunc* init;
   void* hd;
   char* file;
-  static const char* errors[3] = {"dlopen() failed", "js_init_module not found", "initialization error"};
+  static const char* errors[3] = {"dlopen() failed",
+                                  "js_init_module not found",
+                                  "initialization error"};
   if(!strchr(module, '/')) {
     if(!(file = js_malloc(ctx, strlen(module) + 2 + 1)))
       return 0;
@@ -1517,15 +1682,23 @@ js_module_loader_so(JSContext* ctx, const char* module) {
   if(hd) {
     if((init = dlsym(hd, "js_init_module"))) {
       if(!(def = init(ctx, module, 0))) {
-        JS_ThrowReferenceError(ctx, "could not load module file '%s': %s", errors[2]);
+        JS_ThrowReferenceError(ctx,
+                               "could not load module file '%s': %s",
+                               errors[2]);
         goto fail;
       }
     } else {
-      JS_ThrowReferenceError(ctx, "could not load module file '%s': %s", errors[1]);
+      JS_ThrowReferenceError(ctx,
+                             "could not load module file '%s': %s",
+                             errors[1]);
       goto fail;
     }
   } else {
-    JS_ThrowReferenceError(ctx, "could not load module file '%s': %s: %s", module, errors[0], dlerror());
+    JS_ThrowReferenceError(ctx,
+                           "could not load module file '%s': %s: %s",
+                           module,
+                           errors[0],
+                           dlerror());
     goto fail;
   }
   return def;
@@ -1563,12 +1736,20 @@ js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_MAP) /*|| js_object_is(ctx, value, "[object Map]")*/);
+  return JS_IsObject(value) &&
+         (js_value_isclass(
+             ctx,
+             value,
+             JS_CLASS_MAP) /*|| js_object_is(ctx, value, "[object Map]")*/);
 }
 
 BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SET) /* || js_object_is(ctx, value, "[object Set]")*/);
+  return JS_IsObject(value) &&
+         (js_value_isclass(
+             ctx,
+             value,
+             JS_CLASS_SET) /* || js_object_is(ctx, value, "[object Set]")*/);
 }
 
 BOOL
@@ -1583,7 +1764,9 @@ js_is_regexp(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]"));
+  return JS_IsObject(value) &&
+         (js_value_isclass(ctx, value, JS_CLASS_PROMISE) ||
+          js_object_is(ctx, value, "[object Promise]"));
 }
 
 BOOL
@@ -1638,7 +1821,11 @@ js_typedarray_constructor(JSContext* ctx) {
 }
 
 JSValue
-js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]) {
+js_invoke(JSContext* ctx,
+          JSValueConst this_obj,
+          const char* method,
+          int argc,
+          JSValueConst argv[]) {
   JSAtom atom;
   JSValue ret;
   atom = JS_NewAtom(ctx, method);
@@ -1744,7 +1931,10 @@ js_arraybuffer_freevalue(JSRuntime* rt, void* opaque, void* ptr) {
 }
 
 JSValue
-js_arraybuffer_fromvalue(JSContext* ctx, const void* x, size_t n, JSValueConst val) {
+js_arraybuffer_fromvalue(JSContext* ctx,
+                         const void* x,
+                         size_t n,
+                         JSValueConst val) {
   JSValue* valptr;
   if(!(valptr = js_malloc(ctx, sizeof(JSValue))))
     return JS_ThrowOutOfMemory(ctx);
@@ -1779,15 +1969,18 @@ js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
 }
 
 JSValue
-js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_only) {
+js_eval_binary(JSContext* ctx,
+               const uint8_t* buf,
+               size_t buf_len,
+               BOOL load_only) {
   JSValue obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
   if(JS_IsException(obj))
     return obj;
-  printf("js_eval_binary obj=%s\n", js_value_typestr(ctx, obj));
+  // printf("js_eval_binary obj=%s\n", js_value_typestr(ctx, obj));
   if(!load_only) {
     JSValue tmp = js_eval_module(ctx, obj, load_only);
     int tag = JS_VALUE_GET_TAG(tmp);
-    printf("js_eval_binary tmp=%s\n", js_value_typestr(ctx, tmp));
+    // printf("js_eval_binary tmp=%s\n", js_value_typestr(ctx, tmp));
     if(!JS_IsException(tmp) && !JS_IsUndefined(tmp))
       if(tag >= JS_TAG_FIRST && tag <= JS_TAG_FLOAT64)
         return tmp;
@@ -1796,7 +1989,8 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
 }
 
 JSValue
-js_eval_buf(JSContext* ctx, const char* buf, int len, const char* file, int flags) {
+js_eval_buf(
+    JSContext* ctx, const char* buf, int len, const char* file, int flags) {
   JSValue val = JS_UNDEFINED;
   if(flags & JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set import.meta */

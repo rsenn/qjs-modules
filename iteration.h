@@ -26,7 +26,10 @@ iteration_init(Iteration* it, JSContext* ctx, JSValueConst iterator) {
 }
 
 static inline BOOL
-iteration_method(Iteration* it, JSContext* ctx, JSValueConst object, JSAtom atom) {
+iteration_method(Iteration* it,
+                 JSContext* ctx,
+                 JSValueConst object,
+                 JSAtom atom) {
   BOOL ret = FALSE;
   JSValue method, iterator;
   method = JS_GetProperty(ctx, object, atom);
@@ -39,7 +42,10 @@ iteration_method(Iteration* it, JSContext* ctx, JSValueConst object, JSAtom atom
 }
 
 static inline BOOL
-iteration_method_str(Iteration* it, JSContext* ctx, JSValueConst object, const char* str) {
+iteration_method_str(Iteration* it,
+                     JSContext* ctx,
+                     JSValueConst object,
+                     const char* str) {
   JSAtom atom;
   BOOL ret;
   atom = JS_NewAtom(ctx, str);
@@ -49,7 +55,10 @@ iteration_method_str(Iteration* it, JSContext* ctx, JSValueConst object, const c
 }
 
 static inline BOOL
-iteration_method_symbol(Iteration* it, JSContext* ctx, JSValueConst object, const char* sym) {
+iteration_method_symbol(Iteration* it,
+                        JSContext* ctx,
+                        JSValueConst object,
+                        const char* sym) {
   JSAtom atom;
   BOOL ret;
   atom = js_symbol_static_atom(ctx, sym);
