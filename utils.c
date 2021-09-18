@@ -210,14 +210,17 @@ js_array_copys(JSContext* ctx, JSValueConst array, int n, char** stra) {
 }
 
 int
-js_argv_copys(
+js_strv_copys(
     JSContext* ctx, int argc, JSValueConst argv[], int n, char** stra) {
   int i, len = MIN_NUM(n, argc);
   for(i = 0; i < len; i++) {
-    if(stra[i])
-      js_free(ctx, stra[i]);
-    stra[i] = js_tostring(ctx, argv[i]);
+    if(!JS_IsNull(argv[i]) && !JS_IsUndefined(argv[i]))
+      stra[i] = js_tostring(ctx, argv[i]);
+    else
+      stra[i] = 0;
   }
+  for(; i < n; i++) stra[i] = 0;
+
   return i;
 }
 
@@ -791,7 +794,18 @@ js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
 }
 
 void
-js_argv_free(JSContext* ctx, char** strv) {
+js_strv_free_n(JSContext* ctx, int n, char* argv[]) {
+  int i;
+  for(i = 0; i < n; i++) {
+    if(argv[i]) {
+      js_free(ctx, argv[i]);
+      argv[i] = 0;
+    }
+  }
+}
+
+void
+js_strv_free(JSContext* ctx, char** strv) {
   size_t i;
   if(strv == 0)
     return;
@@ -801,7 +815,7 @@ js_argv_free(JSContext* ctx, char** strv) {
 }
 
 void
-js_argv_free_rt(JSRuntime* rt, char** strv) {
+js_strv_free_rt(JSRuntime* rt, char** strv) {
   size_t i;
   if(strv == 0)
     return;
@@ -811,7 +825,7 @@ js_argv_free_rt(JSRuntime* rt, char** strv) {
 }
 
 JSValue
-js_argv_to_array(JSContext* ctx, char** strv) {
+js_strv_to_array(JSContext* ctx, char** strv) {
   JSValue ret = JS_NewArray(ctx);
   if(strv) {
     size_t i;
@@ -822,16 +836,16 @@ js_argv_to_array(JSContext* ctx, char** strv) {
 }
 
 size_t
-js_argv_length(char** strv) {
+js_strv_length(char** strv) {
   size_t i;
   for(i = 0; strv[i]; i++) {}
   return i;
 }
 
 char**
-js_argv_dup(JSContext* ctx, char** strv) {
+js_strv_dup(JSContext* ctx, char** strv) {
   char** ret;
-  size_t i, len = js_argv_length(strv);
+  size_t i, len = js_strv_length(strv);
   ret = js_malloc(ctx, (len + 1) * sizeof(char*));
   for(i = 0; i < len; i++) { ret[i] = js_strdup(ctx, strv[i]); }
   ret[i] = 0;
@@ -1559,31 +1573,38 @@ js_module_find(JSContext* ctx, const char* name) {
 
 static void
 js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
+  BOOL has_prop = imp.prop && imp.prop[0];
   char* var;
-
- 
+  const char* base = basename(imp.path);
+  size_t blen = str_chr(base, '.');
   dbuf_putstr(db, "import ");
   if(imp.spec) {
     dbuf_putstr(db, imp.spec);
     if(imp.spec[0] == '*') {
-      if(!imp.ns) {
-        const char* base = basename(imp.path);
-        imp.ns = js_strndup(ctx, base, str_chr(base, '.'));
-      }
+      if(!imp.ns)
+        imp.ns = js_strndup(ctx, base, blen);
+      dbuf_putstr(db, " as ");
     }
   }
+  if(imp.spec == 0 || str_equal(imp.spec, "default")) {
+    if(!imp.ns)
+      imp.ns = js_strndup(ctx, base, blen);
+  }
   if(imp.ns)
-    dbuf_putm(db, " as ", imp.ns, 0);
+    dbuf_putm(db, imp.ns, 0);
   if(imp.path)
     dbuf_putm(db, " from '", imp.path, "'", 0);
-  
   if(!(var = imp.var))
-   if(!(var = imp.ns))
-     var = imp.spec;
+    if(!(var = imp.ns))
+      var = imp.spec;
+  dbuf_putstr(db, ";\n");
 
-  dbuf_putm(db, ";\n", "globalThis.",var, " = ", imp.ns ? imp.ns : imp.spec, 0);
-  if(imp.prop && imp.prop[0])
-    dbuf_putm(db, ".", imp.prop, 0);
+  if(has_prop) {
+    dbuf_putm(db, "globalThis.", var, " = ", imp.ns ? imp.ns : imp.spec, imp.prop && *imp.prop ? "." : 0, imp.prop, 0);
+  } else {
+    dbuf_putm(db, "Object.assign(globalThis, ", imp.ns ? imp.ns : imp.spec, 0);
+    dbuf_putc(db, ')');
+  }
   dbuf_putm(db, ";", 0);
   dbuf_0(db);
 }

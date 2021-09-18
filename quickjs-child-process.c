@@ -95,9 +95,9 @@ js_child_process_inspect(JSContext* ctx,
         ctx, obj, "cwd", JS_NewString(ctx, cp->cwd), JS_PROP_ENUMERABLE);
 
   JS_DefinePropertyValueStr(
-      ctx, obj, "args", js_argv_to_array(ctx, cp->args), JS_PROP_ENUMERABLE);
+      ctx, obj, "args", js_strv_to_array(ctx, cp->args), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(
-      ctx, obj, "env", js_argv_to_array(ctx, cp->env), JS_PROP_ENUMERABLE);
+      ctx, obj, "env", js_strv_to_array(ctx, cp->env), JS_PROP_ENUMERABLE);
 
   JS_DefinePropertyValueStr(
       ctx, obj, "pid", JS_NewUint32(ctx, cp->pid), JS_PROP_ENUMERABLE);
@@ -163,7 +163,7 @@ js_child_process_spawn(JSContext* ctx,
     if(JS_IsObject(env)) {
       cp->env = child_process_environment(ctx, env);
     } else {
-      cp->env = js_argv_dup(ctx, environ);
+      cp->env = js_strv_dup(ctx, environ);
     }
     JS_FreeValue(ctx, env);
 
@@ -245,11 +245,11 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case CHILD_PROCESS_ARGS: {
-      ret = js_argv_to_array(ctx, cp->args);
+      ret = js_strv_to_array(ctx, cp->args);
       break;
     }
     case CHILD_PROCESS_ENV: {
-      ret = js_argv_to_array(ctx, cp->env);
+      ret = js_strv_to_array(ctx, cp->env);
       break;
     }
     case CHILD_PROCESS_STDIO: {

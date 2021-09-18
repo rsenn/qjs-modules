@@ -525,10 +525,22 @@ jsm_module_func(JSContext* ctx,
     }
     case LOAD_MODULE: {
       ImportDirective imp;
-      js_argv_copys(ctx, argc, argv, countof(imp.args), imp.args);
+      memset(&imp, 0, sizeof(imp));
+      int r, n = countof(imp.args);
+      r = js_strv_copys(ctx, argc, argv, n, imp.args);
+      printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
 
-      if((def = js_module_import_namespace(ctx, name, 0)))
+      JSValue val = js_import_eval(ctx, imp);
+
+      if((def = js_module_find(ctx, imp.path)))
         val = JS_MKPTR(JS_TAG_MODULE, def);
+
+      js_strv_free_n(ctx, n, imp.args);
+      /*
+      for(n = 0; n < countof(imp.args); n++) {
+        if(imp.args[n])
+          js_free(ctx, imp.args[n]);
+      }*/
       break;
     }
     case RESOLVE_MODULE: {

@@ -161,9 +161,9 @@ child_process_free(ChildProcess* cp, JSContext* ctx) {
   if(cp->cwd)
     js_free(ctx, cp->cwd);
   if(cp->args)
-    js_argv_free(ctx, cp->args);
+    js_strv_free(ctx, cp->args);
   if(cp->env)
-    js_argv_free(ctx, cp->env);
+    js_strv_free(ctx, cp->env);
 
   js_free(ctx, cp);
 }
@@ -175,9 +175,9 @@ child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
   if(cp->cwd)
     js_free_rt(rt, cp->cwd);
   if(cp->args)
-    js_argv_free_rt(rt, cp->args);
+    js_strv_free_rt(rt, cp->args);
   if(cp->env)
-    js_argv_free_rt(rt, cp->env);
+    js_strv_free_rt(rt, cp->env);
 
   js_free_rt(rt, cp);
 }

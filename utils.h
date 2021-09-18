@@ -847,17 +847,18 @@ BOOL js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
 int64_t js_array_length(JSContext* ctx, JSValueConst array);
 void js_array_clear(JSContext* ctx, JSValueConst array);
 
-size_t js_argv_length(char** strv);
+size_t js_strv_length(char** strv);
 
-char** js_argv_dup(JSContext* ctx, char** strv);
+char** js_strv_dup(JSContext* ctx, char** strv);
 
-void js_argv_free(JSContext* ctx, char** strv);
-void js_argv_free_rt(JSRuntime* rt, char** strv);
-JSValue js_argv_to_array(JSContext* ctx, char** strv);
+void js_strv_free_n(JSContext*, int, char* argv[]);
+void js_strv_free(JSContext* ctx, char** strv);
+void js_strv_free_rt(JSRuntime* rt, char** strv);
+JSValue js_strv_to_array(JSContext* ctx, char** strv);
 JSValue js_intv_to_array(JSContext* ctx, int* intv);
 char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 int js_array_copys(JSContext*, JSValueConst, int n, char** stra);
-int js_argv_copys(JSContext*, int, JSValueConst argv[], int n, char** stra);
+int js_strv_copys(JSContext*, int, JSValueConst argv[], int n, char** stra);
 
 JSValue js_invoke(JSContext* ctx,
                   JSValueConst this_obj,
@@ -916,6 +917,17 @@ js_arraybuffer_fromvalue(JSContext*, const void* x, size_t n, JSValue val);
 
 JSValue js_map_new(JSContext*, JSValueConst);
 
+typedef union import_directive {
+  struct {
+    char* path; /**< Module path */
+    char* spec; /**< Import specifier(s) */
+    char* prop; /**< if != 0 && *prop, ns += "." + prop */
+    char* var;  /**< Global variable name */
+    char* ns;   /**< Namespace variable */
+  };
+  char* args[5];
+} ImportDirective;
+
 JSValue module_name(JSContext*, JSModuleDef*);
 const char* module_namestr(JSContext*, JSModuleDef*);
 JSValue module_func(JSContext*, JSModuleDef*);
@@ -934,6 +946,7 @@ char*
 js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
 JSModuleDef* js_module_def(JSContext*, JSValueConst);
 JSModuleDef* js_module_find(JSContext*, const char*);
+JSValue js_import_eval(JSContext*, ImportDirective);
 JSModuleDef* js_module_import_default(JSContext*, const char*, const char* var);
 JSModuleDef* js_module_import_namespace(JSContext*,
                                         const char*,
@@ -941,17 +954,6 @@ JSModuleDef* js_module_import_namespace(JSContext*,
 JSValue js_module_import(
     JSContext*, const char*, const char* ns, const char* var, const char* prop);
 JSModuleDef* js_module_loader_so(JSContext*, const char*);
-
-typedef union import_directive {
-  struct {
-    char* path; /**< Module path */
-    char* spec; /**< Import specifier(s) */
-    char* ns;   /**< Namespace variable */
-    char* prop; /**< if != 0 && *prop, ns += "." + prop */
-    char* var;  /**< Global variable name */
-  };
-  char* args[5];
-} ImportDirective;
 
 JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
 JSValue

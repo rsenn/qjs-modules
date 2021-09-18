@@ -15,6 +15,8 @@
 #define is_whitespace_char(c)                                                  \
   ((c) == ' ' || (c) == '\t' || (c) == '\v' || (c) == '\n' || (c) == '\r')
 
+#define str_equal(s, t) (!strcmp((s), (t)))
+
 static inline int
 escape_char_pred(int c) {
   static const unsigned char table[256] = {
