@@ -230,9 +230,12 @@ foreach(JS_MODULE ${QUICKJS_MODULES})
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
 ##dump(QJSM_LDADD QJSM_LIBDIR)
+if(LIBM)
+  target_link_libraries(qjs-predicate ${LIBM})
+endif(LIBM)
 
 target_link_libraries(qjs-sockets qjs-syscallerror)
-target_link_libraries(qjs-deep qjs-predicate)
+target_link_libraries(qjs-deep qjs-pointer qjs-predicate)
 target_link_libraries(qjs-lexer qjs-predicate)
 add_dependencies(qjs-lexer qjs-predicate)
 
