@@ -59,9 +59,9 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-#define jsm_declare_module(name) \
-  extern const uint8_t qjsc_##name[]; \
-  extern const uint32_t qjsc_##name##_size; \
+#define jsm_declare_module(name)                                                                                                                                                                                                               \
+  extern const uint8_t qjsc_##name[];                                                                                                                                                                                                          \
+  extern const uint32_t qjsc_##name##_size;                                                                                                                                                                                                    \
   JSModuleDef* js_init_module_##name(JSContext*, const char*);
 
 jsm_declare_module(console);
@@ -80,7 +80,17 @@ static int bignum_ext = 1;
 #endif
 
 void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
-void js_std_dump_error(JSContext* ctx);
+
+static void
+jsm_dump_error(JSContext* ctx) {
+  JSValue error = JS_GetException(ctx);
+  char* str;
+  if((str = js_inspect_tostring(ctx, error))) {
+    printf("ERROR: %s\n", str);
+    fflush(stdout);
+  }
+  js_free(ctx, str);
+}
 
 static BOOL debug_module_loader = FALSE;
 static Vector module_debug = VECTOR_INIT();
@@ -836,8 +846,8 @@ main(int argc, char** argv) {
 
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
-#define jsm_builtin_compiled(name) \
-  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0); \
+#define jsm_builtin_compiled(name)                                                                                                                                                                                                             \
+  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                                                                                                                     \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
@@ -917,7 +927,7 @@ main(int argc, char** argv) {
     JSValue exception = JS_GetException(ctx);
 
     if(!JS_IsNull(exception)) {
-      js_std_dump_error(ctx);
+      jsm_dump_error(ctx);
     }
   }
 

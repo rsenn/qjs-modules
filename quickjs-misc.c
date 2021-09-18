@@ -390,6 +390,17 @@ js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
+/*static JSValue
+js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  char resolved[PATH_MAX];
+  const char* path = JS_ToCString(ctx, argv[0]);
+  char* result;
+
+  if((result = realpath(path, resolved)))
+    return JS_NewString(ctx, result);
+  return JS_NULL;
+}*/
+
 static JSValue
 js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t plen, slen;
@@ -972,6 +983,7 @@ js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
+    // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),

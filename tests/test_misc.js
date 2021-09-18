@@ -40,27 +40,29 @@ function main(...args) {
   console.log('misc.toArrayBuffer()', b);
   console.log('misc.btoa()', s);
   console.log('misc.atob()', atob(s));
+  try {
+    let mod = compileScript('lib/fs.js', true);
+    let modfn = getModuleFunction(mod);
+    let bc = writeObject(mod);
+    let fbc = writeObject(modfn);
+    let opcodes = getOpCodes(true);
 
-  let mod = compileScript('lib/fs.js', true);
-  let modfn = getModuleFunction(mod);
-  let bc = writeObject(mod);
-  let fbc = writeObject(modfn);
-  let opcodes = getOpCodes(true);
+    console.log('misc.compileScript()', mod);
+    console.log('getModuleFunction(mod)', modfn);
+    console.log('misc.writeObject(mod)', bc);
+    console.log('misc.writeObject(modfn)', fbc);
+    //fs.writeFileSync('bytecode.bin', bc);
+    console.log('misc.readObject()', readObject(bc));
+    let fnbc = getByteCode(main);
+    console.log('misc.getByteCode()', fnbc);
+    let ba = new Uint8Array(fnbc);
+    let opcode;
+    let i = 0;
 
-  console.log('misc.compileScript()', mod);
-  console.log('getModuleFunction(mod)', modfn);
-  console.log('misc.writeObject(mod)', bc);
-  console.log('misc.writeObject(modfn)', fbc);
-  //fs.writeFileSync('bytecode.bin', bc);
-  console.log('misc.readObject()', readObject(bc));
-  let fnbc = getByteCode(main);
-  console.log('misc.getByteCode()', fnbc);
-  let ba = new Uint8Array(fnbc);
-  let opcode;
-  let i = 0;
-  /*let bcver = ba[i++];
+    /*let bcver = ba[i++];
     let idx_to_atom_count, str;
     [idx_to_atom_count, i] = get_leb128(ba, i);
+}
 
 for(let j = 0; j < idx_to_atom_count; j++) {
     [str, i] = get_str(ba, i);
@@ -69,17 +71,46 @@ for(let j = 0; j < idx_to_atom_count; j++) {
 console.log("i =",i);
   */
 
-  try {
-    for(; i < ba.length; i += opcode.size) {
-      const code = ba[i];
-      opcode = opcodes[code];
+    try {
+      for(; i < ba.length; i += opcode.size) {
+        const code = ba[i];
+        opcode = opcodes[code];
 
-      console.log(i.toString(16).padStart(8, '0') + ': ', toHex(code), opcode.name.padEnd(32), ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n)));
+        console.log(i.toString(16).padStart(8, '0') + ': ', toHex(code), opcode.name.padEnd(32), ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n)));
+      }
+    } catch(e) {}
+    console.log('ba.length', toHex(ba.length));
+    console.log('misc.opcodes', opcodes);
+    console.log('misc.resizeArrayBuffer()', resizeArrayBuffer(fnbc, 100));
+    let max;
+
+    console.log('valueToAtom()', (max = valueToAtom('BLAH XXXX')));
+    if(0) {
+      for(let atom = 0; atom <= 1000; atom++) console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
+      for(let atom = 0x80000000; atom <= 0x800001ff; atom++) console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
     }
-  } catch(e) {}
-  console.log('ba.length', toHex(ba.length));
-  console.log('misc.opcodes', opcodes);
+    const Range = (from, to) => [...new Array(to - from).keys()].map(n => n + from);
 
+    console.log('valueToAtom()', toHex32(valueToAtom(3)));
+    console.log('valueToAtom()', valueToAtom(-3));
+    console.log('atomToValue()', atomToValue(1));
+
+    if(0) {
+      console.log('misc.getClassID()', getClassID({}));
+      console.log('misc.getClassID()', getClassID(new Console()));
+      console.log('misc.getClassID()', getClassID(new ArrayBuffer(1024)));
+      console.log('misc.getClassID()', getClassID(new Map()));
+      console.log('misc.getClassID()', getClassID(Symbol.for('quickjs.inspect.custom')));
+      console.log('misc.getClassID()', getClassID(Symbol));
+      console.log('misc.getClassCount()', getClassCount());
+      console.log('misc.getClassName()', new Map(Range(1, getClassCount()).map((id, idx) => [idx, [getClassName(id), getClassConstructor(id)]])));
+    }
+    let bits = arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
+    let arr = bitfieldToArray(bits, 0);
+    console.log('bitfield', { bits, arr });
+  } catch(error) {
+    console.error(error);
+  }
   function toHex(num) {
     let r = num.toString(16);
     return r.padStart(2, '0');
@@ -130,33 +161,6 @@ console.log("i =",i);
     let str_size = str_len << is_wide;
     return get_bytes(buf, j, str_size);
   }
-  console.log('misc.resizeArrayBuffer()', resizeArrayBuffer(fnbc, 100));
-  let max;
-
-  console.log('valueToAtom()', (max = valueToAtom('BLAH XXXX')));
-  if(0) {
-    for(let atom = 0; atom <= 1000; atom++) console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
-    for(let atom = 0x80000000; atom <= 0x800001ff; atom++) console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
-  }
-  const Range = (from, to) => [...new Array(to - from).keys()].map(n => n + from);
-
-  console.log('valueToAtom()', toHex32(valueToAtom(3)));
-  console.log('valueToAtom()', valueToAtom(-3));
-  console.log('atomToValue()', atomToValue(1));
-
-  if(0) {
-    console.log('misc.getClassID()', getClassID({}));
-    console.log('misc.getClassID()', getClassID(new Console()));
-    console.log('misc.getClassID()', getClassID(new ArrayBuffer(1024)));
-    console.log('misc.getClassID()', getClassID(new Map()));
-    console.log('misc.getClassID()', getClassID(Symbol.for('quickjs.inspect.custom')));
-    console.log('misc.getClassID()', getClassID(Symbol));
-    console.log('misc.getClassCount()', getClassCount());
-    console.log('misc.getClassName()', new Map(Range(1, getClassCount()).map((id, idx) => [idx, [getClassName(id), getClassConstructor(id)]])));
-  }
-  let bits = arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
-  let arr = bitfieldToArray(bits, 0);
-  console.log('bitfield', { bits, arr });
   std.gc();
 }
 
