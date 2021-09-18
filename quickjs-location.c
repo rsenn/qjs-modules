@@ -7,7 +7,12 @@
 thread_local VISIBLE JSClassID js_location_class_id = 0;
 thread_local JSValue location_proto = {JS_TAG_UNDEFINED}, location_ctor = {JS_TAG_UNDEFINED};
 
-enum { LOCATION_PROP_LINE, LOCATION_PROP_COLUMN, LOCATION_PROP_POS, LOCATION_PROP_FILE };
+enum {
+  LOCATION_PROP_LINE,
+  LOCATION_PROP_COLUMN,
+  LOCATION_PROP_POS,
+  LOCATION_PROP_FILE,
+};
 
 Location*
 js_location_data(JSContext* ctx, JSValueConst value) {

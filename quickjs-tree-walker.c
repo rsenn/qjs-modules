@@ -9,11 +9,34 @@ thread_local JSValue tree_walker_proto = {JS_TAG_UNDEFINED}, tree_walker_ctor = 
 thread_local VISIBLE JSClassID js_tree_iterator_class_id = 0;
 thread_local JSValue tree_iterator_proto = {JS_TAG_UNDEFINED}, tree_iterator_ctor = {JS_TAG_UNDEFINED};
 
-enum tree_walker_methods { FIRST_CHILD = 0, LAST_CHILD, NEXT_NODE, NEXT_SIBLING, PARENT_NODE, PREVIOUS_NODE, PREVIOUS_SIBLING };
+enum tree_walker_methods {
+  FIRST_CHILD = 0,
+  LAST_CHILD,
+  NEXT_NODE,
+  NEXT_SIBLING,
+  PARENT_NODE,
+  PREVIOUS_NODE,
+  PREVIOUS_SIBLING,
+};
 
-enum tree_walker_getters { PROP_ROOT = 0, PROP_CURRENT_NODE, PROP_CURRENT_KEY, PROP_CURRENT_PATH, PROP_DEPTH, PROP_INDEX, PROP_LENGTH, PROP_TAG_MASK, PROP_FLAGS };
+enum tree_walker_getters {
+  PROP_ROOT = 0,
+  PROP_CURRENT_NODE,
+  PROP_CURRENT_KEY,
+  PROP_CURRENT_PATH,
+  PROP_DEPTH,
+  PROP_INDEX,
+  PROP_LENGTH,
+  PROP_TAG_MASK,
+  PROP_FLAGS,
+};
 
-enum tree_iterator_return { RETURN_VALUE = 0, RETURN_PATH = 1 << 24, RETURN_VALUE_PATH = 2 << 24, RETURN_MASK = 3 << 24 };
+enum tree_iterator_return {
+  RETURN_VALUE = 0,
+  RETURN_PATH = 1 << 24,
+  RETURN_VALUE_PATH = 2 << 24,
+  RETURN_MASK = 3 << 24,
+};
 
 typedef struct {
   Vector frames;

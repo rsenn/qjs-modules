@@ -4,8 +4,15 @@
 thread_local VISIBLE JSClassID js_repeater_class_id = 0;
 thread_local JSValue repeater_proto = {JS_TAG_UNDEFINED}, repeater_ctor = {JS_TAG_UNDEFINED};
 
-enum repeater_functions { STATIC_RACE = 0, STATIC_MERGE, STATIC_ZIP };
-enum repeater_getters { PROP_LENGTH = 0, PROP_PATH };
+enum repeater_functions {
+  STATIC_RACE = 0,
+  STATIC_MERGE,
+  STATIC_ZIP,
+};
+enum repeater_getters {
+  PROP_LENGTH = 0,
+  PROP_PATH,
+};
 
 typedef union {
   JSValue promise;

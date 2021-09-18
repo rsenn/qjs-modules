@@ -7,8 +7,16 @@
 thread_local VISIBLE JSClassID js_blob_class_id = 0;
 thread_local JSValue blob_proto = {JS_TAG_UNDEFINED}, blob_ctor = {JS_TAG_UNDEFINED};
 
-enum { BLOB_SIZE, BLOB_TYPE };
-enum { BLOB_ARRAYBUFFER, BLOB_SLICE, BLOB_STREAM, BLOB_TEXT };
+enum {
+  BLOB_SIZE,
+  BLOB_TYPE,
+};
+enum {
+  BLOB_ARRAYBUFFER,
+  BLOB_SLICE,
+  BLOB_STREAM,
+  BLOB_TEXT,
+};
 
 void
 blob_init(JSContext* ctx, Blob* blob, const void* x, size_t len, const char* type) {

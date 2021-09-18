@@ -8,7 +8,11 @@
 thread_local VISIBLE JSClassID js_gpio_class_id = 0;
 thread_local JSValue gpio_proto = {JS_TAG_UNDEFINED}, gpio_ctor = {JS_TAG_UNDEFINED};
 
-enum { GPIO_METHOD_INIT_PIN, GPIO_METHOD_SET_PIN, GPIO_METHOD_GET_PIN };
+enum {
+  GPIO_METHOD_INIT_PIN,
+  GPIO_METHOD_SET_PIN,
+  GPIO_METHOD_GET_PIN,
+};
 
 struct gpio*
 js_gpio_data(JSContext* ctx, JSValueConst value) {

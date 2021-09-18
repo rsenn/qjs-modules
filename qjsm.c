@@ -472,7 +472,18 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return ret;
 }
 
-enum { FIND_MODULE, LOAD_MODULE, RESOLVE_MODULE, GET_MODULE_NAME, GET_MODULE_OBJECT, GET_MODULE_EXPORTS, GET_MODULE_NAMESPACE, GET_MODULE_FUNCTION, GET_MODULE_EXCEPTION, GET_MODULE_META_OBJ };
+enum {
+  FIND_MODULE,
+  LOAD_MODULE,
+  RESOLVE_MODULE,
+  GET_MODULE_NAME,
+  GET_MODULE_OBJECT,
+  GET_MODULE_EXPORTS,
+  GET_MODULE_NAMESPACE,
+  GET_MODULE_FUNCTION,
+  GET_MODULE_EXCEPTION,
+  GET_MODULE_META_OBJ,
+};
 
 static JSValue
 jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {

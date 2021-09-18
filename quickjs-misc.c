@@ -594,7 +594,11 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return JS_NewInt32(ctx, ret);
 }
 
-enum { VALUE_TYPE = 0, VALUE_TAG, VALUE_PTR };
+enum {
+  VALUE_TYPE = 0,
+  VALUE_TAG,
+  VALUE_PTR,
+};
 
 static JSValue
 js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -721,7 +725,11 @@ js_misc_get_bytecode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return ret;
 }
 
-enum { ATOM_TO_STRING = 0, ATOM_TO_VALUE, VALUE_TO_ATOM };
+enum {
+  ATOM_TO_STRING = 0,
+  ATOM_TO_VALUE,
+  VALUE_TO_ATOM,
+};
 
 static JSValue
 js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -749,7 +757,14 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
-enum { GET_CLASS_ID = 0, GET_CLASS_NAME, GET_CLASS_ATOM, GET_CLASS_COUNT, GET_CLASS_PROTO, GET_CLASS_CONSTRUCTOR };
+enum {
+  GET_CLASS_ID = 0,
+  GET_CLASS_NAME,
+  GET_CLASS_ATOM,
+  GET_CLASS_COUNT,
+  GET_CLASS_PROTO,
+  GET_CLASS_CONSTRUCTOR,
+};
 
 static JSValue
 js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -884,7 +899,12 @@ js_misc_array_to_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return ret;
 }
 
-enum { RANDOM_RAND, RANDOM_RANDI, RANDOM_RANDF, RANDOM_SRAND };
+enum {
+  RANDOM_RAND,
+  RANDOM_RANDI,
+  RANDOM_RANDF,
+  RANDOM_SRAND,
+};
 
 static JSValue
 js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {

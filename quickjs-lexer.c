@@ -88,7 +88,11 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
   return ret;
 }
 
-enum syntaxerror_getters { SYNTAXERROR_PROP_LOC = 0, SYNTAXERROR_PROP_MESSAGE, SYNTAXERROR_PROP_LINE };
+enum syntaxerror_getters {
+  SYNTAXERROR_PROP_LOC = 0,
+  SYNTAXERROR_PROP_MESSAGE,
+  SYNTAXERROR_PROP_LINE,
+};
 
 JSValue
 js_syntaxerror_new(JSContext* ctx, SyntaxError arg) {
@@ -241,8 +245,23 @@ static const JSCFunctionListEntry js_syntaxerror_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyntaxError", JS_PROP_CONFIGURABLE),
 };
 
-enum token_methods { TO_STRING = 0 };
-enum token_getters { TOKEN_PROP_BYTELENGTH = 0, TOKEN_PROP_CHARLENGTH, TOKEN_PROP_START, TOKEN_PROP_END, TOKEN_PROP_CHARRANGE, TOKEN_PROP_LEXEME, TOKEN_PROP_LOC, TOKEN_PROP_ID, TOKEN_PROP_SEQ, TOKEN_PROP_TYPE, TOKEN_PROP_RULE };
+enum token_methods {
+  TO_STRING = 0,
+};
+enum token_getters {
+  TOKEN_PROP_BYTELENGTH = 0,
+  TOKEN_PROP_BYTEOFFSET,
+  TOKEN_PROP_CHARLENGTH,
+  TOKEN_PROP_START,
+  TOKEN_PROP_END,
+  TOKEN_PROP_CHARRANGE,
+  TOKEN_PROP_LEXEME,
+  TOKEN_PROP_LOC,
+  TOKEN_PROP_ID,
+  TOKEN_PROP_SEQ,
+  TOKEN_PROP_TYPE,
+  TOKEN_PROP_RULE,
+};
 
 static void
 token_free(Token* tok, JSContext* ctx) {
@@ -371,15 +390,15 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   rule = lexer_rule_at(tok->lexer, tok->id);
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewUint32(ctx, tok->id), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), 0);
   JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, rule->name), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, tok->lexeme), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(ctx, obj, "byte_offset", JS_NewUint32(ctx, tok->byte_offset), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "byte_length", JS_NewUint32(ctx, tok->byte_length), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "char_length", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "byteOffset", JS_NewUint32(ctx, tok->byte_offset), 0);
+  JS_DefinePropertyValueStr(ctx, obj, "byteLength", JS_NewUint32(ctx, tok->byte_length), 0);
+  JS_DefinePropertyValueStr(ctx, obj, "length", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(ctx, obj, "loc", location_tovalue(&tok->loc, ctx), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "loc", location_tovalue(&tok->loc, ctx), 0);
   return obj;
 }
 
@@ -394,6 +413,10 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
   switch(magic) {
     case TOKEN_PROP_BYTELENGTH: {
       ret = JS_NewInt64(ctx, tok->byte_length);
+      break;
+    }
+    case TOKEN_PROP_BYTEOFFSET: {
+      ret = JS_NewInt64(ctx, tok->byte_offset);
       break;
     }
     case TOKEN_PROP_CHARLENGTH: {
@@ -463,6 +486,7 @@ static JSClassDef js_token_class = {
 
 static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, NULL, TOKEN_PROP_BYTELENGTH),
+    JS_CGETSET_MAGIC_DEF("byteOffset", js_token_get, NULL, TOKEN_PROP_BYTEOFFSET),
     JS_CGETSET_MAGIC_DEF("length", js_token_get, NULL, TOKEN_PROP_CHARLENGTH),
     JS_CGETSET_MAGIC_DEF("start", js_token_get, NULL, TOKEN_PROP_START),
     JS_CGETSET_MAGIC_DEF("end", js_token_get, NULL, TOKEN_PROP_END),

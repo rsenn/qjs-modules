@@ -158,7 +158,10 @@ js_syscallerror_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
   }
 }
 
-enum { SYSCALLERROR_TOSTRING, SYSCALLERROR_VALUEOF };
+enum {
+  SYSCALLERROR_TOSTRING,
+  SYSCALLERROR_VALUEOF,
+};
 
 static JSValue
 js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -208,7 +211,13 @@ js_syscallerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return obj;
 }
 
-enum { SYSCALLERROR_PROP_SYSCALL, SYSCALLERROR_PROP_CODE, SYSCALLERROR_PROP_ERRNO, SYSCALLERROR_PROP_STACK, SYSCALLERROR_PROP_MESSAGE };
+enum {
+  SYSCALLERROR_PROP_SYSCALL,
+  SYSCALLERROR_PROP_CODE,
+  SYSCALLERROR_PROP_ERRNO,
+  SYSCALLERROR_PROP_STACK,
+  SYSCALLERROR_PROP_MESSAGE,
+};
 
 static JSValue
 js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {

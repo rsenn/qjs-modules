@@ -7,8 +7,14 @@
 thread_local VISIBLE JSClassID js_stringdecoder_class_id = 0;
 thread_local JSValue stringdecoder_proto = {JS_TAG_UNDEFINED}, stringdecoder_ctor = {JS_TAG_UNDEFINED};
 
-enum { STRINGDECODER_WRITE, STRINGDECODER_END };
-enum { STRINGDECODER_ENCODING, STRINGDECODER_BUFFERED };
+enum {
+  STRINGDECODER_WRITE,
+  STRINGDECODER_END,
+};
+enum {
+  STRINGDECODER_ENCODING,
+  STRINGDECODER_BUFFERED,
+};
 
 const char* const stringdecoder_encodings[] = {"unknown", "utf8", "utf16"};
 

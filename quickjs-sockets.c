@@ -171,7 +171,10 @@ fail:
   return JS_EXCEPTION;
 }
 
-enum { SOCKADDR_METHOD_CLONE, SOCKADDR_METHOD_TOSTRING };
+enum {
+  SOCKADDR_METHOD_CLONE,
+  SOCKADDR_METHOD_TOSTRING,
+};
 
 static JSValue
 js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -205,7 +208,13 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   return ret;
 }
 
-enum { SOCKADDR_FAMILY, SOCKADDR_ADDR, SOCKADDR_PORT, SOCKADDR_BYTELENGTH, SOCKADDR_BUFFER };
+enum {
+  SOCKADDR_FAMILY,
+  SOCKADDR_ADDR,
+  SOCKADDR_PORT,
+  SOCKADDR_BYTELENGTH,
+  SOCKADDR_BUFFER,
+};
 
 static JSValue
 js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -688,7 +697,18 @@ js_socket_new(JSContext* ctx, int sock) {
   return js_socket_new_proto(ctx, socket_proto, sock);
 }
 
-enum { SOCKET_FD, SOCKET_OPEN, SOCKET_EOF, SOCKET_MODE, SOCKET_RET, SOCKET_ERRNO, SOCKET_SYSCALL, SOCKET_ERROR, SOCKET_LOCAL, SOCKET_REMOTE };
+enum {
+  SOCKET_FD,
+  SOCKET_OPEN,
+  SOCKET_EOF,
+  SOCKET_MODE,
+  SOCKET_RET,
+  SOCKET_ERRNO,
+  SOCKET_SYSCALL,
+  SOCKET_ERROR,
+  SOCKET_LOCAL,
+  SOCKET_REMOTE,
+};
 
 static JSValue
 js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
