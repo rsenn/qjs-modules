@@ -5,8 +5,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_stringdecoder_class_id = 0;
-thread_local JSValue stringdecoder_proto = {JS_TAG_UNDEFINED},
-                     stringdecoder_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue stringdecoder_proto = {JS_TAG_UNDEFINED}, stringdecoder_ctor = {JS_TAG_UNDEFINED};
 
 enum { STRINGDECODER_WRITE, STRINGDECODER_END };
 enum { STRINGDECODER_ENCODING, STRINGDECODER_BUFFERED };
@@ -33,8 +32,7 @@ size_t
 stringdecoder_length(StringDecoder* sd) {
   size_t r = 0;
 
-  r += stringdecoder_try(ringbuffer_begin(&sd->buffer),
-                         ringbuffer_continuous_length(&sd->buffer));
+  r += stringdecoder_try(ringbuffer_begin(&sd->buffer), ringbuffer_continuous_length(&sd->buffer));
 
   if(sd->buffer.head < sd->buffer.tail)
     r += stringdecoder_try(sd->buffer.data, ringbuffer_head(&sd->buffer));
@@ -64,10 +62,7 @@ js_stringdecoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return ret;
   switch(magic) {
     case STRINGDECODER_ENCODING: {
-      ret = JS_NewString(ctx,
-                         dec->encoding == UTF8    ? "utf-8"
-                         : dec->encoding == UTF16 ? "utf-16"
-                                                  : "unknown");
+      ret = JS_NewString(ctx, dec->encoding == UTF8 ? "utf-8" : dec->encoding == UTF16 ? "utf-16" : "unknown");
       break;
     }
     case STRINGDECODER_BUFFERED: {
@@ -79,10 +74,7 @@ js_stringdecoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_stringdecoder_constructor(JSContext* ctx,
-                             JSValueConst new_target,
-                             int argc,
-                             JSValueConst argv[]) {
+js_stringdecoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
   StringDecoder* dec;
@@ -114,9 +106,7 @@ js_stringdecoder_constructor(JSContext* ctx,
     else if(!strcasecmp(encoding, "utf8") || !strcasecmp(encoding, "utf-8"))
       dec->encoding = UTF8;
     else {
-      return JS_ThrowInternalError(ctx,
-                                   "StringDecoder '%s' is invalid encoding",
-                                   encoding);
+      return JS_ThrowInternalError(ctx, "StringDecoder '%s' is invalid encoding", encoding);
     }
     JS_FreeCString(ctx, encoding);
   } else {
@@ -133,11 +123,7 @@ fail:
 }
 
 static JSValue
-js_stringdecoder_write(JSContext* ctx,
-                       JSValueConst this_val,
-                       int argc,
-                       JSValueConst argv[],
-                       int magic) {
+js_stringdecoder_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   StringDecoder* dec;
   JSValue ret = JS_UNDEFINED;
 
@@ -156,8 +142,7 @@ js_stringdecoder_write(JSContext* ctx,
       if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
         return JS_ThrowInternalError(ctx,
                                      "StringDecoder: ringbuffer %s failed",
-                                     magic == STRINGDECODER_WRITE ? "write"
-                                                                  : "end");
+                                     magic == STRINGDECODER_WRITE ? "write" : "end");
       ret = stringdecoder_read(dec, ctx);
 
       /*{
@@ -177,10 +162,7 @@ js_stringdecoder_write(JSContext* ctx,
 }
 
 static JSValue
-js_stringdecoder_inspect(JSContext* ctx,
-                         JSValueConst this_val,
-                         int argc,
-                         JSValueConst argv[]) {
+js_stringdecoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   StringDecoder* dec;
 
   if(!(dec = js_stringdecoder_data(ctx, this_val)))
@@ -188,16 +170,9 @@ js_stringdecoder_inspect(JSContext* ctx,
 
   JSValue obj = JS_NewObjectProto(ctx, stringdecoder_proto);
   JS_DefinePropertyValueStr(
-      ctx,
-      obj,
-      "encoding",
-      JS_NewString(ctx, stringdecoder_encodings[dec->encoding]),
-      JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx,
-                            obj,
-                            "buffered",
-                            JS_NewUint32(ctx, ringbuffer_length(&dec->buffer)),
-                            JS_PROP_ENUMERABLE);
+      ctx, obj, "encoding", JS_NewString(ctx, stringdecoder_encodings[dec->encoding]), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(
+      ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&dec->buffer)), JS_PROP_ENUMERABLE);
   return obj;
 }
 
@@ -219,13 +194,9 @@ static JSClassDef js_stringdecoder_class = {
 static const JSCFunctionListEntry js_stringdecoder_funcs[] = {
     JS_CFUNC_MAGIC_DEF("write", 1, js_stringdecoder_write, STRINGDECODER_WRITE),
     JS_CFUNC_MAGIC_DEF("end", 1, js_stringdecoder_write, STRINGDECODER_END),
-    JS_CGETSET_ENUMERABLE_DEF(
-        "encoding", js_stringdecoder_get, 0, STRINGDECODER_ENCODING),
-    JS_CGETSET_ENUMERABLE_DEF(
-        "buffered", js_stringdecoder_get, 0, STRINGDECODER_BUFFERED),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]",
-                       "StringDecoder",
-                       JS_PROP_CONFIGURABLE),
+    JS_CGETSET_ENUMERABLE_DEF("encoding", js_stringdecoder_get, 0, STRINGDECODER_ENCODING),
+    JS_CGETSET_ENUMERABLE_DEF("buffered", js_stringdecoder_get, 0, STRINGDECODER_BUFFERED),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StringDecoder", JS_PROP_CONFIGURABLE),
 };
 
 int
@@ -233,22 +204,13 @@ js_stringdecoder_init(JSContext* ctx, JSModuleDef* m) {
 
   if(js_stringdecoder_class_id == 0) {
     JS_NewClassID(&js_stringdecoder_class_id);
-    JS_NewClass(JS_GetRuntime(ctx),
-                js_stringdecoder_class_id,
-                &js_stringdecoder_class);
+    JS_NewClass(JS_GetRuntime(ctx), js_stringdecoder_class_id, &js_stringdecoder_class);
 
-    stringdecoder_ctor = JS_NewCFunction2(ctx,
-                                          js_stringdecoder_constructor,
-                                          "StringDecoder",
-                                          1,
-                                          JS_CFUNC_constructor,
-                                          0);
+    stringdecoder_ctor =
+        JS_NewCFunction2(ctx, js_stringdecoder_constructor, "StringDecoder", 1, JS_CFUNC_constructor, 0);
     stringdecoder_proto = JS_NewObject(ctx);
 
-    JS_SetPropertyFunctionList(ctx,
-                               stringdecoder_proto,
-                               js_stringdecoder_funcs,
-                               countof(js_stringdecoder_funcs));
+    JS_SetPropertyFunctionList(ctx, stringdecoder_proto, js_stringdecoder_funcs, countof(js_stringdecoder_funcs));
     JS_SetClassProto(ctx, js_stringdecoder_class_id, stringdecoder_proto);
 
     // js_set_inspect_method(ctx, stringdecoder_proto,

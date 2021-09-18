@@ -25,10 +25,7 @@
 #include "utils.h"
 
 static JSValue
-js_bjson_read(JSContext* ctx,
-              JSValueConst this_val,
-              int argc,
-              JSValueConst argv[]) {
+js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* buf;
   uint64_t pos, len;
   JSValue obj;
@@ -52,10 +49,7 @@ js_bjson_read(JSContext* ctx,
 }
 
 static JSValue
-js_bjson_write(JSContext* ctx,
-               JSValueConst this_val,
-               int argc,
-               JSValueConst argv[]) {
+js_bjson_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t len;
   uint8_t* buf;
   JSValue array;
@@ -79,10 +73,7 @@ static const JSCFunctionListEntry js_bjson_funcs[] = {
 
 static int
 js_bjson_init(JSContext* ctx, JSModuleDef* m) {
-  return JS_SetModuleExportList(ctx,
-                                m,
-                                js_bjson_funcs,
-                                countof(js_bjson_funcs));
+  return JS_SetModuleExportList(ctx, m, js_bjson_funcs, countof(js_bjson_funcs));
 }
 
 #ifdef JS_SHARED_LIBRARY

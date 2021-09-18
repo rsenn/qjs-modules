@@ -146,10 +146,7 @@ dbuf_prepend(DynBuf* s, const uint8_t* data, size_t len) {
 }
 
 void
-dbuf_put_colorstr(DynBuf* db,
-                  const char* str,
-                  const char* color,
-                  int with_color) {
+dbuf_put_colorstr(DynBuf* db, const char* str, const char* color, int with_color) {
   if(with_color)
     dbuf_putstr(db, color);
 
@@ -159,10 +156,7 @@ dbuf_put_colorstr(DynBuf* db,
 }
 
 void
-dbuf_put_escaped_pred(DynBuf* db,
-                      const char* str,
-                      size_t len,
-                      int (*pred)(int)) {
+dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
   size_t i = 0, j;
   char c;
   while(i < len) {
@@ -179,10 +173,7 @@ dbuf_put_escaped_pred(DynBuf* db,
     } else {
       int r = pred(str[i]);
 
-      dbuf_putc(db,
-                (r > 1 && r <= 127)                ? r
-                : (c = escape_char_letter(str[i])) ? c
-                                                   : str[i]);
+      dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(str[i])) ? c : str[i]);
 
       if(r == 'u' || r == 'x')
         dbuf_printf(db, r == 'u' ? "%04x" : "%02x", str[i]);
@@ -192,10 +183,7 @@ dbuf_put_escaped_pred(DynBuf* db,
 }
 
 void
-dbuf_put_escaped_table(DynBuf* db,
-                       const char* str,
-                       size_t len,
-                       const char table[256]) {
+dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const char table[256]) {
   size_t i = 0, j;
   char c;
   while(i < len) {
@@ -212,10 +200,7 @@ dbuf_put_escaped_table(DynBuf* db,
     } else {
       int r = table[(unsigned char)str[i]];
 
-      dbuf_putc(db,
-                (r > 1 && r <= 127)                ? r
-                : (c = escape_char_letter(str[i])) ? c
-                                                   : str[i]);
+      dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(str[i])) ? c : str[i]);
 
       if(r == 'u' || r == 'x')
         dbuf_printf(db, r == 'u' ? "%04x" : "%02x", str[i]);
@@ -225,10 +210,7 @@ dbuf_put_escaped_table(DynBuf* db,
 }
 
 void
-dbuf_put_unescaped_pred(DynBuf* db,
-                        const char* str,
-                        size_t len,
-                        int (*pred)(int)) {
+dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
   size_t i = 0, j;
   char c;
   int r;
@@ -251,26 +233,19 @@ dbuf_put_unescaped_pred(DynBuf* db,
 void
 dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
   static const char tab[256] = {
-      'x',  'x',  'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66,
-      0x72, 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x',  'x',  'x',  'x',
-      'x',  'x',  'x', 'x', 'x', 'x', 0,   0,   0,    0,    0,    0,    0,
-      0x27, 0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0x5c, 0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    'x',  0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,
-      0,    0,    0,   0,   0,   0,   0,   0,   0,
+      'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x',
+      'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x',  'x',  'x',  0,    0,    0,   0,   0,   0,   0,   0x27,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0x5c, 0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   'x', 0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,
   };
 
   return dbuf_put_escaped_table(db, str, len, tab);
@@ -331,9 +306,7 @@ dbuf_token_push(DynBuf* db, const char* str, size_t len, char delim) {
 JSValue
 dbuf_tostring_free(DynBuf* s, JSContext* ctx) {
   JSValue r;
-  r = JS_NewStringLen(ctx,
-                      s->buf ? (const char*)s->buf : "",
-                      s->buf ? s->size : 0);
+  r = JS_NewStringLen(ctx, s->buf ? (const char*)s->buf : "", s->buf ? s->size : 0);
   dbuf_free(s);
   return r;
 }
@@ -390,8 +363,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     value = arraybuf;
   }
 
-  if(js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) ||
-     js_is_arraybuffer(ctx, value)) {
+  if(js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, value)) {
     ret.value = JS_DupValue(ctx, value);
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
   } else {
@@ -433,8 +405,7 @@ js_input_chars(JSContext* ctx, JSValueConst value) {
     value = arraybuf;
   }
 
-  if(js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) ||
-     js_is_arraybuffer(ctx, value)) {
+  if(js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, value)) {
     ret.value = JS_DupValue(ctx, value);
     ret.data = JS_GetArrayBuffer(ctx, &ret.size, ret.value);
   } else if(JS_IsString(value)) {
@@ -478,12 +449,7 @@ input_buffer_clone(const InputBuffer* in, JSContext* ctx) {
 void
 input_buffer_dump(const InputBuffer* in, DynBuf* db) {
   dbuf_printf(
-      db,
-      "(InputBuffer){ .data = %p, .size = %zu, .pos = %zu, .free = %p }",
-      in->data,
-      in->size,
-      in->pos,
-      in->free);
+      db, "(InputBuffer){ .data = %p, .size = %zu, .pos = %zu, .free = %p }", in->data, in->size, in->pos, in->free);
 }
 
 void

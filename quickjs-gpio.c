@@ -6,8 +6,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_gpio_class_id = 0;
-thread_local JSValue gpio_proto = {JS_TAG_UNDEFINED},
-                     gpio_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue gpio_proto = {JS_TAG_UNDEFINED}, gpio_ctor = {JS_TAG_UNDEFINED};
 
 enum { GPIO_METHOD_INIT_PIN, GPIO_METHOD_SET_PIN, GPIO_METHOD_GET_PIN };
 
@@ -47,11 +46,7 @@ js_gpio_wrap(JSContext* ctx, struct gpio* gpio) {
 }
 
 static JSValue
-js_gpio_functions(JSContext* ctx,
-                  JSValueConst this_val,
-                  int argc,
-                  JSValueConst argv[],
-                  int magic) {
+js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   struct gpio* gpio;
   JSValue ret = JS_UNDEFINED;
 
@@ -100,10 +95,7 @@ js_gpio_getter(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_gpio_setter(JSContext* ctx,
-               JSValueConst this_val,
-               JSValueConst value,
-               int magic) {
+js_gpio_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
   struct gpio* gpio;
   JSValue ret = JS_UNDEFINED;
 
@@ -115,10 +107,7 @@ js_gpio_setter(JSContext* ctx,
 }
 
 static JSValue
-js_gpio_constructor(JSContext* ctx,
-                    JSValueConst new_target,
-                    int argc,
-                    JSValueConst argv[]) {
+js_gpio_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   struct gpio* gpio;
   JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED;
 
@@ -181,18 +170,11 @@ js_gpio_init(JSContext* ctx, JSModuleDef* m) {
     JS_NewClassID(&js_gpio_class_id);
     JS_NewClass(JS_GetRuntime(ctx), js_gpio_class_id, &js_gpio_class);
 
-    gpio_ctor = JS_NewCFunction2(
-        ctx, js_gpio_constructor, "GPIO", 1, JS_CFUNC_constructor, 0);
+    gpio_ctor = JS_NewCFunction2(ctx, js_gpio_constructor, "GPIO", 1, JS_CFUNC_constructor, 0);
     gpio_proto = JS_NewObject(ctx);
 
-    JS_SetPropertyFunctionList(ctx,
-                               gpio_proto,
-                               js_gpio_funcs,
-                               countof(js_gpio_funcs));
-    JS_SetPropertyFunctionList(ctx,
-                               gpio_ctor,
-                               js_gpio_static_funcs,
-                               countof(js_gpio_static_funcs));
+    JS_SetPropertyFunctionList(ctx, gpio_proto, js_gpio_funcs, countof(js_gpio_funcs));
+    JS_SetPropertyFunctionList(ctx, gpio_ctor, js_gpio_static_funcs, countof(js_gpio_static_funcs));
     JS_SetConstructor(ctx, gpio_ctor, gpio_proto);
     // JS_SetClassProto(ctx, js_gpio_class_id, gpio_proto);
   }

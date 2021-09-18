@@ -173,8 +173,7 @@ path_components(const char* p, size_t len, uint32_t n) {
 }
 
 void
-path_concat(
-    const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) {
+path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) {
   DynBuf tmp;
   const char* x;
   size_t size;
@@ -240,11 +239,7 @@ path_find(const char* path, const char* name, DynBuf* db) {
 }
 
 int
-path_fnmatch(const char* pattern,
-             unsigned int plen,
-             const char* string,
-             unsigned int slen,
-             int flags) {
+path_fnmatch(const char* pattern, unsigned int plen, const char* string, unsigned int slen, int flags) {
 start:
   if(slen == 0) {
     while(plen && *pattern == '*') {
@@ -314,8 +309,7 @@ start:
         goto match;
     } break;
     case '*': {
-      if((*string == '/' && (flags & PATH_FNM_PATHNAME)) ||
-         path_fnmatch(pattern, plen, string + 1, slen - 1, flags)) {
+      if((*string == '/' && (flags & PATH_FNM_PATHNAME)) || path_fnmatch(pattern, plen, string + 1, slen - 1, flags)) {
         pattern++;
         plen--;
         goto start;
@@ -464,8 +458,7 @@ start:
     }
     if(*path == '\0')
       break;
-    if(db->size &&
-       (db->buf[db->size - 1] != '/' && db->buf[db->size - 1] != '\\'))
+    if(db->size && (db->buf[db->size - 1] != '/' && db->buf[db->size - 1] != '\\'))
       dbuf_putc(db, sep);
     n = path_length_s(path);
     dbuf_append(db, (const uint8_t*)path, n);
@@ -474,11 +467,9 @@ start:
     dbuf_0(db);
     path += n;
     memset(&st, 0, sizeof(st));
-    if(stat_fn((const char*)db->buf, &st) != -1 &&
-       path_is_symlink((const char*)db->buf)) {
+    if(stat_fn((const char*)db->buf, &st) != -1 && path_is_symlink((const char*)db->buf)) {
       ret++;
-      if((ssize_t)(n = readlink((const char*)db->buf, buf, PATH_MAX)) ==
-         (ssize_t)-1)
+      if((ssize_t)(n = readlink((const char*)db->buf, buf, PATH_MAX)) == (ssize_t)-1)
         return 0;
       if(path_is_absolute(buf, n)) {
         strncpy(&buf[n], path, PATH_MAX - n);
@@ -503,13 +494,11 @@ start:
 
 int
 path_relative(const char* path, const char* relative_to, DynBuf* out) {
-  return path_relative_b(
-      path, strlen(path), relative_to, strlen(relative_to), out);
+  return path_relative_b(path, strlen(path), relative_to, strlen(relative_to), out);
 }
 
 int
-path_relative_b(
-    const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out) {
+path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out) {
   SizePair p;
   size_t i;
 

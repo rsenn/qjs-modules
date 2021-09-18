@@ -11,8 +11,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#define roundto(n, mod)                                                        \
-  (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
+#define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
 
 typedef union Vector {
   DynBuf dbuf;
@@ -26,29 +25,27 @@ typedef union Vector {
   };
 } Vector;
 
-#define VECTOR_INIT()                                                          \
-  {                                                                            \
-    { 0, 0, 0, 0, &vector_default_realloc, 0 }                                 \
+#define VECTOR_INIT()                                                                                                  \
+  {                                                                                                                    \
+    { 0, 0, 0, 0, &vector_default_realloc, 0 }                                                                         \
   }
 
 #define vector_init(vec, ctx) js_dbuf_init(ctx, &((vec)->dbuf))
 #define vector_init_rt(vec, rt) js_dbuf_init_rt(rt, &((vec)->dbuf))
-#define VECTOR(ctx)                                                            \
-  (Vector) {                                                                   \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }                       \
+#define VECTOR(ctx)                                                                                                    \
+  (Vector) {                                                                                                           \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx }                                                               \
   }
-#define VECTOR_RT(rt)                                                          \
-  (Vector) {                                                                   \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                     \
+#define VECTOR_RT(rt)                                                                                                  \
+  (Vector) {                                                                                                           \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt }                                                             \
   }
 #define vector_begin(vec) ((void*)((vec)->data))
 #define vector_end(vec) ((void*)((vec)->data + (vec)->size))
 
-#define vector_foreach_t(a, p)                                                 \
-  for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
-#define vector_foreach(a, msz, p)                                              \
-  for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a);               \
-      (p) = (void*)(((char*)p) + msz))
+#define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
+#define vector_foreach(a, msz, p)                                                                                      \
+  for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
 
 #if(defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
 static inline int
@@ -75,8 +72,7 @@ void vector_free(Vector* vec);
 void vector_printf(Vector* vec, const char*, ...);
 void vector_intersection(void*, size_t, void*, size_t, size_t, Vector*);
 void vector_diff(void*, size_t, void*, size_t, size_t, Vector*);
-void
-vector_symmetricdiff(void*, size_t, void*, size_t, size_t, Vector*, Vector*);
+void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, Vector*, Vector*);
 int vector_copy(Vector* dst, const Vector* src);
 void vector_fwrite(const Vector*, size_t, FILE* out);
 
@@ -212,12 +208,7 @@ vector_put0(Vector* vec) {
 static inline void
 vector_putlong(Vector* vec, long l, int radix) {
   char buf[64];
-  size_t len = snprintf(buf,
-                        sizeof(buf),
-                        radix == 16  ? "%lx"
-                        : radix == 8 ? "%lo"
-                                     : "%lu",
-                        l);
+  size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
   vector_put(vec, buf, len);
 }
 
@@ -227,22 +218,14 @@ vector_putptr(Vector* vec, void* p) {
 }
 
 static inline void
-vector_sort(Vector* vec,
-            size_t elsz,
-            int (*compar)(const void*, const void*, void*),
-            void* arg) {
+vector_sort(Vector* vec, size_t elsz, int (*compar)(const void*, const void*, void*), void* arg) {
   qsort_r(vector_begin(vec), vector_size(vec, elsz), elsz, compar, arg);
 }
 
 static inline void
 vector_catlong(Vector* vec, long l, int radix) {
   char buf[64];
-  size_t len = snprintf(buf,
-                        sizeof(buf),
-                        radix == 16  ? "%lx"
-                        : radix == 8 ? "%lo"
-                                     : "%lu",
-                        l);
+  size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
   vector_put(vec, buf, len);
 }
 

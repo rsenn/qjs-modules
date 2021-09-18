@@ -19,12 +19,7 @@ static const uint64_t MASK_ALL = ~(uint64_t)0;
 
 enum lexer_mode { LEXER_FIRST = 0, LEXER_LAST = 1, LEXER_LONGEST = 2 };
 
-enum {
-  LEXER_EOF = -1,
-  LEXER_ERROR_NOMATCH = -2,
-  LEXER_ERROR_COMPILE = -3,
-  LEXER_ERROR_EXEC = -4
-};
+enum { LEXER_EOF = -1, LEXER_ERROR_NOMATCH = -2, LEXER_ERROR_COMPILE = -3, LEXER_ERROR_EXEC = -4 };
 
 typedef struct {
   enum lexer_mode mode;

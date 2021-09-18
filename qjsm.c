@@ -59,9 +59,9 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-#define jsm_declare_module(name)                                               \
-  extern const uint8_t qjsc_##name[];                                          \
-  extern const uint32_t qjsc_##name##_size;                                    \
+#define jsm_declare_module(name)                                                                                       \
+  extern const uint8_t qjsc_##name[];                                                                                  \
+  extern const uint32_t qjsc_##name##_size;                                                                            \
   JSModuleDef* js_init_module_##name(JSContext*, const char*);
 
 jsm_declare_module(console);
@@ -155,20 +155,12 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   if(file) {
     if(debug_module_loader)
       if(strcmp(trim_dotslash(name), trim_dotslash(file)))
-        printf("jsm_module_loader[%x] \x1b[48;5;28m(3)\x1b[0m %-20s -> %s\n",
-               pthread_self(),
-               module,
-               file);
-    ret = has_suffix(file, ".so") ? js_module_loader_so(ctx, file)
-                                  : js_module_loader(ctx, file, opaque);
+        printf("jsm_module_loader[%x] \x1b[48;5;28m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, file);
+    ret = has_suffix(file, ".so") ? js_module_loader_so(ctx, file) : js_module_loader(ctx, file, opaque);
   }
 end:
   if(vector_finds(&module_debug, "import") != -1) {
-    fprintf(stderr,
-            (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n"
-                                            : "!!! IMPORT %s\n",
-            module,
-            file);
+    fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
   }
   if(!ret)
     printf("jsm_module_loader(\"%s\") = %p\n", name, ret);
@@ -186,14 +178,10 @@ jsm_eval_file(JSContext* ctx, const char* file, int module) {
   int flags;
   if(!(buf = js_load_file(ctx, &len, file))) {
     fprintf(stderr, "Failed loading '%s': %s\n", file, strerror(errno));
-    return JS_ThrowInternalError(ctx,
-                                 "Failed loading '%s': %s",
-                                 file,
-                                 strerror(errno));
+    return JS_ThrowInternalError(ctx, "Failed loading '%s': %s", file, strerror(errno));
   }
   if(module < 0)
-    module =
-        (has_suffix(file, ".mjs") || JS_DetectModule((const char*)buf, len));
+    module = (has_suffix(file, ".mjs") || JS_DetectModule((const char*)buf, len));
   flags = module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
   return js_eval_buf(ctx, buf, len, file, flags);
 }
@@ -209,8 +197,7 @@ jsm_load_script(JSContext* ctx, const char* file, BOOL module) {
   }
   if(JS_IsNumber(val))
     JS_ToInt32(ctx, &ret, val);
-  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE &&
-     JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
+  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE && JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
     JS_FreeValue(ctx, val);
   return ret;
 }
@@ -284,8 +271,7 @@ jsm_trace_malloc_usable_size(void* ptr) {
   return malloc_size(ptr);
 #elif defined(_WIN32)
   return _msize(ptr);
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) ||     \
-    defined(DONT_HAVE_MALLOC_USABLE_SIZE)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
   return 0;
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
   return malloc_usable_size(ptr);
@@ -315,9 +301,7 @@ static void
         if(ptr == 0) {
           printf("0");
         } else {
-          printf("H%+06lld.%zd",
-                 jsm_trace_malloc_ptr_offset(ptr, s->opaque),
-                 jsm_trace_malloc_usable_size(ptr));
+          printf("H%+06lld.%zd", jsm_trace_malloc_ptr_offset(ptr, s->opaque), jsm_trace_malloc_usable_size(ptr));
         }
         fmt++;
         continue;
@@ -406,7 +390,7 @@ static const JSMallocFunctions trace_mf = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t(*)(const void*))_msize,
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) ||     \
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) ||                                             \
     defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
     0,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
@@ -421,36 +405,31 @@ static const JSMallocFunctions trace_mf = {
 
 void
 jsm_help(void) {
-  printf(
-      "QuickJS version " CONFIG_VERSION "\n"
-      "usage: " PROG_NAME " [options] [file [args]]\n"
-      "-h  --help         list options\n"
-      "-e  --eval EXPR    evaluate EXPR\n"
-      "-i  --interactive  go to interactive mode\n"
-      "-m  --module NAME  load an ES6 module\n"
-      "-I  --include file include an additional file\n"
-      "    --std          make 'std' and 'os' available to the loaded script\n"
+  printf("QuickJS version " CONFIG_VERSION "\n"
+         "usage: " PROG_NAME " [options] [file [args]]\n"
+         "-h  --help         list options\n"
+         "-e  --eval EXPR    evaluate EXPR\n"
+         "-i  --interactive  go to interactive mode\n"
+         "-m  --module NAME  load an ES6 module\n"
+         "-I  --include file include an additional file\n"
+         "    --std          make 'std' and 'os' available to the loaded script\n"
 #ifdef CONFIG_BIGNUM
-      "    --no-bignum    disable the bignum extensions (BigFloat, "
-      "BigDecimal)\n"
-      "    --qjscalc      load the QJSCalc runtime (default if invoked as "
-      "qjscalc)\n"
+         "    --no-bignum    disable the bignum extensions (BigFloat, "
+         "BigDecimal)\n"
+         "    --qjscalc      load the QJSCalc runtime (default if invoked as "
+         "qjscalc)\n"
 #endif
-      "-T  --trace        trace memory allocation\n"
-      "-d  --dump         dump the memory usage stats\n"
-      "    --memory-limit n       limit the memory usage to 'n' bytes\n"
-      "    --stack-size n         limit the stack size to 'n' bytes\n"
-      "    --unhandled-rejection  dump unhandled promise rejections\n"
-      "-q  --quit         just instantiate the interpreter and quit\n");
+         "-T  --trace        trace memory allocation\n"
+         "-d  --dump         dump the memory usage stats\n"
+         "    --memory-limit n       limit the memory usage to 'n' bytes\n"
+         "    --stack-size n         limit the stack size to 'n' bytes\n"
+         "    --unhandled-rejection  dump unhandled promise rejections\n"
+         "-q  --quit         just instantiate the interpreter and quit\n");
   exit(1);
 }
 
 static JSValue
-jsm_eval_script(JSContext* ctx,
-                JSValueConst this_val,
-                int argc,
-                JSValueConst argv[],
-                int magic) {
+jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char* str;
   size_t len;
   JSValue ret;
@@ -501,11 +480,7 @@ enum {
 };
 
 static JSValue
-jsm_module_func(JSContext* ctx,
-                JSValueConst this_val,
-                int argc,
-                JSValueConst argv[],
-                int magic) {
+jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue val = JS_EXCEPTION;
   JSModuleDef* def = 0;
   const char* name = 0;
@@ -544,8 +519,7 @@ jsm_module_func(JSContext* ctx,
       break;
     }
     case RESOLVE_MODULE: {
-      val =
-          JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, def)));
+      val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, def)));
       break;
     }
     case GET_MODULE_NAME: {
@@ -556,25 +530,13 @@ jsm_module_func(JSContext* ctx,
       val = JS_NewObject(ctx);
       JS_SetPropertyStr(ctx, val, "name", module_name(ctx, def));
       JS_SetPropertyStr(ctx, val, "resolved", JS_NewBool(ctx, def->resolved));
-      JS_SetPropertyStr(ctx,
-                        val,
-                        "func_created",
-                        JS_NewBool(ctx, def->func_created));
-      JS_SetPropertyStr(ctx,
-                        val,
-                        "instantiated",
-                        JS_NewBool(ctx, def->instantiated));
+      JS_SetPropertyStr(ctx, val, "func_created", JS_NewBool(ctx, def->func_created));
+      JS_SetPropertyStr(ctx, val, "instantiated", JS_NewBool(ctx, def->instantiated));
       JS_SetPropertyStr(ctx, val, "evaluated", JS_NewBool(ctx, def->evaluated));
       if(def->eval_has_exception)
-        JS_SetPropertyStr(ctx,
-                          val,
-                          "exception",
-                          JS_DupValue(ctx, def->eval_exception));
+        JS_SetPropertyStr(ctx, val, "exception", JS_DupValue(ctx, def->eval_exception));
       if(!JS_IsUndefined(def->module_ns))
-        JS_SetPropertyStr(ctx,
-                          val,
-                          "namespace",
-                          JS_DupValue(ctx, def->module_ns));
+        JS_SetPropertyStr(ctx, val, "namespace", JS_DupValue(ctx, def->module_ns));
       if(!JS_IsUndefined(def->func_obj))
         JS_SetPropertyStr(ctx, val, "func", JS_DupValue(ctx, def->func_obj));
       if(!JS_IsUndefined(def->meta_obj))
@@ -624,18 +586,12 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
-    JS_CFUNC_MAGIC_DEF(
-        "getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
-    JS_CFUNC_MAGIC_DEF(
-        "getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
-    JS_CFUNC_MAGIC_DEF(
-        "getModuleNamespace", 1, jsm_module_func, GET_MODULE_NAMESPACE),
-    JS_CFUNC_MAGIC_DEF(
-        "getModuleFunction", 1, jsm_module_func, GET_MODULE_FUNCTION),
-    JS_CFUNC_MAGIC_DEF(
-        "getModuleException", 1, jsm_module_func, GET_MODULE_EXCEPTION),
-    JS_CFUNC_MAGIC_DEF(
-        "getModuleMetaObject", 1, jsm_module_func, GET_MODULE_META_OBJ),
+    JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
+    JS_CFUNC_MAGIC_DEF("getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
+    JS_CFUNC_MAGIC_DEF("getModuleNamespace", 1, jsm_module_func, GET_MODULE_NAMESPACE),
+    JS_CFUNC_MAGIC_DEF("getModuleFunction", 1, jsm_module_func, GET_MODULE_FUNCTION),
+    JS_CFUNC_MAGIC_DEF("getModuleException", 1, jsm_module_func, GET_MODULE_EXCEPTION),
+    JS_CFUNC_MAGIC_DEF("getModuleMetaObject", 1, jsm_module_func, GET_MODULE_META_OBJ),
 };
 
 int
@@ -895,8 +851,8 @@ main(int argc, char** argv) {
 
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
-#define jsm_builtin_compiled(name)                                             \
-  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                     \
+#define jsm_builtin_compiled(name)                                                                                     \
+  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                             \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
@@ -912,15 +868,11 @@ main(int argc, char** argv) {
     num_compiled = vector_size(&builtins, sizeof(char*)) - num_native;
 
     {
-      const char* str =
-          "import process from 'process';\nglobalThis.process = process;\n";
+      const char* str = "import process from 'process';\nglobalThis.process = process;\n";
       js_eval_str(ctx, str, "<input>", JS_EVAL_TYPE_MODULE);
     }
 
-    JS_SetPropertyFunctionList(ctx,
-                               JS_GetGlobalObject(ctx),
-                               jsm_global_funcs,
-                               countof(jsm_global_funcs));
+    JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
     if(load_std) {
       const char* str = "import * as std from 'std';\nimport * as os from "
                         "'os';\nglobalThis.std = "

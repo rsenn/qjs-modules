@@ -4,8 +4,7 @@
 #include <errno.h>
 
 /*thread_local */ VISIBLE JSClassID js_syscallerror_class_id = 0;
-/*thread_local*/ JSValue syscallerror_proto = {JS_TAG_UNDEFINED},
-                         syscallerror_ctor = {JS_TAG_UNDEFINED};
+/*thread_local*/ JSValue syscallerror_proto = {JS_TAG_UNDEFINED}, syscallerror_ctor = {JS_TAG_UNDEFINED};
 
 static const char*
 error_get(int number) {
@@ -56,8 +55,7 @@ syscallerror_new(JSContext* ctx, const char* syscall, int number) {
 JSValue
 js_syscallerror_wrap(JSContext* ctx, SyscallError* err) {
   JSValue obj;
-  obj =
-      JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
+  obj = JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
   JS_SetOpaque(obj, err);
   return obj;
 }
@@ -67,15 +65,13 @@ js_syscallerror_new(JSContext* ctx, const char* syscall, int number) {
   SyscallError* err;
   JSValue obj;
 
-  if(js_syscallerror_class_id ==
-     0 /* || JS_IsUndefined(syscallerror_proto) || JS_IsUndefined(syscallerror_ctor)*/)
+  if(js_syscallerror_class_id == 0 /* || JS_IsUndefined(syscallerror_proto) || JS_IsUndefined(syscallerror_ctor)*/)
     js_syscallerror_init(ctx, 0);
 
   if(!(err = syscallerror_new(ctx, syscall, number)))
     return JS_ThrowOutOfMemory(ctx);
 
-  obj =
-      JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
+  obj = JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
   if(JS_IsException(obj))
     goto fail;
 
@@ -94,10 +90,7 @@ js_syscallerror_throw(JSContext* ctx, const char* syscall) {
 }
 
 static JSValue
-js_syscallerror_constructor(JSContext* ctx,
-                            JSValueConst new_target,
-                            int argc,
-                            JSValueConst argv[]) {
+js_syscallerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   SyscallError* err;
   JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED, st;
 
@@ -168,11 +161,7 @@ js_syscallerror_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
 enum { SYSCALLERROR_TOSTRING, SYSCALLERROR_VALUEOF };
 
 static JSValue
-js_syscallerror_method(JSContext* ctx,
-                       JSValueConst this_val,
-                       int argc,
-                       JSValueConst argv[],
-                       int magic) {
+js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   SyscallError* err;
 
@@ -196,10 +185,7 @@ js_syscallerror_method(JSContext* ctx,
 }
 
 static JSValue
-js_syscallerror_inspect(JSContext* ctx,
-                        JSValueConst this_val,
-                        int argc,
-                        JSValueConst argv[]) {
+js_syscallerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* code = 0;
   SyscallError* err = js_syscallerror_data(this_val);
 
@@ -207,28 +193,18 @@ js_syscallerror_inspect(JSContext* ctx,
       return JS_DupValue(ctx, this_val);*/
   JSValue obj = JS_NewObjectProto(ctx, syscallerror_proto);
 
-  JS_DefinePropertyValueStr(
-      ctx, obj, "errno", JS_NewInt32(ctx, err->number), JS_PROP_C_W_E);
-  JS_DefinePropertyValueStr(ctx,
-                            obj,
-                            "message",
-                            JS_GetPropertyStr(ctx, this_val, "message"),
-                            JS_PROP_C_W_E);
+  JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewInt32(ctx, err->number), JS_PROP_C_W_E);
+  JS_DefinePropertyValueStr(ctx, obj, "message", JS_GetPropertyStr(ctx, this_val, "message"), JS_PROP_C_W_E);
 
   if(err->syscall)
-    JS_DefinePropertyValueStr(
-        ctx, obj, "syscall", JS_NewString(ctx, err->syscall), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, err->syscall), JS_PROP_C_W_E);
 
   if((code = error_get(err->number)))
-    JS_DefinePropertyValueStr(
-        ctx, obj, "code", JS_NewString(ctx, code), JS_PROP_C_W_E);
+    JS_DefinePropertyValueStr(ctx, obj, "code", JS_NewString(ctx, code), JS_PROP_C_W_E);
 
   if(js_has_propertystr(ctx, obj, "stack"))
-    JS_DefinePropertyValueStr(ctx,
-                              obj,
-                              "stack",
-                              JS_GetPropertyStr(ctx, this_val, "stack"),
-                              JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+    JS_DefinePropertyValueStr(
+        ctx, obj, "stack", JS_GetPropertyStr(ctx, this_val, "stack"), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
 
   return obj;
 }
@@ -255,8 +231,7 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case SYSCALLERROR_PROP_CODE: {
       const char* code;
       if(err)
-        ret =
-            (code = error_get(err->number)) ? JS_NewString(ctx, code) : JS_NULL;
+        ret = (code = error_get(err->number)) ? JS_NewString(ctx, code) : JS_NULL;
       break;
     }
     case SYSCALLERROR_PROP_ERRNO: {
@@ -281,10 +256,7 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_syscallerror_set(JSContext* ctx,
-                    JSValueConst this_val,
-                    JSValueConst value,
-                    int magic) {
+js_syscallerror_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
   JSValue ret = JS_UNDEFINED;
   SyscallError* err = js_syscallerror_data(this_val);
 
@@ -313,14 +285,8 @@ js_syscallerror_set(JSContext* ctx,
 }
 const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     //
-    JS_CGETSET_MAGIC_DEF("syscall",
-                         js_syscallerror_get,
-                         js_syscallerror_set,
-                         SYSCALLERROR_PROP_SYSCALL),
-    JS_CGETSET_MAGIC_DEF("name",
-                         js_syscallerror_get,
-                         js_syscallerror_set,
-                         SYSCALLERROR_PROP_CODE),
+    JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_SYSCALL),
+    JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_CODE),
     JS_ALIAS_DEF("code", "name"),
     JS_CGETSET_MAGIC_FLAGS_DEF("errno",
                                js_syscallerror_get,
@@ -328,26 +294,18 @@ const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
                                SYSCALLERROR_PROP_ERRNO,
                                JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
     JS_ALIAS_DEF("number", "errno"),
-    JS_CGETSET_MAGIC_DEF("stack",
-                         js_syscallerror_get,
-                         js_syscallerror_set,
-                         SYSCALLERROR_PROP_STACK),
+    JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_STACK),
     JS_CGETSET_MAGIC_FLAGS_DEF("message",
                                js_syscallerror_get,
                                js_syscallerror_set,
                                SYSCALLERROR_PROP_MESSAGE,
                                JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
-    JS_CFUNC_MAGIC_DEF(
-        "toString", 0, js_syscallerror_method, SYSCALLERROR_TOSTRING),
-    JS_CFUNC_MAGIC_DEF(
-        "valueOf", 0, js_syscallerror_method, SYSCALLERROR_VALUEOF),
+    JS_CFUNC_MAGIC_DEF("toString", 0, js_syscallerror_method, SYSCALLERROR_TOSTRING),
+    JS_CFUNC_MAGIC_DEF("valueOf", 0, js_syscallerror_method, SYSCALLERROR_VALUEOF),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]",
-                       "SyscallError",
-                       JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyscallError", JS_PROP_CONFIGURABLE),
 };
-const size_t js_syscallerror_proto_funcs_size =
-    countof(js_syscallerror_proto_funcs);
+const size_t js_syscallerror_proto_funcs_size = countof(js_syscallerror_proto_funcs);
 
 static const JSCFunctionListEntry js_syscallerror_defs[] = {
     JS_PROP_INT32_DEF("EPERM", EPERM, 0),
@@ -505,23 +463,13 @@ js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
 
   /*if(!js_syscallerror_class_id && !JS_IsObject(syscallerror_ctor))*/ {
     JS_NewClassID(&js_syscallerror_class_id);
-    JS_NewClass(JS_GetRuntime(ctx),
-                js_syscallerror_class_id,
-                &js_syscallerror_class);
-    syscallerror_ctor = JS_NewCFunction2(ctx,
-                                         js_syscallerror_constructor,
-                                         "SyscallError",
-                                         1,
-                                         JS_CFUNC_constructor,
-                                         0);
+    JS_NewClass(JS_GetRuntime(ctx), js_syscallerror_class_id, &js_syscallerror_class);
+    syscallerror_ctor = JS_NewCFunction2(ctx, js_syscallerror_constructor, "SyscallError", 1, JS_CFUNC_constructor, 0);
 
     syscallerror_proto = JS_NewObjectProto(ctx, error);
     // syscallerror_proto = JS_NewObject(ctx);
 
-    JS_SetPropertyFunctionList(ctx,
-                               syscallerror_ctor,
-                               js_syscallerror_defs,
-                               countof(js_syscallerror_defs));
+    JS_SetPropertyFunctionList(ctx, syscallerror_ctor, js_syscallerror_defs, countof(js_syscallerror_defs));
     JS_SetPropertyFunctionList(ctx,
                                syscallerror_proto,
                                js_syscallerror_proto_funcs,
@@ -535,10 +483,7 @@ js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
-    JS_SetModuleExportList(ctx,
-                           m,
-                           js_syscallerror_defs,
-                           countof(js_syscallerror_defs));
+    JS_SetModuleExportList(ctx, m, js_syscallerror_defs, countof(js_syscallerror_defs));
   }
 
   JS_FreeValue(ctx, error);
@@ -559,10 +504,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExport(ctx, m, "SyscallError");
-  JS_AddModuleExportList(ctx,
-                         m,
-                         js_syscallerror_defs,
-                         countof(js_syscallerror_defs));
+  JS_AddModuleExportList(ctx, m, js_syscallerror_defs, countof(js_syscallerror_defs));
   return m;
 }
 

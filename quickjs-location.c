@@ -5,15 +5,9 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_location_class_id = 0;
-thread_local JSValue location_proto = {JS_TAG_UNDEFINED},
-                     location_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue location_proto = {JS_TAG_UNDEFINED}, location_ctor = {JS_TAG_UNDEFINED};
 
-enum {
-  LOCATION_PROP_LINE,
-  LOCATION_PROP_COLUMN,
-  LOCATION_PROP_POS,
-  LOCATION_PROP_FILE
-};
+enum { LOCATION_PROP_LINE, LOCATION_PROP_COLUMN, LOCATION_PROP_POS, LOCATION_PROP_FILE };
 
 Location*
 js_location_data(JSContext* ctx, JSValueConst value) {
@@ -23,9 +17,7 @@ js_location_data(JSContext* ctx, JSValueConst value) {
 }
 
 JSValue
-js_location_new_proto(JSContext* ctx,
-                      JSValueConst proto,
-                      const Location* location) {
+js_location_new_proto(JSContext* ctx, JSValueConst proto, const Location* location) {
   JSValue obj;
   Location* loc;
 
@@ -62,10 +54,7 @@ js_location_new(JSContext* ctx, const Location* location) {
 }
 
 JSValue
-js_location_tostring(JSContext* ctx,
-                     JSValueConst this_val,
-                     int argc,
-                     JSValueConst argv[]) {
+js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc;
   JSValue ret = JS_UNDEFINED;
   size_t len;
@@ -78,18 +67,9 @@ js_location_tostring(JSContext* ctx,
     len += 46;
     loc->str = js_malloc(ctx, len);
     if(loc->file)
-      snprintf(loc->str,
-               len,
-               "%s:%" PRIi32 ":%" PRIi32 "",
-               loc->file,
-               loc->line + 1,
-               loc->column + 1);
+      snprintf(loc->str, len, "%s:%" PRIi32 ":%" PRIi32 "", loc->file, loc->line + 1, loc->column + 1);
     else
-      snprintf(loc->str,
-               len,
-               "%" PRIi32 ":%" PRIi32 "",
-               loc->line + 1,
-               loc->column + 1);
+      snprintf(loc->str, len, "%" PRIi32 ":%" PRIi32 "", loc->line + 1, loc->column + 1);
   }
   ret = JS_NewString(ctx, loc->str);
   return ret;
@@ -101,16 +81,14 @@ js_is_location(JSContext* ctx, JSValueConst obj) {
   JSAtom line, column;
   line = JS_NewAtom(ctx, "line");
   column = JS_NewAtom(ctx, "column");
-  ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) &&
-        JS_HasProperty(ctx, obj, column);
+  ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) && JS_HasProperty(ctx, obj, column);
   JS_FreeAtom(ctx, line);
   JS_FreeAtom(ctx, column);
   if(ret)
     return ret;
   line = JS_NewAtom(ctx, "lineNumber");
   column = JS_NewAtom(ctx, "columnNumber");
-  ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) &&
-        JS_HasProperty(ctx, obj, column);
+  ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) && JS_HasProperty(ctx, obj, column);
   JS_FreeAtom(ctx, line);
   JS_FreeAtom(ctx, column);
   return ret;
@@ -150,10 +128,7 @@ js_location_getter(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_location_setter(JSContext* ctx,
-                   JSValueConst this_val,
-                   JSValueConst value,
-                   int magic) {
+js_location_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
   Location* loc;
   JSValue ret = JS_UNDEFINED;
 
@@ -193,10 +168,7 @@ js_location_from(JSContext* ctx, JSValueConst this_val) {
 }
 
 JSValue
-js_location_toprimitive(JSContext* ctx,
-                        JSValueConst this_val,
-                        int argc,
-                        JSValueConst argv[]) {
+js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc;
   const char* hint;
   JSValue ret;
@@ -215,10 +187,7 @@ js_location_toprimitive(JSContext* ctx,
 }
 
 JSValue
-js_location_constructor(JSContext* ctx,
-                        JSValueConst new_target,
-                        int argc,
-                        JSValueConst argv[]) {
+js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
   Location loc;
@@ -237,8 +206,7 @@ js_location_constructor(JSContext* ctx,
   /* From string */
   if(argc == 1 && js_is_input(ctx, argv[0])) {
     InputBuffer in = js_input_chars(ctx, argv[0]);
-    const uint8_t *p, *begin = input_buffer_begin(&in),
-                      *end = input_buffer_end(&in);
+    const uint8_t *p, *begin = input_buffer_begin(&in), *end = input_buffer_end(&in);
     unsigned long v, n[2];
     size_t ni = max(2, str_count(begin, ':'));
 
@@ -294,10 +262,7 @@ fail:
 }
 
 static JSValue
-js_location_inspect(JSContext* ctx,
-                    JSValueConst this_val,
-                    int argc,
-                    JSValueConst argv[]) {
+js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc;
 
   if(!(loc = js_location_data(ctx, this_val)))
@@ -305,31 +270,20 @@ js_location_inspect(JSContext* ctx,
 
   JSValue obj = JS_NewObjectProto(ctx, location_proto);
   if(loc->line < UINT32_MAX)
-    JS_DefinePropertyValueStr(
-        ctx, obj, "line", JS_NewUint32(ctx, loc->line + 1), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "line", JS_NewUint32(ctx, loc->line + 1), JS_PROP_ENUMERABLE);
   if(loc->column < UINT32_MAX)
-    JS_DefinePropertyValueStr(ctx,
-                              obj,
-                              "column",
-                              JS_NewUint32(ctx, loc->column + 1),
-                              JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "column", JS_NewUint32(ctx, loc->column + 1), JS_PROP_ENUMERABLE);
   if(loc->pos >= 0 && loc->pos <= INT64_MAX)
-    JS_DefinePropertyValueStr(
-        ctx, obj, "pos", JS_NewInt64(ctx, loc->pos), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "pos", JS_NewInt64(ctx, loc->pos), JS_PROP_ENUMERABLE);
   if(loc->file)
-    JS_DefinePropertyValueStr(
-        ctx, obj, "file", JS_NewString(ctx, loc->file), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "file", JS_NewString(ctx, loc->file), JS_PROP_ENUMERABLE);
   if(loc->str)
-    JS_DefinePropertyValueStr(
-        ctx, obj, "str", JS_NewString(ctx, loc->str), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "str", JS_NewString(ctx, loc->str), JS_PROP_ENUMERABLE);
   return obj;
 }
 
 static JSValue
-js_location_clone(JSContext* ctx,
-                  JSValueConst this_val,
-                  int argc,
-                  JSValueConst argv[]) {
+js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   Location* loc;
 
@@ -340,10 +294,7 @@ js_location_clone(JSContext* ctx,
 }
 
 static JSValue
-js_location_count(JSContext* ctx,
-                  JSValueConst this_val,
-                  int argc,
-                  JSValueConst argv[]) {
+js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location loc;
   InputBuffer input;
   size_t i;
@@ -378,14 +329,11 @@ static const JSCFunctionListEntry js_location_funcs[] = {
     JS_CGETSET_MAGIC_DEF("line", js_location_getter, 0, LOCATION_PROP_LINE),
     JS_CGETSET_MAGIC_DEF("column", js_location_getter, 0, LOCATION_PROP_COLUMN),
     JS_CGETSET_MAGIC_DEF("pos", js_location_getter, 0, LOCATION_PROP_POS),
-    JS_CGETSET_MAGIC_DEF(
-        "file", js_location_getter, js_location_setter, LOCATION_PROP_FILE),
+    JS_CGETSET_MAGIC_DEF("file", js_location_getter, js_location_setter, LOCATION_PROP_FILE),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
     JS_CFUNC_DEF("clone", 0, js_location_clone),
     JS_CFUNC_DEF("toString", 0, js_location_tostring),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]",
-                       "Location",
-                       JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Location", JS_PROP_CONFIGURABLE),
 };
 
 static const JSCFunctionListEntry js_location_static_funcs[] = {
@@ -399,18 +347,11 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
     JS_NewClassID(&js_location_class_id);
     JS_NewClass(JS_GetRuntime(ctx), js_location_class_id, &js_location_class);
 
-    location_ctor = JS_NewCFunction2(
-        ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
+    location_ctor = JS_NewCFunction2(ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
     location_proto = JS_NewObject(ctx);
 
-    JS_SetPropertyFunctionList(ctx,
-                               location_proto,
-                               js_location_funcs,
-                               countof(js_location_funcs));
-    JS_SetPropertyFunctionList(ctx,
-                               location_ctor,
-                               js_location_static_funcs,
-                               countof(js_location_static_funcs));
+    JS_SetPropertyFunctionList(ctx, location_proto, js_location_funcs, countof(js_location_funcs));
+    JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
     JS_SetClassProto(ctx, js_location_class_id, location_proto);
 
     js_set_inspect_method(ctx, location_proto, js_location_inspect);

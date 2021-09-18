@@ -46,11 +46,7 @@ enum path_methods {
 };
 
 static JSValue
-js_path_method(JSContext* ctx,
-               JSValueConst this_val,
-               int argc,
-               JSValueConst argv[],
-               int magic) {
+js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char *a = 0, *b = 0;
   char buf[PATH_MAX + 1];
   size_t alen = 0, blen = 0, pos;
@@ -211,11 +207,7 @@ js_path_method(JSContext* ctx,
 }
 
 static JSValue
-js_path_method_dbuf(JSContext* ctx,
-                    JSValueConst this_val,
-                    int argc,
-                    JSValueConst argv[],
-                    int magic) {
+js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char *a = 0, *b = 0;
   DynBuf db;
   size_t alen = 0, blen = 0;
@@ -290,10 +282,7 @@ js_path_method_dbuf(JSContext* ctx,
 }
 
 static JSValue
-js_path_join(JSContext* ctx,
-             JSValueConst this_val,
-             int argc,
-             JSValueConst argv[]) {
+js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* str;
   DynBuf db;
   int i;
@@ -314,10 +303,7 @@ js_path_join(JSContext* ctx,
 }
 
 static JSValue
-js_path_parse(JSContext* ctx,
-              JSValueConst this_val,
-              int argc,
-              JSValueConst argv[]) {
+js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char *str, *base, *ext;
   size_t len = 0, rootlen, dirlen;
   JSValue ret = JS_UNDEFINED;
@@ -335,8 +321,7 @@ js_path_parse(JSContext* ctx,
   js_set_propertystr_stringlen(ctx, ret, "dir", str, dirlen);
   js_set_propertystr_stringlen(ctx, ret, "base", base, strlen(base));
   js_set_propertystr_stringlen(ctx, ret, "ext", ext, strlen(ext));
-  js_set_propertystr_stringlen(
-      ctx, ret, "name", base, strlen(base) - strlen(ext));
+  js_set_propertystr_stringlen(ctx, ret, "name", base, strlen(base) - strlen(ext));
 
   js_cstring_free(ctx, str);
 
@@ -344,10 +329,7 @@ js_path_parse(JSContext* ctx,
 }
 
 static JSValue
-js_path_format(JSContext* ctx,
-               JSValueConst this_val,
-               int argc,
-               JSValueConst argv[]) {
+js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValueConst obj = argv[0];
   const char *dir, *root, *base, *name, *ext;
   JSValue ret = JS_UNDEFINED;
@@ -385,10 +367,7 @@ js_path_format(JSContext* ctx,
 }
 
 static JSValue
-js_path_resolve(JSContext* ctx,
-                JSValueConst this_val,
-                int argc,
-                JSValueConst argv[]) {
+js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* str;
   DynBuf db, cwd;
   ssize_t i;
@@ -459,8 +438,7 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("realpath", 1, js_path_method, METHOD_REALPATH),
     JS_CFUNC_MAGIC_DEF("right", 1, js_path_method, METHOD_RIGHT),
     JS_CFUNC_MAGIC_DEF("skip", 1, js_path_method, METHOD_SKIP),
-    JS_CFUNC_MAGIC_DEF(
-        "skipSeparator", 1, js_path_method, METHOD_SKIP_SEPARATOR),
+    JS_CFUNC_MAGIC_DEF("skipSeparator", 1, js_path_method, METHOD_SKIP_SEPARATOR),
     JS_CFUNC_MAGIC_DEF("absolute", 1, js_path_method_dbuf, METHOD_ABSOLUTE),
     JS_CFUNC_MAGIC_DEF("append", 1, js_path_method_dbuf, METHOD_APPEND),
     JS_CFUNC_MAGIC_DEF("canonical", 1, js_path_method_dbuf, METHOD_CANONICAL),
@@ -481,10 +459,7 @@ js_path_init(JSContext* ctx, JSModuleDef* m) {
 
   path_object = JS_NewObject(ctx);
 
-  JS_SetPropertyFunctionList(ctx,
-                             path_object,
-                             js_path_funcs,
-                             countof(js_path_funcs));
+  JS_SetPropertyFunctionList(ctx, path_object, js_path_funcs, countof(js_path_funcs));
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));

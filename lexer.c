@@ -37,9 +37,7 @@ int
 lexer_state_push(Lexer* lex, const char* state) {
   int32_t id;
 #ifdef DEBUG_OUTPUT_
-  printf("lexer_state_push(%zu): %s\n",
-         vector_size(&lex->state_stack, sizeof(int32_t)),
-         state);
+  printf("lexer_state_push(%zu): %s\n", vector_size(&lex->state_stack, sizeof(int32_t)), state);
 #endif
   if((id = lexer_state_findb(lex, state, strlen(state))) >= 0) {
     vector_push(&lex->state_stack, lex->state);
@@ -165,10 +163,7 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
   if(lexer_rule_expand(lex, lexer_rule_regex(rule), &dbuf)) {
     rule->expansion = js_strndup(ctx, (const char*)dbuf.buf, dbuf.size);
     rule->bytecode =
-        regexp_compile(regexp_from_dbuf(&dbuf,
-                                        LRE_FLAG_GLOBAL | LRE_FLAG_MULTILINE |
-                                            LRE_FLAG_STICKY),
-                       ctx);
+        regexp_compile(regexp_from_dbuf(&dbuf, LRE_FLAG_GLOBAL | LRE_FLAG_MULTILINE | LRE_FLAG_STICKY), ctx);
     ret = rule->bytecode != 0;
 
   } else {
@@ -181,10 +176,7 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
 }
 
 static int
-lexer_rule_match(Lexer* lex,
-                 LexerRule* rule,
-                 uint8_t** capture,
-                 JSContext* ctx) {
+lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx) {
 
   if(rule->bytecode == 0) {
     if(!lexer_rule_compile(lex, rule, ctx))
@@ -194,13 +186,7 @@ lexer_rule_match(Lexer* lex,
   // printf("lexer_rule_match %s %s %s\n", rule->name, rule->expr,
   // rule->expansion);
 
-  return lre_exec(capture,
-                  rule->bytecode,
-                  (uint8_t*)lex->input.data,
-                  lex->input.pos,
-                  lex->input.size,
-                  0,
-                  ctx);
+  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->input.data, lex->input.pos, lex->input.size, 0, ctx);
 }
 
 int
@@ -309,8 +295,7 @@ LexerRule*
 lexer_find_definition(Lexer* lex, const char* name, size_t namelen) {
   LexerRule* definition;
   vector_foreach_t(&lex->defines, definition) {
-    if(!strncmp(definition->name, name, namelen) &&
-       definition->name[namelen] == '\0')
+    if(!strncmp(definition->name, name, namelen) && definition->name[namelen] == '\0')
       return definition;
   }
   return 0;
@@ -364,8 +349,7 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
              capture[1] - capture[0],
              capture[1] - capture[0],
              capture[0]); */
-      if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 ||
-         (size_t)(capture[1] - capture[0]) >= len) {
+      if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 || (size_t)(capture[1] - capture[0]) >= len) {
         ret = i;
         len = capture[1] - capture[0];
         if(lex->mode == LEXER_FIRST)
@@ -384,8 +368,7 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
 
 size_t
 lexer_skip(Lexer* lex) {
-  size_t len =
-      input_skip(&lex->input, lex->start + lex->byte_length, &lex->loc);
+  size_t len = input_skip(&lex->input, lex->start + lex->byte_length, &lex->loc);
   lex->seq++;
   return len;
 }
@@ -453,11 +436,8 @@ lexer_free_rt(Lexer* lex, JSRuntime* rt) {
 
 void
 lexer_dump(Lexer* lex, DynBuf* dbuf) {
-  dbuf_printf(dbuf,
-              "Lexer {\n  mode: %x,\n  start: %zu, state: %s",
-              lex->mode,
-              lex->start,
-              lexer_state_name(lex, lex->state));
+  dbuf_printf(
+      dbuf, "Lexer {\n  mode: %x,\n  start: %zu, state: %s", lex->mode, lex->start, lexer_state_name(lex, lex->state));
   dbuf_putstr(dbuf, ",\n  input: ");
   input_buffer_dump(&lex->input, dbuf);
   dbuf_putstr(dbuf, ",\n  location: ");

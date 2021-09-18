@@ -41,8 +41,7 @@
 #define path_issep(c) ((c) == '/')
 #endif
 
-#define path_isabs(p)                                                          \
-  (path_issep((p)[0]) || ((p)[1] == ':' && path_issep((p)[2])))
+#define path_isabs(p) (path_issep((p)[0]) || ((p)[1] == ':' && path_issep((p)[2])))
 #define path_isrel(p) (!path_isabs(p))
 #define path_isname(p) ((p)[str_chr((p), '/')] != '\0')
 
@@ -62,11 +61,7 @@ void path_concat(const char*, size_t, const char* b, size_t blen, DynBuf* db);
 int path_exists(const char*);
 const char* path_extname(const char*);
 int path_find(const char*, const char*, DynBuf* db);
-int path_fnmatch(const char*,
-                 unsigned int,
-                 const char* string,
-                 unsigned int slen,
-                 int flags);
+int path_fnmatch(const char*, unsigned int, const char* string, unsigned int slen, int flags);
 char* path_getcwd(DynBuf*);
 char* path_gethome(int);
 int path_is_absolute(const char*, size_t);
@@ -74,8 +69,7 @@ int path_is_directory(const char*);
 int path_is_symlink(const char*);
 int path_normalize(const char*, DynBuf*, int symbolic);
 int path_relative(const char*, const char*, DynBuf* out);
-int
-path_relative_b(const char*, size_t, const char* s2, size_t n2, DynBuf* out);
+int path_relative_b(const char*, size_t, const char* s2, size_t n2, DynBuf* out);
 size_t path_root(const char*, size_t);
 size_t path_skip_component(const char*, size_t, size_t pos);
 size_t path_skip_separator(const char*, size_t, size_t pos);

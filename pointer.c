@@ -42,23 +42,18 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
   }
 }
 
-#define pointer_color(s)                                                       \
-  (/*(index) >= 0 &&*/ (i) >= (index)                                          \
-       ? "\x1b[31m"                                                            \
-       : (is_integer(s) ? "\x1b[1;30m" : "\x1b[0;33m"))
+#define pointer_color(s)                                                                                               \
+  (/*(index) >= 0 &&*/ (i) >= (index) ? "\x1b[31m" : (is_integer(s) ? "\x1b[1;30m" : "\x1b[0;33m"))
 
 void
-pointer_dump(
-    Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index) {
+pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index) {
   size_t i;
   const char* s;
   for(i = 0; i < ptr->n; i++) {
     BOOL is_int;
     s = JS_AtomToCString(ctx, ptr->atoms[i]);
     is_int = is_integer(s);
-    dbuf_putstr(db,
-                color ? (is_int ? "\x1b[1;36m[" : "\x1b[1;36m.")
-                      : (is_integer(s) ? "[" : "."));
+    dbuf_putstr(db, color ? (is_int ? "\x1b[1;36m[" : "\x1b[1;36m.") : (is_integer(s) ? "[" : "."));
     dbuf_putstr(db, color ? pointer_color(s) : "");
     dbuf_putstr(db, s);
     if(is_int)
@@ -92,10 +87,7 @@ pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
     start = c == '[' ? 1 : 0;
     delim = start;
     for(;;) {
-      delim += byte_chrs(&str[delim],
-                         len - delim,
-                         c == '[' ? "." : ".[",
-                         c == '[' ? 2 : 2);
+      delim += byte_chrs(&str[delim], len - delim, c == '[' ? "." : ".[", c == '[' ? 2 : 2);
       if(delim < len && delim > 0 && str[delim - 1] == '\\') {
         ++delim;
         continue;
@@ -143,8 +135,7 @@ pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
   ret->n = end - start;
   ret->atoms = ret->n ? js_mallocz(ctx, sizeof(JSAtom) * ret->n) : 0;
 
-  for(i = start; i < end; i++)
-    ret->atoms[i - start] = JS_DupAtom(ctx, ptr->atoms[i]);
+  for(i = start; i < end; i++) ret->atoms[i - start] = JS_DupAtom(ctx, ptr->atoms[i]);
 
   return ret;
 }

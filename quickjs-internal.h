@@ -117,19 +117,12 @@ typedef enum {
    possible to remove some numeric types */
 typedef struct {
   JSValue (*to_string)(JSContext* ctx, JSValueConst val);
-  JSValue (*from_string)(JSContext* ctx,
-                         const char* buf,
-                         int radix,
-                         int flags,
-                         slimb_t* pexponent);
+  JSValue (*from_string)(JSContext* ctx, const char* buf, int radix, int flags, slimb_t* pexponent);
   int (*unary_arith)(JSContext* ctx, JSValue* pres, OPCodeEnum op, JSValue op1);
-  int (*binary_arith)(
-      JSContext* ctx, OPCodeEnum op, JSValue* pres, JSValue op1, JSValue op2);
+  int (*binary_arith)(JSContext* ctx, OPCodeEnum op, JSValue* pres, JSValue op1, JSValue op2);
   int (*compare)(JSContext* ctx, OPCodeEnum op, JSValue op1, JSValue op2);
   /* only for bigfloat: */
-  JSValue (*mul_pow10_to_float64)(JSContext* ctx,
-                                  const bf_t* a,
-                                  int64_t exponent);
+  JSValue (*mul_pow10_to_float64)(JSContext* ctx, const bf_t* a, int64_t exponent);
   int (*mul_pow10)(JSContext* ctx, JSValue* sp);
 } JSNumericOperations;
 #endif
@@ -205,8 +198,7 @@ typedef struct JSStackFrame {
   JSValue* arg_buf;              /* arguments */
   JSValue* var_buf;              /* variables */
   struct list_head var_ref_list; /* list of JSVarRef.link */
-  const uint8_t*
-      cur_pc; /* bytecode functions : PC of the instruction after the call */
+  const uint8_t* cur_pc;         /* bytecode functions : PC of the instruction after the call */
   int arg_count;
   int js_mode; /* 0 or JS_MODE_MATH for C functions */
   /* only used in generators. Current stack pointer value or NULL if the
@@ -310,10 +302,9 @@ struct JSContext {
 
   uint64_t random_state;
 #ifdef CONFIG_BIGNUM
-  /*bf_context_t*/ void*
-      bf_ctx;          /* points to rt->bf_ctx, shared by all contexts */
-  JSFloatEnv fp_env;   /* global FP environment */
-  BOOL bignum_ext : 8; /* enable math mode */
+  /*bf_context_t*/ void* bf_ctx; /* points to rt->bf_ctx, shared by all contexts */
+  JSFloatEnv fp_env;             /* global FP environment */
+  BOOL bignum_ext : 8;           /* enable math mode */
   BOOL allow_operator_overloading : 8;
 #endif
   /* when the counter reaches zero, JSRutime.interrupt_handler is called */
@@ -323,9 +314,7 @@ struct JSContext {
   struct list_head loaded_modules; /* list of JSModuleDef.link */
 
   /* if NULL, RegExp compilation is not supported */
-  JSValue (*compile_regexp)(JSContext* ctx,
-                            JSValueConst pattern,
-                            JSValueConst flags);
+  JSValue (*compile_regexp)(JSContext* ctx, JSValueConst pattern, JSValueConst flags);
   /* if NULL, eval is not supported */
   JSValue (*eval_internal)(JSContext* ctx,
                            JSValueConst this_obj,
@@ -442,10 +431,9 @@ typedef struct JSFunctionBytecode {
   uint8_t* byte_code_buf; /* (self pointer) */
   int byte_code_len;
   JSAtom func_name;
-  JSVarDef* vardefs; /* arguments + local variables (arg_count + var_count)
-                        (self pointer) */
-  JSClosureVar*
-      closure_var; /* list of variables in the closure (self pointer) */
+  JSVarDef* vardefs;         /* arguments + local variables (arg_count + var_count)
+                                (self pointer) */
+  JSClosureVar* closure_var; /* list of variables in the closure (self pointer) */
   uint16_t arg_count;
   uint16_t var_count;
   uint16_t defined_arg_count; /* for length function property */
@@ -571,61 +559,50 @@ struct JSObject {
       uint8_t __gc_mark;  /* corresponds to header.mark/gc_obj_type */
 
       uint8_t extensible : 1;
-      uint8_t free_mark : 1;  /* only used when freeing objects with cycles */
-      uint8_t is_exotic : 1;  /* TRUE if object has exotic property handlers */
-      uint8_t fast_array : 1; /* TRUE if u.array is used for get/put (for
-                                 JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS and typed
-                                 arrays) */
-      uint8_t is_constructor : 1; /* TRUE if object is a constructor function */
+      uint8_t free_mark : 1;            /* only used when freeing objects with cycles */
+      uint8_t is_exotic : 1;            /* TRUE if object has exotic property handlers */
+      uint8_t fast_array : 1;           /* TRUE if u.array is used for get/put (for
+                                           JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS and typed
+                                           arrays) */
+      uint8_t is_constructor : 1;       /* TRUE if object is a constructor function */
       uint8_t is_uncatchable_error : 1; /* if TRUE, error is not catchable */
       uint8_t tmp_mark : 1;             /* used in JS_WriteObjectRec() */
-      uint8_t is_HTMLDDA : 1; /* specific annex B IsHtmlDDA behavior */
-      uint16_t class_id;      /* see JS_CLASS_x */
+      uint8_t is_HTMLDDA : 1;           /* specific annex B IsHtmlDDA behavior */
+      uint16_t class_id;                /* see JS_CLASS_x */
     };
   };
   /* byte offsets: 16/24 */
   JSShape* shape;   /* prototype and property names + flag */
   JSProperty* prop; /* array of properties */
   /* byte offsets: 24/40 */
-  struct JSMapRecord*
-      first_weak_ref; /* XXX: use a bit and an external hash table? */
+  struct JSMapRecord* first_weak_ref; /* XXX: use a bit and an external hash table? */
   /* byte offsets: 28/48 */
   union {
     void* opaque;
-    struct JSBoundFunction* bound_function; /* JS_CLASS_BOUND_FUNCTION */
-    struct JSCFunctionDataRecord*
-        c_function_data_record;              /* JS_CLASS_C_FUNCTION_DATA */
-    struct JSForInIterator* for_in_iterator; /* JS_CLASS_FOR_IN_ITERATOR */
-    struct JSArrayBuffer*
-        array_buffer; /* JS_CLASS_ARRAY_BUFFER, JS_CLASS_SHARED_ARRAY_BUFFER */
-    struct JSTypedArray*
-        typed_array; /* JS_CLASS_UINT8C_ARRAY..JS_CLASS_DATAVIEW */
+    struct JSBoundFunction* bound_function;               /* JS_CLASS_BOUND_FUNCTION */
+    struct JSCFunctionDataRecord* c_function_data_record; /* JS_CLASS_C_FUNCTION_DATA */
+    struct JSForInIterator* for_in_iterator;              /* JS_CLASS_FOR_IN_ITERATOR */
+    struct JSArrayBuffer* array_buffer;                   /* JS_CLASS_ARRAY_BUFFER, JS_CLASS_SHARED_ARRAY_BUFFER */
+    struct JSTypedArray* typed_array;                     /* JS_CLASS_UINT8C_ARRAY..JS_CLASS_DATAVIEW */
 #ifdef CONFIG_BIGNUM
     struct JSFloatEnv* float_env;           /* JS_CLASS_FLOAT_ENV */
     struct JSOperatorSetData* operator_set; /* JS_CLASS_OPERATOR_SET */
 #endif
-    struct JSMapState* map_state; /* JS_CLASS_MAP..JS_CLASS_WEAKSET */
-    struct JSMapIteratorData*
-        map_iterator_data; /* JS_CLASS_MAP_ITERATOR, JS_CLASS_SET_ITERATOR */
-    struct JSArrayIteratorData*
-        array_iterator_data; /* JS_CLASS_ARRAY_ITERATOR,
-                                JS_CLASS_STRING_ITERATOR */
-    struct JSRegExpStringIteratorData*
-        regexp_string_iterator_data; /* JS_CLASS_REGEXP_STRING_ITERATOR */
-    struct JSGeneratorData* generator_data; /* JS_CLASS_GENERATOR */
-    struct JSProxyData* proxy_data;         /* JS_CLASS_PROXY */
-    struct JSPromiseData* promise_data;     /* JS_CLASS_PROMISE */
-    struct JSPromiseFunctionData*
-        promise_function_data; /* JS_CLASS_PROMISE_RESOLVE_FUNCTION,
-                                  JS_CLASS_PROMISE_REJECT_FUNCTION */
-    struct JSAsyncFunctionData*
-        async_function_data; /* JS_CLASS_ASYNC_FUNCTION_RESOLVE,
-                                JS_CLASS_ASYNC_FUNCTION_REJECT */
-    struct JSAsyncFromSyncIteratorData*
-        async_from_sync_iterator_data; /* JS_CLASS_ASYNC_FROM_SYNC_ITERATOR */
-    struct JSAsyncGeneratorData*
-        async_generator_data; /* JS_CLASS_ASYNC_GENERATOR */
-    struct {                  /* JS_CLASS_BYTECODE_FUNCTION: 12/24 bytes */
+    struct JSMapState* map_state;                                   /* JS_CLASS_MAP..JS_CLASS_WEAKSET */
+    struct JSMapIteratorData* map_iterator_data;                    /* JS_CLASS_MAP_ITERATOR, JS_CLASS_SET_ITERATOR */
+    struct JSArrayIteratorData* array_iterator_data;                /* JS_CLASS_ARRAY_ITERATOR,
+                                                                       JS_CLASS_STRING_ITERATOR */
+    struct JSRegExpStringIteratorData* regexp_string_iterator_data; /* JS_CLASS_REGEXP_STRING_ITERATOR */
+    struct JSGeneratorData* generator_data;                         /* JS_CLASS_GENERATOR */
+    struct JSProxyData* proxy_data;                                 /* JS_CLASS_PROXY */
+    struct JSPromiseData* promise_data;                             /* JS_CLASS_PROMISE */
+    struct JSPromiseFunctionData* promise_function_data;            /* JS_CLASS_PROMISE_RESOLVE_FUNCTION,
+                                                                       JS_CLASS_PROMISE_REJECT_FUNCTION */
+    struct JSAsyncFunctionData* async_function_data;                /* JS_CLASS_ASYNC_FUNCTION_RESOLVE,
+                                                                       JS_CLASS_ASYNC_FUNCTION_REJECT */
+    struct JSAsyncFromSyncIteratorData* async_from_sync_iterator_data; /* JS_CLASS_ASYNC_FROM_SYNC_ITERATOR */
+    struct JSAsyncGeneratorData* async_generator_data;                 /* JS_CLASS_ASYNC_GENERATOR */
+    struct {                                                           /* JS_CLASS_BYTECODE_FUNCTION: 12/24 bytes */
       /* also used by JS_CLASS_GENERATOR_FUNCTION, JS_CLASS_ASYNC_FUNCTION and
        * JS_CLASS_ASYNC_GENERATOR_FUNCTION */
       struct JSFunctionBytecode* function_bytecode;
@@ -643,16 +620,15 @@ struct JSObject {
     struct { /* JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS,
                 JS_CLASS_UINT8C_ARRAY..JS_CLASS_FLOAT64_ARRAY */
       union {
-        uint32_t size; /* JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS */
-        struct JSTypedArray*
-            typed_array; /* JS_CLASS_UINT8C_ARRAY..JS_CLASS_FLOAT64_ARRAY */
+        uint32_t size;                    /* JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS */
+        struct JSTypedArray* typed_array; /* JS_CLASS_UINT8C_ARRAY..JS_CLASS_FLOAT64_ARRAY */
       } u1;
       union {
-        JSValue* values;    /* JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS */
-        void* ptr;          /* JS_CLASS_UINT8C_ARRAY..JS_CLASS_FLOAT64_ARRAY */
-        int8_t* int8_ptr;   /* JS_CLASS_INT8_ARRAY */
-        uint8_t* uint8_ptr; /* JS_CLASS_UINT8_ARRAY, JS_CLASS_UINT8C_ARRAY */
-        int16_t* int16_ptr; /* JS_CLASS_INT16_ARRAY */
+        JSValue* values;      /* JS_CLASS_ARRAY, JS_CLASS_ARGUMENTS */
+        void* ptr;            /* JS_CLASS_UINT8C_ARRAY..JS_CLASS_FLOAT64_ARRAY */
+        int8_t* int8_ptr;     /* JS_CLASS_INT8_ARRAY */
+        uint8_t* uint8_ptr;   /* JS_CLASS_UINT8_ARRAY, JS_CLASS_UINT8C_ARRAY */
+        int16_t* int16_ptr;   /* JS_CLASS_INT16_ARRAY */
         uint16_t* uint16_ptr; /* JS_CLASS_UINT16_ARRAY */
         int32_t* int32_ptr;   /* JS_CLASS_INT32_ARRAY */
         uint32_t* uint32_ptr; /* JS_CLASS_UINT32_ARRAY */
@@ -976,9 +952,8 @@ typedef struct JSMapState {
   struct list_head records; /* list of JSMapRecord.link */
   uint32_t record_count;
   struct list_head* hash_table;
-  uint32_t hash_size; /* must be a power of two */
-  uint32_t
-      record_count_threshold; /* count at which a hash table resize is needed */
+  uint32_t hash_size;              /* must be a power of two */
+  uint32_t record_count_threshold; /* count at which a hash table resize is needed */
 } JSMapState;
 
 #define MAGIC_SET (1 << 0)
@@ -1005,9 +980,7 @@ typedef struct JSOpCode {
    opcodes overlap with the temporary opcodes which cannot appear in
    the final bytecode. Their description is after the temporary
    opcodes in opcode_info[]. */
-#define short_opcode_info(op)                                                  \
-  opcode_info[(op) >= OP_TEMP_START ? (op) + (OP_TEMP_END - OP_TEMP_START)     \
-                                    : (op)]
+#define short_opcode_info(op) opcode_info[(op) >= OP_TEMP_START ? (op) + (OP_TEMP_END - OP_TEMP_START) : (op)]
 #else
 #define short_opcode_info(op) opcode_info[op]
 #endif
