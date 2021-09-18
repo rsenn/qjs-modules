@@ -68,7 +68,7 @@ if(NOT LibArchive_FOUND)
 endif(NOT LibArchive_FOUND)
 
 set(QUICKJS_MODULES archive bjson blob child-process deep gpio lexer location misc mmap path
-                    pointer predicate repeater stringdecoder sockets inspect tree-walker xml)
+                    pointer predicate repeater stringdecoder sockets syscallerror inspect tree-walker xml)
 
 set(LIB_MODULES console events   fs jslexer parser perf_hooks process repl require  
                 stack tty util)
@@ -85,7 +85,7 @@ set(child_process_SOURCES child-process.c child-process.h property-enumeration.c
 set(deep_SOURCES
     vector.c vector.h pointer.c virtual-properties.c property-enumeration.c property-enumeration.h
     ${util_SOURCES} ${predicate_SOURCES} pointer.h virtual-properties.h qsort_r.c)
-# set(deep_LIBRARIES qjs-pointer qjs-predicate)
+ #set(deep_LIBRARIES qjs-pointer qjs-predicate)
 set(inspect_SOURCES vector.c vector.h iteration.h ${util_SOURCES} property-enumeration.c
                     property-enumeration.h quickjs-internal.h qsort_r.c)
 set(tree_walker_SOURCES vector.c vector.h property-enumeration.c property-enumeration.h
@@ -231,6 +231,7 @@ endforeach(JS_MODULE ${QUICKJS_MODULES})
 
 ##dump(QJSM_LDADD QJSM_LIBDIR)
 
+target_link_libraries(qjs-sockets qjs-syscallerror)
 target_link_libraries(qjs-deep qjs-predicate)
 target_link_libraries(qjs-lexer qjs-predicate)
 add_dependencies(qjs-lexer qjs-predicate)
