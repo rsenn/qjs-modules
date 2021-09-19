@@ -125,7 +125,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
     }
     if(debug_module_loader > 1) {
       if(file)
-        printf("jsm_module_loader[%x] \x1b[48;5;220m(2)\x1b[0m %-20s '%s'\n", pthread_self(), trim_dotslash(name), file);
+        printf("jsm_module_loader[%x] \x1b[48;5;220m(1)\x1b[0m %-30s '%s'\n", pthread_self(), trim_dotslash(name), file);
       /*  else  printf("jsm_module_loader[%x] \x1b[48;5;124m(1)\x1b[0m %-20s ->
        * %s\n", pthread_self(), trim_dotslash(name), trim_dotslash(module));*/
     }
@@ -142,7 +142,11 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
         if(!JS_IsUndefined(target)) {
           const char* str = JS_ToCString(ctx, target);
           if(str) {
+            if(debug_module_loader)
+              printf("jsm_module_loader[%x] \x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", pthread_self(), module, str);
+
             js_free(ctx, module);
+
             module = js_strdup(ctx, str);
             JS_FreeCString(ctx, str);
             continue;
@@ -161,12 +165,12 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   }
   if(file) {
     if(debug_module_loader)
-      if(strcmp(trim_dotslash(name), trim_dotslash(file)))
-        printf("jsm_module_loader[%x] \x1b[48;5;28m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, file);
+      if(strcmp(trim_dotslash(module), trim_dotslash(file)))
+        printf("jsm_module_loader[%x] \x1b[48;5;21m(3)\x1b[0m %-30s -> %s (%s)\n", pthread_self(), module, file);
 
-    if(has_suffix(file, ".so"))
+   if(has_suffix(file, ".so"))
       ret = js_module_loader_so(ctx, file);
-    else
+    else 
       ret = js_module_loader(ctx, file, opaque);
   }
 end:
@@ -209,8 +213,8 @@ jsm_load_script(JSContext* ctx, const char* file, BOOL module) {
   }
   if(JS_IsNumber(val))
     JS_ToInt32(ctx, &ret, val);
-  //  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE && JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
-  JS_FreeValue(ctx, val);
+  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE && JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
+    JS_FreeValue(ctx, val);
   return ret;
 }
 
