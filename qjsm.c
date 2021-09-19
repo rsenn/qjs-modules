@@ -59,9 +59,9 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-#define jsm_declare_module(name)                                                                                                                                                                                                               \
-  extern const uint8_t qjsc_##name[];                                                                                                                                                                                                          \
-  extern const uint32_t qjsc_##name##_size;                                                                                                                                                                                                    \
+#define jsm_declare_module(name)                                                                                                                     \
+  extern const uint8_t qjsc_##name[];                                                                                                                \
+  extern const uint32_t qjsc_##name##_size;                                                                                                          \
   JSModuleDef* js_init_module_##name(JSContext*, const char*);
 
 jsm_declare_module(console);
@@ -85,14 +85,14 @@ static void
 jsm_dump_error(JSContext* ctx) {
   JSValue error = JS_GetException(ctx);
   char* str;
-  if((str = js_inspect_tostring(ctx, error))) {
+  if((str = JS_ToCString(ctx, error))) {
     printf("ERROR: %s\n", str);
     fflush(stdout);
   }
-  js_free(ctx, str);
+  JS_FreeCString(ctx, str);
 }
 
-static BOOL debug_module_loader = FALSE;
+static int debug_module_loader = 0;
 static Vector module_debug = VECTOR_INIT();
 static Vector module_list = VECTOR_INIT();
 static Vector builtins = VECTOR_INIT();
@@ -123,7 +123,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
     if(!strchr(module, '/') && (ret = js_module_find(ctx, module))) {
       goto end;
     }
-    if(debug_module_loader) {
+    if(debug_module_loader > 1) {
       if(file)
         printf("jsm_module_loader[%x] \x1b[48;5;220m(2)\x1b[0m %-20s '%s'\n", pthread_self(), trim_dotslash(name), file);
       /*  else  printf("jsm_module_loader[%x] \x1b[48;5;124m(1)\x1b[0m %-20s ->
@@ -163,7 +163,11 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
     if(debug_module_loader)
       if(strcmp(trim_dotslash(name), trim_dotslash(file)))
         printf("jsm_module_loader[%x] \x1b[48;5;28m(3)\x1b[0m %-20s -> %s\n", pthread_self(), module, file);
-    ret = has_suffix(file, ".so") ? js_module_loader_so(ctx, file) : js_module_loader(ctx, file, opaque);
+
+    if(has_suffix(file, ".so"))
+      ret = js_module_loader_so(ctx, file);
+    else
+      ret = js_module_loader(ctx, file, opaque);
   }
 end:
   if(vector_finds(&module_debug, "import") != -1) {
@@ -183,10 +187,10 @@ jsm_eval_file(JSContext* ctx, const char* file, int module) {
   uint8_t* buf;
   size_t len;
   int flags;
-  if(!(buf = js_load_file(ctx, &len, file))) {
-    fprintf(stderr, "Failed loading '%s': %s\n", file, strerror(errno));
+
+  if(!(buf = js_load_file(ctx, &len, file)))
     return JS_ThrowInternalError(ctx, "Failed loading '%s': %s", file, strerror(errno));
-  }
+
   if(module < 0)
     module = (has_suffix(file, ".mjs") || JS_DetectModule((const char*)buf, len));
   flags = module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
@@ -199,13 +203,14 @@ jsm_load_script(JSContext* ctx, const char* file, BOOL module) {
   int32_t ret = 0;
   val = jsm_eval_file(ctx, file, module);
   if(JS_IsException(val)) {
+    fprintf(stderr, "Failed loading '%s': %s\n", file, strerror(errno));
     js_value_fwrite(ctx, val, stderr);
     return -1;
   }
   if(JS_IsNumber(val))
     JS_ToInt32(ctx, &ret, val);
-  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE && JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
-    JS_FreeValue(ctx, val);
+  //  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE && JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
+  JS_FreeValue(ctx, val);
   return ret;
 }
 
@@ -457,8 +462,8 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
   if(JS_IsException(ret)) {
     if(JS_IsNull(JS_GetRuntime(ctx)->current_exception)) {
-      JS_GetException(ctx);
-      ret = JS_UNDEFINED;
+      ret = JS_GetException(ctx);
+      // ret = JS_UNDEFINED;
     }
   }
   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE) {
@@ -785,8 +790,7 @@ main(int argc, char** argv) {
           len++;
       }
 
-      if(vector_finds(&module_debug, "modules") != -1)
-        debug_module_loader = TRUE;
+      debug_module_loader = vector_counts(&module_debug, "modules");
     }
   }
 
@@ -857,8 +861,8 @@ main(int argc, char** argv) {
 
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
-#define jsm_builtin_compiled(name)                                                                                                                                                                                                             \
-  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                                                                                                                     \
+#define jsm_builtin_compiled(name)                                                                                                                   \
+  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                           \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
@@ -897,6 +901,7 @@ main(int argc, char** argv) {
       vector_foreach_t(&module_list, name) {
         if(!(m = js_module_import_namespace(ctx, *name, 0))) {
           fprintf(stderr, "error loading module '%s'\n", *name);
+          jsm_dump_error(ctx);
           exit(1);
         }
         free(*name);
@@ -933,14 +938,8 @@ main(int argc, char** argv) {
     js_std_loop(ctx);
   }
 
-  {
-
-    JSValue exception = JS_GetException(ctx);
-
-    if(!JS_IsNull(exception)) {
-      jsm_dump_error(ctx);
-    }
-  }
+  if(!JS_IsNull(ctx->rt->current_exception))
+    jsm_dump_error(ctx);
 
   if(dump_memory) {
     JSMemoryUsage stats;

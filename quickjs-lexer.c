@@ -239,7 +239,7 @@ static JSClassDef js_syntaxerror_class = {
 };
 
 static const JSCFunctionListEntry js_syntaxerror_proto_funcs[] = {
-    JS_CGETSET_ENUMERABLE_DEF("loc", js_syntaxerror_get, 0, SYNTAXERROR_PROP_LOC),
+    JS_CGETSET_MAGIC_DEF("loc", js_syntaxerror_get, 0, SYNTAXERROR_PROP_LOC),
     JS_CGETSET_ENUMERABLE_DEF("message", js_syntaxerror_get, 0, SYNTAXERROR_PROP_MESSAGE),
     JS_CFUNC_DEF("toString", 0, js_syntaxerror_tostring),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyntaxError", JS_PROP_CONFIGURABLE),
@@ -1266,7 +1266,8 @@ js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   InputBuffer input = js_input_chars(ctx, argv[0]);
   DynBuf output;
   js_dbuf_init(ctx, &output);
-  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred) : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
+  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred)
+        : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
   return dbuf_tostring_free(&output, ctx);
 }
 

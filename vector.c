@@ -82,6 +82,21 @@ vector_finds(const Vector* vec, const char* str) {
   return -1;
 }
 
+int
+vector_counts(const Vector* vec, const char* str) {
+  char** x;
+  int count = 0;
+
+  if(vector_empty(vec))
+    return 0;
+
+  vector_foreach_t(vec, x) {
+    if(!strcmp(*x, str))
+      ++count;
+  }
+  return count;
+}
+
 void*
 vector_put(Vector* vec, const void* bytes, size_t len) {
   size_t pos;

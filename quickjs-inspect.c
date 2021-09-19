@@ -19,7 +19,11 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
-#define INSPECT_IS_COMPACT(opts) ((opts)->compact == INT32_MAX ? TRUE : INSPECT_INT32T_INRANGE((opts)->compact) ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) : 0)
+#define INSPECT_IS_COMPACT(opts)                                                                                                                     \
+  ((opts)->compact == INT32_MAX ? TRUE                                                                                                               \
+   : INSPECT_INT32T_INRANGE((opts)->compact)                                                                                                         \
+       ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact)                                    \
+       : 0)
 
 typedef struct {
   int colors : 1;
@@ -739,7 +743,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       vector_init(&propenum_tab, ctx);
 
-      if(js_object_getpropertynames_recursive(ctx, &propenum_tab, opts->proto_chain ? JS_GetPrototype(ctx, value) : value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+      if(js_object_getpropertynames_recursive(ctx,
+                                              &propenum_tab,
+                                              opts->proto_chain ? JS_GetPrototype(ctx, value) : value,
+                                              JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(is_function) {
@@ -855,7 +862,12 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
               js_inspect_print(ctx, buf, v, opts, depth - 1);
               JS_FreeValue(ctx, v);
             } else
-              dbuf_put_colorstr(buf, JS_IsUndefined(desc.getter) ? "[Setter]" : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]", COLOR_MARINE, opts->colors);
+              dbuf_put_colorstr(buf,
+                                JS_IsUndefined(desc.getter)   ? "[Setter]"
+                                : JS_IsUndefined(desc.setter) ? "[Getter]"
+                                                              : "[Getter/Setter]",
+                                COLOR_MARINE,
+                                opts->colors);
           } else {
 
             if(JS_IsObject(desc.value) && js_object_tmpmark_isset(desc.value))
@@ -871,7 +883,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
 
       if(!compact && len && opts->break_length != INT32_MAX)
         inspect_newline(buf, INSPECT_LEVEL(opts));
-      dbuf_putstr(buf, (is_array || is_typedarray) ? ((compact || opts->break_length == INT32_MAX) && len ? " ]" : "]") : (compact && len ? " }" : "}"));
+      dbuf_putstr(buf,
+                  (is_array || is_typedarray) ? ((compact || opts->break_length == INT32_MAX) && len ? " ]" : "]") : (compact && len ? " }" : "}"));
 
     end_obj:
       if(!vector_empty(&propenum_tab))

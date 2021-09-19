@@ -920,7 +920,16 @@ const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
   const char* const types[] = {
-      "UNDEFINED", "0", "BOOL", "INT", "OBJECT", "STRING", "SYMBOL", "BIG_FLOAT", "BIG_INT", "BIG_DECIMAL", "FLOAT64", "NAN", "FUNCTION", "ARRAY", "MODULE", "FUNCTION_BYTECODE", "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION",
+      "UNDEFINED",     "0",
+      "BOOL",          "INT",
+      "OBJECT",        "STRING",
+      "SYMBOL",        "BIG_FLOAT",
+      "BIG_INT",       "BIG_DECIMAL",
+      "FLOAT64",       "NAN",
+      "FUNCTION",      "ARRAY",
+      "MODULE",        "FUNCTION_BYTECODE",
+      "UNINITIALIZED", "CATCH_OFFSET",
+      "EXCEPTION",
   };
   if(flag >= 0 && flag < countof(types))
     return types[flag];

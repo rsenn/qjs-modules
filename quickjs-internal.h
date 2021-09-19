@@ -88,7 +88,17 @@ enum JSClassIds {
   JS_CLASS_INIT_COUNT, /* last entry for predefined classes */
 };
 
-typedef enum JSErrorEnum { JS_EVAL_ERROR, JS_RANGE_ERROR, JS_REFERENCE_ERROR, JS_SYNTAX_ERROR, JS_TYPE_ERROR, JS_URI_ERROR, JS_INTERNAL_ERROR, JS_AGGREGATE_ERROR, JS_NATIVE_ERROR_COUNT } JSErrorEnum;
+typedef enum JSErrorEnum {
+  JS_EVAL_ERROR,
+  JS_RANGE_ERROR,
+  JS_REFERENCE_ERROR,
+  JS_SYNTAX_ERROR,
+  JS_TYPE_ERROR,
+  JS_URI_ERROR,
+  JS_INTERNAL_ERROR,
+  JS_AGGREGATE_ERROR,
+  JS_NATIVE_ERROR_COUNT
+} JSErrorEnum;
 
 typedef enum OPCodeEnum OPCodeEnum;
 
@@ -306,7 +316,8 @@ struct JSContext {
   /* if NULL, RegExp compilation is not supported */
   JSValue (*compile_regexp)(JSContext* ctx, JSValueConst pattern, JSValueConst flags);
   /* if NULL, eval is not supported */
-  JSValue (*eval_internal)(JSContext* ctx, JSValueConst this_obj, const char* input, size_t input_len, const char* filename, int flags, int scope_idx);
+  JSValue (*eval_internal)(
+      JSContext* ctx, JSValueConst this_obj, const char* input, size_t input_len, const char* filename, int flags, int scope_idx);
   void* user_opaque;
 };
 
