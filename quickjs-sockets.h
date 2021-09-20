@@ -1,9 +1,11 @@
 #ifndef QUICKJS_SOCKETS_H
 #define QUICKJS_SOCKETS_H
 
-#include "utils.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <quickjs.h>
+
+#include "utils.h"
 
 typedef union {
   uint16_t family;
@@ -52,10 +54,6 @@ enum SocketCalls {
 #define socket_open(sock) ((sock).fd >= 0 && !socket_closed(sock))
 #define socket_error(sock) ((sock).ret < 0 && (sock).error)
 #define socket_syscall(sock) socket_syscalls[(sock).syscall]
-
-JSValue js_socket_new_proto(JSContext*, JSValue, int fd);
-JSValue js_socket_new(JSContext*, int);
-JSValue js_socket_constructor(JSContext*, JSValue, int argc, JSValue argv[]);
 
 static inline int
 sockaddr_port(const SockAddr* sa) {

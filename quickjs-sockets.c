@@ -21,13 +21,13 @@ extern const uint8_t qjsm_socklen_t[1030];
 
 #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, result), on_fail)
 
-#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail)                                                                          \
-  do {                                                                                                                                               \
-    sock.ret = result;                                                                                                                               \
-    sock.syscall = syscall_no;                                                                                                                       \
-    sock.error = sock.ret < 0 ? errno : 0;                                                                                                           \
-    ret = sock.ret < 0 ? on_fail : on_success;                                                                                                       \
-    JS_SetOpaque(this_val, sock.ptr);                                                                                                                \
+#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail) \
+  do { \
+    sock.ret = result; \
+    sock.syscall = syscall_no; \
+    sock.error = sock.ret < 0 ? errno : 0; \
+    ret = sock.ret < 0 ? on_fail : on_success; \
+    JS_SetOpaque(this_val, sock.ptr); \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
@@ -667,7 +667,7 @@ static const JSCFunctionListEntry js_sockets_funcs[] = {
 
 };
 
-JSValue
+static JSValue
 js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd) {
   JSValue obj;
   Socket sock = {fd, 0, 0, -1};
@@ -690,7 +690,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-JSValue
+static JSValue
 js_socket_new(JSContext* ctx, int sock) {
   if(js_socket_class_id == 0)
     js_sockets_init(ctx, 0);
@@ -718,7 +718,7 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case SOCKET_FD: {
-      ret = JS_NewUint32(ctx, sock.fd);
+      ret = JS_NewInt32(ctx, (int16_t)sock.fd);
       break;
     }
     case SOCKET_OPEN: {
@@ -1014,7 +1014,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return ret;
 }
 
-JSValue
+static JSValue
 js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
@@ -1047,12 +1047,13 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   Socket sock = js_socket_data2(ctx, this_val);
 
   JSValue obj = /*JS_NewObject(ctx); //*/ JS_NewObjectProto(ctx, socket_proto);
-  JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewUint32(ctx, sock.fd), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewInt32(ctx, (int16_t)sock.fd), JS_PROP_ENUMERABLE);
   if(sock.ret >= 0) {
     JS_DefinePropertyValueStr(ctx, obj, "ret", JS_NewUint32(ctx, sock.ret), JS_PROP_ENUMERABLE);
   } else {
     const char* syscall = socket_syscall(sock);
     JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "error", JS_NewString(ctx, strerror(sock.error)), JS_PROP_ENUMERABLE);
     // JS_DefinePropertyValueStr(ctx, obj, "error", js_syscallerror_new(ctx,
     // syscall, sock.error), JS_PROP_ENUMERABLE);
   }
@@ -1069,7 +1070,7 @@ js_socket_valueof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   JSValue value;
   if(id == js_socket_class_id) {
     Socket sock = js_socket_data(this_val);
-    fd = sock.fd;
+    fd = (int16_t)sock.fd;
   } else if(JS_IsNumber((value = JS_GetProperty(ctx, this_val, "fd")))) {
     JS_ToInt32(ctx, &fd, value);
     JS_FreeValue(ctx, value);
@@ -1077,7 +1078,7 @@ js_socket_valueof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return JS_NewInt32(ctx, fd);
 }
 
-void
+static void
 js_socket_finalizer(JSRuntime* rt, JSValue val) {
   Socket sock = js_socket_data(val);
 
@@ -1317,6 +1318,7 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
     JS_CONSTANT(POLLWRNORM),
     JS_CONSTANT(O_ASYNC),
     JS_CONSTANT(O_NONBLOCK),
+    JS_CONSTANT(EAGAIN),
 };
 
 int
