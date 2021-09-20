@@ -290,8 +290,8 @@ js_object_getpropertynames_recursive(JSContext* ctx, union Vector* propenum_tab,
     if(!JS_IsObject(proto))
       break;
 
-obj = proto;
-//      ret = js_object_getpropertynames_recursive(ctx, propenum_tab, proto, flags);
+    obj = proto;
+    //      ret = js_object_getpropertynames_recursive(ctx, propenum_tab, proto, flags);
   }
 
   return ret;
@@ -746,11 +746,12 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       js_cstring_free(ctx, s);
 
       vector_init(&propenum_tab, ctx);
-      //printf("proto_chain: %i\n", opts->proto_chain);
-      if((opts->proto_chain ? js_object_getpropertynames_recursive : js_object_getpropertynames)(ctx,
-                                              &propenum_tab,
-                                              opts->proto_chain > 0 ? JS_GetPrototype(ctx, value) : value,
-                                              JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+      // printf("proto_chain: %i\n", opts->proto_chain);
+      if((opts->proto_chain ? js_object_getpropertynames_recursive
+                            : js_object_getpropertynames)(ctx,
+                                                          &propenum_tab,
+                                                          opts->proto_chain > 0 ? JS_GetPrototype(ctx, value) : value,
+                                                          JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(is_function) {

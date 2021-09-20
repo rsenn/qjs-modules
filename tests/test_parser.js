@@ -781,7 +781,7 @@ function main(...args) {
   let type = path.extname(file).substring(1);
 
   let grammar = null; //LoadScript(outputFile);
- 
+
   let parser = new EBNFParser(grammar);
 
   parser.setInput(str, file);

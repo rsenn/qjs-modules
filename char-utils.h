@@ -207,6 +207,23 @@ str_ends(const char* a, const char* b) {
   return str_endb(a, b, strlen(b));
 }
 
+static inline int
+str_startb(const char* a, const char* x, size_t len) {
+  size_t i;
+  for(i = 0;; i++) {
+    if(i == len)
+      return 1;
+    if(a[i] != x[i])
+      break;
+  }
+  return 0;
+}
+
+static inline int
+str_start(const char* a, const char* b) {
+  return str_startb(a, b, strlen(b));
+}
+
 #define str_contains(s, needle) (!!strchr((s), (needle)))
 
 char* str_escape(const char*);

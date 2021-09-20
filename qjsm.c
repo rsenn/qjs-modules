@@ -140,15 +140,15 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   JSModuleDef* ret = 0;
   module = js_strdup(ctx, trim_dotslash(name));
   for(;;) {
-    if(!strchr(module, '/') && (ret = js_module_find(ctx, module))) {
-      goto end;
-    }
     if(debug_module_loader > 1) {
       if(file)
-        printf("jsm_module_loader[%x] \x1b[48;5;220m(1)\x1b[0m %-30s '%s'\n", pthread_self(), trim_dotslash(name), file);
+        printf("\x1b[48;5;214m(1)\x1b[0m %-30s '%s'\n", name, file);
       /*  else  printf("jsm_module_loader[%x] \x1b[48;5;124m(1)\x1b[0m %-20s ->
        * %s\n", pthread_self(), trim_dotslash(name), trim_dotslash(module));*/
     }
+    if(!strchr(module, '/') && (ret = js_module_find(ctx, module)))
+      goto end;
+
     if(!has_suffix(name, ".so") && !file) {
       JSValue package = jsm_load_package(ctx, 0);
       if(!JS_IsNull(package)) {
@@ -163,7 +163,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
           const char* str = JS_ToCString(ctx, target);
           if(str) {
             if(debug_module_loader)
-              printf("jsm_module_loader[%x] \x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", pthread_self(), module, str);
+              printf("\x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", module, str);
 
             js_free(ctx, module);
 
@@ -186,7 +186,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   if(file) {
     if(debug_module_loader)
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
-        printf("jsm_module_loader[%x] \x1b[48;5;21m(3)\x1b[0m %-30s -> %s (%s)\n", pthread_self(), module, file);
+        printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
 
     if(has_suffix(file, ".so"))
       ret = js_module_loader_so(ctx, file);

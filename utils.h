@@ -907,6 +907,8 @@ JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);
 void js_free_message(JSWorkerMessage*);
 void js_free_message_pipe(JSWorkerMessagePipe*);
 
+void js_error_dump(JSContext*, JSValue, DynBuf* db);
+char* js_error_tostring(JSContext*, JSValue);
 void js_error_print(JSContext*, JSValue);
 
 #endif /* defined(UTILS_H) */

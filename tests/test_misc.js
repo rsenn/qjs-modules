@@ -52,7 +52,7 @@ function main(...args) {
     console.log('getModuleFunction(mod)', modfn);
     let bc = writeObject(mod);
     console.log('misc.writeObject(mod)', bc);
-      let fbc = writeObject(modfn);
+    let fbc = writeObject(modfn);
     console.log('misc.writeObject(modfn)', fbc);
     let opcodes = getOpCodes(true);
 
@@ -72,10 +72,10 @@ function main(...args) {
         console.log(i.toString(16).padStart(8, '0') + ': ', toHex(code), opcode.name.padEnd(32), ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n)));
       }
     } catch(e) {}
-    
+
     console.log('ba.length', toHex(ba.length));
     console.log('misc.opcodes', opcodes);
-/*    console.log('misc.resizeArrayBuffer()', resizeArrayBuffer(fnbc, 100));*/
+    /*    console.log('misc.resizeArrayBuffer()', resizeArrayBuffer(fnbc, 100));*/
     let max;
 
     console.log('valueToAtom()', (max = valueToAtom('BLAH XXXX')));

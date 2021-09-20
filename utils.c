@@ -2058,17 +2058,58 @@ js_free_message_pipe(JSWorkerMessagePipe* ps) {
 }
 
 void
+js_error_dump(JSContext* ctx, JSValueConst error, DynBuf* db) {
+  char *str, *stack = 0;
+  if(JS_IsObject(error)) {
+    JSValue st = JS_GetPropertyStr(ctx, error, "stack");
+    if(!JS_IsUndefined(st))
+      stack = JS_ToCString(ctx, st);
+    JS_FreeValue(ctx, st);
+  }
+  if((str = JS_ToCString(ctx, error))) {
+    const char* type = JS_IsObject(error) ? js_object_classname(ctx, error) : js_value_typestr(ctx, error);
+
+    if(!str_start(str, type)) {
+      dbuf_putstr(db, type);
+      dbuf_putstr(db, ": ");
+    }
+    dbuf_putstr(db, str);
+    dbuf_putc(db, '\n');
+    if(stack) {
+      dbuf_putstr(db, "STACK\n");
+      dbuf_putstr(db, stack);
+      dbuf_putc(db, '\n');
+    }
+    dbuf_0(db);
+  }
+  if(stack)
+    JS_FreeCString(ctx, stack);
+  JS_FreeCString(ctx, str);
+}
+
+char*
+js_error_tostring(JSContext* ctx, JSValueConst error) {
+  DynBuf db;
+  js_dbuf_init(ctx, &db);
+  js_error_dump(ctx, error, &db);
+  return db.buf;
+}
+
+void
 js_error_print(JSContext* ctx, JSValueConst error) {
   char *str, *stack = 0;
 
   if(JS_IsObject(error)) {
     JSValue st = JS_GetPropertyStr(ctx, error, "stack");
-    stack = JS_ToCString(ctx, st);
+
+    if(!JS_IsUndefined(st))
+      stack = JS_ToCString(ctx, st);
+
     JS_FreeValue(ctx, st);
   }
 
   if((str = JS_ToCString(ctx, error))) {
-    printf("%s: %s\n", js_value_typestr(ctx, error), str);
+    printf("%s: %s\n", JS_IsObject(error) ? js_object_classname(ctx, error) : js_value_typestr(ctx, error), str);
     if(stack)
       printf("STACK=\n%s\n", stack);
     fflush(stdout);
