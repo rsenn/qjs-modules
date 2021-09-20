@@ -83,28 +83,12 @@ void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
 
 static void
 jsm_dump_error(JSContext* ctx) {
-  JSRuntime* rt = JS_GetRuntime(ctx);
-  JSValue error = rt->current_exception; // JS_GetException(ctx);
-  printf("qjsm: current_exception 0x%08x\n", offsetof(JSRuntime, current_exception));
-  printf("qjsm: sizeof(struct list_head) 0x%08x\n", sizeof(struct list_head));
+  /*JSRuntime* rt = JS_GetRuntime(ctx);
+  JSValue error = rt->current_exception;*/
+  /*printf("qjsm: current_exception 0x%08x\n", offsetof(JSRuntime, current_exception));
+  printf("qjsm: sizeof(struct list_head) 0x%08x\n", sizeof(struct list_head));*/
 
-  char *str, *stack = 0;
-
-  if(JS_IsObject(error)) {
-    JSValue st = JS_GetPropertyStr(ctx, error, "stack");
-    stack = JS_ToCString(ctx, st);
-    JS_FreeValue(ctx, st);
-  }
-
-  if((str = JS_ToCString(ctx, error))) {
-    printf("%s: %s\n", js_value_typestr(ctx, error), str);
-    if(stack)
-      printf("STACK=\n%s\n", stack);
-    fflush(stdout);
-  }
-  if(stack)
-    JS_FreeCString(ctx, stack);
-  JS_FreeCString(ctx, str);
+  js_error_print(ctx, JS_GetException(ctx));
 }
 
 static int debug_module_loader = 0;
@@ -113,6 +97,25 @@ static Vector module_list = VECTOR_INIT();
 static Vector builtins = VECTOR_INIT();
 
 JSValue package_json;
+
+static JSValue
+eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
+  JSValue val;
+
+  if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
+    /* for the modules, we compile then run to be able to set import.meta */
+    val = JS_Eval(ctx, buf, buf_len, filename, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    if(!JS_IsException(val)) {
+      js_module_set_import_meta(ctx, val, TRUE, TRUE);
+      val = JS_EvalFunction(ctx, val);
+    }
+  } else {
+    val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
+  }
+  if(JS_IsException(val))
+    jsm_dump_error(ctx);
+  return val;
+}
 
 static JSValue
 jsm_load_package(JSContext* ctx, const char* file) {
@@ -207,13 +210,15 @@ jsm_eval_file(JSContext* ctx, const char* file, int module) {
   size_t len;
   int flags;
 
-  if(!(buf = js_load_file(ctx, &len, file)))
+  buf = js_load_file(ctx, &len, file);
+  if(!buf) {
     return JS_ThrowInternalError(ctx, "Failed loading '%s': %s", file, strerror(errno));
+  }
 
   if(module < 0)
     module = (has_suffix(file, ".mjs") || JS_DetectModule((const char*)buf, len));
   flags = module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
-  return js_eval_buf(ctx, buf, len, file, flags);
+  return eval_buf(ctx, buf, len, file, flags);
 }
 
 static int
@@ -475,7 +480,7 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case 1: {
-      ret = js_eval_buf(ctx, str, len, "<input>", module);
+      ret = eval_buf(ctx, str, len, "<input>", module);
       break;
     }
   }

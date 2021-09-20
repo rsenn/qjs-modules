@@ -3,8 +3,9 @@ import * as std from 'std';
 import { Console } from 'console';
 import { Location } from 'misc';
 import { extendArray } from 'util';
-import { JS_EVAL_FLAG_COMPILE_ONLY, toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
+import { JS_EVAL_FLAG_COMPILE_ONLY, JS_EVAL_TYPE_MODULE, JS_EVAL_TYPE_GLOBAL, toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
 import * as fs from 'fs';
+import * as path from 'path';
 
 ('use strict');
 ('use math');
@@ -41,7 +42,11 @@ function main(...args) {
   console.log('misc.btoa()', s);
   console.log('misc.atob()', atob(s));
   try {
-    let mod = compileScript('lib/fs.js', JS_EVAL_FLAG_COMPILE_ONLY);
+    console.log('process.argv[1]', process.argv[1]);
+    let script = path.join(path.dirname(process.argv[1]), '..', 'lib/fs.js');
+    console.log('script', script);
+
+    let mod = compileScript(script, JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_TYPE_MODULE);
     console.log('misc.compileScript()', mod);
     let modfn = getModuleFunction(mod);
     console.log('getModuleFunction(mod)', modfn);
@@ -109,7 +114,7 @@ console.log("i =",i);
     let arr = bitfieldToArray(bits, 0);
     console.log('bitfield', { bits, arr });
   } catch(error) {
-    console.error(error);
+    console.log('ERROR', error + '', '\n' + error.stack);
   }
   function toHex(num) {
     let r = num.toString(16);

@@ -493,6 +493,8 @@ js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     if(is_mod && !(flags & JS_EVAL_FLAG_COMPILE_ONLY)) {
       ret = JS_EvalFunction(ctx, ret);
     }
+  } else {
+    ret = JS_ThrowReferenceError(ctx, "could not load '%s': %s", file, strerror(errno));
   }
   return ret;
 }

@@ -1,7 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
-import inspect from 'inspect';
 import * as path from 'path';
+import inspect from 'inspect';
 import { Predicate } from 'predicate';
 import { Location, Lexer, Token, SyntaxError } from 'lexer';
 import Console from '../lib/console.js';
@@ -766,10 +766,11 @@ function main(...args) {
   TestRegExp('\b');
   TestRegExp('\\b');*/
 
-  let file = args[optind] ?? 'tests/Shell-Grammar.y';
+  let file = args[optind] ?? path.join(path.dirname(process.argv[1]), '..', 'tests/Shell-Grammar.y');
   let outputFile = args[optind + 1] ?? 'grammar.kison';
   console.log('file:', file);
   let str = std.loadFile(file, 'utf-8');
+  console.log('str:', str);
   let len = str.length;
   let type = path.extname(file).substring(1);
 

@@ -1904,21 +1904,21 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
 }
 
 JSValue
-js_eval_buf(JSContext* ctx, const char* buf, int len, const char* file, int flags) {
-  JSValue val = JS_UNDEFINED;
-  if(flags & JS_EVAL_TYPE_MODULE) {
+js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
+  JSValue val;
+
+  if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set import.meta */
-    val = JS_Eval(ctx, buf, len, file, flags | JS_EVAL_FLAG_COMPILE_ONLY);
-    if(JS_IsException(val)) {
-      if(JS_IsNull(JS_GetRuntime(ctx)->current_exception))
-        JS_GetException(ctx);
-      return JS_UNDEFINED;
+    val = JS_Eval(ctx, buf, buf_len, filename, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    if(!JS_IsException(val)) {
+      js_module_set_import_meta(ctx, val, TRUE, TRUE);
+      val = JS_EvalFunction(ctx, val);
     }
-    js_module_set_import_meta(ctx, val, FALSE, TRUE);
-    /*val =*/JS_EvalFunction(ctx, val);
   } else {
-    val = JS_Eval(ctx, buf, len, file, flags & (~(JS_EVAL_TYPE_MODULE)));
+    val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
+  if(JS_IsException(val))
+    jsm_dump_error(ctx);
   return val;
 }
 
@@ -2055,4 +2055,25 @@ js_free_message_pipe(JSWorkerMessagePipe* ps) {
     close(ps->write_fd);
     free(ps);
   }
+}
+
+void
+js_error_print(JSContext* ctx, JSValueConst error) {
+  char *str, *stack = 0;
+
+  if(JS_IsObject(error)) {
+    JSValue st = JS_GetPropertyStr(ctx, error, "stack");
+    stack = JS_ToCString(ctx, st);
+    JS_FreeValue(ctx, st);
+  }
+
+  if((str = JS_ToCString(ctx, error))) {
+    printf("%s: %s\n", js_value_typestr(ctx, error), str);
+    if(stack)
+      printf("STACK=\n%s\n", stack);
+    fflush(stdout);
+  }
+  if(stack)
+    JS_FreeCString(ctx, stack);
+  JS_FreeCString(ctx, str);
 }

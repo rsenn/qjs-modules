@@ -884,9 +884,9 @@ JSModuleDef* js_module_import_namespace(JSContext*, const char*, const char* ns)
 JSValue js_module_import(JSContext*, const char*, const char* ns, const char* var, const char* prop);
 JSModuleDef* js_module_loader_so(JSContext*, const char*);
 
-JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
+JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
-JSValue js_eval_buf(JSContext*, const char*, int len, const char* file, int flags);
+JSValue js_eval_buf(JSContext*, const void*, int buf_len, const char* filename, int eval_flags);
 int js_eval_str(JSContext*, const char*, const char* file, int flags);
 
 int64_t js_time_ms(void);
@@ -903,6 +903,10 @@ void js_sab_dup(void*, void*);
 
 JSWorkerMessagePipe* js_new_message_pipe(void);
 JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);
+
 void js_free_message(JSWorkerMessage*);
 void js_free_message_pipe(JSWorkerMessagePipe*);
+
+void js_error_print(JSContext*, JSValue);
+
 #endif /* defined(UTILS_H) */

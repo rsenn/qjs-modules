@@ -145,6 +145,10 @@ vector_at(const Vector* vec, size_t elsz, int32_t pos) {
 
 static inline void*
 vector_default_realloc(void* opaque, void* ptr, size_t size) {
+  if(size == 0) {
+    free(ptr);
+    return 0;
+  }
   return realloc(ptr, size);
 }
 

@@ -72,7 +72,7 @@ function main(...args) {
   //str = '  return new Map(ret.map(([name, description]) => [name, { url: `https://github.com/${user}/${name}`, description }]));';
   let len = str.length;
   let type = path.extname(file).substring(1);
-  console.log('file:', file, str.slice(0,100));
+  console.log('file:', file, str.slice(0, 100));
 
   let lex = {
     js: new JSLexer(str, file),
@@ -167,7 +167,7 @@ function main(...args) {
   for(;;) {
     let newState, state;
     let { stateDepth } = lexer;
-      state = lexer.topState();
+    state = lexer.topState();
     let { done, value } = lexer.next();
     if(done) break;
     newState = lexer.topState();
@@ -197,7 +197,7 @@ function main(...args) {
   let end = Date.now();
 
   console.log(`took ${end - start}ms`);
-  console.log('lexer',lexer);
+  console.log('lexer', lexer);
   /*console.log('lexer.tokens', lexer.tokens);
   // console.log('lexer.rules', new Map(lexer.ruleNames.map(name => lexer.getRule(name)).map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])));
   console.log(`lexer.topState()`, lexer.topState());
