@@ -83,12 +83,27 @@ void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
 
 static void
 jsm_dump_error(JSContext* ctx) {
-  JSValue error = JS_GetException(ctx);
-  char* str;
+  JSRuntime* rt = JS_GetRuntime(ctx);
+  JSValue error = rt->current_exception; // JS_GetException(ctx);
+  printf("qjsm: current_exception 0x%08x\n", offsetof(JSRuntime, current_exception));
+  printf("qjsm: sizeof(struct list_head) 0x%08x\n", sizeof(struct list_head));
+
+  char *str, *stack = 0;
+
+  if(JS_IsObject(error)) {
+    JSValue st = JS_GetPropertyStr(ctx, error, "stack");
+    stack = JS_ToCString(ctx, st);
+    JS_FreeValue(ctx, st);
+  }
+
   if((str = JS_ToCString(ctx, error))) {
-    printf("ERROR: %s\n", str);
+    printf("%s: %s\n", js_value_typestr(ctx, error), str);
+    if(stack)
+      printf("STACK=\n%s\n", stack);
     fflush(stdout);
   }
+  if(stack)
+    JS_FreeCString(ctx, stack);
   JS_FreeCString(ctx, str);
 }
 
@@ -168,9 +183,9 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
         printf("jsm_module_loader[%x] \x1b[48;5;21m(3)\x1b[0m %-30s -> %s (%s)\n", pthread_self(), module, file);
 
-   if(has_suffix(file, ".so"))
+    if(has_suffix(file, ".so"))
       ret = js_module_loader_so(ctx, file);
-    else 
+    else
       ret = js_module_loader(ctx, file, opaque);
   }
 end:
@@ -502,7 +517,17 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   if(magic >= GET_MODULE_NAME) {
     if(!(def = js_module_def(ctx, argv[0])))
-      return JS_ThrowTypeError(ctx, "argument 1 expecting module");
+      return JS_ThrowTypeError(ctx,
+                               "%s: argument 1 expecting module",
+                               ((const char* const[]){
+                                   "getModuleName",
+                                   "getModuleObject",
+                                   "getModuleExports",
+                                   "getModuleNamespace",
+                                   "getModuleFunction",
+                                   "getModuleException",
+                                   "getModuleMetaObject",
+                               })[magic - 3]);
   } else {
     name = JS_ToCString(ctx, argv[0]);
   }

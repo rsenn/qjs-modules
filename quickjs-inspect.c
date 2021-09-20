@@ -530,8 +530,9 @@ js_inspect_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
 
   const char* str;
   size_t pos, len, max_len, limit, column_start = (INSPECT_LEVEL(opts) * 2);
+  int col = dbuf_get_column(buf);
   str = JS_ToCStringLen(ctx, &len, value);
-  max_len = min_size(opts->break_length - dbuf_get_column(buf) - 10, len);
+  max_len = min_size(opts->break_length - col - 10, len);
 
   if(tag != JS_TAG_SYMBOL && opts->colors)
     dbuf_putstr(buf, COLOR_GREEN);

@@ -3,7 +3,7 @@ import * as std from 'std';
 import { Console } from 'console';
 import { Location } from 'misc';
 import { extendArray } from 'util';
-import { toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
+import { JS_EVAL_FLAG_COMPILE_ONLY, toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
 import * as fs from 'fs';
 
 ('use strict');
@@ -41,16 +41,16 @@ function main(...args) {
   console.log('misc.btoa()', s);
   console.log('misc.atob()', atob(s));
   try {
-    let mod = compileScript('lib/fs.js', true);
+    let mod = compileScript('lib/fs.js', JS_EVAL_FLAG_COMPILE_ONLY);
+    console.log('misc.compileScript()', mod);
     let modfn = getModuleFunction(mod);
+    console.log('getModuleFunction(mod)', modfn);
     let bc = writeObject(mod);
+    console.log('misc.writeObject(mod)', bc);
     let fbc = writeObject(modfn);
+    console.log('misc.writeObject(modfn)', fbc);
     let opcodes = getOpCodes(true);
 
-    console.log('misc.compileScript()', mod);
-    console.log('getModuleFunction(mod)', modfn);
-    console.log('misc.writeObject(mod)', bc);
-    console.log('misc.writeObject(modfn)', fbc);
     //fs.writeFileSync('bytecode.bin', bc);
     console.log('misc.readObject()', readObject(bc));
     let fnbc = getByteCode(main);

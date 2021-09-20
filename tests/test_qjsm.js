@@ -1,7 +1,12 @@
 import { inspect, format, formatWithOptions } from 'util';
 import util from 'util';
+import Console from '../lib/console.js';
 
 function main(...args) {
+  globalThis.console = new Console({
+    inspectOptions: { colors: true, depth: 1, compact: Infinity }
+  });
+
   //console.log('console.options:', console.options);
 
   console.log('format:', format);

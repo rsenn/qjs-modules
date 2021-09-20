@@ -68,6 +68,7 @@ static inline void
 dbuf_zero(DynBuf* db) {
   dbuf_realloc(db, 0);
 }
+
 static inline int32_t
 dbuf_get_column(DynBuf* db) {
   size_t len;

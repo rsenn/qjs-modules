@@ -7,9 +7,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#if 1 // def HAVE_QUICKJS_CONFIG_H
 #include <quickjs-config.h>
-#endif
+
 #ifdef CONFIG_BIGNUM
 #include "libbf.h"
 #endif
@@ -149,8 +148,9 @@ typedef struct JSRuntime {
 #ifdef DUMP_LEAKS
   struct list_head string_list;
 #endif
-  const uint8_t* stack_top;
-  size_t stack_size;
+  uintptr_t stack_size;
+  uintptr_t stack_top;
+  uintptr_t stack_limit;
   JSValue current_exception;
   BOOL in_out_of_memory : 8;
   struct JSStackFrame* current_stack_frame;
