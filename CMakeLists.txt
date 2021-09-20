@@ -243,12 +243,14 @@ file(GLOB TESTS_SOURCES tests/test_*.js)
 list(FILTER TESTS_SOURCES EXCLUDE REGEX "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
+set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
+
 include(CTest)
 
 foreach(TEST_SOURCE ${TESTS_SOURCES})
   file(RELATIVE_PATH TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}" "${TEST_SOURCE}")
   basename(TEST_NAME ${TEST_SOURCE} .js)
-  add_test(NAME "${TEST_NAME}" COMMAND qjsm --bignum "${TEST_SOURCE}"
+  add_test(NAME "${TEST_NAME}" COMMAND ${QJSM} --bignum "${TEST_SOURCE}"
            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
