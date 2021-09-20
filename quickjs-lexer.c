@@ -1408,7 +1408,10 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JS_DefinePropertyValueStr(ctx, obj, "bytelen", JS_NewUint32(ctx, lex->byte_length), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "tokid", JS_NewInt32(ctx, lex->token_id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "state", JS_NewInt32(ctx, lex->state), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "eof", JS_NewBool(ctx, input_buffer_eof(&lex->input)), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_new(ctx, &lex->loc), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "pos", JS_NewUint32(ctx, lex->input.pos), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "size", JS_NewUint32(ctx, lex->input.size), JS_PROP_ENUMERABLE);
 
   return obj;
 }
@@ -1461,7 +1464,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     // JS_CGETSET_DEF("stateStack", js_lexer_statestack, 0),
     // JS_ALIAS_DEF("position", "loc"),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_lexer_iterator),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_C_W_E),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_CONFIGURABLE),
 };
 
 static const JSCFunctionListEntry js_lexer_static_funcs[] = {

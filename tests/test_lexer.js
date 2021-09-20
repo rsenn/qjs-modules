@@ -69,10 +69,10 @@ function main(...args) {
   console.log(`Loading '${file}'...`);
 
   let str = file ? std.loadFile(file, 'utf-8') : code[1];
-  str = '  return new Map(ret.map(([name, description]) => [name, { url: `https://github.com/${user}/${name}`, description }]));';
+  //str = '  return new Map(ret.map(([name, description]) => [name, { url: `https://github.com/${user}/${name}`, description }]));';
   let len = str.length;
   let type = path.extname(file).substring(1);
-  console.log('file:', file);
+  console.log('file:', file, str.slice(0,100));
 
   let lex = {
     js: new JSLexer(str, file),
@@ -165,26 +165,20 @@ function main(...args) {
   let balancers = [balancer()];
 
   for(;;) {
+    let newState, state;
     let { stateDepth } = lexer;
-
-    let newState,
       state = lexer.topState();
-
     let { done, value } = lexer.next();
     if(done) break;
-
     newState = lexer.topState();
     tok = value;
-
     if(newState != state) {
       if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
-
       if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
     }
+
     //console.log('lexer.topState()', state);
-
     let n = balancers.last.depth;
-
     if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
       continue;
@@ -193,7 +187,7 @@ function main(...args) {
 
       if(n > 0 && balancers.last.depth == 0) console.log('balancer');
     }
-    //    console.log('loc', lexer.loc+'');
+    //console.log('loc', lexer.loc+'');
     //console.log('tok', tok);
 
     printTok(tok, lexer.topState());
@@ -203,7 +197,8 @@ function main(...args) {
   let end = Date.now();
 
   console.log(`took ${end - start}ms`);
-  console.log('lexer.tokens', lexer.tokens);
+  console.log('lexer',lexer);
+  /*console.log('lexer.tokens', lexer.tokens);
   // console.log('lexer.rules', new Map(lexer.ruleNames.map(name => lexer.getRule(name)).map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])));
   console.log(`lexer.topState()`, lexer.topState());
   console.log(`lexer.states `, lexer.states);
@@ -219,7 +214,7 @@ function main(...args) {
   console.log(`lexer.next() `, lexer.next());
   console.log(`lexer.next() `, lexer.next());
   console.log(`lexer.next() `, lexer.next());
-  console.log(`Location.count('blah\\nblah\\nblah\\nblah')`, Location.count('blah\nblah\nblah\nblah'));
+  console.log(`Location.count('blah\\nblah\\nblah\\nblah')`, Location.count('blah\nblah\nblah\nblah'));*/
 
   /*for(let j = 0; j < lexer.ruleNames.length; j++) {
     console.log(`lexer.rule[${j}]`, lexer.getRule(j));
