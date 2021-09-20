@@ -113,7 +113,9 @@ eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
   if(JS_IsException(val))
-    jsm_dump_error(ctx);
+    js_error_print(ctx, JS_GetRuntime(ctx)->current_exception);
+
+  jsm_dump_error(ctx);
   return val;
 }
 
@@ -480,7 +482,7 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case 1: {
-      ret = eval_buf(ctx, str, len, "<input>", module);
+      ret = eval_buf(ctx, str, len, 0, module);
       break;
     }
   }
@@ -896,7 +898,7 @@ main(int argc, char** argv) {
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
 #define jsm_builtin_compiled(name)                                                                                                                   \
-  js_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                           \
+  js_std_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                       \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
@@ -913,7 +915,7 @@ main(int argc, char** argv) {
 
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
-      js_eval_str(ctx, str, "<input>", JS_EVAL_TYPE_MODULE);
+      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 
     JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
@@ -924,7 +926,7 @@ main(int argc, char** argv) {
                         "= os;\nglobalThis.setTimeout = "
                         "os.setTimeout;\nglobalThis.clearTimeout = "
                         "os.clearTimeout;\n";
-      js_eval_str(ctx, str, "<input>", JS_EVAL_TYPE_MODULE);
+      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 
     // jsm_list_modules(ctx);
@@ -966,7 +968,7 @@ main(int argc, char** argv) {
       const char* str = "import REPL from 'repl'; globalThis.repl = new "
                         "REPL('qjsm').runSync();\n";
       js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
-      js_eval_str(ctx, str, "<input>", JS_EVAL_TYPE_MODULE);
+      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 
     js_std_loop(ctx);

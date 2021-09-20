@@ -1549,7 +1549,7 @@ js_import_eval(JSContext* ctx, ImportDirective imp) {
   js_dbuf_init(ctx, &buf);
   js_import_directive(ctx, imp, &buf);
   printf("js_import_eval: '%.*s'\n", buf.size, buf.buf);
-  return js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
+  return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
 }
 
 JSModuleDef*
@@ -1601,7 +1601,7 @@ js_module_import(JSContext* ctx, const char* path, const char* ns, const char* v
   dbuf_putc(&buf, ';');
   dbuf_0(&buf);
   printf("js_module_import: '%s'\n", buf.buf);
-  return js_eval_buf(ctx, buf.buf, buf.size, "<input>", JS_EVAL_TYPE_MODULE);
+  return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
 }
 
 JSModuleDef*
@@ -1909,16 +1909,16 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set import.meta */
-    val = JS_Eval(ctx, buf, buf_len, filename, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    val = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
-      js_module_set_import_meta(ctx, val, TRUE, TRUE);
+      js_module_set_import_meta(ctx, val, !!filename, TRUE);
       val = JS_EvalFunction(ctx, val);
     }
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
   if(JS_IsException(val))
-    jsm_dump_error(ctx);
+    js_error_print(ctx, JS_GetException(ctx));
   return val;
 }
 

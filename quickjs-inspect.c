@@ -211,8 +211,8 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
     JS_FreeValue(ctx, value);
   }
   value = JS_GetPropertyStr(ctx, object, "protoChain");
-  if(JS_IsNumber(value))
-    JS_ToInt32(ctx, &opts->proto_chain, value);
+  // if(JS_IsNumber(value))
+  JS_ToInt32(ctx, &opts->proto_chain, value);
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, object, "numberBase");
@@ -284,11 +284,14 @@ static int
 js_object_getpropertynames_recursive(JSContext* ctx, union Vector* propenum_tab, JSValueConst obj, int flags) {
   int ret;
 
-  if((ret = js_object_getpropertynames(ctx, propenum_tab, obj, flags)) >= 0) {
+  while((ret = js_object_getpropertynames(ctx, propenum_tab, obj, flags)) >= 0) {
     JSValue proto = JS_GetPrototype(ctx, obj);
 
-    if(JS_IsObject(proto))
-      ret = js_object_getpropertynames_recursive(ctx, propenum_tab, proto, flags);
+    if(!JS_IsObject(proto))
+      break;
+
+obj = proto;
+//      ret = js_object_getpropertynames_recursive(ctx, propenum_tab, proto, flags);
   }
 
   return ret;
@@ -743,10 +746,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       js_cstring_free(ctx, s);
 
       vector_init(&propenum_tab, ctx);
-
-      if(js_object_getpropertynames_recursive(ctx,
+      //printf("proto_chain: %i\n", opts->proto_chain);
+      if((opts->proto_chain ? js_object_getpropertynames_recursive : js_object_getpropertynames)(ctx,
                                               &propenum_tab,
-                                              opts->proto_chain ? JS_GetPrototype(ctx, value) : value,
+                                              opts->proto_chain > 0 ? JS_GetPrototype(ctx, value) : value,
                                               JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
@@ -764,10 +767,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         }
         JS_FreeValue(ctx, name);
         dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE : "]");
-        if(vector_size(&propenum_tab, sizeof(JSPropertyDescriptor)) && depth >= 0)
-          dbuf_putc(buf, ' ');
-        else
-          goto end_obj;
+        /*  if(vector_size(&propenum_tab, sizeof(JSPropertyDescriptor)) && depth >= 0)
+            dbuf_putc(buf, ' ');
+          else*/
+        goto end_obj;
       }
       if(depth < 0) {
         dbuf_put_colorstr(buf, is_array ? "[Array]" : "[Object]", COLOR_MARINE, opts->colors);

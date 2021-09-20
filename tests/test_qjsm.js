@@ -7,13 +7,13 @@ function main(...args) {
     inspectOptions: { colors: true, depth: 1, compact: Infinity }
   });
 
-  //console.log('console.options:', console.options);
+  console.log('console.options:', console.options);
 
   console.log('format:', format);
   console.log('regexp:', /TEST/);
   //console.log('util:', inspect(util));
 
-  console.log(format('%s %o\n', 'TEST', { x: 1, y: 2, z: 3 }));
+  console.log(format('%s %i %o', 'TEST', 1337, { x: 1, y: 2, z: 3 }));
 
   /*  let moduleExports = moduleList.map(module => getModuleObject(module));
   console.log('moduleExports:', moduleExports);*/

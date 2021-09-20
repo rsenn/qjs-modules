@@ -53,19 +53,22 @@ function main(...args) {
     }
   });
   console.log('console.options', console.options);
+  console.log('args', args);
 
   let optind = 0;
   let code = 'c';
+  let debug;
 
   while(args[optind] && args[optind].startsWith('-')) {
-    if(/code/.test(args[optind])) {
-      code = args[++optind];
-    }
+    if(/code/.test(args[optind])) code = args[++optind];
+    if(/(debug|^-x$)/.test(args[optind])) debug = true;
 
     optind++;
   }
 
-  let file = args[optind] ?? 'tests/test_lexer.js';
+  const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
+
+  let file = args[optind] ?? /*process.argv[1] ??*/ RelativePath('lib/repl.js');
   console.log(`Loading '${file}'...`);
 
   let str = file ? std.loadFile(file, 'utf-8') : code[1];
@@ -104,11 +107,13 @@ function main(...args) {
     declarations = [];
   const colSizes = [12, 8, 4, 16, 32, 10, 0];
 
-  function printTok(tok, prefix) {
-    const range = tok.charRange;
-    const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
-    console.log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
-  }
+  const printTok = debug
+    ? (tok, prefix) => {
+        const range = tok.charRange;
+        const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
+        console.log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
+      }
+    : () => {};
 
   let tok,
     i = 0;
@@ -198,8 +203,8 @@ function main(...args) {
 
   console.log(`took ${end - start}ms`);
   console.log('lexer', lexer);
-  /*console.log('lexer.tokens', lexer.tokens);
-  // console.log('lexer.rules', new Map(lexer.ruleNames.map(name => lexer.getRule(name)).map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])));
+  console.log('lexer.tokens', lexer.tokens);
+  /*// console.log('lexer.rules', new Map(lexer.ruleNames.map(name => lexer.getRule(name)).map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])));
   console.log(`lexer.topState()`, lexer.topState());
   console.log(`lexer.states `, lexer.states);
   //console.log(`tokens`, tokens.map((tok, i) => [i, tok]));
