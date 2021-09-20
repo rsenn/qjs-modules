@@ -21,11 +21,11 @@ extern const uint8_t qjsm_socklen_t[1030];
 
 #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), on_fail)
 
-#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail) \
-  do { \
-    syscall_return(&(sock), syscall_no, (result)); \
-    ret = sock.ret < 0 ? on_fail : on_success; \
-    JS_SetOpaque(this_val, sock.ptr); \
+#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail)                                                                          \
+  do {                                                                                                                                               \
+    syscall_return(&(sock), (syscall_no), (result));                                                                                                 \
+    ret = (sock).ret < 0 ? (on_fail) : (on_success);                                                                                                 \
+    JS_SetOpaque(this_val, (sock).ptr);                                                                                                              \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
@@ -43,11 +43,14 @@ static const char* socket_syscalls[] = {
     "connect",
     "listen",
     "recv",
+    "recvfrom",
     "send",
+    "sendto",
     "shutdown",
     "close",
     "getsockopt",
     "setsockopt",
+
 };
 static const size_t socket_syscalls_size = countof(socket_syscalls);
 
@@ -56,6 +59,8 @@ syscall_return(Socket* sock, int syscall, int retval) {
   sock->syscall = syscall;
   sock->ret = retval;
   sock->error = retval < 0 ? errno : 0;
+
+  // printf("syscall %s returned %d (%d)\n", socket_syscalls[sock->syscall], sock->ret, sock->error);
 }
 
 static SockAddr*
@@ -855,10 +860,10 @@ enum {
   SOCKET_SENDTO,
   SOCKET_RECV,
   SOCKET_RECVFROM,
-  SOCKET_SHUTDOWN,
-  SOCKET_CLOSE,
   SOCKET_GETSOCKOPT,
   SOCKET_SETSOCKOPT,
+  SOCKET_SHUTDOWN,
+  SOCKET_CLOSE,
 };
 
 static JSValue
@@ -873,9 +878,20 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       return JS_ThrowTypeError(ctx, "argument 1 must be of type SockAddr");
   }
 
+  if(socket_closed(sock))
+    return JS_ThrowInternalError(ctx, "Socket #%d has already been closed", sock.fd);
+
   if(!socket_open(sock))
     return JS_ThrowInternalError(ctx, "Socket #%d is not open", sock.fd);
 
+  if(socket_eof(sock))
+    if(magic < SOCKET_SHUTDOWN)
+      return JS_ThrowInternalError(ctx, "Socket #%d EOF", sock.fd);
+
+  /*if(sock.)
+    if(magic < SOCKET_CLOSE)
+      return JS_ThrowInternalError(ctx, "Socket #%d error (%d): %s", sock.fd, sock.error, strerror(sock.error));
+*/
   switch(magic) {
     case SOCKET_NDELAY: {
       BOOL state = TRUE;
@@ -944,16 +960,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
       break;
     }
-    case SOCKET_SHUTDOWN: {
-      int32_t how;
-      JS_ToInt32(ctx, &how, argv[0]);
-      JS_SOCKETCALL(SYSCALL_SHUTDOWN, sock, shutdown(sock.fd, how));
-      break;
-    }
-    case SOCKET_CLOSE: {
-      JS_SOCKETCALL(SYSCALL_CLOSE, sock, close(sock.fd));
-      break;
-    }
+
     case SOCKET_GETSOCKOPT: {
       int32_t level, optname;
       uint32_t optlen = sizeof(int);
@@ -1028,6 +1035,16 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(tmp)
         js_free(ctx, tmp);
 
+      break;
+    }
+    case SOCKET_SHUTDOWN: {
+      int32_t how;
+      JS_ToInt32(ctx, &how, argv[0]);
+      JS_SOCKETCALL(SYSCALL_SHUTDOWN, sock, shutdown(sock.fd, how));
+      break;
+    }
+    case SOCKET_CLOSE: {
+      JS_SOCKETCALL(SYSCALL_CLOSE, sock, close(sock.fd));
       break;
     }
   }

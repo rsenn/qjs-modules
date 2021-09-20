@@ -69,9 +69,9 @@ function main() {
   console.log(`connect(`, ra, `) =`, sock.connect(ra), sock.error);
 
   function DumpSock(s) {
-    let { fd, errno, syscall, error, local, remote, open, eof, mode } = s;
+    let { fd, ret, errno, syscall, error, open,  eof, mode } = s;
 
-    return [inspect({ fd, errno, syscall, error, /*open, eof,*/ mode }, { colors: true })];
+    return [inspect({ fd,ret, errno, syscall, error,  open, eof }, { colors: true })];
 
     //  return [s.fd >= 0 && `fd=${s.fd}`, s.eof ? 'EOF' : s.open ? 'open' : 'closed', s.ret !== undefined && `r=${s.ret}`, s.syscall !== undefined && `f=${s.syscall}`,  'e=', s.errno/*,  `e=${s.err}`*/].filter(p => !!p);
   }
@@ -137,16 +137,14 @@ function main() {
     }
 
     if(pfds[0].revents & POLLIN) {
-      console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
+     // console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
       data = toString(buf, 0, (n = sock.recv(buf)));
 
       console.log(
-        `recv(ArrayBuffer ${buf.byteLength})` +
-          /*inspect(buf, {colors: true, maxArrayLength: 4, maxStringLength: 10, multiline: false, breakLength: Infinity, compact: 2 }).replace(/\s+/g, ' '),*/
-          ` = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(70),
+        `recv(ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(70),
         ...DumpSock(sock)
       );
-      console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
+     // console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
 
       if(data.indexOf('OpenSSH') != -1) {
         const txt = 'BLAHBLAHTEST\r\n';
@@ -156,7 +154,7 @@ function main() {
       }
     }
   }
-
+console.log(`sock`, ...DumpSock(sock));
   let { open, error } = sock;
   if(error) console.log('error:', error);
   console.log('O_NONBLOCK', O_NONBLOCK.toString(2).padStart(16, '0'));
