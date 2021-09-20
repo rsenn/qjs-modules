@@ -116,10 +116,11 @@ function WriteObject(file, obj, fn = arg => arg) {
     fn(
       inspect(obj, {
         colors: false,
-        breakLength: Infinity,
+        breakLength: 120,
         maxStringLength: Infinity,
         maxArrayLength: Infinity,
-        compact: 1
+        compact: 3,
+        multiline: true
       })
     )
   );
@@ -418,13 +419,18 @@ class EBNFParser extends Parser {
     const { directive, newline, identifier } = this.tokens;
     let tok,
       d = this.expect(directive).lexeme.slice(1);
-    while(+(tok = this.next()) >= 0) {
-      if(tok.type == 'newline') break;
+    while((tok = this.next())) {
+      const { type, lexeme } = tok;
+      //console.log('parseDirective',{directive, type, lexeme, d});
+      if(type == 'newline') break;
       //DumpToken('parseDirective'.padEnd(20), tok);
       switch (d) {
         case 'token': {
           let rule = this.findRule(tok.lexeme);
-          if(!rule) throw this.error(tok, `No such token`);
+          if(!rule) {
+            this.grammar.lexer.rules[tok.lexeme] = {};
+            //throw this.error(tok, `No such token`);
+          }
           break;
         }
         default: {
@@ -668,7 +674,7 @@ class EBNFParser extends Parser {
         this.parseDefinition();
         continue;
       }
-      console.log(`parse(${lexer.topState()})`.padEnd(20), tok);
+      console.log(`parse(${lexer.topState()})`.padEnd(20), lexer.pos, tok);
       switch (tok.type) {
         case 'directive': {
           this.parseDirective();
@@ -770,13 +776,12 @@ function main(...args) {
   let outputFile = args[optind + 1] ?? 'grammar.kison';
   console.log('file:', file);
   let str = std.loadFile(file, 'utf-8');
-  console.log('str:', str);
+  console.log('str:', str.slice(0, 50) + '...');
   let len = str.length;
   let type = path.extname(file).substring(1);
 
-  let grammar = LoadScript(outputFile);
-  //  console.log('grammar:', grammar);
-
+  let grammar = null; //LoadScript(outputFile);
+ 
   let parser = new EBNFParser(grammar);
 
   parser.setInput(str, file);

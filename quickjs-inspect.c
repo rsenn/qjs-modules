@@ -187,8 +187,8 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
   }
   value = JS_GetPropertyStr(ctx, object, "compact");
   if(!JS_IsUndefined(value) && !JS_IsException(value)) {
-    if(JS_VALUE_GET_TAG(value) == JS_TAG_BOOL && JS_VALUE_GET_BOOL(value) == 0)
-      opts->compact = INT32_MIN;
+    if(JS_VALUE_GET_TAG(value) == JS_TAG_BOOL)
+      opts->compact = JS_VALUE_GET_BOOL(value) == 0 ? 0 : INT32_MAX;
     else if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))
       opts->compact = INT32_MAX;
     else

@@ -46,13 +46,13 @@ function main(...args) {
     let script = path.join(path.dirname(process.argv[1]), '..', 'lib/fs.js');
     console.log('script', script);
 
-    let mod = compileScript(script, JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_TYPE_MODULE);
+    let mod = compileScript(script, JS_EVAL_FLAG_COMPILE_ONLY);
     console.log('misc.compileScript()', mod);
     let modfn = getModuleFunction(mod);
     console.log('getModuleFunction(mod)', modfn);
     let bc = writeObject(mod);
     console.log('misc.writeObject(mod)', bc);
-    let fbc = writeObject(modfn);
+      let fbc = writeObject(modfn);
     console.log('misc.writeObject(modfn)', fbc);
     let opcodes = getOpCodes(true);
 
@@ -64,18 +64,6 @@ function main(...args) {
     let opcode;
     let i = 0;
 
-    /*let bcver = ba[i++];
-    let idx_to_atom_count, str;
-    [idx_to_atom_count, i] = get_leb128(ba, i);
-}
-
-for(let j = 0; j < idx_to_atom_count; j++) {
-    [str, i] = get_str(ba, i);
-    console.log(j, { str});
-}
-console.log("i =",i);
-  */
-
     try {
       for(; i < ba.length; i += opcode.size) {
         const code = ba[i];
@@ -84,9 +72,10 @@ console.log("i =",i);
         console.log(i.toString(16).padStart(8, '0') + ': ', toHex(code), opcode.name.padEnd(32), ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n)));
       }
     } catch(e) {}
+    
     console.log('ba.length', toHex(ba.length));
     console.log('misc.opcodes', opcodes);
-    console.log('misc.resizeArrayBuffer()', resizeArrayBuffer(fnbc, 100));
+/*    console.log('misc.resizeArrayBuffer()', resizeArrayBuffer(fnbc, 100));*/
     let max;
 
     console.log('valueToAtom()', (max = valueToAtom('BLAH XXXX')));
