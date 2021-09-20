@@ -16,7 +16,7 @@ function main() {
       breakLength: 80,
       maxArrayLength: 100,
       maxStringLength: 100,
-      compact: false
+      compact: 2
     }
   });
   let seed = +Date.now();
@@ -33,11 +33,13 @@ function main() {
   sock = new Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   console.log('sock', sock);
 
-  sock.getsockopt(SOL_SOCKET, SO_REUSEADDR, (opt = []), 4);
   console.log(`SOL_SOCKET =`, SOL_SOCKET);
   console.log(`SO_REUSEADDR =`, SO_REUSEADDR);
-  console.log(`opt =`, opt);
   sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, [1]);
+
+  sock.getsockopt(SOL_SOCKET, SO_REUSEADDR, (opt = []), 4);
+  console.log(`opt =`, opt);
+
   sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, [1]);
   sock.setsockopt(SOL_SOCKET, SO_DEBUG, [1]);
 
@@ -135,17 +137,16 @@ function main() {
     }
 
     if(pfds[0].revents & POLLIN) {
+      console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
       data = toString(buf, 0, (n = sock.recv(buf)));
+
       console.log(
-        (
-          `recv(ArrayBuffer ${buf.byteLength})` +
+        `recv(ArrayBuffer ${buf.byteLength})` +
           /*inspect(buf, {colors: true, maxArrayLength: 4, maxStringLength: 10, multiline: false, breakLength: Infinity, compact: 2 }).replace(/\s+/g, ' '),*/
-          ' = ' +
-          n +
-          (n >= 0 ? quote(data, "'") : sock.error + '')
-        ).padEnd(70),
+          ` = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(70),
         ...DumpSock(sock)
       );
+      console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
 
       if(data.indexOf('OpenSSH') != -1) {
         const txt = 'BLAHBLAHTEST\r\n';

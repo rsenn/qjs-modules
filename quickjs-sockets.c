@@ -19,13 +19,11 @@ extern const uint8_t qjsm_socklen_t[1030];
 
 #define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), JS_NewInt32(ctx, -1))
 
-#define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, result), on_fail)
+#define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), on_fail)
 
 #define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail) \
   do { \
-    sock.ret = result; \
-    sock.syscall = syscall_no; \
-    sock.error = sock.ret < 0 ? errno : 0; \
+    syscall_return(&(sock), syscall_no, (result)); \
     ret = sock.ret < 0 ? on_fail : on_success; \
     JS_SetOpaque(this_val, sock.ptr); \
   } while(0)
@@ -52,6 +50,13 @@ static const char* socket_syscalls[] = {
     "setsockopt",
 };
 static const size_t socket_syscalls_size = countof(socket_syscalls);
+
+static void
+syscall_return(Socket* sock, int syscall, int retval) {
+  sock->syscall = syscall;
+  sock->ret = retval;
+  sock->error = retval < 0 ? errno : 0;
+}
 
 static SockAddr*
 sockaddr_new(JSContext* ctx) {
@@ -511,6 +516,70 @@ pollfd_write(JSContext* ctx, const struct pollfd* pfd, JSValueConst arg) {
   return FALSE;
 }
 
+void*
+optval_buf(JSContext* ctx, JSValueConst arg, int32_t** tmp_ptr, size_t* lenp) {
+  uint32_t len;
+  uint8_t* buf;
+
+  if(JS_IsArray(ctx, arg)) {
+    int i, n = MAX_NUM(1, MIN_NUM(js_array_length(ctx, arg), 1));
+    len = n * sizeof(int32_t);
+    *tmp_ptr = buf = js_mallocz(ctx, len);
+    for(i = 0; i < n; i++) {
+      JSValue el = JS_GetPropertyUint32(ctx, arg, i);
+      JS_ToInt32(ctx, &(*tmp_ptr)[i], el);
+      JS_FreeValue(ctx, el);
+    }
+  } else {
+    InputBuffer optval = js_input_buffer(ctx, arg);
+    buf = optval.data;
+    len = optval.size;
+  }
+
+  if(lenp)
+    *lenp = len;
+  return buf;
+}
+
+static JSValue
+js_socket(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  int32_t af, type = SOCK_STREAM, proto = IPPROTO_IP;
+  Socket sock;
+
+  JS_ToInt32(ctx, &af, argv[0]);
+  if(argc >= 2)
+    JS_ToInt32(ctx, &type, argv[1]);
+
+  if(argc >= 3)
+    JS_ToInt32(ctx, &proto, argv[2]);
+
+  JS_SOCKETCALL(SYSCALL_SOCKET, sock, sock.fd = socket(af, type, proto));
+
+  return ret;
+}
+
+static JSValue
+js_socketpair(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t af, type = SOCK_STREAM, proto = IPPROTO_IP;
+  int result, s[2];
+
+  JS_ToInt32(ctx, &af, argv[0]);
+  JS_ToInt32(ctx, &type, argv[1]);
+
+  JS_ToInt32(ctx, &proto, argv[2]);
+
+  if(!JS_IsArray(ctx, argv[3]))
+    return JS_ThrowTypeError(ctx, "argument 4 must be array");
+
+  if((result = socketpair(af, type, proto, s)) != -1) {
+    JS_SetPropertyUint32(ctx, argv[3], 0, JS_NewInt64(ctx, s[0]));
+    JS_SetPropertyUint32(ctx, argv[3], 1, JS_NewInt64(ctx, s[1]));
+  }
+
+  return JS_NewInt64(ctx, result);
+}
+
 static JSValue
 js_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint64_t n;
@@ -621,42 +690,12 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
 }
 
 static JSValue
-js_socket(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-  int32_t af, type = SOCK_STREAM, proto = IPPROTO_IP;
-  Socket sock;
+js_sockopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  int32_t sock = -1, level = -1, optname = -1;
 
-  JS_ToInt32(ctx, &af, argv[0]);
-  if(argc >= 2)
-    JS_ToInt32(ctx, &type, argv[1]);
-
-  if(argc >= 3)
-    JS_ToInt32(ctx, &proto, argv[2]);
-
-  JS_SOCKETCALL(SYSCALL_SOCKET, sock, sock.fd = socket(af, type, proto));
-
-  return ret;
-}
-
-static JSValue
-js_socketpair(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int32_t af, type = SOCK_STREAM, proto = IPPROTO_IP;
-  int result, s[2];
-
-  JS_ToInt32(ctx, &af, argv[0]);
-  JS_ToInt32(ctx, &type, argv[1]);
-
-  JS_ToInt32(ctx, &proto, argv[2]);
-
-  if(!JS_IsArray(ctx, argv[3]))
-    return JS_ThrowTypeError(ctx, "argument 4 must be array");
-
-  if((result = socketpair(af, type, proto, s)) != -1) {
-    JS_SetPropertyUint32(ctx, argv[3], 0, JS_NewInt64(ctx, s[0]));
-    JS_SetPropertyUint32(ctx, argv[3], 1, JS_NewInt64(ctx, s[1]));
-  }
-
-  return JS_NewInt64(ctx, result);
+  JS_ToInt32(ctx, &sock, argv[0]);
+  JS_ToInt32(ctx, &level, argv[1]);
+  JS_ToInt32(ctx, &optname, argv[2]);
 }
 
 static const JSCFunctionListEntry js_sockets_funcs[] = {
@@ -664,7 +703,8 @@ static const JSCFunctionListEntry js_sockets_funcs[] = {
     JS_CFUNC_DEF("socketpair", 4, js_socketpair),
     JS_CFUNC_DEF("select", 1, js_select),
     JS_CFUNC_DEF("poll", 1, js_poll),
-
+    JS_CFUNC_MAGIC_DEF("getsockopt", 4, js_sockopt, 0),
+    JS_CFUNC_MAGIC_DEF("setsockopt", 4, js_sockopt, 1),
 };
 
 static JSValue
@@ -919,15 +959,15 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       uint32_t optlen = sizeof(int);
       /*  InputBuffer optval = js_input_buffer(ctx, argv[2]);
         socklen_t len = optval.size;*/
-      uint8_t *buf, *tmp = 0;
-      int32_t* val;
+      uint8_t* buf;
+      int32_t *val, *tmp = 0;
       size_t len;
       JS_ToInt32(ctx, &level, argv[0]);
       JS_ToInt32(ctx, &optname, argv[1]);
       if(argc >= 4)
         JS_ToUint32(ctx, &optlen, argv[3]);
       JS_ToInt32(ctx, &optname, argv[1]);
-      if(js_is_arraybuffer(ctx, argv[2])) {
+      /*if(js_is_arraybuffer(ctx, argv[2])) {
         buf = JS_GetArrayBuffer(ctx, &len, argv[2]);
       } else if(js_is_array(ctx, argv[2])) {
         int i, n = js_array_length(ctx, argv[2]);
@@ -948,7 +988,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           n = i;
 
         buf = tmp;
-      }
+      }*/
+      buf = optval_buf(ctx, argv[2], &tmp, &len);
+
       JS_SOCKETCALL(SYSCALL_GETSOCKOPT, sock, getsockopt(sock.fd, level, optname, buf, &len));
       if(tmp) {
         js_array_clear(ctx, argv[2]);
@@ -957,37 +999,15 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       val = (void*)buf;
       if(tmp)
         js_free(ctx, tmp);
-      /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", sock.fd,
-       * level, optname,
-       * ((ptrdiff_t*)val)[0], val, len, sock.ret);*/
+      /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", sock.fd, level, optname, ((ptrdiff_t*)val)[0], val, len, sock.ret);*/
       break;
     }
     case SOCKET_SETSOCKOPT: {
       int32_t level, optname, num = 0, *tmp = 0;
       uint32_t len = 0;
       uint8_t* buf = 0;
-      if(argc >= 3) {
-        if(!JS_IsObject(argv[2])) {
-          JS_ToInt32(ctx, &num, argv[2]);
-          buf = &num;
-          len = sizeof(num);
-        }
-        if(!buf && JS_IsArray(ctx, argv[2])) {
-          int i, n = MIN_NUM(js_array_length(ctx, argv[2]), 1);
-          len = n * sizeof(int32_t);
-          tmp = buf = alloca(len);
-          for(i = 0; i < n; i++) {
-            JSValue el = JS_GetPropertyUint32(ctx, argv[2], i);
-            JS_ToInt32(ctx, &tmp[i], el);
-            JS_FreeValue(ctx, el);
-          }
-        }
-        if(!buf) {
-          InputBuffer optval = js_input_chars(ctx, argv[2]);
-          buf = optval.data;
-          len = optval.size;
-        }
-      }
+      if(argc >= 3)
+        buf = optval_buf(ctx, argv[2], &tmp, &len);
       if(!buf) {
         buf = &num;
         len = sizeof(num);
@@ -1003,9 +1023,11 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         }
       }
       JS_SOCKETCALL(SYSCALL_SETSOCKOPT, sock, setsockopt(sock.fd, level, optname, buf, len));
-      /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", sock.fd,
-       * level, optname,
-       * *(int*)buf, buf, len, sock.ret);*/
+      /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", sock.fd, level, optname, *(int*)buf, buf, len, sock.ret);*/
+
+      if(tmp)
+        js_free(ctx, tmp);
+
       break;
     }
   }
