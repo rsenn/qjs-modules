@@ -32,7 +32,8 @@ enum predicate_id {
   PREDICATE_EQUAL,
   PREDICATE_PROPERTY,
   PREDICATE_MEMBER,
-  PREDICATE_SHIFT
+  PREDICATE_SHIFT,
+  PREDICATE_FUNCTION
 };
 
 typedef struct {
@@ -82,6 +83,11 @@ typedef struct {
   JSValue predicate;
 } ShiftPredicate;
 
+typedef struct {
+  JSValue func, this_val;
+  int arity;
+} FunctionPredicate;
+
 typedef struct Predicate {
   enum predicate_id id;
   union {
@@ -95,6 +101,7 @@ typedef struct Predicate {
     PropertyPredicate property;
     MemberPredicate member;
     ShiftPredicate shift;
+    FunctionPredicate function;
   };
 } Predicate;
 
@@ -302,6 +309,15 @@ predicate_shift(int n, JSValue pred) {
   Predicate ret = PREDICATE_INIT(PREDICATE_SHIFT);
   ret.shift.n = n;
   ret.shift.predicate = pred;
+  return ret;
+}
+
+static inline Predicate
+predicate_function(JSValue func, JSValue this_val, int arity) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_FUNCTION);
+  ret.function.func = func;
+  ret.function.this_val = this_val;
+  ret.function.arity = arity;
   return ret;
 }
 

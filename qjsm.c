@@ -59,9 +59,9 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-#define jsm_declare_module(name)                                                                                                                     \
-  extern const uint8_t qjsc_##name[];                                                                                                                \
-  extern const uint32_t qjsc_##name##_size;                                                                                                          \
+#define jsm_declare_module(name) \
+  extern const uint8_t qjsc_##name[]; \
+  extern const uint32_t qjsc_##name##_size; \
   JSModuleDef* js_init_module_##name(JSContext*, const char*);
 
 jsm_declare_module(console);
@@ -898,8 +898,8 @@ main(int argc, char** argv) {
 
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
-#define jsm_builtin_compiled(name)                                                                                                                   \
-  js_std_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                       \
+#define jsm_builtin_compiled(name) \
+  js_std_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0); \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);

@@ -280,6 +280,15 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         *pr = predicate_shift(shift, js_arguments_shift(&args));
         break;
       }
+
+      case PREDICATE_FUNCTION: {
+        JSValue func, this_obj;
+        func = predicate_nextarg(ctx, &args);
+        if(args.c)
+          this_obj = predicate_nextarg(ctx, &args);
+        *pr = predicate_function(func, this_obj, MAX_NUM(1, js_get_propertystr_int32(ctx, func, "length")));
+        break;
+      }
     }
   }
   return obj;
@@ -561,6 +570,15 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       ret = js_predicate_wrap(ctx, predicate_shift(shift, predicate_nextarg(ctx, &args)));
       break;
     }
+
+    case PREDICATE_FUNCTION: {
+      JSValue func, this_obj;
+      func = predicate_nextarg(ctx, &args);
+      if(args.c)
+        this_obj = predicate_nextarg(ctx, &args);
+      ret = js_predicate_wrap(ctx, predicate_function(func, this_obj, MAX_NUM(1, js_get_propertystr_int32(ctx, func, "length"))));
+      break;
+    }
   }
   return ret;
 }
@@ -673,6 +691,12 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->shift.predicate), JS_PROP_ENUMERABLE);
       break;
     }
+    case PREDICATE_FUNCTION: {
+      JS_DefinePropertyValueStr(ctx, obj, "func", JS_DupValue(ctx, pr->function.func), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "this_obj", JS_DupValue(ctx, pr->function.this_val), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "arity", JS_NewInt32(ctx, pr->function.arity), JS_PROP_ENUMERABLE);
+      break;
+    }
   }
 
   return obj;
@@ -742,6 +766,7 @@ static const JSCFunctionListEntry js_predicate_funcs[] = {
     JS_CFUNC_MAGIC_DEF("property", 1, js_predicate_function, PREDICATE_PROPERTY),
     JS_CFUNC_MAGIC_DEF("member", 1, js_predicate_function, PREDICATE_MEMBER),
     JS_CFUNC_MAGIC_DEF("shift", 2, js_predicate_function, PREDICATE_SHIFT),
+    JS_CFUNC_MAGIC_DEF("function", 1, js_predicate_function, PREDICATE_FUNCTION),
 };
 
 static const JSCFunctionListEntry js_predicate_ids[] = {
