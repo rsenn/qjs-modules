@@ -20,10 +20,10 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
-#define INSPECT_IS_COMPACT(opts) \
-  ((opts)->compact == INT32_MAX ? TRUE \
-   : INSPECT_INT32T_INRANGE((opts)->compact) \
-       ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) \
+#define INSPECT_IS_COMPACT(opts)                                                                                                                     \
+  ((opts)->compact == INT32_MAX ? TRUE                                                                                                               \
+   : INSPECT_INT32T_INRANGE((opts)->compact)                                                                                                         \
+       ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact)                                    \
        : 0)
 
 typedef struct {
@@ -745,14 +745,14 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         }
       }
       if(s)
-      js_cstring_free(ctx, s);
+        js_cstring_free(ctx, s);
 
       vector_init(&propenum_tab, ctx);
       // printf("proto_chain: %i\n", opts->proto_chain);
-      if((opts->proto_chain ? js_object_getpropertynames_recursive
+      if((1 || opts->proto_chain ? js_object_getpropertynames_recursive
                             : js_object_getpropertynames)(ctx,
                                                           &propenum_tab,
-                                                          opts->proto_chain > 0 ? JS_GetPrototype(ctx, value) : value,
+                                                         /* opts->proto_chain <= 0 ? JS_GetPrototype(ctx, value) : */value,
                                                           JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
