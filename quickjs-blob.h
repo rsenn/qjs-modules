@@ -3,7 +3,6 @@
 
 #include "utils.h"
 #include "vector.h"
-#include "utils.h"
 #include "buffer-utils.h"
 
 typedef union blob {
