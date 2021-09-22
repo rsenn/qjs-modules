@@ -43,49 +43,56 @@ typedef struct {
   uint64_t seq;
 } Lexer;
 
-int lexer_state_findb(Lexer*, const char* state, size_t slen);
-int lexer_state_new(Lexer*, const char* name, size_t len);
-int lexer_state_push(Lexer*, const char* state);
+int lexer_state_findb(Lexer*, const char*, size_t slen);
+int lexer_state_new(Lexer*, const char*, size_t len);
+int lexer_state_push(Lexer*, const char*);
 int lexer_state_pop(Lexer*);
-int lexer_state_top(Lexer*, int i);
-char* lexer_state_name(Lexer*, int state);
+int lexer_state_top(Lexer*, int);
 char* lexer_states_skip(char*);
-void lexer_states_dump(Lexer*, uint64_t mask, DynBuf* dbuf);
+void lexer_states_dump(Lexer*, uint64_t, DynBuf* dbuf);
 char* lexer_rule_regex(LexerRule*);
-BOOL lexer_rule_expand(Lexer*, char* p, DynBuf* db);
-int lexer_rule_add(Lexer*, char* name, char* expr);
-LexerRule* lexer_rule_find(Lexer*, const char* name);
-void lexer_rule_free(LexerRule*, JSContext* ctx);
-void lexer_rule_free_rt(LexerRule*, JSRuntime* rt);
-void lexer_rule_dump(Lexer*, LexerRule* rule, DynBuf* dbuf);
-void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
-void lexer_set_input(Lexer*, InputBuffer input, char* filename);
-void lexer_define(Lexer*, char* name, char* expr);
-LexerRule* lexer_find_definition(Lexer*, const char* name, size_t namelen);
-BOOL lexer_compile_rules(Lexer*, JSContext* ctx);
-int lexer_peek(Lexer*, uint64_t state, JSContext* ctx);
+BOOL lexer_rule_expand(Lexer*, char*, DynBuf* db);
+int lexer_rule_add(Lexer*, char*, char* expr);
+LexerRule* lexer_rule_find(Lexer*, const char*);
+void lexer_rule_free(LexerRule*, JSContext*);
+void lexer_rule_free_rt(LexerRule*, JSRuntime*);
+void lexer_rule_dump(Lexer*, LexerRule*, DynBuf* dbuf);
+void lexer_init(Lexer*, enum lexer_mode, JSContext* ctx);
+void lexer_set_input(Lexer*, InputBuffer, char* filename);
+void lexer_define(Lexer*, char*, char* expr);
+LexerRule* lexer_find_definition(Lexer*, const char*, size_t namelen);
+BOOL lexer_compile_rules(Lexer*, JSContext*);
+int lexer_peek(Lexer*, uint64_t, JSContext* ctx);
 size_t lexer_skip(Lexer*);
-char* lexer_lexeme(Lexer*, size_t* lenp);
-int lexer_next(Lexer*, uint64_t state, JSContext* ctx);
-void lexer_set_location(Lexer*, const Location* loc, JSContext* ctx);
-void lexer_free(Lexer*, JSContext* ctx);
-void lexer_free_rt(Lexer*, JSRuntime* rt);
-void lexer_dump(Lexer*, DynBuf* dbuf);
-size_t input_skip(InputBuffer*, size_t end, Location* loc);
-
-static inline int
-lexer_state_find(Lexer* lex, const char* state) {
-  return lexer_state_findb(lex, state, strlen(state));
-}
+char* lexer_lexeme(Lexer*, size_t*);
+int lexer_next(Lexer*, uint64_t, JSContext* ctx);
+void lexer_set_location(Lexer*, const Location*, JSContext* ctx);
+void lexer_free(Lexer*, JSContext*);
+void lexer_free_rt(Lexer*, JSRuntime*);
+void lexer_dump(Lexer*, DynBuf*);
 
 static inline LexerRule*
 lexer_rule_at(Lexer* lex, int id) {
   return vector_at(&lex->rules, sizeof(LexerRule), id);
 }
 
+static inline int
+lexer_state_find(Lexer* lex, const char* state) {
+  return lexer_state_findb(lex, state, strlen(state));
+}
+
 static inline size_t
 lexer_state_depth(Lexer* lex) {
   return vector_size(&lex->state_stack, sizeof(int32_t));
+}
+
+static inline char*
+lexer_state_name(Lexer* lex, int state) {
+  char** name_p;
+
+  name_p = vector_at(&lex->states, sizeof(char*), state);
+
+  return name_p ? *name_p : 0;
 }
 
 static inline size_t
@@ -97,7 +104,5 @@ static inline char*
 lexer_state_topname(Lexer* lex) {
   return lexer_state_name(lex, lexer_state_top(lex, 0));
 }
-
-size_t input_skip(InputBuffer* input, size_t end, Location* loc);
 
 #endif /* defined(LEXER_H) */

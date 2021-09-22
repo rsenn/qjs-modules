@@ -78,15 +78,6 @@ lexer_state_top(Lexer* lex, int i) {
 }
 
 char*
-lexer_state_name(Lexer* lex, int state) {
-  char** name_p;
-
-  name_p = vector_at(&lex->states, sizeof(char*), state);
-
-  return name_p ? *name_p : 0;
-}
-
-char*
 lexer_states_skip(char* expr) {
   char* re = expr;
 
@@ -365,6 +356,23 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   return ret;
 }
 
+static inline size_t
+input_skip(InputBuffer* input, size_t end, Location* loc) {
+  size_t n = 0;
+  while(input->pos < end) {
+    size_t prev = input->pos;
+    if(input_buffer_getc(input) == '\n') {
+      loc->line++;
+      loc->column = 0;
+    } else {
+      loc->column++;
+    }
+    loc->pos++;
+    n++;
+  }
+  return n;
+}
+
 size_t
 lexer_skip(Lexer* lex) {
   size_t len = input_skip(&lex->input, lex->start + lex->byte_length, &lex->loc);
@@ -441,21 +449,4 @@ lexer_dump(Lexer* lex, DynBuf* dbuf) {
   dbuf_putstr(dbuf, ",\n  location: ");
   location_print(&lex->loc, dbuf);
   dbuf_putstr(dbuf, "\n}");
-}
-
-size_t
-input_skip(InputBuffer* input, size_t end, Location* loc) {
-  size_t n = 0;
-  while(input->pos < end) {
-    size_t prev = input->pos;
-    if(input_buffer_getc(input) == '\n') {
-      loc->line++;
-      loc->column = 0;
-    } else {
-      loc->column++;
-    }
-    loc->pos++;
-    n++;
-  }
-  return n;
 }

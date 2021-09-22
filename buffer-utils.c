@@ -417,19 +417,6 @@ input_buffer_free(InputBuffer* in, JSContext* ctx) {
   }
 }
 
-int
-input_buffer_peekc(InputBuffer* in, size_t* lenp) {
-  const uint8_t *pos, *end, *next;
-  int cp;
-  pos = input_buffer_data(in) + in->pos;
-  end = input_buffer_data(in) + input_buffer_length(in);
-  cp = unicode_from_utf8(pos, end - pos, &next);
-  if(lenp)
-    *lenp = next - pos;
-
-  return cp;
-}
-
 const uint8_t*
 input_buffer_peek(InputBuffer* in, size_t* lenp) {
   input_buffer_peekc(in, lenp);

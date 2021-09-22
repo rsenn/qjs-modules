@@ -259,7 +259,18 @@ const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
 const char* input_buffer_currentline(InputBuffer*, size_t* len);
 size_t input_buffer_column(InputBuffer*, size_t* len);
 
-int input_buffer_peekc(InputBuffer* in, size_t* lenp);
+static int
+input_buffer_peekc(InputBuffer* in, size_t* lenp) {
+  const uint8_t *pos, *end, *next;
+  int cp;
+  pos = input_buffer_data(in) + in->pos;
+  end = input_buffer_data(in) + input_buffer_length(in);
+  cp = unicode_from_utf8(pos, end - pos, &next);
+  if(lenp)
+    *lenp = next - pos;
+
+  return cp;
+}
 
 static inline int
 input_buffer_getc(InputBuffer* in) {

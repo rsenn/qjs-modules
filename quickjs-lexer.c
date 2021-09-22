@@ -498,7 +498,7 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("rule", js_token_get, NULL, TOKEN_PROP_RULE),
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CGETSET_MAGIC_DEF("value", js_token_get, NULL, TOKEN_PROP_LEXEME),
-    JS_CFUNC_DEF("toString", 0, js_token_tostring),
+    //JS_CFUNC_DEF("toString", 0, js_token_tostring),
     // JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
     JS_ALIAS_DEF("position", "loc"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
@@ -1299,9 +1299,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   if(argc > 0 && JS_IsString(argv[0])) {
     const char* name = JS_ToCString(ctx, argv[0]);
-
     state = lexer_state_push(lex, name);
-
     JS_FreeCString(ctx, name);
   }
 
@@ -1313,7 +1311,6 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   switch(id) {
     case LEXER_ERROR_NOMATCH: {
       char* lexeme = lexer_lexeme_s(lex, ctx);
-
       ret = JS_ThrowInternalError(ctx,
                                   "%s:%" PRIu32 ":%" PRIu32 ": No matching token (%d: %s) '%s'\n%.*s\n%*s",
                                   lex->loc.file,
@@ -1334,9 +1331,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
     default: {
-
       ret = JS_NewInt32(ctx, id);
-
       break;
     }
   }
