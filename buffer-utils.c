@@ -62,6 +62,7 @@ array_search(void* a, size_t m, size_t elsz, void* needle) {
   }
   return -1;
 }
+
 char*
 str_escape(const char* s) {
   DynBuf dbuf;

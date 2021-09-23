@@ -59,9 +59,9 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-#define jsm_declare_module(name) \
-  extern const uint8_t qjsc_##name[]; \
-  extern const uint32_t qjsc_##name##_size; \
+#define jsm_declare_module(name)                                                                                                                     \
+  extern const uint8_t qjsc_##name[];                                                                                                                \
+  extern const uint32_t qjsc_##name##_size;                                                                                                          \
   JSModuleDef* js_init_module_##name(JSContext*, const char*);
 
 jsm_declare_module(console);
@@ -107,7 +107,7 @@ eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
       js_module_set_import_meta(ctx, val, TRUE, TRUE);
-      val = JS_EvalFunction(ctx, val);
+      JS_EvalFunction(ctx, val);
     }
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
@@ -232,11 +232,13 @@ jsm_load_script(JSContext* ctx, const char* file, BOOL module) {
     fprintf(stderr, "Failed loading '%s': %s\n", file, strerror(errno));
     js_value_fwrite(ctx, val, stderr);
     return -1;
-  }
-  if(JS_IsNumber(val))
+  } else if(JS_IsModule(val)) {
+    JSValue global = JS_GetGlobalObject(ctx);
+    get_module_exports(ctx, JS_VALUE_GET_PTR(val), TRUE, global);
+  } else {
     JS_ToInt32(ctx, &ret, val);
-  if(JS_VALUE_GET_TAG(val) != JS_TAG_MODULE && JS_VALUE_GET_TAG(val) != JS_TAG_EXCEPTION)
     JS_FreeValue(ctx, val);
+  }
   return ret;
 }
 
@@ -541,8 +543,10 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   switch(magic) {
     case FIND_MODULE: {
-      def = js_module_find(ctx, name);
-      val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def));
+      if((def = js_module_find(ctx, name)))
+        val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def));
+      else
+        val = JS_NULL;
       break;
     }
     case LOAD_MODULE: {
@@ -550,19 +554,19 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       memset(&imp, 0, sizeof(imp));
       int r, n = countof(imp.args);
       r = js_strv_copys(ctx, argc, argv, n, imp.args);
-      printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
+      // printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
 
-      JSValue val = js_import_eval(ctx, imp);
+      val = js_import_eval(ctx, imp);
 
-      if((def = js_module_find(ctx, imp.path)))
-        val = JS_MKPTR(JS_TAG_MODULE, def);
+      /*   if(JS_IsModule(val))
+           def = JS_VALUE_GET_PTR(val);
+         else*/
+      def = js_module_find(ctx, imp.path);
+
+      if(def)
+        val = module_object(ctx, def);
 
       js_strv_free_n(ctx, n, imp.args);
-      /*
-      for(n = 0; n < countof(imp.args); n++) {
-        if(imp.args[n])
-          js_free(ctx, imp.args[n]);
-      }*/
       break;
     }
     case RESOLVE_MODULE: {
@@ -574,20 +578,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case GET_MODULE_OBJECT: {
-      val = JS_NewObject(ctx);
-      JS_SetPropertyStr(ctx, val, "name", module_name(ctx, def));
-      JS_SetPropertyStr(ctx, val, "resolved", JS_NewBool(ctx, def->resolved));
-      JS_SetPropertyStr(ctx, val, "func_created", JS_NewBool(ctx, def->func_created));
-      JS_SetPropertyStr(ctx, val, "instantiated", JS_NewBool(ctx, def->instantiated));
-      JS_SetPropertyStr(ctx, val, "evaluated", JS_NewBool(ctx, def->evaluated));
-      if(def->eval_has_exception)
-        JS_SetPropertyStr(ctx, val, "exception", JS_DupValue(ctx, def->eval_exception));
-      if(!JS_IsUndefined(def->module_ns))
-        JS_SetPropertyStr(ctx, val, "namespace", JS_DupValue(ctx, def->module_ns));
-      if(!JS_IsUndefined(def->func_obj))
-        JS_SetPropertyStr(ctx, val, "func", JS_DupValue(ctx, def->func_obj));
-      if(!JS_IsUndefined(def->meta_obj))
-        JS_SetPropertyStr(ctx, val, "meta", JS_DupValue(ctx, def->meta_obj));
+      val = module_object(ctx, def);
       break;
     }
     case GET_MODULE_EXPORTS: {
@@ -599,10 +590,8 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case GET_MODULE_FUNCTION: {
-      if(TRUE || def->func_created)
-        val = JS_DupValue(ctx, def->func_obj);
-      else
-        val = JS_NULL;
+
+      val = module_func(ctx, def);
       break;
     }
     case GET_MODULE_EXCEPTION: {
@@ -862,7 +851,7 @@ main(int argc, char** argv) {
 
   /* loader for ES6 modules */
   JS_SetModuleLoaderFunc(rt, js_module_normalize, jsm_module_loader, 0);
-  js_std_set_module_loader_func(jsm_module_loader);
+  //js_std_set_module_loader_func(jsm_module_loader);
 
   if(dump_unhandled_promise_rejection) {
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, 0);
@@ -898,8 +887,8 @@ main(int argc, char** argv) {
 
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
-#define jsm_builtin_compiled(name) \
-  js_std_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0); \
+#define jsm_builtin_compiled(name)                                                                                                                   \
+  js_std_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0);                                                                                       \
   vector_putptr(&builtins, #name)
 
     jsm_builtin_compiled(console);
@@ -966,8 +955,23 @@ main(int argc, char** argv) {
       }
     }
     if(interactive) {
-      const char* str = "import REPL from 'repl'; globalThis.repl = new "
-                        "REPL('qjsm').runSync();\n";
+      char str[512];
+      const char* home = getenv("HOME");
+
+      snprintf(str,
+               sizeof(str),
+               "import REPL from 'repl';\n"
+               "import fs from 'fs';\n"
+               "const history = '%s/.%s_history';\n"
+               "globalThis.repl = new REPL('qjsm');\n"
+               "repl.fs = fs;\n"
+               "repl.show = console.log;\n"
+               "repl.historyLoad(history);\n"
+               "repl.addCleanupHandler(() => repl.historySave(history));\n"
+               "repl.runSync();\n",
+               home,
+               exename);
+      printf("str: %s\n", str);
       js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }

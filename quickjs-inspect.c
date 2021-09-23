@@ -750,10 +750,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       vector_init(&propenum_tab, ctx);
       // printf("proto_chain: %i\n", opts->proto_chain);
       if((1 || opts->proto_chain ? js_object_getpropertynames_recursive
-                            : js_object_getpropertynames)(ctx,
-                                                          &propenum_tab,
-                                                         /* opts->proto_chain <= 0 ? JS_GetPrototype(ctx, value) : */value,
-                                                          JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+                                 : js_object_getpropertynames)(ctx,
+                                                               &propenum_tab,
+                                                               /* opts->proto_chain <= 0 ? JS_GetPrototype(ctx, value) : */ value,
+                                                               JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
         return -1;
 
       if(is_function) {
@@ -959,6 +959,24 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
 
 const char*
 js_inspect_tostring(JSContext* ctx, JSValueConst value) {
+  DynBuf dbuf;
+  inspect_options_t options;
+  js_dbuf_init(ctx, &dbuf);
+  inspect_options_init(&options, ctx);
+
+  options.colors = FALSE;
+  options.compact = 0;
+  options.getters = TRUE;
+  js_inspect_print(ctx, &dbuf, value, &options, options.depth);
+
+  inspect_options_free(&options, ctx);
+
+  dbuf_0(&dbuf);
+  return dbuf.buf;
+}
+
+/*const char*
+js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   JSValue output;
   inspect_options_t opts;
   JSValueConst args[] = {value, JS_UNDEFINED};
@@ -970,7 +988,7 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   output = js_inspect(ctx, JS_UNDEFINED, 2, args);
   JS_FreeValue(ctx, args[1]);
   return JS_ToCString(ctx, output);
-}
+}*/
 
 JSValue js_debugger_build_backtrace(JSContext* ctx, const uint8_t* cur_pc);
 

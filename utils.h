@@ -93,6 +93,8 @@ typedef enum precedence {
 #define MIN_NUM(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
+#define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
+
 extern VISIBLE const char* js_default_module_path;
 
 typedef struct {
@@ -645,6 +647,7 @@ int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
 JSValue js_object_construct(JSContext* ctx, JSValueConst ctor);
 JSValue js_object_error(JSContext* ctx, const char* message);
 JSValue js_object_stack(JSContext* ctx);
+JSValue js_object_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]);
 
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {
@@ -865,14 +868,16 @@ JSValue module_name(JSContext*, JSModuleDef*);
 const char* module_namestr(JSContext*, JSModuleDef*);
 JSValue module_func(JSContext*, JSModuleDef*);
 JSValue module_ns(JSContext*, JSModuleDef*);
+void get_module_exports(JSContext*, JSModuleDef*, BOOL rename_default, JSValueConst exports);
 JSValue module_exports(JSContext*, JSModuleDef*);
 struct list_head* js_modules_list(JSContext*);
 JSValue js_modules_array(JSContext*, JSValueConst, int magic);
 JSValue js_modules_entries(JSContext*, JSValueConst, int magic);
 JSValue js_modules_map(JSContext*, JSValueConst, int magic);
 JSValue js_modules_object(JSContext*, JSValueConst, int magic);
-JSValue module_object(JSContext*, JSModuleDef*);
+JSValue module_value(JSContext*, JSModuleDef*);
 JSValue module_entry(JSContext*, JSModuleDef*);
+JSValue module_object(JSContext*, JSModuleDef*);
 char* js_module_search(JSContext*, const char*);
 char* js_module_search_ext(JSContext*, const char*, const char* ext);
 char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);

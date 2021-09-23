@@ -21,11 +21,11 @@ extern const uint8_t qjsm_socklen_t[1030];
 
 #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), on_fail)
 
-#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail) \
-  do { \
-    syscall_return(&(sock), (syscall_no), (result)); \
-    ret = (sock).ret < 0 ? (on_fail) : (on_success); \
-    JS_SetOpaque(this_val, (sock).ptr); \
+#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail)                                                                          \
+  do {                                                                                                                                               \
+    syscall_return(&(sock), (syscall_no), (result));                                                                                                 \
+    ret = (sock).ret < 0 ? (on_fail) : (on_success);                                                                                                 \
+    JS_SetOpaque(this_val, (sock).ptr);                                                                                                              \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;

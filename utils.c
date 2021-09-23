@@ -486,11 +486,8 @@ js_object_construct(JSContext* ctx, JSValueConst ctor) {
 
 JSValue
 js_object_error(JSContext* ctx, const char* message) {
-  JSValueConst ctor = js_global_get(ctx, "Error");
   JSValueConst args[] = {JS_NewString(ctx, message)};
-  JSValue ret;
-  ret = JS_CallConstructor(ctx, ctor, 1, args);
-  JS_FreeValue(ctx, ctor);
+  JSValue ret = js_object_new(ctx, "Error", 1, args);
   JS_FreeValue(ctx, args[0]);
   return ret;
 }
@@ -501,6 +498,14 @@ js_object_stack(JSContext* ctx) {
   JSValue stack = JS_GetPropertyStr(ctx, error, "stack");
   JS_FreeValue(ctx, error);
   return stack;
+}
+
+JSValue
+js_object_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]) {
+  JSValue ctor = js_global_get(ctx, class_name);
+  JSValue obj = JS_CallConstructor(ctx, ctor, argc, argv);
+  JS_FreeValue(ctx, ctor);
+  return obj;
 }
 
 BOOL
@@ -1269,7 +1274,10 @@ js_map_new(JSContext* ctx, JSValueConst entries) {
 
 JSValue
 module_name(JSContext* ctx, JSModuleDef* module) {
-  return JS_AtomToValue(ctx, module->module_name);
+  if(module->module_name < ctx->rt->atom_count)
+    return JS_AtomToValue(ctx, module->module_name);
+
+  return JS_UNDEFINED;
 }
 
 const char*
@@ -1280,9 +1288,29 @@ module_namestr(JSContext* ctx, JSModuleDef* module) {
   return str;
 }
 
+static JSValue
+call_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, JSValue data[]) {
+  JSModuleInitFunc* init_func = (JSModuleInitFunc*)((uintptr_t)JS_VALUE_GET_INT(data[0]) | ((uintptr_t)JS_VALUE_GET_INT(data[1])) << 32);
+
+  if(argc >= 1 && JS_IsModule(argv[0]))
+    return JS_NewInt32(ctx, init_func(ctx, JS_VALUE_GET_PTR(argv[0])));
+
+  return JS_ThrowTypeError(ctx, "argument 1 module expected");
+}
+
 JSValue
 module_func(JSContext* ctx, JSModuleDef* module) {
-  return JS_DupValue(ctx, module->func_obj);
+  JSValue func = JS_UNDEFINED;
+  if(JS_IsFunction(ctx, module->func_obj)) {
+    func = JS_DupValue(ctx, module->func_obj);
+  } else if(module->init_func) {
+    JSValueConst data[2] = {
+        JS_MKVAL(JS_TAG_INT, (int32_t)((uintptr_t)module->init_func) & 0xffffffff),
+        JS_MKVAL(JS_TAG_INT, (int32_t)((uintptr_t)module->init_func) >> 32),
+    };
+    func = JS_NewCFunctionData(ctx, call_module_func, 1, 0, 2, data);
+  }
+  return func;
 }
 
 JSValue
@@ -1290,18 +1318,29 @@ module_ns(JSContext* ctx, JSModuleDef* module) {
   return JS_DupValue(ctx, module->module_ns);
 }
 
-JSValue
-module_exports(JSContext* ctx, JSModuleDef* module) {
-  JSValue exports = JS_NewObject(ctx);
+void
+get_module_exports(JSContext* ctx, JSModuleDef* module, BOOL rename_default, JSValueConst exports) {
+  JSAtom def = JS_NewAtom(ctx, "default");
+
   size_t i;
   for(i = 0; i < module->export_entries_count; i++) {
     JSExportEntry* entry = &module->export_entries[i];
     JSVarRef* ref = entry->u.local.var_ref;
     if(ref) {
       JSValue export = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
-      JS_SetProperty(ctx, exports, entry->export_name, export);
+      JSAtom name = entry->export_name;
+      if(rename_default && name == def)
+        name = module->module_name;
+      JS_SetProperty(ctx, exports, name, export);
     }
   }
+  JS_FreeAtom(ctx, def);
+}
+
+JSValue
+module_exports(JSContext* ctx, JSModuleDef* module) {
+  JSValue exports = JS_NewObject(ctx);
+  get_module_exports(ctx, module, FALSE, exports);
   return exports;
 }
 
@@ -1318,7 +1357,7 @@ js_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
   list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* def = list_entry(el, JSModuleDef, link);
     const char* str = module_namestr(ctx, def);
-    JSValue entry = magic ? module_entry(ctx, def) : module_object(ctx, def);
+    JSValue entry = magic ? module_entry(ctx, def) : module_value(ctx, def);
     if(str[0] != '<')
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
@@ -1338,7 +1377,7 @@ js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
     const char* name = module_namestr(ctx, def);
     JSValue entry = JS_NewArray(ctx);
     JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, /*basename*/ (name)));
-    JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, def) : module_object(ctx, def));
+    JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, def) : module_value(ctx, def));
     if(name[0] != '<')
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
@@ -1363,7 +1402,7 @@ js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
   list_for_each(it, &ctx->loaded_modules) {
     JSModuleDef* def = list_entry(it, JSModuleDef, link);
     const char* name = module_namestr(ctx, def);
-    JSValue entry = magic ? module_entry(ctx, def) : module_object(ctx, def);
+    JSValue entry = magic ? module_entry(ctx, def) : module_value(ctx, def);
     if(name[0] != '<')
       JS_SetPropertyStr(ctx, obj, basename(name), entry);
     else
@@ -1374,7 +1413,7 @@ js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 JSValue
-module_object(JSContext* ctx, JSModuleDef* def) {
+module_value(JSContext* ctx, JSModuleDef* def) {
   return JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def));
 }
 
@@ -1385,6 +1424,27 @@ module_entry(JSContext* ctx, JSModuleDef* def) {
   JS_SetPropertyUint32(ctx, entry, 1, module_exports(ctx, def));
   JS_SetPropertyUint32(ctx, entry, 2, module_func(ctx, def));
   return entry;
+}
+
+JSValue
+module_object(JSContext* ctx, JSModuleDef* def) {
+  JSValue ns, exports, func, obj = JS_NewObject(ctx);
+  JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, def));
+  JS_SetPropertyStr(ctx, obj, "resolved", JS_NewBool(ctx, def->resolved));
+  JS_SetPropertyStr(ctx, obj, "func_created", JS_NewBool(ctx, def->func_created));
+  JS_SetPropertyStr(ctx, obj, "instantiated", JS_NewBool(ctx, def->instantiated));
+  JS_SetPropertyStr(ctx, obj, "evaluated", JS_NewBool(ctx, def->evaluated));
+
+  ns = module_ns(ctx, def);
+  if(!JS_IsUndefined(ns))
+    JS_SetPropertyStr(ctx, obj, "ns", ns);
+  exports = module_exports(ctx, def);
+  if(!JS_IsUndefined(exports))
+    JS_SetPropertyStr(ctx, obj, "exports", module_exports(ctx, def));
+  func = module_func(ctx, def);
+  if(!JS_IsUndefined(func))
+    JS_SetPropertyStr(ctx, obj, "func", func);
+  return obj;
 }
 
 char*
@@ -1546,9 +1606,12 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
 JSValue
 js_import_eval(JSContext* ctx, ImportDirective imp) {
   DynBuf buf;
+  char* code;
   js_dbuf_init(ctx, &buf);
   js_import_directive(ctx, imp, &buf);
-  printf("js_import_eval: '%.*s'\n", buf.size, buf.buf);
+  code = str_escape(buf.buf);
+  printf("js_import_eval: '%s'\n", code);
+  free(code);
   return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
 }
 
@@ -1912,7 +1975,7 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
     val = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
       js_module_set_import_meta(ctx, val, !!filename, TRUE);
-      val = JS_EvalFunction(ctx, val);
+      /*val = */ JS_EvalFunction(ctx, val);
     }
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
@@ -2109,7 +2172,14 @@ js_error_print(JSContext* ctx, JSValueConst error) {
   }
 
   if((str = JS_ToCString(ctx, error))) {
-    printf("%s: %s\n", JS_IsObject(error) ? js_object_classname(ctx, error) : js_value_typestr(ctx, error), str);
+    const char* type = JS_IsObject(error) ? js_object_classname(ctx, error) : js_value_typestr(ctx, error);
+    const char* exception = str;
+    size_t typelen = strlen(type);
+
+    if(!strncmp(exception, type, typelen) && exception[typelen] == ':') {
+      exception += typelen + 2;
+    }
+    printf("%s: %s\n", type, exception);
     if(stack)
       printf("STACK=\n%s\n", stack);
     fflush(stdout);
