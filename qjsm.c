@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <dlfcn.h>
 #include <time.h>
 #include <signal.h>
 #include <sys/poll.h>
@@ -15,6 +14,9 @@
 #include <malloc/malloc.h>
 #elif defined(__linux__)
 #include <malloc.h>
+#endif
+#ifndef __wasi__
+#include <dlfcn.h>
 #endif
 
 #if 1 // def HAVE_QUICKJS_CONFIG_H

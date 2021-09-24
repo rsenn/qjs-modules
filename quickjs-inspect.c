@@ -13,8 +13,10 @@
 #include <math.h>
 #include <string.h>
 #include <sys/ioctl.h>
-#include <termios.h>
 #include <unistd.h>
+#ifdef HAVE_TERMIOS_H
+#include <termios.h>
+#endif
 
 thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 
@@ -73,10 +75,12 @@ regexp_predicate(int c) {
 
 static inline int
 inspect_screen_width(void) {
-  struct winsize w = {.ws_col = -1, .ws_row = -1};
-
   if(screen_width != -1)
     return screen_width;
+
+#ifdef HAVE_TERMIOS_H
+  {
+      struct winsize w = {.ws_col = -1, .ws_row = -1};
 
   if(stdout_isatty)
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
@@ -84,6 +88,10 @@ inspect_screen_width(void) {
     ioctl(STDERR_FILENO, TIOCGWINSZ, &w);
 
   return screen_width = w.ws_col;
+}
+#else
+  return 80;
+#endif
 }
 
 static void

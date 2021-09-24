@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/stat.h>
-#include <dlfcn.h>
+//#include <dlfcn.h>
 
 #ifndef INFINITY
 #define INFINITY __builtin_inf()
@@ -1667,7 +1667,7 @@ js_module_import(JSContext* ctx, const char* path, const char* ns, const char* v
   return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
 }
 
-JSModuleDef*
+/*JSModuleDef*
 js_module_loader_so(JSContext* ctx, const char* module) {
   JSModuleDef* def;
   JSModuleLoaderFunc* init;
@@ -1704,7 +1704,7 @@ fail:
   if(hd)
     dlclose(hd);
   return 0;
-}
+}*/
 
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
@@ -2052,72 +2052,12 @@ js_sab_free(void* opaque, void* ptr) {
     free(sab);
   }
 }
+
 void
 js_sab_dup(void* opaque, void* ptr) {
   JSSABHeader* sab;
   sab = (JSSABHeader*)((uint8_t*)ptr - sizeof(JSSABHeader));
   atomic_add_int(&sab->ref_count, 1);
-}
-
-JSWorkerMessagePipe*
-js_new_message_pipe(void) {
-  JSWorkerMessagePipe* ps;
-  int pipe_fds[2];
-
-  if(pipe(pipe_fds) < 0)
-    return 0;
-
-  ps = malloc(sizeof(*ps));
-  if(!ps) {
-    close(pipe_fds[0]);
-    close(pipe_fds[1]);
-    return 0;
-  }
-  ps->ref_count = 1;
-  init_list_head(&ps->msg_queue);
-  pthread_mutex_init(&ps->mutex, 0);
-  ps->read_fd = pipe_fds[0];
-  ps->write_fd = pipe_fds[1];
-  return ps;
-}
-
-JSWorkerMessagePipe*
-js_dup_message_pipe(JSWorkerMessagePipe* ps) {
-  atomic_add_int(&ps->ref_count, 1);
-  return ps;
-}
-
-void
-js_free_message(JSWorkerMessage* msg) {
-  size_t i;
-
-  for(i = 0; i < msg->sab_tab_len; i++) { js_sab_free(0, msg->sab_tab[i]); }
-  free(msg->sab_tab);
-  free(msg->data);
-  free(msg);
-}
-
-void
-js_free_message_pipe(JSWorkerMessagePipe* ps) {
-  struct list_head *el, *el1;
-  JSWorkerMessage* msg;
-  int ref_count;
-
-  if(!ps)
-    return;
-
-  ref_count = atomic_add_int(&ps->ref_count, -1);
-  assert(ref_count >= 0);
-  if(ref_count == 0) {
-    list_for_each_safe(el, el1, &ps->msg_queue) {
-      msg = list_entry(el, JSWorkerMessage, link);
-      js_free_message(msg);
-    }
-    pthread_mutex_destroy(&ps->mutex);
-    close(ps->read_fd);
-    close(ps->write_fd);
-    free(ps);
-  }
 }
 
 void
