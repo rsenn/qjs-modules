@@ -398,7 +398,9 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   const char* path = JS_ToCString(ctx, argv[0]);
   char* result;
 
+#ifndef __wasi__
   if((result = realpath(path, resolved)))
+#endif
     return JS_NewString(ctx, result);
   return JS_NULL;
 }*/
@@ -524,57 +526,49 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   int32_t ret = 0;
 
   switch(magic) {
-    case FUNC_GETPID: {
-      ret = getpid();
-      break;
-    }
-    case FUNC_GETPPID: {
-      ret = getppid();
-      break;
-    }
+#ifndef __wasi__
+    case FUNC_GETPID: { ret = getpid(); break; }
+#endif
+#ifndef __wasi__
+    case FUNC_GETPPID: { ret = getppid(); break; }
+#endif
     case FUNC_GETSID: {
       // sret = getsid();
       break;
     }
-    case FUNC_GETUID: {
-      ret = getuid();
-      break;
-    }
-    case FUNC_GETGID: {
-      ret = getgid();
-      break;
-    }
-    case FUNC_GETEUID: {
-      ret = geteuid();
-      break;
-    }
-    case FUNC_GETEGID: {
-      ret = getegid();
-      break;
-    }
-    case FUNC_SETUID: {
-      int32_t uid;
-      JS_ToInt32(ctx, &uid, argv[0]);
-      ret = setuid(uid);
-      break;
-    }
-    case FUNC_SETGID: {
-      int32_t gid;
-      JS_ToInt32(ctx, &gid, argv[0]);
-      ret = setgid(gid);
-      break;
-    }
+#ifndef __wasi__
+    case FUNC_GETUID: { ret = getuid(); break; }
+#endif
+#ifndef __wasi__
+    case FUNC_GETGID: { ret = getgid(); break; }
+#endif
+#ifndef __wasi__
+    case FUNC_GETEUID: { ret = geteuid(); break; }
+#endif
+#ifndef __wasi__
+    case FUNC_GETEGID: { ret = getegid(); break; }
+#endif
+#ifndef __wasi__
+    case FUNC_SETUID: { int32_t uid; JS_ToInt32(ctx, &uid, argv[0]); ret = setuid(uid); break; }
+#endif
+#ifndef __wasi__
+    case FUNC_SETGID: { int32_t gid; JS_ToInt32(ctx, &gid, argv[0]); ret = setgid(gid); break; }
+#endif
     case FUNC_SETEUID: {
       int32_t euid;
       JS_ToInt32(ctx, &euid, argv[0]);
+#ifndef __wasi__
       ret = setuid(euid);
+#endif
       break;
       break;
     }
     case FUNC_SETEGID: {
       int32_t egid;
       JS_ToInt32(ctx, &egid, argv[0]);
+#ifndef __wasi__
       ret = setgid(egid);
+#endif
       break;
     }
   }

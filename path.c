@@ -30,7 +30,7 @@ path_absolute_db(DynBuf* db) {
   dbuf_putc(db, '\0');
   db->size--;
 
-  if(!path_isabs((const char*)db->buf)) {
+  if(!path_is_absolute((const char*)db->buf, db->size)) {
     DynBuf tmp;
     dbuf_init(&tmp);
     dbuf_append(&tmp, db->buf, db->size);
@@ -111,15 +111,8 @@ path_collapse(char* path, size_t n) {
     }
 
     i = l;
-    /*   x += i;
-       n -= i;*/
   }
-  //  n = x - path;
-  //  if(n > 3 && path[n - 1] == PATHSEP_C && path[n - 2] == '.' && path[n - 3]
-  //  == PATHSEP_C)
-  //    n -= 3;
-  //  else if(n > 2 && path[n - 1] == '.' && path[n - 2] == PATHSEP_C)
-  //    n -= 2;
+
   return n;
 }
 
@@ -394,7 +387,10 @@ int
 path_is_absolute(const char* x, size_t n) {
   if(n > 0 && x[0] == PATHSEP_C)
     return 1;
-
+#ifdef _WIN32
+  if(n >= 2 && x[1] == ':')
+    return 1;
+#endif
   return 0;
 }
 
@@ -427,19 +423,12 @@ path_normalize(const char* path, DynBuf* db, int symbolic) {
   int ret = 1;
   char sep, buf[PATH_MAX + 1];
   int (*stat_fn)(const char*, struct stat*) = stat;
-#if 1 //! WINDOWS_NATIVE
   if(symbolic)
     stat_fn = lstat;
-#endif
   if(path_issep(*path)) {
     dbuf_putc(db, (sep = *path));
     path++;
   }
-#if 0 // WINDOWS
-  else if(*path && path[1] == ':') {
-    sep = path[1];
-  }
-#endif
   else
     sep = PATHSEP_C;
 start:

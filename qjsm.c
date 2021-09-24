@@ -190,9 +190,11 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
         printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
 
+#ifndef __wasi__
     if(has_suffix(file, ".so"))
       ret = js_module_loader_so(ctx, file);
     else
+#endif
       ret = js_module_loader(ctx, file, opaque);
   }
 end:
@@ -264,12 +266,16 @@ jsm_context_new(JSRuntime* rt) {
 
   jsm_module_native(std);
   jsm_module_native(os);
+#ifndef __wasi__
   jsm_module_native(child_process);
+#endif
   jsm_module_native(deep);
   jsm_module_native(inspect);
   jsm_module_native(lexer);
   jsm_module_native(misc);
+#ifndef __wasi__
   jsm_module_native(mmap);
+#endif
   jsm_module_native(path);
   jsm_module_native(pointer);
   jsm_module_native(predicate);

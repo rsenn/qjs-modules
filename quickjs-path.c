@@ -1,5 +1,5 @@
-#include "cutils.h"
-#include "quickjs.h"
+#include <cutils.h>
+#include <quickjs.h>
 #include "buffer-utils.h"
 #include "char-utils.h"
 
@@ -87,12 +87,13 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
+#ifndef __wasi__
     case METHOD_REALPATH: {
       if(realpath(a, buf))
         ret = JS_NewString(ctx, buf);
       break;
     }
-
+#endif
     case METHOD_EXISTS: {
       ret = JS_NewBool(ctx, path_exists(a));
       break;
@@ -154,10 +155,12 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
+#ifndef __wasi__
     case METHOD_GETHOME: {
       ret = JS_NewString(ctx, path_gethome(getuid()));
       break;
     }
+#endif
 
     case METHOD_GETSEP: {
       char c;
@@ -425,7 +428,9 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("extname", 1, js_path_method, METHOD_EXTNAME),
     JS_CFUNC_MAGIC_DEF("fnmatch", 1, js_path_method, METHOD_FNMATCH),
     JS_CFUNC_MAGIC_DEF("getcwd", 1, js_path_method, METHOD_GETCWD),
+#ifndef __wasi__
     JS_CFUNC_MAGIC_DEF("gethome", 1, js_path_method, METHOD_GETHOME),
+#endif
     JS_CFUNC_MAGIC_DEF("getsep", 1, js_path_method, METHOD_GETSEP),
     JS_CFUNC_MAGIC_DEF("isAbsolute", 1, js_path_method, METHOD_IS_ABSOLUTE),
     JS_CFUNC_MAGIC_DEF("isRelative", 1, js_path_method, METHOD_IS_RELATIVE),
@@ -435,7 +440,9 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("length", 1, js_path_method, METHOD_LENGTH),
     JS_CFUNC_MAGIC_DEF("components", 1, js_path_method, METHOD_COMPONENTS),
     JS_CFUNC_MAGIC_DEF("readlink", 1, js_path_method, METHOD_READLINK),
+#ifndef __wasi__
     JS_CFUNC_MAGIC_DEF("realpath", 1, js_path_method, METHOD_REALPATH),
+#endif
     JS_CFUNC_MAGIC_DEF("right", 1, js_path_method, METHOD_RIGHT),
     JS_CFUNC_MAGIC_DEF("skip", 1, js_path_method, METHOD_SKIP),
     JS_CFUNC_MAGIC_DEF("skipSeparator", 1, js_path_method, METHOD_SKIP_SEPARATOR),

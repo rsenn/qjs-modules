@@ -19,29 +19,23 @@
 #define PATH_FNM_PERIOD (1 << 2)
 
 #if defined(__MINGW32__) || defined(__MSYS__) || defined(__CYGWIN__)
-#define WINDOWS 1
 #define PATHSEP_S "/"
 #define PATHSEP_C '/'
-#define PATHSEP_S_MIXED "\\/"
-#define PATHDELIM_S ":"
+#define PATHDELIM_S ";"
 #define path_issep(c) ((c) == '/' || (c) == '\\')
 #elif defined(_WIN32)
-#define WINDOWS 1
-#define WINDOWS_NATIVE 1
 #define PATHSEP_C '\\'
 #define PATHSEP_S "\\"
-#define PATHSEP_S_MIXED "\\"
 #define PATHDELIM_S ";"
 #define path_issep(c) ((c) == '\\')
 #else
 #define PATHSEP_S "/"
 #define PATHSEP_C '/'
-#define PATHSEP_S_MIXED "/"
 #define PATHDELIM_S ":"
 #define path_issep(c) ((c) == '/')
 #endif
 
-#define path_isabs(p) (path_issep((p)[0]) || ((p)[1] == ':' && path_issep((p)[2])))
+#define path_isabs(p) (path_issep((p)[0]) || ((p)[0] && (p)[1] == ':' && path_issep((p)[2])))
 #define path_isrel(p) (!path_isabs(p))
 #define path_isname(p) ((p)[str_chr((p), '/')] != '\0')
 
