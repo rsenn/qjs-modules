@@ -63,7 +63,7 @@ blob_free_rt(JSRuntime* rt, Blob* blob) {
 
 InputBuffer
 blob_input(JSContext* ctx, Blob* blob) {
-  InputBuffer ret = {blob->data, 0, blob->size, &input_buffer_free_default, JS_UNDEFINED, 0, INT64_MAX};
+  InputBuffer ret = {blob->data, 0, blob->size, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
   return ret;
 }
 
@@ -235,7 +235,7 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case BLOB_TEXT: {
-      ret = JS_NewStringLen(ctx, blob->data, blob->size);
+      ret = JS_NewStringLen(ctx, (const char*)blob->data, blob->size);
       break;
     }
   }

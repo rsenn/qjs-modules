@@ -123,15 +123,16 @@ macro(configure_quickjs)
 set(QUICKJS_C_MODULE_DIR "${QUICKJS_C_MODULE_DIR}" CACHE PATH "QuickJS native C modules directory")
   set(QUICKJS_JS_MODULE_DIR "${QUICKJS_JS_MODULE_DIR}" CACHE PATH "QuickJS JavaScript modules directory")
 
-  set(QUICKJS_MODULE_PATH "${QUICKJS_C_MODULE_DIR}")
+  set(MODULE_PATH "${QUICKJS_C_MODULE_DIR}")
   if(NOT "${QUICKJS_C_MODULE_DIR}" STREQUAL "${QUICKJS_JS_MODULE_DIR}")
-    list(APPEND QUICKJS_MODULE_PATH "${QUICKJS_JS_MODULE_DIR}")
+    set(MODULE_PATH "${MODULE_PATH}:${QUICKJS_JS_MODULE_DIR}")
   endif(NOT "${QUICKJS_C_MODULE_DIR}" STREQUAL "${QUICKJS_JS_MODULE_DIR}")
 
-  string(REGEX REPLACE ";" ":" QUICKJS_MODULE_PATH "${QUICKJS_MODULE_PATH}")
-  set(QUICKJS_MODULE_PATH "${QUICKJS_MODULE_PATH}" CACHE PATH "QuickJS modules search path")
+  string(REPLACE ";" ":" MODULE_PATH "${MODULE_PATH}")
+  set(QUICKJS_MODULE_PATH "${MODULE_PATH}" CACHE PATH "QuickJS modules search path")
 
   set(CMAKE_INSTALL_RPATH "${QUICKJS_MODULE_PATH}")
+
   message(STATUS "QuickJS configuration")
   message(STATUS "\tinterpreter: ${QJS}")
   message(STATUS "\tcompiler: ${QJSC}")

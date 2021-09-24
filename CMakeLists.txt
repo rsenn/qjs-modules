@@ -393,7 +393,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
                                         RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
 
   target_compile_definitions(qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}"
-                                          CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}" CONFIG_BIGNUM=1)
+    CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}" QUICKJS_MODULE_PATH="${QUICKJS_MODULE_PATH}" CONFIG_BIGNUM=1)
   install(TARGETS qjsm DESTINATION bin)
 
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)

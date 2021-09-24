@@ -54,7 +54,7 @@ stringdecoder_read(StringDecoder* sd, JSContext* ctx) {
   if(len > ringbuffer_continuous_length(&sd->buffer))
     ringbuffer_normalize(&sd->buffer);
 
-  ret = JS_NewStringLen(ctx, ringbuffer_begin(&sd->buffer), len);
+  ret = JS_NewStringLen(ctx, (const char*)ringbuffer_begin(&sd->buffer), len);
 
   sd->buffer.tail += len;
   return ret;

@@ -213,7 +213,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     InputBuffer in = js_input_chars(ctx, argv[0]);
     const uint8_t *p, *begin = input_buffer_begin(&in), *end = input_buffer_end(&in);
     unsigned long v, n[2];
-    size_t ni = max(2, str_count(begin, ':'));
+    size_t ni = max(2, str_count((const char*)begin, ':'));
 
     while(end >= begin) {
       for(p = end; p > begin && *(p - 1) != ':'; p--) {}

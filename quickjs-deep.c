@@ -80,7 +80,7 @@ static BOOL
 js_deep_predicate(JSContext* ctx, JSValueConst value, PropertyEnumeration* penum) {
   BOOL result = TRUE;
   Predicate* pred;
-  JSValue ret;
+  JSValue ret = JS_UNDEFINED;
   JSValueConst args[] = {
       property_enumeration_value(penum, ctx),
       property_enumeration_key(penum, ctx),

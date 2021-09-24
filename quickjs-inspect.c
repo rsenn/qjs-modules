@@ -965,7 +965,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
   return ret;
 }
 
-const char*
+char*
 js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   DynBuf dbuf;
   inspect_options_t options;
@@ -980,7 +980,7 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   inspect_options_free(&options, ctx);
 
   dbuf_0(&dbuf);
-  return dbuf.buf;
+  return (char*)dbuf.buf;
 }
 
 /*const char*

@@ -535,8 +535,7 @@ static int32_t
 lexer_to_state(Lexer* lex, JSContext* ctx, JSValueConst value) {
   int32_t num;
   if(JS_IsNumber(value)) {
-    int32_t num;
-    JS_ToInt32(ctx, &num, value);
+     JS_ToInt32(ctx, &num, value);
   } else {
     const char* str = JS_ToCString(ctx, value);
     num = lexer_state_find(lex, str);

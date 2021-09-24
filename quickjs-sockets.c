@@ -208,11 +208,11 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       DynBuf dbuf;
       js_dbuf_init(ctx, &dbuf);
       dbuf_realloc(&dbuf, INET6_ADDRSTRLEN);
-      inet_ntop(a->family, sockaddr_addr(a), dbuf.buf, INET6_ADDRSTRLEN);
-      dbuf.size = strlen(dbuf.buf);
+      inet_ntop(a->family, sockaddr_addr(a), (char*)dbuf.buf, INET6_ADDRSTRLEN);
+      dbuf.size = strlen((const char*)dbuf.buf);
       dbuf_putc(&dbuf, ':');
-      dbuf_put(&dbuf, port, fmt_ulong(port, sockaddr_port(a)));
-      ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
+      dbuf_put(&dbuf, (const uint8_t*)port, fmt_ulong(port, sockaddr_port(a)));
+      ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
       dbuf_free(&dbuf);
       break;
     }
@@ -257,7 +257,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
       }
       case SOCKADDR_BUFFER: {
         JSValue* v = js_mallocz(ctx, sizeof(JSValue));
-        ret = JS_NewArrayBuffer(ctx, a, sizeof(SockAddr), js_sockaddr_free_buffer, v, FALSE);
+        ret = JS_NewArrayBuffer(ctx, (uint8_t*)a, sizeof(SockAddr), js_sockaddr_free_buffer, v, FALSE);
         break;
       }
     }
@@ -523,14 +523,14 @@ pollfd_write(JSContext* ctx, const struct pollfd* pfd, JSValueConst arg) {
 }
 
 void*
-optval_buf(JSContext* ctx, JSValueConst arg, int32_t** tmp_ptr, size_t* lenp) {
+optval_buf(JSContext* ctx, JSValueConst arg, int32_t** tmp_ptr, socklen_t* lenp) {
   uint32_t len;
   uint8_t* buf;
 
   if(JS_IsArray(ctx, arg)) {
     int i, n = MAX_NUM(1, MIN_NUM(js_array_length(ctx, arg), 1));
     len = n * sizeof(int32_t);
-    *tmp_ptr = buf = js_mallocz(ctx, len);
+    *tmp_ptr = (int32_t*)(buf = js_mallocz(ctx, len));
     for(i = 0; i < n; i++) {
       JSValue el = JS_GetPropertyUint32(ctx, arg, i);
       JS_ToInt32(ctx, &(*tmp_ptr)[i], el);
@@ -696,27 +696,9 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
 }
 
 static JSValue
-js_sockopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int32_t sock = -1, level = -1, optname = -1;
-
-  JS_ToInt32(ctx, &sock, argv[0]);
-  JS_ToInt32(ctx, &level, argv[1]);
-  JS_ToInt32(ctx, &optname, argv[2]);
-}
-
-static const JSCFunctionListEntry js_sockets_funcs[] = {
-    JS_CFUNC_DEF("socket", 1, js_socket),
-    JS_CFUNC_DEF("socketpair", 4, js_socketpair),
-    JS_CFUNC_DEF("select", 1, js_select),
-    JS_CFUNC_DEF("poll", 1, js_poll),
-    JS_CFUNC_MAGIC_DEF("getsockopt", 4, js_sockopt, 0),
-    JS_CFUNC_MAGIC_DEF("setsockopt", 4, js_sockopt, 1),
-};
-
-static JSValue
 js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd) {
   JSValue obj;
-  Socket sock = {fd, 0, 0, -1};
+  Socket sock = {{fd, 0, 0, -1}};
 
   if(js_socket_class_id == 0)
     js_sockets_init(ctx, 0);
@@ -969,7 +951,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         socklen_t len = optval.size;*/
       uint8_t* buf;
       int32_t *val, *tmp = 0;
-      size_t len;
+      socklen_t len;
       JS_ToInt32(ctx, &level, argv[0]);
       JS_ToInt32(ctx, &optname, argv[1]);
       if(argc >= 4)
@@ -1012,12 +994,12 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
     case SOCKET_SETSOCKOPT: {
       int32_t level, optname, num = 0, *tmp = 0;
-      uint32_t len = 0;
+      socklen_t len = 0;
       uint8_t* buf = 0;
       if(argc >= 3)
         buf = optval_buf(ctx, argv[2], &tmp, &len);
       if(!buf) {
-        buf = &num;
+        buf = (uint8_t*)&num;
         len = sizeof(num);
       }
       JS_ToInt32(ctx, &level, argv[0]);
@@ -1111,7 +1093,7 @@ js_socket_valueof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   if(id == js_socket_class_id) {
     Socket sock = js_socket_data(this_val);
     fd = (int16_t)sock.fd;
-  } else if(JS_IsNumber((value = JS_GetProperty(ctx, this_val, "fd")))) {
+  } else if(JS_IsNumber((value = JS_GetPropertyStr(ctx, this_val, "fd")))) {
     JS_ToInt32(ctx, &fd, value);
     JS_FreeValue(ctx, value);
   }
@@ -1132,6 +1114,20 @@ js_socket_finalizer(JSRuntime* rt, JSValue val) {
 static JSClassDef js_socket_class = {
     .class_name = "Socket",
     .finalizer = js_socket_finalizer,
+};
+
+static JSValue
+js_sockopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+   return js_socket_method(ctx, argv[0], argc-1, argv+1, magic);
+}
+
+static const JSCFunctionListEntry js_sockets_funcs[] = {
+    JS_CFUNC_DEF("socket", 1, js_socket),
+    JS_CFUNC_DEF("socketpair", 4, js_socketpair),
+    JS_CFUNC_DEF("select", 1, js_select),
+    JS_CFUNC_DEF("poll", 1, js_poll),
+    JS_CFUNC_MAGIC_DEF("getsockopt", 4, js_sockopt, SOCKET_GETSOCKOPT),
+    JS_CFUNC_MAGIC_DEF("setsockopt", 4, js_sockopt, SOCKET_SETSOCKOPT),
 };
 
 static const JSCFunctionListEntry js_socket_proto_funcs[] = {

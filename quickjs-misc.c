@@ -936,30 +936,37 @@ enum {
 static JSValue
 js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   uint32_t bound = 0;
+  JSValue ret=JS_UNDEFINED;
+
   if(argc > 0 && JS_IsNumber(argv[0]))
     JS_ToUint32(ctx, &bound, argv[0]);
 
   switch(magic) {
     case RANDOM_RAND: {
       uint32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound) : pcg32_random();
-      return JS_NewUint32(ctx, num);
+      ret = JS_NewUint32(ctx, num);
+      break;
     }
     case RANDOM_RANDI: {
       int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
-      return JS_NewInt32(ctx, num);
+      ret = JS_NewInt32(ctx, num);
+      break;
     }
-
     case RANDOM_RANDF: {
       uint32_t num = pcg32_random();
-      return JS_NewFloat64(ctx, (double)num / UINT32_MAX);
+      ret = JS_NewFloat64(ctx, (double)num / UINT32_MAX);
+      break;
     }
     case RANDOM_SRAND: {
       uint32_t st = 0;
       JS_ToUint32(ctx, &st, argv[0]);
       pcg32_init_state(st);
-      return JS_UNDEFINED;
+      ret = JS_UNDEFINED;
+      break;
     }
   }
+
+  return ret;
 }
 
 JSValue

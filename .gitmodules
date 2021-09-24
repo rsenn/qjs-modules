@@ -2,6 +2,3 @@
 	path = pigpio
 	url = https://github.com/joan2937/pigpio
 	branch = master
-[submodule "libarchive"]
-	path = libarchive
-	url = https://github.com/libarchive/libarchive
