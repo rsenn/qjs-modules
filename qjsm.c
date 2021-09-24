@@ -100,9 +100,9 @@ static Vector builtins = VECTOR_INIT();
 
 static const char jsm_default_module_path[] = "."
 #ifdef QUICKJS_MODULE_PATH
-                                      ";" QUICKJS_MODULE_PATH 
+                                              ":" QUICKJS_MODULE_PATH
 #elif defined(CONFIG_PREFIX)
-                                      ";" CONFIG_PREFIX "/lib/quickjs"
+                                              ":" CONFIG_PREFIX "/lib/quickjs"
 #endif
     ;
 
@@ -198,7 +198,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
         printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
 
-      ret = js_module_loader(ctx, file, opaque);
+    ret = js_module_loader(ctx, file, opaque);
   }
 end:
   if(vector_finds(&module_debug, "import") != -1) {
