@@ -23,6 +23,7 @@
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
+#ifndef thread_local
 #ifdef _Thread_local
 #define thread_local _Thread_local
 #elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__SUNPRO_CC) || defined(__IBMCPP__)
@@ -31,6 +32,7 @@
 #define thread_local __declspec(thread)
 #else
 #error No TLS implementation found.
+#endif
 #endif
 
 typedef enum precedence {
@@ -459,7 +461,7 @@ js_towstringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
   wchar_t* ret = 0;
   if((cstr = JS_ToCStringLen(ctx, &len, value))) {
     ret = js_mallocz(ctx, sizeof(wchar_t) * (len + 1));
-    uint8_t *ptr = (uint8_t*)cstr, *end = (uint8_t*)cstr + len;
+    const uint8_t *ptr = (const uint8_t*)cstr, *end = (const uint8_t*)cstr + len;
 
     for(i = 0; ptr < end;) { ret[i++] = unicode_from_utf8(ptr, end - ptr, &ptr); }
 
@@ -641,6 +643,7 @@ const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 const char* js_function_tostring(JSContext* ctx, JSValueConst value);
 BOOL js_function_isnative(JSContext* ctx, JSValueConst value);
+int js_function_argc(JSContext* ctx, JSValueConst value);
 
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
@@ -849,23 +852,23 @@ int64_t js_date_time(JSContext*, JSValue arg);
 struct timespec js_date_timespec(JSContext*, JSValue arg);
 
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
-JSValue js_arraybuffer_fromvalue(JSContext*, const void* x, size_t n, JSValue val);
+JSValue js_arraybuffer_fromvalue(JSContext*,   void* x, size_t n, JSValue val);
 
 JSValue js_map_new(JSContext*, JSValueConst);
 
 typedef union import_directive {
   struct {
-    char* path; /**< Module path */
-    char* spec; /**< Import specifier(s) */
-    char* prop; /**< if != 0 && *prop, ns += "." + prop */
-    char* var;  /**< Global variable name */
-    char* ns;   /**< Namespace variable */
+    const char* path; /**< Module path */
+    const char* spec; /**< Import specifier(s) */
+    const char* prop; /**< if != 0 && *prop, ns += "." + prop */
+    const char* var;  /**< Global variable name */
+    const char* ns;   /**< Namespace variable */
   };
-  char* args[5];
+  const char* args[5];
 } ImportDirective;
 
 JSValue module_name(JSContext*, JSModuleDef*);
-const char* module_namestr(JSContext*, JSModuleDef*);
+char* module_namestr(JSContext*, JSModuleDef*);
 JSValue module_func(JSContext*, JSModuleDef*);
 JSValue module_ns(JSContext*, JSModuleDef*);
 void get_module_exports(JSContext*, JSModuleDef*, BOOL rename_default, JSValueConst exports);
@@ -878,8 +881,8 @@ JSValue js_modules_object(JSContext*, JSValueConst, int magic);
 JSValue module_value(JSContext*, JSModuleDef*);
 JSValue module_entry(JSContext*, JSModuleDef*);
 JSValue module_object(JSContext*, JSModuleDef*);
-char* js_module_search(JSContext*, const char*);
-char* js_module_search_ext(JSContext*, const char*, const char* ext);
+char* js_module_search(JSContext*,  const char* path, const char*);
+char* js_module_search_ext(JSContext*, const char* path, const char*, const char* ext);
 char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
 JSModuleDef* js_module_def(JSContext*, JSValueConst);
 JSModuleDef* js_module_find(JSContext*, const char*);

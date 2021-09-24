@@ -23,9 +23,10 @@ error_find(const char* code) {
   return 0;
 }
 
-static const char*
+static char*
 stack_get(JSContext* ctx) {
-  const char *stack, *ret;
+  const char* stack;
+  char* ret;
   JSValue st, error = js_global_new(ctx, "Error", 0, 0);
   st = JS_GetPropertyStr(ctx, error, "stack");
 
@@ -92,7 +93,7 @@ js_syscallerror_throw(JSContext* ctx, const char* syscall) {
 static JSValue
 js_syscallerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   SyscallError* err;
-  JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED, st;
+  JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED, st = JS_UNDEFINED;
 
   if(!(err = js_mallocz(ctx, sizeof(SyscallError))))
     return JS_EXCEPTION;
@@ -176,7 +177,7 @@ js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       DynBuf dbuf = {0};
       js_dbuf_init(ctx, &dbuf);
       js_syscallerror_dump(ctx, this_val, &dbuf);
-      ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
+      ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
       break;
     }
     case SYSCALLERROR_VALUEOF: {
@@ -250,7 +251,7 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
       DynBuf dbuf = {0};
       js_dbuf_init(ctx, &dbuf);
       js_syscallerror_dump(ctx, this_val, &dbuf);
-      ret = JS_NewStringLen(ctx, dbuf.buf, byte_chr(dbuf.buf, dbuf.size, '\n'));
+      ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, byte_chr(dbuf.buf, dbuf.size, '\n'));
       break;
     }
   }

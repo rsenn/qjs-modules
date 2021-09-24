@@ -19,7 +19,7 @@ size_t ansi_skip(const char*, size_t);
 size_t ansi_truncate(const char*, size_t, size_t limit);
 int64_t array_search(void*, size_t, size_t elsz, void* needle);
 char* str_escape(const char*);
-char* byte_escape(const char*, size_t);
+char* byte_escape(const void*, size_t);
 size_t byte_findb(const void*, size_t, const void* what, size_t wlen);
 size_t byte_finds(const void*, size_t, const char* what);
 size_t byte_equal(const void* s, size_t n, const void* t);
@@ -153,7 +153,7 @@ offset_is_default(const OffsetLength* ol) {
 
 static inline uint8_t*
 offset_data(const OffsetLength* ol, const void* x) {
-  return (uint8_t)x + ol->offset;
+  return (uint8_t*)x + ol->offset;
 }
 
 static inline size_t
@@ -227,12 +227,12 @@ void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
 
 static inline uint8_t*
-input_buffer_data(InputBuffer* in) {
+input_buffer_data(const InputBuffer* in) {
   return in->data + in->range.offset;
 }
 
 static inline size_t
-input_buffer_length(InputBuffer* in) {
+input_buffer_length(const InputBuffer* in) {
   return MIN_NUM(in->range.length, in->size);
 }
 
@@ -281,11 +281,11 @@ input_buffer_getc(InputBuffer* in) {
   return ret;
 }
 
-static inline const uint8_t*
+static inline uint8_t*
 input_buffer_begin(const InputBuffer* in) {
   return input_buffer_data(in);
 }
-static inline const uint8_t*
+static inline uint8_t*
 input_buffer_end(const InputBuffer* in) {
   return input_buffer_data(in) + input_buffer_length(in);
 }

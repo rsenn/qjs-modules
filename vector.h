@@ -221,6 +221,8 @@ vector_putptr(Vector* vec, void* p) {
   vector_put(vec, &p, sizeof(p));
 }
 
+void qsort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr);
+
 static inline void
 vector_sort(Vector* vec, size_t elsz, int (*compar)(const void*, const void*, void*), void* arg) {
   qsort_r(vector_begin(vec), vector_size(vec, elsz), elsz, compar, arg);

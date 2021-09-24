@@ -428,8 +428,7 @@ path_normalize(const char* path, DynBuf* db, int symbolic) {
   if(path_issep(*path)) {
     dbuf_putc(db, (sep = *path));
     path++;
-  }
-  else
+  } else
     sep = PATHSEP_C;
 start:
   while(*path) {

@@ -14,7 +14,7 @@ typedef union {
   struct sockaddr_in6 sai6;
 } SockAddr;
 
-__attribute__((packed)) union socket_state {
+union __attribute__((packed)) socket_state {
   struct {
     uint16_t fd;
     unsigned error : 12;
@@ -55,6 +55,8 @@ enum SocketCalls {
 #define socket_error(sock) ((sock).ret < 0 && (sock).error)
 #define socket_syscall(sock) socket_syscalls[(sock).syscall]
 
+int js_sockets_init(JSContext*, JSModuleDef*);
+
 static inline int
 sockaddr_port(const SockAddr* sa) {
   switch(sa->family) {
@@ -65,7 +67,7 @@ sockaddr_port(const SockAddr* sa) {
 }
 
 static inline void*
-sockaddr_addr(const SockAddr* sa) {
+sockaddr_addr(SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return &sa->sai.sin_addr;
     case AF_INET6: return &sa->sai6.sin6_addr;

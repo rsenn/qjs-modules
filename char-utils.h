@@ -2,6 +2,7 @@
 #define CHAR_UTILS_H
 
 #include <cutils.h>
+#include <string.h>
 
 #define is_control_char(c) ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
@@ -99,12 +100,12 @@ byte_count(const void* s, size_t n, char c) {
 }
 
 static inline size_t
-byte_chr(const char* str, size_t len, char c) {
+byte_chr(const void* str, size_t len, char c) {
   const char *s, *t;
   for(s = str, t = s + len; s < t; ++s)
     if(*s == c)
       break;
-  return s - str;
+  return s - (const char*)str;
 }
 
 static inline size_t
@@ -117,7 +118,7 @@ byte_rchr(const void* str, size_t len, char c) {
 }
 
 static inline size_t
-byte_chrs(const char* str, size_t len, const char needle[], size_t nl) {
+byte_chrs(const void* str, size_t len, const char needle[], size_t nl) {
   const char *s, *t;
   for(s = str, t = str + len; s != t; s++)
     if(byte_chr(needle, nl, *s) < nl)
@@ -126,7 +127,7 @@ byte_chrs(const char* str, size_t len, const char needle[], size_t nl) {
 }
 
 static inline size_t
-byte_charlen(const char* in, size_t len) {
+byte_charlen(const void* in, size_t len) {
   const uint8_t *pos, *end, *next;
   int cp;
   pos = (const uint8_t*)in;
@@ -134,8 +135,6 @@ byte_charlen(const char* in, size_t len) {
   cp = unicode_from_utf8(pos, end - pos, &next);
   return next - pos;
 }
-
-char* byte_escape(const char*, size_t n);
 
 static inline size_t
 str_chr(const char* in, char needle) {

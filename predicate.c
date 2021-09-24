@@ -144,7 +144,6 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       JS_ToFloat64(ctx, &right, values[1]);
 
       switch(pr->id) {
-
         case PREDICATE_ADD: r = left + right; break;
         case PREDICATE_SUB: r = left - right; break;
         case PREDICATE_MUL: r = left * right; break;
@@ -154,7 +153,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
         case PREDICATE_BAND: r = (uint64_t)left & (uint64_t)right; break;
         case PREDICATE_POW: r = pow(left, right); break;
         case PREDICATE_ATAN2: r = atan2(left, right); break;
-        default: break;
+        default: r = nan(""); break;
       }
 
       ret = JS_NewFloat64(ctx, r);
@@ -314,10 +313,10 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
     case PREDICATE_FUNCTION: {
       int i, nargs = pr->function.arity;
-      JSValueConst args[nargs];
-      for(i = 0; i < nargs; i++) args[i++] = js_arguments_shift(args);
+      JSValueConst argv[nargs];
+      for(i = 0; i < nargs; i++) argv[i++] = js_arguments_shift(args);
 
-      ret = JS_Call(ctx, pr->function.func, pr->function.this_val, nargs, args);
+      ret = JS_Call(ctx, pr->function.func, pr->function.this_val, nargs, argv);
       break;
     }
     default: {
@@ -741,7 +740,9 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
     case PREDICATE_NOTNOT:
-    case PREDICATE_NOT: {
+    case PREDICATE_NOT:
+    case PREDICATE_BNOT:
+    case PREDICATE_SQRT: {
       JS_FreeValueRT(rt, pred->unary.predicate);
       break;
     }
@@ -750,7 +751,11 @@ predicate_free_rt(Predicate* pred, JSRuntime* rt) {
     case PREDICATE_SUB:
     case PREDICATE_MUL:
     case PREDICATE_DIV:
-    case PREDICATE_MOD: {
+    case PREDICATE_MOD:
+    case PREDICATE_BOR:
+    case PREDICATE_BAND:
+    case PREDICATE_POW:
+    case PREDICATE_ATAN2: {
       JS_FreeValueRT(rt, pred->binary.left);
       JS_FreeValueRT(rt, pred->binary.right);
       break;
@@ -806,7 +811,9 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
     case PREDICATE_NOTNOT:
-    case PREDICATE_NOT: {
+    case PREDICATE_NOT:
+    case PREDICATE_BNOT:
+    case PREDICATE_SQRT: {
       ret = js_values_toarray(ctx, 1, (JSValue*)&pred->unary.predicate);
       break;
     }
@@ -815,7 +822,11 @@ predicate_values(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_SUB:
     case PREDICATE_MUL:
     case PREDICATE_DIV:
-    case PREDICATE_MOD: {
+    case PREDICATE_MOD:
+    case PREDICATE_BOR:
+    case PREDICATE_BAND:
+    case PREDICATE_POW:
+    case PREDICATE_ATAN2: {
       ret = js_values_toarray(ctx, 2, (JSValue*)&pred->binary.left);
       break;
     }
@@ -878,7 +889,9 @@ predicate_clone(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
     case PREDICATE_NOTNOT:
-    case PREDICATE_NOT: {
+    case PREDICATE_NOT:
+    case PREDICATE_BNOT:
+    case PREDICATE_SQRT: {
       ret->unary.predicate = JS_DupValue(ctx, pred->unary.predicate);
       break;
     }
@@ -887,7 +900,11 @@ predicate_clone(const Predicate* pred, JSContext* ctx) {
     case PREDICATE_SUB:
     case PREDICATE_MUL:
     case PREDICATE_DIV:
-    case PREDICATE_MOD: {
+    case PREDICATE_MOD:
+    case PREDICATE_BOR:
+    case PREDICATE_BAND:
+    case PREDICATE_POW:
+    case PREDICATE_ATAN2: {
       ret->binary.left = JS_DupValue(ctx, pred->binary.left);
       ret->binary.right = JS_DupValue(ctx, pred->binary.right);
       break;
@@ -958,8 +975,12 @@ predicate_recursive_num_args(const Predicate* pred) {
     case PREDICATE_PROTOTYPEIS:
     case PREDICATE_NOTNOT:
     case PREDICATE_NOT:
+    case PREDICATE_BNOT:
     case PREDICATE_SQRT: {
-      n += predicate_recursive_num_args(&pred->unary.predicate);
+      if(js_is_null_or_undefined(pred->unary.predicate))
+        n++;
+      else if((other = js_predicate_data(pred->unary.predicate)))
+        n += predicate_recursive_num_args(other);
       break;
     }
     case PREDICATE_ADD:
@@ -1033,12 +1054,20 @@ predicate_direct_num_args(const Predicate* pred) {
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS:
     case PREDICATE_NOTNOT:
-    case PREDICATE_NOT: return 1;
+    case PREDICATE_NOT:
+    case PREDICATE_BNOT:
+    case PREDICATE_SQRT: {
+      return 1;
+    }
     case PREDICATE_ADD:
     case PREDICATE_SUB:
     case PREDICATE_MUL:
     case PREDICATE_DIV:
-    case PREDICATE_MOD: {
+    case PREDICATE_MOD:
+    case PREDICATE_BOR:
+    case PREDICATE_BAND:
+    case PREDICATE_POW:
+    case PREDICATE_ATAN2: {
       int n = 0;
       if(js_is_null_or_undefined(pred->binary.left))
         n++;
@@ -1092,12 +1121,15 @@ predicate_precedence(const Predicate* pred) {
     case PREDICATE_EQUAL: ret = PRECEDENCE_EQUALITY; break;
     case PREDICATE_INSTANCEOF: ret = PRECEDENCE_LESS_GREATER_IN; break;
     case PREDICATE_NOTNOT:
-    case PREDICATE_NOT: ret = PRECEDENCE_UNARY; break;
+    case PREDICATE_NOT:
+    case PREDICATE_BNOT:
+    case PREDICATE_SQRT: ret = PRECEDENCE_UNARY; break;
     case PREDICATE_ADD:
     case PREDICATE_SUB: ret = PRECEDENCE_ADDITIVE; break;
     case PREDICATE_MUL:
     case PREDICATE_DIV:
-    case PREDICATE_MOD: ret = PRECEDENCE_MULTIPLICATIVE; break;
+    case PREDICATE_MOD: 
+    case PREDICATE_ATAN2: ret = PRECEDENCE_MULTIPLICATIVE; break;
     case PREDICATE_POW: ret = PRECEDENCE_EXPONENTIATION; break;
     case PREDICATE_BOR: ret = PRECEDENCE_BITWISE_OR; break;
     case PREDICATE_BAND: ret = PRECEDENCE_BITWISE_AND; break;

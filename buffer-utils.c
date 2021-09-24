@@ -73,7 +73,7 @@ str_escape(const char* s) {
 }
 
 char*
-byte_escape(const char* s, size_t n) {
+byte_escape(const void* s, size_t n) {
   DynBuf dbuf;
   dbuf_init2(&dbuf, 0, 0);
   dbuf_put_escaped(&dbuf, s, n);

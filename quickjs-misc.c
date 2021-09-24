@@ -258,7 +258,8 @@ static JSValue
 js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf = {0};
-  const char *link, path[256];
+  const char *link;
+  char path[256];
   size_t n;
   ssize_t r;
 
@@ -328,7 +329,7 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       size_t len;
       len = n = byte_chr(&dbuf.buf[i], size - i, sep);
       while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1])) len--;
-      JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, &dbuf.buf[i], len));
+      JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, (const char*)&dbuf.buf[i], len));
     }
   }
 
@@ -527,32 +528,60 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   switch(magic) {
 #ifndef __wasi__
-    case FUNC_GETPID: { ret = getpid(); break; }
+    case FUNC_GETPID: {
+      ret = getpid();
+      break;
+    }
 #endif
 #ifndef __wasi__
-    case FUNC_GETPPID: { ret = getppid(); break; }
+    case FUNC_GETPPID: {
+      ret = getppid();
+      break;
+    }
 #endif
     case FUNC_GETSID: {
       // sret = getsid();
       break;
     }
 #ifndef __wasi__
-    case FUNC_GETUID: { ret = getuid(); break; }
+    case FUNC_GETUID: {
+      ret = getuid();
+      break;
+    }
 #endif
 #ifndef __wasi__
-    case FUNC_GETGID: { ret = getgid(); break; }
+    case FUNC_GETGID: {
+      ret = getgid();
+      break;
+    }
 #endif
 #ifndef __wasi__
-    case FUNC_GETEUID: { ret = geteuid(); break; }
+    case FUNC_GETEUID: {
+      ret = geteuid();
+      break;
+    }
 #endif
 #ifndef __wasi__
-    case FUNC_GETEGID: { ret = getegid(); break; }
+    case FUNC_GETEGID: {
+      ret = getegid();
+      break;
+    }
 #endif
 #ifndef __wasi__
-    case FUNC_SETUID: { int32_t uid; JS_ToInt32(ctx, &uid, argv[0]); ret = setuid(uid); break; }
+    case FUNC_SETUID: {
+      int32_t uid;
+      JS_ToInt32(ctx, &uid, argv[0]);
+      ret = setuid(uid);
+      break;
+    }
 #endif
 #ifndef __wasi__
-    case FUNC_SETGID: { int32_t gid; JS_ToInt32(ctx, &gid, argv[0]); ret = setgid(gid); break; }
+    case FUNC_SETGID: {
+      int32_t gid;
+      JS_ToInt32(ctx, &gid, argv[0]);
+      ret = setgid(gid);
+      break;
+    }
 #endif
     case FUNC_SETEUID: {
       int32_t euid;
@@ -574,7 +603,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   }
   if(ret == -1)
     return JS_ThrowInternalError(ctx,
-                                 "%s() failed: %d",
+                                 "%s() failed: %s",
                                  ((const char* const[]){
                                      "getpid",
                                      "getppid",
@@ -587,7 +616,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                                      "setgid",
                                      "seteuid",
                                      "setegid",
-                                 })[magic - FUNC_GETPID]);
+                                 })[magic - FUNC_GETPID], strerror(errno));
 
   return JS_NewInt32(ctx, ret);
 }
@@ -1073,7 +1102,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
-    // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
+// JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
 #endif
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),

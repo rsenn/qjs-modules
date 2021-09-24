@@ -1200,4 +1200,6 @@ typedef struct {
   uint64_t buf[0];
 } JSSABHeader;
 
+BOOL JS_IsUncatchableError(JSContext *, JSValueConst);
+
 #endif /* defined(QJS_MODULES_INTERNAL_H) */

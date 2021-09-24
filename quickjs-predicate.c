@@ -23,7 +23,7 @@ enum {
 enum {
   PROP_ID = 0,
   PROP_VALUES,
-  PROP_ARGS,
+  PROP_ARGC,
 };
 
 static JSValue
@@ -282,7 +282,7 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       }
 
       case PREDICATE_FUNCTION: {
-        JSValue func, this_obj;
+        JSValue func, this_obj = JS_UNDEFINED;
         func = predicate_nextarg(ctx, &args);
         if(args.c)
           this_obj = predicate_nextarg(ctx, &args);
@@ -399,7 +399,7 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = predicate_values(pr, ctx);
       break;
     }
-    case PROP_ARGS: {
+    case PROP_ARGC: {
       ret = JS_NewUint32(ctx, predicate_recursive_num_args(pr));
       break;
     }
@@ -572,7 +572,7 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
     case PREDICATE_FUNCTION: {
-      JSValue func, this_obj;
+      JSValue func, this_obj = JS_UNDEFINED;
       func = predicate_nextarg(ctx, &args);
       if(args.c)
         this_obj = predicate_nextarg(ctx, &args);
@@ -639,7 +639,9 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       break;
     }
     case PREDICATE_NOT:
-    case PREDICATE_NOTNOT: {
+    case PREDICATE_NOTNOT:
+    case PREDICATE_BNOT:
+    case PREDICATE_SQRT: {
       JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->unary.predicate), JS_PROP_ENUMERABLE);
       break;
     }
@@ -647,7 +649,11 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     case PREDICATE_SUB:
     case PREDICATE_MUL:
     case PREDICATE_DIV:
-    case PREDICATE_MOD: {
+    case PREDICATE_MOD:
+    case PREDICATE_BOR:
+    case PREDICATE_BAND:
+    case PREDICATE_POW:
+    case PREDICATE_ATAN2: {
       JS_DefinePropertyValueStr(ctx, obj, "left", JS_DupValue(ctx, pr->binary.left), JS_PROP_ENUMERABLE);
       JS_DefinePropertyValueStr(ctx, obj, "right", JS_DupValue(ctx, pr->binary.right), JS_PROP_ENUMERABLE);
       break;
@@ -735,7 +741,7 @@ static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_ALIAS_DEF("call", "eval"),
     JS_CGETSET_MAGIC_FLAGS_DEF("id", js_predicate_get, 0, PROP_ID, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("values", js_predicate_get, 0, PROP_VALUES),
-    JS_CGETSET_MAGIC_DEF("args", js_predicate_get, 0, PROP_ARGS),
+    JS_CGETSET_MAGIC_DEF("length", js_predicate_get, 0, PROP_ARGC),
     // JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E),
 };
 

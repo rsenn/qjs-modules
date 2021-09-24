@@ -98,6 +98,14 @@ static Vector module_debug = VECTOR_INIT();
 static Vector module_list = VECTOR_INIT();
 static Vector builtins = VECTOR_INIT();
 
+static const char jsm_default_module_path[] = "."
+#ifdef QUICKJS_MODULE_PATH
+                                      ";" QUICKJS_MODULE_PATH 
+#elif defined(CONFIG_PREFIX)
+                                      ";" CONFIG_PREFIX "/lib/quickjs"
+#endif
+    ;
+
 JSValue package_json;
 
 static JSValue
@@ -179,7 +187,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
     if(!file) {
       if(strchr("./", module[0]))
         file = js_strdup(ctx, module);
-      else if(!(file = js_module_search(ctx, module)))
+      else if(!(file = js_module_search(ctx, jsm_default_module_path, module)))
         break;
       continue;
     }
@@ -190,11 +198,6 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
         printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
 
-#ifndef __wasi__
-    if(has_suffix(file, ".so"))
-      ret = js_module_loader_so(ctx, file);
-    else
-#endif
       ret = js_module_loader(ctx, file, opaque);
   }
 end:
@@ -859,7 +862,7 @@ main(int argc, char** argv) {
 
   /* loader for ES6 modules */
   JS_SetModuleLoaderFunc(rt, js_module_normalize, jsm_module_loader, 0);
-  //js_std_set_module_loader_func(jsm_module_loader);
+  // js_std_set_module_loader_func(jsm_module_loader);
 
   if(dump_unhandled_promise_rejection) {
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, 0);

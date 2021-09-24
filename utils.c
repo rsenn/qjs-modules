@@ -13,7 +13,10 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/stat.h>
-//#include <dlfcn.h>
+#include <sys/time.h>
+#include <quickjs-libc.h>
+
+void qsort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr);
 
 #ifndef INFINITY
 #define INFINITY __builtin_inf()
@@ -344,6 +347,11 @@ js_function_name(JSContext* ctx, JSValueConst value) {
   s = JS_ToCString(ctx, name);
   JS_FreeValue(ctx, name);
   return s;
+}
+
+int
+js_function_argc(JSContext* ctx, JSValueConst value) {
+  return js_get_propertystr_int32(ctx, value, "length");
 }
 
 JSValue
@@ -1280,20 +1288,26 @@ module_name(JSContext* ctx, JSModuleDef* module) {
   return JS_UNDEFINED;
 }
 
-const char*
+char*
 module_namestr(JSContext* ctx, JSModuleDef* module) {
-  const char *str, *name = JS_AtomToCString(ctx, module->module_name);
-  str = js_strdup(ctx, name);
+  const char  *name = JS_AtomToCString(ctx, module->module_name);
+ char* str = js_strdup(ctx, name);
   JS_FreeCString(ctx, name);
   return str;
 }
 
 static JSValue
-call_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, JSValue data[]) {
-  JSModuleInitFunc* init_func = (JSModuleInitFunc*)((uintptr_t)JS_VALUE_GET_INT(data[0]) | ((uintptr_t)JS_VALUE_GET_INT(data[1])) << 32);
+call_module_func(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv, int magic, JSValue *data) {
+  union {
+    JSModuleInitFunc* init_func;
+    int32_t i[2];
+  } u;
+
+  u.i[0] = JS_VALUE_GET_INT(data[0]);
+  u.i[1] = JS_VALUE_GET_INT(data[1]);
 
   if(argc >= 1 && JS_IsModule(argv[0]))
-    return JS_NewInt32(ctx, init_func(ctx, JS_VALUE_GET_PTR(argv[0])));
+    return JS_NewInt32(ctx, u.init_func(ctx, JS_VALUE_GET_PTR(argv[0])));
 
   return JS_ThrowTypeError(ctx, "argument 1 module expected");
 }
@@ -1304,9 +1318,13 @@ module_func(JSContext* ctx, JSModuleDef* module) {
   if(JS_IsFunction(ctx, module->func_obj)) {
     func = JS_DupValue(ctx, module->func_obj);
   } else if(module->init_func) {
+    union {
+      JSModuleInitFunc* init_func;
+      int32_t i[2];
+    } u = {module->init_func};
     JSValueConst data[2] = {
-        JS_MKVAL(JS_TAG_INT, (int32_t)((uintptr_t)module->init_func) & 0xffffffff),
-        JS_MKVAL(JS_TAG_INT, (int32_t)((uintptr_t)module->init_func) >> 32),
+        JS_MKVAL(JS_TAG_INT, u.i[0]),
+        JS_MKVAL(JS_TAG_INT, u.i[1]),
     };
     func = JS_NewCFunctionData(ctx, call_module_func, 1, 0, 2, data);
   }
@@ -1356,7 +1374,7 @@ js_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
   uint32_t i = 0;
   list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* def = list_entry(el, JSModuleDef, link);
-    const char* str = module_namestr(ctx, def);
+      char* str = module_namestr(ctx, def);
     JSValue entry = magic ? module_entry(ctx, def) : module_value(ctx, def);
     if(str[0] != '<')
       JS_SetPropertyUint32(ctx, ret, i++, entry);
@@ -1374,7 +1392,7 @@ js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
   uint32_t i = 0;
   list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* def = list_entry(el, JSModuleDef, link);
-    const char* name = module_namestr(ctx, def);
+      char* name = module_namestr(ctx, def);
     JSValue entry = JS_NewArray(ctx);
     JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, /*basename*/ (name)));
     JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, def) : module_value(ctx, def));
@@ -1401,7 +1419,7 @@ js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue obj = JS_NewObject(ctx);
   list_for_each(it, &ctx->loaded_modules) {
     JSModuleDef* def = list_entry(it, JSModuleDef, link);
-    const char* name = module_namestr(ctx, def);
+      char* name = module_namestr(ctx, def);
     JSValue entry = magic ? module_entry(ctx, def) : module_value(ctx, def);
     if(name[0] != '<')
       JS_SetPropertyStr(ctx, obj, basename(name), entry);
@@ -1448,33 +1466,30 @@ module_object(JSContext* ctx, JSModuleDef* def) {
 }
 
 char*
-js_module_search(JSContext* ctx, const char* module) {
-  char* path = 0;
+js_module_search(JSContext* ctx, const char*search_path, const char* module) {
   size_t len;
+  char*path = 0;
 
   while(!strncmp(module, "./", 2)) module = trim_dotslash(module);
   len = strlen(module);
 
   if(!str_contains(module, '/') || str_ends(module, ".so"))
-    path = js_module_search_ext(ctx, module, ".so");
+    path = js_module_search_ext(ctx,search_path,  module, ".so");
 
   if(!path)
-    path = js_module_search_ext(ctx, module, ".js");
+    path = js_module_search_ext(ctx, search_path, module, ".js");
 
   return path;
 }
 
 char*
-js_module_search_ext(JSContext* ctx, const char* name, const char* ext) {
-  const char *path, *p, *q;
+js_module_search_ext(JSContext* ctx, const char* path, const char* name, const char* ext) {
+  const char  *p, *q;
   char* file = 0;
   size_t i, j;
   struct stat st;
 
-  if((path = getenv("QUICKJS_MODULE_PATH")) == 0)
-    path = js_default_module_path;
-
-  for(p = path; *p; p = q) {
+    for(p = path; *p; p = q) {
     if((q = strchr(p, ':')) == 0)
       q = p + strlen(p);
     i = q - p;
@@ -1504,7 +1519,7 @@ js_module_normalize(JSContext* ctx, const char* path, const char* name, void* op
     return js_strdup(ctx, name);
   js_dbuf_init(ctx, &file);
   n = path[(p = str_rchr(path, '/'))] ? p : 0;
-  dbuf_put(&file, path, n);
+  dbuf_put(&file, (const uint8_t*)path, n);
   dbuf_0(&file);
   for(r = name;;) {
     if(r[0] == '.' && r[1] == '/') {
@@ -1516,7 +1531,7 @@ js_module_normalize(JSContext* ctx, const char* path, const char* name, void* op
         p++;
       else
         p = 0;
-      if(!strcmp(&file.buf[p], ".") || !strcmp(&file.buf[p], ".."))
+      if(!strcmp((const char*)&file.buf[p], ".") || !strcmp((const char*)&file.buf[p], ".."))
         break;
       if(p > 0)
         p--;
@@ -1531,7 +1546,7 @@ js_module_normalize(JSContext* ctx, const char* path, const char* name, void* op
   dbuf_putc(&file, '/');
   dbuf_putstr(&file, r);
   dbuf_0(&file);
-  return file.buf;
+  return (char*)file.buf;
 }
 
 JSModuleDef*
@@ -1553,7 +1568,7 @@ js_module_find(JSContext* ctx, const char* name) {
   size_t namelen = strlen(name);
   list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* mod = list_entry(el, JSModuleDef, link);
-    const char *n, *str = module_namestr(ctx, mod);
+      char *n, *str = module_namestr(ctx, mod);
     size_t len;
     n = basename(str);
     len = str_rchr(n, '.');
@@ -1568,8 +1583,7 @@ static void
 js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   BOOL has_prop = imp.prop && imp.prop[0];
   BOOL is_ns = imp.spec && imp.spec[0] == '*';
-  char* var;
-  const char* base = basename(imp.path);
+  const char* var, * base = basename(imp.path);
   size_t blen = str_chr(base, '.');
   dbuf_putstr(db, "import ");
   if(imp.spec) {
@@ -1609,7 +1623,7 @@ js_import_eval(JSContext* ctx, ImportDirective imp) {
   char* code;
   js_dbuf_init(ctx, &buf);
   js_import_directive(ctx, imp, &buf);
-  code = str_escape(buf.buf);
+  code = str_escape((const char*)buf.buf);
   printf("js_import_eval: '%s'\n", code);
   free(code);
   return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
@@ -1915,7 +1929,7 @@ js_arraybuffer_freevalue(JSRuntime* rt, void* opaque, void* ptr) {
 }
 
 JSValue
-js_arraybuffer_fromvalue(JSContext* ctx, const void* x, size_t n, JSValueConst val) {
+js_arraybuffer_fromvalue(JSContext* ctx,   void* x, size_t n, JSValueConst val) {
   JSValue* valptr;
   if(!(valptr = js_malloc(ctx, sizeof(JSValue))))
     return JS_ThrowOutOfMemory(ctx);
@@ -2062,7 +2076,7 @@ js_sab_dup(void* opaque, void* ptr) {
 
 void
 js_error_dump(JSContext* ctx, JSValueConst error, DynBuf* db) {
-  char *str, *stack = 0;
+  const char *str, *stack = 0;
   if(JS_IsObject(error)) {
     JSValue st = JS_GetPropertyStr(ctx, error, "stack");
     if(!JS_IsUndefined(st))
@@ -2095,12 +2109,12 @@ js_error_tostring(JSContext* ctx, JSValueConst error) {
   DynBuf db;
   js_dbuf_init(ctx, &db);
   js_error_dump(ctx, error, &db);
-  return db.buf;
+  return (char*)db.buf;
 }
 
 void
 js_error_print(JSContext* ctx, JSValueConst error) {
-  char *str, *stack = 0;
+  const char *str, *stack = 0;
 
   if(JS_IsObject(error)) {
     JSValue st = JS_GetPropertyStr(ctx, error, "stack");
