@@ -8,25 +8,18 @@ macro(find_quickjs)
   endif(ARGN)
 
   if(NOT QUICKJS_PREFIX)
-    if(EXISTS "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs")
-      set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
-    endif(EXISTS "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs")
-    if(EXISTS "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/quickjs")
-      set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
-    endif(EXISTS "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/quickjs")
-  endif(NOT QUICKJS_PREFIX)
-
-  if(NOT QUICKJS_PREFIX)
-    find_file(
-      QUICKJS_H quickjs.h
-      PATHS "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs" "/usr/${CMAKE_INSTALL_INCLUDEDIR}/quickjs"
-            "/usr/local/${CMAKE_INSTALL_INCLUDEDIR}/quickjs" "${QUICKJS_ROOT}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs"
-            "${QuickJS_DIR}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs")
+    find_file(QUICKJS_H quickjs.h
+              PATHS "${CMAKE_INSTALL_PREFIX}/inclue/quickjs" "/usr/local/include/quickjs" "/usr/include/quickjs"
+                    "${QUICKJS_ROOT}/include/quickjs" "${QuickJS_DIR}/include/quickjs")
 
     if(QUICKJS_H)
       message("QuickJS header: ${QUICKJS_H}")
-      string(REGEX REPLACE "/${CMAKE_INSTALL_INCLUDEDIR}.*" "" QUICKJS_PREFIX "${QUICKJS_H}")
+      string(REGEX REPLACE "/include.*" "" QUICKJS_PREFIX "${QUICKJS_H}")
     endif(QUICKJS_H)
+  endif(NOT QUICKJS_PREFIX)
+
+  if(NOT QUICKJS_PREFIX)
+    set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
   endif(NOT QUICKJS_PREFIX)
 
   if(NOT "${CMAKE_SYSROOT}" STREQUAL "")
@@ -47,39 +40,38 @@ macro(find_quickjs)
 
   set(CMAKE_REQUIRED_QUIET TRUE)
 
-  if(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs/quickjs.h")
-    set(QUICKJS_INCLUDE_DIR "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs")
-  else(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs/quickjs.h")
+  if(EXISTS "${QUICKJS_PREFIX}/include/quickjs/quickjs.h")
+    set(QUICKJS_INCLUDE_DIR "${QUICKJS_PREFIX}/include/quickjs")
+  else(EXISTS "${QUICKJS_PREFIX}/include/quickjs/quickjs.h")
 
-    if(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs.h")
-      set(QUICKJS_INCLUDE_DIR "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}")
-    else(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs.h")
+    if(EXISTS "${QUICKJS_PREFIX}/include/quickjs.h")
+      set(QUICKJS_INCLUDE_DIR "${QUICKJS_PREFIX}/include")
+    else(EXISTS "${QUICKJS_PREFIX}/include/quickjs.h")
 
       if(EXISTS "${QUICKJS_PREFIX}/quickjs.h")
         set(QUICKJS_INCLUDE_DIR "${QUICKJS_PREFIX}")
       endif(EXISTS "${QUICKJS_PREFIX}/quickjs.h")
-    endif(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs.h")
-  endif(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs/quickjs.h")
+    endif(EXISTS "${QUICKJS_PREFIX}/include/quickjs.h")
+  endif(EXISTS "${QUICKJS_PREFIX}/include/quickjs/quickjs.h")
 
-#  if(NOT EXISTS "${QUICKJS_INCLUDE_DIR}/quickjs.h")
-#    if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs.h")
-#      set(QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/..")
-#    else(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs.h")
-#      if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
-#        file(RELATIVE_PATH QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/..")
-#        set(QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
-#      else(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
-#        if(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs")
-#          set(QUICKJS_INCLUDE_DIR "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs")
-#        endif(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}/quickjs")
-#      endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
-#    endif(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
-#  endif(NOT EXISTS "${QUICKJS_INCLUDE_DIR}/quickjs.h")
+  #  if(NOT EXISTS "${QUICKJS_INCLUDE_DIR}/quickjs.h")
+  #    if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs.h")
+  #      set(QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/..")
+  #    else(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs.h")
+  #      if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
+  #        file(RELATIVE_PATH QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/..")
+  #        set(QUICKJS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
+  #      else(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
+  #        if(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
+  #          set(QUICKJS_INCLUDE_DIR "${QUICKJS_PREFIX}/include/quickjs")
+  #        endif(EXISTS "${QUICKJS_PREFIX}/include/quickjs")
+  #      endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
+  #    endif(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
+  #  endif(NOT EXISTS "${QUICKJS_INCLUDE_DIR}/quickjs.h")
 
   if(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
     set(QUICKJS_LIBRARY_DIR "${QUICKJS_PREFIX}/${CMAKE_INSTALL_LIBDIR}" CACHE PATH "QuickJS library directory")
   endif(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-
 
   set(QUICKJS_INCLUDE_DIR "${QUICKJS_INCLUDE_DIR}" CACHE PATH "QuickJS include directory")
   set(QUICKJS_LIBRARY_DIR "${QUICKJS_LIBRARY_DIR}" CACHE PATH "QuickJS library directory")
@@ -119,8 +111,11 @@ macro(configure_quickjs)
   if(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
     set(QUICKJS_C_MODULE_DIR "${QUICKJS_PREFIX}/${CMAKE_INSTALL_LIBDIR}/quickjs")
   endif(EXISTS "${QUICKJS_PREFIX}/${CMAKE_INSTALL_LIBDIR}")
-  
-set(QUICKJS_C_MODULE_DIR "${QUICKJS_C_MODULE_DIR}" CACHE PATH "QuickJS native C modules directory")
+  if(EXISTS "${QUICKJS_PREFIX}/lib")
+    set(QUICKJS_JS_MODULE_DIR "${QUICKJS_PREFIX}/lib/quickjs")
+  endif(EXISTS "${QUICKJS_PREFIX}/lib")
+
+  set(QUICKJS_C_MODULE_DIR "${QUICKJS_C_MODULE_DIR}" CACHE PATH "QuickJS native C modules directory")
   set(QUICKJS_JS_MODULE_DIR "${QUICKJS_JS_MODULE_DIR}" CACHE PATH "QuickJS JavaScript modules directory")
 
   set(MODULE_PATH "${QUICKJS_C_MODULE_DIR}")
