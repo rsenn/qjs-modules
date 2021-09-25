@@ -1,8 +1,8 @@
 [submodule "libarchive"]
 	path = libarchive
-	url = https://github.com/rsenn/libarchive.git
+	url = git@github.com:rsenn/libarchive.git
 	branch = main
 [submodule "pigpio"]
 	path = pigpio
-	url = https://github.com/rsenn/pigpio.git
+	url = git@github.com:rsenn/pigpio.git
 	branch = main
