@@ -22,10 +22,10 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
-#define INSPECT_IS_COMPACT(opts)                                                                                                                     \
-  ((opts)->compact == INT32_MAX ? TRUE                                                                                                               \
-   : INSPECT_INT32T_INRANGE((opts)->compact)                                                                                                         \
-       ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact)                                    \
+#define INSPECT_IS_COMPACT(opts) \
+  ((opts)->compact == INT32_MAX ? TRUE \
+   : INSPECT_INT32T_INRANGE((opts)->compact) \
+       ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) \
        : 0)
 
 typedef struct {
@@ -80,15 +80,15 @@ inspect_screen_width(void) {
 
 #ifdef HAVE_TERMIOS_H
   {
-      struct winsize w = {.ws_col = -1, .ws_row = -1};
+    struct winsize w = {.ws_col = -1, .ws_row = -1};
 
-  if(stdout_isatty)
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
-  else if(stderr_isatty)
-    ioctl(STDERR_FILENO, TIOCGWINSZ, &w);
+    if(stdout_isatty)
+      ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    else if(stderr_isatty)
+      ioctl(STDERR_FILENO, TIOCGWINSZ, &w);
 
-  return screen_width = w.ws_col;
-}
+    return screen_width = w.ws_col;
+  }
 #else
   return 80;
 #endif
@@ -755,14 +755,17 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       if(s)
         js_cstring_free(ctx, s);
 
-      vector_init(&propenum_tab, ctx);
-      // printf("proto_chain: %i\n", opts->proto_chain);
-      if((1 || opts->proto_chain ? js_object_getpropertynames_recursive
-                                 : js_object_getpropertynames)(ctx,
-                                                               &propenum_tab,
-                                                               /* opts->proto_chain <= 0 ? JS_GetPrototype(ctx, value) : */ value,
-                                                               JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
-        return -1;
+      if(!(is_array || is_typedarray)) {
+        vector_init(&propenum_tab, ctx);
+        // printf("proto_chain: %i\n", opts->proto_chain);
+        if((1 || opts->proto_chain
+                ? js_object_getpropertynames_recursive
+                : js_object_getpropertynames)(ctx,
+                                              &propenum_tab,
+                                              /* opts->proto_chain <= 0 ? JS_GetPrototype(ctx, value) : */ value,
+                                              JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (opts->show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+          return -1;
+      }
 
       if(is_function) {
         JSValue name;
@@ -873,7 +876,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         if(js_get_propertydescriptor(ctx, &desc, value, propenum->atom) == TRUE) {
           if((desc.flags & JS_PROP_GETSET)) {
             if(!opts->getters) {
-              JSValue v = JS_GetProperty(ctx, value, propenum->atom);
+              // JSValue v = JS_GetProperty(ctx, value, propenum->atom);
+              JSValue v = JS_Call(ctx, desc.getter, value, 0, 0);
               js_inspect_print(ctx, buf, v, opts, depth - 1);
               JS_FreeValue(ctx, v);
             } else

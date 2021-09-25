@@ -1128,7 +1128,7 @@ predicate_precedence(const Predicate* pred) {
     case PREDICATE_SUB: ret = PRECEDENCE_ADDITIVE; break;
     case PREDICATE_MUL:
     case PREDICATE_DIV:
-    case PREDICATE_MOD: 
+    case PREDICATE_MOD:
     case PREDICATE_ATAN2: ret = PRECEDENCE_MULTIPLICATIVE; break;
     case PREDICATE_POW: ret = PRECEDENCE_EXPONENTIATION; break;
     case PREDICATE_BOR: ret = PRECEDENCE_BITWISE_OR; break;

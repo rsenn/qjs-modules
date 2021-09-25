@@ -246,6 +246,50 @@ js_misc_concatarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 }
 
 static JSValue
+js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  MemoryBlock haystack, needle, mask;
+  int64_t n_size, h_end;
+
+  if(!block_arraybuffer(&haystack, argv[0], ctx))
+    return JS_ThrowTypeError(ctx, "argument 1 (haystack) must be an ArrayBuffer");
+  if(!block_arraybuffer(&needle, argv[1], ctx))
+    return JS_ThrowTypeError(ctx, "argument 2 (haystack) must be an ArrayBuffer");
+  if(argc < 3) {
+    uint8_t* ptr;
+    ptrdiff_t ofs;
+
+    if(needle.size <= haystack.size && (ptr = memmem(haystack.base, haystack.size, needle.base, needle.size))) {
+      ofs = ptr - haystack.base;
+      return JS_NewInt64(ctx, ofs);
+    }
+
+    return JS_NULL;
+  }
+
+  if(!block_arraybuffer(&mask, argv[1], ctx))
+    return JS_ThrowTypeError(ctx, "argument 3 (mask) must be an ArrayBuffer");
+
+  n_size = MIN_NUM(needle.size, mask.size);
+  h_end = haystack.size - n_size;
+
+  // naive searching algorithm (slow)
+  for(int64_t i = 0; i < h_end; i++) {
+    BOOL found = TRUE;
+    for(int64_t j = 0; j < n_size; j++) {
+      uint8_t m = mask.base[j];
+      if((haystack.base[i + j] & m) != (needle.base[i] & m)) {
+        found = FALSE;
+        break;
+      }
+    }
+    if(found)
+      return JS_NewInt64(ctx, i);
+  }
+
+  return JS_NULL;
+}
+
+static JSValue
 js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct timespec ts;
 
@@ -258,7 +302,7 @@ static JSValue
 js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf = {0};
-  const char *link;
+  const char* link;
   char path[256];
   size_t n;
   ssize_t r;
@@ -616,7 +660,8 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                                      "setgid",
                                      "seteuid",
                                      "setegid",
-                                 })[magic - FUNC_GETPID], strerror(errno));
+                                 })[magic - FUNC_GETPID],
+                                 strerror(errno));
 
   return JS_NewInt32(ctx, ret);
 }
@@ -936,7 +981,7 @@ enum {
 static JSValue
 js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   uint32_t bound = 0;
-  JSValue ret=JS_UNDEFINED;
+  JSValue ret = JS_UNDEFINED;
 
   if(argc > 0 && JS_IsNumber(argv[0]))
     JS_ToUint32(ctx, &bound, argv[0]);
@@ -1118,6 +1163,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
     JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
     JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
+    JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_MAGIC_DEF("getExecutable", 0, js_misc_proclink, FUNC_GETEXECUTABLE),
     JS_CFUNC_MAGIC_DEF("getCurrentWorkingDirectory", 0, js_misc_proclink, FUNC_GETCWD),
