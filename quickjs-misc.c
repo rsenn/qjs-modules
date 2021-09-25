@@ -248,7 +248,7 @@ js_misc_concatarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 static JSValue
 js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock haystack, needle, mask;
-  int64_t n_size, h_end;
+  size_t n_size, h_end;
 
   if(!block_arraybuffer(&haystack, argv[0], ctx))
     return JS_ThrowTypeError(ctx, "argument 1 (haystack) must be an ArrayBuffer");
@@ -266,24 +266,31 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     return JS_NULL;
   }
 
-  if(!block_arraybuffer(&mask, argv[1], ctx))
+  if(!block_arraybuffer(&mask, argv[2], ctx))
     return JS_ThrowTypeError(ctx, "argument 3 (mask) must be an ArrayBuffer");
 
   n_size = MIN_NUM(needle.size, mask.size);
   h_end = haystack.size - n_size;
 
   // naive searching algorithm (slow)
-  for(int64_t i = 0; i < h_end; i++) {
-    BOOL found = TRUE;
-    for(int64_t j = 0; j < n_size; j++) {
-      uint8_t m = mask.base[j];
-      if((haystack.base[i + j] & m) != (needle.base[i] & m)) {
-        found = FALSE;
+  for(size_t i = 0; i < h_end; i++) {
+    int found = 1;
+    for(size_t j = 0; j < n_size; j++) {
+      if((haystack.base[i + j] ^ needle.base[j]) & mask.base[j]) {
+        found = 0;
         break;
       }
     }
-    if(found)
-      return JS_NewInt64(ctx, i);
+    if(found) {
+      /*for(size_t j = 0; j < n_size; j++) {
+        uint8_t xorval = haystack.base[i + j] ^ needle.base[j];
+        printf("@(%zu + %zu); ", i, j);
+        printf("%02x XOR %02x = %02x; ", haystack.base[i + j], needle.base[j], xorval);
+        printf("%02x AND %02x = %02x\n", xorval, mask.base[j], xorval & mask.base[j]);
+      }*/
+
+      return JS_NewInt64(ctx, (int64_t)i);
+    }
   }
 
   return JS_NULL;
