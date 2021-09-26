@@ -2,6 +2,7 @@
 #include "quickjs.h"
 #include "utils.h"
 #include <sys/mman.h>
+#include <errno.h>
 
 static void
 js_mmap_free_func(JSRuntime* rt, void* opaque, void* ptr) {
@@ -42,6 +43,25 @@ js_mmap_unmap(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 static JSValue
+js_mmap_msync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  uint64_t length;
+  uint8_t* data;
+  int32_t flags = 0;
+  size_t len;
+
+  if(!(data = JS_GetArrayBuffer(ctx, &len, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
+
+  if(!JS_ToIndex(ctx, &length, argv[1])) {
+    len = MIN_NUM(len, length);
+  }
+
+  JS_ToInt32(ctx, &flags, argv[2]);
+
+  return JS_NewInt32(ctx, msync(data, len, flags));
+}
+
+static JSValue
 js_mmap_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   if(js_is_arraybuffer(ctx, argv[0])) {
@@ -57,6 +77,7 @@ js_mmap_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_CFUNC_DEF("mmap", 2, js_mmap_map),
     JS_CFUNC_DEF("munmap", 1, js_mmap_unmap),
+    JS_CFUNC_DEF("msync", 3, js_mmap_msync),
     JS_CFUNC_DEF("toString", 1, js_mmap_tostring),
     JS_PROP_INT32_DEF("PROT_READ", 0x01, 0),
     JS_PROP_INT32_DEF("PROT_WRITE", 0x02, 0),
@@ -79,6 +100,13 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_PROP_INT32_DEF("MAP_NONBLOCK", 0x10000, 0),
     JS_PROP_INT32_DEF("MAP_STACK", 0x20000, 0),
     JS_PROP_INT32_DEF("MAP_HUGETLB", 0x40000, 0),
+    JS_CONSTANT(EBUSY),
+    JS_CONSTANT(EFAULT),
+    JS_CONSTANT(EINVAL),
+    JS_CONSTANT(ENOMEM),
+    JS_CONSTANT(MS_ASYNC),
+    JS_CONSTANT(MS_INVALIDATE),
+    JS_CONSTANT(MS_SYNC),
 };
 
 static int

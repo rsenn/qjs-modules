@@ -1240,6 +1240,7 @@ js_cstring_ptr(JSValueConst v) {
   }
   return 0;
 }
+
 char*
 js_cstring_dup(JSContext* ctx, const char* str) {
   JSString* p;

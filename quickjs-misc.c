@@ -297,6 +297,61 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 }
 
 static JSValue
+js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  MemoryBlock dst = {0, 0}, src = {0, 0};
+  int i = 0;
+
+  if(!block_arraybuffer(&dst, argv[0], ctx))
+    return JS_ThrowTypeError(ctx, "argument 1 (dst) must be an ArrayBuffer");
+
+  i++;
+
+  if(i + 1 < argc && JS_IsNumber(argv[i])) {
+    uint64_t offset = 0;
+    JS_ToIndex(ctx, &offset, argv[i++]);
+    offset = MIN_NUM(dst.size, offset);
+
+    dst.base += offset;
+    dst.size -= offset;
+  }
+
+  if(i + 1 < argc && JS_IsNumber(argv[i])) {
+    uint64_t length = 0;
+    JS_ToIndex(ctx, &length, argv[i++]);
+    dst.size = MIN_NUM(dst.size, length);
+  }
+
+  if(i == argc || !block_arraybuffer(&dst, argv[i], ctx))
+    return JS_ThrowTypeError(ctx, "argument %d (src) must be an ArrayBuffer", i + 1);
+
+  i++;
+
+  if(i < argc && JS_IsNumber(argv[i])) {
+    uint64_t offset = 0;
+    JS_ToIndex(ctx, &offset, argv[i++]);
+    offset = MIN_NUM(src.size, offset);
+
+    src.base += offset;
+    src.size -= offset;
+  }
+
+  if(i < argc && JS_IsNumber(argv[i])) {
+    uint64_t length = 0;
+    JS_ToIndex(ctx, &length, argv[i++]);
+    src.size = MIN_NUM(src.size, length);
+  }
+
+  {
+    size_t n = MIN_NUM(dst.size, src.size);
+
+    if(n)
+      memcpy(src.base, dst.base, n);
+
+    return JS_NewInt64(ctx, n);
+  }
+}
+
+static JSValue
 js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct timespec ts;
 
@@ -1171,6 +1226,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
     JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
+    JS_CFUNC_DEF("copyArrayBuffer", 2, js_misc_copyarraybuffer),
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_MAGIC_DEF("getExecutable", 0, js_misc_proclink, FUNC_GETEXECUTABLE),
     JS_CFUNC_MAGIC_DEF("getCurrentWorkingDirectory", 0, js_misc_proclink, FUNC_GETCWD),

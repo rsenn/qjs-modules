@@ -124,7 +124,8 @@ block_length(MemoryBlock* mb) {
 
 static inline BOOL
 block_arraybuffer(MemoryBlock* mb, JSValueConst ab, JSContext* ctx) {
-  return !!(mb->base = JS_GetArrayBuffer(ctx, &mb->size, ab));
+  mb->base = JS_GetArrayBuffer(ctx, &mb->size, ab);
+  return mb->base != 0;
 }
 
 typedef struct pointer_range {
