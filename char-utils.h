@@ -296,11 +296,29 @@ escape_char_letter(char c) {
   return 0;
 }
 
-size_t token_length(const char*, size_t, char delim);
-
 #define FMT_ULONG 40 /* enough space to hold 2^128 - 1 in decimal, plus \0 */
+#define FMT_XLONG 33 /* enough space to hold 2^128 - 1 in hexadecimal, plus \0 */
 
+size_t token_length(const char*, size_t, char delim);
 size_t fmt_ulong(char*, unsigned long);
 size_t scan_ushort(const char*, unsigned short*);
+size_t fmt_longlong(char*, int64_t);
+size_t fmt_ulonglong(char*, uint64_t);
+size_t fmt_xlonglong(char*, uint64_t);
+size_t scan_longlong(const char*, int64_t*);
+size_t scan_ulonglong(const char*, uint64_t*);
+size_t scan_xlonglong(const char*, uint64_t*);
+
+static inline int
+scan_fromhex(unsigned char c) {
+  c -= '0';
+  if(c <= 9)
+    return c;
+  c &= ~0x20;
+  c -= 'A' - '0';
+  if(c < 6)
+    return c + 10;
+  return -1;
+}
 
 #endif /* defined(CHAR_UTILS_H) */

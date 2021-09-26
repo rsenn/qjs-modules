@@ -434,6 +434,7 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
   int break_len = opts->break_length; // inspect_screen_width();
   int column = dbuf_get_column(buf);
   JSValue proto;
+  int compact = opts->compact >= 1;
   break_len = (break_len + 1) / 3;
   break_len *= 3;
 
@@ -459,9 +460,15 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     js_cstring_free(ctx, str);
 
   dbuf_putstr(buf, " {");
-  inspect_newline(buf, (opts->depth - depth) + 2);
+  if(compact)
+    dbuf_putc(buf, ' ');
+  else
+    inspect_newline(buf, (opts->depth - depth) + 2);
   dbuf_printf(buf, "byteLength: %zu [", size);
-  inspect_newline(buf, (opts->depth - depth) + 3);
+  if(compact)
+    dbuf_putc(buf, ' ');
+  else
+    inspect_newline(buf, (opts->depth - depth) + 3);
   break_len -= ((opts->depth - depth) + 3) * 2;
   column = 0;
 
@@ -480,9 +487,15 @@ js_inspect_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 
     dbuf_printf(buf, "... %zu more bytes", size - i);
   }
-  inspect_newline(buf, (opts->depth - depth) + 2);
+  if(compact)
+    dbuf_putc(buf, ' ');
+  else
+    inspect_newline(buf, (opts->depth - depth) + 2);
   dbuf_putstr(buf, "]");
-  inspect_newline(buf, (opts->depth - depth) + 1);
+  if(compact)
+    dbuf_putc(buf, ' ');
+  else
+    inspect_newline(buf, (opts->depth - depth) + 1);
   dbuf_putstr(buf, "}");
   return 0;
 }
@@ -509,25 +522,37 @@ js_inspect_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_optio
   JSValue number, base;
   if(tag != JS_TAG_SYMBOL && opts->colors)
     dbuf_putstr(buf, COLOR_LIGHTYELLOW);
-  if(opts->number_base && opts->number_base != 10) {
-    base = JS_NewInt32(ctx, 16);
-    number = js_invoke(ctx, value, "toString", 1, &base);
-    JS_FreeValue(ctx, base);
+
+  if(opts->number_base == 16) {
+    int64_t num;
+    char str[FMT_XLONG];
+    JS_ToInt64(ctx, &num, value);
+    dbuf_putstr(buf, "0x");
+    dbuf_put(buf, str, fmt_xlonglong(str, num));
 
   } else {
-    number = JS_DupValue(ctx, value);
-  }
-  str = JS_ToCStringLen(ctx, &len, number);
-  JS_FreeValue(ctx, number);
+    if(opts->number_base && opts->number_base != 10) {
+      base = JS_NewInt32(ctx, 16);
+      number = js_invoke(ctx, value, "toString", 1, &base);
+      JS_FreeValue(ctx, base);
 
-  switch(opts->number_base) {
-    case 16: dbuf_putstr(buf, "0x"); break;
-    case 2: dbuf_putstr(buf, "0b"); break;
-    case 8: dbuf_putstr(buf, "0"); break;
+    } else {
+      number = JS_DupValue(ctx, value);
+    }
+    str = JS_ToCStringLen(ctx, &len, number);
+    JS_FreeValue(ctx, number);
+
+    switch(opts->number_base) {
+      case 16: dbuf_putstr(buf, "0x"); break;
+      case 2: dbuf_putstr(buf, "0b"); break;
+      case 8: dbuf_putstr(buf, "0"); break;
+    }
+
+    dbuf_append(buf, (const uint8_t*)str, len);
+
+    js_cstring_free(ctx, str);
   }
 
-  dbuf_append(buf, (const uint8_t*)str, len);
-  js_cstring_free(ctx, str);
   if(tag <= JS_TAG_BIG_FLOAT)
     dbuf_putc(buf, tag == JS_TAG_BIG_DECIMAL ? 'm' : tag == JS_TAG_BIG_FLOAT ? 'l' : 'n');
   if(opts->colors)
@@ -659,6 +684,8 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
       int compact = opts->compact;
       JSObject* obj = JS_VALUE_GET_OBJ(value);
 
+      vector_init(&propenum_tab, ctx);
+
       if(!obj->prop || !obj->shape) {
         dbuf_printf(buf, "js_inspect_print Object prop = %p, shape = %p ", obj->prop, obj->shape);
         return -1;
@@ -756,7 +783,6 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         js_cstring_free(ctx, s);
 
       if(!(is_array || is_typedarray)) {
-        vector_init(&propenum_tab, ctx);
         // printf("proto_chain: %i\n", opts->proto_chain);
         if((1 || opts->proto_chain
                 ? js_object_getpropertynames_recursive

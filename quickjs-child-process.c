@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "char-utils.h"
 #include "child-process.h"
 #include "property-enumeration.h"
 
@@ -84,7 +85,7 @@ js_child_process_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValu
     JS_DefinePropertyValueStr(ctx, obj, "cwd", JS_NewString(ctx, cp->cwd), JS_PROP_ENUMERABLE);
 
   JS_DefinePropertyValueStr(ctx, obj, "args", js_strv_to_array(ctx, cp->args), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "env", js_strv_to_array(ctx, cp->env), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "env", js_strv_to_array(ctx, cp->env), 0);
 
   JS_DefinePropertyValueStr(ctx, obj, "pid", JS_NewUint32(ctx, cp->pid), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "exitcode", JS_NewInt32(ctx, cp->exitcode), JS_PROP_ENUMERABLE);
@@ -123,7 +124,12 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   cp->file = js_tostring(ctx, argv[0]);
 
   if(argc > 1) {
-    cp->args = js_array_to_argv(ctx, 0, argv[1]);
+    int n = js_array_length(ctx, argv[1]);
+    cp->args = js_mallocz(ctx, sizeof(char*) * (n + 2));
+    cp->args[0] = js_strdup(ctx, cp->file);
+    js_array_copys(ctx, argv[1], n, &cp->args[1]);
+
+    //    cp->args = js_array_to_argv(ctx, 0, argv[1]);
   } else {
     cp->args = js_malloc(ctx, sizeof(char*) * 2);
     cp->args[0] = js_strdup(ctx, cp->file);
@@ -225,7 +231,16 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case CHILD_PROCESS_ENV: {
-      ret = js_strv_to_array(ctx, cp->env);
+      char** ptr;
+      ret = JS_NewObject(ctx);
+      for(ptr = cp->env; *ptr; ptr++) {
+        size_t namelen = str_chr(*ptr, '=');
+        JSAtom key = JS_NewAtomLen(ctx, *ptr, namelen);
+
+        JS_DefinePropertyValue(ctx, ret, key, JS_NewString(ctx, *ptr + namelen + 1), JS_PROP_ENUMERABLE);
+        JS_FreeAtom(ctx, key);
+      }
+      // ret = js_strv_to_array(ctx, cp->env);
       break;
     }
     case CHILD_PROCESS_STDIO: {
@@ -300,10 +315,10 @@ static JSClassDef js_child_process_class = {
 };
 
 static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("file", js_child_process_get, 0, CHILD_PROCESS_FILE),
+    JS_CGETSET_ENUMERABLE_DEF("file", js_child_process_get, 0, CHILD_PROCESS_FILE),
     JS_CGETSET_MAGIC_DEF("cwd", js_child_process_get, 0, CHILD_PROCESS_CWD),
-    JS_CGETSET_MAGIC_DEF("args", js_child_process_get, 0, CHILD_PROCESS_ARGS),
-    JS_CGETSET_MAGIC_DEF("env", js_child_process_get, 0, CHILD_PROCESS_ENV),
+    JS_CGETSET_ENUMERABLE_DEF("args", js_child_process_get, 0, CHILD_PROCESS_ARGS),
+    JS_CGETSET_ENUMERABLE_DEF("env", js_child_process_get, 0, CHILD_PROCESS_ENV),
     JS_CGETSET_MAGIC_DEF("stdio", js_child_process_get, 0, CHILD_PROCESS_STDIO),
     JS_CGETSET_MAGIC_DEF("pid", js_child_process_get, 0, CHILD_PROCESS_PID),
     JS_CGETSET_MAGIC_DEF("exitcode", js_child_process_get, 0, CHILD_PROCESS_EXITCODE),
@@ -312,7 +327,7 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("signaled", js_child_process_get, 0, CHILD_PROCESS_SIGNALED),
     JS_CFUNC_DEF("wait", 0, js_child_process_wait),
     JS_CFUNC_DEF("kill", 0, js_child_process_kill),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", JS_PROP_C_W_E),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", 0),
 };
 
 static const JSCFunctionListEntry js_child_process_funcs[] = {

@@ -91,7 +91,7 @@ js_string_free_func(JSRuntime* rt, void* opaque, void* ptr) {
 
 static void
 js_arraybuffer_free_func(JSRuntime* rt, void* opaque, void* ptr) {
-  JSValue value = JS_MKPTR(JS_TAG_OBJECT, ptr);
+  JSValue value = JS_MKPTR(JS_TAG_OBJECT, opaque);
 
   JS_FreeValueRT(rt, value);
 }
@@ -321,7 +321,7 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     dst.size = MIN_NUM(dst.size, length);
   }
 
-  if(i == argc || !block_arraybuffer(&dst, argv[i], ctx))
+  if(i == argc || !block_arraybuffer(&src, argv[i], ctx))
     return JS_ThrowTypeError(ctx, "argument %d (src) must be an ArrayBuffer", i + 1);
 
   i++;
@@ -345,7 +345,7 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     size_t n = MIN_NUM(dst.size, src.size);
 
     if(n)
-      memcpy(src.base, dst.base, n);
+      memcpy(dst.base, src.base, n);
 
     return JS_NewInt64(ctx, n);
   }
