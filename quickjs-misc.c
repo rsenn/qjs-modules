@@ -172,21 +172,22 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 static JSValue
 js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  JSValue arraybuffer_ctor = js_global_get(ctx, "ArrayBuffer");
+  uint8_t* data;
+  size_t len;
+  if(!js_is_arraybuffer(ctx, argv[0]))
+    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
 
-  if(JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
+  if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+
+    int64_t offset = 0, length = len;
+    if(argc >= 2 && JS_IsNumber(argv[1]))
+      JS_ToInt64(ctx, &offset, argv[1]);
+    if(argc >= 3 && JS_IsNumber(argv[2]))
+      JS_ToInt64(ctx, &length, argv[2]);
     JSValue value = JS_DupValue(ctx, argv[0]);
-    uint8_t* data;
-    size_t len;
-
-    if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-      OffsetLength ol = js_offset_length(ctx, len, argc - 1, argv + 1);
-      JSObject* obj = JS_VALUE_GET_OBJ(value);
-      ret = JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, FALSE);
-    }
+    JSObject* obj = JS_VALUE_GET_OBJ(value);
+    ret = JS_NewArrayBuffer(ctx, data + offset, MIN_NUM(len, length), js_arraybuffer_free_func, (void*)obj, FALSE);
   }
-
-  JS_FreeValue(ctx, arraybuffer_ctor);
 
   return ret;
 }
@@ -194,25 +195,26 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 static JSValue
 js_misc_resizearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
+  JSObject* obj;
+  JSArrayBuffer* arraybuf;
+  uint64_t newlen;
 
-  if(js_is_arraybuffer(ctx, argv[0])) {
-    JSObject* obj = JS_VALUE_GET_OBJ(argv[0]);
-    JSArrayBuffer* arraybuf = obj->u.array_buffer;
-    uint64_t newlen;
-    JS_ToIndex(ctx, &newlen, argv[1]);
+  if(!js_is_arraybuffer(ctx, argv[0]))
+    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
 
-    if(arraybuf->shared)
-      ret = JS_ThrowTypeError(ctx, "ArrayBuffer must not be shared");
-    else if(arraybuf->shared)
-      ret = JS_ThrowTypeError(ctx, "ArrayBuffer must have opaque == 0");
-    else {
-      arraybuf->data = js_realloc(ctx, arraybuf->data, newlen);
-      arraybuf->byte_length = newlen;
+  obj = JS_VALUE_GET_OBJ(argv[0]);
+  arraybuf = obj->u.array_buffer;
+  JS_ToIndex(ctx, &newlen, argv[1]);
 
-      ret = JS_MKPTR(JS_TAG_OBJECT, obj);
-    }
-  } else {
-    ret = JS_ThrowTypeError(ctx, "Expecting ArrayBuffer");
+  if(arraybuf->shared)
+    ret = JS_ThrowTypeError(ctx, "ArrayBuffer must not be shared");
+  else if(arraybuf->shared)
+    ret = JS_ThrowTypeError(ctx, "ArrayBuffer must have opaque == 0");
+  else {
+    arraybuf->data = js_realloc(ctx, arraybuf->data, newlen);
+    arraybuf->byte_length = newlen;
+
+    ret = JS_MKPTR(JS_TAG_OBJECT, obj);
   }
 
   return ret;
