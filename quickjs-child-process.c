@@ -20,8 +20,10 @@ enum {
   CHILD_PROCESS_PID,
   CHILD_PROCESS_EXITED,
   CHILD_PROCESS_EXITCODE,
-  CHILD_PROCESS_SIGNALED,
   CHILD_PROCESS_TERMSIG,
+  CHILD_PROCESS_SIGNALED,
+  CHILD_PROCESS_STOPPED,
+  CHILD_PROCESS_CONTINUED,
 };
 
 extern char** environ;
@@ -261,7 +263,15 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case CHILD_PROCESS_SIGNALED: {
-      ret = JS_NewBool(ctx, cp->termsig != -1);
+      ret = JS_NewBool(ctx, cp->signaled);
+      break;
+    }
+    case CHILD_PROCESS_STOPPED: {
+      ret = JS_NewBool(ctx, cp->stopped);
+      break;
+    }
+    case CHILD_PROCESS_CONTINUED: {
+      ret = JS_NewBool(ctx, cp->continued);
       break;
     }
     case CHILD_PROCESS_TERMSIG: {
@@ -319,12 +329,14 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("cwd", js_child_process_get, 0, CHILD_PROCESS_CWD),
     JS_CGETSET_ENUMERABLE_DEF("args", js_child_process_get, 0, CHILD_PROCESS_ARGS),
     JS_CGETSET_ENUMERABLE_DEF("env", js_child_process_get, 0, CHILD_PROCESS_ENV),
-    JS_CGETSET_MAGIC_DEF("stdio", js_child_process_get, 0, CHILD_PROCESS_STDIO),
-    JS_CGETSET_MAGIC_DEF("pid", js_child_process_get, 0, CHILD_PROCESS_PID),
-    JS_CGETSET_MAGIC_DEF("exitcode", js_child_process_get, 0, CHILD_PROCESS_EXITCODE),
-    JS_CGETSET_MAGIC_DEF("termsig", js_child_process_get, 0, CHILD_PROCESS_TERMSIG),
-    JS_CGETSET_MAGIC_DEF("exited", js_child_process_get, 0, CHILD_PROCESS_EXITED),
-    JS_CGETSET_MAGIC_DEF("signaled", js_child_process_get, 0, CHILD_PROCESS_SIGNALED),
+    JS_CGETSET_ENUMERABLE_DEF("stdio", js_child_process_get, 0, CHILD_PROCESS_STDIO),
+    JS_CGETSET_ENUMERABLE_DEF("pid", js_child_process_get, 0, CHILD_PROCESS_PID),
+    JS_CGETSET_ENUMERABLE_DEF("exitcode", js_child_process_get, 0, CHILD_PROCESS_EXITCODE),
+    JS_CGETSET_ENUMERABLE_DEF("termsig", js_child_process_get, 0, CHILD_PROCESS_TERMSIG),
+    JS_CGETSET_ENUMERABLE_DEF("exited", js_child_process_get, 0, CHILD_PROCESS_EXITED),
+    JS_CGETSET_ENUMERABLE_DEF("signaled", js_child_process_get, 0, CHILD_PROCESS_SIGNALED),
+    JS_CGETSET_ENUMERABLE_DEF("stopped", js_child_process_get, 0, CHILD_PROCESS_STOPPED),
+    JS_CGETSET_ENUMERABLE_DEF("continued", js_child_process_get, 0, CHILD_PROCESS_CONTINUED),
     JS_CFUNC_DEF("wait", 0, js_child_process_wait),
     JS_CFUNC_DEF("kill", 0, js_child_process_kill),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", 0),

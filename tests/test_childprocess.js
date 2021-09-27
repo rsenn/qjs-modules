@@ -25,7 +25,13 @@ const inspectOptions = {
   maxArrayLength: 10,
   maxStringLength: 200,
   compact: 2,
-  hideKeys: ['loc', 'range', 'inspect', Symbol.toStringTag, Symbol.for('nodejs.util.inspect.custom')]
+  hideKeys: [
+    'loc',
+    'range',
+    'inspect',
+    Symbol.toStringTag,
+    Symbol.for('nodejs.util.inspect.custom')
+  ]
 };
 
 function ReadChild(...args) {

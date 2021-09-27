@@ -28,6 +28,14 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
        ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) \
        : 0)
 
+struct prop_key;
+
+typedef struct prop_key {
+  struct list_head link;
+  const char* name;
+  JSAtom atom;
+} prop_key_t;
+
 typedef struct {
   int colors : 1;
   int show_hidden : 1;
@@ -43,15 +51,8 @@ typedef struct {
   int32_t proto_chain;
   int32_t number_base;
   Vector hide_keys;
+  prop_key_t class_key;
 } inspect_options_t;
-
-struct prop_key;
-
-typedef struct prop_key {
-  struct list_head link;
-  const char* name;
-  JSAtom atom;
-} prop_key_t;
 
 static int stdout_isatty, stderr_isatty;
 static int32_t screen_width = -1;
@@ -228,6 +229,11 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
   if(JS_IsNumber(value))
     JS_ToInt32(ctx, &opts->number_base, value);
   JS_FreeValue(ctx, value);
+
+  value = JS_GetPropertyStr(ctx, object, "classKey");
+  opts->class_key.atom = JS_ValueToAtom(ctx, value);
+  opts->class_key.name = JS_ToCString(ctx, value);
+  JS_FreeValue(ctx, value);
 }
 
 static JSValue
@@ -254,6 +260,7 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
   vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   JS_SetPropertyStr(ctx, ret, "numberBase", js_number_new(ctx, opts->number_base));
+  JS_SetPropertyStr(ctx, ret, "classKey", JS_AtomToValue(ctx, opts->class_key.atom));
   return ret;
 }
 

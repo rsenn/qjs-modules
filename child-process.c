@@ -2,13 +2,20 @@
 #include "utils.h"
 #include "property-enumeration.h"
 
+#include <errno.h>
+
+#define POSIX_SPAWN 1
+
 #ifdef _WIN32
 #include <io.h>
 #else
+#if POSIX_SPAWN
+#include <spawn.h>
+#else
 #include <unistd.h>
+#endif
 #include <sys/wait.h>
 #endif
-#include <errno.h>
 
 static struct list_head child_process_list = LIST_HEAD_INIT(child_process_list);
 
@@ -77,7 +84,26 @@ child_process_environment(JSContext* ctx, JSValueConst object) {
 
 int
 child_process_spawn(ChildProcess* cp) {
+#if POSIX_SPAWN
+  pid_t pid;
+  posix_spawn_file_actions_t actions;
+  posix_spawnattr_t attr;
+
+  posix_spawnattr_setflags(&attr, 0);
+  posix_spawn_file_actions_init(&actions);
+  posix_spawn_file_actions_adddup2(&actions, cp->child_fds[0], 0);
+  posix_spawn_file_actions_adddup2(&actions, cp->child_fds[1], 1);
+  posix_spawn_file_actions_adddup2(&actions, cp->child_fds[2], 2);
+
+  if(posix_spawnp(&pid, cp->file, &actions, &attr, cp->args, NULL)) {
+    fprintf(stderr, "posix_spawnp error: %s\n", strerror(errno));
+    return -1;
+  }
+
+  return cp->pid = pid;
+#else
   int pid, i;
+
   if((pid = fork()) == 0) {
 
     if(cp->parent_fds) {
@@ -115,6 +141,7 @@ child_process_spawn(ChildProcess* cp) {
     }
   }
   return cp->pid = pid;
+#endif
 }
 
 int
@@ -124,10 +151,14 @@ child_process_wait(ChildProcess* cp, int flags) {
   if((pid = waitpid(cp->pid, &status, flags)) != cp->pid)
     return pid;
 
+  cp->signaled = WIFSIGNALED(status);
+  cp->stopped = WIFSTOPPED(status);
+  cp->continued = WIFCONTINUED(status);
+
   if(WIFEXITED(status))
     cp->exitcode = WEXITSTATUS(status);
 
-  if(WIFSIGNALED(status))
+  if(WIFSIGNALED(status) || WIFEXITED(status))
     cp->termsig = WTERMSIG(status);
   if(WIFSTOPPED(status))
     cp->stopsig = WSTOPSIG(status);

@@ -216,9 +216,16 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case METHOD_HIER: {
       JSValue ret = JS_NewArray(ctx);
       size_t i, j = 0;
+
       for(i = 1; i < ptr->n; i++) {
         Pointer* h = pointer_slice(ptr, ctx, 0, i);
-        JS_SetPropertyUint32(ctx, ret, j++, js_pointer_wrap(ctx, h));
+        JSValue value = js_pointer_wrap(ctx, h);
+        if(argc >= 1) {
+          JSValue ret = JS_Call(ctx, argv[0], JS_UNDEFINED, 1, &value);
+          JS_FreeValue(ctx, value);
+          value = ret;
+        }
+        JS_SetPropertyUint32(ctx, ret, j++, value);
       }
       JS_SetPropertyUint32(ctx, ret, j++, JS_DupValue(ctx, this_val));
       return ret;
@@ -505,6 +512,12 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
 
   pointer_proto = JS_NewObject(ctx);
   JS_SetPropertyFunctionList(ctx, pointer_proto, js_pointer_proto_funcs, countof(js_pointer_proto_funcs));
+
+  JSValue array_proto = js_global_prototype(ctx, "Array");
+
+  JS_SetPropertyStr(ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"));
+  JS_SetPropertyStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"));
+  JS_SetPropertyStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"));
 
   inspectAtom = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
   JS_SetPropertyStr(ctx, js_symbol_ctor(ctx), "inspect", js_atom_tovalue(ctx, inspectAtom));
