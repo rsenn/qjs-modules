@@ -304,6 +304,6 @@ input_buffer_remain(const InputBuffer* in) {
   return input_buffer_length(in) - in->pos;
 }
 
-OffsetLength js_offset_length(JSContext*, int64_t size, int argc, JSValue argv[]);
+int js_offset_length(JSContext* ctx, int64_t size, int argc, JSValue argv[], OffsetLength* off_len_p);
 
 #endif /* defined(BUFFER_UTILS) */

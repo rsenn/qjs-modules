@@ -62,6 +62,39 @@ js_mmap_msync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 static JSValue
+js_mmap_mprotect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int64_t offset = 0, length;
+  uint8_t* data;
+  int32_t flags = 0;
+  size_t len;
+
+  if(!(data = JS_GetArrayBuffer(ctx, &len, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
+
+  argc--;
+  argv++;
+
+  length = len;
+
+  if(argc >= 3 && JS_IsNumber(argv[0])) {
+    JS_ToInt64(ctx, &offset, argv[0]);
+    argc--;
+    argv++;
+  }
+
+  if(argc >= 2 && JS_IsNumber(argv[0])) {
+
+    JS_ToInt64(ctx, &length, argv[0]);
+    argc--;
+    argv++;
+  }
+
+  JS_ToInt32(ctx, &flags, argv[0]);
+
+  return JS_NewInt32(ctx, mprotect(data + offset, MIN_NUM(length, len), flags));
+}
+
+static JSValue
 js_mmap_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   if(js_is_arraybuffer(ctx, argv[0])) {
@@ -78,12 +111,19 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_CFUNC_DEF("mmap", 2, js_mmap_map),
     JS_CFUNC_DEF("munmap", 1, js_mmap_unmap),
     JS_CFUNC_DEF("msync", 3, js_mmap_msync),
+    JS_CFUNC_DEF("mprotect", 3, js_mmap_mprotect),
     JS_CFUNC_DEF("toString", 1, js_mmap_tostring),
     JS_PROP_INT32_DEF("PROT_READ", 0x01, 0),
     JS_PROP_INT32_DEF("PROT_WRITE", 0x02, 0),
     JS_PROP_INT32_DEF("PROT_EXEC", 0x04, 0),
     JS_PROP_INT32_DEF("PROT_SEM", 0x08, 0),
     JS_PROP_INT32_DEF("PROT_NONE", 0x00, 0),
+#ifdef PROT_SAO
+    JS_CONSTANT(PROT_SAO),
+#endif
+#ifdef PROT_SEM
+    JS_CONSTANT(PROT_SEM),
+#endif
     JS_PROP_INT32_DEF("PROT_GROWSDOWN", 0x01000000, 0),
     JS_PROP_INT32_DEF("PROT_GROWSUP", 0x02000000, 0),
     JS_PROP_INT32_DEF("MAP_SHARED", 0x01, 0),
@@ -107,6 +147,7 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_CONSTANT(MS_ASYNC),
     JS_CONSTANT(MS_INVALIDATE),
     JS_CONSTANT(MS_SYNC),
+
 };
 
 static int

@@ -22,11 +22,11 @@ extern const uint8_t qjsm_socklen_t[1030];
 
 #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), on_fail)
 
-#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail)                                                                          \
-  do {                                                                                                                                               \
-    syscall_return(&(sock), (syscall_no), (result));                                                                                                 \
-    ret = (sock).ret < 0 ? (on_fail) : (on_success);                                                                                                 \
-    JS_SetOpaque(this_val, (sock).ptr);                                                                                                              \
+#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail) \
+  do { \
+    syscall_return(&(sock), (syscall_no), (result)); \
+    ret = (sock).ret < 0 ? (on_fail) : (on_success); \
+    JS_SetOpaque(this_val, (sock).ptr); \
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
@@ -911,7 +911,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case SOCKET_RECVFROM: {
       int32_t flags = 0;
       InputBuffer buf = js_input_buffer(ctx, argv[0]);
-      OffsetLength off = js_offset_length(ctx, buf.size, argc - 1, argv + 1);
+      OffsetLength off;
+      js_offset_length(ctx, buf.size, argc - 1, argv + 1, &off);
+
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
 
@@ -929,7 +931,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case SOCKET_SENDTO: {
       int32_t flags = 0;
       InputBuffer buf = js_input_chars(ctx, argv[0]);
-      OffsetLength off = js_offset_length(ctx, buf.size, argc - 1, argv + 1);
+      OffsetLength off;
+
+      js_offset_length(ctx, buf.size, argc - 1, argv + 1, &off);
 
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
@@ -1118,7 +1122,7 @@ static JSClassDef js_socket_class = {
 
 static JSValue
 js_sockopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-   return js_socket_method(ctx, argv[0], argc-1, argv+1, magic);
+  return js_socket_method(ctx, argv[0], argc - 1, argv + 1, magic);
 }
 
 static const JSCFunctionListEntry js_sockets_funcs[] = {

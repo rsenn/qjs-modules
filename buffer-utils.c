@@ -458,14 +458,19 @@ input_buffer_column(InputBuffer* in, size_t* len) {
   return in->pos - i;
 }
 
-OffsetLength
-js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[]) {
+int
+js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], OffsetLength* off_len_p) {
+  int ret = 0;
   int64_t off = 0, len = size;
 
-  if(argc >= 1 && JS_IsNumber(argv[0]))
-    JS_ToInt64(ctx, &off, argv[0]);
-  if(argc >= 2 && JS_IsNumber(argv[1]))
-    JS_ToInt64(ctx, &len, argv[1]);
+  if(argc >= 1 && JS_IsNumber(argv[0])) {
+    if(!JS_ToInt64(ctx, &off, argv[0]))
+      ret = 1;
+  }
+  if(argc >= 2 && JS_IsNumber(argv[1])) {
+    if(!JS_ToInt64(ctx, &len, argv[1]))
+      ret = 2;
+  }
 
   /* if(off >= 0)
      off = MIN_NUM(off, size);
@@ -478,5 +483,9 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[]) {
   else
     len = size - off;
 
-  return (OffsetLength){off, len};
+  if(off_len_p) {
+    off_len_p->offset = off;
+    off_len_p->length = len;
+  }
+  return ret;
 }

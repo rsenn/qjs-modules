@@ -108,7 +108,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
       OffsetLength ol;
 
-      ol = js_offset_length(ctx, len, argc - 1, argv + 1);
+      js_offset_length(ctx, len, argc - 1, argv + 1, &ol);
 
       ret = JS_NewStringLen(ctx, (const char*)data + ol.offset, ol.length);
     }
@@ -146,7 +146,7 @@ static JSValue
 js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   MemoryBlock b;
-  OffsetLength o = js_offset_length(ctx, INT64_MAX, argc - 1, argv + 1);
+  OffsetLength o;
   JSFreeArrayBufferDataFunc* f;
   void* opaque;
 
@@ -158,32 +158,36 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       ret =
           JS_NewArrayBuffer(ctx, b.base + o.offset, MIN_NUM(b.size, o.length),
     js_string_free_func, (void*)b.base, FALSE); } else*/
-  {
-    InputBuffer input = js_input_chars(ctx, argv[0]);
-    b = input_buffer_block(&input);
-    //    b = block_range(&b, &input.range);
-    b = block_range(&b, &o);
-    ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
-  }
+
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+  js_offset_length(ctx, input.size, argc - 1, argv + 1, &o);
+  b = input_buffer_block(&input);
+  //    b = block_range(&b, &input.range);
+  b = block_range(&b, &o);
+  ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
 
   return ret;
 }
 
 static JSValue
-js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   uint8_t* data;
   size_t len;
-  if(!js_is_arraybuffer(ctx, argv[0]))
-    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
+
+  /*  if(!js_is_arraybuffer(ctx, argv[0]))
+      return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");*/
 
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
 
     int64_t offset = 0, length = len;
+
     if(argc >= 2 && JS_IsNumber(argv[1]))
       JS_ToInt64(ctx, &offset, argv[1]);
+
     if(argc >= 3 && JS_IsNumber(argv[2]))
       JS_ToInt64(ctx, &length, argv[2]);
+
     JSValue value = JS_DupValue(ctx, argv[0]);
     JSObject* obj = JS_VALUE_GET_OBJ(value);
     ret = JS_NewArrayBuffer(ctx, data + offset, MIN_NUM(len, length), js_arraybuffer_free_func, (void*)obj, FALSE);
@@ -299,8 +303,10 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 }
 
 static JSValue
-js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock dst = {0, 0}, src = {0, 0};
+  OffsetLength s_offs, d_offs;
+
   int i = 0;
 
   if(!block_arraybuffer(&dst, argv[0], ctx))
@@ -308,48 +314,77 @@ js_misc_copyarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   i++;
 
-  if(i + 1 < argc && JS_IsNumber(argv[i])) {
-    uint64_t offset = 0;
-    JS_ToIndex(ctx, &offset, argv[i++]);
-    offset = MIN_NUM(dst.size, offset);
+  i += js_offset_length(ctx, dst.size, argc - i, argv + i, &s_offs);
 
-    dst.base += offset;
-    dst.size -= offset;
-  }
-
-  if(i + 1 < argc && JS_IsNumber(argv[i])) {
-    uint64_t length = 0;
-    JS_ToIndex(ctx, &length, argv[i++]);
-    dst.size = MIN_NUM(dst.size, length);
-  }
+  /* dst.base += s_offs.offset;
+   dst.size -= s_offs.offset;
+   dst.size = MIN_NUM(dst.size, s_offs.length);*/
 
   if(i == argc || !block_arraybuffer(&src, argv[i], ctx))
     return JS_ThrowTypeError(ctx, "argument %d (src) must be an ArrayBuffer", i + 1);
 
   i++;
 
-  if(i < argc && JS_IsNumber(argv[i])) {
-    uint64_t offset = 0;
-    JS_ToIndex(ctx, &offset, argv[i++]);
-    offset = MIN_NUM(src.size, offset);
+  i += js_offset_length(ctx, dst.size, argc - i, argv + i, &d_offs);
 
-    src.base += offset;
-    src.size -= offset;
+  /* src.base += d_offs.offset;
+   src.size -= d_offs.offset;
+   src.size = MIN_NUM(src.size, d_offs.length);*/
+
+  {
+    size_t n = MIN_NUM(offset_size(&d_offs, block_length(&dst)), offset_size(&s_offs, block_length(&src)));
+
+    if(n)
+      memcpy(offset_data(&d_offs, block_data(&dst)), offset_data(&s_offs, block_data(&src)), n);
+
+    return JS_NewInt64(ctx, n);
+  }
+}
+
+static JSValue
+js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  uint8_t* ptr;
+  size_t len;
+  int i = 0;
+  const char* mode;
+
+  if(!(ptr = JS_GetArrayBuffer(ctx, &len, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 (dst) must be an ArrayBuffer");
+
+  i++;
+
+  if(i + 1 < argc && JS_IsNumber(argv[i])) {
+    int64_t offset = 0;
+    JS_ToInt64(ctx, &offset, argv[i++]);
+    offset = MIN_NUM(len, offset);
+
+    ptr += offset;
+    len -= offset;
   }
 
-  if(i < argc && JS_IsNumber(argv[i])) {
-    uint64_t length = 0;
-    JS_ToIndex(ctx, &length, argv[i++]);
-    src.size = MIN_NUM(src.size, length);
+  if(i + 1 < argc && JS_IsNumber(argv[i])) {
+    int64_t length = 0;
+    if(!JS_ToInt64(ctx, &length, argv[i++]))
+      len = MIN_NUM(len, length);
   }
 
   {
-    size_t n = MIN_NUM(dst.size, src.size);
+    JSClassID class_id = js_class_find(ctx, "FILE");
+    JSValue obj, proto = JS_GetClassProto(ctx, class_id);
+    FILE* fp;
+    JSSTDFile* file;
+    mode = JS_ToCString(ctx, argv[0]);
 
-    if(n)
-      memcpy(dst.base, src.base, n);
+    file = js_malloc(ctx, sizeof(JSSTDFile));
+    *file = (JSSTDFile){0, TRUE, FALSE};
 
-    return JS_NewInt64(ctx, n);
+    file->f = fmemopen(ptr, len, mode);
+
+    obj = JS_NewObjectProtoClass(ctx, proto, class_id);
+
+    JS_SetOpaque(obj, file);
+
+    return obj;
   }
 }
 
@@ -1224,11 +1259,12 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
-    JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
+    JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_slice),
     JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
     JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
-    JS_CFUNC_DEF("copyArrayBuffer", 2, js_misc_copyarraybuffer),
+    JS_CFUNC_DEF("memcpy", 2, js_misc_memcpy),
+    JS_CFUNC_DEF("fmemopen", 2, js_misc_fmemopen),
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_MAGIC_DEF("getExecutable", 0, js_misc_proclink, FUNC_GETEXECUTABLE),
     JS_CFUNC_MAGIC_DEF("getCurrentWorkingDirectory", 0, js_misc_proclink, FUNC_GETCWD),

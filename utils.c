@@ -696,6 +696,18 @@ js_class_get(JSContext* ctx, JSClassID id) {
   return ret->class_id == id ? ret : 0;
 }
 
+JSClassID
+js_class_find(JSContext* ctx, const char* name) {
+  JSAtom atom = JS_NewAtom(ctx, name);
+  JSRuntime* rt = ctx->rt;
+  int i, n = rt->class_count;
+  for(i = 0; i < n; i++)
+    if(rt->class_array[i].class_name == atom)
+      return i;
+
+  return -1;
+}
+
 JSAtom
 js_class_atom(JSContext* ctx, JSClassID id) {
   JSAtom atom = 0;

@@ -713,6 +713,7 @@ JSClassID js_class_newid(void);
 JSClass* js_class_get(JSContext* ctx, JSClassID id);
 JSAtom js_class_atom(JSContext* ctx, JSClassID id);
 const char* js_class_name(JSContext* ctx, JSClassID id);
+JSClassID js_class_find(JSContext* ctx, const char* name);
 
 static inline BOOL
 js_object_isclass(JSValue obj, int32_t class_id) {
