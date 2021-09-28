@@ -150,7 +150,7 @@ macro(configure_quickjs)
   message(STATUS "\tinstall directory: ${QUICKJS_PREFIX}")
   message(STATUS "\tlibrary directory: ${QUICKJS_LIBRARY_DIR}")
   message(STATUS "\tinclude directory: ${QUICKJS_INCLUDE_DIR}")
-  message(STATUS "\tC module directory: ${QUICKJS_C_MODULE_DIR}")
+  #message(STATUS "\tC module directory: ${QUICKJS_C_MODULE_DIR}")
   message(STATUS "\tmodule search path: ${QUICKJS_MODULE_PATH}")
 
 endmacro(configure_quickjs)
