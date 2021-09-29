@@ -111,7 +111,8 @@ function main(...args) {
       for(let atom = 0x80000000; atom <= 0x800001ff; atom++)
         console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
     }
-    const Range = (from, to) => [...new Array(to - from).keys()].map(n => n + from);
+    const Range = (from, to) =>
+      [...new Array(to - from).keys()].map(n => n + from);
 
     console.log('valueToAtom()', toHex32(valueToAtom(3)));
     console.log('valueToAtom()', valueToAtom(-3));
@@ -122,7 +123,10 @@ function main(...args) {
       console.log('misc.getClassID()', getClassID(new Console()));
       console.log('misc.getClassID()', getClassID(new ArrayBuffer(1024)));
       console.log('misc.getClassID()', getClassID(new Map()));
-      console.log('misc.getClassID()', getClassID(Symbol.for('quickjs.inspect.custom')));
+      console.log(
+        'misc.getClassID()',
+        getClassID(Symbol.for('quickjs.inspect.custom'))
+      );
       console.log('misc.getClassID()', getClassID(Symbol));
       console.log('misc.getClassCount()', getClassCount());
       console.log(
@@ -135,7 +139,10 @@ function main(...args) {
         )
       );
     }
-    let bits = arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
+    let bits = arrayToBitfield(
+      [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30],
+      2
+    );
     let arr = bitfieldToArray(bits, 0);
     console.log('bitfield', { bits, arr });
   } catch(error) {
@@ -149,7 +156,9 @@ function main(...args) {
     let ia;
     if(num < 0) ia = new Int32Array([num]);
     else ia = new Uint32Array([num]);
-    return '0x' + ('00000000' + new Uint32Array(ia.buffer)[0].toString(16)).slice(-8);
+    return (
+      '0x' + ('00000000' + new Uint32Array(ia.buffer)[0].toString(16)).slice(-8)
+    );
   }
 
   function get_leb128(buf, offset, len) {

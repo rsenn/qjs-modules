@@ -202,7 +202,10 @@ async function main(...args) {
   console.log('  =', eval('31337m'));
   console.log('  =', eval('31337n'));
 */
-  console.log('Object.getOwnPropertyNames(Predicate)', Object.getOwnPropertyNames(Predicate));
+  console.log(
+    'Object.getOwnPropertyNames(Predicate)',
+    Object.getOwnPropertyNames(Predicate)
+  );
 
   console.log('PredicateOperators', PredicateOperators);
   console.log("PredicateOperators['*']", PredicateOperators['*']);

@@ -1,5 +1,6 @@
 import * as os from 'os';
 import * as std from 'std';
+import * as fs from 'fs';
 import inspect from 'inspect';
 import * as path from 'path';
 import { Predicate } from 'predicate';
@@ -8,17 +9,19 @@ import { Console } from 'console';
 import JSLexer from '../lib/jslexer.js';
 import CLexer from '../lib/clexer.js';
 import BNFLexer from '../lib/bnflexer.js';
-import { extendArray } from 'util';
-import { escape, quote } from 'misc';
-import { define, curry } from 'util';
+import { escape, quote, toString } from 'misc';
+import { define, curry, unique, split, extendArray } from 'util';
 
-let imports = [];
+let buffers = {},
+  modules = {};
 let T;
 
 ('use strict');
 ('use math');
 
 extendArray(Array.prototype);
+
+const AddUnique = (arr, item) => (arr.indexOf(item) == -1 ? arr.push(item) : null);
 
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
@@ -33,6 +36,28 @@ const code = [
 ];
 
 extendArray(Array.prototype);
+
+const bufferRef = new WeakMap();
+
+function BufferFile(file) {
+  // console.log('BufferFile', file);
+  if(buffers[file]) return buffers[file];
+  let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
+  bufferRef.set(b, file);
+  return buffers[file];
+}
+
+function BufferLengths(file) {
+  return buffers[file].map(b => b.byteLength);
+}
+
+function BufferOffsets(file) {
+  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([pos])], [0, []])[1];
+}
+
+function BufferRanges(file) {
+  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])], [0, []])[1];
+}
 
 function WriteFile(file, tok) {
   let f = std.open(file, 'w+');
@@ -50,6 +75,11 @@ function DumpToken(tok) {
 
   return `★ Token ${inspect({ chars, offset, length, loc }, { depth: 1 })}`;
 }
+const What = {
+  IMPORT: 0,
+  EXPORT: 1
+};
+
 const ImportTypes = {
   IMPORT: 0,
   IMPORT_DEFAULT: 1,
@@ -85,82 +115,85 @@ function ImportType(seq) {
 
 function ImportFile(seq) {
   let idx = seq.findIndex(tok => IsKeyword('from', tok));
-
   while(seq[idx] && seq[idx].type != 'stringLiteral') ++idx;
-
-  console.log('idx', idx);
-  console.log('seq[idx]', seq[idx]);
-
   return seq[idx].lexeme.replace(/^['"`](.*)['"`]$/g, '$1');
+}
+
+function ExportName(seq) {
+  let idx = seq.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok));
+  return seq[idx].lexeme;
+}
+
+function AddExport(tokens) {
+  let code = tokens.map(tok => tok.lexeme).join('');
+  tokens = tokens.filter(tok => tok.type != 'whitespace');
+  let len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
+  tokens = tokens.slice(0, len);
+  let exp = define(
+    {
+      type: tokens[1].lexeme,
+      tokens,
+      exported: ExportName(tokens),
+      range: [+tokens[0].loc, +tokens.last.loc]
+    },
+    { code, loc: tokens[0].loc }
+  );
+  return exp;
 }
 
 function AddImport(tokens) {
   //console.log('tokens:', tokens);
+  let range = [+tokens[0].loc, +tokens.last.loc];
   let code = tokens.map(tok => tok.lexeme).join('');
   tokens = tokens.filter(tok => tok.type != 'whitespace');
   let type = ImportType(tokens);
   let file = ImportFile(tokens);
-  let imp = define(
-    { type, file, loc: tokens[0].loc, range: [+tokens[0].loc, +tokens.last.loc] },
-    { tokens, code }
-  );
-  imports.push(imp);
-  switch (type) {
-    case ImportTypes.IMPORT_NAMESPACE: {
+  const { loc, seq } = tokens[0];
+  let imp = define({ type, file, loc, seq, range }, { tokens, code });
+  imp.local = {
+    [ImportTypes.IMPORT_NAMESPACE]: () => {
       let idx = tokens.findIndex(tok => IsKeyword('as', tok));
-      imp.local = tokens[idx + 1].lexeme;
-      break;
-    }
-    case ImportTypes.IMPORT_DEFAULT: {
+      return tokens[idx + 1].lexeme;
+    },
+    [ImportTypes.IMPORT_DEFAULT]: () => {
       let idx = tokens.findIndex(tok => IsKeyword('import', tok));
-      imp.local = tokens[idx + 1].lexeme;
-      break;
-    }
-    case ImportTypes.IMPORT: {
+      return tokens[idx + 1].lexeme;
+    },
+    [ImportTypes.IMPORT]: () => {
       let idx = 0;
       let specifier = [];
-      imp.local = [];
+      let specifiers = [];
       if(IsKeyword('import', tokens[idx])) ++idx;
       if(IsPunctuator('{', tokens[idx])) ++idx;
       for(; !IsKeyword('from', tokens[idx]); ++idx) {
         if(IsPunctuator([',', '}'], tokens[idx])) {
-          if(specifier.length) imp.local.push(specifier);
+          if(specifier.length) specifiers.push(specifier);
           specifier = [];
         } else {
           specifier.push(tokens[idx].lexeme);
         }
       }
-      break;
+      return specifiers;
     }
-    default: {
-      imp.local = null;
-    }
-  }
+  }[type]();
+
   return imp;
-  console.log('imp:', imp);
 }
 
 function PrintES6Import(imp) {
-  let o = '';
-  switch (imp.type) {
-    case ImportTypes.IMPORT_NAMESPACE: {
-      o += `import * as ${imp.local} from '${imp.file}';`;
-      break;
-    }
-    case ImportTypes.IMPORT_DEFAULT: {
-      o += `import ${imp.local} from '${imp.file}';`;
-      break;
-    }
-    case ImportTypes.IMPORT: {
-      o += `import { `;
+  return {
+    [ImportTypes.IMPORT_NAMESPACE]: ({ local, file }) => `import * as ${local} from '${file}';`,
+    [ImportTypes.IMPORT_DEFAULT]: ({ local, file }) => `import ${local} from '${file}';`,
+    [ImportTypes.IMPORT]: ({ local, file }) => `import { ${local.join(', ')} } from '${file}';`
+  }[imp.type](imp);
+}
 
-      o += imp.local.join(', ');
-
-      o += ` } from '${imp.file}';`;
-      break;
-    }
-  }
-  return o;
+function PrintCJSImport({ type, local, file }) {
+  return {
+    [ImportTypes.IMPORT_NAMESPACE]: () => `const ${local} = require('${file}');`,
+    [ImportTypes.IMPORT_DEFAULT]: () => `const ${local} = require('${file}');`,
+    [ImportTypes.IMPORT]: () => `const { ${local.join(', ')} } = require('${file}');`
+  }[type]();
 }
 
 function main(...args) {
@@ -171,7 +204,8 @@ function main(...args) {
       breakLength: 160,
       maxStringLength: 100,
       maxArrayLength: 40,
-      compact: 1,stringBreakNewline: false,
+      compact: 1,
+      stringBreakNewline: false,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
   });
@@ -189,203 +223,203 @@ function main(...args) {
 
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
 
-  let file = args[optind] ?? /*process.argv[1] ??*/ RelativePath('lib/util.js');
-  console.log(`Loading '${file}'...`);
+  let files = args[optind] ? args.slice(optind) : [RelativePath('lib/util.js')];
 
-  let str = file ? std.loadFile(file, 'utf-8') : code[1];
-  //str = '  return new Map(ret.map(([name, description]) => [name, { url: `https://github.com/${user}/${name}`, description }]));';
-  let len = str.length;
-  let type = path.extname(file).substring(1);
-  console.log('data:', escape(str.slice(0, 100)));
+  while(optind < files.length) {
+    ProcessFile(files[optind++]);
+  }
 
-  let lex = {
-    js: new JSLexer(str, file),
-    c: new CLexer(str, CLexer.LONGEST, file),
-    bnf: new BNFLexer(str, file)
-  };
+  function ProcessFile(file) {
+    console.log(`Loading '${file}'...`);
+    const log = (...args) => console.log(`${file}:`, ...args);
 
-  lex.g4 = lex.bnf;
-  lex.ebnf = lex.bnf;
-  lex.l = lex.bnf;
-  lex.y = lex.bnf;
+    let str = file ? BufferFile(file) : code[1];
+    //str = '  return new Map(ret.map(([name, description]) => [name, { url: `https://github.com/${user}/${name}`, description }]));';
+    let len = str.length;
+    let type = path.extname(file).substring(1);
+    log('data:', escape(str.slice(0, 100)));
 
-  const lexer = lex[type];
-
-  T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
-
-  console.log('lexer:', lexer[Symbol.toStringTag]);
-  console.log('code:', code);
-
-  let e = new SyntaxError();
-  console.log('new SyntaxError()', e);
-
-  lexer.handler = lex => {
-    const { loc, mode, pos, start, byteLength, state } = lex;
-    //console.log(`${this.currentLine()}`);
-    //console.log(`handler loc=${loc} mode=${IntToBinary(mode)} state=${lex.topState()}`, { pos, start, byteLength }, `\n${lex.currentLine()}` );
-    console.log(' '.repeat(loc.column - 1) + '^');
-  };
-  let tokenList = [],
-    declarations = [];
-  const colSizes = [12, 8, 4, 16, 32, 10, 0];
-
-  const printTok = debug
-    ? (tok, prefix) => {
-        const range = tok.charRange;
-        const cols = [
-          prefix,
-          `tok[${tok.byteLength}]`,
-          tok.id,
-          tok.type,
-          tok.lexeme,
-          tok.lexeme.length,
-          tok.loc
-        ];
-        console.log(
-          ...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]))
-        );
-      }
-    : () => {};
-
-  let tok,
-    i = 0;
-
-  console.log('now', Date.now());
-
-  console.log(lexer.ruleNames.length, 'rules', lexer.ruleNames.unique().length, 'unique rules');
-
-  console.log('lexer.mask', IntToBinary(lexer.mask));
-  console.log('lexer.skip', lexer.skip);
-  console.log('lexer.skip', IntToBinary(lexer.skip));
-  console.log('lexer.states', lexer.states);
-
-  console.log(
-    'new SyntaxError("test")',
-    new SyntaxError('test', new Location(10, 3, 28, 'file.txt'))
-  );
-  let mask = IntToBinary(lexer.mask);
-  let state = lexer.topState();
-  lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
-  let tokens = [];
-  let start = Date.now();
-  const balancer = () => {
-    let self;
-    let stack = [];
-    const table = { '}': '{', ']': '[', ')': '(' };
-    self = function ParentheseBalancer(tok) {
-      switch (tok?.lexeme) {
-        case '{':
-        case '[':
-        case '(': {
-          stack.push(tok.lexeme);
-          break;
-        }
-        case '}':
-        case ']':
-        case ')': {
-          if(stack.last != table[tok.lexeme])
-            throw new Error(
-              `top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
-            );
-
-          stack.pop();
-          break;
-        }
-      }
+    let lex = {
+      js: new JSLexer(str, file),
+      c: new CLexer(str, CLexer.LONGEST, file),
+      bnf: new BNFLexer(str, file)
     };
-    Object.assign(self, {
-      stack,
-      reset() {
-        stack.clear();
-      },
-      /* prettier-ignore */ get depth() {
+
+    lex.g4 = lex.bnf;
+    lex.ebnf = lex.bnf;
+    lex.l = lex.bnf;
+    lex.y = lex.bnf;
+
+    const lexer = lex[type];
+
+    T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
+
+    log('lexer:', lexer[Symbol.toStringTag]);
+    log('code:', code);
+
+    let e = new SyntaxError();
+    log('new SyntaxError()', e);
+
+    lexer.handler = lex => {
+      const { loc, mode, pos, start, byteLength, state } = lex;
+      //log(`${this.currentLine()}`);
+      //log(`handler loc=${loc} mode=${IntToBinary(mode)} state=${lex.topState()}`, { pos, start, byteLength }, `\n${lex.currentLine()}` );
+      log(' '.repeat(loc.column - 1) + '^');
+    };
+    let tokenList = [],
+      declarations = [];
+    const colSizes = [12, 8, 4, 16, 32, 10, 0];
+
+    const printTok = debug
+      ? (tok, prefix) => {
+          const range = tok.charRange;
+          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
+          log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
+        }
+      : () => {};
+
+    let tok,
+      i = 0;
+
+    log('now', Date.now());
+
+    log(lexer.ruleNames.length, 'rules', lexer.ruleNames.unique().length, 'unique rules');
+
+    log('lexer.mask', IntToBinary(lexer.mask));
+    log('lexer.skip', lexer.skip);
+    log('lexer.skip', IntToBinary(lexer.skip));
+    log('lexer.states', lexer.states);
+
+    log('new SyntaxError("test")', new SyntaxError('test', new Location(10, 3, 28, 'file.txt')));
+    let mask = IntToBinary(lexer.mask);
+    let state = lexer.topState();
+    lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
+    let tokens = [];
+    let start = Date.now();
+    const balancer = () => {
+      let self;
+      let stack = [];
+      const table = { '}': '{', ']': '[', ')': '(' };
+      self = function ParentheseBalancer(tok) {
+        switch (tok?.lexeme) {
+          case '{':
+          case '[':
+          case '(': {
+            stack.push(tok.lexeme);
+            break;
+          }
+          case '}':
+          case ']':
+          case ')': {
+            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+
+            stack.pop();
+            break;
+          }
+        }
+      };
+      Object.assign(self, {
+        stack,
+        reset() {
+          stack.clear();
+        },
+        /* prettier-ignore */ get depth() {
         return stack.length;
       }
-    });
+      });
 
-    return self;
-  };
-  let balancers = [balancer()];
-  let cond,
-    imp = [];
+      return self;
+    };
+    let balancers = [balancer()];
 
-  for(;;) {
-    let newState, state;
-    let { stateDepth } = lexer;
-    state = lexer.topState();
-    let { done, value } = lexer.next();
-    if(done) break;
-    newState = lexer.topState();
-    tok = value;
-    if(newState != state) {
-      if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
-      if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
-    }
+    let imports = [],
+      exports = [];
+    let impexp,
+      cond,
+      imp = [];
 
-    //console.log('lexer.topState()', state);
-    let n = balancers.last.depth;
-    if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
-      lexer.popState();
-      continue;
-    } else {
-      balancer(tok);
-
-      if(n > 0 && balancers.last.depth == 0) console.log('balancer');
-    }
-    //console.log('loc', lexer.loc+'');
-
-    if(tok.lexeme == 'import') {
-      let prev = tokens[tokens.length - 1];
-      if(tokens.length == 0 || prev.lexeme.endsWith('\n')) {
-        cond = true;
-        imp = [];
+    for(;;) {
+      let newState, state;
+      let { stateDepth } = lexer;
+      state = lexer.topState();
+      let { done, value } = lexer.next();
+      if(done) break;
+      newState = lexer.topState();
+      tok = value;
+      if(newState != state) {
+        if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
+        if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
       }
-    }
-
-    if(cond == true) {
-      /*  if(tok.lexeme.trim() != '')*/ imp.push(tok);
-
-      if([';', '\n'].indexOf(tok.lexeme) != -1) {
-        cond = false;
-
-        if(imp.some(i => i.lexeme == 'from')) {
-          AddImport(imp);
+      let n = balancers.last.depth;
+      if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
+        lexer.popState();
+        continue;
+      } else {
+        balancer(tok);
+        if(n > 0 && balancers.last.depth == 0) log('balancer');
+      }
+      if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
+        impexp = What[tok.lexeme.toUpperCase()];
+        let prev = tokens[tokens.length - 1];
+        /* if(tokens.length == 0 || prev.lexeme.endsWith('\n')) */ {
+          cond = true;
+          imp = [];
         }
       }
+      if(cond == true) {
+        imp.push(tok);
+        if([';', '\n'].indexOf(tok.lexeme) != -1) {
+          cond = false;
+          if(imp.some(i => i.lexeme == 'from')) {
+            if(impexp == What.IMPORT) imports.push(AddImport(imp));
+          }
+
+          if(impexp == What.EXPORT) exports.push(AddExport(imp));
+        }
+      }
+      printTok(tok, lexer.topState());
+      tokens.push(tok);
     }
 
-    printTok(tok, lexer.topState());
-    tokens.push(tok);
+    log('ES6 imports', imports.map(PrintES6Import));
+    log('CJS imports', imports.map(PrintCJSImport));
+
+    modules[file] = { imports, exports };
+
+    //  log('exports', exports);
+    let fileImports = imports.filter(imp => /\.js$/i.test(imp.file));
+    let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
+    buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
+    log(`splitPoints`, splitPoints);
+    log(`buffers[${file}]`, buffers[file]);
+    log(`buffers[${file}] len`, BufferLengths(file));
+    log(`buffers[${file}] ofs`, BufferOffsets(file));
+    log(`buffers[${file}] rng`, BufferRanges(file));
+    log(
+      'fileImports',
+      fileImports.map(imp => imp.file)
+    );
+
+    let dir = path.dirname(file);
+
+    fileImports.forEach(imp => {
+      let p = path.collapse(path.join(dir, imp.file));
+      log('p', p);
+
+      AddUnique(files, p);
+      //    let f = BufferFile(p);
+    });
+
+    let end = Date.now();
+
+    log(`took ${end - start}ms`);
+    log('lexer', lexer);
+    //log('tokens', tokens);
+
+    std.gc();
   }
-  console.log('imports', imports.map(PrintES6Import));
-  let end = Date.now();
-
-  console.log(`took ${end - start}ms`);
-  console.log('lexer', lexer);
-  console.log('lexer.tokens');
-  /*// console.log('lexer.rules', new Map(lexer.ruleNames.map(name => lexer.getRule(name)).map(([name, expr, states]) => [name, new RegExp(expr, 'gmy'), states.join(',')])));
-  console.log(`lexer.topState()`, lexer.topState());
-  console.log(`lexer.states `, lexer.states);
-  //console.log(`tokens`, tokens.map((tok, i) => [i, tok]));
-  const tokindex = 1;
-  console.log(`tokens[tokindex]`, tokens[tokindex]);
-  console.log(`lexer.back(tokens[tokindex])`, lexer.back(tokens[tokindex]));
-  console.log(`lexer.lex() `, lexer.lex());
-  console.log(`lexer.loc`, lexer.loc + '');
-  const lexeme = tokens[tokindex - 1].lexeme;
-  console.log(`lexeme`, lexeme);
-  console.log(`lexer.back(lexeme)`, lexer.back(lexeme));
-  console.log(`lexer.next() `, lexer.next());
-  console.log(`lexer.next() `, lexer.next());
-  console.log(`lexer.next() `, lexer.next());
-  console.log(`Location.count('blah\\nblah\\nblah\\nblah')`, Location.count('blah\nblah\nblah\nblah'));*/
-
-  /*for(let j = 0; j < lexer.ruleNames.length; j++) {
-    console.log(`lexer.rule[${j}]`, lexer.getRule(j));
-  }*/
-  return;
-
-  std.gc();
+  console.log('buffers', buffers);
+  console.log('files', files);
 }
 
 try {

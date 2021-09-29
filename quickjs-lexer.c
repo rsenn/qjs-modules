@@ -390,7 +390,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   rule = lexer_rule_at(tok->lexer, tok->id);
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewUint32(ctx, tok->id), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), 0);
+  JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, rule->name), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, tok->lexeme), JS_PROP_ENUMERABLE);
 
@@ -498,7 +498,7 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("rule", js_token_get, NULL, TOKEN_PROP_RULE),
     JS_CGETSET_MAGIC_DEF("lexeme", js_token_get, NULL, TOKEN_PROP_LEXEME),
     JS_CGETSET_MAGIC_DEF("value", js_token_get, NULL, TOKEN_PROP_LEXEME),
-    //JS_CFUNC_DEF("toString", 0, js_token_tostring),
+    // JS_CFUNC_DEF("toString", 0, js_token_tostring),
     // JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
     JS_ALIAS_DEF("position", "loc"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
@@ -535,7 +535,7 @@ static int32_t
 lexer_to_state(Lexer* lex, JSContext* ctx, JSValueConst value) {
   int32_t num;
   if(JS_IsNumber(value)) {
-     JS_ToInt32(ctx, &num, value);
+    JS_ToInt32(ctx, &num, value);
   } else {
     const char* str = JS_ToCString(ctx, value);
     num = lexer_state_find(lex, str);

@@ -135,11 +135,17 @@ function test_operators_create() {
     }
 
     toString() {
-      return `Expr1{${this.op}}(` + this.children.map(e => e.toString()).join(', ') + ')';
+      return (
+        `Expr1{${this.op}}(` +
+        this.children.map(e => e.toString()).join(', ') +
+        ')'
+      );
     }
   }
 
-  Expr1.prototype[Symbol.operatorSet] = CreateOperatorSet(...OperatorsObjects(Expr1));
+  Expr1.prototype[Symbol.operatorSet] = CreateOperatorSet(
+    ...OperatorsObjects(Expr1)
+  );
 
   let a = new Expr1(3);
   let b = new Expr1(6);
@@ -158,11 +164,17 @@ function test_operators_ctor() {
     }
 
     toString() {
-      return `Expr2{${this.op}}(` + this.children.map(e => e.toString()).join(', ') + ')';
+      return (
+        `Expr2{${this.op}}(` +
+        this.children.map(e => e.toString()).join(', ') +
+        ')'
+      );
     }
   }
 
-  Expr2.prototype[Symbol.operatorSet] = CreateOperatorSet(...OperatorsObjects(Expr2));
+  Expr2.prototype[Symbol.operatorSet] = CreateOperatorSet(
+    ...OperatorsObjects(Expr2)
+  );
 
   let a = new Expr2(3);
   let b = new Expr2(6);
@@ -261,7 +273,11 @@ function test_operators_class() {
     }
 
     toString() {
-      return `Expr3{${this.op}}(` + this.children.map(e => e.toString()).join(', ') + ')';
+      return (
+        `Expr3{${this.op}}(` +
+        this.children.map(e => e.toString()).join(', ') +
+        ')'
+      );
     }
   };
 
