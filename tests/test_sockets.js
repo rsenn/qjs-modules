@@ -1,7 +1,34 @@
 import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
-import { socklen_t, fd_set, SockAddr, Socket, select, poll, AF_INET, SOCK_STREAM, IPPROTO_TCP, POLLIN, POLLOUT, POLLERR, POLLHUP, O_NONBLOCK, O_ASYNC, SO_ERROR, SO_DEBUG, SO_REUSEPORT, SO_REUSEADDR, SO_KEEPALIVE, SO_DONTROUTE, SO_BROADCAST, SO_OOBINLINE, SO_SNDBUF, SO_RCVBUF, SOL_SOCKET } from 'sockets';
+import {
+  socklen_t,
+  fd_set,
+  SockAddr,
+  Socket,
+  select,
+  poll,
+  AF_INET,
+  SOCK_STREAM,
+  IPPROTO_TCP,
+  POLLIN,
+  POLLOUT,
+  POLLERR,
+  POLLHUP,
+  O_NONBLOCK,
+  O_ASYNC,
+  SO_ERROR,
+  SO_DEBUG,
+  SO_REUSEPORT,
+  SO_REUSEADDR,
+  SO_KEEPALIVE,
+  SO_DONTROUTE,
+  SO_BROADCAST,
+  SO_OOBINLINE,
+  SO_SNDBUF,
+  SO_RCVBUF,
+  SOL_SOCKET
+} from 'sockets';
 import { error, escape, quote, toString, toArrayBuffer, randi, randf, srand } from 'misc';
 import { define } from 'util';
 //import { SyscallError, EAGAIN, ENETDOWN, EPROTO, ENOPROTOOPT, EHOSTUNREACH, EOPNOTSUPP, ENETUNREACH, EBADF, ECONNABORTED, EINVAL, ENOBUFS, ENOTSOCK, ESOCKTNOSUPPORT, EPROTONOSUPPORT, ETIMEDOUT, EADDRINUSE, EADDRNOTAVAIL, EIO, EAFNOSUPPORT, EALREADY, ECONNREFUSED, EINPROGRESS, EISCONN, EPROTOTYPE, ENOTCONN, EMSGSIZE, ECONNRESET, EDESTADDRREQ } from 'syscallerror';
@@ -69,9 +96,9 @@ function main() {
   console.log(`connect(`, ra, `) =`, sock.connect(ra), sock.error);
 
   function DumpSock(s) {
-    let { fd, ret, errno, syscall, error, open,  eof, mode } = s;
+    let { fd, ret, errno, syscall, error, open, eof, mode } = s;
 
-    return [inspect({ fd,ret, errno, syscall, error,  open, eof }, { colors: true })];
+    return [inspect({ fd, ret, errno, syscall, error, open, eof }, { colors: true })];
 
     //  return [s.fd >= 0 && `fd=${s.fd}`, s.eof ? 'EOF' : s.open ? 'open' : 'closed', s.ret !== undefined && `r=${s.ret}`, s.syscall !== undefined && `f=${s.syscall}`,  'e=', s.errno/*,  `e=${s.err}`*/].filter(p => !!p);
   }
@@ -137,24 +164,31 @@ function main() {
     }
 
     if(pfds[0].revents & POLLIN) {
-     // console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
+      // console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
       data = toString(buf, 0, (n = sock.recv(buf)));
 
       console.log(
-        `recv(ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(70),
+        `recv(ArrayBuffer ${buf.byteLength}) = ${n} ${
+          n >= 0 ? quote(data, "'") : sock.error + ''
+        }`.padEnd(70),
         ...DumpSock(sock)
       );
-     // console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
+      // console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
 
       if(data.indexOf('OpenSSH') != -1) {
         const txt = 'BLAHBLAHTEST\r\n';
         let start = 4;
         n = sock.send(txt, start);
-        console.log(`send(${quote(txt.slice(start), "'")}, ${start}) =`, n, n > 0 ? null : sock.error, ...DumpSock(sock));
+        console.log(
+          `send(${quote(txt.slice(start), "'")}, ${start}) =`,
+          n,
+          n > 0 ? null : sock.error,
+          ...DumpSock(sock)
+        );
       }
     }
   }
-console.log(`sock`, ...DumpSock(sock));
+  console.log(`sock`, ...DumpSock(sock));
   let { open, error } = sock;
   if(error) console.log('error:', error);
   console.log('O_NONBLOCK', O_NONBLOCK.toString(2).padStart(16, '0'));
