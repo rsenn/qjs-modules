@@ -105,7 +105,6 @@ function AddImport(tokens) {
     { tokens, code }
   );
   imports.push(imp);
-
   switch (type) {
     case ImportTypes.IMPORT_NAMESPACE: {
       let idx = tokens.findIndex(tok => IsKeyword('as', tok));
@@ -141,15 +140,38 @@ function AddImport(tokens) {
   console.log('imp:', imp);
 }
 
+function PrintES6Import(imp) {
+  let o = '';
+  switch (imp.type) {
+    case ImportTypes.IMPORT_NAMESPACE: {
+      o += `import * as ${imp.local} from '${imp.file}';`;
+      break;
+    }
+    case ImportTypes.IMPORT_DEFAULT: {
+      o += `import ${imp.local} from '${imp.file}';`;
+      break;
+    }
+    case ImportTypes.IMPORT: {
+      o += `import { `;
+
+      o += imp.local.join(', ');
+
+      o += ` } from '${imp.file}';`;
+      break;
+    }
+  }
+  return o;
+}
+
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
       colors: true,
       depth: 8,
-      breakLength: 120,
-      maxStringLength: Infinity,
-      maxArrayLength: Infinity,
-      compact: 1,
+      breakLength: 160,
+      maxStringLength: 100,
+      maxArrayLength: 40,
+      compact: 1,stringBreakNewline: false,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
   });
@@ -335,7 +357,7 @@ function main(...args) {
     printTok(tok, lexer.topState());
     tokens.push(tok);
   }
-  console.log('imports', imports);
+  console.log('imports', imports.map(PrintES6Import));
   let end = Date.now();
 
   console.log(`took ${end - start}ms`);
