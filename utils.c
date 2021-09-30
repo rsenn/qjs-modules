@@ -16,7 +16,7 @@
 #include <sys/time.h>
 #include <quickjs-libc.h>
 
-void qsort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr);
+void quicksort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr);
 
 #ifndef INFINITY
 #define INFINITY __builtin_inf()
@@ -468,8 +468,8 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   if(natoms_a != natoms_b)
     return FALSE;
 
-  qsort_r(&atoms_a, natoms_a, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
-  qsort_r(&atoms_b, natoms_b, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
+  quicksort_r(&atoms_a, natoms_a, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
+  quicksort_r(&atoms_b, natoms_b, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
   for(i = 0; i < natoms_a; i++)
     if(atoms_a[i].atom != atoms_b[i].atom)
       return FALSE;

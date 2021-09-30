@@ -69,7 +69,7 @@ quicksort(char* base, size_t size, ssize_t l, ssize_t r, int (*compar)(const voi
 }
 
 void
-qsort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr) {
+quicksort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr) {
   /* check for integer overflows */
   if(nmemb >= (((size_t)-1) >> 1) || size >= (((size_t)-1) >> 1))
     return;

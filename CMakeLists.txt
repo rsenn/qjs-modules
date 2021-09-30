@@ -178,7 +178,6 @@ set(child_process_SOURCES child-process.c child-process.h property-enumeration.c
 set(deep_SOURCES
     vector.c vector.h pointer.c virtual-properties.c property-enumeration.c property-enumeration.h
     ${util_SOURCES} ${predicate_SOURCES} pointer.h virtual-properties.h qsort_r.c)
-#set(deep_LIBRARIES qjs-pointer qjs-predicate)
 set(inspect_SOURCES vector.c vector.h iteration.h ${util_SOURCES} property-enumeration.c
                     property-enumeration.h quickjs-internal.h qsort_r.c)
 set(tree_walker_SOURCES vector.c vector.h property-enumeration.c property-enumeration.h
@@ -301,7 +300,7 @@ if(LIBM)
 endif(LIBM)
 
 set(sockets_LIBRARIES qjs-syscallerror)
-set(deep_LIBRARIES qjs-pointer qjs-predicate)
+set(deep_LIBRARIES qjs-pointer qjs-predicate ${LIBM})
 set(lexer_LIBRARIES qjs-predicate)
 set(lexer_DEPS qjs-predicate)
 
