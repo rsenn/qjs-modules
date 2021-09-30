@@ -305,7 +305,7 @@ set(lexer_LIBRARIES qjs-predicate)
 set(lexer_DEPS qjs-predicate)
 
 file(GLOB TESTS_SOURCES tests/test_*.js)
-list(FILTER TESTS_SOURCES EXCLUDE REGEX "test_lexer.js")
+list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
 set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH
@@ -322,7 +322,8 @@ foreach(TEST_SOURCE ${TESTS_SOURCES})
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
 file(GLOB LIBJS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js")
-list(FILTER LIBJS EXCLUDE REGEX "lib/require.js|lib/fs.js")
+list(REMOVE_ITEM LIBJS  lib/require.js)
+list(REMOVE_ITEM LIBJS  lib/fs.js)
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}/quickjs")
 
@@ -386,7 +387,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   # target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
 
   # target_link_libraries(qjs ${QUICKJS_LIBRARY})
-  target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
+  link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
   target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
   set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT}" COMPILE_FLAGS "-w"
                                         RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
