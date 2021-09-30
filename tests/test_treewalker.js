@@ -47,10 +47,7 @@ function main(...args) {
     let walk = new TreeWalker(result);
     console.log('walk:', walk.toString());
     let i = 0;
-    console.log(
-      '~TreeWalker.MASK_PRIMITIVE:',
-      TreeWalker.MASK_PRIMITIVE.toString(2)
-    );
+    console.log('~TreeWalker.MASK_PRIMITIVE:', TreeWalker.MASK_PRIMITIVE.toString(2));
     console.log(' TreeWalker.MASK_ALL:', TreeWalker.MASK_ALL);
     console.log(' TreeWalker.MASK_ALL:', TreeWalker.MASK_ALL.toString(2));
     //walk.tagMask = TreeWalker.MASK_PRIMITIVE;
@@ -88,10 +85,7 @@ function main(...args) {
     for(let c of ['TYPE_OBJECT', 'RETURN_VALUE_PATH']) {
       console.log(`${c} = `, TreeIterator[c]);
     }
-    let it = new TreeIterator(
-      result,
-      TreeIterator.TYPE_OBJECT | TreeIterator.RETURN_VALUE_PATH
-    );
+    let it = new TreeIterator(result, TreeIterator.TYPE_OBJECT | TreeIterator.RETURN_VALUE_PATH);
 
     for(let [entry, pointer] of it) {
       console.log(`pointer: ${pointer}, entry:`, entry);

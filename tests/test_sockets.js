@@ -29,16 +29,7 @@ import {
   SO_RCVBUF,
   SOL_SOCKET
 } from 'sockets';
-import {
-  error,
-  escape,
-  quote,
-  toString,
-  toArrayBuffer,
-  randi,
-  randf,
-  srand
-} from 'misc';
+import { error, escape, quote, toString, toArrayBuffer, randi, randf, srand } from 'misc';
 import { define } from 'util';
 //import { SyscallError, EAGAIN, ENETDOWN, EPROTO, ENOPROTOOPT, EHOSTUNREACH, EOPNOTSUPP, ENETUNREACH, EBADF, ECONNABORTED, EINVAL, ENOBUFS, ENOTSOCK, ESOCKTNOSUPPORT, EPROTONOSUPPORT, ETIMEDOUT, EADDRINUSE, EADDRNOTAVAIL, EIO, EAFNOSUPPORT, EALREADY, ECONNREFUSED, EINPROGRESS, EISCONN, EPROTOTYPE, ENOTCONN, EMSGSIZE, ECONNRESET, EDESTADDRREQ } from 'syscallerror';
 import Console from 'console';
@@ -58,11 +49,7 @@ function main() {
   let seed = +Date.now();
   srand(seed);
 
-  let la = new SockAddr(
-    AF_INET,
-    new Uint8Array([192, 168, 8, 151]).buffer,
-    31337
-  );
+  let la = new SockAddr(AF_INET, new Uint8Array([192, 168, 8, 151]).buffer, 31337);
   la = new SockAddr(AF_INET, '0.0.0.0', randi() & 0xffff);
   let ra = new SockAddr(AF_INET, '192.168.8.156', 22);
   console.log(`classes`, { socklen_t, fd_set, SockAddr, Socket });
@@ -101,11 +88,7 @@ function main() {
 
     for(let [name, value] of so_flags) {
       sock.getsockopt(SOL_SOCKET, value, (opt = [0]), 4);
-      console.log(
-        `[${value.toString()}]`.padStart(4),
-        `${name.padEnd(30)} =`,
-        opt
-      );
+      console.log(`[${value.toString()}]`.padStart(4), `${name.padEnd(30)} =`, opt);
     }
   }
   console.log(`ndelay() =`, sock.ndelay());
@@ -115,9 +98,7 @@ function main() {
   function DumpSock(s) {
     let { fd, ret, errno, syscall, error, open, eof, mode } = s;
 
-    return [
-      inspect({ fd, ret, errno, syscall, error, open, eof }, { colors: true })
-    ];
+    return [inspect({ fd, ret, errno, syscall, error, open, eof }, { colors: true })];
 
     //  return [s.fd >= 0 && `fd=${s.fd}`, s.eof ? 'EOF' : s.open ? 'open' : 'closed', s.ret !== undefined && `r=${s.ret}`, s.syscall !== undefined && `f=${s.syscall}`,  'e=', s.errno/*,  `e=${s.err}`*/].filter(p => !!p);
   }
@@ -141,24 +122,16 @@ function main() {
   define(PollFD.prototype, {
     [Symbol.inspect]() {
       const { fd, events, revents } = this;
-      return `{ fd: ${fd}, events: ${ioFlags(events)}, revents: ${ioFlags(
-        revents
-      )} }`;
+      return `{ fd: ${fd}, events: ${ioFlags(events)}, revents: ${ioFlags(revents)} }`;
     },
     inspect() {
       const { fd, events, revents } = this;
-      return `{ fd: ${fd}, events: ${ioFlags(events)}, revents: ${ioFlags(
-        revents
-      )} }`;
+      return `{ fd: ${fd}, events: ${ioFlags(events)}, revents: ${ioFlags(revents)} }`;
     }
   });
 
   function waitIO(flags = POLLIN) {
-    ret = poll(
-      (pfds = [new PollFD(sock.fd, flags | POLLERR)]),
-      pfds.length,
-      (timeout = 3000)
-    );
+    ret = poll((pfds = [new PollFD(sock.fd, flags | POLLERR)]), pfds.length, (timeout = 3000));
 
     // console.log(`poll(${pfds.map(pfd => pfd.inspect()).join(', ')}, ${pfds.length}, ${timeout}) =`, ret);
     //console.log(`poll() =`, ret, ioFlags(pfds[0].revents));
@@ -195,9 +168,7 @@ function main() {
       data = toString(buf, 0, (n = sock.recv(buf)));
 
       console.log(
-        `recv(ArrayBuffer ${buf.byteLength}) = ${n} ${
-          n >= 0 ? quote(data, "'") : sock.error + ''
-        }`.padEnd(70),
+        `recv(ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(70),
         ...DumpSock(sock)
       );
       // console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
@@ -222,10 +193,7 @@ function main() {
   console.log('O_ASYNC   ', O_ASYNC.toString(2).padStart(16, '0'));
   console.log('sock.mode ', sock.mode.toString(2).padStart(16, '0'));
 
-  console.log(
-    ('sock.close() ' + sock.close() + '').padEnd(70),
-    ...DumpSock(sock)
-  );
+  console.log(('sock.close() ' + sock.close() + '').padEnd(70), ...DumpSock(sock));
 }
 
 main();

@@ -19,10 +19,7 @@ function CallPathFunction(name, ...args) {
   let ret = fn.call(path, ...args);
   console.log(
     `path.${name}(`,
-    ...args.reduce(
-      (acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]),
-      []
-    ),
+    ...args.reduce((acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]), []),
     ') =',
     ret
   );
@@ -56,13 +53,7 @@ async function main(...args) {
   CallPathFunction('readlink', '/home/roman/Sources');
   CallPathFunction('normalize', '/home/roman/Sources');
   CallPathFunction('realpath', '/home/roman/Sources');
-  CallPathFunction(
-    'join',
-    '/home/roman',
-    'Sources',
-    'plot-cv/quickjs',
-    'modules'
-  );
+  CallPathFunction('join', '/home/roman', 'Sources', 'plot-cv/quickjs', 'modules');
   CallPathFunction('isAbsolute', 'c:/windows');
   CallPathFunction('isAbsolute', '/etc');
   CallPathFunction('isAbsolute', '../tmp');

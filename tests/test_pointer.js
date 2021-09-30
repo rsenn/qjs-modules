@@ -48,13 +48,9 @@ function main(...args) {
   let pointer2 = Pointer.fromAtoms(pointer.atoms);
   console.log('pointer2', pointer2);
   console.log('[...pointer2]', [...pointer2]);
-  console.log(
-    'pointer2.concat(pointer)',
-    pointer2.push('children').concat(pointer)
-  );
+  console.log('pointer2.concat(pointer)', pointer2.push('children').concat(pointer));
 
-  for(let i = 0; i < pointer.length; i++)
-    console.log(`pointer[${i - pointer.length}]`, pointer[i - pointer.length]);
+  for(let i = 0; i < pointer.length; i++) console.log(`pointer[${i - pointer.length}]`, pointer[i - pointer.length]);
 
   pointer = new Pointer([3, 'children', 0, 'children', 0]);
   try {

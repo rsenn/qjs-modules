@@ -311,7 +311,8 @@ function main(...args) {
           case '}':
           case ']':
           case ')': {
-            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+            if(stack.last != table[tok.lexeme])
+              throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
             stack.pop();
             break;
