@@ -477,7 +477,7 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Of
    else
   */
   if(size)
-  off = ((off % size) + off) % size;
+    off = ((off % size) + off) % size;
 
   if(len >= 0)
     len = MIN_NUM(len, size - off);
