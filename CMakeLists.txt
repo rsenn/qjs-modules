@@ -388,8 +388,9 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   # target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
 
   #target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
-  link_directories(${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
-  set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${CMAKE_CURRENT_BINARY_DIR}" COMPILE_FLAGS "-w"
+  link_directories(${QJSM_LIBDIR})
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${QJSM_LIBDIR}")
+  set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS "-w"
                                         RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
   target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
 
