@@ -342,60 +342,70 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
   include(${QUICKJS_SOURCES_ROOT}/defs.cmake)
   include(${QUICKJS_SOURCES_ROOT}/cmake/check-libraries.cmake)
+  
+  unset(QUICKJS_INCLUDE_DIR CACHE)
+  set(QUICKJS_INCLUDE_DIR "${QUICKJS_SOURCES_ROOT}")
 
-  add_custom_command(
-    OUTPUT ${MODULES_DIR}/qjscalc.c
-    COMMAND ${QJSC} -fbignum -c -o ${MODULES_DIR}/qjscalc.c -m
-            ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js
-    DEPENDS ${QJSC_DEPS}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES
-            ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
+  #dump(QUICKJS_INCLUDE_DIR)
 
-  set(QJSM_SOURCES
-      qjsm.c
-      vector.c
-      ${MODULES_DIR}/repl.c
-      ${MODULES_DIR}/qjscalc.c
-      ${MODULES_DIR}/console.c
-      ${MODULES_DIR}/events.c
-      ${MODULES_DIR}/require.c
-      ${MODULES_DIR}/fs.c
-      ${MODULES_DIR}/perf_hooks.c
-      ${MODULES_DIR}/process.c
-      ${MODULES_DIR}/tty.c
-      ${MODULES_DIR}/util.c
-      ${QJSM_EXTRA_SOURCES})
-
-  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
-    if(QUICKJS_DEBUGGER)
-      set(QJSM_SOURCES
-          ${QJSM_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c
-          ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger-transport-${TRANSPORT_PLATFORM}.c)
-    endif(QUICKJS_DEBUGGER)
-  endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
-
-  ##dump(QJSM_SOURCES)
-  add_executable(qjsm ${QJSM_SOURCES})
-
-  dump(QJS_MODULES_STATIC)
-  dump(QJSM_LDADD)
-  dump(QJSM_LIBDIR)
-  if(QJS_MODULES_STATIC)
-    add_dependencies(qjsm ${QJS_MODULES_STATIC})
-  endif(QJS_MODULES_STATIC)
-
-  # target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
-
-  #target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
-  link_directories(${QJSM_LIBDIR})
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${QJSM_LIBDIR}")
-  set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS "-w"
-                                        RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
-  target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
-
-  target_compile_definitions(qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}"
-    CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}" QUICKJS_MODULE_PATH="${QUICKJS_MODULE_PATH}" CONFIG_BIGNUM=1)
-  install(TARGETS qjsm DESTINATION bin)
-
+  include_directories(${QUICKJS_INCLUDE_DIR})
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
+
+add_custom_command(
+  OUTPUT ${MODULES_DIR}/qjscalc.c
+  COMMAND ${QJSC} -fbignum -c -o ${MODULES_DIR}/qjscalc.c -m
+          ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js
+  DEPENDS ${QJSC_DEPS}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES
+          ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
+dump(COMPILED_MODULES)
+set(QJSM_SOURCES
+    qjsm.c
+    vector.c
+    ${MODULES_DIR}/repl.c
+    ${MODULES_DIR}/qjscalc.c
+    ${MODULES_DIR}/console.c
+    ${MODULES_DIR}/events.c
+    ${MODULES_DIR}/require.c
+    ${MODULES_DIR}/fs.c
+    ${MODULES_DIR}/perf_hooks.c
+    ${MODULES_DIR}/process.c
+    ${MODULES_DIR}/tty.c
+    ${MODULES_DIR}/util.c
+    ${QJSM_EXTRA_SOURCES})
+
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
+  if(QUICKJS_DEBUGGER)
+    set(QJSM_SOURCES
+        ${QJSM_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger-transport-${TRANSPORT_PLATFORM}.c)
+  endif(QUICKJS_DEBUGGER)
+endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
+
+##dump(QJSM_SOURCES)
+add_executable(qjsm ${QJSM_SOURCES})
+
+dump(QJS_MODULES_STATIC)
+dump(QJSM_LDADD)
+dump(QJSM_LIBDIR)
+if(QJS_MODULES_STATIC)
+  add_dependencies(qjsm ${QJS_MODULES_STATIC})
+endif(QJS_MODULES_STATIC)
+if(COMPILED_MODULES)
+  add_dependencies(qjsm ${COMPILED_MODULES})
+endif(COMPILED_MODULES)
+
+# target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
+
+#target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
+link_directories(${QJSM_LIBDIR})
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${QJSM_LIBDIR}")
+set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS "-w"
+                                      RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
+target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
+
+target_compile_definitions(qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}"
+  CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}" QUICKJS_MODULE_PATH="${QUICKJS_MODULE_PATH}" CONFIG_BIGNUM=1)
+install(TARGETS qjsm DESTINATION bin)
+
