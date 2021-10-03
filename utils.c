@@ -1652,7 +1652,6 @@ js_module_import_default(JSContext* ctx, const char* path, const char* var) {
                      .prop = "default",
                      .var = 0,
                  });
-  // printf("js_import_eval: '%.*s'\n", buf.size, buf.buf);
   return js_module_find(ctx, path);
 }
 
@@ -1666,8 +1665,6 @@ js_module_import_namespace(JSContext* ctx, const char* path, const char* ns) {
                      .prop = 0,
                      .var = 0,
                  });
-  // js_module_import(ctx, path, ns, 0, 0);
-
   return js_module_find(ctx, path);
 }
 

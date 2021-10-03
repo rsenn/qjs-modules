@@ -66,43 +66,50 @@ struct jsm_module_record {
   JSModuleInitFunc* init_func;
   uint8_t* byte_code;
   uint32_t byte_code_len;
+  JSModuleDef* def;
 };
 
-#define jsm_module_extern(name) \
+#define jsm_module_extern_compiled(name) \
   extern const uint8_t qjsc_##name[]; \
   extern const uint32_t qjsc_##name##_size;
 
-#define jsm_module_record_compiled(name) \
-  (struct jsm_module_record) { #name, 0, qjsc_##name, qjsc_##name##_size }
-#define jsm_module_record_native(name) \
-  (struct jsm_module_record) { #name, js_init_module_##name, 0, 0 }
+#define jsm_module_extern_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
 
-jsm_module_extern(console);
-jsm_module_extern(events);
-jsm_module_extern(fs);
-jsm_module_extern(perf_hooks);
-jsm_module_extern(process);
-jsm_module_extern(repl);
-jsm_module_extern(require);
-jsm_module_extern(tty);
-jsm_module_extern(util);
+#define jsm_module_record_compiled(name) \
+  (struct jsm_module_record) { #name, 0, qjsc_##name, qjsc_##name##_size, 0 }
+
+#define jsm_module_record_native(name) \
+  (struct jsm_module_record) { #name, js_init_module_##name, 0, 0, 0 }
+
+jsm_module_extern_native(std);
+jsm_module_extern_native(os);
+jsm_module_extern_native(child_process);
+jsm_module_extern_native(deep);
+jsm_module_extern_native(inspect);
+jsm_module_extern_native(lexer);
+jsm_module_extern_native(misc);
+jsm_module_extern_native(mmap);
+jsm_module_extern_native(path);
+jsm_module_extern_native(pointer);
+jsm_module_extern_native(predicate);
+jsm_module_extern_native(repeater);
+jsm_module_extern_native(tree_walker);
+jsm_module_extern_native(xml);
+
+jsm_module_extern_compiled(console);
+jsm_module_extern_compiled(events);
+jsm_module_extern_compiled(fs);
+jsm_module_extern_compiled(perf_hooks);
+jsm_module_extern_compiled(process);
+jsm_module_extern_compiled(repl);
+jsm_module_extern_compiled(require);
+jsm_module_extern_compiled(tty);
+jsm_module_extern_compiled(util);
 
 static Vector jsm_modules;
 
-/*struct jsm_compiled_module jsm_modules[] = {
-    jsm_module_record(console),
-    jsm_module_record(events),
-    jsm_module_record(fs),
-    jsm_module_record(perf_hooks),
-    jsm_module_record(process),
-    jsm_module_record(repl),
-    jsm_module_record(require),
-    jsm_module_record(tty),
-    jsm_module_record(util),
-};
-*/
 #ifdef CONFIG_BIGNUM
-jsm_module_extern(qjscalc);
+jsm_module_extern_compiled(qjscalc);
 static int bignum_ext = 1;
 #endif
 
@@ -167,6 +174,29 @@ jsm_load_package(JSContext* ctx, const char* file) {
       package_json = JS_ParseJSON(ctx, buf, len, file);
   }
   return JS_DupValue(ctx, package_json);
+}
+
+static struct jsm_module_record*
+jsm_module_find(const char* name) {
+  struct jsm_module_record* rec;
+  vector_foreach_t(&jsm_modules, rec) {
+    if(!strcmp(rec->module_name, name))
+      return rec;
+  }
+  return 0;
+}
+
+static JSModuleDef*
+jsm_module_init(JSContext* ctx, struct jsm_module_record* rec) {
+
+  if(rec->init_func) {
+    rec->def = rec->init_func(ctx, rec->module_name);
+  } else {
+    JSValue obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
+
+    rec->def = JS_VALUE_GET_PTR(obj);
+  }
+  return rec->def;
 }
 
 JSModuleDef*
