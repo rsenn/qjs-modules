@@ -854,11 +854,11 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetPropertyFunctionList(ctx, args[1], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
 
-  JS_SetPropertyStr(ctx, args[1], "left", js_global_get(ctx, "Number"));
+  JS_SetPropertyStr(ctx, args[1], "left", js_global_get_str(ctx, "Number"));
 
   JS_SetPropertyFunctionList(ctx, args[2], js_predicate_operator_funcs, countof(js_predicate_operator_funcs));
 
-  JS_SetPropertyStr(ctx, args[2], "right", js_global_get(ctx, "Number"));
+  JS_SetPropertyStr(ctx, args[2], "right", js_global_get_str(ctx, "Number"));
 
   JSValue predicate_operatorset = JS_Call(ctx, operators_create, operators, 3, args);
   JS_DefinePropertyValue(ctx, predicate_proto, operators_set, predicate_operatorset, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);

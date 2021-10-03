@@ -31,7 +31,7 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 struct prop_key;
 
 typedef struct prop_key {
-  struct list_head link;
+  /* struct list_head link;*/
   const char* name;
   JSAtom atom;
 } prop_key_t;
@@ -111,6 +111,11 @@ inspect_options_init(inspect_options_t* opts, JSContext* ctx) {
   opts->proto_chain = 0;
   opts->number_base = 10;
   vector_init(&opts->hide_keys, ctx);
+
+  prop_key_t to_string_tag = {0, js_atom_from(ctx, "[Symbol.toStringTag]")};
+  to_string_tag.name = JS_AtomToCString(ctx, to_string_tag.atom);
+
+  vector_push(&opts->hide_keys, to_string_tag);
 }
 
 static void
@@ -858,7 +863,7 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
           } else if(JS_HasProperty(ctx, value, JS_ATOM_TAG_INT | pos)) {
             /*  if(compact || opts->break_length == INT32_MAX)
                 dbuf_putc(buf, ' ');*/
-            js_inspect_print(ctx, buf, desc.value, opts, depth - 1  );
+            js_inspect_print(ctx, buf, desc.value, opts, depth - 1);
           }
           js_propertydescriptor_free(ctx, &desc);
         }
@@ -882,12 +887,10 @@ js_inspect_print(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_option
         JSPropertyEnum* propenum = (JSPropertyEnum*)vector_at(&propenum_tab, sizeof(JSPropertyEnum), pos);
         JSValue key = js_atom_tovalue(ctx, propenum->atom);
         name = JS_AtomToCString(ctx, propenum->atom);
-        if(!JS_IsSymbol(key)) {
-          if(((is_array || is_typedarray) && is_integer(name)) || inspect_options_hidden(opts, propenum->atom)) {
-            JS_FreeValue(ctx, key);
-            js_cstring_free(ctx, name);
-            continue;
-          }
+        if((!JS_IsSymbol(key) && ((is_array || is_typedarray) && is_integer(name))) || inspect_options_hidden(opts, propenum->atom)) {
+          JS_FreeValue(ctx, key);
+          js_cstring_free(ctx, name);
+          continue;
         }
         if(pos > 0)
           dbuf_putstr(buf, compact ? ", " : ",");

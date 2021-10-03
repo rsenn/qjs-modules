@@ -63,7 +63,7 @@ extern size_t malloc_usable_size();
 
 struct jsm_module_record {
   const char* module_name;
-  JSModuleInitFunc* init_func;
+  JSModuleDef* (*module_func)(JSContext*, const char*);
   uint8_t* byte_code;
   uint32_t byte_code_len;
   JSModuleDef* def;
@@ -106,7 +106,8 @@ jsm_module_extern_compiled(require);
 jsm_module_extern_compiled(tty);
 jsm_module_extern_compiled(util);
 
-static Vector jsm_modules;
+static thread_local Vector jsm_modules;
+static thread_local BOOL jsm_modules_initialized;
 
 #ifdef CONFIG_BIGNUM
 jsm_module_extern_compiled(qjscalc);
@@ -127,8 +128,8 @@ jsm_dump_error(JSContext* ctx) {
 
 static int debug_module_loader = 0;
 static Vector module_debug = VECTOR_INIT();
-static Vector module_list = VECTOR_INIT();
-static Vector builtins = VECTOR_INIT();
+static thread_local Vector module_list = VECTOR_INIT();
+// static Vector builtins = VECTOR_INIT();
 
 static const char jsm_default_module_path[] = "."
 #ifdef QUICKJS_MODULE_PATH
@@ -161,6 +162,42 @@ eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int
   return val;
 }
 
+void
+jsm_init_modules(JSContext* ctx) {
+  js_dbuf_init(ctx, &jsm_modules);
+
+#define jsm_builtin_native(name) vector_push(&jsm_modules, jsm_module_record_native(name));
+
+  jsm_builtin_native(std);
+  jsm_builtin_native(os);
+  jsm_builtin_native(child_process);
+  jsm_builtin_native(deep);
+  jsm_builtin_native(inspect);
+  jsm_builtin_native(lexer);
+  jsm_builtin_native(misc);
+  jsm_builtin_native(mmap);
+  jsm_builtin_native(path);
+  jsm_builtin_native(pointer);
+  jsm_builtin_native(predicate);
+  jsm_builtin_native(repeater);
+  jsm_builtin_native(tree_walker);
+  jsm_builtin_native(xml);
+
+  // printf("native builtins: "); dump_vector(&builtins, 0);
+
+#define jsm_builtin_compiled(name) vector_push(&jsm_modules, jsm_module_record_compiled(name));
+
+  jsm_builtin_compiled(console);
+  jsm_builtin_compiled(events);
+  jsm_builtin_compiled(fs);
+  jsm_builtin_compiled(perf_hooks);
+  jsm_builtin_compiled(process);
+  jsm_builtin_compiled(repl);
+  jsm_builtin_compiled(require);
+  jsm_builtin_compiled(tty);
+  jsm_builtin_compiled(util);
+}
+
 static JSValue
 jsm_load_package(JSContext* ctx, const char* file) {
   if(JS_IsUndefined(package_json)) {
@@ -188,13 +225,20 @@ jsm_module_find(const char* name) {
 
 static JSModuleDef*
 jsm_module_init(JSContext* ctx, struct jsm_module_record* rec) {
+  JSModuleDef* m;
+  if(rec->def == 0) {
+    if(debug_module_loader)
+      printf("\x1b[48;5;214m(3)\x1b[0m %-30s internal\n", rec->module_name);
+    if(rec->module_func) {
+      m = rec->module_func(ctx, rec->module_name);
 
-  if(rec->init_func) {
-    rec->def = rec->init_func(ctx, rec->module_name);
-  } else {
-    JSValue obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
+      // m->init_func(ctx, m);
 
-    rec->def = JS_VALUE_GET_PTR(obj);
+    } else {
+      JSValue obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
+      m = JS_VALUE_GET_PTR(obj);
+    }
+    rec->def = m;
   }
   return rec->def;
 }
@@ -202,7 +246,13 @@ jsm_module_init(JSContext* ctx, struct jsm_module_record* rec) {
 JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   char *module, *file = 0;
-  JSModuleDef* ret = 0;
+  JSModuleDef* m = 0;
+
+  if(!jsm_modules_initialized) {
+    jsm_init_modules(ctx);
+    jsm_modules_initialized = TRUE;
+  }
+
   module = js_strdup(ctx, trim_dotslash(name));
   for(;;) {
     if(debug_module_loader > 1) {
@@ -211,8 +261,14 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       /*  else  printf("jsm_module_loader[%x] \x1b[48;5;124m(1)\x1b[0m %-20s ->
        * %s\n", pthread_self(), trim_dotslash(name), trim_dotslash(module));*/
     }
-    if(!strchr(module, '/') && (ret = js_module_find(ctx, module)))
-      goto end;
+    if(!strchr(module, '/')) {
+      struct jsm_module_record* rec;
+
+      if((rec = jsm_module_find(module))) {
+        m = jsm_module_init(ctx, rec);
+        goto end;
+      }
+    }
 
     if(!has_suffix(name, ".so") && !file) {
       JSValue package = jsm_load_package(ctx, 0);
@@ -253,19 +309,19 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
         printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
 
-    ret = js_module_loader(ctx, file, opaque);
+    m = js_module_loader(ctx, file, opaque);
   }
 end:
   if(vector_finds(&module_debug, "import") != -1) {
     fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
   }
-  if(!ret)
-    printf("jsm_module_loader(\"%s\") = %p\n", name, ret);
+  if(!m)
+    printf("jsm_module_loader(\"%s\") = %p\n", name, m);
   if(module)
     js_free(ctx, module);
   if(file)
     js_free(ctx, file);
-  return ret;
+  return m;
 }
 
 static JSValue
@@ -322,24 +378,24 @@ jsm_context_new(JSRuntime* rt) {
 
 #define jsm_module_native(name) js_init_module_##name(ctx, #name);
 
-  jsm_module_native(std);
-  jsm_module_native(os);
-#ifndef __wasi__
-  jsm_module_native(child_process);
-#endif
-  jsm_module_native(deep);
-  jsm_module_native(inspect);
-  jsm_module_native(lexer);
-  jsm_module_native(misc);
-#ifndef __wasi__
-  jsm_module_native(mmap);
-#endif
-  jsm_module_native(path);
-  jsm_module_native(pointer);
-  jsm_module_native(predicate);
-  jsm_module_native(repeater);
-  jsm_module_native(tree_walker);
-  jsm_module_native(xml);
+  /* jsm_module_native(std);
+   jsm_module_native(os);
+ #ifndef __wasi__
+   jsm_module_native(child_process);
+ #endif
+   jsm_module_native(deep);
+   jsm_module_native(inspect);
+   jsm_module_native(lexer);
+   jsm_module_native(misc);
+ #ifndef __wasi__
+   jsm_module_native(mmap);
+ #endif
+   jsm_module_native(path);
+   jsm_module_native(pointer);
+   jsm_module_native(predicate);
+   jsm_module_native(repeater);
+   jsm_module_native(tree_walker);
+   jsm_module_native(xml);*/
   return ctx;
 }
 
@@ -561,10 +617,10 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
   }
   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE) {
-    JSModuleDef* def = JS_VALUE_GET_PTR(ret);
+    JSModuleDef* m = JS_VALUE_GET_PTR(ret);
     JSValue obj = JS_NewObject(ctx);
-    JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, def));
-    JS_SetPropertyStr(ctx, obj, "exports", module_exports(ctx, def));
+    JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
+    JS_SetPropertyStr(ctx, obj, "exports", module_exports(ctx, m));
     ret = obj;
   }
   JS_FreeCString(ctx, str);
@@ -587,11 +643,11 @@ enum {
 static JSValue
 jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue val = JS_EXCEPTION;
-  JSModuleDef* def = 0;
+  JSModuleDef* m = 0;
   const char* name = 0;
 
   if(magic >= GET_MODULE_NAME) {
-    if(!(def = js_module_def(ctx, argv[0])))
+    if(!(m = js_module_def(ctx, argv[0])))
       return JS_ThrowTypeError(ctx,
                                "%s: argument 1 expecting module",
                                ((const char* const[]){
@@ -609,8 +665,8 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   switch(magic) {
     case FIND_MODULE: {
-      if((def = js_module_find(ctx, name)))
-        val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, def));
+      if((m = js_module_find(ctx, name)))
+        val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
       else
         val = JS_NULL;
       break;
@@ -625,50 +681,50 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       val = js_import_eval(ctx, imp);
 
       /*   if(JS_IsModule(val))
-           def = JS_VALUE_GET_PTR(val);
+           m = JS_VALUE_GET_PTR(val);
          else*/
-      def = js_module_find(ctx, imp.path);
+      m = js_module_find(ctx, imp.path);
 
-      if(def)
-        val = module_object(ctx, def);
+      if(m)
+        val = module_object(ctx, m);
 
       js_strv_free_n(ctx, n, imp.args);
       break;
     }
     case RESOLVE_MODULE: {
-      val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, def)));
+      val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
       break;
     }
     case GET_MODULE_NAME: {
-      val = module_name(ctx, def);
+      val = module_name(ctx, m);
       break;
     }
     case GET_MODULE_OBJECT: {
-      val = module_object(ctx, def);
+      val = module_object(ctx, m);
       break;
     }
     case GET_MODULE_EXPORTS: {
-      val = module_exports(ctx, def);
+      val = module_exports(ctx, m);
       break;
     }
     case GET_MODULE_NAMESPACE: {
-      val = JS_DupValue(ctx, def->module_ns);
+      val = JS_DupValue(ctx, m->module_ns);
       break;
     }
     case GET_MODULE_FUNCTION: {
 
-      val = module_func(ctx, def);
+      val = module_func(ctx, m);
       break;
     }
     case GET_MODULE_EXCEPTION: {
-      if(def->eval_has_exception)
-        val = JS_DupValue(ctx, def->eval_exception);
+      if(m->eval_has_exception)
+        val = JS_DupValue(ctx, m->eval_exception);
       else
         val = JS_NULL;
       break;
     }
     case GET_MODULE_META_OBJ: {
-      val = JS_DupValue(ctx, def->meta_obj);
+      val = JS_DupValue(ctx, m->meta_obj);
       break;
     }
   }
@@ -915,8 +971,6 @@ main(int argc, char** argv) {
     exit(2);
   }
 
-  js_dbuf_init(ctx, &jsm_modules);
-
   /* loader for ES6 modules */
   JS_SetModuleLoaderFunc(rt, js_module_normalize, jsm_module_loader, 0);
   // js_std_set_module_loader_func(jsm_module_loader);
@@ -932,47 +986,6 @@ main(int argc, char** argv) {
     }
 #endif
     js_std_add_helpers(ctx, argc - optind, argv + optind);
-
-    int num_native, num_compiled;
-
-#define jsm_builtin_native(name) \
-  vector_push(&jsm_modules, jsm_module_record_native(name)); \
-  vector_putptr(&builtins, #name);
-
-    jsm_builtin_native(std);
-    jsm_builtin_native(os);
-    jsm_builtin_native(child_process);
-    jsm_builtin_native(deep);
-    jsm_builtin_native(inspect);
-    jsm_builtin_native(lexer);
-    jsm_builtin_native(misc);
-    jsm_builtin_native(mmap);
-    jsm_builtin_native(path);
-    jsm_builtin_native(pointer);
-    jsm_builtin_native(predicate);
-    jsm_builtin_native(repeater);
-    jsm_builtin_native(tree_walker);
-    jsm_builtin_native(xml);
-    num_native = vector_size(&builtins, sizeof(char*));
-
-    // printf("native builtins: "); dump_vector(&builtins, 0);
-
-#define jsm_builtin_compiled(name) \
-  vector_push(&jsm_modules, jsm_module_record_compiled(name)); \
-  js_std_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0); \
-  vector_putptr(&builtins, #name)
-
-    jsm_builtin_compiled(console);
-    jsm_builtin_compiled(events);
-    jsm_builtin_compiled(fs);
-    jsm_builtin_compiled(perf_hooks);
-    jsm_builtin_compiled(process);
-    // jsm_builtin_compiled(repl);
-    jsm_builtin_compiled(require);
-    jsm_builtin_compiled(tty);
-    jsm_builtin_compiled(util);
-
-    num_compiled = vector_size(&builtins, sizeof(char*)) - num_native;
 
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
@@ -997,6 +1010,10 @@ main(int argc, char** argv) {
       JSModuleDef* m;
       vector_foreach_t(&module_list, name) {
         if(!(m = js_module_import_namespace(ctx, *name, 0))) {
+          /* if((m = jsm_module_loader(ctx, *name, 0))) {
+                    JSValue exports = module_exports(ctx, m);
+                    JS_SetPropertyStr(ctx, JS_GetGlobalObject(ctx), *name, exports);
+                  } else {*/
           fprintf(stderr, "error loading module '%s'\n", *name);
           jsm_dump_error(ctx);
           exit(1);
@@ -1033,7 +1050,9 @@ main(int argc, char** argv) {
                sizeof(str),
                "import REPL from 'repl';\n"
                "import fs from 'fs';\n"
+               "import { Console } from 'console';\n"
                "const history = '%s/.%s_history';\n"
+               "globalThis.console = new Console({ inspectOptions: { customInspect: true } });\n"
                "globalThis.repl = new REPL('qjsm');\n"
                "repl.fs = fs;\n"
                "repl.show = console.log;\n"

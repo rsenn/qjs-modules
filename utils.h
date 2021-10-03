@@ -273,11 +273,13 @@ regexp_free(RegExp re, JSContext* ctx) {
   regexp_free_rt(re, JS_GetRuntime(ctx));
 }
 
-JSValue js_global_get(JSContext* ctx, const char* prop);
+JSValue js_global_get_str(JSContext* ctx, const char* prop);
+JSValue js_global_get_str_n(JSContext* ctx, const char* prop, size_t len);
+JSValue js_global_get_atom(JSContext* ctx, JSAtom prop);
 
 static inline JSValue
 js_global_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]) {
-  JSValue ctor = js_global_get(ctx, class_name);
+  JSValue ctor = js_global_get_str(ctx, class_name);
   JSValue obj = JS_CallConstructor(ctx, ctor, argc, argv);
   JS_FreeValue(ctx, ctor);
   return obj;
@@ -622,6 +624,7 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
 #define js_atom_fromint(i) ((JSAtom)((i)&JS_ATOM_MAX_INT) | JS_ATOM_TAG_INT)
 #define js_atom_toint(i) (unsigned int)(((JSAtom)(i) & (~(JS_ATOM_TAG_INT))))
 
+JSAtom js_atom_from(JSContext*, const char*);
 int js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom);
 int32_t js_atom_toint32(JSContext* ctx, JSAtom atom);
 
@@ -772,7 +775,7 @@ JSValue js_typedarray_constructor(JSContext* ctx);
 
 static inline BOOL
 js_is_basic_array(JSContext* ctx, JSValueConst value) {
-  JSValue ctor = js_global_get(ctx, "Array");
+  JSValue ctor = js_global_get_str(ctx, "Array");
   BOOL ret = JS_IsInstanceOf(ctx, value, ctor);
   JS_FreeValue(ctx, ctor);
   return ret;

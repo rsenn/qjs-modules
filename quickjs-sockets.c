@@ -18,6 +18,8 @@ extern const uint8_t qjsm_fd_set[1030];
 extern const uint32_t qjsm_socklen_t_size;
 extern const uint8_t qjsm_socklen_t[1030];
 
+static int js_sockets_init(JSContext* ctx, JSModuleDef* m);
+
 #define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), JS_NewInt32(ctx, -1))
 
 #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), on_fail)
@@ -1104,6 +1106,15 @@ js_socket_valueof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return JS_NewInt32(ctx, fd);
 }
 
+static JSValue
+js_socket_adopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t fd = -1;
+
+  JS_ToInt32(ctx, &fd, argv[0]);
+
+  return js_socket_new_proto(ctx, socket_proto, fd);
+}
+
 static void
 js_socket_finalizer(JSRuntime* rt, JSValue val) {
   Socket sock = js_socket_data(val);
@@ -1160,6 +1171,10 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CFUNC_DEF("valueOf", 0, js_socket_valueof),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Socket", JS_PROP_CONFIGURABLE),
+};
+
+static const JSCFunctionListEntry js_socket_static_funcs[] = {
+    JS_CFUNC_DEF("adopt", 1, js_socket_adopt),
 };
 
 static const JSCFunctionListEntry js_sockets_defines[] = {
@@ -1744,7 +1759,7 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
 #endif
 };
 
-int
+static int
 js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   /* if(js_syscallerror_class_id == 0)
      js_syscallerror_init(ctx, 0);*/
@@ -1770,6 +1785,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
     socket_proto = JS_NewObject(ctx);
 
     JS_SetPropertyFunctionList(ctx, socket_proto, js_socket_proto_funcs, countof(js_socket_proto_funcs));
+    JS_SetPropertyFunctionList(ctx, socket_ctor, js_socket_static_funcs, countof(js_socket_static_funcs));
     JS_SetPropertyFunctionList(ctx, socket_ctor, js_sockets_defines, countof(js_sockets_defines));
     JS_SetClassProto(ctx, js_socket_class_id, socket_proto);
 

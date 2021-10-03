@@ -1245,7 +1245,7 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
 
   buf = JS_NewArrayBuffer(ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
 
-  ctor = js_global_get(ctx, "Int32Array");
+  ctor = js_global_get_str(ctx, "Int32Array");
 
   ret = JS_CallConstructor(ctx, ctor, 1, &buf);
 

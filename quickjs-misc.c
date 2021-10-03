@@ -99,9 +99,10 @@ js_arraybuffer_free_func(JSRuntime* rt, void* opaque, void* ptr) {
 static JSValue
 js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  JSValue arraybuffer_ctor = js_global_get(ctx, "ArrayBuffer");
+  //  JSValue arraybuffer_ctor = js_global_get_str(ctx, "ArrayBuffer");
 
-  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, argv[0]) || JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)) {
+  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) ||
+     js_is_arraybuffer(ctx, argv[0]) /* || JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)*/) {
     uint8_t* data;
     size_t len;
 
@@ -112,9 +113,11 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       ret = JS_NewStringLen(ctx, (const char*)data + ol.offset, ol.length);
     }
+  } else {
+    ret = js_value_tostring(ctx, "Object", argc > 0 ? argv[0] : this_val);
   }
 
-  JS_FreeValue(ctx, arraybuffer_ctor);
+  //  JS_FreeValue(ctx, arraybuffer_ctor);
 
   return ret;
 }

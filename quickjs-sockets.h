@@ -55,8 +55,6 @@ enum SocketCalls {
 #define socket_error(sock) ((sock).ret < 0 && (sock).error)
 #define socket_syscall(sock) socket_syscalls[(sock).syscall]
 
-int js_sockets_init(JSContext*, JSModuleDef*);
-
 static inline int
 sockaddr_port(const SockAddr* sa) {
   switch(sa->family) {
