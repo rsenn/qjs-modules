@@ -61,23 +61,48 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-#define jsm_declare_module(name) \
+struct jsm_module_record {
+  const char* module_name;
+  JSModuleInitFunc* init_func;
+  uint8_t* byte_code;
+  uint32_t byte_code_len;
+};
+
+#define jsm_module_extern(name) \
   extern const uint8_t qjsc_##name[]; \
-  extern const uint32_t qjsc_##name##_size; \
-  JSModuleDef* js_init_module_##name(JSContext*, const char*);
+  extern const uint32_t qjsc_##name##_size;
 
-jsm_declare_module(console);
-jsm_declare_module(events);
-jsm_declare_module(fs);
-jsm_declare_module(perf_hooks);
-jsm_declare_module(process);
-jsm_declare_module(repl);
-jsm_declare_module(require);
-jsm_declare_module(tty);
-jsm_declare_module(util);
+#define jsm_module_record_compiled(name) \
+  (struct jsm_module_record){ #name, 0, qjsc_##name, qjsc_##name##_size }
+#define jsm_module_record_native(name) \
+  (struct jsm_module_record){ #name, js_init_module_##name, 0, 0 }
 
+jsm_module_extern(console);
+jsm_module_extern(events);
+jsm_module_extern(fs);
+jsm_module_extern(perf_hooks);
+jsm_module_extern(process);
+jsm_module_extern(repl);
+jsm_module_extern(require);
+jsm_module_extern(tty);
+jsm_module_extern(util);
+
+static Vector jsm_compiled_modules;
+
+/*struct jsm_compiled_module jsm_compiled_modules[] = {
+    jsm_module_record(console),
+    jsm_module_record(events),
+    jsm_module_record(fs),
+    jsm_module_record(perf_hooks),
+    jsm_module_record(process),
+    jsm_module_record(repl),
+    jsm_module_record(require),
+    jsm_module_record(tty),
+    jsm_module_record(util),
+};
+*/
 #ifdef CONFIG_BIGNUM
-jsm_declare_module(qjscalc);
+jsm_module_extern(qjscalc);
 static int bignum_ext = 1;
 #endif
 
@@ -860,6 +885,8 @@ main(int argc, char** argv) {
     exit(2);
   }
 
+  js_dbuf_init(ctx, &jsm_compiled_modules);
+
   /* loader for ES6 modules */
   JS_SetModuleLoaderFunc(rt, js_module_normalize, jsm_module_loader, 0);
   // js_std_set_module_loader_func(jsm_module_loader);
@@ -878,7 +905,9 @@ main(int argc, char** argv) {
 
     int num_native, num_compiled;
 
-#define jsm_builtin_native(name) vector_putptr(&builtins, #name)
+#define jsm_builtin_native(name) \
+      vector_push(&jsm_compiled_modules, jsm_module_record_native(name)); \
+    vector_putptr(&builtins, #name); 
 
     jsm_builtin_native(std);
     jsm_builtin_native(os);
@@ -899,6 +928,7 @@ main(int argc, char** argv) {
     // printf("native builtins: "); dump_vector(&builtins, 0);
 
 #define jsm_builtin_compiled(name) \
+  vector_push(&jsm_compiled_modules, jsm_module_record_compiled(name)); \
   js_std_eval_binary(ctx, qjsc_##name, qjsc_##name##_size, 0); \
   vector_putptr(&builtins, #name)
 
