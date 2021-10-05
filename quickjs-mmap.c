@@ -1,8 +1,12 @@
 #include "cutils.h"
 #include "quickjs.h"
 #include "utils.h"
+#ifdef _WIN32
+#include "mmap-win32.h"
+#else
 #include <sys/mman.h>
 #include <errno.h>
+#endif
 
 static void
 js_mmap_free_func(JSRuntime* rt, void* opaque, void* ptr) {
@@ -144,10 +148,15 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_CONSTANT(EFAULT),
     JS_CONSTANT(EINVAL),
     JS_CONSTANT(ENOMEM),
+#ifdef MS_ASYNC
     JS_CONSTANT(MS_ASYNC),
+#endif
+#ifdef MS_INVALIDATE
     JS_CONSTANT(MS_INVALIDATE),
+#endif
+#ifdef MS_SYNC
     JS_CONSTANT(MS_SYNC),
-
+#endif
 };
 
 static int

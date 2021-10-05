@@ -5,11 +5,12 @@
 
 #ifdef _WIN32
 #include <io.h>
+#define pipe(fds) _pipe(fds, 4096, 0)
 #else
 #include <unistd.h>
 #include <signal.h>
-#endif
 #include <sys/wait.h>
+#endif
 
 enum {
   CHILD_PROCESS_FILE = 0,
@@ -32,7 +33,12 @@ thread_local VISIBLE JSClassID js_child_process_class_id = 0;
 thread_local JSValue child_process_proto = {JS_TAG_UNDEFINED}, child_process_ctor = {JS_TAG_UNDEFINED};
 
 ChildProcess*
-js_child_process_data(JSContext* ctx, JSValueConst value) {
+js_child_process_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_child_process_class_id);
+}
+
+ChildProcess*
+js_child_process_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_child_process_class_id);
 }
 
@@ -76,7 +82,7 @@ static JSValue
 js_child_process_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
 
-  if(!(cp = js_child_process_data(ctx, this_val)))
+  if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   JSValue obj = JS_NewObjectProto(ctx, child_process_proto);
@@ -216,7 +222,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
   ChildProcess* cp;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(cp = js_child_process_data(ctx, this_val)))
+  if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -290,7 +296,7 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   JSValue ret = JS_UNDEFINED;
   int32_t flags = 0;
 
-  if(!(cp = js_child_process_data(ctx, this_val)))
+  if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   if(argc >= 1)
@@ -302,21 +308,34 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 static JSValue
-js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ChildProcess* cp;
-  JSValue ret = JS_UNDEFINED;
-  int32_t signum = SIGTERM;
+  int32_t ret, signum = SIGTERM;
+  JSValueConst child = magic ? argv[0] : this_val;
+  JSValueConst sig = argv[magic];
 
-  if(!(cp = js_child_process_data(ctx, this_val)))
+  if(!(cp = js_child_process_data2(ctx, child)))
     return JS_EXCEPTION;
 
-  if(argc > 0)
-    JS_ToInt32(ctx, &signum, argv[0]);
+  if(argc >= 1 + magic) {
+    if(JS_IsString(sig)) {
+      const char* str = JS_ToCString(ctx, sig);
+      int i, n = str_start(str, "SIG") ? 0 : 3;
+      for(i = 1; i < 32; i++) {
+        if(!strcmp(child_process_signals[i] + n, str)) {
+          signum = i;
+          break;
+        }
+      }
+      JS_FreeCString(ctx, str);
+    } else {
+      JS_ToInt32(ctx, &signum, sig);
+    }
+  }
 
-  // if(cp->exitcode == -1 && cp->termsig == -1)
-  ret = JS_NewInt32(ctx, child_process_kill(cp, signum));
+  ret = child_process_kill(cp, signum);
 
-  return ret;
+  return JS_NewInt32(ctx, ret);
 }
 
 static JSClassDef js_child_process_class = {
@@ -338,13 +357,15 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
     JS_CGETSET_ENUMERABLE_DEF("stopped", js_child_process_get, 0, CHILD_PROCESS_STOPPED),
     JS_CGETSET_ENUMERABLE_DEF("continued", js_child_process_get, 0, CHILD_PROCESS_CONTINUED),
     JS_CFUNC_DEF("wait", 0, js_child_process_wait),
-    JS_CFUNC_DEF("kill", 0, js_child_process_kill),
+    JS_CFUNC_MAGIC_DEF("kill", 0, js_child_process_kill, 0),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", 0),
 };
 
 static const JSCFunctionListEntry js_child_process_funcs[] = {
     JS_CFUNC_DEF("exec", 1, js_child_process_exec),
     JS_CFUNC_DEF("spawn", 1, js_child_process_spawn),
+    JS_CFUNC_MAGIC_DEF("kill", 1, js_child_process_kill, 1),
+
     JS_PROP_INT32_DEF("WNOHANG", WNOHANG, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("WNOWAIT", WNOWAIT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("WUNTRACED", WUNTRACED, JS_PROP_ENUMERABLE),
@@ -395,7 +416,7 @@ js_child_process_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, child_process_ctor, child_process_proto);
   JS_SetPropertyFunctionList(ctx, child_process_ctor, js_child_process_funcs, countof(js_child_process_funcs));
-  js_set_inspect_method(ctx, child_process_proto, js_child_process_inspect);
+  // js_set_inspect_method(ctx, child_process_proto, js_child_process_inspect);
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_child_process_funcs, countof(js_child_process_funcs));

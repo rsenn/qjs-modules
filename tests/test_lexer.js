@@ -27,13 +27,7 @@ const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 429496729
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 
 //const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", "/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);" ];
-const code = [
-  "const str = stack.toString().replace(/\\n\\s*at /g, '\\n');",
-  '/Reg.*Ex/i.test(n)',
-  '/\\n/g',
-  'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);',
-  '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'
-];
+const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", '/Reg.*Ex/i.test(n)', '/\\n/g', 'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);', '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'];
 
 extendArray(Array.prototype);
 
@@ -52,17 +46,11 @@ function BufferLengths(file) {
 }
 
 function BufferOffsets(file) {
-  return buffers[file].reduce(
-    ([pos, list], b) => [pos + b.byteLength, list.concat([pos])],
-    [0, []]
-  )[1];
+  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([pos])], [0, []])[1];
 }
 
 function BufferRanges(file) {
-  return buffers[file].reduce(
-    ([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])],
-    [0, []]
-  )[1];
+  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])], [0, []])[1];
 }
 
 function WriteFile(file, tok) {
@@ -279,15 +267,7 @@ function main(...args) {
     const printTok = debug
       ? (tok, prefix) => {
           const range = tok.charRange;
-          const cols = [
-            prefix,
-            `tok[${tok.byteLength}]`,
-            tok.id,
-            tok.type,
-            tok.lexeme,
-            tok.lexeme.length,
-            tok.loc
-          ];
+          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
           log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
         }
       : () => {};
@@ -325,10 +305,7 @@ function main(...args) {
           case '}':
           case ']':
           case ')': {
-            if(stack.last != table[tok.lexeme])
-              throw new Error(
-                `top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
-              );
+            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
             stack.pop();
             break;
@@ -406,9 +383,7 @@ function main(...args) {
     //  log('exports', exports);
     let fileImports = imports.filter(imp => /\.js$/i.test(imp.file));
     let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
-    buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(
-      b => b ?? toString(b, 0, b.byteLength)
-    );
+    buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
     log(`splitPoints`, splitPoints);
     log(`buffers[${file}]`, buffers[file]);
     log(`buffers[${file}] len`, BufferLengths(file));

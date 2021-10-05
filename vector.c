@@ -1,4 +1,5 @@
 #include "vector.h"
+#include "buffer-utils.h"
 #include "utils.h"
 #include <assert.h>
 #include <stdarg.h>

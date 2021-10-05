@@ -5,6 +5,10 @@
 #define PATH_MAX 4096
 #endif
 
+#ifndef HAVE_LSTAT
+#define lstat stat
+#endif
+
 int
 path_absolute(const char* path, DynBuf* db) {
   if(!path_isabs(path)) {
@@ -407,6 +411,9 @@ path_is_directory(const char* p) {
 
 int
 path_is_symlink(const char* p) {
+#ifdef _WIN32
+  return is_symlink(p);
+#else
   struct stat st;
   int r;
   if((r = lstat(p, &st) == 0)) {
@@ -414,6 +421,7 @@ path_is_symlink(const char* p) {
       return 1;
   }
   return 0;
+#endif
 }
 
 int

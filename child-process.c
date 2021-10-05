@@ -7,6 +7,7 @@
 #define POSIX_SPAWN 1
 
 #ifdef _WIN32
+#include <windows.h>
 #include <io.h>
 #else
 #if POSIX_SPAWN
@@ -82,18 +83,83 @@ child_process_environment(JSContext* ctx, JSValueConst object) {
   return (char**)args.data;
 }
 
+static char*
+argv_to_string(char* const* argv, char delim) {
+  int i, len;
+  char *ptr, *str;
+
+  if(argv == NULL)
+    return NULL;
+
+  for(i = 0, len = 0; argv[i]; i++) { len += strlen(argv[i]) + 1; }
+
+  str = ptr = (char*)malloc(len + 1);
+  if(str == NULL)
+    return NULL;
+
+  for(i = 0; argv[i]; i++) {
+    len = strlen(argv[i]);
+    memcpy(ptr, argv[i], len);
+    ptr += len;
+    *ptr++ = delim;
+  }
+  *ptr = 0;
+
+  return str;
+}
+
 int
 child_process_spawn(ChildProcess* cp) {
-#if POSIX_SPAWN
+
+#ifdef _WIN32
+  int i;
+  intptr_t pid;
+  char* args = argv_to_string(cp->args, ' ');
+  PROCESS_INFORMATION piProcessInfo;
+  STARTUPINFOA siStartInfo;
+
+  SECURITY_ATTRIBUTES saAttr;
+  BOOL retval = FALSE;
+
+  saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+  saAttr.bInheritHandle = TRUE;
+
+  saAttr.lpSecurityDescriptor = NULL;
+
+  ZeroMemory(&piProcessInfo, sizeof(PROCESS_INFORMATION));
+  ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
+
+  siStartInfo.cb = sizeof(STARTUPINFO);
+  siStartInfo.hStdError = (HANDLE)_get_osfhandle(cp->child_fds[2]);
+  siStartInfo.hStdOutput = (HANDLE)_get_osfhandle(cp->child_fds[1]);
+  siStartInfo.hStdInput = (HANDLE)_get_osfhandle(cp->child_fds[0]);
+  siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
+
+  retval = CreateProcessA(cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+
+  if(retval == FALSE) {
+    int error = GetLastError();
+    fprintf(stderr, "CreateProcessA error: %d\n", error);
+    pid = -1;
+  } else {
+    pid = piProcessInfo.dwProcessId;
+  }
+
+#elif defined(POSIX_SPAWN)
+
+  int i;
   pid_t pid;
   posix_spawn_file_actions_t actions;
   posix_spawnattr_t attr;
 
+  posix_spawnattr_init(&attr);
   posix_spawnattr_setflags(&attr, 0);
+
   posix_spawn_file_actions_init(&actions);
-  posix_spawn_file_actions_adddup2(&actions, cp->child_fds[0], 0);
-  posix_spawn_file_actions_adddup2(&actions, cp->child_fds[1], 1);
-  posix_spawn_file_actions_adddup2(&actions, cp->child_fds[2], 2);
+
+  for(i = 0; i <= 2; i++)
+    if(cp->child_fds[i] >= 0)
+      posix_spawn_file_actions_adddup2(&actions, cp->child_fds[i], i);
 
   if(posix_spawnp(&pid, cp->file, &actions, &attr, cp->args, NULL)) {
     fprintf(stderr, "posix_spawnp error: %s\n", strerror(errno));
@@ -102,7 +168,8 @@ child_process_spawn(ChildProcess* cp) {
 
   return cp->pid = pid;
 #else
-  int pid, i;
+  int i;
+  pid_t pid;
 
   if((pid = fork()) == 0) {
 
@@ -146,6 +213,34 @@ child_process_spawn(ChildProcess* cp) {
 
 int
 child_process_wait(ChildProcess* cp, int flags) {
+#ifdef _WIN32
+  DWORD exitcode = 0;
+  HANDLE hproc;
+  int i, ret;
+
+  hproc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, cp->pid);
+
+  for(;;) {
+    ret = WaitForSingleObject(hproc, INFINITE);
+
+    if(ret == WAIT_TIMEOUT)
+      continue;
+    if(ret == WAIT_FAILED)
+      return -1;
+
+    if(ret == WAIT_OBJECT_0) {
+      GetExitCodeProcess(hproc, &exitcode);
+      CloseHandle(hproc);
+      if(exitcode == STILL_ACTIVE)
+        return -1;
+
+      cp->exitcode = exitcode;
+      return cp->pid;
+    }
+  }
+  return -1;
+
+#else
   int pid, status;
 
   if((pid = waitpid(cp->pid, &status, flags)) != cp->pid)
@@ -166,10 +261,16 @@ child_process_wait(ChildProcess* cp, int flags) {
     cp->stopsig = -1;
 
   return pid;
+#endif
 }
 
 int
 child_process_kill(ChildProcess* cp, int signum) {
+#ifdef _WIN32
+  if(TerminateProcess(cp->pid, 0))
+    return 0;
+  return -1;
+#else
   int ret;
   int status;
   ret = kill(cp->pid, signum);
@@ -182,6 +283,7 @@ child_process_kill(ChildProcess* cp, int signum) {
       cp->termsig = WTERMSIG(status);
   }
   return ret;
+#endif
 }
 
 void
@@ -198,6 +300,7 @@ child_process_free(ChildProcess* cp, JSContext* ctx) {
 
   js_free(ctx, cp);
 }
+
 void
 child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
   list_del(&cp->link);
@@ -212,3 +315,9 @@ child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
 
   js_free_rt(rt, cp);
 }
+
+const char* child_process_signals[32] = {
+    0,         "SIGHUP",  "SIGINT",  "SIGQUIT", "SIGILL",    "SIGTRAP",   "SIGABRT",  "SIGBUS",  "SIGFPE",  "SIGKILL", "SIGUSR1",
+    "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM", "SIGTERM",   "SIGSTKFLT", "SIGCHLD",  "SIGCONT", "SIGSTOP", "SIGTSTP", "SIGTTIN",
+    "SIGTTOU", "SIGURG",  "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF",   "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
+};

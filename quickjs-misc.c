@@ -7,7 +7,9 @@
 #include "path.h"
 #include "base64.h"
 #include <time.h>
+#ifndef _WIN32
 #include <sys/utsname.h>
+#endif
 #include <errno.h>
 #include "buffer-utils.h"
 
@@ -344,6 +346,7 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   }
 }
 
+#ifdef HAVE_FMEMOPEN
 static JSValue
 js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* ptr;
@@ -390,6 +393,7 @@ js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return obj;
   }
 }
+#endif
 
 static JSValue
 js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -569,6 +573,7 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return JS_NewBool(ctx, !ret);
 }
 
+#ifndef _WIN32
 static JSValue
 js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct utsname un;
@@ -586,6 +591,7 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   return ret;
 }
+#endif
 
 static JSValue
 js_misc_btoa(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -679,7 +685,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
 #endif
-#ifndef __wasi__
+#if !defined(__wasi__) && !defined(_WIN32)
     case FUNC_GETPPID: {
       ret = getppid();
       break;
@@ -689,63 +695,48 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       // sret = getsid();
       break;
     }
-#ifndef __wasi__
+#if !defined(__wasi__) && !defined(_WIN32)
     case FUNC_GETUID: {
       ret = getuid();
       break;
     }
-#endif
-#ifndef __wasi__
     case FUNC_GETGID: {
       ret = getgid();
       break;
     }
-#endif
-#ifndef __wasi__
     case FUNC_GETEUID: {
       ret = geteuid();
       break;
     }
-#endif
-#ifndef __wasi__
     case FUNC_GETEGID: {
       ret = getegid();
       break;
     }
-#endif
-#ifndef __wasi__
     case FUNC_SETUID: {
       int32_t uid;
       JS_ToInt32(ctx, &uid, argv[0]);
       ret = setuid(uid);
       break;
     }
-#endif
-#ifndef __wasi__
     case FUNC_SETGID: {
       int32_t gid;
       JS_ToInt32(ctx, &gid, argv[0]);
       ret = setgid(gid);
       break;
     }
-#endif
     case FUNC_SETEUID: {
       int32_t euid;
       JS_ToInt32(ctx, &euid, argv[0]);
-#ifndef __wasi__
-      ret = setuid(euid);
-#endif
-      break;
+      ret = seteuid(euid);
       break;
     }
     case FUNC_SETEGID: {
       int32_t egid;
       JS_ToInt32(ctx, &egid, argv[0]);
-#ifndef __wasi__
-      ret = setgid(egid);
-#endif
+      ret = setegid(egid);
       break;
     }
+#endif
   }
   if(ret == -1)
     return JS_ThrowInternalError(ctx,
@@ -1267,7 +1258,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
     JS_CFUNC_DEF("memcpy", 2, js_misc_memcpy),
+#ifdef HAVE_FMEMOPEN
     JS_CFUNC_DEF("fmemopen", 2, js_misc_fmemopen),
+#endif
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
     JS_CFUNC_MAGIC_DEF("getExecutable", 0, js_misc_proclink, FUNC_GETEXECUTABLE),
     JS_CFUNC_MAGIC_DEF("getCurrentWorkingDirectory", 0, js_misc_proclink, FUNC_GETCWD),
@@ -1283,7 +1276,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getppid", 0, js_misc_getx, FUNC_GETPPID),
 #endif
     JS_CFUNC_MAGIC_DEF("getsid", 0, js_misc_getx, FUNC_GETSID),
-#ifndef __wasi__
+#if !defined(__wasi__) && !defined(_WIN32)
     JS_CFUNC_MAGIC_DEF("getuid", 0, js_misc_getx, FUNC_GETUID),
     JS_CFUNC_MAGIC_DEF("getgid", 0, js_misc_getx, FUNC_GETGID),
     JS_CFUNC_MAGIC_DEF("geteuid", 0, js_misc_getx, FUNC_GETEUID),
@@ -1294,7 +1287,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("seteuid", 1, js_misc_getx, FUNC_SETEUID),
     JS_CFUNC_MAGIC_DEF("setegid", 1, js_misc_getx, FUNC_SETEGID),
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
+#ifndef _WIN32
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
+#endif
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
     JS_CFUNC_DEF("bitfieldToArray", 1, js_misc_bitfield_to_array),

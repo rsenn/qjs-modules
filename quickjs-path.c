@@ -89,8 +89,14 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 #ifndef __wasi__
     case METHOD_REALPATH: {
+#ifdef _WIN32
+      char dst[PATH_MAX + 1];
+      size_t len = GetFullPathNameA(buf, PATH_MAX + 1, dst, NULL);
+      ret = JS_NewStringLen(ctx, dst, len);
+#else
       if(realpath(a, buf))
         ret = JS_NewString(ctx, buf);
+#endif
       break;
     }
 #endif
@@ -157,7 +163,11 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 #ifndef __wasi__
     case METHOD_GETHOME: {
+#ifdef _WIN32
+      ret = JS_NewString(ctx, getenv("USERPROFILE"));
+#else
       ret = JS_NewString(ctx, path_gethome(getuid()));
+#endif
       break;
     }
 #endif

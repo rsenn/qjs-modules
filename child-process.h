@@ -6,12 +6,49 @@
 
 #include <stdint.h>
 
+#ifdef _WIN32
+#define WNOWAIT 0x1000000
+#define WNOHANG 1
+#define WUNTRACED 2
+#define SIGHUP 1
+#define SIGINT 2
+#define SIGQUIT 3
+#define SIGILL 4
+#define SIGTRAP 5
+#define SIGABRT 6
+#define SIGBUS 7
+#define SIGFPE 8
+#define SIGKILL 9
+#define SIGUSR1 10
+#define SIGSEGV 11
+#define SIGUSR2 12
+#define SIGPIPE 13
+#define SIGALRM 14
+#define SIGTERM 15
+#define SIGSTKFLT 16
+#define SIGCHLD 17
+#define SIGCONT 18
+#define SIGSTOP 19
+#define SIGTSTP 20
+#define SIGTTIN 21
+#define SIGTTOU 22
+#define SIGURG 23
+#define SIGXCPU 24
+#define SIGXFSZ 25
+#define SIGVTALRM 26
+#define SIGPROF 27
+#define SIGWINCH 28
+#define SIGIO 29
+#define SIGPWR 30
+#define SIGSYS 31
+#endif
+
 typedef struct ChildProcess {
   char* file;
   char* cwd;
   char** args;
   char** env;
-  int pid;
+  intptr_t pid;
   int exitcode;
   int termsig;
   int stopsig;
@@ -31,5 +68,7 @@ int child_process_wait(ChildProcess*, int);
 int child_process_kill(ChildProcess*, int);
 void child_process_free(ChildProcess*, JSContext*);
 void child_process_free_rt(ChildProcess*, JSRuntime*);
+
+extern const char* child_process_signals[32];
 
 #endif /* defined(CHILD_PROCESS_H) */

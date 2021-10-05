@@ -9,13 +9,13 @@
 #include <fcntl.h>
 #include <time.h>
 #include <signal.h>
-#include <sys/poll.h>
+/*#include <sys/poll.h>*/
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
 #elif defined(__linux__)
 #include <malloc.h>
 #endif
-#ifndef __wasi__
+#if !defined(__wasi__) && !defined(_WIN32)
 #include <dlfcn.h>
 #endif
 
@@ -41,7 +41,7 @@ atomic_add_int(int* ptr, int v) {
 #include "quickjs-internal.h"
 #include "buffer-utils.h"
 
-typedef struct pollhandler {
+/*typedef struct pollhandler {
   struct pollfd pf;
   void (*handler)(void* opaque, struct pollfd*);
   void* opaque;
@@ -49,7 +49,7 @@ typedef struct pollhandler {
 } pollhandler_t;
 
 thread_local uint64_t jsm_pending_signals = 0;
-struct list_head pollhandlers;
+struct list_head pollhandlers;*/
 
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 
@@ -777,7 +777,7 @@ main(int argc, char** argv) {
 
   package_json = JS_UNDEFINED;
 
-  init_list_head(&pollhandlers);
+  /*init_list_head(&pollhandlers);*/
 
   {
     const char* p;

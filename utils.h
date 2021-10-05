@@ -238,9 +238,6 @@ mod_int32(int32_t a, int32_t b) {
 
 uint64_t time_us(void);
 
-int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
-#define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
-
 static inline void
 js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
   dbuf_init2(s, rt, (DynBufReallocFunc*)js_realloc_rt);

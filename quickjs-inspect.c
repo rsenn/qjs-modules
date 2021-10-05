@@ -12,10 +12,15 @@
 #include <ctype.h>
 #include <math.h>
 #include <string.h>
-#include <sys/ioctl.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
 #include <unistd.h>
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
+#include <sys/ioctl.h>
+#endif
 #endif
 
 thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
@@ -79,7 +84,13 @@ inspect_screen_width(void) {
   if(screen_width != -1)
     return screen_width;
 
-#ifdef HAVE_TERMIOS_H
+#ifdef _WIN32
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+  screen_width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+
+#elif defined(HAVE_TERMIOS_H)
   {
     struct winsize w = {.ws_col = -1, .ws_row = -1};
 
@@ -88,11 +99,12 @@ inspect_screen_width(void) {
     else if(stderr_isatty)
       ioctl(STDERR_FILENO, TIOCGWINSZ, &w);
 
-    return screen_width = w.ws_col;
+    screen_width = w.ws_col;
   }
 #else
-  return 80;
+  screen_width = 80;
 #endif
+  return screen_width;
 }
 
 static void
