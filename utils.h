@@ -13,7 +13,7 @@
 #include <threads.h>
 #endif
 
-char *basename(const char *);
+char* basename(const char*);
 
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) & ((type*)0)->field)
