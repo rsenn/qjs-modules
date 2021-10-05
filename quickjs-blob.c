@@ -5,7 +5,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_blob_class_id = 0;
-thread_local JSValue blob_proto = {JS_TAG_UNDEFINED}, blob_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue blob_proto = {{JS_TAG_UNDEFINED}}, blob_ctor = {{JS_TAG_UNDEFINED}};
 
 enum {
   BLOB_SIZE,

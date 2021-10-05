@@ -6,7 +6,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_gpio_class_id = 0;
-thread_local JSValue gpio_proto = {JS_TAG_UNDEFINED}, gpio_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue gpio_proto = {{JS_TAG_UNDEFINED}}, gpio_ctor = {{JS_TAG_UNDEFINED}};
 
 enum {
   GPIO_METHOD_INIT_PIN,

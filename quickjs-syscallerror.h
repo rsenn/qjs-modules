@@ -3,9 +3,6 @@
 
 #include "utils.h"
 
-extern VISIBLE /*thread_local*/ JSClassID js_syscallerror_class_id;
-extern /*thread_local*/ JSValue syscallerror_proto, syscallerror_ctor;
-
 typedef struct {
   char* syscall;
   int number;
@@ -25,26 +22,14 @@ typedef struct {
     } \
   } while(0)
 
+SyscallError* js_syscallerror_data(JSValue);
+SyscallError* js_syscallerror_data2(JSContext*, JSValue);
 SyscallError* syscallerror_new(JSContext*, const char* syscall, int number);
 JSValue js_syscallerror_wrap(JSContext*, SyscallError* err);
 JSValue js_syscallerror_new(JSContext*, const char* syscall, int number);
 JSValue js_syscallerror_throw(JSContext*, const char* syscall);
-void js_syscallerror_finalizer(JSRuntime*, JSValue val);
-int js_syscallerror_init(JSContext*, JSModuleDef* m);
 
-extern const JSCFunctionListEntry js_syscallerror_proto_funcs[];
-extern const size_t js_syscallerror_proto_funcs_size;
-extern const char* const errors[];
-extern const size_t errors_size;
-
-static inline SyscallError*
-js_syscallerror_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_syscallerror_class_id);
-}
-
-static inline SyscallError*
-js_syscallerror_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_syscallerror_class_id);
-}
+extern VISIBLE const char* const errors[];
+extern VISIBLE const size_t errors_size;
 
 #endif /* defined(QUICKJS_SYSCALLERROR_H) */

@@ -13,6 +13,8 @@
 #include <threads.h>
 #endif
 
+char *basename(const char *);
+
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) & ((type*)0)->field)
 #endif
@@ -96,8 +98,6 @@ typedef enum precedence {
 #endif
 
 #define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
-
-extern VISIBLE const char* js_default_module_path;
 
 typedef struct {
   BOOL done;

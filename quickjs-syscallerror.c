@@ -3,8 +3,10 @@
 #include "char-utils.h"
 #include <errno.h>
 
-/*thread_local */ VISIBLE JSClassID js_syscallerror_class_id = 0;
-/*thread_local*/ JSValue syscallerror_proto = {JS_TAG_UNDEFINED}, syscallerror_ctor = {JS_TAG_UNDEFINED};
+thread_local JSClassID js_syscallerror_class_id = 0;
+thread_local JSValue syscallerror_proto = {{JS_TAG_UNDEFINED}}, syscallerror_ctor = {{JS_TAG_UNDEFINED}};
+
+static int js_syscallerror_init(JSContext*, JSModuleDef*);
 
 static const char*
 error_get(int number) {
@@ -40,7 +42,17 @@ stack_get(JSContext* ctx) {
   return ret;
 }
 
-SyscallError*
+VISIBLE SyscallError*
+js_syscallerror_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_syscallerror_class_id);
+}
+
+VISIBLE SyscallError*
+js_syscallerror_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_syscallerror_class_id);
+}
+
+VISIBLE SyscallError*
 syscallerror_new(JSContext* ctx, const char* syscall, int number) {
   SyscallError* err;
 
@@ -53,7 +65,7 @@ syscallerror_new(JSContext* ctx, const char* syscall, int number) {
   return err;
 }
 
-JSValue
+VISIBLE JSValue
 js_syscallerror_wrap(JSContext* ctx, SyscallError* err) {
   JSValue obj;
   obj = JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
@@ -61,7 +73,7 @@ js_syscallerror_wrap(JSContext* ctx, SyscallError* err) {
   return obj;
 }
 
-JSValue
+VISIBLE JSValue
 js_syscallerror_new(JSContext* ctx, const char* syscall, int number) {
   SyscallError* err;
   JSValue obj;
@@ -84,7 +96,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-JSValue
+VISIBLE JSValue
 js_syscallerror_throw(JSContext* ctx, const char* syscall) {
   JSValue error = js_syscallerror_new(ctx, syscall, errno);
   return JS_Throw(ctx, error);
@@ -377,7 +389,7 @@ static const JSCFunctionListEntry js_syscallerror_defs[] = {
     JS_PROP_INT32_DEF("ENOTRECOVERABLE", ENOTRECOVERABLE, 0),
 };
 
-void
+static void
 js_syscallerror_finalizer(JSRuntime* rt, JSValue val) {
   SyscallError* err = JS_GetOpaque(val, js_syscallerror_class_id);
   if(err) {
@@ -394,7 +406,7 @@ static JSClassDef js_syscallerror_class = {
     .finalizer = js_syscallerror_finalizer,
 };
 
-int
+static int
 js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
   JSValue error = js_global_prototype(ctx, "Error");
 

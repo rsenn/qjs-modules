@@ -5,7 +5,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_stringdecoder_class_id = 0;
-thread_local JSValue stringdecoder_proto = {JS_TAG_UNDEFINED}, stringdecoder_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue stringdecoder_proto = {{JS_TAG_UNDEFINED}}, stringdecoder_ctor = {{JS_TAG_UNDEFINED}};
 
 enum {
   STRINGDECODER_WRITE,

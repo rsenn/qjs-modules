@@ -161,7 +161,7 @@ child_process_spawn(ChildProcess* cp) {
     if(cp->child_fds[i] >= 0)
       posix_spawn_file_actions_adddup2(&actions, cp->child_fds[i], i);
 
-  if(posix_spawnp(&pid, cp->file, &actions, &attr, cp->args, NULL)) {
+  if(posix_spawnp(&pid, cp->file, &actions, &attr, cp->args, cp->env)) {
     fprintf(stderr, "posix_spawnp error: %s\n", strerror(errno));
     return -1;
   }

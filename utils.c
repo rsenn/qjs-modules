@@ -23,12 +23,6 @@ int strverscmp(const char*, const char*);
 #define INFINITY __builtin_inf()
 #endif
 
-VISIBLE const char* js_default_module_path = "."
-#ifdef CONFIG_PREFIX
-                                             ":" CONFIG_PREFIX "/lib/quickjs"
-#endif
-    ;
-
 #ifdef USE_WORKER
 #include <pthread.h>
 #include <stdatomic.h>

@@ -9,7 +9,7 @@
 #include "path.h"
 #include "utils.h"
 
-thread_local JSValue path_object = {JS_TAG_UNDEFINED};
+thread_local JSValue path_object = {{JS_TAG_UNDEFINED}};
 
 enum path_methods {
   METHOD_ABSOLUTE = 0,

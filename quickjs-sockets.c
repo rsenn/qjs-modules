@@ -34,8 +34,8 @@ static int js_sockets_init(JSContext* ctx, JSModuleDef* m);
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0;
-thread_local JSValue sockaddr_proto = {JS_TAG_UNDEFINED}, sockaddr_ctor = {JS_TAG_UNDEFINED}, socket_proto = {JS_TAG_UNDEFINED},
-                     socket_ctor = {JS_TAG_UNDEFINED};
+thread_local JSValue sockaddr_proto = {{JS_TAG_UNDEFINED}}, sockaddr_ctor = {{JS_TAG_UNDEFINED}}, socket_proto = {{JS_TAG_UNDEFINED}},
+                     socket_ctor = {{JS_TAG_UNDEFINED}};
 
 static const char* socket_syscalls[] = {
     0,
@@ -884,14 +884,10 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(!socket_open(sock))
     return JS_ThrowInternalError(ctx, "Socket #%d is not open", sock.fd);
 
-  if(socket_eof(sock))
+  /*if(socket_eof(sock))
     if(magic < SOCKETS_SHUTDOWN)
-      return JS_ThrowInternalError(ctx, "Socket #%d EOF", sock.fd);
+      return JS_ThrowInternalError(ctx, "Socket #%d EOF", sock.fd);*/
 
-  /*if(sock.)
-    if(magic < SOCKETS_CLOSE)
-      return JS_ThrowInternalError(ctx, "Socket #%d error (%d): %s", sock.fd, sock.error, strerror(sock.error));
-*/
   switch(magic) {
     case SOCKETS_NDELAY: {
 #ifdef _WIN32
