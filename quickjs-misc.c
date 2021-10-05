@@ -13,6 +13,10 @@
 #include <errno.h>
 #include "buffer-utils.h"
 
+#ifndef HAVE_MEMMEM
+void* memmem(const void*, size_t, const void*, size_t);
+#endif
+
 enum {
   FUNC_GETEXECUTABLE = 0,
   FUNC_GETCWD,

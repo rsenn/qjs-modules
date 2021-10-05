@@ -4,6 +4,9 @@
 #include "buffer-utils.h"
 #ifdef _WIN32
 #include <winsock2.h>
+int inet_pton(int, const char*, void*);
+const char* inet_ntop(int, const void*, char*, socklen_t);
+int socketpair(SOCKET[]);
 #else
 #include <sys/select.h>
 #include <sys/syscall.h>

@@ -11,6 +11,12 @@
 #include <cutils.h>
 #include "utils.h"
 
+#ifdef _WIN32
+ssize_t readlink(const char*, char*, size_t);
+int is_symlink(const char*);
+char is_junction(const char*);
+#endif
+
 #define PATH_NOTFIRST 0x80
 
 #define PATH_FNM_NOMATCH 1
