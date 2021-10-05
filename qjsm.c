@@ -352,7 +352,7 @@ jsm_load_script(JSContext* ctx, const char* file, BOOL module) {
     return -1;
   } else if(JS_IsModule(val)) {
     JSValue global = JS_GetGlobalObject(ctx);
-    get_module_exports(ctx, JS_VALUE_GET_PTR(val), TRUE, global);
+    module_exports_get(ctx, JS_VALUE_GET_PTR(val), TRUE, global);
   } else {
     JS_ToInt32(ctx, &ret, val);
     JS_FreeValue(ctx, val);

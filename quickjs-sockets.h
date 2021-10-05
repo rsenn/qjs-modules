@@ -22,8 +22,9 @@ typedef union {
 union __attribute__((packed)) socket_state {
   struct {
     uint16_t fd;
-    unsigned error : 12;
+    unsigned error : 8;
     unsigned syscall : 4;
+    BOOL nonblock : 1;
     int32_t ret;
   };
   uint64_t u64;
@@ -57,7 +58,7 @@ enum SocketCalls {
 #define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)
 #define socket_eof(sock) (((sock).syscall == SYSCALL_RECV || (sock).syscall == SYSCALL_RECVFROM) && (sock).ret == 0)
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
-#define socket_error(sock) ((sock).ret < 0 && (sock).error)
+#define socket_error(sock) ((sock).ret < 0 ? (sock).error : 0)
 #define socket_syscall(sock) socket_syscalls[(sock).syscall]
 
 static inline int

@@ -27,7 +27,13 @@ const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 429496729
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 
 //const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", "/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);" ];
-const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", '/Reg.*Ex/i.test(n)', '/\\n/g', 'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);', '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'];
+const code = [
+  "const str = stack.toString().replace(/\\n\\s*at /g, '\\n');",
+  '/Reg.*Ex/i.test(n)',
+  '/\\n/g',
+  'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);',
+  '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'
+];
 
 extendArray(Array.prototype);
 
@@ -198,7 +204,7 @@ function main(...args) {
       breakLength: 160,
       maxStringLength: 100,
       maxArrayLength: 40,
-      compact: 1,
+      compact: 2,
       stringBreakNewline: false,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
@@ -248,6 +254,7 @@ function main(...args) {
 
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
 
+    log('lexer.tokens:', lexer.tokens);
     log('lexer:', lexer[Symbol.toStringTag]);
     log('code:', code);
 
@@ -340,6 +347,7 @@ function main(...args) {
       if(done) break;
       newState = lexer.topState();
       tok = value;
+      console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
       if(newState != state) {
         if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();

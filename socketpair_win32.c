@@ -33,7 +33,7 @@
  */
 
 int
-socketpair(SOCKET socks[2]) {
+socketpair(int af, int type, int proto, SOCKET socks[2]) {
   struct sockaddr_in addr;
   SOCKET listener;
   int e;
@@ -45,7 +45,7 @@ socketpair(SOCKET socks[2]) {
   }
 
   socks[0] = socks[1] = INVALID_SOCKET;
-  if((listener = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+  if((listener = socket(af, type, proto)) == INVALID_SOCKET)
     return SOCKET_ERROR;
 
   memset(&addr, 0, sizeof(addr));

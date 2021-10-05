@@ -6,7 +6,7 @@
 #include <winsock2.h>
 int inet_pton(int, const char*, void*);
 const char* inet_ntop(int, const void*, char*, socklen_t);
-int socketpair(SOCKET[]);
+int socketpair(int, int, int, SOCKET[2]);
 #else
 #include <sys/select.h>
 #include <sys/syscall.h>
@@ -23,7 +23,8 @@ extern const uint8_t qjsm_fd_set[1030];
 extern const uint32_t qjsm_socklen_t_size;
 extern const uint8_t qjsm_socklen_t[1030];
 
-static int js_sockets_init(JSContext* ctx, JSModuleDef* m);
+static int js_sockets_init(JSContext*, JSModuleDef*);
+static JSValue js_socket_async_wait(JSContext*, JSValueConst, int, JSValueConst[], int);
 
 #define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), JS_NewInt32(ctx, -1))
 
@@ -739,16 +740,15 @@ js_socket_new(JSContext* ctx, int sock) {
 
 enum SocketProperties {
   SOCKETS_FD,
-  SOCKETS_ERRNO,
+  SOCKETS_OPEN,
+  SOCKETS_EOF,
+  SOCKETS_RET,
+  SOCKETS_MODE,
   SOCKETS_SYSCALL,
+  SOCKETS_ERRNO,
   SOCKETS_ERROR,
   SOCKETS_LOCAL,
   SOCKETS_REMOTE,
-  SOCKETS_OPEN,
-  SOCKETS_EOF,
-  SOCKETS_MODE,
-  SOCKETS_RET,
-
 };
 
 static JSValue
@@ -781,16 +781,16 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
 #endif
       break;
     }
-    case SOCKETS_ERRNO: {
-      ret = JS_NewUint32(ctx, socket_error(sock));
-      break;
-    }
     case SOCKETS_SYSCALL: {
       const char* syscall;
       assert(sock.syscall > 0);
       assert(sock.syscall < socket_syscalls_size);
       if((syscall = socket_syscall(sock)))
         ret = JS_NewString(ctx, syscall);
+      break;
+    }
+    case SOCKETS_ERRNO: {
+      ret = JS_NewUint32(ctx, socket_error(sock));
       break;
     }
     case SOCKETS_ERROR: {
@@ -854,15 +854,15 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
 }
 
 enum SocketMethods {
-  SOCKETS_NDELAY,
-  SOCKETS_BIND,
-  SOCKETS_ACCEPT,
-  SOCKETS_CONNECT,
-  SOCKETS_LISTEN,
-  SOCKETS_SEND,
-  SOCKETS_SENDTO,
-  SOCKETS_RECV,
-  SOCKETS_RECVFROM,
+  SOCKETS_NDELAY = 0x00,
+  SOCKETS_BIND = 0x01,
+  SOCKETS_ACCEPT = 0x02,
+  SOCKETS_CONNECT = 0x03,
+  SOCKETS_LISTEN = 0x04,
+  SOCKETS_RECV = 0x08,
+  SOCKETS_SEND = 0x09,
+  SOCKETS_RECVFROM = 0x0a,
+  SOCKETS_SENDTO = 0x0b,
   SOCKETS_GETSOCKOPT,
   SOCKETS_SETSOCKOPT,
   SOCKETS_SHUTDOWN,
@@ -891,21 +891,33 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     if(magic < SOCKETS_SHUTDOWN)
       return JS_ThrowInternalError(ctx, "Socket #%d EOF", sock.fd);*/
 
-  switch(magic) {
+  if(sock.nonblock) {
+    switch(magic) {
+      case SOCKETS_RECV:
+      case SOCKETS_SEND:
+      case SOCKETS_RECVFROM:
+      case SOCKETS_SENDTO: {
+        return js_socket_async_wait(ctx, this_val, argc, argv, magic | 0x10000);
+      }
+    }
+  }
+
+  switch(magic & 0xffff) {
     case SOCKETS_NDELAY: {
+      BOOL nonblock = TRUE;
+      if(argc >= 1)
+        nonblock = JS_ToBool(ctx, argv[0]);
 #ifdef _WIN32
-      ULONG mode = JS_ToBool(ctx, argv[0]);
+      ULONG mode = nonblock;
       ret = JS_NewInt32(ctx, ioctlsocket(sock.fd, FIONBIO, &mode));
 #else
-      BOOL state = TRUE;
       int oldflags, newflags;
-      if(argc >= 1)
-        state = JS_ToBool(ctx, argv[0]);
       oldflags = fcntl(sock.fd, F_GETFL);
-      newflags = state ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
+      newflags = nonblock ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
       if(oldflags != newflags)
         JS_SOCKETCALL(SYSCALL_FCNTL, sock, fcntl(sock.fd, F_SETFL, newflags));
 #endif
+      sock.nonblock = nonblock;
       break;
     }
     case SOCKETS_BIND: {
@@ -1126,6 +1138,70 @@ js_socket_valueof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 }
 
 static JSValue
+js_socket_async_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+  JSValueConst args[2] = {data[0], JS_NULL};
+  JSValueConst value = data[0];
+  JS_Call(ctx, data[2], JS_UNDEFINED, 2, args);
+
+  if(magic & 0x0a)
+    value = js_socket_method(ctx, data[0], (magic & 0x02) ? 5 : 4, &data[3], magic | 0x10000);
+
+  JS_Call(ctx, data[1], JS_UNDEFINED, 1, &value);
+  JS_FreeValue(ctx, data[1]);
+  data[1] = JS_UNDEFINED;
+  return JS_UNDEFINED;
+}
+
+static JSValue
+js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  Socket sock = js_socket_data2(ctx, this_val);
+  JSModuleDef* os;
+  const char* handler = (magic & 1) ? "setWriteHandler" : "setReadHandler";
+  JSAtom func_name;
+  int data_len;
+  JSValue ret, set_handler, args[2], data[7], promise, resolving_funcs[2];
+
+  if(!(os = js_module_find(ctx, "os")))
+    return JS_ThrowInternalError(ctx, "'os' module required");
+
+  func_name = JS_NewAtom(ctx, handler);
+  set_handler = module_exports_find(ctx, os, func_name);
+  JS_FreeAtom(ctx, func_name);
+
+  if(!JS_IsFunction(ctx, set_handler)) {
+    JS_FreeValue(ctx, set_handler);
+    return JS_ThrowInternalError(ctx, "no os.%s function", handler);
+  }
+
+  promise = JS_NewPromiseCapability(ctx, resolving_funcs);
+  if(JS_IsException(promise))
+    return promise;
+
+  data[0] = this_val;
+  data[1] = resolving_funcs[0];
+  data[2] = set_handler;
+  data_len = 3;
+
+  if(magic >= 2) {
+    int i, n = (magic & 0x02) ? 5 : 4;
+
+    for(i = 0; i < n; i++) data[data_len++] = i < argc ? argv[i] : JS_UNDEFINED;
+  }
+
+  args[0] = this_val;
+  args[1] = JS_NewCFunctionData(ctx, js_socket_async_resolve, 0, magic, data_len, data);
+
+  ret = JS_Call(ctx, set_handler, JS_UNDEFINED, 2, args);
+
+  JS_FreeValue(ctx, args[1]);
+  JS_FreeValue(ctx, set_handler);
+  JS_FreeValue(ctx, resolving_funcs[0]);
+  JS_FreeValue(ctx, resolving_funcs[1]);
+
+  return promise;
+}
+
+static JSValue
 js_socket_adopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t fd = -1;
 
@@ -1171,6 +1247,7 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("errno", js_socket_get, 0, SOCKETS_ERRNO),
     JS_CGETSET_MAGIC_DEF("syscall", js_socket_get, 0, SOCKETS_SYSCALL),
     JS_CGETSET_MAGIC_DEF("error", js_socket_get, 0, SOCKETS_ERROR),
+    JS_CGETSET_MAGIC_DEF("errno", js_socket_get, 0, SOCKETS_ERRNO),
     JS_CGETSET_MAGIC_DEF("local", js_socket_get, 0, SOCKETS_LOCAL),
     JS_CGETSET_MAGIC_DEF("remote", js_socket_get, 0, SOCKETS_REMOTE),
     JS_CGETSET_MAGIC_DEF("open", js_socket_get, 0, SOCKETS_OPEN),
@@ -1189,6 +1266,10 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("close", 0, js_socket_method, SOCKETS_CLOSE),
     JS_CFUNC_MAGIC_DEF("getsockopt", 3, js_socket_method, SOCKETS_GETSOCKOPT),
     JS_CFUNC_MAGIC_DEF("setsockopt", 3, js_socket_method, SOCKETS_SETSOCKOPT),
+    JS_CFUNC_MAGIC_DEF("waitRead", 0, js_socket_async_wait, 0),
+    JS_CFUNC_MAGIC_DEF("waitWrite", 0, js_socket_async_wait, 1),
+    JS_CFUNC_MAGIC_DEF("asyncRead", 1, js_socket_async_wait, 2),
+    JS_CFUNC_MAGIC_DEF("asyncWrite", 1, js_socket_async_wait, 3),
     JS_CFUNC_DEF("valueOf", 0, js_socket_valueof),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Socket", JS_PROP_CONFIGURABLE),
@@ -1328,8 +1409,122 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
 #ifdef AF_MAX
     JS_CONSTANT(AF_MAX),
 #endif
+#ifdef EPERM
+    JS_CONSTANT(EPERM),
+#endif
+#ifdef ENOENT
+    JS_CONSTANT(ENOENT),
+#endif
+#ifdef EINTR
+    JS_CONSTANT(EINTR),
+#endif
+#ifdef EBADF
+    JS_CONSTANT(EBADF),
+#endif
 #ifdef EAGAIN
     JS_CONSTANT(EAGAIN),
+#endif
+#ifdef EWOULDBLOCK
+    JS_CONSTANT(EWOULDBLOCK),
+#endif
+#ifdef ENOMEM
+    JS_CONSTANT(ENOMEM),
+#endif
+#ifdef EACCES
+    JS_CONSTANT(EACCES),
+#endif
+#ifdef EFAULT
+    JS_CONSTANT(EFAULT),
+#endif
+#ifdef ENOTDIR
+    JS_CONSTANT(ENOTDIR),
+#endif
+#ifdef EINVAL
+    JS_CONSTANT(EINVAL),
+#endif
+#ifdef ENFILE
+    JS_CONSTANT(ENFILE),
+#endif
+#ifdef EMFILE
+    JS_CONSTANT(EMFILE),
+#endif
+#ifdef EROFS
+    JS_CONSTANT(EROFS),
+#endif
+#ifdef EPIPE
+    JS_CONSTANT(EPIPE),
+#endif
+#ifdef ENAMETOOLONG
+    JS_CONSTANT(ENAMETOOLONG),
+#endif
+#ifdef EPROTO
+    JS_CONSTANT(EPROTO),
+#endif
+#ifdef ENOTSOCK
+    JS_CONSTANT(ENOTSOCK),
+#endif
+#ifdef EDESTADDRREQ
+    JS_CONSTANT(EDESTADDRREQ),
+#endif
+#ifdef EMSGSIZE
+    JS_CONSTANT(EMSGSIZE),
+#endif
+#ifdef EPROTOTYPE
+    JS_CONSTANT(EPROTOTYPE),
+#endif
+#ifdef ENOPROTOOPT
+    JS_CONSTANT(ENOPROTOOPT),
+#endif
+#ifdef EPROTONOSUPPORT
+    JS_CONSTANT(EPROTONOSUPPORT),
+#endif
+#ifdef EOPNOTSUPP
+    JS_CONSTANT(EOPNOTSUPP),
+#endif
+#ifdef EAFNOSUPPORT
+    JS_CONSTANT(EAFNOSUPPORT),
+#endif
+#ifdef EADDRINUSE
+    JS_CONSTANT(EADDRINUSE),
+#endif
+#ifdef EADDRNOTAVAIL
+    JS_CONSTANT(EADDRNOTAVAIL),
+#endif
+#ifdef ENETDOWN
+    JS_CONSTANT(ENETDOWN),
+#endif
+#ifdef ENETUNREACH
+    JS_CONSTANT(ENETUNREACH),
+#endif
+#ifdef ECONNABORTED
+    JS_CONSTANT(ECONNABORTED),
+#endif
+#ifdef ECONNRESET
+    JS_CONSTANT(ECONNRESET),
+#endif
+#ifdef ENOBUFS
+    JS_CONSTANT(ENOBUFS),
+#endif
+#ifdef EISCONN
+    JS_CONSTANT(EISCONN),
+#endif
+#ifdef ENOTCONN
+    JS_CONSTANT(ENOTCONN),
+#endif
+#ifdef ETIMEDOUT
+    JS_CONSTANT(ETIMEDOUT),
+#endif
+#ifdef ECONNREFUSED
+    JS_CONSTANT(ECONNREFUSED),
+#endif
+#ifdef EHOSTUNREACH
+    JS_CONSTANT(EHOSTUNREACH),
+#endif
+#ifdef EALREADY
+    JS_CONSTANT(EALREADY),
+#endif
+#ifdef EINPROGRESS
+    JS_CONSTANT(EINPROGRESS),
 #endif
 #ifdef IPPROTO_HOPOPTS
     JS_CONSTANT(IPPROTO_HOPOPTS),

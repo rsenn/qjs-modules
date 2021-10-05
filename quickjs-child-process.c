@@ -260,7 +260,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case CHILD_PROCESS_EXITED: {
-      ret = JS_NewBool(ctx, cp->exitcode != -1);
+      ret = JS_NewBool(ctx, cp->exitcode != -1 || cp->signaled);
       break;
     }
     case CHILD_PROCESS_EXITCODE: {

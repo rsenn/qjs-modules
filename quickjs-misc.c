@@ -1114,10 +1114,13 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 JSValue
 js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
-  DynBuf output;
-  js_dbuf_init(ctx, &output);
-  dbuf_put_escaped(&output, (const char*)input.data, input.size);
-  return dbuf_tostring_free(&output, ctx);
+  if(input.data) {
+    DynBuf output;
+    js_dbuf_init(ctx, &output);
+    dbuf_put_escaped(&output, (const char*)input.data, input.size);
+    return dbuf_tostring_free(&output, ctx);
+  }
+  return JS_DupValue(ctx, argv[0]);
 }
 
 JSValue
