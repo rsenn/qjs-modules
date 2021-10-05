@@ -42,22 +42,12 @@ predicate_dump(JSValueConst value, JSContext* ctx, DynBuf* dbuf, Arguments* args
 
 BOOL
 predicate_is(JSValueConst value) {
-  return !!JS_GetOpaque(value, js_predicate_class_id);
+  return !!js_predicate_data(value);
 }
 
 BOOL
 predicate_callable(JSContext* ctx, JSValueConst value) {
   return predicate_is(value) || JS_IsFunction(ctx, value);
-}
-
-enum predicate_id
-predicate_id(JSValueConst value) {
-  Predicate* pred;
-  enum predicate_id ret = -1;
-
-  if((pred = JS_GetOpaque(value, js_predicate_class_id)))
-    ret = pred->id;
-  return ret;
 }
 
 JSValue
@@ -333,7 +323,7 @@ predicate_call(JSContext* ctx, JSValueConst value, int argc, JSValueConst argv[]
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
 
-  if((pred = JS_GetOpaque(value, js_predicate_class_id))) {
+  if((pred = js_predicate_data(value))) {
     JSArguments args = js_arguments_new(argc, argv);
     ret = predicate_eval(pred, ctx, &args);
   } else if(JS_IsFunction(ctx, value)) {
@@ -348,7 +338,7 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
   Predicate* pred;
   JSValue ret = JS_EXCEPTION;
 
-  if((pred = JS_GetOpaque(value, js_predicate_class_id))) {
+  if((pred = js_predicate_data(value))) {
     ret = predicate_eval(pred, ctx, args);
   } else if(JS_IsFunction(ctx, value)) {
     ret = predicate_call(ctx, value, args->c, args->v);

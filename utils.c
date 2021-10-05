@@ -16,7 +16,8 @@
 #include <sys/time.h>
 #include <quickjs-libc.h>
 
-void quicksort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr);
+void quicksort_r(void*, size_t, size_t, int (*)(const void*, const void*, void*), void*);
+int strverscmp(const char*, const char*);
 
 #ifndef INFINITY
 #define INFINITY __builtin_inf()

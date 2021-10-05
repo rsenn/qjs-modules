@@ -15,6 +15,16 @@ js_predicate_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_predicate_class_id);
 }
 
+enum predicate_id
+predicate_id(JSValueConst value) {
+  Predicate* pred;
+  enum predicate_id ret = -1;
+
+  if((pred = JS_GetOpaque(value, js_predicate_class_id)))
+    ret = pred->id;
+  return ret;
+}
+
 static JSValue
 predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
   DynBuf dbuf = {0};

@@ -18,6 +18,6 @@ js_pointer_data(JSValueConst value) {
 }
 
 JSValue js_pointer_wrap(JSContext*, Pointer*);
-JSValue js_pointer_new(JSContext*, JSValue proto, JSValue);
+JSValue js_pointer_new(JSContext*, JSValueConst proJSValueConstto, JSValueConst);
 
 #endif /* defined(QUICKJS_POINTER_H) */
