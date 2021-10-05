@@ -1,6 +1,6 @@
 #include "lexer.h"
 #include "location.h"
-#include "libregexp.h"
+#include <libregexp.h>
 #include <ctype.h>
 #include "buffer-utils.h"
 

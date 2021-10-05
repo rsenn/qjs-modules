@@ -1,30 +1,19 @@
-#include "quickjs.h"
+#include <quickjs.h>
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
 
-thread_local VISIBLE JSClassID js_predicate_class_id = 0;
+thread_local JSClassID js_predicate_class_id = 0;
 thread_local JSValue predicate_proto = {JS_TAG_UNDEFINED}, predicate_ctor = {JS_TAG_UNDEFINED};
 
-enum {
-  METHOD_EVAL = 0,
-};
+VISIBLE Predicate*
+js_predicate_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_predicate_class_id);
+}
 
-enum {
-  OPERATOR_PLUS = 0,
-  OPERATOR_MINUS,
-  OPERATOR_MUL,
-  OPERATOR_DIV,
-  OPERATOR_MOD,
-  OPERATOR_BOR,
-  OPERATOR_BAND,
-  OPERATOR_POW,
-};
-
-enum {
-  PROP_ID = 0,
-  PROP_VALUES,
-  PROP_ARGC,
-};
+VISIBLE Predicate*
+js_predicate_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_predicate_class_id);
+}
 
 static JSValue
 predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
@@ -54,7 +43,7 @@ predicate_nextarg(JSContext* ctx, JSArguments* args) {
   return predicate_duparg(ctx, arg);
 }
 
-JSValue
+VISIBLE JSValue
 js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Predicate* pr;
   JSValue obj;
@@ -72,7 +61,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-JSValue
+VISIBLE JSValue
 js_predicate_wrap(JSContext* ctx, Predicate pr) {
   JSValue obj;
   Predicate* ret;
@@ -298,6 +287,10 @@ fail:
   return JS_EXCEPTION;
 }
 
+enum {
+  METHOD_EVAL = 0,
+};
+
 static JSValue
 js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Predicate* pr;
@@ -315,6 +308,17 @@ js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   }
   return ret;
 }
+
+enum {
+  OPERATOR_PLUS = 0,
+  OPERATOR_MINUS,
+  OPERATOR_MUL,
+  OPERATOR_DIV,
+  OPERATOR_MOD,
+  OPERATOR_BOR,
+  OPERATOR_BAND,
+  OPERATOR_POW,
+};
 
 static JSValue
 js_predicate_operator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -380,6 +384,12 @@ js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   dbuf_free(&dbuf);
   return ret;
 }
+
+enum {
+  PROP_ID = 0,
+  PROP_VALUES,
+  PROP_ARGC,
+};
 
 static JSValue
 js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {

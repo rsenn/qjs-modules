@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "quickjs-libc.h"
+#include <quickjs-libc.h>
 #include "utils.h"
 
 static JSValue

@@ -1,7 +1,7 @@
-#include "cutils.h"
-#include "libregexp.h"
+#include <cutils.h>
+#include <libregexp.h>
 #include "property-enumeration.h"
-#include "quickjs.h"
+#include <quickjs.h>
 #include <string.h>
 
 thread_local VISIBLE JSClassID js_tree_walker_class_id = 0;

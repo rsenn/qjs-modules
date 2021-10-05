@@ -14,7 +14,7 @@ enum {
   LOCATION_PROP_FILE,
 };
 
-Location*
+VISIBLE Location*
 js_location_data(JSContext* ctx, JSValueConst value) {
   Location* loc;
   loc = JS_GetOpaque(value, js_location_class_id);
@@ -50,7 +50,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-JSValue
+VISIBLE JSValue
 js_location_new(JSContext* ctx, const Location* location) {
   if(js_location_class_id == 0)
     js_location_init(ctx, 0);
@@ -80,7 +80,7 @@ js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return ret;
 }
 
-BOOL
+VISIBLE BOOL
 js_is_location(JSContext* ctx, JSValueConst obj) {
   BOOL ret;
   JSAtom line, column;
@@ -152,7 +152,7 @@ js_location_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
   return ret;
 }
 
-Location
+VISIBLE Location
 js_location_from(JSContext* ctx, JSValueConst this_val) {
   Location loc = {0, 0, 0, -1, 0};
   if(js_has_propertystr(ctx, this_val, "line"))
@@ -345,7 +345,7 @@ static const JSCFunctionListEntry js_location_static_funcs[] = {
     JS_CFUNC_DEF("count", 1, js_location_count),
 };
 
-int
+VISIBLE int
 js_location_init(JSContext* ctx, JSModuleDef* m) {
 
   if(js_location_class_id == 0) {

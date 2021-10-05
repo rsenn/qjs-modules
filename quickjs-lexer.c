@@ -1,5 +1,5 @@
-#include "quickjs.h"
-#include "libregexp.h"
+#include <quickjs.h>
+#include <libregexp.h>
 #include "quickjs-lexer.h"
 #include "quickjs-location.h"
 #include "vector.h"

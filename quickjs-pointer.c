@@ -30,59 +30,7 @@ enum {
   PROP_ATOMS,
 };
 
-void
-pointer_tostring(Pointer* ptr, JSContext* ctx, DynBuf* db) {
-  size_t i, j;
-  const char* str;
-  for(i = 0; i < ptr->n; i++) {
-    if(js_atom_isint(ptr->atoms[i])) {
-      dbuf_printf(db, "[%" PRIu32 "]", js_atom_toint(ptr->atoms[i]));
-      continue;
-    }
-    if(i > 0)
-      dbuf_putc(db, '.');
-    str = JS_AtomToCString(ctx, ptr->atoms[i]);
-    for(j = 0; str[j]; j++) {
-      if(str[j] == '.')
-        dbuf_putc(db, '\\');
-      dbuf_putc(db, str[j]);
-    }
-  }
-}
-
-JSValue
-pointer_toarray(Pointer* ptr, JSContext* ctx) {
-  size_t i;
-  JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++) { JS_SetPropertyUint32(ctx, array, i, js_atom_tovalue(ctx, ptr->atoms[i])); }
-  return array;
-}
-
-JSValue
-pointer_toatoms(Pointer* ptr, JSContext* ctx) {
-  size_t i;
-  JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++) { JS_SetPropertyUint32(ctx, array, i, JS_NewUint32(ctx, ptr->atoms[i])); }
-  return array;
-}
-
-int
-pointer_fromatoms(Pointer* ptr, JSContext* ctx, JSValueConst arr) {
-  size_t len = js_array_length(ctx, arr);
-  size_t i;
-  pointer_reset(ptr, ctx);
-
-  ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * len);
-  ptr->n = len;
-  for(i = 0; i < len; i++) {
-    uint32_t atom;
-    JS_ToUint32(ctx, &atom, JS_GetPropertyUint32(ctx, arr, i));
-    ptr->atoms[i] = atom;
-  }
-  return ptr->n;
-}
-
-JSValue
+VISIBLE JSValue
 js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Pointer* ptr;
   JSValue obj = JS_UNDEFINED;
@@ -105,7 +53,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-JSValue
+VISIBLE JSValue
 js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
   JSValue obj;
   obj = JS_NewObjectProtoClass(ctx, pointer_proto, js_pointer_class_id);

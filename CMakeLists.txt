@@ -207,36 +207,37 @@ set(child_process_SOURCES child-process.c child-process.h property-enumeration.c
                           ${utils_SOURCES} ${vector_SOURCES})
 set(deep_SOURCES ${vector_SOURCES} pointer.c virtual-properties.c property-enumeration.c property-enumeration.h
                  ${utils_SOURCES} ${predicate_SOURCES} pointer.h virtual-properties.h)
+set(deep_LIBRARIES qjs-predicate qjs-pointer)
 set(inspect_SOURCES ${vector_SOURCES} iteration.h ${utils_SOURCES} property-enumeration.c property-enumeration.h
                     quickjs-internal.h)
 set(tree_walker_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES})
 set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES})
-set(path_SOURCES path.c path.h ${utils_SOURCES})
+set(path_SOURCES path.c path.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} readlink.c)
 endif(WIN32 OR MINGW)
 
 set(predicate_SOURCES predicate.c predicate.h ${vector_SOURCES} ${utils_SOURCES})
-set(pointer_SOURCES pointer.c pointer.h ${utils_SOURCES})
+set(pointer_SOURCES pointer.c pointer.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(lexer_SOURCES quickjs-lexer.h location.c location.h ${utils_SOURCES} ${vector_SOURCES} lexer.c lexer.h)
 set(lexer_LIBRARIES qjs-location)
-set(mmap_SOURCES ${utils_SOURCES})
-set(repeater_SOURCES ${utils_SOURCES})
+set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(repeater_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES} bc-fd_set.c bc-socklen_t.c)
 if(WIN32 OR MINGW)
   set(sockets_LIBRARIES mswsock)
   set(sockets_SOURCES ${sockets_SOURCES} socketpair_win32.c)
 endif(WIN32 OR MINGW)
 
-set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h ${utils_SOURCES})
+set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
                           ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 
-set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${location_SOURCES})
+set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h  ${path_SOURCES} ${location_SOURCES})
 
 set(gpio_SOURCES gpio.c gpio.h)
-set(syscallerror_SOURCES ${utils_SOURCES} char-utils.c char-utils.h)
+set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 if(pigpio_LIBRARY)
   set(gpio_LIBRARIES ${pigpio_LIBRARY})

@@ -10,7 +10,7 @@
 #include <quickjs-config.h>
 
 #ifdef CONFIG_BIGNUM
-#include "libbf.h"
+#include <libbf.h>
 #endif
 #ifdef CONFIG_DEBUGGER
 #include <quickjs-debugger.h>
@@ -647,7 +647,7 @@ struct JSObject {
 typedef enum OPCodeFormat {
 #define FMT(f) OP_FMT_##f,
 #define DEF(id, size, n_pop, n_push, f)
-#include "quickjs-opcode.h"
+#include <quickjs-opcode.h>
 #undef DEF
 #undef FMT
 } OPCodeFormat;
@@ -656,7 +656,7 @@ enum OPCodeEnum {
 #define FMT(f)
 #define DEF(id, size, n_pop, n_push, f) OP_##id,
 #define def(id, size, n_pop, n_push, f)
-#include "quickjs-opcode.h"
+#include <quickjs-opcode.h>
 #undef def
 #undef DEF
 #undef FMT
@@ -667,7 +667,7 @@ enum OPCodeEnum {
 #define FMT(f)
 #define DEF(id, size, n_pop, n_push, f)
 #define def(id, size, n_pop, n_push, f) OP_##id,
-#include "quickjs-opcode.h"
+#include <quickjs-opcode.h>
 #undef def
 #undef DEF
 #undef FMT

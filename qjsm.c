@@ -20,7 +20,7 @@
 #endif
 
 #if 1 // def HAVE_QUICKJS_CONFIG_H
-#include "quickjs-config.h"
+#include <quickjs-config.h>
 #endif
 
 #ifdef USE_WORKER
@@ -33,11 +33,11 @@ atomic_add_int(int* ptr, int v) {
 }
 #endif
 
-#include "list.h"
-#include "cutils.h"
+#include <list.h>
+#include <cutils.h>
 #include "utils.h"
 #include "vector.h"
-#include "quickjs-libc.h"
+#include <quickjs-libc.h>
 #include "quickjs-internal.h"
 #include "buffer-utils.h"
 

@@ -1,8 +1,8 @@
 #ifndef CHILD_PROCESS_H
 #define CHILD_PROCESS_H
 
-#include "quickjs.h"
-#include "list.h"
+#include <quickjs.h>
+#include <list.h>
 
 #include <stdint.h>
 

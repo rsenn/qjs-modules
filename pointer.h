@@ -1,8 +1,8 @@
 #ifndef POINTER_H
 #define POINTER_H
 
-#include "quickjs.h"
-#include "cutils.h"
+#include <quickjs.h>
+#include <cutils.h>
 #include <stdint.h>
 
 typedef struct Pointer {
@@ -12,22 +12,26 @@ typedef struct Pointer {
 
 typedef Pointer* DataFunc(JSContext*, JSValueConst);
 
-void pointer_copy(Pointer*, Pointer*, JSContext*);
-JSValue pointer_deref(Pointer*, JSContext*, JSValue);
-JSValue pointer_acquire(Pointer*, JSContext*, JSValue);
-void pointer_dump(Pointer*, JSContext*, DynBuf*, BOOL, size_t);
-void pointer_debug(Pointer*, JSContext*);
-void pointer_fromarray(Pointer*, JSContext*, JSValue);
-void pointer_fromiterable(Pointer*, JSContext*, JSValue);
-void pointer_fromstring(Pointer*, JSContext*, JSValue);
-size_t pointer_parse(Pointer*, JSContext*, const char*, size_t);
-void pointer_reset(Pointer*, JSContext*);
-JSValue pointer_shift(Pointer*, JSContext*, JSValueConst);
-void pointer_push(Pointer*, JSContext*, JSValueConst);
-Pointer* pointer_slice(Pointer*, JSContext*, int64_t, int64_t);
-void pointer_truncate(Pointer*, JSContext*, size_t);
-int pointer_from(Pointer* ptr, JSContext* ctx, JSValueConst value);
-Pointer* pointer_concat(Pointer* ptr, JSContext* ctx, JSValueConst arr);
+void pointer_reset(Pointer*, JSContext* ctx);
+void pointer_copy(Pointer*, Pointer* src, JSContext* ctx);
+void pointer_truncate(Pointer*, JSContext* ctx, size_t size);
+void pointer_dump(Pointer*, JSContext* ctx, DynBuf* db, BOOL color, size_t index);
+void pointer_debug(Pointer*, JSContext* ctx);
+size_t pointer_parse(Pointer*, JSContext* ctx, const char* str, size_t len);
+Pointer* pointer_slice(Pointer*, JSContext* ctx, int64_t start, int64_t end);
+JSValue pointer_shift(Pointer*, JSContext* ctx, JSValue obj);
+void pointer_push(Pointer*, JSContext* ctx, JSValue key);
+JSValue pointer_deref(Pointer*, JSContext* ctx, JSValue arg);
+JSValue pointer_acquire(Pointer*, JSContext* ctx, JSValue arg);
+void pointer_fromstring(Pointer*, JSContext* ctx, JSValue value);
+void pointer_fromarray(Pointer*, JSContext* ctx, JSValue array);
+void pointer_fromiterable(Pointer*, JSContext* ctx, JSValue arg);
+int pointer_from(Pointer*, JSContext* ctx, JSValue value);
+Pointer* pointer_concat(Pointer*, JSContext* ctx, JSValue arr);
+void pointer_tostring(Pointer*, JSContext* ctx, DynBuf* db);
+JSValue pointer_toarray(Pointer*, JSContext* ctx);
+JSValue pointer_toatoms(Pointer*, JSContext* ctx);
+int pointer_fromatoms(Pointer*, JSContext* ctx, JSValue arr);
 
 static inline Pointer*
 pointer_new(JSContext* ctx) {

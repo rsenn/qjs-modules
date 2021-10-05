@@ -1,8 +1,8 @@
 #ifndef VECTOR_H
 #define VECTOR_H
 
-#include "quickjs.h"
-#include "cutils.h"
+#include <quickjs.h>
+#include <cutils.h>
 
 #include <assert.h>
 #include <stdlib.h>

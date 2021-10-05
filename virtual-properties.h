@@ -1,8 +1,8 @@
 #ifndef VIRTUAL_PROPERTIES_H
 #define VIRTUAL_PROPERTIES_H
 
-#include "quickjs.h"
-#include "cutils.h"
+#include <quickjs.h>
+#include <cutils.h>
 #include "utils.h"
 
 struct VProps;

@@ -1,7 +1,7 @@
 #ifndef ITERATION_H
 #define ITERATION_H
 
-#include "quickjs.h"
+#include <quickjs.h>
 #include "utils.h"
 
 #include <assert.h>

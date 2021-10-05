@@ -1,9 +1,9 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "quickjs.h"
+#include <quickjs.h>
 #include "quickjs-internal.h"
-#include "cutils.h"
+#include <cutils.h>
 #include <string.h>
 #include <math.h>
 #include <string.h>

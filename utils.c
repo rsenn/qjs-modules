@@ -2,10 +2,10 @@
 #define _ISOC99_SOURCE 1
 
 #include "utils.h"
-#include "list.h"
-#include "cutils.h"
+#include <list.h>
+#include <cutils.h>
 #include "vector.h"
-#include "libregexp.h"
+#include <libregexp.h>
 #include "quickjs-internal.h"
 #include "buffer-utils.h"
 #include <time.h>

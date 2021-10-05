@@ -2,7 +2,7 @@
 #define QUICKJS_LEXER_H
 
 #include "lexer.h"
-#include "list.h"
+#include <list.h>
 
 typedef struct {
   Location loc;

@@ -1,5 +1,5 @@
 #include "predicate.h"
-#include "libregexp.h"
+#include <libregexp.h>
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
 
