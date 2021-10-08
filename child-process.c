@@ -4,7 +4,7 @@
 
 #include <errno.h>
 
-#define POSIX_SPAWN 1
+#define POSIX_SPAWN 0
 
 #ifdef _WIN32
 #include <windows.h>
@@ -145,7 +145,7 @@ child_process_spawn(ChildProcess* cp) {
     pid = piProcessInfo.dwProcessId;
   }
 
-#elif defined(POSIX_SPAWN)
+#elif POSIX_SPAWN
 
   int i;
   pid_t pid;

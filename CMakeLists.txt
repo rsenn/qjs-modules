@@ -360,7 +360,7 @@ file(GLOB LIBJS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js")
 list(REMOVE_ITEM LIBJS lib/require.js)
 list(REMOVE_ITEM LIBJS lib/fs.js)
 
-install(FILES ${LIBJS} DESTINATION "${QUICKJS_LIBRARY_DIR}/quickjs")
+install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
 
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 
