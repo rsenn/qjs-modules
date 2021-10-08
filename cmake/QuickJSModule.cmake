@@ -70,7 +70,7 @@ function(make_module FNAME)
               CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}")
 
       target_link_directories(${TARGET_NAME}  PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
- target_link_libraries(${TARGET_NAME} PUBLIC quickjs)
+      target_link_libraries(${TARGET_NAME} PUBLIC quickjs)
 
     #message("C module dir: ${QUICKJS_C_MODULE_DIR}")
     install(TARGETS ${TARGET_NAME} DESTINATION "${QUICKJS_C_MODULE_DIR}"
