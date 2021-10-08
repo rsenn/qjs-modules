@@ -1651,8 +1651,13 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   if(imp.spec) {
     dbuf_putstr(db, imp.spec);
     if(is_ns) {
-      if(!imp.ns)
+      if(!imp.ns) {
+        char* x;
         imp.ns = js_strndup(ctx, base, blen);
+        for(x = (char*)imp.ns; *x; x++)
+          if(!is_identifier_char(*x))
+            *x = '_'; 
+      }
       dbuf_putstr(db, " as ");
     }
   }
