@@ -1048,11 +1048,12 @@ main(int argc, char** argv) {
 
       snprintf(str,
                sizeof(str),
+               "import { out } from 'std';\n"
                "import REPL from 'repl';\n"
                "import fs from 'fs';\n"
                "import { Console } from 'console';\n"
                "const history = '%s/.%s_history';\n"
-               "globalThis.console = new Console({ inspectOptions: { customInspect: true } });\n"
+               "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n"
                "globalThis.repl = new REPL('qjsm');\n"
                "repl.fs = fs;\n"
                "repl.show = console.log;\n"
