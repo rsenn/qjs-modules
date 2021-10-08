@@ -1684,6 +1684,19 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   dbuf_0(db);
 }
 
+
+JSValue
+js_import_load(JSContext* ctx, ImportDirective imp) {
+  DynBuf buf;
+  char* code;
+  js_dbuf_init(ctx, &buf);
+  js_import_directive(ctx, imp, &buf);
+  code = str_escape((const char*)buf.buf);
+  printf("js_import_eval: '%s'\n", code);
+  free(code);
+  return JS_Eval(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE|JS_EVAL_FLAG_COMPILE_ONLY);
+}
+
 JSValue
 js_import_eval(JSContext* ctx, ImportDirective imp) {
   DynBuf buf;
@@ -1693,7 +1706,7 @@ js_import_eval(JSContext* ctx, ImportDirective imp) {
   code = str_escape((const char*)buf.buf);
   printf("js_import_eval: '%s'\n", code);
   free(code);
-  return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
+  return js_eval_buf(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE);
 }
 
 JSModuleDef*
