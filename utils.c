@@ -1656,7 +1656,7 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
         imp.ns = js_strndup(ctx, base, blen);
         for(x = (char*)imp.ns; *x; x++)
           if(!is_identifier_char(*x))
-            *x = '_'; 
+            *x = '_';
       }
       dbuf_putstr(db, " as ");
     }
@@ -1684,7 +1684,6 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   dbuf_0(db);
 }
 
-
 JSValue
 js_import_load(JSContext* ctx, ImportDirective imp) {
   DynBuf buf;
@@ -1694,7 +1693,7 @@ js_import_load(JSContext* ctx, ImportDirective imp) {
   code = str_escape((const char*)buf.buf);
   printf("js_import_eval: '%s'\n", code);
   free(code);
-  return JS_Eval(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE|JS_EVAL_FLAG_COMPILE_ONLY);
+  return JS_Eval(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
 }
 
 JSValue

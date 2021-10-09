@@ -141,6 +141,24 @@ js_location_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
     return ret;
 
   switch(magic) {
+    case LOCATION_PROP_LINE: {
+      uint32_t n = 0;
+      JS_ToUint32(ctx, &n, value);
+      loc->line = n - 1;
+      break;
+    }
+    case LOCATION_PROP_COLUMN: {
+      uint32_t n = 0;
+      JS_ToUint32(ctx, &n, value);
+      loc->column = n - 1;
+      break;
+    }
+    case LOCATION_PROP_POS: {
+      int64_t n = 0;
+      JS_ToInt64(ctx, &n, value);
+      loc->pos = n;
+      break;
+    }
     case LOCATION_PROP_FILE: {
       if(loc->file)
         js_free(ctx, loc->file);
@@ -331,9 +349,9 @@ static JSClassDef js_location_class = {
 };
 
 static const JSCFunctionListEntry js_location_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("line", js_location_getter, 0, LOCATION_PROP_LINE),
-    JS_CGETSET_MAGIC_DEF("column", js_location_getter, 0, LOCATION_PROP_COLUMN),
-    JS_CGETSET_MAGIC_DEF("pos", js_location_getter, 0, LOCATION_PROP_POS),
+    JS_CGETSET_MAGIC_DEF("line", js_location_getter, js_location_setter, LOCATION_PROP_LINE),
+    JS_CGETSET_MAGIC_DEF("column", js_location_getter, js_location_setter, LOCATION_PROP_COLUMN),
+    JS_CGETSET_MAGIC_DEF("pos", js_location_getter, js_location_setter, LOCATION_PROP_POS),
     JS_CGETSET_MAGIC_DEF("file", js_location_getter, js_location_setter, LOCATION_PROP_FILE),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
     JS_CFUNC_DEF("clone", 0, js_location_clone),
