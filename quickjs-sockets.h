@@ -31,6 +31,11 @@ union __attribute__((packed)) socket_state {
   void* ptr;
 };
 
+struct async_closure {
+JSCFunctionMagic* set_mux;
+
+};
+
 typedef union socket_state Socket;
 
 extern thread_local VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id;

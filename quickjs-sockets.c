@@ -1133,6 +1133,7 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   const char* handler = (magic & 1) ? "setWriteHandler" : "setReadHandler";
   JSAtom func_name;
   int data_len;
+  JSCFunctionMagic* set_mux=0;
   JSValue ret, set_handler, args[2], data[7], promise, resolving_funcs[2];
 
   if(!(os = js_module_find(ctx, "os")))
@@ -1149,7 +1150,8 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   if(js_value_isclass(ctx, set_handler, JS_CLASS_C_FUNCTION)) {
     JSObject* obj = JS_VALUE_GET_OBJ(set_handler);
-    printf("cfunc:%p\n", obj->u.cfunc.c_function.generic);
+    set_mux= obj->u.cfunc.c_function.generic_magic;
+    printf("cfunc:%p\n",set_mux);
   }
 
   promise = JS_NewPromiseCapability(ctx, resolving_funcs);
