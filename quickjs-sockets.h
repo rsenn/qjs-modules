@@ -32,8 +32,7 @@ union __attribute__((packed)) socket_state {
 };
 
 struct async_closure {
-JSCFunctionMagic* set_mux;
-
+  JSCFunctionMagic* set_mux;
 };
 
 typedef union socket_state Socket;
