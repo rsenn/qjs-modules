@@ -234,30 +234,31 @@ js_misc_resizearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 }
 
 static JSValue
-js_misc_concatarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   int i;
   size_t total_len = 0, pos = 0;
   uint8_t* buf;
-
+  InputBuffer* buffers = js_mallocz(ctx, sizeof(InputBuffer) * argc);
   for(i = 0; i < argc; i++) {
-    if(!js_is_arraybuffer(ctx, argv[0]))
-      return JS_ThrowTypeError(ctx, "argument %d is not ArrayBuffer", i + 1);
-    total_len += js_arraybuffer_length(ctx, argv[i]);
+    buffers[i] = js_input_buffer(ctx, argv[i]);
+    if(!buffers[i].data) {
+      ret = JS_ThrowTypeError(ctx, "argument %d is not ArrayBuffer", i + 1);
+      goto fail;
+    }
+    total_len += buffers[i].size;
   }
-
   buf = js_malloc(ctx, total_len);
-
   for(i = 0; i < argc; i++) {
-    size_t len;
-    uint8_t* ptr;
-    ptr = JS_GetArrayBuffer(ctx, &len, argv[i]);
-
-    memcpy(&buf[pos], ptr, len);
-    pos += len;
+    memcpy(&buf[pos], buffers[i].data, buffers[i].size);
+    pos += buffers[i].size;
   }
-
-  return JS_NewArrayBuffer(ctx, buf, total_len, js_bytecode_free_func, 0, FALSE);
+  ret = JS_NewArrayBuffer(ctx, buf, total_len, js_bytecode_free_func, 0, FALSE);
+fail:
+  for(i = 0; i < argc; i++)
+    if(buffers[i].data)
+      input_buffer_free(&buffers[i], ctx);
+  return ret;
 }
 
 static JSValue
@@ -1262,7 +1263,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_slice),
     JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
-    JS_CFUNC_DEF("concatArrayBuffer", 1, js_misc_concatarraybuffer),
+    JS_CFUNC_DEF("concat", 1, js_misc_concat),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
     JS_CFUNC_DEF("memcpy", 2, js_misc_memcpy),
 #ifdef HAVE_FMEMOPEN

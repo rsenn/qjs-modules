@@ -642,6 +642,7 @@ BOOL js_atom_is_length(JSContext* ctx, JSAtom atom);
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 const char* js_function_tostring(JSContext* ctx, JSValueConst value);
+JSCFunction* js_function_cfunc(JSContext*, JSValue value);
 BOOL js_function_isnative(JSContext* ctx, JSValueConst value);
 int js_function_argc(JSContext* ctx, JSValueConst value);
 

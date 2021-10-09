@@ -984,8 +984,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case SOCKETS_GETSOCKOPT: {
       int32_t level, optname;
       uint32_t optlen = sizeof(int);
-      /*  InputBuffer optval = js_input_buffer(ctx, argv[2]);
-        socklen_t len = optval.size;*/
       uint8_t* buf;
       int32_t *val, *tmp = 0;
       socklen_t len;
@@ -994,28 +992,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(argc >= 4)
         JS_ToUint32(ctx, &optlen, argv[3]);
       JS_ToInt32(ctx, &optname, argv[1]);
-      /*if(js_is_arraybuffer(ctx, argv[2])) {
-        buf = JS_GetArrayBuffer(ctx, &len, argv[2]);
-      } else if(js_is_array(ctx, argv[2])) {
-        int i, n = js_array_length(ctx, argv[2]);
-        len = MAX_NUM(MAX_NUM(n, 16) * sizeof(int), optlen);
-        tmp = js_mallocz(ctx, len);
-        val = (void*)tmp;
 
-        for(i = 0; i < n; i++) {
-          JSValue elem = JS_GetPropertyUint32(ctx, argv[2], i);
-          int32_t num;
-          JS_ToInt32(ctx, &num, elem);
-          val[i] = num;
-          JS_FreeValue(ctx, elem);
-        }
-        for(; i < 16; i++) { val[i] = 2; }
-
-        if(n < i)
-          n = i;
-
-        buf = tmp;
-      }*/
       buf = optval_buf(ctx, argv[2], &tmp, &len);
 
       JS_SOCKETCALL(SYSCALL_GETSOCKOPT, sock, getsockopt(sock.fd, level, optname, buf, &len));
@@ -1113,13 +1090,10 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     const char* syscall = socket_syscall(sock);
     JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_ENUMERABLE);
     JS_DefinePropertyValueStr(ctx, obj, "error", JS_NewString(ctx, strerror(sock.error)), JS_PROP_ENUMERABLE);
-    // JS_DefinePropertyValueStr(ctx, obj, "error", js_syscallerror_new(ctx,
-    // syscall, sock.error), JS_PROP_ENUMERABLE);
   }
   if(sock.syscall > 0 && sock.syscall < socket_syscalls_size)
     JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, socket_syscall(sock)), JS_PROP_ENUMERABLE);
 
-  // JS_DefinePropertyValueStr(ctx, obj, "stack", JS_NULL, JS_PROP_ENUMERABLE);
   return obj;
 }
 
@@ -1171,6 +1145,11 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   if(!JS_IsFunction(ctx, set_handler)) {
     JS_FreeValue(ctx, set_handler);
     return JS_ThrowInternalError(ctx, "no os.%s function", handler);
+  }
+
+  if(js_value_isclass(ctx, set_handler, JS_CLASS_C_FUNCTION)) {
+    JSObject* obj = JS_VALUE_GET_OBJ(set_handler);
+    printf("cfunc:%p\n", obj->u.cfunc.c_function.generic);
   }
 
   promise = JS_NewPromiseCapability(ctx, resolving_funcs);
