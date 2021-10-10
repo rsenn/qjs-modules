@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stddef.h>
 
 int
 strverscmp(const char* s1, const char* s2) {

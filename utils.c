@@ -369,6 +369,15 @@ js_function_argc(JSContext* ctx, JSValueConst value) {
   return js_get_propertystr_int32(ctx, value, "length");
 }
 
+JSCFunction*
+js_function_cfunc(JSContext* ctx, JSValueConst value) {
+  if(js_value_isclass(ctx, value, JS_CLASS_C_FUNCTION)) {
+    JSObject* obj = JS_VALUE_GET_OBJ(value);
+    return obj->u.cfunc.c_function.generic;
+  }
+  return 0;
+}
+
 JSValue
 js_global_get_str(JSContext* ctx, const char* prop) {
   JSValue global_obj, ret;
@@ -1651,8 +1660,13 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   if(imp.spec) {
     dbuf_putstr(db, imp.spec);
     if(is_ns) {
-      if(!imp.ns)
+      if(!imp.ns) {
+        char* x;
         imp.ns = js_strndup(ctx, base, blen);
+        for(x = (char*)imp.ns; *x; x++)
+          if(!is_identifier_char(*x))
+            *x = '_';
+      }
       dbuf_putstr(db, " as ");
     }
   }
@@ -1680,6 +1694,18 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
 }
 
 JSValue
+js_import_load(JSContext* ctx, ImportDirective imp) {
+  DynBuf buf;
+  char* code;
+  js_dbuf_init(ctx, &buf);
+  js_import_directive(ctx, imp, &buf);
+  code = str_escape((const char*)buf.buf);
+  printf("js_import_eval: '%s'\n", code);
+  free(code);
+  return JS_Eval(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+}
+
+JSValue
 js_import_eval(JSContext* ctx, ImportDirective imp) {
   DynBuf buf;
   char* code;
@@ -1688,7 +1714,7 @@ js_import_eval(JSContext* ctx, ImportDirective imp) {
   code = str_escape((const char*)buf.buf);
   printf("js_import_eval: '%s'\n", code);
   free(code);
-  return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
+  return js_eval_buf(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE);
 }
 
 JSModuleDef*
@@ -2200,4 +2226,41 @@ js_error_print(JSContext* ctx, JSValueConst error) {
   if(stack)
     JS_FreeCString(ctx, stack);
   JS_FreeCString(ctx, str);
+}
+
+JSValue
+js_io_readhandler_fn(JSContext* ctx, BOOL write) {
+  JSModuleDef* os;
+  const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
+  JSAtom func_name;
+  JSValue set_handler;
+
+  if(!(os = js_module_find(ctx, "os")))
+    return JS_ThrowReferenceError(ctx, "'os' module required");
+
+  func_name = JS_NewAtom(ctx, handlers[write]);
+  set_handler = module_exports_find(ctx, os, func_name);
+  JS_FreeAtom(ctx, func_name);
+
+  if(!JS_IsFunction(ctx, set_handler)) {
+    JS_FreeValue(ctx, set_handler);
+    return JS_ThrowReferenceError(ctx, "no os.%s function", handlers[write]);
+  }
+
+  return set_handler;
+}
+
+static thread_local JSCFunction* readhandler_cfunc;
+
+JSCFunction*
+js_io_readhandler_cfunc(JSContext* ctx, BOOL write) {
+  if(!readhandler_cfunc) {
+    JSValue set_handler;
+    JSObject* obj;
+    set_handler = js_io_readhandler_fn(ctx, write);
+    if(JS_IsException(set_handler))
+      return 0;
+    readhandler_cfunc = js_function_cfunc(ctx, set_handler);
+  }
+  return readhandler_cfunc;
 }

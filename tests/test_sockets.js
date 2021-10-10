@@ -167,14 +167,22 @@ function main() {
       // console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
       data = toString(buf, 0, (n = sock.recv(buf)));
 
-      console.log(`recv(ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(70), ...DumpSock(sock));
+      console.log(
+        `recv(ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(70),
+        ...DumpSock(sock)
+      );
       // console.log('sock', { open: sock.open, eof: sock.eof, error: sock.error, ret: sock.ret });
 
       if(data.indexOf('OpenSSH') != -1) {
         const txt = 'BLAHBLAHTEST\r\n';
         let start = 4;
         n = sock.send(txt, start);
-        console.log(`send(${quote(txt.slice(start), "'")}, ${start}) =`, n, n > 0 ? null : sock.error, ...DumpSock(sock));
+        console.log(
+          `send(${quote(txt.slice(start), "'")}, ${start}) =`,
+          n,
+          n > 0 ? null : sock.error,
+          ...DumpSock(sock)
+        );
       }
     }
   }
