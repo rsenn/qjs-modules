@@ -947,6 +947,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       OffsetLength off;
       js_offset_length(ctx, buf.size, argc - 1, argv + 1, &off);
 
+
+      printf("recv(%d, %zu, %zu %zu)\n",  sock.fd, off.offset, off.length, offset_size(&off, buf.size));
+
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
 
@@ -1151,7 +1154,7 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   if(js_value_isclass(ctx, set_handler, JS_CLASS_C_FUNCTION)) {
     JSObject* obj = JS_VALUE_GET_OBJ(set_handler);
     set_mux = obj->u.cfunc.c_function.generic_magic;
-    printf("cfunc:%p\n", set_mux);
+    //printf("cfunc:%p\n", set_mux);
   }
 
   promise = JS_NewPromiseCapability(ctx, resolving_funcs);
