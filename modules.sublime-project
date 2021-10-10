@@ -16,8 +16,8 @@
   ],
   "settings":
   {
-		"debug.configurations":
+		/*"debug.configurations":
 		[
-		]
+		]*/
 	},
 }
