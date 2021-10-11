@@ -150,10 +150,3 @@ macro(configure_quickjs)
   message(STATUS "\tmodule search path: ${QUICKJS_MODULE_PATH}")
 
 endmacro(configure_quickjs)
-
-if(NOT QUICKJS_JS_MODULE_DIR)
-  set(QUICKJS_JS_MODULE_DIR "${QUICKJS_PREFIX}/lib/quickjs" CACHE PATH "QuickJS JS module directory")
-endif(NOT QUICKJS_JS_MODULED_DIR)
-
-set(MODULES_DIR "${CMAKE_BINARY_DIR}/modules")
-file(MAKE_DIRECTORY "${MODULES_DIR}")
