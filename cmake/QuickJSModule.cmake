@@ -12,7 +12,10 @@ endfunction(config_module TARGET_NAME)
 
 function(compile_module SOURCE)
   basename(BASE "${SOURCE}" .js)
-  #message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
+  message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
+
+  set(MODULES_DIR "${CMAKE_BINARY_DIR}/modules")
+  set(MODULES_DIR "${MODULES_DIR}" PARENT_SCOPE)
 
   if(ARGN)
     set(OUTPUT_FILE ${ARGN})
