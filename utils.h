@@ -808,7 +808,7 @@ void js_strv_free_n(JSContext*, int, char* argv[]);
 void js_strv_free(JSContext* ctx, char** strv);
 void js_strv_free_rt(JSRuntime* rt, char** strv);
 JSValue js_strv_to_array(JSContext* ctx, char** strv);
-JSValue js_intv_to_array(JSContext* ctx, int* intv);
+JSValue js_intv_to_array(JSContext* ctx, int* intv, size_t len);
 char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 int js_array_copys(JSContext*, JSValueConst, int n, char** stra);
 int js_strv_copys(JSContext*, int, JSValueConst argv[], int n, char** stra);

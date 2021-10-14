@@ -872,11 +872,11 @@ js_strv_dup(JSContext* ctx, char** strv) {
 }
 
 JSValue
-js_intv_to_array(JSContext* ctx, int* intv) {
+js_intv_to_array(JSContext* ctx, int* intv, size_t len) {
   JSValue ret = JS_NewArray(ctx);
   if(intv) {
     size_t i;
-    for(i = 0; intv[i]; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
+    for(i = 0; i < len; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
   }
   return ret;
 }
