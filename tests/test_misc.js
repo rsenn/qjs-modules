@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
 import { Location } from 'misc';
-import { extendArray } from 'util';
+import { extendArray,format } from 'util';
 import {
   JS_EVAL_FLAG_COMPILE_ONLY,
   JS_EVAL_TYPE_MODULE,
@@ -126,6 +126,15 @@ function main(...args) {
   } catch(error) {
     console.log('ERROR', error + '', '\n' + error.stack);
   }
+
+
+console.log('util.format()', util.format('string %s', 'abcd'))
+console.log('util.format()', util.format('JSON %j', { str: 'abcd', num: 1234, bool: true ));
+console.log('util.format()', util.format('number %d', 123);
+console.log('util.format()', util.format('integer %i', '0x4d2');
+console.log('util.format()', util.format('float %f', '.3141592653589793e+01');
+ console.log('util.format()', util.format('object %o', { str: 'abcd', num: 1234, bool: true ));
+
   function toHex(num) {
     let r = num.toString(16);
     return r.padStart(2, '0');
