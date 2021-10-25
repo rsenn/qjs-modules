@@ -2218,7 +2218,7 @@ js_error_print(JSContext* ctx, JSValueConst error) {
     if(!strncmp(exception, type, typelen) && exception[typelen] == ':') {
       exception += typelen + 2;
     }
-    printf("%s: %s\n", type, exception);
+    //printf("%s: %s\n", type, exception);
     if(stack)
       printf("STACK=\n%s\n", stack);
     fflush(stdout);
