@@ -1680,15 +1680,64 @@ js_module_find(JSContext* ctx, const char* name) {
   return 0;
 }
 
+int
+js_module_indexof(JSContext* ctx, JSModuleDef* def) {
+  struct list_head* el;
+  int i = 0;
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    if(m == def)
+      return i;
+    ++i;
+  }
+  return -1;
+}
+/*
+Vector
+js_module_vector(JSContext* ctx) {
+  Vector ret = VECTOR(ctx);
+  struct list_head* el;
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    vector_push(&ret, m);
+  }
+  return ret;
+}
+*/
+JSModuleDef*
+js_module_at(JSContext* ctx, int index) {
+  struct list_head* el;
+  int i = 0;
+  if(index >= 0) {
+    list_for_each(el, &ctx->loaded_modules) {
+      JSModuleDef* m = list_entry(el, JSModuleDef, link);
+      if(index == i)
+        return m;
+      ++i;
+    }
+  } else {
+    index = -(index + 1);
+    list_for_each_prev(el, &ctx->loaded_modules) {
+      JSModuleDef* m = list_entry(el, JSModuleDef, link);
+      if(index == i)
+        return m;
+      ++i;
+    }
+  }
+  return 0;
+}
+
 static void
 js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   BOOL has_prop = imp.prop && imp.prop[0];
   BOOL is_ns = imp.spec && imp.spec[0] == '*';
+  BOOL is_default = str_equal(imp.spec, "default");
   const char *var, *base = basename(imp.path);
   size_t blen = str_chr(base, '.');
   dbuf_putstr(db, "import ");
   if(imp.spec) {
-    dbuf_putstr(db, imp.spec);
+    if(!is_default)
+      dbuf_putstr(db, imp.spec);
     if(is_ns) {
       if(!imp.ns) {
         char* x;
@@ -1713,7 +1762,7 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
       var = imp.spec;
   dbuf_putstr(db, ";\n");
 
-  if((has_prop || is_ns) && var[0] != '*') {
+  if((has_prop || is_ns || is_default) && var[0] != '*') {
     dbuf_putm(db,
               "globalThis.",
               var,
@@ -1737,7 +1786,7 @@ js_import_load(JSContext* ctx, ImportDirective imp) {
   js_dbuf_init(ctx, &buf);
   js_import_directive(ctx, imp, &buf);
   code = str_escape((const char*)buf.buf);
-  // printf("js_import_eval: '%s'\n", code);
+  printf("js_import_eval: '%s'\n", code);
   free(code);
   return JS_Eval(ctx,
                  (const char*)buf.buf,
@@ -1753,21 +1802,32 @@ js_import_eval(JSContext* ctx, ImportDirective imp) {
   js_dbuf_init(ctx, &buf);
   js_import_directive(ctx, imp, &buf);
   code = str_escape((const char*)buf.buf);
-  // printf("js_import_eval: '%s'\n", code);
+  printf("js_import_eval: '%s'\n", code);
   free(code);
-  return js_eval_buf(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE);
+  return JS_Eval(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE);
 }
 
 JSModuleDef*
 js_module_import_default(JSContext* ctx, const char* path, const char* var) {
-  js_import_eval(ctx,
-                 (ImportDirective){
-                     .path = path,
-                     .spec = "default",
-                     .ns = 0,
-                     .prop = "default",
-                     .var = 0,
-                 });
+  JSValue ret;
+
+  ret = js_import_eval(ctx,
+                       (ImportDirective){
+                           .path = path,
+                           .spec = "default",
+                           .ns = 0,
+                           .prop = 0,
+                           .var = 0,
+                       });
+
+  /* if(JS_IsException(ret)) {
+     fprintf(stderr, "EXCEPTION: ", JS_ToCString(ctx, ret));
+     return 0;
+   }
+
+   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
+     return JS_VALUE_GET_PTR(ret);*/
+
   return js_module_find(ctx, path);
 }
 
@@ -1814,40 +1874,6 @@ js_module_import(
   return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
 }
 
-/*JSModuleDef*
-js_module_loader_so(JSContext* ctx, const char* module) {
-  JSModuleDef* m;
-  JSModuleLoaderFunc* init;
-  void* hd;
-  char* file;
-  static const char* errors[3] = {"dlopen() failed", "js_init_module not found", "initialization
-error"}; if(!strchr(module, '/')) { if(!(file = js_malloc(ctx, strlen(module) + 2 + 1))) return
-0; strcpy(file, "./"); strcpy(file + 2, module); } else { file = (char*)module;
-  }
-  hd = dlopen(file, RTLD_NOW | RTLD_LOCAL);
-  if(file != module)
-    js_free(ctx, file);
-  if(hd) {
-    if((init = dlsym(hd, "js_init_module"))) {
-      if(!(m = init(ctx, module, 0))) {
-        JS_ThrowReferenceError(ctx, "could not load module file '%s': %s", errors[2]);
-        goto fail;
-      }
-    } else {
-      JS_ThrowReferenceError(ctx, "could not load module file '%s': %s", errors[1]);
-      goto fail;
-    }
-  } else {
-    JS_ThrowReferenceError(ctx, "could not load module file '%s': %s: %s", module, errors[0],
-dlerror()); goto fail;
-  }
-  return m;
-fail:
-  if(hd)
-    dlclose(hd);
-  return 0;
-}*/
-
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   BOOL ret = FALSE;
@@ -1870,41 +1896,27 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SHARED_ARRAY_BUFFER)/* ||
-                                js_object_is(ctx, value, "[object SharedArrayBuffer]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SHARED_ARRAY_BUFFER));
 }
 
 BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx,
-                           value,
-                           JS_CLASS_MAP) /*|| js_object_is(ctx, value, "[object Map]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_MAP));
 }
 
 BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx,
-                           value,
-                           JS_CLASS_SET) /* || js_object_is(ctx, value, "[object Set]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SET));
 }
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(
-             ctx,
-             value,
-             JS_CLASS_GENERATOR) /*|| js_object_is(ctx, value, "[object Generator]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_GENERATOR));
 }
 
 BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx,
-                           value,
-                           JS_CLASS_REGEXP) /*|| js_object_is(ctx, value, "[object RegExp]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_REGEXP));
 }
 
 BOOL
@@ -1915,11 +1927,7 @@ js_is_promise(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_dataview(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(
-             ctx,
-             value,
-             JS_CLASS_DATAVIEW) /*|| js_object_is(ctx, value, "[object DataView]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_DATAVIEW));
 }
 
 BOOL

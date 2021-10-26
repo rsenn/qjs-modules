@@ -224,9 +224,9 @@ mod_int32(int32_t a, int32_t b) {
 
 #define COLOR_RED "\x1b[31m"
 #define COLOR_GREEN "\x1b[32m"
-#define COLOR_YELLOW "\x1b[33m"
+#define COLOR_BROWN "\x1b[33m"
 #define COLOR_BLUE "\x1b[34m"
-#define COLOR_MAGENTA "\x1b[35m"
+#define COLOR_PURPLE "\x1b[35m"
 #define COLOR_MARINE "\x1b[36m"
 #define COLOR_LIGHTGRAY "\x1b[37m"
 #define COLOR_GRAY "\x1b[1;30m"
@@ -235,10 +235,10 @@ mod_int32(int32_t a, int32_t b) {
 #define COLOR_LIGHTRED "\x1b[1;31m"
 
 #define COLOR_LIGHTGREEN "\x1b[1;32m"
-#define COLOR_LIGHTYELLOW "\x1b[1;33m"
+#define COLOR_YELLOW "\x1b[1;33m"
 #define COLOR_LIGHTBLUE "\x1b[1;34m"
-#define COLOR_LIGHTMAGENTA "\x1b[1;35m"
-#define COLOR_LIGHTMARINE "\x1b[1;36m"
+#define COLOR_MAGENTA "\x1b[1;35m"
+#define COLOR_CYAN "\x1b[1;36m"
 #define COLOR_WHITE "\x1b[1;37m"
 
 uint64_t time_us(void);
@@ -918,6 +918,8 @@ char* js_module_search_ext(JSContext*, const char* path, const char*, const char
 char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
 JSModuleDef* js_module_def(JSContext*, JSValueConst);
 JSModuleDef* js_module_find(JSContext*, const char*);
+int js_module_indexof(JSContext*, JSModuleDef* def);
+JSModuleDef* js_module_at(JSContext*, int index);
 JSValue js_import_eval(JSContext*, ImportDirective);
 JSModuleDef* js_module_import_default(JSContext*, const char*, const char* var);
 JSModuleDef* js_module_import_namespace(JSContext*, const char*, const char* ns);

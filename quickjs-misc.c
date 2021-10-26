@@ -142,6 +142,26 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     ptr = JS_GetArrayBuffer(ctx, &len, argv[0]);
   } else if(JS_IsString(argv[0])) {
     ptr = js_cstring_ptr(argv[0]);
+  } else {
+    switch(JS_VALUE_GET_TAG(argv[0])) {
+        /*  case JS_TAG_BIG_DECIMAL:
+          case JS_TAG_BIG_FLOAT:
+          case JS_TAG_BIG_INT:
+          case JS_TAG_FUNCTION_BYTECODE:
+          case JS_TAG_INT:*/
+      case JS_TAG_MODULE:
+        /*      case JS_TAG_OBJECT:
+               case JS_TAG_SYMBOL:*/
+        {
+          ptr = JS_VALUE_GET_PTR(argv[0]);
+          break;
+        }
+      default: {
+        return JS_ThrowTypeError(ctx,
+                                 "toPointer: invalid type %s",
+                                 js_value_typestr(ctx, argv[0]));
+      }
+    }
   }
 
   if(ptr) {
