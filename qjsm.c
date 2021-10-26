@@ -73,7 +73,8 @@ struct jsm_module_record {
   extern const uint8_t qjsc_##name[]; \
   extern const uint32_t qjsc_##name##_size;
 
-#define jsm_module_extern_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
+#define jsm_module_extern_native(name) \
+  extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
 
 #define jsm_module_record_compiled(name) \
   (struct jsm_module_record) { #name, 0, qjsc_##name, qjsc_##name##_size, 0 }
@@ -313,7 +314,10 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   }
 end:
   if(vector_finds(&module_debug, "import") != -1) {
-    fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
+    fprintf(stderr,
+            (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n",
+            module,
+            file);
   }
   if(!m)
     printf("jsm_module_loader(\"%s\") = %p\n", name, m);
@@ -433,7 +437,8 @@ jsm_trace_malloc_usable_size(void* ptr) {
   return malloc_size(ptr);
 #elif defined(_WIN32)
   return _msize(ptr);
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || \
+    defined(DONT_HAVE_MALLOC_USABLE_SIZE)
   return 0;
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
   return malloc_usable_size(ptr);
@@ -463,7 +468,9 @@ static void
         if(ptr == 0) {
           printf("0");
         } else {
-          printf("H%+06lld.%zd", jsm_trace_malloc_ptr_offset(ptr, s->opaque), jsm_trace_malloc_usable_size(ptr));
+          printf("H%+06lld.%zd",
+                 jsm_trace_malloc_ptr_offset(ptr, s->opaque),
+                 jsm_trace_malloc_usable_size(ptr));
         }
         fmt++;
         continue;
@@ -552,7 +559,8 @@ static const JSMallocFunctions trace_mf = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t(*)(const void*))_msize,
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || \
+    defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
     0,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
     (size_t(*)(const void*))malloc_usable_size,
@@ -590,7 +598,8 @@ jsm_help(void) {
 }
 
 static JSValue
-jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+jsm_eval_script(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char* str;
   size_t len;
   JSValue ret;
@@ -641,7 +650,8 @@ enum {
 };
 
 static JSValue
-jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+jsm_module_func(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue val = JS_EXCEPTION;
   JSModuleDef* m = 0;
   const char* name = 0;
@@ -992,7 +1002,10 @@ main(int argc, char** argv) {
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 
-    JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
+    JS_SetPropertyFunctionList(ctx,
+                               JS_GetGlobalObject(ctx),
+                               jsm_global_funcs,
+                               countof(jsm_global_funcs));
     if(load_std) {
       const char* str = "import * as std from 'std';\nimport * as os from "
                         "'os';\nglobalThis.std = "
@@ -1053,7 +1066,8 @@ main(int argc, char** argv) {
                "import fs from 'fs';\n"
                "import { Console } from 'console';\n"
                "const history = '%s/.%s_history';\n"
-               "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n"
+               "globalThis.console = new Console(out, { inspectOptions: { customInspect: true "
+               "} });\n"
                "globalThis.repl = new REPL('qjsm');\n"
                "repl.fs = fs;\n"
                "repl.show = console.log;\n"
@@ -1101,7 +1115,12 @@ main(int argc, char** argv) {
           best[j] = ms;
       }
     }
-    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
+    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n",
+           best[1] + best[2] + best[3] + best[4],
+           best[1],
+           best[2],
+           best[3],
+           best[4]);
   }
   return 0;
 fail:

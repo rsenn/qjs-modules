@@ -63,7 +63,8 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
 
   JS_FreeValue(ctx, map_prototype);
 
-  return (VirtualProperties){map_obj, map_has, map_delete, map_get, map_set, map_finalizer, adapter};
+  return (VirtualProperties){
+      map_obj, map_has, map_delete, map_get, map_set, map_finalizer, adapter};
 }
 
 static BOOL
@@ -112,5 +113,11 @@ object_finalizer(VirtualProperties* vp, JSContext* ctx) {
 
 VirtualProperties
 virtual_properties_object(JSContext* ctx, JSValueConst obj) {
-  return (VirtualProperties){JS_DupValue(ctx, obj), object_has, object_delete, object_get, object_set, object_finalizer, 0};
+  return (VirtualProperties){JS_DupValue(ctx, obj),
+                             object_has,
+                             object_delete,
+                             object_get,
+                             object_set,
+                             object_finalizer,
+                             0};
 }
