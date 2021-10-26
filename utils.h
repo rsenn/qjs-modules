@@ -677,8 +677,8 @@ char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
 JSValue js_object_construct(JSContext* ctx, JSValueConst ctor);
 JSValue js_object_error(JSContext* ctx, const char* message);
-JSValue js_object_stack(JSContext* ctx);
 JSValue js_object_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]);
+JSValue js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj);
 
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {
@@ -950,6 +950,7 @@ void js_free_message_pipe(JSWorkerMessagePipe*);
 void js_error_dump(JSContext*, JSValue, DynBuf* db);
 char* js_error_tostring(JSContext*, JSValue);
 void js_error_print(JSContext*, JSValue);
+JSValue js_error_stack(JSContext* ctx);
 
 JSValue js_promise_resolve(JSContext* ctx, JSValueConst promise);
 JSValue js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func);

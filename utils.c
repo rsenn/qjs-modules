@@ -653,19 +653,19 @@ js_object_error(JSContext* ctx, const char* message) {
 }
 
 JSValue
-js_object_stack(JSContext* ctx) {
-  JSValue error = js_object_error(ctx, "");
-  JSValue stack = JS_GetPropertyStr(ctx, error, "stack");
-  JS_FreeValue(ctx, error);
-  return stack;
-}
-
-JSValue
 js_object_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]) {
   JSValue ctor = js_global_get_str(ctx, class_name);
   JSValue obj = JS_CallConstructor(ctx, ctor, argc, argv);
   JS_FreeValue(ctx, ctor);
   return obj;
+}
+
+JSValue
+js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj) {
+  JSValue ret, ctor = js_global_get_str(ctx, "Object");
+  ret = js_invoke(ctx, ctor, func_name, 1, &obj);
+  JS_FreeValue(ctx, ctor);
+  return ret;
 }
 
 BOOL
@@ -2358,6 +2358,14 @@ js_error_print(JSContext* ctx, JSValueConst error) {
   if(stack)
     JS_FreeCString(ctx, stack);
   JS_FreeCString(ctx, str);
+}
+
+JSValue
+js_error_stack(JSContext* ctx) {
+  JSValue error = js_object_error(ctx, "");
+  JSValue stack = JS_GetPropertyStr(ctx, error, "stack");
+  JS_FreeValue(ctx, error);
+  return stack;
 }
 
 JSValue
