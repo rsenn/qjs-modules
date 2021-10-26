@@ -623,7 +623,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   JSValue ret = JS_UNDEFINED;
   glob_t g = {0, 0, 0};
   int result;
-  BOOL array_arg=FALSE;
+  BOOL array_arg = FALSE;
   const char* pattern = JS_ToCString(ctx, argv[0]);
 
   if(argc >= 2)
@@ -642,15 +642,16 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   js_misc_glob_errfunc_fn = argc >= 3 ? argv[2] : JS_UNDEFINED;
 
   if((result =
-          glob(pattern, flags & (~(GLOB_APPEND | GLOB_DOOFFS)), js_misc_glob_errfunc, &g)) == 0) {
+          glob(pattern, flags & (~(GLOB_APPEND | GLOB_DOOFFS)), js_misc_glob_errfunc, &g)) ==
+     0) {
     for(i = 0; i < g.gl_pathc; i++)
       JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, g.gl_pathv[i]));
 
     globfree(&g);
   }
 
-if(array_arg || result) {
-  JS_FreeValue(ctx, ret);
+  if(array_arg || result) {
+    JS_FreeValue(ctx, ret);
     ret = JS_NewInt32(ctx, result);
   }
 
@@ -667,13 +668,13 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSValue ret = JS_UNDEFINED;
   wordexp_t we = {0, 0, 0};
   int result;
-  BOOL array_arg=FALSE;
+  BOOL array_arg = FALSE;
   const char* s = JS_ToCString(ctx, argv[0]);
 
   if(argc >= 3)
     JS_ToInt32(ctx, &flags, argv[2]);
 
-  if((array_arg= (argc >= 2 && JS_IsArray(ctx, argv[1])))) {
+  if((array_arg = (argc >= 2 && JS_IsArray(ctx, argv[1])))) {
     ret = JS_DupValue(ctx, argv[1]);
 
     if(flags & WRDE_APPEND)
@@ -682,18 +683,18 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     ret = JS_NewArray(ctx);
   }
 
-  if((result = wordexp(s, &we, flags & (~(WRDE_APPEND|WRDE_DOOFFS)))) == 0) {
+  if((result = wordexp(s, &we, flags & (~(WRDE_APPEND | WRDE_DOOFFS)))) == 0) {
     for(i = 0; i < we.we_wordc; i++)
       JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, we.we_wordv[i]));
 
     wordfree(&we);
   }
 
-if(array_arg || result) {
-   JS_FreeValue(ctx, ret);
+  if(array_arg || result) {
+    JS_FreeValue(ctx, ret);
     ret = JS_NewInt32(ctx, result);
   }
- 
+
   JS_FreeCString(ctx, s);
   return ret;
 }
@@ -1356,6 +1357,7 @@ enum {
   IS_UNCATCHABLEERROR,
   IS_UNDEFINED,
   IS_UNINITIALIZED,
+  IS_ARRAYBUFFER,
 };
 
 JSValue
@@ -1396,6 +1398,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_UNCATCHABLEERROR: r = JS_IsUncatchableError(ctx, arg); break;
     case IS_UNDEFINED: r = JS_IsUndefined(arg); break;
     case IS_UNINITIALIZED: r = JS_IsUninitialized(arg); break;
+    case IS_ARRAYBUFFER: r = js_is_arraybuffer(ctx, arg); break;
   }
   if(r == -1)
     return JS_ThrowInternalError(ctx, "js_misc_is %d", magic);
@@ -1505,6 +1508,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isUncatchableError", 1, js_misc_is, IS_UNCATCHABLEERROR),
     JS_CFUNC_MAGIC_DEF("isUndefined", 1, js_misc_is, IS_UNDEFINED),
     JS_CFUNC_MAGIC_DEF("isUninitialized", 1, js_misc_is, IS_UNINITIALIZED),
+    JS_CFUNC_MAGIC_DEF("isArrayBuffer", 1, js_misc_is, IS_ARRAYBUFFER),
 
     JS_CONSTANT(JS_EVAL_TYPE_GLOBAL),
     JS_CONSTANT(JS_EVAL_TYPE_MODULE),

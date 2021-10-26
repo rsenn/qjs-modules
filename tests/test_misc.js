@@ -106,7 +106,7 @@ function main(...args) {
     console.log('ERROR', error + '', '\n' + error.stack);
   }
 
-  console.log('format()', format('string %s', 'abcd'));
+  console.log('format()', { s: format('string %s', 'abcd') });
   console.log('format()', format('JSON %j', { str: 'abcd', num: 1234, bool: true }));
   console.log('format()', format('number %d', 123));
   console.log('format()', format('integer %i', '0x4d2'));
