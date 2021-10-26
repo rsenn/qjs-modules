@@ -1,7 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
-import { Repeater  } from 'repeater';
+import { Repeater } from 'repeater';
 
 ('use strict');
 ('use math');

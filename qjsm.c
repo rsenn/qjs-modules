@@ -260,15 +260,6 @@ jsm_module_load(JSContext* ctx, const char* name) {
   JSModuleDef *m, *(*imp)(JSContext*, const char*, const char*);
   struct jsm_module_record* module_rec;
 
-  /*  if((module_rec = jsm_module_find(name)) && !module_rec->def) {
-
-      jsm_module_init(ctx, module_rec);
-      return;
-    }
-  */
-  if(debug_module_loader > 2)
-    printf(BACKGROUND_GREEN COLOR_WHITE "(0)" COLOR_NONE " %-30s jsm_module_load\n", name);
-
   imp = &js_module_import_default;
 
   if(name[0] == '*') {
@@ -276,11 +267,23 @@ jsm_module_load(JSContext* ctx, const char* name) {
     name++;
   }
 
-  if(!(m = imp(ctx, name, 0))) {
+  if((module_rec = jsm_module_find(name)) && !module_rec->def) {
+
+    m = jsm_module_init(ctx, module_rec);
+
+    JSValue exports = module_exports(ctx, m);
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+    JS_SetPropertyStr(ctx, global_obj, name, exports);
+    JS_FreeValue(ctx, global_obj);
+    // return;
+  } else if(!(m = imp(ctx, name, 0))) {
     fprintf(stderr, "error loading module '%s'\n", name);
     jsm_dump_error(ctx);
     exit(1);
   }
+
+  if(debug_module_loader > 2)
+    printf(BACKGROUND_GREEN COLOR_WHITE "(0)" COLOR_NONE " %-30s jsm_module_load\n", name);
 }
 
 static JSModuleDef*

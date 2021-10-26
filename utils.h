@@ -964,6 +964,7 @@ js_promise_resolve_then(JSContext* ctx, JSValueConst promise, JSValueConst func)
 }
 
 JSValue js_promise_wrap(JSContext* ctx, JSValueConst value);
+JSValue js_promise_adopt(JSContext* ctx, JSValueConst value);
 
 /**
  * @}

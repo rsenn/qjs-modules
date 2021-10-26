@@ -1902,14 +1902,17 @@ js_module_import_default(JSContext* ctx, const char* path, const char* var) {
 
 JSModuleDef*
 js_module_import_namespace(JSContext* ctx, const char* path, const char* ns) {
-  js_import_eval(ctx,
-                 (ImportDirective){
-                     .path = path,
-                     .spec = "*",
-                     .ns = ns,
-                     .prop = 0,
-                     .var = 0,
-                 });
+  JSValue r;
+
+  r = js_import_eval(ctx,
+                     (ImportDirective){
+                         .path = path,
+                         .spec = "*",
+                         .ns = ns,
+                         .prop = 0,
+                         .var = 0,
+                     });
+
   return js_module_find(ctx, path);
 }
 
@@ -2422,6 +2425,13 @@ js_promise_wrap(JSContext* ctx, JSValueConst value) {
   JS_FreeValue(ctx, resolving_funcs[0]);
   JS_FreeValue(ctx, resolving_funcs[1]);
   return promise;
+}
+
+JSValue
+js_promise_adopt(JSContext* ctx, JSValueConst value) {
+  if(js_is_promise(ctx, value))
+    return JS_DupValue(ctx, value);
+  return js_promise_wrap(ctx, value);
 }
 
 /**
