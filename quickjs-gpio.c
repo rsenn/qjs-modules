@@ -3,6 +3,10 @@
 #include "quickjs-gpio.h"
 #include "utils.h"
 
+/**
+ * \addtogroup quickjs-gpio
+ * @{
+ */
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_gpio_class_id = 0;
@@ -204,3 +208,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "GPIO");
   return m;
 }
+
+/**
+ * @}
+ */

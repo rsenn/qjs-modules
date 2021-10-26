@@ -24,6 +24,11 @@ int isatty(HANDLE);
 #endif
 #endif
 
+/**
+ * \defgroup quickjs-inspect QuickJS module: inspect - Inspection
+ * @{
+ */
+
 thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
@@ -557,10 +562,10 @@ js_inspect_print_regexp(
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
   if(opts->colors)
-    dbuf_putstr(buf, "\x1b[0;31m");
+    dbuf_putstr(buf, COLOR_RED);
   dbuf_put_escaped_pred(buf, str, len, regexp_predicate);
   if(opts->colors)
-    dbuf_putstr(buf, "\x1b[m");
+    dbuf_putstr(buf, COLOR_NONE);
   js_cstring_free(ctx, str);
   return 0;
 }
@@ -688,7 +693,7 @@ js_inspect_print_module(
   if(def) {
     int index = js_module_indexof(ctx, def);
     assert(js_module_at(ctx, index) == def);
-    dbuf_printf(buf, COLOR_CYAN " #%i" COLOR_NONE, index);
+    dbuf_printf(buf, COLOR_WHITE " #%i" COLOR_NONE, index);
 
     dbuf_printf(buf, COLOR_YELLOW " %p" COLOR_NONE, def);
     dbuf_putc(buf, ' ');
@@ -704,12 +709,13 @@ js_inspect_print_module(
       ++pos;
     }
 
-    if(JS_IsFunction(ctx, def->func_obj))
-      dbuf_putstr(buf, COLOR_LIGHTRED " JS" COLOR_NONE);
-    else if(def->init_func)
-      dbuf_putstr(buf, COLOR_LIGHTGREEN " NATIVE" COLOR_NONE);
-    else
-      dbuf_putstr(buf, COLOR_LIGHTRED " BYTECODE" COLOR_NONE);
+    if(JS_IsFunction(ctx, def->func_obj)) {
+      dbuf_putstr(buf, COLOR_RED " JS" COLOR_NONE);
+    } else if(def->init_func) {
+      dbuf_putstr(buf, COLOR_RED " NATIVE" COLOR_NONE);
+    } else {
+      dbuf_putstr(buf, COLOR_RED " BYTECODE" COLOR_NONE);
+    }
 
     if(!def->resolved)
       dbuf_putstr(buf, COLOR_YELLOW " (not resolved)" COLOR_NONE);
@@ -1219,3 +1225,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "default");
   return m;
 }
+
+/**
+ * @}
+ */

@@ -16,6 +16,10 @@
 #include <sys/time.h>
 #include <quickjs-libc.h>
 
+/**
+ * \addtogroup utils
+ * @{
+ */
 void quicksort_r(void*, size_t, size_t, int (*)(const void*, const void*, void*), void*);
 int strverscmp(const char*, const char*);
 
@@ -239,17 +243,17 @@ js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
   str = JS_AtomToCString(ctx, atom);
   is_int = js_atom_isint(atom) || is_integer(str);
   if(color)
-    dbuf_putstr(db, is_int ? "\x1b[33m" : "\x1b[1;30m");
+    dbuf_putstr(db, is_int ? COLOR_BROWN : COLOR_GRAY);
 
   dbuf_putstr(db, str);
   if(color)
-    dbuf_putstr(db, "\x1b[1;36m");
+    dbuf_putstr(db, COLOR_CYAN);
 
   if(!is_int)
     dbuf_printf(db, "(0x%x)", js_atom_tobinary(atom));
 
   if(color)
-    dbuf_putstr(db, "\x1b[m");
+    dbuf_putstr(db, COLOR_NONE);
 }
 
 unsigned int
@@ -1477,7 +1481,7 @@ js_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     char* str = module_namestr(ctx, m);
     JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
-    if(str[0] != '<')
+    if(1 /*str[0] != '<'*/)
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
       JS_FreeValue(ctx, entry);
@@ -1497,7 +1501,7 @@ js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
     JSValue entry = JS_NewArray(ctx);
     JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, /*basename*/ (name)));
     JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, m) : module_value(ctx, m));
-    if(name[0] != '<')
+    if(1 /*str[0] != '<'*/)
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
       JS_FreeValue(ctx, entry);
@@ -1522,7 +1526,7 @@ js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
     JSModuleDef* m = list_entry(it, JSModuleDef, link);
     char* name = module_namestr(ctx, m);
     JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
-    if(name[0] != '<')
+    if(1 /*str[0] != '<'*/)
       JS_SetPropertyStr(ctx, obj, basename(name), entry);
     else
       JS_FreeValue(ctx, entry);
@@ -2340,3 +2344,7 @@ js_io_readhandler_cfunc(JSContext* ctx, BOOL write) {
   }
   return readhandler_cfunc;
 }
+
+/**
+ * @}
+ */

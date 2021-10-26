@@ -8,6 +8,10 @@
 #include <stdint.h>
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup quickjs-lexer
+ * @{
+ */
 enum {
   LEXER_METHOD_SET_INPUT = 0,
   LEXER_METHOD_SKIP,
@@ -1544,3 +1548,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "Lexer");
   return m;
 }
+
+/**
+ * @}
+ */

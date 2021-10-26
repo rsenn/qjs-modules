@@ -1,5 +1,9 @@
 #include "ringbuffer.h"
 
+/**
+ * \addtogroup ringbuffer
+ * @{
+ */
 void
 ringbuffer_reset(RingBuffer* r) {
   r->head = r->tail = 0;
@@ -101,3 +105,7 @@ ringbuffer_allocate(RingBuffer* r, size_t size) {
 
   return TRUE;
 }
+
+/**
+ * @}
+ */

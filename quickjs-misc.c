@@ -16,6 +16,11 @@
 #include <wordexp.h>
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup quickjs-misc
+ * @{
+ */
+
 #ifndef HAVE_MEMMEM
 void* memmem(const void*, size_t, const void*, size_t);
 #endif
@@ -1631,3 +1636,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   // JS_AddModuleExport(ctx, m, "StringDecoder");
   return m;
 }
+
+
+/**
+ * @}
+ */

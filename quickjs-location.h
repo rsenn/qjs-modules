@@ -4,6 +4,10 @@
 #include "location.h"
 #include "utils.h"
 
+/**
+ * \defgroup quickjs-location QuickJS module: location - Text location object
+ * @{
+ */
 extern thread_local JSClassID js_location_class_id;
 extern thread_local JSValue location_proto, location_ctor;
 
@@ -18,5 +22,9 @@ JSValue js_location_constructor(JSContext*, JSValueConst new_target, int argc, J
 void js_location_finalizer(JSRuntime*, JSValue val);
 int js_location_init(JSContext*, JSModuleDef* m);
 JSModuleDef* js_init_module_location(JSContext*, const char* module_name);
+
+/**
+ * @}
+ */
 
 #endif /* defined(QUICKJS_LOCATION_H) */

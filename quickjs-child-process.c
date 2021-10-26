@@ -3,6 +3,10 @@
 #include "child-process.h"
 #include "property-enumeration.h"
 
+/**
+ * \defgroup quickjs-child-process QuickJS module: child_process - Child process
+ * @{
+ */
 #ifdef _WIN32
 #include <io.h>
 #define pipe(fds) _pipe(fds, 4096, 0)
@@ -460,3 +464,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "default");
   return m;
 }
+
+/**
+ * @}
+ */

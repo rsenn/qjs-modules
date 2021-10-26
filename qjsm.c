@@ -217,12 +217,19 @@ jsm_load_package(JSContext* ctx, const char* file) {
 static struct jsm_module_record*
 jsm_module_find(const char* name) {
   if(debug_module_loader > 2)
-    printf("\x1b[48;5;20m\x1b[1;37m(0)\x1b[0m %-30s jsm_module_find\n", name);
+    printf(BACKGROUND_BLUE COLOR_WHITE "(0)" COLOR_NONE " %-30s jsm_module_find\n", name);
   struct jsm_module_record* rec;
   vector_foreach_t(&jsm_modules, rec) {
     if(!strcmp(rec->module_name, name))
       return rec;
   }
+  return 0;
+}
+
+static struct jsm_module_record*
+jsm_module_builtin(JSModuleDef* def) {
+  struct jsm_module_record* rec;
+  vector_foreach_t(&jsm_modules, rec) if(rec->def && rec->def == def) return rec;
   return 0;
 }
 
@@ -242,7 +249,8 @@ jsm_module_init(JSContext* ctx, struct jsm_module_record* rec) {
       m = JS_VALUE_GET_PTR(obj);
     }
     if(debug_module_loader > 2)
-      printf("\x1b[48;5;214m\x1b[30m(3)\x1b[0m %-30s jsm_module_init native=%i\n",
+      printf(BACKGROUND_YELLOW COLOR_BLACK "(3)" COLOR_NONE
+                                           " %-30s jsm_module_init native=%i\n",
              rec->module_name,
              native_module);
 
@@ -263,7 +271,7 @@ jsm_module_load(JSContext* ctx, const char* name) {
     }
   */
   if(debug_module_loader > 2)
-    printf("\x1b[48;5;72m\x1b[1;37m(0)\x1b[0m %-30s jsm_module_load\n", name);
+    printf(BACKGROUND_GREEN COLOR_WHITE "(0)" COLOR_NONE " %-30s jsm_module_load\n", name);
 
   imp = &js_module_import_default;
 
@@ -284,7 +292,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   char *module, *file = 0;
   JSModuleDef* def = 0;
   if(debug_module_loader >= 1)
-    printf("\x1b[1;37;48;5;88m(0)\x1b[0m %-30s jsm_module_loader\n", name);
+    printf(BACKGROUND_RED COLOR_WHITE "(0)" COLOR_NONE " %-30s jsm_module_loader\n", name);
 
   if(!jsm_modules_initialized) {
     jsm_init_modules(ctx);
@@ -295,8 +303,8 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   for(;;) {
     if(debug_module_loader > 1) {
       if(file)
-        printf("\x1b[48;5;214m(1)\x1b[0m %-30s '%s'\n", name, file);
-      /*  else  printf("jsm_module_loader[%x] \x1b[48;5;124m(1)\x1b[0m %-20s ->
+        printf(BACKGROUND_YELLOW "(1)" COLOR_NONE " %-30s '%s'\n", name, file);
+      /*  else  printf("jsm_module_loader[%x] " BACKGROUND_RED "(1)" COLOR_NONE " %-20s ->
        * %s\n", pthread_self(), trim_dotslash(name), trim_dotslash(module));*/
     }
     if(!strchr(module, '/')) {
@@ -322,7 +330,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
           const char* str = JS_ToCString(ctx, target);
           if(str) {
             if(debug_module_loader)
-              printf("\x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", module, str);
+              printf(BACKGROUND_GREEN "(2)" COLOR_NONE " %-30s => %s\n", module, str);
 
             js_free(ctx, module);
 
@@ -345,7 +353,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   if(file) {
     if(debug_module_loader)
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
-        printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
+        printf(BACKGROUND_BLUE "(3)" COLOR_NONE " %-30s -> %s\n", module, file);
 
     def = js_module_loader(ctx, file, opaque);
   }
@@ -358,7 +366,9 @@ end:
   }
   if(debug_module_loader >= 1 && def) {
     const char* str = module_namestr(ctx, def);
-    printf("\x1b[1;37;48;5;88m(0)\x1b[0m %-30s jsm_module_loader = %s\n", name, str);
+    printf(BACKGROUND_RED COLOR_WHITE "(0)" COLOR_NONE " %-30s jsm_module_loader = %s\n",
+           name,
+           str);
     js_free(ctx, str);
   }
   if(!def)
@@ -822,8 +832,12 @@ jsm_builtin_modules(JSContext* ctx, JSValueConst this_val, int magic) {
   struct jsm_module_record* rec;
 
   vector_foreach_t(&jsm_modules, rec) {
-    if(rec->def == 0 && magic)
-      continue;
+    if(magic) {
+      if(rec->def == 0 && magic == 1)
+        continue;
+      if(rec->def != 0 && magic == 2)
+        continue;
+    }
 
     JS_SetPropertyUint32(ctx, ret, i++, jsm_builtin_module(ctx, rec));
   }
@@ -835,6 +849,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalScript", 1, jsm_eval_script, 1),
     JS_CGETSET_MAGIC_DEF("builtinModules", jsm_builtin_modules, 0, 0),
     JS_CGETSET_MAGIC_DEF("builtinModulesLoaded", jsm_builtin_modules, 0, 1),
+    JS_CGETSET_MAGIC_DEF("builtinModulesNotLoaded", jsm_builtin_modules, 0, 2),
     JS_CGETSET_MAGIC_DEF("moduleList", js_modules_array, 0, 0),
     JS_CGETSET_MAGIC_DEF("moduleObject", js_modules_object, 0, 0),
     JS_CGETSET_MAGIC_DEF("moduleMap", js_modules_map, 0, 0),

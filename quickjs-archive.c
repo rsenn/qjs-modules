@@ -2,6 +2,12 @@
 #include <archive_entry.h>
 #include "quickjs-archive.h"
 #include "utils.h"
+ 
+
+/**
+ * \addtogroup quickjs-archive 
+ * @{
+ */
 
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
@@ -1227,3 +1233,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "Archive");
   return m;
 }
+
+/**
+ * @}
+ */

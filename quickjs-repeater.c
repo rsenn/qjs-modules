@@ -1,6 +1,10 @@
 #include "utils.h"
 #include <string.h>
 
+/**
+ * \defgroup quickjs-repeater QuickJS module: repeater - Async Iterator Repeater
+ * @{
+ */
 thread_local VISIBLE JSClassID js_repeater_class_id = 0;
 thread_local JSValue repeater_proto = {{JS_TAG_UNDEFINED}},
                      repeater_ctor = {{JS_TAG_UNDEFINED}};
@@ -193,3 +197,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "Repeater");
   return m;
 }
+
+/**
+ * @}
+ */

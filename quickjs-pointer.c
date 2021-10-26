@@ -2,6 +2,11 @@
 #include "utils.h"
 #include <string.h>
 
+/**
+ * \addtogroup quickjs-pointer
+ * @{
+ */
+
 thread_local VISIBLE JSClassID js_pointer_class_id = 0;
 thread_local JSValue pointer_proto = {{JS_TAG_UNDEFINED}}, pointer_ctor = {{JS_TAG_UNDEFINED}};
 
@@ -501,3 +506,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "Pointer");
   return m;
 }
+
+/**
+ * @}
+ */

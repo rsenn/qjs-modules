@@ -8,6 +8,10 @@
 
 #include <stdint.h>
 
+/**
+ * \defgroup quickjs-deep QuickJS module: deep - Deep object
+ * @{
+ */
 thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
 thread_local JSValue deep_functions = {{JS_TAG_UNDEFINED}}, deep_iterator_proto = {{JS_TAG_UNDEFINED}}, deep_iterator_ctor = {{JS_TAG_UNDEFINED}};
 
@@ -739,3 +743,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "default");
   return m;
 }
+
+/**
+ * @}
+ */

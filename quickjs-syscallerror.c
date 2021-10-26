@@ -3,6 +3,10 @@
 #include "char-utils.h"
 #include <errno.h>
 
+/**
+ * \addtogroup quickjs-syscallerror
+ * @{
+ */
 thread_local JSClassID js_syscallerror_class_id = 0;
 thread_local JSValue syscallerror_proto = {{JS_TAG_UNDEFINED}}, syscallerror_ctor = {{JS_TAG_UNDEFINED}};
 
@@ -590,3 +594,7 @@ const char* const errors[133] = {
     "ERFKILL",
 };
 const size_t errors_size = countof(errors);
+
+/**
+ * @}
+ */

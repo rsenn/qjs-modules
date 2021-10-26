@@ -18,6 +18,11 @@ int socketpair(int, int, int, SOCKET[2]);
 #include <errno.h>
 //#include <alloca.h>
 
+/**
+ * \addtogroup quickjs-sockets
+ * @{
+ */
+
 extern const uint32_t qjsm_fd_set_size;
 extern const uint8_t qjsm_fd_set[1030];
 extern const uint32_t qjsm_socklen_t_size;
@@ -2126,3 +2131,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   }
   return m;
 }
+
+/**
+ * @}
+ */

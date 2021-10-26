@@ -2,6 +2,10 @@
 #include "buffer-utils.h"
 #include "utils.h"
 
+/**
+ * \addtogroup buffer-utils
+ * @{
+ */
 size_t
 ansi_length(const char* str, size_t len) {
   size_t i, n = 0, p;
@@ -490,3 +494,7 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Of
   }
   return ret;
 }
+
+/**
+ * @}
+ */

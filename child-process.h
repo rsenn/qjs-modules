@@ -6,6 +6,10 @@
 
 #include <stdint.h>
 
+/**
+ * \defgroup child-process Child processes
+ * @{
+ */
 #ifdef _WIN32
 #define WNOWAIT 0x1000000
 #define WNOHANG 1
@@ -71,4 +75,7 @@ void child_process_free_rt(ChildProcess*, JSRuntime*);
 
 extern const char* child_process_signals[32];
 
+/**
+ * @}
+ */
 #endif /* defined(CHILD_PROCESS_H) */

@@ -13,6 +13,10 @@
 #include <threads.h>
 #endif
 
+/**
+ * \defgroup utils Utilities
+ * @{
+ */
 char* basename(const char*);
 
 #ifndef offsetof
@@ -222,15 +226,16 @@ mod_int32(int32_t a, int32_t b) {
   return (c < 0) ? c + b : c;
 }
 
-#define COLOR_RED "\x1b[31m"
-#define COLOR_GREEN "\x1b[32m"
-#define COLOR_BROWN "\x1b[33m"
-#define COLOR_BLUE "\x1b[34m"
-#define COLOR_PURPLE "\x1b[35m"
-#define COLOR_MARINE "\x1b[36m"
-#define COLOR_LIGHTGRAY "\x1b[37m"
+#define COLOR_BLACK "\x1b[0;30m"
+#define COLOR_RED "\x1b[0;31m"
+#define COLOR_GREEN "\x1b[0;32m"
+#define COLOR_BROWN "\x1b[0;33m"
+#define COLOR_BLUE "\x1b[0;34m"
+#define COLOR_PURPLE "\x1b[0;35m"
+#define COLOR_MARINE "\x1b[0;36m"
+#define COLOR_LIGHTGRAY "\x1b[0;37m"
 #define COLOR_GRAY "\x1b[1;30m"
-#define COLOR_NONE "\x1b[m"
+#define COLOR_NONE "\x1b[0m"
 
 #define COLOR_LIGHTRED "\x1b[1;31m"
 
@@ -240,6 +245,11 @@ mod_int32(int32_t a, int32_t b) {
 #define COLOR_MAGENTA "\x1b[1;35m"
 #define COLOR_CYAN "\x1b[1;36m"
 #define COLOR_WHITE "\x1b[1;37m"
+
+#define BACKGROUND_RED "\x1b[48;5;124m"
+#define BACKGROUND_BLUE "\x1b[48;5;20m"
+#define BACKGROUND_YELLOW "\x1b[48;5;214m"
+#define BACKGROUND_GREEN "\x1b[48;5;28m"
 
 uint64_t time_us(void);
 
@@ -953,5 +963,9 @@ void js_free_message_pipe(JSWorkerMessagePipe*);
 void js_error_dump(JSContext*, JSValue, DynBuf* db);
 char* js_error_tostring(JSContext*, JSValue);
 void js_error_print(JSContext*, JSValue);
+
+/**
+ * @}
+ */
 
 #endif /* defined(UTILS_H) */

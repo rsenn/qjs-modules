@@ -3,6 +3,10 @@
 #include "utils.h"
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup pointer
+ * @{
+ */
 void
 pointer_reset(Pointer* ptr, JSContext* ctx) {
   size_t i;
@@ -42,7 +46,8 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
   }
 }
 
-#define pointer_color(s) (/*(index) >= 0 &&*/ (i) >= (index) ? "\x1b[31m" : (is_integer(s) ? "\x1b[1;30m" : "\x1b[0;33m"))
+#define pointer_color(s) \
+  (/*(index) >= 0 &&*/ (i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_GRAY : COLOR_BROWN))
 
 void
 pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index) {
@@ -52,14 +57,16 @@ pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index)
     BOOL is_int;
     s = JS_AtomToCString(ctx, ptr->atoms[i]);
     is_int = is_integer(s);
-    dbuf_putstr(db, color ? (is_int ? "\x1b[1;36m[" : "\x1b[1;36m.") : (is_integer(s) ? "[" : "."));
+    dbuf_putstr(db,
+                color ? (is_int ? COLOR_CYAN "[" : COLOR_CYAN ".")
+                      : (is_integer(s) ? "[" : "."));
     dbuf_putstr(db, color ? pointer_color(s) : "");
     dbuf_putstr(db, s);
     if(is_int)
-      dbuf_putstr(db, color ? "\x1b[1;36m]" : "]");
+      dbuf_putstr(db, color ? COLOR_CYAN "]" : "]");
     js_cstring_free(ctx, s);
   }
-  dbuf_putstr(db, color ? "\x1b[m" : "");
+  dbuf_putstr(db, color ? COLOR_NONE : "");
 }
 
 void
@@ -312,7 +319,9 @@ JSValue
 pointer_toarray(Pointer* ptr, JSContext* ctx) {
   size_t i;
   JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++) { JS_SetPropertyUint32(ctx, array, i, js_atom_tovalue(ctx, ptr->atoms[i])); }
+  for(i = 0; i < ptr->n; i++) {
+    JS_SetPropertyUint32(ctx, array, i, js_atom_tovalue(ctx, ptr->atoms[i]));
+  }
   return array;
 }
 
@@ -320,7 +329,9 @@ JSValue
 pointer_toatoms(Pointer* ptr, JSContext* ctx) {
   size_t i;
   JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++) { JS_SetPropertyUint32(ctx, array, i, JS_NewUint32(ctx, ptr->atoms[i])); }
+  for(i = 0; i < ptr->n; i++) {
+    JS_SetPropertyUint32(ctx, array, i, JS_NewUint32(ctx, ptr->atoms[i]));
+  }
   return array;
 }
 
@@ -339,3 +350,7 @@ pointer_fromatoms(Pointer* ptr, JSContext* ctx, JSValueConst arr) {
   }
   return ptr->n;
 }
+
+/**
+ * @}
+ */

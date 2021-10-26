@@ -3,6 +3,10 @@
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup predicate
+ * @{
+ */
 #define max(left, right) ((left) > (right) ? (left) : (right))
 #define min(left, right) ((left) < (right) ? (left) : (right))
 
@@ -1133,3 +1137,7 @@ predicate_precedence(const Predicate* pred) {
   assert(ret != -1);
   return ret;
 }
+
+/**
+ * @}
+ */

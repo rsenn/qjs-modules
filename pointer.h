@@ -5,6 +5,11 @@
 #include <cutils.h>
 #include <stdint.h>
 
+/**
+ * \defgroup pointer JS Object pointer (deep key)
+ * @{
+ */
+
 typedef struct Pointer {
   size_t n;
   JSAtom* atoms;
@@ -69,4 +74,7 @@ pointer_pop(Pointer* ptr) {
   return ret;
 }
 
+/**
+ * @}
+ */
 #endif /* defined(POINTER_H) */

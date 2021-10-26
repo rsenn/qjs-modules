@@ -2,6 +2,10 @@
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup quickjs-predicate
+ * @{
+ */
 thread_local JSClassID js_predicate_class_id = 0;
 thread_local JSValue predicate_proto = {{JS_TAG_UNDEFINED}},
                      predicate_ctor = {{JS_TAG_UNDEFINED}};
@@ -997,3 +1001,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExportList(ctx, m, js_predicate_types, countof(js_predicate_types));
   return m;
 }
+
+/**
+ * @}
+ */

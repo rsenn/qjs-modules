@@ -2,6 +2,11 @@
 #include "utils.h"
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup quickjs-location 
+ * @{
+ */
+
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_location_class_id = 0;
@@ -411,3 +416,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExport(ctx, m, "default");
   return m;
 }
+
+/**
+ * @}
+ */

@@ -12,6 +12,11 @@
 
 #include "utils.h"
 
+/**
+ * \defgroup quickjs-sockets QuickJS module: sockets - Network sockets
+ * @{
+ */
+
 typedef union {
   uint16_t family;
   struct sockaddr s;
@@ -126,4 +131,8 @@ js_socket_data2(JSContext* ctx, JSValueConst value) {
   return sock;
 }
 
-#endif /* defined(QUICKJS_SOCKETS_H)         */
+/**
+ * @}
+ */
+
+#endif /* defined(QUICKJS_SOCKETS_H) */

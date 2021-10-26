@@ -7,6 +7,10 @@
 
 #include <stdint.h>
 
+/**
+ * \defgroup quickjs-xml QuickJS module: xml - XML parser & printer
+ * @{
+ */
 #define WS 0x01
 #define START 0x02
 #define END 0x04

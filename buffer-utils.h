@@ -7,6 +7,10 @@
 
 #include "char-utils.h"
 
+/**
+ * \defgroup buffer-utils Buffer Utilities
+ * @{
+ */
 #ifndef MAX_NUM
 #define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
 #endif
@@ -309,4 +313,7 @@ input_buffer_remain(const InputBuffer* in) {
 
 int js_offset_length(JSContext* ctx, int64_t size, int argc, JSValue argv[], OffsetLength* off_len_p);
 
+/**
+ * @}
+ */
 #endif /* defined(BUFFER_UTILS) */

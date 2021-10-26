@@ -4,6 +4,10 @@
 #include <cutils.h>
 #include <string.h>
 
+/**
+ * \defgroup char-utils Character Utilities
+ * @{
+ */
 #define is_control_char(c) ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
 #define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
@@ -321,4 +325,7 @@ scan_fromhex(unsigned char c) {
   return -1;
 }
 
+/**
+ * @}
+ */
 #endif /* defined(CHAR_UTILS_H) */

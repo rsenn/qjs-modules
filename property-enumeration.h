@@ -5,6 +5,10 @@
 #include "vector.h"
 #include "utils.h"
 
+/**
+ * \defgroup property-enumeration Property enumeration utilities
+ * @{
+ */
 typedef struct PropertyEnumeration {
   JSValue obj;
   uint32_t idx;
@@ -227,4 +231,8 @@ property_enumeration_recurse(Vector* vec, JSContext* ctx) {
   }
   return it;
 }
-#endif /* defined(PROPERTY_ENUMERATION_H) */
+
+/**
+ * @}
+ */
+ #endif /* defined(PROPERTY_ENUMERATION_H) */

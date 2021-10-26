@@ -4,6 +4,10 @@
 #include <quickjs.h>
 #include <string.h>
 
+/**
+ * \defgroup quickjs-tree-walker QuickJS module: tree_walker - Object tree walker
+ * @{
+ */
 thread_local VISIBLE JSClassID js_tree_walker_class_id = 0;
 thread_local JSValue tree_walker_proto = {{JS_TAG_UNDEFINED}},
                      tree_walker_ctor = {{JS_TAG_UNDEFINED}};
@@ -560,3 +564,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "TreeIterator");
   return m;
 }
+
+/**
+ * @}
+ */
