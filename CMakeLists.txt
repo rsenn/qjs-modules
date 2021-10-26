@@ -126,6 +126,23 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
+check_functions(fnmatch glob wordexp)
+check_includes(fnmatch.h glob.h wordexp.h)
+
+if(HAVE_FNMATCH AND HAVE_FNMATCH_H)
+  add_definitions(-DHAVE_FNMATCH=1)
+endif(HAVE_FNMATCH AND HAVE_FNMATCH_H)
+
+if(HAVE_GLOB AND HAVE_GLOB_H)
+  add_definitions(-DHAVE_GLOB=1)
+endif(HAVE_GLOB AND HAVE_GLOB_H)
+
+if(HAVE_WORDEXP AND HAVE_WORDEXP_H)
+  add_definitions(-DHAVE_WORDEXP=1)
+endif(HAVE_WORDEXP AND HAVE_WORDEXP_H)
+
+
+
 if(BUILD_PIGPIO)
   include(ExternalProject)
   ExternalProject_Add(

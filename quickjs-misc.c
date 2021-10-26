@@ -581,6 +581,7 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return JS_NULL;
 }*/
 
+#ifdef HAVE_FNMATCH
 static JSValue
 js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t plen, slen;
@@ -597,7 +598,9 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JS_FreeCString(ctx, string);
   return JS_NewBool(ctx, !ret);
 }
+#endif
 
+#ifdef HAVE_GLOB
 static JSContext* js_misc_glob_errfunc_ctx;
 static JSValueConst js_misc_glob_errfunc_fn;
 
@@ -660,7 +663,9 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   JS_FreeCString(ctx, pattern);
   return ret;
 }
+#endif
 
+#ifdef HAVE_WORDEXP
 static JSValue
 js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t start = 0, i;
@@ -698,6 +703,7 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JS_FreeCString(ctx, s);
   return ret;
 }
+#endif
 
 #ifndef _WIN32
 static JSValue
@@ -1409,9 +1415,15 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
 // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
 #endif
+#ifdef HAVE_FNMATCH
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
+#endif
+#ifdef HAVE_GLOB
     JS_CFUNC_DEF("glob", 2, js_misc_glob),
+#endif
+#ifdef HAVE_WORDEXP
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
+#endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
@@ -1519,6 +1531,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(JS_EVAL_FLAG_STRIP),
     JS_CONSTANT(JS_EVAL_FLAG_COMPILE_ONLY),
     JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
+#ifdef HAVE_FNMATCH
     JS_CONSTANT(FNM_CASEFOLD),
     JS_CONSTANT(FNM_EXTMATCH),
     JS_CONSTANT(FNM_FILE_NAME),
@@ -1527,7 +1540,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(FNM_NOMATCH),
     JS_CONSTANT(FNM_PATHNAME),
     JS_CONSTANT(FNM_PERIOD),
-
+#endif
+#ifdef HAVE_GLOB
     JS_CONSTANT(GLOB_ERR),
     JS_CONSTANT(GLOB_MARK),
     JS_CONSTANT(GLOB_NOSORT),
@@ -1546,6 +1560,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(GLOB_MAGCHAR),
     JS_CONSTANT(GLOB_NOSPACE),
     JS_CONSTANT(GLOB_ABORTED),
+#endif
+#ifdef HAVE_WORDEXP
     JS_CONSTANT(WRDE_APPEND),
     JS_CONSTANT(WRDE_DOOFFS),
     JS_CONSTANT(WRDE_NOCMD),
@@ -1559,7 +1575,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(WRDE_NOCMD),
     JS_CONSTANT(WRDE_NOSPACE),
     JS_CONSTANT(WRDE_SYNTAX),
-
+#endif
 };
 
 static int
