@@ -688,7 +688,7 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     ret = JS_NewArray(ctx);
   }
 
-  if((result = wordexp(s, &we, flags & (~(WRDE_APPEND | WRDE_DOOFFS)))) == 0) {
+  if((result = wordexp(s, &we, flags & (~(WRDE_APPEND | WRDE_DOOFFS | WRDE_REUSE)))) == 0) {
     for(i = 0; i < we.we_wordc; i++)
       JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, we.we_wordv[i]));
 
@@ -1545,10 +1545,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(GLOB_ERR),
     JS_CONSTANT(GLOB_MARK),
     JS_CONSTANT(GLOB_NOSORT),
-    JS_CONSTANT(GLOB_DOOFFS),
     JS_CONSTANT(GLOB_NOCHECK),
     JS_CONSTANT(GLOB_NOMATCH),
-    JS_CONSTANT(GLOB_APPEND),
     JS_CONSTANT(GLOB_NOESCAPE),
     JS_CONSTANT(GLOB_PERIOD),
     JS_CONSTANT(GLOB_ALTDIRFUNC),
@@ -1562,10 +1560,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(GLOB_ABORTED),
 #endif
 #ifdef HAVE_WORDEXP
-    JS_CONSTANT(WRDE_APPEND),
-    JS_CONSTANT(WRDE_DOOFFS),
     JS_CONSTANT(WRDE_NOCMD),
-    JS_CONSTANT(WRDE_REUSE),
     JS_CONSTANT(WRDE_SHOWERR),
     JS_CONSTANT(WRDE_UNDEF),
     JS_CONSTANT(WRDE_BADCHAR),
