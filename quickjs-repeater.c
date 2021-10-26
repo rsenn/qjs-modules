@@ -251,7 +251,8 @@ js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static JSValue
 js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Repeater* rpt;
-  JSValue ret;
+  JSValue ret=JS_UNDEFINED;
+
   if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
     return JS_EXCEPTION;
 
@@ -283,10 +284,9 @@ js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
 static void
 js_repeater_finish(JSContext* ctx, JSValueConst this_val) {
-  Repeater* rpt;
-  JSValue ret;
-  if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
-    return JS_EXCEPTION;
+  Repeater* rpt = JS_GetOpaque(this_val,js_repeater_class_id);
+  
+  assert(rpt);
 
   if(rpt->state >= REPEATER_DONE)
     return;
@@ -308,14 +308,13 @@ js_repeater_finish(JSContext* ctx, JSValueConst this_val) {
       JS_FreeValue(ctx, value);
     }
   }
-
-  return ret;
 }
 
 JSValue
 js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst executor) {
   Repeater* rpt;
   JSValue obj = JS_UNDEFINED;
+  
   if(!(rpt = js_mallocz(ctx, sizeof(Repeater))))
     return JS_EXCEPTION;
 
