@@ -2396,11 +2396,9 @@ js_io_readhandler_cfunc(JSContext* ctx, BOOL write) {
 
 JSValue
 js_promise_resolve(JSContext* ctx, JSValueConst promise) {
-  JSValue ret, resolve;
-  resolve = js_global_static_func(ctx, "Promise", "resolve");
-
-  ret = JS_Call(ctx, resolve, JS_UNDEFINED, 1, &promise);
-  JS_FreeValue(ctx, resolve);
+  JSValue ret, ctor = js_global_get_str(ctx, "Promise");
+  ret = js_invoke(ctx, ctor, "resolve", 1, &promise);
+  JS_FreeValue(ctx, ctor);
   return ret;
 }
 
@@ -2412,6 +2410,18 @@ js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func) {
 JSValue
 js_promise_catch(JSContext* ctx, JSValueConst promise, JSValueConst func) {
   return js_invoke(ctx, promise, "catch", 1, &func);
+}
+
+JSValue
+js_promise_wrap(JSContext* ctx, JSValueConst value) {
+  JSValue ret, promise, resolving_funcs[2];
+  promise = JS_NewPromiseCapability(ctx, resolving_funcs);
+  ret = JS_Call(ctx, resolving_funcs[0], JS_UNDEFINED, 1, &value);
+  JS_FreeValue(ctx, ret);
+
+  JS_FreeValue(ctx, resolving_funcs[0]);
+  JS_FreeValue(ctx, resolving_funcs[1]);
+  return promise;
 }
 
 /**
