@@ -109,7 +109,7 @@ typedef enum precedence {
 #ifndef SIGN_NUM
 #define SIGN_NUM(n) ((n) < 0)
 #endif
- 
+
 #define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
 
 typedef struct {
@@ -302,6 +302,7 @@ js_global_new(JSContext* ctx, const char* class_name, int argc, JSValueConst arg
 }
 
 JSValue js_global_prototype(JSContext* ctx, const char* class_name);
+JSValue js_global_static_func(JSContext* ctx, const char* class_name, const char* func_name);
 
 enum value_types {
   FLAG_UNDEFINED = 0,
@@ -608,6 +609,8 @@ BOOL js_is_iterator(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_method(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_new(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p);
+JSValue js_iterator_result(JSContext*, JSValue value, BOOL done);
+JSValue js_iterator_then(JSContext*, BOOL done);
 JSValue js_symbol_for(JSContext* ctx, const char* sym_for);
 JSAtom js_symbol_for_atom(JSContext* ctx, const char* sym_for);
 
@@ -664,9 +667,11 @@ const char* js_function_tostring(JSContext* ctx, JSValueConst value);
 JSCFunction* js_function_cfunc(JSContext*, JSValue value);
 BOOL js_function_isnative(JSContext* ctx, JSValueConst value);
 int js_function_argc(JSContext* ctx, JSValueConst value);
-JSValue           js_function_bound(JSContext*, JSValue this_val, int argc, JSValue argv[], int magic, JSValue* func_data);
-JSValue           js_function_bind(JSContext*, JSValue func, int argc, JSValue argv[]);
-JSValue           js_function_bind_this(JSContext*, JSValue func, JSValue this_val);
+JSValue js_function_bind(JSContext*, JSValue func, int argc, JSValue argv[]);
+JSValue js_function_bind_this(JSContext*, JSValue func, JSValue this_val);
+JSValue js_function_throw(JSContext*, JSValue err);
+JSValue js_function_return_undefined(JSContext*);
+JSValue js_function_return_value(JSContext*, JSValue value);
 
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
@@ -945,6 +950,18 @@ void js_free_message_pipe(JSWorkerMessagePipe*);
 void js_error_dump(JSContext*, JSValue, DynBuf* db);
 char* js_error_tostring(JSContext*, JSValue);
 void js_error_print(JSContext*, JSValue);
+
+JSValue js_promise_resolve(JSContext* ctx, JSValueConst promise);
+JSValue js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func);
+
+static inline JSValue
+js_promise_resolve_then(JSContext* ctx, JSValueConst promise, JSValueConst func) {
+  JSValue tmp, ret;
+  tmp = js_promise_resolve(ctx, promise);
+  ret = js_promise_then(ctx, tmp, func);
+  JS_FreeValue(ctx, tmp);
+  return ret;
+}
 
 /**
  * @}

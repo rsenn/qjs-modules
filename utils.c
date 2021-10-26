@@ -382,15 +382,15 @@ js_function_cfunc(JSContext* ctx, JSValueConst value) {
   return 0;
 }
 
-JSValue
+static JSValue
 js_function_bound(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* func_data) {
-  int i=0, j=0, k = ABS_NUM(magic), l=SIGN_NUM(magic);
+  int i = 0, j = 0, k = ABS_NUM(magic), l = SIGN_NUM(magic);
   JSValue args[argc + k];
- 
+
   for(i = 0; i < magic; i++) args[i] = func_data[i + 1];
   for(j = 0; j < argc; j++) args[i++] = argv[j];
 
-  return JS_Call(ctx, func_data[0], l ? args[0] : this_val, i, args+l);
+  return JS_Call(ctx, func_data[0], l ? args[0] : this_val, i, args + l);
 }
 
 JSValue
@@ -402,12 +402,51 @@ js_function_bind(JSContext* ctx, JSValueConst func, int argc, JSValueConst argv[
   return JS_NewCFunctionData(ctx, js_function_bound, 0, argc, argc + 1, data);
 }
 
+static JSValue
+js_function_bound_this(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
+  return JS_Call(ctx, func_data[0], func_data[1], argc, argv);
+}
+
 JSValue
 js_function_bind_this(JSContext* ctx, JSValueConst func, JSValueConst this_val) {
   JSValue data[2];
   data[0] = JS_DupValue(ctx, func);
   data[1] = JS_DupValue(ctx, this_val);
-  return JS_NewCFunctionData(ctx, js_function_bound, js_function_argc(ctx, func), -1, 2, data);
+  return JS_NewCFunctionData(ctx, js_function_bound_this, js_function_argc(ctx, func), 0, 2, data);
+}
+
+static JSValue
+js_function_throw_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+  if(!JS_IsUndefined(data[0]))
+    return JS_Throw(ctx, data[0]);
+
+  return JS_DupValue(ctx, argc >= 1 ? argv[0] : JS_UNDEFINED);
+}
+
+JSValue
+js_function_throw(JSContext* ctx, JSValueConst err) {
+  JSValueConst data[1];
+  data[0] = JS_DupValue(ctx, err);
+  return JS_NewCFunctionData(ctx, js_function_throw_fn, 0, 0, 1, data);
+}
+
+static JSValue
+js_function_return_value_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+  return data[0];
+}
+
+JSValue
+js_function_return_undefined(JSContext* ctx) {
+  JSValue data[1];
+  data[0] = JS_UNDEFINED;
+  return JS_NewCFunctionData(ctx, js_function_return_value_fn, 0, 0, 1, data);
+}
+
+JSValue
+js_function_return_value(JSContext* ctx, JSValueConst value) {
+  JSValue data[1];
+  data[0] = JS_DupValue(ctx, value);
+  return JS_NewCFunctionData(ctx, js_function_return_value_fn, 0, 0, 1, data);
 }
 
 JSValue
@@ -444,6 +483,16 @@ js_global_prototype(JSContext* ctx, const char* class_name) {
   ret = JS_GetPropertyStr(ctx, ctor, "prototype");
   JS_FreeValue(ctx, ctor);
   return ret;
+}
+
+JSValue
+js_global_static_func(JSContext* ctx, const char* class_name, const char* func_name) {
+  JSValue ctor, func;
+
+  ctor = js_global_get_str(ctx, class_name);
+  func = JS_GetPropertyStr(ctx, ctor, func_name);
+
+  return func;
 }
 
 JSValue
@@ -486,6 +535,35 @@ js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p) {
   *done_p = JS_ToBool(ctx, done);
   JS_FreeValue(ctx, done);
   return value;
+}
+
+JSValue
+js_iterator_result(JSContext* ctx, JSValueConst value, BOOL done) {
+  JSValue ret = JS_NewObject(ctx);
+
+  JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, done));
+  JS_SetPropertyStr(ctx, ret, "value", JS_DupValue(ctx, value));
+
+  return ret;
+}
+
+static JSValue
+js_iterator_then_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+  JSValue ret = JS_NewObject(ctx);
+
+  JS_SetPropertyStr(ctx, ret, "done", JS_DupValue(ctx, data[0]));
+  if(argc >= 1)
+    JS_SetPropertyStr(ctx, ret, "value", JS_DupValue(ctx, argv[0]));
+
+  return ret;
+}
+
+JSValue
+js_iterator_then(JSContext* ctx, BOOL done) {
+  JSValue ret;
+  JSValueConst data[1] = {JS_NewBool(ctx, done)};
+
+  return JS_NewCFunctionData(ctx, js_iterator_then_fn, 1, 0, 1, data);
 }
 
 JSValue
@@ -2314,6 +2392,26 @@ js_io_readhandler_cfunc(JSContext* ctx, BOOL write) {
     readhandler_cfunc = js_function_cfunc(ctx, set_handler);
   }
   return readhandler_cfunc;
+}
+
+JSValue
+js_promise_resolve(JSContext* ctx, JSValueConst promise) {
+  JSValue ret, resolve;
+  resolve = js_global_static_func(ctx, "Promise", "resolve");
+
+  ret = JS_Call(ctx, resolve, JS_UNDEFINED, 1, &promise);
+  JS_FreeValue(ctx, resolve);
+  return ret;
+}
+
+JSValue
+js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func) {
+  return js_invoke(ctx, promise, "then", 1, &func);
+}
+
+JSValue
+js_promise_catch(JSContext* ctx, JSValueConst promise, JSValueConst func) {
+  return js_invoke(ctx, promise, "catch", 1, &func);
 }
 
 /**
