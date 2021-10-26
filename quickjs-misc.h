@@ -16,5 +16,4 @@ JSValue js_misc_error(JSContext*, JSValue this_val, int argc, JSValue argv[]);
  * @}
  */
 
-
 #endif /* defined(QUICKJS_MISC_H) */

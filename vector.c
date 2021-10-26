@@ -142,8 +142,7 @@ vector_diff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out) {
 }
 
 void
-vector_symmetricdiff(
-    void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out_a, Vector* out_b) {
+vector_symmetricdiff(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* out_a, Vector* out_b) {
   vector_diff(a, m, b, n, elsz, out_a);
   vector_diff(b, n, a, m, elsz, out_b);
 }

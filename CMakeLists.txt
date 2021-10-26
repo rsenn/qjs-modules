@@ -240,7 +240,7 @@ set(lexer_SOURCES quickjs-lexer.h location.c location.h ${utils_SOURCES} ${vecto
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES} bc-fd_set.c bc-socklen_t.c)
+set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
   set(sockets_LIBRARIES mswsock)
   set(sockets_SOURCES ${sockets_SOURCES} socketpair_win32.c)

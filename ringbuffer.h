@@ -92,5 +92,4 @@ ringbuffer_avail(RingBuffer* rb) {
 /**
  * @}
  */
-
 #endif /* defined(RINGBUFFER_H) */

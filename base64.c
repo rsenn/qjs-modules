@@ -6,10 +6,10 @@
 /**
  * \addtogroup base64
  * @{
- */ 
+ */
 static void encode(const char* map, const uint8_t* in, size_t len, uint8_t* out);
 static size_t decode(const int8_t* map, const uint8_t* in, size_t len, uint8_t* out);
- 
+
 size_t
 b64_get_encoded_buffer_size(const size_t decoded_size) {
   return ((decoded_size + 2) / 3) * 4;

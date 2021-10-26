@@ -32,8 +32,7 @@ char* basename(const char*);
 #ifndef thread_local
 #ifdef _Thread_local
 #define thread_local _Thread_local
-#elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__SUNPRO_CC) || \
-    defined(__IBMCPP__)
+#elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__SUNPRO_CC) || defined(__IBMCPP__)
 #define thread_local __thread
 #elif defined(_WIN32)
 #define thread_local __declspec(thread)
@@ -68,16 +67,15 @@ typedef enum precedence {
 
 #define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num) \
   { \
-    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, \
-    .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = { \
+    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, \
+    .u = { \
       .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} \
     } \
   }
 
 #define JS_CGETSET_MAGIC_FLAGS_DEF(prop_name, fgetter, fsetter, magic_num, flags) \
   { \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CGETSET_MAGIC, \
-    .magic = magic_num, .u = { \
+    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = { \
       .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} \
     } \
   }
@@ -105,7 +103,13 @@ typedef enum precedence {
 #ifndef MIN_NUM
 #define MIN_NUM(a, b) ((a) < (b) ? (a) : (b))
 #endif
-
+#ifndef ABS_NUM
+#define ABS_NUM(n) ((n) < 0 ? -(n) : (n))
+#endif
+#ifndef SIGN_NUM
+#define SIGN_NUM(n) ((n) < 0)
+#endif
+ 
 #define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
 
 typedef struct {
@@ -336,8 +340,8 @@ enum value_mask {
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NAN = (1 << FLAG_NAN),
   TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
-  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING |
-                    TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
+  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT |
+                    TYPE_BIG_DECIMAL | TYPE_NAN),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -358,10 +362,8 @@ enum value_mask js_value_type(JSContext* ctx, JSValueConst value);
 static inline const char* const*
 js_value_types() {
   return (const char* const[]){
-      "UNDEFINED",     "NULL",         "BOOL",      "INT",
-      "OBJECT",        "STRING",       "SYMBOL",    "BIG_FLOAT",
-      "BIG_INT",       "BIG_DECIMAL",  "FLOAT64",   "NAN",
-      "FUNCTION",      "ARRAY",        "MODULE",    "FUNCTION_BYTECODE",
+      "UNDEFINED",     "NULL",         "BOOL",      "INT", "OBJECT",   "STRING", "SYMBOL", "BIG_FLOAT",
+      "BIG_INT",       "BIG_DECIMAL",  "FLOAT64",   "NAN", "FUNCTION", "ARRAY",  "MODULE", "FUNCTION_BYTECODE",
       "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION", 0,
   };
 }
@@ -370,10 +372,8 @@ static inline const char*
 js_value_typeof(JSValueConst value) {
   int32_t flag = js_value_type_flag(value);
   return ((const char* const[]){
-      "undefined",     "object",       "boolean",   "number",
-      "object",        "string",       "symbol",    "bigfloat",
-      "bigint",        "bigdecimal",   "number",    "number",
-      "function",      "object",       "module",    "function_bytecode",
+      "undefined",     "object",       "boolean",   "number", "object",   "string", "symbol", "bigfloat",
+      "bigint",        "bigdecimal",   "number",    "number", "function", "object", "module", "function_bytecode",
       "uninitialized", "catch_offset", "exception", 0,
   })[flag];
 }
@@ -664,6 +664,9 @@ const char* js_function_tostring(JSContext* ctx, JSValueConst value);
 JSCFunction* js_function_cfunc(JSContext*, JSValue value);
 BOOL js_function_isnative(JSContext* ctx, JSValueConst value);
 int js_function_argc(JSContext* ctx, JSValueConst value);
+JSValue           js_function_bound(JSContext*, JSValue this_val, int argc, JSValue argv[], int magic, JSValue* func_data);
+JSValue           js_function_bind(JSContext*, JSValue func, int argc, JSValue argv[]);
+JSValue           js_function_bind_this(JSContext*, JSValue func, JSValue this_val);
 
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
@@ -697,41 +700,29 @@ BOOL js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
 void js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str);
 void js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_t value);
-void
-js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);
-void js_set_propertystr_stringlen(
-    JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
+void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);
+void js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_get_propertyint_cstring(JSContext* ctx, JSValueConst obj, uint32_t i);
 int32_t js_get_propertyint_int32(JSContext* ctx, JSValueConst obj, uint32_t i);
 const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
-const char*
-js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
+const char* js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
-char*
-js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
+char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
 uint64_t js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop);
-int js_get_propertydescriptor(JSContext* ctx,
-                              JSPropertyDescriptor* desc,
-                              JSValueConst obj,
-                              JSAtom prop);
+int js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueConst obj, JSAtom prop);
 
 static inline void
 js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
   JSAtom inspect_symbol = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
-  JS_DefinePropertyValue(ctx,
-                         obj,
-                         inspect_symbol,
-                         JS_NewCFunction(ctx, func, "inspect", 1),
-                         JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValue(ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   JS_FreeAtom(ctx, inspect_symbol);
 }
 
 static inline void
 js_set_tostringtag_value(JSContext* ctx, JSValueConst obj, JSValue value) {
   JSAtom tostring_tag = js_symbol_static_atom(ctx, "toStringTag");
-  JS_DefinePropertyValue(
-      ctx, obj, tostring_tag, value, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValue(ctx, obj, tostring_tag, value, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   JS_FreeAtom(ctx, tostring_tag);
 }
 
@@ -844,8 +835,7 @@ char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
 int js_array_copys(JSContext*, JSValueConst, int n, char** stra);
 int js_strv_copys(JSContext*, int, JSValueConst argv[], int n, char** stra);
 
-JSValue js_invoke(
-    JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]);
+JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]);
 
 static inline size_t
 js_arraybuffer_length(JSContext* ctx, JSValueConst buffer) {
@@ -860,10 +850,7 @@ js_arraybuffer_length(JSContext* ctx, JSValueConst buffer) {
 int64_t js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value);
 
 static inline int
-js_find_cfunction_entry(const JSCFunctionListEntry* entries,
-                        size_t n_entries,
-                        const char* name,
-                        int def_type) {
+js_find_cfunction_entry(const JSCFunctionListEntry* entries, size_t n_entries, const char* name, int def_type) {
   size_t i;
   for(i = 0; i < n_entries; i++)
     if(entries[i].def_type == def_type && !strcmp(entries[i].name, name))
@@ -872,11 +859,7 @@ js_find_cfunction_entry(const JSCFunctionListEntry* entries,
 }
 
 static inline int
-js_find_cfunction_atom(JSContext* ctx,
-                       const JSCFunctionListEntry* entries,
-                       size_t n_entries,
-                       JSAtom atom,
-                       int def_type) {
+js_find_cfunction_atom(JSContext* ctx, const JSCFunctionListEntry* entries, size_t n_entries, JSAtom atom, int def_type) {
   const char* name = JS_AtomToCString(ctx, atom);
   int i;
   i = js_find_cfunction_entry(entries, n_entries, name, def_type);
@@ -933,8 +916,7 @@ JSModuleDef* js_module_at(JSContext*, int index);
 JSValue js_import_eval(JSContext*, ImportDirective);
 JSModuleDef* js_module_import_default(JSContext*, const char*, const char* var);
 JSModuleDef* js_module_import_namespace(JSContext*, const char*, const char* ns);
-JSValue
-js_module_import(JSContext*, const char*, const char* ns, const char* var, const char* prop);
+JSValue js_module_import(JSContext*, const char*, const char* ns, const char* var, const char* prop);
 JSModuleDef* js_module_loader_so(JSContext*, const char*);
 
 JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);

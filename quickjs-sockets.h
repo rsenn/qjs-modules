@@ -65,8 +65,7 @@ enum SocketCalls {
 };
 
 #define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)
-#define socket_eof(sock) \
-  (((sock).syscall == SYSCALL_RECV || (sock).syscall == SYSCALL_RECVFROM) && (sock).ret == 0)
+#define socket_eof(sock) (((sock).syscall == SYSCALL_RECV || (sock).syscall == SYSCALL_RECVFROM) && (sock).ret == 0)
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
 #define socket_error(sock) ((sock).ret < 0 ? (sock).error : 0)
 #define socket_syscall(sock) socket_syscalls[(sock).syscall]

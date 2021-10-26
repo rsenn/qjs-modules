@@ -3,7 +3,7 @@
 #include "buffer-utils.h"
 
 /**
- * \addtogroup quickjs-location 
+ * \addtogroup quickjs-location
  * @{
  */
 

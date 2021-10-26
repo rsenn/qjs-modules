@@ -2,10 +2,9 @@
 #include <archive_entry.h>
 #include "quickjs-archive.h"
 #include "utils.h"
- 
 
 /**
- * \addtogroup quickjs-archive 
+ * \addtogroup quickjs-archive
  * @{
  */
 

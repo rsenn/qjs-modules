@@ -1322,7 +1322,8 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                                   lexer_state_top(lex, 0),
                                   lexer_state_name(lex, lexer_state_top(lex, 0)),
                                   lexeme,
-                                  (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') + lex->loc.column),
+                                  (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') +
+                                        lex->loc.column),
                                   &lex->input.data[lex->start - lex->loc.column],
                                   lex->loc.column + 1,
                                   "^");

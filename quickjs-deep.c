@@ -13,7 +13,8 @@
  * @{
  */
 thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
-thread_local JSValue deep_functions = {{JS_TAG_UNDEFINED}}, deep_iterator_proto = {{JS_TAG_UNDEFINED}}, deep_iterator_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue deep_functions = {{JS_TAG_UNDEFINED}}, deep_iterator_proto = {{JS_TAG_UNDEFINED}},
+                     deep_iterator_ctor = {{JS_TAG_UNDEFINED}};
 
 typedef struct DeepIterator {
   JSValue root;

@@ -23,7 +23,7 @@
  */
 #include <quickjs-libc.h>
 #include "utils.h"
- 
+
 /**
  * \defgroup quickjs-bjson QuickJS module: bjson - Binary JSON
  * @{

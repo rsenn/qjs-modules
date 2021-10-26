@@ -235,4 +235,4 @@ property_enumeration_recurse(Vector* vec, JSContext* ctx) {
 /**
  * @}
  */
- #endif /* defined(PROPERTY_ENUMERATION_H) */
+#endif /* defined(PROPERTY_ENUMERATION_H) */

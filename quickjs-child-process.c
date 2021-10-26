@@ -34,8 +34,7 @@ enum {
 extern char** environ;
 
 thread_local VISIBLE JSClassID js_child_process_class_id = 0;
-thread_local JSValue child_process_proto = {{JS_TAG_UNDEFINED}},
-                     child_process_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue child_process_proto = {{JS_TAG_UNDEFINED}}, child_process_ctor = {{JS_TAG_UNDEFINED}};
 
 ChildProcess*
 js_child_process_data(JSValueConst value) {
@@ -57,10 +56,7 @@ js_child_process_wrap(JSContext* ctx, ChildProcess* cp) {
 }
 
 static JSValue
-js_child_process_constructor(JSContext* ctx,
-                             JSValueConst new_target,
-                             int argc,
-                             JSValueConst argv[]) {
+js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
   JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED;
 
@@ -96,20 +92,16 @@ js_child_process_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   JSValue obj = JS_NewObjectProto(ctx, child_process_proto);
 
   if(cp->file)
-    JS_DefinePropertyValueStr(
-        ctx, obj, "file", JS_NewString(ctx, cp->file), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "file", JS_NewString(ctx, cp->file), JS_PROP_ENUMERABLE);
   if(cp->cwd)
     JS_DefinePropertyValueStr(ctx, obj, "cwd", JS_NewString(ctx, cp->cwd), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(
-      ctx, obj, "args", js_strv_to_array(ctx, cp->args), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "args", js_strv_to_array(ctx, cp->args), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "env", js_strv_to_array(ctx, cp->env), 0);
 
   JS_DefinePropertyValueStr(ctx, obj, "pid", JS_NewUint32(ctx, cp->pid), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(
-      ctx, obj, "exitcode", JS_NewInt32(ctx, cp->exitcode), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(
-      ctx, obj, "termsig", JS_NewInt32(ctx, cp->termsig), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "exitcode", JS_NewInt32(ctx, cp->exitcode), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "termsig", JS_NewInt32(ctx, cp->termsig), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "uid", JS_NewUint32(ctx, cp->uid), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "gid", JS_NewUint32(ctx, cp->gid), JS_PROP_ENUMERABLE);
 
@@ -257,8 +249,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
         size_t namelen = str_chr(*ptr, '=');
         JSAtom key = JS_NewAtomLen(ctx, *ptr, namelen);
 
-        JS_DefinePropertyValue(
-            ctx, ret, key, JS_NewString(ctx, *ptr + namelen + 1), JS_PROP_ENUMERABLE);
+        JS_DefinePropertyValue(ctx, ret, key, JS_NewString(ctx, *ptr + namelen + 1), JS_PROP_ENUMERABLE);
         JS_FreeAtom(ctx, key);
       }
       // ret = js_strv_to_array(ctx, cp->env);
@@ -321,8 +312,7 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 static JSValue
-js_child_process_kill(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ChildProcess* cp;
   int32_t ret, signum = SIGTERM;
   JSValueConst child = magic ? argv[0] : this_val;
@@ -423,20 +413,13 @@ js_child_process_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_child_process_class_id, &js_child_process_class);
 
   child_process_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             child_process_proto,
-                             js_child_process_proto_funcs,
-                             countof(js_child_process_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, child_process_proto, js_child_process_proto_funcs, countof(js_child_process_proto_funcs));
   JS_SetClassProto(ctx, js_child_process_class_id, child_process_proto);
 
-  child_process_ctor = JS_NewCFunction2(
-      ctx, js_child_process_constructor, "ChildProcess", 1, JS_CFUNC_constructor, 0);
+  child_process_ctor = JS_NewCFunction2(ctx, js_child_process_constructor, "ChildProcess", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, child_process_ctor, child_process_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             child_process_ctor,
-                             js_child_process_funcs,
-                             countof(js_child_process_funcs));
+  JS_SetPropertyFunctionList(ctx, child_process_ctor, js_child_process_funcs, countof(js_child_process_funcs));
   // js_set_inspect_method(ctx, child_process_proto, js_child_process_inspect);
 
   if(m) {
