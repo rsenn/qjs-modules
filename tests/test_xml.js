@@ -53,7 +53,6 @@ async function main(...args) {
   let str = xml.write(result);
   console.log('write:', str);
 
-
   WriteFile(base + '.xml', str);
 
   await import('std').then(std => std.gc());

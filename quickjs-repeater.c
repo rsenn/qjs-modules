@@ -465,6 +465,8 @@ js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
     return JS_EXCEPTION;
 
+  JSValue iterators = get_iterators(ctx, argv[0]);
+
   switch(magic) {
     case STATIC_RACE: break;
     case STATIC_MERGE: {
