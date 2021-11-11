@@ -555,11 +555,10 @@ js_inspect_print_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   int tag = JS_VALUE_GET_TAG(value);
   const char* str;
   size_t len;
-  JSValue number, base;
   if(tag != JS_TAG_SYMBOL && opts->colors)
     dbuf_putstr(buf, COLOR_YELLOW);
 
-  if(opts->number_base == 16) {
+  if(opts->number_base == 16 && tag != JS_TAG_FLOAT64) {
     int64_t num;
     char str[FMT_XLONG];
     JS_ToInt64(ctx, &num, value);
@@ -567,18 +566,20 @@ js_inspect_print_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     dbuf_put(buf, str, fmt_xlonglong(str, num));
 
   } else {
-    if(opts->number_base && opts->number_base != 10) {
-      base = JS_NewInt32(ctx, 16);
-      number = js_invoke(ctx, value, "toString", 1, &base);
-      JS_FreeValue(ctx, base);
-
+    JSValue number;
+    int base = 10;
+    if(opts->number_base && opts->number_base != 10 && tag != JS_TAG_FLOAT64) {
+      JSValue arg = JS_NewInt32(ctx, opts->number_base);
+      number = js_invoke(ctx, value, "toString", 1, &arg);
+      JS_FreeValue(ctx, arg);
+      base = opts->number_base;
     } else {
       number = JS_DupValue(ctx, value);
     }
     str = JS_ToCStringLen(ctx, &len, number);
     JS_FreeValue(ctx, number);
 
-    switch(opts->number_base) {
+    switch(base) {
       case 16: dbuf_putstr(buf, "0x"); break;
       case 2: dbuf_putstr(buf, "0b"); break;
       case 8: dbuf_putstr(buf, "0"); break;
