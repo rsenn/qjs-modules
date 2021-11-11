@@ -415,8 +415,8 @@ JSValue js_value_clone(JSContext* ctx, JSValueConst valpe);
 JSValue* js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values);
 void js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values);
 JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
-void js_value_fwrite(JSContext*, JSValue, FILE* f);
-void js_value_dump(JSContext*, JSValue, DynBuf* db);
+void js_value_fwrite(JSContext*, JSValueConst, FILE* f);
+void js_value_dump(JSContext*, JSValueConst, DynBuf* db);
 
 //#include "buffer-utils.h"
 
@@ -926,7 +926,7 @@ JSModuleDef* js_module_import_namespace(JSContext*, const char*, const char* ns)
 JSValue js_module_import(JSContext*, const char*, const char* ns, const char* var, const char* prop);
 JSModuleDef* js_module_loader_so(JSContext*, const char*);
 
-JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
+JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const void*, int buf_len, const char* filename, int eval_flags);
 int js_eval_str(JSContext*, const char*, const char* file, int flags);
@@ -937,7 +937,7 @@ int js_interrupt_handler(JSRuntime*, void*);
 void js_timer_unlink(JSRuntime*, JSOSTimer*);
 void js_timer_free(JSRuntime*, JSOSTimer*);
 
-void js_call_handler(JSContext*, JSValue);
+void js_call_handler(JSContext*, JSValueConst);
 
 void* js_sab_alloc(void*, size_t);
 void js_sab_free(void*, void*);
@@ -949,9 +949,9 @@ JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);
 void js_free_message(JSWorkerMessage*);
 void js_free_message_pipe(JSWorkerMessagePipe*);
 
-void js_error_dump(JSContext*, JSValue, DynBuf* db);
-char* js_error_tostring(JSContext*, JSValue);
-void js_error_print(JSContext*, JSValue);
+void js_error_dump(JSContext*, JSValueConst, DynBuf* db);
+char* js_error_tostring(JSContext*, JSValueConst);
+void js_error_print(JSContext*, JSValueConst);
 JSValue js_error_stack(JSContext* ctx);
 
 JSValue js_promise_resolve(JSContext* ctx, JSValueConst promise);

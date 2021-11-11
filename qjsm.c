@@ -153,15 +153,17 @@ eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int
       js_module_set_import_meta(ctx, val, TRUE, TRUE);
       ret = JS_EvalFunction(ctx, val);
       if(JS_IsException(ret)) {
-        JS_FreeValue(ctx, val);
-        val = ret;
+        js_error_print(ctx, ret); // JS_GetRuntime(ctx)->current_exception);
+        //   JS_FreeValue(ctx, val);
+        //     val = ret;
       }
     }
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
+
   if(JS_IsException(val))
-    js_error_print(ctx, JS_GetRuntime(ctx)->current_exception);
+    js_error_print(ctx, val); // JS_GetRuntime(ctx)->current_exception);
 
   jsm_dump_error(ctx);
   return val;
@@ -385,6 +387,7 @@ jsm_eval_file(JSContext* ctx, const char* file, int module) {
   size_t len;
   int flags;
 
+  errno = 0;
   buf = js_load_file(ctx, &len, file);
   if(!buf) {
     return JS_ThrowInternalError(ctx, "Failed loading '%s': %s", file, strerror(errno));
@@ -402,8 +405,9 @@ jsm_load_script(JSContext* ctx, const char* file, BOOL module) {
   int32_t ret = 0;
   val = jsm_eval_file(ctx, file, module);
   if(JS_IsException(val)) {
-    fprintf(stderr, "Failed loading '%s': %s\n", file, strerror(errno));
-    js_value_fwrite(ctx, val, stderr);
+    jsm_dump_error(ctx);
+    /*   fprintf(stderr, "Failed loading '%s': %s\n", file, strerror(errno));
+       js_value_fwrite(ctx, val, stderr);*/
     return -1;
   } else if(JS_IsModule(val)) {
     JSValue global = JS_GetGlobalObject(ctx);
