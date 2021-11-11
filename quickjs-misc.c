@@ -1552,16 +1552,9 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
     js_location_init(ctx, 0);
 
   if(m) {
-    // JS_SetModuleExportList(ctx, m, location_ctor);
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
     JS_SetModuleExport(ctx, m, "Location", location_ctor);
-    // JS_SetModuleExport(ctx, m, "StringDecoder", stringdecoder_ctor);
   }
-
-  // js_stringdecoder_init(ctx, m);
-
-  // printf("%s\n", js_opcodes[0].name);
-
   return 0;
 }
 
@@ -1574,13 +1567,12 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
+
   m = JS_NewCModule(ctx, module_name, js_misc_init);
   if(!m)
     return NULL;
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-  // JS_AddModuleExport(ctx, m, "SyscallError");
   JS_AddModuleExport(ctx, m, "Location");
-  // JS_AddModuleExport(ctx, m, "StringDecoder");
   return m;
 }
 

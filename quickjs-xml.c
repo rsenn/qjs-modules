@@ -4,8 +4,11 @@
 #include "utils.h"
 #include "vector.h"
 #include "buffer-utils.h"
+#include "location.h"
 
 #include <stdint.h>
+
+char* js_inspect_tostring(JSContext* ctx, JSValueConst value);
 
 /**
  * \defgroup quickjs-xml QuickJS module: xml - XML parser & printer
@@ -52,6 +55,9 @@ character_classes_init(int c[256]) {
 
 #define pop() \
   (vector_size(&st, sizeof(OutputValue)) >= 2 ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue))) : 0)
+
+#define trunc(index) (index >= 1 ? (vector_shrink(&st, sizeof(OutputValue), index), out = vector_back(&st, sizeof(OutputValue))) : 0)
+
 #define next() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
 #define skip(cond) \
   do { \
@@ -65,6 +71,20 @@ character_classes_init(int c[256]) {
 #define skip_until(cond) skip(!(cond))
 #define skip_ws() skip(chars[c] & WS)
 #define char_is(c, classes) (chars[(c)] & (classes))
+
+static int32_t
+find_tag(Vector* st, const char* name, size_t namelen) {
+  OutputValue* o;
+  int32_t index = vector_size(st, sizeof(OutputValue));
+
+  for(o = vector_back(st, sizeof(OutputValue)); o >= vector_begin(st); o--) {
+    --index;
+
+    if(o->namelen == namelen && !strncmp(o->name, name, namelen))
+      return index;
+  }
+  return -1;
+}
 
 static uint32_t
 xml_num_children(JSContext* ctx, JSValueConst element) {
@@ -273,14 +293,14 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth)
 }
 
 static JSValue
-js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
+js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name) {
   BOOL done = FALSE;
-  JSValue ret;
   const uint8_t *ptr, *end, *start;
   uint8_t c;
   OutputValue* out;
-  JSValue element = JS_UNDEFINED;
+  JSValue ret, element = JS_UNDEFINED;
   Vector st = VECTOR(ctx);
+  Location loc = {input_name};
   ptr = buf;
   end = buf + len;
 
@@ -291,21 +311,27 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
   out->idx = 0;
 
   while(!done) {
-    skip_ws();
+    // skip_ws();
     start = ptr;
     skip_until(char_is(c, START));
 
-    if(done)
-      break;
     if(ptr > start) {
       size_t len;
-      //  while(start < ptr && is_whitespace_char(*start)) start++;
+
+      while(start < ptr && is_whitespace_char(*start)) start++;
+
       len = ptr - start;
       while(len > 0 && is_whitespace_char(start[len - 1])) len--;
 
-      JSValue str = JS_NewStringLen(ctx, (const char*)start, len);
-      JS_SetPropertyUint32(ctx, out->obj, out->idx++, str);
+      if(len > 0) {
+        JSValue str = JS_NewStringLen(ctx, (const char*)start, len);
+        JS_SetPropertyUint32(ctx, out->obj, out->idx++, str);
+      }
     }
+
+    if(done)
+      break;
+
     if(char_is(c, START)) {
       const uint8_t* name;
       size_t namelen;
@@ -318,43 +344,65 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
       name = ptr;
       skip_until(char_is(c, WS | END));
       namelen = ptr - name;
+
+      /*printf("element tagName: %s%.*s\n", closing ? "/" : "", namelen, name);
+      printf("parent tagName: %.*s\n", out->namelen, out->name);*/
+
       if(closing) {
+        int32_t index;
         skip_ws();
         if(char_is(c, CLOSE))
           next();
-        if(out->namelen == namelen && !memcmp(out->name, name, namelen)) {
-          pop();
+
+        if((index = find_tag(&st, name, namelen)) == -1) {
+          char* locstr;
+          JS_FreeValue(ctx, ret);
+          location_count(&loc, buf, start - buf);
+          locstr = location_tostring(&loc, ctx);
+          ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s", namelen, name, locstr);
+          js_free(ctx, locstr);
+          return ret;
+        }
+
+        printf("stack depth: %u, revert index: %u\n", vector_size(&st, sizeof(OutputValue)), index);
+
+        trunc(index);
+        continue;
+
+        /* if(out->namelen == namelen && !memcmp(out->name, name, namelen)) {
+           pop();
+           continue;
+         }*/
+      } else {
+        element = JS_NewObject(ctx);
+        JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
+        if(namelen && (char_is(name[0], (/*QUESTION | */ EXCLAM))))
+          self_closing = TRUE;
+
+        if(namelen >= 3 && char_is(start[0], EXCLAM) && char_is(start[1], HYPHEN) && char_is(start[2], HYPHEN)) {
+          /*  next();
+            next();*/
+          while(!done) {
+            next();
+            if(end - ptr >= 3 && char_is(ptr[0], HYPHEN) && char_is(ptr[1], HYPHEN) && char_is(ptr[2], CLOSE)) {
+              ptr += 2;
+              break;
+            }
+          }
+          namelen = ptr - name;
+
+        } else if(namelen && char_is(name[0], EXCLAM)) {
+          skip_until(char_is(c, CLOSE));
+          namelen = ptr - name;
+        }
+        xml_set_attr_bytes(ctx, element, "tagName", 7, name, namelen);
+
+        if(namelen && char_is(name[0], EXCLAM)) {
+          next();
           continue;
         }
-      }
-      element = JS_NewObject(ctx);
-      JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
-      if(namelen && (char_is(name[0], (/*QUESTION | */ EXCLAM))))
-        self_closing = TRUE;
 
-      if(namelen >= 3 && char_is(start[0], EXCLAM) && char_is(start[1], HYPHEN) && char_is(start[2], HYPHEN)) {
-        /*  next();
-          next();*/
-        while(!done) {
-          next();
-          if(end - ptr >= 3 && char_is(ptr[0], HYPHEN) && char_is(ptr[1], HYPHEN) && char_is(ptr[2], CLOSE)) {
-            ptr += 2;
-            break;
-          }
-        }
-        namelen = ptr - name;
-
-      } else if(namelen && char_is(name[0], EXCLAM)) {
-        skip_until(char_is(c, CLOSE));
-        namelen = ptr - name;
-      }
-      xml_set_attr_bytes(ctx, element, "tagName", 7, name, namelen);
-
-      if(namelen && char_is(name[0], EXCLAM)) {
-        next();
-        continue;
-      }
-      if(!closing) {
+        /* Parse attributes if not a closing tag */
         const uint8_t *attr, *value;
         size_t alen, vlen;
         JSValue attributes = JS_NewObject(ctx);
@@ -383,24 +431,28 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len) {
             xml_set_attr_bytes(ctx, attributes, (const char*)attr, alen, value, vlen);
           }
         }
-        if(char_is(c, SLASH)) {
-          self_closing = TRUE;
-          next();
-        }
 
         if(char_is(name[0], QUESTION | EXCLAM)) {
           if(chars[c] == chars[name[0]])
             next();
-          pop();
-        }
 
-        if(!self_closing) {
+        } else if(char_is(c, SLASH)) {
+          self_closing = TRUE;
+          next();
+
+        } else if(!self_closing) {
           out = vector_emplace(&st, sizeof(OutputValue));
           out->obj = JS_NewArray(ctx);
           out->idx = 0;
           out->name = name;
           out->namelen = namelen;
           JS_SetPropertyStr(ctx, element, "children", out->obj);
+        }
+
+        {
+          char* estr = (char*)js_inspect_tostring(ctx, element);
+          printf("%03zu element #%i %s\n", vector_size(&st, sizeof(OutputValue)), out->idx, estr);
+          js_free(ctx, estr);
         }
       }
 
@@ -416,13 +468,20 @@ static JSValue
 js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
   InputBuffer input = js_input_chars(ctx, argv[0]);
+  const char* input_name = 0;
 
   if(input.data == 0 || input.size == 0) {
     JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
     return JS_EXCEPTION;
   }
 
-  ret = js_xml_parse(ctx, input.data, input.size);
+  if(argc >= 2)
+    input_name = JS_ToCString(ctx, argv[1]);
+
+  ret = js_xml_parse(ctx, input.data, input.size, input_name ? input_name : "<input>");
+
+  if(input_name)
+    JS_FreeCString(ctx, input_name);
 
   input_buffer_free(&input, ctx);
   return ret;

@@ -254,6 +254,7 @@ mod_int32(int32_t a, int32_t b) {
 #define BACKGROUND_BLUE "\x1b[48;5;20m"
 #define BACKGROUND_YELLOW "\x1b[48;5;214m"
 #define BACKGROUND_GREEN "\x1b[48;5;28m"
+#define BACKGROUND_PINK "\x1b[48;5;165m"
 
 uint64_t time_us(void);
 
@@ -918,6 +919,7 @@ JSModuleDef* js_module_def(JSContext*, JSValueConst);
 JSModuleDef* js_module_find(JSContext*, const char*);
 int js_module_indexof(JSContext*, JSModuleDef* def);
 JSModuleDef* js_module_at(JSContext*, int index);
+JSValue js_import_load(JSContext*, ImportDirective);
 JSValue js_import_eval(JSContext*, ImportDirective);
 JSModuleDef* js_module_import_default(JSContext*, const char*, const char* var);
 JSModuleDef* js_module_import_namespace(JSContext*, const char*, const char* ns);

@@ -165,7 +165,8 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
 
 static int
 js_mmap_init(JSContext* ctx, JSModuleDef* m) {
-  return JS_SetModuleExportList(ctx, m, js_mmap_funcs, countof(js_mmap_funcs));
+  JS_SetModuleExportList(ctx, m, js_mmap_funcs, countof(js_mmap_funcs));
+  return 0;
 }
 
 #ifdef JS_SHARED_LIBRARY

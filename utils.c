@@ -1811,7 +1811,7 @@ static void
 js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   BOOL has_prop = imp.prop && imp.prop[0];
   BOOL is_ns = imp.spec && imp.spec[0] == '*';
-  BOOL is_default = str_equal(imp.spec, "default");
+  BOOL is_default = imp.spec && str_equal(imp.spec, "default");
   const char *var, *base = basename(imp.path);
   size_t blen = str_chr(base, '.');
   dbuf_putstr(db, "import ");

@@ -149,8 +149,13 @@ eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int
     /* for the modules, we compile then run to be able to set import.meta */
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
+      JSValue ret;
       js_module_set_import_meta(ctx, val, TRUE, TRUE);
-      JS_EvalFunction(ctx, val);
+      ret = JS_EvalFunction(ctx, val);
+      if(JS_IsException(ret)) {
+        JS_FreeValue(ctx, val);
+        val = ret;
+      }
     }
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
@@ -1196,6 +1201,7 @@ main(int argc, char** argv) {
   }
   return 0;
 fail:
+  fprintf(stderr, "Exit code: 1\n");
   js_std_free_handlers(rt);
   JS_FreeContext(ctx);
   JS_FreeRuntime(rt);
