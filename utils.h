@@ -415,6 +415,7 @@ JSValue js_value_clone(JSContext* ctx, JSValueConst valpe);
 JSValue* js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values);
 void js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values);
 JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
+JSValue* js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr);
 void js_value_fwrite(JSContext*, JSValueConst, FILE* f);
 void js_value_dump(JSContext*, JSValueConst, DynBuf* db);
 

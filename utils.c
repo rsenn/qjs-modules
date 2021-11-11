@@ -499,13 +499,13 @@ JSValue
 js_iterator_method(JSContext* ctx, JSValueConst obj) {
   JSAtom atom;
   JSValue ret = JS_UNDEFINED;
-  atom = js_symbol_static_atom(ctx, "iterator");
+  atom = js_symbol_static_atom(ctx, "asyncIterator");
   if(JS_HasProperty(ctx, obj, atom))
     ret = JS_GetProperty(ctx, obj, atom);
 
   JS_FreeAtom(ctx, atom);
   if(!JS_IsFunction(ctx, ret)) {
-    atom = js_symbol_static_atom(ctx, "asyncIterator");
+    atom = js_symbol_static_atom(ctx, "iterator");
     if(JS_HasProperty(ctx, obj, atom))
       ret = JS_GetProperty(ctx, obj, atom);
 
@@ -1090,6 +1090,18 @@ js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
   int i;
   JSValue ret = JS_NewArray(ctx);
   for(i = 0; i < nvalues; i++) JS_SetPropertyUint32(ctx, ret, i, JS_DupValue(ctx, values[i]));
+  return ret;
+}
+
+JSValue*
+js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr) {
+  size_t i, len = js_array_length(ctx, arr);
+  JSValue* ret = js_mallocz(ctx, sizeof(JSValueConst) * len);
+
+  if(nvalues_p)
+    *nvalues_p = len;
+
+  for(i = 0; i < len; i++) { ret[i] = JS_GetPropertyUint32(ctx, arr, i); }
   return ret;
 }
 

@@ -32,7 +32,7 @@ struct repeater_item {
   struct resolvable_item resolvable;
 };
 
-typedef struct {
+typedef struct repeater_object {
   int ref_count;
   JSValue executor, buffer, err;
   enum repeater_state state;
@@ -40,6 +40,28 @@ typedef struct {
   JSValue pending, execution;
   JSValue onnext, onstop;
 } Repeater;
+
+Repeater*
+repeater_new(JSContext* ctx, JSValueConst executor) {
+  Repeater* rpt;
+
+  if((rpt = js_mallocz(ctx, sizeof(Repeater)))) {
+    rpt->ref_count = 1;
+    rpt->executor = JS_DupValue(ctx, executor);
+    rpt->buffer = JS_UNDEFINED;
+    rpt->err = JS_UNDEFINED;
+    rpt->state = REPEATER_INITIAL;
+    rpt->pending = JS_UNDEFINED;
+    rpt->execution = JS_UNDEFINED;
+    rpt->onnext = JS_UNDEFINED;
+    rpt->onstop = JS_UNDEFINED;
+
+    init_list_head(&rpt->pushes);
+    init_list_head(&rpt->nexts);
+  }
+
+  return rpt;
+}
 
 static void
 repeater_decrement_refcount(void* opaque) {
@@ -148,6 +170,29 @@ queue_shift(struct list_head* q) {
   if((item = queue_head(q)))
     list_del(&item->link);
   return item;
+}
+
+static JSValue
+get_iterators(JSContext* ctx, JSValueConst arg) {
+  JSValue ret, *items;
+  size_t n_items;
+  int i, j = 0;
+
+  if(!(items = js_values_fromarray(ctx, &n_items, arg)))
+    return JS_ThrowOutOfMemory(ctx);
+
+  ret = JS_NewArray(ctx);
+  for(i = 0; i < n_items; i++) {
+    JSValue meth = js_iterator_method(ctx, items[i]);
+
+    if(JS_IsFunction(ctx, meth)) {
+      JSValue tmp = JS_Call(ctx, meth, items[i], 0, 0);
+      JS_SetPropertyUint32(ctx, ret, j++, tmp);
+    } else {
+    }
+    JS_FreeValue(ctx, meth);
+  }
+  return ret;
 }
 
 static JSValue
@@ -315,26 +360,14 @@ js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst executor) {
   Repeater* rpt;
   JSValue obj = JS_UNDEFINED;
 
-  if(!(rpt = js_mallocz(ctx, sizeof(Repeater))))
+  if(!(rpt = repeater_new(ctx, executor)))
     return JS_EXCEPTION;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_repeater_class_id);
   if(JS_IsException(obj))
     goto fail;
+
   JS_SetOpaque(obj, rpt);
-
-  rpt->ref_count = 1;
-  rpt->executor = JS_DupValue(ctx, executor);
-  rpt->buffer = JS_UNDEFINED;
-  rpt->err = JS_UNDEFINED;
-  rpt->state = REPEATER_INITIAL;
-  rpt->pending = JS_UNDEFINED;
-  rpt->execution = JS_UNDEFINED;
-  rpt->onnext = JS_UNDEFINED;
-  rpt->onstop = JS_UNDEFINED;
-
-  init_list_head(&rpt->pushes);
-  init_list_head(&rpt->nexts);
 
   if(JS_IsFunction(ctx, rpt->executor) && rpt->state <= REPEATER_INITIAL)
     rpt->execution = js_repeater_execute(ctx, obj);
@@ -434,7 +467,9 @@ js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   switch(magic) {
     case STATIC_RACE: break;
-    case STATIC_MERGE: break;
+    case STATIC_MERGE: {
+      break;
+    }
     case STATIC_ZIP: break;
   }
   return ret;
