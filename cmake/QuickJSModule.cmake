@@ -16,6 +16,7 @@ function(compile_module SOURCE)
 
   set(MODULES_DIR "${CMAKE_BINARY_DIR}/modules")
   set(MODULES_DIR "${MODULES_DIR}" PARENT_SCOPE)
+  file(MAKE_DIRECTORY "${MODULES_DIR}")
 
   if(ARGN)
     set(OUTPUT_FILE ${ARGN})
