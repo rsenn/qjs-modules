@@ -5,6 +5,10 @@
 #include <cutils.h>
 #include "utils.h"
 
+/**
+ * \defgroup virtual-properties Virtual property manipulation
+ * @{
+ */
 struct VProps;
 
 typedef BOOL has_function_t(struct VProps*, JSContext*, JSValueConst);
@@ -59,4 +63,7 @@ virtual_properties_free(VirtualProperties* vprop, JSContext* ctx) {
   vprop->finalize(vprop, ctx);
 }
 
+/**
+ * @}
+ */
 #endif /* defined(VIRTUAL_PROPERTIES_H) */

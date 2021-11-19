@@ -9,6 +9,10 @@
 #include "path.h"
 #include "utils.h"
 
+/**
+ * \defgroup quickjs-path QuickJS module: path - Directory path
+ * @{
+ */
 thread_local JSValue path_object = {{JS_TAG_UNDEFINED}};
 
 enum path_methods {
@@ -501,3 +505,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "default");
   return m;
 }
+
+/**
+ * @}
+ */

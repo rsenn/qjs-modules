@@ -2,6 +2,10 @@
 #include "location.h"
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup location
+ * @{
+ */
 void
 location_print(const Location* loc, DynBuf* dbuf) {
   if(loc->file) {
@@ -106,3 +110,7 @@ location_free_rt(Location* loc, JSRuntime* rt) {
     js_free_rt(rt, (char*)loc->str);
   memset(loc, 0, sizeof(Location));
 }
+
+/**
+ * @}
+ */

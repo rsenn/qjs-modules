@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup property-enumeration
+ * @{
+ */
 int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
   it->obj = object;
@@ -38,9 +42,9 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
       dbuf_putstr(out, ", ");
 
     s = JS_AtomToCString(ctx, it->tab_atom[i].atom);
-    dbuf_putstr(out, i == it->idx ? "\x1b[1;31m" : "\x1b[1;30m");
+    dbuf_putstr(out, i == it->idx ? COLOR_LIGHTRED : COLOR_GRAY);
     dbuf_putstr(out, s);
-    dbuf_putstr(out, "\x1b[m");
+    dbuf_putstr(out, COLOR_NONE);
     js_cstring_free(ctx, s);
   }
   dbuf_putstr(out, " ] }");
@@ -123,8 +127,11 @@ property_enumeration_path(Vector* vec, JSContext* ctx) {
     JSValue key = property_enumeration_key(it, ctx);
     JS_SetPropertyUint32(ctx, ret, i++, key);
   }
-  JS_DefinePropertyValueStr(
-      ctx, ret, "toString", JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValueStr(ctx,
+                            ret,
+                            "toString",
+                            JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0),
+                            JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   return ret;
 }
 
@@ -232,3 +239,7 @@ property_enumeration_check(Vector* vec) {
   }
   return (IndexTuple){-1, -1};
 }
+
+/**
+ * @}
+ */

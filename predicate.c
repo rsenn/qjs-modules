@@ -3,6 +3,10 @@
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup predicate
+ * @{
+ */
 #define max(left, right) ((left) > (right) ? (left) : (right))
 #define min(left, right) ((left) < (right) ? (left) : (right))
 
@@ -352,8 +356,9 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 const char*
 predicate_typename(const Predicate* pr) {
   return ((const char*[]){
-      "TYPE", "CHARSET", "STRING", "NOTNOT", "NOT", "BNOT",   "SQRT",       "ADD",         "SUB",   "MUL",      "DIV",    "MOD",   "BOR",      "BAND",
-      "POW",  "ATAN2",   "OR",     "AND",    "XOR", "REGEXP", "INSTANCEOF", "PROTOTYPEIS", "EQUAL", "PROPERTY", "MEMBER", "SHIFT", "FUNCTION", 0,
+      "TYPE",       "CHARSET",     "STRING", "NOTNOT",   "NOT",    "BNOT",  "SQRT",     "ADD", "SUB", "MUL",
+      "DIV",        "MOD",         "BOR",    "BAND",     "POW",    "ATAN2", "OR",       "AND", "XOR", "REGEXP",
+      "INSTANCEOF", "PROTOTYPEIS", "EQUAL",  "PROPERTY", "MEMBER", "SHIFT", "FUNCTION", 0,
   })[pr->id];
 }
 
@@ -632,7 +637,8 @@ predicate_tosource(const Predicate* pred, JSContext* ctx, DynBuf* dbuf, Argument
 
       predicate_dump(pred->binary.left, ctx, dbuf, args, parens[0]);
 
-      dbuf_putstr(dbuf, ((const char* const[]){" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pred->id - PREDICATE_ADD]);
+      dbuf_putstr(dbuf,
+                  ((const char* const[]){" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pred->id - PREDICATE_ADD]);
 
       predicate_dump(pred->binary.right, ctx, dbuf, args, parens[1]);
       break;
@@ -1133,3 +1139,7 @@ predicate_precedence(const Predicate* pred) {
   assert(ret != -1);
   return ret;
 }
+
+/**
+ * @}
+ */

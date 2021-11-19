@@ -3,6 +3,10 @@
 #include "child-process.h"
 #include "property-enumeration.h"
 
+/**
+ * \defgroup quickjs-child-process QuickJS module: child_process - Child process
+ * @{
+ */
 #ifdef _WIN32
 #include <io.h>
 #define pipe(fds) _pipe(fds, 4096, 0)
@@ -171,8 +175,8 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     }
 
     len = js_array_length(ctx, stdio);
-    parent_fds = cp->parent_fds = js_malloc(ctx, sizeof(int) * len);
-    child_fds = cp->child_fds = js_malloc(ctx, sizeof(int) * len);
+    parent_fds = cp->parent_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
+    child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
     cp->num_fds = len;
 
     for(i = 0; i < len; i++) {
@@ -252,7 +256,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case CHILD_PROCESS_STDIO: {
-      ret = cp->parent_fds ? js_intv_to_array(ctx, cp->parent_fds) : JS_NULL;
+      ret = cp->parent_fds ? js_intv_to_array(ctx, cp->parent_fds, cp->num_fds) : JS_NULL;
       break;
     }
     case CHILD_PROCESS_PID: {
@@ -347,7 +351,7 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
     JS_CGETSET_ENUMERABLE_DEF("file", js_child_process_get, 0, CHILD_PROCESS_FILE),
     JS_CGETSET_MAGIC_DEF("cwd", js_child_process_get, 0, CHILD_PROCESS_CWD),
     JS_CGETSET_ENUMERABLE_DEF("args", js_child_process_get, 0, CHILD_PROCESS_ARGS),
-    JS_CGETSET_ENUMERABLE_DEF("env", js_child_process_get, 0, CHILD_PROCESS_ENV),
+    JS_CGETSET_MAGIC_DEF("env", js_child_process_get, 0, CHILD_PROCESS_ENV),
     JS_CGETSET_ENUMERABLE_DEF("stdio", js_child_process_get, 0, CHILD_PROCESS_STDIO),
     JS_CGETSET_ENUMERABLE_DEF("pid", js_child_process_get, 0, CHILD_PROCESS_PID),
     JS_CGETSET_ENUMERABLE_DEF("exitcode", js_child_process_get, 0, CHILD_PROCESS_EXITCODE),
@@ -443,3 +447,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "default");
   return m;
 }
+
+/**
+ * @}
+ */

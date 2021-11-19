@@ -54,7 +54,7 @@ SpacesInParentheses: false
 SpacesInSquareBrackets: false
 UseTab: Never
 AlwaysBreakAfterDefinitionReturnType: All
-ColumnLimit: 150
+ColumnLimit: 140
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
 IndentWidth: 2

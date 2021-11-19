@@ -17,6 +17,10 @@ int is_symlink(const char*);
 char is_junction(const char*);
 #endif
 
+/**
+ * \defgroup path Directory path manipulation
+ * @{
+ */
 #define PATH_NOTFIRST 0x80
 
 #define PATH_FNM_NOMATCH 1
@@ -113,4 +117,7 @@ path_getsep(const char* path) {
   return '\0';
 }
 
+/**
+ * @}
+ */
 #endif /* defined(PATH_H) */

@@ -2,6 +2,10 @@
 #include "utils.h"
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup quickjs-blob
+ * @{
+ */
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_blob_class_id = 0;
@@ -327,3 +331,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
 
   return m;
 }
+
+/**
+ * @}
+ */

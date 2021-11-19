@@ -2,8 +2,36 @@ import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
 import { Location } from 'misc';
-import { extendArray } from 'util';
+import { extendArray, format, waitFor } from 'util';
 import {
+  fnmatch,
+  FNM_CASEFOLD,
+  FNM_EXTMATCH,
+  FNM_FILE_NAME,
+  FNM_LEADING_DIR,
+  FNM_NOESCAPE,
+  FNM_NOMATCH,
+  FNM_PATHNAME,
+  FNM_PERIOD,
+  glob,
+  GLOB_ERR,
+  GLOB_MARK,
+  GLOB_NOSORT,
+  GLOB_DOOFFS,
+  GLOB_NOCHECK,
+  GLOB_NOMATCH,
+  GLOB_APPEND,
+  GLOB_NOESCAPE,
+  GLOB_PERIOD,
+  GLOB_ALTDIRFUNC,
+  GLOB_BRACE,
+  GLOB_NOMAGIC,
+  GLOB_TILDE,
+  GLOB_TILDE_CHECK,
+  GLOB_ONLYDIR,
+  GLOB_MAGCHAR,
+  GLOB_NOSPACE,
+  GLOB_ABORTED,
   JS_EVAL_FLAG_COMPILE_ONLY,
   JS_EVAL_TYPE_MODULE,
   JS_EVAL_TYPE_GLOBAL,
@@ -90,7 +118,12 @@ function main(...args) {
         const code = ba[i];
         opcode = opcodes[code];
 
-        console.log(i.toString(16).padStart(8, '0') + ': ', toHex(code), opcode.name.padEnd(32), ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n)));
+        console.log(
+          i.toString(16).padStart(8, '0') + ': ',
+          toHex(code),
+          opcode.name.padEnd(32),
+          ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n))
+        );
       }
     } catch(e) {}
 
@@ -102,7 +135,8 @@ function main(...args) {
     console.log('valueToAtom()', (max = valueToAtom('BLAH XXXX')));
     if(0) {
       for(let atom = 0; atom <= 1000; atom++) console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
-      for(let atom = 0x80000000; atom <= 0x800001ff; atom++) console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
+      for(let atom = 0x80000000; atom <= 0x800001ff; atom++)
+        console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
     }
     const Range = (from, to) => [...new Array(to - from).keys()].map(n => n + from);
 
@@ -118,7 +152,10 @@ function main(...args) {
       console.log('misc.getClassID()', getClassID(Symbol.for('quickjs.inspect.custom')));
       console.log('misc.getClassID()', getClassID(Symbol));
       console.log('misc.getClassCount()', getClassCount());
-      console.log('misc.getClassName()', new Map(Range(1, getClassCount()).map((id, idx) => [idx, [getClassName(id), getClassConstructor(id)]])));
+      console.log(
+        'misc.getClassName()',
+        new Map(Range(1, getClassCount()).map((id, idx) => [idx, [getClassName(id), getClassConstructor(id)]]))
+      );
     }
     let bits = arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
     let arr = bitfieldToArray(bits, 0);
@@ -126,6 +163,14 @@ function main(...args) {
   } catch(error) {
     console.log('ERROR', error + '', '\n' + error.stack);
   }
+
+  console.log('format()', { s: format('string %s', 'abcd') });
+  console.log('format()', format('JSON %j', { str: 'abcd', num: 1234, bool: true }));
+  console.log('format()', format('number %d', 123));
+  console.log('format()', format('integer %i', '0x4d2'));
+  console.log('format()', format('float %f', '.3141592653589793e+01'));
+  console.log('format()', format('object %o', { str: 'abcd', num: 1234, bool: true }));
+
   function toHex(num) {
     let r = num.toString(16);
     return r.padStart(2, '0');

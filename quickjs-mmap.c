@@ -8,6 +8,10 @@
 #include <errno.h>
 #endif
 
+/**
+ * \defgroup quickjs-mmap QuickJS module: mmap - Memory mapped I/O
+ * @{
+ */
 static void
 js_mmap_free_func(JSRuntime* rt, void* opaque, void* ptr) {
   munmap(ptr, (size_t)opaque);
@@ -161,7 +165,8 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
 
 static int
 js_mmap_init(JSContext* ctx, JSModuleDef* m) {
-  return JS_SetModuleExportList(ctx, m, js_mmap_funcs, countof(js_mmap_funcs));
+  JS_SetModuleExportList(ctx, m, js_mmap_funcs, countof(js_mmap_funcs));
+  return 0;
 }
 
 #ifdef JS_SHARED_LIBRARY
@@ -179,3 +184,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExportList(ctx, m, js_mmap_funcs, countof(js_mmap_funcs));
   return m;
 }
+
+/**
+ * @}
+ */

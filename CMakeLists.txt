@@ -126,6 +126,23 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
+check_functions(fnmatch glob wordexp)
+check_includes(fnmatch.h glob.h wordexp.h)
+
+if(HAVE_FNMATCH AND HAVE_FNMATCH_H)
+  add_definitions(-DHAVE_FNMATCH=1)
+endif(HAVE_FNMATCH AND HAVE_FNMATCH_H)
+
+if(HAVE_GLOB AND HAVE_GLOB_H)
+  add_definitions(-DHAVE_GLOB=1)
+endif(HAVE_GLOB AND HAVE_GLOB_H)
+
+if(HAVE_WORDEXP AND HAVE_WORDEXP_H)
+  add_definitions(-DHAVE_WORDEXP=1)
+endif(HAVE_WORDEXP AND HAVE_WORDEXP_H)
+
+
+
 if(BUILD_PIGPIO)
   include(ExternalProject)
   ExternalProject_Add(
@@ -223,7 +240,7 @@ set(lexer_SOURCES quickjs-lexer.h location.c location.h ${utils_SOURCES} ${vecto
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES} bc-fd_set.c bc-socklen_t.c)
+set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
   set(sockets_LIBRARIES mswsock)
   set(sockets_SOURCES ${sockets_SOURCES} socketpair_win32.c)

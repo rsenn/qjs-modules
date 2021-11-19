@@ -1,6 +1,10 @@
 #include "virtual-properties.h"
 #include "utils.h"
 
+/**
+ * \addtogroup virtual-properties
+ * @{
+ */
 struct MapAdapter {
   JSAtom has, delete, get, set;
 };
@@ -114,3 +118,7 @@ VirtualProperties
 virtual_properties_object(JSContext* ctx, JSValueConst obj) {
   return (VirtualProperties){JS_DupValue(ctx, obj), object_has, object_delete, object_get, object_set, object_finalizer, 0};
 }
+
+/**
+ * @}
+ */

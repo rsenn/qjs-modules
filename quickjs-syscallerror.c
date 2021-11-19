@@ -3,6 +3,10 @@
 #include "char-utils.h"
 #include <errno.h>
 
+/**
+ * \addtogroup quickjs-syscallerror
+ * @{
+ */
 thread_local JSClassID js_syscallerror_class_id = 0;
 thread_local JSValue syscallerror_proto = {{JS_TAG_UNDEFINED}}, syscallerror_ctor = {{JS_TAG_UNDEFINED}};
 
@@ -303,7 +307,8 @@ const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_SYSCALL),
     JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_CODE),
     JS_ALIAS_DEF("code", "name"),
-    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_ERRNO, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF(
+        "errno", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_ERRNO, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
     JS_ALIAS_DEF("number", "errno"),
     JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_STACK),
     JS_CGETSET_MAGIC_FLAGS_DEF(
@@ -590,3 +595,7 @@ const char* const errors[133] = {
     "ERFKILL",
 };
 const size_t errors_size = countof(errors);
+
+/**
+ * @}
+ */

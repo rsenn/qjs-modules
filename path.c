@@ -9,6 +9,11 @@
 #define lstat stat
 #endif
 
+/**
+ * \addtogroup path
+ * @{
+ */
+
 int
 path_absolute(const char* path, DynBuf* db) {
   if(!path_isabs(path)) {
@@ -592,3 +597,7 @@ path_readlink(const char* path, DynBuf* dir) {
   /* now truncate to effective length */
   return dir->size;
 }
+
+/**
+ * @}
+ */

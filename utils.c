@@ -16,6 +16,10 @@
 #include <sys/time.h>
 #include <quickjs-libc.h>
 
+/**
+ * \addtogroup utils
+ * @{
+ */
 void quicksort_r(void*, size_t, size_t, int (*)(const void*, const void*, void*), void*);
 int strverscmp(const char*, const char*);
 
@@ -235,17 +239,17 @@ js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
   str = JS_AtomToCString(ctx, atom);
   is_int = js_atom_isint(atom) || is_integer(str);
   if(color)
-    dbuf_putstr(db, is_int ? "\x1b[33m" : "\x1b[1;30m");
+    dbuf_putstr(db, is_int ? COLOR_BROWN : COLOR_GRAY);
 
   dbuf_putstr(db, str);
   if(color)
-    dbuf_putstr(db, "\x1b[1;36m");
+    dbuf_putstr(db, COLOR_CYAN);
 
   if(!is_int)
     dbuf_printf(db, "(0x%x)", js_atom_tobinary(atom));
 
   if(color)
-    dbuf_putstr(db, "\x1b[m");
+    dbuf_putstr(db, COLOR_NONE);
 }
 
 unsigned int
@@ -378,6 +382,73 @@ js_function_cfunc(JSContext* ctx, JSValueConst value) {
   return 0;
 }
 
+static JSValue
+js_function_bound(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* func_data) {
+  int i = 0, j = 0, k = ABS_NUM(magic), l = SIGN_NUM(magic);
+  JSValue args[argc + k];
+
+  for(i = 0; i < magic; i++) args[i] = func_data[i + 1];
+  for(j = 0; j < argc; j++) args[i++] = argv[j];
+
+  return JS_Call(ctx, func_data[0], l ? args[0] : this_val, i, args + l);
+}
+
+JSValue
+js_function_bind(JSContext* ctx, JSValueConst func, int argc, JSValueConst argv[]) {
+  JSValue data[argc + 1];
+  int i;
+  data[0] = JS_DupValue(ctx, func);
+  for(i = 0; i < argc; i++) data[i + 1] = JS_DupValue(ctx, argv[i]);
+  return JS_NewCFunctionData(ctx, js_function_bound, 0, argc, argc + 1, data);
+}
+
+static JSValue
+js_function_bound_this(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
+  return JS_Call(ctx, func_data[0], func_data[1], argc, argv);
+}
+
+JSValue
+js_function_bind_this(JSContext* ctx, JSValueConst func, JSValueConst this_val) {
+  JSValue data[2];
+  data[0] = JS_DupValue(ctx, func);
+  data[1] = JS_DupValue(ctx, this_val);
+  return JS_NewCFunctionData(ctx, js_function_bound_this, js_function_argc(ctx, func), 0, 2, data);
+}
+
+static JSValue
+js_function_throw_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+  if(!JS_IsUndefined(data[0]))
+    return JS_Throw(ctx, data[0]);
+
+  return JS_DupValue(ctx, argc >= 1 ? argv[0] : JS_UNDEFINED);
+}
+
+JSValue
+js_function_throw(JSContext* ctx, JSValueConst err) {
+  JSValueConst data[1];
+  data[0] = JS_DupValue(ctx, err);
+  return JS_NewCFunctionData(ctx, js_function_throw_fn, 0, 0, 1, data);
+}
+
+static JSValue
+js_function_return_value_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+  return data[0];
+}
+
+JSValue
+js_function_return_undefined(JSContext* ctx) {
+  JSValue data[1];
+  data[0] = JS_UNDEFINED;
+  return JS_NewCFunctionData(ctx, js_function_return_value_fn, 0, 0, 1, data);
+}
+
+JSValue
+js_function_return_value(JSContext* ctx, JSValueConst value) {
+  JSValue data[1];
+  data[0] = JS_DupValue(ctx, value);
+  return JS_NewCFunctionData(ctx, js_function_return_value_fn, 0, 0, 1, data);
+}
+
 JSValue
 js_global_get_str(JSContext* ctx, const char* prop) {
   JSValue global_obj, ret;
@@ -415,16 +486,26 @@ js_global_prototype(JSContext* ctx, const char* class_name) {
 }
 
 JSValue
+js_global_static_func(JSContext* ctx, const char* class_name, const char* func_name) {
+  JSValue ctor, func;
+
+  ctor = js_global_get_str(ctx, class_name);
+  func = JS_GetPropertyStr(ctx, ctor, func_name);
+
+  return func;
+}
+
+JSValue
 js_iterator_method(JSContext* ctx, JSValueConst obj) {
   JSAtom atom;
   JSValue ret = JS_UNDEFINED;
-  atom = js_symbol_static_atom(ctx, "iterator");
+  atom = js_symbol_static_atom(ctx, "asyncIterator");
   if(JS_HasProperty(ctx, obj, atom))
     ret = JS_GetProperty(ctx, obj, atom);
 
   JS_FreeAtom(ctx, atom);
   if(!JS_IsFunction(ctx, ret)) {
-    atom = js_symbol_static_atom(ctx, "asyncIterator");
+    atom = js_symbol_static_atom(ctx, "iterator");
     if(JS_HasProperty(ctx, obj, atom))
       ret = JS_GetProperty(ctx, obj, atom);
 
@@ -454,6 +535,35 @@ js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p) {
   *done_p = JS_ToBool(ctx, done);
   JS_FreeValue(ctx, done);
   return value;
+}
+
+JSValue
+js_iterator_result(JSContext* ctx, JSValueConst value, BOOL done) {
+  JSValue ret = JS_NewObject(ctx);
+
+  JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, done));
+  JS_SetPropertyStr(ctx, ret, "value", JS_DupValue(ctx, value));
+
+  return ret;
+}
+
+static JSValue
+js_iterator_then_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+  JSValue ret = JS_NewObject(ctx);
+
+  JS_SetPropertyStr(ctx, ret, "done", JS_DupValue(ctx, data[0]));
+  if(argc >= 1)
+    JS_SetPropertyStr(ctx, ret, "value", JS_DupValue(ctx, argv[0]));
+
+  return ret;
+}
+
+JSValue
+js_iterator_then(JSContext* ctx, BOOL done) {
+  JSValue ret;
+  JSValueConst data[1] = {JS_NewBool(ctx, done)};
+
+  return JS_NewCFunctionData(ctx, js_iterator_then_fn, 1, 0, 1, data);
 }
 
 JSValue
@@ -543,19 +653,19 @@ js_object_error(JSContext* ctx, const char* message) {
 }
 
 JSValue
-js_object_stack(JSContext* ctx) {
-  JSValue error = js_object_error(ctx, "");
-  JSValue stack = JS_GetPropertyStr(ctx, error, "stack");
-  JS_FreeValue(ctx, error);
-  return stack;
-}
-
-JSValue
 js_object_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]) {
   JSValue ctor = js_global_get_str(ctx, class_name);
   JSValue obj = JS_CallConstructor(ctx, ctor, argc, argv);
   JS_FreeValue(ctx, ctor);
   return obj;
+}
+
+JSValue
+js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj) {
+  JSValue ret, ctor = js_global_get_str(ctx, "Object");
+  ret = js_invoke(ctx, ctor, func_name, 1, &obj);
+  JS_FreeValue(ctx, ctor);
+  return ret;
 }
 
 BOOL
@@ -872,11 +982,11 @@ js_strv_dup(JSContext* ctx, char** strv) {
 }
 
 JSValue
-js_intv_to_array(JSContext* ctx, int* intv) {
+js_intv_to_array(JSContext* ctx, int* intv, size_t len) {
   JSValue ret = JS_NewArray(ctx);
   if(intv) {
     size_t i;
-    for(i = 0; intv[i]; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
+    for(i = 0; i < len; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
   }
   return ret;
 }
@@ -980,6 +1090,18 @@ js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
   int i;
   JSValue ret = JS_NewArray(ctx);
   for(i = 0; i < nvalues; i++) JS_SetPropertyUint32(ctx, ret, i, JS_DupValue(ctx, values[i]));
+  return ret;
+}
+
+JSValue*
+js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr) {
+  size_t i, len = js_array_length(ctx, arr);
+  JSValue* ret = js_mallocz(ctx, sizeof(JSValueConst) * len);
+
+  if(nvalues_p)
+    *nvalues_p = len;
+
+  for(i = 0; i < len; i++) { ret[i] = JS_GetPropertyUint32(ctx, arr, i); }
   return ret;
 }
 
@@ -1447,7 +1569,7 @@ js_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     char* str = module_namestr(ctx, m);
     JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
-    if(str[0] != '<')
+    if(1 /*str[0] != '<'*/)
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
       JS_FreeValue(ctx, entry);
@@ -1467,7 +1589,7 @@ js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
     JSValue entry = JS_NewArray(ctx);
     JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, /*basename*/ (name)));
     JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, m) : module_value(ctx, m));
-    if(name[0] != '<')
+    if(1 /*str[0] != '<'*/)
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
       JS_FreeValue(ctx, entry);
@@ -1492,7 +1614,7 @@ js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
     JSModuleDef* m = list_entry(it, JSModuleDef, link);
     char* name = module_namestr(ctx, m);
     JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
-    if(name[0] != '<')
+    if(1 /*str[0] != '<'*/)
       JS_SetPropertyStr(ctx, obj, basename(name), entry);
     else
       JS_FreeValue(ctx, entry);
@@ -1650,15 +1772,64 @@ js_module_find(JSContext* ctx, const char* name) {
   return 0;
 }
 
+int
+js_module_indexof(JSContext* ctx, JSModuleDef* def) {
+  struct list_head* el;
+  int i = 0;
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    if(m == def)
+      return i;
+    ++i;
+  }
+  return -1;
+}
+/*
+Vector
+js_module_vector(JSContext* ctx) {
+  Vector ret = VECTOR(ctx);
+  struct list_head* el;
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    vector_push(&ret, m);
+  }
+  return ret;
+}
+*/
+JSModuleDef*
+js_module_at(JSContext* ctx, int index) {
+  struct list_head* el;
+  int i = 0;
+  if(index >= 0) {
+    list_for_each(el, &ctx->loaded_modules) {
+      JSModuleDef* m = list_entry(el, JSModuleDef, link);
+      if(index == i)
+        return m;
+      ++i;
+    }
+  } else {
+    index = -(index + 1);
+    list_for_each_prev(el, &ctx->loaded_modules) {
+      JSModuleDef* m = list_entry(el, JSModuleDef, link);
+      if(index == i)
+        return m;
+      ++i;
+    }
+  }
+  return 0;
+}
+
 static void
 js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   BOOL has_prop = imp.prop && imp.prop[0];
   BOOL is_ns = imp.spec && imp.spec[0] == '*';
+  BOOL is_default = imp.spec && str_equal(imp.spec, "default");
   const char *var, *base = basename(imp.path);
   size_t blen = str_chr(base, '.');
   dbuf_putstr(db, "import ");
   if(imp.spec) {
-    dbuf_putstr(db, imp.spec);
+    if(!is_default)
+      dbuf_putstr(db, imp.spec);
     if(is_ns) {
       if(!imp.ns) {
         char* x;
@@ -1683,7 +1854,7 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
       var = imp.spec;
   dbuf_putstr(db, ";\n");
 
-  if((has_prop || is_ns) && var[0] != '*') {
+  if((has_prop || is_ns || is_default) && var[0] != '*') {
     dbuf_putm(db, "globalThis.", var, " = ", imp.ns ? imp.ns : imp.spec, imp.prop && *imp.prop ? "." : 0, imp.prop, 0);
   } else {
     dbuf_putm(db, "Object.assign(globalThis, ", imp.ns ? imp.ns : imp.spec, 0);
@@ -1714,32 +1885,46 @@ js_import_eval(JSContext* ctx, ImportDirective imp) {
   code = str_escape((const char*)buf.buf);
   printf("js_import_eval: '%s'\n", code);
   free(code);
-  return js_eval_buf(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE);
+  return JS_Eval(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE);
 }
 
 JSModuleDef*
 js_module_import_default(JSContext* ctx, const char* path, const char* var) {
-  js_import_eval(ctx,
-                 (ImportDirective){
-                     .path = path,
-                     .spec = "default",
-                     .ns = 0,
-                     .prop = "default",
-                     .var = 0,
-                 });
+  JSValue ret;
+
+  ret = js_import_eval(ctx,
+                       (ImportDirective){
+                           .path = path,
+                           .spec = "default",
+                           .ns = 0,
+                           .prop = 0,
+                           .var = 0,
+                       });
+
+  /* if(JS_IsException(ret)) {
+     fprintf(stderr, "EXCEPTION: ", JS_ToCString(ctx, ret));
+     return 0;
+   }
+
+   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
+     return JS_VALUE_GET_PTR(ret);*/
+
   return js_module_find(ctx, path);
 }
 
 JSModuleDef*
 js_module_import_namespace(JSContext* ctx, const char* path, const char* ns) {
-  js_import_eval(ctx,
-                 (ImportDirective){
-                     .path = path,
-                     .spec = "*",
-                     .ns = ns,
-                     .prop = 0,
-                     .var = 0,
-                 });
+  JSValue r;
+
+  r = js_import_eval(ctx,
+                     (ImportDirective){
+                         .path = path,
+                         .spec = "*",
+                         .ns = ns,
+                         .prop = 0,
+                         .var = 0,
+                     });
+
   return js_module_find(ctx, path);
 }
 
@@ -1762,48 +1947,9 @@ js_module_import(JSContext* ctx, const char* path, const char* ns, const char* v
   }
   dbuf_putc(&buf, ';');
   dbuf_0(&buf);
-  printf("js_module_import: '%s'\n", buf.buf);
+  // printf("js_module_import: '%s'\n", buf.buf);
   return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
 }
-
-/*JSModuleDef*
-js_module_loader_so(JSContext* ctx, const char* module) {
-  JSModuleDef* m;
-  JSModuleLoaderFunc* init;
-  void* hd;
-  char* file;
-  static const char* errors[3] = {"dlopen() failed", "js_init_module not found", "initialization error"};
-  if(!strchr(module, '/')) {
-    if(!(file = js_malloc(ctx, strlen(module) + 2 + 1)))
-      return 0;
-    strcpy(file, "./");
-    strcpy(file + 2, module);
-  } else {
-    file = (char*)module;
-  }
-  hd = dlopen(file, RTLD_NOW | RTLD_LOCAL);
-  if(file != module)
-    js_free(ctx, file);
-  if(hd) {
-    if((init = dlsym(hd, "js_init_module"))) {
-      if(!(m = init(ctx, module, 0))) {
-        JS_ThrowReferenceError(ctx, "could not load module file '%s': %s", errors[2]);
-        goto fail;
-      }
-    } else {
-      JS_ThrowReferenceError(ctx, "could not load module file '%s': %s", errors[1]);
-      goto fail;
-    }
-  } else {
-    JS_ThrowReferenceError(ctx, "could not load module file '%s': %s: %s", module, errors[0], dlerror());
-    goto fail;
-  }
-  return m;
-fail:
-  if(hd)
-    dlclose(hd);
-  return 0;
-}*/
 
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
@@ -1827,28 +1973,27 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SHARED_ARRAY_BUFFER)/* ||
-                                js_object_is(ctx, value, "[object SharedArrayBuffer]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SHARED_ARRAY_BUFFER));
 }
 
 BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_MAP) /*|| js_object_is(ctx, value, "[object Map]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_MAP));
 }
 
 BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SET) /* || js_object_is(ctx, value, "[object Set]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SET));
 }
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_GENERATOR) /*|| js_object_is(ctx, value, "[object Generator]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_GENERATOR));
 }
 
 BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_REGEXP) /*|| js_object_is(ctx, value, "[object RegExp]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_REGEXP));
 }
 
 BOOL
@@ -1858,7 +2003,7 @@ js_is_promise(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_dataview(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_DATAVIEW) /*|| js_object_is(ctx, value, "[object DataView]")*/);
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_DATAVIEW));
 }
 
 BOOL
@@ -2218,14 +2363,22 @@ js_error_print(JSContext* ctx, JSValueConst error) {
     if(!strncmp(exception, type, typelen) && exception[typelen] == ':') {
       exception += typelen + 2;
     }
-    printf("%s: %s\n", type, exception);
+    fprintf(stderr, "%s: %s\n", type, exception);
     if(stack)
-      printf("STACK=\n%s\n", stack);
-    fflush(stdout);
+      fprintf(stderr, "STACK=\n%s\n", stack);
+    fflush(stderr);
   }
   if(stack)
     JS_FreeCString(ctx, stack);
   JS_FreeCString(ctx, str);
+}
+
+JSValue
+js_error_stack(JSContext* ctx) {
+  JSValue error = js_object_error(ctx, "");
+  JSValue stack = JS_GetPropertyStr(ctx, error, "stack");
+  JS_FreeValue(ctx, error);
+  return stack;
 }
 
 JSValue
@@ -2264,3 +2417,44 @@ js_io_readhandler_cfunc(JSContext* ctx, BOOL write) {
   }
   return readhandler_cfunc;
 }
+
+JSValue
+js_promise_resolve(JSContext* ctx, JSValueConst promise) {
+  JSValue ret, ctor = js_global_get_str(ctx, "Promise");
+  ret = js_invoke(ctx, ctor, "resolve", 1, &promise);
+  JS_FreeValue(ctx, ctor);
+  return ret;
+}
+
+JSValue
+js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func) {
+  return js_invoke(ctx, promise, "then", 1, &func);
+}
+
+JSValue
+js_promise_catch(JSContext* ctx, JSValueConst promise, JSValueConst func) {
+  return js_invoke(ctx, promise, "catch", 1, &func);
+}
+
+JSValue
+js_promise_wrap(JSContext* ctx, JSValueConst value) {
+  JSValue ret, promise, resolving_funcs[2];
+  promise = JS_NewPromiseCapability(ctx, resolving_funcs);
+  ret = JS_Call(ctx, resolving_funcs[0], JS_UNDEFINED, 1, &value);
+  JS_FreeValue(ctx, ret);
+
+  JS_FreeValue(ctx, resolving_funcs[0]);
+  JS_FreeValue(ctx, resolving_funcs[1]);
+  return promise;
+}
+
+JSValue
+js_promise_adopt(JSContext* ctx, JSValueConst value) {
+  if(js_is_promise(ctx, value))
+    return JS_DupValue(ctx, value);
+  return js_promise_wrap(ctx, value);
+}
+
+/**
+ * @}
+ */

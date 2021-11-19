@@ -2,6 +2,10 @@
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup quickjs-predicate
+ * @{
+ */
 thread_local JSClassID js_predicate_class_id = 0;
 thread_local JSValue predicate_proto = {{JS_TAG_UNDEFINED}}, predicate_ctor = {{JS_TAG_UNDEFINED}};
 
@@ -31,8 +35,8 @@ predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
   dbuf_init2(&dbuf, 0, 0);
   // js_dbuf_init(ctx, &dbuf);
 
-  dbuf_putstr(&dbuf, color ? "Predicate" COLOR_LIGHTMARINE : "Predicate");
-  dbuf_putstr(&dbuf, color ? "." COLOR_LIGHTYELLOW : ".");
+  dbuf_putstr(&dbuf, color ? "Predicate" COLOR_CYAN : "Predicate");
+  dbuf_putstr(&dbuf, color ? "." COLOR_YELLOW : ".");
   dbuf_putstr(&dbuf, predicate_typename(pr));
   dbuf_putstr(&dbuf, color ? COLOR_NONE : "");
 
@@ -681,7 +685,8 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
-      JS_DefinePropertyValueStr(ctx, obj, "values", js_values_toarray(ctx, pr->boolean.npredicates, pr->boolean.predicates), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(
+          ctx, obj, "values", js_values_toarray(ctx, pr->boolean.npredicates, pr->boolean.predicates), JS_PROP_ENUMERABLE);
 
       break;
     }
@@ -918,3 +923,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExportList(ctx, m, js_predicate_types, countof(js_predicate_types));
   return m;
 }
+
+/**
+ * @}
+ */

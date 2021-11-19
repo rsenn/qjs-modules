@@ -4,6 +4,10 @@
 #include <ctype.h>
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup lexer
+ * @{
+ */
 int
 lexer_state_findb(Lexer* lex, const char* state, size_t slen) {
   int ret = -1;
@@ -450,3 +454,7 @@ lexer_dump(Lexer* lex, DynBuf* dbuf) {
   location_print(&lex->loc, dbuf);
   dbuf_putstr(dbuf, "\n}");
 }
+
+/**
+ * @}
+ */

@@ -3,6 +3,10 @@
 
 #include "vector.h"
 
+/**
+ * \defgroup ringbuffer Ring Buffer implementation
+ * @{
+ */
 typedef union ringbuffer {
   struct {
     uint8_t* data;
@@ -85,4 +89,7 @@ ringbuffer_avail(RingBuffer* rb) {
   return rb->size - ringbuffer_length(rb);
 }
 
+/**
+ * @}
+ */
 #endif /* defined(RINGBUFFER_H) */

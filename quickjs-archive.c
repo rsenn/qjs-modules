@@ -3,6 +3,11 @@
 #include "quickjs-archive.h"
 #include "utils.h"
 
+/**
+ * \addtogroup quickjs-archive
+ * @{
+ */
+
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_archive_class_id = 0;
@@ -1227,3 +1232,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "Archive");
   return m;
 }
+
+/**
+ * @}
+ */

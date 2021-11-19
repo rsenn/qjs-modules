@@ -18,6 +18,10 @@
 #include <sys/wait.h>
 #endif
 
+/**
+ * \addtogroup child-process
+ * @{
+ */
 static struct list_head child_process_list = LIST_HEAD_INIT(child_process_list);
 
 void
@@ -321,3 +325,6 @@ const char* child_process_signals[32] = {
     "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM", "SIGTERM",   "SIGSTKFLT", "SIGCHLD",  "SIGCONT", "SIGSTOP", "SIGTSTP", "SIGTTIN",
     "SIGTTOU", "SIGURG",  "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF",   "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
 };
+/**
+ * @}
+ */

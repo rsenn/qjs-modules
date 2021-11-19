@@ -18,6 +18,11 @@ int socketpair(int, int, int, SOCKET[2]);
 #include <errno.h>
 //#include <alloca.h>
 
+/**
+ * \addtogroup quickjs-sockets
+ * @{
+ */
+
 extern const uint32_t qjsm_fd_set_size;
 extern const uint8_t qjsm_fd_set[1030];
 extern const uint32_t qjsm_socklen_t_size;
@@ -26,7 +31,8 @@ extern const uint8_t qjsm_socklen_t[1030];
 static int js_sockets_init(JSContext*, JSModuleDef*);
 static JSValue js_socket_async_wait(JSContext*, JSValueConst, int, JSValueConst[], int);
 
-#define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), JS_NewInt32(ctx, -1))
+#define JS_SOCKETCALL(syscall_no, sock, result) \
+  JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), JS_NewInt32(ctx, -1))
 
 #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), on_fail)
 
@@ -69,7 +75,8 @@ syscall_return(Socket* sock, int syscall, int retval) {
   sock->ret = retval;
   sock->error = retval < 0 ? errno : 0;
 
-  // printf("syscall %s returned %d (%d)\n", socket_syscalls[sock->syscall], sock->ret, sock->error);
+  // printf("syscall %s returned %d (%d)\n", socket_syscalls[sock->syscall], sock->ret,
+  // sock->error);
 }
 
 static SockAddr*
@@ -947,8 +954,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       OffsetLength off;
       js_offset_length(ctx, buf.size, argc - 1, argv + 1, &off);
 
-
-      printf("recv(%d, %zu, %zu %zu)\n",  sock.fd, off.offset, off.length, offset_size(&off, buf.size));
+      printf("recv(%d, %zu, %zu %zu)\n", sock.fd, off.offset, off.length, offset_size(&off, buf.size));
 
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
@@ -1006,7 +1012,8 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       val = (void*)buf;
       if(tmp)
         js_free(ctx, tmp);
-      /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", sock.fd, level, optname, ((ptrdiff_t*)val)[0], val, len, sock.ret);*/
+      /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", sock.fd, level, optname,
+       * ((ptrdiff_t*)val)[0], val, len, sock.ret);*/
       break;
     }
     case SOCKETS_SETSOCKOPT: {
@@ -1030,7 +1037,8 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         }
       }
       JS_SOCKETCALL(SYSCALL_SETSOCKOPT, sock, setsockopt(sock.fd, level, optname, buf, len));
-      /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", sock.fd, level, optname, *(int*)buf, buf, len, sock.ret);*/
+      /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", sock.fd, level, optname,
+       * *(int*)buf, buf, len, sock.ret);*/
 
       if(tmp)
         js_free(ctx, tmp);
@@ -1154,7 +1162,7 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   if(js_value_isclass(ctx, set_handler, JS_CLASS_C_FUNCTION)) {
     JSObject* obj = JS_VALUE_GET_OBJ(set_handler);
     set_mux = obj->u.cfunc.c_function.generic_magic;
-    //printf("cfunc:%p\n", set_mux);
+    // printf("cfunc:%p\n", set_mux);
   }
 
   promise = JS_NewPromiseCapability(ctx, resolving_funcs);
@@ -2049,3 +2057,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   }
   return m;
 }
+
+/**
+ * @}
+ */

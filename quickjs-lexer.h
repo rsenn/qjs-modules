@@ -4,6 +4,11 @@
 #include "lexer.h"
 #include <list.h>
 
+/**
+ * \defgroup quickjs-lexer QuickJS module: lexer - Lexical scanner, regex based
+ * @{
+ */
+
 typedef struct {
   Location loc;
   const char* line;
@@ -51,5 +56,9 @@ js_lexer_data(JSContext* ctx, JSValueConst value) {
   lex = JS_GetOpaque2(ctx, value, js_lexer_class_id);
   return lex;
 }
+
+/**
+ * @}
+ */
 
 #endif /* defined(QUICKJS_LEXER_H) */

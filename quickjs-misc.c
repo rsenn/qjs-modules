@@ -11,7 +11,15 @@
 #include <sys/utsname.h>
 #endif
 #include <errno.h>
+#include <fnmatch.h>
+#include <glob.h>
+#include <wordexp.h>
 #include "buffer-utils.h"
+
+/**
+ * \addtogroup quickjs-misc
+ * @{
+ */
 
 #ifndef HAVE_MEMMEM
 void* memmem(const void*, size_t, const void*, size_t);
@@ -139,6 +147,24 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     ptr = JS_GetArrayBuffer(ctx, &len, argv[0]);
   } else if(JS_IsString(argv[0])) {
     ptr = js_cstring_ptr(argv[0]);
+  } else {
+    switch(JS_VALUE_GET_TAG(argv[0])) {
+        /*  case JS_TAG_BIG_DECIMAL:
+          case JS_TAG_BIG_FLOAT:
+          case JS_TAG_BIG_INT:
+          case JS_TAG_FUNCTION_BYTECODE:
+          case JS_TAG_INT:*/
+      case JS_TAG_MODULE:
+        /*      case JS_TAG_OBJECT:
+               case JS_TAG_SYMBOL:*/
+        {
+          ptr = JS_VALUE_GET_PTR(argv[0]);
+          break;
+        }
+      default: {
+        return JS_ThrowTypeError(ctx, "toPointer: invalid type %s", js_value_typestr(ctx, argv[0]));
+      }
+    }
   }
 
   if(ptr) {
@@ -561,6 +587,7 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return JS_NULL;
 }*/
 
+#ifdef HAVE_FNMATCH
 static JSValue
 js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t plen, slen;
@@ -577,6 +604,108 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JS_FreeCString(ctx, string);
   return JS_NewBool(ctx, !ret);
 }
+#endif
+
+#ifdef HAVE_GLOB
+static JSContext* js_misc_glob_errfunc_ctx;
+static JSValueConst js_misc_glob_errfunc_fn;
+
+static int
+js_misc_glob_errfunc(const char* epath, int eerrno) {
+  JSContext* ctx;
+
+  if((ctx = js_misc_glob_errfunc_ctx)) {
+    JSValueConst argv[2] = {JS_NewString(ctx, epath), JS_NewInt32(ctx, eerrno)};
+
+    JS_FreeValue(ctx, JS_Call(ctx, js_misc_glob_errfunc_fn, JS_NULL, 2, argv));
+
+    JS_FreeValue(ctx, argv[0]);
+    JS_FreeValue(ctx, argv[1]);
+  }
+  return 0;
+}
+
+static JSValue
+js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  size_t start = 0, i;
+  int32_t flags = 0;
+  JSValue ret = JS_UNDEFINED;
+  glob_t g = {0, 0, 0};
+  int result;
+  BOOL array_arg = FALSE;
+  const char* pattern = JS_ToCString(ctx, argv[0]);
+
+  if(argc >= 2)
+    JS_ToInt32(ctx, &flags, argv[1]);
+
+  if((array_arg = (argc >= 4 && JS_IsArray(ctx, argv[3])))) {
+    ret = JS_DupValue(ctx, argv[3]);
+
+    if(flags & GLOB_APPEND)
+      start = js_array_length(ctx, ret);
+  } else {
+    ret = JS_NewArray(ctx);
+  }
+
+  js_misc_glob_errfunc_ctx = ctx;
+  js_misc_glob_errfunc_fn = argc >= 3 ? argv[2] : JS_UNDEFINED;
+
+  if((result = glob(pattern, flags & (~(GLOB_APPEND | GLOB_DOOFFS)), js_misc_glob_errfunc, &g)) == 0) {
+    for(i = 0; i < g.gl_pathc; i++) JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, g.gl_pathv[i]));
+
+    globfree(&g);
+  }
+
+  if(array_arg || result) {
+    JS_FreeValue(ctx, ret);
+    ret = JS_NewInt32(ctx, result);
+  }
+
+  JS_FreeValue(ctx, js_misc_glob_errfunc_fn);
+  js_misc_glob_errfunc_ctx = 0;
+  JS_FreeCString(ctx, pattern);
+  return ret;
+}
+#endif
+
+#ifdef HAVE_WORDEXP
+static JSValue
+js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  size_t start = 0, i;
+  int32_t flags = 0;
+  JSValue ret = JS_UNDEFINED;
+  wordexp_t we = {0, 0, 0};
+  int result;
+  BOOL array_arg = FALSE;
+  const char* s = JS_ToCString(ctx, argv[0]);
+
+  if(argc >= 3)
+    JS_ToInt32(ctx, &flags, argv[2]);
+
+  if((array_arg = (argc >= 2 && JS_IsArray(ctx, argv[1])))) {
+    ret = JS_DupValue(ctx, argv[1]);
+
+    if(flags & WRDE_APPEND)
+      start = js_array_length(ctx, ret);
+  } else {
+    ret = JS_NewArray(ctx);
+  }
+
+  if((result = wordexp(s, &we, flags & (~(WRDE_APPEND | WRDE_DOOFFS | WRDE_REUSE)))) == 0) {
+    for(i = 0; i < we.we_wordc; i++) JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, we.we_wordv[i]));
+
+    wordfree(&we);
+  }
+
+  if(array_arg || result) {
+    JS_FreeValue(ctx, ret);
+    ret = JS_NewInt32(ctx, result);
+  }
+
+  JS_FreeCString(ctx, s);
+  return ret;
+}
+#endif
 
 #ifndef _WIN32
 static JSValue
@@ -1130,18 +1259,19 @@ js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   DynBuf output;
   char quote = '"',
        table[256] = {
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'b',  't',  'n',  'v',  'f',  'r',  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, '\\', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'b',  't',  'n',  'v',  'f',  'r',  0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '\\', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+           0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
        };
 
   js_dbuf_init(ctx, &output);
@@ -1213,6 +1343,7 @@ enum {
   IS_UNCATCHABLEERROR,
   IS_UNDEFINED,
   IS_UNINITIALIZED,
+  IS_ARRAYBUFFER,
 };
 
 JSValue
@@ -1247,6 +1378,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_UNCATCHABLEERROR: r = JS_IsUncatchableError(ctx, arg); break;
     case IS_UNDEFINED: r = JS_IsUndefined(arg); break;
     case IS_UNINITIALIZED: r = JS_IsUninitialized(arg); break;
+    case IS_ARRAYBUFFER: r = js_is_arraybuffer(ctx, arg); break;
   }
   if(r == -1)
     return JS_ThrowInternalError(ctx, "js_misc_is %d", magic);
@@ -1257,7 +1389,15 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
 // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
 #endif
+#ifdef HAVE_FNMATCH
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
+#endif
+#ifdef HAVE_GLOB
+    JS_CFUNC_DEF("glob", 2, js_misc_glob),
+#endif
+#ifdef HAVE_WORDEXP
+    JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
+#endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
@@ -1354,6 +1494,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isUncatchableError", 1, js_misc_is, IS_UNCATCHABLEERROR),
     JS_CFUNC_MAGIC_DEF("isUndefined", 1, js_misc_is, IS_UNDEFINED),
     JS_CFUNC_MAGIC_DEF("isUninitialized", 1, js_misc_is, IS_UNINITIALIZED),
+    JS_CFUNC_MAGIC_DEF("isArrayBuffer", 1, js_misc_is, IS_ARRAYBUFFER),
 
     JS_CONSTANT(JS_EVAL_TYPE_GLOBAL),
     JS_CONSTANT(JS_EVAL_TYPE_MODULE),
@@ -1364,9 +1505,44 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(JS_EVAL_FLAG_STRIP),
     JS_CONSTANT(JS_EVAL_FLAG_COMPILE_ONLY),
     JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
-    //   JS_OBJECT_DEF("StringDecoder", js_stringdecoder_props,
-    //   countof(js_stringdecoder_props), JS_PROP_CONFIGURABLE),
-
+#ifdef HAVE_FNMATCH
+    JS_CONSTANT(FNM_CASEFOLD),
+    JS_CONSTANT(FNM_EXTMATCH),
+    JS_CONSTANT(FNM_FILE_NAME),
+    JS_CONSTANT(FNM_LEADING_DIR),
+    JS_CONSTANT(FNM_NOESCAPE),
+    JS_CONSTANT(FNM_NOMATCH),
+    JS_CONSTANT(FNM_PATHNAME),
+    JS_CONSTANT(FNM_PERIOD),
+#endif
+#ifdef HAVE_GLOB
+    JS_CONSTANT(GLOB_ERR),
+    JS_CONSTANT(GLOB_MARK),
+    JS_CONSTANT(GLOB_NOSORT),
+    JS_CONSTANT(GLOB_NOCHECK),
+    JS_CONSTANT(GLOB_NOMATCH),
+    JS_CONSTANT(GLOB_NOESCAPE),
+    JS_CONSTANT(GLOB_PERIOD),
+    JS_CONSTANT(GLOB_ALTDIRFUNC),
+    JS_CONSTANT(GLOB_BRACE),
+    JS_CONSTANT(GLOB_NOMAGIC),
+    JS_CONSTANT(GLOB_TILDE),
+    JS_CONSTANT(GLOB_TILDE_CHECK),
+    JS_CONSTANT(GLOB_ONLYDIR),
+    JS_CONSTANT(GLOB_MAGCHAR),
+    JS_CONSTANT(GLOB_NOSPACE),
+    JS_CONSTANT(GLOB_ABORTED),
+#endif
+#ifdef HAVE_WORDEXP
+    JS_CONSTANT(WRDE_SHOWERR),
+    JS_CONSTANT(WRDE_UNDEF),
+    JS_CONSTANT(WRDE_BADCHAR),
+    JS_CONSTANT(WRDE_BADVAL),
+    JS_CONSTANT(WRDE_CMDSUB),
+    JS_CONSTANT(WRDE_NOCMD),
+    JS_CONSTANT(WRDE_NOSPACE),
+    JS_CONSTANT(WRDE_SYNTAX),
+#endif
 };
 
 static int
@@ -1376,16 +1552,9 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
     js_location_init(ctx, 0);
 
   if(m) {
-    // JS_SetModuleExportList(ctx, m, location_ctor);
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
     JS_SetModuleExport(ctx, m, "Location", location_ctor);
-    // JS_SetModuleExport(ctx, m, "StringDecoder", stringdecoder_ctor);
   }
-
-  // js_stringdecoder_init(ctx, m);
-
-  // printf("%s\n", js_opcodes[0].name);
-
   return 0;
 }
 
@@ -1398,12 +1567,15 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
+
   m = JS_NewCModule(ctx, module_name, js_misc_init);
   if(!m)
     return NULL;
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-  // JS_AddModuleExport(ctx, m, "SyscallError");
   JS_AddModuleExport(ctx, m, "Location");
-  // JS_AddModuleExport(ctx, m, "StringDecoder");
   return m;
 }
+
+/**
+ * @}
+ */

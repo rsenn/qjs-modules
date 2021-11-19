@@ -3,7 +3,11 @@
 
 #include "utils.h"
 
-typedef struct Location {
+/**
+ * \defgroup location Source text location
+ * @{
+ */
+typedef struct source_location {
   char* file;
   uint32_t line;
   uint32_t column;
@@ -28,4 +32,7 @@ location_isnull(const Location* loc) {
   return !loc->file && !loc->line && !loc->column && !loc->pos;
 }
 
+/**
+ * @}
+ */
 #endif /* defined(LOCATION_H) */
