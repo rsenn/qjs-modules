@@ -1700,9 +1700,9 @@ js_import_load(JSContext* ctx, ImportDirective imp) {
   js_dbuf_init(ctx, &buf);
   js_import_directive(ctx, imp, &buf);
   code = str_escape((const char*)buf.buf);
-  printf("js_import_eval: '%s'\n", code);
+  printf("js_import_load: '%s'\n", code);
   free(code);
-  return JS_Eval(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+  return JS_Eval(ctx, (const char*)buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
 }
 
 JSValue

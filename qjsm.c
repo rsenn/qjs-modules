@@ -1062,6 +1062,7 @@ main(int argc, char** argv) {
                "repl.runSync();\n",
                home,
                exename);
+      printf("str: %s\n", str);
       js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
