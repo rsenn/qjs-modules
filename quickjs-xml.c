@@ -358,9 +358,9 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           char* locstr;
           JS_FreeValue(ctx, ret);
           location_count(&loc, buf, start - buf);
-          //locstr = location_tostring(&loc, ctx);
-          ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", namelen, name, loc.file,loc.line,loc.column);
-          //js_free(ctx, locstr);
+          // locstr = location_tostring(&loc, ctx);
+          ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", namelen, name, loc.file, loc.line, loc.column);
+          // js_free(ctx, locstr);
           return ret;
         }
 
