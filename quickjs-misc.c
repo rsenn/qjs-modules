@@ -11,9 +11,15 @@
 #include <sys/utsname.h>
 #endif
 #include <errno.h>
+#ifdef HAVE_FNMATCH
 #include <fnmatch.h>
+#endif
+#ifdef HAVE_GLOB
 #include <glob.h>
+#endif
+#ifdef HAVE_WORDEXP
 #include <wordexp.h>
+#endif
 #include "buffer-utils.h"
 
 /**

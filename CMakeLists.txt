@@ -209,7 +209,7 @@ endif()
 set(buffer_utils_SOURCES buffer-utils.c buffer-utils.h)
 set(vector_SOURCES vector.c vector.h ${buffer_utils_SOURCES})
 set(char_utils_SOURCES char-utils.c char-utils.h)
-set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES})
+set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES} clock_gettime.c)
 set(predicate_SOURCES predicate.c predicate.h ${utils_SOURCES})
 if(NOT HAVE_STRVERSCMP)
   set(utils_SOURCES ${utils_SOURCES} strverscmp.c)
@@ -228,7 +228,7 @@ set(deep_LIBRARIES qjs-predicate qjs-pointer)
 set(inspect_SOURCES ${vector_SOURCES} iteration.h ${utils_SOURCES} property-enumeration.c property-enumeration.h
                     quickjs-internal.h)
 set(tree_walker_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES})
-set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES})
+set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES} ${location_SOURCES} ${inspect_SOURCES})
 set(path_SOURCES path.c path.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} readlink.c)
@@ -242,7 +242,7 @@ set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
-  set(sockets_LIBRARIES mswsock)
+  set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} socketpair_win32.c)
 endif(WIN32 OR MINGW)
 
@@ -283,8 +283,10 @@ check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 # dump(VISIBILITY_HIDDEN) dump(MODULE_COMPILE_FLAGS)
 
 check_flags(
-  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type"
+  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function"
   CMAKE_C_FLAGS)
+
+#check_flags("-Wno-cast-function-type" CMAKE_C_FLAGS)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)

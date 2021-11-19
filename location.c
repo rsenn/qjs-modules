@@ -75,7 +75,7 @@ location_sub(Location* loc, const Location* other) {
   loc->pos -= other->pos;
 }
 
-void
+/*void
 location_count(Location* loc, const char* x, size_t n) {
   size_t i;
   for(i = 0; i < n;) {
@@ -91,7 +91,7 @@ location_count(Location* loc, const char* x, size_t n) {
     loc->pos++;
     i += bytes;
   }
-}
+}*/
 
 void
 location_free(Location* loc, JSContext* ctx) {
