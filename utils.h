@@ -905,27 +905,26 @@ JSValue module_ns(JSContext*, JSModuleDef*);
 JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);
 void module_exports_get(JSContext*, JSModuleDef*, BOOL rename_default, JSValueConst exports);
 JSValue module_exports(JSContext*, JSModuleDef*);
-struct list_head* js_modules_list(JSContext*);
-JSValue js_modules_array(JSContext*, JSValueConst, int magic);
-JSValue js_modules_entries(JSContext*, JSValueConst, int magic);
-JSValue js_modules_map(JSContext*, JSValueConst, int magic);
-JSValue js_modules_object(JSContext*, JSValueConst, int magic);
 JSValue module_value(JSContext*, JSModuleDef*);
 JSValue module_entry(JSContext*, JSModuleDef*);
 JSValue module_object(JSContext*, JSModuleDef*);
-char* js_module_search(JSContext*, const char* path, const char*);
-char* js_module_search_ext(JSContext*, const char* path, const char*, const char* ext);
-char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
-JSModuleDef* js_module_def(JSContext*, JSValueConst);
-JSModuleDef* js_module_find(JSContext*, const char*);
+
+struct list_head* js_modules_list(JSContext*);
+JSValue js_modules_array(JSContext*, JSValue this_val, int magic);
+JSValue js_modules_entries(JSContext*, JSValue this_val, int magic);
+JSValue js_modules_map(JSContext*, JSValue this_val, int magic);
+JSValue js_modules_object(JSContext*, JSValue this_val, int magic);
+
+#define js_module_find js_module_find_fwd
+
+char* js_module_search(JSContext*, const char* search_path, const char* module);
+char* js_module_search_ext(JSContext*, const char* path, const char* name, const char* ext);
+char* js_module_normalize(JSContext*, const char* path, const char* name, void* opaque);
+JSModuleDef* js_module_def(JSContext*, JSValue value);
+JSModuleDef* js_module_find_fwd(JSContext*, const char* name);
+JSModuleDef* js_module_find_rev(JSContext*, const char* name);
 int js_module_indexof(JSContext*, JSModuleDef* def);
 JSModuleDef* js_module_at(JSContext*, int index);
-JSValue js_import_load(JSContext*, ImportDirective);
-JSValue js_import_eval(JSContext*, ImportDirective);
-JSModuleDef* js_module_import_default(JSContext*, const char*, const char* var);
-JSModuleDef* js_module_import_namespace(JSContext*, const char*, const char* ns);
-JSValue js_module_import(JSContext*, const char*, const char* ns, const char* var, const char* prop);
-JSModuleDef* js_module_loader_so(JSContext*, const char*);
 
 JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);

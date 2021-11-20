@@ -1756,10 +1756,27 @@ js_module_def(JSContext* ctx, JSValueConst value) {
 }
 
 JSModuleDef*
-js_module_find(JSContext* ctx, const char* name) {
+js_module_find_fwd(JSContext* ctx, const char* name) {
   struct list_head* el;
   size_t namelen = strlen(name);
   list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    char *n, *str = module_namestr(ctx, m);
+    size_t len;
+    n = basename(str);
+    len = str_rchr(n, '.');
+    if(!strcmp(str, name) || !strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
+      return m;
+    js_free(ctx, str);
+  }
+  return 0;
+}
+
+JSModuleDef*
+js_module_find_rev(JSContext* ctx, const char* name) {
+  struct list_head* el;
+  size_t namelen = strlen(name);
+  list_for_each_prev(el, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     char *n, *str = module_namestr(ctx, m);
     size_t len;
@@ -1819,7 +1836,7 @@ js_module_at(JSContext* ctx, int index) {
   return 0;
 }
 
-static void
+/*static void
 js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   BOOL has_prop = imp.prop && imp.prop[0];
   BOOL is_ns = imp.spec && imp.spec[0] == '*';
@@ -1828,8 +1845,10 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   size_t blen = str_chr(base, '.');
   dbuf_putstr(db, "import ");
   if(imp.spec) {
-    if(!is_default)
+    if(!is_default) {
+      dbuf_putstr(db, "{ ");
       dbuf_putstr(db, imp.spec);
+    }
     if(is_ns) {
       if(!imp.ns) {
         char* x;
@@ -1839,6 +1858,8 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
             *x = '_';
       }
       dbuf_putstr(db, " as ");
+    } else if(!is_default) {
+      dbuf_putstr(db, " }");
     }
   }
   if(imp.spec == 0 || str_equal(imp.spec, "default")) {
@@ -1862,9 +1883,9 @@ js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
   }
   dbuf_putm(db, ";", 0);
   dbuf_0(db);
-}
+}*/
 
-JSValue
+/*JSValue
 js_import_load(JSContext* ctx, ImportDirective imp) {
   DynBuf buf;
   char* code;
@@ -1901,15 +1922,7 @@ js_module_import_default(JSContext* ctx, const char* path, const char* var) {
                            .var = 0,
                        });
 
-  /* if(JS_IsException(ret)) {
-     fprintf(stderr, "EXCEPTION: ", JS_ToCString(ctx, ret));
-     return 0;
-   }
-
-   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
-     return JS_VALUE_GET_PTR(ret);*/
-
-  return js_module_find(ctx, path);
+  return js_module_find_rev(ctx, path);
 }
 
 JSModuleDef*
@@ -1925,10 +1938,10 @@ js_module_import_namespace(JSContext* ctx, const char* path, const char* ns) {
                          .var = 0,
                      });
 
-  return js_module_find(ctx, path);
+  return js_module_find_rev(ctx, path);
 }
-
-JSValue
+*/
+/*JSValue
 js_module_import(JSContext* ctx, const char* path, const char* ns, const char* var, const char* prop) {
   DynBuf buf;
   const char* name;
@@ -1950,7 +1963,7 @@ js_module_import(JSContext* ctx, const char* path, const char* ns, const char* v
   // printf("js_module_import: '%s'\n", buf.buf);
   return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
 }
-
+*/
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   BOOL ret = FALSE;
