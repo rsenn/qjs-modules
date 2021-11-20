@@ -2240,7 +2240,7 @@ js_error_print(JSContext* ctx, JSValueConst error) {
     JS_FreeValue(ctx, st);
   }
 
-  if((str = JS_ToCString(ctx, error))) {
+  if(!JS_IsNull(error) && (str = JS_ToCString(ctx, error))) {
     const char* type = JS_IsObject(error) ? js_object_classname(ctx, error) : js_value_typestr(ctx, error);
     const char* exception = str;
     size_t typelen = strlen(type);
