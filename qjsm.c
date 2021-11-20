@@ -253,16 +253,12 @@ jsm_module_load(JSContext* ctx, const char* name) {
   JSModuleDef* m;
 
   m = rt->module_loader_func(ctx, name, 0);
-
-  printf("jsm_module_load(%p, %s) = %p\n", ctx, name, m);
-
+  //printf("jsm_module_load(%p, %s) = %p\n", ctx, name, m);
   if(m) {
     JSValue exp = module_exports(ctx, m);
     JSValue glb = JS_GetGlobalObject(ctx);
-
     if(!js_has_propertystr(ctx, glb, name))
       JS_SetPropertyStr(ctx, glb, name, exp);
-
     JS_FreeValue(ctx, glb);
   }
 
@@ -1216,7 +1212,7 @@ main(int argc, char** argv) {
                "repl.runSync();\n",
                home,
                exename);
-      printf("str: %s\n", str);
+      //printf("str: %s\n", str);
       js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
