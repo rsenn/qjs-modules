@@ -126,8 +126,8 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
-check_functions(fnmatch glob wordexp)
-check_includes(fnmatch.h glob.h wordexp.h)
+check_functions(fnmatch glob wordexp inotify_init)
+check_includes(fnmatch.h glob.h wordexp.h sys/inotify.h)
 
 if(HAVE_FNMATCH AND HAVE_FNMATCH_H)
   add_definitions(-DHAVE_FNMATCH=1)
@@ -141,6 +141,9 @@ if(HAVE_WORDEXP AND HAVE_WORDEXP_H)
   add_definitions(-DHAVE_WORDEXP=1)
 endif(HAVE_WORDEXP AND HAVE_WORDEXP_H)
 
+if(HAVE_INOTIFY_INIT AND HAVE_SYS_INOTIFY_H)
+  add_definitions(-DHAVE_INOTIFY=1)
+endif(HAVE_INOTIFY_INIT AND HAVE_SYS_INOTIFY_H)
 
 
 if(BUILD_PIGPIO)

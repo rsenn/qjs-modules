@@ -20,6 +20,9 @@
 #ifdef HAVE_WORDEXP
 #include <wordexp.h>
 #endif
+#ifdef HAVE_INOTIFY
+#include <sys/inotify.h>
+#endif
 #include "buffer-utils.h"
 
 /**
@@ -52,6 +55,8 @@ enum {
   FUNC_SETEUID,
   FUNC_SETEGID
 };
+
+static BOOL inotify_initialized;
 
 typedef struct pcg_state_setseq_64 {
   uint64_t state, inc;
@@ -1391,6 +1396,52 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
   return JS_NewBool(ctx, r >= 1);
 }
 
+#ifdef HAVE_INOTIFY
+static JSValue
+js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  static thread_local int inotify_fd;
+
+  if(!inotify_initialized) {
+
+    if((inotify_fd = inotify_init1(IN_NONBLOCK)) == -1)
+      return JS_ThrowInternalError(ctx, "inotify_init1(IN_NONBLOCK) failed (%s)", strerror(errno));
+
+    inotify_initialized = TRUE;
+  }
+
+  if(argc >= 2 && JS_IsNumber(argv[0]) && JS_IsNull(argv[1])) {
+    int r;
+    int32_t wd = -1;
+
+    JS_ToInt32(ctx, &wd, argv[0]);
+
+    if((r = inotify_rm_watch(inotify_fd, wd)) == -1)
+      return JS_ThrowInternalError(ctx, "inotify_rm_watch(%d, %d) = %d (%s)", inotify_fd, wd, r, strerror(errno));
+
+    ret = JS_NewInt32(ctx, r);
+  } else if(argc >= 1 && JS_IsString(argv[0])) {
+    int wd;
+    int32_t flags = IN_ALL_EVENTS;
+    const char* filename;
+
+    filename = JS_ToCString(ctx, argv[0]);
+    if(argc >= 2)
+      JS_ToInt32(ctx, &flags, argv[1]);
+
+    if((wd = inotify_add_watch(inotify_fd, filename, flags)) == -1)
+      return JS_ThrowInternalError(ctx, "inotify_add_watch(%d, %s, %08x) = %d (%s)", inotify_fd, filename, flags, wd, strerror(errno));
+
+    ret = JS_NewInt32(ctx, wd);
+  } else {
+
+    ret = JS_NewInt32(ctx, inotify_fd);
+  }
+
+  return ret;
+}
+#endif
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
 // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
@@ -1403,6 +1454,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
 #ifdef HAVE_WORDEXP
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
+#endif
+#ifdef HAVE_INOTIFY
+    JS_CFUNC_DEF("watch", 2, js_misc_watch),
 #endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
@@ -1548,6 +1602,33 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(WRDE_NOCMD),
     JS_CONSTANT(WRDE_NOSPACE),
     JS_CONSTANT(WRDE_SYNTAX),
+#endif
+#ifdef HAVE_INOTIFY
+    JS_CONSTANT(IN_ACCESS),
+    JS_CONSTANT(IN_MODIFY),
+    JS_CONSTANT(IN_ATTRIB),
+    JS_CONSTANT(IN_CLOSE_WRITE),
+    JS_CONSTANT(IN_CLOSE_NOWRITE),
+    JS_CONSTANT(IN_CLOSE),
+    JS_CONSTANT(IN_OPEN),
+    JS_CONSTANT(IN_MOVED_FROM),
+    JS_CONSTANT(IN_MOVED_TO),
+    JS_CONSTANT(IN_MOVE),
+    JS_CONSTANT(IN_CREATE),
+    JS_CONSTANT(IN_DELETE),
+    JS_CONSTANT(IN_DELETE_SELF),
+    JS_CONSTANT(IN_MOVE_SELF),
+    JS_CONSTANT(IN_UNMOUNT),
+    JS_CONSTANT(IN_Q_OVERFLOW),
+    JS_CONSTANT(IN_IGNORED),
+    JS_CONSTANT(IN_ONLYDIR),
+    JS_CONSTANT(IN_DONT_FOLLOW),
+    JS_CONSTANT(IN_EXCL_UNLINK),
+    JS_CONSTANT(IN_MASK_CREATE),
+    JS_CONSTANT(IN_MASK_ADD),
+    JS_CONSTANT(IN_ISDIR),
+    JS_CONSTANT(IN_ONESHOT),
+    JS_CONSTANT(IN_ALL_EVENTS),
 #endif
 };
 

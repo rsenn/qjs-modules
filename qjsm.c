@@ -35,6 +35,7 @@ atomic_add_int(int* ptr, int v) {
 
 #include <list.h>
 #include <cutils.h>
+#include "path.h"
 #include "utils.h"
 #include "vector.h"
 #include <quickjs-libc.h>
@@ -108,6 +109,7 @@ jsm_module_extern_compiled(require);
 jsm_module_extern_compiled(tty);
 jsm_module_extern_compiled(util);
 
+static thread_local Vector jsm_scripts;
 static thread_local Vector jsm_modules;
 static thread_local BOOL jsm_modules_initialized;
 
@@ -144,7 +146,7 @@ static const char jsm_default_module_path[] = "."
 JSValue package_json;
 
 static JSValue
-eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
+jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
   JSValue val;
 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
@@ -337,7 +339,7 @@ end:
 }
 
 static JSValue
-jsm_eval_file(JSContext* ctx, const char* file, int module) {
+jsm_eval_file(JSContext* ctx, const char* file, BOOL module) {
   uint8_t* buf;
   size_t len;
   int flags;
@@ -350,25 +352,99 @@ jsm_eval_file(JSContext* ctx, const char* file, int module) {
   if(module < 0)
     module = (has_suffix(file, ".mjs") || JS_DetectModule((const char*)buf, len));
   flags = module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
-  return eval_buf(ctx, buf, len, file, flags);
+  return jsm_eval_buf(ctx, buf, len, file, flags);
+}
+
+enum {
+  SCRIPT_LIST,
+  SCRIPT_FILE,
+  SCRIPT_FILENAME,
+  SCRIPT_DIRNAME,
+};
+
+static char*
+jsm_script_file() {
+  char* ret = 0;
+  if(!vector_empty(&jsm_scripts)) {
+    char** ptr = vector_back(&jsm_scripts, sizeof(char*));
+    ret = *ptr;
+  }
+  return ret;
+}
+
+static JSValue
+jsm_script_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  JSValue ret = JS_UNDEFINED;
+
+  switch(magic) {
+    case SCRIPT_LIST: {
+      char** ptr;
+      size_t i = 0;
+      ret = JS_NewArray(ctx);
+      vector_foreach_t(&jsm_scripts, ptr) {
+        JSValue str = JS_NewString(ctx, *ptr);
+        JS_SetPropertyUint32(ctx, ret, i++, str);
+      }
+      break;
+    }
+    case SCRIPT_FILE:
+    case SCRIPT_FILENAME: {
+      char* str;
+      if((str = jsm_script_file()))
+        ret = JS_NewString(ctx, str);
+      break;
+    }
+    case SCRIPT_DIRNAME: {
+      char* file;
+      if((file = jsm_script_file())) {
+        char* dir;
+        if((dir = path_dirname(file))) {
+          ret = JS_NewString(ctx, dir);
+          free(dir);
+        }
+      }
+      break;
+    }
+  }
+  return ret;
+}
+
+static void
+jsm_script_push(JSContext* ctx, const char* file) {
+  vector_putptr(&jsm_scripts, js_strdup(ctx, file));
+}
+
+static void
+jsm_script_pop(JSContext* ctx) {
+  char** ptr;
+
+  ptr = vector_back(&jsm_scripts, sizeof(char*));
+  js_free(ctx, *ptr);
+  vector_pop(&jsm_scripts, sizeof(char*));
 }
 
 static int
-jsm_load_script(JSContext* ctx, const char* file, BOOL module) {
+jsm_script_load(JSContext* ctx, const char* file, BOOL module) {
   JSValue val;
   int32_t ret = 0;
+  JSValue global_obj = JS_GetGlobalObject(ctx);
+
+  JS_SetPropertyStr(ctx, global_obj, "module", JS_NewObject(ctx));
+  jsm_script_push(ctx, file);
+
   val = jsm_eval_file(ctx, file, module);
+  jsm_script_pop(ctx);
   if(JS_IsException(val)) {
     fprintf(stderr, "Failed loading '%s': %s\n", file, strerror(errno));
     js_value_fwrite(ctx, val, stderr);
-    return -1;
+    ret = -1;
   } else if(JS_IsModule(val)) {
-    JSValue global = JS_GetGlobalObject(ctx);
-    module_exports_get(ctx, JS_VALUE_GET_PTR(val), TRUE, global);
+    module_exports_get(ctx, JS_VALUE_GET_PTR(val), TRUE, global_obj);
   } else {
     JS_ToInt32(ctx, &ret, val);
     JS_FreeValue(ctx, val);
   }
+  JS_FreeValue(ctx, global_obj);
   return ret;
 }
 
@@ -618,7 +694,7 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case 1: {
-      ret = eval_buf(ctx, str, len, 0, module);
+      ret = jsm_eval_buf(ctx, str, len, 0, module);
       break;
     }
   }
@@ -754,9 +830,13 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, 0),
     JS_CFUNC_MAGIC_DEF("evalScript", 1, jsm_eval_script, 1),
-    JS_CGETSET_MAGIC_DEF("moduleList", js_modules_array, 0, 0),
-    JS_CGETSET_MAGIC_DEF("moduleObject", js_modules_object, 0, 0),
-    JS_CGETSET_MAGIC_DEF("moduleMap", js_modules_map, 0, 0),
+    JS_CGETSET_DEF("moduleList", js_modules_array, 0),
+    JS_CGETSET_DEF("moduleObject", js_modules_object, 0),
+    JS_CGETSET_DEF("moduleMap", js_modules_map, 0),
+    JS_CGETSET_MAGIC_DEF("scriptList", jsm_script_get, 0, SCRIPT_LIST),
+    JS_CGETSET_MAGIC_DEF("scriptFile", jsm_script_get, 0, SCRIPT_FILE),
+    JS_CGETSET_MAGIC_DEF("__filename", jsm_script_get, 0, SCRIPT_FILENAME),
+    JS_CGETSET_MAGIC_DEF("__dirname", jsm_script_get, 0, SCRIPT_DIRNAME),
     JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
@@ -1016,6 +1096,8 @@ main(int argc, char** argv) {
     exit(2);
   }
 
+  js_dbuf_init(ctx, &jsm_scripts);
+
   /* loader for ES6 modules */
   JS_SetModuleLoaderFunc(rt, js_module_normalize, jsm_module_loader, 0);
   // js_std_set_module_loader_func(jsm_module_loader);
@@ -1084,7 +1166,7 @@ main(int argc, char** argv) {
     }
 
     for(i = 0; i < include_count; i++) {
-      if(jsm_load_script(ctx, include_list[i], module) == -1)
+      if(jsm_script_load(ctx, include_list[i], module) == -1)
         goto fail;
     }
 
@@ -1097,7 +1179,7 @@ main(int argc, char** argv) {
     } else {
       const char* filename;
       filename = argv[optind];
-      if(jsm_load_script(ctx, filename, module) == -1) {
+      if(jsm_script_load(ctx, filename, module) == -1) {
         js_value_fwrite(ctx, JS_GetException(ctx), stderr);
         goto fail;
       }

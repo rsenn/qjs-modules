@@ -563,7 +563,7 @@ path_skip_separator(const char* p, size_t len, size_t pos) {
 }
 
 char*
-path_dirname(const char* path, DynBuf* dir) {
+__path_dirname(const char* path, DynBuf* dir) {
   size_t i = str_rchrs(path, "/\\", 2);
   if(path == NULL || path[i] == '\0') {
     dbuf_putstr(dir, ".");
@@ -574,6 +574,13 @@ path_dirname(const char* path, DynBuf* dir) {
   }
   dbuf_0(dir);
   return (char*)dir->buf;
+}
+
+char*
+path_dirname(const char* path) {
+  DynBuf dir;
+  dbuf_init2(&dir, 0, 0);
+  return __path_dirname(path, &dir);
 }
 
 #define START ((PATH_MAX + 1) >> 7)
