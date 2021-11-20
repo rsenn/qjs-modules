@@ -260,7 +260,9 @@ jsm_module_load(JSContext* ctx, const char* name) {
     JSValue exp = module_exports(ctx, m);
     JSValue glb = JS_GetGlobalObject(ctx);
 
-    JS_SetPropertyStr(ctx, glb, name, exp);
+    if(!js_has_propertystr(ctx, glb, name))
+      JS_SetPropertyStr(ctx, glb, name, exp);
+
     JS_FreeValue(ctx, glb);
   }
 
