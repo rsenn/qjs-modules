@@ -1,5 +1,6 @@
 m = loadModule('fs');
 globalThis.fs = getModuleExports(m);
-r = fs.watch(__dirname + '/../quickjs-misc.c', {}, (eventType, filename) =>
-  console.log('watch event', { eventType, filename })
-);
+const file = 'quickjs-misc.c';
+
+console.log('file', file);
+r = fs.watch(file, 0xfff, (eventType, filename) => console.log('watch event', { eventType, filename }));

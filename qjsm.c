@@ -254,6 +254,16 @@ jsm_module_load(JSContext* ctx, const char* name) {
 
   m = rt->module_loader_func(ctx, name, 0);
 
+  printf("jsm_module_load(%p, %s) = %p\n", ctx, name, m);
+
+  if(m) {
+    JSValue exp = module_exports(ctx, m);
+    JSValue glb = JS_GetGlobalObject(ctx);
+
+    JS_SetPropertyStr(ctx, glb, name, exp);
+    JS_FreeValue(ctx, glb);
+  }
+
   return m;
 }
 
