@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.2)
 set(CMAKE_C_STANDARD 11)
 
 option(BUILD_LIBARCHIVE "Build archive library" OFF)
-option(BUILD_PIGPIO "Build pigpio library" OFF)
+#option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
 
 if(WASI OR EMSCRIPTEN)
@@ -146,28 +146,28 @@ if(HAVE_INOTIFY_INIT AND HAVE_SYS_INOTIFY_H)
 endif(HAVE_INOTIFY_INIT AND HAVE_SYS_INOTIFY_H)
 
 
-if(BUILD_PIGPIO)
-  include(ExternalProject)
-  ExternalProject_Add(
-    pigpio
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/pigpio
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pigpio
-    CMAKE_CACHE_ARGS
-      "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
-      "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
-      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+# if(BUILD_PIGPIO)
+#   include(ExternalProject)
+#   ExternalProject_Add(
+#     pigpio
+#     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/pigpio
+#     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pigpio
+#     CMAKE_CACHE_ARGS
+#       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
+#       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+#       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+#     CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-  link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
+#   link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
 
-else(BUILD_PIGPIO)
-  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpigpio.cmake)
-endif(BUILD_PIGPIO)
+# else(BUILD_PIGPIO)
+#   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpigpio.cmake)
+# endif(BUILD_PIGPIO)
 
 if(BUILD_LIBARCHIVE)
   include(ExternalProject)
   ExternalProject_Add(
-    pigpio
+    libarchive
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
     CMAKE_CACHE_ARGS
@@ -176,7 +176,7 @@ if(BUILD_LIBARCHIVE)
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
     CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-  link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
+  link_directories("${CMAKE_CURRENT_BINARY_DIR}/libarchive")
 
 else(BUILD_LIBARCHIVE)
   include(FindLibArchive)
@@ -259,9 +259,9 @@ set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h  ${path
 set(gpio_SOURCES gpio.c gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 
-if(pigpio_LIBRARY)
-  set(gpio_LIBRARIES ${pigpio_LIBRARY})
-endif(pigpio_LIBRARY)
+# if(pigpio_LIBRARY)
+#   set(gpio_LIBRARIES ${pigpio_LIBRARY})
+# endif(pigpio_LIBRARY)
 
 include_directories(${LibArchive_INCLUDE_DIRS})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
