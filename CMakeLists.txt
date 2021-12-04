@@ -126,8 +126,12 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
-check_functions(fnmatch glob wordexp inotify_init)
+check_functions(fnmatch glob wordexp inotify_init inet_pton)
 check_includes(fnmatch.h glob.h wordexp.h sys/inotify.h)
+
+if(HAVE_INET_PTON)
+  add_definitions(-DHAVE_INET_PTON=1)
+endif(HAVE_INET_PTON)
 
 if(HAVE_FNMATCH AND HAVE_FNMATCH_H)
   add_definitions(-DHAVE_FNMATCH=1)
@@ -243,7 +247,7 @@ set(lexer_SOURCES quickjs-lexer.h location.c location.h ${utils_SOURCES} ${vecto
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES} inet_pton.c inet_ntop.c)
 if(WIN32 OR MINGW)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} socketpair_win32.c)
