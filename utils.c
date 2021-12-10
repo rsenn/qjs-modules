@@ -2229,7 +2229,7 @@ js_error_tostring(JSContext* ctx, JSValueConst error) {
 
 void
 js_error_print(JSContext* ctx, JSValueConst error) {
-  const char *str, *stack = 0;
+  const char *str=0, *stack = 0;
 
   if(JS_IsObject(error)) {
     JSValue st = JS_GetPropertyStr(ctx, error, "stack");
@@ -2255,7 +2255,8 @@ js_error_print(JSContext* ctx, JSValueConst error) {
   }
   if(stack)
     JS_FreeCString(ctx, stack);
-  JS_FreeCString(ctx, str);
+  if(str)
+    JS_FreeCString(ctx, str);
 }
 
 JSValue
