@@ -18,7 +18,7 @@
 int isatty(HANDLE);
 #else
 #include <unistd.h>
-#ifdef HAVE_TERMIOS_H
+#if HAVE_TERMIOS_H
 #include <termios.h>
 #include <sys/ioctl.h>
 #endif

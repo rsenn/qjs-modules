@@ -56,7 +56,7 @@ struct list_head pollhandlers;*/
 
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 
-#ifdef HAVE_MALLOC_USABLE_SIZE
+#if HAVE_MALLOC_USABLE_SIZE
 #ifndef HAVE_MALLOC_USABLE_SIZE_DEFINITION
 extern size_t malloc_usable_size();
 #endif
