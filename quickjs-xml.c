@@ -86,9 +86,9 @@ find_tag(Vector* st, const char* name, size_t namelen) {
   return -1;
 }
 
-static uint32_t
+static int32_t
 xml_num_children(JSContext* ctx, JSValueConst element) {
-  int64_t num_children = 0;
+  int64_t num_children = -1;
   JSValue children = JS_GetPropertyStr(ctx, element, "children");
 
   if(JS_IsArray(ctx, children))
@@ -194,7 +194,7 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
 static void
 xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
   JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
-  uint32_t num_children;
+  int32_t num_children;
   size_t tagLen;
   const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
   BOOL isComment;
@@ -230,7 +230,7 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   num_children = xml_num_children(ctx, element);
 
   if(tagName[0])
-    dbuf_putstr(db, (num_children > 0 || isComment) ? tagName[0] == '?' ? "?>" : ">" : tagName[0] == '!' ? ">" : " />");
+    dbuf_putstr(db, (num_children >= 0 || isComment) ? tagName[0] == '?' ? "?>" : ">" : tagName[0] == '!' ? ">" : " />");
   dbuf_putc(db, '\n');
 
   js_cstring_free(ctx, tagName);
@@ -239,9 +239,9 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 
 static void
 xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
-  uint32_t num_children = xml_num_children(ctx, element);
+  int32_t num_children = xml_num_children(ctx, element);
 
-  if(num_children > 0) {
+  if(num_children >= 0) {
     size_t tagLen;
     const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
 
