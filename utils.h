@@ -9,7 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#if HAVE_THREADS_H
+#ifdef HAVE_THREADS_H
 #include <threads.h>
 #endif
 
