@@ -831,7 +831,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     if(s == 0)
       s = js_object_tostring(ctx, value);
 
-    if(!strncmp(s, "[object ", 8)) {
+    if(s && !strncmp(s, "[object ", 8)) {
       const char* e = strchr(s, ']');
       size_t slen = e - (s + 8);
 

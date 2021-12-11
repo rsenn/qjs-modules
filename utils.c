@@ -630,11 +630,12 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
 
 int
 js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
-  int ret;
+  BOOL ret=FALSE;
   const char* str;
-  str = js_object_tostring(ctx, value);
-  ret = strcmp(str, cmp) == 0;
-  js_cstring_free(ctx, str);
+  if((str = js_object_tostring(ctx, value))) {
+    ret = strcmp(str, cmp) == 0;
+    js_cstring_free(ctx, str);
+  }
   return ret;
 }
 
