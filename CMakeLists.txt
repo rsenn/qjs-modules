@@ -53,33 +53,56 @@ include(CheckIncludeFile)
 include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
-check_include_file(spawn.h HAVE_SPAWN_H)
 
-if(HAVE_SPAWN_H)
-  list(APPEND CMAKE_REQUIRED_INCLUDES spawn.h)
+check_functions(waitpid execvpe)
+if(HAVE_EXECVPE)
+  add_definitions(-DHAVE_EXECVPE=1)
+else(HAVE_EXECVPE)
+  check_functions(execve)
+endif(HAVE_EXECVPE)
 
-  check_function_exists(posix_spawnp HAVE_POSIX_SPAWNP)
-  message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
+if(ANDROID)
+  option(USE_SPAWN "Use POSIX spawn()" OFF)
+else()
+  option(USE_SPAWN "Use POSIX spawn()" ON)
+endif()
 
-  if(HAVE_POSIX_SPAWNP)
-    add_definitions(-DPOSIX_SPAWN=1)
-  endif(HAVE_POSIX_SPAWNP)
-endif(HAVE_SPAWN_H)
+  check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
+  if(HAVE_SYS_WAIT_H)
+    add_definitions(-DHAVE_SYS_WAIT_H)
+  endif(HAVE_SYS_WAIT_H)
+
+  if(HAVE_WAITPID)
+    add_definitions(-DHAVE_WAITPID=1)
+  endif(HAVE_WAITPID)
+
+
+if(NOT USE_SPAWN)
+  if(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
+
+    check_include_file(spawn.h HAVE_SPAWN_H)
+    if(HAVE_SPAWN_H)
+      list(APPEND CMAKE_REQUIRED_INCLUDES spawn.h)
+
+      check_function_exists(posix_spawnp HAVE_POSIX_SPAWNP)
+      message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
+
+      if(HAVE_POSIX_SPAWNP)
+        set(USE_SPAWN ON)
+      endif(HAVE_POSIX_SPAWNP)
+    endif(HAVE_SPAWN_H)
+  endif(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
+endif(USE_SPAWN)
+dump(USE_SPAWN)
+
+if(USE_SPAWN)
+  add_definitions(-DPOSIX_SPAWN=1)
+endif(USE_SPAWN)
 
 check_include_file(threads.h HAVE_THREADS_H)
 if(HAVE_THREADS_H)
   add_definitions(-DHAVE_THREADS_H)
 endif(HAVE_THREADS_H)
-
-check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
-if(HAVE_SYS_WAIT_H)
-  add_definitions(-DHAVE_SYS_WAIT_H)
-endif(HAVE_SYS_WAIT_H)
-
-check_function_exists(waitpid HAVE_WAITPID)
-if(HAVE_WAITPID)
-  add_definitions(-DHAVE_WAITPID=1)
-endif(HAVE_WAITPID)
 
 check_include_file(sys/mman.h HAVE_SYS_MMAN_H)
 if(HAVE_SYS_MMAN_H)
@@ -126,7 +149,7 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
-check_functions(fnmatch glob wordexp inotify_init inet_pton)
+check_functions(fnmatch glob wordexp inotify_init1 inet_pton)
 check_includes(fnmatch.h glob.h wordexp.h sys/inotify.h)
 
 if(HAVE_INET_PTON)
@@ -145,10 +168,9 @@ if(HAVE_WORDEXP AND HAVE_WORDEXP_H)
   add_definitions(-DHAVE_WORDEXP=1)
 endif(HAVE_WORDEXP AND HAVE_WORDEXP_H)
 
-if(HAVE_INOTIFY_INIT AND HAVE_SYS_INOTIFY_H)
+if(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
   add_definitions(-DHAVE_INOTIFY=1)
-endif(HAVE_INOTIFY_INIT AND HAVE_SYS_INOTIFY_H)
-
+endif(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
 
 # if(BUILD_PIGPIO)
 #   include(ExternalProject)
@@ -235,7 +257,8 @@ set(deep_LIBRARIES qjs-predicate qjs-pointer)
 set(inspect_SOURCES ${vector_SOURCES} iteration.h ${utils_SOURCES} property-enumeration.c property-enumeration.h
                     quickjs-internal.h)
 set(tree_walker_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES})
-set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES} ${location_SOURCES} ${inspect_SOURCES})
+set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES} ${location_SOURCES}
+                ${inspect_SOURCES})
 set(path_SOURCES path.c path.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} readlink.c)
@@ -249,22 +272,23 @@ set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(NOT HAVE_INET_PTON)
-  set(sockets_SOURCES ${sockets_SOURCES}  inet_pton.c)
+  set(sockets_SOURCES ${sockets_SOURCES} inet_pton.c)
 endif(NOT HAVE_INET_PTON)
 if(NOT HAVE_INET_NTOP)
-  set(sockets_SOURCES ${sockets_SOURCES}  inet_ntop.c)
+  set(sockets_SOURCES ${sockets_SOURCES} inet_ntop.c)
 endif(NOT HAVE_INET_NTOP)
 if(WIN32 OR MINGW)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} socketpair_win32.c)
 endif(WIN32 OR MINGW)
 
-set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h ${utils_SOURCES}
+                     ${buffer_utils_SOURCES})
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
                           ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 
-set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h  ${path_SOURCES} ${location_SOURCES})
+set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${path_SOURCES} ${location_SOURCES})
 
 set(gpio_SOURCES gpio.c gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
@@ -278,7 +302,7 @@ set(archive_SOURCES ${utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(QJSM_EXTRA_SOURCES ${vector_SOURCES} ${buffer_utils_SOURCES})
-  
+
 if(HAVE_SYS_MMAN_H AND HAVE_MMAP)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} gpio mmap)
 else(HAVE_SYS_MMAN_H AND HAVE_MMAP)
@@ -296,9 +320,8 @@ check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
 # dump(VISIBILITY_HIDDEN) dump(MODULE_COMPILE_FLAGS)
 
-check_flags(
-  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function"
-  CMAKE_C_FLAGS)
+check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function"
+            CMAKE_C_FLAGS)
 
 #check_flags("-Wno-cast-function-type" CMAKE_C_FLAGS)
 

@@ -1,14 +1,16 @@
+#ifndef HAVE_INET_NTOP
 #ifdef _WIN32
 #include <windows.h>
 #include <winsock2.h>
 #define socklen_t int
 #else
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <netinet/in.h>
 #endif
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdint.h>
 
 const char*
@@ -71,3 +73,4 @@ inet_ntop(int af, const void* restrict a0, char* restrict s, socklen_t l) {
   errno = ENOSPC;
   return 0;
 }
+#endif /* defined(HAVE_INET_NTOP) */

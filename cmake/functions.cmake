@@ -62,7 +62,6 @@ macro(APPEND_PARENT VAR)
   set("${VAR}" "${LIST}" PARENT_SCOPE)
 endmacro(APPEND_PARENT VAR)
 
-
 macro(CHECK_FUNCTION_DEF FUNC)
   string(TOUPPER "${FUNC}" FUNC_U)
   #message("FUNC_U: ${FUNC_U}")

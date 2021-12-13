@@ -419,7 +419,11 @@ predicate_tostring(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       break;
     }
 
-    case PREDICATE_NOTNOT: dbuf_putc(dbuf, '!'); __attribute__((fallthrough));
+    case PREDICATE_NOTNOT: dbuf_putc(dbuf, '!');
+
+#if __GNUC__ >= 7
+      __attribute__((fallthrough));
+#endif
     case PREDICATE_NOT: {
       dbuf_putstr(dbuf, "!( ");
       dbuf_put_value(dbuf, ctx, pr->unary.predicate);
@@ -1101,6 +1105,8 @@ predicate_direct_num_args(const Predicate* pred) {
       return pred->function.arity;
     }
   }
+
+  return -1;
 }
 
 JSPrecedence

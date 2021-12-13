@@ -16,6 +16,10 @@
 #include <sys/time.h>
 #include <quickjs-libc.h>
 
+#if defined(__EMSCRIPTEN__) && defined(__GNUC__)
+#define atomic_add_int __sync_add_and_fetch
+#endif
+
 /**
  * \addtogroup utils
  * @{
@@ -630,7 +634,7 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
 
 int
 js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
-  BOOL ret=FALSE;
+  BOOL ret = FALSE;
   const char* str;
   if((str = js_object_tostring(ctx, value))) {
     ret = strcmp(str, cmp) == 0;

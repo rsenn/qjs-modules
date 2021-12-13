@@ -11,16 +11,37 @@
 #include <sys/utsname.h>
 #endif
 #include <errno.h>
-#if HAVE_FNMATCH
+#ifdef HAVE_FNMATCH
 #include <fnmatch.h>
 #endif
-#if HAVE_GLOB
+#ifdef HAVE_GLOB
 #include <glob.h>
+#ifndef GLOB_MAGCHAR
+#define GLOB_MAGCHAR 256
 #endif
-#if HAVE_WORDEXP
+#ifndef GLOB_ALTDIRFUNC
+#define GLOB_ALTDIRFUNC 512
+#endif
+#ifndef GLOB_BRACE
+#define GLOB_BRACE 1024
+#endif
+#ifndef GLOB_NOMAGIC
+#define GLOB_NOMAGIC 2048
+#endif
+#ifndef GLOB_TILDE
+#define GLOB_TILDE 4096
+#endif
+#ifndef GLOB_ONLYDIR
+#define GLOB_ONLYDIR 8192
+#endif
+#ifndef GLOB_TILDE_CHECK
+#define GLOB_TILDE_CHECK 16384
+#endif
+#endif
+#ifdef HAVE_WORDEXP
 #include <wordexp.h>
 #endif
-#if HAVE_INOTIFY
+#ifdef HAVE_INOTIFY
 #include <sys/inotify.h>
 #endif
 #include "buffer-utils.h"
@@ -388,7 +409,7 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   }
 }
 
-#if HAVE_FMEMOPEN
+#ifdef HAVE_FMEMOPEN
 static JSValue
 js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* ptr;
@@ -598,7 +619,7 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return JS_NULL;
 }*/
 
-#if HAVE_FNMATCH
+#ifdef HAVE_FNMATCH
 static JSValue
 js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t plen, slen;
@@ -617,7 +638,7 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 #endif
 
-#if HAVE_GLOB
+#ifdef HAVE_GLOB
 static JSContext* js_misc_glob_errfunc_ctx;
 static JSValueConst js_misc_glob_errfunc_fn;
 
@@ -679,7 +700,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 #endif
 
-#if HAVE_WORDEXP
+#ifdef HAVE_WORDEXP
 static JSValue
 js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t start = 0, i;
@@ -1489,7 +1510,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
   return JS_NewBool(ctx, r >= 1);
 }
 
-#if HAVE_INOTIFY
+#ifdef HAVE_INOTIFY
 static JSValue
 js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -1542,16 +1563,16 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
 // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
 #endif
-#if HAVE_FNMATCH
+#ifdef HAVE_FNMATCH
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
 #endif
-#if HAVE_GLOB
+#ifdef HAVE_GLOB
     JS_CFUNC_DEF("glob", 2, js_misc_glob),
 #endif
-#if HAVE_WORDEXP
+#ifdef HAVE_WORDEXP
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
 #endif
-#if HAVE_INOTIFY
+#ifdef HAVE_INOTIFY
     JS_CFUNC_DEF("watch", 2, js_misc_watch),
 #endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
@@ -1562,7 +1583,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("concat", 1, js_misc_concat),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
     JS_CFUNC_DEF("memcpy", 2, js_misc_memcpy),
-#if HAVE_FMEMOPEN
+#ifdef HAVE_FMEMOPEN
     JS_CFUNC_DEF("fmemopen", 2, js_misc_fmemopen),
 #endif
     JS_CFUNC_DEF("getPerformanceCounter", 0, js_misc_getperformancecounter),
@@ -1666,7 +1687,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(JS_EVAL_FLAG_STRIP),
     JS_CONSTANT(JS_EVAL_FLAG_COMPILE_ONLY),
     JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
-#if HAVE_FNMATCH
+#ifdef HAVE_FNMATCH
     JS_CONSTANT(FNM_CASEFOLD),
 #ifdef FNM_EXTMATCH
     JS_CONSTANT(FNM_EXTMATCH),
@@ -1678,7 +1699,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(FNM_PATHNAME),
     JS_CONSTANT(FNM_PERIOD),
 #endif
-#if HAVE_GLOB
+#ifdef HAVE_GLOB
     JS_CONSTANT(GLOB_ERR),
     JS_CONSTANT(GLOB_MARK),
     JS_CONSTANT(GLOB_NOSORT),
@@ -1696,7 +1717,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(GLOB_NOSPACE),
     JS_CONSTANT(GLOB_ABORTED),
 #endif
-#if HAVE_WORDEXP
+#ifdef HAVE_WORDEXP
     JS_CONSTANT(WRDE_SHOWERR),
     JS_CONSTANT(WRDE_UNDEF),
     JS_CONSTANT(WRDE_BADCHAR),
@@ -1706,7 +1727,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(WRDE_NOSPACE),
     JS_CONSTANT(WRDE_SYNTAX),
 #endif
-#if HAVE_INOTIFY
+#ifdef HAVE_INOTIFY
     JS_CONSTANT(IN_ACCESS),
     JS_CONSTANT(IN_MODIFY),
     JS_CONSTANT(IN_ATTRIB),

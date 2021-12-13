@@ -174,21 +174,28 @@ xml_write_string(JSContext* ctx, const char* textStr, size_t textLen, DynBuf* db
 
     if(textLen == 0)
       break;
-    dbuf_putc(db, '\n');
 
-    xml_write_indent(db, depth);
+    if(depth > 0) {
+      dbuf_putc(db, '\n');
+      xml_write_indent(db, depth + 1);
+    }
   }
 }
 
 static void
-xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth) {
+xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth, BOOL multiline) {
   const char* textStr;
   size_t textLen;
   textStr = JS_ToCStringLen(ctx, &textLen, text);
-  xml_write_indent(db, depth);
-  xml_write_string(ctx, textStr, textLen, db, depth);
+  if(multiline)
+    xml_write_indent(db, depth);
+  else {
+    while(db->size > 0 && is_whitespace_char(db->buf[db->size - 1])) db->size--;
+  }
+  xml_write_string(ctx, textStr, textLen, db, multiline ? depth : 0);
   js_cstring_free(ctx, textStr);
-  dbuf_putc(db, '\n');
+  if(multiline)
+    dbuf_putc(db, '\n');
 }
 
 static void
@@ -205,7 +212,7 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   assert(tagName);
   isComment = !strncmp(tagName, "!--", 3);
 
-  xml_write_indent(db, depth - 1);
+  xml_write_indent(db, depth);
 
   if(tagName[0])
     dbuf_putc(db, '<');
@@ -214,7 +221,7 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     if(byte_chr(tagName, tagLen, '\n') < tagLen) {
       xml_write_string(ctx, tagName, tagLen - 2, db, depth - 1);
       dbuf_putc(db, '\n');
-      xml_write_indent(db, depth);
+      xml_write_indent(db, depth + 1);
       dbuf_putc(db, '-');
       dbuf_putc(db, '-');
     } else {
@@ -246,7 +253,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
 
     if(tagName[0] != '?' && tagName[0]) {
-      xml_write_indent(db, depth - 2);
+      xml_write_indent(db, depth);
 
       dbuf_putstr(db, "</");
       dbuf_append(db, (const uint8_t*)tagName, tagLen);
@@ -501,7 +508,7 @@ js_xml_write_obj(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output
     value = property_enumeration_value(it, ctx);
 
     if(JS_IsString(value))
-      xml_write_text(ctx, value, output, depth);
+      xml_write_text(ctx, value, output, depth, it->tab_atom_len > 1);
     else if(JS_IsObject(value) && !JS_IsArray(ctx, value))
       xml_write_element(ctx, value, output, depth);
 
