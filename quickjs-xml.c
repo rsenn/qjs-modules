@@ -253,7 +253,8 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
 
     if(tagName[0] != '?' && tagName[0]) {
-      xml_write_indent(db, depth);
+      if(db->size > 0 && db->buf[db->size - 1] == '\n')
+        xml_write_indent(db, depth);
 
       dbuf_putstr(db, "</");
       dbuf_append(db, (const uint8_t*)tagName, tagLen);
@@ -411,9 +412,8 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
 
         /* Parse attributes if not a closing tag */
         const uint8_t *attr, *value;
-        size_t alen, vlen;
+        size_t alen, vlen, num_attrs = 0;
         JSValue attributes = JS_NewObject(ctx);
-        JS_SetPropertyStr(ctx, element, "attributes", attributes);
         while(!done) {
           skip_ws();
           if(char_is(c, END))
@@ -424,6 +424,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
             break;
           if(char_is(c, WS | CLOSE | SLASH)) {
             xml_set_attr_value(ctx, attributes, (const char*)attr, alen, JS_NewBool(ctx, TRUE));
+            num_attrs++;
             continue;
           }
           if(char_is(c, EQUAL)) {
@@ -436,8 +437,13 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
             if(char_is(c, QUOTE))
               next();
             xml_set_attr_bytes(ctx, attributes, (const char*)attr, alen, value, vlen);
+            num_attrs++;
           }
         }
+        if(num_attrs)
+          JS_SetPropertyStr(ctx, element, "attributes", attributes);
+        else
+          JS_FreeValue(ctx, attributes);
 
         if(char_is(name[0], QUESTION | EXCLAM)) {
           if(chars[c] == chars[name[0]])
