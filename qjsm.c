@@ -56,7 +56,7 @@ struct list_head pollhandlers;*/
 
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 
-#if !DONT_HAVE_MALLOC_USABLE_SIZE
+#if !DONT_HAVE_MALLOC_USABLE_SIZE && !defined(ANDROID)
 #if HAVE_MALLOC_USABLE_SIZE
 #ifndef HAVE_MALLOC_USABLE_SIZE_DEFINITION
 extern size_t malloc_usable_size();
@@ -531,11 +531,12 @@ jsm_trace_malloc_usable_size(void* ptr) {
   return malloc_size(ptr);
 #elif defined(_WIN32)
   return _msize(ptr);
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(__ANDROID__) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
   return 0;
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
   return malloc_usable_size(ptr);
 #else
+#warning change this to `return 0;` if compilation fails
   /* change this to `return 0;` if compilation fails */
   return malloc_usable_size(ptr);
 #endif
@@ -650,11 +651,13 @@ static const JSMallocFunctions trace_mf = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t(*)(const void*))_msize,
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
+    defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
     0,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
     (size_t(*)(const void*))malloc_usable_size,
 #else
+#warning change this to `0,` if compilation fails
     /* change this to `0,` if compilation fails */
     malloc_usable_size,
 #endif

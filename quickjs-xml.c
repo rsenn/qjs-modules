@@ -53,6 +53,9 @@ character_classes_init(int c[256]) {
   c['-'] = HYPHEN;
 }
 
+#define push() \
+  (out = vector_push(&st, ((OutputValue){0, JS_NewArray(ctx), name, namelen})), JS_SetPropertyStr(ctx, element, "children", out->obj))
+
 #define pop() \
   (vector_size(&st, sizeof(OutputValue)) >= 2 ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue))) : 0)
 
@@ -353,9 +356,6 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       skip_until(char_is(c, WS | END));
       namelen = ptr - name;
 
-      /*printf("element tagName: %s%.*s\n", closing ? "/" : "", namelen, name);
-      printf("parent tagName: %.*s\n", out->namelen, out->name);*/
-
       if(closing) {
         int32_t index;
         skip_ws();
@@ -363,16 +363,14 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           next();
 
         if((index = find_tag(&st, name, namelen)) == -1) {
-          char* locstr;
           JS_FreeValue(ctx, ret);
-          location_count(&loc, buf, start - buf);
-          // locstr = location_tostring(&loc, ctx);
+          location_count(&loc, (const char*)buf, start - buf);
+          printf("mismatch </%.*s> at %s:%u:%u", namelen, name, loc.file, loc.line, loc.column);
           ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", namelen, name, loc.file, loc.line, loc.column);
-          // js_free(ctx, locstr);
           return ret;
         }
 
-        printf("stack depth: %u, revert index: %u\n", vector_size(&st, sizeof(OutputValue)), index);
+        printf("end-of [%zd] tagName: %s%.*s\n", index - 1, closing ? "/" : "", namelen, name);
 
         trunc(index);
         continue;
@@ -382,6 +380,8 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
            continue;
          }*/
       } else {
+        printf("element [%zd] tagName: %s%.*s\n", vector_size(&st, sizeof(OutputValue)) - 1, closing ? "/" : "", namelen, name);
+        /*  printf("parent tagName: %.*s\n", out->namelen, out->name);*/
         element = JS_NewObject(ctx);
         JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
         if(namelen && (char_is(name[0], (/*QUESTION | */ EXCLAM))))
@@ -440,26 +440,30 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
             num_attrs++;
           }
         }
-        if(num_attrs)
-          JS_SetPropertyStr(ctx, element, "attributes", attributes);
-        else
+        /*if(num_attrs == 0)
           JS_FreeValue(ctx, attributes);
+        else*/
+        JS_SetPropertyStr(ctx, element, "attributes", attributes);
 
         if(char_is(name[0], QUESTION | EXCLAM)) {
-          if(chars[c] == chars[name[0]])
+          if(chars[c] == chars[name[0]]) {
             next();
+            push();
+          }
 
         } else if(char_is(c, SLASH)) {
           self_closing = TRUE;
           next();
 
         } else if(!self_closing) {
-          out = vector_emplace(&st, sizeof(OutputValue));
-          out->obj = JS_NewArray(ctx);
-          out->idx = 0;
-          out->name = name;
-          out->namelen = namelen;
-          JS_SetPropertyStr(ctx, element, "children", out->obj);
+          /*
+            out = vector_emplace(&st, sizeof(OutputValue));
+               out->obj = JS_NewArray(ctx);
+               out->idx = 0;
+               out->name = name;
+               out->namelen = namelen;
+               JS_SetPropertyStr(ctx, element, "children", out->obj);*/
+          push();
         }
 
         /*{

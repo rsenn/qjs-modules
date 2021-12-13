@@ -19,6 +19,11 @@ if(WIN32 OR MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 endif(WIN32 OR MINGW)
 
+if(ANDROID)
+  add_definitions(-DANDROID)
+endif(ANDROID)
+message("System: ${CMAKE_SYSTEM_NAME}")
+
 if(DEBUG_OUTPUT)
   add_definitions(-DDEBUG_OUTPUT)
 endif(DEBUG_OUTPUT)
@@ -320,7 +325,7 @@ check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
 # dump(VISIBILITY_HIDDEN) dump(MODULE_COMPILE_FLAGS)
 
-check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function"
+check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function"
             CMAKE_C_FLAGS)
 
 #check_flags("-Wno-cast-function-type" CMAKE_C_FLAGS)
