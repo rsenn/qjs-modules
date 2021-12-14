@@ -370,7 +370,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           return ret;
         }
 
-        printf("end-of [%zd] tagName: %s%.*s\n", index - 1, closing ? "/" : "", namelen, name);
+        // printf("end-of [%zd] tagName: %s%.*s\n", index - 1, closing ? "/" : "", namelen, name);
 
         trunc(index);
         continue;
@@ -380,7 +380,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
            continue;
          }*/
       } else {
-        printf("element [%zd] tagName: %s%.*s\n", vector_size(&st, sizeof(OutputValue)) - 1, closing ? "/" : "", namelen, name);
+        // printf("element [%zd] tagName: %s%.*s\n", vector_size(&st, sizeof(OutputValue)) - 1, closing ? "/" : "", namelen, name);
         /*  printf("parent tagName: %.*s\n", out->namelen, out->name);*/
         element = JS_NewObject(ctx);
         JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
