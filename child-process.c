@@ -4,13 +4,11 @@
 
 #include <errno.h>
 
-#define POSIX_SPAWN 0
-
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
 #else
-#if POSIX_SPAWN
+#ifdef POSIX_SPAWN
 #include <spawn.h>
 #else
 #include <unistd.h>
@@ -149,7 +147,7 @@ child_process_spawn(ChildProcess* cp) {
     pid = piProcessInfo.dwProcessId;
   }
 
-#elif POSIX_SPAWN
+#elif defined(POSIX_SPAWN)
 
   int i;
   pid_t pid;
@@ -201,8 +199,17 @@ child_process_spawn(ChildProcess* cp) {
     setuid(cp->uid);
     setgid(cp->gid);
 
+#ifdef HAVE_EXECVPE
     execvpe(cp->file, cp->args, cp->env);
     perror("execvp()");
+#else
+    if(cp->env) {
+      size_t i;
+      for(i = 0; cp->env[i]; i++) putenv(cp->env[i]);
+    }
+    execvp(cp->file, cp->args);
+    perror("execvp()");
+#endif
     exit(errno);
   }
   if(cp->child_fds) {
@@ -244,6 +251,9 @@ child_process_wait(ChildProcess* cp, int flags) {
   }
   return -1;
 
+#elif defined(POSIX_SPAWN)
+
+  return -1;
 #else
   int pid, status;
 
@@ -252,7 +262,12 @@ child_process_wait(ChildProcess* cp, int flags) {
 
   cp->signaled = WIFSIGNALED(status);
   cp->stopped = WIFSTOPPED(status);
-  cp->continued = WIFCONTINUED(status);
+#ifdef WIFCONTINUED
+  if((cp->continued = WIFCONTINUED(status)))
+    cp->stopsig = -1;
+#else
+  cp->continued = 0;
+#endif
 
   if(WIFEXITED(status))
     cp->exitcode = WEXITSTATUS(status);
@@ -261,8 +276,6 @@ child_process_wait(ChildProcess* cp, int flags) {
     cp->termsig = WTERMSIG(status);
   if(WIFSTOPPED(status))
     cp->stopsig = WSTOPSIG(status);
-  if(WIFCONTINUED(status))
-    cp->stopsig = -1;
 
   return pid;
 #endif

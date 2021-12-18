@@ -11,9 +11,39 @@
 #include <sys/utsname.h>
 #endif
 #include <errno.h>
+#ifdef HAVE_FNMATCH
 #include <fnmatch.h>
+#endif
+#ifdef HAVE_GLOB
 #include <glob.h>
+#ifndef GLOB_MAGCHAR
+#define GLOB_MAGCHAR 256
+#endif
+#ifndef GLOB_ALTDIRFUNC
+#define GLOB_ALTDIRFUNC 512
+#endif
+#ifndef GLOB_BRACE
+#define GLOB_BRACE 1024
+#endif
+#ifndef GLOB_NOMAGIC
+#define GLOB_NOMAGIC 2048
+#endif
+#ifndef GLOB_TILDE
+#define GLOB_TILDE 4096
+#endif
+#ifndef GLOB_ONLYDIR
+#define GLOB_ONLYDIR 8192
+#endif
+#ifndef GLOB_TILDE_CHECK
+#define GLOB_TILDE_CHECK 16384
+#endif
+#endif
+#ifdef HAVE_WORDEXP
 #include "wordexp.h"
+#endif
+#ifdef HAVE_INOTIFY
+#include <sys/inotify.h>
+#endif
 #include "buffer-utils.h"
 
 /**
@@ -46,6 +76,8 @@ enum {
   FUNC_SETEUID,
   FUNC_SETEGID
 };
+
+// static thread_local int inotify_fd = -1;
 
 typedef struct pcg_state_setseq_64 {
   uint64_t state, inc;
@@ -92,7 +124,7 @@ pcg32_random_bounded_divisionless(uint32_t range) {
 }
 
 static void
-js_bytecode_free_func(JSRuntime* rt, void* opaque, void* ptr) {
+js_pointer_free_func(JSRuntime* rt, void* opaque, void* ptr) {
   js_free_rt(rt, ptr);
 }
 
@@ -279,7 +311,7 @@ js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     memcpy(&buf[pos], buffers[i].data, buffers[i].size);
     pos += buffers[i].size;
   }
-  ret = JS_NewArrayBuffer(ctx, buf, total_len, js_bytecode_free_func, 0, FALSE);
+  ret = JS_NewArrayBuffer(ctx, buf, total_len, js_pointer_free_func, 0, FALSE);
 fail:
   for(i = 0; i < argc; i++)
     if(buffers[i].data)
@@ -795,7 +827,7 @@ js_misc_write_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   uint8_t* bytecode;
 
   if((bytecode = JS_WriteObject(ctx, &size, argv[0], JS_WRITE_OBJ_BYTECODE))) {
-    ret = JS_NewArrayBuffer(ctx, bytecode, size, js_bytecode_free_func, 0, FALSE);
+    ret = JS_NewArrayBuffer(ctx, bytecode, size, js_pointer_free_func, 0, FALSE);
   }
   return ret;
 }
@@ -1127,73 +1159,166 @@ js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return ret;
 }
 
-static JSValue
+enum {
+  BITFIELD_SET,
+  BITFIELD_BITS,
+  BITFIELD_FROMARRAY,
+};
 
-js_misc_bitfield_to_array(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  const uint8_t* buf;
+static JSValue
+js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret = JS_UNDEFINED;
   size_t len;
   int64_t offset = 0;
-  JSValue ret = JS_UNDEFINED;
+  switch(magic) {
+    case BITFIELD_SET: {
+      const uint8_t* buf;
 
-  if(argc >= 2)
-    JS_ToInt64(ctx, &offset, argv[1]);
+      if(argc >= 2)
+        JS_ToInt64(ctx, &offset, argv[1]);
 
-  if((buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-    size_t i, j = 0, bits = len * 8;
-    ret = JS_NewArray(ctx);
+      if((buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+        size_t i, j = 0, bits = len * 8;
+        ret = JS_NewArray(ctx);
 
-    for(i = 0; i < bits; i++) {
-      if(buf[i >> 3] & (1u << (i & 0x7))) {
-        JS_SetPropertyUint32(ctx, ret, j++, JS_NewInt64(ctx, i + offset));
+        for(i = 0; i < bits; i++) {
+          if(buf[i >> 3] & (1u << (i & 0x7))) {
+            JS_SetPropertyUint32(ctx, ret, j++, JS_NewInt64(ctx, i + offset));
+          }
+        }
       }
+      break;
+    }
+
+    case BITFIELD_BITS: {
+      const uint8_t* buf;
+
+      if(argc >= 2)
+        JS_ToInt64(ctx, &offset, argv[1]);
+
+      if(argc >= 1 && (buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+        size_t i, j = 0, bits = len * 8;
+        ret = JS_NewArray(ctx);
+
+        for(i = 0; i < bits; i++) {
+          BOOL value = !!(buf[i >> 3] & (1u << (i & 0x7)));
+          JS_SetPropertyUint32(ctx, ret, j++, JS_NewInt32(ctx, value));
+        }
+      } else if(argc >= 1 && JS_IsArray(ctx, argv[0])) {
+
+        size_t i, len = js_array_length(ctx, argv[0]);
+        uint8_t* bufptr;
+        size_t bufsize = (len + 7) >> 3;
+
+        if((bufptr = js_mallocz(ctx, bufsize)) == 0)
+          return JS_ThrowOutOfMemory(ctx);
+
+        for(i = 0; i < len; i++) {
+          JSValue element = JS_GetPropertyUint32(ctx, argv[0], i);
+          BOOL value = JS_ToBool(ctx, element);
+          JS_FreeValue(ctx, element);
+
+          if(value)
+            bufptr[i >> 3] |= 1u << (i & 0x7);
+        }
+        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_pointer_free_func, bufptr, FALSE);
+      }
+      break;
+    }
+    case BITFIELD_FROMARRAY: {
+
+      if(argc >= 2)
+        JS_ToInt64(ctx, &offset, argv[1]);
+
+      if(!JS_IsArray(ctx, argv[0]))
+        return JS_ThrowTypeError(ctx, "argument must be an array");
+
+      if((len = js_array_length(ctx, argv[0]))) {
+        size_t i;
+        int64_t max = -1;
+        uint8_t* bufptr;
+        size_t bufsize;
+
+        for(i = 0; i < len; i++) {
+          JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
+          uint32_t number;
+          JS_ToUint32(ctx, &number, value);
+          JS_FreeValue(ctx, value);
+
+          if(max < number)
+            max = number;
+        }
+        bufsize = ((max + 1) + 7) >> 3;
+        if((bufptr = js_mallocz(ctx, bufsize)) == 0)
+          return JS_ThrowOutOfMemory(ctx);
+
+        for(i = 0; i < len; i++) {
+          JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
+          uint32_t number;
+          JS_ToUint32(ctx, &number, value);
+          JS_FreeValue(ctx, value);
+
+          number -= offset;
+
+          bufptr[number >> 3] |= 1u << (number & 0x7);
+        }
+
+        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_pointer_free_func, bufptr, FALSE);
+      }
+      break;
     }
   }
   return ret;
 }
+enum {
+  BITOP_NOT,
+  BITOP_XOR,
+  BITOP_AND,
+  BITOP_OR,
+};
 
 static JSValue
-js_misc_array_to_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  size_t len;
-  int64_t offset = 0;
+js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
+  size_t i;
+  struct {
+    uint8_t* buf;
+    size_t len;
+  } ab[2] = {{0, 0}, {0, 0}};
 
-  if(argc >= 2)
-    JS_ToInt64(ctx, &offset, argv[1]);
+  if(argc >= 1) {
+    ab[0].buf = JS_GetArrayBuffer(ctx, &ab[0].len, argv[0]);
 
-  if(!JS_IsArray(ctx, argv[0]))
-    return JS_ThrowTypeError(ctx, "argument must be an array");
+    if(argc >= 2)
+      ab[1].buf = JS_GetArrayBuffer(ctx, &ab[1].len, argv[1]);
+  }
 
-  if((len = js_array_length(ctx, argv[0]))) {
-    size_t i;
-    int64_t max = -1;
-    uint8_t* bufptr;
-    size_t bufsize;
+  if(ab[0].buf == 0)
+    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
 
-    for(i = 0; i < len; i++) {
-      JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
-      uint32_t number;
-      JS_ToUint32(ctx, &number, value);
-      JS_FreeValue(ctx, value);
+  if(magic > BITOP_NOT && ab[1].buf == 0)
+    return JS_ThrowTypeError(ctx, "argument 2 must be an ArrayBuffer");
 
-      if(max < number)
-        max = number;
+  ret = JS_DupValue(ctx, argv[0]);
+
+  switch(magic) {
+    case BITOP_NOT: {
+      for(i = 0; i < ab[0].len; i++) ab[0].buf[i] ^= 0xffu;
+
+      break;
     }
-    bufsize = ((max + 1) + 7) >> 3;
-    if((bufptr = js_mallocz(ctx, bufsize)) == 0)
-      return JS_ThrowOutOfMemory(ctx);
+    case BITOP_XOR: {
 
-    for(i = 0; i < len; i++) {
-      JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
-      uint32_t number;
-      JS_ToUint32(ctx, &number, value);
-      JS_FreeValue(ctx, value);
+      for(i = 0; i < ab[0].len; i++) ab[0].buf[i] ^= ab[1].buf[i % ab[1].len];
 
-      number -= offset;
-
-      bufptr[number >> 3] |= 1u << (number & 0x7);
+      break;
     }
-
-    ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_func, NULL, FALSE);
+    case BITOP_AND: {
+      break;
+    }
+    case BITOP_OR: {
+      break;
+    }
   }
   return ret;
 }
@@ -1385,6 +1510,55 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
   return JS_NewBool(ctx, r >= 1);
 }
 
+#ifdef HAVE_INOTIFY
+static JSValue
+js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  int32_t fd = -1;
+
+  if(argc >= 1) {
+    JS_ToInt32(ctx, &fd, argv[0]);
+  }
+
+  if(argc >= 2 && JS_IsString(argv[1])) {
+    int wd;
+    int32_t flags = IN_ALL_EVENTS;
+    const char* filename;
+
+    filename = JS_ToCString(ctx, argv[1]);
+    if(argc >= 3)
+      JS_ToInt32(ctx, &flags, argv[2]);
+
+    if((wd = inotify_add_watch(fd, filename, flags)) == -1)
+      return JS_ThrowInternalError(ctx, "inotify_add_watch(%d, %s, %08x) = %d (%s)", fd, filename, flags, wd, strerror(errno));
+
+    printf("inotify_add_watch(%d, %s, %08x) = %d\n", fd, filename, flags, wd);
+
+    ret = JS_NewInt32(ctx, wd);
+  } else if(argc >= 2 && JS_IsNull(argv[1])) {
+    int r;
+    int32_t wd = -1;
+
+    JS_ToInt32(ctx, &wd, argv[0]);
+
+    if((r = inotify_rm_watch(fd, wd)) == -1)
+      return JS_ThrowInternalError(ctx, "inotify_rm_watch(%d, %d) = %d (%s)", fd, wd, r, strerror(errno));
+    printf("inotify_add_watch(%d, %d) = %d\n", fd, wd, r);
+
+    ret = JS_NewInt32(ctx, r);
+  } else {
+    int fd;
+    if((fd = inotify_init1(IN_NONBLOCK)) == -1)
+      return JS_ThrowInternalError(ctx, "inotify_init1(IN_NONBLOCK) failed (%s)", strerror(errno));
+
+    printf("inotify_init1() = %d\n", fd);
+    ret = JS_NewInt32(ctx, fd);
+  }
+
+  return ret;
+}
+#endif
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
 // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
@@ -1397,6 +1571,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
 #ifdef HAVE_WORDEXP
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
+#endif
+#ifdef HAVE_INOTIFY
+    JS_CFUNC_DEF("watch", 2, js_misc_watch),
 #endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
@@ -1440,8 +1617,13 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
-    JS_CFUNC_DEF("bitfieldToArray", 1, js_misc_bitfield_to_array),
-    JS_CFUNC_DEF("arrayToBitfield", 1, js_misc_array_to_bitfield),
+    JS_CFUNC_MAGIC_DEF("bitfieldSet", 1, js_misc_bitfield, BITFIELD_SET),
+    JS_CFUNC_MAGIC_DEF("not", 1, js_misc_bitop, BITOP_NOT),
+    JS_CFUNC_MAGIC_DEF("xor", 2, js_misc_bitop, BITOP_XOR),
+    JS_CFUNC_MAGIC_DEF("and", 2, js_misc_bitop, BITOP_AND),
+    JS_CFUNC_MAGIC_DEF("or", 2, js_misc_bitop, BITOP_OR),
+    JS_CFUNC_MAGIC_DEF("bits", 1, js_misc_bitfield, BITFIELD_BITS),
+    JS_CFUNC_MAGIC_DEF("arrayToBitfield", 1, js_misc_bitfield, BITFIELD_FROMARRAY),
     JS_CFUNC_MAGIC_DEF("compileScript", 1, js_misc_compile, 0),
     JS_CFUNC_MAGIC_DEF("evalScript", 1, js_misc_compile, 1),
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
@@ -1507,7 +1689,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
 #ifdef HAVE_FNMATCH
     JS_CONSTANT(FNM_CASEFOLD),
-    //JS_CONSTANT(FNM_EXTMATCH),
+#ifdef FNM_EXTMATCH
+    JS_CONSTANT(FNM_EXTMATCH),
+#endif
     JS_CONSTANT(FNM_FILE_NAME),
     JS_CONSTANT(FNM_LEADING_DIR),
     JS_CONSTANT(FNM_NOESCAPE),
@@ -1542,6 +1726,32 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(WRDE_NOCMD),
     JS_CONSTANT(WRDE_NOSPACE),
     JS_CONSTANT(WRDE_SYNTAX),
+#endif
+#ifdef HAVE_INOTIFY
+    JS_CONSTANT(IN_ACCESS),
+    JS_CONSTANT(IN_MODIFY),
+    JS_CONSTANT(IN_ATTRIB),
+    JS_CONSTANT(IN_CLOSE_WRITE),
+    JS_CONSTANT(IN_CLOSE_NOWRITE),
+    JS_CONSTANT(IN_CLOSE),
+    JS_CONSTANT(IN_OPEN),
+    JS_CONSTANT(IN_MOVED_FROM),
+    JS_CONSTANT(IN_MOVED_TO),
+    JS_CONSTANT(IN_MOVE),
+    JS_CONSTANT(IN_CREATE),
+    JS_CONSTANT(IN_DELETE),
+    JS_CONSTANT(IN_DELETE_SELF),
+    JS_CONSTANT(IN_MOVE_SELF),
+    JS_CONSTANT(IN_UNMOUNT),
+    JS_CONSTANT(IN_Q_OVERFLOW),
+    JS_CONSTANT(IN_IGNORED),
+    JS_CONSTANT(IN_ONLYDIR),
+    JS_CONSTANT(IN_DONT_FOLLOW),
+    JS_CONSTANT(IN_EXCL_UNLINK),
+    JS_CONSTANT(IN_MASK_ADD),
+    JS_CONSTANT(IN_ISDIR),
+    JS_CONSTANT(IN_ONESHOT),
+    JS_CONSTANT(IN_ALL_EVENTS),
 #endif
 };
 

@@ -1,5 +1,6 @@
 import * as os from 'os';
 import * as std from 'std';
+import { escape, quote } from 'misc';
 import inspect from 'inspect';
 import * as xml from 'xml';
 import * as path from 'path';
@@ -15,13 +16,13 @@ function WriteFile(file, data) {
 }
 
 async function main(...args) {
-  globalThis.console = new Console({
+  globalThis.console = new Console(process.stdout, {
     inspectOptions: {
       colors: true,
-      depth: 1,
-      _stringBreakNewline: false,
+      depth: 10,
+      stringBreakNewline: false,
       maxArrayLength: 10,
-      compact: 2,
+      compact: false,
       maxStringLength: 60
     }
   });
@@ -44,14 +45,15 @@ async function main(...args) {
 
   let result = xml.read(data, file);
 
-  console.log('result:', Array.isArray(result));
+  console.log('Array.isArray(result)', Array.isArray(result));
 
   console.log('Object.keys(result)', Object.keys(result));
+  console.log('result:', inspect(result, { depth: Infinity, compact: 1 }));
   //console.log('result[1].tagName',result[1].tagName);
   WriteFile(base + '.json', JSON.stringify(result, null, 2));
 
   let str = xml.write(result);
-  console.log('write:', str);
+  console.log('write:', quote(str));
 
   WriteFile(base + '.xml', str);
 

@@ -8,6 +8,9 @@
 
 #include "path.h"
 #include "utils.h"
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 /**
  * \defgroup quickjs-path QuickJS module: path - Directory path

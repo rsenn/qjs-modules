@@ -6,8 +6,8 @@
  * @{
  */
 
-static JSValue js_repeater_push(JSContext*, JSValueConst, int, JSValueConst[], int);
-static JSValue js_repeater_stop(JSContext*, JSValueConst, int, JSValueConst[], int);
+static JSValue js_repeater_push(JSContext*, JSValueConst, int, JSValueConst[]);
+static JSValue js_repeater_stop(JSContext*, JSValueConst, int, JSValueConst[]);
 
 thread_local VISIBLE JSClassID js_repeater_class_id = 0;
 thread_local JSValue repeater_proto = {{JS_TAG_UNDEFINED}}, repeater_ctor = {{JS_TAG_UNDEFINED}};
@@ -138,7 +138,7 @@ queue_free(JSContext* ctx, struct repeater_item* item) {
   js_free(ctx, item);
 }
 
-static int
+static void
 queue_add(struct list_head* q, struct repeater_item* item) {
   list_add_tail(&item->link, q);
 }
@@ -151,7 +151,7 @@ queue_length(struct list_head* q) {
   return i;
 }
 
-static int
+static void
 queue_remove(struct repeater_item* item) {
   list_del(&item->link);
 }
@@ -267,7 +267,7 @@ js_repeater_create_iteration(JSContext* ctx, JSValueConst this_val, JSValueConst
 }
 
 static JSValue
-js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Repeater* rpt;
   struct repeater_item* item;
   JSValue ret = JS_UNDEFINED;
@@ -294,7 +294,7 @@ js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static JSValue
-js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Repeater* rpt;
   JSValue ret = JS_UNDEFINED;
 
@@ -337,7 +337,7 @@ js_repeater_finish(JSContext* ctx, JSValueConst this_val) {
     return;
 
   if(rpt->state < REPEATER_STOPPED)
-    js_repeater_stop(ctx, this_val, 0, 0, 0);
+    js_repeater_stop(ctx, this_val, 0, 0);
 
   rpt->state = REPEATER_DONE;
 
@@ -399,7 +399,7 @@ js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 }
 
 static JSValue
-js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Repeater* rpt;
   struct repeater_item* item;
   JSValue ret = JS_UNDEFINED;

@@ -16,6 +16,10 @@
 #include <sys/time.h>
 #include <quickjs-libc.h>
 
+#if defined(__EMSCRIPTEN__) && defined(__GNUC__)
+#define atomic_add_int __sync_add_and_fetch
+#endif
+
 /**
  * \addtogroup utils
  * @{
@@ -630,11 +634,12 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
 
 int
 js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
-  int ret;
+  BOOL ret = FALSE;
   const char* str;
-  str = js_object_tostring(ctx, value);
-  ret = strcmp(str, cmp) == 0;
-  js_cstring_free(ctx, str);
+  if((str = js_object_tostring(ctx, value))) {
+    ret = strcmp(str, cmp) == 0;
+    js_cstring_free(ctx, str);
+  }
   return ret;
 }
 
@@ -1756,10 +1761,27 @@ js_module_def(JSContext* ctx, JSValueConst value) {
 }
 
 JSModuleDef*
-js_module_find(JSContext* ctx, const char* name) {
+js_module_find_fwd(JSContext* ctx, const char* name) {
   struct list_head* el;
   size_t namelen = strlen(name);
   list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    char *n, *str = module_namestr(ctx, m);
+    size_t len;
+    n = basename(str);
+    len = str_rchr(n, '.');
+    if(!strcmp(str, name) || !strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
+      return m;
+    js_free(ctx, str);
+  }
+  return 0;
+}
+
+JSModuleDef*
+js_module_find_rev(JSContext* ctx, const char* name) {
+  struct list_head* el;
+  size_t namelen = strlen(name);
+  list_for_each_prev(el, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     char *n, *str = module_namestr(ctx, m);
     size_t len;
@@ -1817,138 +1839,6 @@ js_module_at(JSContext* ctx, int index) {
     }
   }
   return 0;
-}
-
-static void
-js_import_directive(JSContext* ctx, ImportDirective imp, DynBuf* db) {
-  BOOL has_prop = imp.prop && imp.prop[0];
-  BOOL is_ns = imp.spec && imp.spec[0] == '*';
-  BOOL is_default = imp.spec && str_equal(imp.spec, "default");
-  const char *var, *base = basename(imp.path);
-  size_t blen = str_chr(base, '.');
-  dbuf_putstr(db, "import ");
-  if(imp.spec) {
-    if(!is_default)
-      dbuf_putstr(db, imp.spec);
-    if(is_ns) {
-      if(!imp.ns) {
-        char* x;
-        imp.ns = js_strndup(ctx, base, blen);
-        for(x = (char*)imp.ns; *x; x++)
-          if(!is_identifier_char(*x))
-            *x = '_';
-      }
-      dbuf_putstr(db, " as ");
-    }
-  }
-  if(imp.spec == 0 || str_equal(imp.spec, "default")) {
-    if(!imp.ns)
-      imp.ns = js_strndup(ctx, base, blen);
-  }
-  if(imp.ns)
-    dbuf_putm(db, imp.ns, 0);
-  if(imp.path)
-    dbuf_putm(db, " from '", imp.path, "'", 0);
-  if(!(var = imp.var))
-    if(!(var = imp.ns))
-      var = imp.spec;
-  dbuf_putstr(db, ";\n");
-
-  if((has_prop || is_ns || is_default) && var[0] != '*') {
-    dbuf_putm(db, "globalThis.", var, " = ", imp.ns ? imp.ns : imp.spec, imp.prop && *imp.prop ? "." : 0, imp.prop, 0);
-  } else {
-    dbuf_putm(db, "Object.assign(globalThis, ", imp.ns ? imp.ns : imp.spec, 0);
-    dbuf_putc(db, ')');
-  }
-  dbuf_putm(db, ";", 0);
-  dbuf_0(db);
-}
-
-JSValue
-js_import_load(JSContext* ctx, ImportDirective imp) {
-  DynBuf buf;
-  char* code;
-  js_dbuf_init(ctx, &buf);
-  js_import_directive(ctx, imp, &buf);
-  code = str_escape((const char*)buf.buf);
-  printf("js_import_load: '%s'\n", code);
-  free(code);
-  return JS_Eval(ctx, (const char*)buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
-}
-
-JSValue
-js_import_eval(JSContext* ctx, ImportDirective imp) {
-  DynBuf buf;
-  char* code;
-  js_dbuf_init(ctx, &buf);
-  js_import_directive(ctx, imp, &buf);
-  code = str_escape((const char*)buf.buf);
-  printf("js_import_eval: '%s'\n", code);
-  free(code);
-  return JS_Eval(ctx, buf.buf, buf.size, imp.args[0], JS_EVAL_TYPE_MODULE);
-}
-
-JSModuleDef*
-js_module_import_default(JSContext* ctx, const char* path, const char* var) {
-  JSValue ret;
-
-  ret = js_import_eval(ctx,
-                       (ImportDirective){
-                           .path = path,
-                           .spec = "default",
-                           .ns = 0,
-                           .prop = 0,
-                           .var = 0,
-                       });
-
-  /* if(JS_IsException(ret)) {
-     fprintf(stderr, "EXCEPTION: ", JS_ToCString(ctx, ret));
-     return 0;
-   }
-
-   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
-     return JS_VALUE_GET_PTR(ret);*/
-
-  return js_module_find(ctx, path);
-}
-
-JSModuleDef*
-js_module_import_namespace(JSContext* ctx, const char* path, const char* ns) {
-  JSValue r;
-
-  r = js_import_eval(ctx,
-                     (ImportDirective){
-                         .path = path,
-                         .spec = "*",
-                         .ns = ns,
-                         .prop = 0,
-                         .var = 0,
-                     });
-
-  return js_module_find(ctx, path);
-}
-
-JSValue
-js_module_import(JSContext* ctx, const char* path, const char* ns, const char* var, const char* prop) {
-  DynBuf buf;
-  const char* name;
-  size_t len, nslen;
-  name = basename(path);
-  len = 0;
-  while(name[len] && is_identifier_char(name[len])) ++len;
-  nslen = ns ? strlen(ns) : len;
-  ns = ns ? js_strdup(ctx, ns) : js_strndup(ctx, name, len);
-  js_dbuf_init(ctx, &buf);
-  dbuf_printf(&buf, "import %s%s from '%s'; globalThis.%s = %s", ns ? "* as " : "", ns, path, var ? var : ns, ns);
-
-  if(prop && *prop) {
-    dbuf_putc(&buf, '.');
-    dbuf_putstr(&buf, prop);
-  }
-  dbuf_putc(&buf, ';');
-  dbuf_0(&buf);
-  // printf("js_module_import: '%s'\n", buf.buf);
-  return js_eval_buf(ctx, buf.buf, buf.size, 0, JS_EVAL_TYPE_MODULE);
 }
 
 BOOL
@@ -2344,7 +2234,7 @@ js_error_tostring(JSContext* ctx, JSValueConst error) {
 
 void
 js_error_print(JSContext* ctx, JSValueConst error) {
-  const char *str, *stack = 0;
+  const char *str = 0, *stack = 0;
 
   if(JS_IsObject(error)) {
     JSValue st = JS_GetPropertyStr(ctx, error, "stack");
@@ -2355,7 +2245,7 @@ js_error_print(JSContext* ctx, JSValueConst error) {
     JS_FreeValue(ctx, st);
   }
 
-  if((str = JS_ToCString(ctx, error))) {
+  if(!JS_IsNull(error) && (str = JS_ToCString(ctx, error))) {
     const char* type = JS_IsObject(error) ? js_object_classname(ctx, error) : js_value_typestr(ctx, error);
     const char* exception = str;
     size_t typelen = strlen(type);
@@ -2370,7 +2260,8 @@ js_error_print(JSContext* ctx, JSValueConst error) {
   }
   if(stack)
     JS_FreeCString(ctx, stack);
-  JS_FreeCString(ctx, str);
+  if(str)
+    JS_FreeCString(ctx, str);
 }
 
 JSValue

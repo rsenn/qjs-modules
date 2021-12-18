@@ -78,7 +78,8 @@ size_t path_root(const char*, size_t);
 size_t path_skip_component(const char*, size_t, size_t pos);
 size_t path_skip_separator(const char*, size_t, size_t pos);
 char* path_basename(const char*);
-char* path_dirname(const char*, DynBuf*);
+char* __path_dirname(const char*, DynBuf*);
+char* path_dirname(const char*);
 int path_readlink(const char*, DynBuf*);
 
 static inline size_t
