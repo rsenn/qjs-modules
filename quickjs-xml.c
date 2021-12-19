@@ -53,16 +53,16 @@ character_classes_init(int c[256]) {
   c['-'] = HYPHEN;
 }
 
-#define push() \
+#define PUSH() \
   (out = vector_push(&st, ((OutputValue){0, JS_NewArray(ctx), name, namelen})), JS_SetPropertyStr(ctx, element, "children", out->obj))
 
-#define pop() \
+#define POP() \
   (vector_size(&st, sizeof(OutputValue)) >= 2 ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue))) : 0)
 
-#define trunc(index) (index >= 1 ? (vector_shrink(&st, sizeof(OutputValue), index), out = vector_back(&st, sizeof(OutputValue))) : 0)
+#define TRUNC(index) (index >= 1 ? (vector_shrink(&st, sizeof(OutputValue), index), out = vector_back(&st, sizeof(OutputValue))) : 0)
 
-#define next() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
-#define skip(cond) \
+#define NEXT() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
+#define SKIP(cond) \
   do { \
     c = *ptr; \
     if(!(cond)) \
@@ -71,9 +71,9 @@ character_classes_init(int c[256]) {
       done = TRUE; \
   } while(!done)
 
-#define skip_until(cond) skip(!(cond))
-#define skip_ws() skip(chars[c] & WS)
-#define char_is(c, classes) (chars[(c)] & (classes))
+#define SKIP_UNTIL(cond) SKIP(!(cond))
+#define SKIP_WS() SKIP(chars[c] & WS)
+#define CHAR_IS(c, classes) (chars[(c)] & (classes))
 
 static int32_t
 find_tag(Vector* st, const char* name, size_t namelen) {
@@ -322,9 +322,9 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   out->idx = 0;
 
   while(!done) {
-    // skip_ws();
+    // SKIP_WS();
     start = ptr;
-    skip_until(char_is(c, START));
+    SKIP_UNTIL(CHAR_IS(c, START));
 
     if(ptr > start) {
       size_t len;
@@ -343,24 +343,24 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
     if(done)
       break;
 
-    if(char_is(c, START)) {
+    if(CHAR_IS(c, START)) {
       const uint8_t* name;
       size_t namelen;
       BOOL closing = FALSE, self_closing = FALSE;
-      next();
-      if(char_is(c, SLASH)) {
+      NEXT();
+      if(CHAR_IS(c, SLASH)) {
         closing = TRUE;
-        next();
+        NEXT();
       }
       name = ptr;
-      skip_until(char_is(c, WS | END));
+      SKIP_UNTIL(CHAR_IS(c, WS | END));
       namelen = ptr - name;
 
       if(closing) {
         int32_t index;
-        skip_ws();
-        if(char_is(c, CLOSE))
-          next();
+        SKIP_WS();
+        if(CHAR_IS(c, CLOSE))
+          NEXT();
 
         if((index = find_tag(&st, name, namelen)) == -1) {
           JS_FreeValue(ctx, ret);
@@ -372,11 +372,11 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
 
         // printf("end-of [%zd] tagName: %s%.*s\n", index - 1, closing ? "/" : "", namelen, name);
 
-        trunc(index);
+        TRUNC(index);
         continue;
 
         /* if(out->namelen == namelen && !memcmp(out->name, name, namelen)) {
-           pop();
+           POP();
            continue;
          }*/
       } else {
@@ -384,29 +384,29 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         /*  printf("parent tagName: %.*s\n", out->namelen, out->name);*/
         element = JS_NewObject(ctx);
         JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
-        if(namelen && (char_is(name[0], (/*QUESTION | */ EXCLAM))))
+        if(namelen && (CHAR_IS(name[0], (/*QUESTION | */ EXCLAM))))
           self_closing = TRUE;
 
-        if(namelen >= 3 && char_is(start[0], EXCLAM) && char_is(start[1], HYPHEN) && char_is(start[2], HYPHEN)) {
-          /*  next();
-            next();*/
+        if(namelen >= 3 && CHAR_IS(start[0], EXCLAM) && CHAR_IS(start[1], HYPHEN) && CHAR_IS(start[2], HYPHEN)) {
+          /*  NEXT();
+            NEXT();*/
           while(!done) {
-            next();
-            if(end - ptr >= 3 && char_is(ptr[0], HYPHEN) && char_is(ptr[1], HYPHEN) && char_is(ptr[2], CLOSE)) {
+            NEXT();
+            if(end - ptr >= 3 && CHAR_IS(ptr[0], HYPHEN) && CHAR_IS(ptr[1], HYPHEN) && CHAR_IS(ptr[2], CLOSE)) {
               ptr += 2;
               break;
             }
           }
           namelen = ptr - name;
 
-        } else if(namelen && char_is(name[0], EXCLAM)) {
-          skip_until(char_is(c, CLOSE));
+        } else if(namelen && CHAR_IS(name[0], EXCLAM)) {
+          SKIP_UNTIL(CHAR_IS(c, CLOSE));
           namelen = ptr - name;
         }
         xml_set_attr_bytes(ctx, element, "tagName", 7, name, namelen);
 
-        if(namelen && char_is(name[0], EXCLAM)) {
-          next();
+        if(namelen && CHAR_IS(name[0], EXCLAM)) {
+          NEXT();
           continue;
         }
 
@@ -415,27 +415,27 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         size_t alen, vlen, num_attrs = 0;
         JSValue attributes = JS_NewObject(ctx);
         while(!done) {
-          skip_ws();
-          if(char_is(c, END))
+          SKIP_WS();
+          if(CHAR_IS(c, END))
             break;
           attr = ptr;
-          skip_until(char_is(c, EQUAL | WS | SPECIAL | CLOSE));
+          SKIP_UNTIL(CHAR_IS(c, EQUAL | WS | SPECIAL | CLOSE));
           if((alen = ptr - attr) == 0)
             break;
-          if(char_is(c, WS | CLOSE | SLASH)) {
+          if(CHAR_IS(c, WS | CLOSE | SLASH)) {
             xml_set_attr_value(ctx, attributes, (const char*)attr, alen, JS_NewBool(ctx, TRUE));
             num_attrs++;
             continue;
           }
-          if(char_is(c, EQUAL)) {
-            next();
-            if(char_is(c, QUOTE))
-              next();
+          if(CHAR_IS(c, EQUAL)) {
+            NEXT();
+            if(CHAR_IS(c, QUOTE))
+              NEXT();
             value = ptr;
-            skip_until(char_is(c, QUOTE));
+            SKIP_UNTIL(CHAR_IS(c, QUOTE));
             vlen = ptr - value;
-            if(char_is(c, QUOTE))
-              next();
+            if(CHAR_IS(c, QUOTE))
+              NEXT();
             xml_set_attr_bytes(ctx, attributes, (const char*)attr, alen, value, vlen);
             num_attrs++;
           }
@@ -445,15 +445,15 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         else*/
         JS_SetPropertyStr(ctx, element, "attributes", attributes);
 
-        if(char_is(name[0], QUESTION | EXCLAM)) {
+        if(CHAR_IS(name[0], QUESTION | EXCLAM)) {
           if(chars[c] == chars[name[0]]) {
-            next();
-            push();
+            NEXT();
+            PUSH();
           }
 
-        } else if(char_is(c, SLASH)) {
+        } else if(CHAR_IS(c, SLASH)) {
           self_closing = TRUE;
-          next();
+          NEXT();
 
         } else if(!self_closing) {
           /*
@@ -463,7 +463,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
                out->name = name;
                out->namelen = namelen;
                JS_SetPropertyStr(ctx, element, "children", out->obj);*/
-          push();
+          PUSH();
         }
 
         /*{
@@ -473,9 +473,9 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         }*/
       }
 
-      skip_ws();
-      if(char_is(c, CLOSE))
-        next();
+      SKIP_WS();
+      if(CHAR_IS(c, CLOSE))
+        NEXT();
     }
   }
   return ret;
