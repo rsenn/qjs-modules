@@ -77,7 +77,7 @@ tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
 static JSValue
 js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
-  //PropertyEnumeration* it = 0;
+  // PropertyEnumeration* it = 0;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
 
@@ -99,7 +99,7 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   JS_SetOpaque(obj, w);
 
   if(argc > 0 && JS_IsObject(argv[0]))
-    /*it = */tree_walker_setroot(w, ctx, argv[0]);
+    /*it = */ tree_walker_setroot(w, ctx, argv[0]);
 
   if(argc > 1)
     JS_ToUint32(ctx, &w->tag_mask, argv[1]);
@@ -326,7 +326,7 @@ js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
 static JSValue
 js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
-  //PropertyEnumeration* it = 0;
+  // PropertyEnumeration* it = 0;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
 
@@ -346,7 +346,7 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   JS_SetOpaque(obj, w);
 
   if(argc > 0 && JS_IsObject(argv[0]))
-    /*it =*/ tree_walker_setroot(w, ctx, argv[0]);
+    /*it =*/tree_walker_setroot(w, ctx, argv[0]);
 
   if(argc > 1)
     JS_ToUint32(ctx, &w->tag_mask, argv[1]);
@@ -363,13 +363,13 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   PropertyEnumeration* it;
   TreeWalker* w;
   enum tree_iterator_return r;
-  //enum value_mask t;
+  // enum value_mask t;
   JSValue ret = JS_UNDEFINED;
 
   w = JS_GetOpaque(this_val, js_tree_iterator_class_id);
 
   r = w->tag_mask & RETURN_MASK;
-  //t = w->tag_mask & 0xffffff;
+  // t = w->tag_mask & 0xffffff;
 
   for(;;) {
     if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {

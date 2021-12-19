@@ -92,7 +92,7 @@ path_canonical_buf(DynBuf* db) {
 
 size_t
 path_collapse(char* path, size_t n) {
-  char *x;
+  char* x;
   int ret = 0;
   char sep = path_getsep(path);
   size_t l, i;
