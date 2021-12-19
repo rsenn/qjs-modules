@@ -92,12 +92,12 @@ path_canonical_buf(DynBuf* db) {
 
 size_t
 path_collapse(char* path, size_t n) {
-  char *x, *end;
+  char *x;
   int ret = 0;
   char sep = path_getsep(path);
   size_t l, i;
 
-  for(x = path, end = path + n, i = 0; i < n;) {
+  for(x = path, i = 0; i < n;) {
     while(x[i] == sep) i++;
 
     l = i + byte_chr(&x[i], n - i, sep);
@@ -344,10 +344,9 @@ start:
 
 char*
 path_getcwd(DynBuf* db) {
-  char* p;
   dbuf_zero(db);
   dbuf_realloc(db, PATH_MAX);
-  p = getcwd((char*)db->buf, db->allocated_size);
+  getcwd((char*)db->buf, db->allocated_size);
   db->size = strlen((const char*)db->buf);
   dbuf_0(db);
   return (char*)db->buf;

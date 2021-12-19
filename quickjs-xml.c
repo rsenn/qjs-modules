@@ -54,12 +54,32 @@ character_classes_init(int c[256]) {
 }
 
 #define PUSH() \
-  (out = vector_push(&st, ((OutputValue){0, JS_NewArray(ctx), name, namelen})), JS_SetPropertyStr(ctx, element, "children", out->obj))
+  do { \
+    out = vector_push(&st, ((OutputValue){0, JS_NewArray(ctx), name, namelen})); \
+    JS_SetPropertyStr(ctx, element, "children", out->obj); \
+  } while(0)
 
 #define POP() \
-  (vector_size(&st, sizeof(OutputValue)) >= 2 ? (vector_pop(&st, sizeof(OutputValue)), out = vector_back(&st, sizeof(OutputValue))) : 0)
+  do { \
+    if(vector_size(&st, sizeof(OutputValue)) >= 2 ?) { \
+      vector_pop(&st, sizeof(OutputValue)); \
+      out = vector_back(&st, sizeof(OutputValue))); \
+    } \
+    while(0)
 
-#define TRUNC(index) (index >= 1 ? (vector_shrink(&st, sizeof(OutputValue), index), out = vector_back(&st, sizeof(OutputValue))) : 0)
+#define ADD() \
+  do { \
+    element = JS_NewObject(ctx); \
+    JS_SetPropertyUint32(ctx, out->obj, out->idx++, element); \
+  } while(0)
+
+#define TRUNC(index) \
+  do { \
+    if(index >= 1) { \
+      vector_shrink(&st, sizeof(OutputValue), index); \
+      out = vector_back(&st, sizeof(OutputValue)); \
+    } \
+  } while(0)
 
 #define NEXT() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
 #define SKIP(cond) \
@@ -80,10 +100,10 @@ find_tag(Vector* st, const char* name, size_t namelen) {
   OutputValue* o;
   int32_t index = vector_size(st, sizeof(OutputValue));
 
-  for(o = vector_back(st, sizeof(OutputValue)); o >= vector_begin(st); o--) {
+  for(o = vector_back(st, sizeof(OutputValue)); o >= (OutputValue*)vector_begin(st); o--) {
     --index;
 
-    if(o->namelen == namelen && !strncmp(o->name, name, namelen))
+    if(o->namelen == namelen && !strncmp((const char*)o->name, name, namelen))
       return index;
   }
   return -1;
@@ -311,7 +331,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   OutputValue* out;
   JSValue ret, element = JS_UNDEFINED;
   Vector st = VECTOR(ctx);
-  Location loc = {input_name};
+  Location loc = {(char*)input_name};
   ptr = buf;
   end = buf + len;
 
@@ -362,11 +382,11 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         if(CHAR_IS(c, CLOSE))
           NEXT();
 
-        if((index = find_tag(&st, name, namelen)) == -1) {
+        if((index = find_tag(&st, (const char*)name, namelen)) == -1) {
           JS_FreeValue(ctx, ret);
           location_count(&loc, (const char*)buf, start - buf);
-          printf("mismatch </%.*s> at %s:%u:%u", namelen, name, loc.file, loc.line, loc.column);
-          ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", namelen, name, loc.file, loc.line, loc.column);
+          printf("mismatch </%.*s> at %s:%u:%u", (int)namelen, name, loc.file, loc.line, loc.column);
+          ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", (int)namelen, name, loc.file, loc.line, loc.column);
           return ret;
         }
 
@@ -382,8 +402,8 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       } else {
         // printf("element [%zd] tagName: %s%.*s\n", vector_size(&st, sizeof(OutputValue)) - 1, closing ? "/" : "", namelen, name);
         /*  printf("parent tagName: %.*s\n", out->namelen, out->name);*/
-        element = JS_NewObject(ctx);
-        JS_SetPropertyUint32(ctx, out->obj, out->idx++, element);
+        ADD();
+
         if(namelen && (CHAR_IS(name[0], (/*QUESTION | */ EXCLAM))))
           self_closing = TRUE;
 

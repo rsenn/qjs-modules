@@ -1665,11 +1665,9 @@ module_object(JSContext* ctx, JSModuleDef* m) {
 
 char*
 js_module_search(JSContext* ctx, const char* search_path, const char* module) {
-  size_t len;
   char* path = 0;
 
   while(!strncmp(module, "./", 2)) module = trim_dotslash(module);
-  len = strlen(module);
 
   if(!str_contains(module, '/') || str_ends(module, ".so"))
     path = js_module_search_ext(ctx, search_path, module, ".so");
