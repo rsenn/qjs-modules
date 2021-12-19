@@ -67,7 +67,7 @@ function(make_module FNAME)
                                                       CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}")
 
     target_link_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
-    target_link_libraries(${TARGET_NAME} PUBLIC quickjs)
+    target_link_libraries(${TARGET_NAME} PUBLIC ${QUICKJS_LIBRARY})
 
     #message("C module dir: ${QUICKJS_C_MODULE_DIR}")
     install(TARGETS ${TARGET_NAME} DESTINATION "${QUICKJS_C_MODULE_DIR}"
@@ -95,6 +95,6 @@ function(make_module FNAME)
   target_compile_definitions(${TARGET_NAME}-static PRIVATE _GNU_SOURCE=1 JS_${UNAME}_MODULE=1
                                                            CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}")
   target_link_directories(${TARGET_NAME}-static PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
-  target_link_libraries(${TARGET_NAME}-static PUBLIC quickjs)
+  target_link_libraries(${TARGET_NAME}-static PUBLIC ${QUICKJS_LIBRARY})
 
 endfunction()
