@@ -1163,6 +1163,7 @@ enum {
   BITFIELD_SET,
   BITFIELD_BITS,
   BITFIELD_FROMARRAY,
+  BITFIELD_TOARRAY,
 };
 
 static JSValue
@@ -1225,44 +1226,81 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
       break;
     }
-    case BITFIELD_FROMARRAY: {
+    case BITFIELD_TOARRAY: {
+      const uint8_t* buf;
 
+      if(argc >= 2)
+        JS_ToInt64(ctx, &offset, argv[1]);
+
+      if((buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+        size_t i, j = 0, bits = len * 8;
+        ret = JS_NewArray(ctx);
+
+        for(i = 0; i < bits; i++) {
+          BOOL value = buf[i >> 3] & (1u << (i & 0x7));
+
+          JS_SetPropertyUint32(ctx, ret, i, JS_NewBool(ctx, value));
+        }
+      }
+      break;
+    }
+    case BITFIELD_FROMARRAY: {
+      JSValue prop;
       if(argc >= 2)
         JS_ToInt64(ctx, &offset, argv[1]);
 
       if(!JS_IsArray(ctx, argv[0]))
         return JS_ThrowTypeError(ctx, "argument must be an array");
 
-      if((len = js_array_length(ctx, argv[0]))) {
-        size_t i;
-        int64_t max = -1;
+      prop = JS_GetPropertyUint32(ctx, argv[0], 0);
+      len = js_array_length(ctx, argv[0]);
+      if(len) {
         uint8_t* bufptr;
         size_t bufsize;
 
-        for(i = 0; i < len; i++) {
-          JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
-          uint32_t number;
-          JS_ToUint32(ctx, &number, value);
-          JS_FreeValue(ctx, value);
+        if(JS_IsBool(prop)) {
+          size_t i;
+          bufsize = (len + 7) >> 3;
+          if((bufptr = js_mallocz(ctx, bufsize)) == 0)
+            return JS_ThrowOutOfMemory(ctx);
 
-          if(max < number)
-            max = number;
+          for(i = 0; i < len; i++) {
+            JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
+            BOOL b = JS_ToBool(ctx, value);
+            JS_FreeValue(ctx, value);
+
+            bufptr[i >> 3] |= (b ? 1 : 0) << (i & 0x7);
+          }
+
+        } else {
+
+          size_t i;
+          int64_t max = -1;
+
+          for(i = 0; i < len; i++) {
+            JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
+            uint32_t number;
+            JS_ToUint32(ctx, &number, value);
+            JS_FreeValue(ctx, value);
+
+            if(max < number)
+              max = number;
+          }
+          bufsize = ((max + 1) + 7) >> 3;
+          if((bufptr = js_mallocz(ctx, bufsize)) == 0)
+            return JS_ThrowOutOfMemory(ctx);
+
+          for(i = 0; i < len; i++) {
+            JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
+            uint32_t number;
+            JS_ToUint32(ctx, &number, value);
+            JS_FreeValue(ctx, value);
+
+            number -= offset;
+
+            bufptr[number >> 3] |= 1u << (number & 0x7);
+          }
         }
-        bufsize = ((max + 1) + 7) >> 3;
-        if((bufptr = js_mallocz(ctx, bufsize)) == 0)
-          return JS_ThrowOutOfMemory(ctx);
-
-        for(i = 0; i < len; i++) {
-          JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
-          uint32_t number;
-          JS_ToUint32(ctx, &number, value);
-          JS_FreeValue(ctx, value);
-
-          number -= offset;
-
-          bufptr[number >> 3] |= 1u << (number & 0x7);
-        }
-
         ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_pointer_free_func, bufptr, FALSE);
       }
       break;
@@ -1617,12 +1655,13 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
-    JS_CFUNC_MAGIC_DEF("bitfieldSet", 1, js_misc_bitfield, BITFIELD_SET),
     JS_CFUNC_MAGIC_DEF("not", 1, js_misc_bitop, BITOP_NOT),
     JS_CFUNC_MAGIC_DEF("xor", 2, js_misc_bitop, BITOP_XOR),
     JS_CFUNC_MAGIC_DEF("and", 2, js_misc_bitop, BITOP_AND),
     JS_CFUNC_MAGIC_DEF("or", 2, js_misc_bitop, BITOP_OR),
+    JS_CFUNC_MAGIC_DEF("bitfieldSet", 1, js_misc_bitfield, BITFIELD_SET),
     JS_CFUNC_MAGIC_DEF("bits", 1, js_misc_bitfield, BITFIELD_BITS),
+    JS_CFUNC_MAGIC_DEF("bitfieldToArray", 1, js_misc_bitfield, BITFIELD_TOARRAY),
     JS_CFUNC_MAGIC_DEF("arrayToBitfield", 1, js_misc_bitfield, BITFIELD_FROMARRAY),
     JS_CFUNC_MAGIC_DEF("compileScript", 1, js_misc_compile, 0),
     JS_CFUNC_MAGIC_DEF("evalScript", 1, js_misc_compile, 1),
