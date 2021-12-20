@@ -115,7 +115,7 @@ function ImportFile(seq) {
 
 function ExportName(seq) {
   let idx = seq.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok));
-  return seq[idx].lexeme;
+  return seq[idx]?.lexeme;
 }
 
 function AddExport(tokens) {
@@ -125,12 +125,12 @@ function AddExport(tokens) {
   tokens = tokens.slice(0, len);
   let exp = define(
     {
-      type: tokens[1].lexeme,
+      type: tokens[1]?.lexeme,
       tokens,
       exported: ExportName(tokens),
-      range: [+tokens[0].loc, +tokens.last.loc]
+      range: [+tokens[0]?.loc, +tokens.last?.loc]
     },
-    { code, loc: tokens[0].loc }
+    { code, loc: tokens[0]?.loc }
   );
   return exp;
 }
@@ -191,7 +191,7 @@ function PrintCJSImport({ type, local, file }) {
 }
 
 function main(...args) {
-  globalThis.console = new Console({
+  globalThis.console = new Console(process.stderr, {
     inspectOptions: {
       colors: true,
       depth: 8,
@@ -341,7 +341,7 @@ function main(...args) {
       if(done) break;
       newState = lexer.topState();
       tok = value;
-      console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
+      if(/^((im|ex)port|from|as)$/.test(tok.lexeme)) console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
       if(newState != state) {
         if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
@@ -377,8 +377,16 @@ function main(...args) {
       tokens.push(tok);
     }
 
+    const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
+    log('Export tokens', exportTokens);
+
+    const exportNames = exportTokens.map(index => ExportName(tokens.slice(index)));
+    log('Export names', exportNames);
+
     log('ES6 imports', imports.map(PrintES6Import));
     log('CJS imports', imports.map(PrintCJSImport));
+
+    std.puts(`import { ${exportNames.join(', ')} } from '${file}'\n`);
 
     modules[file] = { imports, exports };
 

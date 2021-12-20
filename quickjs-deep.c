@@ -471,7 +471,7 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   PropertyEnumeration* it;
   Vector frames, offsets;
   DynBuf dbuf;
-  int32_t /*level, prev=0*/;
+  // int32_t level, prev = 0;
   uint32_t mask = 0;
   VirtualProperties vmap;
   js_dbuf_init(ctx, &dbuf);

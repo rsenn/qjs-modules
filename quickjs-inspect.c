@@ -746,7 +746,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   uint32_t pos, len, limit;
   Vector propenum_tab;
   const char* s = 0;
-  int compact = opts->compact;
+  BOOL compact = FALSE;
   JSObject* obj = JS_VALUE_GET_OBJ(value);
 
   vector_init(&propenum_tab, ctx);
@@ -784,15 +784,16 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     compact = depth >= -opts->compact;
   } else if(INSPECT_INT32T_INRANGE(opts->compact) && opts->compact > 0) {
     int32_t deepest = 1;
+    int32_t d = depth > 2000000000 ? INT32_MAX - depth : depth;
 
-    if(!js_is_arraybuffer(ctx, value))
-      deepest = property_enumeration_deepest(ctx, value, opts->compact + 1);
+    /* if(!js_is_arraybuffer(ctx, value))
+       deepest = property_enumeration_deepest(ctx, value, opts->compact + 1);*/
+
     const char* typestr = js_value_typestr(ctx, value);
-    // printf("%s opts->compact = %d, deepest = %d, depth = %d\n", typestr ?
-    // typestr :
-    // "(null)", opts->compact, deepest, depth);
+    compact = deepest <= opts->compact;
 
-    compact = compact > deepest;
+    // printf("%s compact = %d, opts->compact = %" PRIi32 ", deepest = %" PRIi32 ", depth = %" PRIi32 "\n", typestr ? typestr : "(null)",
+    // compact, opts->compact, deepest, d);
   }
 
   if(!(is_function = JS_IsFunction(ctx, value))) {
