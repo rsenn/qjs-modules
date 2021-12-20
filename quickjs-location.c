@@ -305,8 +305,8 @@ js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     JS_DefinePropertyValueStr(ctx, obj, "pos", JS_NewInt64(ctx, loc->pos), JS_PROP_ENUMERABLE);
   if(loc->file)
     JS_DefinePropertyValueStr(ctx, obj, "file", JS_NewString(ctx, loc->file), JS_PROP_ENUMERABLE);
-  if(loc->str)
-    JS_DefinePropertyValueStr(ctx, obj, "str", JS_NewString(ctx, loc->str), JS_PROP_ENUMERABLE);
+  /*  if(loc->str)
+      JS_DefinePropertyValueStr(ctx, obj, "str", JS_NewString(ctx, loc->str), JS_PROP_ENUMERABLE);*/
   return obj;
 }
 

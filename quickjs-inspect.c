@@ -503,7 +503,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
   column = 0;
 
   for(i = 0; i < size; i++) {
-    if(i == (size_t)opts->max_array_length)
+    if((opts->max_array_length == INT32_MAX && i > 32) || i == (size_t)opts->max_array_length)
       break;
     if(column + 3 >= break_len && opts->break_length != INT32_MAX) {
       if(compact)

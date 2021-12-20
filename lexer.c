@@ -177,8 +177,7 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
       return LEXER_ERROR_COMPILE;
   }
 
-  // printf("lexer_rule_match %s %s %s\n", rule->name, rule->expr,
-  // rule->expansion);
+  // fprintf(stderr, "lexer_rule_match %s %s %s\n", rule->name, rule->expr, rule->expansion);
 
   return lre_exec(capture, rule->bytecode, (uint8_t*)lex->input.data, lex->input.pos, lex->input.size, 0, ctx);
 }
@@ -196,6 +195,9 @@ lexer_rule_add(Lexer* lex, char* name, char* expr) {
       size_t len = str_chrs(s, ",>", 2);
       int index;
 
+      if(s[len] == '\0')
+        break;
+
       if((index = lexer_state_findb(lex, s, len)) == -1)
         index = lexer_state_new(lex, s, len);
 
@@ -206,8 +208,11 @@ lexer_rule_add(Lexer* lex, char* name, char* expr) {
         s++;
     }
 
-    rule.mask = flags;
+    if(*s == '>')
+      rule.mask = flags;
   }
+
+  // fprintf(stderr, "lexer_rule_add %s %s %08x\n", rule.name, rule.expr, rule.mask);
 
   vector_push(&lex->rules, rule);
   return ret;

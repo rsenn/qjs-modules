@@ -3,7 +3,7 @@ import * as std from 'std';
 import { Console } from 'console';
 import { Location } from 'misc';
 import { extendArray, format, waitFor } from 'util';
-import { fnmatch, FNM_CASEFOLD, FNM_EXTMATCH, FNM_FILE_NAME, FNM_LEADING_DIR, FNM_NOESCAPE, FNM_NOMATCH, FNM_PATHNAME, FNM_PERIOD, glob, GLOB_ERR, GLOB_MARK, GLOB_NOSORT, GLOB_DOOFFS, GLOB_NOCHECK, GLOB_NOMATCH, GLOB_APPEND, GLOB_NOESCAPE, GLOB_PERIOD, GLOB_ALTDIRFUNC, GLOB_BRACE, GLOB_NOMAGIC, GLOB_TILDE, GLOB_TILDE_CHECK, GLOB_ONLYDIR, GLOB_MAGCHAR, GLOB_NOSPACE, GLOB_ABORTED, JS_EVAL_FLAG_COMPILE_ONLY, JS_EVAL_TYPE_MODULE, JS_EVAL_TYPE_GLOBAL, toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
+import { fnmatch, FNM_CASEFOLD, FNM_EXTMATCH, FNM_FILE_NAME, FNM_LEADING_DIR, FNM_NOESCAPE, FNM_NOMATCH, FNM_PATHNAME, FNM_PERIOD, glob, GLOB_ERR, GLOB_MARK, GLOB_NOSORT, GLOB_NOCHECK, GLOB_NOMATCH, GLOB_NOESCAPE, GLOB_ALTDIRFUNC, GLOB_BRACE, GLOB_NOMAGIC, GLOB_TILDE, GLOB_MAGCHAR, GLOB_NOSPACE, GLOB_ABORTED, JS_EVAL_FLAG_COMPILE_ONLY, JS_EVAL_TYPE_MODULE, JS_EVAL_TYPE_GLOBAL, toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -68,8 +68,8 @@ function main(...args) {
       for(; i < ba.length; i += opcode.size) {
         const code = ba[i];
         opcode = opcodes[code];
-
-        console.log(i.toString(16).padStart(8, '0') + ': ', toHex(code), opcode.name.padEnd(32), ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n)));
+        const offset = i.toString(16).padStart(8, '0');
+        console.log(offset + ': ', toHex(code), opcode.name.padEnd(32), ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n)));
       }
     } catch(e) {}
 
@@ -125,19 +125,14 @@ function main(...args) {
   }
 
   function get_leb128(buf, offset, len) {
-    let v,
-      a,
-      i,
+    let v = 0,
       j = offset;
     len ??= buf.length;
-    v = 0;
-    for(i = 0; i < 5; i++) {
+    for(let i = 0; i < 5; i++) {
       if(j >= len) break;
-      a = buf[j++];
+      const a = buf[j++];
       v |= (a & 0x7f) << (i * 7);
-      if(!(a & 0x80)) {
-        return [v, j];
-      }
+      if(!(a & 0x80)) return [v, j];
     }
     return [0, -1];
   }

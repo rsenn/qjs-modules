@@ -196,9 +196,9 @@ function main(...args) {
       colors: true,
       depth: 8,
       breakLength: 160,
-      maxStringLength: 100,
-      maxArrayLength: 40,
-      compact: 2,
+      maxStringLength: Infinity,
+      maxArrayLength: Infinity,
+      compact: 1,
       stringBreakNewline: false,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
@@ -248,8 +248,9 @@ function main(...args) {
 
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
 
+    log('lexer:', lexer.constructor.name);
     log('lexer.tokens:', lexer.tokens);
-    log('lexer:', lexer[Symbol.toStringTag]);
+    //log('lexer:', lexer[Symbol.toStringTag]);
     log('code:', code);
 
     let e = new SyntaxError();
@@ -333,6 +334,18 @@ function main(...args) {
       cond,
       imp = [];
 
+    /* console.log('lexer.rules', Object.fromEntries(lexer.ruleNames.map(n => [n, new RegExp(lexer.getRule(n)[1], 's')])));
+    console.log('lexer.states', lexer.states);
+    console.log('lexer.tokens', lexer.tokens);*/
+
+    let showToken = tok => {
+      if((lexer.constructor != JSLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
+        // console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
+        let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), `'${tok.lexeme}'`];
+        std.puts(a.join('') + '\n');
+      }
+    };
+
     for(;;) {
       let newState, state;
       let { stateDepth } = lexer;
@@ -341,7 +354,7 @@ function main(...args) {
       if(done) break;
       newState = lexer.topState();
       tok = value;
-      if(/^((im|ex)port|from|as)$/.test(tok.lexeme)) console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
+      showToken(tok);
       if(newState != state) {
         if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
