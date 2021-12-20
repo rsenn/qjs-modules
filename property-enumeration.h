@@ -49,7 +49,7 @@ static inline int32_t
 property_enumeration_depth(Vector* vec) {
   return vector_size(vec, sizeof(PropertyEnumeration));
 }
-int32_t property_enumeration_deepest(JSContext*, JSValue);
+int32_t property_enumeration_deepest(JSContext*, JSValue, int32_t maxdepth);
 JSValue property_enumeration_path(Vector*, JSContext*);
 void property_enumeration_pathstr(Vector*, JSContext*, DynBuf* buf);
 JSValue property_enumeration_pathstr_value(Vector*, JSContext*);

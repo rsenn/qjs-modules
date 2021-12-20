@@ -193,9 +193,7 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
           ptr = JS_VALUE_GET_PTR(argv[0]);
           break;
         }
-      default: {
-        return JS_ThrowTypeError(ctx, "toPointer: invalid type %s", js_value_typestr(ctx, argv[0]));
-      }
+      default: { return JS_ThrowTypeError(ctx, "toPointer: invalid type %s", js_value_typestr(ctx, argv[0])); }
     }
   }
 
@@ -1597,6 +1595,36 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 #endif
 
+typedef struct {
+  JSContext* ctx;
+  JSValue fn;
+} JSAtExitEntry;
+
+thread_local Vector js_misc_atexit_functions;
+
+static void
+js_misc_atexit_handler() {
+  JSAtExitEntry* entry;
+
+  vector_foreach_t(&js_misc_atexit_functions, entry) {
+    JSValue ret = JS_Call(entry->ctx, entry->fn, JS_UNDEFINED, 0, 0);
+    JS_FreeValue(entry->ctx, ret);
+  }
+}
+
+static JSValue
+js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSAtExitEntry entry;
+
+  if(argc < 1 || !JS_IsFunction(ctx, argv[0]))
+    return JS_ThrowTypeError(ctx, "argument 1 must be function");
+
+  entry.ctx = ctx;
+  entry.fn = JS_DupValue(ctx, argv[0]);
+
+  vector_push(&js_misc_atexit_functions, entry);
+}
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
 // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
@@ -1613,6 +1641,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifdef HAVE_INOTIFY
     JS_CFUNC_DEF("watch", 2, js_misc_watch),
 #endif
+    JS_CFUNC_DEF("atexit", 1, js_misc_atexit),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
@@ -1799,6 +1828,9 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
 
   if(!js_location_class_id)
     js_location_init(ctx, 0);
+
+  vector_init(&js_misc_atexit_functions, ctx);
+  atexit(&js_misc_atexit_handler);
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));

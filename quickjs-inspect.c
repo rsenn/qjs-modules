@@ -35,9 +35,9 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
 #define INSPECT_IS_COMPACT(opts) \
   ((opts)->compact == INT32_MAX ? TRUE \
-   : INSPECT_INT32T_INRANGE((opts)->compact) \
-       ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) \
-       : 0)
+                                : INSPECT_INT32T_INRANGE((opts)->compact) ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) \
+                                                                                                 : INSPECT_LEVEL(opts) >= (opts)->compact) \
+                                                                          : 0)
 
 struct prop_key;
 
@@ -563,7 +563,7 @@ js_inspect_print_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     char str[FMT_XLONG];
     JS_ToInt64(ctx, &num, value);
     dbuf_putstr(buf, "0x");
-    dbuf_put(buf, str, fmt_xlonglong(str, num));
+    dbuf_put(buf, (const uint8_t*)str, fmt_xlonglong(str, num));
 
   } else {
     JSValue number;
@@ -786,7 +786,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     int32_t deepest = 1;
 
     if(!js_is_arraybuffer(ctx, value))
-      deepest = property_enumeration_deepest(ctx, value);
+      deepest = property_enumeration_deepest(ctx, value, opts->compact + 1);
     const char* typestr = js_value_typestr(ctx, value);
     // printf("%s opts->compact = %d, deepest = %d, depth = %d\n", typestr ?
     // typestr :
@@ -973,9 +973,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
           JS_FreeValue(ctx, v);
         } else
           dbuf_put_colorstr(buf,
-                            JS_IsUndefined(desc.getter)   ? "[Setter]"
-                            : JS_IsUndefined(desc.setter) ? "[Getter]"
-                                                          : "[Getter/Setter]",
+                            JS_IsUndefined(desc.getter) ? "[Setter]" : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
                             COLOR_MARINE,
                             opts->colors);
       } else {
