@@ -293,7 +293,7 @@ set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
                           ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 
-set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${path_SOURCES} ${location_SOURCES})
+set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
 
 set(gpio_SOURCES gpio.c gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})

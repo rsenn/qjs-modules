@@ -191,7 +191,7 @@ js_syntaxerror_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     return JS_EXCEPTION;
 
   js_dbuf_init(ctx, &db);
-  location_print(&err->loc, &db);
+  location_print(&err->loc, &db, ctx);
 
   if(err->message) {
     dbuf_putc(&db, ' ');
@@ -1036,7 +1036,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(argc > 0 && JS_IsNumber(argv[0]))
         JS_ToInt32(ctx, &index, argv[0]);
 
-      if((id = lexer_state_top(lex, index)) >= 0)
+      if((id = index > 0 ? lexer_state_top(lex, index) : lex->state) >= 0)
         ret = JS_NewString(ctx, lexer_state_name(lex, id));
       break;
     }
@@ -1074,7 +1074,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case LEXER_PROP_FILENAME: {
-      ret = lex->loc.file ? JS_NewString(ctx, lex->loc.file) : JS_UNDEFINED;
+      ret = lex->loc.file > -1 ? JS_AtomToValue(ctx, lex->loc.file) : JS_UNDEFINED;
       break;
     }
 
@@ -1178,9 +1178,9 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
     }
 
     case LEXER_PROP_FILENAME: {
-      if(lex->loc.file)
-        js_free(ctx, (char*)lex->loc.file);
-      lex->loc.file = js_tostring(ctx, value);
+      if(lex->loc.file > -1)
+        JS_FreeAtom(ctx, lex->loc.file);
+      lex->loc.file = JS_ValueToAtom(ctx, value);
       break;
     }
 

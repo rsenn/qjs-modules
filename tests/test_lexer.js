@@ -206,22 +206,23 @@ function main(...args) {
 
   let optind = 0;
   let code = 'c';
-  let debug;
+  let debug,
+    files = [];
 
   while(args[optind] && args[optind].startsWith('-')) {
     if(/code/.test(args[optind])) code = args[++optind];
-    if(/(debug|^-x$)/.test(args[optind])) debug = true;
+    else if(/(debug|^-x$)/.test(args[optind])) debug = true;
+    else files.push(args[optind]);
 
     optind++;
   }
+  console.log('files', files);
 
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
 
-  let files = args[optind] ? args.slice(optind) : [RelativePath('lib/util.js')];
+  if(!files.length) files.push(RelativePath('lib/util.js'));
 
-  while(optind < files.length) {
-    ProcessFile(files[optind++]);
-  }
+  for(let file of files) ProcessFile(file);
 
   function ProcessFile(file) {
     console.log(`Loading '${file}'...`);
@@ -264,13 +265,13 @@ function main(...args) {
     };
     let tokenList = [],
       declarations = [];
-    const colSizes = [12, 8, 4, 16, 32, 10, 0];
+    const colSizes = [12, 8, 4, 20, 32, 10, 0];
 
     const printTok = debug
       ? (tok, prefix) => {
           const range = tok.charRange;
           const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
-          log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
+          std.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
         }
       : () => {};
 
@@ -341,20 +342,18 @@ function main(...args) {
     let showToken = tok => {
       if((lexer.constructor != JSLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         // console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
-        let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), `'${tok.lexeme}'`];
+        let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.puts(a.join('') + '\n');
       }
     };
 
     for(;;) {
-      let newState, state;
       let { stateDepth } = lexer;
-      state = lexer.topState();
       let { done, value } = lexer.next();
       if(done) break;
-      newState = lexer.topState();
+      let newState = lexer.topState();
       tok = value;
-      showToken(tok);
+      //showToken(tok);
       if(newState != state) {
         if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
@@ -362,32 +361,32 @@ function main(...args) {
       let n = balancers.last.depth;
       if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
         lexer.popState();
-        continue;
       } else {
         balancer(tok);
         if(n > 0 && balancers.last.depth == 0) log('balancer');
-      }
-      if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
-        impexp = What[tok.lexeme.toUpperCase()];
-        let prev = tokens[tokens.length - 1];
-        /* if(tokens.length == 0 || prev.lexeme.endsWith('\n')) */ {
-          cond = true;
-          imp = [];
-        }
-      }
-      if(cond == true) {
-        imp.push(tok);
-        if([';', '\n'].indexOf(tok.lexeme) != -1) {
-          cond = false;
-          if(imp.some(i => i.lexeme == 'from')) {
-            if(impexp == What.IMPORT) imports.push(AddImport(imp));
+        if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
+          impexp = What[tok.lexeme.toUpperCase()];
+          let prev = tokens[tokens.length - 1];
+          /* if(tokens.length == 0 || prev.lexeme.endsWith('\n')) */ {
+            cond = true;
+            imp = [];
           }
-
-          if(impexp == What.EXPORT) exports.push(AddExport(imp));
         }
+        if(cond == true) {
+          imp.push(tok);
+          if([';', '\n'].indexOf(tok.lexeme) != -1) {
+            cond = false;
+            if(imp.some(i => i.lexeme == 'from')) {
+              if(impexp == What.IMPORT) imports.push(AddImport(imp));
+            }
+
+            if(impexp == What.EXPORT) exports.push(AddExport(imp));
+          }
+        }
+        printTok(tok, newState);
+        tokens.push(tok);
       }
-      printTok(tok, lexer.topState());
-      tokens.push(tok);
+      state = newState;
     }
 
     const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);

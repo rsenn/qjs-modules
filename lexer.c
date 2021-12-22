@@ -456,7 +456,7 @@ lexer_dump(Lexer* lex, DynBuf* dbuf) {
   dbuf_putstr(dbuf, ",\n  input: ");
   input_buffer_dump(&lex->input, dbuf);
   dbuf_putstr(dbuf, ",\n  location: ");
-  location_print(&lex->loc, dbuf);
+  location_print(&lex->loc, dbuf, 0);
   dbuf_putstr(dbuf, "\n}");
 }
 

@@ -9,28 +9,31 @@
  * @{
  */
 typedef struct source_location {
-  char* file;
+  JSAtom file;
   uint32_t line;
   uint32_t column;
   int64_t pos;
   char* str;
 } Location;
 
-void location_print(const Location*, DynBuf* dbuf);
+void location_print(const Location*, DynBuf* dbuf, JSContext* ctx);
 char* location_tostring(const Location*, JSContext* ctx);
 JSValue location_tovalue(const Location*, JSContext* ctx);
-Location location_clone(const Location*, JSContext* ctx);
 void location_init(Location*);
 void location_zero(Location*);
 void location_add(Location*, const Location* other);
 void location_sub(Location*, const Location* other);
-/*void location_count(Location*, const char* x, size_t n);*/
 void location_free(Location*, JSContext* ctx);
 void location_free_rt(Location*, JSRuntime* rt);
 
 static inline int
 location_isnull(const Location* loc) {
-  return !loc->file && !loc->line && !loc->column && !loc->pos;
+  return loc->file == -1 && !loc->line && !loc->column && !loc->pos;
+}
+
+static inline Location
+location_clone(const Location* loc, JSContext* ctx) {
+  return (Location){loc->file >= 0 ? JS_DupAtom(ctx, loc->file) : -1, loc->line, loc->column, loc->pos, 0};
 }
 
 static inline void
