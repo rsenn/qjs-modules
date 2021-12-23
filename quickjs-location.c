@@ -189,9 +189,9 @@ js_location_from(JSContext* ctx, JSValueConst this_val) {
   if(js_has_propertystr(ctx, this_val, "columnNumber"))
     loc.column = js_get_propertystr_int32(ctx, this_val, "columnNumber") - 1;
   if(js_has_propertystr(ctx, this_val, "file"))
-    loc.file = js_get_propertystr_string(ctx, this_val, "file");
+    loc.file = js_get_propertystr_atom(ctx, this_val, "file");
   if(js_has_propertystr(ctx, this_val, "fileName"))
-    loc.file = js_get_propertystr_string(ctx, this_val, "fileName");
+    loc.file = js_get_propertystr_atom(ctx, this_val, "fileName");
   if(js_has_propertystr(ctx, this_val, "pos"))
     loc.pos = js_get_propertystr_uint64(ctx, this_val, "pos");
   return loc;
@@ -247,7 +247,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
         if(end > p)
           n[--ni] = v;
       } else {
-        loc.file = js_strndup(ctx, (const char*)p, end - p);
+        loc.file = JS_NewAtomLen(ctx, (const char*)p, end - p);
         break;
       }
       end = p - 1;
@@ -270,7 +270,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   } else if(argc > 1) {
     int i = 0;
     if(i < argc && JS_IsString(argv[i]))
-      loc.file = js_tostring(ctx, argv[i++]);
+      loc.file = JS_ValueToAtom(ctx, argv[i++]);
     if(i < argc && JS_IsNumber(argv[i]))
       JS_ToUint32(ctx, &loc.line, argv[i++]);
     if(i < argc && JS_IsNumber(argv[i]))
@@ -278,7 +278,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     if(i < argc && JS_IsNumber(argv[i]))
       JS_ToIndex(ctx, (uint64_t*)&loc.pos, argv[i++]);
     if(loc.file == 0 && i < argc && JS_IsString(argv[i]))
-      loc.file = js_tostring(ctx, argv[i++]);
+      loc.file = JS_ValueToAtom(ctx, argv[i++]);
 
     loc.line--;
     loc.column--;

@@ -793,6 +793,18 @@ js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop) {
   return ret;
 }
 
+JSAtom
+js_get_propertystr_atom(JSContext* ctx, JSValueConst obj, const char* prop) {
+  JSValue value;
+  JSAtom ret;
+  value = JS_GetPropertyStr(ctx, obj, prop);
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+  ret = JS_ValueToAtom(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 void
 js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str) {
   JSValue value;

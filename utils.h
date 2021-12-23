@@ -718,6 +718,7 @@ char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char*
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
 uint64_t js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop);
 int js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueConst obj, JSAtom prop);
+JSAtom js_get_propertystr_atom(JSContext* ctx, JSValueConst obj, const char* prop);
 
 static inline void
 js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {

@@ -72,15 +72,14 @@ else()
   option(USE_SPAWN "Use POSIX spawn()" ON)
 endif()
 
-  check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
-  if(HAVE_SYS_WAIT_H)
-    add_definitions(-DHAVE_SYS_WAIT_H)
-  endif(HAVE_SYS_WAIT_H)
+check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
+if(HAVE_SYS_WAIT_H)
+  add_definitions(-DHAVE_SYS_WAIT_H)
+endif(HAVE_SYS_WAIT_H)
 
-  if(HAVE_WAITPID)
-    add_definitions(-DHAVE_WAITPID=1)
-  endif(HAVE_WAITPID)
-
+if(HAVE_WAITPID)
+  add_definitions(-DHAVE_WAITPID=1)
+endif(HAVE_WAITPID)
 
 if(NOT USE_SPAWN)
   if(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
@@ -293,7 +292,8 @@ set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
                           ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 
-set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
+set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${path_SOURCES} ${location_SOURCES}
+                 ${vector_SOURCES})
 
 set(gpio_SOURCES gpio.c gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
@@ -325,8 +325,7 @@ check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
 # dump(VISIBILITY_HIDDEN) dump(MODULE_COMPILE_FLAGS)
 
-check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function"
-            CMAKE_C_FLAGS)
+check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
 
 #check_flags("-Wno-cast-function-type" CMAKE_C_FLAGS)
 

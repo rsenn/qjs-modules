@@ -17,6 +17,7 @@ typedef struct source_location {
 } Location;
 
 void location_print(const Location*, DynBuf* dbuf, JSContext* ctx);
+char* location_file(const Location*, JSContext* ctx);
 char* location_tostring(const Location*, JSContext* ctx);
 JSValue location_tovalue(const Location*, JSContext* ctx);
 void location_init(Location*);

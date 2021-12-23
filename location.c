@@ -29,6 +29,18 @@ location_tostring(const Location* loc, JSContext* ctx) {
   return (char*)dbuf.buf;
 }
 
+char*
+location_file(const Location* loc, JSContext* ctx) {
+  const char* file;
+  char* ret = 0;
+
+  if((file = JS_AtomToCString(ctx, loc->file))) {
+    ret = js_strdup(ctx, file);
+    JS_FreeCString(ctx, file);
+  }
+  return ret;
+}
+
 JSValue
 location_tovalue(const Location* loc, JSContext* ctx) {
   char* str = location_tostring(loc, ctx);

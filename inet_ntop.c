@@ -1,4 +1,4 @@
-#ifndef HAVE_INET_NTOP
+#if !defined(HAVE_INET_NTOP) && !defined(__MSYS__)
 #ifdef _WIN32
 #include <windows.h>
 #include <winsock2.h>
@@ -73,4 +73,4 @@ inet_ntop(int af, const void* restrict a0, char* restrict s, socklen_t l) {
   errno = ENOSPC;
   return 0;
 }
-#endif /* defined(HAVE_INET_NTOP) */
+#endif /* !defined(HAVE_INET_NTOP) && !defined(__MSYS__) */

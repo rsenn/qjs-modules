@@ -193,7 +193,9 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
           ptr = JS_VALUE_GET_PTR(argv[0]);
           break;
         }
-      default: { return JS_ThrowTypeError(ctx, "toPointer: invalid type %s", js_value_typestr(ctx, argv[0])); }
+      default: {
+        return JS_ThrowTypeError(ctx, "toPointer: invalid type %s", js_value_typestr(ctx, argv[0]));
+      }
     }
   }
 

@@ -1,7 +1,7 @@
 #ifndef QUICKJS_SOCKETS_H
 #define QUICKJS_SOCKETS_H
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MSYS__)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else

@@ -2,11 +2,14 @@
 #include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "buffer-utils.h"
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MSYS__)
 #include <winsock2.h>
+#ifndef __MSYS__
 int inet_pton(int, const char*, void*);
 const char* inet_ntop(int, const void*, char*, socklen_t);
+#endif
 int socketpair(int, int, int, SOCKET[2]);
+#define close(fd) closesocket(fd)
 #else
 #include <sys/select.h>
 #include <sys/syscall.h>

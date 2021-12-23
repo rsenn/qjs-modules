@@ -35,9 +35,9 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
 #define INSPECT_IS_COMPACT(opts) \
   ((opts)->compact == INT32_MAX ? TRUE \
-                                : INSPECT_INT32T_INRANGE((opts)->compact) ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) \
-                                                                                                 : INSPECT_LEVEL(opts) >= (opts)->compact) \
-                                                                          : 0)
+   : INSPECT_INT32T_INRANGE((opts)->compact) \
+       ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) \
+       : 0)
 
 struct prop_key;
 
@@ -974,7 +974,9 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
           JS_FreeValue(ctx, v);
         } else
           dbuf_put_colorstr(buf,
-                            JS_IsUndefined(desc.getter) ? "[Setter]" : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]",
+                            JS_IsUndefined(desc.getter)   ? "[Setter]"
+                            : JS_IsUndefined(desc.setter) ? "[Getter]"
+                                                          : "[Getter/Setter]",
                             COLOR_MARINE,
                             opts->colors);
       } else {

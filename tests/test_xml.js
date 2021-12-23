@@ -43,17 +43,17 @@ async function main(...args) {
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));
 
-  let result = xml.read(data, file);
+  let result = xml.read(data, file, true);
 
   console.log('Array.isArray(result)', Array.isArray(result));
 
   console.log('Object.keys(result)', Object.keys(result));
-  console.log('result:', inspect(result, { depth: Infinity, compact: 1 }));
+  console.log('result:', inspect(result, { depth: Infinity, compact: false, maxArrayLength: Infinity }));
   //console.log('result[1].tagName',result[1].tagName);
   WriteFile(base + '.json', JSON.stringify(result, null, 2));
 
   let str = xml.write(result);
-  console.log('write:', quote(str));
+ // console.log('write:', quote(str));
 
   WriteFile(base + '.xml', str);
 
