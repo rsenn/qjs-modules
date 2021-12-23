@@ -260,12 +260,9 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   }
   num_children = xml_num_children(ctx, element);
 
+  //     (tagName[0] == '/' || num_children == -1) ?
   if(tagName[0])
-    dbuf_putstr(db,
-                self_closing                                                     ? " />"
-                : (num_children >= 0 || isComment)                               ? tagName[0] == '?' ? "?>" : ">"
-                : (tagName[0] == '!' || tagName[0] == '/' || num_children == -1) ? ">"
-                                                                                 : " />");
+    dbuf_putstr(db, tagName[0] == '?' ? "?>" : self_closing && !(tagName[0] == '!' || num_children >= 0 || isComment) ? " />" : ">");
   dbuf_putc(db, '\n');
 
   js_cstring_free(ctx, tagName);
@@ -321,7 +318,11 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth)
       break;
 
     value = property_enumeration_value(it, ctx);
-    xml_close_element(ctx, value, db, (int32_t)vector_size(vec, sizeof(PropertyEnumeration)) - 1);
+    {
+      int32_t depth = vector_size(vec, sizeof(PropertyEnumeration)) - 1;
+      depth = MAX_NUM(0, depth - 1);
+      xml_close_element(ctx, value, db, depth);
+    }
     JS_FreeValue(ctx, value);
   }
 
@@ -572,6 +573,8 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
   do {
     int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
 
+    depth = MAX_NUM(0, depth - 1);
+
     value = property_enumeration_value(it, ctx);
 
     if(JS_IsString(value))
@@ -608,8 +611,7 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
     JS_FreeValue(ctx, value);
     value = next;
     next = JS_GetPropertyUint32(ctx, obj, i + 1);
-    if(tagName)
-      JS_FreeCString(ctx, tagName);
+
     tagName = nextTag;
     nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
 
@@ -638,6 +640,8 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
       //  JS_FreeCString(ctx, tagName);
       single_line = FALSE;
     }
+    if(tagName)
+      JS_FreeCString(ctx, tagName);
   }
   return JS_NewStringLen(ctx, (const char*)output->buf, output->size);
 }
