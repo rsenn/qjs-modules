@@ -53,7 +53,7 @@ async function main(...args) {
   WriteFile(base + '.json', JSON.stringify(result, null, 2));
 
   let str = xml.write(result);
- // console.log('write:', quote(str));
+  // console.log('write:', quote(str));
 
   WriteFile(base + '.xml', str);
 
