@@ -30,6 +30,7 @@ int isatty(HANDLE);
  */
 
 thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
+thread_local JSValue object_tostring;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
@@ -473,7 +474,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
   ptr = JS_GetArrayBuffer(ctx, &size, value);
   // printf("maxArrayLength: %i\n", opts->max_array_length);
   proto = JS_GetPrototype(ctx, value);
-  str = js_object_tostring(ctx, proto);
+  str = js_object_tostring2(ctx, object_tostring, proto);
   JS_FreeValue(ctx, proto);
 
   if(js_is_arraybuffer(ctx, value))
@@ -786,14 +787,21 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     int32_t deepest = 1;
     int32_t d = depth > 2000000000 ? INT32_MAX - depth : depth;
 
-    /* if(!js_is_arraybuffer(ctx, value))
-       deepest = property_enumeration_deepest(ctx, value, opts->compact + 1);*/
+    // if(!js_is_arraybuffer(ctx, value))
+    deepest = property_enumeration_deepest(ctx, value, opts->compact + 1);
 
-    const char* typestr = js_value_typestr(ctx, value);
+    const char* typestr = js_object_tostring(ctx, value);
     compact = deepest <= opts->compact;
 
-    // printf("%s compact = %d, opts->compact = %" PRIi32 ", deepest = %" PRIi32 ", depth = %" PRIi32 "\n", typestr ? typestr : "(null)",
-    // compact, opts->compact, deepest, d);
+    const char* str = JS_ToCString(ctx, value);
+
+    printf("%s compact = %d, opts->compact = %" PRIi32 ", deepest = %" PRIi32 ", depth = %" PRIi32 "\n",
+           /*  str ? str : */ typestr ? typestr : "(null)",
+           compact,
+           opts->compact,
+           deepest,
+           d);
+    JS_FreeCString(ctx, str);
   }
 
   if(!(is_function = JS_IsFunction(ctx, value))) {
@@ -803,7 +811,6 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     if(!is_array && !is_typedarray) {
       if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
         return js_inspect_print_arraybuffer(ctx, buf, value, opts, depth + 1);
-
       if(js_is_map(ctx, value))
         return js_inspect_print_map(ctx, buf, value, opts, depth /*+ 1*/);
       if(js_is_set(ctx, value))
@@ -830,7 +837,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 
   if(!JS_IsArray(ctx, value) && !is_function) {
     if(s == 0)
-      s = js_object_tostring(ctx, value);
+      s = js_object_tostring2(ctx, object_tostring, value);
 
     if(s && !strncmp(s, "[object ", 8)) {
       const char* e = strchr(s, ']');
@@ -1204,6 +1211,8 @@ js_inspect_init(JSContext* ctx, JSModuleDef* m) {
 
   inspect_custom_atom = js_inspect_custom_atom(ctx, "quickjs.inspect.custom");
   inspect_custom_atom_node = js_inspect_custom_atom(ctx, "nodejs.util.inspect.custom");
+
+  object_tostring = js_global_prototype_func(ctx, "Object", "toString");
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));

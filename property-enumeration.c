@@ -107,13 +107,15 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object, int32_t max) {
 
     while(it) {
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
-      // printf("depth = %" PRIu32 ", atom = %x\n", depth, it->tab_atom[it->idx].atom);
+      printf("depth = %" PRIu32 ", atom = %x\n", depth, it->tab_atom[it->idx].atom);
       if(max_depth < depth)
         max_depth = depth;
 
       if(depth >= max) {
-        if(!(it = property_enumeration_next(it)))
-          it = property_enumeration_pop(&vec, ctx);
+        while(!(it = property_enumeration_next(it))) {
+          if((it = property_enumeration_pop(&vec, ctx)) == 0)
+            return max_depth;
+        }
       } else {
         it = property_enumeration_recurse(&vec, ctx);
       }

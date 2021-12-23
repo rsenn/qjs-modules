@@ -303,6 +303,7 @@ js_global_new(JSContext* ctx, const char* class_name, int argc, JSValueConst arg
 }
 
 JSValue js_global_prototype(JSContext* ctx, const char* class_name);
+JSValue js_global_prototype_func(JSContext* ctx, const char* class_name, const char* func_name);
 JSValue js_global_static_func(JSContext* ctx, const char* class_name, const char* func_name);
 
 enum value_types {
@@ -664,6 +665,7 @@ BOOL js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom);
 BOOL js_atom_is_length(JSContext* ctx, JSAtom atom);
 
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);
+const char* js_object_tostring2(JSContext* ctx, JSValueConst method, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 const char* js_function_tostring(JSContext* ctx, JSValueConst value);
 JSCFunction* js_function_cfunc(JSContext*, JSValue value);

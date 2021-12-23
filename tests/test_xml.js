@@ -22,7 +22,7 @@ async function main(...args) {
       depth: 10,
       stringBreakNewline: false,
       maxArrayLength: 10,
-      compact: false,
+      compact: 2,
       maxStringLength: 60
     }
   });
@@ -48,7 +48,7 @@ async function main(...args) {
   console.log('Array.isArray(result)', Array.isArray(result));
 
   console.log('Object.keys(result)', Object.keys(result));
-  console.log('result:', inspect(result, { depth: Infinity, compact: false, maxArrayLength: Infinity }));
+  console.log('result:', inspect(result, { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
   //console.log('result[1].tagName',result[1].tagName);
   WriteFile(base + '.json', JSON.stringify(result, null, 2));
 

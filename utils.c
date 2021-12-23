@@ -492,10 +492,18 @@ js_global_prototype(JSContext* ctx, const char* class_name) {
 JSValue
 js_global_static_func(JSContext* ctx, const char* class_name, const char* func_name) {
   JSValue ctor, func;
-
   ctor = js_global_get_str(ctx, class_name);
   func = JS_GetPropertyStr(ctx, ctor, func_name);
+  JS_FreeValue(ctx, ctor);
+  return func;
+}
 
+JSValue
+js_global_prototype_func(JSContext* ctx, const char* class_name, const char* func_name) {
+  JSValue proto, func;
+  proto = js_global_prototype(ctx, class_name);
+  func = JS_GetPropertyStr(ctx, proto, func_name);
+  JS_FreeValue(ctx, proto);
   return func;
 }
 
@@ -893,7 +901,17 @@ js_class_name(JSContext* ctx, JSClassID id) {
 
 const char*
 js_object_tostring(JSContext* ctx, JSValueConst value) {
-  JSValue str = js_value_tostring(ctx, "Object", value);
+  thread_local static JSValue method;
+
+  if(JS_VALUE_GET_TAG(method) == 0)
+    method = js_global_prototype_func(ctx, "Object", "toString");
+
+  return js_object_tostring2(ctx, method, value);
+}
+
+const char*
+js_object_tostring2(JSContext* ctx, JSValueConst method, JSValueConst value) {
+  JSValue str = JS_Call(ctx, method, value, 0, 0);
   const char* s = JS_ToCString(ctx, str);
   JS_FreeValue(ctx, str);
   return s;
@@ -1858,8 +1876,8 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
     return ret;
   if(!ret)
     ret |= js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
-  if(!ret)
-    ret |= js_object_is(ctx, value, "[object ArrayBuffer]");
+  /* if(!ret)
+    ret |= js_object_is(ctx, value, "[object ArrayBuffer]"); */
   /*  if(!ret) {
       JSObject* obj;
       if((obj = js_value_obj(value)) && obj->class_id) {
