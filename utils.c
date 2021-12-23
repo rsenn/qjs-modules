@@ -901,7 +901,7 @@ js_class_name(JSContext* ctx, JSClassID id) {
 
 const char*
 js_object_tostring(JSContext* ctx, JSValueConst value) {
-  thread_local static JSValue method;
+  static thread_local JSValue method;
 
   if(JS_VALUE_GET_TAG(method) == 0)
     method = js_global_prototype_func(ctx, "Object", "toString");

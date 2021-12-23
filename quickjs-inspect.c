@@ -793,15 +793,8 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     const char* typestr = js_object_tostring(ctx, value);
     compact = deepest <= opts->compact;
 
-    const char* str = JS_ToCString(ctx, value);
-
-    printf("%s compact = %d, opts->compact = %" PRIi32 ", deepest = %" PRIi32 ", depth = %" PRIi32 "\n",
-           /*  str ? str : */ typestr ? typestr : "(null)",
-           compact,
-           opts->compact,
-           deepest,
-           d);
-    JS_FreeCString(ctx, str);
+    // printf("%s compact = %d, opts->compact = %" PRIi32 ", deepest = %" PRIi32 ", depth = %" PRIi32 "\n", typestr ? typestr : "(null)",
+    // compact, opts->compact, deepest, d);
   }
 
   if(!(is_function = JS_IsFunction(ctx, value))) {
