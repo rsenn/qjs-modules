@@ -1625,6 +1625,7 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   entry.fn = JS_DupValue(ctx, argv[0]);
 
   vector_push(&js_misc_atexit_functions, entry);
+  return JS_UNDEFINED;
 }
 
 static const JSCFunctionListEntry js_misc_funcs[] = {

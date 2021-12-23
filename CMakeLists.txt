@@ -251,6 +251,8 @@ if(NOT HAVE_MEMMEM)
   set(utils_SOURCES ${utils_SOURCES} memmem.c)
 endif(NOT HAVE_MEMMEM)
 set(utils_SOURCES ${utils_SOURCES} qsort_r.c)
+set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h ${utils_SOURCES}
+                     ${buffer_utils_SOURCES})
 
 set(syscallerror_SOURCES quickjs-syscallerror.c quickjs-syscallerror.h)
 set(child_process_SOURCES child-process.c child-process.h property-enumeration.c property-enumeration.h
@@ -286,8 +288,6 @@ if(WIN32 OR MINGW)
   set(sockets_SOURCES ${sockets_SOURCES} socketpair_win32.c)
 endif(WIN32 OR MINGW)
 
-set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h ${utils_SOURCES}
-                     ${buffer_utils_SOURCES})
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
                           ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
@@ -469,9 +469,8 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 ##dump(QJSM_SOURCES)
 add_executable(qjsm ${QJSM_SOURCES})
 
-dump(QJS_MODULES_STATIC)
-dump(QJSM_LDADD)
-dump(QJSM_LIBDIR)
+dump(QUICKJS_LIBRARY)
+
 if(QJS_MODULES_STATIC)
   add_dependencies(qjsm ${QJS_MODULES_STATIC})
 endif(QJS_MODULES_STATIC)

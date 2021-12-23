@@ -9,7 +9,7 @@ int inet_pton(int, const char*, void*);
 const char* inet_ntop(int, const void*, char*, socklen_t);
 #endif
 int socketpair(int, int, int, SOCKET[2]);
-#define close(fd) closesocket(fd)
+//#define close closesocket
 #else
 #include <sys/select.h>
 #include <sys/syscall.h>
