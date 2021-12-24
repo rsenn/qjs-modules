@@ -43,7 +43,7 @@ async function main(...args) {
   let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));
 
-  let result = xml.read(data, file, false);
+  let result = xml.read(data, file, true);
 
   console.log('Array.isArray(result)', Array.isArray(result));
 
