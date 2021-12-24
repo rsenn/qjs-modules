@@ -1,6 +1,6 @@
 import * as os from 'os';
 import * as std from 'std';
-import { escape, quote } from 'misc';
+import { escape, quote, isObject } from 'util';
 import inspect from 'inspect';
 import * as xml from 'xml';
 import * as path from 'path';
@@ -37,8 +37,53 @@ function main(...args) {
 
   let result = xml.read(data, file, true);
   let end = Date.now();
+  console.log('result[0]', inspect(result[0], { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
 
   console.log(`Parsing took ${end - start}ms`);
+
+  if(/NETSCAPE-Bookmark-file-1/i.test(result[0].tagName)) {
+    let tag,
+      group,
+      elements = [],
+      links = [],
+      obj = {},
+      str = '';
+    for(let element of result) {
+      if(isObject(element) && element.tagName) {
+        tag = element.tagName;
+        str = '';
+      } else if(typeof element == 'string') {
+        str += (str.length ? ' ' : '') + element;
+      }
+      if(/^\/h3$/i.test(tag)) group = str;
+      else if(/^(a)$/i.test(tag)) {
+        if(isObject(element.attributes)) {
+          obj.href = element.attributes['HREF'];
+          obj.date = new Date(+element.attributes['ADD_DATE'] * 1000);
+        }
+        if(group) obj.group = group;
+      }
+      if(/^\/(a)$/i.test(tag)) {
+        if(str) obj.str = str;
+
+        elements.push(obj);
+        obj = {};
+      }
+    }
+    result = [];
+
+    elements.sort((a, b) => a.date - b.date);
+
+    for(let element of elements) {
+      const { href, date, group } = element;
+      result.push({ tagName: 'a', attributes: { href, date } });
+      if(isObject(element) && /^a$/i.test(element.tagName)) {
+        const add_date = new Date(+element.attributes['ADD_DATE'] * 1000);
+        const href = element.attributes['HREF'];
+        console.log('a', { href, add_date });
+      }
+    }
+  }
 
   // console.log('result:', inspect(result, { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
   WriteFile(base + '.json', JSON.stringify(result, null, 2));
