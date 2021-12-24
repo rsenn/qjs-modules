@@ -410,7 +410,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
 
           yield_return(index);
         }
-        continue;
+        /*continue;*/
 
         /* if(out->namelen == namelen && !memcmp(out->name, name, namelen)) {
            yield_pop();
@@ -451,7 +451,8 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         const uint8_t *attr, *value;
         size_t alen, vlen, num_attrs = 0;
         JSValue attributes = JS_NewObject(ctx);
-        while(!done) {
+               JS_SetPropertyStr(ctx, element, "attributes", attributes);
+ while(!done) {
           parse_skipspace();
           if(parse_is(c, END))
             break;
@@ -477,11 +478,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
             num_attrs++;
           }
         }
-        /*if(num_attrs == 0)
-          JS_FreeValue(ctx, attributes);
-        else*/
-        JS_SetPropertyStr(ctx, element, "attributes", attributes);
-
+      
         if(parse_is(name[0], QUESTION | EXCLAM)) {
           if(chars[c] == chars[name[0]]) {
             parse_getc();

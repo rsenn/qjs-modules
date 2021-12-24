@@ -15,7 +15,7 @@ function WriteFile(file, data) {
   console.log('Wrote "' + file + '": ' + data.length + ' bytes');
 }
 
-async function main(...args) {
+function main(...args) {
   globalThis.console = new Console(process.stdout, {
     inspectOptions: {
       colors: true,
@@ -27,42 +27,36 @@ async function main(...args) {
     }
   });
 
-  let winsz;
-
-  try {
-    winsz = await os.ttyGetWinSize(1);
-  } catch(err) {}
-  console.log('winsz:', winsz);
-
   let file = args[0] ?? '/etc/fonts/fonts.conf';
-  console.log('file:', file);
 
   let base = path.basename(file, path.extname(file));
-  console.log('base:', base);
 
   let data = std.loadFile(file, 'utf-8');
-  console.log('data:', data.substring(0, 100));
+
+  let start = Date.now();
 
   let result = xml.read(data, file, true);
+  let end = Date.now();
 
-  console.log('Array.isArray(result)', Array.isArray(result));
+  console.log(`Parsing took ${end - start}ms`);
 
-  console.log('Object.keys(result)', Object.keys(result));
-  console.log('result:', inspect(result, { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
-  //console.log('result[1].tagName',result[1].tagName);
+  // console.log('result:', inspect(result, { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
   WriteFile(base + '.json', JSON.stringify(result, null, 2));
 
+  start = Date.now();
   let str = xml.write(result);
-  // console.log('write:', quote(str));
+  end = Date.now();
+
+  console.log(`Generating took ${end - start}ms`);
 
   WriteFile(base + '.xml', str);
 
-  await import('std').then(std => std.gc());
+  std.gc();
 }
 
-main(...scriptArgs.slice(1))
-  .then(() => console.log('SUCCESS'))
-  .catch(error => {
-    console.log(`FAIL: ${error.message}\n${error.stack}`);
-    std.exit(1);
-  });
+try {
+  main(...scriptArgs.slice(1));
+} catch(error) {
+  console.log(`FAIL: ${error.message}\n${error.stack}`);
+  std.exit(1);
+}
