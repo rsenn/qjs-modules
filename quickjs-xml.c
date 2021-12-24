@@ -631,7 +631,7 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
 
       if(self_closing)
         next = JS_GetPropertyUint32(ctx, obj, ++i + 1);
-      else if(tagName[0] != '/' && tagName[0] != '?' && tagName[0] != '!')
+      else if(tagName[0] != '/' && tagName[0] != '?' && tagName[0] != '!' && !strcasecmp(tagName, "dt"))
         depth++;
 
       //  JS_FreeCString(ctx, tagName);
