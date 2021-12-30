@@ -49,7 +49,7 @@ function main(...args) {
     console.log('lexer', lexer);
     let tok;
     while((tok = lexer.nextObj())) {
-      const {loc}=tok;
+      const { loc } = tok;
       if({ struct: 1, typedef: 1 }[tok.type]) {
         if(loc.column == 1) {
           let seq,
@@ -57,32 +57,22 @@ function main(...args) {
             text = '';
 
           seq = parse(lexer, (tok, arr) => tok.loc.line != line && -1, tok);
-const last = seq.filter(NonWS).at(-1);
+          const last = seq.filter(NonWS).at(-1);
 
-//          console.log(`line ${loc} last:`, last);
-
+          //          console.log(`line ${loc} last:`, last);
 
           if(last.type == 'lbrace') {
-            seq = parse(
-              lexer,
-              (tok, arr) => tok.loc.column == 1 && tok.type=='rbrace',
-              ...seq
-            );            
-            seq = parse(
-              lexer,
-              (tok, arr) => tok.type == 'semi',
-              ...seq
-            );
-            
+            seq = parse(lexer, (tok, arr) => tok.loc.column == 1 && tok.type == 'rbrace', ...seq);
+            seq = parse(lexer, (tok, arr) => tok.type == 'semi', ...seq);
           }
 
           std.puts(
             seq
-            .filter(t => !t.type.endsWith('Comment'))
-            .map(t => t.lexeme)
-                .join('').trim()+'\n\n'
+              .filter(t => !t.type.endsWith('Comment'))
+              .map(t => t.lexeme)
+              .join('')
+              .trim() + '\n\n'
           );
-
 
           /*
           do {
