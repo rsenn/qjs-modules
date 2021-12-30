@@ -255,7 +255,6 @@ function main(...args) {
     //log('lexer:', lexer[Symbol.toStringTag]);
     log('code:', code);
 
-
     lexer.handler = lex => {
       const { loc, mode, pos, start, byteLength, state } = lex;
       //log(`${this.currentLine()}`);
