@@ -98,3 +98,14 @@ function(make_module FNAME)
   target_link_libraries(${TARGET_NAME}-static PUBLIC ${QUICKJS_LIBRARY})
 
 endfunction()
+
+if(WASI OR EMSCRIPTEN)
+  set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
+  option(BUILD_SHARED_MODULES "Build shared modules" OFF)
+else(WASI OR EMSCRIPTEN)
+  option(BUILD_SHARED_MODULES "Build shared modules" ON)
+endif(WASI OR EMSCRIPTEN)
+
+if(WIN32 OR MINGW)
+  set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+endif(WIN32 OR MINGW)
