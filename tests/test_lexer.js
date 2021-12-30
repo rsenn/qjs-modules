@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import inspect from 'inspect';
 import * as path from 'path';
 import { Predicate } from 'predicate';
-import { Location, Lexer, Token, SyntaxError } from 'lexer';
+import { Location, Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import JSLexer from '../lib/jslexer.js';
 import CLexer from '../lib/clexer.js';
@@ -203,13 +203,14 @@ function main(...args) {
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
   });
+  console.log('args', args);
 
   let optind = 0;
   let code = 'c';
   let debug,
     files = [];
 
-  while(args[optind] && args[optind].startsWith('-')) {
+  while(args[optind]) {
     if(/code/.test(args[optind])) code = args[++optind];
     else if(/(debug|^-x$)/.test(args[optind])) debug = true;
     else files.push(args[optind]);
@@ -254,8 +255,6 @@ function main(...args) {
     //log('lexer:', lexer[Symbol.toStringTag]);
     log('code:', code);
 
-    let e = new SyntaxError();
-    log('new SyntaxError()', e);
 
     lexer.handler = lex => {
       const { loc, mode, pos, start, byteLength, state } = lex;
@@ -287,7 +286,7 @@ function main(...args) {
     log('lexer.skip', IntToBinary(lexer.skip));
     log('lexer.states', lexer.states);
 
-    log('new SyntaxError("test")', new SyntaxError('test', new Location(10, 3, 28, 'file.txt')));
+    log(`new Location(10, 3, 28, 'file.txt')`, new Location(10, 3, 28, 'file.txt'));
     let mask = IntToBinary(lexer.mask);
     let state = lexer.topState();
     lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);

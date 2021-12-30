@@ -641,7 +641,7 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   if(!(pr = js_predicate_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = /*JS_NewObjectProto(ctx, predicate_proto) */ JS_NewObject(ctx);
+  JSValue obj = JS_NewObjectClass(ctx, js_predicate_class_id);
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewInt32(ctx, pr->id), 0);
 

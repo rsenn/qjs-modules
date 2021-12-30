@@ -38,8 +38,8 @@ typedef struct {
   enum lexer_mode mode;
   size_t start, byte_length;
   int32_t token_id, state;
-  InputBuffer input;
   Location loc;
+  InputBuffer input;
   Vector defines;
   Vector rules;
   Vector states;

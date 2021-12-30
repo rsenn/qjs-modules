@@ -9,7 +9,7 @@
  * @{
  */
 typedef struct source_location {
-  JSAtom file;
+  int32_t file;
   uint32_t line;
   uint32_t column;
   int64_t pos;

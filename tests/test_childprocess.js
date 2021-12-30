@@ -40,37 +40,54 @@ function ReadChild(...args) {
   let buf = new ArrayBuffer(4096);
   let ret;
 
-  while((ret = os.read(stdout, buf, 0, buf.byteLength)) > 0) {
+  os.setReadHandler(stdout, () => {
+    ret = os.read(stdout, buf, 0, buf.byteLength);
+    //    console.log('buf.byteLength:', buf.byteLength);
+    console.log('ret:', ret);
+
+    if(ret > 0) {
+      let chunk = toString(buf.slice(0, ret));
+      console.log('chunk:', chunk);
+      data += chunk;
+      console.log('data:', data);
+    }
+
+    if(ret <= 0 || ret < buf.byteLength) {
+      console.log('stdout', stdout);
+      os.setReadHandler(stdout, null);
+    }
+  });
+
+  /* while((ret = os.read(stdout, buf, 0, buf.byteLength)) > 0) {
     let chunk = toString(buf.slice(0, ret));
     // console.log('chunk:', chunk);
     data += chunk;
-  }
+  }*/
   child.wait();
 
-  console.log('child', child);
+  // console.log('child', child);
   return data;
 }
 
 function main(...args) {
   globalThis.console = new Console({ inspectOptions });
 
-  let data = ReadChild('ls', '-la');
+  let data = ReadChild('/opt/diet/bin-x86_64/ls', '-la');
 
   console.log('data:', data.slice(0, 100));
 
-  data = ReadChild('lz4', '-9', '-f', '/etc/services', 'services.lz4');
+  /*  data = ReadChild('lz4', '-9', '-f', '/etc/services', 'services.lz4');
 
   console.log('data:', data.slice(0, 100));
   data = ReadChild('lz4', '-dc', 'services.lz4');
 
-  console.log('data:', data.slice(0, 100));
+  console.log('data:', data.slice(0, 100));*/
 }
 
 try {
   main(...scriptArgs.slice(1));
+  //std.exit(0);
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
   std.exit(1);
-} finally {
-  console.log('SUCCESS');
 }

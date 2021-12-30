@@ -451,8 +451,8 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         const uint8_t *attr, *value;
         size_t alen, vlen, num_attrs = 0;
         JSValue attributes = JS_NewObject(ctx);
-               JS_SetPropertyStr(ctx, element, "attributes", attributes);
- while(!done) {
+        JS_SetPropertyStr(ctx, element, "attributes", attributes);
+        while(!done) {
           parse_skipspace();
           if(parse_is(c, END))
             break;
@@ -478,7 +478,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
             num_attrs++;
           }
         }
-      
+
         if(parse_is(name[0], QUESTION | EXCLAM)) {
           if(chars[c] == chars[name[0]]) {
             parse_getc();

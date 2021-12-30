@@ -8,13 +8,6 @@
  * \defgroup quickjs-lexer QuickJS module: lexer - Lexical scanner, regex based
  * @{
  */
-
-typedef struct {
-  Location loc;
-  const char* line;
-  const char* message;
-} SyntaxError;
-
 typedef struct {
   int id;
   char* lexeme;
@@ -27,20 +20,11 @@ typedef struct {
   uint64_t seq;
 } Token;
 
-extern thread_local JSClassID js_syntaxerror_class_id, js_token_class_id, js_lexer_class_id;
+extern thread_local JSClassID js_token_class_id, js_lexer_class_id;
 
 JSValue js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst in, JSValueConst mode);
 JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);
-JSValue js_syntaxerror_new(JSContext* ctx, SyntaxError arg);
 JSValue js_token_wrap(JSContext* ctx, Token* tok);
-
-static inline SyntaxError*
-js_syntaxerror_data(JSContext* ctx, JSValueConst value) {
-  SyntaxError* err;
-  // err = JS_GetOpaque2(ctx, value, js_syntaxerror_class_id);
-  err = JS_GetOpaque(value, js_syntaxerror_class_id);
-  return err;
-}
 
 static inline Token*
 js_token_data(JSContext* ctx, JSValueConst value) {

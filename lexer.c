@@ -266,10 +266,15 @@ lexer_rule_dump(Lexer* lex, LexerRule* rule, DynBuf* dbuf) {
 void
 lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
   char* initial = js_strdup(ctx, "INITIAL");
+
   memset(lex, 0, sizeof(Lexer));
+
   lex->mode = mode;
   lex->state = 0;
   lex->seq = 0;
+
+  location_init(&lex->loc);
+
   vector_init(&lex->defines, ctx);
   vector_init(&lex->rules, ctx);
   vector_init(&lex->states, ctx);

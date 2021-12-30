@@ -1570,7 +1570,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     if((wd = inotify_add_watch(fd, filename, flags)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_add_watch(%d, %s, %08x) = %d (%s)", fd, filename, flags, wd, strerror(errno));
 
-    printf("inotify_add_watch(%d, %s, %08x) = %d\n", fd, filename, flags, wd);
+    // printf("inotify_add_watch(%d, %s, %08x) = %d\n", fd, filename, flags, wd);
 
     ret = JS_NewInt32(ctx, wd);
   } else if(argc >= 2 && JS_IsNull(argv[1])) {
@@ -1581,7 +1581,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     if((r = inotify_rm_watch(fd, wd)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_rm_watch(%d, %d) = %d (%s)", fd, wd, r, strerror(errno));
-    printf("inotify_add_watch(%d, %d) = %d\n", fd, wd, r);
+    // printf("inotify_add_watch(%d, %d) = %d\n", fd, wd, r);
 
     ret = JS_NewInt32(ctx, r);
   } else {
@@ -1589,7 +1589,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     if((fd = inotify_init1(IN_NONBLOCK)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_init1(IN_NONBLOCK) failed (%s)", strerror(errno));
 
-    printf("inotify_init1() = %d\n", fd);
+    // printf("inotify_init1() = %d\n", fd);
     ret = JS_NewInt32(ctx, fd);
   }
 

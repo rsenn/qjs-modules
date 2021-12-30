@@ -211,7 +211,7 @@ js_syscallerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   /*  if(!err)
       return JS_DupValue(ctx, this_val);*/
-  JSValue obj = JS_NewObjectProto(ctx, syscallerror_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_syscallerror_class_id);
 
   JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewInt32(ctx, err->number), JS_PROP_C_W_E);
   JS_DefinePropertyValueStr(ctx, obj, "message", JS_GetPropertyStr(ctx, this_val, "message"), JS_PROP_C_W_E);

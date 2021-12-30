@@ -177,7 +177,8 @@ js_stringdecoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   if(!(dec = js_stringdecoder_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProto(ctx, stringdecoder_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_stringdecoder_class_id);
+
   JS_DefinePropertyValueStr(ctx, obj, "encoding", JS_NewString(ctx, stringdecoder_encodings[dec->encoding]), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&dec->buffer)), JS_PROP_ENUMERABLE);
   return obj;

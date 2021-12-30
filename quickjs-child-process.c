@@ -89,7 +89,7 @@ js_child_process_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProto(ctx, child_process_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_child_process_class_id);
 
   if(cp->file)
     JS_DefinePropertyValueStr(ctx, obj, "file", JS_NewString(ctx, cp->file), JS_PROP_ENUMERABLE);

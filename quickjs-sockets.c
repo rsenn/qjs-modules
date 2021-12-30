@@ -315,7 +315,7 @@ js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(!(a = js_sockaddr_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProto(ctx, sockaddr_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_sockaddr_class_id);
 
   if(a->family)
     JS_DefinePropertyValueStr(ctx, obj, "family", JS_NewUint32(ctx, a->family), JS_PROP_ENUMERABLE);
@@ -759,6 +759,7 @@ enum SocketProperties {
   SOCKETS_ERROR,
   SOCKETS_LOCAL,
   SOCKETS_REMOTE,
+  SOCKETS_NONBLOCK,
 };
 
 static JSValue
@@ -836,6 +837,10 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, sock, getpeername(sock.fd, (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
       break;
     }
+    case SOCKETS_NONBLOCK: {
+      ret = JS_NewBool(ctx, sock.nonblock);
+      break;
+    }
   }
   JS_SetOpaque(this_val, sock.ptr);
   return ret;
@@ -856,6 +861,10 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
       JS_ToUint32(ctx, &mode, value);
       JS_SOCKETCALL_RETURN(SYSCALL_FCNTL, sock, fcntl(sock.fd, F_SETFL, mode), JS_NewInt32(ctx, sock.ret), JS_UNDEFINED);
 #endif
+      break;
+    }
+    case SOCKETS_NONBLOCK: {
+      sock.nonblock = JS_ToBool(ctx, value);
       break;
     }
   }
@@ -1096,7 +1105,8 @@ static JSValue
 js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Socket sock = js_socket_data2(ctx, this_val);
 
-  JSValue obj = /*JS_NewObject(ctx); //*/ JS_NewObjectProto(ctx, socket_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_socket_class_id);
+
   JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewInt32(ctx, (int16_t)sock.fd), JS_PROP_ENUMERABLE);
   if(sock.ret >= 0) {
     JS_DefinePropertyValueStr(ctx, obj, "ret", JS_NewUint32(ctx, sock.ret), JS_PROP_ENUMERABLE);
@@ -1249,6 +1259,7 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("eof", js_socket_get, 0, SOCKETS_EOF),
     JS_CGETSET_MAGIC_DEF("mode", js_socket_get, js_socket_set, SOCKETS_MODE),
     JS_CGETSET_MAGIC_DEF("ret", js_socket_get, js_socket_set, SOCKETS_RET),
+    JS_CGETSET_MAGIC_DEF("nonblock", js_socket_get, js_socket_set, SOCKETS_NONBLOCK),
     JS_CFUNC_MAGIC_DEF("ndelay", 0, js_socket_method, SOCKETS_NDELAY),
     JS_CFUNC_MAGIC_DEF("bind", 1, js_socket_method, SOCKETS_BIND),
     JS_CFUNC_MAGIC_DEF("connect", 1, js_socket_method, SOCKETS_CONNECT),

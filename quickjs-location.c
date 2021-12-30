@@ -277,7 +277,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       JS_ToUint32(ctx, &loc.column, argv[i++]);
     if(i < argc && JS_IsNumber(argv[i]))
       JS_ToIndex(ctx, (uint64_t*)&loc.pos, argv[i++]);
-    if(loc.file == 0 && i < argc && JS_IsString(argv[i]))
+    if(loc.file == -1 && i < argc && JS_IsString(argv[i]))
       loc.file = JS_ValueToAtom(ctx, argv[i++]);
 
     loc.line--;
@@ -298,7 +298,8 @@ js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(!(loc = js_location_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProto(ctx, location_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_location_class_id);
+
   if(loc->line < UINT32_MAX)
     JS_DefinePropertyValueStr(ctx, obj, "line", JS_NewUint32(ctx, loc->line + 1), JS_PROP_ENUMERABLE);
   if(loc->column < UINT32_MAX)
@@ -315,14 +316,14 @@ js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 static JSValue
-js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_location_clone(JSContext* ctx, JSValueConst this_val /*, int argc, JSValueConst argv[]*/) {
   JSValue ret = JS_UNDEFINED;
   Location* loc;
 
   if(!(loc = js_location_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  return js_location_new_proto(ctx, JS_GetPrototype(ctx, this_val), loc);
+  return js_location_new_proto(ctx, location_proto /*JS_GetPrototype(ctx, this_val)*/, loc);
 }
 
 static JSValue
@@ -348,6 +349,7 @@ js_location_finalizer(JSRuntime* rt, JSValue val) {
   Location* loc = JS_GetOpaque(val, js_location_class_id);
   if(loc) {
     location_free_rt(loc, rt);
+    js_free_rt(rt, loc);
   }
   JS_FreeValueRT(rt, val);
 }
@@ -358,10 +360,10 @@ static JSClassDef js_location_class = {
 };
 
 static const JSCFunctionListEntry js_location_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("line", js_location_getter, js_location_setter, LOCATION_PROP_LINE),
-    JS_CGETSET_MAGIC_DEF("column", js_location_getter, js_location_setter, LOCATION_PROP_COLUMN),
+    JS_CGETSET_MAGIC_FLAGS_DEF("line", js_location_getter, js_location_setter, LOCATION_PROP_LINE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("column", js_location_getter, js_location_setter, LOCATION_PROP_COLUMN, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("pos", js_location_getter, js_location_setter, LOCATION_PROP_POS),
-    JS_CGETSET_MAGIC_DEF("file", js_location_getter, js_location_setter, LOCATION_PROP_FILE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("file", js_location_getter, js_location_setter, LOCATION_PROP_FILE, JS_PROP_ENUMERABLE),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
     JS_CFUNC_DEF("clone", 0, js_location_clone),
     JS_CFUNC_DEF("toString", 0, js_location_tostring),
