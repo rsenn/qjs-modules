@@ -53,7 +53,7 @@ typedef struct {
   BOOL skip;
 } JSLexerRule;
 
-thread_local VISIBLE JSClassID  js_token_class_id = 0, js_lexer_class_id = 0;
+thread_local VISIBLE JSClassID js_token_class_id = 0, js_lexer_class_id = 0;
 thread_local JSValue token_proto = {{JS_TAG_UNDEFINED}}, token_ctor = {{JS_TAG_UNDEFINED}};
 thread_local JSValue lexer_proto = {{JS_TAG_UNDEFINED}}, lexer_ctor = {{JS_TAG_UNDEFINED}};
 
@@ -1192,14 +1192,21 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
+enum {
+  YIELD_ID = 0,
+  YIELD_OBJ,
+};
+
 JSValue
-js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  JSValue ret;
+js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret, value = JS_UNDEFINED;
   Lexer* lex;
+  Location loc;
 
   if(!(lex = js_lexer_data(ctx, this_val)))
     return JS_EXCEPTION;
 
+  loc = lex->loc;
   ret = js_lexer_lex(ctx, this_val, argc, argv);
 
   if(JS_IsNumber(ret)) {
@@ -1213,11 +1220,22 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     charlen = lexer_skip(lex);
 
-    tok = lexer_token(lex, id, charlen, &lex->loc, ctx);
-    ret = js_token_wrap(ctx, tok);
+    if(magic == YIELD_OBJ) {
+      tok = lexer_token(lex, id, charlen, &loc, ctx);
+      value = js_token_wrap(ctx, tok);
+    } else {
+      value = JS_NewInt32(ctx, id);
+    }
   }
 
-  *pdone = JS_IsNull(ret); // input_buffer_eof(&lex->input);
+  return value;
+}
+
+JSValue
+js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+  JSValue ret = js_lexer_nextfn(ctx, this_val, argc, argv, magic);
+
+  *pdone = JS_IsUndefined(ret);
 
   return ret;
 }
@@ -1278,7 +1296,9 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
 static JSClassDef js_lexer_class = {.class_name = "Lexer", .finalizer = js_lexer_finalizer, .call = js_lexer_call};
 
 static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
-    JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, 0),
+    JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, YIELD_OBJ),
+    JS_CFUNC_MAGIC_DEF("nextId", 0, js_lexer_nextfn, YIELD_ID),
+    JS_CFUNC_MAGIC_DEF("nextObj", 0, js_lexer_nextfn, YIELD_OBJ),
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_PROP_SIZE),
     JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_PROP_POS),
     JS_CGETSET_MAGIC_DEF("start", js_lexer_get, 0, LEXER_PROP_START),
@@ -1324,6 +1344,8 @@ static const JSCFunctionListEntry js_lexer_static_funcs[] = {
     JS_PROP_INT32_DEF("FIRST", LEXER_FIRST, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("LONGEST", LEXER_LONGEST, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("LAST", LEXER_LAST, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("YIELD_ID", YIELD_ID, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("YIELD_OBJ", YIELD_OBJ, JS_PROP_ENUMERABLE),
 };
 
 int

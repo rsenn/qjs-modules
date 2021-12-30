@@ -353,7 +353,7 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
              capture[1] - capture[0],
              capture[1] - capture[0],
              capture[0]); */
-      if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 || (size_t)(capture[1] - capture[0]) >= len) {
+      if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 || (size_t)(capture[1] - capture[0]) > len) {
         ret = i;
         len = capture[1] - capture[0];
         if(lex->mode == LEXER_FIRST)
