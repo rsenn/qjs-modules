@@ -30,7 +30,7 @@ function parse(lexer, fn = (tok, arr) => {}, ...args) {
 }
 
 function main(...args) {
-  globalThis.console = new Console(text => std.puts('XXX: ' + text), {
+  globalThis.console = new Console(process.stderr, {
     inspectOptions: {
       colors: true,
       maxStringLength: 100,

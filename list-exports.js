@@ -34,8 +34,9 @@ function BufferFile(file) {
   //console.log('BufferFile', file);
   if(buffers[file]) return buffers[file];
   let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
-  bufferRef.set(b, file);
-  return buffers[file];
+  //console.log('bufferRef', bufferRef, bufferRef.set, b);
+  if(typeof b == 'object' && b !== null) bufferRef.set(b, file);
+  return b;
 }
 
 function BufferLengths(file) {
@@ -204,12 +205,16 @@ function main(...args) {
   let optind = 0;
   let code = 'c';
   let debug,
+    sort,
+    caseSensitive,
     files = [];
 
   while(args[optind]) {
     if(args[optind].startsWith('-')) {
       if(/code/.test(args[optind])) code = args[++optind];
-      else if(/(debug|^-x$)/.test(args[optind])) debug = true;
+      else if(/(debug|^-x)/.test(args[optind])) debug = true;
+      else if(/(sort|^-s)/.test(args[optind])) sort = true;
+      else if(/(case|^-c)/.test(args[optind])) caseSensitive = true;
     } else files.push(args[optind]);
 
     optind++;
@@ -223,12 +228,14 @@ function main(...args) {
   for(let file of files) ProcessFile(file);
 
   function ProcessFile(file) {
-    //console.log(`Loading '${file}'...`);
+    console.log(`Loading '${file}'...`);
     const log = (...args) => console.log(`${file}:`, ...args);
 
     let str = file ? BufferFile(file) : code[1];
     let len = str.length;
     let type = path.extname(file).substring(1);
+    let base = path.basename(file, '.' + type);
+
     //log('data:', escape(str.slice(0, 100)));
 
     let lex = {
@@ -264,17 +271,6 @@ function main(...args) {
 
     let tok,
       i = 0;
-
-    //log('now', Date.now());
-
-    //log(lexer.ruleNames.length, 'rules', lexer.ruleNames.unique().length, 'unique rules');
-
-    /*log('lexer.mask', IntToBinary(lexer.mask));
-    log('lexer.skip', lexer.skip);
-    log('lexer.skip', IntToBinary(lexer.skip));
-    log('lexer.states', lexer.states);*/
-
-    //log('new SyntaxError("test")', new SyntaxError('test', new Location(10, 3, 28, 'file.txt')));
     let mask = IntToBinary(lexer.mask);
     let state = lexer.topState();
     lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
@@ -370,13 +366,25 @@ function main(...args) {
     const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
     //log('Export tokens', exportTokens);
 
-    const exportNames = exportTokens.map(index => ExportName(tokens.slice(index)));
+    let exportNames = exportTokens.map(index => ExportName(tokens.slice(index))).map(t => (t == 'default' ? t + ' as ' + base : t));
     //log('Export names', exportNames);
 
     /*log('ES6 imports', imports.map(PrintES6Import));
     log('CJS imports', imports.map(PrintCJSImport));*/
+    let compare = (a, b) => '' + a > '' + b;
 
-    std.puts(`import { ${exportNames.join(', ')} } from '${file}'\n`);
+    if(!caseSensitive) {
+      let fn = compare;
+      compare = (a, b) =>
+        fn.apply(
+          null,
+          [a, b].map(s => ('' + s).toLowerCase())
+        );
+    }
+
+    if(sort) exportNames.sort(compare);
+
+    if(exportNames.length) std.puts(`import { ${exportNames.join(', ')} } from '${file}'\n`);
 
     modules[file] = { imports, exports };
 
@@ -390,7 +398,7 @@ function main(...args) {
 
     fileImports.forEach(imp => {
       let p = path.collapse(path.join(dir, imp.file));
-      log('p', p);
+      //log('p', p);
 
       AddUnique(files, p);
     });

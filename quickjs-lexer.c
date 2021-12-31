@@ -1163,9 +1163,11 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   switch(id) {
     case LEXER_ERROR_NOMATCH: {
       char* lexeme = lexer_lexeme_s(lex, ctx);
+      char* file = location_file(&lex->loc, ctx);
+
       ret = JS_ThrowInternalError(ctx,
                                   "%s:%" PRIu32 ":%" PRIu32 ": No matching token (%d: %s) '%s'\n%.*s\n%*s",
-                                  lex->loc.file,
+                                  file,
                                   lex->loc.line + 1,
                                   lex->loc.column + 1,
                                   lexer_state_top(lex, 0),
@@ -1176,6 +1178,8 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                                   &lex->input.data[lex->start - lex->loc.column],
                                   lex->loc.column + 1,
                                   "^");
+      if(file)
+        js_free(ctx, file);
       js_free(ctx, lexeme);
       break;
     }
