@@ -7,18 +7,7 @@ import { Predicate } from 'predicate';
 import { Location, Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import JSLexer from './lib/jslexer.js';
-import {
-  escape,
-  quote,
-  toString,
-  define,
-  curry,
-  unique,
-  split,
-  extendArray,
-  camelize,
-  decamelize
-} from './lib/util.js';
+import { escape, quote, toString, define, curry, unique, split, extendArray, camelize, decamelize } from './lib/util.js';
 
 let buffers = {},
   modules = {};
@@ -35,13 +24,7 @@ const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 429496729
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 
 //const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", "/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);" ];
-const code = [
-  "const str = stack.toString().replace(/\\n\\s*at /g, '\\n');",
-  '/Reg.*Ex/i.test(n)',
-  '/\\n/g',
-  'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);',
-  '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'
-];
+const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", '/Reg.*Ex/i.test(n)', '/\\n/g', 'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);', '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'];
 
 extendArray(Array.prototype);
 
@@ -285,9 +268,7 @@ function main(...args) {
       ? (tok, prefix) => {
           const range = tok.charRange;
           const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
-          std.puts(
-            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
-          );
+          std.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
         }
       : () => {};
 
@@ -313,8 +294,7 @@ function main(...args) {
           case '}':
           case ']':
           case ')': {
-            if(stack.last != table[tok.lexeme])
-              throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
             stack.pop();
             break;
@@ -366,13 +346,6 @@ function main(...args) {
         if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
           impexp = What[tok.lexeme.toUpperCase()];
           let prev = tokens[tokens.length - 1];
-          cond = true;
-          imp = [];
-        }        if(['exports'].indexOf(tok.lexeme) >= 0) {
-
-          let [mod,dot] = tokens.slice(-2);
-          if(mod.lexeme == 'module' && dot.lexeme=='.') {
-          impexp = What[tok.lexeme.toUpperCase()];
           cond = true;
           imp = [];
         }
