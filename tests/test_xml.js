@@ -4,6 +4,7 @@ import { escape, quote, isObject } from 'util';
 import inspect from 'inspect';
 import * as xml from 'xml';
 import * as path from 'path';
+import * as deep from 'deep';
 import Console from '../lib/console.js';
 
 ('use strict');
@@ -20,9 +21,9 @@ function main(...args) {
     inspectOptions: {
       colors: true,
       depth: 10,
-      stringBreakNewline: false,
-      maxArrayLength: 10,
-      compact: 2,
+      //stringBreakNewline: false,
+      maxArrayLength: Infinity,
+      compact: 1,
       maxStringLength: 60
     }
   });
@@ -35,11 +36,13 @@ function main(...args) {
 
   let start = Date.now();
 
-  let result = xml.read(data, file, true);
+  let result = xml.read(data, file, false);
   let end = Date.now();
-  console.log('result[0]', inspect(result[0], { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
-
-  console.log(`Parsing took ${end - start}ms`);
+  //console.log('result[0]', inspect(result[0], { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
+  let tags = deep.select(result, (n, k) => k == 'tagName', deep.RETURN_PATH).map(p => p.slice(0, -1));
+  //  console.log('tags',tags);
+  let numTags = tags.length;
+  console.log(`Parsing '${/*path.basename*/ file}' took ${end - start}ms (${numTags} elements)`);
 
   if(/NETSCAPE-Bookmark-file-1/i.test(result[0].tagName)) {
     let tag,

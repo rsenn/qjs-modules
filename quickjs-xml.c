@@ -577,10 +577,12 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
 
     value = property_enumeration_value(it, ctx);
 
-    if(JS_IsString(value))
+    if(JS_IsString(value)) {
       xml_write_text(ctx, value, output, depth, it->tab_atom_len > 1);
-    else if(JS_IsObject(value) && !JS_IsArray(ctx, value))
-      xml_write_element(ctx, value, output, depth, FALSE);
+    } else if(JS_IsObject(value) && !JS_IsArray(ctx, value)) {
+      int32_t num_children = xml_num_children(ctx, value);
+      xml_write_element(ctx, value, output, depth, num_children == -1);
+    }
 
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, output, max_depth)));
@@ -677,7 +679,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       flat = FALSE;
   }
 
-  printf("js_xml_write len=%zu, children=%s\n", len, JS_ToCString(ctx, children));
+  //printf("js_xml_write len=%zu, children=%s\n", len, JS_ToCString(ctx, children));
 
   if(flat)
     ret = js_xml_write_list(ctx, obj, len, &output);

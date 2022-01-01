@@ -1,7 +1,6 @@
 include(CheckCCompilerFlag)
 
 macro(append_vars STR)
-  # message("append_vars(${STR} ${ARGN})")
   foreach(L ${ARGN})
     set(LIST "${${L}}")
     if(NOT LIST MATCHES ".*${STR}.*")
@@ -32,7 +31,6 @@ function(check_flag FLAG VAR)
     append_vars(${FLAG} ${ARGN})
 
     message(STATUS "Compiler flag ${FLAG} ... supported [${VAR}] [${ARGN}]")
-    message("append_vars(${FLAG} ${ARGN})")
 
   endif(RESULT)
 endfunction(check_flag FLAG VAR)
