@@ -91,11 +91,11 @@ function main(...args) {
   // console.log('result:', inspect(result, { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
   WriteFile(base + '.json', JSON.stringify(result, null, 2));
 
-  start = Date.now();
+  start = process.hrtime.bigint();
   let str = xml.write(result);
-  end = Date.now();
+  end = process.hrtime.bigint();
 
-  console.log(`Generating took ${end - start}ms`);
+  console.log(`Generating took ${(end - start) / 1000n}\u00b5s`);
 
   WriteFile(base + '.xml', str);
 

@@ -55,12 +55,15 @@ character_classes_init(int c[256]) {
 
 #define yield_push() \
   do { \
+    printf("push[%zu] %.*s\n", vector_size(&st, sizeof(OutputValue)), (int)namelen, name); \
     out = vector_push(&st, ((OutputValue){0, JS_NewArray(ctx), name, namelen})); \
     JS_SetPropertyStr(ctx, element, "children", out->obj); \
   } while(0)
 
 #define yield_pop() \
   do { \
+    OutputValue* top = vector_back(&st, sizeof(OutputValue)); \
+    printf("pop %.*s\n", (int)top->namelen, top->name); \
     if(vector_size(&st, sizeof(OutputValue)) >= 2 ?) { \
       vector_pop(&st, sizeof(OutputValue)); \
       out = vector_back(&st, sizeof(OutputValue))); \
@@ -76,7 +79,8 @@ character_classes_init(int c[256]) {
 #define yield_return(index) \
   do { \
     if(index >= 1) { \
-      vector_shrink(&st, sizeof(OutputValue), index); \
+       printf("shrink[%zu] %zd\n",  index, vector_size(&st, sizeof(OutputValue)) - index); \
+   vector_shrink(&st, sizeof(OutputValue), index); \
       out = vector_back(&st, sizeof(OutputValue)); \
     } \
   } while(0)
@@ -242,12 +246,13 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     dbuf_putc(db, '<');
 
   if(isComment) {
-    if(byte_chr(tagName, tagLen, '\n') < tagLen) {
-      xml_write_string(ctx, tagName, tagLen - 2, db, depth - 1);
+    if(TRUE || byte_chr(tagName, tagLen, '\n') < tagLen) {
+      /*xml_write_string(ctx, tagName, tagLen - 2, db, depth - 1);
       dbuf_putc(db, '\n');
       xml_write_indent(db, depth + 1);
       dbuf_putc(db, '-');
-      dbuf_putc(db, '-');
+      dbuf_putc(db, '-');*/
+      dbuf_put(db, tagName, tagLen);
     } else {
       xml_write_string(ctx, tagName, tagLen, db, depth - 1);
     }
@@ -404,7 +409,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
             JS_FreeValue(ctx, ret);
             location_count(&loc, (const char*)buf, start - buf);
             file = location_file(&loc, ctx);
-            printf("mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line, loc.column);
+            // printf("mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line, loc.column);
             ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line, loc.column);
             if(file)
               js_free(ctx, file);
@@ -424,10 +429,11 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         /*  printf("parent tagName: %.*s\n", out->namelen, out->name);*/
         yield_next();
 
-        if(namelen && (parse_is(name[0], (/*QUESTION | */ EXCLAM))))
+        if(namelen && (parse_is(name[0], (/*QUESTION | */ EXCLAM)))) {
           self_closing = TRUE;
+        }
 
-        if(namelen >= 3 && parse_is(start[0], EXCLAM) && parse_is(start[1], HYPHEN) && parse_is(start[2], HYPHEN)) {
+        if(namelen >= 3 && parse_is(name[0], EXCLAM) && parse_is(name[1], HYPHEN) && parse_is(name[2], HYPHEN)) {
           /*  parse_getc();
             parse_getc();*/
           while(!done) {
@@ -679,7 +685,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       flat = FALSE;
   }
 
-  //printf("js_xml_write len=%zu, children=%s\n", len, JS_ToCString(ctx, children));
+  // printf("js_xml_write len=%zu, children=%s\n", len, JS_ToCString(ctx, children));
 
   if(flat)
     ret = js_xml_write_list(ctx, obj, len, &output);
