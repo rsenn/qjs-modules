@@ -55,7 +55,7 @@ character_classes_init(int c[256]) {
 
 #define yield_push() \
   do { \
-    printf("push[%zu] %.*s\n", vector_size(&st, sizeof(OutputValue)), (int)namelen, name); \
+    /*printf("push[%zu] %.*s\n", vector_size(&st, sizeof(OutputValue)), (int)namelen, name);*/ \
     out = vector_push(&st, ((OutputValue){0, JS_NewArray(ctx), name, namelen})); \
     JS_SetPropertyStr(ctx, element, "children", out->obj); \
   } while(0)
@@ -63,7 +63,7 @@ character_classes_init(int c[256]) {
 #define yield_pop() \
   do { \
     OutputValue* top = vector_back(&st, sizeof(OutputValue)); \
-    printf("pop %.*s\n", (int)top->namelen, top->name); \
+    /*printf("pop %.*s\n", (int)top->namelen, top->name);*/ \
     if(vector_size(&st, sizeof(OutputValue)) >= 2 ?) { \
       vector_pop(&st, sizeof(OutputValue)); \
       out = vector_back(&st, sizeof(OutputValue))); \
@@ -79,8 +79,8 @@ character_classes_init(int c[256]) {
 #define yield_return(index) \
   do { \
     if(index >= 1) { \
-       printf("shrink[%zu] %zd\n",  index, vector_size(&st, sizeof(OutputValue)) - index); \
-   vector_shrink(&st, sizeof(OutputValue), index); \
+      /*printf("shrink[%zu] %zd\n",  index, vector_size(&st, sizeof(OutputValue)) - index);*/ \
+      vector_shrink(&st, sizeof(OutputValue), index); \
       out = vector_back(&st, sizeof(OutputValue)); \
     } \
   } while(0)
