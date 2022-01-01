@@ -37,6 +37,10 @@ enum path_methods {
   METHOD_IS_RELATIVE,
   METHOD_IS_DIRECTORY,
   METHOD_IS_FILE,
+  METHOD_IS_CHARDEV,
+  METHOD_IS_BLOCKDEV,
+  METHOD_IS_FIFO,
+  METHOD_IS_SOCKET,
   METHOD_IS_SYMLINK,
   METHOD_IS_SEPARATOR,
   METHOD_LENGTH,
@@ -143,6 +147,26 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
     case METHOD_IS_FILE: {
       ret = JS_NewBool(ctx, path_is_file(a));
+      break;
+    }
+
+    case METHOD_IS_CHARDEV: {
+      ret = JS_NewBool(ctx, path_is_chardev(a));
+      break;
+    }
+
+    case METHOD_IS_BLOCKDEV: {
+      ret = JS_NewBool(ctx, path_is_blockdev(a));
+      break;
+    }
+
+    case METHOD_IS_FIFO: {
+      ret = JS_NewBool(ctx, path_is_fifo(a));
+      break;
+    }
+
+    case METHOD_IS_SOCKET: {
+      ret = JS_NewBool(ctx, path_is_socket(a));
       break;
     }
 
@@ -459,6 +483,10 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isRelative", 1, js_path_method, METHOD_IS_RELATIVE),
     JS_CFUNC_MAGIC_DEF("isDirectory", 1, js_path_method, METHOD_IS_DIRECTORY),
     JS_CFUNC_MAGIC_DEF("isFile", 1, js_path_method, METHOD_IS_FILE),
+    JS_CFUNC_MAGIC_DEF("isCharDev", 1, js_path_method, METHOD_IS_CHARDEV),
+    JS_CFUNC_MAGIC_DEF("isBlockDev", 1, js_path_method, METHOD_IS_BLOCKDEV),
+    JS_CFUNC_MAGIC_DEF("isFIFO", 1, js_path_method, METHOD_IS_FIFO),
+    JS_CFUNC_MAGIC_DEF("isSocket", 1, js_path_method, METHOD_IS_SOCKET),
     JS_CFUNC_MAGIC_DEF("isSymlink", 1, js_path_method, METHOD_IS_SYMLINK),
     JS_CFUNC_MAGIC_DEF("isSeparator", 1, js_path_method, METHOD_IS_SEPARATOR),
     JS_CFUNC_MAGIC_DEF("length", 1, js_path_method, METHOD_LENGTH),

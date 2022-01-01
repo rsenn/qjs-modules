@@ -406,8 +406,63 @@ int
 path_is_directory(const char* p) {
   struct stat st;
   int r;
-  if((r = lstat(p, &st) == 0)) {
+  if((r = stat(p, &st) == 0)) {
     if(S_ISDIR(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_file(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISREG(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_chardev(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISCHR(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_blockdev(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISBLK(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_fifo(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISFIFO(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_socket(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISSOCK(st.st_mode))
       return 1;
   }
   return 0;
