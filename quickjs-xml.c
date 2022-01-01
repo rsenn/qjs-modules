@@ -410,7 +410,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
             location_count(&loc, (const char*)buf, start - buf);
             file = location_file(&loc, ctx);
             // printf("mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line, loc.column);
-            ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line, loc.column);
+            ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line + 1, loc.column + 1);
             if(file)
               js_free(ctx, file);
             return ret;
