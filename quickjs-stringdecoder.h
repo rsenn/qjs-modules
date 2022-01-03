@@ -4,6 +4,11 @@
 #include "utils.h"
 #include "ringbuffer.h"
 
+/**
+ * \defgroup quickjs-stringdecoder QuickJS module: stringdecoder - String Decoder
+ * @{
+ */
+
 typedef enum string_encoding { UNKNOWN = 0, UTF8, UTF16 } StringEncoding;
 
 typedef struct string_decoder {
@@ -24,4 +29,7 @@ js_stringdecoder_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque(value, js_stringdecoder_class_id);
 }
 
+/**
+ * @}
+ */
 #endif /* defined(QUICKJS_STRINGDECODER_H) */

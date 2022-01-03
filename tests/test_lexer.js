@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import inspect from 'inspect';
 import * as path from 'path';
 import { Predicate } from 'predicate';
-import { Location, Lexer, Token, SyntaxError } from 'lexer';
+import { Location, Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import JSLexer from '../lib/jslexer.js';
 import CLexer from '../lib/clexer.js';
@@ -115,7 +115,7 @@ function ImportFile(seq) {
 
 function ExportName(seq) {
   let idx = seq.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok));
-  return seq[idx].lexeme;
+  return seq[idx]?.lexeme;
 }
 
 function AddExport(tokens) {
@@ -125,12 +125,12 @@ function AddExport(tokens) {
   tokens = tokens.slice(0, len);
   let exp = define(
     {
-      type: tokens[1].lexeme,
+      type: tokens[1]?.lexeme,
       tokens,
       exported: ExportName(tokens),
-      range: [+tokens[0].loc, +tokens.last.loc]
+      range: [+tokens[0]?.loc, +tokens.last?.loc]
     },
-    { code, loc: tokens[0].loc }
+    { code, loc: tokens[0]?.loc }
   );
   return exp;
 }
@@ -191,37 +191,39 @@ function PrintCJSImport({ type, local, file }) {
 }
 
 function main(...args) {
-  globalThis.console = new Console({
+  globalThis.console = new Console(process.stderr, {
     inspectOptions: {
       colors: true,
       depth: 8,
       breakLength: 160,
-      maxStringLength: 100,
-      maxArrayLength: 40,
-      compact: 2,
+      maxStringLength: Infinity,
+      maxArrayLength: Infinity,
+      compact: 1,
       stringBreakNewline: false,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
   });
+  console.log('args', args);
 
   let optind = 0;
   let code = 'c';
-  let debug;
+  let debug,
+    files = [];
 
-  while(args[optind] && args[optind].startsWith('-')) {
+  while(args[optind]) {
     if(/code/.test(args[optind])) code = args[++optind];
-    if(/(debug|^-x$)/.test(args[optind])) debug = true;
+    else if(/(debug|^-x$)/.test(args[optind])) debug = true;
+    else files.push(args[optind]);
 
     optind++;
   }
+  console.log('files', files);
 
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
 
-  let files = args[optind] ? args.slice(optind) : [RelativePath('lib/util.js')];
+  if(!files.length) files.push(RelativePath('lib/util.js'));
 
-  while(optind < files.length) {
-    ProcessFile(files[optind++]);
-  }
+  for(let file of files) ProcessFile(file);
 
   function ProcessFile(file) {
     console.log(`Loading '${file}'...`);
@@ -248,12 +250,10 @@ function main(...args) {
 
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
 
+    log('lexer:', lexer.constructor.name);
     log('lexer.tokens:', lexer.tokens);
-    log('lexer:', lexer[Symbol.toStringTag]);
+    //log('lexer:', lexer[Symbol.toStringTag]);
     log('code:', code);
-
-    let e = new SyntaxError();
-    log('new SyntaxError()', e);
 
     lexer.handler = lex => {
       const { loc, mode, pos, start, byteLength, state } = lex;
@@ -263,13 +263,13 @@ function main(...args) {
     };
     let tokenList = [],
       declarations = [];
-    const colSizes = [12, 8, 4, 16, 32, 10, 0];
+    const colSizes = [12, 8, 4, 20, 32, 10, 0];
 
     const printTok = debug
       ? (tok, prefix) => {
           const range = tok.charRange;
           const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
-          log(...cols.map((col, i) => (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i])));
+          std.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
         }
       : () => {};
 
@@ -285,7 +285,7 @@ function main(...args) {
     log('lexer.skip', IntToBinary(lexer.skip));
     log('lexer.states', lexer.states);
 
-    log('new SyntaxError("test")', new SyntaxError('test', new Location(10, 3, 28, 'file.txt')));
+    log(`new Location(10, 3, 28, 'file.txt')`, new Location(10, 3, 28, 'file.txt'));
     let mask = IntToBinary(lexer.mask);
     let state = lexer.topState();
     lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
@@ -333,15 +333,25 @@ function main(...args) {
       cond,
       imp = [];
 
+    /* console.log('lexer.rules', Object.fromEntries(lexer.ruleNames.map(n => [n, new RegExp(lexer.getRule(n)[1], 's')])));
+    console.log('lexer.states', lexer.states);
+    console.log('lexer.tokens', lexer.tokens);*/
+
+    let showToken = tok => {
+      if((lexer.constructor != JSLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
+        // console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
+        let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
+        std.puts(a.join('') + '\n');
+      }
+    };
+
     for(;;) {
-      let newState, state;
       let { stateDepth } = lexer;
-      state = lexer.topState();
       let { done, value } = lexer.next();
       if(done) break;
-      newState = lexer.topState();
+      let newState = lexer.topState();
       tok = value;
-      console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
+      //showToken(tok);
       if(newState != state) {
         if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
@@ -349,36 +359,44 @@ function main(...args) {
       let n = balancers.last.depth;
       if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
         lexer.popState();
-        continue;
       } else {
         balancer(tok);
         if(n > 0 && balancers.last.depth == 0) log('balancer');
-      }
-      if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
-        impexp = What[tok.lexeme.toUpperCase()];
-        let prev = tokens[tokens.length - 1];
-        /* if(tokens.length == 0 || prev.lexeme.endsWith('\n')) */ {
-          cond = true;
-          imp = [];
-        }
-      }
-      if(cond == true) {
-        imp.push(tok);
-        if([';', '\n'].indexOf(tok.lexeme) != -1) {
-          cond = false;
-          if(imp.some(i => i.lexeme == 'from')) {
-            if(impexp == What.IMPORT) imports.push(AddImport(imp));
+        if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
+          impexp = What[tok.lexeme.toUpperCase()];
+          let prev = tokens[tokens.length - 1];
+          /* if(tokens.length == 0 || prev.lexeme.endsWith('\n')) */ {
+            cond = true;
+            imp = [];
           }
-
-          if(impexp == What.EXPORT) exports.push(AddExport(imp));
         }
+        if(cond == true) {
+          imp.push(tok);
+          if([';', '\n'].indexOf(tok.lexeme) != -1) {
+            cond = false;
+            if(imp.some(i => i.lexeme == 'from')) {
+              if(impexp == What.IMPORT) imports.push(AddImport(imp));
+            }
+
+            if(impexp == What.EXPORT) exports.push(AddExport(imp));
+          }
+        }
+        printTok(tok, newState);
+        tokens.push(tok);
       }
-      printTok(tok, lexer.topState());
-      tokens.push(tok);
+      state = newState;
     }
+
+    const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
+    log('Export tokens', exportTokens);
+
+    const exportNames = exportTokens.map(index => ExportName(tokens.slice(index)));
+    log('Export names', exportNames);
 
     log('ES6 imports', imports.map(PrintES6Import));
     log('CJS imports', imports.map(PrintCJSImport));
+
+    std.puts(`import { ${exportNames.join(', ')} } from '${file}'\n`);
 
     modules[file] = { imports, exports };
 

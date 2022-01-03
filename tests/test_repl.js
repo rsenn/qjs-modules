@@ -85,8 +85,7 @@ function main(...args) {
   repl.show = arg => std.puts(typeof arg == 'string' ? arg : inspect(arg, { colors: true }));
 
   repl.cleanup = () => {
-    Terminal.mousetrackingDisable();
-    let hist = repl.history_get().filter((item, i, a) => a.lastIndexOf(item) == i);
+    let hist = repl.history.filter((item, i, a) => a.lastIndexOf(item) == i);
     fs.writeFileSync(
       cmdhist,
       hist
@@ -109,6 +108,4 @@ try {
 } catch(error) {
   std.err.puts(`FAIL: ${error.message}\n${error.stack}`);
   std.exit(1);
-} finally {
-  console.log('SUCCESS');
 }

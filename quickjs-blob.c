@@ -2,6 +2,10 @@
 #include "utils.h"
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup quickjs-blob
+ * @{
+ */
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_blob_class_id = 0;
@@ -249,7 +253,7 @@ js_blob_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(!(blob = js_blob_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProto(ctx, blob_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_blob_class_id);
   JS_DefinePropertyValueStr(ctx, obj, "size", JS_NewUint32(ctx, blob->size), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, blob->type), JS_PROP_ENUMERABLE);
   return obj;
@@ -327,3 +331,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
 
   return m;
 }
+
+/**
+ * @}
+ */

@@ -1,5 +1,9 @@
 #include "char-utils.h"
 
+/**
+ * \addtogroup char-utils
+ * @{
+ */
 size_t
 token_length(const char* str, size_t len, char delim) {
   const char *s, *e;
@@ -135,3 +139,7 @@ scan_xlonglong(const char* src, uint64_t* dest) {
   *dest = l;
   return tmp - src;
 }
+
+/**
+ * @}
+ */

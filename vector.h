@@ -11,6 +11,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+/**
+ * \defgroup vector Vector implementation
+ * @{
+ */
 #define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
 
 typedef union Vector {
@@ -235,4 +239,7 @@ vector_catlong(Vector* vec, long l, int radix) {
   vector_put(vec, buf, len);
 }
 
+/**
+ * @}
+ */
 #endif /* defined(VECTOR_H) */

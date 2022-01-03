@@ -696,13 +696,13 @@ typedef struct JSCFunctionDataRecord {
   JSValue data[0];
 } JSCFunctionDataRecord;
 
-typedef struct JSCClosureRecord {
+/*typedef struct JSCClosureRecord {
   JSCClosure* func;
   uint16_t length;
   uint16_t magic;
   void* opaque;
   void (*opaque_finalize)(void*);
-} JSCClosureRecord;
+} JSCClosureRecord;*/
 
 typedef struct JSMemoryUsage_helper {
   double memory_used_count;

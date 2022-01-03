@@ -13,6 +13,10 @@
 #include <threads.h>
 #endif
 
+/**
+ * \defgroup utils Utilities
+ * @{
+ */
 char* basename(const char*);
 
 #ifndef offsetof
@@ -63,7 +67,8 @@ typedef enum precedence {
 
 #define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num) \
   { \
-    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = { \
+    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, \
+    .u = { \
       .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} \
     } \
   }
@@ -77,7 +82,9 @@ typedef enum precedence {
 
 #define JS_CFUNC_DEF_FLAGS(prop_name, length, func1, flags) \
   { \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {.func = {length, JS_CFUNC_generic, {.generic = func1}} } \
+    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = { \
+      .func = {length, JS_CFUNC_generic, {.generic = func1}} \
+    } \
   }
 
 #define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE)
@@ -95,6 +102,12 @@ typedef enum precedence {
 #endif
 #ifndef MIN_NUM
 #define MIN_NUM(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef ABS_NUM
+#define ABS_NUM(n) ((n) < 0 ? -(n) : (n))
+#endif
+#ifndef SIGN_NUM
+#define SIGN_NUM(n) ((n) < 0)
 #endif
 
 #define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
@@ -217,24 +230,31 @@ mod_int32(int32_t a, int32_t b) {
   return (c < 0) ? c + b : c;
 }
 
-#define COLOR_RED "\x1b[31m"
-#define COLOR_GREEN "\x1b[32m"
-#define COLOR_YELLOW "\x1b[33m"
-#define COLOR_BLUE "\x1b[34m"
-#define COLOR_MAGENTA "\x1b[35m"
-#define COLOR_MARINE "\x1b[36m"
-#define COLOR_LIGHTGRAY "\x1b[37m"
+#define COLOR_BLACK "\x1b[0;30m"
+#define COLOR_RED "\x1b[0;31m"
+#define COLOR_GREEN "\x1b[0;32m"
+#define COLOR_BROWN "\x1b[0;33m"
+#define COLOR_BLUE "\x1b[0;34m"
+#define COLOR_PURPLE "\x1b[0;35m"
+#define COLOR_MARINE "\x1b[0;36m"
+#define COLOR_LIGHTGRAY "\x1b[0;37m"
 #define COLOR_GRAY "\x1b[1;30m"
-#define COLOR_NONE "\x1b[m"
+#define COLOR_NONE "\x1b[0m"
 
 #define COLOR_LIGHTRED "\x1b[1;31m"
 
 #define COLOR_LIGHTGREEN "\x1b[1;32m"
-#define COLOR_LIGHTYELLOW "\x1b[1;33m"
+#define COLOR_YELLOW "\x1b[1;33m"
 #define COLOR_LIGHTBLUE "\x1b[1;34m"
-#define COLOR_LIGHTMAGENTA "\x1b[1;35m"
-#define COLOR_LIGHTMARINE "\x1b[1;36m"
+#define COLOR_MAGENTA "\x1b[1;35m"
+#define COLOR_CYAN "\x1b[1;36m"
 #define COLOR_WHITE "\x1b[1;37m"
+
+#define BACKGROUND_RED "\x1b[48;5;124m"
+#define BACKGROUND_BLUE "\x1b[48;5;20m"
+#define BACKGROUND_YELLOW "\x1b[48;5;214m"
+#define BACKGROUND_GREEN "\x1b[48;5;28m"
+#define BACKGROUND_PINK "\x1b[48;5;165m"
 
 uint64_t time_us(void);
 
@@ -283,6 +303,8 @@ js_global_new(JSContext* ctx, const char* class_name, int argc, JSValueConst arg
 }
 
 JSValue js_global_prototype(JSContext* ctx, const char* class_name);
+JSValue js_global_prototype_func(JSContext* ctx, const char* class_name, const char* func_name);
+JSValue js_global_static_func(JSContext* ctx, const char* class_name, const char* func_name);
 
 enum value_types {
   FLAG_UNDEFINED = 0,
@@ -321,8 +343,8 @@ enum value_mask {
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NAN = (1 << FLAG_NAN),
   TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
-  TYPE_PRIMITIVE =
-      (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
+  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT |
+                    TYPE_BIG_DECIMAL | TYPE_NAN),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -394,8 +416,9 @@ JSValue js_value_clone(JSContext* ctx, JSValueConst valpe);
 JSValue* js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values);
 void js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values);
 JSValue js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values);
-void js_value_fwrite(JSContext*, JSValue, FILE* f);
-void js_value_dump(JSContext*, JSValue, DynBuf* db);
+JSValue* js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr);
+void js_value_fwrite(JSContext*, JSValueConst, FILE* f);
+void js_value_dump(JSContext*, JSValueConst, DynBuf* db);
 
 //#include "buffer-utils.h"
 
@@ -589,6 +612,8 @@ BOOL js_is_iterator(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_method(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_new(JSContext* ctx, JSValueConst obj);
 JSValue js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p);
+JSValue js_iterator_result(JSContext*, JSValue value, BOOL done);
+JSValue js_iterator_then(JSContext*, BOOL done);
 JSValue js_symbol_for(JSContext* ctx, const char* sym_for);
 JSAtom js_symbol_for_atom(JSContext* ctx, const char* sym_for);
 
@@ -640,18 +665,24 @@ BOOL js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom);
 BOOL js_atom_is_length(JSContext* ctx, JSAtom atom);
 
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);
+const char* js_object_tostring2(JSContext* ctx, JSValueConst method, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 const char* js_function_tostring(JSContext* ctx, JSValueConst value);
 JSCFunction* js_function_cfunc(JSContext*, JSValue value);
 BOOL js_function_isnative(JSContext* ctx, JSValueConst value);
 int js_function_argc(JSContext* ctx, JSValueConst value);
+JSValue js_function_bind(JSContext*, JSValue func, int argc, JSValue argv[]);
+JSValue js_function_bind_this(JSContext*, JSValue func, JSValue this_val);
+JSValue js_function_throw(JSContext*, JSValue err);
+JSValue js_function_return_undefined(JSContext*);
+JSValue js_function_return_value(JSContext*, JSValue value);
 
 char* js_object_classname(JSContext* ctx, JSValueConst value);
 int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
 JSValue js_object_construct(JSContext* ctx, JSValueConst ctor);
 JSValue js_object_error(JSContext* ctx, const char* message);
-JSValue js_object_stack(JSContext* ctx);
 JSValue js_object_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]);
+JSValue js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj);
 
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {
@@ -689,6 +720,7 @@ char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char*
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
 uint64_t js_get_propertystr_uint64(JSContext* ctx, JSValueConst obj, const char* prop);
 int js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueConst obj, JSAtom prop);
+JSAtom js_get_propertystr_atom(JSContext* ctx, JSValueConst obj, const char* prop);
 
 static inline void
 js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
@@ -876,26 +908,28 @@ JSValue module_ns(JSContext*, JSModuleDef*);
 JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);
 void module_exports_get(JSContext*, JSModuleDef*, BOOL rename_default, JSValueConst exports);
 JSValue module_exports(JSContext*, JSModuleDef*);
-struct list_head* js_modules_list(JSContext*);
-JSValue js_modules_array(JSContext*, JSValueConst, int magic);
-JSValue js_modules_entries(JSContext*, JSValueConst, int magic);
-JSValue js_modules_map(JSContext*, JSValueConst, int magic);
-JSValue js_modules_object(JSContext*, JSValueConst, int magic);
 JSValue module_value(JSContext*, JSModuleDef*);
 JSValue module_entry(JSContext*, JSModuleDef*);
 JSValue module_object(JSContext*, JSModuleDef*);
-char* js_module_search(JSContext*, const char* path, const char*);
-char* js_module_search_ext(JSContext*, const char* path, const char*, const char* ext);
-char* js_module_normalize(JSContext*, const char*, const char* name, void* opaque);
-JSModuleDef* js_module_def(JSContext*, JSValueConst);
-JSModuleDef* js_module_find(JSContext*, const char*);
-JSValue js_import_eval(JSContext*, ImportDirective);
-JSModuleDef* js_module_import_default(JSContext*, const char*, const char* var);
-JSModuleDef* js_module_import_namespace(JSContext*, const char*, const char* ns);
-JSValue js_module_import(JSContext*, const char*, const char* ns, const char* var, const char* prop);
-JSModuleDef* js_module_loader_so(JSContext*, const char*);
 
-JSValue js_eval_module(JSContext*, JSValue, BOOL load_only);
+struct list_head* js_modules_list(JSContext*);
+JSValue js_modules_array(JSContext*, JSValue this_val, int magic);
+JSValue js_modules_entries(JSContext*, JSValue this_val, int magic);
+JSValue js_modules_map(JSContext*, JSValue this_val, int magic);
+JSValue js_modules_object(JSContext*, JSValue this_val, int magic);
+
+#define js_module_find js_module_find_fwd
+
+char* js_module_search(JSContext*, const char* search_path, const char* module);
+char* js_module_search_ext(JSContext*, const char* path, const char* name, const char* ext);
+char* js_module_normalize(JSContext*, const char* path, const char* name, void* opaque);
+JSModuleDef* js_module_def(JSContext*, JSValue value);
+JSModuleDef* js_module_find_fwd(JSContext*, const char* name);
+JSModuleDef* js_module_find_rev(JSContext*, const char* name);
+int js_module_indexof(JSContext*, JSModuleDef* def);
+JSModuleDef* js_module_at(JSContext*, int index);
+
+JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const void*, int buf_len, const char* filename, int eval_flags);
 int js_eval_str(JSContext*, const char*, const char* file, int flags);
@@ -906,7 +940,7 @@ int js_interrupt_handler(JSRuntime*, void*);
 void js_timer_unlink(JSRuntime*, JSOSTimer*);
 void js_timer_free(JSRuntime*, JSOSTimer*);
 
-void js_call_handler(JSContext*, JSValue);
+void js_call_handler(JSContext*, JSValueConst);
 
 void* js_sab_alloc(void*, size_t);
 void js_sab_free(void*, void*);
@@ -918,8 +952,28 @@ JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);
 void js_free_message(JSWorkerMessage*);
 void js_free_message_pipe(JSWorkerMessagePipe*);
 
-void js_error_dump(JSContext*, JSValue, DynBuf* db);
-char* js_error_tostring(JSContext*, JSValue);
-void js_error_print(JSContext*, JSValue);
+void js_error_dump(JSContext*, JSValueConst, DynBuf* db);
+char* js_error_tostring(JSContext*, JSValueConst);
+void js_error_print(JSContext*, JSValueConst);
+JSValue js_error_stack(JSContext* ctx);
+
+JSValue js_promise_resolve(JSContext* ctx, JSValueConst promise);
+JSValue js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func);
+
+static inline JSValue
+js_promise_resolve_then(JSContext* ctx, JSValueConst promise, JSValueConst func) {
+  JSValue tmp, ret;
+  tmp = js_promise_resolve(ctx, promise);
+  ret = js_promise_then(ctx, tmp, func);
+  JS_FreeValue(ctx, tmp);
+  return ret;
+}
+
+JSValue js_promise_wrap(JSContext* ctx, JSValueConst value);
+JSValue js_promise_adopt(JSContext* ctx, JSValueConst value);
+
+/**
+ * @}
+ */
 
 #endif /* defined(UTILS_H) */

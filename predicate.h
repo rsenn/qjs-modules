@@ -5,6 +5,10 @@
 #include "utils.h"
 #include <cutils.h>
 
+/**
+ * \defgroup predicate Predicate function object
+ * @{
+ */
 enum predicate_id {
   // PREDICATE_NONE = -1,
   PREDICATE_TYPE = 0,
@@ -321,4 +325,7 @@ predicate_function(JSValue func, JSValue this_val, int arity) {
   return ret;
 }
 
+/**
+ * @}
+ */
 #endif /* defined(PREDICATE_H) */

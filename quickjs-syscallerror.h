@@ -3,6 +3,10 @@
 
 #include "utils.h"
 
+/**
+ * \defgroup quickjs-syscallerror QuickJS module: syscallerror - System-call error object
+ * @{
+ */
 typedef struct {
   char* syscall;
   int number;
@@ -32,4 +36,7 @@ JSValue js_syscallerror_throw(JSContext*, const char* syscall);
 extern VISIBLE const char* const errors[];
 extern VISIBLE const size_t errors_size;
 
+/**
+ * @}
+ */
 #endif /* defined(QUICKJS_SYSCALLERROR_H) */

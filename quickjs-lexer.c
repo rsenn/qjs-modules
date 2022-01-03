@@ -8,6 +8,10 @@
 #include <stdint.h>
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup quickjs-lexer
+ * @{
+ */
 enum {
   LEXER_METHOD_SET_INPUT = 0,
   LEXER_METHOD_SKIP,
@@ -49,8 +53,7 @@ typedef struct {
   BOOL skip;
 } JSLexerRule;
 
-thread_local VISIBLE JSClassID js_syntaxerror_class_id = 0, js_token_class_id = 0, js_lexer_class_id = 0;
-thread_local JSValue syntaxerror_proto = {{JS_TAG_UNDEFINED}}, syntaxerror_ctor = {{JS_TAG_UNDEFINED}};
+thread_local VISIBLE JSClassID js_token_class_id = 0, js_lexer_class_id = 0;
 thread_local JSValue token_proto = {{JS_TAG_UNDEFINED}}, token_ctor = {{JS_TAG_UNDEFINED}};
 thread_local JSValue lexer_proto = {{JS_TAG_UNDEFINED}}, lexer_ctor = {{JS_TAG_UNDEFINED}};
 
@@ -87,163 +90,6 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
   dbuf_free(&dbuf);
   return ret;
 }
-
-enum syntaxerror_getters {
-  SYNTAXERROR_PROP_LOC = 0,
-  SYNTAXERROR_PROP_MESSAGE,
-  SYNTAXERROR_PROP_LINE,
-};
-
-JSValue
-js_syntaxerror_new(JSContext* ctx, SyntaxError arg) {
-  SyntaxError* err;
-  JSValue obj = JS_UNDEFINED;
-
-  if(!(err = js_mallocz(ctx, sizeof(SyntaxError))))
-    return JS_EXCEPTION;
-
-  memcpy(err, &arg, sizeof(SyntaxError));
-
-  obj = JS_NewObjectProtoClass(ctx, syntaxerror_proto, js_syntaxerror_class_id);
-  JS_SetOpaque(obj, err);
-  if(!location_isnull(&err->loc))
-    JS_SetPropertyStr(ctx, obj, "loc", js_location_new(ctx, &err->loc));
-  if(err->message)
-    JS_SetPropertyStr(ctx, obj, "message", JS_NewString(ctx, err->message));
-  if(err->line)
-    JS_SetPropertyStr(ctx, obj, "line", JS_NewString(ctx, err->line));
-  return obj;
-}
-
-static JSValue
-js_syntaxerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  SyntaxError* err;
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
-  int i;
-  if(!(err = js_mallocz(ctx, sizeof(SyntaxError))))
-    return JS_EXCEPTION;
-
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    goto fail;
-  obj = JS_NewObjectProtoClass(ctx, proto, js_syntaxerror_class_id);
-  JS_FreeValue(ctx, proto);
-  if(JS_IsException(obj))
-    goto fail;
-  JS_SetOpaque(obj, err);
-
-  for(i = 0; i < argc; i++) {
-    if(JS_IsString(argv[i]) && !err->message) {
-      err->message = js_tostring(ctx, argv[i]);
-    } else if(JS_IsString(argv[i]) && !err->line) {
-      err->line = js_tostring(ctx, argv[i]);
-    } else if(js_is_location(ctx, argv[i])) {
-      err->loc = js_location_from(ctx, argv[i]);
-    }
-  }
-
-  return obj;
-fail:
-  js_free(ctx, err);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
-}
-
-static JSValue
-js_syntaxerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  SyntaxError* err;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(err = js_syntaxerror_data(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case SYNTAXERROR_PROP_LOC: {
-      ret = js_location_new(ctx, &err->loc);
-      break;
-    }
-    case SYNTAXERROR_PROP_MESSAGE: {
-      ret = err->message ? JS_NewString(ctx, err->message) : JS_NULL;
-      break;
-    }
-    case SYNTAXERROR_PROP_LINE: {
-      ret = err->line ? JS_NewString(ctx, err->line) : JS_NULL;
-      break;
-    }
-  }
-  return ret;
-}
-
-static JSValue
-js_syntaxerror_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  SyntaxError* err;
-  DynBuf db;
-  JSValue ret;
-
-  if(!(err = js_syntaxerror_data(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  js_dbuf_init(ctx, &db);
-  location_print(&err->loc, &db);
-
-  if(err->message) {
-    dbuf_putc(&db, ' ');
-    dbuf_putstr(&db, err->message);
-  }
-
-  ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
-  dbuf_free(&db);
-  return ret;
-}
-
-static JSValue
-js_syntaxerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  SyntaxError* err;
-
-  if(!(err = js_syntaxerror_data(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  JSValue obj = JS_NewObjectProto(ctx, syntaxerror_proto);
-
-  if(!location_isnull(&err->loc))
-    JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_new(ctx, &err->loc), JS_PROP_ENUMERABLE);
-
-  if(err->line)
-    JS_DefinePropertyValueStr(ctx, obj, "line", JS_NewString(ctx, err->line), JS_PROP_ENUMERABLE);
-  if(err->message)
-    JS_DefinePropertyValueStr(ctx, obj, "message", JS_NewString(ctx, err->message), JS_PROP_ENUMERABLE);
-
-  return obj;
-}
-
-static void
-js_syntaxerror_finalizer(JSRuntime* rt, JSValue val) {
-  SyntaxError* err = JS_GetOpaque(val, js_syntaxerror_class_id);
-  if(err) {
-    if(err->message)
-      js_free_rt(rt, (char*)err->message);
-    if(err->line)
-      js_free_rt(rt, (char*)err->line);
-
-    location_free_rt(&err->loc, rt);
-  }
-  JS_FreeValueRT(rt, val);
-}
-
-static JSClassDef js_syntaxerror_class = {
-    .class_name = "SyntaxError",
-    .finalizer = js_syntaxerror_finalizer,
-};
-
-static const JSCFunctionListEntry js_syntaxerror_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("loc", js_syntaxerror_get, 0, SYNTAXERROR_PROP_LOC),
-    JS_CGETSET_ENUMERABLE_DEF("message", js_syntaxerror_get, 0, SYNTAXERROR_PROP_MESSAGE),
-    JS_CFUNC_DEF("toString", 0, js_syntaxerror_tostring),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyntaxError", JS_PROP_CONFIGURABLE),
-};
 
 enum token_methods {
   TO_STRING = 0,
@@ -296,7 +142,7 @@ js_token_new(JSContext* ctx, int id, const char* lexeme, const Location* loc, ui
 
   tok->id = id;
   tok->lexeme = js_strdup(ctx, lexeme);
-  tok->loc = *loc;
+  tok->loc = location_clone(loc, ctx);
   tok->loc_val = JS_UNDEFINED;
   tok->byte_offset = byte_offset;
 
@@ -378,6 +224,10 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return ret;
 }
 
+static const JSCFunctionListEntry js_token_inspect_funcs[1] = {
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
+};
+
 JSValue
 js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Token* tok;
@@ -386,8 +236,12 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(!(tok = js_token_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProto(ctx, token_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_token_class_id);
   rule = lexer_rule_at(tok->lexer, tok->id);
+
+  // JS_SetPropertyFunctionList(ctx, obj, js_token_inspect_funcs, 1);
+  // JS_DefinePropertyValueStr(ctx, obj, "constructor", JS_GetPropertyStr(ctx, this_val, "constructor"), 0);
+  // JS_DefinePropertyValueStr(ctx, obj, "[Symbol.toStringTag]", JS_NewString(ctx, "Token"), 0);
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewUint32(ctx, tok->id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), JS_PROP_ENUMERABLE);
@@ -474,6 +328,7 @@ void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok = JS_GetOpaque(val, js_token_class_id);
   if(tok) {
+    location_free_rt(&tok->loc, rt);
     token_free_rt(tok, rt);
   }
   JS_FreeValueRT(rt, val);
@@ -503,17 +358,16 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     JS_ALIAS_DEF("position", "loc"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
 };
-
 static const JSCFunctionListEntry js_token_static_funcs[] = {
     JS_PROP_INT32_DEF("EOF", LEXER_EOF, JS_PROP_ENUMERABLE),
 };
 
 static Token*
-lexer_token(Lexer* lex, int id, size_t charlen, Location loc, JSContext* ctx) {
+lexer_token(Lexer* lex, int id, size_t charlen, const Location* loc, JSContext* ctx) {
   Token* tok;
   if((tok = js_mallocz(ctx, sizeof(Token)))) {
     tok->id = id;
-    tok->loc = location_clone(&loc, ctx);
+    tok->loc = location_clone(loc, ctx);
     tok->loc_val = JS_UNDEFINED;
     tok->byte_length = lex->byte_length;
     tok->char_length = charlen;
@@ -788,8 +642,8 @@ js_lexer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if((lex = JS_GetOpaque(ret, js_lexer_class_id))) {
     int i = 2;
 
-    if(lex->loc.file == 0 && i < argc && JS_IsString(argv[i]))
-      lex->loc.file = js_tostring(ctx, argv[i++]);
+    if(lex->loc.file == -1 && i < argc && JS_IsString(argv[i]))
+      lex->loc.file = JS_ValueToAtom(ctx, argv[i++]);
 
     if(i < argc && JS_IsNumber(argv[i])) {
       uint32_t mode = 0;
@@ -832,9 +686,9 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       lex->loc = loc;
 
       if(argc > 1 && JS_IsString(argv[1])) {
-        if(lex->loc.file)
-          js_free(ctx, (char*)lex->loc.file);
-        lex->loc.file = js_tostring(ctx, argv[1]);
+        if(lex->loc.file > -1)
+          JS_FreeAtom(ctx, lex->loc.file);
+        lex->loc.file = JS_ValueToAtom(ctx, argv[1]);
       }
 
       break;
@@ -991,14 +845,13 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case LEXER_METHOD_ERROR: {
-      SyntaxError error;
+      const char* message = JS_ToCString(ctx, argv[0]);
+      char* location = location_tostring(&lex->loc, ctx);
 
-      error.message = js_tostring(ctx, argv[0]);
-      error.loc = location_clone(&lex->loc, ctx);
-      error.line = lexer_current_line(lex, ctx);
-      // printf("lexer SyntaxError('%s', %u:%u)\n", error.message, lex->loc.line
-      // + 1, lex->loc.column + 1);
-      ret = js_syntaxerror_new(ctx, error);
+      ret = JS_ThrowSyntaxError(ctx, "%s at %s", message, location);
+
+      JS_FreeCString(ctx, message);
+      js_free(ctx, location);
       break;
     }
 
@@ -1032,7 +885,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(argc > 0 && JS_IsNumber(argv[0]))
         JS_ToInt32(ctx, &index, argv[0]);
 
-      if((id = lexer_state_top(lex, index)) >= 0)
+      if((id = index > 0 ? lexer_state_top(lex, index) : lex->state) >= 0)
         ret = JS_NewString(ctx, lexer_state_name(lex, id));
       break;
     }
@@ -1070,7 +923,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case LEXER_PROP_FILENAME: {
-      ret = lex->loc.file ? JS_NewString(ctx, lex->loc.file) : JS_UNDEFINED;
+      ret = lex->loc.file > -1 ? JS_AtomToValue(ctx, lex->loc.file) : JS_UNDEFINED;
       break;
     }
 
@@ -1174,9 +1027,9 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
     }
 
     case LEXER_PROP_FILENAME: {
-      if(lex->loc.file)
-        js_free(ctx, (char*)lex->loc.file);
-      lex->loc.file = js_tostring(ctx, value);
+      if(lex->loc.file > -1)
+        JS_FreeAtom(ctx, lex->loc.file);
+      lex->loc.file = JS_ValueToAtom(ctx, value);
       break;
     }
 
@@ -1310,18 +1163,23 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   switch(id) {
     case LEXER_ERROR_NOMATCH: {
       char* lexeme = lexer_lexeme_s(lex, ctx);
+      char* file = location_file(&lex->loc, ctx);
+
       ret = JS_ThrowInternalError(ctx,
                                   "%s:%" PRIu32 ":%" PRIu32 ": No matching token (%d: %s) '%s'\n%.*s\n%*s",
-                                  lex->loc.file,
+                                  file,
                                   lex->loc.line + 1,
                                   lex->loc.column + 1,
                                   lexer_state_top(lex, 0),
                                   lexer_state_name(lex, lexer_state_top(lex, 0)),
                                   lexeme,
-                                  (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') + lex->loc.column),
+                                  (int)(byte_chr((const char*)&lex->input.data[lex->start], lex->input.size - lex->start, '\n') +
+                                        lex->loc.column),
                                   &lex->input.data[lex->start - lex->loc.column],
                                   lex->loc.column + 1,
                                   "^");
+      if(file)
+        js_free(ctx, file);
       js_free(ctx, lexeme);
       break;
     }
@@ -1338,32 +1196,50 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   return ret;
 }
 
+enum {
+  YIELD_ID = 0,
+  YIELD_OBJ,
+};
+
 JSValue
-js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  JSValue ret;
+js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret, value = JS_UNDEFINED;
   Lexer* lex;
+  Location loc;
 
   if(!(lex = js_lexer_data(ctx, this_val)))
     return JS_EXCEPTION;
 
+  loc = lex->loc;
   ret = js_lexer_lex(ctx, this_val, argc, argv);
 
   if(JS_IsNumber(ret)) {
     int32_t id;
     Token* tok;
     size_t charlen;
-    Location loc;
+    // Location loc;
 
     JS_ToInt32(ctx, &id, ret);
-    loc = lex->loc;
+    // loc = lex->loc;
 
     charlen = lexer_skip(lex);
 
-    tok = lexer_token(lex, id, charlen, loc, ctx);
-    ret = js_token_wrap(ctx, tok);
+    if(magic == YIELD_OBJ) {
+      tok = lexer_token(lex, id, charlen, &loc, ctx);
+      value = js_token_wrap(ctx, tok);
+    } else {
+      value = JS_NewInt32(ctx, id);
+    }
   }
 
-  *pdone = JS_IsNull(ret); // input_buffer_eof(&lex->input);
+  return value;
+}
+
+JSValue
+js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+  JSValue ret = js_lexer_nextfn(ctx, this_val, argc, argv, magic);
+
+  *pdone = JS_IsUndefined(ret);
 
   return ret;
 }
@@ -1396,7 +1272,7 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(!(lex = js_lexer_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProto(ctx, lexer_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_lexer_class_id);
 
   JS_DefinePropertyValueStr(ctx, obj, "start", JS_NewUint32(ctx, lex->start), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "bytelen", JS_NewUint32(ctx, lex->byte_length), JS_PROP_ENUMERABLE);
@@ -1414,15 +1290,19 @@ void
 js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
 
-  if((lex = JS_GetOpaque(val, js_lexer_class_id)))
+  if((lex = JS_GetOpaque(val, js_lexer_class_id))) {
+    location_free_rt(&lex->loc, rt);
     lexer_free_rt(lex, rt);
+  }
   JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_lexer_class = {.class_name = "Lexer", .finalizer = js_lexer_finalizer, .call = js_lexer_call};
 
 static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
-    JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, 0),
+    JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, YIELD_OBJ),
+    JS_CFUNC_MAGIC_DEF("nextId", 0, js_lexer_nextfn, YIELD_ID),
+    JS_CFUNC_MAGIC_DEF("nextObj", 0, js_lexer_nextfn, YIELD_OBJ),
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_PROP_SIZE),
     JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, LEXER_PROP_POS),
     JS_CGETSET_MAGIC_DEF("start", js_lexer_get, 0, LEXER_PROP_START),
@@ -1468,26 +1348,14 @@ static const JSCFunctionListEntry js_lexer_static_funcs[] = {
     JS_PROP_INT32_DEF("FIRST", LEXER_FIRST, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("LONGEST", LEXER_LONGEST, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("LAST", LEXER_LAST, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("YIELD_ID", YIELD_ID, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("YIELD_OBJ", YIELD_OBJ, JS_PROP_ENUMERABLE),
 };
 
 int
 js_lexer_init(JSContext* ctx, JSModuleDef* m) {
 
   js_location_init(ctx, m);
-
-  JS_NewClassID(&js_syntaxerror_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_syntaxerror_class_id, &js_syntaxerror_class);
-
-  syntaxerror_proto = JS_NewError(ctx);
-  JS_SetPropertyFunctionList(ctx, syntaxerror_proto, js_syntaxerror_proto_funcs, countof(js_syntaxerror_proto_funcs));
-
-  // js_set_inspect_method(ctx, syntaxerror_proto, js_syntaxerror_inspect);
-
-  JS_SetClassProto(ctx, js_syntaxerror_class_id, syntaxerror_proto);
-
-  syntaxerror_ctor = JS_NewCFunction2(ctx, js_syntaxerror_constructor, "SyntaxError", 1, JS_CFUNC_constructor, 0);
-
-  JS_SetConstructor(ctx, syntaxerror_ctor, syntaxerror_proto);
 
   JS_NewClassID(&js_token_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_token_class_id, &js_token_class);
@@ -1518,7 +1386,6 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, lexer_ctor, js_lexer_static_funcs, countof(js_lexer_static_funcs));
 
   if(m) {
-    JS_SetModuleExport(ctx, m, "SyntaxError", syntaxerror_ctor);
     JS_SetModuleExport(ctx, m, "Token", token_ctor);
     JS_SetModuleExport(ctx, m, "Lexer", lexer_ctor);
   }
@@ -1539,8 +1406,11 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     return m;
 
   JS_AddModuleExport(ctx, m, "Location");
-  JS_AddModuleExport(ctx, m, "SyntaxError");
   JS_AddModuleExport(ctx, m, "Token");
   JS_AddModuleExport(ctx, m, "Lexer");
   return m;
 }
+
+/**
+ * @}
+ */

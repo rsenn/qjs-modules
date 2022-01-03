@@ -9,6 +9,11 @@
 #define lstat stat
 #endif
 
+/**
+ * \addtogroup path
+ * @{
+ */
+
 int
 path_absolute(const char* path, DynBuf* db) {
   if(!path_isabs(path)) {
@@ -87,12 +92,12 @@ path_canonical_buf(DynBuf* db) {
 
 size_t
 path_collapse(char* path, size_t n) {
-  char *x, *end;
+  char* x;
   int ret = 0;
   char sep = path_getsep(path);
   size_t l, i;
 
-  for(x = path, end = path + n, i = 0; i < n;) {
+  for(x = path, i = 0; i < n;) {
     while(x[i] == sep) i++;
 
     l = i + byte_chr(&x[i], n - i, sep);
@@ -339,10 +344,9 @@ start:
 
 char*
 path_getcwd(DynBuf* db) {
-  char* p;
   dbuf_zero(db);
   dbuf_realloc(db, PATH_MAX);
-  p = getcwd((char*)db->buf, db->allocated_size);
+  getcwd((char*)db->buf, db->allocated_size);
   db->size = strlen((const char*)db->buf);
   dbuf_0(db);
   return (char*)db->buf;
@@ -402,8 +406,63 @@ int
 path_is_directory(const char* p) {
   struct stat st;
   int r;
-  if((r = lstat(p, &st) == 0)) {
+  if((r = stat(p, &st) == 0)) {
     if(S_ISDIR(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_file(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISREG(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_chardev(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISCHR(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_blockdev(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISBLK(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_fifo(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISFIFO(st.st_mode))
+      return 1;
+  }
+  return 0;
+}
+
+int
+path_is_socket(const char* p) {
+  struct stat st;
+  int r;
+  if((r = stat(p, &st) == 0)) {
+    if(S_ISSOCK(st.st_mode))
       return 1;
   }
   return 0;
@@ -558,7 +617,7 @@ path_skip_separator(const char* p, size_t len, size_t pos) {
 }
 
 char*
-path_dirname(const char* path, DynBuf* dir) {
+__path_dirname(const char* path, DynBuf* dir) {
   size_t i = str_rchrs(path, "/\\", 2);
   if(path == NULL || path[i] == '\0') {
     dbuf_putstr(dir, ".");
@@ -569,6 +628,13 @@ path_dirname(const char* path, DynBuf* dir) {
   }
   dbuf_0(dir);
   return (char*)dir->buf;
+}
+
+char*
+path_dirname(const char* path) {
+  DynBuf dir;
+  dbuf_init2(&dir, 0, 0);
+  return __path_dirname(path, &dir);
 }
 
 #define START ((PATH_MAX + 1) >> 7)
@@ -592,3 +658,7 @@ path_readlink(const char* path, DynBuf* dir) {
   /* now truncate to effective length */
   return dir->size;
 }
+
+/**
+ * @}
+ */

@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.2)
 set(CMAKE_C_STANDARD 11)
 
 option(BUILD_LIBARCHIVE "Build archive library" OFF)
-option(BUILD_PIGPIO "Build pigpio library" OFF)
+#option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
 
 if(WASI OR EMSCRIPTEN)
@@ -19,12 +19,18 @@ if(WIN32 OR MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 endif(WIN32 OR MINGW)
 
+if(ANDROID)
+  add_definitions(-DANDROID)
+endif(ANDROID)
+message("System: ${CMAKE_SYSTEM_NAME}")
+
 if(DEBUG_OUTPUT)
   add_definitions(-DDEBUG_OUTPUT)
 endif(DEBUG_OUTPUT)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
@@ -53,33 +59,55 @@ include(CheckIncludeFile)
 include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
-check_include_file(spawn.h HAVE_SPAWN_H)
 
-if(HAVE_SPAWN_H)
-  list(APPEND CMAKE_REQUIRED_INCLUDES spawn.h)
+check_functions(waitpid execvpe)
+if(HAVE_EXECVPE)
+  add_definitions(-DHAVE_EXECVPE=1)
+else(HAVE_EXECVPE)
+  check_functions(execve)
+endif(HAVE_EXECVPE)
 
-  check_function_exists(posix_spawnp HAVE_POSIX_SPAWNP)
-  message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
-
-  if(HAVE_POSIX_SPAWNP)
-    add_definitions(-DPOSIX_SPAWN=1)
-  endif(HAVE_POSIX_SPAWNP)
-endif(HAVE_SPAWN_H)
-
-check_include_file(threads.h HAVE_THREADS_H)
-if(HAVE_THREADS_H)
-  add_definitions(-DHAVE_THREADS_H)
-endif(HAVE_THREADS_H)
+if(ANDROID)
+  option(USE_SPAWN "Use POSIX spawn()" OFF)
+else()
+  option(USE_SPAWN "Use POSIX spawn()" ON)
+endif()
 
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 if(HAVE_SYS_WAIT_H)
   add_definitions(-DHAVE_SYS_WAIT_H)
 endif(HAVE_SYS_WAIT_H)
 
-check_function_exists(waitpid HAVE_WAITPID)
 if(HAVE_WAITPID)
   add_definitions(-DHAVE_WAITPID=1)
 endif(HAVE_WAITPID)
+
+if(NOT USE_SPAWN)
+  if(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
+
+    check_include_file(spawn.h HAVE_SPAWN_H)
+    if(HAVE_SPAWN_H)
+      list(APPEND CMAKE_REQUIRED_INCLUDES spawn.h)
+
+      check_function_exists(posix_spawnp HAVE_POSIX_SPAWNP)
+      message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
+
+      if(HAVE_POSIX_SPAWNP)
+        set(USE_SPAWN ON)
+      endif(HAVE_POSIX_SPAWNP)
+    endif(HAVE_SPAWN_H)
+  endif(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
+endif(NOT USE_SPAWN)
+#dump(USE_SPAWN)
+
+if(USE_SPAWN)
+  add_definitions(-DPOSIX_SPAWN=1)
+endif(USE_SPAWN)
+
+check_include_file(threads.h HAVE_THREADS_H)
+if(HAVE_THREADS_H)
+  add_definitions(-DHAVE_THREADS_H)
+endif(HAVE_THREADS_H)
 
 check_include_file(sys/mman.h HAVE_SYS_MMAN_H)
 if(HAVE_SYS_MMAN_H)
@@ -126,28 +154,51 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
-if(BUILD_PIGPIO)
-  include(ExternalProject)
-  ExternalProject_Add(
-    pigpio
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/pigpio
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pigpio
-    CMAKE_CACHE_ARGS
-      "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
-      "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
-      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+check_functions(fnmatch glob wordexp inotify_init1 inet_pton)
+check_includes(fnmatch.h glob.h wordexp.h sys/inotify.h)
 
-  link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
+if(HAVE_INET_PTON)
+  add_definitions(-DHAVE_INET_PTON=1)
+endif(HAVE_INET_PTON)
 
-else(BUILD_PIGPIO)
-  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpigpio.cmake)
-endif(BUILD_PIGPIO)
+if(HAVE_FNMATCH AND HAVE_FNMATCH_H)
+  add_definitions(-DHAVE_FNMATCH=1)
+endif(HAVE_FNMATCH AND HAVE_FNMATCH_H)
+
+if(HAVE_GLOB AND HAVE_GLOB_H)
+  add_definitions(-DHAVE_GLOB=1)
+endif(HAVE_GLOB AND HAVE_GLOB_H)
+
+if(HAVE_WORDEXP AND HAVE_WORDEXP_H)
+  add_definitions(-DHAVE_WORDEXP=1)
+endif(HAVE_WORDEXP AND HAVE_WORDEXP_H)
+
+if(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
+  add_definitions(-DHAVE_INOTIFY=1)
+endif(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
+
+# if(BUILD_PIGPIO)
+#   include(ExternalProject)
+#   ExternalProject_Add(
+#     pigpio
+#     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/pigpio
+#     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pigpio
+#     CMAKE_CACHE_ARGS
+#       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
+#       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+#       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+#     CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+
+#   link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
+
+# else(BUILD_PIGPIO)
+#   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpigpio.cmake)
+# endif(BUILD_PIGPIO)
 
 if(BUILD_LIBARCHIVE)
   include(ExternalProject)
   ExternalProject_Add(
-    pigpio
+    libarchive
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
     CMAKE_CACHE_ARGS
@@ -156,7 +207,7 @@ if(BUILD_LIBARCHIVE)
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
     CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-  link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
+  link_directories("${CMAKE_CURRENT_BINARY_DIR}/libarchive")
 
 else(BUILD_LIBARCHIVE)
   include(FindLibArchive)
@@ -192,7 +243,7 @@ endif()
 set(buffer_utils_SOURCES buffer-utils.c buffer-utils.h)
 set(vector_SOURCES vector.c vector.h ${buffer_utils_SOURCES})
 set(char_utils_SOURCES char-utils.c char-utils.h)
-set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES})
+set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES} clock_gettime.c strverscmp.c)
 set(predicate_SOURCES predicate.c predicate.h ${utils_SOURCES})
 if(NOT HAVE_STRVERSCMP)
   set(utils_SOURCES ${utils_SOURCES} strverscmp.c)
@@ -201,6 +252,8 @@ if(NOT HAVE_MEMMEM)
   set(utils_SOURCES ${utils_SOURCES} memmem.c)
 endif(NOT HAVE_MEMMEM)
 set(utils_SOURCES ${utils_SOURCES} qsort_r.c)
+set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h ${utils_SOURCES}
+                     ${buffer_utils_SOURCES})
 
 set(syscallerror_SOURCES quickjs-syscallerror.c quickjs-syscallerror.h)
 set(child_process_SOURCES child-process.c child-process.h property-enumeration.c property-enumeration.h
@@ -211,7 +264,8 @@ set(deep_LIBRARIES qjs-predicate qjs-pointer)
 set(inspect_SOURCES ${vector_SOURCES} iteration.h ${utils_SOURCES} property-enumeration.c property-enumeration.h
                     quickjs-internal.h)
 set(tree_walker_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES})
-set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES})
+set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES} ${location_SOURCES}
+                ${inspect_SOURCES})
 set(path_SOURCES path.c path.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} readlink.c)
@@ -223,31 +277,38 @@ set(lexer_SOURCES quickjs-lexer.h location.c location.h ${utils_SOURCES} ${vecto
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES} bc-fd_set.c bc-socklen_t.c)
+set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
+if(NOT HAVE_INET_PTON)
+  set(sockets_SOURCES ${sockets_SOURCES} inet_pton.c)
+endif(NOT HAVE_INET_PTON)
+if(NOT HAVE_INET_NTOP)
+  set(sockets_SOURCES ${sockets_SOURCES} inet_ntop.c)
+endif(NOT HAVE_INET_NTOP)
 if(WIN32 OR MINGW)
-  set(sockets_LIBRARIES mswsock)
+  set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} socketpair_win32.c)
 endif(WIN32 OR MINGW)
 
-set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
                           ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 
-set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h  ${path_SOURCES} ${location_SOURCES})
+set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${path_SOURCES} ${location_SOURCES}
+                 ${vector_SOURCES})
 
 set(gpio_SOURCES gpio.c gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 
-if(pigpio_LIBRARY)
-  set(gpio_LIBRARIES ${pigpio_LIBRARY})
-endif(pigpio_LIBRARY)
+# if(pigpio_LIBRARY)
+#   set(gpio_LIBRARIES ${pigpio_LIBRARY})
+# endif(pigpio_LIBRARY)
 
 include_directories(${LibArchive_INCLUDE_DIRS})
+set(archive_SOURCES ${utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(QJSM_EXTRA_SOURCES ${vector_SOURCES} ${buffer_utils_SOURCES})
-  
+
 if(HAVE_SYS_MMAN_H AND HAVE_MMAP)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} gpio mmap)
 else(HAVE_SYS_MMAN_H AND HAVE_MMAP)
@@ -265,9 +326,9 @@ check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
 # dump(VISIBILITY_HIDDEN) dump(MODULE_COMPILE_FLAGS)
 
-check_flags(
-  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-but-set-variable;-Wno-unused-function;-Wno-cast-function-type"
-  CMAKE_C_FLAGS)
+check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
+
+#check_flags("-Wno-cast-function-type" CMAKE_C_FLAGS)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
@@ -305,7 +366,7 @@ if(DO_TESTS)
     add_custom_target(
       "${BASE}" ALL COMMAND env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR} "${QJSC}"
                             -fbignum -M std -M os -M ${NAME} -o "${BASE}" "${CMAKE_CURRENT_SOURCE_DIR}/${TEST}"
-      WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" SOURCES "${TEST}")
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" SOURCES "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 
@@ -409,9 +470,8 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 ##dump(QJSM_SOURCES)
 add_executable(qjsm ${QJSM_SOURCES})
 
-dump(QJS_MODULES_STATIC)
-dump(QJSM_LDADD)
-dump(QJSM_LIBDIR)
+dump(QUICKJS_LIBRARY)
+
 if(QJS_MODULES_STATIC)
   add_dependencies(qjsm ${QJS_MODULES_STATIC})
 endif(QJS_MODULES_STATIC)

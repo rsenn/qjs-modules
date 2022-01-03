@@ -5,6 +5,10 @@
 #include "vector.h"
 #include "buffer-utils.h"
 
+/**
+ * \defgroup quickjs-blob QuickJS module: blob - Blob
+ * @{
+ */
 typedef union blob {
   struct {
     uint8_t* data;
@@ -42,5 +46,9 @@ static inline Blob*
 js_blob_data(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque(value, js_blob_class_id);
 }
+
+/**
+ * @}
+ */
 
 #endif /* defined(QUICKJS_BLOB_H) */

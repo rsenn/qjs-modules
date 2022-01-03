@@ -4,6 +4,10 @@
 #include <quickjs.h>
 #include <string.h>
 
+/**
+ * \defgroup quickjs-tree-walker QuickJS module: tree_walker - Object tree walker
+ * @{
+ */
 thread_local VISIBLE JSClassID js_tree_walker_class_id = 0;
 thread_local JSValue tree_walker_proto = {{JS_TAG_UNDEFINED}}, tree_walker_ctor = {{JS_TAG_UNDEFINED}};
 thread_local VISIBLE JSClassID js_tree_iterator_class_id = 0;
@@ -73,7 +77,7 @@ tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
 static JSValue
 js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
-  PropertyEnumeration* it = 0;
+  // PropertyEnumeration* it = 0;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
 
@@ -95,7 +99,7 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   JS_SetOpaque(obj, w);
 
   if(argc > 0 && JS_IsObject(argv[0]))
-    it = tree_walker_setroot(w, ctx, argv[0]);
+    /*it = */ tree_walker_setroot(w, ctx, argv[0]);
 
   if(argc > 1)
     JS_ToUint32(ctx, &w->tag_mask, argv[1]);
@@ -322,7 +326,7 @@ js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
 static JSValue
 js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
-  PropertyEnumeration* it = 0;
+  // PropertyEnumeration* it = 0;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
 
@@ -331,8 +335,7 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
 
   vector_init(&w->frames, ctx);
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
@@ -343,7 +346,7 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   JS_SetOpaque(obj, w);
 
   if(argc > 0 && JS_IsObject(argv[0]))
-    it = tree_walker_setroot(w, ctx, argv[0]);
+    /*it =*/tree_walker_setroot(w, ctx, argv[0]);
 
   if(argc > 1)
     JS_ToUint32(ctx, &w->tag_mask, argv[1]);
@@ -360,13 +363,13 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   PropertyEnumeration* it;
   TreeWalker* w;
   enum tree_iterator_return r;
-  enum value_mask t;
+  // enum value_mask t;
   JSValue ret = JS_UNDEFINED;
 
   w = JS_GetOpaque(this_val, js_tree_iterator_class_id);
 
   r = w->tag_mask & RETURN_MASK;
-  t = w->tag_mask & 0xffffff;
+  // t = w->tag_mask & 0xffffff;
 
   for(;;) {
     if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {
@@ -523,3 +526,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "TreeIterator");
   return m;
 }
+
+/**
+ * @}
+ */

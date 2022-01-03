@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include "buffer-utils.h"
 
+/**
+ * \addtogroup property-enumeration
+ * @{
+ */
 int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
   it->obj = object;
@@ -38,9 +42,9 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
       dbuf_putstr(out, ", ");
 
     s = JS_AtomToCString(ctx, it->tab_atom[i].atom);
-    dbuf_putstr(out, i == it->idx ? "\x1b[1;31m" : "\x1b[1;30m");
+    dbuf_putstr(out, i == it->idx ? COLOR_LIGHTRED : COLOR_GRAY);
     dbuf_putstr(out, s);
-    dbuf_putstr(out, "\x1b[m");
+    dbuf_putstr(out, COLOR_NONE);
     js_cstring_free(ctx, s);
   }
   dbuf_putstr(out, " ] }");
@@ -93,19 +97,28 @@ property_enumeration_skip(Vector* vec, JSContext* ctx) {
 }
 
 int32_t
-property_enumeration_deepest(JSContext* ctx, JSValueConst object) {
+property_enumeration_deepest(JSContext* ctx, JSValueConst object, int32_t max) {
   Vector vec = VECTOR(ctx);
   int32_t depth, max_depth = 0;
-  PropertyEnumeration* it;
   JSValue root = JS_DupValue(ctx, object);
 
   if(JS_IsObject(root)) {
-    for(it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS); it; (it = property_enumeration_recurse(&vec, ctx))) {
+    PropertyEnumeration* it = property_enumeration_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS);
 
+    while(it) {
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
-      // printf("depth = %zu, atom = %x\n", depth, it->tab_atom[it->idx].atom);
+      // printf("depth = %" PRIu32 ", atom = %x\n", depth, it->tab_atom[it->idx].atom);
       if(max_depth < depth)
         max_depth = depth;
+
+      if(depth >= max) {
+        while(!(it = property_enumeration_next(it))) {
+          if((it = property_enumeration_pop(&vec, ctx)) == 0)
+            return max_depth;
+        }
+      } else {
+        it = property_enumeration_recurse(&vec, ctx);
+      }
     }
   }
   property_enumeration_free(&vec, JS_GetRuntime(ctx));
@@ -123,8 +136,11 @@ property_enumeration_path(Vector* vec, JSContext* ctx) {
     JSValue key = property_enumeration_key(it, ctx);
     JS_SetPropertyUint32(ctx, ret, i++, key);
   }
-  JS_DefinePropertyValueStr(
-      ctx, ret, "toString", JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValueStr(ctx,
+                            ret,
+                            "toString",
+                            JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0),
+                            JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   return ret;
 }
 
@@ -232,3 +248,7 @@ property_enumeration_check(Vector* vec) {
   }
   return (IndexTuple){-1, -1};
 }
+
+/**
+ * @}
+ */

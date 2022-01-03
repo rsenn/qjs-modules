@@ -12,6 +12,10 @@
 #define O_CLOEXEC 02000000
 #endif
 
+/**
+ * \addtogroup gpio
+ * @{
+ */
 #define PERIPHERALS_BASE_ADDR (0x20200000)
 #define MAP_SIZE (0xA0)
 
@@ -112,3 +116,6 @@ gpio_get_pin(struct gpio* gpio, const uint8_t pin) {
 
   return value;
 }
+/**
+ * @}
+ */

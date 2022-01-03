@@ -24,6 +24,11 @@
 #include <quickjs-libc.h>
 #include "utils.h"
 
+/**
+ * \defgroup quickjs-bjson QuickJS module: bjson - Binary JSON
+ * @{
+ */
+
 static JSValue
 js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* buf;
@@ -91,3 +96,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExportList(ctx, m, js_bjson_funcs, countof(js_bjson_funcs));
   return m;
 }
+
+/**
+ * @}
+ */

@@ -1,7 +1,7 @@
 #ifndef QUICKJS_SOCKETS_H
 #define QUICKJS_SOCKETS_H
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MSYS__)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
@@ -11,6 +11,11 @@
 #include <quickjs.h>
 
 #include "utils.h"
+
+/**
+ * \defgroup quickjs-sockets QuickJS module: sockets - Network sockets
+ * @{
+ */
 
 typedef union {
   uint16_t family;
@@ -125,4 +130,8 @@ js_socket_data2(JSContext* ctx, JSValueConst value) {
   return sock;
 }
 
-#endif /* defined(QUICKJS_SOCKETS_H)         */
+/**
+ * @}
+ */
+
+#endif /* defined(QUICKJS_SOCKETS_H) */

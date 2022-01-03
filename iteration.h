@@ -6,6 +6,10 @@
 
 #include <assert.h>
 
+/**
+ * \defgroup iteration QuickJS iteration helpers
+ * @{
+ */
 typedef struct Iteration {
   JSValue iter, next, data;
   BOOL done;
@@ -96,4 +100,7 @@ iteration_valuestr(Iteration* it, JSContext* ctx) {
   return str;
 }
 
+/**
+ * @}
+ */
 #endif /* defined(ITERATION_H) */

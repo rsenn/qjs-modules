@@ -5,6 +5,10 @@
 #include "vector.h"
 #include "utils.h"
 
+/**
+ * \defgroup property-enumeration Property enumeration utilities
+ * @{
+ */
 typedef struct PropertyEnumeration {
   JSValue obj;
   uint32_t idx;
@@ -45,7 +49,7 @@ static inline int32_t
 property_enumeration_depth(Vector* vec) {
   return vector_size(vec, sizeof(PropertyEnumeration));
 }
-int32_t property_enumeration_deepest(JSContext*, JSValue);
+int32_t property_enumeration_deepest(JSContext*, JSValue, int32_t maxdepth);
 JSValue property_enumeration_path(Vector*, JSContext*);
 void property_enumeration_pathstr(Vector*, JSContext*, DynBuf* buf);
 JSValue property_enumeration_pathstr_value(Vector*, JSContext*);
@@ -227,4 +231,8 @@ property_enumeration_recurse(Vector* vec, JSContext* ctx) {
   }
   return it;
 }
+
+/**
+ * @}
+ */
 #endif /* defined(PROPERTY_ENUMERATION_H) */

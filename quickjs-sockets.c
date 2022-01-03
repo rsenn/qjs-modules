@@ -2,11 +2,14 @@
 #include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "buffer-utils.h"
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MSYS__)
 #include <winsock2.h>
+#ifndef __MSYS__
 int inet_pton(int, const char*, void*);
 const char* inet_ntop(int, const void*, char*, socklen_t);
+#endif
 int socketpair(int, int, int, SOCKET[2]);
+//#define close closesocket
 #else
 #include <sys/select.h>
 #include <sys/syscall.h>
@@ -18,6 +21,11 @@ int socketpair(int, int, int, SOCKET[2]);
 #include <errno.h>
 //#include <alloca.h>
 
+/**
+ * \addtogroup quickjs-sockets
+ * @{
+ */
+
 extern const uint32_t qjsm_fd_set_size;
 extern const uint8_t qjsm_fd_set[1030];
 extern const uint32_t qjsm_socklen_t_size;
@@ -26,7 +34,8 @@ extern const uint8_t qjsm_socklen_t[1030];
 static int js_sockets_init(JSContext*, JSModuleDef*);
 static JSValue js_socket_async_wait(JSContext*, JSValueConst, int, JSValueConst[], int);
 
-#define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), JS_NewInt32(ctx, -1))
+#define JS_SOCKETCALL(syscall_no, sock, result) \
+  JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), JS_NewInt32(ctx, -1))
 
 #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, sock.ret), on_fail)
 
@@ -69,7 +78,8 @@ syscall_return(Socket* sock, int syscall, int retval) {
   sock->ret = retval;
   sock->error = retval < 0 ? errno : 0;
 
-  // printf("syscall %s returned %d (%d)\n", socket_syscalls[sock->syscall], sock->ret, sock->error);
+  // printf("syscall %s returned %d (%d)\n", socket_syscalls[sock->syscall], sock->ret,
+  // sock->error);
 }
 
 static SockAddr*
@@ -305,7 +315,7 @@ js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(!(a = js_sockaddr_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProto(ctx, sockaddr_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_sockaddr_class_id);
 
   if(a->family)
     JS_DefinePropertyValueStr(ctx, obj, "family", JS_NewUint32(ctx, a->family), JS_PROP_ENUMERABLE);
@@ -749,6 +759,7 @@ enum SocketProperties {
   SOCKETS_ERROR,
   SOCKETS_LOCAL,
   SOCKETS_REMOTE,
+  SOCKETS_NONBLOCK,
 };
 
 static JSValue
@@ -826,6 +837,10 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, sock, getpeername(sock.fd, (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
       break;
     }
+    case SOCKETS_NONBLOCK: {
+      ret = JS_NewBool(ctx, sock.nonblock);
+      break;
+    }
   }
   JS_SetOpaque(this_val, sock.ptr);
   return ret;
@@ -846,6 +861,10 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
       JS_ToUint32(ctx, &mode, value);
       JS_SOCKETCALL_RETURN(SYSCALL_FCNTL, sock, fcntl(sock.fd, F_SETFL, mode), JS_NewInt32(ctx, sock.ret), JS_UNDEFINED);
 #endif
+      break;
+    }
+    case SOCKETS_NONBLOCK: {
+      sock.nonblock = JS_ToBool(ctx, value);
       break;
     }
   }
@@ -947,8 +966,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       OffsetLength off;
       js_offset_length(ctx, buf.size, argc - 1, argv + 1, &off);
 
-
-      printf("recv(%d, %zu, %zu %zu)\n",  sock.fd, off.offset, off.length, offset_size(&off, buf.size));
+      printf("recv(%d, %zu, %zu %zu)\n", sock.fd, off.offset, off.length, offset_size(&off, buf.size));
 
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
@@ -1006,7 +1024,8 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       val = (void*)buf;
       if(tmp)
         js_free(ctx, tmp);
-      /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", sock.fd, level, optname, ((ptrdiff_t*)val)[0], val, len, sock.ret);*/
+      /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", sock.fd, level, optname,
+       * ((ptrdiff_t*)val)[0], val, len, sock.ret);*/
       break;
     }
     case SOCKETS_SETSOCKOPT: {
@@ -1030,7 +1049,8 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         }
       }
       JS_SOCKETCALL(SYSCALL_SETSOCKOPT, sock, setsockopt(sock.fd, level, optname, buf, len));
-      /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", sock.fd, level, optname, *(int*)buf, buf, len, sock.ret);*/
+      /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", sock.fd, level, optname,
+       * *(int*)buf, buf, len, sock.ret);*/
 
       if(tmp)
         js_free(ctx, tmp);
@@ -1085,7 +1105,8 @@ static JSValue
 js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Socket sock = js_socket_data2(ctx, this_val);
 
-  JSValue obj = /*JS_NewObject(ctx); //*/ JS_NewObjectProto(ctx, socket_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_socket_class_id);
+
   JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewInt32(ctx, (int16_t)sock.fd), JS_PROP_ENUMERABLE);
   if(sock.ret >= 0) {
     JS_DefinePropertyValueStr(ctx, obj, "ret", JS_NewUint32(ctx, sock.ret), JS_PROP_ENUMERABLE);
@@ -1154,7 +1175,7 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   if(js_value_isclass(ctx, set_handler, JS_CLASS_C_FUNCTION)) {
     JSObject* obj = JS_VALUE_GET_OBJ(set_handler);
     set_mux = obj->u.cfunc.c_function.generic_magic;
-    //printf("cfunc:%p\n", set_mux);
+    // printf("cfunc:%p\n", set_mux);
   }
 
   promise = JS_NewPromiseCapability(ctx, resolving_funcs);
@@ -1238,6 +1259,7 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("eof", js_socket_get, 0, SOCKETS_EOF),
     JS_CGETSET_MAGIC_DEF("mode", js_socket_get, js_socket_set, SOCKETS_MODE),
     JS_CGETSET_MAGIC_DEF("ret", js_socket_get, js_socket_set, SOCKETS_RET),
+    JS_CGETSET_MAGIC_DEF("nonblock", js_socket_get, js_socket_set, SOCKETS_NONBLOCK),
     JS_CFUNC_MAGIC_DEF("ndelay", 0, js_socket_method, SOCKETS_NDELAY),
     JS_CFUNC_MAGIC_DEF("bind", 1, js_socket_method, SOCKETS_BIND),
     JS_CFUNC_MAGIC_DEF("connect", 1, js_socket_method, SOCKETS_CONNECT),
@@ -2049,3 +2071,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   }
   return m;
 }
+
+/**
+ * @}
+ */

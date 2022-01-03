@@ -3,6 +3,10 @@
 #include "child-process.h"
 #include "property-enumeration.h"
 
+/**
+ * \defgroup quickjs-child-process QuickJS module: child_process - Child process
+ * @{
+ */
 #ifdef _WIN32
 #include <io.h>
 #define pipe(fds) _pipe(fds, 4096, 0)
@@ -85,7 +89,7 @@ js_child_process_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   if(!(cp = js_child_process_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectProto(ctx, child_process_proto);
+  JSValue obj = JS_NewObjectClass(ctx, js_child_process_class_id);
 
   if(cp->file)
     JS_DefinePropertyValueStr(ctx, obj, "file", JS_NewString(ctx, cp->file), JS_PROP_ENUMERABLE);
@@ -171,8 +175,8 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     }
 
     len = js_array_length(ctx, stdio);
-    parent_fds = cp->parent_fds = js_mallocz(ctx, sizeof(int) * (len+1));
-    child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len+1));
+    parent_fds = cp->parent_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
+    child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
     cp->num_fds = len;
 
     for(i = 0; i < len; i++) {
@@ -367,7 +371,9 @@ static const JSCFunctionListEntry js_child_process_funcs[] = {
     JS_CFUNC_MAGIC_DEF("kill", 1, js_child_process_kill, 1),
 
     JS_PROP_INT32_DEF("WNOHANG", WNOHANG, JS_PROP_ENUMERABLE),
+#ifdef WNOWAIT
     JS_PROP_INT32_DEF("WNOWAIT", WNOWAIT, JS_PROP_ENUMERABLE),
+#endif
     JS_PROP_INT32_DEF("WUNTRACED", WUNTRACED, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGHUP", SIGHUP, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGINT", SIGINT, JS_PROP_ENUMERABLE),
@@ -384,7 +390,9 @@ static const JSCFunctionListEntry js_child_process_funcs[] = {
     JS_PROP_INT32_DEF("SIGPIPE", SIGPIPE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGALRM", SIGALRM, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGTERM", SIGTERM, JS_PROP_ENUMERABLE),
+#ifdef SIGSTKFLT
     JS_PROP_INT32_DEF("SIGSTKFLT", SIGSTKFLT, JS_PROP_ENUMERABLE),
+#endif
     JS_PROP_INT32_DEF("SIGCHLD", SIGCHLD, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGCONT", SIGCONT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SIGSTOP", SIGSTOP, JS_PROP_ENUMERABLE),
@@ -443,3 +451,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "default");
   return m;
 }
+
+/**
+ * @}
+ */

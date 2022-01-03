@@ -8,8 +8,13 @@
 
 #include <stdint.h>
 
+/**
+ * \defgroup quickjs-deep QuickJS module: deep - Deep object
+ * @{
+ */
 thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
-thread_local JSValue deep_functions = {{JS_TAG_UNDEFINED}}, deep_iterator_proto = {{JS_TAG_UNDEFINED}}, deep_iterator_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue deep_functions = {{JS_TAG_UNDEFINED}}, deep_iterator_proto = {{JS_TAG_UNDEFINED}},
+                     deep_iterator_ctor = {{JS_TAG_UNDEFINED}};
 
 typedef struct DeepIterator {
   JSValue root;
@@ -462,34 +467,31 @@ js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 static JSValue
 js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue value, path, ret = JS_UNDEFINED;
-  JSValueConst this_arg, dest;
+  JSValueConst dest;
   PropertyEnumeration* it;
   Vector frames, offsets;
   DynBuf dbuf;
-  int32_t level, prev;
+  // int32_t level, prev = 0;
   uint32_t mask = 0;
   VirtualProperties vmap;
   js_dbuf_init(ctx, &dbuf);
-  this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
+  // this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
   dest = argc > 1 ? argv[1] : JS_NewObject(ctx);
   if(js_is_map(ctx, dest))
     vmap = virtual_properties_map(ctx, dest);
   else
     vmap = virtual_properties_object(ctx, dest);
   vector_init(&frames, ctx);
-  ;
   vector_init(&offsets, ctx);
-  ;
   it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
-  prev = 0;
   if(argc > 2)
     JS_ToUint32(ctx, &mask, argv[2]);
   do {
-    int dir;
+    // int dir;
     path = property_enumeration_pathstr_value(&frames, ctx);
-    level = property_enumeration_level(it, &frames);
-    dir = level - prev;
-    prev = level;
+    // level = property_enumeration_level(it, &frames);
+    // dir = level - prev;
+    // prev = level;
     if(mask) {
       JSValue value = property_enumeration_value(it, ctx);
       int32_t type = js_value_type(ctx, value);
@@ -739,3 +741,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "default");
   return m;
 }
+
+/**
+ * @}
+ */

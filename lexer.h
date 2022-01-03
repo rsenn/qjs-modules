@@ -6,6 +6,10 @@
 #include "buffer-utils.h"
 #include <string.h>
 
+/**
+ * \defgroup lexer Lexical scanner, regex based
+ * @{
+ */
 typedef struct {
   char* name;
   char* expr;
@@ -34,8 +38,8 @@ typedef struct {
   enum lexer_mode mode;
   size_t start, byte_length;
   int32_t token_id, state;
-  InputBuffer input;
   Location loc;
+  InputBuffer input;
   Vector defines;
   Vector rules;
   Vector states;
@@ -105,4 +109,7 @@ lexer_state_topname(Lexer* lex) {
   return lexer_state_name(lex, lexer_state_top(lex, 0));
 }
 
+/**
+ * @}
+ */
 #endif /* defined(LEXER_H) */

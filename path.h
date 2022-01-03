@@ -17,6 +17,10 @@ int is_symlink(const char*);
 char is_junction(const char*);
 #endif
 
+/**
+ * \defgroup path Directory path manipulation
+ * @{
+ */
 #define PATH_NOTFIRST 0x80
 
 #define PATH_FNM_NOMATCH 1
@@ -66,6 +70,11 @@ char* path_getcwd(DynBuf*);
 char* path_gethome(int);
 int path_is_absolute(const char*, size_t);
 int path_is_directory(const char*);
+int path_is_file(const char*);
+int path_is_chardev(const char*);
+int path_is_blockdev(const char*);
+int path_is_fifo(const char*);
+int path_is_socket(const char*);
 int path_is_symlink(const char*);
 int path_normalize(const char*, DynBuf*, int symbolic);
 int path_relative(const char*, const char*, DynBuf* out);
@@ -74,7 +83,8 @@ size_t path_root(const char*, size_t);
 size_t path_skip_component(const char*, size_t, size_t pos);
 size_t path_skip_separator(const char*, size_t, size_t pos);
 char* path_basename(const char*);
-char* path_dirname(const char*, DynBuf*);
+char* __path_dirname(const char*, DynBuf*);
+char* path_dirname(const char*);
 int path_readlink(const char*, DynBuf*);
 
 static inline size_t
@@ -113,4 +123,7 @@ path_getsep(const char* path) {
   return '\0';
 }
 
+/**
+ * @}
+ */
 #endif /* defined(PATH_H) */

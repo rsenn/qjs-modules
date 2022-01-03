@@ -3,6 +3,11 @@
 #include "quickjs-archive.h"
 #include "utils.h"
 
+/**
+ * \addtogroup quickjs-archive
+ * @{
+ */
+
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_archive_class_id = 0;
@@ -146,7 +151,7 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         js_free(ctx, filename);
 
         if(r != ARCHIVE_OK) {
-          ret = JS_ThrowInternalError(ctx, archive_error_string(ar));
+          ret = JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
           archive_read_free(ar);
           return ret;
         }
@@ -165,7 +170,7 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         js_free(ctx, filename);
 
         if(r != ARCHIVE_OK) {
-          ret = JS_ThrowInternalError(ctx, archive_error_string(ar));
+          ret = JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
           archive_read_free(ar);
           return ret;
         }
@@ -256,7 +261,7 @@ js_archive_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   switch(result) {
     case ARCHIVE_EOF: *pdone = TRUE; return JS_UNDEFINED;
-    case ARCHIVE_FATAL: *pdone = TRUE; return JS_ThrowInternalError(ctx, archive_error_string(ar));
+    case ARCHIVE_FATAL: *pdone = TRUE; return JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
   }
 
   if(result == ARCHIVE_WARN) {
@@ -415,7 +420,7 @@ js_archive_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static JSValue
-js_archive_version(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_archive_version(JSContext* ctx, JSValueConst this_val) {
   return JS_NewString(ctx, archive_version_details());
 }
 
@@ -1227,3 +1232,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "Archive");
   return m;
 }
+
+/**
+ * @}
+ */
