@@ -12,10 +12,10 @@ function main(...args) {
   globalThis.console = new Console(process.stdout, {
     inspectOptions: {
       colors: true,
-      depth: 10,
+      depth: Infinity,
       //stringBreakNewline: false,
       maxArrayLength: Infinity,
-      compact: 1,
+      compact: false,
       maxStringLength: 60
     }
   });
@@ -32,7 +32,7 @@ function main(...args) {
 
   let doc = new Document(result[0]);
 
-  console.log('doc', doc);
+  console.log('doc', inspect(doc, { depth: 20, compact: false }));
 
   std.gc();
 }

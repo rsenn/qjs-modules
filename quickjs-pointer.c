@@ -366,7 +366,7 @@ js_pointer_get_own_property_names(JSContext* ctx, JSPropertyEnum** ptab, uint32_
     props[i].atom = i | (1U << 31);
   }
 
-  props[len].is_enumerable = FALSE;
+  props[len].is_enumerable = TRUE;
   props[len].atom = JS_NewAtom(ctx, "length");
 
   *ptab = props;
@@ -469,14 +469,11 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
 
   JSValue array_proto = js_global_prototype(ctx, "Array");
 
-  JS_SetPropertyStr(ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"));
-  JS_SetPropertyStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"));
-  JS_SetPropertyStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"));
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
 
-  inspectAtom = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
-  JS_SetPropertyStr(ctx, js_symbol_ctor(ctx), "inspect", js_atom_tovalue(ctx, inspectAtom));
-  JS_SetProperty(ctx, pointer_proto, inspectAtom, JS_NewCFunction(ctx, js_pointer_inspect, "inspect", 1));
-  JS_FreeAtom(ctx, inspectAtom);
+  // js_set_inspect_method(ctx, pointer_proto, js_pointer_inspect);
 
   JS_SetClassProto(ctx, js_pointer_class_id, pointer_proto);
 
