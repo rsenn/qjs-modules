@@ -1,7 +1,34 @@
 import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
-import { socklen_t, fd_set, SockAddr, Socket, select, poll, AF_INET, SOCK_STREAM, IPPROTO_TCP, POLLIN, POLLOUT, POLLERR, POLLHUP, O_NONBLOCK, O_ASYNC, SO_ERROR, SO_DEBUG, SO_REUSEPORT, SO_REUSEADDR, SO_KEEPALIVE, SO_DONTROUTE, SO_BROADCAST, SO_OOBINLINE, SO_SNDBUF, SO_RCVBUF, SOL_SOCKET } from 'sockets';
+import {
+  socklen_t,
+  fd_set,
+  SockAddr,
+  Socket,
+  select,
+  poll,
+  AF_INET,
+  SOCK_STREAM,
+  IPPROTO_TCP,
+  POLLIN,
+  POLLOUT,
+  POLLERR,
+  POLLHUP,
+  O_NONBLOCK,
+  O_ASYNC,
+  SO_ERROR,
+  SO_DEBUG,
+  SO_REUSEPORT,
+  SO_REUSEADDR,
+  SO_KEEPALIVE,
+  SO_DONTROUTE,
+  SO_BROADCAST,
+  SO_OOBINLINE,
+  SO_SNDBUF,
+  SO_RCVBUF,
+  SOL_SOCKET
+} from 'sockets';
 import { error, escape, quote, toString, toArrayBuffer, randi, randf, srand } from 'misc';
 import { define } from 'util';
 
