@@ -349,6 +349,8 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   ptr = buf;
   end = buf + len;
 
+  printf("js_xml_parse input_name: %s flat: %s\n", input_name, flat ? "TRUE" : "FALSE");
+
   ret = JS_NewArray(ctx);
 
   out = vector_emplace(&st, sizeof(OutputValue));
@@ -391,12 +393,12 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       namelen = ptr - name;
 
       if(closing) {
-        int32_t index;
+        int32_t index = 0;
         parse_skipspace();
         if(parse_is(c, CLOSE))
           parse_getc();
 
-        // printf("end-of [%zd] tagName: %s%.*s\n", index - 1, closing ? "/" : "", namelen, name);
+        printf("end-of [%zd] tagName: %s%.*s\n", index - 1, closing ? "/" : "", namelen, name);
 
         if(flat) {
           yield_next();
@@ -434,8 +436,6 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         }
 
         if(namelen >= 3 && parse_is(name[0], EXCLAM) && parse_is(name[1], HYPHEN) && parse_is(name[2], HYPHEN)) {
-          /*  parse_getc();
-            parse_getc();*/
           while(!done) {
             parse_getc();
             if(end - ptr >= 3 && parse_is(ptr[0], HYPHEN) && parse_is(ptr[1], HYPHEN) && parse_is(ptr[2], CLOSE)) {
@@ -500,13 +500,6 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           parse_getc();
 
         } else if(!self_closing) {
-          /*
-            out = vector_emplace(&st, sizeof(OutputValue));
-               out->obj = JS_NewArray(ctx);
-               out->idx = 0;
-               out->name = name;
-               out->namelen = namelen;
-               JS_SetPropertyStr(ctx, element, "children", out->obj);*/
           if(!flat)
             yield_push();
         }
@@ -517,11 +510,10 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         }*/
       }
 
-      if(self_closing) {
+      if(self_closing && flat) {
         char* tagName = js_mallocz(ctx, namelen + 2);
         tagName[0] = '/';
-        strncpy(&tagName[1], (const char*)name, namelen);
-        tagName[namelen + 1] = '\0';
+        str_copyn(&tagName[1], namelen, (const char*)name);
 
         yield_next();
         xml_set_attr_bytes(ctx, element, "tagName", 7, (const uint8_t*)tagName, namelen + 1);

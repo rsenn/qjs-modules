@@ -597,7 +597,7 @@ js_lexer_add_rule(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   name = (magic || JS_IsString(argv[0])) ? js_tostring(ctx, argv[0]) : 0;
   expr = regexp_from_argv(argc - 1, &argv[1], ctx);
 
-  if(JS_IsNumber(argv[2]))
+  if(argc >= 3 && JS_IsNumber(argv[2]))
     JS_ToInt64(ctx, &mask, argv[2]);
 
   JSValue skipv = JS_GetPropertyStr(ctx, this_val, "skip");
