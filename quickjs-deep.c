@@ -202,7 +202,7 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
 
   if(i < argc)
     root = argv[i++];
-  if(i < argc)
+  if(i < argc && JS_IsFunction(ctx, argv[i]))
     pred = argv[i++];
   if(i < argc)
     flags = js_deep_parseflags(ctx, argc - i, argv + i);

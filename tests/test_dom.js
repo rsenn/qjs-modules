@@ -16,7 +16,8 @@ function main(...args) {
       //stringBreakNewline: false,
       maxArrayLength: Infinity,
       compact: false,
-      maxStringLength: 60
+      maxStringLength: 60,
+      customInspect: true
     }
   });
 
@@ -33,6 +34,10 @@ function main(...args) {
   let doc = new Document(result[0]);
 
   console.log('doc', inspect(doc, { depth: 20, compact: false }));
+
+  for(let value of deep.iterate(doc, deep.RETURN_VALUE)) {
+    console.log('value', value);
+  }
 
   std.gc();
 }
