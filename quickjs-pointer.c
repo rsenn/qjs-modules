@@ -473,7 +473,7 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_DefinePropertyValueStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
   JS_DefinePropertyValueStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
 
-    js_set_inspect_method(ctx, pointer_proto, js_pointer_inspect);
+  js_set_inspect_method(ctx, pointer_proto, js_pointer_inspect);
 
   JS_SetClassProto(ctx, js_pointer_class_id, pointer_proto);
 

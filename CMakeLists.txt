@@ -277,7 +277,7 @@ set(lexer_SOURCES quickjs-lexer.h location.c location.h ${utils_SOURCES} ${vecto
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(sockets_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(sockets_SOURCES queue.c queue.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(NOT HAVE_INET_PTON)
   set(sockets_SOURCES ${sockets_SOURCES} inet_pton.c)
 endif(NOT HAVE_INET_PTON)

@@ -337,10 +337,9 @@ function main(...args) {
     let balancers = [balancer()];
 
     let imports = [],
-      exports = [];
-    let impexp,
+      exports = [],impexp,
       cond,
-      imp = [];
+      imp = [], count=0;
 
     /* console.log('lexer.rules', Object.fromEntries(lexer.ruleNames.map(n => [n, new RegExp(lexer.getRule(n)[1], 's')])));
     console.log('lexer.states', lexer.states);
@@ -358,6 +357,7 @@ function main(...args) {
       let { stateDepth } = lexer;
       let { done, value } = lexer.next();
       if(done) break;
+      count++;
       let newState = lexer.topState();
       tok = value;
       //showToken(tok);
@@ -435,7 +435,7 @@ function main(...args) {
 
     let end = Date.now();
 
-    log(`took ${end - start}ms`);
+    log(`took ${end - start}ms (${count} tokens)`);
     log('lexer', lexer);
     //log('tokens', tokens);
 

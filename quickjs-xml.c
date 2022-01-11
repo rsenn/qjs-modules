@@ -398,7 +398,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         if(parse_is(c, CLOSE))
           parse_getc();
 
-        //printf("end-of [%zd] tagName: %s%.*s\n", index - 1, closing ? "/" : "", namelen, name);
+        // printf("end-of [%zd] tagName: %s%.*s\n", index - 1, closing ? "/" : "", namelen, name);
 
         if(flat) {
           yield_next();
