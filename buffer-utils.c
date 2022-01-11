@@ -1,6 +1,11 @@
 #include "char-utils.h"
 #include "buffer-utils.h"
 #include "utils.h"
+#if HAVE_TERMIOS_H
+#include <termios.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
 
 /**
  * \addtogroup buffer-utils
@@ -494,6 +499,39 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Of
     off_len_p->length = len;
   }
   return ret;
+}
+
+int
+screen_size(int size[2]) {
+#ifdef _WIN32
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+
+  GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+  size[0] = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+  size[1] = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+  return 0;
+
+#elif defined(HAVE_TERMIOS_H)
+  {
+    struct winsize w = {.ws_col = -1, .ws_row = -1};
+
+    if(isatty(STDIN_FILENO))
+      ioctl(STDIN_FILENO, TIOCGWINSZ, &w);
+    else if(isatty(STDOUT_FILENO))
+      ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+    else if(isatty(STDERR_FILENO))
+      ioctl(STDERR_FILENO, TIOCGWINSZ, &w);
+
+    size[0] = w.ws_col;
+    size[1] = w.ws_row;
+    return 0;
+  }
+#else
+  size[0] = 80;
+  size[1] = 25;
+  return 0;
+#endif
+  return -1;
 }
 
 /**

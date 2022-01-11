@@ -691,6 +691,11 @@ js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
   return ret;
 }
 
+JSValue
+js_get_propertyatom_value(JSContext* ctx, JSValueConst obj, JSAtom prop) {
+  return JS_GetPropertyInternal(ctx, obj, prop, JS_NULL, FALSE);
+}
+
 BOOL
 js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
   BOOL ret = FALSE;

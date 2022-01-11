@@ -2402,6 +2402,33 @@ qsort_r.c.s:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/qsort_r.c.s
 .PHONY : qsort_r.c.s
 
+queue.o: queue.c.o
+.PHONY : queue.o
+
+# target to build an object file
+queue.c.o:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/queue.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/queue.c.o
+.PHONY : queue.c.o
+
+queue.i: queue.c.i
+.PHONY : queue.i
+
+# target to preprocess a source file
+queue.c.i:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/queue.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/queue.c.i
+.PHONY : queue.c.i
+
+queue.s: queue.c.s
+.PHONY : queue.s
+
+# target to generate assembly for a file
+queue.c.s:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/queue.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/queue.c.s
+.PHONY : queue.c.s
+
 quickjs-archive.o: quickjs-archive.c.o
 .PHONY : quickjs-archive.o
 
@@ -3545,6 +3572,9 @@ help:
 	@echo "... qsort_r.o"
 	@echo "... qsort_r.i"
 	@echo "... qsort_r.s"
+	@echo "... queue.o"
+	@echo "... queue.i"
+	@echo "... queue.s"
 	@echo "... quickjs-archive.o"
 	@echo "... quickjs-archive.i"
 	@echo "... quickjs-archive.s"

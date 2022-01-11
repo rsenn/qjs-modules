@@ -24,13 +24,16 @@ typedef union {
   struct sockaddr_in6 sai6;
 } SockAddr;
 
+#define SOCKET_PROPS() \
+  uint16_t fd; \
+  unsigned error : 8; \
+  int syscall : 4; \
+  BOOL nonblock : 1, async : 1; \
+  int32_t ret;
+
 union __attribute__((packed)) socket_state {
   struct {
-    uint16_t fd;
-    unsigned error : 8;
-    int syscall : 4;
-    BOOL nonblock : 1, async : 1;
-    int32_t ret;
+    SOCKET_PROPS()
   };
   uint64_t u64;
   void* ptr;
@@ -45,7 +48,8 @@ struct async_closure {
 };
 
 struct __attribute__((packed)) async_socket_state {
-  union socket_state;
+  SOCKET_PROPS()
+
   struct socket_handlers handlers;
 };
 
@@ -128,13 +132,45 @@ js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
 
 static inline Socket
 js_socket_data(JSValueConst value) {
-  Socket sock;
   JSClassID id = JS_GetClassID(value);
-  if(id == js_socket_class_id || id == js_async_socket_class_id) {
-    sock.ptr = JS_GetOpaque(value, id);
-    return sock;
+  if(id > 0 && (id == js_socket_class_id || id == js_async_socket_class_id)) {
+    void* ptr;
+    if((ptr = JS_GetOpaque(value, id))) {
+      Socket sock;
+      if(id == js_async_socket_class_id)
+        sock = *(Socket*)ptr;
+      else
+        sock.ptr = ptr;
+      return sock;
+    }
   }
   return (Socket){-1, 0, -1};
+}
+
+static inline Socket*
+js_socket_ptr(JSValueConst value) {
+  Socket sock;
+  JSClassID id = JS_GetClassID(value);
+  if(id > 0) {
+    if(id == js_socket_class_id) {
+      struct JSObject* obj;
+      obj = JS_VALUE_GET_OBJ(value);
+      return &obj->u.opaque;
+    } else if(id == js_async_socket_class_id) {
+      return JS_GetOpaque(value, id);
+    }
+  }
+  return 0;
+}
+
+static inline AsyncSocket*
+js_async_socket_ptr(JSValueConst value) {
+  Socket sock;
+  JSClassID id = JS_GetClassID(value);
+  if(id > 0 && id == js_async_socket_class_id)
+    return JS_GetOpaque(value, id);
+
+  return 0;
 }
 
 static inline Socket
@@ -142,8 +178,12 @@ js_socket_data2(JSContext* ctx, JSValueConst value) {
   Socket sock = {-1, 0, -1};
   JSClassID id = JS_GetClassID(value);
   assert(id == js_socket_class_id || id == js_async_socket_class_id);
-  if(id == js_socket_class_id || id == js_async_socket_class_id)
-    sock.ptr = JS_GetOpaque2(ctx, value, id);
+  if(id > 0 && (id == js_socket_class_id || id == js_async_socket_class_id)) {
+    void** ptr = JS_GetOpaque2(ctx, value, id);
+    if(ptr)
+
+      sock.ptr = id == js_async_socket_class_id ? *ptr : ptr;
+  }
   return sock;
 }
 

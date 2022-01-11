@@ -45,6 +45,10 @@
 #include <sys/inotify.h>
 #endif
 #include "buffer-utils.h"
+#ifndef _WIN32
+#include <termios.h>
+#include <sys/ioctl.h>
+#endif
 
 /**
  * \addtogroup quickjs-misc
@@ -753,6 +757,52 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_SetPropertyStr(ctx, ret, "release", JS_NewString(ctx, un.release));
     JS_SetPropertyStr(ctx, ret, "version", JS_NewString(ctx, un.version));
     JS_SetPropertyStr(ctx, ret, "machine", JS_NewString(ctx, un.machine));
+  }
+
+  return ret;
+}
+
+static JSValue
+js_misc_ioctl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  int32_t fd = -1, args[2] = {-1, -1};
+  int64_t request = -1LL;
+
+  JS_ToInt32(ctx, &fd, argv[0]);
+  JS_ToInt64(ctx, &request, argv[1]);
+
+  if(argc >= 3)
+    JS_ToInt32(ctx, &args[0], argv[2]);
+  if(argc >= 4)
+    JS_ToInt32(ctx, &args[1], argv[3]);
+
+  return JS_NewInt32(ctx, ioctl(fd, request, args[0], args[1]));
+}
+
+static JSValue
+js_misc_screensize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  int size[2] = {-1, -1};
+
+  if(argc >= 1 && JS_IsObject(argv[0]))
+    ret = JS_DupValue(ctx, argv[0]);
+
+  if(!screen_size(size)) {
+    JSValue width, height;
+    if(JS_IsUndefined(ret))
+      ret = argc >= 1 && JS_IsArray(ctx, argv[0]) ? JS_DupValue(ctx, argv[0]) : JS_NewArray(ctx);
+    width = JS_NewInt32(ctx, size[0]);
+    height = JS_NewInt32(ctx, size[1]);
+    if(JS_IsArray(ctx, ret)) {
+      JS_SetPropertyUint32(ctx, ret, 0, width);
+      JS_SetPropertyUint32(ctx, ret, 1, height);
+    } else if(JS_IsObject(ret)) {
+      JS_SetPropertyStr(ctx, ret, "width", width);
+      JS_SetPropertyStr(ctx, ret, "height", height);
+    } else {
+      JS_FreeValue(ctx, width);
+      JS_FreeValue(ctx, height);
+    }
   }
 
   return ret;
@@ -1684,6 +1734,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
 #ifndef _WIN32
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
+    JS_CFUNC_DEF("ioctl", 3, js_misc_ioctl),
+    JS_CFUNC_DEF("getScreenSize", 0, js_misc_screensize),
 #endif
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
@@ -1823,6 +1875,48 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(IN_ISDIR),
     JS_CONSTANT(IN_ONESHOT),
     JS_CONSTANT(IN_ALL_EVENTS),
+#endif
+#ifndef _WIN32
+    JS_CONSTANT(TIOCEXCL),
+    JS_CONSTANT(TIOCNXCL),
+    JS_CONSTANT(TIOCSCTTY),
+    JS_CONSTANT(TIOCGPGRP),
+    JS_CONSTANT(TIOCSPGRP),
+    JS_CONSTANT(TIOCOUTQ),
+    JS_CONSTANT(TIOCSTI),
+    JS_CONSTANT(TIOCGWINSZ),
+    JS_CONSTANT(TIOCSWINSZ),
+    JS_CONSTANT(TIOCMGET),
+    JS_CONSTANT(TIOCMBIS),
+    JS_CONSTANT(TIOCMBIC),
+    JS_CONSTANT(TIOCMSET),
+    JS_CONSTANT(TIOCGSOFTCAR),
+    JS_CONSTANT(TIOCSSOFTCAR),
+    JS_CONSTANT(TIOCINQ),
+    JS_CONSTANT(TIOCLINUX),
+    JS_CONSTANT(TIOCCONS),
+    JS_CONSTANT(TIOCGSERIAL),
+    JS_CONSTANT(TIOCSSERIAL),
+    JS_CONSTANT(TIOCPKT),
+    JS_CONSTANT(TIOCNOTTY),
+    JS_CONSTANT(TIOCSETD),
+    JS_CONSTANT(TIOCGETD),
+    JS_CONSTANT(TIOCSBRK),
+    JS_CONSTANT(TIOCCBRK),
+    JS_CONSTANT(TIOCGSID),
+    JS_CONSTANT(TIOCGPTN),
+    JS_CONSTANT(TIOCSPTLCK),
+    JS_CONSTANT(TIOCSERCONFIG),
+    JS_CONSTANT(TIOCSERGWILD),
+    JS_CONSTANT(TIOCSERSWILD),
+    JS_CONSTANT(TIOCGLCKTRMIOS),
+    JS_CONSTANT(TIOCSLCKTRMIOS),
+    JS_CONSTANT(TIOCSERGSTRUCT),
+    JS_CONSTANT(TIOCSERGETLSR),
+    JS_CONSTANT(TIOCSERGETMULTI),
+    JS_CONSTANT(TIOCSERSETMULTI),
+    JS_CONSTANT(TIOCMIWAIT),
+    JS_CONSTANT(TIOCGICOUNT),
 #endif
 };
 

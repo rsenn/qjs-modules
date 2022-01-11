@@ -44,6 +44,7 @@ size_t dbuf_token_pop(DynBuf*, char);
 size_t dbuf_token_push(DynBuf*, const char*, size_t len, char delim);
 JSValue dbuf_tostring_free(DynBuf*, JSContext*);
 ssize_t dbuf_load(DynBuf*, const char*);
+int screen_size(int size[2]);
 
 static inline int
 dbuf_putm(DynBuf* db, ...) {
