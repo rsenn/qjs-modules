@@ -130,16 +130,20 @@ static inline Socket
 js_socket_data(JSValueConst value) {
   Socket sock;
   JSClassID id = JS_GetClassID(value);
-  sock.ptr = JS_GetOpaque(value, js_socket_class_id) || JS_GetOpaque(value, js_async_socket_class_id);
-  return sock;
+  if(id == js_socket_class_id || id == js_async_socket_class_id) {
+    sock.ptr = JS_GetOpaque(value, id);
+    return sock;
+  }
+  return (Socket){-1, 0, -1};
 }
 
 static inline Socket
 js_socket_data2(JSContext* ctx, JSValueConst value) {
-  Socket sock;
-  if(!(sock = js_socket_data(value)).ptr)
-    sock.ptr = JS_GetOpaque2(ctx, value, js_socket_class_id);
-
+  Socket sock = {-1, 0, -1};
+  JSClassID id = JS_GetClassID(value);
+  assert(id == js_socket_class_id || id == js_async_socket_class_id);
+  if(id == js_socket_class_id || id == js_async_socket_class_id)
+    sock.ptr = JS_GetOpaque2(ctx, value, id);
   return sock;
 }
 

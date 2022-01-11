@@ -749,7 +749,20 @@ js_socket_new(JSContext* ctx, int sock, BOOL async) {
   return js_socket_new_proto(ctx, socket_proto, sock, async);
 }
 
-enum SocketProperties {
+static JSValue
+js_socket_syscall(JSContext* ctx, JSValueConst this_val) {
+  const char* syscall;
+  Socket sock = js_socket_data(this_val);
+
+  /* assert(sock.syscall > 0);
+   assert(sock.syscall < socket_syscalls_size);*/
+  if((syscall = socket_syscall(sock)))
+    return JS_NewString(ctx, syscall);
+
+  return JS_NewInt32(ctx, sock.syscall);
+}
+
+enum {
   SOCKETS_FD,
   SOCKETS_OPEN,
   SOCKETS_EOF,
@@ -794,13 +807,7 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case SOCKETS_SYSCALL: {
-      const char* syscall;
-      /* assert(sock.syscall > 0);
-       assert(sock.syscall < socket_syscalls_size);*/
-      if((syscall = socket_syscall(sock)))
-        ret = JS_NewString(ctx, syscall);
-      else
-        ret = JS_NewInt32(ctx, sock.syscall);
+      ret = js_socket_syscall(ctx, this_val);
       break;
     }
     case SOCKETS_ERRNO: {
@@ -875,7 +882,7 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
   return ret;
 }
 
-enum SocketMethods {
+enum {
   SOCKETS_NDELAY = 0x00,
   SOCKETS_BIND = 0x01,
   SOCKETS_ACCEPT = 0x02,
@@ -1130,12 +1137,13 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewInt32(ctx, (int16_t)sock.fd), JS_PROP_ENUMERABLE);
   if(sock.ret >= 0) {
-    JS_DefinePropertyValueStr(ctx, obj, "ret", JS_NewUint32(ctx, sock.ret), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "ret", JS_NewUint32(ctx, sock.ret), JS_PROP_CONFIGURABLE);
   } else {
     const char* syscall = socket_syscall(sock);
-    JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_ENUMERABLE);
-    JS_DefinePropertyValueStr(ctx, obj, "error", JS_NewString(ctx, strerror(sock.error)), JS_PROP_ENUMERABLE);
   }
+  JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_CONFIGURABLE | (sock.error ? JS_PROP_ENUMERABLE : 0));
+  JS_DefinePropertyValueStr(
+      ctx, obj, "error", JS_NewString(ctx, strerror(sock.error)), JS_PROP_CONFIGURABLE | (sock.error ? JS_PROP_ENUMERABLE : 0));
   if(sock.syscall > 0 && sock.syscall < socket_syscalls_size)
     JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, socket_syscall(sock)), JS_PROP_ENUMERABLE);
 
@@ -1284,7 +1292,7 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("open", js_socket_get, 0, SOCKETS_OPEN),
     JS_CGETSET_MAGIC_DEF("eof", js_socket_get, 0, SOCKETS_EOF),
     JS_CGETSET_MAGIC_DEF("mode", js_socket_get, js_socket_set, SOCKETS_MODE),
-    JS_CGETSET_MAGIC_DEF("ret", js_socket_get, js_socket_set, SOCKETS_RET),
+    JS_CGETSET_MAGIC_FLAGS_DEF("ret", js_socket_get, js_socket_set, SOCKETS_RET, JS_PROP_CONFIGURABLE),
     JS_CGETSET_MAGIC_DEF("nonblock", js_socket_get, js_socket_set, SOCKETS_NONBLOCK),
     JS_CFUNC_MAGIC_DEF("ndelay", 0, js_socket_method, SOCKETS_NDELAY),
     JS_CFUNC_MAGIC_DEF("bind", 1, js_socket_method, SOCKETS_BIND),

@@ -337,9 +337,11 @@ function main(...args) {
     let balancers = [balancer()];
 
     let imports = [],
-      exports = [],impexp,
+      exports = [],
+      impexp,
       cond,
-      imp = [], count=0;
+      imp = [],
+      count = 0;
 
     /* console.log('lexer.rules', Object.fromEntries(lexer.ruleNames.map(n => [n, new RegExp(lexer.getRule(n)[1], 's')])));
     console.log('lexer.states', lexer.states);
