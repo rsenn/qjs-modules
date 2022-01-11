@@ -69,7 +69,6 @@ queue_read(queue_t* q, void* x, size_t n) {
   return ret;
 }
 
-
 ssize_t
 queue_peek(queue_t* q, void* x, size_t n) {
   block_t *b, *next;

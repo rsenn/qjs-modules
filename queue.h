@@ -27,7 +27,8 @@ ssize_t queue_write(queue_t*, const void*, size_t n);
 ssize_t queue_read(queue_t*, void*, size_t n);
 ssize_t queue_peek(queue_t*, void*, size_t n);
 
-static inline size_t queue_size(queue_t*q) {
+static inline size_t
+queue_size(queue_t* q) {
   return q->nbytes;
 }
 

@@ -5,7 +5,7 @@ import {
   socklen_t,
   fd_set,
   SockAddr,
-  Socket,
+  Socket,AsyncSocket,
   select,
   poll,
   AF_INET,
@@ -57,10 +57,11 @@ function main() {
   console.log(`la.toString() =`, la.toString());
   console.log(`ra.toString() =`, ra.toString());
   let opt, ret, data, timeout, pfds, sock;
-  sock = new Socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  console.log('AsyncSocket', AsyncSocket);
+  sock = new AsyncSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  console.log('sock', sock);
   sock.nonblock = false;
   console.log(`sock.nonblock =`, sock.nonblock);
-  console.log('sock', sock);
 
   console.log(`SOL_SOCKET =`, SOL_SOCKET);
   console.log(`SO_REUSEADDR =`, SO_REUSEADDR);

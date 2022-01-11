@@ -28,22 +28,32 @@ union __attribute__((packed)) socket_state {
   struct {
     uint16_t fd;
     unsigned error : 8;
-    unsigned syscall : 4;
-    BOOL nonblock : 1;
+    int syscall : 4;
+    BOOL nonblock : 1, async : 1;
     int32_t ret;
   };
   uint64_t u64;
   void* ptr;
 };
 
+struct socket_handlers {
+  JSValue close, connect, data, drain, end, error, lookup, ready, timeout;
+};
+
 struct async_closure {
   JSCFunctionMagic* set_mux;
 };
 
-typedef union socket_state Socket;
+struct __attribute__((packed)) async_socket_state {
+  union socket_state;
+  struct socket_handlers handlers;
+};
 
-extern thread_local VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id;
-extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor;
+typedef union socket_state Socket;
+typedef struct async_socket_state AsyncSocket;
+
+extern thread_local VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_async_socket_class_id;
+extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto, async_socket_ctor;
 
 enum SocketCalls {
   SYSCALL_SOCKET = 1,
@@ -119,14 +129,17 @@ js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
 static inline Socket
 js_socket_data(JSValueConst value) {
   Socket sock;
-  sock.ptr = JS_GetOpaque(value, js_socket_class_id);
+  JSClassID id = JS_GetClassID(value);
+  sock.ptr = JS_GetOpaque(value, js_socket_class_id) || JS_GetOpaque(value, js_async_socket_class_id);
   return sock;
 }
 
 static inline Socket
 js_socket_data2(JSContext* ctx, JSValueConst value) {
   Socket sock;
-  sock.ptr = JS_GetOpaque2(ctx, value, js_socket_class_id);
+  if(!(sock = js_socket_data(value)).ptr)
+    sock.ptr = JS_GetOpaque2(ctx, value, js_socket_class_id);
+
   return sock;
 }
 
