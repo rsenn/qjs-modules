@@ -88,12 +88,12 @@ struct jsm_module_record {
 
 jsm_module_extern_native(std);
 jsm_module_extern_native(os);
-jsm_module_extern_native(child_process);
+// jsm_module_extern_native(child_process);
 jsm_module_extern_native(deep);
 jsm_module_extern_native(inspect);
 jsm_module_extern_native(lexer);
 jsm_module_extern_native(misc);
-jsm_module_extern_native(mmap);
+// jsm_module_extern_native(mmap);
 jsm_module_extern_native(path);
 jsm_module_extern_native(pointer);
 jsm_module_extern_native(predicate);
@@ -176,12 +176,12 @@ jsm_init_modules(JSContext* ctx) {
 
   jsm_builtin_native(std);
   jsm_builtin_native(os);
-  jsm_builtin_native(child_process);
+  // jsm_builtin_native(child_process);
   jsm_builtin_native(deep);
   jsm_builtin_native(inspect);
   jsm_builtin_native(lexer);
   jsm_builtin_native(misc);
-  jsm_builtin_native(mmap);
+  // jsm_builtin_native(mmap);
   jsm_builtin_native(path);
   jsm_builtin_native(pointer);
   jsm_builtin_native(predicate);
@@ -479,14 +479,14 @@ jsm_context_new(JSRuntime* rt) {
   /* jsm_module_native(std);
    jsm_module_native(os);
  #ifndef __wasi__
-   jsm_module_native(child_process);
+   //jsm_module_native(child_process);
  #endif
    jsm_module_native(deep);
    jsm_module_native(inspect);
    jsm_module_native(lexer);
    jsm_module_native(misc);
  #ifndef __wasi__
-   jsm_module_native(mmap);
+   //jsm_module_native(mmap);
  #endif
    jsm_module_native(path);
    jsm_module_native(pointer);

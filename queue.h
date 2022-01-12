@@ -11,17 +11,29 @@
  * @{
  */
 
+struct link {
+  struct block *prev, *next;
+};
+
 typedef struct queue {
   size_t nbytes;
   size_t nblocks;
-  struct list_head blocks;
+  union {
+    struct link blocks;
+    struct list_head head;
+  };
 } queue_t;
 
-typedef struct block {
-  struct list_head link;
+struct block {
+  union {
+    struct link link;
+    struct list_head head;
+  };
   uint32_t size, pos, allocated;
   uint8_t data[0];
-} block_t;
+};
+
+typedef struct block block_t;
 
 ssize_t queue_write(queue_t*, const void*, size_t n);
 ssize_t queue_read(queue_t*, void*, size_t n);

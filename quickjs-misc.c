@@ -45,7 +45,7 @@
 #include <sys/inotify.h>
 #endif
 #include "buffer-utils.h"
-#ifndef _WIN32
+#ifdef HAVE_TERMIOS_H
 #include <termios.h>
 #include <sys/ioctl.h>
 #endif
@@ -1765,6 +1765,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
 #ifndef _WIN32
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
+#endif
+#ifdef HAVE_TERMIOS_H
     JS_CFUNC_DEF("ioctl", 3, js_misc_ioctl),
     JS_CFUNC_DEF("getScreenSize", 0, js_misc_screensize),
 #endif
@@ -1909,7 +1911,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(IN_ONESHOT),
     JS_CONSTANT(IN_ALL_EVENTS),
 #endif
-#ifndef _WIN32
+#ifdef HAVE_TERMIOS_H
     JS_CONSTANT(TIOCEXCL),
     JS_CONSTANT(TIOCNXCL),
     JS_CONSTANT(TIOCSCTTY),

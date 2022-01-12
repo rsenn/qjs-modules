@@ -1,4 +1,6 @@
 #include "queue.h"
+#include <stdlib.h>
+#include <string.h>
 
 static inline block_t*
 block_alloc(size_t a) {
@@ -24,7 +26,7 @@ queue_write(queue_t* q, const void* x, size_t n) {
 
   if((b = block_alloc(n))) {
 
-    list_add(&b->link, &q->blocks);
+    list_add(&b->head, &q->head);
     b->size = n;
     memcpy(b->data, x, n);
     q->nbytes += n;

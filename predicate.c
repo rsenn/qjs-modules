@@ -1,5 +1,7 @@
 #include "predicate.h"
+#include <quickjs.h>
 #include <libregexp.h>
+#include <ctype.h>
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
 
@@ -558,8 +560,10 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     args = &tmp;
   }*/
   if(args == 0) {
-    if(!arguments_alloc(&tmp, ctx, predicate_recursive_num_args(pr) + 1))
-      return JS_ThrowOutOfMemory(ctx);
+    if(!arguments_alloc(&tmp, ctx, predicate_recursive_num_args(pr) + 1)) {
+      JS_ThrowOutOfMemory(ctx);
+      return;
+    }
     args = &tmp;
   }
 
@@ -692,14 +696,14 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
         x = s;
         if((arglen = byte_chrs(s, slen, " =", 2)) < slen) {
           for(i = arglen; s[i]; i++)
-            if(!isspace(s[i]) && s[i] != '=' && s[i] != '>')
+            if(!is_whitespace_char(s[i]) && s[i] != '=' && s[i] != '>')
               break;
-          if(!strncmp(&s[i], s, arglen) && !isalnum(s[i + arglen])) {
+          if(!strncmp(&s[i], s, arglen) && !(is_alphanumeric_char(s[i + arglen]) || is_digit_char(s[i + arglen]))) {
             s += i + arglen;
           }
         } else
 
-            if(!strncmp(s + 1, " => ", 4) && isalpha(s[5]) && isspace(s[6])) {
+            if(!strncmp(s + 1, " => ", 4) && is_alphanumeric_char(s[5]) && is_whitespace_char(s[6])) {
           s += 6;
         }
 
