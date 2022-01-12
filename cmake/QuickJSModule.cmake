@@ -55,12 +55,15 @@ function(make_module FNAME)
     set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES})
   endif(ARGN)
 
-  if(WASI OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
-    set(PREFIX "lib")
+  if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     set(BUILD_SHARED_MODULES OFF)
-  else(WASI OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+  endif(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+
+  if(NOT WASI AND "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+    set(PREFIX "lib")
+  else(NOT WASI AND "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     set(PREFIX "")
-  endif(WASI OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+  endif(NOT WASI AND "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 
   #dump(VNAME ${VNAME}_SOURCES SOURCES)
 
@@ -68,8 +71,9 @@ function(make_module FNAME)
     add_library(${TARGET_NAME} SHARED ${SOURCES})
 
     set_target_properties(
-      ${TARGET_NAME} PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}" PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}"
-                                COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
+      ${TARGET_NAME}
+      PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}" PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}"
+                 COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
 
     target_compile_definitions(
       ${TARGET_NAME} PRIVATE _GNU_SOURCE=1 JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1
