@@ -854,10 +854,11 @@ predicate_values(const Predicate* pr, JSContext* ctx) {
     }
 
     case PREDICATE_PROPERTY: {
-      /*if(js_is_nullish(ctx, pr->property.predicate))
-        ret = JS_AtomToValue(ctx, pr->property.atom);
-      else*/
-      ret = js_values_toarray(ctx, 2, &pr->property.atom);
+      JSValue v[2] = {JS_AtomToValue(ctx, pr->property.atom), pr->property.predicate};
+
+      ret = js_values_toarray(ctx, 2, v);
+      JS_FreeValue(ctx, v[0]);
+
       break;
     }
 

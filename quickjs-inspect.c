@@ -3,6 +3,7 @@
 #include <list.h>
 #include "property-enumeration.h"
 #include "quickjs-internal.h"
+#include "quickjs-predicate.h"
 #include <quickjs.h>
 #include <quickjs-config.h>
 #include "utils.h"
@@ -797,7 +798,9 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     // compact, opts->compact, deepest, d);
   }
 
-  if(!(is_function = JS_IsFunction(ctx, value))) {
+  is_function = JS_IsFunction(ctx, value) && (js_predicate_class_id <= 0 || JS_GetClassID(value) < js_predicate_class_id);
+
+  if(!is_function) {
     is_array = js_is_array(ctx, value);
     is_typedarray = js_is_typedarray(value);
 
