@@ -25,6 +25,8 @@ int isatty(HANDLE);
 #endif
 #endif
 
+static JSClassID function_class_id_ceil = JS_CLASS_ASYNC_GENERATOR;
+
 /**
  * \defgroup quickjs-inspect QuickJS module: inspect - Inspection
  * @{
@@ -798,7 +800,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     // compact, opts->compact, deepest, d);
   }
 
-  is_function = JS_IsFunction(ctx, value) && (js_predicate_class_id <= 0 || JS_GetClassID(value) < js_predicate_class_id);
+  is_function = JS_IsFunction(ctx, value) && (function_class_id_ceil <= 0 || JS_GetClassID(value) < function_class_id_ceil);
 
   if(!is_function) {
     is_array = js_is_array(ctx, value);
@@ -1192,6 +1194,9 @@ static const JSCFunctionListEntry js_inspect_funcs[] = {
 static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   JSValue inspect, inspect_symbol, symbol_ctor;
+
+  function_class_id_ceil = MAX_NUM(JS_CLASS_ASYNC_GENERATOR, js_predicate_class_id);
+
   stdout_isatty = isatty(STDOUT_FILENO);
   stderr_isatty = isatty(STDERR_FILENO);
 
