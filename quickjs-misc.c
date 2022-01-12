@@ -1154,7 +1154,9 @@ js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   int32_t class_id = 0;
 
   if(argc >= 1) {
-    if(JS_IsNumber(argv[0]))
+    if(JS_IsObject(argv[0]))
+      class_id = JS_GetClassID(argv[0]);
+    else if(JS_IsNumber(argv[0]))
       JS_ToInt32(ctx, &class_id, argv[0]);
     else if((obj = js_value_obj(argv[0])))
       class_id = obj->class_id;
@@ -1562,7 +1564,7 @@ enum {
 JSValue
 js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t r = -1;
-  JSValueConst arg = argv[0];
+  JSValueConst arg = argc >= 1 ? argv[0] : JS_UNDEFINED;
 
   switch(magic) {
     case IS_ARRAY: r = JS_IsArray(ctx, arg); break;
