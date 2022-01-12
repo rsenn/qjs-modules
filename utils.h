@@ -159,6 +159,8 @@ arguments_shiftn(Arguments* args, uint32_t n) {
   return i;
 }
 
+void arguments_dump(Arguments const*, DynBuf*);
+
 typedef struct {
   int c;
   JSValueConst* v;
@@ -200,6 +202,8 @@ js_arguments_shiftn(JSArguments* args, uint32_t n) {
   }
   return i;
 }
+
+void js_arguments_dump(JSArguments const*, JSContext*, DynBuf*);
 
 static inline size_t
 min_size(size_t a, size_t b) {
@@ -846,6 +850,19 @@ int js_array_copys(JSContext*, JSValueConst, int n, char** stra);
 int js_strv_copys(JSContext*, int, JSValueConst argv[], int n, char** stra);
 
 JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]);
+
+JSValue js_to_string(JSContext* ctx, JSValueConst this_obj);
+JSValue js_to_source(JSContext* ctx, JSValueConst this_obj);
+
+static inline char*
+js_tosource(JSContext* ctx, JSValueConst value) {
+  JSValue src = js_to_source(ctx, value);
+  const char* str = JS_ToCString(ctx, src);
+  JS_FreeValue(ctx, src);
+  char* ret = js_strdup(ctx, str);
+  JS_FreeCString(ctx, str);
+  return ret;
+}
 
 static inline size_t
 js_arraybuffer_length(JSContext* ctx, JSValueConst buffer) {

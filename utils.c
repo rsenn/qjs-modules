@@ -2379,6 +2379,66 @@ js_promise_adopt(JSContext* ctx, JSValueConst value) {
   return js_promise_wrap(ctx, value);
 }
 
+JSValue
+js_to_string(JSContext* ctx, JSValueConst this_obj) {
+  JSValue ret = JS_UNDEFINED;
+  JSAtom key = JS_NewAtom(ctx, "toString");
+  if(JS_HasProperty(ctx, this_obj, key))
+    ret = JS_Invoke(ctx, this_obj, key, 0, 0);
+  else
+    ret = JS_ThrowTypeError(ctx, "value has no .toString() method");
+  JS_FreeAtom(ctx, key);
+  return ret;
+}
+JSValue
+js_to_source(JSContext* ctx, JSValueConst this_obj) {
+  JSValue ret = JS_UNDEFINED;
+  JSAtom key = JS_NewAtom(ctx, "toSource");
+  if(JS_HasProperty(ctx, this_obj, key))
+    ret = JS_Invoke(ctx, this_obj, key, 0, 0);
+  else
+    ret = JS_ThrowTypeError(ctx, "value has no .toSource() method");
+  JS_FreeAtom(ctx, key);
+  return ret;
+}
+
+void
+arguments_dump(Arguments const* args, /*JSContext* ctx,*/ DynBuf* dbuf) {
+  int n = args->c, i;
+
+  if(n > 1)
+    dbuf_putstr(dbuf, "(");
+  for(i = 0; i < n; i++) {
+    const char* arg = args->v[i];
+    dbuf_putstr(dbuf, arg ? arg : "NULL");
+    if(i > 0)
+      dbuf_putstr(dbuf, ", ");
+  }
+  if(n > 1)
+    dbuf_putstr(dbuf, ")");
+}
+
+void
+js_arguments_dump(JSArguments const* args, JSContext* ctx, DynBuf* dbuf) {
+  int n = args->c, i;
+
+  if(n > 1)
+    dbuf_putstr(dbuf, "(");
+
+  for(i = 0; i < n; i++) {
+    JSValue arg = args->v[i];
+    if(JS_IsException(arg))
+      break;
+
+    js_value_dump(ctx, arg, dbuf);
+    if(i > 0)
+      dbuf_putstr(dbuf, ", ");
+  }
+
+  if(n > 1)
+    dbuf_putstr(dbuf, ")");
+}
+
 /**
  * @}
  */

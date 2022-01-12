@@ -392,7 +392,7 @@ js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(magic)
     predicate_tosource(pr, ctx, &dbuf, 0);
   else
-    predicate_tostring(pr, ctx, &dbuf);
+    predicate_dump(pr, ctx, &dbuf);
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
