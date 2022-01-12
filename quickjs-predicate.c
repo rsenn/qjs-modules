@@ -303,6 +303,8 @@ fail:
 
 enum {
   METHOD_EVAL = 0,
+  METHOD_KEYS,
+  METHOD_VALUES,
 };
 
 static JSValue
@@ -317,6 +319,15 @@ js_predicate_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     case METHOD_EVAL: {
       JSArguments args = js_arguments_new(argc, argv);
       ret = predicate_eval(pr, ctx, &args);
+      break;
+    }
+
+    case METHOD_KEYS: {
+      ret = predicate_keys(pr, ctx);
+      break;
+    }
+    case METHOD_VALUES: {
+      ret = predicate_values(pr, ctx);
       break;
     }
   }
@@ -401,7 +412,6 @@ js_predicate_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 enum {
   PROP_ID = 0,
-  PROP_VALUES,
   PROP_ARGC,
 };
 
@@ -419,10 +429,6 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case PROP_VALUES: {
-      ret = predicate_values(pr, ctx);
-      break;
-    }
     case PROP_ARGC: {
       ret = JS_NewUint32(ctx, predicate_recursive_num_args(pr));
       break;
@@ -641,6 +647,8 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   if(!(pr = js_predicate_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
+  // return predicate_values(pr, ctx);
+
   JSValue obj = JS_NewObjectClass(ctx, js_predicate_class_id);
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewInt32(ctx, pr->id), 0);
@@ -708,7 +716,7 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     }
     case PREDICATE_PROPERTY: {
       JS_DefinePropertyValueStr(ctx, obj, "atom", JS_AtomToValue(ctx, pr->property.atom), JS_PROP_ENUMERABLE);
-      if(!JS_IsUndefined(pr->property.predicate))
+      if(!js_is_null_or_undefined(pr->property.predicate))
         if(predicate_callable(ctx, pr->property.predicate))
           JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->property.predicate), JS_PROP_ENUMERABLE);
       break;
@@ -764,8 +772,9 @@ static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("toString", 0, js_predicate_tostring, 0),
     JS_CFUNC_MAGIC_DEF("toSource", 0, js_predicate_tostring, 1),
     JS_ALIAS_DEF("call", "eval"),
-    JS_CGETSET_MAGIC_FLAGS_DEF("id", js_predicate_get, 0, PROP_ID, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_DEF("values", js_predicate_get, 0, PROP_VALUES),
+    JS_CGETSET_MAGIC_FLAGS_DEF("id", js_predicate_get, 0, PROP_ID, JS_PROP_CONFIGURABLE),
+    JS_CFUNC_MAGIC_DEF("keys", 0, js_predicate_method, METHOD_KEYS),
+    JS_CFUNC_MAGIC_DEF("values", 0, js_predicate_method, METHOD_VALUES),
     JS_CGETSET_MAGIC_DEF("length", js_predicate_get, 0, PROP_ARGC),
     // JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E),
 };

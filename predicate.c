@@ -451,15 +451,15 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     case PREDICATE_OR:
     case PREDICATE_XOR: {
       size_t i;
-      dbuf_putstr(dbuf, "( ");
+      // dbuf_putstr(dbuf, "( ");
 
       for(i = 0; i < pr->boolean.npredicates; i++) {
         if(i > 0)
-          dbuf_putstr(dbuf, pr->id == PREDICATE_XOR ? " ^ " : pr->id == PREDICATE_AND ? " && " : " || ");
+          dbuf_putstr(dbuf, ", "); // pr->id == PREDICATE_XOR ? " ^ " : pr->id == PREDICATE_AND ? " && " : " || ");
 
         dbuf_put_value(dbuf, ctx, pr->boolean.predicates[i]);
       }
-      dbuf_putstr(dbuf, " )");
+      // dbuf_putstr(dbuf, " )");
 
       break;
     }
@@ -540,9 +540,11 @@ predicate_tostring(const Predicate* pr, JSContext* ctx) {
 
 void
 predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments* args) {
-  Arguments tmp;
+  Arguments tmp = {0, 0, 0, 0};
+  DynBuf abuf;
+  js_dbuf_init(ctx, &abuf);
 
-  if(args == 0 || args->c <= 0) {
+  /*if(args == 0 || args->c <= 0) {
     int i;
     char c[2] = {0, 0};
     tmp.c = predicate_recursive_num_args(pr) + 1;
@@ -553,27 +555,29 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       tmp.v[i] = js_strndup(ctx, c, 1);
     }
 
-    arguments_dump(&tmp, dbuf);
-
-    dbuf_putstr(dbuf, " => ");
+    args = &tmp;
+  }*/
+  if(args == 0) {
+    if(!arguments_alloc(&tmp, ctx, predicate_recursive_num_args(pr) + 1))
+      return JS_ThrowOutOfMemory(ctx);
     args = &tmp;
   }
 
   switch(pr->id) {
     case PREDICATE_TYPE: {
-      const char* arg = arguments_shift(args);
+      const char* arg = arguments_push(args, ctx, "value");
       dbuf_printf(dbuf, "typeof %s == %s", arg, js_value_type_name(pr->type.flags));
       break;
     }
 
     case PREDICATE_CHARSET: {
-      const char* arg = arguments_shift(args);
+      const char* arg = arguments_push(args, ctx, "chars");
       dbuf_printf(dbuf, "'%s'.indexOf(%s) != -1", pr->charset.set, arg);
       break;
     }
 
     case PREDICATE_STRING: {
-      const char* arg = arguments_shift(args);
+      const char* arg = arguments_push(args, ctx, "string");
       dbuf_printf(dbuf, "%s == '", arg);
       dbuf_put_escaped(dbuf, pr->string.str, pr->string.len);
       dbuf_putc(dbuf, '\'');
@@ -583,7 +587,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     case PREDICATE_EQUAL:
     case PREDICATE_INSTANCEOF:
     case PREDICATE_PROTOTYPEIS: {
-      const char* arg = arguments_shift(args);
+      const char* arg = arguments_push(args, ctx, pr->id == PREDICATE_EQUAL ? "value" : "object");
 
       if(pr->id == PREDICATE_EQUAL)
         dbuf_printf(dbuf, "%s == ", arg);
@@ -597,25 +601,25 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     }
 
     case PREDICATE_NOTNOT: {
-      const char* arg = arguments_shift(args);
+      const char* arg = arguments_push(args, ctx, "value");
       dbuf_printf(dbuf, "!!%s", arg);
       break;
     }
 
     case PREDICATE_NOT: {
-      const char* arg = arguments_shift(args);
+      const char* arg = arguments_push(args, ctx, "value");
       dbuf_printf(dbuf, "!%s", arg);
       break;
     }
 
     case PREDICATE_BNOT: {
-      const char* arg = arguments_shift(args);
+      const char* arg = arguments_push(args, ctx, "value");
       dbuf_printf(dbuf, "~%s", arg);
       break;
     }
 
     case PREDICATE_SQRT: {
-      const char* arg = arguments_shift(args);
+      const char* arg = arguments_push(args, ctx, "value");
       dbuf_printf(dbuf, "Math.sqrt(%s)", arg);
       break;
     }
@@ -631,7 +635,6 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     case PREDICATE_ATAN2: {
 
       JSPrecedence prec = predicate_precedence(pr);
-
       BOOL parens[2] = {!JS_IsNumber(pr->binary.left), !JS_IsNumber(pr->binary.right)};
 
       Predicate* other;
@@ -671,19 +674,37 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
         if(i > 0)
           dbuf_putstr(dbuf, ((const char* const[]){" || ", " && ", " ^ "})[pr->id - PREDICATE_OR]);
 
+        /*        if(!other)
+                  js_value_dump(ctx, pr->boolean.predicates[i], dbuf);
+                else */
         predicate_inspect(pr->boolean.predicates[i], ctx, dbuf, args, parens);
       }
       break;
     }
 
     case PREDICATE_PROPERTY: {
-      const char* arg = arguments_shift(args);
+      const char* arg = arguments_push(args, ctx, "object");
       const char* prop = JS_AtomToCString(ctx, pr->property.atom);
-      char* s = js_is_null_or_undefined(pr->property.predicate) ? (char*)0 : js_tosource(ctx, pr->property.predicate);
+      char *x, *s = js_is_null_or_undefined(pr->property.predicate) ? (char*)0 : js_tosource(ctx, pr->property.predicate);
       dbuf_printf(dbuf, "%s.%s", arg, prop);
       if(s) {
-        dbuf_putstr(dbuf, !strncmp(s + 1, " => ", 4) && isalpha(s[5]) && isspace(s[6]) ? s + 6 : s);
-        js_free(ctx, s);
+        int i, arglen, slen = strlen(s);
+        x = s;
+        if((arglen = byte_chrs(s, slen, " =", 2)) < slen) {
+          for(i = arglen; s[i]; i++)
+            if(!isspace(s[i]) && s[i] != '=' && s[i] != '>')
+              break;
+          if(!strncmp(&s[i], s, arglen) && !isalnum(s[i + arglen])) {
+            s += i + arglen;
+          }
+        } else
+
+            if(!strncmp(s + 1, " => ", 4) && isalpha(s[5]) && isspace(s[6])) {
+          s += 6;
+        }
+
+        dbuf_putstr(dbuf, s);
+        js_free(ctx, x);
       }
       JS_FreeCString(ctx, prop);
       break;
@@ -715,6 +736,14 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       break;
     }
   }
+
+  arguments_dump(args, &abuf);
+
+  dbuf_putstr(&abuf, " => ");
+  dbuf_put(&abuf, dbuf->buf, dbuf->size);
+  dbuf_0(&abuf);
+  dbuf_free(dbuf);
+  *dbuf = abuf;
 }
 
 JSValue
@@ -816,9 +845,13 @@ predicate_values(const Predicate* pr, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   switch(pr->id) {
     case PREDICATE_TYPE:
-    case PREDICATE_CHARSET:
-    case PREDICATE_STRING:
     case PREDICATE_REGEXP: {
+      break;
+    }
+    case PREDICATE_CHARSET:
+    case PREDICATE_STRING: {
+      ret = JS_NewArray(ctx);
+      JS_SetPropertyUint32(ctx, ret, 0, JS_NewStringLen(ctx, pr->string.str, pr->string.len));
       break;
     }
 
@@ -873,6 +906,74 @@ predicate_values(const Predicate* pr, JSContext* ctx) {
     }
     case PREDICATE_FUNCTION: {
       ret = JS_DupValue(ctx, pr->function.func);
+      break;
+    }
+  }
+  return ret;
+}
+
+JSValue
+predicate_keys(const Predicate* pr, JSContext* ctx) {
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i = 0;
+  switch(pr->id) {
+    case PREDICATE_TYPE:
+    case PREDICATE_CHARSET:
+    case PREDICATE_STRING:
+    case PREDICATE_REGEXP: {
+      break;
+    }
+
+    case PREDICATE_EQUAL:
+    case PREDICATE_INSTANCEOF:
+    case PREDICATE_PROTOTYPEIS:
+    case PREDICATE_NOTNOT:
+    case PREDICATE_NOT:
+    case PREDICATE_BNOT:
+    case PREDICATE_SQRT: {
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
+      break;
+    }
+
+    case PREDICATE_ADD:
+    case PREDICATE_SUB:
+    case PREDICATE_MUL:
+    case PREDICATE_DIV:
+    case PREDICATE_MOD:
+    case PREDICATE_BOR:
+    case PREDICATE_BAND:
+    case PREDICATE_POW:
+    case PREDICATE_ATAN2: {
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "left"));
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "right"));
+      break;
+    }
+
+    case PREDICATE_OR:
+    case PREDICATE_AND:
+    case PREDICATE_XOR: {
+      uint32_t n = pr->boolean.npredicates;
+      for(i = 0; i < n; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, i));
+      break;
+    }
+
+    case PREDICATE_PROPERTY: {
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "atom"));
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
+      break;
+    }
+
+    case PREDICATE_MEMBER: {
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "object"));
+      break;
+    }
+
+    case PREDICATE_SHIFT: {
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
+      break;
+    }
+    case PREDICATE_FUNCTION: {
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "func"));
       break;
     }
   }

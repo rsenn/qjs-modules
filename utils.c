@@ -1149,16 +1149,9 @@ const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
   const char* const types[] = {
-      "UNDEFINED",     "0",
-      "BOOL",          "INT",
-      "OBJECT",        "STRING",
-      "SYMBOL",        "BIG_FLOAT",
-      "BIG_INT",       "BIG_DECIMAL",
-      "FLOAT64",       "NAN",
-      "FUNCTION",      "ARRAY",
-      "MODULE",        "FUNCTION_BYTECODE",
-      "UNINITIALIZED", "CATCH_OFFSET",
-      "EXCEPTION",
+      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
+      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
+      "uninitialized", "catch_offset", "exception",
   };
   if(flag >= 0 && flag < countof(types))
     return types[flag];
@@ -1196,7 +1189,7 @@ js_value_type_get(JSContext* ctx, JSValueConst value) {
   if(JS_IsArray(ctx, value))
     return FLAG_ARRAY;
 
-  if(JS_IsFunction(ctx, value))
+  if(JS_IsFunction(ctx, value) && JS_GetClassID(value) <= JS_CLASS_ASYNC_GENERATOR)
     return FLAG_FUNCTION;
 
   if(JS_VALUE_IS_NAN(value))
@@ -1317,7 +1310,11 @@ void
 js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   const char* str;
   size_t len;
-  if(JS_IsObject(value)) {
+  if(JS_IsFunction(ctx, value)) {
+    JSValue src = js_invoke(ctx, value, "toSource", 0, 0);
+    js_value_dump(ctx, src, db);
+    JS_FreeValue(ctx, src);
+  } else if(JS_IsObject(value)) {
     const char* str = js_object_tostring(ctx, value);
     dbuf_putstr(db, str);
     js_cstring_free(ctx, str);
@@ -2410,12 +2407,68 @@ arguments_dump(Arguments const* args, /*JSContext* ctx,*/ DynBuf* dbuf) {
     dbuf_putstr(dbuf, "(");
   for(i = 0; i < n; i++) {
     const char* arg = args->v[i];
-    dbuf_putstr(dbuf, arg ? arg : "NULL");
     if(i > 0)
       dbuf_putstr(dbuf, ", ");
+    dbuf_putstr(dbuf, arg ? arg : "NULL");
   }
   if(n > 1)
     dbuf_putstr(dbuf, ")");
+}
+
+BOOL
+arguments_alloc(Arguments* args, JSContext* ctx, int n) {
+  int i, j, c;
+  if(args->a) {
+    if(!(args->v = js_realloc(ctx, args->v, sizeof(char*) * (n + 1))))
+      return FALSE;
+    for(i = args->c; i < args->a; i++) args->v[i] = 0;
+    args->a = n;
+  } else {
+    char** v;
+    if(!(v = js_mallocz(ctx, sizeof(char*) * (n + 1))))
+      return FALSE;
+    c = MIN_NUM(args->c, n);
+    for(i = 0; i < c; i++) v[i] = js_strdup(ctx, args->v[i]);
+    for(j = c; j < args->c; j++) js_free(ctx, args->v[j]);
+    for(j = i; j <= n; j++) v[j] = 0;
+    args->v = v;
+    args->c = c;
+    args->a = n;
+  }
+  return TRUE;
+}
+
+const char*
+arguments_push(Arguments* args, JSContext* ctx, const char* arg) {
+  int r;
+  if(args->c + 1 >= args->a)
+    if(!arguments_alloc(args, ctx, args->a + 1))
+      return -1;
+  r = args->c;
+  args->v[r] = js_strdup(ctx, arg);
+  args->v[r + 1] = 0;
+  args->c++;
+  return args->v[r];
+}
+
+BOOL
+js_arguments_alloc(JSArguments* args, JSContext* ctx, int n) {
+  int i;
+  if(args->a) {
+    if(!(args->v = js_realloc(ctx, args->v, sizeof(JSValueConst) * (n + 1))))
+      return FALSE;
+
+    for(i = args->c; i < args->a; i++) args->v[i] = JS_UNDEFINED;
+  } else {
+    JSValueConst* v;
+
+    if(!(v = js_mallocz(ctx, sizeof(JSValueConst) * (n + 1))))
+      return FALSE;
+    memcpy(v, args->v, sizeof(JSValueConst) * (args->c + 1));
+    args->v = v;
+    args->a = n;
+  }
+  return TRUE;
 }
 
 void

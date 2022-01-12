@@ -130,6 +130,7 @@ void predicate_tosource(const Predicate*, JSContext* ctx, DynBuf* dbuf, Argument
 JSValue predicate_regexp_capture(uint8_t**, int capture_count, uint8_t* input, JSContext* ctx);
 void predicate_free_rt(Predicate*, JSRuntime* rt);
 JSValue predicate_values(const Predicate*, JSContext* ctx);
+JSValue predicate_keys(const Predicate*, JSContext* ctx);
 Predicate* predicate_clone(const Predicate*, JSContext* ctx);
 int predicate_regexp_compile(Predicate*, JSContext* ctx);
 int predicate_recursive_num_args(const Predicate*);

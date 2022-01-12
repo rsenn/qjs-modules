@@ -118,14 +118,16 @@ typedef struct {
 } IteratorValue;
 
 typedef struct {
-  int c;
+  uint16_t p, c, a;
   const char** v;
 } Arguments;
 
 static inline Arguments
 arguments_new(int argc, const char* argv[]) {
   Arguments args;
+  args.p = 0;
   args.c = argc;
+  args.a = 0;
   args.v = argv;
   return args;
 }
@@ -133,10 +135,9 @@ arguments_new(int argc, const char* argv[]) {
 static inline const char*
 arguments_shift(Arguments* args) {
   const char* ret = 0;
-  if(args->c > 0) {
-    ret = args->v[0];
-    args->c--;
-    args->v++;
+  if(args->p < args->c) {
+    ret = args->v[args->p];
+    args->p++;
   }
   return ret;
 }
@@ -159,28 +160,34 @@ arguments_shiftn(Arguments* args, uint32_t n) {
   return i;
 }
 
+BOOL arguments_alloc(Arguments* args, JSContext* ctx, int n);
+const char* arguments_push(Arguments*, JSContext*, const char*);
+
 void arguments_dump(Arguments const*, DynBuf*);
 
 typedef struct {
-  int c;
+  uint16_t p, c, a;
   JSValueConst* v;
 } JSArguments;
 
 static inline JSArguments
 js_arguments_new(int argc, JSValueConst* argv) {
   JSArguments args;
+  args.p = 0;
   args.c = argc;
+  args.a = 0;
   args.v = argv;
   return args;
 }
 
+BOOL js_arguments_alloc(JSArguments* args, JSContext* ctx, int n);
+
 static inline JSValueConst
 js_arguments_shift(JSArguments* args) {
   JSValue ret = JS_EXCEPTION;
-  if(args->c > 0) {
-    ret = args->v[0];
-    args->c--;
-    args->v++;
+  if(args->p < args->c) {
+    ret = args->v[args->p];
+    args->p++;
   }
   return ret;
 }
@@ -369,9 +376,9 @@ enum value_mask js_value_type(JSContext* ctx, JSValueConst value);
 static inline const char* const*
 js_value_types() {
   return (const char* const[]){
-      "UNDEFINED",     "NULL",         "BOOL",      "INT", "OBJECT",   "STRING", "SYMBOL", "BIG_FLOAT",
-      "BIG_INT",       "BIG_DECIMAL",  "FLOAT64",   "NAN", "FUNCTION", "ARRAY",  "MODULE", "FUNCTION_BYTECODE",
-      "UNINITIALIZED", "CATCH_OFFSET", "EXCEPTION", 0,
+      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
+      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
+      "uninitialized", "catch_offset", "exception", 0,
   };
 }
 

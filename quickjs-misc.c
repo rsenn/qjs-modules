@@ -1145,6 +1145,8 @@ enum {
   GET_CLASS_COUNT,
   GET_CLASS_PROTO,
   GET_CLASS_CONSTRUCTOR,
+  GET_TYPE_ID,
+  GET_TYPE_STR,
 };
 
 static JSValue
@@ -1205,6 +1207,33 @@ js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           ret = JS_GetPropertyStr(ctx, proto, "constructor");
         JS_FreeValue(ctx, proto);
       }
+      break;
+    }
+  }
+  return ret;
+}
+
+static JSValue
+js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret = JS_UNDEFINED;
+  int32_t type_id = 0;
+
+  if(argc >= 1) {
+    /*  if(JS_IsNumber(argv[0]))
+          JS_ToInt32(ctx, &type_id, argv[0]);
+        else*/
+    type_id = js_value_type(ctx, argv[0]);
+  }
+
+  switch(magic) {
+    case GET_TYPE_ID: {
+      ret = JS_NewInt32(ctx, type_id);
+      break;
+    }
+    case GET_TYPE_STR: {
+      const char* type;
+      if((type = js_value_type_name(type_id)))
+        ret = JS_NewString(ctx, type);
       break;
     }
   }
@@ -1768,6 +1797,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getClassCount", 1, js_misc_classid, GET_CLASS_COUNT),
     JS_CFUNC_MAGIC_DEF("getClassProto", 1, js_misc_classid, GET_CLASS_PROTO),
     JS_CFUNC_MAGIC_DEF("getClassConstructor", 1, js_misc_classid, GET_CLASS_CONSTRUCTOR),
+    JS_CFUNC_MAGIC_DEF("getTypeId", 1, js_misc_type, GET_TYPE_ID),
+    JS_CFUNC_MAGIC_DEF("getTypeStr", 1, js_misc_type, GET_TYPE_STR),
     JS_CFUNC_MAGIC_DEF("rand", 0, js_misc_random, RANDOM_RAND),
     JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, RANDOM_RANDI),
     JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, RANDOM_RANDF),
