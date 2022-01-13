@@ -200,7 +200,7 @@ child_process_spawn(ChildProcess* cp) {
     setgid(cp->gid);
 
 #ifdef HAVE_EXECVPE
-    execvpe(cp->file, cp->args, cp->env);
+    execvpe(cp->file, cp->args, cp->env ? cp->env : environ);
     perror("execvp()");
 #else
     if(cp->env) {

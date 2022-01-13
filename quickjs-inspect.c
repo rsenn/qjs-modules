@@ -793,7 +793,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     // if(!js_is_arraybuffer(ctx, value))
     deepest = property_enumeration_deepest(ctx, value, opts->compact + 1);
 
-    const char* typestr = js_object_tostring(ctx, value);
+    // const char* typestr = js_object_tostring(ctx, value);
     compact = deepest <= opts->compact;
 
     // printf("%s compact = %d, opts->compact = %" PRIi32 ", deepest = %" PRIi32 ", depth = %" PRIi32 "\n", typestr ? typestr : "(null)",
@@ -834,7 +834,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   }
 
   if(!JS_IsArray(ctx, value) && !is_function) {
-    if(s == 0)
+    if(s == 0 && JS_IsFunction(ctx, object_tostring))
       s = js_object_tostring2(ctx, object_tostring, value);
 
     if(s && !strncmp(s, "[object ", 8)) {

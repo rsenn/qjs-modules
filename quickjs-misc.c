@@ -870,6 +870,80 @@ js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return ret;
 }
 
+struct ImmutableClosure {
+  JSRuntime* rt;
+  JSValue ctor, proto;
+};
+
+static void
+js_misc_immutable_free(void* ptr) {
+  struct ImmutableClosure* closure = ptr;
+  JS_FreeValueRT(closure->rt, closure->ctor);
+  JS_FreeValueRT(closure->rt, closure->proto);
+  free(ptr);
+}
+
+static JSValue
+js_misc_immutable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[], int magic, void* ptr) {
+  JSValue ret = JS_UNDEFINED;
+
+  if(ptr) {
+    struct ImmutableClosure* closure = ptr;
+
+    ret = JS_CallConstructor2(ctx, closure->ctor, new_target, argc, argv);
+  } else {
+  }
+  return ret;
+}
+
+static JSValue
+js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  struct ImmutableClosure* closure;
+  JSValue ret, proto;
+  JSClassID id;
+  JSCFunctionListEntry entry;
+  char *name, *new_name;
+
+  if(argc == 0 || !JS_IsConstructor(ctx, argv[0]))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a constructor");
+
+  if(!(closure = malloc(sizeof(struct ImmutableClosure))))
+    return JS_ThrowOutOfMemory(ctx);
+
+  closure->rt = JS_GetRuntime(ctx);
+  closure->ctor = JS_DupValue(ctx, argv[0]);
+  closure->proto = JS_GetPropertyStr(ctx, closure->ctor, "prototype");
+
+  if(JS_IsException(closure->proto)) {
+    js_misc_immutable_free(closure);
+    return JS_ThrowTypeError(ctx, "argument 1 must have a 'prototype' property");
+  }
+
+  name = js_object_classname(ctx, closure->proto);
+  new_name = alloca(strlen(name) + sizeof("Immutable"));
+
+  str_copy(&new_name[str_copy(new_name, "Immutable")], name);
+
+  proto = JS_NewObject(ctx);
+  JS_SetPrototype(ctx, proto, closure->proto);
+
+  /* {
+     JSCFunctionListEntry entries[] = {JS_PROP_STRING_DEF("[Symbol.toStringTag]", new_name, JS_PROP_CONFIGURABLE)};
+     JS_SetPropertyFunctionList(ctx, proto, entries, countof(entries));
+   }*/
+  js_set_tostringtag_value(ctx, proto, JS_NewString(ctx, new_name));
+
+  ret = JS_NewCClosure(ctx, js_misc_immutable_constructor, 0, 0, closure, js_misc_immutable_free);
+  // ret = JS_NewCFunction2(ctx, js_misc_immutable_constructor, new_name, 1, JS_CFUNC_constructor, 0);
+
+  if(!JS_IsConstructor(ctx, ret))
+    JS_SetConstructorBit(ctx, ret, TRUE);
+
+  JS_SetConstructor(ctx, ret, proto);
+
+  return ret;
+}
+
 static JSValue
 js_misc_write_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -1782,6 +1856,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("arrayToBitfield", 1, js_misc_bitfield, BITFIELD_FROMARRAY),
     JS_CFUNC_MAGIC_DEF("compileScript", 1, js_misc_compile, 0),
     JS_CFUNC_MAGIC_DEF("evalScript", 1, js_misc_compile, 1),
+    JS_CFUNC_MAGIC_DEF("immutableClass", 1, js_misc_immutable_class, 1),
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
     JS_CFUNC_DEF("readObject", 1, js_misc_read_object),
     JS_CFUNC_DEF("getOpCodes", 0, js_misc_opcodes),
