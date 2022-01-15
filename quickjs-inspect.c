@@ -386,13 +386,21 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
 static int
 js_inspect_print_date(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   const char* str;
+  JSValue date;
 
-  if((str = JS_ToCString(ctx, obj))) {
-    dbuf_putstr(buf, "new Date('");
+  // date = JS_DupValue(ctx, obj);
+  date = js_invoke(ctx, obj, "toISOString", 0, 0);
+
+  if((str = JS_ToCString(ctx, date))) {
+    if(opts->colors)
+      dbuf_putstr(buf, COLOR_PURPLE);
     dbuf_putstr(buf, str);
-    dbuf_putstr(buf, "')");
+    if(opts->colors)
+      dbuf_putstr(buf, COLOR_NONE);
     JS_FreeCString(ctx, str);
   }
+
+  JS_FreeValue(ctx, date);
 
   return 0;
 }

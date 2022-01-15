@@ -339,7 +339,7 @@ end:
   if(vector_finds(&module_debug, "import") != -1) {
     fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
   }
-  //if(!m) printf("jsm_module_loader(\"%s\") = %p\n", name, m);
+  // if(!m) printf("jsm_module_loader(\"%s\") = %p\n", name, m);
   if(module)
     js_free(ctx, module);
   if(file)
@@ -1210,7 +1210,8 @@ main(int argc, char** argv) {
                "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n"
                "globalThis.repl = new REPL('qjsm');\n"
                "repl.fs = fs;\n"
-               "repl.directives.i = [ name => import(name).then(m => globalThis[name] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a library' ];\n"
+               "repl.directives.i = [ name => import(name).then(m => globalThis[name] = m).catch(() => repl.printStatus(`ERROR: module "
+               "'${name}' not found`)), 'import a module' ];\n"
                "repl.show = console.log;\n"
                "repl.historyLoad(history);\n"
                "repl.runSync();\n",

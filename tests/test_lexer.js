@@ -39,13 +39,13 @@ function BufferFile(file) {
   // console.log('BufferFile', file);
   if(buffers[file]) return buffers[file];
   let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
-  console.log('BufferFile', {file,b});
-if(!isObject(b)) {
-  const size=fs.sizeSync(file);
-  const fd = os.open(file, os.O_RDONLY);
-  console.log('BufferFile',{size,fd});
-  b =     mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
-}
+  console.log('BufferFile', { file, b });
+  if(!isObject(b)) {
+    const size = fs.sizeSync(file);
+    const fd = os.open(file, os.O_RDONLY);
+    console.log('BufferFile', { size, fd });
+    b = mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
+  }
 
   bufferRef.set(b, file);
   return buffers[file];
@@ -249,7 +249,7 @@ function main(...args) {
       js: new JSLexer(str, file),
       c: new CLexer(str, CLexer.LONGEST, file),
       bnf: new BNFLexer(str, file),
-      csv: new CSVLexer(str,file),
+      csv: new CSVLexer(str, file)
     };
 
     lex.g4 = lex.bnf;
