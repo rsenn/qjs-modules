@@ -3,6 +3,7 @@
 
 #include "vector.h"
 #include "utils.h"
+#include "buffer-utils.h"
 #include <cutils.h>
 
 /**
@@ -37,6 +38,7 @@ enum predicate_id {
   PREDICATE_PROPERTY,
   PREDICATE_MEMBER,
   PREDICATE_SHIFT,
+  PREDICATE_SLICE,
   PREDICATE_FUNCTION
 };
 
@@ -88,6 +90,15 @@ typedef struct {
 } ShiftPredicate;
 
 typedef struct {
+  union {
+    struct {
+      int64_t start, end;
+    };
+    OffsetLength offset_length;
+  };
+} SlicePredicate;
+
+typedef struct {
   JSValue func, this_val;
   int arity;
 } FunctionPredicate;
@@ -105,6 +116,7 @@ typedef struct Predicate {
     PropertyPredicate property;
     MemberPredicate member;
     ShiftPredicate shift;
+    SlicePredicate slice;
     FunctionPredicate function;
   };
 } Predicate;
@@ -315,6 +327,14 @@ predicate_shift(int n, JSValue pred) {
   Predicate ret = PREDICATE_INIT(PREDICATE_SHIFT);
   ret.shift.n = n;
   ret.shift.predicate = pred;
+  return ret;
+}
+
+static inline Predicate
+predicate_slice(int64_t start, int64_t end) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_SLICE);
+  ret.slice.start = start;
+  ret.slice.end = end;
   return ret;
 }
 

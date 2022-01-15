@@ -9,8 +9,10 @@ import { Console } from 'console';
 import JSLexer from '../lib/jslexer.js';
 import CLexer from '../lib/clexer.js';
 import BNFLexer from '../lib/bnflexer.js';
+import CSVLexer from '../lib/lexer/csv.js';
 import { escape, quote, toString } from 'misc';
-import { define, curry, unique, split, extendArray } from 'util';
+import { define, curry, unique, split, extendArray, isObject } from 'util';
+import { mmap, munmap, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_SHARED, MAP_ANONYMOUS } from 'mmap';
 
 let buffers = {},
   modules = {};
@@ -37,6 +39,14 @@ function BufferFile(file) {
   // console.log('BufferFile', file);
   if(buffers[file]) return buffers[file];
   let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
+  console.log('BufferFile', {file,b});
+if(!isObject(b)) {
+  const size=fs.sizeSync(file);
+  const fd = os.open(file, os.O_RDONLY);
+  console.log('BufferFile',{size,fd});
+  b =     mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
+}
+
   bufferRef.set(b, file);
   return buffers[file];
 }
@@ -238,7 +248,8 @@ function main(...args) {
     let lex = {
       js: new JSLexer(str, file),
       c: new CLexer(str, CLexer.LONGEST, file),
-      bnf: new BNFLexer(str, file)
+      bnf: new BNFLexer(str, file),
+      csv: new CSVLexer(str,file),
     };
 
     lex.g4 = lex.bnf;

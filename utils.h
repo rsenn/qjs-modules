@@ -772,6 +772,7 @@ js_value_isclass(JSContext* ctx, JSValue obj, int id) {
 
 BOOL js_is_arraybuffer(JSContext*, JSValueConst);
 BOOL js_is_sharedarraybuffer(JSContext*, JSValueConst);
+BOOL js_is_date(JSContext*, JSValueConst);
 BOOL js_is_map(JSContext*, JSValueConst);
 BOOL js_is_set(JSContext*, JSValueConst);
 BOOL js_is_generator(JSContext*, JSValueConst);

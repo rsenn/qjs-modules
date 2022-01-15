@@ -107,19 +107,17 @@ byte_count(const void* s, size_t n, char c) {
 
 static inline size_t
 byte_chr(const void* str, size_t len, char c) {
-  const char *s, *t;
-  for(s = str, t = s + len; s < t; ++s)
-    if(*s == c)
-      break;
-  return s - (const char*)str;
+  const char* s = memchr(str, c, len);
+  if(s)
+    return s - (const char*)str;
+  return len;
 }
 
 static inline size_t
 byte_rchr(const void* str, size_t len, char c) {
-  const char *s, *t;
-  for(s = (const char*)str, t = s + len; --t >= s;)
-    if(*t == c)
-      return (size_t)(t - s);
+  const char* s = memrchr(str, c, len);
+  if(s)
+    return s - (const char*)str;
   return len;
 }
 

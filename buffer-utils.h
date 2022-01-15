@@ -217,8 +217,14 @@ block_range(const MemoryBlock* mb, struct offset_length* range) {
 }
 
 typedef struct InputBuffer {
-  uint8_t* data;
-  size_t pos, size;
+  union {
+    MemoryBlock block;
+    struct {
+      uint8_t* data;
+      size_t size;
+    };
+  };
+  size_t pos;
   void (*free)(JSContext*, const char*, JSValue);
   JSValue value;
   OffsetLength range;

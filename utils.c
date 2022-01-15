@@ -1897,6 +1897,11 @@ js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
 }
 
 BOOL
+js_is_date(JSContext* ctx, JSValueConst value) {
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_DATE));
+}
+
+BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_MAP));
 }
