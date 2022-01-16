@@ -110,7 +110,7 @@ function main(...args) {
       }
     }
 */
-    console.log(node.tagName ? `<${node.tagName} ${node.nodeType} ${stack.length}>` : node[Symbol.toStringTag] ?? node);
+//    console.log(node.tagName ? `<${node.tagName} ${node.nodeType} ${stack.length}>` : node[Symbol.toStringTag] ?? node);
   });
 
   function Recurse(node, fn, stack = []) {
