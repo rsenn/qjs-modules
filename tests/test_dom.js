@@ -63,44 +63,41 @@ function main(...args) {
   Recurse(doc, (node, stack) => {
     const raw = Node.raw(node);
 
-    //console.log('node.path', Node.path(node));
-    //console.log('node.ownerDocument', node.ownerDocument);
     if(node.nodeType != node.ELEMENT_NODE && node.nodeType != node.DOCUMENT_NODE) {
-      /*console.log('node.nodeType', Node.types[node.nodeType]);
-      console.log('node', node);
-      console.log('node.path', Node.path(node));*/
       return;
     }
 
-    //console.log('raw.children', raw.children);
     if(raw.children) {
       let cl = Factory(raw.children, node);
-      console.log('cl', cl);
+      //console.log('cl', cl);
 
       if(raw.children[0]) {
         //console.log('raw.children[0]', raw.children[0]);
-        console.log('cl.path', cl.path);
+        let y=cl.path;
+        //console.log('cl.path', cl.path);
         let elm = Factory(raw.children[0], cl, Element);
-        console.log('elm', elm);
-        console.log('elm.path', elm.path);
- console.log('elm.ownerDocument', elm.ownerDocument);
+        //console.log('elm', elm);
+        //console.log('elm.path', elm.path);
+ //console.log('elm.ownerDocument', elm.ownerDocument);
       }
     }
 
     if(raw.attributes) {
       //console.log('raw.attributes', raw.attributes);
       let al = Factory(raw.attributes, node, NamedNodeMap);
-      console.log('al', al, al.path);
+      //console.log('al', al, al.path);
+        let z=al.path;
 
       let at = al[Object.keys(raw.attributes)[0]];
 
       if(at) {
-        console.log('at', at,at.path);
-        console.log('at.ownerElement', at.ownerElement, at.ownerElement.path);
+        let x = at.path;
+        //console.log('at', at,at.path);
+        //console.log('at.ownerElement', at.ownerElement, at.ownerElement.path);
       }
     }
 
-    console.log('node.nextSibling', node.nextSibling, Node.types[node.nodeType], Node.path(node).slice(-2));
+    //console.log('node.nextSibling', node.nextSibling, Node.types[node.nodeType], Node.path(node).slice(-2));
 
     /*else {
       console.log('node.tagName', node.tagName);
