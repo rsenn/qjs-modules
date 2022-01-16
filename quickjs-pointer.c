@@ -28,6 +28,7 @@ enum {
   STATIC_FROM_ATOMS,
   STATIC_OF,
   STATIC_OF_ATOMS,
+  STATIC_IS_POINTER,
 };
 enum {
   PROP_LENGTH = 0,
@@ -275,6 +276,13 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
       break;
     }
+
+    case STATIC_IS_POINTER: {
+      Pointer* ptr;
+      ptr = js_pointer_data(argv[0]);
+      ret = JS_NewBool(ctx, !!ptr);
+      break;
+    }
   }
   return ret;
 }
@@ -318,6 +326,7 @@ static const JSCFunctionListEntry js_pointer_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("fromAtoms", 1, js_pointer_funcs, STATIC_FROM_ATOMS),
     JS_CFUNC_MAGIC_DEF("of", 0, js_pointer_funcs, STATIC_OF),
     JS_CFUNC_MAGIC_DEF("ofAtoms", 0, js_pointer_funcs, STATIC_OF_ATOMS),
+    JS_CFUNC_MAGIC_DEF("isPointer", 1, js_pointer_funcs, STATIC_IS_POINTER),
 };
 static int
 js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {

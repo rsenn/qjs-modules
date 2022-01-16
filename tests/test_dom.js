@@ -7,18 +7,19 @@ import * as path from 'path';
 import * as deep from 'deep';
 import Console from '../lib/console.js';
 import { Document, Element, Node, Attr, Factory, NamedNodeMap } from '../lib/dom.js';
+import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 
 function main(...args) {
   globalThis.console = new Console(process.stdout, {
     inspectOptions: {
       colors: true,
-      depth: Infinity,
+      depth: 0,
       //stringBreakNewline: false,
       maxArrayLength: Infinity,
       compact: false,
       maxStringLength: 60,
-      customInspect: true,
-      hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]
+      customInspect: true /*,
+      hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
     }
   });
 
@@ -27,90 +28,58 @@ function main(...args) {
   let base = path.basename(file, path.extname(file));
 
   let data = std.loadFile(file, 'utf-8');
-
   let start = Date.now();
-
   let result = xml.read(data, file, false);
+  let end = Date.now();
+  console.log(`parsing took ${end - start}ms`);
 
+  start = Date.now();
   let doc = new Document(result[0]);
 
   let rawDoc = Node.raw(doc);
-
-  let gs = gettersetter(new Map());
-  console.log('gs', gs);
-  let mo = mapObject(gs);
-  console.log('mo', mo);
-  gs = gettersetter(mo);
-  console.log('gs', gs);
-  console.log('getset', getset(gs));
-  console.log('getset', getset(mo));
-
-  memoize((node, ...args) => new Node(node, parent));
-
-  console.log('doc', inspect(doc, { depth: 20, compact: false }));
-  console.log('doc.children', doc.children);
-  console.log('doc.attributes', doc.attributes);
-  console.log('doc.firstChild', doc.firstChild);
-  console.log('doc.firstElementChild', doc.firstElementChild);
-  console.log('doc.firstElementChild?.nextSibling', doc.firstElementChild?.nextSibling);
-  /*  console.log('Object.getOwnPropertyDescriptors(Element.prototype)',Object.getOwnPropertyDescriptors(Element.prototype));
-  console.log(`Element.prototype[Symbol.for('quickjs.inspect.custom')]`,Element.prototype[Symbol.for('quickjs.inspect.custom')]+'');
-*/
+ 
+  console.log('doc', inspect(doc, { depth: Infinity, compact: false }));
+ 
   for(let value of deep.iterate(doc, deep.RETURN_VALUE)) {
     console.log('value', value);
   }
-
+  let count = 0;
   Recurse(doc, (node, stack) => {
     const raw = Node.raw(node);
+
+    count++;
 
     if(node.nodeType != node.ELEMENT_NODE && node.nodeType != node.DOCUMENT_NODE) {
       return;
     }
 
+    //console.log('xpath:',buildXPath(Node.path(node), Node.document(node)));
+
+    //    if(node[Symbol.inspect ?? Symbol.for('quickjs.inspect.custom')]) console.log('node', node[Symbol.inspect ?? Symbol.for('quickjs.inspect.custom')](0, { depth: 1 }));
+
     if(raw.children) {
-      let cl = Factory(raw.children, node);
-      //console.log('cl', cl);
+      let cl = node.children;
 
       if(raw.children[0]) {
-        //console.log('raw.children[0]', raw.children[0]);
-        let y=cl.path;
-        //console.log('cl.path', cl.path);
-        let elm = Factory(raw.children[0], cl, Element);
-        //console.log('elm', elm);
-        //console.log('elm.path', elm.path);
- //console.log('elm.ownerDocument', elm.ownerDocument);
+        let y = cl.path;
+
+        let elm = cl[0];
+        if(cl.length) {
+          if(elm) {
+            /*  if(isObject(elm) && 'tagName' in elm) console.log('elm', elm.tagName, elm.path);
+            else */ //console.log('elm', elm);
+          }
+        }
       }
     }
-
     if(raw.attributes) {
-      //console.log('raw.attributes', raw.attributes);
-      let al = Factory(raw.attributes, node, NamedNodeMap);
-      //console.log('al', al, al.path);
-        let z=al.path;
-
+      let al = node.attributes;
+      let z = al.path;
       let at = al[Object.keys(raw.attributes)[0]];
-
       if(at) {
         let x = at.path;
-        //console.log('at', at,at.path);
-        //console.log('at.ownerElement', at.ownerElement, at.ownerElement.path);
       }
     }
-
-    //console.log('node.nextSibling', node.nextSibling, Node.types[node.nodeType], Node.path(node).slice(-2));
-
-    /*else {
-      console.log('node.tagName', node.tagName);
-      console.log('node.parentElement', node.parentElement);
-      console.log('node.parentNode', node.parentNode);
-      const { attributes } = Node.raw(node);
-      if(isObject(attributes)) {
-        console.log('attributes', attributes);
-        if(attributes[Symbol.iterator]) for(let attr in attributes) Recurse([attr, attributes[attr]], fn, [...stack, node]);
-      }
-    }
-*/
-//    console.log(node.tagName ? `<${node.tagName} ${node.nodeType} ${stack.length}>` : node[Symbol.toStringTag] ?? node);
   });
 
   function Recurse(node, fn, stack = []) {
@@ -129,7 +98,9 @@ function main(...args) {
     }
     fn(node, stack);
   }
+  end = Date.now();
 
+  console.log(`walking took ${end - start}ms (${count} nodes)`);
   std.gc();
 }
 
