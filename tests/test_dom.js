@@ -37,6 +37,9 @@ function main(...args) {
   console.log('doc', inspect(doc, { depth: 20, compact: false }));
   console.log('doc.children', doc.children);
   console.log('doc.attributes', doc.attributes);
+  console.log('doc.firstChild', doc.firstChild);
+  console.log('doc.firstElementChild', doc.firstElementChild);
+  console.log('doc.firstElementChild?.nextSibling', doc.firstElementChild?.nextSibling);
   /*  console.log('Object.getOwnPropertyDescriptors(Element.prototype)',Object.getOwnPropertyDescriptors(Element.prototype));
   console.log(`Element.prototype[Symbol.for('quickjs.inspect.custom')]`,Element.prototype[Symbol.for('quickjs.inspect.custom')]+'');
 */
@@ -47,14 +50,17 @@ function main(...args) {
   Recurse(doc, (node, stack) => {
     const raw = Node.raw(node);
 
-    //console.log('node.path', Node.path(node));
+    console.log('node.path', Node.path(node));
     //console.log('node.ownerDocument', node.ownerDocument);
     if(node.nodeType != node.ELEMENT_NODE && node.nodeType != node.DOCUMENT_NODE) {
-      console.log('node.nodeType', Node.types[node.nodeType]);
-      console.log('node.raw', raw);
-      console.log('node.parentNode', node.parentNode);
+      /*console.log('node.nodeType', Node.types[node.nodeType]);
+      console.log('node', node);
+      console.log('node.path', Node.path(node));*/
       return;
-    } /*else {
+    }
+    console.log('node.nextSibling', node.nextSibling, Node.types[node.nodeType], Node.path(node).slice(-2));
+
+    /*else {
       console.log('node.tagName', node.tagName);
       console.log('node.parentElement', node.parentElement);
       console.log('node.parentNode', node.parentNode);
@@ -77,7 +83,8 @@ function main(...args) {
       if(isObject(node.attributes)) {
         const attributes = /*Node.raw(node)?.attributes ??*/ node.attributes;
         for(let attr of /*Node.raw(node).*/ attributes) {
-          console.log('Attr', attr, Node.path(attr));
+          Recurse(attr, fn, [...stack, node]);
+          //          console.log('Attr', attr, Node.path(attr));
         } //Recurse({ name: attr, value:attributes[attr],[Symbol.toStringTag]: 'Attr', __proto__: Attr.prototype }, fn, [...stack, node]);
       }
     }
