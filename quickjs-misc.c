@@ -1230,12 +1230,12 @@ js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   int32_t class_id = 0;
 
   if(argc >= 1) {
-    if(JS_IsObject(argv[0]))
-      class_id = JS_GetClassID(argv[0]);
-    else if(JS_IsNumber(argv[0]))
+    if(JS_IsNumber(argv[0]))
       JS_ToInt32(ctx, &class_id, argv[0]);
     else if((obj = js_value_obj(argv[0])))
       class_id = obj->class_id;
+    else if(JS_IsObject(argv[0]))
+      class_id = JS_GetClassID(argv[0]);
   }
 
   switch(magic) {

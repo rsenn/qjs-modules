@@ -1,35 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
 import fs from 'fs';
-import {
-  watch,
-  toString,
-  toArrayBuffer,
-  randStr,
-  IN_ACCESS,
-  IN_MODIFY,
-  IN_ATTRIB,
-  IN_CLOSE_WRITE,
-  IN_CLOSE_NOWRITE,
-  IN_CLOSE,
-  IN_OPEN,
-  IN_MOVED_FROM,
-  IN_MOVED_TO,
-  IN_MOVE,
-  IN_CREATE,
-  IN_DELETE,
-  IN_DELETE_SELF,
-  IN_MOVE_SELF,
-  IN_UNMOUNT,
-  IN_Q_OVERFLOW,
-  IN_IGNORED,
-  IN_ONLYDIR,
-  IN_DONT_FOLLOW,
-  IN_EXCL_UNLINK,
-  IN_MASK_ADD,
-  IN_ISDIR,
-  IN_ONESHOT
-} from 'util';
+import { watch, toString, toArrayBuffer, randStr, IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_CLOSE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, IN_MOVE, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, IN_ONESHOT } from 'util';
 import { Console } from 'console';
 
 const modes = Object.entries({
@@ -83,9 +55,7 @@ function main(...args) {
 
   const inotify_fd = watch();
   console.log('inotify_fd', inotify_fd);
-  const r = watch(inotify_fd, file, 0xfff, (eventType, filename) =>
-    console.log('watch event', { eventType, filename })
-  );
+  const r = watch(inotify_fd, file, 0xfff, (eventType, filename) => console.log('watch event', { eventType, filename }));
   let ev = new Uint32Array(4);
   let ret,
     buf = ev.buffer;

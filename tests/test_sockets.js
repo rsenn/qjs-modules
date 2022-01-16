@@ -1,35 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
-import {
-  socklen_t,
-  fd_set,
-  SockAddr,
-  Socket,
-  AsyncSocket,
-  select,
-  poll,
-  AF_INET,
-  SOCK_STREAM,
-  IPPROTO_TCP,
-  POLLIN,
-  POLLOUT,
-  POLLERR,
-  POLLHUP,
-  O_NONBLOCK,
-  O_ASYNC,
-  SO_ERROR,
-  SO_DEBUG,
-  SO_REUSEPORT,
-  SO_REUSEADDR,
-  SO_KEEPALIVE,
-  SO_DONTROUTE,
-  SO_BROADCAST,
-  SO_OOBINLINE,
-  SO_SNDBUF,
-  SO_RCVBUF,
-  SOL_SOCKET
-} from 'sockets';
+import { socklen_t, fd_set, SockAddr, Socket, AsyncSocket, select, poll, AF_INET, SOCK_STREAM, IPPROTO_TCP, POLLIN, POLLOUT, POLLERR, POLLHUP, O_NONBLOCK, O_ASYNC, SO_ERROR, SO_DEBUG, SO_REUSEPORT, SO_REUSEADDR, SO_KEEPALIVE, SO_DONTROUTE, SO_BROADCAST, SO_OOBINLINE, SO_SNDBUF, SO_RCVBUF, SOL_SOCKET } from 'sockets';
 import { error, escape, quote, toString, toArrayBuffer, randi, randf, srand } from 'misc';
 import { define } from 'util';
 
@@ -156,23 +128,13 @@ function main() {
         os.setReadHandler(sock.fd, null);
       }
 
-      console.log(
-        `recv(${sock.fd}, ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(
-          70
-        ),
-        ...DumpSock(sock)
-      );
+      console.log(`recv(${sock.fd}, ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(70), ...DumpSock(sock));
 
       if(n > 0 && data.indexOf('OpenSSH') != -1) {
         const txt = 'BLAHBLAHTEST\r\n';
         let start = 4;
         n = sock.send(txt, start);
-        console.log(
-          `send(${quote(txt.slice(start), "'")}, ${start}) =`,
-          n,
-          n > 0 ? null : sock.error,
-          ...DumpSock(sock)
-        );
+        console.log(`send(${quote(txt.slice(start), "'")}, ${start}) =`, n, n > 0 ? null : sock.error, ...DumpSock(sock));
       }
     });
   });
