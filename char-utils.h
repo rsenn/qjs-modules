@@ -133,10 +133,15 @@ byte_chrs(const void* str, size_t len, const char needle[], size_t nl) {
 static inline size_t
 byte_charlen(const void* in, size_t len) {
   const uint8_t *pos, *end, *next;
+  size_t i = 0;
   pos = (const uint8_t*)in;
   end = pos + len;
-  unicode_from_utf8(pos, end - pos, &next);
-  return next - pos;
+  while(pos < end) {
+    unicode_from_utf8(pos, end - pos, &next);
+    pos = next;
+    i++;
+  }
+  return i;
 }
 
 static inline size_t

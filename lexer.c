@@ -327,7 +327,7 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   if(input_buffer_eof(&lex->input))
     return LEXER_EOF;
 
-  lex->start = lex->input.pos;
+//  lex->start = lex->input.pos;
 
   vector_foreach_t(&lex->rules, rule) {
     int result;
@@ -393,7 +393,7 @@ lexer_skip(Lexer* lex) {
   size_t len;
   assert(lex->byte_length);
   assert(lex->token_id != -1);
-  len = input_skip(&lex->input, lex->start + lex->byte_length, &lex->loc);
+  len = input_skip(&lex->input, lex->input.pos + lex->byte_length, &lex->loc);
   lex->seq++;
   lex->byte_length = 0;
   lex->token_id = -1;
@@ -409,10 +409,10 @@ lexer_charlen(Lexer* lex) {
 
 char*
 lexer_lexeme(Lexer* lex, size_t* lenp) {
-  size_t len = lex->input.pos - lex->start;
-  char* s = (char*)lex->input.data + lex->start;
+  // size_t len = lex->input.pos - lex->start;
+  char* s = (char*)lex->input.data + lex->input.pos;
   if(lenp)
-    *lenp = len;
+    *lenp = lex->byte_length;
   return s;
 }
 
@@ -428,7 +428,7 @@ lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
 
 void
 lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
-  lex->start = loc->pos;
+  //lex->start = loc->pos;
   lex->byte_length = 0;
   lex->input.pos = loc->pos;
   location_free(&lex->loc, ctx);
@@ -470,7 +470,7 @@ lexer_free_rt(Lexer* lex, JSRuntime* rt) {
 
 void
 lexer_dump(Lexer* lex, DynBuf* dbuf) {
-  dbuf_printf(dbuf, "Lexer {\n  mode: %x,\n  start: %zu, state: %s", lex->mode, lex->start, lexer_state_name(lex, lex->state));
+  dbuf_printf(dbuf, "Lexer {\n  mode: %x,\n  state: %s", lex->mode, lexer_state_name(lex, lex->state));
   dbuf_putstr(dbuf, ",\n  input: ");
   input_buffer_dump(&lex->input, dbuf);
   dbuf_putstr(dbuf, ",\n  location: ");
