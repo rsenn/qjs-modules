@@ -1622,15 +1622,15 @@ js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
   uint32_t i = 0;
   list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    char* name = module_namestr(ctx, m);
+    //  char* name = module_namestr(ctx, m);
     JSValue entry = JS_NewArray(ctx);
-    JS_SetPropertyUint32(ctx, entry, 0, JS_NewString(ctx, /*basename*/ (name)));
+    JS_SetPropertyUint32(ctx, entry, 0, JS_AtomToValue(ctx, m->module_name));
     JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, m) : module_value(ctx, m));
     if(1 /*str[0] != '<'*/)
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
       JS_FreeValue(ctx, entry);
-    js_free(ctx, name);
+    //  js_free(ctx, name);
   }
   return ret;
 }
@@ -2434,9 +2434,9 @@ arguments_alloc(Arguments* args, JSContext* ctx, int n) {
       return FALSE;
     c = MIN_NUM(args->c, n);
     for(i = 0; i < c; i++) v[i] = js_strdup(ctx, args->v[i]);
-    for(j = c; j < args->c; j++) js_free(ctx, args->v[j]);
+    for(j = c; j < args->c; j++) js_free(ctx, (void*)args->v[j]);
     for(j = i; j <= n; j++) v[j] = 0;
-    args->v = v;
+    args->v = (const char**)v;
     args->c = c;
     args->a = n;
   }
@@ -2448,7 +2448,7 @@ arguments_push(Arguments* args, JSContext* ctx, const char* arg) {
   int r;
   if(args->c + 1 >= args->a)
     if(!arguments_alloc(args, ctx, args->a + 1))
-      return -1;
+      return 0;
   r = args->c;
   args->v[r] = js_strdup(ctx, arg);
   args->v[r + 1] = 0;

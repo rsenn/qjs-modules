@@ -108,7 +108,7 @@ function ImportType(seq) {
 function ImportFile(seq) {
   let idx = seq.findIndex(tok => IsKeyword('from', tok));
   while(seq[idx] && seq[idx].type != 'stringLiteral') ++idx;
-  return seq[idx].lexeme.replace(/^['"`](.*)['"`]$/g, '$1');
+  return seq[idx].lexeme.replace(/^[\'\"\`](.*)[\'\"\`]$/g, '$1');
 }
 
 function ExportName(seq) {

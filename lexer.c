@@ -185,7 +185,11 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
 int
 lexer_rule_add(Lexer* lex, char* name, char* expr) {
   LexerRule rule = {name, expr, 1, 0, 0, 0}, *previous;
-  int ret = vector_size(&lex->rules, sizeof(LexerRule));
+  int ret;
+
+  if((previous = lexer_rule_find(lex, name))) {
+    return -1;
+  }
 
   if(rule.expr[0] == '<') {
     char* s;
@@ -213,7 +217,7 @@ lexer_rule_add(Lexer* lex, char* name, char* expr) {
   }
 
   // fprintf(stderr, "lexer_rule_add %s %s %08x\n", rule.name, rule.expr, rule.mask);
-
+  ret = vector_size(&lex->rules, sizeof(LexerRule));
   vector_push(&lex->rules, rule);
   return ret;
 }
@@ -221,14 +225,11 @@ lexer_rule_add(Lexer* lex, char* name, char* expr) {
 LexerRule*
 lexer_rule_find(Lexer* lex, const char* name) {
   LexerRule* rule;
+  assert(name);
   vector_foreach_t(&lex->rules, rule) {
-    if(name && rule->name) {
-      if(!strcmp(rule->name, name))
-        return rule;
-    } else {
-      if(name == rule->name)
-        return rule;
-    }
+    assert(rule->name);
+    if(!strcmp(rule->name, name))
+      return rule;
   }
   return 0;
 }
@@ -389,9 +390,21 @@ input_skip(InputBuffer* input, size_t end, Location* loc) {
 
 size_t
 lexer_skip(Lexer* lex) {
-  size_t len = input_skip(&lex->input, lex->start + lex->byte_length, &lex->loc);
+  size_t len;
+  assert(lex->byte_length);
+  assert(lex->token_id != -1);
+  len = input_skip(&lex->input, lex->start + lex->byte_length, &lex->loc);
   lex->seq++;
+  lex->byte_length = 0;
+  lex->token_id = -1;
   return len;
+}
+
+size_t
+lexer_charlen(Lexer* lex) {
+  assert(lex->byte_length);
+  assert((lex->input.size - lex->input.pos) >= lex->byte_length);
+  return byte_charlen(&lex->input.data[lex->input.pos], lex->byte_length);
 }
 
 char*

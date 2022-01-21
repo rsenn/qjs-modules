@@ -68,6 +68,7 @@ LexerRule* lexer_find_definition(Lexer*, const char*, size_t namelen);
 BOOL lexer_compile_rules(Lexer*, JSContext*);
 int lexer_peek(Lexer*, uint64_t, JSContext* ctx);
 size_t lexer_skip(Lexer*);
+size_t lexer_charlen(Lexer*);
 char* lexer_lexeme(Lexer*, size_t*);
 int lexer_next(Lexer*, uint64_t, JSContext* ctx);
 void lexer_set_location(Lexer*, const Location*, JSContext* ctx);

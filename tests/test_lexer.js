@@ -357,19 +357,25 @@ function main(...args) {
       }
     };
 
+    let it = lexer[Symbol.iterator]();
+      console.log('it', it);
+
     for(;;) {
       let { stateDepth } = lexer;
-      let { done, value } = lexer.next();
+      let nextTok = it.next();
+      let { done, value } = nextTok;
       if(done) break;
+      //console.log('value', value);
       count++;
       let newState = lexer.topState();
-      tok = value;
       //showToken(tok);
       if(newState != state) {
         if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
       }
       let n = balancers.last.depth;
+            tok = lexer.token;
+
       if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
         lexer.popState();
       } else {
@@ -442,11 +448,14 @@ function main(...args) {
     log(`took ${end - start}ms (${count} tokens)`);
     log('lexer', lexer);
     //log('tokens', tokens);
+log('lexer.rules', lexer.rules);
+log('lexer.tokens', lexer.tokens);
 
     std.gc();
   }
   console.log('buffers', buffers);
   console.log('files', files);
+
 }
 
 try {
