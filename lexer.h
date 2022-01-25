@@ -36,7 +36,7 @@ enum {
 
 typedef struct {
   enum lexer_mode mode;
-  size_t /*start, */byte_length;
+  size_t /*start, */ byte_length;
   int32_t token_id, state;
   Location loc;
   InputBuffer input;

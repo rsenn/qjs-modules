@@ -234,7 +234,7 @@ jsm_module_init(JSContext* ctx, struct jsm_module_record* rec) {
   JSModuleDef* m;
   if(rec->def == 0) {
     if(debug_module_loader)
-      printf("\x1b[48;5;214m(3)\x1b[0m %-30s internal\n", rec->module_name);
+      printf("[%p] \x1b[48;5;214m(3)\x1b[0m %-30s internal\n", pthread_self(), rec->module_name);
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
 
@@ -281,7 +281,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   for(;;) {
     if(debug_module_loader > 1) {
       if(file)
-        printf("\x1b[48;5;214m(1)\x1b[0m %-30s '%s'\n", name, file);
+        printf("[%p] \x1b[48;5;214m(1)\x1b[0m %-30s '%s'\n", pthread_self(), name, file);
       /*  else  printf("jsm_module_loader[%x] \x1b[48;5;124m(1)\x1b[0m %-20s ->
        * %s\n", pthread_self(), trim_dotslash(name), trim_dotslash(module));*/
     }
@@ -308,7 +308,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
           const char* str = JS_ToCString(ctx, target);
           if(str) {
             if(debug_module_loader)
-              printf("\x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", module, str);
+              printf("[%p] \x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", pthread_self(), module, str);
 
             js_free(ctx, module);
 
@@ -331,13 +331,13 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   if(file) {
     if(debug_module_loader)
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
-        printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
+        printf("[%p] \x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", pthread_self(), module, file);
 
     m = js_module_loader(ctx, file, opaque);
   }
 end:
-  if(vector_finds(&module_debug, "import") != -1) {
-    fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
+  if(debug_module_loader && vector_finds(&module_debug, "import") != -1) {
+    fprintf(stderr, (!file || strcmp(module, file)) ? "[%p] !!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", pthread_self(), module, file);
   }
   // if(!m) printf("jsm_module_loader(\"%s\") = %p\n", name, m);
   if(module)
@@ -493,6 +493,10 @@ jsm_context_new(JSRuntime* rt) {
    jsm_module_native(repeater);
    jsm_module_native(tree_walker);
    jsm_module_native(xml);*/
+
+  //printf("Set module loader (rt=%p, thread id=%i): %p\n", rt, pthread_self(), jsm_module_loader);
+  JS_SetModuleLoaderFunc(rt, 0, jsm_module_loader, 0);
+
   return ctx;
 }
 

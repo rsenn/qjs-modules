@@ -7,6 +7,7 @@ set(CMAKE_C_STANDARD 11)
 option(BUILD_LIBARCHIVE "Build archive library" OFF)
 #option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
+option(DO_TESTS "Perform tests" ON)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
@@ -371,13 +372,13 @@ if(DO_TESTS)
     add_test(NAME "${BASE}"
              COMMAND env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR}
                      "${QJS}" --bignum "${TEST}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-    add_custom_target(
+   #[[ add_custom_target(
       "${BASE}" ALL
       COMMAND
         env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR} "${QJSC}"
         -fbignum -M std -M os -M ${NAME} -o "${BASE}" "${CMAKE_CURRENT_SOURCE_DIR}/${TEST}"
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-      SOURCES "${TEST}")
+      SOURCES "${TEST}")]]
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 

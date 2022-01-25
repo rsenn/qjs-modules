@@ -655,7 +655,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if((other = JS_GetOpaque(argv[0], js_lexer_class_id))) {
         input = input_buffer_clone(&other->input, ctx);
         loc = other->loc;
-        //lex->start = other->start;
+        // lex->start = other->start;
       } else {
         input = js_input_chars(ctx, argv[0]);
       }
@@ -764,7 +764,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           }
           JS_FreeValue(ctx, str);
           input_buffer_getc(&lex->input);
-          //lex->start = lex->input.pos;
+          // lex->start = lex->input.pos;
         }
       }
       break;
@@ -876,7 +876,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 enum {
   PROP_SIZE = 0,
   PROP_POS,
- // PROP_START,
+  // PROP_START,
   PROP_EOF,
   PROP_FILENAME,
   PROP_LOC,
@@ -913,10 +913,10 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-/*    case PROP_START: {
-      ret = JS_NewInt64(ctx, lex->start);
-      break;
-    }*/
+      /*    case PROP_START: {
+            ret = JS_NewInt64(ctx, lex->start);
+            break;
+          }*/
 
     case PROP_EOF: {
       ret = JS_NewBool(ctx, input_buffer_eof(&lex->input));
@@ -1338,7 +1338,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("nextToken", 0, js_lexer_nextfn, YIELD_OBJ),
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, PROP_SIZE),
     JS_CGETSET_MAGIC_DEF("pos", js_lexer_get, js_lexer_set, PROP_POS),
-    //JS_CGETSET_MAGIC_DEF("start", js_lexer_get, 0, PROP_START),
+    // JS_CGETSET_MAGIC_DEF("start", js_lexer_get, 0, PROP_START),
     JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, PROP_LOC),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, PROP_EOF),
     JS_CGETSET_MAGIC_DEF("mode", js_lexer_get, js_lexer_set, PROP_MODE),

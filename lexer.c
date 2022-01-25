@@ -327,7 +327,7 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   if(input_buffer_eof(&lex->input))
     return LEXER_EOF;
 
-//  lex->start = lex->input.pos;
+  //  lex->start = lex->input.pos;
 
   vector_foreach_t(&lex->rules, rule) {
     int result;
@@ -428,7 +428,7 @@ lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
 
 void
 lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
-  //lex->start = loc->pos;
+  // lex->start = loc->pos;
   lex->byte_length = 0;
   lex->input.pos = loc->pos;
   location_free(&lex->loc, ctx);
