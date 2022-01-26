@@ -1219,7 +1219,7 @@ static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   JSValue inspect, inspect_symbol, symbol_ctor;
 
-  function_class_id_ceil = MAX_NUM(JS_CLASS_ASYNC_GENERATOR, js_predicate_class_id);
+  //function_class_id_ceil = MAX_NUM(JS_CLASS_ASYNC_GENERATOR, js_predicate_class_id);
 
   stdout_isatty = isatty(STDOUT_FILENO);
   stderr_isatty = isatty(STDERR_FILENO);
