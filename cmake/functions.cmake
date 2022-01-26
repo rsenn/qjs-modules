@@ -80,7 +80,6 @@ macro(CHECK_FUNCTIONS)
   endforeach(FUNC ${ARGN})
 endmacro(CHECK_FUNCTIONS)
 
-
 macro(CHECK_INCLUDES)
   foreach(INC ${ARGN})
     string(TOUPPER "HAVE_${INC}" RESULT_VAR)
@@ -89,7 +88,6 @@ macro(CHECK_INCLUDES)
     check_include_file("${INC}" "${RESULT_VAR}")
   endforeach(INC ${ARGN})
 endmacro(CHECK_INCLUDES)
-
 
 macro(APPEND_PARENT VAR)
   set(LIST "${${VAR}}")
