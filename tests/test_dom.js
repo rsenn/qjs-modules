@@ -4,10 +4,12 @@ import { escape, quote, isObject, define, getClassName, mapObject, getset, gette
 import inspect from 'inspect';
 import * as xml from 'xml';
 import * as path from 'path';
+import { Pointer } from 'pointer';
 import * as deep from 'deep';
 import Console from '../lib/console.js';
 import { Document, Element, Node, Attr, Factory, NamedNodeMap } from '../lib/dom.js';
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
+import REPL from '../lib/repl.js';
 
 function main(...args) {
   globalThis.console = new Console(process.stdout, {
@@ -15,13 +17,14 @@ function main(...args) {
       colors: true,
       depth: 0,
       //stringBreakNewline: false,
-      maxArrayLength: Infinity,
-      compact: false,
+      maxArrayLength: 10000,
+      compact: 2,
       maxStringLength: 60,
       customInspect: true /*,
       hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
     }
   });
+  Object.assign(globalThis, { os, std, ...{ escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, memoize }, xml, path, Pointer, deep, ...{ Document, Element, Node, Attr, Factory, NamedNodeMap }, ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } });
 
   let file = args[0] ?? '../../../an-tronics/eagle/555-Oscillator.sch';
 
@@ -37,50 +40,72 @@ function main(...args) {
   let doc = new Document(result[0]);
 
   let rawDoc = Node.raw(doc);
- 
+  Object.assign(globalThis, { rawDoc, doc });
+
   console.log('doc', inspect(doc, { depth: Infinity, compact: false }));
- 
-  for(let value of deep.iterate(doc, deep.RETURN_VALUE)) {
+
+  /*  for(let value of deep.iterate(doc, deep.RETURN_VALUE)) {
     console.log('value', value);
   }
-  let count = 0;
-  Recurse(doc, (node, stack) => {
-    const raw = Node.raw(node);
+*/
 
-    count++;
+  /*  let [libraries, lp] = deep.find(rawDoc, e => e.tagName == 'libraries', deep.RETURN_VALUE_PATH);
+    console.log('lp', lp);
+    let libs = deep.get(rawDoc, lp);
+    let results = deep.select(rawDoc, e => e.tagName == 'library', deep.RETURN_VALUE);
+    console.log('results', results);
+    console.log('libs', libs);
 
-    if(node.nodeType != node.ELEMENT_NODE && node.nodeType != node.DOCUMENT_NODE) {
-      return;
+    let flattened = deep.flatten(libraries, []).filter(([p, n]) => isObject(n) && 'tagName' in n);
+    flattened = new Map(flattened);
+    Object.assign(globalThis, { flattened, libraries, lp, results });*/
+
+  /*  for(let [p, n] of flattened) {
+      let ptr = new Pointer(p);
+      console.log('ptr/path', { ptr, path: [...ptr] });
+      let node = [...ptr].reduce((o, p) => o[p], libs);
+
+      console.log('p/n', { p, n });
+      console.log('p/n', { node });
+      console.log('ptr.hier', ptr.hier());
     }
+*/
+  let repl = new REPL();
+  repl.show = repl.printFunction((...args) => console.log(...args));
+  repl.historyLoad();
+  repl.run();
 
-    //console.log('xpath:',buildXPath(Node.path(node), Node.document(node)));
+  let count = 0;
 
-    //    if(node[Symbol.inspect ?? Symbol.for('quickjs.inspect.custom')]) console.log('node', node[Symbol.inspect ?? Symbol.for('quickjs.inspect.custom')](0, { depth: 1 }));
-
-    if(raw.children) {
-      let cl = node.children;
-
-      if(raw.children[0]) {
-        let y = cl.path;
-
-        let elm = cl[0];
-        if(cl.length) {
-          if(elm) {
-            /*  if(isObject(elm) && 'tagName' in elm) console.log('elm', elm.tagName, elm.path);
-            else */ //console.log('elm', elm);
+  if(0)
+    Recurse(doc, (node, stack) => {
+      const raw = Node.raw(node);
+      count++;
+      if(node.nodeType != node.ELEMENT_NODE && node.nodeType != node.DOCUMENT_NODE) {
+        return;
+      }
+      if(raw.children) {
+        let cl = node.children;
+        if(raw.children[0]) {
+          let y = cl.path;
+          let elm = cl[0];
+          if(cl.length) {
+            if(elm) {
+              /*  if(isObject(elm) && 'tagName' in elm) console.log('elm', elm.tagName, elm.path); else */
+              //console.log('elm', elm);
+            }
           }
         }
       }
-    }
-    if(raw.attributes) {
-      let al = node.attributes;
-      let z = al.path;
-      let at = al[Object.keys(raw.attributes)[0]];
-      if(at) {
-        let x = at.path;
+      if(raw.attributes) {
+        let al = node.attributes;
+        let z = al.path;
+        let at = al[Object.keys(raw.attributes)[0]];
+        if(at) {
+          let x = at.path;
+        }
       }
-    }
-  });
+    });
 
   function Recurse(node, fn, stack = []) {
     if(isObject(node)) {
@@ -92,7 +117,7 @@ function main(...args) {
         const attributes = /*Node.raw(node)?.attributes ??*/ node.attributes;
         for(let attr of /*Node.raw(node).*/ attributes) {
           Recurse(attr, fn, [...stack, node]);
-          //          console.log('Attr', attr, Node.path(attr));
+          //console.log('Attr', attr, Node.path(attr));
         } //Recurse({ name: attr, value:attributes[attr],[Symbol.toStringTag]: 'Attr', __proto__: Attr.prototype }, fn, [...stack, node]);
       }
     }

@@ -494,7 +494,7 @@ jsm_context_new(JSRuntime* rt) {
    jsm_module_native(tree_walker);
    jsm_module_native(xml);*/
 
-  //printf("Set module loader (rt=%p, thread id=%i): %p\n", rt, pthread_self(), jsm_module_loader);
+  // printf("Set module loader (rt=%p, thread id=%i): %p\n", rt, pthread_self(), jsm_module_loader);
   JS_SetModuleLoaderFunc(rt, 0, jsm_module_loader, 0);
 
   return ctx;

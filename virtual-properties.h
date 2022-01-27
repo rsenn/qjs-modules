@@ -29,6 +29,7 @@ typedef struct VProps {
 
 VirtualProperties virtual_properties_map(JSContext*, JSValueConst);
 VirtualProperties virtual_properties_object(JSContext*, JSValueConst);
+VirtualProperties virtual_properties_array(JSContext*, JSValueConst);
 
 static inline BOOL
 virtual_properties_has(VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {

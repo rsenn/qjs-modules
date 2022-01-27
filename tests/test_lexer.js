@@ -358,7 +358,7 @@ function main(...args) {
     };
 
     let it = lexer[Symbol.iterator]();
-      console.log('it', it);
+    console.log('it', it);
 
     for(;;) {
       let { stateDepth } = lexer;
@@ -374,7 +374,7 @@ function main(...args) {
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
       }
       let n = balancers.last.depth;
-            tok = lexer.token;
+      tok = lexer.token;
 
       if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
         lexer.popState();
@@ -448,14 +448,13 @@ function main(...args) {
     log(`took ${end - start}ms (${count} tokens)`);
     log('lexer', lexer);
     //log('tokens', tokens);
-log('lexer.rules', lexer.rules);
-log('lexer.tokens', lexer.tokens);
+    log('lexer.rules', lexer.rules);
+    log('lexer.tokens', lexer.tokens);
 
     std.gc();
   }
   console.log('buffers', buffers);
   console.log('files', files);
-
 }
 
 try {

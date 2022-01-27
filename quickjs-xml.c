@@ -431,7 +431,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         /*  printf("parent tagName: %.*s\n", out->namelen, out->name);*/
         yield_next();
 
-        if(namelen && (parse_is(name[0], (/*QUESTION | */ EXCLAM)))) {
+        if(namelen && (parse_is(name[0], (/*QUESTION |*/ EXCLAM)))) {
           self_closing = TRUE;
         }
 
@@ -488,21 +488,19 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           }
         }
 
+        if(parse_is(c, SLASH)) {
+          self_closing = TRUE;
+          parse_getc();
+        }
+
         if(parse_is(name[0], QUESTION | EXCLAM)) {
           if(chars[c] == chars[name[0]]) {
             parse_getc();
-            if(!flat)
-              yield_push();
           }
 
-        } else if(parse_is(c, SLASH)) {
-          self_closing = TRUE;
-          parse_getc();
-
-        } else if(!self_closing) {
-          if(!flat)
+        } 
+         if(!flat && !self_closing) 
             yield_push();
-        }
         /*{
           char* estr = (char*)js_inspect_tostring(ctx, element);
           printf("%03zu element #%i %s\n", vector_size(&st, sizeof(OutputValue)), out->idx, estr);

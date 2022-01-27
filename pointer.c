@@ -46,7 +46,7 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
   }
 }
 
-#define pointer_color(s) (/*(index) >= 0 &&*/ (i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_GRAY : COLOR_BROWN))
+#define pointer_color(s) (/*(index) >= 0 &&*/ (i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_LIGHTGRAY : COLOR_YELLOW))
 
 void
 pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index) {

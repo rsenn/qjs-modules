@@ -479,6 +479,8 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   dest = argc > 1 ? argv[1] : JS_NewObject(ctx);
   if(js_is_map(ctx, dest))
     vmap = virtual_properties_map(ctx, dest);
+  else if(js_is_array(ctx, dest))
+    vmap = virtual_properties_array(ctx, dest);
   else
     vmap = virtual_properties_object(ctx, dest);
   vector_init(&frames, ctx);
