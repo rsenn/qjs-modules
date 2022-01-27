@@ -224,8 +224,7 @@ struct JSContext {
 
   JSValue (*compile_regexp)(JSContext* ctx, JSValueConst pattern, JSValueConst flags);
 
-  JSValue (*eval_internal)(
-      JSContext* ctx, JSValueConst this_obj, const char* input, size_t input_len, const char* filename, int flags, int scope_idx);
+  JSValue (*eval_internal)(JSContext* ctx, JSValueConst this_obj, const char* input, size_t input_len, const char* filename, int flags, int scope_idx);
   void* user_opaque;
 };
 

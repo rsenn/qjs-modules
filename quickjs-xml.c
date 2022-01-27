@@ -497,10 +497,9 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           if(chars[c] == chars[name[0]]) {
             parse_getc();
           }
-
-        } 
-         if(!flat && !self_closing) 
-            yield_push();
+        }
+        if(!flat && !self_closing)
+          yield_push();
         /*{
           char* estr = (char*)js_inspect_tostring(ctx, element);
           printf("%03zu element #%i %s\n", vector_size(&st, sizeof(OutputValue)), out->idx, estr);
@@ -583,8 +582,7 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, output, max_depth)));
 
-  while(output->size > 0 && (output->buf[output->size - 1] == '\0' || byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4))
-    output->size--;
+  while(output->size > 0 && (output->buf[output->size - 1] == '\0' || byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4)) output->size--;
   dbuf_putc(output, '\0');
 
   str = JS_NewString(ctx, (const char*)output->buf);

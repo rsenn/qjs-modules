@@ -245,11 +245,6 @@ function main(...args) {
       js: new JSLexer(str, file)
     };
 
-    lex.g4 = lex.bnf;
-    lex.ebnf = lex.bnf;
-    lex.l = lex.bnf;
-    lex.y = lex.bnf;
-
     const lexer = lex[type];
 
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
@@ -328,16 +323,20 @@ function main(...args) {
 
     for(;;) {
       let { stateDepth } = lexer;
-      let { done, value } = lexer.next();
+      let value = lexer.next();
+      let done = value === undefined;
+
+      //    console.log('value',{value,done});
       if(done) break;
       let newState = lexer.topState();
-      tok = value;
       //showToken(tok);
       if(newState != state) {
         if(state == 'TEMPLATE' && lexer.stateDepth > stateDepth) balancers.push(balancer());
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
       }
       let n = balancers.last.depth;
+      tok = lexer.token;
+
       if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
         lexer.popState();
       } else {

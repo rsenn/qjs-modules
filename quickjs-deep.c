@@ -13,8 +13,7 @@
  * @{
  */
 thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
-thread_local JSValue deep_functions = {{JS_TAG_UNDEFINED}}, deep_iterator_proto = {{JS_TAG_UNDEFINED}},
-                     deep_iterator_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue deep_functions = {{JS_TAG_UNDEFINED}}, deep_iterator_proto = {{JS_TAG_UNDEFINED}}, deep_iterator_ctor = {{JS_TAG_UNDEFINED}};
 
 typedef struct DeepIterator {
   JSValue root;
@@ -312,8 +311,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK);
       break;
     }
-    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx)
-                                                                        : property_enumeration_recurse(&frames, ctx);
+    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx) : property_enumeration_recurse(&frames, ctx);
 
   } while(it);
 
@@ -352,8 +350,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     if(result)
       JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK));
 
-    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx)
-                                                                        : property_enumeration_recurse(&frames, ctx);
+    it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx) : property_enumeration_recurse(&frames, ctx);
 
   } while(it);
   property_enumeration_free(&frames, JS_GetRuntime(ctx));

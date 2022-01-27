@@ -34,8 +34,7 @@ extern const uint8_t qjsm_socklen_t[1030];
 static int js_sockets_init(JSContext*, JSModuleDef*);
 static JSValue js_socket_async_wait(JSContext*, JSValueConst, int, JSValueConst[], int);
 
-#define JS_SOCKETCALL(syscall_no, sock, result) \
-  JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), JS_NewInt32(ctx, -1))
+#define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), JS_NewInt32(ctx, -1))
 
 #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), on_fail)
 
@@ -47,8 +46,7 @@ static JSValue js_socket_async_wait(JSContext*, JSValueConst, int, JSValueConst[
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_async_socket_class_id = 0;
 thread_local JSValue sockaddr_proto = {{JS_TAG_UNDEFINED}}, sockaddr_ctor = {{JS_TAG_UNDEFINED}}, socket_proto = {{JS_TAG_UNDEFINED}},
-                     async_socket_proto = {{JS_TAG_UNDEFINED}}, socket_ctor = {{JS_TAG_UNDEFINED}},
-                     async_socket_ctor = {{JS_TAG_UNDEFINED}};
+                     async_socket_proto = {{JS_TAG_UNDEFINED}}, socket_ctor = {{JS_TAG_UNDEFINED}}, async_socket_ctor = {{JS_TAG_UNDEFINED}};
 
 static const char* socket_syscalls[] = {
     0,
@@ -1164,8 +1162,7 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     const char* syscall = socket_syscall(sock);
   }
   JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_CONFIGURABLE | (sock.error ? JS_PROP_ENUMERABLE : 0));
-  JS_DefinePropertyValueStr(
-      ctx, obj, "error", JS_NewString(ctx, strerror(sock.error)), JS_PROP_CONFIGURABLE | (sock.error ? JS_PROP_ENUMERABLE : 0));
+  JS_DefinePropertyValueStr(ctx, obj, "error", JS_NewString(ctx, strerror(sock.error)), JS_PROP_CONFIGURABLE | (sock.error ? JS_PROP_ENUMERABLE : 0));
   if(sock.syscall > 0 && sock.syscall < socket_syscalls_size)
     JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, socket_syscall(sock)), JS_PROP_ENUMERABLE);
 

@@ -383,9 +383,8 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 const char*
 predicate_typename(const Predicate* pr) {
   return ((const char*[]){
-      "type",       "charset",     "string", "notnot",   "not",    "bnot",  "sqrt",  "add",      "sub", "mul",
-      "div",        "mod",         "bor",    "band",     "pow",    "atan2", "or",    "and",      "xor", "regexp",
-      "instanceof", "prototypeis", "equal",  "property", "member", "shift", "slice", "function", 0,
+      "type",  "charset", "string", "notnot", "not",    "bnot",       "sqrt",        "add",   "sub",      "mul",    "div",   "mod",   "bor",      "band", "pow",
+      "atan2", "or",      "and",    "xor",    "regexp", "instanceof", "prototypeis", "equal", "property", "member", "shift", "slice", "function", 0,
   })[pr->id];
 }
 
@@ -683,8 +682,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
 
       predicate_inspect(pr->binary.left, ctx, dbuf, args, parens[0]);
 
-      dbuf_putstr(dbuf,
-                  ((const char* const[]){" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pr->id - PREDICATE_ADD]);
+      dbuf_putstr(dbuf, ((const char* const[]){" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pr->id - PREDICATE_ADD]);
 
       predicate_inspect(pr->binary.right, ctx, dbuf, args, parens[1]);
       break;

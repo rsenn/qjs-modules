@@ -72,6 +72,7 @@ struct jsm_module_record {
   uint8_t* byte_code;
   uint32_t byte_code_len;
   JSModuleDef* def;
+  BOOL initialized : 1;
 };
 
 #define jsm_module_extern_compiled(name) \
@@ -238,7 +239,11 @@ jsm_module_init(JSContext* ctx, struct jsm_module_record* rec) {
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
 
-      // m->init_func(ctx, m);
+      if(!rec->initialized) {
+        JSValue func_obj = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+        JS_EvalFunction(ctx, func_obj);
+        rec->initialized = TRUE;
+      }
 
     } else {
       JSValue obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
@@ -246,6 +251,7 @@ jsm_module_init(JSContext* ctx, struct jsm_module_record* rec) {
     }
     rec->def = m;
   }
+
   return rec->def;
 }
 
@@ -257,6 +263,8 @@ jsm_module_load(JSContext* ctx, const char* name) {
   m = rt->module_loader_func(ctx, name, 0);
   // printf("jsm_module_load(%p, %s) = %p\n", ctx, name, m);
   if(m) {
+    JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+
     JSValue exp = module_exports(ctx, m);
     JSValue glb = JS_GetGlobalObject(ctx);
     if(!js_has_propertystr(ctx, glb, name))
@@ -654,8 +662,7 @@ static const JSMallocFunctions trace_mf = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t(*)(const void*))_msize,
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
-    defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
     0,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
     (size_t(*)(const void*))malloc_usable_size,
@@ -1152,20 +1159,14 @@ main(int argc, char** argv) {
       char** ptr;
       JSModuleDef* m;
       vector_foreach_t(&module_list, ptr) {
-
         char* name = *ptr;
-        // ModuleImportFunction* imp = js_module_import_namespace;
-        /*
-                JSValue ret;
-                ImportDirective directive;
-                jsm_import_parse(&directive, name);
+        int ret;
 
-                ret = js_import_eval(ctx, directive);
-                if(directive.path)
-                  free(directive.path);
+      /*  if((ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis.%s = tmp;\n", name, name)))
+          ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis.%s = tmp;\n", name, name);
 
-                if(JS_IsException(ret)) {
-        */
+        continue;
+*/
         if(!(m = jsm_module_load(ctx, name))) {
 
           /* if((m = jsm_module_loader(ctx, *name, 0))) {
@@ -1261,12 +1262,7 @@ main(int argc, char** argv) {
           best[j] = ms;
       }
     }
-    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n",
-           best[1] + best[2] + best[3] + best[4],
-           best[1],
-           best[2],
-           best[3],
-           best[4]);
+    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
   }
   return 0;
 fail:

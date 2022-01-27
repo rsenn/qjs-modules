@@ -709,8 +709,7 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
-      JS_DefinePropertyValueStr(
-          ctx, obj, "values", js_values_toarray(ctx, pr->boolean.npredicates, pr->boolean.predicates), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "values", js_values_toarray(ctx, pr->boolean.npredicates, pr->boolean.predicates), JS_PROP_ENUMERABLE);
 
       break;
     }

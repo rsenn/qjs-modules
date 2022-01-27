@@ -67,8 +67,7 @@ typedef enum precedence {
 
 #define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num) \
   { \
-    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, \
-    .u = { \
+    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = { \
       .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} \
     } \
   }
@@ -82,9 +81,7 @@ typedef enum precedence {
 
 #define JS_CFUNC_DEF_FLAGS(prop_name, length, func1, flags) \
   { \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = { \
-      .func = {length, JS_CFUNC_generic, {.generic = func1}} \
-    } \
+    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {.func = {length, JS_CFUNC_generic, {.generic = func1}} } \
   }
 
 #define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE)
@@ -354,8 +351,8 @@ enum value_mask {
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NAN = (1 << FLAG_NAN),
   TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
-  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT |
-                    TYPE_BIG_DECIMAL | TYPE_NAN),
+  TYPE_PRIMITIVE =
+      (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -393,13 +390,8 @@ js_value_typeof(JSValueConst value) {
 }
 
 const char* js_value_type_name(int32_t type);
-
 const char* js_value_typestr(JSContext* ctx, JSValueConst value);
-
-/*VISIBLE void* js_value_ptr(JSValueConst v);
-VISIBLE JSObject* js_value_obj(JSValueConst v);
-VISIBLE int32_t js_value_tag(JSValueConst v);
-*/
+JSValue js_value_mkptr(int tag, void* ptr);
 
 static inline void*
 js_value_ptr(JSValueConst v) {
@@ -958,6 +950,7 @@ JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const void*, int buf_len, const char* filename, int eval_flags);
 int js_eval_str(JSContext*, const char*, const char* file, int flags);
+int __attribute__((format(printf, 3, 4))) js_eval_fmt(JSContext* ctx, int flags, const char* fmt, ...);
 
 int64_t js_time_ms(void);
 int js_interrupt_handler(JSRuntime*, void*);

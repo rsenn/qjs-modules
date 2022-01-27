@@ -2144,22 +2144,38 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
     val = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
       js_module_set_import_meta(ctx, val, !!filename, TRUE);
-      /*val = */ JS_EvalFunction(ctx, val);
+      val = JS_EvalFunction(ctx, val);
     }
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
-  if(JS_IsException(val))
-    js_error_print(ctx, JS_GetException(ctx));
+  /* if(JS_IsException(val))
+     js_error_print(ctx, JS_GetException(ctx));*/
   return val;
 }
 
 int
 js_eval_str(JSContext* ctx, const char* str, const char* file, int flags) {
+  int32_t ret = 0;
   JSValue val = js_eval_buf(ctx, str, strlen(str), file, flags);
-  int32_t ret = -1;
-  if(JS_IsNumber(val))
+  if(JS_IsException(val))
+    ret = -1;
+  else if(JS_IsNumber(val))
     JS_ToInt32(ctx, &ret, val);
+  return ret;
+}
+
+int __attribute__((format(printf, 3, 4))) js_eval_fmt(JSContext* ctx, int flags, const char* fmt, ...) {
+  int ret;
+  va_list ap;
+  DynBuf buf;
+  js_dbuf_init(ctx, &buf);
+  va_start(ap, fmt);
+  dbuf_vprintf(&buf, fmt, ap);
+  va_end(ap);
+  dbuf_0(&buf);
+  ret = js_eval_str(ctx, (const char*)buf.buf, "<input>", flags);
+  dbuf_free(&buf);
   return ret;
 }
 

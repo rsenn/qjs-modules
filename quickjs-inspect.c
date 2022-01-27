@@ -38,10 +38,9 @@ thread_local JSValue object_tostring;
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
 #define INSPECT_IS_COMPACT(opts) \
-  ((opts)->compact == INT32_MAX ? TRUE \
-   : INSPECT_INT32T_INRANGE((opts)->compact) \
-       ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) \
-       : 0)
+  ((opts)->compact == INT32_MAX              ? TRUE \
+   : INSPECT_INT32T_INRANGE((opts)->compact) ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) \
+                                             : 0)
 
 struct prop_key;
 
@@ -881,12 +880,11 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     BOOL show_hidden = opts->show_hidden;
 
     // printf("proto_chain: %i\n", opts->proto_chain);
-    if((1 || opts->proto_chain
-            ? js_object_getpropertynames_recursive
-            : js_object_getpropertynames)(ctx,
-                                          &propenum_tab,
-                                          /* opts->proto_chain <= 0 ? JS_GetPrototype(ctx, value) : */ value,
-                                          JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+    if((1 || opts->proto_chain ? js_object_getpropertynames_recursive
+                               : js_object_getpropertynames)(ctx,
+                                                             &propenum_tab,
+                                                             /* opts->proto_chain <= 0 ? JS_GetPrototype(ctx, value) : */ value,
+                                                             JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
       return -1;
   }
 
@@ -1023,9 +1021,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 
   if(!compact && len && opts->break_length != INT32_MAX)
     inspect_newline(buf, INSPECT_LEVEL(opts));
-  dbuf_putstr(buf,
-              (is_array || is_typedarray) ? ((compact || opts->break_length == INT32_MAX) && len ? " ]" : "]")
-                                          : (compact && len ? " }" : "}"));
+  dbuf_putstr(buf, (is_array || is_typedarray) ? ((compact || opts->break_length == INT32_MAX) && len ? " ]" : "]") : (compact && len ? " }" : "}"));
 
 end_obj:
   if(!vector_empty(&propenum_tab))

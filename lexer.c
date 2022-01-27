@@ -402,7 +402,8 @@ lexer_skip(Lexer* lex) {
 
 size_t
 lexer_charlen(Lexer* lex) {
-  assert(lex->byte_length);
+  if(lex->byte_length == 0)
+    return 0;
   assert((lex->input.size - lex->input.pos) >= lex->byte_length);
   return byte_charlen(&lex->input.data[lex->input.pos], lex->byte_length);
 }

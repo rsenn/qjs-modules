@@ -92,36 +92,24 @@ path_canonical_buf(DynBuf* db) {
 
 size_t
 path_collapse(char* path, size_t n) {
-  char* x;
-  int ret = 0;
-  char sep = path_getsep(path);
-  size_t l, i;
+  ssize_t i, j, k = 0;
 
-  for(x = path, i = 0; i < n;) {
-    while(x[i] == sep) i++;
+  i = path_skip_separator(path, n, k);
 
-    l = i + byte_chr(&x[i], n - i, sep);
-    if(l < n) {
-      l++;
-      if(l + 2 <= n) {
-        if(x[l] == '.' && x[l + 1] == '.' && (l + 2 >= n || x[l + 2] == sep)) {
-          l += 3;
-          if(l < n)
-            memmove(&x[i], &x[l], n - l);
-          n = i + (n - l);
-          x[n] = '\0';
-
-          while(x[--i] == sep)
-            ;
-          while(i > 0 && x[i] != sep) i--;
-          continue;
-        }
-      }
+  while(i < n) {
+    j = i + path_skip2(&path[i], n - i);
+    if(j == i) {
+      n = j;
+      break;
     }
-
-    i = l;
+    if(!path_isdotdot(&path[i]) && path_isdotdot(&path[j])) {
+      j += path[j + 2] == '\0' ? 2 : 3;
+      memmove(&path[i], &path[j], n - j);
+      n -= j - i;
+      continue;
+    }
+    i = j;
   }
-
   return n;
 }
 

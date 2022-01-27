@@ -307,12 +307,10 @@ const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_SYSCALL),
     JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_CODE),
     JS_ALIAS_DEF("code", "name"),
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "errno", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_ERRNO, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_ERRNO, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
     JS_ALIAS_DEF("number", "errno"),
     JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_STACK),
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "message", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_MESSAGE, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("message", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_MESSAGE, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_syscallerror_method, SYSCALLERROR_TOSTRING),
     JS_CFUNC_MAGIC_DEF("valueOf", 0, js_syscallerror_method, SYSCALLERROR_VALUEOF),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),

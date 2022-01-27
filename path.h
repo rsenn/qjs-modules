@@ -48,6 +48,7 @@ char is_junction(const char*);
 #define path_isabs(p) (path_issep((p)[0]) || ((p)[0] && (p)[1] == ':' && path_issep((p)[2])))
 #define path_isrel(p) (!path_isabs(p))
 #define path_isname(p) ((p)[str_chr((p), '/')] != '\0')
+#define path_isdotdot(p) ((p)[0] == '.' && (p)[1] == '.' && ((p)[2] == '\0' || path_issep((p)[2])))
 
 typedef struct {
   size_t sz1, sz2;
@@ -102,6 +103,14 @@ path_skip(const char* s, size_t n) {
   const char *p = s, *e = s + n;
   p += path_skip_separator(s, n, 0);
   p += path_skip_component(p, e - p, 0);
+  return p - s;
+}
+
+static inline size_t
+path_skip2(const char* s, size_t n) {
+  const char *p = s, *e = s + n;
+  p += path_skip_component(s, n, 0);
+  p += path_skip_separator(p, e - p, 0);
   return p - s;
 }
 

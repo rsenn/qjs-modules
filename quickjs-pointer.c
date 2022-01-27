@@ -422,8 +422,7 @@ js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
     }
   } else if(js_atom_is_length(ctx, prop)) {
     value = JS_NewUint32(ctx, pointer->n);
-  } else if((entry = js_find_cfunction_atom(ctx, js_pointer_proto_funcs, countof(js_pointer_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >=
-            0) {
+  } else if((entry = js_find_cfunction_atom(ctx, js_pointer_proto_funcs, countof(js_pointer_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
 
     // printf("entry: %d magic: %d\n", entry,
     // js_pointer_proto_funcs[entry].magic);
