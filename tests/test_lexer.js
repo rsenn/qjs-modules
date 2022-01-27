@@ -279,7 +279,11 @@ function main(...args) {
     const printTok = debug
       ? (tok, prefix) => {
           const range = tok.charRange;
-          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
+          const [start,end] = tok.charRange;
+    //log('printTok', {start,end});
+    let s =toString(str).slice(start, end);
+
+          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc, ` '${s}'`];
           std.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
         }
       : () => {};

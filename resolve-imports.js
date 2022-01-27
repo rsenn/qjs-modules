@@ -94,10 +94,7 @@ class FileMap extends Array {
 
     if(typeof file != 'number') {
       buf ??= fileBuffers.get(file);
-
       if(buf == -1) throw new Error(`FileMap buf == -1`);
-
-      //  console.log('FileMap.constructor', { file, buf });
       this.push([[0, buf.byteLength], buf]);
       fileMaps.set(file, this);
     }
@@ -120,17 +117,13 @@ class FileMap extends Array {
 
   replaceRange([start, end], file) {
     const sliceIndex = n => {
-      let r = this.findIndex(([range, buf]) => (range ? InRange(range, n) : false));
-      let offset;
-      if(r == -1) {
-        r = this.length;
-      } else {
-        offset = n - this[r][0][0];
-      }
-      return [r, offset];
+      let r;
+
+      if((r = this.findIndex(([range, buf]) => (range ? InRange(range, n) : false))) == -1) throw new Error(`replaceRange n=${n} r=${r}`);
+      return r == -1 ? this.length : r;
     };
-    let [i, k] = sliceIndex(start);
-    let [j, l] = sliceIndex(end);
+    let i = sliceIndex(start);
+    let j = sliceIndex(end);
     if(i == j) {
       let [range, buf] = this[i];
       let insert = [[...range], buf];
@@ -140,6 +133,24 @@ class FileMap extends Array {
     this[i][0][1] = start;
     this[j][0][0] = end;
     this.splice(i + 1, 0, [null, file]);
+  }
+
+  at(i) {
+    const [range, buf] = this[i];
+
+    if(!range) return ` \x1b[1;31m<${buf}>\x1b[0m `;
+    if(!buf || !range) return null;
+
+    const [start, end] = range;
+    return toString(buf, start, end - start);
+  }
+
+  toString() {
+    const n = this.length;
+    let s = '',
+      i;
+    for(i = 0; i < n; i++) s += this.at(i);
+    return s;
   }
 }
 
@@ -243,28 +254,39 @@ function AddExport(tokens, relativePath = s => s) {
 
   tokens = tokens.slice(0, len);
 
+  const first = tokens[0],
+    last = tokens.last;
+
+  const range = [first.byteOffset, last.byteOffset + last.byteLength];
+
+  //console.log('range',range);
+
   let exp = define(
     {
       type: tokens[1]?.lexeme,
       file: relativePath(file),
       tokens,
       exported: ExportName(tokens),
-      range: [+tokens[0]?.loc, +tokens.last?.loc]
+      range //: [+tokens[0]?.loc, +tokens.last?.loc]
     },
-    { code, loc: tokens[0]?.loc }
+    { code /*, loc: tokens[0]?.loc*/ }
   );
   return exp;
 }
 
 function AddImport(tokens, relativePath = s => s) {
   //console.log('tokens:', tokens);
-  let range = [+tokens[0].loc, +tokens.last.loc],
-    code = tokens.map(tok => tok.lexeme).join('');
+  const first = tokens[0],
+    last = tokens.last;
+  const range = [first.byteOffset, last.byteOffset + last.byteLength];
+
+  let code = tokens.map(tok => tok.lexeme).join('');
   tokens = tokens.filter(tok => tok.type != 'whitespace');
   let type = ImportType(tokens),
     file = relativePath(ImportFile(tokens));
   const { loc, seq } = tokens[0];
-  let imp = define({ type, file, loc, seq, range }, { tokens, code });
+
+  let imp = define({ type, file, loc, seq, range, tokens }, { code });
   imp.local = {
     [ImportTypes.IMPORT_NAMESPACE]: () => {
       let idx = tokens.findIndex(tok => IsKeyword('as', tok));
@@ -319,7 +341,7 @@ function main(...args) {
       breakLength: 160,
       maxStringLength: Infinity,
       maxArrayLength: Infinity,
-      compact: 1,
+      compact: false,
       stringBreakNewline: false,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
@@ -360,11 +382,12 @@ function main(...args) {
   }
 
   let map = FileMap.for(files[0]);
- console.log(`FileMap.for(${files[0]})`, map);
+  console.log(`FileMap.for(${files[0]})`, map.toString());
 }
 
 function ProcessFile(file, log = () => {}) {
-  //console.log('ProcessFile', file);
+  console.log('ProcessFile', file);
+  const start = Date.now();
   const dir = path.dirname(file);
 
   let str = file ? BufferFile(file) : code[1],
@@ -395,8 +418,7 @@ function ProcessFile(file, log = () => {}) {
     mask = IntToBinary(lexer.mask),
     state = lexer.topState();
   lexer.beginCode = () => (code == 'js' ? 0b1000 : 0b0100);
-  let tokens = [],
-    start = Date.now();
+  let tokens = [];
   const balancer = () => {
     let self;
     let stack = [];
@@ -463,22 +485,26 @@ function ProcessFile(file, log = () => {}) {
       if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
     }
     let n = balancers.last.depth;
-    tok = lexer.token;
+    const { token } = lexer;
+    const { loc, length } = token;
+    const { pos } = loc;
+    let s = toString(str).slice(pos, pos + length);
+    //  console.log('',token.lexeme, {pos, s, length})
 
-    if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
+    if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
     } else {
-      balancer(tok);
+      balancer(token);
       if(n > 0 && balancers.last.depth == 0) log('balancer');
-      if(['import', 'export'].indexOf(tok.lexeme) >= 0) {
-        impexp = What[tok.lexeme.toUpperCase()];
+      if(['import', 'export'].indexOf(token.lexeme) >= 0) {
+        impexp = What[token.lexeme.toUpperCase()];
         let prev = tokens[tokens.length - 1];
         cond = true;
         imp = [];
       }
       if(cond == true) {
-        imp.push(tok);
-        if([';', '\n'].indexOf(tok.lexeme) != -1) {
+        imp.push(token);
+        if([';', '\n'].indexOf(token.lexeme) != -1) {
           cond = false;
           if(imp.some(i => i.lexeme == 'from')) {
             if(impexp == What.IMPORT) imports.push(AddImport(imp, PathAdjust));
@@ -487,71 +513,19 @@ function ProcessFile(file, log = () => {}) {
           if(impexp == What.EXPORT) exports.push(AddExport(imp, PathAdjust));
         }
       }
-      //        printTok(tok, newState);
-      tokens.push(tok);
+      //        printTok(token, newState);
+      tokens.push(token);
     }
     state = newState;
   }
 
-  /*const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
-    let exportNames = exportTokens.map(index => ExportName(tokens.slice(index)));
-    let compare = (a, b) => '' + a > '' + b;
-    if(!caseSensitive) {
-      let fn = compare;
-      compare = (a, b) =>
-        fn.apply(
-          null,
-          [a, b].map(s => ('' + s).toLowerCase())
-        );
-    }
-    if(sort) exportNames.sort(compare);
-    let idx;
-    if((idx = exportNames.indexOf(base)) != -1 && exportNames.indexOf('default') != -1) {
-      exportNames.splice(idx, 1);
-      log(`\x1b[1;31mremoving '${base}'\x1b[0m`);
-    }
-    const exportSequences = exportTokens.map(idx => UntilEOL(idx, tokens, [';','\n']));
-    const exportFromSequences = exportSequences.filter(seq => seq.find(tok => tok.lexeme == 'from'));
-    log(
-      'exportTokens',
-      exportTokens.map(i => LiteralSequence(UntilEOL(i, tokens)))
-    );
-    log(
-      'exportFromSequences',
-      exportFromSequences.map(seq => TokenSequence(seq))
-    );
-*/
   let exportsFrom = exports.filter(exp => exp.tokens).filter(exp => exp.tokens.some(tok => tok.lexeme == 'from'));
   let source = file;
-  /*
-    if(relativeTo) {
-      let rel = path.resolve(relativeTo);
-      source = path.absolute(source);
-
-      if(path.exists(rel) && !path.isDirectory(rel)) rel = path.dirname(rel);
-
-      log('\x1b[1;33mrelativeTo\x1b[0m', { rel, source });
-
-      source = path.relative(source, rel);
-    }*/
 
   if(path.isRelative(source) && !/^(\.|\.\.)\//.test(source)) source = './' + source;
-  /*
-    if(exportNames.length) {
-      const names = exportNames.map(t => (t == 'default' ? t + ' as ' + base : t));
-      const keyword = exp ? 'export' : 'import';
 
-      if(names.length == 1 && /^default as/.test(names[0])) std.puts(keyword + ` ${base} from '${source}'\n`);
-      else std.puts(keyword + ` { ${names.join(', ')} } from '${source}'\n`);
-    }
-*/
-  log(
-    'exports',
-    exportsFrom
-    //  .map(exp => WholeLine(exp.tokens[0].seq, tokens)).map(LiteralSequence)
-    //.map(exp => TokenSequence(exp.tokens))
-  );
-  log('imports', imports);
+  /*log('exports', exportsFrom);
+  log('imports', imports);*/
 
   modules[source] = { imports, exports };
 
@@ -571,11 +545,12 @@ function ProcessFile(file, log = () => {}) {
   let map = FileMap.for(file);
 
   for(let impexp of exportsFrom.concat(imports)) {
-    const { file, range } = impexp;
+    const { file, range, code } = impexp;
+    const [s, e] = range;
 
-    //console.log('impexp', { file, range });
+    console.log('impexp', impexp, { code, file, range: [s, e] });
 
-    map.replaceRange(range, file);
+    map.replaceRange([s + 1, e], file);
   }
 
   let end = Date.now();
