@@ -118,9 +118,8 @@ class FileMap extends Array {
   replaceRange([start, end], file) {
     const sliceIndex = n => {
       let r;
-
       if((r = this.findIndex(([range, buf]) => (range ? InRange(range, n) : false))) == -1) throw new Error(`replaceRange n=${n} r=${r}`);
-      return r == -1 ? this.length : r;
+      return r;
     };
     let i = sliceIndex(start);
     let j = sliceIndex(end);
@@ -138,7 +137,7 @@ class FileMap extends Array {
   at(i) {
     const [range, buf] = this[i];
 
-    if(!range) return ` \x1b[1;31m<${buf}>\x1b[0m `;
+    if(!range) return ` \x1b[38;5;69m<${buf}>\x1b[0m `;
     if(!buf || !range) return null;
 
     const [start, end] = range;

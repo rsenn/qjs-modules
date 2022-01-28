@@ -3,6 +3,7 @@ import * as std from 'std';
 import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, memoize } from '../lib/util.js';
 import inspect from 'inspect';
 import * as xml from 'xml';
+import * as fs from 'fs';
 import * as path from 'path';
 import { Pointer } from 'pointer';
 import * as deep from 'deep';
@@ -70,10 +71,14 @@ function main(...args) {
       console.log('ptr.hier', ptr.hier());
     }
 */
-  let repl = new REPL();
+  let hist;
+  globalThis.fs = fs;
+  let repl = new REPL(null);
   repl.show = repl.printFunction((...args) => console.log(...args));
-  repl.historyLoad();
+  repl.historyLoad(hist);
+  repl.addCleanupHandler(() => repl.historySave(hist));
   repl.run();
+  repl.historySave(hist);
 
   let count = 0;
 
