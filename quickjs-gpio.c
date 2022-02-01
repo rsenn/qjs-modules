@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "gpio.h"
 //#include "utils.h"
 #include "quickjs-gpio.h"

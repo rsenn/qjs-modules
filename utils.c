@@ -2,6 +2,7 @@
 #define _ISOC99_SOURCE 1
 
 #include "utils.h"
+#include "defines.h"
 #include <list.h>
 #include <cutils.h>
 #include "vector.h"

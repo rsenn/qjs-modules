@@ -1,3 +1,4 @@
+#include "defines.h"
 #include <cutils.h>
 #include "property-enumeration.h"
 #include <quickjs.h>

@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "quickjs-sockets.h"
 #include "quickjs-syscallerror.h"
 #include "utils.h"

@@ -1,6 +1,7 @@
 #include "queue.h"
 #include <stdlib.h>
 #include <string.h>
+#include "debug.h"
 
 static inline block_t*
 block_alloc(size_t a) {

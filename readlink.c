@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <windows.h>
 #include <winioctl.h>
+#include "debug.h"
 #include "ioctlcmd.h"
 
 #ifndef FILE_ATTRIBUTE_REPARSE_POINT

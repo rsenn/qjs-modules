@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "char-utils.h"
 #include "buffer-utils.h"
 #include "utils.h"
@@ -393,6 +394,8 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 
   return ret;
 }
+
+#undef free
 
 InputBuffer
 js_input_chars(JSContext* ctx, JSValueConst value) {

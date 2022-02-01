@@ -52,10 +52,10 @@ function(make_module FNAME)
   set(TARGET_NAME qjs-${NAME})
 
   if(ARGN)
-    set(SOURCES ${ARGN} ${${VNAME}_SOURCES})
+    set(SOURCES ${ARGN} ${${VNAME}_SOURCES} ${COMMON_SOURCES})
     set(DEPS ${ARGN} ${${VNAME}_DEPS})
   else(ARGN)
-    set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES})
+    set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES} ${COMMON_SOURCES})
   endif(ARGN)
 
   if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")

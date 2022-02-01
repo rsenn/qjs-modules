@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include "debug.h"
 
 /**
  * \defgroup vector Vector implementation

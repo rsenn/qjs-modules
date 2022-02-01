@@ -1,3 +1,4 @@
+#include "defines.h"
 #include <cutils.h>
 #include "iteration.h"
 #include <list.h>

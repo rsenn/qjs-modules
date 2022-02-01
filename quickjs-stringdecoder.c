@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "quickjs-stringdecoder.h"
 #include "utils.h"
 #include "buffer-utils.h"

@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "quickjs-pointer.h"
 #include "pointer.h"
 #include "utils.h"
@@ -7,6 +8,18 @@
  * \addtogroup pointer
  * @{
  */
+
+Pointer*
+pointer_new(JSContext* ctx) {
+  return js_mallocz(ctx, sizeof(Pointer));
+}
+
+void
+pointer_free(Pointer* ptr, JSContext* ctx) {
+  pointer_reset(ptr, ctx);
+  js_free(ctx, ptr);
+}
+
 void
 pointer_reset(Pointer* ptr, JSContext* ctx) {
   size_t i;

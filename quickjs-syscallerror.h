@@ -1,3 +1,4 @@
+#include "defines.h"
 #ifndef QUICKJS_SYSCALLERROR_H
 #define QUICKJS_SYSCALLERROR_H
 

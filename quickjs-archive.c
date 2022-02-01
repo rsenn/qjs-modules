@@ -1,3 +1,4 @@
+#include "defines.h"
 #include <archive.h>
 #include <archive_entry.h>
 #include "quickjs-archive.h"

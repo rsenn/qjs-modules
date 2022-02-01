@@ -1,4 +1,5 @@
 #include "property-enumeration.h"
+#include "defines.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdlib.h>

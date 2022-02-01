@@ -1,3 +1,4 @@
+#include "defines.h"
 #include <cutils.h>
 #include <libregexp.h>
 #include "property-enumeration.h"

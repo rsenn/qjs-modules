@@ -1,3 +1,4 @@
+#include "defines.h"
 #include <quickjs.h>
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"

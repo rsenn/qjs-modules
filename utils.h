@@ -12,34 +12,16 @@
 #ifdef HAVE_THREADS_H
 #include <threads.h>
 #endif
+#include "debug.h"
 
 /**
  * \defgroup utils Utilities
  * @{
  */
+
+#define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
+
 char* basename(const char*);
-
-#ifndef offsetof
-#define offsetof(type, field) ((size_t) & ((type*)0)->field)
-#endif
-
-#ifndef inrange
-#define inrange(value, min, max) ((value) >= (min) && (value) <= (max))
-#endif
-
-#define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
-
-#ifndef thread_local
-#ifdef _Thread_local
-#define thread_local _Thread_local
-#elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__SUNPRO_CC) || defined(__IBMCPP__)
-#define thread_local __thread
-#elif defined(_WIN32)
-#define thread_local __declspec(thread)
-#else
-#error No TLS implementation found.
-#endif
-#endif
 
 typedef enum precedence {
   PRECEDENCE_COMMA_SEQUENCE = 1,
@@ -64,51 +46,6 @@ typedef enum precedence {
   PRECEDENCE_MEMBER_ACCESS,
   PRECEDENCE_GROUPING,
 } JSPrecedence;
-
-#define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num) \
-  { \
-    .name = prop_name, .prop_flags = JS_PROP_ENUMERABLE | JS_PROP_CONFIGURABLE, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = { \
-      .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} \
-    } \
-  }
-
-#define JS_CGETSET_MAGIC_FLAGS_DEF(prop_name, fgetter, fsetter, magic_num, flags) \
-  { \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = { \
-      .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} \
-    } \
-  }
-
-#define JS_CFUNC_DEF_FLAGS(prop_name, length, func1, flags) \
-  { \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {.func = {length, JS_CFUNC_generic, {.generic = func1}} } \
-  }
-
-#define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE)
-
-#if defined(_WIN32) || defined(__MINGW32__)
-#define VISIBLE __declspec(dllexport)
-#define HIDDEN
-#else
-#define VISIBLE __attribute__((visibility("default")))
-#define HIDDEN __attribute__((visibility("hidden")))
-#endif
-
-#ifndef MAX_NUM
-#define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
-#endif
-#ifndef MIN_NUM
-#define MIN_NUM(a, b) ((a) < (b) ? (a) : (b))
-#endif
-#ifndef ABS_NUM
-#define ABS_NUM(n) ((n) < 0 ? -(n) : (n))
-#endif
-#ifndef SIGN_NUM
-#define SIGN_NUM(n) ((n) < 0)
-#endif
-
-#define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
-
 typedef struct {
   BOOL done;
   JSValue value;
@@ -237,32 +174,6 @@ mod_int32(int32_t a, int32_t b) {
   int32_t c = a % b;
   return (c < 0) ? c + b : c;
 }
-
-#define COLOR_BLACK "\x1b[0;30m"
-#define COLOR_RED "\x1b[0;31m"
-#define COLOR_GREEN "\x1b[0;32m"
-#define COLOR_BROWN "\x1b[0;33m"
-#define COLOR_BLUE "\x1b[0;34m"
-#define COLOR_PURPLE "\x1b[0;35m"
-#define COLOR_MARINE "\x1b[0;36m"
-#define COLOR_LIGHTGRAY "\x1b[0;37m"
-#define COLOR_GRAY "\x1b[1;30m"
-#define COLOR_NONE "\x1b[0m"
-
-#define COLOR_LIGHTRED "\x1b[1;31m"
-
-#define COLOR_LIGHTGREEN "\x1b[1;32m"
-#define COLOR_YELLOW "\x1b[1;33m"
-#define COLOR_LIGHTBLUE "\x1b[1;34m"
-#define COLOR_MAGENTA "\x1b[1;35m"
-#define COLOR_CYAN "\x1b[1;36m"
-#define COLOR_WHITE "\x1b[1;37m"
-
-#define BACKGROUND_RED "\x1b[48;5;124m"
-#define BACKGROUND_BLUE "\x1b[48;5;20m"
-#define BACKGROUND_YELLOW "\x1b[48;5;214m"
-#define BACKGROUND_GREEN "\x1b[48;5;28m"
-#define BACKGROUND_PINK "\x1b[48;5;165m"
 
 uint64_t time_us(void);
 
@@ -556,41 +467,6 @@ js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
   return ret;
 }
 
-#define JS_VALUE_FREE(ctx, value) \
-  do { \
-    JS_FreeValue((ctx), (value)); \
-    (value) = JS_UNDEFINED; \
-  } while(0);
-#define JS_VALUE_FREE_RT(ctx, value) \
-  do { \
-    JS_FreeValueRT((ctx), (value)); \
-    (value) = JS_UNDEFINED; \
-  } while(0);
-
-#if 0
-#define js_object_tmpmark_set(value) \
-  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
-#define js_object_tmpmark_clear(value) \
-  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
-#define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
-#else
-#define js_object_tmpmark_set(value) \
-  do { JS_VALUE_GET_OBJ((value))->tmp_mark |= 0x40; } while(0);
-#define js_object_tmpmark_clear(value) \
-  do { JS_VALUE_GET_OBJ((value))->tmp_mark &= ~0x40; } while(0);
-#define js_object_tmpmark_isset(value) (JS_VALUE_GET_OBJ((value))->tmp_mark & 0x40)
-#endif
-
-#define js_runtime_exception_set(rt, value) \
-  do { *(JSValue*)((uint8_t*)(rt) + 216) = value; } while(0);
-#define js_runtime_exception_get(rt) (*(JSValue*)((uint8_t*)(rt) + 216))
-#define js_runtime_exception_clear(rt) \
-  do { \
-    if(!JS_IsNull(js_runtime_exception_get(rt))) \
-      JS_FreeValueRT((rt), js_runtime_exception_get(rt)); \
-    js_runtime_exception_set(rt, JS_NULL); \
-  } while(0)
-
 void js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len);
 
 static inline void
@@ -641,13 +517,6 @@ js_new_bool_or_number(JSContext* ctx, int32_t n) {
     return JS_NewBool(ctx, FALSE);
   return js_number_new(ctx, n);
 }
-
-#define JS_ATOM_TAG_INT (1U << 31)
-#define JS_ATOM_MAX_INT (JS_ATOM_TAG_INT - 1)
-
-#define js_atom_isint(i) ((JSAtom)((i)&JS_ATOM_TAG_INT))
-#define js_atom_fromint(i) ((JSAtom)((i)&JS_ATOM_MAX_INT) | JS_ATOM_TAG_INT)
-#define js_atom_toint(i) (unsigned int)(((JSAtom)(i) & (~(JS_ATOM_TAG_INT))))
 
 JSAtom js_atom_from(JSContext*, const char*);
 int js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom);

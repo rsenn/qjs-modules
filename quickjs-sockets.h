@@ -1,3 +1,4 @@
+#include "defines.h"
 #ifndef QUICKJS_SOCKETS_H
 #define QUICKJS_SOCKETS_H
 

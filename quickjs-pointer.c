@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "quickjs-pointer.h"
 #include "utils.h"
 #include <string.h>

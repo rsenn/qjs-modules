@@ -4,6 +4,7 @@
 #include <quickjs.h>
 #include "vector.h"
 #include "utils.h"
+#include "debug.h"
 
 /**
  * \defgroup property-enumeration Property enumeration utilities

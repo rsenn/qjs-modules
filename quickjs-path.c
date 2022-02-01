@@ -1,3 +1,4 @@
+#include "defines.h"
 #include <cutils.h>
 #include <quickjs.h>
 #include "buffer-utils.h"

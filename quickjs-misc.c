@@ -1,3 +1,4 @@
+#include "defines.h"
 #include <quickjs-libc.h>
 #include "quickjs-misc.h"
 #include "quickjs-internal.h"

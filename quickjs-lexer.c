@@ -1,3 +1,4 @@
+#include "defines.h"
 #include <quickjs.h>
 #include <libregexp.h>
 #include "quickjs-lexer.h"

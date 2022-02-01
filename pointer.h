@@ -17,6 +17,8 @@ typedef struct Pointer {
 
 typedef Pointer* DataFunc(JSContext*, JSValueConst);
 
+Pointer* pointer_new(JSContext* ctx);
+void pointer_free(Pointer* ptr, JSContext* ctx);
 void pointer_reset(Pointer*, JSContext* ctx);
 void pointer_copy(Pointer*, Pointer* src, JSContext* ctx);
 void pointer_truncate(Pointer*, JSContext* ctx, size_t size);
@@ -37,17 +39,6 @@ void pointer_tostring(Pointer*, JSContext* ctx, DynBuf* db);
 JSValue pointer_toarray(Pointer*, JSContext* ctx);
 JSValue pointer_toatoms(Pointer*, JSContext* ctx);
 int pointer_fromatoms(Pointer*, JSContext* ctx, JSValue arr);
-
-static inline Pointer*
-pointer_new(JSContext* ctx) {
-  return js_mallocz(ctx, sizeof(Pointer));
-}
-
-static inline void
-pointer_free(Pointer* ptr, JSContext* ctx) {
-  pointer_reset(ptr, ctx);
-  js_free(ctx, ptr);
-}
 
 static inline Pointer*
 pointer_clone(Pointer* other, JSContext* ctx) {

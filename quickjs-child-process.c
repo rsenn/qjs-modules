@@ -1,3 +1,4 @@
+#include "defines.h"
 #include "utils.h"
 #include "char-utils.h"
 #include "child-process.h"

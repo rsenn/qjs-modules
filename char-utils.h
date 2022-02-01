@@ -3,6 +3,7 @@
 
 #include <cutils.h>
 #include <string.h>
+#include "debug.h"
 
 /**
  * \defgroup char-utils Character Utilities

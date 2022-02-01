@@ -1162,11 +1162,11 @@ main(int argc, char** argv) {
         char* name = *ptr;
         int ret;
 
-      /*  if((ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis.%s = tmp;\n", name, name)))
-          ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis.%s = tmp;\n", name, name);
+        /*  if((ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis.%s = tmp;\n", name, name)))
+            ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis.%s = tmp;\n", name, name);
 
-        continue;
-*/
+          continue;
+  */
         if(!(m = jsm_module_load(ctx, name))) {
 
           /* if((m = jsm_module_loader(ctx, *name, 0))) {
