@@ -1,6 +1,7 @@
 #include "virtual-properties.h"
 #include "utils.h"
 #include <quickjs.h>
+#include "debug.h"
 
 /**
  * \addtogroup virtual-properties

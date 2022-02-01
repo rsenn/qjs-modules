@@ -8,6 +8,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include "buffer-utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-lexer
@@ -109,7 +110,7 @@ js_token_new(JSContext* ctx, int id, const char* lexeme, const Location* loc, ui
   tok->lexeme = js_strdup(ctx, lexeme);
   tok->loc = location_clone(loc, ctx);
   tok->loc_val = JS_UNDEFINED;
-  tok->byte_offset = byte_offset;
+  //  tok->byte_offset = byte_offset;
 
   return tok;
 }
@@ -213,7 +214,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, rule->name), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, tok->lexeme), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(ctx, obj, "byteOffset", JS_NewUint32(ctx, tok->byte_offset), 0);
+  // JS_DefinePropertyValueStr(ctx, obj, "byteOffset", JS_NewUint32(ctx, tok->byte_offset), 0);
   JS_DefinePropertyValueStr(ctx, obj, "byteLength", JS_NewUint32(ctx, tok->byte_length), 0);
   JS_DefinePropertyValueStr(ctx, obj, "length", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
 
@@ -234,28 +235,28 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewInt64(ctx, tok->byte_length);
       break;
     }
-    case TOKEN_PROP_BYTEOFFSET: {
-      ret = JS_NewInt64(ctx, tok->byte_offset);
-      break;
-    }
     case TOKEN_PROP_CHARLENGTH: {
       ret = JS_NewInt64(ctx, tok->char_length);
       break;
     }
-    case TOKEN_PROP_START: {
-      ret = JS_NewInt64(ctx, tok->loc.pos);
-      break;
-    }
-    case TOKEN_PROP_END: {
-      ret = JS_NewInt64(ctx, tok->loc.pos + tok->char_length);
-      break;
-    }
-    case TOKEN_PROP_CHARRANGE: {
-      ret = JS_NewArray(ctx);
-      js_set_propertyint_int(ctx, ret, 0, tok->loc.pos);
-      js_set_propertyint_int(ctx, ret, 1, tok->loc.pos + tok->char_length);
-      break;
-    }
+      /*      case TOKEN_PROP_BYTEOFFSET: {
+            ret = JS_NewInt64(ctx, tok->byte_offset);
+            break;
+          }
+        case TOKEN_PROP_START: {
+            ret = JS_NewInt64(ctx, tok->loc.pos);
+            break;
+          }
+          case TOKEN_PROP_END: {
+            ret = JS_NewInt64(ctx, tok->loc.pos + tok->char_length);
+            break;
+          }
+          case TOKEN_PROP_CHARRANGE: {
+            ret = JS_NewArray(ctx);
+            js_set_propertyint_int(ctx, ret, 0, tok->loc.pos);
+            js_set_propertyint_int(ctx, ret, 1, tok->loc.pos + tok->char_length);
+            break;
+          }*/
     case TOKEN_PROP_LEXEME: {
       ret = JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length);
       break;
@@ -305,12 +306,12 @@ static JSClassDef js_token_class = {
 };
 
 static const JSCFunctionListEntry js_token_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, NULL, TOKEN_PROP_BYTELENGTH),
-    JS_CGETSET_MAGIC_DEF("byteOffset", js_token_get, NULL, TOKEN_PROP_BYTEOFFSET),
     JS_CGETSET_MAGIC_DEF("length", js_token_get, NULL, TOKEN_PROP_CHARLENGTH),
-    JS_CGETSET_MAGIC_DEF("start", js_token_get, NULL, TOKEN_PROP_START),
-    JS_CGETSET_MAGIC_DEF("end", js_token_get, NULL, TOKEN_PROP_END),
-    JS_CGETSET_MAGIC_DEF("charRange", js_token_get, NULL, TOKEN_PROP_CHARRANGE),
+    JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, NULL, TOKEN_PROP_BYTELENGTH),
+    /*    JS_CGETSET_MAGIC_DEF("byteOffset", js_token_get, NULL, TOKEN_PROP_BYTEOFFSET),
+        JS_CGETSET_MAGIC_DEF("start", js_token_get, NULL, TOKEN_PROP_START),
+        JS_CGETSET_MAGIC_DEF("end", js_token_get, NULL, TOKEN_PROP_END),
+        JS_CGETSET_MAGIC_DEF("charRange", js_token_get, NULL, TOKEN_PROP_CHARRANGE),*/
     JS_CGETSET_MAGIC_DEF("loc", js_token_get, NULL, TOKEN_PROP_LOC),
     JS_CGETSET_MAGIC_DEF("id", js_token_get, NULL, TOKEN_PROP_ID),
     JS_CGETSET_MAGIC_DEF("seq", js_token_get, NULL, TOKEN_PROP_SEQ),
@@ -337,7 +338,7 @@ lexer_token(Lexer* lex, JSContext* ctx) {
     tok->byte_length = lex->byte_length;
     tok->char_length = lexer_charlen(lex);
     tok->lexeme = js_strndup(ctx, (const char*)&lex->input.data[lex->input.pos], tok->byte_length);
-    tok->byte_offset = lex->input.pos;
+    //    tok->byte_offset = lex->input.pos;
     tok->lexer = lex;
     tok->seq = lex->seq;
   }
@@ -1038,7 +1039,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
     case PROP_POS: {
       Token* tok;
       if((tok = js_token_data(value))) {
-        lex->input.pos = tok->byte_offset;
+        lex->input.pos = tok->loc.pos;
         lex->loc = tok->loc;
       }
       break;

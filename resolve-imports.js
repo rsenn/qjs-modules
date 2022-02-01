@@ -7,7 +7,7 @@ import { Predicate } from 'predicate';
 import { Location, Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import JSLexer from './lib/jslexer.js';
-import { escape, quote, toString, define, curry, unique, split, extendArray, camelize, decamelize } from './lib/util.js';
+import { escape, quote, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, decamelize } from './lib/util.js';
 
 ('use strict');
 ('use math');
@@ -32,7 +32,14 @@ function NonWS(tokens) {
 }
 
 function TokenSequence(tokens) {
-  return NonWS(tokens).map(tok => tok.lexeme);
+  return define(
+    tokens.map(tok => tok.lexeme),
+    {
+      toString() {
+        return this.join('');
+      }
+    }
+  );
 }
 
 function Unquote(lexeme) {
@@ -88,16 +95,36 @@ function InRange([start, end], i) {
   return false;
 }
 
+class NumericRange extends Array {
+  constructor(start, end) {
+    super(2);
+
+    if(isNaN(+start)) start = 0;
+    this[0] = +start;
+
+    if(isNaN(+end)) end = this[0];
+    this[1] = end;
+  }
+}
+
+NumericRange.prototype[Symbol.toStringTag] = 'NumericRange';
+NumericRange.prototype[Symbol.inspect] = function(depth, opts) {
+  const [start, end] = this;
+  return `NumericRange \x1b[1;36m${start}\x1b[0m - \x1b[1;36m${end}\x1b[0m`;
+};
+
 class FileMap extends Array {
   constructor(file, buf) {
     super();
 
     if(typeof file != 'number') {
-      buf ??= fileBuffers.get(file);
-      if(buf == -1) throw new Error(`FileMap buf == -1`);
+      // console.log('fileBuffers.keys()', [...fileBuffers.keys()]);
+      buf ??= BufferFile(file); // fileBuffers.get(file);
+      if(!buf) throw new Error(`FileMap buf == ${buf}`);
       this.push([[0, buf.byteLength], buf]);
       fileMaps.set(file, this);
     }
+    this.file = file;
   }
 
   static for(file, b) {
@@ -137,31 +164,72 @@ class FileMap extends Array {
   at(i) {
     const [range, buf] = this[i];
 
-    if(!range) return ` \x1b[38;5;69m<${buf}>\x1b[0m `;
-    if(!buf || !range) return null;
+    if(range) {
+      const [start, end] = range;
+      return toString(buf.slice(start, end));
+    }
 
-    const [start, end] = range;
-    return toString(buf, start, end - start);
+    if(range === null && typeof buf == 'string') {
+      // console.log(`FileMap.at(${i})`, { range, buf }, [...fileMaps.keys()]);
+      let map = FileMap.for(buf);
+      return map.toString();
+    }
+    //   if(!buf || !range) return null;
+    return ` \x1b[38;5;69m<${buf}>\x1b[0m `;
   }
 
-  toString() {
+  toString(
+    fn = (filename, i) => {
+      let s = '';
+      s += ` ${i ? 'end' : 'start'} of '${filename}' `;
+
+      let n = Math.floor((80 - 6 - s.length) / 2);
+      s = '/* ' + '-'.repeat(n) + s;
+
+      s += '-'.repeat(80 - 3 - s.length) + ' */';
+
+      if(i == 0) s = '\n' + s + '\n';
+      else s = s + '\n';
+      return s;
+    }
+  ) {
     const n = this.length;
     let s = '',
       i;
-    for(i = 0; i < n; i++) s += this.at(i);
+    for(i = 0; i < n; i++) {
+      let str;
+      str = this.at(i);
+      const [range, buf] = this[i];
+
+      if(range === null && typeof buf == 'string') str = fn(buf, 0) + str + fn(buf, 1);
+
+      s += str;
+    }
     return s;
   }
 }
 
-function BufferFile(file) {
-  //console.log('BufferFile', file);
-  if(buffers[file]) return buffers[file];
-  let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
-  //console.log('bufferRef', bufferRef, bufferRef.set, b);
-  if(typeof b == 'object' && b !== null) bufferRef.set(b, file);
-  if(typeof b == 'object' && b !== null) fileBuffers.set(file, b);
-  //FileMap.for(file, b);
-  return b;
+FileMap.prototype[Symbol.toStringTag] = 'FileMap';
+FileMap.prototype[Symbol.inspect] = function(depth, opts) {
+  let arr = [...this].map(([range, buf], i) => {
+    if(Array.isArray(range)) {
+      range = new NumericRange(...range);
+      //      buf = toString(buf.slice(...range);
+    }
+
+    console.log(`i=${i}`, { range, buf });
+    return [range, buf];
+  });
+
+  return `FileMap\x1b[1;35m<${this.file}>\x1b[0m ` + inspect(arr, { ...opts, compact: false, breakLength: 80, maxArrayLength: 100, customInspect: true, depth: depth + 2 });
+};
+
+function BufferFile(file, buf) {
+  file = path.normalize(file);
+  buf ??= buffers[file] ??= fs.readFileSync(file, { flag: 'r' });
+  if(typeof buf == 'object' && buf !== null) bufferRef.set(buf, file);
+  if(typeof buf == 'object' && buf !== null) fileBuffers.set(file, buf);
+  return buf;
 }
 
 function BufferLengths(file) {
@@ -242,23 +310,29 @@ function ExportName(seq) {
   return seq[idx]?.lexeme;
 }
 
-function AddExport(tokens, relativePath = s => s) {
-  let code = LiteralSequence(tokens);
-  tokens = NonWS(tokens);
-  let len = tokens.length;
-  if(tokens[1].lexeme != '{') len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
+function ByteSequence(tokens) {
+  let { loc } = tokens[0];
+  let start = loc.pos;
 
+  let total = tokens.reduce((n, t) => n + t.byteLength, 0);
+  let end = /*tokens[tokens.length-1].loc?.pos ??*/ start + total;
+
+  let line = toString(BufferFile(loc.file).slice(start, end));
+
+  //console.log('ByteSequence', { start, end, line });
+  return [start, end];
+}
+
+function AddExport(tokens, relativePath = s => s) {
+  let { loc } = tokens[0];
+  let start = loc.pos;
+  let code = TokenSequence(tokens) + '';
+  let len = tokens.length;
+  const range = ByteSequence(tokens);
+  if(tokens[1].lexeme != '{') len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
   let fromIndex = tokens.findIndex(tok => tok.lexeme == 'from');
   let file = fromIndex != -1 ? Unquote(tokens[fromIndex + 1].lexeme) : null;
-
   tokens = tokens.slice(0, len);
-
-  const first = tokens[0],
-    last = tokens.last;
-
-  const range = [first.byteOffset, last.byteOffset + last.byteLength];
-
-  //console.log('range',range);
 
   let exp = define(
     {
@@ -266,24 +340,27 @@ function AddExport(tokens, relativePath = s => s) {
       file: relativePath(file),
       tokens,
       exported: ExportName(tokens),
-      range //: [+tokens[0]?.loc, +tokens.last?.loc]
+      range
     },
-    { code /*, loc: tokens[0]?.loc*/ }
+    { code }
   );
   return exp;
 }
 
 function AddImport(tokens, relativePath = s => s) {
-  //console.log('tokens:', tokens);
-  const first = tokens[0],
-    last = tokens.last;
-  const range = [first.byteOffset, last.byteOffset + last.byteLength];
-
-  let code = tokens.map(tok => tok.lexeme).join('');
-  tokens = tokens.filter(tok => tok.type != 'whitespace');
+  let [first] = tokens;
+  let source = first.loc.file;
   let type = ImportType(tokens),
     file = relativePath(ImportFile(tokens));
+  const range = ByteSequence(tokens);
+  let code = toString(BufferFile(source).slice(...range));
+  let code2 = tokens.map(tok => tok.lexeme).join('');
+  // tokens = tokens.filter(tok => tok.type != 'whitespace');
+
   const { loc, seq } = tokens[0];
+
+  if(!/\./.test(file)) return null;
+  console.log('AddImport', { range, code });
 
   let imp = define({ type, file, loc, seq, range, tokens }, { code });
   imp.local = {
@@ -337,11 +414,12 @@ function main(...args) {
     inspectOptions: {
       colors: true,
       depth: 8,
-      breakLength: 160,
-      maxStringLength: Infinity,
-      maxArrayLength: Infinity,
-      compact: false,
-      stringBreakNewline: false,
+      breakLength: 100,
+      stringBreakNewline: true,
+      maxStringLength: 1000,
+      maxArrayLength: 100,
+      compact: 1,
+      //reparseable: true,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
   });
@@ -354,7 +432,10 @@ function main(...args) {
     quiet,
     exp,
     relativeTo,
-    files = [];
+    files = [],
+    outputFile;
+
+  let { out } = std;
 
   while(args[optind]) {
     if(args[optind].startsWith('-')) {
@@ -365,9 +446,14 @@ function main(...args) {
       else if(/(quiet|^-q)/.test(args[optind])) quiet = true;
       else if(/(export|^-e)/.test(args[optind])) exp = true;
       else if(/(relative|^-r)/.test(args[optind])) relativeTo = path.absolute(args[++optind]);
+      else if(/(output|^-o)/.test(args[optind])) outputFile = args[++optind];
     } else files.push(args[optind]);
 
     optind++;
+  }
+
+  if(outputFile) {
+    out = std.open(outputFile, 'w+');
   }
 
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
@@ -375,27 +461,31 @@ function main(...args) {
   if(!files.length) files.push(RelativePath('lib/util.js'));
 
   console.log('files', files);
-
+  let log = quiet ? () => {} : (...args) => console.log(`${file}:`, ...args);
+  let results = [];
   for(let file of files) {
-    ProcessFile(file, quiet ? () => {} : (...args) => console.log(`${file}:`, ...args));
+    results.push(ProcessFile(file, log));
   }
-
-  let map = FileMap.for(files[0]);
-  console.log(`FileMap.for(${files[0]})`, map.toString());
+  //
+  let [result] = results;
+  out.puts(result.toString());
+  //console.log(`result`, inspect(result, { reparseable: false }));
+  //out.close();
 }
 
-function ProcessFile(file, log = () => {}) {
-  console.log('ProcessFile', file);
+function ProcessFile(source, log = () => {}) {
+  console.log('ProcessFile', source);
   const start = Date.now();
-  const dir = path.dirname(file);
+  const dir = path.dirname(source);
 
-  let str = file ? BufferFile(file) : code[1],
-    len = str.length,
-    type = path.extname(file).substring(1),
-    base = camelize(path.basename(file, '.' + type).replace(/[^0-9A-Za-z_]/g, '_'));
+  let bytebuf = source ? BufferFile(source) : code[1];
+
+  let len = bytebuf.byteLength,
+    type = path.extname(source).substring(1),
+    base = camelize(path.basename(source, '.' + type).replace(/[^0-9A-Za-z_]/g, '_'));
 
   let lex = {
-    js: new JSLexer(str, file)
+    js: new JSLexer(bytebuf, source)
   };
 
   const lexer = lex[type];
@@ -487,7 +577,7 @@ function ProcessFile(file, log = () => {}) {
     const { token } = lexer;
     const { loc, length } = token;
     const { pos } = loc;
-    let s = toString(str).slice(pos, pos + length);
+    let s = toString(bytebuf).slice(pos, pos + length);
     //  console.log('',token.lexeme, {pos, s, length})
 
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
@@ -499,14 +589,17 @@ function ProcessFile(file, log = () => {}) {
         impexp = What[token.lexeme.toUpperCase()];
         let prev = tokens[tokens.length - 1];
         cond = true;
-        imp = [];
+        imp = [token];
       }
       if(cond == true) {
         imp.push(token);
         if([';', '\n'].indexOf(token.lexeme) != -1) {
           cond = false;
           if(imp.some(i => i.lexeme == 'from')) {
-            if(impexp == What.IMPORT) imports.push(AddImport(imp, PathAdjust));
+            if(impexp == What.IMPORT) {
+              let obj = AddImport(imp, PathAdjust);
+              if(obj) imports.push(obj);
+            }
           }
 
           if(impexp == What.EXPORT) exports.push(AddExport(imp, PathAdjust));
@@ -519,7 +612,6 @@ function ProcessFile(file, log = () => {}) {
   }
 
   let exportsFrom = exports.filter(exp => exp.tokens).filter(exp => exp.tokens.some(tok => tok.lexeme == 'from'));
-  let source = file;
 
   if(path.isRelative(source) && !/^(\.|\.\.)\//.test(source)) source = './' + source;
 
@@ -532,31 +624,33 @@ function ProcessFile(file, log = () => {}) {
   let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
   buffers[source] = [...split(BufferFile(source), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
 
-  fileImports.forEach(imp => {
-    let p = imp.file;
-    //  log('p', p);
+  /*console.log('fileImports', fileImports);
+  fileImports.forEach(imp => ProcessFile(imp.file, log));*/
 
-    ProcessFile(imp.file, log);
-
-    //      AddUnique(files, p);
-  });
-
-  let map = FileMap.for(file);
+  let map = FileMap.for(source);
 
   for(let impexp of exportsFrom.concat(imports)) {
     const { file, range, code } = impexp;
-    const [s, e] = range;
+    const [start, end] = range;
+    // let bytebuf = BufferFile(source);
+    let bufstr = toString(bytebuf.slice(...range));
+    let reststr = toString(bytebuf.slice(end));
+    let arrbuf = toArrayBuffer(bufstr);
 
-    console.log('impexp', impexp, { code, file, range: [s, e] });
+    console.log('impexp', { start, end, reststr });
+    //  console.log('impexp', impexp, { code, source, bufstr, range });
+    //    console.log('impexp', { arrbuf, 'arrbuf.byteLength': arrbuf.byteLength, bufstr: bufstr, 'bufstr.length': bufstr.length, 'code.length': code.length });
 
-    map.replaceRange([s + 1, e], file);
+    map.replaceRange(range, !file.startsWith('/') && !file.startsWith('./') ? './' + file : file);
   }
 
   let end = Date.now();
 
-  log(`took ${end - start}ms`);
+  console.log(`'${source.replace(/^\.\//, '')}' took ${end - start}ms`);
 
   std.gc();
+
+  return map;
 }
 
 try {

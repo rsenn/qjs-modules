@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup predicate

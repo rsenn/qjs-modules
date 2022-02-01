@@ -3,6 +3,7 @@
 //#include "utils.h"
 #include "quickjs-gpio.h"
 #include "utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-gpio

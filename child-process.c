@@ -1,6 +1,7 @@
 #include "child-process.h"
 #include "utils.h"
 #include "property-enumeration.h"
+#include "debug.h"
 
 #include <errno.h>
 

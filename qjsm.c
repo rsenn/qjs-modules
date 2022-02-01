@@ -41,6 +41,7 @@ atomic_add_int(int* ptr, int v) {
 #include <quickjs-libc.h>
 #include "quickjs-internal.h"
 #include "buffer-utils.h"
+#include "debug.h"
 
 typedef JSModuleDef* ModuleImportFunction(JSContext*, const char*, const char*);
 
@@ -171,7 +172,7 @@ jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename,
 
 void
 jsm_init_modules(JSContext* ctx) {
-  js_dbuf_init(ctx, &jsm_modules);
+  vector_init(&jsm_modules, ctx);
 
 #define jsm_builtin_native(name) vector_push(&jsm_modules, jsm_module_record_native(name));
 
@@ -218,6 +219,48 @@ jsm_load_package(JSContext* ctx, const char* file) {
       package_json = JS_ParseJSON(ctx, buf, len, file);
   }
   return JS_DupValue(ctx, package_json);
+}
+
+char*
+jsm_module_search_ext(JSContext* ctx, const char* path, const char* name, const char* ext) {
+  const char *p, *q;
+  char* file = 0;
+  size_t i, j;
+  struct stat st;
+
+  for(p = path; *p; p = q) {
+    if((q = strchr(p, ':')) == 0)
+      q = p + strlen(p);
+    i = q - p;
+    file = orig_js_malloc(ctx, i + 1 + strlen(name) + 3 + 1);
+    strncpy(file, p, i);
+    file[i] = '/';
+    strcpy(&file[i + 1], name);
+    j = strlen(name);
+    if(!(j >= 3 && !strcmp(&name[j - 3], ext)))
+      strcpy(&file[i + 1 + j], ext);
+    if(!stat(file, &st))
+      return file;
+    orig_js_free(ctx, file);
+    if(*q == ':')
+      ++q;
+  }
+  return 0;
+}
+
+char*
+jsm_module_search(JSContext* ctx, const char* search_path, const char* module) {
+  char* path = 0;
+
+  while(!strncmp(module, "./", 2)) module = trim_dotslash(module);
+
+  if(!str_contains(module, '/') || str_ends(module, ".so"))
+    path = jsm_module_search_ext(ctx, search_path, module, ".so");
+
+  if(!path)
+    path = jsm_module_search_ext(ctx, search_path, module, ".js");
+
+  return path;
 }
 
 static struct jsm_module_record*
@@ -285,7 +328,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
     jsm_modules_initialized = TRUE;
   }
 
-  module = js_strdup(ctx, trim_dotslash(name));
+  module = orig_js_strdup(ctx, trim_dotslash(name));
   for(;;) {
     if(debug_module_loader > 1) {
       if(file)
@@ -318,9 +361,9 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
             if(debug_module_loader)
               printf("[%p] \x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", pthread_self(), module, str);
 
-            js_free(ctx, module);
+            orig_js_free(ctx, module);
 
-            module = js_strdup(ctx, str);
+            module = orig_js_strdup(ctx, str);
             JS_FreeCString(ctx, str);
             continue;
           }
@@ -329,8 +372,8 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
     }
     if(!file) {
       if(strchr("./", module[0]))
-        file = js_strdup(ctx, module);
-      else if(!(file = js_module_search(ctx, jsm_default_module_path, module)))
+        file = orig_js_strdup(ctx, module);
+      else if(!(file = jsm_module_search(ctx, jsm_default_module_path, module)))
         break;
       continue;
     }
@@ -349,10 +392,55 @@ end:
   }
   // if(!m) printf("jsm_module_loader(\"%s\") = %p\n", name, m);
   if(module)
-    js_free(ctx, module);
+    orig_js_free(ctx, module);
   if(file)
-    js_free(ctx, file);
+    orig_js_free(ctx, file);
   return m;
+}
+
+char*
+jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
+  size_t p;
+  const char* r;
+  DynBuf file = {0, 0, 0};
+  size_t n;
+  js_dbuf_allocator(ctx, &file);
+
+  if(name[0] != '.') {
+    dbuf_putstr(&file, name);
+    dbuf_0(&file);
+    return file.buf;
+  }
+
+  n = path[(p = str_rchr(path, '/'))] ? p : 0;
+  dbuf_put(&file, (const uint8_t*)path, n);
+  dbuf_0(&file);
+  for(r = name;;) {
+    if(r[0] == '.' && r[1] == '/') {
+      r += 2;
+    } else if(r[0] == '.' && r[1] == '.' && r[2] == '/') {
+      if(file.size == 0)
+        break;
+      if((p = byte_rchr(file.buf, file.size, '/')) < file.size)
+        p++;
+      else
+        p = 0;
+      if(!strcmp((const char*)&file.buf[p], ".") || !strcmp((const char*)&file.buf[p], ".."))
+        break;
+      if(p > 0)
+        p--;
+      file.size = p;
+      r += 3;
+    } else {
+      break;
+    }
+  }
+  if(file.size == 0)
+    dbuf_putc(&file, '.');
+  dbuf_putc(&file, '/');
+  dbuf_putstr(&file, r);
+  dbuf_0(&file);
+  return (char*)file.buf;
 }
 
 static JSValue
@@ -1119,10 +1207,10 @@ main(int argc, char** argv) {
     exit(2);
   }
 
-  js_dbuf_init(ctx, &jsm_scripts);
+  vector_init(&jsm_scripts, ctx);
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, js_module_normalize, jsm_module_loader, 0);
+  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, 0);
   // js_std_set_module_loader_func(jsm_module_loader);
 
   if(dump_unhandled_promise_rejection) {

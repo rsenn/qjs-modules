@@ -39,6 +39,7 @@ void pointer_tostring(Pointer*, JSContext* ctx, DynBuf* db);
 JSValue pointer_toarray(Pointer*, JSContext* ctx);
 JSValue pointer_toatoms(Pointer*, JSContext* ctx);
 int pointer_fromatoms(Pointer*, JSContext* ctx, JSValue arr);
+void pointer_pushatom(Pointer* ptr, JSContext* ctx, JSAtom atom);
 
 static inline Pointer*
 pointer_clone(Pointer* other, JSContext* ctx) {
@@ -46,12 +47,6 @@ pointer_clone(Pointer* other, JSContext* ctx) {
   if((ptr = pointer_new(ctx)))
     pointer_copy(ptr, other, ctx);
   return ptr;
-}
-
-static inline void
-pointer_pushatom(Pointer* ptr, JSContext* ctx, JSAtom atom) {
-  if((ptr->atoms = js_realloc(ctx, ptr->atoms, (ptr->n + 1) * sizeof(JSAtom))))
-    ptr->atoms[ptr->n++] = atom;
 }
 
 static inline JSAtom

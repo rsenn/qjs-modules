@@ -6,6 +6,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "debug.h"
+
+realloc2_helper(vector_realloc);
+js_realloc_helper(vector_js_realloc);
+js_realloc_rt_helper(vector_js_realloc_rt);
 
 #define HAVE_UINT128
 
@@ -202,4 +207,18 @@ vector_fwrite(const Vector* vec, size_t start, FILE* out) {
       fputs("'\n]", out);
   }
   fflush(out);
+}
+
+BOOL
+vector_grow(Vector* vec, size_t elsz, int32_t len) {
+  uint64_t need;
+  if(len < 0)
+    return FALSE;
+  if(!umult64(elsz, len, &need))
+    return FALSE;
+  if(need <= vec->size)
+    return FALSE;
+  vec->data = vec->realloc_func(vec->opaque, vec->data, need);
+  vec->size = need;
+  return TRUE;
 }

@@ -3,6 +3,7 @@
 #include "buffer-utils.h"
 #include "char-utils.h"
 #include <errno.h>
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-syscallerror

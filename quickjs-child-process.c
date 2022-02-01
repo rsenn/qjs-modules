@@ -3,6 +3,7 @@
 #include "char-utils.h"
 #include "child-process.h"
 #include "property-enumeration.h"
+#include "debug.h"
 
 /**
  * \defgroup quickjs-child-process QuickJS module: child_process - Child process

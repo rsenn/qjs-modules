@@ -3,6 +3,7 @@
 #include <archive_entry.h>
 #include "quickjs-archive.h"
 #include "utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-archive

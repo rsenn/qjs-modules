@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include "location.h"
 #include "buffer-utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup location
@@ -61,6 +62,7 @@ location_zero(Location* loc) {
   loc->line = 0;
   loc->column = 0;
   loc->pos = 0;
+  loc->byte_offset = 0;
 }
 
 void
@@ -68,6 +70,7 @@ location_add(Location* loc, const Location* other) {
   loc->line += other->line;
   loc->column += other->column;
   loc->pos += other->pos;
+  loc->byte_offset += other->byte_offset;
 }
 
 void
@@ -75,6 +78,7 @@ location_sub(Location* loc, const Location* other) {
   loc->line -= other->line;
   loc->column -= other->column;
   loc->pos -= other->pos;
+  loc->byte_offset -= other->byte_offset;
 }
 
 void
@@ -98,6 +102,29 @@ location_free_rt(Location* loc, JSRuntime* rt) {
   loc->file = -1;
 }
 
+void
+location_count(Location* loc, const char* x, size_t n) {
+  size_t i;
+  for(i = 0; i < n;) {
+    size_t bytes = byte_charlen(&x[i], n - i);
+
+    if(x[i] == '\n') {
+      loc->line++;
+      loc->column = 0;
+    } else {
+      loc->column++;
+    }
+
+    loc->pos++;
+    i += bytes;
+  }
+}
+
+Location
+location_clone(const Location* loc, JSContext* ctx) {
+  Location ret = {loc->file >= 0 ? JS_DupAtom(ctx, loc->file) : -1, loc->line, loc->column, loc->pos, loc->byte_offset, 0};
+  return ret;
+}
 /**
  * @}
  */

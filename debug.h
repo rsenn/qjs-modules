@@ -6,14 +6,16 @@
 #include <cutils.h>
 #include "defines.h"
 
-struct alloc_block {
+struct __attribute__((packed)) alloc_block {
+  struct list_head link;
   const char* file;
   int line;
   size_t size;
-  struct list_head link;
 };
 
 extern thread_local struct list_head alloc_block_list;
+
+int64_t check_pointer(void*);
 
 void* debug_malloc(size_t, const char*, int);
 void* debug_calloc(size_t, size_t, const char*, int line);
@@ -25,14 +27,15 @@ void* debug_js_mallocz(JSContext*, size_t, const char*, int line);
 void* debug_js_realloc(JSContext*, void*, size_t, const char* file, int line);
 void* debug_js_strdup(JSContext*, const char*, const char*, int line);
 void* debug_js_strndup(JSContext*, const char*, size_t, const char* file, int line);
-size_t debug_js_malloc_usable_size(JSContext*, const void*, const char* file, int line);
+size_t debug_js_malloc_usable_size(JSContext*, const void*, const char*, int line);
 void debug_js_free(JSContext*, void*, const char*, int line);
 void* debug_js_malloc_rt(JSRuntime*, size_t, const char*, int line);
 void* debug_js_mallocz_rt(JSRuntime*, size_t, const char*, int line);
 void* debug_js_realloc_rt(JSRuntime*, void*, size_t, const char* file, int line);
+size_t debug_js_malloc_usable_size_rt(JSRuntime*, const void*, const char*, int line);
 void debug_js_free_rt(JSRuntime*, void*, const char*, int line);
 
-#ifdef DEBUG_ALLOC
+#if defined(DEBUG_ALLOC) && !defined(_IN_DEBUG_C)
 #define malloc(size) debug_malloc(size, __FILE__, __LINE__)
 #define calloc(nelem, size) debug_calloc(nelem, size, __FILE__, __LINE__)
 #define realloc(ptr, size) debug_realloc(ptr, size, __FILE__, __LINE__)
@@ -48,7 +51,41 @@ void debug_js_free_rt(JSRuntime*, void*, const char*, int line);
 #define js_malloc_rt(rt, size) debug_js_malloc_rt(rt, size, __FILE__, __LINE__)
 #define js_mallocz_rt(rt, size) debug_js_mallocz_rt(rt, size, __FILE__, __LINE__)
 #define js_realloc_rt(rt, ptr, size) debug_js_realloc_rt(rt, ptr, size, __FILE__, __LINE__)
+#define js_malloc_usable_size_rt(rt, ptr) debug_js_malloc_usable_size_rt(rt, ptr, __FILE__, __LINE__)
 #define js_free_rt(rt, ptr) debug_js_free_rt(rt, ptr, __FILE__, __LINE__)
 #endif
+
+#ifdef DEBUG_ALLOC
+#define realloc_helper(name) \
+  void* name(void* ptr, size_t size) { return debug_realloc(ptr, size, __FILE__, __LINE__); }
+#define realloc2_helper(name) \
+  void* name(void* opaque, void* ptr, size_t size) { return debug_realloc(ptr, size, __FILE__, __LINE__); }
+#define js_realloc_helper(name) \
+  void* name(JSContext* ctx, void* ptr, size_t size) { return debug_js_realloc(ctx, ptr, size, __FILE__, __LINE__); }
+#define js_realloc_rt_helper(name) \
+  void* name(JSRuntime* rt, void* ptr, size_t size) { return debug_js_realloc_rt(rt, ptr, size, __FILE__, __LINE__); }
+#else
+#define realloc_helper(name) \
+  void* name(void* ptr, size_t size) { return realloc(ptr, size); }
+#define realloc2_helper(name) \
+  void* name(void* opaque, void* ptr, size_t size) { return realloc(ptr, size); }
+#define js_realloc_helper(name) \
+  void* name(JSContext* ctx, void* ptr, size_t size) { return js_realloc(ctx, ptr, size); }
+#define js_realloc_rt_helper(name) \
+  void* name(JSRuntime* rt, void* ptr, size_t size) { return js_realloc_rt(rt, ptr, size); }
+#endif
+
+void* orig_js_malloc(JSContext*, size_t);
+void* orig_js_mallocz(JSContext*, size_t);
+void* orig_js_realloc(JSContext*, void*, size_t);
+void* orig_js_strdup(JSContext*, const char*);
+void* orig_js_strndup(JSContext*, const char*, size_t);
+size_t orig_js_malloc_usable_size(JSContext*, const void*);
+void orig_js_free(JSContext*, void*);
+void* orig_js_malloc_rt(JSRuntime*, size_t);
+void* orig_js_mallocz_rt(JSRuntime*, size_t);
+void* orig_js_realloc_rt(JSRuntime*, void*, size_t);
+size_t orig_js_malloc_usable_size_rt(JSRuntime*, const void*);
+void orig_js_free_rt(JSRuntime*, void*);
 
 #endif /* defined(DEBUG_H) */

@@ -6,6 +6,7 @@
 #include "pointer.h"
 #include "virtual-properties.h"
 #include "quickjs-predicate.h"
+#include "debug.h"
 
 #include <stdint.h>
 

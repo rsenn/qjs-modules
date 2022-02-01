@@ -26,6 +26,8 @@ int isatty(HANDLE);
 #endif
 #endif
 
+#include "debug.h"
+
 static JSClassID function_class_id_ceil = JS_CLASS_ASYNC_GENERATOR;
 
 /**
@@ -58,6 +60,7 @@ typedef struct {
   int show_proxy : 1;
   int getters : 1;
   int string_break_newline : 1;
+  int reparseable : 1;
   int32_t depth;
   int32_t max_array_length;
   int32_t max_string_length;
@@ -125,6 +128,7 @@ inspect_options_init(inspect_options_t* opts, JSContext* ctx) {
   opts->show_proxy = FALSE;
   opts->getters = FALSE;
   opts->string_break_newline = FALSE;
+  opts->reparseable = FALSE;
   opts->depth = INT32_MAX;
   opts->max_array_length = 300;
   opts->max_string_length = INT32_MAX;
@@ -187,6 +191,12 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
   value = JS_GetPropertyStr(ctx, object, "stringBreakNewline");
   if(!JS_IsException(value) && !JS_IsUndefined(value)) {
     opts->string_break_newline = JS_ToBool(ctx, value);
+    JS_FreeValue(ctx, value);
+  }
+
+  value = JS_GetPropertyStr(ctx, object, "reparseable");
+  if(!JS_IsException(value) && !JS_IsUndefined(value)) {
+    opts->reparseable = JS_ToBool(ctx, value);
     JS_FreeValue(ctx, value);
   }
 
@@ -275,6 +285,7 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
   JS_SetPropertyStr(ctx, ret, "showProxy", JS_NewBool(ctx, opts->show_proxy));
   JS_SetPropertyStr(ctx, ret, "getters", JS_NewBool(ctx, opts->getters));
   JS_SetPropertyStr(ctx, ret, "stringBreakNewline", JS_NewBool(ctx, opts->string_break_newline));
+  JS_SetPropertyStr(ctx, ret, "reparseable", JS_NewBool(ctx, opts->reparseable));
   JS_SetPropertyStr(ctx, ret, "depth", js_number_new(ctx, opts->depth));
   JS_SetPropertyStr(ctx, ret, "maxArrayLength", js_number_new(ctx, opts->max_array_length));
   JS_SetPropertyStr(ctx, ret, "maxStringLength", js_number_new(ctx, opts->max_string_length));
@@ -319,7 +330,7 @@ js_object_getpropertynames(JSContext* ctx, union Vector* propenum_tab, JSValueCo
       vector_put(propenum_tab, &tmp_tab[i], sizeof(JSPropertyEnum));
   }
 
-  js_free(ctx, tmp_tab);
+  orig_js_free(ctx, tmp_tab);
   return ret;
 }
 
@@ -502,63 +513,77 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
   str = js_object_tostring2(ctx, object_tostring, proto);
   JS_FreeValue(ctx, proto);
 
-  if(js_is_arraybuffer(ctx, value))
-    dbuf_putstr(buf, "ArrayBuffer");
-  else if(js_is_sharedarraybuffer(ctx, value))
-    dbuf_putstr(buf, "SharedArrayBuffer");
-  else if(str && (str2 = strchr(str, ' '))) {
-    str2++;
-    slen = byte_chr(str2, strlen(str2), ']');
-    dbuf_append(buf, (const uint8_t*)str2, slen);
-  }
-
-  if(str)
-    js_cstring_free(ctx, str);
-
-  dbuf_putstr(buf, " {");
-  if(compact)
-    dbuf_putc(buf, ' ');
-  else
-    inspect_newline(buf, (opts->depth - depth) + 2);
-  dbuf_printf(buf, "byteLength: %zu [", size);
-  if(compact)
-    dbuf_putc(buf, ' ');
-  else
-    inspect_newline(buf, (opts->depth - depth) + 3);
-  break_len -= ((opts->depth - depth) + 3) * 2;
-  column = 0;
-
-  for(i = 0; i < size; i++) {
-    if((opts->max_array_length == INT32_MAX && i > 32) || i == (size_t)opts->max_array_length)
-      break;
-    if(column + 3 >= break_len && opts->break_length != INT32_MAX) {
-      if(compact)
-        dbuf_putc(buf, ' ');
-      else
-        inspect_newline(buf, (opts->depth - depth) + 3);
-      column = 0;
+  if(opts->reparseable)
+    dbuf_putstr(buf, "new Uint8Array([");
+  else {
+    if(js_is_arraybuffer(ctx, value))
+      dbuf_putstr(buf, "ArrayBuffer");
+    else if(js_is_sharedarraybuffer(ctx, value))
+      dbuf_putstr(buf, "SharedArrayBuffer");
+    else if(str && (str2 = strchr(str, ' '))) {
+      str2++;
+      slen = byte_chr(str2, strlen(str2), ']');
+      dbuf_append(buf, (const uint8_t*)str2, slen);
     }
-    dbuf_printf(buf, column ? " %02x" : "%02x", ptr[i]);
-    column += column ? 3 : 2;
-  }
-  if(i < size) {
+
+    if(str)
+      js_cstring_free(ctx, str);
+
+    dbuf_putstr(buf, " {");
+    if(compact)
+      dbuf_putc(buf, ' ');
+    else
+      inspect_newline(buf, (opts->depth - depth) + 2);
+    dbuf_printf(buf, "byteLength: %zu [", size);
     if(compact)
       dbuf_putc(buf, ' ');
     else
       inspect_newline(buf, (opts->depth - depth) + 3);
-
-    dbuf_printf(buf, "... %zu more bytes", size - i);
   }
-  if(compact)
-    dbuf_putc(buf, ' ');
-  else
-    inspect_newline(buf, (opts->depth - depth) + 2);
-  dbuf_putstr(buf, "]");
-  if(compact)
-    dbuf_putc(buf, ' ');
-  else
-    inspect_newline(buf, (opts->depth - depth) + 1);
-  dbuf_putstr(buf, "}");
+
+  break_len -= ((opts->depth - depth) + 3) * 2;
+  column = 0;
+
+  for(i = 0; i < size; i++) {
+    if(/*(opts->max_array_length == INT32_MAX && i > 32) ||*/ i == (size_t)opts->max_array_length)
+      break;
+    if(opts->reparseable)
+      dbuf_printf(buf, i > 0  ? ", 0x%02x" : "0x%02x", ptr[i]);
+    else {
+      if(column + 3 >= break_len && opts->break_length != INT32_MAX) {
+        if(compact)
+          dbuf_putc(buf, ' ');
+        else
+          inspect_newline(buf, (opts->depth - depth) + 3);
+        column = 0;
+      }
+      dbuf_printf(buf, column ? " %02x" : "%02x", ptr[i]);
+    }
+    column += column ? 3 : 2;
+  }
+
+  if(opts->reparseable) {
+    dbuf_putstr(buf, "]).buffer");
+  } else {
+    if(i < size) {
+      if(compact)
+        dbuf_putc(buf, ' ');
+      else
+        inspect_newline(buf, (opts->depth - depth) + 3);
+
+      dbuf_printf(buf, "... %zu more bytes", size - i);
+    }
+    if(compact)
+      dbuf_putc(buf, ' ');
+    else
+      inspect_newline(buf, (opts->depth - depth) + 2);
+    dbuf_putstr(buf, "]");
+    if(compact)
+      dbuf_putc(buf, ' ');
+    else
+      inspect_newline(buf, (opts->depth - depth) + 1);
+    dbuf_putstr(buf, "}");
+  }
   return 0;
 }
 
@@ -775,7 +800,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   BOOL compact = FALSE;
   JSObject* obj = JS_VALUE_GET_OBJ(value);
 
-  vector_init(&propenum_tab, ctx);
+  dbuf_init2(&propenum_tab.dbuf, ctx, &orig_js_realloc);
 
   if(!obj->prop || !obj->shape) {
     dbuf_printf(buf, "js_inspect_print_value Object prop = %p, shape = %p ", obj->prop, obj->shape);

@@ -2,6 +2,7 @@
 #include <quickjs.h>
 #include "quickjs-predicate.h"
 #include "buffer-utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-predicate

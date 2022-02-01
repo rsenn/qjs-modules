@@ -11,9 +11,7 @@
 typedef struct {
   int id;
   char* lexeme;
-  uint32_t byte_offset;
-  uint32_t byte_length;
-  uint32_t char_length;
+  uint32_t byte_length, char_length;
   Location loc;
   JSValue loc_val;
   Lexer* lexer;

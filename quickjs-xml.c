@@ -6,6 +6,7 @@
 #include "vector.h"
 #include "buffer-utils.h"
 #include "location.h"
+#include "debug.h"
 
 #include <stdint.h>
 

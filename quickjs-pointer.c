@@ -2,6 +2,7 @@
 #include "quickjs-pointer.h"
 #include "utils.h"
 #include <string.h>
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-pointer

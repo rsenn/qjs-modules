@@ -2,6 +2,7 @@
 #include "quickjs-location.h"
 #include "utils.h"
 #include "buffer-utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-location
@@ -18,6 +19,7 @@ enum {
   LOCATION_PROP_COLUMN,
   LOCATION_PROP_POS,
   LOCATION_PROP_FILE,
+  LOCATION_PROP_BYTEOFFSET,
 };
 
 VISIBLE Location*
@@ -109,7 +111,7 @@ js_is_location(JSContext* ctx, JSValueConst obj) {
 }
 
 static JSValue
-js_location_getter(JSContext* ctx, JSValueConst this_val, int magic) {
+js_location_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Location* loc;
   JSValue ret = JS_UNDEFINED;
 
@@ -117,6 +119,11 @@ js_location_getter(JSContext* ctx, JSValueConst this_val, int magic) {
     return ret;
 
   switch(magic) {
+    case LOCATION_PROP_FILE: {
+      if(loc->file > -1)
+        ret = JS_AtomToValue(ctx, loc->file);
+      break;
+    }
     case LOCATION_PROP_LINE: {
       if(loc->line != UINT32_MAX)
         ret = JS_NewUint32(ctx, loc->line + 1);
@@ -132,9 +139,8 @@ js_location_getter(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = JS_NewInt64(ctx, loc->pos);
       break;
     }
-    case LOCATION_PROP_FILE: {
-      if(loc->file > -1)
-        ret = JS_AtomToValue(ctx, loc->file);
+    case LOCATION_PROP_BYTEOFFSET: {
+      ret = JS_NewInt64(ctx, loc->byte_offset);
       break;
     }
   }
@@ -142,7 +148,7 @@ js_location_getter(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_location_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
+js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
   Location* loc;
   JSValue ret = JS_UNDEFINED;
 
@@ -150,6 +156,12 @@ js_location_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
     return ret;
 
   switch(magic) {
+    case LOCATION_PROP_FILE: {
+      if(loc->file > -1)
+        JS_FreeAtom(ctx, loc->file);
+      loc->file = JS_ValueToAtom(ctx, value);
+      break;
+    }
     case LOCATION_PROP_LINE: {
       uint32_t n = 0;
       JS_ToUint32(ctx, &n, value);
@@ -168,10 +180,10 @@ js_location_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       loc->pos = n;
       break;
     }
-    case LOCATION_PROP_FILE: {
-      if(loc->file > -1)
-        JS_FreeAtom(ctx, loc->file);
-      loc->file = JS_ValueToAtom(ctx, value);
+    case LOCATION_PROP_BYTEOFFSET: {
+      int64_t n = 0;
+      JS_ToInt64(ctx, &n, value);
+      loc->byte_offset = n;
       break;
     }
   }
@@ -350,7 +362,7 @@ js_location_finalizer(JSRuntime* rt, JSValue val) {
   Location* loc = JS_GetOpaque(val, js_location_class_id);
   if(loc) {
     location_free_rt(loc, rt);
-    js_free_rt(rt, loc);
+    // js_free_rt(rt, loc);
   }
   JS_FreeValueRT(rt, val);
 }
@@ -361,10 +373,11 @@ static JSClassDef js_location_class = {
 };
 
 static const JSCFunctionListEntry js_location_funcs[] = {
-    JS_CGETSET_MAGIC_FLAGS_DEF("line", js_location_getter, js_location_setter, LOCATION_PROP_LINE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("column", js_location_getter, js_location_setter, LOCATION_PROP_COLUMN, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_DEF("pos", js_location_getter, js_location_setter, LOCATION_PROP_POS),
-    JS_CGETSET_MAGIC_FLAGS_DEF("file", js_location_getter, js_location_setter, LOCATION_PROP_FILE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("line", js_location_get, js_location_set, LOCATION_PROP_LINE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("column", js_location_get, js_location_set, LOCATION_PROP_COLUMN, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_DEF("pos", js_location_get, js_location_set, LOCATION_PROP_POS),
+    JS_CGETSET_MAGIC_DEF("byteOffset", js_location_get, js_location_set, LOCATION_PROP_BYTEOFFSET),
+    JS_CGETSET_MAGIC_FLAGS_DEF("file", js_location_get, js_location_set, LOCATION_PROP_FILE, JS_PROP_ENUMERABLE),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
     JS_CFUNC_DEF("clone", 0, js_location_clone),
     JS_CFUNC_DEF("toString", 0, js_location_tostring),

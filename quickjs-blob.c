@@ -2,6 +2,7 @@
 #include "quickjs-blob.h"
 #include "utils.h"
 #include "buffer-utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-blob

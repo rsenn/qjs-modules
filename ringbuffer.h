@@ -2,6 +2,7 @@
 #define RINGBUFFER_H
 
 #include "vector.h"
+#include "debug.h"
 
 /**
  * \defgroup ringbuffer Ring Buffer implementation

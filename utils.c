@@ -1,6 +1,5 @@
 #undef _ISOC99_SOURCE
 #define _ISOC99_SOURCE 1
-
 #include "utils.h"
 #include "defines.h"
 #include <list.h>
@@ -16,6 +15,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <quickjs-libc.h>
+#include "debug.h"
 
 #if defined(__EMSCRIPTEN__) && defined(__GNUC__)
 #define atomic_add_int __sync_add_and_fetch
@@ -58,6 +58,9 @@ time_us(void) {
   return (int64_t)tv.tv_sec * 1000000 + tv.tv_usec;
 }
 #endif
+
+js_realloc_helper(utils_js_realloc);
+js_realloc_rt_helper(utils_js_realloc_rt);
 
 int
 regexp_flags_fromstring(const char* s) {
@@ -149,6 +152,11 @@ regexp_to_value(RegExp re, JSContext* ctx) {
   JS_FreeValue(ctx, args[0]);
   JS_FreeValue(ctx, args[1]);
   return regex;
+}
+
+void
+regexp_free_rt(RegExp re, JSRuntime* rt) {
+  js_free_rt(rt, re.source);
 }
 
 int64_t
@@ -1297,7 +1305,7 @@ void
 js_value_fwrite(JSContext* ctx, JSValueConst val, FILE* f) {
   DynBuf dbuf = {0};
   size_t n;
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init2(&dbuf, ctx, &utils_js_realloc);
   js_value_dump(ctx, val, &dbuf);
   dbuf_putc(&dbuf, '\n');
   n = dbuf.size;
@@ -1418,7 +1426,7 @@ js_value_from_char(JSContext* ctx, int c) {
 void
 js_value_print(JSContext* ctx, JSValueConst value) {
   DynBuf dbuf;
-  js_dbuf_init(ctx, &dbuf);
+  dbuf_init2(&dbuf, ctx, &utils_js_realloc);
   js_value_dump(ctx, value, &dbuf);
   dbuf_0(&dbuf);
   fputs((const char*)dbuf.buf, stdout);
@@ -1694,88 +1702,6 @@ module_object(JSContext* ctx, JSModuleDef* m) {
   if(!JS_IsUndefined(func))
     JS_SetPropertyStr(ctx, obj, "func", func);
   return obj;
-}
-
-char*
-js_module_search(JSContext* ctx, const char* search_path, const char* module) {
-  char* path = 0;
-
-  while(!strncmp(module, "./", 2)) module = trim_dotslash(module);
-
-  if(!str_contains(module, '/') || str_ends(module, ".so"))
-    path = js_module_search_ext(ctx, search_path, module, ".so");
-
-  if(!path)
-    path = js_module_search_ext(ctx, search_path, module, ".js");
-
-  return path;
-}
-
-char*
-js_module_search_ext(JSContext* ctx, const char* path, const char* name, const char* ext) {
-  const char *p, *q;
-  char* file = 0;
-  size_t i, j;
-  struct stat st;
-
-  for(p = path; *p; p = q) {
-    if((q = strchr(p, ':')) == 0)
-      q = p + strlen(p);
-    i = q - p;
-    file = js_malloc(ctx, i + 1 + strlen(name) + 3 + 1);
-    strncpy(file, p, i);
-    file[i] = '/';
-    strcpy(&file[i + 1], name);
-    j = strlen(name);
-    if(!(j >= 3 && !strcmp(&name[j - 3], ext)))
-      strcpy(&file[i + 1 + j], ext);
-    if(!stat(file, &st))
-      return file;
-    js_free(ctx, file);
-    if(*q == ':')
-      ++q;
-  }
-  return 0;
-}
-
-char*
-js_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
-  size_t p;
-  const char* r;
-  DynBuf file = {0, 0, 0};
-  size_t n;
-  if(name[0] != '.')
-    return js_strdup(ctx, name);
-  js_dbuf_init(ctx, &file);
-  n = path[(p = str_rchr(path, '/'))] ? p : 0;
-  dbuf_put(&file, (const uint8_t*)path, n);
-  dbuf_0(&file);
-  for(r = name;;) {
-    if(r[0] == '.' && r[1] == '/') {
-      r += 2;
-    } else if(r[0] == '.' && r[1] == '.' && r[2] == '/') {
-      if(file.size == 0)
-        break;
-      if((p = byte_rchr(file.buf, file.size, '/')) < file.size)
-        p++;
-      else
-        p = 0;
-      if(!strcmp((const char*)&file.buf[p], ".") || !strcmp((const char*)&file.buf[p], ".."))
-        break;
-      if(p > 0)
-        p--;
-      file.size = p;
-      r += 3;
-    } else {
-      break;
-    }
-  }
-  if(file.size == 0)
-    dbuf_putc(&file, '.');
-  dbuf_putc(&file, '/');
-  dbuf_putstr(&file, r);
-  dbuf_0(&file);
-  return (char*)file.buf;
 }
 
 JSModuleDef*
@@ -2170,7 +2096,7 @@ int __attribute__((format(printf, 3, 4))) js_eval_fmt(JSContext* ctx, int flags,
   int ret;
   va_list ap;
   DynBuf buf;
-  js_dbuf_init(ctx, &buf);
+  dbuf_init2(&buf, ctx, &utils_js_realloc);
   va_start(ap, fmt);
   dbuf_vprintf(&buf, fmt, ap);
   va_end(ap);
@@ -2279,7 +2205,7 @@ js_error_dump(JSContext* ctx, JSValueConst error, DynBuf* db) {
 char*
 js_error_tostring(JSContext* ctx, JSValueConst error) {
   DynBuf db;
-  js_dbuf_init(ctx, &db);
+  dbuf_init2(&db, ctx, &utils_js_realloc);
   js_error_dump(ctx, error, &db);
   return (char*)db.buf;
 }
@@ -2512,6 +2438,57 @@ js_arguments_dump(JSArguments const* args, JSContext* ctx, DynBuf* dbuf) {
 
   if(n > 1)
     dbuf_putstr(dbuf, ")");
+}
+
+char*
+js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
+  size_t len;
+  const char* cstr;
+  char* ret = 0;
+  if((cstr = JS_ToCStringLen(ctx, &len, value))) {
+    ret = js_strndup(ctx, cstr, len);
+    if(lenp)
+      *lenp = len;
+    js_cstring_free(ctx, cstr);
+  }
+  return ret;
+}
+
+char*
+js_tostring(JSContext* ctx, JSValueConst value) {
+  return js_tostringlen(ctx, 0, value);
+}
+
+char*
+js_tosource(JSContext* ctx, JSValueConst value) {
+  JSValue src = js_to_source(ctx, value);
+  const char* str = JS_ToCString(ctx, src);
+  JS_FreeValue(ctx, src);
+  char* ret = js_strdup(ctx, str);
+  JS_FreeCString(ctx, str);
+  return ret;
+}
+wchar_t*
+js_towstringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
+  size_t i, len;
+  const char* cstr;
+  wchar_t* ret = 0;
+  if((cstr = JS_ToCStringLen(ctx, &len, value))) {
+    ret = js_mallocz(ctx, sizeof(wchar_t) * (len + 1));
+    const uint8_t *ptr = (const uint8_t*)cstr, *end = (const uint8_t*)cstr + len;
+
+    for(i = 0; ptr < end;) { ret[i++] = unicode_from_utf8(ptr, end - ptr, &ptr); }
+
+    if(lenp)
+      *lenp = i;
+  }
+  return ret;
+}
+
+#undef js_realloc_rt
+void
+js_dbuf_allocator(JSContext* ctx, DynBuf* s) {
+  dbuf_init2(s, ctx->rt, (DynBufReallocFunc*)js_realloc_rt);
 }
 
 /**

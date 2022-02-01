@@ -10,7 +10,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include "debug.h"
 
 /**
  * \defgroup vector Vector implementation
@@ -32,18 +31,18 @@ typedef union Vector {
 
 #define VECTOR_INIT() \
   { \
-    { 0, 0, 0, 0, &vector_default_realloc, 0 } \
+    { 0, 0, 0, 0, &vector_realloc, 0 } \
   }
 
-#define vector_init(vec, ctx) js_dbuf_init(ctx, &((vec)->dbuf))
-#define vector_init_rt(vec, rt) js_dbuf_init_rt(rt, &((vec)->dbuf))
+#define vector_init(vec, ctx) dbuf_init2(&((vec)->dbuf), ctx, (DynBufReallocFunc*)&vector_js_realloc)
+#define vector_init_rt(vec, rt) dbuf_init2(&((vec)->dbuf), rt, (DynBufReallocFunc*)&vector_js_realloc_rt)
 #define VECTOR(ctx) \
   (Vector) { \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx } \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc, ctx } \
   }
 #define VECTOR_RT(rt) \
   (Vector) { \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt } \
+    { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc_rt, rt } \
   }
 #define vector_begin(vec) ((void*)((vec)->data))
 #define vector_end(vec) ((void*)((vec)->data + (vec)->size))
@@ -68,6 +67,9 @@ umult64(uint64_t a, uint64_t b, uint64_t* c) {
 extern int umult64(uint64_t a, uint64_t b, uint64_t* c);
 #endif
 
+void* vector_realloc(void*, void* ptr, size_t size);
+void* vector_js_realloc(JSContext* ctx, void* ptr, size_t size);
+void* vector_js_realloc_rt(JSRuntime* rt, void* ptr, size_t size);
 int32_t vector_indexof(const Vector* vec, size_t elsz, void* ptr);
 int32_t vector_find(const Vector* vec, size_t elsz, void* ptr);
 int32_t vector_finds(const Vector* vec, const char* str);
@@ -80,6 +82,7 @@ void vector_diff(void*, size_t, void*, size_t, size_t, Vector*);
 void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, Vector*, Vector*);
 int vector_copy(Vector* dst, const Vector* src);
 void vector_fwrite(const Vector*, size_t, FILE* out);
+BOOL vector_grow(Vector* vec, size_t elsz, int32_t len);
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 
@@ -122,20 +125,6 @@ vector_shrink(Vector* vec, size_t elsz, int32_t len) {
   return TRUE;
 }
 
-static inline BOOL
-vector_grow(Vector* vec, size_t elsz, int32_t len) {
-  uint64_t need;
-  if(len < 0)
-    return FALSE;
-  if(!umult64(elsz, len, &need))
-    return FALSE;
-  if(need <= vec->size)
-    return FALSE;
-  vec->data = realloc(vec->data, need);
-  vec->size = need;
-  return TRUE;
-}
-
 static inline void*
 vector_at(const Vector* vec, size_t elsz, int32_t pos) {
   uint64_t offs;
@@ -146,15 +135,6 @@ vector_at(const Vector* vec, size_t elsz, int32_t pos) {
   if(offs >= vec->size)
     return 0;
   return vec->data + offs;
-}
-
-static inline void*
-vector_default_realloc(void* opaque, void* ptr, size_t size) {
-  if(size == 0) {
-    free(ptr);
-    return 0;
-  }
-  return realloc(ptr, size);
 }
 
 static inline uint32_t

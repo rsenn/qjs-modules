@@ -12,7 +12,6 @@
 #ifdef HAVE_THREADS_H
 #include <threads.h>
 #endif
-#include "debug.h"
 
 /**
  * \defgroup utils Utilities
@@ -55,6 +54,9 @@ typedef struct {
   uint16_t p, c, a;
   const char** v;
 } Arguments;
+
+void* utils_js_realloc(JSContext* ctx, void* ptr, size_t size);
+void* utils_js_realloc_rt(JSRuntime* rt, void* ptr, size_t size);
 
 static inline Arguments
 arguments_new(int argc, const char* argv[]) {
@@ -177,6 +179,12 @@ mod_int32(int32_t a, int32_t b) {
 
 uint64_t time_us(void);
 
+#define js_dbuf_init(ctx, buf) dbuf_init2((buf), (ctx), &utils_js_realloc)
+#define js_dbuf_init_rt(rt, buf) dbuf_init2((buf), (rt), &utils_js_realloc_rt)
+
+void js_dbuf_allocator(JSContext* ctx, DynBuf* s);
+
+/*
 static inline void
 js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
   dbuf_init2(s, rt, (DynBufReallocFunc*)js_realloc_rt);
@@ -185,7 +193,7 @@ js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
 static inline void
 js_dbuf_init(JSContext* ctx, DynBuf* s) {
   dbuf_init2(s, ctx, (DynBufReallocFunc*)js_realloc);
-}
+}*/
 
 typedef struct {
   char* source;
@@ -199,11 +207,8 @@ RegExp regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx);
 RegExp regexp_from_dbuf(DynBuf* dbuf, int flags);
 uint8_t* regexp_compile(RegExp re, JSContext* ctx);
 JSValue regexp_to_value(RegExp re, JSContext* ctx);
+void regexp_free_rt(RegExp re, JSRuntime* rt);
 
-static inline void
-regexp_free_rt(RegExp re, JSRuntime* rt) {
-  js_free_rt(rt, re.source);
-}
 static inline void
 regexp_free(RegExp re, JSContext* ctx) {
   regexp_free_rt(re, JS_GetRuntime(ctx));
@@ -371,41 +376,9 @@ js_toint64(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
-static inline char*
-js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
-  size_t len;
-  const char* cstr;
-  char* ret = 0;
-  if((cstr = JS_ToCStringLen(ctx, &len, value))) {
-    ret = js_strndup(ctx, cstr, len);
-    if(lenp)
-      *lenp = len;
-    js_cstring_free(ctx, cstr);
-  }
-  return ret;
-}
-
-static inline char*
-js_tostring(JSContext* ctx, JSValueConst value) {
-  return js_tostringlen(ctx, 0, value);
-}
-
-static inline wchar_t*
-js_towstringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
-  size_t i, len;
-  const char* cstr;
-  wchar_t* ret = 0;
-  if((cstr = JS_ToCStringLen(ctx, &len, value))) {
-    ret = js_mallocz(ctx, sizeof(wchar_t) * (len + 1));
-    const uint8_t *ptr = (const uint8_t*)cstr, *end = (const uint8_t*)cstr + len;
-
-    for(i = 0; ptr < end;) { ret[i++] = unicode_from_utf8(ptr, end - ptr, &ptr); }
-
-    if(lenp)
-      *lenp = i;
-  }
-  return ret;
-}
+char* js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value);
+char* js_tostring(JSContext* ctx, JSValueConst value);
+wchar_t* js_towstringlen(JSContext* ctx, size_t* lenp, JSValueConst value);
 
 static inline wchar_t*
 js_towstring(JSContext* ctx, JSValueConst value) {
@@ -722,16 +695,7 @@ JSValue js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int
 
 JSValue js_to_string(JSContext* ctx, JSValueConst this_obj);
 JSValue js_to_source(JSContext* ctx, JSValueConst this_obj);
-
-static inline char*
-js_tosource(JSContext* ctx, JSValueConst value) {
-  JSValue src = js_to_source(ctx, value);
-  const char* str = JS_ToCString(ctx, src);
-  JS_FreeValue(ctx, src);
-  char* ret = js_strdup(ctx, str);
-  JS_FreeCString(ctx, str);
-  return ret;
-}
+char* js_tosource(JSContext* ctx, JSValueConst value);
 
 static inline size_t
 js_arraybuffer_length(JSContext* ctx, JSValueConst buffer) {
@@ -806,9 +770,6 @@ JSValue js_modules_object(JSContext*, JSValue this_val, int magic);
 
 #define js_module_find js_module_find_fwd
 
-char* js_module_search(JSContext*, const char* search_path, const char* module);
-char* js_module_search_ext(JSContext*, const char* path, const char* name, const char* ext);
-char* js_module_normalize(JSContext*, const char* path, const char* name, void* opaque);
 JSModuleDef* js_module_def(JSContext*, JSValue value);
 JSModuleDef* js_module_find_fwd(JSContext*, const char* name);
 JSModuleDef* js_module_find_rev(JSContext*, const char* name);

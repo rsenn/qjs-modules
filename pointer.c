@@ -3,6 +3,7 @@
 #include "pointer.h"
 #include "utils.h"
 #include "buffer-utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup pointer
@@ -355,6 +356,12 @@ pointer_fromatoms(Pointer* ptr, JSContext* ctx, JSValueConst arr) {
     ptr->atoms[i] = atom;
   }
   return ptr->n;
+}
+
+void
+pointer_pushatom(Pointer* ptr, JSContext* ctx, JSAtom atom) {
+  if((ptr->atoms = js_realloc(ctx, ptr->atoms, (ptr->n + 1) * sizeof(JSAtom))))
+    ptr->atoms[ptr->n++] = atom;
 }
 
 /**

@@ -22,6 +22,8 @@ int socketpair(int, int, int, SOCKET[2]);
 #include <assert.h>
 #include <errno.h>
 
+#include "debug.h"
+
 /**
  * \addtogroup quickjs-sockets
  * @{

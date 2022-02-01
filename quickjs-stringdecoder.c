@@ -2,6 +2,7 @@
 #include "quickjs-stringdecoder.h"
 #include "utils.h"
 #include "buffer-utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-stringdecoder

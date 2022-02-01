@@ -1581,6 +1581,147 @@ clock_gettime.c.s:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/clock_gettime.c.s
 .PHONY : clock_gettime.c.s
 
+debug.o: debug.c.o
+.PHONY : debug.o
+
+# target to build an object file
+debug.c.o:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-mmap-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-mmap-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-gpio.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-gpio.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-child-process-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-child-process-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-child-process.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-child-process.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-xml-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-xml-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-mmap.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-mmap.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-inspect-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-inspect-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-inspect.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-inspect.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-blob-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-blob-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-syscallerror.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-syscallerror.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-tree-walker.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-tree-walker.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-bjson-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-bjson-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-blob.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-blob.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-bjson.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-bjson.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-gpio-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-gpio-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-predicate-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-predicate-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-predicate.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-predicate.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/debug.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/debug.c.o
+.PHONY : debug.c.o
+
+debug.i: debug.c.i
+.PHONY : debug.i
+
+# target to preprocess a source file
+debug.c.i:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-mmap-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-mmap-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-gpio.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-gpio.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-child-process-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-child-process-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-child-process.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-child-process.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-xml-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-xml-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-mmap.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-mmap.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-inspect-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-inspect-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-inspect.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-inspect.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-blob-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-blob-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-syscallerror.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-syscallerror.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-tree-walker.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-tree-walker.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-bjson-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-bjson-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-blob.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-blob.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-bjson.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-bjson.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-gpio-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-gpio-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-predicate-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-predicate-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-predicate.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-predicate.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/debug.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/debug.c.i
+.PHONY : debug.c.i
+
+debug.s: debug.c.s
+.PHONY : debug.s
+
+# target to generate assembly for a file
+debug.c.s:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-mmap-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-mmap-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-gpio.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-gpio.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-child-process-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-child-process-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-child-process.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-child-process.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-xml-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-xml-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-mmap.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-mmap.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-inspect-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-inspect-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-inspect.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-inspect.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-blob-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-blob-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-syscallerror.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-syscallerror.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-tree-walker.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-tree-walker.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-bjson-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-bjson-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-blob.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-blob.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-bjson.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-bjson.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-gpio-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-gpio-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-predicate-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-predicate-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-predicate.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-predicate.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/debug.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/debug.c.s
+.PHONY : debug.c.s
+
 gpio.o: gpio.c.o
 .PHONY : gpio.o
 
@@ -2015,6 +2156,8 @@ queue.o: queue.c.o
 
 # target to build an object file
 queue.c.o:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/queue.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/queue.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/queue.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/queue.c.o
 .PHONY : queue.c.o
@@ -2024,6 +2167,8 @@ queue.i: queue.c.i
 
 # target to preprocess a source file
 queue.c.i:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/queue.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/queue.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/queue.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/queue.c.i
 .PHONY : queue.c.i
@@ -2033,6 +2178,8 @@ queue.s: queue.c.s
 
 # target to generate assembly for a file
 queue.c.s:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/queue.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/queue.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/queue.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/queue.c.s
 .PHONY : queue.c.s
@@ -3122,6 +3269,9 @@ help:
 	@echo "... clock_gettime.o"
 	@echo "... clock_gettime.i"
 	@echo "... clock_gettime.s"
+	@echo "... debug.o"
+	@echo "... debug.i"
+	@echo "... debug.s"
 	@echo "... gpio.o"
 	@echo "... gpio.i"
 	@echo "... gpio.s"

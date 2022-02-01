@@ -4,6 +4,7 @@
 #include "property-enumeration.h"
 #include <quickjs.h>
 #include <string.h>
+#include "debug.h"
 
 /**
  * \defgroup quickjs-tree-walker QuickJS module: tree_walker - Object tree walker

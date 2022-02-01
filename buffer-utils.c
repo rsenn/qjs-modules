@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #endif
+#include "debug.h"
 
 /**
  * \addtogroup buffer-utils

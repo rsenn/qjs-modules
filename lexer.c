@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "debug.h"
 #include "location.h"
 #include <libregexp.h>
 #include <ctype.h>
@@ -251,7 +252,7 @@ lexer_rule_free_rt(LexerRule* rule, JSRuntime* rt) {
   js_free_rt(rt, rule->expr);
 
   if(rule->bytecode)
-    js_free_rt(rt, rule->bytecode);
+    orig_js_free_rt(rt, rule->bytecode);
 }
 
 void
@@ -383,6 +384,7 @@ input_skip(InputBuffer* input, size_t end, Location* loc) {
       loc->column++;
     }
     loc->pos++;
+    loc->byte_offset += input->pos - prev;
     n++;
   }
   return n;

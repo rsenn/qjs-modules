@@ -50,6 +50,7 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #endif
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-misc
