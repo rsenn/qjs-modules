@@ -7,8 +7,8 @@ import * as path from 'path';
 import { Predicate } from 'predicate';
 import { Location, Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import JSLexer from './lib/jslexer.js';
-import { escape, quote, toString, define, curry, unique, split, extendArray, camelize, decamelize } from './lib/util.js';
+import JSLexer from 'jslexer.js';
+import { escape, quote, toString, define, curry, unique, split, extendArray, camelize, decamelize } from 'util';
 
 let buffers = {},
   modules = {};
