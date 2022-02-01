@@ -1,3 +1,4 @@
+#!/usr/bin/env qjsm
 import * as os from 'os';
 import * as std from 'std';
 import * as fs from 'fs';
