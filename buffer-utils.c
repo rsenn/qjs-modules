@@ -117,6 +117,29 @@ byte_equal(const void* s, size_t n, const void* t) {
   return memcmp(s, t, n) == 0;
 }
 
+void
+byte_copy(void* out, size_t len, const void* in) {
+  char* s = (char*)out;
+  const char* t = (const char*)in;
+  size_t i;
+  for(i = 0; i < len; ++i) s[i] = t[i];
+}
+
+void
+byte_copyr(void* out, size_t len, const void* in) {
+  char* s = (char*)out + len;
+  const char* t = (const char*)in;
+  const char* u = t + len;
+
+  for(;;) {
+    if(t >= u)
+      break;
+    --u;
+    --s;
+    *s = *u;
+  }
+}
+
 char*
 dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
   size_t p, l = 0;

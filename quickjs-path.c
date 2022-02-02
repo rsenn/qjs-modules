@@ -184,11 +184,15 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case METHOD_COLLAPSE: {
-      char* s = js_strndup(ctx, a, alen);
+      char* s = malloc(alen + 1);
+
+      memcpy(s, a, alen);
+      s[alen] = '\0';
       size_t newlen;
+
       newlen = path_collapse(s, alen);
       ret = JS_NewStringLen(ctx, s, newlen);
-      js_free(ctx, s);
+      free(s);
       break;
     }
 

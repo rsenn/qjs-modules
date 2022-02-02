@@ -104,12 +104,15 @@ path_collapse(char* path, size_t n) {
     }
     if(!path_isdotdot(&path[i]) && path_isdotdot(&path[j])) {
       j += path[j + 2] == '\0' ? 2 : 3;
-      memmove(&path[i], &path[j], n - j);
+      if(j < n)
+        byte_copy(&path[i], n - j, &path[j]);
+
       n -= j - i;
       continue;
     }
     i = j;
   }
+  path[n] = '\0';
   return n;
 }
 

@@ -249,12 +249,16 @@ function ProcessFile(source, log = () => {}, recursive) {
   let lex = {
     js: new JSLexer(bytebuf, source)
   };
+  lex.mjs = lex.js;
+  lex.cjs = lex.js;
 
   const lexer = lex[type];
 
   // T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
 
   let e = new SyntaxError();
+
+  if(!lexer) throw new Error(`Error lexing: ${source}`);
 
   lexer.handler = lex => {
     const { loc, mode, pos, start, byteLength, state } = lex;
@@ -337,7 +341,7 @@ function ProcessFile(source, log = () => {}, recursive) {
     const { token } = lexer;
     const { loc, length, seq } = token;
     const { pos } = loc;
-    let s = toString(bytebuf).slice(pos, pos + length);
+    //  let s = toString(bytebuf).slice(pos, pos + length);
     //  console.log('',token.lexeme, {pos, s, length})
 
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
@@ -422,6 +426,7 @@ function ProcessFile(source, log = () => {}, recursive) {
   end = Date.now();
 
   // console.log(`Substituting '${source.replace(/^\.\//, '')}' took ${end - start}ms`);
+  processed.add(source);
 
   if(recursive > 0) {
     for(let imp of fileImports) {
@@ -434,13 +439,15 @@ function ProcessFile(source, log = () => {}, recursive) {
         console.log(`Path must exist '${file}'`);
         continue;
       }
-      if(processed.has(file)) {
-        console.log(`Already processed '${file}'`);
+      if(processed.has(file) || file == source) {
+        //console.log(`Already processed '${file}'`);
         continue;
       }
-      console.log(`ProcessFile.recursive`, { file });
+      //  console.log(`ProcessFile.recursive`, { file });
       let args = [file, log, typeof recursive == 'number' ? recursive - 1 : recursive];
       //    console.log(`ProcessFile(${args.join(', ')})`);
+      processed.add(file);
+
       ProcessFile(...args);
     }
   }
@@ -448,7 +455,6 @@ function ProcessFile(source, log = () => {}, recursive) {
   let end = Date.now();
   console.log(`'${source.replace(/^\.\//, '')}' took ${end - start}ms`);
 */
-  processed.add(source);
 
   std.gc();
 
@@ -657,7 +663,7 @@ class FileMap extends Array {
         this.splice(++end, 0, insert);
       }
       this[start][0].end = range.start;
-      if(this[end]) this[end][0].start = range.end;
+      if(this[end] && this[end][0]) this[end][0].start = range.end;
     } else {
       this[start][0].start = range.end;
     }

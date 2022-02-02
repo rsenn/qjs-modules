@@ -30,6 +30,8 @@ char* byte_escape(const void*, size_t);
 size_t byte_findb(const void*, size_t, const void* what, size_t wlen);
 size_t byte_finds(const void*, size_t, const char* what);
 size_t byte_equal(const void* s, size_t n, const void* t);
+void byte_copy(void* out, size_t len, const void* in);
+void byte_copyr(void* out, size_t len, const void* in);
 char* dbuf_at_n(const DynBuf*, size_t, size_t* n, char sep);
 const char* dbuf_last_line(DynBuf*, size_t*);
 int dbuf_prepend(DynBuf*, const uint8_t*, size_t len);
