@@ -1,6 +1,16 @@
 import * as os from 'os';
 import * as std from 'std';
-import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, memoize } from '../lib/util.js';
+import {
+  escape,
+  quote,
+  isObject,
+  define,
+  getClassName,
+  mapObject,
+  getset,
+  gettersetter,
+  memoize
+} from '../lib/util.js';
 import inspect from 'inspect';
 import * as xml from 'xml';
 import * as fs from 'fs';
@@ -25,7 +35,17 @@ function main(...args) {
       hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
     }
   });
-  Object.assign(globalThis, { os, std, ...{ escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, memoize }, xml, path, Pointer, deep, ...{ Document, Element, Node, Attr, Factory, NamedNodeMap }, ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } });
+  Object.assign(globalThis, {
+    os,
+    std,
+    ...{ escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, memoize },
+    xml,
+    path,
+    Pointer,
+    deep,
+    ...{ Document, Element, Node, Attr, Factory, NamedNodeMap },
+    ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath }
+  });
 
   let file = args[0] ?? '../../../an-tronics/eagle/555-Oscillator.sch';
 
