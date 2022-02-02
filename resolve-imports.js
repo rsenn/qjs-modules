@@ -15,6 +15,7 @@ import { randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayB
 let buffers = {},
   modules = {},
   removeExports = false,
+  removeComments = false,
   relativeTo,
   outputFile,
   recursive = true,
@@ -56,6 +57,8 @@ const TokIs = curry((type, lexeme, tok) => {
     return true;
   }
 });
+const CompareRange = (a, b) => (a === null || b === null ? 0 : typeof a[0] == 'number' && typeof b[0] == 'number' && a[0] != b[0] ? a[0] - b[0] : a[1] - b[1]);
+
 const IsKeyword = TokIs('keyword');
 const IsPunctuator = TokIs('punctuator');
 const IsIdentifier = TokIs('identifier');
@@ -64,9 +67,21 @@ const PutsFunction = outFn => str => {
   let b = toArrayBuffer(str);
   return outFn(b, b.byteLength);
 };
-const CloseFunction = outFn => () => outFn();
 
-const debugLog = (str, ...args) => console.log(str, compact(0), ...args.filter(arg => !(isObject(arg) && 'compact' in arg)));
+const debugLog = (str, ...args) => {
+  const pred = arg => isObject(arg) && 'compact' in arg;
+  let opts = args.filter(pred);
+
+  opts = opts.reduce((acc, opt) => define(acc, opt), opts.shift() ?? {});
+
+  if(opts.compact === undefined) define(opts, compact(1));
+  if(opts.maxArrayLength === undefined) define(opts, { maxArrayLength: 10 });
+  if(opts.depth === undefined) define(opts, { depth: Infinity });
+
+  args = args.filter(arg => !pred(arg));
+
+  console.log(str, opts, ...args);
+};
 
 const FileWriter = file => {
   let fd = os.open(file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644);
@@ -397,7 +412,6 @@ function ProcessFile(source, log = () => {}, recursive) {
 
   if(path.isRelative(source) && !/^(\.|\.\.)\//.test(source)) source = './' + source;
 
-  debugLog('comments', comments);
   // console.log('exportsFrom', exports);
 
   modules[source] = { imports, exports };
@@ -440,7 +454,21 @@ function ProcessFile(source, log = () => {}, recursive) {
     }
   }
 
-  if(debug) console.log(map.dump());
+  //  debugLog('comments', comments.map(({byteRange, lexeme})=>[byteRange,lexeme,toString(bytebuf.slice(...byteRange))]));
+  //
+  if(removeComments) {
+    i = -1;
+    debugLog(`Removing ${comments.length} comments from '${source}'`);
+    for(let { byteRange, lexeme } of comments) {
+      let sl = bytebuf.slice(...byteRange);
+      //debugLog(`comment[${++i}]`, compact(2), { byteRange, str: toString(sl) });
+      map.replaceRange(byteRange, null);
+    }
+  }
+
+  // debugLog('map', map.dump());
+
+  if(debug) console.log('dump map', map.dump());
 
   end = Date.now();
 
@@ -548,6 +576,10 @@ function InRange([start, end], i) {
   return false;
 }
 
+function IsRange(obj) {
+  return isObject(obj) && ('length' in obj || 'start' in obj || obj instanceof NumericRange);
+}
+
 class NumericRange extends Array {
   constructor(start, end) {
     super(2);
@@ -581,13 +613,55 @@ class NumericRange extends Array {
     console.log('NumericRange.from', range);
     return range;
   }
+
+  static *holes(ranges, only = false) {
+    let prev = [0, 0];
+    //console.log('ranges', console.config({ compact: 1 }), ranges);
+    let i = -1;
+    for(let range of ranges) {
+      if(IsRange(range)) {
+        range = [...range];
+        console.log('range#' + ++i, inspect(range));
+
+        if(IsRange(prev) && IsRange(range)) {
+          //     if(range[0] < prev[1]) range[0] = prev[1];
+          let [start, end] = range;
+
+          if(start >= prev[1]) yield new NumericRange(prev[1], start);
+          //  else throw new Error(`Invalid range ` + inspect([start, end]) + ' ' + inspect({ prev: [...prev] }));
+        }
+
+        if(!only) {
+          if(!(isObect(range) && range instanceof NumericRange)) range = new NumericRange(...range);
+          yield range;
+        }
+      }
+      prev = range;
+    }
+  }
+
+  static between([s1, e1], [s2, e2]) {
+    if(s2 > e1) return [e1, s2];
+
+    if(s1 > e2) return [e2, s1];
+  }
 }
 
 define(NumericRange.prototype, {
   [Symbol.toStringTag]: 'NumericRange',
   [Symbol.inspect](depth, opts) {
     const [start, end] = this;
-    return `\x1b[1;31mNumericRange\x1b[0m( \x1b[1;36m${start}\x1b[0m , \x1b[1;36m${end}\x1b[0m )`;
+    let s = '';
+    //s += `\x1b[1;31mNumericRange\x1b[0m(`;
+    const pad = s => (s + '').padEnd(5);
+
+    s += `\x1b[1;36m${pad(start)}\x1b[0m`;
+    s += ` - `;
+    //  s += `\x1b[1;36m${pad(end)}\x1b[0m`;
+    s += `\x1b[1;36m${pad('+' + (end - start))}\x1b[0m`;
+    //s+=`)`;
+    s = `[ ${s} ]`;
+    return s;
   }
 });
 
@@ -691,12 +765,22 @@ class FileMap extends Array {
   }
 
   dump() {
+    const source = this.file;
     return (
-      `FileMap {\n\tfile: \x1b[38;5;215m${this.file},\n\t\x1b[0m[ ` +
+      `FileMap {\n\tfile: \x1b[38;5;215m${source},\n\t\x1b[0m[ ` +
       [...this]
         .map((item, i) => item.concat([this.at(i)]))
         .reduce((acc, [range, buf, str], i) => {
-          return acc + `\n\t\t[[` + (range ? NumericRange.from(range) : range) + ', ' + (!isObject(str) ? quote(shorten(str), "'") : inspect(str ?? buf, { maxArrayLength: 30 })) + `],`;
+          let s = acc + `\n\t\t[ `;
+          s += ('' + (range ? '[' + NumericRange.from(range) + ']' : range)).padEnd(10);
+
+          s += ', ';
+          /*if(!isObject(str)) s += quote(shorten(str), "'");
+          else*/
+          if(isObject(buf) && 'byteLength' in buf) s += `<this>`;
+          else s += inspect(buf, { maxArrayLength: 30 });
+          s += ` ],`;
+          return s;
         }, '') +
       `\n\t]\n}`
     );
@@ -722,6 +806,26 @@ class FileMap extends Array {
 
   toArray() {
     return this.map((s, i) => this.at(i));
+  }
+
+  holes() {
+    let ranges = [...this.map(([range]) => range)].sort(CompareRange);
+
+    console.log('ranges', console.config({ depth: Infinity }), ranges);
+
+    let iter = NumericRange.holes(ranges, true);
+    console.log('iter', iter);
+    let holes = [...iter];
+    let len = holes.length;
+    for(let i = 0; i < len; i++) {
+      const hole = holes[i];
+      const [range] = this[i];
+
+      console.log('#' + (i + 1), compact(2), inspect({ hole, range }, { compact: 2, depth: 4 }));
+    }
+    //console.log('holes', holes);
+
+    return holes;
   }
 
   write(out, depth = 0, serial) {
@@ -881,7 +985,8 @@ function main(...args) {
       'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
       output: [true, file => (outputFile = file), 'o'],
       'no-recursive': [false, () => (recursive = false), 'R'],
-      'no-exports': [false, () => (removeExports = true), 'E'],
+      'remove-exports': [false, () => (removeExports = true), 'E'],
+      'remove-comments': [false, () => (removeComments = true), 'C'],
       '@': 'files'
     },
     args
@@ -918,6 +1023,9 @@ function main(...args) {
   let output = lines.reduce((acc, line) => acc + line + '\n', '');
 
   out.puts(output);
+
+  //  console.log('holes', compact(1), result.holes());
+
   console.log(`${result.write(out)} bytes written to '${out.file}'`);
 
   out.close();
