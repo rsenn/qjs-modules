@@ -115,6 +115,20 @@ path_skip2(const char* s, size_t n) {
 }
 
 static inline size_t
+path_skiplen(const char* s, size_t* len, size_t n) {
+  const char *p = s, *e = s + n;
+
+  p += path_skip_component(s, e - p, 0);
+
+  if(len)
+    *len = p - s;
+
+  p += path_skip_separator(p, e - p, 0);
+
+  return p - s;
+}
+
+static inline size_t
 path_right(const char* s, size_t n) {
   const char* p = s + n - 1;
   while(p >= s && path_issep(*p)) --p;

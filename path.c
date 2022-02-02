@@ -91,30 +91,73 @@ path_canonical_buf(DynBuf* db) {
 }
 
 size_t
-path_collapse(char* path, size_t n) {
-  ssize_t i, j, k = 0;
+path_collapse(char* path, size_t nb) {
+  ssize_t i, j, k, len;
 
-  i = path_skip_separator(path, n, k);
+  len = nb;
 
-  while(i < n) {
-    j = i + path_skip2(&path[i], n - i);
+again:
+  k = 0;
+  i = path_skip_separator(path, len, 0);
+
+  while(i < len) {
+    j = i + path_skip2(&path[i], len - i);
     if(j == i) {
-      n = j;
+      len = j;
       break;
     }
-    if(!path_isdotdot(&path[i]) && path_isdotdot(&path[j])) {
-      j += path[j + 2] == '\0' ? 2 : 3;
-      if(j < n)
-        byte_copy(&path[i], n - j, &path[j]);
-
-      n -= j - i;
-      continue;
+    if(!path_isdotdot(&path[i]) && (len - j) >= 2 && path_isdotdot(&path[j])) {
+      j += (len - j) == 2 || path[j + 2] == '\0' ? 2 : 3;
+      ssize_t clen = len - j;
+      assert(clen >= 0);
+      if(clen > 0) {
+        byte_copy(&path[i], clen, &path[j]);
+        path[i + clen] = '\0';
+        len = i + clen;
+        goto again;
+      }
     }
     i = j;
   }
-  path[n] = '\0';
+  // path[len] = '\0';
+
+  return len;
+}
+
+#if 0
+size_t
+path_collapse(char* path, size_t n) {
+  size_t len, prevOffset,prevLength , offset, inc, k;
+
+  for(k=0,offset = 0; offset < n;) {
+    inc = path_skiplen(&path[offset], &len, n - offset);
+
+    if(len == 2 && path_isdotdot(&path[offset])) {
+
+      if(prevLength) {
+        if(!path_isdotdot(&path[prevOffset])) {
+          size_t from = offset + inc;
+          ssize_t remain = n - from, shrink = from - prevOffset;
+          offset = prevOffset;
+
+          if(remain > 0)
+            byte_copyr(&path[offset], remain, &path[from]);
+
+          n -= shrink;
+          continue;
+        }
+        //  printf("path_collapse [%zu] '%.*s' '%.*s'\n", k, (int)len, &path[offset], (int)prevLength, &path[prevOffset]);
+      }
+      /* else printf("path_collapse [%zu] '%.*s'\n", k, (int)len, &path[offset]); */
+    }
+    ++k;
+    prevOffset = offset;
+    prevLength = len;
+    offset += inc;
+  }
   return n;
 }
+#endif
 
 SizePair
 path_common_prefix(const char* s1, size_t n1, const char* s2, size_t n2) {

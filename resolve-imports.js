@@ -7,7 +7,25 @@ import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import JSLexer from 'jslexer.js';
-import { randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
+import {
+  randInt,
+  getTypeName,
+  getTypeStr,
+  isObject,
+  shorten,
+  toString,
+  toArrayBuffer,
+  define,
+  curry,
+  unique,
+  split,
+  extendArray,
+  camelize,
+  types,
+  getOpt,
+  quote,
+  escape
+} from 'util';
 
 ('use strict');
 ('use math');
@@ -60,34 +78,43 @@ const IsKeyword = TokIs('keyword');
 const IsPunctuator = TokIs('punctuator');
 const IsIdentifier = TokIs('identifier');
 const IsStringLiteral = TokIs('stringLiteral');
+const PutsFunction = outFn => str => {
+  let b = toArrayBuffer(str);
+  return outFn(b, b.byteLength);
+};
+const CloseFunction = outFn => () => outFn();
 
-const FileWriter = file => {
-  let fd = os.open(file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644);
-  //console.log('FileWriter', { file, fd });
+const FileWriter = file =>
+  define(FdWriter(os.open(file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644), file), {
+    close: () => os.close(this.fd)
+  });
+
+function FdWriter(fd, name) {
+  console.log('FdWriter', { fd, name });
   let fn;
   fn = (buf, len) => {
+    if(!buf || !len) if (typeof fn.close == 'function') return fn.close();
     len ??= buf.byteLength;
-    //console.log('FileWriter.write',{buf: shorten(toString(buf),80),len});
-    return os.write(fd, buf, 0, len);
+    let result = os.write(fd, buf, 0, len);
+    console.log('FdWriter.write', compact(1), { fd, buf: shorten(toString(buf), 80), len, result });
+    return result;
   };
 
   define(fn, {
-    file,
-    puts: str => {
-      let b = toArrayBuffer(str);
-      return fn(b, b.byteLength);
-    },
+    fd,
+    name,
+    file: name ?? fd,
+    puts: PutsFunction(fn),
     write: fn,
-    close: () => os.close(fd),
     seek: (whence, offset) => os.seek(fd, whence, offset),
 
-    [Symbol.toStringTag]: `FileWriter< ${file} >`,
+    [Symbol.toStringTag]: `FileWriter< ${fd} >`,
     inspect() {
-      return inspect({ file, fd }) ?? this[Symbol.toStringTag];
+      return inspect({ fd }) ?? this[Symbol.toStringTag];
     }
   });
   return fn;
-};
+}
 
 function ImportIds(seq) {
   return seq.filter(tok => IsIdentifier(null, tok));
@@ -134,13 +161,18 @@ function AddExport(tokens, relativePath = s => s) {
 
   const { loc, seq } = tokens[0];
 
-  if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+  if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
+    throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
   let def = tokens.some(tok => IsKeyword('default', tok));
   let file = ImportFile(tokens); // fromIndex != -1 ? Unquote(tokens[fromIndex + 1].lexeme) : null;
   if(file == ' ') throw new Error('XXX ' + inspect(tokens, { compact: false }));
-  const idx = def || file ? tokens.findIndex(tok => tok.lexeme == ';') : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
+  const idx =
+    def || file
+      ? tokens.findIndex(tok => tok.lexeme == ';')
+      : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
   const remove = tokens.slice(0, idx + 1); //idx + 1);
-  if(remove[0]) if (remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+  if(remove[0])
+    if(remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
   const range = ByteSequence(remove) ?? ByteSequence(tokens);
   let source = loc.file;
   let type = ImportType(tokens);
@@ -148,7 +180,8 @@ function AddExport(tokens, relativePath = s => s) {
   //console.log('AddExport', {remove,range,code});
   let len = tokens.length;
   //  console.log('AddExport', { range, code });
-  if(tokens[1].lexeme != '{') len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
+  if(tokens[1].lexeme != '{')
+    len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
   tokens = tokens.slice(0, len);
   let exp = define(
     {
@@ -170,7 +203,8 @@ function AddExport(tokens, relativePath = s => s) {
 }
 
 function AddImport(tokens, relativePath = s => s) {
-  if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
+  if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
+    throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
   const tok = tokens[0];
   const { loc, seq } = tok;
   let source = loc.file;
@@ -288,7 +322,8 @@ function ProcessFile(source, log = () => {}, recursive) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.last != table[tok.lexeme])
+            throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
           stack.pop();
           break;
@@ -403,7 +438,11 @@ function ProcessFile(source, log = () => {}, recursive) {
     let replacement = type == What.EXPORT ? null : /*FileMap.for*/ file;
     let { byteOffset } = loc;
 
-    if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
+    if(bufstr == ' ')
+      throw new Error(
+        `bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` +
+          toString(bytebuf.slice(loc.byteOffset, range[1] + 10))
+      );
 
     //if(replacement == null) console.log('replaceRange', inspect({ file: map.file, bufstr, range, replacement, loc: loc + '' }, { compact: 3, depth: 3 }) );
     if(typeof replacement == 'string' && !path.exists(replacement)) {
@@ -677,7 +716,14 @@ class FileMap extends Array {
       [...this]
         .map((item, i) => item.concat([this.at(i)]))
         .reduce((acc, [range, buf, str], i) => {
-          return acc + `\n\t\t[[` + (range ? NumericRange.from(range) : range) + ', ' + (!isObject(str) ? quote(shorten(str), "'") : inspect(str ?? buf, { maxArrayLength: 30 })) + `],`;
+          return (
+            acc +
+            `\n\t\t[[` +
+            (range ? NumericRange.from(range) : range) +
+            ', ' +
+            (!isObject(str) ? quote(shorten(str), "'") : inspect(str ?? buf, { maxArrayLength: 30 })) +
+            `],`
+          );
         }, '') +
       `\n\t]\n}`
     );
@@ -706,6 +752,7 @@ class FileMap extends Array {
   }
 
   write(out, depth = 0, serial) {
+    console.log(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, { out, depth, serial });
     let r,
       written = 0;
     let { length } = this;
@@ -726,6 +773,7 @@ class FileMap extends Array {
           r = str.write(out, depth + 1, serial);
           out.puts(FileBannerComment(str.file, 1));
         } else {
+          console.log('out', out);
           r = out(str, len);
           if(r != len) r = -1;
         }
@@ -748,7 +796,8 @@ class FileMap extends Array {
       const [range, buf] = this[i];
       if(range === null && buf === null) continue;
       if((str = this.at(i)) === null) continue;
-      if(range === null) if (typeof buf == 'string') /*if(typeof str == 'string')*/ str = fn(buf, 0) + str + fn(buf, 1);
+      if(range === null)
+        if(typeof buf == 'string') /*if(typeof str == 'string')*/ str = fn(buf, 0) + str + fn(buf, 1);
       s += str;
     }
     return s;
@@ -848,7 +897,7 @@ function main(...args) {
     code = 'c',
     exp = true;
 
-  let { out } = std;
+  let out = FdWriter(1, 'stdout');
 
   let params = getOpt(
     {
@@ -868,9 +917,9 @@ function main(...args) {
   let files = params['@'];
   const { sort, 'case-sensitive': caseSensitive, quiet } = params;
 
-  /// console.log('params', params, { exp, removeExports, recursive });
+  if(outputFile) out = FileWriter(outputFile);
 
-  if(outputFile) out = FileWriter(outputFile, 'w+');
+  console.log('main', { outputFile, out });
 
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
 
