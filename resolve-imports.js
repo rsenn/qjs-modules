@@ -15,6 +15,7 @@ import { randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayB
 let buffers = {},
   modules = {},
   removeExports = false,
+  removeImports = false,
   removeComments = false,
   relativeTo,
   outputFile,
@@ -91,7 +92,7 @@ const FileWriter = file => {
 };
 
 function FdWriter(fd, name) {
-  debugLog('FdWriter', { fd, name });
+  //debugLog('FdWriter', { fd, name });
   let fn;
   fn = (buf, len) => {
     // if(!buf || !len) if (typeof fn.close == 'function') return fn.close();
@@ -122,6 +123,10 @@ function ImportIds(seq) {
   return seq.filter(tok => IsIdentifier(null, tok));
 }
 
+function ImpExpType(seq) {
+  if(seq.some(tok => IsKeyword('import', tok))) return What.IMPORT;
+  if(seq.some(tok => IsKeyword('export', tok))) return What.EXPORT;
+}
 function ImportType(seq) {
   if(IsKeyword(['import', 'export'], seq[0])) seq.shift();
   if(IsPunctuator('*', seq[0])) {
@@ -172,7 +177,7 @@ function AddExport(tokens, relativePath = s => s) {
   if(remove[0]) if (remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
   const range = ByteSequence(remove) ?? ByteSequence(tokens);
   let source = loc.file;
-  let type = ImportType(tokens);
+  let type = ImpExpType(tokens);
   let code = toString(BufferFile(source).slice(...range));
   //console.log('AddExport', {remove,range,code});
   let len = tokens.length;
@@ -203,7 +208,7 @@ function AddImport(tokens, relativePath = s => s) {
   const tok = tokens[0];
   const { loc, seq } = tok;
   let source = loc.file;
-  let type = ImportType(tokens.slice()),
+  let type = ImpExpType(tokens.slice()),
     file = ImportFile(tokens.slice());
   const range = ByteSequence(tokens.slice());
   range[0] = loc.byteOffset;
@@ -439,19 +444,22 @@ function ProcessFile(source, log = () => {}, recursive) {
     if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
 
     //if(replacement == null) debugLog('replaceRange', inspect({ file: map.file, bufstr, range, replacement, loc: loc + '' }, { compact: 3, depth: 3 }) );
-    if(typeof replacement == 'string' && !path.exists(replacement)) {
-      header.push(impexp);
+    //debugLog('impexp', compact(2), { file, code, loc: loc + '', range: new NumericRange(...range), removeExports, type });
+
+    if(file && /*/[\.\/]/.test(file) &&*/ path.exists(file)) {
+      replacement = file;
+      //  header.push(impexp);
+    } else if((typeof replacement == 'string' && !path.exists(replacement)) || type == What.IMPORT || typeof file == 'string') {
       replacement = null;
-      //throw new Error(`Non-existing file '${replacement}' ${code}`);
+      header.push(impexp);
+    } else if(!file && code.startsWith('export')) {
+      if(!removeExports) continue;
+      replacement = null;
     }
 
-    //debugLog('impexp', { bufstr, loc: loc + '', range: new NumericRange(...range), removeExports, type });
+    //debugLog('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
 
-    if(bufstr.trim() == 'export' && removeExports) replacement = null;
-
-    if(type != What.EXPORT || removeExports) {
-      map.replaceRange(range, replacement);
-    }
+    map.replaceRange(range, replacement);
   }
 
   //  debugLog('comments', comments.map(({byteRange, lexeme})=>[byteRange,lexeme,toString(bytebuf.slice(...byteRange))]));
@@ -461,14 +469,15 @@ function ProcessFile(source, log = () => {}, recursive) {
     debugLog(`Removing ${comments.length} comments from '${source}'`);
     for(let { byteRange, lexeme } of comments) {
       let sl = bytebuf.slice(...byteRange);
-      //debugLog(`comment[${++i}]`, compact(2), { byteRange, str: toString(sl) });
+      debugLog(`comment[${++i}]`, compact(2), { byteRange, str: toString(sl) });
+
       map.replaceRange(byteRange, null);
     }
   }
 
-  // debugLog('map', map.dump());
+  debugLog('map', map.dump());
 
-  if(debug) console.log('dump map', map.dump());
+  //if(debug> 1) console.log('dump map', map.dump());
 
   end = Date.now();
 
@@ -735,10 +744,12 @@ class FileMap extends Array {
         if(n < range.start) return 0;
       }
       r = this.reduce((acc, item, i) => {
-        if(acc === undefined) return [i, item[0][0]];
-        if(item[0]) {
-          if(n >= item[0][1]) return [i + 1, item[0][1]];
-          if(n => item[0][0]) return [i, item[0][0]];
+        if(acc === undefined) {
+          //return [i, item[0][0]];
+          if(item[0]) {
+            if(n >= item[0][1]) return [i + 1, item[0][1]];
+            if(n => item[0][0]) return [i, item[0][0]];
+          }
         }
         return acc;
       }, undefined);
@@ -747,7 +758,7 @@ class FileMap extends Array {
     let start = sliceIndex(range.start);
     let end = sliceIndex(range.end);
 
-    //debugLog(`FileMap.replaceRange`, compact(2, { maxArrayLength: 10 }), { start, end }, 'this[end] =', this[end]);
+  //  debugLog(`FileMap.replaceRange`, compact(2, { maxArrayLength: 10 }), { range, length: this.length, start, end, file } /*, 'this[end] =', this[end]*/);
 
     if(range.start > this[start][0].start) {
       if(start == end) {
@@ -777,8 +788,13 @@ class FileMap extends Array {
           s += ', ';
           /*if(!isObject(str)) s += quote(shorten(str), "'");
           else*/
-          if(isObject(buf) && 'byteLength' in buf) s += `<this>`;
-          else s += inspect(buf, { maxArrayLength: 30 });
+          if(isObject(buf) && 'byteLength' in buf) {
+            let filename = bufferRef.get(buf);
+            buf = filename ?? `<this>`;
+          }
+          if(typeof buf == 'string') buf = path.normalize(buf);
+
+          s += inspect(buf, { maxArrayLength: 30 });
           s += ` ],`;
           return s;
         }, '') +
@@ -829,7 +845,7 @@ class FileMap extends Array {
   }
 
   write(out, depth = 0, serial) {
-    if(debug) debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, { out, depth, serial });
+    if(debug) debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, compact(1), { out, depth, serial });
     let r,
       written = 0;
     let { length } = this;
@@ -986,6 +1002,7 @@ function main(...args) {
       output: [true, file => (outputFile = file), 'o'],
       'no-recursive': [false, () => (recursive = false), 'R'],
       'remove-exports': [false, () => (removeExports = true), 'E'],
+      'remove-imports': [false, () => (removeImports = true), 'I'],
       'remove-comments': [false, () => (removeComments = true), 'C'],
       '@': 'files'
     },
@@ -996,7 +1013,7 @@ function main(...args) {
 
   if(outputFile) out = FileWriter(outputFile);
 
-  if(debug) debugLog('main', { outputFile, out });
+  if(debug > 1) debugLog('main', { outputFile, out });
 
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
 
@@ -1009,21 +1026,15 @@ function main(...args) {
   }
   let [result] = results;
 
-  let lines = header
-    .filter(impexp => !IsBuiltin(impexp.file))
-    .map(hdr => hdr.code)
-    .filter(line => !line.startsWith('export'));
+  if(!removeImports) {
+    let lines = header
+      .filter(impexp => !IsBuiltin(impexp.file))
+      .map(hdr => hdr.code)
+      .filter(line => !line.startsWith('export'));
+    if(lines.length) lines = [FileBannerComment('header', 0), ...lines, FileBannerComment('header', 1)];
 
-  /* let headerIds = header.map(impexp => [impexp.file, impexp.ids().map(tok => tok.lexeme)]);
-
-  debugLog(`headerIds:`, headerIds);*/
-
-  if(lines.length) lines = [FileBannerComment('header', 0), ...lines, FileBannerComment('header', 1)];
-
-  let output = lines.reduce((acc, line) => acc + line + '\n', '');
-
-  out.puts(output);
-
+    out.puts(lines.reduce((acc, line) => acc + line + '\n', ''));
+  }
   //  console.log('holes', compact(1), result.holes());
 
   console.log(`${result.write(out)} bytes written to '${out.file}'`);
