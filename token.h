@@ -38,6 +38,18 @@ token_set_location(Token* tok, Location* loc) {
   return tok->loc = location_dup(loc);
 }
 
+static inline OffsetLength
+token_char_range(Token* tok) {
+  OffsetLength ret = {tok->loc ? tok->loc->char_offset : -1, tok->char_length};
+  return ret;
+}
+
+static inline OffsetLength
+token_byte_range(Token* tok) {
+  OffsetLength ret = {tok->loc ? tok->loc->byte_offset : -1, tok->byte_length};
+  return ret;
+}
+
 static inline Token*
 token_dup(Token* tok) {
   ++tok->ref_count;

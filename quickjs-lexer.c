@@ -25,6 +25,14 @@ thread_local JSValue token_proto = {{JS_TAG_UNDEFINED}}, token_ctor = {{JS_TAG_U
 thread_local JSValue lexer_proto = {{JS_TAG_UNDEFINED}}, lexer_ctor = {{JS_TAG_UNDEFINED}};
 
 static JSValue
+offset_toarray(OffsetLength offs_len, JSContext* ctx) {
+  JSValue ret = JS_NewArray(ctx);
+  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, offs_len.offset));
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, offs_len.offset + offs_len.length));
+  return ret;
+}
+
+static JSValue
 js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
 
   JSValue ret, states;
@@ -67,6 +75,7 @@ enum token_getters {
   TOKEN_PROP_CHARLENGTH,
   TOKEN_PROP_START,
   TOKEN_PROP_END,
+  TOKEN_PROP_BYTERANGE,
   TOKEN_PROP_CHARRANGE,
   TOKEN_PROP_LEXEME,
   TOKEN_PROP_LOC,
@@ -181,27 +190,34 @@ JSValue
 js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Token* tok;
   LexerRule* rule;
+  int argi = 0;
+  int32_t d = 0;
 
   if(!(tok = js_token_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectClass(ctx, js_token_class_id);
-  rule = lexer_rule_at(tok->lexer, tok->id);
+  if(argi < argc && JS_IsNumber(argv[argi]))
+    JS_ToInt32(ctx, &d, argv[argi++]);
 
-  // JS_SetPropertyFunctionList(ctx, obj, js_token_inspect_funcs, 1);
-  // JS_DefinePropertyValueStr(ctx, obj, "constructor", JS_GetPropertyStr(ctx, this_val, "constructor"), 0);
-  // JS_DefinePropertyValueStr(ctx, obj, "[Symbol.toStringTag]", JS_NewString(ctx, "Token"), 0);
+  // printf("%s d=%i\n", __func__, (int)d);
+
+  JSValue obj = JS_NewObjectProtoClass(ctx, token_proto, js_token_class_id);
+  rule = lexer_rule_at(tok->lexer, tok->id);
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewUint32(ctx, tok->id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, rule->name), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, tok->lexeme), JS_PROP_ENUMERABLE);
 
-  // JS_DefinePropertyValueStr(ctx, obj, "byteOffset", JS_NewUint32(ctx, tok->byte_offset), 0);
-  JS_DefinePropertyValueStr(ctx, obj, "byteLength", JS_NewUint32(ctx, tok->byte_length), 0);
-  JS_DefinePropertyValueStr(ctx, obj, "length", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
+  if(tok->loc)
+    JS_DefinePropertyValueStr(ctx, obj, "charOffset", JS_NewUint32(ctx, tok->loc->char_offset), JS_PROP_ENUMERABLE);
 
-  // JS_DefinePropertyValueStr(ctx, obj, "loc", location_tovalue(&tok->loc, ctx), 0);
+  JS_DefinePropertyValueStr(ctx, obj, "charLength", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
+
+  JS_DefinePropertyValueStr(ctx, obj, "charRange", offset_toarray(token_char_range(tok), ctx), 0);
+
+  if(tok->loc)
+    JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_wrap(ctx, tok->loc), 0);
   return obj;
 }
 
@@ -234,12 +250,19 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
             ret = JS_NewInt64(ctx, tok->loc.char_offset + tok->char_length);
             break;
           }
-          case TOKEN_PROP_CHARRANGE: {
-            ret = JS_NewArray(ctx);
-            js_set_propertyint_int(ctx, ret, 0, tok->loc.char_offset);
-            js_set_propertyint_int(ctx, ret, 1, tok->loc.char_offset + tok->char_length);
-            break;
-          }*/
+       */
+    case TOKEN_PROP_BYTERANGE: {
+      Location* loc;
+      if((loc = tok->loc))
+        ret = offset_toarray(token_byte_range(tok), ctx);
+      break;
+    }
+    case TOKEN_PROP_CHARRANGE: {
+      Location* loc;
+      if((loc = tok->loc))
+        ret = offset_toarray(token_char_range(tok), ctx);
+      break;
+    }
     case TOKEN_PROP_LEXEME: {
       ret = JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length);
       break;
@@ -290,12 +313,13 @@ static JSClassDef js_token_class = {
 };
 
 static const JSCFunctionListEntry js_token_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("length", js_token_get, NULL, TOKEN_PROP_CHARLENGTH),
+    JS_CGETSET_MAGIC_DEF("charLength", js_token_get, NULL, TOKEN_PROP_CHARLENGTH),
     JS_CGETSET_MAGIC_DEF("byteLength", js_token_get, NULL, TOKEN_PROP_BYTELENGTH),
     /*    JS_CGETSET_MAGIC_DEF("byteOffset", js_token_get, NULL, TOKEN_PROP_BYTEOFFSET),
         JS_CGETSET_MAGIC_DEF("start", js_token_get, NULL, TOKEN_PROP_START),
-        JS_CGETSET_MAGIC_DEF("end", js_token_get, NULL, TOKEN_PROP_END),
-        JS_CGETSET_MAGIC_DEF("charRange", js_token_get, NULL, TOKEN_PROP_CHARRANGE),*/
+        JS_CGETSET_MAGIC_DEF("end", js_token_get, NULL, TOKEN_PROP_END),*/
+    JS_CGETSET_MAGIC_DEF("charRange", js_token_get, NULL, TOKEN_PROP_CHARRANGE),
+    JS_CGETSET_MAGIC_DEF("byteRange", js_token_get, NULL, TOKEN_PROP_BYTERANGE),
     JS_CGETSET_MAGIC_DEF("loc", js_token_get, NULL, TOKEN_PROP_LOC),
     JS_CGETSET_MAGIC_DEF("id", js_token_get, NULL, TOKEN_PROP_ID),
     JS_CGETSET_MAGIC_DEF("seq", js_token_get, NULL, TOKEN_PROP_SEQ),
@@ -306,6 +330,8 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
     // JS_CFUNC_DEF("toString", 0, js_token_tostring),
     // JS_CFUNC_DEF("[Symbol.toPrimitive]", 1, js_token_toprimitive),
     JS_ALIAS_DEF("position", "loc"),
+    JS_ALIAS_DEF("length", "charLength"),
+    JS_ALIAS_DEF("range", "charRange"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
 };
 static const JSCFunctionListEntry js_token_static_funcs[] = {

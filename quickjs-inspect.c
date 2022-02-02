@@ -381,7 +381,7 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, inspect_options_t* opts
     inspect_options_t opts_nocustom;
     memcpy(&opts_nocustom, opts, sizeof(inspect_options_t));
     opts_nocustom.custom_inspect = FALSE;
-    args[0] = js_number_new(ctx, INSPECT_LEVEL(opts));
+    args[0] = js_number_new(ctx, INSPECT_LEVEL(opts) - 1);
     args[1] = inspect_options_object(&opts_nocustom, ctx);
     ret = JS_Call(ctx, inspect, obj, 2, args);
     JS_FreeValue(ctx, args[0]);
@@ -808,7 +808,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   }
 
   if(opts->custom_inspect) {
-    JSValue tmp = js_inspect_custom_call(ctx, value, opts, depth);
+    JSValue tmp = js_inspect_custom_call(ctx, value, opts, depth + 1);
     if(JS_IsString(tmp)) {
       const char* s = JS_ToCString(ctx, tmp);
       dbuf_putstr(buf, s);
@@ -825,6 +825,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     } else if(!JS_IsUndefined(tmp)) {
       if(!JS_IsObject(tmp))
         return js_inspect_print_value(ctx, buf, tmp, opts, depth + 1);
+      // depth;
 
       value = tmp;
       compact++;

@@ -50,7 +50,7 @@ fail:
 
 VISIBLE JSValue
 js_location_wrap(JSContext* ctx, Location* loc) {
-  return js_location_create(ctx, location_proto, loc);
+  return js_location_create(ctx, location_proto, location_dup(loc));
 }
 
 JSValue
