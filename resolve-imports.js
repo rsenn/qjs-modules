@@ -33,7 +33,7 @@ const FileBannerComment = (filename, i) => {
 };
 extendArray(Array.prototype);
 const IsBuiltin = moduleName => /^[^\/.]+$/.test(moduleName);
-const compact = (n, more = {}) => console.config({ compact: n, ...more });
+const compact = (n, more = {}) => console.config({ compact: n,maxArrayLength: 100,  ...more });
 const AddUnique = (arr, item) => (arr.indexOf(item) == -1 ? arr.push(item) : null);
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
@@ -177,7 +177,7 @@ function AddImport(tokens, relativePath = s => s) {
   range[0] = loc.byteOffset;
   let code = toString(BufferFile(source).slice(...range));
 
- console.log('AddImport', compact(2),{ type, file,code,range });
+ //console.log('AddImport', compact(2),{ type, file,code,range });
 
   //if(!/\./.test(file)) return null;
   let imp = define(
@@ -678,7 +678,8 @@ if(this[end])
       [...this]
         .map((item, i) => item.concat([this.at(i)]))
         .reduce((acc, [range, buf, str], i) => {
-          return acc + `\n\t\t[[${range ? NumericRange.from(range) : range}], ${!isObject(str) ? quote(shorten(str), "'") : inspect(str ?? buf, { maxArrayLength:Infinity })}],`;
+          return acc + `\n\t\t[[`+(range ? NumericRange.from(range) : range)+', '+
+          (!isObject(str) ? quote(shorten(str), "'") : inspect(str ?? buf, { maxArrayLength:30 }))+`],`;
         }, '') +
       `\n\t]\n}`
     );
@@ -772,7 +773,8 @@ FileMap.prototype[Symbol.inspect] = function(depth, opts) {
       ...opts,
       compact: 1,
       breakLength: Infinity,
-      maxArrayLength: 300,
+      maxArrayLength: 10,
+      maxStringLength: 10,
       customInspect: true,
       depth: depth + 2
     })
@@ -838,7 +840,7 @@ function main(...args) {
       depth: 8,
       stringBreakNewline: true,
       maxStringLength: 1000,
-      maxArrayLength: 300,
+      maxArrayLength: Infinity,
       compact: false,
       //reparseable: true,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
@@ -893,9 +895,10 @@ function main(...args) {
     .map(hdr => hdr.code)
     .filter(line => !line.startsWith('export'));
 
-  let headerIds = header.map(impexp => impexp.ids());
+  let headerIds = header.map(impexp => [impexp.file, impexp.ids().map(tok => tok.lexeme)]);
 
-  console.log(`headerIds:`, headerIds);
+  console.log(`headerIds:`,compact(2), headerIds);
+
   if(lines.length) lines = [FileBannerComment('header', 0), ...lines, FileBannerComment('header', 1)];
 
   let output = lines.reduce((acc, line) => acc + line + '\n', '');
