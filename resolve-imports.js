@@ -651,9 +651,8 @@ class FileMap extends Array {
     };
     let start = sliceIndex(range.start);
     let end = sliceIndex(range.end);
-    //console.log(`FileMap<\x1b[38;5;34m${path.normalize(this.file)}\x1b[0m>.replaceRange(${range})`, compact(2), { start, end, length: this.length }, start == end);
 
-console.log(`FileMap.replaceRange`,compact(1), {start,end},'this[end] =', this[end]);
+console.log(`FileMap.replaceRange`,compact(2), {start,end},'this[end] =', this[end]);
 
     if(range.start > this[start][0].start) {
       if(start == end) {
