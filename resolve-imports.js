@@ -19,7 +19,10 @@ let buffers = {},
   outputFile,
   recursive = true,
   header = [],
-  processed = new Set();
+  processed = new Set(),
+  bufferRef = new WeakMap(),
+  fileBuffers = new Map(),
+  fileMaps = new Map();
 
 const FileBannerComment = (filename, i) => {
   let s = '';
@@ -31,15 +34,14 @@ const FileBannerComment = (filename, i) => {
   else s = s + '\n';
   return s;
 };
+
 extendArray(Array.prototype);
 const IsBuiltin = moduleName => /^[^\/.]+$/.test(moduleName);
-const compact = (n, more = {}) => console.config({ compact: n,maxArrayLength: 100,  ...more });
+const compact = (n, more = {}) => console.config({ compact: n, maxArrayLength: 100, ...more });
 const AddUnique = (arr, item) => (arr.indexOf(item) == -1 ? arr.push(item) : null);
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
-const bufferRef = new WeakMap();
-const fileBuffers = new Map();
-const fileMaps = new Map();
+
 const What = { IMPORT: Symbol.for('import'), EXPORT: Symbol.for('export') };
 const ImportTypes = { IMPORT: 0, IMPORT_DEFAULT: 1, IMPORT_NAMESPACE: 2 };
 const IsOneOf = curry((n, value) => (Array.isArray(n) ? n.some(num => num === value) : n === value));
@@ -68,16 +70,16 @@ const FileWriter = file => {
     return os.write(fd, buf, 0, len);
   };
 
-  fn.write = fn;
-  fn.puts = str => {
-    let b = toArrayBuffer(str);
-    return fn(b, b.byteLength);
-  };
-  fn.close = () => os.close(fd);
-  fn.seek = (whence, offset) => os.seek(fd, whence, offset);
-
   define(fn, {
     file,
+    puts: str => {
+      let b = toArrayBuffer(str);
+      return fn(b, b.byteLength);
+    },
+    write: fn,
+    close: () => os.close(fd),
+    seek: (whence, offset) => os.seek(fd, whence, offset),
+
     [Symbol.toStringTag]: `FileWriter< ${file} >`,
     inspect() {
       return inspect({ file, fd }) ?? this[Symbol.toStringTag];
@@ -177,7 +179,7 @@ function AddImport(tokens, relativePath = s => s) {
   range[0] = loc.byteOffset;
   let code = toString(BufferFile(source).slice(...range));
 
- //console.log('AddImport', compact(2),{ type, file,code,range });
+  //console.log('AddImport', compact(2),{ type, file,code,range });
 
   //if(!/\./.test(file)) return null;
   let imp = define(
@@ -588,28 +590,23 @@ class FileMap extends Array {
   }
 
   static for(file, buf) {
-    //   console.log('FileMap.for', { file, buf });
+    // console.log('FileMap.for', { file, buf });
     let m;
     if(file && (m = fileMaps.get(file))) return m;
 
     if(isObject(file) && file instanceof FileMap) return file;
-    else if(file === null && !buf)
-      return Object.setPrototypeOf(
-        {},
-        define(
-          {},
-          {
-            ...FileMap.prototype,
-            isEmpty() {
-              return true;
-            },
-            toString() {
-              return '';
-            },
-            [Symbol.toStringTag]: 'FileMap(empty)'
-          }
-        )
-      );
+    else if(file === null && !buf) {
+      let obj = {
+        isEmpty() {
+          return true;
+        },
+        toString() {
+          return '';
+        },
+        [Symbol.toStringTag]: 'FileMap(empty)'
+      };
+      return Object.setPrototypeOf(obj, FileMap.prototype);
+    }
     if(fileMaps.has(file)) return fileMaps.get(file);
     return new FileMap(file, buf);
   }
@@ -646,13 +643,11 @@ class FileMap extends Array {
         return acc;
       }, undefined);
       return r[0];
-      // sliceAt(n)) == -1) throw new Error(`replaceRange(${range}) n=${n} r=${r} length=${this.length} ranges=[${this.map(([r, b]) => r + '').join(' - ')}]`);
-      //  return r;
     };
     let start = sliceIndex(range.start);
     let end = sliceIndex(range.end);
 
-console.log(`FileMap.replaceRange`,compact(2), {start,end},'this[end] =', this[end]);
+    //console.log(`FileMap.replaceRange`, compact(2, { maxArrayLength: 10 }), { start, end }, 'this[end] =', this[end]);
 
     if(range.start > this[start][0].start) {
       if(start == end) {
@@ -660,10 +655,8 @@ console.log(`FileMap.replaceRange`,compact(2), {start,end},'this[end] =', this[e
         let insert = [new NumericRange(...range), buf];
         this.splice(++end, 0, insert);
       }
-      // console.log(`FileMap.replaceRange`, { range, start, end });
       this[start][0].end = range.start;
-if(this[end])
-      this[end][0].start = range.end;
+      if(this[end]) this[end][0].start = range.end;
     } else {
       this[start][0].start = range.end;
     }
@@ -677,8 +670,7 @@ if(this[end])
       [...this]
         .map((item, i) => item.concat([this.at(i)]))
         .reduce((acc, [range, buf, str], i) => {
-          return acc + `\n\t\t[[`+(range ? NumericRange.from(range) : range)+', '+
-          (!isObject(str) ? quote(shorten(str), "'") : inspect(str ?? buf, { maxArrayLength:30 }))+`],`;
+          return acc + `\n\t\t[[` + (range ? NumericRange.from(range) : range) + ', ' + (!isObject(str) ? quote(shorten(str), "'") : inspect(str ?? buf, { maxArrayLength: 30 })) + `],`;
         }, '') +
       `\n\t]\n}`
     );
@@ -723,7 +715,6 @@ if(this[end])
             r = 0;
             continue;
           }
-
           out.puts(FileBannerComment(str.file, 0));
           r = str.write(out, depth + 1, serial);
           out.puts(FileBannerComment(str.file, 1));
@@ -883,20 +874,16 @@ function main(...args) {
   for(let file of files) {
     results.push(ProcessFile(file, log, recursive));
   }
-  //
-  let [result] = results;
+   let [result] = results;
 
-  //  let arr = result.toArray();
-  //
-  //console.log('result',console.config({compact:1, breakLength:100}), ...result.map(([range,buf], i) => [range,result.at(i)]).reduce((acc, item) =>   acc.concat(acc.length ? [',\n', item]:[item]), []) );
-  let lines = header
+   let lines = header
     .filter(impexp => !IsBuiltin(impexp.file))
     .map(hdr => hdr.code)
     .filter(line => !line.startsWith('export'));
 
-  let headerIds = header.map(impexp => [impexp.file, impexp.ids().map(tok => tok.lexeme)]);
+ /* let headerIds = header.map(impexp => [impexp.file, impexp.ids().map(tok => tok.lexeme)]);
 
-  console.log(`headerIds:`,compact(2), headerIds);
+  console.log(`headerIds:`, compact(2), headerIds);*/
 
   if(lines.length) lines = [FileBannerComment('header', 0), ...lines, FileBannerComment('header', 1)];
 

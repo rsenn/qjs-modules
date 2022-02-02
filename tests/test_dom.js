@@ -1,16 +1,6 @@
 import * as os from 'os';
 import * as std from 'std';
-import {
-  escape,
-  quote,
-  isObject,
-  define,
-  getClassName,
-  mapObject,
-  getset,
-  gettersetter,
-  memoize
-} from '../lib/util.js';
+import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, memoize } from '../lib/util.js';
 import inspect from 'inspect';
 import * as xml from 'xml';
 import * as fs from 'fs';
