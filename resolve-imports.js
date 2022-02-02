@@ -83,6 +83,11 @@ const FileWriter = file => {
   return fn;
 };
 
+function ImportIds(seq) {
+  return seq.filter(tok => IsIdentifier(null, tok));
+}
+
+
 function ImportType(seq) {
   if(IsKeyword(['import', 'export'], seq[0])) seq.shift();
   if(IsPunctuator('*', seq[0])) {
