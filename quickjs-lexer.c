@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include "buffer-utils.h"
 #include "debug.h"
+#include "token.h"
 
 /**
  * \addtogroup quickjs-lexer
@@ -75,32 +76,8 @@ enum token_getters {
   TOKEN_PROP_RULE,
 };
 
-static void
-token_free(Token* tok, JSContext* ctx) {
-
-  location_free(&tok->loc, ctx);
-
-  if(!JS_IsUndefined(tok->loc_val))
-    js_value_free(ctx, tok->loc_val);
-
-  js_free(ctx, tok->lexeme);
-  js_free(ctx, tok);
-}
-
-static void
-token_free_rt(Token* tok, JSRuntime* rt) {
-
-  location_free_rt(&tok->loc, rt);
-
-  if(!JS_IsUndefined(tok->loc_val))
-    js_value_free_rt(rt, tok->loc_val);
-
-  js_free_rt(rt, tok->lexeme);
-  js_free_rt(rt, tok);
-}
-
 Token*
-js_token_new(JSContext* ctx, int id, const char* lexeme, const Location* loc, uint64_t byte_offset) {
+js_token_new(JSContext* ctx, int id, const char* lexeme, Location* loc, uint64_t byte_offset) {
   Token* tok;
 
   if(!(tok = js_mallocz(ctx, sizeof(Token))))
@@ -108,9 +85,9 @@ js_token_new(JSContext* ctx, int id, const char* lexeme, const Location* loc, ui
 
   tok->id = id;
   tok->lexeme = js_strdup(ctx, lexeme);
-  tok->loc = location_clone(loc, ctx);
-  tok->loc_val = JS_UNDEFINED;
-  //  tok->byte_offset = byte_offset;
+  tok->loc = location_dup(loc);
+  // tok->loc_val = JS_UNDEFINED;
+  //   tok->byte_offset = byte_offset;
 
   return tok;
 }
@@ -145,16 +122,22 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   JS_SetOpaque(obj, tok);
 
-  tok->loc_val = JS_UNDEFINED;
+  // tok->loc_val = JS_UNDEFINED;
 
   if(argc > 0)
     JS_ToInt32(ctx, &tok->id, argv[0]);
   if(argc > 1)
     tok->lexeme = js_tostring(ctx, argv[1]);
-  if(argc > 2)
-    tok->loc = js_location_from(ctx, argv[2]);
+  if(argc > 2) {
+    Location* loc;
+
+    if((loc = js_location_data2(ctx, argv[2])))
+      tok->loc = location_dup(loc);
+    else
+      tok->loc = js_location_from(ctx, argv[2]);
+  }
   if(argc > 3)
-    JS_ToInt64(ctx, &tok->loc.pos, argv[3]);
+    JS_ToInt64(ctx, &tok->loc->char_offset, argv[3]);
 
   return obj;
 fail:
@@ -218,7 +201,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JS_DefinePropertyValueStr(ctx, obj, "byteLength", JS_NewUint32(ctx, tok->byte_length), 0);
   JS_DefinePropertyValueStr(ctx, obj, "length", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(ctx, obj, "loc", location_tovalue(&tok->loc, ctx), 0);
+  // JS_DefinePropertyValueStr(ctx, obj, "loc", location_tovalue(&tok->loc, ctx), 0);
   return obj;
 }
 
@@ -244,17 +227,17 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
             break;
           }
         case TOKEN_PROP_START: {
-            ret = JS_NewInt64(ctx, tok->loc.pos);
+            ret = JS_NewInt64(ctx, tok->loc.char_offset);
             break;
           }
           case TOKEN_PROP_END: {
-            ret = JS_NewInt64(ctx, tok->loc.pos + tok->char_length);
+            ret = JS_NewInt64(ctx, tok->loc.char_offset + tok->char_length);
             break;
           }
           case TOKEN_PROP_CHARRANGE: {
             ret = JS_NewArray(ctx);
-            js_set_propertyint_int(ctx, ret, 0, tok->loc.pos);
-            js_set_propertyint_int(ctx, ret, 1, tok->loc.pos + tok->char_length);
+            js_set_propertyint_int(ctx, ret, 0, tok->loc.char_offset);
+            js_set_propertyint_int(ctx, ret, 1, tok->loc.char_offset + tok->char_length);
             break;
           }*/
     case TOKEN_PROP_LEXEME: {
@@ -262,10 +245,11 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case TOKEN_PROP_LOC: {
-      if(JS_IsUndefined(tok->loc_val))
-        tok->loc_val = js_location_new(ctx, &tok->loc);
+      Location* loc;
 
-      ret = JS_DupValue(ctx, tok->loc_val);
+      if((loc = location_dup(tok->loc)))
+        ret = js_location_wrap(ctx, loc);
+
       break;
     }
     case TOKEN_PROP_ID: {
@@ -292,10 +276,10 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
 void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
-  Token* tok = JS_GetOpaque(val, js_token_class_id);
-  if(tok) {
-    location_free_rt(&tok->loc, rt);
+  Token* tok;
+  if((tok = js_token_data(val))) {
     token_free_rt(tok, rt);
+    JS_SetOpaque(val, 0);
   }
   JS_FreeValueRT(rt, val);
 }
@@ -327,23 +311,6 @@ static const JSCFunctionListEntry js_token_proto_funcs[] = {
 static const JSCFunctionListEntry js_token_static_funcs[] = {
     JS_PROP_INT32_DEF("EOF", LEXER_EOF, JS_PROP_ENUMERABLE),
 };
-
-static Token*
-lexer_token(Lexer* lex, JSContext* ctx) {
-  Token* tok;
-  if((tok = js_mallocz(ctx, sizeof(Token)))) {
-    tok->id = lex->token_id;
-    tok->loc = location_clone(&lex->loc, ctx);
-    tok->loc_val = JS_UNDEFINED;
-    tok->byte_length = lex->byte_length;
-    tok->char_length = lexer_charlen(lex);
-    tok->lexeme = js_strndup(ctx, (const char*)&lex->input.data[lex->input.pos], tok->byte_length);
-    //    tok->byte_offset = lex->input.pos;
-    tok->lexer = lex;
-    tok->seq = lex->seq;
-  }
-  return tok;
-}
 
 static JSValue
 lexer_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* data) {
@@ -507,6 +474,25 @@ lexer_lexeme_s(Lexer* lex, JSContext* ctx) {
 
   return js_strndup(ctx, s, len);
 }
+
+static Token*
+lexer_token(Lexer* lex, JSContext* ctx) {
+  size_t len;
+  const char* lexeme;
+  Token* tok;
+
+  if(!(lexeme = lexer_lexeme(lex, &len)))
+    return 0;
+
+  if(!(tok = token_create(lex->token_id, location_clone(&lex->loc, ctx), lexeme, len, ctx)))
+    return 0;
+
+  tok->lexer = lexer_dup(lex);
+  tok->seq = lex->seq;
+
+  return tok;
+}
+
 JSValue
 js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst vinput, JSValueConst vmode) {
   Lexer* lex;
@@ -664,7 +650,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       input_buffer_free(&lex->input, ctx);
       lex->input = input;
-      location_free_rt(&lex->loc, JS_GetRuntime(ctx));
+      location_release_rt(&lex->loc, JS_GetRuntime(ctx));
       lex->loc = loc;
 
       if(argc > 1 && JS_IsString(argv[1])) {
@@ -686,7 +672,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       for(i = 0; i < argc; i++) {
         Token* tok;
         Location* loc;
-        if((loc = js_location_data(ctx, argv[i]))) {
+        if((loc = js_location_data2(ctx, argv[i]))) {
           lexer_set_location(lex, loc, ctx);
           ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, ctx));
         } else if((tok = js_token_data(argv[i]))) {
@@ -931,7 +917,12 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_LOC: {
-      ret = js_location_new(ctx, &lex->loc);
+      Location* loc;
+
+      if((loc = location_new(ctx))) {
+        location_copy(loc, &lex->loc, ctx);
+        ret = js_location_wrap(ctx, loc);
+      }
       break;
     }
 
@@ -1039,8 +1030,11 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
     case PROP_POS: {
       Token* tok;
       if((tok = js_token_data(value))) {
-        lex->input.pos = tok->loc.pos;
-        lex->loc = tok->loc;
+        lex->input.pos = tok->loc->char_offset;
+
+        location_release(&lex->loc, ctx);
+        location_copy(&lex->loc, tok->loc, ctx);
+        //        lex->loc = tok->loc;
       }
       break;
     }
@@ -1313,7 +1307,7 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JS_DefinePropertyValueStr(ctx, obj, "tokid", JS_NewInt32(ctx, lex->token_id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "state", JS_NewInt32(ctx, lex->state), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "eof", JS_NewBool(ctx, input_buffer_eof(&lex->input)), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_new(ctx, &lex->loc), JS_PROP_ENUMERABLE);
+  // JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_new(ctx, &lex->loc), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "pos", JS_NewUint32(ctx, lex->input.pos), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "size", JS_NewUint32(ctx, lex->input.size), JS_PROP_ENUMERABLE);
 
@@ -1325,7 +1319,7 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
 
   if((lex = JS_GetOpaque(val, js_lexer_class_id))) {
-    location_free_rt(&lex->loc, rt);
+    location_release_rt(&lex->loc, rt);
     lexer_free_rt(lex, rt);
   }
   JS_FreeValueRT(rt, val);

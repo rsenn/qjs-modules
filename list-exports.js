@@ -4,11 +4,10 @@ import * as std from 'std';
 import * as fs from 'fs';
 import inspect from 'inspect';
 import * as path from 'path';
-import { Predicate } from 'predicate';
-import { Location, Lexer, Token } from 'lexer';
+import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import JSLexer from 'jslexer.js';
-import { escape, quote, toString, define, curry, unique, split, extendArray, camelize, decamelize } from 'util';
+import { escape, toString, define, curry, unique, split, extendArray, camelize } from 'util';
 
 let buffers = {},
   modules = {};

@@ -268,6 +268,7 @@ if(NOT HAVE_MEMMEM)
   set(utils_SOURCES ${utils_SOURCES} memmem.c)
 endif(NOT HAVE_MEMMEM)
 set(utils_SOURCES ${utils_SOURCES} qsort_r.c)
+set(token_SOURCES token.c token.h)
 set(location_SOURCES
     location.c location.h quickjs-location.c quickjs-location.h
     ${utils_SOURCES} ${buffer_utils_SOURCES})
@@ -297,8 +298,8 @@ set(predicate_SOURCES predicate.c predicate.h ${vector_SOURCES}
                       ${utils_SOURCES})
 set(pointer_SOURCES pointer.c pointer.h ${utils_SOURCES}
                     ${buffer_utils_SOURCES})
-set(lexer_SOURCES quickjs-lexer.h location.c location.h ${utils_SOURCES}
-                  ${vector_SOURCES} lexer.c lexer.h)
+set(lexer_SOURCES quickjs-lexer.h ${location_SOURCES} ${token_SOURCES}
+                  ${utils_SOURCES} ${vector_SOURCES} lexer.c lexer.h)
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${queue_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
@@ -554,9 +555,12 @@ endif(COMPILED_MODULES)
 link_directories(${QJSM_LIBDIR})
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${QJSM_LIBDIR}")
 set_target_properties(
-  qjsm
-  PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS "-w"
-             RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
+  qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS
+                                                                 "-w")
+if(NOT WASI AND NOT EMSCRIPTEN)
+  set_target_properties(qjsm PROPERTIES RPATH
+                                        "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
+endif(NOT WASI AND NOT EMSCRIPTEN)
 target_link_directories(qjsm PUBLIC ${QUICKJS_LIBRARY_DIR})
 target_link_libraries(qjsm PUBLIC ${QUICKJS_LIBRARY} ${QJSM_LDADD}
                                   ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})

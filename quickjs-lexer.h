@@ -2,21 +2,12 @@
 #define QUICKJS_LEXER_H
 
 #include "lexer.h"
-#include <list.h>
+#include "token.h"
 
 /**
  * \defgroup quickjs-lexer QuickJS module: lexer - Lexical scanner, regex based
  * @{
  */
-typedef struct {
-  int id;
-  char* lexeme;
-  uint32_t byte_length, char_length;
-  Location loc;
-  JSValue loc_val;
-  Lexer* lexer;
-  uint64_t seq;
-} Token;
 
 extern thread_local JSClassID js_token_class_id, js_lexer_class_id;
 

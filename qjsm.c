@@ -236,6 +236,8 @@ jsm_module_search_ext(JSContext* ctx, const char* path, const char* name, const 
     strncpy(file, p, i);
     file[i] = '/';
     strcpy(&file[i + 1], name);
+    if(!stat(file, &st))
+      return file;
     j = strlen(name);
     if(!(j >= 3 && !strcmp(&name[j - 3], ext)))
       strcpy(&file[i + 1 + j], ext);
@@ -278,7 +280,7 @@ jsm_module_init(JSContext* ctx, struct jsm_module_record* rec) {
   JSModuleDef* m;
   if(rec->def == 0) {
     if(debug_module_loader)
-      printf("[%p] \x1b[48;5;214m(3)\x1b[0m %-30s internal\n", pthread_self(), rec->module_name);
+      printf("\x1b[48;5;214m(3)\x1b[0m %-30s internal\n", rec->module_name);
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
 
@@ -332,9 +334,9 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   for(;;) {
     if(debug_module_loader > 1) {
       if(file)
-        printf("[%p] \x1b[48;5;214m(1)\x1b[0m %-30s '%s'\n", pthread_self(), name, file);
+        printf("\x1b[48;5;214m(1)\x1b[0m %-30s '%s'\n", name, file);
       /*  else  printf("jsm_module_loader[%x] \x1b[48;5;124m(1)\x1b[0m %-20s ->
-       * %s\n", pthread_self(), trim_dotslash(name), trim_dotslash(module));*/
+       * %s\n", trim_dotslash(name), trim_dotslash(module));*/
     }
     if(!strchr(module, '/')) {
       struct jsm_module_record* rec;
@@ -359,7 +361,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
           const char* str = JS_ToCString(ctx, target);
           if(str) {
             if(debug_module_loader)
-              printf("[%p] \x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", pthread_self(), module, str);
+              printf("\x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", module, str);
 
             orig_js_free(ctx, module);
 
@@ -382,13 +384,13 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   if(file) {
     if(debug_module_loader)
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
-        printf("[%p] \x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", pthread_self(), module, file);
+        printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
 
     m = js_module_loader(ctx, file, opaque);
   }
 end:
   if(debug_module_loader && vector_finds(&module_debug, "import") != -1) {
-    fprintf(stderr, (!file || strcmp(module, file)) ? "[%p] !!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", pthread_self(), module, file);
+    fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
   }
   // if(!m) printf("jsm_module_loader(\"%s\") = %p\n", name, m);
   if(module)
@@ -590,7 +592,7 @@ jsm_context_new(JSRuntime* rt) {
    jsm_module_native(tree_walker);
    jsm_module_native(xml);*/
 
-  // printf("Set module loader (rt=%p, thread id=%i): %p\n", rt, pthread_self(), jsm_module_loader);
+  // printf("Set module loader (rt=%p): %p\n", rt);
   JS_SetModuleLoaderFunc(rt, 0, jsm_module_loader, 0);
 
   return ctx;
@@ -1303,14 +1305,13 @@ main(int argc, char** argv) {
                "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n"
                "globalThis.repl = new REPL('qjsm');\n"
                "repl.fs = fs;\n"
-               "repl.directives.i = [ name => import(name).then(m => globalThis[name] = m).catch(() => repl.printStatus(`ERROR: module "
-               "'${name}' not found`)), 'import a module' ];\n"
+               "repl.directives.i = [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => "
+               "repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ];\n"
                "repl.show = console.log;\n"
                "repl.historyLoad(history);\n"
                "repl.runSync();\n",
                home,
                exename);
-      // printf("str: %s\n", str);
       js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }

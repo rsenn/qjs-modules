@@ -271,6 +271,7 @@ lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
 
   memset(lex, 0, sizeof(Lexer));
 
+  lex->ref_count = 1;
   lex->mode = mode;
   lex->state = 0;
   lex->seq = 0;
@@ -383,7 +384,7 @@ input_skip(InputBuffer* input, size_t end, Location* loc) {
     } else {
       loc->column++;
     }
-    loc->pos++;
+    loc->char_offset++;
     loc->byte_offset += input->pos - prev;
     n++;
   }
@@ -431,44 +432,61 @@ lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
 
 void
 lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
-  // lex->start = loc->pos;
+  // lex->start = loc->char_offset;
   lex->byte_length = 0;
-  lex->input.pos = loc->pos;
-  location_free(&lex->loc, ctx);
-  lex->loc = location_clone(loc, ctx);
+  lex->input.pos = loc->char_offset;
+  location_release(&lex->loc, ctx);
+  location_copy(&lex->loc, loc, ctx);
+}
+
+void
+lexer_release(Lexer* lex, JSContext* ctx) {
+  if(--lex->ref_count == 0) {
+    LexerRule* rule;
+    char** state;
+
+    if(!ctx)
+      ctx = lex->rules.opaque;
+
+    input_buffer_free(&lex->input, ctx);
+
+    vector_foreach_t(&lex->defines, rule) { lexer_rule_free(rule, ctx); }
+    vector_foreach_t(&lex->rules, rule) { lexer_rule_free(rule, ctx); }
+    vector_foreach_t(&lex->states, state) { free(*state); }
+
+    vector_free(&lex->defines);
+    vector_free(&lex->rules);
+    vector_free(&lex->states);
+    vector_free(&lex->state_stack);
+  }
 }
 
 void
 lexer_free(Lexer* lex, JSContext* ctx) {
-  LexerRule* rule;
-  char** state;
-
-  if(!ctx)
-    ctx = lex->rules.opaque;
-
-  input_buffer_free(&lex->input, ctx);
-
-  vector_foreach_t(&lex->defines, rule) { lexer_rule_free(rule, ctx); }
-  vector_foreach_t(&lex->rules, rule) { lexer_rule_free(rule, ctx); }
-  vector_foreach_t(&lex->states, state) { free(*state); }
-
-  vector_free(&lex->defines);
-  vector_free(&lex->rules);
-  vector_free(&lex->states);
-  vector_free(&lex->state_stack);
+  lexer_release(lex, ctx);
+  if(lex->ref_count <= 0)
+    js_free(ctx, lex);
 }
 
 void
+lexer_release_rt(Lexer* lex, JSRuntime* rt) {
+  if(--lex->ref_count == 0) {
+    char** statep;
+    LexerRule* rule;
+    vector_foreach_t(&lex->states, statep) { js_free_rt(rt, *statep); }
+    vector_free(&lex->states);
+    vector_foreach_t(&lex->rules, rule) { lexer_rule_free_rt(rule, rt); }
+    vector_free(&lex->rules);
+    vector_foreach_t(&lex->defines, rule) { lexer_rule_free_rt(rule, rt); }
+    vector_free(&lex->defines);
+    vector_free(&lex->state_stack);
+  }
+}
+void
 lexer_free_rt(Lexer* lex, JSRuntime* rt) {
-  char** statep;
-  LexerRule* rule;
-  vector_foreach_t(&lex->states, statep) { js_free_rt(rt, *statep); }
-  vector_free(&lex->states);
-  vector_foreach_t(&lex->rules, rule) { lexer_rule_free_rt(rule, rt); }
-  vector_free(&lex->rules);
-  vector_foreach_t(&lex->defines, rule) { lexer_rule_free_rt(rule, rt); }
-  vector_free(&lex->defines);
-  vector_free(&lex->state_stack);
+  lexer_release_rt(lex, rt);
+  if(lex->ref_count <= 0)
+    js_free_rt(rt, lex);
 }
 
 void

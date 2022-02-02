@@ -6,17 +6,9 @@
 #include <cutils.h>
 #include "defines.h"
 
-struct __attribute__((packed)) alloc_block {
-  struct list_head link;
-  const char* file;
-  int line;
-  size_t size;
-};
-
 extern thread_local struct list_head alloc_block_list;
 
 int64_t check_pointer(void*);
-
 void* debug_malloc(size_t, const char*, int);
 void* debug_calloc(size_t, size_t, const char*, int line);
 void* debug_realloc(void*, size_t, const char*, int line);
@@ -25,6 +17,7 @@ void debug_free(void*, const char*, int);
 void* debug_js_malloc(JSContext*, size_t, const char*, int line);
 void* debug_js_mallocz(JSContext*, size_t, const char*, int line);
 void* debug_js_realloc(JSContext*, void*, size_t, const char* file, int line);
+void* debug_js_realloc2(JSContext*, void*, size_t, size_t* pslack, const char* file, int line);
 void* debug_js_strdup(JSContext*, const char*, const char*, int line);
 void* debug_js_strndup(JSContext*, const char*, size_t, const char* file, int line);
 size_t debug_js_malloc_usable_size(JSContext*, const void*, const char*, int line);

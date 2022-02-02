@@ -1222,6 +1222,7 @@ enum {
   GET_CLASS_CONSTRUCTOR,
   GET_TYPE_ID,
   GET_TYPE_STR,
+  GET_TYPE_NAME,
 };
 
 static JSValue
@@ -1309,6 +1310,16 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       const char* type;
       if((type = js_value_type_name(type_id)))
         ret = JS_NewString(ctx, type);
+      break;
+    }
+    case GET_TYPE_NAME: {
+      const char* type;
+      if((type = js_object_classname(ctx, argv[0]))) {
+        ret = JS_NewString(ctx, type);
+        js_free(ctx, type);
+      } else if((type = js_value_type_name(type_id))) {
+        ret = JS_NewString(ctx, type);
+      }
       break;
     }
   }
@@ -1875,6 +1886,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getClassConstructor", 1, js_misc_classid, GET_CLASS_CONSTRUCTOR),
     JS_CFUNC_MAGIC_DEF("getTypeId", 1, js_misc_type, GET_TYPE_ID),
     JS_CFUNC_MAGIC_DEF("getTypeStr", 1, js_misc_type, GET_TYPE_STR),
+    JS_CFUNC_MAGIC_DEF("getTypeName", 1, js_misc_type, GET_TYPE_NAME),
     JS_CFUNC_MAGIC_DEF("rand", 0, js_misc_random, RANDOM_RAND),
     JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, RANDOM_RANDI),
     JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, RANDOM_RANDF),
@@ -1986,46 +1998,20 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(IN_ALL_EVENTS),
 #endif
 #ifdef HAVE_TERMIOS_H
-    JS_CONSTANT(TIOCEXCL),
-    JS_CONSTANT(TIOCNXCL),
     JS_CONSTANT(TIOCSCTTY),
     JS_CONSTANT(TIOCGPGRP),
     JS_CONSTANT(TIOCSPGRP),
-    JS_CONSTANT(TIOCOUTQ),
-    JS_CONSTANT(TIOCSTI),
     JS_CONSTANT(TIOCGWINSZ),
     JS_CONSTANT(TIOCSWINSZ),
     JS_CONSTANT(TIOCMGET),
     JS_CONSTANT(TIOCMBIS),
     JS_CONSTANT(TIOCMBIC),
     JS_CONSTANT(TIOCMSET),
-    JS_CONSTANT(TIOCGSOFTCAR),
-    JS_CONSTANT(TIOCSSOFTCAR),
     JS_CONSTANT(TIOCINQ),
     JS_CONSTANT(TIOCLINUX),
-    JS_CONSTANT(TIOCCONS),
-    JS_CONSTANT(TIOCGSERIAL),
-    JS_CONSTANT(TIOCSSERIAL),
     JS_CONSTANT(TIOCPKT),
-    JS_CONSTANT(TIOCNOTTY),
-    JS_CONSTANT(TIOCSETD),
-    JS_CONSTANT(TIOCGETD),
     JS_CONSTANT(TIOCSBRK),
     JS_CONSTANT(TIOCCBRK),
-    JS_CONSTANT(TIOCGSID),
-    JS_CONSTANT(TIOCGPTN),
-    JS_CONSTANT(TIOCSPTLCK),
-    JS_CONSTANT(TIOCSERCONFIG),
-    JS_CONSTANT(TIOCSERGWILD),
-    JS_CONSTANT(TIOCSERSWILD),
-    JS_CONSTANT(TIOCGLCKTRMIOS),
-    JS_CONSTANT(TIOCSLCKTRMIOS),
-    JS_CONSTANT(TIOCSERGSTRUCT),
-    JS_CONSTANT(TIOCSERGETLSR),
-    JS_CONSTANT(TIOCSERGETMULTI),
-    JS_CONSTANT(TIOCSERSETMULTI),
-    JS_CONSTANT(TIOCMIWAIT),
-    JS_CONSTANT(TIOCGICOUNT),
 #endif
 };
 

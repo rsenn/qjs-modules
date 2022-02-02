@@ -2,15 +2,10 @@
 import * as os from 'os';
 import * as std from 'std';
 import * as fs from 'fs';
-import inspect from 'inspect';
 import * as path from 'path';
-import { Predicate } from 'predicate';
-import { Location, Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import JSLexer from 'lib/jslexer.js';
 import CLexer from 'lib/clexer.js';
-import BNFLexer from 'lib/bnflexer.js';
-import { define, curry, toString, escape, quote, unique, split, extendArray } from 'util';
+import { escape, extendArray } from 'util';
 
 extendArray();
 

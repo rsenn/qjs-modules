@@ -548,7 +548,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
     if(/*(opts->max_array_length == INT32_MAX && i > 32) ||*/ i == (size_t)opts->max_array_length)
       break;
     if(opts->reparseable)
-      dbuf_printf(buf, i > 0  ? ", 0x%02x" : "0x%02x", ptr[i]);
+      dbuf_printf(buf, i > 0 ? ", 0x%02x" : "0x%02x", ptr[i]);
     else {
       if(column + 3 >= break_len && opts->break_length != INT32_MAX) {
         if(compact)
@@ -673,9 +673,7 @@ js_inspect_print_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
       inspect_newline(buf, INSPECT_LEVEL(opts) + 1);
       dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
     }
-    if(compact) {
-      n = ansi_truncate(&str[pos], n, max_len);
-    } else if(opts->string_break_newline) {
+    if(opts->string_break_newline) {
       for(i = pos; i < limit; i += eol) {
         eol = byte_chr(&str[i], limit - i, '\n');
         if(str[i + eol] == '\n')
@@ -686,6 +684,8 @@ js_inspect_print_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
           break;
         }
       }
+    } else if(compact) {
+      n = ansi_truncate(&str[pos], n, max_len);
     }
     dbuf_put_escaped(buf, &str[pos], n);
     pos += n;
