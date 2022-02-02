@@ -18,6 +18,7 @@ let buffers = {},
   relativeTo,
   outputFile,
   recursive = true,
+  debug = 0,
   header = [],
   processed = new Set(),
   bufferRef = new WeakMap(),
@@ -416,7 +417,7 @@ function ProcessFile(source, log = () => {}, recursive) {
     }
   }
 
-  console.log(map.dump());
+  if(debug) console.log(map.dump());
 
   end = Date.now();
 
@@ -845,7 +846,7 @@ function main(...args) {
 
   let params = getOpt(
     {
-      debug: [false, null, 'x'],
+      debug: [false, () => ++debug, 'x'],
       sort: [false, null, 's'],
       'case-sensitive': [false, null, 'c'],
       quiet: [false, null, 'q'],
@@ -859,7 +860,7 @@ function main(...args) {
     args
   );
   let files = params['@'];
-  const { debug, sort, 'case-sensitive': caseSensitive, quiet } = params;
+  const { sort, 'case-sensitive': caseSensitive, quiet } = params;
 
   /// console.log('params', params, { exp, removeExports, recursive });
 
@@ -874,14 +875,14 @@ function main(...args) {
   for(let file of files) {
     results.push(ProcessFile(file, log, recursive));
   }
-   let [result] = results;
+  let [result] = results;
 
-   let lines = header
+  let lines = header
     .filter(impexp => !IsBuiltin(impexp.file))
     .map(hdr => hdr.code)
     .filter(line => !line.startsWith('export'));
 
- /* let headerIds = header.map(impexp => [impexp.file, impexp.ids().map(tok => tok.lexeme)]);
+  /* let headerIds = header.map(impexp => [impexp.file, impexp.ids().map(tok => tok.lexeme)]);
 
   console.log(`headerIds:`, compact(2), headerIds);*/
 
