@@ -236,12 +236,12 @@ jsm_module_search_ext(JSContext* ctx, const char* path, const char* name, const 
     strncpy(file, p, i);
     file[i] = '/';
     strcpy(&file[i + 1], name);
-    if(!stat(file, &st))
+    if(path_is_file(file))
       return file;
     j = strlen(name);
     if(!(j >= 3 && !strcmp(&name[j - 3], ext)))
       strcpy(&file[i + 1 + j], ext);
-    if(!stat(file, &st))
+    if(path_is_file(file))
       return file;
     orig_js_free(ctx, file);
     if(*q == ':')
