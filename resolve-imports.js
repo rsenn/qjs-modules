@@ -972,7 +972,7 @@ function PrintCJSImport({ type, local, file }) {
 }
 
 function main(...args) {
-  globalThis.console = new Console(process.stderr, {
+  globalThis.console = new Console(std.err, {
     inspectOptions: {
       colors: true,
       depth: 8,
@@ -1015,7 +1015,7 @@ function main(...args) {
 
   if(debug > 1) debugLog('main', { outputFile, out });
 
-  const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
+  const RelativePath = file => path.join(path.dirname(scriptArgs[0] /*?? process.argv[1]*/), '..', file);
 
   if(!files.length) files.push(RelativePath('lib/util.js'));
 
