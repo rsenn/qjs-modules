@@ -17,7 +17,8 @@ typedef struct promise {
 } Promise;
 
 Promise promise_free(JSContext*, Promise*);
-ResolveFunctions* promise_new(JSContext* ctx, JSValue* promise);
+ResolveFunctions* promise_new(JSContext*, JSValueConst*);
+JSValue promise_create(JSContext*, ResolveFunctions*);
 BOOL promise_init(JSContext*, Promise*);
 JSValue promise_resolve(JSContext*, Promise*, JSValueConst);
 JSValue promise_reject(JSContext*, Promise*, JSValueConst);

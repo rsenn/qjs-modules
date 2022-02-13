@@ -48,6 +48,14 @@ promise_new(JSContext* ctx, JSValue* promise) {
   return funcs;
 }
 
+JSValue
+promise_create(JSContext* ctx, ResolveFunctions* funcs) {
+  JSValue ret;
+
+  ret = JS_NewPromiseCapability(ctx, funcs->array);
+  return ret;
+}
+
 BOOL
 promise_init(JSContext* ctx, Promise* prom) {
   prom->promise = JS_NewPromiseCapability(ctx, prom->funcs.array);
