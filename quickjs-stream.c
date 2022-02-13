@@ -983,7 +983,7 @@ js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       writable_abort(st, argv[0], ctx);
       break;
     }
-     case WRITABLE_METHOD_CLOSE: {
+    case WRITABLE_METHOD_CLOSE: {
       writable_abort(st, JS_UNDEFINED, ctx);
       break;
     }
@@ -1216,13 +1216,12 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_writable_class_id, writable_proto);
 
   writable_ctor = JS_NewCFunction2(ctx, js_writable_constructor, "WritableStream", 1, JS_CFUNC_constructor, 0);
-  
+
   JS_SetConstructor(ctx, writable_ctor, writable_proto);
 
   writable_controller = JS_NewObject(ctx);
   JS_SetPropertyFunctionList(ctx, writable_controller, js_writable_controller_funcs, countof(js_writable_controller_funcs));
   JS_SetClassProto(ctx, js_writable_class_id, writable_controller);
-
 
   // JS_SetPropertyFunctionList(ctx, stream_ctor, js_stream_static_funcs, countof(js_stream_static_funcs));
 
