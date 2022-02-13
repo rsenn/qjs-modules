@@ -8,9 +8,10 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_stream_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0;
-thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_ctor = {{JS_TAG_UNDEFINED}},  stream_proto = {{JS_TAG_UNDEFINED}}, writable_ctor = {{JS_TAG_UNDEFINED}}, writable_reader_proto = {{JS_TAG_UNDEFINED}},
-                     reader_ctor = {{JS_TAG_UNDEFINED}}, writer_proto = {{JS_TAG_UNDEFINED}}, writer_ctor = {{JS_TAG_UNDEFINED}};
+thread_local VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0;
+thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_ctor = {{JS_TAG_UNDEFINED}}, writable_proto = {{JS_TAG_UNDEFINED}},
+                     writable_ctor = {{JS_TAG_UNDEFINED}}, reader_proto = {{JS_TAG_UNDEFINED}}, reader_ctor = {{JS_TAG_UNDEFINED}},
+                     writer_proto = {{JS_TAG_UNDEFINED}}, writer_ctor = {{JS_TAG_UNDEFINED}};
 
 void
 chunk_unref(JSRuntime* rt, void* opaque, void* ptr) {
@@ -46,7 +47,7 @@ BOOL
 reader_release_lock(Reader* rd, JSContext* ctx) {
   BOOL ret;
 
-  if((ret = stream_unlock_rd(&rd->stream, rd))) {
+  if((ret = readable_unlock(&rd->stream, rd))) {
     atomic_store(&rd->stream, (Readable*)0);
   }
 
@@ -101,13 +102,13 @@ js_reader_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   Reader* rd;
   Readable* st;
 
-  if(argc < 1 || !(st = js_stream_data(argv[0])))
+  if(argc < 1 || !(st = js_readable_data(argv[0])))
     return JS_ThrowTypeError(ctx, "argument 1 must be a Readable");
 
   if(!(rd = reader_new(ctx, st)))
     return JS_ThrowOutOfMemory(ctx);
 
-  if(!stream_lock_rd(st, rd)) {
+  if(!readable_unlock(st, rd)) {
     JS_ThrowInternalError(ctx, "unable to lock Readable");
     goto fail;
   }
@@ -258,24 +259,12 @@ BOOL
 writer_release_lock(Writer* wr, JSContext* ctx) {
   BOOL ret;
 
-  if((ret = stream_unlock_rd(&wr->stream, wr))) {
+  if((ret = readable_unlock(&wr->stream, wr))) {
     atomic_store(&wr->stream, (Writable*)0);
   }
 
   return ret;
 }
-
-BOOL
-writer_close(Writer* wr, JSContext* ctx) {
-  BOOL ret = FALSE;
-
-  if(JS_IsUndefined(wr->closed.promise)) {
-    ret = promise_init(&wr->closed, ctx);
-  }
-
-  return ret;
-}
-
 
 JSValue
 writer_write(Writer* wr, const MemoryBlock* block, JSContext* ctx) {
@@ -320,13 +309,13 @@ js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   Writer* wr;
   Writable* st;
 
-  if(argc < 1 || !(st = js_stream_data(argv[0])))
+  if(argc < 1 || !(st = js_writable_data(argv[0])))
     return JS_ThrowTypeError(ctx, "argument 1 must be a Writable");
 
   if(!(wr = writer_new(ctx, st)))
     return JS_ThrowOutOfMemory(ctx);
 
-  if(!stream_lock_wr(st, wr)) {
+  if(!writable_lock(st, wr)) {
     JS_ThrowInternalError(ctx, "unable to lock Writable");
     goto fail;
   }
@@ -370,19 +359,23 @@ static JSValue
 js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   Writer* wr;
+  Writable* st;
 
   if(!(wr = js_writer_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
+  st = wr->stream;
+
   switch(magic) {
     case WRITER_ABORT: {
-      writer_abort(wr, ctx);
-
-      break;
+      if(st) {
+        if(argc >= 1) {
+          st->reason = js_tostring(ctx, argv[0]);
+        }
+      }
     }
     case WRITER_CLOSE: {
-      writer_abort(wr, ctx);
-
+      writable_close(st);
       break;
     }
     case WRITER_WRITE: {
@@ -402,8 +395,6 @@ js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   return ret;
 }
-
-enum { WRITER_CLOSED, WRITER_READY };
 
 static JSValue
 js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -462,18 +453,16 @@ readable_new(JSContext* ctx) {
 }
 
 void
-readable_close(Readable*st) {
+readable_close(Readable* st) {
   static const BOOL expected = FALSE;
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
-
-  }
+  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {}
 }
 
 void
-readable_abort(Readable*st, JSValueConst reason, JSContext*ctx) {
+readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   static const BOOL expected = FALSE;
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
-st->reason = js_tostring(ctx, reason);
+    st->reason = js_tostring(ctx, reason);
   }
 }
 
@@ -509,28 +498,14 @@ readable_get_reader(Readable* st, JSContext* ctx) {
 
   return rd;
 }
- 
-Writer*
-readable_get_writer(Readable* st, size_t desired_size, JSContext* ctx) {
-  Writer* wr;
-  if(!(wr = writer_new(ctx, st)))
-    return 0;
-  wr->desired_size = desired_size;
-  if(!readable_lock_wr(st, wr)) {
-    js_free(ctx, wr);
-    wr = 0;
-  }
-  return wr;
-}
 
 static JSValue
 js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto,obj = JS_UNDEFINED;
+  JSValue proto, obj = JS_UNDEFINED;
   Readable* st;
 
   if(!(st = readable_new(ctx)))
     return JS_EXCEPTION;
-
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -540,6 +515,13 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   if(JS_IsException(obj))
     goto fail;
 
+  if(argc >= 1 && !JS_IsNull(argv[0]) && JS_IsObject(argv[0])) {
+    st->on.start = JS_GetPropertyStr(ctx, argv[0], "start");
+    st->on.pull = JS_GetPropertyStr(ctx, argv[0], "pull");
+    st->on.cancel = JS_GetPropertyStr(ctx, argv[0], "cancel");
+    st->underlying_source = JS_DupValue(ctx, argv[0]);
+  }
+
   JS_SetOpaque(obj, st);
 
   return obj;
@@ -548,7 +530,6 @@ fail:
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
-
 
 /*static JSValue
 js_readable_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
@@ -572,7 +553,7 @@ js_readable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 }*/
 
 enum {
-  READABLE_CLOSE = 0,
+  READABLE_ABORT = 0,
   READABLE_GET_READER,
 };
 
@@ -585,8 +566,13 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     return JS_EXCEPTION;
 
   switch(magic) {
-    case READABLE_CLOSE: {
-     readable_close(st);
+    case READABLE_ABORT: {
+      Reader* rd;
+
+      if((rd = readable_locked(st))) {
+        readable_abort(rd, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      }
+
       break;
     }
     case READABLE_GET_READER: {
@@ -600,7 +586,7 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   return ret;
 }
- enum {  STREAM_CLOSED, STREAM_LOCKED };
+enum { STREAM_CLOSED, STREAM_LOCKED };
 
 static JSValue
 js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -611,11 +597,14 @@ js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-     case STREAM_CLOSED: { ret = JS_NewBool(ctx, readable_closed(st)); break; }
-     case STREAM_LOCKED: {
-      ret = JS_NewBool(ctx, readable_locked_rd(st)||readable_locked_wr(st)); break;
+    case STREAM_CLOSED: {
+      ret = JS_NewBool(ctx, readable_closed(st));
+      break;
     }
- 
+    case STREAM_LOCKED: {
+      ret = JS_NewBool(ctx, readable_locked(st) || readable_locked(st));
+      break;
+    }
   }
   return ret;
 }
@@ -631,119 +620,26 @@ static void
 js_readable_finalizer(JSRuntime* rt, JSValue val) {
   Readable* st;
 
-  if((st = JS_GetOpaque(val, js_readable_class_id))){
+  if((st = JS_GetOpaque(val, js_readable_class_id))) {
     readable_finalizer(rt, st);
   }
 }
 
-static int
-js_readable_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {
-  Readable* st = js_readable_data2(ctx, obj);
-  JSValue value = JS_UNDEFINED;
-  int64_t index;
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    size_t length = readable_length(st);
-
-    if(index < 0 && ABS_NUM(index) < (int64_t)length)
-      index = MOD_NUM(index, (int64_t)length);
-
-    if(index >= 0 && index < (int64_t)length)
-      value = JS_NewInt32(ctx, readable_at(st, index));
-
-  } else if(js_atom_is_string(ctx, prop, "size")) {
-    value = JS_NewInt64(ctx, readable_length(st));
-  }
-
-  if(!JS_IsUndefined(value)) {
-    if(pdesc) {
-      pdesc->flags = JS_PROP_ENUMERABLE;
-      pdesc->value = value;
-      pdesc->getter = JS_UNDEFINED;
-      pdesc->setter = JS_UNDEFINED;
-    }
-    return TRUE;
-  }
-  return FALSE;
-}
-
-static int
-js_readable_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
-  Readable* st = js_readable_data2(ctx, obj);
-  int64_t index;
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    size_t length = readable_length(st);
-
-    if(index < 0 && ABS_NUM(index) < length)
-      index = MOD_NUM(index, (int64_t)length);
-
-    if(index >= 0 && index < (int64_t)length)
-      return TRUE;
-
-  } else if(js_atom_is_string(ctx, prop, "size")) {
-    return TRUE;
-  }
-
-  return FALSE;
-}
-
-static JSValue
-js_readable_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst receiver) {
-  Readable* st = js_readable_data2(ctx, obj);
-  JSValue value = JS_UNDEFINED;
-  int64_t index;
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    size_t length = readable_length(st);
-
-    if(index < 0 && ABS_NUM(index) < (int64_t)length)
-      index = MOD_NUM(index, (int64_t)length);
-
-    if(index >= 0 && index < (int64_t)length)
-      value = JS_NewUint32(ctx, readable_at(st, index));
-
-  } else if(js_atom_is_string(ctx, prop, "size")) {
-    value = JS_NewInt64(ctx, readable_length(st));
-
-  } else {
-    JSValue proto = JS_IsUndefined(readable_proto) ? JS_GetPrototype(ctx, obj) : readable_proto;
-    if(JS_IsObject(proto)) {
-      JSValue method = JS_GetProperty(ctx, proto, prop);
-
-      if(JS_IsFunction(ctx, method))
-        value = method;
-      else
-        JS_FreeValue(ctx, method);
-    }
-  }
-
-  return value;
-}
-
-static JSClassExoticMethods js_readable_exotic_methods = {
-    .has_property = js_readable_has_property,
-    .get_property = js_readable_get_property,
-    .get_own_property = js_readable_get_own_property,
-
-};
-
 static JSClassDef js_readable_class = {
     .class_name = "Readable",
     .finalizer = js_readable_finalizer,
-    .exotic = &js_readable_exotic_methods,
 };
 
 static const JSCFunctionListEntry js_readable_proto_funcs[] = {
-/*    JS_ITERATOR_NEXT_DEF("next", 0, js_readable_next, 0),
-    JS_CFUNC_DEF("write", 1, js_readable_write),
-    JS_CFUNC_MAGIC_DEF("read", 1, js_readable_read, 0),
-    JS_CFUNC_MAGIC_DEF("peek", 1, js_readable_read, 1),*/
-    JS_CFUNC_MAGIC_DEF("clear", 0, js_readable_method, READABLE_CLOSE),
+    /*    JS_ITERATOR_NEXT_DEF("next", 0, js_readable_next, 0),
+        JS_CFUNC_DEF("write", 1, js_readable_write),
+        JS_CFUNC_MAGIC_DEF("read", 1, js_readable_read, 0),
+        JS_CFUNC_MAGIC_DEF("peek", 1, js_readable_read, 1),*/
+    JS_CFUNC_MAGIC_DEF("cancel", 0, js_readable_method, READABLE_ABORT),
     JS_CFUNC_MAGIC_DEF("getReader", 0, js_readable_method, READABLE_GET_READER),
-     JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_readable_get, 0, STREAM_LOCKED, JS_PROP_ENUMERABLE),
-      JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Readable", JS_PROP_C_W_E),
-//    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_readable_iterator),
+    JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_readable_get, 0, STREAM_LOCKED, JS_PROP_ENUMERABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Readable", JS_PROP_C_W_E),
+    //    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_readable_iterator),
 };
 
 Writable*
@@ -752,32 +648,32 @@ writable_new(JSContext* ctx) {
 
   if((st = js_mallocz(ctx, sizeof(Writable)))) {
     st->ref_count = 1;
-    queue_init(&st->q);
+    // queue_init(&st->q);
   }
 
   return st;
 }
 
-size_t
-writable_length(Writable* st) {
+/*size_t
+writable_size(Writable* st) {
   return queue_size(&st->q);
-}
+}*/
 
-void
-writable_close(Writable*st) {
+/*void
+writable_close(Writable* st) {
   static const BOOL expected = FALSE;
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
 
-    queue_clear(&st->q);
+    // queue_clear(&st->q);
   }
-}
+}*/
 
 void
-writable_abort(Writable*st, JSValueConst reason, JSContext*ctx) {
+writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
   static const BOOL expected = FALSE;
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
-st->reason = js_tostring(ctx, reason);
-    queue_clear(&st->q);
+    st->reason = js_tostring(ctx, reason);
+    // queue_clear(&st->q);
   }
 }
 
@@ -788,7 +684,7 @@ writable_unref(void* opaque) {
   --st->ref_count;
 }
 
-JSValue
+/*JSValue
 writable_next(Writable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Chunk* chunk;
@@ -802,7 +698,7 @@ writable_next(Writable* st, JSContext* ctx) {
 
 int
 writable_at(Writable* st, int64_t offset) {
-  size_t length = writable_length(st);
+  size_t length = writable_size(st);
   struct list_head* el;
   int64_t pos = 0;
 
@@ -822,7 +718,7 @@ writable_at(Writable* st, int64_t offset) {
 
   return -1;
 }
-  
+*/
 int
 writable_lock(Writable* st, Writer* wr) {
   const Writer* expected = 0;
@@ -849,12 +745,11 @@ writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
 
 static JSValue
 js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto,obj = JS_UNDEFINED;
+  JSValue proto, obj = JS_UNDEFINED;
   Writable* st;
 
   if(!(st = writable_new(ctx)))
     return JS_EXCEPTION;
-
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -863,6 +758,14 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   obj = JS_NewObjectProtoClass(ctx, proto, js_writable_class_id);
   if(JS_IsException(obj))
     goto fail;
+
+  if(argc >= 1 && !JS_IsNull(argv[0]) && JS_IsObject(argv[0])) {
+    st->on.start = JS_GetPropertyStr(ctx, argv[0], "start");
+    st->on.write = JS_GetPropertyStr(ctx, argv[0], "write");
+    st->on.close = JS_GetPropertyStr(ctx, argv[0], "close");
+    st->on.abort = JS_GetPropertyStr(ctx, argv[0], "abort");
+    st->underlying_sink = JS_DupValue(ctx, argv[0]);
+  }
 
   JS_SetOpaque(obj, st);
 
@@ -873,8 +776,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-
-static JSValue
+/*static JSValue
 js_writable_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   Writable* st;
   JSValue ret = JS_UNDEFINED;
@@ -888,7 +790,7 @@ js_writable_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     ret = writable_next(st, ctx);
 
   return ret;
-}
+}*/
 
 static JSValue
 js_writable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -910,13 +812,13 @@ js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   switch(magic) {
     case FUNC_CLOSE: {
-     writable_close(&st->q);
+      writable_close(st);
       break;
     }
     case FUNC_GET_WRITER: {
       Writer* wr;
 
-      if((wr = writable_get_writeer(st, ctx)))
+      if((wr = writable_get_writer(st, 0, ctx)))
         ret = js_writer_wrap(ctx, wr);
       break;
     }
@@ -925,8 +827,7 @@ js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   return ret;
 }
 
-
- enum {  WRITABLE_CLOSED, WRITABLE_LOCKED };
+enum { WRITABLE_CLOSED, WRITABLE_LOCKED };
 
 static JSValue
 js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -937,11 +838,14 @@ js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-     case WRITABLE_CLOSED: { ret = JS_NewBool(ctx, writable_closed(st)); break; }
-     case WRITABLE_LOCKED: {
-      ret = JS_NewBool(ctx, writable_locked_rd(st)||writable_locked_wr(st)); break;
+    case WRITABLE_CLOSED: {
+      ret = JS_NewBool(ctx, writable_closed(st));
+      break;
     }
- 
+    case WRITABLE_LOCKED: {
+      ret = JS_NewBool(ctx, writable_locked(st) || writable_locked(st));
+      break;
+    }
   }
   return ret;
 }
@@ -949,7 +853,7 @@ js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
 static void
 writable_finalizer(JSRuntime* rt, Writable* st) {
   if(--st->ref_count == 0) {
-    queue_clear(&st->q);
+    // queue_clear(&st->q);
 
     js_free_rt(rt, st);
   }
@@ -961,8 +865,6 @@ js_writable_finalizer(JSRuntime* rt, JSValue val) {
 
   if((st = JS_GetOpaque(val, js_writable_class_id)))
     writable_finalizer(rt, st);
-
-
 }
 
 static int
@@ -972,7 +874,7 @@ js_writable_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValu
   int64_t index;
 
   if(js_atom_is_index(ctx, &index, prop)) {
-    size_t length = writable_length(st);
+    size_t length = writable_size(st);
 
     if(index < 0 && ABS_NUM(index) < (int64_t)length)
       index = MOD_NUM(index, (int64_t)length);
@@ -981,7 +883,7 @@ js_writable_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValu
       value = JS_NewInt32(ctx, writable_at(st, index));
 
   } else if(js_atom_is_string(ctx, prop, "size")) {
-    value = JS_NewInt64(ctx, writable_length(st));
+    value = JS_NewInt64(ctx, writable_size(st));
   }
 
   if(!JS_IsUndefined(value)) {
@@ -1002,7 +904,7 @@ js_writable_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
   int64_t index;
 
   if(js_atom_is_index(ctx, &index, prop)) {
-    size_t length = writable_length(st);
+    size_t length = writable_size(st);
 
     if(index < 0 && ABS_NUM(index) < length)
       index = MOD_NUM(index, (int64_t)length);
@@ -1024,7 +926,7 @@ js_writable_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueC
   int64_t index;
 
   if(js_atom_is_index(ctx, &index, prop)) {
-    size_t length = writable_length(st);
+    size_t length = writable_size(st);
 
     if(index < 0 && ABS_NUM(index) < (int64_t)length)
       index = MOD_NUM(index, (int64_t)length);
@@ -1033,7 +935,7 @@ js_writable_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueC
       value = JS_NewUint32(ctx, writable_at(st, index));
 
   } else if(js_atom_is_string(ctx, prop, "size")) {
-    value = JS_NewInt64(ctx, writable_length(st));
+    value = JS_NewInt64(ctx, writable_size(st));
 
   } else {
     JSValue proto = JS_IsUndefined(writable_proto) ? JS_GetPrototype(ctx, obj) : writable_proto;
@@ -1064,16 +966,17 @@ static JSClassDef js_writable_class = {
 };
 
 static const JSCFunctionListEntry js_writable_proto_funcs[] = {
-/*    JS_ITERATOR_NEXT_DEF("next", 0, js_writable_next, 0),
-    JS_CFUNC_DEF("write", 1, js_writable_write),
-  JS_CFUNC_MAGIC_DEF("write", 1, js_writable_write, 0),
-    JS_CFUNC_MAGIC_DEF("peek", 1, js_writable_write, 1),*/
+    /*    JS_ITERATOR_NEXT_DEF("next", 0, js_writable_next, 0),
+        JS_CFUNC_DEF("write", 1, js_writable_write),
+      JS_CFUNC_MAGIC_DEF("write", 1, js_writable_write, 0),
+        JS_CFUNC_MAGIC_DEF("peek", 1, js_writable_write, 1),*/
     JS_CFUNC_MAGIC_DEF("clear", 0, js_writable_method, FUNC_CLOSE),
     JS_CFUNC_MAGIC_DEF("getWriter", 0, js_writable_method, FUNC_GET_WRITER),
-     JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_writable_get, 0, WRITABLE_LOCKED, JS_PROP_ENUMERABLE),
-      JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Writable", JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_writable_get, 0, WRITABLE_LOCKED, JS_PROP_ENUMERABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Writable", JS_PROP_C_W_E),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_writable_iterator),
 };
+
 static int
 js_stream_init(JSContext* ctx, JSModuleDef* m) {
 
@@ -1110,7 +1013,6 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, readable_ctor, readable_proto);
 
-
   JS_NewClassID(&js_writable_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_writable_class_id, &js_writable_class);
 
@@ -1121,7 +1023,6 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   writable_ctor = JS_NewCFunction2(ctx, js_writable_constructor, "WritableStream", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, writable_ctor, writable_proto);
-
 
   // JS_SetPropertyFunctionList(ctx, stream_ctor, js_stream_static_funcs, countof(js_stream_static_funcs));
 
