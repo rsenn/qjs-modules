@@ -22,6 +22,7 @@ let buffers = {},
   recursive = true,
   debug = 0,
   header = [],
+  footer = [],
   processed = new Set(),
   bufferRef = new WeakMap(),
   fileBuffers = new Map(),
@@ -164,6 +165,9 @@ function ImportFile(seq) {
 
 function ExportName(seq) {
   let idx = seq.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok));
+
+  while(seq[idx] && seq[idx].type != 'identifier') idx++;
+
   return seq[idx]?.lexeme;
 }
 
@@ -180,15 +184,19 @@ function ByteSequence(tokens) {
 
 function AddExport(tokens, relativePath = s => s) {
   if(tokens[0].seq == tokens[1].seq) tokens.shift();
-
   const { loc, seq } = tokens[0];
-
   if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
-  let def = tokens.some(tok => IsKeyword('default', tok));
+  let def = tokens.findIndex(tok => IsKeyword('default', tok));
+  let nameIdx = 1;
+  while(tokens[nameIdx].type == 'whitespace' || IsKeyword(['let', 'class', 'function', 'const'], tokens[nameIdx])) nameIdx++;
+  while(tokens[nameIdx] && tokens[nameIdx].type != 'identifier') nameIdx++;
+  let name = ExportName(tokens);
+  let exported = def != -1 ? 'default' : name;
   let file = ImportFile(tokens); // fromIndex != -1 ? Unquote(tokens[fromIndex + 1].lexeme) : null;
   if(file == ' ') throw new Error('XXX ' + inspect(tokens, { compact: false }));
-  const idx = def || file ? tokens.findIndex(tok => tok.lexeme == ';') : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
-  const remove = tokens.slice(0, idx + 1); //idx + 1);
+  const idx = def != -1 ? def : file ? tokens.findIndex(tok => tok.lexeme == ';') : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
+  const remove = tokens.slice(0, def == idx ? idx + 2 : idx + 1); //idx + 1);
+  //console.log('AddExport', { def, name, exported });
   if(remove[0]) if (remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
   const range = ByteSequence(remove) ?? ByteSequence(tokens);
   let source = loc.file;
@@ -204,7 +212,8 @@ function AddExport(tokens, relativePath = s => s) {
       type: What.EXPORT,
       file: file && /\./.test(file) ? relativePath(file) : file,
       tokens,
-      exported: ExportName(tokens),
+      exported,
+      name,
       range
     },
     {
@@ -483,7 +492,10 @@ function ProcessFile(source, log = () => {}, recursive) {
     } else if((typeof replacement == 'string' && !path.exists(replacement)) || type == What.IMPORT || typeof file == 'string') {
       replacement = null;
       header.push(impexp);
-    } else if(!file && code.startsWith('export')) {
+    }
+
+    if(code.startsWith('export')) {
+      footer.push(impexp);
       if(!removeExports) continue;
       replacement = null;
     }
@@ -744,7 +756,6 @@ class FileMap extends Array {
     // console.log('FileMap.for', { file, buf });
     let m;
     if(file && (m = fileMaps.get(file))) return m;
-
     if(isObject(file) && file instanceof FileMap) return file;
     else if(file === null && !buf) {
       let obj = {
@@ -764,7 +775,6 @@ class FileMap extends Array {
 
   splitAt(pos) {
     let i = this.findIndex(([range, buf]) => range && InRange(range, pos));
-
     if(i != -1) {
       let [range, buf] = this[i];
       let [start, end] = range;
@@ -797,23 +807,13 @@ class FileMap extends Array {
       }
       return i;
     };
-
-    if(debug >= 1) console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { file, range: [range[0], range[1]] });
-
+    if(debug > 1) console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { file, range: [range[0], range[1]] });
     let start = sliceIndex(range[0]);
     let end = sliceIndex(range[1]);
     const { length } = this;
-
-    if(debug >= 1) console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { start, end, length, this: this });
-
+    if(debug > 1) console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { start, end, length, this: this });
     if(range[0] < this[start][0]) range[0] = this[start][0];
-    /*if(end == start)
-    end++;
-  start++;
-}*/
-
     if(!this[start][0]) throw new Error(`range=${range}\nlength=${this.length}\nstart=${start}\nend=${end}\nthis[${start}]=${inspect(this[start])}\nthis[${start - 1}]=${inspect(this[start - 1])}\nthis[${start + 1}]=${inspect(this[start + 1])}`);
-
     if(range[0] > this[start][0][0]) {
       if(start == end) {
         let [range, buf] = this[start];
@@ -840,16 +840,12 @@ class FileMap extends Array {
         .reduce((acc, [range, buf, str], i) => {
           let s = acc + `\n\t\t[ `;
           s += ('' + (range ? '[' + NumericRange.from(range) + ']' : range)).padEnd(10);
-
           s += ', ';
-          /*if(!isObject(str)) s += quote(shorten(str), "'");
-          else*/
           if(isObject(buf) && 'byteLength' in buf) {
             let filename = bufferRef.get(buf);
             buf = filename ?? `<this>`;
           }
           if(typeof buf == 'string') buf = path.normalize(buf);
-
           s += inspect(buf, { maxArrayLength: 30 });
           s += ` ],`;
           return s;
@@ -884,21 +880,17 @@ class FileMap extends Array {
 
   holes() {
     let ranges = [...this.map(([range]) => range)].sort(CompareRange);
-
-    console.log('ranges', console.config({ depth: Infinity }), ranges);
-
+    //console.log('ranges', console.config({ depth: Infinity }), ranges);
     let iter = NumericRange.holes(ranges, true);
-    console.log('iter', iter);
+    //console.log('iter', iter);
     let holes = [...iter];
     let len = holes.length;
     for(let i = 0; i < len; i++) {
       const hole = holes[i];
       const [range] = this[i];
-
       console.log('#' + (i + 1), compact(2), inspect({ hole, range }, { compact: 2, depth: Infinity }));
     }
     //console.log('holes', holes);
-
     return holes;
   }
 
@@ -1151,12 +1143,24 @@ function main(...args) {
 
     out.puts(lines.reduce((acc, line) => acc + line.trim() + '\n', ''));
   }
+
+  let exportedNames = footer.map(({ name }) => name).unique();
+  /*
+for(let name of exportedNames) {
+
+   console.log('footer exported', name);
+  
+}
+*/
+
   //  console.log('holes', compact(1), result.holes());
   console.log('result', compact(false, { depth: Infinity }), result);
 
   const nbytes = result.write(out);
 
   console.log(`${nbytes} bytes written to '${out.file}'`);
+
+  out.puts(`\nObject.assign(globalThis, { ${exportedNames.join(', ')} });\n`);
 
   out.close();
 

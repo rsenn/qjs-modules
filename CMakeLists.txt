@@ -233,7 +233,7 @@ link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
     bjson blob deep lexer location misc path pointer predicate repeater
-    stringdecoder sockets syscallerror inspect tree-walker xml)
+    stringdecoder sockets stream syscallerror inspect tree-walker xml)
 if(LibArchive_FOUND)
   set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
 endif(LibArchive_FOUND)
@@ -258,6 +258,7 @@ set(COMMON_SOURCES debug.c debug.h)
 set(vector_SOURCES vector.c vector.h ${buffer_utils_SOURCES})
 set(char_utils_SOURCES char-utils.c char-utils.h)
 set(queue_SOURCES queue.c queue.h)
+set(stream_SOURCES quickjs-stream.c  queue.c queue.h)
 set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES} clock_gettime.c
                   strverscmp.c)
 set(predicate_SOURCES predicate.c predicate.h ${utils_SOURCES})

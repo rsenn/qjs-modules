@@ -10,38 +10,50 @@
  * \defgroup queue I/O queueing
  * @{
  */
-
-struct link {
-  struct block *prev, *next;
-};
-
 typedef struct queue {
-  size_t nbytes;
-  size_t nblocks;
-  union {
-    struct link blocks;
-    struct list_head head;
-  };
-} queue_t;
+  size_t nbytes, nblocks;
+  struct list_head list;
+} Queue;
 
-struct block {
+typedef struct block {
   union {
-    struct link link;
-    struct list_head head;
+    struct {
+      struct block *prev, *next;
+    };
+    struct list_head link;
   };
-  uint32_t size, pos, allocated;
+  size_t size, pos;
   uint8_t data[0];
-};
+} Chunk;
 
-typedef struct block block_t;
+Chunk* chunk_alloc(size_t);
+void chunk_free(Chunk*);
 
-ssize_t queue_write(queue_t*, const void*, size_t n);
-ssize_t queue_read(queue_t*, void*, size_t n);
-ssize_t queue_peek(queue_t*, void*, size_t n);
+void queue_init(Queue*);
+ssize_t queue_write(Queue*, const void*, size_t n);
+ssize_t queue_read(Queue*, void*, size_t n);
+ssize_t queue_peek(Queue*, void*, size_t n);
+Chunk* queue_next(Queue*);
+void queue_clear(Queue*);
 
 static inline size_t
-queue_size(queue_t* q) {
+queue_size(Queue* q) {
   return q->nbytes;
+}
+
+static inline int
+queue_empty(Queue* q) {
+  return list_empty(&q->list);
+}
+
+static inline Chunk*
+queue_head(Queue* q) {
+  return (Chunk*)(&q->list != q->list.next ? q->list.next : 0);
+}
+
+static inline Chunk*
+queue_tail(Queue* q) {
+  return (Chunk*)(&q->list != q->list.prev ? q->list.prev : 0);
 }
 
 /**
