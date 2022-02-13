@@ -22,12 +22,20 @@ typedef struct block {
     };
     struct list_head link;
   };
+  int ref_count;
+  void* opaque;
   size_t size, pos;
   uint8_t data[0];
 } Chunk;
 
 Chunk* chunk_alloc(size_t);
 void chunk_free(Chunk*);
+
+static inline Chunk*
+chunk_dup(Chunk* ch) {
+  ++ch->ref_count;
+  return ch;
+}
 
 void queue_init(Queue*);
 ssize_t queue_write(Queue*, const void*, size_t n);

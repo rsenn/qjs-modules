@@ -61,6 +61,9 @@
 #ifndef ABS_NUM
 #define ABS_NUM(n) ((n) < 0 ? -(n) : (n))
 #endif
+#ifndef MOD_NUM
+#define MOD_NUM(n, divisor) ((((n) % (divisor)) + (divisor)) % (divisor))
+#endif
 #ifndef SIGN_NUM
 #define SIGN_NUM(n) ((n) < 0)
 #endif

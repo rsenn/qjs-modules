@@ -508,6 +508,7 @@ unsigned int js_atom_tobinary(JSAtom atom);
 const char* js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom);
 void js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color);
 BOOL js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom);
+BOOL js_atom_is_string(JSContext* ctx, JSAtom atom, const char* other);
 BOOL js_atom_is_length(JSContext* ctx, JSAtom atom);
 
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);

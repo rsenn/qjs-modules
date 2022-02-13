@@ -330,6 +330,7 @@ static const JSCFunctionListEntry js_pointer_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("ofAtoms", 0, js_pointer_funcs, STATIC_OF_ATOMS),
     JS_CFUNC_MAGIC_DEF("isPointer", 1, js_pointer_funcs, STATIC_IS_POINTER),
 };
+
 static int
 js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
@@ -466,7 +467,11 @@ static JSClassExoticMethods js_pointer_exotic_methods = {
     .set_property = js_pointer_set_property,
 };
 
-static JSClassDef js_pointer_class = {.class_name = "Pointer", .finalizer = js_pointer_finalizer, .exotic = &js_pointer_exotic_methods};
+static JSClassDef js_pointer_class = {
+    .class_name = "Pointer",
+    .finalizer = js_pointer_finalizer,
+    .exotic = &js_pointer_exotic_methods,
+};
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {

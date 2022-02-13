@@ -1,4 +1,5 @@
 #include "queue.h"
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include "debug.h"
@@ -8,17 +9,19 @@
  * @{
  */
 Chunk*
-chunk_alloc(size_t a) {
-  Chunk* b;
-  if((b = malloc(sizeof(Chunk) + a))) {
-    memset(b, 0, sizeof(Chunk));
+chunk_alloc(size_t size) {
+  Chunk* ch;
+  if((ch = malloc(sizeof(Chunk) + size))) {
+    memset(ch, 0, sizeof(Chunk));
+    ch->ref_count = 1;
   }
-  return b;
+  return ch;
 }
 
 void
-chunk_free(Chunk* b) {
-  free(b);
+chunk_free(Chunk* ch) {
+  if(--ch->ref_count == 0)
+    free(ch);
 }
 
 void
@@ -52,8 +55,11 @@ queue_read(Queue* q, void* x, size_t n) {
   uint8_t* p = x;
 
   while(n > 0 && (b = q->list.prev)) {
-    size_t bytes = b->size - b->pos;
-    if(bytes >= n)
+    size_t bytes;
+    if(&b->link == &q->list)
+      break;
+
+    if((bytes = b->size - b->pos) >= n)
       bytes = n;
 
     memcpy(p, &b->data[b->pos], bytes);
@@ -68,8 +74,9 @@ queue_read(Queue* q, void* x, size_t n) {
     if(b->pos < b->size)
       break;
 
-    next = (Chunk*)b->link.prev;
+    next = b->prev;
 
+    list_del(&b->link);
     chunk_free(b);
     q->nblocks--;
 
@@ -86,8 +93,12 @@ queue_peek(Queue* q, void* x, size_t n) {
   uint8_t* p = x;
 
   while(n > 0 && (b = q->list.prev)) {
-    size_t bytes = b->size - b->pos;
-    if(bytes >= n)
+    size_t bytes;
+
+    if(&b->link == &q->list)
+      break;
+
+    if((bytes = b->size - b->pos) >= n)
       bytes = n;
 
     next = (Chunk*)b->link.prev;
