@@ -35,7 +35,7 @@ reader_new(JSContext* ctx, Readable* st) {
   if((rd = js_mallocz(ctx, sizeof(Reader)))) {
     atomic_store(&rd->stream, st);
 
-    promise_init(&rd->closed, ctx);
+    promise_init(ctx, &rd->closed);
     promise_zero(&rd->cancelled);
 
     init_list_head(&rd->reads);
@@ -46,10 +46,13 @@ reader_new(JSContext* ctx, Readable* st) {
 
 BOOL
 reader_release_lock(Reader* rd, JSContext* ctx) {
-  BOOL ret;
+  BOOL ret = FALSE;
+  Readable* r;
 
-  if((ret = readable_unlock(&rd->stream, rd))) {
-    atomic_store(&rd->stream, (Readable*)0);
+  if((r = atomic_load(&rd->stream))) {
+    if((ret = readable_unlock(r, rd))) {
+      atomic_store(&rd->stream, (Readable*)0);
+    }
   }
 
   return ret;
@@ -583,10 +586,13 @@ writer_new(JSContext* ctx, Writable* st) {
 
 BOOL
 writer_release_lock(Writer* wr, JSContext* ctx) {
-  BOOL ret;
+  BOOL ret = FALSE;
+  Writable* r;
 
-  if((ret = readable_unlock(&wr->stream, wr))) {
-    atomic_store(&wr->stream, (Writable*)0);
+  if((r = atomic_load(&wr->stream))) {
+    if((ret = writable_unlock(r, wr))) {
+      atomic_store(&wr->stream, (Writable*)0);
+    }
   }
 
   return ret;
@@ -605,7 +611,7 @@ ssize_t bytes;
   if(!wr->stream)
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
-  return js_writable_write(ctx, wr->stream, chunk);
+  return js_writable_callback(ctx, wr, WRITABLE_WRITE, 1, &chunk);
 }
 
 JSValue
@@ -614,7 +620,7 @@ writer_close(Writer* wr, JSContext* ctx) {
   if(!wr->stream)
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
-  return js_writable_close(ctx, wr->stream);
+  return js_writable_callback(ctx, wr, WRITABLE_CLOSE, 0, 0);
 }
 
 JSValue
@@ -623,7 +629,7 @@ writer_abort(Writer* wr, JSValueConst reason, JSContext* ctx) {
   if(!wr->stream)
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
-  return js_writable_abort(ctx, wr->stream, reason);
+  return js_writable_callback(ctx, wr, WRITABLE_ABORT, 1, &reason);
 }
 
 BOOL
@@ -872,7 +878,7 @@ static const JSCFunctionListEntry js_writer_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamWriter", JS_PROP_CONFIGURABLE),
 };
 
-static inline JSValue
+JSValue
 js_writable_callback(JSContext* ctx, Writable* st, WritableEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
   assert(event < countof(st->events));
@@ -881,30 +887,6 @@ js_writable_callback(JSContext* ctx, Writable* st, WritableEvent event, int argc
     return JS_Call(ctx, st->events[event], st->underlying_sink, argc, argv);
 
   return JS_UNDEFINED;
-}
-
-JSValue
-js_writable_start(JSContext* ctx, Writable* st) {
-  JSValueConst args[] = {st->controller};
-  return js_writable_callback(ctx, st, WRITABLE_START, countof(args), args);
-}
-
-JSValue
-js_writable_write(JSContext* ctx, Writable* st, JSValueConst chunk) {
-  JSValueConst args[] = {chunk, st->controller};
-  return js_writable_callback(ctx, st, WRITABLE_START, countof(args), args);
-}
-
-JSValue
-js_writable_close(JSContext* ctx, Writable* st) {
-  JSValueConst args[] = {st->controller};
-  return js_writable_callback(ctx, st, WRITABLE_CLOSE, countof(args), args);
-}
-
-JSValue
-js_writable_abort(JSContext* ctx, Writable* st, JSValueConst err) {
-  JSValueConst args[] = {err};
-  return js_writable_callback(ctx, st, WRITABLE_CLOSE, countof(args), args);
 }
 
 static JSValue

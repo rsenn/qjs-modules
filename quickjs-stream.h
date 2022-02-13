@@ -114,10 +114,7 @@ void writable_abort(Writable*, JSValueConst, JSContext*);
 int writable_lock(Writable*, Writer*);
 int writable_unlock(Writable*, Writer*);
 Writer* writable_get_writer(Writable*, size_t, JSContext*);
-JSValue js_writable_start(JSContext*, Writable*);
-JSValue js_writable_write(JSContext*, Writable*, JSValueConst);
-JSValue js_writable_close(JSContext*, Writable*);
-JSValue js_writable_abort(JSContext*, Writable*, JSValueConst);
+JSValue js_writable_callback(JSContext*, Writable*, WritableEvent, int argc, JSValueConst argv[]);
 JSModuleDef* js_init_module_stream(JSContext*, const char*);
 
 static inline BOOL
