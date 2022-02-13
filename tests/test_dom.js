@@ -1,6 +1,6 @@
 import * as os from 'os';
 import * as std from 'std';
-import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, memoize } from '../lib/util.js';
+import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, once, memoize } from '../lib/util.js';
 import inspect from 'inspect';
 import * as xml from 'xml';
 import * as fs from 'fs';
@@ -8,7 +8,7 @@ import * as path from 'path';
 import { Pointer } from 'pointer';
 import * as deep from 'deep';
 import Console from '../lib/console.js';
-import { Document, Element, Node, Attr, Factory, NamedNodeMap } from '../lib/dom.js';
+import { Parser, Document, Element, Node, Attr, Factory, NamedNodeMap } from '../lib/dom.js';
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 import REPL from '../lib/repl.js';
 
@@ -16,10 +16,10 @@ function main(...args) {
   globalThis.console = new Console(process.stdout, {
     inspectOptions: {
       colors: true,
-      depth: 0,
+      depth: 4,
       //stringBreakNewline: false,
       maxArrayLength: 10000,
-      compact: 2,
+      compact: false,
       maxStringLength: 60,
       customInspect: true /*,
       hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
@@ -43,17 +43,21 @@ function main(...args) {
 
   let data = std.loadFile(file, 'utf-8');
   let start = Date.now();
-  let result = xml.read(data, file, false);
   let end = Date.now();
   console.log(`parsing took ${end - start}ms`);
 
   start = Date.now();
-  let doc = new Document(result[0]);
+
+  /*  let result = xml.read(data, file, false);
+  let doc=new Document(result[0]);*/
+
+  let parser = new Parser();
+  let doc = parser.parseFromString(data);
 
   let rawDoc = Node.raw(doc);
   Object.assign(globalThis, { rawDoc, doc });
 
-  console.log('doc', inspect(doc, { depth: Infinity, compact: false }));
+  console.log('doc', inspect(doc, { depth: 4, compact: false }));
 
   /*  for(let value of deep.iterate(doc, deep.RETURN_VALUE)) {
     console.log('value', value);
@@ -83,12 +87,10 @@ function main(...args) {
 */
   let hist;
   globalThis.fs = fs;
-  let repl = new REPL(null);
+  let repl = new REPL(null, false);
   repl.show = repl.printFunction((...args) => console.log(...args));
   repl.historyLoad(hist);
-  repl.addCleanupHandler(() => repl.historySave(hist));
   repl.run();
-  repl.historySave(hist);
 
   let count = 0;
 
@@ -140,7 +142,7 @@ function main(...args) {
   }
   end = Date.now();
 
-  console.log(`walking took ${end - start}ms (${count} nodes)`);
+  repl.printStatus(`walking took ${end - start}ms (${count} nodes)`);
   std.gc();
 }
 
