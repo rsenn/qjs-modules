@@ -53,6 +53,7 @@ typedef enum { READABLE_START = 0, READABLE_PULL, READABLE_CANCEL } ReadableEven
 
 typedef struct readable_stream {
   int ref_count;
+  Queue q;
   _Atomic(BOOL) closed;
   _Atomic(char*) reason;
   _Atomic(Reader*) reader;
@@ -63,13 +64,13 @@ typedef struct readable_stream {
     JSValue events[3];
   };
   JSValue underlying_source, controller;
-  Queue q;
 } Readable;
 
 typedef enum { WRITABLE_START = 0, WRITABLE_WRITE, WRITABLE_CLOSE, WRITABLE_ABORT } WritableEvent;
 
 typedef struct writable_stream {
   int ref_count;
+  Queue q;
   _Atomic(BOOL) closed;
   _Atomic(char*) reason;
   _Atomic(Writer*) writer;
@@ -92,22 +93,22 @@ BOOL reader_release_lock(Reader*, JSContext*);
 BOOL reader_cancel(Reader*, JSContext*);
 JSValue reader_read(Reader*, JSContext*);
 JSValue reader_signal(Reader*, StreamEvent, JSValueConst, JSContext* ctx);
-Writer* writer_new(JSContext*, Writable*);
-BOOL writer_release_lock(Writer*, JSContext*);
-JSValue writer_write(Writer*, const MemoryBlock*, JSContext*);
-BOOL writer_ready(Writer*, JSContext*);
-JSValue writer_signal(Writer*, StreamEvent, JSValueConst, JSContext* ctx);
 Readable* readable_new(JSContext*);
-void readable_close(Readable*);
-void readable_abort(Readable*, JSValueConst, JSContext*);
-ssize_t readable_enqueue(Readable*, JSValueConst, JSContext*);
+JSValue readable_close(Readable*, JSContext*);
+JSValue readable_abort(Readable*, JSValueConst, JSContext*);
+JSValue readable_enqueue(Readable*, JSValueConst, JSContext*);
 void readable_unref(void*);
 int readable_lock(Readable*, Reader*);
 int readable_unlock(Readable*, Reader*);
 Reader* readable_get_reader(Readable*, JSContext*);
-JSValue js_readable_start(JSContext*, Readable*);
-JSValue js_readable_pull(JSContext*, Readable*, JSValueConst);
-JSValue js_readable_cancel(JSContext*, Readable*, JSValueConst);
+JSValue js_readable_callback(JSContext*, Readable*, ReadableEvent, int argc, JSValueConst argv[]);
+Writer* writer_new(JSContext*, Writable*);
+BOOL writer_release_lock(Writer*, JSContext*);
+JSValue writer_write(Writer*, JSValueConst, JSContext*);
+JSValue writer_close(Writer*, JSContext*);
+JSValue writer_abort(Writer*, JSValueConst, JSContext*);
+BOOL writer_ready(Writer*, JSContext*);
+JSValue writer_signal(Writer*, StreamEvent, JSValueConst, JSContext* ctx);
 Writable* writable_new(JSContext*);
 void writable_abort(Writable*, JSValueConst, JSContext*);
 void writable_unref(void*);
@@ -116,7 +117,7 @@ int writable_unlock(Writable*, Writer*);
 Writer* writable_get_writer(Writable*, size_t, JSContext*);
 JSValue js_writable_start(JSContext*, Writable*);
 JSValue js_writable_write(JSContext*, Writable*, JSValueConst);
-JSValue js_writable_close(JSContext*, Writable*, JSValueConst);
+JSValue js_writable_close(JSContext*, Writable*);
 JSValue js_writable_abort(JSContext*, Writable*, JSValueConst);
 JSModuleDef* js_init_module_stream(JSContext*, const char*);
 
