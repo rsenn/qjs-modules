@@ -9,9 +9,10 @@
  */
 
 thread_local VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0;
-thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_ctor = {{JS_TAG_UNDEFINED}}, writable_proto = {{JS_TAG_UNDEFINED}},
-                     writable_ctor = {{JS_TAG_UNDEFINED}}, reader_proto = {{JS_TAG_UNDEFINED}}, reader_ctor = {{JS_TAG_UNDEFINED}},
-                     writer_proto = {{JS_TAG_UNDEFINED}}, writer_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_controller = {{JS_TAG_UNDEFINED}}, readable_ctor = {{JS_TAG_UNDEFINED}},
+                     writable_proto = {{JS_TAG_UNDEFINED}}, writable_controller = {{JS_TAG_UNDEFINED}}, writable_ctor = {{JS_TAG_UNDEFINED}},
+                     reader_proto = {{JS_TAG_UNDEFINED}}, reader_ctor = {{JS_TAG_UNDEFINED}}, writer_proto = {{JS_TAG_UNDEFINED}},
+                     writer_ctor = {{JS_TAG_UNDEFINED}};
 
 void
 chunk_unref(JSRuntime* rt, void* opaque, void* ptr) {
@@ -198,7 +199,7 @@ js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return ret;
 }
 
-enum { READER_CLOSED };
+// enum { READER_CLOSED };
 
 static JSValue
 js_reader_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -239,7 +240,7 @@ static const JSCFunctionListEntry js_reader_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("cancel", 0, js_reader_method, READER_CANCEL),
     JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_reader_method, READER_RELEASE_LOCK),
     JS_CGETSET_MAGIC_DEF("closed", js_reader_get, 0, READER_CLOSED),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamReader", JS_PROP_C_W_E),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamReader", JS_PROP_CONFIGURABLE),
 };
 
 Writer*
@@ -438,7 +439,7 @@ static const JSCFunctionListEntry js_writer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_writer_method, WRITER_RELEASE_LOCK),
     JS_CGETSET_MAGIC_DEF("closed", js_writer_get, 0, WRITER_CLOSED),
     JS_CGETSET_MAGIC_DEF("ready", js_writer_get, 0, WRITER_READY),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamWriter", JS_PROP_C_W_E),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamWriter", JS_PROP_CONFIGURABLE),
 };
 
 Readable*
@@ -447,6 +448,8 @@ readable_new(JSContext* ctx) {
 
   if((st = js_mallocz(ctx, sizeof(Readable)))) {
     st->ref_count = 1;
+
+    queue_init(&st->q);
   }
 
   return st;
@@ -464,6 +467,19 @@ readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
     st->reason = js_tostring(ctx, reason);
   }
+}
+
+ssize_t
+readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
+  MemoryBlock b;
+  InputBuffer input;
+  ssize_t ret;
+  input = js_input_chars(ctx, chunk);
+
+  ret = queue_write(&st->q, input.data, input.size);
+
+  input_buffer_free(&input, ctx);
+  return ret;
 }
 
 void
@@ -499,6 +515,34 @@ readable_get_reader(Readable* st, JSContext* ctx) {
   return rd;
 }
 
+static inline JSValue
+js_readable_callback(JSContext* ctx, Readable* st, ReadableEvent event, int argc, JSValueConst argv[]) {
+  assert(event >= 0);
+  assert(event < countof(st->events));
+
+  if(JS_IsFunction(ctx, st->events[event]))
+    return JS_Call(ctx, st->events[event], st->underlying_source, argc, argv);
+
+  return JS_UNDEFINED;
+}
+
+JSValue
+js_readable_start(JSContext* ctx, Readable* st) {
+  JSValueConst args[] = {st->controller};
+  return js_readable_callback(ctx, st, READABLE_START, countof(args), args);
+}
+
+JSValue
+js_readable_pull(JSContext* ctx, Readable* st, JSValueConst chunk) {
+  JSValueConst args[] = {st->controller};
+  return js_readable_callback(ctx, st, READABLE_PULL, countof(args), args);
+}
+
+JSValue
+js_readable_cancel(JSContext* ctx, Readable* st) {
+  return js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);
+}
+
 static JSValue
 js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -520,6 +564,8 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     st->on.pull = JS_GetPropertyStr(ctx, argv[0], "pull");
     st->on.cancel = JS_GetPropertyStr(ctx, argv[0], "cancel");
     st->underlying_source = JS_DupValue(ctx, argv[0]);
+    st->controller = JS_NewObjectProtoClass(ctx, readable_controller, js_readable_class_id);
+    JS_SetOpaque(st->controller, st);
   }
 
   JS_SetOpaque(obj, st);
@@ -593,7 +639,7 @@ js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Readable* st;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(st = JS_GetOpaque2(ctx, this_val, js_readable_class_id)))
+  if(!(st = js_readable_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -606,6 +652,52 @@ js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+  return ret;
+}
+
+enum { READABLE_CLOSE = 0, READABLE_ENQUEUE, READABLE_ERROR };
+
+static JSValue
+js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  Readable* st;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(st = js_readable_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case READABLE_CLOSE: {
+      readable_close(st);
+      break;
+    }
+    case READABLE_ENQUEUE: {
+      readable_enqueue(st, argv[0], ctx);
+      break;
+    }
+    case READABLE_ERROR: {
+      readable_abort(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      break;
+    }
+  }
+
+  return ret;
+}
+static JSValue
+js_readable_desired(JSContext* ctx, JSValueConst this_val) {
+  Readable* st;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(st = js_readable_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  if(readable_locked(st)) {
+    Reader* rd;
+
+    if((rd = st->reader)) {
+      ret = JS_NewUint32(ctx, rd->desired_size);
+    }
+  }
+
   return ret;
 }
 
@@ -638,8 +730,16 @@ static const JSCFunctionListEntry js_readable_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("cancel", 0, js_readable_method, READABLE_ABORT),
     JS_CFUNC_MAGIC_DEF("getReader", 0, js_readable_method, READABLE_GET_READER),
     JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_readable_get, 0, STREAM_LOCKED, JS_PROP_ENUMERABLE),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Readable", JS_PROP_C_W_E),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Readable", JS_PROP_CONFIGURABLE),
     //    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_readable_iterator),
+};
+
+static const JSCFunctionListEntry js_readable_controller_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("close", 0, js_readable_controller, READABLE_CLOSE),
+    JS_CFUNC_MAGIC_DEF("enqueue", 1, js_readable_controller, READABLE_ENQUEUE),
+    JS_CFUNC_MAGIC_DEF("error", 1, js_readable_controller, READABLE_ERROR),
+    JS_CGETSET_DEF("desiredSize", js_readable_desired, 0),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
 Writable*
@@ -743,6 +843,41 @@ writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
   return wr;
 }
 
+static inline JSValue
+js_writable_callback(JSContext* ctx, Writable* st, WritableEvent event, int argc, JSValueConst argv[]) {
+  assert(event >= 0);
+  assert(event < countof(st->events));
+
+  if(JS_IsFunction(ctx, st->events[event]))
+    return JS_Call(ctx, st->events[event], st->underlying_sink, argc, argv);
+
+  return JS_UNDEFINED;
+}
+
+JSValue
+js_writable_start(JSContext* ctx, Writable* st) {
+  JSValueConst args[] = {st->controller};
+  return js_writable_callback(ctx, st, WRITABLE_START, countof(args), args);
+}
+
+JSValue
+js_writable_write(JSContext* ctx, Writable* st, JSValueConst chunk) {
+  JSValueConst args[] = {chunk, st->controller};
+  return js_writable_callback(ctx, st, WRITABLE_START, countof(args), args);
+}
+
+JSValue
+js_writable_close(JSContext* ctx, Writable* st, JSValueConst chunk) {
+  JSValueConst args[] = {st->controller};
+  return js_writable_callback(ctx, st, WRITABLE_CLOSE, countof(args), args);
+}
+
+JSValue
+js_writable_abort(JSContext* ctx, Writable* st, JSValueConst err) {
+  JSValueConst args[] = {err};
+  return js_writable_callback(ctx, st, WRITABLE_CLOSE, countof(args), args);
+}
+
 static JSValue
 js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -765,6 +900,9 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     st->on.close = JS_GetPropertyStr(ctx, argv[0], "close");
     st->on.abort = JS_GetPropertyStr(ctx, argv[0], "abort");
     st->underlying_sink = JS_DupValue(ctx, argv[0]);
+
+    st->controller = JS_NewObjectProtoClass(ctx, writable_controller, js_writable_class_id);
+    JS_SetOpaque(st->controller, st);
   }
 
   JS_SetOpaque(obj, st);
@@ -847,6 +985,26 @@ js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+  return ret;
+}
+
+enum { WRITABLE_ERROR = 0 };
+
+static JSValue
+js_writable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  Writable* st;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(st = js_writable_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case WRITABLE_ERROR: {
+      writable_abort(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      break;
+    }
+  }
+
   return ret;
 }
 
@@ -973,8 +1131,13 @@ static const JSCFunctionListEntry js_writable_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("clear", 0, js_writable_method, FUNC_CLOSE),
     JS_CFUNC_MAGIC_DEF("getWriter", 0, js_writable_method, FUNC_GET_WRITER),
     JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_writable_get, 0, WRITABLE_LOCKED, JS_PROP_ENUMERABLE),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Writable", JS_PROP_C_W_E),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStream", JS_PROP_CONFIGURABLE),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_writable_iterator),
+};
+
+static const JSCFunctionListEntry js_writable_controller_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("error", 0, js_writable_controller, WRITABLE_ERROR),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
 static int
@@ -1021,6 +1184,9 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_writable_class_id, writable_proto);
 
   writable_ctor = JS_NewCFunction2(ctx, js_writable_constructor, "WritableStream", 1, JS_CFUNC_constructor, 0);
+  writable_controller = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, writable_controller, js_writable_controller_funcs, countof(js_writable_controller_funcs));
+  JS_SetClassProto(ctx, js_writable_class_id, writable_controller);
 
   JS_SetConstructor(ctx, writable_ctor, writable_proto);
 

@@ -525,7 +525,7 @@ static JSClassDef js_repeater_class = {
 static const JSCFunctionListEntry js_repeater_proto_funcs[] = {
     JS_CFUNC_DEF("next", 0, js_repeater_next),
     JS_CGETSET_MAGIC_DEF("state", js_repeater_get, 0, PROP_STATE),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Repeater", JS_PROP_C_W_E),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Repeater", JS_PROP_CONFIGURABLE),
     JS_CFUNC_DEF("[Symbol.asyncIterator]", 0, js_repeater_iterator),
 };
 

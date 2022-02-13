@@ -21,36 +21,35 @@ typedef struct read_operation {
   ResolveFunctions handlers;
 } Read;
 
-enum { READER_CLOSED=0,READER_CANCELLED };
+enum { READER_CLOSED = 0, READER_CANCELLED };
 
-typedef struct streamreader {
-  BOOL binary : 1;
+typedef struct stream_reader {
+  int64_t desired_size;
   _Atomic(struct readable_stream*) stream;
   union {
     struct {
       Promise closed, cancelled;
-    } on;
+    };
     Promise events[2];
   };
   struct list_head reads;
 } Reader;
 
+enum { WRITER_CLOSED = 0, WRITER_READY };
 
-enum { WRITER_CLOSED=0,WRITER_READY };
-
-typedef struct streamwriter {
-  size_t desired_size;
+typedef struct stream_writer {
+  int64_t desired_size;
   _Atomic(struct writable_stream*) stream;
   union {
     struct {
       Promise closed, ready;
-    } on;
+    };
     Promise events[2];
   };
   Queue q;
 } Writer;
 
-enum { READABLE_START = 0, READABLE_PULL, READABLE_CANCEL };
+typedef enum { READABLE_START = 0, READABLE_PULL, READABLE_CANCEL } ReadableEvent;
 
 typedef struct readable_stream {
   int ref_count;
@@ -63,10 +62,11 @@ typedef struct readable_stream {
     } on;
     JSValue events[3];
   };
-  JSValue underlying_source;
+  JSValue underlying_source, controller;
+  Queue q;
 } Readable;
 
-enum { WRITABLE_START = 0, WRITABLE_WRITE, WRITABLE_CLOSE, WRITABLE_ABORT };
+typedef enum { WRITABLE_START = 0, WRITABLE_WRITE, WRITABLE_CLOSE, WRITABLE_ABORT } WritableEvent;
 
 typedef struct writable_stream {
   int ref_count;
@@ -79,7 +79,7 @@ typedef struct writable_stream {
     } on;
     JSValue events[4];
   };
-  JSValue underlying_sink;
+  JSValue underlying_sink, controller;
 } Writable;
 
 extern thread_local JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id, js_writable_class_id;

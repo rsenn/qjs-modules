@@ -320,7 +320,7 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),
     JS_CGETSET_MAGIC_DEF("path", js_pointer_get, js_pointer_set, PROP_PATH),
     JS_CGETSET_MAGIC_DEF("atoms", js_pointer_get, 0, PROP_ATOMS),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Pointer", JS_PROP_C_W_E),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Pointer", JS_PROP_CONFIGURABLE),
 };
 
 static const JSCFunctionListEntry js_pointer_static_funcs[] = {
