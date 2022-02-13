@@ -92,6 +92,79 @@ reader_signal(Reader* rd, StreamEvent event, JSValueConst arg, JSContext* ctx) {
   return ret;
 }
 
+Readable*
+readable_new(JSContext* ctx) {
+  Readable* st;
+
+  if((st = js_mallocz(ctx, sizeof(Readable)))) {
+    st->ref_count = 1;
+
+    queue_init(&st->q);
+  }
+
+  return st;
+}
+
+void
+readable_close(Readable* st) {
+  static const BOOL expected = FALSE;
+  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {}
+}
+
+void
+readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
+  static const BOOL expected = FALSE;
+  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
+    st->reason = js_tostring(ctx, reason);
+  }
+}
+
+ssize_t
+readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
+  MemoryBlock b;
+  InputBuffer input;
+  ssize_t ret;
+  input = js_input_chars(ctx, chunk);
+
+  ret = queue_write(&st->q, input.data, input.size);
+
+  input_buffer_free(&input, ctx);
+  return ret;
+}
+
+void
+readable_unref(void* opaque) {
+  Readable* st = opaque;
+
+  --st->ref_count;
+}
+
+int
+readable_lock(Readable* st, Reader* rd) {
+  const Reader* expected = 0;
+  return atomic_compare_exchange_weak(&st->reader, &expected, rd);
+}
+
+int
+readable_unlock(Readable* st, Reader* rd) {
+  return atomic_compare_exchange_weak(&st->reader, &rd, 0);
+}
+
+Reader*
+readable_get_reader(Readable* st, JSContext* ctx) {
+  Reader* rd;
+
+  if(!(rd = reader_new(ctx, st)))
+    return 0;
+
+  if(!readable_lock(st, rd)) {
+    js_free(ctx, rd);
+    rd = 0;
+  }
+
+  return rd;
+}
+
 enum {
   FUNC_PEEK,
 
@@ -243,278 +316,6 @@ static const JSCFunctionListEntry js_reader_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamReader", JS_PROP_CONFIGURABLE),
 };
 
-Writer*
-writer_new(JSContext* ctx, Writable* st) {
-  Writer* wr;
-
-  if((wr = js_mallocz(ctx, sizeof(Writer)))) {
-    atomic_store(&wr->stream, st);
-    promise_init(&wr->closed, ctx);
-    promise_init(&wr->ready, ctx);
-  }
-
-  return wr;
-}
-
-BOOL
-writer_release_lock(Writer* wr, JSContext* ctx) {
-  BOOL ret;
-
-  if((ret = readable_unlock(&wr->stream, wr))) {
-    atomic_store(&wr->stream, (Writable*)0);
-  }
-
-  return ret;
-}
-
-JSValue
-writer_write(Writer* wr, const MemoryBlock* block, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  ssize_t bytes;
-
-  if((bytes = queue_write(&wr->q, block->base, block->size)) == block->size) {
-    Chunk* chunk = queue_tail(&wr->q);
-
-    chunk->opaque = promise_new(ctx, &ret);
-  }
-
-  return ret;
-}
-
-BOOL
-writer_ready(Writer* wr, JSContext* ctx) {
-  BOOL ret = FALSE;
-
-  if(JS_IsUndefined(wr->ready.promise)) {
-    ret = promise_init(&wr->ready, ctx);
-  }
-
-  return ret;
-}
-
-JSValue
-writer_signal(Writer* wr, StreamEvent event, JSValueConst arg, JSContext* ctx) {
-  JSValue ret;
-
-  assert(event <= EVENT_READ);
-  assert(event >= EVENT_CLOSE);
-
-  ret = promise_resolve(ctx, &wr->events[event], arg);
-
-  return ret;
-}
-
-static JSValue
-js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj = JS_UNDEFINED;
-  Writer* wr;
-  Writable* st;
-
-  if(argc < 1 || !(st = js_writable_data(argv[0])))
-    return JS_ThrowTypeError(ctx, "argument 1 must be a Writable");
-
-  if(!(wr = writer_new(ctx, st)))
-    return JS_ThrowOutOfMemory(ctx);
-
-  if(!writable_lock(st, wr)) {
-    JS_ThrowInternalError(ctx, "unable to lock Writable");
-    goto fail;
-  }
-
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    goto fail;
-  if(!JS_IsObject(proto))
-    proto = writer_proto;
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_writer_class_id);
-  if(JS_IsException(obj))
-    goto fail;
-
-  JS_SetOpaque(obj, wr);
-
-  return obj;
-
-fail:
-  js_free(ctx, wr);
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
-}
-
-static JSValue
-js_writer_wrap(JSContext* ctx, Writer* wr) {
-  JSValue obj;
-  obj = JS_NewObjectProtoClass(ctx, writer_proto, js_writer_class_id);
-  JS_SetOpaque(obj, wr);
-  return obj;
-}
-
-enum {
-  WRITER_ABORT,
-  WRITER_CLOSE,
-  WRITER_WRITE,
-  WRITER_RELEASE_LOCK,
-};
-
-static JSValue
-js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret = JS_UNDEFINED;
-  Writer* wr;
-  Writable* st;
-
-  if(!(wr = js_writer_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  st = wr->stream;
-
-  switch(magic) {
-    case WRITER_ABORT: {
-      if(st) {
-        if(argc >= 1) {
-          st->reason = js_tostring(ctx, argv[0]);
-        }
-      }
-    }
-    case WRITER_CLOSE: {
-      writable_close(st);
-      break;
-    }
-    case WRITER_WRITE: {
-      MemoryBlock b;
-      InputBuffer input;
-      input = js_input_args(ctx, argc, argv);
-      b = block_range(input_buffer_blockptr(&input), &input.range);
-      ret = writer_write(wr, &b, ctx);
-      input_buffer_free(&input, ctx);
-      break;
-    }
-    case WRITER_RELEASE_LOCK: {
-      writer_release_lock(wr, ctx);
-      break;
-    }
-  }
-
-  return ret;
-}
-
-static JSValue
-js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  Writer* wr;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(wr = js_writer_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case WRITER_CLOSED: {
-      ret = JS_DupValue(ctx, wr->closed.promise);
-      break;
-    }
-    case WRITER_READY: {
-      ret = JS_DupValue(ctx, wr->ready.promise);
-      break;
-    }
-  }
-  return ret;
-}
-
-static void
-js_writer_finalizer(JSRuntime* rt, JSValue val) {
-  Writer* wr;
-
-  if((wr = JS_GetOpaque(val, js_writer_class_id))) {
-    js_free_rt(rt, wr);
-  }
-}
-
-static JSClassDef js_writer_class = {
-    .class_name = "StreamWriter",
-    .finalizer = js_writer_finalizer,
-};
-
-static const JSCFunctionListEntry js_writer_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("write", 0, js_writer_method, WRITER_WRITE),
-    JS_CFUNC_MAGIC_DEF("abort", 0, js_writer_method, WRITER_ABORT),
-    JS_CFUNC_MAGIC_DEF("close", 0, js_writer_method, WRITER_CLOSE),
-    JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_writer_method, WRITER_RELEASE_LOCK),
-    JS_CGETSET_MAGIC_DEF("closed", js_writer_get, 0, WRITER_CLOSED),
-    JS_CGETSET_MAGIC_DEF("ready", js_writer_get, 0, WRITER_READY),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamWriter", JS_PROP_CONFIGURABLE),
-};
-
-Readable*
-readable_new(JSContext* ctx) {
-  Readable* st;
-
-  if((st = js_mallocz(ctx, sizeof(Readable)))) {
-    st->ref_count = 1;
-
-    queue_init(&st->q);
-  }
-
-  return st;
-}
-
-void
-readable_close(Readable* st) {
-  static const BOOL expected = FALSE;
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {}
-}
-
-void
-readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
-  static const BOOL expected = FALSE;
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
-    st->reason = js_tostring(ctx, reason);
-  }
-}
-
-ssize_t
-readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
-  MemoryBlock b;
-  InputBuffer input;
-  ssize_t ret;
-  input = js_input_chars(ctx, chunk);
-
-  ret = queue_write(&st->q, input.data, input.size);
-
-  input_buffer_free(&input, ctx);
-  return ret;
-}
-
-void
-readable_unref(void* opaque) {
-  Readable* st = opaque;
-
-  --st->ref_count;
-}
-
-int
-readable_lock(Readable* st, Reader* rd) {
-  const Reader* expected = 0;
-  return atomic_compare_exchange_weak(&st->reader, &expected, rd);
-}
-
-int
-readable_unlock(Readable* st, Reader* rd) {
-  return atomic_compare_exchange_weak(&st->reader, &rd, 0);
-}
-
-Reader*
-readable_get_reader(Readable* st, JSContext* ctx) {
-  Reader* rd;
-
-  if(!(rd = reader_new(ctx, st)))
-    return 0;
-
-  if(!readable_lock(st, rd)) {
-    js_free(ctx, rd);
-    rd = 0;
-  }
-
-  return rd;
-}
-
 static inline JSValue
 js_readable_callback(JSContext* ctx, Readable* st, ReadableEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
@@ -539,8 +340,8 @@ js_readable_pull(JSContext* ctx, Readable* st, JSValueConst chunk) {
 }
 
 JSValue
-js_readable_cancel(JSContext* ctx, Readable* st) {
-  return js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);
+js_readable_cancel(JSContext* ctx, Readable* st, JSValueConst reason) {
+  return js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);
 }
 
 static JSValue
@@ -682,6 +483,7 @@ js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   return ret;
 }
+
 static JSValue
 js_readable_desired(JSContext* ctx, JSValueConst this_val) {
   Readable* st;
@@ -702,18 +504,13 @@ js_readable_desired(JSContext* ctx, JSValueConst this_val) {
 }
 
 static void
-readable_finalizer(JSRuntime* rt, Readable* st) {
-  if(--st->ref_count == 0) {
-    js_free_rt(rt, st);
-  }
-}
-
-static void
 js_readable_finalizer(JSRuntime* rt, JSValue val) {
   Readable* st;
 
   if((st = JS_GetOpaque(val, js_readable_class_id))) {
-    readable_finalizer(rt, st);
+    if(--st->ref_count == 0) {
+      js_free_rt(rt, st);
+    }
   }
 }
 
@@ -742,6 +539,67 @@ static const JSCFunctionListEntry js_readable_controller_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
+Writer*
+writer_new(JSContext* ctx, Writable* st) {
+  Writer* wr;
+
+  if((wr = js_mallocz(ctx, sizeof(Writer)))) {
+    atomic_store(&wr->stream, st);
+    promise_init(&wr->closed, ctx);
+    promise_init(&wr->ready, ctx);
+  }
+
+  return wr;
+}
+
+BOOL
+writer_release_lock(Writer* wr, JSContext* ctx) {
+  BOOL ret;
+
+  if((ret = readable_unlock(&wr->stream, wr))) {
+    atomic_store(&wr->stream, (Writable*)0);
+  }
+
+  return ret;
+}
+
+JSValue
+writer_write(Writer* wr, const MemoryBlock* block, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
+  ssize_t bytes;
+
+  if((bytes = queue_write(&wr->q, block->base, block->size)) == block->size) {
+    Chunk* chunk = queue_tail(&wr->q);
+
+    chunk->opaque = promise_new(ctx, &ret);
+  }
+
+  return ret;
+}
+
+BOOL
+writer_ready(Writer* wr, JSContext* ctx) {
+  BOOL ret = FALSE;
+
+  if(JS_IsUndefined(wr->ready.promise)) {
+    ret = promise_init(&wr->ready, ctx);
+  }
+
+  return ret;
+}
+
+JSValue
+writer_signal(Writer* wr, StreamEvent event, JSValueConst arg, JSContext* ctx) {
+  JSValue ret;
+
+  assert(event <= EVENT_READ);
+  assert(event >= EVENT_CLOSE);
+
+  ret = promise_resolve(ctx, &wr->events[event], arg);
+
+  return ret;
+}
+
 Writable*
 writable_new(JSContext* ctx) {
   Writable* st;
@@ -752,21 +610,7 @@ writable_new(JSContext* ctx) {
   }
 
   return st;
-}
-
-/*size_t
-writable_size(Writable* st) {
-  return queue_size(&st->q);
-}*/
-
-/*void
-writable_close(Writable* st) {
-  static const BOOL expected = FALSE;
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
-
-    // queue_clear(&st->q);
-  }
-}*/
+} 
 
 void
 writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
@@ -842,6 +686,144 @@ writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
   }
   return wr;
 }
+
+static JSValue
+js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue proto, obj = JS_UNDEFINED;
+  Writer* wr;
+  Writable* st;
+
+  if(argc < 1 || !(st = js_writable_data(argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a Writable");
+
+  if(!(wr = writer_new(ctx, st)))
+    return JS_ThrowOutOfMemory(ctx);
+
+  if(!writable_lock(st, wr)) {
+    JS_ThrowInternalError(ctx, "unable to lock Writable");
+    goto fail;
+  }
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    goto fail;
+  if(!JS_IsObject(proto))
+    proto = writer_proto;
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_writer_class_id);
+  if(JS_IsException(obj))
+    goto fail;
+
+  JS_SetOpaque(obj, wr);
+
+  return obj;
+
+fail:
+  js_free(ctx, wr);
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
+static JSValue
+js_writer_wrap(JSContext* ctx, Writer* wr) {
+  JSValue obj;
+  obj = JS_NewObjectProtoClass(ctx, writer_proto, js_writer_class_id);
+  JS_SetOpaque(obj, wr);
+  return obj;
+}
+
+enum {
+  WRITER_ABORT,
+  WRITER_CLOSE,
+  WRITER_WRITE,
+  WRITER_RELEASE_LOCK,
+};
+
+static JSValue
+js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret = JS_UNDEFINED;
+  Writer* wr;
+  Writable* st;
+
+  if(!(wr = js_writer_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  st = wr->stream;
+
+  switch(magic) {
+    case WRITER_ABORT: {
+      if(st) {
+        if(argc >= 1) {
+          st->reason = js_tostring(ctx, argv[0]);
+        }
+      }
+    }
+    case WRITER_CLOSE: {
+      writable_close(st);
+      break;
+    }
+    case WRITER_WRITE: {
+      MemoryBlock b;
+      InputBuffer input;
+      input = js_input_args(ctx, argc, argv);
+      b = block_range(input_buffer_blockptr(&input), &input.range);
+      ret = writer_write(wr, &b, ctx);
+      input_buffer_free(&input, ctx);
+      break;
+    }
+    case WRITER_RELEASE_LOCK: {
+      writer_release_lock(wr, ctx);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static JSValue
+js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  Writer* wr;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(wr = js_writer_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case WRITER_CLOSED: {
+      ret = JS_DupValue(ctx, wr->closed.promise);
+      break;
+    }
+    case WRITER_READY: {
+      ret = JS_DupValue(ctx, wr->ready.promise);
+      break;
+    }
+  }
+  return ret;
+}
+
+static void
+js_writer_finalizer(JSRuntime* rt, JSValue val) {
+  Writer* wr;
+
+  if((wr = JS_GetOpaque(val, js_writer_class_id))) {
+    js_free_rt(rt, wr);
+  }
+}
+
+static JSClassDef js_writer_class = {
+    .class_name = "StreamWriter",
+    .finalizer = js_writer_finalizer,
+};
+
+static const JSCFunctionListEntry js_writer_proto_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("write", 0, js_writer_method, WRITER_WRITE),
+    JS_CFUNC_MAGIC_DEF("abort", 0, js_writer_method, WRITER_ABORT),
+    JS_CFUNC_MAGIC_DEF("close", 0, js_writer_method, WRITER_CLOSE),
+    JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_writer_method, WRITER_RELEASE_LOCK),
+    JS_CGETSET_MAGIC_DEF("closed", js_writer_get, 0, WRITER_CLOSED),
+    JS_CGETSET_MAGIC_DEF("ready", js_writer_get, 0, WRITER_READY),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamWriter", JS_PROP_CONFIGURABLE),
+};
 
 static inline JSValue
 js_writable_callback(JSContext* ctx, Writable* st, WritableEvent event, int argc, JSValueConst argv[]) {
@@ -1009,20 +991,14 @@ js_writable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 }
 
 static void
-writable_finalizer(JSRuntime* rt, Writable* st) {
-  if(--st->ref_count == 0) {
-    // queue_clear(&st->q);
-
-    js_free_rt(rt, st);
-  }
-}
-
-static void
 js_writable_finalizer(JSRuntime* rt, JSValue val) {
   Writable* st;
 
-  if((st = JS_GetOpaque(val, js_writable_class_id)))
-    writable_finalizer(rt, st);
+  if((st = JS_GetOpaque(val, js_writable_class_id))) {
+    if(--st->ref_count == 0) {
+      js_free_rt(rt, st);
+    }
+  }
 }
 
 static int
