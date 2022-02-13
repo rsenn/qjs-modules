@@ -2436,7 +2436,9 @@ quickjs-location.c.o:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/quickjs-location.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/quickjs-location.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/quickjs-location.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/quickjs-location.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location.dir/quickjs-location.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/quickjs-location.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/quickjs-location.c.o
 .PHONY : quickjs-location.c.o
 
@@ -2449,7 +2451,9 @@ quickjs-location.c.i:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/quickjs-location.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/quickjs-location.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/quickjs-location.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/quickjs-location.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location.dir/quickjs-location.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/quickjs-location.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/quickjs-location.c.i
 .PHONY : quickjs-location.c.i
 
@@ -2462,7 +2466,9 @@ quickjs-location.c.s:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location-static.dir/quickjs-location.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-xml.dir/quickjs-location.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/quickjs-location.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/quickjs-location.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-location.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-location.dir/quickjs-location.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/quickjs-location.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/quickjs-location.c.s
 .PHONY : quickjs-location.c.s
 
@@ -2919,6 +2925,33 @@ strverscmp.c.s:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-syscallerror-static.dir/strverscmp.c.s
 .PHONY : strverscmp.c.s
 
+token.o: token.c.o
+.PHONY : token.o
+
+# target to build an object file
+token.c.o:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/token.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/token.c.o
+.PHONY : token.c.o
+
+token.i: token.c.i
+.PHONY : token.i
+
+# target to preprocess a source file
+token.c.i:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/token.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/token.c.i
+.PHONY : token.c.i
+
+token.s: token.c.s
+.PHONY : token.s
+
+# target to generate assembly for a file
+token.c.s:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer-static.dir/token.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-lexer.dir/token.c.s
+.PHONY : token.c.s
+
 utils.o: utils.c.o
 .PHONY : utils.o
 
@@ -3374,6 +3407,9 @@ help:
 	@echo "... strverscmp.o"
 	@echo "... strverscmp.i"
 	@echo "... strverscmp.s"
+	@echo "... token.o"
+	@echo "... token.i"
+	@echo "... token.s"
 	@echo "... utils.o"
 	@echo "... utils.i"
 	@echo "... utils.s"

@@ -12,6 +12,7 @@
 #ifdef HAVE_THREADS_H
 #include <threads.h>
 #endif
+#include "debug.h"
 
 /**
  * \defgroup utils Utilities

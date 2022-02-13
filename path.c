@@ -539,8 +539,10 @@ start:
         path++;
         continue;
       }
-      if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
+      if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {  
+        if(db->size && db->buf)
         db->size = path_right((const char*)db->buf, db->size);
+
         path += 2;
         continue;
       }

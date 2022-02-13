@@ -514,8 +514,9 @@ js_repeater_finalizer(JSRuntime* rt, JSValue val) {
   if((rpt = JS_GetOpaque(val, js_repeater_class_id)))
     repeater_finalizer(rt, rpt);
 
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
+
 static JSClassDef js_repeater_class = {
     .class_name = "Repeater",
     .finalizer = js_repeater_finalizer,

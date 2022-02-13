@@ -437,7 +437,7 @@ js_archive_finalizer(JSRuntime* rt, JSValue val) {
   if(ar) {
     archive_free(ar);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_archive_class = {
@@ -1150,7 +1150,7 @@ js_archiveentry_finalizer(JSRuntime* rt, JSValue val) {
   if(ent) {
     archive_entry_free(ent);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_archiveentry_class = {

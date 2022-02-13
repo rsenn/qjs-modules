@@ -24,23 +24,28 @@ js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   int32_t prot, flags, fd;
   void* ptr;
 
-  if(JS_ToIndex(ctx, &addr, argv[0]))
+  if(js_is_null_or_undefined(argv[0]))
+    addr = 0;
+  else if(JS_ToIndex(ctx, &addr, argv[0]))
     return JS_EXCEPTION;
   if(JS_ToIndex(ctx, &length, argv[1]))
     return JS_EXCEPTION;
-  if(argc <= 2 || JS_ToInt32(ctx, &prot, argv[2]))
+  if(argc <= 2 || !JS_IsNumber(argv[2]) || JS_ToInt32(ctx, &prot, argv[2]))
     prot = PROT_READ | PROT_WRITE;
-  if(argc <= 3 || JS_ToInt32(ctx, &flags, argv[3]))
+  if(argc <= 3 || !JS_IsNumber(argv[3]) || JS_ToInt32(ctx, &flags, argv[3]))
     flags = MAP_ANONYMOUS;
-  if(argc <= 4 || JS_ToInt32(ctx, &fd, argv[4]))
+  if(argc <= 4 || !JS_IsNumber(argv[4]) || JS_ToInt32(ctx, &fd, argv[4]))
     fd = -1;
-  if(argc <= 5 || JS_ToIndex(ctx, &offset, argv[5]))
+  if(argc <= 5 || !JS_IsNumber(argv[5]) || JS_ToIndex(ctx, &offset, argv[5]))
     offset = 0;
 
   ptr = mmap((void*)addr, length, prot, flags, fd, offset);
 
   if(ptr == 0)
     return JS_EXCEPTION;
+
+  if(ptr == MAP_FAILED)
+    return JS_NewInt32(ctx, -1);
 
   return JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)length, !!(flags & MAP_SHARED));
 }
@@ -104,6 +109,36 @@ js_mmap_mprotect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static JSValue
+js_mmap_filename(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  uint8_t* data;
+  size_t len;
+  FILE* fp;
+  JSValue ret = JS_UNDEFINED;
+  char buf[1024];
+  size_t start, end;
+
+  if(!(data = JS_GetArrayBuffer(ctx, &len, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
+
+  if((fp = fopen("/proc/self/maps", "r")) == 0)
+    return JS_ThrowInternalError(ctx, "Unable to open /proc/self/maps");
+
+  while(fgets(buf, sizeof(buf) - 1, fp)) {
+
+    if(sscanf(buf, "%zx-%zx", &start, &end) < 2)
+      continue;
+
+    if((size_t)data >= start && (size_t)data < end) {
+      ret = JS_NewString(ctx, &buf[73]);
+      break;
+    }
+  }
+
+  fclose(fp);
+  return ret;
+}
+
+static JSValue
 js_mmap_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   if(js_is_arraybuffer(ctx, argv[0])) {
@@ -121,6 +156,7 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_CFUNC_DEF("munmap", 1, js_mmap_unmap),
     JS_CFUNC_DEF("msync", 3, js_mmap_msync),
     JS_CFUNC_DEF("mprotect", 3, js_mmap_mprotect),
+    JS_CFUNC_DEF("filename", 1, js_mmap_filename),
     JS_CFUNC_DEF("toString", 1, js_mmap_tostring),
     JS_PROP_INT32_DEF("PROT_READ", 0x01, 0),
     JS_PROP_INT32_DEF("PROT_WRITE", 0x02, 0),
@@ -149,6 +185,7 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_PROP_INT32_DEF("MAP_NONBLOCK", 0x10000, 0),
     JS_PROP_INT32_DEF("MAP_STACK", 0x20000, 0),
     JS_PROP_INT32_DEF("MAP_HUGETLB", 0x40000, 0),
+    JS_PROP_INT32_DEF("MAP_FAILED", -1, 0),
     JS_CONSTANT(EBUSY),
     JS_CONSTANT(EFAULT),
     JS_CONSTANT(EINVAL),

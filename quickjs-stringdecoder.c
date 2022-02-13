@@ -193,7 +193,7 @@ js_stringdecoder_finalizer(JSRuntime* rt, JSValue val) {
     ringbuffer_free(&dec->buffer);
     js_free_rt(rt, dec);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_stringdecoder_class = {

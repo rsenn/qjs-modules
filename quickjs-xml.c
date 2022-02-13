@@ -351,7 +351,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   ptr = buf;
   end = buf + len;
 
-  printf("js_xml_parse input_name: %s flat: %s\n", input_name, flat ? "TRUE" : "FALSE");
+  // printf("js_xml_parse input_name: %s flat: %s\n", input_name, flat ? "TRUE" : "FALSE");
 
   ret = JS_NewArray(ctx);
 

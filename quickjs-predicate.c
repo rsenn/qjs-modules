@@ -773,7 +773,7 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
 
     //   js_free_rt(rt, pr);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_predicate_class = {.class_name = "Predicate", .finalizer = js_predicate_finalizer, .call = js_predicate_call};
