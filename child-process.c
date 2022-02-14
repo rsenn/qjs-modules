@@ -17,6 +17,10 @@
 #include <sys/wait.h>
 #endif
 
+#if(_XOPEN_SOURCE >= 500 && !(_POSIX_C_SOURCE >= 200809L) || _DEFAULT_SOURCE || _BSD_SOURCE)
+#define fork() vfork()
+#endif
+
 /**
  * \addtogroup child-process
  * @{
@@ -213,6 +217,9 @@ child_process_spawn(ChildProcess* cp) {
 #endif
     exit(errno);
   }
+
+  printf("forked proc %d\n", pid);
+
   if(cp->child_fds) {
     for(i = 0; i < cp->num_fds; i++) {
       if(cp->child_fds[i] >= 0 && cp->child_fds[i] != i)

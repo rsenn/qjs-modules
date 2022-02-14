@@ -9,6 +9,7 @@ option(BUILD_LIBARCHIVE "Build archive library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
+  option(USE_SPAWN "Use POSIX spawn()" OFF)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
@@ -68,19 +69,21 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-check_functions(waitpid execvpe)
+check_functions(vfork waitpid execvpe)
+
+
 if(HAVE_EXECVPE)
   add_definitions(-DHAVE_EXECVPE=1)
 else(HAVE_EXECVPE)
   check_functions(execve)
 endif(HAVE_EXECVPE)
 
-if(ANDROID)
+#[[if(ANDROID)
   option(USE_SPAWN "Use POSIX spawn()" OFF)
 else()
   option(USE_SPAWN "Use POSIX spawn()" ON)
 endif()
-
+]]
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 if(HAVE_SYS_WAIT_H)
   add_definitions(-DHAVE_SYS_WAIT_H)
@@ -90,7 +93,7 @@ if(HAVE_WAITPID)
   add_definitions(-DHAVE_WAITPID=1)
 endif(HAVE_WAITPID)
 
-if(NOT USE_SPAWN)
+if(NOT HAVE_SPAWN)
   if(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
 
     check_include_file(spawn.h HAVE_SPAWN_H)
@@ -101,16 +104,16 @@ if(NOT USE_SPAWN)
       message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
 
       if(HAVE_POSIX_SPAWNP)
-        set(USE_SPAWN ON)
+        set(HAVE_SPAWN ON)
       endif(HAVE_POSIX_SPAWNP)
     endif(HAVE_SPAWN_H)
   endif(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
-endif(NOT USE_SPAWN)
+endif(NOT HAVE_SPAWN)
 #dump(USE_SPAWN)
 
-if(USE_SPAWN)
+if(HAVE_SPAWN AND USE_SPAWN)
   add_definitions(-DPOSIX_SPAWN=1)
-endif(USE_SPAWN)
+endif(HAVE_SPAWN AND USE_SPAWN)
 
 check_include_file(threads.h HAVE_THREADS_H)
 if(HAVE_THREADS_H)
