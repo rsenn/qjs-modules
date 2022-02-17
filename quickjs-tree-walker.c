@@ -48,7 +48,7 @@ typedef struct {
   Vector frames;
   uint32_t tag_mask;
   uint32_t ref_count;
-  JSValueConst predicate;
+  JSValueConst predicate, transform;
 } TreeWalker;
 
 static void
@@ -59,7 +59,8 @@ tree_walker_reset(TreeWalker* w, JSContext* ctx) {
   vector_clear(&w->frames);
 
   w->tag_mask = TYPE_ALL;
-  w->predicate = JS_NULL;
+  w->predicate = JS_UNDEFINED;
+  w->transform = JS_UNDEFINED;
 }
 
 static PropertyEnumeration*
@@ -82,7 +83,7 @@ static JSValue
 js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
   JSValue proto, obj = JS_UNDEFINED;
-  int argi=1;
+  int argi = 1;
 
   if(!(w = js_mallocz(ctx, sizeof(TreeWalker))))
     return JS_EXCEPTION;
@@ -100,7 +101,6 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
-  JS_SetOpaque(obj, w);
 
   if(argc > 0 && JS_IsObject(argv[0]))
     /*it = */ tree_walker_setroot(w, ctx, argv[0]);
@@ -110,6 +110,11 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
 
   if(argi < argc && JS_IsFunction(ctx, argv[argi]))
     w->predicate = JS_DupValue(ctx, argv[argi++]);
+
+  if(argi < argc && JS_IsFunction(ctx, argv[argi]))
+    w->transform = JS_DupValue(ctx, argv[argi++]);
+
+  JS_SetOpaque(obj, w);
 
   return obj;
 fail:
@@ -161,7 +166,7 @@ static JSValue
 js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   TreeWalker* w;
   PropertyEnumeration* it;
-  JSValue predicate=JS_UNDEFINED;
+  JSValue ret = JS_UNDEFINED, predicate = JS_UNDEFINED;
 
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
@@ -177,9 +182,9 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   if(magic == NEXT_NODE) {
     if(argc >= 1 && JS_IsFunction(ctx, argv[0]))
-      predicate=argv[0];
+      predicate = argv[0];
     else if(JS_IsFunction(ctx, w->predicate))
-      predicate=w->predicate;
+      predicate = w->predicate;
 
     it = js_tree_walker_next(ctx, w, this_val, predicate);
   }
@@ -217,7 +222,18 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       break;
     }
   }
-  return it ? property_enumeration_value(it, ctx) : JS_UNDEFINED;
+
+  ret = it ? property_enumeration_value(it, ctx) : JS_UNDEFINED;
+
+  if(JS_IsFunction(ctx, w->transform)) {
+    JSValue args[] = {ret, property_enumeration_path(&w->frames, ctx), this_val};
+
+    ret = JS_Call(ctx, w->transform, JS_UNDEFINED, 3, args);
+    JS_FreeValue(ctx, args[0]);
+    JS_FreeValue(ctx, args[1]);
+  }
+
+  return ret;
 }
 
 static JSValue
@@ -340,8 +356,8 @@ static JSValue
 js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
   // PropertyEnumeration* it = 0;
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  JSValue proto, obj = JS_UNDEFINED;
+  int argi = 1;
 
   if(!(w = js_mallocz(ctx, sizeof(TreeWalker))))
     return JS_EXCEPTION;
@@ -361,8 +377,14 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(argc > 0 && JS_IsObject(argv[0]))
     /*it =*/tree_walker_setroot(w, ctx, argv[0]);
 
-  if(argc > 1)
-    JS_ToUint32(ctx, &w->tag_mask, argv[1]);
+  if(argi < argc && JS_IsNumber(argv[argi]))
+    JS_ToUint32(ctx, &w->tag_mask, argv[argi++]);
+
+  if(argi < argc && JS_IsFunction(ctx, argv[argi]))
+    w->predicate = JS_DupValue(ctx, argv[argi++]);
+
+  if(argi < argc && JS_IsFunction(ctx, argv[argi]))
+    w->transform = JS_DupValue(ctx, argv[argi++]);
 
   return obj;
 fail:
