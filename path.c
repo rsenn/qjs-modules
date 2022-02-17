@@ -493,12 +493,14 @@ path_is_fifo(const char* p) {
 
 int
 path_is_socket(const char* p) {
+#ifdef S_ISSOCK
   struct stat st;
   int r;
   if((r = stat(p, &st) == 0)) {
     if(S_ISSOCK(st.st_mode))
       return 1;
   }
+#endif
   return 0;
 }
 

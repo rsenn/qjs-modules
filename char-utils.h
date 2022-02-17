@@ -112,12 +112,25 @@ byte_chr(const void* str, size_t len, char c) {
 }
 
 static inline size_t
+byte_rchr(const void* haystack, size_t len, char needle) {
+  const char *s, *t;
+  for(s = (const char*)haystack, t = s + len;;) {
+    --t;
+    if(s > t)
+      break;
+    if(*t == needle)
+      return (size_t)(t - s);
+  }
+  return len;
+}
+
+/*size_t
 byte_rchr(const void* str, size_t len, char c) {
   const char* s = memrchr(str, c, len);
   if(s)
     return s - (const char*)str;
   return len;
-}
+}*/
 
 static inline size_t
 byte_chrs(const void* str, size_t len, const char needle[], size_t nl) {

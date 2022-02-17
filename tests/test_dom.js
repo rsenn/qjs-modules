@@ -79,9 +79,9 @@ function main(...args) {
   let parser = new Parser();
   let doc = parser.parseFromString(data, file, { tolerant: true });
 
-  let walker = doc.createTreeWalker(doc.body);
+/*  let walker = doc.createTreeWalker(doc.body);
 
-  console.log('walker', walker);
+  console.log('walker', walker);*/
 
   let rawDoc = Node.raw(doc);
   Object.assign(globalThis, { rawDoc, doc });

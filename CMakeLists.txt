@@ -335,7 +335,7 @@ set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 # endif(pigpio_LIBRARY)
 
 include_directories(${LibArchive_INCLUDE_DIRS})
-set(archive_SOURCES ${utils_SOURCES})
+set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(QJSM_EXTRA_SOURCES ${vector_SOURCES} ${buffer_utils_SOURCES})

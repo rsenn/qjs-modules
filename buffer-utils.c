@@ -6,6 +6,8 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#elif defined(_WIN32)
+#include <windows.h>
 #endif
 #include "debug.h"
 
