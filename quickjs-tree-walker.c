@@ -48,6 +48,7 @@ typedef struct {
   Vector frames;
   uint32_t tag_mask;
   uint32_t ref_count;
+  JSValueConst predicate;
 } TreeWalker;
 
 static void
@@ -58,6 +59,7 @@ tree_walker_reset(TreeWalker* w, JSContext* ctx) {
   vector_clear(&w->frames);
 
   w->tag_mask = TYPE_ALL;
+  w->predicate = JS_NULL;
 }
 
 static PropertyEnumeration*
@@ -79,15 +81,15 @@ tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
 static JSValue
 js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
-  // PropertyEnumeration* it = 0;
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  JSValue proto, obj = JS_UNDEFINED;
+  int argi=1;
 
   if(!(w = js_mallocz(ctx, sizeof(TreeWalker))))
     return JS_EXCEPTION;
 
   w->ref_count = 1;
   tree_walker_reset(w, ctx);
+  vector_init(&w->frames, ctx);
 
   /* using new_target to get the prototype is necessary when the
      class is extended. */
@@ -103,8 +105,11 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(argc > 0 && JS_IsObject(argv[0]))
     /*it = */ tree_walker_setroot(w, ctx, argv[0]);
 
-  if(argc > 1)
-    JS_ToUint32(ctx, &w->tag_mask, argv[1]);
+  if(argi < argc && JS_IsNumber(argv[argi]))
+    JS_ToUint32(ctx, &w->tag_mask, argv[argi++]);
+
+  if(argi < argc && JS_IsFunction(ctx, argv[argi]))
+    w->predicate = JS_DupValue(ctx, argv[argi++]);
 
   return obj;
 fail:
@@ -156,6 +161,7 @@ static JSValue
 js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   TreeWalker* w;
   PropertyEnumeration* it;
+  JSValue predicate=JS_UNDEFINED;
 
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
@@ -170,7 +176,12 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   }
 
   if(magic == NEXT_NODE) {
-    it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED);
+    if(argc >= 1 && JS_IsFunction(ctx, argv[0]))
+      predicate=argv[0];
+    else if(JS_IsFunction(ctx, w->predicate))
+      predicate=w->predicate;
+
+    it = js_tree_walker_next(ctx, w, this_val, predicate);
   }
 
   switch(magic) {

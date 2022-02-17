@@ -19,7 +19,19 @@ import * as path from 'path';
 import { Pointer } from 'pointer';
 import * as deep from 'deep';
 import Console from '../lib/console.js';
-import { Parser, Document, Element, Node, Attr, Factory, NamedNodeMap } from '../lib/dom.js';
+import {
+  nodeTypes,
+  Parser,
+  Node,
+  NodeList,
+  NamedNodeMap,
+  Element,
+  Document,
+  Attr,
+  Text,
+  TokenList,
+  Factory
+} from '../lib/dom.js';
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 import REPL from '../lib/repl.js';
 
@@ -36,6 +48,7 @@ function main(...args) {
       hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
     }
   });
+  const dom = { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory };
   Object.assign(globalThis, {
     os,
     std,
@@ -44,7 +57,8 @@ function main(...args) {
     path,
     Pointer,
     deep,
-    ...{ Document, Element, Node, Attr, Factory, NamedNodeMap },
+    ...dom,
+    dom,
     ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath }
   });
 
@@ -64,6 +78,10 @@ function main(...args) {
 
   let parser = new Parser();
   let doc = parser.parseFromString(data, file, { tolerant: true });
+
+  let walker = doc.createTreeWalker(doc.body);
+
+  console.log('walker', walker);
 
   let rawDoc = Node.raw(doc);
   Object.assign(globalThis, { rawDoc, doc });
