@@ -129,20 +129,6 @@ byte_chrs(const void* str, size_t len, const char needle[], size_t nl) {
 }
 
 static inline size_t
-byte_charlen(const void* in, size_t len) {
-  const uint8_t *pos, *end, *next;
-  size_t i = 0;
-  pos = (const uint8_t*)in;
-  end = pos + len;
-  while(pos < end) {
-    unicode_from_utf8(pos, end - pos, &next);
-    pos = next;
-    i++;
-  }
-  return i;
-}
-
-static inline size_t
 str_chr(const char* in, char needle) {
   const char* t = in;
   const char c = needle;
@@ -314,6 +300,8 @@ size_t fmt_xlonglong(char*, uint64_t);
 size_t scan_longlong(const char*, int64_t*);
 size_t scan_ulonglong(const char*, uint64_t*);
 size_t scan_xlonglong(const char*, uint64_t*);
+size_t scan_whitenskip(const char*, size_t);
+size_t scan_nonwhitenskip(const char*, size_t);
 
 static inline int
 scan_fromhex(unsigned char c) {
@@ -326,6 +314,15 @@ scan_fromhex(unsigned char c) {
     return c + 10;
   return -1;
 }
+
+static inline size_t
+utf8_charlen(const char* in, size_t len) {
+  const uint8_t* next;
+  int cp = unicode_from_utf8((const uint8_t*)in, len, &next);
+  return next - (const uint8_t*)in;
+}
+
+size_t utf8_strlen(const void* in, size_t len);
 
 /**
  * @}

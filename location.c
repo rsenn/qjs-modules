@@ -111,8 +111,9 @@ location_free_rt(Location* loc, JSRuntime* rt) {
 void
 location_count(Location* loc, const char* x, size_t n) {
   size_t i;
+
   for(i = 0; i < n;) {
-    size_t bytes = byte_charlen(&x[i], n - i);
+    size_t bytes = utf8_charlen(&x[i], n - i);
 
     if(x[i] == '\n') {
       loc->line++;
@@ -122,6 +123,7 @@ location_count(Location* loc, const char* x, size_t n) {
     }
 
     loc->char_offset++;
+    loc->byte_offset += bytes;
     i += bytes;
   }
 }

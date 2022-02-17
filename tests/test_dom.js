@@ -16,11 +16,11 @@ function main(...args) {
   globalThis.console = new Console(process.stdout, {
     inspectOptions: {
       colors: true,
-      depth: 4,
-      //stringBreakNewline: false,
+      depth: 10,
+      stringBreakNewline: false,
       maxArrayLength: 10000,
       compact: false,
-      maxStringLength: 60,
+      maxStringLength: Infinity,
       customInspect: true /*,
       hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
     }
@@ -52,42 +52,22 @@ function main(...args) {
   let doc=new Document(result[0]);*/
 
   let parser = new Parser();
-  let doc = parser.parseFromString(data);
+  let doc = parser.parseFromString(data, file, { tolerant: true });
 
   let rawDoc = Node.raw(doc);
   Object.assign(globalThis, { rawDoc, doc });
 
-  console.log('doc', inspect(doc, { depth: 4, compact: false }));
+  console.log('rawDoc', inspect(rawDoc, { depth: 4, compact: false }));
 
-  /*  for(let value of deep.iterate(doc, deep.RETURN_VALUE)) {
-    console.log('value', value);
-  }
-*/
+fs.writeFileSync('output.xml',  xml.write(rawDoc));
 
-  /*  let [libraries, lp] = deep.find(rawDoc, e => e.tagName == 'libraries', deep.RETURN_VALUE_PATH);
-    console.log('lp', lp);
-    let libs = deep.get(rawDoc, lp);
-    let results = deep.select(rawDoc, e => e.tagName == 'library', deep.RETURN_VALUE);
-    console.log('results', results);
-    console.log('libs', libs);
 
-    let flattened = deep.flatten(libraries, []).filter(([p, n]) => isObject(n) && 'tagName' in n);
-    flattened = new Map(flattened);
-    Object.assign(globalThis, { flattened, libraries, lp, results });*/
-
-  /*  for(let [p, n] of flattened) {
-      let ptr = new Pointer(p);
-      console.log('ptr/path', { ptr, path: [...ptr] });
-      let node = [...ptr].reduce((o, p) => o[p], libs);
-
-      console.log('p/n', { p, n });
-      console.log('p/n', { node });
-      console.log('ptr.hier', ptr.hier());
-    }
-*/
+  //console.log('doc', inspect(doc, { depth: 4, compact: false }));
+ 
   let hist;
   globalThis.fs = fs;
-  let repl = new REPL(null, false);
+
+  let repl = new REPL(path.basename(process.argv[1],'.js'), false);
   repl.show = repl.printFunction((...args) => console.log(...args));
   repl.historyLoad(hist);
   repl.run();

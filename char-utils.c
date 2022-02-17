@@ -140,6 +140,37 @@ scan_xlonglong(const char* src, uint64_t* dest) {
   return tmp - src;
 }
 
+size_t
+scan_whitenskip(const char* s, size_t limit) {
+  const char *t, *u;
+  for(t = s, u = t + limit; t < u; ++t)
+    if(!is_whitespace_char(*t))
+      break;
+  return (size_t)(t - s);
+}
+
+size_t
+scan_nonwhitenskip(const char* s, size_t limit) {
+  const char *t, *u;
+  for(t = s, u = t + limit; t < u; ++t)
+    if(is_whitespace_char(*t))
+      break;
+  return (size_t)(t - s);
+}
+
+size_t
+utf8_strlen(const void* in, size_t len) {
+  const uint8_t *pos, *end, *next;
+  size_t i = 0;
+  pos = (const uint8_t*)in;
+  end = pos + len;
+  while(pos < end) {
+    unicode_from_utf8(pos, end - pos, &next);
+    pos = next;
+    i++;
+  }
+  return i;
+}
 /**
  * @}
  */

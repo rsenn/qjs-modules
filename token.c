@@ -44,7 +44,7 @@ token_create(int id, Location* loc, const char* lexeme, size_t len, JSContext* c
     tok->byte_length = len;
 
     tok->lexeme = js_strndup(ctx, lexeme, len);
-    tok->char_length = byte_charlen(lexeme, len);
+    tok->char_length = utf8_strlen(lexeme, len);
   }
 
   return tok;
