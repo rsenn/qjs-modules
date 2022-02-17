@@ -786,7 +786,7 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       flat = FALSE;
   }
 
-  printf("js_xml_write len=%zu, children=%s, flat=%d\n", len, JS_ToCString(ctx, children), flat);
+  xml_debug("js_xml_write len=%zu, children=%s, flat=%d\n", len, JS_ToCString(ctx, children), flat);
 
   if(flat)
     ret = js_xml_write_list(ctx, obj, len, &output);

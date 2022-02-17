@@ -1,6 +1,17 @@
 import * as os from 'os';
 import * as std from 'std';
-import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, once, memoize } from '../lib/util.js';
+import {
+  escape,
+  quote,
+  isObject,
+  define,
+  getClassName,
+  mapObject,
+  getset,
+  gettersetter,
+  once,
+  memoize
+} from '../lib/util.js';
 import inspect from 'inspect';
 import * as xml from 'xml';
 import * as fs from 'fs';
@@ -57,17 +68,16 @@ function main(...args) {
   let rawDoc = Node.raw(doc);
   Object.assign(globalThis, { rawDoc, doc });
 
-  console.log('rawDoc', inspect(rawDoc, { depth: 4, compact: false }));
+  //console.log('rawDoc', inspect(rawDoc, { depth: 4, compact: false }));
 
-fs.writeFileSync('output.xml',  xml.write(rawDoc));
+  fs.writeFileSync('output.xml', xml.write(rawDoc));
 
+  console.log('doc', inspect(doc, { depth: 4, compact: false }));
 
-  //console.log('doc', inspect(doc, { depth: 4, compact: false }));
- 
   let hist;
   globalThis.fs = fs;
 
-  let repl = new REPL(path.basename(process.argv[1],'.js'), false);
+  let repl = new REPL(path.basename(process.argv[1], '.js'), false);
   repl.show = repl.printFunction((...args) => console.log(...args));
   repl.historyLoad(hist);
   repl.run();
