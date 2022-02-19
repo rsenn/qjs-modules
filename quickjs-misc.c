@@ -611,6 +611,7 @@ js_misc_hrtime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
+#ifndef __wasi__
 /*static JSValue
 js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   char resolved[PATH_MAX];
@@ -623,6 +624,53 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_NewString(ctx, result);
   return JS_NULL;
 }*/
+static JSValue
+js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const char *dir = 0, *pfx = 0;
+  char* nam;
+  JSValue ret = JS_NULL;
+
+  if(argc >= 1 && JS_IsString(argv[0]))
+    dir = JS_ToCString(ctx, argv[0]);
+  if(argc >= 2 && JS_IsString(argv[1]))
+    pfx = JS_ToCString(ctx, argv[1]);
+
+  if((nam = tempnam(dir, pfx))) {
+    ret = JS_NewString(ctx, nam);
+    free(nam);
+  }
+  return ret;
+}
+
+static JSValue
+js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const char* tmp = 0;
+  char* template;
+  int fd;
+
+  if(argc >= 1 && JS_IsString(argv[0]))
+    tmp = JS_ToCString(ctx, argv[0]);
+
+  template = js_strdup(ctx, tmp ? tmp : "/tmp/fileXXXXXX");
+
+  if(tmp)
+    JS_FreeCString(ctx, tmp);
+
+  if(!template)
+    return JS_ThrowOutOfMemory(ctx);
+
+  fd = mkstemp(template);
+
+  js_free(ctx, template);
+
+  if(fd < 0) {
+    fd = -errno;
+    errno = 0;
+  }
+
+  return JS_NewInt32(ctx, fd);
+}
+#endif
 
 #ifdef HAVE_FNMATCH
 static JSValue
@@ -1795,7 +1843,9 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
-// JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
+    // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
+    JS_CFUNC_DEF("tempnam", 0, js_misc_tempnam),
+    JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
 #ifdef HAVE_FNMATCH
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),

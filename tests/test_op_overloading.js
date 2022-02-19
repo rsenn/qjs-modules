@@ -3,7 +3,27 @@ import Console from '../lib/console.js';
 ('use strict');
 ('use math');
 
-const OverloadNames = ['+', '-', '*', '/', '%', '**', '|', '&', '^', '<<', '>>', '>>>', '==', '<', 'pos', 'neg', '++', '--', '~'];
+const OverloadNames = [
+  '+',
+  '-',
+  '*',
+  '/',
+  '%',
+  '**',
+  '|',
+  '&',
+  '^',
+  '<<',
+  '>>',
+  '>>>',
+  '==',
+  '<',
+  'pos',
+  'neg',
+  '++',
+  '--',
+  '~'
+];
 
 const CreateOperatorSet = Operators.create;
 
@@ -86,9 +106,18 @@ function assert(actual, expected, message) {
 
   if(actual === expected) return;
 
-  if(actual !== null && expected !== null && typeof actual == 'object' && typeof expected == 'object' && actual.toString() === expected.toString()) return;
+  if(
+    actual !== null &&
+    expected !== null &&
+    typeof actual == 'object' &&
+    typeof expected == 'object' &&
+    actual.toString() === expected.toString()
+  )
+    return;
 
-  throw Error('assertion failed: got |' + actual + '|' + ', expected |' + expected + '|' + (message ? ' (' + message + ')' : ''));
+  throw Error(
+    'assertion failed: got |' + actual + '|' + ', expected |' + expected + '|' + (message ? ' (' + message + ')' : '')
+  );
 }
 
 /* operators overloading with CreateOperatorSet() */

@@ -773,7 +773,7 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
 
     //   js_free_rt(rt, pr);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_predicate_class = {.class_name = "Predicate", .finalizer = js_predicate_finalizer, .call = js_predicate_call};
@@ -798,7 +798,7 @@ static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("keys", 0, js_predicate_method, METHOD_KEYS),
     JS_CFUNC_MAGIC_DEF("values", 0, js_predicate_method, METHOD_VALUES),
     JS_CGETSET_MAGIC_DEF("length", js_predicate_get, 0, PROP_ARGC),
-    // JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_C_W_E),
+    // JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_CONFIGURABLE),
 };
 
 static const JSCFunctionListEntry js_predicate_funcs[] = {

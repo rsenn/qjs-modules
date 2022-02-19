@@ -304,7 +304,7 @@ js_token_finalizer(JSRuntime* rt, JSValue val) {
     token_free_rt(tok, rt);
     JS_SetOpaque(val, 0);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_token_class = {
@@ -1348,7 +1348,7 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
     location_release_rt(&lex->loc, rt);
     lexer_free_rt(lex, rt);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_lexer_class = {.class_name = "Lexer", .finalizer = js_lexer_finalizer, .call = js_lexer_call};

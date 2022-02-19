@@ -408,7 +408,7 @@ lexer_charlen(Lexer* lex) {
   if(lex->byte_length == 0)
     return 0;
   assert((lex->input.size - lex->input.pos) >= lex->byte_length);
-  return byte_charlen(&lex->input.data[lex->input.pos], lex->byte_length);
+  return utf8_strlen(&lex->input.data[lex->input.pos], lex->byte_length);
 }
 
 char*

@@ -244,6 +244,27 @@ input_buffer_free_default(JSContext* ctx, const char* str, JSValue val) {
 
 InputBuffer js_input_buffer(JSContext* ctx, JSValueConst value);
 InputBuffer js_input_chars(JSContext* ctx, JSValueConst value);
+
+static inline InputBuffer
+js_input_args(JSContext* ctx, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+
+  if(argc > 1)
+    js_offset_length(ctx, input.size, argc - 1, argv + 1, &input.range);
+
+  return input;
+}
+
+static inline InputBuffer
+js_output_args(JSContext* ctx, int argc, JSValueConst argv[]) {
+  InputBuffer output = js_input_buffer(ctx, argv[0]);
+
+  if(argc > 1)
+    js_offset_length(ctx, output.size, argc - 1, argv + 1, &output.range);
+
+  return output;
+}
+
 InputBuffer input_buffer_clone(const InputBuffer* in, JSContext* ctx);
 BOOL input_buffer_valid(const InputBuffer* in);
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
@@ -262,6 +283,11 @@ input_buffer_length(const InputBuffer* in) {
 static inline MemoryBlock
 input_buffer_block(InputBuffer* in) {
   return (MemoryBlock){input_buffer_data(in), input_buffer_length(in)};
+}
+
+static inline MemoryBlock*
+input_buffer_blockptr(InputBuffer* in) {
+  return &in->block;
 }
 
 static inline InputBuffer

@@ -338,7 +338,7 @@ js_sockaddr_finalizer(JSRuntime* rt, JSValue val) {
   if((a = js_sockaddr_data(val))) {
     js_free_rt(rt, a);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static const JSCFunctionListEntry js_sockaddr_proto_funcs[] = {
@@ -1274,7 +1274,7 @@ js_socket_finalizer(JSRuntime* rt, JSValue val) {
     if(socket_open(sock))
       close(sock.fd);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_socket_class = {

@@ -9,6 +9,7 @@ option(BUILD_LIBARCHIVE "Build archive library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
+  option(USE_SPAWN "Use POSIX spawn()" OFF)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
@@ -68,19 +69,21 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-check_functions(waitpid execvpe)
+check_functions(vfork waitpid execvpe)
+
+
 if(HAVE_EXECVPE)
   add_definitions(-DHAVE_EXECVPE=1)
 else(HAVE_EXECVPE)
   check_functions(execve)
 endif(HAVE_EXECVPE)
 
-if(ANDROID)
+#[[if(ANDROID)
   option(USE_SPAWN "Use POSIX spawn()" OFF)
 else()
   option(USE_SPAWN "Use POSIX spawn()" ON)
 endif()
-
+]]
 check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
 if(HAVE_SYS_WAIT_H)
   add_definitions(-DHAVE_SYS_WAIT_H)
@@ -90,7 +93,7 @@ if(HAVE_WAITPID)
   add_definitions(-DHAVE_WAITPID=1)
 endif(HAVE_WAITPID)
 
-if(NOT USE_SPAWN)
+if(NOT HAVE_SPAWN)
   if(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
 
     check_include_file(spawn.h HAVE_SPAWN_H)
@@ -101,16 +104,16 @@ if(NOT USE_SPAWN)
       message(STATUS "HAVE_POSIX_SPAWNP: ${HAVE_POSIX_SPAWNP}")
 
       if(HAVE_POSIX_SPAWNP)
-        set(USE_SPAWN ON)
+        set(HAVE_SPAWN ON)
       endif(HAVE_POSIX_SPAWNP)
     endif(HAVE_SPAWN_H)
   endif(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
-endif(NOT USE_SPAWN)
+endif(NOT HAVE_SPAWN)
 #dump(USE_SPAWN)
 
-if(USE_SPAWN)
+if(HAVE_SPAWN AND USE_SPAWN)
   add_definitions(-DPOSIX_SPAWN=1)
-endif(USE_SPAWN)
+endif(HAVE_SPAWN AND USE_SPAWN)
 
 check_include_file(threads.h HAVE_THREADS_H)
 if(HAVE_THREADS_H)
@@ -233,7 +236,7 @@ link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
     bjson blob deep lexer location misc path pointer predicate repeater
-    stringdecoder sockets syscallerror inspect tree-walker xml)
+    stringdecoder sockets stream syscallerror inspect tree-walker xml)
 if(LibArchive_FOUND)
   set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
 endif(LibArchive_FOUND)
@@ -258,8 +261,10 @@ set(COMMON_SOURCES debug.c debug.h)
 set(vector_SOURCES vector.c vector.h ${buffer_utils_SOURCES})
 set(char_utils_SOURCES char-utils.c char-utils.h)
 set(queue_SOURCES queue.c queue.h)
-set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES} clock_gettime.c
-                  strverscmp.c)
+set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES} clock_gettime.c strverscmp.c)
+set(js_utils_SOURCES js-utils.c js-utils.h)
+set(utils_SOURCES ${utils_SOURCES} qsort_r.c)
+set(stream_SOURCES quickjs-stream.c ${queue_SOURCES} ${js_utils_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(predicate_SOURCES predicate.c predicate.h ${utils_SOURCES})
 if(NOT HAVE_STRVERSCMP)
   set(utils_SOURCES ${utils_SOURCES} strverscmp.c)
@@ -267,7 +272,6 @@ endif(NOT HAVE_STRVERSCMP)
 if(NOT HAVE_MEMMEM)
   set(utils_SOURCES ${utils_SOURCES} memmem.c)
 endif(NOT HAVE_MEMMEM)
-set(utils_SOURCES ${utils_SOURCES} qsort_r.c)
 set(token_SOURCES token.c token.h)
 set(location_SOURCES
     location.c location.h quickjs-location.c quickjs-location.h
@@ -331,7 +335,7 @@ set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 # endif(pigpio_LIBRARY)
 
 include_directories(${LibArchive_INCLUDE_DIRS})
-set(archive_SOURCES ${utils_SOURCES})
+set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(QJSM_EXTRA_SOURCES ${vector_SOURCES} ${buffer_utils_SOURCES})

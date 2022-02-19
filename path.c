@@ -493,12 +493,14 @@ path_is_fifo(const char* p) {
 
 int
 path_is_socket(const char* p) {
+#ifdef S_ISSOCK
   struct stat st;
   int r;
   if((r = stat(p, &st) == 0)) {
     if(S_ISSOCK(st.st_mode))
       return 1;
   }
+#endif
   return 0;
 }
 
@@ -540,7 +542,9 @@ start:
         continue;
       }
       if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
-        db->size = path_right((const char*)db->buf, db->size);
+        if(db->size && db->buf)
+          db->size = path_right((const char*)db->buf, db->size);
+
         path += 2;
         continue;
       }

@@ -97,19 +97,23 @@ debug_realloc(void* p, size_t n, const char* file, int line) {
   ALLOC_PTR ptr;
 
   if(p) {
-    if(n == 0) {
-      debug_free(p, file, line);
-      return 0;
-    }
+
     check_pointer(p);
 
-    ptr = p ? ALLOC_BLOCK(p) : 0;
+    ptr = ALLOC_BLOCK(p);
     list_del(&ptr->link);
+
+    if(n == 0) {
+      free(ptr);
+      return 0;
+    }
+
+    ptr = realloc(ptr, n + ALLOC_BLOCK_SIZE);
   } else {
-    return debug_malloc(n, file, line);
+    ptr = malloc(n + ALLOC_BLOCK_SIZE);
   }
 
-  if((ptr = realloc(ptr, n + ALLOC_BLOCK_SIZE))) {
+  if(ptr) {
     ptr->file = file;
     ptr->line = line;
     ptr->size = n;
@@ -184,19 +188,23 @@ debug_js_realloc(JSContext* ctx, void* p, size_t n, const char* file, int line) 
   ALLOC_PTR ptr;
 
   if(p) {
-    if(n == 0) {
-      debug_js_free(ctx, p, file, line);
-      return 0;
-    }
+
     check_pointer(p);
 
-    ptr = p ? ALLOC_BLOCK(p) : 0;
+    ptr = ALLOC_BLOCK(p);
     list_del(&ptr->link);
+
+    if(n == 0) {
+      js_free(ctx, ptr);
+      return 0;
+    }
+
+    ptr = js_realloc(ctx, ptr, n + ALLOC_BLOCK_SIZE);
   } else {
-    return debug_js_malloc(ctx, n, file, line);
+    ptr = js_malloc(ctx, n + ALLOC_BLOCK_SIZE);
   }
 
-  if((ptr = js_realloc(ctx, ptr, n + ALLOC_BLOCK_SIZE))) {
+  if(ptr) {
     ptr->file = file;
     ptr->line = line;
     ptr->size = n;
@@ -314,19 +322,20 @@ debug_js_realloc_rt(JSRuntime* rt, void* p, size_t n, const char* file, int line
   ALLOC_PTR ptr;
 
   if(p) {
-    if(n == 0) {
-      debug_js_free_rt(rt, p, file, line);
-      return 0;
-    }
     check_pointer(p);
 
-    ptr = p ? ALLOC_BLOCK(p) : 0;
+    ptr = ALLOC_BLOCK(p);
     list_del(&ptr->link);
+    if(n == 0) {
+      js_free_rt(rt, ptr);
+      return 0;
+    }
+    ptr = js_realloc_rt(rt, ptr, n + ALLOC_BLOCK_SIZE);
   } else {
-    return debug_js_malloc_rt(rt, n, file, line);
+    ptr = js_malloc_rt(rt, n + ALLOC_BLOCK_SIZE);
   }
 
-  if((ptr = js_realloc_rt(rt, ptr, n + ALLOC_BLOCK_SIZE))) {
+  if(ptr) {
     ptr->file = file;
     ptr->line = line;
     ptr->size = n;
@@ -358,6 +367,45 @@ debug_js_free_rt(JSRuntime* rt, void* p, const char* file, int line) {
   memset(ptr, 0xff, ALLOC_BLOCK_SIZE);
 
   js_free_rt(rt, ptr);
+}
+
+#undef malloc
+#undef calloc
+#undef realloc
+#undef strdup
+#undef free
+#undef js_malloc
+#undef js_mallocz
+#undef js_realloc
+#undef js_strdup
+#undef js_strndup
+#undef js_malloc_usable_size
+#undef js_free
+#undef js_malloc_rt
+#undef js_mallocz_rt
+#undef js_realloc_rt
+#undef js_malloc_usable_size_rt
+#undef js_free_rt
+
+void*
+orig_malloc(size_t size) {
+  return malloc(size);
+}
+void*
+orig_calloc(size_t nelem, size_t elemsz) {
+  return calloc(nelem, elemsz);
+}
+void*
+orig_realloc(void* ptr, size_t size) {
+  return realloc(ptr, size);
+}
+void*
+orig_strdup(const char* str) {
+  return strdup(str);
+}
+void
+orig_free(void* ptr) {
+  free(ptr);
 }
 
 void*

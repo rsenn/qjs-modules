@@ -267,7 +267,7 @@ js_blob_finalizer(JSRuntime* rt, JSValue val) {
   if(blob) {
     blob_free_rt(rt, blob);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_blob_class = {

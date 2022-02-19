@@ -6,6 +6,8 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#elif defined(_WIN32)
+#include <windows.h>
 #endif
 #include "debug.h"
 
@@ -530,7 +532,7 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Of
    else
   */
   if(size)
-    off = ((off % size) + off) % size;
+    off = ((off % size) + size) % size;
 
   if(len >= 0)
     len = MIN_NUM(len, size - off);

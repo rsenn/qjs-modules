@@ -374,7 +374,7 @@ js_location_finalizer(JSRuntime* rt, JSValue val) {
     JS_SetOpaque(val, 0);
   }
 
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_location_class = {

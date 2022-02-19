@@ -514,8 +514,9 @@ js_repeater_finalizer(JSRuntime* rt, JSValue val) {
   if((rpt = JS_GetOpaque(val, js_repeater_class_id)))
     repeater_finalizer(rt, rpt);
 
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
+
 static JSClassDef js_repeater_class = {
     .class_name = "Repeater",
     .finalizer = js_repeater_finalizer,
@@ -524,7 +525,7 @@ static JSClassDef js_repeater_class = {
 static const JSCFunctionListEntry js_repeater_proto_funcs[] = {
     JS_CFUNC_DEF("next", 0, js_repeater_next),
     JS_CGETSET_MAGIC_DEF("state", js_repeater_get, 0, PROP_STATE),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Repeater", JS_PROP_C_W_E),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Repeater", JS_PROP_CONFIGURABLE),
     JS_CFUNC_DEF("[Symbol.asyncIterator]", 0, js_repeater_iterator),
 };
 

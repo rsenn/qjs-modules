@@ -151,7 +151,7 @@ js_gpio_finalizer(JSRuntime* rt, JSValue val) {
   if(gpio) {
     gpio_close(gpio);
   }
-  JS_FreeValueRT(rt, val);
+  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_gpio_class = {
