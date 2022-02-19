@@ -22,16 +22,9 @@ js_resolve_functions_call(JSContext* ctx, ResolveFunctions* funcs, int index, JS
   JSValue ret = JS_UNDEFINED;
   if(!JS_IsNull(funcs->array[index])) {
     ret = JS_Call(ctx, funcs->array[index], JS_UNDEFINED, 1, &arg);
-    js_resolve_functions_free(funcs, ctx);
+    js_resolve_functions_free(ctx, funcs);
   }
   return ret;
-}
-
-Promise
-promise_free(JSContext* ctx, Promise* prom) {
-  JS_FreeValue(ctx, prom->promise);
-  prom->promise = JS_UNDEFINED;
-  js_resolve_functions_free(ctx, &prom->funcs);
 }
 
 ResolveFunctions*
@@ -54,6 +47,13 @@ promise_create(JSContext* ctx, ResolveFunctions* funcs) {
 
   ret = JS_NewPromiseCapability(ctx, funcs->array);
   return ret;
+}
+
+Promise
+promise_free(JSContext* ctx, Promise* prom) {
+  JS_FreeValue(ctx, prom->promise);
+  prom->promise = JS_UNDEFINED;
+  js_resolve_functions_free(ctx, &prom->funcs);
 }
 
 BOOL

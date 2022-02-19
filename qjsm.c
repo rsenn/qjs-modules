@@ -220,7 +220,22 @@ jsm_load_package(JSContext* ctx, const char* file) {
   }
   return JS_DupValue(ctx, package_json);
 }
-
+/*
+static inline size_t
+str_chrs(const char* in, const char needles[], size_t nn) {
+  const char* t = in;
+  size_t i;
+  for(;;) {
+    if(!*t)
+      break;
+    for(i = 0; i < nn; i++)
+      if(*t == needles[i])
+        return (size_t)(t - in);
+    ++t;
+  }
+  return (size_t)(t - in);
+}
+*/
 char*
 jsm_module_search_ext(JSContext* ctx, const char* path, const char* name, const char* ext) {
   const char *p, *q;
@@ -229,9 +244,9 @@ jsm_module_search_ext(JSContext* ctx, const char* path, const char* name, const 
   struct stat st;
 
   for(p = path; *p; p = q) {
-    if((q = strchr(p, ':')) == 0)
-      q = p + strlen(p);
-    i = q - p;
+    if(p[(i = str_chrs(p, ":;\n", 3))] == '\0')
+      i = strlen(p);
+    q = p + i;
     file = orig_js_malloc(ctx, i + 1 + strlen(name) + 3 + 1);
     strncpy(file, p, i);
     file[i] = '/';
