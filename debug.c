@@ -364,26 +364,32 @@ void*
 orig_js_malloc(JSContext* ctx, size_t size) {
   return js_malloc(ctx, size);
 }
+
 void*
 orig_js_mallocz(JSContext* ctx, size_t size) {
   return js_mallocz(ctx, size);
 }
+
 void*
 orig_js_realloc(JSContext* ctx, void* p, size_t size) {
   return js_realloc(ctx, p, size);
 }
+
 void*
 orig_js_strdup(JSContext* ctx, const char* str) {
   return js_strdup(ctx, str);
 }
+
 void*
 orig_js_strndup(JSContext* ctx, const char* str, size_t size) {
   return js_strndup(ctx, str, size);
 }
+
 size_t
 orig_js_malloc_usable_size(JSContext* ctx, const void* p) {
   return js_malloc_usable_size(ctx, p);
 }
+
 void
 orig_js_free(JSContext* ctx, void* p) {
   return js_free(ctx, p);
