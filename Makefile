@@ -1206,11 +1206,13 @@ buffer-utils.c.o:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/buffer-utils.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/buffer-utils.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stream.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stream.dir/buffer-utils.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/buffer-utils.c.o
@@ -1250,11 +1252,13 @@ buffer-utils.c.i:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/buffer-utils.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/buffer-utils.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stream.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stream.dir/buffer-utils.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/buffer-utils.c.i
@@ -1294,11 +1298,13 @@ buffer-utils.c.s:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder-static.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stringdecoder.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater-static.dir/buffer-utils.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive-static.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer-static.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-tree-walker-static.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-pointer.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc-static.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/buffer-utils.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-archive.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-stream.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-stream.dir/buffer-utils.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep-static.dir/buffer-utils.c.s

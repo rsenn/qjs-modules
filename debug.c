@@ -5,6 +5,8 @@
 #include <cutils.h>
 #include <assert.h>
 #include "defines.h"
+#include <string.h>
+#include <stdlib.h>
 
 struct __attribute__((packed)) alloc_block {
   struct list_head link;
