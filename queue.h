@@ -12,7 +12,12 @@
  */
 typedef struct queue {
   size_t nbytes, nblocks;
-  struct list_head list;
+  union {
+    struct {
+      struct block *tail, *head;
+    };
+    struct list_head list;
+  };
 } Queue;
 
 typedef struct block {

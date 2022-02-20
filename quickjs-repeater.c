@@ -30,7 +30,12 @@ struct resolvable_item {
 };
 
 struct repeater_item {
-  struct list_head link;
+  union {
+    struct {
+      struct block *prev, *next;
+    };
+    struct list_head link;
+  };
   struct resolvable_item resolvable;
 };
 

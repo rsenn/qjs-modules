@@ -79,6 +79,7 @@ JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Readable* stream;
+  Chunk* ch;
   struct read_operation* op;
 
   if(!(op = js_mallocz(ctx, sizeof(struct read_operation))))
@@ -89,14 +90,12 @@ reader_read(Reader* rd, JSContext* ctx) {
   ret = promise_create(ctx, &op->handlers);
 
   if((stream = rd->stream)) {
-    Chunk* ch;
     JSValue tmp = js_readable_callback(ctx, stream, READABLE_PULL, 1, &stream->controller);
     JS_FreeValue(ctx, tmp);
+  }
 
-    if((ch = queue_next(&stream->q))) {
-      promise_resolve(ctx, &op->handlers, chunk_arraybuffer(ch, ctx));
-    }
-    //    ret = JS_Call(ctx, stream->on.pull, JS_UNDEFINED, 1, &stream->controller);
+  if((ch = queue_next(&stream->q))) {
+    promise_resolve(ctx, &op->handlers, chunk_arraybuffer(ch, ctx));
   }
 
   return ret;
@@ -169,10 +168,10 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   int64_t ret;
   Reader* rd;
 
-  if(readable_locked(st) && (rd = st->reader)) {
-    if(reader_passthrough(rd, chunk, ctx))
-      return JS_UNDEFINED;
-  }
+  /*  if(readable_locked(st) && (rd = st->reader)) {
+      if(reader_passthrough(rd, chunk, ctx))
+        return JS_UNDEFINED;
+    }*/
 
   input = js_input_chars(ctx, chunk);
 
