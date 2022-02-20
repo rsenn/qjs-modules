@@ -83,11 +83,11 @@ reader_clear(Reader* rd, JSContext* ctx) {
 
 int
 reader_cancel(Reader* rd, JSContext* ctx) {
- 
-  if(JS_IsUndefined(rd->events[READER_CANCELLED].promise))
-     promise_init(ctx, &rd->events[READER_CANCELLED]);
 
-  return reader_clear(rd,ctx);
+  if(JS_IsUndefined(rd->events[READER_CANCELLED].promise))
+    promise_init(ctx, &rd->events[READER_CANCELLED]);
+
+  return reader_clear(rd, ctx);
 }
 
 JSValue
@@ -195,17 +195,17 @@ readable_close(Readable* st, JSContext* ctx) {
   static const BOOL expected = FALSE;
   JSValue ret = JS_UNDEFINED;
 
-st->closed = TRUE;
-/*  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-    return JS_ThrowInternalError(ctx, "ReadableStream already closed");*/
+  st->closed = TRUE;
+  /*  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
+      return JS_ThrowInternalError(ctx, "ReadableStream already closed");*/
 
-/*  if(readable_locked(st)) {
-    promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
+  /*  if(readable_locked(st)) {
+      promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
-    reader_cancel(st->reader, ctx);
-  }
+      reader_cancel(st->reader, ctx);
+    }
 
-  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
+    ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
 
   return ret;
 }
@@ -218,13 +218,13 @@ readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
     return JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
 
- /* if(readable_locked(st)) {
-    promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
+  /* if(readable_locked(st)) {
+     promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
-    reader_cancel(st->reader, ctx);
-  }
+     reader_cancel(st->reader, ctx);
+   }
 
-  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);*/
+   ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);*/
 
   return ret;
 }
@@ -670,6 +670,9 @@ writer_new(JSContext* ctx, Writable* st) {
     atomic_store(&wr->stream, st);
     promise_init(ctx, &wr->events[WRITER_CLOSED]);
     promise_init(ctx, &wr->events[WRITER_READY]);
+
+    JSValue ret = js_writable_callback(ctx, st, WRITABLE_START, 1, &st->controller);
+    JS_FreeValue(ctx, ret);
   }
 
   return wr;
@@ -699,10 +702,12 @@ ssize_t bytes;
 
    chunk->opaque = promise_new(ctx, &ret);
  }*/
-  if(!wr->stream)
-    return JS_ThrowInternalError(ctx, "no WriteableStream");
+  if(wr->stream) {
+    JSValueConst args[2] = {chunk, wr->stream->controller};
+    return js_writable_callback(ctx, wr->stream, WRITABLE_WRITE, 2, args);
+  }
 
-  return js_writable_callback(ctx, wr->stream, WRITABLE_WRITE, 1, &chunk);
+  return JS_ThrowInternalError(ctx, "no WriteableStream");
 }
 
 JSValue
@@ -767,49 +772,7 @@ writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
     // queue_clear(&st->q);
   }
 }
-
-/*void
-writable_unref(void* opaque) {
-  Writable* st = opaque;
-
-  --st->ref_count;
-}
-*/
-/*JSValue
-writable_next(Writable* st, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
-  Chunk* chunk;
-
-  if((chunk = queue_next(&st->q))) {
-    ret = chunk_arraybuf(chunk, ctx);
-  }
-
-  return ret;
-}
-
-int
-writable_at(Writable* st, int64_t offset) {
-  size_t length = writable_size(st);
-  struct list_head* el;
-  int64_t pos = 0;
-
-  offset = MOD_NUM(offset, (int64_t)length);
-
-  if(offset < 0 || offset >= length)
-    return -1;
-
-  list_for_each_prev(el, &st->q.list) {
-    Chunk* chunk = list_entry(el, Chunk, link);
-
-    if(offset >= pos && offset < pos + chunk->size)
-      return chunk->data[offset - pos];
-
-    pos += chunk->size;
-  }
-
-  return -1;
-}
-*/
+ 
 int
 writable_lock(Writable* st, Writer* wr) {
   const Writer* expected = 0;

@@ -1355,7 +1355,7 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
     case GET_TYPE_STR: {
-     const char* type;
+      const char* type;
       if((type = js_value_type_name(type_id)))
         ret = JS_NewString(ctx, type);
       break;

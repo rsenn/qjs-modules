@@ -30,6 +30,15 @@ async function ReadStream(stream) {
   return blob.arrayBuffer();
 }
 
+async function WriteStream(stream, fn = writer => {}) {
+  let writer = stream.getWriter();
+  console.log('WriteStream(0)', { writer });
+
+  fn(writer);
+
+  writer.releaseLock();
+}
+
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
@@ -48,7 +57,15 @@ function main(...args) {
   console.log('read', read);
   console.log('write', write);
 
-  ReadStream(read).then(result => console.log('read', toString(result)));
+  ReadStream(read).then(result => {
+    let str = toString(result);
+    //console.log('read', str);
+    WriteStream(write, async writer => {
+    //  console.log('writer', writer);
+      await writer.write(result);
+      await writer.close();
+    });
+  });
 }
 
 try {
