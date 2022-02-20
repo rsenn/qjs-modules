@@ -121,7 +121,6 @@ js_sockaddr_new(JSContext* ctx, int family) {
 
 static BOOL
 js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
-  size_t size = 0;
   if(argc == 1 && js_is_arraybuffer(ctx, argv[0])) {
     uint8_t* data;
     size_t len;
@@ -133,6 +132,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
   }
 
   if(argc >= 2 && JS_IsNumber(argv[0])) {
+    size_t size;
     int32_t family;
     JS_ToInt32(ctx, &family, argv[0]);
     a->family = family;
@@ -743,12 +743,12 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async) {
       return JS_ThrowOutOfMemory(ctx);
 
     JS_SetOpaque(obj, asock);
-    s = asock;
+    s = (Socket*)asock;
 
   } else {
     Socket sock = {{fd, 0, -1}};
     JS_SetOpaque(obj, sock.ptr);
-    s = &(JS_VALUE_GET_OBJ(obj)->u.opaque);
+    s = (Socket*)&(JS_VALUE_GET_OBJ(obj)->u.opaque);
   }
   s->fd = fd;
 
@@ -1043,7 +1043,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       int32_t level, optname;
       uint32_t optlen = sizeof(int);
       uint8_t* buf;
-      int32_t *val, *tmp = 0;
+      int32_t val, *tmp = 0;
       socklen_t len;
       JS_ToInt32(ctx, &level, argv[0]);
       JS_ToInt32(ctx, &optname, argv[1]);
@@ -1058,7 +1058,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         js_array_clear(ctx, argv[2]);
         JS_SetPropertyUint32(ctx, argv[2], 0, JS_NewInt32(ctx, *(int32_t*)buf));
       }
-      val = (void*)buf;
+      // val = (void*)buf;
       if(tmp)
         js_free(ctx, tmp);
       /*printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", s->fd, level, optname,
@@ -1208,8 +1208,7 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   const char* handler = (magic & 1) ? "setWriteHandler" : "setReadHandler";
   JSAtom func_name;
   int data_len;
-  JSCFunctionMagic* set_mux = 0;
-  JSValue ret, set_handler, args[2], data[7], promise, resolving_funcs[2];
+  JSValue ret = JS_UNDEFINED, set_handler, args[2], data[7], promise, resolving_funcs[2];
 
   if(!(os = js_module_find(ctx, "os")))
     return JS_ThrowInternalError(ctx, "'os' module required");
@@ -1225,7 +1224,7 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   if(js_value_isclass(ctx, set_handler, JS_CLASS_C_FUNCTION)) {
     JSObject* obj = JS_VALUE_GET_OBJ(set_handler);
-    set_mux = obj->u.cfunc.c_function.generic_magic;
+    JSCFunctionMagic* set_mux = obj->u.cfunc.c_function.generic_magic;
     // printf("cfunc:%p\n", set_mux);
   }
 
@@ -1249,6 +1248,7 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   ret = JS_Call(ctx, set_handler, JS_UNDEFINED, 2, args);
 
+  JS_FreeValue(ctx, ret);
   JS_FreeValue(ctx, args[1]);
   JS_FreeValue(ctx, set_handler);
   JS_FreeValue(ctx, resolving_funcs[0]);

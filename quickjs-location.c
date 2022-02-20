@@ -328,7 +328,7 @@ js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 static JSValue
-js_location_clone(JSContext* ctx, JSValueConst this_val /*, int argc, JSValueConst argv[]*/) {
+js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   Location *loc, *other;
 

@@ -15,9 +15,8 @@ token_new(JSContext* ctx) {
 
 BOOL
 token_release_rt(Token* tok, JSRuntime* rt) {
-  --tok->ref_count;
-  if(tok->ref_count == 0) {
-    location_release_rt(&tok->loc, rt);
+  if(--tok->ref_count == 0) {
+    location_release_rt(tok->loc, rt);
     js_free_rt(rt, tok->lexeme);
     tok->lexeme = 0;
     return TRUE;
@@ -43,7 +42,7 @@ token_create(int id, Location* loc, const char* lexeme, size_t len, JSContext* c
 
     tok->byte_length = len;
 
-    tok->lexeme = js_strndup(ctx, lexeme, len);
+    tok->lexeme = (uint8_t*)js_strndup(ctx, lexeme, len);
     tok->char_length = utf8_strlen(lexeme, len);
   }
 

@@ -285,11 +285,6 @@ lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
   vector_init(&lex->state_stack, ctx);
 }
 
-void
-lexer_set_input(Lexer* lex, InputBuffer input, char* filename) {
-  lex->input = input;
-  lex->loc.file = filename;
-}
 
 void
 lexer_define(Lexer* lex, char* name, char* expr) {
@@ -428,6 +423,12 @@ lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
     lexer_skip(lex);
 
   return ret;
+}
+
+void
+lexer_set_input(Lexer* lex, InputBuffer input, int32_t file_atom) {
+  lex->input = input;
+  lex->loc.file = file_atom;
 }
 
 void

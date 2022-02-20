@@ -946,7 +946,7 @@ js_misc_immutable_constructor(JSContext* ctx, JSValueConst new_target, int argc,
 }
 
 static JSValue
-js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic){
   struct ImmutableClosure* closure;
   JSValue ret, proto;
   JSClassID id;
@@ -1355,13 +1355,13 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
     case GET_TYPE_STR: {
-      const char* type;
+      char* type;
       if((type = js_value_type_name(type_id)))
         ret = JS_NewString(ctx, type);
       break;
     }
     case GET_TYPE_NAME: {
-      const char* type;
+      char* type;
       if((type = js_object_classname(ctx, argv[0]))) {
         ret = JS_NewString(ctx, type);
         js_free(ctx, type);

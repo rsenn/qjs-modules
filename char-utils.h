@@ -10,7 +10,7 @@
  * @{
  */
 #define is_control_char(c) ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
-#define is_alphanumeric_char(c) ((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z')
+#define is_alphanumeric_char(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
 #define is_newline_char(c) ((c) == '\n')
 #define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')

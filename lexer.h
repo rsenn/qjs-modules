@@ -10,7 +10,7 @@
  * \defgroup lexer Lexical scanner, regex based
  * @{
  */
-typedef struct lexical_scanner {
+typedef struct lexical_rule {
   char* name;
   char* expr;
   uint64_t mask;
@@ -34,7 +34,7 @@ enum {
   LEXER_ERROR_EXEC = -4,
 };
 
-typedef struct {
+typedef struct lexical_scanner {
   int ref_count;
   enum lexer_mode mode;
   size_t /*start, */ byte_length;
@@ -63,7 +63,7 @@ void lexer_rule_free(LexerRule*, JSContext*);
 void lexer_rule_free_rt(LexerRule*, JSRuntime*);
 void lexer_rule_dump(Lexer*, LexerRule*, DynBuf* dbuf);
 void lexer_init(Lexer*, enum lexer_mode, JSContext* ctx);
-void lexer_set_input(Lexer*, InputBuffer, char* filename);
+void lexer_set_input(Lexer*, InputBuffer, int32_t file_atom);
 void lexer_define(Lexer*, char*, char* expr);
 LexerRule* lexer_find_definition(Lexer*, const char*, size_t namelen);
 BOOL lexer_compile_rules(Lexer*, JSContext*);

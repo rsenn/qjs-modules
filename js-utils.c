@@ -1,16 +1,17 @@
 #include "js-utils.h"
 
-static inline Promise
+static inline void
 js_resolve_functions_zero(ResolveFunctions* funcs) {
   funcs->array[0] = JS_NULL;
   funcs->array[1] = JS_NULL;
 }
+
 static inline BOOL
 js_resolve_functions_is_null(ResolveFunctions* funcs) {
   return JS_IsNull(funcs->array[0]) && JS_IsNull(funcs->array[1]);
 }
 
-static Promise
+static void
 js_resolve_functions_free(JSContext* ctx, ResolveFunctions* funcs) {
   JS_FreeValue(ctx, funcs->array[0]);
   JS_FreeValue(ctx, funcs->array[1]);
@@ -51,7 +52,7 @@ promise_create(JSContext* ctx, ResolveFunctions* funcs) {
   return ret;
 }
 
-Promise
+void
 promise_free(JSContext* ctx, Promise* prom) {
   JS_FreeValue(ctx, prom->promise);
   prom->promise = JS_UNDEFINED;

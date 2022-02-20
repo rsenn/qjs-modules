@@ -140,9 +140,9 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       if(!(ar = archive_read_new()))
         return JS_ThrowOutOfMemory(ctx);
 
-      archive_read_support_compression_all(ar);
-      archive_read_support_filter_all(ar);
+      // archive_read_support_compression_all(ar);
       archive_read_support_format_all(ar);
+      archive_read_support_filter_all(ar);
 
       if(argc > 1 && JS_IsNumber(argv[1])) {
         JS_ToUint32(ctx, &block_size, argv[1]);
@@ -199,7 +199,7 @@ js_archive_getter(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case ARCHIVE_PROP_COMPRESSION: {
-      ret = JS_NewString(ctx, archive_compression_name(ar));
+      ret = JS_NewString(ctx, archive_filter_name(ar, 0));
       break;
     }
     case ARCHIVE_PROP_FILTERS: {
@@ -292,7 +292,7 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     void* data;
     size_t size;
     __LA_INT64_T offset;
-    switch(archive_read_data_block(ar, &data, &size, &offset)) {
+    switch(archive_read_data_block(ar, (const void**)&data, &size, &offset)) {
       case ARCHIVE_OK: {
         struct ArchiveInstance* abuf = js_malloc(ctx, sizeof(struct ArchiveInstance));
         abuf->archive = JS_DupValue(ctx, this_val);

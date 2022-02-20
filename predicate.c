@@ -325,7 +325,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       end = slice.end < 0 ? block.size + (slice.end % (signed)block.size) : slice.end > block.size ? block.size : slice.end;
 
       if(JS_IsString(arg)) {
-        ret = JS_NewStringLen(ctx, block.base + start, end - start);
+        ret = JS_NewStringLen(ctx, (const char*)block.base + start, end - start);
       } else {
         ret = JS_NewArrayBuffer(ctx, block.base + start, end - start, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), FALSE);
       }
@@ -730,9 +730,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
           if(!strncmp(&s[i], s, arglen) && !(is_alphanumeric_char(s[i + arglen]) || is_digit_char(s[i + arglen]))) {
             s += i + arglen;
           }
-        } else
-
-            if(!strncmp(s + 1, " => ", 4) && is_alphanumeric_char(s[5]) && is_whitespace_char(s[6])) {
+        } else if(!strncmp(s + 1, " => ", 4) && is_alphanumeric_char(s[5]) && is_whitespace_char(s[6])) {
           s += 6;
         }
 
@@ -868,6 +866,9 @@ predicate_free_rt(Predicate* pr, JSRuntime* rt) {
     }
     case PREDICATE_SHIFT: {
       JS_FreeValueRT(rt, pr->shift.predicate);
+      break;
+    }
+    case PREDICATE_SLICE: {
       break;
     }
     case PREDICATE_FUNCTION: {

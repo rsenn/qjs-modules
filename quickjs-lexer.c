@@ -93,7 +93,7 @@ js_token_new(JSContext* ctx, int id, const char* lexeme, Location* loc, uint64_t
     return 0;
 
   tok->id = id;
-  tok->lexeme = js_strdup(ctx, lexeme);
+  tok->lexeme = (uint8_t*)js_strdup(ctx, lexeme);
   tok->loc = location_dup(loc);
   // tok->loc_val = JS_UNDEFINED;
   //   tok->byte_offset = byte_offset;
@@ -136,7 +136,7 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if(argc > 0)
     JS_ToInt32(ctx, &tok->id, argv[0]);
   if(argc > 1)
-    tok->lexeme = js_tostring(ctx, argv[1]);
+    tok->lexeme = (uint8_t*)js_tostring(ctx, argv[1]);
   if(argc > 2) {
     Location* loc;
 
@@ -207,7 +207,7 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewUint32(ctx, tok->id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, rule->name), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, tok->lexeme), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, (const char*)tok->lexeme), JS_PROP_ENUMERABLE);
 
   if(tok->loc)
     JS_DefinePropertyValueStr(ctx, obj, "charOffset", JS_NewUint32(ctx, tok->loc->char_offset), JS_PROP_ENUMERABLE);
@@ -482,9 +482,9 @@ lexer_unescape_pred(int c) {
 
 static char*
 lexer_current_line(Lexer* lex, JSContext* ctx) {
-  size_t start, end, size;
+  size_t start, size;
   start = lex->input.pos;
-  end = start + lex->byte_length;
+  // end = start + lex->byte_length;
   while(start > 0 && lex->input.data[start - 1] != '\n') start--;
   size = byte_chr((const char*)&lex->input.data[start], lex->input.size - start, '\n');
   // while(end < lex->input.size && lex->input.data[end] != '\n') end++;
@@ -702,7 +702,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           lexer_set_location(lex, loc, ctx);
           ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, ctx));
         } else if((tok = js_token_data(argv[i]))) {
-          lexer_set_location(lex, &tok->loc, ctx);
+          lexer_set_location(lex, tok->loc, ctx);
           lex->byte_length = tok->byte_length;
           lex->seq = tok->seq;
           ret = JS_NewInt32(ctx, tok->id);
@@ -1312,7 +1312,7 @@ JSValue
 js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue next, ret = JS_NewObject(ctx);
 
-  next = JS_NewCFunction2(ctx, js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, YIELD_ID | YIELD_DONE_VALUE);
+  next = JS_NewCFunction2(ctx, (JSCFunction*)&js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, YIELD_ID | YIELD_DONE_VALUE);
 
   JS_SetPropertyStr(ctx, ret, "next", js_function_bind_this(ctx, next, this_val));
   return ret;

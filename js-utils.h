@@ -16,13 +16,12 @@ typedef struct promise {
   JSValue promise;
 } Promise;
 
-Promise promise_free(JSContext*, Promise*);
 ResolveFunctions* promise_new(JSContext*, JSValueConst*);
 JSValue promise_create(JSContext*, ResolveFunctions*);
+void promise_free(JSContext*, Promise*);
 BOOL promise_init(JSContext*, Promise*);
 BOOL promise_resolve(JSContext*, ResolveFunctions*, JSValueConst);
 BOOL promise_reject(JSContext*, ResolveFunctions*, JSValueConst);
-
 void promise_zero(Promise*);
 BOOL promise_pending(Promise*);
 BOOL promise_done(Promise*);

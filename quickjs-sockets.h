@@ -30,11 +30,11 @@ typedef union {
   unsigned error : 8; \
   int syscall : 4; \
   BOOL nonblock : 1, async : 1; \
-  int32_t ret;
+  int32_t ret
 
 union __attribute__((packed)) socket_state {
   struct {
-    SOCKET_PROPS()
+    SOCKET_PROPS();
   };
   uint64_t u64;
   void* ptr;
@@ -49,8 +49,7 @@ struct async_closure {
 };
 
 struct __attribute__((packed)) async_socket_state {
-  SOCKET_PROPS()
-
+  SOCKET_PROPS();
   struct socket_handlers handlers;
 };
 
@@ -145,7 +144,7 @@ js_socket_data(JSValueConst value) {
       return sock;
     }
   }
-  return (Socket){-1, 0, -1};
+  return (Socket){{-1, 0, -1}};
 }
 
 static inline Socket*
@@ -156,7 +155,7 @@ js_socket_ptr(JSValueConst value) {
     if(id == js_socket_class_id) {
       struct JSObject* obj;
       obj = JS_VALUE_GET_OBJ(value);
-      return &obj->u.opaque;
+      return (Socket*)&obj->u.opaque;
     } else if(id == js_async_socket_class_id) {
       return JS_GetOpaque(value, id);
     }
@@ -176,7 +175,7 @@ js_async_socket_ptr(JSValueConst value) {
 
 static inline Socket
 js_socket_data2(JSContext* ctx, JSValueConst value) {
-  Socket sock = {-1, 0, -1};
+  Socket sock = {{-1, 0, -1}};
   JSClassID id = JS_GetClassID(value);
   assert(id == js_socket_class_id || id == js_async_socket_class_id);
   if(id > 0 && (id == js_socket_class_id || id == js_async_socket_class_id)) {
