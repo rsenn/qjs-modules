@@ -382,7 +382,7 @@ function main(...args) {
 
     /*log('ES6 imports', imports.map(PrintES6Import));
     log('CJS imports', imports.map(PrintCJSImport));*/
-    let compare = (a, b) => '' + a > '' + b;
+    let compare = (a, b) => ('' + a).localeCompare(''+b);
 
     if(!caseSensitive) {
       let fn = compare;

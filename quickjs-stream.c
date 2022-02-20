@@ -66,11 +66,8 @@ reader_release_lock(Reader* rd, JSContext* ctx) {
 }
 
 int
-reader_cancel(Reader* rd, JSContext* ctx) {
+reader_clear(Reader* rd, JSContext* ctx) {
   int ret = 0;
-
-  if(JS_IsUndefined(rd->events[READER_CANCELLED].promise))
-    ret = promise_init(ctx, &rd->events[READER_CANCELLED]);
 
   while(!list_empty(&rd->reads)) {
     JSValue result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
@@ -84,10 +81,19 @@ reader_cancel(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
+int
+reader_cancel(Reader* rd, JSContext* ctx) {
+ 
+  if(JS_IsUndefined(rd->events[READER_CANCELLED].promise))
+     promise_init(ctx, &rd->events[READER_CANCELLED]);
+
+  return reader_clear(rd,ctx);
+}
+
 JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  Readable* stream;
+  Readable* st;
   Chunk* ch;
   struct read_operation* op;
 
@@ -100,9 +106,9 @@ reader_read(Reader* rd, JSContext* ctx) {
 
   ret = promise_create(ctx, &op->handlers);
 
-  if((stream = rd->stream)) {
-    if(queue_empty(&rd->stream->q)) {
-      JSValue tmp = js_readable_callback(ctx, stream, READABLE_PULL, 1, &stream->controller);
+  if((st = rd->stream)) {
+    if(queue_empty(&st->q)) {
+      JSValue tmp = js_readable_callback(ctx, st, READABLE_PULL, 1, &st->controller);
       JS_FreeValue(ctx, tmp);
     }
   }
@@ -130,6 +136,12 @@ reader_update(Reader* rd, JSContext* ctx) {
   Chunk* ch;
   Readable* st = rd->stream;
   int ret = 0;
+
+  if(readable_closed(st)) {
+    promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
+
+    return reader_clear(rd, ctx);
+  }
 
   while(!list_empty(&rd->reads) && (ch = queue_next(&st->q))) {
     JSValue chunk, result;
@@ -183,16 +195,17 @@ readable_close(Readable* st, JSContext* ctx) {
   static const BOOL expected = FALSE;
   JSValue ret = JS_UNDEFINED;
 
-  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-    return JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
+st->closed = TRUE;
+/*  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
+    return JS_ThrowInternalError(ctx, "ReadableStream already closed");*/
 
-  if(readable_locked(st)) {
+/*  if(readable_locked(st)) {
     promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
     reader_cancel(st->reader, ctx);
   }
 
-  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);
+  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
 
   return ret;
 }
@@ -205,13 +218,13 @@ readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
     return JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
 
-  if(readable_locked(st)) {
+ /* if(readable_locked(st)) {
     promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
     reader_cancel(st->reader, ctx);
   }
 
-  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);
+  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);*/
 
   return ret;
 }
@@ -460,7 +473,7 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   Readable* st;
 
   if(!(st = readable_new(ctx)))
-    return JS_EXCEPTION;
+    return JS_ThrowOutOfMemory(ctx);
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -519,7 +532,7 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   Readable* st;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(st = JS_GetOpaque2(ctx, this_val, js_readable_class_id)))
+  if(!(st = js_readable_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -624,7 +637,7 @@ js_readable_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static JSClassDef js_readable_class = {
-    .class_name = "Readable",
+    .class_name = "ReadableStream",
     .finalizer = js_readable_finalizer,
 };
 
@@ -1204,7 +1217,7 @@ static JSClassExoticMethods js_writable_exotic_methods = {
 };*/
 
 static JSClassDef js_writable_class = {
-    .class_name = "Writable", .finalizer = js_writable_finalizer,
+    .class_name = "WritableStream", .finalizer = js_writable_finalizer,
     //  .exotic = &js_writable_exotic_methods,
 };
 

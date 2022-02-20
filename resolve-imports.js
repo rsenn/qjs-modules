@@ -7,27 +7,7 @@ import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import JSLexer from 'jslexer.js';
-import {
-  getset,
-  memoize,
-  randInt,
-  getTypeName,
-  getTypeStr,
-  isObject,
-  shorten,
-  toString,
-  toArrayBuffer,
-  define,
-  curry,
-  unique,
-  split,
-  extendArray,
-  camelize,
-  types,
-  getOpt,
-  quote,
-  escape
-} from 'util';
+import { getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
 
 ('use strict');
 ('use math');
@@ -93,12 +73,7 @@ const TokIs = curry((type, lexeme, tok) => {
     return true;
   }
 });
-const CompareRange = (a, b) =>
-  a === null || b === null
-    ? 0
-    : typeof a[0] == 'number' && typeof b[0] == 'number' && a[0] != b[0]
-    ? a[0] - b[0]
-    : a[1] - b[1];
+const CompareRange = (a, b) => (a === null || b === null ? 0 : typeof a[0] == 'number' && typeof b[0] == 'number' && a[0] != b[0] ? a[0] - b[0] : a[1] - b[1]);
 
 const IsKeyword = TokIs('keyword');
 const IsPunctuator = TokIs('punctuator');
@@ -218,28 +193,20 @@ function AddExport(tokens, relativePath = s => s) {
 
   if(tokens[0].seq == tokens[1].seq) tokens.shift();
   const { loc, seq } = tokens[0];
-  if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
-    throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+  if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
   let def = tokens.findIndex(tok => IsKeyword('default', tok));
   let nameIdx = 1;
-  while(tokens[nameIdx].type == 'whitespace' || IsKeyword(['let', 'class', 'function', 'const'], tokens[nameIdx]))
-    nameIdx++;
+  while(tokens[nameIdx].type == 'whitespace' || IsKeyword(['let', 'class', 'function', 'const'], tokens[nameIdx])) nameIdx++;
   while(tokens[nameIdx] && tokens[nameIdx].type != 'identifier') nameIdx++;
   let name = ExportName(tokens);
   let exported = def != -1 ? 'default' : name;
   let file = ImportFile(tokens); // fromIndex != -1 ? Unquote(tokens[fromIndex + 1].lexeme) : null;
   if(file == ' ') throw new Error('XXX ' + inspect(tokens, { compact: false }));
-  const idx =
-    def != -1
-      ? def
-      : file
-      ? tokens.findIndex(tok => tok.lexeme == ';')
-      : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
+  const idx = def != -1 ? def : file ? tokens.findIndex(tok => tok.lexeme == ';') : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
   const exportObj = NonWS(tokens)[1].lexeme == '{';
 
   const remove = exportObj || def != -1 ? tokens.slice() : tokens.slice(0, def == idx ? idx + 2 : idx + 1); //idx + 1);
-  if(remove[0])
-    if(remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+  if(remove[0]) if (remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
   const range = ByteSequence(remove) ?? ByteSequence(tokens);
   let source = loc.file;
   let type = ImpExpType(tokens);
@@ -253,8 +220,7 @@ function AddExport(tokens, relativePath = s => s) {
 
     // console.log('AddExport', console.config({ compact: 0 }), { file, range, code, exported });
   }
-  if(NonWS(tokens)[1].lexeme != '{')
-    len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
+  if(NonWS(tokens)[1].lexeme != '{') len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
   tokens = tokens.slice(0, len);
   let exp = define(
     {
@@ -279,8 +245,7 @@ function AddExport(tokens, relativePath = s => s) {
 function AddImport(tokens, relativePath = s => s) {
   tokens = tokens[0].seq === tokens[1].seq ? tokens.slice(1) : tokens.slice();
 
-  if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
-    throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
+  if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
 
   const tok = tokens[0];
   const { loc, seq } = tok;
@@ -403,8 +368,7 @@ function ProcessFile(source, log = () => {}, recursive) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme])
-            throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
           stack.pop();
           break;
@@ -535,11 +499,7 @@ function ProcessFile(source, log = () => {}, recursive) {
     let replacement = type == What.EXPORT ? null : /*FileMap.for*/ file;
     let { byteOffset } = loc;
 
-    if(bufstr == ' ')
-      throw new Error(
-        `bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` +
-          toString(bytebuf.slice(loc.byteOffset, range[1] + 10))
-      );
+    if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
 
     //if(replacement == null) debugLog('replaceRange', inspect({ file: map.file, bufstr, range, replacement, loc: loc + '' }, { compact: 3, depth: 3 }) );
     //debugLog('impexp', compact(2), { file, code, loc: loc + '', range: new NumericRange(...range), removeExports, type });
@@ -547,11 +507,7 @@ function ProcessFile(source, log = () => {}, recursive) {
     if(file && /*/[\.\/]/.test(file) &&*/ path.exists(file)) {
       replacement = file;
       header.push(impexp);
-    } else if(
-      (typeof replacement == 'string' && !path.exists(replacement)) ||
-      type == What.IMPORT ||
-      typeof file == 'string'
-    ) {
+    } else if((typeof replacement == 'string' && !path.exists(replacement)) || type == What.IMPORT || typeof file == 'string') {
       replacement = null;
       header.push(impexp);
     }
@@ -562,8 +518,7 @@ function ProcessFile(source, log = () => {}, recursive) {
       replacement = file;
     }
 
-    if(debug > 1)
-      debugLog('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
+    if(debug > 1) debugLog('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
 
     map.replaceRange(range, replacement);
   }
@@ -870,20 +825,13 @@ class FileMap extends Array {
       }
       return i;
     };
-    if(debug > 2)
-      console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { file, range: [range[0], range[1]] });
+    if(debug > 2) console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { file, range: [range[0], range[1]] });
     let start = sliceIndex(range[0]);
     let end = sliceIndex(range[1]);
     const { length } = this;
-    if(debug > 2)
-      console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { start, end, length, this: this });
+    if(debug > 2) console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { start, end, length, this: this });
     if(range[0] < this[start][0]) range[0] = this[start][0];
-    if(!this[start][0])
-      throw new Error(
-        `range=${range}\nlength=${this.length}\nstart=${start}\nend=${end}\nthis[${start}]=${inspect(
-          this[start]
-        )}\nthis[${start - 1}]=${inspect(this[start - 1])}\nthis[${start + 1}]=${inspect(this[start + 1])}`
-      );
+    if(!this[start][0]) throw new Error(`range=${range}\nlength=${this.length}\nstart=${start}\nend=${end}\nthis[${start}]=${inspect(this[start])}\nthis[${start - 1}]=${inspect(this[start - 1])}\nthis[${start + 1}]=${inspect(this[start + 1])}`);
     if(range[0] > this[start][0][0]) {
       if(start == end) {
         let [range, buf] = this[start];
@@ -986,8 +934,7 @@ class FileMap extends Array {
     let first = this.firstChunk();
     let last = this.lastChunk();
 
-    if(debug > 2)
-      debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, compact(2), { chunks: [this.at(first), this.at(last)] });
+    if(debug > 2) debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, compact(2), { chunks: [this.at(first), this.at(last)] });
 
     for(let i = 0; i < length; i++) {
       let str = this.at(i);
@@ -1028,8 +975,7 @@ class FileMap extends Array {
       const [range, buf] = this[i];
       if(range === null && buf === null) continue;
       if((str = this.at(i)) === null) continue;
-      if(range === null)
-        if(typeof buf == 'string') /*if(typeof str == 'string')*/ str = fn(buf, 0) + str + fn(buf, 1);
+      if(range === null) if (typeof buf == 'string') /*if(typeof str == 'string')*/ str = fn(buf, 0) + str + fn(buf, 1);
       s += str;
     }
     return s;
@@ -1043,9 +989,7 @@ FileMap.prototype[Symbol.inspect] = function(depth, opts) {
       buf = buf.slice(...range);
     }
     // console.log(`i=${i}`, { range, buf });
-    return [range, isObject(buf) && types.isArrayBuffer(buf) ? this.file : buf]
-      .map((item, i) => inspect(item, { ...opts, compact: 1, customInspect: true }).padEnd(i == 0 ? 31 : 0))
-      .join(', ');
+    return [range, isObject(buf) && types.isArrayBuffer(buf) ? this.file : buf].map((item, i) => inspect(item, { ...opts, compact: 1, customInspect: true }).padEnd(i == 0 ? 31 : 0)).join(', ');
   });
   return (
     `FileMap\x1b[1;35m<${this.file}>\x1b[0m ` + arr.map(item => `[ ${item} ]`).join(',\n  ') ??
@@ -1103,16 +1047,8 @@ function DumpToken(tok) {
   return `★ Token ${inspect({ chars, offset, length, loc }, { depth: 1 })}`;
 }
 
-function* DependencyTree(
-  root,
-  indent = ' ',
-  spacing = false,
-  depth = 0,
-  pre = '',
-  fn = (name, depth) => `${name} (${depth})`
-) {
-  if(!Array.isArray(dependencyTree(root)))
-    throw new Error(`No such file '${root}' in dependency Map ([${[...dependencyMap.keys()]}])`);
+function* DependencyTree(root, indent = ' ', spacing = false, depth = 0, pre = '', fn = (name, depth) => `${name} (${depth})`) {
+  if(!Array.isArray(dependencyTree(root))) throw new Error(`No such file '${root}' in dependency Map ([${[...dependencyMap.keys()]}])`);
 
   if(depth == 0) yield pre + fn(root, depth) + `\n`;
 
@@ -1126,13 +1062,7 @@ function* DependencyTree(
 
     yield pre + indent + (n == 1 ? `└─ ` : i < n - 1 ? `├─ ` : `└─ `) + fn(a[i], depth + 1) + '\n';
 
-    yield* DependencyTree(
-      a[i],
-      indent,
-      spacing,
-      depth + 1,
-      pre + indent + (n == 1 ? `   ` : i < n - 1 ? `│  ` : `   `)
-    );
+    yield* DependencyTree(a[i], indent, spacing, depth + 1, pre + indent + (n == 1 ? `   ` : i < n - 1 ? `│  ` : `   `));
   }
 }
 

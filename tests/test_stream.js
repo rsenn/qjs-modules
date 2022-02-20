@@ -13,14 +13,15 @@ async function ReadStream(stream) {
   console.log('ReadStream(0)', { reader });
   let chunk,
     chunks = [];
-  while((chunk =  reader.read())) {
-   // chunk = chunk.then(res => (console.log('chunk resolved', res), res));
-    chunk=await chunk;
-    console.log('ReadStream(1)', { chunk });
-    chunks.push(chunk);
+  while((chunk = reader.read())) {
+    let { value, done } = await chunk;
+    // chunk = chunk.then(res => (console.log('chunk resolved', res), res));
+    console.log('ReadStream(1)', { done, value });
+    if(done) break;
+    chunks.push(value);
   }
 
-  console.log('ReadStream(2)');
+  console.log('ReadStream(2)', { chunks });
   let blob = new Blob(chunks);
   console.log('ReadStream(3)', { blob });
 
