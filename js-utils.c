@@ -17,14 +17,16 @@ js_resolve_functions_free(JSContext* ctx, ResolveFunctions* funcs) {
   js_resolve_functions_zero(funcs);
 }
 
-static inline JSValue
+static inline BOOL
 js_resolve_functions_call(JSContext* ctx, ResolveFunctions* funcs, int index, JSValueConst arg) {
   JSValue ret = JS_UNDEFINED;
   if(!JS_IsNull(funcs->array[index])) {
     ret = JS_Call(ctx, funcs->array[index], JS_UNDEFINED, 1, &arg);
     js_resolve_functions_free(ctx, funcs);
+    JS_FreeValue(ctx, ret);
+    return TRUE;
   }
-  return ret;
+  return FALSE;
 }
 
 ResolveFunctions*
@@ -62,12 +64,12 @@ promise_init(JSContext* ctx, Promise* prom) {
   return !JS_IsException(prom->promise);
 }
 
-JSValue
+BOOL
 promise_resolve(JSContext* ctx, ResolveFunctions* funcs, JSValueConst value) {
   return js_resolve_functions_call(ctx, funcs, 0, value);
 }
 
-JSValue
+BOOL
 promise_reject(JSContext* ctx, ResolveFunctions* funcs, JSValueConst value) {
   return js_resolve_functions_call(ctx, funcs, 1, value);
 }

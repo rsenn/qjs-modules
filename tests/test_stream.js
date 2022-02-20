@@ -2,6 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
 import { ReadableStream, WritableStream } from 'stream';
+import { Blob } from 'blob';
 import { FileSystemReadableFileStream, FileSystemWritableFileStream } from '../lib/streams.js';
 
 ('use strict');
@@ -9,17 +10,22 @@ import { FileSystemReadableFileStream, FileSystemWritableFileStream } from '../l
 
 async function ReadStream(stream) {
   let reader = stream.getReader();
-  console.log('ReadStream', { reader });
-  let chunks = [];
-  do {
-    let chunk = reader.read();
-    console.log('ReadStream', { chunk });
-    chunk = await chunk;
+  console.log('ReadStream(0)', { reader });
+  let chunk,
+    chunks = [];
+  while((chunk =  reader.read())) {
+   // chunk = chunk.then(res => (console.log('chunk resolved', res), res));
+    chunk=await chunk;
+    console.log('ReadStream(1)', { chunk });
     chunks.push(chunk);
-  } while(chunk);
+  }
+
+  console.log('ReadStream(2)');
+  let blob = new Blob(chunks);
+  console.log('ReadStream(3)', { blob });
 
   reader.releaseLock();
-  return chunks;
+  return blob;
 }
 
 function main(...args) {
@@ -28,8 +34,8 @@ function main(...args) {
       colors: true,
       depth: 8,
       maxStringLength: Infinity,
-      maxArrayLength: 256,
-      compact: 2,
+      maxArrayLength: 64,
+      compact: 1,
       showHidden: false
     }
   });

@@ -1,5 +1,6 @@
 #include "quickjs-stream.h"
 #include "buffer-utils.h"
+#include "utils.h"
 #include "debug.h"
 #include <assert.h>
 
@@ -38,8 +39,8 @@ reader_new(JSContext* ctx, Readable* st) {
   if((rd = js_mallocz(ctx, sizeof(Reader)))) {
     atomic_store(&rd->stream, st);
 
-    promise_init(ctx, &rd->closed);
-    promise_zero(&rd->cancelled);
+    promise_init(ctx, &rd->events[READER_CLOSED]);
+    promise_zero(&rd->events[READER_CANCELLED]);
 
     init_list_head(&rd->reads);
 
@@ -64,12 +65,20 @@ reader_release_lock(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
-BOOL
+int
 reader_cancel(Reader* rd, JSContext* ctx) {
-  BOOL ret = FALSE;
+  int ret = 0;
 
-  if(JS_IsUndefined(rd->cancelled.promise)) {
-    ret = promise_init(&rd->cancelled, ctx);
+  if(JS_IsUndefined(rd->events[READER_CANCELLED].promise))
+    ret = promise_init(ctx, &rd->events[READER_CANCELLED]);
+
+  while(!list_empty(&rd->reads)) {
+    JSValue result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
+
+    if(reader_passthrough(rd, result, ctx))
+      ++ret;
+
+    JS_FreeValue(ctx, result);
   }
 
   return ret;
@@ -87,28 +96,52 @@ reader_read(Reader* rd, JSContext* ctx) {
 
   list_add(&op->link, &rd->reads);
 
+  printf("Read (%p)\n", op);
+
   ret = promise_create(ctx, &op->handlers);
 
   if((stream = rd->stream)) {
-    JSValue tmp = js_readable_callback(ctx, stream, READABLE_PULL, 1, &stream->controller);
-    JS_FreeValue(ctx, tmp);
+    if(queue_empty(&rd->stream->q)) {
+      JSValue tmp = js_readable_callback(ctx, stream, READABLE_PULL, 1, &stream->controller);
+      JS_FreeValue(ctx, tmp);
+    }
   }
 
-  if((ch = queue_next(&stream->q))) {
-    promise_resolve(ctx, &op->handlers, chunk_arraybuffer(ch, ctx));
-  }
+  reader_update(rd, ctx);
 
   return ret;
 }
 
 JSValue
 reader_signal(Reader* rd, StreamEvent event, JSValueConst arg, JSContext* ctx) {
-  JSValue ret;
+  JSValue ret = JS_UNDEFINED;
 
   assert(event <= EVENT_READ);
   assert(event >= EVENT_CLOSE);
 
-  ret = promise_resolve(ctx, &rd->events[event], arg);
+  if(promise_resolve(ctx, &rd->events[event], arg))
+    ret = JS_TRUE;
+
+  return ret;
+}
+
+int
+reader_update(Reader* rd, JSContext* ctx) {
+  Chunk* ch;
+  Readable* st = rd->stream;
+  int ret = 0;
+
+  while(!list_empty(&rd->reads) && (ch = queue_next(&st->q))) {
+    JSValue chunk, result;
+
+    printf("Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
+    chunk = chunk_arraybuffer(ch, ctx);
+    result = js_iterator_result(ctx, chunk, FALSE);
+    JS_FreeValue(ctx, chunk);
+    if(reader_passthrough(rd, result, ctx))
+      ++ret;
+    JS_FreeValue(ctx, result);
+  }
 
   return ret;
 }
@@ -116,16 +149,20 @@ reader_signal(Reader* rd, StreamEvent event, JSValueConst arg, JSContext* ctx) {
 BOOL
 reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
   Read* r;
+  BOOL ret = FALSE;
 
-  if((r = rd->reads.prev) != &rd->reads) {
-    JSValue ret = promise_resolve(ctx, &r->handlers, chunk);
-    JS_FreeValue(ctx, ret);
+  while((r = rd->reads.prev) != &rd->reads) {
+
+    if(promise_resolve(ctx, &r->handlers, chunk)) {
+      ret = TRUE;
+      break;
+    }
+
     list_del(&r->link);
     js_free(ctx, r);
-    return TRUE;
   }
 
-  return FALSE;
+  return ret;
 }
 
 Readable*
@@ -144,21 +181,39 @@ readable_new(JSContext* ctx) {
 JSValue
 readable_close(Readable* st, JSContext* ctx) {
   static const BOOL expected = FALSE;
+  JSValue ret = JS_UNDEFINED;
 
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-    return js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);
+  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
+    return JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
 
-  return JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
+  if(readable_locked(st)) {
+    promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
+
+    reader_cancel(st->reader,ctx  );
+  }
+
+  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);
+
+  return ret;
 }
 
 JSValue
 readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   static const BOOL expected = FALSE;
+  JSValue ret = JS_UNDEFINED;
 
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-    return js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);
+  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
+    return JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
 
-  return JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
+  if(readable_locked(st)) {
+    promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
+
+    reader_cancel(st->reader,ctx);
+  }
+
+  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);
+
+  return ret;
 }
 
 JSValue
@@ -167,6 +222,7 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   InputBuffer input;
   int64_t ret;
   Reader* rd;
+  size_t old_size;
 
   /*  if(readable_locked(st) && (rd = st->reader)) {
       if(reader_passthrough(rd, chunk, ctx))
@@ -175,7 +231,11 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
 
   input = js_input_chars(ctx, chunk);
 
+  old_size = queue_size(&st->q);
+
   ret = queue_write(&st->q, input.data, input.size);
+
+  printf("old queue size: %zu new queue size: %zu\n", old_size, queue_size(&st->q));
 
   input_buffer_free(&input, ctx);
   return ret < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, ret) : JS_NewInt64(ctx, ret);
@@ -306,7 +366,7 @@ js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   switch(magic) {
     case READER_CANCEL: {
       reader_cancel(rd, ctx);
-      ret = JS_DupValue(ctx, rd->cancelled.promise);
+      ret = JS_DupValue(ctx, rd->events[READER_CANCELLED].promise);
       break;
     }
     case READER_READ: {
@@ -334,7 +394,7 @@ js_reader_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case READER_CLOSED: {
-      ret = JS_DupValue(ctx, rd->closed.promise);
+      ret = JS_DupValue(ctx, rd->events[READER_CLOSED].promise);
       break;
     }
   }
@@ -369,10 +429,10 @@ static const JSCFunctionListEntry js_reader_proto_funcs[] = {
 JSValue
 js_readable_callback(JSContext* ctx, Readable* st, ReadableEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
-  assert(event < countof(st->events));
+  assert(event < countof(st->on));
 
-  if(JS_IsFunction(ctx, st->events[event]))
-    return JS_Call(ctx, st->events[event], st->underlying_source, argc, argv);
+  if(JS_IsFunction(ctx, st->on[event]))
+    return JS_Call(ctx, st->on[event], st->underlying_source, argc, argv);
 
   return JS_UNDEFINED;
 }
@@ -411,9 +471,9 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     goto fail;
 
   if(argc >= 1 && !JS_IsNull(argv[0]) && JS_IsObject(argv[0])) {
-    st->on.start = JS_GetPropertyStr(ctx, argv[0], "start");
-    st->on.pull = JS_GetPropertyStr(ctx, argv[0], "pull");
-    st->on.cancel = JS_GetPropertyStr(ctx, argv[0], "cancel");
+    st->on[READABLE_START] = JS_GetPropertyStr(ctx, argv[0], "start");
+    st->on[READABLE_PULL] = JS_GetPropertyStr(ctx, argv[0], "pull");
+    st->on[READABLE_CANCEL] = JS_GetPropertyStr(ctx, argv[0], "cancel");
     st->underlying_source = JS_DupValue(ctx, argv[0]);
     st->controller = JS_NewObjectProtoClass(ctx, readable_controller, js_readable_class_id);
     JS_SetOpaque(st->controller, st);
@@ -595,8 +655,8 @@ writer_new(JSContext* ctx, Writable* st) {
 
   if((wr = js_mallocz(ctx, sizeof(Writer)))) {
     atomic_store(&wr->stream, st);
-    promise_init(&wr->closed, ctx);
-    promise_init(&wr->ready, ctx);
+    promise_init(ctx, &wr->events[WRITER_CLOSED]);
+    promise_init(ctx, &wr->events[WRITER_READY]);
   }
 
   return wr;
@@ -650,25 +710,26 @@ writer_abort(Writer* wr, JSValueConst reason, JSContext* ctx) {
   return js_writable_callback(ctx, wr, WRITABLE_ABORT, 1, &reason);
 }
 
-BOOL
+/*BOOL
 writer_ready(Writer* wr, JSContext* ctx) {
   BOOL ret = FALSE;
 
-  if(JS_IsUndefined(wr->ready.promise)) {
-    ret = promise_init(&wr->ready, ctx);
+  if(JS_IsUndefined(wr->events[WRITER_READY].promise)) {
+    ret = promise_init(ctx, &wr->events[WRITER_READY]);
   }
 
   return ret;
 }
-
+*/
 JSValue
 writer_signal(Writer* wr, StreamEvent event, JSValueConst arg, JSContext* ctx) {
-  JSValue ret;
+  JSValue ret = JS_UNDEFINED;
 
   assert(event <= EVENT_READ);
   assert(event >= EVENT_CLOSE);
 
-  ret = promise_resolve(ctx, &wr->events[event], arg);
+  if(promise_resolve(ctx, &wr->events[event], arg))
+    ret = JS_TRUE;
 
   return ret;
 }
@@ -861,11 +922,11 @@ js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case WRITER_CLOSED: {
-      ret = JS_DupValue(ctx, wr->closed.promise);
+      ret = JS_DupValue(ctx, wr->events[WRITER_CLOSED].promise);
       break;
     }
     case WRITER_READY: {
-      ret = JS_DupValue(ctx, wr->ready.promise);
+      ret = JS_DupValue(ctx, wr->events[WRITER_READY].promise);
       break;
     }
   }
@@ -899,10 +960,10 @@ static const JSCFunctionListEntry js_writer_proto_funcs[] = {
 JSValue
 js_writable_callback(JSContext* ctx, Writable* st, WritableEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
-  assert(event < countof(st->events));
+  assert(event < countof(st->on));
 
-  if(JS_IsFunction(ctx, st->events[event]))
-    return JS_Call(ctx, st->events[event], st->underlying_sink, argc, argv);
+  if(JS_IsFunction(ctx, st->on[event]))
+    return JS_Call(ctx, st->on[event], st->underlying_sink, argc, argv);
 
   return JS_UNDEFINED;
 }
@@ -924,10 +985,10 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     goto fail;
 
   if(argc >= 1 && !JS_IsNull(argv[0]) && JS_IsObject(argv[0])) {
-    st->on.start = JS_GetPropertyStr(ctx, argv[0], "start");
-    st->on.write = JS_GetPropertyStr(ctx, argv[0], "write");
-    st->on.close = JS_GetPropertyStr(ctx, argv[0], "close");
-    st->on.abort = JS_GetPropertyStr(ctx, argv[0], "abort");
+    st->on[WRITABLE_START] = JS_GetPropertyStr(ctx, argv[0], "start");
+    st->on[WRITABLE_WRITE] = JS_GetPropertyStr(ctx, argv[0], "write");
+    st->on[WRITABLE_CLOSE] = JS_GetPropertyStr(ctx, argv[0], "close");
+    st->on[WRITABLE_ABORT] = JS_GetPropertyStr(ctx, argv[0], "abort");
     st->underlying_sink = JS_DupValue(ctx, argv[0]);
 
     st->controller = JS_NewObjectProtoClass(ctx, writable_controller, js_writable_class_id);
