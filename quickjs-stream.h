@@ -86,8 +86,6 @@ typedef struct writable_stream {
 extern thread_local JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id, js_writable_class_id;
 extern thread_local JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor;
 
-void chunk_unref(JSRuntime*, void*, void*);
-JSValue chunk_arraybuf(Chunk*, JSContext*);
 Reader* reader_new(JSContext*, Readable*);
 BOOL reader_release_lock(Reader*, JSContext*);
 BOOL reader_cancel(Reader*, JSContext*);

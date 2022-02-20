@@ -63,13 +63,13 @@ promise_init(JSContext* ctx, Promise* prom) {
 }
 
 JSValue
-promise_resolve(JSContext* ctx, Promise* prom, JSValueConst value) {
-  return js_resolve_functions_call(ctx, &prom->funcs, 0, value);
+promise_resolve(JSContext* ctx, ResolveFunctions* funcs, JSValueConst value) {
+  return js_resolve_functions_call(ctx, funcs, 0, value);
 }
 
 JSValue
-promise_reject(JSContext* ctx, Promise* prom, JSValueConst value) {
-  return js_resolve_functions_call(ctx, &prom->funcs, 1, value);
+promise_reject(JSContext* ctx, ResolveFunctions* funcs, JSValueConst value) {
+  return js_resolve_functions_call(ctx, funcs, 1, value);
 }
 
 void
@@ -86,4 +86,26 @@ promise_pending(Promise* prom) {
 BOOL
 promise_done(Promise* prom) {
   return !JS_IsUndefined(prom->promise) && js_resolve_functions_is_null(&prom->funcs);
+}
+
+JSValue
+promise_then(JSContext* ctx, JSValueConst promise, JSValueConst handler) {
+  JSValue fn, ret;
+
+  fn = JS_GetPropertyStr(ctx, promise, "then");
+  ret = JS_Call(ctx, fn, promise, 1, &handler);
+  JS_FreeValue(ctx, fn);
+
+  return ret;
+}
+
+JSValue
+promise_catch(JSContext* ctx, JSValueConst promise, JSValueConst handler) {
+  JSValue fn, ret;
+
+  fn = JS_GetPropertyStr(ctx, promise, "catch");
+  ret = JS_Call(ctx, fn, promise, 1, &handler);
+  JS_FreeValue(ctx, fn);
+
+  return ret;
 }

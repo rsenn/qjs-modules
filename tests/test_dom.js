@@ -12,7 +12,8 @@ import {
   gettersetter,
   once,
   memoize,
-  getOpt,glob
+  getOpt,
+  glob
 } from '../lib/util.js';
 import inspect from 'inspect';
 import * as xml from 'xml';
@@ -37,7 +38,11 @@ import {
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 import REPL from '../lib/repl.js';
 
-let repl={printStatus(...args) { console.log(...args); }};
+let repl = {
+  printStatus(...args) {
+    console.log(...args);
+  }
+};
 
 function StartREPL() {
   repl = new REPL(

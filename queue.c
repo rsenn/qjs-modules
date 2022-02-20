@@ -24,6 +24,22 @@ chunk_free(Chunk* ch) {
     free(ch);
 }
 
+static void
+chunk_arraybuffer_free(JSRuntime* rt, void* opaque, void* ptr) {
+  Chunk* ch = opaque;
+  chunk_free(ch);
+}
+
+JSValue
+chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
+  uint8_t* ptr = ch->data + ch->pos;
+  size_t len = ch->size - ch->pos;
+
+  chunk_dup(ch);
+
+  return JS_NewArrayBuffer(ctx, ptr, len, chunk_arraybuffer_free, ch, FALSE);
+}
+
 void
 queue_init(Queue* q) {
   init_list_head(&q->list);
@@ -50,37 +66,25 @@ queue_write(Queue* q, const void* x, size_t n) {
 
 ssize_t
 queue_read(Queue* q, void* x, size_t n) {
-  Chunk *b, *next;
+  Chunk* b;
   ssize_t ret = 0;
   uint8_t* p = x;
 
-  while(n > 0 && (b = q->list.prev)) {
-    size_t bytes;
-    if(&b->link == &q->list)
-      break;
-
-    if((bytes = b->size - b->pos) >= n)
-      bytes = n;
-
+  while(n > 0 && (b = queue_tail(q))) {
+    size_t bytes = MIN_NUM((b->size - b->pos), n);
     memcpy(p, &b->data[b->pos], bytes);
     p += bytes;
     n -= bytes;
-
     b->pos += bytes;
     ret += bytes;
-
     q->nbytes -= bytes;
 
     if(b->pos < b->size)
       break;
 
-    next = b->prev;
-
     list_del(&b->link);
     chunk_free(b);
     q->nblocks--;
-
-    b = next;
   }
 
   return ret;
@@ -88,33 +92,45 @@ queue_read(Queue* q, void* x, size_t n) {
 
 ssize_t
 queue_peek(Queue* q, void* x, size_t n) {
-  Chunk *b, *next;
+  Chunk* b;
   ssize_t ret = 0;
   uint8_t* p = x;
 
-  while(n > 0 && (b = q->list.prev)) {
-    size_t bytes;
-
-    if(&b->link == &q->list)
-      break;
-
-    if((bytes = b->size - b->pos) >= n)
-      bytes = n;
-
-    next = (Chunk*)b->link.prev;
+  while(n > 0 && (b = queue_tail(q))) {
+    size_t bytes = MIN_NUM((b->size - b->pos), n);
 
     memcpy(p, &b->data[b->pos], bytes);
     p += bytes;
     n -= bytes;
-
     ret += bytes;
 
     if(b->pos < b->size)
       break;
-
-    b = next;
   }
 
+  return ret;
+}
+
+ssize_t
+queue_skip(Queue* q, size_t n) {
+  Chunk* b;
+  ssize_t ret = 0;
+
+  while(n > 0 && (b = queue_tail(q))) {
+    size_t bytes = MIN_NUM((b->size - b->pos), n);
+
+    n -= bytes;
+    b->pos += bytes;
+    ret += bytes;
+    q->nbytes -= bytes;
+
+    if(b->pos < b->size)
+      break;
+
+    list_del(&b->link);
+    chunk_free(b);
+    q->nblocks--;
+  }
   return ret;
 }
 

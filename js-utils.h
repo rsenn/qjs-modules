@@ -20,10 +20,13 @@ Promise promise_free(JSContext*, Promise*);
 ResolveFunctions* promise_new(JSContext*, JSValueConst*);
 JSValue promise_create(JSContext*, ResolveFunctions*);
 BOOL promise_init(JSContext*, Promise*);
-JSValue promise_resolve(JSContext*, Promise*, JSValueConst);
-JSValue promise_reject(JSContext*, Promise*, JSValueConst);
+JSValue           promise_resolve(JSContext*, ResolveFunctions*, JSValueConst);
+JSValue           promise_reject(JSContext*, ResolveFunctions*, JSValueConst);
+
 void promise_zero(Promise*);
 BOOL promise_pending(Promise*);
 BOOL promise_done(Promise*);
+JSValue promise_then(JSContext*, JSValueConst, JSValueConst);
+JSValue promise_catch(JSContext*, JSValueConst, JSValueConst);
 
 #endif /* defined(JS_UTILS_H) */

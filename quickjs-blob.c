@@ -26,9 +26,8 @@ enum {
 
 void
 blob_init(JSContext* ctx, Blob* blob, const void* x, size_t len, const char* type) {
-  //blob->vec = VECTOR(ctx);
+  // blob->vec = VECTOR(ctx);
   blob->type = type ? js_strdup(ctx, type) : 0;
-
 
   js_dbuf_allocator(ctx, &blob->vec.dbuf);
 

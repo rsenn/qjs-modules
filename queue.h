@@ -38,9 +38,10 @@ chunk_dup(Chunk* ch) {
 }
 
 void queue_init(Queue*);
-ssize_t queue_write(Queue*, const void*, size_t n);
-ssize_t queue_read(Queue*, void*, size_t n);
-ssize_t queue_peek(Queue*, void*, size_t n);
+ssize_t queue_write(Queue*, const void* x, size_t n);
+ssize_t queue_read(Queue*, void* x, size_t n);
+ssize_t queue_peek(Queue*, void* x, size_t n);
+ssize_t queue_skip(Queue*, size_t n);
 Chunk* queue_next(Queue*);
 void queue_clear(Queue*);
 

@@ -14,18 +14,21 @@ thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_controller 
                      reader_proto = {{JS_TAG_UNDEFINED}}, reader_ctor = {{JS_TAG_UNDEFINED}}, writer_proto = {{JS_TAG_UNDEFINED}},
                      writer_ctor = {{JS_TAG_UNDEFINED}};
 
-void
+static void
 chunk_unref(JSRuntime* rt, void* opaque, void* ptr) {
   Chunk* ch = opaque;
 
   chunk_free(ch);
 }
 
-JSValue
-chunk_arraybuf(Chunk* ch, JSContext* ctx) {
+static JSValue
+chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
+  uint8_t* ptr = ch->data + ch->pos;
+  size_t len = ch->size - ch->pos;
+
   chunk_dup(ch);
 
-  return JS_NewArrayBuffer(ctx, ch->data + ch->pos, ch->size - ch->pos, chunk_unref, ch, FALSE);
+  return JS_NewArrayBuffer(ctx, ptr, len, chunk_unref, ch, FALSE);
 }
 
 Reader*
@@ -39,6 +42,9 @@ reader_new(JSContext* ctx, Readable* st) {
     promise_zero(&rd->cancelled);
 
     init_list_head(&rd->reads);
+
+    JSValue ret = js_readable_callback(ctx, rd->stream, READABLE_START, 1, &rd->stream->controller);
+    JS_FreeValue(ctx, ret);
   }
 
   return rd;
@@ -72,6 +78,7 @@ reader_cancel(Reader* rd, JSContext* ctx) {
 JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
+  Readable* stream;
   struct read_operation* op;
 
   if(!(op = js_mallocz(ctx, sizeof(struct read_operation))))
@@ -80,6 +87,18 @@ reader_read(Reader* rd, JSContext* ctx) {
   list_add(&op->link, &rd->reads);
 
   ret = promise_create(ctx, &op->handlers);
+
+  if((stream = rd->stream)) {
+    Chunk*ch;
+    JSValue tmp = js_readable_callback(ctx, stream, READABLE_PULL, 1, &stream->controller);
+    JS_FreeValue(ctx, tmp);
+
+if((ch = queue_next(&stream->q))) {
+  promise_resolve(ctx, &op->handlers, chunk_arraybuffer(ch, ctx));
+}
+    //    ret = JS_Call(ctx, stream->on.pull, JS_UNDEFINED, 1, &stream->controller);
+  }
+
   return ret;
 }
 
