@@ -89,13 +89,13 @@ reader_read(Reader* rd, JSContext* ctx) {
   ret = promise_create(ctx, &op->handlers);
 
   if((stream = rd->stream)) {
-    Chunk*ch;
+    Chunk* ch;
     JSValue tmp = js_readable_callback(ctx, stream, READABLE_PULL, 1, &stream->controller);
     JS_FreeValue(ctx, tmp);
 
-if((ch = queue_next(&stream->q))) {
-  promise_resolve(ctx, &op->handlers, chunk_arraybuffer(ch, ctx));
-}
+    if((ch = queue_next(&stream->q))) {
+      promise_resolve(ctx, &op->handlers, chunk_arraybuffer(ch, ctx));
+    }
     //    ret = JS_Call(ctx, stream->on.pull, JS_UNDEFINED, 1, &stream->controller);
   }
 
