@@ -285,7 +285,6 @@ lexer_init(Lexer* lex, enum lexer_mode mode, JSContext* ctx) {
   vector_init(&lex->state_stack, ctx);
 }
 
-
 void
 lexer_define(Lexer* lex, char* name, char* expr) {
   LexerRule definition = {name, expr, MASK_ALL, 0, 0, 0};
