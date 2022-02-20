@@ -1,4 +1,4 @@
-project(modules C)
+project(qjs-modules C)
 
 cmake_minimum_required(VERSION 3.2)
 
