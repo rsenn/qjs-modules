@@ -119,7 +119,7 @@ reader_signal(Reader* rd, StreamEvent event, JSValueConst arg, JSContext* ctx) {
   assert(event <= EVENT_READ);
   assert(event >= EVENT_CLOSE);
 
-  if(promise_resolve(ctx, &rd->events[event], arg))
+  if(promise_resolve(ctx, &rd->events[event].funcs, arg))
     ret = JS_TRUE;
 
   return ret;
@@ -151,7 +151,7 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
   Read* r;
   BOOL ret = FALSE;
 
-  while((r = rd->reads.prev) != &rd->reads) {
+  while((r = (Read*)rd->reads.prev) != (Read*)&rd->reads) {
 
     if(promise_resolve(ctx, &r->handlers, chunk)) {
       ret = TRUE;
@@ -189,7 +189,7 @@ readable_close(Readable* st, JSContext* ctx) {
   if(readable_locked(st)) {
     promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
-    reader_cancel(st->reader,ctx  );
+    reader_cancel(st->reader, ctx);
   }
 
   ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);
@@ -208,7 +208,7 @@ readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   if(readable_locked(st)) {
     promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
-    reader_cancel(st->reader,ctx);
+    reader_cancel(st->reader, ctx);
   }
 
   ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);
@@ -524,11 +524,10 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   switch(magic) {
     case READABLE_ABORT: {
-      Reader* rd;
-
-      if((rd = readable_locked(st))) {
-        readable_abort(rd, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
-      }
+      if(argc >= 1)
+        ret = readable_abort(st, argv[0], ctx);
+      else
+        ret = readable_close(st, ctx);
 
       break;
     }
@@ -559,7 +558,7 @@ js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case STREAM_LOCKED: {
-      ret = JS_NewBool(ctx, readable_locked(st) || readable_locked(st));
+      ret = JS_NewBool(ctx, !!readable_locked(st));
       break;
     }
   }
@@ -636,6 +635,7 @@ static const JSCFunctionListEntry js_readable_proto_funcs[] = {
         JS_CFUNC_MAGIC_DEF("peek", 1, js_readable_read, 1),*/
     JS_CFUNC_MAGIC_DEF("cancel", 0, js_readable_method, READABLE_ABORT),
     JS_CFUNC_MAGIC_DEF("getReader", 0, js_readable_method, READABLE_GET_READER),
+    JS_CGETSET_MAGIC_FLAGS_DEF("closed", js_readable_get, 0, STREAM_CLOSED, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_readable_get, 0, STREAM_LOCKED, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Readable", JS_PROP_CONFIGURABLE),
     //    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_readable_iterator),
@@ -689,7 +689,7 @@ ssize_t bytes;
   if(!wr->stream)
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
-  return js_writable_callback(ctx, wr, WRITABLE_WRITE, 1, &chunk);
+  return js_writable_callback(ctx, wr->stream, WRITABLE_WRITE, 1, &chunk);
 }
 
 JSValue
@@ -698,7 +698,7 @@ writer_close(Writer* wr, JSContext* ctx) {
   if(!wr->stream)
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
-  return js_writable_callback(ctx, wr, WRITABLE_CLOSE, 0, 0);
+  return js_writable_callback(ctx, wr->stream, WRITABLE_CLOSE, 0, 0);
 }
 
 JSValue
@@ -707,7 +707,7 @@ writer_abort(Writer* wr, JSValueConst reason, JSContext* ctx) {
   if(!wr->stream)
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
-  return js_writable_callback(ctx, wr, WRITABLE_ABORT, 1, &reason);
+  return js_writable_callback(ctx, wr->stream, WRITABLE_ABORT, 1, &reason);
 }
 
 /*BOOL
@@ -728,7 +728,7 @@ writer_signal(Writer* wr, StreamEvent event, JSValueConst arg, JSContext* ctx) {
   assert(event <= EVENT_READ);
   assert(event >= EVENT_CLOSE);
 
-  if(promise_resolve(ctx, &wr->events[event], arg))
+  if(promise_resolve(ctx, &wr->events[event].funcs, arg))
     ret = JS_TRUE;
 
   return ret;
@@ -877,12 +877,9 @@ static JSValue
 js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   Writer* wr;
-  Writable* st;
 
   if(!(wr = js_writer_data2(ctx, this_val)))
     return JS_EXCEPTION;
-
-  st = wr->stream;
 
   switch(magic) {
     case WRITER_ABORT: {

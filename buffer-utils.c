@@ -441,6 +441,26 @@ js_input_chars(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
+InputBuffer
+js_input_args(JSContext* ctx, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+
+  if(argc > 1)
+    js_offset_length(ctx, input.size, argc - 1, argv + 1, &input.range);
+
+  return input;
+}
+
+InputBuffer
+js_output_args(JSContext* ctx, int argc, JSValueConst argv[]) {
+  InputBuffer output = js_input_buffer(ctx, argv[0]);
+
+  if(argc > 1)
+    js_offset_length(ctx, output.size, argc - 1, argv + 1, &output.range);
+
+  return output;
+}
+
 BOOL
 input_buffer_valid(const InputBuffer* in) {
   return !JS_IsException(in->value);

@@ -137,7 +137,7 @@ array_find(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   return -1;
 }
 
-static int64_t
+static BOOL
 array_has(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   return array_find(vp, ctx, prop) != -1;
 }

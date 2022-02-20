@@ -92,12 +92,12 @@ path_canonical_buf(DynBuf* db) {
 
 size_t
 path_collapse(char* path, size_t nb) {
-  ssize_t i, j, k, len;
+  ssize_t i, j, len;
 
   len = nb;
 
 again:
-  k = 0;
+  // k = 0;
   i = path_skip_separator(path, len, 0);
 
   while(i < len) {

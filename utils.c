@@ -1310,7 +1310,7 @@ void
 js_value_fwrite(JSContext* ctx, JSValueConst val, FILE* f) {
   DynBuf dbuf = {0};
   size_t n;
-  dbuf_init2(&dbuf, ctx, &utils_js_realloc);
+  dbuf_init2(&dbuf, ctx, (realloc_func*)&utils_js_realloc);
   js_value_dump(ctx, val, &dbuf);
   dbuf_putc(&dbuf, '\n');
   n = dbuf.size;
@@ -1431,7 +1431,7 @@ js_value_from_char(JSContext* ctx, int c) {
 void
 js_value_print(JSContext* ctx, JSValueConst value) {
   DynBuf dbuf;
-  dbuf_init2(&dbuf, ctx, &utils_js_realloc);
+  dbuf_init2(&dbuf, ctx, (realloc_func*)&utils_js_realloc);
   js_value_dump(ctx, value, &dbuf);
   dbuf_0(&dbuf);
   fputs((const char*)dbuf.buf, stdout);
@@ -2101,7 +2101,7 @@ int __attribute__((format(printf, 3, 4))) js_eval_fmt(JSContext* ctx, int flags,
   int ret;
   va_list ap;
   DynBuf buf;
-  dbuf_init2(&buf, ctx, &utils_js_realloc);
+  dbuf_init2(&buf, ctx, (realloc_func*)&utils_js_realloc);
   va_start(ap, fmt);
   dbuf_vprintf(&buf, fmt, ap);
   va_end(ap);
@@ -2210,7 +2210,7 @@ js_error_dump(JSContext* ctx, JSValueConst error, DynBuf* db) {
 char*
 js_error_tostring(JSContext* ctx, JSValueConst error) {
   DynBuf db;
-  dbuf_init2(&db, ctx, &utils_js_realloc);
+  dbuf_init2(&db, ctx, (realloc_func*)&utils_js_realloc);
   js_error_dump(ctx, error, &db);
   return (char*)db.buf;
 }

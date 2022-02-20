@@ -800,7 +800,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   BOOL compact = FALSE;
   JSObject* obj = JS_VALUE_GET_OBJ(value);
 
-  dbuf_init2(&propenum_tab.dbuf, ctx, &orig_js_realloc);
+  dbuf_init2(&propenum_tab.dbuf, ctx, (realloc_func*)&utils_js_realloc);
 
   if(!obj->prop || !obj->shape) {
     dbuf_printf(buf, "js_inspect_print_value Object prop = %p, shape = %p ", obj->prop, obj->shape);

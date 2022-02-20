@@ -137,8 +137,8 @@ character_classes_init(int c[256]) {
 #define parse_until(cond) parse_skip(!(cond))
 #define parse_skipspace() parse_skip(chars[c] & WS)
 #define parse_is(c, classes) (chars[(c)] & (classes))
-#define parse_inside(tag) (strlen((tag)) == out->namelen && !strncmp(out->name, (tag), out->namelen))
-#define parse_close() (ptr[0] == '<' && ptr[1] == '/' && !strncmp(&ptr[2], out->name, out->namelen) && ptr[2 + out->namelen] == '>')
+#define parse_inside(tag) (strlen((tag)) == out->namelen && !strncmp((const char*)out->name, (const char*)(tag), out->namelen))
+#define parse_close() (ptr[0] == '<' && ptr[1] == '/' && !strncmp((const char*)&ptr[2], (const char*)out->name, out->namelen) && ptr[2 + out->namelen] == '>')
 //(ptr + out->namelen + 2 <= end && ptr[0] == '<' && ptr[1] == '/' && !strncmp(&ptr[2], out->name, out->namelen + 1))
 
 static int32_t
@@ -159,7 +159,7 @@ static BOOL
 is_self_closing_tag(const char* name, size_t namelen, const ParseOptions* opts) {
   const char** v;
 
-  for(v = opts->self_closing_tags; *v; v++) {
+  for(v = (const char**)opts->self_closing_tags; *v; v++) {
     size_t n = strlen(*v);
 
     if(n == namelen && !strncmp(name, *v, namelen))
@@ -310,7 +310,7 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
       xml_write_indent(db, depth + 1);
       dbuf_putc(db, '-');
       dbuf_putc(db, '-');*/
-      dbuf_put(db, tagName, tagLen);
+      dbuf_put(db, (const uint8_t*)tagName, tagLen);
     } else {
       xml_write_string(ctx, tagName, tagLen, db, depth - 1);
     }
@@ -432,12 +432,12 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       parse_until(parse_is(c, START));
     }
 
-    size_t leading_ws = scan_whitenskip(start, ptr - start);
+    size_t leading_ws = scan_whitenskip((const char*)start, ptr - start);
 
     while(start < ptr) {
       size_t len, real_len;
 
-      start += scan_whitenskip(start, leading_ws);
+      start += scan_whitenskip((const char*)start, leading_ws);
 
       // while(start < ptr && is_whitespace_char(*start)) start++;
 
@@ -528,7 +528,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           self_closing = TRUE;
         }
 
-        if(is_self_closing_tag(name, namelen, &opts))
+        if(is_self_closing_tag((const char*)name, namelen, &opts))
           self_closing = TRUE;
 
         if(namelen >= 3 && parse_is(name[0], EXCLAM) && parse_is(name[1], HYPHEN) && parse_is(name[2], HYPHEN)) {
@@ -610,7 +610,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       if(self_closing && opts.flat) {
         char* tagName = js_mallocz(ctx, namelen + 2);
         tagName[0] = '/';
-        str_copyn(&tagName[1], namelen, (const char*)name);
+        str_copyn(&tagName[1], (const char*)name, namelen);
 
         yield_next();
         xml_set_attr_bytes(ctx, element, "tagName", 7, (const uint8_t*)tagName, namelen + 1);
@@ -649,7 +649,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
       tags = JS_GetPropertyStr(ctx, argv[2], "selfClosingTags");
       if(JS_IsArray(ctx, tags)) {
         int ac = -1;
-        opts.self_closing_tags = js_array_to_argv(ctx, &ac, tags);
+        opts.self_closing_tags = (const char* const*)js_array_to_argv(ctx, &ac, tags);
       }
       JS_FreeValue(ctx, tags);
 

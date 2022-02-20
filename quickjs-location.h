@@ -11,13 +11,15 @@
 extern thread_local JSClassID js_location_class_id;
 extern thread_local JSValue location_proto, location_ctor;
 
-JSValue js_location_wrap(JSContext*, Location*);
-JSValue js_location_tostring(JSContext*, JSValue, int, JSValue argv[]);
-BOOL js_is_location(JSContext*, JSValue);
-Location* js_location_from(JSContext*, JSValue);
-JSValue js_location_toprimitive(JSContext*, JSValue, int, JSValue argv[]);
-JSValue js_location_constructor(JSContext*, JSValue, int, JSValue argv[]);
-void js_location_finalizer(JSRuntime*, JSValue);
+JSValue js_location_wrap(JSContext*, Location* loc);
+JSValue js_location_tostring(JSContext*, JSValueConst this_val, int argc, JSValueConst argv[]);
+BOOL js_is_location(JSContext*, JSValueConst obj);
+Location* js_location_from(JSContext*, JSValueConst this_val);
+JSValue js_location_toprimitive(JSContext*, JSValueConst this_val, int argc, JSValueConst argv[]);
+JSValue js_location_constructor(JSContext*, JSValueConst new_target, int argc, JSValueConst argv[]);
+void js_location_finalizer(JSRuntime*, JSValueConst val);
+int js_location_init(JSContext*, JSModuleDef* m);
+JSModuleDef* js_init_module_location(JSContext*, const char* module_name);
 
 static inline Location*
 js_location_data(JSValueConst value) {

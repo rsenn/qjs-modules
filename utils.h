@@ -56,6 +56,8 @@ typedef struct {
   const char** v;
 } Arguments;
 
+typedef void* realloc_func(void*, void*, size_t);
+
 void* utils_js_realloc(JSContext* ctx, void* ptr, size_t size);
 void* utils_js_realloc_rt(JSRuntime* rt, void* ptr, size_t size);
 
@@ -180,8 +182,8 @@ mod_int32(int32_t a, int32_t b) {
 
 uint64_t time_us(void);
 
-#define js_dbuf_init(ctx, buf) dbuf_init2((buf), (ctx), &utils_js_realloc)
-#define js_dbuf_init_rt(rt, buf) dbuf_init2((buf), (rt), &utils_js_realloc_rt)
+#define js_dbuf_init(ctx, buf) dbuf_init2((buf), (ctx), (realloc_func*)&utils_js_realloc)
+#define js_dbuf_init_rt(rt, buf) dbuf_init2((buf), (rt), (realloc_func*)&utils_js_realloc_rt)
 
 void js_dbuf_allocator(JSContext* ctx, DynBuf* s);
 
