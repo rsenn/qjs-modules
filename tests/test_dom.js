@@ -1,3 +1,4 @@
+import process from 'process';
 import * as os from 'os';
 import * as std from 'std';
 import {
@@ -11,7 +12,7 @@ import {
   gettersetter,
   once,
   memoize,
-  getOpt
+  getOpt,glob
 } from '../lib/util.js';
 import inspect from 'inspect';
 import * as xml from 'xml';
@@ -87,7 +88,7 @@ function main(...args) {
     ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath }
   });
 
-  let files = params['@'] ?? ['../../../an-tronics/eagle/555-Oscillator.sch'];
+  let files = params['@'].length ? params['@'] : glob('tests/*.xml');
 
   files.forEach(processFile);
 

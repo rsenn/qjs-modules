@@ -40,7 +40,7 @@ predicate_inspect(JSValueConst value, JSContext* ctx, DynBuf* dbuf, Arguments* a
   if(js_is_null_or_undefined(value)) {
     const char* arg = arguments_shift(args);
 
-    dbuf_putstr(dbuf, arg);
+    dbuf_putstr(dbuf, arg ? arg : "(null)");
 
   } else if((pr = js_predicate_data(value))) {
     if(parens)

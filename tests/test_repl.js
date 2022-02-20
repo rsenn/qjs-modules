@@ -1,111 +1,82 @@
-import * as std from 'std';
 import * as os from 'os';
-import * as deep from 'deep';
+import * as std from 'std';
+import {
+  escape,
+  quote,
+  isObject,
+  define,
+  getClassName,
+  mapObject,
+  getset,
+  gettersetter,
+  once,
+  memoize,
+  getOpt,glob
+} from '../lib/util.js';
+import inspect from 'inspect';
+import * as xml from 'xml';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Console } from 'console';
-import REPL from './lib/repl.js';
-import inspect from 'inspect';
-import { extendArray } from 'util';
+import * as deep from 'deep';
+import Console from '../lib/console.js';
+import {
+  nodeTypes,
+  Parser,
+  Node,
+  NodeList,
+  NamedNodeMap,
+  Element,
+  Document,
+  Attr,
+  Text,
+  TokenList,
+  Factory
+} from '../lib/dom.js';
+import REPL from '../lib/repl.js';
 
-const base = path.basename(scriptArgs[0], /\.[a-z]*$/);
-const cmdhist = `.history-${base}`;
+let repl={printStatus(...args) { console.log(...args); }};
 
-extendArray(Array.prototype);
-
-function LoadHistory(filename) {
-  let contents = std.loadFile(filename);
-  let data;
-
-  const parse = () => {
-    try {
-      data = JSON.parse(contents);
-    } catch(e) {}
-    if(data) return data;
-    try {
-      data = contents.split(/\n/g);
-    } catch(e) {}
-    if(data) return data;
-  };
-
-  return (parse() ?? []).filter(entry => (entry + '').trim() != '').map(entry => entry.replace(/\\n/g, '\n'));
+function StartREPL() {
+  repl = new REPL(
+    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
+    false
+  );
+  repl.show = repl.printFunction((...args) => console.log(...args));
+  repl.historyLoad();
+  return repl.run();
 }
 
-function ReadJSON(filename) {
-  let data = std.loadFile(filename);
-
-  if(data) console.log(`ReadJSON('${filename}') ${data.length} bytes read`);
-  return data ? JSON.parse(data) : null;
-}
-
-function ReadFile(name, binary) {
-  let data = fs.readFileSync(name, binary ? null : 'utf-8');
-
-  console.log(`Read ${name}: ${data.length} bytes`);
-
-  return Object.create(null, {
-    data: { value: data, enumerable: false },
-    getNode: {
-      value(node) {
-        const { start, end } = node;
-        return this.data.slice(start, end);
-      },
-      configurable: true
-    },
-    toString: {
-      value() {
-        return this.data;
-      },
-      configurable: true
-    }
-  });
-}
-
-function WriteFile(name, data, verbose = true) {
-  if(typeof data == 'string' && !data.endsWith('\n')) data += '\n';
-  let ret = fs.writeFileSync(name, data);
-
-  if(verbose) console.log(`Wrote ${name}: ${ret} bytes`);
-}
 function main(...args) {
-  globalThis.console = new Console({
+  globalThis.console = new Console(process.stdout, {
     inspectOptions: {
-      customInspect: true,
+      colors: true,
+      depth: 10,
+      stringBreakNewline: false,
+      maxArrayLength: 10000,
       compact: false,
-      depth: Infinity,
-      maxArrayLength: Infinity,
-      hideKeys: ['loc', 'range']
+      maxStringLength: Infinity,
+      customInspect: true /*,
+      hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
     }
   });
-  let name = path.basename(scriptArgs[0], '.js');
-  let repl = new REPL(name);
-  console.log('repl', repl);
-  repl.help = () => {};
-  let { log } = console;
-  repl.show = arg => std.puts(typeof arg == 'string' ? arg : inspect(arg, { colors: true }));
 
-  repl.cleanup = () => {
-    let hist = repl.history.filter((item, i, a) => a.lastIndexOf(item) == i);
-    fs.writeFileSync(
-      cmdhist,
-      hist
-        .filter(entry => (entry + '').trim() != '')
-        .map(entry => entry.replace(/\n/g, '\\n') + '\n')
-        .join('')
-    );
-    console.log(`EXIT (wrote ${hist.length} history entries)`);
-    std.exit(0);
-  };
-  let debugLog = fs.fopen('debug.log', 'a');
-  repl.debugLog = debugLog;
+  let params = getOpt(
+    {
+      output: [true, null, 'o'],
+      interactive: [false, null, 'i'],
+      '@': 'xml'
+    },
+    args
+  );
 
-  Object.assign(globalThis, { repl, WriteFile, ReadFile, ReadJSON });
-  console.log('repl.run()', repl.runSync(name));
+  console.log('params', params);
+ 
+  if(params.interactive) StartREPL();
 }
 
 try {
   main(...scriptArgs.slice(1));
 } catch(error) {
-  std.err.puts(`FAIL: ${error.message}\n${error.stack}`);
+  console.log(`FAIL: ${error.message}\n${error.stack}`);
   std.exit(1);
 }
