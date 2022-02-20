@@ -3,6 +3,7 @@ import * as std from 'std';
 import { Console } from 'console';
 import { ReadableStream, WritableStream } from 'stream';
 import { Blob } from 'blob';
+import { toString } from 'util';
 import { FileSystemReadableFileStream, FileSystemWritableFileStream } from '../lib/streams.js';
 
 ('use strict');
@@ -26,7 +27,7 @@ async function ReadStream(stream) {
   console.log('ReadStream(3)', { blob });
 
   reader.releaseLock();
-  return blob;
+  return blob.arrayBuffer();
 }
 
 function main(...args) {
@@ -47,7 +48,7 @@ function main(...args) {
   console.log('read', read);
   console.log('write', write);
 
-  ReadStream(read).then(result => console.log('read', { result }));
+  ReadStream(read).then(result => console.log('read', toString(result)));
 }
 
 try {
