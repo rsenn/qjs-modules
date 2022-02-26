@@ -23,6 +23,7 @@ let buffers = {},
   modules = {},
   removeExports = false,
   globalExports = 0,
+  showDeps = 0,
   removeImports = false,
   removeComments = false,
   relativeTo,
@@ -526,13 +527,9 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     let replacement = type == What.EXPORT ? null : /*FileMap.for*/ file;
     let { byteOffset } = loc;
     let p;
-    if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
 
-    //if(replacement == null) debugLog('replaceRange', inspect({ file: map.file, bufstr, range, replacement, loc: loc + '' }, { compact: 3, depth: 3 }) );
-    //debugLog('impexp', compact(2), { file, code, loc: loc + '', range: new NumericRange(...range), removeExports, type });
-
+    //  if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
     if(typeof file == 'string' && !path.exists(file)) {
-      //throw new Error(`Inexistent file '${file}'`);
       console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
 
       replacement = null;
@@ -557,7 +554,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
   //  debugLog('comments', comments.map(({byteRange, lexeme})=>[byteRange,lexeme,toString(bytebuf.slice(...byteRange))]));
   //
-  if(removeComments) {
+  if(removeComments && comments.length) {
     i = -1;
     debugLog(`Removing ${comments.length} comments from '${source}'`);
     for(let { byteRange, lexeme } of comments) {
@@ -607,9 +604,11 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
   std.gc();
 
-  let deps = [...DependencyTree(source, ' ', false, 0, '    ')];
+  if(showDeps) {
+    let deps = [...DependencyTree(source, ' ', false, 0, '    ')];
 
-  console.log(`Dependencies of '${source}':\n${SpreadAndJoin(deps)}`);
+    console.log(`Dependencies of '${source}':\n${SpreadAndJoin(deps)}`);
+  }
 
   return map;
 }
@@ -1188,6 +1187,7 @@ function main(...args) {
       'remove-imports': [false, () => (removeImports = true), 'I'],
       'remove-comments': [false, () => (removeComments = true), 'C'],
       'global-exports': [false, () => ++globalExports, 'G'],
+      'show-dependencies': [false, () => ++showDeps, 'd'],
       '@': 'files'
     },
     args
@@ -1213,14 +1213,12 @@ function main(...args) {
   let log = quiet ? () => {} : (...args) => console.log(`${file}:`, ...args);
   let results = [];
 
-  console.log('files', files);
-
   for(let file of files) {
     file = RelativePath(file);
 
     let result = ProcessFile(file, log, recursive, 0);
 
-    console.log('result', compact(false, { depth: Infinity }), result);
+    if(debug >= 1) console.log('result', compact(false, { depth: Infinity }), result);
 
     results.push(result);
   }
@@ -1231,13 +1229,7 @@ function main(...args) {
       importLines = [];
     const ContainsAny = (arr, tokens) => tokens.some(tok => arr.indexOf(tok) != -1);
 
-    console.log(
-      'header',
-      header.map(h => {
-        h.names = h.ids();
-        return h;
-      })
-    );
+    //console.log('header', header.map(h => {h.names = h.ids(); h.range = h.range+''; return h; }));
     let lines = header
       .filter(impexp => /*!*/ IsBuiltin(impexp.file))
       .filter(hdr => !hdr.code.startsWith('export'))
