@@ -213,147 +213,6 @@ function ModuleLoader(module) {
   return file;
 }
 
-function Export(tokens, relativePath = s => s, depth) {
-  /*   if(tokens.findIndex(tok => IsKeyword('from', tok)) != -1)
-    return AddImport(tokens,relativePath);*/
-
-  if(tokens[0].seq == tokens[1].seq) tokens.shift();
-  const { loc, seq } = tokens[0];
-  if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
-  let def = tokens.findIndex(tok => IsKeyword('default', tok));
-  let nameIdx = 1;
-  while(tokens[nameIdx].type == 'whitespace' || IsKeyword(['let', 'class', 'function', 'const'], tokens[nameIdx])) nameIdx++;
-  while(tokens[nameIdx] && tokens[nameIdx].type != 'identifier') nameIdx++;
-  let name = ExportName(tokens);
-  let exported = def != -1 ? 'default' : name;
-  let file = ImportFile(tokens);
-
-  if(file == ' ') throw new Error('XXX ' + inspect(tokens, { compact: false }));
-  const idx = def != -1 ? def : file ? tokens.findIndex(tok => tok.lexeme == ';') : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
-  const exportObj = NonWS(tokens)[1].lexeme == '{';
-
-  const remove = exportObj || def != -1 ? tokens.slice() : tokens.slice(0, def == idx ? idx + 2 : idx + 1); //idx + 1);
-  if(remove[0]) if (remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
-  const range = ByteSequence(remove) ?? ByteSequence(tokens);
-  let source = loc.file;
-  let type = ImpExpType(tokens);
-  let code = toString(BufferFile(source).slice(...range));
-  if(def != -1) if (debug >= 2) console.log('AddExport', { source, file, code, range, loc, /*remove,*/ tokens });
-
-  let len = tokens.length;
-  if(exportObj) {
-    exported = tokens.filter(tok => tok.type == 'identifier').map(tok => tok.lexeme);
-  }
-  if(NonWS(tokens)[1].lexeme != '{') len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
-  tokens = tokens.slice(0, len);
-  let exp = define(
-    {
-      type: What.EXPORT,
-      file: file && /\./.test(file) ? relativePath(file) : file,
-      tokens,
-      exported,
-      name,
-      range
-    },
-    {
-      code,
-      loc,
-      depth,
-      path() {
-        const { file } = this;
-        if(typeof file == 'string') return relativePath(file);
-      }
-    }
-  );
-  return Object.setPrototypeOf(exp, Export.prototype);
-}
-
-define(Export.prototype, {
-  ids() {
-    return ImportIds(this.tokens);
-  }
-});
-
-function Import(tokens, relativePath = s => s, depth) {
-  tokens = tokens[0].seq === tokens[1].seq ? tokens.slice(1) : tokens.slice();
-
-  if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
-
-  const tok = tokens[0];
-  const { loc, seq } = tok;
-  let source = loc.file;
-  let type = ImpExpType(tokens.slice()),
-    file = ImportFile(tokens.slice());
-  const range = ByteSequence(tokens.slice());
-  range[0] = loc.byteOffset;
-  let code = toString(BufferFile(source).slice(...range));
-
-  if(debug >= 2) console.log('AddImport', compact(1), { source, /* type, */ file, code, loc, range /*, tokens: NonWS(tokens)*/ });
-
-  //if(!/\./.test(file)) return null;
-  let imp = Object.setPrototypeOf(
-    define(
-      { type, file: file && /\./.test(file) ? relativePath(file) : file, range },
-      {
-        tokens: tokens.slice(),
-        code,
-        loc,
-        depth,
-        path() {
-          const { file } = this;
-          if(typeof file == 'string') return relativePath(file);
-        }
-      }
-    ),
-    Import.prototype
-  );
-  let fn = {
-    [ImportTypes.IMPORT_NAMESPACE]() {
-      const { tokens } = this;
-      let idx = tokens.findIndex(tok => IsKeyword('as', tok));
-      return tokens[idx + 1].lexeme;
-    },
-    [ImportTypes.IMPORT_DEFAULT]() {
-      const { tokens } = this;
-      let idx = tokens.findIndex(tok => IsKeyword('import', tok));
-      return tokens[idx + 1].lexeme;
-    },
-    [ImportTypes.IMPORT]() {
-      const { tokens } = this;
-      let idx = 0,
-        specifier = [],
-        specifiers = [];
-      if(IsKeyword(['import', 'export'], tokens[idx])) ++idx;
-      if(IsPunctuator('{', tokens[idx])) ++idx;
-      for(; tokens[idx] && !IsKeyword('from', tokens[idx]); ++idx) {
-        if(IsPunctuator([',', '}'], tokens[idx])) {
-          if(specifier.length) specifiers.push(specifier);
-          specifier = [];
-        } else if(IsIdentifier(tokens[idx])) {
-          specifier.push(tokens[idx]);
-        }
-      }
-      specifiers = specifiers.flat().filter(tok => tok.type == 'identifier');
-      return specifiers.map(tok => tok.lexeme);
-    }
-  }[type];
-
-  if(typeof fn == 'function') {
-    let local = fn.call(imp);
-
-    // console.log('AddImport', { local });
-    define(imp, { local });
-  }
-
-  return imp;
-}
-
-define(Import.prototype, {
-  ids() {
-    return ImportIds(this.tokens.slice()).map(({ lexeme }) => lexeme);
-  }
-});
-
 function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   //source = NormalizePath(source);
 
@@ -512,6 +371,116 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     }
     state = newState;
   }
+  function Export(tokens, relativePath = s => s) {
+    if(tokens[0].seq == tokens[1].seq) tokens.shift();
+    const { loc, seq } = tokens[0];
+    if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+    let def = tokens.findIndex(tok => IsKeyword('default', tok));
+    let k = 1;
+    while(tokens[k].type == 'whitespace' || IsKeyword(['let', 'class', 'function', 'const'], tokens[k])) k++;
+    while(tokens[k] && tokens[k].type != 'identifier') k++;
+    let name = ExportName(tokens);
+    let exported = def != -1 ? 'default' : name;
+    let file = ImportFile(tokens);
+    if(file == ' ') throw new Error('XXX ' + inspect(tokens, { compact: false }));
+    const idx = def != -1 ? def : file ? tokens.findIndex(tok => tok.lexeme == ';') : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
+    const o = NonWS(tokens)[1].lexeme == '{';
+    const remove = o || def != -1 ? tokens.slice() : tokens.slice(0, def == idx ? idx + 2 : idx + 1);
+    if(remove[0]) if (remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+    const range = ByteSequence(remove) ?? ByteSequence(tokens);
+    let source = loc.file;
+    let type = ImpExpType(tokens);
+    let code = toString(BufferFile(source).slice(...range));
+    if(def != -1) if (debug >= 2) console.log('AddExport', { source, file, code, range, loc, tokens });
+    let len = tokens.length;
+    if(o) {
+      exported = tokens.filter(tok => tok.type == 'identifier').map(tok => tok.lexeme);
+    }
+    if(NonWS(tokens)[1].lexeme != '{') len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
+    tokens = tokens.slice(0, len);
+    let exp = define(
+      {
+        type: What.EXPORT,
+        file: file && /\./.test(file) ? relativePath(file) : file,
+        tokens,
+        exported,
+        name,
+        range
+      },
+      {
+        code,
+        loc,
+        depth,
+        path() {
+          const { file } = this;
+          if(typeof file == 'string') return relativePath(file);
+        }
+      }
+    );
+    return Object.setPrototypeOf(exp, Export.prototype);
+  }
+  define(Export.prototype, {
+    ids() {
+      return ImportIds(this.tokens).map(({ lexeme }) => lexeme);
+    }
+  });
+
+  function Import(tokens, relativePath = s => s, depth) {
+    tokens = tokens[0].seq === tokens[1].seq ? tokens.slice(1) : tokens.slice();
+    if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
+    const tok = tokens[0];
+    const { loc, seq } = tok;
+    let source = loc.file;
+    let type = ImpExpType(tokens.slice()),
+      file = ImportFile(tokens.slice());
+    const range = ByteSequence(tokens.slice());
+    range[0] = loc.byteOffset;
+    let code = toString(BufferFile(source).slice(...range));
+    if(debug >= 2) console.log('AddImport', compact(1), { source, /* type, */ file, code, loc, range /*, tokens: NonWS(tokens)*/ });
+     let imp = Object.setPrototypeOf(
+      define({ type, file: file && /\./.test(file) ? relativePath(file) : file, range }, { tokens: tokens.slice(), code, loc, depth, path() {const { file } = this; if(typeof file == 'string') return relativePath(file); } }),
+      Import.prototype
+    );
+    let fn = {
+      [ImportTypes.IMPORT_NAMESPACE]() {
+        return this.tokens[this.tokens.findIndex(tok => IsKeyword('as', tok)) + 1].lexeme;
+      },
+      [ImportTypes.IMPORT_DEFAULT]() {
+        const { tokens } = this;
+         return tokens[tokens.findIndex(tok => IsKeyword('import', tok)) + 1].lexeme;
+      },
+      [ImportTypes.IMPORT]() {
+        const { tokens } = this;
+        let i = 0,
+          s = [],
+          a = [];
+        if(IsKeyword(['import', 'export'], tokens[i])) ++i;
+        if(IsPunctuator('{', tokens[i])) ++i;
+        for(; tokens[i] && !IsKeyword('from', tokens[i]); ++i) {
+          if(IsPunctuator([',', '}'], tokens[i])) {
+            if(s.length) a.push(s);
+            s = [];
+          } else if(IsIdentifier(tokens[i])) {
+            s.push(tokens[i]);
+          }
+        }
+        a = a.flat().filter(tok => tok.type == 'identifier');
+        return a.map(tok => tok.lexeme);
+      }
+    }[type];
+    if(typeof fn == 'function') {
+      let local = fn.call(imp);
+      define(imp, { local });
+    }
+    return imp;
+  }
+
+  define(Import.prototype, {
+    ids() {
+      return ImportIds(this.tokens.slice()).map(({ lexeme }) => lexeme);
+    }
+  });
+
   let end = Date.now();
 
   console.log(`Lexing '${source.replace(/^\.\//, '')}' took ${end - start}ms`);
