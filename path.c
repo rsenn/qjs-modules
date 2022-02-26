@@ -106,6 +106,18 @@ again:
       len = j;
       break;
     }
+
+    if(i > 0 && path_isdot(&path[i])) {
+      ssize_t clen = len - j;
+      assert(clen >= 0);
+      if(clen > 0) {
+        byte_copy(&path[i], clen, &path[j]);
+        path[i + clen] = '\0';
+        len = i + clen;
+        goto again;
+      }
+    }
+
     if(!path_isdotdot(&path[i]) && (len - j) >= 2 && path_isdotdot(&path[j])) {
       j += (len - j) == 2 || path[j + 2] == '\0' ? 2 : 3;
       ssize_t clen = len - j;

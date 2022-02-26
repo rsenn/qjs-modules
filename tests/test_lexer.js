@@ -29,13 +29,7 @@ const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 429496729
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 
 //const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", "/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);" ];
-const code = [
-  "const str = stack.toString().replace(/\\n\\s*at /g, '\\n');",
-  '/Reg.*Ex/i.test(n)',
-  '/\\n/g',
-  'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);',
-  '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'
-];
+const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", '/Reg.*Ex/i.test(n)', '/\\n/g', 'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);', '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'];
 
 extendArray(Array.prototype);
 
@@ -45,10 +39,10 @@ function BufferFile(file) {
   // console.log('BufferFile', file);
   if(buffers[file]) return buffers[file];
   let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
-   if(!isObject(b)) {
+  if(!isObject(b)) {
     const size = fs.sizeSync(file);
     const fd = os.open(file, os.O_RDONLY);
-     b = mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
+    b = mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
   }
 
   bufferRef.set(b, file);
@@ -264,8 +258,8 @@ function main(...args) {
 
     const lexer = lex[type];
 
-console.log('lexer', lexer);
-console.log('lexer.tokens', lexer.tokens);
+    console.log('lexer', lexer);
+    console.log('lexer.tokens', lexer.tokens);
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
 
     log('lexer:', lexer.constructor.name);
@@ -290,19 +284,8 @@ console.log('lexer.tokens', lexer.tokens);
           //log('printTok', {start,end});
           let s = toString(str).slice(start, end);
 
-          const cols = [
-            prefix,
-            `tok[${tok.byteLength}]`,
-            tok.id,
-            tok.type,
-            tok.lexeme,
-            tok.lexeme.length,
-            tok.loc,
-            ` '${s}'`
-          ];
-          std.puts(
-            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
-          );
+          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc, ` '${s}'`];
+          std.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
         }
       : () => {};
 
@@ -339,8 +322,7 @@ console.log('lexer.tokens', lexer.tokens);
           case '}':
           case ']':
           case ')': {
-            if(stack.last != table[tok.lexeme])
-              throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
             stack.pop();
             break;
@@ -476,7 +458,7 @@ console.log('lexer.tokens', lexer.tokens);
 
     std.gc();
   }
- // console.log('buffers', buffers);
+  // console.log('buffers', buffers);
   console.log('files', files);
 }
 

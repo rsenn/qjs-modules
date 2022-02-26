@@ -405,7 +405,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       }
     }
 
-    if(path_exists(module)) {
+    if(path_is_file(module)) {
       file = js_strdup(ctx, module);
       break;
     }
@@ -436,11 +436,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       }
     }
     if(!file) {
-
       if(!(file = jsm_module_directory(ctx, module)))
-        /*     if(strchr("./", module[0]))
-               file = orig_js_strdup(ctx, module);
-             else*/
         if(!(file = jsm_module_search(ctx, jsm_default_module_path, module)))
           break;
       continue;

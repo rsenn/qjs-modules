@@ -1,20 +1,7 @@
 import process from 'process';
 import * as os from 'os';
 import * as std from 'std';
-import {
-  escape,
-  quote,
-  isObject,
-  define,
-  getClassName,
-  mapObject,
-  getset,
-  gettersetter,
-  once,
-  memoize,
-  getOpt,
-  glob
-} from '../lib/util.js';
+import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, once, memoize, getOpt, glob } from '../lib/util.js';
 import inspect from 'inspect';
 import * as xml from 'xml';
 import * as fs from 'fs';
@@ -22,19 +9,7 @@ import * as path from 'path';
 import { Pointer } from 'pointer';
 import * as deep from 'deep';
 import Console from '../lib/console.js';
-import {
-  nodeTypes,
-  Parser,
-  Node,
-  NodeList,
-  NamedNodeMap,
-  Element,
-  Document,
-  Attr,
-  Text,
-  TokenList,
-  Factory
-} from '../lib/dom.js';
+import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 import REPL from '../lib/repl.js';
 
@@ -45,10 +20,7 @@ let repl = {
 };
 
 function StartREPL() {
-  repl = new REPL(
-    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
-    false
-  );
+  repl = new REPL('\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m', false);
   repl.show = repl.printFunction((...args) => console.log(...args));
   repl.historyLoad();
   return repl.run();

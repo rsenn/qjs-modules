@@ -61,7 +61,7 @@ function main(...args) {
     let str = toString(result);
     //console.log('read', str);
     WriteStream(write, async writer => {
-    //  console.log('writer', writer);
+      //  console.log('writer', writer);
       await writer.write(result);
       await writer.close();
     });

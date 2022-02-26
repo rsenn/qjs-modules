@@ -41,16 +41,16 @@ let dependencyTree = memoize(arg => [], dependencyMap);
 let bufferMap = getset(bufferRef);
 
 function NormalizePath(p) {
-  //p = path.normalize(p);
   p = path.absolute(p);
   p = path.relative(p, path.getcwd());
+  p = path.normalize(p);
   if(!path.isAbsolute(p)) if (!p.startsWith('./') && !p.startsWith('../') && p != '..') p = './' + p;
   return p;
 }
 
 const FileBannerComment = (filename, i) => {
   let s = '';
-  s += ` ${i ? 'end' : 'start'} of '${path.basename(filename)}' `;
+  s += ` ${i ? 'end' : 'start'} of '${/*path.basename*/ filename}' `;
   let n = Math.floor((80 - 6 - s.length) / 2);
   s = '/* ' + '-'.repeat(n) + s;
   s += '-'.repeat(80 - 3 - s.length) + ' */';
@@ -446,6 +446,7 @@ function ProcessFile(source, log = () => {}, recursive) {
   const PathAdjust = s => {
     let j = path.join(dir, s);
     j = path.collapse(j);
+    j = path.normalize(j);
     if(path.isRelative(j)) j = './' + j;
     return ModuleLoader(j);
   };
@@ -544,7 +545,7 @@ function ProcessFile(source, log = () => {}, recursive) {
     if(typeof file == 'string') {
       if(!path.exists(file)) {
         //throw new Error(`Inexistent file '${file}'`);
-        console.log(`Inexistent file '${file}'`);
+        console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
         continue;
       }
     }

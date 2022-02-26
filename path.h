@@ -48,6 +48,7 @@ char is_junction(const char*);
 #define path_isabs(p) (path_issep((p)[0]) || ((p)[0] && (p)[1] == ':' && path_issep((p)[2])))
 #define path_isrel(p) (!path_isabs(p))
 #define path_isname(p) ((p)[str_chr((p), '/')] != '\0')
+#define path_isdot(p) ((p)[0] == '.' && ((p)[1] == '\0' || path_issep((p)[1])))
 #define path_isdotdot(p) ((p)[0] == '.' && (p)[1] == '.' && ((p)[2] == '\0' || path_issep((p)[2])))
 
 typedef struct {
