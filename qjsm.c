@@ -163,10 +163,11 @@ jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename,
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
-  if(JS_IsException(val))
-    js_error_print(ctx, JS_GetRuntime(ctx)->current_exception);
+  if(JS_IsException(val)) {
+    js_value_fwrite(ctx, val, stderr);
+  }
 
-  jsm_dump_error(ctx);
+  // jsm_dump_error(ctx);
   return val;
 }
 
@@ -275,7 +276,10 @@ jsm_module_directory(JSContext* ctx, const char* module) {
     path_append("index.js", 8, &db);
     dbuf_0(&db);
 
-    return (char*)db.buf;
+    if(path_is_file(db.buf))
+      return (char*)db.buf;
+
+    dbuf_free(&db);
   }
   return 0;
 }
@@ -608,7 +612,8 @@ jsm_script_load(JSContext* ctx, const char* file, BOOL module) {
   jsm_script_pop(ctx);
   if(JS_IsException(val)) {
     fprintf(stderr, "Failed loading '%s': %s\n", file, strerror(errno));
-    js_value_fwrite(ctx, val, stderr);
+    // js_error_print(ctx, JS_GetException(ctx));
+    js_value_fwrite(ctx, JS_GetException(ctx), stderr);
     ret = -1;
   } else if(JS_IsModule(val)) {
     module_exports_get(ctx, JS_VALUE_GET_PTR(val), TRUE, global_obj);

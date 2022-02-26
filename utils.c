@@ -1343,7 +1343,11 @@ void
 js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   const char* str;
   size_t len;
-  if(JS_IsFunction(ctx, value)) {
+  dbuf_putstr(db, js_value_typestr(ctx, value));
+  dbuf_putstr(db, " ");
+  if(JS_IsException(value)) {
+    dbuf_putstr(db, "[exception]");
+  } else if(JS_IsFunction(ctx, value)) {
     JSValue src = js_invoke(ctx, value, "toSource", 0, 0);
     js_value_dump(ctx, src, db);
     JS_FreeValue(ctx, src);

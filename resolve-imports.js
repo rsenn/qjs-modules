@@ -205,7 +205,7 @@ function ModuleLoader(module) {
 
   if(path.isDirectory(module)) {
     file = ModuleLoader(path.join(module, 'index.js'));
-  } else if(path.exists(module)) {
+  } else if(path.isFile(module)) {
     file = module;
   } else if(!/\.js$/.test(module)) {
     file = ModuleLoader(module + '.js');
@@ -530,15 +530,15 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     let p;
 
     //  if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
-    if(typeof file == 'string' && !path.exists(file)) {
+    if(typeof file == 'string' && !path.isFile(file)) {
       console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
 
       replacement = null;
       //  header.push(impexp);
-    } else if(file && path.exists(file)) {
+    } else if(file && path.isFile(file)) {
       replacement = file;
       // header.push(impexp);
-    } else if((typeof replacement == 'string' && !path.exists(replacement)) || type == What.IMPORT || typeof file == 'string') {
+    } else if((typeof replacement == 'string' && !path.isFile(replacement)) || type == What.IMPORT || typeof file == 'string') {
       replacement = null;
       //  header.push(impexp);
     } else if(code.startsWith('export')) {
@@ -584,7 +584,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         // console.log(`Builtin module '${file}'`);
         continue;
       }
-      if(!path.exists(file)) {
+      if(!path.isFile(file)) {
         console.log(`Path must exist '${file}'`);
         continue;
       }
@@ -920,7 +920,7 @@ class FileMap extends Array {
       let file = buf;
       let str = buf;
       if(typeof str == 'string') {
-        if(!path.exists(str)) throw Error(`FileMap\x1b[1;35m<${this.file}>\x1b[0m Inexistent file '${str}'`);
+        if(!path.isFile(str)) throw Error(`FileMap\x1b[1;35m<${this.file}>\x1b[0m Inexistent file '${str}'`);
         str = FileMap.for(str);
       }
       return str;
