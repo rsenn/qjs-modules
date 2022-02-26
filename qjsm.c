@@ -1360,25 +1360,23 @@ main(int argc, char** argv) {
       char str[512];
       const char* home = getenv("HOME");
 
+      /* clang-format off */ 
       snprintf(str,
-               sizeof(str),
-               "import { out } from 'std';\n"
-               "import REPL from 'repl';\n"
-               "import fs from 'fs';\n"
-               "import { Console } from 'console';\n"
-               "const history = '%s/.%s_history';\n"
-               "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n"
-               "globalThis.repl = new REPL('qjsm');\n"
-               "globalThis.repl.historyLoad();\n"
-
-               "repl.fs = fs;\n"
-               "repl.directives.i = [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => "
-               "repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ];\n"
-               "repl.show = console.log;\n"
-               //               "repl.historyLoad(history);\n"
-               "repl.runSync();\n",
-               home,
-               exename);
+       sizeof(str),
+       "import { out } from 'std';\n"
+       "import REPL from 'repl';\n"
+       "import fs from 'fs';\n"
+       "import { Console } from 'console';\n"
+       "const history = '%s/.%s_history';\n"
+       "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n"
+       "globalThis.repl = new REPL('qjsm');\n"
+       "repl.historyLoad(null, fs);\n"
+       "repl.directives = { i: [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ] };\n"
+        "repl.show = console.log;\n"
+        "repl.runSync();\n",
+       home,
+       exename);
+      /* clang-format on */
       js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }

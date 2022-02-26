@@ -437,8 +437,20 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     range[0] = loc.byteOffset;
     let code = toString(BufferFile(source).slice(...range));
     if(debug >= 2) console.log('AddImport', compact(1), { source, /* type, */ file, code, loc, range /*, tokens: NonWS(tokens)*/ });
-     let imp = Object.setPrototypeOf(
-      define({ type, file: file && /\./.test(file) ? relativePath(file) : file, range }, { tokens: tokens.slice(), code, loc, depth, path() {const { file } = this; if(typeof file == 'string') return relativePath(file); } }),
+    let imp = Object.setPrototypeOf(
+      define(
+        { type, file: file && /\./.test(file) ? relativePath(file) : file, range },
+        {
+          tokens: tokens.slice(),
+          code,
+          loc,
+          depth,
+          path() {
+            const { file } = this;
+            if(typeof file == 'string') return relativePath(file);
+          }
+        }
+      ),
       Import.prototype
     );
     let fn = {
@@ -447,7 +459,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       },
       [ImportTypes.IMPORT_DEFAULT]() {
         const { tokens } = this;
-         return tokens[tokens.findIndex(tok => IsKeyword('import', tok)) + 1].lexeme;
+        return tokens[tokens.findIndex(tok => IsKeyword('import', tok)) + 1].lexeme;
       },
       [ImportTypes.IMPORT]() {
         const { tokens } = this;
