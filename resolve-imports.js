@@ -372,6 +372,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     }
     state = newState;
   }
+
   function Export(tokens, relativePath = s => s) {
     if(tokens[0].seq == tokens[1].seq) tokens.shift();
     const { loc, seq } = tokens[0];
@@ -533,18 +534,20 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
 
       replacement = null;
-      header.push(impexp);
+      //  header.push(impexp);
     } else if(file && path.exists(file)) {
       replacement = file;
-      header.push(impexp);
+      // header.push(impexp);
     } else if((typeof replacement == 'string' && !path.exists(replacement)) || type == What.IMPORT || typeof file == 'string') {
       replacement = null;
-      header.push(impexp);
+      //  header.push(impexp);
     } else if(code.startsWith('export')) {
-      footer.push(impexp);
       if(!removeExports) continue;
       replacement = file;
     }
+
+    let list = type == What.EXPORT ? footer : header;
+    list.push(impexp);
 
     if(debug >= 2) debugLog('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
     if(debug >= 1) debugLog('impexp', compact(1), { replacement: replacement, range: new NumericRange(...range), loc: loc + '' });
