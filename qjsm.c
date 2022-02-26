@@ -1369,11 +1369,13 @@ main(int argc, char** argv) {
                "const history = '%s/.%s_history';\n"
                "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n"
                "globalThis.repl = new REPL('qjsm');\n"
+               "globalThis.repl.historyLoad();\n"
+
                "repl.fs = fs;\n"
                "repl.directives.i = [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => "
                "repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ];\n"
                "repl.show = console.log;\n"
-               "repl.historyLoad(history);\n"
+               //               "repl.historyLoad(history);\n"
                "repl.runSync();\n",
                home,
                exename);
