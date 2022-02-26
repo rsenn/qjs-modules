@@ -200,7 +200,7 @@ jsm_init_modules(JSContext* ctx) {
   jsm_builtin_compiled(fs);
   jsm_builtin_compiled(perf_hooks);
   jsm_builtin_compiled(process);
-  // jsm_builtin_compiled(repl);
+  jsm_builtin_compiled(repl);
   jsm_builtin_compiled(require);
   jsm_builtin_compiled(tty);
   // jsm_builtin_compiled(util);
@@ -1364,16 +1364,15 @@ main(int argc, char** argv) {
       snprintf(str,
        sizeof(str),
        "import { out } from 'std';\n"
-       "import REPL from 'repl.js';\n"
+       "import REPL from 'repl';\n"
        "import fs from 'fs';\n"
-       "import inspect from 'inspect';\n"
        "import { Console } from 'console';\n"
        "const history = '%s/.%s_history';\n"
        "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n"
        "globalThis.repl = new REPL('qjsm');\n"
-       "repl.show =  arg => console.log(inspect(arg));\n"
-        "repl.historyLoad(null, fs);\n"
-       "repl.directives.i = [ name => import(name).then(m => globalThis[name/*.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')*/] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ];\n"
+       "repl.historyLoad(null, fs);\n"
+       "repl.directives = { i: [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ] };\n"
+        "repl.show = console.log;\n"
         "repl.runSync();\n",
        home,
        exename);
