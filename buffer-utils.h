@@ -41,6 +41,7 @@ void dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const char table[2
 void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
 void dbuf_put_escaped(DynBuf*, const char*, size_t len);
 void dbuf_put_value(DynBuf*, JSContext*, JSValue value);
+void dbuf_put_atom(DynBuf* db, JSContext* ctx, JSAtom atom);
 int dbuf_reserve_start(DynBuf*, size_t);
 size_t dbuf_token_pop(DynBuf*, char);
 size_t dbuf_token_push(DynBuf*, const char*, size_t len, char delim);
@@ -107,6 +108,22 @@ dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
   }
   return n;
 }
+
+#define js_dbuf_init(ctx, buf) dbuf_init2((buf), (ctx), (realloc_func*)&utils_js_realloc)
+#define js_dbuf_init_rt(rt, buf) dbuf_init2((buf), (rt), (realloc_func*)&utils_js_realloc_rt)
+
+void js_dbuf_allocator(JSContext* ctx, DynBuf* s);
+
+/*
+static inline void
+js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
+  dbuf_init2(s, rt, (DynBufReallocFunc*)js_realloc_rt);
+}
+
+static inline void
+js_dbuf_init(JSContext* ctx, DynBuf* s) {
+  dbuf_init2(s, ctx, (DynBufReallocFunc*)js_realloc);
+}*/
 
 struct memory_block;
 struct pointer_range;

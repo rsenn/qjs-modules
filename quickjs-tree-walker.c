@@ -5,6 +5,7 @@
 #include <quickjs.h>
 #include <string.h>
 #include "debug.h"
+#include "buffer-utils.h"
 
 /**
  * \defgroup quickjs-tree-walker QuickJS module: tree_walker - Object tree walker

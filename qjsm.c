@@ -203,7 +203,7 @@ jsm_init_modules(JSContext* ctx) {
   jsm_builtin_compiled(repl);
   jsm_builtin_compiled(require);
   jsm_builtin_compiled(tty);
-  jsm_builtin_compiled(util);
+  // jsm_builtin_compiled(util);
 }
 
 static JSValue
@@ -261,6 +261,21 @@ jsm_module_search_ext(JSContext* ctx, const char* path, const char* name, const 
     orig_js_free(ctx, file);
     if(*q == ':')
       ++q;
+  }
+  return 0;
+}
+
+static char*
+jsm_module_directory(JSContext* ctx, const char* module) {
+  DynBuf db;
+  js_dbuf_init(ctx, &db);
+
+  if(path_is_directory(module)) {
+    dbuf_putstr(&db, (const uint8_t*)module);
+    path_append("index.js", 8, &db);
+    dbuf_0(&db);
+
+    return (char*)db.buf;
   }
   return 0;
 }
@@ -336,6 +351,34 @@ jsm_module_load(JSContext* ctx, const char* name) {
 }
 
 JSModuleDef*
+jsm_module_json(JSContext* ctx, const char* name) {
+  DynBuf db;
+  JSModuleDef* m = 0;
+  uint8_t* ptr;
+  size_t len;
+  if(!(ptr = js_load_file(ctx, &len, name)))
+    return 0;
+  js_dbuf_init(ctx, &db);
+  dbuf_putstr(&db, "export default ");
+  while(len > 0 && is_whitespace_char(ptr[0])) {
+    ++ptr;
+    --len;
+  }
+  dbuf_put(&db, ptr, len);
+  js_free(ctx, ptr);
+  dbuf_0(&db);
+  {
+    JSValue ret;
+    ret = JS_Eval(ctx, db.buf, db.size, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
+      m = JS_VALUE_GET_PTR(ret);
+    JS_FreeValue(ctx, ret);
+  }
+  dbuf_free(&db);
+  return m;
+}
+
+JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   char *module, *file = 0;
   JSModuleDef* m = 0;
@@ -360,6 +403,11 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
         m = jsm_module_init(ctx, rec);
         goto end;
       }
+    }
+
+    if(path_exists(module)) {
+      file = js_strdup(ctx, module);
+      break;
     }
 
     if(!has_suffix(name, ".so") && !file) {
@@ -388,10 +436,13 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       }
     }
     if(!file) {
-      if(strchr("./", module[0]))
-        file = orig_js_strdup(ctx, module);
-      else if(!(file = jsm_module_search(ctx, jsm_default_module_path, module)))
-        break;
+
+      if(!(file = jsm_module_directory(ctx, module)))
+        /*     if(strchr("./", module[0]))
+               file = orig_js_strdup(ctx, module);
+             else*/
+        if(!(file = jsm_module_search(ctx, jsm_default_module_path, module)))
+          break;
       continue;
     }
     break;
@@ -401,7 +452,10 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
         printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
 
-    m = js_module_loader(ctx, file, opaque);
+    if(str_ends(file, ".json"))
+      m = jsm_module_json(ctx, file);
+    else
+      m = js_module_loader(ctx, file, opaque);
   }
 end:
   if(debug_module_loader && vector_finds(&module_debug, "import") != -1) {

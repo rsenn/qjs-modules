@@ -182,22 +182,6 @@ mod_int32(int32_t a, int32_t b) {
 
 uint64_t time_us(void);
 
-#define js_dbuf_init(ctx, buf) dbuf_init2((buf), (ctx), (realloc_func*)&utils_js_realloc)
-#define js_dbuf_init_rt(rt, buf) dbuf_init2((buf), (rt), (realloc_func*)&utils_js_realloc_rt)
-
-void js_dbuf_allocator(JSContext* ctx, DynBuf* s);
-
-/*
-static inline void
-js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
-  dbuf_init2(s, rt, (DynBufReallocFunc*)js_realloc_rt);
-}
-
-static inline void
-js_dbuf_init(JSContext* ctx, DynBuf* s) {
-  dbuf_init2(s, ctx, (DynBufReallocFunc*)js_realloc);
-}*/
-
 typedef struct {
   char* source;
   size_t len;
@@ -207,10 +191,12 @@ typedef struct {
 int regexp_flags_tostring(int, char*);
 int regexp_flags_fromstring(const char*);
 RegExp regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx);
+RegExp regexp_from_string(char* str, int flags);
 RegExp regexp_from_dbuf(DynBuf* dbuf, int flags);
 uint8_t* regexp_compile(RegExp re, JSContext* ctx);
 JSValue regexp_to_value(RegExp re, JSContext* ctx);
 void regexp_free_rt(RegExp re, JSRuntime* rt);
+BOOL regexp_match(const uint8_t* bc, const void* cbuf, size_t clen, JSContext* ctx);
 
 static inline void
 regexp_free(RegExp re, JSContext* ctx) {
@@ -823,6 +809,16 @@ js_promise_resolve_then(JSContext* ctx, JSValueConst promise, JSValueConst func)
 
 JSValue js_promise_wrap(JSContext* ctx, JSValueConst value);
 JSValue js_promise_adopt(JSContext* ctx, JSValueConst value);
+
+char* js_json_stringify(JSContext* ctx, JSValueConst value);
+
+BOOL js_is_identifier_len(JSContext* ctx, const char* str, size_t len);
+BOOL js_is_identifier_atom(JSContext* ctx, JSAtom atom);
+
+static inline BOOL
+js_is_identifier(JSContext* ctx, const char* str) {
+  return js_is_identifier_len(ctx, str, strlen(str));
+}
 
 /**
  * @}

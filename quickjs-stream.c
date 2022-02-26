@@ -772,7 +772,7 @@ writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
     // queue_clear(&st->q);
   }
 }
- 
+
 int
 writable_lock(Writable* st, Writer* wr) {
   const Writer* expected = 0;

@@ -292,6 +292,14 @@ dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value) {
   js_cstring_free(ctx, str);
 }
 
+void
+dbuf_put_atom(DynBuf* db, JSContext* ctx, JSAtom atom) {
+  const char* str;
+  str = JS_AtomToCString(ctx, atom);
+  dbuf_putstr(db, str);
+  JS_FreeCString(ctx, str);
+}
+
 int
 dbuf_reserve_start(DynBuf* s, size_t len) {
   if(unlikely((s->size + len) > s->allocated_size)) {
@@ -351,8 +359,10 @@ dbuf_load(DynBuf* s, const char* filename) {
     char buf[4096];
     size_t r;
     while(!feof(fp)) {
-      if((r = fread(buf, 1, sizeof(buf), fp)) == 0)
+      if((r = fread(buf, 1, sizeof(buf), fp)) == 0) {
+        fclose(fp);
         return -1;
+      }
       dbuf_put(s, (uint8_t const*)buf, r);
       nbytes += r;
     }
@@ -597,6 +607,12 @@ screen_size(int size[2]) {
   return 0;
 #endif
   return -1;
+}
+
+#undef js_realloc_rt
+void
+js_dbuf_allocator(JSContext* ctx, DynBuf* s) {
+  dbuf_init2(s, ctx->rt, (DynBufReallocFunc*)js_realloc_rt);
 }
 
 /**

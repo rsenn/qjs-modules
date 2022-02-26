@@ -423,7 +423,8 @@ endforeach(JS_MODULE ${QUICKJS_MODULES})
 
 link_directories(${QJSM_LIBDIR})
 
-dump(QJSM_LDADD QJSM_LIBDIR)
+#dump(QJSM_LDADD)
+
 if(LIBM)
   set(predicate_LIBRARIES ${LIBM})
 endif(LIBM)
@@ -486,7 +487,9 @@ add_custom_command(
   DEPENDS ${QJSC_DEPS}
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
-dump(COMPILED_MODULES)
+
+#dump(COMPILED_MODULES)
+
 set(QJSM_SOURCES
     qjsm.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c
     ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c ${MODULES_DIR}/perf_hooks.c ${MODULES_DIR}/process.c
@@ -502,7 +505,7 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 ##dump(QJSM_SOURCES)
 add_executable(qjsm ${QJSM_SOURCES})
 
-dump(QUICKJS_LIBRARY)
+#dump(QUICKJS_LIBRARY)
 
 if(QJS_MODULES_STATIC)
   add_dependencies(qjsm ${QJS_MODULES_STATIC})

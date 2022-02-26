@@ -45,12 +45,10 @@ function BufferFile(file) {
   // console.log('BufferFile', file);
   if(buffers[file]) return buffers[file];
   let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
-  console.log('BufferFile', { file, b });
-  if(!isObject(b)) {
+   if(!isObject(b)) {
     const size = fs.sizeSync(file);
     const fd = os.open(file, os.O_RDONLY);
-    console.log('BufferFile', { size, fd });
-    b = mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
+     b = mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
   }
 
   bufferRef.set(b, file);
@@ -262,9 +260,12 @@ function main(...args) {
     lex.ebnf = lex.bnf;
     lex.l = lex.bnf;
     lex.y = lex.bnf;
+    lex.json = lex.js;
 
     const lexer = lex[type];
 
+console.log('lexer', lexer);
+console.log('lexer.tokens', lexer.tokens);
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
 
     log('lexer:', lexer.constructor.name);
@@ -446,7 +447,7 @@ function main(...args) {
     let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
     buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
     log(`splitPoints`, splitPoints);
-    log(`buffers[${file}]`, buffers[file]);
+    //log(`buffers[${file}]`, buffers[file]);
     log(`buffers[${file}] len`, BufferLengths(file));
     log(`buffers[${file}] ofs`, BufferOffsets(file));
     log(`buffers[${file}] rng`, BufferRanges(file));
@@ -475,7 +476,7 @@ function main(...args) {
 
     std.gc();
   }
-  console.log('buffers', buffers);
+ // console.log('buffers', buffers);
   console.log('files', files);
 }
 

@@ -62,7 +62,7 @@ MaxEmptyLinesToKeep: 1
 PenaltyBreakBeforeFirstCallParameter: 120
 PenaltyBreakComment: 300
 PenaltyBreakFirstLessLess: 120
-PenaltyBreakString: 1000
+PenaltyBreakString: 100000
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 100
 SpacesBeforeTrailingComments: 1
