@@ -55,7 +55,9 @@ function main(...args) {
 
   const inotify_fd = watch();
   console.log('inotify_fd', inotify_fd);
-  const r = watch(inotify_fd, file, 0xfff, (eventType, filename) => console.log('watch event', { eventType, filename }));
+  const r = watch(inotify_fd, file, 0xfff, (eventType, filename) =>
+    console.log('watch event', { eventType, filename })
+  );
   let ev = new Uint32Array(4);
   let ret,
     buf = ev.buffer;

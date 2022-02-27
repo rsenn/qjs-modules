@@ -108,7 +108,8 @@ function main(...args) {
   console.log('pred:', pred);
   console.log('pred2:', pred2);
 
-  for(let [n, p] of deep.iterate(obj3, Predicate.property('4'), deep.RETURN_VALUE_PATH)) console.log(`deep.iterate()`, { n, p });
+  for(let [n, p] of deep.iterate(obj3, Predicate.property('4'), deep.RETURN_VALUE_PATH))
+    console.log(`deep.iterate()`, { n, p });
 
   console.log('select():', deep.select(obj3, pred, deep.RETURN_VALUE_PATH));
   console.log(
