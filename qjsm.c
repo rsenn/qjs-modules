@@ -1505,17 +1505,17 @@ main(int argc, char** argv) {
       char** ptr;
       JSModuleDef* m;
       vector_foreach_t(&module_list, ptr) {
-        char s[512], *name = *ptr;
+        char* name = *ptr;
+        /*char s[512];
         snprintf(s, sizeof(s), "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name);
 
         if(-1 == js_eval_str(ctx, s, 0, JS_EVAL_TYPE_MODULE)) {
           jsm_dump_error(ctx);
           return 1;
-        }
-        /*  if((ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis.%s = tmp;\n", name, name)))
-            ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis.%s = tmp;\n", name, name);
-          continue;  */
-
+        }*/
+        if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis.%s = tmp;\n", name, name))
+          if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis.%s = tmp;\n", name, name))
+            return 1;
         /*if(!(m = jsm_module_load(ctx, name))) {*/
 
         /*     if((m = jsm_module_loader(ctx, name, 0))) {
