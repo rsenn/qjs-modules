@@ -244,7 +244,7 @@ vector_pushstringlen(Vector* vec, const char* str, size_t len) {
   return s;
 }
 
-  void
+void
 vector_clearstrings(Vector* vec) {
   char** ptr;
   vector_foreach_t(vec, ptr) free(*ptr);

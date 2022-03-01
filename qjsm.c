@@ -1517,8 +1517,10 @@ main(int argc, char** argv) {
         if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
           continue;
 
-        if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
-          return 1;
+        if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
+          continue;
+
+        return 1;
       }
       vector_freestrings(&module_list);
     }
