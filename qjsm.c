@@ -46,6 +46,21 @@ atomic_add_int(int* ptr, int v) {
 typedef JSModuleDef* ModuleImportFunction(JSContext*, const char*, const char*);
 typedef char* ModuleSearchFunction(JSContext*, const char*);
 
+static int debug_module_loader = 0;
+static Vector module_debug = VECTOR_INIT();
+static thread_local Vector module_list = VECTOR_INIT();
+// static Vector builtins = VECTOR_INIT();
+
+static const char jsm_default_module_path[] = "."
+#ifdef QUICKJS_MODULE_PATH
+                                              ":" QUICKJS_MODULE_PATH
+#elif defined(CONFIG_PREFIX)
+                                              ":" CONFIG_PREFIX "/lib/quickjs"
+#endif
+    ;
+static JSModuleLoaderFunc* module_loader = 0;
+JSValue package_json;
+
 static const char* jsm_module_extensions[] = {
     ".so",
     ".js",
@@ -61,6 +76,9 @@ is_searchable(const char* path) {
 static char*
 is_module(JSContext* ctx, const char* module_name) {
   BOOL yes = path_is_file(module_name);
+
+  if(debug_module_loader)
+    printf("%16s(module_name=\"%s\")=%s\n", __func__, module_name, ((yes) ? "TRUE" : "FALSE"));
 
   return yes ? js_strdup(ctx, module_name) : 0;
 }
@@ -168,21 +186,6 @@ jsm_dump_error(JSContext* ctx) {
 
   js_error_print(ctx, JS_GetException(ctx));
 }
-
-static int debug_module_loader = 0;
-static Vector module_debug = VECTOR_INIT();
-static thread_local Vector module_list = VECTOR_INIT();
-// static Vector builtins = VECTOR_INIT();
-
-static const char jsm_default_module_path[] = "."
-#ifdef QUICKJS_MODULE_PATH
-                                              ":" QUICKJS_MODULE_PATH
-#elif defined(CONFIG_PREFIX)
-                                              ":" CONFIG_PREFIX "/lib/quickjs"
-#endif
-    ;
-static JSModuleLoaderFunc* module_loader = 0;
-JSValue package_json;
 
 static JSValue
 jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
@@ -309,8 +312,11 @@ jsm_module_search_ext(JSContext* ctx, const char* path, const char* name, const 
 static char*
 jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
   const char* s;
-  char *t = 0;
+  char* t = 0;
   size_t i, j = strlen(module_name);
+
+  if(debug_module_loader)
+    printf("%16s(module_name=\"%s\" list =\"%s\")\n", __func__, module_name, list);
 
   if(!(t = js_malloc(ctx, strlen(list) + 1 + strlen(module_name) + 1)))
     return 0;
@@ -321,8 +327,8 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
     strncpy(t, s, i);
     t[i] = '/';
     strcpy(&t[i + 1], module_name);
-   if(path_is_file(t))
-    return t;
+    if(path_is_file(t))
+      return t;
     if(s[i])
       ++i;
   }
@@ -332,6 +338,9 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
 static char*
 jsm_search_module(JSContext* ctx, const char* module_name) {
   const char* list;
+
+  if(debug_module_loader)
+    printf("%16s(module_name=\"%s\")\i", __func__, module_name);
 
   assert(is_searchable(module_name));
 
@@ -345,6 +354,14 @@ static char*
 jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleSearchFunction* fn) {
   size_t i, n, len = strlen(module_name);
   char *s, *t = 0;
+
+  if(debug_module_loader)
+    printf("%16s(module_name=\"%s\", fn=%s)\n",
+           __func__,
+           module_name,
+           fn == &is_module           ? "is_module"
+           : fn == &jsm_search_module ? "jsm_search_module"
+                                      : "<unknown>");
 
   if(!(s = js_mallocz(ctx, (len + 31) & (~0xf))))
     return 0;
@@ -373,6 +390,15 @@ jsm_locate_module(JSContext* ctx, const char* module_name) {
 
   s = suffix ? fn(ctx, module_name) : jsm_find_suffix(ctx, module_name, fn);
 
+  if(debug_module_loader)
+    printf("%16s(module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n",
+           __func__,
+           module_name,
+           ((search) ? "TRUE" : "FALSE"),
+           ((suffix) ? "TRUE" : "FALSE"),
+           search ? "search_module" : "is_module",
+           s);
+
   return s;
 }
 
@@ -396,7 +422,7 @@ jsm_lookup_package(JSContext* ctx, const char* module) {
         file = js_tostring(ctx, target);
 
         if(debug_module_loader)
-          printf("\x1b[48;5;28m(2)\x1b[0m %-30s => %s\n", module, file);
+          printf("(2) %-30s => %s\n", module, file);
         JS_FreeValue(ctx, target);
       }
     }
@@ -453,7 +479,7 @@ jsm_module_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
   if(rec->def == 0) {
     if(debug_module_loader)
-      printf("\x1b[48;5;214m(3)\x1b[0m %-30s internal\n", rec->module_name);
+      printf("(3) %-30s internal\n", rec->module_name);
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
 
@@ -526,6 +552,9 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char* s;
   JSModuleDef* m = 0;
 
+  if(debug_module_loader)
+    printf("%16s(module_name=\"%s\"opaque=%p) s=%s result=%p\n", __func__, module_name, opaque, s, m);
+
   if(!(s = jsm_lookup_package(ctx, module_name)))
     s = js_strdup(ctx, module_name);
 
@@ -569,7 +598,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   for(;;) {
     if(debug_module_loader > 1) {
       if(file)
-        printf("\x1b[48;5;214m(1)\x1b[0m %-30s '%s'\n", name, file);
+        printf("(1) %-30s '%s'\n", name, file);
      }
     if(!strchr(module, '/')) {
       BuiltinModule* rec;
@@ -594,7 +623,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   if(file) {
     if(debug_module_loader)
       if(strcmp(trim_dotslash(module), trim_dotslash(file)))
-        printf("\x1b[48;5;21m(3)\x1b[0m %-30s -> %s\n", module, file);
+        printf("(3) %-30s -> %s\n", module, file);
 
     if(str_ends(file, ".json"))
       m = jsm_module_json(ctx, file);
