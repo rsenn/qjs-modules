@@ -70,7 +70,11 @@ int path_find(const char*, const char*, DynBuf* db);
 int path_fnmatch(const char*, unsigned int, const char* string, unsigned int slen, int flags);
 char* path_getcwd(DynBuf*);
 char* path_gethome(int);
-int path_is_absolute(const char*, size_t);
+int path_is_absolute_b(const char*, size_t);
+static inline int
+path_is_absolute(const char* s) {
+  return path_is_absolute_b(s, strlen(s));
+}
 int path_is_directory(const char*);
 int path_is_file(const char*);
 int path_is_chardev(const char*);

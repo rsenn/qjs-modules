@@ -39,7 +39,7 @@ path_absolute_db(DynBuf* db) {
   dbuf_putc(db, '\0');
   db->size--;
 
-  if(!path_is_absolute((const char*)db->buf, db->size)) {
+  if(!path_is_absolute_b((const char*)db->buf, db->size)) {
     DynBuf tmp;
     dbuf_init(&tmp);
     dbuf_append(&tmp, db->buf, db->size);
@@ -438,7 +438,7 @@ path_gethome(int uid) {
 }
 
 int
-path_is_absolute(const char* x, size_t n) {
+path_is_absolute_b(const char* x, size_t n) {
   if(n > 0 && x[0] == PATHSEP_C)
     return 1;
 #ifdef _WIN32
@@ -576,7 +576,7 @@ start:
       ret++;
       if((ssize_t)(n = readlink((const char*)db->buf, buf, PATH_MAX)) == (ssize_t)-1)
         return 0;
-      if(path_is_absolute(buf, n)) {
+      if(path_is_absolute_b(buf, n)) {
         strncpy(&buf[n], path, PATH_MAX - n);
         dbuf_zero(db);
         dbuf_putc(db, sep);

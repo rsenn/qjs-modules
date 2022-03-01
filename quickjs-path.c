@@ -448,7 +448,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     js_cstring_free(ctx, str);
   }
 
-  if(!path_is_absolute((const char*)db.buf, db.size)) {
+  if(!path_is_absolute_b((const char*)db.buf, db.size)) {
     js_dbuf_init(ctx, &cwd);
     str = path_getcwd(&cwd);
     len = cwd.size;
