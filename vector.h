@@ -88,6 +88,27 @@ BOOL vector_grow(Vector* vec, size_t elsz, int32_t len);
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 
+static inline char*
+vector_pushstring(Vector* vec, const char* str) {
+  char* s;
+  if((s = vec->realloc_func(vec->opaque, 0, strlen(str) + 1))) {
+    strcpy(s, str);
+    vector_push(vec, s);
+  }
+  return s;
+}
+
+static inline char*
+vector_pushstringlen(Vector* vec, const char* str, size_t len) {
+  char* s;
+  if((s = vec->realloc_func(vec->opaque, 0, len + 1))) {
+    strncpy(s, str, len);
+    s[len] = '\0';
+    vector_push(vec, s);
+  }
+  return s;
+}
+
 static inline void*
 vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
   uint64_t need;
@@ -165,6 +186,13 @@ vector_back(const Vector* vec, size_t elsz) {
 static inline void
 vector_clear(Vector* vec) {
   vec->size = 0;
+}
+
+static inline void
+vector_clearstrings(Vector* vec) {
+  char** ptr;
+  vector_foreach_t(vec, ptr) free(*ptr);
+  vector_clear(vec);
 }
 
 static inline void*

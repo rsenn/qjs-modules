@@ -1348,7 +1348,7 @@ main(int argc, char** argv) {
 
         for(i = 0; modules[i]; i += len) {
           len = str_chr(&modules[i], ',');
-          vector_putptr(&module_list, str_ndup(&modules[i], len));
+          vector_pushstringlen(&module_list, &modules[i], len);
 
           if(modules[i + len] == ',')
             len++;
@@ -1506,19 +1506,21 @@ main(int argc, char** argv) {
       JSModuleDef* m;
       vector_foreach_t(&module_list, ptr) {
         char* name = *ptr;
+
         /*char s[512];
         snprintf(s, sizeof(s), "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name);
-
         if(-1 == js_eval_str(ctx, s, 0, JS_EVAL_TYPE_MODULE)) {
           jsm_dump_error(ctx);
           return 1;
         }*/
-        if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis.%s = tmp;\n", name, name))
-          if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis.%s = tmp;\n", name, name))
-            return 1;
 
-        free(*ptr);
+        if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
+          continue;
+
+        if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
+          return 1;
       }
+      vector_clearstrings(&module_list);
       vector_free(&module_list);
     }
 
