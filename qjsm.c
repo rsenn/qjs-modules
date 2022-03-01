@@ -1516,16 +1516,7 @@ main(int argc, char** argv) {
         if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis.%s = tmp;\n", name, name))
           if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis.%s = tmp;\n", name, name))
             return 1;
-        /*if(!(m = jsm_module_load(ctx, name))) {*/
 
-        /*     if((m = jsm_module_loader(ctx, name, 0))) {
-               JSValue exports = module_exports(ctx, m);
-               JS_SetPropertyStr(ctx, JS_GetGlobalObject(ctx), name, exports);
-             } else {
-               fprintf(stderr, "error loading module '%s'\n", name);
-               jsm_dump_error(ctx);
-               exit(1);
-             }*/
         free(*ptr);
       }
       vector_free(&module_list);
