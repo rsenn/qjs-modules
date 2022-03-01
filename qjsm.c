@@ -109,7 +109,7 @@ struct list_head pollhandlers;*/
 JSModuleLoaderFunc* js_std_get_module_loader_func();
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 #endif
-  
+
 #if !DONT_HAVE_MALLOC_USABLE_SIZE && !defined(ANDROID)
 #if HAVE_MALLOC_USABLE_SIZE
 #ifndef HAVE_MALLOC_USABLE_SIZE_DEFINITION
@@ -505,8 +505,10 @@ jsm_module_load(JSContext* ctx, const char* name) {
   JSRuntime* rt = JS_GetRuntime(ctx);
   JSModuleDef* m;
 
+  printf("jsm_module_load(%p, %s) = %p\n", ctx, name, m);
+
   m = rt->module_loader_func(ctx, name, 0);
-  // printf("jsm_module_load(%p, %s) = %p\n", ctx, name, m);
+
   if(m) {
     JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m));
 

@@ -1845,7 +1845,7 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
-    // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
+// JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
 #ifdef USE_TEMPNAM
     JS_CFUNC_DEF("tempnam", 0, js_misc_tempnam),
 #endif
