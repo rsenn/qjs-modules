@@ -1509,17 +1509,10 @@ main(int argc, char** argv) {
       char** ptr;
       JSModuleDef* m;
       vector_foreach_t(&module_list, ptr) {
-        char* name = *ptr;
-        int ret;
-        char str[512];
-        snprintf(str,
-                 sizeof(str),
-                 "import * as tmp from '%s';\n"
-                 "globalThis['%s'] = tmp;\n",
-                 name,
-                 name);
+        char s[512], *name = *ptr;
+        snprintf(s, sizeof(s), "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name);
 
-        if(-1 == js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE)) {
+        if(-1 == js_eval_str(ctx, s, 0, JS_EVAL_TYPE_MODULE)) {
           jsm_dump_error(ctx);
           return 1;
         }
