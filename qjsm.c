@@ -1494,12 +1494,8 @@ main(int argc, char** argv) {
 
     JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
     if(load_std) {
-      const char* str = "import * as std from 'std';\nimport * as os from "
-                        "'os';\nglobalThis.std = "
-                        "std;\nglobalThis.os "
-                        "= os;\nglobalThis.setTimeout = "
-                        "os.setTimeout;\nglobalThis.clearTimeout = "
-                        "os.clearTimeout;\n";
+      const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = std;\nglobalThis.os = os;\nglobalThis.setTimeout = "
+                        "os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 
