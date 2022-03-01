@@ -222,3 +222,24 @@ vector_grow(Vector* vec, size_t elsz, int32_t len) {
   vec->size = need;
   return TRUE;
 }
+
+char*
+vector_pushstring(Vector* vec, const char* str) {
+  char* s;
+  if((s = vec->realloc_func(vec->opaque, 0, strlen(str) + 1))) {
+    strcpy(s, str);
+    vector_push(vec, s);
+  }
+  return s;
+}
+
+char*
+vector_pushstringlen(Vector* vec, const char* str, size_t len) {
+  char* s;
+  if((s = vec->realloc_func(vec->opaque, 0, len + 1))) {
+    strncpy(s, str, len);
+    s[len] = '\0';
+    vector_push(vec, s);
+  }
+  return s;
+}

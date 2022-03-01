@@ -85,29 +85,10 @@ void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, Vector*, Vector*
 int vector_copy(Vector* dst, const Vector* src);
 void vector_fwrite(const Vector*, size_t, FILE* out);
 BOOL vector_grow(Vector* vec, size_t elsz, int32_t len);
+char* vector_pushstring(Vector*, const char*);
+char* vector_pushstringlen(Vector*, const char*, size_t);
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
-
-static inline char*
-vector_pushstring(Vector* vec, const char* str) {
-  char* s;
-  if((s = vec->realloc_func(vec->opaque, 0, strlen(str) + 1))) {
-    strcpy(s, str);
-    vector_push(vec, s);
-  }
-  return s;
-}
-
-static inline char*
-vector_pushstringlen(Vector* vec, const char* str, size_t len) {
-  char* s;
-  if((s = vec->realloc_func(vec->opaque, 0, len + 1))) {
-    strncpy(s, str, len);
-    s[len] = '\0';
-    vector_push(vec, s);
-  }
-  return s;
-}
 
 static inline void*
 vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
