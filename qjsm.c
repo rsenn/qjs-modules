@@ -43,8 +43,8 @@ atomic_add_int(int* ptr, int v) {
 #include "buffer-utils.h"
 #include "debug.h"
 
-typedef JSModuleDef* ModuleImportFunction(JSContext*, const char*, const char*);
-typedef char* ModuleSearchFunction(JSContext*, const char*);
+typedef JSModuleDef* ModuleInitFunction(JSContext*, const char*);
+typedef char* ModuleLoader(JSContext*, const char*);
 
 static int debug_module_loader = 0;
 static Vector module_debug = VECTOR_INIT();
@@ -109,7 +109,7 @@ struct list_head pollhandlers;*/
 JSModuleLoaderFunc* js_std_get_module_loader_func();
 void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 #endif
-
+  
 #if !DONT_HAVE_MALLOC_USABLE_SIZE && !defined(ANDROID)
 #if HAVE_MALLOC_USABLE_SIZE
 #ifndef HAVE_MALLOC_USABLE_SIZE_DEFINITION
@@ -167,7 +167,7 @@ jsm_module_extern_compiled(tty);
 jsm_module_extern_compiled(util);
 
 static thread_local Vector jsm_scripts;
-static thread_local Vector jsm_modules;
+static thread_local Vector jsm_builtin_modules;
 static thread_local BOOL jsm_modules_initialized;
 
 #ifdef CONFIG_BIGNUM
@@ -211,9 +211,10 @@ jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename,
 
 void
 jsm_init_modules(JSContext* ctx) {
-  vector_init(&jsm_modules, ctx);
 
-#define jsm_builtin_native(name) vector_push(&jsm_modules, jsm_module_record_native(name));
+  dbuf_init2(&jsm_builtin_modules.dbuf, 0, &vector_realloc);
+
+#define jsm_builtin_native(name) vector_push(&jsm_builtin_modules, jsm_module_record_native(name));
 
   jsm_builtin_native(std);
   jsm_builtin_native(os);
@@ -232,7 +233,7 @@ jsm_init_modules(JSContext* ctx) {
 
   // printf("native builtins: "); dump_vector(&builtins, 0);
 
-#define jsm_builtin_compiled(name) vector_push(&jsm_modules, jsm_module_record_compiled(name));
+#define jsm_builtin_compiled(name) vector_push(&jsm_builtin_modules, jsm_module_record_compiled(name));
 
   jsm_builtin_compiled(console);
   jsm_builtin_compiled(events);
@@ -340,7 +341,7 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
   const char* list;
 
   if(debug_module_loader)
-    printf("%16s(module_name=\"%s\")\i", __func__, module_name);
+    printf("%16s(module_name=\"%s\")\n", __func__, module_name);
 
   assert(is_searchable(module_name));
 
@@ -351,7 +352,7 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
 }
 
 static char*
-jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleSearchFunction* fn) {
+jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
   size_t i, n, len = strlen(module_name);
   char *s, *t = 0;
 
@@ -386,7 +387,7 @@ jsm_locate_module(JSContext* ctx, const char* module_name) {
   char* s = 0;
   BOOL search = is_searchable(module_name);
   BOOL suffix = module_has_suffix(ctx, module_name);
-  ModuleSearchFunction* fn = search ? &jsm_search_module : &is_module;
+  ModuleLoader* fn = search ? &jsm_search_module : &is_module;
 
   s = suffix ? fn(ctx, module_name) : jsm_find_suffix(ctx, module_name, fn);
 
@@ -465,9 +466,9 @@ jsm_module_search(JSContext* ctx, const char* search_path, const char* module) {
 }*/
 
 static BuiltinModule*
-jsm_module_find(const char* name) {
+jsm_builtin_find(const char* name) {
   BuiltinModule* rec;
-  vector_foreach_t(&jsm_modules, rec) {
+  vector_foreach_t(&jsm_builtin_modules, rec) {
     if(!strcmp(rec->module_name, name))
       return rec;
   }
@@ -475,7 +476,7 @@ jsm_module_find(const char* name) {
 }
 
 static JSModuleDef*
-jsm_module_init(JSContext* ctx, BuiltinModule* rec) {
+jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
   if(rec->def == 0) {
     if(debug_module_loader)
@@ -561,9 +562,9 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   if(!strchr(s, '/')) {
     BuiltinModule* rec;
 
-    if((rec = jsm_module_find(s))) {
+    if((rec = jsm_builtin_find(s))) {
       js_free(ctx, s);
-      return jsm_module_init(ctx, rec);
+      return jsm_builtin_init(ctx, rec);
     }
   }
 
@@ -603,8 +604,8 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
     if(!strchr(module, '/')) {
       BuiltinModule* rec;
 
-      if((rec = jsm_module_find(module))) {
-        m = jsm_module_init(ctx, rec);
+      if((rec = jsm_builtin_find(module))) {
+        m = jsm_builtin_init(ctx, rec);
         goto end;
       }
     }
@@ -784,9 +785,11 @@ jsm_script_load(JSContext* ctx, const char* file, BOOL module) {
   val = jsm_eval_file(ctx, file, module);
   jsm_script_pop(ctx);
   if(JS_IsException(val)) {
-    fprintf(stderr, "Failed loading '%s': %s\n", file, strerror(errno));
-    // js_error_print(ctx, JS_GetException(ctx));
-    js_value_fwrite(ctx, JS_GetException(ctx), stderr);
+    JSValue stack = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack");
+    fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, strerror(errno), js_value_typestr(ctx, stack));
+    js_error_print(ctx, ctx->rt->current_exception);
+    js_value_fwrite(ctx, ctx->rt->current_exception, stderr);
+    js_std_dump_error(ctx);
     ret = -1;
   } else if(JS_IsModule(val)) {
     module_exports_get(ctx, JS_VALUE_GET_PTR(val), TRUE, global_obj);
@@ -1404,6 +1407,8 @@ main(int argc, char** argv) {
     }
     optind++;
   }
+
+  jsm_init_modules(ctx);
 
 #ifdef HAVE_GET_MODULE_LOADER_FUNC
   module_loader = js_std_get_module_loader_func();

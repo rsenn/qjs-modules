@@ -624,6 +624,7 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_NewString(ctx, result);
   return JS_NULL;
 }*/
+#ifdef USE_TEMPNAM
 static JSValue
 js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char *dir = 0, *pfx = 0;
@@ -641,6 +642,7 @@ js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
   return ret;
 }
+#endif
 
 static JSValue
 js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -1844,7 +1846,9 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef __wasi__
     // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
+#ifdef USE_TEMPNAM
     JS_CFUNC_DEF("tempnam", 0, js_misc_tempnam),
+#endif
     JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
 #ifdef HAVE_FNMATCH
