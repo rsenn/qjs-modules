@@ -304,7 +304,6 @@ static inline void*     js_value_ptr(JSValueConst v) { return JS_VALUE_GET_PTR(v
 static inline int       js_value_int(JSValueConst v) { return JS_VALUE_GET_INT(v); }
 static inline BOOL      js_value_bool(JSValueConst v) { return JS_VALUE_GET_BOOL(v); }
 static inline double    js_value_float64(JSValueConst v) { return JS_VALUE_GET_FLOAT64(v); }
-//static inline JSValue   js_value_mkptr(int tag, void* ptr) { return JS_MKPTR(tag, ptr); }
 static inline JSValue   js_value_mkval(int tag, intptr_t val) { return JS_MKVAL(tag, val); }
 static inline JSObject* js_value_obj(JSValueConst v) { return JS_IsObject(v) ? JS_VALUE_GET_OBJ(v) : 0; }
 /* clang-format on */
