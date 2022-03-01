@@ -1554,9 +1554,7 @@ main(int argc, char** argv) {
     }
     js_eval_str(ctx,
                 "import { Console } from 'console';\n"
-                "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n"
-
-                ,
+                "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n",
                 0,
                 JS_EVAL_TYPE_MODULE);
 
