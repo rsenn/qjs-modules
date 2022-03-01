@@ -1520,8 +1520,7 @@ main(int argc, char** argv) {
         if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
           return 1;
       }
-      vector_clearstrings(&module_list);
-      vector_free(&module_list);
+      vector_freestrings(&module_list);
     }
 
     for(i = 0; i < include_count; i++) {

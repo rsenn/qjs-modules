@@ -87,6 +87,7 @@ void vector_fwrite(const Vector*, size_t, FILE* out);
 BOOL vector_grow(Vector* vec, size_t elsz, int32_t len);
 char* vector_pushstring(Vector*, const char*);
 char* vector_pushstringlen(Vector*, const char*, size_t);
+void vector_clearstrings(Vector*);
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 
@@ -170,10 +171,9 @@ vector_clear(Vector* vec) {
 }
 
 static inline void
-vector_clearstrings(Vector* vec) {
-  char** ptr;
-  vector_foreach_t(vec, ptr) free(*ptr);
-  vector_clear(vec);
+vector_freestrings(Vector* vec) {
+  vector_clearstrings(vec);
+  vector_free(vec);
 }
 
 static inline void*
