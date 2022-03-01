@@ -1614,11 +1614,11 @@ module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueC
     JSAtom name = entry->export_name;
 
     if(ref) {
-      value = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
+      val = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
       if(rename_default && name == def)
         name = m->module_name;
     }
-    JS_SetProperty(ctx, exports, name, value);
+    JS_SetProperty(ctx, exports, name, val);
   }
   JS_FreeAtom(ctx, def);
 }
