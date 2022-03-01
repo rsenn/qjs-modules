@@ -558,11 +558,8 @@ jsm_module_json(JSContext* ctx, const char* name) {
 
 static JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
-  char* s;
+  char* s = 0;
   JSModuleDef* m = 0;
-
-  if(debug_module_loader)
-    printf("%16s(module_name=\"%s\"opaque=%p) s=%s result=%p\n", __func__, module_name, opaque, s, m);
 
   if(!(s = jsm_lookup_package(ctx, module_name)))
     s = js_strdup(ctx, module_name);
@@ -585,6 +582,9 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
       }
     }
   }
+
+  if(debug_module_loader)
+    printf("%16s(module_name=\"%s\", opaque=%p) s=%s result=%p\n", __func__, module_name, opaque, s, m);
 
   if(s) {
     m = js_module_loader(ctx, s, opaque);
@@ -1520,9 +1520,9 @@ main(int argc, char** argv) {
 
         /*if(!(m = jsm_module_load(ctx, name))) {*/
 
-        if((m = jsm_module_loader(ctx, *name, 0))) {
+        if((m = jsm_module_loader(ctx, name, 0))) {
           JSValue exports = module_exports(ctx, m);
-          JS_SetPropertyStr(ctx, JS_GetGlobalObject(ctx), *name, exports);
+          JS_SetPropertyStr(ctx, JS_GetGlobalObject(ctx), name, exports);
         } else {
           fprintf(stderr, "error loading module '%s'\n", name);
           jsm_dump_error(ctx);

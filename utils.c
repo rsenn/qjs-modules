@@ -1610,13 +1610,15 @@ module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueC
   for(i = 0; i < m->export_entries_count; i++) {
     JSExportEntry* entry = &m->export_entries[i];
     JSVarRef* ref = entry->u.local.var_ref;
+    JSValue val = JS_UNDEFINED;
+    JSAtom name = entry->export_name;
+
     if(ref) {
-      JSValue export = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
-      JSAtom name = entry->export_name;
+      value = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
       if(rename_default && name == def)
         name = m->module_name;
-      JS_SetProperty(ctx, exports, name, export);
     }
+    JS_SetProperty(ctx, exports, name, value);
   }
   JS_FreeAtom(ctx, def);
 }
@@ -1624,7 +1626,7 @@ module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueC
 JSValue
 module_exports(JSContext* ctx, JSModuleDef* m) {
   JSValue exports;
-  exports = JS_NewObjectProto(ctx, JS_NULL);
+  exports = JS_NewObject /*Proto*/ (ctx /*, JS_NULL*/);
   module_exports_get(ctx, m, FALSE, exports);
   return exports;
 }
