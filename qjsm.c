@@ -1512,18 +1512,14 @@ main(int argc, char** argv) {
         char* name = *ptr;
         int ret;
         char str[512];
-        JSValue ret;
         snprintf(str,
                  sizeof(str),
-
                  "import * as tmp from '%s';\n"
                  "globalThis['%s'] = tmp;\n",
                  name,
                  name);
 
-        ret = js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
-
-        if(JS_IsException(ret)) {
+        if(-1 == js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE)) {
           jsm_dump_error(ctx);
           return 1;
         }
