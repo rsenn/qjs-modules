@@ -407,24 +407,28 @@ jsm_locate_module(JSContext* ctx, const char* module_name) {
 
 static char*
 jsm_lookup_package(JSContext* ctx, const char* module) {
+  JSValue package;
   char* file = 0;
+
   if(!has_suffix(module, ".so")) {
-    JSValue package = jsm_load_package(ctx, "package.json");
+    package = jsm_load_package(ctx, "package.json");
+
     if(JS_IsObject(package)) {
       JSValue aliases, target = JS_UNDEFINED;
 
       aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
-      if(!JS_IsException(aliases) && JS_IsObject(aliases))
+      if(!JS_IsException(aliases) && JS_IsObject(aliases)) {
         target = JS_GetPropertyStr(ctx, aliases, module);
 
-      JS_FreeValue(ctx, aliases);
+        JS_FreeValue(ctx, aliases);
 
-      if(!JS_IsUndefined(target)) {
-        file = js_tostring(ctx, target);
+        if(!JS_IsUndefined(target)) {
+          file = js_tostring(ctx, target);
 
-        if(debug_module_loader)
-          printf("(2) %-30s => %s\n", module, file);
-        JS_FreeValue(ctx, target);
+          if(debug_module_loader)
+            printf("(2) %-30s => %s\n", module, file);
+          JS_FreeValue(ctx, target);
+        }
       }
     }
   }
