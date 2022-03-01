@@ -510,7 +510,9 @@ jsm_module_load(JSContext* ctx, const char* name) {
   m = rt->module_loader_func(ctx, name, 0);
 
   if(m) {
-    JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+    JSValue module_obj = js_value_mkptr(JS_TAG_MODULE, m);
+    JS_ResolveModule(ctx, module_obj);
+    // JS_EvalFunction(ctx, module_obj);
 
     JSValue exp = module_exports(ctx, m);
     JSValue glb = JS_GetGlobalObject(ctx);
@@ -1511,12 +1513,13 @@ main(int argc, char** argv) {
 
           continue;
   */
-        if(!(m = jsm_module_load(ctx, name))) {
 
-          /* if((m = jsm_module_loader(ctx, *name, 0))) {
-                    JSValue exports = module_exports(ctx, m);
-                    JS_SetPropertyStr(ctx, JS_GetGlobalObject(ctx), *name, exports);
-                  } else {*/
+        /*if(!(m = jsm_module_load(ctx, name))) {*/
+
+        if((m = jsm_module_loader(ctx, *name, 0))) {
+          JSValue exports = module_exports(ctx, m);
+          JS_SetPropertyStr(ctx, JS_GetGlobalObject(ctx), *name, exports);
+        } else {
           fprintf(stderr, "error loading module '%s'\n", name);
           jsm_dump_error(ctx);
           exit(1);
