@@ -1511,23 +1511,36 @@ main(int argc, char** argv) {
       vector_foreach_t(&module_list, ptr) {
         char* name = *ptr;
         int ret;
+        char str[512];
+        JSValue ret;
+        snprintf(str,
+                 sizeof(str),
 
+                 "import * as tmp from '%s';\n"
+                 "globalThis['%s'] = tmp;\n",
+                 name,
+                 name);
+
+        ret = js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
+
+        if(JS_IsException(ret)) {
+          jsm_dump_error(ctx);
+          return 1;
+        }
         /*  if((ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis.%s = tmp;\n", name, name)))
             ret = js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis.%s = tmp;\n", name, name);
-
-          continue;
-  */
+          continue;  */
 
         /*if(!(m = jsm_module_load(ctx, name))) {*/
 
-        if((m = jsm_module_loader(ctx, name, 0))) {
-          JSValue exports = module_exports(ctx, m);
-          JS_SetPropertyStr(ctx, JS_GetGlobalObject(ctx), name, exports);
-        } else {
-          fprintf(stderr, "error loading module '%s'\n", name);
-          jsm_dump_error(ctx);
-          exit(1);
-        }
+        /*     if((m = jsm_module_loader(ctx, name, 0))) {
+               JSValue exports = module_exports(ctx, m);
+               JS_SetPropertyStr(ctx, JS_GetGlobalObject(ctx), name, exports);
+             } else {
+               fprintf(stderr, "error loading module '%s'\n", name);
+               jsm_dump_error(ctx);
+               exit(1);
+             }*/
         free(*ptr);
       }
       vector_free(&module_list);
