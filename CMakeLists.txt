@@ -164,7 +164,7 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
-check_functions(fnmatch glob wordexp inotify_init1 inet_pton)
+check_functions(fnmatch glob wordexp inotify_init1 inet_pton daemon)
 check_includes(fnmatch.h glob.h wordexp.h sys/inotify.h)
 
 if(HAVE_INET_PTON)
@@ -174,6 +174,10 @@ endif(HAVE_INET_PTON)
 if(HAVE_FNMATCH AND HAVE_FNMATCH_H)
   add_definitions(-DHAVE_FNMATCH=1)
 endif(HAVE_FNMATCH AND HAVE_FNMATCH_H)
+
+if(HAVE_DAEMON)
+  add_definitions(-DHAVE_DAEMON=1)
+endif(HAVE_DAEMON)
 
 if(HAVE_GLOB AND HAVE_GLOB_H)
   add_definitions(-DHAVE_GLOB=1)

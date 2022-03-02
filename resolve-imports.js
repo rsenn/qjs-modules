@@ -1241,7 +1241,7 @@ function main(...args) {
         for(let line of this.lines) {
           if(!(isWS(line) && isWS(prev))) {
             //console.log(`Writing ${quote(line, "'")}`);
-            out.puts(line + '\n');
+            out.puts(line.trimEnd() + '\n');
           }
 
           prev = line;

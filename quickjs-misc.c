@@ -1812,6 +1812,19 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 #endif
 
+#ifdef HAVE_DAEMON
+static JSValue
+js_misc_daemon(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  BOOL nochdir, noclose;
+
+  nochdir = argc >= 1 && JS_ToBool(ctx, argv[0]);
+
+  noclose = argc >= 2 && JS_ToBool(ctx, argv[0]);
+
+  return JS_NewInt32(ctx, daemon(nochdir, noclose));
+}
+#endif
+
 typedef struct {
   JSContext* ctx;
   JSValue fn;
@@ -1862,6 +1875,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
 #ifdef HAVE_INOTIFY
     JS_CFUNC_DEF("watch", 2, js_misc_watch),
+#endif
+#ifdef HAVE_DAEMON
+    JS_CFUNC_DEF("daemon", 2, js_misc_daemon),
 #endif
     JS_CFUNC_DEF("atexit", 1, js_misc_atexit),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
