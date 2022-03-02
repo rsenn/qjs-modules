@@ -69,7 +69,20 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-check_functions(vfork waitpid execvpe)
+check_functions(vfork fork waitpid execvpe setsid)
+if(HAVE_VFORK)
+  add_definitions(-DHAVE_VFORK)
+else(HAVE_VFORK)
+  if(HAVE_FORK)
+    add_definitions(-DHAVE_VFORK -Dvfork=fork)
+  endif(HAVE_FORK)
+endif(HAVE_VFORK)
+if(HAVE_FORK)
+  add_definitions(-DHAVE_FORK)
+endif(HAVE_FORK)
+if(HAVE_SETSID)
+  add_definitions(-DHAVE_SETSID)
+endif(HAVE_SETSID)
 
 if(HAVE_EXECVPE)
   add_definitions(-DHAVE_EXECVPE=1)
@@ -216,9 +229,12 @@ if(BUILD_LIBARCHIVE)
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
     CMAKE_CACHE_ARGS
-      "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-      "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
-      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+      "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
+      "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
+      "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+      "-DCMAKE_C_FLAGS:STRING=-w"
+      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+      "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
     CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
   link_directories("${CMAKE_CURRENT_BINARY_DIR}/libarchive")
@@ -234,8 +250,9 @@ link_directories(${QUICKJS_LIBRARY_DIR})
 #  message(FATAL_ERROR "libarchive not found")
 #endif(NOT LibArchive_FOUND)
 
-set(QUICKJS_MODULES bjson blob deep lexer location misc path pointer predicate repeater stringdecoder sockets stream
-                    syscallerror inspect tree-walker xml)
+set(QUICKJS_MODULES
+    bjson blob deep lexer location misc path pointer predicate repeater
+    stringdecoder sockets stream syscallerror inspect tree-walker xml)
 if(LibArchive_FOUND)
   set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
 endif(LibArchive_FOUND)
@@ -248,7 +265,8 @@ else(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   endif(WIN32 OR MINGW)
 endif(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
 
-set(LIB_MODULES console events fs jslexer parser perf_hooks process repl require stack tty util)
+set(LIB_MODULES console events fs jslexer parser perf_hooks process repl
+                require stack tty util)
 
 if(EXISTS "${QUICKJS_H}")
 
@@ -259,10 +277,12 @@ set(COMMON_SOURCES debug.c debug.h)
 set(vector_SOURCES vector.c vector.h ${buffer_utils_SOURCES})
 set(char_utils_SOURCES char-utils.c char-utils.h)
 set(queue_SOURCES queue.c queue.h)
-set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES} clock_gettime.c strverscmp.c)
+set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES} clock_gettime.c
+                  strverscmp.c)
 set(js_utils_SOURCES js-utils.c js-utils.h)
 set(utils_SOURCES ${utils_SOURCES} qsort_r.c)
-set(stream_SOURCES quickjs-stream.c ${queue_SOURCES} ${js_utils_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(stream_SOURCES quickjs-stream.c ${queue_SOURCES} ${js_utils_SOURCES}
+                   ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(predicate_SOURCES predicate.c predicate.h ${utils_SOURCES})
 if(NOT HAVE_STRVERSCMP)
   set(utils_SOURCES ${utils_SOURCES} strverscmp.c)
@@ -271,29 +291,37 @@ if(NOT HAVE_MEMMEM)
   set(utils_SOURCES ${utils_SOURCES} memmem.c)
 endif(NOT HAVE_MEMMEM)
 set(token_SOURCES token.c token.h)
-set(location_SOURCES location.c location.h quickjs-location.c quickjs-location.h ${utils_SOURCES}
-                     ${buffer_utils_SOURCES})
+set(location_SOURCES
+    location.c location.h quickjs-location.c quickjs-location.h
+    ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 set(syscallerror_SOURCES quickjs-syscallerror.c quickjs-syscallerror.h)
-set(child_process_SOURCES child-process.c child-process.h property-enumeration.c property-enumeration.h
-                          ${utils_SOURCES} ${vector_SOURCES})
-set(deep_SOURCES ${vector_SOURCES} pointer.c virtual-properties.c property-enumeration.c property-enumeration.h
-                 ${utils_SOURCES} ${predicate_SOURCES} pointer.h virtual-properties.h)
+set(child_process_SOURCES
+    child-process.c child-process.h property-enumeration.c
+    property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
+set(deep_SOURCES
+    ${vector_SOURCES} pointer.c virtual-properties.c property-enumeration.c
+    property-enumeration.h ${utils_SOURCES} ${predicate_SOURCES} pointer.h
+    virtual-properties.h)
 set(deep_LIBRARIES qjs-predicate qjs-pointer)
-set(inspect_SOURCES ${vector_SOURCES} iteration.h ${utils_SOURCES} property-enumeration.c property-enumeration.h
-                    quickjs-internal.h)
-set(tree_walker_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES})
-set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h ${utils_SOURCES} ${location_SOURCES}
-                ${inspect_SOURCES})
+set(inspect_SOURCES
+    ${vector_SOURCES} iteration.h ${utils_SOURCES} property-enumeration.c
+    property-enumeration.h quickjs-internal.h)
+set(tree_walker_SOURCES ${vector_SOURCES} property-enumeration.c
+                        property-enumeration.h ${utils_SOURCES})
+set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h
+                ${utils_SOURCES} ${location_SOURCES} ${inspect_SOURCES})
 set(path_SOURCES path.c path.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} readlink.c)
 endif(WIN32 OR MINGW)
 
-set(predicate_SOURCES predicate.c predicate.h ${vector_SOURCES} ${utils_SOURCES})
-set(pointer_SOURCES pointer.c pointer.h ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(lexer_SOURCES quickjs-lexer.h ${location_SOURCES} ${token_SOURCES} ${utils_SOURCES} ${vector_SOURCES} lexer.c
-                  lexer.h)
+set(predicate_SOURCES predicate.c predicate.h ${vector_SOURCES}
+                      ${utils_SOURCES})
+set(pointer_SOURCES pointer.c pointer.h ${utils_SOURCES}
+                    ${buffer_utils_SOURCES})
+set(lexer_SOURCES quickjs-lexer.h ${location_SOURCES} ${token_SOURCES}
+                  ${utils_SOURCES} ${vector_SOURCES} lexer.c lexer.h)
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${queue_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
@@ -310,11 +338,12 @@ if(WIN32 OR MINGW)
 endif(WIN32 OR MINGW)
 
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
-set(stringdecoder_SOURCES quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
-                          ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
+set(stringdecoder_SOURCES
+    quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
+    ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 
-set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h ${path_SOURCES} ${location_SOURCES}
-                 ${vector_SOURCES})
+set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h
+                 ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
 
 set(gpio_SOURCES gpio.c gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
@@ -338,7 +367,8 @@ else(HAVE_SYS_MMAN_H AND HAVE_MMAP)
   endif(WIN32 OR MINGW)
 endif(HAVE_SYS_MMAN_H AND HAVE_MMAP)
 
-set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel
+                                             RelWithDebInfo)
 
 set(CMAKE_REQUIRED_QUIET TRUE)
 
@@ -346,7 +376,9 @@ check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
 # dump(VISIBILITY_HIDDEN) dump(MODULE_COMPILE_FLAGS)
 
-check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
+check_flags(
+  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function"
+  CMAKE_C_FLAGS)
 
 #check_flags("-Wno-cast-function-type" CMAKE_C_FLAGS)
 
@@ -354,19 +386,22 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -381,9 +416,13 @@ if(DO_TESTS)
   foreach(TEST ${TESTS})
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
-    add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-             COMMAND env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR} "${QJSM}" --bignum
-                     "${TEST}")
+    add_test(
+      NAME "${BASE}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMAND
+        env
+        QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR}
+        "${QJSM}" --bignum "${TEST}")
     #[[ add_custom_target(
       "${BASE}" ALL
       COMMAND
@@ -397,7 +436,8 @@ endif(DO_TESTS)
 check_c_source_runs(
   " # include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   return __builtin_mul_overflow(a, b,
     # c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n return
-    # 0;\n}" HAVE__BUILTIN_MUL_OVERFLOW)
+    # 0;\n}"
+  HAVE__BUILTIN_MUL_OVERFLOW)
 if(HAVE__BUILTIN_MUL_OVERFLOW)
   add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
 endif(HAVE__BUILTIN_MUL_OVERFLOW)
@@ -422,7 +462,8 @@ foreach(JS_MODULE ${QUICKJS_MODULES})
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
   list(APPEND QJSM_LIBS "${QJSM_MODULE}")
   #list(APPEND QJSM_LDADD "${QJSM_LIBDIR}/lib${QJSM_MODULE}${CMAKE_STATIC_LIBRARY_SUFFIX}")
-  list(APPEND QJSM_LDADD "${QJSM_LIBDIR}/${LIBRARY_PREFIX}${QJSM_MODULE}${LIBRARY_SUFFIX}")
+  list(APPEND QJSM_LDADD
+       "${QJSM_LIBDIR}/${LIBRARY_PREFIX}${QJSM_MODULE}${LIBRARY_SUFFIX}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
 link_directories(${QJSM_LIBDIR})
@@ -442,15 +483,16 @@ file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
-set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
+set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm"
+    CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
 
 include(CTest)
 
 foreach(TEST_SOURCE ${TESTS_SOURCES})
   file(RELATIVE_PATH TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}" "${TEST_SOURCE}")
   basename(TEST_NAME ${TEST_SOURCE} .js)
-  add_test(NAME "${TEST_NAME}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND ${QJSM} --bignum
-                                                                                       "${TEST_SOURCE}")
+  add_test(NAME "${TEST_NAME}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+           COMMAND ${QJSM} --bignum "${TEST_SOURCE}")
 
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
@@ -487,22 +529,36 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
 add_custom_command(
   OUTPUT ${MODULES_DIR}/qjscalc.c
-  COMMAND ${QJSC} -fbignum -c -o ${MODULES_DIR}/qjscalc.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js
+  COMMAND ${QJSC} -fbignum -c -o ${MODULES_DIR}/qjscalc.c -m
+          ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js
   DEPENDS ${QJSC_DEPS}
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
+  COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES
+          ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
 
 #dump(COMPILED_MODULES)
 
 set(QJSM_SOURCES
-    qjsm.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c
-    ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c ${MODULES_DIR}/perf_hooks.c ${MODULES_DIR}/process.c
-    ${MODULES_DIR}/tty.c ${MODULES_DIR}/util.c ${QJSM_EXTRA_SOURCES})
+    qjsm.c
+    ${MODULES_DIR}/repl.c
+    ${MODULES_DIR}/qjscalc.c
+    ${MODULES_DIR}/console.c
+    ${MODULES_DIR}/events.c
+    ${MODULES_DIR}/require.c
+    ${MODULES_DIR}/fs.c
+    ${MODULES_DIR}/perf_hooks.c
+    ${MODULES_DIR}/process.c
+    ${MODULES_DIR}/tty.c
+    ${MODULES_DIR}/util.c
+    ${QJSM_EXTRA_SOURCES})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
   if(QUICKJS_DEBUGGER)
-    set(QJSM_SOURCES ${QJSM_SOURCES} ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c
-                     ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger-transport-${TRANSPORT_PLATFORM}.c)
+    set(QJSM_SOURCES
+        ${QJSM_SOURCES}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger-transport-${TRANSPORT_PLATFORM}.c
+    )
   endif(QUICKJS_DEBUGGER)
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 
@@ -523,18 +579,24 @@ endif(COMPILED_MODULES)
 #target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
 link_directories(${QJSM_LIBDIR})
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${QJSM_LIBDIR}")
-set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS "-w")
+set_target_properties(
+  qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS
+                                                                 "-w")
 if(NOT WASI AND NOT EMSCRIPTEN)
-  set_target_properties(qjsm PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
+  set_target_properties(qjsm PROPERTIES RPATH
+                                        "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
 endif(NOT WASI AND NOT EMSCRIPTEN)
 target_link_directories(qjsm PUBLIC ${QUICKJS_LIBRARY_DIR})
-target_link_libraries(qjsm PUBLIC ${QUICKJS_LIBRARY} ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
+target_link_libraries(qjsm PUBLIC ${QUICKJS_LIBRARY} ${QJSM_LDADD}
+                                  ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
 
-target_compile_definitions(qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}"
-                                        CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}" CONFIG_BIGNUM=1)
+target_compile_definitions(
+  qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}"
+               CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}" CONFIG_BIGNUM=1)
 install(TARGETS qjsm DESTINATION bin)
 
 file(GLOB INSTALL_SCRIPTS [!.]*.js)
 
-install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
-                                                             GROUP_READ)
+install(FILES ${INSTALL_SCRIPTS} DESTINATION bin
+        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
+                    GROUP_READ)

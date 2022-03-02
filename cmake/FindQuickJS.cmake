@@ -210,10 +210,10 @@ macro(configure_quickjs)
       CACHE PATH "QuickJS native C modules directory")
   set(QUICKJS_JS_MODULE_DIR "${QUICKJS_JS_MODULE_DIR}"
       CACHE PATH "QuickJS JavaScript modules directory")
-  
+
   #variable_watch(QUICKJS_C_MODULE_DIR configure_quickjs_module_path)
   #variable_watch(QUICKJS_JS_MODULE_DIR configure_quickjs_module_path)
-  
+
   if(NOT QUICKJS_CONFIGURATION_SHOWN)
     message(STATUS "QuickJS configuration")
     message(STATUS "\tinterpreter: ${QJS}")

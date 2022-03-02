@@ -561,7 +561,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char* s = 0;
   JSModuleDef* m = 0;
 
-  if(!(s = jsm_lookup_package(ctx, module_name)))
+  if(!(s = jsm_lookup_package(ctx, module_name + path_isdotslash(module_name) ? 2 : 0)))
     s = js_strdup(ctx, module_name);
 
   if(!strchr(s, '/')) {

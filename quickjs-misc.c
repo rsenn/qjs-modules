@@ -1825,6 +1825,27 @@ js_misc_daemon(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 #endif
 
+#ifdef HAVE_FORK
+static JSValue
+js_misc_fork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  return JS_NewInt32(ctx, fork());
+}
+#endif
+
+#ifdef HAVE_VFORK
+static JSValue
+js_misc_vfork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  return JS_NewInt32(ctx, vfork());
+}
+#endif
+
+#ifdef HAVE_SETSID
+static JSValue
+js_misc_setsid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  return JS_NewInt32(ctx, setsid());
+}
+#endif
+
 typedef struct {
   JSContext* ctx;
   JSValue fn;
@@ -1878,6 +1899,15 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
 #ifdef HAVE_DAEMON
     JS_CFUNC_DEF("daemon", 2, js_misc_daemon),
+#endif
+#ifdef HAVE_FORK
+    JS_CFUNC_DEF("fork", 0, js_misc_fork),
+#endif
+#ifdef HAVE_VFORK
+    JS_CFUNC_DEF("vfork", 0, js_misc_vfork),
+#endif
+#ifdef HAVE_SETSID
+    JS_CFUNC_DEF("setsid", 0, js_misc_setsid),
 #endif
     JS_CFUNC_DEF("atexit", 1, js_misc_atexit),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
