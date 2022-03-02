@@ -336,6 +336,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     // const { pos } = loc;
     //  let s = toString(bytebuf).slice(pos, pos + length);
     //  console.log('',token.lexeme, {pos, s, length})
+    if(debug > 1) console.log('token', token);
 
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
@@ -571,7 +572,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
     if(debug >= 2)
       debugLog('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
-    if(debug >= 1)
+    if(debug > 1)
       debugLog('impexp', compact(1), { replacement: replacement, range: new NumericRange(...range), loc: loc + '' });
 
     map.replaceRange(range, replacement);
@@ -1163,6 +1164,29 @@ function SpreadAndJoin(iterator, separator = '') {
   return [...iterator].join(separator);
 }
 
+function* PrintUserscriptBanner(fields) {
+  const defaults = {
+    name: 'https://github.com/rsenn',
+    namespace: 'https://github.com/rsenn',
+    version: '1.0',
+    description: '',
+    author: 'Roman L. Senn',
+    match: 'http*://*/*',
+    icon: 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+    grant: 'none'
+  };
+
+  let keys = Object.keys(defaults).concat(Object.keys(fields)).unique();
+console.log('keys',keys);
+  yield `// ==UserScript==`;
+  for(let name of keys) {
+    const value = fields[name] ?? defaults[name];
+
+    yield `// @${name.padEnd(12)} ${value}`;
+  }
+  yield `// ==/UserScript==`;
+}
+
 function PrintES6Import(imp) {
   return {
     [ImportTypes.IMPORT_NAMESPACE]: ({ local, file }) => `import * as ${local} from '${file}';`,
@@ -1198,9 +1222,8 @@ function main(...args) {
     exp = true;
 
   let out = FdWriter(1, 'stdout');
-
   let stream = define(
-    {},
+    { indent: 0 },
     {
       lines: [],
       write(buf, len) {
@@ -1208,13 +1231,15 @@ function main(...args) {
         return this.puts(s);
       },
       puts(s) {
-        this.lines.push(...s.split(/\r?\n/g));
+        let pad = '  '.repeat(this.indent);
+        this.lines.push(...s.split(/\r?\n/g).map(line => pad + line));
         return s.length;
       },
       close() {
         let prev = '';
+        const isWS = s => s.trim() == '';
         for(let line of this.lines) {
-          if(!(line === '' && prev === line)) {
+          if(!(isWS(line) && isWS(prev))) {
             //console.log(`Writing ${quote(line, "'")}`);
             out.puts(line + '\n');
           }
@@ -1319,6 +1344,20 @@ function main(...args) {
     out.puts(lines.reduce((acc, line) => acc + line.trim() + '\n', ''));
   }
 
+  for(let line of PrintUserscriptBanner({
+    name: out.file,
+    'run-at': 'document-start',
+    version: '1.0',
+    description: files.join(', '),
+    downloadURL: `https://localhost:9000/${out.file}`,
+    updateURL: `https://localhost:9000/${out.file}`
+  })) {
+    std.puts(`line: ${line}\n`);
+    stream.puts(line);
+  }
+  stream.puts("\n(function() {\n  'use strict';\n");
+  ++stream.indent;
+
   const nbytes = results[0].write(stream);
 
   console.log(`${nbytes} bytes written to '${out.file}'`);
@@ -1337,6 +1376,9 @@ function main(...args) {
 
     stream.puts(`\nObject.assign(globalThis, { ${exportedNames.join(', ')} });\n`);
   }
+
+  --stream.indent;
+  stream.puts('})();\n');
   stream.close();
 
   logFile(`Processed files: ${SpreadAndJoin(dependencyMap.keys(), ' ')}\n`);

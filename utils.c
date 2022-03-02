@@ -2253,6 +2253,8 @@ js_error_print(JSContext* ctx, JSValueConst error) {
     JS_FreeValue(ctx, st);
   }
 
+  fputs("Toplevel error:\n", stderr);
+
   if(!JS_IsNull(error) && (str = JS_ToCString(ctx, error))) {
     const char* type = JS_IsObject(error) ? js_object_classname(ctx, error) : js_value_typestr(ctx, error);
     const char* exception = str;
@@ -2262,10 +2264,10 @@ js_error_print(JSContext* ctx, JSValueConst error) {
       exception += typelen + 2;
     }
     fprintf(stderr, "%s: %s\n", type, exception);
-    if(stack)
-      fprintf(stderr, "STACK=\n%s\n", stack);
-    fflush(stderr);
   }
+  if(stack)
+    fprintf(stderr, "Stack:\n%s\n", stack);
+  fflush(stderr);
   if(stack)
     JS_FreeCString(ctx, stack);
   if(str)
