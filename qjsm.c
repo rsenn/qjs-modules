@@ -1546,6 +1546,7 @@ main(int argc, char** argv) {
     }
     js_eval_str(ctx,
                 "import { Console } from 'console';\n"
+                "import { out } from 'std';\n"
                 "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n",
                 0,
                 JS_EVAL_TYPE_MODULE);
@@ -1557,7 +1558,6 @@ main(int argc, char** argv) {
       /* clang-format off */
       snprintf(str,
         sizeof(str),
-        "import { out } from 'std';\n"
         "import REPL from 'repl';\n"
         "import fs from 'fs';\n"
         "const history = '%s/.%s_history';\n"
