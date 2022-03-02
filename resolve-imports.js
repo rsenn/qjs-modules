@@ -1177,7 +1177,7 @@ function* PrintUserscriptBanner(fields) {
   };
 
   let keys = Object.keys(defaults).concat(Object.keys(fields)).unique();
-console.log('keys',keys);
+  console.log('keys', keys);
   yield `// ==UserScript==`;
   for(let name of keys) {
     const value = fields[name] ?? defaults[name];
