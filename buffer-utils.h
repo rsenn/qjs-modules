@@ -313,6 +313,7 @@ const char* input_buffer_currentline(InputBuffer*, size_t* len);
 size_t input_buffer_column(InputBuffer*, size_t* len);
 
 int input_buffer_peekc(InputBuffer* in, size_t* lenp);
+int input_buffer_putc(InputBuffer*, unsigned int);
 
 static inline int
 input_buffer_getc(InputBuffer* in) {
