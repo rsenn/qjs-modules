@@ -106,6 +106,15 @@ ringbuffer_allocate(RingBuffer* r, size_t size) {
   return TRUE;
 }
 
+BOOL
+ringbuffer_reserve(RingBuffer* rb, size_t min_bytes) {
+  ssize_t grow;
+  if((grow = min_bytes - ringbuffer_avail(rb)) > 0)
+    if(!vector_grow(&rb->vec, 1, vector_length(&rb->vec, 1) + grow))
+      return FALSE;
+
+  return TRUE;
+}
 /**
  * @}
  */

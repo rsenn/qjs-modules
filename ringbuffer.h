@@ -90,6 +90,8 @@ ringbuffer_avail(RingBuffer* rb) {
   return rb->size - ringbuffer_length(rb);
 }
 
+BOOL ringbuffer_reserve(RingBuffer* rb, size_t min_bytes);
+
 /**
  * @}
  */
