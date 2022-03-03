@@ -114,13 +114,13 @@ path_length_s(const char* s) {
   return path_skip_component(s, strlen(s), 0);
 }
 
-/*static inline size_t
+static inline size_t
 path_skip(const char* s, size_t n) {
   const char *p = s, *e = s + n;
   p += path_skip_separator(s, n, 0);
   p += path_skip_component(p, e - p, 0);
   return p - s;
-}*/
+}
 
 static inline size_t
 path_skip2(const char* s, size_t n) {
