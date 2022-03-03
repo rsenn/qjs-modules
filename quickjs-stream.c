@@ -186,9 +186,7 @@ readable_new(JSContext* ctx) {
     st->ref_count = 1;
 
     queue_init(&st->q);
-
-    st->controller = JS_NewObjectProtoClass(ctx, readable_controller, js_readable_class_id);
-    JS_SetOpaque(st->controller, st);
+    st->controller = JS_NULL;
   }
 
   return st;
@@ -235,10 +233,10 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   Reader* rd;
   size_t old_size;
 
-  /*  if(readable_locked(st) && (rd = st->reader)) {
-      if(reader_passthrough(rd, chunk, ctx))
-        return JS_UNDEFINED;
-    }*/
+  if(readable_locked(st) && (rd = st->reader)) {
+    if(reader_passthrough(rd, chunk, ctx))
+      return JS_UNDEFINED;
+  }
 
   input = js_input_chars(ctx, chunk);
 
@@ -497,6 +495,8 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     st->on[READABLE_PULL] = JS_GetPropertyStr(ctx, argv[0], "pull");
     st->on[READABLE_CANCEL] = JS_GetPropertyStr(ctx, argv[0], "cancel");
     st->underlying_source = JS_DupValue(ctx, argv[0]);
+    st->controller = JS_NewObjectProtoClass(ctx, readable_controller, js_readable_class_id);
+    JS_SetOpaque(st->controller, st);
   }
 
   JS_SetOpaque(obj, st);
@@ -773,9 +773,7 @@ writable_new(JSContext* ctx) {
   if((st = js_mallocz(ctx, sizeof(Writable)))) {
     st->ref_count = 1;
     // queue_init(&st->q);
-
-    st->controller = JS_NewObjectProtoClass(ctx, writable_controller, js_writable_class_id);
-    JS_SetOpaque(st->controller, st);
+    st->controller = JS_NULL;
   }
 
   return st;
@@ -991,6 +989,8 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     st->on[WRITABLE_CLOSE] = JS_GetPropertyStr(ctx, argv[0], "close");
     st->on[WRITABLE_ABORT] = JS_GetPropertyStr(ctx, argv[0], "abort");
     st->underlying_sink = JS_DupValue(ctx, argv[0]);
+    st->controller = JS_NewObjectProtoClass(ctx, writable_controller, js_writable_class_id);
+    JS_SetOpaque(st->controller, st);
   }
 
   JS_SetOpaque(obj, st);
@@ -1010,22 +1010,6 @@ js_writable_wrap(JSContext* ctx, Writable* st) {
   JS_SetOpaque(obj, st);
   return obj;
 }
-
-/*static JSValue
-js_writable_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  Writable* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = JS_GetOpaque2(ctx, this_val, js_writable_class_id)))
-    return JS_EXCEPTION;
-
-  *pdone = queue_empty(&st->q);
-
-  if(!*pdone)
-    ret = writable_next(st, ctx);
-
-  return ret;
-}*/
 
 static JSValue
 js_writable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -1117,109 +1101,13 @@ js_writable_finalizer(JSRuntime* rt, JSValue val) {
   if((st = js_writable_data(val)))
     writable_free(st, rt);
 }
-/*
-static int
-js_writable_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {
-  Writable* st = js_writable_data2(ctx, obj);
-  JSValue value = JS_UNDEFINED;
-  int64_t index;
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    size_t length = writable_size(st);
-
-    if(index < 0 && ABS_NUM(index) < (int64_t)length)
-      index = MOD_NUM(index, (int64_t)length);
-
-    if(index >= 0 && index < (int64_t)length)
-      value = JS_NewInt32(ctx, writable_at(st, index));
-
-  } else if(js_atom_is_string(ctx, prop, "size")) {
-    value = JS_NewInt64(ctx, writable_size(st));
-  }
-
-  if(!JS_IsUndefined(value)) {
-    if(pdesc) {
-      pdesc->flags = JS_PROP_ENUMERABLE;
-      pdesc->value = value;
-      pdesc->getter = JS_UNDEFINED;
-      pdesc->setter = JS_UNDEFINED;
-    }
-    return TRUE;
-  }
-  return FALSE;
-}
-
-static int
-js_writable_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
-  Writable* st = js_writable_data2(ctx, obj);
-  int64_t index;
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    size_t length = writable_size(st);
-
-    if(index < 0 && ABS_NUM(index) < length)
-      index = MOD_NUM(index, (int64_t)length);
-
-    if(index >= 0 && index < (int64_t)length)
-      return TRUE;
-
-  } else if(js_atom_is_string(ctx, prop, "size")) {
-    return TRUE;
-  }
-
-  return FALSE;
-}
-
-static JSValue
-js_writable_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst receiver) {
-  Writable* st = js_writable_data2(ctx, obj);
-  JSValue value = JS_UNDEFINED;
-  int64_t index;
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    size_t length = writable_size(st);
-
-    if(index < 0 && ABS_NUM(index) < (int64_t)length)
-      index = MOD_NUM(index, (int64_t)length);
-
-    if(index >= 0 && index < (int64_t)length)
-      value = JS_NewUint32(ctx, writable_at(st, index));
-
-  } else if(js_atom_is_string(ctx, prop, "size")) {
-    value = JS_NewInt64(ctx, writable_size(st));
-
-  } else {
-    JSValue proto = JS_IsUndefined(writable_proto) ? JS_GetPrototype(ctx, obj) : writable_proto;
-    if(JS_IsObject(proto)) {
-      JSValue method = JS_GetProperty(ctx, proto, prop);
-
-      if(JS_IsFunction(ctx, method))
-        value = method;
-      else
-        JS_FreeValue(ctx, method);
-    }
-  }
-
-  return value;
-}
-
-static JSClassExoticMethods js_writable_exotic_methods = {
-    .has_property = js_writable_has_property,
-    .get_property = js_writable_get_property,
-    .get_own_property = js_writable_get_own_property,
-
-};*/
 
 static JSClassDef js_writable_class = {
-    .class_name = "WritableStream", .finalizer = js_writable_finalizer,
-    //  .exotic = &js_writable_exotic_methods,
+    .class_name = "WritableStream",
+    .finalizer = js_writable_finalizer,
 };
 
 static const JSCFunctionListEntry js_writable_proto_funcs[] = {
-    /*    JS_ITERATOR_NEXT_DEF("next", 0, js_writable_next, 0),
-        JS_CFUNC_DEF("write", 1, js_writable_write),
-      JS_CFUNC_MAGIC_DEF("write", 1, js_writable_write, 0),
-        JS_CFUNC_MAGIC_DEF("peek", 1, js_writable_write, 1),*/
     JS_CFUNC_MAGIC_DEF("abort", 1, js_writable_method, WRITABLE_METHOD_ABORT),
     JS_CFUNC_MAGIC_DEF("close", 0, js_writable_method, WRITABLE_METHOD_CLOSE),
     JS_CFUNC_MAGIC_DEF("getWriter", 0, js_writable_method, WRITABLE_GET_WRITER),
@@ -1241,38 +1129,13 @@ transform_new(JSContext* ctx) {
     st->ref_count = 1;
     st->readable = readable_new(ctx);
     st->writable = writable_new(ctx);
+
+    st->controller = JS_NewObjectProtoClass(ctx, transform_controller, js_transform_class_id);
+    JS_SetOpaque(st->controller, st);
   }
 
   return st;
 }
-
-/*
-JSValue
-js_transform_callback(JSContext* ctx, Transform* st, TransformEvent event, int argc, JSValueConst argv[]) {
-  assert(event >= 0);
-  assert(event < countof(st->on));
-
-  if(JS_IsFunction(ctx, st->on[event]))
-    return JS_Call(ctx, st->on[event], st->underlying_transform, argc, argv);
-
-  return JS_UNDEFINED;
-}
-JSValue
-js_transform_start(JSContext* ctx, Transform* st) {
-  JSValueConst args[] = {st->controller};
-  return js_transform_callback(ctx, st, TRANSFORM_START, countof(args), args);
-}
-
-JSValue
-js_transform_pull(JSContext* ctx, Transform* st, JSValueConst chunk) {
-  JSValueConst args[] = {st->controller};
-  return js_transform_callback(ctx, st, TRANSFORM_PULL, countof(args), args);
-}
-
-JSValue
-js_transform_cancel(JSContext* ctx, Transform* st, JSValueConst reason) {
-  return js_transform_callback(ctx, st, TRANSFORM_CANCEL, 1, &reason);
-}*/
 
 static JSValue
 js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
@@ -1295,8 +1158,6 @@ js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
     st->on[TRANSFORM_TRANSFORM] = JS_GetPropertyStr(ctx, argv[0], "transform");
     st->on[TRANSFORM_FLUSH] = JS_GetPropertyStr(ctx, argv[0], "flush");
     st->underlying_transform = JS_DupValue(ctx, argv[0]);
-    st->controller = JS_NewObjectProtoClass(ctx, transform_controller, js_transform_class_id);
-    JS_SetOpaque(st->controller, st);
 
     st->writable->on[WRITABLE_START] = JS_DupValue(ctx, st->on[TRANSFORM_START]);
     st->writable->on[WRITABLE_WRITE] = JS_DupValue(ctx, st->on[TRANSFORM_TRANSFORM]);
