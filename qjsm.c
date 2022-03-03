@@ -259,6 +259,11 @@ static JSValue
 jsm_load_package(JSContext* ctx, const char* file) {
   if(JS_IsUndefined(package_json)) {
     package_json = jsm_load_json(ctx, file ? file : "package.json");
+
+    if(JS_IsException(package_json)) {
+      JS_GetException(ctx);
+      package_json = JS_NULL;
+    }
   }
   return package_json;
 }

@@ -129,9 +129,9 @@ function main() {
       }
 
       console.log(
-        `recv(${sock.fd}, ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(
-          70
-        ),
+        `recv(${sock.fd}, ArrayBuffer ${buf.byteLength}) = ${n} ${
+          n >= 0 ? quote(data, "'") : sock.error + ''
+        }`.padEnd(70),
         ...DumpSock(sock)
       );
 

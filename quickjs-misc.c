@@ -1,4 +1,5 @@
 #include "defines.h"
+#include <quickjs.h>
 #include <quickjs-libc.h>
 #include "quickjs-misc.h"
 #include "quickjs-internal.h"
@@ -179,7 +180,7 @@ js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   void* ptr = 0;
   char buf[128];
 
-  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, argv[0])) {
+  if(js_is_arraybuffer(ctx, argv[0]) || js_is_sharedarraybuffer(ctx, argv[0])) {
     size_t len;
     ptr = JS_GetArrayBuffer(ctx, &len, argv[0]);
   } else if(JS_IsString(argv[0])) {
@@ -243,29 +244,44 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static JSValue
 js_misc_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
   uint8_t* data;
   size_t len;
 
-  /*  if(!js_is_arraybuffer(ctx, argv[0]))
-      return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");*/
-
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+    IndexRange ir;
+    JSArrayBuffer* ab;
+    if(!(ab = JS_GetOpaque(argv[0], JS_CLASS_ARRAY_BUFFER)))
+      ab = JS_GetOpaque(argv[0], JS_CLASS_SHARED_ARRAY_BUFFER);
 
-    int64_t offset = 0, length = len;
-
-    if(argc >= 2 && JS_IsNumber(argv[1]))
-      JS_ToInt64(ctx, &offset, argv[1]);
-
-    if(argc >= 3 && JS_IsNumber(argv[2]))
-      JS_ToInt64(ctx, &length, argv[2]);
+    js_index_range(ctx, len, argc - 1, argv + 1, &ir);
 
     JSValue value = JS_DupValue(ctx, argv[0]);
     JSObject* obj = JS_VALUE_GET_OBJ(value);
-    ret = JS_NewArrayBuffer(ctx, data + offset, MIN_NUM(len, length), js_arraybuffer_free_func, (void*)obj, FALSE);
+    return JS_NewArrayBuffer(ctx, data + ir.start, ir.end - ir.start, js_arraybuffer_free_func, (void*)obj, ab && ab->shared ? TRUE : FALSE);
   }
 
-  return ret;
+  return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
+}
+
+static JSValue
+js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  uint8_t* data;
+  size_t len;
+
+  if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
+    OffsetLength ol;
+    JSArrayBuffer* ab;
+    if(!(ab = JS_GetOpaque(argv[0], JS_CLASS_ARRAY_BUFFER)))
+      ab = JS_GetOpaque(argv[0], JS_CLASS_SHARED_ARRAY_BUFFER);
+
+    js_offset_length(ctx, len, argc - 1, argv + 1, &ol);
+
+    JSValue value = JS_DupValue(ctx, argv[0]);
+    JSObject* obj = JS_VALUE_GET_OBJ(value);
+    return JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, ab && ab->shared ? TRUE : FALSE);
+  }
+
+  return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
 }
 
 static JSValue
@@ -1913,7 +1929,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
-    JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_slice),
+    JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
+    JS_CFUNC_DEF("sliceArrayBuffer", 1, js_misc_slice),
     JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
     JS_CFUNC_DEF("concat", 1, js_misc_concat),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),

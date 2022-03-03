@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Console } from 'console';
 import CLexer from 'lib/clexer.js';
-import { escape, extendArray } from 'util';
+import { getOpt, escape, extendArray } from 'util';
 
 extendArray();
 
@@ -13,10 +13,12 @@ const NonWS = t => t.type != 'whitespace';
 const WS = t => t.type == 'whitespace';
 
 function parse(lexer, fn = (tok, arr) => {}, ...args) {
-  let tok,
+  let i = 0,
+    tok,
     arr = [...args];
 
-  while((tok = lexer.nextObj())) {
+  while((tok = lexer.nextToken())) {
+    //console.log('parse', { i: i++, tok, fn: fn + '' });
     let v = fn(tok, arr);
     if(v < 0) break;
     arr.push(tok);
@@ -35,52 +37,49 @@ function main(...args) {
     }
   });
 
-  for(let arg of args) {
-    console.log('arg', arg);
+  let outputName,
+    output = std.out;
+  let params = getOpt(
+    {
+      output: [true, file => (output = std.open((outputName = file), 'w+')), 'o'],
+      '@': 'files'
+    },
+    args
+  );
+  let files = params['@'];
 
-    let str = std.loadFile(arg);
-    console.log('str', escape(str).substring(0, 100));
+  for(let file of files) {
+    console.log('file', file);
 
-    let lexer = new CLexer(str, arg);
+    let str = std.loadFile(file);
+    console.log('str', str.split('\n')[0]);
+
+    let lexer = new CLexer(str, file);
     console.log('lexer', lexer);
     let tok;
-    while((tok = lexer.nextObj())) {
-      const { loc } = tok;
-      if({ struct: 1, typedef: 1 }[tok.type]) {
+    while((tok = lexer.nextToken())) {
+      const { loc, type } = tok;
+      if({ struct: 1, typedef: 1 }[type]) {
         if(loc.column == 1) {
           let seq,
             line = loc.line,
             text = '';
-
           seq = parse(lexer, (tok, arr) => tok.loc.line != line && -1, tok);
           const last = seq.filter(NonWS).at(-1);
-
-          //          console.log(`line ${loc} last:`, last);
-
           if(last.type == 'lbrace') {
             seq = parse(lexer, (tok, arr) => tok.loc.column == 1 && tok.type == 'rbrace', ...seq);
             seq = parse(lexer, (tok, arr) => tok.type == 'semi', ...seq);
           }
-
-          std.puts(
-            seq
-              .filter(t => !t.type.endsWith('Comment'))
-              .map(t => t.lexeme)
-              .join('')
-              .trim() + '\n\n'
-          );
-
-          /*
-          do {
-            console.log('tok', tok, tok.loc + '', { line });
-            text += tok.lexeme;
-            tok = lexer.nextObj();
-          } while(tok.loc.line == line);
-*/
+          output.puts(seq.reduce((s, t) => s + t.lexeme, '').trim() + '\n\n');
         }
       }
+
+      output.flush();
     }
   }
+
+  if(outputName) console.log(output.tell() + ` bytes written to '${outputName}'`);
+  output.close();
 }
 
 try {

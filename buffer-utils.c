@@ -548,19 +548,14 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Of
   int ret = 0;
   int64_t off = 0, len = size;
 
-  if(argc >= 1 && JS_IsNumber(argv[0])) {
+  if(argc >= 1 && JS_IsNumber(argv[0]))
     if(!JS_ToInt64(ctx, &off, argv[0]))
       ret = 1;
-  }
-  if(argc >= 2 && JS_IsNumber(argv[1])) {
+
+  if(argc >= 2 && JS_IsNumber(argv[1]))
     if(!JS_ToInt64(ctx, &len, argv[1]))
       ret = 2;
-  }
 
-  /* if(off >= 0)
-     off = MIN_NUM(off, size);
-   else
-  */
   if(size)
     off = ((off % size) + size) % size;
 
@@ -572,6 +567,34 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Of
   if(off_len_p) {
     off_len_p->offset = off;
     off_len_p->length = len;
+  }
+  return ret;
+}
+
+int
+js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], IndexRange* idx_rng_p) {
+  int ret = 0;
+  int64_t start = 0, end = size;
+
+  if(argc >= 1 && JS_IsNumber(argv[0]))
+    if(!JS_ToInt64(ctx, &start, argv[0]))
+      ret = 1;
+
+  if(argc >= 2 && JS_IsNumber(argv[1]))
+    if(!JS_ToInt64(ctx, &end, argv[1]))
+      ret = 2;
+
+  if(size > 0) {
+    start = ((start % size) + size) % size;
+    end = ((end % size) + size) % size;
+  }
+
+  if(end > size)
+    end = size;
+
+  if(idx_rng_p) {
+    idx_rng_p->start = start;
+    idx_rng_p->end = end;
   }
   return ret;
 }

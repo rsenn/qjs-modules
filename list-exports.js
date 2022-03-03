@@ -50,11 +50,17 @@ function BufferLengths(file) {
 }
 
 function BufferOffsets(file) {
-  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([pos])], [0, []])[1];
+  return buffers[file].reduce(
+    ([pos, list], b) => [pos + b.byteLength, list.concat([pos])],
+    [0, []]
+  )[1];
 }
 
 function BufferRanges(file) {
-  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])], [0, []])[1];
+  return buffers[file].reduce(
+    ([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])],
+    [0, []]
+  )[1];
 }
 
 function WriteFile(file, tok) {
@@ -268,9 +274,20 @@ function main(...args) {
     const printTok = debug
       ? (tok, prefix) => {
           const range = tok.charRange;
-          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
+          const cols = [
+            prefix,
+            `tok[${tok.byteLength}]`,
+            tok.id,
+            tok.type,
+            tok.lexeme,
+            tok.lexeme.length,
+            tok.loc
+          ];
           std.puts(
-            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
+            cols.reduce(
+              (acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]),
+              ''
+            ) + '\n'
           );
         }
       : () => {};
@@ -298,7 +315,9 @@ function main(...args) {
           case ']':
           case ')': {
             if(stack.last != table[tok.lexeme])
-              throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+              throw new Error(
+                `top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
+              );
 
             stack.pop();
             break;
@@ -324,8 +343,14 @@ function main(...args) {
       cond,
       imp = [],
       showToken = tok => {
-        if((lexer.constructor != JSLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
-          let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
+        if(
+          (lexer.constructor != JSLexer && tok.type != 'whitespace') ||
+          /^((im|ex)port|from|as)$/.test(tok.lexeme)
+        ) {
+          let a = [
+            /*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '),
+            escape(tok.lexeme)
+          ];
           std.puts(a.join('') + '\n');
         }
       };
@@ -374,7 +399,10 @@ function main(...args) {
       state = newState;
     }
 
-    const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
+    const exportTokens = tokens.reduce(
+      (acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc),
+      []
+    );
     //log('Export tokens', exportTokens);
 
     let exportNames = exportTokens.map(index => ExportName(tokens.slice(index)));
@@ -419,7 +447,8 @@ function main(...args) {
       const names = exportNames.map(t => (t == 'default' ? t + ' as ' + base : t));
       const keyword = exp ? 'export' : 'import';
 
-      if(names.length == 1 && /^default as/.test(names[0])) std.puts(keyword + ` ${base} from '${source}'\n`);
+      if(names.length == 1 && /^default as/.test(names[0]))
+        std.puts(keyword + ` ${base} from '${source}'\n`);
       else std.puts(keyword + ` { ${names.join(', ')} } from '${source}'\n`);
     }
 
@@ -427,7 +456,9 @@ function main(...args) {
 
     let fileImports = imports.filter(imp => /\.js$/i.test(imp.source));
     let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
-    buffers[source] = [...split(BufferFile(source), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
+    buffers[source] = [...split(BufferFile(source), ...splitPoints)].map(
+      b => b ?? toString(b, 0, b.byteLength)
+    );
 
     //log('fileImports', fileImports.map(imp => imp.source));
 

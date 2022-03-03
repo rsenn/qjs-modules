@@ -390,7 +390,12 @@ lexer_skip(Lexer* lex) {
   size_t len;
   assert(lex->byte_length);
   assert(lex->token_id != -1);
-  len = input_skip(&lex->input, lex->input.pos + lex->byte_length, &lex->loc);
+
+  len = location_count(&lex->loc, &lex->input.data[lex->input.pos], lex->byte_length);
+  lex->input.pos += lex->byte_length;
+
+  // len = input_skip(&lex->input, lex->input.pos + lex->byte_length, &lex->loc);
+
   lex->seq++;
   lex->byte_length = 0;
   lex->token_id = -1;

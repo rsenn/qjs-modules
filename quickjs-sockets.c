@@ -888,7 +888,7 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
 
   switch(magic) {
     case SOCKETS_MODE: {
-#if _WIN32
+#ifdef _WIN32
       ULONG mode = JS_ToBool(ctx, value);
       ret = JS_NewInt32(ctx, ioctlsocket(s->fd, FIONBIO, &mode));
 #else

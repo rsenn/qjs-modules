@@ -155,6 +155,10 @@ range_from(const MemoryBlock* mb) {
   return (PointerRange){mb->base, mb->base + mb->size};
 }
 
+typedef struct index_range {
+  int64_t start, end;
+} IndexRange;
+
 typedef struct offset_length {
   int64_t offset, length;
 } OffsetLength;
@@ -210,6 +214,22 @@ offset_offset(const OffsetLength* ol, const OffsetLength* by) {
   OffsetLength ret;
   ret.offset = ol->offset + by->offset;
   ret.length = MIN_NUM(by->length, ol->length - by->offset);
+  return ret;
+}
+
+static inline OffsetLength
+offset_from_indexrange(const IndexRange* ir) {
+  OffsetLength ret;
+  ret.offset = ir->start;
+  ret.length = ir->end - ir->start;
+  return ret;
+}
+
+static inline IndexRange
+indexrange_from_offset(const OffsetLength* ol) {
+  IndexRange ret;
+  ret.start = ol->offset;
+  ret.end = ol->offset + ol->length;
   return ret;
 }
 
@@ -320,7 +340,8 @@ input_buffer_remain(const InputBuffer* in) {
   return input_buffer_length(in) - in->pos;
 }
 
-int js_offset_length(JSContext* ctx, int64_t size, int argc, JSValue argv[], OffsetLength* off_len_p);
+int js_offset_length(JSContext*, int64_t size, int argc, JSValueConst argv[], OffsetLength* off_len_p);
+int js_index_range(JSContext*, int64_t size, int argc, JSValueConst argv[], IndexRange* idx_rng_p);
 
 /**
  * @}

@@ -339,9 +339,9 @@ class EBNFParser extends Parser {
       let line = arg.currentLine();
       let index = arg.loc.column - 1;
       let error = new Error(
-        `Unmatched token at ${arg.loc} char='${Lexer.escape(line[index])}' section=${this.section} state=${
-          arg.states[arg.state]
-        }\n${line}\n${[...line]
+        `Unmatched token at ${arg.loc} char='${Lexer.escape(line[index])}' section=${
+          this.section
+        } state=${arg.states[arg.state]}\n${line}\n${[...line]
           .slice(0, index)
           .map(c => (c != '\t' ? ' ' : c))
           .join('')}^`
@@ -369,7 +369,9 @@ class EBNFParser extends Parser {
     const { rules } = this.grammar.lexer;
     let rule = rules.find((rule, i) => {
       const re = RegExpToString(rule.regexp);
-      return typeof token == 'string' ? rule.token == token : 0 === RegExpCompare(regexp, rule.regexp);
+      return typeof token == 'string'
+        ? rule.token == token
+        : 0 === RegExpCompare(regexp, rule.regexp);
     });
     return rule;
   }
@@ -379,12 +381,15 @@ class EBNFParser extends Parser {
     const { rules, definitions } = this.grammar.lexer;
     let rule,
       add = r => rules.push(r);
-    if((regexp = RegExpToString(regexp))) regexp = SubstDefines(regexp, name => this.getDefinition(name));
+    if((regexp = RegExpToString(regexp)))
+      regexp = SubstDefines(regexp, name => this.getDefinition(name));
     rule ??= {};
     if(typeof token == 'string') rule.token = token;
     if(regexp)
       //rule.regexp = new RegExp(regexp);
-      TryCatch(() => (rule.regexp = new RegExp(regexp))).catch(error => console.log('ERROR: regexp =', regexp))();
+      TryCatch(() => (rule.regexp = new RegExp(regexp))).catch(error =>
+        console.log('ERROR: regexp =', regexp)
+      )();
     if(states) rule.state = states.length == 1 ? states[0] : states;
     if(['token', 'regexp'].some(prop => prop in rule)) {
       add(rule);
@@ -522,7 +527,8 @@ class EBNFParser extends Parser {
     const { lexer } = this;
     let tok,
       pat = this.parsePattern(
-        tok => tok.type.endsWith('ws') || tok.type.endsWith('newline') || tok.type.endsWith('cstart')
+        tok =>
+          tok.type.endsWith('ws') || tok.type.endsWith('newline') || tok.type.endsWith('cstart')
       ),
       act = [];
     tok = this.next();
@@ -780,7 +786,8 @@ function main(...args) {
   TestRegExp('\b');
   TestRegExp('\\b');*/
 
-  let file = args[optind] ?? path.join(path.dirname(process.argv[1]), '..', 'tests/Shell-Grammar.y');
+  let file =
+    args[optind] ?? path.join(path.dirname(process.argv[1]), '..', 'tests/Shell-Grammar.y');
   let outputFile = args[optind + 1] ?? 'grammar.kison';
   console.log('file:', file);
   let str = std.loadFile(file, 'utf-8');

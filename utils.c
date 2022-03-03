@@ -1491,6 +1491,17 @@ js_cstring_ptr(JSValueConst v) {
   return 0;
 }
 
+size_t
+js_cstring_len(JSValueConst v) {
+  JSString* p;
+
+  if(JS_IsString(v)) {
+    p = JS_VALUE_GET_PTR(v);
+    return p->len;
+  }
+  return 0;
+}
+
 char*
 js_cstring_dup(JSContext* ctx, const char* str) {
   JSString* p;

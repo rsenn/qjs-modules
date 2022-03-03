@@ -69,6 +69,7 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
 enum token_methods {
   TO_STRING = 0,
 };
+
 enum token_getters {
   TOKEN_PROP_BYTELENGTH = 0,
   TOKEN_PROP_BYTEOFFSET,
@@ -206,7 +207,8 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewUint32(ctx, tok->id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, rule->name), JS_PROP_ENUMERABLE);
+
+  JS_DefinePropertyValueStr(ctx, obj, "type", rule ? JS_NewString(ctx, rule->name) : JS_NULL, JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, (const char*)tok->lexeme), JS_PROP_ENUMERABLE);
 
   if(tok->loc)
@@ -285,12 +287,12 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case TOKEN_PROP_RULE: {
       LexerRule* rule = lexer_rule_at(tok->lexer, tok->id);
-      ret = js_lexer_rule_new(ctx, tok->lexer, rule);
+      ret = rule ? js_lexer_rule_new(ctx, tok->lexer, rule) : JS_NULL;
       break;
     }
     case TOKEN_PROP_TYPE: {
       LexerRule* rule = lexer_rule_at(tok->lexer, tok->id);
-      ret = JS_NewString(ctx, rule->name);
+      ret = rule ? JS_NewString(ctx, rule->name) : JS_NULL;
       break;
     }
   }
@@ -502,7 +504,7 @@ lexer_lexeme_s(Lexer* lex, JSContext* ctx) {
 }
 
 static Token*
-lexer_token(Lexer* lex, JSContext* ctx) {
+lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
   size_t len;
   const char* lexeme;
   Token* tok;
@@ -510,7 +512,7 @@ lexer_token(Lexer* lex, JSContext* ctx) {
   if(!(lexeme = lexer_lexeme(lex, &len)))
     return 0;
 
-  if(!(tok = token_create(lex->token_id, location_clone(&lex->loc, ctx), lexeme, len, ctx)))
+  if(!(tok = token_create(id, location_clone(&lex->loc, ctx), lexeme, len, ctx)))
     return 0;
 
   tok->lexer = lexer_dup(lex);
@@ -1036,7 +1038,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_TOKEN: {
       Token* tok;
 
-      if((tok = lexer_token(lex, ctx)))
+      if((tok = lexer_token(lex, lex->token_id, ctx)))
         ret = js_token_wrap(ctx, tok);
 
       break;
@@ -1261,7 +1263,7 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_ToInt32(ctx, &id, ret);
 
     if(magic & YIELD_OBJ) {
-      Token* tok = lexer_token(lex, ctx);
+      Token* tok = lexer_token(lex, id, ctx);
       value = js_token_wrap(ctx, tok);
     } else {
       value = JS_NewInt32(ctx, id);

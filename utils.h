@@ -327,6 +327,7 @@ void js_value_dump(JSContext*, JSValueConst, DynBuf* db);
 
 char* js_cstring_dup(JSContext* ctx, const char* str);
 char* js_cstring_ptr(JSValueConst v);
+size_t js_cstring_len(JSValueConst v);
 JSValueConst js_cstring_value(const char* ptr);
 void js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db);
 
