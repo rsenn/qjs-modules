@@ -333,11 +333,11 @@ input_buffer_getc(InputBuffer* in) {
   return ret;
 }
 
-static inline uint8_t*
+static inline void*
 input_buffer_begin(const InputBuffer* in) {
   return input_buffer_data(in);
 }
-static inline uint8_t*
+static inline void*
 input_buffer_end(const InputBuffer* in) {
   return input_buffer_data(in) + input_buffer_length(in);
 }
