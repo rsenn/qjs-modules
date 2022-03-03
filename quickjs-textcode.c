@@ -364,7 +364,7 @@ js_textencoder_encode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
             if(!libutf_c32_to_c16(cp, &len, u16))
               return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, i, cp);
-            if(ringbuffer_write(&dec->buffer, (const void*)u16, len * 2))
+            if(ringbuffer_write(&dec->buffer, (const void*)u16, len * 2) < 0)
               return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer %s failed", magic == TEXTENCODER_ENCODE ? "write" : "end");
           }
 
@@ -377,7 +377,7 @@ js_textencoder_encode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
           for(i = 0; ptr < end; i++) {
             uint_least32_t cp = unicode_from_utf8(ptr, end - ptr, &ptr);
 
-            if(ringbuffer_write(&dec->buffer, (const void*)&cp, sizeof(cp)))
+            if(ringbuffer_write(&dec->buffer, (const void*)&cp, sizeof(cp)) < 0)
               return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer %s failed", magic == TEXTENCODER_ENCODE ? "write" : "end");
           }
 
