@@ -418,7 +418,7 @@ jsm_lookup_package(JSContext* ctx, const char* module) {
 
       aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
       if(!JS_IsException(aliases) && JS_IsObject(aliases)) {
-        target = JS_GetPropertyStr(ctx, aliases, module);
+        target = JS_GetPropertyStr(ctx, aliases, path_trim_dotslash(module));
 
         JS_FreeValue(ctx, aliases);
 
@@ -561,7 +561,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char* s = 0;
   JSModuleDef* m = 0;
 
-  if(!(s = jsm_lookup_package(ctx, module_name + path_isdotslash(module_name) ? 2 : 0)))
+  if(!(s = jsm_lookup_package(ctx, module_name)))
     s = js_strdup(ctx, module_name);
 
   if(!strchr(s, '/')) {

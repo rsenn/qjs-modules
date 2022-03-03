@@ -89,6 +89,16 @@ int path_relative_b(const char*, size_t, const char* s2, size_t n2, DynBuf* out)
 size_t path_root(const char*, size_t);
 size_t path_skip_component(const char*, size_t, size_t pos);
 size_t path_skip_separator(const char*, size_t, size_t pos);
+
+static inline const char*
+path_trim_dotslash(const char* s) {
+  while(path_isdotslash(s)) {
+    ++s;
+    while(path_issep(*s)) ++s;
+  }
+  return s;
+}
+
 char* path_basename(const char*);
 char* __path_dirname(const char*, DynBuf*);
 char* path_dirname(const char*);
@@ -104,13 +114,13 @@ path_length_s(const char* s) {
   return path_skip_component(s, strlen(s), 0);
 }
 
-static inline size_t
+/*static inline size_t
 path_skip(const char* s, size_t n) {
   const char *p = s, *e = s + n;
   p += path_skip_separator(s, n, 0);
   p += path_skip_component(p, e - p, 0);
   return p - s;
-}
+}*/
 
 static inline size_t
 path_skip2(const char* s, size_t n) {
