@@ -191,10 +191,9 @@ readable_new(JSContext* ctx) {
   return st;
 }
 
-JSValue
+void
 readable_close(Readable* st, JSContext* ctx) {
   static const BOOL expected = FALSE;
-  JSValue ret = JS_UNDEFINED;
 
   st->closed = TRUE;
   /*  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
@@ -207,14 +206,11 @@ readable_close(Readable* st, JSContext* ctx) {
     }
 
     ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
-
-  return ret;
 }
 
-JSValue
+void
 readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   static const BOOL expected = FALSE;
-  JSValue ret = JS_UNDEFINED;
 
   if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
     return JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
@@ -226,8 +222,6 @@ readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
    }
 
    ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);*/
-
-  return ret;
 }
 
 JSValue
@@ -1322,35 +1316,6 @@ enum {
 };
 
 static JSValue
-js_transform_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  Transform* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = js_transform_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {
-    case TRANSFORM_ABORT: {
-      /*  if(argc >= 1)
-          ret = transform_abort(st, argv[0], ctx);
-        else
-          ret = transform_terminate(st, ctx);
-  */
-      break;
-    }
-    case TRANSFORM_GET_READER: {
-      /*     Reader* rd;
-
-           if((rd = transform_get_reader(st, ctx)))
-             ret = js_reader_wrap(ctx, rd);*/
-      break;
-    }
-  }
-
-  return ret;
-}
-
-static JSValue
 js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Transform* st;
   JSValue ret = JS_UNDEFINED;
@@ -1382,16 +1347,18 @@ js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     return JS_EXCEPTION;
 
   switch(magic) {
-    case TRANSFORM_TERMINATE: {
-      // ret = transform_terminate(st, ctx);
-      break;
-    }
     case TRANSFORM_ENQUEUE: {
-      // ret = transform_enqueue(st, argv[0], ctx);
+      ret = readable_enqueue(st->readable, argv[0], ctx);
       break;
     }
     case TRANSFORM_ERROR: {
-      // transform_abort(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      readable_abort(st->readable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      writable_abort(st->writable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      break;
+    }
+    case TRANSFORM_TERMINATE: {
+      readable_close(st->readable, ctx);
+      writable_abort(st->writable, JS_UNDEFINED, ctx);
       break;
     }
   }
@@ -1524,7 +1491,10 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "StreamReader", reader_ctor);
     JS_SetModuleExport(ctx, m, "StreamWriter", writer_ctor);
     JS_SetModuleExport(ctx, m, "ReadableStream", readable_ctor);
+    JS_SetModuleExport(ctx, m, "ReadableStreamDefaultController", readable_controller);
     JS_SetModuleExport(ctx, m, "WritableStream", writable_ctor);
+    JS_SetModuleExport(ctx, m, "WritableStreamDefaultController", writable_controller);
+    JS_SetModuleExport(ctx, m, "TransformStream", transform_ctor);
   }
 
   return 0;
@@ -1545,7 +1515,10 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JS_AddModuleExport(ctx, m, "StreamReader");
   JS_AddModuleExport(ctx, m, "StreamWriter");
   JS_AddModuleExport(ctx, m, "ReadableStream");
+  JS_AddModuleExport(ctx, m, "ReadableStreamDefaultController");
   JS_AddModuleExport(ctx, m, "WritableStream");
+  JS_AddModuleExport(ctx, m, "WritableStreamDefaultController");
+  JS_AddModuleExport(ctx, m, "TransformStream");
   return m;
 }
 
