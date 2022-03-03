@@ -36,10 +36,10 @@ function main(...args) {
   function Decode(decoder, arr) {
     let buf = arr.buffer;
     let bits = arr.BYTES_PER_ELEMENT * 8;
-    console.log('decoder' + bits + '.decode(buf)', decoder.decode(buf));
+    console.log('decoder' + bits + '.decode(', buf, ')', decoder.decode(buf));
     console.log('decoder' + bits + '.buffered', decoder.buffered);
 
-    console.log('decoder' + bits + '.end(buf)', decoder.end());
+    console.log('decoder' + bits + '.end()', decoder.end());
     console.log('decoder' + bits + '.buffered', decoder.buffered);
   }
 
@@ -53,16 +53,16 @@ function main(...args) {
   console.log('encoder16.encoding', encoder16.encoding);
   Encode(encoder8, s1);
   Encode(encoder8, s2);
-  Encode(encoder16, s1);
+  //Encode(encoder16, s1);
   Encode(encoder16, s2);
 
   function Encode(encoder, str) {
     let bits = encoder.encoding.replace(/.*-/, '');
 
-    console.log('encoder' + bits + '.encode(buf)', encoder.encode(str));
+    console.log('encoder' + bits + '.encode(', str, ')', encoder.encode(str));
     console.log('encoder' + bits + '.buffered', encoder.buffered);
 
-    console.log('encoder' + bits + '.end(buf)', encoder.end());
+    console.log('encoder' + bits + '.end()', encoder.end());
     console.log('encoder' + bits + '.buffered', encoder.buffered);
   }
 }

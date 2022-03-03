@@ -220,14 +220,12 @@ enum {
   TEXTENCODER_BUFFERED,
 };
 
-static size_t
+/*static size_t
 textencoder_try(const void* in, size_t len) {
   const uint8_t *x, *y, *end;
   size_t r = 0;
   int ch;
-  x = in;
-  end = x + len;
-  while(x < end) {
+  for(x = in, end=x+len; x < end; ) {
     y = x;
     if((ch = unicode_from_utf8(x, end - x, &x)) == -1)
       break;
@@ -246,12 +244,12 @@ textencoder_length(TextEncoder* sd) {
     r += textencoder_try(sd->buffer.data, ringbuffer_head(&sd->buffer));
 
   return r;
-}
+}*/
 
 JSValue
 textencoder_read(TextEncoder* sd, JSContext* ctx) {
   JSValue ret;
-  size_t len = textencoder_length(sd);
+  size_t len = ringbuffer_length(&sd->buffer);
 
   if(len > ringbuffer_continuous_length(&sd->buffer))
     ringbuffer_normalize(&sd->buffer);
@@ -389,7 +387,10 @@ js_textencoder_encode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         }
       }
 
-      ret = textencoder_read(dec, ctx);
+      if(ringbuffer_length(&dec->buffer) == 0)
+        ret = JS_NULL;
+      else
+        ret = textencoder_read(dec, ctx);
 
       if(magic == TEXTENCODER_END)
         ringbuffer_reset(&dec->buffer);
