@@ -4,7 +4,7 @@
 #include "quickjs-misc.h"
 #include "quickjs-internal.h"
 #include "quickjs-location.h"
-#include "quickjs-stringdecoder.h"
+#include "quickjs-textcode.h"
 #include "utils.h"
 #include "path.h"
 #include "base64.h"

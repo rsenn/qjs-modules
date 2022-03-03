@@ -252,7 +252,7 @@ link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
     bjson blob deep lexer location misc path pointer predicate repeater
-    stringdecoder sockets stream syscallerror inspect tree-walker xml)
+    textcode sockets stream syscallerror inspect tree-walker xml)
 if(LibArchive_FOUND)
   set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
 endif(LibArchive_FOUND)
@@ -338,8 +338,8 @@ if(WIN32 OR MINGW)
 endif(WIN32 OR MINGW)
 
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
-set(stringdecoder_SOURCES
-    quickjs-stringdecoder.c quickjs-stringdecoder.h ringbuffer.c ringbuffer.h
+set(textcode_SOURCES
+    quickjs-textcode.c quickjs-textcode.h ringbuffer.c ringbuffer.h
     ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 
 set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h

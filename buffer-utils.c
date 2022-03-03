@@ -651,7 +651,21 @@ input_buffer_peekc(InputBuffer* in, size_t* lenp) {
   return cp;
 }
 
-size_t
+int
+input_buffer_putc(InputBuffer* in, unsigned int c) {
+
+  if(in->pos + UTF8_CHAR_LEN_MAX > in->allocated_size)
+    int len;
+  if(dbuf_realloc(&in->dbuf, in->pos + UTF8_CHAR_LEN_MAX))
+    return -1;
+
+  len = unicode_to_utf8(&in->data[in->pos], c);
+
+  in->pos += len;
+
+  return len;
+}
+unicode_to_utf8 size_t
 dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
   size_t i, n = 0;
   for(i = 0; i < sizeof(bits) * 8; i++) {
