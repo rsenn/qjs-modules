@@ -55,18 +55,18 @@ function main(...args) {
     console.log('str', str.split('\n')[0]);
 
     let lexer = new CLexer(str, file);
-  /*  console.log('lexer', lexer);
+    /*  console.log('lexer', lexer);
     console.log(`lexer.tokens`, lexer.tokens);
     console.log(`lexer.rules['struct']`, lexer.rules['struct']);
     console.log(`lexer.rules['typedef']`, lexer.rules['typedef']);
     console.log(`lexer.getRule('struct')`, lexer.getRule('struct'));*/
     const { rules, tokens } = lexer;
-    
+
     //let id; while((id = lexer.next()))
     for(let id of lexer) {
       if(id == rules['struct'] || id == rules['typedef']) {
-          const {  loc, token: tok } = lexer;
-  
+        const { loc, token: tok } = lexer;
+
         if(loc.column == 1) {
           let seq,
             line = loc.line,
