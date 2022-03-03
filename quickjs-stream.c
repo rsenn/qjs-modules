@@ -283,6 +283,17 @@ readable_get_reader(Readable* st, JSContext* ctx) {
   return rd;
 }
 
+void
+readable_free(Readable* st, JSRuntime* rt) {
+  if(--st->ref_count == 0) {
+    JS_FreeValueRT(rt, st->underlying_source);
+    JS_FreeValueRT(rt, st->controller);
+    for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
+    queue_clear(&st->q);
+    js_free_rt(rt, st);
+  }
+}
+
 enum {
   FUNC_PEEK,
 
@@ -634,15 +645,8 @@ static void
 js_readable_finalizer(JSRuntime* rt, JSValue val) {
   Readable* st;
 
-  if((st = JS_GetOpaque(val, js_readable_class_id))) {
-    if(--st->ref_count == 0) {
-      JS_FreeValueRT(rt, st->underlying_source);
-      JS_FreeValueRT(rt, st->controller);
-      for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
-      queue_clear(&st->q);
-      js_free_rt(rt, st);
-    }
-  }
+  if((st = js_readable_data(val)))
+    readable_free(st, rt);
 }
 
 static JSClassDef js_readable_class = {
@@ -1100,6 +1104,9 @@ js_writable_finalizer(JSRuntime* rt, JSValue val) {
 
   if((st = JS_GetOpaque(val, js_writable_class_id))) {
     if(--st->ref_count == 0) {
+      JS_FreeValueRT(rt, st->underlying_sink);
+      JS_FreeValueRT(rt, st->controller);
+      for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
       queue_clear(&st->q);
       js_free_rt(rt, st);
     }
@@ -1397,6 +1404,9 @@ js_transform_finalizer(JSRuntime* rt, JSValue val) {
 
   if((st = JS_GetOpaque(val, js_transform_class_id))) {
     if(--st->ref_count == 0) {
+      JS_FreeValueRT(rt, st->underlying_transform);
+      JS_FreeValueRT(rt, st->controller);
+      for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
       js_free_rt(rt, st);
     }
   }
