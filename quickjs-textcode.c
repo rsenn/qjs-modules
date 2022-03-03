@@ -391,14 +391,6 @@ js_textencoder_encode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
       ret = textencoder_read(dec, ctx);
 
-      /*{
-        size_t len;
-        const char* str = JS_ToCStringLen(ctx, &len, ret);
-        printf("TextEncoder.%s ret='%.*s' size=%zu\n", magic ==
-      TEXTENCODER_ENCODE ? "write" : "end", len, str, len); JS_FreeCString(ctx,
-      str);
-      }*/
-
       if(magic == TEXTENCODER_END)
         ringbuffer_reset(&dec->buffer);
       break;
