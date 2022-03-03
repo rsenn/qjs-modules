@@ -340,6 +340,7 @@ endif(WIN32 OR MINGW)
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 set(textcode_SOURCES
     quickjs-textcode.c quickjs-textcode.h ringbuffer.c ringbuffer.h
+    libutf/src/libutf.c
     ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 
 set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h

@@ -652,11 +652,11 @@ input_buffer_peekc(InputBuffer* in, size_t* lenp) {
 }
 
 int
-input_buffer_putc(InputBuffer* in, unsigned int c) {
+input_buffer_putc(InputBuffer* in, unsigned int c, JSContext* ctx) {
   int len;
 
-  if(in->pos + UTF8_CHAR_LEN_MAX > in->allocated_size)
-    if(dbuf_realloc(&in->dbuf, in->pos + UTF8_CHAR_LEN_MAX))
+  if(in->pos + UTF8_CHAR_LEN_MAX > in->size)
+    if(block_realloc(&in->block, in->pos + UTF8_CHAR_LEN_MAX, ctx))
       return -1;
 
   len = unicode_to_utf8(&in->data[in->pos], c);

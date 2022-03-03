@@ -6,3 +6,7 @@
 	path = pigpio
 	url = git@github.com:rsenn/pigpio.git
 	branch = main
+[submodule "libutf"]
+	path = libutf
+	url = https://github.com/NolanRus/libutf
+	branch = main

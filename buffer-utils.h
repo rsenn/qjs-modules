@@ -241,6 +241,15 @@ block_range(const MemoryBlock* mb, struct offset_length* range) {
   return ret;
 }
 
+static inline int
+block_realloc(MemoryBlock* mb, size_t new_size, JSContext* ctx) {
+  if((mb->base = js_realloc(ctx, mb->base, new_size))) {
+    mb->size = new_size;
+    return 0;
+  }
+  return -1;
+}
+
 typedef struct InputBuffer {
   union {
     MemoryBlock block;
@@ -313,7 +322,7 @@ const char* input_buffer_currentline(InputBuffer*, size_t* len);
 size_t input_buffer_column(InputBuffer*, size_t* len);
 
 int input_buffer_peekc(InputBuffer* in, size_t* lenp);
-int input_buffer_putc(InputBuffer*, unsigned int);
+int input_buffer_putc(InputBuffer*, unsigned int, JSContext*);
 
 static inline int
 input_buffer_getc(InputBuffer* in) {
