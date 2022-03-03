@@ -810,6 +810,17 @@ writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
   return wr;
 }
 
+void
+writable_free(Writable* st, JSRuntime* rt) {
+  if(--st->ref_count == 0) {
+    JS_FreeValueRT(rt, st->underlying_sink);
+    JS_FreeValueRT(rt, st->controller);
+    for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
+    queue_clear(&st->q);
+    js_free_rt(rt, st);
+  }
+}
+
 static JSValue
 js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -1102,15 +1113,8 @@ static void
 js_writable_finalizer(JSRuntime* rt, JSValue val) {
   Writable* st;
 
-  if((st = JS_GetOpaque(val, js_writable_class_id))) {
-    if(--st->ref_count == 0) {
-      JS_FreeValueRT(rt, st->underlying_sink);
-      JS_FreeValueRT(rt, st->controller);
-      for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
-      queue_clear(&st->q);
-      js_free_rt(rt, st);
-    }
-  }
+  if((st = js_writable_data(js_writable_class_id)))
+    writable_free(st);
 }
 /*
 static int
@@ -1404,6 +1408,9 @@ js_transform_finalizer(JSRuntime* rt, JSValue val) {
 
   if((st = JS_GetOpaque(val, js_transform_class_id))) {
     if(--st->ref_count == 0) {
+      writable_free(st->writable, rt);
+      readable_free(st->readable, rt);
+
       JS_FreeValueRT(rt, st->underlying_transform);
       JS_FreeValueRT(rt, st->controller);
       for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
