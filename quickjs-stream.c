@@ -1113,8 +1113,8 @@ static void
 js_writable_finalizer(JSRuntime* rt, JSValue val) {
   Writable* st;
 
-  if((st = js_writable_data(js_writable_class_id)))
-    writable_free(st);
+  if((st = js_writable_data(val)))
+    writable_free(st, rt);
 }
 /*
 static int
