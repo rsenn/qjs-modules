@@ -1130,8 +1130,10 @@ transform_new(JSContext* ctx) {
     st->readable = readable_new(ctx);
     st->writable = writable_new(ctx);
 
-    st->controller = JS_NewObjectProtoClass(ctx, transform_controller, js_transform_class_id);
-    JS_SetOpaque(st->controller, st);
+    st->controller = JS_NewObjectProtoClass(ctx, readable_controller, js_readable_class_id);
+    JS_SetOpaque(st->controller, st->readable);
+
+    st->readable->controller = JS_DupValue(ctx, st->controller);
   }
 
   return st;
