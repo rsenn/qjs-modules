@@ -365,7 +365,7 @@ js_textencoder_encode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
             if(!libutf_c32_to_c16(cp, &len, u16))
               return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, i, cp);
             if(ringbuffer_write(&dec->buffer, (const void*)u16, len * 2))
-              return S_ThrowInternalError(ctx, "TextEncoder: ringbuffer %s failed", magic == TEXTENCODER_ENCODE ? "write" : "end");
+              return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer %s failed", magic == TEXTENCODER_ENCODE ? "write" : "end");
           }
 
           break;
