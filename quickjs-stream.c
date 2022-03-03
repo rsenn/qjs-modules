@@ -1462,17 +1462,6 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, reader_ctor, reader_proto);
 
-  JS_NewClassID(&js_writer_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_writer_class_id, &js_writer_class);
-
-  writer_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, writer_proto, js_writer_proto_funcs, countof(js_writer_proto_funcs));
-  JS_SetClassProto(ctx, js_writer_class_id, writer_proto);
-
-  writer_ctor = JS_NewCFunction2(ctx, js_writer_constructor, "StreamWriter", 1, JS_CFUNC_constructor, 0);
-
-  JS_SetConstructor(ctx, writer_ctor, writer_proto);
-
   JS_NewClassID(&js_readable_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_readable_class_id, &js_readable_class);
 
@@ -1488,6 +1477,17 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, readable_controller, js_readable_controller_funcs, countof(js_readable_controller_funcs));
   JS_SetClassProto(ctx, js_readable_class_id, readable_controller);
 
+  JS_NewClassID(&js_writer_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_writer_class_id, &js_writer_class);
+
+  writer_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, writer_proto, js_writer_proto_funcs, countof(js_writer_proto_funcs));
+  JS_SetClassProto(ctx, js_writer_class_id, writer_proto);
+
+  writer_ctor = JS_NewCFunction2(ctx, js_writer_constructor, "StreamWriter", 1, JS_CFUNC_constructor, 0);
+
+  JS_SetConstructor(ctx, writer_ctor, writer_proto);
+
   JS_NewClassID(&js_writable_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_writable_class_id, &js_writable_class);
 
@@ -1502,6 +1502,21 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   writable_controller = JS_NewObject(ctx);
   JS_SetPropertyFunctionList(ctx, writable_controller, js_writable_controller_funcs, countof(js_writable_controller_funcs));
   JS_SetClassProto(ctx, js_writable_class_id, writable_controller);
+
+  JS_NewClassID(&js_transform_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_transform_class_id, &js_transform_class);
+
+  transform_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, transform_proto, js_transform_proto_funcs, countof(js_transform_proto_funcs));
+  JS_SetClassProto(ctx, js_transform_class_id, transform_proto);
+
+  transform_ctor = JS_NewCFunction2(ctx, js_transform_constructor, "TransformStream", 1, JS_CFUNC_constructor, 0);
+
+  JS_SetConstructor(ctx, transform_ctor, transform_proto);
+
+  transform_controller = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, transform_controller, js_transform_controller_funcs, countof(js_transform_controller_funcs));
+  JS_SetClassProto(ctx, js_transform_class_id, transform_controller);
 
   // JS_SetPropertyFunctionList(ctx, stream_ctor, js_stream_static_funcs, countof(js_stream_static_funcs));
 
