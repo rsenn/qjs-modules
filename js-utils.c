@@ -18,6 +18,13 @@ js_resolve_functions_free(JSContext* ctx, ResolveFunctions* funcs) {
   js_resolve_functions_zero(funcs);
 }
 
+static void
+js_resolve_functions_free_rt(JSRuntime* rt, ResolveFunctions* funcs) {
+  JS_FreeValueRT(rt, funcs->array[0]);
+  JS_FreeValueRT(rt, funcs->array[1]);
+  js_resolve_functions_zero(funcs);
+}
+
 static inline BOOL
 js_resolve_functions_call(JSContext* ctx, ResolveFunctions* funcs, int index, JSValueConst arg) {
   JSValue ret = JS_UNDEFINED;
@@ -57,6 +64,13 @@ promise_free(JSContext* ctx, Promise* prom) {
   JS_FreeValue(ctx, prom->promise);
   prom->promise = JS_UNDEFINED;
   js_resolve_functions_free(ctx, &prom->funcs);
+}
+
+void
+promise_free_rt(JSRuntime* rt, Promise* prom) {
+  JS_FreeValueRT(rt, prom->promise);
+  prom->promise = JS_UNDEFINED;
+  js_resolve_functions_free_rt(rt, &prom->funcs);
 }
 
 BOOL

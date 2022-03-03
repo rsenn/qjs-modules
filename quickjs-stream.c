@@ -213,7 +213,7 @@ readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   static const BOOL expected = FALSE;
 
   if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-    return JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
+    JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
 
   /* if(readable_locked(st)) {
      promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
@@ -559,6 +559,7 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   return ret;
 }
+
 enum { STREAM_CLOSED, STREAM_LOCKED };
 
 static JSValue
@@ -635,6 +636,10 @@ js_readable_finalizer(JSRuntime* rt, JSValue val) {
 
   if((st = JS_GetOpaque(val, js_readable_class_id))) {
     if(--st->ref_count == 0) {
+      JS_FreeValueRT(rt, st->underlying_source);
+      JS_FreeValueRT(rt, st->controller);
+      for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
+      queue_clear(&st->q);
       js_free_rt(rt, st);
     }
   }
@@ -1095,6 +1100,7 @@ js_writable_finalizer(JSRuntime* rt, JSValue val) {
 
   if((st = JS_GetOpaque(val, js_writable_class_id))) {
     if(--st->ref_count == 0) {
+      queue_clear(&st->q);
       js_free_rt(rt, st);
     }
   }
