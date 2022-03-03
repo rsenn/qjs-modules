@@ -59,7 +59,7 @@ function main(...args) {
   Encode(32, s2);
 
   function Encode(bits, str) {
-    let encoder = new TextEncoder('utf-'+bits);
+    let encoder = new TextEncoder('utf-' + bits);
     //let bits = encoder.encoding.replace(/.*-/, '');
 
     console.log('encoder' + bits + '.encode(', str, ')', encoder.encode(str));
@@ -68,6 +68,10 @@ function main(...args) {
     console.log('encoder' + bits + '.end()', encoder.end());
     console.log('encoder' + bits + '.buffered', encoder.buffered);
   }
+
+  const encoder = new TextEncoder();
+  const view = encoder.encode('€');
+  console.log(`encoder.encode('€')`, view); // Uint8Array(3) [226, 130, 172]
 }
 
 try {

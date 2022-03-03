@@ -1946,6 +1946,19 @@ js_typedarray_constructor(JSContext* ctx) {
 }
 
 JSValue
+js_typedarray_new(JSContext* ctx, int bits, BOOL floating, BOOL sign, JSValueConst buffer) {
+  char class_name[64] = {0};
+
+  snprintf(class_name, sizeof(class_name), "%s%s%dArray", (!floating && bits >= 64) ? "Big" : "", floating ? "Float" : sign ? "Int" : "Uint");
+
+  JSValue ret, typedarray_ctor = js_global_get_str(ctx, class_name);
+  ret = JS_CallConstructor(ctx, ctor, 1, &buffer);
+
+  JS_FreeValue(ctx, typedarray_ctor);
+  return ret;
+}
+
+JSValue
 js_invoke(JSContext* ctx, JSValueConst this_obj, const char* method, int argc, JSValueConst argv[]) {
   JSAtom atom;
   JSValue ret;
