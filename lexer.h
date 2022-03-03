@@ -35,12 +35,14 @@ enum {
 };
 
 typedef struct lexical_scanner {
-  int ref_count;
+  union {
+    int ref_count;
+    Location loc;
+  };
+  InputBuffer input;
   enum lexer_mode mode;
   size_t /*start, */ byte_length;
   int32_t token_id, state;
-  Location loc;
-  InputBuffer input;
   Vector defines;
   Vector rules;
   Vector states;

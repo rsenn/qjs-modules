@@ -109,11 +109,11 @@ location_free_rt(Location* loc, JSRuntime* rt) {
 }
 
 size_t
-location_count(Location* loc, const char* x, size_t n) {
+location_count(Location* loc, const uint8_t* x, size_t n) {
   size_t start = loc->char_offset, i;
 
   for(i = 0; i < n;) {
-    size_t bytes = utf8_charlen(&x[i], n - i);
+    size_t bytes = utf8_charlen((const void*)&x[i], n - i);
 
     if(x[i] == '\n') {
       loc->line++;

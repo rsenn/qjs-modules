@@ -358,7 +358,7 @@ js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   if(limit == -1 || (size_t)limit > input.size)
     limit = input.size;
 
-  location_count(loc, (const char*)input.data, limit);
+  location_count(loc, (const void*)input.data, limit);
 
   return js_location_wrap(ctx, loc);
 }
@@ -369,7 +369,8 @@ js_location_finalizer(JSRuntime* rt, JSValue val) {
 
   if((loc = js_location_data(val))) {
     if(loc != (void*)-1ll)
-      location_free_rt(loc, rt);
+      if(--loc->ref_count)
+        location_free_rt(loc, rt);
 
     JS_SetOpaque(val, 0);
   }

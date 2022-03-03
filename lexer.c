@@ -361,7 +361,7 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
   }
   if(ret >= 0) {
     lex->byte_length = len;
-    lex->token_id = i;
+    lex->token_id = ret;
   }
 
   return ret;

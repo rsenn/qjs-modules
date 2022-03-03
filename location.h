@@ -27,7 +27,7 @@ void location_add(Location*, const Location*);
 void location_sub(Location*, const Location*);
 BOOL location_release_rt(Location*, JSRuntime*);
 Location* location_free_rt(Location*, JSRuntime*);
-size_t location_count(Location*, const char*, size_t);
+size_t location_count(Location*, const uint8_t*, size_t);
 Location* location_copy(Location*, const Location*, JSContext*);
 Location* location_clone(const Location*, JSContext*);
 Location* location_new(JSContext*);

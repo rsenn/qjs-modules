@@ -506,7 +506,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
             if(!opts.tolerant) {
               char* file;
               JS_FreeValue(ctx, ret);
-              location_count(&loc, (const char*)buf, start - buf);
+              location_count(&loc, buf, start - buf);
               file = location_file(&loc, ctx);
               xml_debug(
                   "mismatch </%.*s> at %s:%u:%u (byte %zu/char %zu)", (int)namelen, name, file, loc.line + 1, loc.column + 1, loc.byte_offset, loc.char_offset);

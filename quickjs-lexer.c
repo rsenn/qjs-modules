@@ -1093,6 +1093,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
   }
   return JS_UNDEFINED;
 }
+
 JSValue
 js_lexer_tokens(JSContext* ctx, JSValueConst this_val) {
   Lexer* lex;
@@ -1347,8 +1348,12 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
 
   if((lex = JS_GetOpaque(val, js_lexer_class_id))) {
-    location_release_rt(&lex->loc, rt);
-    lexer_free_rt(lex, rt);
+    if(--lex->ref_count == 0)
+      location_release_rt(&lex->loc, rt);
+    lexer_release_rt(lex, rt);
+
+    if(lex->ref_count == 0)
+      js_free_rt(rt, lex);
   }
   // JS_FreeValueRT(rt, val);
 }
