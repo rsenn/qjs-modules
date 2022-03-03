@@ -59,7 +59,7 @@ function main(...args) {
 
   ReadStream(read).then(result => {
     let str = toString(result);
-    //console.log('read', str);
+  console.log('read', str);
     WriteStream(write, async writer => {
       //  console.log('writer', writer);
       await writer.write(result);
