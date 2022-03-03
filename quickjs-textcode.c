@@ -16,7 +16,12 @@ thread_local VISIBLE JSClassID js_textdecoder_class_id = 0, js_textencoder_class
 thread_local JSValue textdecoder_proto = {{JS_TAG_UNDEFINED}}, textdecoder_ctor = {{JS_TAG_UNDEFINED}}, textencoder_proto = {{JS_TAG_UNDEFINED}},
                      textencoder_ctor = {{JS_TAG_UNDEFINED}};
 
-const char* const textcode_encodings[] = {"unknown", "utf8", "utf16"};
+const char* const textcode_encodings[] = {
+    "unknown",
+    "utf8",
+    "utf16",
+    "utf32",
+};
 
 enum {
   TEXTDECODER_DECODE,

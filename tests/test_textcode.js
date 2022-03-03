@@ -51,13 +51,16 @@ function main(...args) {
   console.log('encoder16', Object.getOwnPropertyNames(Object.getPrototypeOf(encoder16)));
   console.log('encoder16', encoder16);
   console.log('encoder16.encoding', encoder16.encoding);
-  Encode(encoder8, s1);
-  Encode(encoder8, s2);
-  //Encode(encoder16, s1);
-  Encode(encoder16, s2);
+  Encode(8, s1);
+  Encode(8, s2);
+  Encode(16, s1);
+  Encode(16, s2);
+  Encode(32, s1);
+  Encode(32, s2);
 
-  function Encode(encoder, str) {
-    let bits = encoder.encoding.replace(/.*-/, '');
+  function Encode(bits, str) {
+    let encoder = new TextEncoder('utf-'+bits);
+    //let bits = encoder.encoding.replace(/.*-/, '');
 
     console.log('encoder' + bits + '.encode(', str, ')', encoder.encode(str));
     console.log('encoder' + bits + '.buffered', encoder.buffered);
