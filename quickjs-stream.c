@@ -542,9 +542,9 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   switch(magic) {
     case READABLE_ABORT: {
       if(argc >= 1)
-        ret = readable_abort(st, argv[0], ctx);
+        readable_abort(st, argv[0], ctx);
       else
-        ret = readable_close(st, ctx);
+        readable_close(st, ctx);
 
       break;
     }
@@ -594,7 +594,7 @@ js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   switch(magic) {
     case READABLE_CLOSE: {
-      ret = readable_close(st, ctx);
+      readable_close(st, ctx);
       break;
     }
     case READABLE_ENQUEUE: {

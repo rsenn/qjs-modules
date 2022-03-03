@@ -87,8 +87,8 @@ JSValue reader_signal(Reader*, StreamEvent event, JSValueConst arg, JSContext* c
 int reader_update(Reader*, JSContext* ctx);
 BOOL reader_passthrough(Reader*, JSValueConst chunk, JSContext* ctx);
 Readable* readable_new(JSContext*);
-JSValue readable_close(Readable*, JSContext* ctx);
-JSValue readable_abort(Readable*, JSValueConst reason, JSContext* ctx);
+void readable_close(Readable*, JSContext* ctx);
+void readable_abort(Readable*, JSValueConst reason, JSContext* ctx);
 JSValue readable_enqueue(Readable*, JSValueConst chunk, JSContext* ctx);
 int readable_lock(Readable*, Reader* rd);
 int readable_unlock(Readable*, Reader* rd);
