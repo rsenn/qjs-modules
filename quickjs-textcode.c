@@ -385,7 +385,6 @@ js_textencoder_encode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         }
         default: {
           ret = JS_ThrowInternalError(ctx, "TextEncoder: unknown encoding");
-
           break;
         }
       }
