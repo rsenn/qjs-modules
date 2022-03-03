@@ -353,7 +353,7 @@ set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
 # endif(pigpio_LIBRARY)
 
-include_directories(${LibArchive_INCLUDE_DIRS})
+include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include)
 set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 

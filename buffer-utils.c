@@ -666,7 +666,7 @@ input_buffer_putc(InputBuffer* in, unsigned int c, JSContext* ctx) {
   return len;
 }
 
-unicode_to_utf8 size_t
+size_t
 dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
   size_t i, n = 0;
   for(i = 0; i < sizeof(bits) * 8; i++) {
