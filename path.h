@@ -171,8 +171,7 @@ path_getsep(const char* path) {
 
 static inline const char*
 path_trim_dotslash(const char* s) {
-  while(*s && path_isdotslash(s)) 
-    s += path_skip2_s(s);
+  while(*s && path_isdotslash(s)) s += path_skip2_s(s);
 
   return s;
 }

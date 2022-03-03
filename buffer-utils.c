@@ -615,6 +615,35 @@ js_dbuf_allocator(JSContext* ctx, DynBuf* s) {
   dbuf_init2(s, ctx->rt, (DynBufReallocFunc*)js_realloc_rt);
 }
 
+int
+input_buffer_peekc(InputBuffer* in, size_t* lenp) {
+  const uint8_t *pos, *end, *next;
+  int cp;
+  pos = input_buffer_data(in) + in->pos;
+  end = input_buffer_data(in) + input_buffer_length(in);
+  cp = unicode_from_utf8(pos, end - pos, &next);
+  if(lenp)
+    *lenp = next - pos;
+
+  return cp;
+}
+
+size_t
+dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
+  size_t i, n = 0;
+  for(i = 0; i < sizeof(bits) * 8; i++) {
+    if(bits & (1 << i)) {
+      size_t len = strlen(names[i]);
+      if(n) {
+        n++;
+        dbuf_putstr(db, "|");
+      }
+      dbuf_append(db, names[i], len);
+      n += len;
+    }
+  }
+  return n;
+}
 /**
  * @}
  */

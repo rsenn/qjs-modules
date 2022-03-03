@@ -92,22 +92,7 @@ dbuf_get_column(DynBuf* db) {
   return 0;
 }
 
-static inline size_t
-dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
-  size_t i, n = 0;
-  for(i = 0; i < sizeof(bits) * 8; i++) {
-    if(bits & (1 << i)) {
-      size_t len = strlen(names[i]);
-      if(n) {
-        n++;
-        dbuf_putstr(db, "|");
-      }
-      dbuf_append(db, names[i], len);
-      n += len;
-    }
-  }
-  return n;
-}
+size_t dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]);
 
 #define js_dbuf_init(ctx, buf) dbuf_init2((buf), (ctx), (realloc_func*)&utils_js_realloc)
 #define js_dbuf_init_rt(rt, buf) dbuf_init2((buf), (rt), (realloc_func*)&utils_js_realloc_rt)
@@ -307,18 +292,7 @@ const uint8_t* input_buffer_peek(InputBuffer* in, size_t* lenp);
 const char* input_buffer_currentline(InputBuffer*, size_t* len);
 size_t input_buffer_column(InputBuffer*, size_t* len);
 
-static int
-input_buffer_peekc(InputBuffer* in, size_t* lenp) {
-  const uint8_t *pos, *end, *next;
-  int cp;
-  pos = input_buffer_data(in) + in->pos;
-  end = input_buffer_data(in) + input_buffer_length(in);
-  cp = unicode_from_utf8(pos, end - pos, &next);
-  if(lenp)
-    *lenp = next - pos;
-
-  return cp;
-}
+int input_buffer_peekc(InputBuffer* in, size_t* lenp);
 
 static inline int
 input_buffer_getc(InputBuffer* in) {
