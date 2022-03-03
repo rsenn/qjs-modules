@@ -186,6 +186,9 @@ readable_new(JSContext* ctx) {
     st->ref_count = 1;
 
     queue_init(&st->q);
+
+    st->controller = JS_NewObjectProtoClass(ctx, readable_controller, js_readable_class_id);
+    JS_SetOpaque(st->controller, st);
   }
 
   return st;
@@ -494,8 +497,6 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     st->on[READABLE_PULL] = JS_GetPropertyStr(ctx, argv[0], "pull");
     st->on[READABLE_CANCEL] = JS_GetPropertyStr(ctx, argv[0], "cancel");
     st->underlying_source = JS_DupValue(ctx, argv[0]);
-    st->controller = JS_NewObjectProtoClass(ctx, readable_controller, js_readable_class_id);
-    JS_SetOpaque(st->controller, st);
   }
 
   JS_SetOpaque(obj, st);
@@ -772,6 +773,9 @@ writable_new(JSContext* ctx) {
   if((st = js_mallocz(ctx, sizeof(Writable)))) {
     st->ref_count = 1;
     // queue_init(&st->q);
+
+    st->controller = JS_NewObjectProtoClass(ctx, writable_controller, js_writable_class_id);
+    JS_SetOpaque(st->controller, st);
   }
 
   return st;
@@ -987,9 +991,6 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     st->on[WRITABLE_CLOSE] = JS_GetPropertyStr(ctx, argv[0], "close");
     st->on[WRITABLE_ABORT] = JS_GetPropertyStr(ctx, argv[0], "abort");
     st->underlying_sink = JS_DupValue(ctx, argv[0]);
-
-    st->controller = JS_NewObjectProtoClass(ctx, writable_controller, js_writable_class_id);
-    JS_SetOpaque(st->controller, st);
   }
 
   JS_SetOpaque(obj, st);
@@ -1244,6 +1245,8 @@ transform_new(JSContext* ctx) {
 
   return st;
 }
+
+/*
 JSValue
 js_transform_callback(JSContext* ctx, Transform* st, TransformEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
@@ -1254,7 +1257,6 @@ js_transform_callback(JSContext* ctx, Transform* st, TransformEvent event, int a
 
   return JS_UNDEFINED;
 }
-/*
 JSValue
 js_transform_start(JSContext* ctx, Transform* st) {
   JSValueConst args[] = {st->controller};
@@ -1295,6 +1297,10 @@ js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
     st->underlying_transform = JS_DupValue(ctx, argv[0]);
     st->controller = JS_NewObjectProtoClass(ctx, transform_controller, js_transform_class_id);
     JS_SetOpaque(st->controller, st);
+
+    st->writable->on[WRITABLE_START] = JS_DupValue(ctx, st->on[TRANSFORM_START]);
+    st->writable->on[WRITABLE_WRITE] = JS_DupValue(ctx, st->on[TRANSFORM_TRANSFORM]);
+    st->writable->on[WRITABLE_CLOSE] = JS_DupValue(ctx, st->on[TRANSFORM_FLUSH]);
   }
 
   JS_SetOpaque(obj, st);
