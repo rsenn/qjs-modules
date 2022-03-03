@@ -90,15 +90,6 @@ size_t path_root(const char*, size_t);
 size_t path_skip_component(const char*, size_t, size_t pos);
 size_t path_skip_separator(const char*, size_t, size_t pos);
 
-static inline const char*
-path_trim_dotslash(const char* s) {
-  while(path_isdotslash(s)) {
-    ++s;
-    while(path_issep(*s)) ++s;
-  }
-  return s;
-}
-
 char* path_basename(const char*);
 char* __path_dirname(const char*, DynBuf*);
 char* path_dirname(const char*);
@@ -176,6 +167,14 @@ path_getsep(const char* path) {
     ++path;
   }
   return '\0';
+}
+
+static inline const char*
+path_trim_dotslash(const char* s) {
+  while(*s && path_isdotslash(s)) 
+    s += path_skip2_s(s);
+
+  return s;
 }
 
 /**
