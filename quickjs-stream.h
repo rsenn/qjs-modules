@@ -63,8 +63,21 @@ typedef struct writable_stream {
   JSValue underlying_sink, controller;
 } Writable;
 
-extern thread_local JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id, js_writable_class_id;
-extern thread_local JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor;
+typedef enum { TRANSFORM_START = 0, TRANSFORM_TRANSFORM, TRANSFORM_FLUSH } TransformEvent;
+
+typedef struct transform_stream {
+  int ref_count;
+  Readable* readable;
+  Writable* writable;
+  JSValue on[3];
+  JSValue underlying_transform, controller;
+} Transform;
+
+typedef enum { TRANSFORM_READABLE = 0, TRANSFORM_WRITABLE } TransformProperties;
+
+extern thread_local JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id, js_writable_class_id, js_transform_class_id;
+extern thread_local JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor, transform_proto,
+    transform_ctor;
 
 Reader* reader_new(JSContext*, Readable* st);
 BOOL reader_release_lock(Reader*, JSContext* ctx);
@@ -171,6 +184,16 @@ js_writable_data(JSValueConst value) {
 static inline Writable*
 js_writable_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_writable_class_id);
+}
+
+static inline Transform*
+js_transform_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_transform_class_id);
+}
+
+static inline Transform*
+js_transform_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_transform_class_id);
 }
 
 /**

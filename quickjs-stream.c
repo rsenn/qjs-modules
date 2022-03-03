@@ -9,9 +9,10 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0;
+thread_local VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
 thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_controller = {{JS_TAG_UNDEFINED}}, readable_ctor = {{JS_TAG_UNDEFINED}},
                      writable_proto = {{JS_TAG_UNDEFINED}}, writable_controller = {{JS_TAG_UNDEFINED}}, writable_ctor = {{JS_TAG_UNDEFINED}},
+                     transform_proto = {{JS_TAG_UNDEFINED}}, transform_controller = {{JS_TAG_UNDEFINED}}, transform_ctor = {{JS_TAG_UNDEFINED}},
                      reader_proto = {{JS_TAG_UNDEFINED}}, reader_ctor = {{JS_TAG_UNDEFINED}}, writer_proto = {{JS_TAG_UNDEFINED}},
                      writer_ctor = {{JS_TAG_UNDEFINED}};
 
@@ -1200,6 +1201,203 @@ static const JSCFunctionListEntry js_writable_proto_funcs[] = {
 static const JSCFunctionListEntry js_writable_controller_funcs[] = {
     JS_CFUNC_MAGIC_DEF("error", 0, js_writable_controller, WRITABLE_ERROR),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultController", JS_PROP_CONFIGURABLE),
+};
+
+JSValue
+js_transform_callback(JSContext* ctx, Transform* st, TransformEvent event, int argc, JSValueConst argv[]) {
+  assert(event >= 0);
+  assert(event < countof(st->on));
+
+  if(JS_IsFunction(ctx, st->on[event]))
+    return JS_Call(ctx, st->on[event], st->underlying_transform, argc, argv);
+
+  return JS_UNDEFINED;
+}
+/*
+JSValue
+js_transform_start(JSContext* ctx, Transform* st) {
+  JSValueConst args[] = {st->controller};
+  return js_transform_callback(ctx, st, TRANSFORM_START, countof(args), args);
+}
+
+JSValue
+js_transform_pull(JSContext* ctx, Transform* st, JSValueConst chunk) {
+  JSValueConst args[] = {st->controller};
+  return js_transform_callback(ctx, st, TRANSFORM_PULL, countof(args), args);
+}
+
+JSValue
+js_transform_cancel(JSContext* ctx, Transform* st, JSValueConst reason) {
+  return js_transform_callback(ctx, st, TRANSFORM_CANCEL, 1, &reason);
+}*/
+
+static JSValue
+js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue proto, obj = JS_UNDEFINED;
+  Transform* st;
+
+  if(!(st = transform_new(ctx)))
+    return JS_ThrowOutOfMemory(ctx);
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    proto = JS_DupValue(ctx, transform_proto);
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_transform_class_id);
+  if(JS_IsException(obj))
+    goto fail;
+
+  if(argc >= 1 && !JS_IsNull(argv[0]) && JS_IsObject(argv[0])) {
+    st->on[TRANSFORM_START] = JS_GetPropertyStr(ctx, argv[0], "start");
+    st->on[TRANSFORM_TRANSFORM] = JS_GetPropertyStr(ctx, argv[0], "transform");
+    st->on[TRANSFORM_FLUSH] = JS_GetPropertyStr(ctx, argv[0], "flush");
+    st->underlying_transform = JS_DupValue(ctx, argv[0]);
+    st->controller = JS_NewObjectProtoClass(ctx, transform_controller, js_transform_class_id);
+    JS_SetOpaque(st->controller, st);
+  }
+
+  JS_SetOpaque(obj, st);
+
+  return obj;
+fail:
+  js_free(ctx, st);
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
+/*static JSValue
+js_transform_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+  Transform* st;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(st = JS_GetOpaque2(ctx, this_val, js_transform_class_id)))
+    return JS_EXCEPTION;
+
+  *pdone = queue_empty(&st->q);
+
+  if(!*pdone)
+    ret = transform_next(st, ctx);
+
+  return ret;
+}
+
+static JSValue
+js_transform_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  return JS_DupValue(ctx, this_val);
+}*/
+
+enum {
+  TRANSFORM_ABORT = 0,
+  TRANSFORM_GET_READER,
+};
+
+static JSValue
+js_transform_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  Transform* st;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(st = js_transform_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case TRANSFORM_ABORT: {
+      if(argc >= 1)
+        ret = transform_abort(st, argv[0], ctx);
+      else
+        ret = transform_terminate(st, ctx);
+
+      break;
+    }
+    case TRANSFORM_GET_READER: {
+      Reader* rd;
+
+      if((rd = transform_get_reader(st, ctx)))
+        ret = js_reader_wrap(ctx, rd);
+      break;
+    }
+  }
+
+  return ret;
+}
+enum { STREAM_CLOSED, STREAM_LOCKED };
+
+static JSValue
+js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  Transform* st;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(st = js_transform_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case STREAM_CLOSED: {
+      ret = JS_NewBool(ctx, transform_terminated(st));
+      break;
+    }
+    case STREAM_LOCKED: {
+      ret = JS_NewBool(ctx, !!transform_locked(st));
+      break;
+    }
+  }
+  return ret;
+}
+
+enum { TRANSFORM_TERMINATE = 0, TRANSFORM_ENQUEUE, TRANSFORM_ERROR };
+
+static JSValue
+js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  Transform* st;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(st = js_transform_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case TRANSFORM_TERMINATE: {
+      ret = transform_terminate(st, ctx);
+      break;
+    }
+    case TRANSFORM_ENQUEUE: {
+      ret = transform_enqueue(st, argv[0], ctx);
+      break;
+    }
+    case TRANSFORM_ERROR: {
+      transform_abort(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static void
+js_transform_finalizer(JSRuntime* rt, JSValue val) {
+  Transform* st;
+
+  if((st = JS_GetOpaque(val, js_transform_class_id))) {
+    if(--st->ref_count == 0) {
+      js_free_rt(rt, st);
+    }
+  }
+}
+
+static JSClassDef js_transform_class = {
+    .class_name = "TransformStream",
+    .finalizer = js_transform_finalizer,
+};
+
+static const JSCFunctionListEntry js_transform_proto_funcs[] = {
+    JS_CGETSET_MAGIC_FLAGS_DEF("readable", js_transform_get, 0, TRANSFORM_READABLE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("writable", js_transform_get, 0, TRANSFORM_WRITABLE, JS_PROP_ENUMERABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TransformStream", JS_PROP_CONFIGURABLE),
+};
+
+static const JSCFunctionListEntry js_transform_controller_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("terminate", 0, js_transform_controller, TRANSFORM_TERMINATE),
+    JS_CFUNC_MAGIC_DEF("enqueue", 1, js_transform_controller, TRANSFORM_ENQUEUE),
+    JS_CFUNC_MAGIC_DEF("error", 1, js_transform_controller, TRANSFORM_ERROR),
+    JS_CGETSET_DEF("desiredSize", js_transform_desired, 0),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TransformStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
 static int
