@@ -253,13 +253,22 @@ textencoder_length(TextEncoder* sd) {
 
 JSValue
 textencoder_read(TextEncoder* sd, JSContext* ctx) {
-  JSValue ret;
+  JSValue ret, buf;
+  int bits;
   size_t len = ringbuffer_length(&sd->buffer);
 
   if(len > ringbuffer_continuous_length(&sd->buffer))
     ringbuffer_normalize(&sd->buffer);
 
-  ret = JS_NewArrayBufferCopy(ctx, ringbuffer_begin(&sd->buffer), len);
+  switch(sd->encoding) {
+    case UTF8: bits = 8; break;
+    case UTF16: bits = 16; break;
+    case UTF32: bits = 32; break;
+  }
+
+  buf = JS_NewArrayBufferCopy(ctx, ringbuffer_begin(&sd->buffer), len);
+  ret = js_typedarray_new(ctx, bits, FALSE, FALSE, buf);
+  JS_FreeValue(ctx, buf);
 
   sd->buffer.tail += len;
   return ret;
