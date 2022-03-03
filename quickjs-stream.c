@@ -502,6 +502,15 @@ fail:
   return JS_EXCEPTION;
 }
 
+static JSValue
+js_readable_wrap(JSContext* ctx, Readable* st) {
+  JSValue obj;
+  obj = JS_NewObjectProtoClass(ctx, readable_proto, js_readable_class_id);
+  ++st->ref_count;
+  JS_SetOpaque(obj, st);
+  return obj;
+}
+
 /*static JSValue
 js_readable_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   Readable* st;
@@ -978,6 +987,15 @@ fail:
   return JS_EXCEPTION;
 }
 
+static JSValue
+js_writable_wrap(JSContext* ctx, Writable* st) {
+  JSValue obj;
+  obj = JS_NewObjectProtoClass(ctx, writable_proto, js_writable_class_id);
+  ++st->ref_count;
+  JS_SetOpaque(obj, st);
+  return obj;
+}
+
 /*static JSValue
 js_writable_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   Writable* st;
@@ -1203,6 +1221,18 @@ static const JSCFunctionListEntry js_writable_controller_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
+Transform*
+transform_new(JSContext* ctx) {
+  Transform* st;
+
+  if((st = js_mallocz(ctx, sizeof(Transform)))) {
+    st->ref_count = 1;
+    st->readable = readable_new(ctx);
+    st->writable = writable_new(ctx);
+  }
+
+  return st;
+}
 JSValue
 js_transform_callback(JSContext* ctx, Transform* st, TransformEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
@@ -1301,25 +1331,24 @@ js_transform_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   switch(magic) {
     case TRANSFORM_ABORT: {
-      if(argc >= 1)
-        ret = transform_abort(st, argv[0], ctx);
-      else
-        ret = transform_terminate(st, ctx);
-
+      /*  if(argc >= 1)
+          ret = transform_abort(st, argv[0], ctx);
+        else
+          ret = transform_terminate(st, ctx);
+  */
       break;
     }
     case TRANSFORM_GET_READER: {
-      Reader* rd;
+      /*     Reader* rd;
 
-      if((rd = transform_get_reader(st, ctx)))
-        ret = js_reader_wrap(ctx, rd);
+           if((rd = transform_get_reader(st, ctx)))
+             ret = js_reader_wrap(ctx, rd);*/
       break;
     }
   }
 
   return ret;
 }
-enum { STREAM_CLOSED, STREAM_LOCKED };
 
 static JSValue
 js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -1330,12 +1359,12 @@ js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case STREAM_CLOSED: {
-      ret = JS_NewBool(ctx, transform_terminated(st));
+    case TRANSFORM_READABLE: {
+      ret = js_readable_wrap(ctx, st->readable);
       break;
     }
-    case STREAM_LOCKED: {
-      ret = JS_NewBool(ctx, !!transform_locked(st));
+    case TRANSFORM_WRITABLE: {
+      ret = js_writable_wrap(ctx, st->writable);
       break;
     }
   }
@@ -1354,16 +1383,35 @@ js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   switch(magic) {
     case TRANSFORM_TERMINATE: {
-      ret = transform_terminate(st, ctx);
+      // ret = transform_terminate(st, ctx);
       break;
     }
     case TRANSFORM_ENQUEUE: {
-      ret = transform_enqueue(st, argv[0], ctx);
+      // ret = transform_enqueue(st, argv[0], ctx);
       break;
     }
     case TRANSFORM_ERROR: {
-      transform_abort(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      // transform_abort(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
       break;
+    }
+  }
+
+  return ret;
+}
+
+static JSValue
+js_transform_desired(JSContext* ctx, JSValueConst this_val) {
+  Transform* st;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(st = js_transform_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  if(readable_locked(st->readable)) {
+    Reader* rd;
+
+    if((rd = st->readable->reader)) {
+      ret = JS_NewUint32(ctx, rd->desired_size);
     }
   }
 
