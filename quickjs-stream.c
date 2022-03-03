@@ -1306,32 +1306,6 @@ fail:
   return JS_EXCEPTION;
 }
 
-/*static JSValue
-js_transform_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  Transform* st;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(st = JS_GetOpaque2(ctx, this_val, js_transform_class_id)))
-    return JS_EXCEPTION;
-
-  *pdone = queue_empty(&st->q);
-
-  if(!*pdone)
-    ret = transform_next(st, ctx);
-
-  return ret;
-}
-
-static JSValue
-js_transform_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  return JS_DupValue(ctx, this_val);
-}*/
-
-enum {
-  TRANSFORM_ABORT = 0,
-  TRANSFORM_GET_READER,
-};
-
 static JSValue
 js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Transform* st;
