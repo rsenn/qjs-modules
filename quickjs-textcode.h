@@ -9,31 +9,26 @@
  * @{
  */
 
-typedef enum string_encoding { UNKNOWN = 0, UTF8, UTF16, UTF32 } Encoding;
+typedef enum utf_charset { UNKNOWN = 0, UTF8, UTF16, UTF32 } UTFCharset;
+typedef enum utf_encoding { UTF16LE = 2, UTF32LE = 3, UTF16BE = 6, UTF32BE = 7 } UTFEncoding;
 
-typedef struct string_decoder {
-  RingBuffer buffer;
-  PACK union {
-    struct {
-      Encoding encoding : 2;
-      Endian endian : 1;
-    };
-    unsigned type_code : 3;
-  };
+#define TextcodeType \
+  PACK union { \
+    struct { \
+      UTFCharset encoding : 2; \
+      Endian endian : 1; \
+    }; \
+    UTFEncoding type_code : 3; \
+  }; \
   ENDPACK
-} TextDecoder;
 
-typedef struct string_encoder {
+struct text_coder {
   RingBuffer buffer;
-  PACK union {
-    struct {
-      Encoding encoding : 2;
-      Endian endian : 1;
-    };
-    unsigned type_code : 3;
-  };
-  ENDPACK
-} TextEncoder;
+  TextcodeType
+};
+
+typedef struct text_coder TextEncoder;
+typedef struct text_coder TextDecoder;
 
 extern thread_local JSClassID js_decoder_class_id, js_encoder_class_id;
 extern thread_local JSValue textdecoder_proto, textdecoder_ctor, textencoder_proto, textencoder_ctor;
