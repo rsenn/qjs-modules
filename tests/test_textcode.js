@@ -56,6 +56,7 @@ function main(...args) {
 
     /*   console.log*/ /*'encoder' + bits + '.end()',*/ encoder.end();
     /* console.log('encoder' + bits + '.buffered', encoder.buffered);*/
+    return result;
   }
   let u8 = new Uint8Array([
     0xc3, 0xa4, 0xc3, 0xb6, 0xc3, 0xbc, 0xc3, 0xa0, 0xc3, 0xa9, 0xc3, 0xa8, 0xc3, 0xaf, 0xc3, 0xab
