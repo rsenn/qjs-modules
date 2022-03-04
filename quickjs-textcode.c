@@ -107,7 +107,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
 
         printf("blen (1): %zu\n", ringbuffer_length(&dec->buffer));
         ringbuffer_skip(&dec->buffer, ns);
-        printf("blen (1): %zu\n", ringbuffer_length(&dec->buffer));
+        printf("blen (2): %zu\n", ringbuffer_length(&dec->buffer));
       }
 
       break;
