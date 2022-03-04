@@ -753,6 +753,13 @@ writer_new(JSContext* ctx, Writable* st) {
     promise_init(ctx, &wr->events[WRITER_READY]);
 
     JSValue ret = js_writable_callback(ctx, st, WRITABLE_START, 1, &st->controller);
+
+/*
+  if(js_is_promise(ctx, ret)) 
+    ret = promise_forward(ctx, ret, &wr->events[WRITER_READY]);
+  else
+    promise_resolve(ctx, &wr->events[WRITER_READY].funcs, JS_TRUE);*/
+  
     JS_FreeValue(ctx, ret);
   }
 
