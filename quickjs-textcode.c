@@ -105,12 +105,6 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
 
           if(dbuf_put(&dbuf, (const void*)tmp, len))
             return JS_ThrowOutOfMemory(ctx);
-
-          blen = ringbuffer_length(&dec->buffer);
-          printf("blen %p (1): %zu\n", &dec->buffer, blen);
-          ringbuffer_skip(&dec->buffer, ns);
-          blen = ringbuffer_length(&dec->buffer);
-          printf("blen %p (2): %zu\n", &dec->buffer, blen);
         }
 
         break;
@@ -136,13 +130,13 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         break;
       }
     }
+  ringbuffer_skip(&dec->buffer, i);
 
   if(JS_IsUndefined(ret) && dbuf.size > 0)
     ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
   dbuf_free(&dbuf);
 
-  dec->buffer.tail += len;
   return ret;
 }
 
