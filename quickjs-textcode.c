@@ -354,6 +354,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
   size_t i;
   uint_least32_t cp;
   uint8_t u8[UTF8_CHAR_LEN_MAX];
+  const uint8_t *ptr, *next;
 
   switch(enc->encoding) {
     case UTF8: {
@@ -362,14 +363,14 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       break;
     }
     case UTF16: {
-      const uint8_t *ptr = block_begin(&in.block), *end = block_end(&in.block);
+      ptr = block_begin(&in.block), *end = block_end(&in.block);
 
-      for(i = 0; ptr < end; i++) {
-        cp = unicode_from_utf8(ptr, end - ptr, &ptr);
+      for(i = 0; ptr < end; ptr = next, i++) {
+        cp = unicode_from_utf8(ptr, end - ptr, &next);
         uint_least16_t u16[2];
         int len;
         if(!libutf_c32_to_c16(cp, &len, u16))
-          return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, i, cp);
+          return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, ptr - in.block.base, cp);
 
         for(int i = 0; i < len; i++) uint16_put_endian(u8 + i * 2, u16[i], enc->big_endian);
 
@@ -380,9 +381,12 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       break;
     }
     case UTF32: {
-      const uint8_t *ptr = block_begin(&in.block), *end = block_end(&in.block);
-      for(i = 0; ptr < end; i++) {
-        cp = unicode_from_utf8(ptr, end - ptr, &ptr);
+      ptr = block_begin(&in.block), *end = block_end(&in.block);
+      for(i = 0; ptr < end; ptr = next, i++) {
+        cp = unicode_from_utf8(ptr, end - ptr, &next);
+
+        if(cp == 0xffffffff)
+          return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, ptr - in.block.base, cp);
 
         uint32_put_endian(u8, cp, enc->big_endian);
 
