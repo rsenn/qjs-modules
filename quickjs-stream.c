@@ -799,10 +799,7 @@ writer_close(Writer* wr, JSContext* ctx) {
 
   {
     JSValue r, w, handler, method;
-
-    method = JS_NewCFunctionMagic(ctx, js_writable_method, "handler", 0, JS_CFUNC_generic_magic, WRITABLE_METHOD_CLOSE);
-    w = js_writable_wrap(ctx, st);
-    handler = js_function_bind_this(ctx, method, w);
+    handler = js_writable_handler(ctx, );
     JS_FreeValue(ctx, method);
     JS_FreeValue(ctx, w);
 
@@ -886,6 +883,12 @@ writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
     wr = 0;
   }
   return wr;
+}
+
+JSValue static writable_handler(Writable* st, int magic, JSContext* ctx) {
+  JSValue w = js_writable_wrap(ctx, st);
+
+  return js_writable_handler(ctx, w, magic);
 }
 
 void
