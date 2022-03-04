@@ -99,7 +99,7 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
       const uint_least32_t* ptr = ringbuffer_begin(&td->buffer);
       const uint_least32_t* end = ringbuffer_end(&td->buffer);
 
-      for(i = 0; ptr < end; ptr++, i++) {
+      for(i = 0; ptr != end; ptr = ringbuffer_next(&td->buffer, ptr), i++) {
         uint_least32_t cp = *ptr;
 
         len = unicode_to_utf8((void*)tmp, cp);
