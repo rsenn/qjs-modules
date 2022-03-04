@@ -87,7 +87,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         size_t n = blen & ~(0x1);
 
         for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 2) {
-          uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->endian == BIG), 0};
+          uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->endian), 0};
           size_t ns = 2;
 
           if(utf16_multiword(u16)) {
@@ -114,7 +114,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         size_t n = blen & ~(0x3);
 
         for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 4) {
-          cp = uint32_get_endian(ptr, dec->endian == BIG);
+          cp = uint32_get_endian(ptr, dec->endian);
           if(!libutf_c32_to_c8(cp, &len, tmp)) {
             ret = JS_ThrowInternalError(ctx, "No a valid utf-32 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
             break;
@@ -371,9 +371,9 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
         uint_least16_t u16[2];
         int len;
         if(!libutf_c32_to_c16(cp, &len, u16))
-          return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, ptr - in.block.base, cp);
+          return JS_ThrowInternalError(ctx, "No a valid code point at (%zu) [%zu]: %" PRIu32, ptr - in.block.base, end - ptr, cp);
 
-        for(int i = 0; i < len; i++) uint16_put_endian(u8 + i * 2, u16[i], enc->endian == BIG);
+        for(int i = 0; i < len; i++) uint16_put_endian(u8 + i * 2, u16[i], enc->endian);
 
         if(ringbuffer_append(&enc->buffer, u8, len * sizeof(uint_least16_t), ctx) < 0)
           return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer write failed");
@@ -389,16 +389,19 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
         cp = 0;
 
         if(!libutf_c8_to_c32(ptr, &cp))
-          return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, ptr - in.block.base, cp);
+          return JS_ThrowInternalError(ctx, "No a valid code point at (%zu) [%zu]: %" PRIu32, ptr - in.block.base, end - ptr, cp);
 
         next = ptr + libutf_c8_type(ptr);
+
+        if(next == ptr)
+          break;
 
         /*cp = unicode_from_utf8(ptr, end - ptr, &next);
           if(cp == 0xffffffff)
             return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, ptr - in.block.base, cp);
          */
 
-        uint32_put_endian(u8, cp, enc->endian == BIG);
+        uint32_put_endian(u8, cp, enc->endian);
 
         // printf("        uint32_put_endian(%" PRIx32 ", %" PRIx32 ", %s);\n", *(uint32_t*)u8, cp, enc->endian == BIG ? "TRUE" : "FALSE");
 
