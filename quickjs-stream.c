@@ -276,38 +276,44 @@ readable_dup(Readable* st) {
   return st;
 }
 
-static void
+static JSValue
 readable_close(Readable* st, JSContext* ctx) {
-  static const BOOL expected = FALSE;
+  JSValue ret = JS_UNDEFINED;
+  if(st->closed)
+    return ret;
 
-  if(!st->closed) {
-    st->closed = TRUE;
-    /*  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-        return JS_ThrowInternalError(ctx, "ReadableStream already closed");*/
+  /*    static const BOOL expected = FALSE;
+if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
+      return JS_ThrowInternalError(ctx, "ReadableStream already closed");*/
 
-    if(readable_locked(st)) {
-      promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
+  if(readable_locked(st)) {
+    promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
-      reader_cancel(st->reader, ctx);
-    }
+    ret reader_cancel(st->reader, ctx);
   }
+  return ret;
   /*  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
 }
 
-static void
+static JSValue
 readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
-  static const BOOL expected = FALSE;
+  JSValue ret = JS_UNDEFINED;
+  if(st->closed)
+    return ret;
 
-  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-    JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
+  /* static const BOOL expected = FALSE;
 
-  /* if(readable_locked(st)) {
-     promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
+    if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
+      JS_ThrowInternalError(ctx, "No locked ReadableStream associated");*/
 
-     reader_cancel(st->reader, ctx);
-   }
+  if(readable_locked(st)) {
+    promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
-   ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);*/
+    ret = reader_cancel(st->reader, ctx);
+  }
+  return ret;
+
+  /*  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);*/
 }
 
 static JSValue
@@ -728,10 +734,6 @@ JSClassDef js_readable_class = {
 };
 
 const JSCFunctionListEntry js_readable_proto_funcs[] = {
-    /*    JS_ITERATOR_NEXT_DEF("next", 0, js_readable_next, 0),
-JS_CFUNC_DEF("write", 1, js_readable_write),
-JS_CFUNC_MAGIC_DEF("read", 1, js_readable_read, 0),
-JS_CFUNC_MAGIC_DEF("peek", 1, js_readable_read, 1),*/
     JS_CFUNC_MAGIC_DEF("cancel", 0, js_readable_method, READABLE_ABORT),
     JS_CFUNC_MAGIC_DEF("getReader", 0, js_readable_method, READABLE_GET_READER),
     JS_CGETSET_MAGIC_FLAGS_DEF("closed", js_readable_get, 0, STREAM_CLOSED, JS_PROP_ENUMERABLE),
@@ -813,7 +815,7 @@ static JSValue
 writer_close(Writer* wr, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
 
-  if(!atomic_load(&wr->stream))
+  if(!wr->stream)
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
   ret = js_writable_callback(ctx, wr->stream, WRITABLE_CLOSE, 0, 0);
@@ -826,11 +828,17 @@ writer_close(Writer* wr, JSContext* ctx) {
 
 static JSValue
 writer_abort(Writer* wr, JSValueConst reason, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
 
   if(!wr->stream)
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
-  return js_writable_callback(ctx, wr->stream, WRITABLE_ABORT, 1, &reason);
+  ret = js_writable_callback(ctx, wr->stream, WRITABLE_ABORT, 1, &reason);
+
+  if(js_is_promise(ctx, ret)) {
+    ret = promise_forward(ctx, ret, &wr->events[WRITER_CLOSED]);
+  }
+  return ret;
 }
 
 static JSValue
@@ -865,13 +873,31 @@ writable_dup(Writable* st) {
   return st;
 }
 
-static void
+static JSValue
 writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
   static const BOOL expected = FALSE;
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
     st->reason = js_tostring(ctx, reason);
-    // queue_clear(&st->q);
+    if(writable_locked(st)) {
+      promise_resolve(ctx, &st->writer->events[WRITER_CLOSED].funcs, JS_UNDEFINED);
+      ret = writer_abort(st->writer, reason, ctx);
+    }
   }
+  return ret;
+}
+
+static JSValue
+writable_close(Writable* st, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
+  static const BOOL expected = FALSE;
+  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
+    if(writable_locked(st)) {
+      promise_resolve(ctx, &st->writer->events[WRITER_CLOSED].funcs, JS_UNDEFINED);
+      ret = writer_close(st->writer, ctx);
+    }
+  }
+  return ret;
 }
 
 static int
@@ -1124,13 +1150,13 @@ js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   switch(magic) {
     case WRITABLE_METHOD_ABORT: {
-      writable_abort(st, argv[0], ctx);
+      ret = writable_abort(st, argv[0], ctx);
       break;
     }
-    case WRITABLE_METHOD_CLOSE: {
-      writable_abort(st, JS_UNDEFINED, ctx);
-      break;
-    }
+      /* case WRITABLE_METHOD_CLOSE: {
+         ret = writable_close(st,  ctx);
+         break;
+       }*/
     case WRITABLE_GET_WRITER: {
       Writer* wr;
 
@@ -1322,13 +1348,13 @@ js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       break;
     }
     case TRANSFORM_ERROR: {
-      readable_abort(st->readable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
-      writable_abort(st->writable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      JS_FreeValue(ctx, readable_abort(st->readable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx));
+      ret = writable_abort(st->writable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
       break;
     }
     case TRANSFORM_TERMINATE: {
-      readable_close(st->readable, ctx);
-      writable_abort(st->writable, JS_UNDEFINED, ctx);
+      JS_FreeValue(ctx, readable_close(st->readable, ctx));
+      ret = writable_close(st->writable, ctx);
       break;
     }
   }
