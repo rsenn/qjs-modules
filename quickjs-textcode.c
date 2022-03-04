@@ -180,15 +180,19 @@ js_textdecoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(argc >= 1) {
     const char* encoding = JS_ToCString(ctx, argv[0]);
 
-    if(!strcasecmp(encoding, "utf32") || !strcasecmp(encoding, "utf-32"))
-      dec->encoding = UTF16;
-    else if(!strcasecmp(encoding, "utf16") || !strcasecmp(encoding, "utf-16"))
-      dec->encoding = UTF16;
-    else if(!strcasecmp(encoding, "utf8") || !strcasecmp(encoding, "utf-8"))
-      dec->encoding = UTF8;
+    if(encoding[case_finds(encoding, "utf32")] || encoding[case_finds(encoding, "utf-32")])
+      enc->encoding = UTF32;
+    else if(encoding[case_finds(encoding, "utf16")] || encoding[case_finds(encoding, "utf-16")])
+      enc->encoding = UTF16;
+    else if(encoding[case_finds(encoding, "utf8")] || encoding[case_finds(encoding, "utf-8")])
+      enc->encoding = UTF8;
     else {
-      return JS_ThrowInternalError(ctx, "TextDecoder '%s' is invalid encoding", encoding);
+      return JS_ThrowInternalError(ctx, "TextEncoder '%s' is invalid encoding", encoding);
     }
+
+    if(encoding[case_finds(encoding, "be")] || encoding[case_finds(encoding, "be")])
+      enc->big_endian = TRUE;
+
     JS_FreeCString(ctx, encoding);
   } else {
     dec->encoding = UTF8;
