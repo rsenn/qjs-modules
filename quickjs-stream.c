@@ -52,8 +52,20 @@ read_next(Reader* rd, JSContext* ctx) {
   JSValue ret;
   Read* op;
 
-  if(!(op = list_empty(&rd->reads) ? read_new(rd, ctx) : list_tail(&rd->reads)))
-    return JS_ThrowOutOfMemory(ctx);
+  if(list_empty(&rd->reads)) {
+    if(!(op = read_new(rd, ctx)))
+      return JS_ThrowOutOfMemory(ctx);
+  } else {
+    struct list_head* el;
+    list_for_each_prev(el, &rd->reads) {
+      op = list_entry(el, Read, link);
+
+      if(!JS_IsUndefined(op->promise.value))
+        break;
+
+      op = 0;
+    }
+  }
 
   printf("read_next (%i/%zu)\n", op->seq, list_size(&rd->reads));
 
@@ -125,12 +137,11 @@ JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Readable* st;
-  /*Chunk* ch;*/
-  Read* op;
 
   ret = read_next(rd, ctx);
 
-  return JS_ThrowOutOfMemory(ctx);
+  if(JS_IsException(ret))
+    return ret;
 
   if((st = rd->stream)) {
     if(queue_empty(&st->q)) {
