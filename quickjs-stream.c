@@ -224,8 +224,6 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
       continue;
     }
 
-    printf("reader_passthrough() read[%i]\n", op->seq);
-
     if(promise_pending(&op->promise)) {
       op = el;
       break;
@@ -236,6 +234,8 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
       op = read_new(rd, ctx);*/
 
   if(op) {
+    printf("reader_passthrough() read[%i]\n", op->seq);
+
     if((ret = promise_resolve(ctx, &op->promise, chunk))) {
       if(JS_IsUndefined(op->promise.value)) {
         list_del(&op->link);
