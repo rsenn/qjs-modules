@@ -242,7 +242,7 @@ reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   if(op) {
     printf("reader_passthrough() read[%i]\n", op->seq);
     ret = promise_resolve(ctx, &op->promise, result);
-    r
+    reader_clean(rd, ctx);
   }
   return ret;
 }
@@ -799,6 +799,11 @@ writer_close(Writer* wr, JSContext* ctx) {
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
   ret = js_writable_callback(ctx, wr->stream, WRITABLE_CLOSE, 0, 0);
+
+if(js_is_promise(ctx, ret)) {
+    ret = promise_then(ctx, ret,  wr->events[WRITER_CLOSED].funcs.array[0]);
+ret = promise_catch(ctx, ret, wr->events[WRITER_CLOSED].funcs.array[1]);
+}
   return ret;
 }
 
