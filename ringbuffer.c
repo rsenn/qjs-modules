@@ -118,7 +118,7 @@ ringbuffer_reserve(RingBuffer* rb, size_t min_bytes) {
 
   assert(ringbuffer_continuous_avail(rb) >= min_bytes);
 
-  return ringbuffer_head(rb);
+  return ringbuffer_end(rb);
 }
 /**
  * @}

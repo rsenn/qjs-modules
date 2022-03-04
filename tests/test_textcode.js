@@ -23,8 +23,9 @@ function main(...args) {
 
   function Decode(bits, arr) {
     let decoder = new TextDecoder('utf-' + bits);
-    
-    let buf = arr.buffer; console.log('decoder' + bits + '.decode(', buf, `)`);
+
+    let buf = arr.buffer;
+    console.log('decoder' + bits + '.decode(', buf, `)`);
 
     /*console.log('decoder' + bits + '.buffered', decoder.buffered);*/
 

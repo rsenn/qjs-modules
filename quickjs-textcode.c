@@ -64,6 +64,7 @@ JSValue
 textdecoder_read(TextDecoder* td, JSContext* ctx) {
   JSValue ret;
   DynBuf dbuf;
+  size_t i;
   char tmp[UTF8_CHAR_LEN_MAX];
   int len = 0;
   js_dbuf_init(ctx, &dbuf);
@@ -71,14 +72,14 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
   if(textdecoder_length(td) > ringbuffer_continuous_length(&td->buffer))
     ringbuffer_normalize(&td->buffer);
 
-  switch(dec->encoding) {
+  switch(td->encoding) {
     case UTF8: {
       ret = JS_NewStringLen(ctx, (const char*)ringbuffer_begin(&td->buffer), textdecoder_length(td));
       break;
     }
     case UTF16: {
-      uint_least16_t* ptr = input_buffer_begin(&in);
-      uint_least16_t* end = input_buffer_end(&in);
+      uint_least16_t* ptr = ringbuffer_begin(&td->buffer);
+      uint_least16_t* end = ringbuffer_end(&td->buffer);
 
       for(i = 0; ptr < end; ptr++, i++) {
         uint_least32_t cp = 0;
@@ -86,24 +87,24 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
         if(!libutf_c16_to_c32(ptr, &cp))
           return JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
 
-        len = unicode_to_utf8(tmp, cp);
+        len = unicode_to_utf8((void*)tmp, cp);
 
-        if(dbuf_put(&dbuf, tmp, len))
+        if(dbuf_put(&dbuf, (const void*)tmp, len))
           return JS_ThrowOutOfMemory(ctx);
       }
 
       break;
     }
     case UTF32: {
-      const uint_least32_t* ptr = input_buffer_begin(&in);
-      const uint_least32_t* end = input_buffer_end(&in);
+      const uint_least32_t* ptr = ringbuffer_begin(&td->buffer);
+      const uint_least32_t* end = ringbuffer_end(&td->buffer);
 
       for(i = 0; ptr < end; ptr++, i++) {
         uint_least32_t cp = *ptr;
 
-        len = unicode_to_utf8(tmp, cp);
+        len = unicode_to_utf8((void*)tmp, cp);
 
-        if(dbuf_put(&dbuf, tmp, len))
+        if(dbuf_put(&dbuf, (const void*)tmp, len))
           return JS_ThrowOutOfMemory(ctx);
       }
 

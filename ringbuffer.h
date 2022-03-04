@@ -46,8 +46,8 @@ typedef union ringbuffer {
     { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt } \
   }
 #define ringbuffer_free(rb) vector_free(&(rb)->vec)
-#define ringbuffer_begin(rb) &ringbuffer_tail(rb)
-#define ringbuffer_end(rb) &ringbuffer_head(rb)
+#define ringbuffer_begin(rb) (void*)&ringbuffer_tail(rb)
+#define ringbuffer_end(rb) (void*)&ringbuffer_head(rb)
 #define ringbuffer_head(rb) (rb)->data[(rb)->head]
 #define ringbuffer_tail(rb) (rb)->data[(rb)->tail]
 
