@@ -250,9 +250,8 @@ dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t ta
     } else if(r == 'x') {
       dbuf_printf(db, "\\x%02x", ch);
     } else if(r) {
-
+      dbuf_putc(db, '\\');
       dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(ch)) ? c : ch);
-
     } else {
       dbuf_put(db, pos, next - pos);
     }

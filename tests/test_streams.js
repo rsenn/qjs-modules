@@ -5,7 +5,7 @@ import { TextDecoder, TextEncoder } from 'textcode';
 import { toArrayBuffer, quote, concat } from 'util';
 import { TextEncoderStream } from '../lib/streams.js';
 
-function main(...args) {
+async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
       colors: true,
@@ -17,21 +17,24 @@ function main(...args) {
       numberBase: 16
     }
   });
+  let chunk, reader, writer, stream;
 
-  let encoderStream = new TextEncoderStream('utf-16');
+  stream = new TextEncoderStream('utf-16le');
 
-  let writer;
-  writer = encoderStream.writable.getWriter();
+  writer = await stream.writable.getWriter();
 
-  writer.write('This is a test!\n');
-  writer.releaseLock();
+  await writer.write('This is a test!\n');
+  await writer.write('The second test!\n');
+  await writer.releaseLock();
 
-  let reader;
-  reader = encoderStream.readable.getReader();
+  reader = await stream.readable.getReader();
 
-  let chunk = reader.read();
+  chunk = await reader.read();
   console.log('chunk', chunk);
-  reader.releaseLock();
+  chunk =   reader.read();
+  console.log('chunk', chunk);
+
+  await reader.releaseLock();
 }
 
 try {

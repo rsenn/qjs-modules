@@ -79,34 +79,36 @@ extern thread_local JSClassID js_reader_class_id, js_writer_class_id, js_readabl
 extern thread_local JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor, transform_proto,
     transform_ctor;
 
-Reader* reader_new(JSContext*, Readable* st);
-BOOL reader_release_lock(Reader*, JSContext* ctx);
-int reader_cancel(Reader*, JSContext* ctx);
-JSValue reader_read(Reader*, JSContext* ctx);
-JSValue reader_signal(Reader*, StreamEvent event, JSValueConst arg, JSContext* ctx);
-int reader_update(Reader*, JSContext* ctx);
-BOOL reader_passthrough(Reader*, JSValueConst chunk, JSContext* ctx);
-Readable* readable_new(JSContext*);
-void readable_close(Readable*, JSContext* ctx);
-void readable_abort(Readable*, JSValueConst reason, JSContext* ctx);
-JSValue readable_enqueue(Readable*, JSValueConst chunk, JSContext* ctx);
-int readable_lock(Readable*, Reader* rd);
-int readable_unlock(Readable*, Reader* rd);
-Reader* readable_get_reader(Readable*, JSContext* ctx);
-JSValue js_readable_callback(JSContext*, Readable* st, ReadableEvent event, int argc, JSValueConst argv[]);
-Writer* writer_new(JSContext*, Writable* st);
-BOOL writer_release_lock(Writer*, JSContext* ctx);
-JSValue writer_write(Writer*, JSValueConst chunk, JSContext* ctx);
-JSValue writer_close(Writer*, JSContext* ctx);
-JSValue writer_abort(Writer*, JSValueConst reason, JSContext* ctx);
-JSValue writer_signal(Writer*, StreamEvent event, JSValueConst arg, JSContext* ctx);
-Writable* writable_new(JSContext*);
-void writable_abort(Writable*, JSValueConst reason, JSContext* ctx);
-int writable_lock(Writable*, Writer* wr);
-int writable_unlock(Writable*, Writer* wr);
-Writer* writable_get_writer(Writable*, size_t desired_size, JSContext* ctx);
-JSValue js_writable_callback(JSContext*, Writable* st, WritableEvent event, int argc, JSValueConst argv[]);
-JSModuleDef* js_init_module_stream(JSContext*, const char* module_name);
+Reader* reader_new(JSContext*, Readable*);
+BOOL reader_release_lock(Reader*, JSContext*);
+int reader_clear(Reader*, JSContext*);
+int reader_cancel(Reader*, JSContext*);
+JSValue reader_read(Reader*, JSContext*);
+JSValue reader_signal(Reader*, StreamEvent, JSValue, JSContext* ctx);
+int reader_update(Reader*, JSContext*);
+BOOL reader_passthrough(Reader*, JSValue, JSContext*);
+void readable_close(Readable*, JSContext*);
+void readable_abort(Readable*, JSValue, JSContext*);
+JSValue readable_enqueue(Readable*, JSValue, JSContext*);
+int readable_lock(Readable*, Reader*);
+int readable_unlock(Readable*, Reader*);
+Reader* readable_get_reader(Readable*, JSContext*);
+void readable_free(Readable*, JSRuntime*);
+JSValue js_readable_callback(JSContext*, Readable*, ReadableEvent, int argc, JSValue argv[]);
+Writer* writer_new(JSContext*, Writable*);
+BOOL writer_release_lock(Writer*, JSContext*);
+JSValue writer_write(Writer*, JSValue, JSContext*);
+JSValue writer_close(Writer*, JSContext*);
+JSValue writer_abort(Writer*, JSValue, JSContext*);
+JSValue writer_signal(Writer*, StreamEvent, JSValue, JSContext* ctx);
+void writable_abort(Writable*, JSValue, JSContext*);
+int writable_lock(Writable*, Writer*);
+int writable_unlock(Writable*, Writer*);
+Writer* writable_get_writer(Writable*, size_t, JSContext*);
+void writable_free(Writable*, JSRuntime*);
+JSValue js_writable_callback(JSContext*, Writable*, WritableEvent, int argc, JSValue argv[]);
+Transform* transform_new(JSContext*);
+JSModuleDef* js_init_module_stream(JSContext*, const char*);
 
 /* clang-format off */
 static inline BOOL    reader_closed(Reader* rd) { return promise_done(&rd->events[READER_CLOSED]); }

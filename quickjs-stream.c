@@ -103,7 +103,7 @@ reader_read(Reader* rd, JSContext* ctx) {
 
   list_add(&op->link, &rd->reads);
 
-  printf("Read (%p)\n", op);
+  printf("Read (%p) reads[%zu]\n", op, list_size(&rd->reads));
 
   ret = promise_create(ctx, &op->handlers);
 
@@ -147,7 +147,7 @@ reader_update(Reader* rd, JSContext* ctx) {
   while(!list_empty(&rd->reads) && (ch = queue_next(&st->q))) {
     JSValue chunk, result;
 
-    printf("Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
+    printf("reader_update() Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
     chunk = chunk_arraybuffer(ch, ctx);
     result = js_iterator_result(ctx, chunk, FALSE);
     JS_FreeValue(ctx, chunk);
@@ -178,7 +178,7 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
   return ret;
 }
 
-Readable*
+static Readable*
 readable_new(JSContext* ctx) {
   Readable* st;
 
@@ -188,6 +188,12 @@ readable_new(JSContext* ctx) {
     queue_init(&st->q);
   }
 
+  return st;
+}
+
+static Readable*
+readable_dup(Readable* st) {
+  ++st->ref_count;
   return st;
 }
 
@@ -494,6 +500,7 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     st->on[READABLE_PULL] = JS_GetPropertyStr(ctx, argv[0], "pull");
     st->on[READABLE_CANCEL] = JS_GetPropertyStr(ctx, argv[0], "cancel");
     st->underlying_source = JS_DupValue(ctx, argv[0]);
+
     st->controller = JS_NewObjectProtoClass(ctx, readable_controller, js_readable_class_id);
     JS_SetOpaque(st->controller, st);
   }
@@ -765,7 +772,7 @@ writer_signal(Writer* wr, StreamEvent event, JSValueConst arg, JSContext* ctx) {
   return ret;
 }
 
-Writable*
+static Writable*
 writable_new(JSContext* ctx) {
   Writable* st;
 
@@ -775,6 +782,12 @@ writable_new(JSContext* ctx) {
     queue_init(&st->q);
   }
 
+  return st;
+}
+
+static Writable*
+writable_dup(Writable* st) {
+  ++st->ref_count;
   return st;
 }
 
@@ -989,7 +1002,7 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     st->on[WRITABLE_ABORT] = JS_GetPropertyStr(ctx, argv[0], "abort");
     st->underlying_sink = JS_DupValue(ctx, argv[0]);
     st->controller = JS_NewObjectProtoClass(ctx, writable_controller, js_writable_class_id);
-    JS_SetOpaque(st->controller, st);
+    JS_SetOpaque(st->controller, writable_dup(st));
   }
 
   JS_SetOpaque(obj, st);
@@ -1120,6 +1133,12 @@ static const JSCFunctionListEntry js_writable_controller_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
+static Transform*
+transform_dup(Transform* st) {
+  ++st->ref_count;
+  return st;
+}
+
 Transform*
 transform_new(JSContext* ctx) {
   Transform* st;
@@ -1130,7 +1149,7 @@ transform_new(JSContext* ctx) {
     st->writable = writable_new(ctx);
 
     st->controller = JS_NewObjectProtoClass(ctx, transform_controller, js_transform_class_id);
-    JS_SetOpaque(st->controller, st);
+    JS_SetOpaque(st->controller, transform_dup(st));
   }
 
   return st;
