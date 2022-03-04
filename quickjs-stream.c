@@ -73,6 +73,11 @@ read_next(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
+static BOOL
+read_done(Read* op) {
+  return promise_done(&op->promise);
+}
+
 Reader*
 reader_new(JSContext* ctx, Readable* st) {
   Reader* rd;
@@ -149,7 +154,7 @@ reader_read(Reader* rd, JSContext* ctx) {
   }
 
   reader_update(rd, ctx);
-  printf("reader_read (2) [%zu]\n", list_size(&rd->reads));
+  printf("reader_read  [%zu]\n", list_size(&rd->reads));
   // printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
 
   return ret;
@@ -173,15 +178,13 @@ reader_update(Reader* rd, JSContext* ctx) {
   Chunk* ch;
   Readable* st = rd->stream;
   int ret = 0;
-  printf("reader_update (1) [%zu]\n", list_size(&rd->reads));
+  printf("reader_update [%zu]\n", list_size(&rd->reads));
 
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
     return reader_clear(rd, ctx);
   }
-
-  //  list_for_each_prev_safe(r,r1,&rd->reads)  {
 
   while(!list_empty(&rd->reads) && (ch = queue_next(&st->q))) {
     JSValue chunk, result;
@@ -208,6 +211,12 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
   BOOL ret = FALSE;
 
   list_for_each_prev_safe(op, next, &rd->reads) {
+    if(read_done(op)) {
+      list_del(&op->link);
+      js_free(ctx, op);
+      continue;
+    }
+
     printf("reader_passthrough() read[%i]\n", op->seq);
 
     if((ret = promise_resolve(ctx, &op->promise, chunk))) {
