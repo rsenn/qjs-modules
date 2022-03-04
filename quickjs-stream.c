@@ -140,6 +140,7 @@ JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Readable* st;
+  printf("reader_read (1)  [%zu]\n", list_size(&rd->reads));
 
   ret = read_next(rd, ctx);
 
@@ -154,7 +155,7 @@ reader_read(Reader* rd, JSContext* ctx) {
   }
 
   reader_update(rd, ctx);
-  printf("reader_read  [%zu]\n", list_size(&rd->reads));
+  printf("reader_read (2)  [%zu]\n", list_size(&rd->reads));
   // printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
 
   return ret;

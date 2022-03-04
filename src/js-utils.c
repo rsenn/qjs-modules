@@ -97,12 +97,12 @@ promise_zero(Promise* pr) {
 
 BOOL
 promise_pending(Promise* pr) {
-  return !JS_IsUndefined(pr->value) && !js_resolve_functions_is_null(&pr->funcs);
+  return /*!JS_IsUndefined(pr->value) &&*/ !js_resolve_functions_is_null(&pr->funcs);
 }
 
 BOOL
 promise_done(Promise* pr) {
-  return !JS_IsUndefined(pr->value) && js_resolve_functions_is_null(&pr->funcs);
+  return /*!JS_IsUndefined(pr->value) &&*/ js_resolve_functions_is_null(&pr->funcs);
 }
 
 JSValue
