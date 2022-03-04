@@ -65,7 +65,7 @@ uint8_t* ringbuffer_peek(RingBuffer*, size_t index);
 void ringbuffer_normalize(RingBuffer*);
 BOOL ringbuffer_resize(RingBuffer*, size_t);
 BOOL ringbuffer_allocate(RingBuffer*, size_t);
-BOOL ringbuffer_reserve(RingBuffer* rb, size_t min_bytes);
+uint8_t* ringbuffer_reserve(RingBuffer* rb, size_t min_bytes);
 
 static inline size_t
 ringbuffer_length(RingBuffer* rb) {
@@ -83,11 +83,13 @@ ringbuffer_continuous_length(RingBuffer* rb) {
   return ringbuffer_length(rb);
 }
 
+static inline size_t
+ringbuffer_continuous_avail(RingBuffer* rb) {
+  return rb->size - rb->head;
+}
+
 static inline uint32_t
 ringbuffer_avail(RingBuffer* rb) {
-  /*if(ringbuffer_continuous(rb))
-    return rb->head - rb->tail;*/
-
   return rb->size - ringbuffer_length(rb);
 }
 

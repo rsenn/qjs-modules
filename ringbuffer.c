@@ -93,7 +93,7 @@ ringbuffer_resize(RingBuffer* r, size_t newsize) {
     return vector_grow(&r->vec, 1, newsize);
   else if(newsize < r->size)
     return vector_shrink(&r->vec, 1, newsize);
-  return FALSE;
+  return TRUE;
 }
 
 BOOL
@@ -106,14 +106,19 @@ ringbuffer_allocate(RingBuffer* r, size_t size) {
   return TRUE;
 }
 
-BOOL
+uint8_t*
 ringbuffer_reserve(RingBuffer* rb, size_t min_bytes) {
   ssize_t grow;
   if((grow = min_bytes - ringbuffer_avail(rb)) > 0)
-    if(!ringbuffer_resize(rb, vector_length(&rb->vec, 1) + grow))
-      return FALSE;
+    if(!ringbuffer_resize(rb, vector_size(&rb->vec, 1) + grow))
+      return 0;
 
-  return TRUE;
+  if(ringbuffer_continuous_avail(rb) < min_bytes)
+    ringbuffer_normalize(rb);
+
+  assert(ringbuffer_continuous_avail(rb) >= min_bytes);
+
+  return ringbuffer_head(rb);
 }
 /**
  * @}

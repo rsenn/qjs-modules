@@ -9,7 +9,7 @@
  * @{
  */
 
-typedef enum string_encoding { UNKNOWN = 0, UTF8, UTF16, UTF32 } StringEncoding;
+typedef enum string_encoding { UNKNOWN = 0, UTF8, UTF16, UTF32, NUM_ENCODINGS } StringEncoding;
 
 typedef struct string_decoder {
   RingBuffer buffer;
@@ -23,7 +23,7 @@ typedef struct string_encoder {
 
 extern thread_local JSClassID js_textdecoder_class_id, js_textencoder_class_id;
 extern thread_local JSValue textdecoder_proto, textdecoder_ctor, textencoder_proto, textencoder_ctor;
-extern const char* const textcode_encodings[3];
+extern const char* const textcode_encodings[NUM_ENCODINGS];
 
 size_t textdecoder_length(TextDecoder*);
 JSValue textdecoder_read(TextDecoder*, JSContext* ctx);
