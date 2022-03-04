@@ -232,15 +232,21 @@ dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t ta
       break;
     clen = next - pos;
     ch = c;
-    r = table[ch];
+    // r = (c > 0xff && (c & 0xff)) ? 'u' : table[(*pos) & 0xff];
+    r = c > 0xff ? 'u' : table[c];
 
-    /*    if(clen > 1)
-          r = 'u';
-    */
-    if(ch == 0x1b) {
-      dbuf_putstr(db, "\\x1b");
-    } else if(clen > 1) {
-      dbuf_printf(db, c > 0xffffff ? "\\u%08X" : c > 0xffff ? "\\u%06X" : "\\u%04X", c);
+    if(clen > 2 || c > 0xffff)
+      r = 'u';
+
+    if(r == 'u' && clen > 1 && (c & 0xff) == 0) {
+      r = 'x';
+      ch = c >> 8;
+    }
+
+    if(c == 0x1b) {
+      dbuf_putstr(db, /*"\\033"*/ "\\x1b");
+    } else if(r == 'u') {
+      dbuf_printf(db, c > 0xffff ? "\\u{%X}" : "\\u%04X", c);
     } else if(r == 'x') {
       dbuf_printf(db, "\\x%02x", ch);
     } else if(r) {
