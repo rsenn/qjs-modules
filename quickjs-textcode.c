@@ -154,6 +154,8 @@ js_textdecoder_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     case TEXTDECODER_END:
     case TEXTDECODER_DECODE: {
       InputBuffer in = js_input_chars(ctx, argv[0]);
+      uint8_t tmp[UTF8_CHAR_LEN_MAX];
+      size_t i;
 
       switch(dec->encoding) {
         case UTF8: {
@@ -164,12 +166,10 @@ js_textdecoder_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         case UTF16: {
           uint_least16_t* ptr = input_buffer_begin(&in);
           uint_least16_t* end = input_buffer_end(&in);
-          size_t i;
 
           for(i = 0; ptr < end; ptr++, i++) {
             int len;
             uint_least32_t cp;
-            uint8_t tmp[UTF8_CHAR_LEN_MAX];
 
             if(!libutf_c16_to_c32(ptr, &cp))
               return JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu): %" PRIu32, i, cp);
@@ -186,17 +186,14 @@ js_textdecoder_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
           const uint_least32_t* ptr = input_buffer_begin(&in);
           const uint_least32_t* end = input_buffer_end(&in);
 
-          for(size_t i = 0; ptr < end; ptr++, i++) {
+          for(i = 0; ptr < end; ptr++, i++) {
             int len;
             uint_least32_t cp = *ptr;
-            uint8_t* head;
 
-            if(!(head = ringbuffer_reserve(&dec->buffer, UTF8_CHAR_LEN_MAX)))
-              return JS_ThrowOutOfMemory(ctx);
+            len = unicode_to_utf8(tmp, cp);
 
-            len = unicode_to_utf8(head, cp);
-
-            dec->buffer.head += len;
+            if(ringbuffer_write(&dec->buffer, tmp, len) < 0)
+              return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
           }
 
           break;
