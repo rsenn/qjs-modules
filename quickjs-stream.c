@@ -127,6 +127,7 @@ static int
 reader_clear(Reader* rd, JSContext* ctx) {
   int ret = 0;
   Read *el, *next;
+
   list_for_each_prev_safe(el, next, &rd->reads) {
     promise_reject(ctx, &el->promise, JS_UNDEFINED);
 
