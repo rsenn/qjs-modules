@@ -57,8 +57,9 @@ typedef union ringbuffer {
 #define ringbuffer_headroom(rb) ((rb)->size - (rb)->head)
 #define ringbuffer_avail(rb) ((rb)->size - ringbuffer_length(rb))
 #define ringbuffer_length(rb) (ringbuffer_wrapped(rb) ? ((rb)->size - (rb)->tail) + (rb)->head : (rb)->head - (rb)->tail)
-#define ringbuffer_continuous(rb) (ringbuffer_wrapped(rb) ? (rb)->size - (rb)->tail : ringbuffer_length(rb))
+#define ringbuffer_continuous(rb) (ringbuffer_wrapped(rb) ? (rb)->size - (rb)->tail : (rb)->head - (rb)->tail)
 #define ringbuffer_is_continuous(rb) ((rb)->head >= (rb)->tail)
+//#define ringbuffer_skip(rb, n) ((rb)->tail += (n), (rb)->tail %= (rb)->size)
 #define ringbuffer_wrap(rb, idx) ((idx) % (rb)->size)
 #define ringbuffer_next(rb, ptr) (void*)(ringbuffer_wrap(rb, ((uint8_t*)(ptr + 1)) - (rb)->data) + (rb)->data)
 
@@ -74,27 +75,12 @@ BOOL ringbuffer_allocate(RingBuffer*, size_t);
 uint8_t* ringbuffer_reserve(RingBuffer* rb, size_t min_bytes);
 ssize_t ringbuffer_append(RingBuffer* r, const void* x, size_t len, JSContext* ctx);
 
-/*static inline size_t
-ringbuffer_length(RingBuffer* rb) {
-  if(!ringbuffer_wrapped(rb))
-    return rb->head - rb->tail;
-
-  return (rb->size - rb->tail) + rb->head;
+static inline uint8_t*
+ringbuffer_skip(RingBuffer* rb, size_t n) {
+  assert(ringbuffer_length(rb) >= n);
+  rb->tail = (rb->tail + n) % rb->size;
+  return ringbuffer_begin(rb);
 }
-
-static inline size_t
-ringbuffer_continuous(RingBuffer* rb) {
-  if(ringbuffer_wrapped(rb))
-    return rb->size - rb->tail;
-
-  return ringbuffer_length(rb);
-}
-
- static inline uint32_t
-ringbuffer_avail(RingBuffer* rb) {
-  return rb->size - ringbuffer_length(rb);
-}*/
-
 /**
  * @}
  */

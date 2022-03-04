@@ -341,6 +341,8 @@ utf8_charlen(const char* in, size_t len) {
   return next - (const uint8_t*)in;
 }
 
+BOOL utf16_multiword(const void*);
+
 /**
  * @}
  */

@@ -1,4 +1,5 @@
 #include "char-utils.h"
+#include "libutf/include/libutf.h"
 
 /**
  * \addtogroup char-utils
@@ -170,6 +171,14 @@ utf8_strlen(const void* in, size_t len) {
     i++;
   }
   return i;
+}
+
+BOOL
+utf16_multiword(const void* in) {
+  const uint16_t* p16 = in;
+  LibutfC16Type type = libutf_c16_type(p16[0]);
+
+  return !((LIBUTF_UTF16_NOT_SURROGATE == type) || (LIBUTF_UTF16_SURROGATE_HIGH != type || LIBUTF_UTF16_SURROGATE_LOW != libutf_c16_type(p16[1])));
 }
 
 int

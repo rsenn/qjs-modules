@@ -69,11 +69,12 @@ JSValue
 textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf;
-  size_t i;
+  size_t i, blen;
   uint_least32_t cp;
   char tmp[UTF8_CHAR_LEN_MAX];
   int len = 0;
   js_dbuf_init(ctx, &dbuf);
+  blen = ringbuffer_length(&dec->buffer);
 
   switch(dec->encoding) {
     case UTF8: {
@@ -82,24 +83,38 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
     }
     case UTF16: {
       uint_least16_t* ptr = ringbuffer_begin(&dec->buffer);
-      size_t n = ringbuffer_length(&dec->buffer) & ~(0x1);
+      size_t n = blen & ~(0x1);
 
       for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 2) {
-        uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->big_endian), i + 1 == n ? 0 : uint16_get_endian(ptr + 1, dec->big_endian)};
+        uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->big_endian), 0};
+        size_t ns = 2;
+
+        if(utf16_multiword(u16)) {
+          if(i + 2 >= n)
+            break;
+          u16[1] = uint16_get_endian(ptr + 1, dec->big_endian);
+          ns += 2;
+        }
+
         if(!libutf_c16_to_c32(u16, &cp)) {
           ret = JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
           break;
         }
         len = unicode_to_utf8((void*)tmp, cp);
+
         if(dbuf_put(&dbuf, (const void*)tmp, len))
           return JS_ThrowOutOfMemory(ctx);
+
+        printf("blen (1): %zu\n", ringbuffer_length(&dec->buffer));
+        ringbuffer_skip(&dec->buffer, ns);
+        printf("blen (1): %zu\n", ringbuffer_length(&dec->buffer));
       }
 
       break;
     }
     case UTF32: {
       const uint_least32_t* ptr = ringbuffer_begin(&dec->buffer);
-      size_t n = ringbuffer_length(&dec->buffer) & ~(0x3);
+      size_t n = blen & ~(0x3);
 
       for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 4) {
         cp = uint32_get_endian(ptr, dec->big_endian);
@@ -109,6 +124,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         }
         if(dbuf_put(&dbuf, (const void*)tmp, len))
           return JS_ThrowOutOfMemory(ctx);
+        ringbuffer_skip(&dec->buffer, 4);
       }
       break;
     }
@@ -220,8 +236,11 @@ js_decoder_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       uint8_t tmp[UTF8_CHAR_LEN_MAX];
       size_t i;
 
+      printf("js_decoder_decode (1) %s length=%zu in.size=%zu\n", magic == TEXTDECODER_DECODE ? "decode" : "end", ringbuffer_length(&dec->buffer), in.size);
       if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
         return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
+
+      printf("js_decoder_decode (2) %s length=%zu in.size=%zu\n", magic == TEXTDECODER_DECODE ? "decode" : "end", ringbuffer_length(&dec->buffer), in.size);
 
       if(ringbuffer_length(&dec->buffer) == 0)
         ret = JS_NULL;
