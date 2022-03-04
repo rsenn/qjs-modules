@@ -17,6 +17,11 @@ thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_controller 
                      reader_proto = {{JS_TAG_UNDEFINED}}, reader_ctor = {{JS_TAG_UNDEFINED}}, writer_proto = {{JS_TAG_UNDEFINED}},
                      writer_ctor = {{JS_TAG_UNDEFINED}};
 
+static int reader_update(Reader* rd, JSContext* ctx);
+static BOOL reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx);
+static int readable_unlock(Readable* st, Reader* rd);
+static int writable_unlock(Writable* st, Writer* wr);
+
 static void
 chunk_unref(JSRuntime* rt, void* opaque, void* ptr) {
   Chunk* ch = opaque;
@@ -78,7 +83,7 @@ read_done(Read* op) {
   return JS_IsUndefined(op->promise.value) && promise_done(&op->promise);
 }
 
-Reader*
+static Reader*
 reader_new(JSContext* ctx, Readable* st) {
   Reader* rd;
 
@@ -97,7 +102,7 @@ reader_new(JSContext* ctx, Readable* st) {
   return rd;
 }
 
-BOOL
+static BOOL
 reader_release_lock(Reader* rd, JSContext* ctx) {
   BOOL ret = FALSE;
   Readable* r;
@@ -111,7 +116,7 @@ reader_release_lock(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
-int
+static int
 reader_clear(Reader* rd, JSContext* ctx) {
   int ret = 0;
 
@@ -127,7 +132,7 @@ reader_clear(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
-int
+static int
 reader_cancel(Reader* rd, JSContext* ctx) {
 
   if(JS_IsUndefined(rd->events[READER_CANCELLED].value))
@@ -136,7 +141,7 @@ reader_cancel(Reader* rd, JSContext* ctx) {
   return reader_clear(rd, ctx);
 }
 
-JSValue
+static JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Readable* st;
@@ -193,7 +198,7 @@ reader_clean(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
-int
+static int
 reader_update(Reader* rd, JSContext* ctx) {
   JSValue chunk, result;
   Chunk* ch;
@@ -228,7 +233,7 @@ reader_update(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
-BOOL
+static BOOL
 reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   Read *op = 0, *el, *next;
   BOOL ret = FALSE;
@@ -266,7 +271,7 @@ readable_dup(Readable* st) {
   return st;
 }
 
-void
+static void
 readable_close(Readable* st, JSContext* ctx) {
   static const BOOL expected = FALSE;
 
@@ -283,7 +288,7 @@ readable_close(Readable* st, JSContext* ctx) {
     ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
 }
 
-void
+static void
 readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   static const BOOL expected = FALSE;
 
@@ -299,7 +304,7 @@ readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
    ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);*/
 }
 
-JSValue
+static JSValue
 readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   MemoryBlock b;
   InputBuffer input;
@@ -319,18 +324,18 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   return ret < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, ret) : JS_NewInt64(ctx, ret);
 }
 
-int
+static int
 readable_lock(Readable* st, Reader* rd) {
   const Reader* expected = 0;
   return atomic_compare_exchange_weak(&st->reader, &expected, rd);
 }
 
-int
+static int
 readable_unlock(Readable* st, Reader* rd) {
   return atomic_compare_exchange_weak(&st->reader, &rd, 0);
 }
 
-Reader*
+static Reader*
 readable_get_reader(Readable* st, JSContext* ctx) {
   Reader* rd;
 
@@ -345,7 +350,7 @@ readable_get_reader(Readable* st, JSContext* ctx) {
   return rd;
 }
 
-void
+static void
 readable_free(Readable* st, JSRuntime* rt) {
   if(--st->ref_count == 0) {
     JS_FreeValueRT(rt, st->underlying_source);
@@ -743,7 +748,7 @@ enum {
   WRITABLE_GET_WRITER,
 };
 
-Writer*
+static Writer*
 writer_new(JSContext* ctx, Writable* st) {
   Writer* wr;
 
@@ -766,7 +771,7 @@ writer_new(JSContext* ctx, Writable* st) {
   return wr;
 }
 
-BOOL
+static BOOL
 writer_release_lock(Writer* wr, JSContext* ctx) {
   BOOL ret = FALSE;
   Writable* r;
@@ -780,7 +785,7 @@ writer_release_lock(Writer* wr, JSContext* ctx) {
   return ret;
 }
 
-JSValue
+static JSValue
 writer_write(Writer* wr, JSValueConst chunk, JSContext* ctx) {
   /* JSValue ret = JS_UNDEFINED;
 ssize_t bytes;
@@ -798,7 +803,7 @@ ssize_t bytes;
   return JS_ThrowInternalError(ctx, "no WriteableStream");
 }
 
-JSValue
+static JSValue
 writer_close(Writer* wr, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
 
@@ -813,7 +818,7 @@ writer_close(Writer* wr, JSContext* ctx) {
   return ret;
 }
 
-JSValue
+static JSValue
 writer_abort(Writer* wr, JSValueConst reason, JSContext* ctx) {
 
   if(!wr->stream)
@@ -822,7 +827,7 @@ writer_abort(Writer* wr, JSValueConst reason, JSContext* ctx) {
   return js_writable_callback(ctx, wr->stream, WRITABLE_ABORT, 1, &reason);
 }
 
-JSValue
+static JSValue
 writer_signal(Writer* wr, StreamEvent event, JSValueConst arg, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
 
@@ -854,7 +859,7 @@ writable_dup(Writable* st) {
   return st;
 }
 
-void
+static void
 writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
   static const BOOL expected = FALSE;
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
@@ -863,18 +868,18 @@ writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
   }
 }
 
-int
+static int
 writable_lock(Writable* st, Writer* wr) {
   const Writer* expected = 0;
   return atomic_compare_exchange_weak(&st->writer, &expected, wr);
 }
 
-int
+static int
 writable_unlock(Writable* st, Writer* wr) {
   return atomic_compare_exchange_weak(&st->writer, &wr, 0);
 }
 
-Writer*
+static Writer*
 writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
   Writer* wr;
   if(!(wr = writer_new(ctx, st)))
@@ -887,7 +892,7 @@ writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
   return wr;
 }
 
-void
+static void
 writable_free(Writable* st, JSRuntime* rt) {
   if(--st->ref_count == 0) {
     JS_FreeValueRT(rt, st->underlying_sink);
@@ -1208,7 +1213,7 @@ transform_dup(Transform* st) {
   return st;
 }
 
-Transform*
+static Transform*
 transform_new(JSContext* ctx) {
   Transform* st;
 
