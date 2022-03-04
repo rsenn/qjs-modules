@@ -92,12 +92,12 @@ reader_cancel(Reader* rd, JSContext* ctx) {
 
 static Read*
 reader_operation(Reader* rd, JSContext* ctx) {
-  Read* op;
   static int read_seq = 0;
-  if(!(op = js_mallocz(ctx, sizeof(struct read_operation))))
-    return 0;
-  op->seq = ++read_seq;
-  list_add(op, &rd->reads);
+  Read* op;
+  if((op = js_mallocz(ctx, sizeof(struct read_operation)))) {
+    op->seq = ++read_seq;
+    list_add(op, &rd->reads);
+  }
   return op;
 }
 
