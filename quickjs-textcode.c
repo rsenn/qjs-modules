@@ -354,7 +354,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
   size_t i;
   uint_least32_t cp;
   uint8_t u8[UTF8_CHAR_LEN_MAX];
-  const uint8_t *ptr, *next;
+  const uint8_t *ptr, *end, *next;
 
   switch(enc->encoding) {
     case UTF8: {
@@ -363,7 +363,8 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       break;
     }
     case UTF16: {
-      ptr = block_begin(&in.block), *end = block_end(&in.block);
+      ptr = block_begin(&in.block);
+      end = block_end(&in.block);
 
       for(i = 0; ptr < end; ptr = next, i++) {
         cp = unicode_from_utf8(ptr, end - ptr, &next);
@@ -381,7 +382,9 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       break;
     }
     case UTF32: {
-      ptr = block_begin(&in.block), *end = block_end(&in.block);
+      ptr = block_begin(&in.block);
+      end = block_end(&in.block);
+
       for(i = 0; ptr < end; ptr = next, i++) {
         cp = unicode_from_utf8(ptr, end - ptr, &next);
 
