@@ -170,7 +170,7 @@ int32_abs(int32_t i) {
 }
 
 static inline uint16_t
-uint16_read_be(const void* x) {
+uint16_get_be(const void* x) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return bswap16(*(const uint16_t*)x);
 #else
@@ -179,7 +179,7 @@ uint16_read_be(const void* x) {
 }
 
 static inline uint16_t
-uint16_read_le(const void* x) {
+uint16_get_le(const void* x) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return *(const uint16_t*)x;
 #else
@@ -188,7 +188,7 @@ uint16_read_le(const void* x) {
 }
 
 static inline uint32_t
-uint32_read_be(const void* x) {
+uint32_get_be(const void* x) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return bswap32(*(const uint32_t*)x);
 #else
@@ -197,12 +197,32 @@ uint32_read_be(const void* x) {
 }
 
 static inline uint32_t
-uint32_read_le(const void* x) {
+uint32_get_le(const void* x) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
   return *(const uint32_t*)x;
 #else
   return bswap32(*(const uint32_t*)x);
 #endif
+}
+
+static inline void
+uint16_read_be(const void* x, uint16_t* y) {
+  *y = uint16_get_be(x);
+}
+
+static inline void
+uint16_read_le(const void* x, uint16_t* y) {
+  *y = uint16_get_le(x);
+}
+
+static inline void
+uint32_read_be(const void* x, uint32_t* y) {
+  *y = uint32_get_be(x);
+}
+
+static inline void
+uint32_read_le(const void* x, uint32_t* y) {
+  *y = uint32_get_le(x);
 }
 
 static inline int32_t
