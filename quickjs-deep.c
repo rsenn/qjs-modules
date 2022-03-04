@@ -1,12 +1,12 @@
-#include "defines.h"
+#include "include/defines.h"
 #include <cutils.h>
-#include "property-enumeration.h"
+#include "include/property-enumeration.h"
 #include <quickjs.h>
-#include "utils.h"
-#include "pointer.h"
-#include "virtual-properties.h"
+#include "include/utils.h"
+#include "include/pointer.h"
+#include "include/virtual-properties.h"
 #include "quickjs-predicate.h"
-#include "debug.h"
+#include "include/debug.h"
 
 #include <stdint.h>
 

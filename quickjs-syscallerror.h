@@ -1,8 +1,8 @@
-#include "defines.h"
+#include "include/defines.h"
 #ifndef QUICKJS_SYSCALLERROR_H
 #define QUICKJS_SYSCALLERROR_H
 
-#include "utils.h"
+#include "include/utils.h"
 
 /**
  * \defgroup quickjs-syscallerror QuickJS module: syscallerror - System-call error object

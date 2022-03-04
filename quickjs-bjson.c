@@ -22,9 +22,9 @@
  * THE SOFTWARE.
  */
 #include <quickjs-libc.h>
-#include "utils.h"
-#include "defines.h"
-#include "debug.h"
+#include "include/utils.h"
+#include "include/defines.h"
+#include "include/debug.h"
 
 /**
  * \defgroup quickjs-bjson QuickJS module: bjson - Binary JSON

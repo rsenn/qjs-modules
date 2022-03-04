@@ -1,8 +1,8 @@
-#include "defines.h"
+#include "include/defines.h"
 #include "quickjs-textcode.h"
-#include "utils.h"
-#include "buffer-utils.h"
-#include "debug.h"
+#include "include/utils.h"
+#include "include/buffer-utils.h"
+#include "include/debug.h"
 #include <libutf.h>
 
 /**

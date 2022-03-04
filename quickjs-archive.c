@@ -1,9 +1,9 @@
-#include "defines.h"
+#include "include/defines.h"
 #include <archive.h>
 #include <archive_entry.h>
 #include "quickjs-archive.h"
-#include "utils.h"
-#include "debug.h"
+#include "include/utils.h"
+#include "include/debug.h"
 
 /**
  * \addtogroup quickjs-archive

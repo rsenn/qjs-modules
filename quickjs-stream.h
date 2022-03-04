@@ -1,10 +1,10 @@
 #ifndef QUICKJS_STREAM_H
 #define QUICKJS_STREAM_H
 
-#include "defines.h"
-#include "js-utils.h"
-#include "buffer-utils.h"
-#include "queue.h"
+#include "include/defines.h"
+#include "include/js-utils.h"
+#include "include/buffer-utils.h"
+#include "include/queue.h"
 #include <quickjs.h>
 #include <cutils.h>
 #include <stdatomic.h>

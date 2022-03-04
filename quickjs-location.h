@@ -1,8 +1,8 @@
 #ifndef QUICKJS_LOCATION_H
 #define QUICKJS_LOCATION_H
 
-#include "location.h"
-#include "utils.h"
+#include "include/location.h"
+#include "include/utils.h"
 
 /**
  * \defgroup quickjs-location QuickJS module: location - Text location object

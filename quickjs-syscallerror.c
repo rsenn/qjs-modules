@@ -1,9 +1,9 @@
-#include "defines.h"
+#include "include/defines.h"
 #include "quickjs-syscallerror.h"
-#include "buffer-utils.h"
-#include "char-utils.h"
+#include "include/buffer-utils.h"
+#include "include/char-utils.h"
 #include <errno.h>
-#include "debug.h"
+#include "include/debug.h"
 
 /**
  * \addtogroup quickjs-syscallerror

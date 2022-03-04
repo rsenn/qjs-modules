@@ -1,7 +1,7 @@
 #ifndef QUICKJS_MISC_H
 #define QUICKJS_MISC_H
 
-#include "utils.h"
+#include "include/utils.h"
 
 /**
  * \defgroup quickjs-misc QuickJS module: misc - Miscellaneous

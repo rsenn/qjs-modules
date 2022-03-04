@@ -34,7 +34,7 @@ endif(DEBUG_OUTPUT)
 
 if(DEBUG_ALLOC)
   add_definitions(-DDEBUG_ALLOC)
-  #add_definitions(-include debug.h)
+  #add_definitions(-include lib/debug.h)
 endif(DEBUG_ALLOC)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
@@ -233,7 +233,7 @@ message("Have sysinfo() ${HAVE_SYSINFO}")
 #   link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
 
 # else(BUILD_PIGPIO)
-#   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpigpio.cmake)
+#   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpilib/gpio.cmake)
 # endif(BUILD_PIGPIO)
 
 if(BUILD_LIBARCHIVE)
@@ -257,7 +257,7 @@ else(BUILD_LIBARCHIVE)
   include(FindLibArchive)
 endif(BUILD_LIBARCHIVE)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${QUICKJS_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 #if(NOT LibArchive_FOUND)
@@ -286,83 +286,83 @@ if(EXISTS "${QUICKJS_H}")
 
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
-set(buffer_utils_SOURCES buffer-utils.c buffer-utils.h)
-set(COMMON_SOURCES debug.c debug.h)
-set(vector_SOURCES vector.c vector.h ${buffer_utils_SOURCES})
-set(char_utils_SOURCES char-utils.c char-utils.h)
-set(queue_SOURCES queue.c queue.h)
-set(utils_SOURCES utils.c utils.h ${char_utils_SOURCES} clock_gettime.c
-                  strverscmp.c)
-set(js_utils_SOURCES js-utils.c js-utils.h)
-set(utils_SOURCES ${utils_SOURCES} qsort_r.c)
+set(buffer_utils_SOURCES src/buffer-utils.c include/buffer-utils.h)
+set(COMMON_SOURCES src/debug.c include/debug.h)
+set(vector_SOURCES src/vector.c include/vector.h ${buffer_utils_SOURCES})
+set(char_utils_SOURCES src/char-utils.c include/char-utils.h)
+set(queue_SOURCES src/queue.c include/queue.h)
+set(utils_SOURCES src/utils.c include/utils.h ${char_utils_SOURCES} src/clock_gettime.c
+                  src/strverscmp.c)
+set(js_utils_SOURCES src/js-utils.c include/js-utils.h)
+set(utils_SOURCES ${utils_SOURCES} src/qsort_r.c)
 set(stream_SOURCES quickjs-stream.c ${queue_SOURCES} ${js_utils_SOURCES}
                    ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(predicate_SOURCES predicate.c predicate.h ${utils_SOURCES})
+set(predicate_SOURCES src/predicate.c include/predicate.h ${utils_SOURCES})
 if(NOT HAVE_STRVERSCMP)
-  set(utils_SOURCES ${utils_SOURCES} strverscmp.c)
+  set(utils_SOURCES ${utils_SOURCES} src/strverscmp.c)
 endif(NOT HAVE_STRVERSCMP)
 if(NOT HAVE_MEMMEM)
-  set(utils_SOURCES ${utils_SOURCES} memmem.c)
+  set(utils_SOURCES ${utils_SOURCES} src/memmem.c)
 endif(NOT HAVE_MEMMEM)
-set(token_SOURCES token.c token.h)
+set(token_SOURCES src/token.c include/token.h)
 set(location_SOURCES
-    location.c location.h quickjs-location.c quickjs-location.h
+    src/location.c include/location.h quickjs-location.c quickjs-location.h
     ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 set(syscallerror_SOURCES quickjs-syscallerror.c quickjs-syscallerror.h)
 set(child_process_SOURCES
-    child-process.c child-process.h property-enumeration.c
-    property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
+    src/child-process.c include/child-process.h src/property-enumeration.c
+    include/property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
 set(deep_SOURCES
-    ${vector_SOURCES} pointer.c virtual-properties.c property-enumeration.c
-    property-enumeration.h ${utils_SOURCES} ${predicate_SOURCES} pointer.h
-    virtual-properties.h)
+    ${vector_SOURCES} src/pointer.c src/virtual-properties.c src/property-enumeration.c
+    include/property-enumeration.h ${utils_SOURCES} ${predicate_SOURCES} include/pointer.h
+    include/virtual-properties.h)
 set(deep_LIBRARIES qjs-predicate qjs-pointer)
 set(inspect_SOURCES
-    ${vector_SOURCES} iteration.h ${utils_SOURCES} property-enumeration.c
-    property-enumeration.h quickjs-internal.h)
-set(tree_walker_SOURCES ${vector_SOURCES} property-enumeration.c
-                        property-enumeration.h ${utils_SOURCES})
-set(xml_SOURCES ${vector_SOURCES} property-enumeration.c property-enumeration.h
+    ${vector_SOURCES} include/iteration.h ${utils_SOURCES} src/property-enumeration.c
+    include/property-enumeration.h quickjs-internal.h)
+set(tree_walker_SOURCES ${vector_SOURCES} src/property-enumeration.c
+                        include/property-enumeration.h ${utils_SOURCES})
+set(xml_SOURCES ${vector_SOURCES} src/property-enumeration.c include/property-enumeration.h
                 ${utils_SOURCES} ${location_SOURCES} ${inspect_SOURCES})
-set(path_SOURCES path.c path.h ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(path_SOURCES src/path.c include/path.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
-  set(path_SOURCES ${path_SOURCES} readlink.c)
+  set(path_SOURCES ${path_SOURCES} src/readlink.c)
 endif(WIN32 OR MINGW)
 
-set(predicate_SOURCES predicate.c predicate.h ${vector_SOURCES}
+set(predicate_SOURCES src/predicate.c include/predicate.h ${vector_SOURCES}
                       ${utils_SOURCES})
-set(pointer_SOURCES pointer.c pointer.h ${utils_SOURCES}
+set(pointer_SOURCES src/pointer.c include/pointer.h ${utils_SOURCES}
                     ${buffer_utils_SOURCES})
 set(lexer_SOURCES quickjs-lexer.h ${location_SOURCES} ${token_SOURCES}
-                  ${utils_SOURCES} ${vector_SOURCES} lexer.c lexer.h)
+                  ${utils_SOURCES} ${vector_SOURCES} src/lexer.c include/lexer.h)
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${queue_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(sockets_SOURCES ${queue_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
 if(NOT HAVE_INET_PTON)
-  set(sockets_SOURCES ${sockets_SOURCES} inet_pton.c)
+  set(sockets_SOURCES ${sockets_SOURCES} src/inet_pton.c)
 endif(NOT HAVE_INET_PTON)
 if(NOT HAVE_INET_NTOP)
-  set(sockets_SOURCES ${sockets_SOURCES} inet_ntop.c)
+  set(sockets_SOURCES ${sockets_SOURCES} src/inet_ntop.c)
 endif(NOT HAVE_INET_NTOP)
 if(WIN32 OR MINGW)
   set(sockets_LIBRARIES mswsock ws2_32)
-  set(sockets_SOURCES ${sockets_SOURCES} socketpair_win32.c)
+  set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
 endif(WIN32 OR MINGW)
 
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 set(textcode_SOURCES
-    quickjs-textcode.c quickjs-textcode.h ringbuffer.c ringbuffer.h
+    quickjs-textcode.c quickjs-textcode.h src/ringbuffer.c include/ringbuffer.h
     libutf/src/libutf.c ${buffer_utils_SOURCES} ${utils_SOURCES}
     ${vector_SOURCES})
 
-set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h
+set(misc_SOURCES src/base64.c include/base64.h quickjs-internal.c quickjs-internal.h
                  ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
 
-set(gpio_SOURCES gpio.c gpio.h)
+set(gpio_SOURCES src/gpio.c include/gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-
+  
 # if(pigpio_LIBRARY)
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
 # endif(pigpio_LIBRARY)
@@ -379,7 +379,7 @@ if(HAVE_SYS_MMAN_H AND HAVE_MMAP)
 else(HAVE_SYS_MMAN_H AND HAVE_MMAP)
   if(WIN32 OR MINGW)
     set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
-    set(mmap_SOURCES ${mmap_SOURCES} mmap-win32.c)
+    set(mmap_SOURCES ${mmap_SOURCES} lib/mmap-win32.c)
   endif(WIN32 OR MINGW)
 endif(HAVE_SYS_MMAN_H AND HAVE_MMAP)
 
@@ -555,7 +555,7 @@ add_custom_command(
 #dump(COMPILED_MODULES)
 
 set(QJSM_SOURCES
-    qjsm.c
+    src/qjsm.c
     ${MODULES_DIR}/repl.c
     ${MODULES_DIR}/qjscalc.c
     ${MODULES_DIR}/console.c

@@ -1,9 +1,9 @@
 #ifndef QUICKJS_POINTER_H
 #define QUICKJS_POINTER_H
 
-#include "pointer.h"
-#include "utils.h"
-#include "utils.h"
+#include "include/pointer.h"
+#include "include/utils.h"
+#include "include/utils.h"
 
 /**
  * \defgroup quickjs-pointer QuickJS module: pointer - JS Object pointers (deep keys)

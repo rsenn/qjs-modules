@@ -1,8 +1,8 @@
-#include "defines.h"
+#include "include/defines.h"
 #include "quickjs-sockets.h"
 #include "quickjs-syscallerror.h"
-#include "utils.h"
-#include "buffer-utils.h"
+#include "include/utils.h"
+#include "include/buffer-utils.h"
 #if defined(_WIN32) || defined(__MSYS__)
 #include <winsock2.h>
 #ifndef __MSYS__
@@ -22,7 +22,7 @@ int socketpair(int, int, int, SOCKET[2]);
 #include <assert.h>
 #include <errno.h>
 
-#include "debug.h"
+#include "include/debug.h"
 
 /**
  * \addtogroup quickjs-sockets

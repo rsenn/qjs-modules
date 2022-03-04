@@ -1,13 +1,13 @@
-#include "defines.h"
+#include "include/defines.h"
 #include <quickjs.h>
 #include <quickjs-libc.h>
 #include "quickjs-misc.h"
 #include "quickjs-internal.h"
 #include "quickjs-location.h"
 #include "quickjs-textcode.h"
-#include "utils.h"
-#include "path.h"
-#include "base64.h"
+#include "include/utils.h"
+#include "include/path.h"
+#include "include/base64.h"
 #include <time.h>
 #ifndef _WIN32
 #include <sys/utsname.h>
@@ -46,12 +46,12 @@
 #ifdef HAVE_INOTIFY
 #include <sys/inotify.h>
 #endif
-#include "buffer-utils.h"
+#include "include/buffer-utils.h"
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
 #include <sys/ioctl.h>
 #endif
-#include "debug.h"
+#include "include/debug.h"
 
 /**
  * \addtogroup quickjs-misc

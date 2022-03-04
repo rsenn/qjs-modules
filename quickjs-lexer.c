@@ -1,15 +1,15 @@
-#include "defines.h"
+#include "include/defines.h"
 #include <quickjs.h>
 #include <libregexp.h>
 #include "quickjs-lexer.h"
 #include "quickjs-location.h"
-#include "vector.h"
+#include "include/vector.h"
 #include <string.h>
 #include <ctype.h>
 #include <stdint.h>
-#include "buffer-utils.h"
-#include "debug.h"
-#include "token.h"
+#include "include/buffer-utils.h"
+#include "include/debug.h"
+#include "include/token.h"
 
 /**
  * \addtogroup quickjs-lexer

@@ -1,9 +1,9 @@
-#include "defines.h"
-#include "gpio.h"
-//#include "utils.h"
+#include "include/defines.h"
+#include "include/gpio.h"
+//#include "include/utils.h"
 #include "quickjs-gpio.h"
-#include "utils.h"
-#include "debug.h"
+#include "include/utils.h"
+#include "include/debug.h"
 
 /**
  * \addtogroup quickjs-gpio

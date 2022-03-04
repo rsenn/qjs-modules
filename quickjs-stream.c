@@ -1,7 +1,7 @@
 #include "quickjs-stream.h"
-#include "buffer-utils.h"
-#include "utils.h"
-#include "debug.h"
+#include "include/buffer-utils.h"
+#include "include/utils.h"
+#include "include/debug.h"
 #include <assert.h>
 
 /**

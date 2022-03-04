@@ -1,9 +1,9 @@
 #ifndef QUICKJS_BLOB_H
 #define QUICKJS_BLOB_H
 
-#include "utils.h"
-#include "vector.h"
-#include "buffer-utils.h"
+#include "include/utils.h"
+#include "include/vector.h"
+#include "include/buffer-utils.h"
 
 /**
  * \defgroup quickjs-blob QuickJS module: blob - Blob

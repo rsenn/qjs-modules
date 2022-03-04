@@ -1,8 +1,8 @@
 #ifndef QUICKJS_TEXTDECODER_H
 #define QUICKJS_TEXTDECODER_H
 
-#include "utils.h"
-#include "ringbuffer.h"
+#include "include/utils.h"
+#include "include/ringbuffer.h"
 
 /**
  * \defgroup quickjs-textdecoder QuickJS module: textdecoder - String Decoder

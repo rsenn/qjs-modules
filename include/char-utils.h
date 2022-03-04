@@ -304,7 +304,7 @@ escape_char_letter(char c) {
 #define FMT_ULONG 40 /* enough space to hold 2^128 - 1 in decimal, plus \0 */
 #define FMT_XLONG 33 /* enough space to hold 2^128 - 1 in hexadecimal, plus \0 */
 
-size_t token_length(const char*, size_t, char delim);
+size_t token_length(const char*, size_t, char);
 size_t fmt_ulong(char*, unsigned long);
 size_t scan_ushort(const char*, unsigned short*);
 size_t fmt_longlong(char*, int64_t);
@@ -315,6 +315,12 @@ size_t scan_ulonglong(const char*, uint64_t*);
 size_t scan_xlonglong(const char*, uint64_t*);
 size_t scan_whitenskip(const char*, size_t);
 size_t scan_nonwhitenskip(const char*, size_t);
+size_t utf8_strlen(const void*, size_t);
+int case_lowerc(int);
+int case_starts(const char*, const char*);
+int case_diffb(const void*, size_t, const void*);
+size_t case_findb(const void*, size_t, const void*, size_t wlen);
+size_t case_finds(const void*, const char*);
 
 static inline int
 scan_fromhex(unsigned char c) {
@@ -334,12 +340,6 @@ utf8_charlen(const char* in, size_t len) {
   int cp = unicode_from_utf8((const uint8_t*)in, len, &next);
   return next - (const uint8_t*)in;
 }
-
-int case_lowerc(int);
-int case_starts(const char*, const char*);
-int case_diffb(const void*, size_t, const void*);
-size_t case_findb(const void*, size_t, const void*, size_t wlen);
-size_t case_finds(const void*, const char*);
 
 /**
  * @}
