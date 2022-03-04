@@ -121,7 +121,6 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
           }
           if(dbuf_put(&dbuf, (const void*)tmp, len))
             return JS_ThrowOutOfMemory(ctx);
-          ringbuffer_skip(&dec->buffer, 4);
         }
         break;
       }
