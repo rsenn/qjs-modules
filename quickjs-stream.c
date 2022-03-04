@@ -83,6 +83,13 @@ read_done(Read* op) {
   return JS_IsUndefined(op->promise.value) && promise_done(&op->promise);
 }
 
+static void
+read_free_rt(Read* op, JSRuntime* rt) {
+  promise_free_rt(rt, &op->promise);
+
+  list_del(&op->link);
+}
+
 static Reader*
 reader_new(JSContext* ctx, Readable* st) {
   Reader* rd;
@@ -119,14 +126,11 @@ reader_release_lock(Reader* rd, JSContext* ctx) {
 static int
 reader_clear(Reader* rd, JSContext* ctx) {
   int ret = 0;
+  Read *el, *next;
+  list_for_each_prev_safe(el, next, &rd->reads) {
+    promise_reject(ctx, &el->promise, JS_UNDEFINED);
 
-  while(!list_empty(&rd->reads)) {
-    JSValue result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
-
-    if(reader_passthrough(rd, result, ctx))
-      ++ret;
-
-    JS_FreeValue(ctx, result);
+    read_free_rt(el, ctx->rt);
   }
 
   return ret;
