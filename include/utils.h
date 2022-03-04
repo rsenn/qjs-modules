@@ -71,6 +71,16 @@ list_size(struct list_head* list) {
   return i;
 }
 
+static inline struct list_head*
+list_head(const struct list_head* list) {
+  return list->next != list ? list->next : 0;
+}
+
+static inline struct list_head*
+list_tail(const struct list_head* list) {
+  return list->prev != list ? list->prev : 0;
+}
+
 static inline Arguments
 arguments_new(int argc, const char* argv[]) {
   Arguments args;

@@ -13,7 +13,7 @@ typedef union resolve_functions {
 
 typedef struct promise {
   ResolveFunctions funcs;
-  JSValue promise;
+  JSValue value;
 } Promise;
 
 ResolveFunctions* promise_new(JSContext*, JSValueConst*);

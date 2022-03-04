@@ -34,6 +34,35 @@ chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
   return JS_NewArrayBuffer(ctx, ptr, len, chunk_unref, ch, FALSE);
 }
 
+static Read*
+read_new(Reader* rd, JSContext* ctx) {
+  static int read_seq = 0;
+  Read* op;
+  if((op = js_mallocz(ctx, sizeof(struct read_next)))) {
+    op->seq = ++read_seq;
+    list_add(op, &rd->reads);
+
+    promise_init(ctx, &op->promise);
+  }
+  return op;
+}
+
+static JSValue
+read_next(Reader* rd, JSContext* ctx) {
+  JSValue ret;
+  Read* op;
+
+  if(!(op = list_empty(&rd->reads) ? read_new(rd, ctx) : list_tail(&rd->reads)))
+    return JS_ThrowOutOfMemory(ctx);
+
+  printf("read_next (%i/%zu)\n", op->seq, list_size(&rd->reads));
+
+  ret = op->promise.value;
+  op->promise.value = JS_UNDEFINED;
+
+  return ret;
+}
+
 Reader*
 reader_new(JSContext* ctx, Readable* st) {
   Reader* rd;
@@ -66,39 +95,30 @@ reader_release_lock(Reader* rd, JSContext* ctx) {
 
   return ret;
 }
-/*
+
 int
 reader_clear(Reader* rd, JSContext* ctx) {
   int ret = 0;
 
   while(!list_empty(&rd->reads)) {
     JSValue result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
+
     if(reader_passthrough(rd, result, ctx))
       ++ret;
+
     JS_FreeValue(ctx, result);
   }
 
   return ret;
 }
-*/
+
 int
 reader_cancel(Reader* rd, JSContext* ctx) {
 
-  if(JS_IsUndefined(rd->events[READER_CANCELLED].promise))
+  if(JS_IsUndefined(rd->events[READER_CANCELLED].value))
     promise_init(ctx, &rd->events[READER_CANCELLED]);
 
   return reader_clear(rd, ctx);
-}
-
-static Read*
-reader_operation(Reader* rd, JSContext* ctx) {
-  static int read_seq = 0;
-  Read* op;
-  if((op = js_mallocz(ctx, sizeof(struct read_operation)))) {
-    op->seq = ++read_seq;
-    list_add(op, &rd->reads);
-  }
-  return op;
 }
 
 JSValue
@@ -106,11 +126,11 @@ reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Readable* st;
   /*Chunk* ch;*/
-  Read* op = reader_operation(rd, ctx);
+  Read* op;
 
-  // printf("Read (%i) reads[%zu]\n", op->seq, list_size(&rd->reads));
+  ret = read_next(rd, ctx);
 
-  ret = promise_create(ctx, &op->handlers);
+  return JS_ThrowOutOfMemory(ctx);
 
   if((st = rd->stream)) {
     if(queue_empty(&st->q)) {
@@ -176,11 +196,12 @@ BOOL
 reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
   Read *op, *next;
   BOOL ret = FALSE;
-  // printf("reader_passthrough() \n", ret);
 
   list_for_each_prev_safe(op, next, &rd->reads) {
-    // printf("reader_passthrough() read[%i]\n", op->seq);
-    ret = promise_resolve(ctx, &op->handlers, chunk);
+    printf("reader_passthrough() read[%i]\n", op->seq);
+
+    ret = promise_resolve(ctx, &op->promise, chunk);
+
     list_del(&op->link);
     js_free(ctx, op);
     if(ret)
@@ -395,7 +416,7 @@ js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   switch(magic) {
     case READER_CANCEL: {
       reader_cancel(rd, ctx);
-      ret = JS_DupValue(ctx, rd->events[READER_CANCELLED].promise);
+      ret = JS_DupValue(ctx, rd->events[READER_CANCELLED].value);
       break;
     }
     case READER_READ: {
@@ -423,7 +444,7 @@ js_reader_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case READER_CLOSED: {
-      ret = JS_DupValue(ctx, rd->events[READER_CLOSED].promise);
+      ret = JS_DupValue(ctx, rd->events[READER_CLOSED].value);
       break;
     }
   }
@@ -928,11 +949,11 @@ js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case WRITER_CLOSED: {
-      ret = JS_DupValue(ctx, wr->events[WRITER_CLOSED].promise);
+      ret = JS_DupValue(ctx, wr->events[WRITER_CLOSED].value);
       break;
     }
     case WRITER_READY: {
-      ret = JS_DupValue(ctx, wr->events[WRITER_READY].promise);
+      ret = JS_DupValue(ctx, wr->events[WRITER_READY].value);
       break;
     }
   }

@@ -32,7 +32,9 @@ async function main(...args) {
   console.log('reader', reader);
 
   do {
-    chunk = await reader.read();
+    chunk = reader.read();
+    console.log('chunk', chunk);
+    chunk = await chunk;
     console.log('chunk', chunk);
   } while(chunk && !chunk.done);
 

@@ -60,23 +60,23 @@ promise_create(JSContext* ctx, ResolveFunctions* funcs) {
 }
 
 void
-promise_free(JSContext* ctx, Promise* prom) {
-  JS_FreeValue(ctx, prom->promise);
-  prom->promise = JS_UNDEFINED;
-  js_resolve_functions_free(ctx, &prom->funcs);
+promise_free(JSContext* ctx, Promise* pr) {
+  JS_FreeValue(ctx, pr->value);
+  pr->value = JS_UNDEFINED;
+  js_resolve_functions_free(ctx, &pr->funcs);
 }
 
 void
-promise_free_rt(JSRuntime* rt, Promise* prom) {
-  JS_FreeValueRT(rt, prom->promise);
-  prom->promise = JS_UNDEFINED;
-  js_resolve_functions_free_rt(rt, &prom->funcs);
+promise_free_rt(JSRuntime* rt, Promise* pr) {
+  JS_FreeValueRT(rt, pr->value);
+  pr->value = JS_UNDEFINED;
+  js_resolve_functions_free_rt(rt, &pr->funcs);
 }
 
 BOOL
-promise_init(JSContext* ctx, Promise* prom) {
-  prom->promise = JS_NewPromiseCapability(ctx, prom->funcs.array);
-  return !JS_IsException(prom->promise);
+promise_init(JSContext* ctx, Promise* pr) {
+  pr->value = JS_NewPromiseCapability(ctx, pr->funcs.array);
+  return !JS_IsException(pr->value);
 }
 
 BOOL
@@ -90,19 +90,19 @@ promise_reject(JSContext* ctx, ResolveFunctions* funcs, JSValueConst value) {
 }
 
 void
-promise_zero(Promise* prom) {
-  prom->promise = JS_UNDEFINED;
-  js_resolve_functions_zero(&prom->funcs);
+promise_zero(Promise* pr) {
+  pr->value = JS_UNDEFINED;
+  js_resolve_functions_zero(&pr->funcs);
 }
 
 BOOL
-promise_pending(Promise* prom) {
-  return !JS_IsUndefined(prom->promise) && !js_resolve_functions_is_null(&prom->funcs);
+promise_pending(Promise* pr) {
+  return !JS_IsUndefined(pr->value) && !js_resolve_functions_is_null(&pr->funcs);
 }
 
 BOOL
-promise_done(Promise* prom) {
-  return !JS_IsUndefined(prom->promise) && js_resolve_functions_is_null(&prom->funcs);
+promise_done(Promise* pr) {
+  return !JS_IsUndefined(pr->value) && js_resolve_functions_is_null(&pr->funcs);
 }
 
 JSValue
