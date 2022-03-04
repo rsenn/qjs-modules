@@ -18,9 +18,13 @@ thread_local JSValue textdecoder_proto = {{JS_TAG_UNDEFINED}}, textdecoder_ctor 
 
 const char* const textcode_encodings[] = {
     "unknown",
-    "utf-8",
-    "utf-16",
-    "utf-32",
+    "UTF-8",
+    "UTF-16",
+    "UTF-32",
+    0,
+    0,
+    "UTF-16BE",
+    "UTF-32BE",
 };
 
 enum {
@@ -142,7 +146,7 @@ js_textdecoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return ret;
   switch(magic) {
     case TEXTDECODER_ENCODING: {
-      ret = JS_NewString(ctx, textcode_encodings[dec->encoding]);
+      ret = JS_NewString(ctx, textcode_encodings[dec->type_code]);
       break;
     }
     case TEXTDECODER_BIGENDIAN: {
@@ -252,7 +256,7 @@ js_textdecoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   JSValue obj = JS_NewObjectClass(ctx, js_textdecoder_class_id);
 
-  JS_DefinePropertyValueStr(ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[dec->encoding]), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[dec->type_code]), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&dec->buffer)), JS_PROP_ENUMERABLE);
   return obj;
 }
@@ -400,7 +404,7 @@ js_textencoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return ret;
   switch(magic) {
     case TEXTENCODER_ENCODING: {
-      ret = JS_NewString(ctx, textcode_encodings[enc->encoding]);
+      ret = JS_NewString(ctx, textcode_encodings[enc->type_code]);
       break;
     }
     case TEXTENCODER_BIGENDIAN: {
