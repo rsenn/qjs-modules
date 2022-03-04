@@ -16,7 +16,7 @@ thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_controller 
                      transform_proto = {{JS_TAG_UNDEFINED}}, transform_controller = {{JS_TAG_UNDEFINED}}, transform_ctor = {{JS_TAG_UNDEFINED}},
                      reader_proto = {{JS_TAG_UNDEFINED}}, reader_ctor = {{JS_TAG_UNDEFINED}}, writer_proto = {{JS_TAG_UNDEFINED}},
                      writer_ctor = {{JS_TAG_UNDEFINED}};
-
+static JSValue js_writable_handler(JSContext* ctx, JSValueConst this_val, int magic);
 static void
 chunk_unref(JSRuntime* rt, void* opaque, void* ptr) {
   Chunk* ch = opaque;
@@ -800,7 +800,7 @@ writer_close(Writer* wr, JSContext* ctx) {
   {
     JSValue r, w, handler, method;
 
-    method = JS_NewCFunctionMagic(ctx, js_writable_method, "close", 0, JS_CFUNC_generic_magic, WRITABLE_METHOD_CLOSE);
+    method = JS_NewCFunctionMagic(ctx, js_writable_method, "handler", 0, JS_CFUNC_generic_magic, WRITABLE_METHOD_CLOSE);
     w = js_writable_wrap(ctx, st);
     handler = js_function_bind_this(ctx, method, w);
     JS_FreeValue(ctx, method);
@@ -1091,6 +1091,17 @@ js_writable_wrap(JSContext* ctx, Writable* st) {
 static JSValue
 js_writable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return JS_DupValue(ctx, this_val);
+}
+
+static JSValue
+js_writable_handler(JSContext* ctx, JSValueConst this_val, int magic) {
+
+  JSValue r, handler, method;
+
+  method = JS_NewCFunctionMagic(ctx, js_writable_method, "handler", 0, JS_CFUNC_generic_magic, magic);
+  handler = js_function_bind_this(ctx, method, this_val);
+  JS_FreeValue(ctx, method);
+  return handler;
 }
 
 enum {
