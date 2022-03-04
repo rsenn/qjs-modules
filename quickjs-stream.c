@@ -184,9 +184,8 @@ readable_new(JSContext* ctx) {
 
   if((st = js_mallocz(ctx, sizeof(Readable)))) {
     st->ref_count = 1;
-
-    queue_init(&st->q);
     st->controller = JS_NULL;
+    queue_init(&st->q);
   }
 
   return st;
@@ -772,8 +771,8 @@ writable_new(JSContext* ctx) {
 
   if((st = js_mallocz(ctx, sizeof(Writable)))) {
     st->ref_count = 1;
-    // queue_init(&st->q);
     st->controller = JS_NULL;
+    queue_init(&st->q);
   }
 
   return st;

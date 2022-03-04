@@ -3,6 +3,7 @@ import * as std from 'std';
 import { Console } from 'console';
 import { TextDecoder, TextEncoder } from 'textcode';
 import { toArrayBuffer, quote, concat } from 'util';
+import { TextEncoderStream } from '../lib/streams.js';
 
 function main(...args) {
   globalThis.console = new Console({
@@ -16,6 +17,21 @@ function main(...args) {
       numberBase: 16
     }
   });
+
+  let encoderStream = new TextEncoderStream('utf-16');
+
+  let writer;
+  writer = encoderStream.writable.getWriter();
+
+  writer.write('This is a test!\n');
+  writer.releaseLock();
+
+  let reader;
+  reader = encoderStream.readable.getReader();
+
+  let chunk = reader.read();
+  console.log('chunk', chunk);
+  reader.releaseLock();
 }
 
 try {

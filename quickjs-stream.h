@@ -108,93 +108,26 @@ Writer* writable_get_writer(Writable*, size_t desired_size, JSContext* ctx);
 JSValue js_writable_callback(JSContext*, Writable* st, WritableEvent event, int argc, JSValueConst argv[]);
 JSModuleDef* js_init_module_stream(JSContext*, const char* module_name);
 
-static inline BOOL
-reader_closed(Reader* rd) {
-  return promise_done(&rd->events[READER_CLOSED]);
-}
-static inline BOOL
-reader_cancelled(Reader* rd) {
-  return promise_done(&rd->events[READER_CANCELLED]);
-}
-
-static inline BOOL
-readable_closed(Readable* st) {
-  return atomic_load(&st->closed);
-}
-
-static inline Reader*
-readable_locked(Readable* st) {
-  return atomic_load(&st->reader);
-}
-
-static inline BOOL
-writer_closed(Writer* wr) {
-  return promise_done(&wr->events[WRITER_CLOSED]);
-}
-static inline BOOL
-writer_ready(Writer* wr) {
-  return promise_done(&wr->events[WRITER_READY]);
-}
-
-static inline BOOL
-writable_closed(Writable* st) {
-  return atomic_load(&st->closed);
-}
-
-static inline Writer*
-writable_locked(Writable* st) {
-  return atomic_load(&st->writer);
-}
-
-static inline Reader*
-js_reader_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_reader_class_id);
-}
-
-static inline Reader*
-js_reader_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_reader_class_id);
-}
-
-static inline Writer*
-js_writer_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_writer_class_id);
-}
-
-static inline Writer*
-js_writer_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_writer_class_id);
-}
-
-static inline Readable*
-js_readable_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_readable_class_id);
-}
-
-static inline Readable*
-js_readable_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_readable_class_id);
-}
-
-static inline Writable*
-js_writable_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_writable_class_id);
-}
-
-static inline Writable*
-js_writable_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_writable_class_id);
-}
-
-static inline Transform*
-js_transform_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_transform_class_id);
-}
-
-static inline Transform*
-js_transform_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_transform_class_id);
-}
+/* clang-format off */
+static inline BOOL    reader_closed(Reader* rd) { return promise_done(&rd->events[READER_CLOSED]); }
+static inline BOOL    reader_cancelled(Reader* rd) { return promise_done(&rd->events[READER_CANCELLED]); }
+static inline BOOL    readable_closed(Readable* st) { return atomic_load(&st->closed); }
+static inline Reader* readable_locked(Readable* st) { return atomic_load(&st->reader); }
+static inline BOOL    writer_closed(Writer* wr) { return promise_done(&wr->events[WRITER_CLOSED]); }
+static inline BOOL    writer_ready(Writer* wr) { return promise_done(&wr->events[WRITER_READY]); }
+static inline BOOL    writable_closed(Writable* st) { return atomic_load(&st->closed); }
+static inline Writer* writable_locked(Writable* st) { return atomic_load(&st->writer); }
+static inline Reader* js_reader_data(JSValueConst value) { return JS_GetOpaque(value, js_reader_class_id); }
+static inline Reader* js_reader_data2(JSContext* ctx, JSValueConst value) { return JS_GetOpaque2(ctx, value, js_reader_class_id); }
+static inline Writer* js_writer_data(JSValueConst value) { return JS_GetOpaque(value, js_writer_class_id); }
+static inline Writer* js_writer_data2(JSContext* ctx, JSValueConst value) { return JS_GetOpaque2(ctx, value, js_writer_class_id); }
+static inline Readable* js_readable_data(JSValueConst value) { return JS_GetOpaque(value, js_readable_class_id); }
+static inline Readable* js_readable_data2(JSContext* ctx, JSValueConst value) { return JS_GetOpaque2(ctx, value, js_readable_class_id); }
+static inline Writable* js_writable_data(JSValueConst value) { return JS_GetOpaque(value, js_writable_class_id); }
+static inline Writable* js_writable_data2(JSContext* ctx, JSValueConst value) { return JS_GetOpaque2(ctx, value, js_writable_class_id); }
+static inline Transform* js_transform_data(JSValueConst value) { return JS_GetOpaque(value, js_transform_class_id); }
+static inline Transform* js_transform_data2(JSContext* ctx, JSValueConst value) { return JS_GetOpaque2(ctx, value, js_transform_class_id); }
+/* clang-format on */
 
 /**
  * @}
