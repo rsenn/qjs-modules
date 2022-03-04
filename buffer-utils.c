@@ -220,9 +220,32 @@ dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int))
 
 void
 dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const char table[256]) {
-  size_t i = 0, j;
-  char c;
-  while(i < len) {
+  size_t i = 0, j, k;
+  int32_t c, r;
+
+  const uint8_t *pos, *end, *next;
+
+  for(pos = (const uint8_t*)str, end = pos + len; pos < end; pos = next) {
+    if((c = unicode_from_utf8(pos, end - pos, &next)) < 0)
+      break;
+
+    if(c == 0x1b) {
+      dbuf_putstr(db, (const uint8_t*)"\\x1b");
+    } else if((r = table[c & 0xff])) {
+      int r = table[(unsigned char)str[i]];
+      dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(str[i])) ? c : str[i]);
+
+      if(r == 'u' || r == 'x')
+        dbuf_printf(db, r == 'u' ? "%04x" : "%02x", str[i]);
+
+    } else {
+      dbuf_put(db, pos, next - pos);
+    }
+
+    i++;
+  }
+  /*for(i=0; i < len; i += k) {
+  k=utf8_charlen(&str[i], len - i);
     if((j = lookup_find(&str[i], len - i, table))) {
       dbuf_append(db, (const uint8_t*)&str[i], j);
       i += j;
@@ -230,19 +253,16 @@ dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const char table
     if(i == len)
       break;
     dbuf_putc(db, '\\');
-
     if(str[i] == 0x1b) {
       dbuf_append(db, (const uint8_t*)"x1b", 3);
     } else {
       int r = table[(unsigned char)str[i]];
-
       dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(str[i])) ? c : str[i]);
-
       if(r == 'u' || r == 'x')
         dbuf_printf(db, r == 'u' ? "%04x" : "%02x", str[i]);
     }
     i++;
-  }
+  }*/
 }
 
 void
