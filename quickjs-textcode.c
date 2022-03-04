@@ -233,11 +233,9 @@ js_decoder_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       uint8_t tmp[UTF8_CHAR_LEN_MAX];
       size_t i;
 
-      printf("js_decoder_decode (1) %s length=%zu in.size=%zu\n", magic == TEXTDECODER_DECODE ? "decode" : "end", ringbuffer_length(&dec->buffer), in.size);
+      // printf("js_decoder_decode (1) %s length=%zu in.size=%zu\n", magic == TEXTDECODER_DECODE ? "decode" : "end", ringbuffer_length(&dec->buffer), in.size);
       if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
         return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
-
-      printf("js_decoder_decode (2) %s length=%zu in.size=%zu\n", magic == TEXTDECODER_DECODE ? "decode" : "end", ringbuffer_length(&dec->buffer), in.size);
 
       if(ringbuffer_length(&dec->buffer) == 0)
         ret = JS_NULL;
