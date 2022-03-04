@@ -25,14 +25,16 @@ async function main(...args) {
 
   await writer.write('This is a test!\n');
   await writer.write('The second test!\n');
+  await writer.close();
   await writer.releaseLock();
 
   reader = await stream.readable.getReader();
+  console.log('reader', reader);
 
-  chunk = await reader.read();
-  console.log('chunk', chunk);
-  chunk =   reader.read();
-  console.log('chunk', chunk);
+  do {
+    chunk = await reader.read();
+    console.log('chunk', chunk);
+  } while(chunk && !chunk.done);
 
   await reader.releaseLock();
 }

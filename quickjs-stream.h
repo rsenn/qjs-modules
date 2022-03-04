@@ -30,6 +30,7 @@ typedef enum { EVENT_CLOSE = 0, EVENT_CANCEL = 1, EVENT_READ = 2 } StreamEvent;
 typedef struct read_operation {
   LINK(link, struct read_operation);
   ResolveFunctions handlers;
+  int seq;
 } Read;
 
 enum { READER_CLOSED = 0, READER_CANCELLED };

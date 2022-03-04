@@ -66,23 +66,21 @@ reader_release_lock(Reader* rd, JSContext* ctx) {
 
   return ret;
 }
-
+/*
 int
 reader_clear(Reader* rd, JSContext* ctx) {
   int ret = 0;
 
   while(!list_empty(&rd->reads)) {
     JSValue result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
-
     if(reader_passthrough(rd, result, ctx))
       ++ret;
-
     JS_FreeValue(ctx, result);
   }
 
   return ret;
 }
-
+*/
 int
 reader_cancel(Reader* rd, JSContext* ctx) {
 
@@ -92,19 +90,48 @@ reader_cancel(Reader* rd, JSContext* ctx) {
   return reader_clear(rd, ctx);
 }
 
+static Read*
+reader_operation(Reader* rd, JSContext* ctx) {
+
+  Read* op;
+  static int read_seq = 0;
+
+  if(!(op = js_mallocz(ctx, sizeof(struct read_operation))))
+    0;
+
+  op->seq = ++read_seq;
+
+  list_add(op, &rd->reads);
+
+  return op;
+}
+
+// printf("Read (%i) reads[%zu]\n", op->seq, list_size(&rd->reads));
+
+ret = promise_create(ctx, &op->handlers);
+
+if((st = rd->stream)) {
+  if(queue_empty(&st->q)) {
+    JSValue tmp = js_readable_callback(ctx, st, READABLE_PULL, 1, &st->controller);
+    JS_FreeValue(ctx, tmp);
+  }
+}
+// printf("Read (%i) q[%zu]\n", op->seq, queue_size(&st->q));
+
+reader_update(rd, ctx);
+// printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
+
+return ret;
+}
+
 JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Readable* st;
-  Chunk* ch;
-  struct read_operation* op;
+  /*Chunk* ch;*/
+  Read* op = reader_operation(rd, ctx);
 
-  if(!(op = js_mallocz(ctx, sizeof(struct read_operation))))
-    return JS_ThrowOutOfMemory(ctx);
-
-  list_add(&op->link, &rd->reads);
-
-  printf("Read (%p) reads[%zu]\n", op, list_size(&rd->reads));
+  // printf("Read (%i) reads[%zu]\n", op->seq, list_size(&rd->reads));
 
   ret = promise_create(ctx, &op->handlers);
 
@@ -114,8 +141,10 @@ reader_read(Reader* rd, JSContext* ctx) {
       JS_FreeValue(ctx, tmp);
     }
   }
+  // printf("Read (%i) q[%zu]\n", op->seq, queue_size(&st->q));
 
   reader_update(rd, ctx);
+  // printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
 
   return ret;
 }
@@ -150,7 +179,7 @@ reader_update(Reader* rd, JSContext* ctx) {
   while(!list_empty(&rd->reads) && (ch = queue_next(&st->q))) {
     JSValue chunk, result;
 
-    printf("reader_update() Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
+    // printf("reader_update() Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
     chunk = chunk_arraybuffer(ch, ctx);
     result = js_iterator_result(ctx, chunk, FALSE);
     JS_FreeValue(ctx, chunk);
@@ -161,20 +190,22 @@ reader_update(Reader* rd, JSContext* ctx) {
     JS_FreeValue(ctx, result);
   }
 
-  printf("reader_update() = %d\n", ret);
+  // printf("reader_update() = %d\n", ret);
 
   return ret;
 }
 
 BOOL
 reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
-  Read *el, *el1;
+  Read *op, *next;
   BOOL ret = FALSE;
+  // printf("reader_passthrough() \n", ret);
 
-  list_for_each_prev_safe(el, el1, &rd->reads) {
-    list_del(el);
-    ret = promise_resolve(ctx, &el->handlers, chunk);
-    js_free(ctx, el);
+  list_for_each_prev_safe(op, next, &rd->reads) {
+    // printf("reader_passthrough() read[%i]\n", op->seq);
+    ret = promise_resolve(ctx, &op->handlers, chunk);
+    list_del(&op->link);
+    js_free(ctx, op);
     if(ret)
       break;
   }
@@ -253,20 +284,12 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
 
   ret = queue_write(&st->q, input.data, input.size);
 
-  printf("old queue size: %zu new queue size: %zu\n", old_size, queue_size(&st->q));
+  // printf("old queue size: %zu new queue size: %zu\n", old_size, queue_size(&st->q));
 
   input_buffer_free(&input, ctx);
   return ret < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, ret) : JS_NewInt64(ctx, ret);
 }
 
-/*
-void
-readable_unref(void* opaque) {
-  Readable* st = opaque;
-
-  --st->ref_count;
-}
-*/
 int
 readable_lock(Readable* st, Reader* rd) {
   const Reader* expected = 0;
@@ -736,11 +759,13 @@ ssize_t bytes;
 
 JSValue
 writer_close(Writer* wr, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
 
-  if(!wr->stream)
+  if(!atomic_load(&wr->stream))
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
-  return js_writable_callback(ctx, wr->stream, WRITABLE_CLOSE, 0, 0);
+  ret = js_writable_callback(ctx, wr->stream, WRITABLE_CLOSE, 0, 0);
+  return ret;
 }
 
 JSValue
@@ -752,17 +777,6 @@ writer_abort(Writer* wr, JSValueConst reason, JSContext* ctx) {
   return js_writable_callback(ctx, wr->stream, WRITABLE_ABORT, 1, &reason);
 }
 
-/*BOOL
-writer_ready(Writer* wr, JSContext* ctx) {
-  BOOL ret = FALSE;
-
-  if(JS_IsUndefined(wr->events[WRITER_READY].promise)) {
-    ret = promise_init(ctx, &wr->events[WRITER_READY]);
-  }
-
-  return ret;
-}
-*/
 JSValue
 writer_signal(Writer* wr, StreamEvent event, JSValueConst arg, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
