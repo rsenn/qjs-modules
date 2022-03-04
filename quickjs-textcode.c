@@ -29,6 +29,7 @@ enum {
 };
 enum {
   TEXTDECODER_ENCODING,
+  TEXTDECODER_BIGENDIAN,
   TEXTDECODER_BUFFERED,
 };
 
@@ -144,6 +145,10 @@ js_textdecoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, dec->encoding == UTF8 ? "utf-8" : dec->encoding == UTF16 ? "utf-16" : "unknown");
       break;
     }
+    case TEXTDECODER_BIGENDIAN: {
+      ret = JS_NewBool(ctx, dec->big_endian);
+      break;
+    }
     case TEXTDECODER_BUFFERED: {
       ret = JS_NewUint32(ctx, ringbuffer_length(&dec->buffer));
       break;
@@ -178,22 +183,22 @@ js_textdecoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   ringbuffer_init(&dec->buffer, ctx);
 
   if(argc >= 1) {
-    const char* encoding = JS_ToCString(ctx, argv[0]);
+    const char* s = JS_ToCString(ctx, argv[0]);
 
-    if(encoding[case_finds(encoding, "utf32")] || encoding[case_finds(encoding, "utf-32")])
-      enc->encoding = UTF32;
-    else if(encoding[case_finds(encoding, "utf16")] || encoding[case_finds(encoding, "utf-16")])
-      enc->encoding = UTF16;
-    else if(encoding[case_finds(encoding, "utf8")] || encoding[case_finds(encoding, "utf-8")])
-      enc->encoding = UTF8;
+    if(s[case_finds(s, "utf32")] || s[case_finds(s, "utf-32")])
+      dec->encoding = UTF32;
+    else if(s[case_finds(s, "utf16")] || s[case_finds(s, "utf-16")])
+      dec->encoding = UTF16;
+    else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
+      dec->encoding = UTF8;
     else {
-      return JS_ThrowInternalError(ctx, "TextEncoder '%s' is invalid encoding", encoding);
+      return JS_ThrowInternalError(ctx, "TextEncoder '%s' is invalid s", s);
     }
 
-    if(encoding[case_finds(encoding, "be")] || encoding[case_finds(encoding, "be")])
-      enc->big_endian = TRUE;
+    if(s[case_finds(s, "be")] || s[case_finds(s, "be")])
+      dec->big_endian = TRUE;
 
-    JS_FreeCString(ctx, encoding);
+    JS_FreeCString(ctx, s);
   } else {
     dec->encoding = UTF8;
   }
@@ -271,6 +276,7 @@ static const JSCFunctionListEntry js_textdecoder_funcs[] = {
     JS_CFUNC_MAGIC_DEF("decode", 1, js_textdecoder_decode, TEXTDECODER_DECODE),
     JS_CFUNC_MAGIC_DEF("end", 1, js_textdecoder_decode, TEXTDECODER_END),
     JS_CGETSET_ENUMERABLE_DEF("encoding", js_textdecoder_get, 0, TEXTDECODER_ENCODING),
+    JS_CGETSET_ENUMERABLE_DEF("bigEndian", js_textdecoder_get, 0, TEXTDECODER_BIGENDIAN),
     JS_CGETSET_ENUMERABLE_DEF("buffered", js_textdecoder_get, 0, TEXTDECODER_BUFFERED),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TextDecoder", JS_PROP_CONFIGURABLE),
 };
@@ -281,6 +287,7 @@ enum {
 };
 enum {
   TEXTENCODER_ENCODING,
+  TEXTENCODER_BIGENDIAN,
   TEXTENCODER_BUFFERED,
 };
 
@@ -396,6 +403,10 @@ js_textencoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, enc->encoding == UTF8 ? "utf-8" : enc->encoding == UTF16 ? "utf-16" : "unknown");
       break;
     }
+    case TEXTENCODER_BIGENDIAN: {
+      ret = JS_NewBool(ctx, enc->big_endian);
+      break;
+    }
     case TEXTENCODER_BUFFERED: {
       ret = JS_NewUint32(ctx, ringbuffer_length(&enc->buffer));
       break;
@@ -430,22 +441,22 @@ js_textencoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   ringbuffer_init(&enc->buffer, ctx);
 
   if(argc >= 1) {
-    const char* encoding = JS_ToCString(ctx, argv[0]);
+    const char* s = JS_ToCString(ctx, argv[0]);
 
-    if(encoding[case_finds(encoding, "utf32")] || encoding[case_finds(encoding, "utf-32")])
+    if(s[case_finds(s, "utf32")] || s[case_finds(s, "utf-32")])
       enc->encoding = UTF32;
-    else if(encoding[case_finds(encoding, "utf16")] || encoding[case_finds(encoding, "utf-16")])
+    else if(s[case_finds(s, "utf16")] || s[case_finds(s, "utf-16")])
       enc->encoding = UTF16;
-    else if(encoding[case_finds(encoding, "utf8")] || encoding[case_finds(encoding, "utf-8")])
+    else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
       enc->encoding = UTF8;
     else {
-      return JS_ThrowInternalError(ctx, "TextEncoder '%s' is invalid encoding", encoding);
+      return JS_ThrowInternalError(ctx, "TextEncoder '%s' is invalid s", s);
     }
 
-    if(encoding[case_finds(encoding, "be")] || encoding[case_finds(encoding, "be")])
+    if(s[case_finds(s, "be")] || s[case_finds(s, "be")])
       enc->big_endian = TRUE;
 
-    JS_FreeCString(ctx, encoding);
+    JS_FreeCString(ctx, s);
   } else {
     enc->encoding = UTF8;
   }
@@ -524,6 +535,7 @@ static const JSCFunctionListEntry js_textencoder_funcs[] = {
     JS_CFUNC_MAGIC_DEF("encode", 1, js_textencoder_encode, TEXTENCODER_ENCODE),
     JS_CFUNC_MAGIC_DEF("end", 1, js_textencoder_encode, TEXTENCODER_END),
     JS_CGETSET_ENUMERABLE_DEF("encoding", js_textencoder_get, 0, TEXTENCODER_ENCODING),
+    JS_CGETSET_ENUMERABLE_DEF("bigEndian", js_textencoder_get, 0, TEXTENCODER_BIGENDIAN),
     JS_CGETSET_ENUMERABLE_DEF("buffered", js_textencoder_get, 0, TEXTENCODER_BUFFERED),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TextEncoder", JS_PROP_CONFIGURABLE),
 };
