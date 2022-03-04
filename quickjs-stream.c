@@ -52,16 +52,16 @@ read_next(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Read *el, *op = 0;
 
-  if(list_empty(&rd->reads)) {
+  list_for_each_prev(el, &rd->reads) {
+    if(!JS_IsUndefined(el->promise.value)) {
+      op = el;
+      break;
+    }
+  }
+
+  if(!op) {
     if(!(op = read_new(rd, ctx)))
       ret = JS_ThrowOutOfMemory(ctx);
-  } else {
-    list_for_each_prev(el, &rd->reads) {
-      if(!JS_IsUndefined(el->promise.value)) {
-        op = el;
-        break;
-      }
-    }
   }
 
   if(op) {
