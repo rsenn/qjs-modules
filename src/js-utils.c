@@ -126,3 +126,13 @@ promise_catch(JSContext* ctx, JSValueConst promise, JSValueConst handler) {
 
   return ret;
 }
+
+JSValue
+promise_forward(JSContext* ctx, JSValueConst promise, Promise* receiver) {
+  JSValue ret, ret2;
+
+  ret = promise_then(ctx, promise, receiver->funcs.array[0]);
+  ret2 = promise_catch(ctx, ret, receiver->funcs.array[1]);
+  JS_FreeValue(ctx, ret);
+  return ret2;
+}

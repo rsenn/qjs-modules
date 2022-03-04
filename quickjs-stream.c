@@ -800,10 +800,9 @@ writer_close(Writer* wr, JSContext* ctx) {
 
   ret = js_writable_callback(ctx, wr->stream, WRITABLE_CLOSE, 0, 0);
 
-if(js_is_promise(ctx, ret)) {
-    ret = promise_then(ctx, ret,  wr->events[WRITER_CLOSED].funcs.array[0]);
-ret = promise_catch(ctx, ret, wr->events[WRITER_CLOSED].funcs.array[1]);
-}
+  if(js_is_promise(ctx, ret)) {
+    ret = promise_forward(ctx, ret, &wr->events[WRITER_CLOSED]);
+  }
   return ret;
 }
 
