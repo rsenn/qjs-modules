@@ -2,6 +2,7 @@
 #include "include/buffer-utils.h"
 #include "include/utils.h"
 #include "include/debug.h"
+#include <list.h>
 #include <assert.h>
 
 /**
@@ -144,6 +145,8 @@ reader_update(Reader* rd, JSContext* ctx) {
     return reader_clear(rd, ctx);
   }
 
+  //  list_for_each_prev_safe(r,r1,&rd->reads)  {
+
   while(!list_empty(&rd->reads) && (ch = queue_next(&st->q))) {
     JSValue chunk, result;
 
@@ -151,28 +154,29 @@ reader_update(Reader* rd, JSContext* ctx) {
     chunk = chunk_arraybuffer(ch, ctx);
     result = js_iterator_result(ctx, chunk, FALSE);
     JS_FreeValue(ctx, chunk);
+
     if(reader_passthrough(rd, result, ctx))
       ++ret;
+
     JS_FreeValue(ctx, result);
   }
+
+  printf("reader_update() = %d\n", ret);
 
   return ret;
 }
 
 BOOL
 reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
-  Read* r;
+  Read *el, *el1;
   BOOL ret = FALSE;
 
-  while((r = (Read*)rd->reads.prev) != (Read*)&rd->reads) {
-
-    if(promise_resolve(ctx, &r->handlers, chunk)) {
-      ret = TRUE;
+  list_for_each_prev_safe(el, el1, &rd->reads) {
+    list_del(el);
+    ret = promise_resolve(ctx, &el->handlers, chunk);
+    js_free(ctx, el);
+    if(ret)
       break;
-    }
-
-    list_del(&r->link);
-    js_free(ctx, r);
   }
 
   return ret;

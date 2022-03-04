@@ -16,8 +16,19 @@
 
 typedef enum { EVENT_CLOSE = 0, EVENT_CANCEL = 1, EVENT_READ = 2 } StreamEvent;
 
+#define HEAD(st) \
+  struct { \
+    st *prev, *next; \
+  }
+
+#define LINK(name, st) \
+  union { \
+    struct list_head name; \
+    HEAD(st); \
+  }
+
 typedef struct read_operation {
-  struct list_head link;
+  LINK(link, struct read_operation);
   ResolveFunctions handlers;
 } Read;
 
