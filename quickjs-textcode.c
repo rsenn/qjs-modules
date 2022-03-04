@@ -100,7 +100,7 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
       const uint_least32_t* end = ringbuffer_end(&td->buffer);
 
       for(i = 0; ptr != end; ptr = ringbuffer_next(&td->buffer, ptr), i++) {
-         len = unicode_to_utf8((void*)tmp, *ptr);
+        len = unicode_to_utf8((void*)tmp, *ptr);
 
         if(dbuf_put(&dbuf, (const void*)tmp, len))
           return JS_ThrowOutOfMemory(ctx);
@@ -202,6 +202,7 @@ js_textdecoder_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       InputBuffer in = js_input_chars(ctx, argv[0]);
       uint8_t tmp[UTF8_CHAR_LEN_MAX];
       size_t i;
+
       if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
         return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
       /*
