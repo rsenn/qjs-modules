@@ -4,12 +4,12 @@ import { Console } from 'console';
 import { TextDecoder, TextEncoder } from 'textcode';
 import { toArrayBuffer, quote } from 'util';
 
-function Decode(bits, ...chunks) {
-  let decoder = new TextDecoder('utf-' + bits);
-  console.log('decoder' + bits, decoder);
+function Decode(encoding, ...chunks) {
+  let decoder = new TextDecoder(encoding);
+  console.log('decoder(' + encoding + ')', decoder);
   let result = [];
   for(let buf of chunks) {
-    console.log('decoder' + bits + '.decode(', buf, `)`);
+    console.log('decoder(' + encoding + ').decode(', buf, `)`);
     result.push(decoder.decode(buf));
   }
   let r = decoder.end();
@@ -18,12 +18,12 @@ function Decode(bits, ...chunks) {
   return result;
 }
 
-function Encode(bits, ...chunks) {
-  let encoder = new TextEncoder('utf-' + bits + 'be');
-  console.log('encoder' + bits, encoder);
+function Encode(encoding, ...chunks) {
+  let encoder = new TextEncoder(encoding);
+  console.log('encoder(' + encoding + ')', encoder);
   let result = [];
   for(let str of chunks) {
-    console.log(('encoder' + bits + '.encode(' + quote(str, "'") + ')').padEnd(30));
+    console.log(('encoder(' + encoding + ').encode(' + quote(str, "'") + ')').padEnd(30));
     result.push(encoder.encode(str));
   }
   let r = encoder.end();
@@ -67,13 +67,15 @@ function main(...args) {
 
   for(let s of [s1 /*,s2*/]) {
     /*Encode(8, s);*/
-    Encode(16, s);
-    Encode(32, s);
+    Encode('UTF16LE', s);
+    Encode('UTF16BE', s);
+    Encode('UTF32LE', s);
+    Encode('UTF32BE', s);
   }
 
-  Decode(8, u8);
-  Decode(16, u16);
-  Decode(32, u32.buffer.slice(0, -1), u32.buffer.slice(-1));
+  Decode('UTF8', u8);
+  Decode('UTF16', u16);
+  Decode('UTF32', u32.buffer.slice(0, -1), u32.buffer.slice(-1));
 
   const encoder = new TextEncoder();
   const view = encoder.encode('€');

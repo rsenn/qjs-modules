@@ -376,11 +376,11 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
           if(!libutf_c32_to_c16(cp, &len, u16))
             return JS_ThrowInternalError(ctx, "No a valid code point at (%zu) [%zu]: %" PRIu32, i, end - ptr, cp);
 
-          for(int j = 0; j < len; j++) uint16_put_endian(u8 + i * 2, u16[i], enc->endian);
-        }
+          for(int j = 0; j < len; j++) uint16_put_endian(u8 + j * 2, u16[j], enc->endian);
 
-        if(ringbuffer_append(&enc->buffer, u8, len * sizeof(uint_least16_t), ctx) < 0)
-          return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer write failed");
+          if(ringbuffer_append(&enc->buffer, u8, len * sizeof(uint16_t), ctx) < 0)
+            return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer write failed");
+        }
       }
 
       break;
@@ -390,15 +390,16 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       end = block_end(&in.block);
 
       for(i = 0; ptr < end; ptr = next, i++) {
-        cp = 0;
+        cp = unicode_from_utf8(ptr, end - ptr, &next);
+        /*  cp = 0;
 
-        if(!libutf_c8_to_c32(ptr, &cp))
-          return JS_ThrowInternalError(ctx, "No a valid code point at (%zu) [%zu]: %" PRIu32, i, end - ptr, cp);
+                if(!libutf_c8_to_c32(ptr, &cp))
+                  return JS_ThrowInternalError(ctx, "No a valid code point at (%zu) [%zu]: %" PRIu32, i, end - ptr, cp);
 
-        next = ptr + libutf_c8_type(ptr);
+                next = ptr + libutf_c8_type(ptr);
 
-        if(next == ptr)
-          break;
+                if(next == ptr)
+                  break;*/
 
         /*cp = unicode_from_utf8(ptr, end - ptr, &next);
           if(cp == 0xffffffff)
