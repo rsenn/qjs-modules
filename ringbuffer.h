@@ -72,6 +72,7 @@ void ringbuffer_normalize(RingBuffer*);
 BOOL ringbuffer_resize(RingBuffer*, size_t);
 BOOL ringbuffer_allocate(RingBuffer*, size_t);
 uint8_t* ringbuffer_reserve(RingBuffer* rb, size_t min_bytes);
+ssize_t ringbuffer_append(RingBuffer* r, const void* x, size_t len, JSContext* ctx);
 
 /*static inline size_t
 ringbuffer_length(RingBuffer* rb) {

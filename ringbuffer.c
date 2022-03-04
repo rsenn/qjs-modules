@@ -48,6 +48,15 @@ ringbuffer_write(RingBuffer* r, const void* x, size_t len) {
 }
 
 ssize_t
+ringbuffer_append(RingBuffer* r, const void* x, size_t len, JSContext* ctx) {
+
+  if(!ringbuffer_reserve(r, ringbuffer_length(r) + len))
+    return -1;
+
+  return ringbuffer_write(r, x, len);
+}
+
+ssize_t
 ringbuffer_read(RingBuffer* r, void* x, size_t len) {
   uint8_t* p = x;
   size_t i;
