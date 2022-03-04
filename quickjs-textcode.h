@@ -9,14 +9,14 @@
  * @{
  */
 
-typedef enum string_encoding { UNKNOWN = 0, UTF8, UTF16, UTF32 } StringEncoding;
+typedef enum string_encoding { UNKNOWN = 0, UTF8, UTF16, UTF32 } Encoding;
 
 typedef struct string_decoder {
   RingBuffer buffer;
   union __attribute__((packed)) {
     struct __attribute__((packed)) {
-      StringEncoding encoding : 2;
-      BOOL big_endian : 1;
+      Encoding encoding : 2;
+      Endian endian : 1;
     };
     unsigned type_code : 3;
   };
@@ -26,8 +26,8 @@ typedef struct string_encoder {
   RingBuffer buffer;
   union __attribute__((packed)) {
     struct __attribute__((packed)) {
-      StringEncoding encoding : 2;
-      BOOL big_endian : 1;
+      Encoding encoding : 2;
+      Endian endian : 1;
     };
     unsigned type_code : 3;
   };

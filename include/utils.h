@@ -23,6 +23,8 @@
 
 char* basename(const char*);
 
+typedef enum endian {  LITTLE=0,BIG }  Endian;
+
 typedef enum precedence {
   PRECEDENCE_COMMA_SEQUENCE = 1,
   PRECEDENCE_YIELD,
