@@ -169,19 +169,9 @@ int32_abs(int32_t i) {
   return i < 0 ? -i : i;
 }
 
-static inline uint16_t
-uint16_get_be(const void* x) {
-  const uint8_t* y = x;
-  return (y[0] << 8) | y[1];
-}
-
-static inline uint16_t
-uint16_get_le(const void* x) {
-  const uint8_t* y = x;
-  return (y[1] << 8) | y[0];
-}
-
 /* clang-format off */
+static inline uint16_t uint16_get_be(const void* x) { const uint8_t* y = x; return (y[0] << 8) | y[1]; }
+static inline uint16_t uint16_get_le(const void* x) { const uint8_t* y = x; return (y[1] << 8) | y[0]; }
 static inline uint16_t uint16_get_endian(const void* x, BOOL big_endian) { return (big_endian ? uint16_get_be : uint16_get_le)(x); }
 static inline uint32_t uint32_get_be(const void* x) {const uint16_t* y = x; return (uint16_get_be(y) << 16) | uint16_get_be(y+1); }
 static inline uint32_t uint32_get_le(const void* x) {const uint16_t* y = x; return (uint16_get_le(y+1) << 16) | uint16_get_le(y); }

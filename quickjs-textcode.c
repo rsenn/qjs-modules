@@ -77,11 +77,11 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
     case UTF16: {
       uint_least16_t* ptr = ringbuffer_begin(&dec->buffer);
       uint_least16_t* end = ringbuffer_end(&dec->buffer);
-      size_t n = ringbuffer_length(&dec->buffer) >> 1;
+      size_t n = ringbuffer_length(&dec->buffer);
 
       for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 2) {
         uint_least32_t cp = 0;
-        uint_least16_t u16[2] = {uint16_get_le(ptr), uint16_get_le(ptr + 1)};
+        uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->big_endian), i + 1 == n ? 0 : uint16_get_endian(ptr + 1, dec->big_endian)};
         if(!libutf_c16_to_c32(u16, &cp)) {
           ret = JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
           break;
