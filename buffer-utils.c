@@ -226,13 +226,16 @@ dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const char table
   const uint8_t *pos, *end, *next;
 
   for(pos = (const uint8_t*)str, end = pos + len; pos < end; pos = next) {
+    uint8_t ch;
+
     if((c = unicode_from_utf8(pos, end - pos, &next)) < 0)
       break;
 
-    if(c == 0x1b) {
-      dbuf_putstr(db, (const uint8_t*)"\\x1b");
-    } else if((r = table[c & 0xff])) {
-      int r = table[(unsigned char)str[i]];
+    ch = c;
+    if(ch == 0x1b) {
+      dbuf_putstr(db, "\\x1b");
+    } else if((r = table[ch])) {
+      int r = table[ch];
       dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(str[i])) ? c : str[i]);
 
       if(r == 'u' || r == 'x')
