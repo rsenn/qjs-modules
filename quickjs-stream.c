@@ -175,6 +175,7 @@ reader_signal(Reader* rd, StreamEvent event, JSValueConst arg, JSContext* ctx) {
 
 int
 reader_update(Reader* rd, JSContext* ctx) {
+  JSValue chunk, result;
   Chunk* ch;
   Readable* st = rd->stream;
   int ret = 0;
@@ -183,23 +184,27 @@ reader_update(Reader* rd, JSContext* ctx) {
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
-    return reader_clear(rd, ctx);
-  }
+    reader_clear(rd, ctx);
 
-  while(!list_empty(&rd->reads) && (ch = queue_next(&st->q))) {
-    JSValue chunk, result;
-
-    // printf("reader_update() Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
-    chunk = chunk_arraybuffer(ch, ctx);
-    result = js_iterator_result(ctx, chunk, FALSE);
-    JS_FreeValue(ctx, chunk);
+    result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
 
     if(reader_passthrough(rd, result, ctx))
       ++ret;
+  } else {
+    while(!list_empty(&rd->reads) && (ch = queue_next(&st->q))) {
+      JSValue chunk, result;
 
-    JS_FreeValue(ctx, result);
+      // printf("reader_update() Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
+      chunk = chunk_arraybuffer(ch, ctx);
+      result = js_iterator_result(ctx, chunk, FALSE);
+      JS_FreeValue(ctx, chunk);
+
+      if(reader_passthrough(rd, result, ctx))
+        ++ret;
+
+      JS_FreeValue(ctx, result);
+    }
   }
-
   // printf("reader_update() = %d\n", ret);
 
   return ret;
@@ -207,24 +212,33 @@ reader_update(Reader* rd, JSContext* ctx) {
 
 BOOL
 reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
-  Read *op, *next;
+  Read *op = 0, *el, *next;
   BOOL ret = FALSE;
 
-  list_for_each_prev_safe(op, next, &rd->reads) {
-    if(read_done(op)) {
-      list_del(&op->link);
-      js_free(ctx, op);
+  list_for_each_prev_safe(el, next, &rd->reads) {
+    if(read_done(el)) {
+      list_del(&el->link);
+      js_free(ctx, el);
       continue;
     }
 
     printf("reader_passthrough() read[%i]\n", op->seq);
 
+    if(promise_pending(&op->promise)) {
+      op = el;
+      break;
+    }
+  }
+
+  if(!op)
+    op = read_new(rd, ctx);
+
+  if(op) {
     if((ret = promise_resolve(ctx, &op->promise, chunk))) {
       if(JS_IsUndefined(op->promise.value)) {
         list_del(&op->link);
         js_free(ctx, op);
       }
-      break;
     }
   }
 
