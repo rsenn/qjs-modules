@@ -339,7 +339,7 @@ int case_lowerc(int);
 int case_starts(const char*, const char*);
 int case_diffb(const void*, size_t, const void*);
 size_t case_findb(const void*, size_t, const void*, size_t wlen);
-size_t case_finds(const void*, size_t, const char*);
+size_t case_finds(const void*, const char*);
 
 /**
  * @}

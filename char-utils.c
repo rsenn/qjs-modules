@@ -236,8 +236,8 @@ case_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
 }
 
 size_t
-case_finds(const void* haystack, size_t hlen, const char* what) {
-  return case_findb(haystack, hlen, what, strlen(what));
+case_finds(const void* haystack, const char* what) {
+  return case_findb(haystack, strlen(haystack), what, strlen(what));
 }
 
 /**
