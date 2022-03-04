@@ -16,9 +16,9 @@ typedef struct string_decoder {
   union __attribute__((packed)) {
     struct __attribute__((packed)) {
       StringEncoding encoding : 2;
-      BOOL big_endian;
+      BOOL big_endian : 1;
     };
-    int type_code : 3;
+    unsigned type_code : 3;
   };
 } TextDecoder;
 
@@ -27,9 +27,9 @@ typedef struct string_encoder {
   union __attribute__((packed)) {
     struct __attribute__((packed)) {
       StringEncoding encoding : 2;
-      BOOL big_endian;
+      BOOL big_endian : 1;
     };
-    int type_code : 3;
+    unsigned type_code : 3;
   };
 } TextEncoder;
 

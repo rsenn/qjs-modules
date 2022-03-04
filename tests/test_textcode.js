@@ -4,8 +4,25 @@ import { Console } from 'console';
 import { TextDecoder, TextEncoder } from 'textcode';
 import { toArrayBuffer, quote } from 'util';
 
-('use strict');
-('use math');
+function Decode(bits, arr) {
+  let decoder = new TextDecoder('utf-' + bits);
+  console.log('decoder' + bits, decoder);
+  let buf = arr.buffer;
+  console.log('decoder' + bits + '.decode(', buf, `)`);
+  let result = decoder.decode(buf);
+  console.log('result =', result);
+  decoder.end();
+}
+
+function Encode(bits, str) {
+  let encoder = new TextEncoder('utf-' + bits + 'be');
+  console.log('encoder' + bits, encoder);
+  console.log(('encoder' + bits + '.encode(' + quote(str, "'") + ')').padEnd(30));
+  let result = encoder.encode(str);
+  console.log('result =', result);
+  encoder.end();
+  return result;
+}
 
 function main(...args) {
   globalThis.console = new Console({
@@ -21,44 +38,10 @@ function main(...args) {
   });
   console.log('TextDecoder', TextDecoder);
 
-  function Decode(bits, arr) {
-    let decoder = new TextDecoder('utf-' + bits);
-    console.log('decoder' + bits, decoder);
-
-    let buf = arr.buffer;
-    console.log('decoder' + bits + '.decode(', buf, `)`);
-
-    /*console.log('decoder' + bits + '.buffered', decoder.buffered);*/
-
-    let result = decoder.decode(buf);
-    console.log('result =', result);
-    /*console.log*/ /*'decoder' + bits + '.end()',*/ decoder.end();
-    /* console.log('decoder' + bits + '.buffered', decoder.buffered);*/
-  }
-
   let s1 = '🅇☆⨀☀☯🅧𝚡𝘅𝘹𝐱𝐗💨𞥞𑙣𑗊𑗐𑗐';
   let s2 = 'äöüàéèïë';
 
-  Encode(8, s1);
-  Encode(8, s2);
-  Encode(16, s1);
-  Encode(16, s2);
-  Encode(32, s1);
-  Encode(32, s2);
-
-  function Encode(bits, str) {
-    let encoder = new TextEncoder('utf-' + bits);
-    //let bits = encoder.encoding.replace(/.*-/, '');
-    console.log('encoder' + bits, encoder);
-    console.log(('encoder' + bits + '.encode(' + quote(str, "'") + ')').padEnd(30));
-
-    let result = encoder.encode(str);
-    console.log('result =', result);
-
-    /*   console.log*/ /*'encoder' + bits + '.end()',*/ encoder.end();
-    /* console.log('encoder' + bits + '.buffered', encoder.buffered);*/
-    return result;
-  }
+  
   let u8 = new Uint8Array([
     0xc3, 0xa4, 0xc3, 0xb6, 0xc3, 0xbc, 0xc3, 0xa0, 0xc3, 0xa9, 0xc3, 0xa8, 0xc3, 0xaf, 0xc3, 0xab
   ]);
@@ -76,6 +59,14 @@ function main(...args) {
   Decode(8, u8);
   Decode(16, u16);
   Decode(32, u32);
+
+Encode(8, s1);
+  Encode(8, s2);
+  Encode(16, s1);
+  Encode(16, s2);
+  Encode(32, s1);
+  Encode(32, s2);
+
 
   const encoder = new TextEncoder();
   const view = encoder.encode('€');
