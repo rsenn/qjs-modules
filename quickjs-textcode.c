@@ -84,8 +84,8 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
 
       for(i = 0; i < n; ptr = ringbuffer_next(&td->buffer, ptr), i += 2) {
         uint_least32_t cp = 0;
-
-        if(!libutf_c16_to_c32(ptr, &cp)) {
+        uint_least16_t u16[2] = {uint16_read_be(ptr), uint16_read_be(ptr + 1)};
+        if(!libutf_c16_to_c32(u16, &cp)) {
           ret = JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
           break;
         }

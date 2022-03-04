@@ -144,8 +144,8 @@ pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
   Pointer* ret = js_mallocz(ctx, sizeof(Pointer));
   int64_t i;
 
-  start = mod_int32(start, ptr->n);
-  end = mod_int32(end, ptr->n);
+  start = int32_mod(start, ptr->n);
+  end = int32_mod(end, ptr->n);
   if(end == 0)
     end = ptr->n;
 

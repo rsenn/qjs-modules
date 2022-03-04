@@ -160,22 +160,58 @@ min_size(size_t a, size_t b) {
 }
 
 static inline uint64_t
-abs_int64(int64_t a) {
+int64_abs(int64_t a) {
   return a < 0 ? -a : a;
 }
 
 static inline uint32_t
-abs_int32(int32_t i) {
+int32_abs(int32_t i) {
   return i < 0 ? -i : i;
 }
 
+static inline uint16_t
+uint16_read_be(const void* x) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  return bswap16(*(const uint16_t*)x);
+#else
+  return *(const uint16_t*)x;
+#endif
+}
+
+static inline uint16_t
+uint16_read_le(const void* x) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  return *(const uint16_t*)x;
+#else
+  return bswap16(*(const uint16_t*)x);
+#endif
+}
+
+static inline uint32_t
+uint32_read_be(const void* x) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  return bswap32(*(const uint32_t*)x);
+#else
+  return *(const uint32_t*)x;
+#endif
+}
+
+static inline uint32_t
+uint32_read_le(const void* x) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+  return *(const uint32_t*)x;
+#else
+  return bswap32(*(const uint32_t*)x);
+#endif
+}
+
 static inline int32_t
-sign_int32(uint32_t i) {
+int32_sign(uint32_t i) {
   return (i & 0x80000000) ? -1 : 1;
 }
 
 static inline int32_t
-mod_int32(int32_t a, int32_t b) {
+int32_mod(int32_t a, int32_t b) {
   int32_t c = a % b;
   return (c < 0) ? c + b : c;
 }
