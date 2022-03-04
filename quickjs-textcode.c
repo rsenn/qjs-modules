@@ -352,7 +352,7 @@ JSValue
 textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   size_t i;
-  uint_least32_t cp;
+  uint32_t cp;
   uint8_t u8[UTF8_CHAR_LEN_MAX];
   const uint8_t *ptr, *end, *next;
 
@@ -386,12 +386,21 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       end = block_end(&in.block);
 
       for(i = 0; ptr < end; ptr = next, i++) {
-        cp = unicode_from_utf8(ptr, end - ptr, &next);
+        cp = 0;
 
-        if(cp == 0xffffffff)
+        if(!libutf_c8_to_c32(ptr, &cp))
           return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, ptr - in.block.base, cp);
 
+        next = ptr + libutf_c8_type(ptr);
+
+        /*cp = unicode_from_utf8(ptr, end - ptr, &next);
+          if(cp == 0xffffffff)
+            return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, ptr - in.block.base, cp);
+         */
+
         uint32_put_endian(u8, cp, enc->big_endian);
+
+        // printf("        uint32_put_endian(%" PRIx32 ", %" PRIx32 ", %s);\n", *(uint32_t*)u8, cp, enc->big_endian ? "TRUE" : "FALSE");
 
         if(ringbuffer_append(&enc->buffer, u8, sizeof(cp), ctx) < 0)
           return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer write failed");
