@@ -60,17 +60,11 @@ function BufferLengths(file) {
 }
 
 function BufferOffsets(file) {
-  return buffers[file].reduce(
-    ([pos, list], b) => [pos + b.byteLength, list.concat([pos])],
-    [0, []]
-  )[1];
+  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([pos])], [0, []])[1];
 }
 
 function BufferRanges(file) {
-  return buffers[file].reduce(
-    ([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])],
-    [0, []]
-  )[1];
+  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])], [0, []])[1];
 }
 
 function WriteFile(file, tok) {
@@ -307,10 +301,7 @@ function main(...args) {
             ` '${s}'`
           ];
           std.puts(
-            cols.reduce(
-              (acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]),
-              ''
-            ) + '\n'
+            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
           );
         }
       : () => {};
@@ -349,9 +340,7 @@ function main(...args) {
           case ']':
           case ')': {
             if(stack.last != table[tok.lexeme])
-              throw new Error(
-                `top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
-              );
+              throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
             stack.pop();
             break;
@@ -384,15 +373,9 @@ function main(...args) {
     console.log('lexer.tokens', lexer.tokens);*/
 
     let showToken = tok => {
-      if(
-        (lexer.constructor != JSLexer && tok.type != 'whitespace') ||
-        /^((im|ex)port|from|as)$/.test(tok.lexeme)
-      ) {
+      if((lexer.constructor != JSLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         // console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
-        let a = [
-          /*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '),
-          escape(tok.lexeme)
-        ];
+        let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.puts(a.join('') + '\n');
       }
     };
@@ -446,10 +429,7 @@ function main(...args) {
       state = newState;
     }
 
-    const exportTokens = tokens.reduce(
-      (acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc),
-      []
-    );
+    const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
     log('Export tokens', exportTokens);
 
     const exportNames = exportTokens.map(index => ExportName(tokens.slice(index)));
@@ -465,9 +445,7 @@ function main(...args) {
     //  log('exports', exports);
     let fileImports = imports.filter(imp => /\.js$/i.test(imp.file));
     let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
-    buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(
-      b => b ?? toString(b, 0, b.byteLength)
-    );
+    buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
     log(`splitPoints`, splitPoints);
     //log(`buffers[${file}]`, buffers[file]);
     log(`buffers[${file}] len`, BufferLengths(file));

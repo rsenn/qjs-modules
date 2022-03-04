@@ -116,13 +116,7 @@ function assert(actual, expected, message) {
     return;
 
   throw Error(
-    'assertion failed: got |' +
-      actual +
-      '|' +
-      ', expected |' +
-      expected +
-      '|' +
-      (message ? ' (' + message + ')' : '')
+    'assertion failed: got |' + actual + '|' + ', expected |' + expected + '|' + (message ? ' (' + message + ')' : '')
   );
 }
 
