@@ -219,6 +219,7 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
 
   list_for_each_prev_safe(el, next, &rd->reads) {
     if(read_done(el)) {
+      printf("reader_passthrough() delete[%i]\n", el->seq);
       list_del(&el->link);
       js_free(ctx, el);
       continue;
