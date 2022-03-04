@@ -49,28 +49,26 @@ read_new(Reader* rd, JSContext* ctx) {
 
 static JSValue
 read_next(Reader* rd, JSContext* ctx) {
-  JSValue ret;
-  Read* op;
+  JSValue ret = JS_UNDEFINED;
+  Read *el, *op = 0;
 
   if(list_empty(&rd->reads)) {
     if(!(op = read_new(rd, ctx)))
-      return JS_ThrowOutOfMemory(ctx);
+      ret = JS_ThrowOutOfMemory(ctx);
   } else {
-    struct list_head* el;
     list_for_each_prev(el, &rd->reads) {
-      op = list_entry(el, Read, link);
-
-      if(!JS_IsUndefined(op->promise.value))
+      if(!JS_IsUndefined(el->promise.value)) {
+        op = el;
         break;
-
-      op = 0;
+      }
     }
   }
 
-  printf("read_next (%i/%zu)\n", op->seq, list_size(&rd->reads));
-
-  ret = op->promise.value;
-  op->promise.value = JS_UNDEFINED;
+  if(op) {
+    printf("read_next (%i/%zu)\n", op->seq, list_size(&rd->reads));
+    ret = op->promise.value;
+    op->promise.value = JS_UNDEFINED;
+  }
 
   return ret;
 }
