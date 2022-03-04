@@ -32,7 +32,7 @@ typedef union {
   BOOL nonblock : 1, async : 1; \
   int32_t ret
 
-union __attribute__((packed)) socket_state {
+PACK union socket_state {
   struct {
     SOCKET_PROPS();
   };
