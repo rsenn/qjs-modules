@@ -54,7 +54,10 @@ typedef union ringbuffer {
 #define ringbuffer_empty(rb) ((rb)->tail == (rb)->head)
 #define ringbuffer_full(rb) ((rb)->size == (rb)->head - (rb)->tail)
 #define ringbuffer_wrapped(rb) ((rb)->head < (rb)->tail)
-#define ringbuffer_continuous(rb) ((rb)->head >= (rb)->tail)
+#define ringbuffer_headroom(rb) ((rb)->size - (rb)->head)
+#define ringbuffer_avail(rb) ((rb)->size - ringbuffer_length(rb))
+#define ringbuffer_length(rb) (ringbuffer_wrapped(rb) ? ((rb)->size - (rb)->tail) + (rb)->head : (rb)->head - (rb)->tail)
+#define ringbuffer_is_continuous(rb) ((rb)->head >= (rb)->tail)
 #define ringbuffer_wrap(rb, idx) ((idx) % (rb)->size)
 #define ringbuffer_next(rb, ptr) (void*)(ringbuffer_wrap(rb, ((uint8_t*)(ptr + 1)) - (rb)->data) + (rb)->data)
 
@@ -69,31 +72,26 @@ BOOL ringbuffer_resize(RingBuffer*, size_t);
 BOOL ringbuffer_allocate(RingBuffer*, size_t);
 uint8_t* ringbuffer_reserve(RingBuffer* rb, size_t min_bytes);
 
-static inline size_t
+/*static inline size_t
 ringbuffer_length(RingBuffer* rb) {
-  if(ringbuffer_continuous(rb))
+  if(!ringbuffer_wrapped(rb))
     return rb->head - rb->tail;
 
   return (rb->size - rb->tail) + rb->head;
-}
+}*/
 
 static inline size_t
-ringbuffer_continuous_length(RingBuffer* rb) {
+ringbuffer_continuous(RingBuffer* rb) {
   if(ringbuffer_wrapped(rb))
     return rb->size - rb->tail;
 
   return ringbuffer_length(rb);
 }
 
-static inline size_t
-ringbuffer_continuous_avail(RingBuffer* rb) {
-  return rb->size - rb->head;
-}
-
-static inline uint32_t
+/*static inline uint32_t
 ringbuffer_avail(RingBuffer* rb) {
   return rb->size - ringbuffer_length(rb);
-}
+}*/
 
 /**
  * @}

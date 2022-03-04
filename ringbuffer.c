@@ -113,10 +113,10 @@ ringbuffer_reserve(RingBuffer* rb, size_t min_bytes) {
     if(!ringbuffer_resize(rb, vector_size(&rb->vec, 1) + grow))
       return 0;
 
-  if(ringbuffer_continuous_avail(rb) < min_bytes)
+  if(ringbuffer_headroom(rb) < min_bytes)
     ringbuffer_normalize(rb);
 
-  assert(ringbuffer_continuous_avail(rb) >= min_bytes);
+  assert(ringbuffer_headroom(rb) >= min_bytes);
 
   return ringbuffer_end(rb);
 }

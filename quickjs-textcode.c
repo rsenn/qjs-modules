@@ -52,7 +52,7 @@ size_t
 textdecoder_length(TextDecoder* td) {
   size_t r = 0;
 
-  r += textdecoder_try(ringbuffer_begin(&td->buffer), ringbuffer_continuous_length(&td->buffer));
+  r += textdecoder_try(ringbuffer_begin(&td->buffer), ringbuffer_continuous(&td->buffer));
 
   if(td->buffer.head < td->buffer.tail)
     r += textdecoder_try(td->buffer.data, ringbuffer_head(&td->buffer));
@@ -69,7 +69,7 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
   int len = 0;
   js_dbuf_init(ctx, &dbuf);
 
-  /* if(textdecoder_length(td) > ringbuffer_continuous_length(&td->buffer))
+  /* if(textdecoder_length(td) > ringbuffer_continuous(&td->buffer))
      ringbuffer_normalize(&td->buffer);*/
 
   switch(td->encoding) {
@@ -100,9 +100,7 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
       const uint_least32_t* end = ringbuffer_end(&td->buffer);
 
       for(i = 0; ptr != end; ptr = ringbuffer_next(&td->buffer, ptr), i++) {
-        uint_least32_t cp = *ptr;
-
-        len = unicode_to_utf8((void*)tmp, cp);
+         len = unicode_to_utf8((void*)tmp, *ptr);
 
         if(dbuf_put(&dbuf, (const void*)tmp, len))
           return JS_ThrowOutOfMemory(ctx);
@@ -331,7 +329,7 @@ size_t
 textencoder_length(TextEncoder* td) {
   size_t r = 0;
 
-  r += textencoder_try(ringbuffer_begin(&td->buffer), ringbuffer_continuous_length(&td->buffer));
+  r += textencoder_try(ringbuffer_begin(&td->buffer), ringbuffer_continuous(&td->buffer));
 
   if(td->buffer.head < td->buffer.tail)
     r += textencoder_try(td->buffer.data, ringbuffer_head(&td->buffer));
@@ -345,7 +343,7 @@ textencoder_read(TextEncoder* te, JSContext* ctx) {
   int bits;
   size_t len = ringbuffer_length(&te->buffer);
 
-  if(len > ringbuffer_continuous_length(&te->buffer))
+  if(len > ringbuffer_continuous(&te->buffer))
     ringbuffer_normalize(&te->buffer);
 
   switch(te->encoding) {
