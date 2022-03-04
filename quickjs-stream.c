@@ -75,7 +75,7 @@ read_next(Reader* rd, JSContext* ctx) {
 
 static BOOL
 read_done(Read* op) {
-  return promise_done(&op->promise);
+  return JS_IsUndefined(op->promise.value) && promise_done(&op->promise);
 }
 
 Reader*
@@ -179,7 +179,7 @@ reader_update(Reader* rd, JSContext* ctx) {
   Chunk* ch;
   Readable* st = rd->stream;
   int ret = 0;
-  printf("reader_update [%zu]\n", list_size(&rd->reads));
+  printf("reader_update [%zu] closed=%d\n", list_size(&rd->reads), readable_closed(st));
 
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
@@ -224,7 +224,7 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
       continue;
     }
 
-    if(promise_pending(&op->promise)) {
+    if(promise_pending(&el->promise)) {
       op = el;
       break;
     }
