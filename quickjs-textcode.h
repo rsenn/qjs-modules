@@ -1,5 +1,5 @@
-#ifndef QUICKJS_TEXTDECODER_H
-#define QUICKJS_TEXTDECODER_H
+#ifndef QUICKJS_DECODER_H
+#define QUICKJS_DECODER_H
 
 #include "include/utils.h"
 #include "include/ringbuffer.h"
@@ -54,4 +54,4 @@ js_encoder_data(JSContext* ctx, JSValueConst value) {
 /**
  * @}
  */
-#endif /* defined(QUICKJS_TEXTDECODER_H) */
+#endif /* defined(QUICKJS_DECODER_H) */
