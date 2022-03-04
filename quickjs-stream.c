@@ -18,8 +18,8 @@ thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_controller 
                      writer_ctor = {{JS_TAG_UNDEFINED}};
 
 JSValue js_writable_handler(JSContext* ctx, JSValueConst this_val, int magic);
-static JSValue writable_handler(Writable* st, int magic, JSContext* ctx);
-JSValue js_writable_wrap(JSContext* ctx, Writable* st);
+
+JSValue writable_handler(Writable* st, int magic, JSContext* ctx);
 
 static void
 chunk_unref(JSRuntime* rt, void* opaque, void* ptr) {
@@ -44,7 +44,7 @@ read_new(Reader* rd, JSContext* ctx) {
   Read* op;
   if((op = js_mallocz(ctx, sizeof(struct read_next)))) {
     op->seq = ++read_seq;
-    list_add(op, (Read *)&rd->reads);
+    list_add(op, &rd->reads);
 
     promise_init(ctx, &op->promise);
   }
@@ -56,7 +56,7 @@ read_next(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Read *el, *op = 0;
 
-  list_for_each_prev(el, (Read*)&rd->reads) {
+  list_for_each_prev(el, &rd->reads) {
     if(!JS_IsUndefined(el->promise.value)) {
       op = el;
       break;
@@ -183,7 +183,7 @@ reader_clean(Reader* rd, JSContext* ctx) {
   Read *el, *next;
   size_t ret = 0;
 
-  list_for_each_prev_safe(el, next, (Read *)&rd->reads) {
+  list_for_each_prev_safe(el, next, &rd->reads) {
     if(read_done(el)) {
       printf("reader_clean() delete[%i]\n", el->seq);
       list_del(&el->link);
@@ -236,7 +236,7 @@ BOOL
 reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   Read *op = 0, *el, *next;
   BOOL ret = FALSE;
-  list_for_each_prev_safe(el, next, (Read *)&rd->reads) {
+  list_for_each_prev_safe(el, next, &rd->reads) {
     printf("reader_passthrough() el[%i]\n", el->seq);
     if(promise_pending(&el->promise)) {
       op = el;
@@ -807,11 +807,12 @@ writer_close(Writer* wr, JSContext* ctx) {
   }
 
   {
-    JSValue r, handler;
+    JSValue r, w, handler, method;
     handler = writable_handler(st, WRITABLE_METHOD_CLOSE, ctx);
+    JS_FreeValue(ctx, method);
+    JS_FreeValue(ctx, w);
 
     r = promise_then(ctx, ret, handler);
-    JS_FreeValue(ctx, handler);
     JS_FreeValue(ctx, ret);
     ret = r;
   }
@@ -893,7 +894,7 @@ writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
   return wr;
 }
 
-static JSValue
+JSValue
 writable_handler(Writable* st, int magic, JSContext* ctx) {
   JSValue w = js_writable_wrap(ctx, st);
 
