@@ -270,17 +270,14 @@ void
 readable_close(Readable* st, JSContext* ctx) {
   static const BOOL expected = FALSE;
 
-  st->closed = TRUE;
-  /*  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-      return JS_ThrowInternalError(ctx, "ReadableStream already closed");*/
-
+  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
+    return JS_ThrowInternalError(ctx, "ReadableStream already closed");
   /*  if(readable_locked(st)) {
       promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
-
       reader_cancel(st->reader, ctx);
     }
-
-    ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
+;*/
+  // ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0)
 }
 
 void
@@ -289,37 +286,28 @@ readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
 
   if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
     JS_ThrowInternalError(ctx, "No locked ReadableStream associated");
-
   /* if(readable_locked(st)) {
      promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
-
      reader_cancel(st->reader, ctx);
    }
-
    ret = js_readable_callback(ctx, st, READABLE_CANCEL, 1, &reason);*/
 }
 
 JSValue
 readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
-  MemoryBlock b;
   InputBuffer input;
   int64_t ret;
   Reader* rd;
   size_t old_size;
 
-  if(readable_locked(st) && (rd = st->reader)) {
+  if(readable_locked(st) && (rd = st->reader))
     if(reader_passthrough(rd, chunk, ctx))
       return JS_UNDEFINED;
-  }
 
   input = js_input_chars(ctx, chunk);
-
   old_size = queue_size(&st->q);
-
   ret = queue_write(&st->q, input.data, input.size);
-
   // printf("old queue size: %zu new queue size: %zu\n", old_size, queue_size(&st->q));
-
   input_buffer_free(&input, ctx);
   return ret < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, ret) : JS_NewInt64(ctx, ret);
 }
@@ -754,12 +742,12 @@ writer_new(JSContext* ctx, Writable* st) {
 
     JSValue ret = js_writable_callback(ctx, st, WRITABLE_START, 1, &st->controller);
 
-/*
-  if(js_is_promise(ctx, ret)) 
-    ret = promise_forward(ctx, ret, &wr->events[WRITER_READY]);
-  else
-    promise_resolve(ctx, &wr->events[WRITER_READY].funcs, JS_TRUE);*/
-  
+    /*
+      if(js_is_promise(ctx, ret))
+        ret = promise_forward(ctx, ret, &wr->events[WRITER_READY]);
+      else
+        promise_resolve(ctx, &wr->events[WRITER_READY].funcs, JS_TRUE);*/
+
     JS_FreeValue(ctx, ret);
   }
 
@@ -782,34 +770,47 @@ writer_release_lock(Writer* wr, JSContext* ctx) {
 
 JSValue
 writer_write(Writer* wr, JSValueConst chunk, JSContext* ctx) {
-  /* JSValue ret = JS_UNDEFINED;
-ssize_t bytes;
+  JSValue ret = JS_UNDEFINED;
+  Writable* r;
 
- if((bytes = queue_write(&wr->q, block->base, block->size)) == block->size) {
-   Chunk* chunk = queue_tail(&wr->q);
-
-   chunk->opaque = promise_new(ctx, &ret);
- }*/
-  if(wr->stream) {
-    JSValueConst args[2] = {chunk, wr->stream->controller};
-    return js_writable_callback(ctx, wr->stream, WRITABLE_WRITE, 2, args);
+  if((r = atomic_load(&wr->stream))) {
+    JSValueConst args[2] = {chunk, r->controller};
+    ret = js_writable_callback(ctx, r, WRITABLE_WRITE, 2, args);
+  } else {
+    return JS_ThrowInternalError(ctx, "no WriteableStream");
   }
 
-  return JS_ThrowInternalError(ctx, "no WriteableStream");
+  return ret;
 }
 
 JSValue
 writer_close(Writer* wr, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-
-  if(!atomic_load(&wr->stream))
+  Writable* st;
+  if(!(st = atomic_load(&wr->stream)))
     return JS_ThrowInternalError(ctx, "no WriteableStream");
 
-  ret = js_writable_callback(ctx, wr->stream, WRITABLE_CLOSE, 0, 0);
+  ret = js_writable_callback(ctx, st, WRITABLE_CLOSE, 0, 0);
 
   if(js_is_promise(ctx, ret)) {
+
     ret = promise_forward(ctx, ret, &wr->events[WRITER_CLOSED]);
   }
+
+  {
+    JSValue r, w, handler, method;
+
+    method = JS_NewCFunctionMagic(ctx, js_writable_method, "close", 0, JS_CFUNC_generic_magic, WRITABLE_METHOD_CLOSE);
+    w = js_writable_wrap(ctx, st);
+    handler = js_function_bind_this(ctx, method, w);
+    JS_FreeValue(ctx, method);
+    JS_FreeValue(ctx, w);
+
+    r = promise_then(ctx, ret, handler);
+    JS_FreeValue(ctx, ret);
+    ret = r;
+  }
+
   return ret;
 }
 
@@ -965,6 +966,7 @@ js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
     case WRITER_CLOSE: {
       ret = writer_close(wr, ctx);
+
       break;
     }
     case WRITER_WRITE: {
@@ -1218,6 +1220,18 @@ transform_new(JSContext* ctx) {
   return st;
 }
 
+static void
+transform_terminate(Transform* st, JSContext* ctx) {
+  readable_close(st->readable, ctx);
+  writable_abort(st->writable, JS_UNDEFINED, ctx);
+}
+
+static void
+transform_error(Transform* st, JSValueConst error, JSContext* ctx) {
+  readable_abort(st->readable, error, ctx);
+  writable_abort(st->writable, error, ctx);
+}
+
 static JSValue
 js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -1293,13 +1307,11 @@ js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       break;
     }
     case TRANSFORM_ERROR: {
-      readable_abort(st->readable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
-      writable_abort(st->writable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      transform_error(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
       break;
     }
     case TRANSFORM_TERMINATE: {
-      readable_close(st->readable, ctx);
-      writable_abort(st->writable, JS_UNDEFINED, ctx);
+      transform_terminate(st, ctx);
       break;
     }
   }
