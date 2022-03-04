@@ -156,7 +156,7 @@ regexp_match(const uint8_t* bc, const void* cbuf, size_t clen, JSContext* ctx) {
   switch(lre_exec(capture, bc, cbuf, 0, clen, 0, ctx)) {
     case 1: ret = TRUE; break;
     case -1: fprintf(stderr, "regexp_match ERROR\n"); break;
-    case 0:
+    case 0: break;
   }
   return ret;
 }
