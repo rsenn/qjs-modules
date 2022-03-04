@@ -13,14 +13,18 @@ typedef enum string_encoding { UNKNOWN = 0, UTF8, UTF16, UTF32, NUM_ENCODINGS } 
 
 typedef struct string_decoder {
   RingBuffer buffer;
-  StringEncoding encoding;
-  BOOL big_endian;
+  struct __attribute__((packed)) {
+    StringEncoding encoding : 2;
+    BOOL big_endian;
+  };
 } TextDecoder;
 
 typedef struct string_encoder {
   RingBuffer buffer;
-  StringEncoding encoding;
-  BOOL big_endian;
+  struct __attribute__((packed)) {
+    StringEncoding encoding : 2;
+    BOOL big_endian;
+  };
 } TextEncoder;
 
 extern thread_local JSClassID js_textdecoder_class_id, js_textencoder_class_id;

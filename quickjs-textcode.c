@@ -18,9 +18,9 @@ thread_local JSValue textdecoder_proto = {{JS_TAG_UNDEFINED}}, textdecoder_ctor 
 
 const char* const textcode_encodings[] = {
     "unknown",
-    "utf8",
-    "utf16",
-    "utf32",
+    "utf-8",
+    "utf-16",
+    "utf-32",
 };
 
 enum {
@@ -142,7 +142,7 @@ js_textdecoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return ret;
   switch(magic) {
     case TEXTDECODER_ENCODING: {
-      ret = JS_NewString(ctx, dec->encoding == UTF8 ? "utf-8" : dec->encoding == UTF16 ? "utf-16" : "unknown");
+      ret = JS_NewString(ctx, textcode_encodings[dec->encoding]);
       break;
     }
     case TEXTDECODER_BIGENDIAN: {
@@ -400,7 +400,7 @@ js_textencoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return ret;
   switch(magic) {
     case TEXTENCODER_ENCODING: {
-      ret = JS_NewString(ctx, enc->encoding == UTF8 ? "utf-8" : enc->encoding == UTF16 ? "utf-16" : "unknown");
+      ret = JS_NewString(ctx, textcode_encodings[enc->encoding]);
       break;
     }
     case TEXTENCODER_BIGENDIAN: {
