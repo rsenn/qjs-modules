@@ -14,23 +14,25 @@ typedef enum string_encoding { UNKNOWN = 0, UTF8, UTF16, UTF32 } Encoding;
 typedef struct string_decoder {
   RingBuffer buffer;
   PACK union {
-    PACK struct {
+    struct {
       Encoding encoding : 2;
       Endian endian : 1;
     };
     unsigned type_code : 3;
   };
+  ENDPACK
 } TextDecoder;
 
 typedef struct string_encoder {
   RingBuffer buffer;
   PACK union {
-    PACK struct {
+    struct {
       Encoding encoding : 2;
       Endian endian : 1;
     };
     unsigned type_code : 3;
   };
+  ENDPACK
 } TextEncoder;
 
 extern thread_local JSClassID js_decoder_class_id, js_encoder_class_id;

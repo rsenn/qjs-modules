@@ -23,7 +23,13 @@
 #endif
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
 #define PACK __attribute__((packed))
+#define ENDPACK
+#else
+#define PACK #pragma pack(push, 1)
+#define ENDPACK #pragma pack(pop)
+#endif
 
 #define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num) \
   { \

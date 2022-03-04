@@ -39,6 +39,7 @@ PACK union socket_state {
   uint64_t u64;
   void* ptr;
 };
+ENDPACK
 
 struct socket_handlers {
   JSValue close, connect, data, drain, end, error, lookup, ready, timeout;
@@ -48,10 +49,11 @@ struct async_closure {
   JSCFunctionMagic* set_mux;
 };
 
-struct __attribute__((packed)) async_socket_state {
+PACK struct async_socket_state {
   SOCKET_PROPS();
   struct socket_handlers handlers;
 };
+ENDPACK
 
 typedef union socket_state Socket;
 typedef struct async_socket_state AsyncSocket;
