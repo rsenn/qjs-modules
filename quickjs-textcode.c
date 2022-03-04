@@ -62,7 +62,7 @@ textdecoder_length(TextDecoder* td) {
 
 JSValue
 textdecoder_read(TextDecoder* td, JSContext* ctx) {
-  JSValue ret;
+  JSValue ret = JS_UNDEFINED;
   DynBuf dbuf;
   size_t i;
   char tmp[UTF8_CHAR_LEN_MAX];
@@ -80,12 +80,15 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
     case UTF16: {
       uint_least16_t* ptr = ringbuffer_begin(&td->buffer);
       uint_least16_t* end = ringbuffer_end(&td->buffer);
+      size_t n = ringbuffer_length(&td->buffer) >> 1;
 
-      for(i = 0; ptr != end; ptr = ringbuffer_next(&td->buffer, ptr), i++) {
+      for(i = 0; i < n; ptr = ringbuffer_next(&td->buffer, ptr), i += 2) {
         uint_least32_t cp = 0;
 
-        if(!libutf_c16_to_c32(ptr, &cp))
-          return JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
+        if(!libutf_c16_to_c32(ptr, &cp)) {
+          ret = JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
+          break;
+        }
 
         len = unicode_to_utf8((void*)tmp, cp);
 
@@ -98,8 +101,9 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
     case UTF32: {
       const uint_least32_t* ptr = ringbuffer_begin(&td->buffer);
       const uint_least32_t* end = ringbuffer_end(&td->buffer);
+      size_t n = ringbuffer_length(&td->buffer) >> 2;
 
-      for(i = 0; ptr != end; ptr = ringbuffer_next(&td->buffer, ptr), i++) {
+      for(i = 0; i < n; ptr = ringbuffer_next(&td->buffer, ptr), i += 4) {
         len = unicode_to_utf8((void*)tmp, *ptr);
 
         if(dbuf_put(&dbuf, (const void*)tmp, len))
@@ -114,7 +118,8 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
     }
   }
 
-  ret = JS_NewStringLen(ctx, (const char*)ringbuffer_begin(&td->buffer), len);
+  if(JS_IsUndefined(ret) && dbuf.size > 0)
+    ret = JS_NewStringLen(ctx, dbuf.buf, dbuf.size);
 
   td->buffer.tail += len;
   return ret;
