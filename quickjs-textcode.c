@@ -339,7 +339,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   size_t i;
   uint_least32_t cp;
-  uint_least8_t u8[UTF8_CHAR_LEN_MAX];
+  uint8_t u8[UTF8_CHAR_LEN_MAX];
 
   switch(enc->encoding) {
     case UTF8: {
