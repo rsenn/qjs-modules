@@ -209,12 +209,11 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
   list_for_each_prev_safe(op, next, &rd->reads) {
     printf("reader_passthrough() read[%i]\n", op->seq);
 
-    ret = promise_resolve(ctx, &op->promise, chunk);
-
-    list_del(&op->link);
-    js_free(ctx, op);
-    if(ret)
+    if((ret = promise_resolve(ctx, &op->promise, chunk))) {
+      list_del(&op->link);
+      js_free(ctx, op);
       break;
+    }
   }
 
   return ret;
