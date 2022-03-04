@@ -181,37 +181,18 @@ uint16_get_le(const void* x) {
   return (y[1] << 8) | y[0];
 }
 
-static inline uint32_t
-uint32_get_be(const void* x) {
-  const uint16_t* y = x;
-  return (uint16_get_be(y[0]) << 16) | uint16_get_be(y[1]);
-}
-
-static inline uint32_t
-uint32_get_le(const void* x) {
-  const uint16_t* y = x;
-  return (uint16_get_le(y[1]) << 16) | uint16_get_le(y[0]);
-}
-
-static inline void
-uint16_read_be(const void* x, uint16_t* y) {
-  *y = uint16_get_be(x);
-}
-
-static inline void
-uint16_read_le(const void* x, uint16_t* y) {
-  *y = uint16_get_le(x);
-}
-
-static inline void
-uint32_read_be(const void* x, uint32_t* y) {
-  *y = uint32_get_be(x);
-}
-
-static inline void
-uint32_read_le(const void* x, uint32_t* y) {
-  *y = uint32_get_le(x);
-}
+/* clang-format off */
+static inline uint16_t uint16_get_endian(const void* x, BOOL big_endian) { return (big_endian ? uint16_get_be : uint16_get_le)(x); }
+static inline uint32_t uint32_get_be(const void* x) {const uint16_t* y = x; return (uint16_get_be(y) << 16) | uint16_get_be(y+1); }
+static inline uint32_t uint32_get_le(const void* x) {const uint16_t* y = x; return (uint16_get_le(y+1) << 16) | uint16_get_le(y); }
+static inline uint32_t uint32_get_endian(const void* x, BOOL big_endian) { return (big_endian ? uint32_get_be : uint32_get_le)(x); }
+static inline void uint16_read_be(const void* x, uint16_t* y) { *y = uint16_get_be(x); }
+static inline void uint16_read_le(const void* x, uint16_t* y) { *y = uint16_get_le(x); }
+static inline void uint16_read_endian(const void* x, uint16_t* y, BOOL big_endian) { (big_endian ? uint16_read_be : uint16_read_le)(x,y); }
+static inline void uint32_read_be(const void* x, uint32_t* y) { *y = uint32_get_be(x); }
+static inline void uint32_read_le(const void* x, uint32_t* y) { *y = uint32_get_le(x); }
+static inline void uint32_read_endian(const void* x, uint32_t* y, BOOL big_endian) { (big_endian ? uint32_read_be : uint32_read_le)(x,y); }
+/* clang-format on */
 
 static inline int32_t
 int32_sign(uint32_t i) {
