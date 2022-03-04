@@ -76,63 +76,64 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
   js_dbuf_init(ctx, &dbuf);
   blen = ringbuffer_length(&dec->buffer);
 
-  switch(dec->encoding) {
-    case UTF8: {
-      ret = JS_NewStringLen(ctx, (const char*)ringbuffer_begin(&dec->buffer), textdecoder_length(dec));
-      break;
-    }
-    case UTF16: {
-      uint_least16_t* ptr = ringbuffer_begin(&dec->buffer);
-      size_t n = blen & ~(0x1);
+  if(blen)
+    switch(dec->encoding) {
+      case UTF8: {
+        ret = JS_NewStringLen(ctx, (const char*)ringbuffer_begin(&dec->buffer), textdecoder_length(dec));
+        break;
+      }
+      case UTF16: {
+        uint_least16_t* ptr = ringbuffer_begin(&dec->buffer);
+        size_t n = blen & ~(0x1);
 
-      for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 2) {
-        uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->big_endian), 0};
-        size_t ns = 2;
+        for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 2) {
+          uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->big_endian), 0};
+          size_t ns = 2;
 
-        if(utf16_multiword(u16)) {
-          if(i + 2 >= n)
+          if(utf16_multiword(u16)) {
+            if(i + 2 >= n)
+              break;
+            u16[1] = uint16_get_endian(ptr + 1, dec->big_endian);
+            ns += 2;
+          }
+
+          if(!libutf_c16_to_c32(u16, &cp)) {
+            ret = JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
             break;
-          u16[1] = uint16_get_endian(ptr + 1, dec->big_endian);
-          ns += 2;
+          }
+          len = unicode_to_utf8((void*)tmp, cp);
+
+          if(dbuf_put(&dbuf, (const void*)tmp, len))
+            return JS_ThrowOutOfMemory(ctx);
+
+          printf("blen (1): %zu\n", ringbuffer_length(&dec->buffer));
+          ringbuffer_skip(&dec->buffer, ns);
+          printf("blen (2): %zu\n", ringbuffer_length(&dec->buffer));
         }
 
-        if(!libutf_c16_to_c32(u16, &cp)) {
-          ret = JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
-          break;
-        }
-        len = unicode_to_utf8((void*)tmp, cp);
-
-        if(dbuf_put(&dbuf, (const void*)tmp, len))
-          return JS_ThrowOutOfMemory(ctx);
-
-        printf("blen (1): %zu\n", ringbuffer_length(&dec->buffer));
-        ringbuffer_skip(&dec->buffer, ns);
-        printf("blen (2): %zu\n", ringbuffer_length(&dec->buffer));
+        break;
       }
+      case UTF32: {
+        const uint_least32_t* ptr = ringbuffer_begin(&dec->buffer);
+        size_t n = blen & ~(0x3);
 
-      break;
-    }
-    case UTF32: {
-      const uint_least32_t* ptr = ringbuffer_begin(&dec->buffer);
-      size_t n = blen & ~(0x3);
-
-      for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 4) {
-        cp = uint32_get_endian(ptr, dec->big_endian);
-        if(!libutf_c32_to_c8(cp, &len, tmp)) {
-          ret = JS_ThrowInternalError(ctx, "No a valid utf-32 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
-          break;
+        for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 4) {
+          cp = uint32_get_endian(ptr, dec->big_endian);
+          if(!libutf_c32_to_c8(cp, &len, tmp)) {
+            ret = JS_ThrowInternalError(ctx, "No a valid utf-32 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
+            break;
+          }
+          if(dbuf_put(&dbuf, (const void*)tmp, len))
+            return JS_ThrowOutOfMemory(ctx);
+          ringbuffer_skip(&dec->buffer, 4);
         }
-        if(dbuf_put(&dbuf, (const void*)tmp, len))
-          return JS_ThrowOutOfMemory(ctx);
-        ringbuffer_skip(&dec->buffer, 4);
+        break;
       }
-      break;
+      default: {
+        ret = JS_ThrowInternalError(ctx, "TextEncoder: unknown encoding");
+        break;
+      }
     }
-    default: {
-      ret = JS_ThrowInternalError(ctx, "TextEncoder: unknown encoding");
-      break;
-    }
-  }
 
   if(JS_IsUndefined(ret) && dbuf.size > 0)
     ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
