@@ -101,24 +101,6 @@ reader_operation(Reader* rd, JSContext* ctx) {
   return op;
 }
 
-// printf("Read (%i) reads[%zu]\n", op->seq, list_size(&rd->reads));
-
-ret = promise_create(ctx, &op->handlers);
-
-if((st = rd->stream)) {
-  if(queue_empty(&st->q)) {
-    JSValue tmp = js_readable_callback(ctx, st, READABLE_PULL, 1, &st->controller);
-    JS_FreeValue(ctx, tmp);
-  }
-}
-// printf("Read (%i) q[%zu]\n", op->seq, queue_size(&st->q));
-
-reader_update(rd, ctx);
-// printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
-
-return ret;
-}
-
 JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
