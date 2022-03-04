@@ -69,7 +69,7 @@ JSValue
 textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf;
-  size_t i, blen;
+  size_t i = 0, blen;
   uint_least32_t cp;
   char tmp[UTF8_CHAR_LEN_MAX];
   int len = 0;
@@ -130,6 +130,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         break;
       }
     }
+
   ringbuffer_skip(&dec->buffer, i);
 
   if(JS_IsUndefined(ret) && dbuf.size > 0)
