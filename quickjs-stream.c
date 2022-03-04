@@ -199,8 +199,10 @@ reader_update(Reader* rd, JSContext* ctx) {
       result = js_iterator_result(ctx, chunk, FALSE);
       JS_FreeValue(ctx, chunk);
 
-      if(reader_passthrough(rd, result, ctx))
-        ++ret;
+      if(!reader_passthrough(rd, result, ctx))
+        break;
+
+      ++ret;
 
       JS_FreeValue(ctx, result);
     }
@@ -229,9 +231,9 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
       break;
     }
   }
-
-  if(!op)
-    op = read_new(rd, ctx);
+  /*
+    if(!op)
+      op = read_new(rd, ctx);*/
 
   if(op) {
     if((ret = promise_resolve(ctx, &op->promise, chunk))) {
