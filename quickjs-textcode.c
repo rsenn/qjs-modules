@@ -77,7 +77,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
     case UTF16: {
       uint_least16_t* ptr = ringbuffer_begin(&dec->buffer);
       uint_least16_t* end = ringbuffer_end(&dec->buffer);
-      size_t n = ringbuffer_length(&dec->buffer);
+      size_t n = ringbuffer_length(&dec->buffer) & ~(0x1);
 
       for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 2) {
         uint_least32_t cp = 0;
@@ -98,15 +98,16 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
     case UTF32: {
       const uint_least32_t* ptr = ringbuffer_begin(&dec->buffer);
       const uint_least32_t* end = ringbuffer_end(&dec->buffer);
-      size_t n = ringbuffer_length(&dec->buffer);
+      size_t n = ringbuffer_length(&dec->buffer) & ~(0x3);
 
       for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 4) {
+        uint_least32_t cp = *ptr;
         uint8_t* tmp;
 
         if(!(tmp = dbuf_reserve(&dbuf, 8)))
           return JS_ThrowOutOfMemory(ctx);
 
-        if(!libutf_c32_to_c8(*ptr, &len, tmp)) {
+        if(!libutf_c32_to_c8(cp, &len, tmp)) {
           ret = JS_ThrowInternalError(ctx, "No a valid utf-32 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
           break;
         }
