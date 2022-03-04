@@ -180,7 +180,9 @@ js_textdecoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(argc >= 1) {
     const char* encoding = JS_ToCString(ctx, argv[0]);
 
-    if(!strcasecmp(encoding, "utf16") || !strcasecmp(encoding, "utf-16"))
+    if(!strcasecmp(encoding, "utf32") || !strcasecmp(encoding, "utf-32"))
+      dec->encoding = UTF16;
+    else if(!strcasecmp(encoding, "utf16") || !strcasecmp(encoding, "utf-16"))
       dec->encoding = UTF16;
     else if(!strcasecmp(encoding, "utf8") || !strcasecmp(encoding, "utf-8"))
       dec->encoding = UTF8;
