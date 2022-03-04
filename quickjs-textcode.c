@@ -346,34 +346,31 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       break;
     }
     case UTF16: {
-      const uint8_t* ptr = input_buffer_begin(&in);
-      const uint8_t* end = input_buffer_end(&in);
+      const uint8_t *ptr = block_begin(&in.block), *end = block_end(&in.block);
 
       for(i = 0; ptr < end; i++) {
         uint_least32_t cp = unicode_from_utf8(ptr, end - ptr, &ptr);
         uint_least16_t u16[2];
         int len;
-
         if(!libutf_c32_to_c16(cp, &len, u16))
           return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, i, cp);
 
-        if(ringbuffer_append(&enc->buffer, (const void*)u16, len * sizeof(uint_least16_t), ctx) < 0)
-          return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer write failed");
+        for(int i = 0; i < len; i++)
+          u16[i] =
+
+              if(ringbuffer_append(&enc->buffer, (const void*)u16, len * sizeof(uint_least16_t), ctx) <
+                 0) return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer write failed");
       }
 
       break;
     }
     case UTF32: {
-      const uint8_t* ptr = input_buffer_begin(&in);
-      const uint8_t* end = input_buffer_end(&in);
-
+      const uint8_t *ptr = block_begin(&in.block), *end = block_end(&in.block);
       for(i = 0; ptr < end; i++) {
         uint_least32_t cp = unicode_from_utf8(ptr, end - ptr, &ptr);
-
         if(ringbuffer_append(&enc->buffer, (const void*)&cp, sizeof(cp), ctx) < 0)
           return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer write failed");
       }
-
       break;
     }
     default: {

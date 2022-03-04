@@ -41,7 +41,6 @@ function main(...args) {
   let s1 = '🅇☆⨀☀☯🅧𝚡𝘅𝘹𝐱𝐗💨𞥞𑙣𑗊𑗐𑗐';
   let s2 = 'äöüàéèïë';
 
-  
   let u8 = new Uint8Array([
     0xc3, 0xa4, 0xc3, 0xb6, 0xc3, 0xbc, 0xc3, 0xa0, 0xc3, 0xa9, 0xc3, 0xa8, 0xc3, 0xaf, 0xc3, 0xab
   ]);
@@ -60,13 +59,12 @@ function main(...args) {
   Decode(16, u16);
   Decode(32, u32);
 
-Encode(8, s1);
+  Encode(8, s1);
   Encode(8, s2);
   Encode(16, s1);
   Encode(16, s2);
   Encode(32, s1);
   Encode(32, s2);
-
 
   const encoder = new TextEncoder();
   const view = encoder.encode('€');

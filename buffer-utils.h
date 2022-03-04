@@ -126,15 +126,12 @@ block_init(MemoryBlock* mb) {
   mb->size = 0;
 }
 
-static inline void*
-block_data(MemoryBlock* mb) {
-  return mb->base;
-}
-
-static inline size_t
-block_length(MemoryBlock* mb) {
-  return mb->size;
-}
+/* clang-format off */
+static inline void* block_data(const MemoryBlock* mb) { return mb->base; }
+static inline size_t block_length(const MemoryBlock* mb) { return mb->size; }
+static inline void* block_begin(const MemoryBlock* mb) { return mb->base; }
+static inline void* block_end(const MemoryBlock* mb) { return mb->base + mb->size; }
+/* clang-format on */
 
 static inline BOOL
 block_arraybuffer(MemoryBlock* mb, JSValueConst ab, JSContext* ctx) {
