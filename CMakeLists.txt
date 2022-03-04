@@ -204,6 +204,20 @@ if(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
   add_definitions(-DHAVE_INOTIFY=1)
 endif(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
 
+check_functions(sysinfo)
+
+if(HAVE_SYSINFO)
+  check_includes(sys/sysinfo.h)
+
+  if(HAVE_SYS_SYSINFO_H)
+    add_definitions(-DHAVE_SYSINFO)
+  else(HAVE_SYSINFO_H)
+    set(HAVE_SYSINFO FALSE)
+  endif(HAVE_SYS_SYSINFO_H)
+
+endif(HAVE_SYSINFO)
+
+message("Have sysinfo() ${HAVE_SYSINFO}")
 # if(BUILD_PIGPIO)
 #   include(ExternalProject)
 #   ExternalProject_Add(
@@ -340,8 +354,8 @@ endif(WIN32 OR MINGW)
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 set(textcode_SOURCES
     quickjs-textcode.c quickjs-textcode.h ringbuffer.c ringbuffer.h
-    libutf/src/libutf.c
-    ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
+    libutf/src/libutf.c ${buffer_utils_SOURCES} ${utils_SOURCES}
+    ${vector_SOURCES})
 
 set(misc_SOURCES base64.c base64.h quickjs-internal.c quickjs-internal.h
                  ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
@@ -353,7 +367,8 @@ set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
 # endif(pigpio_LIBRARY)
 
-include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include)
+include_directories(${LibArchive_INCLUDE_DIRS}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include)
 set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
