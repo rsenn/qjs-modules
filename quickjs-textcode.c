@@ -106,9 +106,11 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
           if(dbuf_put(&dbuf, (const void*)tmp, len))
             return JS_ThrowOutOfMemory(ctx);
 
-          printf("blen (1): %zu\n", ringbuffer_length(&dec->buffer));
+          blen = ringbuffer_length(&dec->buffer);
+          printf("blen %p (1): %zu\n", &dec->buffer, blen);
           ringbuffer_skip(&dec->buffer, ns);
-          printf("blen (2): %zu\n", ringbuffer_length(&dec->buffer));
+          blen = ringbuffer_length(&dec->buffer);
+          printf("blen %p (2): %zu\n", &dec->buffer, blen);
         }
 
         break;
