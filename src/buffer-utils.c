@@ -220,7 +220,7 @@ dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int))
 
 void
 dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]) {
-  size_t i = 0, j, k;
+  size_t i = 0, j, k, clen;
   int32_t c;
 
   const uint8_t *pos, *end, *next;
@@ -230,15 +230,21 @@ dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t ta
 
     if((c = unicode_from_utf8(pos, end - pos, &next)) < 0)
       break;
-
+    clen = next - pos;
     ch = c;
+    r = table[ch];
+
+    if(clen > 1)
+      r='u';
+
     if(ch == 0x1b) {
       dbuf_putstr(db, "\\x1b");
-    } else if((r = table[ch])) {
-      dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(ch)) ? c : ch);
+    } else if(r) {
 
       if(r == 'u' || r == 'x')
-        dbuf_printf(db, r == 'u' ? c > 0xffffu ? "\\u%08x" : "\\u%04x" : "\\x%02x", c);
+        dbuf_printf(db, r == 'u' ? c > 0xffffff ? "\\u%08X" : c > 0xffff ? "\\u%06X" :  "\\u%04X" : "\\x%02x", c);
+      else
+        dbuf_putc(db, (r > 1 && r <= 127) ? r : (c = escape_char_letter(ch)) ? c : ch);
 
     } else {
       dbuf_put(db, pos, next - pos);
