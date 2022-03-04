@@ -43,6 +43,7 @@ void dbuf_put_escaped(DynBuf*, const char*, size_t len);
 void dbuf_put_value(DynBuf*, JSContext*, JSValue value);
 void dbuf_put_atom(DynBuf* db, JSContext* ctx, JSAtom atom);
 int dbuf_reserve_start(DynBuf*, size_t);
+uint8_t* dbuf_reserve(DynBuf*, size_t);
 size_t dbuf_token_pop(DynBuf*, char);
 size_t dbuf_token_push(DynBuf*, const char*, size_t len, char delim);
 JSValue dbuf_tostring_free(DynBuf*, JSContext*);

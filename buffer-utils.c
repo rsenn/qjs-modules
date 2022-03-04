@@ -313,6 +313,15 @@ dbuf_reserve_start(DynBuf* s, size_t len) {
   return 0;
 }
 
+uint8_t*
+dbuf_reserve(DynBuf* s, size_t len) {
+  if(unlikely((s->size + len) > s->allocated_size)) {
+    if(dbuf_realloc(s, s->size + len))
+      return 0;
+  }
+  return &s->buf[s->size];
+}
+
 size_t
 dbuf_token_pop(DynBuf* db, char delim) {
   size_t n, p, len;

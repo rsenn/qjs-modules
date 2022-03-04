@@ -98,13 +98,21 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
     case UTF32: {
       const uint_least32_t* ptr = ringbuffer_begin(&dec->buffer);
       const uint_least32_t* end = ringbuffer_end(&dec->buffer);
-      size_t n = ringbuffer_length(&dec->buffer) >> 2;
+      size_t n = ringbuffer_length(&dec->buffer);
 
       for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 4) {
-        len = unicode_to_utf8((void*)tmp, *ptr);
+        uint8_t* tmp;
 
-        if(dbuf_put(&dbuf, (const void*)tmp, len))
+        if(!(tmp = dbuf_reserve(&dbuf, 8)))
           return JS_ThrowOutOfMemory(ctx);
+
+        if(!libutf_c32_to_c8(*ptr, &len, tmp)) {
+          ret = JS_ThrowInternalError(ctx, "No a valid utf-32 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
+          break;
+        }
+
+        // len = unicode_to_utf8((void*)tmp, *ptr);
+        dbuf.size += len;
       }
 
       break;
