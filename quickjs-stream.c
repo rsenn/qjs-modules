@@ -147,9 +147,9 @@ reader_read(Reader* rd, JSContext* ctx) {
       JS_FreeValue(ctx, tmp);
     }
   }
-  // printf("Read (%i) q[%zu]\n", op->seq, queue_size(&st->q));
 
   reader_update(rd, ctx);
+  printf("reader_read (2) [%zu]\n", list_size(&rd->reads));
   // printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
 
   return ret;
@@ -173,6 +173,7 @@ reader_update(Reader* rd, JSContext* ctx) {
   Chunk* ch;
   Readable* st = rd->stream;
   int ret = 0;
+  printf("reader_update (1) [%zu]\n", list_size(&rd->reads));
 
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
@@ -210,8 +211,10 @@ reader_passthrough(Reader* rd, JSValueConst chunk, JSContext* ctx) {
     printf("reader_passthrough() read[%i]\n", op->seq);
 
     if((ret = promise_resolve(ctx, &op->promise, chunk))) {
-      list_del(&op->link);
-      js_free(ctx, op);
+      if(JS_IsUndefined(op->promise.value)) {
+        list_del(&op->link);
+        js_free(ctx, op);
+      }
       break;
     }
   }
