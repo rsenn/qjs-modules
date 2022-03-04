@@ -137,6 +137,37 @@ reader_clear(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
+static JSValue
+reader_close(Reader* rd, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
+
+  if(!rd->stream)
+    return JS_ThrowInternalError(ctx, "no ReadableStream");
+
+  ret = js_readable_callback(ctx, rd->stream, READABLE_CANCEL, 0, 0);
+
+  if(js_is_promise(ctx, ret)) {
+    ret = promise_forward(ctx, ret, &rd->events[READER_CLOSED]);
+  }
+  return ret;
+}
+
+static JSValue
+reader_cancel(Reader* rd, JSValueConst reason, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
+
+  if(!rd->stream)
+    return JS_ThrowInternalError(ctx, "no WriteableStream");
+
+  ret = js_readable_callback(ctx, rd->stream, READABLE_CANCEL, 1, &reason);
+
+  if(js_is_promise(ctx, ret)) {
+    ret = promise_forward(ctx, ret, &rd->events[READER_CANCELLED]);
+  }
+  return ret;
+}
+
+/*
 static int
 reader_cancel(Reader* rd, JSContext* ctx) {
 
@@ -145,7 +176,7 @@ reader_cancel(Reader* rd, JSContext* ctx) {
 
   return reader_clear(rd, ctx);
 }
-
+*/
 static JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -189,7 +220,7 @@ reader_clean(Reader* rd, JSContext* ctx) {
   Read *el, *next;
   size_t ret = 0;
 
-  list_for_each_prev_safe(el, next, &rd->reads) {
+  list_for_each_prev_safe(el, next, (Read*)&rd->reads) {
     if(read_done(el)) {
       printf("reader_clean() delete[%i]\n", el->seq);
       list_del(&el->link);
@@ -279,24 +310,31 @@ readable_dup(Readable* st) {
 static JSValue
 readable_close(Readable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
+  static const BOOL expected = FALSE;
+  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
+    if(readable_locked(st)) {
+      promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
+      reader_close(st->reader, ctx);
+    }
+  }
+  return ret;
+}
+/*static JSValue
+readable_close(Readable* st, JSContext* ctx) {
+  JSValue ret = JS_UNDEFINED;
   if(st->closed)
     return ret;
-
-  /*    static const BOOL expected = FALSE;
-if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-      return JS_ThrowInternalError(ctx, "ReadableStream already closed");*/
 
   if(readable_locked(st)) {
     promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
-    ret reader_cancel(st->reader, ctx);
+    ret = reader_cancel(st->reader, ctx);
   }
   return ret;
-  /*  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
-}
+ }*/
 
 static JSValue
-readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
+readable_cancel(Readable* st, JSValueConst reason, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   if(st->closed)
     return ret;
@@ -309,7 +347,7 @@ readable_abort(Readable* st, JSValueConst reason, JSContext* ctx) {
   if(readable_locked(st)) {
     promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
-    ret = reader_cancel(st->reader, ctx);
+    ret = reader_cancel(st->reader, reason, ctx);
   }
   return ret;
 
@@ -463,7 +501,7 @@ js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   switch(magic) {
     case READER_CANCEL: {
-      reader_cancel(rd, ctx);
+      reader_close(rd, ctx);
       ret = JS_DupValue(ctx, rd->events[READER_CANCELLED].value);
       break;
     }
@@ -632,7 +670,7 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   switch(magic) {
     case READABLE_ABORT: {
       if(argc >= 1)
-        readable_abort(st, argv[0], ctx);
+        readable_cancel(st, argv[0], ctx);
       else
         readable_close(st, ctx);
 
@@ -693,7 +731,7 @@ js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       break;
     }
     case READABLE_ERROR: {
-      readable_abort(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
+      readable_cancel(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
       break;
     }
   }
@@ -1269,7 +1307,7 @@ transform_terminate(Transform* st, JSContext* ctx) {
 
 static void
 transform_error(Transform* st, JSValueConst error, JSContext* ctx) {
-  readable_abort(st->readable, error, ctx);
+  readable_cancel(st->readable, error, ctx);
   writable_abort(st->writable, error, ctx);
 }
 
@@ -1348,7 +1386,7 @@ js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       break;
     }
     case TRANSFORM_ERROR: {
-      JS_FreeValue(ctx, readable_abort(st->readable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx));
+      JS_FreeValue(ctx, readable_cancel(st->readable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx));
       ret = writable_abort(st->writable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
       break;
     }
