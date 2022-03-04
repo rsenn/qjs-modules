@@ -171,6 +171,75 @@ utf8_strlen(const void* in, size_t len) {
   }
   return i;
 }
+
+int
+case_lowerc(int c) {
+  if(c >= 'A' && c <= 'Z')
+    c += 'a' - 'A';
+  return c;
+}
+
+int
+case_starts(const char* a, const char* b) {
+  const char* s = a;
+  const char* t = b;
+  for(;;) {
+    unsigned char x, y;
+    if(!*t)
+      return 1;
+    x = case_lowerc(*s);
+    y = case_lowerc(*t);
+    if(x != y)
+      break;
+    if(!x)
+      break;
+    ++s;
+    ++t;
+  }
+  return 0;
+}
+
+int
+case_diffb(const void* S, size_t len, const void* T) {
+  unsigned char x;
+  unsigned char y;
+  const char* s = (const char*)S;
+  const char* t = (const char*)T;
+
+  while(len > 0) {
+    --len;
+    x = case_lowerc(*s);
+    y = case_lowerc(*t);
+
+    ++s;
+    ++t;
+
+    if(x != y)
+      return ((int)(unsigned int)x) - ((int)(unsigned int)y);
+  }
+  return 0;
+}
+
+size_t
+case_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
+  size_t i, last;
+  const char* s = haystack;
+  if(hlen < wlen)
+    return hlen;
+  last = hlen - wlen;
+  for(i = 0; i <= last; i++) {
+    if(!case_diffb(s, wlen, what))
+      return i;
+    s++;
+  }
+  return hlen;
+}
+
+size_t
+case_finds(const void* haystack, size_t hlen, const char* what) {
+  return case_findb(haystack, hlen, what, strlen(what));
+}
+
 /**
  * @}
  */

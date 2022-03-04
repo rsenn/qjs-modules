@@ -101,8 +101,8 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
       size_t n = ringbuffer_length(&dec->buffer) & ~(0x3);
 
       for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 4) {
-        uint_least32_t cp = *ptr;
-        uint8_t* tmp;
+        uint_least32_t cp = uint32_get_endian(ptr, dec->big_endian);
+        void* tmp;
 
         if(!(tmp = dbuf_reserve(&dbuf, 8)))
           return JS_ThrowOutOfMemory(ctx);
