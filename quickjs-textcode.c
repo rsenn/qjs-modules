@@ -169,10 +169,10 @@ js_textdecoder_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
           for(i = 0; ptr < end; ptr++, i++) {
             int len;
-            uint_least32_t cp;
+            uint_least32_t cp = 0;
 
             if(!libutf_c16_to_c32(ptr, &cp))
-              return JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu): %" PRIu32, i, cp);
+              return JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
 
             len = unicode_to_utf8(tmp, cp);
 

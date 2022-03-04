@@ -39,7 +39,9 @@ function main(...args) {
   let result = xml.read(data, file, false);
   let end = Date.now();
   //console.log('result[0]', inspect(result[0], { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
-  let tags = deep.select(result, (n, k) => k == 'tagName', deep.RETURN_PATH).map(p => p.slice(0, -1));
+  let tags = deep
+    .select(result, (n, k) => k == 'tagName', deep.RETURN_PATH)
+    .map(p => p.slice(0, -1));
   //  console.log('tags',tags);
   let numTags = tags.length;
   console.log(`Parsing '${/*path.basename*/ file}' took ${end - start}ms (${numTags} elements)`);
