@@ -63,10 +63,57 @@ textdecoder_length(TextDecoder* td) {
 JSValue
 textdecoder_read(TextDecoder* td, JSContext* ctx) {
   JSValue ret;
-  size_t len = textdecoder_length(td);
+  DynBuf dbuf;
+  char tmp[UTF8_CHAR_LEN_MAX];
+  int len = 0;
+  js_dbuf_init(ctx, &dbuf);
 
-  if(len > ringbuffer_continuous_length(&td->buffer))
+  if(textdecoder_length(td) > ringbuffer_continuous_length(&td->buffer))
     ringbuffer_normalize(&td->buffer);
+
+  switch(dec->encoding) {
+    case UTF8: {
+      ret = JS_NewStringLen(ctx, (const char*)ringbuffer_begin(&td->buffer), textdecoder_length(td));
+      break;
+    }
+    case UTF16: {
+      uint_least16_t* ptr = input_buffer_begin(&in);
+      uint_least16_t* end = input_buffer_end(&in);
+
+      for(i = 0; ptr < end; ptr++, i++) {
+        uint_least32_t cp = 0;
+
+        if(!libutf_c16_to_c32(ptr, &cp))
+          return JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
+
+        len = unicode_to_utf8(tmp, cp);
+
+        if(dbuf_put(&dbuf, tmp, len))
+          return JS_ThrowOutOfMemory(ctx);
+      }
+
+      break;
+    }
+    case UTF32: {
+      const uint_least32_t* ptr = input_buffer_begin(&in);
+      const uint_least32_t* end = input_buffer_end(&in);
+
+      for(i = 0; ptr < end; ptr++, i++) {
+        uint_least32_t cp = *ptr;
+
+        len = unicode_to_utf8(tmp, cp);
+
+        if(dbuf_put(&dbuf, tmp, len))
+          return JS_ThrowOutOfMemory(ctx);
+      }
+
+      break;
+    }
+    default: {
+      ret = JS_ThrowInternalError(ctx, "TextEncoder: unknown encoding");
+      break;
+    }
+  }
 
   ret = JS_NewStringLen(ctx, (const char*)ringbuffer_begin(&td->buffer), len);
 
@@ -156,54 +203,56 @@ js_textdecoder_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       InputBuffer in = js_input_chars(ctx, argv[0]);
       uint8_t tmp[UTF8_CHAR_LEN_MAX];
       size_t i;
+      if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
+        return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
+      /*
+          switch(dec->encoding) {
+            case UTF8: {
+              if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
+                return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
+              break;
+            }
+            case UTF16: {
+              uint_least16_t* ptr = input_buffer_begin(&in);
+              uint_least16_t* end = input_buffer_end(&in);
 
-      switch(dec->encoding) {
-        case UTF8: {
-          if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
-            return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
-          break;
-        }
-        case UTF16: {
-          uint_least16_t* ptr = input_buffer_begin(&in);
-          uint_least16_t* end = input_buffer_end(&in);
+              for(i = 0; ptr < end; ptr++, i++) {
+                int len;
+                uint_least32_t cp = 0;
 
-          for(i = 0; ptr < end; ptr++, i++) {
-            int len;
-            uint_least32_t cp = 0;
+                if(!libutf_c16_to_c32(ptr, &cp))
+                  return JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
 
-            if(!libutf_c16_to_c32(ptr, &cp))
-              return JS_ThrowInternalError(ctx, "No a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, i, ptr[0], ptr[1], cp);
+                len = unicode_to_utf8(tmp, cp);
 
-            len = unicode_to_utf8(tmp, cp);
+                if(ringbuffer_write(&dec->buffer, tmp, len) < 0)
+                  return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
+              }
 
-            if(ringbuffer_write(&dec->buffer, tmp, len) < 0)
-              return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
+              break;
+            }
+            case UTF32: {
+              const uint_least32_t* ptr = input_buffer_begin(&in);
+              const uint_least32_t* end = input_buffer_end(&in);
+
+              for(i = 0; ptr < end; ptr++, i++) {
+                int len;
+                uint_least32_t cp = *ptr;
+
+                len = unicode_to_utf8(tmp, cp);
+
+                if(ringbuffer_write(&dec->buffer, tmp, len) < 0)
+                  return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
+              }
+
+              break;
+            }
+            default: {
+              ret = JS_ThrowInternalError(ctx, "TextEncoder: unknown encoding");
+              break;
+            }
           }
-
-          break;
-        }
-        case UTF32: {
-          const uint_least32_t* ptr = input_buffer_begin(&in);
-          const uint_least32_t* end = input_buffer_end(&in);
-
-          for(i = 0; ptr < end; ptr++, i++) {
-            int len;
-            uint_least32_t cp = *ptr;
-
-            len = unicode_to_utf8(tmp, cp);
-
-            if(ringbuffer_write(&dec->buffer, tmp, len) < 0)
-              return JS_ThrowInternalError(ctx, "TextDecoder: ringbuffer %s failed", magic == TEXTDECODER_DECODE ? "decode" : "end");
-          }
-
-          break;
-        }
-        default: {
-          ret = JS_ThrowInternalError(ctx, "TextEncoder: unknown encoding");
-          break;
-        }
-      }
-
+    */
       if(ringbuffer_length(&dec->buffer) == 0)
         ret = JS_NULL;
       else
@@ -417,7 +466,8 @@ js_textencoder_encode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
             if(!libutf_c32_to_c16(cp, &len, u16))
               return JS_ThrowInternalError(ctx, "No a valid code point at (%zu): %" PRIu32, i, cp);
-            if(ringbuffer_write(&enc->buffer, (const void*)u16, len * 2) < 0)
+
+            if(ringbuffer_write(&enc->buffer, (const void*)u16, len * sizeof(uint_least16_t)) < 0)
               return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer %s failed", magic == TEXTENCODER_ENCODE ? "write" : "end");
           }
 
