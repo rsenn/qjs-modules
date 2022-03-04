@@ -55,6 +55,8 @@ typedef union ringbuffer {
 #define ringbuffer_full(rb) ((rb)->size == (rb)->head - (rb)->tail)
 #define ringbuffer_wrapped(rb) ((rb)->head < (rb)->tail)
 #define ringbuffer_continuous(rb) ((rb)->head >= (rb)->tail)
+#define ringbuffer_wrap(rb, idx) ((idx) % (rb)->size)
+#define ringbuffer_next(rb, ptr) (void*)(ringbuffer_wrap(rb, ((uint8_t*)(ptr + 1)) - (rb)->data) + (rb)->data)
 
 void ringbuffer_reset(RingBuffer*);
 void ringbuffer_queue(RingBuffer*, uint8_t data);

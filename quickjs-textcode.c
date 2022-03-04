@@ -69,8 +69,8 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
   int len = 0;
   js_dbuf_init(ctx, &dbuf);
 
-  if(textdecoder_length(td) > ringbuffer_continuous_length(&td->buffer))
-    ringbuffer_normalize(&td->buffer);
+  /* if(textdecoder_length(td) > ringbuffer_continuous_length(&td->buffer))
+     ringbuffer_normalize(&td->buffer);*/
 
   switch(td->encoding) {
     case UTF8: {
@@ -81,7 +81,7 @@ textdecoder_read(TextDecoder* td, JSContext* ctx) {
       uint_least16_t* ptr = ringbuffer_begin(&td->buffer);
       uint_least16_t* end = ringbuffer_end(&td->buffer);
 
-      for(i = 0; ptr < end; ptr++, i++) {
+      for(i = 0; ptr != end; ptr = ringbuffer_next(&td->buffer, ptr), i++) {
         uint_least32_t cp = 0;
 
         if(!libutf_c16_to_c32(ptr, &cp))
