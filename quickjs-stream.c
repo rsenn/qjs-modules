@@ -280,17 +280,18 @@ static void
 readable_close(Readable* st, JSContext* ctx) {
   static const BOOL expected = FALSE;
 
-  st->closed = TRUE;
-  /*  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
-      return JS_ThrowInternalError(ctx, "ReadableStream already closed");*/
+  if(!st->closed) {
+    st->closed = TRUE;
+    /*  if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
+        return JS_ThrowInternalError(ctx, "ReadableStream already closed");*/
 
-  /*  if(readable_locked(st)) {
+    if(readable_locked(st)) {
       promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
 
       reader_cancel(st->reader, ctx);
     }
-
-    ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
+  }
+  /*  ret = js_readable_callback(ctx, st, READABLE_CANCEL, 0, 0);*/
 }
 
 static void
