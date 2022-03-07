@@ -581,11 +581,16 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   if(is_searchable(s)) {
     if(!path_is_file(s)) {
       char* name;
+      size_t len;
       for(;;) {
         if((name = jsm_locate_module(ctx, s))) {
           js_free(ctx, s);
           s = js_strdup(ctx, name);
           break;
+        }
+        if(path_skip_component_s(name) == 3 && !strncmp(name, "lib")) {
+          name += 3 + path_skip_separator_s(&name[3]);
+          continue;
         }
         break;
       }
