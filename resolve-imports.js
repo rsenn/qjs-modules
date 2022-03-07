@@ -6,7 +6,7 @@ import inspect from 'inspect';
 import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import JSLexer from 'lexer/ecmascript.js';
+import ECMAScriptLexer from 'lexer/ecmascript.js';
 import { getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
 
 ('use strict');
@@ -48,13 +48,12 @@ function ReadJSON(filename) {
   let data = fs.readFileSync(filename, 'utf-8');
   return data ? JSON.parse(data) : null;
 }
-const  ReadPackageJSON =  once(() =>  ReadJSON('package.json') ?? { _moduleAliases: {} });
+const ReadPackageJSON = memoize(() => ReadJSON('package.json') ?? { _moduleAliases: {} });
 
 function ResolveAlias(filename) {
-  let {_moduleAliases}=ReadPackageJSON();
+  let { _moduleAliases } = ReadPackageJSON();
 
-  if(filename in _moduleAliases)
-    return _moduleAliases[filename];
+  if(filename in _moduleAliases) return _moduleAliases[filename];
   return filename;
 }
 
@@ -237,9 +236,9 @@ function ModuleLoader(module) {
 }
 
 function ResolveImports(source, log = () => {}, recursive, depth = 0) {
-source=path.normalize(source);
+  source = path.normalize(source);
   if(printFiles) std.puts(source + '\n');
-source=ResolveAlias(source);
+  source = ResolveAlias(source);
 
   logFile(`Processing ${source}\n`);
 
@@ -255,7 +254,7 @@ source=ResolveAlias(source);
     base = camelize(path.basename(source, '.' + type).replace(/[^0-9A-Za-z_]/g, '_'));
 
   let lex = {
-    js: new JSLexer(bytebuf, source)
+    js: new ECMAScriptLexer(bytebuf, source)
   };
   lex.mjs = lex.js;
   lex.cjs = lex.js;
@@ -324,7 +323,7 @@ source=ResolveAlias(source);
     cond,
     imp = [],
     showToken = tok => {
-      if((lexer.constructor != JSLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
+      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.puts(a.join('') + '\n');
       }
@@ -351,8 +350,9 @@ source=ResolveAlias(source);
     let n = balancers.last.depth;
     const { token } = lexer;
     const { length, seq } = token;
-    if(debug > 1) console.log('token', token);
-
+    /*  if(debug > 1) console.log('token', token);
+    if(debug >= 1) console.log('lexer.mode', lexer.mode);
+*/
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
     } else {

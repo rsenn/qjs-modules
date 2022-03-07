@@ -1,12 +1,12 @@
-#!/usr/bin/env qjsm
 import * as os from 'os';
+#!/usr/bin/env qjsm
 import * as std from 'std';
 import * as fs from 'fs';
 import inspect from 'inspect';
 import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import JSLexer from 'lexer/ecmascript.js';
+import ECMAScriptLexer from 'lexer/ecmascript.js';
 import { escape, toString, define, curry, unique, split, extendArray, camelize, getOpt } from 'util';
 
 let buffers = {},
@@ -204,7 +204,7 @@ function ListExports(file, output) {
     base = camelize(path.basename(file, '.' + type).replace(/[^0-9A-Za-z_]/g, '_'));
 
   let lex = {
-    js: new JSLexer(str, file)
+    js: new ECMAScriptLexer(str, file)
   };
 
   const lexer = lex[type];
@@ -276,7 +276,7 @@ function ListExports(file, output) {
     cond,
     imp = [],
     showToken = tok => {
-      if((lexer.constructor != JSLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
+      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.err.puts(a.join('') + '\n');
       }

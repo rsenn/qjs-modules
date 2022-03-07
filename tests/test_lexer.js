@@ -6,7 +6,7 @@ import * as path from 'path';
 import { Predicate } from 'predicate';
 import { Location, Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import JSLexer from '../lib/lexer/ecmascript.js';
+import ECMAScriptLexer from '../lib/lexer/ecmascript.js';
 import CLexer from '../lib/lexer/c.js';
 import BNFLexer from '../lib/lexer/bnf.js';
 import CSVLexer from '../lib/lexer/csv.js';
@@ -250,7 +250,7 @@ function main(...args) {
     log('data:', escape(str.slice(0, 100)));
 
     let lex = {
-      js: new JSLexer(str, file),
+      js: new ECMAScriptLexer(str, file),
       c: new CLexer(str, CLexer.LONGEST, file),
       bnf: new BNFLexer(str, file),
       csv: new CSVLexer(str, file)
@@ -373,7 +373,7 @@ function main(...args) {
     console.log('lexer.tokens', lexer.tokens);*/
 
     let showToken = tok => {
-      if((lexer.constructor != JSLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
+      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         // console.log('token', { lexeme: tok.lexeme, id: tok.id, loc: tok.loc + '' });
         let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.puts(a.join('') + '\n');

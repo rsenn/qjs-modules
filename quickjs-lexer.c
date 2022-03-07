@@ -408,9 +408,11 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         if(JS_IsFunction(ctx, jsrule->action)) {
           JSValue data[] = {JS_NewArray(ctx)};
           JSValue args[] = {this_val, JS_NewCFunctionData(ctx, lexer_continue, 0, 0, countof(data), data)};
-          JSValue do_skip;
-          /*ret =*/JS_Call(ctx, jsrule->action, this_val, 2, args);
+          JSValue ret, do_skip;
+
+          ret = JS_Call(ctx, jsrule->action, this_val, 2, args);
           JS_FreeValue(ctx, args[1]);
+          JS_FreeValue(ctx, ret);
 
           do_skip = JS_GetPropertyUint32(ctx, data[0], 0);
 
@@ -892,13 +894,13 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 enum {
   PROP_SIZE = 0,
   PROP_POS,
-  // PROP_START,
   PROP_EOF,
   PROP_FILENAME,
   PROP_LOC,
   PROP_RULENAMES,
   PROP_RULES,
   PROP_MODE,
+  PROP_SEQ,
   PROP_BYTE_LENGTH,
   PROP_CHAR_LENGTH,
   PROP_STATE,
@@ -978,6 +980,11 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
     case PROP_MODE: {
       ret = JS_NewInt32(ctx, lex->mode);
+      break;
+    }
+
+    case PROP_SEQ: {
+      ret = JS_NewInt64(ctx, lex->seq);
       break;
     }
 
@@ -1088,6 +1095,12 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       int32_t m;
       JS_ToInt32(ctx, &m, value);
       lex->mode = m;
+      break;
+    }
+    case PROP_SEQ: {
+      uint64_t s;
+      JS_ToIndex(ctx, &s, value);
+      lex->seq = s;
       break;
     }
   }
@@ -1339,6 +1352,7 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   // JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_new(ctx, &lex->loc), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "pos", JS_NewUint32(ctx, lex->input.pos), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "size", JS_NewUint32(ctx, lex->input.size), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewInt64(ctx, lex->seq), JS_PROP_ENUMERABLE);
 
   return obj;
 }
@@ -1370,6 +1384,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("loc", js_lexer_get, 0, PROP_LOC),
     JS_CGETSET_MAGIC_DEF("eof", js_lexer_get, 0, PROP_EOF),
     JS_CGETSET_MAGIC_DEF("mode", js_lexer_get, js_lexer_set, PROP_MODE),
+    JS_CGETSET_MAGIC_DEF("seq", js_lexer_get, js_lexer_set, PROP_SEQ),
     JS_CGETSET_MAGIC_DEF("byteLength", js_lexer_get, 0, PROP_BYTE_LENGTH),
     JS_CGETSET_MAGIC_DEF("charLength", js_lexer_get, 0, PROP_CHAR_LENGTH),
     JS_CGETSET_MAGIC_DEF("state", js_lexer_get, 0, PROP_STATE),
