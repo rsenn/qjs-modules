@@ -589,7 +589,9 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
           break;
         }
         if(path_skip_component_s(name) == 3 && !strncmp(name, "lib", 3)) {
-          name += 3 + path_skip_separator_s(&name[3]);
+          char* tmp = name;
+          name = js_strdup(ctx,  &tmp[3 + path_skip_separator_s(&name[3]));
+          js_free(ctx, tmp);
           continue;
         }
         break;
