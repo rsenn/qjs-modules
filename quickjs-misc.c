@@ -574,21 +574,33 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
 static JSValue
 js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue proto, ret;
-  size_t j = 0;
+  JSValue proto, prev = JS_UNDEFINED, ret;
+  int64_t i = -1, j = 0, limit = -1, start = 0, end;
 
   if(argc < 1 || !JS_IsObject(argv[0]))
     return JS_ThrowTypeError(ctx, "argument 1 object excepted");
 
+  if(argc >= 2 && !js_is_null_or_undefined(argv[1]))
+    JS_ToIndex(ctx, &limit, argv[1]);
+
+  if(argc >= 3 && !js_is_null_or_undefined(argv[2]))
+    JS_ToIndex(ctx, &start, argv[2]);
+
   ret = JS_NewArray(ctx);
+  end = limit >= 0 ? start + limit : -1;
 
-  for(proto = argv[0]; !JS_IsException(proto); proto = JS_GetPrototype(ctx, proto)) {
-
-    if(j > 0)
-      JS_SetPropertyUint32(ctx, ret, j - 1, proto);
-    j++;
+  for(proto = JS_DupValue(ctx, argv[0]); !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto); proto = JS_GetPrototype(ctx, proto)) {
+    BOOL circular = (JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(prev));
+    JS_FreeValue(ctx, prev);
+    if(circular)
+      break;
+    if(i >= start && (end == -1 || i < end))
+      JS_SetPropertyUint32(ctx, ret, j++, proto);
+    ++i;
+    prev = proto;
   }
 
+  JS_FreeValue(ctx, proto);
   return ret;
 }
 

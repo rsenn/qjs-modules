@@ -27,6 +27,7 @@ let buffers = {},
   showDeps = 0,
   removeImports = false,
   removeComments = false,
+  readPackage = false,
   relativeTo,
   outputFile,
   recursive = true,
@@ -238,7 +239,8 @@ function ModuleLoader(module) {
 function ResolveImports(source, log = () => {}, recursive, depth = 0) {
   source = path.normalize(source);
   if(printFiles) std.puts(source + '\n');
-  source = ResolveAlias(source);
+
+  if(readPackage) source = ResolveAlias(source);
 
   logFile(`Processing ${source}\n`);
 
@@ -1258,7 +1260,9 @@ function main(...args) {
       'remove-comments': [false, () => (removeComments = true), 'C'],
       'global-exports': [false, () => ++globalExports, 'G'],
       'show-dependencies': [false, () => ++showDeps, 'd'],
-      'print-files': [false, () => (printFiles = true), 'p'],
+      'print-files': [false, () => (printFiles = true), 'l'],
+      'read-package': [false, () => (readPackage = true), 'p'],
+      'no-read-package': [false, () => (readPackage = false), 'P'],
       time: [false, () => (showTiming = true), 't'],
       '@': 'files'
     },

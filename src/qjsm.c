@@ -566,9 +566,12 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char* s = 0;
   JSModuleDef* m = 0;
 
+  if(!(s = jsm_lookup_package(ctx, module_name)))
+    s = js_strdup(ctx, module_name);
+
   for(;;) {
-    if(!(s = jsm_lookup_package(ctx, module_name)))
-      s = js_strdup(ctx, module_name);
+    if(debug_module_loader)
+      printf("%-18s[1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
 
     if(!strchr(s, '/')) {
       BuiltinModule* rec;
@@ -578,6 +581,8 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
         return jsm_builtin_init(ctx, rec);
       }
     }
+    if(path_is_file(s))
+      break;
 
     if(is_searchable(s)) {
       if(!path_is_file(s)) {
@@ -597,7 +602,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     break;
   }
   if(debug_module_loader)
-    printf("%-18s(module_name=\"%s\", opaque=%p) s=%s result=%p\n", __FUNCTION__, module_name, opaque, s, m);
+    printf("%-18s[2](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
 
   if(s) {
     m = js_module_loader(ctx, s, opaque);

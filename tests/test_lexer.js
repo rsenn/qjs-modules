@@ -1,6 +1,6 @@
 import * as os from 'os';
 import * as std from 'std';
-import   fs from 'fs';
+import fs from 'fs';
 import inspect from 'inspect';
 import * as path from 'path';
 import { Predicate } from 'predicate';
@@ -29,29 +29,23 @@ const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 429496729
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 
 //const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", "/^(.*)\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);" ];
-const code = [
-  "const str = stack.toString().replace(/\\n\\s*at /g, '\\n');",
-  '/Reg.*Ex/i.test(n)',
-  '/\\n/g',
-  'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);',
-  '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'
-];
+const code = ["const str = stack.toString().replace(/\\n\\s*at /g, '\\n');", '/Reg.*Ex/i.test(n)', '/\\n/g', 'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);', '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'];
 
 extendArray(Array.prototype);
 
 const bufferRef = new WeakMap();
 
 function BufferFile(file) {
- console.log('BufferFile', file);
+  console.log('BufferFile', file);
   if(buffers[file]) return buffers[file];
   let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
   if(!isObject(b)) {
     const size = fs.sizeSync(file);
-    if(size< 0) {
-      throw new Error("Error getting size of "+file+": ("+fs.errno+") "+fs.errstr);
+    if(size < 0) {
+      throw new Error('Error getting size of ' + file + ': (' + fs.errno + ') ' + fs.errstr);
     }
     const fd = os.open(file, os.O_RDONLY);
-   console.log('mmap', [0, size, PROT_READ, MAP_PRIVATE, fd,0 ] );
+    console.log('mmap', [0, size, PROT_READ, MAP_PRIVATE, fd, 0]);
 
     b = mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
   }
@@ -295,19 +289,8 @@ function main(...args) {
           //log('printTok', {start,end});
           let s = toString(str).slice(start, end);
 
-          const cols = [
-            prefix,
-            `tok[${tok.byteLength}]`,
-            tok.id,
-            tok.type,
-            tok.lexeme,
-            tok.lexeme.length,
-            tok.loc,
-            ` '${s}'`
-          ];
-          std.puts(
-            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
-          );
+          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc, ` '${s}'`];
+          std.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
         }
       : () => {};
 
@@ -344,8 +327,7 @@ function main(...args) {
           case '}':
           case ']':
           case ')': {
-            if(stack.last != table[tok.lexeme])
-              throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
             stack.pop();
             break;
