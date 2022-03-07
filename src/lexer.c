@@ -314,10 +314,10 @@ lexer_compile_rules(Lexer* lex, JSContext* ctx) {
 }
 
 int
-lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
+lexer_peek(Lexer* lex, uint64_t state, int start_rule, JSContext* ctx) {
   LexerRule* rule;
   uint8_t* capture[512];
-  int i = 0, ret = LEXER_ERROR_NOMATCH;
+  int i = -1, ret = LEXER_ERROR_NOMATCH;
   size_t len = 0;
 
   if(input_buffer_eof(&lex->input))
@@ -327,10 +327,12 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
 
   vector_foreach_t(&lex->rules, rule) {
     int result;
-    if((rule->mask & (1 << lex->state)) == 0) {
-      i++;
+    if(++i < start_rule)
       continue;
-    }
+
+    if((rule->mask & (1 << lex->state)) == 0)
+      continue;
+
     result = lexer_rule_match(lex, rule, capture, ctx);
     if(result == LEXER_ERROR_COMPILE) {
       ret = result;
@@ -357,7 +359,6 @@ lexer_peek(Lexer* lex, uint64_t state, JSContext* ctx) {
           break;
       }
     }
-    i++;
   }
   if(ret >= 0) {
     lex->byte_length = len;
@@ -423,7 +424,7 @@ int
 lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
   int ret;
 
-  if((ret = lexer_peek(lex, state, ctx)) >= 0)
+  if((ret = lexer_peek(lex, state, 0, ctx)) >= 0)
     lexer_skip(lex);
 
   return ret;

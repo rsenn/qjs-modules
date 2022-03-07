@@ -393,7 +393,7 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     lexer_skip(lex);
 
   for(;;) {
-    if((id = lexer_peek(lex, skip == -1 ? 0 : skip, ctx)) >= 0) {
+    if((id = lexer_peek(lex, skip == -1 ? 0 : skip, id, ctx)) >= 0) {
       LexerRule* rule = lexer_rule_at(lex, id);
 
       // printf("state %i rule %s\n", lex->state, rule->name);
@@ -426,7 +426,8 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
           JS_FreeValue(ctx, data[0]);
         }
         if(skip || jsrule->skip) {
-          //         lexer_skip(lex);
+          // lexer_skip(lex);
+          ++id;
           continue;
         }
       }
@@ -708,7 +709,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         Location* loc;
         if((loc = js_location_data2(ctx, argv[i]))) {
           lexer_set_location(lex, loc, ctx);
-          ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, ctx));
+          ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, 0, ctx));
         } else if((tok = js_token_data(argv[i]))) {
           lexer_set_location(lex, tok->loc, ctx);
           lex->byte_length = tok->byte_length;
@@ -722,7 +723,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
             location_zero(&diff);
             location_count(&diff, (const char*)&lex->input.data[lex->input.pos - len], len);
             location_sub(&lex->loc, &diff);
-            ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, ctx));
+            ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, 0, ctx));
           } else {
             char* buf = byte_escape((const char*)&lex->input.data[lex->input.pos - len], len);
             ret = JS_ThrowInternalError(ctx, "Lexer.prototype.back('%s') `%s` ...", str, buf);

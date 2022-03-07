@@ -70,7 +70,7 @@ void lexer_set_input(Lexer*, InputBuffer, int32_t file_atom);
 void lexer_define(Lexer*, char*, char* expr);
 LexerRule* lexer_find_definition(Lexer*, const char*, size_t namelen);
 BOOL lexer_compile_rules(Lexer*, JSContext*);
-int lexer_peek(Lexer*, uint64_t, JSContext* ctx);
+int lexer_peek(Lexer*, uint64_t, int, JSContext* ctx);
 size_t lexer_skip(Lexer*);
 size_t lexer_charlen(Lexer*);
 char* lexer_lexeme(Lexer*, size_t*);
