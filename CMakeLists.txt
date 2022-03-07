@@ -257,7 +257,8 @@ else(BUILD_LIBARCHIVE)
   include(FindLibArchive)
 endif(BUILD_LIBARCHIVE)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${QUICKJS_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/include ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 #if(NOT LibArchive_FOUND)
@@ -291,8 +292,8 @@ set(COMMON_SOURCES src/debug.c include/debug.h)
 set(vector_SOURCES src/vector.c include/vector.h ${buffer_utils_SOURCES})
 set(char_utils_SOURCES src/char-utils.c include/char-utils.h)
 set(queue_SOURCES src/queue.c include/queue.h)
-set(utils_SOURCES src/utils.c include/utils.h ${char_utils_SOURCES} src/clock_gettime.c
-                  src/strverscmp.c)
+set(utils_SOURCES src/utils.c include/utils.h ${char_utils_SOURCES}
+                  src/clock_gettime.c src/strverscmp.c)
 set(js_utils_SOURCES src/js-utils.c include/js-utils.h)
 set(utils_SOURCES ${utils_SOURCES} src/qsort_r.c)
 set(stream_SOURCES quickjs-stream.c ${queue_SOURCES} ${js_utils_SOURCES}
@@ -314,18 +315,21 @@ set(child_process_SOURCES
     src/child-process.c include/child-process.h src/property-enumeration.c
     include/property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
 set(deep_SOURCES
-    ${vector_SOURCES} src/pointer.c src/virtual-properties.c src/property-enumeration.c
-    include/property-enumeration.h ${utils_SOURCES} ${predicate_SOURCES} include/pointer.h
-    include/virtual-properties.h)
+    ${vector_SOURCES} src/pointer.c src/virtual-properties.c
+    src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES}
+    ${predicate_SOURCES} include/pointer.h include/virtual-properties.h)
 set(deep_LIBRARIES qjs-predicate qjs-pointer)
 set(inspect_SOURCES
-    ${vector_SOURCES} include/iteration.h ${utils_SOURCES} src/property-enumeration.c
-    include/property-enumeration.h quickjs-internal.h)
+    ${vector_SOURCES} include/iteration.h ${utils_SOURCES}
+    src/property-enumeration.c include/property-enumeration.h
+    quickjs-internal.h)
 set(tree_walker_SOURCES ${vector_SOURCES} src/property-enumeration.c
                         include/property-enumeration.h ${utils_SOURCES})
-set(xml_SOURCES ${vector_SOURCES} src/property-enumeration.c include/property-enumeration.h
-                ${utils_SOURCES} ${location_SOURCES} ${inspect_SOURCES})
-set(path_SOURCES src/path.c include/path.h ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(xml_SOURCES
+    ${vector_SOURCES} src/property-enumeration.c include/property-enumeration.h
+    ${utils_SOURCES} ${location_SOURCES} ${inspect_SOURCES})
+set(path_SOURCES src/path.c include/path.h ${utils_SOURCES}
+                 ${buffer_utils_SOURCES})
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} src/readlink.c)
 endif(WIN32 OR MINGW)
@@ -334,8 +338,9 @@ set(predicate_SOURCES src/predicate.c include/predicate.h ${vector_SOURCES}
                       ${utils_SOURCES})
 set(pointer_SOURCES src/pointer.c include/pointer.h ${utils_SOURCES}
                     ${buffer_utils_SOURCES})
-set(lexer_SOURCES quickjs-lexer.h ${location_SOURCES} ${token_SOURCES}
-                  ${utils_SOURCES} ${vector_SOURCES} src/lexer.c include/lexer.h)
+set(lexer_SOURCES
+    quickjs-lexer.h ${location_SOURCES} ${token_SOURCES} ${utils_SOURCES}
+    ${vector_SOURCES} src/lexer.c include/lexer.h)
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${queue_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
@@ -357,12 +362,13 @@ set(textcode_SOURCES
     libutf/src/libutf.c ${buffer_utils_SOURCES} ${utils_SOURCES}
     ${vector_SOURCES})
 
-set(misc_SOURCES src/base64.c include/base64.h quickjs-internal.c quickjs-internal.h
-                 ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
+set(misc_SOURCES
+    src/base64.c include/base64.h quickjs-internal.c quickjs-internal.h
+    ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
 
 set(gpio_SOURCES src/gpio.c include/gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-  
+
 # if(pigpio_LIBRARY)
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
 # endif(pigpio_LIBRARY)
@@ -616,3 +622,7 @@ file(GLOB INSTALL_SCRIPTS [!.]*.js)
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin
         PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
                     GROUP_READ)
+
+install(
+  CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink resolve-imports.js ${CMAKE_INSTALL_PREFIX}/bin/list-imports.js)"
+)

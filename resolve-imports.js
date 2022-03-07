@@ -21,6 +21,7 @@ class ArgumentError extends Error {
 
 let buffers = {},
   modules = {},
+  showTiming,
   removeExports = false,
   globalExports = 0,
   showDeps = 0,
@@ -37,6 +38,7 @@ let buffers = {},
   fileBuffers = new Map(),
   fileMaps = new Map(),
   dependencyMap = new Map(),
+  printFiles,
   logFile = () => {};
 
 let dependencyTree = memoize(arg => [], dependencyMap);
@@ -82,12 +84,7 @@ const TokIs = curry((type, lexeme, tok) => {
     return true;
   }
 });
-const CompareRange = (a, b) =>
-  a === null || b === null
-    ? 0
-    : typeof a[0] == 'number' && typeof b[0] == 'number' && a[0] != b[0]
-    ? a[0] - b[0]
-    : a[1] - b[1];
+const CompareRange = (a, b) => (a === null || b === null ? 0 : typeof a[0] == 'number' && typeof b[0] == 'number' && a[0] != b[0] ? a[0] - b[0] : a[1] - b[1]);
 
 const IsKeyword = TokIs('keyword');
 const IsPunctuator = TokIs('punctuator');
@@ -125,28 +122,37 @@ const FileWriter = file => {
 };
 
 function FdWriter(fd, name) {
-  //debugLog('FdWriter', { fd, name });
   let fn;
   fn = (buf, len) => {
-    // if(!buf || !len) if (typeof fn.close == 'function') return fn.close();
     if(typeof buf == 'string') buf = toArrayBuffer(buf);
-
     len ??= buf.byteLength;
     let result = os.write(fd, buf, 0, len);
-    //debugLog('FdWriter.write', { fd, buf: shorten(toString(buf), 80), len, result });
     return result;
   };
-
   define(fn, {
     fd,
     name,
-    file: name ?? fd,
     puts: PutsFunction(fn),
     write: fn,
     close: () => {},
     seek: (whence, offset) => os.seek(fd, whence, offset),
-
     [Symbol.toStringTag]: `FileWriter< ${fd} >`,
+    inspect() {
+      return inspect({ fd }) ?? this[Symbol.toStringTag];
+    }
+  });
+  return fn;
+}
+
+function DummyWriter(name) {
+  let fn = (buf, len) => len;
+  define(fn, {
+    name,
+    puts: PutsFunction(fn),
+    write: fn,
+    close: () => {},
+    seek: () => {},
+    [Symbol.toStringTag]: `DummyWriter< ${name} >`,
     inspect() {
       return inspect({ fd }) ?? this[Symbol.toStringTag];
     }
@@ -174,11 +180,8 @@ function ImportType(seq) {
 
 function ImportFile(seq) {
   seq = NonWS(seq);
-  //console.log('ImportFile', { seq });
   let idx = seq.findIndex(tok => IsKeyword('from', tok));
   while(seq[idx] && seq[idx].type != 'stringLiteral') ++idx;
-
-  //  if(seq[idx-1].lexeme == 'from')
   if(seq[idx])
     if(seq[idx].type == 'stringLiteral') {
       let f = seq[idx].lexeme.replace(/^[\'\"\`](.*)[\'\"\`]$/g, '$1');
@@ -219,15 +222,16 @@ function ModuleLoader(module) {
   return file;
 }
 
-function ProcessFile(source, log = () => {}, recursive, depth = 0) {
+function ResolveImports(source, log = () => {}, recursive, depth = 0) {
   //source = NormalizePath(source);
 
+  if(printFiles) std.puts(source + '\n');
   logFile(`Processing ${source}\n`);
 
   let start = Date.now();
   const dir = path.dirname(source);
 
-  if(debug >= 2) console.log('ProcessFile', { source });
+  if(debug >= 2) console.log('ResolveImports', { source });
 
   let bytebuf = BufferFile(source);
 
@@ -278,8 +282,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme])
-            throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
           stack.pop();
           break;
@@ -332,10 +335,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     }
     let n = balancers.last.depth;
     const { token } = lexer;
-    const { /* loc,*/ length, seq } = token;
-    // const { pos } = loc;
-    //  let s = toString(bytebuf).slice(pos, pos + length);
-    //  console.log('',token.lexeme, {pos, s, length})
+    const { length, seq } = token;
     if(debug > 1) console.log('token', token);
 
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
@@ -351,13 +351,13 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         cond = true;
         imp = token.lexeme == 'export' ? [token] : [];
       }
-      console.log(`token[${imp.length}]`, token.loc + '', console.config({ breakLength: 80, compact: 0 }), token);
+      if(debug > 2) console.log(`token[${imp.length}]`, token.loc + '', console.config({ breakLength: 80, compact: 0 }), token);
 
       if(cond == true) {
         if(imp.indexOf(token) == -1) imp.push(token);
         //console.log( imp[0].loc+'',console.config({breakLength:80, compact: 0}), NonWS(imp));
         if(imp.last.lexeme == ';') {
-          console.log('imp', imp[0].loc + '', console.config({ breakLength: 80, compact: 0 }), TokenSequence(imp) + '');
+          if(debug > 2) console.log('imp', imp[0].loc + '', console.config({ breakLength: 80, compact: 0 }), TokenSequence(imp) + '');
           cond = false;
           if(impexp == What.IMPORT || imp.some(i => IsKeyword('from', i))) {
             if(imp[1].lexeme != '(') {
@@ -386,8 +386,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   function Export(tokens, relativePath = s => s) {
     if(tokens[0].seq == tokens[1].seq) tokens.shift();
     const { loc, seq } = tokens[0];
-    if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
-      throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+    if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
     let def = tokens.findIndex(tok => IsKeyword('default', tok));
     let k = 1;
     while(tokens[k].type == 'whitespace' || IsKeyword(['let', 'class', 'function', 'const'], tokens[k])) k++;
@@ -396,16 +395,10 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     let exported = def != -1 ? 'default' : name;
     let file = ImportFile(tokens);
     if(file == ' ') throw new Error('XXX ' + inspect(tokens, { compact: false }));
-    const idx =
-      def != -1
-        ? def
-        : file
-        ? tokens.findIndex(tok => tok.lexeme == ';')
-        : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
+    const idx = def != -1 ? def : file ? tokens.findIndex(tok => tok.lexeme == ';') : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
     const o = NonWS(tokens)[1].lexeme == '{';
     const remove = o || def != -1 ? tokens.slice() : tokens.slice(0, def == idx ? idx + 2 : idx + 1);
-    if(remove[0])
-      if(remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+    if(remove[0]) if (remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
     const range = ByteSequence(remove) ?? ByteSequence(tokens);
     let source = loc.file;
     let type = ImpExpType(tokens);
@@ -415,8 +408,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     if(o) {
       exported = tokens.filter(tok => tok.type == 'identifier').map(tok => tok.lexeme);
     }
-    if(NonWS(tokens)[1].lexeme != '{')
-      len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
+    if(NonWS(tokens)[1].lexeme != '{') len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
     tokens = tokens.slice(0, len);
     let exp = define(
       {
@@ -447,8 +439,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
   function Import(tokens, relativePath = s => s, depth) {
     tokens = tokens[0].seq === tokens[1].seq ? tokens.slice(1) : tokens.slice();
-    if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
-      throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
+    if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
     const tok = tokens[0];
     const { loc, seq } = tok;
     let source = loc.file;
@@ -460,10 +451,10 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     if(debug >= 2)
       console.log('AddImport', compact(1), {
         source,
-        /* type, */ file,
+        file,
         code,
         loc,
-        range /*, tokens: NonWS(tokens)*/
+        range
       });
     let imp = Object.setPrototypeOf(
       define(
@@ -523,7 +514,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
   let end = Date.now();
 
-  console.log(`Lexing '${source.replace(/^\.\//, '')}' took ${end - start}ms`);
+  if(showTiming) console.log(`Lexing '${source.replace(/^\.\//, '')}' took ${end - start}ms`);
   start = Date.now();
 
   let exportsFrom = exports.filter(exp => exp.tokens).filter(exp => exp.tokens.some(tok => tok.lexeme == 'from'));
@@ -550,33 +541,22 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     let bufstr = toString(bytebuf.slice(...range));
     let arrbuf = toArrayBuffer(bufstr);
 
-    // console.log('impexp', { type,file });
     let replacement = type == What.EXPORT ? null : /*FileMap.for*/ file;
     let { byteOffset } = loc;
     let p;
 
-    if(loc.line >= 115)
-      debugLog('impexp', compact(2), {
-        code,
-        range: new NumericRange(...range),
-        replacement,
-        loc: loc + ''
-      });
+    if(debug > 2) console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
 
     //  if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
     if(typeof file == 'string' && !path.isFile(file)) {
-      console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
+      if(debug > 1) console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
 
       replacement = null;
       //  header.push(impexp);
     } else if(file && path.isFile(file)) {
       replacement = file;
       // header.push(impexp);
-    } else if(
-      (typeof replacement == 'string' && !path.isFile(replacement)) ||
-      type == What.IMPORT ||
-      typeof file == 'string'
-    ) {
+    } else if((typeof replacement == 'string' && !path.isFile(replacement)) || type == What.IMPORT || typeof file == 'string') {
       replacement = null;
       //  header.push(impexp);
     } else if(code.startsWith('export')) {
@@ -587,19 +567,8 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     let list = type == What.EXPORT ? footer : header;
     list.push(impexp);
 
-    if(debug >= 2)
-      debugLog('impexp', compact(2), {
-        code,
-        range: new NumericRange(...range),
-        replacement,
-        loc: loc + ''
-      });
-    if(debug > 1)
-      debugLog('impexp', compact(1), {
-        replacement: replacement,
-        range: new NumericRange(...range),
-        loc: loc + ''
-      });
+    if(debug >= 2) console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
+    if(debug > 1) console.log('impexp', compact(1), { range: new NumericRange(...range), loc: loc + '' });
 
     map.replaceRange(range, replacement);
   }
@@ -646,7 +615,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       processed.add(file);
 
       AddDep(source, file);
-      ProcessFile(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
+      ResolveImports(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
     }
   }
   /*
@@ -925,12 +894,7 @@ class FileMap extends Array {
         this: this
       });
     if(range[0] < this[start][0]) range[0] = this[start][0];
-    if(!this[start][0])
-      throw new Error(
-        `range=${range}\nlength=${this.length}\nstart=${start}\nend=${end}\nthis[${start}]=${inspect(
-          this[start]
-        )}\nthis[${start - 1}]=${inspect(this[start - 1])}\nthis[${start + 1}]=${inspect(this[start + 1])}`
-      );
+    if(!this[start][0]) throw new Error(`range=${range}\nlength=${this.length}\nstart=${start}\nend=${end}\nthis[${start}]=${inspect(this[start])}\nthis[${start - 1}]=${inspect(this[start - 1])}\nthis[${start + 1}]=${inspect(this[start + 1])}`);
     if(range[0] > this[start][0][0]) {
       if(start == end) {
         let [range, buf] = this[start];
@@ -1079,35 +1043,29 @@ class FileMap extends Array {
       const [range, buf] = this[i];
       if(range === null && buf === null) continue;
       if((str = this.at(i)) === null) continue;
-      if(range === null)
-        if(typeof buf == 'string') /*if(typeof str == 'string')*/ str = fn(buf, 0) + str + fn(buf, 1);
+      if(range === null) if (typeof buf == 'string') /*if(typeof str == 'string')*/ str = fn(buf, 0) + str + fn(buf, 1);
       s += str;
     }
     return s;
   }
 }
-
 FileMap.prototype[Symbol.toStringTag] = 'FileMap';
 FileMap.prototype[Symbol.inspect] = function(depth, opts) {
   let arr = [...this].map(([range, buf], i) => {
     if(range) {
       buf = buf.slice(...range);
     }
-    // console.log(`i=${i}`, { range, buf });
-    return [range, isObject(buf) && types.isArrayBuffer(buf) ? this.file : buf]
-      .map((item, i) => inspect(item, { ...opts, compact: 1, customInspect: true }).padEnd(i == 0 ? 31 : 0))
-      .join(', ');
+    return [range, isObject(buf) && types.isArrayBuffer(buf) ? this.file : buf].map((item, i) => inspect(item, { ...opts, compact: 1, customInspect: true }).padEnd(i == 0 ? 31 : 0)).join(', ');
   });
   return (
     `FileMap\x1b[1;35m<${this.file}>\x1b[0m ` + arr.map(item => `[ ${item} ]`).join(',\n  ') ??
     inspect(arr, {
       ...opts,
-      compact: 2, //opts.compact ? 10 : false,
-      //breakLength: Infinity,
+      compact: 2,
       maxArrayLength: Infinity,
-      // maxStringLength: 10,
+
       customInspect: true,
-      depth: /* Infinity//*/ depth + 4
+      depth: depth + 4
     })
   );
 };
@@ -1154,16 +1112,8 @@ function DumpToken(tok) {
   return `★ Token ${inspect({ chars, offset, length, loc }, { depth: 1 })}`;
 }
 
-function* DependencyTree(
-  root,
-  indent = ' ',
-  spacing = false,
-  depth = 0,
-  pre = '',
-  fn = (name, depth) => `${name} (${depth})`
-) {
-  if(!Array.isArray(dependencyTree(root)))
-    throw new Error(`No such file '${root}' in dependency Map ([${[...dependencyMap.keys()]}])`);
+function* DependencyTree(root, indent = ' ', spacing = false, depth = 0, pre = '', fn = (name, depth) => `${name} (${depth})`) {
+  if(!Array.isArray(dependencyTree(root))) throw new Error(`No such file '${root}' in dependency Map ([${[...dependencyMap.keys()]}])`);
 
   if(depth == 0) yield pre + stripLeadingDotSlash(fn(root, depth)) + `\n`;
 
@@ -1175,19 +1125,9 @@ function* DependencyTree(
   for(i = 0; i < n; i++) {
     if(spacing) yield (pre + indent + `│  ` + '\n').repeat(Number(spacing));
 
-    yield pre +
-      indent +
-      (n == 1 ? `└─ ` : i < n - 1 ? `├─ ` : `└─ `) +
-      stripLeadingDotSlash(fn(a[i], depth + 1)) +
-      '\n';
+    yield pre + indent + (n == 1 ? `└─ ` : i < n - 1 ? `├─ ` : `└─ `) + stripLeadingDotSlash(fn(a[i], depth + 1)) + '\n';
 
-    yield* DependencyTree(
-      a[i],
-      indent,
-      spacing,
-      depth + 1,
-      pre + indent + (n == 1 ? `   ` : i < n - 1 ? `│  ` : `   `)
-    );
+    yield* DependencyTree(a[i], indent, spacing, depth + 1, pre + indent + (n == 1 ? `   ` : i < n - 1 ? `│  ` : `   `));
   }
 
   function stripLeadingDotSlash(n) {
@@ -1213,7 +1153,7 @@ function* PrintUserscriptBanner(fields) {
   };
 
   let keys = Object.keys(defaults).concat(Object.keys(fields)).unique();
-  console.log('keys', keys);
+  //console.log('keys', keys);
   yield `// ==UserScript==`;
   for(let name of keys) {
     const value = fields[name] ?? defaults[name];
@@ -1303,11 +1243,19 @@ function main(...args) {
       'remove-comments': [false, () => (removeComments = true), 'C'],
       'global-exports': [false, () => ++globalExports, 'G'],
       'show-dependencies': [false, () => ++showDeps, 'd'],
+      'print-files': [false, () => (printFiles = true), 'p'],
+      time: [false, () => (showTiming = true), 't'],
       '@': 'files'
     },
     args
   );
   let files = params['@'];
+
+  if(/list-import/.test(scriptArgs[0])) {
+    printFiles = true;
+    outputFile = null;
+    out = DummyWriter('/dev/null');
+  }
 
   const { sort, 'case-sensitive': caseSensitive, quiet } = params;
 
@@ -1331,41 +1279,32 @@ function main(...args) {
   for(let file of files) {
     file = RelativePath(file);
 
-    let result = ProcessFile(file, log, recursive, 0);
+    let result = ResolveImports(file, log, recursive, 0);
 
     if(debug >= 1) console.log('result', compact(false, { depth: Infinity }), result);
 
     results.push(result);
   }
-  //  let [result] = results;
-
   if(!removeImports) {
     let bindings = [],
       importLines = [];
     const ContainsAny = (arr, tokens) => tokens.some(tok => arr.indexOf(tok) != -1);
-
-    //console.log('header', header.map(h => {h.names = h.ids(); h.range = h.range+''; return h; }));
     let lines = header
-      .filter(impexp => /*!*/ IsBuiltin(impexp.file))
+      .filter(impexp => IsBuiltin(impexp.file))
       .filter(hdr => !hdr.code.startsWith('export'))
-      //.map(hdr => hdr.code+` // from '${hdr.source}'`)
       .reduce(
         ([acc, prev], hdr) => {
           let { code } = hdr;
           let disable = ContainsAny(bindings, hdr.ids());
-
           if(prev != hdr.source) {
             acc.push('');
-            acc.push(`/* from '${hdr.source}' */`);
+            acc.push(``);
           }
           let duplicate = importLines.indexOf(code) != -1;
-
           importLines.push(code);
-          if(!duplicate && disable) code = '/* ' + code + ' */';
-
+          if(!duplicate && disable) code = '';
           if(!duplicate) {
             bindings.push(...hdr.ids());
-
             acc.push(code);
           }
           return [acc, hdr.source];
@@ -1373,8 +1312,6 @@ function main(...args) {
         [[], null]
       )[0];
     if(lines.length) lines = [FileBannerComment('header', 0), ...lines, '', FileBannerComment('header', 1)];
-
-    //if(debug > 1) console.log('header', header.map(({ type, file, range, source }) => ({ type, file, range, source })));
     if(debug > 2) console.log('lines', lines);
 
     out.puts(lines.reduce((acc, line) => acc + line.trim() + '\n', ''));
@@ -1388,16 +1325,16 @@ function main(...args) {
     downloadURL: `https://localhost:9000/${out.file}`,
     updateURL: `https://localhost:9000/${out.file}`
   })) {
-    std.puts(`line: ${line}\n`);
+    //std.puts(`line: ${line}\n`);
     stream.puts(line);
   }
   stream.puts("\n(function() {\n  'use strict';\n");
   ++stream.indent;
 
-  const nbytes = results[0].write(stream);
-
-  console.log(`${nbytes} bytes written to '${out.file}'`);
-
+  if(out.file) {
+    const nbytes = results[0].write(stream);
+    console.log(`${nbytes} bytes written to '${out.file}'`);
+  }
   if(debug > 2) console.log(`exportedNames`, exportedNames);
 
   if(globalExports) {
