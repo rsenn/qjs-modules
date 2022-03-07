@@ -6,7 +6,7 @@ import inspect from 'inspect';
 import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import JSLexer from 'jslexer.js';
+import JSLexer from 'lexer/ecmascript.js';
 import { escape, toString, define, curry, unique, split, extendArray, camelize, getOpt } from 'util';
 
 let buffers = {},

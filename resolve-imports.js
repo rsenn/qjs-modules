@@ -6,7 +6,7 @@ import inspect from 'inspect';
 import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import JSLexer from 'jslexer.js';
+import JSLexer from 'lexer/ecmascript.js';
 import { getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
 
 ('use strict');
@@ -43,6 +43,20 @@ let buffers = {},
 
 let dependencyTree = memoize(arg => [], dependencyMap);
 let bufferMap = getset(bufferRef);
+
+function ReadJSON(filename) {
+  let data = fs.readFileSync(filename, 'utf-8');
+  return data ? JSON.parse(data) : null;
+}
+const  ReadPackageJSON =  once(() =>  ReadJSON('package.json') ?? { _moduleAliases: {} });
+
+function ResolveAlias(filename) {
+  let {_moduleAliases}=ReadPackageJSON();
+
+  if(filename in _moduleAliases)
+    return _moduleAliases[filename];
+  return filename;
+}
 
 function NormalizePath(p) {
   p = path.absolute(p);
@@ -223,9 +237,10 @@ function ModuleLoader(module) {
 }
 
 function ResolveImports(source, log = () => {}, recursive, depth = 0) {
-  //source = NormalizePath(source);
-
+source=path.normalize(source);
   if(printFiles) std.puts(source + '\n');
+source=ResolveAlias(source);
+
   logFile(`Processing ${source}\n`);
 
   let start = Date.now();

@@ -280,7 +280,7 @@ else(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   endif(WIN32 OR MINGW)
 endif(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
 
-set(LIB_MODULES console events fs jslexer parser perf_hooks process repl
+set(LIB_MODULES console events fs lexer/csv lexer/ecmascript parser perf_hooks process repl
                 require stack tty util)
 
 if(EXISTS "${QUICKJS_H}")
@@ -518,11 +518,13 @@ foreach(TEST_SOURCE ${TESTS_SOURCES})
 
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
-file(GLOB LIBJS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js")
+file(GLOB LIBJS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js"  )
+file(GLOB LIBLEXER  "${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js")
 list(REMOVE_ITEM LIBJS lib/require.js)
 list(REMOVE_ITEM LIBJS lib/fs.js)
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
+install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
 
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 
@@ -531,7 +533,7 @@ string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
 
 foreach(LIB_MODULE ${LIB_MODULES})
-  # message("Compile Module: ${LIB_MODULE}")
+  message("Compile Module: ${LIB_MODULE}")
   compile_module(lib/${LIB_MODULE}.js)
 endforeach(LIB_MODULE ${LIB_MODULES})
 

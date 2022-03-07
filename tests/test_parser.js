@@ -5,9 +5,9 @@ import inspect from 'inspect';
 import { Predicate } from 'predicate';
 import { Location, Lexer, Token } from 'lexer';
 import Console from '../lib/console.js';
-import JSLexer from '../lib/jslexer.js';
-import CLexer from '../lib/clexer.js';
-import BNFLexer from '../lib/bnflexer.js';
+import JSLexer from '../lib/lexer/ecmascript.js';
+import CLexer from '../lib/lexer/c.js';
+import BNFLexer from '../lib/lexer/bnf.js';
 import Parser, { DumpToken } from '../lib/parser.js';
 import extendArray from '../lib/extendArray.js';
 
