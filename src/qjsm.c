@@ -78,7 +78,7 @@ is_module(JSContext* ctx, const char* module_name) {
   BOOL yes = path_is_file(module_name);
 
   if(debug_module_loader)
-    printf("%16s(module_name=\"%s\")=%s\n", __func__, module_name, ((yes) ? "TRUE" : "FALSE"));
+    printf("%-18s(module_name=\"%s\")=%s\n", __FUNCTION__, module_name, ((yes) ? "TRUE" : "FALSE"));
 
   return yes ? js_strdup(ctx, module_name) : 0;
 }
@@ -322,7 +322,7 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
   size_t i, j = strlen(module_name);
 
   if(debug_module_loader)
-    printf("%16s(module_name=\"%s\" list =\"%s\")\n", __func__, module_name, list);
+    printf("%-18s(module_name=\"%s\" list =\"%s\")\n", __FUNCTION__, module_name, list);
 
   if(!(t = js_malloc(ctx, strlen(list) + 1 + strlen(module_name) + 1)))
     return 0;
@@ -346,7 +346,7 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
   const char* list;
 
   if(debug_module_loader)
-    printf("%16s(module_name=\"%s\")\n", __func__, module_name);
+    printf("%-18s(module_name=\"%s\")\n", __FUNCTION__, module_name);
 
   assert(is_searchable(module_name));
 
@@ -362,8 +362,8 @@ jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
   char *s, *t = 0;
 
   if(debug_module_loader)
-    printf("%16s(module_name=\"%s\", fn=%s)\n",
-           __func__,
+    printf("%-18s(module_name=\"%s\", fn=%s)\n",
+           __FUNCTION__,
            module_name,
            fn == &is_module           ? "is_module"
            : fn == &jsm_search_module ? "jsm_search_module"
@@ -397,8 +397,8 @@ jsm_locate_module(JSContext* ctx, const char* module_name) {
   s = suffix ? fn(ctx, module_name) : jsm_find_suffix(ctx, module_name, fn);
 
   if(debug_module_loader)
-    printf("%16s(module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n",
-           __func__,
+    printf("%-18s(module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n",
+           __FUNCTION__,
            module_name,
            ((search) ? "TRUE" : "FALSE"),
            ((suffix) ? "TRUE" : "FALSE"),
@@ -566,23 +566,23 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char* s = 0;
   JSModuleDef* m = 0;
 
-  if(!(s = jsm_lookup_package(ctx, module_name)))
-    s = js_strdup(ctx, module_name);
+  for(;;) {
+    if(!(s = jsm_lookup_package(ctx, module_name)))
+      s = js_strdup(ctx, module_name);
 
-  if(!strchr(s, '/')) {
-    BuiltinModule* rec;
+    if(!strchr(s, '/')) {
+      BuiltinModule* rec;
 
-    if((rec = jsm_builtin_find(s))) {
-      js_free(ctx, s);
-      return jsm_builtin_init(ctx, rec);
+      if((rec = jsm_builtin_find(s))) {
+        js_free(ctx, s);
+        return jsm_builtin_init(ctx, rec);
+      }
     }
-  }
 
-  if(is_searchable(s)) {
-    if(!path_is_file(s)) {
-      char* name;
-      size_t len;
-      for(;;) {
+    if(is_searchable(s)) {
+      if(!path_is_file(s)) {
+        char* name;
+        size_t len;
         if((name = jsm_locate_module(ctx, s))) {
           js_free(ctx, s);
           s = js_strdup(ctx, name);
@@ -592,13 +592,12 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
           strcpy(s, &s[3 + path_skip_separator_s(&s[3])]);
           continue;
         }
-        break;
       }
     }
+    break;
   }
-
   if(debug_module_loader)
-    printf("%16s(module_name=\"%s\", opaque=%p) s=%s result=%p\n", __func__, module_name, opaque, s, m);
+    printf("%-18s(module_name=\"%s\", opaque=%p) s=%s result=%p\n", __FUNCTION__, module_name, opaque, s, m);
 
   if(s) {
     m = js_module_loader(ctx, s, opaque);
