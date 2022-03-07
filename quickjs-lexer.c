@@ -342,7 +342,7 @@ static const JSCFunctionListEntry js_token_static_funcs[] = {
 
 static JSValue
 lexer_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* data) {
-  JS_SetPropertyUint32(ctx, data[0], 0, JS_NewBool(ctx, TRUE));
+  JS_SetPropertyUint32(ctx, data[0], 0, argc >= 1 ? argv[0] : JS_NewBool(ctx, TRUE));
   return JS_UNDEFINED;
 }
 
@@ -412,6 +412,10 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
           ret = JS_Call(ctx, jsrule->action, this_val, 2, args);
           JS_FreeValue(ctx, args[1]);
+
+          if(JS_IsException(ret)) {
+            return LEXER_EXCEPTION;
+          }
           JS_FreeValue(ctx, ret);
 
           do_skip = JS_GetPropertyUint32(ctx, data[0], 0);
@@ -422,7 +426,7 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
           JS_FreeValue(ctx, data[0]);
         }
         if(skip || jsrule->skip) {
-          lexer_skip(lex);
+          //         lexer_skip(lex);
           continue;
         }
       }
@@ -1244,6 +1248,10 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     }
     case LEXER_EOF: {
       ret = JS_NULL;
+      break;
+    }
+    case LEXER_EXCEPTION: {
+      ret = JS_EXCEPTION;
       break;
     }
     default: {

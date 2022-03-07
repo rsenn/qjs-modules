@@ -29,9 +29,10 @@ enum lexer_mode {
 
 enum {
   LEXER_EOF = -1,
-  LEXER_ERROR_NOMATCH = -2,
-  LEXER_ERROR_COMPILE = -3,
-  LEXER_ERROR_EXEC = -4,
+  LEXER_EXCEPTION = -2,
+  LEXER_ERROR_NOMATCH = -3,
+  LEXER_ERROR_COMPILE = -4,
+  LEXER_ERROR_EXEC = -5,
 };
 
 typedef struct lexical_scanner {

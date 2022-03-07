@@ -1350,7 +1350,7 @@ function main(...args) {
     const nbytes = results[0].write(stream);
     console.log(`${nbytes} bytes written to '${out.file}'`);
   }
-  if(debug > 2) console.log(`exportedNames`, exportedNames);
+  if(debug > 3) console.log(`exportedNames`, exportedNames);
 
   if(globalExports) {
     let maxDepth = globalExports - 1;
