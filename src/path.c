@@ -243,6 +243,26 @@ path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) 
   dbuf_free(&tmp);
 }
 
+const char*
+path_at(const char* p, size_t* len_ptr, int i) {
+
+  int pos = 0;
+  size_t next, len;
+
+  for(;;) {
+    len = path_skip_component_s(p);
+    next = len + path_skip_separator_s(&p[len]);
+
+    if(i <= 0)
+      break;
+    p += next;
+    --i;
+  }
+  if(len_ptr)
+    *len_ptr = len;
+  return p;
+}
+
 int
 path_exists(const char* p) {
   struct stat st;
@@ -656,6 +676,13 @@ path_skip_component(const char* p, size_t len, size_t pos) {
 }
 
 size_t
+path_skip_component_s(const char* p) {
+  const char* s = p;
+  while(*s && !path_issep(*s)) ++s;
+  return s - p;
+}
+
+size_t
 path_skip_separator(const char* p, size_t len, size_t pos) {
   const char *start = p, *end = p + len;
   if(pos > len)
@@ -664,6 +691,13 @@ path_skip_separator(const char* p, size_t len, size_t pos) {
   p += pos;
   while(p < end && path_issep(*p)) ++p;
   return p - start;
+}
+
+size_t
+path_skip_separator_s(const char* p) {
+  const char* s = p;
+  while(*s && path_issep(*s)) ++s;
+  return s - p;
 }
 
 char*

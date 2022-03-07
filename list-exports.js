@@ -1,12 +1,12 @@
-import * as os from 'os';
 #!/usr/bin/env qjsm
+import * as os from 'os';
 import * as std from 'std';
 import * as fs from 'fs';
 import inspect from 'inspect';
 import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import ECMAScriptLexer from 'lexer/ecmascript.js';
+import ECMAScriptLexer from 'lib/lexer/ecmascript.js';
 import { escape, toString, define, curry, unique, split, extendArray, camelize, getOpt } from 'util';
 
 let buffers = {},

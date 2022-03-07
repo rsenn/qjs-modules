@@ -65,6 +65,7 @@ size_t path_collapse(char*, size_t);
 SizePair path_common_prefix(const char*, size_t, const char* s2, size_t n2);
 size_t path_components(const char*, size_t, uint32_t n);
 void path_concat(const char*, size_t, const char* b, size_t blen, DynBuf* db);
+const char* path_at(const char*, size_t*, int);
 int path_exists(const char*);
 const char* path_extname(const char*);
 int path_find(const char*, const char*, DynBuf* db);
@@ -89,6 +90,8 @@ int path_relative_b(const char*, size_t, const char* s2, size_t n2, DynBuf* out)
 size_t path_root(const char*, size_t);
 size_t path_skip_component(const char*, size_t, size_t pos);
 size_t path_skip_separator(const char*, size_t, size_t pos);
+size_t path_skip_component_s(const char*);
+size_t path_skip_separator_s(const char*);
 
 char* path_basename(const char*);
 char* __path_dirname(const char*, DynBuf*);

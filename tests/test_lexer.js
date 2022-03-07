@@ -1,6 +1,6 @@
 import * as os from 'os';
 import * as std from 'std';
-import * as fs from 'fs';
+import   fs from 'fs';
 import inspect from 'inspect';
 import * as path from 'path';
 import { Predicate } from 'predicate';
@@ -42,12 +42,17 @@ extendArray(Array.prototype);
 const bufferRef = new WeakMap();
 
 function BufferFile(file) {
-  // console.log('BufferFile', file);
+ console.log('BufferFile', file);
   if(buffers[file]) return buffers[file];
   let b = (buffers[file] = fs.readFileSync(file, { flag: 'r' }));
   if(!isObject(b)) {
     const size = fs.sizeSync(file);
+    if(size< 0) {
+      throw new Error("Error getting size of "+file+": ("+fs.errno+") "+fs.errstr);
+    }
     const fd = os.open(file, os.O_RDONLY);
+   console.log('mmap', [0, size, PROT_READ, MAP_PRIVATE, fd,0 ] );
+
     b = mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
   }
 

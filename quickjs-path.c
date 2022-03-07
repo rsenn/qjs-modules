@@ -56,7 +56,8 @@ enum path_methods {
   METHOD_SKIP,
   METHOD_SKIPS,
   METHOD_SKIP_SEPARATOR,
-  METHOD_SPLIT
+  METHOD_SPLIT,
+  METHOD_AT
 };
 
 static JSValue
@@ -250,6 +251,16 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(argc > 1)
         JS_ToInt64(ctx, &n, argv[1]);
       ret = JS_NewUint32(ctx, path_skip_separator(a, alen, n));
+      break;
+    }
+    case METHOD_AT: {
+      uint64_t idx;
+      size_t len;
+      const char* p;
+
+      JS_ToIndex(ctx, &idx, argv[1]);
+      p = path_at(a, &len, idx);
+      ret = JS_NewStringLen(ctx, p, len);
       break;
     }
   }
@@ -508,6 +519,7 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("append", 1, js_path_method_dbuf, METHOD_APPEND),
     JS_CFUNC_MAGIC_DEF("canonical", 1, js_path_method_dbuf, METHOD_CANONICAL),
     JS_CFUNC_MAGIC_DEF("concat", 2, js_path_method_dbuf, METHOD_CONCAT),
+    JS_CFUNC_MAGIC_DEF("at", 2, js_path_method, METHOD_AT),
     JS_CFUNC_MAGIC_DEF("find", 2, js_path_method_dbuf, METHOD_FIND),
     JS_CFUNC_MAGIC_DEF("normalize", 1, js_path_method_dbuf, METHOD_NORMALIZE),
     JS_CFUNC_MAGIC_DEF("relative", 2, js_path_method_dbuf, METHOD_RELATIVE),
