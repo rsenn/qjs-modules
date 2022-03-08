@@ -222,25 +222,31 @@ path_components(const char* p, size_t len, uint32_t n) {
 
 void
 path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) {
-  DynBuf tmp;
-  const char* x;
-  size_t size;
-  dbuf_init(&tmp);
+  /*  const char* x;
+    size_t size;
+   */
+  path_append(a, alen, db);
 
-  path_append(a, alen, &tmp);
-  path_append(b, blen, &tmp);
+  while(blen >= 1 && path_isdot(b)) {
+    size_t n = path_skip2(b, blen);
 
-  x = (const char*)tmp.buf;
-  size = tmp.size;
-  if(size > 2 && tmp.buf[0] == '.' && tmp.buf[1] == PATHSEP_C) {
-    x += 2;
-    size -= 2;
+    b += n;
+    blen -= n;
   }
-  dbuf_append(db, (const uint8_t*)x, size);
-  dbuf_putc(db, '\0');
-  db->size--;
 
-  dbuf_free(&tmp);
+  path_append(b, blen, db);
+  dbuf_0(db);
+  /*
+    x = (const char*)tmp.buf;
+    size = tmp.size;
+    if(size > 2 && tmp.buf[0] == '.' && tmp.buf[1] == PATHSEP_C) {
+      x += 2;
+      size -= 2;
+    }
+    dbuf_append(db, (const uint8_t*)x, size);
+    dbuf_0(db);
+
+    dbuf_free(&tmp);*/
 }
 
 const char*
@@ -723,6 +729,14 @@ __path_dirname(const char* path, DynBuf* dir) {
   }
   dbuf_0(dir);
   return (char*)dir->buf;
+}
+
+size_t
+path_dirname_len(const char* path) {
+  size_t i = str_rchrs(path, "/\\", 2);
+  /* remove trailing slashes */
+  while(i > 0 && path_issep(path[i - 1])) --i;
+  return i;
 }
 
 char*

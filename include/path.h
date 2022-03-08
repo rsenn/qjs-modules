@@ -52,6 +52,8 @@ char is_junction(const char*);
 #define path_isdotslash(p) ((p)[0] == '.' && path_issep((p)[1]))
 #define path_isdotdot(p) ((p)[0] == '.' && (p)[1] == '.' && ((p)[2] == '\0' || path_issep((p)[2])))
 
+#define path_is_relative(p) (path_isdotslash(p) || path_isdotdot(p))
+
 typedef struct {
   size_t sz1, sz2;
 } SizePair;
@@ -96,6 +98,7 @@ size_t path_length(const char* p);
 
 char* path_basename(const char*);
 char* __path_dirname(const char*, DynBuf*);
+size_t path_dirname_len(const char* path);
 char* path_dirname(const char*);
 int path_readlink(const char*, DynBuf*);
 

@@ -673,6 +673,17 @@ end:
 }*/
 char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
+  char* file;
+  if(strcmp(path, "<input>") && path_is_relative(name)) {
+    DynBuf dir;
+    js_dbuf_allocator(ctx, &dir);
+
+    path_concat(path, path_dirname_len(path), name, strlen(name), &dir);
+    file = dir.buf;
+  } else {
+    file = js_strdup(ctx, name);
+  }
+  return file;
 }
 
 /*char*
