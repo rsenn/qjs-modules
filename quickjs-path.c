@@ -224,7 +224,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case METHOD_LENGTH: {
-      ret = JS_NewUint32(ctx, path_length(a));
+      ret = JS_NewUint32(ctx, path_num_components(a));
       break;
     }
 
