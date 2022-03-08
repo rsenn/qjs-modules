@@ -563,7 +563,7 @@ jsm_module_json(JSContext* ctx, const char* name) {
 
 static JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
-  char* s = 0;
+  char *name = 0, *s = 0;
   JSModuleDef* m = 0;
 
   if(!(s = jsm_lookup_package(ctx, module_name)))
@@ -585,18 +585,21 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
       break;
 
     if(is_searchable(s)) {
-      if(!path_is_file(s)) {
-        char* name;
-        size_t len;
-        if((name = jsm_locate_module(ctx, s))) {
-          js_free(ctx, s);
-          s = js_strdup(ctx, name);
-          break;
-        }
-        if(path_skip_component_s(s) == 3 && !strncmp(s, "lib", 3)) {
-          strcpy(s, &s[3 + path_skip_separator_s(&s[3])]);
-          continue;
-        }
+      size_t len;
+      if((name = jsm_locate_module(ctx, s))) {
+        js_free(ctx, s);
+        s = js_strdup(ctx, name);
+        break;
+      }
+      if(path_skip_component_s(s) == 3 && !strncmp(s, "lib", 3)) {
+        strcpy(s, &s[3 + path_skip_separator_s(&s[3])]);
+        continue;
+      }
+    } else {
+      if((name = jsm_find_suffix(ctx, name, is_module))) {
+        js_free(ctx, s);
+        s = js_strdup(ctx, name);
+        break;
       }
     }
     break;
