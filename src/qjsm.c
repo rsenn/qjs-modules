@@ -608,7 +608,12 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     printf("%-18s[2](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
 
   if(s) {
-    m = js_module_loader(ctx, s, opaque);
+
+    if(str_ends(s, ".json")) {
+      m = jsm_module_json(ctx, s);
+    } else {
+      m = js_module_loader(ctx, s, opaque);
+    }
     js_free(ctx, s);
   }
   return m;
@@ -679,6 +684,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     js_dbuf_allocator(ctx, &dir);
 
     path_concat(path, path_dirname_len(path), name, strlen(name), &dir);
+    path_collapse(dir.buf, dir.size);
     file = dir.buf;
   } else {
     file = js_strdup(ctx, name);

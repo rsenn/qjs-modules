@@ -734,6 +734,10 @@ __path_dirname(const char* path, DynBuf* dir) {
 size_t
 path_dirname_len(const char* path) {
   size_t i = str_rchrs(path, "/\\", 2);
+
+  if(path[i] == '\0')
+    return 0;
+  
   /* remove trailing slashes */
   while(i > 0 && path_issep(path[i - 1])) --i;
   return i;
