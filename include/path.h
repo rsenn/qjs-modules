@@ -92,13 +92,14 @@ size_t path_skip_component(const char*, size_t, size_t pos);
 size_t path_skip_separator(const char*, size_t, size_t pos);
 size_t path_skip_component_s(const char*);
 size_t path_skip_separator_s(const char*);
+size_t path_length(const char* p);
 
 char* path_basename(const char*);
 char* __path_dirname(const char*, DynBuf*);
 char* path_dirname(const char*);
 int path_readlink(const char*, DynBuf*);
 
-static inline size_t
+/*static inline size_t
 path_length(const char* s, size_t n) {
   return path_skip_component(s, n, 0);
 }
@@ -106,7 +107,7 @@ path_length(const char* s, size_t n) {
 static inline size_t
 path_length_s(const char* s) {
   return path_skip_component(s, strlen(s), 0);
-}
+}*/
 
 static inline size_t
 path_skip_s(const char* s) {

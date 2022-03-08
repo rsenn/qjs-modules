@@ -211,7 +211,7 @@ path_components(const char* p, size_t len, uint32_t n) {
     if(s == e)
       break;
 
-    s += path_length(s, e - s);
+    s += path_skip_component(s, e - s, 0);
     if(--n <= 0)
       break;
 
@@ -261,6 +261,17 @@ path_at(const char* p, size_t* len_ptr, int i) {
   if(len_ptr)
     *len_ptr = len;
   return p;
+}
+
+size_t
+path_num_components(const char* p) {
+  size_t n = 0, len;
+
+  for(; *p; p += len) {
+    len = path_skip2_s(p);
+    ++n;
+  }
+  return n;
 }
 
 int
@@ -585,7 +596,7 @@ start:
       break;
     if(db->size && (db->buf[db->size - 1] != '/' && db->buf[db->size - 1] != '\\'))
       dbuf_putc(db, sep);
-    n = path_length_s(path);
+    n = path_skip_component(path, strlen(path), 0);
     dbuf_append(db, (const uint8_t*)path, n);
     if(n == 2 && path[1] == ':')
       dbuf_putc(db, sep);

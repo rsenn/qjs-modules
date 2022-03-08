@@ -596,7 +596,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
         continue;
       }
     } else {
-      if((name = jsm_find_suffix(ctx, name, is_module))) {
+      if((name = jsm_find_suffix(ctx, s, is_module))) {
         js_free(ctx, s);
         s = js_strdup(ctx, name);
         break;
@@ -671,8 +671,11 @@ end:
     orig_js_free(ctx, file);
   return m;
 }*/
-
 char*
+jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
+}
+
+/*char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
   size_t p;
   const char* r;
@@ -715,7 +718,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   dbuf_putstr(&file, r);
   dbuf_0(&file);
   return (char*)file.buf;
-}
+}*/
 
 static JSValue
 jsm_eval_file(JSContext* ctx, const char* file, BOOL module) {
