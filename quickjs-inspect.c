@@ -668,7 +668,7 @@ js_inspect_print_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   if(tag != JS_TAG_SYMBOL && opts->colors)
     dbuf_putstr(buf, COLOR_GREEN);
   dbuf_putc(buf, tag == JS_TAG_SYMBOL ? '(' : '\'');
-  limit = min_size(opts->max_string_length, len);
+  limit =  opts->reparseable ? len : min_size(opts->max_string_length, len);
 
   for(pos = 0; pos < limit;) {
     size_t i, n, eol;
