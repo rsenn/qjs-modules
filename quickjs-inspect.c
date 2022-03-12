@@ -553,14 +553,16 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
       column = 0;
     }
 
-    if(opts->reparseable)
+    if(opts->reparseable) {
+      size_t pos = buf->size;
       dbuf_printf(buf, i > 0 ? ", 0x%02x" : "0x%02x", ptr[i]);
-    else if(/*(opts->max_array_length == INT32_MAX && i > 32) ||*/ i == (size_t)opts->max_array_length)
+      column += buf->size - pos;
+    } else if(/*(opts->max_array_length == INT32_MAX && i > 32) ||*/ i == (size_t)opts->max_array_length) {
       break;
-    else
+    } else {
       dbuf_printf(buf, column ? " %02x" : "%02x", ptr[i]);
-
-    column += column ? 3 : 2;
+      column += column ? 3 : 2;
+    }
   }
 
   if(opts->reparseable) {
