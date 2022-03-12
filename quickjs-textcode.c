@@ -19,14 +19,7 @@ thread_local JSValue textdecoder_proto = {{JS_TAG_UNDEFINED}}, textdecoder_ctor 
                      textencoder_ctor = {{JS_TAG_UNDEFINED}};
 
 const TUTF8encoder* tutf8e_coders[] = {
-    /*    0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,*/
+    /* 0, 0, 0, 0, 0, 0, 0, 0, */
     &tutf8e_encoder_iso_8859_1,   &tutf8e_encoder_iso_8859_2,   &tutf8e_encoder_iso_8859_3,   &tutf8e_encoder_iso_8859_4,   &tutf8e_encoder_iso_8859_5,
     &tutf8e_encoder_iso_8859_6,   &tutf8e_encoder_iso_8859_7,   &tutf8e_encoder_iso_8859_8,   &tutf8e_encoder_iso_8859_9,   &tutf8e_encoder_iso_8859_10,
     &tutf8e_encoder_iso_8859_11,  &tutf8e_encoder_iso_8859_13,  &tutf8e_encoder_iso_8859_14,  &tutf8e_encoder_iso_8859_15,  &tutf8e_encoder_iso_8859_16,
@@ -139,7 +132,21 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         break;
       }
       default: {
-        ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: unknown encoding", __func__);
+        TUTF8encoder encoder;
+
+        if((encoder = *tutf8e_coders[dec->encoding - 8])) {
+
+          const char* ptr = ringbuffer_begin(&dec->buffer);
+          size_t n = 0;
+
+          if(TUTF8E_OK == tutf8e_encoder_buffer_length(encoder, ptr, 0, blen, &n)) {
+
+            dbuf_realloc(&dbuf, dbuf.size + n + 1);
+          }
+
+        } else {
+          ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: unknown encoding: %s", __func__, textcode_encodings[dec->encoding]);
+        }
         break;
       }
     }
