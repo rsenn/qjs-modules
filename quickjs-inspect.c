@@ -771,14 +771,16 @@ js_inspect_print_error(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 
   class_name = js_object_classname(ctx, value);
 
-  dbuf_putstr(buf, opts->colors ? COLOR_RED "[" : "[");
+  dbuf_putstr(buf, opts->colors ? "[" COLOR_RED : "[");
   dbuf_putstr(buf, class_name);
   if((s = js_get_propertystr_cstring(ctx, value, "message"))) {
-    dbuf_putstr(buf, " \"");
+    dbuf_putstr(buf, ": ");
     dbuf_putstr(buf, s);
-    dbuf_putstr(buf, "\"");
+    // dbuf_putstr(buf, ");
     JS_FreeCString(ctx, s);
   }
+  dbuf_putstr(buf, opts->colors ? COLOR_NONE "]" : "]");
+
   stack = JS_GetPropertyStr(ctx, value, "stack");
 
   if((s = JS_ToCString(ctx, stack))) {
@@ -787,7 +789,6 @@ js_inspect_print_error(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     JS_FreeCString(ctx, s);
   }
 
-  dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE : "]");
   return 0;
 }
 
