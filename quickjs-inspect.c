@@ -39,9 +39,9 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 thread_local JSValue object_tostring;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
-#define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
+#define INSPECT_LEVEL(opts, _depth) ((opts)->depth - (_depth))
 #define INSPECT_IS_COMPACT_DEPTH(level, com) ((com) == INT32_MAX ? TRUE : INSPECT_INT32T_INRANGE((com)) ? (com) < 0 ? (level) >= -(com) : (level) >= (com) : 0)
-#define INSPECT_IS_COMPACT(opts) INSPECT_IS_COMPACT_DEPTH(INSPECT_LEVEL(opts), (opts)->compact)
+#define INSPECT_IS_COMPACT(opts, _depth) INSPECT_IS_COMPACT_DEPTH(INSPECT_LEVEL(opts, _depth), (opts)->compact)
 
 struct prop_key;
 
@@ -418,7 +418,7 @@ static int
 js_inspect_print_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   BOOL ret, finish = FALSE;
   size_t i = 0;
-  int compact = INSPECT_IS_COMPACT(opts);
+  BOOL compact = INSPECT_IS_COMPACT(opts, depth);
   // printf("js_inspect_print_map level=%u opts->depth=%" PRId32 " depth=%" PRId32 "
   // compact=%i\n", INSPECT_LEVEL(opts), opts->depth, depth, compact);
   JSValue data, key, value;
@@ -460,7 +460,7 @@ static int
 js_inspect_print_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_options_t* opts, int32_t depth) {
   BOOL ret, finish = FALSE;
   size_t i = 0;
-  int compact = INSPECT_IS_COMPACT(opts);
+  BOOL compact = INSPECT_IS_COMPACT(opts, depth);
   JSValue value;
   Iteration it;
 
@@ -499,7 +499,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
   int break_len = opts->break_length; // inspect_screen_width();
   int column = dbuf_get_column(buf);
   JSValue proto;
-  int compact = INSPECT_IS_COMPACT(opts);
+  BOOL compact = INSPECT_IS_COMPACT(opts, depth);
   break_len = (break_len + 1) / 3;
   break_len *= 3;
 
@@ -528,19 +528,19 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
       js_cstring_free(ctx, str);
 
     dbuf_putstr(buf, " {");
-    if(compact)
+    if(INSPECT_IS_COMPACT(opts, depth + 2))
       dbuf_putc(buf, ' ');
     else
-      inspect_newline(buf, (opts->depth - depth) + 2);
+      inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
     dbuf_printf(buf, "byteLength: %zu [", size);
   }
 
-  if(compact)
+  if(INSPECT_IS_COMPACT(opts, depth + 3))
     dbuf_putc(buf, ' ');
   else
-    inspect_newline(buf, (opts->depth - depth) + 3);
+    inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 3);
 
-  break_len -= ((opts->depth - depth) + 3) * 2;
+  break_len -= (INSPECT_LEVEL(opts, depth) + 3) * 2;
   column = 0;
 
   for(i = 0; i < size; i++) {
@@ -548,10 +548,10 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
       if(opts->reparseable && i > 0)
         dbuf_putc(buf, ',');
 
-      if(compact)
+      if(INSPECT_IS_COMPACT(opts, depth + 3))
         dbuf_putc(buf, ' ');
       else
-        inspect_newline(buf, (opts->depth - depth) + 3);
+        inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 3);
       column = 0;
     }
 
@@ -571,22 +571,22 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
     dbuf_putstr(buf, "]).buffer");
   } else {
     if(i < size) {
-      if(compact)
+      if(INSPECT_IS_COMPACT(opts, depth + 3))
         dbuf_putc(buf, ' ');
       else
-        inspect_newline(buf, (opts->depth - depth) + 3);
+        inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 3);
 
       dbuf_printf(buf, "... %zu more bytes", size - i);
     }
-    if(compact)
+    if(INSPECT_IS_COMPACT(opts, depth + 2))
       dbuf_putc(buf, ' ');
     else
-      inspect_newline(buf, (opts->depth - depth) + 2);
+      inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
     dbuf_putstr(buf, "]");
-    if(compact)
+    if(INSPECT_IS_COMPACT(opts, depth + 1))
       dbuf_putc(buf, ' ');
     else
-      inspect_newline(buf, (opts->depth - depth) + 1);
+      inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
     dbuf_putstr(buf, "}");
   }
   return 0;
@@ -656,7 +656,7 @@ js_inspect_print_number(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 static int
 js_inspect_print_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   int tag = JS_VALUE_GET_TAG(value);
-  int compact = INSPECT_IS_COMPACT(opts);
+  BOOL compact = INSPECT_IS_COMPACT(opts, depth);
 
   const char* str;
   size_t pos, len, max_len, limit, column_start = (INSPECT_LEVEL(opts) * 2);
