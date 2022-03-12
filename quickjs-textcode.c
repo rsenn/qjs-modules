@@ -174,7 +174,7 @@ js_decoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return ret;
   switch(magic) {
     case DECODER_ENCODING: {
-      ret = JS_NewString(ctx, textcode_encodings[dec->type_code & 7]);
+      ret = JS_NewString(ctx, textcode_encodings[dec->type_code]);
       break;
     }
     case DECODER_ENDIANNESS: {
@@ -283,7 +283,7 @@ js_decoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   JSValue obj = JS_NewObjectClass(ctx, js_decoder_class_id);
 
-  JS_DefinePropertyValueStr(ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[dec->type_code & 7]), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[dec->type_code]), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&dec->buffer)), JS_PROP_ENUMERABLE);
   return obj;
 }
@@ -448,7 +448,7 @@ js_encoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return ret;
   switch(magic) {
     case ENCODER_ENCODING: {
-      ret = JS_NewString(ctx, textcode_encodings[enc->type_code & 7]);
+      ret = JS_NewString(ctx, textcode_encodings[enc->type_code]);
       break;
     }
     case ENCODER_ENDIANNESS: {
@@ -558,7 +558,7 @@ js_encoder_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   JSValue obj = JS_NewObjectClass(ctx, js_encoder_class_id);
 
-  JS_DefinePropertyValueStr(ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[enc->type_code & 7]), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "encoding", JS_NewString(ctx, textcode_encodings[enc->type_code]), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "buffered", JS_NewUint32(ctx, ringbuffer_length(&enc->buffer)), JS_PROP_ENUMERABLE);
   return obj;
 }
