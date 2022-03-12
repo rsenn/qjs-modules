@@ -40,10 +40,11 @@ thread_local JSValue object_tostring;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
-#define INSPECT_IS_COMPACT(opts) \
-  ((opts)->compact == INT32_MAX              ? TRUE \
-   : INSPECT_INT32T_INRANGE((opts)->compact) ? ((opts)->compact < 0 ? INSPECT_LEVEL(opts) >= -(opts->compact) : INSPECT_LEVEL(opts) >= (opts)->compact) \
+#define INSPECT_IS_COMPACT_DEPTH(level, compact) \
+  ((compact) == INT32_MAX              ? TRUE \
+   : INSPECT_INT32T_INRANGE((compact)) ? ((opts)->compact < 0 ? (level) >= -(compact) :  (level)  >= (compact) \
                                              : 0)
+#define INSPECT_IS_COMPACT(opts) INSPECT_IS_COMPACT_DEPTH(INSPECT_LEVEL(opts), (opts)->compact)
 
 struct prop_key;
 
@@ -501,7 +502,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
   int break_len = opts->break_length; // inspect_screen_width();
   int column = dbuf_get_column(buf);
   JSValue proto;
-  int compact = opts->compact >= 1;
+  int compact = INSPECT_IS_COMPACT(opts);
   break_len = (break_len + 1) / 3;
   break_len *= 3;
 
