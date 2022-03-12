@@ -883,7 +883,10 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     }
   }
 
-  if(!JS_IsArray(ctx, value) && !is_function) {
+  if(js_is_promise(ctx, value)) {
+    dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED "Promise " COLOR_NONE : "Promise ");
+
+  } else if(!JS_IsArray(ctx, value) && !is_function) {
     if(s == 0 && JS_IsFunction(ctx, object_tostring))
       s = js_object_tostring2(ctx, object_tostring, value);
 
