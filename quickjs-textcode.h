@@ -1,5 +1,5 @@
-#ifndef QUICKJS_DECODER_H
-#define QUICKJS_DECODER_H
+#ifndef QUICKJS_TEXTCODE_H
+#define QUICKJS_TEXTCODE_H
 
 #include "include/utils.h"
 #include "include/ringbuffer.h"
@@ -9,8 +9,37 @@
  * @{
  */
 
-typedef enum utf_charset { UNKNOWN = 0, UTF8, UTF16, UTF32 } UTFCharset;
-typedef enum utf_encoding { UTF16LE = 2, UTF32LE = 3, UTF16BE = 6, UTF32BE = 7 } UTFEncoding;
+typedef enum utf_encoding { UNKNOWN = 0, UTF8, UTF16, UTF32 } UTFCharset;
+typedef enum text_encoding {
+  UTF16LE = 2,
+  UTF32LE = 3,
+  UTF16BE = 6,
+  UTF32BE = 7,
+  ISO_8859_1,
+  ISO_8859_2,
+  ISO_8859_3,
+  ISO_8859_4,
+  ISO_8859_5,
+  ISO_8859_6,
+  ISO_8859_7,
+  ISO_8859_8,
+  ISO_8859_9,
+  ISO_8859_10,
+  ISO_8859_11,
+  ISO_8859_13,
+  ISO_8859_14,
+  ISO_8859_15,
+  ISO_8859_16,
+  WINDOWS_1250,
+  WINDOWS_1251,
+  WINDOWS_1252,
+  WINDOWS_1253,
+  WINDOWS_1254,
+  WINDOWS_1255,
+  WINDOWS_1256,
+  WINDOWS_1257,
+  WINDOWS_1258,
+} TextEncoding;
 
 #define TextcodeType \
   PACK union { \
@@ -18,7 +47,7 @@ typedef enum utf_encoding { UTF16LE = 2, UTF32LE = 3, UTF16BE = 6, UTF32BE = 7 }
       UTFCharset encoding : 2; \
       Endian endian : 1; \
     }; \
-    UTFEncoding type_code : 3; \
+    TextEncoding type_code : 3; \
   }; \
   ENDPACK
 
@@ -54,4 +83,4 @@ js_encoder_data(JSContext* ctx, JSValueConst value) {
 /**
  * @}
  */
-#endif /* defined(QUICKJS_DECODER_H) */
+#endif /* defined(QUICKJS_TEXTCODE_H) */

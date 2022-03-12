@@ -42,6 +42,7 @@ thread_local JSValue object_tostring;
 #define INSPECT_LEVEL(opts, _depth) ((opts)->depth - (_depth))
 #define INSPECT_IS_COMPACT_DEPTH(level, com) ((com) == INT32_MAX ? TRUE : INSPECT_INT32T_INRANGE((com)) ? (com) < 0 ? (level) >= -(com) : (level) >= (com) : 0)
 #define INSPECT_IS_COMPACT(opts, _depth) INSPECT_IS_COMPACT_DEPTH(INSPECT_LEVEL(opts, _depth), (opts)->compact)
+#define INSPECT_COMPACT(opts, _depth) INSPECT_LEVEL(opts, _depth)
 
 struct prop_key;
 
@@ -499,7 +500,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
   int break_len = opts->break_length; // inspect_screen_width();
   int column = dbuf_get_column(buf);
   JSValue proto;
-  BOOL compact = INSPECT_IS_COMPACT(opts, depth);
+  int compact = opts->compact;
   break_len = (break_len + 1) / 3;
   break_len *= 3;
 
@@ -528,14 +529,14 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
       js_cstring_free(ctx, str);
 
     dbuf_putstr(buf, " {");
-    if(INSPECT_IS_COMPACT(opts, depth + 2))
+    if(compact > 1)
       dbuf_putc(buf, ' ');
     else
       inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
     dbuf_printf(buf, "byteLength: %zu [", size);
   }
 
-  if(INSPECT_IS_COMPACT(opts, depth + 3))
+  if(compact > 0)
     dbuf_putc(buf, ' ');
   else
     inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 3);
@@ -548,7 +549,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
       if(opts->reparseable && i > 0)
         dbuf_putc(buf, ',');
 
-      if(INSPECT_IS_COMPACT(opts, depth + 3))
+      if(compact > 0)
         dbuf_putc(buf, ' ');
       else
         inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 3);
@@ -571,19 +572,19 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
     dbuf_putstr(buf, "]).buffer");
   } else {
     if(i < size) {
-      if(INSPECT_IS_COMPACT(opts, depth + 3))
+      if(compact > 0)
         dbuf_putc(buf, ' ');
       else
         inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 3);
 
       dbuf_printf(buf, "... %zu more bytes", size - i);
     }
-    if(INSPECT_IS_COMPACT(opts, depth + 2))
+    if(compact > 0)
       dbuf_putc(buf, ' ');
     else
       inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
     dbuf_putstr(buf, "]");
-    if(INSPECT_IS_COMPACT(opts, depth + 1))
+    if(compact > 1)
       dbuf_putc(buf, ' ');
     else
       inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
@@ -805,7 +806,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   uint32_t pos, len, limit;
   Vector propenum_tab;
   const char* s = 0;
-  BOOL compact = FALSE;
+  int compact = 0;
   JSObject* obj = JS_VALUE_GET_OBJ(value);
 
   dbuf_init2(&propenum_tab.dbuf, ctx, (realloc_func*)&utils_js_realloc);
@@ -984,7 +985,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
       } else if(JS_HasProperty(ctx, value, JS_ATOM_TAG_INT | pos)) {
         /*  if(compact || opts->break_length == INT32_MAX)
             dbuf_putc(buf, ' ');*/
-        js_inspect_print_value(ctx, buf, desc.value, opts, depth - 1);
+        js_inspect_print_value(ctx, buf, desc.value, opts, depth + 1);
       }
       js_propertydescriptor_free(ctx, &desc);
     }
@@ -1035,7 +1036,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
         if(!opts->getters) {
           // JSValue v = JS_GetProperty(ctx, value, propenum->atom);
           JSValue v = JS_Call(ctx, desc.getter, value, 0, 0);
-          js_inspect_print_value(ctx, buf, v, opts, depth - 1);
+          js_inspect_print_value(ctx, buf, v, opts, depth - 2);
           JS_FreeValue(ctx, v);
         } else
           dbuf_put_colorstr(buf,
@@ -1049,7 +1050,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
         if(JS_IsObject(desc.value) && js_object_tmpmark_isset(desc.value))
           dbuf_putstr(buf, "\x1b[0;31m[Circular Reference]\x1b[0m");
         else
-          js_inspect_print_value(ctx, buf, desc.value, opts, depth - 1);
+          js_inspect_print_value(ctx, buf, desc.value, opts, depth - 2);
       }
     }
     js_propertydescriptor_free(ctx, &desc);

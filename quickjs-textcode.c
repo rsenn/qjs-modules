@@ -4,6 +4,8 @@
 #include "include/buffer-utils.h"
 #include "include/debug.h"
 #include <libutf.h>
+#include <libutf.h>
+#include "tutf8e/include/tutf8e.h"
 
 /**
  * \addtogroup quickjs-textdecoder
@@ -16,15 +18,19 @@ thread_local VISIBLE JSClassID js_decoder_class_id = 0, js_encoder_class_id = 0;
 thread_local JSValue textdecoder_proto = {{JS_TAG_UNDEFINED}}, textdecoder_ctor = {{JS_TAG_UNDEFINED}}, textencoder_proto = {{JS_TAG_UNDEFINED}},
                      textencoder_ctor = {{JS_TAG_UNDEFINED}};
 
+const TUTF8encoder* tutf8e_coders[] = {
+    &tutf8e_encoder_iso_8859_1,   &tutf8e_encoder_iso_8859_2,   &tutf8e_encoder_iso_8859_3,   &tutf8e_encoder_iso_8859_4,   &tutf8e_encoder_iso_8859_5,
+    &tutf8e_encoder_iso_8859_6,   &tutf8e_encoder_iso_8859_7,   &tutf8e_encoder_iso_8859_8,   &tutf8e_encoder_iso_8859_9,   &tutf8e_encoder_iso_8859_10,
+    &tutf8e_encoder_iso_8859_11,  &tutf8e_encoder_iso_8859_13,  &tutf8e_encoder_iso_8859_14,  &tutf8e_encoder_iso_8859_15,  &tutf8e_encoder_iso_8859_16,
+    &tutf8e_encoder_windows_1250, &tutf8e_encoder_windows_1251, &tutf8e_encoder_windows_1252, &tutf8e_encoder_windows_1253, &tutf8e_encoder_windows_1254,
+    &tutf8e_encoder_windows_1255, &tutf8e_encoder_windows_1256, &tutf8e_encoder_windows_1257, &tutf8e_encoder_windows_1258,
+};
+
 const char* const textcode_encodings[] = {
-    "unknown",
-    "UTF-8",
-    "UTF-16",
-    "UTF-32",
-    "unknown",
-    "UTF-8",
-    "UTF-16BE",
-    "UTF-32BE",
+    "unknown",      "UTF-8",        "UTF-16",       "UTF-32",       "unknown",      "UTF-8",        "UTF-16BE",     "UTF-32BE",
+    "ISO-8859-1",   "ISO-8859-2",   "ISO-8859-3",   "ISO-8859-4",   "ISO-8859-5",   "ISO-8859-6",   "ISO-8859-7",   "ISO-8859-8",
+    "ISO-8859-9",   "ISO-8859-10",  "ISO-8859-11",  "ISO-8859-13",  "ISO-8859-14",  "ISO-8859-15",  "ISO-8859-16",  "WINDOWS-1250",
+    "WINDOWS-1251", "WINDOWS-1252", "WINDOWS-1253", "WINDOWS-1254", "WINDOWS-1255", "WINDOWS-1256", "WINDOWS-1257", "WINDOWS-1258",
 };
 
 enum {

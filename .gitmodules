@@ -10,3 +10,7 @@
 	path = libutf
 	url = https://github.com/NolanRus/libutf
 	branch = main
+[submodule "tutf8e"]
+	path = tutf8e
+	url = https://github.com/nigels-com/tutf8e
+	branch = master
