@@ -535,11 +535,12 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
     else
       inspect_newline(buf, (opts->depth - depth) + 2);
     dbuf_printf(buf, "byteLength: %zu [", size);
-    if(compact)
-      dbuf_putc(buf, ' ');
-    else
-      inspect_newline(buf, (opts->depth - depth) + 3);
   }
+
+  if(compact)
+    dbuf_putc(buf, ' ');
+  else
+    inspect_newline(buf, (opts->depth - depth) + 3);
 
   break_len -= ((opts->depth - depth) + 3) * 2;
   column = 0;
@@ -668,7 +669,7 @@ js_inspect_print_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   if(tag != JS_TAG_SYMBOL && opts->colors)
     dbuf_putstr(buf, COLOR_GREEN);
   dbuf_putc(buf, tag == JS_TAG_SYMBOL ? '(' : '\'');
-  limit =  opts->reparseable ? len : min_size(opts->max_string_length, len);
+  limit = opts->reparseable ? len : min_size(opts->max_string_length, len);
 
   for(pos = 0; pos < limit;) {
     size_t i, n, eol;
