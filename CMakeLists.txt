@@ -326,7 +326,9 @@ if(WIN32 OR MINGW)
 endif(WIN32 OR MINGW)
 
 set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
-set(textcode_SOURCES quickjs-textcode.c quickjs-textcode.h src/ringbuffer.c include/ringbuffer.h libutf/src/libutf.c ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
+file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h tutf8e/src/*.c)
+file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
+set(textcode_SOURCES quickjs-textcode.c quickjs-textcode.h src/ringbuffer.c include/ringbuffer.h ${libutf_SOURCES} ${tutf8e_SOURCES} ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 
 set(misc_SOURCES src/base64.c include/base64.h quickjs-internal.c quickjs-internal.h ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
 
@@ -337,7 +339,7 @@ set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
 # endif(pigpio_LIBRARY)
 
-include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include)
+include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
 set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
