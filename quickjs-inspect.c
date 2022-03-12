@@ -783,10 +783,12 @@ js_inspect_print_error(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 
   stack = JS_GetPropertyStr(ctx, value, "stack");
 
-  if((s = JS_ToCString(ctx, stack))) {
-    dbuf_putstr(buf, " STACK:");
-    dbuf_putstr(buf, s);
-    JS_FreeCString(ctx, s);
+  if(!JS_IsUndefined(stack)) {
+    if((s = JS_ToCString(ctx, stack))) {
+      dbuf_putstr(buf, " STACK:\n");
+      dbuf_putstr(buf, s);
+      JS_FreeCString(ctx, s);
+    }
   }
 
   return 0;
