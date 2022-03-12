@@ -545,10 +545,10 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
   column = 0;
 
   for(i = 0; i < size; i++) {
-    if(/*(opts->max_array_length == INT32_MAX && i > 32) ||*/ i == (size_t)opts->max_array_length)
-      break;
     if(opts->reparseable)
       dbuf_printf(buf, i > 0 ? ", 0x%02x" : "0x%02x", ptr[i]);
+    else if(/*(opts->max_array_length == INT32_MAX && i > 32) ||*/ i == (size_t)opts->max_array_length)
+      break;
     else {
       if(column + 3 >= break_len && opts->break_length != INT32_MAX) {
         if(compact)
