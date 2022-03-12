@@ -40,10 +40,7 @@ thread_local JSValue object_tostring;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts) ((opts)->depth - (depth))
-#define INSPECT_IS_COMPACT_DEPTH(level, compact) \
-  ((compact) == INT32_MAX              ? TRUE \
-   : INSPECT_INT32T_INRANGE((compact)) ? ((opts)->compact < 0 ? (level) >= -(compact) :  (level)  >= (compact) \
-                                             : 0)
+#define INSPECT_IS_COMPACT_DEPTH(level, com) ((com) == INT32_MAX ? TRUE : INSPECT_INT32T_INRANGE((com)) ? (com) < 0 ? (level) >= -(com) : (level) >= (com) : 0)
 #define INSPECT_IS_COMPACT(opts) INSPECT_IS_COMPACT_DEPTH(INSPECT_LEVEL(opts), (opts)->compact)
 
 struct prop_key;
