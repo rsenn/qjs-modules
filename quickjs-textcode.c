@@ -141,7 +141,10 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
 
           if(TUTF8E_OK == tutf8e_encoder_buffer_length(encoder, ptr, 0, blen, &n)) {
 
-            dbuf_realloc(&dbuf, dbuf.size + n + 1);
+            uint8_t* dst = dbuf_reserve(&dbuf, n);
+
+            if(TUTF8E_OK == tutf8e_encoder_buffer_encode(encoder, ptr, blen, 0, dst, &n))
+              dbuf.size += n;
           }
 
         } else {
