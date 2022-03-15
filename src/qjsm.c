@@ -621,72 +621,17 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   return m;
 }
 
-/*JSModuleDef*
-jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
-  char *module, *file = 0;
-  JSModuleDef* m = 0;
-
-  if(!jsm_modules_initialized) {
-    jsm_init_modules(ctx);
-    jsm_modules_initialized = TRUE;
-  }
-
-  module = orig_js_strdup(ctx, trim_dotslash(name));
-  for(;;) {
-    if(debug_module_loader > 1) {
-      if(file)
-        printf("(1) %-30s '%s'\n", name, file);
-     }
-    if(!strchr(module, '/')) {
-      BuiltinModule* rec;
-
-      if((rec = jsm_builtin_find(module))) {
-        m = jsm_builtin_init(ctx, rec);
-        goto end;
-      }
-    }
-
-    if(path_is_file(module)) {
-      file = js_strdup(ctx, module);
-      break;
-    }
-
-    if(!file) {
-      if(!(file = jsm_module_directory(ctx, module)))
-        file = jsm_module_search(ctx, jsm_default_module_path, module);
-    }
-    break;
-  }
-  if(file) {
-    if(debug_module_loader)
-      if(strcmp(trim_dotslash(module), trim_dotslash(file)))
-        printf("(3) %-30s -> %s\n", module, file);
-
-    if(str_ends(file, ".json"))
-      m = jsm_module_json(ctx, file);
-    else
-      m = js_module_loader(ctx, file, opaque);
-  }
-end:
-  if(debug_module_loader && vector_finds(&module_debug, "import") != -1) {
-    fprintf(stderr, (!file || strcmp(module, file)) ? "!!! IMPORT %s -> %s\n" : "!!! IMPORT %s\n", module, file);
-  }
-  // if(!m) printf("jsm_module_loader(\"%s\") = %p\n", name, m);
-  if(module)
-    orig_js_free(ctx, module);
-  if(file)
-    orig_js_free(ctx, file);
-  return m;
-}*/
 char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
   char* file;
-  if(strcmp(path, "<input>") && path_is_relative(name) && !jsm_builtin_find(name)) {
+  BOOL has_dot_or_slash = !!name[str_chrs(name, "." PATHSEP_S, 2)];
+
+  if(strcmp(path, "<input>") && path_is_relative(name) && !jsm_builtin_find(name) && has_dot_or_slash) {
     DynBuf dir;
     BOOL dsl;
     js_dbuf_allocator(ctx, &dir);
 
-    if(!path_isdotslash(path) && !path_isdotdot(path))
+    if(!path_isdotslash(path) && !path_isdotdot(path) && !path_is_absolute(path))
       dbuf_putstr(&dir, "." PATHSEP_S);
 
     path_concat(path, path_dirname_len(path), name, strlen(name), &dir);
@@ -697,53 +642,10 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   } else {
     file = js_strdup(ctx, name);
   }
+  if(debug_module_loader)
+    printf("\"%s\" => \"%s\"\n", name, file);
   return file;
 }
-
-/*char*
-jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
-  size_t p;
-  const char* r;
-  DynBuf file = {0, 0, 0};
-  size_t n;
-  js_dbuf_allocator(ctx, &file);
-
-  if(name[0] != '.') {
-    dbuf_putstr(&file, name);
-    dbuf_0(&file);
-    return file.buf;
-  }
-
-  n = path[(p = str_rchr(path, '/'))] ? p : 0;
-  dbuf_put(&file, (const uint8_t*)path, n);
-  dbuf_0(&file);
-  for(r = name;;) {
-    if(r[0] == '.' && r[1] == '/') {
-      r += 2;
-    } else if(r[0] == '.' && r[1] == '.' && r[2] == '/') {
-      if(file.size == 0)
-        break;
-      if((p = byte_rchr(file.buf, file.size, '/')) < file.size)
-        p++;
-      else
-        p = 0;
-      if(!strcmp((const char*)&file.buf[p], ".") || !strcmp((const char*)&file.buf[p], ".."))
-        break;
-      if(p > 0)
-        p--;
-      file.size = p;
-      r += 3;
-    } else {
-      break;
-    }
-  }
-  if(file.size == 0)
-    dbuf_putc(&file, '.');
-  dbuf_putc(&file, '/');
-  dbuf_putstr(&file, r);
-  dbuf_0(&file);
-  return (char*)file.buf;
-}*/
 
 static JSValue
 jsm_eval_file(JSContext* ctx, const char* file, BOOL module) {
