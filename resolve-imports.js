@@ -23,6 +23,7 @@ let buffers = {},
   modules = {},
   showTiming,
   removeExports = false,
+  onlyImports = false,
   globalExports = 0,
   showDeps = 0,
   removeImports = false,
@@ -247,7 +248,7 @@ function ResolveImports(source, log = () => {}, recursive, depth = 0) {
 
   if(readPackage) source = ResolveAlias(source);
 
-  std.err.puts(`Processing ${source}\n`);
+  log(`Processing ${source}`);
 
   let start = Date.now();
   const dir = path.dirname(source);
@@ -361,7 +362,7 @@ function ResolveImports(source, log = () => {}, recursive, depth = 0) {
     let n = balancers.last.depth;
     const { token } = lexer;
     const { length, seq } = token;
-    /*  if(debug > 1) console.log('token', token);
+    /*if(debug > 1) console.log('token', token);
     if(debug >= 1) console.log('lexer.mode', lexer.mode);
 */
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
@@ -377,8 +378,10 @@ function ResolveImports(source, log = () => {}, recursive, depth = 0) {
         cond = true;
         imp = token.lexeme == 'export' ? [token] : [];
       }
-      if(debug > 2)
+      if(debug >= 2)
         console.log(`token[${imp.length}]`, token.loc + '', console.config({ breakLength: 80, compact: 0 }), token);
+
+      if(token.lexeme == ';' && onlyImports && cond !== true) break;
 
       if(cond == true) {
         if(imp.indexOf(token) == -1) imp.push(token);
@@ -1302,6 +1305,7 @@ function main(...args) {
       'case-sensitive': [false, null, 'c'],
       quiet: [false, null, 'q'],
       export: [false, () => (exp = true), 'e'],
+      imports: [false, () => (onlyImports = true), 'i'],
       'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
       output: [true, file => (outputFile = file), 'o'],
       'no-recursive': [false, () => (recursive = false), 'R'],
@@ -1322,6 +1326,7 @@ function main(...args) {
 
   if(/list-import/.test(scriptArgs[0])) {
     printFiles = true;
+    onlyImports = true;
     outputFile = null;
     out = DummyWriter('/dev/null');
   }

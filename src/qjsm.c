@@ -77,7 +77,7 @@ static char*
 is_module(JSContext* ctx, const char* module_name) {
   BOOL yes = path_is_file(module_name);
 
-  if(debug_module_loader)
+  if(debug_module_loader >= 2)
     printf("%-18s(module_name=\"%s\")=%s\n", __FUNCTION__, module_name, ((yes) ? "TRUE" : "FALSE"));
 
   return yes ? js_strdup(ctx, module_name) : 0;
@@ -321,7 +321,7 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
   char* t = 0;
   size_t i, j = strlen(module_name);
 
-  if(debug_module_loader)
+  if(debug_module_loader >= 2)
     printf("%-18s(module_name=\"%s\" list =\"%s\")\n", __FUNCTION__, module_name, list);
 
   if(!(t = js_malloc(ctx, strlen(list) + 1 + strlen(module_name) + 1)))
@@ -345,7 +345,7 @@ static char*
 jsm_search_module(JSContext* ctx, const char* module_name) {
   const char* list;
 
-  if(debug_module_loader)
+  if(debug_module_loader >= 2)
     printf("%-18s(module_name=\"%s\")\n", __FUNCTION__, module_name);
 
   assert(is_searchable(module_name));
@@ -361,7 +361,7 @@ jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
   size_t i, n, len = strlen(module_name);
   char *s, *t = 0;
 
-  if(debug_module_loader)
+  if(debug_module_loader >= 2)
     printf("%-18s(module_name=\"%s\", fn=%s)\n",
            __FUNCTION__,
            module_name,
@@ -396,7 +396,7 @@ jsm_locate_module(JSContext* ctx, const char* module_name) {
 
   s = suffix ? fn(ctx, module_name) : jsm_find_suffix(ctx, module_name, fn);
 
-  if(debug_module_loader)
+  if(debug_module_loader >= 2)
     printf("%-18s(module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n",
            __FUNCTION__,
            module_name,
@@ -430,7 +430,7 @@ jsm_lookup_package(JSContext* ctx, const char* module) {
         if(!JS_IsUndefined(target)) {
           file = js_tostring(ctx, target);
 
-          if(debug_module_loader)
+          if(debug_module_loader >= 2)
             printf("(2) %-30s => %s\n", module, file);
           JS_FreeValue(ctx, target);
         }
@@ -488,7 +488,7 @@ static JSModuleDef*
 jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
   if(rec->def == 0) {
-    if(debug_module_loader)
+    if(debug_module_loader >= 2)
       printf("(3) %-30s internal\n", rec->module_name);
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
@@ -570,7 +570,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     s = js_strdup(ctx, module_name);
 
   for(;;) {
-    if(debug_module_loader)
+    if(debug_module_loader >= 2)
       printf("%-18s[1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
 
     if(!strchr(s, '/')) {
@@ -604,10 +604,9 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     }
     break;
   }
-  if(debug_module_loader)
-    printf("%-18s[2](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
-
   if(s) {
+    if(debug_module_loader)
+      printf("\"%s\" -> \"%s\"\n", module_name, s);
 
     if(str_ends(s, ".json")) {
       m = jsm_module_json(ctx, s);
@@ -615,6 +614,9 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
       m = js_module_loader(ctx, s, opaque);
     }
     js_free(ctx, s);
+  } else {
+    if(debug_module_loader)
+      printf("\"%s\" -> null\n", module_name);
   }
   return m;
 }
@@ -681,10 +683,13 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   char* file;
   if(strcmp(path, "<input>") && path_is_relative(name)) {
     DynBuf dir;
+    BOOL dsl;
     js_dbuf_allocator(ctx, &dir);
 
     path_concat(path, path_dirname_len(path), name, strlen(name), &dir);
-    path_collapse(dir.buf, dir.size);
+    dsl = path_isdotslash(dir.buf);
+
+    path_collapse(dir.buf + (dsl ? 2 : 0), dir.size - (dsl ? 2 : 0));
     file = dir.buf;
   } else {
     file = js_strdup(ctx, name);
