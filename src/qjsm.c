@@ -681,10 +681,13 @@ end:
 char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
   char* file;
-  if(strcmp(path, "<input>") && path_is_relative(name)) {
+  if(strcmp(path, "<input>") && path_is_relative(name) && !jsm_builtin_find(name)) {
     DynBuf dir;
     BOOL dsl;
     js_dbuf_allocator(ctx, &dir);
+
+    if(!path_isdotslash(path) && !path_isdotdot(path))
+      dbuf_putstr(&dir, "." PATHSEP_S);
 
     path_concat(path, path_dirname_len(path), name, strlen(name), &dir);
     dsl = path_isdotslash(dir.buf);

@@ -52,7 +52,7 @@ char is_junction(const char*);
 #define path_isdotslash(p) ((p)[0] == '.' && path_issep((p)[1]))
 #define path_isdotdot(p) ((p)[0] == '.' && (p)[1] == '.' && ((p)[2] == '\0' || path_issep((p)[2])))
 
-#define path_is_relative(p) (path_isdotslash(p) || path_isdotdot(p))
+#define path_is_relative(p) !path_is_absolute(p) // (path_isdotslash(p) || path_isdotdot(p))
 
 typedef struct {
   size_t sz1, sz2;
