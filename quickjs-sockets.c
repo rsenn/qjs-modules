@@ -132,11 +132,11 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
   }
 
   if(argc >= 2 && JS_IsNumber(argv[0])) {
-    size_t size;
+    // size_t size;
     int32_t family;
     JS_ToInt32(ctx, &family, argv[0]);
     a->family = family;
-    size = sockaddr_size(a);
+    // size = sockaddr_size(a);
     argc--;
     argv++;
   }
