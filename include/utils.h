@@ -694,6 +694,8 @@ js_is_typedarray(JSValueConst value) {
   return FALSE;
 }
 
+int64_t js_array_length(JSContext* ctx, JSValueConst array);
+
 static inline BOOL
 js_is_array(JSContext* ctx, JSValueConst value) {
   return JS_IsArray(ctx, value) || js_is_typedarray(value);
@@ -709,7 +711,6 @@ BOOL js_is_input(JSContext* ctx, JSValueConst value);
 
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
 BOOL js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
-int64_t js_array_length(JSContext* ctx, JSValueConst array);
 void js_array_clear(JSContext* ctx, JSValueConst array);
 
 size_t js_strv_length(char** strv);
