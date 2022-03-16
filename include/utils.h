@@ -701,12 +701,8 @@ js_is_array(JSContext* ctx, JSValueConst value) {
 
 static inline BOOL
 js_is_array_like(JSContext* ctx, JSValueConst obj) {
-  JSValue len;
-  BOOL ret;
-  len = JS_GetPropertyStr(ctx, obj, "length");
-  ret = JS_IsNumber(len);
-  JS_FreeValue(ctx, len);
-  return ret;
+  int64_t len = js_array_length(ctx, obj);
+  return len >= 0;
 }
 
 BOOL js_is_input(JSContext* ctx, JSValueConst value);
