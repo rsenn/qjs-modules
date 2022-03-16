@@ -994,7 +994,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     if(len && limit < len) {
       if(!compact && opts->break_length != INT32_MAX)
         inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
-      dbuf_printf(buf, "... %zu more item", len - pos);
+      dbuf_printf(buf, "... %" PRId64 " more item", len - pos);
       if(pos + 1 < len)
         dbuf_putc(buf, 's');
     }
