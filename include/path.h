@@ -68,6 +68,7 @@ SizePair path_common_prefix(const char*, size_t, const char* s2, size_t n2);
 size_t path_components(const char*, size_t, uint32_t n);
 void path_concat(const char*, size_t, const char* b, size_t blen, DynBuf* db);
 const char* path_at(const char*, size_t*, int);
+size_t path_num_components(const char*);
 int path_exists(const char*);
 const char* path_extname(const char*);
 int path_find(const char*, const char*, DynBuf* db);

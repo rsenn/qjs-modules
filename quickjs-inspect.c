@@ -1011,7 +1011,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     JSPropertyEnum* propenum = (JSPropertyEnum*)vector_at(&propenum_tab, sizeof(JSPropertyEnum), pos);
     JSValue key = js_atom_tovalue(ctx, propenum->atom);
     name = JS_AtomToCString(ctx, propenum->atom);
-    if((!JS_IsSymbol(key) && ((is_array_like)) && is_integer(name))) || inspect_options_hidden(opts, propenum->atom)) {
+    if((!JS_IsSymbol(key) && ((is_array_like) && is_integer(name))) || inspect_options_hidden(opts, propenum->atom)) {
         JS_FreeValue(ctx, key);
         js_cstring_free(ctx, name);
         continue;

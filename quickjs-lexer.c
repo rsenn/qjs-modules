@@ -721,7 +721,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           if(lex->input.pos >= len && !memcmp(&lex->input.data[lex->input.pos - len], str, len)) {
             Location diff;
             location_zero(&diff);
-            location_count(&diff, (const char*)&lex->input.data[lex->input.pos - len], len);
+            location_count(&diff, (const uint8_t*)&lex->input.data[lex->input.pos - len], len);
             location_sub(&lex->loc, &diff);
             ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, 0, ctx));
           } else {
