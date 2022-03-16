@@ -143,7 +143,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
 
             uint8_t* dst = dbuf_reserve(&dbuf, n);
 
-            if(TUTF8E_OK == tutf8e_encoder_buffer_encode(encoder, ptr, blen, 0, dst, &n)) {
+            if(TUTF8E_OK == tutf8e_encoder_buffer_encode(encoder, ptr, blen, 0, (char*)dst, &n)) {
               dbuf.size += n;
               i = blen;
             }

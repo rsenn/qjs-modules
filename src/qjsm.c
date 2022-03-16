@@ -626,7 +626,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   char* file;
   BOOL has_dot_or_slash = !!name[str_chrs(name, "." PATHSEP_S, 2)];
 
-  if(strcmp(path, "<input>") && path_is_relative(name) && !jsm_builtin_find(name) && has_dot_or_slash) {
+  if(strcmp(path, "<input>") && (path_isdotslash(name) || path_isdotdot(name)) && !jsm_builtin_find(name) && has_dot_or_slash) {
     DynBuf dir;
     BOOL dsl;
     js_dbuf_allocator(ctx, &dir);

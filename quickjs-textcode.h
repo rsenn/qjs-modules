@@ -47,7 +47,7 @@ typedef enum text_encoding {
       UTFCharset encoding : 2; \
       Endian endian : 1; \
     }; \
-    TextEncoding type_code : 3; \
+    TextEncoding type_code; \
   }; \
   ENDPACK
 

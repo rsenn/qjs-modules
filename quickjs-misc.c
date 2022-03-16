@@ -581,10 +581,10 @@ js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     return JS_ThrowTypeError(ctx, "argument 1 object excepted");
 
   if(argc >= 2 && !js_is_null_or_undefined(argv[1]))
-    JS_ToIndex(ctx, &limit, argv[1]);
+    JS_ToInt64(ctx, &limit, argv[1]);
 
   if(argc >= 3 && !js_is_null_or_undefined(argv[2]))
-    JS_ToIndex(ctx, &start, argv[2]);
+    JS_ToInt64(ctx, &start, argv[2]);
 
   ret = JS_NewArray(ctx);
   end = limit >= 0 ? start + limit : -1;
