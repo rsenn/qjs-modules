@@ -44,9 +44,10 @@ typedef struct stream_reader {
   Promise events[2];
   union {
     struct list_head list;
-    struct {
-      Read *prev, *next;
-    } reads;
+    /*    struct {
+          Read *prev, *next;
+        } reads;*/
+    Read reads;
   };
 } Reader;
 

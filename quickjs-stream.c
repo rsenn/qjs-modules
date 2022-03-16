@@ -129,7 +129,7 @@ reader_clear(Reader* rd, JSContext* ctx) {
   Read *el, *next;
 
   list_for_each_prev_safe(el, next, &rd->reads) {
-    promise_reject(ctx, &el->promise, JS_UNDEFINED);
+    promise_reject(ctx, &el->promise.funcs, JS_UNDEFINED);
 
     read_free_rt(el, ctx->rt);
   }
@@ -282,7 +282,7 @@ reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   }
   if(op) {
     printf("reader_passthrough() read[%i]\n", op->seq);
-    ret = promise_resolve(ctx, &op->promise, result);
+    ret = promise_resolve(ctx, &op->promise.funcs, result);
     reader_clean(rd, ctx);
   }
   return ret;
@@ -360,14 +360,14 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   InputBuffer input;
   int64_t ret;
   Reader* rd;
-  size_t old_size;
+  // size_t old_size;
 
   if(readable_locked(st) && (rd = st->reader))
     if(reader_passthrough(rd, chunk, ctx))
       return JS_UNDEFINED;
 
   input = js_input_chars(ctx, chunk);
-  old_size = queue_size(&st->q);
+  // old_size = queue_size(&st->q);
   ret = queue_write(&st->q, input.data, input.size);
   // printf("old queue size: %zu new queue size: %zu\n", old_size, queue_size(&st->q));
   input_buffer_free(&input, ctx);
