@@ -699,6 +699,16 @@ js_is_array(JSContext* ctx, JSValueConst value) {
   return JS_IsArray(ctx, value) || js_is_typedarray(value);
 }
 
+static inline BOOL
+js_is_array_like(JSContext* ctx, JSValueConst obj) {
+  JSValue len;
+  BOOL ret;
+  len = JS_GetPropertyStr(ctx, obj, "length");
+  ret = JS_IsNumber(len);
+  JS_FreeValue(ctx, len);
+  return ret;
+}
+
 BOOL js_is_input(JSContext* ctx, JSValueConst value);
 
 int js_propenum_cmp(const void* a, const void* b, void* ptr);

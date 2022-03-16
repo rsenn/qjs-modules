@@ -242,7 +242,7 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
     JS_FreeValue(ctx, value);
   }
   value = JS_GetPropertyStr(ctx, object, "hideKeys");
-  if(JS_IsArray(ctx, value)) {
+  if(js_is_array(ctx, value)) {
     int64_t len, pos;
     len = js_array_length(ctx, value);
 
@@ -895,7 +895,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   if(js_is_promise(ctx, value)) {
     dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED "Promise " COLOR_NONE : "Promise ");
 
-  } else if(!JS_IsArray(ctx, value) && !is_function) {
+  } else if(!js_is_array(ctx, value) && !is_function) {
     if(s == 0 && JS_IsFunction(ctx, object_tostring))
       s = js_object_tostring2(ctx, object_tostring, value);
 
@@ -915,7 +915,9 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   if(s)
     js_cstring_free(ctx, s);
 
-  if(!(is_array || is_typedarray)) {
+  BOOL is_array_like = is_array || is_typedarray || js_is_array_like(ctx, value);
+
+  if(!is_array_like) {
     BOOL show_hidden = opts->show_hidden;
 
     // printf("proto_chain: %i\n", opts->proto_chain);
@@ -953,7 +955,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 
   js_object_tmpmark_set(value);
 
-  if(is_array || is_typedarray) {
+  if(is_array_like) {
     len = js_array_length(ctx, value);
     dbuf_putstr(buf, compact && opts->break_length != INT32_MAX ? "[ " : "[");
     limit = min_size(opts->max_array_length, len);
@@ -998,7 +1000,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     }
   }
 
-  if(!is_array && !is_typedarray) {
+  if(!is_array_like) {
     dbuf_putstr(buf, (compact && vector_size(&propenum_tab, sizeof(JSPropertyEnum))) ? "{ " : "{");
     len = 0;
   }
@@ -1009,11 +1011,11 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     JSPropertyEnum* propenum = (JSPropertyEnum*)vector_at(&propenum_tab, sizeof(JSPropertyEnum), pos);
     JSValue key = js_atom_tovalue(ctx, propenum->atom);
     name = JS_AtomToCString(ctx, propenum->atom);
-    if((!JS_IsSymbol(key) && ((is_array || is_typedarray) && is_integer(name))) || inspect_options_hidden(opts, propenum->atom)) {
-      JS_FreeValue(ctx, key);
-      js_cstring_free(ctx, name);
-      continue;
-    }
+    if((!JS_IsSymbol(key) && ((is_array_like)) && is_integer(name))) || inspect_options_hidden(opts, propenum->atom)) {
+        JS_FreeValue(ctx, key);
+        js_cstring_free(ctx, name);
+        continue;
+      }
     if(pos > 0)
       dbuf_putstr(buf, compact ? ", " : ",");
     if(!compact && opts->break_length != INT32_MAX)
@@ -1060,7 +1062,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 
   if(!compact && len && opts->break_length != INT32_MAX)
     inspect_newline(buf, INSPECT_LEVEL(opts, depth));
-  dbuf_putstr(buf, (is_array || is_typedarray) ? ((compact || opts->break_length == INT32_MAX) && len ? " ]" : "]") : (compact && len ? " }" : "}"));
+  dbuf_putstr(buf, (is_array_like) ? ((compact || opts->break_length == INT32_MAX) && len ? " ]" : "]") : (compact && len ? " }" : "}"));
 
 end_obj:
   if(!vector_empty(&propenum_tab))
