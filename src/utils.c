@@ -181,9 +181,10 @@ regexp_free_rt(RegExp re, JSRuntime* rt) {
 int64_t
 js_array_length(JSContext* ctx, JSValueConst array) {
   int64_t len = -1;
-  if(JS_IsArray(ctx, array) || js_is_typedarray(array)) {
+  /*if(js_is_array(ctx, array) || js_is_typedarray(array)|| js_is_array_like(ctx, array))*/ {
     JSValue length = JS_GetPropertyStr(ctx, array, "length");
-    JS_ToInt64(ctx, &len, length);
+    if(JS_IsNumber(length))
+      JS_ToInt64(ctx, &len, length);
     JS_FreeValue(ctx, length);
   }
   return len;
