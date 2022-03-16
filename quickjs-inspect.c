@@ -986,7 +986,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
       } else if(JS_HasProperty(ctx, value, JS_ATOM_TAG_INT | pos)) {
         /*  if(compact || opts->break_length == INT32_MAX)
             dbuf_putc(buf, ' ');*/
-        js_inspect_print_value(ctx, buf, desc.value, opts, depth + 1);
+        js_inspect_print_value(ctx, buf, desc.value, opts, depth - 1);
       }
       js_propertydescriptor_free(ctx, &desc);
     }
