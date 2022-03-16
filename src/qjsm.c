@@ -1404,8 +1404,6 @@ main(int argc, char** argv) {
     exit(2);
   }
 
-  JS_SetModuleLoaderFunc(rt, 0, jsm_module_loader, 0);
-
   if(memory_limit != 0)
     JS_SetMemoryLimit(rt, memory_limit);
   // if (stack_size != 0)
@@ -1414,6 +1412,8 @@ main(int argc, char** argv) {
   js_std_set_worker_new_context_func(jsm_context_new);
 
   js_std_init_handlers(rt);
+  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, 0);
+
   ctx = jsm_context_new(rt);
   if(!ctx) {
     fprintf(stderr, "%s: cannot allocate JS context\n", exename);
