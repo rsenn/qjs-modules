@@ -803,7 +803,7 @@ js_inspect_print_error(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 static int
 js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
   BOOL is_array = 0, is_typedarray = 0, is_function = 0;
-  uint32_t pos, len, limit;
+  int64_t pos, len, limit;
   Vector propenum_tab;
   const char* s = 0;
   int compact = 0;
@@ -915,7 +915,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   if(s)
     js_cstring_free(ctx, s);
 
-  BOOL is_array_like = is_array || is_typedarray || js_is_array_like(ctx, value);
+  BOOL is_array_like = (is_array || is_typedarray || js_is_array_like(ctx, value)) && ((len = js_array_length(ctx, value)) >= 0);
 
   if(!is_array_like) {
     BOOL show_hidden = opts->show_hidden;
@@ -956,7 +956,6 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   js_object_tmpmark_set(value);
 
   if(is_array_like) {
-    len = js_array_length(ctx, value);
     dbuf_putstr(buf, compact && opts->break_length != INT32_MAX ? "[ " : "[");
     limit = min_size(opts->max_array_length, len);
     if(len && !compact && opts->break_length != INT32_MAX)
@@ -1012,10 +1011,10 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     JSValue key = js_atom_tovalue(ctx, propenum->atom);
     name = JS_AtomToCString(ctx, propenum->atom);
     if((!JS_IsSymbol(key) && ((is_array_like) && is_integer(name))) || inspect_options_hidden(opts, propenum->atom)) {
-        JS_FreeValue(ctx, key);
-        js_cstring_free(ctx, name);
-        continue;
-      }
+      JS_FreeValue(ctx, key);
+      js_cstring_free(ctx, name);
+      continue;
+    }
     if(pos > 0)
       dbuf_putstr(buf, compact ? ", " : ",");
     if(!compact && opts->break_length != INT32_MAX)
