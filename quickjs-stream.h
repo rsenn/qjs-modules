@@ -42,7 +42,12 @@ typedef struct stream_reader {
   int64_t desired_size;
   _Atomic(struct readable_stream*) stream;
   Promise events[2];
-  struct list_head reads;
+  union {
+    struct list_head list;
+    struct {
+      Read *prev, *next;
+    } reads;
+  };
 } Reader;
 
 enum { WRITER_CLOSED = 0, WRITER_READY };

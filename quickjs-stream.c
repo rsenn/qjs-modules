@@ -45,7 +45,7 @@ read_new(Reader* rd, JSContext* ctx) {
   Read* op;
   if((op = js_mallocz(ctx, sizeof(struct read_next)))) {
     op->seq = ++read_seq;
-    list_add(op, &rd->reads);
+    list_add((struct list_head*)op, &rd->list);
 
     promise_init(ctx, &op->promise);
   }
@@ -70,7 +70,7 @@ read_next(Reader* rd, JSContext* ctx) {
   }
 
   if(op) {
-    printf("read_next (%i/%zu)\n", op->seq, list_size(&rd->reads));
+    printf("read_next (%i/%zu)\n", op->seq, list_size(&rd->list));
     ret = op->promise.value;
     op->promise.value = JS_UNDEFINED;
   }
@@ -100,7 +100,7 @@ reader_new(JSContext* ctx, Readable* st) {
     promise_init(ctx, &rd->events[READER_CLOSED]);
     promise_zero(&rd->events[READER_CANCELLED]);
 
-    init_list_head(&rd->reads);
+    init_list_head(&rd->list);
 
     JSValue ret = js_readable_callback(ctx, rd->stream, READABLE_START, 1, &rd->stream->controller);
     JS_FreeValue(ctx, ret);
@@ -181,7 +181,7 @@ static JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Readable* st;
-  printf("reader_read (1)  [%zu]\n", list_size(&rd->reads));
+  printf("reader_read (1)  [%zu]\n", list_size(&rd->list));
 
   ret = read_next(rd, ctx);
 
@@ -196,7 +196,7 @@ reader_read(Reader* rd, JSContext* ctx) {
   }
 
   reader_update(rd, ctx);
-  printf("reader_read (2)  [%zu]\n", list_size(&rd->reads));
+  printf("reader_read (2)  [%zu]\n", list_size(&rd->list));
   // printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
 
   return ret;
@@ -243,7 +243,7 @@ reader_update(Reader* rd, JSContext* ctx) {
 
   reader_clean(rd, ctx);
 
-  printf("reader_update [%zu] closed=%d queue.size=%zu\n", list_size(&rd->reads), readable_closed(st), queue_size(&st->q));
+  printf("reader_update [%zu] closed=%d queue.size=%zu\n", list_size(&rd->list), readable_closed(st), queue_size(&st->q));
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
     reader_clear(rd, ctx);
@@ -251,7 +251,7 @@ reader_update(Reader* rd, JSContext* ctx) {
     if(reader_passthrough(rd, result, ctx))
       ++ret;
   } else {
-    while(!list_empty(&rd->reads) && (ch = queue_next(&st->q))) {
+    while(!list_empty(&rd->list) && (ch = queue_next(&st->q))) {
       JSValue chunk, result;
       // printf("reader_update() Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
       chunk = chunk_arraybuffer(ch, ctx);
