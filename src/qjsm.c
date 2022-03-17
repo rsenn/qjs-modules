@@ -798,7 +798,7 @@ jsm_context_new(JSRuntime* rt) {
    jsm_module_native(xml);*/
 
   // printf("Set module loader (rt=%p): %p\n", rt);
-  JS_SetModuleLoaderFunc(rt, 0, jsm_module_loader, 0);
+  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, 0);
 
   return ctx;
 }
