@@ -7,7 +7,7 @@ import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import ECMAScriptLexer from 'lib/lexer/ecmascript.js';
-import { getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
+import { error, getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
 
 ('use strict');
 ('use math');
@@ -1038,10 +1038,16 @@ class FileMap extends Array {
           if(r != len) r = -1;
         }
       } else {
-        throw new Error(getTypeName(str));
+        let type = getTypeName(str);
+        console.log('invalid type:', type);
+        throw new Error(type);
       }
-      //debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, `[${i + 1}/${length}]`, `result=${r}`, compact(1, { customInspect: true }), { depth }, out.inspect());
-      if(r < 0) break;
+      if(debug >= 2) debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, `[${i + 1}/${length}]`, `result=${r}`);
+      if(r < 0) {
+        let err = error();
+        throw new Error('error writing ' + len + ' bytes: ' + inspect(err));
+        break;
+      }
       written += r;
     }
     return written;
@@ -1075,7 +1081,7 @@ FileMap.prototype[Symbol.inspect] = function(depth, opts) {
   });
 
   return (
-    `FileMap\x1b[1;35m<${this.file}>\x1b[0m ` + arr.map(item => `[ ${item} ]`).join(',\n  ') ??
+    `FileMap\x1b[1;35m<${this.file}>\x1b[0m ` + arr.map((item, i) => `[ #${i} ${item} ]`).join(',\n  ') ??
     inspect(arr, {
       ...opts
     })
@@ -1350,13 +1356,12 @@ function main(...args) {
 
   if(out.file) {
     try {
-    const nbytes = results[0].write(stream);
-  } catch(error) {
-    console.log(`write error ('${out.file}'):`,error);
-    std.exit(1);
-  }
-
-    console.log(`${nbytes} bytes written to '${out.file}'`);
+      const nbytes = results[0].write(stream);
+      console.log(`${nbytes} bytes written to '${out.file}'`);
+    } catch(error) {
+      console.log(`write error ('${out.file}'):`, error);
+      std.exit(1);
+    }
   }
   if(debug > 3) console.log(`exportedNames`, exportedNames);
 
