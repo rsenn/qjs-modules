@@ -1,3 +1,4 @@
+#ifndef HAVE_INET_PTON
 #ifdef _WIN32
 #include <windows.h>
 #include <winsock2.h>
@@ -86,3 +87,4 @@ inet_pton(int af, const char* restrict s, void* restrict a0) {
     return 0;
   return 1;
 }
+#endif
