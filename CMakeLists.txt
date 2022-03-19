@@ -242,6 +242,8 @@ message("Have sysinfo() ${HAVE_SYSINFO}")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
+set(QUICKJS_MODULES bjson blob deep lexer location misc path pointer predicate repeater textcode sockets stream syscallerror inspect tree-walker xml)
+
 if(USE_LIBARCHIVE)
   if(BUILD_LIBARCHIVE)
     include(ExternalProject)
@@ -260,7 +262,6 @@ if(USE_LIBARCHIVE)
   #  message(FATAL_ERROR "libarchive not found")
   #endif(NOT LibArchive_FOUND)
 
-  set(QUICKJS_MODULES bjson blob deep lexer location misc path pointer predicate repeater textcode sockets stream syscallerror inspect tree-walker xml)
   if(LibArchive_FOUND)
     set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
   endif(LibArchive_FOUND)
@@ -511,8 +512,8 @@ add_custom_command(OUTPUT ${MODULES_DIR}/qjscalc.c COMMAND ${QJSC} -fbignum -c -
 
 #dump(COMPILED_MODULES)
 
-set(QJSM_SOURCES src/qjsm.c src/path.c src/readlink.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c ${MODULES_DIR}/perf_hooks.c
-                 ${MODULES_DIR}/process.c ${MODULES_DIR}/tty.c ${MODULES_DIR}/util.c ${QJSM_EXTRA_SOURCES})
+set(QJSM_SOURCES src/qjsm.c src/path.c src/readlink.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c
+                 ${MODULES_DIR}/perf_hooks.c ${MODULES_DIR}/process.c ${MODULES_DIR}/tty.c ${MODULES_DIR}/util.c ${QJSM_EXTRA_SOURCES})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
   if(QUICKJS_DEBUGGER)
