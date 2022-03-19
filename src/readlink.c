@@ -1,3 +1,4 @@
+#if defined(WIN32) || defined(_MSC_VER) || defined(__MINGW32__)
 #include <stdio.h>
 #include <windows.h>
 #include <winioctl.h>
@@ -103,3 +104,4 @@ char
 is_junction(const char* LinkPath) {
   return reparse_tag(LinkPath) == IO_REPARSE_TAG_MOUNT_POINT;
 }
+#endif
