@@ -209,6 +209,17 @@ jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename,
   return val;
 }
 
+JSModuleDef* js_init_module_deep(JSContext*, const char*);
+JSModuleDef* js_init_module_inspect(JSContext*, const char*);
+JSModuleDef* js_init_module_lexer(JSContext*, const char*);
+JSModuleDef* js_init_module_misc(JSContext*, const char*);
+JSModuleDef* js_init_module_path(JSContext*, const char*);
+JSModuleDef* js_init_module_pointer(JSContext*, const char*);
+JSModuleDef* js_init_module_predicate(JSContext*, const char*);
+JSModuleDef* js_init_module_repeater(JSContext*, const char*);
+JSModuleDef* js_init_module_tree_walker(JSContext*, const char*);
+JSModuleDef* js_init_module_xml(JSContext*, const char*);
+
 void
 jsm_init_modules(JSContext* ctx) {
 

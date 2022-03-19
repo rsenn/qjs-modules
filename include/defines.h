@@ -52,12 +52,17 @@
 
 #define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE)
 
+#ifdef JS_SHARED_LIBRARY
 #if defined(_WIN32) || defined(__MINGW32__)
 #define VISIBLE __declspec(dllexport)
 #define HIDDEN
 #else
 #define VISIBLE __attribute__((visibility("default")))
 #define HIDDEN __attribute__((visibility("hidden")))
+#endif
+#else
+#define VISIBLE
+#define HIDDEN
 #endif
 
 #ifndef MAX_NUM
