@@ -1,5 +1,7 @@
 project(qjs-modules C)
 
+message("Building project [1;31m${PROJECT_NAME}[0m")
+
 cmake_minimum_required(VERSION 3.2)
 
 set(CMAKE_C_STANDARD 11)
@@ -10,6 +12,7 @@ option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
 option(USE_SPAWN "Use POSIX spawn()" OFF)
+option(USE_LIBARCHIVE "Use libarchive" ON)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
@@ -236,30 +239,32 @@ message("Have sysinfo() ${HAVE_SYSINFO}")
 #   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpilib/gpio.cmake)
 # endif(BUILD_PIGPIO)
 
-if(BUILD_LIBARCHIVE)
-  include(ExternalProject)
-  ExternalProject_Add(
-    libarchive SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
-    CMAKE_CACHE_ARGS "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
-                     "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}" CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
-
-  link_directories("${CMAKE_CURRENT_BINARY_DIR}/libarchive")
-
-else(BUILD_LIBARCHIVE)
-  include(FindLibArchive)
-endif(BUILD_LIBARCHIVE)
-
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-#if(NOT LibArchive_FOUND)
-#  message(FATAL_ERROR "libarchive not found")
-#endif(NOT LibArchive_FOUND)
+if(USE_LIBARCHIVE)
+  if(BUILD_LIBARCHIVE)
+    include(ExternalProject)
+    ExternalProject_Add(
+      libarchive SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
+      CMAKE_CACHE_ARGS "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
+                       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}" CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-set(QUICKJS_MODULES bjson blob deep lexer location misc path pointer predicate repeater textcode sockets stream syscallerror inspect tree-walker xml)
-if(LibArchive_FOUND)
-  set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
-endif(LibArchive_FOUND)
+    link_directories("${CMAKE_CURRENT_BINARY_DIR}/libarchive")
+
+  else(BUILD_LIBARCHIVE)
+    include(FindLibArchive)
+  endif(BUILD_LIBARCHIVE)
+
+  #if(NOT LibArchive_FOUND)
+  #  message(FATAL_ERROR "libarchive not found")
+  #endif(NOT LibArchive_FOUND)
+
+  set(QUICKJS_MODULES bjson blob deep lexer location misc path pointer predicate repeater textcode sockets stream syscallerror inspect tree-walker xml)
+  if(LibArchive_FOUND)
+    set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
+  endif(LibArchive_FOUND)
+endif(USE_LIBARCHIVE)
 
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} child-process)
@@ -297,7 +302,8 @@ set(location_SOURCES src/location.c include/location.h quickjs-location.c quickj
 
 set(syscallerror_SOURCES quickjs-syscallerror.c quickjs-syscallerror.h)
 set(child_process_SOURCES src/child-process.c include/child-process.h src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
-set(deep_SOURCES ${vector_SOURCES} src/pointer.c src/virtual-properties.c src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES} ${predicate_SOURCES} include/pointer.h include/virtual-properties.h)
+set(deep_SOURCES ${vector_SOURCES} src/pointer.c src/virtual-properties.c src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES} ${predicate_SOURCES} include/pointer.h
+                 include/virtual-properties.h)
 set(deep_LIBRARIES qjs-predicate qjs-pointer)
 set(inspect_SOURCES ${vector_SOURCES} include/iteration.h ${utils_SOURCES} src/property-enumeration.c include/property-enumeration.h quickjs-internal.h)
 set(tree_walker_SOURCES ${vector_SOURCES} src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES})
@@ -500,13 +506,13 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   include_directories(${QUICKJS_INCLUDE_DIR})
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
-add_custom_command(OUTPUT ${MODULES_DIR}/qjscalc.c COMMAND ${QJSC} -fbignum -c -o ${MODULES_DIR}/qjscalc.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                   COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
+add_custom_command(OUTPUT ${MODULES_DIR}/qjscalc.c COMMAND ${QJSC} -fbignum -c -o ${MODULES_DIR}/qjscalc.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js DEPENDS ${QJSC_DEPS}
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
 
 #dump(COMPILED_MODULES)
 
-set(QJSM_SOURCES src/qjsm.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c ${MODULES_DIR}/perf_hooks.c ${MODULES_DIR}/process.c
-                 ${MODULES_DIR}/tty.c ${MODULES_DIR}/util.c ${QJSM_EXTRA_SOURCES})
+set(QJSM_SOURCES src/qjsm.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c ${MODULES_DIR}/perf_hooks.c
+                 ${MODULES_DIR}/process.c ${MODULES_DIR}/tty.c ${MODULES_DIR}/util.c ${QJSM_EXTRA_SOURCES})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
   if(QUICKJS_DEBUGGER)
@@ -520,6 +526,7 @@ add_executable(qjsm ${QJSM_SOURCES})
 #dump(QUICKJS_LIBRARY)
 
 if(QJS_MODULES_STATIC)
+  dump(QJS_MODULES_STATIC)
   add_dependencies(qjsm ${QJS_MODULES_STATIC})
 endif(QJS_MODULES_STATIC)
 if(COMPILED_MODULES)

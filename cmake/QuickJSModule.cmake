@@ -63,7 +63,7 @@ function(make_module FNAME)
   #dump(VNAME ${VNAME}_SOURCES SOURCES)
 
   if(BUILD_SHARED_MODULES)
-    add_library(${TARGET_NAME} SHARED ${SOURCES})
+    add_library(${TARGET_NAME} MODULE ${SOURCES})
 
     set_target_properties(${TARGET_NAME} PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}" PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}" COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
 
@@ -93,10 +93,10 @@ function(make_module FNAME)
   list(APPEND MODULES_STATIC "${TARGET_NAME}-static")
   set(QJS_MODULES_STATIC "${MODULES_STATIC}" PARENT_SCOPE)
 
-  set_target_properties(${TARGET_NAME}-static PROPERTIES OUTPUT_NAME "${VNAME}" PREFIX "${LIBRARY_PREFIX}" SUFFIX "${LIBRARY_SUFFIX}" COMPILE_FLAGS "")
+  set_target_properties(${TARGET_NAME}-static PROPERTIES OUTPUT_NAME "${VNAME}" PREFIX "quickjs-" SUFFIX "${LIBRARY_SUFFIX}" COMPILE_FLAGS "")
   target_compile_definitions(${TARGET_NAME}-static PRIVATE _GNU_SOURCE=1 JS_${UNAME}_MODULE=1 CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}")
   target_link_directories(${TARGET_NAME}-static PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
-  target_link_libraries(${TARGET_NAME}-static PUBLIC ${QUICKJS_LIBRARY})
+  target_link_libraries(${TARGET_NAME}-static INTERFACE ${QUICKJS_LIBRARY})
 
 endfunction()
 
