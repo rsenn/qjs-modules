@@ -151,6 +151,11 @@ js_arguments_shift(JSArguments* args) {
   return ret;
 }
 
+static inline int
+js_arguments_count(const JSArguments* args) {
+  return args->c - args->p;
+}
+
 static inline JSValueConst
 js_arguments_at(JSArguments* args, int i) {
   return i >= 0 && i < args->c ? args->v[i] : JS_UNDEFINED;
