@@ -5,7 +5,7 @@
 #include "include/buffer-utils.h"
 #if defined(_WIN32) || defined(__MSYS__)
 #include <winsock2.h>
-#if 0 //ndef __MSYS__
+#if 0 // ndef __MSYS__
 int inet_pton(int, const char*, void*);
 const char* inet_ntop(int, const void*, char*, socklen_t);
 #endif

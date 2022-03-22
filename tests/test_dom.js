@@ -85,6 +85,7 @@ function main(...args) {
   files.forEach(processFile);
 
   function processFile(file) {
+    console.log('Processing file:', file);
     let base = path.basename(file, path.extname(file));
 
     let data = std.loadFile(file, 'utf-8');
@@ -114,6 +115,11 @@ function main(...args) {
     console.log('doc', inspect(doc, { depth: 4, compact: false }));
 
     globalThis.fs = fs;
+
+    let firstLayer = doc.querySelector('layer');
+    console.log('firstLayer', inspect(firstLayer, { depth: 4, compact: false }));
+    let allLayers = doc.querySelectorAll('layer');
+    console.log('allLayers', allLayers);
 
     let count = 0;
 
