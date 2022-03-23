@@ -113,6 +113,7 @@ js_token_wrap(JSContext* ctx, Token* tok) {
 
 JSValue
 js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  Lexer* lex = 0;
   Token* tok;
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
@@ -133,6 +134,13 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   JS_SetOpaque(obj, tok);
 
   // tok->loc_val = JS_UNDEFINED;
+
+  //
+  //
+  if(argc >= 1 && (lex = js_lexer_data(argv[0]))) {
+    argc--;
+    argv++;
+  }
 
   if(argc > 0) {
     if(JS_IsNumber(argv[0])) {
