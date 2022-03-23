@@ -2124,7 +2124,7 @@ js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
   return JS_ThrowInternalError(ctx, "invalid tag %i", tag);
 }
 
-JSValue
+/*JSValue
 js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_only) {
   JSValue obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
   if(JS_IsException(obj))
@@ -2139,6 +2139,34 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
         return tmp;
   }
   return obj;
+}*/
+
+JSValue
+js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, int load_only) {
+  JSValue obj, val = JS_UNDEFINED;
+  obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
+  if(JS_IsException(obj))
+    goto exception;
+  if(load_only) {
+    if(JS_VALUE_GET_TAG(obj) == JS_TAG_MODULE) {
+      js_module_set_import_meta(ctx, obj, FALSE, FALSE);
+    }
+  } else {
+    if(JS_VALUE_GET_TAG(obj) == JS_TAG_MODULE) {
+      if(JS_ResolveModule(ctx, obj) < 0) {
+        JS_FreeValue(ctx, obj);
+        goto exception;
+      }
+      js_module_set_import_meta(ctx, obj, FALSE, TRUE);
+    }
+    val = JS_EvalFunction(ctx, obj);
+    if(JS_IsException(val)) {
+    exception:
+      js_std_dump_error(ctx);
+      exit(1);
+    }
+  }
+  return val;
 }
 
 JSValue

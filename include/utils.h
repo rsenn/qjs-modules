@@ -817,10 +817,10 @@ JSModuleDef* js_module_find_rev(JSContext*, const char* name);
 int js_module_indexof(JSContext*, JSModuleDef* def);
 JSModuleDef* js_module_at(JSContext*, int index);
 
-JSValue js_eval_module(JSContext*, JSValueConst, BOOL load_only);
-JSValue js_eval_binary(JSContext*, const uint8_t*, size_t buf_len, BOOL load_only);
-JSValue js_eval_buf(JSContext*, const void*, int buf_len, const char* filename, int eval_flags);
-int js_eval_str(JSContext*, const char*, const char* file, int flags);
+JSValue js_eval_module(JSContext*, JSValue, BOOL);
+JSValue js_eval_binary(JSContext*, const uint8_t*, size_t, int load_only);
+JSValue js_eval_buf(JSContext*, const void*, int, const char* filename, int eval_flags);
+int js_eval_str(JSContext*, const char*, const char*, int flags);
 int __attribute__((format(printf, 3, 4))) js_eval_fmt(JSContext* ctx, int flags, const char* fmt, ...);
 
 int64_t js_time_ms(void);
