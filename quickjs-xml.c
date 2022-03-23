@@ -811,7 +811,14 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
 
   character_classes_init(chars);
 
-  return JS_SetModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
+  JS_SetModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
+
+  JSValue defaultObj = JS_NewObject(ctx);
+  JS_SetPropertyStr(ctx, defaultObj, "read", JS_NewCFunction(ctx, js_xml_read, "read", 1, JS_CFUNC_generic, 0));
+  JS_SetPropertyStr(ctx, defaultObj, "write", JS_NewCFunction(ctx, js_xml_write, "write", 2, JS_CFUNC_generic, 0));
+  JS_SetModuleExport(ctx, m, "default", defaultObj);
+
+  return 0;
 }
 
 #ifdef JS_SHARED_LIBRARY
@@ -827,5 +834,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
+  JS_AddModuleExport(ctx, m, "default");
   return m;
 }
