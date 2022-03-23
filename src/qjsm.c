@@ -1067,6 +1067,7 @@ enum {
   LOAD_MODULE,
   RESOLVE_MODULE,
   REQUIRE_MODULE,
+  NORMALIZE_MODULE,
   GET_MODULE_NAME,
   GET_MODULE_OBJECT,
   GET_MODULE_EXPORTS,
@@ -1135,6 +1136,19 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       }
       break;
     }
+    case NORMALIZE_MODULE: {
+      char *path, *file;
+      path = name;
+      name = argc >= 2 ? JS_ToCString(ctx, argv[1]) : 0;
+
+      if((file = jsm_module_normalize(ctx, path, name, 0))) {
+        val = JS_NewString(ctx, file);
+        js_free(ctx, file);
+      }
+      if(path)
+        JS_FreeCString(ctx, path);
+      break;
+    }
     case GET_MODULE_NAME: {
       val = module_name(ctx, m);
       break;
@@ -1188,6 +1202,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
     JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
+    JS_CFUNC_MAGIC_DEF("normalizeModule", 1, jsm_module_func, NORMALIZE_MODULE),
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
     JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
     JS_CFUNC_MAGIC_DEF("getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
