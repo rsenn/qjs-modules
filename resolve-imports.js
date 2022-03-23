@@ -146,12 +146,12 @@ function FileReplacer(file) {
   let fd = os.open(file + '.new', os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644);
   return define(FdWriter(fd, file), {
     close: () => {
-      console.log('FileReplacer.close', fd);
+      //console.log('FileReplacer.close', fd);
       let size = fs.sizeSync(fd);
       os.close(fd);
       let err = os.rename(file, file + '.old');
       err = os.rename(file + '.new', file);
-      console.log('os.rename() =', err);
+      //console.log('os.rename() =', err);
       if(err) throw new Error(`FileReplacer rename() error: ${std.strerror(-err)}`);
       console.log(`${file} written (${size} bytes)`);
     }
@@ -600,8 +600,8 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         acc.push(tok);
         return acc;
       }, []);
-       tokens = AddWhitespace(tokens);
- 
+      tokens = AddWhitespace(tokens);
+
       return TokenSequence(tokens).toString();
     }
   });
@@ -624,13 +624,20 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
   buffers[source] = [...split(BufferFile(source), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
 
-  /*console.log('fileImports', fileImports);*/
-  console.log('identifiersUsed[' + source + ']', identifiersUsed(source));
-
   let map = FileMap.for(source);
   let imported = used && new Set();
 
   if(used) {
+    if(used) {
+      if(debug >= 1) console.log(`imported [ ${source} ]`, console.config({ compact: 1 }), [...imported]);
+      used = intersection(used, imported);
+      if(debug >= 1) console.log(`used     [ ${source} ]`, console.config({ compact: 1 }), [...used]);
+
+      let unused = difference(imported, used);
+
+      if(debug >= 1) console.log(`unused   [ ${source} ]`, console.config({ compact: 1 }), [...unused]);
+    }
+
     for(let impexp of allExportsImports) {
       if(impexp.type == What.IMPORT) {
         let ids = impexp.ids();
@@ -651,7 +658,6 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         }
       }
     }
-    console.log('numReplace', numReplace);
     if(numReplace) {
       let out = FileReplacer(source);
       let result = map.write(out);
@@ -714,16 +720,6 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
       map.replaceRange(byteRange, null);
     }
-  }
-
-  if(used) {
-    console.log(`imported [ ${source} ]`, console.config({ compact: 1 }), [...imported]);
-    used = intersection(used, imported);
-    console.log(`used     [ ${source} ]`, console.config({ compact: 1 }), [...used]);
-
-    let unused = difference(imported, used);
-
-    console.log(`unused   [ ${source} ]`, console.config({ compact: 1 }), [...unused]);
   }
 
   end = Date.now();
@@ -797,12 +793,9 @@ function TokenSequence(tokens) {
 }
 
 function AddWhitespace(tokens) {
-  console.log('Token', Token);
   return tokens.reduce((acc, tok) => {
     if(acc.length) {
-      if(!IsWS(acc[acc.length - 1]) && !IsWS(tok)) {
-        acc.push({ type: 'whitespace', lexeme: ' ' });
-      }
+      if(!IsWS(acc[acc.length - 1]) && !IsWS(tok)) acc.push({ type: 'whitespace', lexeme: ' ' });
     }
     acc.push(tok);
     return acc;
@@ -1455,6 +1448,7 @@ function main(...args) {
     onlyImports = false;
     outputFile = null;
     out = DummyWriter('/dev/null');
+    //console.log('out', out instanceof DummyWriter);
   } else if(/list-import/.test(scriptArgs[0])) {
     printFiles = true;
     onlyImports = true;
@@ -1474,7 +1468,7 @@ function main(...args) {
 
   logFile(`Start of: ${argList.join(' ')}\n`);
 
-  if(debug >= 1) debugLog('main', { outputFile, out });
+  //if(debug >= 1) debugLog('main', { outputFile, out });
 
   const RelativePath = file => (path.isAbsolute(file) ? file : file.startsWith('./') ? file : './' + file);
   //const RelativePath = file => path.isAbsolute(file) ? file : file.startsWith('./') ? file.slice(2) : file;
@@ -1490,9 +1484,11 @@ function main(...args) {
 
     let result = ProcessFile(file, log, recursive, 0);
 
-    if(debug >= 1) console.log('result', compact(false, { depth: Infinity }), result);
+    if(!identifiersUsed) {
+      if(debug >= 1) console.log('result', compact(false, { depth: Infinity }), result);
 
-    results.push(result);
+      results.push(result);
+    }
   }
 
   if(!removeImports) {
@@ -1540,7 +1536,7 @@ function main(...args) {
   }
   stream.puts("\n(function() {\n  'use strict';\n");
   ++stream.indent;
-  if(debug > 0) console.log('out', out, out.file);
+  //if(debug > 0) console.log('out', out, out.file);
 
   if(out.file) {
     try {
