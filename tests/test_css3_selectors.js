@@ -2,8 +2,7 @@ import { TypeSelector, ClassSelector, AttributeSelector, parseSelector } from '.
 import { Predicate } from 'predicate';
 import { Console } from 'console';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
-import { read as readXML, write as writeXML }  from 'xml';
-
+import { read as readXML, write as writeXML } from 'xml';
 
 function main(...args) {
   globalThis.console = new Console({
