@@ -600,10 +600,8 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         acc.push(tok);
         return acc;
       }, []);
-     console.log('tokens', tokens);
-      tokens = AddWhitespace(tokens);
-     console.log('tokens', tokens);
-
+       tokens = AddWhitespace(tokens);
+ 
       return TokenSequence(tokens).toString();
     }
   });
@@ -803,7 +801,7 @@ function AddWhitespace(tokens) {
   return tokens.reduce((acc, tok) => {
     if(acc.length) {
       if(!IsWS(acc[acc.length - 1]) && !IsWS(tok)) {
-        acc.push(new Token(tokens[0].lexer, 'whitespace'));
+        acc.push({ type: 'whitespace', lexeme: ' ' });
       }
     }
     acc.push(tok);
