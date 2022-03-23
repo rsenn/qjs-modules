@@ -153,12 +153,12 @@ typedef struct jsm_module_record {
 
 jsm_module_extern_native(std);
 jsm_module_extern_native(os);
-// jsm_module_extern_native(child_process);
+jsm_module_extern_native(child_process);
 jsm_module_extern_native(deep);
 jsm_module_extern_native(inspect);
 jsm_module_extern_native(lexer);
 jsm_module_extern_native(misc);
-// jsm_module_extern_native(mmap);
+jsm_module_extern_native(mmap);
 jsm_module_extern_native(path);
 jsm_module_extern_native(pointer);
 jsm_module_extern_native(predicate);
@@ -197,43 +197,54 @@ jsm_dump_error(JSContext* ctx) {
   js_error_print(ctx, JS_GetException(ctx));
 }
 
-static JSValue
+static int
 jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
   JSValue val;
+  int ret;
 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
-    /* for the modules, we compile then run to be able to set import.meta */
+    /* for the modules, we compile then run to be able to set
+       import.meta */
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
       js_module_set_import_meta(ctx, val, TRUE, TRUE);
-      JS_EvalFunction(ctx, val);
+      val = JS_EvalFunction(ctx, val);
     }
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
   if(JS_IsException(val)) {
-    js_value_fwrite(ctx, val, stderr);
+    js_std_dump_error(ctx);
+    ret = -1;
+  } else {
+    ret = 0;
   }
-
-  // jsm_dump_error(ctx);
-  return val;
+  JS_FreeValue(ctx, val);
+  return ret;
 }
 
-static JSValue
-jsm_eval_file(JSContext* ctx, const char* file, BOOL module) {
+static int
+jsm_eval_file(JSContext* ctx, const char* filename, int module) {
   uint8_t* buf;
-  size_t len;
-  int flags;
+  int ret, eval_flags;
+  size_t buf_len;
 
-  buf = js_load_file(ctx, &len, file);
+  buf = js_load_file(ctx, &buf_len, filename);
   if(!buf) {
-    return JS_ThrowInternalError(ctx, "Failed loading '%s': %s", file, strerror(errno));
+    perror(filename);
+    exit(1);
   }
 
-  if(module < 0)
-    module = (has_suffix(file, ".mjs") || JS_DetectModule((const char*)buf, len));
-  flags = module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
-  return jsm_eval_buf(ctx, buf, len, file, flags);
+  if(module < 0) {
+    module = (has_suffix(filename, ".mjs") || JS_DetectModule((const char*)buf, buf_len));
+  }
+  if(module)
+    eval_flags = JS_EVAL_TYPE_MODULE;
+  else
+    eval_flags = JS_EVAL_TYPE_GLOBAL;
+  ret = eval_buf(ctx, buf, buf_len, filename, eval_flags);
+  js_free(ctx, buf);
+  return ret;
 }
 
 enum {
@@ -250,6 +261,17 @@ jsm_script_file() {
     char** ptr = vector_back(&jsm_scripts, sizeof(char*));
     ret = *ptr;
   }
+  return ret;
+}
+
+static char*
+jsm_script_at(int i) {
+  char *ret = 0, **ptr;
+  int size = vector_size(&jsm_scripts, sizeof(char*));
+
+  if(ABS_NUM(i) < size && (ptr = vector_at(&jsm_scripts, sizeof(char*), i < 0 ? i + size : i % size)))
+    ret = *ptr;
+
   return ret;
 }
 
@@ -313,7 +335,7 @@ jsm_script_load(JSContext* ctx, const char* file, BOOL module) {
   JS_SetPropertyStr(ctx, global_obj, "module", JS_NewObject(ctx));
   jsm_script_push(ctx, file);
 
-  val = jsm_eval_file(ctx, file, module);
+  val = js_eval_file(ctx, file, module);
   jsm_script_pop(ctx);
   if(JS_IsException(val)) {
     JSValue stack = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack");
@@ -357,7 +379,7 @@ jsm_init_modules(JSContext* ctx) {
   jsm_builtin_native(inspect);
   jsm_builtin_native(lexer);
   jsm_builtin_native(misc);
-  // jsm_builtin_native(mmap);
+  jsm_builtin_native(mmap);
   jsm_builtin_native(path);
   jsm_builtin_native(pointer);
   jsm_builtin_native(predicate);
@@ -377,7 +399,7 @@ jsm_init_modules(JSContext* ctx) {
   jsm_builtin_compiled(repl);
   jsm_builtin_compiled(require);
   jsm_builtin_compiled(tty);
-  // jsm_builtin_compiled(util);
+  jsm_builtin_compiled(util);
 }
 
 static BuiltinModule*
@@ -394,6 +416,8 @@ static JSModuleDef*
 jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
   JSValue obj = JS_UNDEFINED;
+
+  jsm_script_push(ctx, rec->module_name);
 
   if(rec->def == 0) {
     if(debug_module_loader >= 2)
@@ -421,6 +445,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
     }
     rec->def = m;
   }
+  jsm_script_pop(ctx);
 
   return rec->def;
 }
@@ -979,11 +1004,11 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     module = str_ends(str, ".mjs");
   switch(magic) {
     case 0: {
-      ret = jsm_eval_file(ctx, str, module);
+      ret = js_eval_file(ctx, str, module);
       break;
     }
     case 1: {
-      ret = jsm_eval_buf(ctx, str, len, 0, module);
+      ret = js_eval_buf(ctx, str, len, 0, module);
       break;
     }
   }
@@ -1429,6 +1454,9 @@ main(int argc, char** argv) {
   }
 
   if(!empty_run) {
+    DynBuf db;
+    js_dbuf_init(ctx, &db);
+
 #ifdef CONFIG_BIGNUM
     if(load_jscalc) {
       js_eval_binary(ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
@@ -1438,21 +1466,29 @@ main(int argc, char** argv) {
 
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
-      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
+      // js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
+      dbuf_putstr(&db, str);
     }
-    /*   {
-         const char* str = "import require from 'require';\nglobalThis.require = require;\n";
-         js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
-       }
-   */
+    {
+      const char* str = "import require from 'require';\nglobalThis.require = require;\n";
+      // dbuf_putstr(&db, str);
+      // js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
+    }
+
     JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
     if(load_std) {
       const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = std;\nglobalThis.os = os;\nglobalThis.setTimeout = "
                         "os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
-      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
+      dbuf_putstr(&db, str);
+      // js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 
-    // jsm_list_modules(ctx);
+    if(db.size) {
+      dbuf_0(&db);
+      js_eval_str(ctx, db.buf, "<input>", JS_EVAL_TYPE_MODULE);
+      // jsm_list_modules(ctx)
+    }
+    dbuf_free(&db);
 
     {
       char** ptr;

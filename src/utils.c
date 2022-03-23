@@ -2180,6 +2180,17 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
   return val;
 }
 
+JSValue
+js_eval_file(JSContext* ctx, const char* filename, int eval_flags) {
+  uint8_t* buf;
+  size_t buf_len;
+
+  if(!(buf = js_load_file(ctx, &buf_len, filename)))
+    return JS_ThrowInternalError(ctx, "Error loading '%s': %s", filename, strerror(errno));
+
+  return js_eval_buf(ctx, buf, buf_len, filename, eval_flags);
+}
+
 int
 js_eval_str(JSContext* ctx, const char* str, const char* file, int flags) {
   int32_t ret = 0;
