@@ -1048,6 +1048,7 @@ enum {
   FIND_MODULE,
   LOAD_MODULE,
   RESOLVE_MODULE,
+  REQUIRE_MODULE,
   GET_MODULE_NAME,
   GET_MODULE_OBJECT,
   GET_MODULE_EXPORTS,
@@ -1098,23 +1099,22 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       // printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
 
       m = rt->module_loader_func(ctx, imp.args[0], 0);
-
-      //  val = js_import_eval(ctx, imp);
-
-      /*   if(JS_IsModule(val))
-           m = JS_VALUE_GET_PTR(val);
-         else*/
-      // m = js_module_find(ctx, imp.path);
-
+ 
       if(m)
         val = JS_MKPTR(JS_TAG_MODULE, m);
-      // val = module_object(ctx, m);
-
+ 
       js_strv_free_n(ctx, n, imp.args);
       break;
     }
     case RESOLVE_MODULE: {
       val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
+      break;
+    }
+   case REQUIRE_MODULE: {
+ 
+    if((m = jsm_module_loader(ctx,  name, 0))){
+      val = module_exports(ctx, m);
+    }
       break;
     }
     case GET_MODULE_NAME: {
@@ -1169,6 +1169,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
+    JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
     JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
     JS_CFUNC_MAGIC_DEF("getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
@@ -1451,6 +1452,10 @@ main(int argc, char** argv) {
 
     {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
+      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
+    }
+   {
+      const char* str = "import require from 'require';\nglobalThis.require = require;\n";
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 

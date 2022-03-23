@@ -1,8 +1,5 @@
 import process from 'process';
-import * as os from 'os';
-import * as std from 'std';
 import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, once, memoize, getOpt, glob } from '../lib/util.js';
-import inspect from 'inspect';
 import * as xml from 'xml';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -68,8 +65,6 @@ function main(...args) {
     Factory
   };
   Object.assign(globalThis, {
-    os,
-    std,
     ...{ escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, memoize },
     xml,
     path,
@@ -112,12 +107,12 @@ function main(...args) {
 
     fs.writeFileSync('output.xml', xml.write(rawDoc));
 
-    console.log('doc', inspect(doc, { depth: 4, compact: false }));
+    console.log('doc', doc);
 
     globalThis.fs = fs;
 
     let firstLayer = doc.querySelector('layer');
-    console.log('firstLayer', inspect(firstLayer, { depth: 4, compact: false }));
+    console.log('firstLayer', firstLayer);
     let allLayers = doc.querySelectorAll('layer');
     console.log('allLayers', allLayers);
 
@@ -172,7 +167,6 @@ function main(...args) {
     end = Date.now();
 
     repl.printStatus(`walking took ${end - start}ms (${count} nodes)`);
-    std.gc();
   }
 
   if(params.interactive) StartREPL();
@@ -182,5 +176,4 @@ try {
   main(...scriptArgs.slice(1));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
-  std.exit(1);
 }

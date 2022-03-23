@@ -1,9 +1,11 @@
-import { TypeSelector, ClassSelector, AttributeSelector, parseSelector } from '../lib/css3-selectors.js';
+import { Predicate, TypeSelector, ClassSelector, AttributeSelector, parseSelector } from '../lib/css3-selectors.js';
 import { Console } from 'console';
-import * as Predicate from 'predicate';
+import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
 
 function main(...args) {
-  globalThis.console = new Console(process.stderr, {
+  globalThis.console = new Console({
+    stdout: process.stdout,
+    stderr: process.stderr,
     inspectOptions: {
       colors: true,
       depth: Infinity,
@@ -22,7 +24,11 @@ function main(...args) {
 
   let attrSel = new AttributeSelector('name', 'test');
 
+  console.log('attrSel =', attrSel.toSource());
   console.log('attrSel() =', attrSel({ attributes: { name: 'test' } }));
+
+  let propSel = Predicate.property('name', Predicate.string('test'));
+  console.log('propSel() =', propSel({ name: 'test' }));
 
   let selector = parseSelector('element.big[name="test"]');
 
@@ -30,7 +36,7 @@ function main(...args) {
 }
 
 try {
-  main(...scriptArgs.slice(1));
+  main(...process.argv.slice(1));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
 } finally {

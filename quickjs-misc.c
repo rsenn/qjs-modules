@@ -1,6 +1,7 @@
 #include "include/defines.h"
 #include <quickjs.h>
 #include <quickjs-libc.h>
+#include <quickjs-config.h>
 #include "quickjs-misc.h"
 #include "quickjs-internal.h"
 #include "quickjs-location.h"
@@ -147,6 +148,18 @@ js_arraybuffer_free_func(JSRuntime* rt, void* opaque, void* ptr) {
   JSValue value = JS_MKPTR(JS_TAG_OBJECT, opaque);
 
   JS_FreeValueRT(rt, value);
+}
+
+static JSValue
+js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret;
+
+  ret = JS_NewObject(ctx);
+
+  JS_SetPropertyStr(ctx, ret, "name", JS_NewString(ctx, "quickjs"));
+  JS_SetPropertyStr(ctx, ret, "sourceUrl", JS_NewString(ctx, "https://bellard.org/quickjs/quickjs-" CONFIG_VERSION ".tar.xz"));
+
+  return ret;
 }
 
 static JSValue
@@ -1904,6 +1917,7 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
+    JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
 #ifndef __wasi__
 // JS_CFUNC_DEF("realpath", 1, js_misc_realpath),
 #ifdef USE_TEMPNAM
