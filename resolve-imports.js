@@ -601,6 +601,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         return acc;
       }, []);
       tokens = AddWhitespace(tokens);
+    console.log('tokens', tokens);
 
       return TokenSequence(tokens).toString();
     }
@@ -628,16 +629,6 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   let imported = used && new Set();
 
   if(used) {
-    if(used) {
-      if(debug >= 1) console.log(`imported [ ${source} ]`, console.config({ compact: 1 }), [...imported]);
-      used = intersection(used, imported);
-      if(debug >= 1) console.log(`used     [ ${source} ]`, console.config({ compact: 1 }), [...used]);
-
-      let unused = difference(imported, used);
-
-      if(debug >= 1) console.log(`unused   [ ${source} ]`, console.config({ compact: 1 }), [...unused]);
-    }
-
     for(let impexp of allExportsImports) {
       if(impexp.type == What.IMPORT) {
         let ids = impexp.ids();
@@ -658,6 +649,14 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         }
       }
     }
+    if(debug >= 1) console.log(`imported [ ${source} ]`, console.config({ compact: 1 }), [...imported]);
+    used = intersection(used, imported);
+    if(debug >= 1) console.log(`used     [ ${source} ]`, console.config({ compact: 1 }), [...used]);
+
+    let unused = difference(imported, used);
+
+    if(debug >= 1) console.log(`unused   [ ${source} ]`, console.config({ compact: 1 }), [...unused]);
+
     if(numReplace) {
       let out = FileReplacer(source);
       let result = map.write(out);
@@ -1448,7 +1447,6 @@ function main(...args) {
     onlyImports = false;
     outputFile = null;
     out = DummyWriter('/dev/null');
-    //console.log('out', out instanceof DummyWriter);
   } else if(/list-import/.test(scriptArgs[0])) {
     printFiles = true;
     onlyImports = true;
@@ -1484,11 +1482,9 @@ function main(...args) {
 
     let result = ProcessFile(file, log, recursive, 0);
 
-    if(!identifiersUsed) {
-      if(debug >= 1) console.log('result', compact(false, { depth: Infinity }), result);
+    if(debug >= 1) console.log('result', compact(false, { depth: Infinity }), result);
 
-      results.push(result);
-    }
+    results.push(result);
   }
 
   if(!removeImports) {
@@ -1536,7 +1532,7 @@ function main(...args) {
   }
   stream.puts("\n(function() {\n  'use strict';\n");
   ++stream.indent;
-  //if(debug > 0) console.log('out', out, out.file);
+  if(debug > 0) console.log('out', out, out.file);
 
   if(out.file) {
     try {
