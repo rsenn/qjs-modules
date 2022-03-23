@@ -134,8 +134,12 @@ js_token_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
 
   // tok->loc_val = JS_UNDEFINED;
 
-  if(argc > 0)
-    JS_ToInt32(ctx, &tok->id, argv[0]);
+  if(argc > 0) {
+    if(JS_IsNumber(argv[0])) {
+      JS_ToInt32(ctx, &tok->id, argv[0]);
+    } else if(JS_IsString(argv[0])) {
+    }
+  }
   if(argc > 1)
     tok->lexeme = (uint8_t*)js_tostring(ctx, argv[1]);
   if(argc > 2) {

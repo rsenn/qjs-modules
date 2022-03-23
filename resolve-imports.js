@@ -776,8 +776,12 @@ function AddDep(source, file) {
   dependencyTree(source).push(file);
 }
 
+function IsWS(tok) {
+  return tok.type == 'whitespace';
+}
+
 function NonWS(tokens) {
-  return tokens.filter(tok => tok.type != 'whitespace');
+  return tokens.filter(tok => !IsWS(tok));
 }
 
 function TokenSequence(tokens) {
@@ -789,6 +793,12 @@ function TokenSequence(tokens) {
       }
     }
   );
+}
+
+function AddWhitespace(tokens) {
+  return tokens.reduce((acc, tok) => {
+
+  }, []);
 }
 
 function Unquote(lexeme) {
