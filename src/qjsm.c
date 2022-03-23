@@ -1447,19 +1447,14 @@ main(int argc, char** argv) {
           js_eval_str(ctx, str, "<process>", JS_EVAL_TYPE_MODULE);
         }*/
     {
-      JSModuleDef* req;
-
-      if((req = jsm_module_loader(ctx, "require", 0))) {
-        JSValue glt, exp;
-
-        glt = JS_GetGlobalObject(ctx);
-
-        exp = module_default_export(ctx, req);
-
-        JS_SetPropertyStr(ctx, glt, "require", exp);
-
-        JS_FreeValue(ctx, glt);
-      }
+      /*  JSModuleDef* req;
+        if((req = jsm_module_loader(ctx, "require", 0))) {
+          JSValue glt, exp;
+          glt = JS_GetGlobalObject(ctx);
+          exp = module_default_export(ctx, req);
+          JS_SetPropertyStr(ctx, glt, "require", exp);
+          JS_FreeValue(ctx, glt);
+        }*/
       /*  const char* str = "import { require } from 'require';\n"
                           "globalThis.require = require;\n";
         js_eval_str(ctx, str, "<require>", JS_EVAL_TYPE_MODULE);*/
