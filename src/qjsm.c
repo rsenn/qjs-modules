@@ -297,9 +297,13 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
     } else {
       obj = JS_ReadObject(ctx, rec->byte_code, rec->byte_code_len, JS_READ_OBJ_BYTECODE);
 
+      m = js_value_ptr(obj);
+
+      JSValue ret = JS_EvalFunction(ctx, obj);
+
       /*  obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, FALSE);
-        m = js_value_ptr(obj);
-        rec->initialized = TRUE;*/
+            m = js_value_ptr(obj);
+            rec->initialized = TRUE;*/
     }
     rec->def = m;
   }
