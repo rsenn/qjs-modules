@@ -582,8 +582,8 @@ jsm_module_json(JSContext* ctx, const char* name) {
   return m;
 }
 
-static JSModuleDef*
-jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
+static char*
+jsm_module_find(JSContext* ctx, const char* module_name, void* opaque) {
   char *name = 0, *s = 0;
   JSModuleDef* m = 0;
 
@@ -594,14 +594,6 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     if(debug_module_loader >= 2)
       printf("%-18s[1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
 
-    if(!strchr(s, '/')) {
-      BuiltinModule* rec;
-
-      if((rec = jsm_builtin_find(s))) {
-        js_free(ctx, s);
-        return jsm_builtin_init(ctx, rec);
-      }
-    }
     if(path_is_file(s))
       break;
 
@@ -625,7 +617,24 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     }
     break;
   }
-  if(s) {
+
+  return s;
+}
+
+static JSModuleDef*
+jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
+  char* s;
+  JSModuleDef* m;
+  if(!strchr(module_name, '/')) {
+    BuiltinModule* rec;
+
+    if((rec = jsm_builtin_find(s))) {
+      js_free(ctx, s);
+      return jsm_builtin_init(ctx, rec);
+    }
+  }
+
+  if((s = jsm_module_find(ctx, module_name, opaque))) {
     if(debug_module_loader)
       printf("\"%s\" -> \"%s\"\n", module_name, s);
 
