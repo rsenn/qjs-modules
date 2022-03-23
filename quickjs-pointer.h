@@ -22,7 +22,7 @@ js_pointer_data(JSValueConst value) {
 }
 
 JSValue js_pointer_wrap(JSContext*, Pointer*);
-JSValue js_pointer_new(JSContext*, JSValueConst , JSValueConst);
+JSValue js_pointer_new(JSContext*, JSValueConst, JSValueConst);
 
 /**
  * @}
