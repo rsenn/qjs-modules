@@ -1178,7 +1178,28 @@ js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr) {
   for(i = 0; i < len; i++) { ret[i] = JS_GetPropertyUint32(ctx, arr, i); }
   return ret;
 }
-
+const char*
+js_value_tag_name(int tag) {
+  switch(tag) {
+    case JS_TAG_BIG_DECIMAL: return "BIG_DECIMAL";
+    case JS_TAG_BIG_INT: return "BIG_INT";
+    case JS_TAG_BIG_FLOAT: return "BIG_FLOAT";
+    case JS_TAG_SYMBOL: return "SYMBOL";
+    case JS_TAG_STRING: return "STRING";
+    case JS_TAG_MODULE: return "MODULE";
+    case JS_TAG_FUNCTION_BYTECODE: return "FUNCTION_BYTECODE";
+    case JS_TAG_OBJECT: return "OBJECT";
+    case JS_TAG_INT: return "INT";
+    case JS_TAG_BOOL: return "BOOL";
+    case JS_TAG_NULL: return "NULL";
+    case JS_TAG_UNDEFINED: return "UNDEFINED";
+    case JS_TAG_UNINITIALIZED: return "UNINITIALIZED";
+    case JS_TAG_CATCH_OFFSET: return "CATCH_OFFSET";
+    case JS_TAG_EXCEPTION: return "EXCEPTION";
+    case JS_TAG_FLOAT64: return "FLOAT64";
+  }
+  assert(0);
+}
 const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
@@ -2175,7 +2196,7 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
     /* for the modules, we compile then run to be able to set import.meta */
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
-      js_module_set_import_meta(ctx, val, TRUE, TRUE);
+      // js_module_set_import_meta(ctx, val, TRUE, TRUE);
       val = JS_EvalFunction(ctx, val);
     }
   } else {

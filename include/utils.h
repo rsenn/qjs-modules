@@ -341,6 +341,7 @@ js_value_typeof(JSValueConst value) {
 }
 
 const char* js_value_type_name(int32_t type);
+const char* js_value_tag_name(int tag);
 const char* js_value_typestr(JSContext* ctx, JSValueConst value);
 
 /* clang-format off */ 
