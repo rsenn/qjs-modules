@@ -397,7 +397,7 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
 }
 
 static char*
-jsm_search_module(JSContext* ctx, const char* module_name) {
+jsm_search(JSContext* ctx, const char* module_name) {
   char* s = 0;
   BOOL search = is_searchable(module_name);
   BOOL suffix = module_has_suffix(ctx, module_name);
@@ -503,25 +503,25 @@ jsm_module_json(JSContext* ctx, const char* name) {
 }
 
 char*
-jsm_module_locate(JSContext* ctx, const char* name, void* opaque) {
-  char *name = 0, *s = 0;
+jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
+  char *file = 0, *s = 0;
   JSModuleDef* m = 0;
 
-  if(!(s = jsm_module_package(ctx, name)))
-    s = js_strdup(ctx, name);
+  if(!(s = jsm_module_package(ctx, module_name)))
+    s = js_strdup(ctx, module_name);
 
   for(;;) {
     if(debug_module_loader >= 2)
-      printf("%-18s[1](name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, name, opaque, s);
+      printf("%-18s[1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
 
     if(path_is_file(s))
       break;
 
     if(is_searchable(s)) {
       size_t len;
-      if((name = jsm_search_module(ctx, s))) {
+      if((file = jsm_search(ctx, s))) {
         js_free(ctx, s);
-        s = js_strdup(ctx, name);
+        s = js_strdup(ctx, file);
         break;
       }
       if(path_skip_component_s(s) == 3 && !strncmp(s, "lib", 3)) {
@@ -529,9 +529,9 @@ jsm_module_locate(JSContext* ctx, const char* name, void* opaque) {
         continue;
       }
     } else {
-      if((name = jsm_search_suffix(ctx, s, is_module))) {
+      if((file = jsm_search_suffix(ctx, s, is_module))) {
         js_free(ctx, s);
-        s = js_strdup(ctx, name);
+        s = js_strdup(ctx, file);
         break;
       }
     }
@@ -542,19 +542,19 @@ jsm_module_locate(JSContext* ctx, const char* name, void* opaque) {
 }
 
 JSModuleDef*
-jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
+jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char* s;
   JSModuleDef* m;
-  if(!strchr(name, '/')) {
+  if(!strchr(module_name, '/')) {
     BuiltinModule* rec;
 
-    if((rec = jsm_builtin_find(name)))
+    if((rec = jsm_builtin_find(module_name)))
       return jsm_builtin_init(ctx, rec);
   }
 
-  if((s = jsm_module_locate(ctx, name, opaque))) {
+  if((s = jsm_module_locate(ctx, module_name, opaque))) {
     if(debug_module_loader)
-      printf("\"%s\" -> \"%s\"\n", name, s);
+      printf("\"%s\" -> \"%s\"\n", module_name, s);
 
     if(str_ends(s, ".json")) {
       m = jsm_module_json(ctx, s);
@@ -564,7 +564,7 @@ jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
     js_free(ctx, s);
   } else {
     if(debug_module_loader)
-      printf("\"%s\" -> null\n", name);
+      printf("\"%s\" -> null\n", module_name);
   }
   return m;
 }
