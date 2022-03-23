@@ -1425,10 +1425,13 @@ main(int argc, char** argv) {
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
     {
-      BuiltinModule* bltin;
+      JSModuleDef* req;
 
-      if((bltin = jsm_builtin_find("require")))
-        jsm_builtin_init(ctx, bltin);
+      if((req = jsm_module_loader(ctx, "require", 0))) {
+        JSValue exp;
+
+        exp = module_exports(ctx, req);
+      }
       /* const char* str = "import require from 'require';\nglobalThis.require = require;\n";
        js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);*/
     }
