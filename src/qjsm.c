@@ -226,23 +226,17 @@ jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename,
 static int
 jsm_eval_file(JSContext* ctx, const char* filename, int module) {
   uint8_t* buf;
-  int ret, eval_flags;
   size_t buf_len;
+  int ret, eval_flags;
 
-  buf = js_load_file(ctx, &buf_len, filename);
-  if(!buf) {
+  if(!(buf = js_load_file(ctx, &buf_len, filename))) {
     perror(filename);
     exit(1);
   }
-
-  if(module < 0) {
+  if(module < 0)
     module = (has_suffix(filename, ".mjs") || JS_DetectModule((const char*)buf, buf_len));
-  }
-  if(module)
-    eval_flags = JS_EVAL_TYPE_MODULE;
-  else
-    eval_flags = JS_EVAL_TYPE_GLOBAL;
-  ret = eval_buf(ctx, buf, buf_len, filename, eval_flags);
+  eval_flags = module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
+  ret = jsm_eval_buf(ctx, buf, buf_len, filename, eval_flags);
   js_free(ctx, buf);
   return ret;
 }

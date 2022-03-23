@@ -1,4 +1,4 @@
-import { escape, quote, isObject, define, mapObject, getset, gettersetter, once, memoize, getOpt } from '../lib/util.js';
+import { escape, quote, isObject, define, mapObject, getset, gettersetter, once, memoize, getOpt } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import Console from 'console';
@@ -50,7 +50,7 @@ function main(...args) {
 
   console.log('params', params);
 
-  const dom = {
+/*  const dom = {
     nodeTypes,
     Parser,
     Node,
@@ -70,7 +70,7 @@ function main(...args) {
     dom,
     ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath }
   });
-
+*/
   let files = params['@'].length ? params['@'] : ['tests/test1.xml', 'tests/test2.xml', 'tests/test3.xml'];
 
   files.forEach(processFile);

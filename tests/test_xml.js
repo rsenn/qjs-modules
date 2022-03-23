@@ -2,8 +2,8 @@ import * as os from 'os';
 import * as std from 'std';
 import { escape, quote, isObject } from 'util';
 import inspect from 'inspect';
-import xmlRead from '../lib/xml/read.js';
-import xmlWrite from '../lib/xml/write.js';
+import readXML from '../lib/xml/read.js';
+import writeXML from '../lib/xml/write.js';
 import * as path from 'path';
 import * as deep from 'deep';
 import Console from '../lib/console.js';
@@ -37,7 +37,7 @@ function main(...args) {
 
   let start = Date.now();
 
-  let result = xml.read(data, file, false);
+  let result = readXML(data, file, false);
   let end = Date.now();
   //console.log('result[0]', inspect(result[0], { depth: Infinity, compact: 1, maxArrayLength: Infinity }));
   let tags = deep.select(result, (n, k) => k == 'tagName', deep.RETURN_PATH).map(p => p.slice(0, -1));
@@ -93,7 +93,7 @@ function main(...args) {
   WriteFile(base + '.json', JSON.stringify(result, null, 2));
 
   start = process.hrtime.bigint();
-  let str = xml.write(result);
+  let str = writeXML(result);
   end = process.hrtime.bigint();
 
   console.log(`Generating took ${(end - start) / 1000n}\u00b5s`);
