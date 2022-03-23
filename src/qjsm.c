@@ -1430,51 +1430,20 @@ main(int argc, char** argv) {
 #endif
     js_std_add_helpers(ctx, argc - optind, argv + optind);
 
-    DynBuf init_script;
-
-    js_dbuf_init(ctx, &init_script);
-
-    dbuf_putstr(&init_script,
-                "import process from 'process';\n"
-                "globalThis.process = process;\n");
-
-    dbuf_putstr(&init_script,
-                "import { require } from 'require';\n"
-                "globalThis.require = require;\n");
-
-    /*    {
-          const char* str = "import process from 'process';\nglobalThis.process = process;\n";
-          js_eval_str(ctx, str, "<process>", JS_EVAL_TYPE_MODULE);
-        }*/
     {
-      /*  JSModuleDef* req;
-        if((req = jsm_module_loader(ctx, "require", 0))) {
-          JSValue glt, exp;
-          glt = JS_GetGlobalObject(ctx);
-          exp = module_default_export(ctx, req);
-          JS_SetPropertyStr(ctx, glt, "require", exp);
-          JS_FreeValue(ctx, glt);
-        }*/
-      /*  const char* str = "import { require } from 'require';\n"
-                          "globalThis.require = require;\n";
-        js_eval_str(ctx, str, "<require>", JS_EVAL_TYPE_MODULE);*/
+      const char* str = "import process from 'process';\nglobalThis.process = process;\n";
+      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
+    }
+    {
+      const char* str = "import require from 'require';\nglobalThis.require = require;\n";
+      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 
     JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
     if(load_std) {
-      const char* str = "import * as std from 'std';\n"
-                        "import * as os from 'os';\n"
-                        "globalThis.std = std;\n"
-                        "globalThis.os = os;\n"
-                        "globalThis.setTimeout = os.setTimeout;\n"
-                        "globalThis.clearTimeout = os.clearTimeout;\n";
-      dbuf_putstr(&init_script, str);
-    }
-
-    if(init_script.size) {
-      dbuf_0(&init_script);
-
-      js_eval_str(ctx, init_script.buf, "<init>", JS_EVAL_TYPE_MODULE);
+      const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = std;\nglobalThis.os = os;\nglobalThis.setTimeout = "
+                        "os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
+      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 
     // jsm_list_modules(ctx);
