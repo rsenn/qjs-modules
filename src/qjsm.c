@@ -267,6 +267,41 @@ jsm_init_modules(JSContext* ctx) {
   // jsm_builtin_compiled(util);
 }
 
+static BuiltinModule*
+jsm_builtin_find(const char* name) {
+  BuiltinModule* rec;
+  vector_foreach_t(&jsm_builtin_modules, rec) {
+    if(!strcmp(rec->module_name, name))
+      return rec;
+  }
+  return 0;
+}
+
+static JSModuleDef*
+jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
+  JSModuleDef* m;
+  if(rec->def == 0) {
+    if(debug_module_loader >= 2)
+      printf("(3) %-30s internal\n", rec->module_name);
+    if(rec->module_func) {
+      m = rec->module_func(ctx, rec->module_name);
+
+      if(!rec->initialized) {
+        JSValue func_obj = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+        JS_EvalFunction(ctx, func_obj);
+        rec->initialized = TRUE;
+      }
+
+    } else {
+      JSValue obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
+      m = JS_VALUE_GET_PTR(obj);
+    }
+    rec->def = m;
+  }
+
+  return rec->def;
+}
+
 static JSValue
 jsm_load_json(JSContext* ctx, const char* file) {
   uint8_t* buf;
@@ -363,7 +398,7 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
 }
 
 static char*
-jsm_search_module(JSContext* ctx, const char* module_name) {
+jsm_module_find(JSContext* ctx, const char* module_name) {
   const char* list;
 
   if(debug_module_loader >= 2)
@@ -386,9 +421,9 @@ jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
     printf("%-18s(module_name=\"%s\", fn=%s)\n",
            __FUNCTION__,
            module_name,
-           fn == &is_module           ? "is_module"
-           : fn == &jsm_search_module ? "jsm_search_module"
-                                      : "<unknown>");
+           fn == &is_module         ? "is_module"
+           : fn == &jsm_module_find ? "jsm_module_find"
+                                    : "<unknown>");
 
   if(!(s = js_mallocz(ctx, (len + 31) & (~0xf))))
     return 0;
@@ -413,7 +448,7 @@ jsm_module_search(JSContext* ctx, const char* module_name) {
   char* s = 0;
   BOOL search = is_searchable(module_name);
   BOOL suffix = module_has_suffix(ctx, module_name);
-  ModuleLoader* fn = search ? &jsm_search_module : &is_module;
+  ModuleLoader* fn = search ? &jsm_module_find : &is_module;
 
   s = suffix ? fn(ctx, module_name) : jsm_find_suffix(ctx, module_name, fn);
 
@@ -460,74 +495,6 @@ jsm_lookup_package(JSContext* ctx, const char* module) {
   }
 
   return file;
-}
-
-/*static char*
-jsm_module_directory(JSContext* ctx, const char* module) {
-  DynBuf db;
-  js_dbuf_init(ctx, &db);
-
-  if(path_is_directory(module)) {
-    dbuf_putstr(&db, (const uint8_t*)module);
-    path_append("index.js", 8, &db);
-    dbuf_0(&db);
-
-    if(path_is_file(db.buf))
-      return (char*)db.buf;
-
-    dbuf_free(&db);
-  }
-  return 0;
-}
-
-char*
-jsm_module_search(JSContext* ctx, const char* search_path, const char* module) {
-  char* path = 0;
-
- 4 while(!strncmp(module, "./", 2)) module = trim_dotslash(module);
-
-  if(!str_contains(module, '/') || str_ends(module,CONFIG_SHEXT))
-    path = jsm_module_search_ext(ctx, search_path, module, CONFIG_SHEXT);
-
-  if(!path)
-    path = jsm_module_search_ext(ctx, search_path, module, ".js");
-
-  return path;
-}*/
-
-static BuiltinModule*
-jsm_builtin_find(const char* name) {
-  BuiltinModule* rec;
-  vector_foreach_t(&jsm_builtin_modules, rec) {
-    if(!strcmp(rec->module_name, name))
-      return rec;
-  }
-  return 0;
-}
-
-static JSModuleDef*
-jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
-  JSModuleDef* m;
-  if(rec->def == 0) {
-    if(debug_module_loader >= 2)
-      printf("(3) %-30s internal\n", rec->module_name);
-    if(rec->module_func) {
-      m = rec->module_func(ctx, rec->module_name);
-
-      if(!rec->initialized) {
-        JSValue func_obj = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
-        JS_EvalFunction(ctx, func_obj);
-        rec->initialized = TRUE;
-      }
-
-    } else {
-      JSValue obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
-      m = JS_VALUE_GET_PTR(obj);
-    }
-    rec->def = m;
-  }
-
-  return rec->def;
 }
 
 JSModuleDef*
