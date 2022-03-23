@@ -409,7 +409,7 @@ jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
 }
 
 static char*
-jsm_locate_module(JSContext* ctx, const char* module_name) {
+jsm_module_search(JSContext* ctx, const char* module_name) {
   char* s = 0;
   BOOL search = is_searchable(module_name);
   BOOL suffix = module_has_suffix(ctx, module_name);
@@ -583,7 +583,7 @@ jsm_module_json(JSContext* ctx, const char* name) {
 }
 
 static char*
-jsm_module_find(JSContext* ctx, const char* module_name, void* opaque) {
+jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
   char *name = 0, *s = 0;
   JSModuleDef* m = 0;
 
@@ -599,7 +599,7 @@ jsm_module_find(JSContext* ctx, const char* module_name, void* opaque) {
 
     if(is_searchable(s)) {
       size_t len;
-      if((name = jsm_locate_module(ctx, s))) {
+      if((name = jsm_module_search(ctx, s))) {
         js_free(ctx, s);
         s = js_strdup(ctx, name);
         break;
@@ -632,7 +632,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
       return jsm_builtin_init(ctx, rec);
   }
 
-  if((s = jsm_module_find(ctx, module_name, opaque))) {
+  if((s = jsm_module_locate(ctx, module_name, opaque))) {
     if(debug_module_loader)
       printf("\"%s\" -> \"%s\"\n", module_name, s);
 
@@ -1075,6 +1075,7 @@ enum {
   RESOLVE_MODULE,
   REQUIRE_MODULE,
   NORMALIZE_MODULE,
+  LOCATE_MODULE,
   GET_MODULE_NAME,
   GET_MODULE_OBJECT,
   GET_MODULE_EXPORTS,
@@ -1156,6 +1157,14 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         JS_FreeCString(ctx, path);
       break;
     }
+    case LOCATE_MODULE: {
+      char* s;
+      if((s = jsm_module_locate(ctx, name, 0))) {
+        val = JS_NewString(ctx, s);
+        js_free(ctx, s);
+      }
+      break;
+    }
     case GET_MODULE_NAME: {
       val = module_name(ctx, m);
       break;
@@ -1210,6 +1219,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
     JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
     JS_CFUNC_MAGIC_DEF("normalizeModule", 1, jsm_module_func, NORMALIZE_MODULE),
+    JS_CFUNC_MAGIC_DEF("locateModule", 1, jsm_module_func, LOCATE_MODULE),
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
     JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
     JS_CFUNC_MAGIC_DEF("getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
