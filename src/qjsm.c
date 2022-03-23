@@ -1431,6 +1431,8 @@ main(int argc, char** argv) {
         JSValue exp;
 
         exp = module_exports(ctx, req);
+
+        printf("exp = %s\n", (char*)js_inspect_tostring(ctx, exp));
       }
       /* const char* str = "import require from 'require';\nglobalThis.require = require;\n";
        js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);*/

@@ -1635,6 +1635,30 @@ module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueC
   JS_FreeAtom(ctx, def);
 }
 
+void
+module_default_export(JSContext* ctx, JSModuleDef* m) {
+  JSAtom def = JS_NewAtom(ctx, "default");
+  JSValue ret = JS_UNDEFINED;
+
+  size_t i;
+  for(i = 0; i < m->export_entries_count; i++) {
+
+    JSExportEntry* entry = &m->export_entries[i];
+    JSVarRef* ref = entry->u.local.var_ref;
+    JSAtom name = entry->export_name;
+
+    if(ref) {
+
+      if(name == def) {
+        ret = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
+        break;
+      }
+    }
+  }
+  JS_FreeAtom(ctx, def);
+  return ret;
+}
+
 JSValue
 module_exports(JSContext* ctx, JSModuleDef* m) {
   JSValue exports;
