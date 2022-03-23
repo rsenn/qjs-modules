@@ -1428,11 +1428,15 @@ main(int argc, char** argv) {
       JSModuleDef* req;
 
       if((req = jsm_module_loader(ctx, "require", 0))) {
-        JSValue exp;
+        JSValue glt, exp;
 
-        exp = module_exports(ctx, req);
+        glt = JS_GetGlobalObject(ctx);
 
-        printf("exp = %s\n", (char*)js_inspect_tostring(ctx, exp));
+        exp = module_default_export(ctx, req);
+
+        JS_SetPropertyStr(ctx, glt, "require", exp);
+
+        JS_FreeValue(ctx, glt);
       }
       /* const char* str = "import require from 'require';\nglobalThis.require = require;\n";
        js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);*/

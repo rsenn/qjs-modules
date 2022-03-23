@@ -797,7 +797,7 @@ JSValue module_func(JSContext*, JSModuleDef*);
 JSValue module_ns(JSContext*, JSModuleDef*);
 JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);
 void module_exports_get(JSContext*, JSModuleDef*, BOOL, JSValue exports);
-void module_default_export(JSContext*, JSModuleDef*);
+JSValue module_default_export(JSContext*, JSModuleDef*);
 JSValue module_exports(JSContext*, JSModuleDef*);
 JSValue module_value(JSContext*, JSModuleDef*);
 JSValue module_entry(JSContext*, JSModuleDef*);

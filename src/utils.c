@@ -1635,7 +1635,7 @@ module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueC
   JS_FreeAtom(ctx, def);
 }
 
-void
+JSValue
 module_default_export(JSContext* ctx, JSModuleDef* m) {
   JSAtom def = JS_NewAtom(ctx, "default");
   JSValue ret = JS_UNDEFINED;
