@@ -2133,7 +2133,6 @@ JSValue
 js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
   JSValue ret = JS_UNDEFINED;
   int tag = JS_VALUE_GET_TAG(obj);
-
   if(tag == JS_TAG_MODULE) {
     if(!load_only && JS_ResolveModule(ctx, obj) < 0) {
       JS_FreeValue(ctx, obj);
@@ -2142,11 +2141,10 @@ js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
     js_module_set_import_meta(ctx, obj, FALSE, !load_only);
     return load_only ? JS_DupValue(ctx, obj) : JS_EvalFunction(ctx, obj);
   }
-
   return JS_ThrowInternalError(ctx, "invalid tag %i", tag);
 }
 
-/*JSValue
+JSValue
 js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_only) {
   JSValue obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
   if(JS_IsException(obj))
@@ -2161,49 +2159,24 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
         return tmp;
   }
   return obj;
-}*/
-
-JSValue
-js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, int load_only) {
-  JSValue obj, val = JS_UNDEFINED;
-  obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
-
-  if(JS_IsException(obj))
-    return obj;
-
-  if(load_only) {
-    if(JS_VALUE_GET_TAG(obj) == JS_TAG_MODULE)
-      js_module_set_import_meta(ctx, obj, FALSE, FALSE);
-
-  } else {
-    if(JS_VALUE_GET_TAG(obj) == JS_TAG_MODULE) {
-      if(JS_ResolveModule(ctx, obj) < 0) {
-        JS_FreeValue(ctx, obj);
-        return JS_EXCEPTION;
-      }
-      js_module_set_import_meta(ctx, obj, FALSE, TRUE);
-    }
-    val = JS_EvalFunction(ctx, obj);
-  }
-  return val;
 }
 
 JSValue
 js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
   JSValue val;
-  int ret;
 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set import.meta */
-    val = JS_Eval(ctx, buf, buf_len, filename, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    val = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
-      // js_module_set_import_meta(ctx, val, TRUE, TRUE);
+      js_module_set_import_meta(ctx, val, !!filename, TRUE);
       val = JS_EvalFunction(ctx, val);
     }
   } else {
     val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
-
+  /* if(JS_IsException(val))
+     js_error_print(ctx, JS_GetException(ctx));*/
   return val;
 }
 
