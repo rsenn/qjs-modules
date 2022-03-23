@@ -289,8 +289,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       m = rec->module_func(ctx, rec->module_name);
       obj = js_value_mkptr(JS_TAG_MODULE, m);
     } else {
-      obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, TRUE);
-      m = js_value_ptr(obj);
+      obj = js_value_ptr(js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, TRUE));
     }
     rec->def = m;
 
