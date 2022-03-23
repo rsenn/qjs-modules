@@ -555,3 +555,4 @@ file(GLOB INSTALL_SCRIPTS [!.]*.js)
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ)
 
 install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink resolve-imports.js ${CMAKE_INSTALL_PREFIX}/bin/list-imports.js)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink resolve-imports.js ${CMAKE_INSTALL_PREFIX}/bin/check-imports.js)")

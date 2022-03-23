@@ -19,8 +19,18 @@
 #include <dlfcn.h>
 #endif
 
-#if 1 // def HAVE_QUICKJS_CONFIG_H
+#ifdef HAVE_QUICKJS_CONFIG_H
 #include <quickjs-config.h>
+#endif
+
+#ifndef CONFIG_SHEXT
+#ifdef _WIN32
+#define CONFIG_SHEXT ".dll"
+#elif defined(__APPLE__)
+#define CONFIG_SHEXT ".dylib"
+#else
+#define CONFIG_SHEXT ".so"
+#endif
 #endif
 
 #ifdef USE_WORKER
@@ -62,7 +72,7 @@ static JSModuleLoaderFunc* module_loader = 0;
 JSValue package_json;
 
 static const char* jsm_module_extensions[] = {
-    ".so",
+    CONFIG_SHEXT,
     ".js",
     "/index.js",
     "/package.json",
@@ -426,7 +436,7 @@ jsm_lookup_package(JSContext* ctx, const char* module) {
   JSValue package;
   char* file = 0;
 
-  if(!has_suffix(module, ".so")) {
+  if(!has_suffix(module, CONFIG_SHEXT)) {
     package = jsm_load_package(ctx, "package.json");
 
     if(JS_IsObject(package)) {
@@ -476,8 +486,8 @@ jsm_module_search(JSContext* ctx, const char* search_path, const char* module) {
 
  4 while(!strncmp(module, "./", 2)) module = trim_dotslash(module);
 
-  if(!str_contains(module, '/') || str_ends(module, ".so"))
-    path = jsm_module_search_ext(ctx, search_path, module, ".so");
+  if(!str_contains(module, '/') || str_ends(module,CONFIG_SHEXT))
+    path = jsm_module_search_ext(ctx, search_path, module, CONFIG_SHEXT);
 
   if(!path)
     path = jsm_module_search_ext(ctx, search_path, module, ".js");
@@ -1099,10 +1109,10 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       // printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
 
       m = rt->module_loader_func(ctx, imp.args[0], 0);
- 
+
       if(m)
         val = JS_MKPTR(JS_TAG_MODULE, m);
- 
+
       js_strv_free_n(ctx, n, imp.args);
       break;
     }
@@ -1110,11 +1120,11 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
       break;
     }
-   case REQUIRE_MODULE: {
- 
-    if((m = jsm_module_loader(ctx,  name, 0))){
-      val = module_exports(ctx, m);
-    }
+    case REQUIRE_MODULE: {
+
+      if((m = jsm_module_loader(ctx, name, 0))) {
+        val = module_exports(ctx, m);
+      }
       break;
     }
     case GET_MODULE_NAME: {
@@ -1454,7 +1464,7 @@ main(int argc, char** argv) {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
-   {
+    {
       const char* str = "import require from 'require';\nglobalThis.require = require;\n";
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }

@@ -45,6 +45,7 @@ let buffers = {},
 
 let dependencyTree = memoize(arg => [], dependencyMap);
 let bufferMap = getset(bufferRef);
+let identifierSets;
 
 function ReadJSON(filename) {
   let data = fs.readFileSync(filename, 'utf-8');
@@ -242,7 +243,7 @@ function ModuleLoader(module) {
   return file;
 }
 
-function ResolveImports(source, log = () => {}, recursive, depth = 0) {
+function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   source = path.normalize(source);
   if(printFiles) std.puts(source + '\n');
 
@@ -253,7 +254,7 @@ function ResolveImports(source, log = () => {}, recursive, depth = 0) {
   let start = Date.now();
   const dir = path.dirname(source);
 
-  if(debug >= 2) console.log('ResolveImports', { source });
+  if(debug >= 2) console.log('ProcessFile', { source });
 
   let bytebuf = BufferFile(source);
 
@@ -362,6 +363,12 @@ function ResolveImports(source, log = () => {}, recursive, depth = 0) {
     let n = balancers.last.depth;
     const { token } = lexer;
     const { length, seq } = token;
+
+    if(token.type == 'identifier' && identifierSets) {
+      let s=identifierSets(source);
+      s.add(token.lexeme);
+      if(debug >= 1) console.log('added', source, token.lexeme);
+  }
     /*if(debug > 1) console.log('token', token);
     if(debug >= 1) console.log('lexer.mode', lexer.mode);
 */
@@ -659,7 +666,7 @@ function ResolveImports(source, log = () => {}, recursive, depth = 0) {
       processed.add(file);
 
       AddDep(source, file);
-      ResolveImports(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
+      ProcessFile(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
     }
   }
   /*
@@ -1324,6 +1331,8 @@ function main(...args) {
       'no-recursive': [false, () => (recursive = false), 'R'],
       'remove-exports': [false, () => (removeExports = true), 'E'],
       'remove-imports': [false, () => (removeImports = true), 'I'],
+      'check-imports': [false, () => (scriptArgs[0] = 'check-imports'), null],
+      'list-imports': [false, () => (scriptArgs[0] = 'list-imports'), null],
       'remove-comments': [false, () => (removeComments = true), 'C'],
       'global-exports': [false, () => ++globalExports, 'G'],
       'show-dependencies': [false, () => ++showDeps, 'd'],
@@ -1337,7 +1346,9 @@ function main(...args) {
   );
   let files = params['@'];
 
-  if(/list-import/.test(scriptArgs[0])) {
+if(/check-import/.test(scriptArgs[0])) {
+   identifierSets= memoize(arg => new Set());
+} else   if(/list-import/.test(scriptArgs[0])) {
     printFiles = true;
     onlyImports = true;
     outputFile = null;
@@ -1366,12 +1377,13 @@ function main(...args) {
     file = RelativePath(file);
     let log = quiet ? () => {} : (...args) => console.log(`${file}:`, ...args);
 
-    let result = ResolveImports(file, log, recursive, 0);
+    let result = ProcessFile(file, log, recursive, 0);
 
     if(debug >= 1) console.log('result', compact(false, { depth: Infinity }), result);
 
     results.push(result);
   }
+  
   if(!removeImports) {
     let bindings = [],
       importLines = [];
