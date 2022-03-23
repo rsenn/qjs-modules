@@ -147,10 +147,13 @@ function FileReplacer(file) {
   return define(FdWriter(fd, file), {
     close: () => {
       console.log('FileReplacer.close', fd);
+      let size = fs.sizeSync(fd);
       os.close(fd);
-      let err = os.rename(file + '.new', file);
+      let err = os.rename(file, file + '.old');
+      err = os.rename(file + '.new', file);
       console.log('os.rename() =', err);
       if(err) throw new Error(`FileReplacer rename() error: ${std.strerror(-err)}`);
+      console.log(`${file} written (${size} bytes)`);
     }
   });
 }
@@ -580,23 +583,25 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     },
     toCode(filterIds = id => true) {
       if(this.ids().filter(filterIds).length == 0) return '';
-
       let tokens = this.tokens.filter(tok => (tok.type == 'identifier' ? filterIds(tok.lexeme) : true));
-
       let prev, pnws;
-      tokens = tokens.reduce((acc, tok) => {
+      tokens = tokens.reduce((acc, tok, i) => {
         if(prev && prev.type == 'whitespace' && tok.type == 'whitespace') return acc;
-        if(pnws && [',', '{'].indexOf(pnws.lexeme) != -1 && [',', '}'].indexOf(tok.lexeme) != -1) {
-          if(tok.lexeme == '}') acc[acc.lastIndexOf(pnws)] = tok;
+        if(pnws !== undefined && [',', '{'].indexOf(acc[pnws].lexeme) != -1 && [',', '}'].indexOf(tok.lexeme) != -1) {
+          if(tok.lexeme == '}') acc.splice(pnws, 1);
+          if(tok.lexeme == '}') {
+            pnws = acc.length;
+            acc.push(tok);
+          }
           return acc;
         }
-        if(tok.type != 'whitespace') pnws = tok;
+        if(tok.type != 'whitespace') pnws = acc.length;
         prev = tok;
         acc.push(tok);
         return acc;
       }, []);
       //console.log('tokens', NonWS(tokens));
-      return tokens.reduce((acc, tok) => acc + tok.lexeme, '');
+      return TokenSequence(tokens).toString();
     }
   });
 
@@ -628,33 +633,29 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     for(let impexp of allExportsImports) {
       if(impexp.type == What.IMPORT) {
         let ids = impexp.ids();
-
         for(let id of ids) imported.add(id);
       }
     }
-
+    let numReplace = 0;
     for(let impexp of allExportsImports) {
       if(impexp.type == What.IMPORT) {
         let ids = impexp.ids();
-
         if(ids.some(id => !used.has(id))) {
           let { code, range } = impexp;
           let newCode = impexp.toCode(id => used.has(id));
-
           if(code != newCode) {
             map.replaceRange(range, toArrayBuffer(newCode));
-            console.log('replace', { code, newCode });
+            ++numReplace;
           }
         }
       }
     }
-    let out = FileReplacer(source);
-    console.log('out', out + '');
-
-    let result = map.write(out);
-    console.log('result', result);
-    out.close();
-    
+    console.log('numReplace', numReplace);
+    if(numReplace) {
+      let out = FileReplacer(source);
+      let result = map.write(out);
+      out.close();
+    }
   } else {
     for(let impexp of allExportsImports) {
       const { type, file, range, code, loc } = impexp;
