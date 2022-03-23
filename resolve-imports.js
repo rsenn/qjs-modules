@@ -7,7 +7,7 @@ import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import ECMAScriptLexer from 'lib/lexer/ecmascript.js';
-import { error, getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
+import { difference, symmetricDifference, union, error, getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
 
 ('use strict');
 ('use math');
@@ -45,7 +45,7 @@ let buffers = {},
 
 let dependencyTree = memoize(arg => [], dependencyMap);
 let bufferMap = getset(bufferRef);
-let identifierSets;
+let identifiersUsed;
 
 function ReadJSON(filename) {
   let data = fs.readFileSync(filename, 'utf-8');
@@ -349,7 +349,10 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     if(path.isRelative(j)) j = './' + j;
     return ModuleLoader(j);
   };
-  let prevToken;
+  let prevToken,
+    doneImports,
+    used = identifiersUsed ? identifiersUsed(source) : null,
+    imported = new Set();
   for(;;) {
     let { stateDepth } = lexer;
     let value = lexer.next();
@@ -364,14 +367,20 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     const { token } = lexer;
     const { length, seq } = token;
 
-    if(token.type == 'identifier' && identifierSets) {
-      let s=identifierSets(source);
-      s.add(token.lexeme);
-      if(debug >= 1) console.log('added', source, token.lexeme);
-  }
-    /*if(debug > 1) console.log('token', token);
-    if(debug >= 1) console.log('lexer.mode', lexer.mode);
-*/
+    if(token.type == 'identifier') {
+      if(doneImports) {
+        if(used) {
+          let { size } = used;
+          used.add(token.lexeme);
+          if(debug >= 1) console.log(`added[${size}]`, source, token.lexeme);
+        }
+      } else {
+        imported.add(token.lexeme);
+      }
+    }
+    if(debug >= 2) console.log('token', token);
+    /*   if(debug >= 1) console.log('lexer.mode', lexer.mode);
+     */
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
     } else {
@@ -388,7 +397,9 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       if(debug >= 3)
         console.log(`token[${imp.length}]`, token.loc + '', console.config({ breakLength: 80, compact: 0 }), token);
 
-      if(token.lexeme == ';' && onlyImports && cond !== true) break;
+      if(token.lexeme == ';' && cond !== true) doneImports = true;
+
+      if(onlyImports && doneImports) break;
 
       if(cond == true) {
         if(imp.indexOf(token) == -1) imp.push(token);
@@ -576,6 +587,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   buffers[source] = [...split(BufferFile(source), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
 
   /*console.log('fileImports', fileImports);*/
+  console.log('identifiersUsed[' + source + ']', identifiersUsed(source));
 
   let map = FileMap.for(source);
 
@@ -635,6 +647,24 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
       map.replaceRange(byteRange, null);
     }
+  }
+
+  if(used) {
+    console.log('used', [...used]);
+
+    /* let imported = new Set();
+
+    for(let imp of imports)
+      for(let tok of imp.tokens.filter(tok => tok.type == 'identifier')) imported.add(tok.lexeme);
+*/
+    console.log('imported', [...imported]);
+
+    let diff = symmetricDifference(used, imported);
+    let unused = difference(imported, used);
+
+    console.log('unused', [...unused]);
+    let un = union(used, imported);
+    //console.log('union', [...un]);
   }
 
   //if(debug > 1) debugLog('map', map.dump());
@@ -1346,9 +1376,13 @@ function main(...args) {
   );
   let files = params['@'];
 
-if(/check-import/.test(scriptArgs[0])) {
-   identifierSets= memoize(arg => new Set());
-} else   if(/list-import/.test(scriptArgs[0])) {
+  if(/check-import/.test(scriptArgs[0])) {
+    identifiersUsed = memoize(arg => new Set());
+    printFiles = false;
+    onlyImports = false;
+    outputFile = null;
+    out = DummyWriter('/dev/null');
+  } else if(/list-import/.test(scriptArgs[0])) {
     printFiles = true;
     onlyImports = true;
     outputFile = null;
@@ -1383,7 +1417,7 @@ if(/check-import/.test(scriptArgs[0])) {
 
     results.push(result);
   }
-  
+
   if(!removeImports) {
     let bindings = [],
       importLines = [];

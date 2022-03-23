@@ -664,7 +664,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     DynBuf db;
     js_dbuf_init(ctx, &db);
 
-    path_concat_s(QUICKJS_C_MODULE_DIR, name);
+    path_concat_s(QUICKJS_C_MODULE_DIR, name, &db);
     file = (char*)db.buf;
   }
 
