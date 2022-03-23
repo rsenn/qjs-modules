@@ -281,15 +281,16 @@ static JSModuleDef*
 jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
   JSValue obj = JS_UNDEFINED;
+
   if(rec->def == 0) {
     if(debug_module_loader >= 2)
       printf("(3) %-30s internal\n", rec->module_name);
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
-      obj = JS_MKPTR(JS_TAG_MODULE, m);
+      obj = js_value_mkptr(JS_TAG_MODULE, m);
     } else {
-      obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
-      m = JS_VALUE_GET_PTR(obj);
+      obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, TRUE);
+      m = js_value_ptr(obj);
     }
     rec->def = m;
 
