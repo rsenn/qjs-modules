@@ -2111,6 +2111,7 @@ JSValue
 js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
   JSValue ret = JS_UNDEFINED;
   int tag = JS_VALUE_GET_TAG(obj);
+
   if(tag == JS_TAG_MODULE) {
     if(!load_only && JS_ResolveModule(ctx, obj) < 0) {
       JS_FreeValue(ctx, obj);
@@ -2119,6 +2120,7 @@ js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
     js_module_set_import_meta(ctx, obj, FALSE, !load_only);
     return load_only ? JS_DupValue(ctx, obj) : JS_EvalFunction(ctx, obj);
   }
+
   return JS_ThrowInternalError(ctx, "invalid tag %i", tag);
 }
 

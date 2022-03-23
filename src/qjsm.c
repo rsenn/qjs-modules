@@ -288,18 +288,20 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
       obj = js_value_mkptr(JS_TAG_MODULE, m);
+      if(!rec->initialized && !JS_IsUndefined(obj)) {
+        JSValue func_obj = JS_DupValue(ctx, obj);
+        JS_EvalFunction(ctx, func_obj);
+        rec->initialized = TRUE;
+      }
+
     } else {
-      obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, FALSE);
-      m = js_value_ptr(obj);
-      rec->initialized = TRUE;
+      obj = JS_ReadObject(ctx, rec->byte_code, rec->byte_code_len, JS_READ_OBJ_BYTECODE);
+
+      /*  obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, FALSE);
+        m = js_value_ptr(obj);
+        rec->initialized = TRUE;*/
     }
     rec->def = m;
-
-    if(!rec->initialized && !JS_IsUndefined(obj)) {
-      JSValue func_obj = JS_DupValue(ctx, obj);
-      JS_EvalFunction(ctx, func_obj);
-      rec->initialized = TRUE;
-    }
   }
 
   return rec->def;
