@@ -1147,10 +1147,10 @@ js_inspect_print_value(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 
     case JS_TAG_MODULE: {
       JSModuleDef* def = JS_VALUE_GET_PTR(value);
-      // const char* name = JS_AtomToCString(ctx, def->module_name);
+      const char* name = JS_AtomToCString(ctx, def->module_name);
 
-      dbuf_printf(buf, opts->colors ? COLOR_LIGHTRED "[module]" COLOR_NONE : "[module]", module_name);
-      // JS_FreeCString(ctx, name);
+      dbuf_printf(buf, opts->colors ? COLOR_LIGHTRED "[module '%s']" COLOR_NONE : "[module '%s']", name);
+      JS_FreeCString(ctx, name);
       //  js_inspect_print_module(ctx, buf, JS_VALUE_GET_PTR(value), opts, depth - 1);
       break;
     }

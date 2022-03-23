@@ -520,7 +520,7 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
 }
 
 static char*
-jsm_search(JSContext* ctx, const char* module_name) {
+jsm_search_module(JSContext* ctx, const char* module_name) {
   char* s = 0;
   BOOL search = is_searchable(module_name);
   BOOL suffix = module_has_suffix(ctx, module_name);
@@ -642,7 +642,7 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
 
     if(is_searchable(s)) {
       size_t len;
-      if((file = jsm_search(ctx, s))) {
+      if((file = jsm_search_module(ctx, s))) {
         js_free(ctx, s);
         s = js_strdup(ctx, file);
         break;
@@ -727,7 +727,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     file = js_strdup(ctx, name);
 
   if(debug_module_loader)
-    printf("\"%s\" => \"%s\"\n", name, file);
+    printf("%s: \"%s\" => \"%s\"\n", jsm_script_file(), name, file);
   return file;
 }
 
@@ -1440,11 +1440,11 @@ main(int argc, char** argv) {
       const char* str = "import process from 'process';\nglobalThis.process = process;\n";
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
-    {
+ /*   {
       const char* str = "import require from 'require';\nglobalThis.require = require;\n";
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
-
+*/
     JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
     if(load_std) {
       const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = std;\nglobalThis.os = os;\nglobalThis.setTimeout = "

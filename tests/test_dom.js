@@ -1,14 +1,12 @@
-import process from 'process';
-import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, once, memoize, getOpt, glob } from '../lib/util.js';
-import * as xml from 'xml';
+import { escape, quote, isObject, define, mapObject, getset, gettersetter, once, memoize, getOpt } from '../lib/util.js';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Pointer } from 'pointer';
-import * as deep from 'deep';
-import Console from '../lib/console.js';
+import Console from 'console';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
-import REPL from '../lib/repl.js';
+//import REPL from '../lib/repl.js';
+import readXML from '../lib/xml/read.js';
+import writeXML from '../lib/xml/write.js';
 
 let repl = {
   printStatus(...args) {
@@ -17,26 +15,27 @@ let repl = {
 };
 
 function StartREPL() {
-  repl = new REPL(
-    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
-    false
-  );
-  repl.show = repl.printFunction((...args) => console.log(...args));
-  repl.historyLoad();
-  return repl.run();
+  return import('repl').then(REPL => {
+    repl = new REPL(
+      '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
+      false
+    );
+    repl.show = repl.printFunction((...args) => console.log(...args));
+    repl.historyLoad();
+    return repl.run();
+  });
 }
 
 function main(...args) {
-  globalThis.console = new Console(process.stdout, {
+  globalThis.console = new Console({
+    stdout: process.stdout,
+    stderr: process.stderr,
     inspectOptions: {
       colors: true,
       depth: 10,
-      stringBreakNewline: false,
       maxArrayLength: 10000,
       compact: false,
-      maxStringLength: Infinity,
-      customInspect: true /*,
-      hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
+      customInspect: true
     }
   });
 
@@ -65,17 +64,14 @@ function main(...args) {
     Factory
   };
   Object.assign(globalThis, {
-    ...{ escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, memoize },
-    xml,
+    ...{ escape, quote, isObject, define, mapObject, getset, gettersetter, memoize },
     path,
-    Pointer,
-    deep,
     ...dom,
     dom,
     ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath }
   });
 
-  let files = params['@'].length ? params['@'] : glob('tests/*.xml');
+  let files = params['@'].length ? params['@'] : ['tests/test1.xml', 'tests/test2.xml', 'tests/test3.xml'];
 
   files.forEach(processFile);
 
@@ -90,7 +86,7 @@ function main(...args) {
 
     start = Date.now();
 
-    /*  let result = xml.read(data, file, false);
+    /*  let result = readXML(data, file, false);
   let doc=new Document(result[0]);*/
 
     let parser = new Parser();
@@ -103,9 +99,9 @@ function main(...args) {
     let rawDoc = Node.raw(doc);
     Object.assign(globalThis, { rawDoc, doc });
 
-    //console.log('rawDoc', inspect(rawDoc, { depth: 4, compact: false }));
+    console.log('writeXML', writeXML);
 
-    fs.writeFileSync('output.xml', xml.write(rawDoc));
+    fs.writeFileSync('output.xml', writeXML(rawDoc));
 
     console.log('doc', doc);
 
@@ -114,7 +110,7 @@ function main(...args) {
     let firstLayer = doc.querySelector('layer');
     console.log('firstLayer', firstLayer);
     let allLayers = doc.querySelectorAll('layer');
-    console.log('allLayers', allLayers);
+    console.log('allLayers', console.config({ compact: false }), allLayers);
 
     let count = 0;
 

@@ -475,8 +475,8 @@ foreach(TEST_SOURCE ${TESTS_SOURCES})
 
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
-file(GLOB LIBJS "${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js")
-file(GLOB LIBLEXER "${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js")
+file(GLOB LIBJS ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js)
+file(GLOB LIBLEXER ${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js)
 list(REMOVE_ITEM LIBJS lib/require.js)
 list(REMOVE_ITEM LIBJS lib/fs.js)
 
