@@ -286,7 +286,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       printf("(3) %-30s internal\n", rec->module_name);
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
-
+      obj = JS_MKPTR(JS_TAG_MODULE, m);
     } else {
       obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
       m = JS_VALUE_GET_PTR(obj);
