@@ -2703,6 +2703,7 @@ src/path.c.o:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/src/path.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path.dir/src/path.c.o
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/src/path.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjsm.dir/build.make quickjs/qjs-modules/CMakeFiles/qjsm.dir/src/path.c.o
 .PHONY : src/path.c.o
 
 src/path.i: src/path.c.i
@@ -2714,6 +2715,7 @@ src/path.c.i:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/src/path.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path.dir/src/path.c.i
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/src/path.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjsm.dir/build.make quickjs/qjs-modules/CMakeFiles/qjsm.dir/src/path.c.i
 .PHONY : src/path.c.i
 
 src/path.s: src/path.c.s
@@ -2725,6 +2727,7 @@ src/path.c.s:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path-static.dir/src/path.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-path.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-path.dir/src/path.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-misc.dir/src/path.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjsm.dir/build.make quickjs/qjs-modules/CMakeFiles/qjsm.dir/src/path.c.s
 .PHONY : src/path.c.s
 
 src/pointer.o: src/pointer.c.o
@@ -3041,6 +3044,30 @@ src/queue.c.s:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-sockets-static.dir/src/queue.c.s
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-repeater.dir/src/queue.c.s
 .PHONY : src/queue.c.s
+
+src/readlink.o: src/readlink.c.o
+.PHONY : src/readlink.o
+
+# target to build an object file
+src/readlink.c.o:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjsm.dir/build.make quickjs/qjs-modules/CMakeFiles/qjsm.dir/src/readlink.c.o
+.PHONY : src/readlink.c.o
+
+src/readlink.i: src/readlink.c.i
+.PHONY : src/readlink.i
+
+# target to preprocess a source file
+src/readlink.c.i:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjsm.dir/build.make quickjs/qjs-modules/CMakeFiles/qjsm.dir/src/readlink.c.i
+.PHONY : src/readlink.c.i
+
+src/readlink.s: src/readlink.c.s
+.PHONY : src/readlink.s
+
+# target to generate assembly for a file
+src/readlink.c.s:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjsm.dir/build.make quickjs/qjs-modules/CMakeFiles/qjsm.dir/src/readlink.c.s
+.PHONY : src/readlink.c.s
 
 src/ringbuffer.o: src/ringbuffer.c.o
 .PHONY : src/ringbuffer.o
@@ -3477,6 +3504,33 @@ src/virtual-properties.c.s:
 	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-deep.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-deep.dir/src/virtual-properties.c.s
 .PHONY : src/virtual-properties.c.s
 
+tutf8e/src/tutf8e.o: tutf8e/src/tutf8e.c.o
+.PHONY : tutf8e/src/tutf8e.o
+
+# target to build an object file
+tutf8e/src/tutf8e.c.o:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-textcode-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-textcode-static.dir/tutf8e/src/tutf8e.c.o
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-textcode.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-textcode.dir/tutf8e/src/tutf8e.c.o
+.PHONY : tutf8e/src/tutf8e.c.o
+
+tutf8e/src/tutf8e.i: tutf8e/src/tutf8e.c.i
+.PHONY : tutf8e/src/tutf8e.i
+
+# target to preprocess a source file
+tutf8e/src/tutf8e.c.i:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-textcode-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-textcode-static.dir/tutf8e/src/tutf8e.c.i
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-textcode.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-textcode.dir/tutf8e/src/tutf8e.c.i
+.PHONY : tutf8e/src/tutf8e.c.i
+
+tutf8e/src/tutf8e.s: tutf8e/src/tutf8e.c.s
+.PHONY : tutf8e/src/tutf8e.s
+
+# target to generate assembly for a file
+tutf8e/src/tutf8e.c.s:
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-textcode-static.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-textcode-static.dir/tutf8e/src/tutf8e.c.s
+	cd /home/roman/Projects/plot-cv && $(MAKE) $(MAKESILENT) -f quickjs/qjs-modules/CMakeFiles/qjs-textcode.dir/build.make quickjs/qjs-modules/CMakeFiles/qjs-textcode.dir/tutf8e/src/tutf8e.c.s
+.PHONY : tutf8e/src/tutf8e.c.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -3698,6 +3752,9 @@ help:
 	@echo "... src/queue.o"
 	@echo "... src/queue.i"
 	@echo "... src/queue.s"
+	@echo "... src/readlink.o"
+	@echo "... src/readlink.i"
+	@echo "... src/readlink.s"
 	@echo "... src/ringbuffer.o"
 	@echo "... src/ringbuffer.i"
 	@echo "... src/ringbuffer.s"
@@ -3716,6 +3773,9 @@ help:
 	@echo "... src/virtual-properties.o"
 	@echo "... src/virtual-properties.i"
 	@echo "... src/virtual-properties.s"
+	@echo "... tutf8e/src/tutf8e.o"
+	@echo "... tutf8e/src/tutf8e.i"
+	@echo "... tutf8e/src/tutf8e.s"
 .PHONY : help
 
 

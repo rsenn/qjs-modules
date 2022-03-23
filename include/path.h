@@ -67,6 +67,8 @@ size_t path_collapse(char*, size_t);
 SizePair path_common_prefix(const char*, size_t, const char* s2, size_t n2);
 size_t path_components(const char*, size_t, uint32_t n);
 void path_concat(const char*, size_t, const char* b, size_t blen, DynBuf* db);
+void path_concat_s(const char* a, const char* b, DynBuf* db);
+char* path_join(const char*, const char*);
 const char* path_at(const char*, size_t*, int);
 size_t path_num_components(const char*);
 int path_exists(const char*);

@@ -222,9 +222,6 @@ path_components(const char* p, size_t len, uint32_t n) {
 
 void
 path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) {
-  /*  const char* x;
-    size_t size;
-   */
   path_append(a, alen, db);
 
   while(blen >= 1 && path_isdot(b)) {
@@ -236,17 +233,28 @@ path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) 
 
   path_append(b, blen, db);
   dbuf_0(db);
-  /*
-    x = (const char*)tmp.buf;
-    size = tmp.size;
-    if(size > 2 && tmp.buf[0] == '.' && tmp.buf[1] == PATHSEP_C) {
-      x += 2;
-      size -= 2;
-    }
-    dbuf_append(db, (const uint8_t*)x, size);
-    dbuf_0(db);
+}
 
-    dbuf_free(&tmp);*/
+void
+path_concat_s(const char* a, const char* b, DynBuf* db) {
+  path_append(a, strlen(a), db);
+
+  while(*b && path_isdot(b)) {
+    size_t n = path_skip2_s(b);
+
+    b += n;
+  }
+
+  path_append(b, strlen(b), db);
+  dbuf_0(db);
+}
+
+char*
+path_join(const char* a, const char* b) {
+  DynBuf dbuf;
+  dbuf_init2(&dbuf, 0, 0);
+  path_concat(a, strlen(a), b, strlen(b), &dbuf);
+  return (char*)dbuf.buf;
 }
 
 const char*

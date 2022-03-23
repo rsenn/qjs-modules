@@ -644,7 +644,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
 char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
-  char* file;
+  char* file = 0;
   BOOL has_dot_or_slash = !!name[str_chrs(name, "." PATHSEP_S, 2)];
 
   if(strcmp(path, "<input>") && (path_isdotslash(name) || path_isdotdot(name)) && !jsm_builtin_find(name) && has_dot_or_slash) {
@@ -660,9 +660,17 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
     path_collapse(dir.buf + (dsl ? 2 : 0), dir.size - (dsl ? 2 : 0));
     file = dir.buf;
-  } else {
-    file = js_strdup(ctx, name);
+  } else if(has_suffix(name, CONFIG_SHEXT) && !path_is_absolute(name)) {
+    DynBuf db;
+    js_dbuf_init(ctx, &db);
+
+    path_concat_s(QUICKJS_C_MODULE_DIR, name);
+    file = (char*)db.buf;
   }
+
+  if(file == 0)
+    file = js_strdup(ctx, name);
+
   if(debug_module_loader)
     printf("\"%s\" => \"%s\"\n", name, file);
   return file;
