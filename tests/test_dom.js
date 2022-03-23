@@ -5,9 +5,8 @@ import Console from 'console';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 //import REPL from '../lib/repl.js';
-import readXML from '../lib/xml/read.js';
-import writeXML from '../lib/xml/write.js';
-
+import { read as readXML, write as writeXML }  from 'xml';
+ 
 let repl = {
   printStatus(...args) {
     console.log(...args);
