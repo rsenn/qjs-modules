@@ -1146,7 +1146,8 @@ js_inspect_print_value(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     }
 
     case JS_TAG_MODULE: {
-      js_inspect_print_module(ctx, buf, JS_VALUE_GET_PTR(value), opts, depth - 1);
+      dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED "[module]" COLOR_NONE : "[module]");
+      // js_inspect_print_module(ctx, buf, JS_VALUE_GET_PTR(value), opts, depth - 1);
       break;
     }
 
