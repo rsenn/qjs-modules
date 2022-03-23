@@ -324,53 +324,6 @@ jsm_load_package(JSContext* ctx, const char* file) {
   return package_json;
 }
 
-/*
-static inline size_t
-str_chrs(const char* in, const char needles[], size_t nn) {
-  const char* t = in;
-  size_t i;
-  for(;;) {
-    if(!*t)
-      break;
-    for(i = 0; i < nn; i++)
-      if(*t == needles[i])
-        return (size_t)(t - in);
-    ++t;
-  }
-  return (size_t)(t - in);
-}
-*/
-/*char*
-jsm_module_search_ext(JSContext* ctx, const char* path, const char* name, const char* ext) {
-  const char *p, *q;
-  char* file = 0;
-  size_t i, j;
-  struct stat st;
-
-  for(p = path; *p; p = q) {
-    if(p[(i = str_chrs(p, ":;\n", 3))] == '\0')
-      i = strlen(p);
-    q = p + i;
-    file = orig_js_malloc(ctx, i + 1 + strlen(name) + 3 + 1);
-    strncpy(file, p, i);
-    file[i] = '/';
-    strcpy(&file[i + 1], name);
-    if(path_is_file(file))
-      return file;
-    j = strlen(name);
-    if(!(j >= 3 && !strcmp(&name[j - 3], ext)))
-      strcpy(&file[i + 1 + j], ext);
-    if(path_is_file(file))
-      return file;
-    orig_js_free(ctx, file);
-    if(*q == ':')
-      ++q;
-  }
-  return 0;
-}*/
-
-/* "new breed" module loader functions from quickjs-find-module.c */
-
 static char*
 jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
   const char* s;
@@ -398,7 +351,7 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
 }
 
 static char*
-jsm_module_find(JSContext* ctx, const char* module_name) {
+jsm_search_path(JSContext* ctx, const char* module_name) {
   const char* list;
 
   if(debug_module_loader >= 2)
@@ -413,7 +366,7 @@ jsm_module_find(JSContext* ctx, const char* module_name) {
 }
 
 static char*
-jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
+jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
   size_t i, n, len = strlen(module_name);
   char *s, *t = 0;
 
@@ -422,7 +375,7 @@ jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
            __FUNCTION__,
            module_name,
            fn == &is_module         ? "is_module"
-           : fn == &jsm_module_find ? "jsm_module_find"
+           : fn == &jsm_search_path ? "jsm_search_path"
                                     : "<unknown>");
 
   if(!(s = js_mallocz(ctx, (len + 31) & (~0xf))))
@@ -444,13 +397,13 @@ jsm_find_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
 }
 
 static char*
-jsm_module_search(JSContext* ctx, const char* module_name) {
+jsm_search_module(JSContext* ctx, const char* module_name) {
   char* s = 0;
   BOOL search = is_searchable(module_name);
   BOOL suffix = module_has_suffix(ctx, module_name);
-  ModuleLoader* fn = search ? &jsm_module_find : &is_module;
+  ModuleLoader* fn = search ? &jsm_search_path : &is_module;
 
-  s = suffix ? fn(ctx, module_name) : jsm_find_suffix(ctx, module_name, fn);
+  s = suffix ? fn(ctx, module_name) : jsm_search_suffix(ctx, module_name, fn);
 
   if(debug_module_loader >= 2)
     printf("%-18s(module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n",
@@ -466,8 +419,8 @@ jsm_module_search(JSContext* ctx, const char* module_name) {
 
 /* end of "new breed" module loader functions */
 
-static char*
-jsm_lookup_package(JSContext* ctx, const char* module) {
+char*
+jsm_module_package(JSContext* ctx, const char* module) {
   JSValue package;
   char* file = 0;
 
@@ -549,24 +502,24 @@ jsm_module_json(JSContext* ctx, const char* name) {
   return m;
 }
 
-static char*
-jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
+char*
+jsm_module_locate(JSContext* ctx, const char* name, void* opaque) {
   char *name = 0, *s = 0;
   JSModuleDef* m = 0;
 
-  if(!(s = jsm_lookup_package(ctx, module_name)))
-    s = js_strdup(ctx, module_name);
+  if(!(s = jsm_module_package(ctx, name)))
+    s = js_strdup(ctx, name);
 
   for(;;) {
     if(debug_module_loader >= 2)
-      printf("%-18s[1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
+      printf("%-18s[1](name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, name, opaque, s);
 
     if(path_is_file(s))
       break;
 
     if(is_searchable(s)) {
       size_t len;
-      if((name = jsm_module_search(ctx, s))) {
+      if((name = jsm_search_module(ctx, s))) {
         js_free(ctx, s);
         s = js_strdup(ctx, name);
         break;
@@ -576,7 +529,7 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
         continue;
       }
     } else {
-      if((name = jsm_find_suffix(ctx, s, is_module))) {
+      if((name = jsm_search_suffix(ctx, s, is_module))) {
         js_free(ctx, s);
         s = js_strdup(ctx, name);
         break;
@@ -588,20 +541,20 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
   return s;
 }
 
-static JSModuleDef*
-jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
+JSModuleDef*
+jsm_module_loader(JSContext* ctx, const char* name, void* opaque) {
   char* s;
   JSModuleDef* m;
-  if(!strchr(module_name, '/')) {
+  if(!strchr(name, '/')) {
     BuiltinModule* rec;
 
-    if((rec = jsm_builtin_find(module_name)))
+    if((rec = jsm_builtin_find(name)))
       return jsm_builtin_init(ctx, rec);
   }
 
-  if((s = jsm_module_locate(ctx, module_name, opaque))) {
+  if((s = jsm_module_locate(ctx, name, opaque))) {
     if(debug_module_loader)
-      printf("\"%s\" -> \"%s\"\n", module_name, s);
+      printf("\"%s\" -> \"%s\"\n", name, s);
 
     if(str_ends(s, ".json")) {
       m = jsm_module_json(ctx, s);
@@ -611,7 +564,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     js_free(ctx, s);
   } else {
     if(debug_module_loader)
-      printf("\"%s\" -> null\n", module_name);
+      printf("\"%s\" -> null\n", name);
   }
   return m;
 }
