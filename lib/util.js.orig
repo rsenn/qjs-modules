@@ -1,41 +1,11 @@
-//import { SyscallError } from 'syscallerror';
-import { JS_EVAL_FLAG_BACKTRACE_BARRIER, Location, dupArrayBuffer, escape /*, getPrototypeChain*/, isArray, isBigDecimal, isBigFloat, isBigInt, isBool, isCFunction, isConstructor, isEmptyString, isError, isException, isExtensible, isFunction, isHTMLDDA, isInstanceOf, isInteger, isJobPending, isLiveObject, isNull, isNumber, isObject, isRegisteredClass, isString, isSymbol, isUncatchableError, isUndefined, isUninitialized, isArrayBuffer, rand, toArrayBuffer, toString, watch, bits, getTypeName } from 'misc';
+import { SyscallError } from 'syscallerror';
+import { JS_EVAL_FLAG_BACKTRACE_BARRIER, Location, dupArrayBuffer, escape, getPrototypeChain, isArray, isBigDecimal, isBigFloat, isBigInt, isBool, isCFunction, isConstructor, isEmptyString, isError, isException, isExtensible, isFunction, isHTMLDDA, isInstanceOf, isInteger, isJobPending, isLiveObject, isNull, isNumber, isObject, isRegisteredClass, isString, isSymbol, isUncatchableError, isUndefined, isUninitialized, isArrayBuffer, rand, toArrayBuffer, toString, watch } from 'misc';
+import * as misc from 'misc';
 import { extendArray, ArrayExtensions } from './extendArray.js';
 import { extendGenerator, GeneratorExtensions, GeneratorPrototype } from './extendGenerator.js';
 import * as os from 'os';
 
-const sliceFn = x =>
-  ({
-    Array: Array.prototype.slice,
-    String: String.prototype.slice,
-    ArrayBuffer(start, end) {
-      start ??= 0;
-      end ??= this.byteLength;
-      return dupArrayBuffer(this, start, end - start);
-    },
-    SharedArrayBuffer: SharedArrayBuffer.prototype.slice,
-    Uint8ClampedArray: Uint8ClampedArray.prototype.slice,
-    Int8Array: Int8Array.prototype.slice,
-    Uint8Array: Uint8Array.prototype.slice,
-    Int16Array: Int16Array.prototype.slice,
-    Uint16Array: Uint16Array.prototype.slice,
-    Int32Array: Int32Array.prototype.slice,
-    Uint32Array: Uint32Array.prototype.slice,
-    BigInt64Array: BigInt64Array.prototype.slice,
-    BigUint64Array: BigUint64Array.prototype.slice,
-    Float32Array: Float32Array.prototype.slice,
-    Float64Array: Float64Array.prototype.slice
-  }[getTypeName(x)]);
-
-export const slice = (x, s, e) => (sliceFn(x) ?? x.slice).call(x, s, e);
-
-/*typeof x == 'object'
-    ? isArrayBuffer(x)
-      ? dupArrayBuffer(x, s, e)
-      : Array.isArray(x)
-      ? Array.prototype.slice.call(x, s, e)
-      : x.slice(s, e)
-    : String.prototype.slice.call(x, s, e);*/
+const slice = (x, s, e) => (typeof x == 'object' ? (isArrayBuffer(x) ? dupArrayBuffer(x, s, e) : Array.isArray(x) ? Array.prototype.slice.call(x, s, e) : x.slice(s, e)) : String.prototype.slice.call(x, s, e));
 const stringify = v => `${v}`;
 const protoOf = Object.getPrototypeOf;
 const formatNumber = n => (n === -0 ? '-0' : `${n}`);
@@ -189,17 +159,8 @@ export const types = {
   isConstructor(v) {
     return isFunction(v) && 'prototype' in v;
   },
-  isIterable(v) {
-    return isObject(v) && typeof v[Symbol.iterator] == 'function';
-  },
-  isAsyncIterable(v) {
-    return isObject(v) && typeof v[Symbol.asyncIterator] == 'function';
-  },
   isIterator(v) {
     return isObject(v) && typeof v.next == 'function';
-  },
-  isArrayLike(v) {
-    return isObject(v) && typeof v.length == 'number' && Number.isInteger(v.length);
   }
 };
 
@@ -380,96 +341,34 @@ export function memoize(fn, cache = {}) {
   );
 }
 
-export function getset(target, ...args) {
+export function getset(target) {
   let ret = [];
-  if(isFunction(target)) {
-    ret = [target, typeof args[0] == 'function' ? args[0] : target];
-  } else if(hasGetSet(target)) {
+  if(typeof target == 'function') ret = [target, target];
+  else if(hasGetSet(target)) {
     if(target.get === target.set) {
       const GetSet = (...args) => target.set(...args);
       ret = [GetSet, GetSet];
     } else ret = [key => target.get(key), (key, value) => target.set(key, value)];
-  } else if(isObject(target)) {
-    ret = [key => target[key], (key, value) => (target[key] = value)];
-  } else {
-    throw new TypeError(`getset unknown argument type '${typeof target}'`);
-  }
-  if(args.length) {
-    let [get, set] = ret;
-    ret = [() => get(...args), value => set(...args, value)];
-  }
+  } else if(isObject(target)) ret = [key => target[key], (key, value) => (target[key] = value)];
   return ret;
 }
 
-export function modifier(...args) {
-  let gs = gettersetter(...args);
-  return fn => {
-    let value = gs();
-    return fn(value, newValue => gs(newValue));
-  };
-}
-
-export function getter(target, ...args) {
-  if(isObject(target) && isFunction(target.get)) return () => target.get(...args);
-  let ret;
-  if(isFunction(target)) {
-    ret = target;
-  } else if(hasGetSet(target)) {
-    ret = key => target.get(key);
-  } else if(isObject(target)) {
-    ret = key => target[key];
-  } else {
-    throw new TypeError(`getter unknown argument type '${typeof target}'`);
-  }
-  if(args.length) {
-    let get = ret;
-    ret = () => get(...args);
-  }
-  return ret;
-}
-
-export function setter(target, ...args) {
-  if(isObject(target) && isFunction(target.set)) return value => target.set(...args, value);
-  let ret;
-  if(isFunction(target)) {
-    ret = target;
-  } else if(hasGetSet(target)) {
-    ret = (key, value) => target.set(key, value);
-  } else if(isObject(target)) {
-    ret = (key, value) => (target[key] = value);
-  } else {
-    throw new TypeError(`setter unknown argument type '${typeof target}'`);
-  }
-  if(args.length) {
-    let set = ret;
-    ret = value => set(...args, value);
-  }
-  return ret;
-}
-
-export function gettersetter(target, ...args) {
-  let fn;
-  if(isObject(target) && isFunction(target.receiver)) return (...args2) => target.receiver(...args, ...args2);
-  if(isFunction(target)) {
-    if(isFunction(args[0]) && args[0] !== target) {
-      let setter = args.shift();
-      fn = (...args) => (args.length == 0 ? target() : setter(...args));
-    } else fn = target;
-  } else if(hasGetSet(target)) {
-    if(target.get === target.set) fn = (...args) => target.set(...args);
-    else fn = (...args) => (args.length < 2 ? target.get(...args) : target.set(...args));
-  } else if(isObject(target)) {
-    fn = (...args) => {
+export function gettersetter(target) {
+  let gettersetter;
+  if(isObject(target) && typeof target.receiver == 'function') return target.receiver;
+  if(typeof target == 'function') gettersetter = target;
+  else if(hasGetSet(target)) {
+    if(target.get === target.set) gettersetter = (...args) => target.set(...args);
+    else gettersetter = (...args) => (args.length == 1 ? target.get(args[0]) : target.set(...args));
+  } else if(isObject(target))
+    gettersetter = (...args) => {
       const [key, value] = args;
       if(args.length == 1) return target[key];
       target[key] = value;
     };
-  } else {
-    throw new TypeError(`gettersetter unknown argument type '${typeof target}'`);
-  }
-  if(fn !== target) define(fn, { receiver: target });
-  if(args.length) return (...args2) => fn(...args, ...args2);
-  return fn;
+
+  if(gettersetter !== target) define(gettersetter, { receiver: target });
+  return gettersetter;
 }
 
 export function hasGetSet(obj) {
@@ -536,21 +435,11 @@ export function weakAssign(obj, ...args) {
   return Object.defineProperties(obj, desc);
 }
 
-export function getPrototypeChain(obj, limit = -1, start = 0) {
-  let i = -1,
-    ret = [];
-  do {
-    if(i >= start && (limit == -1 || i < start + limit)) ret.push(obj);
-    if(obj === Object.prototype || obj.constructor === Object) break;
-    ++i;
-  } while((obj = obj.__proto__ || Object.getPrototypeOf(obj)));
-  return ret;
-}
-
-export function getConstructorChain(obj, ...range) {
+export function getConstructorChain(obj) {
   let ret = [];
-  pushUnique(ret, obj.constructor);
-  for(let proto of getPrototypeChain(obj, ...range)) pushUnique(ret, proto.constructor);
+  let chain = getPrototypeChain(obj);
+  if(obj.constructor && obj.constructor != chain[0].constructor) chain.unshift(obj);
+  for(let proto of chain) ret.push(proto.constructor);
   return ret;
 }
 
@@ -827,7 +716,7 @@ export function randInt(...args) {
   let range = args.splice(0, 2);
   let rng = args.shift() ?? Math.random;
   if(range.length < 2) range.unshift(0);
-  return Math.round(rand(range[1] - range[0] + 1) + range[0]);
+  return Math.round(misc.rand(range[1] - range[0] + 1) + range[0]);
 }
 
 export function randFloat(min, max, rng = Math.random) {
@@ -843,7 +732,7 @@ export function randStr(n, set = '_0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghi
 
 export function toBigInt(arg) {
   if(types.isArrayBuffer(arg)) {
-    const bits = bits(arg).join('');
+    const bits = misc.bits(arg).join('');
     return eval(`0b${bits}n`);
   }
   return BigInt(arg);
@@ -892,15 +781,9 @@ export function getOpt(options = {}, args) {
   const findOpt = arg => options.find(([optname, option]) => (Array.isArray(option) ? option.indexOf(arg) != -1 : false) || arg == optname);
   let [, params] = options.find(opt => opt[0] == '@') || [];
   if(typeof params == 'string') params = params.split(',');
-  args = args.reduce((acc, arg) => {
-    if(/^-[^-]/.test(arg)) for(let ch of arg.slice(1)) acc.push('-' + ch);
-    else acc.push(arg);
-    return acc;
-  }, []);
   for(let i = 0; i < args.length; i++) {
     const arg = args[i];
     let opt;
-
     if(arg[0] == '-') {
       let name, value, start, end;
       if(arg[1] == '-') long = true;
@@ -1020,24 +903,6 @@ export function decamelize(str, delim = '-') {
     : str;
 }
 
-export function shorten(str, max = 40, suffix = '...') {
-  max = +max;
-  if(isNaN(max)) max = Infinity;
-  if(Array.isArray(str)) return Array.prototype.slice.call(str, 0, Math.min(str.length, max)).concat([suffix]);
-  if(typeof str != 'string' || !Number.isFinite(max) || max < 0) return str;
-  str = '' + str;
-
-  if(str.length > max) {
-    let n = Math.floor((max - (2 + suffix.length)) / 2);
-    let tail = str.length - n;
-    let len = Math.min(n, tail);
-    let insert = ' ' + suffix + ' ' + (str.length - (len + n)) + ' bytes ' + suffix + ' ';
-
-    return str.substring(0, len) + insert + str.substring(tail);
-  }
-  return str;
-}
-
 export function arraysInCommon(a) {
   let i,
     c,
@@ -1055,178 +920,17 @@ export function arraysInCommon(a) {
   });
 }
 
-export function arrayFacade(proto, itemFn = (container, i) => container.at(i)) {
-  return define(proto, {
-    *[Symbol.iterator]() {
-      const { length } = this;
-      for(let i = 0; i < length; i++) yield itemFn(this, i);
-    },
-    *keys() {
-      const { length } = this;
-      for(let i = 0; i < length; i++) yield i;
-    },
-    *entries() {
-      const { length } = this;
-      for(let i = 0; i < length; i++) yield [i, itemFn(this, i)];
-    },
-    *values() {
-      const { length } = this;
-      for(let i = 0; i < length; i++) yield itemFn(this, i);
-    },
-    forEach(callback, thisArg) {
-      const { length } = this;
-      for(let i = 0; i < length; i++) callback.call(thisArg, itemFn(this, i), i, this);
-    },
-    reduce(callback, accu, thisArg) {
-      const { length } = this;
-      for(let i = 0; i < length; i++) accu = callback.call(thisArg, accu, itemFn(this, i), i, this);
-      return accu;
-    }
-  });
-}
-
 export function mod(a, b) {
   return typeof b == 'number' ? ((a % b) + b) % b : n => ((n % a) + a) % a;
-}
-
-export function pushUnique(arr, ...args) {
-  let reject = [];
-  for(let arg of args)
-    if(arr.indexOf(arg) == -1) arr.push(arg);
-    else reject.push(arg);
-  return reject;
 }
 
 export const ansiStyles = getAnsiStyles();
 
 const inspectMethod = Symbol.for('nodejs.util.inspect.custom');
 
-define(util, {
-  errors,
-  types,
-  hasBuiltIn,
-  format,
-  formatWithOptions,
-  assert,
-  setInterval,
-  clearInterval,
-  inherits,
-  memoize,
-  getset,
-  gettersetter,
-  hasGetSet,
-  mapObject,
-  once,
-  waitFor,
-  define,
-  weakAssign,
-  getConstructorChain,
-  hasPrototype,
-  filter,
-  curry,
-  split,
-  unique,
-  getFunctionArguments,
-  randInt,
-  randFloat,
-  randStr,
-  toBigInt,
-  lazyProperty,
-  lazyProperties,
-  getOpt,
-  toUnixTime,
-  unixTime,
-  fromUnixTime,
-  range,
-  repeater,
-  repeat,
-  chunkArray,
-  camelize,
-  decamelize,
-  shorten,
-  arraysInCommon,
-  mod,
-  ansiStyles,
-  extendArray
-});
-
-/*
-util.format = format;
-util.formatWithOptions = formatWithOptions;
-util.types = types;
-util.assert = assert;
-util.hasBuiltIn = hasBuiltIn;
-util.toString = toString;
-util.toArrayBuffer = toArrayBuffer;
-util.setInterval = setInterval;
-util.clearInterval = clearInterval;
-util.memoize = memoize;
-util.once = once;
-util.define = define;
-util.weakAssign = weakAssign;
-util.ArrayExtensions = ArrayExtensions;
-util.extendArray = (proto = Array.prototype, def = util.define) => def(proto, ArrayExtensions);
-util.extendGenerator = (proto = GeneratorPrototype, def = util.define) => def(proto, GeneratorExtensions);
-util.errors = errors;
-util.getPrototypeChain = getPrototypeChain;
-util.getConstructorChain = getConstructorChain;
-util.hasPrototype = hasPrototype;
-util.ansiStyles = ansiStyles;
-util.randInt = randInt;
-util.curry = curry;
-util.filter = filter;
-util.split = split;
-util.unique = unique;
-util.escape = escape;
-
-Object.assign(util, {
-  [inspectMethod]() {
-    let obj = { ...util };
-    delete obj[inspectMethod];
-    return inspect(obj, { customInspect: false });
-  }
-});*/
-
 export { extendArray, ArrayExtensions } from './extendArray.js';
-//export { SyscallError } from 'syscallerror';
+export { SyscallError } from 'syscallerror';
 export * from 'misc';
 export { inspect } from 'inspect';
-//export default util;
-/*export {
-  JS_EVAL_FLAG_BACKTRACE_BARRIER,
-  Location,
-  dupArrayBuffer,
-  escape,
-  getPrototypeChain,
-  isArray,
-  isBigDecimal,
-  isBigFloat,
-  isBigInt,
-  isBool,
-  isCFunction,
-  isConstructor,
-  isEmptyString,
-  isError,
-  isException,
-  isExtensible,
-  isFunction,
-  isHTMLDDA,
-  isInstanceOf,
-  isInteger,
-  isJobPending,
-  isLiveObject,
-  isNull,
-  isNumber,
-  isObject,
-  isRegisteredClass,
-  isString,
-  isSymbol,
-  isUncatchableError,
-  isUndefined,
-  isUninitialized,
-  isArrayBuffer,
-  rand,
-  toArrayBuffer,
-  toString,
-  watch
-} from 'misc';*/
+export default util;
+export { JS_EVAL_FLAG_BACKTRACE_BARRIER, Location, dupArrayBuffer, escape, getPrototypeChain, isArray, isBigDecimal, isBigFloat, isBigInt, isBool, isCFunction, isConstructor, isEmptyString, isError, isException, isExtensible, isFunction, isHTMLDDA, isInstanceOf, isInteger, isJobPending, isLiveObject, isNull, isNumber, isObject, isRegisteredClass, isString, isSymbol, isUncatchableError, isUndefined, isUninitialized, isArrayBuffer, rand, toArrayBuffer, toString, watch } from 'misc';
