@@ -1178,6 +1178,7 @@ js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr) {
   for(i = 0; i < len; i++) { ret[i] = JS_GetPropertyUint32(ctx, arr, i); }
   return ret;
 }
+
 const char*
 js_value_tag_name(int tag) {
   switch(tag) {
