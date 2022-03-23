@@ -551,7 +551,10 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     if((rec = jsm_builtin_find(module_name))) {
       JSModuleDef* requireMod;
 
-      if((requireMod = jsm_builtin_init(ctx, rec))) {}
+      if((requireMod = jsm_builtin_init(ctx, rec))) {
+        JSValue exports;
+        exports = module_exports(ctx, requireMod);
+      }
     }
   }
 
