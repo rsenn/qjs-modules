@@ -1,6 +1,8 @@
 import { Predicate, TypeSelector, ClassSelector, AttributeSelector, parseSelector } from '../lib/css3-selectors.js';
 import { Console } from 'console';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
+import readXML from '../lib/xml/read.js';
+import writeXML from '../lib/xml/write.js';
 
 function main(...args) {
   globalThis.console = new Console({
