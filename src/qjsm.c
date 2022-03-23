@@ -280,6 +280,7 @@ jsm_builtin_find(const char* name) {
 static JSModuleDef*
 jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
+  JSValue obj = JS_UNDEFINED;
   if(rec->def == 0) {
     if(debug_module_loader >= 2)
       printf("(3) %-30s internal\n", rec->module_name);
@@ -287,13 +288,13 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       m = rec->module_func(ctx, rec->module_name);
 
     } else {
-      JSValue obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
+      obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
       m = JS_VALUE_GET_PTR(obj);
     }
     rec->def = m;
 
-    if(!rec->initialized) {
-      JSValue func_obj = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+    if(!rec->initialized && !JS_IsUndefined(obj)) {
+      JSValue func_obj = JS_DupValue(ctx, obj);
       JS_EvalFunction(ctx, func_obj);
       rec->initialized = TRUE;
     }
