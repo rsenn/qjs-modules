@@ -7,7 +7,7 @@ import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import ECMAScriptLexer from 'lib/lexer/ecmascript.js';
-import { difference, symmetricDifference, union, error, getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
+import { intersection, difference, symmetricDifference, union, error, getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, types, getOpt, quote, escape } from 'util';
 
 ('use strict');
 ('use math');
@@ -31,7 +31,7 @@ let buffers = {},
   readPackage = false,
   relativeTo,
   outputFile,
-  recursive = true,
+  recursive,
   debug = 0,
   header = [],
   footer = [],
@@ -135,12 +135,25 @@ const debugLog = (str, ...args) => {
   console.log(str, opts, ...args);
 };
 
-const FileWriter = file => {
+function FileWriter(file) {
   let fd = os.open(file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644);
   return define(FdWriter(fd, file), {
     close: () => os.close(fd)
   });
-};
+}
+
+function FileReplacer(file) {
+  let fd = os.open(file + '.new', os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644);
+  return define(FdWriter(fd, file), {
+    close: () => {
+      console.log('FileReplacer.close', fd);
+      os.close(fd);
+      let err = os.rename(file + '.new', file);
+      console.log('os.rename() =', err);
+      if(err) throw new Error(`FileReplacer rename() error: ${std.strerror(-err)}`);
+    }
+  });
+}
 
 function FdWriter(fd, file) {
   let fn;
@@ -351,8 +364,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   };
   let prevToken,
     doneImports,
-    used = identifiersUsed ? identifiersUsed(source) : null,
-    imported = new Set();
+    used = identifiersUsed ? identifiersUsed(source) : null;
   for(;;) {
     let { stateDepth } = lexer;
     let value = lexer.next();
@@ -372,11 +384,11 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         if(used) {
           let { size } = used;
           used.add(token.lexeme);
-          if(debug >= 1) console.log(`added[${size}]`, source, token.lexeme);
+          if(debug >= 2) console.log(`added[${size}]`, source, token.lexeme);
         }
-      } else {
+      } /*else {
         imported.add(token.lexeme);
-      }
+      }*/
     }
     if(debug >= 2) console.log('token', token);
     /*   if(debug >= 1) console.log('lexer.mode', lexer.mode);
@@ -565,6 +577,26 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   define(Import.prototype, {
     ids() {
       return ImportIds(this.tokens.slice()).map(({ lexeme }) => lexeme);
+    },
+    toCode(filterIds = id => true) {
+      if(this.ids().filter(filterIds).length == 0) return '';
+
+      let tokens = this.tokens.filter(tok => (tok.type == 'identifier' ? filterIds(tok.lexeme) : true));
+
+      let prev, pnws;
+      tokens = tokens.reduce((acc, tok) => {
+        if(prev && prev.type == 'whitespace' && tok.type == 'whitespace') return acc;
+        if(pnws && [',', '{'].indexOf(pnws.lexeme) != -1 && [',', '}'].indexOf(tok.lexeme) != -1) {
+          if(tok.lexeme == '}') acc[acc.lastIndexOf(pnws)] = tok;
+          return acc;
+        }
+        if(tok.type != 'whitespace') pnws = tok;
+        prev = tok;
+        acc.push(tok);
+        return acc;
+      }, []);
+      //console.log('tokens', NonWS(tokens));
+      return tokens.reduce((acc, tok) => acc + tok.lexeme, '');
     }
   });
 
@@ -590,52 +622,85 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   console.log('identifiersUsed[' + source + ']', identifiersUsed(source));
 
   let map = FileMap.for(source);
+  let imported = used && new Set();
 
-  for(let impexp of allExportsImports) {
-    const { type, file, range, code, loc } = impexp;
-    const [start, end] = range;
-    // let bytebuf = BufferFile(source);
-    let bufstr = toString(bytebuf.slice(...range));
-    let arrbuf = toArrayBuffer(bufstr);
+  if(used) {
+    for(let impexp of allExportsImports) {
+      if(impexp.type == What.IMPORT) {
+        let ids = impexp.ids();
 
-    let replacement = type == What.EXPORT ? null : /*FileMap.for*/ file;
-    let { byteOffset } = loc;
-    let p;
-
-    if(debug > 2)
-      console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
-
-    //  if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
-    if(typeof file == 'string' && !path.isFile(file)) {
-      if(debug > 1) console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
-
-      replacement = null;
-      //  header.push(impexp);
-    } else if(file && path.isFile(file)) {
-      replacement = file;
-      // header.push(impexp);
-    } else if(
-      (typeof replacement == 'string' && !path.isFile(replacement)) ||
-      type == What.IMPORT ||
-      typeof file == 'string'
-    ) {
-      replacement = null;
-      //  header.push(impexp);
-    } else if(code.startsWith('export')) {
-      if(!removeExports) continue;
-      replacement = file;
+        for(let id of ids) imported.add(id);
+      }
     }
 
-    let list = type == What.EXPORT ? footer : header;
-    list.push(impexp);
+    for(let impexp of allExportsImports) {
+      if(impexp.type == What.IMPORT) {
+        let ids = impexp.ids();
 
-    if(debug >= 2)
-      console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
-    if(debug > 1) console.log('impexp', compact(1), { range: new NumericRange(...range), loc: loc + '' });
+        if(ids.some(id => !used.has(id))) {
+          let { code, range } = impexp;
+          let newCode = impexp.toCode(id => used.has(id));
 
-    map.replaceRange(range, replacement);
+          if(code != newCode) {
+            map.replaceRange(range, toArrayBuffer(newCode));
+            console.log('replace', { code, newCode });
+          }
+        }
+      }
+    }
+    let out = FileReplacer(source);
+    console.log('out', out + '');
+
+    let result = map.write(out);
+    console.log('result', result);
+    out.close();
+    
+  } else {
+    for(let impexp of allExportsImports) {
+      const { type, file, range, code, loc } = impexp;
+      const [start, end] = range;
+      // let bytebuf = BufferFile(source);
+      let bufstr = toString(bytebuf.slice(...range));
+      let arrbuf = toArrayBuffer(bufstr);
+
+      let replacement = type == What.EXPORT ? null : /*FileMap.for*/ file;
+      let { byteOffset } = loc;
+      let p;
+
+      if(debug > 2)
+        console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
+
+      //  if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
+      if(typeof file == 'string' && !path.isFile(file)) {
+        if(debug > 1) console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
+
+        replacement = null;
+        //  header.push(impexp);
+      } else if(file && path.isFile(file)) {
+        replacement = file;
+        // header.push(impexp);
+      } else if(
+        (typeof replacement == 'string' && !path.isFile(replacement)) ||
+        type == What.IMPORT ||
+        typeof file == 'string'
+      ) {
+        replacement = null;
+        //  header.push(impexp);
+      } else if(code.startsWith('export')) {
+        if(!removeExports) continue;
+        replacement = file;
+      }
+
+      let list = type == What.EXPORT ? footer : header;
+      list.push(impexp);
+
+      if(debug >= 2)
+        console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
+      if(debug > 1) console.log('impexp', compact(1), { range: new NumericRange(...range), loc: loc + '' });
+
+      map.replaceRange(range, replacement);
+    }
   }
-
   //  debugLog('comments', comments.map(({byteRange, lexeme})=>[byteRange,lexeme,toString(bytebuf.slice(...byteRange))]));
   //
   if(removeComments && comments.length) {
@@ -650,26 +715,14 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   }
 
   if(used) {
-    console.log('used', [...used]);
+    console.log(`imported [ ${source} ]`, console.config({ compact: 1 }), [...imported]);
+    used = intersection(used, imported);
+    console.log(`used     [ ${source} ]`, console.config({ compact: 1 }), [...used]);
 
-    /* let imported = new Set();
-
-    for(let imp of imports)
-      for(let tok of imp.tokens.filter(tok => tok.type == 'identifier')) imported.add(tok.lexeme);
-*/
-    console.log('imported', [...imported]);
-
-    let diff = symmetricDifference(used, imported);
     let unused = difference(imported, used);
 
-    console.log('unused', [...unused]);
-    let un = union(used, imported);
-    //console.log('union', [...un]);
+    console.log(`unused   [ ${source} ]`, console.config({ compact: 1 }), [...unused]);
   }
-
-  //if(debug > 1) debugLog('map', map.dump());
-
-  //if(debug> 1) console.log('dump map', map.dump());
 
   end = Date.now();
 
@@ -1103,10 +1156,10 @@ class FileMap extends Array {
           r = str.write(out, depth + 1, serial);
         } else {
           // console.log('out', out);
-          if(i == first) out.puts(FileBannerComment(this.file, 0));
+          if(depth > 0 && i == first) out.puts(FileBannerComment(this.file, 0));
 
           r = out.write(str, len);
-          if(i == last) out.puts(FileBannerComment(this.file, 1));
+          if(depth > 0 && i == last) out.puts(FileBannerComment(this.file, 1));
 
           if(r != len) r = -1;
         }
@@ -1358,6 +1411,7 @@ function main(...args) {
       imports: [false, () => (onlyImports = true), 'i'],
       'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
       output: [true, file => (outputFile = file), 'o'],
+      recursive: [false, () => (recursive = true), 'r'],
       'no-recursive': [false, () => (recursive = false), 'R'],
       'remove-exports': [false, () => (removeExports = true), 'E'],
       'remove-imports': [false, () => (removeImports = true), 'I'],
@@ -1387,7 +1441,11 @@ function main(...args) {
     onlyImports = true;
     outputFile = null;
     out = DummyWriter('/dev/null');
+  } else {
+    if(typeof recursive == 'undefined') recursive = true;
   }
+
+  if(typeof recursive == 'undefined') recursive = false;
 
   const { sort, 'case-sensitive': caseSensitive, quiet } = params;
 
