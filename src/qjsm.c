@@ -1425,21 +1425,21 @@ main(int argc, char** argv) {
       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
     {
-      JSModuleDef* req;
+      /* JSModuleDef* req;
 
-      if((req = jsm_module_loader(ctx, "require", 0))) {
-        JSValue glt, exp;
+       if((req = jsm_module_loader(ctx, "require", 0))) {
+         JSValue glt, exp;
 
-        glt = JS_GetGlobalObject(ctx);
+         glt = JS_GetGlobalObject(ctx);
 
-        exp = module_default_export(ctx, req);
+         exp = module_default_export(ctx, req);
 
-        JS_SetPropertyStr(ctx, glt, "require", exp);
+         JS_SetPropertyStr(ctx, glt, "require", exp);
 
-        JS_FreeValue(ctx, glt);
-      }
-      /* const char* str = "import require from 'require';\nglobalThis.require = require;\n";
-       js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);*/
+         JS_FreeValue(ctx, glt);
+       }*/
+      const char* str = "import require from 'require';\nglobalThis.require = require;\n";
+      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
     }
 
     JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
