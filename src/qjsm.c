@@ -1438,7 +1438,7 @@ main(int argc, char** argv) {
 
          JS_FreeValue(ctx, glt);
        }*/
-      const char* str = "import require from 'require';\nglobalThis.require = require;\n";
+      const char* str = "import { require } from 'require';\nglobalThis.require = require;\n";
       js_eval_str(ctx, str, "<require>", JS_EVAL_TYPE_MODULE);
     }
 
