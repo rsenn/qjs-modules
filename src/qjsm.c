@@ -286,17 +286,17 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
 
-      if(!rec->initialized) {
-        JSValue func_obj = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
-        JS_EvalFunction(ctx, func_obj);
-        rec->initialized = TRUE;
-      }
-
     } else {
       JSValue obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, 0);
       m = JS_VALUE_GET_PTR(obj);
     }
     rec->def = m;
+
+    if(!rec->initialized) {
+      JSValue func_obj = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+      JS_EvalFunction(ctx, func_obj);
+      rec->initialized = TRUE;
+    }
   }
 
   return rec->def;
