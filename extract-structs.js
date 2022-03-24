@@ -36,12 +36,15 @@ function main(...args) {
       compact: false
     }
   });
+    //console.log('args', scriptArgs);
 
   let outputName,
+    debug,
     output = std.out;
   let params = getOpt(
     {
       output: [true, file => (output = std.open((outputName = file), 'w+')), 'o'],
+      debug: [false, () => (debug = (debug | 0) + 1), 'x'],
       '@': 'files'
     },
     args
@@ -51,7 +54,8 @@ function main(...args) {
   for(let file of files) {
     console.log('file', file);
 
-    let str = std.loadFile(file);
+    let str = std.loadFile(file, 'utf-8');
+    //console.log(` std.loadFile('${file}', 'utf-8') =`, str);
     console.log('str', str.split('\n')[0]);
 
     let lexer = new CLexer(str, file);

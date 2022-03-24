@@ -11,7 +11,7 @@ import CLexer from '../lib/lexer/c.js';
 import BNFLexer from '../lib/lexer/bnf.js';
 import CSVLexer from '../lib/lexer/csv.js';
 import { escape, quote, toString } from 'misc';
-import { define, curry, unique, split, extendArray, isObject } from 'util';
+import { define, curry, unique, split, extendArray, isObject, getOpt } from 'util';
 import { mmap, munmap, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_SHARED, MAP_ANONYMOUS } from 'mmap';
 
 let buffers = {},
@@ -229,13 +229,22 @@ function main(...args) {
   let debug,
     files = [];
 
-  while(args[optind]) {
+  let params = getOpt(
+    {
+      output: [true, null, 'o'],
+      debug: [false, () => (debug = (debug | 0) + 1), 'x'],
+      '@': 'file'
+    },
+    args
+  );
+  /* while(args[optind]) {
     if(/code/.test(args[optind])) code = args[++optind];
     else if(/(debug|^-x$)/.test(args[optind])) debug = true;
     else files.push(args[optind]);
 
     optind++;
-  }
+  }*/
+  files = params['@'];
   console.log('files', files);
 
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
@@ -261,6 +270,7 @@ function main(...args) {
       csv: new CSVLexer(str, file)
     };
 
+    lex.h = lex.c;
     lex.g4 = lex.bnf;
     lex.ebnf = lex.bnf;
     lex.l = lex.bnf;
@@ -290,6 +300,7 @@ function main(...args) {
 
     const printTok = debug
       ? (tok, prefix) => {
+          //if(tok.type=='whitespace')return;
           const range = tok.charRange;
           const [start, end] = tok.charRange;
           //log('printTok', {start,end});
@@ -378,6 +389,7 @@ function main(...args) {
     console.log('lexer.tokens', lexer.tokens);*/
 
     let showToken = tok => {
+      // if(tok.type=='whitespace')return;
       if(
         (lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') ||
         /^((im|ex)port|from|as)$/.test(tok.lexeme)
@@ -431,7 +443,7 @@ function main(...args) {
             if(impexp == What.EXPORT) exports.push(AddExport(imp));
           }
         }
-        printTok(tok, newState);
+        if(tok.type != 'whitespace') printTok(tok, newState);
         tokens.push(tok);
       }
       state = newState;
