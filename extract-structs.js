@@ -28,7 +28,9 @@ function parse(lexer, fn = (tok, arr) => {}, ...args) {
 }
 
 function main(...args) {
-  globalThis.console = new Console(process.stderr, {
+  globalThis.console = new Console({
+    stdout: process.stdout,
+    stderr: process.stderr,
     inspectOptions: {
       colors: true,
       maxStringLength: 100,
@@ -55,24 +57,21 @@ function main(...args) {
     console.log('file', file);
 
     let str = std.loadFile(file, 'utf-8');
-    //console.log(` std.loadFile('${file}', 'utf-8') =`, str);
+
     console.log('str', str.split('\n')[0]);
 
     let lexer = new CLexer(str, file);
-    /*  console.log('lexer', lexer);
-    console.log(`lexer.tokens`, lexer.tokens);
-    console.log(`lexer.rules['struct']`, lexer.rules['struct']);
-    console.log(`lexer.rules['typedef']`, lexer.rules['typedef']);
-    console.log(`lexer.getRule('struct')`, lexer.getRule('struct'));*/
+
     const { rules, tokens } = lexer;
 
-    //let id; while((id = lexer.next()))
+
     for(let id of lexer) {
       if(id == rules['struct'] || id == rules['typedef']) {
         const { loc, token: tok } = lexer;
 
         if(loc.column == 1) {
           let seq,
+
             line = loc.line,
             text = '';
           seq = parse(lexer, (tok, arr) => tok.loc.line != line && -1, tok);
