@@ -32,9 +32,13 @@ function main(...args) {
   let propSel = Predicate.property('name', Predicate.string('test'));
   console.log('propSel() =', propSel({ name: 'test' }));
 
-  let selector = parseSelector('element.big[name="test"]');
+  for(let selector of ['element.big[name="test"]', '[name="C1"]']) {
+    console.log('selector', selector);
+    let pred = parseSelector(selector);
 
-  console.log('selector', selector);
+    console.log('pred', pred);
+    console.log('pred', pred + '');
+  }
 }
 
 try {
