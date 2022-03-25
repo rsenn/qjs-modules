@@ -61,13 +61,14 @@ static Vector module_debug = VECTOR_INIT();
 static thread_local Vector module_list = VECTOR_INIT();
 // static Vector builtins = VECTOR_INIT();
 
-static const char jsm_default_module_path[] = "."
-#ifdef QUICKJS_MODULE_PATH
-                                              ":" QUICKJS_MODULE_PATH
-#elif defined(CONFIG_PREFIX)
-                                              ":" CONFIG_PREFIX "/lib/quickjs"
+#ifndef QUICKJS_MODULE_PATH
+#ifdef CONFIG_PREFIX
+#define QUICKJS_MODULE_PATH CONFIG_PREFIX "/lib/quickjs"
 #endif
-    ;
+#endif
+
+static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
+
 static JSModuleLoaderFunc* module_loader = 0;
 JSValue package_json;
 
@@ -176,7 +177,7 @@ jsm_module_extern_compiled(require);
 jsm_module_extern_compiled(tty);
 jsm_module_extern_compiled(util);
 
-static thread_local Vector jsm_scripts;
+static thread_local Vector jsm_stack;
 static thread_local Vector jsm_builtin_modules;
 static thread_local BOOL jsm_modules_initialized;
 
@@ -249,28 +250,74 @@ enum {
 };
 
 static char*
-jsm_script_file() {
+jsm_stack_file() {
   char* ret = 0;
-  if(!vector_empty(&jsm_scripts)) {
-    char** ptr = vector_back(&jsm_scripts, sizeof(char*));
+  if(!vector_empty(&jsm_stack)) {
+    char** ptr = vector_back(&jsm_stack, sizeof(char*));
     ret = *ptr;
   }
   return ret;
 }
 
+static char**
+jsm_stack_ptr(int i) {
+  int size;
+
+  if((size = vector_size(&jsm_stack, sizeof(char*))) > 0) {
+    if(i < 0)
+      i += size;
+
+    return vector_at(&jsm_stack, sizeof(char*), i);
+  }
+
+  return 0;
+}
+
 static char*
-jsm_script_at(int i) {
-  char *ret = 0, **ptr;
-  int size = vector_size(&jsm_scripts, sizeof(char*));
+jsm_stack_at(int i) {
+  char** ptr;
 
-  if(ABS_NUM(i) < size && (ptr = vector_at(&jsm_scripts, sizeof(char*), i < 0 ? i + size : i % size)))
-    ret = *ptr;
+  if((ptr = jsm_stack_ptr(i)))
+    return *ptr;
 
-  return ret;
+  return 0;
+}
+
+static char*
+jsm_stack_string() {
+  static DynBuf buf;
+  char** ptr;
+  int i = 0;
+
+  if(buf.buf == 0)
+    dbuf_init2(&buf, 0, vector_realloc);
+
+  buf.size = 0;
+
+  vector_foreach_t(&jsm_stack, ptr) { dbuf_printf(&buf, "%i: %s\n", i++, *ptr); }
+  dbuf_0(&buf);
+
+  return (char*)buf.buf;
+}
+
+static void
+jsm_stack_print() {
+  fputs(jsm_stack_string(), stderr);
+  fflush(stderr);
+}
+
+static size_t
+jsm_stack_count() {
+  return vector_size(&jsm_stack, sizeof(char*));
+}
+
+static const char**
+jsm_stack_vector() {
+  return vector_begin(&jsm_stack);
 }
 
 static JSValue
-jsm_script_get(JSContext* ctx, JSValueConst this_val, int magic) {
+jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue ret = JS_UNDEFINED;
 
   switch(magic) {
@@ -278,7 +325,7 @@ jsm_script_get(JSContext* ctx, JSValueConst this_val, int magic) {
       char** ptr;
       size_t i = 0;
       ret = JS_NewArray(ctx);
-      vector_foreach_t(&jsm_scripts, ptr) {
+      vector_foreach_t(&jsm_stack, ptr) {
         JSValue str = JS_NewString(ctx, *ptr);
         JS_SetPropertyUint32(ctx, ret, i++, str);
       }
@@ -287,13 +334,13 @@ jsm_script_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case SCRIPT_FILE:
     case SCRIPT_FILENAME: {
       char* str;
-      if((str = jsm_script_file()))
+      if((str = jsm_stack_file()))
         ret = JS_NewString(ctx, str);
       break;
     }
     case SCRIPT_DIRNAME: {
       char* file;
-      if((file = jsm_script_file())) {
+      if((file = jsm_stack_file())) {
         char* dir;
         if((dir = path_dirname(file))) {
           ret = JS_NewString(ctx, dir);
@@ -307,30 +354,30 @@ jsm_script_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static void
-jsm_script_push(JSContext* ctx, const char* file) {
-  vector_putptr(&jsm_scripts, js_strdup(ctx, file));
+jsm_stack_push(JSContext* ctx, const char* file) {
+  vector_putptr(&jsm_stack, js_strdup(ctx, file));
 }
 
 static void
-jsm_script_pop(JSContext* ctx) {
+jsm_stack_pop(JSContext* ctx) {
   char** ptr;
 
-  ptr = vector_back(&jsm_scripts, sizeof(char*));
+  ptr = vector_back(&jsm_stack, sizeof(char*));
   js_free(ctx, *ptr);
-  vector_pop(&jsm_scripts, sizeof(char*));
+  vector_pop(&jsm_stack, sizeof(char*));
 }
 
 static int
-jsm_script_load(JSContext* ctx, const char* file, BOOL module) {
+jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
   JSValue val;
   int32_t ret = 0;
   JSValue global_obj = JS_GetGlobalObject(ctx);
 
   JS_SetPropertyStr(ctx, global_obj, "module", JS_NewObject(ctx));
-  jsm_script_push(ctx, file);
+  jsm_stack_push(ctx, file);
 
   val = js_eval_file(ctx, file, module);
-  jsm_script_pop(ctx);
+  jsm_stack_pop(ctx);
   if(JS_IsException(val)) {
     JSValue stack = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack");
     fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, strerror(errno), js_value_typestr(ctx, stack));
@@ -411,7 +458,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
   JSValue obj = JS_UNDEFINED;
 
-  jsm_script_push(ctx, rec->module_name);
+  jsm_stack_push(ctx, rec->module_name);
 
   if(rec->def == 0) {
     if(debug_module_loader >= 2)
@@ -439,7 +486,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
     }
     rec->def = m;
   }
-  jsm_script_pop(ctx);
+  jsm_stack_pop(ctx);
 
   return rec->def;
 }
@@ -649,8 +696,7 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
   char *file = 0, *s = 0;
   JSModuleDef* m = 0;
 
-  if(!(s = jsm_module_package(ctx, module_name)))
-    s = js_strdup(ctx, module_name);
+  s = js_strdup(ctx, module_name);
 
   for(;;) {
     if(debug_module_loader >= 2)
@@ -685,20 +731,30 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
 
 JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
-  char* s;
-  JSModuleDef* m;
+  char* s=0;
+  JSModuleDef* m = 0;
+
+restart:
   if(!strchr(module_name, '/')) {
     BuiltinModule* rec;
 
-    if((rec = jsm_builtin_find(module_name)))
+    if((rec = jsm_builtin_find(module_name)))  {
+      if(s) js_free(ctx,s);
       return jsm_builtin_init(ctx, rec);
+    }
   }
 
-  if((s = jsm_module_locate(ctx, module_name, opaque))) {
+  if((s = jsm_module_package(ctx, module_name))){
+    
+  }else{    s = jsm_module_locate(ctx, module_name, opaque);
+  
+  }
+
+  if(s) {
     if(debug_module_loader)
       printf("\"%s\" -> \"%s\"\n", module_name, s);
 
-    jsm_script_push(ctx, s);
+    jsm_stack_push(ctx, s);
 
     if(str_ends(s, ".json")) {
       m = jsm_module_json(ctx, s);
@@ -707,7 +763,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     }
     js_free(ctx, s);
 
-    jsm_script_pop(ctx);
+    jsm_stack_pop(ctx);
 
   } else {
     if(debug_module_loader)
@@ -746,7 +802,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     file = js_strdup(ctx, name);
 
   if(debug_module_loader)
-    printf("%s: \"%s\" => \"%s\"\n", jsm_script_file(), name, file);
+    printf("%s: \"%s\" => \"%s\"\n", jsm_stack_file(), name, file);
   return file;
 }
 
@@ -1164,11 +1220,11 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CGETSET_MAGIC_DEF("moduleList", js_modules_array, 0, 0),
     JS_CGETSET_MAGIC_DEF("moduleObject", js_modules_object, 0, 0),
     JS_CGETSET_MAGIC_DEF("moduleMap", js_modules_map, 0, 0),
-    JS_CGETSET_MAGIC_DEF("scriptList", jsm_script_get, 0, SCRIPT_LIST),
-    JS_CGETSET_MAGIC_DEF("scriptFile", jsm_script_get, 0, SCRIPT_FILE),
-    JS_CGETSET_MAGIC_DEF("scriptDir", jsm_script_get, 0, SCRIPT_DIRNAME),
-    JS_CGETSET_MAGIC_DEF("__filename", jsm_script_get, 0, SCRIPT_FILENAME),
-    JS_CGETSET_MAGIC_DEF("__dirname", jsm_script_get, 0, SCRIPT_DIRNAME),
+    JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),
+    JS_CGETSET_MAGIC_DEF("scriptFile", jsm_stack_get, 0, SCRIPT_FILE),
+    JS_CGETSET_MAGIC_DEF("scriptDir", jsm_stack_get, 0, SCRIPT_DIRNAME),
+    JS_CGETSET_MAGIC_DEF("__filename", jsm_stack_get, 0, SCRIPT_FILENAME),
+    JS_CGETSET_MAGIC_DEF("__dirname", jsm_stack_get, 0, SCRIPT_DIRNAME),
     JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
@@ -1437,7 +1493,7 @@ main(int argc, char** argv) {
     exit(2);
   }
 
-  vector_init(&jsm_scripts, ctx);
+  vector_init(&jsm_stack, ctx);
 
   /* loader for ES6 modules */
   JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, 0);
@@ -1509,7 +1565,7 @@ main(int argc, char** argv) {
     }
 
     for(i = 0; i < include_count; i++) {
-      if(jsm_script_load(ctx, include_list[i], module) == -1)
+      if(jsm_stack_load(ctx, include_list[i], module) == -1)
         goto fail;
     }
 
@@ -1522,7 +1578,7 @@ main(int argc, char** argv) {
     } else {
       const char* filename;
       filename = argv[optind];
-      if(jsm_script_load(ctx, filename, module) == -1) {
+      if(jsm_stack_load(ctx, filename, module) == -1) {
         js_value_fwrite(ctx, JS_GetException(ctx), stderr);
         goto fail;
       }
