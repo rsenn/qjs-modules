@@ -731,23 +731,26 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
 
 JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
-  char* s=0;
+  char* s = 0;
   JSModuleDef* m = 0;
 
 restart:
   if(!strchr(module_name, '/')) {
     BuiltinModule* rec;
 
-    if((rec = jsm_builtin_find(module_name)))  {
-      if(s) js_free(ctx,s);
+    if((rec = jsm_builtin_find(module_name))) {
+      if(s)
+        js_free(ctx, s);
       return jsm_builtin_init(ctx, rec);
     }
   }
 
-  if((s = jsm_module_package(ctx, module_name))){
-    
-  }else{    s = jsm_module_locate(ctx, module_name, opaque);
-  
+  if((s = jsm_module_package(ctx, module_name))) {
+    module_name = s;
+    goto restart;
+
+  } else {
+    s = jsm_module_locate(ctx, module_name, opaque);
   }
 
   if(s) {
