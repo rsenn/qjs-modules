@@ -38,7 +38,7 @@ function main(...args) {
       compact: false
     }
   });
-    //console.log('args', scriptArgs);
+  //console.log('args', scriptArgs);
 
   let outputName,
     debug,
@@ -64,14 +64,12 @@ function main(...args) {
 
     const { rules, tokens } = lexer;
 
-
     for(let id of lexer) {
       if(id == rules['struct'] || id == rules['typedef']) {
         const { loc, token: tok } = lexer;
 
         if(loc.column == 1) {
           let seq,
-
             line = loc.line,
             text = '';
           seq = parse(lexer, (tok, arr) => tok.loc.line != line && -1, tok);

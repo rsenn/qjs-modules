@@ -46,6 +46,7 @@ typedef union Vector {
   (Vector) { \
     { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc_rt, rt } \
   }
+
 #define vector_begin(vec) ((void*)((vec)->data))
 #define vector_end(vec) ((void*)((vec)->data + (vec)->size))
 

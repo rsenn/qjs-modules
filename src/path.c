@@ -1,10 +1,8 @@
 #include "path.h"
 #include "buffer-utils.h"
-
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
-
 #ifndef HAVE_LSTAT
 #define lstat stat
 #endif
@@ -13,7 +11,6 @@
  * \addtogroup path
  * @{
  */
-
 int
 path_absolute(const char* path, DynBuf* db) {
   if(!path_isabs(path)) {
@@ -26,10 +23,12 @@ path_absolute(const char* path, DynBuf* db) {
       dbuf_putc(db, PATHSEP_C);
       dbuf_putstr(db, path);
     }
+
     return 1;
   } else {
     dbuf_putstr(db, path);
   }
+
   return 0;
 }
 
@@ -38,12 +37,10 @@ path_absolute_db(DynBuf* db) {
   int ret = 0;
   dbuf_putc(db, '\0');
   db->size--;
-
   if(!path_is_absolute_b((const char*)db->buf, db->size)) {
     DynBuf tmp;
     dbuf_init(&tmp);
     dbuf_append(&tmp, db->buf, db->size);
-
     dbuf_realloc(db, PATH_MAX + 1);
     if(getcwd((char*)db->buf, PATH_MAX)) {
       db->size = strlen((const char*)db->buf);
@@ -54,6 +51,7 @@ path_absolute_db(DynBuf* db) {
     dbuf_free(&tmp);
     ret = 1;
   }
+
   if(db->size && path_issep(db->buf[db->size - 1]))
     --db->size;
   dbuf_putc(db, '\0');
@@ -65,11 +63,11 @@ void
 path_append(const char* x, size_t len, DynBuf* db) {
   if(db->size > 0 && db->buf[db->size - 1] != PATHSEP_C)
     dbuf_putc(db, PATHSEP_C);
+  /* if(len > 2 && x[0] == '.' && x[1] == PATHSEP_C) {
+     x += 2;
+     len -= 2;
+   }*/
 
-  if(len > 2 && x[0] == '.' && x[1] == PATHSEP_C) {
-    x += 2;
-    len -= 2;
-  }
   dbuf_append(db, (const uint8_t*)x, len);
 }
 
@@ -93,11 +91,9 @@ path_canonical_buf(DynBuf* db) {
 size_t
 path_collapse(char* path, size_t nb) {
   ssize_t i, j, len;
-
   len = nb;
 
 again:
-  // k = 0;
   i = path_skip_separator(path, len, 0);
 
   while(i < len) {
@@ -129,76 +125,34 @@ again:
         goto again;
       }
     }
+
     i = j;
   }
-  // path[len] = '\0';
 
   return len;
 }
 
-#if 0
-size_t
-path_collapse(char* path, size_t n) {
-  size_t len, prevOffset,prevLength , offset, inc, k;
-
-  for(k=0,offset = 0; offset < n;) {
-    inc = path_skiplen(&path[offset], &len, n - offset);
-
-    if(len == 2 && path_isdotdot(&path[offset])) {
-
-      if(prevLength) {
-        if(!path_isdotdot(&path[prevOffset])) {
-          size_t from = offset + inc;
-          ssize_t remain = n - from, shrink = from - prevOffset;
-          offset = prevOffset;
-
-          if(remain > 0)
-            byte_copyr(&path[offset], remain, &path[from]);
-
-          n -= shrink;
-          continue;
-        }
-        //  printf("path_collapse [%zu] '%.*s' '%.*s'\n", k, (int)len, &path[offset], (int)prevLength, &path[prevOffset]);
-      }
-      /* else printf("path_collapse [%zu] '%.*s'\n", k, (int)len, &path[offset]); */
-    }
-    ++k;
-    prevOffset = offset;
-    prevLength = len;
-    offset += inc;
-  }
-  return n;
-}
-#endif
-
 SizePair
 path_common_prefix(const char* s1, size_t n1, const char* s2, size_t n2) {
   SizePair r;
-
   for(r.sz1 = 0, r.sz2 = 0; r.sz1 != n1 && r.sz2 != n2;) {
     size_t i1, i2;
-
     i1 = path_skip_separator(&s1[r.sz1], n1 - r.sz1, 0);
     i2 = path_skip_separator(&s2[r.sz2], n2 - r.sz2, 0);
-
     if(!!i1 != !!i2)
       break;
-
     r.sz1 += i1;
     r.sz2 += i2;
-
     i1 = path_skip_component(&s1[r.sz1], n1 - r.sz1, 0);
     i2 = path_skip_component(&s2[r.sz2], n2 - r.sz2, 0);
-
     if(i1 != i2)
       break;
-
     if(memcmp(&s1[r.sz1], &s2[r.sz2], i1))
       break;
-
     r.sz1 += i1;
     r.sz2 += i2;
   }
+
   return r;
 }
 
@@ -210,22 +164,23 @@ path_components(const char* p, size_t len, uint32_t n) {
     s += path_skip_separator(s, e - s, 0);
     if(s == e)
       break;
-
     s += path_skip_component(s, e - s, 0);
     if(--n <= 0)
       break;
-
     count++;
   }
+
   return count;
 }
 
 void
 path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) {
   path_append(a, alen, db);
-
   while(blen >= 1 && path_isdot(b)) {
-    size_t n = path_skip2(b, blen);
+    size_t n;
+
+    if(!(n = path_skip_dotslash(b, blen)))
+      break;
 
     b += n;
     blen -= n;
@@ -238,10 +193,8 @@ path_concat(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) 
 void
 path_concat_s(const char* a, const char* b, DynBuf* db) {
   path_append(a, strlen(a), db);
-
   while(*b && path_isdot(b)) {
     size_t n = path_skip2_s(b);
-
     b += n;
   }
 
@@ -259,19 +212,17 @@ path_join(const char* a, const char* b) {
 
 const char*
 path_at(const char* p, size_t* len_ptr, int i) {
-
   int pos = 0;
   size_t next, len;
-
   for(;;) {
     len = path_skip_component_s(p);
     next = len + path_skip_separator_s(&p[len]);
-
     if(i <= 0)
       break;
     p += next;
     --i;
   }
+
   if(len_ptr)
     *len_ptr = len;
   return p;
@@ -280,11 +231,11 @@ path_at(const char* p, size_t* len_ptr, int i) {
 size_t
 path_num_components(const char* p) {
   size_t n = 0, len;
-
   for(; *p; p += len) {
     len = path_skip2_s(p);
     ++n;
   }
+
   return n;
 }
 
@@ -301,7 +252,6 @@ path_extname(const char* p) {
   char* q;
   if((q = strrchr(p, PATHSEP_C)))
     p = q + 1;
-
   pos = str_rchr(p, '.');
   p += pos;
   return p;
@@ -312,10 +262,8 @@ path_find(const char* path, const char* name, DynBuf* db) {
   DIR* dir;
   struct dirent* entry;
   int ret = 0;
-
   if(!(dir = opendir(path)))
     return 0;
-
   while((entry = readdir(dir))) {
     const char* s = entry->d_name;
     if(!strcasecmp(s, name)) {
@@ -339,8 +287,10 @@ start:
       pattern++;
       plen--;
     }
+
     return (plen ? PATH_FNM_NOMATCH : 0);
   }
+
   if(plen == 0)
     return PATH_FNM_NOMATCH;
   if(*string == '.' && *pattern != '.' && (flags & PATH_FNM_PERIOD)) {
@@ -349,6 +299,7 @@ start:
     if((flags & PATH_FNM_PATHNAME) && string[-1] == '/')
       return PATH_FNM_NOMATCH;
   }
+
   flags |= PATH_NOTFIRST;
   switch(*pattern) {
     case '[': {
@@ -378,11 +329,13 @@ start:
             plen--;
           }
         }
+
         if((res && !neg) || ((!res && neg) && *pattern == ']')) {
           while(plen && *pattern != ']') {
             pattern++;
             plen--;
           }
+
           pattern += !!plen;
           plen -= !!plen;
           string++;
@@ -391,6 +344,7 @@ start:
         } else if(res && neg)
           break;
       }
+
     } break;
     case '\\': {
       if(!(flags & PATH_FNM_NOESCAPE)) {
@@ -407,6 +361,7 @@ start:
         plen--;
         goto start;
       }
+
       return 0;
     }
 
@@ -418,6 +373,7 @@ start:
       string++;
       slen--;
     }
+
       goto start;
     default:
     match : {
@@ -428,8 +384,10 @@ start:
         slen--;
         goto start;
       }
+
     } break;
   }
+
   return PATH_FNM_NOMATCH;
 }
 
@@ -446,7 +404,6 @@ path_getcwd(DynBuf* db) {
 char*
 path_gethome(int uid) {
   FILE* fp;
-
   char *line, *ret = 0;
   char buf[1024];
   static char home[PATH_MAX + 1];
@@ -464,12 +421,14 @@ path_gethome(int uid) {
       line[p] = '\0';
       line += p + 1;
     }
+
     id = line;
     for(n = 3; n > 0; n--) {
       p = str_chr(line, ':');
       line[p] = '\0';
       line += p + 1;
     }
+
     if(atoi(id) != uid)
       continue;
     dir = line;
@@ -478,6 +437,7 @@ path_gethome(int uid) {
     home[n] = '\0';
     ret = home;
   }
+
   fclose(fp);
   return ret;
 }
@@ -501,6 +461,7 @@ path_is_directory(const char* p) {
     if(S_ISDIR(st.st_mode))
       return 1;
   }
+
   return 0;
 }
 
@@ -512,6 +473,7 @@ path_is_file(const char* p) {
     if(S_ISREG(st.st_mode))
       return 1;
   }
+
   return 0;
 }
 
@@ -523,6 +485,7 @@ path_is_chardev(const char* p) {
     if(S_ISCHR(st.st_mode))
       return 1;
   }
+
   return 0;
 }
 
@@ -534,6 +497,7 @@ path_is_blockdev(const char* p) {
     if(S_ISBLK(st.st_mode))
       return 1;
   }
+
   return 0;
 }
 
@@ -545,6 +509,7 @@ path_is_fifo(const char* p) {
     if(S_ISFIFO(st.st_mode))
       return 1;
   }
+
   return 0;
 }
 
@@ -557,6 +522,7 @@ path_is_socket(const char* p) {
     if(S_ISSOCK(st.st_mode))
       return 1;
   }
+
 #endif
   return 0;
 }
@@ -572,6 +538,7 @@ path_is_symlink(const char* p) {
     if(S_ISLNK(st.st_mode))
       return 1;
   }
+
   return 0;
 #endif
 }
@@ -598,14 +565,15 @@ start:
         path++;
         continue;
       }
+
       if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
         if(db->size && db->buf)
           db->size = path_right((const char*)db->buf, db->size);
-
         path += 2;
         continue;
       }
     }
+
     if(*path == '\0')
       break;
     if(db->size && (db->buf[db->size - 1] != '/' && db->buf[db->size - 1] != '\\'))
@@ -637,6 +605,7 @@ start:
       }
     }
   }
+
   if(db->size == 0)
     dbuf_putc(db, sep);
   return ret;
@@ -651,15 +620,12 @@ int
 path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out) {
   SizePair p;
   size_t i;
-
   p = path_common_prefix(s1, n1, s2, n2);
   dbuf_zero(out);
-
   s1 += p.sz1;
   n1 -= p.sz1;
   s2 += p.sz2;
   n2 -= p.sz2;
-
   while((i = path_skip(s2, n2))) {
     dbuf_putstr(out, ".." PATHSEP_S);
     s2 += i;
@@ -668,12 +634,10 @@ path_relative_b(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* ou
 
   i = path_skip_separator(s1, n1, 0);
   dbuf_append(out, s1 + i, n1 - i);
-
   if(out->size == 0)
     dbuf_putc(out, '.');
   else if(out->buf[out->size - 1] == PATHSEP_C)
     out->size--;
-
   dbuf_0(out);
   return 1;
 }
@@ -682,10 +646,8 @@ size_t
 path_root(const char* x, size_t n) {
   if(n > 0 && x[0] == PATHSEP_C)
     return 1;
-
   if(n >= 3 && isalnum(x[0]) && x[1] == ':' && path_issep(x[2]))
     return 3;
-
   return 0;
 }
 
@@ -694,7 +656,6 @@ path_skip_component(const char* p, size_t len, size_t pos) {
   const char *start = p, *end = p + len;
   if(pos > len)
     pos = len;
-
   p += pos;
   while(p < end && !path_issep(*p)) ++p;
   return p - start;
@@ -712,7 +673,6 @@ path_skip_separator(const char* p, size_t len, size_t pos) {
   const char *start = p, *end = p + len;
   if(pos > len)
     pos = len;
-
   p += pos;
   while(p < end && path_issep(*p)) ++p;
   return p - start;
@@ -731,10 +691,10 @@ __path_dirname(const char* path, DynBuf* dir) {
   if(path == NULL || path[i] == '\0') {
     dbuf_putstr(dir, ".");
   } else {
-    /* remove trailing slashes */
     while(i > 0 && path_issep(path[i - 1])) --i;
     dbuf_put(dir, (const uint8_t*)path, i);
   }
+
   dbuf_0(dir);
   return (char*)dir->buf;
 }
@@ -742,11 +702,8 @@ __path_dirname(const char* path, DynBuf* dir) {
 size_t
 path_dirname_len(const char* path) {
   size_t i = str_rchrs(path, "/\\", 2);
-
   if(path[i] == '\0')
     return 0;
-
-  /* remove trailing slashes */
   while(i > 0 && path_issep(path[i - 1])) --i;
   return i;
 }
@@ -762,21 +719,16 @@ path_dirname(const char* path) {
 
 int
 path_readlink(const char* path, DynBuf* dir) {
-  /* do not allocate PATH_MAX from the beginning,
-     most paths will be smaller */
   ssize_t n = (START ? START : 32);
   ssize_t sz;
   do {
-    /* reserve some space */
     n <<= 1;
     dbuf_realloc(dir, n);
     if((sz = readlink(path, (char*)dir->buf, n)) == -1)
       return -1;
-    /* repeat until we have reserved enough space */
   } while(sz == n);
 
   dir->size = sz;
-  /* now truncate to effective length */
   return dir->size;
 }
 

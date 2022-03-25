@@ -53,6 +53,8 @@ char is_junction(const char*);
 #define path_isdotdot(p) ((p)[0] == '.' && (p)[1] == '.' && ((p)[2] == '\0' || path_issep((p)[2])))
 
 #define path_is_relative(p) !path_is_absolute(p) // (path_isdotslash(p) || path_isdotdot(p))
+#define path_is_explicit(p) (path_isabs(p) || path_isdot(p) || path_isdotdot(p))
+#define path_is_implicit(p) (!path_is_explicit(p))
 
 typedef struct {
   size_t sz1, sz2;
@@ -105,15 +107,10 @@ size_t path_dirname_len(const char* path);
 char* path_dirname(const char*);
 int path_readlink(const char*, DynBuf*);
 
-/*static inline size_t
-path_length(const char* s, size_t n) {
-  return path_skip_component(s, n, 0);
-}
-
 static inline size_t
 path_length_s(const char* s) {
   return path_skip_component(s, strlen(s), 0);
-}*/
+}
 
 static inline size_t
 path_skip_s(const char* s) {
@@ -184,6 +181,29 @@ path_trim_dotslash(const char* s) {
   while(*s && path_isdotslash(s)) s += path_skip2_s(s);
 
   return s;
+}
+
+static inline size_t path_skip_dotslash_s(const char* s) {
+  size_t i=0;
+  for(i = 0; path_isdotslash(&s[i]); )
+    i += path_skip2_s(&s[i]);
+  return i;
+}
+
+
+static inline size_t path_skip_dotslash(const char* s,size_t n) {
+  size_t i=0;
+  while(i < n && path_isdotslash(&s[i])) 
+    i += path_skip2(&s[i], n - i);
+  return i;
+}
+
+static inline int
+path_compare_s(const char* a, const char* b) {
+  a += path_skip_dotslash_s(a);
+  b += path_skip_dotslash_s(b);
+
+  return strcmp(a, b);
 }
 
 /**
