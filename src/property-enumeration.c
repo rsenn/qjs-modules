@@ -11,9 +11,8 @@
  */
 int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
-  it->obj = object;
   it->idx = 0;
-  it->is_array = JS_IsArray(ctx, object);
+  // it->is_array = JS_IsArray(ctx, object);
 
   if(JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, object, flags & 0x3f)) {
     it->tab_atom_len = 0;
@@ -23,6 +22,9 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
 
   if(flags & PROPENUM_SORT_ATOMS)
     qsort(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void*, const void*)) & compare_jspropertyenum);
+
+  it->obj = object;
+  it->finalizer = JS_NULL;
 
   return 0;
 }

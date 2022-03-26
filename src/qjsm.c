@@ -622,8 +622,8 @@ jsm_module_package(JSContext* ctx, const char* module) {
             printf("(2) %-30s => %s (package.json)\n", module, file);
         }
       }
-        JS_FreeValue(ctx, aliases);
-        JS_FreeValue(ctx, target);
+      JS_FreeValue(ctx, aliases);
+      JS_FreeValue(ctx, target);
     }
   }
 
@@ -747,7 +747,7 @@ restart:
     } else {
       if(!(s = jsm_module_package(ctx, module_name)))
         s = jsm_module_locate(ctx, module_name, opaque);
-      
+
       if(s) {
         module_name = s;
         goto restart;
@@ -760,9 +760,9 @@ restart:
       printf("\"%s\" -> \"%s\"\n", name, s);
 
     jsm_stack_push(ctx, s);
-    if(str_ends(s, ".json")) 
+    if(str_ends(s, ".json"))
       m = jsm_module_json(ctx, s);
-     else 
+    else
       m = js_module_loader(ctx, s, opaque);
     js_free(ctx, s);
     jsm_stack_pop(ctx);

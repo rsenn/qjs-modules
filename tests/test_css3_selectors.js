@@ -1,8 +1,10 @@
-import { TypeSelector, ClassSelector, AttributeSelector, parseSelector } from '../lib/css3-selectors.js';
+import { TypeSelector, ClassSelector, AttributeSelector, parseSelectors } from '../lib/css3-selectors.js';
 import { Predicate } from 'predicate';
 import { Console } from 'console';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
 import { read as readXML, write as writeXML } from 'xml';
+import { readFileSync } from 'fs';
+import { REPL } from 'repl';
 
 function main(...args) {
   globalThis.console = new Console({
@@ -32,13 +34,19 @@ function main(...args) {
   let propSel = Predicate.property('name', Predicate.string('test'));
   console.log('propSel() =', propSel({ name: 'test' }));
 
+  let xmlDoc = new Parser().parseFromString(readFileSync('tests/test1.xml', 'utf-8'));
+  console.log('xmlDoc', xmlDoc);
+  console.log('xmlDoc', xmlDoc.querySelector('.icon span'));
+
   for(let selector of ['element.big[name="test"]', '[name="C1"]']) {
     console.log('selector', selector);
-    let pred = parseSelector(selector);
+    let pred = [...parseSelectors(selector)];
 
     console.log('pred', pred);
     console.log('pred', pred + '');
   }
+
+  new REPL().run();
 }
 
 try {

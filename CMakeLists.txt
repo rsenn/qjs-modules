@@ -303,9 +303,10 @@ set(location_SOURCES src/location.c include/location.h quickjs-location.c quickj
 
 set(syscallerror_SOURCES quickjs-syscallerror.c quickjs-syscallerror.h)
 set(child_process_SOURCES src/child-process.c include/child-process.h src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
-set(deep_SOURCES ${vector_SOURCES} src/pointer.c src/virtual-properties.c src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES} ${predicate_SOURCES} include/pointer.h include/virtual-properties.h)
+set(deep_SOURCES ${vector_SOURCES} src/pointer.c src/virtual-properties.c src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES} ${predicate_SOURCES} include/pointer.h
+                 include/virtual-properties.h)
 #set(deep_LIBRARIES qjs-predicate qjs-pointer)
-set(deep_LIBRARIES )
+set(deep_LIBRARIES)
 unset(deep_LIBRARIES)
 set(inspect_SOURCES ${vector_SOURCES} include/iteration.h ${utils_SOURCES} src/property-enumeration.c include/property-enumeration.h quickjs-internal.h)
 set(tree_walker_SOURCES ${vector_SOURCES} src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES})
@@ -510,13 +511,13 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   include_directories(${QUICKJS_INCLUDE_DIR})
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
-add_custom_command(OUTPUT ${MODULES_DIR}/qjscalc.c COMMAND ${QJSC} -fbignum -c -o ${MODULES_DIR}/qjscalc.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                   COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
+add_custom_command(OUTPUT ${MODULES_DIR}/qjscalc.c COMMAND ${QJSC} -fbignum -c -o ${MODULES_DIR}/qjscalc.c -m ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js DEPENDS ${QJSC_DEPS}
+                   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} COMMENT "Generate from qjscalc.js using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../qjscalc.js)
 
 #dump(COMPILED_MODULES)
 
-set(QJSM_SOURCES src/qjsm.c src/path.c src/readlink.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c ${MODULES_DIR}/perf_hooks.c
-                 ${MODULES_DIR}/process.c ${MODULES_DIR}/tty.c ${MODULES_DIR}/util.c ${QJSM_EXTRA_SOURCES})
+set(QJSM_SOURCES src/qjsm.c src/path.c src/readlink.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c
+                 ${MODULES_DIR}/perf_hooks.c ${MODULES_DIR}/process.c ${MODULES_DIR}/tty.c ${MODULES_DIR}/util.c ${QJSM_EXTRA_SOURCES})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
   if(QUICKJS_DEBUGGER)
@@ -525,7 +526,10 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 
 if(NOT BUILD_STATIC_MODULES)
-  set(QJSM_SOURCES ${QJSM_SOURCES} ${archive_SOURCES} ${blob_SOURCES} ${buffer_utils_SOURCES} ${char_utils_SOURCES} ${child_process_SOURCES} ${deep_SOURCES} ${gpio_SOURCES} ${inspect_SOURCES} ${js_utils_SOURCES} ${lexer_SOURCES} ${libutf_SOURCES} ${location_SOURCES} ${misc_SOURCES} ${mmap_SOURCES} ${path_SOURCES} ${pointer_SOURCES} ${predicate_SOURCES} ${queue_SOURCES} ${repeater_SOURCES} ${sockets_SOURCES} ${stream_SOURCES} ${syscallerror_SOURCES} ${textcode_SOURCES} ${token_SOURCES} ${tree_walker_SOURCES} ${utils_SOURCES} ${vector_SOURCES} ${xml_SOURCES})
+  set(QJSM_SOURCES
+      ${QJSM_SOURCES} ${archive_SOURCES} ${blob_SOURCES} ${buffer_utils_SOURCES} ${char_utils_SOURCES} ${child_process_SOURCES} ${deep_SOURCES} ${gpio_SOURCES} ${inspect_SOURCES} ${js_utils_SOURCES}
+      ${lexer_SOURCES} ${libutf_SOURCES} ${location_SOURCES} ${misc_SOURCES} ${mmap_SOURCES} ${path_SOURCES} ${pointer_SOURCES} ${predicate_SOURCES} ${queue_SOURCES} ${repeater_SOURCES}
+      ${sockets_SOURCES} ${stream_SOURCES} ${syscallerror_SOURCES} ${textcode_SOURCES} ${token_SOURCES} ${tree_walker_SOURCES} ${utils_SOURCES} ${vector_SOURCES} ${xml_SOURCES})
 endif(NOT BUILD_STATIC_MODULES)
 
 ##dump(QJSM_SOURCES)

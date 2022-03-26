@@ -24,10 +24,12 @@ function main(...args) {
       compact: 1
     }
   });
-
   console.log('args:', args);
-  let data = std.loadFile(args[0] ?? '/etc/fonts/fonts.conf', 'utf-8');
 
+if(args.length==0)
+  args=['tests/test3.xml'];
+
+  let data = std.loadFile(args[0], 'utf-8');
   console.log('data:', data.substring(0, 100).replace(/\n/g, '\\n') + '...');
 
   let result;
@@ -39,10 +41,8 @@ function main(...args) {
     } catch(err) {}
   }
   console.log('result:', result);
-
   TestIterator();
 
-  //console.log('xml:\n' + xml.write(result));
   function TestWalker() {
     let walk = new TreeWalker(result);
     console.log('walk:', walk.toString());
@@ -50,21 +50,13 @@ function main(...args) {
     console.log('~TreeWalker.MASK_PRIMITIVE:', TreeWalker.MASK_PRIMITIVE.toString(2));
     console.log(' TreeWalker.MASK_ALL:', TreeWalker.MASK_ALL);
     console.log(' TreeWalker.MASK_ALL:', TreeWalker.MASK_ALL.toString(2));
-    //walk.tagMask = TreeWalker.MASK_PRIMITIVE;
     walk.tagMask = TreeWalker.MASK_ALL;
-    //walk.flags = 0;
+
     const { flags, tagMask } = walk;
     console.log(' walk', { flags, tagMask });
     while(walk.nextNode((v, k, w) => typeof v != 'object')) {
-      console.log(
-        'type:',
-        typeof walk.currentNode,
-        'path:',
-        walk.currentPath.join('.'),
-        typeof walk.currentNode != 'object' ? walk.currentNode : ''
-      );
+      console.log('type:', typeof walk.currentNode, 'path:', walk.currentPath.join('.'), typeof walk.currentNode != 'object' ? walk.currentNode : '');
       let node = walk.currentNode;
-
       if(typeof node == 'object') {
         console.log(
           'object:',
@@ -76,27 +68,20 @@ function main(...args) {
       }
       i++;
     }
-
-    //  delete result[2];
     WriteFile('output.json', JSON.stringify(result, null, 2));
   }
-
   function TestIterator() {
     for(let c of ['TYPE_OBJECT', 'RETURN_VALUE_PATH']) {
       console.log(`${c} = `, TreeIterator[c]);
     }
     let it = new TreeIterator(result, TreeIterator.TYPE_OBJECT | TreeIterator.RETURN_VALUE_PATH);
-
     for(let [entry, pointer] of it) {
       console.log(`pointer: ${pointer}, entry:`, entry);
     }
   }
   console.log('result', result);
-  //console.log(result.slice(2));
-
   std.gc();
 }
-
 try {
   main(...scriptArgs.slice(1));
 } catch(error) {

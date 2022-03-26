@@ -11,11 +11,10 @@
  * @{
  */
 typedef struct PropertyEnumeration {
-  JSValue obj;
   uint32_t idx;
   uint32_t tab_atom_len;
   JSPropertyEnum* tab_atom;
-  BOOL is_array;
+  JSValue obj,finalizer;
 } PropertyEnumeration;
 
 typedef struct {
@@ -92,7 +91,7 @@ property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
   JSValue key;
   assert(it->idx < it->tab_atom_len);
   key = JS_AtomToValue(ctx, it->tab_atom[it->idx].atom);
-  if(it->is_array) {
+  if(JS_IsArray(ctx, it->obj)) {
     int64_t idx;
     JS_ToInt64(ctx, &idx, key);
     JS_FreeValue(ctx, key);

@@ -16,6 +16,12 @@ thread_local JSValue tree_walker_proto = {{JS_TAG_UNDEFINED}}, tree_walker_ctor 
 thread_local VISIBLE JSClassID js_tree_iterator_class_id = 0;
 thread_local JSValue tree_iterator_proto = {{JS_TAG_UNDEFINED}}, tree_iterator_ctor = {{JS_TAG_UNDEFINED}};
 
+enum tree_walker_filter {
+  FILTER_ACCEPT = 1,
+  FILTER_REJECT = 2,
+  FILTER_SKIP = 3,
+};
+
 enum tree_walker_methods {
   FIRST_CHILD = 0,
   LAST_CHILD,
@@ -46,38 +52,86 @@ enum tree_iterator_return {
 };
 
 typedef struct {
-  Vector frames;
+  int ref_count;
   uint32_t tag_mask;
-  uint32_t ref_count;
-  JSValueConst predicate, transform;
+  Vector hier;
+  JSValueConst filter, transform;
 } TreeWalker;
 
 static void
 tree_walker_reset(TreeWalker* w, JSContext* ctx) {
   PropertyEnumeration* it;
 
-  vector_foreach_t(&w->frames, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
-  vector_clear(&w->frames);
+  vector_foreach_t(&w->hier, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
+  vector_clear(&w->hier);
 
   w->tag_mask = TYPE_ALL;
-  w->predicate = JS_UNDEFINED;
+  w->filter = JS_UNDEFINED;
   w->transform = JS_UNDEFINED;
+}
+
+static void
+tree_walker_free(TreeWalker* w, JSRuntime* rt) {
+  if(--w->ref_count == 0) {
+    PropertyEnumeration *s, *e;
+    for(s = vector_begin(&w->hier), e = vector_end(&w->hier); s != e; s++) { property_enumeration_reset(s, rt); }
+    vector_free(&w->hier);
+    js_free_rt(rt, w);
+  }
+}
+
+static TreeWalker*
+tree_walker_new(JSContext*ctx) {
+ TreeWalker*w;
+ if((w=js_mallocz(ctx, sizeof(TreeWalker))))
+  w->ref_count=1;
+return w;
 }
 
 static PropertyEnumeration*
 tree_walker_setroot(TreeWalker* w, JSContext* ctx, JSValueConst object) {
   tree_walker_reset(w, ctx);
-  return property_enumeration_push(&w->frames, ctx, JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS);
+  return property_enumeration_push(&w->hier, ctx, JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS);
 }
 
 static void
 tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
-  dbuf_printf(db, "TreeWalker {\n  depth: %u", vector_size(&w->frames, sizeof(PropertyEnumeration)));
+  dbuf_printf(db, "TreeWalker {\n  depth: %u", vector_size(&w->hier, sizeof(PropertyEnumeration)));
 
-  dbuf_putstr(db, ",\n  frames: ");
+  dbuf_putstr(db, ",\n  hier: ");
 
-  property_enumeration_dumpall(&w->frames, ctx, db);
+  property_enumeration_dumpall(&w->hier, ctx, db);
   dbuf_putstr(db, "\n}");
+}
+
+static JSValue
+js_get_filter(JSContext* ctx, JSValueConst val) {
+  JSValue ret = JS_UNDEFINED;
+  BOOL is_fun = JS_IsFunction(ctx, val), is_obj;
+
+  ret = JS_DupValue(ctx, val);
+  is_obj = JS_IsObject(val);
+  if(is_obj) {
+    JSValue fn = JS_GetPropertyStr(ctx, val, "acceptNode");
+    if(JS_IsFunction(ctx, fn)) {
+      JS_FreeValue(ctx, ret);
+      ret = fn;
+    }
+  }
+  if(!JS_IsFunction(ctx, ret)) {
+    JS_FreeValue(ctx, ret);
+    return JS_NULL;
+  }
+
+  return ret;
+}
+
+static BOOL
+js_is_filter(JSContext* ctx, JSValueConst val) {
+  JSValue fn = js_get_filter(ctx, val);
+  BOOL ret = JS_IsFunction(ctx, fn);
+  JS_FreeValue(ctx, fn);
+  return ret;
 }
 
 static JSValue
@@ -86,15 +140,14 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   JSValue proto, obj = JS_UNDEFINED;
   int argi = 1;
 
-  if(!(w = js_mallocz(ctx, sizeof(TreeWalker))))
+  if(!(w = tree_walker_new(ctx)))
     return JS_EXCEPTION;
 
   w->ref_count = 1;
   tree_walker_reset(w, ctx);
-  vector_init(&w->frames, ctx);
+  vector_init(&w->hier, ctx);
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
@@ -109,8 +162,8 @@ js_tree_walker_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(argi < argc && JS_IsNumber(argv[argi]))
     JS_ToUint32(ctx, &w->tag_mask, argv[argi++]);
 
-  if(argi < argc && JS_IsFunction(ctx, argv[argi]))
-    w->predicate = JS_DupValue(ctx, argv[argi++]);
+  if(argi < argc && js_is_filter(ctx, argv[argi]))
+    w->filter = js_get_filter(ctx, argv[argi++]);
 
   if(argi < argc && JS_IsFunction(ctx, argv[argi]))
     w->transform = JS_DupValue(ctx, argv[argi++]);
@@ -129,8 +182,10 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   TreeWalker* w;
   DynBuf dbuf;
   JSValue ret;
+
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
+
   js_dbuf_init(ctx, &dbuf);
   tree_walker_dump(w, ctx, &dbuf);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
@@ -144,7 +199,7 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValu
   PropertyEnumeration* it;
   enum value_mask type, mask = w->tag_mask & TYPE_ALL;
 
-  for(; (it = property_enumeration_recurse(&w->frames, ctx));) {
+  for(; (it = property_enumeration_recurse(&w->hier, ctx));) {
     if(mask && mask != TYPE_ALL) {
       JSValue value;
       value = property_enumeration_value(it, ctx);
@@ -172,10 +227,10 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
 
-  if(vector_empty(&w->frames))
+  if(vector_empty(&w->hier))
     return JS_UNDEFINED;
 
-  it = vector_back(&w->frames, sizeof(PropertyEnumeration));
+  it = vector_back(&w->hier, sizeof(PropertyEnumeration));
 
   if(magic == PREVIOUS_NODE) {
     magic = it->idx == 0 ? PARENT_NODE : PREVIOUS_SIBLING;
@@ -184,39 +239,33 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(magic == NEXT_NODE) {
     if(argc >= 1 && JS_IsFunction(ctx, argv[0]))
       predicate = argv[0];
-    else if(JS_IsFunction(ctx, w->predicate))
-      predicate = w->predicate;
+    else if(JS_IsFunction(ctx, w->filter))
+      predicate = w->filter;
 
     it = js_tree_walker_next(ctx, w, this_val, predicate);
   }
 
   switch(magic) {
     case FIRST_CHILD: {
-      if((it = property_enumeration_enter(&w->frames, ctx, 0, PROPENUM_DEFAULT_FLAGS)) == 0 /*||
-         !property_enumeration_setpos(it, 0)*/)
+      if((it = property_enumeration_enter(&w->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS)) == 0)
         return JS_UNDEFINED;
       break;
     }
-
     case LAST_CHILD: {
-      if((it = property_enumeration_enter(&w->frames, ctx, -1, PROPENUM_DEFAULT_FLAGS)) == 0 /*||
-         !property_enumeration_setpos(it, -1)*/)
+      if((it = property_enumeration_enter(&w->hier, ctx, -1, PROPENUM_DEFAULT_FLAGS)) == 0)
         return JS_UNDEFINED;
       break;
     }
-
     case NEXT_SIBLING: {
       if(!property_enumeration_setpos(it, it->idx + 1))
         return JS_UNDEFINED;
       break;
     }
-
     case PARENT_NODE: {
-      if((it = property_enumeration_pop(&w->frames, ctx)) == 0)
+      if((it = property_enumeration_pop(&w->hier, ctx)) == 0)
         return JS_UNDEFINED;
       break;
     }
-
     case PREVIOUS_SIBLING: {
       if(!property_enumeration_setpos(it, it->idx - 1))
         return JS_UNDEFINED;
@@ -227,7 +276,7 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   ret = it ? property_enumeration_value(it, ctx) : JS_UNDEFINED;
 
   if(JS_IsFunction(ctx, w->transform)) {
-    JSValue args[] = {ret, property_enumeration_path(&w->frames, ctx), this_val};
+    JSValue args[] = {ret, property_enumeration_path(&w->hier, ctx), this_val};
 
     ret = JS_Call(ctx, w->transform, JS_UNDEFINED, 3, args);
     JS_FreeValue(ctx, args[0]);
@@ -239,56 +288,56 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static JSValue
 js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  JSValue ret = JS_UNDEFINED;
   TreeWalker* w;
   PropertyEnumeration* it;
 
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
 
-  it = vector_back(&w->frames, sizeof(PropertyEnumeration));
+  it = vector_back(&w->hier, sizeof(PropertyEnumeration));
 
   switch(magic) {
     case PROP_ROOT: {
-      if(!vector_empty(&w->frames)) {
-        it = vector_begin(&w->frames);
-        return JS_DupValue(ctx, it->obj);
+      if(!vector_empty(&w->hier)) {
+        it = vector_begin(&w->hier);
+        ret = JS_DupValue(ctx, it->obj);
       }
       break;
     }
-
     case PROP_CURRENT_NODE: {
       if(it)
-        return property_enumeration_value(it, ctx);
+        ret = property_enumeration_value(it, ctx);
       break;
     }
-
     case PROP_CURRENT_KEY: {
       if(it)
-        return property_enumeration_key(it, ctx);
+        ret = property_enumeration_key(it, ctx);
       break;
     }
-
     case PROP_CURRENT_PATH: {
-      return property_enumeration_path(&w->frames, ctx);
+      ret = property_enumeration_path(&w->hier, ctx);
+      break;
     }
-
     case PROP_DEPTH: {
-      return JS_NewUint32(ctx, vector_size(&w->frames, sizeof(PropertyEnumeration)) - 1);
+      ret = JS_NewUint32(ctx, vector_size(&w->hier, sizeof(PropertyEnumeration)) - 1);
+      break;
     }
-
     case PROP_INDEX: {
-      return JS_NewUint32(ctx, property_enumeration_index(it));
+      ret = JS_NewUint32(ctx, property_enumeration_index(it));
+      break;
     }
-
     case PROP_LENGTH: {
-      return JS_NewUint32(ctx, property_enumeration_length(it));
+      ret = JS_NewUint32(ctx, property_enumeration_length(it));
+      break;
     }
-
     case PROP_TAG_MASK: {
-      return JS_NewUint32(ctx, w->tag_mask);
+      ret = JS_NewUint32(ctx, w->tag_mask);
+      break;
     }
   }
-  return JS_UNDEFINED;
+
+  return ret;
 }
 
 static JSValue
@@ -298,7 +347,8 @@ js_tree_walker_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
 
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
-  if(!(it = vector_back(&w->frames, sizeof(PropertyEnumeration))))
+
+  if(!(it = vector_back(&w->hier, sizeof(PropertyEnumeration))))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -340,30 +390,23 @@ js_tree_walker_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
 static void
 js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
-  TreeWalker* w = JS_GetOpaque(val, js_tree_walker_class_id);
-  if(w) {
-    PropertyEnumeration *s, *e;
+  TreeWalker* w;
+  if((w = JS_GetOpaque(val, js_tree_walker_class_id))) 
+    tree_walker_free(w, rt);
 
-    if(--w->ref_count == 0) {
-      for(s = vector_begin(&w->frames), e = vector_end(&w->frames); s != e; s++) { property_enumeration_reset(s, rt); }
-      vector_free(&w->frames);
-      js_free_rt(rt, w);
-    }
-  }
   // JS_FreeValueRT(rt, val);
 }
 
 static JSValue
 js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   TreeWalker* w;
-  // PropertyEnumeration* it = 0;
   JSValue proto, obj = JS_UNDEFINED;
   int argi = 1;
 
-  if(!(w = js_mallocz(ctx, sizeof(TreeWalker))))
+  if(!(w = tree_walker_new(ctx)))
     return JS_EXCEPTION;
 
-  vector_init(&w->frames, ctx);
+  vector_init(&w->hier, ctx);
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -382,7 +425,7 @@ js_tree_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
     JS_ToUint32(ctx, &w->tag_mask, argv[argi++]);
 
   if(argi < argc && JS_IsFunction(ctx, argv[argi]))
-    w->predicate = JS_DupValue(ctx, argv[argi++]);
+    w->filter = JS_DupValue(ctx, argv[argi++]);
 
   if(argi < argc && JS_IsFunction(ctx, argv[argi]))
     w->transform = JS_DupValue(ctx, argv[argi++]);
@@ -399,62 +442,46 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   PropertyEnumeration* it;
   TreeWalker* w;
   enum tree_iterator_return r;
-  // enum value_mask t;
   JSValue ret = JS_UNDEFINED;
 
   w = JS_GetOpaque(this_val, js_tree_iterator_class_id);
-
   r = w->tag_mask & RETURN_MASK;
-  // t = w->tag_mask & 0xffffff;
 
   for(;;) {
     if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {
       enum value_mask vtype;
       *pdone = FALSE;
-
-      /* if(t) {
-         vtype = property_enumeration_type(it, ctx);
-
-         if((vtype & t) == 0)
-           continue;
-       }*/
-
       switch(r) {
         case RETURN_VALUE: ret = property_enumeration_value(it, ctx); break;
-        case RETURN_PATH: ret = property_enumeration_path(&w->frames, ctx); break;
+        case RETURN_PATH: ret = property_enumeration_path(&w->hier, ctx); break;
         case RETURN_VALUE_PATH:
         default: {
           ret = JS_NewArray(ctx);
           JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
-          JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->frames, ctx));
+          JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->hier, ctx));
           break;
         }
       }
-
     } else {
       *pdone = TRUE;
       ret = JS_UNDEFINED;
     }
-
     break;
   }
+
   return ret;
 }
 
 static void
 js_tree_iterator_finalizer(JSRuntime* rt, JSValue val) {
-  TreeWalker* w = JS_GetOpaque(val, js_tree_iterator_class_id);
-  if(w) {
-    PropertyEnumeration *s, *e;
+  TreeWalker* w;
 
-    if(--w->ref_count == 0) {
-      for(s = vector_begin(&w->frames), e = vector_end(&w->frames); s != e; s++) { property_enumeration_reset(s, rt); }
-      vector_free(&w->frames);
-      js_free_rt(rt, w);
-    }
-  }
+  if((w = JS_GetOpaque(val, js_tree_iterator_class_id)))
+    tree_walker_free(w, rt);
+
   // JS_FreeValueRT(rt, val);
 }
+
 
 static JSClassDef js_tree_walker_class = {
     .class_name = "TreeWalker",
@@ -488,21 +515,24 @@ static const JSCFunctionListEntry js_tree_walker_proto_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_tree_walker_static_funcs[] = {
-    JS_PROP_INT32_DEF("TYPE_UNDEFINED", TYPE_UNDEFINED, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_NULL", TYPE_NULL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BOOL", TYPE_BOOL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_INT", TYPE_INT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_OBJECT", TYPE_OBJECT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_STRING", TYPE_STRING, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_SYMBOL", TYPE_SYMBOL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BIG_FLOAT", TYPE_BIG_FLOAT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BIG_INT", TYPE_BIG_INT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BIG_DECIMAL", TYPE_BIG_DECIMAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_ALL", TYPE_ALL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_PRIMITIVE", TYPE_PRIMITIVE, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("RETURN_VALUE", RETURN_VALUE, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("RETURN_PATH", RETURN_PATH, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("RETURN_VALUE_PATH", RETURN_VALUE_PATH, JS_PROP_ENUMERABLE),
+    JS_CONSTANT(TYPE_UNDEFINED),
+    JS_CONSTANT(TYPE_NULL),
+    JS_CONSTANT(TYPE_BOOL),
+    JS_CONSTANT(TYPE_INT),
+    JS_CONSTANT(TYPE_OBJECT),
+    JS_CONSTANT(TYPE_STRING),
+    JS_CONSTANT(TYPE_SYMBOL),
+    JS_CONSTANT(TYPE_BIG_FLOAT),
+    JS_CONSTANT(TYPE_BIG_INT),
+    JS_CONSTANT(TYPE_BIG_DECIMAL),
+    JS_CONSTANT(TYPE_ALL),
+    JS_CONSTANT(TYPE_PRIMITIVE),
+    JS_CONSTANT(RETURN_VALUE),
+    JS_CONSTANT(RETURN_PATH),
+    JS_CONSTANT(RETURN_VALUE_PATH),
+    JS_CONSTANT(FILTER_ACCEPT),
+    JS_CONSTANT(FILTER_REJECT),
+    JS_CONSTANT(FILTER_SKIP),
 };
 
 static const JSCFunctionListEntry js_tree_iterator_proto_funcs[] = {
