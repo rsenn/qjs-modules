@@ -546,6 +546,10 @@ if(COMPILED_MODULES)
   add_dependencies(qjsm ${COMPILED_MODULES})
 endif(COMPILED_MODULES)
 
+if(LIBDL)
+  link_libraries(${LIBDL})
+endif(LIBDL)
+
 # target_link_libraries(qjsm quickjs ${QJSM_LDADD} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
 
 #target_link_directories(qjsm PUBLIC ${QJSM_LIBDIR} ${CMAKE_CURRENT_BINARY_DIR})
@@ -556,7 +560,8 @@ if(NOT WASI AND NOT EMSCRIPTEN)
   set_target_properties(qjsm PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
 endif(NOT WASI AND NOT EMSCRIPTEN)
 target_link_directories(qjsm PUBLIC ${QUICKJS_LIBRARY_DIR})
-target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${QUICKJS_LIBRARY} ${LIBPTHREAD} ${LIBM} ${LIBDL} ${LIBWS2_32})
+
+target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${QUICKJS_LIBRARY} ${LIBPTHREAD} ${LIBM} ${LIBWS2_32})
 
 target_compile_definitions(qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}" CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}" CONFIG_BIGNUM=1)
 install(TARGETS qjsm DESTINATION bin)
