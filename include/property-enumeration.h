@@ -14,7 +14,7 @@ typedef struct PropertyEnumeration {
   uint32_t idx;
   uint32_t tab_atom_len;
   JSPropertyEnum* tab_atom;
-  JSValue obj,finalizer;
+  JSValue obj, finalizer;
 } PropertyEnumeration;
 
 typedef struct {

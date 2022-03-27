@@ -183,18 +183,17 @@ path_trim_dotslash(const char* s) {
   return s;
 }
 
-static inline size_t path_skip_dotslash_s(const char* s) {
-  size_t i=0;
-  for(i = 0; path_isdotslash(&s[i]); )
-    i += path_skip2_s(&s[i]);
+static inline size_t
+path_skip_dotslash_s(const char* s) {
+  size_t i = 0;
+  for(i = 0; path_isdotslash(&s[i]);) i += path_skip2_s(&s[i]);
   return i;
 }
 
-
-static inline size_t path_skip_dotslash(const char* s,size_t n) {
-  size_t i=0;
-  while(i < n && path_isdotslash(&s[i])) 
-    i += path_skip2(&s[i], n - i);
+static inline size_t
+path_skip_dotslash(const char* s, size_t n) {
+  size_t i = 0;
+  while(i < n && path_isdotslash(&s[i])) i += path_skip2(&s[i], n - i);
   return i;
 }
 

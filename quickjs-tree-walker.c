@@ -81,11 +81,11 @@ tree_walker_free(TreeWalker* w, JSRuntime* rt) {
 }
 
 static TreeWalker*
-tree_walker_new(JSContext*ctx) {
- TreeWalker*w;
- if((w=js_mallocz(ctx, sizeof(TreeWalker))))
-  w->ref_count=1;
-return w;
+tree_walker_new(JSContext* ctx) {
+  TreeWalker* w;
+  if((w = js_mallocz(ctx, sizeof(TreeWalker))))
+    w->ref_count = 1;
+  return w;
 }
 
 static PropertyEnumeration*
@@ -391,7 +391,7 @@ js_tree_walker_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 static void
 js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
   TreeWalker* w;
-  if((w = JS_GetOpaque(val, js_tree_walker_class_id))) 
+  if((w = JS_GetOpaque(val, js_tree_walker_class_id)))
     tree_walker_free(w, rt);
 
   // JS_FreeValueRT(rt, val);
@@ -481,7 +481,6 @@ js_tree_iterator_finalizer(JSRuntime* rt, JSValue val) {
 
   // JS_FreeValueRT(rt, val);
 }
-
 
 static JSClassDef js_tree_walker_class = {
     .class_name = "TreeWalker",

@@ -725,6 +725,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   const char* name = module_name;
   char* s = 0;
   JSModuleDef* m = 0;
+  BOOL do_package = TRUE;
 
 restart:
   if(jsm_stack_find(module_name) != 0) {
@@ -745,11 +746,15 @@ restart:
     if(path_is_absolute(module_name)) {
       s = js_strdup(ctx, module_name);
     } else {
-      if(!(s = jsm_module_package(ctx, module_name)))
+      if(!do_package || !(s = jsm_module_package(ctx, module_name)))
         s = jsm_module_locate(ctx, module_name, opaque);
 
       if(s) {
-        module_name = s;
+        // return jsm_module_loader(ctx, s, opaque);
+        module_name = strcpy(alloca(strlen(s) + 1), s);
+        js_free(ctx, s);
+        s = 0;
+        do_package = FALSE;
         goto restart;
       }
     }
