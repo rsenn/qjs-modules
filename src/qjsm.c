@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <time.h>
 #include <signal.h>
+#include <alloca.h>
 /*#include <sys/poll.h>*/
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
@@ -407,7 +408,7 @@ jsm_init_modules(JSContext* ctx) {
 
   jsm_builtin_native(std);
   jsm_builtin_native(os);
-  // jsm_builtin_native(child_process);
+  jsm_builtin_native(child_process);
   jsm_builtin_native(deep);
   jsm_builtin_native(inspect);
   jsm_builtin_native(lexer);
@@ -725,7 +726,6 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   const char* name = module_name;
   char* s = 0;
   JSModuleDef* m = 0;
-  BOOL do_package = TRUE;
 
 restart:
   if(jsm_stack_find(module_name) != 0) {
@@ -746,15 +746,21 @@ restart:
     if(path_is_absolute(module_name)) {
       s = js_strdup(ctx, module_name);
     } else {
-      if(!do_package || !(s = jsm_module_package(ctx, module_name)))
+      s = jsm_module_package(ctx, module_name);
+
+      if(s && is_searchable(s)) {
+        char* tmp;
+        if((tmp = jsm_module_locate(ctx, s, opaque))) {
+          js_free(ctx, s);
+          s = tmp;
+        }
+      }
+
+      if(!s)
         s = jsm_module_locate(ctx, module_name, opaque);
 
       if(s) {
-        // return jsm_module_loader(ctx, s, opaque);
-        module_name = strcpy(alloca(strlen(s) + 1), s);
-        js_free(ctx, s);
-        s = 0;
-        do_package = FALSE;
+        module_name = s;
         goto restart;
       }
     }
