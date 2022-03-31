@@ -26,8 +26,7 @@ function main(...args) {
   });
   console.log('args:', args);
 
-if(args.length==0)
-  args=['tests/test3.xml'];
+  if(args.length == 0) args = ['tests/test3.xml'];
 
   let data = std.loadFile(args[0], 'utf-8');
   console.log('data:', data.substring(0, 100).replace(/\n/g, '\\n') + '...');
@@ -55,7 +54,13 @@ if(args.length==0)
     const { flags, tagMask } = walk;
     console.log(' walk', { flags, tagMask });
     while(walk.nextNode((v, k, w) => typeof v != 'object')) {
-      console.log('type:', typeof walk.currentNode, 'path:', walk.currentPath.join('.'), typeof walk.currentNode != 'object' ? walk.currentNode : '');
+      console.log(
+        'type:',
+        typeof walk.currentNode,
+        'path:',
+        walk.currentPath.join('.'),
+        typeof walk.currentNode != 'object' ? walk.currentNode : ''
+      );
       let node = walk.currentNode;
       if(typeof node == 'object') {
         console.log(
