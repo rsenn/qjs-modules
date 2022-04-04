@@ -52,6 +52,7 @@ struct async_closure {
 PACK struct async_socket_state {
   SOCKET_PROPS();
   struct socket_handlers handlers;
+  JSValue pending;
 };
 ENDPACK
 
