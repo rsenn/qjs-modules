@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
 import * as xml from 'xml';
-import { Predicate, PredicateOperators, PredicateOperatorSet, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal, property } from 'predicate';
+import { Predicate, PredicateOperators, PredicateOperatorSet, index, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal, property } from 'predicate';
 import Console from '../lib/console.js';
 
 ('use strict');
@@ -251,6 +251,15 @@ async function main(...args) {
   console.log('op_set', op_set);
   console.log('PredicateOperatorSet', PredicateOperatorSet);
   console.log("PredicateOperatorSet['*']", PredicateOperatorSet['*']);
+
+
+  let ip = Predicate.index(-1, Predicate.equal(4));
+  let shp = Predicate.shift(2, (...args) => args);
+
+  console.log('ip([1,2,3,4])', ip([1,2,3,4]));
+
+  console.log('shp', shp);
+  console.log('shp(1,2,3,4)', shp(1,[2,3,4]));
 
   std.gc();
 }

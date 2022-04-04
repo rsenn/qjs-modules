@@ -70,13 +70,13 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
   switch(pr->id) {
     case PREDICATE_TYPE: {
-      int id = js_value_type(ctx, js_arguments_shift(args));
+      int id = js_value_type(ctx, js_arguments_at(args, 0));
       ret = JS_NewBool(ctx, !!(id & pr->type.flags));
       break;
     }
 
     case PREDICATE_CHARSET: {
-      InputBuffer input = js_input_chars(ctx, js_arguments_shift(args));
+      InputBuffer input = js_input_chars(ctx, js_arguments_at(args, 0));
       if(pr->charset.chars.size == 0 && pr->charset.chars.data == 0) {
         vector_init(&pr->charset.chars, ctx);
         utf8_to_unicode(pr->charset.set, pr->charset.len, &pr->charset.chars);
@@ -95,7 +95,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_STRING: {
-      InputBuffer input = js_input_chars(ctx, js_arguments_shift(args));
+      InputBuffer input = js_input_chars(ctx, js_arguments_at(args, 0));
 
       if(input.size >= pr->string.len) {
         if(!memcmp(input.data, pr->string.str, pr->string.len))
@@ -139,7 +139,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
       for(i = 0; i < 2; i++) {
         if(nullish[i]) {
-          values[i] = js_arguments_shift(args);
+          values[i] = js_arguments_at(args, i);
         }
         values[i] = predicate_value(ctx, values[i], args);
       }
@@ -178,7 +178,9 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       size_t i;
 
       for(i = 0; i < pr->boolean.npredicates; i++) {
-        if(!JS_ToBool(ctx, (ret = predicate_value(ctx, pr->boolean.predicates[i], args))))
+        ret = predicate_value(ctx, pr->boolean.predicates[i], args);
+
+        if(!JS_ToBool(ctx, ret))
           break;
       }
       break;
@@ -197,7 +199,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_REGEXP: {
-      JSValue re = js_arguments_shift(args);
+      JSValue re = js_arguments_at(args, 0);
       InputBuffer input = js_input_chars(ctx, re);
       uint8_t* capture[CAPTURE_COUNT_MAX * 2];
       int capture_count = 0, result;
@@ -208,7 +210,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       result = lre_exec(capture, pr->regexp.bytecode, (uint8_t*)input.data, 0, input.size, 0, ctx);
 
       if(result && args->c > 1) {
-        JSValue arg = js_arguments_shift(args);
+        JSValue arg = js_arguments_at(args, 1);
 
         if(JS_IsFunction(ctx, arg)) {
           JSValue args[] = {predicate_regexp_capture(capture, capture_count, input.data, ctx), re};
@@ -239,61 +241,40 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_INSTANCEOF: {
-      ret = JS_NewBool(ctx, JS_IsInstanceOf(ctx, js_arguments_shift(args), pr->unary.predicate));
+      ret = JS_NewBool(ctx, JS_IsInstanceOf(ctx, js_arguments_at(args, 0), pr->unary.predicate));
       break;
     }
 
     case PREDICATE_PROTOTYPEIS: {
-      JSValue proto = JS_GetPrototype(ctx, js_arguments_shift(args));
+      JSValue proto = JS_GetPrototype(ctx, js_arguments_at(args, 0));
 
       ret = JS_NewBool(ctx, JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(pr->unary.predicate));
       break;
     }
 
     case PREDICATE_EQUAL: {
-      ret = JS_NewBool(ctx, js_value_equals(ctx, js_arguments_shift(args), pr->unary.predicate));
+      ret = JS_NewBool(ctx, js_value_equals(ctx, js_arguments_at(args, 0), pr->unary.predicate));
       break;
     }
 
     case PREDICATE_PROPERTY: {
 
-      //   JSValue prop = JS_AtomToValue(ctx, pr->property.atom);
+      JSValue obj = js_arguments_at(args, 0);
 
-      JSValue obj = js_arguments_shift(args);
+      /*if(JS_IsObject(obj))*/ {
+        JSValue item = JS_GetProperty(ctx, obj, pr->property.atom);
+        ret = predicate_call(ctx, pr->property.predicate, 1, &item);
 
-      if(JS_IsObject(obj)) {
-        ret = JS_GetProperty(ctx, obj, pr->property.atom);
-
-        if(!js_is_null_or_undefined(pr->property.predicate) && predicate_callable(ctx, pr->property.predicate)) {
-          JSValue result = predicate_call(ctx, pr->property.predicate, 1, &ret);
-          JS_FreeValue(ctx, ret);
-          ret = result;
-        }
-
-      } else {
-        ret = JS_ThrowTypeError(ctx, "target must be object, but is %s", js_value_typestr(ctx, obj));
-      }
-
-      /*    JSValue obj = pr->property.predicate;
-
-          if(!prop && j < args->c)
-            prop = JS_ValueToAtom(ctx, js_arguments_shift(args));
-
-          if(js_is_falsish(obj) && j < args->c && JS_IsObject(args->v[j]))
-            obj = js_arguments_shift(args);
-
-          if(JS_GetOpaque(obj, js_predicate_class_id))
-            obj = predicate_value(ctx, obj, args);
-          else
-            obj = JS_DupValue(ctx, obj);
-
-         */
+        JS_FreeValue(ctx, item);
+      } /* else {
+         ret = JS_ThrowTypeError(ctx, "target must be object, but is %s", js_value_typestr(ctx, obj));
+       }*/
       break;
     }
 
     case PREDICATE_MEMBER: {
       JSValue obj = pr->member.object;
-      JSValue member = js_arguments_shift(args);
+      JSValue member = js_arguments_at(args, 0);
       JSAtom atom = JS_ValueToAtom(ctx, member);
       JS_FreeValue(ctx, member);
 
@@ -308,14 +289,15 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       int shift = min(args->c, pr->shift.n);
 
       if(pr->shift.n <= args->c) {
+        JSArguments args2 = *args;
 
-        js_arguments_shiftn(args, pr->shift.n);
-        ret = predicate_value(ctx, pr->shift.predicate, args);
+        js_arguments_shiftn(&args2, pr->shift.n);
+        ret = predicate_value(ctx, pr->shift.predicate, &args2);
       }
       break;
     }
     case PREDICATE_SLICE: {
-      JSValue arg = js_arguments_shift(args);
+      JSValue arg = js_arguments_at(args, 0);
       InputBuffer buf = js_input_chars(ctx, arg);
       MemoryBlock block = input_buffer_block(&buf);
       size_t start, end;
@@ -333,10 +315,25 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       break;
     }
 
+    case PREDICATE_INDEX: {
+      JSValue arg = js_arguments_at(args, 0);
+      int64_t length = js_array_length(ctx, arg);
+      IndexPredicate index = pr->index;
+      uint32_t pos;
+      JSValue item;
+
+      pos = index.pos < 0 ? length + (index.pos % (signed)length) : index.pos % length;
+
+      item = JS_GetPropertyUint32(ctx, arg, pos);
+      ret = predicate_call(ctx, pr->index.predicate, 1, &item);
+      JS_FreeValue(ctx, item);
+      break;
+    }
+
     case PREDICATE_FUNCTION: {
       int i, nargs = pr->function.arity;
       JSValueConst argv[nargs];
-      for(i = 0; i < nargs; i++) argv[i++] = js_arguments_shift(args);
+      for(i = 0; i < nargs; i++) argv[i++] = js_arguments_at(args, i);
 
       ret = JS_Call(ctx, pr->function.func, pr->function.this_val, nargs, argv);
       break;
@@ -373,7 +370,7 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
   if((pr = js_predicate_data(value))) {
     ret = predicate_eval(pr, ctx, args);
   } else if(JS_IsFunction(ctx, value)) {
-    ret = predicate_call(ctx, value, args->c, args->v);
+    ret = predicate_call(ctx, value, args->c - args->p, args->v + args->p);
   } else {
     ret = JS_DupValue(ctx, value);
   }
@@ -384,8 +381,9 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 const char*
 predicate_typename(const Predicate* pr) {
   return ((const char*[]){
-      "type",  "charset", "string", "notnot", "not",    "bnot",       "sqrt",        "add",   "sub",      "mul",    "div",   "mod",   "bor",      "band", "pow",
-      "atan2", "or",      "and",    "xor",    "regexp", "instanceof", "prototypeis", "equal", "property", "member", "shift", "slice", "function", 0,
+      "type",       "charset",     "string", "notnot",   "not",    "bnot",  "sqrt",  "add",   "sub",      "mul",
+      "div",        "mod",         "bor",    "band",     "pow",    "atan2", "or",    "and",   "xor",      "regexp",
+      "instanceof", "prototypeis", "equal",  "property", "member", "shift", "slice", "index", "function", 0,
   })[pr->id];
 }
 

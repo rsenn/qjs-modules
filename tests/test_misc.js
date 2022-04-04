@@ -69,7 +69,12 @@ function main(...args) {
         const code = ba[i];
         opcode = opcodes[code];
         const offset = i.toString(16).padStart(8, '0');
-        console.log(offset + ': ', toHex(code), opcode.name.padEnd(32), ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n)));
+        console.log(
+          offset + ': ',
+          toHex(code),
+          opcode.name.padEnd(32),
+          ...[...ba.slice(i + 1, i + opcode.size)].map(n => toHex(n))
+        );
       }
     } catch(e) {}
 
@@ -81,7 +86,8 @@ function main(...args) {
     console.log('valueToAtom()', (max = valueToAtom('BLAH XXXX')));
     if(0) {
       for(let atom = 0; atom <= 1000; atom++) console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
-      for(let atom = 0x80000000; atom <= 0x800001ff; atom++) console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
+      for(let atom = 0x80000000; atom <= 0x800001ff; atom++)
+        console.log(`atom[${toHex32(atom)}] =`, atomToValue(atom));
     }
     const Range = (from, to) => [...new Array(to - from).keys()].map(n => n + from);
 
@@ -97,7 +103,10 @@ function main(...args) {
       console.log('misc.getClassID()', getClassID(Symbol.for('quickjs.inspect.custom')));
       console.log('misc.getClassID()', getClassID(Symbol));
       console.log('misc.getClassCount()', getClassCount());
-      console.log('misc.getClassName()', new Map(Range(1, getClassCount()).map((id, idx) => [idx, [getClassName(id), getClassConstructor(id)]])));
+      console.log(
+        'misc.getClassName()',
+        new Map(Range(1, getClassCount()).map((id, idx) => [idx, [getClassName(id), getClassConstructor(id)]]))
+      );
     }
     let bits = arrayToBitfield([2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30], 2);
     let arr = bitfieldToArray(bits, 0);

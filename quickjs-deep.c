@@ -83,20 +83,21 @@ js_deep_getflags(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static BOOL
-js_deep_predicate(JSContext* ctx, JSValueConst value, PropertyEnumeration* penum) {
+js_deep_predicate(JSContext* ctx, JSValueConst value, Vector* frames) {
   BOOL result = TRUE;
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
   JSValueConst args[] = {
-      property_enumeration_value(penum, ctx),
-      property_enumeration_key(penum, ctx),
+      property_enumeration_value(vector_back(frames, sizeof(PropertyEnumeration)), ctx),
+      property_enumeration_path(frames, ctx),
+      ((PropertyEnumeration*)vector_front(frames, sizeof(PropertyEnumeration)))->obj,
   };
 
   if((pred = js_predicate_data(value))) {
-    JSArguments a = js_arguments_new(2, args);
+    JSArguments a = js_arguments_new(3, args);
     ret = predicate_eval(pred, ctx, &a);
   } else if(JS_IsFunction(ctx, value)) {
-    ret = JS_Call(ctx, value, JS_UNDEFINED, 2, args);
+    ret = JS_Call(ctx, value, JS_UNDEFINED, 3, args);
   }
 
   JS_FreeValue(ctx, args[0]);
@@ -246,7 +247,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     if(property_enumeration_length(penum) == 0)
       continue;
 
-    if(!js_deep_predicate(ctx, it->pred, penum))
+    if(!js_deep_predicate(ctx, it->pred, &it->frames))
       continue;
 
     ret = js_deep_return(ctx, &it->frames, it->flags & ~MAXDEPTH_MASK);

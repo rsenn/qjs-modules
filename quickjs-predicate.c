@@ -294,6 +294,18 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
         break;
       }
 
+      case PREDICATE_INDEX: {
+        int64_t pos;
+        JSValue obj = JS_UNDEFINED;
+        JSValue objv;
+        JS_ToInt64(ctx, &pos, js_arguments_shift(&args));
+
+        if(predicate_callable(ctx, (objv = js_arguments_shift(&args))))
+          obj = JS_DupValue(ctx, objv);
+        *pr = predicate_index(pos, obj);
+        break;
+      }
+
       case PREDICATE_FUNCTION: {
         JSValue func, this_obj = JS_UNDEFINED;
         func = predicate_nextarg(ctx, &args);
@@ -619,6 +631,17 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       break;
     }
 
+    case PREDICATE_INDEX: {
+      int64_t pos;
+      JSValue pred = JS_UNDEFINED;
+      JS_ToInt64(ctx, &pos, predicate_nextarg(ctx, &args));
+      if(argc >= 2 && predicate_callable(ctx, argv[1]))
+        pred = JS_DupValue(ctx, argv[1]);
+
+      ret = js_predicate_wrap(ctx, predicate_index(pos, pred));
+      break;
+    }
+
     case PREDICATE_FUNCTION: {
       JSValue func, this_obj = JS_UNDEFINED;
       func = predicate_nextarg(ctx, &args);
@@ -752,6 +775,11 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       JS_DefinePropertyValueStr(ctx, obj, "end", JS_NewInt64(ctx, pr->slice.end), JS_PROP_ENUMERABLE);
       break;
     }
+    case PREDICATE_INDEX: {
+      JS_DefinePropertyValueStr(ctx, obj, "pos", JS_NewInt64(ctx, pr->index.pos), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(ctx, obj, "predicate", JS_DupValue(ctx, pr->index.predicate), JS_PROP_ENUMERABLE);
+      break;
+    }
     case PREDICATE_FUNCTION: {
       JS_DefinePropertyValueStr(ctx, obj, "func", JS_DupValue(ctx, pr->function.func), JS_PROP_ENUMERABLE);
       JS_DefinePropertyValueStr(ctx, obj, "this_obj", JS_DupValue(ctx, pr->function.this_val), JS_PROP_ENUMERABLE);
@@ -829,6 +857,7 @@ static const JSCFunctionListEntry js_predicate_funcs[] = {
     JS_CFUNC_MAGIC_DEF("member", 1, js_predicate_function, PREDICATE_MEMBER),
     JS_CFUNC_MAGIC_DEF("shift", 2, js_predicate_function, PREDICATE_SHIFT),
     JS_CFUNC_MAGIC_DEF("slice", 0, js_predicate_function, PREDICATE_SLICE),
+    JS_CFUNC_MAGIC_DEF("index", 1, js_predicate_function, PREDICATE_INDEX),
     JS_CFUNC_MAGIC_DEF("function", 1, js_predicate_function, PREDICATE_FUNCTION),
 };
 
@@ -860,6 +889,7 @@ static const JSCFunctionListEntry js_predicate_ids[] = {
     JS_PROP_INT32_DEF("MEMBER", PREDICATE_MEMBER, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SHIFT", PREDICATE_SHIFT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SLICE", PREDICATE_SLICE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("INDEX", PREDICATE_INDEX, JS_PROP_ENUMERABLE),
 };
 
 static const JSCFunctionListEntry js_predicate_types[] = {

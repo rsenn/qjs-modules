@@ -1,4 +1,4 @@
-import { escape, quote, isObject, define, mapObject, getset, gettersetter, once, memoize, getOpt } from 'util';
+import { extendArray, escape, quote, isObject, define, mapObject, getset, gettersetter, once, memoize, getOpt } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import Console from 'console';
@@ -6,6 +6,8 @@ import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Att
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 //import REPL from '../lib/repl.js';
 import { read as readXML, write as writeXML } from 'xml';
+
+extendArray();
 
 let repl = {
   printStatus(...args) {
@@ -15,7 +17,10 @@ let repl = {
 
 function StartREPL() {
   return import('repl').then(REPL => {
-    repl = new REPL('\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m', false);
+    repl = new REPL(
+      '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
+      false
+    );
     repl.show = repl.printFunction((...args) => console.log(...args));
     repl.historyLoad();
     return repl.run();
@@ -67,7 +72,7 @@ function main(...args) {
     ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath }
   });
 */
-  let files = params['@'].length ? params['@'] : ['tests/test1.xml', 'tests/test2.xml', 'tests/test3.xml'];
+  let files = params['@'].length ? params['@'] : [/*'tests/test1.xml', 'tests/test2.xml', */ 'tests/test3.xml'];
 
   files.forEach(processFile);
 
@@ -103,10 +108,24 @@ function main(...args) {
 
     globalThis.fs = fs;
 
-    let firstLayer = doc.querySelector('layer');
+  /*  let firstLayer = doc.querySelector('layer');
     console.log('firstLayer', firstLayer);
     let allLayers = doc.querySelectorAll('layer');
-    console.log('allLayers', console.config({ compact: false }), allLayers);
+    console.log('allLayers', console.config({ compact: false, maxArrayLength: Infinity }), allLayers);
+
+    let ll = allLayers.last;
+    console.log('ll', ll);
+    console.log('ll.path', ll.path);
+*/
+/*    let lt = doc.querySelector('layer[name=Top]');
+    console.log('lt', lt);
+
+    console.log('lt.path', lt.path);*/
+
+    let l1 = doc.querySelector('layer:nth-child(2)');
+    console.log('l1', l1);
+
+    console.log('l1.path', l1.path);
 
     let count = 0;
 

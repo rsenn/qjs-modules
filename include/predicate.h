@@ -39,6 +39,7 @@ enum predicate_id {
   PREDICATE_MEMBER,
   PREDICATE_SHIFT,
   PREDICATE_SLICE,
+  PREDICATE_INDEX,
   PREDICATE_FUNCTION
 };
 
@@ -99,6 +100,11 @@ typedef struct {
 } SlicePredicate;
 
 typedef struct {
+  int64_t pos;
+  JSValue predicate;
+} IndexPredicate;
+
+typedef struct {
   JSValue func, this_val;
   int arity;
 } FunctionPredicate;
@@ -117,6 +123,7 @@ typedef struct Predicate {
     MemberPredicate member;
     ShiftPredicate shift;
     SlicePredicate slice;
+    IndexPredicate index;
     FunctionPredicate function;
   };
 } Predicate;
@@ -344,6 +351,14 @@ predicate_function(JSValue func, JSValue this_val, int arity) {
   ret.function.func = func;
   ret.function.this_val = this_val;
   ret.function.arity = arity;
+  return ret;
+}
+
+static inline Predicate
+predicate_index(int64_t index, JSValue pred) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_INDEX);
+  ret.index.pos = index;
+  ret.index.predicate = pred;
   return ret;
 }
 

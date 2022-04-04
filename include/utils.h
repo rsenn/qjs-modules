@@ -158,6 +158,7 @@ js_arguments_count(const JSArguments* args) {
 
 static inline JSValueConst
 js_arguments_at(JSArguments* args, int i) {
+  i += args->p;
   return i >= 0 && i < args->c ? args->v[i] : JS_UNDEFINED;
 }
 
