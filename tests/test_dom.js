@@ -72,11 +72,14 @@ function main(...args) {
     ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath }
   });
 */
-  let files = params['@'].length ? params['@'] : [/*'tests/test1.xml', 'tests/test2.xml', */ 'tests/test3.xml'];
+  let files = params['@'].length ? params['@'] : [/*'tests/test1.xml', 'tests/test2.xml', */ 'test3.xml'];
 
   files.forEach(processFile);
 
+
+
   function processFile(file) {
+file = path.join(path.dirname(scriptArgs[0]), file);
     console.log('Processing file:', file);
     let base = path.basename(file, path.extname(file));
 
@@ -108,7 +111,7 @@ function main(...args) {
 
     globalThis.fs = fs;
 
-  /*  let firstLayer = doc.querySelector('layer');
+     let firstLayer = doc.querySelector('layer');
     console.log('firstLayer', firstLayer);
     let allLayers = doc.querySelectorAll('layer');
     console.log('allLayers', console.config({ compact: false, maxArrayLength: Infinity }), allLayers);
@@ -116,11 +119,11 @@ function main(...args) {
     let ll = allLayers.last;
     console.log('ll', ll);
     console.log('ll.path', ll.path);
-*/
-/*    let lt = doc.querySelector('layer[name=Top]');
+ 
+     let lt = doc.querySelector('layer[name=Top]');
     console.log('lt', lt);
 
-    console.log('lt.path', lt.path);*/
+    console.log('lt.path', lt.path); 
 
     let l1 = doc.querySelector('layer:nth-child(2)');
     console.log('l1', l1);

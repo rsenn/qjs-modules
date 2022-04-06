@@ -83,7 +83,7 @@ js_deep_getflags(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static BOOL
-js_deep_predicate(JSContext* ctx, JSValueConst value, Vector* frames) {
+js_deep_predicate(JSContext* ctx, JSValueConst value, const Vector* frames) {
   BOOL result = TRUE;
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
@@ -349,7 +349,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   it = vector_back(&frames, sizeof(PropertyEnumeration));
 
   do {
-    BOOL result = js_deep_predicate(ctx, argv[1], it);
+    BOOL result = js_deep_predicate(ctx, argv[1], &frames);
     if(result)
       JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK));
 

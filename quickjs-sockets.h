@@ -28,7 +28,7 @@ typedef union {
 #define SOCKET_PROPS() \
   uint16_t fd; \
   unsigned error : 8; \
-  int syscall : 4; \
+  unsigned syscall : 4; \
   BOOL nonblock : 1, async : 1; \
   int32_t ret
 
