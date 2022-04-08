@@ -252,14 +252,13 @@ async function main(...args) {
   console.log('PredicateOperatorSet', PredicateOperatorSet);
   console.log("PredicateOperatorSet['*']", PredicateOperatorSet['*']);
 
-
   let ip = Predicate.index(-1, Predicate.equal(4));
   let shp = Predicate.shift(2, (...args) => args);
 
-  console.log('ip([1,2,3,4])', ip([1,2,3,4]));
+  console.log('ip([1,2,3,4])', ip([1, 2, 3, 4]));
 
   console.log('shp', shp);
-  console.log('shp(1,2,3,4)', shp(1,[2,3,4]));
+  console.log('shp(1,2,3,4)', shp(1, [2, 3, 4]));
 
   std.gc();
 }

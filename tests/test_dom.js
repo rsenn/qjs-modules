@@ -76,10 +76,8 @@ function main(...args) {
 
   files.forEach(processFile);
 
-
-
   function processFile(file) {
-file = path.join(path.dirname(scriptArgs[0]), file);
+    file = path.join(path.dirname(scriptArgs[0]), file);
     console.log('Processing file:', file);
     let base = path.basename(file, path.extname(file));
 
@@ -111,7 +109,7 @@ file = path.join(path.dirname(scriptArgs[0]), file);
 
     globalThis.fs = fs;
 
-     let firstLayer = doc.querySelector('layer');
+    let firstLayer = doc.querySelector('layer');
     console.log('firstLayer', firstLayer);
     let allLayers = doc.querySelectorAll('layer');
     console.log('allLayers', console.config({ compact: false, maxArrayLength: Infinity }), allLayers);
@@ -119,11 +117,11 @@ file = path.join(path.dirname(scriptArgs[0]), file);
     let ll = allLayers.last;
     console.log('ll', ll);
     console.log('ll.path', ll.path);
- 
-     let lt = doc.querySelector('layer[name=Top]');
+
+    let lt = doc.querySelector('layer[name=Top]');
     console.log('lt', lt);
 
-    console.log('lt.path', lt.path); 
+    console.log('lt.path', lt.path);
 
     let l1 = doc.querySelector('layer:nth-child(2)');
     console.log('l1', l1);
