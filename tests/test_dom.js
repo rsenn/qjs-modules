@@ -2,7 +2,7 @@ import { extendArray, escape, quote, isObject, define, mapObject, getset, getter
 import * as fs from 'fs';
 import * as path from 'path';
 import Console from 'console';
-import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
+import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList } from '../lib/dom.js';
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 //import REPL from '../lib/repl.js';
 import { read as readXML, write as writeXML } from 'xml';
