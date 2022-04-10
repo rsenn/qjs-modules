@@ -210,20 +210,20 @@ function main(...args) {
 
           if(fnName == 'JS_SetPropertyFunctionList') {
             let [objName, cFuncListName] = fnArgs;
-            cFuncListObjects[cFuncListName] = { loc, args: [objName] };
+            cFuncListObjects[cFuncListName] = {  args: [objName],loc };
           } else if(fnIndex > 0) {
             let objName = Lexeme(block[0]);
             let [cCall, cName, ...rest] = fnArgs;
 
-            console.log('', { objName, cName });
+            //console.log('', { objName, cName });
 
             if(cName) cName = cName.replace(/^"|"$/g, '');
 
             let args = MaybeNumber(cName ? [cCall, cName, ...rest] : rest);
-            cFuncListObjects[objName] = { args, loc: loc + '' };
+            cFuncListObjects[objName] = { args, loc };
           }
 
-          console.log('cFuncCall()', Lexeme(block));
+          //console.log('cFuncCall()', Lexeme(block));
         }
         isCFuncList = false;
         isCFuncCall = false;
@@ -238,7 +238,7 @@ function main(...args) {
 
       output.flush();
     }
-    console.log('cFuncListObjects', console.config({ depth: 10 }), cFuncListObjects);
+    console.log('cFuncListObjects', console.config({ depth: 10,compact: 2 }), cFuncListObjects);
   }
 
   output.puts(JSON.stringify(cFuncLists, null, 2));
