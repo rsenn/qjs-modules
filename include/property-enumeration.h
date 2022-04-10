@@ -30,12 +30,12 @@ typedef struct {
 #define property_enumeration_index(enum) ((enum)->idx)
 
 static inline int
-compare_jspropertyenum(JSPropertyEnum* a, JSPropertyEnum* b) {
+compare_jspropertyenum(const JSPropertyEnum* a, JSPropertyEnum* b) {
   return a->atom < b->atom ? -1 : a->atom > b->atom ? 1 : 0;
 }
 
 static inline size_t
-property_enumeration_length(PropertyEnumeration* propenum) {
+property_enumeration_length(const PropertyEnumeration* propenum) {
   return propenum->tab_atom_len;
 }
 
@@ -87,7 +87,7 @@ property_enumeration_reset(PropertyEnumeration* it, JSRuntime* rt) {
 }
 
 static inline JSValue
-property_enumeration_key(PropertyEnumeration* it, JSContext* ctx) {
+property_enumeration_key(const PropertyEnumeration* it, JSContext* ctx) {
   JSValue key;
   assert(it->idx < it->tab_atom_len);
   key = JS_AtomToValue(ctx, it->tab_atom[it->idx].atom);
@@ -122,13 +122,13 @@ property_enumeration_pop(Vector* vec, JSContext* ctx) {
 }
 
 static inline JSValue
-property_enumeration_value(PropertyEnumeration* it, JSContext* ctx) {
+property_enumeration_value(const PropertyEnumeration* it, JSContext* ctx) {
   assert(it->idx < it->tab_atom_len);
   return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx].atom);
 }
 
 static inline const char*
-property_enumeration_valuestr(PropertyEnumeration* it, JSContext* ctx) {
+property_enumeration_valuestr(const PropertyEnumeration* it, JSContext* ctx) {
   JSValue value = property_enumeration_value(it, ctx);
   const char* str = JS_ToCString(ctx, value);
   JS_FreeValue(ctx, value);
@@ -136,7 +136,7 @@ property_enumeration_valuestr(PropertyEnumeration* it, JSContext* ctx) {
 }
 
 static inline const char*
-property_enumeration_valuestrlen(PropertyEnumeration* it, size_t* len, JSContext* ctx) {
+property_enumeration_valuestrlen(const PropertyEnumeration* it, size_t* len, JSContext* ctx) {
   JSValue value = property_enumeration_value(it, ctx);
   const char* str = JS_ToCStringLen(ctx, len, value);
   JS_FreeValue(ctx, value);
@@ -144,7 +144,7 @@ property_enumeration_valuestrlen(PropertyEnumeration* it, size_t* len, JSContext
 }
 
 static inline enum value_mask
-property_enumeration_type(PropertyEnumeration* it, JSContext* ctx) {
+property_enumeration_type(const PropertyEnumeration* it, JSContext* ctx) {
   JSValue value = property_enumeration_value(it, ctx);
   enum value_mask ret = js_value_type(ctx, value);
   JS_FreeValue(ctx, value);
@@ -152,19 +152,19 @@ property_enumeration_type(PropertyEnumeration* it, JSContext* ctx) {
 }
 
 static inline JSAtom
-property_enumeration_atom(PropertyEnumeration* it) {
+property_enumeration_atom(const PropertyEnumeration* it) {
   assert(it->idx < it->tab_atom_len);
   return it->tab_atom[it->idx].atom;
 }
 
 static inline const char*
-property_enumeration_keystr(PropertyEnumeration* it, JSContext* ctx) {
+property_enumeration_keystr(const PropertyEnumeration* it, JSContext* ctx) {
   assert(it->idx < it->tab_atom_len);
   return JS_AtomToCString(ctx, it->tab_atom[it->idx].atom);
 }
 
 static inline const char*
-property_enumeration_keystrlen(PropertyEnumeration* it, size_t* len, JSContext* ctx) {
+property_enumeration_keystrlen(const PropertyEnumeration* it, size_t* len, JSContext* ctx) {
   assert(it->idx < it->tab_atom_len);
   return js_atom_to_cstringlen(ctx, len, it->tab_atom[it->idx].atom);
 }
