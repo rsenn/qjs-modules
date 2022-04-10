@@ -11,14 +11,22 @@ extendArray();
 
 let jsCFuncs, noStructs;
 
+const MaybeNumber = t => (Array.isArray(t) ? t.map(MaybeNumber) : isNaN(+t) ? t : +t);
 const NonWS = t => (Array.isArray(t) ? t.filter(NonWS) : t.type != 'whitespace');
-const Lexeme = t => (Array.isArray(t) ? t.map(Lexeme) : t.lexeme);
+const TrimWS = t =>
+  t.reduce((acc, item) => {
+    if(acc.length == 0 && item.type == 'whitespace') return acc;
+    acc.push(item);
+    return acc;
+  }, []);
+
+const Lexeme = t => (Array.isArray(t) ? t.map(Lexeme).join('') : t.lexeme);
 
 const WS = t => t.type == 'whitespace';
 
-const Paren = (toklist, t = tok => tok) => {
+const Paren = (toklist, t = tok => tok.lexeme) => {
   let start = toklist.findIndex(tok => t(tok) == '(');
-  let end = toklist.findIndex(tok => t(tok) == ')');
+  let end = toklist.findLastIndex(tok => t(tok) == ')');
 
   if(start == -1 || end == -1) return [];
   if(end == -1) end = toklist.length;
@@ -29,7 +37,7 @@ const Paren = (toklist, t = tok => tok) => {
 const CommaList = (toklist, t = tok => tok.lexeme) => {
   let list = [];
   let s = '';
-  for(let tok of toklist) {
+  for(let tok of NonWS(toklist)) {
     if(t(tok) == ',') {
       list.push(s);
       s = '';
@@ -40,6 +48,7 @@ const CommaList = (toklist, t = tok => tok.lexeme) => {
   if(s != '') list.push(s);
   return list;
 };
+const CommaJoin = list => list.reduce((acc, item) => acc.concat(acc.length ? [',', item] : [item]), []);
 
 function parse(lexer, fn = (tok, arr) => {}, ...args) {
   let i = 0,
@@ -99,12 +108,15 @@ function main(...args) {
     let line = [],
       block = [];
     let toklist = [];
-    let isCFuncList = false;
+    let isCFuncList = false,
+      isCFuncCall = false,
+      cFuncListNames = [],
+      cFuncListObjects = {};
 
     //console.log('rules',  rules);
 
     for(let id of lexer) {
-      line.push(id);
+      //line.push(lexer.token);
       block.push(lexer.token);
 
       if(!noStructs)
@@ -134,7 +146,12 @@ function main(...args) {
 
       if(isCFuncList) {
         if(id == rules['rbrace'] && lexer.loc.column == 1) {
-          while(block.length > 0 && block[0].type == 'whitespace') block.shift();
+          while(
+            block.length > 0 &&
+            ['whitespace', 'rbrace', 'singleLineComment', 'multiLineComment'].indexOf(block[0].type) != -1
+          )
+            block.shift();
+          //console.log('block.slice(0,10)', block.slice(0,10));
           let firstLine = block[0].loc.line;
           let rows = NonWS(block)
             .reduce((acc, token) => {
@@ -150,8 +167,13 @@ function main(...args) {
                 ? [row[0].lexeme].concat(CommaList(Paren(row, t => t.lexeme)))
                 : row.filter(tok => tok.type == 'identifier').last?.lexeme
             );
+          let header = [cfuncList.shift(), block[0].loc + ''];
+          cfuncList = [header, cfuncList];
+
+          cFuncListNames.push(header[0]);
+
           console.log('cfuncList', console.config({ compact: 1 }), cfuncList);
-          cFuncLists.push([cfuncList.shift(), cfuncList]);
+          cFuncLists.push(cfuncList);
 
           block.splice(0, block.length);
         }
@@ -159,18 +181,64 @@ function main(...args) {
       if(id == rules['whitespace']) {
         const { pos, seq, lexeme, value, charLength } = lexer;
 
-        if(lexeme == '\n') {
+        /* if(lexeme == '\n') {
           line.splice(0, line.length);
-        }
+        }*/
       } else if(id == rules['semi']) {
+        block = TrimWS(block);
+
+        if(
+          block.length >= 3 &&
+          NonWS(block)[1]?.type == 'equal' &&
+          block[0]?.type == 'identifier' &&
+          /_(proto|ctor)$/.test(block[0].lexeme)
+        ) {
+          console.log('ASSIGN', Lexeme(block));
+
+          isCFuncCall = true;
+        }
+
+        if(isCFuncCall) {
+          let fnIndex = block.findIndex(tok => tok.lexeme == '(') - 1;
+          let fnName = block[fnIndex].lexeme;
+          let fnArgs = CommaList(Paren(block));
+
+          while(['ctx', 'm'].indexOf(fnArgs[0]) != -1) fnArgs.shift();
+
+          console.log('isCFuncCall', { fnIndex, fnName, fnArgs });
+          let { loc } = block[0];
+
+          if(fnName == 'JS_SetPropertyFunctionList') {
+            let [objName, cFuncListName] = fnArgs;
+            cFuncListObjects[cFuncListName] = { loc, args: [objName] };
+          } else if(fnIndex > 0) {
+            let objName = Lexeme(block[0]);
+            let [cCall, cName, ...rest] = fnArgs;
+
+            console.log('', { objName, cName });
+
+            if(cName) cName = cName.replace(/^"|"$/g, '');
+
+            let args = MaybeNumber(cName ? [cCall, cName, ...rest] : rest);
+            cFuncListObjects[objName] = { args, loc: loc + '' };
+          }
+
+          console.log('cFuncCall()', Lexeme(block));
+        }
         isCFuncList = false;
+        isCFuncCall = false;
+
         block.splice(0, block.length);
       } else if(lexer.loc.column == 1 && id != rules['whitespace'] && id != rules['preprocessor']) {
+      }
+      if(cFuncListNames.indexOf(lexer.lexeme) != -1) {
+        const { lexeme, loc } = lexer;
+        isCFuncCall = true;
       }
 
       output.flush();
     }
-    // console.log('toklist', console.config({ compact: false, depth: Infinity, breakLength: 80 }), toklist);
+    console.log('cFuncListObjects', console.config({ depth: 10 }), cFuncListObjects);
   }
 
   output.puts(JSON.stringify(cFuncLists, null, 2));
