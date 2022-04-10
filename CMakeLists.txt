@@ -682,9 +682,6 @@ install(FILES ${INSTALL_SCRIPTS} DESTINATION bin
         PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
                     GROUP_READ WORLD_EXECUTE WORLD_READ)
 
-install(
-  CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink resolve-imports.js ${CMAKE_INSTALL_PREFIX}/bin/list-imports.js)"
-)
-install(
-  CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink resolve-imports.js ${CMAKE_INSTALL_PREFIX}/bin/check-imports.js)"
-)
+symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
+symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")
+symlink(extract-structs.js "${CMAKE_INSTALL_PREFIX}/bin/extract-bindings.js")

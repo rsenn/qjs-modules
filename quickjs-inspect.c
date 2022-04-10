@@ -967,10 +967,12 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
       if(pos == limit)
         break;
       if(pos > 0) {
-        dbuf_putstr(buf, ", ");
+        dbuf_putstr(buf, ",");
         // dbuf_putstr(buf, compact ? ", " : ",");
         if(!compact && opts->break_length != INT32_MAX)
           inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
+        else
+          dbuf_putstr(buf, " ");
       }
       prop = JS_NewAtomUInt32(ctx, pos);
       memset(&desc, 0, sizeof(desc));
@@ -1016,10 +1018,18 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
       js_cstring_free(ctx, name);
       continue;
     }
-    if(pos > 0)
-      dbuf_putstr(buf, compact ? ", " : ",");
-    if(!compact && opts->break_length != INT32_MAX)
-      inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
+    if(pos > 0) {
+      dbuf_putstr(buf, /*compact ? ", " : */ ",");
+
+      if(!compact && opts->break_length != INT32_MAX)
+        inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
+      else
+        dbuf_putstr(buf, " ");
+    } else {
+      if(!compact && opts->break_length != INT32_MAX)
+        inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
+    }
+
     if(!JS_IsSymbol(key) && (is_identifier(name) || is_integer(name))) {
       dbuf_putstr(buf, name);
     } else {
