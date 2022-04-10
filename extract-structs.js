@@ -193,7 +193,7 @@ function main(...args) {
           block[0]?.type == 'identifier' &&
           /_(proto|ctor)$/.test(block[0].lexeme)
         ) {
-          console.log('ASSIGN', Lexeme(block));
+          //console.log('ASSIGN', Lexeme(block));
 
           isCFuncCall = true;
         }
@@ -205,7 +205,7 @@ function main(...args) {
 
           while(['ctx', 'm'].indexOf(fnArgs[0]) != -1) fnArgs.shift();
 
-          console.log('isCFuncCall', { fnIndex, fnName, fnArgs });
+          //console.log('isCFuncCall', { fnIndex, fnName, fnArgs });
           let { loc } = block[0];
 
           if(fnName == 'JS_SetPropertyFunctionList') {
