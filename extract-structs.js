@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Console } from 'console';
 import CLexer from 'lib/lexer/c.js';
-import { getOpt, escape, extendArray } from 'util';
+import { getOpt, escape, extendArray, define } from 'util';
 
 extendArray();
 
@@ -67,9 +67,9 @@ function parse(lexer, fn = (tok, arr) => {}, ...args) {
 
 function main(...args) {
   globalThis.console = new Console({
-    stdout: std.out,
+    /* stdout: std.out,
     stderr: std.err,
-    inspectOptions: {
+   */ inspectOptions: {
       colors: true,
       maxStringLength: 100,
       maxArrayLength: Infinity,
@@ -93,6 +93,8 @@ function main(...args) {
   );
   let cFuncLists = [];
   let files = params['@'];
+
+  if(/bindings/.test(scriptArgs[0])) noStructs = jsCFuncs = true;
 
   for(let file of files) {
     //console.log('file', file);
@@ -198,6 +200,12 @@ function main(...args) {
           isCFuncCall = true;
         }
 
+        if(block.some(tok => ['JS_SetClassProto', 'JS_NewClass'].indexOf(tok.lexeme) != -1)) {
+          isCFuncCall = true;
+          while(['JS_SetClassProto', 'JS_NewClass'].indexOf(block[0].lexeme) == -1) block.shift();
+          //console.log('block', block);
+        }
+
         if(isCFuncCall) {
           let fnIndex = block.findIndex(tok => tok.lexeme == '(') - 1;
           let fnName = block[fnIndex].lexeme;
@@ -210,7 +218,11 @@ function main(...args) {
 
           if(fnName == 'JS_SetPropertyFunctionList') {
             let [objName, cFuncListName] = fnArgs;
-            cFuncListObjects[cFuncListName] = {  args: [objName],loc };
+            cFuncListObjects[cFuncListName] = define([objName], { loc });
+          } else if(fnName == 'JS_NewClass' || fnName == 'JS_SetClassProto') {
+            if(fnName == 'JS_NewClass') fnArgs.shift(), fnArgs.reverse();
+            let [objName, cClassIdName] = fnArgs.slice(-2);
+            cFuncListObjects[cClassIdName] = define([objName], { loc });
           } else if(fnIndex > 0) {
             let objName = Lexeme(block[0]);
             let [cCall, cName, ...rest] = fnArgs;
@@ -220,7 +232,7 @@ function main(...args) {
             if(cName) cName = cName.replace(/^"|"$/g, '');
 
             let args = MaybeNumber(cName ? [cCall, cName, ...rest] : rest);
-            cFuncListObjects[objName] = { args, loc };
+            cFuncListObjects[objName] = define(args, { loc });
           }
 
           //console.log('cFuncCall()', Lexeme(block));
@@ -238,10 +250,10 @@ function main(...args) {
 
       output.flush();
     }
-    console.log('cFuncListObjects', console.config({ depth: 10,compact: 2 }), cFuncListObjects);
+    console.log('cFuncListObjects', console.config({ depth: 10, compact: 1 }), cFuncListObjects);
   }
 
-  output.puts(JSON.stringify(cFuncLists, null, 2));
+  output.puts(JSON.stringify(cFuncLists, null, 2) + '\n');
 
   if(outputName) console.log(output.tell() + ` bytes written to '${outputName}'`);
   output.close();
