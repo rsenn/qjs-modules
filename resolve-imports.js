@@ -680,7 +680,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       //  if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
       if(typeof file == 'string' && !path.isFile(file)) {
         if(debug > 1) console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
-  if(printFiles) std.puts(file + '\n');
+        if(printFiles) std.puts(file + '\n');
 
         replacement = null;
         //  header.push(impexp);
