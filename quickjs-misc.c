@@ -1827,11 +1827,11 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     // printf("inotify_add_watch(%d, %s, %08x) = %d\n", fd, filename, flags, wd);
 
     ret = JS_NewInt32(ctx, wd);
-  } else if(argc >= 2 && JS_IsNull(argv[1])) {
+  } else if(argc >= 2 && JS_IsNumber(argv[1])) {
     int r;
     int32_t wd = -1;
 
-    JS_ToInt32(ctx, &wd, argv[0]);
+    JS_ToInt32(ctx, &wd, argv[1]);
 
     if((r = inotify_rm_watch(fd, wd)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_rm_watch(%d, %d) = %d (%s)", fd, wd, r, strerror(errno));
