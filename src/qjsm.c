@@ -556,9 +556,7 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
     printf("%-18s(module_name=\"%s\", fn=%s)\n",
            __FUNCTION__,
            module_name,
-           fn == &is_module         ? "is_module"
-           : fn == &jsm_search_path ? "jsm_search_path"
-                                    : "<unknown>");
+           fn == &is_module ? "is_module" : fn == &jsm_search_path ? "jsm_search_path" : "<unknown>");
 
   if(!(s = js_mallocz(ctx, (len + 31) & (~0xf))))
     return 0;
