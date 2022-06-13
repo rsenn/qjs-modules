@@ -1726,7 +1726,8 @@ js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   err = JS_NewObject(ctx);
 
   JS_SetPropertyStr(ctx, err, "errno", JS_NewInt32(ctx, errnum));
-  JS_SetPropertyStr(ctx, err, "syscall", JS_NewString(ctx, syscall));
+  if(syscall)
+    JS_SetPropertyStr(ctx, err, "syscall", JS_NewString(ctx, syscall));
 
   if(syscall)
     JS_FreeCString(ctx, syscall);
