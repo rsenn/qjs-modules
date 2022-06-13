@@ -326,7 +326,9 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   //     (tagName[0] == '/' || num_children == -1) ?
   if(tagName[0])
     dbuf_putstr(db,
-                tagName[0] == '?' ? "?>" : (self_closing /*|| num_children == -1*/) && !(tagName[0] == '!' || num_children >= 0 || isComment) ? " />" : ">");
+                tagName[0] == '?'                                                                                    ? "?>"
+                : (self_closing /*|| num_children == -1*/) && !(tagName[0] == '!' || num_children >= 0 || isComment) ? " />"
+                                                                                                                     : ">");
   dbuf_putc(db, '\n');
 
   js_cstring_free(ctx, tagName);

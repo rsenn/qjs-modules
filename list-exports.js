@@ -19,7 +19,8 @@ let T,
   quiet,
   exp,
   relativeTo,
-  printFiles,onlyUppercase;
+  printFiles,
+  onlyUppercase;
 
 ('use strict');
 ('use math');
@@ -352,8 +353,8 @@ function ListExports(file, output) {
   }
 
   if(sort) exportNames.sort(compare);
-  if(onlyUppercase) exportNames=exportNames.filter(name => /^[A-Z]/.test(name));
-  
+  if(onlyUppercase) exportNames = exportNames.filter(name => /^[A-Z]/.test(name));
+
   let idx;
   if((idx = exportNames.indexOf(base)) != -1 && exportNames.indexOf('default') != -1) {
     exportNames.splice(idx, 1);
@@ -442,7 +443,7 @@ function main(...args) {
       'print-files': [false, () => (printFiles = true), 'p'],
       output: [true, filename => (outputFile = filename) /* output = std.open(filename, 'w+')*/, 'o'],
       'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
-      'uppercase': [false, () => (onlyUppercase =true), 'u'],
+      uppercase: [false, () => (onlyUppercase = true), 'u'],
       '@': 'files'
     },
     args
