@@ -742,6 +742,16 @@ js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
   return ret;
 }
 
+int64_t
+js_get_propertystr_int64(JSContext* ctx, JSValueConst obj, const char* str) {
+  int64_t ret = 0;
+  JSValue value;
+  value = JS_GetPropertyStr(ctx, obj, str);
+  JS_ToInt64(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 const char*
 js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop) {
   JSValue value;
