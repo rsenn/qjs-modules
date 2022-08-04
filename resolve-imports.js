@@ -12,6 +12,8 @@ import { intersection, difference, symmetricDifference, union, error, getset, me
 ('use strict');
 ('use math');
 
+const inspectSymbol = Symbol.for('quickjs.inspect.custom');
+
 class ArgumentError extends Error {
   constructor(...args) {
     super(...args);
@@ -929,7 +931,7 @@ class NumericRange extends Array {
 
 define(NumericRange.prototype, {
   [Symbol.toStringTag]: 'NumericRange',
-  [Symbol.inspect](depth, opts) {
+  [inspectSymbol](depth, opts) {
     const [start, end] = this;
     let s = '';
     //s += `\x1b[1;31mNumericRange\x1b[0m(`;
@@ -1209,7 +1211,7 @@ class FileMap extends Array {
   }
 }
 FileMap.prototype[Symbol.toStringTag] = 'FileMap';
-FileMap.prototype[Symbol.inspect] = function(depth, opts) {
+FileMap.prototype[inspectSymbol] = function(depth, opts) {
   opts = {
     ...opts,
     compact: 2,

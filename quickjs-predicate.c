@@ -826,7 +826,7 @@ static const JSCFunctionListEntry js_predicate_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("keys", 0, js_predicate_method, METHOD_KEYS),
     JS_CFUNC_MAGIC_DEF("values", 0, js_predicate_method, METHOD_VALUES),
     JS_CGETSET_MAGIC_DEF("length", js_predicate_get, 0, PROP_ARGC),
-    // JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Predicate", JS_PROP_CONFIGURABLE),
 };
 
 static const JSCFunctionListEntry js_predicate_funcs[] = {

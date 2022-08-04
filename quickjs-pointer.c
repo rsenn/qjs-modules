@@ -22,6 +22,8 @@ enum {
   METHOD_PUSH,
   METHOD_CONCAT,
   METHOD_SLICE,
+  METHOD_UP,
+  METHOD_DOWN,
   METHOD_KEYS,
   METHOD_VALUES,
   METHOD_HIER,
@@ -43,18 +45,23 @@ VISIBLE JSValue
 js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Pointer* ptr;
   JSValue obj = JS_UNDEFINED;
+
   if(!(ptr = js_mallocz(ctx, sizeof(Pointer))))
     return JS_EXCEPTION;
+
   pointer_reset(ptr, ctx);
+
   obj = JS_NewObjectProtoClass(ctx, proto, js_pointer_class_id);
   if(JS_IsException(obj))
     goto fail;
+
   JS_SetOpaque(obj, ptr);
 
   if(!pointer_from(ptr, ctx, value)) {
     JS_FreeValue(ctx, obj);
     obj = JS_ThrowTypeError(ctx, "Pointer: argument 1 unknown type");
   }
+
   return obj;
 fail:
   js_free(ctx, ptr);
@@ -65,8 +72,11 @@ fail:
 VISIBLE JSValue
 js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
   JSValue obj;
+
   obj = JS_NewObjectProtoClass(ctx, pointer_proto, js_pointer_class_id);
+
   JS_SetOpaque(obj, ptr);
+
   return obj;
 }
 
@@ -110,8 +120,8 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 static JSValue
 js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto;
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+
+  /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     proto = JS_DupValue(ctx, pointer_proto);
@@ -145,6 +155,16 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       int64_t s = js_int64_default(ctx, argv[0], 0);
       int64_t e = js_int64_default(ctx, argv[1], 0);
       return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, s, e));
+    }
+    case METHOD_UP: {
+      int64_t n = js_int64_default(ctx, argv[0], 0);
+      return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, 0, ptr->n - n));
+    }
+    case METHOD_DOWN: {
+      Pointer* res = pointer_clone(ptr, ctx);
+      int i;
+      for(i = 0; i < argc; i++) pointer_push(res, ctx, argv[i]);
+      return js_pointer_wrap(ctx, res);
     }
     case METHOD_KEYS: {
       JSValue array = pointer_toarray(ptr, ctx);
@@ -313,6 +333,8 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("push", 1, js_pointer_method, METHOD_PUSH),
     JS_CFUNC_MAGIC_DEF("concat", 1, js_pointer_method, METHOD_CONCAT),
     JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, METHOD_SLICE),
+    JS_CFUNC_MAGIC_DEF("up", 1, js_pointer_method, METHOD_UP),
+    JS_CFUNC_MAGIC_DEF("down", 0, js_pointer_method, METHOD_DOWN),
     JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
     JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, METHOD_VALUES),
     JS_CFUNC_MAGIC_DEF("hier", 0, js_pointer_method, METHOD_HIER),

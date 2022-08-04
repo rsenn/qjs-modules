@@ -491,7 +491,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         if(parse_is(c, CLOSE))
           parse_getc();
 
-        xml_debug("end-of [%"PRIu32"] tagName: %s%.*s\n", index, closing ? "/" : "", namelen, name);
+        xml_debug("end-of [%" PRIu32 "] tagName: %s%.*s\n", index, closing ? "/" : "", namelen, name);
 
         if(opts.flat) {
           yield_next();

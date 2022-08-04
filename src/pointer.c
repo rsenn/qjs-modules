@@ -178,6 +178,42 @@ pointer_push(Pointer* ptr, JSContext* ctx, JSValueConst key) {
     ptr->atoms[ptr->n++] = JS_ValueToAtom(ctx, key);
 }
 
+static JSValue
+deref_atom(JSContext* ctx, JSValueConst obj, JSAtom atom) {
+  if(!JS_HasProperty(ctx, obj, atom)) {
+    JSValue value = JS_AtomToValue(ctx, atom);
+
+    if(JS_IsFunction(ctx, value)) {
+      JSPropertyEnum* tmp_tab;
+      uint32_t i, tmp_len;
+      if(!JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+
+        for(i = 0; i < tmp_len; i++) {
+          JSValueConst args[3] = {JS_GetProperty(ctx, obj, tmp_tab[i].atom), JS_AtomToValue(ctx, tmp_tab[i].atom), obj};
+
+          JSValue ret = JS_Call(ctx, value, JS_NULL, 3, args);
+          BOOL match = JS_ToBool(ctx, ret);
+
+          JS_FreeValue(ctx, args[1]);
+
+          if(match) {
+            JS_FreeValue(ctx, value);
+            orig_js_free(ctx, tmp_tab);
+            return args[0];
+          }
+
+          JS_FreeValue(ctx, args[0]);
+        }
+
+        orig_js_free(ctx, tmp_tab);
+      }
+    }
+    JS_FreeValue(ctx, value);
+    return JS_EXCEPTION;
+  }
+  return JS_GetProperty(ctx, obj, atom);
+}
+
 JSValue
 pointer_deref(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
   size_t i;
@@ -185,8 +221,11 @@ pointer_deref(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
 
   for(i = 0; i < ptr->n; i++) {
     JSAtom atom = ptr->atoms[i]; // JS_DupAtom(ctx, ptr->atoms[i]);
+    JSValue child = deref_atom(ctx, obj, atom);
 
-    if(!JS_HasProperty(ctx, obj, atom)) {
+    if(JS_IsException(child)) {
+
+      //  if(!JS_HasProperty(ctx, obj, atom)) {
       DynBuf dbuf;
       js_dbuf_init(ctx, &dbuf);
 
@@ -197,7 +236,7 @@ pointer_deref(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
       break;
     }
 
-    JSValue child = JS_GetProperty(ctx, obj, atom);
+    // JSValue child = JS_GetProperty(ctx, obj, atom);
     JS_FreeValue(ctx, obj);
 
     obj = child;
