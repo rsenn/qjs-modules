@@ -73,9 +73,9 @@ function NormalizePath(p) {
 const FileBannerComment = (filename, i) => {
   let s = '';
   s += ` ${i ? 'end' : 'start'} of '${/*path.basename*/ filename}' `;
-  let n = Math.floor((80 - 6 - s.length) / 2);
+  let n = Math.max(0, Math.floor((80 - 6 - s.length) / 2));
   s = '/* ' + '-'.repeat(n) + s;
-  s += '-'.repeat(80 - 3 - s.length) + ' */';
+  s += '-'.repeat(Math.max(0, 80 - 3 - s.length)) + ' */';
   if(i == 0) s = '\n' + s + '\n';
   else s = s + '\n';
   return s;
