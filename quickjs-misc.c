@@ -1813,7 +1813,26 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_ToInt32(ctx, &fd, argv[0]);
   }
 
-  if(argc >= 2 && JS_IsString(argv[1])) {
+  if(js_is_arraybuffer(ctx, argv[0])) {
+    InputBuffer buf = js_output_args(ctx, argc, argv);
+    uint32_t count = 0, reclen;
+    ret = JS_NewArray(ctx);
+
+    for(size_t i = buf.pos; i + sizeof(struct inotify_event) <= buf.size; i += reclen) {
+      struct inotify_event* ev = (struct inotify_event*)&buf.data[i];
+      reclen = sizeof(struct inotify_event) + ev->len;
+
+      JSValue obj = JS_NewObject(ctx);
+
+      JS_SetPropertyStr(ctx, obj, "wd", JS_NewInt32(ctx, ev->wd));
+      JS_SetPropertyStr(ctx, obj, "mask", JS_NewUint32(ctx, ev->mask));
+      JS_SetPropertyStr(ctx, obj, "cookie", JS_NewUint32(ctx, ev->cookie));
+      JS_SetPropertyStr(ctx, obj, "name", JS_NewStringLen(ctx, ev->name, byte_chr(ev->name, '\0', ev->len)));
+
+      JS_SetPropertyUint32(ctx, ret, count++, obj);
+    }
+
+  } else if(argc >= 2 && JS_IsString(argv[1])) {
     int wd;
     int32_t flags = IN_ALL_EVENTS;
     const char* filename;
