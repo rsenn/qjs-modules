@@ -1936,7 +1936,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
 #endif
 #ifdef HAVE_INOTIFY
-    JS_CFUNC_DEF("watch", 2, js_misc_watch),
+    JS_CFUNC_DEF("watch", 1, js_misc_watch),
 #endif
 #ifdef HAVE_DAEMON
     JS_CFUNC_DEF("daemon", 2, js_misc_daemon),
@@ -2138,6 +2138,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(IN_ISDIR),
     JS_CONSTANT(IN_ONESHOT),
     JS_CONSTANT(IN_ALL_EVENTS),
+    JS_CONSTANT(IN_NONBLOCK),
+    JS_CONSTANT(IN_CLOEXEC),
 #endif
 #ifdef HAVE_TERMIOS_H
     JS_CONSTANT(TIOCSCTTY),

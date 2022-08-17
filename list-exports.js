@@ -118,11 +118,10 @@ function ImportFile(seq) {
 }
 
 function ExportName(seq) {
-  seq = seq.filter(({type}) => type != 'whitespace');
+  seq = seq.filter(({ type }) => type != 'whitespace');
   let idx = seq.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok));
-  if(seq[idx+1] && IsKeyword('as', seq[idx+1]))
-    idx += 2;
-  let ret= seq[idx]?.lexeme;
+  if(seq[idx + 1] && IsKeyword('as', seq[idx + 1])) idx += 2;
+  let ret = seq[idx]?.lexeme;
   return ret;
 }
 
@@ -225,15 +224,16 @@ function ListExports(file, output) {
   let tokenList = [],
     declarations = [];
   const colSizes = [12, 8, 4, 20, 32, 10, 0];
-  const printTok = debug > 2
-    ? (tok, prefix) => {
-        const range = tok.charRange;
-        const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
-        std.err.puts(
-          cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
-        );
-      }
-    : () => {};
+  const printTok =
+    debug > 2
+      ? (tok, prefix) => {
+          const range = tok.charRange;
+          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
+          std.err.puts(
+            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
+          );
+        }
+      : () => {};
 
   let tok,
     i = 0,
@@ -338,10 +338,10 @@ function ListExports(file, output) {
   }
 
   const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
-   //log('Export tokens', tokens.map(t => t.lexeme));
+  //log('Export tokens', tokens.map(t => t.lexeme));
 
   let exportNames = exportTokens.map(index => ExportName(tokens.slice(index)));
-//log('Export names', exportNames);
+  //log('Export names', exportNames);
 
   /*log('ES6 imports', imports.map(PrintES6Import));
     log('CJS imports', imports.map(PrintCJSImport));*/
