@@ -1816,20 +1816,25 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(js_is_arraybuffer(ctx, argv[0])) {
     InputBuffer buf = js_output_args(ctx, argc, argv);
     uint32_t count = 0, reclen;
-    ret = JS_NewArray(ctx);
 
-    for(size_t i = buf.pos; i + sizeof(struct inotify_event) <= buf.size; i += reclen) {
-      struct inotify_event* ev = (struct inotify_event*)&buf.data[i];
-      reclen = sizeof(struct inotify_event) + ev->len;
+    if(buf.range.length >= sizeof(struct inotify_event)) {
+      size_t end = buf.pos + buf.range.offset + buf.range.length;
+      ret = JS_NewArray(ctx);
 
-      JSValue obj = JS_NewObject(ctx);
+      for(size_t i = buf.pos + buf.range.offset; i + sizeof(struct inotify_event) <= end; i += reclen) {
+        struct inotify_event* ev = (struct inotify_event*)&buf.data[i];
+        reclen = sizeof(struct inotify_event) + ev->len;
 
-      JS_SetPropertyStr(ctx, obj, "wd", JS_NewInt32(ctx, ev->wd));
-      JS_SetPropertyStr(ctx, obj, "mask", JS_NewUint32(ctx, ev->mask));
-      JS_SetPropertyStr(ctx, obj, "cookie", JS_NewUint32(ctx, ev->cookie));
-      JS_SetPropertyStr(ctx, obj, "name", JS_NewStringLen(ctx, ev->name, byte_chr(ev->name, '\0', ev->len)));
+        JSValue obj = JS_NewObject(ctx);
 
-      JS_SetPropertyUint32(ctx, ret, count++, obj);
+        JS_SetPropertyStr(ctx, obj, "wd", JS_NewInt32(ctx, ev->wd));
+        JS_SetPropertyStr(ctx, obj, "mask", JS_NewUint32(ctx, ev->mask));
+        JS_SetPropertyStr(ctx, obj, "cookie", JS_NewUint32(ctx, ev->cookie));
+        JS_SetPropertyStr(ctx, obj, "name", JS_NewStringLen(ctx, ev->name, byte_chr(ev->name, '\0', ev->len)));
+        // JS_SetPropertyStr(ctx, obj, "offset", JS_NewUint32(ctx, i));
+
+        JS_SetPropertyUint32(ctx, ret, count++, obj);
+      }
     }
 
   } else if(argc >= 2 && JS_IsString(argv[1])) {
@@ -2159,6 +2164,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(IN_ALL_EVENTS),
     JS_CONSTANT(IN_NONBLOCK),
     JS_CONSTANT(IN_CLOEXEC),
+    JS_PROP_INT32_DEF("inotify_event_size", sizeof(struct inotify_event), 0),
 #endif
 #ifdef HAVE_TERMIOS_H
     JS_CONSTANT(TIOCSCTTY),
