@@ -3,7 +3,7 @@ import * as std from 'std';
 import fs from 'fs';
 import inspect from 'inspect';
 import * as path from 'path';
-import { Predicate } from 'predicate';
+import { Predicate } from './predicate.js';
 import { Location, Lexer, Token } from 'lexer';
 import { Console } from 'console';
 import ECMAScriptLexer from '../lib/lexer/ecmascript.js';

@@ -1823,14 +1823,19 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
       for(size_t i = buf.pos + buf.range.offset; i + sizeof(struct inotify_event) <= end; i += reclen) {
         struct inotify_event* ev = (struct inotify_event*)&buf.data[i];
+        size_t namelen = byte_chr(ev->name, '\0', ev->len);
         reclen = sizeof(struct inotify_event) + ev->len;
 
         JSValue obj = JS_NewObject(ctx);
 
         JS_SetPropertyStr(ctx, obj, "wd", JS_NewInt32(ctx, ev->wd));
-        JS_SetPropertyStr(ctx, obj, "mask", JS_NewUint32(ctx, ev->mask));
-        JS_SetPropertyStr(ctx, obj, "cookie", JS_NewUint32(ctx, ev->cookie));
-        JS_SetPropertyStr(ctx, obj, "name", JS_NewStringLen(ctx, ev->name, byte_chr(ev->name, '\0', ev->len)));
+        if(ev->mask)
+          JS_SetPropertyStr(ctx, obj, "mask", JS_NewUint32(ctx, ev->mask));
+        if(ev->cookie)
+          JS_SetPropertyStr(ctx, obj, "cookie", JS_NewUint32(ctx, ev->cookie));
+
+        if(namelen)
+          JS_SetPropertyStr(ctx, obj, "name", JS_NewStringLen(ctx, ev->name, namelen));
         // JS_SetPropertyStr(ctx, obj, "offset", JS_NewUint32(ctx, i));
 
         JS_SetPropertyUint32(ctx, ret, count++, obj);

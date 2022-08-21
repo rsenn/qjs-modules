@@ -733,20 +733,23 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
       xml_write_text(ctx, value, output, depth, !single_line);
 
     } else if(JS_IsObject(value) && !JS_IsArray(ctx, value)) {
-      const char* tagName = js_get_propertystr_cstring(ctx, value, "tagName");
-      BOOL self_closing = nextTag && nextTag[0] == '/' && !strcmp(tagName, &nextTag[1]);
+      const char* tagName;
 
-      if(tagName[0] == '/')
-        depth--;
+      if((tagName = js_get_propertystr_cstring(ctx, value, "tagName"))) {
+        BOOL self_closing = nextTag && nextTag[0] == '/' && !strcmp(tagName, &nextTag[1]);
 
-      xml_write_element(ctx, value, output, single_line ? 0 : depth, self_closing);
+        if(tagName[0] == '/')
+          depth--;
 
-      if(self_closing)
-        next = JS_GetPropertyUint32(ctx, obj, ++i + 1);
-      else if(tagName[0] != '/' && tagName[0] != '?' && tagName[0] != '!' && !strcasecmp(tagName, "dt"))
-        depth++;
+        xml_write_element(ctx, value, output, single_line ? 0 : depth, self_closing);
 
-      //  JS_FreeCString(ctx, tagName);
+        if(self_closing)
+          next = JS_GetPropertyUint32(ctx, obj, ++i + 1);
+        else if(tagName[0] != '/' && tagName[0] != '?' && tagName[0] != '!' && !strcasecmp(tagName, "dt"))
+          depth++;
+
+        JS_FreeCString(ctx, tagName);
+      }
       single_line = FALSE;
     }
     if(tagName)
