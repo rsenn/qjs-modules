@@ -80,6 +80,12 @@ async function main(...args) {
   CallPathFunction(
     'collapse',
     '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..'
+  ); 
+if(path.slice)
+  CallPathFunction(
+    'slice',
+    '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..',
+    2, -3
   );
 
   /*let data = std.loadFile(file, 'utf-8');

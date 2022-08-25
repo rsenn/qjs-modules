@@ -229,6 +229,46 @@ path_at(const char* p, size_t* len_ptr, int i) {
 }
 
 size_t
+path_length(const char* p) {
+  int pos = 0;
+  size_t next, len, slen = strlen(p);
+  const char* end = p + slen;
+
+  for(; p < end; p += next) {
+    len = path_skip_component_s(p);
+    next = len + path_skip_separator_s(&p[len]);
+
+    if(pos && len == 0)
+      break;
+
+    ++pos;
+  }
+  return pos;
+}
+
+int
+path_slice(const char* p, int start, int end, DynBuf* db) {
+  int i;
+  size_t next, len;
+  size_t n = db->size;
+
+  for(i = 0; i < end; i++) {
+    len = path_skip_component_s(p);
+    next = len + path_skip_separator_s(&p[len]);
+
+    if(i >= start) {
+      if((db->size > n && db->buf[db->size - 1] != PATHSEP_C) || (i == start && len == 0))
+        dbuf_putc(db, PATHSEP_C);
+
+      dbuf_put(db, p, len);
+    }
+
+    p += next;
+  }
+  return i;
+}
+
+size_t
 path_num_components(const char* p) {
   size_t n = 0, len;
   for(; *p; p += len) {

@@ -254,11 +254,18 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case METHOD_AT: {
-      uint64_t idx;
+      int32_t idx;
       size_t len;
       const char* p;
 
-      JS_ToIndex(ctx, &idx, argv[1]);
+      JS_ToInt32(ctx, &idx, argv[1]);
+
+      if(idx < 0) {
+        int32_t size = path_length(a);
+
+        idx = MIN_NUM(size, ((idx % size) + size));
+      }
+
       p = path_at(a, &len, idx);
       ret = JS_NewStringLen(ctx, p, len);
       break;
@@ -365,6 +372,44 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   if(db.size) {
     ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   }
+  dbuf_free(&db);
+  return ret;
+}
+
+static JSValue
+js_path_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  const char* str;
+  DynBuf db;
+  int32_t i, start = 0, end = -1;
+  JSValue ret = JS_UNDEFINED;
+  js_dbuf_init(ctx, &db);
+
+  if((str = JS_ToCString(ctx, argv[0]))) {
+    int32_t len = path_length(str);
+
+    if(argc > 1 && JS_IsNumber(argv[1]))
+      JS_ToInt32(ctx, &start, argv[1]);
+
+    if(start < 0)
+      start = ((start % len) + len) % len;
+    if(start > len)
+      start = len;
+
+    if(argc > 2 && JS_IsNumber(argv[2]))
+      JS_ToInt32(ctx, &end, argv[2]);
+    else
+      end = len;
+
+    if(end < 0)
+      end = (end % len) + len;
+    if(end > len)
+      end = len;
+
+    path_slice(str, start, end, &db);
+  }
+
+  ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
+
   dbuf_free(&db);
   return ret;
 }
@@ -484,6 +529,71 @@ fail:
   return ret;
 }
 
+static JSValue
+js_path_toarray(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  const char* str;
+  int32_t i, len, clen;
+  JSValue ret = JS_NewArray(ctx);
+
+  if((str = JS_ToCString(ctx, argv[0]))) {
+    IndexRange ir = {0, -1};
+    JSValue value;
+
+    len = path_length(str);
+
+    if(argc > 1) {
+      js_index_range(ctx, len, argc - 1, argv + 1, &ir);
+    }
+
+    printf("IndexRange { %" PRId64 ", %" PRId64 " }\n", ir.start, ir.end);
+
+    if(argc < 3)
+      ir.end = len;
+    else if(ir.end < 0)
+      ir.end = ((ir.end % len) + len) % len;
+
+    for(i = ir.start; i < ir.end; i++) {
+      size_t clen;
+      const char* x = path_at(str, &clen, i);
+
+      if(magic == 0) {
+        value = JS_NewStringLen(ctx, x, clen);
+      } else if(magic >= 3) {
+
+        value = JS_NewArray(ctx);
+        JS_SetPropertyUint32(ctx, value, 0, JS_NewUint32(ctx, x - str));
+        JS_SetPropertyUint32(ctx, value, 1, JS_NewUint32(ctx, clen));
+
+      } else {
+        value = JS_NewUint32(ctx, magic == 2 ? clen : x - str);
+      }
+      JS_SetPropertyUint32(ctx, ret, i - ir.start, value);
+    }
+
+    return ret;
+  }
+}
+
+static JSValue
+js_path_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+
+  JSValue ret, arr, fn;
+  int32_t magic = 0;
+
+  if(argc > 3)
+    JS_ToInt32(ctx, &magic, argv[3]);
+
+  arr = js_path_toarray(ctx, this_val, argc, argv, magic);
+
+  fn = js_iterator_method(ctx, arr);
+
+  ret = JS_Call(ctx, fn, arr, 0, 0);
+  JS_FreeValue(ctx, fn);
+  JS_FreeValue(ctx, arr);
+
+  return ret;
+}
+
 static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("basename", 1, js_path_method, METHOD_BASENAME),
     JS_CFUNC_MAGIC_DEF("collapse", 1, js_path_method, METHOD_COLLAPSE),
@@ -523,10 +633,16 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("find", 2, js_path_method_dbuf, METHOD_FIND),
     JS_CFUNC_MAGIC_DEF("normalize", 1, js_path_method_dbuf, METHOD_NORMALIZE),
     JS_CFUNC_MAGIC_DEF("relative", 2, js_path_method_dbuf, METHOD_RELATIVE),
+    JS_CFUNC_DEF("slice", 0, js_path_slice),
     JS_CFUNC_DEF("join", 1, js_path_join),
     JS_CFUNC_DEF("parse", 1, js_path_parse),
     JS_CFUNC_DEF("format", 1, js_path_format),
     JS_CFUNC_DEF("resolve", 1, js_path_resolve),
+    JS_CFUNC_MAGIC_DEF("toArray", 0, js_path_toarray, 0),
+    JS_CFUNC_MAGIC_DEF("offsets", 0, js_path_toarray, 1),
+    JS_CFUNC_MAGIC_DEF("lengths", 0, js_path_toarray, 2),
+    JS_CFUNC_MAGIC_DEF("ranges", 0, js_path_toarray, 3),
+    JS_CFUNC_DEF("iterator", 0, js_path_iterator),
     JS_PROP_STRING_DEF("delimiter", PATHDELIM_S, JS_PROP_CONFIGURABLE),
     JS_PROP_STRING_DEF("sep", PATHSEP_S, JS_PROP_CONFIGURABLE),
 };

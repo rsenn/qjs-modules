@@ -106,6 +106,7 @@ char* __path_dirname(const char*, DynBuf*);
 size_t path_dirname_len(const char* path);
 char* path_dirname(const char*);
 int path_readlink(const char*, DynBuf*);
+int path_slice(const char* p, int start, int end, DynBuf* db);
 
 static inline size_t
 path_length_s(const char* s) {

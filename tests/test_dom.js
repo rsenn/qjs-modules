@@ -4,7 +4,7 @@ import * as path from 'path';
 import Console from 'console';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList } from '../lib/dom.js';
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
-//import REPL from '../lib/repl.js';
+import REPL from 'repl';
 import { read as readXML, write as writeXML } from 'xml';
 
 extendArray();
@@ -16,7 +16,7 @@ let repl = {
 };
 
 function StartREPL() {
-  return import('repl').then(REPL => {
+  //return import('repl').then(REPL => {
     repl = new REPL(
       '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
       false
@@ -24,7 +24,7 @@ function StartREPL() {
     repl.show = repl.printFunction((...args) => console.log(...args));
     repl.historyLoad();
     return repl.run();
-  });
+ // });
 }
 
 function main(...args) {
@@ -43,7 +43,7 @@ function main(...args) {
   let params = getOpt(
     {
       output: [true, null, 'o'],
-      interactive: [false, null, 'i'],
+      interactive: [true, null, 'i'],
       '@': 'xml'
     },
     args
