@@ -201,7 +201,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       int32_t flags = 0;
       if(argc > 2)
         JS_ToInt32(ctx, &flags, argv[2]);
-      ret = JS_NewInt32(ctx, path_fnmatch(a, alen, b, blen, flags));
+      ret = JS_NewInt32(ctx, path_fnmatch5(a, alen, b, blen, flags));
       break;
     }
 
@@ -424,7 +424,7 @@ js_path_parse(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   base = basename(str);
   dirlen = base - str - 1;
-  rootlen = path_root(str, len);
+  rootlen = path_root2(str, len);
   ext = path_extname1(str);
 
   ret = JS_NewObject(ctx);

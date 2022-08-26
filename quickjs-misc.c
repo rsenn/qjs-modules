@@ -727,7 +727,7 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc >= 3)
     JS_ToInt32(ctx, &flags, argv[2]);
 
-  ret = path_fnmatch(pattern, plen, string, slen, flags);
+  ret = path_fnmatch5(pattern, plen, string, slen, flags);
   JS_FreeCString(ctx, pattern);
   JS_FreeCString(ctx, string);
   return JS_NewBool(ctx, !ret);
