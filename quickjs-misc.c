@@ -530,7 +530,7 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   js_dbuf_init(ctx, &dbuf);
 
-  if((r = path_readlink(path, &dbuf)) > 0) {
+  if((r = path_readlink2(path, &dbuf)) > 0) {
     ret = dbuf_tostring_free(&dbuf, ctx);
   } else if(r < 0) {
   }

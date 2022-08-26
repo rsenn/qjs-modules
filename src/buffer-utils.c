@@ -142,6 +142,19 @@ byte_copyr(void* out, size_t len, const void* in) {
   }
 }
 
+size_t
+byte_rchrs(const char* in, size_t len, const char needles[], size_t nn) {
+  const char *s = in, *end = in + len, *found = 0;
+  size_t i;
+  for(; s < end; s++) {
+    for(i = 0; i < nn; ++i) {
+      if(*s == needles[i])
+        found = s;
+    }
+  }
+  return (size_t)((found ? found : s) - in);
+}
+
 char*
 dbuf_at_n(const DynBuf* db, size_t i, size_t* n, char sep) {
   size_t p, l = 0;

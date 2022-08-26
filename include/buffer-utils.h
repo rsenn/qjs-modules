@@ -32,6 +32,7 @@ size_t byte_finds(const void*, size_t, const char* what);
 size_t byte_equal(const void* s, size_t n, const void* t);
 void byte_copy(void* out, size_t len, const void* in);
 void byte_copyr(void* out, size_t len, const void* in);
+size_t byte_rchrs(const char* in, size_t len, const char needles[], size_t nn);
 char* dbuf_at_n(const DynBuf*, size_t, size_t* n, char sep);
 const char* dbuf_last_line(DynBuf*, size_t*);
 int dbuf_prepend(DynBuf*, const uint8_t*, size_t len);
