@@ -101,11 +101,12 @@ int path_fnmatch5(const char* pattern, size_t plen, const char* string, size_t s
 char* path_getcwd1(DynBuf* db);
 char* path_getcwd0(void);
 char* path_gethome1(int uid);
+int path_stat2(const char* p, size_t plen, struct stat* st);
 int path_isabsolute2(const char* x, size_t n);
 int path_isabsolute1(const char* x);
 int path_isdir1(const char* p);
 int path_isdir2(const char* p, size_t plen);
-int path_isfile2(const char* p, size_t plen);
+int path_isfile1(const char* p);
 int path_isfile2(const char* p, size_t plen);
 int path_ischardev1(const char* p);
 int path_ischardev2(const char* p, size_t plen);
@@ -128,26 +129,15 @@ size_t path_component3(const char* p, size_t len, size_t pos);
 size_t path_component1(const char* p);
 size_t path_separator3(const char* p, size_t len, size_t pos);
 size_t path_separator1(const char* p);
-char* path_dirname1(char* path);
-char* path_dirname2(const char* path, char* dest);
+char* path_dirname1(const char* path);
+char* path_dirname2(const char* path, size_t n);
 char* path_dirname3(const char* path, size_t n, char* dest);
+size_t path_dirlen1(const char* path);
+size_t path_dirlen2(const char* path, size_t n);
 int path_readlink2(const char* path, DynBuf* dir);
 char* path_readlink1(const char* path);
 int path_compare4(const char* a, size_t alen, const char* b, size_t blen);
 
-/*static inline size_t
-path_length_s(const char* s) {
-  return path_component3(s, strlen(s), 0);
-}
-
-static inline size_t
-path_skip_s(const char* s) {
-  const char* p = s;
-  while(*p && path_issep(*p)) ++p;
-  while(*p && !path_issep(*p)) ++p;
-  return p - s;
-}
-*/
 static inline size_t
 path_skip1(const char* s) {
   const char* p = s;
@@ -155,14 +145,6 @@ path_skip1(const char* s) {
   while(*p && path_issep(*p)) ++p;
   return p - s;
 }
-
-/*static inline size_t
-path_skip2(const char* s, size_t n) {
-  const char *p = s, *e = s + n;
-  p += path_separator3(s, n, 0);
-  p += path_component3(p, e - p, 0);
-  return p - s;
-}*/
 
 static inline size_t
 path_skip2(const char* s, size_t n) {
@@ -187,7 +169,7 @@ path_skip3(const char* s, size_t* len, size_t n) {
 }
 
 static inline size_t
-path_right(const char* s, size_t n) {
+path_right2(const char* s, size_t n) {
   const char* p = s + n - 1;
   while(p >= s && path_issep(*p)) --p;
   while(p >= s && !path_issep(*p)) --p;
@@ -195,7 +177,7 @@ path_right(const char* s, size_t n) {
 }
 
 static inline int
-path_getsep(const char* path) {
+path_getsep1(const char* path) {
   while(*path) {
     if(path_issep(*path))
       return *path;
@@ -204,22 +186,33 @@ path_getsep(const char* path) {
   return '\0';
 }
 
+static inline int
+path_getsep2(const char* path, size_t len) {
+  const char* q = path + len;
+  while(path < q) {
+    if(path_issep(*path))
+      return *path;
+    ++path;
+  }
+  return '\0';
+}
+
 static inline const char*
-path_trim_dotslash(const char* s) {
+path_trimdotslash1(const char* s) {
   while(*s && path_isdotslash(s)) s += path_skip1(s);
 
   return s;
 }
 
 static inline size_t
-path_skip_dotslash1(const char* s) {
+path_skipdotslash1(const char* s) {
   size_t i = 0;
   for(i = 0; path_isdotslash(&s[i]);) i += path_skip1(&s[i]);
   return i;
 }
 
 static inline size_t
-path_skip_dotslash2(const char* s, size_t n) {
+path_skipdotslash2(const char* s, size_t n) {
   size_t i = 0;
   while(i < n && path_isdotslash(&s[i])) i += path_skip2(&s[i], n - i);
   return i;
@@ -227,8 +220,8 @@ path_skip_dotslash2(const char* s, size_t n) {
 
 static inline int
 path_compare2(const char* a, const char* b) {
-  a += path_skip_dotslash1(a);
-  b += path_skip_dotslash1(b);
+  a += path_skipdotslash1(a);
+  b += path_skipdotslash1(b);
 
   return strcmp(a, b);
 }

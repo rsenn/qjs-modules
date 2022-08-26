@@ -335,7 +335,7 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
       char* file;
       if((file = jsm_stack_top())) {
         char* dir;
-        if((dir = path_dirname_alloc(file))) {
+        if((dir = path_dirname1(file))) {
           ret = JS_NewString(ctx, dir);
           free(dir);
         }
@@ -614,7 +614,7 @@ jsm_module_package(JSContext* ctx, const char* module) {
 
       aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
       if(!JS_IsException(aliases) && JS_IsObject(aliases)) {
-        target = JS_GetPropertyStr(ctx, aliases, path_trim_dotslash(module));
+        target = JS_GetPropertyStr(ctx, aliases, path_trimdotslash1(module));
 
         if(!JS_IsUndefined(target)) {
           file = js_tostring(ctx, target);
@@ -798,8 +798,8 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     if(path_isimplicit(path))
       dbuf_putstr(&dir, "." PATHSEP_S);
 
-    path_concat5(path, path_dirname_len(path), name, strlen(name), &dir);
-    dsl = path_skip_dotslash2(dir.buf, dir.size);
+    path_concat5(path, path_dirlen1(path), name, strlen(name), &dir);
+    dsl = path_skipdotslash2(dir.buf, dir.size);
 
     path_collapse2(dir.buf + dsl, dir.size - dsl);
     file = dir.buf;

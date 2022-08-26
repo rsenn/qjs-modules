@@ -29,21 +29,12 @@ __path_dirname(const char* path, DynBuf* dir) {
   return (char*)dir->buf;
 }
 
-static size_t
-path_dirname_len(const char* path) {
-  size_t i = str_rchrs(path, "/\\", 2);
-  if(path[i] == '\0')
-    return 0;
-  while(i > 0 && path_issep(path[i - 1])) --i;
-  return i;
-}
-
-static char*
+/*static char*
 path_dirname_alloc(const char* path) {
   DynBuf dir;
   dbuf_init2(&dir, 0, 0);
   return __path_dirname(path, &dir);
-}
+}*/
 
 /**
  * \addtogroup path
@@ -284,7 +275,7 @@ path_concat5(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db)
   while(blen >= 1 && path_isdot(b)) {
     size_t n;
 
-    if(!(n = path_skip_dotslash2(b, blen)))
+    if(!(n = path_skipdotslash2(b, blen)))
       break;
 
     b += n;
@@ -580,7 +571,7 @@ path_extname1(const char* p) {
   return p;
 }
 
-/*int
+ int
 path_find(const char* path, const char* name, DynBuf* db) {
   DIR* dir;
   struct dirent* entry;
@@ -602,7 +593,7 @@ path_find(const char* path, const char* name, DynBuf* db) {
 
   closedir(dir);
   return ret;
-}*/
+} 
 
 int
 path_fnmatch5(const char* pattern, size_t plen, const char* string, size_t slen, int flags) {
@@ -798,11 +789,40 @@ path_isabsolute1(const char* x) {
 }
 
 int
+path_stat2(const char* p, size_t plen, struct stat* st) {
+  char* q;
+  int r = 0;
+  if((q = path_dup2(p, plen))) {
+    r = stat(q, st);
+    free(q);
+  }
+  return r;
+}
+
+int
 path_isdir1(const char* p) {
   struct stat st;
   int r;
+  if((r = stat(p, &st) == 0))
+    r = S_ISDIR(st.st_mode);
+  return r;
+}
+
+int
+path_isdir2(const char* p, size_t plen) {
+  struct stat st;
+  int r;
+  if((r = path_stat2(p, plen, &st) == 0))
+    r = S_ISDIR(st.st_mode);
+  return r;
+}
+
+int
+path_isfile1(const char* p) {
+  struct stat st;
+  int r;
   if((r = stat(p, &st) == 0)) {
-    if(S_ISDIR(st.st_mode))
+    if(S_ISREG(st.st_mode))
       return 1;
   }
 
@@ -810,24 +830,11 @@ path_isdir1(const char* p) {
 }
 
 int
-path_isdir2(const char* p, size_t plen) {
-  char* q;
-  int r = 0;
-  if((q = path_dup2(p, plen))) {
-    r = path_isdir1(q);
-    free(q);
-  }
-  return r;
-}
-
-int
 path_isfile2(const char* p, size_t plen) {
-  char* q;
-  int r = 0;
-  if((q = path_dup2(p, plen))) {
-    r = path_isfile1(q);
-    free(q);
-  }
+  struct stat st;
+  int r;
+  if((r = path_stat2(p, plen, &st) == 0))
+    r = S_ISREG(st.st_mode);
   return r;
 }
 
@@ -842,15 +849,12 @@ path_ischardev1(const char* p) {
 
   return 0;
 }
-
 int
 path_ischardev2(const char* p, size_t plen) {
-  char* q;
-  int r = 0;
-  if((q = path_dup2(p, plen))) {
-    r = path_ischardev1(q);
-    free(q);
-  }
+  struct stat st;
+  int r;
+  if((r = path_stat2(p, plen, &st) == 0))
+    r = S_ISCHR(st.st_mode);
   return r;
 }
 
@@ -868,12 +872,10 @@ path_isblockdev1(const char* p) {
 
 int
 path_isblockdev2(const char* p, size_t plen) {
-  char* q;
-  int r = 0;
-  if((q = path_dup2(p, plen))) {
-    r = path_isblockdev1(q);
-    free(q);
-  }
+  struct stat st;
+  int r;
+  if((r = path_stat2(p, plen, &st) == 0))
+    r = S_ISBLK(st.st_mode);
   return r;
 }
 
@@ -891,12 +893,10 @@ path_isfifo1(const char* p) {
 
 int
 path_isfifo2(const char* p, size_t plen) {
-  char* q;
-  int r = 0;
-  if((q = path_dup2(p, plen))) {
-    r = path_isfifo1(q);
-    free(q);
-  }
+  struct stat st;
+  int r;
+  if((r = path_stat2(p, plen, &st) == 0))
+    r = S_ISFIFO(st.st_mode);
   return r;
 }
 
@@ -916,12 +916,10 @@ path_issocket1(const char* p) {
 
 int
 path_issocket2(const char* p, size_t plen) {
-  char* q;
-  int r = 0;
-  if((q = path_dup2(p, plen))) {
-    r = path_issocket1(q);
-    free(q);
-  }
+  struct stat st;
+  int r;
+  if((r = path_stat2(p, plen, &st) == 0))
+    r = S_ISSOCK(st.st_mode);
   return r;
 }
 
@@ -940,14 +938,13 @@ path_issymlink1(const char* p) {
   return 0;
 #endif
 }
+
 int
 path_issymlink2(const char* p, size_t plen) {
-  char* q;
-  int r = 0;
-  if((q = path_dup2(p, plen))) {
-    r = path_issymlink1(q);
-    free(q);
-  }
+  struct stat st;
+  int r;
+  if((r = path_stat2(p, plen, &st) == 0))
+    r = S_ISLNK(st.st_mode);
   return r;
 }
 
@@ -976,7 +973,7 @@ start:
 
       if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
         if(db->size && db->buf)
-          db->size = path_right((const char*)db->buf, db->size);
+          db->size = path_right2((const char*)db->buf, db->size);
         path += 2;
         continue;
       }
@@ -1005,7 +1002,7 @@ start:
         goto start;
       } else {
         int rret;
-        db->size = path_right((const char*)db->buf, db->size);
+        db->size = path_right2((const char*)db->buf, db->size);
         buf[n] = '\0';
         rret = path_normalize3(buf, db, symbolic);
         if(!rret)
@@ -1117,32 +1114,73 @@ path_separator1(const char* p) {
   return s - p;
 }
 
-char*
-path_dirname1(char* path) {
-  size_t i = str_rchrs(path, PATHSEP_S, 2);
-  if(path[i]) {
+static size_t
+__path_dirname1(char* path) {
+  size_t i;
+
+  if(path[(i = str_rchrs(path, PATHSEP_S, 2))])
     path[i] = '\0';
-    return path;
-  }
-  return 0;
+
+  return i;
+}
+
+static size_t
+__path_dirname2(char* path, size_t n) {
+  size_t i;
+
+  if((i = byte_rchrs(path, n, PATHSEP_S, 2)) < n)
+    path[i] = '\0';
+
+  return i;
 }
 
 char*
-path_dirname2(const char* path, char* dest) {
-  return path_dirname3(path, strlen(path), dest);
+path_dirname1(const char* path) {
+  char* q;
+
+  if((q = path_dup1(path)))
+    __path_dirname1(q);
+  return q;
+}
+
+char*
+path_dirname2(const char* path, size_t n) {
+  char* q;
+
+  if((q = path_dup2(path, n)))
+    __path_dirname2(q, n);
+  return q;
 }
 
 char*
 path_dirname3(const char* path, size_t n, char* dest) {
-  size_t i = byte_rchrs(path, n, PATHSEP_S, 2);
+  size_t i;
 
-  if(i < n) {
+  if((i = byte_rchrs(path, n, PATHSEP_S, 2)) < n) {
     memcpy(dest, path, i);
     dest[i] = '\0';
 
     return dest;
   }
   return 0;
+}
+
+size_t
+path_dirlen1(const char* path) {
+  size_t i = str_rchrs(path, "/\\", 2);
+  if(path[i] == '\0')
+    return 0;
+  while(i > 0 && path_issep(path[i - 1])) --i;
+  return i;
+}
+
+size_t
+path_dirlen2(const char* path, size_t n) {
+  size_t i;
+  if((i = byte_rchrs(path, n, "/\\", 2)) == n)
+    return 0;
+  while(i > 0 && path_issep(path[i - 1])) --i;
+  return i;
 }
 
 #define START ((PATH_MAX + 1) >> 7)

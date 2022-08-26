@@ -218,7 +218,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
     case METHOD_GETSEP: {
       char c;
-      if((c = path_getsep(a)) != '\0')
+      if((c = path_getsep1(a)) != '\0')
         ret = JS_NewStringLen(ctx, &c, 1);
       break;
     }
@@ -237,7 +237,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case METHOD_RIGHT: {
-      ret = JS_NewUint32(ctx, path_right(a, alen));
+      ret = JS_NewUint32(ctx, path_right2(a, alen));
       break;
     }
 
@@ -319,7 +319,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
 
     case METHOD_FIND: {
-      path_find(a, b, &db);
+      // path_find(a, b, &db);
       break;
     }
 
