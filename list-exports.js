@@ -211,7 +211,24 @@ function* GetTokens(file, pred = ({ type }) => type == 'identifier') {
   while((tok = lex.next())) {
     const { token } = lex;
 
-    if(pred(token)) yield token.lexeme;
+    if(pred(token)) yield token;
+  }
+}
+
+function* TransformLexeme(gen) {
+  for(let token of gen) yield token.lexeme;
+}
+
+function* GetCommands(file) {
+  let lex = GetTokens(file, ({ type }) => type != 'whitespace');
+  let a = [];
+  for(let tok of lex) {
+    a.push(tok);
+
+    if(tok.type == 'punctuator' && tok.lexeme == ';') {
+      yield a;
+      a = [];
+    }
   }
 }
 
@@ -486,7 +503,7 @@ function main(...args) {
   if(!files.length) files.push(RelativePath('lib/util.js'));
 
   if(params['for']) {
-    identifiers = new Set(GetTokens(params['for']) /*.unique()*/);
+    identifiers = new Set(TransformLexeme(GetTokens(params['for'])));
     console.log('identifiers', identifiers);
 
     filter = (() => {
@@ -498,9 +515,9 @@ function main(...args) {
 
   for(let file of files) ListExports(file, output);
 
-  if(identifiers.size) {
+  /*  if(identifiers.size) {
     std.err.puts(`${identifiers.size} identifiers could not be matched:\n${[...identifiers].join('\n')}\n`);
-  }
+  }*/
 }
 
 try {
