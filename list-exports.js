@@ -14,13 +14,17 @@ let buffers = {},
 let T,
   code = 'c',
   debug,
+  verbose,
   sort,
   caseSensitive,
   quiet,
   exp,
   relativeTo,
   printFiles,
-  onlyUppercase;
+  onlyUppercase,
+  filter = null,
+  match = new Set(),
+  identifiers;
 
 ('use strict');
 ('use math');
@@ -195,6 +199,20 @@ function PrintCJSImport({ type, local, file }) {
     [ImportTypes.IMPORT_DEFAULT]: () => `const ${local} = require('${file}');`,
     [ImportTypes.IMPORT]: () => `const { ${local.join(', ')} } = require('${file}');`
   }[type]();
+}
+
+function* GetTokens(file, pred = ({ type }) => type == 'identifier') {
+  console.log('file', file);
+
+  let str = BufferFile(file);
+  let tok,
+    lex = new ECMAScriptLexer(str, file);
+
+  while((tok = lex.next())) {
+    const { token } = lex;
+
+    if(pred(token)) yield token.lexeme;
+  }
 }
 
 function ListExports(file, output) {
@@ -381,11 +399,16 @@ function ListExports(file, output) {
   if(path.isRelative(source) && !/^(\.|\.\.)\//.test(source)) source = './' + source;
 
   if(exportNames.length) {
-    const names = exportNames.map(t => (t == 'default' ? t + ' as ' + base : t));
+    let names = exportNames.map(t => (t == 'default' ? t + ' as ' + base : t));
     const keyword = exp ? 'export' : 'import';
 
+    if(filter) names = names.filter(filter);
+
+    identifiers.delete(...names);
+    match.add(...names);
+
     if(names.length == 1 && /^default as/.test(names[0])) output.puts(keyword + ` ${base} from '${source}'\n`);
-    else output.puts(keyword + ` { ${names.join(', ')} } from '${source}'\n`);
+    else if(names.length > 0) output.puts(keyword + ` { ${names.join(', ')} } from '${source}'\n`);
   }
 
   modules[source] = { imports, exports };
@@ -407,7 +430,7 @@ function ListExports(file, output) {
 
   let end = Date.now();
 
-  log(`took ${end - start}ms`);
+  if(verbose) log(`took ${end - start}ms`);
 
   std.gc();
 }
@@ -440,10 +463,12 @@ function main(...args) {
         'h'
       ],
       debug: [false, () => (debug = (debug | 0) + 1), 'x'],
+      verbose: [false, () => (verbose = (verbose | 0) + 1), 'v'],
       sort: [false, () => (sort = true), 's'],
       'case-sensitive': [false, () => (caseSensitive = true), 'c'],
       quiet: [false, () => (quiet = true), 'q'],
       export: [false, () => (exp = true), 'e'],
+      for: [true, null, 'f'],
       'print-files': [false, () => (printFiles = true), 'p'],
       output: [true, filename => (outputFile = filename) /* output = std.open(filename, 'w+')*/, 'o'],
       'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
@@ -459,7 +484,23 @@ function main(...args) {
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
 
   if(!files.length) files.push(RelativePath('lib/util.js'));
+
+  if(params['for']) {
+    identifiers = new Set(GetTokens(params['for']) /*.unique()*/);
+    console.log('identifiers', identifiers);
+
+    filter = (() => {
+      const re = new RegExp('^(' + [...identifiers].join('|') + ')$');
+
+      return name => re.test(name);
+    })();
+  }
+
   for(let file of files) ListExports(file, output);
+
+  if(identifiers.size) {
+    std.err.puts(`${identifiers.size} identifiers could not be matched:\n${[...identifiers].join('\n')}\n`);
+  }
 }
 
 try {
