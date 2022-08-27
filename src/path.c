@@ -571,7 +571,7 @@ path_extname1(const char* p) {
   return p;
 }
 
- int
+int
 path_find(const char* path, const char* name, DynBuf* db) {
   DIR* dir;
   struct dirent* entry;
@@ -593,7 +593,7 @@ path_find(const char* path, const char* name, DynBuf* db) {
 
   closedir(dir);
   return ret;
-} 
+}
 
 int
 path_fnmatch5(const char* pattern, size_t plen, const char* string, size_t slen, int flags) {

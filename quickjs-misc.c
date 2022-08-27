@@ -1946,6 +1946,31 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_UNDEFINED;
 }
 
+static JSValue
+js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+
+  const char *from, *to;
+
+  if(!(from = JS_ToCString(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
+  if(!(to = JS_ToCString(ctx, argv[1])))
+    return JS_ThrowTypeError(ctx, "argument 2 must be a string");
+
+  return JS_NewInt32(ctx, link(from, to));
+}
+
+static JSValue
+js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+
+  const char* file;
+
+  if(!(file = JS_ToCString(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
+  return JS_NewInt32(ctx, unlink(file));
+}
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
 #ifndef __wasi__
@@ -1979,7 +2004,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifdef HAVE_SETSID
     JS_CFUNC_DEF("setsid", 0, js_misc_setsid),
 #endif
-    JS_CFUNC_DEF("atexit", 1, js_misc_atexit),
+    JS_CFUNC_DEF("unlink", 1, js_misc_unlink),
+    JS_CFUNC_DEF("link", 2, js_misc_link),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
