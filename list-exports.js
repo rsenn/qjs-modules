@@ -421,8 +421,10 @@ function ListExports(file, output) {
 
     if(filter) names = names.filter(filter);
 
-    identifiers.delete(...names);
-    match.add(...names);
+    if(identifiers) {
+      identifiers.delete(...names);
+      match.add(...names);
+    }
 
     if(names.length == 1 && /^default as/.test(names[0])) output.puts(keyword + ` ${base} from '${source}'\n`);
     else if(names.length > 0) output.puts(keyword + ` { ${names.join(', ')} } from '${source}'\n`);
