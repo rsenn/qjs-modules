@@ -518,7 +518,7 @@ int
 path_isin2(const char* p, const char* dir) {
   size_t i, len = path_length1(dir);
 
-  if(path_length1(p) < path_length1(dir))
+  if(path_length1(p) < len)
     return 0;
 
   for(i = 0; i < len; i++) {
