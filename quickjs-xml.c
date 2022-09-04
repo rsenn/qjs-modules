@@ -689,7 +689,7 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
       xml_write_text(ctx, value, output, depth, it->tab_atom_len > 1);
     } else if(JS_IsObject(value) && !JS_IsArray(ctx, value)) {
       int32_t num_children = xml_num_children(ctx, value);
-      xml_write_element(ctx, value, output, depth, num_children == -1);
+      xml_write_element(ctx, value, output, depth, num_children <= 0);
     }
 
     JS_FreeValue(ctx, value);
