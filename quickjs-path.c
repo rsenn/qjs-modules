@@ -562,7 +562,7 @@ js_path_toarray(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       js_index_range(ctx, len, argc - 1, argv + 1, &ir);
     }
 
-    printf("IndexRange { %" PRId64 ", %" PRId64 " }\n", ir.start, ir.end);
+    //printf("IndexRange { %" PRId64 ", %" PRId64 " }\n", ir.start, ir.end);
 
     if(argc < 3)
       ir.end = len;
