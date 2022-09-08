@@ -4,11 +4,11 @@ import * as fs from 'fs';
 import * as pointer from 'pointer';
 import * as location from 'location';
 import Console from 'console';
-import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from './lib/dom.js';
-import { define, getOpt } from './lib/util.js';
-import * as util from './lib/util.js';
-import * as dom from './lib/dom.js';
-import REPL from './lib/repl.js';
+import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from 'dom';
+import { define, getOpt } from 'util';
+import * as util from 'util';
+import * as dom from 'dom';
+import REPL from 'repl';
 
 let repl;
 
@@ -61,14 +61,23 @@ function main(...args) {
   });
   Object.assign(globalThis, { ...globalThis.xml, ...dom, ...util, ...pointer, ...location });
 
-  console.log('params', params);
-
-  repl = new REPL(
+  repl = globalThis.repl = new REPL(
     '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
     false
   );
   repl.show = repl.printFunction((...args) => console.log(...args));
-  repl.historyLoad();
+  repl.historyLoad(null, fs);
+  repl.directives = {
+    i: [
+      name => {
+        import(name).then(m => {
+          globalThis[name] = m;
+          repl.printStatus(`Loaded '${name}'.`);
+        });
+      },
+      'import a module'
+    ]
+  };
   repl.runSync();
 }
 
@@ -79,20 +88,20 @@ try {
   std.exit(1);
 }
 
-function load(filename) {
+function load(filename, ...args) {
   let data;
 
   try {
     data = fs.readFileSync(filename, 'utf-8');
   } catch(e) {}
 
-  if(data) return this.read(data);
+  if(data) return xml.read(data, filename, ...args);
 }
 function save(filename, obj) {
   let data;
 
   try {
-    data = this.write(obj);
+    data = xml.write(obj);
   } catch(e) {}
   if(data) fs.writeFileSync(filename, data);
 }

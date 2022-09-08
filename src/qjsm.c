@@ -71,9 +71,11 @@ static thread_local Vector module_list = VECTOR_INIT();
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
 static JSModuleLoaderFunc* module_loader = 0;
-JSValue package_json;
-
-static const char* jsm_module_extensions[] = {
+static JSValue package_json, replObj;
+static const char* exename;
+static JSRuntime* rt;
+static JSContext* ctx;
+static const char* module_extensions[] = {
     CONFIG_SHEXT,
     ".js",
     "/index.js",
@@ -99,9 +101,9 @@ static BOOL
 module_has_suffix(JSContext* ctx, const char* module_name) {
   size_t i, n;
 
-  n = countof(jsm_module_extensions);
+  n = countof(module_extensions);
   for(i = 0; i < n; i++)
-    if(has_suffix(module_name, jsm_module_extensions[i]))
+    if(has_suffix(module_name, module_extensions[i]))
       return TRUE;
 
   return FALSE;
@@ -369,6 +371,8 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
   JS_SetPropertyStr(ctx, global_obj, "module", JS_NewObject(ctx));
   jsm_stack_push(ctx, file);
 
+  errno = 0;
+
   val = js_eval_file(ctx, file, module);
   jsm_stack_pop(ctx);
   if(JS_IsException(val)) {
@@ -564,12 +568,12 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
     return 0;
 
   strcpy(s, module_name);
-  n = countof(jsm_module_extensions);
+  n = countof(module_extensions);
   for(i = 0; i < n; i++) {
     s[len] = '\0';
-    if(has_suffix(s, jsm_module_extensions[i]))
+    if(has_suffix(s, module_extensions[i]))
       continue;
-    strcat(s, jsm_module_extensions[i]);
+    strcat(s, module_extensions[i]);
 
     if((t = fn(ctx, s)))
       break;
@@ -1281,10 +1285,36 @@ jsm_import_parse(ImportDirective* imp, const char* spec) {
   }
 }
 
+static void
+jsm_start_interactive(JSContext* ctx) {
+  char str[512];
+  const char* home;
+
+  if(!JS_IsUndefined(replObj))
+    return;
+
+  home = getenv("HOME");
+
+  /* clang-format off */
+  snprintf(str,
+    sizeof(str),
+    "import REPL from 'repl';\n"
+    "import fs from 'fs';\n"
+    "const history = '%s/.%s_history';\n"
+    "globalThis.repl = new REPL('qjsm');\n"
+    "repl.historyLoad(null, fs);\n"
+    "repl.directives = { i: [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ] };\n"
+    "repl.show = console.log;\n"
+    "repl.runSync();\n",
+    home, exename);
+  /* clang-format on */
+
+  js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
+  replObj = js_eval_buf(ctx, str, strlen(str), 0, JS_EVAL_TYPE_MODULE);
+}
+
 int
 main(int argc, char** argv) {
-  JSRuntime* rt;
-  JSContext* ctx;
   struct trace_malloc_data trace_data = {0};
   int optind;
   char* expr = 0;
@@ -1302,11 +1332,9 @@ main(int argc, char** argv) {
   int load_jscalc;
 #endif
   size_t stack_size = 0;
-  const char* exename;
 
   package_json = JS_UNDEFINED;
-
-  /*init_list_head(&pollhandlers);*/
+  replObj = JS_UNDEFINED;
 
   {
     const char* p;
@@ -1603,27 +1631,8 @@ main(int argc, char** argv) {
                 0,
                 JS_EVAL_TYPE_MODULE);
 
-    if(interactive) {
-      char str[512];
-      const char* home = getenv("HOME");
-
-      /* clang-format off */
-      snprintf(str,
-        sizeof(str),
-        "import REPL from 'repl';\n"
-        "import fs from 'fs';\n"
-        "const history = '%s/.%s_history';\n"
-        "globalThis.repl = new REPL('qjsm');\n"
-        "repl.historyLoad(null, fs);\n"
-        "repl.directives = { i: [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ] };\n"
-        "repl.show = console.log;\n"
-        "repl.runSync();\n",
-        home, exename);
-      /* clang-format on */
-
-      js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
-      js_eval_str(ctx, str, 0, JS_EVAL_TYPE_MODULE);
-    }
+    if(interactive)
+      jsm_start_interactive(ctx);
 
     js_std_loop(ctx);
   }

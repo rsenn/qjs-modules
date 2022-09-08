@@ -1569,10 +1569,7 @@ js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
 
 JSValue
 js_map_new(JSContext* ctx, JSValueConst entries) {
-  JSValue map, ctor = js_global_get_str(ctx, "Map");
-  map = JS_CallConstructor(ctx, ctor, 1, &entries);
-  JS_FreeValue(ctx, ctor);
-  return map;
+  return js_object_new(ctx, "Map", 1, &entries);
 }
 
 JSValue

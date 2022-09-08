@@ -7,6 +7,7 @@
 #include "include/buffer-utils.h"
 #include "include/location.h"
 #include "include/debug.h"
+#include "include/virtual-properties.h"
 
 #include <stdint.h>
 
@@ -57,7 +58,7 @@ typedef struct {
 } OutputValue;
 
 typedef struct {
-  BOOL flat, tolerant;
+  BOOL flat, tolerant, location;
   const char* const* self_closing_tags;
 } ParseOptions;
 
@@ -113,6 +114,8 @@ character_classes_init(int c[256]) {
     xml_debug("next  {%zu}\n", out->idx); \
     element = JS_NewObject(ctx); \
     JS_SetPropertyUint32(ctx, out->obj, out->idx++, element); \
+    if(opts.location) \
+      virtual_properties_set(&vprop, ctx, element, locObj); \
   } while(0)
 
 #define yield_return(index) \
@@ -124,14 +127,27 @@ character_classes_init(int c[256]) {
     } \
   } while(0)
 
-#define parse_getc() ((c = *++ptr), ptr >= end ? done = TRUE : 0)
+#define parse_getc() \
+  do { \
+    parse_loc() c = *++ptr; \
+    if(ptr >= end) \
+      done = TRUE; \
+  } while(0)
+
+#define parse_loc() \
+  if(*ptr == '\n') { \
+    lineno++; \
+    column = 1; \
+  } else { \
+    column++; \
+  }
+
 #define parse_skip(cond) \
   do { \
     c = *ptr; \
     if(!(cond)) \
       break; \
-    if(++ptr >= end) \
-      done = TRUE; \
+    parse_loc() if(++ptr >= end) done = TRUE; \
   } while(!done)
 
 #define parse_until(cond) parse_skip(!(cond))
@@ -396,16 +412,36 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth)
 }
 
 static JSValue
+make_tuple(JSContext* ctx, JSValue a, JSValue b) {
+  JSValue ret = JS_NewArray(ctx);
+
+  JS_SetPropertyUint32(ctx, ret, 0, a);
+  JS_SetPropertyUint32(ctx, ret, 1, b);
+
+  return ret;
+}
+
+static JSValue
+js_xml_parse_location(JSContext* ctx, uint32_t line, uint32_t column) {
+  return make_tuple(ctx, JS_NewUint32(ctx, line), JS_NewUint32(ctx, column));
+}
+
+static JSValue
 js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_name, ParseOptions opts) {
   BOOL done = FALSE;
   const uint8_t *ptr, *end, *start;
+  uint32_t lineno = 1, column = 1;
   uint8_t c;
   OutputValue* out;
-  JSValue ret, element = JS_UNDEFINED;
+  JSValue ret, element = JS_UNDEFINED, locObj;
   Vector st = VECTOR(ctx);
   Location loc = {0, JS_NewAtom(ctx, input_name)};
+  VirtualProperties vprop;
   ptr = buf;
   end = buf + len;
+
+  if(opts.location)
+    vprop = virtual_properties_map(ctx, js_object_new(ctx, "WeakMap", 0, 0));
 
   xml_debug("js_xml_parse input_name: %s flat: %s\n", input_name, opts.flat ? "TRUE" : "FALSE");
 
@@ -466,10 +502,14 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
     start = ptr;
     c = *ptr;
 
+    if(opts.location)
+      locObj = js_xml_parse_location(ctx, lineno, column);
+
     if(parse_is(c, START)) {
       const uint8_t* name;
       size_t namelen;
       BOOL closing = FALSE, self_closing = FALSE;
+
       parse_getc();
       if(parse_is(c, SLASH)) {
         closing = TRUE;
@@ -623,6 +663,10 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
     }
   }
   JS_FreeAtom(ctx, loc.file);
+
+  if(opts.location)
+    return make_tuple(ctx, ret, vprop.this_obj);
+
   return ret;
 }
 
@@ -631,7 +675,12 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   JSValue ret;
   InputBuffer input = js_input_chars(ctx, argv[0]);
   const char* input_name = 0;
-  ParseOptions opts = {.flat = FALSE, .tolerant = FALSE, .self_closing_tags = default_self_closing_tags};
+  ParseOptions opts = {
+      .flat = FALSE,
+      .tolerant = FALSE,
+      .location = FALSE,
+      .self_closing_tags = default_self_closing_tags,
+  };
 
   if(input.data == 0 || input.size == 0) {
     JS_ThrowReferenceError(ctx, "xml.read(): expecting buffer or string");
@@ -646,6 +695,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
       JSValue tags;
       opts.flat = js_get_propertystr_bool(ctx, argv[2], "flat");
       opts.tolerant = js_get_propertystr_bool(ctx, argv[2], "tolerant");
+      opts.location = js_get_propertystr_bool(ctx, argv[2], "location");
       tags = JS_GetPropertyStr(ctx, argv[2], "selfClosingTags");
       if(JS_IsArray(ctx, tags)) {
         int ac = -1;

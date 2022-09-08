@@ -337,8 +337,9 @@ set(tree_walker_SOURCES ${vector_SOURCES} src/property-enumeration.c
 set(xml_SOURCES
     ${vector_SOURCES} src/property-enumeration.c include/property-enumeration.h
     ${utils_SOURCES} ${location_SOURCES} ${inspect_SOURCES})
+set(getdents_SOURCES src/getdents.c include/getdents.h)
 set(path_SOURCES src/path.c include/path.h ${utils_SOURCES}
-                 ${buffer_utils_SOURCES})
+                 ${buffer_utils_SOURCES} ${getdents_SOURCES})
 if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} src/readlink.c)
 endif(WIN32 OR MINGW)
@@ -535,11 +536,21 @@ endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
 file(GLOB LIBJS ${CMAKE_CURRENT_SOURCE_DIR}/lib/*.js)
 file(GLOB LIBLEXER ${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js)
+file(GLOB LIBXML ${CMAKE_CURRENT_SOURCE_DIR}/lib/xml/*.js)
 list(REMOVE_ITEM LIBJS lib/require.js)
 list(REMOVE_ITEM LIBJS lib/fs.js)
 
+list(
+  FILTER
+  LIBJS
+  EXCLUDE
+  REGEX
+  "/(archive|bjson|blob|child_process|deep|gpio|inspect|lexer|location|misc|mmap|path|pointer|predicate|repeater|sockets|stream|syscallerror|textcode|tree_walker|xml)\.js$"
+)
+
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
 install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
+install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 
