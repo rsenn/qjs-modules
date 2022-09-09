@@ -18,19 +18,23 @@ struct linux_dirent {
   char d_name[];
 };
 
-           struct linux_dirent64 {
-               ino64_t        d_ino;    /* 64-bit inode number */
-               off64_t        d_off;    /* 64-bit offset to next structure */
-               unsigned short d_reclen; /* Size of this dirent */
-               unsigned char  d_type;   /* File type */
-               char           d_name[]; /* Filename (null-terminated) */
-           };
-
+struct linux_dirent64 {
+  ino64_t d_ino;           /* 64-bit inode number */
+  off64_t d_off;           /* 64-bit offset to next structure */
+  unsigned short d_reclen; /* Size of this dirent */
+  unsigned char d_type;    /* File type */
+  char d_name[];           /* Filename (null-terminated) */
+};
 
 struct getdents_reader {
   int fd, nread, bpos;
   char buf[BUFFER_SIZE];
 };
+
+size_t
+getdents_size() {
+  return sizeof(Directory);
+}
 
 int
 getdents_open(Directory* dir, const char* path) {
@@ -39,6 +43,17 @@ getdents_open(Directory* dir, const char* path) {
   if((dir->fd = open(path, O_RDONLY | O_DIRECTORY)) == -1)
     return -1;
 
+  return 0;
+}
+
+int
+getdents_adopt(Directory* dir, int fd) {
+  struct stat st;
+  dir->nread = dir->bpos = 0;
+  if(fstat(fd, &st) == -1)
+    return -1;
+
+  dir->fd = fd;
   return 0;
 }
 
@@ -67,7 +82,7 @@ getdents_read(Directory* dir) {
 const char*
 getdents_name(const Directory* dir) {
   if(dir->bpos < dir->nread) {
-      DirEntry* d = DIRENT(dir);
+    DirEntry* d = DIRENT(dir);
 
     return d->d_name;
   }
@@ -77,7 +92,7 @@ getdents_name(const Directory* dir) {
 int
 getdents_type(const Directory* dir) {
   if(dir->bpos < dir->nread) {
-      DirEntry* d = DIRENT(dir);
+    DirEntry* d = DIRENT(dir);
     return dir->buf[dir->bpos + d->d_reclen - 1];
   }
   return -1;

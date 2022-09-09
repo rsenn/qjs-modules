@@ -365,7 +365,7 @@ jsm_stack_pop(JSContext* ctx) {
 static int
 jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
   JSValue val;
-  int32_t ret = 0;
+  int32_t ret;
   JSValue global_obj = JS_GetGlobalObject(ctx);
 
   JS_SetPropertyStr(ctx, global_obj, "module", JS_NewObject(ctx));
@@ -381,15 +381,25 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
     js_error_print(ctx, ctx->rt->current_exception);
     js_value_fwrite(ctx, ctx->rt->current_exception, stderr);
     js_std_dump_error(ctx);
-    ret = -1;
-  } else if(JS_IsModule(val)) {
+    return -1;
+  } else if(JS_IsModule(val) || module) {
+    if(!JS_IsModule(val)) {
+      JSModuleDef* m = js_module_at(ctx, -1);
+      val = JS_MKPTR(JS_TAG_MODULE, m);
+    }
     module_exports_get(ctx, JS_VALUE_GET_PTR(val), TRUE, global_obj);
   } else {
     JS_ToInt32(ctx, &ret, val);
-    JS_FreeValue(ctx, val);
   }
+
+  fprintf(stderr, "Included '%s': ", file);
+  js_value_fwrite(ctx, val, stderr);
+  fputc('\n', stderr);
+  if(!JS_IsModule(val))
+    JS_FreeValue(ctx, val);
+
   JS_FreeValue(ctx, global_obj);
-  return ret;
+  return 0;
 }
 
 JSModuleDef* js_init_module_deep(JSContext*, const char*);

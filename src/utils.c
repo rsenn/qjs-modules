@@ -1380,6 +1380,8 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   dbuf_putstr(db, " ");
   if(JS_IsException(value)) {
     dbuf_putstr(db, "[exception]");
+  } else if(JS_IsModule(value)) {
+    dbuf_putstr(db, "[module]");
   } else if(JS_IsFunction(ctx, value)) {
     JSValue src = js_invoke(ctx, value, "toSource", 0, 0);
     js_value_dump(ctx, src, db);

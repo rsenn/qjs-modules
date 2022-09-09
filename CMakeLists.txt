@@ -244,7 +244,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
-    bjson blob deep lexer location misc path pointer predicate repeater
+    bjson blob deep directory lexer location misc path pointer predicate repeater
     textcode sockets stream syscallerror inspect tree-walker xml)
 
 if(USE_LIBARCHIVE)
@@ -366,7 +366,6 @@ if(WIN32 OR MINGW)
   set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
 endif(WIN32 OR MINGW)
 
-set(blob_SOURCES ${vector_SOURCES} ${utils_SOURCES})
 file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h
      tutf8e/src/*.c)
 file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
@@ -378,6 +377,9 @@ set(textcode_SOURCES
 set(misc_SOURCES
     src/base64.c include/base64.h quickjs-internal.c quickjs-internal.h
     ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
+
+
+set(directory_SOURCES quickjs-directory.c ${getdents_SOURCES})
 
 set(gpio_SOURCES src/gpio.c include/gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
@@ -623,6 +625,7 @@ if(NOT BUILD_STATIC_MODULES)
       ${char_utils_SOURCES}
       ${child_process_SOURCES}
       ${deep_SOURCES}
+      ${directory_SOURCES}
       ${gpio_SOURCES}
       ${inspect_SOURCES}
       ${js_utils_SOURCES}
