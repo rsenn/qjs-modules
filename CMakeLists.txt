@@ -72,7 +72,7 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-check_functions(vfork fork waitpid execvpe setsid)
+check_functions(vfork fork waitpid execvpe setsid link)
 if(HAVE_VFORK)
   add_definitions(-DHAVE_VFORK)
 else(HAVE_VFORK)
@@ -181,7 +181,7 @@ if(HAVE_FMEMOPEN)
 endif(HAVE_FMEMOPEN)
 
 check_functions(fnmatch glob wordexp inotify_init1 inet_pton daemon)
-check_includes(fnmatch.h glob.h wordexp.h sys/inotify.h)
+check_includes(alloca.h fnmatch.h glob.h wordexp.h sys/inotify.h)
 
 if(HAVE_INET_PTON)
   add_definitions(-DHAVE_INET_PTON=1)
@@ -244,8 +244,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
-    bjson blob deep directory lexer location misc path pointer predicate repeater
-    textcode sockets stream syscallerror inspect tree-walker xml)
+    bjson blob deep directory lexer location misc path pointer predicate
+    repeater textcode sockets stream syscallerror inspect tree-walker xml)
 
 if(USE_LIBARCHIVE)
   if(BUILD_LIBARCHIVE)
@@ -318,6 +318,8 @@ set(location_SOURCES
     ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 set(syscallerror_SOURCES quickjs-syscallerror.c quickjs-syscallerror.h)
+set(blob_SOURCES quickjs-blob.c ${buffer_utils_SOURCES} ${utils_SOURCES})
+
 set(child_process_SOURCES
     src/child-process.c include/child-process.h src/property-enumeration.c
     include/property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
@@ -325,9 +327,9 @@ set(deep_SOURCES
     ${vector_SOURCES} src/pointer.c src/virtual-properties.c
     src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES}
     ${predicate_SOURCES} include/pointer.h include/virtual-properties.h)
-#set(deep_LIBRARIES qjs-predicate qjs-pointer)
-set(deep_LIBRARIES)
-unset(deep_LIBRARIES)
+set(deep_LIBRARIES qjs-predicate qjs-pointer)
+#[[set(deep_LIBRARIES)
+unset(deep_LIBRARIES)]]
 set(inspect_SOURCES
     ${vector_SOURCES} include/iteration.h ${utils_SOURCES}
     src/property-enumeration.c include/property-enumeration.h
@@ -336,7 +338,9 @@ set(tree_walker_SOURCES ${vector_SOURCES} src/property-enumeration.c
                         include/property-enumeration.h ${utils_SOURCES})
 set(xml_SOURCES
     ${vector_SOURCES} src/property-enumeration.c include/property-enumeration.h
-    ${utils_SOURCES} ${location_SOURCES} ${inspect_SOURCES})
+    ${utils_SOURCES} #${location_SOURCES} ${inspect_SOURCES}
+    src/virtual-properties.c src/location.c)
+set(xml_LIBRARIES qjs-location qjs-inspect)
 set(getdents_SOURCES src/getdents.c include/getdents.h)
 set(path_SOURCES src/path.c include/path.h ${utils_SOURCES}
                  ${buffer_utils_SOURCES} ${getdents_SOURCES})
@@ -355,12 +359,14 @@ set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${queue_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(sockets_SOURCES ${queue_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
-if(NOT HAVE_INET_PTON)
-  set(sockets_SOURCES ${sockets_SOURCES} src/inet_pton.c)
-endif(NOT HAVE_INET_PTON)
-if(NOT HAVE_INET_NTOP)
-  set(sockets_SOURCES ${sockets_SOURCES} src/inet_ntop.c)
-endif(NOT HAVE_INET_NTOP)
+if(NOT WIN32)
+  if(NOT HAVE_INET_PTON)
+    set(sockets_SOURCES ${sockets_SOURCES} src/inet_pton.c)
+  endif(NOT HAVE_INET_PTON)
+  if(NOT HAVE_INET_NTOP)
+    set(sockets_SOURCES ${sockets_SOURCES} src/inet_ntop.c)
+  endif(NOT HAVE_INET_NTOP)
+endif(NOT WIN32)
 if(WIN32 OR MINGW)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
@@ -374,14 +380,17 @@ set(textcode_SOURCES
     ${libutf_SOURCES} ${tutf8e_SOURCES} ${buffer_utils_SOURCES}
     ${utils_SOURCES} ${vector_SOURCES})
 
-set(misc_SOURCES
-    src/base64.c include/base64.h quickjs-internal.c quickjs-internal.h
-    ${path_SOURCES} ${location_SOURCES} ${vector_SOURCES})
+set(misc_SOURCES src/base64.c include/base64.h quickjs-internal.c
+                 quickjs-internal.h ${path_SOURCES} ${vector_SOURCES})
 
+set(directory_SOURCES
+    quickjs-directory.c ${getdents_SOURCES} ${char_utils_SOURCES}
+    ${utils_SOURCES} ${buffer_utils_SOURCES})
 
-set(directory_SOURCES quickjs-directory.c ${getdents_SOURCES})
+if(HAVE_SYS_MMAN_H)
+  set(gpio_SOURCES src/gpio.c include/gpio.h)
+endif(HAVE_SYS_MMAN_H)
 
-set(gpio_SOURCES src/gpio.c include/gpio.h)
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 # if(pigpio_LIBRARY)
@@ -639,7 +648,7 @@ if(NOT BUILD_STATIC_MODULES)
       ${predicate_SOURCES}
       ${queue_SOURCES}
       ${repeater_SOURCES}
-      ${sockets_SOURCES}
+      # ${sockets_SOURCES}
       ${stream_SOURCES}
       ${syscallerror_SOURCES}
       ${textcode_SOURCES}

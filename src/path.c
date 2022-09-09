@@ -811,7 +811,7 @@ path_isdir1(const char* p) {
 int
 path_isdir2(const char* p, size_t plen) {
   struct stat st;
-  int r;
+  int r = 0;
   if((r = path_stat2(p, plen, &st) == 0))
     r = S_ISDIR(st.st_mode);
   return r;
@@ -916,11 +916,14 @@ path_issocket1(const char* p) {
 
 int
 path_issocket2(const char* p, size_t plen) {
+#ifdef S_ISSOCK
   struct stat st;
   int r;
   if((r = path_stat2(p, plen, &st) == 0))
     r = S_ISSOCK(st.st_mode);
   return r;
+#endif
+  return 0;
 }
 
 int
@@ -942,9 +945,11 @@ path_issymlink1(const char* p) {
 int
 path_issymlink2(const char* p, size_t plen) {
   struct stat st;
-  int r;
+  int r = 0;
+#ifdef S_ISLNK
   if((r = path_stat2(p, plen, &st) == 0))
     r = S_ISLNK(st.st_mode);
+#endif
   return r;
 }
 

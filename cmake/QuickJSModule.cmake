@@ -43,20 +43,25 @@ function(compile_module SOURCE)
 endfunction(compile_module SOURCE)
 
 function(make_module FNAME)
-  #message(STATUS "Building QuickJS module: ${FNAME}")
   string(REGEX REPLACE "_" "-" NAME "${FNAME}")
   string(REGEX REPLACE "-" "_" VNAME "${FNAME}")
   string(TOUPPER "${FNAME}" UUNAME)
   string(REGEX REPLACE "-" "_" UNAME "${UUNAME}")
 
   set(TARGET_NAME qjs-${NAME})
+  set(DEPS ${${VNAME}_DEPS})
+  set(LIBS ${${VNAME}_LIBRARIES})
 
   if(ARGN)
     set(SOURCES ${ARGN} ${${VNAME}_SOURCES} ${COMMON_SOURCES})
-    set(DEPS ${ARGN} ${${VNAME}_DEPS})
+    ADD_UNIQUE(DEPS  ${${VNAME}_DEPS})
   else(ARGN)
     set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES} ${COMMON_SOURCES})
+    ADD_UNIQUE(LIBS  ${${VNAME}_LIBRARIES})
   endif(ARGN)
+
+  message(
+    STATUS "Building QuickJS module: ${FNAME} (deps: ${DEPS}, libs: ${LIBS})")
 
   if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     set(BUILD_SHARED_MODULES OFF)
@@ -71,7 +76,8 @@ function(make_module FNAME)
   #dump(VNAME ${VNAME}_SOURCES SOURCES)
 
   if(BUILD_SHARED_MODULES)
-    add_library(${TARGET_NAME} MODULE ${SOURCES})
+    #add_library(${TARGET_NAME} MODULE ${SOURCES})
+    add_library(${TARGET_NAME} SHARED ${SOURCES})
 
     set_target_properties(
       ${TARGET_NAME}
@@ -85,7 +91,7 @@ function(make_module FNAME)
               CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}")
 
     target_link_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
-    target_link_libraries(${TARGET_NAME} PUBLIC ${QUICKJS_LIBRARY})
+    target_link_libraries(${TARGET_NAME} PUBLIC ${LIBS} ${QUICKJS_LIBRARY})
 
     #message("C module dir: ${QUICKJS_C_MODULE_DIR}")
     install(TARGETS ${TARGET_NAME} DESTINATION "${QUICKJS_C_MODULE_DIR}"

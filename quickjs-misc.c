@@ -1946,6 +1946,7 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_UNDEFINED;
 }
 
+#ifdef HAVE_LINK
 static JSValue
 js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
 
@@ -1959,6 +1960,7 @@ js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   return JS_NewInt32(ctx, link(from, to));
 }
+#endif
 
 static JSValue
 js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -2005,7 +2007,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("setsid", 0, js_misc_setsid),
 #endif
     JS_CFUNC_DEF("unlink", 1, js_misc_unlink),
+#ifdef HAVE_LINK
     JS_CFUNC_DEF("link", 2, js_misc_link),
+#endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
@@ -2218,15 +2222,15 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 static int
 js_misc_init(JSContext* ctx, JSModuleDef* m) {
 
-  if(!js_location_class_id)
-    js_location_init(ctx, 0);
+ /* if(!js_location_class_id)
+    js_location_init(ctx, 0);*/
 
   vector_init(&js_misc_atexit_functions, ctx);
   atexit(&js_misc_atexit_handler);
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-    JS_SetModuleExport(ctx, m, "Location", location_ctor);
+   // JS_SetModuleExport(ctx, m, "Location", location_ctor);
   }
   return 0;
 }
@@ -2245,7 +2249,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-  JS_AddModuleExport(ctx, m, "Location");
+  //JS_AddModuleExport(ctx, m, "Location");
   return m;
 }
 

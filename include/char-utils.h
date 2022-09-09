@@ -316,6 +316,7 @@ size_t scan_xlonglong(const char*, uint64_t*);
 size_t scan_whitenskip(const char*, size_t);
 size_t scan_nonwhitenskip(const char*, size_t);
 size_t utf8_strlen(const void*, size_t);
+size_t utf8_towcs(const void*, wchar_t*);
 int case_lowerc(int);
 int case_starts(const char*, const char*);
 int case_diffb(const void*, size_t, const void*);

@@ -1,4 +1,81 @@
 #define _GNU_SOURCE
+#include "getdents.h"
+
+#ifdef _WIN32
+#include <windows.h>
+
+#define BUFFER_SIZE 1024 * 1024 * 5
+#define DIRENT(d) ((WIN32_FIND_DATAW*)&(d)->fdw)
+
+struct getdents_reader {
+  HANDLE h;
+  BOOL first;
+  WIN32_FIND_DATAW fdw;
+};
+
+size_t
+getdents_size() {
+  return sizeof(struct getdents_reader);
+}
+
+void
+getdents_clear(Directory* d) {
+  d->h = INVALID_HANDLE_VALUE;
+  d->first = FALSE;
+}
+
+int
+getdents_open(Directory* d, const char* path) {
+  size_t pathlen = utf8_strlen(path);
+  wchar_t wp[pathlen + 1];
+
+  utf8_towcs(path, wp);
+
+  if((d->h = FindFirstFileW(wp, &d->fdw)) == INVALID_HANDLE_VALUE)
+    return -1;
+
+  d->first = TRUE;
+
+  return 0;
+}
+
+int
+getdents_adopt(Directory* d, intptr_t hnd) {
+  if(hnd == INVALID_HANDLE_VALUE)
+    return -1;
+  d->h = hnd;
+  return 0;
+}
+
+DirEntry*
+getdents_read(Directory* d) {
+  if(d->first) {
+    d->first = FALSE;
+    return &d->fdw;
+  }
+
+  return 0;
+}
+
+const char*
+getdents_name(const DirEntry* e) {
+  WIN32_FIND_DATAW* fdw = (void*)e;
+  return fdw->cFileName;
+}
+
+int
+getdents_type(const DirEntry* e) {
+  WIN32_FIND_DATAW* fdw = (void*)e;
+  return fdw->dwFileAttributes;
+}
+
+void
+getdents_close(Directory* d) {
+  CloseHandle(d->h);
+  d->h = INVALID_HANDLE_VALUE;
+}
+
+#else
 #include <dirent.h> /* Defines DT_* constants */
 #include <fcntl.h>
 #include <stdio.h>
@@ -6,10 +83,9 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
-#include "getdents.h"
 
 #define BUFFER_SIZE 1024 * 1024 * 5
-#define DIRENT(dir) ((struct linux_dirent*)&(dir)->buf[(dir)->bpos])
+#define DIRENT(d) ((struct linux_dirent64*)&(d)->buf[(d)->bpos])
 
 struct linux_dirent {
   long d_ino;
@@ -36,43 +112,49 @@ getdents_size() {
   return sizeof(Directory);
 }
 
-int
-getdents_open(Directory* dir, const char* path) {
-  dir->nread = dir->bpos = 0;
+void
+getdents_clear(Directory* d) {
+  d->fd = -1;
+  d->nread = d->bpos = 0;
+}
 
-  if((dir->fd = open(path, O_RDONLY | O_DIRECTORY)) == -1)
+int
+getdents_open(Directory* d, const char* path) {
+  d->nread = d->bpos = 0;
+
+  if((d->fd = open(path, O_RDONLY | O_DIRECTORY)) == -1)
     return -1;
 
   return 0;
 }
 
 int
-getdents_adopt(Directory* dir, int fd) {
+getdents_adopt(Directory* d, intptr_t fd) {
   struct stat st;
-  dir->nread = dir->bpos = 0;
+  d->nread = d->bpos = 0;
   if(fstat(fd, &st) == -1)
     return -1;
 
-  dir->fd = fd;
+  d->fd = fd;
   return 0;
 }
 
 DirEntry*
-getdents_read(Directory* dir) {
+getdents_read(Directory* d) {
   for(;;) {
-    if(!dir->nread || dir->bpos >= dir->nread) {
-      dir->bpos = 0;
-      dir->nread = syscall(SYS_getdents64, dir->fd, dir->buf, sizeof(dir->buf));
-      if(dir->nread == -1)
+    if(!d->nread || d->bpos >= d->nread) {
+      d->bpos = 0;
+      d->nread = syscall(SYS_getdents64, d->fd, d->buf, sizeof(d->buf));
+      if(d->nread <= 0)
         break;
     }
-    while(dir->bpos < dir->nread) {
-      DirEntry* d = DIRENT(dir);
-      char d_type = dir->buf[dir->bpos + d->d_reclen - 1];
-      dir->bpos += d->d_reclen;
+    while(d->bpos < d->nread) {
+      struct linux_dirent64* e = DIRENT(d);
+      char d_type = d->buf[d->bpos + e->d_reclen - 1];
+      d->bpos += e->d_reclen;
 
-      if(d->d_ino != 0 /*&& d_type == DT_REG*/)
-        return d;
+      if(e->d_ino != 0 /*&& d_type == DT_REG*/)
+        return e;
     }
   }
 
@@ -80,26 +162,20 @@ getdents_read(Directory* dir) {
 }
 
 const char*
-getdents_name(const Directory* dir) {
-  if(dir->bpos < dir->nread) {
-    DirEntry* d = DIRENT(dir);
+getdents_name(const DirEntry* e) {
 
-    return d->d_name;
-  }
-  return 0;
+  return ((struct linux_dirent64*)e)->d_name;
 }
 
 int
-getdents_type(const Directory* dir) {
-  if(dir->bpos < dir->nread) {
-    DirEntry* d = DIRENT(dir);
-    return dir->buf[dir->bpos + d->d_reclen - 1];
-  }
-  return -1;
+getdents_type(const DirEntry* e) {
+  return ((struct linux_dirent64*)e)->d_type;
+  // return ((char*)e)[e->d_reclen - 1];
 }
 
 void
-getdents_close(Directory* dir) {
-  close(dir->fd);
-  dir->fd = -1;
+getdents_close(Directory* d) {
+  close(d->fd);
+  d->fd = -1;
 }
+#endif /* defined(_WIN32) */

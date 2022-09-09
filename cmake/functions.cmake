@@ -124,5 +124,7 @@ function(ADD_UNIQUE LIST)
 endfunction(ADD_UNIQUE LIST)
 
 macro(SYMLINK TARGET LINK_NAME)
-  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} ${LINK_NAME})")
+  install(
+    CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} ${LINK_NAME})"
+  )
 endmacro(SYMLINK TARGET LINK_NAME)

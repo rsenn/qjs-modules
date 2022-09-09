@@ -232,6 +232,10 @@ macro(configure_quickjs)
   endif(NOT QUICKJS_CONFIGURATION_SHOWN)
 
   configure_quickjs_module_path()
+
+  if(NOT QUICKJS_LIBRARY)
+    set(QUICKJS_LIBRARY quickjs)
+  endif(NOT QUICKJS_LIBRARY)
 endmacro(configure_quickjs)
 
 macro(configure_quickjs_module_path)

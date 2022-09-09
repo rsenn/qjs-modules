@@ -50,7 +50,7 @@ location_tovalue(const Location* loc, JSContext* ctx) {
   return ret;
 }
 
-VISIBLE void
+/*VISIBLE*/ void
 location_init(Location* loc) {
   loc->ref_count = 1;
   loc->file = -1;

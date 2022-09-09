@@ -173,6 +173,16 @@ utf8_strlen(const void* in, size_t len) {
   return i;
 }
 
+size_t
+utf8_towcs(const void* in, wchar_t* ret) {
+  size_t i;
+
+  const uint8_t* ptr = in;
+  for(i = 0; *ptr; i++) { ret[i] = unicode_from_utf8(ptr, ptr[1] == '\0' ? 1 : ptr[2] == '\0' ? 2 : ptr[3] ? 3 : 4, &ptr); }
+  ret[i] = '\0';
+  return i;
+}
+
 BOOL
 utf16_multiword(const void* in) {
   const uint16_t* p16 = in;

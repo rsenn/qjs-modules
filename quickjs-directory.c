@@ -1,15 +1,13 @@
 #include "include/defines.h"
 #include "include/getdents.h"
 #include "include/utils.h"
-#include "include/buffer-utils.h"
-#include "include/debug.h"
+#include <errno.h>
+#include <string.h>
 
 /**
  * \defgroup quickjs-bjson QuickJS module: directory - Directory reader
  * @{
  */
-#define max(a, b) ((a) > (b) ? (a) : (b))
-
 thread_local VISIBLE JSClassID js_directory_class_id = 0;
 thread_local JSValue directory_proto = {{JS_TAG_UNDEFINED}}, directory_ctor = {{JS_TAG_UNDEFINED}};
 
@@ -19,19 +17,23 @@ enum {
   FLAG_BOTH = FLAG_NAME | FLAG_TYPE,
 };
 enum {
+  DIRECTORY_OPEN,
+  DIRECTORY_ADOPT,
   DIRECTORY_NEXT,
+  DIRECTORY_CLOSE,
+  DIRECTORY_ITERATOR,
 };
 
 static JSValue
-js_directory_value(JSContext* ctx, Directory* directory, int dflags) {
+js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
   const char* name = 0;
   int type = -1;
   JSValue ret;
 
   if(dflags & FLAG_NAME)
-    name = getdents_name(directory);
+    name = getdents_name(entry);
   if(dflags & FLAG_TYPE)
-    type = getdents_type(directory);
+    type = getdents_type(entry);
 
   switch(dflags) {
     case FLAG_NAME: {
@@ -58,45 +60,24 @@ js_directory_data(JSContext* ctx, JSValueConst value) {
 }
 
 static JSValue
-js_directory_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  Directory* directory;
-  JSValue ret = JS_UNDEFINED;
-  if(!(directory = js_directory_data(ctx, this_val)))
-    return ret;
-  switch(magic) {
-    /* case DIRECTORY_SIZE: {
-       ret = JS_NewUint32(ctx, directory->size);
-       break;
-     }
-
-     case DIRECTORY_TYPE: {
-       ret = JS_NewString(ctx, directory->type);
-       break;
-     }*/
-  }
-  return ret;
-}
-
-static JSValue
 js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
   Directory* directory;
 
-  if(!(directory = js_mallocz(ctx, getdents_size())))
-    ;
-  return JS_ThrowOutOfMemory(ctx);
+  if(!(directory = js_malloc(ctx, getdents_size())))
+    return JS_ThrowOutOfMemory(ctx);
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  getdents_clear(directory);
+
+  /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
   if(!JS_IsObject(proto))
     proto = directory_proto;
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_directory_class_id);
   if(JS_IsException(obj))
     goto fail;
@@ -111,7 +92,7 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       const char* dir;
       dir = JS_ToCString(ctx, argv[0]);
 
-      getdents_open(dir, dir);
+      getdents_open(directory, dir);
       JS_FreeCString(ctx, dir);
     }
   }
@@ -134,6 +115,26 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     return JS_EXCEPTION;
 
   switch(magic) {
+    case DIRECTORY_OPEN: {
+      const char* dir;
+      dir = JS_ToCString(ctx, argv[0]);
+
+      if(getdents_open(directory, dir))
+        ret = JS_ThrowInternalError(ctx, "getdents_open(%s) failed: %s", dir, strerror(errno));
+
+      JS_FreeCString(ctx, dir);
+      break;
+    }
+    case DIRECTORY_ADOPT: {
+      int32_t fd = -1;
+
+      JS_ToInt32(ctx, &fd, argv[0]);
+
+      if(getdents_adopt(directory, fd))
+        ret = JS_ThrowInternalError(ctx, "getdents_adopt(%d) failed: %s", fd, strerror(errno));
+
+      break;
+    }
     case DIRECTORY_NEXT: {
       DirEntry* entry;
       int32_t flags = FLAG_BOTH;
@@ -145,11 +146,20 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         if(argc > 0)
           JS_ToInt32(ctx, &flags, argv[0]);
 
-        value = js_directory_value(ctx, directory, flags);
+        value = js_directory_entry(ctx, entry, flags);
       } else {
+        getdents_close(directory);
         done = TRUE;
       }
       ret = js_iterator_result(ctx, value, done);
+      break;
+    }
+    case DIRECTORY_ITERATOR: {
+      ret = JS_DupValue(ctx, this_val);
+      break;
+    }
+    case DIRECTORY_CLOSE: {
+      getdents_close(directory);
       break;
     }
   }
@@ -172,14 +182,12 @@ static JSClassDef js_directory_class = {
 };
 
 static const JSCFunctionListEntry js_directory_funcs[] = {
+    JS_CFUNC_MAGIC_DEF("open", 1, js_directory_method, DIRECTORY_OPEN),
+    JS_CFUNC_MAGIC_DEF("adopt", 1, js_directory_method, DIRECTORY_ADOPT),
     JS_CFUNC_MAGIC_DEF("next", 0, js_directory_method, DIRECTORY_NEXT),
-    /*    JS_CFUNC_MAGIC_DEF("stream", 0, js_directory_method, DIRECTORY_STREAM),
-        JS_CFUNC_MAGIC_DEF("slice", 0, js_directory_method, DIRECTORY_SLICE),
-        JS_CFUNC_MAGIC_DEF("text", 0, js_directory_method, DIRECTORY_TEXT),
-        JS_CGETSET_MAGIC_DEF("size", js_directory_get, 0, DIRECTORY_SIZE),
-        JS_CGETSET_MAGIC_DEF("type", js_directory_get, 0, DIRECTORY_TYPE),*/
+    JS_CFUNC_MAGIC_DEF("close", 0, js_directory_method, DIRECTORY_CLOSE),
+    JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_directory_method, DIRECTORY_ITERATOR),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Directory", JS_PROP_CONFIGURABLE),
-
     JS_PROP_INT32_DEF("NAME", FLAG_NAME, 0),
     JS_PROP_INT32_DEF("TYPE", FLAG_TYPE, 0),
 };

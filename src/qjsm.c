@@ -9,7 +9,9 @@
 #include <fcntl.h>
 #include <time.h>
 #include <signal.h>
+#ifdef HAVE_ALLOCA_H
 #include <alloca.h>
+#endif
 /*#include <sys/poll.h>*/
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
