@@ -72,7 +72,7 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-check_functions(vfork fork waitpid execvpe setsid link)
+check_functions(vfork fork waitpid execvpe setsid )
 if(HAVE_VFORK)
   add_definitions(-DHAVE_VFORK)
 else(HAVE_VFORK)
@@ -159,6 +159,11 @@ check_function_exists(realpath HAVE_REALPATH)
 if(HAVE_REALPATH)
   add_definitions(-DHAVE_REALPATH=1)
 endif(HAVE_REALPATH)
+
+check_function_exists(link HAVE_LINK)
+if(HAVE_LINK)
+  add_definitions(-DHAVE_LINK=1)
+endif(HAVE_LINK)
 
 check_function_exists(lstat HAVE_LSTAT)
 if(HAVE_LSTAT)

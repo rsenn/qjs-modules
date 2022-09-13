@@ -236,6 +236,9 @@ macro(configure_quickjs)
   if(NOT QUICKJS_LIBRARY)
     set(QUICKJS_LIBRARY quickjs)
   endif(NOT QUICKJS_LIBRARY)
+
+  set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath=${QUICKJS_C_MODULE_DIR})
+
 endmacro(configure_quickjs)
 
 macro(configure_quickjs_module_path)
@@ -250,6 +253,8 @@ macro(configure_quickjs_module_path)
                                                  "QuickJS modules search path")
 
   message(STATUS "\tmodule search path: ${QUICKJS_MODULE_PATH}")
+
+
 endmacro(configure_quickjs_module_path)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
