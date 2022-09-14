@@ -2222,15 +2222,15 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 static int
 js_misc_init(JSContext* ctx, JSModuleDef* m) {
 
- /* if(!js_location_class_id)
-    js_location_init(ctx, 0);*/
+  /* if(!js_location_class_id)
+     js_location_init(ctx, 0);*/
 
   vector_init(&js_misc_atexit_functions, ctx);
   atexit(&js_misc_atexit_handler);
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-   // JS_SetModuleExport(ctx, m, "Location", location_ctor);
+    // JS_SetModuleExport(ctx, m, "Location", location_ctor);
   }
   return 0;
 }
@@ -2249,7 +2249,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-  //JS_AddModuleExport(ctx, m, "Location");
+  // JS_AddModuleExport(ctx, m, "Location");
   return m;
 }
 

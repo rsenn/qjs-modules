@@ -394,9 +394,9 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
     JS_ToInt32(ctx, &ret, val);
   }
 
-  fprintf(stderr, "Included '%s': ", file);
+/*  fprintf(stderr, "Included '%s': ", file);
   js_value_fwrite(ctx, val, stderr);
-  fputc('\n', stderr);
+  fputc('\n', stderr);*/
   if(!JS_IsModule(val))
     JS_FreeValue(ctx, val);
 

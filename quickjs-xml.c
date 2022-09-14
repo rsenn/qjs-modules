@@ -866,7 +866,7 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   character_classes_init(chars);
 
   if(js_location_class_id == 0)
-     js_location_init(ctx, 0);
+    js_location_init(ctx, 0);
 
   JS_SetModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
 
