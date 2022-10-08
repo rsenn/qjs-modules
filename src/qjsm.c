@@ -394,9 +394,9 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
     JS_ToInt32(ctx, &ret, val);
   }
 
-/*  fprintf(stderr, "Included '%s': ", file);
-  js_value_fwrite(ctx, val, stderr);
-  fputc('\n', stderr);*/
+  /*  fprintf(stderr, "Included '%s': ", file);
+    js_value_fwrite(ctx, val, stderr);
+    fputc('\n', stderr);*/
   if(!JS_IsModule(val))
     JS_FreeValue(ctx, val);
 
@@ -1305,6 +1305,9 @@ jsm_start_interactive(JSContext* ctx) {
   if(!JS_IsUndefined(replObj))
     return;
 
+  /*if(!interactive)
+    fputs("Entering interactive mode...\n", stderr);*/
+
   home = getenv("HOME");
 
   /* clang-format off */
@@ -1645,6 +1648,8 @@ main(int argc, char** argv) {
 
     if(interactive)
       jsm_start_interactive(ctx);
+    else
+      signal(SIGUSR1, jsm_start_interactive);
 
     js_std_loop(ctx);
   }

@@ -97,7 +97,7 @@ path_absolute2(const char* path, size_t len) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
 
- /* if(db.buf)*/ {
+  /* if(db.buf)*/ {
     path_absolute3(path, len, &db);
     dbuf_0(&db);
   }

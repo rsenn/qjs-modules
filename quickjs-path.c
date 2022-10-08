@@ -24,12 +24,17 @@ enum path_methods {
   METHOD_ABSOLUTE = 0,
   METHOD_APPEND,
   METHOD_BASENAME,
+  METHOD_BASEPOS,
+  METHOD_BASELEN,
   METHOD_CANONICAL,
   METHOD_COLLAPSE,
   METHOD_CONCAT,
   METHOD_DIRNAME,
+  METHOD_DIRLEN,
   METHOD_EXISTS,
   METHOD_EXTNAME,
+  METHOD_EXTPOS,
+  METHOD_EXTLEN,
   METHOD_FIND,
   METHOD_FNMATCH,
   METHOD_GETCWD,
@@ -57,7 +62,9 @@ enum path_methods {
   METHOD_SKIPS,
   METHOD_SKIP_SEPARATOR,
   METHOD_SPLIT,
-  METHOD_AT
+  METHOD_AT,
+  METHOD_OBJECT,
+  METHOD_FROMOBJ,
 };
 
 static JSValue
@@ -82,6 +89,19 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewStringLen(ctx, o, len);
       break;
     }
+    case METHOD_BASEPOS: {
+      const char* o = basename(a);
+      ret = JS_NewUint32(ctx, utf8_strlen(a, o - a));
+      break;
+    }
+    case METHOD_BASELEN: {
+      const char* o = basename(a);
+      size_t len = strlen(o);
+      if(b && str_ends(o, b))
+        len -= strlen(b);
+      ret = JS_NewUint32(ctx, utf8_strlen(o, len));
+      break;
+    }
 
     case METHOD_DIRNAME: {
       if((pos = str_rchrs(a, "/\\", 2)) < alen)
@@ -90,6 +110,12 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         ret = JS_NULL;
       else
         ret = JS_NewStringLen(ctx, ".", 1);
+      break;
+    }
+
+    case METHOD_DIRLEN: {
+      pos = str_rchrs(a, "/\\", 2);
+      ret = JS_NewUint32(ctx, utf8_strlen(a, pos));
       break;
     }
 
@@ -122,6 +148,18 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
     case METHOD_EXTNAME: {
       ret = JS_NewString(ctx, path_extname1(a));
+      break;
+    }
+
+    case METHOD_EXTPOS: {
+      const char* extname = path_extname1(a);
+      ret = JS_NewUint32(ctx, utf8_strlen(a, extname - a));
+      break;
+    }
+
+    case METHOD_EXTLEN: {
+      const char* extname = path_extname1(a);
+      ret = JS_NewUint32(ctx, utf8_strlen(extname, strlen(extname)));
       break;
     }
 
@@ -270,6 +308,18 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewStringLen(ctx, p, len);
       break;
     }
+    case METHOD_OBJECT: {
+      const char* ext = path_extname1(a);
+      const char* base = basename(a);
+
+      ret = JS_NewObject(ctx);
+      JS_SetPropertyStr(ctx, ret, "dir", JS_NewStringLen(ctx, a, path_dirlen2(a, alen)));
+      JS_SetPropertyStr(ctx, ret, "base", JS_NewStringLen(ctx, base, ext ? ext - base : strlen(base)));
+      if(ext)
+        JS_SetPropertyStr(ctx, ret, "ext", JS_NewString(ctx, ext));
+
+      break;
+    }
   }
 
   if(a)
@@ -299,7 +349,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   switch(magic) {
     case METHOD_ABSOLUTE: {
-      path_absolute2(a, &db);
+      path_absolute3(a, alen, &db);
       break;
     }
 
@@ -479,6 +529,38 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 
 static JSValue
+js_path_fromobj(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+
+  const char *dir, *base, *ext;
+  DynBuf db;
+  JSValue ret;
+
+  base = js_get_propertystr_cstring(ctx, argv[0], "base");
+  ext = js_get_propertystr_cstring(ctx, argv[0], "ext");
+
+  js_dbuf_init(ctx, &db);
+
+  if((dir = js_get_propertystr_cstring(ctx, argv[0], "dir"))) {
+    dbuf_putstr(&db, dir);
+
+    if(db.buf[db.size - 1] != PATHSEP_C)
+      dbuf_putc(&db, PATHSEP_C);
+  }
+
+  if((base = js_get_propertystr_cstring(ctx, argv[0], "base"))) {
+    dbuf_putstr(&db, base);
+  }
+  if((ext = js_get_propertystr_cstring(ctx, argv[0], "ext"))) {
+    dbuf_putstr(&db, ext);
+  }
+
+  ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
+  dbuf_free(&db);
+
+  return ret;
+}
+
+static JSValue
 js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* str;
   DynBuf db, cwd;
@@ -613,10 +695,15 @@ js_path_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
 static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("basename", 1, js_path_method, METHOD_BASENAME),
+    JS_CFUNC_MAGIC_DEF("basepos", 1, js_path_method, METHOD_BASEPOS),
+    JS_CFUNC_MAGIC_DEF("baselen", 1, js_path_method, METHOD_BASELEN),
     JS_CFUNC_MAGIC_DEF("collapse", 1, js_path_method, METHOD_COLLAPSE),
     JS_CFUNC_MAGIC_DEF("dirname", 1, js_path_method, METHOD_DIRNAME),
+    JS_CFUNC_MAGIC_DEF("dirlen", 1, js_path_method, METHOD_DIRLEN),
     JS_CFUNC_MAGIC_DEF("exists", 1, js_path_method, METHOD_EXISTS),
     JS_CFUNC_MAGIC_DEF("extname", 1, js_path_method, METHOD_EXTNAME),
+    JS_CFUNC_MAGIC_DEF("extpos", 1, js_path_method, METHOD_EXTPOS),
+    JS_CFUNC_MAGIC_DEF("extlen", 1, js_path_method, METHOD_EXTLEN),
     JS_CFUNC_MAGIC_DEF("fnmatch", 1, js_path_method, METHOD_FNMATCH),
     JS_CFUNC_MAGIC_DEF("getcwd", 1, js_path_method, METHOD_GETCWD),
 #ifndef __wasi__
@@ -658,6 +745,8 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isin", 2, js_path_isin, 0),
     JS_CFUNC_MAGIC_DEF("equal", 2, js_path_isin, 1),
     JS_CFUNC_MAGIC_DEF("toArray", 0, js_path_toarray, 0),
+    JS_CFUNC_MAGIC_DEF("toObject", 1, js_path_method, METHOD_OBJECT),
+    JS_CFUNC_DEF("fromObject", 1, js_path_fromobj),
     JS_CFUNC_MAGIC_DEF("offsets", 0, js_path_toarray, 1),
     JS_CFUNC_MAGIC_DEF("lengths", 0, js_path_toarray, 2),
     JS_CFUNC_MAGIC_DEF("ranges", 0, js_path_toarray, 3),

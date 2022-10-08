@@ -31,6 +31,7 @@ let buffers = {},
   removeImports = false,
   removeComments = false,
   readPackage = false,
+  userScript = false,
   relativeTo,
   outputFile,
   recursive,
@@ -1438,6 +1439,7 @@ function main(...args) {
       'print-files': [false, () => (printFiles = true), 'l'],
       'read-package': [false, () => (readPackage = true), 'p'],
       'no-read-package': [false, () => (readPackage = false), 'P'],
+      userscript: [false, () => (userScript = true), 'U'],
       time: [false, () => (showTiming = true), 't'],
       '@': 'files'
     },
@@ -1523,19 +1525,20 @@ function main(...args) {
     out.puts(lines.reduce((acc, line) => acc + line.trim() + '\n', ''));
   }
 
-  for(let line of PrintUserscriptBanner({
-    name: out.file,
-    'run-at': 'document-start',
-    version: '1.0',
-    description: files.join(', '),
-    downloadURL: `https://localhost:9000/${out.file}`,
-    updateURL: `https://localhost:9000/${out.file}`
-  })) {
-    //std.puts(`line: ${line}\n`);
-    stream.puts(line);
+  if(userScript) {
+    for(let line of PrintUserscriptBanner({
+      name: out.file,
+      'run-at': 'document-start',
+      version: '1.0',
+      description: files.join(', '),
+      downloadURL: `https://localhost:9000/${out.file}`,
+      updateURL: `https://localhost:9000/${out.file}`
+    }))
+      stream.puts(line);
+
+    stream.puts("\n(function() {\n  'use strict';\n");
+    ++stream.indent;
   }
-  stream.puts("\n(function() {\n  'use strict';\n");
-  ++stream.indent;
   if(debug > 0) console.log('out', out, out.file);
 
   if(out.file) {
@@ -1562,8 +1565,10 @@ function main(...args) {
     stream.puts(`\nObject.assign(globalThis, { ${exportedNames.join(', ')} });\n`);
   }
 
-  --stream.indent;
-  stream.puts('})();\n');
+  if(userScript) {
+    --stream.indent;
+    stream.puts('})();\n');
+  }
   stream.close();
 
   logFile(`Processed files: ${SpreadAndJoin(dependencyMap.keys(), ' ')}\n`);
