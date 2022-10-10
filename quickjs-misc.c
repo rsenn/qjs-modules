@@ -1674,6 +1674,32 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_DupValue(ctx, argv[0]);
 }
 
+static int
+js_misc_unescape_pred(const char* s, size_t* lenp) {
+  long val = -1;
+  size_t len;
+
+  if((len = scan_8long(s, &val)) >= 3) {
+    if(lenp)
+      *lenp += len;
+
+    return val;
+  }
+  return 0;
+}
+
+JSValue
+js_misc_unescape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+  if(input.data) {
+    DynBuf output;
+    js_dbuf_init(ctx, &output);
+    dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, &js_misc_unescape_pred);
+    return dbuf_tostring_free(&output, ctx);
+  }
+  return JS_DupValue(ctx, argv[0]);
+}
+
 JSValue
 js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
@@ -2093,6 +2119,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, RANDOM_RANDF),
     JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, RANDOM_SRAND),
     JS_CFUNC_DEF("escape", 1, js_misc_escape),
+    JS_CFUNC_DEF("unescape", 1, js_misc_unescape),
     JS_CFUNC_DEF("quote", 1, js_misc_quote),
     JS_CFUNC_DEF("error", 0, js_misc_error),
     JS_CFUNC_MAGIC_DEF("isArray", 1, js_misc_is, IS_ARRAY),

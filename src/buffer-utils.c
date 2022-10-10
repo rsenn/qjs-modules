@@ -293,23 +293,27 @@ dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t ta
 }
 
 void
-dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
+dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(const char*, size_t*)) {
   size_t i = 0, j;
-  char c;
-  int r;
+  // char c;
+
   while(i < len) {
+    int r = 0;
     if((j = byte_chr(&str[i], len - i, '\\'))) {
       dbuf_append(db, (const uint8_t*)&str[i], j);
       i += j;
     }
     if(i == len)
       break;
+    size_t n = 1;
 
-    if(!(r = pred(str[++i])))
-      dbuf_putc(db, '\\');
+    if(pred) {
+      if(!(r = pred(&str[i + 1], &n)))
+        dbuf_putc(db, '\\');
+    }
 
-    dbuf_putc(db, (r > 1 && r < 256) ? r : str[i]);
-    i++;
+    dbuf_putc(db, n > 1 ? /*(r > 1 && r < 256) ?*/ r : str[i]);
+    i += n;
   }
 }
 

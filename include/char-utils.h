@@ -322,6 +322,7 @@ int case_starts(const char*, const char*);
 int case_diffb(const void*, size_t, const void*);
 size_t case_findb(const void*, size_t, const void*, size_t wlen);
 size_t case_finds(const void*, const char*);
+size_t scan_8longn(const char* src, size_t n, unsigned long* dest);
 
 static inline int
 scan_fromhex(unsigned char c) {
@@ -333,6 +334,11 @@ scan_fromhex(unsigned char c) {
   if(c < 6)
     return c + 10;
   return -1;
+}
+
+static inline size_t
+scan_8long(const char* src, unsigned long* dest) {
+  return scan_8longn(src, (size_t)-1, dest);
 }
 
 static inline size_t

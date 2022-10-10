@@ -142,6 +142,24 @@ scan_xlonglong(const char* src, uint64_t* dest) {
 }
 
 size_t
+scan_8longn(const char* src, size_t n, unsigned long* dest) {
+
+  const char* tmp = src;
+  unsigned long l = 0;
+  unsigned char c;
+
+  while(n-- > 0 && (c = (unsigned char)(*tmp - '0')) < 8) {
+
+    if(l >> (sizeof(l) * 8 - 3))
+      break;
+    l = l * 8 + c;
+    ++tmp;
+  }
+  *dest = l;
+  return (size_t)(tmp - src);
+}
+
+size_t
 scan_whitenskip(const char* s, size_t limit) {
   const char *t, *u;
   for(t = s, u = t + limit; t < u; ++t)

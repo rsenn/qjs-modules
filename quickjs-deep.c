@@ -374,7 +374,7 @@ js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
 
   if(argc > 1) {
     Pointer* ptr;
-    uint32_t flags;
+    uint32_t flags = 0;
 
     if(!(ptr = pointer_new(ctx)))
       return JS_ThrowOutOfMemory(ctx);
