@@ -37,6 +37,7 @@ function main(...args) {
 
   Object.assign(globalThis, {
     xml: {
+      parse,
       load,
       save,
       read: xml.read,
@@ -78,6 +79,10 @@ function main(...args) {
       'import a module'
     ]
   };
+
+  for(let arg of params['@']) {
+    parse(arg);
+  }
   repl.runSync();
 }
 
@@ -97,6 +102,17 @@ function load(filename, ...args) {
 
   if(data) return xml.read(data, filename, ...args);
 }
+
+function parse(filename, ...args) {
+  let doc,
+    parser = new Parser();
+
+  try {
+    doc = parser.parseFromFile(filename, 'utf-8');
+  } catch(e) {}
+  return (globalThis.document = doc);
+}
+
 function save(filename, obj) {
   let data;
 

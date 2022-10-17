@@ -567,7 +567,7 @@ path_extname1(const char* p) {
   if((q = strrchr(p, PATHSEP_C)))
     p = q + 1;
   pos = str_rchr(p, '.');
-  p += pos;
+  p += pos ? pos : strlen(p);
   return p;
 }
 
