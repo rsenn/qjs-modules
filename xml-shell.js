@@ -60,13 +60,25 @@ function main(...args) {
     pointer,
     location
   });
-  Object.assign(globalThis, { ...globalThis.xml, ...dom, ...util, ...pointer, ...location });
+  Object.assign(globalThis, {
+    ...globalThis.xml,
+    ...dom,
+    ...util,
+    ...pointer,
+    ...location
+  });
 
   repl = globalThis.repl = new REPL(
-    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
+    '\x1b[38;2;80;200;255m' +
+      path
+        .basename(process.argv[1], '.js')
+        .replace(/test_/, '') +
+      ' \x1b[0m',
     false
   );
-  repl.show = repl.printFunction((...args) => console.log(...args));
+  repl.show = repl.printFunction((...args) =>
+    console.log(...args)
+  );
   repl.historyLoad(null, fs);
   repl.directives = {
     i: [
