@@ -46,6 +46,8 @@ thread_local JSValue object_tostring;
 
 struct prop_key;
 
+static thread_local Vector object_list = VECTOR_INIT();
+
 typedef struct prop_key {
   /* struct list_head link;*/
   const char* name;
@@ -294,7 +296,9 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
     JS_SetPropertyStr(ctx, ret, "protoChain", js_number_new(ctx, opts->proto_chain));
   arr = JS_NewArray(ctx);
   n = 0;
-  vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
+  vector_foreach_t(&opts->hide_keys, key) {
+    JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom));
+  }
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   JS_SetPropertyStr(ctx, ret, "numberBase", js_number_new(ctx, opts->number_base));
   JS_SetPropertyStr(ctx, ret, "classKey", JS_AtomToValue(ctx, opts->class_key.atom));
@@ -826,7 +830,8 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     }
 
     if(JS_IsException(tmp)) {
-      JSValue exception = JS_GetException(ctx);
+      JSValue exception = ctx->rt->current_exception;
+      return -1;
 
       // dbuf_printf(buf, "exception: %s\n", JS_ToCString(ctx, exception));
       // return 0;
@@ -1144,10 +1149,26 @@ js_inspect_print_value(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     }
 
     case JS_TAG_OBJECT: {
+      int ret = 0;
       if(JS_IsError(ctx, value))
         return js_inspect_print_error(ctx, buf, value, opts, depth);
 
-      return js_inspect_print_object(ctx, buf, value, opts, depth);
+      JSObject* obj = js_value_ptr(value);
+
+      if(vector_find(&object_list, sizeof(obj), &obj) != -1) {
+        dbuf_put_colorstr(buf, "[loop]", COLOR_RED, opts->colors);
+        return ret;
+      }
+
+      vector_push(&object_list, obj);
+
+      ret = js_inspect_print_object(ctx, buf, value, opts, depth);
+
+      assert(*(JSObject**)vector_back(&object_list, sizeof(obj)) == obj);
+
+      vector_pop(&object_list, sizeof(obj));
+
+      return ret;
     }
 
     case JS_TAG_FUNCTION_BYTECODE: {

@@ -62,7 +62,9 @@ static void
 tree_walker_reset(TreeWalker* w, JSContext* ctx) {
   PropertyEnumeration* it;
 
-  vector_foreach_t(&w->hier, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
+  vector_foreach_t(&w->hier, it) {
+    property_enumeration_reset(it, JS_GetRuntime(ctx));
+  }
   vector_clear(&w->hier);
 
   w->tag_mask = TYPE_ALL;

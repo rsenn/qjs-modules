@@ -154,7 +154,9 @@ static int
 queue_length(struct list_head* q) {
   size_t i = 0;
   struct list_head* el;
-  list_for_each(el, q) { ++i; }
+  list_for_each(el, q) {
+    ++i;
+  }
   return i;
 }
 

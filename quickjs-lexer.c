@@ -978,7 +978,9 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       uint32_t i = 0;
       ret = JS_NewArray(ctx);
 
-      vector_foreach_t(&lex->rules, rule) { JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, rule->name)); }
+      vector_foreach_t(&lex->rules, rule) {
+        JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, rule->name));
+      }
       break;
     }
 
@@ -1156,7 +1158,9 @@ js_lexer_states(JSContext* ctx, JSValueConst this_val) {
 
   ret = JS_NewArray(ctx);
 
-  vector_foreach_t(&lex->states, cond) { JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, *cond)); }
+  vector_foreach_t(&lex->states, cond) {
+    JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, *cond));
+  }
 
   return ret;
 }
