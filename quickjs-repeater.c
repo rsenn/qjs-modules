@@ -1,7 +1,7 @@
-#include "include/defines.h"
-#include "include/utils.h"
+#include "defines.h"
+#include "utils.h"
 #include <string.h>
-#include "include/debug.h"
+#include "debug.h"
 
 /**
  * \defgroup quickjs-repeater QuickJS module: repeater - Async Iterator Repeater

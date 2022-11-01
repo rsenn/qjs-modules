@@ -1,4 +1,4 @@
-#include "include/defines.h"
+#include "defines.h"
 #ifndef QUICKJS_SOCKETS_H
 #define QUICKJS_SOCKETS_H
 
@@ -11,7 +11,7 @@
 #endif
 #include <quickjs.h>
 
-#include "include/utils.h"
+#include "utils.h"
 
 /**
  * \defgroup quickjs-sockets QuickJS module: sockets - Network sockets

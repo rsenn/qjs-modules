@@ -1,11 +1,11 @@
-#include "include/defines.h"
+#include "defines.h"
 #include <cutils.h>
 #include <libregexp.h>
-#include "include/property-enumeration.h"
+#include "property-enumeration.h"
 #include <quickjs.h>
 #include <string.h>
-#include "include/debug.h"
-#include "include/buffer-utils.h"
+#include "debug.h"
+#include "buffer-utils.h"
 
 /**
  * \defgroup quickjs-tree-walker QuickJS module: tree_walker - Object tree walker
