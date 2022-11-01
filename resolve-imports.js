@@ -85,13 +85,25 @@ const FileBannerComment = (filename, i) => {
 extendArray(Array.prototype);
 
 const IsBuiltin = moduleName => /^[^\/.]+$/.test(moduleName);
-const compact = (n, more = {}) => console.config({ compact: n, maxArrayLength: 100, ...more });
+const compact = (n, more = {}) =>
+  console.config({
+    compact: n,
+    maxArrayLength: 100,
+    ...more
+  });
 const AddUnique = (arr, item) => (arr.indexOf(item) == -1 ? arr.push(item) : null);
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 
-const What = { IMPORT: Symbol.for('import'), EXPORT: Symbol.for('export') };
-const ImportTypes = { IMPORT: 0, IMPORT_DEFAULT: 1, IMPORT_NAMESPACE: 2 };
+const What = {
+  IMPORT: Symbol.for('import'),
+  EXPORT: Symbol.for('export')
+};
+const ImportTypes = {
+  IMPORT: 0,
+  IMPORT_DEFAULT: 1,
+  IMPORT_NAMESPACE: 2
+};
 const IsOneOf = curry((n, value) => (Array.isArray(n) ? n.some(num => num === value) : n === value));
 const TokIs = curry((type, lexeme, tok) => {
   if(tok != undefined) {
@@ -427,7 +439,10 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
             console.log(
               'imp',
               imp[0].loc + '',
-              console.config({ breakLength: 80, compact: 0 }),
+              console.config({
+                breakLength: 80,
+                compact: 0
+              }),
               TokenSequence(imp) + ''
             );
           cond = false;
@@ -482,7 +497,16 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     let source = loc.file;
     let type = ImpExpType(tokens);
     let code = TokenSequence(tokens).toString(); // toString(BufferFile(source).slice(...range));
-    if(def != -1) if (debug >= 2) console.log('AddExport', { source, file, code, range, loc, tokens });
+    if(def != -1)
+      if(debug >= 2)
+        console.log('AddExport', {
+          source,
+          file,
+          code,
+          range,
+          loc,
+          tokens
+        });
     let len = tokens.length;
     if(o) {
       exported = tokens.filter(tok => tok.type == 'identifier').map(tok => tok.lexeme);
@@ -529,10 +553,21 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     const range = ByteSequence(tokens.slice());
     range[0] = loc.byteOffset;
     let code = toString(BufferFile(source).slice(...range));
-    if(debug >= 2) console.log('AddImport', compact(1), { source, file, code, loc, range });
+    if(debug >= 2)
+      console.log('AddImport', compact(1), {
+        source,
+        file,
+        code,
+        loc,
+        range
+      });
     let imp = Object.setPrototypeOf(
       define(
-        { type, file: file && /\./.test(file) ? relativePath(file) : file, range },
+        {
+          type,
+          file: file && /\./.test(file) ? relativePath(file) : file,
+          range
+        },
         {
           tokens: tokens.slice(),
           code,
@@ -678,7 +713,12 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       let p;
 
       if(debug > 2)
-        console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
+        console.log('impexp', compact(2), {
+          code,
+          range: new NumericRange(...range),
+          replacement,
+          loc: loc + ''
+        });
 
       //  if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
       if(typeof file == 'string' && !path.isFile(file)) {
@@ -706,8 +746,17 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       list.push(impexp);
 
       if(debug >= 2)
-        console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + '' });
-      if(debug > 1) console.log('impexp', compact(1), { range: new NumericRange(...range), loc: loc + '' });
+        console.log('impexp', compact(2), {
+          code,
+          range: new NumericRange(...range),
+          replacement,
+          loc: loc + ''
+        });
+      if(debug > 1)
+        console.log('impexp', compact(1), {
+          range: new NumericRange(...range),
+          loc: loc + ''
+        });
 
       map.replaceRange(range, replacement);
     }
@@ -719,7 +768,11 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     debugLog(`Removing ${comments.length} comments from '${source}'`);
     for(let { byteRange, lexeme } of comments) {
       let sl = bytebuf.slice(...byteRange);
-      if(debug > 1) debugLog(`comment[${++i}]`, compact(2), { byteRange, str: toString(sl) });
+      if(debug > 1)
+        debugLog(`comment[${++i}]`, compact(2), {
+          byteRange,
+          str: toString(sl)
+        });
 
       map.replaceRange(byteRange, null);
     }
@@ -1229,7 +1282,13 @@ FileMap.prototype[inspectSymbol] = function(depth, opts) {
     }
     const isBuf = isObject(buf) && types.isArrayBuffer(buf);
     return [range, isBuf ? this.file : buf, isBuf ? toString(buf) : null]
-      .map((item, i) => inspect(item, { ...opts, compact: 1, customInspect: true }).padEnd(i == 0 ? 31 : 0))
+      .map((item, i) =>
+        inspect(item, {
+          ...opts,
+          compact: 1,
+          customInspect: true
+        }).padEnd(i == 0 ? 31 : 0)
+      )
       .join(', ');
   });
 

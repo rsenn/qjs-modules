@@ -152,10 +152,14 @@ typedef struct jsm_module_record {
 #define jsm_module_extern_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
 
 #define jsm_module_record_compiled(name) \
-  (BuiltinModule) { #name, 0, qjsc_##name, qjsc_##name##_size, 0 }
+  (BuiltinModule) { \
+#name, 0, qjsc_##name, qjsc_##name##_size, 0 \
+  }
 
 #define jsm_module_record_native(name) \
-  (BuiltinModule) { #name, js_init_module_##name, 0, 0, 0 }
+  (BuiltinModule) { \
+#name, js_init_module_##name, 0, 0, 0 \
+  }
 
 jsm_module_extern_native(std);
 jsm_module_extern_native(os);

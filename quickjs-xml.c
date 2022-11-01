@@ -303,7 +303,7 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth, BOO
 static void
 xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth, BOOL self_closing) {
   JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
-  int32_t num_children;
+  int32_t num_children = -1;
   size_t tagLen;
   const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
   BOOL isComment;
@@ -338,14 +338,13 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     if(JS_IsObject(attributes))
       xml_write_attributes(ctx, attributes, db);
   }
-  num_children = xml_num_children(ctx, element);
+
+  if(!self_closing)
+    num_children = xml_num_children(ctx, element);
 
   //     (tagName[0] == '/' || num_children == -1) ?
   if(tagName[0])
-    dbuf_putstr(db,
-                tagName[0] == '?'                                                                                    ? "?>"
-                : (self_closing /*|| num_children == -1*/) && !(tagName[0] == '!' || num_children >= 0 || isComment) ? " />"
-                                                                                                                     : ">");
+    dbuf_putstr(db, tagName[0] == '?' ? "?>" : (self_closing || num_children <= 0) && !(tagName[0] == '!' || num_children > 0 || isComment) ? " />" : ">");
   dbuf_putc(db, '\n');
 
   js_cstring_free(ctx, tagName);
@@ -356,7 +355,7 @@ static void
 xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t depth) {
   int32_t num_children = xml_num_children(ctx, element);
 
-  if(num_children >= 0) {
+  if(num_children > 0) {
     size_t tagLen;
     const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
 
@@ -752,7 +751,9 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
   str = JS_NewString(ctx, (const char*)output->buf);
   // str = JS_NewStringLen(ctx, output->buf, output->size);
 
-  vector_foreach_t(&enumerations, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
+  vector_foreach_t(&enumerations, it) {
+    property_enumeration_reset(it, JS_GetRuntime(ctx));
+  }
   vector_free(&enumerations);
   return str;
 }
