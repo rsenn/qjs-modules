@@ -1,8 +1,8 @@
 #ifndef QUICKJS_LEXER_H
 #define QUICKJS_LEXER_H
 
-#include "include/lexer.h"
-#include "include/token.h"
+#include "lexer.h"
+#include "token.h"
 
 /**
  * \defgroup quickjs-lexer QuickJS module: lexer - Lexical scanner, regex based

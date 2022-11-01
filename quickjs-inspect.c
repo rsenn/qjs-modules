@@ -1,15 +1,15 @@
-#include "include/defines.h"
+#include "defines.h"
 #include <cutils.h>
-#include "include/iteration.h"
+#include "iteration.h"
 #include <list.h>
-#include "include/property-enumeration.h"
+#include "property-enumeration.h"
 #include "quickjs-internal.h"
 #include "quickjs-predicate.h"
 #include <quickjs.h>
 #include <quickjs-config.h>
-#include "include/utils.h"
-#include "include/vector.h"
-#include "include/buffer-utils.h"
+#include "utils.h"
+#include "vector.h"
+#include "buffer-utils.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -26,7 +26,7 @@ int isatty(HANDLE);
 #endif
 #endif
 
-#include "include/debug.h"
+#include "debug.h"
 
 static JSClassID function_class_id_ceil = JS_CLASS_ASYNC_GENERATOR;
 

@@ -1,7 +1,7 @@
 #ifndef QUICKJS_PREDICATE_H
 #define QUICKJS_PREDICATE_H
 
-#include "include/predicate.h"
+#include "predicate.h"
 
 /**
  * \defgroup quickjs-predicate QuickJS module: predicate - Predicate function object

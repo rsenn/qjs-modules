@@ -1,6 +1,6 @@
-#include "include/defines.h"
-#include "include/getdents.h"
-#include "include/utils.h"
+#include "defines.h"
+#include "getdents.h"
+#include "utils.h"
 #include <errno.h>
 #include <string.h>
 

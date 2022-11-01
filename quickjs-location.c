@@ -1,8 +1,8 @@
-#include "include/defines.h"
+#include "defines.h"
 #include "quickjs-location.h"
-#include "include/utils.h"
-#include "include/buffer-utils.h"
-#include "include/debug.h"
+#include "utils.h"
+#include "buffer-utils.h"
+#include "debug.h"
 
 /**
  * \addtogroup quickjs-location

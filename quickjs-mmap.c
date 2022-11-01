@@ -1,9 +1,9 @@
-#include "include/defines.h"
+#include "defines.h"
 #include <cutils.h>
 #include <quickjs.h>
-#include "include/utils.h"
+#include "utils.h"
 #ifdef _WIN32
-#include "include/mmap-win32.h"
+#include "mmap-win32.h"
 #else
 #include <sys/mman.h>
 #include <errno.h>
