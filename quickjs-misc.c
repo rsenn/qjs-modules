@@ -2122,6 +2122,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("unescape", 1, js_misc_unescape),
     JS_CFUNC_DEF("quote", 1, js_misc_quote),
     JS_CFUNC_DEF("error", 0, js_misc_error),
+    JS_CFUNC_DEF("atexit", 1, js_misc_atexit),
     JS_CFUNC_MAGIC_DEF("isArray", 1, js_misc_is, IS_ARRAY),
     JS_CFUNC_MAGIC_DEF("isBigDecimal", 1, js_misc_is, IS_BIGDECIMAL),
     JS_CFUNC_MAGIC_DEF("isBigFloat", 1, js_misc_is, IS_BIGFLOAT),
