@@ -3,7 +3,7 @@ import * as std from 'std';
 import inspect from 'inspect';
 import child_process from 'child_process';
 import Console from '../lib/console.js';
-import { toString } from 'mmap';
+import { toString } from 'util';
 
 ('use strict');
 
@@ -47,9 +47,9 @@ function ReadChild(...args) {
 
     if(ret > 0) {
       let chunk = toString(buf.slice(0, ret));
-      console.log('chunk:', chunk);
+  //  console.log('chunk:', chunk);
       data += chunk;
-      console.log('data:', data);
+     //console.log('data:', data);
     }
 
     if(ret <= 0 || ret < buf.byteLength) {
@@ -63,9 +63,9 @@ function ReadChild(...args) {
     // console.log('chunk:', chunk);
     data += chunk;
   }*/
-  child.wait();
+  //child.wait();
 
-  // console.log('child', child);
+   console.log('child', child);
   return data;
 }
 
@@ -74,7 +74,7 @@ function main(...args) {
 
   let data = ReadChild('/opt/diet/bin-x86_64/ls', '-la');
 
-  console.log('data:', data.slice(0, 100));
+  console.log('data:', data);
 
   /*  data = ReadChild('lz4', '-9', '-f', '/etc/services', 'services.lz4');
 
