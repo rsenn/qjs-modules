@@ -47,9 +47,9 @@ function ReadChild(...args) {
 
     if(ret > 0) {
       let chunk = toString(buf.slice(0, ret));
-  //  console.log('chunk:', chunk);
+      //  console.log('chunk:', chunk);
       data += chunk;
-     //console.log('data:', data);
+      //console.log('data:', data);
     }
 
     if(ret <= 0 || ret < buf.byteLength) {
@@ -65,7 +65,7 @@ function ReadChild(...args) {
   }*/
   //child.wait();
 
-   console.log('child', child);
+  console.log('child', child);
   return data;
 }
 

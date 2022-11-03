@@ -67,9 +67,7 @@ static inline size_t
 list_size(struct list_head* list) {
   struct list_head* el;
   size_t i = 0;
-  list_for_each(el, list) {
-    ++i;
-  }
+  list_for_each(el, list) { ++i; }
   return i;
 }
 
@@ -559,12 +557,15 @@ JSValue js_function_throw(JSContext*, JSValue err);
 JSValue js_function_return_undefined(JSContext*);
 JSValue js_function_return_value(JSContext*, JSValue value);
 
-char* js_object_classname(JSContext* ctx, JSValueConst value);
-int js_object_is(JSContext* ctx, JSValueConst value, const char* cmp);
-JSValue js_object_construct(JSContext* ctx, JSValueConst ctor);
-JSValue js_object_error(JSContext* ctx, const char* message);
-JSValue js_object_new(JSContext* ctx, const char* class_name, int argc, JSValueConst argv[]);
-JSValue js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj);
+JSValue js_object_constructor(JSContext*, JSValueConst value);
+JSValue js_object_species(JSContext*, JSValueConst value);
+char* js_object_classname(JSContext*, JSValueConst value);
+BOOL js_object_equals(JSContext*, JSValueConst a, JSValueConst b);
+int js_object_is(JSContext*, JSValueConst value, const char* cmp);
+JSValue js_object_construct(JSContext*, JSValueConst ctor);
+JSValue js_object_error(JSContext*, const char* message);
+JSValue js_object_new(JSContext*, const char* class_name, int argc, JSValueConst argv[]);
+JSValue js_object_function(JSContext*, const char* func_name, JSValueConst obj);
 
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {

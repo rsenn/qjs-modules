@@ -249,7 +249,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
-    bjson blob deep directory lexer location misc path pointer predicate
+    bjson blob deep directory lexer list location misc path pointer predicate
     repeater textcode sockets stream syscallerror inspect tree-walker xml)
 
 if(USE_LIBARCHIVE)
@@ -645,6 +645,7 @@ if(NOT BUILD_STATIC_MODULES)
       ${inspect_SOURCES}
       ${js_utils_SOURCES}
       ${lexer_SOURCES}
+      ${list_SOURCES}
       ${libutf_SOURCES}
       ${location_SOURCES}
       ${list_SOURCES}

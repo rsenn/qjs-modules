@@ -620,6 +620,16 @@ js_object_constructor(JSContext* ctx, JSValueConst value) {
   return ctor;
 }
 
+JSValue
+js_object_species(JSContext* ctx, JSValueConst value) {
+  JSValue ctor = js_object_constructor(ctx, value);
+  JSAtom symbol_species = js_symbol_static_atom(ctx, "species");
+  JSValue species = JS_GetProperty(ctx, ctor, symbol_species);
+  JS_FreeAtom(ctx, symbol_species);
+  JS_FreeValue(ctx, ctor);
+  return species;
+}
+
 char*
 js_object_classname(JSContext* ctx, JSValueConst value) {
   JSValue proto, ctor;

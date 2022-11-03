@@ -19,7 +19,7 @@ static inline BOOL
 iteration_init_free(Iteration* it, JSContext* ctx, JSValue iterator) {
   it->iter = iterator;
   it->next = JS_GetPropertyStr(ctx, it->iter, "next");
-  it->data = JS_UNDEFINED;
+  it->data = JS_UNINITIALIZED;
   it->done = FALSE;
   return JS_IsFunction(ctx, it->next);
 }
@@ -63,15 +63,20 @@ iteration_method_symbol(Iteration* it, JSContext* ctx, JSValueConst object, cons
 }
 
 static inline void
-iteration_reset(Iteration* it, JSRuntime* rt) {
-  if(JS_IsObject(it->iter))
+iteration_reset_rt(Iteration* it, JSRuntime* rt) {
+  if(!JS_IsUninitialized(it->iter))
     JS_FreeValueRT(rt, it->iter);
-  if(JS_IsObject(it->next))
+  if(!JS_IsUninitialized(it->next))
     JS_FreeValueRT(rt, it->next);
-  if(JS_IsObject(it->data))
+  if(!JS_IsUninitialized(it->data))
     JS_FreeValueRT(rt, it->data);
-  it->data = it->iter = it->next = JS_UNDEFINED;
+  it->data = it->iter = it->next = JS_UNINITIALIZED;
   it->done = FALSE;
+}
+
+static inline void
+iteration_reset(Iteration* it, JSContext* ctx) {
+  iteration_reset_rt(it, JS_GetRuntime(ctx));
 }
 
 static inline BOOL

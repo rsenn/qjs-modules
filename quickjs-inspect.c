@@ -296,9 +296,7 @@ inspect_options_object(inspect_options_t* opts, JSContext* ctx) {
     JS_SetPropertyStr(ctx, ret, "protoChain", js_number_new(ctx, opts->proto_chain));
   arr = JS_NewArray(ctx);
   n = 0;
-  vector_foreach_t(&opts->hide_keys, key) {
-    JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom));
-  }
+  vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   JS_SetPropertyStr(ctx, ret, "numberBase", js_number_new(ctx, opts->number_base));
   JS_SetPropertyStr(ctx, ret, "classKey", JS_AtomToValue(ctx, opts->class_key.atom));
@@ -457,7 +455,7 @@ js_inspect_print_map(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_opti
   if(!compact && opts->break_length != INT32_MAX)
     inspect_newline(buf, INSPECT_LEVEL(opts, depth));
   dbuf_putstr(buf, compact ? " }" : "}");
-  iteration_reset(&it, JS_GetRuntime(ctx));
+  iteration_reset_rt(&it, JS_GetRuntime(ctx));
   return 0;
 }
 
@@ -492,7 +490,7 @@ js_inspect_print_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_opti
   if(!compact && opts->break_length != INT32_MAX)
     inspect_newline(buf, INSPECT_LEVEL(opts, depth));
   dbuf_putstr(buf, compact ? " ]" : "]");
-  iteration_reset(&it, JS_GetRuntime(ctx));
+  iteration_reset_rt(&it, JS_GetRuntime(ctx));
   return 0;
 }
 

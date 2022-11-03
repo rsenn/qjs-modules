@@ -73,7 +73,7 @@ static thread_local Vector module_list = VECTOR_INIT();
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
 static JSModuleLoaderFunc* module_loader = 0;
-static JSValue package_json, replObj;
+static thread_local JSValue package_json, replObj;
 static const char* exename;
 static JSRuntime* rt;
 static JSContext* ctx;
@@ -152,14 +152,10 @@ typedef struct jsm_module_record {
 #define jsm_module_extern_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
 
 #define jsm_module_record_compiled(name) \
-  (BuiltinModule) { \
-#name, 0, qjsc_##name, qjsc_##name##_size, 0 \
-  }
+  (BuiltinModule) { #name, 0, qjsc_##name, qjsc_##name##_size, 0 }
 
 #define jsm_module_record_native(name) \
-  (BuiltinModule) { \
-#name, js_init_module_##name, 0, 0, 0 \
-  }
+  (BuiltinModule) { #name, js_init_module_##name, 0, 0, 0 }
 
 jsm_module_extern_native(std);
 jsm_module_extern_native(os);
@@ -186,8 +182,8 @@ jsm_module_extern_compiled(require);
 jsm_module_extern_compiled(tty);
 jsm_module_extern_compiled(util);
 
-static thread_local Vector jsm_stack;
-static thread_local Vector jsm_builtin_modules;
+static thread_local Vector jsm_stack = VECTOR_INIT();
+static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
 static thread_local BOOL jsm_modules_initialized;
 
 #ifdef CONFIG_BIGNUM
@@ -271,6 +267,10 @@ jsm_stack_ptr(int i) {
 static char**
 jsm_stack_find(const char* module) {
   char** ptr;
+
+  if(jsm_stack.size == 0)
+    return 0;
+
   vector_foreach_t(&jsm_stack, ptr) if(!path_compare2(*ptr, module)) return ptr;
   return 0;
 }
@@ -422,6 +422,11 @@ JSModuleDef* js_init_module_xml(JSContext*, const char*);
 void
 jsm_init_modules(JSContext* ctx) {
 
+  if(jsm_modules_initialized)
+    return;
+
+  jsm_modules_initialized = TRUE;
+
   dbuf_init2(&jsm_builtin_modules.dbuf, 0, &vector_realloc);
 
 #define jsm_builtin_native(name) vector_push(&jsm_builtin_modules, jsm_module_record_native(name));
@@ -515,7 +520,7 @@ jsm_load_json(JSContext* ctx, const char* file) {
 
 static JSValue
 jsm_load_package(JSContext* ctx, const char* file) {
-  if(JS_IsUndefined(package_json)) {
+  if(JS_IsUndefined(package_json) || JS_VALUE_GET_TAG(package_json) == 0) {
     package_json = jsm_load_json(ctx, file ? file : "package.json");
 
     if(JS_IsException(package_json)) {
@@ -843,6 +848,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 static JSContext*
 jsm_context_new(JSRuntime* rt) {
   JSContext* ctx;
+
   ctx = JS_NewContext(rt);
   if(!ctx)
     return 0;
@@ -854,6 +860,8 @@ jsm_context_new(JSRuntime* rt) {
     JS_EnableBignumExt(ctx, TRUE);
   }
 #endif
+
+  jsm_init_modules(ctx);
 
 #define jsm_module_native(name) js_init_module_##name(ctx, #name);
 

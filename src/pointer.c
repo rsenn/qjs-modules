@@ -146,8 +146,8 @@ pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
 
   start = int32_mod(start, ptr->n);
   end = int32_mod(end, ptr->n);
- /* if(end == 0)
-    end = ptr->n;*/
+  /* if(end == 0)
+     end = ptr->n;*/
 
   ret->n = end - start;
   ret->atoms = ret->n ? js_mallocz(ctx, sizeof(JSAtom) * ret->n) : 0;
