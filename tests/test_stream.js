@@ -11,20 +11,22 @@ import { FileSystemReadableFileStream, FileSystemWritableFileStream } from '../l
 
 async function ReadStream(stream) {
   let reader = stream.getReader();
-  console.log('ReadStream(0)', { reader });
+  //console.log('ReadStream(0)', { reader });
   let chunk,
     chunks = [];
-  while((chunk = reader.read())) {
-    let { value, done } = await chunk;
+  //console.log('ReadStream(1)', reader.read+'');
+  while((chunk = await reader.read())) {
+    
+    let value=toString(chunk), done= chunk === null;
     // chunk = chunk.then(res => (console.log('chunk resolved', res), res));
-    console.log('ReadStream(1)', { done, value });
+  console.log('ReadStream(1)', { done, value,chunk });
     if(done) break;
     chunks.push(value);
   }
 
-  console.log('ReadStream(2)', { chunks });
+  //console.log('ReadStream(2)', { chunks });
   let blob = new Blob(chunks);
-  console.log('ReadStream(3)', { blob });
+  //console.log('ReadStream(3)', { blob });
 
   reader.releaseLock();
   return blob.arrayBuffer();
@@ -32,7 +34,7 @@ async function ReadStream(stream) {
 
 async function WriteStream(stream, fn = writer => {}) {
   let writer = stream.getWriter();
-  console.log('WriteStream(0)', { writer });
+  //console.log('WriteStream(0)', { writer });
 
   fn(writer);
 
@@ -54,12 +56,12 @@ function main(...args) {
   let read = new FileSystemReadableFileStream('tests/test1.xml');
   let write = new FileSystemWritableFileStream('/tmp/out.txt');
 
-  console.log('read', read);
-  console.log('write', write);
+  //console.log('read', read);
+  //console.log('write', write);
 
   ReadStream(read).then(result => {
     let str = toString(result);
-    console.log('read', str);
+    //console.log('read', str);
     WriteStream(write, async writer => {
       //  console.log('writer', writer);
       await writer.write(result);
