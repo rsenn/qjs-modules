@@ -397,6 +397,7 @@ if(HAVE_SYS_MMAN_H)
 endif(HAVE_SYS_MMAN_H)
 
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(list_SOURCES quickjs-list.c quickjs-list.h)
 
 # if(pigpio_LIBRARY)
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
@@ -646,6 +647,7 @@ if(NOT BUILD_STATIC_MODULES)
       ${lexer_SOURCES}
       ${libutf_SOURCES}
       ${location_SOURCES}
+      ${list_SOURCES}
       ${misc_SOURCES}
       ${mmap_SOURCES}
       ${path_SOURCES}
