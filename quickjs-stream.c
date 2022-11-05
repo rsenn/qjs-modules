@@ -70,7 +70,7 @@ read_next(Reader* rd, JSContext* ctx) {
   }
 
   if(op) {
-    //printf("read_next (%i/%zu)\n", op->seq, list_size(&rd->list));
+    // printf("read_next (%i/%zu)\n", op->seq, list_size(&rd->list));
     ret = op->promise.value;
     op->promise.value = JS_UNDEFINED;
   }
@@ -181,7 +181,7 @@ static JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Readable* st;
-  //printf("reader_read (1)  [%zu]\n", list_size(&rd->list));
+  // printf("reader_read (1)  [%zu]\n", list_size(&rd->list));
 
   ret = read_next(rd, ctx);
 
@@ -196,8 +196,8 @@ reader_read(Reader* rd, JSContext* ctx) {
   }
 
   reader_update(rd, ctx);
-  //printf("reader_read (2)  [%zu]\n", list_size(&rd->list));
-  // printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
+  // printf("reader_read (2)  [%zu]\n", list_size(&rd->list));
+  //  printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
 
   return ret;
 }
@@ -222,7 +222,7 @@ reader_clean(Reader* rd, JSContext* ctx) {
 
   list_for_each_prev_safe(el, next, (Read*)&rd->reads) {
     if(read_done(el)) {
-      //printf("reader_clean() delete[%i]\n", el->seq);
+      // printf("reader_clean() delete[%i]\n", el->seq);
       list_del(&el->link);
       js_free(ctx, el);
       ret++;
@@ -243,7 +243,7 @@ reader_update(Reader* rd, JSContext* ctx) {
 
   reader_clean(rd, ctx);
 
-  //printf("reader_update [%zu] closed=%d queue.size=%zu\n", list_size(&rd->list), readable_closed(st), queue_size(&st->q));
+  // printf("reader_update [%zu] closed=%d queue.size=%zu\n", list_size(&rd->list), readable_closed(st), queue_size(&st->q));
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
     reader_clear(rd, ctx);
@@ -274,14 +274,14 @@ reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   Read *op = 0, *el, *next;
   BOOL ret = FALSE;
   list_for_each_prev_safe(el, next, &rd->reads) {
-    //printf("reader_passthrough() el[%i]\n", el->seq);
+    // printf("reader_passthrough() el[%i]\n", el->seq);
     if(promise_pending(&el->promise)) {
       op = el;
       break;
     }
   }
   if(op) {
-    //printf("reader_passthrough() read[%i]\n", op->seq);
+    // printf("reader_passthrough() read[%i]\n", op->seq);
     ret = promise_resolve(ctx, &op->promise.funcs, result);
     reader_clean(rd, ctx);
   }
@@ -688,7 +688,10 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   return ret;
 }
 
-enum { STREAM_CLOSED, STREAM_LOCKED };
+enum {
+  STREAM_CLOSED,
+  STREAM_LOCKED,
+};
 
 JSValue
 js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -711,7 +714,11 @@ js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-enum { READABLE_CLOSE = 0, READABLE_ENQUEUE, READABLE_ERROR };
+enum {
+  READABLE_CLOSE = 0,
+  READABLE_ENQUEUE,
+  READABLE_ERROR,
+};
 
 JSValue
 js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -1207,7 +1214,10 @@ js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   return ret;
 }
 
-enum { WRITABLE_CLOSED, WRITABLE_LOCKED };
+enum {
+  WRITABLE_CLOSED,
+  WRITABLE_LOCKED,
+};
 
 JSValue
 js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -1230,7 +1240,9 @@ js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-enum { WRITABLE_ERROR = 0 };
+enum {
+  WRITABLE_ERROR = 0,
+};
 
 JSValue
 js_writable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -1370,7 +1382,11 @@ js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-enum { TRANSFORM_TERMINATE = 0, TRANSFORM_ENQUEUE, TRANSFORM_ERROR };
+enum {
+  TRANSFORM_TERMINATE = 0,
+  TRANSFORM_ENQUEUE,
+  TRANSFORM_ERROR,
+};
 
 JSValue
 js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {

@@ -14,7 +14,11 @@
  * @{
  */
 
-typedef enum { EVENT_CLOSE = 0, EVENT_CANCEL = 1, EVENT_READ = 2 } StreamEvent;
+typedef enum {
+  EVENT_CLOSE = 0,
+  EVENT_CANCEL = 1,
+  EVENT_READ = 2,
+} StreamEvent;
 
 #define HEAD(st) \
   struct { \
@@ -36,7 +40,10 @@ typedef struct read_next {
   };
 } Read;
 
-enum { READER_CLOSED = 0, READER_CANCELLED };
+enum {
+  READER_CLOSED = 0,
+  READER_CANCELLED,
+};
 
 typedef struct stream_reader {
   int64_t desired_size;
@@ -44,14 +51,14 @@ typedef struct stream_reader {
   Promise events[2];
   union {
     struct list_head list;
-    /*    struct {
-          Read *prev, *next;
-        } reads;*/
     Read reads;
   };
 } Reader;
 
-enum { WRITER_CLOSED = 0, WRITER_READY };
+enum {
+  WRITER_CLOSED = 0,
+  WRITER_READY,
+};
 
 typedef struct stream_writer {
   int64_t desired_size;
@@ -60,7 +67,11 @@ typedef struct stream_writer {
   Queue q;
 } Writer;
 
-typedef enum { READABLE_START = 0, READABLE_PULL, READABLE_CANCEL } ReadableEvent;
+typedef enum {
+  READABLE_START = 0,
+  READABLE_PULL,
+  READABLE_CANCEL,
+} ReadableEvent;
 
 typedef struct readable_stream {
   int ref_count;
@@ -72,7 +83,12 @@ typedef struct readable_stream {
   JSValue underlying_source, controller;
 } Readable;
 
-typedef enum { WRITABLE_START = 0, WRITABLE_WRITE, WRITABLE_CLOSE, WRITABLE_ABORT } WritableEvent;
+typedef enum {
+  WRITABLE_START = 0,
+  WRITABLE_WRITE,
+  WRITABLE_CLOSE,
+  WRITABLE_ABORT,
+} WritableEvent;
 
 typedef struct writable_stream {
   int ref_count;
@@ -84,7 +100,11 @@ typedef struct writable_stream {
   JSValue underlying_sink, controller;
 } Writable;
 
-typedef enum { TRANSFORM_START = 0, TRANSFORM_TRANSFORM, TRANSFORM_FLUSH } TransformEvent;
+typedef enum {
+  TRANSFORM_START = 0,
+  TRANSFORM_TRANSFORM,
+  TRANSFORM_FLUSH,
+} TransformEvent;
 
 typedef struct transform_stream {
   int ref_count;
@@ -94,7 +114,10 @@ typedef struct transform_stream {
   JSValue underlying_transform, controller;
 } Transform;
 
-typedef enum { TRANSFORM_READABLE = 0, TRANSFORM_WRITABLE } TransformProperties;
+typedef enum {
+  TRANSFORM_READABLE = 0,
+  TRANSFORM_WRITABLE,
+} TransformProperties;
 
 extern thread_local JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id, js_writable_class_id, js_transform_class_id;
 extern thread_local JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor, transform_proto,

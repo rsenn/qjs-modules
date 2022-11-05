@@ -16,17 +16,19 @@ async function ReadStream(stream) {
     chunks = [];
   //console.log('ReadStream(1)', reader.read+'');
   while((chunk = await reader.read())) {
-    
-    let value=toString(chunk), done= chunk === null;
+    //console.options.maxStringLength=100;
+    let value = toString(chunk),
+      done = chunk === null;
     // chunk = chunk.then(res => (console.log('chunk resolved', res), res));
-  console.log('ReadStream(1)', { done, value,chunk });
+    console.log('ReadStream(1)', { done, value });
     if(done) break;
     chunks.push(value);
   }
 
-  //console.log('ReadStream(2)', { chunks });
+  console.log('ReadStream(2)', { chunks });
   let blob = new Blob(chunks);
-  //console.log('ReadStream(3)', { blob });
+
+  console.log('ReadStream(3)', { blob });
 
   reader.releaseLock();
   return blob.arrayBuffer();
@@ -42,11 +44,11 @@ async function WriteStream(stream, fn = writer => {}) {
 }
 
 function main(...args) {
-  globalThis.console = new Console({
+  console = globalThis.console = new Console({
     inspectOptions: {
       colors: true,
       depth: 8,
-      maxStringLength: Infinity,
+      maxStringLength: 50,
       maxArrayLength: 64,
       compact: 1,
       showHidden: false
@@ -59,7 +61,7 @@ function main(...args) {
   //console.log('read', read);
   //console.log('write', write);
 
-  ReadStream(read).then(result => {
+  return ReadStream(read).then(result => {
     let str = toString(result);
     //console.log('read', str);
     WriteStream(write, async writer => {
@@ -75,6 +77,4 @@ try {
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
   std.exit(1);
-} finally {
-  console.log('SUCCESS');
 }

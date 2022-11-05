@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
 import { TextDecoder, TextEncoder } from 'textcode';
-import { toArrayBuffer, quote, concat } from 'util';
+import { toArrayBuffer, quote, concat,toString } from 'util';
 import { TextEncoderStream } from '../lib/streams.js';
 
 async function main(...args) {
@@ -35,7 +35,7 @@ async function main(...args) {
     chunk = reader.read();
     console.log('chunk', chunk);
     chunk = await chunk;
-    console.log('chunk', chunk);
+    console.log('chunk', toString(chunk.value));
   } while(chunk && !chunk.done);
 
   await reader.releaseLock();

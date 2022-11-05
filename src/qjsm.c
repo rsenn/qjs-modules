@@ -1637,6 +1637,13 @@ main(int argc, char** argv) {
         goto fail;
     }
 
+    js_eval_str(ctx,
+                "import { Console } from 'console';\n"
+                "import { out } from 'std';\n"
+                "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n",
+                0,
+                JS_EVAL_TYPE_MODULE);
+
     if(expr) {
       if(js_eval_str(ctx, expr, "<cmdline>", 0) == -1)
         goto fail;
@@ -1651,12 +1658,6 @@ main(int argc, char** argv) {
         goto fail;
       }
     }
-    js_eval_str(ctx,
-                "import { Console } from 'console';\n"
-                "import { out } from 'std';\n"
-                "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n",
-                0,
-                JS_EVAL_TYPE_MODULE);
 
     if(interactive)
       jsm_start_interactive(ctx);
