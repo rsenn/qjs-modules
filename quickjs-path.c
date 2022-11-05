@@ -245,11 +245,13 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 #ifndef __wasi__
     case METHOD_GETHOME: {
+      const char *home;
 #ifdef _WIN32
-      ret = JS_NewString(ctx, getenv("USERPROFILE"));
+      home = getenv("USERPROFILE");
 #else
-      ret = JS_NewString(ctx, path_gethome1(getuid()));
+      home = path_gethome1(getuid());
 #endif
+      ret = home ? JS_NewString(ctx, home) : JS_NULL;
       break;
     }
 #endif
@@ -359,7 +361,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
 
     case METHOD_CANONICAL: {
-      path_canonical2(a, &db);
+      path_canonical3(a, alen, &db);
       break;
     }
 

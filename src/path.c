@@ -59,7 +59,7 @@ char*
 path_dup1(const char* path) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
-  path_dup2(path, &db);
+  path_dup3(path, strlen(path), &db);
   return db.buf;
 }
 
@@ -732,7 +732,7 @@ path_gethome1(int uid) {
   char buf[1024];
   static char home[PATH_MAX + 1];
   if((fp = fopen("/etc/passwd", "r")) == 0)
-    return 0;
+    return getenv("HOME");
   while((line = fgets(buf, sizeof(buf) - 1, fp))) {
     size_t p, n, len = strlen(line);
     char *user, *id, *dir;
@@ -1034,7 +1034,7 @@ path_relative3(const char* path, const char* relative_to, DynBuf* out) {
   return path_relative5(path, strlen(path), relative_to, strlen(relative_to), out);
 }
 
-int
+char*
 path_relative2(const char* path, const char* relative_to) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
@@ -1068,7 +1068,7 @@ path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out
   return 1;
 }
 
-int
+char*
 path_relative4(const char* s1, size_t n1, const char* s2, size_t n2) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);

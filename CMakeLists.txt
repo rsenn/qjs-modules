@@ -397,7 +397,7 @@ if(HAVE_SYS_MMAN_H)
 endif(HAVE_SYS_MMAN_H)
 
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(list_SOURCES quickjs-list.c quickjs-list.h)
+set(list_SOURCES quickjs-list.c quickjs-list.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 # if(pigpio_LIBRARY)
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
