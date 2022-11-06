@@ -38,6 +38,7 @@ async function main(...args) {
 
   let iter = await StreamReadIterator(st);
   let tfrm = await transform(iter, toString);
+ 
   console.log('tfrm', tfrm);
 
   let result = await reduce(tfrm, (acc, n) => acc + n, '');
