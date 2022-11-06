@@ -35,6 +35,8 @@ const skip = () => {
 };
 
 while(!skip()) {}
+
+insert();
 console.log('it', it);
 
 //insert();
