@@ -1624,6 +1624,8 @@ main(int argc, char** argv) {
         if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
           continue;
 
+        JS_GetException(ctx);
+
         if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
           continue;
 
