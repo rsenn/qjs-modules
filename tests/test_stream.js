@@ -6,22 +6,10 @@ import { Blob } from 'blob';
 import { toString } from 'util';
 import { FileSystemReadableFileStream, FileSystemWritableFileStream, FileSystemReadableStream, StreamReadIterator } from '../lib/streams.js';
 import fs from 'fs';
+import { AsyncGeneratorPrototype, extendAsyncGenerator } from '../lib/extendAsyncGenerator.js';
 
 ('use strict');
 ('use math');
-/*
-async function consume(x, t = a => console.log(`async consume =`, a)) {
-  for await(let n of x) await t(n);
-}*/
-
-async function* transform(x, t = a => a) {
-  for await(let n of await x) yield await t(n);
-}
-
-async function reduce(x, t = (a, n) => ((a ??= []).push(n), a), c) {
-  for await(let n of await x) c = await t(c, n);
-  return c;
-}
 
 async function main(...args) {
   globalThis.console = new Console({
@@ -37,11 +25,29 @@ async function main(...args) {
   let read = new FileSystemReadableFileStream('tests/test1.xml');
 
   let iter = await StreamReadIterator(st);
-  let tfrm = await transform(iter, toString);
- 
-  console.log('tfrm', tfrm);
 
-  let result = await reduce(tfrm, (acc, n) => acc + n, '');
+  extendAsyncGenerator(Object.getPrototypeOf(iter));
+  //  extendAsyncGenerator(AsyncGeneratorPrototype);
+
+  let tfrm = iter.map(n => toString(n));
+  extendAsyncGenerator(Object.getPrototypeOf(tfrm));
+
+  let p = [Object.getPrototypeOf(iter), AsyncGeneratorPrototype, Object.getPrototypeOf(tfrm)];
+
+  /*console.log('p', p);
+  console.log('p', p.map(pr => pr.constructor));
+
+  console.log('Object.getPrototypeOf(iter)', Object.getPrototypeOf(iter));
+  console.log('Object.getPrototypeOf(tfrm)', Object.getPrototypeOf(tfrm));
+  console.log('AsyncGeneratorPrototype', AsyncGeneratorPrototype);
+
+  console.log('iter', iter);
+  console.log('iter.reduce', iter.reduce);
+  console.log('tfrm.reduce', tfrm.reduce);
+*/
+  console.log('AsyncGeneratorPrototype', AsyncGeneratorPrototype.reduce);
+
+  let result = await tfrm.reduce((acc, n) => acc + n, '');
 
   console.log('result', { result });
   /*  
