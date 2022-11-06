@@ -34,6 +34,8 @@ const skip = () => {
   return done;
 };
 
+skip();
+insert();
 while(!skip()) {}
 
 insert();
