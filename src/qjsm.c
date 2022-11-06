@@ -164,7 +164,7 @@ jsm_module_extern_native(deep);
 jsm_module_extern_native(inspect);
 jsm_module_extern_native(lexer);
 jsm_module_extern_native(misc);
-jsm_module_extern_native(mmap);
+//jsm_module_extern_native(mmap);
 jsm_module_extern_native(path);
 jsm_module_extern_native(pointer);
 jsm_module_extern_native(predicate);
@@ -438,7 +438,7 @@ jsm_init_modules(JSContext* ctx) {
   jsm_builtin_native(inspect);
   jsm_builtin_native(lexer);
   jsm_builtin_native(misc);
-  jsm_builtin_native(mmap);
+  //jsm_builtin_native(mmap);
   jsm_builtin_native(path);
   jsm_builtin_native(pointer);
   jsm_builtin_native(predicate);

@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import * as path from 'path';
 import inspect from 'inspect';
-import { Predicate } from './predicate.js';
+import { Predicate } from 'predicate';
 import { Location, Lexer, Token } from 'lexer';
 import Console from '../lib/console.js';
 import ECMAScriptLexer from '../lib/lexer/ecmascript.js';

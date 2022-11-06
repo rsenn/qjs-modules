@@ -29,7 +29,9 @@ function main(...args) {
 
   console.log('args:', args);
 
-  let data = std.loadFile(args[0] ?? '/etc/fonts/fonts.conf', 'utf-8');
+  let data = 
+    std.loadFile(args[0] ?? '/etc/fonts/fonts.conf', 'utf-8') ??
+    std.loadFile('tests/test1.xml', 'utf-8');
 
   console.log('data:', data.substring(0, 100).replace(/\n/g, '\\n') + '...');
 

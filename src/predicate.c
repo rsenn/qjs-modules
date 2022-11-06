@@ -263,6 +263,11 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
       /*if(JS_IsObject(obj))*/ {
         JSValue item = JS_GetProperty(ctx, obj, pr->property.atom);
+
+        if(JS_IsException(item)) {
+          ret = item;
+          break;
+        }
         ret = predicate_call(ctx, pr->property.predicate, 1, &item);
 
         JS_FreeValue(ctx, item);

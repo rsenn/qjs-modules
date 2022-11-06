@@ -29,7 +29,7 @@ function main(...args) {
     }
   });
 
-  let file = args[0] ?? '/etc/fonts/fonts.conf';
+  let file = args[0] ?? 'tests/test1.xml';
 
   let base = path.basename(file, path.extname(file));
 

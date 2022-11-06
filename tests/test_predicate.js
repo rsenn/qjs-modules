@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import inspect from 'inspect';
 import * as xml from 'xml';
-import { Predicate, PredicateOperators, PredicateOperatorSet, index, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal, property } from './predicate.js';
+import { Predicate, PredicateOperators, PredicateOperatorSet, index, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal, property } from 'predicate';
 import Console from '../lib/console.js';
 
 ('use strict');

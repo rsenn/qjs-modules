@@ -161,14 +161,8 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_PROP_INT32_DEF("PROT_READ", 0x01, 0),
     JS_PROP_INT32_DEF("PROT_WRITE", 0x02, 0),
     JS_PROP_INT32_DEF("PROT_EXEC", 0x04, 0),
-    JS_PROP_INT32_DEF("PROT_SEM", 0x08, 0),
+    //JS_PROP_INT32_DEF("PROT_SEM", 0x08, 0),
     JS_PROP_INT32_DEF("PROT_NONE", 0x00, 0),
-#ifdef PROT_SAO
-    JS_CONSTANT(PROT_SAO),
-#endif
-#ifdef PROT_SEM
-    JS_CONSTANT(PROT_SEM),
-#endif
     JS_PROP_INT32_DEF("PROT_GROWSDOWN", 0x01000000, 0),
     JS_PROP_INT32_DEF("PROT_GROWSUP", 0x02000000, 0),
     JS_PROP_INT32_DEF("MAP_SHARED", 0x01, 0),
@@ -186,10 +180,18 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_PROP_INT32_DEF("MAP_STACK", 0x20000, 0),
     JS_PROP_INT32_DEF("MAP_HUGETLB", 0x40000, 0),
     JS_PROP_INT32_DEF("MAP_FAILED", -1, 0),
+#ifdef EBUSY
     JS_CONSTANT(EBUSY),
+#endif
+#ifdef EFAULT
     JS_CONSTANT(EFAULT),
+#endif
+#ifdef EINVAL
     JS_CONSTANT(EINVAL),
+#endif
+#ifdef ENOMEM
     JS_CONSTANT(ENOMEM),
+#endif
 #ifdef MS_ASYNC
     JS_CONSTANT(MS_ASYNC),
 #endif
@@ -198,6 +200,12 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
 #endif
 #ifdef MS_SYNC
     JS_CONSTANT(MS_SYNC),
+#endif
+#ifdef PROT_SAO
+    JS_CONSTANT(PROT_SAO),
+#endif
+#ifdef PROT_SEM
+    JS_CONSTANT(PROT_SEM),
 #endif
 };
 

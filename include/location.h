@@ -11,7 +11,8 @@
 typedef struct source_location {
   int ref_count;
   int32_t file;
-  uint32_t line, column;
+  uint32_t line;
+  int32_t column;
   int64_t char_offset, byte_offset;
   char* str;
   BOOL read_only : 1;

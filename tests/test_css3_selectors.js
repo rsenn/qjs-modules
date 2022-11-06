@@ -1,5 +1,5 @@
 import { TypeSelector, ClassSelector, AttributeSelector, parseSelectors } from '../lib/css3-selectors.js';
-import { Predicate } from './predicate.js';
+import { Predicate } from 'predicate';
 import { Console } from 'console';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
 import { read as readXML, write as writeXML } from 'xml';

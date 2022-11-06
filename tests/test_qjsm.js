@@ -1,4 +1,5 @@
-import { inspect, format, formatWithOptions } from 'util';
+import { inspect } from 'inspect';
+import { format, formatWithOptions } from 'util';
 import Console from '../lib/console.js';
 
 function main(...args) {

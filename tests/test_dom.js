@@ -116,7 +116,7 @@ function main(...args) {
 
     let ll = allLayers.last;
     console.log('ll', ll);
-    console.log('ll.path', ll.path);
+    console.log('ll.path', ll?.path);
 
     let lt = doc.querySelector('layer[name=Top]');
     console.log('lt', lt);

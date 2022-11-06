@@ -1,9 +1,9 @@
 import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
-import { Location } from 'misc';
+import { Location } from 'location';
 import { extendArray, format, waitFor } from 'util';
-import { fnmatch, FNM_CASEFOLD, FNM_EXTMATCH, FNM_FILE_NAME, FNM_LEADING_DIR, FNM_NOESCAPE, FNM_NOMATCH, FNM_PATHNAME, FNM_PERIOD, glob, GLOB_ERR, GLOB_MARK, GLOB_NOSORT, GLOB_NOCHECK, GLOB_NOMATCH, GLOB_NOESCAPE, GLOB_ALTDIRFUNC, GLOB_BRACE, GLOB_NOMAGIC, GLOB_TILDE, GLOB_MAGCHAR, GLOB_NOSPACE, GLOB_ABORTED, JS_EVAL_FLAG_COMPILE_ONLY, JS_EVAL_TYPE_MODULE, JS_EVAL_TYPE_GLOBAL, toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
+import { fnmatch, FNM_CASEFOLD, FNM_FILE_NAME, FNM_LEADING_DIR, FNM_NOESCAPE, FNM_NOMATCH, FNM_PATHNAME, FNM_PERIOD, glob, GLOB_ERR, GLOB_MARK, GLOB_NOSORT, GLOB_NOCHECK, GLOB_NOMATCH, GLOB_NOESCAPE, GLOB_ALTDIRFUNC, GLOB_BRACE, GLOB_NOMAGIC, GLOB_TILDE, GLOB_MAGCHAR, GLOB_NOSPACE, GLOB_ABORTED, JS_EVAL_FLAG_COMPILE_ONLY, JS_EVAL_TYPE_MODULE, JS_EVAL_TYPE_GLOBAL, toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -34,7 +34,7 @@ function main(...args) {
   console.log('loc.toString()', loc.toString());
 
   let f = fs.readFileSync('Makefile', null);
-  let b = f.slice(0, 1024) ?? toArrayBuffer('TEST DATA');
+  let b = f?.slice(0, 1024) ?? toArrayBuffer('TEST DATA');
   let s = btoa(b);
   console.log('b', b);
 
