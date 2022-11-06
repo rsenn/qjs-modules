@@ -245,7 +245,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 #ifndef __wasi__
     case METHOD_GETHOME: {
-      const char *home;
+      const char* home;
 #ifdef _WIN32
       home = getenv("USERPROFILE");
 #else
