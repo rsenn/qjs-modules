@@ -10,26 +10,17 @@ import fs from 'fs';
 ('use strict');
 ('use math');
 
-/*async function ReadStream(stream) {
-  let reader = stream.getReader();
-  let chunk,
-    chunks = [];
-  while((chunk = await reader.read())) {
-    let value = toString(chunk),
-      done = chunk === null;
-    if(done) break;
-    chunks.push(value);
-  }
-  let blob = new Blob(chunks);
-  reader.releaseLock();
-  return blob.arrayBuffer();
+export async function consume(x, t = a => console.log(`async consume =`, a)) {
+  for await(let n of x) await t(n);
+}
+export async function* transform(x, t = a => a) {
+  for await(let n of x) yield await t(n);
 }
 
-async function WriteStream(stream, fn = writer => {}) {
-  let writer = stream.getWriter();
-  fn(writer);
-  writer.releaseLock();
-}*/
+export async function reduce(x, t = (a, n) => ((a ??= []).push(n), a), c) {
+  for await(let n of await x) c = await t(c, n);
+  return c;
+}
 
 function main(...args) {
   console = globalThis.console = new Console({
@@ -44,25 +35,21 @@ function main(...args) {
   });
   let fd = fs.openSync('quickjs-misc.c', fs.O_RDONLY);
 
-  let st = new FileSystemReadableStream(fd, 1024 * 128);
+  let st = new FileSystemReadableStream(fd, 1024);
 
-  (async function test() {
+  /* (async function test() {
     for await(let chunk of await StreamReadIterator(st)) {
       console.log('test chunk', chunk);
     }
     console.log('test done');
-  })();
+  })();*/ let read = new FileSystemReadableFileStream('tests/test1.xml');
 
-  /*  let read = new FileSystemReadableFileStream('tests/test1.xml');
+  reduce(transform(StreamReadIterator(read), toString), (acc, n) => acc + n, '').then(r => console.log('result', r));
+  //& consume(StreamReadIterator(st),  r=>console.log('result',r));
+
+  /*  
   let write = new FileSystemWritableFileStream('/tmp/out.txt');
- 
-  return ReadStream(read).then(result => {
-    let str = toString(result);
-     WriteStream(write, async writer => {
-       await writer.write(result);
-      await writer.close();
-    });
-  });*/
+  */
 }
 
 try {
