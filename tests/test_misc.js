@@ -33,8 +33,9 @@ function main(...args) {
 
   console.log('loc.toString()', loc.toString());
 
-  let f = fs.readFileSync('Makefile', null);
-  let b = f?.slice(0, 1024) ?? toArrayBuffer('TEST DATA');
+  let f = fs.readFileSync('../CMakeLists.txt', null);
+  console.log('f', f);
+  let b = f ? f?.slice(0, 1024) : toArrayBuffer('TEST DATA');
   let s = btoa(b);
   console.log('b', b);
 

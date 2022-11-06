@@ -65,6 +65,8 @@ function main(...args) {
     let w = this.watch(e);
     console.log('inotify event', flags.join('|'), e, w);
   };
+
+  os.setTimeout(() => watch.close(), 2000);
 }
 
 try {

@@ -46,7 +46,7 @@ function main(...args) {
     console.log('pred', pred + '');
   }
 
-  new REPL().run();
+  //new REPL().run();
 }
 
 try {
