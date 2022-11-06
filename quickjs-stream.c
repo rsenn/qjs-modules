@@ -141,14 +141,24 @@ static JSValue
 reader_close(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
 
+  // printf("reader_close (1)  [%zu]\n", list_size(&rd->list));
+
   if(!rd->stream)
     return JS_ThrowInternalError(ctx, "no ReadableStream");
 
   ret = js_readable_callback(ctx, rd->stream, READABLE_CANCEL, 0, 0);
 
+  // printf("reader_close (2) promise=%i\n", js_is_promise(ctx, ret));
+
+  rd->stream->closed = TRUE;
+
+  reader_update(rd, ctx);
+
   if(js_is_promise(ctx, ret)) {
     ret = promise_forward(ctx, ret, &rd->events[READER_CLOSED]);
   }
+  // printf("reader_close (2) promise=%i\n", js_is_promise(ctx, ret));
+
   return ret;
 }
 
@@ -181,7 +191,7 @@ static JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   Readable* st;
-  // printf("reader_read (1)  [%zu]\n", list_size(&rd->list));
+  // printf("reader_read (1)  [%zu] closed=%i\n", list_size(&rd->list), rd->stream->closed);
 
   ret = read_next(rd, ctx);
 
@@ -196,7 +206,7 @@ reader_read(Reader* rd, JSContext* ctx) {
   }
 
   reader_update(rd, ctx);
-  // printf("reader_read (2)  [%zu]\n", list_size(&rd->list));
+  // printf("reader_read (2) [%zu] closed=%i\n", list_size(&rd->list), rd->stream->closed);
   //  printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
 
   return ret;
@@ -243,17 +253,19 @@ reader_update(Reader* rd, JSContext* ctx) {
 
   reader_clean(rd, ctx);
 
-  // printf("reader_update [%zu] closed=%d queue.size=%zu\n", list_size(&rd->list), readable_closed(st), queue_size(&st->q));
+  // printf("reader_update(1) [%zu] closed=%d queue.size=%zu\n", list_size(&rd->list), readable_closed(st), queue_size(&st->q));
+
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
-    reader_clear(rd, ctx);
+    //   reader_clear(rd, ctx);
     result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
+
     if(reader_passthrough(rd, result, ctx))
       ++ret;
   } else {
     while(!list_empty(&rd->list) && (ch = queue_next(&st->q))) {
       JSValue chunk, result;
-      // printf("reader_update() Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
+      // printf("reader_update(2) Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
       chunk = chunk_arraybuffer(ch, ctx);
       result = js_iterator_result(ctx, chunk, FALSE);
       JS_FreeValue(ctx, chunk);
@@ -264,7 +276,8 @@ reader_update(Reader* rd, JSContext* ctx) {
       JS_FreeValue(ctx, result);
     }
   }
-  // printf("reader_update() = %d\n", ret);
+
+  // printf("reader_update(3) closed=%d queue.size=%zu result = %d\n", readable_closed(st), queue_size(&st->q), ret);
 
   return ret;
 }
@@ -274,14 +287,16 @@ reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   Read *op = 0, *el, *next;
   BOOL ret = FALSE;
   list_for_each_prev_safe(el, next, &rd->reads) {
-    // printf("reader_passthrough() el[%i]\n", el->seq);
+    // printf("reader_passthrough(1) el[%i]\n", el->seq);
     if(promise_pending(&el->promise)) {
       op = el;
       break;
     }
   }
+  // printf("reader_passthrough(2) result=%s\n", JS_ToCString(ctx, result));
+
   if(op) {
-    // printf("reader_passthrough() read[%i]\n", op->seq);
+    // printf("reader_passthrough(3) read[%i]\n", op->seq);
     ret = promise_resolve(ctx, &op->promise.funcs, result);
     reader_clean(rd, ctx);
   }
@@ -311,8 +326,11 @@ static JSValue
 readable_close(Readable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   static const BOOL expected = FALSE;
+  // printf("readable_close(1) expected=%i, closed=%i\n", st->closed, expected);
+
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
     if(readable_locked(st)) {
+      // printf("readable_close(2) expected=%i, closed=%i\n", st->closed, expected);
       promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
       reader_close(st->reader, ctx);
     }
@@ -362,9 +380,15 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   Reader* rd;
   // size_t old_size;
 
-  if(readable_locked(st) && (rd = st->reader))
-    if(reader_passthrough(rd, chunk, ctx))
+  if(readable_locked(st) && (rd = st->reader)) {
+    JSValue result = js_iterator_result(ctx, chunk, FALSE);
+    BOOL ok;
+    ok = reader_passthrough(rd, result, ctx);
+
+    JS_FreeValue(ctx, result);
+    if(ok)
       return JS_UNDEFINED;
+  }
 
   input = js_input_chars(ctx, chunk);
   // old_size = queue_size(&st->q);

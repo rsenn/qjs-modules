@@ -1,32 +1,16 @@
 import * as os from 'os';
 import * as std from 'std';
-import inspect from 'inspect';
 import child_process from 'child_process';
 import Console from '../lib/console.js';
 import { toString } from 'util';
 
 ('use strict');
 
-globalThis.inspect = inspect;
-
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);
   console.log('Wrote "' + file + '": ' + data.length + ' bytes');
 }
-
-const inspectOptions = {
-  colors: true,
-  showHidden: false,
-  customInspect: true,
-  showProxy: false,
-  getters: false,
-  depth: 4,
-  maxArrayLength: 10,
-  maxStringLength: 200,
-  compact: 2,
-  hideKeys: ['loc', 'range', 'inspect', Symbol.toStringTag, Symbol.for('nodejs.util.inspect.custom')]
-};
 
 function ReadChild(...args) {
   let cmd = args.shift();
@@ -70,7 +54,14 @@ function ReadChild(...args) {
 }
 
 function main(...args) {
-  globalThis.console = new Console({ inspectOptions });
+  globalThis.console = new Console({
+    inspectOptions_: {
+      colors: true,
+      maxArrayLength: 10,
+      maxStringLength: 200,
+      compact: 2
+    }
+  });
 
   let data = ReadChild('/opt/diet/bin-x86_64/ls', '-la');
 

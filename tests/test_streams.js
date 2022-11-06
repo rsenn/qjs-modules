@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
 import { TextDecoder, TextEncoder } from 'textcode';
-import { toArrayBuffer, quote, concat,toString } from 'util';
+import { toArrayBuffer, quote, concat, toString } from 'util';
 import { TextEncoderStream } from '../lib/streams.js';
 
 async function main(...args) {

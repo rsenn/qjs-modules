@@ -212,6 +212,14 @@ if(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
   add_definitions(-DHAVE_INOTIFY=1)
 endif(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
 
+if(HAVE_FCNTL_H)
+  add_definitions(-DHAVE_FCNTL_H=1)
+endif(HAVE_FCNTL_H)
+
+if(HAVE_FCNTL)
+  add_definitions(-DHAVE_FCNTL=1)
+endif(HAVE_FCNTL)
+
 check_functions(sysinfo)
 
 if(HAVE_SYSINFO)

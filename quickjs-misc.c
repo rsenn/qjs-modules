@@ -52,6 +52,9 @@
 #include <termios.h>
 #include <sys/ioctl.h>
 #endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 #include "debug.h"
 
 /**
@@ -1999,6 +2002,23 @@ js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_NewInt32(ctx, unlink(file));
 }
 
+#ifdef HAVE_FCNTL
+static JSValue
+js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t fd = -1, cmd = -1, arg = -1;
+  int ret;
+
+  JS_ToInt32(ctx, &fd, argv[0]);
+  JS_ToInt32(ctx, &cmd, argv[1]);
+  if(argc > 2)
+    JS_ToInt32(ctx, &arg, argv[2]);
+
+  ret = fcntl(fd, cmd, arg);
+
+  return JS_NewInt32(ctx, ret);
+}
+#endif
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
 #ifndef __wasi__
@@ -2035,6 +2055,42 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("unlink", 1, js_misc_unlink),
 #ifdef HAVE_LINK
     JS_CFUNC_DEF("link", 2, js_misc_link),
+#endif
+#ifdef HAVE_FCNTL
+    JS_CFUNC_DEF("fcntl", 2, js_misc_fcntl),
+    JS_CONSTANT(FD_CLOEXEC),
+    JS_CONSTANT(F_DUPFD),
+    JS_CONSTANT(F_DUPFD_CLOEXEC),
+    JS_CONSTANT(F_GETFD),
+    JS_CONSTANT(F_GETFL),
+    JS_CONSTANT(F_GETLEASE),
+    JS_CONSTANT(F_GETLK),
+    JS_CONSTANT(F_NOTIFY),
+    JS_CONSTANT(F_RDLCK),
+    JS_CONSTANT(F_SETFD),
+    JS_CONSTANT(F_SETFL),
+    JS_CONSTANT(F_SETLEASE),
+    JS_CONSTANT(F_SETLK),
+    JS_CONSTANT(F_SETLKW),
+    JS_CONSTANT(F_SETPIPE_SZ),
+    JS_CONSTANT(F_SETSIG),
+    JS_CONSTANT(F_UNLCK),
+    JS_CONSTANT(F_WRLCK),
+    JS_CONSTANT(O_APPEND),
+    JS_CONSTANT(O_ASYNC),
+    JS_CONSTANT(O_CLOEXEC),
+    JS_CONSTANT(O_CREAT),
+    JS_CONSTANT(O_DIRECT),
+    JS_CONSTANT(O_DSYNC),
+    JS_CONSTANT(O_EXCL),
+    JS_CONSTANT(O_NOATIME),
+    JS_CONSTANT(O_NOCTTY),
+    JS_CONSTANT(O_NONBLOCK),
+    JS_CONSTANT(O_RDONLY),
+    JS_CONSTANT(O_RDWR),
+    JS_CONSTANT(O_SYNC),
+    JS_CONSTANT(O_TRUNC),
+    JS_CONSTANT(O_WRONLY),
 #endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),

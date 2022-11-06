@@ -4,44 +4,32 @@ import { Console } from 'console';
 import { ReadableStream, WritableStream } from 'stream';
 import { Blob } from 'blob';
 import { toString } from 'util';
-import { FileSystemReadableFileStream, FileSystemWritableFileStream } from '../lib/streams.js';
+import { FileSystemReadableFileStream, FileSystemWritableFileStream, FileSystemReadableStream, StreamReadIterator } from '../lib/streams.js';
+import fs from 'fs';
 
 ('use strict');
 ('use math');
 
-async function ReadStream(stream) {
+/*async function ReadStream(stream) {
   let reader = stream.getReader();
-  //console.log('ReadStream(0)', { reader });
   let chunk,
     chunks = [];
-  //console.log('ReadStream(1)', reader.read+'');
   while((chunk = await reader.read())) {
-    //console.options.maxStringLength=100;
     let value = toString(chunk),
       done = chunk === null;
-    // chunk = chunk.then(res => (console.log('chunk resolved', res), res));
-    console.log('ReadStream(1)', { done, value });
     if(done) break;
     chunks.push(value);
   }
-
-  console.log('ReadStream(2)', { chunks });
   let blob = new Blob(chunks);
-
-  console.log('ReadStream(3)', { blob });
-
   reader.releaseLock();
   return blob.arrayBuffer();
 }
 
 async function WriteStream(stream, fn = writer => {}) {
   let writer = stream.getWriter();
-  //console.log('WriteStream(0)', { writer });
-
   fn(writer);
-
   writer.releaseLock();
-}
+}*/
 
 function main(...args) {
   console = globalThis.console = new Console({
@@ -54,22 +42,27 @@ function main(...args) {
       showHidden: false
     }
   });
+  let fd = fs.openSync('quickjs-misc.c', fs.O_RDONLY);
 
-  let read = new FileSystemReadableFileStream('tests/test1.xml');
+  let st = new FileSystemReadableStream(fd, 1024 * 128);
+
+  (async function test() {
+    for await(let chunk of await StreamReadIterator(st)) {
+      console.log('test chunk', chunk);
+    }
+    console.log('test done');
+  })();
+
+  /*  let read = new FileSystemReadableFileStream('tests/test1.xml');
   let write = new FileSystemWritableFileStream('/tmp/out.txt');
-
-  //console.log('read', read);
-  //console.log('write', write);
-
+ 
   return ReadStream(read).then(result => {
     let str = toString(result);
-    //console.log('read', str);
-    WriteStream(write, async writer => {
-      //  console.log('writer', writer);
-      await writer.write(result);
+     WriteStream(write, async writer => {
+       await writer.write(result);
       await writer.close();
     });
-  });
+  });*/
 }
 
 try {
