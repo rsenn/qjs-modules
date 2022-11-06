@@ -14,17 +14,11 @@
  */
 
 typedef struct Node {
-  union {
-    struct list_head link;
-    struct {
-      struct Node *prev, *next;
-    };
-  };
+  struct list_head link;
   JSValue value;
-  int ref_count;
 } Node;
 
-typedef Node* SkipCall(Node*, List*);
+//  typedef Node* SkipCall(Node*, List*);
 
 typedef enum Direction {
   FWD = 0,
@@ -32,15 +26,11 @@ typedef enum Direction {
 } Direction;
 
 typedef struct ListIterator {
-  struct List* list;
-  union {
-    Node* node;
-    struct list_head* link;
-  };
+  List* list;
+  struct list_head* link;
   int64_t index;
   JSIteratorKindEnum kind;
   Direction dir;
-  // SkipCall* skip;
 } ListIterator;
 
 typedef int64_t FindCall(List*, JSValueConst, JSValueConst, Node**, JSContext*);
@@ -97,99 +87,38 @@ node_new(JSContext* ctx, JSValueConst value) {
     node->link.next = NULL;
     node->link.prev = NULL;
     node->value = JS_DupValue(ctx, value);
-    node->ref_count = 0;
   }
 
   return node;
 }
 
-static Node*
-node_next(Node* node, List* list) {
-  return node->link.next == &list->head ? NULL : (Node*)node->link.next;
-}
-
-static Node*
-node_prev(Node* node, List* list) {
-  return node->link.prev == &list->head ? NULL : (Node*)node->link.prev;
-}
-
-static inline void
-node_push(Node* node, List* list) {
-  list_add_tail(&node->link, &list->head);
-  ++node->ref_count;
-  ++list->size;
-}
-
-static inline void
-node_unshift(Node* node, List* list) {
-  list_add(&node->link, &list->head);
-  ++node->ref_count;
-  ++list->size;
-}
-
-static inline void
-node_insert(Node* node, Node* prev, List* list) {
-  __list_add(&node->link, &prev->link, prev->link.next);
-  ++node->ref_count;
-  ++list->size;
-}
-
 static void
-node_clear_rt(Node* node, JSRuntime* rt) {
-  if(!JS_IsUninitialized(node->value)) {
-    JS_FreeValueRT(rt, node->value);
-    node->value = JS_UNINITIALIZED;
-  }
+node_free(Node* node, JSRuntime* rt) {
+  JS_FreeValueRT(rt, node->value);
+  node->value = JS_UNINITIALIZED;
+
+  js_free_rt(rt, node);
 }
 
-static void
-node_clear(Node* node, JSContext* ctx) {
-  node_clear_rt(node, JS_GetRuntime(ctx));
-}
-
-static void
-node_remove_rt(Node* node, List* list, JSRuntime* rt) {
-  if(node->link.next) {
-    list_del(&node->link);
-
-    node_clear_rt(node, rt);
-
-    --list->size;
-  }
-
-  if(--node->ref_count == 0)
-    js_free_rt(rt, node);
-}
-
-static inline void
+static inline JSValue
 node_remove(Node* node, List* list, JSContext* ctx) {
-  node_remove_rt(node, list, JS_GetRuntime(ctx));
-}
+  JSValue ret = node->value;
 
-static void
-node_free_rt(Node* node, JSRuntime* rt) {
-  if(--node->ref_count == 0) {
-    node_clear_rt(node, rt);
-    js_free_rt(rt, node);
-  }
-}
+  list_del(&node->link);
+  --list->size;
 
-static inline void
-node_free(Node* node, JSContext* ctx) {
-  node_free_rt(node, JS_GetRuntime(ctx));
+  js_free(ctx, node);
+  return ret;
 }
 
 static JSValue
 node_call(Node* node, JSValueConst fn, JSValueConst list_obj, int64_t i, JSContext* ctx) {
-  BOOL result;
   JSValueConst args[] = {
       node->value,
       JS_NewInt64(ctx, i),
       list_obj,
   };
-  JSValue ret;
-
-  ret = JS_Call(ctx, fn, JS_UNDEFINED, countof(args), args);
+  JSValue ret = JS_Call(ctx, fn, JS_UNDEFINED, countof(args), args);
 
   JS_FreeValue(ctx, args[1]);
 
@@ -198,36 +127,11 @@ node_call(Node* node, JSValueConst fn, JSValueConst list_obj, int64_t i, JSConte
 
 static BOOL
 node_predicate(Node* node, JSValueConst fn, JSValueConst list_obj, int64_t i, JSContext* ctx) {
-  BOOL result;
-  JSValue ret;
-
-  ret = node_call(node, fn, list_obj, i, ctx);
-
-  result = JS_ToBool(ctx, ret);
+  JSValue ret = node_call(node, fn, list_obj, i, ctx);
+  BOOL result = JS_ToBool(ctx, ret);
   JS_FreeValue(ctx, ret);
 
   return result;
-}
-
-static Node*
-node_dup(Node* node) {
-  ++node->ref_count;
-  return node;
-}
-
-static void
-node_unref_rt(Node** node_p, JSRuntime* rt) {
-  Node* node = *node_p;
-
-  *node_p = NULL;
-
-  // if(--node->ref_count == 0)
-  node_free_rt(node, rt);
-}
-
-static inline void
-node_unref(Node** node_p, JSContext* ctx) {
-  node_unref_rt(node_p, JS_GetRuntime(ctx));
 }
 
 static List*
@@ -247,8 +151,10 @@ static Node*
 list_push(List* list, JSValueConst value, JSContext* ctx) {
   Node* node;
 
-  if((node = node_new(ctx, value)))
-    node_push(node, list);
+  if((node = node_new(ctx, value))) {
+    list_add_tail(&node->link, &list->head);
+    ++list->size;
+  }
 
   return node;
 }
@@ -257,30 +163,24 @@ static Node*
 list_unshift(List* list, JSValueConst value, JSContext* ctx) {
   Node* node;
 
-  if((node = node_new(ctx, value)))
-    node_unshift(node, list);
+  if((node = node_new(ctx, value))) {
+    list_add(&node->link, &list->head);
+    ++list->size;
+  }
 
   return node;
 }
 
-static Node*
-list_insert(List* list, Node* prev, JSValueConst value, JSContext* ctx) {
+static struct list_head*
+list_insert(List* list, struct list_head* prev, JSValueConst value, JSContext* ctx) {
   Node* node;
 
-  if((node = node_new(ctx, value)))
-    node_insert(node, prev, list);
+  if((node = node_new(ctx, value))) {
+    __list_add(&node->link, prev, prev->next);
+    ++list->size;
+  }
 
-  return node;
-}
-
-static inline Node*
-list_front(List* list) {
-  return list->head.next == &list->head ? NULL : (Node*)list->head.next;
-}
-
-static Node*
-list_back(List* list) {
-  return list->head.prev == &list->head ? NULL : (Node*)list->head.prev;
+  return (struct list_head*)node;
 }
 
 static Node*
@@ -359,7 +259,7 @@ list_free_rt(List* list, JSRuntime* rt) {
     list_for_each_safe(ptr, ptr2, &list->head) {
       Node* node = list_entry(ptr, Node, link);
 
-      node_remove_rt(node, list, rt);
+      node_free(node, rt);
     }
 
     js_free_rt(rt, list);
@@ -372,17 +272,12 @@ list_free(List* list, JSContext* ctx) {
 }
 
 static void
-list_unref_rt(List** list_p, JSRuntime* rt) {
+list_unref(List** list_p, JSRuntime* rt) {
   List* list = *list_p;
 
   *list_p = NULL;
 
   list_free_rt(list, rt);
-}
-
-static inline void
-list_unref(List** list_p, JSContext* ctx) {
-  list_unref_rt(list_p, JS_GetRuntime(ctx));
 }
 
 static inline List*
@@ -427,9 +322,10 @@ list_find_forward(List* list, JSValueConst list_obj, JSValueConst fn, Node** npt
   int64_t i = 0;
 
   list_for_each(ptr, &list->head) {
-    if(node_predicate(list_entry(ptr, Node, link), fn, list_obj, i++, ctx)) {
+    Node* node = list_entry(ptr, Node, link);
+    if(node_predicate(node, fn, list_obj, i++, ctx)) {
       if(nptr)
-        *nptr = list_entry(ptr, Node, link);
+        *nptr = node;
       return i;
     }
   }
@@ -443,9 +339,10 @@ list_find_reverse(List* list, JSValueConst list_obj, JSValueConst fn, Node** npt
   int64_t i = list->size - 1;
 
   list_for_each_prev(ptr, &list->head) {
-    if(node_predicate(list_entry(ptr, Node, link), fn, list_obj, i--, ctx)) {
+    Node* node = list_entry(ptr, Node, link);
+    if(node_predicate(node, fn, list_obj, i--, ctx)) {
       if(nptr)
-        *nptr = list_entry(ptr, Node, link);
+        *nptr = node;
       return i;
     }
   }
@@ -481,28 +378,23 @@ list_append(List* list, JSValueConst iterable, JSContext* ctx) {
 }
 
 static void
-list_iterator_free_rt(ListIterator* it, JSRuntime* rt) {
-  if(it->node)
-    if(it->link != &it->list->head)
-      node_unref_rt(&it->node, rt);
-
+list_iterator_free(ListIterator* it, JSRuntime* rt) {
   if(it->list)
-    list_unref_rt(&it->list, rt);
+    list_unref(&it->list, rt);
 
   js_free_rt(rt, it);
-}
-
-static void
-list_iterator_free(ListIterator* it, JSContext* ctx) {
-  list_iterator_free_rt(it, JS_GetRuntime(ctx));
 }
 
 static JSValue
 list_iterator_value(ListIterator* it, JSContext* ctx) {
   JSValue ret;
+  Node* node;
 
   if(it->link == &it->list->head)
     return JS_UNDEFINED;
+
+  node = (Node*)it->link;
+
   switch(it->kind) {
     case JS_ITERATOR_KIND_KEY: {
       ret = JS_NewInt64(ctx, it->index + it->list->size);
@@ -510,14 +402,14 @@ list_iterator_value(ListIterator* it, JSContext* ctx) {
     }
 
     case JS_ITERATOR_KIND_VALUE: {
-      ret = JS_DupValue(ctx, it->node->value);
+      ret = JS_DupValue(ctx, node->value);
       break;
     }
 
     case JS_ITERATOR_KIND_KEY_AND_VALUE: {
       ret = JS_NewArray(ctx);
       JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, it->index + it->list->size));
-      JS_SetPropertyUint32(ctx, ret, 1, JS_DupValue(ctx, it->node->value));
+      JS_SetPropertyUint32(ctx, ret, 1, JS_DupValue(ctx, node->value));
       break;
     }
   }
@@ -527,67 +419,29 @@ list_iterator_value(ListIterator* it, JSContext* ctx) {
 
 static BOOL
 list_iterator_skip(ListIterator* it, JSContext* ctx) {
-  if(it->link == &it->list->head)
-    return TRUE;
+  struct list_head* link = it->link;
 
-  Node* node = it->node;
-  node_unref(&it->node, ctx);
+  if(link == &it->list->head)
+    return TRUE;
 
   switch(it->dir) {
     case FWD:
-      it->node = (Node*)node->link.next;
+      it->link = link->next;
       it->index++;
       break;
     case REV:
-      it->node = (Node*)node->link.prev;
+      it->link = link->prev;
       it->index--;
       break;
   }
-  if(it->link != &it->list->head)
-    node_dup(it->node);
-
   return FALSE;
-}
-
-static BOOL
-list_iterator_done(ListIterator* it) {
-  return it->link == &it->list->head;
 }
 
 static JSValue
 list_iterator_next(ListIterator* it, BOOL* pdone, JSContext* ctx) {
-  Node* node;
-  JSValue ret = JS_UNDEFINED;
+  JSValue ret = list_iterator_value(it, ctx);
 
-  if(it->list == NULL) {
-    *pdone = TRUE;
-    return ret;
-  }
-
-  if(it->node) {
-    list_iterator_skip(it, ctx);
-    // node = it->skip(it->node, it->list);
-    node = it->node;
-    // node_unref(&it->node, ctx);
-  } else if(it->index == -1) {
-    it->node = node_dup(node = list_back(it->list));
-  } else if(it->index == 0) {
-    it->node = node_dup(node = list_front(it->list));
-  } else {
-    it->node = node_dup(node = list_at(it->list, it->index));
-  }
-
-  if(node) {
-    //  it->node = node_dup(node);
-
-    ret = list_iterator_value(it, ctx);
-
-    // it->index += it->index < 0 ? -1 : 1;
-  } else {
-    // list_unref(&it->list, ctx);
-  }
-
-  *pdone = list_iterator_done(it);
+  *pdone = list_iterator_skip(it, ctx);
 
   return ret;
 }
@@ -602,10 +456,9 @@ js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, JSIteratorK
 
   it->list = list_dup(list);
   it->index = dir == REV ? -1 : 0;
-  it->node = NULL;
+  it->link = dir == REV ? list->head.prev : list->head.next;
   it->kind = kind;
   it->dir = dir;
-  // it->skip = dir == REV ? node_prev : node_next;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_list_iterator_class_id);
   if(JS_IsException(obj))
@@ -636,7 +489,7 @@ js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(argc > 1) {
     uint32_t n = 0;
     JS_ToUint32(ctx, &n, argv[1]);
-    dir = n & 1;
+    dir = (n & 1) ? REV : FWD;
   }
 
   /* using new_target to get the prototype is necessary when the class is extended. */
@@ -661,9 +514,21 @@ js_list_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 static JSValue
+js_list_iterator_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  BOOL done = FALSE;
+  JSValue ret = JS_NewObject(ctx);
+  ListIterator* it = JS_GetOpaque(this_val, js_list_iterator_class_id);
+
+  JS_SetPropertyStr(ctx, ret, "index", JS_NewInt64(ctx, it->index));
+  JS_SetPropertyStr(ctx, ret, "value", js_list_iterator_next(ctx, this_val, argc, argv, &done, 0));
+  JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, done));
+  return ret;
+}
+
+/*static JSValue
 js_list_iterator_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return JS_DupValue(ctx, this_val);
-}
+}*/
 
 static JSValue
 js_list_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -671,10 +536,12 @@ js_list_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   ListIterator* it;
   JSValueConst args[] = {
       this_val,
-      argc > 0 ? argv[0] : JS_NewInt32(ctx, 0),
+      argc > 0 ? JS_DupValue(ctx, argv[0]) : JS_NewInt32(ctx, 0),
   };
 
   ret = js_list_iterator_constructor(ctx, list_iterator_ctor, countof(args), args);
+
+  JS_FreeValue(ctx, args[1]);
 
   it = JS_GetOpaque(ret, js_list_iterator_class_id);
   it->kind = magic;
@@ -765,40 +632,34 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   switch(magic) {
     case METHOD_PUSH: {
       for(int i = 0; i < argc; i++) {
-        if(!(node = node_new(ctx, argv[i])))
+        if(!list_push(list, argv[i], ctx))
           return JS_ThrowOutOfMemory(ctx);
-
-        node_push(node, list);
       }
       ret = JS_NewInt64(ctx, list->size);
       break;
     }
 
     case METHOD_POP: {
-      if((node = list_back(list))) {
-        ret = node->value;
-        node->value = JS_UNDEFINED;
-        node_remove(node, list, ctx);
+      if(list->head.prev != &list->head) {
+        node = list_entry(list->head.prev, Node, link);
+        ret = node_remove(node, list, ctx);
       }
       break;
     }
 
     case METHOD_UNSHIFT: {
       for(int i = argc - 1; i >= 0; i--) {
-        if(!(node = node_new(ctx, argv[i])))
+        if(!list_unshift(list, argv[i], ctx))
           return JS_ThrowOutOfMemory(ctx);
-
-        node_unshift(node, list);
       }
       ret = JS_NewInt64(ctx, list->size);
       break;
     }
 
     case METHOD_SHIFT: {
-      if((node = list_front(list))) {
-        ret = node->value;
-        node->value = JS_UNDEFINED;
-        node_remove(node, list, ctx);
+      if(list->head.next != &list->head) {
+        node = list_entry(list->head.next, Node, link);
+        ret = node_remove(node, list, ctx);
       }
       break;
     }
@@ -914,16 +775,16 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
           break;
 
         if(i >= start) {
-          list_push(other, node->value, ctx);
-          node_remove(node, list, ctx);
+          list_del(&node->link);
+          list_add_tail(&node->link, &other->head);
         }
 
         i++;
       }
 
-      node = (Node*)node->link.prev;
+      ptr2 = ptr->prev;
 
-      for(i = 2; i < argc; i++) node = list_insert(list, node, argv[i], ctx);
+      for(i = 2; i < argc; i++) ptr2 = list_insert(list, ptr2, argv[i], ctx);
 
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
@@ -953,6 +814,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
         if(i >= start && i < end) {
           value = argv[0];
         }
+
         list_push(other, value, ctx);
 
         i++;
@@ -968,15 +830,15 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       index %= (int64_t)list->size;
 
-      while(index > 0) {
-        node = list_back(list);
+      while(index > 0 && list->head.prev != &list->head) {
+        node = list_entry(list->head.prev, Node, link);
         list_del(&node->link);
         list_add(&node->link, &list->head);
         index--;
       }
 
-      while(index < 0) {
-        node = list_front(list);
+      while(index < 0 && list->head.next != &list->head) {
+        node = list_entry(list->head.next, Node, link);
         list_del(&node->link);
         list_add_tail(&node->link, &list->head);
         index++;
@@ -1005,6 +867,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
     case METHOD_INSERT: {
       ListIterator* iter;
+      struct list_head* ptr;
 
       if(!(iter = JS_GetOpaque2(ctx, argv[0], js_list_iterator_class_id)))
         return JS_EXCEPTION;
@@ -1012,15 +875,9 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       if(iter->list != list)
         return JS_ThrowReferenceError(ctx, "Iterator not from this list");
 
-      node = iter->node;
-      /*if(iter->skip == &node_next) {
-        // if(node)
-        node = node_prev(node, list); // list_entry(iter->node->link.prev, Node, link);
-      }*/
-      if(!node)
-        node = iter->dir != REV ? (Node*)&list->head : list_back(list);
+      ptr = iter->link;
 
-      for(int i = 1; i < argc; i++) node = list_insert(list, node, argv[i], ctx);
+      for(int i = 1; i < argc; i++) ptr = list_insert(list, ptr, argv[i], ctx);
       break;
     }
   }
@@ -1230,7 +1087,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
     case METHOD_SORT: {
       List* other;
-      Node* ptr2;
+      struct list_head* ptr2;
 
       if(!(other = list_new(ctx))) {
         ret = JS_ThrowOutOfMemory(ctx);
@@ -1243,7 +1100,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         list_for_each(ptr2, &other->head) {
           JSValueConst args[] = {
               node->value,
-              ptr2->value,
+              list_entry(ptr2, Node, link)->value,
           };
 
           JSValue value = JS_Call(ctx, pred, JS_UNDEFINED, countof(args), args);
@@ -1337,7 +1194,7 @@ js_list_iterator_finalizer(JSRuntime* rt, JSValue val) {
   ListIterator* it;
 
   if((it = JS_GetOpaque(val, js_list_iterator_class_id)))
-    list_iterator_free_rt(it, rt);
+    list_iterator_free(it, rt);
 }
 
 static const JSCFunctionListEntry js_list_proto_funcs[] = {
@@ -1385,8 +1242,9 @@ static const JSCFunctionListEntry js_list_static_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_list_iterator_proto_funcs[] = {
-    JS_ITERATOR_NEXT_DEF("next", 0, js_list_iterator_next, 0),
-    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_list_iterator_iterator),
+    //  JS_ITERATOR_NEXT_DEF("next", 0, js_list_iterator_next, 0),
+    JS_CFUNC_DEF("next", 0, js_list_iterator_fn),
+    JS_CFUNC_DEF("[Symbol.iterator]", 0, (void*)&JS_DupValue),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ListIterator", JS_PROP_CONFIGURABLE),
 };
 

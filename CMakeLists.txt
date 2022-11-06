@@ -461,7 +461,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
-file(GLOB TESTS tests/test_*.js) 
+file(GLOB TESTS tests/test_*.js)
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
 
 if(DO_TESTS)

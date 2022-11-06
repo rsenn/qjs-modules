@@ -732,38 +732,38 @@ path_gethome1(int uid) {
   char buf[1024];
   static char home[PATH_MAX + 1];
   if((fp = fopen("/etc/passwd", "r"))) {
-  while((line = fgets(buf, sizeof(buf) - 1, fp))) {
-    size_t p, n, len = strlen(line);
-    char *user, *id, *dir;
-    while(len > 0 && is_whitespace_char(buf[len - 1])) buf[--len] = '\0';
-    user = buf;
-    user[p = str_chr(user, ':')] = '\0';
-    line = buf + p + 1;
-    for(n = 1; n > 0; n--) {
-      p = str_chr(line, ':');
-      line[p] = '\0';
-      line += p + 1;
+    while((line = fgets(buf, sizeof(buf) - 1, fp))) {
+      size_t p, n, len = strlen(line);
+      char *user, *id, *dir;
+      while(len > 0 && is_whitespace_char(buf[len - 1])) buf[--len] = '\0';
+      user = buf;
+      user[p = str_chr(user, ':')] = '\0';
+      line = buf + p + 1;
+      for(n = 1; n > 0; n--) {
+        p = str_chr(line, ':');
+        line[p] = '\0';
+        line += p + 1;
+      }
+
+      id = line;
+      for(n = 3; n > 0; n--) {
+        p = str_chr(line, ':');
+        line[p] = '\0';
+        line += p + 1;
+      }
+
+      if(atoi(id) != uid)
+        continue;
+      dir = line;
+      n = str_chr(line, ':');
+      strncpy(home, dir, n);
+      home[n] = '\0';
+      ret = home;
     }
 
-    id = line;
-    for(n = 3; n > 0; n--) {
-      p = str_chr(line, ':');
-      line[p] = '\0';
-      line += p + 1;
-    }
-
-    if(atoi(id) != uid)
-      continue;
-    dir = line;
-    n = str_chr(line, ':');
-    strncpy(home, dir, n);
-    home[n] = '\0';
-    ret = home;
+    fclose(fp);
   }
-  
-  fclose(fp);
-  }
-  if(ret==0)
+  if(ret == 0)
     ret = getenv("HOME");
   return ret;
 }
