@@ -3,10 +3,10 @@ import * as std from 'std';
 import { Console } from 'console';
 import { ReadableStream, WritableStream } from 'stream';
 import { Blob } from 'blob';
-import { toString } from 'util';
+import { toString, define } from 'util';
 import { FileSystemReadableFileStream, FileSystemWritableFileStream, FileSystemReadableStream, StreamReadIterator } from '../lib/streams.js';
 import fs from 'fs';
-import { AsyncGeneratorPrototype, extendAsyncGenerator } from '../lib/extendAsyncGenerator.js';
+import { AsyncGeneratorPrototype, extendAsyncGenerator, AsyncGeneratorExtensions } from '../lib/extendAsyncGenerator.js';
 
 ('use strict');
 ('use math');
@@ -26,26 +26,16 @@ async function main(...args) {
 
   let iter = await StreamReadIterator(st);
 
+  Object.assign(Object.getPrototypeOf((async function* () {})()), AsyncGeneratorExtensions);
   extendAsyncGenerator(Object.getPrototypeOf(iter));
-  //  extendAsyncGenerator(AsyncGeneratorPrototype);
+  extendAsyncGenerator(Object.getPrototypeOf((async function* () {})()));
 
   let tfrm = iter.map(n => toString(n));
   extendAsyncGenerator(Object.getPrototypeOf(tfrm));
-
   let p = [Object.getPrototypeOf(iter), AsyncGeneratorPrototype, Object.getPrototypeOf(tfrm)];
+  /* console.log('AsyncGeneratorExtensions', AsyncGeneratorExtensions);
 
-  /*console.log('p', p);
-  console.log('p', p.map(pr => pr.constructor));
-
-  console.log('Object.getPrototypeOf(iter)', Object.getPrototypeOf(iter));
-  console.log('Object.getPrototypeOf(tfrm)', Object.getPrototypeOf(tfrm));
-  console.log('AsyncGeneratorPrototype', AsyncGeneratorPrototype);
-
-  console.log('iter', iter);
-  console.log('iter.reduce', iter.reduce);
-  console.log('tfrm.reduce', tfrm.reduce);
-*/
-  console.log('AsyncGeneratorPrototype', AsyncGeneratorPrototype.reduce);
+  console.log('tfrm.reduce', tfrm.reduce);*/
 
   let result = await tfrm.reduce((acc, n) => acc + n, '');
 
