@@ -3,7 +3,7 @@ import * as std from 'std';
 import { Console } from 'console';
 import { ReadableStream, WritableStream } from 'stream';
 import { toString, define } from 'util';
-import { FileSystemReadableFileStream, LineStreamIterator, FileSystemWritableFileStream, FileSystemReadableStream, StreamReadIterator } from '../lib/streams.js';
+import { FileSystemReadableFileStream, ByLineStream, LineStreamIterator, FileSystemWritableFileStream, FileSystemReadableStream, StreamReadIterator } from '../lib/streams.js';
 import fs from 'fs';
 import { extendAsyncGenerator } from '../lib/extendAsyncGenerator.js';
 
@@ -16,7 +16,7 @@ async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
       maxStringLength: 50,
-      maxArrayLength: Infinity,
+      maxArrayLength: 10,
       compact: false
     }
   });
@@ -27,6 +27,24 @@ async function main(...args) {
   let read = new FileSystemReadableFileStream('tests/test1.xml');
 
   let iter = await StreamReadIterator(st);
+  let { readable, writable } = new ByLineStream();
+
+  let rd = readable.getReader();
+  let br = rd.read();
+  console.log('rd.read()', br);
+
+  let wr = writable.getWriter();
+  console.log('transform', { readable, writable, wr });
+  let bw = await wr.write('blah\nhaha\n');
+
+  console.log('wr.write()', bw);
+  //await wr.close();
+
+  for(let i = 0; i < 1; i++) {
+    br = await br; //(await br??br.read());
+    console.log(`rd.read(${i})`, br);
+    br = rd.read();
+  }
   /*  let tfrm=  LineStreamIterator(iter);*/
   let result = await iter.reduce(
     (buf => (acc, n) => {
