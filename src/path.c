@@ -731,8 +731,7 @@ path_gethome1(int uid) {
   char *line, *ret = 0;
   char buf[1024];
   static char home[PATH_MAX + 1];
-  if((fp = fopen("/etc/passwd", "r")) == 0)
-    return getenv("HOME");
+  if((fp = fopen("/etc/passwd", "r"))) {
   while((line = fgets(buf, sizeof(buf) - 1, fp))) {
     size_t p, n, len = strlen(line);
     char *user, *id, *dir;
@@ -761,8 +760,11 @@ path_gethome1(int uid) {
     home[n] = '\0';
     ret = home;
   }
-
+  
   fclose(fp);
+  }
+  if(ret==0)
+    ret = getenv("HOME");
   return ret;
 }
 

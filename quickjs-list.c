@@ -24,12 +24,26 @@ typedef struct Node {
   int ref_count;
 } Node;
 
+typedef Node* SkipCall(Node*, List*);
+
+typedef enum Direction {
+  FWD = 0,
+  REV = 1,
+} Direction;
+
 typedef struct ListIterator {
   struct List* list;
-  Node* node;
-  size_t index;
+  union {
+    Node* node;
+    struct list_head* link;
+  };
+  int64_t index;
   JSIteratorKindEnum kind;
+  Direction dir;
+  // SkipCall* skip;
 } ListIterator;
+
+typedef int64_t FindCall(List*, JSValueConst, JSValueConst, Node**, JSContext*);
 
 thread_local VISIBLE JSClassID js_list_class_id = 0, js_list_iterator_class_id = 0;
 thread_local JSValue list_proto = {{JS_TAG_UNDEFINED}}, list_ctor = {{JS_TAG_UNDEFINED}}, list_iterator_proto = {{JS_TAG_UNDEFINED}},
@@ -62,6 +76,7 @@ enum {
   METHOD_REDUCE_RIGHT,
   METHOD_SOME,
   METHOD_SORT,
+  METHOD_INSERT,
 };
 
 enum {
@@ -88,12 +103,12 @@ node_new(JSContext* ctx, JSValueConst value) {
   return node;
 }
 
-static inline Node*
+static Node*
 node_next(Node* node, List* list) {
   return node->link.next == &list->head ? NULL : (Node*)node->link.next;
 }
 
-static inline Node*
+static Node*
 node_prev(Node* node, List* list) {
   return node->link.prev == &list->head ? NULL : (Node*)node->link.prev;
 }
@@ -129,10 +144,7 @@ node_clear_rt(Node* node, JSRuntime* rt) {
 
 static void
 node_clear(Node* node, JSContext* ctx) {
-  if(!JS_IsUninitialized(node->value)) {
-    JS_FreeValue(ctx, node->value);
-    node->value = JS_UNINITIALIZED;
-  }
+  node_clear_rt(node, JS_GetRuntime(ctx));
 }
 
 static void
@@ -170,7 +182,11 @@ node_free(Node* node, JSContext* ctx) {
 static JSValue
 node_call(Node* node, JSValueConst fn, JSValueConst list_obj, int64_t i, JSContext* ctx) {
   BOOL result;
-  JSValueConst args[] = {node->value, JS_NewInt64(ctx, i), list_obj};
+  JSValueConst args[] = {
+      node->value,
+      JS_NewInt64(ctx, i),
+      list_obj,
+  };
   JSValue ret;
 
   ret = JS_Call(ctx, fn, JS_UNDEFINED, countof(args), args);
@@ -272,7 +288,10 @@ list_at_forward(List* list, int64_t index) {
   struct list_head* ptr;
   int64_t i = 0;
 
-  list_for_each(ptr, &list->head) if(i++ == index) return list_entry(ptr, Node, link);
+  list_for_each(ptr, &list->head) {
+    if(i++ == index)
+      return list_entry(ptr, Node, link);
+  }
 
   return NULL;
 }
@@ -282,7 +301,10 @@ list_at_reverse(List* list, int64_t index) {
   struct list_head* ptr;
   int64_t i = 0;
 
-  list_for_each_prev(ptr, &list->head) if(i++ == index) return list_entry(ptr, Node, link);
+  list_for_each_prev(ptr, &list->head) {
+    if(i++ == index)
+      return list_entry(ptr, Node, link);
+  }
 
   return NULL;
 }
@@ -331,15 +353,17 @@ list_value(List* list, int64_t index) {
 
 static void
 list_free_rt(List* list, JSRuntime* rt) {
-  struct list_head *ptr, *ptr2;
+  if(--list->ref_count == 0) {
+    struct list_head *ptr, *ptr2;
 
-  list_for_each_safe(ptr, ptr2, &list->head) {
-    Node* node = list_entry(ptr, Node, link);
+    list_for_each_safe(ptr, ptr2, &list->head) {
+      Node* node = list_entry(ptr, Node, link);
 
-    node_remove_rt(node, list, rt);
+      node_remove_rt(node, list, rt);
+    }
+
+    js_free_rt(rt, list);
   }
-
-  js_free_rt(rt, list);
 }
 
 static inline void
@@ -353,8 +377,7 @@ list_unref_rt(List** list_p, JSRuntime* rt) {
 
   *list_p = NULL;
 
-  if(--list->ref_count == 0)
-    list_free_rt(list, rt);
+  list_free_rt(list, rt);
 }
 
 static inline void
@@ -431,8 +454,7 @@ list_find_reverse(List* list, JSValueConst list_obj, JSValueConst fn, Node** npt
 }
 
 static JSValue
-list_find_value(
-    List* list, JSValueConst list_obj, JSValueConst fn, int64_t (*findcall)(List*, JSValueConst, JSValueConst, Node**, JSContext*), JSContext* ctx) {
+list_find_value(List* list, JSValueConst list_obj, JSValueConst fn, FindCall* findcall, JSContext* ctx) {
   Node* node = 0;
   findcall(list, list_obj, fn, &node, ctx);
   return node ? JS_DupValue(ctx, node->value) : JS_UNDEFINED;
@@ -442,6 +464,7 @@ static BOOL
 list_append(List* list, JSValueConst iterable, JSContext* ctx) {
   Iteration iter = {0};
   JSValue ret;
+
   if(!iteration_method_symbol(&iter, ctx, iterable, "iterator")) {
     iteration_reset(&iter, ctx);
     return FALSE;
@@ -460,7 +483,8 @@ list_append(List* list, JSValueConst iterable, JSContext* ctx) {
 static void
 list_iterator_free_rt(ListIterator* it, JSRuntime* rt) {
   if(it->node)
-    node_unref_rt(&it->node, rt);
+    if(it->link != &it->list->head)
+      node_unref_rt(&it->node, rt);
 
   if(it->list)
     list_unref_rt(&it->list, rt);
@@ -476,25 +500,58 @@ list_iterator_free(ListIterator* it, JSContext* ctx) {
 static JSValue
 list_iterator_value(ListIterator* it, JSContext* ctx) {
   JSValue ret;
+
+  if(it->link == &it->list->head)
+    return JS_UNDEFINED;
   switch(it->kind) {
     case JS_ITERATOR_KIND_KEY: {
-      ret = JS_NewInt64(ctx, it->index);
+      ret = JS_NewInt64(ctx, it->index + it->list->size);
       break;
     }
+
     case JS_ITERATOR_KIND_VALUE: {
       ret = JS_DupValue(ctx, it->node->value);
-
       break;
     }
+
     case JS_ITERATOR_KIND_KEY_AND_VALUE: {
       ret = JS_NewArray(ctx);
-      JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, it->index));
+      JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, it->index + it->list->size));
       JS_SetPropertyUint32(ctx, ret, 1, JS_DupValue(ctx, it->node->value));
       break;
     }
   }
 
   return ret;
+}
+
+static BOOL
+list_iterator_skip(ListIterator* it, JSContext* ctx) {
+  if(it->link == &it->list->head)
+    return TRUE;
+
+  Node* node = it->node;
+  node_unref(&it->node, ctx);
+
+  switch(it->dir) {
+    case FWD:
+      it->node = (Node*)node->link.next;
+      it->index++;
+      break;
+    case REV:
+      it->node = (Node*)node->link.prev;
+      it->index--;
+      break;
+  }
+  if(it->link != &it->list->head)
+    node_dup(it->node);
+
+  return FALSE;
+}
+
+static BOOL
+list_iterator_done(ListIterator* it) {
+  return it->link == &it->list->head;
 }
 
 static JSValue
@@ -508,32 +565,35 @@ list_iterator_next(ListIterator* it, BOOL* pdone, JSContext* ctx) {
   }
 
   if(it->node) {
-    node = node_next(it->node, it->list);
-
-    node_unref(&it->node, ctx);
+    list_iterator_skip(it, ctx);
+    // node = it->skip(it->node, it->list);
+    node = it->node;
+    // node_unref(&it->node, ctx);
+  } else if(it->index == -1) {
+    it->node = node_dup(node = list_back(it->list));
   } else if(it->index == 0) {
-    node = list_front(it->list);
+    it->node = node_dup(node = list_front(it->list));
   } else {
-    node = list_at(it->list, it->index);
+    it->node = node_dup(node = list_at(it->list, it->index));
   }
 
   if(node) {
-    it->node = node_dup(node);
+    //  it->node = node_dup(node);
 
     ret = list_iterator_value(it, ctx);
 
-    ++it->index;
+    // it->index += it->index < 0 ? -1 : 1;
   } else {
-    list_unref(&it->list, ctx);
+    // list_unref(&it->list, ctx);
   }
 
-  *pdone = node == NULL;
+  *pdone = list_iterator_done(it);
 
   return ret;
 }
 
 static JSValue
-js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, JSIteratorKindEnum kind) {
+js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, JSIteratorKindEnum kind, Direction dir) {
   ListIterator* it;
   JSValue obj = JS_UNDEFINED;
 
@@ -541,9 +601,11 @@ js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, JSIteratorK
     return JS_EXCEPTION;
 
   it->list = list_dup(list);
-  it->index = 0;
+  it->index = dir == REV ? -1 : 0;
   it->node = NULL;
   it->kind = kind;
+  it->dir = dir;
+  // it->skip = dir == REV ? node_prev : node_next;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_list_iterator_class_id);
   if(JS_IsException(obj))
@@ -552,6 +614,7 @@ js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, JSIteratorK
   JS_SetOpaque(obj, it);
 
   return obj;
+
 fail:
   js_free(ctx, it);
   JS_FreeValue(ctx, obj);
@@ -562,6 +625,7 @@ static JSValue
 js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto;
   List* list;
+  Direction dir = FWD;
 
   if(argc < 1)
     return JS_ThrowReferenceError(ctx, "argument 1 must be a List");
@@ -569,12 +633,18 @@ js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(!(list = js_list_data2(ctx, argv[0])))
     return JS_EXCEPTION;
 
+  if(argc > 1) {
+    uint32_t n = 0;
+    JS_ToUint32(ctx, &n, argv[1]);
+    dir = n & 1;
+  }
+
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     return JS_EXCEPTION;
 
-  return js_list_iterator_new(ctx, proto, list, JS_ITERATOR_KIND_VALUE);
+  return js_list_iterator_new(ctx, proto, list, JS_ITERATOR_KIND_VALUE, dir);
 }
 
 static JSValue
@@ -599,8 +669,12 @@ static JSValue
 js_list_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret;
   ListIterator* it;
+  JSValueConst args[] = {
+      this_val,
+      argc > 0 ? argv[0] : JS_NewInt32(ctx, 0),
+  };
 
-  ret = js_list_iterator_constructor(ctx, list_iterator_ctor, 1, &this_val);
+  ret = js_list_iterator_constructor(ctx, list_iterator_ctor, countof(args), args);
 
   it = JS_GetOpaque(ret, js_list_iterator_class_id);
   it->kind = magic;
@@ -776,7 +850,6 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       }
 
       for(int i = 0; i < argc; i++) {
-
         if(!list_append(other, argv[i], ctx)) {
           list_free(other, ctx);
           return JS_ThrowTypeError(ctx, "argument %d not iterable", i);
@@ -909,6 +982,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
         index++;
       }
 
+      ret = JS_DupValue(ctx, this_val);
       break;
     }
 
@@ -926,6 +1000,27 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       }
 
       ret = js_list_wrap_species(ctx, this_val, other);
+      break;
+    }
+
+    case METHOD_INSERT: {
+      ListIterator* iter;
+
+      if(!(iter = JS_GetOpaque2(ctx, argv[0], js_list_iterator_class_id)))
+        return JS_EXCEPTION;
+
+      if(iter->list != list)
+        return JS_ThrowReferenceError(ctx, "Iterator not from this list");
+
+      node = iter->node;
+      /*if(iter->skip == &node_next) {
+        // if(node)
+        node = node_prev(node, list); // list_entry(iter->node->link.prev, Node, link);
+      }*/
+      if(!node)
+        node = iter->dir != REV ? (Node*)&list->head : list_back(list);
+
+      for(int i = 1; i < argc; i++) node = list_insert(list, node, argv[i], ctx);
       break;
     }
   }
@@ -995,33 +1090,40 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   if(!(list = js_list_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(argc < 1 || !JS_IsFunction(ctx, argv[0]))
+  if(argc < 1 && magic == METHOD_SORT) {
+    const char* fn = "(a, b) => a - b";
+    argv[0] = JS_Eval(ctx, fn, strlen(fn), "-", 0);
+    argc = 1;
+  } else if(argc < 1 || !JS_IsFunction(ctx, argv[0])) {
     return JS_ThrowTypeError(ctx, "argument 1 must be a function");
+  }
 
   pred = js_list_predicate(ctx, argc, argv);
 
   switch(magic) {
     case METHOD_EVERY: {
+      ret = JS_TRUE;
       list_for_each(ptr, &list->head) {
         Node* node = list_entry(ptr, Node, link);
         if(!node_predicate(node, pred, this_val, i++, ctx)) {
           JS_FreeValue(ctx, pred);
-          return JS_FALSE;
+          ret = JS_FALSE;
+          break;
         }
       }
-      ret = JS_TRUE;
       break;
     }
 
     case METHOD_SOME: {
+      ret = JS_FALSE;
       list_for_each(ptr, &list->head) {
         Node* node = list_entry(ptr, Node, link);
         if(node_predicate(node, pred, this_val, i++, ctx)) {
           JS_FreeValue(ctx, pred);
-          return JS_TRUE;
+          ret = JS_TRUE;
+          break;
         }
       }
-      ret = JS_FALSE;
       break;
     }
 
@@ -1082,7 +1184,12 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       list_for_each(ptr, &list->head) {
         Node* node = list_entry(ptr, Node, link);
-        JSValueConst args[] = {ret, node->value, JS_NewInt64(ctx, i++), this_val};
+        JSValueConst args[] = {
+            ret,
+            node->value,
+            JS_NewInt64(ctx, i++),
+            this_val,
+        };
 
         ret = JS_Call(ctx, argv[0], JS_UNDEFINED, countof(args), args);
 
@@ -1106,7 +1213,12 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       list_for_each_prev(ptr, &list->head) {
         Node* node = list_entry(ptr, Node, link);
-        JSValueConst args[] = {ret, node->value, JS_NewInt64(ctx, --i), this_val};
+        JSValueConst args[] = {
+            ret,
+            node->value,
+            JS_NewInt64(ctx, --i),
+            this_val,
+        };
 
         ret = JS_Call(ctx, argv[0], JS_UNDEFINED, countof(args), args);
 
@@ -1129,7 +1241,10 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         Node* node = list_entry(ptr, Node, link);
 
         list_for_each(ptr2, &other->head) {
-          JSValueConst args[] = {node->value, ptr2->value};
+          JSValueConst args[] = {
+              node->value,
+              ptr2->value,
+          };
 
           JSValue value = JS_Call(ctx, pred, JS_UNDEFINED, countof(args), args);
           int32_t retval;
@@ -1171,18 +1286,6 @@ js_list_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-/*static JSValue
-js_list_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  List* list;
-  JSValue ret = JS_UNDEFINED;
-  if(!(list = js_list_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  switch(magic) {}
-  return ret;
-}
-*/
-
 static JSValue
 js_list_static(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
@@ -1206,7 +1309,7 @@ js_list_static(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(!(list = list_new(ctx)))
         return JS_ThrowOutOfMemory(ctx);
 
-      for(int i = 0; i < argc; i++) { list_push(list, argv[i], ctx); }
+      for(int i = 0; i < argc; i++) list_push(list, argv[i], ctx);
 
       ret = js_list_wrap(ctx, list_proto, list);
       break;
@@ -1225,18 +1328,16 @@ static void
 js_list_finalizer(JSRuntime* rt, JSValue val) {
   List* list;
 
-  if((list = js_list_data(val))) {
+  if((list = js_list_data(val)))
     list_free_rt(list, rt);
-  }
 }
 
 static void
 js_list_iterator_finalizer(JSRuntime* rt, JSValue val) {
   ListIterator* it;
 
-  if((it = JS_GetOpaque(val, js_list_iterator_class_id))) {
+  if((it = JS_GetOpaque(val, js_list_iterator_class_id)))
     list_iterator_free_rt(it, rt);
-  }
 }
 
 static const JSCFunctionListEntry js_list_proto_funcs[] = {
@@ -1255,6 +1356,7 @@ static const JSCFunctionListEntry js_list_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("concat", 1, js_list_functions, METHOD_CONCAT),
     JS_CFUNC_MAGIC_DEF("slice", 0, js_list_functions, METHOD_SLICE),
     JS_CFUNC_MAGIC_DEF("reverse", 0, js_list_functions, METHOD_REVERSE),
+    JS_CFUNC_MAGIC_DEF("insert", 1, js_list_functions, METHOD_INSERT),
     JS_CFUNC_MAGIC_DEF("splice", 0, js_list_functions, METHOD_SPLICE),
     JS_CFUNC_MAGIC_DEF("fill", 1, js_list_functions, METHOD_FILL),
     JS_CFUNC_MAGIC_DEF("rotate", 1, js_list_functions, METHOD_ROTATE),
@@ -1265,7 +1367,7 @@ static const JSCFunctionListEntry js_list_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("map", 1, js_list_functional, METHOD_MAP),
     JS_CFUNC_MAGIC_DEF("reduce", 1, js_list_functional, METHOD_REDUCE),
     JS_CFUNC_MAGIC_DEF("reduceRight", 1, js_list_functional, METHOD_REDUCE_RIGHT),
-    JS_CFUNC_MAGIC_DEF("sort", 1, js_list_functional, METHOD_SORT),
+    JS_CFUNC_MAGIC_DEF("sort", 0, js_list_functional, METHOD_SORT),
     JS_CFUNC_MAGIC_DEF("values", 0, js_list_iterator, JS_ITERATOR_KIND_VALUE),
     JS_CFUNC_MAGIC_DEF("keys", 0, js_list_iterator, JS_ITERATOR_KIND_KEY),
     JS_CFUNC_MAGIC_DEF("entries", 0, js_list_iterator, JS_ITERATOR_KIND_KEY_AND_VALUE),
@@ -1278,6 +1380,8 @@ static const JSCFunctionListEntry js_list_static_funcs[] = {
     JS_CFUNC_MAGIC_DEF("from", 1, js_list_static, STATIC_FROM),
     JS_CFUNC_MAGIC_DEF("of", 0, js_list_static, STATIC_OF),
     JS_CFUNC_MAGIC_DEF("isList", 1, js_list_static, STATIC_IS_LIST),
+    JS_CONSTANT(FWD),
+    JS_CONSTANT(REV),
 };
 
 static const JSCFunctionListEntry js_list_iterator_proto_funcs[] = {
@@ -1309,34 +1413,6 @@ js_list_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueCon
   }
   return FALSE;
 }
-/*
-static int
-js_list_get_own_property_names(JSContext* ctx, JSPropertyEnum** ptab, uint32_t* plen, JSValueConst obj) {
-  List* list;
-  uint32_t i, len;
-  JSPropertyEnum* props;
-  if((list = js_list_data2(ctx, obj)))
-    len = list->size;
-  else {
-    JSValue length = JS_GetPropertyStr(ctx, obj, "length");
-    JS_ToUint32(ctx, &len, length);
-    JS_FreeValue(ctx, length);
-  }
-
-  props = js_malloc(ctx, sizeof(JSPropertyEnum) * (len + 1));
-
-  for(i = 0; i < len; i++) {
-    props[i].is_enumerable = TRUE;
-    props[i].atom = i | (1U << 31);
-  }
-
-  props[len].is_enumerable = TRUE;
-  props[len].atom = JS_NewAtom(ctx, "length");
-
-  *ptab = props;
-  *plen = len + 1;
-  return 0;
-}*/
 
 static int
 js_list_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
@@ -1382,16 +1458,14 @@ js_list_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst
   int64_t index;
 
   if(js_atom_is_index(ctx, &index, prop)) {
-    // index = list_index(list, index);
-
     if(index >= (int64_t)list->size) {
-      for(int64_t i = list->size; i < index; i++) { list_push(list, JS_UNDEFINED, ctx); }
+      for(int64_t i = list->size; i < index; i++) list_push(list, JS_UNDEFINED, ctx);
 
       list_push(list, value, ctx);
 
     } else if(index < 0) {
 
-      for(int64_t i = index; i < -1; i++) { list_unshift(list, JS_UNDEFINED, ctx); }
+      for(int64_t i = index; i < -1; i++) list_unshift(list, JS_UNDEFINED, ctx);
 
       list_unshift(list, value, ctx);
     } else {
@@ -1411,7 +1485,6 @@ js_list_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst
 
 static JSClassExoticMethods js_list_exotic_methods = {
     .get_own_property = js_list_get_own_property,
-    //  .get_own_property_names = js_list_get_own_property_names,
     .has_property = js_list_has_property,
     .get_property = js_list_get_property,
     .set_property = js_list_set_property,
@@ -1493,6 +1566,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExport(ctx, m, "List");
+  JS_AddModuleExport(ctx, m, "ListIterator");
   return m;
 }
 
