@@ -1,11 +1,11 @@
 import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
-import { WritableStream } from 'stream';
-import { toString } from 'util';
+import { ReadableStream, WritableStream } from 'stream';
+import { toString, define } from 'util';
 import { FileSystemReadableFileStream, FileSystemWritableFileStream, FileSystemReadableStream, StreamReadIterator } from '../lib/streams.js';
 import fs from 'fs';
-import { extendAsyncGenerator, } from '../lib/extendAsyncGenerator.js';
+import { extendAsyncGenerator } from '../lib/extendAsyncGenerator.js';
 
 ('use strict');
 ('use math');
@@ -33,8 +33,9 @@ async function main(...args) {
 
   let result = await tfrm.reduce((acc, n) => acc + n, ''); //await tfrm.reduce((a, n) => ((a ??= []).push(n), a), [])
 
-  // console.log('result', { result });
-  console.log('result', result.split(/\n/g)); /*  
+  console.log('result', { result });
+  //console.log('result', result.split(/\n/g));
+  /*  
   let write = new FileSystemWritableFileStream('/tmp/out.txt');
   */
 }
