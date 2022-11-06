@@ -15,7 +15,6 @@ extendAsyncGenerator();
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       maxStringLength: 50,
       maxArrayLength: Infinity,
       compact: false
@@ -31,7 +30,7 @@ async function main(...args) {
 
   let tfrm = iter.map(n => toString(n));
 
-  let result = await tfrm.reduce((acc, n) => acc + n, ''); //await tfrm.reduce((a, n) => ((a ??= []).push(n), a), [])
+  let result = await tfrm.reduce((acc, n) => acc + n, '');
 
   console.log('result', { result });
   //console.log('result', result.split(/\n/g));
