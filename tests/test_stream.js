@@ -9,44 +9,40 @@ import fs from 'fs';
 
 ('use strict');
 ('use math');
-
-export async function consume(x, t = a => console.log(`async consume =`, a)) {
+/*
+async function consume(x, t = a => console.log(`async consume =`, a)) {
   for await(let n of x) await t(n);
-}
-export async function* transform(x, t = a => a) {
-  for await(let n of x) yield await t(n);
+}*/
+
+async function* transform(x, t = a => a) {
+  for await(let n of await x) yield await t(n);
 }
 
-export async function reduce(x, t = (a, n) => ((a ??= []).push(n), a), c) {
+async function reduce(x, t = (a, n) => ((a ??= []).push(n), a), c) {
   for await(let n of await x) c = await t(c, n);
   return c;
 }
 
-function main(...args) {
-  console = globalThis.console = new Console({
+async function main(...args) {
+  globalThis.console = new Console({
     inspectOptions: {
       colors: true,
-      depth: 8,
-      maxStringLength: 50,
-      maxArrayLength: 64,
-      compact: 1,
-      showHidden: false
+      maxStringLength: 100
     }
   });
   let fd = fs.openSync('quickjs-misc.c', fs.O_RDONLY);
 
   let st = new FileSystemReadableStream(fd, 1024);
 
-  /* (async function test() {
-    for await(let chunk of await StreamReadIterator(st)) {
-      console.log('test chunk', chunk);
-    }
-    console.log('test done');
-  })();*/ let read = new FileSystemReadableFileStream('tests/test1.xml');
+  let read = new FileSystemReadableFileStream('tests/test1.xml');
 
-  reduce(transform(StreamReadIterator(read), toString), (acc, n) => acc + n, '').then(r => console.log('result', r));
-  //& consume(StreamReadIterator(st),  r=>console.log('result',r));
+  let iter = await StreamReadIterator(st);
+  let tfrm = await transform(iter, toString);
+  console.log('tfrm', tfrm);
 
+  let result = await reduce(tfrm, (acc, n) => acc + n, '');
+
+  console.log('result', { result });
   /*  
   let write = new FileSystemWritableFileStream('/tmp/out.txt');
   */
