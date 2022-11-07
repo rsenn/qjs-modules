@@ -1475,10 +1475,12 @@ function main(...args) {
     }
   );
 
+  let opts;
   let params = getOpt(
-    {
+    (opts = {
+      help: [false, null, 'h'],
       debug: [false, () => ++debug, 'x'],
-      log: [true, file => (logFile = FileWriter(file)), 'l'],
+      log: [true, file => (logFile = FileWriter(file)), 'v'],
       sort: [false, null, 's'],
       'case-sensitive': [false, null, 'c'],
       quiet: [false, null, 'q'],
@@ -1501,9 +1503,30 @@ function main(...args) {
       userscript: [false, () => (userScript = true), 'U'],
       time: [false, () => (showTiming = true), 't'],
       '@': 'files'
-    },
+    }),
     args
   );
+
+  function ShowHelp() {
+    let entries = Object.entries(opts);
+    let maxlen = entries.reduce((acc, [name]) => (acc > name.length ? acc : name.length), 0);
+
+    let s = Object.entries(opts).reduce(
+      (acc, [name, [hasArg, fn, shortOpt]]) =>
+        acc +
+        (
+          `    ${(shortOpt ? '-' + shortOpt + ',' : '').padStart(4, ' ')} --${name.padEnd(maxlen, ' ')} ` +
+          (hasArg ? (typeof hasArg == 'boolean' ? 'ARG' : hasArg) : '')
+        ).padEnd(40, ' ') +
+        '\n',
+      `Usage: ${path.basename(scriptArgs[0])} [OPTIONS] <FILES...>\n\n`
+    );
+    std.puts(s + '\n');
+    std.exit(0);
+  }
+
+  if(params.help) ShowHelp();
+
   let files = params['@'];
 
   if(/check-import/.test(scriptArgs[0])) {
