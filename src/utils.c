@@ -2186,6 +2186,9 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set import.meta */
+    if(!filename)
+      filename="<input>";
+
     val = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
       js_module_set_import_meta(ctx, val, !!filename && filename[0] != '<', TRUE);
