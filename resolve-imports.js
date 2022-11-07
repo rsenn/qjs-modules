@@ -1230,7 +1230,7 @@ class FileMap extends Array {
           r = out.write(str, len);
           if(depth > 0 && i == last) out.puts(FileBannerComment(this.file, 1));
 
-          if(r != len) r = -1;
+          //if(r != len) r = -1;
         }
       } else {
         let type = getTypeName(str);
@@ -1601,13 +1601,15 @@ function main(...args) {
   if(debug > 0) console.log('out', out, out.file);
 
   if(out.file) {
+    let nbytes;
+    console.log(`results[0]`, results[0]);
     try {
-      const nbytes = results[0].write(stream);
-      console.log(`${nbytes} bytes written to '${out.file}'`);
+      nbytes = results[0].write(stream);
     } catch(error) {
       console.log(`write error ('${out.file}'):`, error);
       std.exit(1);
     }
+    console.log(`${nbytes} bytes written to '${out.file}'`);
   }
   if(debug > 3) console.log(`exportedNames`, exportedNames);
 
