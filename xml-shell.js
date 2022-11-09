@@ -1,3 +1,4 @@
+#!/usr/bin/env qjsm
 import * as path from 'path';
 import * as xml from 'xml';
 import * as fs from 'fs';
