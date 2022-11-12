@@ -644,13 +644,14 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   if((str = JS_ToCString(ctx, ctor))) {
     if(!strncmp(str, "function ", 9)) {
       namelen = byte_chr(str + 9, strlen(str) - 9, '(');
-      name = js_strndup(ctx, str + 9, namelen);
+      if(namelen)
+        name = js_strndup(ctx, str + 9, namelen);
     }
   }
   if(!name) {
     if(str)
       js_cstring_free(ctx, str);
-    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
+    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))) && *str)
       name = js_strdup(ctx, str);
   }
   if(str)
@@ -2187,7 +2188,7 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set import.meta */
     if(!filename)
-      filename="<input>";
+      filename = "<input>";
 
     val = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {

@@ -1177,6 +1177,28 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 }
 
 static JSValue
+js_misc_evalstring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  int32_t flags = JS_EVAL_TYPE_MODULE;
+  JSValueConst obj;
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+  const char* filename = 0;
+
+  if(argc > 1)
+    filename = JS_ToCString(ctx, argv[1]);
+
+  if(argc > 2)
+    JS_ToInt32(ctx, &flags, argv[2]);
+
+  ret = js_eval_buf(ctx, input.data, input.size, filename ? filename : "<input>", flags);
+
+  if(filename)
+    JS_FreeCString(ctx, filename);
+
+  return ret;
+}
+
+static JSValue
 js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   BOOL load_only = FALSE;
@@ -2157,6 +2179,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
     JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, VALUE_TAG),
     JS_CFUNC_MAGIC_DEF("valuePtr", 1, js_misc_valuetype, VALUE_PTR),
+    JS_CFUNC_DEF("evalString", 1, js_misc_evalstring),
     JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
     JS_CFUNC_MAGIC_DEF("atomToString", 1, js_misc_atom, ATOM_TO_STRING),
     JS_CFUNC_MAGIC_DEF("atomToValue", 1, js_misc_atom, ATOM_TO_VALUE),

@@ -73,7 +73,7 @@ static thread_local Vector module_list = VECTOR_INIT();
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
 static JSModuleLoaderFunc* module_loader = 0;
-static thread_local JSValue package_json, replObj;
+static JSValue package_json, replObj;
 static const char* exename;
 static JSRuntime* rt;
 static JSContext* ctx;
@@ -826,6 +826,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     path_concat5(path, path_dirlen1(path), name, strlen(name), &dir);
     dsl = path_skipdotslash2(dir.buf, dir.size);
 
+    /* XXX BUG: should use path_normalize* to resolve symlinks */
     path_collapse2(dir.buf + dsl, dir.size - dsl);
     file = dir.buf;
   } else if(has_suffix(name, CONFIG_SHEXT) && !path_isabsolute1(name)) {
