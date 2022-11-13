@@ -1135,6 +1135,12 @@ js_inspect_print_value(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     }
 
     case JS_TAG_SYMBOL: {
+      if(opts->reparseable) {
+        const char* str = js_symbol_to_cstring(ctx, value);
+        dbuf_putstr(buf, str);
+        JS_FreeCString(ctx, str);
+        break;
+      }
       value = js_symbol_to_string(ctx, value);
       if(opts->colors)
         dbuf_putstr(buf, COLOR_GREEN);

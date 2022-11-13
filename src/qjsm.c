@@ -1335,6 +1335,7 @@ jsm_start_interactive(JSContext* ctx) {
     "import fs from 'fs';\n"
     "const history = '%s/.%s_history';\n"
     "globalThis.repl = new REPL('qjsm');\n"
+    "repl.loadSaveOptions();\n"
     "repl.historyLoad(null, fs);\n"
     "repl.directives = { i: [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ] };\n"
     "repl.show = console.log;\n"
