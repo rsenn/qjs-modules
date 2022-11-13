@@ -1594,8 +1594,13 @@ module_name(JSContext* ctx, JSModuleDef* m) {
 }
 
 char*
+module_namecstr(JSContext* ctx, JSModuleDef* m) {
+  return JS_AtomToCString(ctx, m->module_name);
+}
+
+char*
 module_namestr(JSContext* ctx, JSModuleDef* m) {
-  const char* name = JS_AtomToCString(ctx, m->module_name);
+  const char* name = module_namecstr(ctx, m);
   char* str = js_strdup(ctx, name);
   JS_FreeCString(ctx, name);
   return str;
@@ -2356,7 +2361,7 @@ js_error_print(JSContext* ctx, JSValueConst error) {
     JS_FreeValue(ctx, st);
   }
 
-  fputs("Toplevel error:\n", stderr);
+  // fputs("Toplevel error:\n", stderr);
 
   if(!JS_IsNull(error) && (str = JS_ToCString(ctx, error))) {
     const char* type = JS_IsObject(error) ? js_object_classname(ctx, error) : js_value_typestr(ctx, error);
@@ -2368,8 +2373,9 @@ js_error_print(JSContext* ctx, JSValueConst error) {
     }
     fprintf(stderr, "%s: %s\n", type, exception);
   }
-  if(stack)
+  if(stack && *stack)
     fprintf(stderr, "Stack:\n%s\n", stack);
+
   fflush(stderr);
   if(stack)
     JS_FreeCString(ctx, stack);

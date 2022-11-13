@@ -799,6 +799,7 @@ typedef union import_directive {
 
 JSValue module_name(JSContext*, JSModuleDef*);
 char* module_namestr(JSContext*, JSModuleDef*);
+char* module_namecstr(JSContext* ctx, JSModuleDef* m);
 JSValue module_func(JSContext*, JSModuleDef*);
 JSValue module_ns(JSContext*, JSModuleDef*);
 JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);

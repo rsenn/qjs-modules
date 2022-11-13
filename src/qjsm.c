@@ -663,26 +663,15 @@ jsm_module_package(JSContext* ctx, const char* module) {
 
 JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* name) {
-  JSRuntime* rt = JS_GetRuntime(ctx);
-  JSModuleDef* m;
 
-  printf("jsm_module_load(%p, %s) = %p\n", ctx, name, m);
+  if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name)) {
+    JS_GetException(ctx);
 
-  m = rt->module_loader_func(ctx, name, 0);
-
-  if(m) {
-    JSValue module_obj = js_value_mkptr(JS_TAG_MODULE, m);
-    JS_ResolveModule(ctx, module_obj);
-    // JS_EvalFunction(ctx, module_obj);
-
-    JSValue exp = module_exports(ctx, m);
-    JSValue glb = JS_GetGlobalObject(ctx);
-    if(!js_has_propertystr(ctx, glb, name))
-      JS_SetPropertyStr(ctx, glb, name, exp);
-    JS_FreeValue(ctx, glb);
+    if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
+      return 0;
   }
 
-  return m;
+  return js_module_find_rev(ctx, name);
 }
 
 JSModuleDef*
@@ -1129,10 +1118,10 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 enum {
   FIND_MODULE,
   LOAD_MODULE,
-  RESOLVE_MODULE,
   REQUIRE_MODULE,
-  NORMALIZE_MODULE,
   LOCATE_MODULE,
+  NORMALIZE_MODULE,
+  RESOLVE_MODULE,
   GET_MODULE_NAME,
   GET_MODULE_OBJECT,
   GET_MODULE_EXPORTS,
@@ -1148,11 +1137,13 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSModuleDef* m = 0;
   const char* name = 0;
 
-  if(magic >= GET_MODULE_NAME) {
+  if(magic >= RESOLVE_MODULE || (magic == NORMALIZE_MODULE && JS_IsModule(argv[0]))) {
     if(!(m = js_module_def(ctx, argv[0])))
       return JS_ThrowTypeError(ctx,
                                "%s: argument 1 expecting module",
                                ((const char* const[]){
+                                   "normalizeModule",
+                                   "resolveModule",
                                    "getModuleName",
                                    "getModuleObject",
                                    "getModuleExports",
@@ -1160,7 +1151,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
                                    "getModuleFunction",
                                    "getModuleException",
                                    "getModuleMetaObject",
-                               })[magic - 3]);
+                               })[magic - NORMALIZE_MODULE]);
   } else {
     name = JS_ToCString(ctx, argv[0]);
   }
@@ -1174,52 +1165,55 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case LOAD_MODULE: {
-      JSRuntime* rt = JS_GetRuntime(ctx);
+      /*  JSRuntime* rt = JS_GetRuntime(ctx);
 
-      ImportDirective imp;
-      memset(&imp, 0, sizeof(imp));
-      int r, n = countof(imp.args);
-      r = js_strv_copys(ctx, argc, argv, n, imp.args);
-      // printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
+        ImportDirective imp;
+        memset(&imp, 0, sizeof(imp));
+        int r, n = countof(imp.args);
+        r = js_strv_copys(ctx, argc, argv, n, imp.args);
+        // printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
 
-      m = rt->module_loader_func(ctx, imp.args[0], 0);
+        m = rt->module_loader_func(ctx, imp.args[0], 0);
 
-      if(m)
+        if(m)
+          val = JS_MKPTR(JS_TAG_MODULE, m);
+
+        js_strv_free_n(ctx, n, imp.args);*/
+      if((m = jsm_module_load(ctx, name)))
         val = JS_MKPTR(JS_TAG_MODULE, m);
 
-      js_strv_free_n(ctx, n, imp.args);
-      break;
-    }
-    case RESOLVE_MODULE: {
-      val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
       break;
     }
     case REQUIRE_MODULE: {
-
-      if((m = jsm_module_loader(ctx, name, 0))) {
+      if((m = jsm_module_load(ctx, name))) {
         val = module_exports(ctx, m);
       }
       break;
     }
-    case NORMALIZE_MODULE: {
-      char *path, *file;
-      path = name;
-      name = argc >= 2 ? JS_ToCString(ctx, argv[1]) : 0;
 
-      if((file = jsm_module_normalize(ctx, path, name, 0))) {
-        val = JS_NewString(ctx, file);
-        js_free(ctx, file);
-      }
-      if(path)
-        JS_FreeCString(ctx, path);
-      break;
-    }
     case LOCATE_MODULE: {
       char* s;
       if((s = jsm_module_locate(ctx, name, 0))) {
         val = JS_NewString(ctx, s);
         js_free(ctx, s);
       }
+      break;
+    }
+    case NORMALIZE_MODULE: {
+      char *path, *file, *name;
+      path = m ? module_namecstr(ctx, m) : JS_ToCString(ctx, argv[0]);
+      name = JS_ToCString(ctx, argv[1]);
+
+      if((file = jsm_module_normalize(ctx, path, name, 0))) {
+        val = JS_NewString(ctx, file);
+        js_free(ctx, file);
+      }
+      JS_FreeCString(ctx, path);
+      JS_FreeCString(ctx, name);
+      break;
+    }
+    case RESOLVE_MODULE: {
+      val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
       break;
     }
     case GET_MODULE_NAME: {
@@ -1276,7 +1270,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
     JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
-    JS_CFUNC_MAGIC_DEF("normalizeModule", 1, jsm_module_func, NORMALIZE_MODULE),
+    JS_CFUNC_MAGIC_DEF("normalizeModule", 2, jsm_module_func, NORMALIZE_MODULE),
     JS_CFUNC_MAGIC_DEF("locateModule", 1, jsm_module_func, LOCATE_MODULE),
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
     JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
@@ -1620,23 +1614,15 @@ main(int argc, char** argv) {
       JSModuleDef* m;
       vector_foreach_t(&module_list, ptr) {
         char* name = *ptr;
+        int all = 0;
 
-        /*char s[512];
-        snprintf(s, sizeof(s), "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name);
-        if(-1 == js_eval_str(ctx, s, 0, JS_EVAL_TYPE_MODULE)) {
+        if(name[0] == '*')
+          all = 1;
+
+        if(!jsm_module_load(ctx, name)) {
           jsm_dump_error(ctx);
           return 1;
-        }*/
-
-        if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
-          continue;
-
-        JS_GetException(ctx);
-
-        if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
-          continue;
-
-        return 1;
+        }
       }
       vector_freestrings(&module_list);
     }
