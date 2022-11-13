@@ -128,19 +128,20 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-#ifndef __wasi__
-    case METHOD_REALPATH: {
-#ifdef _WIN32
-      char dst[PATH_MAX + 1];
-      size_t len = GetFullPathNameA(buf, PATH_MAX + 1, dst, NULL);
-      ret = JS_NewStringLen(ctx, dst, len);
-#else
-      if(realpath(a, buf))
-        ret = JS_NewString(ctx, buf);
-#endif
-      break;
-    }
-#endif
+      /*#ifndef __wasi__
+          case METHOD_REALPATH: {
+      #ifdef _WIN32
+            char dst[PATH_MAX + 1];
+            size_t len = GetFullPathNameA(buf, PATH_MAX + 1, dst, NULL);
+            ret = JS_NewStringLen(ctx, dst, len);
+      #else
+            if(realpath(a, buf))
+              ret = JS_NewString(ctx, buf);
+      #endif
+            break;
+          }
+      #endif*/
+
     case METHOD_EXISTS: {
       ret = JS_NewBool(ctx, path_exists1(a));
       break;
@@ -337,6 +338,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   const char *a = 0, *b = 0;
   DynBuf db;
   size_t alen = 0, blen = 0;
+  JSValue ret = JS_UNDEFINED;
 
   if(argc > 0) {
     if(!JS_IsString(argv[0]))
@@ -362,6 +364,12 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
     case METHOD_CANONICAL: {
       path_canonical3(a, alen, &db);
+      break;
+    }
+
+    case METHOD_REALPATH: {
+      if(!path_realpath3(a, alen, &db))
+        ret = JS_NULL;
       break;
     }
 
@@ -404,7 +412,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(b)
     js_cstring_free(ctx, b);
 
-  return dbuf_tostring_free(&db, ctx);
+  return JS_IsUndefined(ret) ? dbuf_tostring_free(&db, ctx) : ret;
 }
 
 static JSValue
@@ -725,15 +733,16 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("length", 1, js_path_method, METHOD_LENGTH),
     JS_CFUNC_MAGIC_DEF("components", 1, js_path_method, METHOD_COMPONENTS),
     JS_CFUNC_MAGIC_DEF("readlink", 1, js_path_method, METHOD_READLINK),
-#ifndef __wasi__
-    JS_CFUNC_MAGIC_DEF("realpath", 1, js_path_method, METHOD_REALPATH),
-#endif
+    /*#ifndef __wasi__
+        JS_CFUNC_MAGIC_DEF("realpath", 1, js_path_method, METHOD_REALPATH),
+    #endif*/
     JS_CFUNC_MAGIC_DEF("right", 1, js_path_method, METHOD_RIGHT),
     JS_CFUNC_MAGIC_DEF("skip", 1, js_path_method, METHOD_SKIP),
     JS_CFUNC_MAGIC_DEF("skipSeparator", 1, js_path_method, METHOD_SKIP_SEPARATOR),
     JS_CFUNC_MAGIC_DEF("absolute", 1, js_path_method_dbuf, METHOD_ABSOLUTE),
     JS_CFUNC_MAGIC_DEF("append", 1, js_path_method_dbuf, METHOD_APPEND),
     JS_CFUNC_MAGIC_DEF("canonical", 1, js_path_method_dbuf, METHOD_CANONICAL),
+    JS_CFUNC_MAGIC_DEF("realpath", 1, js_path_method_dbuf, METHOD_REALPATH),
     JS_CFUNC_MAGIC_DEF("concat", 2, js_path_method_dbuf, METHOD_CONCAT),
     JS_CFUNC_MAGIC_DEF("at", 2, js_path_method, METHOD_AT),
     JS_CFUNC_MAGIC_DEF("find", 2, js_path_method_dbuf, METHOD_FIND),
