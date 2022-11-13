@@ -1121,42 +1121,34 @@ path_separator1(const char* p) {
   return s - p;
 }
 
-static size_t
+static inline size_t
 __path_dirname1(char* path) {
-  size_t i;
-
-  if(path[(i = str_rchrs(path, PATHSEP_S, 2))])
-    path[i] = '\0';
-
-  return i;
+  return str_rchrs(path, PATHSEP_S, 2);
 }
 
-static size_t
+static inline size_t
 __path_dirname2(char* path, size_t n) {
-  size_t i;
-
-  if((i = byte_rchrs(path, n, PATHSEP_S, 2)) < n)
-    path[i] = '\0';
-
-  return i;
+  return byte_rchrs(path, n, PATHSEP_S, 2);
 }
 
 char*
 path_dirname1(const char* path) {
-  char* q;
+  size_t i;
 
-  if((q = path_dup1(path)))
-    __path_dirname1(q);
-  return q;
+  if(path[(i = __path_dirname1(path))])
+    return path_dup2(path, i);
+
+  return path_dup1(".");
 }
 
 char*
 path_dirname2(const char* path, size_t n) {
-  char* q;
+  size_t i;
 
-  if((q = path_dup2(path, n)))
-    __path_dirname2(q, n);
-  return q;
+  if((i = __path_dirname2(path, n)) < n)
+    return path_dup2(path, i);
+
+  return path_dup1(".");
 }
 
 char*

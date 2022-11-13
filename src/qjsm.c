@@ -334,19 +334,24 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case SCRIPT_FILE:
     case SCRIPT_FILENAME: {
-      char* str;
-      if((str = jsm_stack_top()))
-        ret = JS_NewString(ctx, str);
+      char* file;
+      if((file = jsm_stack_top())) {
+        char* abs = path_absolute1(file);
+        ret = JS_NewString(ctx, abs);
+        free(abs);
+      }
       break;
     }
     case SCRIPT_DIRNAME: {
       char* file;
       if((file = jsm_stack_top())) {
+        char* abs = path_absolute1(file);
         char* dir;
-        if((dir = path_dirname1(file))) {
+        if((dir = path_dirname1(abs))) {
           ret = JS_NewString(ctx, dir);
           free(dir);
         }
+        free(abs);
       }
       break;
     }
