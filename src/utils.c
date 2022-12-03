@@ -204,17 +204,69 @@ js_array_clear(JSContext* ctx, JSValueConst array) {
   assert(js_array_length(ctx, array) == 0);
 }
 
+JSValue
+js_intv_to_array(JSContext* ctx, size_t* intv, size_t len) {
+  JSValue ret = JS_NewArray(ctx);
+  if(intv) {
+    size_t i;
+    for(i = 0; i < len; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
+  }
+  return ret;
+}
+
 char**
-js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array) {
-  int i, len = js_array_length(ctx, array);
+js_array_to_argv(JSContext* ctx, size_t* lenp, JSValueConst array) {
+  size_t i, len = js_array_length(ctx, array);
   char** ret = js_mallocz(ctx, sizeof(char*) * (len + 1));
   for(i = 0; i < len; i++) {
     JSValue item = JS_GetPropertyUint32(ctx, array, i);
     ret[i] = js_tostring(ctx, item);
     JS_FreeValue(ctx, item);
   }
-  if(argcp)
-    *argcp = len;
+  if(lenp)
+    *lenp = len;
+  return ret;
+}
+
+int32_t**
+js_array_to_int32v(JSContext* ctx, size_t* lenp, JSValueConst array) {
+  size_t i, len = js_array_length(ctx, array);
+  int32_t** ret = js_mallocz(ctx, sizeof(int32_t*) * (len + 1));
+  for(i = 0; i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, array, i);
+    JS_ToInt32(ctx, &ret[i], item);
+    JS_FreeValue(ctx, item);
+  }
+  if(lenp)
+    *lenp = len;
+  return ret;
+}
+
+uint32_t**
+js_array_to_uint32v(JSContext* ctx, size_t* lenp, JSValueConst array) {
+  size_t i, len = js_array_length(ctx, array);
+  uint32_t** ret = js_mallocz(ctx, sizeof(uint32_t*) * (len + 1));
+  for(i = 0; i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, array, i);
+    JS_ToUint32(ctx, &ret[i], item);
+    JS_FreeValue(ctx, item);
+  }
+  if(lenp)
+    *lenp = len;
+  return ret;
+}
+
+int64_t**
+js_array_to_int64v(JSContext* ctx, size_t* lenp, JSValueConst array) {
+  size_t i, len = js_array_length(ctx, array);
+  int64_t** ret = js_mallocz(ctx, sizeof(int64_t*) * (len + 1));
+  for(i = 0; i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, array, i);
+    JS_ToInt64Ext(ctx, &ret[i], item);
+    JS_FreeValue(ctx, item);
+  }
+  if(lenp)
+    *lenp = len;
   return ret;
 }
 
@@ -1073,16 +1125,6 @@ js_strv_dup(JSContext* ctx, char** strv) {
   ret = js_malloc(ctx, (len + 1) * sizeof(char*));
   for(i = 0; i < len; i++) { ret[i] = js_strdup(ctx, strv[i]); }
   ret[i] = 0;
-  return ret;
-}
-
-JSValue
-js_intv_to_array(JSContext* ctx, int* intv, size_t len) {
-  JSValue ret = JS_NewArray(ctx);
-  if(intv) {
-    size_t i;
-    for(i = 0; i < len; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
-  }
   return ret;
 }
 

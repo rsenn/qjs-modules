@@ -590,6 +590,35 @@ js_get_classid(JSValue v) {
 
 BOOL js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
+
+static inline BOOL
+js_has_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
+  JSAtom atom = JS_ValueToAtom(ctx, prop);
+  BOOL ret = JS_HasProperty(ctx, obj, atom);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+static inline JSValue
+js_get_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
+  JSAtom atom = JS_ValueToAtom(ctx, prop);
+  JSValue ret = JS_GetProperty(ctx, obj, atom);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+static inline int
+js_set_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop, JSValueConst value) {
+  JSAtom atom = JS_ValueToAtom(ctx, prop);
+  int ret = JS_SetProperty(ctx, obj, atom, value);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+static inline int
+js_delete_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
+  JSAtom atom = JS_ValueToAtom(ctx, prop);
+  int ret = JS_DeleteProperty(ctx, obj, atom, 0);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
 void js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str);
 void js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_t value);
 void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);
@@ -732,8 +761,12 @@ void js_strv_free_n(JSContext*, int, char* argv[]);
 void js_strv_free(JSContext* ctx, char** strv);
 void js_strv_free_rt(JSRuntime* rt, char** strv);
 JSValue js_strv_to_array(JSContext* ctx, char** strv);
-JSValue js_intv_to_array(JSContext* ctx, int* intv, size_t len);
-char** js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array);
+JSValue js_intv_to_array(JSContext*, size_t*, size_t);
+char** js_array_to_argv(JSContext*, size_t*, JSValueConst);
+int32_t** js_array_to_int32v(JSContext*, size_t*, JSValueConst);
+uint32_t** js_array_to_uint32v(JSContext*, size_t*, JSValueConst);
+int64_t** js_array_to_int64v(JSContext*, size_t*, JSValueConst);
+
 int js_array_copys(JSContext*, JSValueConst, int n, char** stra);
 int js_strv_copys(JSContext*, int, JSValueConst argv[], int n, char** stra);
 

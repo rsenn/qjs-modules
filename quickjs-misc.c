@@ -1687,13 +1687,47 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
+static const uint8_t js_misc_escape_sq_tab[256] = {
+    'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',
+    'x', 'x', 'x', 'x', 0,   0,   0,   0,   0,    0,    0,    0x27, 0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0x5c, 0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   'x', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   'u', 'u', 'u', 'u', 'u',
+    'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+};
+static const uint8_t js_misc_escape_dq_tab[256] = {
+    'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',
+
+    'x', 'x', 'x', 'x', 0,   0,   0x22, 0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0x5c, 0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   'x', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   'u', 'u', 'u', 'u', 'u',
+    'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+};
+
 JSValue
 js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
   if(input.data) {
+    uint8_t escape_tab[256], *tab = &js_misc_escape_dq_tab;
+    int32_t** intv = 0;
+    size_t i, nelems;
+
+    if(argc > 1 && (intv = js_array_to_int32v(ctx, &nelems, argv[1]))) {
+      for(i = 0; i < nelems; i++) { escape_tab[i] = intv[i]; }
+      while(i < 256) { escape_tab[i++] = '\0'; }
+      tab = escape_tab;
+      js_free(ctx, intv);
+    }
+
     DynBuf output;
     js_dbuf_init(ctx, &output);
-    dbuf_put_escaped(&output, (const char*)input.data, input.size);
+    dbuf_put_escaped_table(&output, (const char*)input.data, input.size, tab);
+
     return dbuf_tostring_free(&output, ctx);
   }
   return JS_DupValue(ctx, argv[0]);
@@ -1701,15 +1735,31 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 static int
 js_misc_unescape_pred(const char* s, size_t* lenp) {
-  long val = -1;
-  size_t len;
+  unsigned long u;
+  int val = -1;
+  size_t len = 1;
 
-  if((len = scan_8long(s, &val)) >= 3) {
+  if(*s == '\\')
+    val = (int)(unsigned int)(unsigned char)'\\';
+  else if(*s == 'n')
+    val = (int)(unsigned int)(unsigned char)'\n';
+  else if(*s == 'r')
+    val = (int)(unsigned int)(unsigned char)'\r';
+  else if(*s == 't')
+    val = (int)(unsigned int)(unsigned char)'\t';
+  else if(*s == 'v')
+    val = (int)(unsigned int)(unsigned char)'\v';
+  else if(*s == 'b')
+    val = (int)(unsigned int)(unsigned char)'\b';
+  else if((len = scan_8long(s, &u)) >= 3)
+    val = (int)(unsigned int)(unsigned char)u;
+
+  if(val != -1) {
     if(lenp)
       *lenp += len;
-
     return val;
   }
+
   return 0;
 }
 

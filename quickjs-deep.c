@@ -477,12 +477,7 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   js_dbuf_init(ctx, &dbuf);
   // this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
   dest = argc > 1 ? argv[1] : JS_NewObject(ctx);
-  if(js_is_map(ctx, dest))
-    vmap = virtual_properties_map(ctx, dest);
-  else if(js_is_array(ctx, dest))
-    vmap = virtual_properties_array(ctx, dest);
-  else
-    vmap = virtual_properties_object(ctx, dest);
+  vmap = virtual_properties(ctx, dest);
   vector_init(&frames, ctx);
   vector_init(&offsets, ctx);
   it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
