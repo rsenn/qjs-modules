@@ -479,7 +479,7 @@ jsm_builtin_find(const char* name) {
 static JSModuleDef*
 jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
-  JSValue obj = JS_UNDEFINED;
+  JSValue ret = JS_UNINITIALIZED, obj = JS_UNDEFINED;
 
   jsm_stack_push(ctx, rec->module_name);
 
@@ -501,7 +501,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       m = js_value_ptr(obj);
 
       JS_ResolveModule(ctx, obj);
-      JSValue ret = JS_EvalFunction(ctx, obj);
+      ret = JS_EvalFunction(ctx, obj);
 
       /*  obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, FALSE);
             m = js_value_ptr(obj);
