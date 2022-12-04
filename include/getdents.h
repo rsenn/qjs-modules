@@ -8,6 +8,7 @@ typedef struct getdents_reader Directory;
 typedef struct getdents_entry DirEntry;
 
 size_t getdents_size();
+ptrdiff_t getdents_handle(Directory*);
 void getdents_clear(Directory*);
 int getdents_open(Directory*, const char* path);
 int getdents_adopt(Directory*, intptr_t fd);

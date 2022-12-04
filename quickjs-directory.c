@@ -22,6 +22,7 @@ enum {
   DIRECTORY_NEXT,
   DIRECTORY_CLOSE,
   DIRECTORY_ITERATOR,
+  DIRECTORY_VALUE_OF,
 };
 
 static JSValue
@@ -162,6 +163,10 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       getdents_close(directory);
       break;
     }
+    case DIRECTORY_VALUE_OF: {
+      ret = JS_NewInt64(ctx, getdents_handle(directory));
+      break;
+    }
   }
   return ret;
 }
@@ -187,6 +192,7 @@ static const JSCFunctionListEntry js_directory_funcs[] = {
     JS_CFUNC_MAGIC_DEF("next", 0, js_directory_method, DIRECTORY_NEXT),
     JS_CFUNC_MAGIC_DEF("close", 0, js_directory_method, DIRECTORY_CLOSE),
     JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_directory_method, DIRECTORY_ITERATOR),
+    JS_CFUNC_MAGIC_DEF("valueOf", 0, js_directory_method, DIRECTORY_VALUE_OF),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Directory", JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("NAME", FLAG_NAME, 0),
     JS_PROP_INT32_DEF("TYPE", FLAG_TYPE, 0),

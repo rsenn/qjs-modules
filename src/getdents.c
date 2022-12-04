@@ -24,6 +24,11 @@ getdents_clear(Directory* d) {
   d->first = FALSE;
 }
 
+ptrdiff_t
+getdents_handle(Directory* d) {
+  return d->h;
+}
+
 int
 getdents_open(Directory* d, const char* path) {
   size_t pathlen = utf8_strlen(path);
@@ -116,6 +121,11 @@ void
 getdents_clear(Directory* d) {
   d->fd = -1;
   d->nread = d->bpos = 0;
+}
+
+ptrdiff_t
+getdents_handle(Directory* d) {
+  return d->fd;
 }
 
 int

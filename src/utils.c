@@ -2434,7 +2434,7 @@ js_error_stack(JSContext* ctx) {
 }
 
 JSValue
-js_io_readhandler_fn(JSContext* ctx, BOOL write) {
+js_iohandler_fn(JSContext* ctx, BOOL write) {
   JSModuleDef* os;
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
   JSAtom func_name;
@@ -2458,11 +2458,11 @@ js_io_readhandler_fn(JSContext* ctx, BOOL write) {
 static thread_local JSCFunction* readhandler_cfunc;
 
 JSCFunction*
-js_io_readhandler_cfunc(JSContext* ctx, BOOL write) {
+js_iohandler_cfunc(JSContext* ctx, BOOL write) {
   if(!readhandler_cfunc) {
     JSValue set_handler;
     JSObject* obj;
-    set_handler = js_io_readhandler_fn(ctx, write);
+    set_handler = js_iohandler_fn(ctx, write);
     if(JS_IsException(set_handler))
       return 0;
     readhandler_cfunc = js_function_cfunc(ctx, set_handler);
