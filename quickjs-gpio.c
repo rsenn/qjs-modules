@@ -15,9 +15,13 @@ thread_local VISIBLE JSClassID js_gpio_class_id = 0;
 thread_local JSValue gpio_proto = {{JS_TAG_UNDEFINED}}, gpio_ctor = {{JS_TAG_UNDEFINED}};
 
 enum {
-  GPIO_METHOD_INIT_PIN,
+  GPIO_METHOD_INIT_PIN = 0,
   GPIO_METHOD_SET_PIN,
   GPIO_METHOD_GET_PIN,
+};
+
+enum {
+  GPIO_BUFFER = 0,
 };
 
 struct gpio*
@@ -92,6 +96,11 @@ js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return ret;
 }
 
+static void
+js_gpio_free(JSRuntime* rt, void* opaque, void* ptr) {
+  gpio_close(opaque);
+}
+
 static JSValue
 js_gpio_getter(JSContext* ctx, JSValueConst this_val, int magic) {
   struct gpio* gpio;
@@ -100,7 +109,13 @@ js_gpio_getter(JSContext* ctx, JSValueConst this_val, int magic) {
   if(!(gpio = js_gpio_data(ctx, this_val)))
     return ret;
 
-  switch(magic) {}
+  switch(magic) {
+    case GPIO_BUFFER: {
+      ret = JS_NewArrayBuffer(ctx, (uint8_t*)gpio->map, GPIO_MAPSIZE, js_gpio_free, gpio_dup(gpio), TRUE);
+      break;
+    }
+  }
+
   return ret;
 }
 
@@ -163,6 +178,7 @@ static const JSCFunctionListEntry js_gpio_funcs[] = {
     JS_CFUNC_MAGIC_DEF("initPin", 2, js_gpio_functions, GPIO_METHOD_INIT_PIN),
     JS_CFUNC_MAGIC_DEF("setPin", 2, js_gpio_functions, GPIO_METHOD_SET_PIN),
     JS_CFUNC_MAGIC_DEF("getPin", 1, js_gpio_functions, GPIO_METHOD_GET_PIN),
+    JS_CGETSET_MAGIC_DEF("buffer", js_gpio_getter, 0, GPIO_BUFFER),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "GPIO", JS_PROP_CONFIGURABLE),
 };
 
