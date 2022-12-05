@@ -1340,7 +1340,7 @@ jsm_start_interactive(JSContext* ctx) {
   /* clang-format on */
 
   js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
-  replObj = js_eval_buf(ctx, str, strlen(str), 0, JS_EVAL_TYPE_MODULE);
+  replObj = js_eval_buf(ctx, str, strlen(str),  "<init>", JS_EVAL_TYPE_MODULE);
 }
 
 int
