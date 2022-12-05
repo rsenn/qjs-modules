@@ -72,7 +72,7 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-check_functions(vfork fork waitpid execvpe setsid )
+check_functions(vfork fork waitpid execvpe setsid)
 if(HAVE_VFORK)
   add_definitions(-DHAVE_VFORK)
 else(HAVE_VFORK)
@@ -191,26 +191,37 @@ check_includes(alloca.h fnmatch.h glob.h wordexp.h sys/inotify.h)
 if(HAVE_INET_PTON)
   add_definitions(-DHAVE_INET_PTON=1)
 endif(HAVE_INET_PTON)
+message("Have inet_pton() ${HAVE_INET_PTON}")
 
 if(HAVE_FNMATCH AND HAVE_FNMATCH_H)
   add_definitions(-DHAVE_FNMATCH=1)
 endif(HAVE_FNMATCH AND HAVE_FNMATCH_H)
+message("Have fnmatch() ${HAVE_FNMATCH}")
+message("Have fnmatch.h ${HAVE_FNMATCH_H}")
 
 if(HAVE_DAEMON)
   add_definitions(-DHAVE_DAEMON=1)
 endif(HAVE_DAEMON)
+message("Have daemon() ${HAVE_DAEMON}")
 
 if(HAVE_GLOB AND HAVE_GLOB_H)
   add_definitions(-DHAVE_GLOB=1)
 endif(HAVE_GLOB AND HAVE_GLOB_H)
 
+message("Have glob() ${HAVE_GLOB}")
+message("Have glob.h ${HAVE_GLOB_H}")
+
 if(HAVE_WORDEXP AND HAVE_WORDEXP_H)
   add_definitions(-DHAVE_WORDEXP=1)
 endif(HAVE_WORDEXP AND HAVE_WORDEXP_H)
+message("Have wordexp() ${HAVE_WORDEXP}")
+message("Have wordexp.h ${HAVE_WORDEXP_H}")
 
 if(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
   add_definitions(-DHAVE_INOTIFY=1)
 endif(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
+message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
+message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
 
 if(HAVE_FCNTL_H)
   add_definitions(-DHAVE_FCNTL_H=1)
@@ -407,7 +418,8 @@ if(HAVE_SYS_MMAN_H)
 endif(HAVE_SYS_MMAN_H)
 
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(list_SOURCES quickjs-list.c quickjs-list.h ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(list_SOURCES quickjs-list.c quickjs-list.h ${utils_SOURCES}
+                 ${buffer_utils_SOURCES})
 
 # if(pigpio_LIBRARY)
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})

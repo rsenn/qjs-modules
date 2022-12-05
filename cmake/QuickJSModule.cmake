@@ -54,10 +54,10 @@ function(make_module FNAME)
 
   if(ARGN)
     set(SOURCES ${ARGN} ${${VNAME}_SOURCES} ${COMMON_SOURCES})
-    ADD_UNIQUE(DEPS  ${${VNAME}_DEPS})
+    add_unique(DEPS ${${VNAME}_DEPS})
   else(ARGN)
     set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES} ${COMMON_SOURCES})
-    ADD_UNIQUE(LIBS  ${${VNAME}_LIBRARIES})
+    add_unique(LIBS ${${VNAME}_LIBRARIES})
   endif(ARGN)
 
   message(
@@ -73,7 +73,6 @@ function(make_module FNAME)
     set(PREFIX "")
   endif(NOT WASI AND "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 
-
   #dump(VNAME ${VNAME}_SOURCES SOURCES)
 
   if(BUILD_SHARED_MODULES)
@@ -82,10 +81,9 @@ function(make_module FNAME)
 
     set_target_properties(
       ${TARGET_NAME}
-      PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}" 
-      INSTALL_RPATH "${QUICKJS_C_MODULE_DIR}" PREFIX "${PREFIX}" OUTPUT_NAME
-                                                                   "${VNAME}"
-                 COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
+      PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}"
+                 INSTALL_RPATH "${QUICKJS_C_MODULE_DIR}" PREFIX "${PREFIX}"
+                 OUTPUT_NAME "${VNAME}" COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
 
     target_compile_definitions(
       ${TARGET_NAME}
@@ -156,4 +154,5 @@ if(NOT LIBRARY_SUFFIX)
   set(LIBRARY_SUFFIX "${CMAKE_STATIC_LIBRARY_SUFFIX}")
 endif(NOT LIBRARY_SUFFIX)
 
-set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath=${QUICKJS_C_MODULE_DIR})
+set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}
+                              -Wl,-rpath=${QUICKJS_C_MODULE_DIR})
