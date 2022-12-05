@@ -111,7 +111,7 @@ js_gpio_getter(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case GPIO_BUFFER: {
-      ret = JS_NewArrayBuffer(ctx, (uint8_t*)gpio->map, GPIO_MAPSIZE, js_gpio_free, gpio_dup(gpio), TRUE);
+      ret = JS_NewArrayBuffer(ctx, (uint8_t*)gpio->map, GPIO_MAPSIZE, js_gpio_free, gpio_dup(gpio), FALSE);
       break;
     }
   }
