@@ -1713,8 +1713,9 @@ JSValue
 js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
   if(input.data) {
-    uint8_t escape_tab[256], *tab = &js_misc_escape_dq_tab;
-    int32_t** intv = 0;
+    uint8_t escape_tab[256];
+    const uint8_t *tab = js_misc_escape_dq_tab;
+    int32_t* intv = 0;
     size_t i, nelems;
 
     if(argc > 1 && (intv = js_array_to_int32v(ctx, &nelems, argv[1]))) {

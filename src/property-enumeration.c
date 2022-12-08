@@ -130,7 +130,7 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object, int32_t max) {
 }
 
 JSValue
-property_enumeration_path(Vector* vec, JSContext* ctx) {
+property_enumeration_path(const Vector* vec, JSContext* ctx) {
   JSValue ret;
   PropertyEnumeration* it;
   size_t i = 0;
@@ -145,7 +145,7 @@ property_enumeration_path(Vector* vec, JSContext* ctx) {
 }
 
 void
-property_enumeration_pathstr(Vector* vec, JSContext* ctx, DynBuf* buf) {
+property_enumeration_pathstr(const Vector* vec, JSContext* ctx, DynBuf* buf) {
   PropertyEnumeration* it;
   size_t i = 0;
   vector_foreach_t(vec, it) {
@@ -161,7 +161,7 @@ property_enumeration_pathstr(Vector* vec, JSContext* ctx, DynBuf* buf) {
 }
 
 JSValue
-property_enumeration_pathstr_value(Vector* vec, JSContext* ctx) {
+property_enumeration_pathstr_value(const Vector* vec, JSContext* ctx) {
   DynBuf dbuf;
   JSValue ret;
   js_dbuf_init(ctx, &dbuf);
@@ -172,10 +172,6 @@ property_enumeration_pathstr_value(Vector* vec, JSContext* ctx) {
   return ret;
 }
 
-/*static void
- property_enumeration_pointer(Vector* vec, JSContext* ctx, struct Pointer* ptr)
- { pointer_fromarray(ptr, ctx, property_enumeration_path(vec,ctx));
- }*/
 int
 property_enumeration_insideof(Vector* vec, JSValueConst val) {
   PropertyEnumeration* it;

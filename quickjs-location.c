@@ -285,7 +285,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       if(i < argc && JS_IsNumber(argv[i]))
         JS_ToUint32(ctx, &loc->line, argv[i++]);
       if(i < argc && JS_IsNumber(argv[i]))
-        JS_ToUint32(ctx, &loc->column, argv[i++]);
+        JS_ToInt32(ctx, &loc->column, argv[i++]);
       if(i < argc && JS_IsNumber(argv[i]))
         JS_ToIndex(ctx, (uint64_t*)&loc->char_offset, argv[i++]);
       if(i < argc && JS_IsNumber(argv[i]))

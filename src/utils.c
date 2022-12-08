@@ -205,7 +205,7 @@ js_array_clear(JSContext* ctx, JSValueConst array) {
 }
 
 JSValue
-js_intv_to_array(JSContext* ctx, size_t* intv, size_t len) {
+js_intv_to_array(JSContext* ctx, int* intv, size_t len) {
   JSValue ret = JS_NewArray(ctx);
   if(intv) {
     size_t i;
@@ -228,10 +228,10 @@ js_array_to_argv(JSContext* ctx, size_t* lenp, JSValueConst array) {
   return ret;
 }
 
-int32_t**
+int32_t*
 js_array_to_int32v(JSContext* ctx, size_t* lenp, JSValueConst array) {
   size_t i, len = js_array_length(ctx, array);
-  int32_t** ret = js_mallocz(ctx, sizeof(int32_t*) * (len + 1));
+  int32_t* ret = js_mallocz(ctx, sizeof(int32_t) * (len + 1));
   for(i = 0; i < len; i++) {
     JSValue item = JS_GetPropertyUint32(ctx, array, i);
     JS_ToInt32(ctx, &ret[i], item);
@@ -242,10 +242,10 @@ js_array_to_int32v(JSContext* ctx, size_t* lenp, JSValueConst array) {
   return ret;
 }
 
-uint32_t**
+uint32_t*
 js_array_to_uint32v(JSContext* ctx, size_t* lenp, JSValueConst array) {
   size_t i, len = js_array_length(ctx, array);
-  uint32_t** ret = js_mallocz(ctx, sizeof(uint32_t*) * (len + 1));
+  uint32_t* ret = js_mallocz(ctx, sizeof(uint32_t) * (len + 1));
   for(i = 0; i < len; i++) {
     JSValue item = JS_GetPropertyUint32(ctx, array, i);
     JS_ToUint32(ctx, &ret[i], item);
@@ -256,10 +256,10 @@ js_array_to_uint32v(JSContext* ctx, size_t* lenp, JSValueConst array) {
   return ret;
 }
 
-int64_t**
+int64_t*
 js_array_to_int64v(JSContext* ctx, size_t* lenp, JSValueConst array) {
   size_t i, len = js_array_length(ctx, array);
-  int64_t** ret = js_mallocz(ctx, sizeof(int64_t*) * (len + 1));
+  int64_t* ret = js_mallocz(ctx, sizeof(int64_t) * (len + 1));
   for(i = 0; i < len; i++) {
     JSValue item = JS_GetPropertyUint32(ctx, array, i);
     JS_ToInt64Ext(ctx, &ret[i], item);
@@ -1635,7 +1635,7 @@ module_name(JSContext* ctx, JSModuleDef* m) {
   return JS_UNDEFINED;
 }
 
-char*
+const char*
 module_namecstr(JSContext* ctx, JSModuleDef* m) {
   return JS_AtomToCString(ctx, m->module_name);
 }

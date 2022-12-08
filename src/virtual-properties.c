@@ -78,7 +78,16 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
 
   JS_FreeValue(ctx, map_prototype);
 
-  return (VirtualProperties){map_obj, map_has, map_delete, map_get, map_set, map_finalizer, atoms, opaque_dup};
+  return (VirtualProperties){
+      map_obj,
+      map_has,
+      map_delete,
+      map_get,
+      map_set,
+      map_finalizer,
+      atoms,
+      0,
+  };
 }
 
 static BOOL
@@ -112,7 +121,16 @@ object_finalizer(VirtualProperties* vp, JSContext* ctx) {
 
 VirtualProperties
 virtual_properties_object(JSContext* ctx, JSValueConst obj) {
-  return (VirtualProperties){JS_DupValue(ctx, obj), object_has, object_delete, object_get, object_set, object_finalizer, 0, 0};
+  return (VirtualProperties){
+      JS_DupValue(ctx, obj),
+      object_has,
+      object_delete,
+      object_get,
+      object_set,
+      object_finalizer,
+      0,
+      0,
+  };
 }
 
 static int64_t
@@ -190,7 +208,16 @@ array_finalizer(VirtualProperties* vp, JSContext* ctx) {
 
 VirtualProperties
 virtual_properties_array(JSContext* ctx, JSValueConst obj) {
-  return (VirtualProperties){JS_DupValue(ctx, obj), array_has, array_delete, array_get, array_set, array_finalizer, 0};
+  return (VirtualProperties){
+      JS_DupValue(ctx, obj),
+      array_has,
+      array_delete,
+      array_get,
+      array_set,
+      array_finalizer,
+      0,
+      0,
+  };
 }
 
 static VirtualWrapper*

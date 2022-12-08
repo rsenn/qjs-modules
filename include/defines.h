@@ -50,7 +50,7 @@
     .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CFUNC, .magic = 0, .u = {.func = {length, JS_CFUNC_generic, {.generic = func1}} } \
   }
 
-#define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE)
+#define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE)
 
 #ifdef JS_SHARED_LIBRARY
 #if defined(_WIN32) || defined(__MINGW32__)

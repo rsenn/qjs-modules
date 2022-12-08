@@ -338,7 +338,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_FUNCTION: {
       int i, nargs = pr->function.arity;
       JSValueConst argv[nargs];
-      for(i = 0; i < nargs; i++) argv[i++] = js_arguments_at(args, i);
+      for(i = 0; i < nargs; i++) argv[i] = js_arguments_at(args, i);
 
       ret = JS_Call(ctx, pr->function.func, pr->function.this_val, nargs, argv);
       break;
@@ -879,6 +879,10 @@ predicate_free_rt(Predicate* pr, JSRuntime* rt) {
       JS_FreeValueRT(rt, pr->function.this_val);
       break;
     }
+    case PREDICATE_INDEX: {
+      JS_FreeValueRT(rt, pr->index.predicate);
+      break;
+    }
   }
   memset(pr, 0, sizeof(Predicate));
 }
@@ -958,6 +962,10 @@ predicate_values(const Predicate* pr, JSContext* ctx) {
       ret = JS_DupValue(ctx, pr->function.func);
       break;
     }
+    case PREDICATE_INDEX: {
+      ret = JS_DupValue(ctx, pr->index.predicate);
+      break;
+    }
   }
   return ret;
 }
@@ -966,6 +974,7 @@ JSValue
 predicate_keys(const Predicate* pr, JSContext* ctx) {
   JSValue ret = JS_NewArray(ctx);
   uint32_t i = 0;
+
   switch(pr->id) {
     case PREDICATE_TYPE:
     case PREDICATE_CHARSET:
@@ -1029,6 +1038,10 @@ predicate_keys(const Predicate* pr, JSContext* ctx) {
     }
     case PREDICATE_FUNCTION: {
       JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "func"));
+      break;
+    }
+    case PREDICATE_INDEX: {
+      JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, "predicate"));
       break;
     }
   }
@@ -1123,6 +1136,11 @@ predicate_clone(const Predicate* pr, JSContext* ctx) {
       ret->function.func = JS_DupValue(ctx, pr->function.func);
       ret->function.this_val = JS_DupValue(ctx, pr->function.this_val);
       ret->function.arity = pr->function.arity;
+      break;
+    }
+    case PREDICATE_INDEX: {
+      ret->index.pos = pr->index.pos;
+      ret->index.predicate = JS_DupValue(ctx, pr->index.predicate);
       break;
     }
   }
@@ -1224,6 +1242,10 @@ predicate_recursive_num_args(const Predicate* pr) {
       n += pr->function.arity;
       break;
     }
+    case PREDICATE_INDEX: {
+      n++;
+      break;
+    }
   }
   return n;
 }
@@ -1291,6 +1313,9 @@ predicate_direct_num_args(const Predicate* pr) {
     case PREDICATE_FUNCTION: {
       return pr->function.arity;
     }
+    case PREDICATE_INDEX: {
+      return 1;
+    }
   }
 
   return -1;
@@ -1299,12 +1324,14 @@ predicate_direct_num_args(const Predicate* pr) {
 JSPrecedence
 predicate_precedence(const Predicate* pr) {
   JSPrecedence ret = -1;
+
   switch(pr->id) {
     case PREDICATE_TYPE: break;
     case PREDICATE_CHARSET: break;
     case PREDICATE_PROTOTYPEIS: break;
     case PREDICATE_REGEXP: break;
     case PREDICATE_SHIFT: break;
+    case PREDICATE_INDEX: break;
     case PREDICATE_SLICE: break;
 
     case PREDICATE_STRING: ret = PRECEDENCE_EQUALITY; break;

@@ -116,7 +116,7 @@ static JSValue
 js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
   JSValue ret;
   PropertyEnumeration* penum = vector_back(frames, sizeof(PropertyEnumeration));
-  JSValue (*path_fn)(Vector*, JSContext*);
+  JSValue (*path_fn)(const Vector*, JSContext*);
 
   path_fn = (return_flag & PATH_AS_STRING) ? property_enumeration_pathstr_value : property_enumeration_path;
 

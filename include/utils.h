@@ -761,11 +761,11 @@ void js_strv_free_n(JSContext*, int, char* argv[]);
 void js_strv_free(JSContext* ctx, char** strv);
 void js_strv_free_rt(JSRuntime* rt, char** strv);
 JSValue js_strv_to_array(JSContext* ctx, char** strv);
-JSValue js_intv_to_array(JSContext*, size_t*, size_t);
+JSValue js_intv_to_array(JSContext*, int*, size_t);
 char** js_array_to_argv(JSContext*, size_t*, JSValueConst);
-int32_t** js_array_to_int32v(JSContext*, size_t*, JSValueConst);
-uint32_t** js_array_to_uint32v(JSContext*, size_t*, JSValueConst);
-int64_t** js_array_to_int64v(JSContext*, size_t*, JSValueConst);
+int32_t* js_array_to_int32v(JSContext*, size_t*, JSValueConst);
+uint32_t* js_array_to_uint32v(JSContext*, size_t*, JSValueConst);
+int64_t* js_array_to_int64v(JSContext*, size_t*, JSValueConst);
 
 int js_array_copys(JSContext*, JSValueConst, int n, char** stra);
 int js_strv_copys(JSContext*, int, JSValueConst argv[], int n, char** stra);
@@ -832,7 +832,7 @@ typedef union import_directive {
 
 JSValue module_name(JSContext*, JSModuleDef*);
 char* module_namestr(JSContext*, JSModuleDef*);
-char* module_namecstr(JSContext* ctx, JSModuleDef* m);
+const char* module_namecstr(JSContext* ctx, JSModuleDef* m);
 JSValue module_func(JSContext*, JSModuleDef*);
 JSValue module_ns(JSContext*, JSModuleDef*);
 JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);

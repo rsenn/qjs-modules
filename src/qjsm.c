@@ -664,12 +664,27 @@ jsm_module_package(JSContext* ctx, const char* module) {
 JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* name) {
 
-  if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name)) {
+  BOOL all = FALSE;
+
+  if(*name == '*') {
+    ++name;
+    all = TRUE;
+  }
+
+  if(!js_eval_fmt(ctx,
+                  JS_EVAL_TYPE_MODULE,
+                  all ? "import tmp from '%s';\nObject.assign(globalThis, tmp);\n" : "import tmp from '%s';\nglobalThis['%s'] = tmp;\n",
+                  name,
+                  name)) {
 
   } else {
     JS_GetException(ctx);
 
-    if(js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
+    if(js_eval_fmt(ctx,
+                   JS_EVAL_TYPE_MODULE,
+                   all ? "import * as tmp from '%s';\nObject.assign(globalThis, tmp);\n" : "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n",
+                   name,
+                   name))
       return 0;
   }
 

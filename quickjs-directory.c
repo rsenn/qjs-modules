@@ -5,7 +5,7 @@
 #include <string.h>
 
 /**
- * \defgroup quickjs-bjson QuickJS module: directory - Directory reader
+ * \defgroup quickjs-directory QuickJS module: directory - Directory reader
  * @{
  */
 thread_local VISIBLE JSClassID js_directory_class_id = 0;

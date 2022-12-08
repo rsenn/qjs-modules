@@ -13,6 +13,7 @@ option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
 option(USE_SPAWN "Use POSIX spawn()" OFF)
 option(USE_LIBARCHIVE "Use libarchive" ON)
+option(USE_LIBMAGIC "Use libmagic" ON)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
@@ -270,8 +271,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
-    bjson blob deep directory lexer list location misc path pointer predicate
-    repeater textcode sockets stream syscallerror inspect tree-walker xml)
+    bjson blob deep directory lexer list location ${magic_MODULE} misc path
+    pointer predicate repeater textcode sockets stream syscallerror inspect
+    tree-walker xml)
 
 if(USE_LIBARCHIVE)
   if(BUILD_LIBARCHIVE)
@@ -303,6 +305,29 @@ if(USE_LIBARCHIVE)
     set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
   endif(LibArchive_FOUND)
 endif(USE_LIBARCHIVE)
+
+if(USE_LIBMAGIC)
+  include(CheckLibraryExists)
+  check_library_exists(magic magic_open "${LIBMAGIC_LIBRARY_DIR}" HAVE_LIBMAGIC)
+  set(old_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}")
+  if(LIBMAGIC_INCLUDE_DIR)
+    list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBMAGIC_INCLUDE_DIR}")
+  endif(LIBMAGIC_INCLUDE_DIR)
+  check_include_file(magic.h HAVE_MAGIC_H)
+  set(CMAKE_REQUIRED_INCLUDES "${old_REQUIRED_INCLUDES}")
+
+  if(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
+    add_definitions(-DHAVE_LIBMAGIC=1)
+    set(LIBMAGIC_LIBRARY magic CACHE STRING "libmagic library")
+    set(magic_LIBRARIES ${LIBMAGIC_LIBRARY})
+    set(magic_MODULE magic)
+  else(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
+    set(magic_MODULE)
+  endif(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
+
+else(USE_LIBMAGIC)
+  set(magic_MODULE)
+endif(USE_LIBMAGIC)
 
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} child-process)
@@ -430,6 +455,8 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
 set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
+
+set(magic_SOURCES quickjs-magic.c ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 set(QJSM_EXTRA_SOURCES ${vector_SOURCES} ${buffer_utils_SOURCES})
 

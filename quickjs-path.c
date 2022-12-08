@@ -678,9 +678,8 @@ js_path_toarray(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       }
       JS_SetPropertyUint32(ctx, ret, i - ir.start, value);
     }
-
-    return ret;
   }
+  return ret;
 }
 
 static JSValue

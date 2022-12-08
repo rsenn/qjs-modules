@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include "getdents.h"
 
 #ifdef _WIN32
@@ -164,7 +163,7 @@ getdents_read(Directory* d) {
       d->bpos += e->d_reclen;
 
       if(e->d_ino != 0 /*&& d_type == DT_REG*/)
-        return e;
+        return (DirEntry*)e;
     }
   }
 

@@ -50,9 +50,9 @@ property_enumeration_depth(Vector* vec) {
   return vector_size(vec, sizeof(PropertyEnumeration));
 }
 int32_t property_enumeration_deepest(JSContext*, JSValue, int32_t maxdepth);
-JSValue property_enumeration_path(Vector*, JSContext*);
-void property_enumeration_pathstr(Vector*, JSContext*, DynBuf* buf);
-JSValue property_enumeration_pathstr_value(Vector*, JSContext*);
+JSValue property_enumeration_path(const Vector*, JSContext*);
+void property_enumeration_pathstr(const Vector*, JSContext*, DynBuf* buf);
+JSValue property_enumeration_pathstr_value(const Vector*, JSContext*);
 int property_enumeration_insideof(Vector*, JSValue);
 void property_enumeration_free(Vector*, JSRuntime*);
 int property_enumeration_predicate(PropertyEnumeration*, JSContext*, JSValue fn, JSValue this_arg);
