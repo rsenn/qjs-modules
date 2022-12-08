@@ -46,13 +46,14 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     case SERIALPORT_OPEN: {
       int32_t flags = SP_MODE_READ_WRITE, baud_rate = -1, data_bits = -1, stop_bits = -1;
       const char *parity = 0, *flow_control = 0;
-      if(argc > 0) {
-        if(JS_IsNumber(argv[0])) {
-          JS_ToInt32(ctx, &flags, argv[0]);
-        } else if(JS_IsObject(argv[0])) {
-          JSValue br = JS_GetPropertyStr(ctx, argv[0], "baudRate"), db = JS_GetPropertyStr(ctx, argv[0], "dataBits"),
-                  sb = JS_GetPropertyStr(ctx, argv[0], "stopBits"), pr = JS_GetPropertyStr(ctx, argv[0], "parity"),
-                  fc = JS_GetPropertyStr(ctx, argv[0], "flowControl");
+
+      for(int i = 0; i < argc; i++) {
+        if(JS_IsNumber(argv[i])) {
+          JS_ToInt32(ctx, &flags, argv[i]);
+        } else if(JS_IsObject(argv[i])) {
+          JSValue br = JS_GetPropertyStr(ctx, argv[i], "baudRate"), db = JS_GetPropertyStr(ctx, argv[i], "dataBits"),
+                  sb = JS_GetPropertyStr(ctx, argv[i], "stopBits"), pr = JS_GetPropertyStr(ctx, argv[i], "parity"),
+                  fc = JS_GetPropertyStr(ctx, argv[i], "flowControl");
 
           if(JS_IsNumber(br))
             JS_ToInt32(ctx, &baud_rate, br);
@@ -194,7 +195,7 @@ js_serialport_get(JSContext* ctx, JSValueConst this_val, int serial) {
     case SERIALPORT_FD: {
       int64_t result = 0;
       if(sp_get_port_handle(port, &result) == SP_OK)
-        ret = JS_NewInt64(ctx, result);
+        ret = result == (int64_t)(uint64_t)(uint32_t)-1 ? JS_NULL : JS_NewInt64(ctx, result);
 
       break;
     }
@@ -265,7 +266,9 @@ static const JSCFunctionListEntry js_serialport_funcs[] = {
 
 };
 static const JSCFunctionListEntry js_serialport_static[] = {
-
+    JS_PROP_INT32_DEF("MODE_READ", SP_MODE_READ, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("MODE_WRITE", SP_MODE_WRITE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("MODE_READ_WRITE", SP_MODE_READ_WRITE, JS_PROP_ENUMERABLE),
 };
 
 static const JSCFunctionListEntry js_serial_static[] = {
