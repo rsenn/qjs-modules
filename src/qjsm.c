@@ -1671,10 +1671,13 @@ main(int argc, char** argv) {
       }
     }
 
-    if(interactive)
+    if(interactive) {
       jsm_start_interactive(ctx);
-    else
+    } else {
+#ifdef SIGUSR1
       signal(SIGUSR1, jsm_start_interactive);
+#endif
+    }
 
     js_std_loop(ctx);
   }

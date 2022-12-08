@@ -8,6 +8,7 @@ set(CMAKE_C_STANDARD 11)
 
 option(BUILD_LIBARCHIVE "Build archive library" OFF)
 #option(BUILD_PIGPIO "Build pigpio library" OFF)
+option(BUILD_LIBSERIALPORT "Build libserialport library" ON)
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
@@ -272,8 +273,8 @@ link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
     bjson blob deep directory lexer list location ${magic_MODULE} misc path
-    pointer predicate repeater textcode sockets stream syscallerror inspect
-    tree-walker xml)
+    pointer predicate repeater textcode serial sockets stream syscallerror
+    inspect tree-walker xml)
 
 if(USE_LIBARCHIVE)
   if(BUILD_LIBARCHIVE)
@@ -457,6 +458,37 @@ set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(magic_SOURCES quickjs-magic.c ${utils_SOURCES} ${buffer_utils_SOURCES})
+
+if(BUILD_LIBSERIALPORT)
+  include(ExternalProject)
+  ExternalProject_Add(
+    libserialport
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libserialport
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport
+    CMAKE_CACHE_ARGS
+      "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}"
+      "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
+      "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
+      "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
+      "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+      "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+
+  link_directories("${CMAKE_CURRENT_BINARY_DIR}/libserialport")
+  set(LIBSERIALPORT_LIBRARY serialport)
+  set(LIBSERIALPORT_LIBRARY
+      ${CMAKE_CURRENT_BINARY_DIR}/libserialport/libserialport.a)
+  if(WIN32)
+    list(APPEND LIBSERIALPORT_LIBRARY setupapi)
+  endif(WIN32)
+endif(BUILD_LIBSERIALPORT)
+
+set(serial_SOURCES quickjs-serial.c)
+set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
+#if(WIN32 OR MSYS)
+#  set(serial_LIBRARIES mincore)
+#endif(WIN32 OR MSYS)
 
 set(QJSM_EXTRA_SOURCES ${vector_SOURCES} ${buffer_utils_SOURCES})
 

@@ -89,7 +89,7 @@ character_classes_init(int c[256]) {
 
 #define yield_push() \
   do { \
-    xml_debug("push  [%"PRIu32"] %.*s\n", vector_size(&st, sizeof(OutputValue)), (int)namelen, name); \
+    xml_debug("push  [%" PRIu32 "] %.*s\n", vector_size(&st, sizeof(OutputValue)), (int)namelen, name); \
     out = vector_push(&st, ((OutputValue){0, JS_NewArray(ctx), name, namelen})); \
     JS_SetPropertyStr(ctx, element, "children", out->obj); \
   } while(0)

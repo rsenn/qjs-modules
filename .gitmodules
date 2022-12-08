@@ -14,3 +14,7 @@
 	path = tutf8e
 	url = https://github.com/nigels-com/tutf8e
 	branch = master
+[submodule "libserialport"]
+	path = libserialport
+	url = https://github.com/rsenn/libserialport
+	branch = cmake

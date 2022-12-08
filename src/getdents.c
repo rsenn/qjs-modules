@@ -1,6 +1,6 @@
 #include "getdents.h"
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__MSYS__)
 #include <windows.h>
 
 #define BUFFER_SIZE 1024 * 1024 * 5
