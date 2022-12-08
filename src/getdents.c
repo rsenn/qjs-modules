@@ -67,16 +67,35 @@ getdents_name(const DirEntry* e) {
   return fdw->cFileName;
 }
 
-int
-getdents_type(const DirEntry* e) {
-  WIN32_FIND_DATAW* fdw = (void*)e;
-  return fdw->dwFileAttributes;
-}
-
 void
 getdents_close(Directory* d) {
   CloseHandle(d->h);
   d->h = INVALID_HANDLE_VALUE;
+}
+
+int
+getdents_isblk(const DirEntry* e) {
+  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DEVICE);
+}
+int
+getdents_ischr(const DirEntry* e) {
+  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DEVICE);
+}
+int
+getdents_isdir(const DirEntry* e) {
+  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+}
+// int getdents_isfifo(const DirEntry* e) { return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes==FILE_ATTRIBUTE_DIRECTORY);  }
+int
+getdents_islnk(const DirEntry* e) { return  ((WIN32_FIND_DATAW*)e)->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT);
+}
+int
+getdents_isreg(const DirEntry* e) {
+  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_NORMAL);
+}
+int
+getdents_issock(const DirEntry* e) {
+  return 0;
 }
 
 #else
@@ -176,15 +195,58 @@ getdents_name(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_name;
 }
 
-int
-getdents_type(const DirEntry* e) {
-  return ((struct linux_dirent64*)e)->d_type;
-  // return ((char*)e)[e->d_reclen - 1];
-}
-
 void
 getdents_close(Directory* d) {
   close(d->fd);
   d->fd = -1;
 }
+
+int
+getdents_isblk(const DirEntry* e) {
+  return ((struct linux_dirent64*)e)->d_type == DT_BLK;
+}
+int
+getdents_ischr(const DirEntry* e) {
+  return ((struct linux_dirent64*)e)->d_type == DT_CHR;
+}
+int
+getdents_isdir(const DirEntry* e) {
+  return ((struct linux_dirent64*)e)->d_type == DT_DIR;
+}
+int
+getdents_isfifo(const DirEntry* e) {
+  return ((struct linux_dirent64*)e)->d_type == DT_FIFO;
+}
+int
+getdents_islnk(const DirEntry* e) {
+  return ((struct linux_dirent64*)e)->d_type == DT_LNK;
+}
+int
+getdents_isreg(const DirEntry* e) {
+  return ((struct linux_dirent64*)e)->d_type == DT_REG;
+}
+int
+getdents_issock(const DirEntry* e) {
+  return ((struct linux_dirent64*)e)->d_type == DT_SOCK;
+}
+
 #endif /* defined(_WIN32) */
+
+int
+getdents_type(const DirEntry* e) {
+  if(getdents_isblk(e))
+    return TYPE_BLK;
+  if(getdents_ischr(e))
+    return TYPE_CHR;
+  if(getdents_isdir(e))
+    return TYPE_DIR;
+  if(getdents_isfifo(e))
+    return TYPE_FIFO;
+  if(getdents_islnk(e))
+    return TYPE_LNK;
+  if(getdents_isreg(e))
+    return TYPE_REG;
+  if(getdents_issock(e))
+    return TYPE_SOCK;
+  return 0;
+}
