@@ -336,7 +336,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 static JSValue
 js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char *a = 0, *b = 0;
-  DynBuf db;
+  DynBuf db = {0};
   size_t alen = 0, blen = 0;
   JSValue ret = JS_UNDEFINED;
 

@@ -718,7 +718,6 @@ js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 #endif
 
-#ifdef HAVE_FNMATCH
 static JSValue
 js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t plen, slen;
@@ -730,12 +729,15 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc >= 3)
     JS_ToInt32(ctx, &flags, argv[2]);
 
+#ifdef HAVE_FNMATCH
+  ret = fnmatch(pattern, string, flags);
+#else
   ret = path_fnmatch5(pattern, plen, string, slen, flags);
+#endif
   JS_FreeCString(ctx, pattern);
   JS_FreeCString(ctx, string);
-  return JS_NewBool(ctx, !ret);
+  return JS_NewInt32(ctx, ret);
 }
-#endif
 
 #ifdef HAVE_GLOB
 static JSContext* js_misc_glob_errfunc_ctx;
@@ -2101,9 +2103,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
     JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
-#ifdef HAVE_FNMATCH
+    //#ifdef HAVE_FNMATCH
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
-#endif
+//#endif
 #ifdef HAVE_GLOB
     JS_CFUNC_DEF("glob", 2, js_misc_glob),
 #endif

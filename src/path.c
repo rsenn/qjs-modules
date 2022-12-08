@@ -964,12 +964,15 @@ path_normalize3(const char* path, DynBuf* db, int symbolic) {
   int (*stat_fn)(const char*, struct stat*) = stat;
   if(symbolic)
     stat_fn = lstat;
+
   if(path_issep(*path)) {
     dbuf_putc(db, (sep = *path));
     path++;
   } else
     sep = PATHSEP_C;
+
 start:
+
   while(*path) {
     while(path_issep(*path)) sep = *path++;
     if(path[0] == '.') {
@@ -977,13 +980,13 @@ start:
         path++;
         continue;
       }
-
-      if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
-        if(db->size && db->buf)
-          db->size = path_right2((const char*)db->buf, db->size);
-        path += 2;
-        continue;
-      }
+      /*
+            if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
+              if(db->size && db->buf)
+                db->size = path_right2((const char*)db->buf, db->size);
+              path += 2;
+              continue;
+            }*/
     }
 
     if(*path == '\0')

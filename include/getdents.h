@@ -8,13 +8,14 @@ typedef struct getdents_reader Directory;
 typedef struct getdents_entry DirEntry;
 
 enum {
-  TYPE_BLK = (1 << 0),
-  TYPE_CHR = (1 << 1),
-  TYPE_DIR = (1 << 2),
-  TYPE_FIFO = (1 << 3),
-  TYPE_LNK = (1 << 4),
-  TYPE_REG = (1 << 5),
+  TYPE_REG = (1 << 0),
+  TYPE_DIR = (1 << 1),
+  TYPE_LNK = (1 << 2),
+  TYPE_BLK = (1 << 3),
+  TYPE_CHR = (1 << 4),
+  TYPE_FIFO = (1 << 5),
   TYPE_SOCK = (1 << 6),
+  TYPE_MASK = (TYPE_REG | TYPE_BLK | TYPE_CHR | TYPE_DIR | TYPE_FIFO | TYPE_LNK | TYPE_SOCK),
 };
 
 size_t getdents_size();
