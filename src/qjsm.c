@@ -1090,7 +1090,12 @@ jsm_help(void) {
          "    --memory-limit n       limit the memory usage to 'n' bytes\n"
          "    --stack-size n         limit the stack size to 'n' bytes\n"
          "    --unhandled-rejection  dump unhandled promise rejections\n"
-         "-q  --quit         just instantiate the interpreter and quit\n");
+         "-q  --quit         just instantiate the interpreter and quit\n"
+#ifdef SIGUSR1
+         "\n"
+         "  USR1 signal starts interactive mode\n"
+#endif
+  );
   exit(1);
 }
 
@@ -1327,7 +1332,7 @@ jsm_import_parse(ImportDirective* imp, const char* spec) {
 }
 
 static void
-jsm_start_interactive(JSContext* ctx) {
+jsm_start_interactive(void) {
   char str[512];
   const char* home;
 
@@ -1672,7 +1677,7 @@ main(int argc, char** argv) {
     }
 
     if(interactive) {
-      jsm_start_interactive(ctx);
+      jsm_start_interactive();
     } else {
 #ifdef SIGUSR1
       signal(SIGUSR1, jsm_start_interactive);
