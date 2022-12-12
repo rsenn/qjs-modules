@@ -186,7 +186,7 @@ path_collapse1(const char* path) {
 
 size_t
 path_collapse2(char* path, size_t nb) {
-  ssize_t i, j, len;
+  ssize_t i = 0, j, len;
   len = nb;
 
 again:
@@ -202,24 +202,22 @@ again:
     if(i > 0 && path_isdot(&path[i])) {
       ssize_t clen = len - j;
       assert(clen >= 0);
-      if(clen > 0) {
+      if(clen > 0)
         byte_copy(&path[i], clen, &path[j]);
-        path[i + clen] = '\0';
-        len = i + clen;
-        goto again;
-      }
+      path[i + clen] = '\0';
+      len = i + clen;
+      goto again;
     }
 
     if(!path_isdotdot(&path[i]) && (len - j) >= 2 && path_isdotdot(&path[j])) {
       j += (len - j) == 2 || path[j + 2] == '\0' ? 2 : 3;
       ssize_t clen = len - j;
       assert(clen >= 0);
-      if(clen > 0) {
+      if(clen > 0)
         byte_copy(&path[i], clen, &path[j]);
-        path[i + clen] = '\0';
-        len = i + clen;
-        goto again;
-      }
+      path[i + clen] = '\0';
+      len = i + clen;
+      goto again;
     }
 
     i = j;
@@ -1097,7 +1095,6 @@ path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out
     s2 += i;
     n2 -= i;
   }
-
   i = path_separator3(s1, n1, 0);
   dbuf_append(out, s1 + i, n1 - i);
   if(out->size == 0)

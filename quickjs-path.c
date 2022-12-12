@@ -385,15 +385,20 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
     case METHOD_RELATIVE: {
       DynBuf cwd = {0, 0, 0, 0, 0, 0};
+      const char* to = b;
 
-      if(b == NULL) {
+      if(to == NULL) {
         dbuf_init2(&cwd, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
-        b = path_getcwd1(&cwd);
+        to = path_getcwd1(&cwd);
+      } else if(path_isrelative(to)) {
+        dbuf_init2(&cwd, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
+        path_absolute3(b, blen, &cwd);
+        to = cwd.buf;
       }
-      path_relative3(a, b, &db);
-      if(b == (const char*)cwd.buf) {
-        dbuf_free(&db);
-        b = NULL;
+      path_relative3(a, to, &db);
+      if(to == (const char*)cwd.buf) {
+        dbuf_free(&cwd);
+        to = NULL;
       }
       break;
     }

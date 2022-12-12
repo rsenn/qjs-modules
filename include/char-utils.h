@@ -140,6 +140,29 @@ byte_chrs(const void* str, size_t len, const char needle[], size_t nl) {
   return s - (const char*)str;
 }
 
+static inline int
+byte_diff(const void* a, size_t len, const void* b) {
+  size_t i;
+  for(i = 0; i < len; ++i) {
+    int r = ((unsigned char*)a)[i] - ((unsigned char*)b)[i];
+    if(r)
+      return r;
+  }
+  return 0;
+}
+
+static inline int
+byte_diff2(const char* a, size_t alen, const char* b, size_t blen) {
+
+  if(alen < blen)
+    return -b[alen];
+
+  if(blen < alen)
+    return a[blen];
+
+  return byte_diff(a, alen, b);
+}
+
 static inline size_t
 str_chr(const char* in, char needle) {
   const char* t = in;

@@ -191,6 +191,23 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static JSValue
+js_misc_strcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  const char *a, *b;
+  size_t alen, blen;
+
+  a = JS_ToCStringLen(ctx, &alen, argv[0]);
+  b = JS_ToCStringLen(ctx, &blen, argv[1]);
+
+  ret = JS_NewInt32(ctx, byte_diff2(a, alen, b, blen));
+
+  JS_FreeCString(ctx, a);
+  JS_FreeCString(ctx, b);
+
+  return ret;
+}
+
+static JSValue
 js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   void* ptr = 0;
@@ -2168,6 +2185,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(O_WRONLY),
 #endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
+    JS_CFUNC_DEF("strcmp", 2, js_misc_strcmp),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
