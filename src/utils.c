@@ -1958,6 +1958,8 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
     return ret;
   if(!ret)
     ret |= js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
+  if(!ret)
+    ret |= JS_IsArray(ctx, value);
   /* if(!ret)
     ret |= js_object_is(ctx, value, "[object ArrayBuffer]"); */
   /*  if(!ret) {
