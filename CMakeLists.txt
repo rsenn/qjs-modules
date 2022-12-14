@@ -187,8 +187,8 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
-check_functions(fnmatch glob wordexp inotify_init1 inet_pton daemon)
-check_includes(alloca.h fnmatch.h glob.h wordexp.h sys/inotify.h)
+check_functions(access  fcntl fnmatch glob wordexp inotify_init1 inet_pton daemon)
+check_includes(fcntl.h alloca.h fnmatch.h glob.h wordexp.h sys/inotify.h)
 
 if(HAVE_INET_PTON)
   add_definitions(-DHAVE_INET_PTON=1)
@@ -224,6 +224,11 @@ if(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
 endif(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
 message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
 message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
+
+if(HAVE_ACCESS)
+  add_definitions(-DHAVE_ACCESS=1)
+endif(HAVE_ACCESS)
+message("Have access() ${HAVE_ACCESS}")
 
 if(HAVE_FCNTL_H)
   add_definitions(-DHAVE_FCNTL_H=1)

@@ -2094,6 +2094,22 @@ js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_NewInt32(ctx, unlink(file));
 }
 
+#ifdef HAVE_ACCESS
+static JSValue
+js_misc_access(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t mode = -1;
+  int ret;
+
+  const char* pathname = JS_ToCString(ctx, argv[0]);
+
+  JS_ToInt32(ctx, &mode, argv[1]);
+
+  ret = access(pathname, mode);
+
+  return JS_NewInt32(ctx, ret);
+}
+#endif
+
 #ifdef HAVE_FCNTL
 static JSValue
 js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -2147,6 +2163,14 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("unlink", 1, js_misc_unlink),
 #ifdef HAVE_LINK
     JS_CFUNC_DEF("link", 2, js_misc_link),
+#endif
+#ifdef HAVE_ACCESS
+    JS_CFUNC_DEF("access", 2, js_misc_access),
+    JS_CONSTANT(F_OK),
+    JS_CONSTANT(R_OK),
+    JS_CONSTANT(W_OK),
+    JS_CONSTANT(X_OK),
+
 #endif
 #ifdef HAVE_FCNTL
     JS_CFUNC_DEF("fcntl", 2, js_misc_fcntl),

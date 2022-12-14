@@ -16,6 +16,7 @@ let T,
   debug,
   verbose,
   sort,
+  params,
   caseSensitive,
   quiet,
   exp,
@@ -392,6 +393,16 @@ function ListExports(file, output) {
   }
 
   if(sort) exportNames.sort(compare);
+  if(params.exclude) {
+    let re = new RegExp(params.exclude, 'g');
+    exportNames = exportNames.filter(n => !re.test(n));
+  }
+  if(params.include) {
+    log('params.include', params.include);
+    let re = new RegExp(params.include, 'g');
+    exportNames = exportNames.filter(n => re.test(n));
+  }
+
   if(onlyUppercase) exportNames = exportNames.filter(name => /^[A-Z]/.test(name));
 
   let idx;
@@ -426,7 +437,8 @@ function ListExports(file, output) {
       match.add(...names);
     }
 
-    if(names.length == 1 && /^default as/.test(names[0])) output.puts(keyword + ` ${base} from '${source}'\n`);
+    if(params.raw) output.puts(names.join('\n') + '\n');
+    else if(names.length == 1 && /^default as/.test(names[0])) output.puts(keyword + ` ${base} from '${source}'\n`);
     else if(names.length > 0) output.puts(keyword + ` { ${names.join(', ')} } from '${source}'\n`);
   }
 
@@ -471,7 +483,7 @@ function main(...args) {
   let output = std.out;
   let outputFile;
 
-  let params = getOpt(
+  params = getOpt(
     {
       help: [
         false,
@@ -484,7 +496,10 @@ function main(...args) {
       debug: [false, () => (debug = (debug | 0) + 1), 'x'],
       verbose: [false, () => (verbose = (verbose | 0) + 1), 'v'],
       sort: [false, () => (sort = true), 's'],
+      include: [true, null, 'I'],
+      exclude: [true, null, 'X'],
       'case-sensitive': [false, () => (caseSensitive = true), 'c'],
+      raw: [false, null, 'R'],
       quiet: [false, () => (quiet = true), 'q'],
       export: [false, () => (exp = true), 'e'],
       for: [true, null, 'f'],
