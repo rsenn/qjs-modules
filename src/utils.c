@@ -204,17 +204,69 @@ js_array_clear(JSContext* ctx, JSValueConst array) {
   assert(js_array_length(ctx, array) == 0);
 }
 
+JSValue
+js_intv_to_array(JSContext* ctx, int* intv, size_t len) {
+  JSValue ret = JS_NewArray(ctx);
+  if(intv) {
+    size_t i;
+    for(i = 0; i < len; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
+  }
+  return ret;
+}
+
 char**
-js_array_to_argv(JSContext* ctx, int* argcp, JSValueConst array) {
-  int i, len = js_array_length(ctx, array);
+js_array_to_argv(JSContext* ctx, size_t* lenp, JSValueConst array) {
+  size_t i, len = js_array_length(ctx, array);
   char** ret = js_mallocz(ctx, sizeof(char*) * (len + 1));
   for(i = 0; i < len; i++) {
     JSValue item = JS_GetPropertyUint32(ctx, array, i);
     ret[i] = js_tostring(ctx, item);
     JS_FreeValue(ctx, item);
   }
-  if(argcp)
-    *argcp = len;
+  if(lenp)
+    *lenp = len;
+  return ret;
+}
+
+int32_t*
+js_array_to_int32v(JSContext* ctx, size_t* lenp, JSValueConst array) {
+  size_t i, len = js_array_length(ctx, array);
+  int32_t* ret = js_mallocz(ctx, sizeof(int32_t) * (len + 1));
+  for(i = 0; i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, array, i);
+    JS_ToInt32(ctx, &ret[i], item);
+    JS_FreeValue(ctx, item);
+  }
+  if(lenp)
+    *lenp = len;
+  return ret;
+}
+
+uint32_t*
+js_array_to_uint32v(JSContext* ctx, size_t* lenp, JSValueConst array) {
+  size_t i, len = js_array_length(ctx, array);
+  uint32_t* ret = js_mallocz(ctx, sizeof(uint32_t) * (len + 1));
+  for(i = 0; i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, array, i);
+    JS_ToUint32(ctx, &ret[i], item);
+    JS_FreeValue(ctx, item);
+  }
+  if(lenp)
+    *lenp = len;
+  return ret;
+}
+
+int64_t*
+js_array_to_int64v(JSContext* ctx, size_t* lenp, JSValueConst array) {
+  size_t i, len = js_array_length(ctx, array);
+  int64_t* ret = js_mallocz(ctx, sizeof(int64_t) * (len + 1));
+  for(i = 0; i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, array, i);
+    JS_ToInt64Ext(ctx, &ret[i], item);
+    JS_FreeValue(ctx, item);
+  }
+  if(lenp)
+    *lenp = len;
   return ret;
 }
 
@@ -644,13 +696,14 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   if((str = JS_ToCString(ctx, ctor))) {
     if(!strncmp(str, "function ", 9)) {
       namelen = byte_chr(str + 9, strlen(str) - 9, '(');
-      name = js_strndup(ctx, str + 9, namelen);
+      if(namelen)
+        name = js_strndup(ctx, str + 9, namelen);
     }
   }
   if(!name) {
     if(str)
       js_cstring_free(ctx, str);
-    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))))
+    if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))) && *str)
       name = js_strdup(ctx, str);
   }
   if(str)
@@ -1072,16 +1125,6 @@ js_strv_dup(JSContext* ctx, char** strv) {
   ret = js_malloc(ctx, (len + 1) * sizeof(char*));
   for(i = 0; i < len; i++) { ret[i] = js_strdup(ctx, strv[i]); }
   ret[i] = 0;
-  return ret;
-}
-
-JSValue
-js_intv_to_array(JSContext* ctx, int* intv, size_t len) {
-  JSValue ret = JS_NewArray(ctx);
-  if(intv) {
-    size_t i;
-    for(i = 0; i < len; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
-  }
   return ret;
 }
 
@@ -1592,9 +1635,14 @@ module_name(JSContext* ctx, JSModuleDef* m) {
   return JS_UNDEFINED;
 }
 
+const char*
+module_namecstr(JSContext* ctx, JSModuleDef* m) {
+  return JS_AtomToCString(ctx, m->module_name);
+}
+
 char*
 module_namestr(JSContext* ctx, JSModuleDef* m) {
-  const char* name = JS_AtomToCString(ctx, m->module_name);
+  const char* name = module_namecstr(ctx, m);
   char* str = js_strdup(ctx, name);
   JS_FreeCString(ctx, name);
   return str;
@@ -1910,6 +1958,8 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
     return ret;
   if(!ret)
     ret |= js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
+  if(!ret)
+    ret |= JS_IsArray(ctx, value);
   /* if(!ret)
     ret |= js_object_is(ctx, value, "[object ArrayBuffer]"); */
   /*  if(!ret) {
@@ -2187,7 +2237,7 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
     /* for the modules, we compile then run to be able to set import.meta */
     if(!filename)
-      filename="<input>";
+      filename = "<input>";
 
     val = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
     if(!JS_IsException(val)) {
@@ -2355,7 +2405,7 @@ js_error_print(JSContext* ctx, JSValueConst error) {
     JS_FreeValue(ctx, st);
   }
 
-  fputs("Toplevel error:\n", stderr);
+  // fputs("Toplevel error:\n", stderr);
 
   if(!JS_IsNull(error) && (str = JS_ToCString(ctx, error))) {
     const char* type = JS_IsObject(error) ? js_object_classname(ctx, error) : js_value_typestr(ctx, error);
@@ -2367,8 +2417,9 @@ js_error_print(JSContext* ctx, JSValueConst error) {
     }
     fprintf(stderr, "%s: %s\n", type, exception);
   }
-  if(stack)
+  if(stack && *stack)
     fprintf(stderr, "Stack:\n%s\n", stack);
+
   fflush(stderr);
   if(stack)
     JS_FreeCString(ctx, stack);
@@ -2385,7 +2436,7 @@ js_error_stack(JSContext* ctx) {
 }
 
 JSValue
-js_io_readhandler_fn(JSContext* ctx, BOOL write) {
+js_iohandler_fn(JSContext* ctx, BOOL write) {
   JSModuleDef* os;
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
   JSAtom func_name;
@@ -2409,11 +2460,11 @@ js_io_readhandler_fn(JSContext* ctx, BOOL write) {
 static thread_local JSCFunction* readhandler_cfunc;
 
 JSCFunction*
-js_io_readhandler_cfunc(JSContext* ctx, BOOL write) {
+js_iohandler_cfunc(JSContext* ctx, BOOL write) {
   if(!readhandler_cfunc) {
     JSValue set_handler;
     JSObject* obj;
-    set_handler = js_io_readhandler_fn(ctx, write);
+    set_handler = js_iohandler_fn(ctx, write);
     if(JS_IsException(set_handler))
       return 0;
     readhandler_cfunc = js_function_cfunc(ctx, set_handler);

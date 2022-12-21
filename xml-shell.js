@@ -6,7 +6,7 @@ import * as pointer from 'pointer';
 import * as location from 'location';
 import Console from 'console';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from 'dom';
-import { define, getOpt } from 'util';
+import { define, getOpt, weakAssign } from 'util';
 import * as util from 'util';
 import * as dom from 'dom';
 import REPL from 'repl';
@@ -41,6 +41,7 @@ function main(...args) {
       parse,
       load,
       save,
+      serialize,
       read: xml.read,
       write: xml.write
     },
@@ -83,13 +84,37 @@ function main(...args) {
   );
   repl.show = repl.printFunction((...args) => console.log(...args));
   repl.historyLoad(null, fs);
+  repl.loadSaveOptions();
   repl.directives = {
     i: [
       name => {
-        import(name).then(m => {
-          globalThis[name] = m;
-          repl.printStatus(`Loaded '${name}'.`);
-        });
+        const all = name[0] == '*';
+        if(name[0] == '*') name = name.slice(1);
+
+        import(name)
+          .then(m => {
+            //repl.printStatus(`Loaded '${name}'.`);
+            const sym = name.replace(/.*\//g, '').replace(/\.[^.]+$/gi, '');
+            let err = false;
+            if(all) {
+              try {
+                weakAssign(globalThis, m);
+              } catch(e) {
+                err = e;
+              }
+              repl.printStatus(
+                err
+                  ? `Error importing '${name}': ${err.message}`
+                  : `Imported from '${sym}': ${Object.getOwnPropertyNames(m).join(' ')}`
+              );
+            } else {
+              globalThis[sym] = m;
+              repl.printStatus(`Imported '${sym}' as '${sym}'`);
+            }
+          })
+          .catch(err => {
+            repl.printStatus(`ERROR: ${err.message}`);
+          });
       },
       'import a module'
     ]
@@ -120,7 +145,7 @@ function load(filename, ...args) {
 
 function parse(filename, ...args) {
   let doc,
-    parser = new Parser();
+    parser = (globalThis.parser ??= new Parser());
 
   try {
     doc = parser.parseFromFile(filename, 'utf-8');
@@ -128,11 +153,27 @@ function parse(filename, ...args) {
   return (globalThis.document = doc);
 }
 
-function save(filename, obj) {
-  let data;
+function serialize(...args) {
+  let [filename, doc, wfn = (filename, data) => fs.writeFileSync(filename, data)] =
+    args.length == 1 ? [null, ...args] : args;
+  let data,
+    s = (globalThis.serializer ??= new Serializer());
 
   try {
-    data = xml.write(obj);
+    data = s.serializeToString(doc);
   } catch(e) {}
-  if(data) fs.writeFileSync(filename, data);
+  if(data && filename) return wfn(filename, data.trimEnd() + '\n');
+  return data;
+}
+
+function save(filename, obj, wfn = (filename, data) => fs.writeFileSync(filename, data)) {
+  let data, err;
+
+  try {
+    data = xml.write(Node.raw(obj) ?? obj);
+  } catch(e) {
+    err = e;
+  }
+  if(data && !err) return wfn(filename, data.trimEnd() + '\n');
+  if(err) throw err;
 }

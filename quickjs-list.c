@@ -1229,7 +1229,7 @@ static const JSCFunctionListEntry js_list_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("keys", 0, js_list_iterator, JS_ITERATOR_KIND_KEY),
     JS_CFUNC_MAGIC_DEF("entries", 0, js_list_iterator, JS_ITERATOR_KIND_KEY_AND_VALUE),
     JS_ALIAS_DEF("[Symbol.iterator]", "values"),
-    JS_CGETSET_MAGIC_DEF("length", js_list_get, 0, PROP_LENGTH),
+    JS_CGETSET_MAGIC_DEF("size", js_list_get, 0, PROP_LENGTH),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "List", JS_PROP_CONFIGURABLE),
 };
 

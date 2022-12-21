@@ -922,13 +922,11 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 
   if(!is_array_like) {
     BOOL show_hidden = opts->show_hidden;
+    int (*getpropnames)(JSContext*, union Vector*, JSValueConst, int) =
+        (1 || opts->proto_chain) ? js_object_getpropertynames_recursive : js_object_getpropertynames;
 
     // printf("proto_chain: %i\n", opts->proto_chain);
-    if((1 || opts->proto_chain ? js_object_getpropertynames_recursive
-                               : js_object_getpropertynames)(ctx,
-                                                             &propenum_tab,
-                                                             /* opts->proto_chain <= 0 ? JS_GetPrototype(ctx, value) : */ value,
-                                                             JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
+    if(getpropnames(ctx, &propenum_tab, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | (show_hidden ? 0 : JS_GPN_ENUM_ONLY)))
       return -1;
   }
 
@@ -1135,6 +1133,12 @@ js_inspect_print_value(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
     }
 
     case JS_TAG_SYMBOL: {
+      if(opts->reparseable) {
+        const char* str = js_symbol_to_cstring(ctx, value);
+        dbuf_putstr(buf, str);
+        JS_FreeCString(ctx, str);
+        break;
+      }
       value = js_symbol_to_string(ctx, value);
       if(opts->colors)
         dbuf_putstr(buf, COLOR_GREEN);

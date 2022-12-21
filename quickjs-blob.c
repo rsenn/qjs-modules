@@ -147,6 +147,10 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
     blob->type = 0;
 
     if(argc >= 1) {
+
+      // XXX:
+      // if(js_is_iterable(ctx, argv[0])) {}
+
       if(js_is_array(ctx, argv[0])) {
         uint32_t i, len = js_array_length(ctx, argv[0]);
         InputBuffer* parts = js_malloc(ctx, sizeof(InputBuffer) * len);

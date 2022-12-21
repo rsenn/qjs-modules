@@ -8,11 +8,13 @@ set(CMAKE_C_STANDARD 11)
 
 option(BUILD_LIBARCHIVE "Build archive library" OFF)
 #option(BUILD_PIGPIO "Build pigpio library" OFF)
+option(BUILD_LIBSERIALPORT "Build libserialport library" ON)
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
 option(USE_SPAWN "Use POSIX spawn()" OFF)
 option(USE_LIBARCHIVE "Use libarchive" ON)
+option(USE_LIBMAGIC "Use libmagic" ON)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
@@ -72,7 +74,7 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-check_functions(vfork fork waitpid execvpe setsid )
+check_functions(vfork fork waitpid execvpe setsid)
 if(HAVE_VFORK)
   add_definitions(-DHAVE_VFORK)
 else(HAVE_VFORK)
@@ -185,40 +187,58 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
-check_functions(fnmatch glob wordexp inotify_init1 inet_pton daemon)
-check_includes(alloca.h fnmatch.h glob.h wordexp.h sys/inotify.h)
+check_functions(access  fcntl fnmatch glob wordexp inotify_init1 inet_pton daemon)
+check_includes(fcntl.h alloca.h fnmatch.h glob.h wordexp.h sys/inotify.h)
 
 if(HAVE_INET_PTON)
   add_definitions(-DHAVE_INET_PTON=1)
 endif(HAVE_INET_PTON)
+message("Have inet_pton() ${HAVE_INET_PTON}")
 
 if(HAVE_FNMATCH AND HAVE_FNMATCH_H)
   add_definitions(-DHAVE_FNMATCH=1)
 endif(HAVE_FNMATCH AND HAVE_FNMATCH_H)
+message("Have fnmatch() ${HAVE_FNMATCH}")
+message("Have fnmatch.h ${HAVE_FNMATCH_H}")
 
 if(HAVE_DAEMON)
   add_definitions(-DHAVE_DAEMON=1)
 endif(HAVE_DAEMON)
+message("Have daemon() ${HAVE_DAEMON}")
 
 if(HAVE_GLOB AND HAVE_GLOB_H)
   add_definitions(-DHAVE_GLOB=1)
 endif(HAVE_GLOB AND HAVE_GLOB_H)
 
+message("Have glob() ${HAVE_GLOB}")
+message("Have glob.h ${HAVE_GLOB_H}")
+
 if(HAVE_WORDEXP AND HAVE_WORDEXP_H)
   add_definitions(-DHAVE_WORDEXP=1)
 endif(HAVE_WORDEXP AND HAVE_WORDEXP_H)
+message("Have wordexp() ${HAVE_WORDEXP}")
+message("Have wordexp.h ${HAVE_WORDEXP_H}")
 
 if(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
   add_definitions(-DHAVE_INOTIFY=1)
 endif(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
+message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
+message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
+
+if(HAVE_ACCESS)
+  add_definitions(-DHAVE_ACCESS=1)
+endif(HAVE_ACCESS)
+message("Have access() ${HAVE_ACCESS}")
 
 if(HAVE_FCNTL_H)
   add_definitions(-DHAVE_FCNTL_H=1)
 endif(HAVE_FCNTL_H)
+message("Have fcntl.h ${HAVE_FCNTL_H}")
 
 if(HAVE_FCNTL)
   add_definitions(-DHAVE_FCNTL=1)
 endif(HAVE_FCNTL)
+message("Have fcntl() ${HAVE_FCNTL}")
 
 check_functions(sysinfo)
 
@@ -257,8 +277,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
-    bjson blob deep directory lexer list location misc path pointer predicate
-    repeater textcode sockets stream syscallerror inspect tree-walker xml)
+    bjson blob deep directory lexer list location ${magic_MODULE} misc path
+    pointer predicate repeater textcode serial sockets stream syscallerror
+    inspect tree-walker xml)
 
 if(USE_LIBARCHIVE)
   if(BUILD_LIBARCHIVE)
@@ -290,6 +311,29 @@ if(USE_LIBARCHIVE)
     set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
   endif(LibArchive_FOUND)
 endif(USE_LIBARCHIVE)
+
+if(USE_LIBMAGIC)
+  include(CheckLibraryExists)
+  check_library_exists(magic magic_open "${LIBMAGIC_LIBRARY_DIR}" HAVE_LIBMAGIC)
+  set(old_REQUIRED_INCLUDES "${CMAKE_REQUIRED_INCLUDES}")
+  if(LIBMAGIC_INCLUDE_DIR)
+    list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBMAGIC_INCLUDE_DIR}")
+  endif(LIBMAGIC_INCLUDE_DIR)
+  check_include_file(magic.h HAVE_MAGIC_H)
+  set(CMAKE_REQUIRED_INCLUDES "${old_REQUIRED_INCLUDES}")
+
+  if(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
+    add_definitions(-DHAVE_LIBMAGIC=1)
+    set(LIBMAGIC_LIBRARY magic CACHE STRING "libmagic library")
+    set(magic_LIBRARIES ${LIBMAGIC_LIBRARY})
+    set(magic_MODULE magic)
+  else(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
+    set(magic_MODULE)
+  endif(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
+
+else(USE_LIBMAGIC)
+  set(magic_MODULE)
+endif(USE_LIBMAGIC)
 
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} child-process)
@@ -405,7 +449,8 @@ if(HAVE_SYS_MMAN_H)
 endif(HAVE_SYS_MMAN_H)
 
 set(syscallerror_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(list_SOURCES quickjs-list.c quickjs-list.h ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(list_SOURCES quickjs-list.c quickjs-list.h ${utils_SOURCES}
+                 ${buffer_utils_SOURCES})
 
 # if(pigpio_LIBRARY)
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
@@ -416,6 +461,39 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
 set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
+
+set(magic_SOURCES quickjs-magic.c ${utils_SOURCES} ${buffer_utils_SOURCES})
+
+if(BUILD_LIBSERIALPORT)
+  include(ExternalProject)
+  ExternalProject_Add(
+    libserialport
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libserialport
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport
+    CMAKE_CACHE_ARGS
+      "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}"
+      "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
+      "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
+      "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
+      "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+      "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+
+  link_directories("${CMAKE_CURRENT_BINARY_DIR}/libserialport")
+  set(LIBSERIALPORT_LIBRARY serialport)
+  set(LIBSERIALPORT_LIBRARY
+      ${CMAKE_CURRENT_BINARY_DIR}/libserialport/libserialport.a)
+  if(WIN32)
+    list(APPEND LIBSERIALPORT_LIBRARY setupapi)
+  endif(WIN32)
+endif(BUILD_LIBSERIALPORT)
+
+set(serial_SOURCES quickjs-serial.c)
+set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
+#if(WIN32 OR MSYS)
+#  set(serial_LIBRARIES mincore)
+#endif(WIN32 OR MSYS)
 
 set(QJSM_EXTRA_SOURCES ${vector_SOURCES} ${buffer_utils_SOURCES})
 

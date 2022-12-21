@@ -52,7 +52,7 @@ path_dup3(const char* path, size_t n, DynBuf* db) {
   dbuf_realloc(db, len + 1);
   memcpy(db->buf, path, len);
   db->buf[len] = '\0';
-  return db->buf;
+  return (char*)db->buf;
 }
 
 char*
@@ -60,7 +60,7 @@ path_dup1(const char* path) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
   path_dup3(path, strlen(path), &db);
-  return db.buf;
+  return (char*)db.buf;
 }
 
 char*
@@ -68,7 +68,7 @@ path_dup2(const char* path, size_t n) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
   path_dup3(path, n, &db);
-  return db.buf;
+  return (char*)db.buf;
 }
 
 int
@@ -101,7 +101,7 @@ path_absolute2(const char* path, size_t len) {
     path_absolute3(path, len, &db);
     dbuf_0(&db);
   }
-  return db.buf;
+  return (char*)db.buf;
 }
 
 char*
@@ -146,7 +146,7 @@ path_append3(const char* x, size_t len, DynBuf* db) {
 int
 path_canonical3(const char* path, size_t len, DynBuf* db) {
   db->size = 0;
-  dbuf_put(db, path, len);
+  dbuf_put(db, (const uint8_t*)path, len);
   dbuf_putc(db, '\0');
   db->size--;
   return path_canonical_buf(db);
@@ -157,7 +157,7 @@ path_canonical2(const char* path, size_t len) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
   path_canonical3(path, len, &db);
-  return db.buf;
+  return (char*)db.buf;
 }
 
 char*
@@ -171,7 +171,7 @@ path_collapse3(const char* path, size_t n, DynBuf* db) {
   dbuf_realloc(db, n + 1);
   memcpy(db->buf, path, n);
   db->buf[n] = '\0';
-  ret = path_collapse2(db->buf, n);
+  ret = path_collapse2((char*)db->buf, n);
   return ret;
 }
 
@@ -181,12 +181,12 @@ path_collapse1(const char* path) {
   dbuf_init2(&db, 0, 0);
   path_collapse3(path, strlen(path), &db);
 
-  return db.buf;
+  return (char*)db.buf;
 }
 
 size_t
 path_collapse2(char* path, size_t nb) {
-  ssize_t i, j, len;
+  ssize_t i = 0, j, len;
   len = nb;
 
 again:
@@ -202,24 +202,22 @@ again:
     if(i > 0 && path_isdot(&path[i])) {
       ssize_t clen = len - j;
       assert(clen >= 0);
-      if(clen > 0) {
+      if(clen > 0)
         byte_copy(&path[i], clen, &path[j]);
-        path[i + clen] = '\0';
-        len = i + clen;
-        goto again;
-      }
+      path[i + clen] = '\0';
+      len = i + clen;
+      goto again;
     }
 
     if(!path_isdotdot(&path[i]) && (len - j) >= 2 && path_isdotdot(&path[j])) {
       j += (len - j) == 2 || path[j + 2] == '\0' ? 2 : 3;
       ssize_t clen = len - j;
       assert(clen >= 0);
-      if(clen > 0) {
+      if(clen > 0)
         byte_copy(&path[i], clen, &path[j]);
-        path[i + clen] = '\0';
-        len = i + clen;
-        goto again;
-      }
+      path[i + clen] = '\0';
+      len = i + clen;
+      goto again;
     }
 
     i = j;
@@ -295,7 +293,7 @@ path_concat4(const char* a, size_t alen, const char* b, size_t blen) {
     path_concat5(a, alen, b, blen, &db);
     dbuf_0(&db);
   }
-  return db.buf;
+  return (char*)db.buf;
 }
 
 void
@@ -319,7 +317,7 @@ path_concat2(const char* a, const char* b) {
     path_concat3(a, b, &db);
     dbuf_0(&db);
   }
-  return db.buf;
+  return (char*)db.buf;
 }
 
 const char*
@@ -433,7 +431,7 @@ path_slice4(const char* p, int start, int end, DynBuf* db) {
       if((db->size > n && db->buf[db->size - 1] != PATHSEP_C) || (i == start && len == 0))
         dbuf_putc(db, PATHSEP_C);
 
-      dbuf_put(db, p, len);
+      dbuf_put(db, (const uint8_t*)p, len);
     }
 
     p += next;
@@ -450,7 +448,7 @@ path_slice3(const char* p, int start, int end) {
     path_slice4(p, start, end, &db);
     dbuf_0(&db);
   }
-  return db.buf;
+  return (char*)db.buf;
 }
 /*
 size_t
@@ -722,7 +720,7 @@ path_getcwd0(void) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
   path_getcwd1(&db);
-  return db.buf;
+  return (char*)db.buf;
 }
 
 char*
@@ -964,12 +962,15 @@ path_normalize3(const char* path, DynBuf* db, int symbolic) {
   int (*stat_fn)(const char*, struct stat*) = stat;
   if(symbolic)
     stat_fn = lstat;
+
   if(path_issep(*path)) {
     dbuf_putc(db, (sep = *path));
     path++;
   } else
     sep = PATHSEP_C;
+
 start:
+
   while(*path) {
     while(path_issep(*path)) sep = *path++;
     if(path[0] == '.') {
@@ -977,13 +978,13 @@ start:
         path++;
         continue;
       }
-
-      if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
-        if(db->size && db->buf)
-          db->size = path_right2((const char*)db->buf, db->size);
-        path += 2;
-        continue;
-      }
+      /*
+            if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
+              if(db->size && db->buf)
+                db->size = path_right2((const char*)db->buf, db->size);
+              path += 2;
+              continue;
+            }*/
     }
 
     if(*path == '\0')
@@ -1028,7 +1029,42 @@ path_normalize2(const char* path, int symbolic) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
   path_normalize3(path, &db, symbolic);
-  return db.buf;
+  dbuf_0(&db);
+  return (char*)db.buf;
+}
+
+int
+path_realpath3(const char* path, size_t len, DynBuf* buf) {
+  int ret;
+  DynBuf db;
+  if(!path_exists2(path, len))
+    return 0;
+  dbuf_init2(&db, 0, 0);
+  path_absolute3(path, len, &db);
+  dbuf_0(&db);
+  ret = path_normalize3((const char*)db.buf, buf, 1);
+  dbuf_free(&db);
+  dbuf_0(buf);
+  return ret;
+}
+
+char*
+path_realpath2(const char* path, size_t len) {
+  char* ret;
+  DynBuf db;
+  if(!path_exists2(path, len))
+    return 0;
+  dbuf_init2(&db, 0, 0);
+  path_absolute3(path, len, &db);
+  dbuf_0(&db);
+  ret = path_normalize2((const char*)db.buf, 1);
+  dbuf_free(&db);
+  return ret;
+}
+
+char*
+path_realpath1(const char* path) {
+  return path_realpath2(path, strlen(path));
 }
 
 int
@@ -1041,7 +1077,7 @@ path_relative2(const char* path, const char* relative_to) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
   path_relative3(path, relative_to, &db);
-  return db.buf;
+  return (char*)db.buf;
 }
 
 int
@@ -1059,7 +1095,6 @@ path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out
     s2 += i;
     n2 -= i;
   }
-
   i = path_separator3(s1, n1, 0);
   dbuf_append(out, s1 + i, n1 - i);
   if(out->size == 0)
@@ -1075,7 +1110,7 @@ path_relative4(const char* s1, size_t n1, const char* s2, size_t n2) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
   path_relative5(s1, n1, s2, n2, &db);
-  return db.buf;
+  return (char*)db.buf;
 }
 
 size_t
@@ -1121,42 +1156,34 @@ path_separator1(const char* p) {
   return s - p;
 }
 
-static size_t
-__path_dirname1(char* path) {
-  size_t i;
-
-  if(path[(i = str_rchrs(path, PATHSEP_S, 2))])
-    path[i] = '\0';
-
-  return i;
+static inline size_t
+__path_dirname1(const char* path) {
+  return str_rchrs(path, PATHSEP_S, 2);
 }
 
-static size_t
-__path_dirname2(char* path, size_t n) {
-  size_t i;
-
-  if((i = byte_rchrs(path, n, PATHSEP_S, 2)) < n)
-    path[i] = '\0';
-
-  return i;
+static inline size_t
+__path_dirname2(const char* path, size_t n) {
+  return byte_rchrs(path, n, PATHSEP_S, 2);
 }
 
 char*
 path_dirname1(const char* path) {
-  char* q;
+  size_t i;
 
-  if((q = path_dup1(path)))
-    __path_dirname1(q);
-  return q;
+  if(path[(i = __path_dirname1(path))])
+    return path_dup2(path, i);
+
+  return path_dup1(".");
 }
 
 char*
 path_dirname2(const char* path, size_t n) {
-  char* q;
+  size_t i;
 
-  if((q = path_dup2(path, n)))
-    __path_dirname2(q, n);
-  return q;
+  if((i = __path_dirname2(path, n)) < n)
+    return path_dup2(path, i);
+
+  return path_dup1(".");
 }
 
 char*
@@ -1212,7 +1239,7 @@ path_readlink1(const char* path) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
   path_readlink2(path, &db);
-  return db.buf;
+  return (char*)db.buf;
 }
 
 int

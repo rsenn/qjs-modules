@@ -5,7 +5,7 @@
 #include <string.h>
 
 /**
- * \defgroup quickjs-bjson QuickJS module: directory - Directory reader
+ * \defgroup quickjs-directory QuickJS module: directory - Directory reader
  * @{
  */
 thread_local VISIBLE JSClassID js_directory_class_id = 0;
@@ -22,6 +22,7 @@ enum {
   DIRECTORY_NEXT,
   DIRECTORY_CLOSE,
   DIRECTORY_ITERATOR,
+  DIRECTORY_VALUE_OF,
 };
 
 static JSValue
@@ -64,11 +65,17 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   JSValue obj = JS_UNDEFINED;
   JSValue proto;
   Directory* directory;
+  int32_t* opts;
 
-  if(!(directory = js_malloc(ctx, getdents_size())))
+  if(!(directory = js_malloc(ctx, getdents_size() + sizeof(int32_t) * 2)))
     return JS_ThrowOutOfMemory(ctx);
 
   getdents_clear(directory);
+
+  opts = ((int32_t*)((char*)directory + getdents_size()));
+
+  opts[0] = FLAG_BOTH;
+  opts[1] = TYPE_MASK;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -96,6 +103,13 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       JS_FreeCString(ctx, dir);
     }
   }
+
+  if(argc > 1)
+    JS_ToInt32(ctx, &opts[0], argv[1]);
+
+  if(argc > 2)
+    JS_ToInt32(ctx, &opts[1], argv[2]);
+
   JS_SetOpaque(obj, directory);
 
   return obj;
@@ -137,17 +151,28 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
     case DIRECTORY_NEXT: {
       DirEntry* entry;
-      int32_t flags = FLAG_BOTH;
+      int32_t* opts = ((int32_t*)((char*)directory + getdents_size()));
+      int32_t flags = opts[0], mask = opts[1];
       JSValue value = JS_UNDEFINED;
       BOOL done = FALSE;
 
-      if((entry = getdents_read(directory))) {
+      if(argc > 0)
+        JS_ToInt32(ctx, &flags, argv[0]);
+      if(argc > 1)
+        JS_ToInt32(ctx, &mask, argv[1]);
 
-        if(argc > 0)
-          JS_ToInt32(ctx, &flags, argv[0]);
+      for(;;) {
+        if(!(entry = getdents_read(directory)))
+          break;
+
+        if((getdents_type(entry) & mask) == 0)
+          continue;
 
         value = js_directory_entry(ctx, entry, flags);
-      } else {
+        break;
+      }
+
+      if(!entry) {
         getdents_close(directory);
         done = TRUE;
       }
@@ -162,7 +187,12 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       getdents_close(directory);
       break;
     }
+    case DIRECTORY_VALUE_OF: {
+      ret = JS_NewInt64(ctx, getdents_handle(directory));
+      break;
+    }
   }
+
   return ret;
 }
 
@@ -187,14 +217,33 @@ static const JSCFunctionListEntry js_directory_funcs[] = {
     JS_CFUNC_MAGIC_DEF("next", 0, js_directory_method, DIRECTORY_NEXT),
     JS_CFUNC_MAGIC_DEF("close", 0, js_directory_method, DIRECTORY_CLOSE),
     JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_directory_method, DIRECTORY_ITERATOR),
+    JS_CFUNC_MAGIC_DEF("valueOf", 0, js_directory_method, DIRECTORY_VALUE_OF),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Directory", JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("NAME", FLAG_NAME, 0),
     JS_PROP_INT32_DEF("TYPE", FLAG_TYPE, 0),
+    JS_PROP_INT32_DEF("BOTH", FLAG_BOTH, 0),
+    JS_PROP_INT32_DEF("TYPE_BLK", TYPE_BLK, 0),
+    JS_PROP_INT32_DEF("TYPE_CHR", TYPE_CHR, 0),
+    JS_PROP_INT32_DEF("TYPE_DIR", TYPE_DIR, 0),
+    JS_PROP_INT32_DEF("TYPE_FIFO", TYPE_FIFO, 0),
+    JS_PROP_INT32_DEF("TYPE_LNK", TYPE_LNK, 0),
+    JS_PROP_INT32_DEF("TYPE_REG", TYPE_REG, 0),
+    JS_PROP_INT32_DEF("TYPE_SOCK", TYPE_SOCK, 0),
+    JS_PROP_INT32_DEF("TYPE_MASK", TYPE_MASK, 0),
 };
 
 static const JSCFunctionListEntry js_directory_static[] = {
     JS_PROP_INT32_DEF("NAME", FLAG_NAME, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("TYPE", FLAG_TYPE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("BOTH", FLAG_BOTH, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_BLK", TYPE_BLK, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_CHR", TYPE_CHR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_DIR", TYPE_DIR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_FIFO", TYPE_FIFO, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_LNK", TYPE_LNK, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_REG", TYPE_REG, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_SOCK", TYPE_SOCK, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_MASK", TYPE_MASK, JS_PROP_ENUMERABLE),
 };
 
 int
@@ -215,6 +264,7 @@ js_directory_init(JSContext* ctx, JSModuleDef* m) {
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Directory", directory_ctor);
+    JS_SetModuleExportList(ctx, m, js_directory_static, countof(js_directory_static));
 
     const char* module_name = JS_AtomToCString(ctx, m->module_name);
 
@@ -238,7 +288,9 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
   if(!(m = JS_NewCModule(ctx, module_name, &js_directory_init)))
     return m;
+
   JS_AddModuleExport(ctx, m, "Directory");
+  JS_AddModuleExportList(ctx, m, js_directory_static, countof(js_directory_static));
 
   /* if(!strcmp(module_name, "directory"))
      JS_AddModuleExport(ctx, m, "default");*/

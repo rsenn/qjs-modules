@@ -11,25 +11,31 @@
  */
 struct VProps;
 
-typedef BOOL has_function_t(struct VProps*, JSContext*, JSValueConst);
-typedef BOOL delete_function_t(struct VProps*, JSContext*, JSValueConst);
-typedef JSValue get_function_t(struct VProps*, JSContext*, JSValueConst);
-typedef int set_function_t(struct VProps*, JSContext*, JSValueConst, JSValue);
-typedef void destroy_function_t(struct VProps*, JSContext*);
+typedef BOOL has_function(struct VProps*, JSContext*, JSValueConst);
+typedef BOOL deleter(struct VProps*, JSContext*, JSValueConst);
+typedef JSValue getter(struct VProps*, JSContext*, JSValueConst);
+typedef int setter(struct VProps*, JSContext*, JSValueConst, JSValueConst);
+typedef void destroy_function(struct VProps*, JSContext*);
+typedef void* dup_function(void*, JSContext*);
 
 typedef struct VProps {
   JSValue this_obj;
-  has_function_t* has;
-  delete_function_t* delete;
-  get_function_t* get;
-  set_function_t* set;
-  destroy_function_t* finalize;
+  has_function* has;
+  deleter* delete;
+  getter* get;
+  setter* set;
+  destroy_function* finalize;
   void* opaque;
+  dup_function* dup;
 } VirtualProperties;
+
+typedef struct VWrapper VirtualWrapper;
 
 VirtualProperties virtual_properties_map(JSContext*, JSValueConst);
 VirtualProperties virtual_properties_object(JSContext*, JSValueConst);
 VirtualProperties virtual_properties_array(JSContext*, JSValueConst);
+JSValue virtual_properties_wrap(VirtualProperties, JSContext*);
+void virtual_properties_copy(const VirtualProperties*, VirtualProperties*, JSContext*);
 
 static inline BOOL
 virtual_properties_has(VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
@@ -64,6 +70,19 @@ virtual_properties_free(VirtualProperties* vprop, JSContext* ctx) {
   vprop->finalize(vprop, ctx);
 }
 
+static inline VirtualProperties
+virtual_properties(JSContext* ctx, JSValueConst value) {
+  if(js_is_array(ctx, value))
+    return virtual_properties_array(ctx, value);
+
+  if(js_is_map(ctx, value))
+    return virtual_properties_map(ctx, value);
+
+  /* if(!JS_IsObject(value) || JS_IsNull(value))
+     return JS_ThrowTypeError(ctx, "argument must be Array, Map-like or plain Object");
+ */
+  return virtual_properties_object(ctx, value);
+}
 /**
  * @}
  */

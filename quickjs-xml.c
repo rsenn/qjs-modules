@@ -89,7 +89,7 @@ character_classes_init(int c[256]) {
 
 #define yield_push() \
   do { \
-    xml_debug("push  [%zu] %.*s\n", vector_size(&st, sizeof(OutputValue)), (int)namelen, name); \
+    xml_debug("push  [%" PRIu32 "] %.*s\n", vector_size(&st, sizeof(OutputValue)), (int)namelen, name); \
     out = vector_push(&st, ((OutputValue){0, JS_NewArray(ctx), name, namelen})); \
     JS_SetPropertyStr(ctx, element, "children", out->obj); \
   } while(0)
@@ -106,13 +106,13 @@ character_classes_init(int c[256]) {
 
 #define yield_add(val) \
   do { \
-    xml_debug("add   {%zu}\n", out->idx); \
+    xml_debug("add   {%" PRIu32 "}\n", out->idx); \
     JS_SetPropertyUint32(ctx, out->obj, out->idx++, (val)); \
   } while(0)
 
 #define yield_next() \
   do { \
-    xml_debug("next  {%zu}\n", out->idx); \
+    xml_debug("next  {%" PRIu32 "}\n", out->idx); \
     element = JS_NewObject(ctx); \
     JS_SetPropertyUint32(ctx, out->obj, out->idx++, element); \
     if(opts.location) \
@@ -122,7 +122,7 @@ character_classes_init(int c[256]) {
 #define yield_return(index) \
   do { \
     if(index >= 1) { \
-      xml_debug("return[%zu] %zd\n", index, vector_size(&st, sizeof(OutputValue)) - index); \
+      xml_debug("return[%" PRId32 "] %" PRIu32 "\n", index, vector_size(&st, sizeof(OutputValue)) - index); \
       vector_shrink(&st, sizeof(OutputValue), index); \
       out = vector_back(&st, sizeof(OutputValue)); \
     } \
@@ -531,7 +531,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         if(parse_is(c, CLOSE))
           parse_getc();
 
-        xml_debug("end-of [%" PRIu32 "] tagName: %s%.*s\n", index, closing ? "/" : "", namelen, name);
+        xml_debug("end-of [%" PRIu32 "] tagName: %s%.*s\n", index, closing ? "/" : "", (int)namelen, name);
 
         if(opts.flat) {
           yield_next();
@@ -698,7 +698,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
       opts.location = js_get_propertystr_bool(ctx, argv[2], "location");
       tags = JS_GetPropertyStr(ctx, argv[2], "selfClosingTags");
       if(JS_IsArray(ctx, tags)) {
-        int ac = -1;
+        size_t ac;
         opts.self_closing_tags = (const char* const*)js_array_to_argv(ctx, &ac, tags);
       }
       JS_FreeValue(ctx, tags);

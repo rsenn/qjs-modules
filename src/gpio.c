@@ -75,13 +75,20 @@ gpio_open(struct gpio* gpio) {
 
   if(gpio->debug)
     fprintf(stdout, "GPIO initialized (%d, %p)\n", gpio->fd, gpio->map);
+
+  gpio->ref_count = 1;
+
   return true;
 }
 
 void
 gpio_close(struct gpio* gpio) {
-  munmap(gpio->map, MAP_SIZE);
-  close(gpio->fd);
+  if(--gpio->ref_count == 0) {
+    munmap(gpio->map, MAP_SIZE);
+    gpio->map = 0;
+    close(gpio->fd);
+    gpio->fd = -1;
+  }
 }
 
 void

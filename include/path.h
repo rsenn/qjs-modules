@@ -120,6 +120,9 @@ int path_issymlink1(const char* p);
 int path_issymlink2(const char* p, size_t plen);
 int path_normalize3(const char* path, DynBuf* db, int symbolic);
 char* path_normalize2(const char* path, int symbolic);
+int path_realpath3(const char*, size_t len, DynBuf* buf);
+char* path_realpath2(const char*, size_t len);
+char* path_realpath1(const char*);
 int path_relative3(const char* path, const char* relative_to, DynBuf* out);
 char* path_relative2(const char* path, const char* relative_to);
 int path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
@@ -171,8 +174,8 @@ path_skip3(const char* s, size_t* len, size_t n) {
 static inline size_t
 path_right2(const char* s, size_t n) {
   const char* p = s + n - 1;
-  while(p >= s && path_issep(*p)) --p;
-  while(p >= s && !path_issep(*p)) --p;
+  while(p > s && path_issep(*p)) --p;
+  while(p > s && !path_issep(*p)) --p;
   return p - s;
 }
 

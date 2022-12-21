@@ -73,7 +73,7 @@ static thread_local Vector module_list = VECTOR_INIT();
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
 static JSModuleLoaderFunc* module_loader = 0;
-static thread_local JSValue package_json, replObj;
+static JSValue package_json, replObj;
 static const char* exename;
 static JSRuntime* rt;
 static JSContext* ctx;
@@ -334,19 +334,24 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case SCRIPT_FILE:
     case SCRIPT_FILENAME: {
-      char* str;
-      if((str = jsm_stack_top()))
-        ret = JS_NewString(ctx, str);
+      char* file;
+      if((file = jsm_stack_top())) {
+        char* abs = path_absolute1(file);
+        ret = JS_NewString(ctx, abs);
+        free(abs);
+      }
       break;
     }
     case SCRIPT_DIRNAME: {
       char* file;
       if((file = jsm_stack_top())) {
+        char* abs = path_absolute1(file);
         char* dir;
-        if((dir = path_dirname1(file))) {
+        if((dir = path_dirname1(abs))) {
           ret = JS_NewString(ctx, dir);
           free(dir);
         }
+        free(abs);
       }
       break;
     }
@@ -474,7 +479,7 @@ jsm_builtin_find(const char* name) {
 static JSModuleDef*
 jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
-  JSValue obj = JS_UNDEFINED;
+  JSValue ret = JS_UNINITIALIZED, obj = JS_UNDEFINED;
 
   jsm_stack_push(ctx, rec->module_name);
 
@@ -496,7 +501,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       m = js_value_ptr(obj);
 
       JS_ResolveModule(ctx, obj);
-      JSValue ret = JS_EvalFunction(ctx, obj);
+      ret = JS_EvalFunction(ctx, obj);
 
       /*  obj = js_eval_binary(ctx, rec->byte_code, rec->byte_code_len, FALSE);
             m = js_value_ptr(obj);
@@ -658,26 +663,32 @@ jsm_module_package(JSContext* ctx, const char* module) {
 
 JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* name) {
-  JSRuntime* rt = JS_GetRuntime(ctx);
-  JSModuleDef* m;
 
-  printf("jsm_module_load(%p, %s) = %p\n", ctx, name, m);
+  BOOL all = FALSE;
 
-  m = rt->module_loader_func(ctx, name, 0);
-
-  if(m) {
-    JSValue module_obj = js_value_mkptr(JS_TAG_MODULE, m);
-    JS_ResolveModule(ctx, module_obj);
-    // JS_EvalFunction(ctx, module_obj);
-
-    JSValue exp = module_exports(ctx, m);
-    JSValue glb = JS_GetGlobalObject(ctx);
-    if(!js_has_propertystr(ctx, glb, name))
-      JS_SetPropertyStr(ctx, glb, name, exp);
-    JS_FreeValue(ctx, glb);
+  if(*name == '*') {
+    ++name;
+    all = TRUE;
   }
 
-  return m;
+  if(!js_eval_fmt(ctx,
+                  JS_EVAL_TYPE_MODULE,
+                  all ? "import tmp from '%s';\nObject.assign(globalThis, tmp);\n" : "import tmp from '%s';\nglobalThis['%s'] = tmp;\n",
+                  name,
+                  name)) {
+
+  } else {
+    JS_GetException(ctx);
+
+    if(js_eval_fmt(ctx,
+                   JS_EVAL_TYPE_MODULE,
+                   all ? "import * as tmp from '%s';\nObject.assign(globalThis, tmp);\n" : "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n",
+                   name,
+                   name))
+      return 0;
+  }
+
+  return js_module_find_rev(ctx, name);
 }
 
 JSModuleDef*
@@ -826,6 +837,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     path_concat5(path, path_dirlen1(path), name, strlen(name), &dir);
     dsl = path_skipdotslash2(dir.buf, dir.size);
 
+    /* XXX BUG: should use path_normalize* to resolve symlinks */
     path_collapse2(dir.buf + dsl, dir.size - dsl);
     file = dir.buf;
   } else if(has_suffix(name, CONFIG_SHEXT) && !path_isabsolute1(name)) {
@@ -1078,7 +1090,12 @@ jsm_help(void) {
          "    --memory-limit n       limit the memory usage to 'n' bytes\n"
          "    --stack-size n         limit the stack size to 'n' bytes\n"
          "    --unhandled-rejection  dump unhandled promise rejections\n"
-         "-q  --quit         just instantiate the interpreter and quit\n");
+         "-q  --quit         just instantiate the interpreter and quit\n"
+#ifdef SIGUSR1
+         "\n"
+         "  USR1 signal starts interactive mode\n"
+#endif
+  );
   exit(1);
 }
 
@@ -1123,10 +1140,10 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 enum {
   FIND_MODULE,
   LOAD_MODULE,
-  RESOLVE_MODULE,
   REQUIRE_MODULE,
-  NORMALIZE_MODULE,
   LOCATE_MODULE,
+  NORMALIZE_MODULE,
+  RESOLVE_MODULE,
   GET_MODULE_NAME,
   GET_MODULE_OBJECT,
   GET_MODULE_EXPORTS,
@@ -1142,11 +1159,13 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSModuleDef* m = 0;
   const char* name = 0;
 
-  if(magic >= GET_MODULE_NAME) {
+  if(magic >= RESOLVE_MODULE || (magic == NORMALIZE_MODULE && JS_IsModule(argv[0]))) {
     if(!(m = js_module_def(ctx, argv[0])))
       return JS_ThrowTypeError(ctx,
                                "%s: argument 1 expecting module",
                                ((const char* const[]){
+                                   "normalizeModule",
+                                   "resolveModule",
                                    "getModuleName",
                                    "getModuleObject",
                                    "getModuleExports",
@@ -1154,7 +1173,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
                                    "getModuleFunction",
                                    "getModuleException",
                                    "getModuleMetaObject",
-                               })[magic - 3]);
+                               })[magic - NORMALIZE_MODULE]);
   } else {
     name = JS_ToCString(ctx, argv[0]);
   }
@@ -1168,52 +1187,55 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case LOAD_MODULE: {
-      JSRuntime* rt = JS_GetRuntime(ctx);
+      /*  JSRuntime* rt = JS_GetRuntime(ctx);
 
-      ImportDirective imp;
-      memset(&imp, 0, sizeof(imp));
-      int r, n = countof(imp.args);
-      r = js_strv_copys(ctx, argc, argv, n, imp.args);
-      // printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
+        ImportDirective imp;
+        memset(&imp, 0, sizeof(imp));
+        int r, n = countof(imp.args);
+        r = js_strv_copys(ctx, argc, argv, n, imp.args);
+        // printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
 
-      m = rt->module_loader_func(ctx, imp.args[0], 0);
+        m = rt->module_loader_func(ctx, imp.args[0], 0);
 
-      if(m)
+        if(m)
+          val = JS_MKPTR(JS_TAG_MODULE, m);
+
+        js_strv_free_n(ctx, n, imp.args);*/
+      if((m = jsm_module_load(ctx, name)))
         val = JS_MKPTR(JS_TAG_MODULE, m);
 
-      js_strv_free_n(ctx, n, imp.args);
-      break;
-    }
-    case RESOLVE_MODULE: {
-      val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
       break;
     }
     case REQUIRE_MODULE: {
-
-      if((m = jsm_module_loader(ctx, name, 0))) {
+      if((m = jsm_module_load(ctx, name))) {
         val = module_exports(ctx, m);
       }
       break;
     }
-    case NORMALIZE_MODULE: {
-      char *path, *file;
-      path = name;
-      name = argc >= 2 ? JS_ToCString(ctx, argv[1]) : 0;
 
-      if((file = jsm_module_normalize(ctx, path, name, 0))) {
-        val = JS_NewString(ctx, file);
-        js_free(ctx, file);
-      }
-      if(path)
-        JS_FreeCString(ctx, path);
-      break;
-    }
     case LOCATE_MODULE: {
       char* s;
       if((s = jsm_module_locate(ctx, name, 0))) {
         val = JS_NewString(ctx, s);
         js_free(ctx, s);
       }
+      break;
+    }
+    case NORMALIZE_MODULE: {
+      char *path, *file, *name;
+      path = m ? module_namecstr(ctx, m) : JS_ToCString(ctx, argv[0]);
+      name = JS_ToCString(ctx, argv[1]);
+
+      if((file = jsm_module_normalize(ctx, path, name, 0))) {
+        val = JS_NewString(ctx, file);
+        js_free(ctx, file);
+      }
+      JS_FreeCString(ctx, path);
+      JS_FreeCString(ctx, name);
+      break;
+    }
+    case RESOLVE_MODULE: {
+      val = JS_NewInt32(ctx, JS_ResolveModule(ctx, JS_MKPTR(JS_TAG_MODULE, m)));
       break;
     }
     case GET_MODULE_NAME: {
@@ -1270,7 +1292,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
     JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
-    JS_CFUNC_MAGIC_DEF("normalizeModule", 1, jsm_module_func, NORMALIZE_MODULE),
+    JS_CFUNC_MAGIC_DEF("normalizeModule", 2, jsm_module_func, NORMALIZE_MODULE),
     JS_CFUNC_MAGIC_DEF("locateModule", 1, jsm_module_func, LOCATE_MODULE),
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
     JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
@@ -1310,7 +1332,7 @@ jsm_import_parse(ImportDirective* imp, const char* spec) {
 }
 
 static void
-jsm_start_interactive(JSContext* ctx) {
+jsm_start_interactive(void) {
   char str[512];
   const char* home;
 
@@ -1329,6 +1351,7 @@ jsm_start_interactive(JSContext* ctx) {
     "import fs from 'fs';\n"
     "const history = '%s/.%s_history';\n"
     "globalThis.repl = new REPL('qjsm');\n"
+    "repl.loadSaveOptions();\n"
     "repl.historyLoad(null, fs);\n"
     "repl.directives = { i: [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ] };\n"
     "repl.show = console.log;\n"
@@ -1337,7 +1360,7 @@ jsm_start_interactive(JSContext* ctx) {
   /* clang-format on */
 
   js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
-  replObj = js_eval_buf(ctx, str, strlen(str), 0, JS_EVAL_TYPE_MODULE);
+  replObj = js_eval_buf(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 }
 
 int
@@ -1613,23 +1636,15 @@ main(int argc, char** argv) {
       JSModuleDef* m;
       vector_foreach_t(&module_list, ptr) {
         char* name = *ptr;
+        int all = 0;
 
-        /*char s[512];
-        snprintf(s, sizeof(s), "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name);
-        if(-1 == js_eval_str(ctx, s, 0, JS_EVAL_TYPE_MODULE)) {
+        if(name[0] == '*')
+          all = 1;
+
+        if(!jsm_module_load(ctx, name)) {
           jsm_dump_error(ctx);
           return 1;
-        }*/
-
-        if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
-          continue;
-
-        JS_GetException(ctx);
-
-        if(!js_eval_fmt(ctx, JS_EVAL_TYPE_MODULE, "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n", name, name))
-          continue;
-
-        return 1;
+        }
       }
       vector_freestrings(&module_list);
     }
@@ -1661,10 +1676,13 @@ main(int argc, char** argv) {
       }
     }
 
-    if(interactive)
-      jsm_start_interactive(ctx);
-    else
+    if(interactive) {
+      jsm_start_interactive();
+    } else {
+#ifdef SIGUSR1
       signal(SIGUSR1, jsm_start_interactive);
+#endif
+    }
 
     js_std_loop(ctx);
   }

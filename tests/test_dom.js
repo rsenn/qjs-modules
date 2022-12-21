@@ -23,6 +23,7 @@ function StartREPL() {
   );
   repl.show = repl.printFunction((...args) => console.log(...args));
   repl.historyLoad();
+  repl.loadSaveOptions();
   return repl.run();
   // });
 }

@@ -4,7 +4,7 @@
 	branch = main
 [submodule "pigpio"]
 	path = pigpio
-	url = git@github.com:rsenn/pigpio.git
+	url = https://github.com/joan2937/pigpio
 	branch = main
 [submodule "libutf"]
 	path = libutf
@@ -14,3 +14,7 @@
 	path = tutf8e
 	url = https://github.com/nigels-com/tutf8e
 	branch = master
+[submodule "libserialport"]
+	path = libserialport
+	url = https://github.com/rsenn/libserialport
+	branch = cmake

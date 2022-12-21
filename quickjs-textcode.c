@@ -62,14 +62,18 @@ textdecoder_try(const void* in, size_t len) {
 
 size_t
 textdecoder_length(TextDecoder* td) {
-  size_t r = 0;
+  size_t len = 0, r;
 
-  r += textdecoder_try(ringbuffer_begin(&td->buffer), ringbuffer_continuous(&td->buffer));
+  r = textdecoder_try(ringbuffer_begin(&td->buffer), ringbuffer_continuous(&td->buffer));
+  len += r;
 
-  if(td->buffer.head < td->buffer.tail)
-    r += textdecoder_try(td->buffer.data, ringbuffer_head(&td->buffer));
+  if(len == ringbuffer_continuous(&td->buffer))
+    if(td->buffer.head < td->buffer.tail) {
+      r = textdecoder_try(td->buffer.data, ringbuffer_head(&td->buffer));
+      len += r;
+    }
 
-  return r;
+  return len;
 }
 
 JSValue
@@ -86,7 +90,15 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
   if(blen)
     switch(dec->encoding) {
       case UTF8: {
-        ret = JS_NewStringLen(ctx, (const char*)ringbuffer_begin(&dec->buffer), textdecoder_length(dec));
+        size_t blen, rlen = ringbuffer_length(&dec->buffer);
+
+        if((blen = textdecoder_length(dec)) < rlen) {
+          ringbuffer_normalize(&dec->buffer);
+          blen = textdecoder_length(dec);
+        }
+
+        ret = JS_NewStringLen(ctx, (const char*)ringbuffer_begin(&dec->buffer), blen);
+        ringbuffer_skip(&dec->buffer, blen);
         break;
       }
       case UTF16: {

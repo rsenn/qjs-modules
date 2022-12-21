@@ -191,6 +191,23 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static JSValue
+js_misc_strcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  const char *a, *b;
+  size_t alen, blen;
+
+  a = JS_ToCStringLen(ctx, &alen, argv[0]);
+  b = JS_ToCStringLen(ctx, &blen, argv[1]);
+
+  ret = JS_NewInt32(ctx, byte_diff2(a, alen, b, blen));
+
+  JS_FreeCString(ctx, a);
+  JS_FreeCString(ctx, b);
+
+  return ret;
+}
+
+static JSValue
 js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   void* ptr = 0;
@@ -718,7 +735,6 @@ js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 #endif
 
-#ifdef HAVE_FNMATCH
 static JSValue
 js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t plen, slen;
@@ -730,12 +746,15 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(argc >= 3)
     JS_ToInt32(ctx, &flags, argv[2]);
 
+#ifdef HAVE_FNMATCH
+  ret = fnmatch(pattern, string, flags);
+#else
   ret = path_fnmatch5(pattern, plen, string, slen, flags);
+#endif
   JS_FreeCString(ctx, pattern);
   JS_FreeCString(ctx, string);
-  return JS_NewBool(ctx, !ret);
+  return JS_NewInt32(ctx, ret);
 }
-#endif
 
 #ifdef HAVE_GLOB
 static JSContext* js_misc_glob_errfunc_ctx;
@@ -1173,6 +1192,28 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       break;
     }
   }
+  return ret;
+}
+
+static JSValue
+js_misc_evalstring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  int32_t flags = JS_EVAL_TYPE_MODULE;
+  JSValueConst obj;
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+  const char* filename = 0;
+
+  if(argc > 1)
+    filename = JS_ToCString(ctx, argv[1]);
+
+  if(argc > 2)
+    JS_ToInt32(ctx, &flags, argv[2]);
+
+  ret = js_eval_buf(ctx, input.data, input.size, filename ? filename : "<input>", flags);
+
+  if(filename)
+    JS_FreeCString(ctx, filename);
+
   return ret;
 }
 
@@ -1665,13 +1706,48 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
+static const uint8_t js_misc_escape_sq_tab[256] = {
+    'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',
+    'x', 'x', 'x', 'x', 0,   0,   0,   0,   0,    0,    0,    0x27, 0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0x5c, 0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   'x', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   'u', 'u', 'u', 'u', 'u',
+    'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+};
+static const uint8_t js_misc_escape_dq_tab[256] = {
+    'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',
+
+    'x', 'x', 'x', 'x', 0,   0,   0x22, 0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0x5c, 0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   'x', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   'u', 'u', 'u', 'u', 'u',
+    'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+};
+
 JSValue
 js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
   if(input.data) {
+    uint8_t escape_tab[256];
+    const uint8_t* tab = js_misc_escape_dq_tab;
+    int32_t* intv = 0;
+    size_t i, nelems;
+
+    if(argc > 1 && (intv = js_array_to_int32v(ctx, &nelems, argv[1]))) {
+      for(i = 0; i < nelems; i++) { escape_tab[i] = intv[i]; }
+      while(i < 256) { escape_tab[i++] = '\0'; }
+      tab = escape_tab;
+      js_free(ctx, intv);
+    }
+
     DynBuf output;
     js_dbuf_init(ctx, &output);
-    dbuf_put_escaped(&output, (const char*)input.data, input.size);
+    dbuf_put_escaped_table(&output, (const char*)input.data, input.size, tab);
+
     return dbuf_tostring_free(&output, ctx);
   }
   return JS_DupValue(ctx, argv[0]);
@@ -1679,15 +1755,31 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 static int
 js_misc_unescape_pred(const char* s, size_t* lenp) {
-  long val = -1;
-  size_t len;
+  unsigned long u;
+  int val = -1;
+  size_t len = 1;
 
-  if((len = scan_8long(s, &val)) >= 3) {
+  if(*s == '\\')
+    val = (int)(unsigned int)(unsigned char)'\\';
+  else if(*s == 'n')
+    val = (int)(unsigned int)(unsigned char)'\n';
+  else if(*s == 'r')
+    val = (int)(unsigned int)(unsigned char)'\r';
+  else if(*s == 't')
+    val = (int)(unsigned int)(unsigned char)'\t';
+  else if(*s == 'v')
+    val = (int)(unsigned int)(unsigned char)'\v';
+  else if(*s == 'b')
+    val = (int)(unsigned int)(unsigned char)'\b';
+  else if((len = scan_8long(s, &u)) >= 3)
+    val = (int)(unsigned int)(unsigned char)u;
+
+  if(val != -1) {
     if(lenp)
       *lenp += len;
-
     return val;
   }
+
   return 0;
 }
 
@@ -2002,6 +2094,22 @@ js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_NewInt32(ctx, unlink(file));
 }
 
+#ifdef HAVE_ACCESS
+static JSValue
+js_misc_access(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t mode = -1;
+  int ret;
+
+  const char* pathname = JS_ToCString(ctx, argv[0]);
+
+  JS_ToInt32(ctx, &mode, argv[1]);
+
+  ret = access(pathname, mode);
+
+  return JS_NewInt32(ctx, ret);
+}
+#endif
+
 #ifdef HAVE_FCNTL
 static JSValue
 js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -2028,9 +2136,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
     JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
-#ifdef HAVE_FNMATCH
+    //#ifdef HAVE_FNMATCH
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
-#endif
+//#endif
 #ifdef HAVE_GLOB
     JS_CFUNC_DEF("glob", 2, js_misc_glob),
 #endif
@@ -2055,6 +2163,14 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("unlink", 1, js_misc_unlink),
 #ifdef HAVE_LINK
     JS_CFUNC_DEF("link", 2, js_misc_link),
+#endif
+#ifdef HAVE_ACCESS
+    JS_CFUNC_DEF("access", 2, js_misc_access),
+    JS_CONSTANT(F_OK),
+    JS_CONSTANT(R_OK),
+    JS_CONSTANT(W_OK),
+    JS_CONSTANT(X_OK),
+
 #endif
 #ifdef HAVE_FCNTL
     JS_CFUNC_DEF("fcntl", 2, js_misc_fcntl),
@@ -2093,6 +2209,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(O_WRONLY),
 #endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
+    JS_CFUNC_DEF("strcmp", 2, js_misc_strcmp),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
@@ -2157,6 +2274,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
     JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, VALUE_TAG),
     JS_CFUNC_MAGIC_DEF("valuePtr", 1, js_misc_valuetype, VALUE_PTR),
+    JS_CFUNC_DEF("evalString", 1, js_misc_evalstring),
     JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
     JS_CFUNC_MAGIC_DEF("atomToString", 1, js_misc_atom, ATOM_TO_STRING),
     JS_CFUNC_MAGIC_DEF("atomToValue", 1, js_misc_atom, ATOM_TO_VALUE),
