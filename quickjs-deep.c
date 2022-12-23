@@ -512,13 +512,15 @@ js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   JSValue ret = JS_UNDEFINED;
   PropertyEnumeration* it;
   Vector frames;
+  enum value_mask type = js_value_type(ctx, argv[1]);
+  BOOL (*cmp_fn)(JSContext*, JSValueConst, JSValueConst) = (type & TYPE_OBJECT) ? js_object_same2 : js_value_equals;
 
   vector_init(&frames, ctx);
 
   it = property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
   do {
     JSValue value = property_enumeration_value(it, ctx);
-    BOOL result = js_value_equals(ctx, argv[1], value);
+    BOOL result = js_value_type(ctx, value) != type ? FALSE : cmp_fn(ctx, argv[1], value);
     JS_FreeValue(ctx, value);
 
     if(result) {

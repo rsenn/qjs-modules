@@ -490,6 +490,7 @@ if(BUILD_LIBSERIALPORT)
 endif(BUILD_LIBSERIALPORT)
 
 set(serial_SOURCES quickjs-serial.c)
+set(serial_DEPS libserialport)
 set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
 #if(WIN32 OR MSYS)
 #  set(serial_LIBRARIES mincore)
@@ -801,3 +802,6 @@ install(FILES ${INSTALL_SCRIPTS} DESTINATION bin
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")
 symlink(extract-structs.js "${CMAKE_INSTALL_PREFIX}/bin/extract-bindings.js")
+
+
+#add_dependencies(qjs-serial-static libserialport)

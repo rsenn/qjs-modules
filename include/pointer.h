@@ -27,6 +27,7 @@ void pointer_debug(Pointer*, JSContext* ctx);
 size_t pointer_parse(Pointer*, JSContext* ctx, const char* str, size_t len);
 Pointer* pointer_slice(Pointer*, JSContext* ctx, int64_t start, int64_t end);
 JSValue pointer_shift(Pointer*, JSContext* ctx, JSValue obj);
+JSAtom pointer_at(const Pointer*, int32_t);
 void pointer_push(Pointer*, JSContext* ctx, JSValue key);
 JSValue pointer_deref(Pointer*, JSContext* ctx, JSValue arg);
 JSValue pointer_acquire(Pointer*, JSContext* ctx, JSValue arg);

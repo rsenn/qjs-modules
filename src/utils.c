@@ -737,6 +737,11 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   return TRUE;
 }
 
+BOOL
+js_object_same2(JSContext* ctx, JSValueConst a, JSValueConst b) {
+  return js_object_same(a, b);
+}
+
 int
 js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
   BOOL ret = FALSE;
@@ -1510,13 +1515,8 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
     ret = flta == fltb;
 
   } else if(ta & TYPE_OBJECT) {
-    ret = js_object_equals(ctx, a, b);
-    /*void *obja, *objb;
+    ret = js_object_same(a, b) ? TRUE : js_object_equals(ctx, a, b);
 
-    obja = JS_VALUE_GET_OBJ(a);
-    objb = JS_VALUE_GET_OBJ(b);
-
-    ret = obja == objb;*/
   } else if(ta & TYPE_STRING) {
     const char *stra, *strb;
 

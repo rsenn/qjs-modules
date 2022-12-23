@@ -27,6 +27,7 @@ enum {
   METHOD_KEYS,
   METHOD_VALUES,
   METHOD_HIER,
+  METHOD_AT,
 };
 enum {
   STATIC_FROM = 0,
@@ -207,6 +208,16 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       JS_SetPropertyUint32(ctx, ret, j++, JS_DupValue(ctx, this_val));
       return ret;
     }
+
+    case METHOD_AT: {
+      JSValue ret = JS_UNDEFINED;
+      int32_t index = -1;
+
+      if(!JS_ToInt32(ctx, &index, argv[0]))
+        ret = JS_AtomToValue(ctx, pointer_at(ptr, index));
+
+      return ret;
+    }
   }
   return JS_EXCEPTION;
 }
@@ -338,6 +349,7 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
     JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, METHOD_VALUES),
     JS_CFUNC_MAGIC_DEF("hier", 0, js_pointer_method, METHOD_HIER),
+    JS_CFUNC_MAGIC_DEF("at", 1, js_pointer_method, METHOD_AT),
     JS_ALIAS_DEF("toPrimitive", "toString"),
     JS_ALIAS_DEF("[Symbol.iterator]", "keys"),
     JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),

@@ -487,8 +487,15 @@ function main(...args) {
     {
       help: [
         false,
-        () => {
-          std.puts(`Usage: ${scriptArgs[0]} [OPTIONS] <files...>\n`);
+        (__a, __x, params) => {
+          console.log('help', { __a, __x, params });
+          std.puts(`Usage: ${scriptArgs[0]} [OPTIONS] <files...>\n\n`);
+
+          std.puts(
+            params
+              .map(([name, [hasArg, , letter]]) => `  -${letter}, --${name} ${(hasArg ? '<ARG>' : '').padEnd(10)}\n`)
+              .join('') + '\n'
+          );
           std.exit(0);
         },
         'h'

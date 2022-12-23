@@ -172,6 +172,20 @@ pointer_shift(Pointer* ptr, JSContext* ctx, JSValueConst obj) {
   return ret;
 }
 
+JSAtom
+pointer_at(const Pointer* ptr, int32_t index) {
+  JSAtom atom;
+
+  if(ptr->n) {
+    index = index % (int32_t)ptr->n;
+    if(index < 0)
+      index += ptr->n;
+
+    return ptr->atoms[index];
+  }
+  return 0;
+}
+
 void
 pointer_push(Pointer* ptr, JSContext* ctx, JSValueConst key) {
   if((ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * (ptr->n + 1))))
