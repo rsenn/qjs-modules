@@ -120,14 +120,17 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
 static JSValue
 js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto;
+  JSValue obj, proto;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     proto = JS_DupValue(ctx, pointer_proto);
 
-  return js_pointer_new(ctx, proto, argc > 0 ? argv[0] : JS_UNDEFINED);
+  obj = js_pointer_new(ctx, proto, argc > 0 ? argv[0] : JS_UNDEFINED);
+
+  JS_FreeValue(ctx, proto);
+  return obj;
 }
 
 static JSValue

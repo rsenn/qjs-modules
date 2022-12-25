@@ -209,7 +209,10 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(i < argc)
     flags = js_deep_parseflags(ctx, argc - i, argv + i);
 
-  return js_deep_iterator_new(ctx, proto, root, pred, flags);
+  obj= js_deep_iterator_new(ctx, proto, root, pred, flags);
+      JS_FreeValue(ctx, proto);
+
+return obj;
 }
 
 static JSValue

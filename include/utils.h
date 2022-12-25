@@ -888,6 +888,9 @@ char* js_error_tostring(JSContext*, JSValueConst);
 void js_error_print(JSContext*, JSValueConst);
 JSValue js_error_stack(JSContext* ctx);
 
+JSValue js_iohandler_fn(JSContext*, BOOL write);
+JSCFunction* js_iohandler_cfunc(JSContext*, BOOL write);
+
 JSValue js_promise_resolve(JSContext* ctx, JSValueConst promise);
 JSValue js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func);
 

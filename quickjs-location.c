@@ -298,7 +298,10 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     }
   }
 
-  return js_location_create(ctx, proto, loc);
+  obj= js_location_create(ctx, proto, loc);
+      JS_FreeValue(ctx, proto);
+
+return obj;
 }
 
 static JSValue

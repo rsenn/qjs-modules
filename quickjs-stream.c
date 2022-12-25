@@ -464,6 +464,7 @@ js_reader_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
     proto = reader_proto;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_reader_class_id);
+  JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
 
@@ -627,6 +628,7 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     proto = JS_DupValue(ctx, readable_proto);
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_readable_class_id);
+  JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
 

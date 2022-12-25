@@ -135,10 +135,11 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   if(!JS_IsObject(proto))
     proto = blob_proto;
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_blob_class_id);
-  if(JS_IsException(obj))
+     JS_FreeValue(ctx, proto);
+     
+ if(JS_IsException(obj))
     goto fail;
 
   {

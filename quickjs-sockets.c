@@ -70,8 +70,8 @@ static const char* socket_syscalls[] = {
     "close",
     "getsockopt",
     "setsockopt",
-
 };
+
 static const size_t socket_syscalls_size = countof(socket_syscalls);
 
 static void
@@ -180,6 +180,7 @@ js_sockaddr_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   if(!JS_IsObject(proto))
     proto = sockaddr_proto;
   obj = JS_NewObjectProtoClass(ctx, proto, js_sockaddr_class_id);
+      JS_FreeValue(ctx, proto);
   if(!js_sockaddr_init(ctx, argc, argv, a)) {
     js_free(ctx, a);
     return JS_ThrowInternalError(ctx, "SockAddr init() failed");
@@ -1216,23 +1217,13 @@ js_socket_async_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return JS_UNDEFINED;
 }
 
-static JSValue
+/*static JSValue
 js_socket_set_handler(JSContext* ctx, BOOL wr) {
-  JSModuleDef* os;
-  const char* handler = wr ? "setWriteHandler" : "setReadHandler";
-  JSAtom func_name;
-  JSValue ret = JS_UNDEFINED, set_handler, args[2];
-
-  if(!(os = js_module_find(ctx, "os")))
-    return JS_ThrowInternalError(ctx, "'os' module required");
-
-  func_name = JS_NewAtom(ctx, handler);
-  set_handler = module_exports_find(ctx, os, func_name);
-  JS_FreeAtom(ctx, func_name);
+  JSValue set_handler = js_iohandler_fn(ctx, wr);
 
   if(!JS_IsFunction(ctx, set_handler)) {
     JS_FreeValue(ctx, set_handler);
-    return JS_ThrowInternalError(ctx, "no os.%s function", handler);
+    return JS_ThrowInternalError(ctx, "no os.set%sHandler function", wr ? "Write" : "Read");
   }
 
   if(js_value_isclass(ctx, set_handler, JS_CLASS_C_FUNCTION)) {
@@ -1242,7 +1233,7 @@ js_socket_set_handler(JSContext* ctx, BOOL wr) {
 
   return set_handler;
 }
-
+*/
 static JSValue
 js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Socket sock = js_socket_data(this_val);
@@ -1252,6 +1243,9 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   if(!(asock = js_async_socket_ptr(this_val)))
     return JS_ThrowInternalError(ctx, "Must be an AsyncSocket");
+
+  if(JS_IsException((set_handler = js_socket_set_handler(ctx, magic & 1))))
+    return JS_EXCEPTION;
 
   if(JS_IsObject(asock->pending)) {
     JS_FreeValue(ctx, JS_Call(ctx, asock->pending, JS_NULL, 0, 0));
@@ -1263,7 +1257,7 @@ js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   data[0] = this_val;
   data[1] = resolving_funcs[0];
-  data[2] = JS_DupValue(ctx, (set_handler = js_socket_set_handler(ctx, magic & 1)));
+  data[2] = set_handler;
   data_len = 3;
 
   if(magic >= 2) {

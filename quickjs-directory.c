@@ -86,6 +86,8 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_directory_class_id);
+      JS_FreeValue(ctx, proto);
+
   if(JS_IsException(obj))
     goto fail;
 
