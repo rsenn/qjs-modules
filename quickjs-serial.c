@@ -11,7 +11,83 @@
  */
 thread_local VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;
 thread_local JSValue serialport_proto = {{JS_TAG_UNDEFINED}}, serialport_ctor = {{JS_TAG_UNDEFINED}}, serial_ctor = {{JS_TAG_UNDEFINED}},
-                     serialerror_proto = {{JS_TAG_UNDEFINED}}, serialerror_ctor = {{JS_TAG_UNDEFINED}}, error_ctor = {{JS_TAG_UNDEFINED}};
+                     serialerror_proto = {{JS_TAG_UNDEFINED}}, serialerror_ctor = {{JS_TAG_UNDEFINED}};
+
+static JSValue
+js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue obj, proto;
+  JSAtom prop;
+
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    return JS_EXCEPTION;
+
+  if(!JS_IsObject(proto))
+    proto = JS_DupValue(ctx, serialerror_proto);
+
+  obj = JS_NewObjectProtoClass(ctx, proto, js_serialerror_class_id);
+  JS_FreeValue(ctx, proto);
+
+  if(argc > 0) {
+    prop = JS_NewAtom(ctx, "message");
+    JS_DefinePropertyValue(ctx, obj, prop, JS_DupValue(ctx, argv[0]), JS_PROP_C_W_E);
+    JS_FreeAtom(ctx, prop);
+  }
+
+  if(argc > 1) {
+    prop = JS_NewAtom(ctx, "type");
+    JS_DefinePropertyValue(ctx, obj, prop, JS_DupValue(ctx, argv[1]), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+    JS_FreeAtom(ctx, prop);
+  }
+
+  JSValue stack = js_error_stack(ctx);
+  prop = JS_NewAtom(ctx, "stack");
+  JS_DefinePropertyValue(ctx, obj, prop, stack, JS_PROP_CONFIGURABLE);
+  JS_FreeAtom(ctx, prop);
+
+  return obj;
+}
+
+static JSValue
+js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) {
+  JSValue ret, obj;
+  char msg[1024];
+  JSValue argv[2];
+
+  obj = JS_NewObjectProtoClass(ctx, serialerror_proto, js_serialerror_class_id);
+  if(JS_IsException(obj))
+    return JS_EXCEPTION;
+
+  switch(result) {
+    case SP_ERR_ARG: {
+      snprintf(msg, sizeof(msg), "%s: Invalid arguments were passed to the function", sp_get_port_name(port));
+      break;
+    }
+    case SP_ERR_FAIL: {
+      char* err;
+      err = sp_last_error_message();
+      snprintf(msg, sizeof(msg), "%s: %s", sp_get_port_name(port), err);
+      sp_free_error_message(err);
+      break;
+    }
+    case SP_ERR_MEM: {
+      snprintf(msg, sizeof(msg), "%s: A memory allocation failed while executing the operation", sp_get_port_name(port));
+      break;
+    }
+    case SP_ERR_SUPP: {
+      snprintf(msg, sizeof(msg), "%s: The requested operation is not supported by this system or device", sp_get_port_name(port));
+      break;
+    }
+  }
+  argv[0] = JS_NewString(ctx, msg);
+  argv[1] = JS_NewInt32(ctx, result);
+  obj = js_serialerror_constructor(ctx, serialerror_ctor, 2, argv);
+
+  JS_FreeValue(ctx, argv[0]);
+  JS_FreeValue(ctx, argv[1]);
+
+  return obj;
+}
 
 enum {
   SERIALPORT_OPEN = 0,
@@ -449,25 +525,6 @@ js_serial_requestport(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return ret;
 }
 
-static JSValue
-js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue ret, proto;
-
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    return JS_EXCEPTION;
-
-  if(!JS_IsObject(proto))
-    proto = serialerror_proto;
-
-  ret = JS_CallConstructor2(ctx, error_ctor, new_target, argc, argv);
-
-  JS_SetPrototype(ctx, ret, proto);
-    JS_FreeValue(ctx, proto);
-
-  return ret;
-}
-
 static JSClassDef js_serialerror_class = {
     .class_name = "SerialError",
 };
@@ -498,6 +555,10 @@ static const JSCFunctionListEntry js_serialport_static[] = {
     JS_PROP_INT32_DEF("BUF_INPUT", SP_BUF_INPUT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("BUF_OUTPUT", SP_BUF_OUTPUT, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("BUF_BOTH", SP_BUF_BOTH, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ERR_ARG", SP_ERR_ARG, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ERR_FAIL", SP_ERR_FAIL, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ERR_MEM", SP_ERR_MEM, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ERR_SUPP", SP_ERR_SUPP, JS_PROP_ENUMERABLE),
 };
 
 static const JSCFunctionListEntry js_serial_static[] = {
@@ -506,6 +567,8 @@ static const JSCFunctionListEntry js_serial_static[] = {
 };
 
 static const JSCFunctionListEntry js_serialerror_funcs[] = {
+    JS_PROP_STRING_DEF("name", "SerialError", JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("type", 0, JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SerialError", JS_PROP_CONFIGURABLE),
 };
 
@@ -530,8 +593,10 @@ js_serial_init(JSContext* ctx, JSModuleDef* m) {
 
     JSValue error = JS_NewError(ctx);
     JSValue error_proto = JS_GetPrototype(ctx, error);
-    error_ctor = JS_GetPropertyStr(ctx, error_proto, "constructor");
     JS_FreeValue(ctx, error);
+
+    JS_NewClassID(&js_serialerror_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_serialerror_class_id, &js_serialerror_class);
 
     serialerror_ctor = JS_NewCFunction2(ctx, js_serialerror_constructor, "SerialError", 1, JS_CFUNC_constructor, 0);
     serialerror_proto = JS_NewObjectProto(ctx, error_proto);

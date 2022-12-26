@@ -180,7 +180,7 @@ js_sockaddr_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   if(!JS_IsObject(proto))
     proto = sockaddr_proto;
   obj = JS_NewObjectProtoClass(ctx, proto, js_sockaddr_class_id);
-      JS_FreeValue(ctx, proto);
+  JS_FreeValue(ctx, proto);
   if(!js_sockaddr_init(ctx, argc, argv, a)) {
     js_free(ctx, a);
     return JS_ThrowInternalError(ctx, "SockAddr init() failed");

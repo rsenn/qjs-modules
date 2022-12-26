@@ -239,9 +239,9 @@ js_archive_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
   if(JS_IsException(proto))
     goto fail;
 
-  obj= js_archive_wrap_proto(ctx, proto, 0);
-    JS_FreeValue(ctx, proto);
-return obj;
+  obj = js_archive_wrap_proto(ctx, proto, 0);
+  JS_FreeValue(ctx, proto);
+  return obj;
 
 fail:
   JS_FreeValue(ctx, obj);

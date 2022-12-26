@@ -2708,6 +2708,38 @@ js_is_identifier_atom(JSContext* ctx, JSAtom atom) {
   return ret;
 }
 
+JSValue
+js_get_tostringtag_value(JSContext* ctx, JSValueConst obj) {
+  JSAtom tostring_tag = js_symbol_static_atom(ctx, "toStringTag");
+  JSValue ret = JS_GetProperty(ctx, obj, tostring_tag);
+  JS_FreeAtom(ctx, tostring_tag);
+  return ret;
+}
+
+void
+js_set_tostringtag_value(JSContext* ctx, JSValueConst obj, JSValue value) {
+  JSAtom tostring_tag = js_symbol_static_atom(ctx, "toStringTag");
+  JS_DefinePropertyValue(ctx, obj, tostring_tag, value, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_FreeAtom(ctx, tostring_tag);
+}
+
+void
+js_set_tostringtag_str(JSContext* ctx, JSValueConst obj, const char* str) {
+  js_set_tostringtag_value(ctx, obj, JS_NewString(ctx, str));
+}
+
+const char*
+js_get_tostringtag_cstr(JSContext* ctx, JSValueConst obj) {
+  JSValue tag = js_get_tostringtag_value(ctx, obj);
+  const char* ret = 0;
+
+  if(JS_IsString(tag))
+    ret = JS_ToCString(ctx, tag);
+
+  JS_FreeValue(ctx, tag);
+  return ret;
+}
+
 /**
  * @}
  */

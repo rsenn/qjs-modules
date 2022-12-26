@@ -772,32 +772,54 @@ js_inspect_print_module(JSContext* ctx, DynBuf* buf, JSModuleDef* def, inspect_o
 
 static int
 js_inspect_print_error(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_options_t* opts, int32_t depth) {
-
-  char* class_name;
-  const char* s;
   JSValue stack;
 
-  class_name = js_object_classname(ctx, value);
+  char* class_name;
+  const char* str;
 
-  dbuf_putstr(buf, opts->colors ? "[" COLOR_RED : "[");
+  if(!(class_name = js_get_tostringtag_str(ctx, value)))
+    class_name = js_object_classname(ctx, value);
+
+  dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED : "");
   dbuf_putstr(buf, class_name);
-  if((s = js_get_propertystr_cstring(ctx, value, "message"))) {
-    dbuf_putstr(buf, ": ");
-    dbuf_putstr(buf, s);
-    // dbuf_putstr(buf, ");
-    JS_FreeCString(ctx, s);
+  dbuf_putstr(buf, opts->colors ? COLOR_NONE " {" : " {");
+
+  if((str = js_get_propertystr_cstring(ctx, value, "message"))) {
+    inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
+    dbuf_putstr(buf, "message: ");
+    dbuf_putstr(buf, str);
+    JS_FreeCString(ctx, str);
   }
-  dbuf_putstr(buf, opts->colors ? COLOR_NONE "]" : "]");
 
   stack = JS_GetPropertyStr(ctx, value, "stack");
 
   if(!JS_IsUndefined(stack)) {
-    if((s = JS_ToCString(ctx, stack))) {
-      dbuf_putstr(buf, " STACK:\n");
-      dbuf_putstr(buf, s);
+    const char *s, *p, *e;
+    size_t len;
+
+    if((s = JS_ToCStringLen(ctx, &len, stack))) {
+
+      inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
+      dbuf_putstr(buf, "stack:");
+
+      for(p = s, e = s + len; p < e;) {
+        size_t ll = scan_line(p, e - p);
+
+        size_t next = ll + scan_lineskip(&p[ll], e - p - ll);
+
+        inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
+        dbuf_put(buf, "|", 1);
+        dbuf_put(buf, p, ll);
+
+        p += next;
+      }
+
       JS_FreeCString(ctx, s);
     }
   }
+
+  inspect_newline(buf, INSPECT_LEVEL(opts, depth));
+  dbuf_putstr(buf, opts->colors ? COLOR_NONE "}" : "}");
 
   return 0;
 }
@@ -1152,7 +1174,11 @@ js_inspect_print_value(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 
     case JS_TAG_OBJECT: {
       int ret = 0;
-      if(JS_IsError(ctx, value))
+      JSValue error_ctor = js_global_get_str(ctx, "Error");
+      BOOL is_error = JS_IsError(ctx, value) || JS_IsInstanceOf(ctx, value, error_ctor);
+      JS_FreeValue(ctx, error_ctor);
+
+      if(is_error)
         return js_inspect_print_error(ctx, buf, value, opts, depth);
 
       JSObject* obj = js_value_ptr(value);
@@ -1169,6 +1195,14 @@ js_inspect_print_value(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
       assert(*(JSObject**)vector_back(&object_list, sizeof(obj)) == obj);
 
       vector_pop(&object_list, sizeof(obj));
+
+      /*if(is_error) {
+        JSValue stack = JS_GetPropertyStr(ctx, value, "stack");
+
+        if(JS_IsString(stack) || JS_IsObject(stack)) {
+          ret = js_inspect_print_error(ctx, buf, value, opts, depth);
+        }
+      }*/
 
       return ret;
     }

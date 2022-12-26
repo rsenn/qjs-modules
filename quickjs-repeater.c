@@ -396,16 +396,16 @@ js_repeater_wrap(JSContext* ctx, Repeater* rpt) {
 
 static JSValue
 js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj,proto;
+  JSValue obj, proto;
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     proto = JS_DupValue(ctx, repeater_proto);
 
-  obj =js_repeater_new(ctx, proto, argv[0]);
+  obj = js_repeater_new(ctx, proto, argv[0]);
 
-      JS_FreeValue(ctx, proto);
-return obj;
+  JS_FreeValue(ctx, proto);
+  return obj;
 }
 
 static JSValue

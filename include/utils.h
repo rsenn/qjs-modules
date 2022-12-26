@@ -642,16 +642,20 @@ js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
   JS_FreeAtom(ctx, inspect_symbol);
 }
 
-static inline void
-js_set_tostringtag_value(JSContext* ctx, JSValueConst obj, JSValue value) {
-  JSAtom tostring_tag = js_symbol_static_atom(ctx, "toStringTag");
-  JS_DefinePropertyValue(ctx, obj, tostring_tag, value, JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
-  JS_FreeAtom(ctx, tostring_tag);
-}
+JSValue js_get_tostringtag_value(JSContext*, JSValueConst obj);
+void js_set_tostringtag_value(JSContext*, JSValueConst obj, JSValueConst value);
+void js_set_tostringtag_str(JSContext*, JSValueConst obj, const char* str);
+const char* js_get_tostringtag_cstr(JSContext*, JSValueConst obj);
 
-static inline void
-js_set_tostringtag_str(JSContext* ctx, JSValueConst obj, const char* str) {
-  js_set_tostringtag_value(ctx, obj, JS_NewString(ctx, str));
+static inline char*
+js_get_tostringtag_str(JSContext* ctx, JSValueConst obj) {
+  char* ret = 0;
+  const char* str;
+  if((str = js_get_tostringtag_cstr(ctx, obj))) {
+    ret = js_strdup(ctx, str);
+    JS_FreeCString(ctx, str);
+  }
+  return ret;
 }
 
 JSClassID js_class_id(JSContext* ctx, int id);

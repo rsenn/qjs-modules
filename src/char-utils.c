@@ -178,6 +178,57 @@ scan_nonwhitenskip(const char* s, size_t limit) {
 }
 
 size_t
+scan_line(const char* s, size_t limit) {
+  const char *t, *u;
+  u = s + limit;
+  for(t = s; t < u; ++t) {
+    if(*t == '\n' || *t == '\r')
+      break;
+  }
+  return (size_t)(t - s);
+}
+
+size_t
+scan_lineskip(const char* s, size_t limit) {
+  const char *t, *u;
+  u = s + limit;
+  for(t = s; t < u; ++t) {
+    if(*t == '\n') {
+      ++t;
+      break;
+    }
+  }
+  return (size_t)(t - s);
+}
+
+size_t
+scan_lineskip_escaped(const char* s, size_t limit) {
+  const char *t, *u;
+  u = s + limit;
+  for(t = s; t < u; ++t) {
+    if(*t == '\\') {
+      ++t;
+      continue;
+    }
+    if(*t == '\n') {
+      ++t;
+      break;
+    }
+  }
+  return (size_t)(t - s);
+}
+
+size_t
+scan_eolskip(const char* s, size_t limit) {
+  size_t n = 0;
+  if(n + 1 < limit && s[0] == '\r' && s[1] == '\n')
+    n += 2;
+  else if(n < limit && s[0] == '\n')
+    n += 1;
+  return n;
+}
+
+size_t
 utf8_strlen(const void* in, size_t len) {
   const uint8_t *pos, *end, *next;
   size_t i = 0;
