@@ -933,6 +933,10 @@ writable_new(JSContext* ctx) {
     st->ref_count = 1;
     st->controller = JS_NULL;
     queue_init(&st->q);
+
+    st->on[3] = st->on[2] = st->on[1] = st->on[0] = JS_NULL;
+    st->underlying_sink = JS_NULL;
+    st->controller = JS_NULL;
   }
 
   return st;
@@ -948,6 +952,7 @@ static JSValue
 writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   static const BOOL expected = FALSE;
+
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
     st->reason = js_tostring(ctx, reason);
     if(writable_locked(st)) {
@@ -955,6 +960,7 @@ writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
       ret = writer_abort(st->writer, reason, ctx);
     }
   }
+
   return ret;
 }
 
