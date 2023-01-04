@@ -36,6 +36,7 @@ enum predicate_id {
   PREDICATE_PROTOTYPEIS,
   PREDICATE_EQUAL,
   PREDICATE_PROPERTY,
+  PREDICATE_HAS,
   PREDICATE_MEMBER,
   PREDICATE_SHIFT,
   PREDICATE_SLICE,
@@ -319,6 +320,14 @@ predicate_property(JSAtom prop, JSValue pred) {
   Predicate ret = PREDICATE_INIT(PREDICATE_PROPERTY);
   ret.property.atom = prop;
   ret.property.predicate = pred;
+  return ret;
+}
+
+static inline Predicate
+predicate_has(JSAtom prop) {
+  Predicate ret = PREDICATE_INIT(PREDICATE_HAS);
+  ret.property.atom = prop;
+  ret.property.predicate = JS_NULL;
   return ret;
 }
 

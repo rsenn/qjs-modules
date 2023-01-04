@@ -1067,12 +1067,10 @@ static const JSMallocFunctions trace_mf = {
 #endif
 };
 
-#define PROG_NAME "qjsm"
-
 void
 jsm_help(void) {
   printf("QuickJS version " CONFIG_VERSION "\n"
-         "usage: " PROG_NAME " [options] [file [args]]\n"
+         "usage: %s [options] [file [args]]\n"
          "-h  --help         list options\n"
          "-e  --eval EXPR    evaluate EXPR\n"
          "-i  --interactive  go to interactive mode\n"
@@ -1095,7 +1093,8 @@ jsm_help(void) {
          "\n"
          "  USR1 signal starts interactive mode\n"
 #endif
-  );
+         ,
+         exename);
   exit(1);
 }
 
@@ -1350,13 +1349,13 @@ jsm_start_interactive(void) {
     "import REPL from 'repl';\n"
     "import fs from 'fs';\n"
     "const history = '%s/.%s_history';\n"
-    "globalThis.repl = new REPL('qjsm');\n"
+    "globalThis.repl = new REPL('%s');\n"
     "repl.loadSaveOptions();\n"
     "repl.historyLoad(null, fs);\n"
     "repl.directives = { i: [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ] };\n"
     "repl.show = console.log;\n"
     "repl.runSync();\n",
-    home, exename);
+    home, exename, exename);
   /* clang-format on */
 
   js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
@@ -1661,6 +1660,12 @@ main(int argc, char** argv) {
                 0,
                 JS_EVAL_TYPE_MODULE);
 
+    if(!interactive) {
+#ifdef SIGUSR1
+      signal(SIGUSR1, jsm_start_interactive);
+#endif
+    }
+
     if(expr) {
       if(js_eval_str(ctx, expr, "<cmdline>", 0) == -1)
         goto fail;
@@ -1676,13 +1681,8 @@ main(int argc, char** argv) {
       }
     }
 
-    if(interactive) {
+    if(interactive)
       jsm_start_interactive();
-    } else {
-#ifdef SIGUSR1
-      signal(SIGUSR1, jsm_start_interactive);
-#endif
-    }
 
     js_std_loop(ctx);
   }
