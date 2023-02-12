@@ -180,7 +180,7 @@ lexer_rule_match(Lexer* lex, LexerRule* rule, uint8_t** capture, JSContext* ctx)
 
   // fprintf(stderr, "lexer_rule_match %s %s %s\n", rule->name, rule->expr, rule->expansion);
 
-  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->input.data, lex->input.pos, lex->input.size, 0, ctx);
+  return lre_exec(capture, rule->bytecode, (uint8_t*)lex->data, lex->pos, lex->size, 0, ctx);
 }
 
 int
@@ -314,61 +314,81 @@ lexer_compile_rules(Lexer* lex, JSContext* ctx) {
 }
 
 int
-lexer_peek(Lexer* lex, uint64_t state, int start_rule, JSContext* ctx) {
-  LexerRule* rule;
+lexer_peek(Lexer* lex, /*uint64_t __state,*/ unsigned start_rule, JSContext* ctx) {
+  LexerRule *rule, *start = vector_begin(&lex->rules), *end = vector_end(&lex->rules);
   uint8_t* capture[512];
-  int i = -1, ret = LEXER_ERROR_NOMATCH;
+  int ret = LEXER_ERROR_NOMATCH;
   size_t len = 0;
 
   if(input_buffer_eof(&lex->input))
     return LEXER_EOF;
 
-  //  lex->start = lex->input.pos;
+  assert(start_rule >= 0);
+  assert(start_rule < vector_size(&lex->rules, sizeof(LexerRule)));
 
-  vector_foreach_t(&lex->rules, rule) {
-    int result;
-    if(++i < start_rule)
-      continue;
+  for(rule = start + start_rule; rule < end; ++rule) {
+    enum lexer_result result;
 
     if((rule->mask & (1 << lex->state)) == 0)
       continue;
 
+    // printf("%s state %i rule#%ld %s (start=%d)\n", __func__, lex->state, rule - start, rule->name, start_rule);
+
     result = lexer_rule_match(lex, rule, capture, ctx);
-    if(result == LEXER_ERROR_COMPILE) {
+
+    /*if(result == LEXER_ERROR_COMPILE) {
       ret = result;
       break;
-    } else if(result < 0) {
-      JS_ThrowInternalError(ctx, "Error matching regex /%s/", rule->expr);
-      ret = LEXER_ERROR_EXEC;
+    } else */
+    if(result < LEXER_ERROR_NOMATCH) {
+      const char* t = ((const char*[]){
+          "executing",
+          "compiling",
+      })[result - LEXER_ERROR_EXEC];
+
+      JS_ThrowInternalError(ctx, "Error %s regex /%s/", t, rule->expr);
+      fprintf(stderr, "Error %s regex /%s/\n", t, rule->expr);
+
+      ret = result;
       break;
     } else if(result > 0 && (capture[1] - capture[0]) > 0) {
-      /*printf("%s:%" PRIu32 ":%" PRIu32 " #%i %-20s - /%s/ [%zu] %.*s\n",
-             lex->loc.file,
+#ifdef DEBUG_OUTPUT
+      const char* filename = JS_AtomToCString(ctx, lex->loc.file);
+
+      printf("%s:%" PRIu32 ":%-4" PRIu32 " #%i %-20s - /%s/ [%zu] %.*s\n",
+             filename,
              lex->loc.line + 1,
              lex->loc.column + 1,
-             i,
+             (int)(rule - start),
              rule->name,
              rule->expr,
              capture[1] - capture[0],
-             capture[1] - capture[0],
-             capture[0]); */
+             (int)(capture[1] - capture[0]),
+             capture[0]);
+      JS_FreeCString(ctx, filename);
+#endif
+
       if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 || (size_t)(capture[1] - capture[0]) > len) {
-        ret = i;
+        ret = rule - start;
         len = capture[1] - capture[0];
         if(lex->mode == LEXER_FIRST)
           break;
       }
     }
   }
+
   if(ret >= 0) {
     lex->byte_length = len;
     lex->token_id = ret;
+  } else {
+    lex->byte_length = 0;
+    lex->token_id = -1;
   }
 
   return ret;
 }
 
-static inline size_t
+/*static inline size_t
 input_skip(InputBuffer* input, size_t end, Location* loc) {
   size_t n = 0;
   while(input->pos < end) {
@@ -384,47 +404,71 @@ input_skip(InputBuffer* input, size_t end, Location* loc) {
     n++;
   }
   return n;
+}*/
+
+size_t
+lexer_skip_n(Lexer* lex, size_t bytes) {
+  size_t len;
+
+  assert(bytes <= lex->size - lex->pos);
+
+  len = location_count(&lex->loc, &lex->data[lex->pos], bytes);
+  lex->pos += bytes;
+
+  // lexer_clear_token(lex);
+  /* lex->byte_length = 0;
+   lex->token_id = -1;*/
+
+  return len;
 }
 
 size_t
 lexer_skip(Lexer* lex) {
   size_t len;
+
+  len = lexer_skip_n(lex, lex->byte_length);
+
+  lex->seq++;
+
+  lexer_clear_token(lex);
+
+  return len;
+}
+
+void
+lexer_clear_token(Lexer* lex) {
   assert(lex->byte_length);
   assert(lex->token_id != -1);
 
-  len = location_count(&lex->loc, &lex->input.data[lex->input.pos], lex->byte_length);
-  lex->input.pos += lex->byte_length;
-
-  // len = input_skip(&lex->input, lex->input.pos + lex->byte_length, &lex->loc);
-
-  lex->seq++;
   lex->byte_length = 0;
   lex->token_id = -1;
-  return len;
 }
 
 size_t
 lexer_charlen(Lexer* lex) {
   if(lex->byte_length == 0)
     return 0;
-  assert((lex->input.size - lex->input.pos) >= lex->byte_length);
-  return utf8_strlen(&lex->input.data[lex->input.pos], lex->byte_length);
+
+  assert((lex->size - lex->pos) >= lex->byte_length);
+
+  return utf8_strlen(&lex->data[lex->pos], lex->byte_length);
 }
 
 char*
 lexer_lexeme(Lexer* lex, size_t* lenp) {
-  // size_t len = lex->input.pos - lex->start;
-  char* s = (char*)lex->input.data + lex->input.pos;
+  char* s = (char*)lex->data + lex->pos;
+
   if(lenp)
     *lenp = lex->byte_length;
+
   return s;
 }
 
 int
-lexer_next(Lexer* lex, uint64_t state, JSContext* ctx) {
+lexer_next(Lexer* lex, JSContext* ctx) {
   int ret;
 
-  if((ret = lexer_peek(lex, state, 0, ctx)) >= 0)
+  if((ret = lexer_peek(lex, 0, ctx)) >= 0)
     lexer_skip(lex);
 
   return ret;
@@ -440,7 +484,7 @@ void
 lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
   // lex->start = loc->char_offset;
   lex->byte_length = 0;
-  lex->input.pos = loc->char_offset;
+  lex->pos = loc->char_offset;
   location_release(&lex->loc, ctx);
   location_copy(&lex->loc, loc, ctx);
 }

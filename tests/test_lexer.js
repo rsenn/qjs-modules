@@ -11,8 +11,9 @@ import CLexer from '../lib/lexer/c.js';
 import BNFLexer from '../lib/lexer/bnf.js';
 import CSVLexer from '../lib/lexer/csv.js';
 import { escape, quote, toString } from 'misc';
-import { define, curry, unique, split, extendArray, isObject, getOpt } from 'util';
+import { define, curry, unique, split, extendArray, isObject, getOpt, keys } from 'util';
 import { mmap, munmap, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_SHARED, MAP_ANONYMOUS } from 'mmap';
+import { TryCatch } from '../lib/parser/ebnf.js';
 
 let buffers = {},
   modules = {};
@@ -217,7 +218,7 @@ function main(...args) {
       breakLength: 160,
       maxStringLength: Infinity,
       maxArrayLength: Infinity,
-      compact: 1,
+      compact: false,
       stringBreakNewline: false,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
@@ -280,11 +281,15 @@ function main(...args) {
     const lexer = lex[type];
 
     console.log('lexer', lexer);
-    console.log('lexer.tokens', lexer.tokens);
+    console.log('lexer.rules', lexer.rules);
+    /*  console.log('lexer.tokens', lexer.tokens);*/
+    console.log(
+      'keys(BNFLexer.prototype,10,0).filter(n => typeof BNFLexer.prototype[n] == "function")',
+      keys(Lexer.prototype, 10, 0).filter(TryCatch(n => typeof Lexer.prototype[n] == 'function').catch(() => {}))
+    );
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
 
     log('lexer:', lexer.constructor.name);
-    log('lexer.tokens:', lexer.tokens);
     //log('lexer:', lexer[Symbol.toStringTag]);
     log('code:', code);
 
@@ -417,7 +422,7 @@ function main(...args) {
         if(newState == 'TEMPLATE' && lexer.stateDepth < stateDepth) balancers.pop();
       }
       let n = balancers.last.depth;
-      tok = lexer.token;
+      if(!(tok = lexer.token)) break;
 
       if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
         lexer.popState();
@@ -491,8 +496,6 @@ function main(...args) {
     log(`took ${end - start}ms (${count} tokens)`);
     log('lexer', lexer);
     //log('tokens', tokens);
-    log('lexer.rules', lexer.rules);
-    log('lexer.tokens', lexer.tokens);
 
     std.gc();
   }

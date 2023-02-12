@@ -27,7 +27,7 @@ enum lexer_mode {
   LEXER_LONGEST = 2,
 };
 
-enum {
+enum lexer_result {
   LEXER_EOF = -1,
   LEXER_EXCEPTION = -2,
   LEXER_ERROR_NOMATCH = -3,
@@ -40,7 +40,14 @@ typedef struct lexical_scanner {
     int ref_count;
     Location loc;
   };
-  InputBuffer input;
+  union {
+    InputBuffer input;
+    struct {
+      uint8_t* data;
+      size_t size;
+      size_t pos;
+    };
+  };
   enum lexer_mode mode;
   size_t byte_length;
   int32_t token_id, state;
@@ -51,37 +58,38 @@ typedef struct lexical_scanner {
   uint64_t seq;
 } Lexer;
 
-int lexer_state_findb(Lexer*, const char*, size_t slen);
-int lexer_state_new(Lexer*, const char*, size_t len);
-int lexer_state_push(Lexer*, const char*);
+int lexer_state_findb(Lexer*, const char* state, size_t slen);
+int lexer_state_new(Lexer*, const char* name, size_t len);
+int lexer_state_push(Lexer*, const char* state);
 int lexer_state_pop(Lexer*);
-int lexer_state_top(Lexer*, int);
+int lexer_state_top(Lexer*, int i);
 char* lexer_states_skip(char*);
-void lexer_states_dump(Lexer*, uint64_t, DynBuf* dbuf);
+void lexer_states_dump(Lexer*, uint64_t mask, DynBuf* dbuf);
 char* lexer_rule_regex(LexerRule*);
-BOOL lexer_rule_expand(Lexer*, char*, DynBuf* db);
-int lexer_rule_add(Lexer*, char*, char* expr);
-LexerRule* lexer_rule_find(Lexer*, const char*);
-void lexer_rule_free(LexerRule*, JSContext*);
-void lexer_rule_free_rt(LexerRule*, JSRuntime*);
-void lexer_rule_dump(Lexer*, LexerRule*, DynBuf* dbuf);
-void lexer_init(Lexer*, enum lexer_mode, JSContext* ctx);
-void lexer_set_input(Lexer*, InputBuffer, int32_t file_atom);
-void lexer_define(Lexer*, char*, char* expr);
-LexerRule* lexer_find_definition(Lexer*, const char*, size_t namelen);
-BOOL lexer_compile_rules(Lexer*, JSContext*);
-int lexer_peek(Lexer*, uint64_t, int, JSContext* ctx);
+BOOL lexer_rule_expand(Lexer*, char* p, DynBuf* db);
+int lexer_rule_add(Lexer*, char* name, char* expr);
+LexerRule* lexer_rule_find(Lexer*, const char* name);
+void lexer_rule_free(LexerRule*, JSContext* ctx);
+void lexer_rule_free_rt(LexerRule*, JSRuntime* rt);
+void lexer_rule_dump(Lexer*, LexerRule* rule, DynBuf* dbuf);
+void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
+void lexer_define(Lexer*, char* name, char* expr);
+LexerRule* lexer_find_definition(Lexer*, const char* name, size_t namelen);
+BOOL lexer_compile_rules(Lexer*, JSContext* ctx);
+int lexer_peek(Lexer*, /* uint64_t state,*/ unsigned start_rule, JSContext* ctx);
+size_t lexer_skip_n(Lexer*, size_t bytes);
 size_t lexer_skip(Lexer*);
 size_t lexer_charlen(Lexer*);
-char* lexer_lexeme(Lexer*, size_t*);
-int lexer_next(Lexer*, uint64_t, JSContext* ctx);
-void lexer_set_location(Lexer*, const Location*, JSContext* ctx);
-void lexer_release(Lexer*, JSContext*);
-void lexer_free(Lexer*, JSContext*);
-void lexer_release_rt(Lexer*, JSRuntime*);
-void lexer_free_rt(Lexer*, JSRuntime*);
-
-void lexer_dump(Lexer*, DynBuf*);
+void lexer_clear_token(Lexer*);
+char* lexer_lexeme(Lexer*, size_t* lenp);
+int lexer_next(Lexer*, JSContext* ctx);
+void lexer_set_input(Lexer*, InputBuffer input, int32_t file_atom);
+void lexer_set_location(Lexer*, const Location* loc, JSContext* ctx);
+void lexer_release(Lexer*, JSContext* ctx);
+void lexer_free(Lexer*, JSContext* ctx);
+void lexer_release_rt(Lexer*, JSRuntime* rt);
+void lexer_free_rt(Lexer*, JSRuntime* rt);
+void lexer_dump(Lexer*, DynBuf* dbuf);
 
 static inline Lexer*
 lexer_dup(Lexer* lex) {

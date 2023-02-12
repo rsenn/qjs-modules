@@ -1,5 +1,5 @@
-//%token   WORD
-//%token   ASSIGNMENT_WORD
+%token   WORD
+%token   ASSIGNMENT_WORD
 %token   NAME
 %token   NEWLINE
 %token   IO_NUMBER
