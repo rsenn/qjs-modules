@@ -345,6 +345,8 @@ function ListExports(file, output) {
     let n = balancers.last.depth;
     tok = lexer.token;
 
+    if(tok == null) break;
+
     if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
     } else {
