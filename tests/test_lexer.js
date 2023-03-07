@@ -218,7 +218,7 @@ function main(...args) {
       breakLength: 160,
       maxStringLength: Infinity,
       maxArrayLength: Infinity,
-      compact: false,
+      compact: 1,
       stringBreakNewline: false,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
@@ -233,6 +233,7 @@ function main(...args) {
   let params = getOpt(
     {
       output: [true, null, 'o'],
+      recursive: [false, null, 'r'],
       debug: [false, () => (debug = (debug | 0) + 1), 'x'],
       '@': 'file'
     },
@@ -281,12 +282,12 @@ function main(...args) {
     const lexer = lex[type];
 
     console.log('lexer', lexer);
-    console.log('lexer.rules', lexer.rules);
-    /*  console.log('lexer.tokens', lexer.tokens);*/
-    console.log(
+    //console.log('lexer.rules', lexer.rules);
+
+    /*console.log(
       'keys(BNFLexer.prototype,10,0).filter(n => typeof BNFLexer.prototype[n] == "function")',
       keys(Lexer.prototype, 10, 0).filter(TryCatch(n => typeof Lexer.prototype[n] == 'function').catch(() => {}))
-    );
+    );*/
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
 
     log('lexer:', lexer.constructor.name);
@@ -473,9 +474,9 @@ function main(...args) {
     buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
     log(`splitPoints`, splitPoints);
     //log(`buffers[${file}]`, buffers[file]);
-    log(`buffers[${file}] len`, BufferLengths(file));
+    /*log(`buffers[${file}] len`, BufferLengths(file));
     log(`buffers[${file}] ofs`, BufferOffsets(file));
-    log(`buffers[${file}] rng`, BufferRanges(file));
+    log(`buffers[${file}] rng`, BufferRanges(file));*/
     log(
       'fileImports',
       fileImports.map(imp => imp.file)
@@ -483,13 +484,14 @@ function main(...args) {
 
     let dir = path.dirname(file);
 
-    fileImports.forEach(imp => {
-      let p = path.collapse(path.join(dir, imp.file));
-      log('p', p);
+    if(params.recursive)
+      fileImports.forEach(imp => {
+        let p = path.collapse(path.join(dir, imp.file));
+        log('p', p);
 
-      AddUnique(files, p);
-      //    let f = BufferFile(p);
-    });
+        AddUnique(files, p);
+        //    let f = BufferFile(p);
+      });
 
     let end = Date.now();
 
