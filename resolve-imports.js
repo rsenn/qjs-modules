@@ -1486,7 +1486,7 @@ function main(...args) {
       quiet: [false, null, 'q'],
       export: [false, () => (exp = true), 'e'],
       imports: [false, () => (onlyImports = true), 'i'],
-      'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
+      'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'R'],
       output: [true, file => (outputFile = file), 'o'],
       recursive: [false, () => (recursive = true), 'r'],
       'no-recursive': [false, () => (recursive = false), 'R'],

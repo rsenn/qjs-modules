@@ -224,7 +224,10 @@ function main(...args) {
     {
       output: [true, null, 'o'],
       recursive: [false, null, 'r'],
-      filter: [true, null, 'i'],
+      include: [true, null, 'i'],
+      exclude: [true, null, 'x'],
+      outputImps: [false, null, 'I'],
+      outputText: [false, null, 'T'],
       debug: [false, () => (debug = (debug | 0) + 1), 'x'],
       '@': 'file'
     },
@@ -274,32 +277,56 @@ function main(...args) {
       declarations = [];
     const colSizes = [12, 8, 4, 20, 32, 10, 0];
 
-    let filter = ((params.filter ?? '') + '')
+    let include = ((params.include ?? '') + '')
       .split(/[,\s]+/g)
       .filter(i => i in lexer.rules || !isNaN(+i))
       .map(i => (i in lexer.rules ? lexer.rules[i] : i));
-    const printTok =
-      debug || (filter && filter.length > 0)
-        ? (tok, prefix) => {
-            const range = tok.charRange;
-            const [start, end] = tok.charRange;
-            let s = toString(str).slice(start, end);
 
-            const cols = [
-              prefix,
-              `tok[${tok.byteLength}]`,
-              tok.id,
-              tok.type,
-              tok.lexeme,
-              tok.lexeme.length,
-              tok.loc,
-              ` '${s}'`
-            ];
-            std.out.puts(
-              cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
-            );
+    let exclude = ((params.exclude ?? '') + '')
+      .split(/[,\s]+/g)
+      .filter(i => i in lexer.rules || !isNaN(+i))
+      .map(i => (i in lexer.rules ? lexer.rules[i] : i));
+
+    let match =
+      include.length + exclude.length > 0
+        ? id => {
+            if(exclude.contains(id)) return false;
+
+            //  return (include.length == 0 || include.contains(id)) && !exclude.contains(id);
+            return include.contains(id) || exclude.length > 0;
           }
-        : () => {};
+        : null;
+
+    log('include', include);
+    log('exclude', exclude);
+    log('match', match);
+
+    const printTok = params.outputText
+      ? (tok, prefix) => {
+          std.puts(tok.lexeme);
+        }
+      : debug || match
+      ? (tok, prefix) => {
+          const range = tok.charRange;
+          const [start, end] = tok.charRange;
+          let s = toString(str).slice(start, end);
+
+          const cols = [
+            prefix,
+            `tok[${tok.byteLength}]`,
+            tok.id,
+            tok.type,
+            tok.lexeme,
+            tok.lexeme.length,
+            tok.loc,
+            ` '${s}'`
+          ];
+          std.err.puts(
+            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
+          );
+        }
+      : () => {};
+
     let tok,
       i = 0;
     log('now', Date.now());
@@ -367,8 +394,10 @@ function main(...args) {
     let it = lexer[Symbol.iterator]();
 
     console.log('it', it);
-    console.log('params.filter', params.filter);
-    console.log('filter', filter);
+    console.log('include', include);
+    console.log('exclude', exclude);
+    console.log('match', match);
+    console.log('match(0)', match(0));
     for(;;) {
       let { stateDepth } = lexer;
       let nextTok = it.next();
@@ -405,7 +434,7 @@ function main(...args) {
             if(impexp == What.EXPORT) exports.push(AddExport(imp));
           }
         }
-        if(filter && filter.length > 0 ? filter.contains(tok.id) : tok.type != 'whitespace') printTok(tok, newState);
+        if(match ? match(tok.id) : tok.type != 'whitespace') printTok(tok, newState);
         tokens.push(tok);
       }
       state = newState;
@@ -416,7 +445,8 @@ function main(...args) {
     log('Export names', exportNames);
     log('ES6 imports', imports.map(PrintES6Import));
     log('CJS imports', imports.map(PrintCJSImport));
-    std.puts(`import { ${exportNames.join(', ')} } from '${file}'\n`);
+
+    if(params.outputImps) std.puts(`import { ${exportNames.join(', ')} } from '${file}'\n`);
 
     modules[file] = { imports, exports };
     let fileImports = imports.filter(imp => /\.js$/i.test(imp.file));

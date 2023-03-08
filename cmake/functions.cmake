@@ -125,6 +125,9 @@ endfunction(ADD_UNIQUE LIST)
 
 macro(SYMLINK TARGET LINK_NAME)
   install(
-    CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} ${LINK_NAME})"
+    CODE "
+message(\"Create symlink '$ENV{DESTDIR}${LINK_NAME}' to '${TARGET}'\")
+execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} $ENV{DESTDIR}${LINK_NAME})
+"
   )
 endmacro(SYMLINK TARGET LINK_NAME)

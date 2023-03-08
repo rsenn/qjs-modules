@@ -237,8 +237,7 @@ macro(configure_quickjs)
     set(QUICKJS_LIBRARY quickjs)
   endif(NOT QUICKJS_LIBRARY)
 
-  set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}
-                                -Wl,-rpath=${QUICKJS_C_MODULE_DIR})
+  #set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath=${QUICKJS_C_MODULE_DIR})
 
 endmacro(configure_quickjs)
 
