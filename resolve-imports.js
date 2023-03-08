@@ -745,23 +745,19 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
           loc: loc + ''
         });
 
-      //  if(bufstr == ' ') throw new Error(`bufstr = ' ' loc: ${loc} ${loc.byteOffset} range: ${range} code: ` + toString(bytebuf.slice(loc.byteOffset, range[1] + 10)));
       if(typeof file == 'string' && !path.isFile(file)) {
         if(debug > 1) console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
         if(printFiles) std.puts(file + '\n');
 
         replacement = null;
-        //  header.push(impexp);
       } else if(file && path.isFile(file)) {
         replacement = file;
-        // header.push(impexp);
       } else if(
         (typeof replacement == 'string' && !path.isFile(replacement)) ||
         type == What.IMPORT ||
         typeof file == 'string'
       ) {
         replacement = null;
-        //  header.push(impexp);
       } else if(code.startsWith('export')) {
         if(!removeExports) continue;
         replacement = file;
@@ -787,8 +783,8 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     }
   }
 
-  //  debugLog('comments', comments.map(({byteRange, lexeme})=>[byteRange,lexeme,toString(bytebuf.slice(...byteRange))]));
-  //
+  //ebugLog('comments', comments.map(({byteRange, lexeme})=>[byteRange,lexeme,toString(bytebuf.slice(...byteRange))]));
+
   if(removeComments && comments.length) {
     i = -1;
     debugLog(`Removing ${comments.length} comments from '${source}'`);
@@ -835,11 +831,15 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       ProcessFile(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
     }
   }
+
   std.gc();
+
   if(showDeps) {
     let deps = [...DependencyTree(source, ' ', false, 0, '    ')];
     console.log(`Dependencies of '${source}':\n${SpreadAndJoin(deps)}`);
+    //console.log(`dependencyMap`,[...dependencyMap]);
   }
+
   return map;
 }
 
@@ -1436,7 +1436,7 @@ function main(...args) {
       stringBreakNewline: true,
       maxStringLength: 1000,
       maxArrayLength: 100,
-      compact: false,
+      compact: 1,
       hideKeys: [Symbol.toStringTag /*, 'code'*/]
     }
   });
@@ -1496,6 +1496,7 @@ function main(...args) {
       'global-exports': [false, () => ++globalExports, 'G'],
       'show-dependencies': [false, () => ++showDeps, 'd'],
       'print-files': [false, () => (printFiles = true), 'l'],
+      'no-print-files': [false, () => (printFiles = false), 'L'],
       'read-package': [false, () => (readPackage = true), 'p'],
       'no-read-package': [false, () => (readPackage = false), 'P'],
       userscript: [false, () => (userScript = true), 'U'],
@@ -1529,12 +1530,12 @@ function main(...args) {
 
   if(/check-import/.test(scriptArgs[0])) {
     identifiersUsed = memoize(arg => new Set());
-    printFiles = false;
+    if(printFiles === undefined) printFiles = false;
     onlyImports = false;
     outputFile = null;
     out = DummyWriter('/dev/null');
   } else if(/list-import/.test(scriptArgs[0])) {
-    printFiles = true;
+    if(printFiles === undefined) printFiles = true;
     quiet = true;
     onlyImports = true;
     outputFile = null;
