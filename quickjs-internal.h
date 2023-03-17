@@ -753,12 +753,6 @@ typedef struct JSAsyncGeneratorData {
   struct list_head queue; /* list of JSAsyncGeneratorRequest.link */
 } JSAsyncGeneratorData;
 
-typedef enum JSPromiseStateEnum {
-  JS_PROMISE_PENDING,
-  JS_PROMISE_FULFILLED,
-  JS_PROMISE_REJECTED,
-} JSPromiseStateEnum;
-
 typedef struct JSPromiseData {
   JSPromiseStateEnum promise_state;
   /* 0=fulfill, 1=reject, list of JSPromiseReactionData.link */
