@@ -428,7 +428,7 @@ static JSValue
 js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock dst = {0, 0}, src = {0, 0};
   OffsetLength s_offs, d_offs;
-
+  size_t n;
   int i = 0;
 
   if(!block_arraybuffer(&dst, argv[0], ctx))
@@ -453,14 +453,10 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
    src.size -= d_offs.offset;
    src.size = MIN_NUM(src.size, d_offs.length);*/
 
-  {
-    size_t n = MIN_NUM(offset_size(&d_offs, block_length(&dst)), offset_size(&s_offs, block_length(&src)));
+  if((n = MIN_NUM(offset_size(&d_offs, block_length(&dst)), offset_size(&s_offs, block_length(&src)))))
+    memcpy(offset_data(&d_offs, block_data(&dst)), offset_data(&s_offs, block_data(&src)), n);
 
-    if(n)
-      memcpy(offset_data(&d_offs, block_data(&dst)), offset_data(&s_offs, block_data(&src)), n);
-
-    return JS_NewInt64(ctx, n);
-  }
+  return JS_NewInt64(ctx, n);
 }
 
 #ifdef HAVE_FMEMOPEN
@@ -1862,6 +1858,8 @@ enum {
   IS_BIGINT,
   IS_BOOL,
   IS_CFUNCTION,
+  IS_BOUNDFUNCTION,
+  IS_JSFUNCTION,
   IS_CONSTRUCTOR,
   IS_EMPTYSTRING,
   IS_ERROR,
@@ -1897,6 +1895,8 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_BIGINT: r = JS_IsBigInt(ctx, arg); break;
     case IS_BOOL: r = JS_IsBool(arg); break;
     case IS_CFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_C_FUNCTION; break;
+    case IS_BOUNDFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_BOUND_FUNCTION; break;
+    case IS_JSFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_BYTECODE_FUNCTION; break;
     case IS_CONSTRUCTOR: r = JS_IsConstructor(ctx, arg); break;
     case IS_EMPTYSTRING: r = JS_VALUE_GET_TAG(arg) == JS_TAG_STRING && JS_VALUE_GET_STRING(arg)->len == 0; break;
     case IS_ERROR: r = JS_IsError(ctx, arg); break;
@@ -2303,6 +2303,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isBigInt", 1, js_misc_is, IS_BIGINT),
     JS_CFUNC_MAGIC_DEF("isBool", 1, js_misc_is, IS_BOOL),
     JS_CFUNC_MAGIC_DEF("isCFunction", 1, js_misc_is, IS_CFUNCTION),
+    JS_CFUNC_MAGIC_DEF("isBoundFunction", 1, js_misc_is, IS_BOUNDFUNCTION),
+    JS_CFUNC_MAGIC_DEF("isJSFunction", 1, js_misc_is, IS_JSFUNCTION),
     JS_CFUNC_MAGIC_DEF("isConstructor", 1, js_misc_is, IS_CONSTRUCTOR),
     JS_CFUNC_MAGIC_DEF("isEmptyString", 1, js_misc_is, IS_EMPTYSTRING),
     JS_CFUNC_MAGIC_DEF("isError", 1, js_misc_is, IS_ERROR),

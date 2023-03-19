@@ -808,8 +808,8 @@ js_inspect_print_error(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
         size_t next = ll + scan_lineskip(&p[ll], e - p - ll);
 
         inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
-        dbuf_put(buf, "|", 1);
-        dbuf_put(buf, p, ll);
+        dbuf_put(buf, (const uint8_t*)"|", 1);
+        dbuf_put(buf, (const uint8_t*)p, ll);
 
         p += next;
       }

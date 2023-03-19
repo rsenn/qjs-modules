@@ -387,8 +387,13 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
   val = js_eval_file(ctx, file, module);
   jsm_stack_pop(ctx);
   if(JS_IsException(val)) {
-    JSValue stack = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack");
-    fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, strerror(errno), js_value_typestr(ctx, stack));
+    JSValue stack = JS_IsObject(ctx->rt->current_exception) ? JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack") : JS_UNDEFINED;
+    const char* msg = JS_ToCString(ctx, ctx->rt->current_exception);
+    fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, msg, js_value_typestr(ctx, stack));
+
+    if(msg)
+      JS_FreeCString(ctx, msg);
+
     js_error_print(ctx, ctx->rt->current_exception);
     js_value_fwrite(ctx, ctx->rt->current_exception, stderr);
     js_std_dump_error(ctx);
