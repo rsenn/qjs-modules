@@ -10,9 +10,10 @@ struct mysql;
 
 #include <quickjs.h>
 #include <cutils.h>
+#include <mariadb/mysql.h>
 
-struct mysql* js_mysql_data(JSContext*, JSValue value);
-struct mysql_entry* js_mysqlresult_data(JSContext*, JSValue value);
+struct MYSQL* js_mysql_data(JSContext*, JSValue value);
+struct MYSQL_RES* js_mysqlresult_data(JSContext*, JSValue value);
 int js_mysql_init(JSContext*, JSModuleDef* m);
 JSModuleDef* js_init_module_mysql(JSContext*, const char* module_name);
 

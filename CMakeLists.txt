@@ -15,6 +15,7 @@ option(DO_TESTS "Perform tests" ON)
 option(USE_SPAWN "Use POSIX spawn()" OFF)
 option(USE_LIBARCHIVE "Use libarchive" ON)
 option(USE_LIBMAGIC "Use libmagic" ON)
+option(USE_MARIADBCLIENT "Use mariadb client" OFF)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
@@ -41,6 +42,8 @@ if(DEBUG_ALLOC)
   add_definitions(-DDEBUG_ALLOC)
   #add_definitions(-include lib/debug.h)
 endif(DEBUG_ALLOC)
+
+include(FindPkgConfig)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
@@ -277,7 +280,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
-    bjson blob deep directory lexer list location  ${magic_MODULE} misc mysql path
+    bjson blob deep directory lexer list location  ${magic_MODULE} misc  path
     pointer predicate repeater textcode serial sockets stream syscallerror
     inspect tree-walker xml)
 
@@ -334,6 +337,18 @@ if(USE_LIBMAGIC)
 else(USE_LIBMAGIC)
   set(magic_MODULE)
 endif(USE_LIBMAGIC)
+
+
+if(USE_MARIADBCLIENT)
+    pkg_check_modules(MARIADB libmariadb mariadb)
+
+
+  set(MARIADBCLIENT_LIBRARY ${pkgcfg_lib_MARIADB_mariadb})
+
+  list(APPEND QUICKJS_MODULES mysql)
+
+endif(USE_MARIADBCLIENT)
+
 
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} child-process)

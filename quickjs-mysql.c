@@ -1,11 +1,8 @@
 #include "defines.h"
-#include <mysql/mysql.h>
 #include "quickjs-mysql.h"
-#include "utils.h"
-#include "debug.h"
 
 /**
- * \addtogroup quickjs-mysql
+ * \addtogroup quickjs-MYSQL
  * @{
  */
 
@@ -65,11 +62,11 @@ enum {
   ENTRY_UNAME
 };
 
-static JSValue js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, struct mysql_entry* ent);
-static JSValue js_mysqlresult_wrap(JSContext* ctx, struct mysql_entry* ent);
+static JSValue js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, struct MYSQL_RES* ent);
+static JSValue js_mysqlresult_wrap(JSContext* ctx, struct MYSQL_RES* ent);
 
 struct MySQLInstance {
-  JSValue mysql;
+  JSValue MYSQL;
 };
 struct MySQLResultRef {
   JSContext* ctx;
@@ -79,7 +76,7 @@ struct MySQLResultRef {
 static void
 js_mysql_free_buffer(JSRuntime* rt, void* opaque, void* ptr) {
   struct MySQLInstance* ainst = opaque;
-  JS_FreeValueRT(rt, ainst->mysql);
+  JS_FreeValueRT(rt, ainst->MYSQL);
   js_free_rt(rt, ainst);
 }
 
@@ -91,15 +88,15 @@ js_mysql_progress_callback(void* opaque) {
   JS_FreeValue(aeref->ctx, ret);
 }
 
-struct mysql*
+struct MYSQL*
 js_mysql_data(JSContext* ctx, JSValueConst value) {
-  struct mysql* ar;
+  struct MYSQL* ar;
   ar = JS_GetOpaque2(ctx, value, js_mysql_class_id);
   return ar;
 }
 
 static JSValue
-js_mysql_wrap_proto(JSContext* ctx, JSValueConst proto, struct mysql* ar) {
+js_mysql_wrap_proto(JSContext* ctx, JSValueConst proto, struct MYSQL* ar) {
   JSValue obj;
 
   if(js_mysql_class_id == 0)
@@ -122,13 +119,13 @@ fail:
 }
 
 static JSValue
-js_mysql_wrap(JSContext* ctx, struct mysql* ar) {
+js_mysql_wrap(JSContext* ctx, struct MYSQL* ar) {
   return js_mysql_wrap_proto(ctx, mysql_proto, ar);
 }
 
 static JSValue
 js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  struct mysql* ar = 0;
+  struct MYSQL* ar = 0;
   JSValue proto = JS_GetPropertyStr(ctx, this_val, "prototype");
   JSValue ret = JS_UNDEFINED;
 
@@ -141,7 +138,7 @@ js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
 static JSValue
 js_mysql_getter(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct mysql* ar;
+  struct MYSQL* ar;
   JSValue ret = JS_UNDEFINED;
 
   if(!(ar = js_mysql_data(ctx, this_val)))
@@ -155,7 +152,7 @@ js_mysql_getter(JSContext* ctx, JSValueConst this_val, int magic) {
 
 static JSValue
 js_mysql_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  struct mysql* ar;
+  struct MYSQL* ar;
   JSValue ret = JS_UNDEFINED;
 
   if(!(ar = js_mysql_data(ctx, this_val)))
@@ -199,7 +196,7 @@ js_mysql_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 static JSValue
 js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  struct mysql* ar;
+  struct MYSQL* ar;
 
   if(!(ar = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
@@ -221,7 +218,7 @@ js_mysql_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 static void
 js_mysql_finalizer(JSRuntime* rt, JSValue val) {
-  struct mysql* ar = JS_GetOpaque(val, js_mysql_class_id);
+  struct MYSQL* ar = JS_GetOpaque(val, js_mysql_class_id);
   if(ar) {
     mysql_free(ar);
   }
@@ -249,24 +246,22 @@ static const JSCFunctionListEntry js_mysql_static_funcs[] = {
        JS_PROP_INT32_DEF("SEEK_SET", SEEK_SET, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SEEK_CUR", SEEK_CUR, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SEEK_END", SEEK_END, JS_PROP_ENUMERABLE),
-   JS_CONSTANT(MYSQL_CLIENT),
 JS_CONSTANT(MYSQL_COUNT_ERROR),
 JS_CONSTANT(MYSQL_WAIT_READ),
 JS_CONSTANT(MYSQL_WAIT_WRITE),
 JS_CONSTANT(MYSQL_WAIT_EXCEPT),
 JS_CONSTANT(MYSQL_WAIT_TIMEOUT),
-JS_CONSTANT(MYSQL_CLIENT_PLUGIN_HEADER),
 };
 
-struct mysql_entry*
+struct MYSQL_RES*
 js_mysqlresult_data(JSContext* ctx, JSValueConst value) {
-  struct mysql_entry* ent;
+  struct MYSQL_RES* ent;
   ent = JS_GetOpaque2(ctx, value, js_mysqlresult_class_id);
   return ent;
 }
 
 static JSValue
-js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, struct mysql_entry* ent) {
+js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, struct MYSQL_RES* ent) {
   JSValue obj;
 
   if(js_mysql_class_id == 0)
@@ -290,13 +285,13 @@ fail:
 }
 
 static JSValue
-js_mysqlresult_wrap(JSContext* ctx, struct mysql_entry* ent) {
+js_mysqlresult_wrap(JSContext* ctx, struct MYSQL_RES* ent) {
   return js_mysqlresult_wrap_proto(ctx, mysqlresult_proto, ent);
 }
 
 static JSValue
 js_mysqlresult_getter(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct mysql_entry* ent;
+  struct MYSQL_RES* ent;
   JSValue ret = JS_UNDEFINED;
 
   if(!(ent = js_mysqlresult_data(ctx, this_val)))
@@ -310,7 +305,7 @@ js_mysqlresult_getter(JSContext* ctx, JSValueConst this_val, int magic) {
 
 static JSValue
 js_mysqlresult_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  struct mysql_entry* ent;
+  struct MYSQL_RES* ent;
   JSValue ret = JS_UNDEFINED;
 
   if(!(ent = js_mysqlresult_data(ctx, this_val)))
@@ -341,7 +336,7 @@ fail:
 
 static void
 js_mysqlresult_finalizer(JSRuntime* rt, JSValue val) {
-  struct mysql_entry* ent = JS_GetOpaque(val, js_mysqlresult_class_id);
+  struct MYSQL_RES* ent = JS_GetOpaque(val, js_mysqlresult_class_id);
   if(ent) {
     mysql_entry_free(ent);
   }
