@@ -754,7 +754,7 @@ typedef struct JSAsyncGeneratorData {
 } JSAsyncGeneratorData;
 
 typedef struct JSPromiseData {
-  /*JSPromiseStateEnum*/int promise_state;
+  /*JSPromiseStateEnum*/ int promise_state;
   /* 0=fulfill, 1=reject, list of JSPromiseReactionData.link */
   struct list_head promise_reactions[2];
   BOOL is_handled; /* Note: only useful to debug */

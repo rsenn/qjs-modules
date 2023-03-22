@@ -129,9 +129,7 @@ js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   JSValue proto = JS_GetPropertyStr(ctx, this_val, "prototype");
   JSValue ret = JS_UNDEFINED;
 
-  switch(magic) {
-   
-  }
+  switch(magic) {}
 
   return ret;
 }
@@ -144,9 +142,7 @@ js_mysql_getter(JSContext* ctx, JSValueConst this_val, int magic) {
   if(!(ar = js_mysql_data(ctx, this_val)))
     return ret;
 
-  switch(magic) {
-   
-  }
+  switch(magic) {}
   return ret;
 }
 
@@ -183,15 +179,9 @@ fail:
 }
 
 static JSValue
-js_mysql_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  
-}
-
-static JSValue
 js_mysql_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
- 
+  retuzrn JS_UNDEFINED;
 }
-
 
 static JSValue
 js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -231,26 +221,26 @@ static JSClassDef js_mysql_class = {
 };
 
 static const JSCFunctionListEntry js_mysql_funcs[] = {
-     JS_CGETSET_MAGIC_DEF("format", js_mysql_getter, 0, MYSQL_PROP_FORMAT),
+    JS_CGETSET_MAGIC_DEF("format", js_mysql_getter, 0, MYSQL_PROP_FORMAT),
     JS_CGETSET_MAGIC_DEF("compression", js_mysql_getter, 0, MYSQL_PROP_COMPRESSION),
     JS_CGETSET_MAGIC_DEF("filters", js_mysql_getter, 0, MYSQL_PROP_FILTERS),
     JS_CGETSET_MAGIC_DEF("fileCount", js_mysql_getter, 0, MYSQL_PROP_FILECOUNT),
     JS_CFUNC_DEF("read", 1, js_mysql_read),
-   JS_CFUNC_DEF("close", 0, js_mysql_close),
+    JS_CFUNC_DEF("close", 0, js_mysql_close),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_mysql_iterator),
 
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQL", JS_PROP_CONFIGURABLE),
 };
 
 static const JSCFunctionListEntry js_mysql_static_funcs[] = {
-       JS_PROP_INT32_DEF("SEEK_SET", SEEK_SET, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SEEK_SET", SEEK_SET, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SEEK_CUR", SEEK_CUR, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SEEK_END", SEEK_END, JS_PROP_ENUMERABLE),
-JS_CONSTANT(MYSQL_COUNT_ERROR),
-JS_CONSTANT(MYSQL_WAIT_READ),
-JS_CONSTANT(MYSQL_WAIT_WRITE),
-JS_CONSTANT(MYSQL_WAIT_EXCEPT),
-JS_CONSTANT(MYSQL_WAIT_TIMEOUT),
+    JS_CONSTANT(MYSQL_COUNT_ERROR),
+    JS_CONSTANT(MYSQL_WAIT_READ),
+    JS_CONSTANT(MYSQL_WAIT_WRITE),
+    JS_CONSTANT(MYSQL_WAIT_EXCEPT),
+    JS_CONSTANT(MYSQL_WAIT_TIMEOUT),
 };
 
 struct MYSQL_RES*
@@ -297,9 +287,7 @@ js_mysqlresult_getter(JSContext* ctx, JSValueConst this_val, int magic) {
   if(!(ent = js_mysqlresult_data(ctx, this_val)))
     return ret;
 
-  switch(magic) {
- 
-  }
+  switch(magic) {}
   return ret;
 }
 
@@ -311,9 +299,7 @@ js_mysqlresult_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value,
   if(!(ent = js_mysqlresult_data(ctx, this_val)))
     return ret;
 
-  switch(magic) {
-  
-  }
+  switch(magic) {}
   return ret;
 }
 
