@@ -36,6 +36,7 @@ js_mysql_wrap_proto(JSContext* ctx, JSValueConst proto, MYSQL* my) {
 
   if(js_mysql_class_id == 0)
     js_mysql_init(ctx, 0);
+
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = JS_DupValue(ctx, mysql_proto);
 
@@ -179,8 +180,40 @@ fail:
 }
 
 static JSValue
-js_mysql_connect_handler(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
-  printf("%s\n", __func__);
+js_mysql_connect_handler(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+  int32_t wr, oldstatus, status, sock;
+  MYSQL *my, *ret = 0;
+
+  if(!(my = js_mysql_data(ctx, data[1])))
+    return JS_EXCEPTION;
+
+  sock = mysql_get_socket(my);
+  JS_ToInt32(ctx, &wr, data[0]);
+
+  oldstatus = wr ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
+
+  status = mysql_real_connect_cont(&ret, my, oldstatus);
+
+  if(status == 0) {
+    js_iohandler_set(ctx, data[2], sock, JS_NULL);
+
+    JS_Call(ctx, data[3], JS_UNDEFINED, 1, &data[1]);
+  } else if(status != oldstatus) {
+    JSValue handler, hdata[5] = {
+                         JS_NewInt32(ctx, wr),
+                         JS_DupValue(ctx, data[1]),
+                         js_iohandler_fn(ctx, !!(status & MYSQL_WAIT_WRITE)),
+                         JS_DupValue(ctx, data[3]),
+                         JS_DupValue(ctx, data[4]),
+                     };
+    handler = JS_NewCFunctionData(ctx, js_mysql_connect_handler, 0, 0, countof(hdata), hdata);
+
+    js_iohandler_set(ctx, data[2], sock, JS_NULL);
+    js_iohandler_set(ctx, hdata[2], sock, handler);
+    JS_FreeValue(ctx, handler);
+  }
+
+  // DEBUG("%s wr=%i sock=%i status=%i my=%p ret=%p error=%s\n", __func__, wr, sock, status, my, ret, mysql_error(my));
 
   return JS_UNDEFINED;
 }
@@ -199,18 +232,18 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(argc >= 1 && JS_IsString(argv[0]))
     host = JS_ToCString(ctx, argv[0]);
-  if(argc >= 2 && JS_IsString(argv[2]))
-    user = JS_ToCString(ctx, argv[2]);
-  if(argc >= 3 && JS_IsString(argv[3]))
-    password = JS_ToCString(ctx, argv[3]);
-  if(argc >= 4 && JS_IsString(argv[4]))
-    db = JS_ToCString(ctx, argv[4]);
-  if(argc >= 5 && JS_IsNumber(argv[5]))
-    JS_ToUint32(ctx, &port, argv[5]);
-  if(argc >= 6 && JS_IsString(argv[6]))
-    unix_socket = JS_ToCString(ctx, argv[6]);
-  if(argc >= 7 && JS_IsNumber(argv[7]))
-    JS_ToInt64(ctx, &client_flags, argv[7]);
+  if(argc >= 2 && JS_IsString(argv[1]))
+    user = JS_ToCString(ctx, argv[1]);
+  if(argc >= 3 && JS_IsString(argv[2]))
+    password = JS_ToCString(ctx, argv[2]);
+  if(argc >= 4 && JS_IsString(argv[3]))
+    db = JS_ToCString(ctx, argv[3]);
+  if(argc >= 5 && JS_IsNumber(argv[4]))
+    JS_ToUint32(ctx, &port, argv[4]);
+  if(argc >= 6 && JS_IsString(argv[5]))
+    unix_socket = JS_ToCString(ctx, argv[5]);
+  if(argc >= 7 && JS_IsNumber(argv[6]))
+    JS_ToInt64(ctx, &client_flags, argv[6]);
 
   result = mysql_real_connect_start(&ret, my, host, user, password, db, port, unix_socket, client_flags);
   printf("%s result=%d\n", __func__, result);
@@ -224,6 +257,100 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   data[2] = js_iohandler_fn(ctx, wr);
 
   handler = JS_NewCFunctionData(ctx, js_mysql_connect_handler, 0, 0, countof(data), data);
+
+  if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler)) {
+    JS_FreeValue(ctx, JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0));
+    // return JS_ThrowInternalError(ctx, "failed setting %s handler", wr ? "write" : "read");
+  }
+
+  if(host)
+    JS_FreeCString(ctx, host);
+  if(user)
+    JS_FreeCString(ctx, user);
+  if(password)
+    JS_FreeCString(ctx, password);
+  if(db)
+    JS_FreeCString(ctx, db);
+  if(unix_socket)
+    JS_FreeCString(ctx, unix_socket);
+
+  return promise;
+}
+
+static JSValue
+js_mysql_query_handler(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+  int32_t wr, oldstatus, status, sock;
+  int ret = 0;
+  MYSQL* my = 0;
+
+  if(!(my = js_mysql_data(ctx, data[1])))
+    return JS_EXCEPTION;
+
+  sock = mysql_get_socket(my);
+  JS_ToInt32(ctx, &wr, data[0]);
+
+  oldstatus = wr ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
+
+  status = mysql_real_query_cont(&ret, my, oldstatus);
+
+  if(status == 0) {
+    js_iohandler_set(ctx, data[2], sock, JS_NULL);
+
+    MYSQL_RES* res = mysql_use_result(my);
+    JSValue res_val = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
+
+    if(res)
+      JS_DefinePropertyValueStr(ctx, res_val, "mysql", JS_DupValue(ctx, data[1]), JS_PROP_CONFIGURABLE);
+
+    JS_Call(ctx, data[3], JS_UNDEFINED, 1, &res_val);
+    JS_FreeValue(ctx, res_val);
+
+  } else if(status != oldstatus) {
+    JSValue handler, hdata[5] = {
+                         JS_NewInt32(ctx, wr),
+                         JS_DupValue(ctx, data[1]),
+                         js_iohandler_fn(ctx, !!(status & MYSQL_WAIT_WRITE)),
+                         JS_DupValue(ctx, data[3]),
+                         JS_DupValue(ctx, data[4]),
+                     };
+    handler = JS_NewCFunctionData(ctx, js_mysql_query_handler, 0, 0, countof(hdata), hdata);
+
+    js_iohandler_set(ctx, data[2], sock, JS_NULL);
+    js_iohandler_set(ctx, hdata[2], sock, handler);
+    JS_FreeValue(ctx, handler);
+  }
+
+  // DEBUG("%s wr=%i sock=%i status=%i my=%p ret=%p error=%s\n", __func__, wr, sock, status, my, ret, mysql_error(my));
+
+  return JS_UNDEFINED;
+}
+
+static JSValue
+js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue promise = JS_UNDEFINED, data[5], handler;
+  const char* query = 0;
+  size_t query_len;
+  MYSQL* my;
+  int result, ret = 0;
+
+  if(!(my = js_mysql_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  query = JS_ToCStringLen(ctx, &query_len, argv[0]);
+
+  result = mysql_real_query_start(&ret, my, query, query_len);
+
+  printf("%s result=%d\n", __func__, result);
+
+  BOOL wr = !!(result & MYSQL_WAIT_WRITE);
+
+  promise = JS_NewPromiseCapability(ctx, &data[3]);
+
+  data[0] = JS_NewInt32(ctx, wr);
+  data[1] = JS_DupValue(ctx, this_val);
+  data[2] = js_iohandler_fn(ctx, wr);
+
+  handler = JS_NewCFunctionData(ctx, js_mysql_query_handler, 0, 0, countof(data), data);
 
   if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler)) {
     JS_FreeValue(ctx, JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0));
@@ -283,6 +410,7 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CGETSET_MAGIC_DEF("timeoutValueMs", js_mysql_getter, 0, PROP_TIMEOUT_VALUE_MS),
     JS_CGETSET_MAGIC_DEF("serverName", js_mysql_getter, 0, PROP_SERVER_NAME),
     JS_CFUNC_DEF("connect", 1, js_mysql_connect),
+    JS_CFUNC_DEF("query", 1, js_mysql_query),
     JS_CFUNC_DEF("close", 0, js_mysql_close),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_mysql_iterator),
 
@@ -356,14 +484,13 @@ static JSValue
 js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, MYSQL_RES* res) {
   JSValue obj;
 
-  if(js_mysql_class_id == 0)
+  if(js_mysqlresult_class_id == 0)
     js_mysql_init(ctx, 0);
 
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = mysqlresult_proto;
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_mysqlresult_class_id);
   if(JS_IsException(obj))
     goto fail;
@@ -393,7 +520,7 @@ js_mysqlresult_getter(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue ret = JS_UNDEFINED;
 
   if(!(res = js_mysqlresult_data(ctx, this_val)))
-    return ret;
+    return JS_EXCEPTION;
 
   switch(magic) {
     case PROP_EOF: {
@@ -424,6 +551,117 @@ js_mysqlresult_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value,
   return ret;
 }
 
+static void
+js_mysqlresult_yield(JSContext* ctx, JSValueConst resolve, MYSQL_ROW row) {
+  JSValue result, rowval = JS_UNDEFINED;
+
+  if(row) {
+    uint32_t i;
+    rowval = JS_NewArray(ctx);
+
+    for(i = 0; row[i]; i++) JS_SetPropertyUint32(ctx, rowval, i, JS_NewString(ctx, row[i]));
+  }
+
+  result = js_iterator_result(ctx, rowval, row ? FALSE : TRUE);
+
+  JS_Call(ctx, resolve, JS_UNDEFINED, 1, &result);
+
+  JS_FreeValue(ctx, result);
+  JS_FreeValue(ctx, rowval);
+}
+
+static JSValue
+js_mysqlresult_next_handler(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+  int32_t wr, oldstatus, status, sock;
+  MYSQL_ROW row;
+  JSValue my_val;
+  MYSQL_RES* res;
+  MYSQL* my = 0;
+
+  my_val = JS_GetPropertyStr(ctx, data[1], "mysql");
+  if(!(my = js_mysql_data(ctx, my_val)))
+    return JS_EXCEPTION;
+  JS_FreeValue(ctx, my_val);
+
+  if(!(res = js_mysqlresult_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  sock = mysql_get_socket(my);
+  JS_ToInt32(ctx, &wr, data[0]);
+
+  oldstatus = wr ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
+
+  status = mysql_fetch_row_cont(&row, res, oldstatus);
+
+  if(status == 0) {
+    js_iohandler_set(ctx, data[2], sock, JS_NULL);
+
+    js_mysqlresult_yield(ctx, data[3], row);
+
+  } else if(status != oldstatus) {
+    JSValue handler, hdata[5] = {
+                         JS_NewInt32(ctx, wr),
+                         JS_DupValue(ctx, data[1]),
+                         js_iohandler_fn(ctx, !!(status & MYSQL_WAIT_WRITE)),
+                         JS_DupValue(ctx, data[3]),
+                         JS_DupValue(ctx, data[4]),
+                     };
+    handler = JS_NewCFunctionData(ctx, js_mysqlresult_next_handler, 0, 0, countof(hdata), hdata);
+
+    js_iohandler_set(ctx, data[2], sock, JS_NULL);
+    js_iohandler_set(ctx, hdata[2], sock, handler);
+    JS_FreeValue(ctx, handler);
+  }
+
+  printf("%s wr=%i sock=%i status=%i my=%p error=%s\n", __func__, wr, sock, status, my, mysql_error(my));
+
+  return JS_UNDEFINED;
+}
+
+static JSValue
+js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[] /*, BOOL* pdone, int magic*/) {
+  JSValue my_val, promise = JS_UNDEFINED, data[5], handler;
+  int64_t client_flags = 0;
+  MYSQL* my;
+  MYSQL_RES* res;
+  MYSQL_ROW row;
+  int status;
+
+  my_val = JS_GetPropertyStr(ctx, this_val, "mysql");
+  if(!(my = js_mysql_data(ctx, my_val)))
+    return JS_EXCEPTION;
+  JS_FreeValue(ctx, my_val);
+
+  if(!(res = js_mysqlresult_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  status = mysql_fetch_row_start(&row, res);
+
+  printf("%s status=%d\n", __func__, status);
+
+  BOOL wr = !!(status & MYSQL_WAIT_WRITE);
+
+  promise = JS_NewPromiseCapability(ctx, &data[3]);
+
+  if(status == 0) {
+    js_mysqlresult_yield(ctx, data[3], row);
+
+  } else {
+    data[0] = JS_NewInt32(ctx, wr);
+    data[1] = JS_DupValue(ctx, this_val);
+    data[2] = js_iohandler_fn(ctx, wr);
+
+    handler = JS_NewCFunctionData(ctx, js_mysqlresult_next_handler, 0, 0, countof(data), data);
+
+    if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler)) {
+      JS_FreeValue(ctx, JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0));
+      // return JS_ThrowInternalError(ctx, "failed setting %s handler", wr ? "write" : "read");
+    }
+  }
+
+  return promise;
+}
+
 static JSValue
 js_mysqlresult_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
@@ -444,6 +682,7 @@ fail:
 static void
 js_mysqlresult_finalizer(JSRuntime* rt, JSValue val) {
   MYSQL_RES* res;
+
   if((res = JS_GetOpaque(val, js_mysqlresult_class_id))) {
     mysql_free_result(res);
   }
@@ -456,9 +695,10 @@ static JSClassDef js_mysqlresult_class = {
 };
 
 static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
+    JS_CFUNC_DEF("next", 0, js_mysqlresult_next),
     JS_CGETSET_MAGIC_DEF("eof", js_mysqlresult_getter, 0, PROP_EOF),
-    JS_CGETSET_MAGIC_DEF("numRows", js_mysqlresult_getter, js_mysqlresult_setter, PROP_NUM_ROWS),
-    JS_CGETSET_MAGIC_DEF("numFields", js_mysqlresult_getter, js_mysqlresult_setter, PROP_NUM_FIELDS),
+    JS_CGETSET_MAGIC_DEF("numRows", js_mysqlresult_getter, 0, PROP_NUM_ROWS),
+    JS_CGETSET_MAGIC_DEF("numFields", js_mysqlresult_getter, 0, PROP_NUM_FIELDS),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQLResult", JS_PROP_CONFIGURABLE),
 };
 
