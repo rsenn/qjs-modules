@@ -2,7 +2,6 @@
 #define DEBUG_H
 
 #include <quickjs.h>
-#include <list.h>
 #include <cutils.h>
 #include "defines.h"
 

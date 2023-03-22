@@ -2457,6 +2457,28 @@ js_iohandler_fn(JSContext* ctx, BOOL write) {
   return set_handler;
 }
 
+BOOL
+js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst handler) {
+  JSValue ret, args[2] = {
+                   JS_NewInt32(ctx, fd),
+                   handler,
+               };
+
+  if(JS_IsException(set_handler))
+    return FALSE;
+
+  ret = JS_Call(ctx, set_handler, JS_UNDEFINED, countof(args), args);
+
+  if(JS_IsException(ret))
+    return FALSE;
+
+  JS_FreeValue(ctx, ret);
+  JS_FreeValue(ctx, set_handler);
+  JS_FreeValue(ctx, args[0]);
+
+  return TRUE;
+}
+
 static thread_local JSCFunction* readhandler_cfunc;
 
 JSCFunction*

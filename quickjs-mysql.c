@@ -1,8 +1,9 @@
 #include "defines.h"
 #include "quickjs-mysql.h"
+#include "utils.h"
 
 /**
- * \addtogroup quickjs-MYSQL
+ * \addtogroup quickjs-mysql
  * @{
  */
 
@@ -14,89 +15,23 @@ thread_local JSValue mysql_proto = {{JS_TAG_UNDEFINED}}, mysql_ctor = {{JS_TAG_U
 thread_local VISIBLE JSClassID js_mysqlresult_class_id = 0;
 thread_local JSValue mysqlresult_proto = {{JS_TAG_UNDEFINED}}, mysqlresult_ctor = {{JS_TAG_UNDEFINED}};
 
-enum {
-  MYSQL_METHOD_READ,
-  MYSQL_METHOD_WRITE,
-  MYSQL_METHOD_READFILE,
-  MYSQL_METHOD_WRITEFILE,
-};
-enum {
-  MYSQL_PROP_FORMAT,
-  MYSQL_PROP_COMPRESSION,
-  MYSQL_PROP_FILTERS,
-  MYSQL_PROP_FILECOUNT,
+static JSValue js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, MYSQL_RES* res);
+static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
+
+struct MySQLOperation {
+  int status;
+  JSValue resolve, reject;
 };
 
-enum {
-  MYSQLRESULT_METHOD_READ,
-  MYSQLRESULT_METHOD_WRITE,
-  MYSQLRESULT_METHOD_READFILE,
-  MYSQLRESULT_METHOD_WRITEFILE,
-};
-enum {
-  ENTRY_ATIME,
-  ENTRY_BIRTHTIME,
-  ENTRY_CTIME,
-  ENTRY_DEV,
-  ENTRY_DEVMAJOR,
-  ENTRY_DEVMINOR,
-  ENTRY_FILETYPE,
-  ENTRY_FFLAGS,
-  ENTRY_GID,
-  ENTRY_GNAME,
-  ENTRY_HARDLINK,
-  ENTRY_INO,
-  ENTRY_INO64,
-  ENTRY_LINK,
-  ENTRY_MODE,
-  ENTRY_MTIME,
-  ENTRY_NLINK,
-  ENTRY_PATHNAME,
-  ENTRY_PERM,
-  ENTRY_RDEV,
-  ENTRY_RDEVMAJOR,
-  ENTRY_RDEVMINOR,
-  ENTRY_SIZE,
-  ENTRY_SYMLINK,
-  ENTRY_UID,
-  ENTRY_UNAME
-};
-
-static JSValue js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, struct MYSQL_RES* ent);
-static JSValue js_mysqlresult_wrap(JSContext* ctx, struct MYSQL_RES* ent);
-
-struct MySQLInstance {
-  JSValue MYSQL;
-};
-struct MySQLResultRef {
-  JSContext* ctx;
-  JSValueConst callback, args[2];
-};
-
-static void
-js_mysql_free_buffer(JSRuntime* rt, void* opaque, void* ptr) {
-  struct MySQLInstance* ainst = opaque;
-  JS_FreeValueRT(rt, ainst->MYSQL);
-  js_free_rt(rt, ainst);
-}
-
-static void
-js_mysql_progress_callback(void* opaque) {
-  struct MySQLResultRef* aeref = opaque;
-
-  JSValue ret = JS_Call(aeref->ctx, aeref->callback, JS_UNDEFINED, 2, aeref->args);
-  JS_FreeValue(aeref->ctx, ret);
-}
-
-struct MYSQL*
+MYSQL*
 js_mysql_data(JSContext* ctx, JSValueConst value) {
-  struct MYSQL* ar;
-  ar = JS_GetOpaque2(ctx, value, js_mysql_class_id);
-  return ar;
+  MYSQL* my;
+  my = JS_GetOpaque2(ctx, value, js_mysql_class_id);
+  return my;
 }
 
 static JSValue
-js_mysql_wrap_proto(JSContext* ctx, JSValueConst proto, struct MYSQL* ar) {
+js_mysql_wrap_proto(JSContext* ctx, JSValueConst proto, MYSQL* my) {
   JSValue obj;
 
   if(js_mysql_class_id == 0)
@@ -104,13 +39,12 @@ js_mysql_wrap_proto(JSContext* ctx, JSValueConst proto, struct MYSQL* ar) {
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = JS_DupValue(ctx, mysql_proto);
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_mysql_class_id);
   if(JS_IsException(obj))
     goto fail;
 
-  JS_SetOpaque(obj, ar);
+  JS_SetOpaque(obj, my);
 
   return obj;
 fail:
@@ -119,13 +53,13 @@ fail:
 }
 
 static JSValue
-js_mysql_wrap(JSContext* ctx, struct MYSQL* ar) {
-  return js_mysql_wrap_proto(ctx, mysql_proto, ar);
+js_mysql_wrap(JSContext* ctx, MYSQL* my) {
+  return js_mysql_wrap_proto(ctx, mysql_proto, my);
 }
 
 static JSValue
 js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  struct MYSQL* ar = 0;
+  MYSQL* my = 0;
   JSValue proto = JS_GetPropertyStr(ctx, this_val, "prototype");
   JSValue ret = JS_UNDEFINED;
 
@@ -134,24 +68,88 @@ js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   return ret;
 }
 
+enum {
+  PROP_MORE_RESULTS,
+  PROP_AFFECTED_ROWS,
+  PROP_SOCKET,
+  PROP_INFO,
+  PROP_ERRNO,
+  PROP_ERROR,
+  PROP_INSERT_ID,
+  PROP_CHARACTER_SET,
+  PROP_TIMEOUT_VALUE,
+  PROP_TIMEOUT_VALUE_MS,
+  PROP_SERVER_NAME,
+};
+
 static JSValue
 js_mysql_getter(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct MYSQL* ar;
+  MYSQL* my;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(ar = js_mysql_data(ctx, this_val)))
+  if(!(my = js_mysql_data(ctx, this_val)))
     return ret;
 
-  switch(magic) {}
+  switch(magic) {
+    case PROP_MORE_RESULTS: {
+      ret = JS_NewBool(ctx, mysql_more_results(my));
+      break;
+    }
+    case PROP_AFFECTED_ROWS: {
+      ret = JS_NewInt64(ctx, mysql_affected_rows(my));
+      break;
+    }
+    case PROP_SOCKET: {
+      ret = JS_NewInt32(ctx, mysql_get_socket(my));
+      break;
+    }
+    case PROP_ERRNO: {
+      ret = JS_NewInt32(ctx, mysql_errno(my));
+      break;
+    }
+    case PROP_ERROR: {
+      const char* error = mysql_info(my);
+      ret = error && *error ? JS_NewString(ctx, error) : JS_NULL;
+      break;
+    }
+    case PROP_INFO: {
+      const char* info = mysql_info(my);
+      ret = info && *info ? JS_NewString(ctx, info) : JS_NULL;
+      break;
+    }
+    case PROP_INSERT_ID: {
+      ret = JS_NewInt64(ctx, mysql_insert_id(my));
+      break;
+    }
+    case PROP_CHARACTER_SET: {
+      const char* charset = mysql_character_set_name(my);
+      ret = charset && *charset ? JS_NewString(ctx, charset) : JS_NULL;
+      break;
+    }
+    case PROP_TIMEOUT_VALUE: {
+      ret = JS_NewUint32(ctx, mysql_get_timeout_value(my));
+      break;
+    }
+    case PROP_TIMEOUT_VALUE_MS: {
+      ret = JS_NewUint32(ctx, mysql_get_timeout_value_ms(my));
+      break;
+    }
+    case PROP_SERVER_NAME: {
+      const char* name = mysql_get_server_name(my);
+      ret = name && *name ? JS_NewString(ctx, name) : JS_NULL;
+      break;
+    }
+  }
+
   return ret;
 }
 
 static JSValue
 js_mysql_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  struct MYSQL* ar;
+  MYSQL* my;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(ar = js_mysql_data(ctx, this_val)))
+  if(!(my = js_mysql_data(ctx, this_val)))
     return ret;
 
   switch(magic) {}
@@ -160,16 +158,18 @@ js_mysql_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
 static JSValue
 js_mysql_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  JSValue proto, obj = JS_UNDEFINED;
+  MYSQL* my;
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
 
-  obj = js_mysql_wrap_proto(ctx, proto, 0);
+  if((my = mysql_init(NULL)))
+    mysql_options(my, MYSQL_OPT_NONBLOCK, 0);
+
+  obj = js_mysql_wrap_proto(ctx, proto, my);
   JS_FreeValue(ctx, proto);
   return obj;
 
@@ -179,26 +179,76 @@ fail:
 }
 
 static JSValue
-js_mysql_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  retuzrn JS_UNDEFINED;
+js_mysql_connect_handler(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
+  printf("%s\n", __func__);
+
+  return JS_UNDEFINED;
+}
+
+static JSValue
+js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue promise = JS_UNDEFINED, data[5], handler;
+  const char *host = 0, *user = 0, *password = 0, *db = 0, *unix_socket = 0;
+  uint32_t port = 0;
+  int64_t client_flags = 0;
+  MYSQL *my, *ret = 0;
+  int result;
+
+  if(!(my = js_mysql_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  if(argc >= 1 && JS_IsString(argv[0]))
+    host = JS_ToCString(ctx, argv[0]);
+  if(argc >= 2 && JS_IsString(argv[2]))
+    user = JS_ToCString(ctx, argv[2]);
+  if(argc >= 3 && JS_IsString(argv[3]))
+    password = JS_ToCString(ctx, argv[3]);
+  if(argc >= 4 && JS_IsString(argv[4]))
+    db = JS_ToCString(ctx, argv[4]);
+  if(argc >= 5 && JS_IsNumber(argv[5]))
+    JS_ToUint32(ctx, &port, argv[5]);
+  if(argc >= 6 && JS_IsString(argv[6]))
+    unix_socket = JS_ToCString(ctx, argv[6]);
+  if(argc >= 7 && JS_IsNumber(argv[7]))
+    JS_ToInt64(ctx, &client_flags, argv[7]);
+
+  result = mysql_real_connect_start(&ret, my, host, user, password, db, port, unix_socket, client_flags);
+  printf("%s result=%d\n", __func__, result);
+
+  BOOL wr = !!(result & MYSQL_WAIT_WRITE);
+
+  promise = JS_NewPromiseCapability(ctx, &data[3]);
+
+  data[0] = JS_NewInt32(ctx, wr);
+  data[1] = JS_DupValue(ctx, this_val);
+  data[2] = js_iohandler_fn(ctx, wr);
+
+  handler = JS_NewCFunctionData(ctx, js_mysql_connect_handler, 0, 0, countof(data), data);
+
+  if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler)) {
+    JS_FreeValue(ctx, JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0));
+    // return JS_ThrowInternalError(ctx, "failed setting %s handler", wr ? "write" : "read");
+  }
+
+  return promise;
 }
 
 static JSValue
 js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  struct MYSQL* ar;
+  MYSQL* my;
 
-  if(!(ar = js_mysql_data(ctx, this_val)))
+  if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  ret = JS_NewInt32(ctx, mysql_read_close(ar));
+  // ret = JS_NewInt32(ctx, mysql_read_close(my));
 
   return ret;
 }
 
 static JSValue
 js_mysql_version(JSContext* ctx, JSValueConst this_val) {
-  return JS_NewString(ctx, mysql_version_details());
+  return JS_NewUint32(ctx, mysql_get_client_version());
 }
 
 static JSValue
@@ -208,9 +258,9 @@ js_mysql_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 static void
 js_mysql_finalizer(JSRuntime* rt, JSValue val) {
-  struct MYSQL* ar = JS_GetOpaque(val, js_mysql_class_id);
-  if(ar) {
-    mysql_free(ar);
+  MYSQL* my;
+  if((my = JS_GetOpaque(val, js_mysql_class_id))) {
+    mysql_close(my);
   }
   // JS_FreeValueRT(rt, val);
 }
@@ -221,11 +271,18 @@ static JSClassDef js_mysql_class = {
 };
 
 static const JSCFunctionListEntry js_mysql_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("format", js_mysql_getter, 0, MYSQL_PROP_FORMAT),
-    JS_CGETSET_MAGIC_DEF("compression", js_mysql_getter, 0, MYSQL_PROP_COMPRESSION),
-    JS_CGETSET_MAGIC_DEF("filters", js_mysql_getter, 0, MYSQL_PROP_FILTERS),
-    JS_CGETSET_MAGIC_DEF("fileCount", js_mysql_getter, 0, MYSQL_PROP_FILECOUNT),
-    JS_CFUNC_DEF("read", 1, js_mysql_read),
+    JS_CGETSET_MAGIC_DEF("moreResults", js_mysql_getter, 0, PROP_MORE_RESULTS),
+    JS_CGETSET_MAGIC_DEF("affectedRows", js_mysql_getter, 0, PROP_AFFECTED_ROWS),
+    JS_CGETSET_MAGIC_DEF("socket", js_mysql_getter, 0, PROP_SOCKET),
+    JS_CGETSET_MAGIC_DEF("errno", js_mysql_getter, 0, PROP_ERRNO),
+    JS_CGETSET_MAGIC_DEF("error", js_mysql_getter, 0, PROP_ERROR),
+    JS_CGETSET_MAGIC_DEF("info", js_mysql_getter, 0, PROP_INFO),
+    JS_CGETSET_MAGIC_DEF("insertId", js_mysql_getter, 0, PROP_INSERT_ID),
+    JS_CGETSET_MAGIC_DEF("characterSet", js_mysql_getter, 0, PROP_CHARACTER_SET),
+    JS_CGETSET_MAGIC_DEF("timeoutValue", js_mysql_getter, 0, PROP_TIMEOUT_VALUE),
+    JS_CGETSET_MAGIC_DEF("timeoutValueMs", js_mysql_getter, 0, PROP_TIMEOUT_VALUE_MS),
+    JS_CGETSET_MAGIC_DEF("serverName", js_mysql_getter, 0, PROP_SERVER_NAME),
+    JS_CFUNC_DEF("connect", 1, js_mysql_connect),
     JS_CFUNC_DEF("close", 0, js_mysql_close),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_mysql_iterator),
 
@@ -233,31 +290,76 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_mysql_static_funcs[] = {
-    JS_PROP_INT32_DEF("SEEK_SET", SEEK_SET, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SEEK_CUR", SEEK_CUR, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("SEEK_END", SEEK_END, JS_PROP_ENUMERABLE),
-    JS_CONSTANT(MYSQL_COUNT_ERROR),
+    JS_CGETSET_DEF("clientVersion", js_mysql_version, 0),
+    JS_PROP_INT64_DEF("MYSQL_COUNT_ERROR", MYSQL_COUNT_ERROR, JS_PROP_ENUMERABLE),
     JS_CONSTANT(MYSQL_WAIT_READ),
     JS_CONSTANT(MYSQL_WAIT_WRITE),
     JS_CONSTANT(MYSQL_WAIT_EXCEPT),
     JS_CONSTANT(MYSQL_WAIT_TIMEOUT),
+    JS_CONSTANT(MYSQL_OPT_CONNECT_TIMEOUT),
+    JS_CONSTANT(MYSQL_OPT_COMPRESS),
+    JS_CONSTANT(MYSQL_OPT_NAMED_PIPE),
+    JS_CONSTANT(MYSQL_INIT_COMMAND),
+    JS_CONSTANT(MYSQL_READ_DEFAULT_FILE),
+    JS_CONSTANT(MYSQL_READ_DEFAULT_GROUP),
+    JS_CONSTANT(MYSQL_SET_CHARSET_DIR),
+    JS_CONSTANT(MYSQL_SET_CHARSET_NAME),
+    JS_CONSTANT(MYSQL_OPT_LOCAL_INFILE),
+    JS_CONSTANT(MYSQL_OPT_PROTOCOL),
+    JS_CONSTANT(MYSQL_SHARED_MEMORY_BASE_NAME),
+    JS_CONSTANT(MYSQL_OPT_READ_TIMEOUT),
+    JS_CONSTANT(MYSQL_OPT_WRITE_TIMEOUT),
+    JS_CONSTANT(MYSQL_OPT_USE_RESULT),
+    JS_CONSTANT(MYSQL_OPT_USE_REMOTE_CONNECTION),
+    JS_CONSTANT(MYSQL_OPT_USE_EMBEDDED_CONNECTION),
+    JS_CONSTANT(MYSQL_OPT_GUESS_CONNECTION),
+    JS_CONSTANT(MYSQL_SET_CLIENT_IP),
+    JS_CONSTANT(MYSQL_SECURE_AUTH),
+    JS_CONSTANT(MYSQL_REPORT_DATA_TRUNCATION),
+    JS_CONSTANT(MYSQL_OPT_RECONNECT),
+    JS_CONSTANT(MYSQL_OPT_SSL_VERIFY_SERVER_CERT),
+    JS_CONSTANT(MYSQL_PLUGIN_DIR),
+    JS_CONSTANT(MYSQL_DEFAULT_AUTH),
+    JS_CONSTANT(MYSQL_OPT_BIND),
+    JS_CONSTANT(MYSQL_OPT_SSL_KEY),
+    JS_CONSTANT(MYSQL_OPT_SSL_CERT),
+    JS_CONSTANT(MYSQL_OPT_SSL_CA),
+    JS_CONSTANT(MYSQL_OPT_SSL_CAPATH),
+    JS_CONSTANT(MYSQL_OPT_SSL_CIPHER),
+    JS_CONSTANT(MYSQL_OPT_SSL_CRL),
+    JS_CONSTANT(MYSQL_OPT_SSL_CRLPATH),
+    JS_CONSTANT(MYSQL_OPT_CONNECT_ATTR_RESET),
+    JS_CONSTANT(MYSQL_OPT_CONNECT_ATTR_ADD),
+    JS_CONSTANT(MYSQL_OPT_CONNECT_ATTR_DELETE),
+    JS_CONSTANT(MYSQL_SERVER_PUBLIC_KEY),
+    JS_CONSTANT(MYSQL_ENABLE_CLEARTEXT_PLUGIN),
+    JS_CONSTANT(MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS),
+    JS_CONSTANT(MYSQL_OPT_SSL_ENFORCE),
+    JS_CONSTANT(MYSQL_OPT_MAX_ALLOWED_PACKET),
+    JS_CONSTANT(MYSQL_OPT_NET_BUFFER_LENGTH),
+    JS_CONSTANT(MYSQL_OPT_TLS_VERSION),
+    JS_CONSTANT(MYSQL_PROGRESS_CALLBACK),
+    JS_CONSTANT(MYSQL_OPT_NONBLOCK),
+    JS_CONSTANT(MYSQL_DATABASE_DRIVER),
+    JS_CONSTANT(MYSQL_OPT_CONNECT_ATTRS),
+
 };
 
-struct MYSQL_RES*
+MYSQL_RES*
 js_mysqlresult_data(JSContext* ctx, JSValueConst value) {
-  struct MYSQL_RES* ent;
-  ent = JS_GetOpaque2(ctx, value, js_mysqlresult_class_id);
-  return ent;
+  MYSQL_RES* res;
+  res = JS_GetOpaque2(ctx, value, js_mysqlresult_class_id);
+  return res;
 }
 
 static JSValue
-js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, struct MYSQL_RES* ent) {
+js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, MYSQL_RES* res) {
   JSValue obj;
 
   if(js_mysql_class_id == 0)
     js_mysql_init(ctx, 0);
 
-  if(js_is_nullish(ctx, proto))
+  if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = mysqlresult_proto;
 
   /* using new_target to get the prototype is necessary when the
@@ -266,7 +368,7 @@ js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, struct MYSQL_RES* 
   if(JS_IsException(obj))
     goto fail;
 
-  JS_SetOpaque(obj, ent);
+  JS_SetOpaque(obj, res);
 
   return obj;
 fail:
@@ -275,28 +377,47 @@ fail:
 }
 
 static JSValue
-js_mysqlresult_wrap(JSContext* ctx, struct MYSQL_RES* ent) {
-  return js_mysqlresult_wrap_proto(ctx, mysqlresult_proto, ent);
+js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res) {
+  return js_mysqlresult_wrap_proto(ctx, mysqlresult_proto, res);
 }
+
+enum {
+  PROP_EOF,
+  PROP_NUM_ROWS,
+  PROP_NUM_FIELDS,
+};
 
 static JSValue
 js_mysqlresult_getter(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct MYSQL_RES* ent;
+  MYSQL_RES* res;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(ent = js_mysqlresult_data(ctx, this_val)))
+  if(!(res = js_mysqlresult_data(ctx, this_val)))
     return ret;
 
-  switch(magic) {}
+  switch(magic) {
+    case PROP_EOF: {
+      ret = JS_NewBool(ctx, mysql_eof(res));
+      break;
+    }
+    case PROP_NUM_ROWS: {
+      ret = JS_NewInt64(ctx, mysql_num_rows(res));
+      break;
+    }
+    case PROP_NUM_FIELDS: {
+      ret = JS_NewInt64(ctx, mysql_num_fields(res));
+      break;
+    }
+  }
   return ret;
 }
 
 static JSValue
 js_mysqlresult_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  struct MYSQL_RES* ent;
+  MYSQL_RES* res;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(ent = js_mysqlresult_data(ctx, this_val)))
+  if(!(res = js_mysqlresult_data(ctx, this_val)))
     return ret;
 
   switch(magic) {}
@@ -322,9 +443,9 @@ fail:
 
 static void
 js_mysqlresult_finalizer(JSRuntime* rt, JSValue val) {
-  struct MYSQL_RES* ent = JS_GetOpaque(val, js_mysqlresult_class_id);
-  if(ent) {
-    mysql_entry_free(ent);
+  MYSQL_RES* res;
+  if((res = JS_GetOpaque(val, js_mysqlresult_class_id))) {
+    mysql_free_result(res);
   }
   // JS_FreeValueRT(rt, val);
 }
@@ -335,38 +456,14 @@ static JSClassDef js_mysqlresult_class = {
 };
 
 static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("atime", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_ATIME),
-    JS_CGETSET_MAGIC_DEF("ctime", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_CTIME),
-    JS_CGETSET_MAGIC_DEF("mtime", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_MTIME),
-    JS_CGETSET_MAGIC_DEF("birthtime", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_BIRTHTIME),
-    JS_CGETSET_MAGIC_DEF("dev", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_DEV),
-    JS_CGETSET_MAGIC_DEF("devmajor", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_DEVMAJOR),
-    JS_CGETSET_MAGIC_DEF("devminor", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_DEVMINOR),
-    JS_CGETSET_MAGIC_DEF("rdev", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_RDEV),
-    JS_CGETSET_MAGIC_DEF("rdevmajor", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_RDEVMAJOR),
-    JS_CGETSET_MAGIC_DEF("rdevminor", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_RDEVMINOR),
-    JS_CGETSET_MAGIC_DEF("filetype", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_FILETYPE),
-    JS_CGETSET_MAGIC_DEF("fflags", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_FFLAGS),
-    JS_CGETSET_MAGIC_DEF("uid", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_UID),
-    JS_CGETSET_MAGIC_DEF("gid", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_GID),
-    JS_CGETSET_MAGIC_DEF("ino", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_INO),
-    // JS_ALIAS_DEF("ino64", "ino"),
-    JS_CGETSET_MAGIC_DEF("nlink", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_NLINK),
-    JS_CGETSET_ENUMERABLE_DEF("pathname", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_PATHNAME),
-    JS_CGETSET_MAGIC_DEF("uname", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_UNAME),
-    JS_CGETSET_MAGIC_DEF("gname", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_GNAME),
-    JS_CGETSET_MAGIC_DEF("mode", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_MODE),
-    JS_CGETSET_MAGIC_DEF("perm", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_PERM),
-    JS_CGETSET_ENUMERABLE_DEF("size", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_SIZE),
-    JS_CGETSET_MAGIC_DEF("symlink", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_SYMLINK),
-    JS_CGETSET_MAGIC_DEF("hardlink", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_HARDLINK),
-    JS_CGETSET_MAGIC_DEF("link", js_mysqlresult_getter, js_mysqlresult_setter, ENTRY_LINK),
+    JS_CGETSET_MAGIC_DEF("eof", js_mysqlresult_getter, 0, PROP_EOF),
+    JS_CGETSET_MAGIC_DEF("numRows", js_mysqlresult_getter, js_mysqlresult_setter, PROP_NUM_ROWS),
+    JS_CGETSET_MAGIC_DEF("numFields", js_mysqlresult_getter, js_mysqlresult_setter, PROP_NUM_FIELDS),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQLResult", JS_PROP_CONFIGURABLE),
 };
 
 int
 js_mysql_init(JSContext* ctx, JSModuleDef* m) {
-
   if(js_mysql_class_id == 0) {
     JS_NewClassID(&js_mysql_class_id);
     JS_NewClass(JS_GetRuntime(ctx), js_mysql_class_id, &js_mysql_class);
@@ -408,6 +505,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!(m = JS_NewCModule(ctx, module_name, &js_mysql_init)))
     return m;
   JS_AddModuleExport(ctx, m, "MySQL");
+  JS_AddModuleExport(ctx, m, "MySQLResult");
   return m;
 }
 

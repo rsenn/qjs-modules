@@ -12,7 +12,7 @@
 #ifdef HAVE_THREADS_H
 #include <threads.h>
 #endif
-#include "debug.h"
+#include "defines.h"
 
 /**
  * \defgroup utils Utilities
@@ -893,6 +893,7 @@ void js_error_print(JSContext*, JSValueConst);
 JSValue js_error_stack(JSContext* ctx);
 
 JSValue js_iohandler_fn(JSContext*, BOOL write);
+BOOL js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst handler);
 JSCFunction* js_iohandler_cfunc(JSContext*, BOOL write);
 
 JSValue js_promise_resolve(JSContext* ctx, JSValueConst promise);
