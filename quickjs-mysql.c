@@ -101,6 +101,7 @@ js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 enum {
   PROP_MORE_RESULTS,
   PROP_AFFECTED_ROWS,
+  PROP_WARNING_COUNT,
   PROP_SOCKET,
   PROP_INFO,
   PROP_ERRNO,
@@ -127,6 +128,10 @@ js_mysql_getter(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case PROP_AFFECTED_ROWS: {
       ret = JS_NewInt64(ctx, mysql_affected_rows(my));
+      break;
+    }
+    case PROP_WARNING_COUNT: {
+      ret = JS_NewUint32(ctx, mysql_warning_count(my));
       break;
     }
     case PROP_SOCKET: {
@@ -434,6 +439,7 @@ static JSClassDef js_mysql_class = {
 static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CGETSET_MAGIC_DEF("moreResults", js_mysql_getter, 0, PROP_MORE_RESULTS),
     JS_CGETSET_MAGIC_DEF("affectedRows", js_mysql_getter, 0, PROP_AFFECTED_ROWS),
+    JS_CGETSET_MAGIC_DEF("warningCount", js_mysql_getter, 0, PROP_WARNING_COUNT),
     JS_CGETSET_MAGIC_DEF("socket", js_mysql_getter, 0, PROP_SOCKET),
     JS_CGETSET_MAGIC_DEF("errno", js_mysql_getter, 0, PROP_ERRNO),
     JS_CGETSET_MAGIC_DEF("error", js_mysql_getter, 0, PROP_ERROR),
@@ -513,6 +519,66 @@ js_mysqlresult_data(JSContext* ctx, JSValueConst value) {
   MYSQL_RES* res;
   res = JS_GetOpaque2(ctx, value, js_mysqlresult_class_id);
   return res;
+}
+
+static JSValue
+js_mysqlfield_entry(JSContext* ctx, MYSQL_FIELD* field) {
+  JSValue ret = JS_NewArray(ctx);
+  const char* type = 0;
+  DynBuf buf;
+  dbuf_init2(&buf, 0, 0);
+
+  JS_SetPropertyUint32(ctx, ret, 0, JS_NewString(ctx, field->name));
+  switch(field->type) {
+    case MYSQL_TYPE_DECIMAL: type = "decimal"; break;
+    case MYSQL_TYPE_TINY: type = "tiny"; break;
+    case MYSQL_TYPE_SHORT: type = "short"; break;
+    case MYSQL_TYPE_LONG: type = "long"; break;
+    case MYSQL_TYPE_FLOAT: type = "float"; break;
+    case MYSQL_TYPE_DOUBLE: type = "double"; break;
+    case MYSQL_TYPE_NULL: type = "null"; break;
+    case MYSQL_TYPE_TIMESTAMP: type = "timestamp"; break;
+    case MYSQL_TYPE_LONGLONG: type = "longlong"; break;
+    case MYSQL_TYPE_INT24: type = "int24"; break;
+    case MYSQL_TYPE_DATE: type = "date"; break;
+    case MYSQL_TYPE_TIME: type = "time"; break;
+    case MYSQL_TYPE_DATETIME: type = "datetime"; break;
+    case MYSQL_TYPE_YEAR: type = "year"; break;
+    case MYSQL_TYPE_NEWDATE: type = "newdate"; break;
+    case MYSQL_TYPE_VARCHAR: type = "varchar"; break;
+    case MYSQL_TYPE_BIT: type = "bit"; break;
+    case MYSQL_TYPE_TIMESTAMP2: type = "timestamp2"; break;
+    case MYSQL_TYPE_DATETIME2: type = "datetime2"; break;
+    case MYSQL_TYPE_TIME2: type = "time2"; break;
+    case MYSQL_TYPE_NEWDECIMAL: type = "newdecimal"; break;
+    case MYSQL_TYPE_ENUM: type = "enum"; break;
+    case MYSQL_TYPE_SET: type = "set"; break;
+    case MYSQL_TYPE_TINY_BLOB: type = "tiny_blob"; break;
+    case MYSQL_TYPE_MEDIUM_BLOB: type = "medium_blob"; break;
+    case MYSQL_TYPE_LONG_BLOB: type = "long_blob"; break;
+    case MYSQL_TYPE_BLOB: type = "blob"; break;
+    case MYSQL_TYPE_VAR_STRING: type = "var_string"; break;
+    case MYSQL_TYPE_STRING: type = "string"; break;
+    case MYSQL_TYPE_GEOMETRY: type = "geometry"; break;
+  }
+
+  dbuf_putstr(&buf, type);
+
+  if(field->flags & UNSIGNED_FLAG)
+    dbuf_putstr(&buf, " unsigned");
+
+  if(field->flags & BINARY_FLAG)
+    dbuf_putstr(&buf, " binary");
+
+  if(field->flags & AUTO_INCREMENT_FLAG)
+    dbuf_putstr(&buf, " auto_increment");
+
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewStringLen(ctx, buf.buf, buf.size));
+  JS_SetPropertyUint32(ctx, ret, 2, JS_NewUint32(ctx, field->length));
+  JS_SetPropertyUint32(ctx, ret, 3, JS_NewUint32(ctx, field->max_length));
+  JS_SetPropertyUint32(ctx, ret, 4, JS_NewUint32(ctx, field->decimals));
+  JS_SetPropertyUint32(ctx, ret, 5, JS_NewString(ctx, (field->flags & NOT_NULL_FLAG) ? "NO" : "YES"));
+  return ret;
 }
 
 static JSValue
@@ -772,8 +838,9 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
         return JS_ThrowRangeError(ctx, "argument 1 must be smaller than total fields (%" PRIu32 ")", mysql_num_fields(res));
 
       if((field = mysql_fetch_field_direct(res, index))) {
-        ret = JS_NewString(ctx, field->name);
+        ret = js_mysqlfield_entry(ctx, field);
       }
+
       break;
     }
     case METHOD_FETCH_FIELDS: {
@@ -781,8 +848,10 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
       if((fields = mysql_fetch_fields(res))) {
         uint32_t i, num_fields = mysql_num_fields(res);
+
         ret = JS_NewArray(ctx);
-        for(i = 0; i < num_fields; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, fields[i].name));
+
+        for(i = 0; i < num_fields; i++) { JS_SetPropertyUint32(ctx, ret, i, js_mysqlfield_entry(ctx, &fields[i])); }
       }
       break;
     }
