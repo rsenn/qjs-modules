@@ -522,13 +522,14 @@ js_mysqlresult_data(JSContext* ctx, JSValueConst value) {
 }
 
 static JSValue
-js_mysqlfield_entry(JSContext* ctx, MYSQL_FIELD* field) {
+js_mysqlresult_field(JSContext* ctx, MYSQL_FIELD* field) {
   JSValue ret = JS_NewArray(ctx);
   const char* type = 0;
   DynBuf buf;
   dbuf_init2(&buf, 0, 0);
 
-  JS_SetPropertyUint32(ctx, ret, 0, JS_NewString(ctx, field->name));
+  JS_SetPropertyUint32(ctx, ret, 0, JS_NewStringLen(ctx, field->name, field->name_length));
+
   switch(field->type) {
     case MYSQL_TYPE_DECIMAL: type = "decimal"; break;
     case MYSQL_TYPE_TINY: type = "tiny"; break;
@@ -560,6 +561,7 @@ js_mysqlfield_entry(JSContext* ctx, MYSQL_FIELD* field) {
     case MYSQL_TYPE_VAR_STRING: type = "var_string"; break;
     case MYSQL_TYPE_STRING: type = "string"; break;
     case MYSQL_TYPE_GEOMETRY: type = "geometry"; break;
+    default: break;
   }
 
   dbuf_putstr(&buf, type);
@@ -573,12 +575,35 @@ js_mysqlfield_entry(JSContext* ctx, MYSQL_FIELD* field) {
   if(field->flags & AUTO_INCREMENT_FLAG)
     dbuf_putstr(&buf, " auto_increment");
 
-  JS_SetPropertyUint32(ctx, ret, 1, JS_NewStringLen(ctx, buf.buf, buf.size));
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewStringLen(ctx, (const char*)buf.buf, buf.size));
+
+  dbuf_free(&buf);
+
   JS_SetPropertyUint32(ctx, ret, 2, JS_NewUint32(ctx, field->length));
   JS_SetPropertyUint32(ctx, ret, 3, JS_NewUint32(ctx, field->max_length));
   JS_SetPropertyUint32(ctx, ret, 4, JS_NewUint32(ctx, field->decimals));
   JS_SetPropertyUint32(ctx, ret, 5, JS_NewString(ctx, (field->flags & NOT_NULL_FLAG) ? "NO" : "YES"));
+  JS_SetPropertyUint32(ctx, ret, 6, JS_NewStringLen(ctx, field->def, field->def_length));
+
   return ret;
+}
+
+static char*
+js_mysqlresult_field_id(JSContext* ctx, MYSQL_FIELD const * field) {
+  DynBuf buf;
+  dbuf_init2(&buf, 0, 0);
+
+  dbuf_put(&buf, field->table, field->table_length);
+  dbuf_putstr(&buf, ".");
+  dbuf_put(&buf, field->name, field->name_length);
+  dbuf_put(&buf, "\0", 1);
+
+  return (char*)buf.buf;
+}
+
+static char*
+js_mysqlresult_field_name(JSContext* ctx, MYSQL_FIELD const * field) {
+  return js_strndup(ctx, field->name, field->name_length);
 }
 
 static JSValue
@@ -662,28 +687,52 @@ js_mysqlresult_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value,
   return ret;
 }
 
-static void
-js_mysqlresult_yield(JSContext* ctx, JSValueConst resolve, uint32_t num_fields, MYSQL_ROW row) {
-  JSValue result, rowval = JS_UNDEFINED;
+static JSValue
+js_mysqlresult_rowarray(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row) {
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i, num_fields = mysql_num_fields(res);
 
-  if(row) {
-    uint32_t i;
-    rowval = JS_NewArray(ctx);
-
-    for(i = 0; i < num_fields; i++) {
+  for(i = 0; i < num_fields; i++) {
 #ifdef DEBUG_OUTPUT
-      printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%s'\n", __func__, num_fields, i, row[i]);
+    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%s'\n", __func__, num_fields, i, row[i]);
 #endif
-      JS_SetPropertyUint32(ctx, rowval, i, row[i] ? JS_NewString(ctx, row[i]) : JS_NULL);
-    }
+    JS_SetPropertyUint32(ctx, ret, i, row[i] ? JS_NewString(ctx, row[i]) : JS_NULL);
   }
 
-  result = js_iterator_result(ctx, rowval, row ? FALSE : TRUE);
+  return ret;
+}
 
-  JS_Call(ctx, resolve, JS_UNDEFINED, 1, &result);
+static JSValue
+js_mysqlresult_rowobject(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row) {
+  JSValue ret = JS_NewObject(ctx);
+  uint32_t i, num_fields = mysql_num_fields(res);
+  MYSQL_FIELD* fields = mysql_fetch_fields(res);
+
+  for(i = 0; i < num_fields; i++) {
+    char* id;
+
+    id = js_mysqlresult_field_name(ctx, &fields[i]);
+
+    JS_SetPropertyStr(ctx, ret, id, row[i] ? JS_NewString(ctx, row[i]) : JS_NULL);
+
+    js_free(ctx, id);
+  }
+
+  return ret;
+}
+
+static void
+js_mysqlresult_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row) {
+  JSValue result, val;
+
+  val = row ? js_mysqlresult_rowobject(ctx, res, row) : JS_NULL;
+
+  result = js_iterator_result(ctx, val, row ? FALSE : TRUE);
+
+  JS_Call(ctx, func, JS_UNDEFINED, 1, &result);
 
   JS_FreeValue(ctx, result);
-  JS_FreeValue(ctx, rowval);
+  JS_FreeValue(ctx, val);
 }
 
 static JSValue
@@ -722,7 +771,7 @@ js_mysqlresult_next_handler(JSContext* ctx, JSValueConst this_val, int argc, JSV
   if(status == 0 && num_fields == field_count) {
     js_iohandler_set(ctx, data[2], sock, JS_NULL);
 
-    js_mysqlresult_yield(ctx, data[3], num_fields, row);
+    js_mysqlresult_yield(ctx, data[3], res, row);
 
   } else if(status != oldstatus) {
     JSValue handler, hdata[5] = {
@@ -781,7 +830,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
   if(status == 0 && num_fields == field_count) {
-    js_mysqlresult_yield(ctx, data[3], num_fields, row);
+    js_mysqlresult_yield(ctx, data[3], res, row);
 
   } else {
     data[0] = JS_NewInt32(ctx, wr);
@@ -838,7 +887,7 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
         return JS_ThrowRangeError(ctx, "argument 1 must be smaller than total fields (%" PRIu32 ")", mysql_num_fields(res));
 
       if((field = mysql_fetch_field_direct(res, index))) {
-        ret = js_mysqlfield_entry(ctx, field);
+        ret = js_mysqlresult_field(ctx, field);
       }
 
       break;
@@ -851,7 +900,7 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
         ret = JS_NewArray(ctx);
 
-        for(i = 0; i < num_fields; i++) { JS_SetPropertyUint32(ctx, ret, i, js_mysqlfield_entry(ctx, &fields[i])); }
+        for(i = 0; i < num_fields; i++) { JS_SetPropertyUint32(ctx, ret, i, js_mysqlresult_field(ctx, &fields[i])); }
       }
       break;
     }
