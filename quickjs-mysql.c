@@ -589,7 +589,7 @@ js_mysqlresult_field(JSContext* ctx, MYSQL_FIELD* field) {
 }
 
 static char*
-js_mysqlresult_field_id(JSContext* ctx, MYSQL_FIELD const * field) {
+js_mysqlresult_field_id(JSContext* ctx, MYSQL_FIELD const* field) {
   DynBuf buf;
   dbuf_init2(&buf, 0, 0);
 
@@ -602,7 +602,7 @@ js_mysqlresult_field_id(JSContext* ctx, MYSQL_FIELD const * field) {
 }
 
 static char*
-js_mysqlresult_field_name(JSContext* ctx, MYSQL_FIELD const * field) {
+js_mysqlresult_field_name(JSContext* ctx, MYSQL_FIELD const* field) {
   return js_strndup(ctx, field->name, field->name_length);
 }
 
@@ -688,7 +688,7 @@ js_mysqlresult_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value,
 }
 
 static JSValue
-js_mysqlresult_rowarray(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row) {
+js_mysqlresult_array(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row) {
   JSValue ret = JS_NewArray(ctx);
   uint32_t i, num_fields = mysql_num_fields(res);
 
@@ -702,16 +702,33 @@ js_mysqlresult_rowarray(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row) {
   return ret;
 }
 
+typedef char* js_mysqlresult_fieldnamefunc(JSContext*, MYSQL_FIELD const*);
+
+static js_mysqlresult_fieldnamefunc*
+js_mysqlresult_get_fieldnamefunc(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row) {
+  uint32_t i, j, num_fields = mysql_num_fields(res);
+  MYSQL_FIELD* fields = mysql_fetch_fields(res);
+  BOOL eq = FALSE;
+
+  for(i = 0; !eq && i < num_fields; i++)
+    for(j = 0; !eq && j < num_fields; j++)
+      if(i != j && fields[i].name_length == fields[j].name_length && byte_equal(fields[i].name, fields[i].name_length, fields[j].name))
+        return js_mysqlresult_field_id;
+
+  return js_mysqlresult_field_name;
+}
+
 static JSValue
-js_mysqlresult_rowobject(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row) {
+js_mysqlresult_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row) {
   JSValue ret = JS_NewObject(ctx);
   uint32_t i, num_fields = mysql_num_fields(res);
   MYSQL_FIELD* fields = mysql_fetch_fields(res);
+  js_mysqlresult_fieldnamefunc* fn = js_mysqlresult_get_fieldnamefunc(ctx, res, row);
 
   for(i = 0; i < num_fields; i++) {
     char* id;
 
-    id = js_mysqlresult_field_name(ctx, &fields[i]);
+    id = fn(ctx, &fields[i]);
 
     JS_SetPropertyStr(ctx, ret, id, row[i] ? JS_NewString(ctx, row[i]) : JS_NULL);
 
@@ -725,7 +742,7 @@ static void
 js_mysqlresult_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row) {
   JSValue result, val;
 
-  val = row ? js_mysqlresult_rowobject(ctx, res, row) : JS_NULL;
+  val = row ? js_mysqlresult_object(ctx, res, row) : JS_NULL;
 
   result = js_iterator_result(ctx, val, row ? FALSE : TRUE);
 

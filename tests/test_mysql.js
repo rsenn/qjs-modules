@@ -72,6 +72,12 @@ async function main(...args) {
     console.log('row =', row);
   }
   result(res);
+  
+  for await(let row of (res = await my.query(`SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id;`))) {
+    console.log('row =', row);
+  }
+  result(res);
+
 
   os.kill(process.pid, os.SIGUSR1);
 }
