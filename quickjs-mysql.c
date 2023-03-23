@@ -889,9 +889,8 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
       if(index >= mysql_num_fields(res))
         return JS_ThrowRangeError(ctx, "argument 1 must be smaller than total fields (%" PRIu32 ")", mysql_num_fields(res));
 
-      if((field = mysql_fetch_field_direct(res, index))) {
+      if((field = mysql_fetch_field_direct(res, index)))
         ret = js_mysqlresult_field(ctx, field);
-      }
 
       break;
     }
@@ -935,7 +934,6 @@ js_mysqlresult_finalizer(JSRuntime* rt, JSValue val) {
   if((res = JS_GetOpaque(val, js_mysqlresult_class_id))) {
     mysql_free_result(res);
   }
-  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_mysqlresult_class = {
