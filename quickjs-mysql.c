@@ -865,20 +865,6 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return promise;
 }
 
-static JSValue
-js_mysqlresult_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue obj = JS_NewObjectProto(ctx, mysqlresult_proto);
-  MYSQL_RES* res;
-
-  if(!(res = js_mysqlresult_data(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  JS_DefinePropertyValueStr(ctx, obj, "numFields", JS_NewUint32(ctx, mysql_num_fields(res)), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "numRows", JS_NewUint32(ctx, mysql_num_rows(res)), JS_PROP_ENUMERABLE);
-
-  return obj;
-}
-
 enum {
   METHOD_FETCH_FIELD,
   METHOD_FETCH_FIELDS,
@@ -966,7 +952,6 @@ static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
     JS_CGETSET_MAGIC_DEF("currentField", js_mysqlresult_getter, 0, PROP_CURRENT_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchField", 1, js_mysqlresult_functions, METHOD_FETCH_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchFields", 0, js_mysqlresult_functions, METHOD_FETCH_FIELDS),
-    JS_CFUNC_DEF("inspect", 0, js_mysqlresult_inspect),
     JS_CFUNC_DEF("[Symbol.asyncIterator]", 0, (void*)&JS_DupValue),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQLResult", JS_PROP_CONFIGURABLE),
 };
