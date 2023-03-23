@@ -58,13 +58,42 @@ js_mysql_wrap(JSContext* ctx, MYSQL* my) {
   return js_mysql_wrap_proto(ctx, mysql_proto, my);
 }
 
+enum {
+  METHOD_ESCAPE_STRING,
+};
+
 static JSValue
 js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   MYSQL* my = 0;
-  JSValue proto = JS_GetPropertyStr(ctx, this_val, "prototype");
   JSValue ret = JS_UNDEFINED;
 
-  switch(magic) {}
+  if(!(my = js_mysql_data(ctx, this_val)))
+    return ret;
+
+  switch(magic) {
+    case METHOD_ESCAPE_STRING: {
+      char* dst;
+      const char* src;
+      size_t len;
+
+      if(!(src = JS_ToCStringLen(ctx, &len, argv[0]))) {
+        ret = JS_ThrowTypeError(ctx, "argument 1 must be string");
+        break;
+      }
+
+      if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
+        ret = JS_ThrowOutOfMemory(ctx);
+        break;
+      }
+
+      len = mysql_real_escape_string(my, dst, src, len);
+
+      ret = JS_NewStringLen(ctx, dst, len);
+      js_free(ctx, dst);
+
+      break;
+    }
+  }
 
   return ret;
 }
@@ -417,6 +446,7 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CFUNC_DEF("connect", 1, js_mysql_connect),
     JS_CFUNC_DEF("query", 1, js_mysql_query),
     JS_CFUNC_DEF("close", 0, js_mysql_close),
+    JS_CFUNC_MAGIC_DEF("escapeString", 1, js_mysql_functions, METHOD_ESCAPE_STRING),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_mysql_iterator),
 
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQL", JS_PROP_CONFIGURABLE),
@@ -578,7 +608,7 @@ js_mysqlresult_yield(JSContext* ctx, JSValueConst resolve, uint32_t num_fields, 
 #ifdef DEBUG_OUTPUT
       printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%s'\n", __func__, num_fields, i, row[i]);
 #endif
-      JS_SetPropertyUint32(ctx, rowval, i, JS_NewString(ctx, row[i]));
+      JS_SetPropertyUint32(ctx, rowval, i, row[i] ? JS_NewString(ctx, row[i]) : JS_NULL);
     }
   }
 
@@ -704,6 +734,64 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 static JSValue
+js_mysqlresult_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue obj = JS_NewObjectProto(ctx, mysqlresult_proto);
+  MYSQL_RES* res;
+
+  if(!(res = js_mysqlresult_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  JS_DefinePropertyValueStr(ctx, obj, "numFields", JS_NewUint32(ctx, mysql_num_fields(res)), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "numRows", JS_NewUint32(ctx, mysql_num_rows(res)), JS_PROP_ENUMERABLE);
+
+  return obj;
+}
+
+enum {
+  METHOD_FETCH_FIELD,
+  METHOD_FETCH_FIELDS,
+};
+
+static JSValue
+js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret = JS_UNDEFINED;
+  MYSQL_RES* res;
+
+  if(!(res = js_mysqlresult_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case METHOD_FETCH_FIELD: {
+      uint32_t index;
+      MYSQL_FIELD* field;
+
+      if(JS_ToUint32(ctx, &index, argv[0]))
+        return JS_ThrowTypeError(ctx, "argument 1 must be a positive index");
+
+      if(index >= mysql_num_fields(res))
+        return JS_ThrowRangeError(ctx, "argument 1 must be smaller than total fields (%" PRIu32 ")", mysql_num_fields(res));
+
+      if((field = mysql_fetch_field_direct(res, index))) {
+        ret = JS_NewString(ctx, field->name);
+      }
+      break;
+    }
+    case METHOD_FETCH_FIELDS: {
+      MYSQL_FIELD* fields;
+
+      if((fields = mysql_fetch_fields(res))) {
+        uint32_t i, num_fields = mysql_num_fields(res);
+        ret = JS_NewArray(ctx);
+        for(i = 0; i < num_fields; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, fields[i].name));
+      }
+      break;
+    }
+  }
+
+  return ret;
+}
+
+static JSValue
 js_mysqlresult_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
 
@@ -737,10 +825,13 @@ static JSClassDef js_mysqlresult_class = {
 static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
     JS_CFUNC_DEF("next", 0, js_mysqlresult_next),
     JS_CGETSET_MAGIC_DEF("eof", js_mysqlresult_getter, 0, PROP_EOF),
-    JS_CGETSET_MAGIC_DEF("numRows", js_mysqlresult_getter, 0, PROP_NUM_ROWS),
-    JS_CGETSET_MAGIC_DEF("numFields", js_mysqlresult_getter, 0, PROP_NUM_FIELDS),
+    JS_CGETSET_MAGIC_FLAGS_DEF("numRows", js_mysqlresult_getter, 0, PROP_NUM_ROWS, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("numFields", js_mysqlresult_getter, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("fieldCount", js_mysqlresult_getter, 0, PROP_FIELD_COUNT),
     JS_CGETSET_MAGIC_DEF("currentField", js_mysqlresult_getter, 0, PROP_CURRENT_FIELD),
+    JS_CFUNC_MAGIC_DEF("fetchField", 1, js_mysqlresult_functions, METHOD_FETCH_FIELD),
+    JS_CFUNC_MAGIC_DEF("fetchFields", 0, js_mysqlresult_functions, METHOD_FETCH_FIELDS),
+    JS_CFUNC_DEF("inspect", 0, js_mysqlresult_inspect),
     JS_CFUNC_DEF("[Symbol.asyncIterator]", 0, (void*)&JS_DupValue),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQLResult", JS_PROP_CONFIGURABLE),
 };
