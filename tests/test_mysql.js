@@ -26,12 +26,15 @@ async function main(...args) {
     await my.connect('localhost', 'root', 'tD51o7xf', 'mysql', 0, '/var/run/mysqld/mysqld.sock')
   );
 
-  let res = await my.query('SELECT host,user,password FROM user;');
-  console.log('my.query() =', res);
 
-  for await(let row of res) {
+ for await(let table of await my.query(`SHOW TABLES;`)) {
+    console.log('table =', table);
+  }
+  
+  for await(let row of await my.query(`SELECT user,password,host FROM user WHERE host!='';`)) {
     console.log('row =', row);
   }
+ 
 }
 
 try {
