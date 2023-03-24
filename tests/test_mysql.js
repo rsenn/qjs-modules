@@ -82,6 +82,10 @@ async function main(...args) {
   i = 0;
   let rows = (globalThis.rows = []);
 
+
+my.resultType &= ~MySQL.RESULT_OBJECT;
+
+
   for await(let row of await q(`SELECT * FROM article ORDER BY id DESC;`)) {
     console.log(`row[${i++}] =`, row);
 
@@ -90,10 +94,12 @@ async function main(...args) {
   result(res);
 
   async function* showFields(table = 'article') {
+my.resultType &= ~MySQL.RESULT_OBJECT;
     for await(let field of await q(`SHOW FIELDS FROM article`)) {
 //console.log('field',field);
-      yield field['COLUMNS.Field'] ?? field['Field'];
+      yield field['COLUMNS.Field'] ?? field['Field'] ?? field[0];
     }
+my.resultType |= MySQL.RESULT_OBJECT;
   }
 
   let fieldNames = globalThis.fields=[];
