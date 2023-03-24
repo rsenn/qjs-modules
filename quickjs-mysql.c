@@ -283,93 +283,124 @@ enum {
   STATIC_ESCAPE_STRING,
 };
 
-static JSValue
-js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
+static void
+print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
 
-  if(JS_IsNull(argv[0]) || JS_IsUndefined(argv[0])) {
-    ret = JS_NewString(ctx, "NULL");
+  if(JS_IsNull(value) || JS_IsUndefined(value)) {
+    dbuf_putstr(out, "NULL");
 
-  } else if(JS_IsBool(argv[0])) {
-    BOOL val = JS_ToBool(ctx, argv[0]);
-    ret = JS_NewString(ctx, val ? "TRUE" : "FALSE");
+  } else if(JS_IsBool(value)) {
+    BOOL val = JS_ToBool(ctx, value);
 
-  } else if(JS_IsString(argv[0])) {
+    dbuf_putstr(out, val ? "TRUE" : "FALSE");
+
+  } else if(JS_IsString(value)) {
     char* dst;
     const char* src;
     size_t len;
 
-    if(!(src = JS_ToCStringLen(ctx, &len, argv[0])))
+    if(!(src = JS_ToCStringLen(ctx, &len, value)))
       return JS_ThrowTypeError(ctx, "argument 1 must be string");
 
-    if((!(dst = js_malloc(ctx, 2 * len + 1 + 2)))) {
-      JS_FreeCString(ctx, src);
-      return JS_ThrowOutOfMemory(ctx);
-    }
+    dbuf_putc(out, '\'');
+    dst = (char*)dbuf_reserve(out, len * 2 + 1);
 
-    len = mysql_escape_string(dst + 1, src, len);
-    dst[0] = '\'';
-    dst[len + 1] = '\'';
-    ret = JS_NewStringLen(ctx, dst, len + 2);
-    js_free(ctx, dst);
+    len = mysql_escape_string(dst, src, len);
+    out->size += len;
+    dbuf_putc(out, '\'');
 
-  } else if(js_is_date(ctx, argv[0])) {
+  } else if(js_is_date(ctx, value)) {
     size_t len;
     char* str;
-    JSValue newstr, iso = js_invoke(ctx, argv[0], "toISOString", 0, 0);
+    JSValue newstr, val = js_invoke(ctx, value, "valueOf", 0, 0), iso;
+    int64_t ut;
+    JS_ToInt64(ctx, &ut, val);
+    JS_FreeValue(ctx, val);
 
-    str = js_tostringlen(ctx, &len, iso);
-
-    if(len >= 19) {
-      if(str[19] == '.')
-        str[len = 19] = '\0';
-      if(str[10] == 'T')
-        str[10] = ' ';
+    dbuf_putstr(out, "FROM_UNIXTIME(");
+    dbuf_printf(out, "%" PRId64, ut / 1000);
+    if(ut % 1000) {
+      dbuf_putc(out, '.');
+      dbuf_printf(out, "%" PRId64, ut % 1000);
     }
+    dbuf_putc(out, ')');
 
-    newstr = JS_NewStringLen(ctx, str, len);
+    /* iso= js_invoke(ctx, value, "toISOString", 0, 0);
+      str = js_tostringlen(ctx, &len, iso);
 
-    ret = js_value_string(ctx, this_val, 1, &newstr);
+     if(len >= 19) {
+       if(str[19] == '.')
+         str[len = 19] = '\0';
+       if(str[10] == 'T')
+         str[10] = ' ';
+     }
 
-    JS_FreeValue(ctx, newstr);
-    JS_FreeValue(ctx, iso);
-    js_free(ctx, str);
+     newstr = JS_NewStringLen(ctx, str, len);
 
-  } else if(!JS_IsBigInt(ctx, argv[0]) && js_is_numeric(ctx, argv[0])) {
-    JSValue bi = js_value_coerce(ctx, JS_IsBigDecimal(argv[0]) ? "Number" : "BigInt", argv[0]);
+     print_value(ctx, out, newstr);
 
-    ret = js_value_string(ctx, this_val, 1, &bi);
+     JS_FreeValue(ctx, newstr);
+     js_free(ctx, str);
+     JS_FreeValue(ctx, iso);*/
+
+  } else if(!JS_IsBigInt(ctx, value) && js_is_numeric(ctx, value)) {
+    JSValue bi = js_value_coerce(ctx, JS_IsBigDecimal(value) ? "Number" : "BigInt", value);
+
+    print_value(ctx, out, bi);
     JS_FreeValue(ctx, bi);
 
   } else {
 
-    InputBuffer input = js_input_buffer(ctx, argv[0]);
+    InputBuffer input = js_input_buffer(ctx, value);
 
     if(input.size) {
-      size_t i;
-      DynBuf buf;
-      dbuf_init2(&buf, 0, 0);
-      dbuf_putstr(&buf, "0x");
-      for(i = 0; i < input.size; i++) {
-        static const char hexdigits[] = "0123456789ABCDEF";
-        char hex[2] = {
+      static const uint8_t hexdigits[] = "0123456789ABCDEF";
+
+      dbuf_putstr(out, "0x");
+
+      for(size_t i = 0; i < input.size; i++) {
+        const uint8_t hex[2] = {
             hexdigits[(input.data[i] & 0xf0) >> 4],
             hexdigits[(input.data[i] & 0x0f)],
         };
-        dbuf_put(&buf, (const uint8_t*)hex, 2);
+        dbuf_put(out, hex, 2);
       }
-      ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
-      dbuf_free(&buf);
+
       input_buffer_free(&input, ctx);
 
     } else {
-      const char* str = JS_ToCString(ctx, argv[0]);
-      ret = JS_NewString(ctx, str);
+      size_t len;
+      const char* str = JS_ToCStringLen(ctx, &len, value);
+
+      dbuf_put(out, (const uint8_t*)str, len);
+
       JS_FreeCString(ctx, str);
     }
   }
+}
 
-  return ret;
+static JSValue
+js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+
+  if(JS_IsNull(argv[0]) || JS_IsUndefined(argv[0]))
+    return JS_NewString(ctx, "NULL");
+
+  if(JS_IsBool(argv[0])) {
+    BOOL val = JS_ToBool(ctx, argv[0]);
+    return JS_NewString(ctx, val ? "TRUE" : "FALSE");
+  }
+
+  {
+    JSValue ret = JS_UNDEFINED;
+    DynBuf buf;
+    dbuf_init2(&buf, 0, 0);
+
+    print_value(ctx, &buf, argv[0]);
+
+    ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
+    dbuf_free(&buf);
+    return ret;
+  }
 }
 
 static JSValue
