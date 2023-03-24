@@ -960,6 +960,14 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, in
   if(buf == 0)
     return (rtype & RESULT_STRING) ? JS_NewString(ctx, "NULL") : JS_NULL;
 
+  if(field_is_boolean(field)) {
+    BOOL value = *(my_bool*)buf;
+    if((rtype & RESULT_STRING))
+      return JS_NewString(ctx, value ? "TRUE" : "FALSE");
+
+    return JS_NewBool(ctx, value);
+  }
+
   if(!(rtype & RESULT_STRING)) {
     if(field_is_number(field))
       return string_to_number(ctx, buf);
@@ -970,14 +978,6 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, in
         buf[10] = 'T';
       return string_to_date(ctx, buf);
     }
-  }
-
-  if(field_is_boolean(field)) {
-    BOOL value = *(my_bool*)buf;
-    if((rtype & RESULT_STRING))
-      return JS_NewString(ctx, value ? "TRUE" : "FALSE");
-
-    return JS_NewBool(ctx, value);
   }
 
   if(field_is_blob(field)) {
@@ -1527,6 +1527,9 @@ field_is_number(MYSQL_FIELD const* field) {
 static BOOL
 field_is_boolean(MYSQL_FIELD const* field) {
   switch(field->type) {
+    case MYSQL_TYPE_TINY: {
+      return field->length == 1;
+    }
     case MYSQL_TYPE_BIT: {
       return field->length == 1 && (field->flags & UNSIGNED_FLAG);
     }

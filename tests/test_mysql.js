@@ -97,8 +97,11 @@ async function main(...args) {
   async function* showFields(table = 'article') {
     my.resultType &= ~MySQL.RESULT_OBJECT;
     for await(let field of await q(`SHOW FIELDS FROM article`)) {
-      //console.log('field',field);
-      yield field['COLUMNS.Field'] ?? field['Field'] ?? field[0];
+      let name=field['COLUMNS.Field'] ?? field['Field'] ?? field[0];
+let type= field[1];
+
+      console.log('field',{name,type});
+      yield name;
     }
     my.resultType |= MySQL.RESULT_OBJECT;
   }
