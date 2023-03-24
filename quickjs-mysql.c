@@ -126,7 +126,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_OPT_PROTOCOL:
         case MYSQL_OPT_READ_TIMEOUT:
         case MYSQL_OPT_WRITE_TIMEOUT: {
-          unsigned int val;
+          unsigned int val = 0;
           mysql_get_option(my, opt, &val);
           ret = JS_NewUint32(ctx, val);
           break;
@@ -134,7 +134,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         /* unsigned long */
         case MYSQL_OPT_MAX_ALLOWED_PACKET:
         case MYSQL_OPT_NET_BUFFER_LENGTH: {
-          unsigned long val;
+          unsigned long val = 0;
           mysql_get_option(my, opt, &val);
           ret = JS_NewInt64(ctx, val);
           break;
@@ -152,7 +152,8 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
         case MYSQL_OPT_USE_REMOTE_CONNECTION:
         case MYSQL_REPORT_DATA_TRUNCATION:
-        case MYSQL_SECURE_AUTH: {
+        case MYSQL_SECURE_AUTH:
+        case MYSQL_OPT_NONBLOCK: {
           my_bool val;
           mysql_get_option(my, opt, &val);
           ret = JS_NewBool(ctx, val);
@@ -181,6 +182,11 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           const char* val;
           mysql_get_option(my, opt, &val);
           ret = val ? JS_NewString(ctx, val) : JS_NULL;
+          break;
+        }
+
+        default: {
+          ret = JS_ThrowInternalError(ctx, "no such option %d", opt);
           break;
         }
       }
@@ -221,6 +227,11 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           break;
         }
 
+        case MYSQL_OPT_NONBLOCK: {
+          mysql_options(my, opt, 0);
+          break;
+        }
+
         /* my_bool */
         case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
         case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
@@ -234,11 +245,9 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_OPT_USE_REMOTE_CONNECTION:
         case MYSQL_REPORT_DATA_TRUNCATION:
         case MYSQL_SECURE_AUTH: {
-          long val = JS_ToBool(ctx, argv[1]);
+          my_bool val = JS_ToBool(ctx, argv[1]);
 
-          if(mysql_options(my, opt, (my_bool*)&val))
-            ret = JS_ThrowInternalError(ctx, "mysql error: %s", mysql_error(my));
-
+          mysql_options(my, opt, &val);
           break;
         }
 
@@ -268,6 +277,11 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           if(mysql_options(my, opt, val))
             ret = JS_ThrowInternalError(ctx, "mysql error: %s", mysql_error(my));
 
+          break;
+        }
+
+        default: {
+          ret = JS_ThrowInternalError(ctx, "no such option %d", opt);
           break;
         }
       }
@@ -963,7 +977,7 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, in
   if(field_is_boolean(field)) {
     BOOL value = *(my_bool*)buf;
     if((rtype & RESULT_STRING))
-      return JS_NewString(ctx, value ? "TRUE" : "FALSE");
+      return JS_NewString(ctx, value ? "1" : "0");
 
     return JS_NewBool(ctx, value);
   }

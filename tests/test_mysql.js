@@ -33,6 +33,13 @@ async function main(...args) {
   my.resultType |= MySQL.RESULT_OBJECT;
   //my.resultType |= MySQL.RESULT_TABLENAME;
 
+  console.log('1: my.getOption(MYSQL_OPT_NONBLOCK) =', my.getOption(MySQL.MYSQL_OPT_NONBLOCK));
+
+  my.setOption(MySQL.MYSQL_OPT_NONBLOCK,true);
+my.setOption(MySQL.MYSQL_OPT_NONBLOCK,false);
+
+  console.log('2: my.getOption(MYSQL_OPT_NONBLOCK) =', my.getOption(MySQL.MYSQL_OPT_NONBLOCK));
+
   console.log(
     'my.connect() =',
     await my.connect('localhost', 'root', 'tD51o7xf', 'mysql', undefined, '/var/run/mysqld/mysqld.sock')
@@ -43,7 +50,7 @@ async function main(...args) {
   let q = async s => (console.log(`q('\x1b[0;32m${s}'\x1b[0m)`), (res = await my.query(s)));
 
   i = 0;
-  for await(let row of await q(`SELECT user,password,host FROM user WHERE host!='';`)) {
+  for await(let row of await q(`SELECT user,password,host FROM user WHERE host!='' LIMIT 0,10;`)) {
     console.log(`row[${i++}] =`, row);
   }
   result(res);
@@ -76,7 +83,7 @@ async function main(...args) {
 
   i = 0;
   for await(let row of (res = await my.query(
-    `SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id;`
+    `SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`
   ))) {
     console.log(`row[${i++}] =`, row);
   }
@@ -87,7 +94,7 @@ async function main(...args) {
 
   // my.resultType &= ~MySQL.RESULT_OBJECT;
 
-  for await(let row of await q(`SELECT * FROM article ORDER BY id DESC;`)) {
+  for await(let row of await q(`SELECT * FROM article ORDER BY id DESC LIMIT 0,10;`)) {
     console.log(`row[${i++}] =`, row);
 
     rows.unshift(row);
