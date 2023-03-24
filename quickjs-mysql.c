@@ -690,7 +690,7 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 static JSValue
-js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue promise = JS_UNDEFINED, data[5], handler;
   const char *host = 0, *user = 0, *password = 0, *db = 0, *socket = 0;
   uint32_t port = 3306;
@@ -888,7 +888,7 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CGETSET_MAGIC_DEF("port", js_mysql_get, 0, PROP_PORT),
     JS_CGETSET_MAGIC_DEF("socket", js_mysql_get, 0, PROP_UNIX_SOCKET),
     JS_CGETSET_MAGIC_DEF("db", js_mysql_get, 0, PROP_DB),
-    JS_CFUNC_DEF("connect", 1, js_mysql_connect),
+    JS_CFUNC_DEF("connect", 1, js_mysql_connect_start),
     JS_CFUNC_DEF("query", 1, js_mysql_query),
     JS_CFUNC_DEF("close", 0, js_mysql_close),
     JS_ALIAS_DEF("execute", "query"),
@@ -1127,7 +1127,7 @@ js_mysqlresult_next_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 }
 
 static JSValue
-js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_mysqlresult_next_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue my_val, promise = JS_UNDEFINED, data[5], handler;
   int64_t client_flags = 0;
   MYSQL* my;
@@ -1328,7 +1328,7 @@ static JSClassDef js_mysqlresult_class = {
 };
 
 static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
-    JS_CFUNC_DEF("next", 0, js_mysqlresult_next),
+    JS_CFUNC_DEF("next", 0, js_mysqlresult_next_start),
     JS_CGETSET_MAGIC_DEF("eof", js_mysqlresult_get, 0, PROP_EOF),
     JS_CGETSET_MAGIC_FLAGS_DEF("numRows", js_mysqlresult_get, 0, PROP_NUM_ROWS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("numFields", js_mysqlresult_get, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
