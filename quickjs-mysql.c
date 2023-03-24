@@ -13,13 +13,7 @@ thread_local VISIBLE JSClassID js_mysql_class_id = 0, js_mysqlresult_class_id = 
 thread_local JSValue mysql_proto = {{JS_TAG_UNDEFINED}}, mysql_ctor = {{JS_TAG_UNDEFINED}},
                      mysqlresult_proto = {{JS_TAG_UNDEFINED}}, mysqlresult_ctor = {{JS_TAG_UNDEFINED}};
 
-// static JSValue js_mysqlresult_wrap_proto(JSContext* ctx, JSValueConst proto, MYSQL_RES* res);
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
-
-/*struct MySQLOperation {
-  int status;
-  JSValue resolve, reject;
-};*/
 
 static char*
 field_id(JSContext* ctx, MYSQL_FIELD const* field) {
@@ -40,7 +34,7 @@ field_name(JSContext* ctx, MYSQL_FIELD const* field) {
 }
 
 static BOOL
-field_isinteger(MYSQL_FIELD const* field) {
+field_is_integer(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
@@ -56,7 +50,7 @@ field_isinteger(MYSQL_FIELD const* field) {
 }
 
 static BOOL
-field_isfloat(MYSQL_FIELD const* field) {
+field_is_float(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE: {
@@ -69,7 +63,7 @@ field_isfloat(MYSQL_FIELD const* field) {
 }
 
 static BOOL
-field_isdecimal(MYSQL_FIELD const* field) {
+field_is_decimal(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
@@ -85,12 +79,12 @@ field_isdecimal(MYSQL_FIELD const* field) {
 }
 
 static BOOL
-field_isnumber(MYSQL_FIELD const* field) {
-  return field_isinteger(field) || field_isfloat(field);
+field_is_number(MYSQL_FIELD const* field) {
+  return field_is_integer(field) || field_is_float(field);
 }
 
 static BOOL
-field_isboolean(MYSQL_FIELD const* field) {
+field_is_boolean(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_BIT: {
       return field->length == 1 && (field->flags & UNSIGNED_FLAG);
@@ -102,7 +96,7 @@ field_isboolean(MYSQL_FIELD const* field) {
 }
 
 static BOOL
-field_isnull(MYSQL_FIELD const* field) {
+field_is_null(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_NULL: {
       return !(field->flags & NOT_NULL_FLAG);
@@ -114,7 +108,7 @@ field_isnull(MYSQL_FIELD const* field) {
 }
 
 static BOOL
-field_isdate(MYSQL_FIELD const* field) {
+field_is_date(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATE:
@@ -131,7 +125,7 @@ field_isdate(MYSQL_FIELD const* field) {
 }
 
 static BOOL
-field_isstring(MYSQL_FIELD const* field) {
+field_is_string(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_TINY_BLOB:
@@ -158,7 +152,7 @@ field_isstring(MYSQL_FIELD const* field) {
 }
 
 static BOOL
-field_isblob(MYSQL_FIELD const* field) {
+field_is_blob(MYSQL_FIELD const* field) {
 
   if(!strcmp(field->org_table, "COLUMNS") && str_start(field->org_name, "COLUMN_"))
     return FALSE;
@@ -287,10 +281,8 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
 
       len = mysql_real_escape_string(my, dst, src, len);
-
       ret = JS_NewStringLen(ctx, dst, len);
       js_free(ctx, dst);
-
       break;
     }
 
@@ -306,9 +298,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_OPT_READ_TIMEOUT:
         case MYSQL_OPT_WRITE_TIMEOUT: {
           unsigned int val;
-
           mysql_get_option(my, opt, &val);
-
           ret = JS_NewUint32(ctx, val);
           break;
         }
@@ -316,9 +306,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_OPT_MAX_ALLOWED_PACKET:
         case MYSQL_OPT_NET_BUFFER_LENGTH: {
           unsigned long val;
-
           mysql_get_option(my, opt, &val);
-
           ret = JS_NewInt64(ctx, val);
           break;
         }
@@ -337,9 +325,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_REPORT_DATA_TRUNCATION:
         case MYSQL_SECURE_AUTH: {
           my_bool val;
-
           mysql_get_option(my, opt, &val);
-
           ret = JS_NewBool(ctx, val);
           break;
         }
@@ -364,9 +350,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_SET_CLIENT_IP:
         case MYSQL_SHARED_MEMORY_BASE_NAME: {
           const char* val;
-
           mysql_get_option(my, opt, &val);
-
           ret = val ? JS_NewString(ctx, val) : JS_NULL;
           break;
         }
@@ -487,7 +471,6 @@ js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       }
 
       len = mysql_escape_string(dst, src, len);
-
       ret = JS_NewStringLen(ctx, dst, len);
       js_free(ctx, dst);
 
@@ -595,7 +578,6 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, mysql_get_server_version(my));
       break;
     }
-
     case PROP_USER: {
       ret = my->user ? JS_NewString(ctx, my->user) : JS_NULL;
       break;
@@ -882,10 +864,8 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   handler = JS_NewCFunctionData(ctx, js_mysql_query_handler, 0, 0, countof(data), data);
 
-  if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler)) {
-    JS_FreeValue(ctx, JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0));
-    // return JS_ThrowInternalError(ctx, "failed setting %s handler", wr ? "write" : "read");
-  }
+  if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler))
+   JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
 
   return promise;
 }
@@ -1089,17 +1069,17 @@ js_mysqlresult_value(JSContext* ctx, MYSQL_FIELD const* field, char* ptr) {
 
   if(ptr == 0) {
     ret = JS_NULL;
-  } else if(field_isboolean(field)) {
+  } else if(field_is_boolean(field)) {
     ret = JS_NewBool(ctx, *(my_bool*)ptr);
-  } else if(field_isnumber(field)) {
+  } else if(field_is_number(field)) {
     ret = string_to_number(ctx, ptr);
-  } else if(field_isdecimal(field)) {
+  } else if(field_is_decimal(field)) {
     ret = string_to_bigdecimal(ctx, ptr);
-  } else if(field_isdate(field)) {
+  } else if(field_is_date(field)) {
     if(field->length == 19 && ptr[10] == ' ')
       ptr[10] = 'T';
     ret = string_to_date(ctx, ptr);
-  } else if(field_isblob(field)) {
+  } else if(field_is_blob(field)) {
     ret = JS_NewArrayBufferCopy(ctx, (uint8_t const*)ptr, field->length);
   } else {
     ret = JS_NewString(ctx, ptr);
