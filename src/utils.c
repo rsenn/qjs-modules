@@ -614,9 +614,10 @@ js_iterator_method(JSContext* ctx, JSValueConst obj) {
 
 JSValue
 js_iterator_new(JSContext* ctx, JSValueConst obj) {
-  JSValue fn, ret;
+  JSValue fn, ret = JS_UNDEFINED;
   fn = js_iterator_method(ctx, obj);
-  ret = JS_Call(ctx, fn, obj, 0, 0);
+  if(JS_IsFunction(ctx, fn))
+    ret = JS_Call(ctx, fn, obj, 0, 0);
   JS_FreeValue(ctx, fn);
   return ret;
 }
