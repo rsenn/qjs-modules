@@ -33,10 +33,10 @@ async function main(...args) {
 
   my.resultType |= MySQL.RESULT_OBJECT;
 
-  my.setOption(MySQL.OPT_NONBLOCK, true);
+  /*my.setOption(MySQL.OPT_NONBLOCK, true);
   my.setOption(MySQL.OPT_NONBLOCK, false);
 
-  console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
+  console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));*/
 
   console.log(
     'my.connect() =',
@@ -45,11 +45,9 @@ async function main(...args) {
 
   let i;
 
-  let q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s)));
+  let q = /*async*/ s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(my.query(s)));
 
   i = 0;
-  for await(let row of await q(`SELECT user,password,host FROM user WHERE host!='' LIMIT 0,10;`))
-    console.log(`row[${i++}] =`, row);
 
   await q(`CREATE DATABASE blah;`);
   await q(`USE blah;`);
@@ -58,7 +56,13 @@ async function main(...args) {
     `CREATE TABLE IF NOT EXISTS article ( id int unsigned NOT NULL auto_increment, title char(64) NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '',  PRIMARY KEY (id)) CHARACTER SET utf8`
   );
 
-  for await(let table of await q(`SHOW TABLES;`)) console.log('table =', table);
+  //for await(let table of await q(`SHOW TABLES;`)) console.log('table =', table);
+let res=await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`);
+   console.log(`res =`, res);
+  console.log(`res[Symbol.asyncIterator] =`, res[Symbol.asyncIterator]);
+  //for await(let row of await res)
+  for (let row of  res)
+    console.log(`row[${i++}] =`, row);
 
   let articles = [
     ['This is an article', 'lorem ipsum...'],
@@ -123,9 +127,8 @@ async function main(...args) {
 
   await q(insert);
 
-  console.log('affected =', affected = my.affectedRows);
-  console.log('id =', id = my.insertId);
-
+  console.log('affected =', (affected = my.affectedRows));
+  console.log('id =', (id = my.insertId));
 
   os.kill(process.pid, os.SIGUSR1);
 }
