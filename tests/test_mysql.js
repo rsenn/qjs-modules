@@ -83,9 +83,9 @@ async function main(...args) {
     `INSERT INTO article (title,text) VALUES ${articles.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`
   );
 
-  let affected = my.affectedRows;
-  console.log('affected =', affected);
-
+  let affected;
+  console.log('affected =', (affected = my.affectedRows));
+ 
   let id = my.insertId;
   console.log('id =', id);
 
@@ -140,8 +140,7 @@ async function main(...args) {
     console.log(`article[${i++}] =`, row);
   
   await q(insert);
-
-
+  console.log('affected =', (affected = my.affectedRows));
 
 
   res = await q(`SELECT last_insert_id();`);
@@ -154,9 +153,7 @@ async function main(...args) {
   console.log('(await iter.next()).value =', (row = globalThis.row = (await iter.next()).value));
   console.log('row[0] =', row[0]);
 
-  console.log('affected =', (affected = my.affectedRows));
   console.log('id =', (id = my.insertId));
-
 
 
   startInteractive();

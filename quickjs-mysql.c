@@ -968,25 +968,26 @@ js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
- /* if(state == 0) {
-    MYSQL_RES* res = mysql_use_result(my);
-    JSValue res_val = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
+  /* if(state == 0) {
+     MYSQL_RES* res = mysql_use_result(my);
+     JSValue res_val = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
 
-    js_iohandler_set(ctx, data[2], fd, JS_NULL);
+     js_iohandler_set(ctx, data[2], fd, JS_NULL);
 
-    if(mysql_errno(my)) {
-      JSValue err = js_mysqlerror_new(ctx, mysql_error(my));
-      JS_Call(ctx, data[4], JS_UNDEFINED, 1, &err);
-      JS_FreeValue(ctx, err);
-    } else {
-      if(res)
-        JS_DefinePropertyValueStr(ctx, res_val, "handle", JS_DupValue(ctx, data[1]), JS_PROP_CONFIGURABLE);
+     if(mysql_errno(my)) {
+       JSValue err = js_mysqlerror_new(ctx, mysql_error(my));
+       JS_Call(ctx, data[4], JS_UNDEFINED, 1, &err);
+       JS_FreeValue(ctx, err);
+     } else {
+       if(res)
+         JS_DefinePropertyValueStr(ctx, res_val, "handle", JS_DupValue(ctx, data[1]), JS_PROP_CONFIGURABLE);
 
-      JS_Call(ctx, data[3], JS_UNDEFINED, 1, &res_val);
-      JS_FreeValue(ctx, res_val);
-    }
+       JS_Call(ctx, data[3], JS_UNDEFINED, 1, &res_val);
+       JS_FreeValue(ctx, res_val);
+     }
 
-  } else*/ {
+   } else*/
+  {
 
     data[0] = JS_NewInt32(ctx, wantwrite);
     data[1] = JS_DupValue(ctx, this_val);
