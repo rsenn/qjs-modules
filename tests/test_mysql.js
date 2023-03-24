@@ -1,6 +1,7 @@
 import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
+import { abbreviate } from 'util';
 import { MySQL, MySQLResult } from 'mysql';
 import extendArray from '../lib/extendArray.js';
 
@@ -12,9 +13,10 @@ extendArray();
 let resultNum = 0;
 
 const result = r => {
-  let prop = 'res' + ++resultNum;
+  let prop = 'result' + ++resultNum;
   globalThis[prop] = r;
-  console.log(prop + ':', r);
+  console.log(/*'globalThis.' +*/ prop + ' =', r);
+  return r;
 };
 
 async function main(...args) {
@@ -29,14 +31,10 @@ async function main(...args) {
 
   let my = (globalThis.my = new MySQL());
 
-  //my.resultType |= MySQL.RESULT_STRING;
   my.resultType |= MySQL.RESULT_OBJECT;
-  //my.resultType |= MySQL.RESULT_TABLENAME;
 
-  console.log('1: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
-
-  my.setOption(MySQL.OPT_NONBLOCK,true);
-my.setOption(MySQL.OPT_NONBLOCK,false);
+  my.setOption(MySQL.OPT_NONBLOCK, true);
+  my.setOption(MySQL.OPT_NONBLOCK, false);
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
@@ -45,49 +43,43 @@ my.setOption(MySQL.OPT_NONBLOCK,false);
     await my.connect('localhost', 'root', 'tD51o7xf', 'mysql', undefined, '/var/run/mysqld/mysqld.sock')
   );
 
-  let res, i;
+  let i;
 
-  let q = async s => (console.log(`q('\x1b[0;32m${s}'\x1b[0m)`), (res = await my.query(s)));
+  let q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s)));
 
   i = 0;
-  for await(let row of await q(`SELECT user,password,host FROM user WHERE host!='' LIMIT 0,10;`)) {
+  for await(let row of await q(`SELECT user,password,host FROM user WHERE host!='' LIMIT 0,10;`))
     console.log(`row[${i++}] =`, row);
-  }
-  result(res);
 
-  result(await q(`CREATE DATABASE blah;`));
-  result(await q(`USE blah;`));
+  await q(`CREATE DATABASE blah;`);
+  await q(`USE blah;`);
 
-  result(
-    (res = await my.query(
-      `CREATE TABLE IF NOT EXISTS article ( id int unsigned NOT NULL auto_increment, title char(64) NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '',  PRIMARY KEY (id)) CHARACTER SET utf8`
-    ))
+  await q(
+    `CREATE TABLE IF NOT EXISTS article ( id int unsigned NOT NULL auto_increment, title char(64) NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '',  PRIMARY KEY (id)) CHARACTER SET utf8`
   );
 
-  for await(let table of await q(`SHOW TABLES;`)) {
-    console.log('table =', table);
-  }
-  result(res);
+  for await(let table of await q(`SHOW TABLES;`)) console.log('table =', table);
 
-  let title = 'This is an article';
-  let text = 'lorem ipsum...';
+  let articles = [
+    ['This is an article', 'lorem ipsum...'],
+    ['This is another article', 'fliesstext...']
+  ];
 
-  result(
-    (res = await my.query(
-      `INSERT INTO article (title,text) VALUES ('${my.escapeString(title)}', '${my.escapeString(text)}');`
-    ))
+  await q(
+    `INSERT INTO article (title,text) VALUES ${articles.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`
   );
+
+  let affected = my.affectedRows;
+  console.log('affected =', affected);
 
   let id = my.insertId;
   console.log('id =', id);
 
   i = 0;
-  for await(let row of (res = await my.query(
+  for await(let row of await q(
     `SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`
-  ))) {
+  ))
     console.log(`row[${i++}] =`, row);
-  }
-  result(res);
 
   i = 0;
   let rows = (globalThis.rows = []);
@@ -95,19 +87,18 @@ my.setOption(MySQL.OPT_NONBLOCK,false);
   // my.resultType &= ~MySQL.RESULT_OBJECT;
 
   for await(let row of await q(`SELECT * FROM article ORDER BY id DESC LIMIT 0,10;`)) {
-    console.log(`row[${i++}] =`, row);
+    console.log(`row[${i++}] =`, console.config({ compact: 1 }), row);
 
     rows.unshift(row);
   }
-  result(res);
 
   async function* showFields(table = 'article') {
     my.resultType &= ~MySQL.RESULT_OBJECT;
     for await(let field of await q(`SHOW FIELDS FROM article`)) {
-      let name=field['COLUMNS.Field'] ?? field['Field'] ?? field[0];
-let type= field[1];
+      let name = field['COLUMNS.Field'] ?? field['Field'] ?? field[0];
+      let type = field[1];
 
-      console.log('field',{name,type});
+      //console.log('field', { name, type });
       yield name;
     }
     my.resultType |= MySQL.RESULT_OBJECT;
@@ -128,9 +119,13 @@ let type= field[1];
 
   let insert = (globalThis.insert = makeInsertQuery('article', fieldNames.slice(1), myrow.slice(1)));
 
-  console.log('insert', insert);
+  //console.log('insert', insert);
 
-  result((res = await q(insert)));
+  await q(insert);
+
+  console.log('affected =', affected = my.affectedRows);
+  console.log('id =', id = my.insertId);
+
 
   os.kill(process.pid, os.SIGUSR1);
 }
