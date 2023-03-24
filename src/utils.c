@@ -2869,7 +2869,7 @@ js_function_cclosure(JSContext* ctx, CClosureFunc* func, int length, int magic, 
 
   JS_SetOpaque(func_obj, ccr);
 
-  JS_DefinePropertyValueStr(ctx, func_obj, "length", JS_NewUint32(ctx, length), JS_PROP_CONFIGURABLE);
+  //JS_DefinePropertyValueStr(ctx, func_obj, "length", JS_NewUint32(ctx, length), JS_PROP_CONFIGURABLE);
 
   return func_obj;
 }
