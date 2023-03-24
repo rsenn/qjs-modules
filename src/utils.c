@@ -1576,6 +1576,16 @@ js_value_coerce(JSContext* ctx, const char* func_name, JSValueConst arg) {
   return ret;
 }
 
+JSValue
+js_value_new(JSContext* ctx, const char* ctor_name, int argc, JSValueConst argv[]) {
+  JSValue ret, fn = js_global_get_str(ctx, ctor_name);
+
+  ret = JS_CallConstructor(ctx, fn, argc, argv);
+
+  JS_FreeValue(ctx, fn);
+
+  return ret;
+}
 char*
 js_cstring_ptr(JSValueConst v) {
   JSString* p;

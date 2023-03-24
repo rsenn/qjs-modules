@@ -39,10 +39,12 @@ static BOOL field_is_string(MYSQL_FIELD const* field);
 static BOOL field_is_blob(MYSQL_FIELD const* field);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
 static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const char* s);
-static JSValue string_to_number(JSContext* ctx, const char* s);
-static JSValue string_to_bigdecimal(JSContext* ctx, const char* s);
-static JSValue string_to_bigint(JSContext* ctx, const char* s);
-static JSValue string_to_date(JSContext* ctx, const char* s);
+
+#define string_to_number(ctx, s) string_to_value(ctx, "Number", s);
+#define string_to_bigdecimal(ctx, s) string_to_value(ctx, "BigDecimal", s);
+#define string_to_bigint(ctx, s) string_to_value(ctx, "BigInt", s);
+#define string_to_bigfloat(ctx, s) string_to_value(ctx, "BigFloat", s);
+#define string_to_date(ctx, s) string_to_object(ctx, "Date", s);
 
 MYSQL*
 js_mysql_data(JSContext* ctx, JSValueConst value) {
@@ -1584,45 +1586,19 @@ field_is_blob(MYSQL_FIELD const* field) {
 static JSValue
 string_to_value(JSContext* ctx, const char* func_name, const char* s) {
   JSValue ret, arg = JS_NewString(ctx, s);
-
   ret = js_value_coerce(ctx, func_name, arg);
-
   JS_FreeValue(ctx, arg);
-
   return ret;
 }
 
 static JSValue
 string_to_object(JSContext* ctx, const char* ctor_name, const char* s) {
-  JSValue ret, arg, fn = js_global_get_str(ctx, ctor_name);
-
-  arg = JS_NewString(ctx, s);
-  ret = JS_CallConstructor(ctx, fn, 1, &arg);
-
+  JSValue ret, arg = JS_NewString(ctx, s);
+  ret = js_value_new(ctx, ctor_name, 1, &arg);
   JS_FreeValue(ctx, arg);
-  JS_FreeValue(ctx, fn);
-
   return ret;
 }
 
-static JSValue
-string_to_number(JSContext* ctx, const char* s) {
-  return string_to_value(ctx, "Number", s);
-}
-
-static JSValue
-string_to_bigdecimal(JSContext* ctx, const char* s) {
-  return string_to_value(ctx, "BigDecimal", s);
-}
-static JSValue
-string_to_bigint(JSContext* ctx, const char* s) {
-  return string_to_value(ctx, "BigInt", s);
-}
-
-static JSValue
-string_to_date(JSContext* ctx, const char* s) {
-  return string_to_object(ctx, "Date", s);
-}
 /**
  * @}
  */

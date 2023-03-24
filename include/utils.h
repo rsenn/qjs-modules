@@ -372,6 +372,7 @@ JSValue* js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr
 void js_value_fwrite(JSContext*, JSValueConst, FILE* f);
 void js_value_dump(JSContext*, JSValueConst, DynBuf* db);
 JSValue js_value_coerce(JSContext* ctx, const char* func_name, JSValueConst);
+JSValue js_value_new(JSContext* ctx, const char* ctor_name, int argc, JSValueConst argv[]);
 
 //#include "buffer-utils.h"
 
