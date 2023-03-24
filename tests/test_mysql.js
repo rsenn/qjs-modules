@@ -26,7 +26,8 @@ async function main(...args) {
 
   let my = (globalThis.my = new MySQL());
 
-  my.resultType=1;
+  // my.resultType |= MySQL.RESULT_OBJECT;
+  //  my.resultType |= MySQL.RESULT_TABLENAME;
 
   console.log(
     'my.connect() =',
@@ -35,8 +36,7 @@ async function main(...args) {
 
   let res, i;
 
-  let q = async s => (console.log(`q('\x1b[0;32m${s}'\x1b[0m)`),res = await my.query(s));
-
+  let q = async s => (console.log(`q('\x1b[0;32m${s}'\x1b[0m)`), (res = await my.query(s)));
 
   i = 0;
   for await(let row of await q(`SELECT user,password,host FROM user WHERE host!='';`)) {
@@ -55,11 +55,6 @@ async function main(...args) {
 
   for await(let table of await q(`SHOW TABLES;`)) {
     console.log('table =', table);
-  }
-  result(res);
-
-  for await(let field of await q(`SHOW FIELDS FROM article;`)) {
-    console.log('field =', field);
   }
   result(res);
 
@@ -83,9 +78,8 @@ async function main(...args) {
   }
   result(res);
 
-
   i = 0;
-  let rows=globalThis.rows=[];
+  let rows = (globalThis.rows = []);
 
   for await(let row of await q(`SELECT * FROM article ORDER BY id DESC;`)) {
     console.log(`row[${i++}] =`, row);
@@ -93,6 +87,27 @@ async function main(...args) {
     rows.unshift(row);
   }
   result(res);
+
+  async function* showFields(table = 'article') {
+    for await(let [name, type] of await q(`SHOW FIELDS FROM article;`)) {
+      yield name;
+    }
+  }
+
+  let fieldNames = globalThis.fields=[];
+  for await(let field of await showFields()) fieldNames.push(field);
+
+function makeInsertQuery(table='article', fields, data={}) {
+  return `INSERT INTO ${table} (${fields.join(',')}) VALUES (`+fields.map((field,i) => `'${my.escapeString(data[field] ?? data[i])}'`).join(',') +`);`;
+}
+
+  console.log('fieldNames', fieldNames);
+let insert = makeInsertQuery('article',fieldNames, rows[0])
+
+
+  console.log('insert', insert);
+
+result(res= await q(insert))
 
 
   os.kill(process.pid, os.SIGUSR1);
