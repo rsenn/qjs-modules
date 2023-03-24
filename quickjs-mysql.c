@@ -15,7 +15,7 @@ thread_local JSValue mysql_proto = {{JS_TAG_UNDEFINED}}, mysql_ctor = {{JS_TAG_U
 
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 
-enum MySQLResultType {
+enum ResultFlags {
   RESULT_OBJECT = 1,
   RESULT_STRING = 2,
   RESULT_TABLENAME = 4,
@@ -28,13 +28,13 @@ struct ConnectParameters {
   int64_t flags;
 };
 
-typedef char* MySQLNameFunc(JSContext*, MYSQL_FIELD const*);
-typedef JSValue MySQLRowFunc(JSContext*, MYSQL_RES*, MYSQL_ROW, int);
+typedef char* FieldNameFunc(JSContext*, MYSQL_FIELD const*);
+typedef JSValue RowValueFunc(JSContext*, MYSQL_RES*, MYSQL_ROW, int);
 
 static char* field_id(JSContext* ctx, MYSQL_FIELD const* field);
 static char* field_name(JSContext* ctx, MYSQL_FIELD const* field);
 static JSValue field_array(JSContext* ctx, MYSQL_FIELD* field);
-static MySQLNameFunc* field_namefunc(MYSQL_FIELD* fields, uint32_t num_fields);
+static FieldNameFunc* field_namefunc(MYSQL_FIELD* fields, uint32_t num_fields);
 static BOOL field_is_integer(MYSQL_FIELD const* field);
 static BOOL field_is_float(MYSQL_FIELD const* field);
 static BOOL field_is_decimal(MYSQL_FIELD const* field);
@@ -53,8 +53,110 @@ static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const cha
 #define string_to_bigfloat(ctx, s) string_to_value(ctx, "BigFloat", s);
 #define string_to_date(ctx, s) string_to_object(ctx, "Date", s);
 
-static void value_to_mysql(JSContext* ctx, DynBuf* out, JSValueConst value);
-static JSValue value_to_string(JSContext* ctx, JSValueConst value);
+static void
+js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
+
+  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value)) {
+    dbuf_putstr(out, "NULL");
+
+  } else if(JS_IsBool(value)) {
+    dbuf_putstr(out, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
+
+  } else if(JS_IsString(value)) {
+    size_t len;
+    const char* src = JS_ToCStringLen(ctx, &len, value);
+    char* dst;
+
+    dbuf_putc(out, '\'');
+    dst = (char*)dbuf_reserve(out, len * 2 + 1);
+    len = mysql_escape_string(dst, src, len);
+    out->size += len;
+    dbuf_putc(out, '\'');
+
+  } else if(js_is_date(ctx, value)) {
+    size_t len;
+    char* str;
+    JSValue val;
+
+    /*int64_t ut;
+    val = js_invoke(ctx, value, "valueOf", 0, 0);
+    JS_ToInt64(ctx, &ut, val);
+    JS_FreeValue(ctx, val);
+
+    dbuf_putstr(out, "FROM_UNIXTIME(");
+    dbuf_printf(out, "%" PRId64, ut / 1000);
+    if(ut % 1000) {
+      dbuf_putc(out, '.');
+      dbuf_printf(out, "%" PRId64, ut % 1000);
+    }
+    dbuf_putc(out, ')');*/
+
+    val = js_invoke(ctx, value, "toISOString", 0, 0);
+    str = js_tostringlen(ctx, &len, val);
+    if(len >= 24) {
+      if(str[23] == 'Z')
+        len = 23;
+    }
+    if(len >= 19) {
+      if(str[10] == 'T')
+        str[10] = ' ';
+    }
+    dbuf_putc(out, '\'');
+    dbuf_put(out, (const uint8_t*)str, len);
+    dbuf_putc(out, '\'');
+
+    js_free(ctx, str);
+    JS_FreeValue(ctx, val);
+
+  } else if(!JS_IsBigDecimal(value) && js_is_numeric(ctx, value)) {
+    JSValue val = js_value_coerce(ctx, (JS_IsBigDecimal(value)) ? "Number" : "BigDecimal", value);
+
+    js_mysql_print_value(ctx, out, val);
+    JS_FreeValue(ctx, val);
+
+  } else {
+
+    InputBuffer input = js_input_buffer(ctx, value);
+
+    if(input.size) {
+      static const uint8_t hexdigits[] = "0123456789ABCDEF";
+      dbuf_putstr(out, "0x");
+      for(size_t i = 0; i < input.size; i++) {
+        const uint8_t hex[2] = {
+            hexdigits[(input.data[i] & 0xf0) >> 4],
+            hexdigits[(input.data[i] & 0x0f)],
+        };
+        dbuf_put(out, hex, 2);
+      }
+      input_buffer_free(&input, ctx);
+
+    } else {
+      size_t len;
+      const char* str = JS_ToCStringLen(ctx, &len, value);
+
+      dbuf_put(out, (const uint8_t*)str, len);
+      JS_FreeCString(ctx, str);
+    }
+  }
+}
+
+/*static JSValue
+js_mysql_value(JSContext* ctx, JSValueConst value) {
+  JSValue ret = JS_UNDEFINED;
+  DynBuf buf;
+
+  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value))
+    return JS_NewString(ctx, "NULL");
+
+  if(JS_IsBool(value))
+    return JS_NewString(ctx, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
+
+  dbuf_init2(&buf, 0, 0);
+  js_mysql_print_value(ctx, &buf, value);
+  ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
+  dbuf_free(&buf);
+  return ret;
+}*/
 
 static void
 value_yield(JSContext* ctx, JSValueConst resolve, JSValueConst value) {
@@ -524,7 +626,7 @@ js_mysql_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   for(i = 0; i < argc; i++) {
     if(i > 0)
       dbuf_putc(&buf, ',');
-    value_to_mysql(ctx, &buf, argv[i]);
+    js_mysql_print_value(ctx, &buf, argv[i]);
   }
 
   ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
@@ -990,7 +1092,7 @@ result_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
   JSValue ret = JS_NewObject(ctx);
   uint32_t i, num_fields = mysql_num_fields(res);
   MYSQL_FIELD* fields = mysql_fetch_fields(res);
-  MySQLNameFunc* fn = (rtype & RESULT_TABLENAME) ? field_id : field_namefunc(fields, num_fields);
+  FieldNameFunc* fn = (rtype & RESULT_TABLENAME) ? field_id : field_namefunc(fields, num_fields);
   unsigned long* field_lengths = mysql_fetch_lengths(res);
 
   for(i = 0; i < num_fields; i++) {
@@ -1008,7 +1110,7 @@ result_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
 static JSValue
 result_row(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
   JSValue ret, val;
-  MySQLRowFunc* row_func = (rtype & RESULT_OBJECT) ? result_object : result_array;
+  RowValueFunc* row_func = (rtype & RESULT_OBJECT) ? result_object : result_array;
 
   val = row ? row_func(ctx, res, row, rtype) : JS_NULL;
 
@@ -1384,55 +1486,6 @@ static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQLResult", JS_PROP_CONFIGURABLE),
 };
 
-int
-js_mysql_init(JSContext* ctx, JSModuleDef* m) {
-  if(js_mysql_class_id == 0) {
-    JS_NewClassID(&js_mysql_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_mysql_class_id, &js_mysql_class);
-
-    mysql_ctor = JS_NewCFunction2(ctx, js_mysql_constructor, "MySQL", 1, JS_CFUNC_constructor, 0);
-    mysql_proto = JS_NewObject(ctx);
-
-    JS_SetPropertyFunctionList(ctx, mysql_proto, js_mysql_funcs, countof(js_mysql_funcs));
-    JS_SetPropertyFunctionList(ctx, mysql_proto, js_mysql_defines, countof(js_mysql_defines));
-    JS_SetPropertyFunctionList(ctx, mysql_ctor, js_mysql_static, countof(js_mysql_static));
-    JS_SetPropertyFunctionList(ctx, mysql_ctor, js_mysql_defines, countof(js_mysql_defines));
-    JS_SetClassProto(ctx, js_mysql_class_id, mysql_proto);
-
-    JS_NewClassID(&js_mysqlresult_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_mysqlresult_class_id, &js_mysqlresult_class);
-
-    mysqlresult_ctor = JS_NewCFunction2(ctx, js_mysqlresult_constructor, "MySQLResult", 1, JS_CFUNC_constructor, 0);
-    mysqlresult_proto = JS_NewObject(ctx);
-
-    JS_SetPropertyFunctionList(ctx, mysqlresult_proto, js_mysqlresult_funcs, countof(js_mysqlresult_funcs));
-    JS_SetClassProto(ctx, js_mysqlresult_class_id, mysqlresult_proto);
-  }
-
-  if(m) {
-    JS_SetModuleExport(ctx, m, "MySQL", mysql_ctor);
-    JS_SetModuleExport(ctx, m, "MySQLResult", mysqlresult_ctor);
-  }
-
-  return 0;
-}
-
-#ifdef JS_SHARED_LIBRARY
-#define JS_INIT_MODULE js_init_module
-#else
-#define JS_INIT_MODULE js_init_module_mysql
-#endif
-
-VISIBLE JSModuleDef*
-JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
-  JSModuleDef* m;
-  if(!(m = JS_NewCModule(ctx, module_name, &js_mysql_init)))
-    return m;
-  JS_AddModuleExport(ctx, m, "MySQL");
-  JS_AddModuleExport(ctx, m, "MySQLResult");
-  return m;
-}
-
 static char*
 field_id(JSContext* ctx, MYSQL_FIELD const* field) {
   DynBuf buf;
@@ -1451,7 +1504,7 @@ field_name(JSContext* ctx, MYSQL_FIELD const* field) {
   return js_strndup(ctx, field->name, field->name_length);
 }
 
-static MySQLNameFunc*
+static FieldNameFunc*
 field_namefunc(MYSQL_FIELD* fields, uint32_t num_fields) {
   uint32_t i, j;
   BOOL eq = FALSE;
@@ -1693,109 +1746,53 @@ string_to_object(JSContext* ctx, const char* ctor_name, const char* s) {
   return ret;
 }
 
-static void
-value_to_mysql(JSContext* ctx, DynBuf* out, JSValueConst value) {
+int
+js_mysql_init(JSContext* ctx, JSModuleDef* m) {
+  if(js_mysql_class_id == 0) {
+    JS_NewClassID(&js_mysql_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_mysql_class_id, &js_mysql_class);
 
-  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value)) {
-    dbuf_putstr(out, "NULL");
+    mysql_ctor = JS_NewCFunction2(ctx, js_mysql_constructor, "MySQL", 1, JS_CFUNC_constructor, 0);
+    mysql_proto = JS_NewObject(ctx);
 
-  } else if(JS_IsBool(value)) {
-    dbuf_putstr(out, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
+    JS_SetPropertyFunctionList(ctx, mysql_proto, js_mysql_funcs, countof(js_mysql_funcs));
+    JS_SetPropertyFunctionList(ctx, mysql_proto, js_mysql_defines, countof(js_mysql_defines));
+    JS_SetPropertyFunctionList(ctx, mysql_ctor, js_mysql_static, countof(js_mysql_static));
+    JS_SetPropertyFunctionList(ctx, mysql_ctor, js_mysql_defines, countof(js_mysql_defines));
+    JS_SetClassProto(ctx, js_mysql_class_id, mysql_proto);
 
-  } else if(JS_IsString(value)) {
-    size_t len;
-    const char* src = JS_ToCStringLen(ctx, &len, value);
-    char* dst;
+    JS_NewClassID(&js_mysqlresult_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_mysqlresult_class_id, &js_mysqlresult_class);
 
-    dbuf_putc(out, '\'');
-    dst = (char*)dbuf_reserve(out, len * 2 + 1);
-    len = mysql_escape_string(dst, src, len);
-    out->size += len;
-    dbuf_putc(out, '\'');
+    mysqlresult_ctor = JS_NewCFunction2(ctx, js_mysqlresult_constructor, "MySQLResult", 1, JS_CFUNC_constructor, 0);
+    mysqlresult_proto = JS_NewObject(ctx);
 
-  } else if(js_is_date(ctx, value)) {
-    size_t len;
-    char* str;
-    JSValue val;
-
-    /*int64_t ut;
-    val = js_invoke(ctx, value, "valueOf", 0, 0);
-    JS_ToInt64(ctx, &ut, val);
-    JS_FreeValue(ctx, val);
-
-    dbuf_putstr(out, "FROM_UNIXTIME(");
-    dbuf_printf(out, "%" PRId64, ut / 1000);
-    if(ut % 1000) {
-      dbuf_putc(out, '.');
-      dbuf_printf(out, "%" PRId64, ut % 1000);
-    }
-    dbuf_putc(out, ')');*/
-
-    val = js_invoke(ctx, value, "toISOString", 0, 0);
-    str = js_tostringlen(ctx, &len, val);
-    if(len >= 24) {
-      if(str[23] == 'Z')
-        len = 23;
-    }
-    if(len >= 19) {
-      if(str[10] == 'T')
-        str[10] = ' ';
-    }
-    dbuf_putc(out, '\'');
-    dbuf_put(out, (const uint8_t*)str, len);
-    dbuf_putc(out, '\'');
-
-    js_free(ctx, str);
-    JS_FreeValue(ctx, val);
-
-  } else if(!JS_IsBigDecimal(value) && js_is_numeric(ctx, value)) {
-    JSValue val = js_value_coerce(ctx, (JS_IsBigDecimal(value)) ? "Number" : "BigDecimal", value);
-
-    value_to_mysql(ctx, out, val);
-    JS_FreeValue(ctx, val);
-
-  } else {
-
-    InputBuffer input = js_input_buffer(ctx, value);
-
-    if(input.size) {
-      static const uint8_t hexdigits[] = "0123456789ABCDEF";
-      dbuf_putstr(out, "0x");
-      for(size_t i = 0; i < input.size; i++) {
-        const uint8_t hex[2] = {
-            hexdigits[(input.data[i] & 0xf0) >> 4],
-            hexdigits[(input.data[i] & 0x0f)],
-        };
-        dbuf_put(out, hex, 2);
-      }
-      input_buffer_free(&input, ctx);
-
-    } else {
-      size_t len;
-      const char* str = JS_ToCStringLen(ctx, &len, value);
-
-      dbuf_put(out, (const uint8_t*)str, len);
-      JS_FreeCString(ctx, str);
-    }
+    JS_SetPropertyFunctionList(ctx, mysqlresult_proto, js_mysqlresult_funcs, countof(js_mysqlresult_funcs));
+    JS_SetClassProto(ctx, js_mysqlresult_class_id, mysqlresult_proto);
   }
+
+  if(m) {
+    JS_SetModuleExport(ctx, m, "MySQL", mysql_ctor);
+    JS_SetModuleExport(ctx, m, "MySQLResult", mysqlresult_ctor);
+  }
+
+  return 0;
 }
 
-static JSValue
-value_to_string(JSContext* ctx, JSValueConst value) {
-  JSValue ret = JS_UNDEFINED;
-  DynBuf buf;
+#ifdef JS_SHARED_LIBRARY
+#define JS_INIT_MODULE js_init_module
+#else
+#define JS_INIT_MODULE js_init_module_mysql
+#endif
 
-  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value))
-    return JS_NewString(ctx, "NULL");
-
-  if(JS_IsBool(value))
-    return JS_NewString(ctx, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
-
-  dbuf_init2(&buf, 0, 0);
-  value_to_mysql(ctx, &buf, value);
-  ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
-  dbuf_free(&buf);
-  return ret;
+VISIBLE JSModuleDef*
+JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
+  JSModuleDef* m;
+  if(!(m = JS_NewCModule(ctx, module_name, &js_mysql_init)))
+    return m;
+  JS_AddModuleExport(ctx, m, "MySQL");
+  JS_AddModuleExport(ctx, m, "MySQLResult");
+  return m;
 }
 
 /**

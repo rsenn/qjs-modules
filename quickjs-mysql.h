@@ -6,18 +6,21 @@
  * @{
  */
 
-struct mysql;
-
+#include "defines.h"
 #include <quickjs.h>
 #include <cutils.h>
 #include <list.h>
 #define list_add mariadb_list_add
 #include <mariadb/mysql.h>
 
-MYSQL* js_mysql_data(JSContext*, JSValue value);
-MYSQL_RES* js_mysqlresult_data(JSContext*, JSValue value);
-int js_mysql_init(JSContext*, JSModuleDef* m);
+MYSQL* js_mysql_data(JSContext*, JSValueConst);
+MYSQL_RES* js_mysqlresult_data(JSContext*, JSValueConst);
+MYSQL* js_mysqlresult_handle(JSContext*, JSValueConst);
+BOOL js_mysqlresult_nonblock(JSContext*, JSValueConst);
+int js_mysql_init(JSContext*, JSModuleDef*);
 JSModuleDef* js_init_module_mysql(JSContext*, const char* module_name);
+
+extern thread_local VISIBLE JSClassID js_mysql_class_id, js_mysqlresult_class_id;
 
 /**
  * @}
