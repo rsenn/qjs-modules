@@ -387,11 +387,14 @@ static JSClassDef js_location_class = {
 };
 
 static const JSCFunctionListEntry js_location_funcs[] = {
-    JS_CGETSET_MAGIC_FLAGS_DEF("line", js_location_get, js_location_set, LOCATION_PROP_LINE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("column", js_location_get, js_location_set, LOCATION_PROP_COLUMN, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF(
+        "line", js_location_get, js_location_set, LOCATION_PROP_LINE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF(
+        "column", js_location_get, js_location_set, LOCATION_PROP_COLUMN, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("charOffset", js_location_get, js_location_set, LOCATION_PROP_CHAROFFSET),
     JS_CGETSET_MAGIC_DEF("byteOffset", js_location_get, js_location_set, LOCATION_PROP_BYTEOFFSET),
-    JS_CGETSET_MAGIC_FLAGS_DEF("file", js_location_get, js_location_set, LOCATION_PROP_FILE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF(
+        "file", js_location_get, js_location_set, LOCATION_PROP_FILE, JS_PROP_ENUMERABLE),
     JS_ALIAS_DEF("pos", "charOffset"),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
     JS_CFUNC_DEF("clone", 0, js_location_clone),
@@ -414,7 +417,10 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
     location_proto = JS_NewObject(ctx);
 
     JS_SetPropertyFunctionList(ctx, location_proto, js_location_funcs, countof(js_location_funcs));
-    JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
+    JS_SetPropertyFunctionList(ctx,
+                               location_ctor,
+                               js_location_static_funcs,
+                               countof(js_location_static_funcs));
     JS_SetClassProto(ctx, js_location_class_id, location_proto);
 
     // js_set_inspect_method(ctx, location_proto, js_location_inspect);

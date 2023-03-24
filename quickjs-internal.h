@@ -316,7 +316,13 @@ struct JSContext {
   /* if NULL, RegExp compilation is not supported */
   JSValue (*compile_regexp)(JSContext* ctx, JSValueConst pattern, JSValueConst flags);
   /* if NULL, eval is not supported */
-  JSValue (*eval_internal)(JSContext* ctx, JSValueConst this_obj, const char* input, size_t input_len, const char* filename, int flags, int scope_idx);
+  JSValue (*eval_internal)(JSContext* ctx,
+                           JSValueConst this_obj,
+                           const char* input,
+                           size_t input_len,
+                           const char* filename,
+                           int flags,
+                           int scope_idx);
   void* user_opaque;
 };
 
@@ -576,16 +582,16 @@ struct JSObject {
     struct JSBoundFunction* bound_function;               /* JS_CLASS_BOUND_FUNCTION */
     struct JSCFunctionDataRecord* c_function_data_record; /* JS_CLASS_C_FUNCTION_DATA */
     struct JSForInIterator* for_in_iterator;              /* JS_CLASS_FOR_IN_ITERATOR */
-    struct JSArrayBuffer* array_buffer;                   /* JS_CLASS_ARRAY_BUFFER, JS_CLASS_SHARED_ARRAY_BUFFER */
-    struct JSTypedArray* typed_array;                     /* JS_CLASS_UINT8C_ARRAY..JS_CLASS_DATAVIEW */
+    struct JSArrayBuffer* array_buffer; /* JS_CLASS_ARRAY_BUFFER, JS_CLASS_SHARED_ARRAY_BUFFER */
+    struct JSTypedArray* typed_array;   /* JS_CLASS_UINT8C_ARRAY..JS_CLASS_DATAVIEW */
 #ifdef CONFIG_BIGNUM
     struct JSFloatEnv* float_env;           /* JS_CLASS_FLOAT_ENV */
     struct JSOperatorSetData* operator_set; /* JS_CLASS_OPERATOR_SET */
 #endif
-    struct JSMapState* map_state;                                      /* JS_CLASS_MAP..JS_CLASS_WEAKSET */
-    struct JSMapIteratorData* map_iterator_data;                       /* JS_CLASS_MAP_ITERATOR, JS_CLASS_SET_ITERATOR */
-    struct JSArrayIteratorData* array_iterator_data;                   /* JS_CLASS_ARRAY_ITERATOR,
-                                                                          JS_CLASS_STRING_ITERATOR */
+    struct JSMapState* map_state;                    /* JS_CLASS_MAP..JS_CLASS_WEAKSET */
+    struct JSMapIteratorData* map_iterator_data;     /* JS_CLASS_MAP_ITERATOR, JS_CLASS_SET_ITERATOR */
+    struct JSArrayIteratorData* array_iterator_data; /* JS_CLASS_ARRAY_ITERATOR,
+                                                        JS_CLASS_STRING_ITERATOR */
     struct JSRegExpStringIteratorData* regexp_string_iterator_data;    /* JS_CLASS_REGEXP_STRING_ITERATOR */
     struct JSGeneratorData* generator_data;                            /* JS_CLASS_GENERATOR */
     struct JSProxyData* proxy_data;                                    /* JS_CLASS_PROXY */
@@ -596,7 +602,7 @@ struct JSObject {
                                                                           JS_CLASS_ASYNC_FUNCTION_REJECT */
     struct JSAsyncFromSyncIteratorData* async_from_sync_iterator_data; /* JS_CLASS_ASYNC_FROM_SYNC_ITERATOR */
     struct JSAsyncGeneratorData* async_generator_data;                 /* JS_CLASS_ASYNC_GENERATOR */
-    struct {                                                           /* JS_CLASS_BYTECODE_FUNCTION: 12/24 bytes */
+    struct { /* JS_CLASS_BYTECODE_FUNCTION: 12/24 bytes */
       /* also used by JS_CLASS_GENERATOR_FUNCTION, JS_CLASS_ASYNC_FUNCTION and
        * JS_CLASS_ASYNC_GENERATOR_FUNCTION */
       struct JSFunctionBytecode* function_bytecode;

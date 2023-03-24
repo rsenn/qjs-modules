@@ -23,7 +23,13 @@ enum repeater_getters {
   PROP_LENGTH = 0,
   PROP_PATH,
 };
-enum repeater_state { REPEATER_INITIAL = 0, REPEATER_STARTED, REPEATER_STOPPED, REPEATER_DONE, REPEATER_REJECTED };
+enum repeater_state {
+  REPEATER_INITIAL = 0,
+  REPEATER_STARTED,
+  REPEATER_STOPPED,
+  REPEATER_DONE,
+  REPEATER_REJECTED
+};
 
 struct resolvable_item {
   JSValue resolve, value;
@@ -232,7 +238,8 @@ js_repeater_execute(JSContext* ctx, JSValueConst this_val) {
 }
 
 static JSValue
-js_repeater_iteration(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_repeater_iteration(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   Repeater* rpt = JS_GetOpaque(data[0], js_repeater_class_id);
   JSValue ret = JS_UNDEFINED;
   JSValueConst value = argc >= 1 ? argv[0] : JS_UNDEFINED;
@@ -284,7 +291,8 @@ js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_EXCEPTION;
 
   const char* v = JS_ToCString(ctx, value);
-  // printf("js_repeater_push value=%s pushes=%d nexts=%d\n", v, queue_length(&rpt->pushes), queue_length(&rpt->nexts));
+  // printf("js_repeater_push value=%s pushes=%d nexts=%d\n", v, queue_length(&rpt->pushes),
+  // queue_length(&rpt->nexts));
   JS_FreeCString(ctx, v);
 
   if((item = queue_shift(&rpt->nexts))) {
@@ -428,7 +436,8 @@ js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   BOOL done = rpt->state >= REPEATER_STOPPED;
 
-  // printf("js_repeater_next done=%d pushes=%d nexts=%d\n", done, queue_length(&rpt->pushes), queue_length(&rpt->nexts));
+  // printf("js_repeater_next done=%d pushes=%d nexts=%d\n", done, queue_length(&rpt->pushes),
+  // queue_length(&rpt->nexts));
 
   if((item = queue_shift(&rpt->pushes))) {
     JSValue it = resolvable_resolve(ctx, &item->resolvable, value);

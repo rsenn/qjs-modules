@@ -17,6 +17,7 @@ const result = r => {
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
+      compact: 1,
       customInspect: true,
       showHidden: false,
       hideKeys: ['query']
@@ -27,13 +28,14 @@ async function main(...args) {
 
   console.log(
     'my.connect() =',
-    await my.connect('localhost', 'root', 'tD51o7xf', 'mysql', 0, '/var/run/mysqld/mysqld.sock')
+    await my.connect('localhost', 'root', 'tD51o7xf', 'mysql', undefined, '/var/run/mysqld/mysqld.sock')
   );
 
-  let res;
+  let res, i;
 
+  i = 0;
   for await(let row of (res = await my.query(`SELECT user,password,host FROM user WHERE host!='';`))) {
-    console.log('row =', row);
+    console.log(`row[${i++}] =`, row);
   }
   result(res);
 
@@ -68,13 +70,18 @@ async function main(...args) {
   let id = my.insertId;
   console.log('id =', id);
 
-  for await(let row of (res = await my.query(`SELECT * FROM article;`))) {
-    console.log('row =', row);
+  i = 0;
+  for await(let row of (res = await my.query(
+    `SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id;`
+  ))) {
+    console.log(`row[${i++}] =`, row);
   }
   result(res);
-  
-  for await(let row of (res = await my.query(`SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id;`))) {
-    console.log('row =', row);
+
+
+  i = 0;
+  for await(let row of (res = await my.query(`SELECT * FROM article ORDER BY id DESC;`))) {
+    console.log(`row[${i++}] =`, row);
   }
   result(res);
 
@@ -83,7 +90,7 @@ async function main(...args) {
 }
 
 try {
-  main(...scriptArgs.slice(1));
+  main(...scriptArgs.slice(1)).catch(err => console.log(`FAIL: ${err.message}\n${err.stack}`));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
   std.exit(1);

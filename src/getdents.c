@@ -85,7 +85,8 @@ int
 getdents_isdir(const DirEntry* e) {
   return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
-// int getdents_isfifo(const DirEntry* e) { return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes==FILE_ATTRIBUTE_DIRECTORY);  }
+// int getdents_isfifo(const DirEntry* e) { return
+// !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes==FILE_ATTRIBUTE_DIRECTORY);  }
 int
 getdents_islnk(const DirEntry* e) { return  ((WIN32_FIND_DATAW*)e)->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT);
 }

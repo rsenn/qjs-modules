@@ -419,13 +419,20 @@ js_child_process_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_child_process_class_id, &js_child_process_class);
 
   child_process_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, child_process_proto, js_child_process_proto_funcs, countof(js_child_process_proto_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             child_process_proto,
+                             js_child_process_proto_funcs,
+                             countof(js_child_process_proto_funcs));
   JS_SetClassProto(ctx, js_child_process_class_id, child_process_proto);
 
-  child_process_ctor = JS_NewCFunction2(ctx, js_child_process_constructor, "ChildProcess", 1, JS_CFUNC_constructor, 0);
+  child_process_ctor =
+      JS_NewCFunction2(ctx, js_child_process_constructor, "ChildProcess", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, child_process_ctor, child_process_proto);
-  JS_SetPropertyFunctionList(ctx, child_process_ctor, js_child_process_funcs, countof(js_child_process_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             child_process_ctor,
+                             js_child_process_funcs,
+                             countof(js_child_process_funcs));
   // js_set_inspect_method(ctx, child_process_proto, js_child_process_inspect);
 
   if(m) {

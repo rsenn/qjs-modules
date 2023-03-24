@@ -74,7 +74,9 @@ static void
 tree_walker_free(TreeWalker* w, JSRuntime* rt) {
   if(--w->ref_count == 0) {
     PropertyEnumeration *s, *e;
-    for(s = vector_begin(&w->hier), e = vector_end(&w->hier); s != e; s++) { property_enumeration_reset(s, rt); }
+    for(s = vector_begin(&w->hier), e = vector_end(&w->hier); s != e; s++) {
+      property_enumeration_reset(s, rt);
+    }
     vector_free(&w->hier);
     js_free_rt(rt, w);
   }
@@ -438,7 +440,8 @@ fail:
 }
 
 JSValue
-js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+js_tree_iterator_next(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   PropertyEnumeration* it;
   TreeWalker* w;
   enum tree_iterator_return r;
@@ -547,25 +550,39 @@ js_tree_walker_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_tree_walker_class_id, &js_tree_walker_class);
 
   tree_walker_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, tree_walker_proto, js_tree_walker_proto_funcs, countof(js_tree_walker_proto_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             tree_walker_proto,
+                             js_tree_walker_proto_funcs,
+                             countof(js_tree_walker_proto_funcs));
   JS_SetClassProto(ctx, js_tree_walker_class_id, tree_walker_proto);
 
-  tree_walker_ctor = JS_NewCFunction2(ctx, js_tree_walker_constructor, "TreeWalker", 1, JS_CFUNC_constructor, 0);
+  tree_walker_ctor =
+      JS_NewCFunction2(ctx, js_tree_walker_constructor, "TreeWalker", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, tree_walker_ctor, tree_walker_proto);
-  JS_SetPropertyFunctionList(ctx, tree_walker_ctor, js_tree_walker_static_funcs, countof(js_tree_walker_static_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             tree_walker_ctor,
+                             js_tree_walker_static_funcs,
+                             countof(js_tree_walker_static_funcs));
 
   JS_NewClassID(&js_tree_iterator_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_tree_iterator_class_id, &js_tree_iterator_class);
 
   tree_iterator_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, tree_iterator_proto, js_tree_iterator_proto_funcs, countof(js_tree_iterator_proto_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             tree_iterator_proto,
+                             js_tree_iterator_proto_funcs,
+                             countof(js_tree_iterator_proto_funcs));
   JS_SetClassProto(ctx, js_tree_iterator_class_id, tree_iterator_proto);
 
-  tree_iterator_ctor = JS_NewCFunction2(ctx, js_tree_iterator_constructor, "TreeIterator", 1, JS_CFUNC_constructor, 0);
+  tree_iterator_ctor =
+      JS_NewCFunction2(ctx, js_tree_iterator_constructor, "TreeIterator", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, tree_iterator_ctor, tree_iterator_proto);
-  JS_SetPropertyFunctionList(ctx, tree_iterator_ctor, js_tree_walker_static_funcs, countof(js_tree_walker_static_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             tree_iterator_ctor,
+                             js_tree_walker_static_funcs,
+                             countof(js_tree_walker_static_funcs));
 
   if(m) {
     JS_SetModuleExport(ctx, m, "TreeWalker", tree_walker_ctor);

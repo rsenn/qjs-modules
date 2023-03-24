@@ -27,7 +27,8 @@ get_reparse_data(const char* LinkPath, REPARSE_DATA_BUFFER* rdb) {
     return FALSE;
   }
 
-  hFile = CreateFile(LinkPath, 0, 0, 0, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, 0);
+  hFile = CreateFile(
+      LinkPath, 0, 0, 0, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, 0);
 
   if(hFile == INVALID_HANDLE_VALUE) {
     return FALSE;
@@ -61,12 +62,14 @@ readlink(const char* LinkPath, char* buf, size_t maxlen) {
 
   switch(rdb.ReparseTag) {
     case IO_REPARSE_TAG_MOUNT_POINT: { /* Junction */
-      wbuf = rdb.u.MountPointReparseBuffer.PathBuffer + rdb.u.MountPointReparseBuffer.SubstituteNameOffset / sizeof(wchar_t);
+      wbuf = rdb.u.MountPointReparseBuffer.PathBuffer +
+             rdb.u.MountPointReparseBuffer.SubstituteNameOffset / sizeof(wchar_t);
       wlen = rdb.u.MountPointReparseBuffer.SubstituteNameLength / sizeof(WCHAR);
       break;
     }
     case IO_REPARSE_TAG_SYMLINK: { /* Symlink */
-      wbuf = rdb.u.SymbolicLinkReparseBuffer.PathBuffer + rdb.u.SymbolicLinkReparseBuffer.SubstituteNameOffset / sizeof(WCHAR);
+      wbuf = rdb.u.SymbolicLinkReparseBuffer.PathBuffer +
+             rdb.u.SymbolicLinkReparseBuffer.SubstituteNameOffset / sizeof(WCHAR);
       wlen = rdb.u.SymbolicLinkReparseBuffer.SubstituteNameLength / sizeof(WCHAR);
       break;
     }

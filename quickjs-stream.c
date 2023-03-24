@@ -10,11 +10,14 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
-thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_controller = {{JS_TAG_UNDEFINED}}, readable_ctor = {{JS_TAG_UNDEFINED}},
-                     writable_proto = {{JS_TAG_UNDEFINED}}, writable_controller = {{JS_TAG_UNDEFINED}}, writable_ctor = {{JS_TAG_UNDEFINED}},
-                     transform_proto = {{JS_TAG_UNDEFINED}}, transform_controller = {{JS_TAG_UNDEFINED}}, transform_ctor = {{JS_TAG_UNDEFINED}},
-                     reader_proto = {{JS_TAG_UNDEFINED}}, reader_ctor = {{JS_TAG_UNDEFINED}}, writer_proto = {{JS_TAG_UNDEFINED}},
+thread_local VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0,
+                               js_writer_class_id = 0, js_transform_class_id = 0;
+thread_local JSValue readable_proto = {{JS_TAG_UNDEFINED}}, readable_controller = {{JS_TAG_UNDEFINED}},
+                     readable_ctor = {{JS_TAG_UNDEFINED}}, writable_proto = {{JS_TAG_UNDEFINED}},
+                     writable_controller = {{JS_TAG_UNDEFINED}}, writable_ctor = {{JS_TAG_UNDEFINED}},
+                     transform_proto = {{JS_TAG_UNDEFINED}}, transform_controller = {{JS_TAG_UNDEFINED}},
+                     transform_ctor = {{JS_TAG_UNDEFINED}}, reader_proto = {{JS_TAG_UNDEFINED}},
+                     reader_ctor = {{JS_TAG_UNDEFINED}}, writer_proto = {{JS_TAG_UNDEFINED}},
                      writer_ctor = {{JS_TAG_UNDEFINED}};
 
 static int reader_update(Reader* rd, JSContext* ctx);
@@ -253,7 +256,8 @@ reader_update(Reader* rd, JSContext* ctx) {
 
   reader_clean(rd, ctx);
 
-  // printf("reader_update(1) [%zu] closed=%d queue.size=%zu\n", list_size(&rd->list), readable_closed(st), queue_size(&st->q));
+  // printf("reader_update(1) [%zu] closed=%d queue.size=%zu\n", list_size(&rd->list), readable_closed(st),
+  // queue_size(&st->q));
 
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
@@ -277,7 +281,8 @@ reader_update(Reader* rd, JSContext* ctx) {
     }
   }
 
-  // printf("reader_update(3) closed=%d queue.size=%zu result = %d\n", readable_closed(st), queue_size(&st->q), ret);
+  // printf("reader_update(3) closed=%d queue.size=%zu result = %d\n", readable_closed(st),
+  // queue_size(&st->q), ret);
 
   return ret;
 }
@@ -661,9 +666,8 @@ js_readable_wrap(JSContext* ctx, Readable* st) {
 }
 
 /*static JSValue
-js_readable_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  Readable* st;
-  JSValue ret = JS_UNDEFINED;
+js_readable_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic)
+{ Readable* st; JSValue ret = JS_UNDEFINED;
 
   if(!(st = JS_GetOpaque2(ctx, this_val, js_readable_class_id)))
     return JS_EXCEPTION;
@@ -1524,12 +1528,16 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, readable_proto, js_readable_proto_funcs, countof(js_readable_proto_funcs));
   JS_SetClassProto(ctx, js_readable_class_id, readable_proto);
 
-  readable_ctor = JS_NewCFunction2(ctx, js_readable_constructor, "ReadableStream", 1, JS_CFUNC_constructor, 0);
+  readable_ctor =
+      JS_NewCFunction2(ctx, js_readable_constructor, "ReadableStream", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, readable_ctor, readable_proto);
 
   readable_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, readable_controller, js_readable_controller_funcs, countof(js_readable_controller_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             readable_controller,
+                             js_readable_controller_funcs,
+                             countof(js_readable_controller_funcs));
   JS_SetClassProto(ctx, js_readable_class_id, readable_controller);
 
   JS_NewClassID(&js_writer_class_id);
@@ -1550,27 +1558,38 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, writable_proto, js_writable_proto_funcs, countof(js_writable_proto_funcs));
   JS_SetClassProto(ctx, js_writable_class_id, writable_proto);
 
-  writable_ctor = JS_NewCFunction2(ctx, js_writable_constructor, "WritableStream", 1, JS_CFUNC_constructor, 0);
+  writable_ctor =
+      JS_NewCFunction2(ctx, js_writable_constructor, "WritableStream", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, writable_ctor, writable_proto);
 
   writable_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, writable_controller, js_writable_controller_funcs, countof(js_writable_controller_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             writable_controller,
+                             js_writable_controller_funcs,
+                             countof(js_writable_controller_funcs));
   JS_SetClassProto(ctx, js_writable_class_id, writable_controller);
 
   JS_NewClassID(&js_transform_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_transform_class_id, &js_transform_class);
 
   transform_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, transform_proto, js_transform_proto_funcs, countof(js_transform_proto_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             transform_proto,
+                             js_transform_proto_funcs,
+                             countof(js_transform_proto_funcs));
   JS_SetClassProto(ctx, js_transform_class_id, transform_proto);
 
-  transform_ctor = JS_NewCFunction2(ctx, js_transform_constructor, "TransformStream", 1, JS_CFUNC_constructor, 0);
+  transform_ctor =
+      JS_NewCFunction2(ctx, js_transform_constructor, "TransformStream", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, transform_ctor, transform_proto);
 
   transform_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, transform_controller, js_transform_controller_funcs, countof(js_transform_controller_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             transform_controller,
+                             js_transform_controller_funcs,
+                             countof(js_transform_controller_funcs));
   JS_SetClassProto(ctx, js_transform_class_id, transform_controller);
 
   // JS_SetPropertyFunctionList(ctx, stream_ctor, js_stream_static_funcs, countof(js_stream_static_funcs));

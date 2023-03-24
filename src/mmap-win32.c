@@ -66,7 +66,8 @@ mmap(void* addr, size_t len, int prot, int flags, int fd, long off) {
 
   long granularity = getgranularity();
 
-  if(off % getpagesize() || (!(flags & MAP_SHARED) && !(flags & MAP_PRIVATE)) || ((flags & MAP_SHARED) && (flags & MAP_PRIVATE)) ||
+  if(off % getpagesize() || (!(flags & MAP_SHARED) && !(flags & MAP_PRIVATE)) ||
+     ((flags & MAP_SHARED) && (flags & MAP_PRIVATE)) ||
      ((flags & MAP_FIXED) && ((LONG_PTR)addr % granularity)) || !len) {
     errno = EINVAL;
     return MAP_FAILED;

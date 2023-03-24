@@ -60,7 +60,8 @@ typedef union socket_state Socket;
 typedef struct async_socket_state AsyncSocket;
 
 extern thread_local VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_async_socket_class_id;
-extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto, async_socket_ctor;
+extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto,
+    async_socket_ctor;
 
 enum SocketCalls {
   SYSCALL_SOCKET = 1,
@@ -82,7 +83,8 @@ enum SocketCalls {
 };
 
 #define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)
-#define socket_eof(sock) (((sock).syscall == SYSCALL_RECV || (sock).syscall == SYSCALL_RECVFROM) && (sock).ret == 0)
+#define socket_eof(sock) \
+  (((sock).syscall == SYSCALL_RECV || (sock).syscall == SYSCALL_RECVFROM) && (sock).ret == 0)
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
 #define socket_error(sock) ((sock).ret < 0 ? (sock).error : 0)
 #define socket_syscall(sock) socket_syscalls[(sock).syscall]

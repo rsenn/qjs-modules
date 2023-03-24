@@ -393,7 +393,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       } else if(path_isrelative(to)) {
         dbuf_init2(&cwd, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
         path_absolute3(b, blen, &cwd);
-        to = cwd.buf;
+        to = (const char*)cwd.buf;
       }
       path_relative3(a, to, &db);
       if(to == (const char*)cwd.buf) {

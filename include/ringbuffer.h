@@ -56,7 +56,8 @@ typedef union ringbuffer {
 #define ringbuffer_wrapped(rb) ((rb)->head < (rb)->tail)
 #define ringbuffer_headroom(rb) ((rb)->size - (rb)->head)
 #define ringbuffer_avail(rb) ((rb)->size - ringbuffer_length(rb))
-#define ringbuffer_length(rb) (ringbuffer_wrapped(rb) ? ((rb)->size - (rb)->tail) + (rb)->head : (rb)->head - (rb)->tail)
+#define ringbuffer_length(rb) \
+  (ringbuffer_wrapped(rb) ? ((rb)->size - (rb)->tail) + (rb)->head : (rb)->head - (rb)->tail)
 #define ringbuffer_continuous(rb) (ringbuffer_wrapped(rb) ? (rb)->size - (rb)->tail : (rb)->head - (rb)->tail)
 #define ringbuffer_is_continuous(rb) ((rb)->head >= (rb)->tail)
 //#define ringbuffer_skip(rb, n) ((rb)->tail += (n), (rb)->tail %= (rb)->size)
