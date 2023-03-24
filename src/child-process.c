@@ -142,8 +142,7 @@ child_process_spawn(ChildProcess* cp) {
   siStartInfo.hStdInput = (HANDLE)_get_osfhandle(cp->child_fds[0]);
   siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
-  retval = CreateProcessA(
-      cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+  retval = CreateProcessA(cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
 
   if(retval == FALSE) {
     int error = GetLastError();
@@ -343,10 +342,9 @@ child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
 }
 
 const char* child_process_signals[32] = {
-    0,           "SIGHUP",  "SIGINT",    "SIGQUIT", "SIGILL",   "SIGTRAP", "SIGABRT", "SIGBUS",
-    "SIGFPE",    "SIGKILL", "SIGUSR1",   "SIGSEGV", "SIGUSR2",  "SIGPIPE", "SIGALRM", "SIGTERM",
-    "SIGSTKFLT", "SIGCHLD", "SIGCONT",   "SIGSTOP", "SIGTSTP",  "SIGTTIN", "SIGTTOU", "SIGURG",
-    "SIGXCPU",   "SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
+    0,         "SIGHUP",  "SIGINT",  "SIGQUIT", "SIGILL",    "SIGTRAP",   "SIGABRT",  "SIGBUS",  "SIGFPE",  "SIGKILL", "SIGUSR1",
+    "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM", "SIGTERM",   "SIGSTKFLT", "SIGCHLD",  "SIGCONT", "SIGSTOP", "SIGTSTP", "SIGTTIN",
+    "SIGTTOU", "SIGURG",  "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF",   "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
 };
 /**
  * @}

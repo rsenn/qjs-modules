@@ -10,10 +10,10 @@
  */
 
 thread_local VISIBLE JSClassID js_mysql_class_id = 0, js_mysqlresult_class_id = 0;
-thread_local JSValue mysql_proto = {{JS_TAG_UNDEFINED}}, mysql_ctor = {{JS_TAG_UNDEFINED}},
-                     mysqlresult_proto = {{JS_TAG_UNDEFINED}}, mysqlresult_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue mysql_proto = {{JS_TAG_UNDEFINED}}, mysql_ctor = {{JS_TAG_UNDEFINED}}, mysqlresult_proto = {{JS_TAG_UNDEFINED}},
+                     mysqlresult_ctor = {{JS_TAG_UNDEFINED}};
 
-static JSValue js_mysqlresult_new(JSContext* ctx, MYSQL_RES* res);
+static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 
 enum mysql_result_type {
   RESULT_OBJECT = 1,
@@ -500,8 +500,7 @@ fail:
 }
 
 static JSValue
-js_mysql_connect_handler(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   int32_t wr, oldstatus, status, fd;
   MYSQL *my, *ret = 0;
 
@@ -532,7 +531,7 @@ js_mysql_connect_handler(
                          JS_DupValue(ctx, data[3]),
                          JS_DupValue(ctx, data[4]),
                      };
-    handler = JS_NewCFunctionData(ctx, js_mysql_connect_handler, 0, 0, countof(hdata), hdata);
+    handler = JS_NewCFunctionData(ctx, js_mysql_connect_cont, 0, 0, countof(hdata), hdata);
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
@@ -540,14 +539,7 @@ js_mysql_connect_handler(
   }
 
 #ifdef DEBUG_OUTPUT
-  printf("%s wr=%i fd=%i status=%i my=%p ret=%p error='%s'\n",
-         __func__,
-         wr,
-         fd,
-         status,
-         my,
-         ret,
-         mysql_error(my));
+  printf("%s wr=%i fd=%i status=%i my=%p ret=%p error='%s'\n", __func__, wr, fd, status, my, ret, mysql_error(my));
 #endif
 
   return JS_UNDEFINED;
@@ -596,7 +588,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   data[1] = JS_DupValue(ctx, this_val);
   data[2] = js_iohandler_fn(ctx, wr);
 
-  handler = JS_NewCFunctionData(ctx, js_mysql_connect_handler, 0, 0, countof(data), data);
+  handler = JS_NewCFunctionData(ctx, js_mysql_connect_cont, 0, 0, countof(data), data);
 
   if(!js_iohandler_set(ctx, data[2], fd, handler))
     JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
@@ -616,8 +608,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static JSValue
-js_mysql_query_handler(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   int32_t wr, oldstatus, status, fd;
   int ret = 0;
   MYSQL* my = 0;
@@ -636,7 +627,7 @@ js_mysql_query_handler(
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
 
     MYSQL_RES* res = mysql_use_result(my);
-    JSValue res_val = js_mysqlresult_new(ctx, res);
+    JSValue res_val = js_mysqlresult_wrap(ctx, res);
 
     if(res) {
       JS_DefinePropertyValueStr(ctx, res_val, "mysql", JS_DupValue(ctx, data[1]), JS_PROP_CONFIGURABLE);
@@ -658,7 +649,7 @@ js_mysql_query_handler(
                          JS_DupValue(ctx, data[3]),
                          JS_DupValue(ctx, data[4]),
                      };
-    handler = JS_NewCFunctionData(ctx, js_mysql_query_handler, 0, 0, countof(hdata), hdata);
+    handler = JS_NewCFunctionData(ctx, js_mysql_query_cont, 0, 0, countof(hdata), hdata);
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
@@ -666,14 +657,7 @@ js_mysql_query_handler(
   }
 
 #ifdef DEBUG_OUTPUT
-  printf("%s wr=%i fd=%i status=%i my=%p ret=%d error='%s'\n",
-         __func__,
-         wr,
-         fd,
-         status,
-         my,
-         ret,
-         mysql_error(my));
+  printf("%s wr=%i fd=%i status=%i my=%p ret=%d error='%s'\n", __func__, wr, fd, status, my, ret, mysql_error(my));
 #endif
 
   return JS_UNDEFINED;
@@ -706,7 +690,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   data[1] = JS_DupValue(ctx, this_val);
   data[2] = js_iohandler_fn(ctx, wr);
 
-  handler = JS_NewCFunctionData(ctx, js_mysql_query_handler, 0, 0, countof(data), data);
+  handler = JS_NewCFunctionData(ctx, js_mysql_query_cont, 0, 0, countof(data), data);
 
   if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler))
     JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
@@ -943,13 +927,10 @@ result_array(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, uint32_t result_type
   unsigned long* field_lengths = mysql_fetch_lengths(res);
 
   for(i = 0; i < num_fields; i++) {
-#ifdef DEBUG_OUTPUT
-    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%s'\n", __func__, num_fields, i, row[i]);
+#ifdef DEBUG_OUTPUT_
+    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n", __func__, num_fields, i, (int)(field_lengths[i] > 32 ? 32 : field_lengths[i]), row[i]);
 #endif
-    JS_SetPropertyUint32(ctx,
-                         ret,
-                         i,
-                         result_value(ctx, &fields[i], row[i], field_lengths[i], result_type));
+    JS_SetPropertyUint32(ctx, ret, i, result_value(ctx, &fields[i], row[i], field_lengths[i], result_type));
   }
 
   return ret;
@@ -967,17 +948,13 @@ result_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, uint32_t result_typ
     char* id;
 
     if((id = fn(ctx, &fields[i]))) {
-      JS_SetPropertyStr(ctx,
-                        ret,
-                        id,
-                        result_value(ctx, &fields[i], row[i], field_lengths[i], result_type));
+      JS_SetPropertyStr(ctx, ret, id, result_value(ctx, &fields[i], row[i], field_lengths[i], result_type));
       js_free(ctx, id);
     }
   }
 
   return ret;
 }
-
 
 static void
 result_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, row_func_type* row_func, uint32_t result_type) {
@@ -1000,19 +977,17 @@ js_mysqlresult_data(JSContext* ctx, JSValueConst value) {
 
 static inline uint32_t
 js_mysqlresult_result_type(JSContext* ctx, JSValueConst this_val) {
- return js_get_propertystr_int32(ctx, this_val, "resultType");
+  return js_get_propertystr_int32(ctx, this_val, "resultType");
 }
 
 static JSValue
-js_mysqlresult_next_handler(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+js_mysqlresult_next_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   int32_t wr, oldstatus, status, fd;
   MYSQL_ROW row;
   JSValue my_val;
   MYSQL_RES* res;
   MYSQL* my = 0;
-  uint32_t num_fields, field_count;
-  uint32_t result_type = js_mysqlresult_result_type(ctx, data[1]);
+  uint32_t num_fields, field_count, result_type = js_mysqlresult_result_type(ctx, data[1]);
 
   if(!(res = js_mysqlresult_data(ctx, data[1])))
     return JS_EXCEPTION;
@@ -1032,20 +1007,17 @@ js_mysqlresult_next_handler(
   oldstatus = wr ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
 
   status = mysql_fetch_row_cont(&row, res, oldstatus);
-  num_fields = mysql_num_fields(res);
+
+  num_fields = status ? 0 : mysql_num_fields(res);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s field_count=%" PRIu32 " num_fields=%" PRIu32 " status=%d\n",
-         __func__,
-         field_count,
-         num_fields,
-         status);
+  printf("%s field_count=%" PRIu32 " num_fields=%" PRIu32 " status=%d\n", __func__, field_count, num_fields, status);
 #endif
 
   if(status == 0 && num_fields == field_count) {
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
 
-    result_yield(ctx, data[3], res, row, (result_type & RESULT_OBJECT) ? result_object: result_array, result_type);
+    result_yield(ctx, data[3], res, row, (result_type & RESULT_OBJECT) ? result_object : result_array, result_type);
 
   } else if(status != oldstatus) {
     JSValue handler, hdata[5] = {
@@ -1055,7 +1027,7 @@ js_mysqlresult_next_handler(
                          JS_DupValue(ctx, data[3]),
                          JS_DupValue(ctx, data[4]),
                      };
-    handler = JS_NewCFunctionData(ctx, js_mysqlresult_next_handler, 0, 0, countof(hdata), hdata);
+    handler = JS_NewCFunctionData(ctx, js_mysqlresult_next_cont, 0, 0, countof(hdata), hdata);
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
@@ -1077,8 +1049,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   MYSQL_RES* res;
   MYSQL_ROW row;
   int32_t wr, status;
-  uint32_t num_fields, field_count;
-  uint32_t result_type = js_mysqlresult_result_type(ctx, this_val);
+  uint32_t num_fields, field_count, result_type = js_mysqlresult_result_type(ctx, this_val);
 
   if(!(res = js_mysqlresult_data(ctx, this_val)))
     return JS_EXCEPTION;
@@ -1094,14 +1065,10 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   status = mysql_fetch_row_start(&row, res);
 
-  num_fields = mysql_num_fields(res);
+  num_fields = status ? 0 : mysql_num_fields(res);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s field_count=%" PRIu32 " num_fields=%" PRIu32 " status=%d\n",
-         __func__,
-         field_count,
-         num_fields,
-         status);
+  printf("%s field_count=%" PRIu32 " num_fields=%" PRIu32 " status=%d\n", __func__, field_count, num_fields, status);
 #endif
 
   wr = !!(status & MYSQL_WAIT_WRITE);
@@ -1109,19 +1076,17 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
   if(status == 0 && num_fields == field_count) {
-    result_yield(ctx, data[3], res, row, (result_type & RESULT_OBJECT) ? result_object: result_array, result_type);
+    result_yield(ctx, data[3], res, row, (result_type & RESULT_OBJECT) ? result_object : result_array, result_type);
 
   } else {
     data[0] = JS_NewInt32(ctx, wr);
     data[1] = JS_DupValue(ctx, this_val);
     data[2] = js_iohandler_fn(ctx, wr);
 
-    handler = JS_NewCFunctionData(ctx, js_mysqlresult_next_handler, 0, 0, countof(data), data);
+    handler = JS_NewCFunctionData(ctx, js_mysqlresult_next_cont, 0, 0, countof(data), data);
 
-    if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler)) {
-      JS_FreeValue(ctx, JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0));
-      // return JS_ThrowInternalError(ctx, "failed setting %s handler", wr ? "write" : "read");
-    }
+    if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler))
+      JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
   }
 
   return promise;
@@ -1149,9 +1114,7 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
         return JS_ThrowTypeError(ctx, "argument 1 must be a positive index");
 
       if(index >= mysql_num_fields(res))
-        return JS_ThrowRangeError(ctx,
-                                  "argument 1 must be smaller than total fields (%" PRIu32 ")",
-                                  mysql_num_fields(res));
+        return JS_ThrowRangeError(ctx, "argument 1 must be smaller than total fields (%" PRIu32 ")", mysql_num_fields(res));
 
       if((field = mysql_fetch_field_direct(res, index)))
         ret = result_field(ctx, field);
@@ -1166,8 +1129,7 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
         ret = JS_NewArray(ctx);
 
-        for(i = 0; i < num_fields; i++)
-          JS_SetPropertyUint32(ctx, ret, i, result_field(ctx, &fields[i]));
+        for(i = 0; i < num_fields; i++) JS_SetPropertyUint32(ctx, ret, i, result_field(ctx, &fields[i]));
       }
       break;
     }
@@ -1176,9 +1138,8 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   return ret;
 }
 
-
 static JSValue
-js_mysqlresult_wrap(JSContext* ctx, JSValueConst proto, MYSQL_RES* res) {
+js_mysqlresult_new(JSContext* ctx, JSValueConst proto, MYSQL_RES* res) {
   JSValue obj;
 
   if(js_mysqlresult_class_id == 0)
@@ -1201,11 +1162,11 @@ fail:
 }
 
 static JSValue
-js_mysqlresult_new(JSContext* ctx, MYSQL_RES* res) {
+js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res) {
   JSValue obj = JS_NULL;
 
   if(res)
-    obj = js_mysqlresult_wrap(ctx, mysqlresult_proto, res);
+    obj = js_mysqlresult_new(ctx, mysqlresult_proto, res);
 
   return obj;
 }
@@ -1260,7 +1221,7 @@ js_mysqlresult_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(JS_IsException(proto))
     goto fail;
 
-  return js_mysqlresult_wrap(ctx, proto, 0);
+  return js_mysqlresult_new(ctx, proto, 0);
 
 fail:
   JS_FreeValue(ctx, obj);
@@ -1310,8 +1271,7 @@ js_mysql_init(JSContext* ctx, JSModuleDef* m) {
     JS_NewClassID(&js_mysqlresult_class_id);
     JS_NewClass(JS_GetRuntime(ctx), js_mysqlresult_class_id, &js_mysqlresult_class);
 
-    mysqlresult_ctor =
-        JS_NewCFunction2(ctx, js_mysqlresult_constructor, "MySQLResult", 1, JS_CFUNC_constructor, 0);
+    mysqlresult_ctor = JS_NewCFunction2(ctx, js_mysqlresult_constructor, "MySQLResult", 1, JS_CFUNC_constructor, 0);
     mysqlresult_proto = JS_NewObject(ctx);
 
     JS_SetPropertyFunctionList(ctx, mysqlresult_proto, js_mysqlresult_funcs, countof(js_mysqlresult_funcs));
@@ -1367,8 +1327,7 @@ field_namefunc(MYSQL_FIELD* fields, uint32_t num_fields) {
 
   for(i = 0; !eq && i < num_fields; i++)
     for(j = 0; !eq && j < num_fields; j++)
-      if(i != j && fields[i].name_length == fields[j].name_length &&
-         byte_equal(fields[i].name, fields[i].name_length, fields[j].name))
+      if(i != j && fields[i].name_length == fields[j].name_length && byte_equal(fields[i].name, fields[i].name_length, fields[j].name))
         return field_id;
 
   return field_name;

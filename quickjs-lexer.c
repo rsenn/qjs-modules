@@ -225,14 +225,11 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewUint32(ctx, tok->id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(
-      ctx, obj, "type", rule ? JS_NewString(ctx, rule->name) : JS_NULL, JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(
-      ctx, obj, "lexeme", JS_NewString(ctx, (const char*)tok->lexeme), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "type", rule ? JS_NewString(ctx, rule->name) : JS_NULL, JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, (const char*)tok->lexeme), JS_PROP_ENUMERABLE);
 
   if(tok->loc)
-    JS_DefinePropertyValueStr(
-        ctx, obj, "charOffset", JS_NewUint32(ctx, tok->loc->char_offset), JS_PROP_ENUMERABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "charOffset", JS_NewUint32(ctx, tok->loc->char_offset), JS_PROP_ENUMERABLE);
 
   JS_DefinePropertyValueStr(ctx, obj, "charLength", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
 
@@ -361,8 +358,7 @@ static const JSCFunctionListEntry js_token_static_funcs[] = {
 };
 
 static JSValue
-lexer_continue(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+lexer_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   JSValue val = argc >= 1 ? JS_DupValue(ctx, argv[0]) : JS_NewBool(ctx, TRUE);
 
   JS_SetPropertyUint32(ctx, data[0], 0, val);
@@ -923,10 +919,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         // lexer_state_name(lex, id));
         ret = JS_NewInt32(ctx, id);
       } else {
-        ret = JS_ThrowInternalError(ctx,
-                                    "lexer (%s) depth %zu",
-                                    lexer_state_topname(lex),
-                                    lexer_state_depth(lex));
+        ret = JS_ThrowInternalError(ctx, "lexer (%s) depth %zu", lexer_state_topname(lex), lexer_state_depth(lex));
       }
 
       break;
@@ -1015,9 +1008,7 @@ js_lexer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       uint32_t i = 0;
       ret = JS_NewArray(ctx);
 
-      vector_foreach_t(&lex->rules, rule) {
-        JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, rule->name));
-      }
+      vector_foreach_t(&lex->rules, rule) { JS_SetPropertyUint32(ctx, ret, i++, JS_NewString(ctx, rule->name)); }
       break;
     }
 
@@ -1227,8 +1218,7 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
 
   stack[size - 1] = lex->state;
 
-  buf = JS_NewArrayBuffer(
-      ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
+  buf = JS_NewArrayBuffer(ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
 
   ctor = js_global_get_str(ctx, "Int32Array");
 
@@ -1294,19 +1284,18 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       char* lexeme = lexer_lexeme_s(lex, ctx);
       char* file = location_file(&lex->loc, ctx);
 
-      ret = JS_ThrowInternalError(
-          ctx,
-          "%s:%" PRIu32 ":%" PRIu32 ": No matching token (%d: %s)\n%.*s\n%*s",
-          file,
-          lex->loc.line + 1,
-          lex->loc.column + 1,
-          lexer_state_top(lex, 0),
-          lexer_state_name(lex, lexer_state_top(lex, 0)),
-          /*   lexeme,*/
-          (int)(byte_chr((const char*)&lex->data[lex->pos], lex->size - lex->pos, '\n') + lex->loc.column),
-          &lex->data[lex->pos - lex->loc.column],
-          lex->loc.column + 1,
-          "^");
+      ret = JS_ThrowInternalError(ctx,
+                                  "%s:%" PRIu32 ":%" PRIu32 ": No matching token (%d: %s)\n%.*s\n%*s",
+                                  file,
+                                  lex->loc.line + 1,
+                                  lex->loc.column + 1,
+                                  lexer_state_top(lex, 0),
+                                  lexer_state_name(lex, lexer_state_top(lex, 0)),
+                                  /*   lexeme,*/
+                                  (int)(byte_chr((const char*)&lex->data[lex->pos], lex->size - lex->pos, '\n') + lex->loc.column),
+                                  &lex->data[lex->pos - lex->loc.column],
+                                  lex->loc.column + 1,
+                                  "^");
       if(file)
         js_free(ctx, file);
       js_free(ctx, lexeme);
@@ -1381,8 +1370,7 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 
 JSValue
-js_lexer_call(
-    JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
+js_lexer_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
   Lexer* lex;
   int32_t result;
   JSValue ret = JS_UNDEFINED;
@@ -1406,8 +1394,7 @@ JSValue
 js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue next, ret = JS_NewObject(ctx);
 
-  next = JS_NewCFunction2(
-      ctx, (JSCFunction*)&js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, YIELD_ID | YIELD_DONE_VALUE);
+  next = JS_NewCFunction2(ctx, (JSCFunction*)&js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, YIELD_ID | YIELD_DONE_VALUE);
 
   JS_SetPropertyStr(ctx, ret, "next", js_function_bind_this(ctx, next, this_val));
   return ret;
@@ -1427,8 +1414,7 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JS_DefinePropertyValueStr(ctx, obj, "bytelen", JS_NewUint32(ctx, lex->byte_length), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "tokid", JS_NewInt32(ctx, lex->token_id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "state", JS_NewInt32(ctx, lex->state), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(
-      ctx, obj, "eof", JS_NewBool(ctx, input_buffer_eof(&lex->input)), JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, obj, "eof", JS_NewBool(ctx, input_buffer_eof(&lex->input)), JS_PROP_ENUMERABLE);
   // JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_new(ctx, &lex->loc), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "pos", JS_NewUint32(ctx, lex->pos), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "size", JS_NewUint32(ctx, lex->size), JS_PROP_ENUMERABLE);
@@ -1452,9 +1438,7 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   // JS_FreeValueRT(rt, val);
 }
 
-static JSClassDef js_lexer_class = {.class_name = "Lexer",
-                                    .finalizer = js_lexer_finalizer,
-                                    .call = js_lexer_call};
+static JSClassDef js_lexer_class = {.class_name = "Lexer", .finalizer = js_lexer_finalizer, .call = js_lexer_call};
 
 static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     // JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, YIELD_OBJ),

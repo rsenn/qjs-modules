@@ -84,16 +84,14 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       int32_t fd = -1;
       JS_ToInt32(ctx, &fd, argv[0]);
       const char* str = magic_descriptor(cookie, fd);
-      ret = str ? JS_NewString(ctx, str)
-                : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
+      ret = str ? JS_NewString(ctx, str) : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
 
       break;
     }
     case LIBMAGIC_FILE: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
       const char* str = magic_file(cookie, filename);
-      ret = str ? JS_NewString(ctx, str)
-                : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
+      ret = str ? JS_NewString(ctx, str) : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
 
       if(filename)
         JS_FreeCString(ctx, filename);
@@ -102,8 +100,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case LIBMAGIC_BUFFER: {
       InputBuffer buf = js_input_chars(ctx, argv[0]);
       const char* str = magic_buffer(cookie, buf.data, buf.size);
-      ret = str ? JS_NewString(ctx, str)
-                : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
+      ret = str ? JS_NewString(ctx, str) : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
 
       input_buffer_free(&buf, ctx);
       break;

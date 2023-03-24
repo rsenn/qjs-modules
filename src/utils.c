@@ -473,8 +473,7 @@ js_function_cfunc(JSContext* ctx, JSValueConst value) {
 }
 
 static JSValue
-js_function_bound(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* func_data) {
+js_function_bound(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* func_data) {
   int i = 0, j = 0, k = ABS_NUM(magic), l = SIGN_NUM(magic);
   JSValue args[argc + k];
 
@@ -494,8 +493,7 @@ js_function_bind(JSContext* ctx, JSValueConst func, int argc, JSValueConst argv[
 }
 
 static JSValue
-js_function_bound_this(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
+js_function_bound_this(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
   return JS_Call(ctx, func_data[0], func_data[1], argc, argv);
 }
 
@@ -508,8 +506,7 @@ js_function_bind_this(JSContext* ctx, JSValueConst func, JSValueConst this_val) 
 }
 
 static JSValue
-js_function_throw_fn(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_function_throw_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   if(!JS_IsUndefined(data[0]))
     return JS_Throw(ctx, data[0]);
 
@@ -524,8 +521,7 @@ js_function_throw(JSContext* ctx, JSValueConst err) {
 }
 
 static JSValue
-js_function_return_value_fn(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_function_return_value_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   return data[0];
 }
 
@@ -650,8 +646,7 @@ js_iterator_result(JSContext* ctx, JSValueConst value, BOOL done) {
 }
 
 static JSValue
-js_iterator_then_fn(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_iterator_then_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   JSValue ret = JS_NewObject(ctx);
 
   JS_SetPropertyStr(ctx, ret, "done", JS_DupValue(ctx, data[0]));
@@ -725,12 +720,10 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   tb = js_value_type(ctx, b);
   assert(ta == TYPE_OBJECT);
   assert(tb == TYPE_OBJECT);
-  if(JS_GetOwnPropertyNames(
-         ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     return FALSE;
 
-  if(JS_GetOwnPropertyNames(
-         ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
+  if(JS_GetOwnPropertyNames(ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     return FALSE;
 
   if(natoms_a != natoms_b)
@@ -957,8 +950,7 @@ js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, co
 }
 
 void
-js_set_propertystr_stringlen(
-    JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
+js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len) {
   JSValue value;
   value = JS_NewStringLen(ctx, str, len);
   JS_SetPropertyStr(ctx, obj, prop, value);
@@ -1281,10 +1273,8 @@ const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
   const char* const types[] = {
-      "undefined",     "null",         "bool",      "int",
-      "object",        "string",       "symbol",    "big_float",
-      "big_int",       "big_decimal",  "float64",   "nan",
-      "function",      "array",        "module",    "function_bytecode",
+      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
+      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
       "uninitialized", "catch_offset", "exception",
   };
   if(flag >= 0 && flag < countof(types))
@@ -1398,11 +1388,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
       ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      if(!JS_GetOwnPropertyNames(ctx,
-                                 &tab_atom,
-                                 &tab_atom_len,
-                                 value,
-                                 JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
         uint32_t i;
         for(i = 0; i < tab_atom_len; i++) {
           JSValue prop;
@@ -1663,8 +1649,7 @@ module_namestr(JSContext* ctx, JSModuleDef* m) {
 }
 
 static JSValue
-call_module_func(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* data) {
+call_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* data) {
   union {
     JSModuleInitFunc* init_func;
     int32_t i[2];
@@ -2020,8 +2005,7 @@ js_is_regexp(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]"));
+  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]"));
 }
 
 BOOL
@@ -2079,14 +2063,7 @@ JSValue
 js_typedarray_new(JSContext* ctx, int bits, BOOL floating, BOOL sign, JSValueConst buffer) {
   char class_name[64] = {0};
 
-  snprintf(class_name,
-           sizeof(class_name),
-           "%s%s%dArray",
-           (!floating && bits >= 64) ? "Big" : "",
-           floating ? "Float"
-           : sign   ? "Int"
-                    : "Uint",
-           bits);
+  snprintf(class_name, sizeof(class_name), "%s%s%dArray", (!floating && bits >= 64) ? "Big" : "", floating ? "Float" : sign ? "Int" : "Uint", bits);
 
   JSValue ret, typedarray_ctor = js_global_get_str(ctx, class_name);
   ret = JS_CallConstructor(ctx, typedarray_ctor, 1, &buffer);

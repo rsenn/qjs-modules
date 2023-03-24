@@ -205,9 +205,7 @@ js_archive_getter(JSContext* ctx, JSValueConst this_val, int magic) {
     case ARCHIVE_PROP_FILTERS: {
       int i, num_filters = archive_filter_count(ar);
       ret = JS_NewArray(ctx);
-      for(i = 0; i < num_filters; i++) {
-        JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, archive_filter_name(ar, i)));
-      }
+      for(i = 0; i < num_filters; i++) { JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, archive_filter_name(ar, i))); }
       break;
     }
     case ARCHIVE_PROP_FILECOUNT: {
@@ -251,8 +249,7 @@ fail:
 }
 
 static JSValue
-js_archive_next(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+js_archive_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   JSValue ret = JS_UNDEFINED;
   struct archive* ar;
   struct archive_entry* ent;
@@ -268,9 +265,7 @@ js_archive_next(
 
   switch(result) {
     case ARCHIVE_EOF: *pdone = TRUE; return JS_UNDEFINED;
-    case ARCHIVE_FATAL:
-      *pdone = TRUE;
-      return JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
+    case ARCHIVE_FATAL: *pdone = TRUE; return JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
   }
 
   if(result == ARCHIVE_WARN) {
@@ -674,29 +669,19 @@ static const JSCFunctionListEntry js_archive_static_funcs[] = {
     JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA", ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA
-    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA",
-                      ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA,
-                      0),
+    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA", ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED
-    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED",
-                      ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED,
-                      0),
+    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED", ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW
-    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW",
-                      ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW,
-                      0),
+    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW", ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED
-    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED",
-                      ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED,
-                      0),
+    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED", ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW
-    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW",
-                      ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW,
-                      0),
+    JS_PROP_INT32_DEF("ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW", ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW, 0),
 #endif
 #ifdef ARCHIVE_EXTRACT_OWNER
     JS_PROP_INT32_DEF("ARCHIVE_EXTRACT_OWNER", ARCHIVE_EXTRACT_OWNER, 0),
@@ -1222,14 +1207,10 @@ js_archive_init(JSContext* ctx, JSModuleDef* m) {
     JS_NewClassID(&js_archiveentry_class_id);
     JS_NewClass(JS_GetRuntime(ctx), js_archiveentry_class_id, &js_archiveentry_class);
 
-    archiveentry_ctor =
-        JS_NewCFunction2(ctx, js_archiveentry_constructor, "ArchiveEntry", 1, JS_CFUNC_constructor, 0);
+    archiveentry_ctor = JS_NewCFunction2(ctx, js_archiveentry_constructor, "ArchiveEntry", 1, JS_CFUNC_constructor, 0);
     archiveentry_proto = JS_NewObject(ctx);
 
-    JS_SetPropertyFunctionList(ctx,
-                               archiveentry_proto,
-                               js_archiveentry_funcs,
-                               countof(js_archiveentry_funcs));
+    JS_SetPropertyFunctionList(ctx, archiveentry_proto, js_archiveentry_funcs, countof(js_archiveentry_funcs));
     JS_SetClassProto(ctx, js_archiveentry_class_id, archiveentry_proto);
   }
 

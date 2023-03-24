@@ -247,9 +247,7 @@ utf8_towcs(const void* in, wchar_t* ret) {
   size_t i;
 
   const uint8_t* ptr = in;
-  for(i = 0; *ptr; i++) {
-    ret[i] = unicode_from_utf8(ptr, ptr[1] == '\0' ? 1 : ptr[2] == '\0' ? 2 : ptr[3] ? 3 : 4, &ptr);
-  }
+  for(i = 0; *ptr; i++) { ret[i] = unicode_from_utf8(ptr, ptr[1] == '\0' ? 1 : ptr[2] == '\0' ? 2 : ptr[3] ? 3 : 4, &ptr); }
   ret[i] = '\0';
   return i;
 }
@@ -259,8 +257,7 @@ utf16_multiword(const void* in) {
   const uint16_t* p16 = in;
   LibutfC16Type type = libutf_c16_type(p16[0]);
 
-  return !((LIBUTF_UTF16_NOT_SURROGATE == type) ||
-           (LIBUTF_UTF16_SURROGATE_HIGH != type || LIBUTF_UTF16_SURROGATE_LOW != libutf_c16_type(p16[1])));
+  return !((LIBUTF_UTF16_NOT_SURROGATE == type) || (LIBUTF_UTF16_SURROGATE_HIGH != type || LIBUTF_UTF16_SURROGATE_LOW != libutf_c16_type(p16[1])));
 }
 
 int

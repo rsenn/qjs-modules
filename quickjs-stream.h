@@ -119,10 +119,9 @@ typedef enum {
   TRANSFORM_WRITABLE,
 } TransformProperties;
 
-extern thread_local JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id,
-    js_writable_class_id, js_transform_class_id;
-extern thread_local JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto,
-    readable_ctor, writable_proto, writable_ctor, transform_proto, transform_ctor;
+extern thread_local JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id, js_writable_class_id, js_transform_class_id;
+extern thread_local JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor, transform_proto,
+    transform_ctor;
 
 JSValue js_reader_constructor(JSContext*, JSValue, int, JSValue argv[]);
 JSValue js_reader_wrap(JSContext*, Reader*);

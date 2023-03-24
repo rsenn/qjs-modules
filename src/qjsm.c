@@ -387,9 +387,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
   val = js_eval_file(ctx, file, module);
   jsm_stack_pop(ctx);
   if(JS_IsException(val)) {
-    JSValue stack = JS_IsObject(ctx->rt->current_exception)
-                        ? JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack")
-                        : JS_UNDEFINED;
+    JSValue stack = JS_IsObject(ctx->rt->current_exception) ? JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack") : JS_UNDEFINED;
     const char* msg = JS_ToCString(ctx, ctx->rt->current_exception);
     fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, msg, js_value_typestr(ctx, stack));
 
@@ -680,8 +678,7 @@ jsm_module_load(JSContext* ctx, const char* name) {
 
   if(!js_eval_fmt(ctx,
                   JS_EVAL_TYPE_MODULE,
-                  all ? "import tmp from '%s';\nObject.assign(globalThis, tmp);\n"
-                      : "import tmp from '%s';\nglobalThis['%s'] = tmp;\n",
+                  all ? "import tmp from '%s';\nObject.assign(globalThis, tmp);\n" : "import tmp from '%s';\nglobalThis['%s'] = tmp;\n",
                   name,
                   name)) {
 
@@ -690,8 +687,7 @@ jsm_module_load(JSContext* ctx, const char* name) {
 
     if(js_eval_fmt(ctx,
                    JS_EVAL_TYPE_MODULE,
-                   all ? "import * as tmp from '%s';\nObject.assign(globalThis, tmp);\n"
-                       : "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n",
+                   all ? "import * as tmp from '%s';\nObject.assign(globalThis, tmp);\n" : "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n",
                    name,
                    name))
       return 0;
@@ -774,9 +770,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
 restart:
   if(jsm_stack_find(module_name) != 0) {
-    printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n",
-           module_name,
-           jsm_stack_string());
+    printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n", module_name, jsm_stack_string());
     exit(1);
   }
 
@@ -837,8 +831,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   char* file = 0;
   BOOL has_dot_or_slash = !!name[str_chrs(name, "." PATHSEP_S, 2)];
 
-  if(strcmp(path, "<input>") && (path_isdotslash(name) || path_isdotdot(name)) && !jsm_builtin_find(name) &&
-     has_dot_or_slash) {
+  if(strcmp(path, "<input>") && (path_isdotslash(name) || path_isdotdot(name)) && !jsm_builtin_find(name) && has_dot_or_slash) {
     DynBuf dir;
     size_t dsl;
     js_dbuf_allocator(ctx, &dir);
@@ -948,8 +941,7 @@ jsm_trace_malloc_usable_size(void* ptr) {
   return malloc_size(ptr);
 #elif defined(_WIN32)
   return _msize(ptr);
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
-    defined(DONT_HAVE_MALLOC_USABLE_SIZE)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
   return 0;
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
   return malloc_usable_size(ptr);
@@ -980,9 +972,7 @@ static void
         if(ptr == 0) {
           printf("0");
         } else {
-          printf("H%+06lld.%zd",
-                 jsm_trace_malloc_ptr_offset(ptr, s->opaque),
-                 jsm_trace_malloc_usable_size(ptr));
+          printf("H%+06lld.%zd", jsm_trace_malloc_ptr_offset(ptr, s->opaque), jsm_trace_malloc_usable_size(ptr));
         }
         fmt++;
         continue;
@@ -1071,8 +1061,7 @@ static const JSMallocFunctions trace_mf = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t(*)(const void*))_msize,
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
-    defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
     0,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
     (size_t(*)(const void*))malloc_usable_size,
@@ -1736,12 +1725,7 @@ main(int argc, char** argv) {
           best[j] = ms;
       }
     }
-    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n",
-           best[1] + best[2] + best[3] + best[4],
-           best[1],
-           best[2],
-           best[3],
-           best[4]);
+    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
   }
   return 0;
 fail:

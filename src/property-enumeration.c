@@ -21,10 +21,7 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
   }
 
   if(flags & PROPENUM_SORT_ATOMS)
-    qsort(it->tab_atom,
-          it->tab_atom_len,
-          sizeof(JSPropertyEnum),
-          (int (*)(const void*, const void*)) & compare_jspropertyenum);
+    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void*, const void*)) & compare_jspropertyenum);
 
   it->obj = object;
   it->finalizer = JS_NULL;
@@ -142,11 +139,8 @@ property_enumeration_path(const Vector* vec, JSContext* ctx) {
     JSValue key = property_enumeration_key(it, ctx);
     JS_SetPropertyUint32(ctx, ret, i++, key);
   }
-  JS_DefinePropertyValueStr(ctx,
-                            ret,
-                            "toString",
-                            JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0),
-                            JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValueStr(
+      ctx, ret, "toString", JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   return ret;
 }
 
@@ -200,10 +194,7 @@ property_enumeration_free(Vector* vec, JSRuntime* rt) {
 }
 
 int
-property_enumeration_predicate(PropertyEnumeration* it,
-                               JSContext* ctx,
-                               JSValueConst fn,
-                               JSValueConst this_arg) {
+property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueConst fn, JSValueConst this_arg) {
   BOOL result;
   JSValue ret;
   JSValueConst argv[3];
@@ -247,8 +238,7 @@ property_enumeration_check(Vector* vec) {
         continue;
 
       if(js_object_same(i->obj, j->obj)) {
-        return (IndexTuple){vector_indexof(vec, sizeof(PropertyEnumeration), i),
-                            vector_indexof(vec, sizeof(PropertyEnumeration), j)};
+        return (IndexTuple){vector_indexof(vec, sizeof(PropertyEnumeration), i), vector_indexof(vec, sizeof(PropertyEnumeration), j)};
       }
     }
   }

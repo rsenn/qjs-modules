@@ -51,8 +51,7 @@ typedef union Vector {
 #define vector_end(vec) ((void*)((vec)->data + (vec)->size))
 
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
-#define vector_foreach(a, msz, p) \
-  for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
+#define vector_foreach(a, msz, p) for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
 
 #if(defined(__GNUC__) && (__GNUC__ >= 5)) || defined(HAVE__BUILTIN_MUL_OVERFLOW)
 static inline int
@@ -219,8 +218,7 @@ vector_putptr(Vector* vec, void* p) {
   vector_put(vec, &p, sizeof(p));
 }
 
-void
-quicksort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr);
+void quicksort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr);
 
 static inline void
 vector_sort(Vector* vec, size_t elsz, int (*compar)(const void*, const void*, void*), void* arg) {

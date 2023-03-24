@@ -160,10 +160,7 @@ js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   ret = JS_NewObject(ctx);
 
   JS_SetPropertyStr(ctx, ret, "name", JS_NewString(ctx, "quickjs"));
-  JS_SetPropertyStr(ctx,
-                    ret,
-                    "sourceUrl",
-                    JS_NewString(ctx, "https://bellard.org/quickjs/quickjs-" CONFIG_VERSION ".tar.xz"));
+  JS_SetPropertyStr(ctx, ret, "sourceUrl", JS_NewString(ctx, "https://bellard.org/quickjs/quickjs-" CONFIG_VERSION ".tar.xz"));
 
   return ret;
 }
@@ -173,8 +170,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JSValue ret = JS_UNDEFINED;
   //  JSValue arraybuffer_ctor = js_global_get_str(ctx, "ArrayBuffer");
 
-  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) ||
-     js_is_arraybuffer(ctx, argv[0]) /* || JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)*/) {
+  if(js_value_isclass(ctx, argv[0], JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, argv[0]) /* || JS_IsInstanceOf(ctx, argv[0], arraybuffer_ctor)*/) {
     uint8_t* data;
     size_t len;
 
@@ -294,12 +290,7 @@ js_misc_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     JSValue value = JS_DupValue(ctx, argv[0]);
     JSObject* obj = JS_VALUE_GET_OBJ(value);
-    return JS_NewArrayBuffer(ctx,
-                             data + ir.start,
-                             ir.end - ir.start,
-                             js_arraybuffer_free_func,
-                             (void*)obj,
-                             ab && ab->shared ? TRUE : FALSE);
+    return JS_NewArrayBuffer(ctx, data + ir.start, ir.end - ir.start, js_arraybuffer_free_func, (void*)obj, ab && ab->shared ? TRUE : FALSE);
   }
 
   return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
@@ -320,12 +311,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     JSValue value = JS_DupValue(ctx, argv[0]);
     JSObject* obj = JS_VALUE_GET_OBJ(value);
-    return JS_NewArrayBuffer(ctx,
-                             data + ol.offset,
-                             ol.length,
-                             js_arraybuffer_free_func,
-                             (void*)obj,
-                             ab && ab->shared ? TRUE : FALSE);
+    return JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, ab && ab->shared ? TRUE : FALSE);
   }
 
   return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
@@ -400,8 +386,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     uint8_t* ptr;
     ptrdiff_t ofs;
 
-    if(needle.size <= haystack.size &&
-       (ptr = memmem(haystack.base, haystack.size, needle.base, needle.size))) {
+    if(needle.size <= haystack.size && (ptr = memmem(haystack.base, haystack.size, needle.base, needle.size))) {
       ofs = ptr - haystack.base;
       return JS_NewInt64(ctx, ofs);
     }
@@ -633,8 +618,7 @@ js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   ret = JS_NewArray(ctx);
   end = limit >= 0 ? start + limit : -1;
 
-  for(proto = JS_DupValue(ctx, argv[0]); !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto);
-      proto = JS_GetPrototype(ctx, proto)) {
+  for(proto = JS_DupValue(ctx, argv[0]); !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto); proto = JS_GetPrototype(ctx, proto)) {
     BOOL circular = (JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(prev));
     JS_FreeValue(ctx, prev);
     if(circular)
@@ -813,8 +797,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   js_misc_glob_errfunc_fn = argc >= 3 ? argv[2] : JS_UNDEFINED;
 
   if((result = glob(pattern, flags & (~(GLOB_APPEND | GLOB_DOOFFS)), js_misc_glob_errfunc, &g)) == 0) {
-    for(i = 0; i < g.gl_pathc; i++)
-      JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, g.gl_pathv[i]));
+    for(i = 0; i < g.gl_pathc; i++) JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, g.gl_pathv[i]));
 
     globfree(&g);
   }
@@ -855,8 +838,7 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
 
   if((result = wordexp(s, &we, flags & (~(WRDE_APPEND | WRDE_DOOFFS | WRDE_REUSE)))) == 0) {
-    for(i = 0; i < we.we_wordc; i++)
-      JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, we.we_wordv[i]));
+    for(i = 0; i < we.we_wordc; i++) JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, we.we_wordv[i]));
 
     wordfree(&we);
   }
@@ -1012,8 +994,7 @@ js_misc_immutable_free(void* ptr) {
 }
 
 static JSValue
-js_misc_immutable_constructor(
-    JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[], int magic, void* ptr) {
+js_misc_immutable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[], int magic, void* ptr) {
   JSValue ret = JS_UNDEFINED;
 
   if(ptr) {
@@ -1310,10 +1291,7 @@ js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     if(i >= OP_TEMP_START && i < OP_TEMP_END)
       continue;
 
-    JS_SetPropertyUint32(ctx,
-                         ret,
-                         j++,
-                         (as_object ? js_misc_opcode_object : js_misc_opcode_array)(ctx, &js_opcodes[i]));
+    JS_SetPropertyUint32(ctx, ret, j++, (as_object ? js_misc_opcode_object : js_misc_opcode_array)(ctx, &js_opcodes[i]));
   }
 
   return ret;
@@ -1726,34 +1704,25 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 
 static const uint8_t js_misc_escape_sq_tab[256] = {
-    'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x',  'x', 'x',
-    'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x',  'x',  'x',  'x',  0,    0,   0,   0,    0,   0,
-    0,   0x27, 0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0x5c, 0,   0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    'x',  0,   0,   0,    0,   0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,
-    0,   'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u',  'u', 'u',
-    'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',
+    'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',
+    'x', 'x', 'x', 'x', 0,   0,   0,   0,   0,    0,    0,    0x27, 0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0x5c, 0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   'x', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   'u', 'u', 'u', 'u', 'u',
+    'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
 };
 static const uint8_t js_misc_escape_dq_tab[256] = {
-    'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x',
-    'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x',  'x',
+    'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',
 
-    'x', 'x', 'x', 'x', 0,   0,   0x22, 0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0x5c, 0,    0,    0,    0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    'x',  0,    0,    0,    0,    0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,
-    0,   'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u', 'u',
-    'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u',
+    'x', 'x', 'x', 'x', 0,   0,   0x22, 0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0x5c, 0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   'x', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   'u', 'u', 'u', 'u', 'u',
+    'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
 };
 
 JSValue
@@ -1829,20 +1798,15 @@ js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   DynBuf output;
   char quote = '"';
   uint8_t table[256] = {
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'b',  't',  'n',  'v',  'f',  'r',  0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '\\', 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x75,
-      0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
-      0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'b',  't',  'n',  'v',  'f',  'r',  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '\\', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
+      0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
   };
 
   js_dbuf_init(ctx, &output);
@@ -1935,9 +1899,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_BOUNDFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_BOUND_FUNCTION; break;
     case IS_JSFUNCTION: r = JS_GetClassID(arg) == JS_CLASS_BYTECODE_FUNCTION; break;
     case IS_CONSTRUCTOR: r = JS_IsConstructor(ctx, arg); break;
-    case IS_EMPTYSTRING:
-      r = JS_VALUE_GET_TAG(arg) == JS_TAG_STRING && JS_VALUE_GET_STRING(arg)->len == 0;
-      break;
+    case IS_EMPTYSTRING: r = JS_VALUE_GET_TAG(arg) == JS_TAG_STRING && JS_VALUE_GET_STRING(arg)->len == 0; break;
     case IS_ERROR: r = JS_IsError(ctx, arg); break;
     case IS_EXCEPTION: r = JS_IsException(arg); break;
     case IS_EXTENSIBLE: r = JS_IsExtensible(ctx, arg); break;
@@ -1950,9 +1912,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_NULL: r = JS_IsNull(arg); break;
     case IS_NUMBER: r = JS_IsNumber(arg); break;
     case IS_OBJECT: r = JS_IsObject(arg); break;
-    case IS_REGISTEREDCLASS:
-      r = !JS_ToInt32(ctx, &r, arg) && JS_IsRegisteredClass(JS_GetRuntime(ctx), r);
-      break;
+    case IS_REGISTEREDCLASS: r = !JS_ToInt32(ctx, &r, arg) && JS_IsRegisteredClass(JS_GetRuntime(ctx), r); break;
     case IS_STRING: r = JS_IsString(arg); break;
     case IS_SYMBOL: r = JS_IsSymbol(arg); break;
     case IS_UNCATCHABLEERROR: r = JS_IsUncatchableError(ctx, arg); break;
@@ -2014,8 +1974,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       JS_ToInt32(ctx, &flags, argv[2]);
 
     if((wd = inotify_add_watch(fd, filename, flags)) == -1)
-      return JS_ThrowInternalError(
-          ctx, "inotify_add_watch(%d, %s, %08x) = %d (%s)", fd, filename, flags, wd, strerror(errno));
+      return JS_ThrowInternalError(ctx, "inotify_add_watch(%d, %s, %08x) = %d (%s)", fd, filename, flags, wd, strerror(errno));
 
     // printf("inotify_add_watch(%d, %s, %08x) = %d\n", fd, filename, flags, wd);
 

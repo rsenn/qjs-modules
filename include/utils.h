@@ -303,8 +303,8 @@ enum value_mask {
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NAN = (1 << FLAG_NAN),
   TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
-  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL |
-                    TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
+  TYPE_PRIMITIVE =
+      (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -325,10 +325,8 @@ enum value_mask js_value_type(JSContext* ctx, JSValueConst value);
 static inline const char* const*
 js_value_types() {
   return (const char* const[]){
-      "undefined",     "null",         "bool",      "int",
-      "object",        "string",       "symbol",    "big_float",
-      "big_int",       "big_decimal",  "float64",   "nan",
-      "function",      "array",        "module",    "function_bytecode",
+      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
+      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
       "uninitialized", "catch_offset", "exception", 0,
   };
 }
@@ -337,10 +335,8 @@ static inline const char*
 js_value_typeof(JSValueConst value) {
   int32_t flag = js_value_type_flag(value);
   return ((const char* const[]){
-      "undefined",     "object",       "boolean",   "number",
-      "object",        "string",       "symbol",    "bigfloat",
-      "bigint",        "bigdecimal",   "number",    "number",
-      "function",      "object",       "module",    "function_bytecode",
+      "undefined",     "object",       "boolean",   "number", "object",   "string", "symbol", "bigfloat",
+      "bigint",        "bigdecimal",   "number",    "number", "function", "object", "module", "function_bytecode",
       "uninitialized", "catch_offset", "exception", 0,
   })[flag];
 }
@@ -627,8 +623,7 @@ js_delete_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
 void js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str);
 void js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_t value);
 void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);
-void
-js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
+void js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_get_propertyint_cstring(JSContext* ctx, JSValueConst obj, uint32_t i);
 int32_t js_get_propertyint_int32(JSContext* ctx, JSValueConst obj, uint32_t i);
 const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
@@ -643,11 +638,7 @@ JSAtom js_get_propertystr_atom(JSContext* ctx, JSValueConst obj, const char* pro
 static inline void
 js_set_inspect_method(JSContext* ctx, JSValueConst obj, JSCFunction* func) {
   JSAtom inspect_symbol = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
-  JS_DefinePropertyValue(ctx,
-                         obj,
-                         inspect_symbol,
-                         JS_NewCFunction(ctx, func, "inspect", 1),
-                         JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValue(ctx, obj, inspect_symbol, JS_NewCFunction(ctx, func, "inspect", 1), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
   JS_FreeAtom(ctx, inspect_symbol);
 }
 
@@ -803,10 +794,7 @@ js_arraybuffer_length(JSContext* ctx, JSValueConst buffer) {
 int64_t js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value);
 
 static inline int
-js_find_cfunction_entry(const JSCFunctionListEntry* entries,
-                        size_t n_entries,
-                        const char* name,
-                        int def_type) {
+js_find_cfunction_entry(const JSCFunctionListEntry* entries, size_t n_entries, const char* name, int def_type) {
   size_t i;
   for(i = 0; i < n_entries; i++)
     if(entries[i].def_type == def_type && !strcmp(entries[i].name, name))
@@ -815,8 +803,7 @@ js_find_cfunction_entry(const JSCFunctionListEntry* entries,
 }
 
 static inline int
-js_find_cfunction_atom(
-    JSContext* ctx, const JSCFunctionListEntry* entries, size_t n_entries, JSAtom atom, int def_type) {
+js_find_cfunction_atom(JSContext* ctx, const JSCFunctionListEntry* entries, size_t n_entries, JSAtom atom, int def_type) {
   const char* name = JS_AtomToCString(ctx, atom);
   int i;
   i = js_find_cfunction_entry(entries, n_entries, name, def_type);

@@ -60,8 +60,7 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
   }
 }
 
-#define pointer_color(s) \
-  (/*(index) >= 0 &&*/ (i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_LIGHTGRAY : COLOR_YELLOW))
+#define pointer_color(s) (/*(index) >= 0 &&*/ (i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_LIGHTGRAY : COLOR_YELLOW))
 
 void
 pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index) {
@@ -201,13 +200,10 @@ deref_atom(JSContext* ctx, JSValueConst obj, JSAtom atom) {
     if(JS_IsFunction(ctx, value)) {
       JSPropertyEnum* tmp_tab;
       uint32_t i, tmp_len;
-      if(!JS_GetOwnPropertyNames(
-             ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
 
         for(i = 0; i < tmp_len; i++) {
-          JSValueConst args[3] = {JS_GetProperty(ctx, obj, tmp_tab[i].atom),
-                                  JS_AtomToValue(ctx, tmp_tab[i].atom),
-                                  obj};
+          JSValueConst args[3] = {JS_GetProperty(ctx, obj, tmp_tab[i].atom), JS_AtomToValue(ctx, tmp_tab[i].atom), obj};
 
           JSValue ret = JS_Call(ctx, value, JS_NULL, 3, args);
           BOOL match = JS_ToBool(ctx, ret);
