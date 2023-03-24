@@ -275,13 +275,82 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   return ret;
 }
+enum {
+  STATIC_VALUE_STRING,
+  STATIC_ESCAPE_STRING,
+};
 
 static JSValue
 js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
 
   switch(magic) {
-    case FUNCTION_ESCAPE_STRING: {
+    case STATIC_VALUE_STRING: {
+      if(JS_IsNull(argv[0])) {
+        ret = JS_NewString(ctx, "NULL");
+        break;
+      }
+
+      if(JS_IsBool(argv[0])) {
+        BOOL val = JS_ToBool(ctx, argv[0]);
+        ret = JS_NewString(ctx, val ? "TRUE" : "FALSE");
+        break;
+      }
+
+      if(JS_IsString(argv[0])) {
+        char* dst;
+        const char* src;
+        size_t len;
+
+        if(!(src = JS_ToCStringLen(ctx, &len, argv[0]))) {
+          ret = JS_ThrowTypeError(ctx, "argument 1 must be string");
+          break;
+        }
+
+        if((!(dst = js_malloc(ctx, 2 * len + 1 + 2)))) {
+          ret = JS_ThrowOutOfMemory(ctx);
+          break;
+        }
+
+        len = mysql_escape_string(dst + 1, src, len);
+        dst[0] = '\'';
+        dst[len + 1] = '\'';
+        ret = JS_NewStringLen(ctx, dst, len + 2);
+        js_free(ctx, dst);
+        break;
+      }
+
+      InputBuffer input = js_input_buffer(ctx, argv[0]);
+
+      if(input.size) {
+        size_t i;
+        DynBuf buf;
+        dbuf_init2(&buf, 0, 0);
+        dbuf_putstr(&buf, "0x");
+        for(i = 0; i < input.size; i++) {
+          static const char hexdigits[] = "0123456789ABCDEF";
+          char hex[2] = {
+              hexdigits[(input.data[i] & 0xf0) >> 4],
+              hexdigits[(input.data[i] & 0x0f)],
+          };
+          dbuf_put(&buf, hex, 2);
+        }
+        ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
+        dbuf_free(&buf);
+        input_buffer_free(&input, ctx);
+        break;
+      }
+
+      /*if(JS_IsNumber(argv[0]))*/ {
+        const char* str = JS_ToCString(ctx, argv[0]);
+        ret = JS_NewString(ctx, str);
+        JS_FreeCString(ctx, str);
+        break;
+      }
+
+      break;
+    }
+    case STATIC_ESCAPE_STRING: {
       char* dst;
       const char* src;
       size_t len;
@@ -773,7 +842,8 @@ static const JSCFunctionListEntry js_mysql_static_funcs[] = {
     JS_CGETSET_MAGIC_DEF("clientInfo", js_mysql_getstatic, 0, STATIC_CLIENT_INFO),
     JS_CGETSET_MAGIC_DEF("clientVersion", js_mysql_getstatic, 0, STATIC_CLIENT_VERSION),
     JS_CGETSET_MAGIC_DEF("threadSafe", js_mysql_getstatic, 0, STATIC_THREAD_SAFE),
-    JS_CFUNC_MAGIC_DEF("escapeString", 1, js_mysql_functions, FUNCTION_ESCAPE_STRING),
+    JS_CFUNC_MAGIC_DEF("escapeString", 1, js_mysql_functions, STATIC_ESCAPE_STRING),
+    JS_CFUNC_MAGIC_DEF("valueString", 1, js_mysql_functions, STATIC_VALUE_STRING),
     JS_PROP_INT64_DEF("MYSQL_COUNT_ERROR", MYSQL_COUNT_ERROR, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("RESULT_OBJECT", RESULT_OBJECT, JS_PROP_C_W_E),
     JS_PROP_INT32_DEF("RESULT_STRING", RESULT_STRING, JS_PROP_C_W_E),
