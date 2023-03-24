@@ -46,7 +46,7 @@ async function main(...args) {
 
   let i;
 
-  let q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s)));
+  let q = globalThis.q= async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s)));
 
   i = 0;
 
@@ -58,12 +58,15 @@ async function main(...args) {
   );
 
   //for await(let table of await q(`SHOW TABLES;`)) console.log('table =', table);
+  //
+  //
   let res = (globalThis.res = await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`));
+
   console.log(`res =`, res);
-  console.log(`res[Symbol.iterator] =`, res[Symbol.iterator]);
-  console.log(`res[Symbol.asyncIterator] =`, res[Symbol.asyncIterator]);
-  //  for(let row of  res)
-  for await(let row of res) console.log(`row[${i++}] =`, row);
+  /*console.log(`res[Symbol.iterator] =`, res[Symbol.iterator]);
+  console.log(`res[Symbol.asyncIterator] =`, res[Symbol.asyncIterator]);*/
+
+  //for await(let row of res) console.log(`row[${i++}] =`, row);
 
 /*  startInteractive();
   return;*/
@@ -71,7 +74,6 @@ async function main(...args) {
   for await(let row of res) {
     console.log(`row[${i++}] =`, row);
   }
-
   let articles = [
     ['This is an article', 'lorem ipsum...'],
     ['This is another article', 'fliesstext...']
@@ -132,9 +134,15 @@ async function main(...args) {
 
   let insert = (globalThis.insert = makeInsertQuery('article', fieldNames.slice(1), myrow.slice(1)));
 
-  //console.log('insert', insert);
+  console.log('insert', insert);
 
+  for await(let row of await q(`SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`)) 
+    console.log(`article[${i++}] =`, row);
+  
   await q(insert);
+
+
+
 
   res = await q(`SELECT last_insert_id();`);
 
@@ -148,6 +156,8 @@ async function main(...args) {
 
   console.log('affected =', (affected = my.affectedRows));
   console.log('id =', (id = my.insertId));
+
+
 
   startInteractive();
   // os.kill(process.pid, os.SIGUSR1);

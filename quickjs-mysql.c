@@ -968,7 +968,7 @@ js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
-  if(state == 0) {
+ /* if(state == 0) {
     MYSQL_RES* res = mysql_use_result(my);
     JSValue res_val = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
 
@@ -986,7 +986,7 @@ js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       JS_FreeValue(ctx, res_val);
     }
 
-  } else {
+  } else*/ {
 
     data[0] = JS_NewInt32(ctx, wantwrite);
     data[1] = JS_DupValue(ctx, this_val);
