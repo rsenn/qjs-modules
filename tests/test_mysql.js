@@ -33,12 +33,12 @@ async function main(...args) {
   my.resultType |= MySQL.RESULT_OBJECT;
   //my.resultType |= MySQL.RESULT_TABLENAME;
 
-  console.log('1: my.getOption(MYSQL_OPT_NONBLOCK) =', my.getOption(MySQL.MYSQL_OPT_NONBLOCK));
+  console.log('1: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
-  my.setOption(MySQL.MYSQL_OPT_NONBLOCK,true);
-my.setOption(MySQL.MYSQL_OPT_NONBLOCK,false);
+  my.setOption(MySQL.OPT_NONBLOCK,true);
+my.setOption(MySQL.OPT_NONBLOCK,false);
 
-  console.log('2: my.getOption(MYSQL_OPT_NONBLOCK) =', my.getOption(MySQL.MYSQL_OPT_NONBLOCK));
+  console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
   console.log(
     'my.connect() =',
