@@ -33,10 +33,10 @@ async function main(...args) {
 
   my.resultType |= MySQL.RESULT_OBJECT;
 
-  /*my.setOption(MySQL.OPT_NONBLOCK, true);
-  my.setOption(MySQL.OPT_NONBLOCK, false);
+ my.setOption(MySQL.OPT_NONBLOCK, true);
+  /* my.setOption(MySQL.OPT_NONBLOCK, false);*/
 
-  console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));*/
+  console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
   console.log(
     'my.connect() =',
@@ -57,12 +57,12 @@ async function main(...args) {
   );
 
   //for await(let table of await q(`SHOW TABLES;`)) console.log('table =', table);
-let res=await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`);
-   console.log(`res =`, res);
+  let res = await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`);
+  console.log(`res =`, res);
+  console.log(`res[Symbol.iterator] =`, res[Symbol.iterator]);
   console.log(`res[Symbol.asyncIterator] =`, res[Symbol.asyncIterator]);
-  //for await(let row of await res)
-  for (let row of  res)
-    console.log(`row[${i++}] =`, row);
+  //  for(let row of  res)
+  for await(let row of res) console.log(`row[${i++}] =`, row);
 
   let articles = [
     ['This is an article', 'lorem ipsum...'],
@@ -80,17 +80,15 @@ let res=await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`);
   console.log('id =', id);
 
   i = 0;
-  for await(let row of await q(
-    `SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`
-  ))
-    console.log(`row[${i++}] =`, row);
+  res = await q(`SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`);
+  for await(let row of res) console.log(`row[${i++}] =`, row);
 
   i = 0;
   let rows = (globalThis.rows = []);
 
   // my.resultType &= ~MySQL.RESULT_OBJECT;
-
-  for await(let row of await q(`SELECT * FROM article ORDER BY id DESC LIMIT 0,10;`)) {
+  res = await q(`SELECT * FROM article ORDER BY id DESC LIMIT 0,10;`);
+  for await(let row of res) {
     console.log(`row[${i++}] =`, console.config({ compact: 1 }), row);
 
     rows.unshift(row);
@@ -98,7 +96,9 @@ let res=await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`);
 
   async function* showFields(table = 'article') {
     my.resultType &= ~MySQL.RESULT_OBJECT;
-    for await(let field of await q(`SHOW FIELDS FROM article`)) {
+    let res = await q(`SHOW FIELDS FROM article`);
+
+    for await (let field of res) {
       let name = field['COLUMNS.Field'] ?? field['Field'] ?? field[0];
       let type = field[1];
 

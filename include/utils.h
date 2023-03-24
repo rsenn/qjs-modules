@@ -262,6 +262,14 @@ js_global_new(JSContext* ctx, const char* class_name, int argc, JSValueConst arg
   return obj;
 }
 
+static inline JSValue
+js_global_call(JSContext* ctx, const char* ctor_name, int argc, JSValueConst argv[]) {
+  JSValue ret, fn = js_global_get_str(ctx, ctor_name);
+  ret = JS_Call(ctx, fn, JS_UNDEFINED, argc, argv);
+  JS_FreeValue(ctx, fn);
+  return ret;
+}
+
 JSValue js_global_prototype(JSContext* ctx, const char* class_name);
 JSValue js_global_prototype_func(JSContext* ctx, const char* class_name, const char* func_name);
 JSValue js_global_static_func(JSContext* ctx, const char* class_name, const char* func_name);
@@ -372,7 +380,7 @@ JSValue* js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr
 void js_value_fwrite(JSContext*, JSValueConst, FILE* f);
 void js_value_dump(JSContext*, JSValueConst, DynBuf* db);
 JSValue js_value_coerce(JSContext* ctx, const char* func_name, JSValueConst);
-JSValue js_value_new(JSContext* ctx, const char* ctor_name, int argc, JSValueConst argv[]);
+JSValue js_global_new(JSContext* ctx, const char* ctor_name, int argc, JSValueConst argv[]);
 
 //#include "buffer-utils.h"
 
@@ -404,6 +412,13 @@ js_cstring_free(JSContext* ctx, const char* ptr) {
 
   JS_FreeValue(ctx, JS_MKPTR(JS_TAG_STRING, (void*)(ptr - offsetof(JSString, u))));
 }
+
+#define js_cstring_destroy(ctx, cstr) \
+  do { \
+    if((cstr)) \
+      JS_FreeCString((ctx), (cstr)); \
+    (cstr) = 0; \
+  } while(0)
 
 static inline int64_t
 js_toint64(JSContext* ctx, JSValueConst value) {

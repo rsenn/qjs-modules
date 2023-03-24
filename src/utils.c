@@ -1570,22 +1570,9 @@ js_value_free_rt(JSRuntime* rt, JSValue v) {
 
 JSValue
 js_value_coerce(JSContext* ctx, const char* func_name, JSValueConst arg) {
-  JSValue ret, fn = js_global_get_str(ctx, func_name);
-  ret = JS_Call(ctx, fn, JS_UNDEFINED, 1, &arg);
-  JS_FreeValue(ctx, fn);
-  return ret;
+  return js_global_call(ctx, func_name, 1, &arg);
 }
 
-JSValue
-js_value_new(JSContext* ctx, const char* ctor_name, int argc, JSValueConst argv[]) {
-  JSValue ret, fn = js_global_get_str(ctx, ctor_name);
-
-  ret = JS_CallConstructor(ctx, fn, argc, argv);
-
-  JS_FreeValue(ctx, fn);
-
-  return ret;
-}
 char*
 js_cstring_ptr(JSValueConst v) {
   JSString* p;
