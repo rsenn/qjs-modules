@@ -1044,7 +1044,7 @@ js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValue
    }*/
   js_set_tostringtag_value(ctx, proto, JS_NewString(ctx, new_name));
 
-  ret = JS_NewCFunctionClosure(ctx, js_misc_immutable_constructor, 0, 0, closure, js_misc_immutable_free);
+  ret = js_function_cclosure(ctx, js_misc_immutable_constructor, 0, 0, closure, js_misc_immutable_free);
   // ret = JS_NewCFunction2(ctx, js_misc_immutable_constructor, new_name, 1, JS_CFUNC_constructor,
   // 0);
 

@@ -573,6 +573,10 @@ JSValue js_function_bind_this(JSContext*, JSValue func, JSValue this_val);
 JSValue js_function_throw(JSContext*, JSValue err);
 JSValue js_function_return_undefined(JSContext*);
 JSValue js_function_return_value(JSContext*, JSValue value);
+JSValue js_function_prototype(JSContext* ctx);
+
+typedef JSValue CClosureFunc(JSContext*, JSValueConst, int, JSValueConst[], int, void*);
+JSValue js_function_cclosure(JSContext*, CClosureFunc*, int length, int magic, void*, void (*)(void*));
 
 JSValue js_object_constructor(JSContext*, JSValueConst value);
 JSValue js_object_species(JSContext*, JSValueConst value);

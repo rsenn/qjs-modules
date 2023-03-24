@@ -378,7 +378,7 @@ set(utils_SOURCES src/utils.c include/utils.h ${char_utils_SOURCES}
                   src/clock_gettime.c src/strverscmp.c)
 set(js_utils_SOURCES src/js-utils.c include/js-utils.h)
 set(utils_SOURCES ${utils_SOURCES} src/qsort_r.c)
-set(stream_SOURCES quickjs-stream.c ${queue_SOURCES}  ${js_utils_SOURCES}
+set(stream_SOURCES quickjs-stream.c ${queue_SOURCES} ${js_utils_SOURCES}
                    ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(predicate_SOURCES src/predicate.c include/predicate.h ${utils_SOURCES})
 if(NOT HAVE_STRVERSCMP)
@@ -399,7 +399,7 @@ set(child_process_SOURCES
     src/child-process.c include/child-process.h src/property-enumeration.c
     include/property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
 set(deep_SOURCES
-    ${vector_SOURCES} src/pointer.c src/virtual-properties.c
+    ${vector_SOURCES} src/pointer.c src/virtual-properties.c #${js_utils_SOURCES}
     src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES}
     ${predicate_SOURCES} include/pointer.h include/virtual-properties.h)
 set(deep_LIBRARIES qjs-predicate qjs-pointer)
@@ -481,7 +481,8 @@ set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(magic_SOURCES quickjs-magic.c ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(mysql_SOURCES quickjs-mysql.c ${js_utils_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(mysql_SOURCES quickjs-mysql.c #${js_utils_SOURCES}
+ ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 if(BUILD_LIBSERIALPORT)
   include(ExternalProject)
@@ -737,7 +738,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 
 if(NOT BUILD_STATIC_MODULES)
-  set(QJSM_SOURCES
+  ADD_UNIQUE(QJSM_SOURCES
       ${QJSM_SOURCES}
       ${archive_SOURCES}
       ${blob_SOURCES}
@@ -748,7 +749,6 @@ if(NOT BUILD_STATIC_MODULES)
       ${directory_SOURCES}
       ${gpio_SOURCES}
       ${inspect_SOURCES}
-      #${js_utils_SOURCES}
       ${lexer_SOURCES}
       ${list_SOURCES}
       ${libutf_SOURCES}
@@ -763,6 +763,7 @@ if(NOT BUILD_STATIC_MODULES)
       ${repeater_SOURCES}
       # ${sockets_SOURCES}
       ${stream_SOURCES}
+      #${js_utils_SOURCES}
       ${syscallerror_SOURCES}
       ${textcode_SOURCES}
       ${token_SOURCES}
