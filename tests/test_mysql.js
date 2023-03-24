@@ -26,6 +26,7 @@ async function main(...args) {
 
   let my = (globalThis.my = new MySQL());
 
+   my.resultType |= MySQL.RESULT_STRING;
   // my.resultType |= MySQL.RESULT_OBJECT;
   //  my.resultType |= MySQL.RESULT_TABLENAME;
 

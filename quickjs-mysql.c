@@ -327,18 +327,16 @@ enum {
   PROP_HOST,
   PROP_DB,
   PROP_PORT,
-  PROP_UNIX_SOCKET, 
+  PROP_UNIX_SOCKET,
   STATIC_CLIENT_INFO,
   STATIC_CLIENT_VERSION,
   STATIC_THREAD_SAFE,
 };
 
-
 static JSValue
 js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  MYSQL* my = JS_GetOpaque(this_val,js_mysql_class_id);
+  MYSQL* my = JS_GetOpaque(this_val, js_mysql_class_id);
   JSValue ret = JS_UNDEFINED;
-
 
   switch(magic) {
     case PROP_MORE_RESULTS: {
@@ -432,8 +430,8 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = my->unix_socket ? JS_NewString(ctx, my->unix_socket) : JS_NULL;
       break;
     }
-/* static MySQL */
-      case STATIC_CLIENT_INFO: {
+      /* static MySQL */
+    case STATIC_CLIENT_INFO: {
       const char* info = mysql_get_client_info();
       ret = info && *info ? JS_NewString(ctx, info) : JS_NULL;
       break;
@@ -851,8 +849,14 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, in
       return string_to_date(ctx, buf);
     }
   }
-  if(field_is_boolean(field))
-    return JS_NewBool(ctx, *(my_bool*)buf);
+
+  if(field_is_boolean(field)) {
+    BOOL value = *(my_bool*)buf;
+    if((rtype & RESULT_STRING))
+      return JS_NewString(ctx, value ? "TRUE" : "FALSE");
+
+    return JS_NewBool(ctx, value);
+  }
 
   if(field_is_blob(field))
     return JS_NewArrayBufferCopy(ctx, (uint8_t const*)buf, len);
