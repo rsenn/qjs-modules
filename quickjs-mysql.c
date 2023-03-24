@@ -22,7 +22,7 @@ enum mysql_result_type {
 };
 
 typedef char* field_namefunc_type(JSContext*, MYSQL_FIELD const*);
-typedef JSValue row_func_type(JSContext*, MYSQL_RES*, MYSQL_ROW, uint32_t);
+typedef JSValue row_func_type(JSContext*, MYSQL_RES*, MYSQL_ROW, int);
 
 static char* field_id(JSContext* ctx, MYSQL_FIELD const* field);
 static char* field_name(JSContext* ctx, MYSQL_FIELD const* field);
@@ -37,10 +37,12 @@ static BOOL field_is_null(MYSQL_FIELD const* field);
 static BOOL field_is_date(MYSQL_FIELD const* field);
 static BOOL field_is_string(MYSQL_FIELD const* field);
 static BOOL field_is_blob(MYSQL_FIELD const* field);
+static JSValue coerce_value(JSContext* ctx, const char* func_name, JSValueConst arg);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
 static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const char* s);
 static JSValue string_to_number(JSContext* ctx, const char* s);
 static JSValue string_to_bigdecimal(JSContext* ctx, const char* s);
+static JSValue string_to_bigint(JSContext* ctx, const char* s);
 static JSValue string_to_date(JSContext* ctx, const char* s);
 
 MYSQL*
@@ -281,97 +283,111 @@ enum {
 };
 
 static JSValue
-js_mysql_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
 
-  switch(magic) {
-    case STATIC_VALUE_STRING: {
-      if(JS_IsNull(argv[0])) {
-        ret = JS_NewString(ctx, "NULL");
-        break;
-      }
+  if(JS_IsNull(argv[0]) || JS_IsUndefined(argv[0])) {
+    ret = JS_NewString(ctx, "NULL");
 
-      if(JS_IsBool(argv[0])) {
-        BOOL val = JS_ToBool(ctx, argv[0]);
-        ret = JS_NewString(ctx, val ? "TRUE" : "FALSE");
-        break;
-      }
+  } else if(JS_IsBool(argv[0])) {
+    BOOL val = JS_ToBool(ctx, argv[0]);
+    ret = JS_NewString(ctx, val ? "TRUE" : "FALSE");
 
-      if(JS_IsString(argv[0])) {
-        char* dst;
-        const char* src;
-        size_t len;
+  } else if(JS_IsString(argv[0])) {
+    char* dst;
+    const char* src;
+    size_t len;
 
-        if(!(src = JS_ToCStringLen(ctx, &len, argv[0]))) {
-          ret = JS_ThrowTypeError(ctx, "argument 1 must be string");
-          break;
-        }
+    if(!(src = JS_ToCStringLen(ctx, &len, argv[0])))
+      return JS_ThrowTypeError(ctx, "argument 1 must be string");
 
-        if((!(dst = js_malloc(ctx, 2 * len + 1 + 2)))) {
-          ret = JS_ThrowOutOfMemory(ctx);
-          break;
-        }
-
-        len = mysql_escape_string(dst + 1, src, len);
-        dst[0] = '\'';
-        dst[len + 1] = '\'';
-        ret = JS_NewStringLen(ctx, dst, len + 2);
-        js_free(ctx, dst);
-        break;
-      }
-
-      InputBuffer input = js_input_buffer(ctx, argv[0]);
-
-      if(input.size) {
-        size_t i;
-        DynBuf buf;
-        dbuf_init2(&buf, 0, 0);
-        dbuf_putstr(&buf, "0x");
-        for(i = 0; i < input.size; i++) {
-          static const char hexdigits[] = "0123456789ABCDEF";
-          char hex[2] = {
-              hexdigits[(input.data[i] & 0xf0) >> 4],
-              hexdigits[(input.data[i] & 0x0f)],
-          };
-          dbuf_put(&buf, hex, 2);
-        }
-        ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
-        dbuf_free(&buf);
-        input_buffer_free(&input, ctx);
-        break;
-      }
-
-      /*if(JS_IsNumber(argv[0]))*/ {
-        const char* str = JS_ToCString(ctx, argv[0]);
-        ret = JS_NewString(ctx, str);
-        JS_FreeCString(ctx, str);
-        break;
-      }
-
-      break;
+    if((!(dst = js_malloc(ctx, 2 * len + 1 + 2)))) {
+      JS_FreeCString(ctx, src);
+      return JS_ThrowOutOfMemory(ctx);
     }
-    case STATIC_ESCAPE_STRING: {
-      char* dst;
-      const char* src;
-      size_t len;
 
-      if(!(src = JS_ToCStringLen(ctx, &len, argv[0]))) {
-        ret = JS_ThrowTypeError(ctx, "argument 1 must be string");
-        break;
+    len = mysql_escape_string(dst + 1, src, len);
+    dst[0] = '\'';
+    dst[len + 1] = '\'';
+    ret = JS_NewStringLen(ctx, dst, len + 2);
+    js_free(ctx, dst);
+
+  } else if(js_is_date(ctx, argv[0])) {
+    size_t len;
+    char* str;
+    JSValue newstr, iso = js_invoke(ctx, argv[0], "toISOString", 0, 0);
+
+    str = js_tostringlen(ctx, &len, iso);
+
+    if(len >= 19) {
+      if(str[19] == '.')
+        str[len = 19] = '\0';
+      if(str[10] == 'T')
+        str[10] = ' ';
+    }
+
+    newstr = JS_NewStringLen(ctx, str, len);
+
+    ret = js_value_string(ctx, this_val, 1, &newstr);
+
+    JS_FreeValue(ctx, newstr);
+    JS_FreeValue(ctx, iso);
+    js_free(ctx, str);
+  } else if(js_is_numeric(ctx, argv[0])) {
+    JSValue bi = coerce_value(ctx, "BigInt", argv[0]);
+
+    ret = js_value_string(ctx, this_val, 1, &bi);
+    JS_FreeValue(ctx, bi);
+
+  } else {
+
+    InputBuffer input = js_input_buffer(ctx, argv[0]);
+
+    if(input.size) {
+      size_t i;
+      DynBuf buf;
+      dbuf_init2(&buf, 0, 0);
+      dbuf_putstr(&buf, "0x");
+      for(i = 0; i < input.size; i++) {
+        static const char hexdigits[] = "0123456789ABCDEF";
+        char hex[2] = {
+            hexdigits[(input.data[i] & 0xf0) >> 4],
+            hexdigits[(input.data[i] & 0x0f)],
+        };
+        dbuf_put(&buf, (const uint8_t*)hex, 2);
       }
+      ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
+      dbuf_free(&buf);
+      input_buffer_free(&input, ctx);
 
-      if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
-        ret = JS_ThrowOutOfMemory(ctx);
-        break;
-      }
-
-      len = mysql_escape_string(dst, src, len);
-      ret = JS_NewStringLen(ctx, dst, len);
-      js_free(ctx, dst);
-
-      break;
+    } else {
+      const char* str = JS_ToCString(ctx, argv[0]);
+      ret = JS_NewString(ctx, str);
+      JS_FreeCString(ctx, str);
     }
   }
+
+  return ret;
+}
+
+static JSValue
+js_escape_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  char* dst;
+  const char* src;
+  size_t len;
+
+  if(!(src = JS_ToCStringLen(ctx, &len, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be string");
+
+  if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
+    JS_FreeCString(ctx, src);
+    return JS_ThrowOutOfMemory(ctx);
+  }
+
+  len = mysql_escape_string(dst, src, len);
+  ret = JS_NewStringLen(ctx, dst, len);
+  js_free(ctx, dst);
 
   return ret;
 }
@@ -842,8 +858,8 @@ static const JSCFunctionListEntry js_mysql_static_funcs[] = {
     JS_CGETSET_MAGIC_DEF("clientInfo", js_mysql_getstatic, 0, STATIC_CLIENT_INFO),
     JS_CGETSET_MAGIC_DEF("clientVersion", js_mysql_getstatic, 0, STATIC_CLIENT_VERSION),
     JS_CGETSET_MAGIC_DEF("threadSafe", js_mysql_getstatic, 0, STATIC_THREAD_SAFE),
-    JS_CFUNC_MAGIC_DEF("escapeString", 1, js_mysql_functions, STATIC_ESCAPE_STRING),
-    JS_CFUNC_MAGIC_DEF("valueString", 1, js_mysql_functions, STATIC_VALUE_STRING),
+    JS_CFUNC_DEF("escapeString", 1, js_escape_string),
+    JS_CFUNC_DEF("valueString", 1, js_value_string),
     JS_PROP_INT64_DEF("MYSQL_COUNT_ERROR", MYSQL_COUNT_ERROR, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("RESULT_OBJECT", RESULT_OBJECT, JS_PROP_C_W_E),
     JS_PROP_INT32_DEF("RESULT_STRING", RESULT_STRING, JS_PROP_C_W_E),
@@ -1566,14 +1582,20 @@ field_is_blob(MYSQL_FIELD const* field) {
 }
 
 static JSValue
-string_to_value(JSContext* ctx, const char* func_name, const char* s) {
-  JSValue ret, arg, fn = js_global_get_str(ctx, func_name);
-
-  arg = JS_NewString(ctx, s);
+coerce_value(JSContext* ctx, const char* func_name, JSValueConst arg) {
+  JSValue ret, fn = js_global_get_str(ctx, func_name);
   ret = JS_Call(ctx, fn, JS_UNDEFINED, 1, &arg);
+  JS_FreeValue(ctx, fn);
+  return ret;
+}
+
+static JSValue
+string_to_value(JSContext* ctx, const char* func_name, const char* s) {
+  JSValue ret, arg = JS_NewString(ctx, s);
+
+  ret = coerce_value(ctx, func_name, arg);
 
   JS_FreeValue(ctx, arg);
-  JS_FreeValue(ctx, fn);
 
   return ret;
 }
@@ -1599,6 +1621,10 @@ string_to_number(JSContext* ctx, const char* s) {
 static JSValue
 string_to_bigdecimal(JSContext* ctx, const char* s) {
   return string_to_value(ctx, "BigDecimal", s);
+}
+static JSValue
+string_to_bigint(JSContext* ctx, const char* s) {
+  return string_to_value(ctx, "BigInt", s);
 }
 
 static JSValue

@@ -754,6 +754,11 @@ js_is_array_like(JSContext* ctx, JSValueConst obj) {
 
 BOOL js_is_input(JSContext* ctx, JSValueConst value);
 
+static inline BOOL
+js_is_numeric(JSContext* ctx, JSValueConst value) {
+  return JS_IsNumber(value) || JS_IsBigInt(ctx, value) || JS_IsBigDecimal(value) || JS_IsBigFloat(value);
+}
+
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
 BOOL js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
 void js_array_clear(JSContext* ctx, JSValueConst array);
