@@ -1,7 +1,6 @@
-import * as os from 'os';
-import * as std from 'std';
 import { Console } from 'console';
-import { abbreviate } from 'util';
+import { exit } from 'std';
+import { abbreviate, startInteractive } from 'util';
 import { MySQL, MySQLResult } from 'mysql';
 import extendArray from '../lib/extendArray.js';
 
@@ -46,7 +45,7 @@ async function main(...args) {
 
   let i;
 
-  let q = /*async*/ s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(my.query(s)));
+  let q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s)));
 
   i = 0;
 
@@ -132,14 +131,15 @@ async function main(...args) {
   console.log('affected =', (affected = my.affectedRows));
   console.log('id =', (id = my.insertId));
 
-  os.kill(process.pid, os.SIGUSR1);
+  startInteractive();
+  // os.kill(process.pid, os.SIGUSR1);
 }
 
 try {
   main(...scriptArgs.slice(1)).catch(err => console.log(`FAIL: ${err.message}\n${err.stack}`));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
-  std.exit(1);
+  exit(1);
 } finally {
   console.log('SUCCESS');
 }

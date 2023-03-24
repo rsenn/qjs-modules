@@ -383,9 +383,11 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
   jsm_stack_push(ctx, file);
 
   errno = 0;
-
   val = js_eval_file(ctx, file, module);
-  jsm_stack_pop(ctx);
+
+  if(vector_size(&jsm_stack, sizeof(char*)) > 1)
+    jsm_stack_pop(ctx);
+
   if(JS_IsException(val)) {
     JSValue stack = JS_IsObject(ctx->rt->current_exception) ? JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack") : JS_UNDEFINED;
     const char* msg = JS_ToCString(ctx, ctx->rt->current_exception);
@@ -397,8 +399,11 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
     js_error_print(ctx, ctx->rt->current_exception);
     js_value_fwrite(ctx, ctx->rt->current_exception, stderr);
     js_std_dump_error(ctx);
+
     return -1;
-  } else if(JS_IsModule(val) || module) {
+  }
+
+  if(JS_IsModule(val) || module) {
     if(!JS_IsModule(val)) {
       JSModuleDef* m = js_module_at(ctx, -1);
       val = JS_MKPTR(JS_TAG_MODULE, m);
@@ -408,9 +413,10 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
     JS_ToInt32(ctx, &ret, val);
   }
 
-  /*  fprintf(stderr, "Included '%s': ", file);
+  /*fprintf(stderr, "Included '%s': ", file);
     js_value_fwrite(ctx, val, stderr);
     fputc('\n', stderr);*/
+
   if(!JS_IsModule(val))
     JS_FreeValue(ctx, val);
 
@@ -1354,7 +1360,7 @@ jsm_start_interactive(void) {
     "import REPL from 'repl';\n"
     "import fs from 'fs';\n"
     "const history = '%s/.%s_history';\n"
-    "globalThis.repl = new REPL('%s');\n"
+    "globalThis.repl = new REPL((__filename ?? '%s').replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
     "repl.loadSaveOptions();\n"
     "repl.historyLoad(null, fs);\n"
     "repl.directives = { i: [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ] };\n"
