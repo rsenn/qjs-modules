@@ -619,19 +619,32 @@ js_mysql_getstatic(JSContext* ctx, JSValueConst this_val, int magic) {
 static JSValue
 js_mysql_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  int i;
   DynBuf buf;
   dbuf_init2(&buf, 0, 0);
 
-  for(i = 0; i < argc; i++) {
+  for(int i = 0; i < argc; i++) {
     if(i > 0)
-      dbuf_putc(&buf, ',');
+        dbuf_putstr(&buf, ", ");
     js_mysql_print_value(ctx, &buf, argv[i]);
   }
 
   ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
   dbuf_free(&buf);
   return ret;
+}
+
+static void
+js_mysql_print_fields(JSContext* ctx, DynBuf* out, JSPropertyEnum* tmp_tab, uint32_t tmp_len) {
+  for(uint32_t i = 0; i < tmp_len; i++) {
+    const char* str;
+    if(i > 0)
+        dbuf_putstr(out, ", ");
+    str = JS_AtomToCString(ctx, tmp_tab[i].atom);
+    dbuf_putc(out, '`');
+    dbuf_putstr(out, str);
+    dbuf_putc(out, '`');
+    JS_FreeCString(ctx, str);
+  }
 }
 
 static void
@@ -647,7 +660,7 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
       if(done)
         break;
       if(i > 0)
-        dbuf_putc(out, ',');
+        dbuf_putstr(out, ", ");
       js_mysql_print_value(ctx, out, item);
       JS_FreeValue(ctx, item);
     }
@@ -655,27 +668,21 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
 
   } else {
     JSPropertyEnum* tmp_tab;
-    uint32_t i, tmp_len;
+    uint32_t tmp_len;
 
     if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, values, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY)) {
       JS_FreeValue(ctx, iter);
       return JS_ThrowTypeError(ctx, "argument is must be an object");
     }
+
     dbuf_putc(out, '(');
-    for(i = 0; i < tmp_len; i++) {
-      const char* str;
+    js_mysql_print_fields(ctx, out, tmp_tab, tmp_len);
+    dbuf_putc(out, ')');
+
+    dbuf_putstr(out, " VALUES (");
+    for(uint32_t i = 0; i < tmp_len; i++) {
       if(i > 0)
-        dbuf_putc(out, ',');
-      str = JS_AtomToCString(ctx, tmp_tab[i].atom);
-      dbuf_putc(out, '`');
-      dbuf_putstr(out, str);
-      dbuf_putc(out, '`');
-      JS_FreeCString(ctx, str);
-    }
-    dbuf_putstr(out, ") VALUES (");
-    for(i = 0; i < tmp_len; i++) {
-      if(i > 0)
-        dbuf_putc(out, ',');
+        dbuf_putstr(out, ", ");
       item = JS_GetProperty(ctx, values, tmp_tab[i].atom);
       js_mysql_print_value(ctx, out, item);
       JS_FreeValue(ctx, item);
@@ -691,8 +698,14 @@ js_mysql_values_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   DynBuf buf;
 
   dbuf_init2(&buf, 0, 0);
-  js_mysql_print_values(ctx, &buf, argv[0]);
-  dbuf_putc(&buf, ';');
+
+  for(int i = 0; i < argc; i++) {
+    if(i > 0)
+      dbuf_putstr(&buf, ", ");
+
+    js_mysql_print_values(ctx, &buf, argv[i]);
+  }
+
   ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
   dbuf_free(&buf);
   return ret;
