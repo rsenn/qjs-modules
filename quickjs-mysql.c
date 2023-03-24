@@ -52,11 +52,16 @@ js_mysql_data(JSContext* ctx, JSValueConst value) {
 }
 
 BOOL
-js_mysql_is_nonblock(JSContext* ctx, JSValueConst value) {
-  MYSQL* my = js_mysql_data(ctx, value);
+mysql_is_nonblock(MYSQL* my) {
   my_bool val;
   mysql_get_option(my, MYSQL_OPT_NONBLOCK, &val);
   return val;
+}
+
+BOOL
+js_mysql_is_nonblock(JSContext* ctx, JSValueConst value) {
+  MYSQL* my = js_mysql_data(ctx, value);
+  return mysql_is_nonblock(my);
 }
 
 static JSValue
@@ -1357,6 +1362,28 @@ js_mysqlresult_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case PROP_CURRENT_FIELD: {
       ret = JS_NewUint32(ctx, res->current_field);
+      break;
+    }
+  }
+  return ret;
+}
+
+enum {
+  METHOD_ITERATOR,
+  METHOD_ASYNC_ITERATOR,
+};
+
+static JSValue
+js_mysqlresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret = JS_UNDEFINED;
+
+  switch(magic) {
+    case METHOD_ASYNC_ITERATOR: {
+      ret = JS_DupValue(ctx, this_val);
+      break;
+    }
+    case METHOD_ITERATOR: {
+      ret = JS_DupValue(ctx, this_val);
       break;
     }
   }
