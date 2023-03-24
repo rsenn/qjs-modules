@@ -21,7 +21,7 @@ enum MySQLResultType {
   RESULT_TABLENAME = 4,
 };
 
-struct MySQLConnectParms {
+struct ConnectParameters {
   const char *host, *user, *password, *db;
   uint32_t port;
   const char* socket;
@@ -53,26 +53,64 @@ static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const cha
 #define string_to_bigfloat(ctx, s) string_to_value(ctx, "BigFloat", s);
 #define string_to_date(ctx, s) string_to_object(ctx, "Date", s);
 
-MYSQL*
-js_mysql_data(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_mysql_class_id);
+static void value_to_mysql(JSContext* ctx, DynBuf* out, JSValueConst value);
+static JSValue value_to_string(JSContext* ctx, JSValueConst value);
+
+static void
+value_yield(JSContext* ctx, JSValueConst resolve, JSValueConst value) {
+  JSValue ret = JS_Call(ctx, resolve, JS_UNDEFINED, 1, &value);
+  JS_FreeValue(ctx, ret);
 }
 
-BOOL
+static void
+value_yield_free(JSContext* ctx, JSValueConst resolve, JSValueConst value) {
+  value_yield(ctx, resolve, value);
+  JS_FreeValue(ctx, value);
+}
+
+static void
+connectparams_init(JSContext* ctx, struct ConnectParameters* c, int argc, JSValueConst argv[]) {
+  c->host = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
+  c->user = argc > 1 ? JS_ToCString(ctx, argv[1]) : 0;
+  c->password = argc > 2 ? JS_ToCString(ctx, argv[2]) : 0;
+  c->db = argc > 3 ? JS_ToCString(ctx, argv[3]) : 0;
+
+  if(argc > 4 && JS_IsNumber(argv[4]))
+    JS_ToUint32(ctx, &c->port, argv[4]);
+  else
+    c->port = 3306;
+
+  c->socket = argc > 5 ? JS_ToCString(ctx, argv[5]) : 0;
+
+  if(argc > 6)
+    JS_ToInt64(ctx, &c->flags, argv[6]);
+  else
+    c->flags = 0;
+}
+
+static void
+connectparams_free(JSContext* ctx, struct ConnectParameters* c) {
+  js_cstring_destroy(ctx, c->host);
+  js_cstring_destroy(ctx, c->user);
+  js_cstring_destroy(ctx, c->password);
+  js_cstring_destroy(ctx, c->db);
+  js_cstring_destroy(ctx, c->socket);
+}
+
+static BOOL
 mysql_nonblock(MYSQL* my) {
   my_bool val;
   mysql_get_option(my, MYSQL_OPT_NONBLOCK, &val);
   return val;
 }
 
-BOOL
-js_mysql_nonblock(JSContext* ctx, JSValueConst value) {
-  MYSQL* my = js_mysql_data(ctx, value);
-  return mysql_nonblock(my);
+MYSQL*
+js_mysql_data(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_mysql_class_id);
 }
 
 static JSValue
-js_mysql_wrap_proto(JSContext* ctx, JSValueConst proto, MYSQL* my) {
+js_mysql_new(JSContext* ctx, JSValueConst proto, MYSQL* my) {
   JSValue obj;
 
   if(js_mysql_class_id == 0)
@@ -96,13 +134,18 @@ fail:
 
 static JSValue
 js_mysql_wrap(JSContext* ctx, MYSQL* my) {
-  return js_mysql_wrap_proto(ctx, mysql_proto, my);
+  return js_mysql_new(ctx, mysql_proto, my);
+}
+
+static inline int
+js_mysql_rtype(JSContext* ctx, JSValueConst value) {
+  return js_get_propertystr_int32(ctx, value, "resultType");
 }
 
 enum {
-  FUNCTION_ESCAPE_STRING,
-  FUNCTION_GET_OPTION,
-  FUNCTION_SET_OPTION,
+  METHOD_ESCAPE_STRING,
+  METHOD_GET_OPTION,
+  METHOD_SET_OPTION,
 };
 
 static JSValue
@@ -114,7 +157,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return ret;
 
   switch(magic) {
-    case FUNCTION_ESCAPE_STRING: {
+    case METHOD_ESCAPE_STRING: {
       char* dst;
       const char* src;
       size_t len;
@@ -135,7 +178,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       break;
     }
 
-    case FUNCTION_GET_OPTION: {
+    case METHOD_GET_OPTION: {
       int32_t opt = -1;
 
       JS_ToInt32(ctx, &opt, argv[0]);
@@ -214,7 +257,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       break;
     }
 
-    case FUNCTION_SET_OPTION: {
+    case METHOD_SET_OPTION: {
       int32_t opt = -1;
 
       JS_ToInt32(ctx, &opt, argv[0]);
@@ -312,155 +355,6 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   return ret;
 }
-enum {
-  STATIC_VALUE_STRING,
-  STATIC_ESCAPE_STRING,
-};
-
-static void
-js_value_escape(JSContext* ctx, DynBuf* out, JSValueConst value) {
-
-  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value)) {
-    dbuf_putstr(out, "NULL");
-
-  } else if(JS_IsBool(value)) {
-    dbuf_putstr(out, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
-
-  } else if(JS_IsString(value)) {
-    size_t len;
-    const char* src = JS_ToCStringLen(ctx, &len, value);
-    char* dst;
-
-    dbuf_putc(out, '\'');
-    dst = (char*)dbuf_reserve(out, len * 2 + 1);
-    len = mysql_escape_string(dst, src, len);
-    out->size += len;
-    dbuf_putc(out, '\'');
-
-  } else if(js_is_date(ctx, value)) {
-    size_t len;
-    char* str;
-    JSValue val;
-
-    /*int64_t ut;
-    val = js_invoke(ctx, value, "valueOf", 0, 0);
-    JS_ToInt64(ctx, &ut, val);
-    JS_FreeValue(ctx, val);
-
-    dbuf_putstr(out, "FROM_UNIXTIME(");
-    dbuf_printf(out, "%" PRId64, ut / 1000);
-    if(ut % 1000) {
-      dbuf_putc(out, '.');
-      dbuf_printf(out, "%" PRId64, ut % 1000);
-    }
-    dbuf_putc(out, ')');*/
-
-    val = js_invoke(ctx, value, "toISOString", 0, 0);
-    str = js_tostringlen(ctx, &len, val);
-    if(len >= 24) {
-      if(str[23] == 'Z')
-        len = 23;
-    }
-    if(len >= 19) {
-      if(str[10] == 'T')
-        str[10] = ' ';
-    }
-    dbuf_putc(out, '\'');
-    dbuf_put(out, (const uint8_t*)str, len);
-    dbuf_putc(out, '\'');
-
-    js_free(ctx, str);
-    JS_FreeValue(ctx, val);
-
-  } else if(!JS_IsBigDecimal(/*ctx,*/ value) && js_is_numeric(ctx, value)) {
-    JSValue val = js_value_coerce(ctx, (JS_IsBigDecimal(value)) ? "Number" : "BigDecimal", value);
-
-    js_value_escape(ctx, out, val);
-    JS_FreeValue(ctx, val);
-
-  } else {
-
-    InputBuffer input = js_input_buffer(ctx, value);
-
-    if(input.size) {
-      static const uint8_t hexdigits[] = "0123456789ABCDEF";
-      dbuf_putstr(out, "0x");
-      for(size_t i = 0; i < input.size; i++) {
-        const uint8_t hex[2] = {
-            hexdigits[(input.data[i] & 0xf0) >> 4],
-            hexdigits[(input.data[i] & 0x0f)],
-        };
-        dbuf_put(out, hex, 2);
-      }
-      input_buffer_free(&input, ctx);
-
-    } else {
-      size_t len;
-      const char* str = JS_ToCStringLen(ctx, &len, value);
-
-      dbuf_put(out, (const uint8_t*)str, len);
-      JS_FreeCString(ctx, str);
-    }
-  }
-}
-
-static JSValue
-js_value_to_string(JSContext* ctx, JSValueConst value) {
-  JSValue ret = JS_UNDEFINED;
-  DynBuf buf;
-
-  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value))
-    return JS_NewString(ctx, "NULL");
-
-  if(JS_IsBool(value))
-    return JS_NewString(ctx, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
-
-  dbuf_init2(&buf, 0, 0);
-  js_value_escape(ctx, &buf, value);
-  ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
-  dbuf_free(&buf);
-  return ret;
-}
-
-static JSValue
-js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret;
-  int i;
-  DynBuf buf;
-  dbuf_init2(&buf, 0, 0);
-
-  for(i = 0; i < argc; i++) {
-    if(i > 0)
-      dbuf_putc(&buf, ',');
-    js_value_escape(ctx, &buf, argv[i]);
-  }
-
-  ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
-  dbuf_free(&buf);
-  return ret;
-}
-
-static JSValue
-js_escape_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-  char* dst;
-  const char* src;
-  size_t len;
-
-  if(!(src = JS_ToCStringLen(ctx, &len, argv[0])))
-    return JS_ThrowTypeError(ctx, "argument 1 must be string");
-
-  if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
-    JS_FreeCString(ctx, src);
-    return JS_ThrowOutOfMemory(ctx);
-  }
-
-  len = mysql_escape_string(dst, src, len);
-  ret = JS_NewStringLen(ctx, dst, len);
-  js_free(ctx, dst);
-
-  return ret;
-}
 
 enum {
   PROP_MORE_RESULTS,
@@ -483,9 +377,7 @@ enum {
   PROP_DB,
   PROP_PORT,
   PROP_UNIX_SOCKET,
-  STATIC_CLIENT_INFO,
-  STATIC_CLIENT_VERSION,
-  STATIC_THREAD_SAFE,
+
 };
 
 static JSValue
@@ -585,53 +477,32 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = my->unix_socket ? JS_NewString(ctx, my->unix_socket) : JS_NULL;
       break;
     }
-      /* static MySQL */
-    case STATIC_CLIENT_INFO: {
-      const char* info = mysql_get_client_info();
-      ret = info && *info ? JS_NewString(ctx, info) : JS_NULL;
-      break;
-    }
-    case STATIC_CLIENT_VERSION: {
-      ret = JS_NewUint32(ctx, mysql_get_client_version());
-      break;
-    }
-    case STATIC_THREAD_SAFE: {
-      ret = JS_NewBool(ctx, mysql_thread_safe());
-      break;
-    }
   }
 
   return ret;
 }
 
-static JSValue
-js_mysql_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  MYSQL* my;
-  JSValue ret = JS_UNDEFINED;
-
-  if(!(my = js_mysql_data(ctx, this_val)))
-    return ret;
-
-  switch(magic) {}
-
-  return ret;
-}
+enum {
+  PROP_CLIENT_INFO,
+  PROP_CLIENT_VERSION,
+  PROP_THREAD_SAFE,
+};
 
 static JSValue
 js_mysql_getstatic(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue ret = JS_UNDEFINED;
 
   switch(magic) {
-    case STATIC_CLIENT_INFO: {
+    case PROP_CLIENT_INFO: {
       const char* info = mysql_get_client_info();
       ret = info && *info ? JS_NewString(ctx, info) : JS_NULL;
       break;
     }
-    case STATIC_CLIENT_VERSION: {
+    case PROP_CLIENT_VERSION: {
       ret = JS_NewUint32(ctx, mysql_get_client_version());
       break;
     }
-    case STATIC_THREAD_SAFE: {
+    case PROP_THREAD_SAFE: {
       ret = JS_NewBool(ctx, mysql_thread_safe());
       break;
     }
@@ -639,6 +510,48 @@ js_mysql_getstatic(JSContext* ctx, JSValueConst this_val, int magic) {
 
   return ret;
 }
+
+
+static JSValue
+js_mysql_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret;
+  int i;
+  DynBuf buf;
+  dbuf_init2(&buf, 0, 0);
+
+  for(i = 0; i < argc; i++) {
+    if(i > 0)
+      dbuf_putc(&buf, ',');
+    value_to_mysql(ctx, &buf, argv[i]);
+  }
+
+  ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
+  dbuf_free(&buf);
+  return ret;
+}
+
+static JSValue
+js_mysql_escape_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  char* dst;
+  const char* src;
+  size_t len;
+
+  if(!(src = JS_ToCStringLen(ctx, &len, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be string");
+
+  if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
+    JS_FreeCString(ctx, src);
+    return JS_ThrowOutOfMemory(ctx);
+  }
+
+  len = mysql_escape_string(dst, src, len);
+  ret = JS_NewStringLen(ctx, dst, len);
+  js_free(ctx, dst);
+
+  return ret;
+}
+
 
 static JSValue
 js_mysql_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
@@ -654,7 +567,7 @@ js_mysql_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     // mysql_options(my, MYSQL_OPT_NONBLOCK, 0);
   }
 
-  obj = js_mysql_wrap_proto(ctx, proto, my);
+  obj = js_mysql_new(ctx, proto, my);
   JS_FreeValue(ctx, proto);
   return obj;
 
@@ -709,46 +622,17 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return JS_UNDEFINED;
 }
 
-void
-js_mysql_connect_params(JSContext* ctx, struct MySQLConnectParms* c, int argc, JSValueConst argv[]) {
-  c->host = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
-  c->user = argc > 1 ? JS_ToCString(ctx, argv[1]) : 0;
-  c->password = argc > 2 ? JS_ToCString(ctx, argv[2]) : 0;
-  c->db = argc > 3 ? JS_ToCString(ctx, argv[3]) : 0;
-
-  if(argc > 4 && JS_IsNumber(argv[4]))
-    JS_ToUint32(ctx, &c->port, argv[4]);
-  else
-    c->port = 3306;
-
-  c->socket = argc > 5 ? JS_ToCString(ctx, argv[5]) : 0;
-
-  if(argc > 6)
-    JS_ToInt64(ctx, &c->flags, argv[6]);
-  else
-    c->flags = 0;
-}
-
-void
-js_mysql_connectparms_free(JSContext* ctx, struct MySQLConnectParms* c) {
-  js_cstring_destroy(ctx, c->host);
-  js_cstring_destroy(ctx, c->user);
-  js_cstring_destroy(ctx, c->password);
-  js_cstring_destroy(ctx, c->db);
-  js_cstring_destroy(ctx, c->socket);
-}
-
 static JSValue
 js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue promise = JS_UNDEFINED, data[5], handler;
-  struct MySQLConnectParms c = {0, 0, 0, 0, 0};
+  struct ConnectParameters c = {0, 0, 0, 0, 0};
   MYSQL *my, *ret = 0;
   int32_t wr, status, fd;
 
   if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  js_mysql_connect_params(ctx, &c, argc, argv);
+  connectparams_init(ctx, &c, argc, argv);
 
   status = mysql_real_connect_start(&ret, my, c.host, c.user, c.password, c.db, c.port, c.socket, c.flags);
 
@@ -771,7 +655,7 @@ js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(!js_iohandler_set(ctx, data[2], fd, handler))
     JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
 
-  js_mysql_connectparms_free(ctx, &c);
+  connectparams_free(ctx, &c);
 
   return promise;
 }
@@ -779,7 +663,7 @@ js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 static JSValue
 js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MYSQL *my, *ret = 0;
-  struct MySQLConnectParms c = {0, 0, 0, 0, 0};
+  struct ConnectParameters c = {0, 0, 0, 0, 0};
 
   if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
@@ -787,11 +671,11 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(mysql_nonblock(my))
     return js_mysql_connect_start(ctx, this_val, argc, argv);
 
-  js_mysql_connect_params(ctx, &c, argc, argv);
+  connectparams_init(ctx, &c, argc, argv);
 
   ret = mysql_real_connect(my, c.host, c.user, c.password, c.db, c.port, c.socket, c.flags);
 
-  js_mysql_connectparms_free(ctx, &c);
+  connectparams_free(ctx, &c);
 
   return ret ? JS_DupValue(ctx, this_val) : JS_NULL;
 }
@@ -966,22 +850,22 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CFUNC_DEF("query", 1, js_mysql_query),
     JS_CFUNC_DEF("close", 0, js_mysql_close),
     JS_ALIAS_DEF("execute", "query"),
-    JS_CFUNC_MAGIC_DEF("escapeString", 1, js_mysql_methods, FUNCTION_ESCAPE_STRING),
-    JS_CFUNC_MAGIC_DEF("getOption", 1, js_mysql_methods, FUNCTION_GET_OPTION),
-    JS_CFUNC_MAGIC_DEF("setOption", 2, js_mysql_methods, FUNCTION_SET_OPTION),
+    JS_CFUNC_MAGIC_DEF("escapeString", 1, js_mysql_methods, METHOD_ESCAPE_STRING),
+    JS_CFUNC_MAGIC_DEF("getOption", 1, js_mysql_methods, METHOD_GET_OPTION),
+    JS_CFUNC_MAGIC_DEF("setOption", 2, js_mysql_methods, METHOD_SET_OPTION),
     JS_PROP_INT32_DEF("resultType", 0, JS_PROP_C_W_E),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQL", JS_PROP_CONFIGURABLE),
 };
 
-static const JSCFunctionListEntry js_mysql_static_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("clientInfo", js_mysql_getstatic, 0, STATIC_CLIENT_INFO),
-    JS_CGETSET_MAGIC_DEF("clientVersion", js_mysql_getstatic, 0, STATIC_CLIENT_VERSION),
-    JS_CGETSET_MAGIC_DEF("threadSafe", js_mysql_getstatic, 0, STATIC_THREAD_SAFE),
-    JS_CFUNC_DEF("escapeString", 1, js_escape_string),
-    JS_CFUNC_DEF("valueString", 1, js_value_string),
+static const JSCFunctionListEntry js_mysql_static[] = {
+    JS_CGETSET_MAGIC_DEF("clientInfo", js_mysql_getstatic, 0, PROP_CLIENT_INFO),
+    JS_CGETSET_MAGIC_DEF("clientVersion", js_mysql_getstatic, 0, PROP_CLIENT_VERSION),
+    JS_CGETSET_MAGIC_DEF("threadSafe", js_mysql_getstatic, 0, PROP_THREAD_SAFE),
+    JS_CFUNC_DEF("escapeString", 1, js_mysql_escape_string),
+    JS_CFUNC_DEF("valueString", 1, js_mysql_value_string),
 };
 
-static const JSCFunctionListEntry js_mysql_defs[] = {
+static const JSCFunctionListEntry js_mysql_defines[] = {
     JS_PROP_INT32_DEF("RESULT_OBJECT", RESULT_OBJECT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("RESULT_STRING", RESULT_STRING, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("RESULT_TABLENAME", RESULT_TABLENAME, JS_PROP_CONFIGURABLE),
@@ -1116,31 +1000,24 @@ result_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
 
 static JSValue
 result_row(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
-  JSValue result, val;
+  JSValue ret, val;
   MySQLRowFunc* row_func = (rtype & RESULT_OBJECT) ? result_object : result_array;
 
   val = row ? row_func(ctx, res, row, rtype) : JS_NULL;
 
-  result = js_iterator_result(ctx, val, row ? FALSE : TRUE);
+  ret = js_iterator_result(ctx, val, row ? FALSE : TRUE);
 
   JS_FreeValue(ctx, val);
 
-  return result;
+  return ret;
 }
 
 static void
 result_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
-  JSValue result = result_row(ctx, res, row, rtype);
+  JSValue ret = result_row(ctx, res, row, rtype);
 
-  JS_Call(ctx, func, JS_UNDEFINED, 1, &result);
-
-  JS_FreeValue(ctx, result);
+  value_yield_free(ctx, func, ret);
 }
-
-/*static BOOL
-result_nonblock(MYSQL_RES* res) {
-  return mysql_nonblock(res->handle);
-}*/
 
 MYSQL_RES*
 js_mysqlresult_data(JSContext* ctx, JSValueConst value) {
@@ -1176,11 +1053,9 @@ js_mysqlresult_nonblock(JSContext* ctx, JSValueConst value) {
 }
 
 static inline int
-js_mysqlresult_type(JSContext* ctx, JSValueConst value) {
-  JSValue handle;
-  int rtype;
-  handle = JS_GetPropertyStr(ctx, value, "handle");
-  rtype = js_get_propertystr_int32(ctx, handle, "resultType");
+js_mysqlresult_rtype(JSContext* ctx, JSValueConst value) {
+  JSValue handle = JS_GetPropertyStr(ctx, value, "handle");
+  int rtype = js_mysql_rtype(ctx, handle);
   JS_FreeValue(ctx, handle);
   return rtype;
 }
@@ -1217,7 +1092,7 @@ js_mysqlresult_next_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   if(status == 0 && num_fields == field_count) {
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
 
-    result_yield(ctx, data[3], res, row, js_mysqlresult_type(ctx, data[1]));
+    value_yield_free(ctx, data[3], result_row(ctx, res, row, js_mysqlresult_rtype(ctx, data[1])));
 
   } else if(status != oldstatus) {
     JSValue handler, hdata[5] = {
@@ -1272,7 +1147,7 @@ js_mysqlresult_next_start(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
   if(status == 0 && num_fields == field_count) {
-    result_yield(ctx, data[3], res, row, js_mysqlresult_type(ctx, this_val));
+    value_yield_free(ctx, data[3], result_row(ctx, res, row, js_mysqlresult_rtype(ctx, this_val)));
 
   } else {
     data[0] = JS_NewInt32(ctx, wr);
@@ -1302,7 +1177,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   row = mysql_fetch_row(res);
 
-  ret = result_row(ctx, res, row, js_mysqlresult_type(ctx, this_val));
+  ret = result_row(ctx, res, row, js_mysqlresult_rtype(ctx, this_val));
   return ret;
 }
 
@@ -1510,9 +1385,9 @@ js_mysql_init(JSContext* ctx, JSModuleDef* m) {
     mysql_proto = JS_NewObject(ctx);
 
     JS_SetPropertyFunctionList(ctx, mysql_proto, js_mysql_funcs, countof(js_mysql_funcs));
-    JS_SetPropertyFunctionList(ctx, mysql_proto, js_mysql_defs, countof(js_mysql_defs));
-    JS_SetPropertyFunctionList(ctx, mysql_ctor, js_mysql_static_funcs, countof(js_mysql_static_funcs));
-    JS_SetPropertyFunctionList(ctx, mysql_ctor, js_mysql_defs, countof(js_mysql_defs));
+    JS_SetPropertyFunctionList(ctx, mysql_proto, js_mysql_defines, countof(js_mysql_defines));
+    JS_SetPropertyFunctionList(ctx, mysql_ctor, js_mysql_static, countof(js_mysql_static));
+    JS_SetPropertyFunctionList(ctx, mysql_ctor, js_mysql_defines, countof(js_mysql_defines));
     JS_SetClassProto(ctx, js_mysql_class_id, mysql_proto);
 
     JS_NewClassID(&js_mysqlresult_class_id);
@@ -1806,6 +1681,111 @@ string_to_object(JSContext* ctx, const char* ctor_name, const char* s) {
   JSValue ret, arg = JS_NewString(ctx, s);
   ret = js_global_new(ctx, ctor_name, 1, &arg);
   JS_FreeValue(ctx, arg);
+  return ret;
+}
+
+static void
+value_to_mysql(JSContext* ctx, DynBuf* out, JSValueConst value) {
+
+  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value)) {
+    dbuf_putstr(out, "NULL");
+
+  } else if(JS_IsBool(value)) {
+    dbuf_putstr(out, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
+
+  } else if(JS_IsString(value)) {
+    size_t len;
+    const char* src = JS_ToCStringLen(ctx, &len, value);
+    char* dst;
+
+    dbuf_putc(out, '\'');
+    dst = (char*)dbuf_reserve(out, len * 2 + 1);
+    len = mysql_escape_string(dst, src, len);
+    out->size += len;
+    dbuf_putc(out, '\'');
+
+  } else if(js_is_date(ctx, value)) {
+    size_t len;
+    char* str;
+    JSValue val;
+
+    /*int64_t ut;
+    val = js_invoke(ctx, value, "valueOf", 0, 0);
+    JS_ToInt64(ctx, &ut, val);
+    JS_FreeValue(ctx, val);
+
+    dbuf_putstr(out, "FROM_UNIXTIME(");
+    dbuf_printf(out, "%" PRId64, ut / 1000);
+    if(ut % 1000) {
+      dbuf_putc(out, '.');
+      dbuf_printf(out, "%" PRId64, ut % 1000);
+    }
+    dbuf_putc(out, ')');*/
+
+    val = js_invoke(ctx, value, "toISOString", 0, 0);
+    str = js_tostringlen(ctx, &len, val);
+    if(len >= 24) {
+      if(str[23] == 'Z')
+        len = 23;
+    }
+    if(len >= 19) {
+      if(str[10] == 'T')
+        str[10] = ' ';
+    }
+    dbuf_putc(out, '\'');
+    dbuf_put(out, (const uint8_t*)str, len);
+    dbuf_putc(out, '\'');
+
+    js_free(ctx, str);
+    JS_FreeValue(ctx, val);
+
+  } else if(!JS_IsBigDecimal(value) && js_is_numeric(ctx, value)) {
+    JSValue val = js_value_coerce(ctx, (JS_IsBigDecimal(value)) ? "Number" : "BigDecimal", value);
+
+    value_to_mysql(ctx, out, val);
+    JS_FreeValue(ctx, val);
+
+  } else {
+
+    InputBuffer input = js_input_buffer(ctx, value);
+
+    if(input.size) {
+      static const uint8_t hexdigits[] = "0123456789ABCDEF";
+      dbuf_putstr(out, "0x");
+      for(size_t i = 0; i < input.size; i++) {
+        const uint8_t hex[2] = {
+            hexdigits[(input.data[i] & 0xf0) >> 4],
+            hexdigits[(input.data[i] & 0x0f)],
+        };
+        dbuf_put(out, hex, 2);
+      }
+      input_buffer_free(&input, ctx);
+
+    } else {
+      size_t len;
+      const char* str = JS_ToCStringLen(ctx, &len, value);
+
+      dbuf_put(out, (const uint8_t*)str, len);
+      JS_FreeCString(ctx, str);
+    }
+  }
+}
+
+static JSValue
+value_to_string(JSContext* ctx, JSValueConst value) {
+  JSValue ret = JS_UNDEFINED;
+  DynBuf buf;
+
+  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value))
+    return JS_NewString(ctx, "NULL");
+
+  if(JS_IsBool(value))
+    return JS_NewString(ctx, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
+
+  dbuf_init2(&buf, 0, 0);
+  value_to_mysql(ctx, &buf, value);
+  ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
+  dbuf_free(&buf);
   return ret;
 }
 

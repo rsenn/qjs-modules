@@ -320,7 +320,7 @@ const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
 };
 const size_t js_syscallerror_proto_funcs_size = countof(js_syscallerror_proto_funcs);
 
-static const JSCFunctionListEntry js_syscallerror_defs[] = {
+static const JSCFunctionListEntry js_syscallerror_defines[] = {
     JS_PROP_INT32_DEF("EPERM", EPERM, 0),
     JS_PROP_INT32_DEF("ENOENT", ENOENT, 0),
     JS_PROP_INT32_DEF("ESRCH", ESRCH, 0),
@@ -426,7 +426,7 @@ js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
     syscallerror_proto = JS_NewObjectProto(ctx, error);
     // syscallerror_proto = JS_NewObject(ctx);
 
-    JS_SetPropertyFunctionList(ctx, syscallerror_ctor, js_syscallerror_defs, countof(js_syscallerror_defs));
+    JS_SetPropertyFunctionList(ctx, syscallerror_ctor, js_syscallerror_defines, countof(js_syscallerror_defines));
     JS_SetPropertyFunctionList(ctx, syscallerror_proto, js_syscallerror_proto_funcs, countof(js_syscallerror_proto_funcs));
     JS_SetClassProto(ctx, js_syscallerror_class_id, syscallerror_proto);
 
@@ -437,7 +437,7 @@ js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
-    JS_SetModuleExportList(ctx, m, js_syscallerror_defs, countof(js_syscallerror_defs));
+    JS_SetModuleExportList(ctx, m, js_syscallerror_defines, countof(js_syscallerror_defines));
   }
 
   JS_FreeValue(ctx, error);
@@ -458,7 +458,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!m)
     return NULL;
   JS_AddModuleExport(ctx, m, "SyscallError");
-  JS_AddModuleExportList(ctx, m, js_syscallerror_defs, countof(js_syscallerror_defs));
+  JS_AddModuleExportList(ctx, m, js_syscallerror_defines, countof(js_syscallerror_defines));
   return m;
 }
 
