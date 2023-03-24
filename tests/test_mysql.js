@@ -33,14 +33,17 @@ async function main(...args) {
 
   let res, i;
 
+  let q = async s => (console.log(`q('\x1b[0;32m${s}'\x1b[0m)`),res = await my.query(s));
+
+
   i = 0;
-  for await(let row of (res = await my.query(`SELECT user,password,host FROM user WHERE host!='';`))) {
+  for await(let row of await q(`SELECT user,password,host FROM user WHERE host!='';`)) {
     console.log(`row[${i++}] =`, row);
   }
   result(res);
 
-  result((res = await my.query(`CREATE DATABASE blah;`)));
-  result((res = await my.query(`USE blah;`)));
+  result(await q(`CREATE DATABASE blah;`));
+  result(await q(`USE blah;`));
 
   result(
     (res = await my.query(
@@ -48,12 +51,12 @@ async function main(...args) {
     ))
   );
 
-  for await(let table of (res = await my.query(`SHOW TABLES;`))) {
+  for await(let table of await q(`SHOW TABLES;`)) {
     console.log('table =', table);
   }
   result(res);
 
-  for await(let field of (res = await my.query(`SHOW FIELDS FROM article;`))) {
+  for await(let field of await q(`SHOW FIELDS FROM article;`)) {
     console.log('field =', field);
   }
   result(res);
@@ -80,7 +83,7 @@ async function main(...args) {
 
 
   i = 0;
-  for await(let row of (res = await my.query(`SELECT * FROM article ORDER BY id DESC;`))) {
+  for await(let row of await q(`SELECT * FROM article ORDER BY id DESC;`)) {
     console.log(`row[${i++}] =`, row);
   }
   result(res);
