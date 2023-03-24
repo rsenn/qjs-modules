@@ -382,8 +382,11 @@ enum {
 
 static JSValue
 js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  MYSQL* my = JS_GetOpaque(this_val, js_mysql_class_id);
+  MYSQL* my;
   JSValue ret = JS_UNDEFINED;
+
+  if(!(my = JS_GetOpaque(this_val, js_mysql_class_id)))
+    return JS_UNDEFINED;
 
   switch(magic) {
     case PROP_MORE_RESULTS: {
@@ -391,9 +394,9 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case PROP_AFFECTED_ROWS: {
-      my_ulonglong affected = mysql_affected_rows(my);
+      my_ulonglong affected;
 
-      if((signed)affected != -1ll)
+      if((signed)(affected = mysql_affected_rows(my)) != -1ll)
         ret = JS_NewInt64(ctx, affected);
 
       break;
@@ -659,7 +662,7 @@ js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
 static JSValue
 js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MYSQL *my;
+  MYSQL* my;
 
   if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
@@ -676,7 +679,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     return ret ? JS_DupValue(ctx, this_val) : JS_NULL;
   }
-  
+
   return js_mysql_connect_start(ctx, this_val, argc, argv);
 }
 
@@ -809,7 +812,9 @@ js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  // ret = JS_NewInt32(ctx, mysql_read_close(my));
+  mysql_close(my);
+
+  JS_SetOpaque(this_val, 0);
 
   return ret;
 }
