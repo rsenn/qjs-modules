@@ -26,9 +26,9 @@ async function main(...args) {
 
   let my = (globalThis.my = new MySQL());
 
-   //my.resultType |= MySQL.RESULT_STRING;
-   my.resultType |= MySQL.RESULT_OBJECT;
-//my.resultType |= MySQL.RESULT_TABLENAME;
+  //my.resultType |= MySQL.RESULT_STRING;
+  my.resultType |= MySQL.RESULT_OBJECT;
+  //my.resultType |= MySQL.RESULT_TABLENAME;
 
   console.log(
     'my.connect() =',
@@ -82,9 +82,7 @@ async function main(...args) {
   i = 0;
   let rows = (globalThis.rows = []);
 
-
-my.resultType &= ~MySQL.RESULT_OBJECT;
-
+  my.resultType &= ~MySQL.RESULT_OBJECT;
 
   for await(let row of await q(`SELECT * FROM article ORDER BY id DESC;`)) {
     console.log(`row[${i++}] =`, row);
@@ -94,29 +92,31 @@ my.resultType &= ~MySQL.RESULT_OBJECT;
   result(res);
 
   async function* showFields(table = 'article') {
-my.resultType &= ~MySQL.RESULT_OBJECT;
+    my.resultType &= ~MySQL.RESULT_OBJECT;
     for await(let field of await q(`SHOW FIELDS FROM article`)) {
-//console.log('field',field);
+      //console.log('field',field);
       yield field['COLUMNS.Field'] ?? field['Field'] ?? field[0];
     }
-my.resultType |= MySQL.RESULT_OBJECT;
+    my.resultType |= MySQL.RESULT_OBJECT;
   }
 
-  let fieldNames = globalThis.fields=[];
+  let fieldNames = (globalThis.fields = []);
   for await(let field of await showFields()) fieldNames.push(field);
 
-function makeInsertQuery(table='article', fields, data={}) {
-  return `INSERT INTO ${table} (${fields.join(',')}) VALUES (`+fields.map((field,i) => `'${my.escapeString(data[field] ?? data[i])}'`).join(',') +`);`;
-}
+  function makeInsertQuery(table = 'article', fields, data = {}) {
+    return (
+      `INSERT INTO ${table} (${fields.join(',')}) VALUES (` +
+      fields.map((field, i) => `'${my.escapeString(data[field] ?? data[i])}'`).join(',') +
+      `);`
+    );
+  }
 
   console.log('fieldNames', fieldNames);
-let insert = makeInsertQuery('article',fieldNames, rows[0])
-
+  let insert = makeInsertQuery('article', fieldNames, rows[0]);
 
   console.log('insert', insert);
 
-result(res= await q(insert))
-
+  result((res = await q(insert)));
 
   os.kill(process.pid, os.SIGUSR1);
 }
