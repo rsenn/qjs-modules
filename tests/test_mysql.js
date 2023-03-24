@@ -26,6 +26,8 @@ async function main(...args) {
 
   let my = (globalThis.my = new MySQL());
 
+  my.resultType=1;
+
   console.log(
     'my.connect() =',
     await my.connect('localhost', 'root', 'tD51o7xf', 'mysql', undefined, '/var/run/mysqld/mysqld.sock')
