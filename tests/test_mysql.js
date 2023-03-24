@@ -28,6 +28,8 @@ async function main(...args) {
     }
   });
 
+  Object.assign(globalThis, {MySQL,MySQLResult});
+
   let my = (globalThis.my = new MySQL());
 
   my.resultType |= MySQL.RESULT_OBJECT;
