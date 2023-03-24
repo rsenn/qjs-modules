@@ -923,6 +923,7 @@ void js_error_dump(JSContext*, JSValueConst, DynBuf* db);
 char* js_error_tostring(JSContext*, JSValueConst);
 void js_error_print(JSContext*, JSValueConst);
 JSValue js_error_stack(JSContext* ctx);
+JSValue js_error_uncatchable(JSContext* ctx);
 
 JSValue js_iohandler_fn(JSContext*, BOOL write);
 BOOL js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst handler);

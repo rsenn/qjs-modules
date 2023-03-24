@@ -2452,6 +2452,15 @@ js_error_stack(JSContext* ctx) {
 }
 
 JSValue
+js_error_uncatchable(JSContext* ctx) {
+  JSValue obj;
+
+  obj = JS_NewError(ctx);
+  JS_SetUncatchableError(ctx, obj, TRUE);
+  return obj;
+}
+
+JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write) {
   JSModuleDef* os;
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
@@ -2869,7 +2878,7 @@ js_function_cclosure(JSContext* ctx, CClosureFunc* func, int length, int magic, 
 
   JS_SetOpaque(func_obj, ccr);
 
-  //JS_DefinePropertyValueStr(ctx, func_obj, "length", JS_NewUint32(ctx, length), JS_PROP_CONFIGURABLE);
+  // JS_DefinePropertyValueStr(ctx, func_obj, "length", JS_NewUint32(ctx, length), JS_PROP_CONFIGURABLE);
 
   return func_obj;
 }
