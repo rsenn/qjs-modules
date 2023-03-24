@@ -91,8 +91,10 @@ async function main(...args) {
 
   i = 0;
   my.resultType &= ~(MySQL.RESULT_TABLENAME | MySQL.RESULT_OBJECT);
+
   res = await q(`SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`);
-  for await(let row of res) console.log(`row[${i++}] =`, row);
+  
+  for await(let row of res) console.log(`category[${i++}] =`, row);
 
   i = 0;
   let rows = (globalThis.rows = []);
