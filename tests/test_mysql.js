@@ -83,8 +83,12 @@ async function main(...args) {
 
 
   i = 0;
+  let rows=globalThis.rows=[];
+
   for await(let row of await q(`SELECT * FROM article ORDER BY id DESC;`)) {
     console.log(`row[${i++}] =`, row);
+
+    rows.unshift(row);
   }
   result(res);
 

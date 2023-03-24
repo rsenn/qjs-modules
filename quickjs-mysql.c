@@ -1028,7 +1028,7 @@ static void
 js_mysqlresult_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row) {
   JSValue result, val;
 
-  val = row ? js_mysqlresult_object(ctx, res, row) : JS_NULL;
+  val = row ? js_mysqlresult_array(ctx, res, row) : JS_NULL;
 
   result = js_iterator_result(ctx, val, row ? FALSE : TRUE);
 
