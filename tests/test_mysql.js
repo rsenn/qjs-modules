@@ -33,13 +33,14 @@ async function main(...args) {
 
   my.resultType |= MySQL.RESULT_OBJECT;
 
- my.setOption(MySQL.OPT_NONBLOCK, true);
+  my.setOption(MySQL.OPT_NONBLOCK, true);
   /* my.setOption(MySQL.OPT_NONBLOCK, false);*/
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
   console.log(
     'my.connect() =',
+    console.config({ compact: false }),
     await my.connect('localhost', 'root', 'tD51o7xf', 'mysql', undefined, '/var/run/mysqld/mysqld.sock')
   );
 
@@ -80,13 +81,14 @@ async function main(...args) {
   console.log('id =', id);
 
   i = 0;
+  my.resultType &= ~(MySQL.RESULT_TABLENAME | MySQL.RESULT_OBJECT);
   res = await q(`SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`);
   for await(let row of res) console.log(`row[${i++}] =`, row);
 
   i = 0;
   let rows = (globalThis.rows = []);
 
-  // my.resultType &= ~MySQL.RESULT_OBJECT;
+  my.resultType &= ~MySQL.RESULT_OBJECT;
   res = await q(`SELECT * FROM article ORDER BY id DESC LIMIT 0,10;`);
   for await(let row of res) {
     console.log(`row[${i++}] =`, console.config({ compact: 1 }), row);
@@ -98,14 +100,14 @@ async function main(...args) {
     my.resultType &= ~MySQL.RESULT_OBJECT;
     let res = await q(`SHOW FIELDS FROM article`);
 
-    for await (let field of res) {
+    for await(let field of res) {
       let name = field['COLUMNS.Field'] ?? field['Field'] ?? field[0];
       let type = field[1];
 
       //console.log('field', { name, type });
       yield name;
     }
-    my.resultType |= MySQL.RESULT_OBJECT;
+    // my.resultType |= MySQL.RESULT_OBJECT;
   }
 
   let fieldNames = (globalThis.fields = []);
