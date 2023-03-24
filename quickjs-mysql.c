@@ -15,207 +15,22 @@ thread_local JSValue mysql_proto = {{JS_TAG_UNDEFINED}}, mysql_ctor = {{JS_TAG_U
 
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 
-static char*
-field_id(JSContext* ctx, MYSQL_FIELD const* field) {
-  DynBuf buf;
-
-  dbuf_init2(&buf, 0, 0);
-  dbuf_put(&buf, (const uint8_t*)field->table, field->table_length);
-  dbuf_putstr(&buf, ".");
-  dbuf_put(&buf, (const uint8_t*)field->name, field->name_length);
-  dbuf_0(&buf);
-
-  return (char*)buf.buf;
-}
-
-static char*
-field_name(JSContext* ctx, MYSQL_FIELD const* field) {
-  return js_strndup(ctx, field->name, field->name_length);
-}
-
-static BOOL
-field_is_integer(MYSQL_FIELD const* field) {
-  switch(field->type) {
-    case MYSQL_TYPE_TINY:
-    case MYSQL_TYPE_SHORT:
-    case MYSQL_TYPE_LONG:
-    case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_BIT: {
-      return (field->flags & NUM_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
-  }
-}
-
-static BOOL
-field_is_float(MYSQL_FIELD const* field) {
-  switch(field->type) {
-    case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE: {
-      return (field->flags & NUM_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
-  }
-}
-
-static BOOL
-field_is_decimal(MYSQL_FIELD const* field) {
-  switch(field->type) {
-    case MYSQL_TYPE_DECIMAL:
-    case MYSQL_TYPE_NEWDECIMAL:
-    case MYSQL_TYPE_LONGLONG: {
-      return (field->flags & NUM_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
-  }
-
-  return FALSE;
-}
-
-static BOOL
-field_is_number(MYSQL_FIELD const* field) {
-  return field_is_integer(field) || field_is_float(field);
-}
-
-static BOOL
-field_is_boolean(MYSQL_FIELD const* field) {
-  switch(field->type) {
-    case MYSQL_TYPE_BIT: {
-      return field->length == 1 && (field->flags & UNSIGNED_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
-  }
-}
-
-static BOOL
-field_is_null(MYSQL_FIELD const* field) {
-  switch(field->type) {
-    case MYSQL_TYPE_NULL: {
-      return !(field->flags & NOT_NULL_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
-  }
-}
-
-static BOOL
-field_is_date(MYSQL_FIELD const* field) {
-  switch(field->type) {
-    case MYSQL_TYPE_TIMESTAMP:
-    case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_DATETIME:
-    case MYSQL_TYPE_YEAR:
-    case MYSQL_TYPE_NEWDATE: {
-      return !!(field->flags & TIMESTAMP_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
-  }
-}
-
-static BOOL
-field_is_string(MYSQL_FIELD const* field) {
-  switch(field->type) {
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB: {
-      if((field->flags & BLOB_FLAG))
-        if(!(field->flags & BINARY_FLAG))
-          return TRUE;
-    }
-    default: break;
-  }
-
-  switch(field->type) {
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET: {
-      return TRUE;
-    }
-    default: {
-      return FALSE;
-    }
-  }
-}
-
-static BOOL
-field_is_blob(MYSQL_FIELD const* field) {
-
-  if(!strcmp(field->org_table, "COLUMNS") && str_start(field->org_name, "COLUMN_"))
-    return FALSE;
-
-  if(field->type != MYSQL_TYPE_STRING)
-    if(field->type != MYSQL_TYPE_VAR_STRING)
-      if(!(field->flags & TIMESTAMP_FLAG))
-        return (field->flags & BLOB_FLAG) && (field->flags & BINARY_FLAG);
-
-  switch(field->type) {
-    case MYSQL_TYPE_VAR_STRING:
-    case MYSQL_TYPE_BLOB:
-    case MYSQL_TYPE_TINY_BLOB:
-    case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB: {
-      return !!(field->flags & BINARY_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
-  }
-}
-
-static JSValue
-string_to_value(JSContext* ctx, const char* func_name, const char* s) {
-  JSValue ret, arg, fn = js_global_get_str(ctx, func_name);
-
-  arg = JS_NewString(ctx, s);
-  ret = JS_Call(ctx, fn, JS_UNDEFINED, 1, &arg);
-
-  JS_FreeValue(ctx, arg);
-  JS_FreeValue(ctx, fn);
-
-  return ret;
-}
-
-static JSValue
-string_to_object(JSContext* ctx, const char* ctor_name, const char* s) {
-  JSValue ret, arg, fn = js_global_get_str(ctx, ctor_name);
-
-  arg = JS_NewString(ctx, s);
-  ret = JS_CallConstructor(ctx, fn, 1, &arg);
-
-  JS_FreeValue(ctx, arg);
-  JS_FreeValue(ctx, fn);
-
-  return ret;
-}
-
-static JSValue
-string_to_number(JSContext* ctx, const char* s) {
-  return string_to_value(ctx, "Number", s);
-}
-
-static JSValue
-string_to_bigdecimal(JSContext* ctx, const char* s) {
-  return string_to_value(ctx, "BigDecimal", s);
-}
-
-static JSValue
-string_to_date(JSContext* ctx, const char* s) {
-  return string_to_object(ctx, "Date", s);
-}
+static char* field_id(JSContext* ctx, MYSQL_FIELD const* field);
+static char* field_name(JSContext* ctx, MYSQL_FIELD const* field);
+static BOOL field_is_integer(MYSQL_FIELD const* field);
+static BOOL field_is_float(MYSQL_FIELD const* field);
+static BOOL field_is_decimal(MYSQL_FIELD const* field);
+static BOOL field_is_number(MYSQL_FIELD const* field);
+static BOOL field_is_boolean(MYSQL_FIELD const* field);
+static BOOL field_is_null(MYSQL_FIELD const* field);
+static BOOL field_is_date(MYSQL_FIELD const* field);
+static BOOL field_is_string(MYSQL_FIELD const* field);
+static BOOL field_is_blob(MYSQL_FIELD const* field);
+static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
+static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const char* s);
+static JSValue string_to_number(JSContext* ctx, const char* s);
+static JSValue string_to_bigdecimal(JSContext* ctx, const char* s);
+static JSValue string_to_date(JSContext* ctx, const char* s);
 
 MYSQL*
 js_mysql_data(JSContext* ctx, JSValueConst value) {
@@ -841,20 +656,20 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   const char* query = 0;
   size_t query_len;
   MYSQL* my;
-  int32_t wr, result, ret = 0;
+  int32_t wr, status, ret = 0;
 
   if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
 
   query = JS_ToCStringLen(ctx, &query_len, argv[0]);
 
-  result = mysql_real_query_start(&ret, my, query, query_len);
+  status = mysql_real_query_start(&ret, my, query, query_len);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s result=%d\n", __func__, result);
+  printf("%s status=%d ret=%d\n", __func__, status,ret);
 #endif
 
-  wr = !!(result & MYSQL_WAIT_WRITE);
+  wr = !!(status & MYSQL_WAIT_WRITE);
 
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
@@ -865,7 +680,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   handler = JS_NewCFunctionData(ctx, js_mysql_query_handler, 0, 0, countof(data), data);
 
   if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler))
-   JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
+    JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
 
   return promise;
 }
@@ -1485,6 +1300,207 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   return m;
 }
 
+static char*
+field_id(JSContext* ctx, MYSQL_FIELD const* field) {
+  DynBuf buf;
+
+  dbuf_init2(&buf, 0, 0);
+  dbuf_put(&buf, (const uint8_t*)field->table, field->table_length);
+  dbuf_putstr(&buf, ".");
+  dbuf_put(&buf, (const uint8_t*)field->name, field->name_length);
+  dbuf_0(&buf);
+
+  return (char*)buf.buf;
+}
+
+static char*
+field_name(JSContext* ctx, MYSQL_FIELD const* field) {
+  return js_strndup(ctx, field->name, field->name_length);
+}
+
+static BOOL
+field_is_integer(MYSQL_FIELD const* field) {
+  switch(field->type) {
+    case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_SHORT:
+    case MYSQL_TYPE_LONG:
+    case MYSQL_TYPE_INT24:
+    case MYSQL_TYPE_BIT: {
+      return (field->flags & NUM_FLAG);
+    }
+    default: {
+      return FALSE;
+    }
+  }
+}
+
+static BOOL
+field_is_float(MYSQL_FIELD const* field) {
+  switch(field->type) {
+    case MYSQL_TYPE_FLOAT:
+    case MYSQL_TYPE_DOUBLE: {
+      return (field->flags & NUM_FLAG);
+    }
+    default: {
+      return FALSE;
+    }
+  }
+}
+
+static BOOL
+field_is_decimal(MYSQL_FIELD const* field) {
+  switch(field->type) {
+    case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_LONGLONG: {
+      return (field->flags & NUM_FLAG);
+    }
+    default: {
+      return FALSE;
+    }
+  }
+
+  return FALSE;
+}
+
+static BOOL
+field_is_number(MYSQL_FIELD const* field) {
+  return field_is_integer(field) || field_is_float(field);
+}
+
+static BOOL
+field_is_boolean(MYSQL_FIELD const* field) {
+  switch(field->type) {
+    case MYSQL_TYPE_BIT: {
+      return field->length == 1 && (field->flags & UNSIGNED_FLAG);
+    }
+    default: {
+      return FALSE;
+    }
+  }
+}
+
+static BOOL
+field_is_null(MYSQL_FIELD const* field) {
+  switch(field->type) {
+    case MYSQL_TYPE_NULL: {
+      return !(field->flags & NOT_NULL_FLAG);
+    }
+    default: {
+      return FALSE;
+    }
+  }
+}
+
+static BOOL
+field_is_date(MYSQL_FIELD const* field) {
+  switch(field->type) {
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DATE:
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_YEAR:
+    case MYSQL_TYPE_NEWDATE: {
+      return !!(field->flags & TIMESTAMP_FLAG);
+    }
+    default: {
+      return FALSE;
+    }
+  }
+}
+
+static BOOL
+field_is_string(MYSQL_FIELD const* field) {
+  switch(field->type) {
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB: {
+      if((field->flags & BLOB_FLAG))
+        if(!(field->flags & BINARY_FLAG))
+          return TRUE;
+    }
+    default: break;
+  }
+
+  switch(field->type) {
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_STRING:
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET: {
+      return TRUE;
+    }
+    default: {
+      return FALSE;
+    }
+  }
+}
+
+static BOOL
+field_is_blob(MYSQL_FIELD const* field) {
+
+  if(!strcmp(field->org_table, "COLUMNS") && str_start(field->org_name, "COLUMN_"))
+    return FALSE;
+
+  if(field->type != MYSQL_TYPE_STRING)
+    if(field->type != MYSQL_TYPE_VAR_STRING)
+      if(!(field->flags & TIMESTAMP_FLAG))
+        return (field->flags & BLOB_FLAG) && (field->flags & BINARY_FLAG);
+
+  switch(field->type) {
+    case MYSQL_TYPE_VAR_STRING:
+    case MYSQL_TYPE_BLOB:
+    case MYSQL_TYPE_TINY_BLOB:
+    case MYSQL_TYPE_MEDIUM_BLOB:
+    case MYSQL_TYPE_LONG_BLOB: {
+      return !!(field->flags & BINARY_FLAG);
+    }
+    default: {
+      return FALSE;
+    }
+  }
+}
+
+static JSValue
+string_to_value(JSContext* ctx, const char* func_name, const char* s) {
+  JSValue ret, arg, fn = js_global_get_str(ctx, func_name);
+
+  arg = JS_NewString(ctx, s);
+  ret = JS_Call(ctx, fn, JS_UNDEFINED, 1, &arg);
+
+  JS_FreeValue(ctx, arg);
+  JS_FreeValue(ctx, fn);
+
+  return ret;
+}
+
+static JSValue
+string_to_object(JSContext* ctx, const char* ctor_name, const char* s) {
+  JSValue ret, arg, fn = js_global_get_str(ctx, ctor_name);
+
+  arg = JS_NewString(ctx, s);
+  ret = JS_CallConstructor(ctx, fn, 1, &arg);
+
+  JS_FreeValue(ctx, arg);
+  JS_FreeValue(ctx, fn);
+
+  return ret;
+}
+
+static JSValue
+string_to_number(JSContext* ctx, const char* s) {
+  return string_to_value(ctx, "Number", s);
+}
+
+static JSValue
+string_to_bigdecimal(JSContext* ctx, const char* s) {
+  return string_to_value(ctx, "BigDecimal", s);
+}
+
+static JSValue
+string_to_date(JSContext* ctx, const char* s) {
+  return string_to_object(ctx, "Date", s);
+}
 /**
  * @}
  */
