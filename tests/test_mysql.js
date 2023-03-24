@@ -128,6 +128,16 @@ async function main(...args) {
 
   await q(insert);
 
+  res = await q(`SELECT last_insert_id();`);
+
+  console.log('res =', res);
+  let iter = globalThis.iter=res[Symbol.asyncIterator]();
+
+  console.log('iter =', iter);
+  let row;
+  console.log('(await iter.next()).value =', (row = globalThis.row=(await iter.next()).value));
+  console.log('row[0] =', row[0]);
+
   console.log('affected =', (affected = my.affectedRows));
   console.log('id =', (id = my.insertId));
 
