@@ -1568,6 +1568,14 @@ js_value_free_rt(JSRuntime* rt, JSValue v) {
   }
 }
 
+JSValue
+js_value_coerce(JSContext* ctx, const char* func_name, JSValueConst arg) {
+  JSValue ret, fn = js_global_get_str(ctx, func_name);
+  ret = JS_Call(ctx, fn, JS_UNDEFINED, 1, &arg);
+  JS_FreeValue(ctx, fn);
+  return ret;
+}
+
 char*
 js_cstring_ptr(JSValueConst v) {
   JSString* p;

@@ -37,7 +37,6 @@ static BOOL field_is_null(MYSQL_FIELD const* field);
 static BOOL field_is_date(MYSQL_FIELD const* field);
 static BOOL field_is_string(MYSQL_FIELD const* field);
 static BOOL field_is_blob(MYSQL_FIELD const* field);
-static JSValue coerce_value(JSContext* ctx, const char* func_name, JSValueConst arg);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
 static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const char* s);
 static JSValue string_to_number(JSContext* ctx, const char* s);
@@ -334,8 +333,8 @@ js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_FreeValue(ctx, iso);
     js_free(ctx, str);
 
-  } else if(!JS_IsBigInt(ctx, argv[0]) && !JS_IsBigDecimal(argv[0]) && js_is_numeric(ctx, argv[0])) {
-    JSValue bi = coerce_value(ctx, "BigInt", argv[0]);
+  } else if(!JS_IsBigInt(ctx, argv[0]) && js_is_numeric(ctx, argv[0])) {
+    JSValue bi = js_value_coerce(ctx, JS_IsBigDecimal(argv[0]) ? "Number" : "BigInt", argv[0]);
 
     ret = js_value_string(ctx, this_val, 1, &bi);
     JS_FreeValue(ctx, bi);
@@ -1583,18 +1582,10 @@ field_is_blob(MYSQL_FIELD const* field) {
 }
 
 static JSValue
-coerce_value(JSContext* ctx, const char* func_name, JSValueConst arg) {
-  JSValue ret, fn = js_global_get_str(ctx, func_name);
-  ret = JS_Call(ctx, fn, JS_UNDEFINED, 1, &arg);
-  JS_FreeValue(ctx, fn);
-  return ret;
-}
-
-static JSValue
 string_to_value(JSContext* ctx, const char* func_name, const char* s) {
   JSValue ret, arg = JS_NewString(ctx, s);
 
-  ret = coerce_value(ctx, func_name, arg);
+  ret = js_value_coerce(ctx, func_name, arg);
 
   JS_FreeValue(ctx, arg);
 
