@@ -755,8 +755,13 @@ js_is_array_like(JSContext* ctx, JSValueConst obj) {
 BOOL js_is_input(JSContext* ctx, JSValueConst value);
 
 static inline BOOL
+js_is_bignumber(JSContext* ctx, JSValueConst value) {
+  return JS_IsBigInt(ctx, value) || JS_IsBigDecimal(value) || JS_IsBigFloat(value);
+}
+
+static inline BOOL
 js_is_numeric(JSContext* ctx, JSValueConst value) {
-  return JS_IsNumber(value) || JS_IsBigInt(ctx, value) || JS_IsBigDecimal(value) || JS_IsBigFloat(value);
+  return JS_IsNumber(value) || js_is_bignumber(ctx, value);
 }
 
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
