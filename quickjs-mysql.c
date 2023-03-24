@@ -511,7 +511,6 @@ js_mysql_getstatic(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-
 static JSValue
 js_mysql_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
@@ -552,7 +551,6 @@ js_mysql_escape_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   return ret;
 }
 
-
 static JSValue
 js_mysql_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -578,15 +576,15 @@ fail:
 
 static JSValue
 js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
-  int32_t wr, oldstate, newstate, fd;
+  int32_t wantwrite, oldstate, newstate, fd;
   MYSQL *my, *ret = 0;
 
   if(!(my = js_mysql_data(ctx, data[1])))
     return JS_EXCEPTION;
 
-  JS_ToInt32(ctx, &wr, data[0]);
+  JS_ToInt32(ctx, &wantwrite, data[0]);
 
-  oldstate = wr ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
+  oldstate = wantwrite ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
 
   newstate = mysql_real_connect_cont(&ret, my, oldstate);
   fd = mysql_get_socket(my);
@@ -602,7 +600,7 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     JS_Call(ctx, data[3], JS_UNDEFINED, 1, &data[1]);
   } else if(newstate != oldstate) {
     JSValue handler, hdata[5] = {
-                         JS_NewInt32(ctx, wr),
+                         JS_NewInt32(ctx, wantwrite),
                          JS_DupValue(ctx, data[1]),
                          js_iohandler_fn(ctx, !!(newstate & MYSQL_WAIT_WRITE)),
                          JS_DupValue(ctx, data[3]),
@@ -616,7 +614,7 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   }
 
 #ifdef DEBUG_OUTPUT
-  printf("%s wr=%i fd=%i newstate=%i my=%p ret=%p error='%s'\n", __func__, wr, fd, newstate, my, ret, mysql_error(my));
+  printf("%s wantwrite=%i fd=%i newstate=%i my=%p ret=%p error='%s'\n", __func__, wantwrite, fd, newstate, my, ret, mysql_error(my));
 #endif
 
   return JS_UNDEFINED;
@@ -627,28 +625,27 @@ js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   JSValue promise = JS_UNDEFINED, data[5], handler;
   struct ConnectParameters c = {0, 0, 0, 0, 0};
   MYSQL *my, *ret = 0;
-  int32_t wr, status, fd;
+  int32_t wantwrite, state, fd;
 
   if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
 
   connectparams_init(ctx, &c, argc, argv);
 
-  status = mysql_real_connect_start(&ret, my, c.host, c.user, c.password, c.db, c.port, c.socket, c.flags);
-
+  state = mysql_real_connect_start(&ret, my, c.host, c.user, c.password, c.db, c.port, c.socket, c.flags);
   fd = mysql_get_socket(my);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s status=%d fd=%" PRId32 " flags=%" PRId64 "\n", __func__, status, fd, flags);
+  printf("%s state=%d fd=%" PRId32 " flags=%" PRId64 "\n", __func__, state, fd, flags);
 #endif
 
-  wr = !!(status & MYSQL_WAIT_WRITE);
+  wantwrite = !!(state & MYSQL_WAIT_WRITE);
 
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
-  data[0] = JS_NewInt32(ctx, wr);
+  data[0] = JS_NewInt32(ctx, wantwrite);
   data[1] = JS_DupValue(ctx, this_val);
-  data[2] = js_iohandler_fn(ctx, wr);
+  data[2] = js_iohandler_fn(ctx, wantwrite);
 
   handler = JS_NewCFunctionData(ctx, js_mysql_connect_cont, 0, 0, countof(data), data);
 
@@ -682,7 +679,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
 static JSValue
 js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
-  int32_t wr, oldstate, newstate, fd;
+  int32_t wantwrite, oldstate, newstate, fd;
   int ret = 0;
   MYSQL* my = 0;
 
@@ -690,9 +687,9 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     return JS_EXCEPTION;
 
   fd = mysql_get_socket(my);
-  JS_ToInt32(ctx, &wr, data[0]);
+  JS_ToInt32(ctx, &wantwrite, data[0]);
 
-  oldstate = wr ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
+  oldstate = wantwrite ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
 
   newstate = mysql_real_query_cont(&ret, my, oldstate);
 
@@ -705,7 +702,7 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     if(res) {
       JS_DefinePropertyValueStr(ctx, res_val, "handle", JS_DupValue(ctx, data[1]), JS_PROP_CONFIGURABLE);
 
-      /*   JSValue res_type = JS_GetPropertyStr(ctx, data[1], "resultType");
+      /*JSValue res_type = JS_GetPropertyStr(ctx, data[1], "resultType");
 
          if(!JS_IsUndefined(res_type) && !JS_IsException(res_type))
            JS_SetPropertyStr(ctx, res_val, "resultType", res_type);*/
@@ -716,7 +713,7 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   } else if(newstate != oldstate) {
     JSValue handler, hdata[5] = {
-                         JS_NewInt32(ctx, wr),
+                         JS_NewInt32(ctx, wantwrite),
                          JS_DupValue(ctx, data[1]),
                          js_iohandler_fn(ctx, !!(newstate & MYSQL_WAIT_WRITE)),
                          JS_DupValue(ctx, data[3]),
@@ -730,7 +727,7 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   }
 
 #ifdef DEBUG_OUTPUT
-  printf("%s wr=%i fd=%i newstate=%i my=%p ret=%d error='%s'\n", __func__, wr, fd, newstate, my, ret, mysql_error(my));
+  printf("%s wantwrite=%i fd=%i newstate=%i my=%p ret=%d error='%s'\n", __func__, wantwrite, fd, newstate, my, ret, mysql_error(my));
 #endif
 
   return JS_UNDEFINED;
@@ -742,25 +739,25 @@ js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   const char* query = 0;
   size_t query_len;
   MYSQL* my;
-  int32_t wr, status, ret = 0;
+  int32_t wantwrite, state, ret = 0;
 
   if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
 
   query = JS_ToCStringLen(ctx, &query_len, argv[0]);
-  status = mysql_real_query_start(&ret, my, query, query_len);
+  state = mysql_real_query_start(&ret, my, query, query_len);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s status=%d ret=%d\n", __func__, status, ret);
+  printf("%s state=%d ret=%d\n", __func__, state, ret);
 #endif
 
-  wr = !!(status & MYSQL_WAIT_WRITE);
+  wantwrite = !!(state & MYSQL_WAIT_WRITE);
 
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
-  data[0] = JS_NewInt32(ctx, wr);
+  data[0] = JS_NewInt32(ctx, wantwrite);
   data[1] = JS_DupValue(ctx, this_val);
-  data[2] = js_iohandler_fn(ctx, wr);
+  data[2] = js_iohandler_fn(ctx, wantwrite);
 
   handler = JS_NewCFunctionData(ctx, js_mysql_query_cont, 0, 0, countof(data), data);
 
@@ -776,7 +773,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   MYSQL_RES* res = 0;
   const char* query = 0;
   size_t query_len;
-  int status;
+  int state;
   JSValue ret = JS_UNDEFINED;
 
   if(!(my = js_mysql_data(ctx, this_val)))
@@ -786,9 +783,9 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     return js_mysql_query_start(ctx, this_val, argc, argv);
 
   query = JS_ToCStringLen(ctx, &query_len, argv[0]);
-  status = mysql_real_query(my, query, query_len);
+  state = mysql_real_query(my, query, query_len);
 
-  if(status == 0) {
+  if(state == 0) {
     res = mysql_store_result(my);
     ret = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
   }
@@ -1066,7 +1063,7 @@ js_mysqlresult_next_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   JSValue my_val;
   MYSQL_RES* res;
   MYSQL* my = 0;
-  int wr, oldstate, newstate, fd;
+  int wantwrite, oldstate, newstate, fd;
   uint32_t num_fields, field_count;
 
   if(!(res = js_mysqlresult_data(ctx, data[1])))
@@ -1075,9 +1072,9 @@ js_mysqlresult_next_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   if(!(my = js_mysqlresult_handle(ctx, data[1])))
     my = res->handle;
 
-  JS_ToInt32(ctx, &wr, data[0]);
+  JS_ToInt32(ctx, &wantwrite, data[0]);
 
-  oldstate = wr ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
+  oldstate = wantwrite ? MYSQL_WAIT_WRITE : MYSQL_WAIT_READ;
 
   newstate = mysql_fetch_row_cont(&row, res, oldstate);
 
@@ -1096,7 +1093,7 @@ js_mysqlresult_next_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
   } else if(newstate != oldstate) {
     JSValue handler, hdata[5] = {
-                         JS_NewInt32(ctx, wr),
+                         JS_NewInt32(ctx, wantwrite),
                          JS_DupValue(ctx, data[1]),
                          js_iohandler_fn(ctx, !!(newstate & MYSQL_WAIT_WRITE)),
                          JS_DupValue(ctx, data[3]),
@@ -1110,7 +1107,7 @@ js_mysqlresult_next_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   }
 
 #ifdef DEBUG_OUTPUT
-  printf("%s wr=%i fd=%i my=%p error='%s'\n", __func__, wr, fd, my, mysql_error(my));
+  printf("%s wantwrite=%i fd=%i my=%p error='%s'\n", __func__, wantwrite, fd, my, mysql_error(my));
 #endif
 
   return JS_UNDEFINED;
@@ -1123,7 +1120,7 @@ js_mysqlresult_next_start(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   MYSQL* my;
   MYSQL_RES* res;
   MYSQL_ROW row;
-  int wr, status;
+  int wantwrite, state;
   uint32_t num_fields, field_count;
 
   if(!(res = js_mysqlresult_data(ctx, this_val)))
@@ -1134,25 +1131,25 @@ js_mysqlresult_next_start(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
   field_count = mysql_field_count(my);
 
-  status = mysql_fetch_row_start(&row, res);
+  state = mysql_fetch_row_start(&row, res);
 
-  num_fields = status ? 0 : mysql_num_fields(res);
+  num_fields = state ? 0 : mysql_num_fields(res);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s field_count=%" PRIu32 " num_fields=%" PRIu32 " status=%d\n", __func__, field_count, num_fields, status);
+  printf("%s field_count=%" PRIu32 " num_fields=%" PRIu32 " state=%d\n", __func__, field_count, num_fields, state);
 #endif
 
-  wr = !!(status & MYSQL_WAIT_WRITE);
+  wantwrite = !!(state & MYSQL_WAIT_WRITE);
 
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
-  if(status == 0 && num_fields == field_count) {
+  if(state == 0 && num_fields == field_count) {
     value_yield_free(ctx, data[3], result_row(ctx, res, row, js_mysqlresult_rtype(ctx, this_val)));
 
   } else {
-    data[0] = JS_NewInt32(ctx, wr);
+    data[0] = JS_NewInt32(ctx, wantwrite);
     data[1] = JS_DupValue(ctx, this_val);
-    data[2] = js_iohandler_fn(ctx, wr);
+    data[2] = js_iohandler_fn(ctx, wantwrite);
 
     handler = JS_NewCFunctionData(ctx, js_mysqlresult_next_cont, 0, 0, countof(data), data);
 
