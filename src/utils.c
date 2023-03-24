@@ -2061,6 +2061,11 @@ js_is_iterator(JSContext* ctx, JSValueConst obj) {
   return FALSE;
 }
 
+BOOL
+js_is_nan(JSValueConst obj) {
+  return JS_VALUE_IS_NAN(obj);
+}
+
 JSValue
 js_typedarray_prototype(JSContext* ctx) {
   JSValue u8arr_proto = js_global_prototype(ctx, "Uint8Array");

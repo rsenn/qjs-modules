@@ -286,7 +286,7 @@ enum {
 static void
 print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
 
-  if(JS_IsNull(value) || JS_IsUndefined(value)) {
+  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value)) {
     dbuf_putstr(out, "NULL");
 
   } else if(JS_IsBool(value)) {
@@ -295,12 +295,9 @@ print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
     dbuf_putstr(out, val ? "TRUE" : "FALSE");
 
   } else if(JS_IsString(value)) {
-    char* dst;
-    const char* src;
     size_t len;
-
-    if(!(src = JS_ToCStringLen(ctx, &len, value)))
-      return JS_ThrowTypeError(ctx, "argument 1 must be string");
+    const char* src = JS_ToCStringLen(ctx, &len, value);
+    char* dst;
 
     dbuf_putc(out, '\'');
     dst = (char*)dbuf_reserve(out, len * 2 + 1);
@@ -312,8 +309,10 @@ print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
   } else if(js_is_date(ctx, value)) {
     size_t len;
     char* str;
-    JSValue newstr, val = js_invoke(ctx, value, "valueOf", 0, 0), iso;
-    int64_t ut;
+    JSValue newstr, val;
+
+    /*int64_t ut;
+    val = js_invoke(ctx, value, "valueOf", 0, 0);
     JS_ToInt64(ctx, &ut, val);
     JS_FreeValue(ctx, val);
 
@@ -323,25 +322,22 @@ print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
       dbuf_putc(out, '.');
       dbuf_printf(out, "%" PRId64, ut % 1000);
     }
-    dbuf_putc(out, ')');
+    dbuf_putc(out, ')');*/
 
-    /* iso= js_invoke(ctx, value, "toISOString", 0, 0);
-      str = js_tostringlen(ctx, &len, iso);
+    val = js_invoke(ctx, value, "toISOString", 0, 0);
+    str = js_tostringlen(ctx, &len, val);
 
-     if(len >= 19) {
-       if(str[19] == '.')
-         str[len = 19] = '\0';
-       if(str[10] == 'T')
-         str[10] = ' ';
-     }
+    if(len >= 19) {
+      if(str[10] == 'T')
+        str[10] = ' ';
+    }
 
-     newstr = JS_NewStringLen(ctx, str, len);
+    dbuf_putc(out, '\'');
+    dbuf_put(out, (const uint8_t*)str, len);
+    dbuf_putc(out, '\'');
 
-     print_value(ctx, out, newstr);
-
-     JS_FreeValue(ctx, newstr);
-     js_free(ctx, str);
-     JS_FreeValue(ctx, iso);*/
+    js_free(ctx, str);
+    JS_FreeValue(ctx, val);
 
   } else if(!JS_IsBigInt(ctx, value) && js_is_numeric(ctx, value)) {
     JSValue bi = js_value_coerce(ctx, JS_IsBigDecimal(value) ? "Number" : "BigInt", value);
@@ -381,6 +377,8 @@ print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
 
 static JSValue
 js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  DynBuf buf;
 
   if(JS_IsNull(argv[0]) || JS_IsUndefined(argv[0]))
     return JS_NewString(ctx, "NULL");
@@ -390,17 +388,13 @@ js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     return JS_NewString(ctx, val ? "TRUE" : "FALSE");
   }
 
-  {
-    JSValue ret = JS_UNDEFINED;
-    DynBuf buf;
-    dbuf_init2(&buf, 0, 0);
+  dbuf_init2(&buf, 0, 0);
 
-    print_value(ctx, &buf, argv[0]);
+  print_value(ctx, &buf, argv[0]);
 
-    ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
-    dbuf_free(&buf);
-    return ret;
-  }
+  ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
+  dbuf_free(&buf);
+  return ret;
 }
 
 static JSValue

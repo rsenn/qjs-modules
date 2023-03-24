@@ -687,6 +687,7 @@ BOOL js_is_generator(JSContext*, JSValueConst);
 BOOL js_is_regexp(JSContext*, JSValueConst);
 BOOL js_is_promise(JSContext*, JSValueConst);
 BOOL js_is_dataview(JSContext*, JSValueConst);
+BOOL js_is_nan(JSValueConst obj);
 
 static inline BOOL
 js_is_null_or_undefined(JSValueConst value) {
