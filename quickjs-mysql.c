@@ -334,6 +334,7 @@ js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_FreeValue(ctx, iso);
     js_free(ctx, str);
   } else if(js_is_numeric(ctx, argv[0])) {
+    
     JSValue bi = coerce_value(ctx, "BigInt", argv[0]);
 
     ret = js_value_string(ctx, this_val, 1, &bi);
