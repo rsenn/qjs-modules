@@ -636,10 +636,11 @@ js_mysql_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static void
 js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
-  BOOL done = FALSE;
-  JSValue ret, item, iter = js_iterator_new(ctx, values);
+  JSValue item, iter = js_iterator_new(ctx, values);
 
   if(!JS_IsUndefined(iter)) {
+    BOOL done = FALSE;
+
     dbuf_putc(out, '(');
     for(int i = 0;; i++) {
       item = js_iterator_next(ctx, iter, &done);
@@ -679,7 +680,7 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
       js_mysql_print_value(ctx, out, item);
       JS_FreeValue(ctx, item);
     }
-    dbuf_putstr(out, ");");
+    dbuf_putc(out, ')');
     js_propertyenums_free(ctx, tmp_tab, tmp_len);
   }
 }
@@ -691,6 +692,7 @@ js_mysql_values_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   dbuf_init2(&buf, 0, 0);
   js_mysql_print_values(ctx, &buf, argv[0]);
+  dbuf_putc(&buf, ';');
   ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
   dbuf_free(&buf);
   return ret;
