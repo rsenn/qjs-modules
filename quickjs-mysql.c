@@ -659,22 +659,25 @@ js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
 static JSValue
 js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MYSQL *my, *ret = 0;
-  struct ConnectParameters c = {0, 0, 0, 0, 0};
+  MYSQL *my;
 
   if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(mysql_nonblock(my))
-    return js_mysql_connect_start(ctx, this_val, argc, argv);
+  if(!mysql_nonblock(my)) {
+    MYSQL* ret;
+    struct ConnectParameters c = {0, 0, 0, 0, 0};
 
-  connectparams_init(ctx, &c, argc, argv);
+    connectparams_init(ctx, &c, argc, argv);
 
-  ret = mysql_real_connect(my, c.host, c.user, c.password, c.db, c.port, c.socket, c.flags);
+    ret = mysql_real_connect(my, c.host, c.user, c.password, c.db, c.port, c.socket, c.flags);
 
-  connectparams_free(ctx, &c);
+    connectparams_free(ctx, &c);
 
-  return ret ? JS_DupValue(ctx, this_val) : JS_NULL;
+    return ret ? JS_DupValue(ctx, this_val) : JS_NULL;
+  }
+  
+  return js_mysql_connect_start(ctx, this_val, argc, argv);
 }
 
 static JSValue
@@ -770,30 +773,32 @@ js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 static JSValue
 js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MYSQL* my;
-  MYSQL_RES* res = 0;
-  const char* query = 0;
-  size_t query_len;
-  int state;
-  JSValue ret = JS_UNDEFINED;
 
   if(!(my = js_mysql_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(mysql_nonblock(my))
-    return js_mysql_query_start(ctx, this_val, argc, argv);
+  if(!mysql_nonblock(my)) {
+    MYSQL_RES* res = 0;
+    const char* query = 0;
+    size_t query_len;
+    int state;
+    JSValue ret = JS_UNDEFINED;
 
-  query = JS_ToCStringLen(ctx, &query_len, argv[0]);
-  state = mysql_real_query(my, query, query_len);
+    query = JS_ToCStringLen(ctx, &query_len, argv[0]);
+    state = mysql_real_query(my, query, query_len);
 
-  if(state == 0) {
-    res = mysql_store_result(my);
-    ret = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
+    if(state == 0) {
+      res = mysql_store_result(my);
+      ret = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
+    }
+
+    if(res)
+      JS_DefinePropertyValueStr(ctx, ret, "handle", JS_DupValue(ctx, this_val), JS_PROP_CONFIGURABLE);
+
+    return ret;
   }
 
-  if(res)
-    JS_DefinePropertyValueStr(ctx, ret, "handle", JS_DupValue(ctx, this_val), JS_PROP_CONFIGURABLE);
-
-  return ret;
+  return js_mysql_query_start(ctx, this_val, argc, argv);
 }
 
 static JSValue
@@ -1162,20 +1167,22 @@ js_mysqlresult_next_start(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
 static JSValue
 js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue my_val, ret;
-  MYSQL_ROW row;
   MYSQL_RES* res;
 
   if(!(res = js_mysqlresult_data(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(js_mysqlresult_nonblock(ctx, this_val))
-    return js_mysqlresult_next_start(ctx, this_val, argc, argv);
+  if(!js_mysqlresult_nonblock(ctx, this_val)) {
+    JSValue my_val, ret;
+    MYSQL_ROW row;
 
-  row = mysql_fetch_row(res);
+    row = mysql_fetch_row(res);
 
-  ret = result_row(ctx, res, row, js_mysqlresult_rtype(ctx, this_val));
-  return ret;
+    ret = result_row(ctx, res, row, js_mysqlresult_rtype(ctx, this_val));
+    return ret;
+  }
+
+  return js_mysqlresult_next_start(ctx, this_val, argc, argv);
 }
 
 enum {
