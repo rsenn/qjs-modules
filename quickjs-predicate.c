@@ -830,7 +830,11 @@ js_predicate_finalizer(JSRuntime* rt, JSValue val) {
   // JS_FreeValueRT(rt, val);
 }
 
-static JSClassDef js_predicate_class = {.class_name = "Predicate", .finalizer = js_predicate_finalizer, .call = js_predicate_call};
+static JSClassDef js_predicate_class = {
+    .class_name = "Predicate",
+    .finalizer = js_predicate_finalizer,
+    .call = js_predicate_call,
+};
 
 static const JSCFunctionListEntry js_predicate_operator_funcs[] = {
     JS_CFUNC_MAGIC_DEF("+", 2, js_predicate_operator, OPERATOR_PLUS),

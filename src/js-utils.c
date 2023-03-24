@@ -1,4 +1,6 @@
 #include "js-utils.h"
+#include "defines.h"
+#include "quickjs-internal.h"
 
 static inline void
 js_resolve_functions_zero(ResolveFunctions* funcs) {
@@ -135,4 +137,96 @@ promise_forward(JSContext* ctx, JSValueConst promise, Promise* receiver) {
   ret2 = promise_catch(ctx, ret, receiver->funcs.array[1]);
   JS_FreeValue(ctx, ret);
   return ret2;
+}
+
+typedef struct {
+  CFunctionClosure* func;
+  uint16_t length;
+  uint16_t magic;
+  void* opaque;
+  void (*opaque_finalize)(void*);
+} CFunctionClosureRecord;
+
+static thread_local JSClassID js_cclosure_class_id;
+
+static inline CFunctionClosureRecord*
+js_cclosure_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_cclosure_class_id);
+}
+
+static inline CFunctionClosureRecord*
+js_cclosure_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_cclosure_class_id);
+}
+
+static JSValue
+js_cclosure_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
+  CFunctionClosureRecord* cfcr;
+
+  if(!(cfcr = js_cclosure_data2(ctx, func_obj)))
+    return JS_EXCEPTION;
+
+  JSValueConst* arg_buf;
+  int i;
+
+  /* XXX: could add the function on the stack for debug */
+  if(unlikely(argc < cfcr->length)) {
+    arg_buf = alloca(sizeof(arg_buf[0]) * cfcr->length);
+    for(i = 0; i < argc; i++) arg_buf[i] = argv[i];
+    for(i = argc; i < cfcr->length; i++) arg_buf[i] = JS_UNDEFINED;
+  } else {
+    arg_buf = argv;
+  }
+
+  return cfcr->func(ctx, this_val, argc, arg_buf, cfcr->magic, cfcr->opaque);
+}
+
+static void
+js_cclosure_finalizer(JSRuntime* rt, JSValue val) {
+  CFunctionClosureRecord* cfcr;
+
+  if((cfcr = js_cclosure_data(val))) {
+
+    if(cfcr->opaque_finalize)
+      cfcr->opaque_finalize(cfcr->opaque);
+
+    js_free_rt(rt, cfcr);
+  }
+}
+
+static JSClassDef js_cclosure_class = {
+    .class_name = "CFunctionClosure",
+    .finalizer = js_cclosure_finalizer,
+    .call = js_cclosure_call,
+};
+
+JSValue
+JS_NewCFunctionClosure(JSContext* ctx, CFunctionClosure* func, int length, int magic, void* opaque, void (*opaque_finalize)(void*)) {
+  CFunctionClosureRecord* cfcr;
+  JSValue func_obj;
+
+  if(js_cclosure_class_id) {
+    JS_NewClassID(&js_cclosure_class_id);
+  }
+
+  func_obj = JS_NewObjectProtoClass(ctx, ctx->function_proto, js_cclosure_class_id);
+  if(JS_IsException(func_obj))
+    return func_obj;
+
+  if(!(cfcr = js_malloc(ctx, sizeof(CFunctionClosureRecord)))) {
+    JS_FreeValue(ctx, func_obj);
+    return JS_EXCEPTION;
+  }
+
+  cfcr->func = func;
+  cfcr->length = length;
+  cfcr->magic = magic;
+  cfcr->opaque = opaque;
+  cfcr->opaque_finalize = opaque_finalize;
+
+  JS_SetOpaque(func_obj, cfcr);
+
+  JS_DefinePropertyValueStr(ctx, func_obj, "length", JS_NewUint32(ctx, length), JS_PROP_CONFIGURABLE);
+
+  return func_obj;
 }

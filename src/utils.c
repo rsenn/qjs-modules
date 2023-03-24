@@ -640,8 +640,8 @@ JSValue
 js_iterator_result(JSContext* ctx, JSValueConst value, BOOL done) {
   JSValue ret = JS_NewObject(ctx);
 
-  JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, done));
   JS_SetPropertyStr(ctx, ret, "value", JS_DupValue(ctx, value));
+  JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, done));
 
   return ret;
 }
@@ -650,9 +650,9 @@ static JSValue
 js_iterator_then_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   JSValue ret = JS_NewObject(ctx);
 
-  JS_SetPropertyStr(ctx, ret, "done", JS_DupValue(ctx, data[0]));
   if(argc >= 1)
     JS_SetPropertyStr(ctx, ret, "value", JS_DupValue(ctx, argv[0]));
+  JS_SetPropertyStr(ctx, ret, "done", JS_DupValue(ctx, data[0]));
 
   return ret;
 }

@@ -378,7 +378,7 @@ set(utils_SOURCES src/utils.c include/utils.h ${char_utils_SOURCES}
                   src/clock_gettime.c src/strverscmp.c)
 set(js_utils_SOURCES src/js-utils.c include/js-utils.h)
 set(utils_SOURCES ${utils_SOURCES} src/qsort_r.c)
-set(stream_SOURCES quickjs-stream.c ${queue_SOURCES} ${js_utils_SOURCES}
+set(stream_SOURCES quickjs-stream.c ${queue_SOURCES}  ${js_utils_SOURCES}
                    ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(predicate_SOURCES src/predicate.c include/predicate.h ${utils_SOURCES})
 if(NOT HAVE_STRVERSCMP)
@@ -481,7 +481,7 @@ set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(magic_SOURCES quickjs-magic.c ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(mysql_SOURCES quickjs-mysql.c ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(mysql_SOURCES quickjs-mysql.c ${js_utils_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 if(BUILD_LIBSERIALPORT)
   include(ExternalProject)
@@ -748,7 +748,7 @@ if(NOT BUILD_STATIC_MODULES)
       ${directory_SOURCES}
       ${gpio_SOURCES}
       ${inspect_SOURCES}
-      ${js_utils_SOURCES}
+      #${js_utils_SOURCES}
       ${lexer_SOURCES}
       ${list_SOURCES}
       ${libutf_SOURCES}

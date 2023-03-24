@@ -33,7 +33,6 @@ async function main(...args) {
   my.resultType |= MySQL.RESULT_OBJECT;
 
   my.setOption(MySQL.OPT_NONBLOCK, true);
-  /* my.setOption(MySQL.OPT_NONBLOCK, false);*/
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
@@ -49,7 +48,7 @@ async function main(...args) {
 
   i = 0;
 
-  await q(`CREATE DATABASE blah;`);
+  await q(`CREATE DATABASE IF NOT EXISTS blah;`);
   await q(`USE blah;`);
 
   await q(
@@ -57,12 +56,19 @@ async function main(...args) {
   );
 
   //for await(let table of await q(`SHOW TABLES;`)) console.log('table =', table);
-  let res = await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`);
+  let res = (globalThis.res = await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`));
   console.log(`res =`, res);
   console.log(`res[Symbol.iterator] =`, res[Symbol.iterator]);
   console.log(`res[Symbol.asyncIterator] =`, res[Symbol.asyncIterator]);
   //  for(let row of  res)
   for await(let row of res) console.log(`row[${i++}] =`, row);
+
+/*  startInteractive();
+  return;*/
+
+  for await(let row of res) {
+    console.log(`row[${i++}] =`, row);
+  }
 
   let articles = [
     ['This is an article', 'lorem ipsum...'],
@@ -131,11 +137,11 @@ async function main(...args) {
   res = await q(`SELECT last_insert_id();`);
 
   console.log('res =', res);
-  let iter = globalThis.iter=res[Symbol.asyncIterator]();
+  let iter = (globalThis.iter = res[Symbol.asyncIterator]());
 
   console.log('iter =', iter);
   let row;
-  console.log('(await iter.next()).value =', (row = globalThis.row=(await iter.next()).value));
+  console.log('(await iter.next()).value =', (row = globalThis.row = (await iter.next()).value));
   console.log('row[0] =', row[0]);
 
   console.log('affected =', (affected = my.affectedRows));

@@ -30,4 +30,7 @@ JSValue promise_then(JSContext*, JSValueConst, JSValueConst);
 JSValue promise_catch(JSContext*, JSValueConst, JSValueConst);
 JSValue promise_forward(JSContext* ctx, JSValueConst promise, Promise* receiver);
 
+typedef JSValue CFunctionClosure(JSContext*, JSValueConst, int, JSValueConst[], int, void*);
+JSValue JS_NewCFunctionClosure(JSContext*, CFunctionClosure*, int length, int magic, void*, void (*)(void*));
+
 #endif /* defined(JS_UTILS_H) */

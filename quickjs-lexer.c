@@ -1438,7 +1438,11 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   // JS_FreeValueRT(rt, val);
 }
 
-static JSClassDef js_lexer_class = {.class_name = "Lexer", .finalizer = js_lexer_finalizer, .call = js_lexer_call};
+static JSClassDef js_lexer_class = {
+    .class_name = "Lexer",
+    .finalizer = js_lexer_finalizer,
+    .call = js_lexer_call,
+};
 
 static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     // JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, YIELD_OBJ),
