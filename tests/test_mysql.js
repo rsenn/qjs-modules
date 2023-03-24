@@ -2,6 +2,9 @@ import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
 import { MySQL, MySQLResult } from 'mysql';
+import extendArray from '../lib/extendArray.js';
+
+extendArray();
 
 ('use strict');
 ('use math');
@@ -82,7 +85,7 @@ async function main(...args) {
   i = 0;
   let rows = (globalThis.rows = []);
 
-  my.resultType &= ~MySQL.RESULT_OBJECT;
+  // my.resultType &= ~MySQL.RESULT_OBJECT;
 
   for await(let row of await q(`SELECT * FROM article ORDER BY id DESC;`)) {
     console.log(`row[${i++}] =`, row);
@@ -107,13 +110,13 @@ async function main(...args) {
   const rowString = row => MySQL.valueString(...row);
 
   function makeInsertQuery(table = 'article', fields, data = {}) {
-    return (
-      `INSERT INTO ${table} (${fields.map(f => '`'+f+'`').join(',')}) VALUES (${rowString(data)});`
-    );
+    return `INSERT INTO ${table} (${fields.map(f => '`' + f + '`').join(',')}) VALUES (${rowString(data)});`;
   }
 
   console.log('fieldNames', fieldNames);
-  let insert = globalThis.insert= makeInsertQuery('article', fieldNames.slice(1), rows[0].slice(1));
+  let myrow = Array.isArray(rows[0]) ? rows[0] : fieldNames.map(n => rows[0][n]);
+
+  let insert = (globalThis.insert = makeInsertQuery('article', fieldNames.slice(1), myrow.slice(1)));
 
   console.log('insert', insert);
 
