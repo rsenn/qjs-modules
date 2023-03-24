@@ -103,16 +103,17 @@ async function main(...args) {
   let fieldNames = (globalThis.fields = []);
   for await(let field of await showFields()) fieldNames.push(field);
 
+  const rowValues = row => row.map(s => MySQL.valueString(s));
+  const rowString = row => MySQL.valueString(...row);
+
   function makeInsertQuery(table = 'article', fields, data = {}) {
     return (
-      `INSERT INTO ${table} (${fields.join(',')}) VALUES (` +
-      fields.map((field, i) => `'${my.escapeString(data[field] ?? data[i])}'`).join(',') +
-      `);`
+      `INSERT INTO ${table} (${fields.map(f => '`'+f+'`').join(',')}) VALUES (${rowString(data)});`
     );
   }
 
   console.log('fieldNames', fieldNames);
-  let insert = makeInsertQuery('article', fieldNames, rows[0]);
+  let insert = globalThis.insert= makeInsertQuery('article', fieldNames.slice(1), rows[0].slice(1));
 
   console.log('insert', insert);
 

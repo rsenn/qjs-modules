@@ -323,6 +323,10 @@ js_value_escape(JSContext* ctx, DynBuf* out, JSValueConst value) {
 
     val = js_invoke(ctx, value, "toISOString", 0, 0);
     str = js_tostringlen(ctx, &len, val);
+    if(len >= 24) {
+      if(str[23] == 'Z')
+        len = 23;
+    }
     if(len >= 19) {
       if(str[10] == 'T')
         str[10] = ' ';
@@ -367,18 +371,36 @@ js_value_escape(JSContext* ctx, DynBuf* out, JSValueConst value) {
 }
 
 static JSValue
-js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_value_to_string(JSContext* ctx, JSValueConst value) {
   JSValue ret = JS_UNDEFINED;
   DynBuf buf;
 
-  if(JS_IsNull(argv[0]) || JS_IsUndefined(argv[0]) || js_is_nan(argv[0]))
+  if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value))
     return JS_NewString(ctx, "NULL");
 
-  if(JS_IsBool(argv[0]))
-    return JS_NewString(ctx, JS_ToBool(ctx, argv[0]) ? "TRUE" : "FALSE");
+  if(JS_IsBool(value))
+    return JS_NewString(ctx, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
 
   dbuf_init2(&buf, 0, 0);
-  js_value_escape(ctx, &buf, argv[0]);
+  js_value_escape(ctx, &buf, value);
+  ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
+  dbuf_free(&buf);
+  return ret;
+}
+
+static JSValue
+js_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret;
+  int i;
+  DynBuf buf;
+  dbuf_init2(&buf, 0, 0);
+
+  for(i = 0; i < argc; i++) {
+    if(i > 0)
+      dbuf_putc(&buf, ',');
+    js_value_escape(ctx, &buf, argv[i]);
+  }
+
   ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
   dbuf_free(&buf);
   return ret;
