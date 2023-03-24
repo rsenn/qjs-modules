@@ -531,7 +531,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
       js_cstring_free(ctx, str);
 
     dbuf_putstr(buf, " {");
-    if(compact > 1)
+    if(compact >= 1)
       dbuf_putc(buf, ' ');
     else
       inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
@@ -586,7 +586,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
     else
       inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
     dbuf_putstr(buf, "]");
-    if(compact > 1)
+    if(compact >= 1)
       dbuf_putc(buf, ' ');
     else
       inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);

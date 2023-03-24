@@ -836,7 +836,7 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, in
   JSValue ret = JS_UNDEFINED;
 
   if(buf == 0)
-    return JS_NULL;
+    return (rtype & RESULT_STRING) ? JS_NewString(ctx, "NULL") : JS_NULL;
 
   if(!(rtype & RESULT_STRING)) {
     if(field_is_number(field))
@@ -858,8 +858,12 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, in
     return JS_NewBool(ctx, value);
   }
 
-  if(field_is_blob(field))
+  if(field_is_blob(field)) {
+    if((rtype & RESULT_STRING))
+      return JS_NewStringLen(ctx, buf, len);
+
     return JS_NewArrayBufferCopy(ctx, (uint8_t const*)buf, len);
+  }
 
   ret = JS_NewString(ctx, buf);
 

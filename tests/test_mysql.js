@@ -26,9 +26,9 @@ async function main(...args) {
 
   let my = (globalThis.my = new MySQL());
 
-   my.resultType |= MySQL.RESULT_STRING;
-  // my.resultType |= MySQL.RESULT_OBJECT;
-  //  my.resultType |= MySQL.RESULT_TABLENAME;
+   //my.resultType |= MySQL.RESULT_STRING;
+   my.resultType |= MySQL.RESULT_OBJECT;
+//my.resultType |= MySQL.RESULT_TABLENAME;
 
   console.log(
     'my.connect() =',
@@ -90,8 +90,9 @@ async function main(...args) {
   result(res);
 
   async function* showFields(table = 'article') {
-    for await(let [name, type] of await q(`SHOW FIELDS FROM article;`)) {
-      yield name;
+    for await(let field of await q(`SHOW FIELDS FROM article`)) {
+//console.log('field',field);
+      yield field['COLUMNS.Field'] ?? field['Field'];
     }
   }
 
