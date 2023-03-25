@@ -1363,14 +1363,16 @@ jsm_start_interactive(void) {
     "globalThis.repl = new REPL((__filename ?? '%s').replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
     "repl.loadSaveOptions();\n"
     "repl.historyLoad(null, fs);\n"
-    "repl.directives = { i: [\n"
+    //"repl.show = ((...args) => globalThis.console.log(...args));\n"
+    "repl.directives.i ??= [\n"
     "  name => import(name).then(m => {\n"
     "    let id = name.slice(name.lastIndexOf('/') + 1).replace(/\\.[^\\/.]+$/g, '');\n"
     "    globalThis[id] = m;\n"
-    "  }).catch(() => repl.printStatus(`ERROR: module '${name}' not found\\n`)),\n"
+    "  }).catch(() => repl.printStatus(`ERROR: module '${name}' not found\\n`))"
+    ",\n"
     " 'import a module'\n"
-    "] };\n"
-    "repl.show = console.log;\n"
+    "];\n"
+    //"repl.directives = { i: [  process.importModule, 'import a module' ] };\n"
     "repl.runSync();\n",
     home, exename, exename);
   /* clang-format on */
