@@ -1363,7 +1363,13 @@ jsm_start_interactive(void) {
     "globalThis.repl = new REPL((__filename ?? '%s').replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
     "repl.loadSaveOptions();\n"
     "repl.historyLoad(null, fs);\n"
-    "repl.directives = { i: [ name => import(name).then(m => globalThis[name.replace(/(.*\\/|\\.[^\\/.]+$)/g, '')] = m).catch(() => repl.printStatus(`ERROR: module '${name}' not found`)), 'import a module' ] };\n"
+    "repl.directives = { i: [\n"
+    "  name => import(name).then(m => {\n"
+    "    let id = name.slice(name.lastIndexOf('/') + 1).replace(/\\.[^\\/.]+$/g, '');\n"
+    "    globalThis[id] = m;\n"
+    "  }).catch(() => repl.printStatus(`ERROR: module '${name}' not found\\n`)),\n"
+    " 'import a module'\n"
+    "] };\n"
     "repl.show = console.log;\n"
     "repl.runSync();\n",
     home, exename, exename);

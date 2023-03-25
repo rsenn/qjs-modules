@@ -28,7 +28,7 @@ async function main(...args) {
     }
   });
 
-  Object.assign(globalThis, {MySQL,MySQLResult});
+  Object.assign(globalThis, { MySQL, MySQLResult });
 
   let my = (globalThis.my = new MySQL());
 
@@ -46,7 +46,9 @@ async function main(...args) {
 
   let i;
 
-  let q = globalThis.q= async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s)));
+  let q = (globalThis.q = async s => (
+    console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s))
+  ));
 
   i = 0;
 
@@ -68,7 +70,7 @@ async function main(...args) {
 
   //for await(let row of res) console.log(`row[${i++}] =`, row);
 
-/*  startInteractive();
+  /*  startInteractive();
   return;*/
 
   for await(let row of res) {
@@ -85,7 +87,7 @@ async function main(...args) {
 
   let affected;
   console.log('affected =', (affected = my.affectedRows));
- 
+
   let id = my.insertId;
   console.log('id =', id);
 
@@ -93,7 +95,7 @@ async function main(...args) {
   my.resultType &= ~(MySQL.RESULT_TABLENAME | MySQL.RESULT_OBJECT);
 
   res = await q(`SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`);
-  
+
   for await(let row of res) console.log(`category[${i++}] =`, row);
 
   i = 0;
@@ -138,12 +140,11 @@ async function main(...args) {
 
   console.log('insert', insert);
 
-  for await(let row of await q(`SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`)) 
+  for await(let row of await q(`SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`))
     console.log(`article[${i++}] =`, row);
-  
+
   await q(insert);
   console.log('affected =', (affected = my.affectedRows));
-
 
   res = await q(`SELECT last_insert_id();`);
 
@@ -156,7 +157,6 @@ async function main(...args) {
   console.log('row[0] =', row[0]);
 
   console.log('id =', (id = my.insertId));
-
 
   startInteractive();
   // os.kill(process.pid, os.SIGUSR1);

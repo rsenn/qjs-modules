@@ -39,7 +39,7 @@ function main(...args) {
       result = xml.read(data);
     } catch(err) {}
   }
-  console.log('result:', result);
+  //console.log('result:', result);
   TestIterator();
 
   function TestWalker() {

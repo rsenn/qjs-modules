@@ -273,7 +273,24 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
   }
 
-  ret = it ? property_enumeration_value(it, ctx) : JS_UNDEFINED;
+  // ret = it ? property_enumeration_value(it, ctx) : JS_UNDEFINED;
+
+  ret = JS_UNDEFINED;
+
+  if(it) {
+    int r = w->tag_mask & RETURN_MASK;
+    switch(r) {
+      case RETURN_VALUE: ret = property_enumeration_value(it, ctx); break;
+      case RETURN_PATH: ret = property_enumeration_path(&w->hier, ctx); break;
+      case RETURN_VALUE_PATH:
+      default: {
+        ret = JS_NewArray(ctx);
+        JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
+        JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->hier, ctx));
+        break;
+      }
+    }
+  }
 
   if(JS_IsFunction(ctx, w->transform)) {
     JSValue args[] = {ret, property_enumeration_path(&w->hier, ctx), this_val};
