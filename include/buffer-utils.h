@@ -26,6 +26,7 @@ size_t ansi_skip(const char*, size_t);
 size_t ansi_truncate(const char*, size_t, size_t limit);
 int64_t array_search(void*, size_t, size_t elsz, void* needle);
 char* str_escape(const char*);
+
 char* byte_escape(const void*, size_t);
 size_t byte_findb(const void*, size_t, const void* what, size_t wlen);
 size_t byte_finds(const void*, size_t, const char* what);
@@ -33,6 +34,12 @@ size_t byte_equal(const void* s, size_t n, const void* t);
 void byte_copy(void* out, size_t len, const void* in);
 void byte_copyr(void* out, size_t len, const void* in);
 size_t byte_rchrs(const char* in, size_t len, const char needles[], size_t nn);
+
+#define DBUF_INIT_0() \
+  (DynBuf) { 0, 0, 0, 0, 0, 0 }
+#define DBUF_INIT_CTX(ctx) \
+  (DynBuf) { 0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, JS_GetRuntime(ctx) }
+
 char* dbuf_at_n(const DynBuf*, size_t, size_t* n, char sep);
 const char* dbuf_last_line(DynBuf*, size_t*);
 int dbuf_prepend(DynBuf*, const uint8_t*, size_t len);
@@ -50,6 +57,7 @@ size_t dbuf_token_push(DynBuf*, const char*, size_t len, char delim);
 JSValue dbuf_tostring_free(DynBuf*, JSContext*);
 ssize_t dbuf_load(DynBuf*, const char*);
 int dbuf_vprintf(DynBuf*, const char*, va_list);
+
 int screen_size(int size[2]);
 
 static inline int

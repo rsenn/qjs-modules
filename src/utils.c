@@ -2451,14 +2451,14 @@ js_error_stack(JSContext* ctx) {
   return stack;
 }
 
-JSValue
+/*JSValue
 js_error_uncatchable(JSContext* ctx) {
   JSValue obj;
 
   obj = JS_NewError(ctx);
   JS_SetUncatchableError(ctx, obj, TRUE);
   return obj;
-}
+}*/
 
 JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write) {

@@ -229,6 +229,7 @@ again:
 SizePair
 path_common4(const char* s1, size_t n1, const char* s2, size_t n2) {
   SizePair r;
+  
   for(r.sz1 = 0, r.sz2 = 0; r.sz1 != n1 && r.sz2 != n2;) {
     size_t i1, i2;
     i1 = path_separator3(&s1[r.sz1], n1 - r.sz1, 0);
@@ -1084,23 +1085,32 @@ int
 path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out) {
   SizePair p;
   size_t i;
+
   p = path_common4(s1, n1, s2, n2);
   dbuf_zero(out);
   s1 += p.sz1;
   n1 -= p.sz1;
   s2 += p.sz2;
   n2 -= p.sz2;
+
+  i = path_separator3(s2, n2, 0);
+  s2 += i;
+  n2 -= i;
+
   while((i = path_skip2(s2, n2))) {
     dbuf_putstr(out, ".." PATHSEP_S);
     s2 += i;
     n2 -= i;
   }
+
   i = path_separator3(s1, n1, 0);
   dbuf_append(out, s1 + i, n1 - i);
+
   if(out->size == 0)
     dbuf_putc(out, '.');
   else if(out->buf[out->size - 1] == PATHSEP_C)
     out->size--;
+
   dbuf_0(out);
   return 1;
 }
