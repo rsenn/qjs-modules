@@ -387,12 +387,20 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       DynBuf cwd = DBUF_INIT_0();
       const char* from = a;
 
+      if(argc == 1) {
+        from = NULL;
+        b = a;
+        blen = alen;
+        a = NULL;
+        alen = 0;
+      }
+
       if(from == NULL) {
         cwd = DBUF_INIT_CTX(ctx);
         from = path_getcwd1(&cwd);
       } else if(path_isrelative(from)) {
         cwd = DBUF_INIT_CTX(ctx);
-        path_absolute3(b, blen, &cwd);
+        path_absolute3(a, alen, &cwd);
         from = (const char*)cwd.buf;
       }
 
