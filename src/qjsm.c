@@ -26,6 +26,10 @@
 #include <quickjs-config.h>
 #endif
 
+#ifndef CONFIG_BIGNUM
+#warning No bignum!
+#endif
+
 #ifndef CONFIG_SHEXT
 #ifdef _WIN32
 #define CONFIG_SHEXT ".dll"
@@ -1669,7 +1673,7 @@ main(int argc, char** argv) {
     }
 
     for(i = 0; i < include_count; i++) {
-      if(jsm_stack_load(ctx, include_list[i], module) == -1)
+      if(jsm_stack_load(ctx, include_list[i], 0) == -1)
         goto fail;
     }
 
