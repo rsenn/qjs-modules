@@ -40,16 +40,6 @@
 #endif
 #endif
 
-#ifdef USE_WORKER
-#include <pthread.h>
-#include <stdatomic.h>
-
-static int
-atomic_add_int(int* ptr, int v) {
-  return atomic_fetch_add((_Atomic(uint32_t)*)ptr, v) + v;
-}
-#endif
-
 #include <list.h>
 #include <cutils.h>
 #include "path.h"
@@ -66,7 +56,6 @@ typedef char* ModuleLoader(JSContext*, const char*);
 static int debug_module_loader = 0;
 static Vector module_debug = VECTOR_INIT();
 static thread_local Vector module_list = VECTOR_INIT();
-// static Vector builtins = VECTOR_INIT();
 
 #ifndef QUICKJS_MODULE_PATH
 #ifdef CONFIG_PREFIX
@@ -103,16 +92,16 @@ is_module(JSContext* ctx, const char* module_name) {
   return yes ? js_strdup(ctx, module_name) : 0;
 }
 
-static BOOL
-module_has_suffix(JSContext* ctx, const char* module_name) {
+static int
+module_has_suffix(const char* module_name) {
   size_t i, n;
 
   n = countof(module_extensions);
   for(i = 0; i < n; i++)
     if(has_suffix(module_name, module_extensions[i]))
-      return TRUE;
+      return strlen(module_name) - strlen(module_extensions[i]);
 
-  return FALSE;
+  return 0;
 }
 
 /*typedef struct pollhandler {
@@ -199,55 +188,7 @@ void js_std_set_worker_new_context_func(JSContext* (*func)(JSRuntime* rt));
 
 static void
 jsm_dump_error(JSContext* ctx) {
-  /*JSRuntime* rt = JS_GetRuntime(ctx);
-  JSValue error = rt->current_exception;*/
-  /*printf("qjsm: current_exception 0x%08x\n", offsetof(JSRuntime, current_exception));
-  printf("qjsm: sizeof(struct list_head) 0x%08x\n", sizeof(struct list_head));*/
-
   js_error_print(ctx, JS_GetException(ctx));
-}
-
-static int
-jsm_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
-  JSValue val;
-  int ret;
-
-  if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
-    /* for the modules, we compile then run to be able to set import.meta */
-    val = JS_Eval(ctx, buf, buf_len, filename, eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
-    if(!JS_IsException(val)) {
-      js_module_set_import_meta(ctx, val, TRUE, TRUE);
-      val = JS_EvalFunction(ctx, val);
-    }
-  } else {
-    val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
-  }
-  if(JS_IsException(val)) {
-    js_std_dump_error(ctx);
-    ret = -1;
-  } else {
-    ret = 0;
-  }
-  JS_FreeValue(ctx, val);
-  return ret;
-}
-
-static int
-jsm_eval_file(JSContext* ctx, const char* filename, int module) {
-  uint8_t* buf;
-  size_t buf_len;
-  int ret, eval_flags;
-
-  if(!(buf = js_load_file(ctx, &buf_len, filename))) {
-    perror(filename);
-    exit(1);
-  }
-  if(module < 0)
-    module = (has_suffix(filename, ".mjs") || JS_DetectModule((const char*)buf, buf_len));
-  eval_flags = module ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL;
-  ret = jsm_eval_buf(ctx, buf, buf_len, filename, eval_flags);
-  js_free(ctx, buf);
-  return ret;
 }
 
 enum {
@@ -308,17 +249,6 @@ jsm_stack_string() {
   while(--i >= 0) dbuf_printf(&buf, "%i: %s\n", i, jsm_stack_at(i));
   dbuf_0(&buf);
   return (char*)buf.buf;
-}
-
-static void
-jsm_stack_print() {
-  fputs(jsm_stack_string(), stderr);
-  fflush(stderr);
-}
-
-static const char**
-jsm_stack_vector() {
-  return vector_begin(&jsm_stack);
 }
 
 static JSValue
@@ -627,7 +557,7 @@ static char*
 jsm_search_module(JSContext* ctx, const char* module_name) {
   char* s = 0;
   BOOL search = is_searchable(module_name);
-  BOOL suffix = module_has_suffix(ctx, module_name);
+  BOOL suffix = module_has_suffix(module_name);
   ModuleLoader* fn = search ? &jsm_search_path : &is_module;
 
   s = suffix ? fn(ctx, module_name) : jsm_search_suffix(ctx, module_name, fn);
@@ -676,48 +606,52 @@ jsm_module_package(JSContext* ctx, const char* module) {
   return file;
 }
 
-JSModuleDef*
-jsm_module_load(JSContext* ctx, const char* name) {
+void
+jsm_module_script(DynBuf* buf, const char* path, BOOL star) {
   BOOL all = FALSE;
+
+  if(*path == '*') {
+    ++path;
+    all = TRUE;
+  }
+
+  buf->size = 0;
+
+  dbuf_putstr(buf, "import ");
+  if(star)
+    dbuf_putstr(buf, "* as ");
+  dbuf_putstr(buf, "tmp from '");
+  dbuf_putstr(buf, path);
+
+  if(all) {
+    dbuf_putstr(buf, "';\nObject.assign(globalThis, tmp);\n");
+  } else {
+    const char* name = basename(path);
+    size_t len = module_has_suffix(name);
+
+    dbuf_putstr(buf, "';\nglobalThis['");
+    dbuf_put(buf, name, len);
+    dbuf_putstr(buf, "'] = tmp;\n");
+  }
+
+  dbuf_0(buf);
+}
+
+JSModuleDef*
+jsm_module_load(JSContext* ctx, const char* path) {
+  struct list_head* last_module = js_modules_list(ctx)->prev;
   DynBuf dbuf;
 
   dbuf_init2(&dbuf, 0, 0);
 
-  if(*name == '*') {
-    ++name;
-    all = TRUE;
-  }
-
-  dbuf_putstr(&dbuf, "import tmp from '");
-  dbuf_putstr(&dbuf, name);
-
-  if(all)
-    dbuf_putstr(&dbuf, "';\nObject.assign(globalThis, tmp);\n");
-  else {
-    dbuf_putstr(&dbuf, "';\nglobalThis['");
-    dbuf_putstr(&dbuf, name);
-    dbuf_putstr(&dbuf, "'] = tmp;\n");
-  }
-
-  dbuf_0(&dbuf);
+  jsm_module_script(&dbuf, path, FALSE);
 
   if(!js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
 
   } else {
     JS_GetException(ctx);
 
-    dbuf.size = 0;
-    dbuf_putstr(&dbuf, "import * as tmp from '");
-    dbuf_putstr(&dbuf, name);
-
-    if(all)
-      dbuf_putstr(&dbuf, "';\nObject.assign(globalThis, tmp);\n");
-    else {
-      dbuf_putstr(&dbuf, "';\nglobalThis['");
-      dbuf_putstr(&dbuf, name);
-      dbuf_putstr(&dbuf, "'] = tmp;\n");
-    }
-    dbuf_0(&dbuf);
+    jsm_module_script(&dbuf, path, TRUE);
 
     if(js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
       dbuf_free(&dbuf);
@@ -726,33 +660,36 @@ jsm_module_load(JSContext* ctx, const char* name) {
   }
 
   dbuf_free(&dbuf);
-  return js_module_find_rev(ctx, name);
+
+  JSModuleDef* m = list_entry(last_module->next->next, JSModuleDef, link);
+  return m;
 }
 
 JSModuleDef*
 jsm_module_json(JSContext* ctx, const char* name) {
   DynBuf db;
+  JSValue ret;
   JSModuleDef* m = 0;
   uint8_t* ptr;
-  size_t len;
+  size_t len, i;
+
   if(!(ptr = js_load_file(ctx, &len, name)))
     return 0;
+
   js_dbuf_init(ctx, &db);
   dbuf_putstr(&db, "export default ");
-  while(len > 0 && is_whitespace_char(ptr[0])) {
-    ++ptr;
-    --len;
-  }
-  dbuf_put(&db, ptr, len);
+
+  i = scan_whitenskip(ptr, len);
+
+  dbuf_put(&db, ptr + i, len - i);
   js_free(ctx, ptr);
   dbuf_0(&db);
-  {
-    JSValue ret;
-    ret = JS_Eval(ctx, db.buf, db.size, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
-    if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
-      m = JS_VALUE_GET_PTR(ret);
-    JS_FreeValue(ctx, ret);
-  }
+
+  ret = JS_Eval(ctx, db.buf, db.size, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+  if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
+    m = JS_VALUE_GET_PTR(ret);
+  JS_FreeValue(ctx, ret);
+
   dbuf_free(&db);
   return m;
 }
@@ -864,29 +801,31 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   char* file = 0;
   BOOL has_dot_or_slash = !!name[str_chrs(name, "." PATHSEP_S, 2)];
 
-  if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && !jsm_builtin_find(name) && has_dot_or_slash) {
-    DynBuf dir;
-    size_t dsl;
-    js_dbuf_allocator(ctx, &dir);
+  if(!(!has_dot_or_slash && jsm_builtin_find(name))) {
+    if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash) {
+      DynBuf dir;
+      size_t dsl;
+      js_dbuf_allocator(ctx, &dir);
 
-    if(path_isimplicit(path))
-      dbuf_putstr(&dir, "." PATHSEP_S);
+      if(path_isimplicit(path))
+        dbuf_putstr(&dir, "." PATHSEP_S);
 
-    path_concat5(path, path_dirlen1(path), name, strlen(name), &dir);
-    dsl = path_skipdotslash2(dir.buf, dir.size);
+      path_concat5(path, path_dirlen1(path), name, strlen(name), &dir);
+      dsl = path_skipdotslash2(dir.buf, dir.size);
 
-    /* XXX BUG: should use path_normalize* to resolve symlinks */
-    path_collapse2(dir.buf + dsl, dir.size - dsl);
-    file = dir.buf;
-  } else if(has_suffix(name, CONFIG_SHEXT) && !path_isabsolute1(name)) {
-    DynBuf db;
-    js_dbuf_init(ctx, &db);
+      /* XXX BUG: should use path_normalize* to resolve symlinks */
+      path_collapse2(dir.buf + dsl, dir.size - dsl);
+      file = dir.buf;
+    } else if(has_suffix(name, CONFIG_SHEXT) && !path_isabsolute1(name)) {
+      DynBuf db;
+      js_dbuf_init(ctx, &db);
 
-    path_concat3(QUICKJS_C_MODULE_DIR, name, &db);
-    file = (char*)db.buf;
-  } else if(path_exists1(name) && path_isrelative(name)) {
-    file = path_absolute1(name);
-    path_collapse1(file);
+      path_concat3(QUICKJS_C_MODULE_DIR, name, &db);
+      file = (char*)db.buf;
+    } else if(has_dot_or_slash && path_exists1(name) && path_isrelative(name)) {
+      file = path_absolute1(name);
+      path_collapse1(file);
+    }
   }
 
   if(file == 0)
@@ -953,7 +892,7 @@ struct trace_malloc_data {
   uint8_t* base;
 };
 
-static void
+/*static void
 dump_vector(const Vector* vec, size_t start) {
   size_t i, len = vector_size(vec, sizeof(char*));
   for(i = start; i < len; i++) {
@@ -963,7 +902,7 @@ dump_vector(const Vector* vec, size_t start) {
     if(i + 1 == len)
       puts("'\n]");
   }
-}
+}*/
 
 static inline unsigned long long
 jsm_trace_malloc_ptr_offset(uint8_t* ptr, struct trace_malloc_data* dp) {
@@ -1342,7 +1281,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getModuleMetaObject", 1, jsm_module_func, GET_MODULE_META_OBJ),
 };
 
-void
+/*void
 jsm_import_parse(ImportDirective* imp, const char* spec) {
   BOOL ns;
   size_t len, eqpos, dotpos;
@@ -1368,7 +1307,7 @@ jsm_import_parse(ImportDirective* imp, const char* spec) {
   } else {
     imp->spec = dotpos < len ? (ns ? "*" : 0) : "default";
   }
-}
+}*/
 
 static void
 jsm_start_interactive(void) {
@@ -1689,7 +1628,7 @@ main(int argc, char** argv) {
         if(name[0] == '*')
           all = 1;
 
-        if(!jsm_module_load(ctx, name)) {
+        if(!(m = jsm_module_load(ctx, name))) {
           jsm_dump_error(ctx);
           return 1;
         }

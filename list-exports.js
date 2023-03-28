@@ -265,9 +265,7 @@ function ListExports(file, output) {
       ? (tok, prefix) => {
           const range = tok.charRange;
           const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
-          std.err.puts(
-            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
-          );
+          std.err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
         }
       : () => {};
 
@@ -293,8 +291,7 @@ function ListExports(file, output) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme])
-            throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
           stack.pop();
           break;
@@ -320,10 +317,7 @@ function ListExports(file, output) {
     cond,
     imp = [],
     showToken = tok => {
-      if(
-        (lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') ||
-        /^((im|ex)port|from|as)$/.test(tok.lexeme)
-      ) {
+      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.err.puts(a.join('') + '\n');
       }
@@ -428,6 +422,7 @@ function ListExports(file, output) {
 
   if(path.isRelative(source) && !/^(\.|\.\.)\//.test(source)) source = './' + source;
 
+    console.log('exportNames',exportNames);
   if(exportNames.length) {
     let names = exportNames.map(t => (t == 'default' ? t + ' as ' + base : t));
     const keyword = exp ? 'export' : 'import';
@@ -493,11 +488,7 @@ function main(...args) {
           console.log('help', { __a, __x, params });
           std.puts(`Usage: ${scriptArgs[0]} [OPTIONS] <files...>\n\n`);
 
-          std.puts(
-            params
-              .map(([name, [hasArg, , letter]]) => `  -${letter}, --${name} ${(hasArg ? '<ARG>' : '').padEnd(10)}\n`)
-              .join('') + '\n'
-          );
+          std.puts(params.map(([name, [hasArg, , letter]]) => `  -${letter}, --${name} ${(hasArg ? '<ARG>' : '').padEnd(10)}\n`).join('') + '\n');
           std.exit(0);
         },
         'h'
@@ -526,7 +517,7 @@ function main(...args) {
 
   const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
 
-  if(!files.length) files.push(RelativePath('lib/util.js'));
+  if(!files.length) files.push(RelativePath('./lib/util.js'));
 
   if(params['for']) {
     identifiers = new Set(TransformLexeme(GetTokens(params['for'])));
@@ -539,18 +530,23 @@ function main(...args) {
     })();
   }
 
+  console.log('files', files);
+
   for(let file of files) {
-    if(!fs.existsSync(file) || /\.so$/.test(file)) {
-      let m;
+    if(0)
+      if(!fs.existsSync(file) || /\.so$/.test(file)) {
+        let m;
 
-      if((m = loadModule(file))) {
-        let list = getModuleExports(m);
+        try {
+          if((m = loadModule(file))) {
+            let list = getModuleExports(m);
 
-        console.log('Exports', list);
+            console.log('Exports', list);
+          }
+          continue;
+        } catch(e) {}
       }
-    } else {
-      ListExports(file, output);
-    }
+    ListExports(file, output);
   }
 
   /*  if(identifiers.size) {
