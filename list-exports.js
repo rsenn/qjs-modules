@@ -422,7 +422,7 @@ function ListExports(file, output) {
 
   if(path.isRelative(source) && !/^(\.|\.\.)\//.test(source)) source = './' + source;
 
-    console.log('exportNames',exportNames);
+  console.log('exportNames', exportNames);
   if(exportNames.length) {
     let names = exportNames.map(t => (t == 'default' ? t + ' as ' + base : t));
     const keyword = exp ? 'export' : 'import';
