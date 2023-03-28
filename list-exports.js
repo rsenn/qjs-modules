@@ -539,7 +539,19 @@ function main(...args) {
     })();
   }
 
-  for(let file of files) ListExports(file, output);
+  for(let file of files) {
+    if(!fs.existsSync(file) || /\.so$/.test(file)) {
+      let m;
+
+      if((m = loadModule(file))) {
+        let list = getModuleExports(m);
+
+        console.log('Exports', list);
+      }
+    } else {
+      ListExports(file, output);
+    }
+  }
 
   /*  if(identifiers.size) {
     std.err.puts(`${identifiers.size} identifiers could not be matched:\n${[...identifiers].join('\n')}\n`);

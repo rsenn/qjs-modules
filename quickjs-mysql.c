@@ -841,7 +841,7 @@ js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   fd = mysql_get_socket(my);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s state=%d fd=%" PRId32 " flags=%" PRId64 "\n", __func__, state, fd, flags);
+  printf("%s state=%d fd=%" PRId32 "\n", __func__, state, fd);
 #endif
 
   wantwrite = !!(state & MYSQL_WAIT_WRITE);

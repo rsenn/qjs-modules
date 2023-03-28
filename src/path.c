@@ -175,13 +175,9 @@ path_collapse3(const char* path, size_t n, DynBuf* db) {
   return ret;
 }
 
-char*
-path_collapse1(const char* path) {
-  DynBuf db;
-  dbuf_init2(&db, 0, 0);
-  path_collapse3(path, strlen(path), &db);
-
-  return (char*)db.buf;
+size_t
+path_collapse1(char* path) {
+  return path_collapse2(path, strlen(path));
 }
 
 size_t

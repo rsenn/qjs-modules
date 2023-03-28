@@ -410,7 +410,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
   if(JS_IsModule(val) || module) {
     if(!JS_IsModule(val)) {
       JSModuleDef* m = js_module_at(ctx, -1);
-      val = JS_MKPTR(JS_TAG_MODULE, m);
+      val = module_value(ctx, m);
     }
     module_exports_get(ctx, JS_VALUE_GET_PTR(val), TRUE, global_obj);
   } else {
@@ -678,31 +678,54 @@ jsm_module_package(JSContext* ctx, const char* module) {
 
 JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* name) {
-
   BOOL all = FALSE;
+  DynBuf dbuf;
+
+  dbuf_init2(&dbuf, 0, 0);
 
   if(*name == '*') {
     ++name;
     all = TRUE;
   }
 
-  if(!js_eval_fmt(ctx,
-                  JS_EVAL_TYPE_MODULE,
-                  all ? "import tmp from '%s';\nObject.assign(globalThis, tmp);\n" : "import tmp from '%s';\nglobalThis['%s'] = tmp;\n",
-                  name,
-                  name)) {
+  dbuf_putstr(&dbuf, "import tmp from '");
+  dbuf_putstr(&dbuf, name);
+
+  if(all)
+    dbuf_putstr(&dbuf, "';\nObject.assign(globalThis, tmp);\n");
+  else {
+    dbuf_putstr(&dbuf, "';\nglobalThis['");
+    dbuf_putstr(&dbuf, name);
+    dbuf_putstr(&dbuf, "'] = tmp;\n");
+  }
+
+  dbuf_0(&dbuf);
+
+  if(!js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
 
   } else {
     JS_GetException(ctx);
 
-    if(js_eval_fmt(ctx,
-                   JS_EVAL_TYPE_MODULE,
-                   all ? "import * as tmp from '%s';\nObject.assign(globalThis, tmp);\n" : "import * as tmp from '%s';\nglobalThis['%s'] = tmp;\n",
-                   name,
-                   name))
+    dbuf.size = 0;
+    dbuf_putstr(&dbuf, "import * as tmp from '");
+    dbuf_putstr(&dbuf, name);
+
+    if(all)
+      dbuf_putstr(&dbuf, "';\nObject.assign(globalThis, tmp);\n");
+    else {
+      dbuf_putstr(&dbuf, "';\nglobalThis['");
+      dbuf_putstr(&dbuf, name);
+      dbuf_putstr(&dbuf, "'] = tmp;\n");
+    }
+    dbuf_0(&dbuf);
+
+    if(js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+      dbuf_free(&dbuf);
       return 0;
+    }
   }
 
+  dbuf_free(&dbuf);
   return js_module_find_rev(ctx, name);
 }
 
@@ -841,7 +864,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   char* file = 0;
   BOOL has_dot_or_slash = !!name[str_chrs(name, "." PATHSEP_S, 2)];
 
-  if(strcmp(path, "<input>") && (path_isdotslash(name) || path_isdotdot(name)) && !jsm_builtin_find(name) && has_dot_or_slash) {
+  if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && !jsm_builtin_find(name) && has_dot_or_slash) {
     DynBuf dir;
     size_t dsl;
     js_dbuf_allocator(ctx, &dir);
@@ -861,6 +884,9 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
     path_concat3(QUICKJS_C_MODULE_DIR, name, &db);
     file = (char*)db.buf;
+  } else if(path_exists1(name) && path_isrelative(name)) {
+    file = path_absolute1(name);
+    path_collapse1(file);
   }
 
   if(file == 0)
@@ -1161,6 +1187,7 @@ enum {
   GET_MODULE_NAME,
   GET_MODULE_OBJECT,
   GET_MODULE_EXPORTS,
+  GET_MODULE_IMPORTS,
   GET_MODULE_NAMESPACE,
   GET_MODULE_FUNCTION,
   GET_MODULE_EXCEPTION,
@@ -1189,41 +1216,34 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
                                    "getModuleMetaObject",
                                })[magic - NORMALIZE_MODULE]);
   } else {
-    name = JS_ToCString(ctx, argv[0]);
+    name = js_tostring(ctx, argv[0]);
+  }
+
+  if(magic == LOAD_MODULE || magic == REQUIRE_MODULE) {
+    char* path;
+
+    if((path = jsm_module_normalize(ctx, ".", name, 0))) {
+      js_free(ctx, name);
+      name = path;
+    }
   }
 
   switch(magic) {
     case FIND_MODULE: {
       if((m = js_module_find(ctx, name)))
-        val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+        val = module_value(ctx, m);
       else
         val = JS_NULL;
       break;
     }
     case LOAD_MODULE: {
-      /*  JSRuntime* rt = JS_GetRuntime(ctx);
-
-        ImportDirective imp;
-        memset(&imp, 0, sizeof(imp));
-        int r, n = countof(imp.args);
-        r = js_strv_copys(ctx, argc, argv, n, imp.args);
-        // printf("LOAD_MODULE r=%i argc=%i\n", r, argc);
-
-        m = rt->module_loader_func(ctx, imp.args[0], 0);
-
-        if(m)
-          val = JS_MKPTR(JS_TAG_MODULE, m);
-
-        js_strv_free_n(ctx, n, imp.args);*/
       if((m = jsm_module_load(ctx, name)))
-        val = JS_MKPTR(JS_TAG_MODULE, m);
-
+        val = module_value(ctx, m);
       break;
     }
     case REQUIRE_MODULE: {
-      if((m = jsm_module_load(ctx, name))) {
+      if((m = jsm_module_load(ctx, name)))
         val = module_exports(ctx, m);
-      }
       break;
     }
 
@@ -1260,6 +1280,10 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       val = module_object(ctx, m);
       break;
     }
+    case GET_MODULE_IMPORTS: {
+      val = module_imports(ctx, m);
+      break;
+    }
     case GET_MODULE_EXPORTS: {
       val = module_exports(ctx, m);
       break;
@@ -1286,7 +1310,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
   }
   if(name)
-    JS_FreeCString(ctx, name);
+    js_free(ctx, name);
 
   return val;
 }
@@ -1311,6 +1335,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
     JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
     JS_CFUNC_MAGIC_DEF("getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
+    JS_CFUNC_MAGIC_DEF("getModuleImports", 1, jsm_module_func, GET_MODULE_IMPORTS),
     JS_CFUNC_MAGIC_DEF("getModuleNamespace", 1, jsm_module_func, GET_MODULE_NAMESPACE),
     JS_CFUNC_MAGIC_DEF("getModuleFunction", 1, jsm_module_func, GET_MODULE_FUNCTION),
     JS_CFUNC_MAGIC_DEF("getModuleException", 1, jsm_module_func, GET_MODULE_EXCEPTION),

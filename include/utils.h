@@ -330,25 +330,8 @@ js_value_type2flag(uint32_t type) {
 
 enum value_mask js_value_type(JSContext* ctx, JSValueConst value);
 
-static inline const char* const*
-js_value_types() {
-  return (const char* const[]){
-      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
-      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception", 0,
-  };
-}
-
-static inline const char*
-js_value_typeof(JSValueConst value) {
-  int32_t flag = js_value_type_flag(value);
-  return ((const char* const[]){
-      "undefined",     "object",       "boolean",   "number", "object",   "string", "symbol", "bigfloat",
-      "bigint",        "bigdecimal",   "number",    "number", "function", "object", "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception", 0,
-  })[flag];
-}
-
+const char* const* js_value_types(void);
+const char* js_value_typeof(JSValueConst);
 const char* js_value_type_name(int32_t type);
 const char* js_value_tag_name(int tag);
 int32_t js_value_tag_type(int tag);
@@ -874,6 +857,7 @@ JSValue module_func(JSContext*, JSModuleDef*);
 JSValue module_ns(JSContext*, JSModuleDef*);
 JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);
 void module_exports_get(JSContext*, JSModuleDef*, BOOL, JSValue exports);
+JSValue module_imports(JSContext* ctx, JSModuleDef* m);
 JSValue module_default_export(JSContext*, JSModuleDef*);
 JSValue module_exports(JSContext*, JSModuleDef*);
 JSValue module_value(JSContext*, JSModuleDef*);

@@ -71,7 +71,7 @@ int path_canonical3(const char* path, size_t len, DynBuf* db);
 char* path_canonical2(const char* path, size_t len);
 char* path_canonical1(const char* path);
 size_t path_collapse3(const char* path, size_t n, DynBuf* db);
-char* path_collapse1(const char* path);
+size_t path_collapse1(char* path);
 size_t path_collapse2(char* path, size_t nb);
 SizePair path_common4(const char* s1, size_t n1, const char* s2, size_t n2);
 size_t path_components3(const char* p, size_t len, uint32_t n);
