@@ -1217,7 +1217,7 @@ js_socket_async_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return JS_UNDEFINED;
 }
 
-/*static JSValue
+static JSValue
 js_socket_set_handler(JSContext* ctx, BOOL wr) {
   JSValue set_handler = js_iohandler_fn(ctx, wr);
 
@@ -1233,7 +1233,7 @@ js_socket_set_handler(JSContext* ctx, BOOL wr) {
 
   return set_handler;
 }
-*/
+
 static JSValue
 js_socket_async_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Socket sock = js_socket_data(this_val);
