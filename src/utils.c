@@ -108,6 +108,7 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
   RegExp re = {0, 0, 0};
   const char* flagstr;
   assert(argc > 0);
+
   if(js_is_regexp(ctx, argv[0])) {
     re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
     re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
@@ -2017,58 +2018,54 @@ js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   if(!ret)
     ret |= js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
   if(!ret)
-    ret |= JS_IsArray(ctx, value);
-  /* if(!ret)
-    ret |= js_object_is(ctx, value, "[object ArrayBuffer]"); */
-  /*  if(!ret) {
-      JSObject* obj;
-      if((obj = js_value_obj(value)) && obj->class_id) {
-        JSValue ctor = js_global_get_str(ctx, "ArrayBuffer");
-        ret = JS_IsInstanceOf(ctx, value, ctor);
-        JS_FreeValue(ctx, ctor);
-      }
-    }*/
+    ret |= js_object_is(ctx, value, "[object ArrayBuffer]");
+  if(!ret)
+    if(JS_IsObject(value)) {
+      JSValue ctor = js_global_get_str(ctx, "ArrayBuffer");
+      ret = JS_IsInstanceOf(ctx, value, ctor);
+      JS_FreeValue(ctx, ctor);
+    }
   return ret;
 }
 
 BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SHARED_ARRAY_BUFFER));
+  return JS_IsObject(value) && js_object_is(ctx, value, "[object SharedArrayBuffer]");
 }
 
 BOOL
 js_is_date(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_DATE));
+  return JS_IsObject(value) && js_object_is(ctx, value, "[object Date]");
 }
 
 BOOL
 js_is_map(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_MAP));
+  return JS_IsObject(value) && js_object_is(ctx, value, "[object Map]");
 }
 
 BOOL
 js_is_set(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_SET));
+  return JS_IsObject(value) && js_object_is(ctx, value, "[object Set]");
 }
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_GENERATOR));
+  return JS_IsObject(value) &&  js_object_is(ctx, value, "[object Generator]");
 }
 
 BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_REGEXP));
+  return JS_IsObject(value) &&  js_object_is(ctx, value, "[object RegExp]");
 }
 
 BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_PROMISE) || js_object_is(ctx, value, "[object Promise]"));
+  return JS_IsObject(value) && js_object_is(ctx, value, "[object Promise]");
 }
 
 BOOL
 js_is_dataview(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_value_isclass(ctx, value, JS_CLASS_DATAVIEW));
+  return JS_IsObject(value)  && js_object_is(ctx, value, "[object DataView]");
 }
 
 BOOL

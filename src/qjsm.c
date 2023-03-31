@@ -1444,7 +1444,7 @@ main(int argc, char** argv) {
         break;
       }
       if(opt == 'm' || !strcmp(longopt, "module")) {
-        const char* modules = argv[optind];
+        const char* modules = optarg;
         size_t i, len;
 
         for(i = 0; modules[i]; i += len) {
@@ -1623,10 +1623,10 @@ main(int argc, char** argv) {
       JSModuleDef* m;
       vector_foreach_t(&module_list, ptr) {
         char* name = *ptr;
-        int all = 0;
+        /*int all = 0;
 
         if(name[0] == '*')
-          all = 1;
+          all = 1;*/
 
         if(!(m = jsm_module_load(ctx, name))) {
           jsm_dump_error(ctx);

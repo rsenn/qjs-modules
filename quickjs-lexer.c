@@ -1353,7 +1353,7 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(magic & YIELD_DONE_VALUE) {
     JSValue ret = JS_NewObject(ctx);
     JS_SetPropertyStr(ctx, ret, "value", value);
-    JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, JS_IsUndefined(value)));
+    JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, js_is_null_or_undefined(value)));
     return ret;
   }
 

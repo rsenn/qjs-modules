@@ -11,7 +11,7 @@ import CLexer from '../lib/lexer/c.js';
 import BNFLexer from '../lib/lexer/bnf.js';
 import CSVLexer from '../lib/lexer/csv.js';
 import { escape, quote, toString } from 'misc';
-import { define, curry, unique, split, extendArray, isObject, getOpt, keys } from 'util';
+import { define, curry, unique, split, extendArray, isObject, getOpt, keys, startInteractive } from 'util';
 import { mmap, munmap, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_SHARED, MAP_ANONYMOUS } from 'mmap';
 import { TryCatch } from '../lib/parser/ebnf.js';
 
@@ -260,7 +260,7 @@ function main(...args) {
     lex.l = lex.bnf;
     lex.y = lex.bnf;
     lex.json = lex.js;
-    const lexer = lex[type];
+    const lexer = (globalThis.lexer = lex[type]);
 
     console.log('lexer', lexer);
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
@@ -311,8 +311,19 @@ function main(...args) {
           const [start, end] = tok.charRange;
           let s = toString(str).slice(start, end);
 
-          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc, ` '${s}'`];
-          std.err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
+          const cols = [
+            prefix,
+            `tok[${tok.byteLength}]`,
+            tok.id,
+            tok.type,
+            tok.lexeme,
+            tok.lexeme.length,
+            tok.loc,
+            ` '${s}'`
+          ];
+          std.err.puts(
+            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
+          );
         }
       : () => {};
 
@@ -346,7 +357,8 @@ function main(...args) {
           case '}':
           case ']':
           case ')': {
-            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+            if(stack.last != table[tok.lexeme])
+              throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
             stack.pop();
             break;
           }
@@ -371,7 +383,10 @@ function main(...args) {
       imp = [],
       count = 0;
     let showToken = tok => {
-      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
+      if(
+        (lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') ||
+        /^((im|ex)port|from|as)$/.test(tok.lexeme)
+      ) {
         let a = [tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.puts(a.join('') + '\n');
       }
@@ -463,7 +478,8 @@ try {
   main(...scriptArgs.slice(1));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
-  std.exit(1);
+  startInteractive();
+  //std.exit(1);
 } finally {
   console.log('SUCCESS');
 }

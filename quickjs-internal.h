@@ -36,7 +36,6 @@ enum JSClassIds {
   JS_CLASS_BYTECODE_FUNCTION,   /* u.func */
   JS_CLASS_BOUND_FUNCTION,      /* u.bound_function */
   JS_CLASS_C_FUNCTION_DATA,     /* u.c_function_data_record */
-  JS_CLASS_C_CLOSURE,           /* u.c_closure_record */
   JS_CLASS_GENERATOR_FUNCTION,  /* u.func */
   JS_CLASS_FOR_IN_ITERATOR,     /* u.for_in_iterator */
   JS_CLASS_REGEXP,              /* u.regexp */

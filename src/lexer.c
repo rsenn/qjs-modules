@@ -332,10 +332,19 @@ lexer_peek(Lexer* lex, /*uint64_t __state,*/ unsigned start_rule, JSContext* ctx
     if((rule->mask & (1 << lex->state)) == 0)
       continue;
 
-    // printf("%s state %i rule#%ld %s (start=%d)\n", __func__, lex->state, rule - start,
-    // rule->name, start_rule);
-
     result = lexer_rule_match(lex, rule, capture, ctx);
+
+    /*size_t elen = strlen(rule->expansion);
+    printf("%s result %i state %i rule#%ld %s (start=%d) /%.*s%s\n",
+           __func__,
+           result,
+           lex->state,
+           rule - start,
+           rule->name,
+           start_rule,
+           (int)(elen > 30 ? 30 : elen),
+           rule->expansion,
+           elen > 30 ? "...." : "/");*/
 
     /*if(result == LEXER_ERROR_COMPILE) {
       ret = result;
@@ -353,11 +362,13 @@ lexer_peek(Lexer* lex, /*uint64_t __state,*/ unsigned start_rule, JSContext* ctx
       ret = result;
       break;
     } else if(result > 0 && (capture[1] - capture[0]) > 0) {
+      
 #ifdef DEBUG_OUTPUT
-      const char* filename = JS_AtomToCString(ctx, lex->loc.file);
+      const char* filename = lex->loc.file == -1 ? 0 : JS_AtomToCString(ctx, lex->loc.file);
 
-      printf("%s:%" PRIu32 ":%-4" PRIu32 " #%i %-20s - /%s/ [%zu] %.*s\n",
-             filename,
+      printf("%s%s%" PRIu32 ":%-4" PRIu32 " #%i %-20s - /%s/ [%zu] %.*s\n",
+             filename ? filename : "",
+             filename ? ":" : "",
              lex->loc.line + 1,
              lex->loc.column + 1,
              (int)(rule - start),
