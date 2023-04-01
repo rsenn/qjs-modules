@@ -132,11 +132,7 @@ function main(...args) {
 
   grammar = parser.parse();
   if(grammar) {
-    WriteObject(
-      'grammar.kison',
-      grammar,
-      str => `(function () {\n    return ` + str.replace(/\n/g, '\n    ') + `;\n\n})();`
-    );
+    WriteObject('grammar.kison', grammar, str => `(function () {\n    return ` + str.replace(/\n/g, '\n    ') + `;\n\n})();`);
     //  console.log('grammar:', grammar);
   }
   std.gc();

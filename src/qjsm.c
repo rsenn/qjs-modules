@@ -836,6 +836,58 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   return file;
 }
 
+static void
+jsm_module_save(void) {
+
+  char* home = path_gethome1(getuid());
+  DynBuf db;
+  dbuf_init2(&db, 0, 0);
+  path_concat3(home, "/.qjsm_modules", &db);
+
+  FILE* f;
+
+  if((f = fopen(db.buf, "w"))) {
+
+    char** ptr;
+    JSModuleDef* m;
+
+    vector_foreach_t(&module_list, ptr) {
+      char* name = *ptr;
+
+      fputs(name, f);
+      fputs("\n", f);
+    }
+    fclose(f);
+  }
+
+  dbuf_free(&db);
+}
+
+static void
+jsm_module_restore(void) {
+  char* home = path_gethome1(getuid());
+  DynBuf db;
+  dbuf_init2(&db, 0, 0);
+  path_concat3(home, "/.qjsm_modules", &db);
+
+  FILE* f;
+  char buf[1024];
+
+  if((f = fopen(db.buf, "r"))) {
+    char* s;
+
+    while((s = fgets(buf, sizeof(buf), f))) {
+      buf[str_chrs(s, "\r\n", 2)] = '\0';
+      if(vector_finds(&module_list, buf) == -1)
+        vector_pushstring(&module_list, s);
+    }
+
+    fclose(f);
+  }
+
+  dbuf_free(&db);
+}
+
 /* also used to initialize the worker context */
 static JSContext*
 jsm_context_new(JSRuntime* rt) {
@@ -1119,6 +1171,7 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 enum {
   FIND_MODULE,
   LOAD_MODULE,
+  ADD_MODULE,
   REQUIRE_MODULE,
   LOCATE_MODULE,
   NORMALIZE_MODULE,
@@ -1168,6 +1221,16 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
 
   switch(magic) {
+    case ADD_MODULE: {
+      ssize_t i;
+      if((i = vector_finds(&module_list, name)) == -1) {
+        i = vector_size(&module_list, sizeof(char*));
+        vector_pushstring(&module_list, name);
+        jsm_module_save();
+      }
+      val = JS_NewInt64(ctx, i);
+      break;
+    }
     case FIND_MODULE: {
       if((m = js_module_find(ctx, name)))
         val = module_value(ctx, m);
@@ -1267,6 +1330,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CGETSET_MAGIC_DEF("__dirname", jsm_stack_get, 0, SCRIPT_DIRNAME),
     JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
+    JS_CFUNC_MAGIC_DEF("addModule", 1, jsm_module_func, ADD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),
     JS_CFUNC_MAGIC_DEF("requireModule", 1, jsm_module_func, REQUIRE_MODULE),
     JS_CFUNC_MAGIC_DEF("normalizeModule", 2, jsm_module_func, NORMALIZE_MODULE),
@@ -1617,6 +1681,8 @@ main(int argc, char** argv) {
       // jsm_list_modules(ctx)
     }
     dbuf_free(&db);
+
+    jsm_module_restore();
 
     {
       char** ptr;

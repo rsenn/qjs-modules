@@ -362,7 +362,7 @@ lexer_peek(Lexer* lex, /*uint64_t __state,*/ unsigned start_rule, JSContext* ctx
       ret = result;
       break;
     } else if(result > 0 && (capture[1] - capture[0]) > 0) {
-      
+
 #ifdef DEBUG_OUTPUT
       const char* filename = lex->loc.file == -1 ? 0 : JS_AtomToCString(ctx, lex->loc.file);
 

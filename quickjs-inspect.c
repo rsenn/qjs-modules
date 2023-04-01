@@ -940,7 +940,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   if(s)
     js_cstring_free(ctx, s);
 
-  BOOL is_array_like = is_array || is_typedarray || js_is_array_like(ctx, value);
+  BOOL is_array_like = is_array || is_typedarray /*|| js_is_array_like(ctx, value)*/;
 
   if(!is_array_like) {
     BOOL show_hidden = opts->show_hidden;
