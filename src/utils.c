@@ -2050,12 +2050,12 @@ js_is_set(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&  js_object_is(ctx, value, "[object Generator]");
+  return JS_IsObject(value) && js_object_is(ctx, value, "[object Generator]");
 }
 
 BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&  js_object_is(ctx, value, "[object RegExp]");
+  return JS_IsObject(value) && js_object_is(ctx, value, "[object RegExp]");
 }
 
 BOOL
@@ -2065,7 +2065,7 @@ js_is_promise(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_dataview(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value)  && js_object_is(ctx, value, "[object DataView]");
+  return JS_IsObject(value) && js_object_is(ctx, value, "[object DataView]");
 }
 
 BOOL

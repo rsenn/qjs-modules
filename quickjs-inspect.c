@@ -980,6 +980,16 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 
   if(is_array_like) {
     len = js_array_length(ctx, value);
+
+    if(js_is_typedarray(value)) {
+      char* cname;
+
+      if((cname = js_object_classname(ctx, value))) {
+        dbuf_put_colorstr(buf, cname, COLOR_LIGHTRED, opts->colors);
+        dbuf_putstr(buf, " ");
+      }
+    }
+
     dbuf_putstr(buf, compact && opts->break_length != INT32_MAX ? "[ " : "[");
     limit = min_size(opts->max_array_length, len);
     if(len && !compact && opts->break_length != INT32_MAX)
