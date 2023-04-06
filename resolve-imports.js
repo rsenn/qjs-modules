@@ -43,8 +43,22 @@ let buffers = {},
   dependencyMap = new Map(),
   printFiles,
   quiet = false,
+  importsFor = {},
   logFile = () => {},
   log = () => {};
+
+Object.assign(globalThis, {
+  ImportedBy,
+  importsFor,
+  allImports() {
+    let r = [];
+    for(let source in importsFor) {
+      let imports = importsFor[source];
+      r.push(...imports);
+    }
+    return [...new Set(r)];
+  }
+});
 
 let header = [],
   footer = [];
@@ -59,6 +73,16 @@ function ReadJSON(filename) {
 }
 
 const ReadPackageJSON = memoize(() => ReadJSON('package.json') ?? { _moduleAliases: {} });
+
+function ImportedBy(importFile) {
+  let r = [];
+  for(let source in importsFor) {
+    let imports = importsFor[source];
+
+    if(imports.contains(importFile)) r.push(source);
+  }
+  return r;
+}
 
 function ResolveAlias(filename) {
   let { _moduleAliases } = ReadPackageJSON();
@@ -115,7 +139,7 @@ const IsOneOf = curry((n, value) => (Array.isArray(n) ? n.some(num => num === va
 const TokIs = curry((type, lexeme, tok) => {
   if(tok != undefined) {
     if(lexeme != undefined) if (typeof lexeme == 'string' && !IsOneOf(lexeme, tok.lexeme)) return false;
-    if(type != undefined) {
+    if(type !== undefined) {
       if(typeof type == 'string' && !IsOneOf(type, tok.type)) return false;
       if(typeof type == 'number' && !IsOneOf(type, tok.id)) return false;
     }
@@ -286,11 +310,11 @@ function ModuleLoader(module) {
 }
 
 function ProcessFile(source, log = () => {}, recursive, depth = 0) {
-  console.log(`Processing ${source}`);
+  if(debug >= 1) console.log(`Processing ${source}`);
 
   source = path.normalize(source);
 
-  if(printFiles) std.puts(source + '\n');
+  if(printFiles) std.puts(`${source}\n`);
 
   if(readPackage) source = ResolveAlias(source);
 
@@ -388,7 +412,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         /^((im|ex)port|from|as)$/.test(tok.lexeme)
       ) {
         let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
-        std.puts(a.join('') + '\n');
+        // std.puts(a.join('') + '\n');
       }
     };
 
@@ -690,11 +714,13 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
   buffers[source] = [...split(BufferFile(source), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
 
+  importsFor[source] = fileImports.map(i => i.file);
+
   let map = FileMap.for(source);
   let imported = used && new Set();
 
   if(used) {
-    for(let impexp of allExportsImports) {
+    for(let impexp of 1) {
       if(impexp.type == What.IMPORT) {
         let ids = impexp.ids();
         for(let id of ids) imported.add(id);
@@ -751,7 +777,8 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
       if(typeof file == 'string' && !path.isFile(file)) {
         if(debug > 1) console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
-        if(printFiles) std.puts(file + '\n');
+
+        // if(printFiles) std.puts(`${path.normalize(source)}: ${file}\n`);
 
         replacement = null;
       } else if(file && path.isFile(file)) {
@@ -829,14 +856,13 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
       file = NormalizePath(file);
       file = ModuleLoader(file);
-      console.log(`ModuleLoader() = '${file}'`);
 
       if(file) {
         processed.add(file);
 
         AddDep(source, file);
 
-        console.log(`Recursing`, { source, file });
+        if(debug >= 1) console.log(`Recursing`, { source, file });
 
         ProcessFile(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
       }
@@ -1647,8 +1673,6 @@ function main(...args) {
 
   if(out.file) {
     let nbytes;
-    console.log(`results[0]`, results[0]);
-    console.log(`stream`, stream);
     try {
       nbytes = results[0].write(stream);
     } catch(error) {
