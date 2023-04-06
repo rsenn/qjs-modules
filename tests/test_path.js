@@ -17,7 +17,12 @@ function CallPathFunction(name, ...args) {
   let fn = path[name];
 
   let ret = fn.call(path, ...args);
-  console.log(`path.${name}(`, ...args.reduce((acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]), []), ') =', ret);
+  console.log(
+    `path.${name}(`,
+    ...args.reduce((acc, arg) => (acc.length ? [...acc, ', ', arg] : [arg]), []),
+    ') =',
+    ret
+  );
   return ret;
 }
 
@@ -72,8 +77,17 @@ async function main(...args) {
   console.log(`cwd = ${cwd}`);
   CallPathFunction('relative', '/home/roman/Projects/plot-cv/quickjs', cwd);
   CallPathFunction('relative', '/home/roman/Projects/editline', cwd);
-  CallPathFunction('collapse', '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..');
-  if(path.slice) CallPathFunction('slice', '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..', 2, -3);
+  CallPathFunction(
+    'collapse',
+    '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..'
+  );
+  if(path.slice)
+    CallPathFunction(
+      'slice',
+      '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..',
+      2,
+      -3
+    );
 
   /*let data = std.loadFile(file, 'utf-8');
   console.log('data:', data.substring(0, 100));

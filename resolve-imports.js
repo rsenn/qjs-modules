@@ -36,8 +36,6 @@ let buffers = {},
   outputFile,
   recursive,
   debug = 0,
-  header = [],
-  footer = [],
   processed = new Set(),
   bufferRef = new WeakMap(),
   fileBuffers = new Map(),
@@ -45,7 +43,11 @@ let buffers = {},
   dependencyMap = new Map(),
   printFiles,
   quiet = false,
-  logFile = () => {};
+  logFile = () => {},
+  log = () => {};
+
+let header = [],
+  footer = [];
 
 let dependencyTree = memoize(arg => [], dependencyMap);
 let bufferMap = getset(bufferRef);
@@ -67,7 +69,8 @@ function ResolveAlias(filename) {
 
 function NormalizePath(p) {
   p = path.absolute(p);
-  p = path.relative(p, path.getcwd());
+  p = path.collapse(p);
+  p = path.relative(path.getcwd(), p);
   p = path.normalize(p);
   if(!path.isAbsolute(p)) if (!p.startsWith('./') && !p.startsWith('../') && p != '..') p = './' + p;
   return p;
@@ -283,13 +286,13 @@ function ModuleLoader(module) {
 }
 
 function ProcessFile(source, log = () => {}, recursive, depth = 0) {
+  console.log(`Processing ${source}`);
+
   source = path.normalize(source);
 
   if(printFiles) std.puts(source + '\n');
 
   if(readPackage) source = ResolveAlias(source);
-
-  log(`Processing ${source}`);
 
   let start = Date.now();
   const dir = path.dirname(source);
@@ -428,7 +431,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       }*/
     }
 
-    if(debug >= 2) console.log('token', token);
+    if(debug > 2) console.log('token', token);
     /*   if(debug >= 1) console.log('lexer.mode', lexer.mode);
      */
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
@@ -824,12 +827,19 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         continue;
       }
 
-      file = ModuleLoader(NormalizePath(file));
+      file = NormalizePath(file);
+      file = ModuleLoader(file);
+      console.log(`ModuleLoader() = '${file}'`);
 
-      processed.add(file);
+      if(file) {
+        processed.add(file);
 
-      AddDep(source, file);
-      ProcessFile(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
+        AddDep(source, file);
+
+        console.log(`Recursing`, { source, file });
+
+        ProcessFile(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
+      }
     }
   }
 
@@ -1479,6 +1489,7 @@ function main(...args) {
     (opts = {
       help: [false, null, 'h'],
       debug: [false, () => ++debug, 'x'],
+      interactive: [false, null, 'y'],
       log: [true, file => (logFile = FileWriter(file)), 'v'],
       sort: [false, null, 's'],
       'case-sensitive': [false, null, 'c'],
@@ -1550,8 +1561,10 @@ function main(...args) {
   const { sort, 'case-sensitive': caseSensitive } = params;
 
   if(outputFile) out = FileWriter(outputFile);
+  globalThis.out = out;
 
   let argList = [...scriptArgs];
+  log = quiet ? () => {} : (...args) => console.log(`${file}:`, ...args);
 
   logFile(`Start of: ${argList.join(' ')}\n`);
 
@@ -1559,17 +1572,26 @@ function main(...args) {
 
   if(!files.length) throw new ArgumentError('Expecting argument <files...>');
 
-  let results = [];
+  let results = (globalThis.results = []);
+  console.log('files', compact(false, { depth: Infinity }), files);
 
   for(let file of files) {
     file = RelativePath(file);
-    let log = quiet ? () => {} : (...args) => console.log(`${file}:`, ...args);
 
     let result = ProcessFile(file, log, recursive, 0);
 
     if(debug >= 1) console.log('result', compact(false, { depth: Infinity }), result);
 
     results.push(result);
+  }
+
+  while(results[0] && results[0][0]) {
+    let [range, buf] = results[0].shift();
+
+    if(range === null) break;
+    console.log('range', range);
+    buf = buf.slice(...range);
+    out.write(buf, buf.byteLength);
   }
 
   if(!removeImports) {
@@ -1600,7 +1622,7 @@ function main(...args) {
         },
         [[], null]
       )[0];
-    if(lines.length) lines = [FileBannerComment('header', 0), ...lines, '', FileBannerComment('header', 1)];
+    //if(lines.length) lines = [FileBannerComment('header', 0), ...lines, '', FileBannerComment('header', 1)];
     if(debug > 2) console.log('lines', lines);
 
     out.puts(lines.reduce((acc, line) => acc + line.trim() + '\n', ''));
@@ -1658,6 +1680,8 @@ function main(...args) {
   }
 
   stream.close();
+
+  if(params.interactive) os.kill(process.pid, os.SIGUSR1);
 
   logFile(`Processed files: ${SpreadAndJoin(dependencyMap.keys(), ' ')}\n`);
 }
