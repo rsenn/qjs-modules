@@ -196,8 +196,7 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   JSValue root = JS_UNDEFINED, pred = JS_UNDEFINED;
   int i = 0;
 
-  /* using new_target to get the prototype is necessary when the class is
-   * extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     return JS_EXCEPTION;
