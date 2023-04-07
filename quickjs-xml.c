@@ -887,10 +887,12 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, js_xml_init);
-  if(!m)
+
+  if(!(m = JS_NewCModule(ctx, module_name, js_xml_init)))
     return NULL;
+
   JS_AddModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
   JS_AddModuleExport(ctx, m, "default");
+
   return m;
 }
