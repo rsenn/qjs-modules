@@ -1487,7 +1487,7 @@ class FileMap extends Array {
   }
 
   lastChunk() {
-    return this.findLastIndex(([range, buf], i) => range && !IsWhiteSpace(toString(buf.slice(...range))));
+    return this.findLastIndex(([range, buf], i) => range && buf && !IsWhiteSpace(toString(buf.slice(...range))));
   }
 
   write(out, depth = 0, serial) {
