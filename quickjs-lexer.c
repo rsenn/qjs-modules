@@ -304,7 +304,7 @@ void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok;
   if((tok = js_token_data(val))) {
-    token_free_rt(tok, rt);
+    token_free(tok, rt);
     JS_SetOpaque(val, 0);
   }
   // JS_FreeValueRT(rt, val);
@@ -393,7 +393,7 @@ lexer_handle(Lexer* lex, JSContext* ctx, JSValueConst this_val, JSValueConst han
 static int
 lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int64_t flags = 0;
-  int id = LEXER_EOF;
+  int id = 0;
 
   if(argc >= 1 && (flags = lexer_to_state(lex, ctx, argv[0]))) {}
 
@@ -1422,7 +1422,7 @@ js_lexer_finalizer(JSRuntime* rt, JSValue val) {
     /*    if(--lex->ref_count == 0)
           location_release_rt(&lex->loc, rt);*/
 
-    lexer_release_rt(lex, rt);
+    lexer_release(lex, rt);
 
     if(lex->ref_count == 0)
       js_free_rt(rt, lex);

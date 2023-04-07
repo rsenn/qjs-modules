@@ -19,18 +19,8 @@ typedef struct {
 
 Token* token_new(JSContext*);
 Token* token_create(int, Location*, const char*, size_t len, JSContext* ctx);
-BOOL token_release_rt(Token*, JSRuntime*);
-void token_free_rt(Token*, JSRuntime*);
-
-static inline BOOL
-token_release(Token* tok, JSContext* ctx) {
-  return token_release_rt(tok, JS_GetRuntime(ctx));
-}
-
-static inline void
-token_free(Token* tok, JSContext* ctx) {
-  token_free_rt(tok, JS_GetRuntime(ctx));
-}
+BOOL token_release(Token*, JSRuntime*);
+void token_free(Token*, JSRuntime*);
 
 static inline Location*
 token_set_location(Token* tok, Location* loc) {

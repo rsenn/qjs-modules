@@ -157,11 +157,6 @@ int predicate_recursive_num_args(const Predicate*);
 int predicate_direct_num_args(const Predicate*);
 JSPrecedence predicate_precedence(const Predicate*);
 
-static inline void
-predicate_free(Predicate* pred, JSContext* ctx) {
-  predicate_free_rt(pred, JS_GetRuntime(ctx));
-}
-
 #define predicate_is_undefined() predicate_type(TYPE_UNDEFINED)
 #define predicate_is_null() predicate_type(TYPE_NULL)
 #define predicate_is_bool() predicate_type(TYPE_BOOL)

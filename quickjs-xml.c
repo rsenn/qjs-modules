@@ -207,12 +207,9 @@ xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t al
   JS_FreeAtom(ctx, prop);
 }
 
-static void
+static inline void
 xml_set_attr_bytes(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, const uint8_t* str, size_t slen) {
-  JSValue value;
-  value = JS_NewStringLen(ctx, (const char*)str, slen);
-  xml_set_attr_value(ctx, obj, attr, alen, value);
-  // JS_FreeValue(ctx, value);
+  xml_set_attr_value(ctx, obj, attr, alen, JS_NewStringLen(ctx, (const char*)str, slen));
 }
 
 static void
@@ -436,8 +433,9 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   OutputValue* out;
   JSValue ret, element = JS_UNDEFINED, locObj;
   Vector st = VECTOR(ctx);
-  Location loc = {0, JS_NewAtom(ctx, input_name)};
+  Location loc = LOCATION_FILE(JS_NewAtom(ctx, input_name));
   VirtualProperties vprop;
+  
   ptr = buf;
   end = buf + len;
 
@@ -512,11 +510,14 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       BOOL closing = FALSE, self_closing = FALSE;
 
       parse_getc();
+      
       if(parse_is(c, SLASH)) {
         closing = TRUE;
         parse_getc();
       }
+
       name = ptr;
+
       if(parse_is(ptr[0], EXCLAM) && parse_is(ptr[1], HYPHEN) && parse_is(ptr[2], HYPHEN)) {
         parse_getc();
         parse_getc();
@@ -524,11 +525,14 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       } else {
         parse_until(parse_is(c, WS | END));
       }
+
       namelen = ptr - name;
 
       if(closing) {
         int32_t index = 0;
+
         parse_skipspace();
+
         if(parse_is(c, CLOSE))
           parse_getc();
 
@@ -540,9 +544,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
 
         } else {
 
-          index = find_tag(&st, (const char*)name, namelen);
-
-          if(index == -1) {
+          if((index = find_tag(&st, (const char*)name, namelen)) == -1) {
 
             if(!opts.tolerant) {
               char* file;
@@ -554,6 +556,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
               ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line + 1, loc.column + 1);
               if(file)
                 js_free(ctx, file);
+
               return ret;
             }
 
@@ -599,14 +602,19 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         size_t alen, vlen, num_attrs = 0;
         JSValue attributes = JS_NewObject(ctx);
         JS_SetPropertyStr(ctx, element, "attributes", attributes);
+        
         while(!done) {
           parse_skipspace();
+          
           if(parse_is(c, END))
             break;
+          
           attr = ptr;
           parse_until(parse_is(c, EQUAL | WS | SPECIAL | CLOSE));
+          
           if((alen = ptr - attr) == 0)
             break;
+
           if(parse_is(c, WS | CLOSE | SLASH)) {
             xml_set_attr_value(ctx, attributes, (const char*)attr, alen, JS_NewBool(ctx, TRUE));
             num_attrs++;

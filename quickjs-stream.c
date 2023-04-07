@@ -85,7 +85,7 @@ read_done(Read* op) {
 
 static void
 read_free_rt(Read* op, JSRuntime* rt) {
-  promise_free_rt(rt, &op->promise);
+  promise_free(rt, &op->promise);
 
   list_del(&op->link);
 }

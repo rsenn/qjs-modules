@@ -14,20 +14,20 @@ token_new(JSContext* ctx) {
 }
 
 BOOL
-token_release_rt(Token* tok, JSRuntime* rt) {
+token_release(Token* tok, JSRuntime* rt) {
   if(--tok->ref_count == 0) {
     location_release_rt(tok->loc, rt);
     js_free_rt(rt, tok->lexeme);
     tok->lexeme = 0;
     return TRUE;
   }
-  // printf("token_release_rt %p ref_count=%d\n", tok, tok->ref_count);
+  // printf("token_release %p ref_count=%d\n", tok, tok->ref_count);
   return FALSE;
 }
 
 void
-token_free_rt(Token* tok, JSRuntime* rt) {
-  token_release_rt(tok, rt);
+token_free(Token* tok, JSRuntime* rt) {
+  token_release(tok, rt);
   if(tok->ref_count == 0)
     js_free_rt(rt, tok);
 }

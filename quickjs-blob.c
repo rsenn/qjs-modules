@@ -53,17 +53,10 @@ blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
   if(dbuf_put(&blob->vec.dbuf, x, len))
     return -1;
   return len;
-}
+} 
 
 void
-blob_free(JSContext* ctx, Blob* blob) {
-  if(blob->vec.data)
-    dbuf_free(&blob->vec.dbuf);
-  js_free(ctx, blob);
-}
-
-static void
-blob_free_rt(JSRuntime* rt, Blob* blob) {
+blob_free(JSRuntime* rt, Blob* blob) {
   if(blob->vec.data)
     dbuf_free(&blob->vec.dbuf);
   js_free_rt(rt, blob);
@@ -167,7 +160,7 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
         for(i = 0; i < len; i++) {
           if(blob_write(ctx, blob, input_buffer_data(&parts[i]), input_buffer_length(&parts[i])) == -1) {
             while(i < len) input_buffer_free(&parts[i++], ctx);
-            blob_free(ctx, blob);
+            blob_free(JS_GetRuntime(ctx), blob);
             js_free(ctx, parts);
             return JS_ThrowInternalError(ctx, "blob_write returned -1");
           }
@@ -272,7 +265,7 @@ static void
 js_blob_finalizer(JSRuntime* rt, JSValue val) {
   Blob* blob = JS_GetOpaque(val, js_blob_class_id);
   if(blob) {
-    blob_free_rt(rt, blob);
+    blob_free(rt, blob);
   }
   // JS_FreeValueRT(rt, val);
 }

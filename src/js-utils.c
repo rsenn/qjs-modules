@@ -61,15 +61,15 @@ promise_create(JSContext* ctx, ResolveFunctions* funcs) {
   return ret;
 }
 
-void
+/*void
 promise_free(JSContext* ctx, Promise* pr) {
   JS_FreeValue(ctx, pr->value);
   pr->value = JS_UNDEFINED;
   js_resolve_functions_free(ctx, &pr->funcs);
-}
+}*/
 
 void
-promise_free_rt(JSRuntime* rt, Promise* pr) {
+promise_free(JSRuntime* rt, Promise* pr) {
   JS_FreeValueRT(rt, pr->value);
   pr->value = JS_UNDEFINED;
   js_resolve_functions_free_rt(rt, &pr->funcs);

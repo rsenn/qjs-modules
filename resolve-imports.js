@@ -1594,7 +1594,7 @@ class FileMap extends Array {
 FileMap.prototype[Symbol.toStringTag] = 'FileMap';
 
 function BufferFile(file, buf) {
-  file = path.normalize(file);
+   file = path.normalize(file);
   if(!buf) buf = fileBuffers.get(file) ?? buffers[file];
   if(!buf) buf = buffers[file] ?? fs.readFileSync(file, { flag: 'r' });
   if(typeof buf == 'object' && buf !== null) {

@@ -26,7 +26,7 @@ extern thread_local JSValue blob_proto, blob_ctor;
 
 Blob* blob_new(JSContext*, const void* x, size_t len, const char* type);
 ssize_t blob_write(JSContext*, Blob* blob, const void* x, size_t len);
-void blob_free(JSContext*, Blob* blob);
+void blob_free(JSRuntime*, Blob* blob);
 InputBuffer blob_input(JSContext*, Blob* blob);
 JSValue js_blob_wrap(JSContext*, Blob* blob);
 JSValue js_blob_new(JSContext*, const void* x, size_t len, const char* type);

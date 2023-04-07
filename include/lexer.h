@@ -69,8 +69,7 @@ char* lexer_rule_regex(LexerRule*);
 BOOL lexer_rule_expand(Lexer*, char* p, DynBuf* db);
 int lexer_rule_add(Lexer*, char* name, char* expr);
 LexerRule* lexer_rule_find(Lexer*, const char* name);
-void lexer_rule_release(LexerRule*, JSContext* ctx);
-void lexer_rule_release_rt(LexerRule*, JSRuntime* rt);
+ void lexer_rule_release_rt(LexerRule*, JSRuntime* rt);
 void lexer_rule_dump(Lexer*, LexerRule* rule, DynBuf* dbuf);
 void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_define(Lexer*, char* name, char* expr);
@@ -85,10 +84,8 @@ char* lexer_lexeme(Lexer*, size_t* lenp);
 int lexer_next(Lexer*, JSContext* ctx);
 void lexer_set_input(Lexer*, InputBuffer input, int32_t file_atom);
 void lexer_set_location(Lexer*, const Location* loc, JSContext* ctx);
-void lexer_release(Lexer*, JSContext* ctx);
-void lexer_free(Lexer*, JSContext* ctx);
-void lexer_release_rt(Lexer*, JSRuntime* rt);
-void lexer_free_rt(Lexer*, JSRuntime* rt);
+void lexer_release(Lexer*, JSRuntime* rt);
+void lexer_free(Lexer*, JSRuntime* rt);
 void lexer_dump(Lexer*, DynBuf* dbuf);
 
 static inline Lexer*

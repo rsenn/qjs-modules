@@ -19,6 +19,7 @@ typedef struct {
 } Location;
 
 #define LOCATION() (Location){0, -1, 0, 0, 0, 0, 0, FALSE};
+#define LOCATION_FILE(atom) (Location){0, (atom), 0, 0, 0, 0, 0, FALSE};
 
 void location_print(const Location*, DynBuf*, JSContext*);
 char* location_tostring(const Location*, JSContext*);
