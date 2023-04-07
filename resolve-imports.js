@@ -204,8 +204,8 @@ function OutputImports(imports = globalImports) {
   return s;
 }
 
-function FileWriter(file) {
-  let fd = os.open(file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o644);
+function FileWriter(file, mode=0o755) {
+  let fd = os.open(file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, mode);
   return define(FdWriter(fd, file), {
     close: () => os.close(fd)
   });
@@ -1570,10 +1570,22 @@ function BufferRanges(file) {
   return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])], [0, []])[1];
 }
 
-function WriteFile(file, tok) {
-  let f = std.open(file, 'w+');
-  let r = types.isArrayBuffer(tok) ? f.write(tok, 0, tok.byteLength) : f.puts(tok);
-  console.log('Wrote "' + file + '": ' + tok.length + ' bytes' + ` (${r})`);
+function WriteFile(name, data, opts = {}) {
+  const { mode = 0o644, verbose = true } = opts;
+
+  if(typeof data == 'string') data = toArrayBuffer(data);
+
+  if(types.isArrayBuffer(data)) data = [data];
+
+  let fd = fs.openSync(name, os.O_WRONLY | os.O_TRUNC | os.O_CREAT, mode);
+  let r = 0;
+  for(let item of data) {
+    r += fs.writeSync(fd, toArrayBuffer(item + ''));
+  }
+  fs.closeSync(fd);
+  let stat = fs.statSync(name);
+  if(verbose) debug(`Wrote ${name}: ${stat?.size} bytes`);
+  return stat?.size;
 }
 
 function DumpLexer(lex) {
