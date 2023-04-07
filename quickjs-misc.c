@@ -383,12 +383,31 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     return JS_ThrowTypeError(ctx, "argument 1 (haystack) must be an ArrayBuffer");
   if(!block_arraybuffer(&needle, argv[1], ctx))
     return JS_ThrowTypeError(ctx, "argument 2 (haystack) must be an ArrayBuffer");
-  if(argc < 3) {
+
+  if(argc < 3 || (JS_IsNumber(argv[2]) || JS_IsBigInt(ctx, argv[2]))) {
     uint8_t* ptr;
     ptrdiff_t ofs;
+    int64_t start_pos = 0;
+
+    if(argc >= 3) {
+      JS_ToInt64Ext(ctx, &start_pos, argv[2]);
+
+      if(start_pos >= haystack.size)
+        return JS_NULL;
+
+      if(start_pos > 0) {
+        haystack.base += start_pos;
+        haystack.size -= start_pos;
+      }
+    }
 
     if(needle.size <= haystack.size && (ptr = memmem(haystack.base, haystack.size, needle.base, needle.size))) {
       ofs = ptr - haystack.base;
+      ofs += start_pos;
+
+      if(ofs > MAX_SAFE_INTEGER || (argc > 2 && JS_IsBigInt(ctx, argv[2])))
+        return JS_NewBigUint64(ctx, ofs);
+
       return JS_NewInt64(ctx, ofs);
     }
 
@@ -2217,6 +2236,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
     JS_CFUNC_DEF("concat", 1, js_misc_concat),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
+    // JS_ALIAS_DEF("search", "searchArrayBuffer"),
     JS_CFUNC_DEF("memcpy", 2, js_misc_memcpy),
 #ifdef HAVE_FMEMOPEN
     JS_CFUNC_DEF("fmemopen", 2, js_misc_fmemopen),

@@ -21,6 +21,8 @@
 
 #define JS_IsModule(value) (JS_VALUE_GET_TAG((value)) == JS_TAG_MODULE)
 
+#define MAX_SAFE_INTEGER 9007199254740991
+
 char* basename(const char*);
 
 typedef enum endian { LIL = 0, BIG = 1 } Endian;
