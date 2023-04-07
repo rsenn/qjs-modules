@@ -903,7 +903,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
       map.replaceRange(range, replacement); /* {
 
-      /* if(replacement === null)*/
+      /* if(replacement === null)*/ /*{
         let map = (globalImports[ResolveAlias(impexp.file)] ??= {});
         if(debug > 1) console.log('\x1b[38;5;33mIDMAP\x1b[0m', idmap);
         let idmap;
@@ -1809,34 +1809,16 @@ function main(...args) {
     results.push(result);
   }
 
-  /*  while(results[0] && results[0][0]) {
-    let chunk = results[0].shift();
-  console.log('chunk', chunk);
-
-let [range, buf] = chunk;
-
-    if(range === null) break;
-
-    if(debug > 1) console.log('range', range);
-    buf = buf.slice(...range);
-    out.write(buf, buf.byteLength);
-  }*/
-
-  console.log('header', console.config({ compact: 2 }), header);
-  console.log('globalImports', console.config({ compact: 1 }), globalImports);
+  /*console.log('header', console.config({ compact: 2 }), header);
+  console.log('globalImports', console.config({ compact: 1 }), globalImports);*/
 
   for(let imp of allImports()) {
     let { file, source, tokens } = imp;
     let idmap = imp.idmap();
-
-    console.log('imp', { file, source, idmap });
-
+    //console.log('imp', { file, source, idmap });
     if(IsFileImport(file)) continue;
-
     let map = (globalImports[ResolveAlias(file)] ??= {});
-
     if(debug > 1) console.log('\x1b[38;5;33mIDMAP\x1b[0m', idmap);
-
     if(idmap) for(let [local, name] of idmap) map[local] = name;
   }
 
