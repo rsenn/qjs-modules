@@ -50,6 +50,7 @@ typedef enum precedence {
   PRECEDENCE_MEMBER_ACCESS,
   PRECEDENCE_GROUPING,
 } JSPrecedence;
+
 typedef struct {
   BOOL done;
   JSValue value;
@@ -61,6 +62,7 @@ typedef struct {
 } Arguments;
 
 typedef void* realloc_func(void*, void*, size_t);
+typedef BOOL JSValueCompareFunc(JSContext*, JSValueConst, JSValueConst);
 
 void* utils_js_realloc(JSContext* ctx, void* ptr, size_t size);
 void* utils_js_realloc_rt(JSRuntime* rt, void* ptr, size_t size);
@@ -299,7 +301,7 @@ enum value_types {
 
 };
 
-enum value_mask {
+typedef enum  {
   TYPE_UNDEFINED = (1 << FLAG_UNDEFINED),
   TYPE_NULL = (1 << FLAG_NULL),
   TYPE_BOOL = (1 << FLAG_BOOL),
@@ -318,7 +320,7 @@ enum value_mask {
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
-};
+} ValueTypeMask;
 
 int32_t js_value_type_flag(JSValueConst value);
 int32_t js_value_type_get(JSContext* ctx, JSValueConst value);
@@ -330,7 +332,7 @@ js_value_type2flag(uint32_t type) {
   return flag;
 }
 
-enum value_mask js_value_type(JSContext* ctx, JSValueConst value);
+ValueTypeMask js_value_type(JSContext* ctx, JSValueConst value);
 
 const char* const* js_value_types(void);
 const char* js_value_typeof(JSValueConst);

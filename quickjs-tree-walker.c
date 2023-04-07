@@ -197,7 +197,7 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 static PropertyEnumeration*
 js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValueConst pred) {
   PropertyEnumeration* it;
-  enum value_mask type, mask = w->tag_mask & TYPE_ALL;
+  ValueTypeMask type, mask = w->tag_mask & TYPE_ALL;
 
   for(; (it = property_enumeration_recurse(&w->hier, ctx));) {
     if(mask && mask != TYPE_ALL) {
@@ -466,7 +466,7 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   for(;;) {
     if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {
-      enum value_mask vtype;
+      ValueTypeMask vtype;
       *pdone = FALSE;
       switch(r) {
         case RETURN_VALUE: ret = property_enumeration_value(it, ctx); break;

@@ -236,7 +236,7 @@ lexer_rule_find(Lexer* lex, const char* name) {
 }
 
 void
-lexer_rule_free(LexerRule* rule, JSContext* ctx) {
+lexer_rule_release(LexerRule* rule, JSContext* ctx) {
   if(rule->name)
     js_free(ctx, rule->name);
   js_free(ctx, rule->expr);
@@ -246,7 +246,7 @@ lexer_rule_free(LexerRule* rule, JSContext* ctx) {
 }
 
 void
-lexer_rule_free_rt(LexerRule* rule, JSRuntime* rt) {
+lexer_rule_release_rt(LexerRule* rule, JSRuntime* rt) {
   if(rule->name)
     js_free_rt(rt, rule->name);
   js_free_rt(rt, rule->expr);
@@ -503,52 +503,60 @@ lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
 
 void
 lexer_release(Lexer* lex, JSContext* ctx) {
-  if(--lex->ref_count == 0) {
-    LexerRule* rule;
-    char** state;
+  LexerRule* rule;
+  char** state;
 
-    if(!ctx)
-      ctx = lex->rules.opaque;
+  if(!ctx)
+    ctx = lex->rules.opaque;
 
-    input_buffer_free(&lex->input, ctx);
+  input_buffer_free(&lex->input, ctx);
 
-    vector_foreach_t(&lex->defines, rule) { lexer_rule_free(rule, ctx); }
-    vector_foreach_t(&lex->rules, rule) { lexer_rule_free(rule, ctx); }
-    vector_foreach_t(&lex->states, state) { free(*state); }
+  vector_foreach_t(&lex->defines, rule) { lexer_rule_release(rule, ctx); }
+  vector_foreach_t(&lex->rules, rule) { lexer_rule_release(rule, ctx); }
+  vector_foreach_t(&lex->states, state) { free(*state); }
 
-    vector_free(&lex->defines);
-    vector_free(&lex->rules);
-    vector_free(&lex->states);
-    vector_free(&lex->state_stack);
-  }
+  vector_free(&lex->defines);
+  vector_free(&lex->rules);
+  vector_free(&lex->states);
+  vector_free(&lex->state_stack);
+
+  location_release(&lex->loc, ctx);
 }
 
 void
 lexer_free(Lexer* lex, JSContext* ctx) {
-  lexer_release(lex, ctx);
-  if(lex->ref_count <= 0)
+  if(--lex->ref_count == 0) {
+    lexer_release(lex, ctx);
     js_free(ctx, lex);
+  }
 }
 
 void
 lexer_release_rt(Lexer* lex, JSRuntime* rt) {
-  if(--lex->ref_count == 0) {
-    char** statep;
-    LexerRule* rule;
-    vector_foreach_t(&lex->states, statep) { js_free_rt(rt, *statep); }
-    vector_free(&lex->states);
-    vector_foreach_t(&lex->rules, rule) { lexer_rule_free_rt(rule, rt); }
-    vector_free(&lex->rules);
-    vector_foreach_t(&lex->defines, rule) { lexer_rule_free_rt(rule, rt); }
-    vector_free(&lex->defines);
-    vector_free(&lex->state_stack);
-  }
+  char** statep;
+  LexerRule* rule;
+
+  input_buffer_free(&lex->input, lex->rules.opaque);
+
+  vector_foreach_t(&lex->defines, rule) { lexer_rule_release_rt(rule, rt); }
+  vector_foreach_t(&lex->rules, rule) { lexer_rule_release_rt(rule, rt); }
+  vector_foreach_t(&lex->states, statep) { js_free_rt(rt, *statep); }
+
+  vector_free(&lex->defines);
+  vector_free(&lex->rules);
+  vector_free(&lex->states);
+  vector_free(&lex->state_stack);
+
+  location_release_rt(&lex->loc, rt);
 }
+
 void
 lexer_free_rt(Lexer* lex, JSRuntime* rt) {
-  lexer_release_rt(lex, rt);
-  if(lex->ref_count <= 0)
+  if(--lex->ref_count == 0) {
+    lexer_release_rt(lex, rt);
+
     js_free_rt(rt, lex);
+  }
 }
 
 void

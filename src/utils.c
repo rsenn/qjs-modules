@@ -1320,7 +1320,7 @@ js_value_has_ref_count(JSValue v) {
   return ((unsigned)js_value_tag(v) >= (unsigned)JS_TAG_FIRST);
 }
 
-enum value_mask
+ValueTypeMask
 js_value_type(JSContext* ctx, JSValueConst value) {
   int32_t flag;
   uint32_t type = 0;
@@ -1386,7 +1386,7 @@ js_value_free(JSContext* ctx, JSValue v) {
 
 JSValue
 js_value_clone(JSContext* ctx, JSValueConst value) {
-  enum value_mask type = 1 << js_value_type_get(ctx, value);
+  ValueTypeMask type = 1 << js_value_type_get(ctx, value);
   JSValue ret = JS_UNDEFINED;
   switch(type) {
     /*case TYPE_STRING: {

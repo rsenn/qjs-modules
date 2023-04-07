@@ -2,8 +2,7 @@
 #define TOKEN_H
 
 #include <quickjs.h>
-
-struct lexical_scanner;
+#include "lexer.h"
 
 /**
  * \defgroup token
@@ -13,7 +12,7 @@ typedef struct {
   int ref_count, id;
   uint8_t* lexeme;
   uint32_t byte_length, char_length;
-  struct lexical_scanner* lexer;
+  Lexer* lexer;
   Location* loc;
   uint64_t seq;
 } Token;

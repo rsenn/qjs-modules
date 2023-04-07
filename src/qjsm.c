@@ -129,7 +129,7 @@ extern size_t malloc_usable_size();
 
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
-typedef struct jsm_module_record {
+typedef struct   {
   const char* module_name;
   JSModuleDef* (*module_func)(JSContext*, const char*);
   uint8_t* byte_code;

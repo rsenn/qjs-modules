@@ -109,22 +109,7 @@ size_t dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]);
 
 void js_dbuf_allocator(JSContext* ctx, DynBuf* s);
 
-/*
-static inline void
-js_dbuf_init_rt(JSRuntime* rt, DynBuf* s) {
-  dbuf_init2(s, rt, (DynBufReallocFunc*)js_realloc_rt);
-}
-
-static inline void
-js_dbuf_init(JSContext* ctx, DynBuf* s) {
-  dbuf_init2(s, ctx, (DynBufReallocFunc*)js_realloc);
-}*/
-
-struct memory_block;
-struct pointer_range;
-struct offset_length;
-
-typedef struct memory_block {
+typedef struct {
   uint8_t* base;
   size_t size;
 } MemoryBlock;
@@ -148,7 +133,7 @@ block_arraybuffer(MemoryBlock* mb, JSValueConst ab, JSContext* ctx) {
   return mb->base != 0;
 }
 
-typedef struct pointer_range {
+typedef struct {
   uint8_t *start, *end;
 } PointerRange;
 
@@ -162,11 +147,11 @@ range_from(const MemoryBlock* mb) {
   return (PointerRange){mb->base, mb->base + mb->size};
 }
 
-typedef struct index_range {
+typedef struct {
   int64_t start, end;
 } IndexRange;
 
-typedef struct offset_length {
+typedef struct {
   int64_t offset, length;
 } OffsetLength;
 
@@ -241,7 +226,7 @@ indexrange_from_offset(const OffsetLength* ol) {
 }
 
 static inline MemoryBlock
-block_range(const MemoryBlock* mb, struct offset_length* range) {
+block_range(const MemoryBlock* mb, const OffsetLength* range) {
   MemoryBlock ret;
   ret.base = mb->base + range->offset;
   ret.size = MIN_NUM(range->length, mb->size - range->offset);

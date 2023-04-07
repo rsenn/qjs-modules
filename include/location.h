@@ -8,7 +8,7 @@
  * \defgroup location Source text location
  * @{
  */
-typedef struct source_location {
+typedef struct {
   int ref_count;
   int32_t file;
   uint32_t line;
@@ -17,6 +17,8 @@ typedef struct source_location {
   char* str;
   BOOL read_only : 1;
 } Location;
+
+#define LOCATION() (Location){0, -1, 0, 0, 0, 0, 0, FALSE};
 
 void location_print(const Location*, DynBuf*, JSContext*);
 char* location_tostring(const Location*, JSContext*);
