@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as pointer from 'pointer';
 import * as location from 'location';
 import Console from 'console';
-import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from 'dom';
+import { Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from 'dom.js';
 import { define, getOpt, weakAssign } from 'util';
 import * as util from 'util';
 import * as dom from 'dom';
@@ -64,13 +64,13 @@ function main(...args) {
   });
   Object.assign(globalThis, {
     ...globalThis.xml,
-    ...dom,
+    ...{ Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory },
     ...util,
     ...pointer,
     ...location
   });
 
-  globalThis.parser ??= new dom.Parser();
+  globalThis.parser ??= new Parser();
   globalThis.documents ??= [];
 
   for(let arg of params['@']) {
