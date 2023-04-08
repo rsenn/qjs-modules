@@ -71,17 +71,6 @@ js_lexer_rule_new(JSContext* ctx, Lexer* lex, LexerRule* rule) {
   return ret;
 }
 
-/*Token*
-js_token_new(JSContext* ctx, int id, const char* lexeme, Location* loc, uint64_t byte_offset) {
-  Token* tok;
-  if(!(tok = js_mallocz(ctx, sizeof(Token))))
-    return 0;
-  tok->id = id;
-  tok->lexeme = (uint8_t*)js_strdup(ctx, lexeme);
-  tok->loc = location_dup(loc);
-  return tok;
-}*/
-
 JSValue
 js_token_wrap(JSContext* ctx, Token* tok) {
   JSValue obj = JS_UNDEFINED;
@@ -303,11 +292,11 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
 void
 js_token_finalizer(JSRuntime* rt, JSValue val) {
   Token* tok;
+
   if((tok = js_token_data(val))) {
     token_free(tok, rt);
-    JS_SetOpaque(val, 0);
+    // JS_SetOpaque(val, 0);
   }
-  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_token_class = {
@@ -1393,7 +1382,7 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return JS_DupValue(ctx, this_val);
 }
 
-static JSValue
+/*static JSValue
 js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Lexer* lex;
 
@@ -1412,22 +1401,15 @@ js_lexer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewInt64(ctx, lex->seq), JS_PROP_ENUMERABLE);
 
   return obj;
-}
+}*/
 
 void
 js_lexer_finalizer(JSRuntime* rt, JSValue val) {
   Lexer* lex;
 
   if((lex = JS_GetOpaque(val, js_lexer_class_id))) {
-    /*    if(--lex->ref_count == 0)
-          location_release_rt(&lex->loc, rt);*/
-
-    lexer_release(lex, rt);
-
-    if(lex->ref_count == 0)
-      js_free_rt(rt, lex);
+    lexer_free(lex, rt);
   }
-  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_lexer_class = {
@@ -1475,7 +1457,7 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("ruleNames", js_lexer_get, 0, LEXER_RULENAMES),
     JS_CGETSET_MAGIC_DEF("rules", js_lexer_get, 0, LEXER_RULES),
     JS_CFUNC_DEF("lex", 0, js_lexer_lex),
-    JS_CFUNC_DEF("inspect", 0, js_lexer_inspect),
+    // JS_CFUNC_DEF("inspect", 0, js_lexer_inspect),
     JS_CGETSET_DEF("tokens", js_lexer_tokens, 0),
     JS_CGETSET_DEF("states", js_lexer_states, 0),
     // JS_CGETSET_DEF("stateStack", js_lexer_statestack, 0),
@@ -1521,7 +1503,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, lexer_proto, js_lexer_proto_funcs, countof(js_lexer_proto_funcs));
   JS_SetClassProto(ctx, js_lexer_class_id, lexer_proto);
 
-  js_set_inspect_method(ctx, lexer_proto, js_lexer_inspect);
+  // js_set_inspect_method(ctx, lexer_proto, js_lexer_inspect);
 
   lexer_ctor = JS_NewCFunction2(ctx, js_lexer_constructor, "Lexer", 1, JS_CFUNC_constructor, 0);
 

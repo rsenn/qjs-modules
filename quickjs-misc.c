@@ -1,3 +1,9 @@
+#ifdef _WIN32
+#include <process.h>
+#else
+#define _DEFAULT_SOURCE
+#include <unistd.h>
+#endif
 #include "defines.h"
 #include <quickjs.h>
 #include <quickjs-libc.h>

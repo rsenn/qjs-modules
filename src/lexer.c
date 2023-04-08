@@ -500,7 +500,7 @@ lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
   location_release(&lex->loc, ctx);
   location_copy(&lex->loc, loc, ctx);
 }
- 
+
 void
 lexer_release(Lexer* lex, JSRuntime* rt) {
   char** statep;

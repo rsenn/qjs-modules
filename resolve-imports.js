@@ -442,7 +442,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   lex.cjs = lex.js;
   lex.json = lex.js;
 
-  const lexer = lex[type];
+  const lexer = (globalThis.lexer = lex[type]);
   if(debug >= 3) console.log('lexer', lexer);
 
   // T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
@@ -545,6 +545,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
     let n = balancers.last.depth;
     const { token } = lexer;
+
     if(!token) break;
     const { length, seq } = token;
 
@@ -560,7 +561,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       }*/
     }
 
-    if(debug > 2) console.log('token', token);
+    if(debug > 3) console.log('token', token);
     /*   if(debug >= 1) console.log('lexer.mode', lexer.mode);
      */
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
@@ -578,7 +579,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         imp = token.lexeme == 'export' ? [token] : [];
       }
 
-      if(debug >= 3)
+      if(debug > 3)
         console.log(`token[${imp.length}]`, token.loc + '', console.config({ breakLength: 80, compact: 0 }), token);
 
       if(token.lexeme == ';' && cond !== true) doneImports = true;
@@ -589,16 +590,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         if(imp.indexOf(token) == -1) imp.push(token);
         //console.log( imp[0].loc+'',console.config({breakLength:80, compact: 0}), NonWS(imp));
         if(imp.last.lexeme == ';') {
-          if(debug > 2)
-            console.log(
-              'imp',
-              imp[0].loc + '',
-              console.config({
-                breakLength: 80,
-                compact: 0
-              }),
-              TokenSequence(imp) + ''
-            );
+          /* prettier-ignore */ if(debug > 3) console.log('imp', imp[0].loc + '', console.config({breakLength: 80, compact: 0 }), TokenSequence(imp) + '');
           cond = false;
           if(impexp == What.IMPORT || imp.some(i => IsKeyword('from', i))) {
             if(imp[1].lexeme != '(') {
@@ -653,16 +645,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     let source = loc.file;
     let type = ImpExpType(tokens);
     let code = TokenSequence(tokens).toString(); // toString(BufferFile(source).slice(...range));
-    if(def != -1)
-      if(debug >= 2)
-        console.log('AddExport', {
-          source,
-          file,
-          code,
-          range,
-          loc,
-          tokens
-        });
+    if(def != -1) if (debug >= 2) console.log('new Export', { source, file, code, range, loc, tokens });
     let len = tokens.length;
     if(o) {
       exported = tokens.filter(tok => tok.type == 'identifier').map(tok => tok.lexeme);
@@ -704,6 +687,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
   function Import(tokens, relativePath = s => s, depth) {
     tokens = tokens[0].seq === tokens[1].seq ? tokens.slice(1) : tokens.slice();
+
     if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
       throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
     const tok = tokens[0];
@@ -714,14 +698,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     const range = ByteSequence(tokens.slice());
     range[0] = loc.byteOffset;
     let code = toString(BufferFile(source).slice(...range));
-    if(debug >= 2)
-      console.log('AddImport', compact(1), {
-        source,
-        file,
-        code,
-        loc,
-        range
-      });
+    /* prettier-ignore */ if(debug > 3) console.log('\x1b[1;31mnew\x1b[1;33m Import\x1b[0m', compact(1), {source, file, code, loc, range });
     let imp = Object.setPrototypeOf(
       define(
         {
@@ -730,7 +707,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         },
         {
           type,
-          tokens: tokens.slice(),
+          tokens,
           code,
           loc,
           depth,
@@ -805,7 +782,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         return acc;
       }, []);
       tokens = AddWhitespace(tokens);
-      console.log('tokens', tokens);
+      if(debug > 3) console.log('tokens', tokens);
       return TokenSequence(tokens).toString();
     }
   });
@@ -887,13 +864,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       let { byteOffset } = loc;
       let p;
 
-      if(debug > 2)
-        console.log('impexp', compact(2), {
-          code,
-          range: new NumericRange(...range),
-          replacement,
-          loc: loc + ''
-        });
+      /* prettier-ignore */ if(debug > 3) console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + ''});
 
       if(typeof file == 'string' && !IsFileImport(file)) {
         if(debug > 1) console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
@@ -920,31 +891,12 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       /* prettier-ignore */ if(debug >= 2) console.log('impexp', compact(2), { code, range: new NumericRange(...range), replacement, loc: loc + ''});
       /* prettier-ignore */ if(debug > 1) console.log('impexp', compact(1), { range: new NumericRange(...range), loc: loc + ''});
 
-      /*   const builtin = typeof replacement == 'string' && !IsFileImport(replacement);
-      const resolved = ResolveAlias(replacement);
-
-      if(builtin) {
-        if(debug > 0) console.log('BUILTIN', console.config({ compact: 10 }), { resolved, file, replacement, range });
-      }
-      */
       let str;
       if(range) str = toString(map.buffer.slice(...range));
-      if(debug > 1)
-        console.log('\x1b[38;5;33mREPLACE\x1b[0m', console.config({ compact: 10 }), { replacement, file, range, str });
 
-      map.replaceRange(range, replacement); /* {
-
-      /* if(replacement === null)*/ /*{
-        let map = (globalImports[ResolveAlias(impexp.file)] ??= {});
-        if(debug > 1) console.log('\x1b[38;5;33mIDMAP\x1b[0m', idmap);
-        let idmap;
-
-        if((idmap = impexp.idmap())) for(let [local, name] of idmap) map[local] = name;
-      }*/
+      map.replaceRange(range, replacement);
     }
   }
-
-  //ebugLog('comments', comments.map(({byteRange, lexeme})=>[byteRange,lexeme,toString(bytebuf.slice(...byteRange))]));
 
   if(removeComments && comments.length) {
     i = -1;
@@ -1491,7 +1443,7 @@ class FileMap extends Array {
   }
 
   write(out, depth = 0, serial) {
-    if(debug > 2) debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, compact(1), { out, depth, serial });
+    if(debug > 3) debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, compact(1), { out, depth, serial });
     let r,
       written = 0;
     let { length } = this;
@@ -1502,7 +1454,7 @@ class FileMap extends Array {
     let first = this.firstChunk();
     let last = this.lastChunk();
 
-    if(debug > 2)
+    if(debug > 3)
       debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, compact(2), {
         chunks: [this.at(first), this.at(last)]
       });
@@ -1527,7 +1479,7 @@ class FileMap extends Array {
         console.log('invalid type:', type);
         throw new Error(type);
       }
-      if(debug >= 2) debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, `[${i + 1}/${length}]`, `result=${r}`);
+      if(debug > 3) debugLog(`FileMap\x1b[1;35m<${this.file}>\x1b[0m.write`, `[${i + 1}/${length}]`, `result=${r}`);
       if(r < 0) {
         let err = error();
         throw new Error('error writing ' + len + ' bytes: ' + inspect(err));
@@ -1582,11 +1534,9 @@ class FileMap extends Array {
     });
 
     return (
-      `FileMap\x1b[1;35m<${this.file}>\x1b[0m ` +
-        arr.map((item, i) => `[ ${('#' + i).padStart(3)} ${item} ]`).join(',\n  ') ??
-      inspect(arr, {
-        ...opts
-      })
+      `FileMap\x1b[1;35m<${this.file}>\x1b[0m [\n  ` +
+      arr.map((item, i) => `[ ${('#' + i).padStart(3)} ${item} ]`).join(',\n  ') +
+      `\n]\n`
     );
   }
 }
@@ -1594,7 +1544,7 @@ class FileMap extends Array {
 FileMap.prototype[Symbol.toStringTag] = 'FileMap';
 
 function BufferFile(file, buf) {
-   file = path.normalize(file);
+  file = path.normalize(file);
   if(!buf) buf = fileBuffers.get(file) ?? buffers[file];
   if(!buf) buf = buffers[file] ?? fs.readFileSync(file, { flag: 'r' });
   if(typeof buf == 'object' && buf !== null) {
@@ -1900,7 +1850,7 @@ function main(...args) {
     //console.log('imp', { file, source, idmap });
     if(IsFileImport(file)) continue;
     let map = (globalImports[ResolveAlias(file)] ??= {});
-    if(debug > 1) console.log('\x1b[38;5;33mIDMAP\x1b[0m', idmap);
+
     if(idmap) for(let [local, name] of idmap) map[local] = name;
   }
 
@@ -1960,7 +1910,7 @@ function main(...args) {
   if(debug > 1) console.log('out', out, out.file);
 
   if(out.file) {
-    console.log('results[0]', results[0]);
+    //console.log('results[0]', results[0]);
     let nbytes;
     try {
       nbytes = results[0].write(stream);
