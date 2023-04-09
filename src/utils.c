@@ -763,8 +763,8 @@ js_object_construct(JSContext* ctx, JSValueConst ctor) {
 
 JSValue
 js_object_error(JSContext* ctx, const char* message) {
-  JSValueConst args[] = {JS_NewString(ctx, message)};
-  JSValue ret = js_object_new(ctx, "Error", 1, args);
+  JSValueConst args[] = {message ? JS_NewString(ctx, message) : JS_UNDEFINED};
+  JSValue ret = js_object_new(ctx, "Error", message ? 1 : 0, message ? args : 0);
   JS_FreeValue(ctx, args[0]);
   return ret;
 }
@@ -2292,24 +2292,32 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
 
 JSValue
 js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
-  JSValue val;
+  JSValue ret;
+  JSModuleDef* m = 0;
 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
+    JSValue module;
+
     /* for the modules, we compile then run to be able to set import.meta */
     if(!filename)
       filename = "<input>";
 
-    val = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
-    if(!JS_IsException(val)) {
-      js_module_set_import_meta(ctx, val, !!filename && filename[0] != '<', TRUE);
-      val = JS_EvalFunction(ctx, val);
+    module = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    m = js_module_def(ctx, module);
+
+    if(!JS_IsException(module)) {
+      js_module_set_import_meta(ctx, module, !!filename && filename[0] != '<', TRUE);
+      ret = JS_EvalFunction(ctx, module);
     }
+
   } else {
-    val = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
+    ret = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
-  /* if(JS_IsException(val))
-     js_error_print(ctx, JS_GetException(ctx));*/
-  return val;
+
+  if(JS_IsException(ret))
+    js_error_print(ctx, ctx->rt->current_exception /* JS_GetException(ctx)*/);
+
+  return ret;
 }
 
 JSValue
