@@ -331,8 +331,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
       JS_FreeCString(ctx, msg);
 
     js_error_print(ctx, ctx->rt->current_exception);
-    js_value_fwrite(ctx, ctx->rt->current_exception, stderr);
-    js_std_dump_error(ctx);
+    // js_value_fwrite(ctx, ctx->rt->current_exception, stderr);
 
     return -1;
   }
@@ -1226,7 +1225,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if((i = vector_finds(&module_list, name)) == -1) {
         i = vector_size(&module_list, sizeof(char*));
         vector_pushstring(&module_list, name);
-        jsm_module_save();
+        // jsm_module_save();
       }
       val = JS_NewInt64(ctx, i);
       break;
@@ -1682,7 +1681,7 @@ main(int argc, char** argv) {
     }
     dbuf_free(&db);
 
-    jsm_module_restore();
+    // jsm_module_restore();
 
     {
       char** ptr;
@@ -1729,10 +1728,9 @@ main(int argc, char** argv) {
     } else {
       const char* filename;
       filename = argv[optind];
-      if(jsm_stack_load(ctx, filename, module) == -1) {
-        js_value_fwrite(ctx, JS_GetException(ctx), stderr);
+
+      if(jsm_stack_load(ctx, filename, module) == -1)
         goto fail;
-      }
     }
 
     if(interactive)

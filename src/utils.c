@@ -1447,6 +1447,7 @@ void
 js_value_fwrite(JSContext* ctx, JSValueConst val, FILE* f) {
   DynBuf dbuf = {0};
   size_t n;
+
   dbuf_init2(&dbuf, ctx, (realloc_func*)&utils_js_realloc);
   js_value_dump(ctx, val, &dbuf);
   dbuf_putc(&dbuf, '\n');
@@ -2293,7 +2294,7 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
 JSValue
 js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
   JSValue ret;
-  JSModuleDef* m = 0;
+  // JSModuleDef* m = 0;
 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
     JSValue module;
@@ -2303,7 +2304,7 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
       filename = "<input>";
 
     module = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
-    m = js_module_def(ctx, module);
+    // m = js_module_def(ctx, module);
 
     if(!JS_IsException(module)) {
       js_module_set_import_meta(ctx, module, !!filename && filename[0] != '<', TRUE);
@@ -2313,9 +2314,6 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
   } else {
     ret = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
   }
-
-  if(JS_IsException(ret))
-    js_error_print(ctx, ctx->rt->current_exception /* JS_GetException(ctx)*/);
 
   return ret;
 }
