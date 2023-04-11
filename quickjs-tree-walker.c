@@ -408,7 +408,7 @@ js_tree_walker_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 static void
 js_tree_walker_finalizer(JSRuntime* rt, JSValue val) {
   TreeWalker* w;
-  
+
   if((w = JS_GetOpaque(val, js_tree_walker_class_id)))
     tree_walker_free(w, rt);
 
