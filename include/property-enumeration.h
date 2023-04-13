@@ -211,13 +211,16 @@ property_enumeration_level(const PropertyEnumeration* it, const Vector* vec) {
 
 static inline PropertyEnumeration*
 property_enumeration_enter(Vector* vec, JSContext* ctx, int32_t idx, int flags) {
-  PropertyEnumeration* it;
+  PropertyEnumeration* it = 0;
   JSValue value;
 
   assert(!vector_empty(vec));
 
   it = vector_back(vec, sizeof(PropertyEnumeration));
   value = property_enumeration_value(it, ctx);
+
+  if(!JS_IsObject(value))
+    return 0;
 
   if((it = property_enumeration_push(vec, ctx, value, flags)))
     if(!property_enumeration_setpos(it, idx))

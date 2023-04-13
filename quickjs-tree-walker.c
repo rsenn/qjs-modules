@@ -307,12 +307,13 @@ static JSValue
 js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue ret = JS_UNDEFINED;
   TreeWalker* w;
-  PropertyEnumeration* it;
+  PropertyEnumeration* it = 0;
 
   if(!(w = JS_GetOpaque2(ctx, this_val, js_tree_walker_class_id)))
     return JS_EXCEPTION;
 
-  it = vector_back(&w->hier, sizeof(PropertyEnumeration));
+  if(!vector_empty(&w->hier))
+    it = vector_back(&w->hier, sizeof(PropertyEnumeration));
 
   switch(magic) {
     case PROP_ROOT: {
