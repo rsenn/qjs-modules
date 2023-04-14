@@ -19,6 +19,8 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
     return -1;
   }
 
+  // assert(it->tab_atom_len);
+
   if(flags & PROPENUM_SORT_ATOMS)
     qsort(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void*, const void*)) & compare_jspropertyenum);
 

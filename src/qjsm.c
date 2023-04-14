@@ -1169,6 +1169,7 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
 enum {
   FIND_MODULE,
+  FIND_MODULE_INDEX,
   LOAD_MODULE,
   ADD_MODULE,
   REQUIRE_MODULE,
@@ -1231,10 +1232,16 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case FIND_MODULE: {
-      if((m = js_module_find(ctx, name)))
+      if((m = js_module_find_rev(ctx, name)))
         val = module_value(ctx, m);
       else
         val = JS_NULL;
+      break;
+    }
+    case FIND_MODULE_INDEX: {
+      if((m = JS_IsModule(argv[0]) ? JS_VALUE_GET_PTR(argv[0]) : js_module_find_rev(ctx, name)))
+        val = JS_NewInt32(ctx, js_module_index(ctx, m));
+
       break;
     }
     case LOAD_MODULE: {
@@ -1247,7 +1254,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         val = module_exports(ctx, m);
       break;
     }
-
     case LOCATE_MODULE: {
       char* s;
       if((s = jsm_module_locate(ctx, name, 0))) {
@@ -1328,6 +1334,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CGETSET_MAGIC_DEF("__filename", jsm_stack_get, 0, SCRIPT_FILENAME),
     JS_CGETSET_MAGIC_DEF("__dirname", jsm_stack_get, 0, SCRIPT_DIRNAME),
     JS_CFUNC_MAGIC_DEF("findModule", 1, jsm_module_func, FIND_MODULE),
+    JS_CFUNC_MAGIC_DEF("findModuleIndex", 1, jsm_module_func, FIND_MODULE_INDEX),
     JS_CFUNC_MAGIC_DEF("loadModule", 1, jsm_module_func, LOAD_MODULE),
     JS_CFUNC_MAGIC_DEF("addModule", 1, jsm_module_func, ADD_MODULE),
     JS_CFUNC_MAGIC_DEF("resolveModule", 1, jsm_module_func, RESOLVE_MODULE),

@@ -1933,16 +1933,28 @@ js_module_find_fwd(JSContext* ctx, const char* name) {
 
   list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    char *n, *str = module_namestr(ctx, m);
-    size_t len;
-    n = basename(str);
-    len = str_rchr(n, '.');
-    if(!strcmp(str, name) || !strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
-      return m;
+    char* str = module_namestr(ctx, m);
+    BOOL match = !strcmp(str, name);
     js_free(ctx, str);
+    if(match)
+      return m;
   }
 
   return 0;
+}
+
+int
+js_module_index(JSContext* ctx, JSModuleDef* m) {
+  struct list_head* el;
+  int i = 0;
+
+  list_for_each(el, &ctx->loaded_modules) {
+    if(m == list_entry(el, JSModuleDef, link))
+      return i;
+    ++i;
+  }
+
+  return -1;
 }
 
 JSModuleDef*
@@ -1952,13 +1964,11 @@ js_module_find_rev(JSContext* ctx, const char* name) {
 
   list_for_each_prev(el, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    char *n, *str = module_namestr(ctx, m);
-    size_t len;
-    n = basename(str);
-    len = str_rchr(n, '.');
-    if(!strcmp(str, name) || !strcmp(n, name) || (len == namelen && !strncmp(n, name, len)))
-      return m;
+    char* str = module_namestr(ctx, m);
+    BOOL match = !strcmp(str, name);
     js_free(ctx, str);
+    if(match)
+      return m;
   }
 
   return 0;

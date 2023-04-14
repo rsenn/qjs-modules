@@ -86,8 +86,9 @@ js_deep_predicate(JSContext* ctx, JSValueConst value, const Vector* frames) {
   BOOL result = TRUE;
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
+  PropertyEnumeration* back = vector_empty(frames) ? 0 : vector_back(frames, sizeof(PropertyEnumeration));
   JSValueConst args[3] = {
-      property_enumeration_value(vector_back(frames, sizeof(PropertyEnumeration)), ctx),
+      back->tab_atom_len == 0 ? JS_UNDEFINED : property_enumeration_value(back, ctx),
       property_enumeration_path(frames, ctx),
       ((PropertyEnumeration*)vector_front(frames, sizeof(PropertyEnumeration)))->obj,
   };
@@ -114,7 +115,7 @@ js_deep_predicate(JSContext* ctx, JSValueConst value, const Vector* frames) {
 static JSValue
 js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
   JSValue ret;
-  PropertyEnumeration* it = vector_back(frames, sizeof(PropertyEnumeration));
+  PropertyEnumeration* it = vector_empty(frames) ? 0 : vector_back(frames, sizeof(PropertyEnumeration));
   PropEnumPathValueFunc* path_fn = property_enumeration_pathfunc(!!(return_flag & PATH_AS_STRING));
 
   switch(return_flag & RETURN_MASK) {
@@ -290,7 +291,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   vector_init(&frames, ctx);
 
   property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
-  it = vector_back(&frames, sizeof(PropertyEnumeration));
+  it = vector_empty(&frames) ? 0 : vector_back(&frames, sizeof(PropertyEnumeration));
 
   do {
     if(property_enumeration_predicate(it, ctx, argv[1], this_arg)) {
@@ -329,14 +330,14 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   ret = JS_NewArray(ctx);
   property_enumeration_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
-  it = vector_back(&frames, sizeof(PropertyEnumeration));
+  it = vector_empty(&frames) ? 0 : vector_back(&frames, sizeof(PropertyEnumeration));
 
-  do {
+  while(it) {
     if(js_deep_predicate(ctx, argv[1], &frames))
       JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK));
 
     it = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_enumeration_skip(&frames, ctx) : property_enumeration_recurse(&frames, ctx);
-  } while(it);
+  }
 
   property_enumeration_free(&frames, JS_GetRuntime(ctx));
 

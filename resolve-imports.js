@@ -42,6 +42,7 @@ let buffers = {},
   fileMaps = new Map(),
   dependencyMap = new Map(),
   printFiles,
+  printImports,
   quiet = false,
   importsFor = {},
   logFile = () => {},
@@ -416,12 +417,192 @@ function ModuleLoader(module) {
   return file;
 }
 
+function ModuleExports(file) {
+  let m;
+  try {
+    if((m = moduleList.find(m => new RegExp(file).test(getModuleName(m)))) || (m = loadModule(file))) {
+      let list = getModuleExports(m);
+      return Object.keys(list);
+    }
+  } catch(error) {
+    console.log('ERROR', error.message + '\n' + error.stack);
+  }
+}
+
+function Export(tokens, relativePath = s => s) {
+  if(tokens[0].seq == tokens[1].seq) tokens.shift();
+  const { loc, seq } = tokens[0];
+  if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
+    throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+  let def = tokens.findIndex(tok => IsKeyword('default', tok));
+  let k = 1;
+  while(tokens[k].type == 'whitespace' || IsKeyword(['let', 'class', 'function', 'const'], tokens[k])) k++;
+  while(tokens[k] && tokens[k].type != 'identifier') k++;
+  let name = ExportName(tokens);
+  let exported = def != -1 ? 'default' : name;
+  let file = ImportFile(tokens);
+  if(file == ' ') throw new Error('XXX ' + inspect(tokens, { compact: false }));
+  const idx =
+    def != -1
+      ? def
+      : file
+      ? tokens.findIndex(tok => tok.lexeme == ';')
+      : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
+  const o = NonWS(tokens)[1].lexeme == '{';
+  const remove = o || def != -1 ? tokens.slice() : tokens.slice(0, def == idx ? idx + 2 : idx + 1);
+  if(remove[0])
+    if(remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+  const range = ByteSequence(remove) ?? ByteSequence(tokens);
+  let source = loc.file;
+  let type = ImpExpType(tokens);
+  let code = TokenSequence(tokens).toString(); // toString(BufferFile(source).slice(...range));
+  if(def != -1) if (debug >= 2) console.log('new Export', { source, file, code, range, loc, tokens });
+  let len = tokens.length;
+  if(o) {
+    exported = tokens.filter(tok => tok.type == 'identifier').map(tok => tok.lexeme);
+  }
+
+  if(NonWS(tokens)[1].lexeme != '{')
+    len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
+  tokens = tokens.slice(0, len);
+  let exp = define(
+    {
+      type: What.EXPORT,
+      file: file && /\./.test(file) ? relativePath(file) : file,
+      tokens,
+      exported,
+      name,
+      range
+    },
+    {
+      code,
+      loc,
+      path() {
+        const { file } = this;
+        if(typeof file == 'string') return relativePath(file);
+      }
+    }
+  );
+  return Object.setPrototypeOf(exp, Export.prototype);
+}
+
+define(Export.prototype, {
+  ids() {
+    return ImportIds(this.tokens).map(({ lexeme }) => lexeme);
+  },
+  idmap() {
+    return ImportIdMap(this.tokens);
+  }
+});
+
+function Import(tokens, relativePath = s => s, depth) {
+  tokens = tokens[0].seq === tokens[1].seq ? tokens.slice(1) : tokens.slice();
+
+  if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
+    throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
+  const tok = tokens[0];
+  const { loc, seq } = tok;
+  let source = loc.file;
+  let type = ImpExpType(tokens.slice()),
+    file = ImportFile(tokens.slice());
+  const range = ByteSequence(tokens.slice());
+  range[0] = loc.byteOffset;
+  let code = toString(BufferFile(source).slice(...range));
+  /* prettier-ignore */ if(debug > 3) console.log('\x1b[1;31mnew\x1b[1;33m Import\x1b[0m', compact(1), {source, file, code, loc, range });
+  let imp = Object.setPrototypeOf(
+    define(
+      {
+        file: ResolveAlias(file && /\./.test(file) ? relativePath(file) : file),
+        range
+      },
+      {
+        type,
+        tokens,
+        code,
+        loc,
+        depth,
+        path() {
+          const { file } = this;
+          if(typeof file == 'string') return relativePath(file);
+        }
+      }
+    ),
+    Import.prototype
+  );
+  let fn = {
+    [ImportTypes.IMPORT_NAMESPACE]() {
+      return this.tokens[this.tokens.findIndex(tok => IsKeyword('as', tok)) + 1].lexeme;
+    },
+    [ImportTypes.IMPORT_DEFAULT]() {
+      const { tokens } = this;
+      return tokens[tokens.findIndex(tok => IsKeyword('import', tok)) + 1].lexeme;
+    },
+    [ImportTypes.IMPORT]() {
+      const { tokens } = this;
+      let i = 0,
+        s = [],
+        a = [];
+      if(IsKeyword(['import', 'export'], tokens[i])) ++i;
+      if(IsPunctuator('{', tokens[i])) ++i;
+      for(; tokens[i] && !IsKeyword('from', tokens[i]); ++i) {
+        if(IsPunctuator([',', '}'], tokens[i])) {
+          if(s.length) a.push(s);
+          s = [];
+        } else if(IsIdentifier(tokens[i])) {
+          s.push(tokens[i]);
+        }
+      }
+      a = a.flat().filter(tok => tok.type == 'identifier');
+      return a.map(tok => tok.lexeme);
+    }
+  }[type];
+  if(typeof fn == 'function') {
+    let local = fn.call(imp);
+    define(imp, { local });
+  }
+
+  return imp;
+}
+
+define(Import.prototype, {
+  [Symbol.toStringTag]: 'Import',
+  ids() {
+    return ImportIds(this.tokens.slice()).map(({ lexeme }) => lexeme);
+  },
+  idmap() {
+    return ImportIdMap(this.tokens.slice());
+  },
+  toCode(filterIds = id => true) {
+    if(this.ids().filter(filterIds).length == 0) return '';
+    let tokens = this.tokens.filter(tok => (tok.type == 'identifier' ? filterIds(tok.lexeme) : true));
+    let prev, pnws;
+    tokens = tokens.reduce((acc, tok, i) => {
+      if(prev && prev.type == 'whitespace' && tok.type == 'whitespace') return acc;
+      if(pnws !== undefined && [',', '{'].indexOf(acc[pnws].lexeme) != -1 && [',', '}'].indexOf(tok.lexeme) != -1) {
+        if(tok.lexeme == '}') acc.splice(pnws, 1);
+        if(tok.lexeme == '}') {
+          pnws = acc.length;
+          acc.push(tok);
+        }
+        return acc;
+      }
+      if(tok.type != 'whitespace') pnws = acc.length;
+      prev = tok;
+      acc.push(tok);
+      return acc;
+    }, []);
+    tokens = AddWhitespace(tokens);
+    if(debug > 3) console.log('tokens', tokens);
+    return TokenSequence(tokens).toString();
+  }
+});
+
 function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   if(debug > 1) console.log(`Processing ${source}`);
 
-  source = path.normalize(source);
+  //source = path.normalize(source);
 
-  if(printFiles) std.puts(`${source}\n`);
+  if(printFiles) std.puts(`${path.normalize(source)}\n`);
 
   let start = Date.now();
   const dir = path.dirname(source);
@@ -449,7 +630,11 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
   let e = new SyntaxError();
 
-  if(!lexer) throw new Error(`Error lexing: ${source}`);
+  if(debug > 1) console.log('bytebuf', bytebuf);
+
+  if(!lexer) {
+    throw new Error(`Error lexing: ${source}`);
+  }
 
   lexer.handler = lex => {
     const { loc, mode, pos, start, byteLength, state } = lex;
@@ -618,175 +803,6 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     state = newState;
   }
 
-  function Export(tokens, relativePath = s => s) {
-    if(tokens[0].seq == tokens[1].seq) tokens.shift();
-    const { loc, seq } = tokens[0];
-    if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
-      throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
-    let def = tokens.findIndex(tok => IsKeyword('default', tok));
-    let k = 1;
-    while(tokens[k].type == 'whitespace' || IsKeyword(['let', 'class', 'function', 'const'], tokens[k])) k++;
-    while(tokens[k] && tokens[k].type != 'identifier') k++;
-    let name = ExportName(tokens);
-    let exported = def != -1 ? 'default' : name;
-    let file = ImportFile(tokens);
-    if(file == ' ') throw new Error('XXX ' + inspect(tokens, { compact: false }));
-    const idx =
-      def != -1
-        ? def
-        : file
-        ? tokens.findIndex(tok => tok.lexeme == ';')
-        : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
-    const o = NonWS(tokens)[1].lexeme == '{';
-    const remove = o || def != -1 ? tokens.slice() : tokens.slice(0, def == idx ? idx + 2 : idx + 1);
-    if(remove[0])
-      if(remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
-    const range = ByteSequence(remove) ?? ByteSequence(tokens);
-    let source = loc.file;
-    let type = ImpExpType(tokens);
-    let code = TokenSequence(tokens).toString(); // toString(BufferFile(source).slice(...range));
-    if(def != -1) if (debug >= 2) console.log('new Export', { source, file, code, range, loc, tokens });
-    let len = tokens.length;
-    if(o) {
-      exported = tokens.filter(tok => tok.type == 'identifier').map(tok => tok.lexeme);
-    }
-
-    if(NonWS(tokens)[1].lexeme != '{')
-      len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
-    tokens = tokens.slice(0, len);
-    let exp = define(
-      {
-        type: What.EXPORT,
-        file: file && /\./.test(file) ? relativePath(file) : file,
-        tokens,
-        exported,
-        name,
-        range
-      },
-      {
-        code,
-        loc,
-        depth,
-        path() {
-          const { file } = this;
-          if(typeof file == 'string') return relativePath(file);
-        }
-      }
-    );
-    return Object.setPrototypeOf(exp, Export.prototype);
-  }
-
-  define(Export.prototype, {
-    ids() {
-      return ImportIds(this.tokens).map(({ lexeme }) => lexeme);
-    },
-    idmap() {
-      return ImportIdMap(this.tokens);
-    }
-  });
-
-  function Import(tokens, relativePath = s => s, depth) {
-    tokens = tokens[0].seq === tokens[1].seq ? tokens.slice(1) : tokens.slice();
-
-    if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
-      throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
-    const tok = tokens[0];
-    const { loc, seq } = tok;
-    let source = loc.file;
-    let type = ImpExpType(tokens.slice()),
-      file = ImportFile(tokens.slice());
-    const range = ByteSequence(tokens.slice());
-    range[0] = loc.byteOffset;
-    let code = toString(BufferFile(source).slice(...range));
-    /* prettier-ignore */ if(debug > 3) console.log('\x1b[1;31mnew\x1b[1;33m Import\x1b[0m', compact(1), {source, file, code, loc, range });
-    let imp = Object.setPrototypeOf(
-      define(
-        {
-          file: ResolveAlias(file && /\./.test(file) ? relativePath(file) : file),
-          range
-        },
-        {
-          type,
-          tokens,
-          code,
-          loc,
-          depth,
-          path() {
-            const { file } = this;
-            if(typeof file == 'string') return relativePath(file);
-          }
-        }
-      ),
-      Import.prototype
-    );
-    let fn = {
-      [ImportTypes.IMPORT_NAMESPACE]() {
-        return this.tokens[this.tokens.findIndex(tok => IsKeyword('as', tok)) + 1].lexeme;
-      },
-      [ImportTypes.IMPORT_DEFAULT]() {
-        const { tokens } = this;
-        return tokens[tokens.findIndex(tok => IsKeyword('import', tok)) + 1].lexeme;
-      },
-      [ImportTypes.IMPORT]() {
-        const { tokens } = this;
-        let i = 0,
-          s = [],
-          a = [];
-        if(IsKeyword(['import', 'export'], tokens[i])) ++i;
-        if(IsPunctuator('{', tokens[i])) ++i;
-        for(; tokens[i] && !IsKeyword('from', tokens[i]); ++i) {
-          if(IsPunctuator([',', '}'], tokens[i])) {
-            if(s.length) a.push(s);
-            s = [];
-          } else if(IsIdentifier(tokens[i])) {
-            s.push(tokens[i]);
-          }
-        }
-        a = a.flat().filter(tok => tok.type == 'identifier');
-        return a.map(tok => tok.lexeme);
-      }
-    }[type];
-    if(typeof fn == 'function') {
-      let local = fn.call(imp);
-      define(imp, { local });
-    }
-
-    return imp;
-  }
-
-  define(Import.prototype, {
-    [Symbol.toStringTag]: 'Import',
-    ids() {
-      return ImportIds(this.tokens.slice()).map(({ lexeme }) => lexeme);
-    },
-    idmap() {
-      return ImportIdMap(this.tokens.slice());
-    },
-    toCode(filterIds = id => true) {
-      if(this.ids().filter(filterIds).length == 0) return '';
-      let tokens = this.tokens.filter(tok => (tok.type == 'identifier' ? filterIds(tok.lexeme) : true));
-      let prev, pnws;
-      tokens = tokens.reduce((acc, tok, i) => {
-        if(prev && prev.type == 'whitespace' && tok.type == 'whitespace') return acc;
-        if(pnws !== undefined && [',', '{'].indexOf(acc[pnws].lexeme) != -1 && [',', '}'].indexOf(tok.lexeme) != -1) {
-          if(tok.lexeme == '}') acc.splice(pnws, 1);
-          if(tok.lexeme == '}') {
-            pnws = acc.length;
-            acc.push(tok);
-          }
-          return acc;
-        }
-        if(tok.type != 'whitespace') pnws = acc.length;
-        prev = tok;
-        acc.push(tok);
-        return acc;
-      }, []);
-      tokens = AddWhitespace(tokens);
-      if(debug > 3) console.log('tokens', tokens);
-      return TokenSequence(tokens).toString();
-    }
-  });
-
   let end = Date.now();
 
   if(showTiming) console.log(`Lexing '${source.replace(/^\.\//, '')}' took ${end - start}ms`);
@@ -947,15 +963,37 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
       file = NormalizePath(file);
       file = ModuleLoader(file);
+      // file = path.normalize(file);
 
       if(file) {
-        processed.add(file);
+        if(debug > 2) console.log(`Processed`, { file });
 
-        AddDep(source, file);
+        if(!processed.has(file)) {
+          processed.add(file);
 
-        if(debug > 2) console.log(`Recursing`, { source, file });
+          AddDep(source, file);
 
-        ProcessFile(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
+          if(debug >= 1) console.log(`Recursing`, { source, file });
+
+          if(/\.(so|dll)$/i.test(file)) {
+            if(printFiles) std.puts(`${path.normalize(file)}\n`);
+          } else {
+            let ret = ProcessFile(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
+
+            //    console.log('ret',ret);
+          }
+
+          if(printImports) {
+            const ids = imp.ids();
+
+            std.puts(
+              `${path.normalize(source) + ':' /*.padEnd(30, ' ')*/} ${path.normalize(file) /*.padEnd(30)*/} ${ids.join(
+                ' '
+              )}\n`
+            );
+          }
+        }
+        //  os.kill(process.pid, os.SIGUSR1)
       }
     }
   }
@@ -1764,6 +1802,7 @@ function main(...args) {
       'remove-comments': [false, () => (removeComments = true), 'C'],
       'global-exports': [false, () => ++globalExports, 'G'],
       'show-dependencies': [false, () => ++showDeps, 'd'],
+      'print-imports': [false, () => (printImports = true), null],
       'print-files': [false, () => (printFiles = true), 'l'],
       'no-print-files': [false, () => (printFiles = false), 'L'],
       'read-package': [false, () => (readPackage = true), 'p'],
@@ -1804,7 +1843,8 @@ function main(...args) {
     outputFile = null;
     out = DummyWriter('/dev/null');
   } else if(/list-import/.test(scriptArgs[0])) {
-    if(printFiles === undefined) printFiles = true;
+    if(printFiles === undefined && printImports === undefined) printImports = true;
+    //    if(printFiles === undefined) printFiles = true;
     quiet = true;
     onlyImports = true;
     outputFile = null;
@@ -1812,6 +1852,7 @@ function main(...args) {
   } else {
     if(typeof recursive == 'undefined') recursive = true;
   }
+  //  console.log(scriptArgs[0], { printFiles, onlyImports });
 
   if(typeof recursive == 'undefined') recursive = false;
 
@@ -1833,6 +1874,7 @@ function main(...args) {
 
   for(let file of files) {
     file = RelativePath(file);
+    file = path.normalize(file);
 
     let result = ProcessFile(file, log, recursive, 0);
 

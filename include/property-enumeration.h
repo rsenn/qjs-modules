@@ -111,14 +111,21 @@ property_enumeration_key(const PropertyEnumeration* it, JSContext* ctx) {
 
 static inline PropertyEnumeration*
 property_enumeration_push(Vector* vec, JSContext* ctx, JSValue object, int flags) {
-  PropertyEnumeration* it;
+  PropertyEnumeration *it = 0, penum;
 
   assert(JS_IsObject(object));
 
-  if((it = vector_emplace(vec, sizeof(PropertyEnumeration)))) {
-    property_enumeration_init(it, ctx, object, flags);
-    return vector_back(vec, sizeof(PropertyEnumeration));
+  if(!property_enumeration_init(&penum, ctx, object, flags)) {
+    if(penum.tab_atom_len > 0) {
+      vector_push(vec, penum);
+      it = vector_back(vec, sizeof(PropertyEnumeration));
+    }
   }
+
+  /*  if((it = vector_emplace(vec, sizeof(PropertyEnumeration)))) {
+      property_enumeration_init(it, ctx, object, flags);
+      return vector_back(vec, sizeof(PropertyEnumeration));
+    }*/
 
   return it;
 }

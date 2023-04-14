@@ -301,7 +301,7 @@ enum value_types {
 
 };
 
-typedef enum  {
+typedef enum {
   TYPE_UNDEFINED = (1 << FLAG_UNDEFINED),
   TYPE_NULL = (1 << FLAG_NULL),
   TYPE_BOOL = (1 << FLAG_BOOL),
@@ -875,6 +875,7 @@ JSValue js_modules_map(JSContext*, JSValue this_val, int magic);
 JSValue js_modules_object(JSContext*, JSValue this_val, int magic);
 
 #define js_module_find js_module_find_fwd
+int js_module_index(JSContext* ctx, JSModuleDef* m);
 
 JSModuleDef* js_module_def(JSContext*, JSValue value);
 JSModuleDef* js_module_find_fwd(JSContext*, const char* name);
