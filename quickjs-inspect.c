@@ -135,7 +135,7 @@ inspect_options_init(inspect_options_t* opts, JSContext* ctx) {
   opts->max_string_length = INT32_MAX;
   opts->break_length = inspect_screen_width();
   opts->compact = 5;
-  opts->proto_chain = 0;
+  opts->proto_chain = TRUE;
   opts->number_base = 10;
   vector_init(&opts->hide_keys, ctx);
 
