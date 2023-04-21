@@ -2749,6 +2749,17 @@ js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
 }
 
 char*
+js_atom_tostring(JSContext* ctx, JSAtom atom) {
+  const char* cstr;
+  char* ret = 0;
+  if((cstr = JS_AtomToCString(ctx, atom))) {
+    ret = js_strdup(ctx, cstr);
+    js_cstring_free(ctx, cstr);
+  }
+  return ret;
+}
+
+char*
 js_tostring(JSContext* ctx, JSValueConst value) {
   return js_tostringlen(ctx, 0, value);
 }

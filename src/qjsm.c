@@ -817,8 +817,14 @@ char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
   char* file = 0;
   BOOL has_dot_or_slash = !!name[str_chrs(name, "." PATHSEP_S, 2)];
+  BuiltinModule* bltin;
 
-  if(!(!has_dot_or_slash && jsm_builtin_find(name))) {
+  if(!has_dot_or_slash && (bltin = jsm_builtin_find(name))) {
+
+    if(bltin->def)
+      file = js_atom_tostring(ctx, bltin->def->module_name);
+
+  } else {
     if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash) {
       DynBuf dir;
       size_t dsl;
@@ -947,7 +953,6 @@ jsm_context_new(JSRuntime* rt) {
    jsm_module_native(xml);*/
 
   // printf("Set module loader (rt=%p): %p\n", rt);
-  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, 0);
 
   return ctx;
 }
@@ -1691,6 +1696,8 @@ main(int argc, char** argv) {
   js_std_set_worker_new_context_func(jsm_context_new);
 
   js_std_init_handlers(rt);
+
+  /* loader for ES6 modules */
   JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, 0);
 
   ctx = jsm_context_new(rt);
@@ -1700,9 +1707,6 @@ main(int argc, char** argv) {
   }
 
   vector_init(&jsm_stack, ctx);
-
-  /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, 0);
 
   if(dump_unhandled_promise_rejection) {
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, 0);
