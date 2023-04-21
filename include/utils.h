@@ -67,23 +67,9 @@ typedef BOOL JSValueCompareFunc(JSContext*, JSValueConst, JSValueConst);
 void* utils_js_realloc(JSContext* ctx, void* ptr, size_t size);
 void* utils_js_realloc_rt(JSRuntime* rt, void* ptr, size_t size);
 
-static inline size_t
-list_size(struct list_head* list) {
-  struct list_head* el;
-  size_t i = 0;
-  list_for_each(el, list) { ++i; }
-  return i;
-}
-
-static inline struct list_head*
-list_head(const struct list_head* list) {
-  return list->next != list ? list->next : 0;
-}
-
-static inline struct list_head*
-list_tail(const struct list_head* list) {
-  return list->prev != list ? list->prev : 0;
-}
+size_t list_size(struct list_head* list);
+struct list_head* list_head(const struct list_head* list);
+struct list_head* list_tail(const struct list_head* list);
 
 static inline Arguments
 arguments_new(int argc, const char* argv[]) {

@@ -408,10 +408,8 @@ jsm_init_modules(JSContext* ctx) {
 static BuiltinModule*
 jsm_builtin_find(const char* name) {
   BuiltinModule* rec;
-  vector_foreach_t(&jsm_builtin_modules, rec) {
-    if(!strcmp(rec->module_name, name))
-      return rec;
-  }
+
+  vector_foreach_t(&jsm_builtin_modules, rec) if(!strcmp(rec->module_name, name)) return rec;
 
   return 0;
 }
@@ -427,6 +425,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
     if(debug_module_loader >= 2)
       printf("(3) %-30s internal\n", rec->module_name);
 
+    /* C native module */
     if(rec->module_func) {
       m = rec->module_func(ctx, rec->module_name);
       obj = js_value_mkptr(JS_TAG_MODULE, m);
@@ -437,13 +436,19 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
         rec->initialized = TRUE;
       }
 
+      /* bytecode compiled module */
     } else {
+
       obj = JS_ReadObject(ctx, rec->byte_code, rec->byte_code_len, JS_READ_OBJ_BYTECODE);
 
       m = js_value_ptr(obj);
 
       JS_ResolveModule(ctx, obj);
       ret = JS_EvalFunction(ctx, obj);
+
+      /* rename module */
+      JS_FreeAtom(ctx, m->module_name);
+      m->module_name = JS_NewAtom(ctx, rec->module_name);
     }
 
     rec->def = m;
@@ -652,7 +657,25 @@ jsm_module_script(DynBuf* buf, const char* path, BOOL star) {
   dbuf_0(buf);
 }
 
-JSModuleDef*
+static JSModuleDef*
+jsm_module_find(JSContext* ctx, const char* name) {
+  JSModuleDef* m;
+  BuiltinModule* bltin;
+
+  while(*name == '!' || *name == '*') ++name;
+
+  if((m = js_module_find_rev(ctx, name)))
+    return m;
+
+  if((bltin = jsm_builtin_find(name))) {
+    if(bltin->def)
+      return bltin->def;
+  }
+
+  return 0;
+}
+
+static JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* path) {
   struct list_head* last_module = js_modules_list(ctx)->prev;
   DynBuf dbuf;
@@ -675,7 +698,11 @@ jsm_module_load(JSContext* ctx, const char* path) {
 
   dbuf_free(&dbuf);
 
-  JSModuleDef* m = list_entry(last_module->next->next, JSModuleDef, link);
+  assert(last_module->next != js_modules_list(ctx));
+
+  JSModuleDef* m = last_module->next->next != js_modules_list(ctx) ? list_entry(last_module->next->next, JSModuleDef, link) : jsm_module_find(ctx, path);
+  assert(m);
+  // JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
   return m;
 }
 
@@ -1260,15 +1287,17 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case FIND_MODULE: {
-      if((m = js_module_find_rev(ctx, name)))
+      BuiltinModule* bltin;
+      if((m = jsm_module_find(ctx, name))) {
         val = module_value(ctx, m);
-      else
+      } else {
         val = JS_NULL;
+      }
       break;
     }
 
     case FIND_MODULE_INDEX: {
-      if((m = JS_IsModule(argv[0]) ? JS_VALUE_GET_PTR(argv[0]) : js_module_find_rev(ctx, name)))
+      if((m = JS_IsModule(argv[0]) ? JS_VALUE_GET_PTR(argv[0]) : jsm_module_find(ctx, name)))
         val = JS_NewInt32(ctx, js_module_index(ctx, m));
 
       break;
@@ -1455,7 +1484,7 @@ jsm_start_interactive(void) {
     home, exename, exename);
   /* clang-format on */
 
-  js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
+  // js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
   replObj = js_eval_buf(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 }
 

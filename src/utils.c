@@ -59,6 +59,24 @@ time_us(void) {
 }
 #endif
 
+size_t
+list_size(struct list_head* list) {
+  struct list_head* el;
+  size_t i = 0;
+  list_for_each(el, list) { ++i; }
+  return i;
+}
+
+struct list_head*
+list_head(const struct list_head* list) {
+  return list->next != list ? list->next : 0;
+}
+
+struct list_head*
+list_tail(const struct list_head* list) {
+  return list->prev != list ? list->prev : 0;
+}
+
 js_realloc_helper(utils_js_realloc);
 js_realloc_rt_helper(utils_js_realloc_rt);
 
