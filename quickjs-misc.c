@@ -2152,6 +2152,68 @@ js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 #endif
 
+#if !defined(_WIN32)
+static int64_t
+timespec_to_ms(const struct timespec* tv) {
+  return (int64_t)tv->tv_sec * 1000 + (tv->tv_nsec / 1000000);
+}
+#endif
+
+#ifdef HAVE_FSTAT
+static JSValue
+js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t fd = -1;
+  int res, err = 0;
+  JSValue ret = JS_NewArray(ctx), obj = JS_NULL;
+  struct stat st;
+
+  JS_ToInt32(ctx, &fd, argv[0]);
+
+  res = fstat(fd, &st);
+
+  if(res < 0) {
+    err = errno;
+
+  } else {
+    obj = JS_NewObject(ctx);
+
+    JS_SetPropertyStr(ctx, obj, "dev", JS_NewInt64(ctx, st.st_dev));
+    JS_SetPropertyStr(ctx, obj, "ino", JS_NewInt64(ctx, st.st_ino));
+    JS_SetPropertyStr(ctx, obj, "mode", JS_NewInt32(ctx, st.st_mode));
+    JS_SetPropertyStr(ctx, obj, "nlink", JS_NewInt64(ctx, st.st_nlink));
+    JS_SetPropertyStr(ctx, obj, "uid", JS_NewInt64(ctx, st.st_uid));
+    JS_SetPropertyStr(ctx, obj, "gid", JS_NewInt64(ctx, st.st_gid));
+    JS_SetPropertyStr(ctx, obj, "rdev", JS_NewInt64(ctx, st.st_rdev));
+    JS_SetPropertyStr(ctx, obj, "size", JS_NewInt64(ctx, st.st_size));
+#if !defined(_WIN32)
+    JS_SetPropertyStr(ctx, obj, "blocks", JS_NewInt64(ctx, st.st_blocks));
+#endif
+#if defined(_WIN32)
+    JS_SetPropertyStr(ctx, obj, "atime", JS_NewInt64(ctx, (int64_t)st.st_atime * 1000));
+    JS_SetPropertyStr(ctx, obj, "mtime", JS_NewInt64(ctx, (int64_t)st.st_mtime * 1000));
+    JS_SetPropertyStr(ctx, obj, "ctime", JS_NewInt64(ctx, (int64_t)st.st_ctime * 1000));
+#elif defined(__APPLE__)
+    JS_SetPropertyStr(ctx, obj, "atime", JS_NewInt64(ctx, timespec_to_ms(&st.st_atimespec)));
+    JS_SetPropertyStr(ctx, obj, "mtime", JS_NewInt64(ctx, timespec_to_ms(&st.st_mtimespec)));
+    JS_SetPropertyStr(ctx, obj, "ctime", JS_NewInt64(ctx, timespec_to_ms(&st.st_ctimespec)));
+#elif defined(__dietlibc__) || defined(__ANDROID__)
+    JS_SetPropertyStr(ctx, obj, "atime", JS_NewInt64(ctx, 1000 * st.st_atime));
+    JS_SetPropertyStr(ctx, obj, "mtime", JS_NewInt64(ctx, 1000 * st.st_mtime));
+    JS_SetPropertyStr(ctx, obj, "ctime", JS_NewInt64(ctx, 1000 * st.st_ctime));
+#else
+    JS_SetPropertyStr(ctx, obj, "atime", JS_NewInt64(ctx, timespec_to_ms(&st.st_atim)));
+    JS_SetPropertyStr(ctx, obj, "mtime", JS_NewInt64(ctx, timespec_to_ms(&st.st_mtim)));
+    JS_SetPropertyStr(ctx, obj, "ctime", JS_NewInt64(ctx, timespec_to_ms(&st.st_ctim)));
+#endif
+  }
+
+  JS_SetPropertyUint32(ctx, ret, 0, obj);
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt32(ctx, err));
+
+  return ret;
+}
+#endif
+
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
 #ifndef __wasi__
@@ -2232,6 +2294,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(O_SYNC),
     JS_CONSTANT(O_TRUNC),
     JS_CONSTANT(O_WRONLY),
+#endif
+#ifdef HAVE_FSTAT
+    JS_CFUNC_DEF("fstat", 1, js_misc_fstat),
 #endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("strcmp", 2, js_misc_strcmp),

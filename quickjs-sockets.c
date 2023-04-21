@@ -721,7 +721,7 @@ end:
 #endif
 
 static JSValue
-js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async) {
+js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL owner) {
   JSValue obj;
   Socket* s;
 
@@ -748,7 +748,9 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async) {
     s = (Socket*)asock;
 
   } else {
-    Socket sock = {{fd, 0, -1}};
+    Socket sock = {SOCKET(fd, 0, -1, FALSE, async, owner)};
+    assert(sizeof(Socket) == sizeof(sock.ptr));
+
     JS_SetOpaque(obj, sock.ptr);
     s = (Socket*)&(JS_VALUE_GET_OBJ(obj)->u.opaque);
   }
@@ -765,7 +767,7 @@ js_socket_new(JSContext* ctx, int sock, BOOL async) {
   if(js_socket_class_id == 0 || js_async_socket_class_id == 0)
     js_sockets_init(ctx, 0);
 
-  return js_socket_new_proto(ctx, socket_proto, sock, async);
+  return js_socket_new_proto(ctx, socket_proto, sock, async, TRUE);
 }
 
 static JSValue
@@ -1141,7 +1143,7 @@ js_socket_create(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst
   }
   sock = socket(af, type, protocol);
 
-  return js_socket_new_proto(ctx, proto, sock, magic);
+  return js_socket_new_proto(ctx, proto, sock, magic, TRUE);
 
 fail:
   JS_FreeValue(ctx, obj);
@@ -1287,7 +1289,7 @@ js_socket_adopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   JS_ToInt32(ctx, &fd, argv[0]);
 
-  return js_socket_new_proto(ctx, socket_proto, fd, FALSE);
+  return js_socket_new_proto(ctx, socket_proto, fd, FALSE, FALSE);
 }
 
 static void
@@ -1296,7 +1298,8 @@ js_socket_finalizer(JSRuntime* rt, JSValue val) {
 
   if(sock.fd >= 0) {
     if(socket_open(sock))
-      close(sock.fd);
+      if(!socket_adopted(sock))
+        close(sock.fd);
   }
   // JS_FreeValueRT(rt, val);
 }

@@ -29,7 +29,7 @@ typedef union {
   uint16_t fd; \
   unsigned error : 8; \
   unsigned syscall : 4; \
-  BOOL nonblock : 1, async : 1; \
+  BOOL nonblock : 1, async : 1, owner : 1; \
   int32_t ret
 
 PACK union socket_state {
@@ -55,6 +55,9 @@ PACK struct async_socket_state {
   JSValue pending;
 };
 ENDPACK
+
+#define SOCKET(fd, err, sys, nonb, asyn, own) \
+  { (fd), (err), (sys), (nonb), (asyn), (own) }
 
 typedef union socket_state Socket;
 typedef struct async_socket_state AsyncSocket;
@@ -86,6 +89,7 @@ enum SocketCalls {
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
 #define socket_error(sock) ((sock).ret < 0 ? (sock).error : 0)
 #define socket_syscall(sock) socket_syscalls[(sock).syscall]
+#define socket_adopted(sock) (!(sock).owner)
 
 static inline int
 sockaddr_port(const SockAddr* sa) {

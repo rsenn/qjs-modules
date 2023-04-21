@@ -175,6 +175,11 @@ if(HAVE_LSTAT)
   add_definitions(-DHAVE_LSTAT=1)
 endif(HAVE_LSTAT)
 
+check_function_exists(fstat HAVE_FSTAT)
+if(HAVE_FSTAT)
+  add_definitions(-DHAVE_FSTAT=1)
+endif(HAVE_FSTAT)
+
 check_function_exists(strverscmp HAVE_STRVERSCMP)
 if(HAVE_STRVERSCMP)
   add_definitions(-DHAVE_STRVERSCMP=1)
