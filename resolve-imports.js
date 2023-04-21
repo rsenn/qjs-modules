@@ -832,7 +832,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   }*/
 
   if(used) {
-    for(let impexp of 1) {
+    for(let impexp of allExportsImports) {
       if(impexp.type == What.IMPORT) {
         let ids = impexp.ids();
         for(let id of ids) imported.add(id);
