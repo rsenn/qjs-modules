@@ -1146,11 +1146,10 @@ js_inspect_print_value(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
 
     case JS_TAG_EXCEPTION: {
       const char* msg;
-      JSValue message;
       dbuf_put_colorstr(buf, "[exception", COLOR_RED, opts->colors);
 
       if(JS_IsObject(ctx->rt->current_exception)) {
-        message = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "message");
+        JSValue message = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "message");
         if((msg = JS_ToCString(ctx, message))) {
           dbuf_putstr(buf, " \"");
           dbuf_putstr(buf, msg);
@@ -1158,6 +1157,15 @@ js_inspect_print_value(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect_
           JS_FreeCString(ctx, msg);
         }
         JS_FreeValue(ctx, message);
+
+        JSValue stack = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack");
+        if((msg = JS_ToCString(ctx, stack))) {
+          dbuf_putstr(buf, "\n");
+          dbuf_putstr(buf, msg);
+          dbuf_putc(buf, '\n');
+          JS_FreeCString(ctx, msg);
+        }
+        JS_FreeValue(ctx, stack);
       }
       dbuf_put_colorstr(buf, "]", COLOR_RED, opts->colors);
       break;

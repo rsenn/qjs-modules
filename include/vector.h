@@ -89,6 +89,7 @@ BOOL vector_grow(Vector* vec, size_t elsz, int32_t len);
 char* vector_pushstring(Vector*, const char*);
 char* vector_pushstringlen(Vector*, const char*, size_t);
 void vector_clearstrings(Vector*);
+void vector_dumpstrings(const Vector*, DynBuf* buf);
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 

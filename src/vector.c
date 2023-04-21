@@ -250,3 +250,18 @@ vector_clearstrings(Vector* vec) {
   vector_foreach_t(vec, ptr) free(*ptr);
   vector_clear(vec);
 }
+
+void
+vector_dumpstrings(const Vector* vec, DynBuf* buf) {
+  size_t i, len = vector_size(vec, sizeof(char*));
+
+  for(i = 0; i < len; i++) {
+    const char* str = *(char**)vector_at(vec, sizeof(char*), i);
+
+    dbuf_putstr(buf, i > start ? "',\n  '" : "[\n  '");
+    dbuf_putstr(buf, str);
+
+    if(i + 1 == len)
+      dbuf_putstr(buf, "'\n]");
+  }
+}
