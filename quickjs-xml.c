@@ -372,7 +372,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
 
 static PropertyEnumeration*
 xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth) {
-  PropertyEnumeration* it;
+  PropertyEnumeration *it, *it2;
   JSValue value = JS_UNDEFINED, children;
 
   it = vector_back(vec, sizeof(PropertyEnumeration));
@@ -381,28 +381,26 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth)
   if(JS_IsObject(value)) {
     children = JS_GetPropertyStr(ctx, value, "children");
     JS_FreeValue(ctx, value);
-    if(!JS_IsUndefined(children) && (max_depth == INT32_MAX || vector_size(vec, sizeof(PropertyEnumeration)) < (uint32_t)max_depth)) {
-      if((it = property_enumeration_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)))
-        if(property_enumeration_setpos(it, 0))
-          return it;
-    }
+
+    if(!JS_IsUndefined(children) && (max_depth == INT32_MAX || vector_size(vec, sizeof(PropertyEnumeration)) < (uint32_t)max_depth))
+      if((it2 = property_recursion_push(vec, ctx, children, PROPENUM_DEFAULT_FLAGS)))
+        if(property_enumeration_setpos(it2, 0))
+          return it2;
+
   } else {
     JS_FreeValue(ctx, value);
   }
 
-  for(;;) {
-    if(property_enumeration_setpos(it, it->idx + 1))
-      break;
-
-    if((it = property_enumeration_pop(vec, ctx)) == 0)
+  while(!property_enumeration_next(it)) {
+    if((it = property_recursion_pop(vec, ctx)) == 0)
       break;
 
     value = property_enumeration_value(it, ctx);
-    {
-      int32_t depth = vector_size(vec, sizeof(PropertyEnumeration)) - 1;
-      depth = MAX_NUM(0, depth - 1);
-      xml_close_element(ctx, value, db, depth);
-    }
+
+    int32_t depth = property_recursion_depth(vec) - 1;
+    depth = MAX_NUM(0, depth - 1);
+    xml_close_element(ctx, value, db, depth);
+
     JS_FreeValue(ctx, value);
   }
 
@@ -435,7 +433,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   Vector st = VECTOR(ctx);
   Location loc = LOCATION_FILE(JS_NewAtom(ctx, input_name));
   VirtualProperties vprop;
-  
+
   ptr = buf;
   end = buf + len;
 
@@ -510,7 +508,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       BOOL closing = FALSE, self_closing = FALSE;
 
       parse_getc();
-      
+
       if(parse_is(c, SLASH)) {
         closing = TRUE;
         parse_getc();
@@ -602,16 +600,16 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         size_t alen, vlen, num_attrs = 0;
         JSValue attributes = JS_NewObject(ctx);
         JS_SetPropertyStr(ctx, element, "attributes", attributes);
-        
+
         while(!done) {
           parse_skipspace();
-          
+
           if(parse_is(c, END))
             break;
-          
+
           attr = ptr;
           parse_until(parse_is(c, EQUAL | WS | SPECIAL | CLOSE));
-          
+
           if((alen = ptr - attr) == 0)
             break;
 
@@ -735,7 +733,7 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
   PropertyEnumeration* it;
   JSValue str, value = JS_UNDEFINED;
 
-  it = property_enumeration_push(&enumerations, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
+  it = property_recursion_push(&enumerations, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
 
   do {
     int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;

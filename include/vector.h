@@ -50,6 +50,9 @@ typedef union Vector {
 #define vector_begin(vec) ((void*)((vec)->data))
 #define vector_end(vec) ((void*)((vec)->data + (vec)->size))
 
+#define vector_begin_t(vec, t) ((t*)vector_begin(vec))
+#define vector_end_t(vec, t) ((t*)vector_end(vec))
+
 #define vector_foreach_t(a, p) for((p) = vector_begin(a); (p) != vector_end(a); ++(p))
 #define vector_foreach(a, msz, p) for((p) = vector_begin(a); (char*)(p) != (char*)vector_end(a); (p) = (void*)(((char*)p) + msz))
 

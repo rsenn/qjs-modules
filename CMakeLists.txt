@@ -190,7 +190,8 @@ if(HAVE_FMEMOPEN)
   add_definitions(-DHAVE_FMEMOPEN=1)
 endif(HAVE_FMEMOPEN)
 
-check_functions(access  fcntl fnmatch glob wordexp inotify_init1 inet_pton daemon)
+check_functions(access fcntl fnmatch glob wordexp inotify_init1 inet_pton
+                daemon)
 check_includes(fcntl.h alloca.h fnmatch.h glob.h wordexp.h sys/inotify.h)
 
 if(HAVE_INET_PTON)
@@ -280,7 +281,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
-    bjson blob deep directory lexer list location  ${magic_MODULE} misc  path
+    bjson blob deep directory lexer list location ${magic_MODULE} misc path
     pointer predicate repeater textcode serial sockets stream syscallerror
     inspect tree-walker xml)
 
@@ -338,20 +339,16 @@ else(USE_LIBMAGIC)
   set(magic_MODULE)
 endif(USE_LIBMAGIC)
 
-
 if(USE_MARIADBCLIENT)
-    pkg_check_modules(MARIADB libmariadb mariadb)
-
+  pkg_check_modules(MARIADB libmariadb mariadb)
 
   set(MARIADBCLIENT_LIBRARY ${pkgcfg_lib_MARIADB_mariadb})
 
   list(APPEND QUICKJS_MODULES mysql)
 
-    set(mysql_LIBRARIES ${MARIADBCLIENT_LIBRARY})
-
+  set(mysql_LIBRARIES ${MARIADBCLIENT_LIBRARY})
 
 endif(USE_MARIADBCLIENT)
-
 
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} child-process)
@@ -361,8 +358,10 @@ else(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   endif(WIN32 OR MINGW)
 endif(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
 
-set(LIB_MODULES console events fs lexer/csv lexer/ecmascript parser perf_hooks
-                process repl require stack tty util)
+set(LIB_MODULES
+    console events fs
+    #lexer/csv lexer/ecmascript
+    parser perf_hooks process repl require stack tty util)
 
 if(EXISTS "${QUICKJS_H}")
 
@@ -399,9 +398,15 @@ set(child_process_SOURCES
     src/child-process.c include/child-process.h src/property-enumeration.c
     include/property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
 set(deep_SOURCES
-    ${vector_SOURCES} src/pointer.c src/virtual-properties.c #${js_utils_SOURCES}
-    src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES}
-    ${predicate_SOURCES} include/pointer.h include/virtual-properties.h)
+    ${vector_SOURCES}
+    src/pointer.c
+    src/virtual-properties.c #${js_utils_SOURCES}
+    src/property-enumeration.c
+    include/property-enumeration.h
+    ${utils_SOURCES}
+    ${predicate_SOURCES}
+    include/pointer.h
+    include/virtual-properties.h)
 set(deep_LIBRARIES qjs-predicate qjs-pointer)
 #[[set(deep_LIBRARIES)
 unset(deep_LIBRARIES)]]
@@ -482,7 +487,7 @@ set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(magic_SOURCES quickjs-magic.c ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(mysql_SOURCES quickjs-mysql.c #${js_utils_SOURCES}
- ${utils_SOURCES} ${buffer_utils_SOURCES})
+                  ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 if(BUILD_LIBSERIALPORT)
   include(ExternalProject)
@@ -738,39 +743,40 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 
 if(NOT BUILD_STATIC_MODULES)
-  ADD_UNIQUE(QJSM_SOURCES
-      ${QJSM_SOURCES}
-      ${archive_SOURCES}
-      ${blob_SOURCES}
-      ${buffer_utils_SOURCES}
-      ${char_utils_SOURCES}
-      ${child_process_SOURCES}
-      ${deep_SOURCES}
-      ${directory_SOURCES}
-      ${gpio_SOURCES}
-      ${inspect_SOURCES}
-      ${lexer_SOURCES}
-      ${list_SOURCES}
-      ${libutf_SOURCES}
-      ${location_SOURCES}
-      ${list_SOURCES}
-      ${misc_SOURCES}
-      ${mmap_SOURCES}
-      ${path_SOURCES}
-      ${pointer_SOURCES}
-      ${predicate_SOURCES}
-      ${queue_SOURCES}
-      ${repeater_SOURCES}
-      # ${sockets_SOURCES}
-      ${stream_SOURCES}
-      #${js_utils_SOURCES}
-      ${syscallerror_SOURCES}
-      ${textcode_SOURCES}
-      ${token_SOURCES}
-      ${tree_walker_SOURCES}
-      ${utils_SOURCES}
-      ${vector_SOURCES}
-      ${xml_SOURCES})
+  add_unique(
+    QJSM_SOURCES
+    ${QJSM_SOURCES}
+    ${archive_SOURCES}
+    ${blob_SOURCES}
+    ${buffer_utils_SOURCES}
+    ${char_utils_SOURCES}
+    ${child_process_SOURCES}
+    ${deep_SOURCES}
+    ${directory_SOURCES}
+    ${gpio_SOURCES}
+    ${inspect_SOURCES}
+    ${lexer_SOURCES}
+    ${list_SOURCES}
+    ${libutf_SOURCES}
+    ${location_SOURCES}
+    ${list_SOURCES}
+    ${misc_SOURCES}
+    ${mmap_SOURCES}
+    ${path_SOURCES}
+    ${pointer_SOURCES}
+    ${predicate_SOURCES}
+    ${queue_SOURCES}
+    ${repeater_SOURCES}
+    # ${sockets_SOURCES}
+    ${stream_SOURCES}
+    #${js_utils_SOURCES}
+    ${syscallerror_SOURCES}
+    ${textcode_SOURCES}
+    ${token_SOURCES}
+    ${tree_walker_SOURCES}
+    ${utils_SOURCES}
+    ${vector_SOURCES}
+    ${xml_SOURCES})
 endif(NOT BUILD_STATIC_MODULES)
 
 ##dump(QJSM_SOURCES)
@@ -822,6 +828,5 @@ install(FILES ${INSTALL_SCRIPTS} DESTINATION bin
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")
 symlink(extract-structs.js "${CMAKE_INSTALL_PREFIX}/bin/extract-bindings.js")
-
 
 #add_dependencies(qjs-serial-static libserialport)

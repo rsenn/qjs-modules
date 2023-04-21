@@ -239,7 +239,7 @@ jsm_stack_string() {
     dbuf_init2(&buf, 0, vector_realloc);
 
   buf.size = 0;
-  while(--i >= 0) {dbuf_printf(&buf, "%i: %s\n", i, jsm_stack_at(i));}
+  while(--i >= 0) { dbuf_printf(&buf, "%i: %s\n", i, jsm_stack_at(i)); }
 
   dbuf_0(&buf);
   return (char*)buf.buf;
@@ -292,7 +292,6 @@ jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
-
   }
   return ret;
 }
@@ -473,7 +472,6 @@ jsm_load_package(JSContext* ctx, const char* file) {
       JS_GetException(ctx);
       package_json = JS_NULL;
     }
-
   }
   return package_json;
 }
@@ -596,12 +594,10 @@ jsm_module_package(JSContext* ctx, const char* module) {
           if(debug_module_loader >= 1)
             printf("(2) %-30s => %s (package.json)\n", module, file);
         }
-
       }
       JS_FreeValue(ctx, aliases);
       JS_FreeValue(ctx, target);
     }
-
   }
 
   return file;
@@ -611,12 +607,15 @@ void
 jsm_module_script(DynBuf* buf, const char* path, BOOL star) {
   enum { NAMED = 0, ALL, EXEC } mode = NAMED;
 
-  if(!star && *path == '!') {
-    ++path;
-    mode = EXEC;
-  } else if(*path == '*') {
-    ++path;
-    mode = ALL;
+  for(; *path; ++path) {
+    switch(*path) {
+      case '!':
+        if(!star)
+          mode = EXEC;
+        continue;
+      case '*': mode = ALL; continue;
+    }
+    break;
   }
 
   buf->size = 0;
@@ -648,7 +647,6 @@ jsm_module_script(DynBuf* buf, const char* path, BOOL star) {
       dbuf_putstr(buf, "'] = tmp;\n");
       break;
     }
-
   }
 
   dbuf_0(buf);
@@ -673,7 +671,6 @@ jsm_module_load(JSContext* ctx, const char* path) {
       dbuf_free(&dbuf);
       return 0;
     }
-
   }
 
   dbuf_free(&dbuf);
@@ -744,7 +741,6 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
         s = js_strdup(ctx, file);
         break;
       }
-
     }
     break;
   }
@@ -771,7 +767,6 @@ restart:
         js_free(ctx, s);
       return jsm_builtin_init(ctx, rec);
     }
-
   }
 
   if(s == 0) {
@@ -786,7 +781,6 @@ restart:
           js_free(ctx, s);
           s = tmp;
         }
-
       }
 
       if(!s)
@@ -796,7 +790,6 @@ restart:
         module_name = s;
         goto restart;
       }
-
     }
   }
 
@@ -850,7 +843,6 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
       file = path_absolute1(name);
       path_collapse1(file);
     }
-
   }
 
   if(file == 0)
@@ -1026,7 +1018,6 @@ static void
         fmt += 2;
         continue;
       }
-
     }
     putc(c, stdout);
   }
@@ -1179,7 +1170,6 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       ret = js_eval_buf(ctx, str, len, 0, module);
       break;
     }
-
   }
 
   if(JS_IsException(ret))
@@ -1249,7 +1239,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       js_free(ctx, name);
       name = path;
     }
-
   }
 
   switch(magic) {
@@ -1364,7 +1353,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       val = JS_DupValue(ctx, m->meta_obj);
       break;
     }
-
   }
   if(name)
     js_free(ctx, name);
@@ -1678,7 +1666,6 @@ main(int argc, char** argv) {
 
       debug_module_loader = vector_counts(&module_debug, "modules");
     }
-
   }
 
   if(load_jscalc)
@@ -1761,7 +1748,6 @@ main(int argc, char** argv) {
           jsm_dump_error(ctx);
           return 1;
         }
-
       }
       vector_freestrings(&module_list);
     }
@@ -1836,7 +1822,6 @@ main(int argc, char** argv) {
         if(i == 0 || best[j] > ms)
           best[j] = ms;
       }
-
     }
     printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
   }

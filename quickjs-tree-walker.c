@@ -91,7 +91,7 @@ tree_walker_new(JSContext* ctx) {
 static PropertyEnumeration*
 tree_walker_setroot(TreeWalker* w, JSContext* ctx, JSValueConst object) {
   tree_walker_reset(w, ctx);
-  return property_enumeration_push(&w->hier, ctx, JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS);
+  return property_recursion_push(&w->hier, ctx, JS_DupValue(ctx, object), PROPENUM_DEFAULT_FLAGS);
 }
 
 static void
@@ -100,7 +100,7 @@ tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
 
   dbuf_putstr(db, ",\n  hier: ");
 
-  property_enumeration_dumpall(&w->hier, ctx, db);
+  property_recursion_dumpall(&w->hier, ctx, db);
   dbuf_putstr(db, "\n}");
 }
 
@@ -199,7 +199,7 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValu
   PropertyEnumeration* it;
   ValueTypeMask type, mask = w->tag_mask & TYPE_ALL;
 
-  for(; (it = property_enumeration_recurse(&w->hier, ctx));) {
+  for(; (it = property_recursion_next(&w->hier, ctx));) {
     if(mask && mask != TYPE_ALL) {
       JSValue value;
       value = property_enumeration_value(it, ctx);
@@ -247,12 +247,12 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   switch(magic) {
     case FIRST_CHILD: {
-      if((it = property_enumeration_enter(&w->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS)) == 0)
+      if((it = property_recursion_enter(&w->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS)) == 0)
         return JS_UNDEFINED;
       break;
     }
     case LAST_CHILD: {
-      if((it = property_enumeration_enter(&w->hier, ctx, -1, PROPENUM_DEFAULT_FLAGS)) == 0)
+      if((it = property_recursion_enter(&w->hier, ctx, -1, PROPENUM_DEFAULT_FLAGS)) == 0)
         return JS_UNDEFINED;
       break;
     }
@@ -262,7 +262,7 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       break;
     }
     case PARENT_NODE: {
-      if((it = property_enumeration_pop(&w->hier, ctx)) == 0)
+      if((it = property_recursion_pop(&w->hier, ctx)) == 0)
         return JS_UNDEFINED;
       break;
     }
@@ -281,19 +281,19 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     int r = w->tag_mask & RETURN_MASK;
     switch(r) {
       case RETURN_VALUE: ret = property_enumeration_value(it, ctx); break;
-      case RETURN_PATH: ret = property_enumeration_path(&w->hier, ctx); break;
+      case RETURN_PATH: ret = property_recursion_path(&w->hier, ctx); break;
       case RETURN_VALUE_PATH:
       default: {
         ret = JS_NewArray(ctx);
         JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
-        JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->hier, ctx));
+        JS_SetPropertyUint32(ctx, ret, 1, property_recursion_path(&w->hier, ctx));
         break;
       }
     }
   }
 
   if(JS_IsFunction(ctx, w->transform)) {
-    JSValue args[] = {ret, property_enumeration_path(&w->hier, ctx), this_val};
+    JSValue args[] = {ret, property_recursion_path(&w->hier, ctx), this_val};
 
     ret = JS_Call(ctx, w->transform, JS_UNDEFINED, 3, args);
     JS_FreeValue(ctx, args[0]);
@@ -334,7 +334,7 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case PROP_CURRENT_PATH: {
-      ret = property_enumeration_path(&w->hier, ctx);
+      ret = property_recursion_path(&w->hier, ctx);
       break;
     }
     case PROP_DEPTH: {
@@ -472,12 +472,12 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       *pdone = FALSE;
       switch(r) {
         case RETURN_VALUE: ret = property_enumeration_value(it, ctx); break;
-        case RETURN_PATH: ret = property_enumeration_path(&w->hier, ctx); break;
+        case RETURN_PATH: ret = property_recursion_path(&w->hier, ctx); break;
         case RETURN_VALUE_PATH:
         default: {
           ret = JS_NewArray(ctx);
           JS_SetPropertyUint32(ctx, ret, 0, property_enumeration_value(it, ctx));
-          JS_SetPropertyUint32(ctx, ret, 1, property_enumeration_path(&w->hier, ctx));
+          JS_SetPropertyUint32(ctx, ret, 1, property_recursion_path(&w->hier, ctx));
           break;
         }
       }

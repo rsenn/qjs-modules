@@ -258,7 +258,7 @@ vector_dumpstrings(const Vector* vec, DynBuf* buf) {
   for(i = 0; i < len; i++) {
     const char* str = *(char**)vector_at(vec, sizeof(char*), i);
 
-    dbuf_putstr(buf, i > start ? "',\n  '" : "[\n  '");
+    dbuf_putstr(buf, i > 0 ? "',\n  '" : "[\n  '");
     dbuf_putstr(buf, str);
 
     if(i + 1 == len)

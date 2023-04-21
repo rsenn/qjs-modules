@@ -187,7 +187,8 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
 
     if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, values, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY)) {
       JS_FreeValue(ctx, iter);
-      return JS_ThrowTypeError(ctx, "argument is must be an object");
+      JS_ThrowTypeError(ctx, "argument is must be an object");
+      return;
     }
 
     dbuf_putc(out, '(');
