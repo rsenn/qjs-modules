@@ -648,7 +648,10 @@ jsm_module_script(DynBuf* buf, const char* path, BOOL star) {
       size_t len = module_has_suffix(name);
 
       dbuf_putstr(buf, "globalThis['");
-      dbuf_put(buf, name, len);
+      if(len)
+        dbuf_put(buf, name, len);
+      else
+        dbuf_putstr(buf, name);
       dbuf_putstr(buf, "'] = tmp;\n");
       break;
     }
@@ -746,8 +749,9 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
     if(debug_module_loader - !strcmp(module_name, s) >= 3)
       printf("%-18s[1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
 
-    if(path_isfile1(s))
-      break;
+    if(!!s[str_chrs(s, "." PATHSEP_S, 2)])
+      if(path_isfile1(s))
+        break;
 
     if(is_searchable(s)) {
       size_t len;
@@ -801,6 +805,9 @@ restart:
       s = js_strdup(ctx, module_name);
     } else {
       s = jsm_module_package(ctx, module_name);
+
+      if(!s)
+        s = js_strdup(ctx, module_name);
 
       if(s && is_searchable(s)) {
         char* tmp;
