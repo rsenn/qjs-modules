@@ -77,9 +77,14 @@ static const char* module_extensions[] = {
     "/package.json",
 };
 
-static BOOL
+static inline BOOL
 is_searchable(const char* path) {
   return !path_isexplicit(path);
+}
+
+static inline BOOL
+has_dot_or_slash(const char* s) {
+  return !!s[str_chrs(s, "." PATHSEP_S, 2)];
 }
 
 static char*
@@ -687,7 +692,7 @@ jsm_module_load(JSContext* ctx, const char* path) {
 
   jsm_module_script(&dbuf, path, FALSE);
 
-  if(!js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+  if(*path != '*' && !js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
   } else {
     JS_GetException(ctx);
 
@@ -749,7 +754,7 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
     if(debug_module_loader - !strcmp(module_name, s) >= 3)
       printf("%-18s[1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
 
-    if(!!s[str_chrs(s, "." PATHSEP_S, 2)])
+    if(has_dot_or_slash(s))
       if(path_isfile1(s))
         break;
 
@@ -850,16 +855,15 @@ restart:
 char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
   char* file = 0;
-  BOOL has_dot_or_slash = !!name[str_chrs(name, "." PATHSEP_S, 2)];
   BuiltinModule* bltin;
 
-  if(!has_dot_or_slash && (bltin = jsm_builtin_find(name))) {
+  if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
 
     if(bltin->def)
       file = js_atom_tostring(ctx, bltin->def->module_name);
 
   } else {
-    if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash) {
+    if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash(name)) {
       DynBuf dir;
       size_t dsl;
       js_dbuf_allocator(ctx, &dir);
@@ -879,7 +883,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
       path_concat3(QUICKJS_C_MODULE_DIR, name, &db);
       file = (char*)db.buf;
-    } else if(has_dot_or_slash && path_exists1(name) && path_isrelative(name)) {
+    } else if(has_dot_or_slash(name) && path_exists1(name) && path_isrelative(name)) {
       file = path_absolute1(name);
       path_collapse1(file);
     }
