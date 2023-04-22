@@ -1,1 +1,4 @@
 - fix XML enumeration
+
+- make XML writer outputting via a function call instead of DynBuf
+- make XML reader streaming?
