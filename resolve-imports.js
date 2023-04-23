@@ -351,7 +351,7 @@ function ImportIdMap(seq) {
        while(IsPunctuator(',', seq[i])) ++i;
       }
     } else {
-      throw new Error(`No such token ${seq[i].lexeme} ${inspect(entries)}`);
+      throw new Error(`No such token ${seq[i].lexeme} at ${seq[i].loc}`);
     }
   }
   return entries;

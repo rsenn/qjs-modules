@@ -709,8 +709,6 @@ jsm_module_load(JSContext* ctx, const char* path) {
   assert(last_module->next != js_modules_list(ctx));
 
   JSModuleDef* m = last_module->next->next != js_modules_list(ctx) ? list_entry(last_module->next->next, JSModuleDef, link) : jsm_module_find(ctx, path);
-  assert(m);
-  // JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
   return m;
 }
 
