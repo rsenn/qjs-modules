@@ -51,8 +51,8 @@ struct async_closure {
 
 PACK struct async_socket_state {
   SOCKET_PROPS();
-  struct socket_handlers handlers;
-  JSValue pending;
+  /*struct socket_handlers handlers;*/
+  JSValue pending[2];
 };
 ENDPACK
 
@@ -140,58 +140,33 @@ js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
 static inline Socket
 js_socket_data(JSValueConst value) {
   JSClassID id = JS_GetClassID(value);
-  if(id > 0 && (id == js_socket_class_id || id == js_async_socket_class_id)) {
-    void* ptr;
-    if((ptr = JS_GetOpaque(value, id))) {
-      Socket sock;
-      if(id == js_async_socket_class_id)
-        sock = *(Socket*)ptr;
-      else
-        sock.ptr = ptr;
-      return sock;
-    }
-  }
-  return (Socket){{-1, 0, -1}};
-}
+  Socket sock = {{-1, 0, -1}};
 
-static inline Socket*
-js_socket_ptr(JSValueConst value) {
-  Socket sock;
-  JSClassID id = JS_GetClassID(value);
-  if(id > 0) {
-    if(id == js_socket_class_id) {
-      struct JSObject* obj;
-      obj = JS_VALUE_GET_OBJ(value);
-      return (Socket*)&obj->u.opaque;
-    } else if(id == js_async_socket_class_id) {
-      return JS_GetOpaque(value, id);
-    }
+  if((id = JS_GetClassID(value)) > 0) {
+    void* opaque = JS_GetOpaque(value, id);
+    if(id == js_socket_class_id)
+      sock = *(Socket*)&opaque;
+    if(id == js_async_socket_class_id)
+      sock = *(Socket*)opaque;
   }
-  return 0;
+  return sock;
 }
 
 static inline AsyncSocket*
 js_async_socket_ptr(JSValueConst value) {
-  Socket sock;
-  JSClassID id = JS_GetClassID(value);
-  if(id > 0 && id == js_async_socket_class_id)
-    return JS_GetOpaque(value, id);
-
-  return 0;
+  return js_async_socket_class_id ? JS_GetOpaque(value, js_async_socket_class_id) : 0;
 }
 
-static inline Socket
-js_socket_data2(JSContext* ctx, JSValueConst value) {
-  Socket sock = {{-1, 0, -1}};
-  JSClassID id = JS_GetClassID(value);
-  assert(id == js_socket_class_id || id == js_async_socket_class_id);
-  if(id > 0 && (id == js_socket_class_id || id == js_async_socket_class_id)) {
-    void** ptr = JS_GetOpaque2(ctx, value, id);
-    if(ptr)
+static inline Socket*
+js_socket_ptr(JSValueConst value) {
+  JSClassID id;
 
-      sock.ptr = id == js_async_socket_class_id ? *ptr : ptr;
+  if(js_socket_class_id != 0 && JS_GetClassID(value) == js_socket_class_id) {
+    struct JSObject* obj = JS_VALUE_GET_OBJ(value);
+    return (Socket*)&obj->u.opaque;
   }
-  return sock;
+
+  return (Socket*)js_async_socket_ptr(value);
 }
 
 /**

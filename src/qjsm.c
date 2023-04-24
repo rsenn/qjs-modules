@@ -706,6 +706,9 @@ jsm_module_load(JSContext* ctx, const char* path) {
 
   dbuf_free(&dbuf);
 
+  if(last_module->next == js_modules_list(ctx))
+    return 0;
+
   assert(last_module->next != js_modules_list(ctx));
 
   JSModuleDef* m = last_module->next->next != js_modules_list(ctx) ? list_entry(last_module->next->next, JSModuleDef, link) : jsm_module_find(ctx, path);

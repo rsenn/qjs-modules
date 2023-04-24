@@ -675,13 +675,13 @@ js_inspect_print_string(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   for(pos = 0; pos < limit;) {
     size_t i, n, eol;
     n = limit - pos;
-    if(pos > 0) {
-      dbuf_putstr(buf, opts->colors ? "'" COLOR_NONE " +" : "' +");
-      max_len = opts->break_length - column_start - 8;
-      inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
-      dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
-    }
     if(opts->string_break_newline) {
+      if(pos > 0) {
+        dbuf_putstr(buf, opts->colors ? "'" COLOR_NONE " +" : "' +");
+        max_len = opts->break_length - column_start - 8;
+        inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);
+        dbuf_putstr(buf, opts->colors ? COLOR_GREEN "'" : "'");
+      }
       for(i = pos; i < limit; i += eol) {
         eol = byte_chr(&str[i], limit - i, '\n');
         if(str[i + eol] == '\n')
