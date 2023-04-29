@@ -68,12 +68,12 @@ list_size(struct list_head* list) {
 }
 
 struct list_head*
-list_head(const struct list_head* list) {
+list_front(const struct list_head* list) {
   return list->next != list ? list->next : 0;
 }
 
 struct list_head*
-list_tail(const struct list_head* list) {
+list_back(const struct list_head* list) {
   return list->prev != list ? list->prev : 0;
 }
 
@@ -842,14 +842,15 @@ js_get_propertystr_int64(JSContext* ctx, JSValueConst obj, const char* str) {
 
 const char*
 js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop) {
-  JSValue value;
-  const char* ret;
-  value = JS_GetPropertyStr(ctx, obj, prop);
-  if(JS_IsUndefined(value) || JS_IsException(value))
-    return 0;
+  JSAtom atom = JS_NewAtom(ctx, prop);
+  const char* ret = 0;
 
-  ret = JS_ToCString(ctx, value);
-  JS_FreeValue(ctx, value);
+  if(JS_HasProperty(ctx, obj, atom)) {
+    JSValue value = JS_GetProperty(ctx, obj, atom);
+    ret = JS_ToCString(ctx, value);
+    JS_FreeValue(ctx, value);
+  }
+
   return ret;
 }
 

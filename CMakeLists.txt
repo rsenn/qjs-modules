@@ -234,7 +234,7 @@ endif(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
 message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
 message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
 
-if(HAVE_ACCESS)
+  if(HAVE_ACCESS)
   add_definitions(-DHAVE_ACCESS=1)
 endif(HAVE_ACCESS)
 message("Have access() ${HAVE_ACCESS}")
@@ -287,8 +287,12 @@ link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
     bjson blob deep directory lexer list location ${magic_MODULE} misc path
-    pointer predicate repeater textcode serial sockets stream syscallerror
+    pointer predicate repeater textcode sockets stream syscallerror
     inspect tree-walker xml)
+
+if(BUILD_LIBSERIALPORT)
+  list(APPEND QUICKJS_MODULES serial)
+endif(BUILD_LIBSERIALPORT)
 
 if(USE_LIBARCHIVE)
   if(BUILD_LIBARCHIVE)

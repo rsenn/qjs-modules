@@ -68,8 +68,8 @@ void* utils_js_realloc(JSContext* ctx, void* ptr, size_t size);
 void* utils_js_realloc_rt(JSRuntime* rt, void* ptr, size_t size);
 
 size_t list_size(struct list_head* list);
-struct list_head* list_head(const struct list_head* list);
-struct list_head* list_tail(const struct list_head* list);
+struct list_head* list_front(const struct list_head* list);
+struct list_head* list_back(const struct list_head* list);
 
 static inline Arguments
 arguments_new(int argc, const char* argv[]) {
