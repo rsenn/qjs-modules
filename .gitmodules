@@ -16,5 +16,5 @@
 	branch = master
 [submodule "libserialport"]
 	path = libserialport
-	url = https://github.com/rsenn/libserialport
+	url = git@github.com:rsenn/libserialport.git
 	branch = cmake
