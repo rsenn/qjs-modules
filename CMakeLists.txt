@@ -16,6 +16,7 @@ option(USE_SPAWN "Use POSIX spawn()" OFF)
 option(USE_LIBARCHIVE "Use libarchive" ON)
 option(USE_LIBMAGIC "Use libmagic" ON)
 option(USE_MARIADBCLIENT "Use mariadb client" OFF)
+option(USE_POSTGRESCLIENT "Use postgresql client" OFF)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
@@ -359,6 +360,20 @@ if(USE_MARIADBCLIENT)
 
 endif(USE_MARIADBCLIENT)
 
+
+if(USE_POSTGRESCLIENT)
+  pkg_check_modules(LIBPQ libpq)
+
+  set(LIBPQ_LIBRARY ${pkgcfg_lib_LIBPQ_pq})
+
+  list(APPEND QUICKJS_MODULES pgsql)
+
+  set(pgsql_LIBRARIES ${LIBPQ_LIBRARY})
+  dump(LIBPQ_LIBRARY pgsql_LIBRARIES)
+
+endif(USE_POSTGRESCLIENT)
+
+
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} child-process)
 else(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
@@ -497,6 +512,7 @@ set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 set(magic_SOURCES quickjs-magic.c ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(mysql_SOURCES quickjs-mysql.c #${js_utils_SOURCES}
                   ${utils_SOURCES} ${buffer_utils_SOURCES})
+set(pgsql_SOURCES quickjs-pgsql.c ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 if(BUILD_LIBSERIALPORT)
   include(ExternalProject)
