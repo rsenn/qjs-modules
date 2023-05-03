@@ -17,10 +17,17 @@ thread_local JSValue pgsqlerror_proto = {{JS_TAG_UNDEFINED}}, pgsqlerror_ctor = 
 static JSValue js_pgresult_wrap(JSContext* ctx, PGresult* res);
 
 typedef char* FieldNameFunc(JSContext*, PGresult* res, int field);
+typedef JSValue RowValueFunc(JSContext*, PGresult*, int, int);
+
+static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
+static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const char* s);
+
+#define string_to_number(ctx, s) string_to_value(ctx, "Number", s);
+#define string_to_date(ctx, s) string_to_object(ctx, "Date", s);
 
 static char* field_id(JSContext* ctx, PGresult* res, int field);
 static char* field_name(JSContext* ctx, PGresult* res, int field);
-static FieldNameFunc* field_namefunc(PGresult* res, int fields, uint32_t num_fields);
+static FieldNameFunc* field_namefunc(PGresult* res);
 static JSValue field_array(JSContext* ctx, PGresult* res, int field);
 static BOOL field_is_integer(PGresult* res, int field);
 static BOOL field_is_float(PGresult* res, int field);
@@ -59,12 +66,13 @@ typedef struct {
 static PGSQLResult* pgresult_dup(PGSQLResult* ptr);
 static void pgresult_free(JSRuntime* rt, void* ptr, void* mem);
 static JSValue pgresult_row(PGSQLResult* opaque, uint32_t row, JSContext* ctx);
+static int64_t pgresult_cmdtuples(PGSQLResult* opaque);
 
 static JSValue js_pgresult_new(JSContext* ctx, JSValueConst proto, PGresult* res);
 static JSValue js_pgsqlerror_new(JSContext* ctx, const char* msg);
 
 static void
-js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueConst value) {
+js_pgconn_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
 
   if(JS_IsNull(value) || JS_IsUndefined(value) || js_is_nan(value)) {
     dbuf_putstr(out, "NULL");
@@ -80,7 +88,7 @@ js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
 
     dbuf_putc(out, '\'');
     dst = (char*)dbuf_reserve(out, len * 2 + 1);
-    len = PQescapeStringConn(pq->conn, dst, src, len, &err);
+    len = PQescapeString(dst, src, len);
     out->size += len;
     dbuf_putc(out, '\'');
 
@@ -122,7 +130,7 @@ js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
   } else if(!JS_IsBigDecimal(value) && js_is_numeric(ctx, value)) {
     JSValue val = js_value_coerce(ctx, (JS_IsBigDecimal(value)) ? "Number" : "BigDecimal", value);
 
-    js_pgconn_print_value(ctx, pq, out, val);
+    js_pgconn_print_value(ctx, out, val);
     JS_FreeValue(ctx, val);
 
   } else {
@@ -152,6 +160,24 @@ js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
 }
 
 static void
+js_pgconn_print_field(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueConst value) {
+  const char* name;
+  size_t namelen;
+
+  if((name = JS_ToCStringLen(ctx, &namelen, value))) {
+    char* escaped;
+
+    escaped = PQescapeIdentifier(pq->conn, name, namelen);
+    JS_FreeCString(ctx, name);
+
+    if(escaped) {
+      dbuf_putstr(out, escaped);
+      PQfreemem(escaped);
+    }
+  }
+}
+/*
+static void
 js_pgconn_print_fields(JSContext* ctx, DynBuf* out, JSPropertyEnum* tmp_tab, uint32_t tmp_len) {
   for(uint32_t i = 0; i < tmp_len; i++) {
     const char* str;
@@ -164,14 +190,36 @@ js_pgconn_print_fields(JSContext* ctx, DynBuf* out, JSPropertyEnum* tmp_tab, uin
     JS_FreeCString(ctx, str);
   }
 }
-
+*/
 static void
 js_pgconn_print_insert(JSContext* ctx, DynBuf* out) {
   dbuf_putstr(out, "INSERT INTO ");
 }
 
 static void
-js_pgconn_print_values(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueConst values) {
+js_pgconn_print_fields(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueConst fields) {
+  JSValue item, iter = js_iterator_new(ctx, fields);
+
+  if(!JS_IsUndefined(iter)) {
+    BOOL done = FALSE;
+
+    dbuf_putc(out, '(');
+    for(int i = 0;; i++) {
+      item = js_iterator_next(ctx, iter, &done);
+      if(done)
+        break;
+      if(i > 0)
+        dbuf_putstr(out, ", ");
+
+      js_pgconn_print_field(ctx, pq, out, item);
+      JS_FreeValue(ctx, item);
+    }
+    dbuf_putc(out, ')');
+  }
+}
+
+static void
+js_pgconn_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
   JSValue item, iter = js_iterator_new(ctx, values);
 
   if(!JS_IsUndefined(iter)) {
@@ -184,12 +232,12 @@ js_pgconn_print_values(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValue
         break;
       if(i > 0)
         dbuf_putstr(out, ", ");
-      js_pgconn_print_value(ctx, pq, out, item);
+      js_pgconn_print_value(ctx, out, item);
       JS_FreeValue(ctx, item);
     }
     dbuf_putc(out, ')');
 
-  } else {
+  } /*else {
     JSPropertyEnum* tmp_tab;
     uint32_t tmp_len;
 
@@ -208,12 +256,12 @@ js_pgconn_print_values(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValue
       if(i > 0)
         dbuf_putstr(out, ", ");
       item = JS_GetProperty(ctx, values, tmp_tab[i].atom);
-      js_pgconn_print_value(ctx, pq, out, item);
+      js_pgconn_print_value(ctx, out, item);
       JS_FreeValue(ctx, item);
     }
     dbuf_putc(out, ')');
     js_propertyenums_free(ctx, tmp_tab, tmp_len);
-  }
+  }*/
 }
 
 static void
@@ -388,20 +436,11 @@ js_pgconn_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-
     case PROP_CMD_TUPLES: {
-      if(pq->result && pq->result->result) {
-        char* cmdtuples;
-        if((cmdtuples = PQcmdTuples(pq->result->result))) {
-          int64_t num;
-          if(scan_longlong(cmdtuples, &num) > 0)
-            ret = JS_NewInt64(ctx, num);
-        }
-      }
-
+      if(pq->result)
+        ret = JS_NewInt64(ctx, pgresult_cmdtuples(pq->result));
       break;
     }
-
     case PROP_NONBLOCKING: {
       ret = JS_NewBool(ctx, pq->conn ? PQisnonblocking(pq->conn) : pq->nonblocking);
       break;
@@ -420,17 +459,26 @@ js_pgconn_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = options && *options ? JS_NewString(ctx, options) : JS_NULL;
       break;
     }
-      /*  case PROP_INSERT_ID: {
-          ret = JS_NewInt64(ctx, pgsql_insert_id(pq));
-          break;
-        }*/
+    case PROP_INSERT_ID: {
+      PGresult* res;
+      int64_t id = -1;
+      if((res = PQexec(pq->conn, "SELECT lastval();"))) {
+        char* val;
+
+        if((val = PQgetvalue(res, 0, 0))) {
+          if(scan_longlong(val, &id) > 0)
+            ret = JS_NewInt64(ctx, id);
+        }
+        PQclear(res);
+      }
+      break;
+    }
     case PROP_CLIENT_ENCODING: {
       int encoding = PQclientEncoding(pq->conn);
       const char* charset = pg_encoding_to_char(encoding);
       ret = charset && *charset ? JS_NewString(ctx, charset) : JS_NULL;
       break;
     }
-
     case PROP_PROTOCOL_VERSION: {
       ret = JS_NewUint32(ctx, PQprotocolVersion(pq->conn));
       break;
@@ -466,7 +514,6 @@ js_pgconn_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = db ? JS_NewString(ctx, db) : JS_NULL;
       break;
     }
-
     case PROP_CONNINFO: {
       PQconninfoOption* info;
 
@@ -522,18 +569,14 @@ js_pgconn_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
 static JSValue
 js_pgconn_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  PGSQLConnection* pq;
   DynBuf buf;
-
-  if(!(pq = js_pgconn_data2(ctx, this_val)))
-    return JS_EXCEPTION;
 
   dbuf_init2(&buf, 0, 0);
 
   for(int i = 0; i < argc; i++) {
     if(i > 0)
       dbuf_putstr(&buf, ", ");
-    js_pgconn_print_value(ctx, pq, &buf, argv[i]);
+    js_pgconn_print_value(ctx, &buf, argv[i]);
   }
 
   ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
@@ -544,11 +587,7 @@ js_pgconn_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 static JSValue
 js_pgconn_values_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  PGSQLConnection* pq;
   DynBuf buf;
-
-  if(!(pq = js_pgconn_data2(ctx, this_val)))
-    return JS_EXCEPTION;
 
   dbuf_init2(&buf, 0, 0);
 
@@ -556,7 +595,7 @@ js_pgconn_values_string(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     if(i > 0)
       dbuf_putstr(&buf, ", ");
 
-    js_pgconn_print_values(ctx, pq, &buf, argv[i]);
+    js_pgconn_print_values(ctx, &buf, argv[i]);
   }
 
   ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
@@ -567,10 +606,11 @@ js_pgconn_values_string(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 static JSValue
 js_pgconn_insert_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  PGSQLConnection* pq;
   DynBuf buf;
   const char* tbl;
   size_t tbl_len;
+  PGSQLConnection* pq;
+  int i = 1, j;
 
   if(!(pq = js_pgconn_data2(ctx, this_val)))
     return JS_EXCEPTION;
@@ -582,11 +622,25 @@ js_pgconn_insert_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   dbuf_put(&buf, (const uint8_t*)tbl, tbl_len);
   dbuf_putstr(&buf, " ");
 
-  for(int i = 1; i < argc; i++) {
-    if(i > 1)
+  if(i + 1 < argc) {
+    js_pgconn_print_fields(ctx, pq, &buf, argv[i++]);
+  }
+
+  dbuf_putstr(&buf, " VALUES ");
+
+  for(j = i; j < argc; j++) {
+    if(JS_IsString(argv[j]))
+      break;
+
+    if(i > j)
       dbuf_putstr(&buf, ", ");
 
-    js_pgconn_print_values(ctx, pq, &buf, argv[i]);
+    js_pgconn_print_values(ctx, &buf, argv[j]);
+  }
+
+  if(j < argc) {
+    dbuf_putstr(&buf, " RETURNING ");
+    js_pgconn_print_field(ctx, pq, &buf, argv[j++]);
   }
 
   dbuf_putstr(&buf, ";");
@@ -676,6 +730,10 @@ js_pgconn_escape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   dst = (char*)(pq && pq->conn ? PQescapeByteaConn(pq->conn, (unsigned char*)src.data, src.size, &dlen)
                                : PQescapeBytea((unsigned char*)src.data, src.size, &dlen));
+
+  if(dlen > 0 && dst[dlen - 1] == '\0')
+    dlen--;
+
   ret = JS_NewStringLen(ctx, dst, dlen);
   PQfreemem(dst);
 
@@ -845,17 +903,9 @@ js_pgconn_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       JSValue res_val = pgconn_result(pq, res, ctx);
 
       js_iohandler_set(ctx, data[1], fd, JS_NULL);
-      /*if(res) */ {
-        if(res)
-          JS_DefinePropertyValueStr(ctx, res_val, "handle", JS_DupValue(ctx, data[0]), JS_PROP_CONFIGURABLE);
 
-        /*JSValue res_type = JS_GetPropertyStr(ctx, data[0], "resultType");
-
-           if(!JS_IsUndefined(res_type) && !JS_IsException(res_type))
-             JS_SetPropertyStr(ctx, res_val, "resultType", res_type);*/
-        JS_Call(ctx, data[2], JS_UNDEFINED, 1, &res_val);
-        JS_FreeValue(ctx, res_val);
-      }
+      JS_Call(ctx, data[2], JS_UNDEFINED, 1, &res_val);
+      JS_FreeValue(ctx, res_val);
     }
   }
 
@@ -981,7 +1031,7 @@ static JSClassDef js_pgconn_class = {
 
 static const JSCFunctionListEntry js_pgconn_funcs[] = {
     JS_CGETSET_MAGIC_DEF("cmdTuples", js_pgconn_get, 0, PROP_CMD_TUPLES),
-    JS_ALIAS_DEF("affectedRows", "cmdTuples"),
+    JS_CGETSET_MAGIC_DEF("affectedRows", js_pgconn_get, 0, PROP_CMD_TUPLES),
 
     JS_CGETSET_MAGIC_DEF("nonblocking", js_pgconn_get, js_pgconn_set, PROP_NONBLOCKING),
     JS_CGETSET_MAGIC_DEF("fd", js_pgconn_get, 0, PROP_FD),
@@ -1006,6 +1056,7 @@ static const JSCFunctionListEntry js_pgconn_funcs[] = {
     JS_CFUNC_MAGIC_DEF("escapeIdentifier", 1, js_pgconn_escape_alloc, 1),
     JS_CFUNC_DEF("escapeBytea", 1, js_pgconn_escape_bytea),
     JS_CFUNC_DEF("unescapeBytea", 1, js_pgconn_unescape_bytea),
+    JS_CFUNC_DEF("insertQuery", 2, js_pgconn_insert_query),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "PGconn", JS_PROP_CONFIGURABLE),
 };
 
@@ -1013,7 +1064,8 @@ static const JSCFunctionListEntry js_pgconn_static[] = {
     JS_CFUNC_DEF("escapeString", 1, js_pgconn_escape_string),
     JS_CFUNC_DEF("escapeBytea", 1, js_pgconn_escape_bytea),
     JS_CFUNC_DEF("unescapeBytea", 1, js_pgconn_unescape_bytea),
-    JS_CFUNC_DEF("insertQuery", 2, js_pgconn_insert_query),
+    JS_CFUNC_DEF("valueString", 0, js_pgconn_value_string),
+    JS_CFUNC_DEF("valuesString", 1, js_pgconn_values_string),
 };
 
 static const JSCFunctionListEntry js_pgconn_defines[] = {
@@ -1090,15 +1142,16 @@ static const JSCFunctionListEntry js_pgsqlerror_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "PGerror", JS_PROP_CONFIGURABLE),
 };
 
-/*static JSValue
-result_value(JSContext* ctx, PGSQL_FIELD const* field, char* buf, size_t len, int rtype) {
+static JSValue
+result_value(JSContext* ctx, PGresult* res, int field, char* buf, size_t len, int rtype) {
   JSValue ret = JS_UNDEFINED;
 
   if(buf == 0)
     return (rtype & RESULT_STRING) ? JS_NewString(ctx, "NULL") : JS_NULL;
 
-  if(field_is_boolean(field)) {
-    BOOL value = *(my_bool*)buf;
+  if(field_is_boolean(res, field)) {
+    BOOL value = *(BOOL*)buf;
+
     if((rtype & RESULT_STRING))
       return JS_NewString(ctx, value ? "1" : "0");
 
@@ -1106,59 +1159,61 @@ result_value(JSContext* ctx, PGSQL_FIELD const* field, char* buf, size_t len, in
   }
 
   if(!(rtype & RESULT_STRING)) {
-    if(field_is_number(field))
+    if(field_is_number(res, field))
       return string_to_number(ctx, buf);
-    if(field_is_decimal(field))
-      return string_to_bigdecimal(ctx, buf);
-    if(field_is_date(field)) {
-      if(field->length == 19 && buf[10] == ' ')
+    if(field_is_date(res, field)) {
+      int len = strlen(buf);
+
+      if(len >= 19 && buf[10] == ' ')
         buf[10] = 'T';
+
       return string_to_date(ctx, buf);
     }
   }
 
-  if(field_is_blob(field)) {
+  /*if(field_is_blob(res, field)) {
     if((rtype & RESULT_STRING))
       return JS_NewStringLen(ctx, buf, len);
 
     return JS_NewArrayBufferCopy(ctx, (uint8_t const*)buf, len);
   }
-
+*/
   ret = JS_NewString(ctx, buf);
 
   return ret;
 }
 
 static JSValue
-result_array(JSContext* ctx, PGresult* res, PGSQL_ROW row, int rtype) {
+result_array(JSContext* ctx, PGresult* res, int row, int rtype) {
   JSValue ret = JS_NewArray(ctx);
-  uint32_t i, num_fields = pgsql_num_fields(res);
-  PGSQL_FIELD* fields = pgsql_fetch_fields(res);
-  unsigned long* field_lengths = pgsql_fetch_lengths(res);
+  uint32_t i, num_fields = PQnfields(res);
 
   for(i = 0; i < num_fields; i++) {
+    int len = PQgetlength(res, row, i);
+    char* col = PQgetisnull(res, row, i) ? NULL : PQgetvalue(res, row, i);
 #ifdef DEBUG_OUTPUT_
-    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n", __func__, num_fields, i, (int)(field_lengths[i] > 32 ? 32 : field_lengths[i]), row[i]);
+    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n", __func__, num_fields, i, (int)(len > 32 ? 32 : len), col);
 #endif
-    JS_SetPropertyUint32(ctx, ret, i, result_value(ctx, &fields[i], row[i], field_lengths[i], rtype));
+    JS_SetPropertyUint32(ctx, ret, i, result_value(ctx, res, i, col, len, rtype));
   }
 
   return ret;
 }
 
 static JSValue
-result_object(JSContext* ctx, PGresult* res, PGSQL_ROW row, int rtype) {
+result_object(JSContext* ctx, PGresult* res, int row, int rtype) {
   JSValue ret = JS_NewObject(ctx);
-  uint32_t i, num_fields = pgsql_num_fields(res);
-  PGSQL_FIELD* fields = pgsql_fetch_fields(res);
-  FieldNameFunc* fn = (rtype & RESULT_TABLENAME) ? field_id : field_namefunc(fields, num_fields);
-  unsigned long* field_lengths = pgsql_fetch_lengths(res);
+  uint32_t i, num_fields = PQnfields(res);
+  FieldNameFunc* fn = (rtype & RESULT_TABLENAME) ? field_id : field_namefunc(res);
 
   for(i = 0; i < num_fields; i++) {
     char* id;
 
-    if((id = fn(ctx, &fields[i]))) {
-      JS_SetPropertyStr(ctx, ret, id, result_value(ctx, &fields[i], row[i], field_lengths[i], rtype));
+    if((id = fn(ctx, res, i))) {
+      int len = PQgetlength(res, row, i);
+      char* col = PQgetisnull(res, row, i) ? NULL : PQgetvalue(res, row, i);
+
+      JS_SetPropertyStr(ctx, ret, id, result_value(ctx, res, i, col, len, rtype));
       js_free(ctx, id);
     }
   }
@@ -1167,39 +1222,40 @@ result_object(JSContext* ctx, PGresult* res, PGSQL_ROW row, int rtype) {
 }
 
 static JSValue
-result_row(JSContext* ctx, PGresult* res, PGSQL_ROW row, int rtype) {
-  JSValue val;
+result_row(JSContext* ctx, PGresult* res, int row, int rtype) {
+  int rows = PQntuples(res);
   RowValueFunc* row_func = (rtype & RESULT_OBJECT) ? result_object : result_array;
-
-  val = row ? row_func(ctx, res, row, rtype) : JS_NULL;
-
+  JSValue val = row >= 0 && row < rows ? row_func(ctx, res, row, rtype) : JS_NULL;
   return val;
 }
 
 static JSValue
-result_iterate(JSContext* ctx, PGresult* res, PGSQL_ROW row, int rtype) {
+result_iterate(JSContext* ctx, PGresult* res, int row, int rtype) {
+  int rows = PQntuples(res);
   JSValue ret, val = result_row(ctx, res, row, rtype);
-  ret = js_iterator_result(ctx, val, row ? FALSE : TRUE);
+  ret = js_iterator_result(ctx, val, row >= 0 && row < rows ? FALSE : TRUE);
   JS_FreeValue(ctx, val);
   return ret;
 }
 
 static void
-result_yield(JSContext* ctx, JSValueConst func, PGresult* res, PGSQL_ROW row, int rtype) {
+result_yield(JSContext* ctx, JSValueConst func, PGresult* res, int row, int rtype) {
+  int rows = PQntuples(res);
   JSValue val = result_row(ctx, res, row, rtype);
 
-  JSValue item = js_iterator_result(ctx, val, row ? FALSE : TRUE);
+  JSValue item = js_iterator_result(ctx, val, row >= 0 && row < rows ? FALSE : TRUE);
   JS_FreeValue(ctx, val);
 
   value_yield_free(ctx, func, item);
 }
 
 static void
-result_resolve(JSContext* ctx, JSValueConst func, PGresult* res, PGSQL_ROW row, int rtype) {
-  JSValue value = row ? result_row(ctx, res, row, rtype) : JS_NULL;
+result_resolve(JSContext* ctx, JSValueConst func, PGresult* res, int row, int rtype) {
+  JSValue value = result_row(ctx, res, row, rtype);
 
   value_yield_free(ctx, func, value);
-}*/
+}
+
 static PGSQLResult*
 pgresult_dup(PGSQLResult* ptr) {
   ++ptr->ref_count;
@@ -1222,9 +1278,10 @@ static JSValue
 pgresult_row(PGSQLResult* opaque, uint32_t row, JSContext* ctx) {
   PGresult* res = opaque->result;
   uint32_t i, cols = PQnfields(res);
-  JSValue ret = JS_NewArray(ctx);
+  JSValue ret /* = JS_NewArray(ctx)*/;
 
-  for(i = 0; i < cols; i++) {
+  ret = result_array(ctx, res, row, 0);
+  /*for(i = 0; i < cols; i++) {
     BOOL null = PQgetisnull(res, row, i);
     JSValue col;
 
@@ -1239,8 +1296,18 @@ pgresult_row(PGSQLResult* opaque, uint32_t row, JSContext* ctx) {
     }
 
     JS_SetPropertyUint32(ctx, ret, i, col);
-  }
+  }*/
 
+  return ret;
+}
+
+static int64_t
+pgresult_cmdtuples(PGSQLResult* opaque) {
+  int64_t ret = -1;
+  if(opaque->result) {
+    char* cmdtuples = PQcmdTuples(opaque->result);
+    scan_longlong(cmdtuples, &ret);
+  }
   return ret;
 }
 
@@ -1260,6 +1327,7 @@ js_pgresult_data(JSValueConst value) {
 
   if((opaque = js_pgresult_opaque(value)))
     return opaque->result;
+
   return 0;
 }
 
@@ -1269,6 +1337,7 @@ js_pgresult_data2(JSContext* ctx, JSValueConst value) {
 
   if((opaque = JS_GetOpaque2(ctx, value, js_pgresult_class_id)))
     return opaque->result;
+
   return 0;
 }
 
@@ -1293,17 +1362,10 @@ js_pgresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   return ret;
 }
 
-static JSValue
-js_pgresult_fetch_row(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv) {
-
-  BOOL done = FALSE;
-
-  return js_pgresult_next(ctx, this_val, argc, argv, &done, 0);
-}
-
 enum {
   METHOD_FETCH_FIELD,
   METHOD_FETCH_FIELDS,
+  METHOD_FETCH_ROW,
 };
 
 static JSValue
@@ -1334,6 +1396,12 @@ js_pgresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       ret = JS_NewArray(ctx);
 
       for(i = 0; i < num_fields; i++) JS_SetPropertyUint32(ctx, ret, i, field_array(ctx, res, i));
+      break;
+    }
+    case METHOD_FETCH_ROW: {
+      BOOL done = FALSE;
+
+      ret = js_pgresult_next(ctx, this_val, argc, argv, &done, 0);
       break;
     }
   }
@@ -1451,7 +1519,7 @@ js_pgresult_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValu
       value = pgresult_row(js_pgresult_opaque(obj), index, ctx);
 
       if(pdesc) {
-        pdesc->flags = JS_PROP_ENUMERABLE;
+        pdesc->flags = 0;
         pdesc->value = value;
         pdesc->getter = JS_UNDEFINED;
         pdesc->setter = JS_UNDEFINED;
@@ -1462,89 +1530,17 @@ js_pgresult_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValu
   return FALSE;
 }
 
-static int
-js_pgresult_get_own_property_names(JSContext* ctx, JSPropertyEnum** ptab, uint32_t* plen, JSValueConst obj) {
-  PGresult* res = js_pgresult_data2(ctx, obj);
-  size_t i, len = PQntuples(res);
-  JSPropertyEnum* props;
-
-  props = js_malloc(ctx, sizeof(JSPropertyEnum) * (len + 1));
-
-  for(i = 0; i < len; i++) {
-    props[i].is_enumerable = TRUE;
-    props[i].atom = i | (1U << 31);
-  }
-
-  props[len].is_enumerable = TRUE;
-  props[len].atom = JS_NewAtom(ctx, "length");
-
-  *ptab = props;
-  *plen = len + 1;
-  return 0;
-}
-
-static int
-js_pgresult_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
-  PGresult* res = js_pgresult_data2(ctx, obj);
-  int64_t index;
-  size_t num = PQntuples(res);
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    if(index < 0)
-      index = ((index % (int64_t)(num + 1)) + num);
-
-    if(index < (int64_t)num)
-      return TRUE;
-  } else if(js_atom_is_length(ctx, prop)) {
-    return TRUE;
-  } else {
-    JSValue proto = JS_GetPrototype(ctx, obj);
-    if(JS_IsObject(proto) && JS_HasProperty(ctx, proto, prop))
-      return TRUE;
-  }
-
-  return FALSE;
-}
-
-static JSValue
-js_pgresult_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst receiver) {
-  PGresult* res = js_pgresult_data2(ctx, obj);
-  JSValue value = JS_UNDEFINED;
-  int64_t index;
-  int32_t entry;
-  size_t num = PQntuples(res);
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    if(index < 0)
-      index = ((index % (int64_t)(num + 1)) + num);
-
-    if(index < (int64_t)num)
-      value = pgresult_row(js_pgresult_opaque(obj), index, ctx);
-
-  } else if(js_atom_is_length(ctx, prop)) {
-    value = JS_NewUint32(ctx, num);
-  } else {
-    JSValue proto = JS_IsUndefined(pgresult_proto) ? JS_GetPrototype(ctx, obj) : pgresult_proto;
-    if(JS_IsObject(proto))
-      value = JS_GetProperty(ctx, proto, prop);
-  }
-
-  return value;
-}
-
 static void
 js_pgresult_finalizer(JSRuntime* rt, JSValue val) {
   PGSQLResult* opaque;
 
-  if((opaque = JS_GetOpaque(val, js_pgresult_class_id)))
-    pgresult_free(rt, pgresult_free, 0);
+  if((opaque = JS_GetOpaque(val, js_pgresult_class_id))) {
+    pgresult_free(rt, opaque, 0);
+  }
 }
 
 static JSClassExoticMethods js_pgresult_exotic_methods = {
     .get_own_property = js_pgresult_get_own_property,
-    .get_own_property_names = js_pgresult_get_own_property_names,
-    .has_property = js_pgresult_has_property,
-    .get_property = js_pgresult_get_property,
 };
 
 static JSClassDef js_pgresult_class = {
@@ -1558,10 +1554,9 @@ static const JSCFunctionListEntry js_pgresult_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_pgresult_next, 0),
     JS_CGETSET_MAGIC_FLAGS_DEF("numRows", js_pgresult_get, 0, PROP_NUM_ROWS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("numFields", js_pgresult_get, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
-
     JS_CFUNC_MAGIC_DEF("fetchField", 1, js_pgresult_functions, METHOD_FETCH_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchFields", 0, js_pgresult_functions, METHOD_FETCH_FIELDS),
-    JS_CFUNC_DEF("fetchRow", 0, js_pgresult_fetch_row),
+    JS_CFUNC_MAGIC_DEF("fetchRow", 0, js_pgresult_functions, METHOD_FETCH_ROW),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_pgresult_iterator),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "PGresult", JS_PROP_CONFIGURABLE),
 };
@@ -1652,8 +1647,8 @@ field_name(JSContext* ctx, PGresult* res, int field) {
 }
 
 static FieldNameFunc*
-field_namefunc(PGresult* res, int fields, uint32_t num_fields) {
-  uint32_t i, j;
+field_namefunc(PGresult* res) {
+  uint32_t i, j, num_fields = PQnfields(res);
   BOOL eq = FALSE;
 
   for(i = 0; !eq && i < num_fields; i++)
@@ -1938,6 +1933,22 @@ field_is_string(PGresult* res, int field) {
     return TRUE;
 
   return FALSE;
+}
+
+static JSValue
+string_to_value(JSContext* ctx, const char* func_name, const char* s) {
+  JSValue ret, arg = JS_NewString(ctx, s);
+  ret = js_value_coerce(ctx, func_name, arg);
+  JS_FreeValue(ctx, arg);
+  return ret;
+}
+
+static JSValue
+string_to_object(JSContext* ctx, const char* ctor_name, const char* s) {
+  JSValue ret, arg = JS_NewString(ctx, s);
+  ret = js_global_new(ctx, ctor_name, 1, &arg);
+  JS_FreeValue(ctx, arg);
+  return ret;
 }
 
 /**
