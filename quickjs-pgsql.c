@@ -29,6 +29,12 @@ typedef struct {
 } PGSQLResult;
 
 typedef struct {
+  JSContext* ctx;
+  PGSQLResult* result;
+  uint32_t row_index;
+} PGSQLResultIterator;
+
+typedef struct {
   PGconn* conn;
   BOOL nonblocking;
   PGSQLResult* result;
@@ -1076,11 +1082,6 @@ static const JSCFunctionListEntry js_pgconn_defines[] = {
     JS_PROP_INT32_DEF("RESULT_OBJECT", RESULT_OBJECT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("RESULT_STRING", RESULT_STRING, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("RESULT_TABLENAME", RESULT_TABLENAME, JS_PROP_CONFIGURABLE),
-    /* JS_PROP_INT32_DEF("WAIT_READ", PGRES_POLLING_READING, JS_PROP_CONFIGURABLE),
-     JS_PROP_INT32_DEF("WAIT_WRITE", PGRES_POLLING_WRITING, JS_PROP_CONFIGURABLE),
-     JS_PROP_INT32_DEF("WAIT_EXCEPT", PGSQL_WAIT_EXCEPT, JS_PROP_CONFIGURABLE),
-     JS_PROP_INT32_DEF("WAIT_TIMEOUT", PGSQL_WAIT_TIMEOUT, JS_PROP_CONFIGURABLE),*/
-
 };
 
 static JSValue
@@ -1270,7 +1271,7 @@ result_iterate(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
   JS_FreeValue(ctx, val);
   return ret;
 }
-
+/*
 static void
 result_yield(JSContext* ctx, JSValueConst func, PGSQLResult* opaque, int row, int rtype) {
   int rows = PQntuples(opaque->result);
@@ -1287,7 +1288,7 @@ result_resolve(JSContext* ctx, JSValueConst func, PGSQLResult* opaque, int row, 
   JSValue value = result_row(ctx, opaque, row, rtype);
 
   value_yield_free(ctx, func, value);
-}
+}*/
 
 static PGSQLResult*
 pgresult_dup(PGSQLResult* ptr) {
@@ -1314,22 +1315,6 @@ pgresult_row(PGSQLResult* opaque, uint32_t row, RowValueFunc* fn, JSContext* ctx
   JSValue ret /* = JS_NewArray(ctx)*/;
 
   ret = fn(ctx, opaque, row, 0);
-  /*for(i = 0; i < cols; i++) {
-    BOOL null = PQgetisnull(res, row, i);
-    JSValue col;
-
-    if(null) {
-      col = JS_NULL;
-    } else {
-      char* s = PQgetvalue(res, row, i);
-      int n = PQgetlength(res, row, i);
-
-      BOOL binary = PQfformat(res, i);
-      col = binary ? JS_NewArrayBuffer(ctx, (uint8_t*)s, n, &pgresult_free, pgresult_dup(opaque), FALSE) : JS_NewStringLen(ctx, s, n);
-    }
-
-    JS_SetPropertyUint32(ctx, ret, i, col);
-  }*/
 
   return ret;
 }
@@ -1345,23 +1330,8 @@ pgresult_cmdtuples(PGSQLResult* opaque) {
 }
 
 PGSQLResult*
-js_pgresult_opaque(JSValueConst value) {
-  return JS_GetOpaque(value, js_pgresult_class_id);
-}
-
-PGSQLResult*
 js_pgresult_opaque2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_pgresult_class_id);
-}
-
-PGresult*
-js_pgresult_data(JSValueConst value) {
-  PGSQLResult* opaque;
-
-  if((opaque = js_pgresult_opaque(value)))
-    return opaque->result;
-
-  return 0;
 }
 
 PGresult*
@@ -1375,18 +1345,19 @@ js_pgresult_data2(JSContext* ctx, JSValueConst value) {
 }
 
 enum {
+  METHOD_NEXT,
   METHOD_FETCH_FIELD,
   METHOD_FETCH_FIELDS,
   METHOD_FETCH_ROW,
   METHOD_FETCH_ASSOC,
 };
 
-static JSValue
+ static JSValue
 js_pgresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
   PGSQLResult* opaque;
   uint32_t ntuples;
   JSValue ret = JS_NULL;
-  RowValueFunc* fn;
+  int rtype = 0;
 
   if(!(opaque = js_pgresult_opaque2(ctx, this_val)))
     return JS_EXCEPTION;
@@ -1394,20 +1365,21 @@ js_pgresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   ntuples = PQntuples(opaque->result);
 
   switch(magic) {
-    case METHOD_FETCH_ASSOC: fn = &result_object; break;
+
+    case METHOD_FETCH_ASSOC: rtype |= RESULT_OBJECT; break;
     case METHOD_FETCH_ROW:
-    default: fn = &result_array; break;
+    default: rtype |= 0; break;
   }
 
   if(opaque->row_index < ntuples) {
-    ret = pgresult_row(opaque, opaque->row_index++, fn, ctx);
+    ret = result_row(ctx, opaque, opaque->row_index++, rtype);
     *pdone = FALSE;
   } else {
     *pdone = TRUE;
   }
 
   return ret;
-}
+} 
 
 static JSValue
 js_pgresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -1504,7 +1476,7 @@ js_pgresult_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_EOF: {
       PGSQLResult* opaque;
 
-      if((opaque = js_pgresult_opaque(this_val)))
+      if((opaque = JS_GetOpaque(this_val, js_pgresult_class_id)))
         ret = JS_NewBool(ctx, opaque->row_index == PQntuples(res));
       break;
     }
@@ -1520,14 +1492,45 @@ js_pgresult_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-enum {
-  METHOD_ITERATOR,
-  METHOD_ASYNC_ITERATOR,
-};
+static JSValue
+js_pgresult_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
+  PGSQLResultIterator* closure = ptr;
+  PGSQLResult* opaque = closure->result;
+  int rows = PQntuples(opaque->result);
+JSValue ret;
+
+  ret= result_iterate(ctx, opaque, closure->row_index, 0);
+
+  if(closure->row_index < rows)
+    ++closure->row_index;
+
+  return ret;
+}
+
+static void
+js_pgresult_iterator_free(void* ptr) {
+  PGSQLResultIterator* closure = ptr;
+
+  pgresult_free(JS_GetRuntime(closure->ctx), closure->result, 0);
+}
 
 static JSValue
 js_pgresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  return JS_DupValue(ctx, this_val);
+  JSValue ret = JS_NewObject(ctx);
+  PGSQLResultIterator* closure;
+  PGSQLResult* opaque;
+
+  if(!(opaque = js_pgresult_opaque2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  if(!(closure = js_malloc(ctx, sizeof(PGSQLResultIterator))))
+    return JS_EXCEPTION;
+
+  *closure = (PGSQLResultIterator){ctx, pgresult_dup(opaque), 0};
+
+  JS_SetPropertyStr(ctx, ret, "next", js_function_cclosure(ctx, js_pgresult_iterator_next, 0, 0, closure, js_pgresult_iterator_free));
+
+  return ret;
 }
 
 static JSValue
@@ -1558,7 +1561,7 @@ js_pgresult_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValu
       index = ((index % num) + num) % num;
 
     if(index < (int64_t)num) {
-      value = pgresult_row(js_pgresult_opaque(obj), index, &result_array, ctx);
+      value = pgresult_row(JS_GetOpaque(obj, js_pgresult_class_id), index, &result_array, ctx);
 
       if(pdesc) {
         pdesc->flags = 0;
@@ -1576,9 +1579,8 @@ static void
 js_pgresult_finalizer(JSRuntime* rt, JSValue val) {
   PGSQLResult* opaque;
 
-  if((opaque = JS_GetOpaque(val, js_pgresult_class_id))) {
+  if((opaque = JS_GetOpaque(val, js_pgresult_class_id)))
     pgresult_free(rt, opaque, 0);
-  }
 }
 
 static JSClassExoticMethods js_pgresult_exotic_methods = {
@@ -1593,7 +1595,7 @@ static JSClassDef js_pgresult_class = {
 
 static const JSCFunctionListEntry js_pgresult_funcs[] = {
     JS_CGETSET_MAGIC_DEF("eof", js_pgresult_get, 0, PROP_EOF),
-    JS_ITERATOR_NEXT_DEF("next", 0, js_pgresult_next, 0),
+    //JS_ITERATOR_NEXT_DEF("next", 0, js_pgresult_next, METHOD_NEXT),
     JS_CGETSET_MAGIC_FLAGS_DEF("numRows", js_pgresult_get, 0, PROP_NUM_ROWS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("numFields", js_pgresult_get, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
     JS_CFUNC_MAGIC_DEF("fetchField", 1, js_pgresult_functions, METHOD_FETCH_FIELD),
