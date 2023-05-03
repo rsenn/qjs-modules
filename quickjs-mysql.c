@@ -800,7 +800,7 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     int ret;
 
     if((ret = mysql_set_character_set(my, "utf8"))) {
-      printf("failed setting MySQL character set to UTF8: %s (%ii)", mysql_error(my), mysql_errno(my));
+      printf("failed setting MySQL character set to UTF8: %s (%i)", mysql_error(my), mysql_errno(my));
     }
 
     JS_Call(ctx, data[3], JS_UNDEFINED, 1, &data[1]);
@@ -816,7 +816,14 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
+
     JS_FreeValue(ctx, handler);
+
+    JS_FreeValue(ctx, hdata[0]);
+    JS_FreeValue(ctx, hdata[1]);
+    JS_FreeValue(ctx, hdata[2]);
+    JS_FreeValue(ctx, hdata[3]);
+    JS_FreeValue(ctx, hdata[4]);
   }
 
 #ifdef DEBUG_OUTPUT
@@ -857,6 +864,12 @@ js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   if(!js_iohandler_set(ctx, data[2], fd, handler))
     JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
+
+  JS_FreeValue(ctx, data[0]);
+  JS_FreeValue(ctx, data[1]);
+  JS_FreeValue(ctx, data[2]);
+  JS_FreeValue(ctx, data[3]);
+  JS_FreeValue(ctx, data[4]);
 
   connectparams_free(ctx, &c);
 
@@ -936,7 +949,13 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
+
     JS_FreeValue(ctx, handler);
+    JS_FreeValue(ctx, hdata[0]);
+    JS_FreeValue(ctx, hdata[1]);
+    JS_FreeValue(ctx, hdata[2]);
+    JS_FreeValue(ctx, hdata[3]);
+    JS_FreeValue(ctx, hdata[4]);
   }
 
 #ifdef DEBUG_OUTPUT
@@ -998,7 +1017,14 @@ js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
     if(!js_iohandler_set(ctx, data[2], fd, handler))
       JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
+
+    JS_FreeValue(ctx, data[0]);
+    JS_FreeValue(ctx, data[1]);
+    JS_FreeValue(ctx, data[2]);
   }
+
+  JS_FreeValue(ctx, data[3]);
+  JS_FreeValue(ctx, data[4]);
 
   return promise;
 }
@@ -1078,6 +1104,7 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CGETSET_MAGIC_DEF("timeoutMs", js_mysql_get, 0, PROP_TIMEOUT_MS),
     JS_CGETSET_MAGIC_DEF("serverName", js_mysql_get, 0, PROP_SERVER_NAME),
     JS_CGETSET_MAGIC_DEF("serverInfo", js_mysql_get, 0, PROP_SERVER_INFO),
+    JS_CGETSET_MAGIC_DEF("serverVersion", js_mysql_get, 0, PROP_SERVER_VERSION),
     JS_CGETSET_MAGIC_DEF("user", js_mysql_get, 0, PROP_USER),
     JS_CGETSET_MAGIC_DEF("password", js_mysql_get, 0, PROP_PASSWORD),
     JS_CGETSET_MAGIC_DEF("host", js_mysql_get, 0, PROP_HOST),
@@ -1428,7 +1455,13 @@ js_mysqlresult_next_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
+
     JS_FreeValue(ctx, handler);
+    JS_FreeValue(ctx, hdata[0]);
+    JS_FreeValue(ctx, hdata[1]);
+    JS_FreeValue(ctx, hdata[2]);
+    JS_FreeValue(ctx, hdata[3]);
+    JS_FreeValue(ctx, hdata[4]);
   }
 
 #ifdef DEBUG_OUTPUT
