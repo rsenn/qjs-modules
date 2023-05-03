@@ -49,6 +49,7 @@ void dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const uint8_t tabl
 void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)());
 void dbuf_put_escaped(DynBuf*, const char*, size_t len);
 void dbuf_put_value(DynBuf*, JSContext*, JSValue value);
+void dbuf_put_uint32(DynBuf* db, uint32_t num);
 void dbuf_put_atom(DynBuf* db, JSContext* ctx, JSAtom atom);
 int dbuf_reserve_start(DynBuf*, size_t);
 uint8_t* dbuf_reserve(DynBuf*, size_t);

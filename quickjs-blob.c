@@ -53,7 +53,7 @@ blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
   if(dbuf_put(&blob->vec.dbuf, x, len))
     return -1;
   return len;
-} 
+}
 
 void
 blob_free(JSRuntime* rt, Blob* blob) {

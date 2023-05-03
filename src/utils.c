@@ -491,6 +491,15 @@ js_function_cfunc(JSContext* ctx, JSValueConst value) {
   return 0;
 }
 
+JSCFunctionMagic*
+js_function_cfuncmagic(JSContext* ctx, JSValueConst value) {
+  if(js_value_isclass(ctx, value, JS_CLASS_C_FUNCTION)) {
+    JSObject* obj = JS_VALUE_GET_OBJ(value);
+    return obj->u.cfunc.c_function.generic_magic;
+  }
+  return 0;
+}
+
 static JSValue
 js_function_bound(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* func_data) {
   int i = 0, j = 0, k = ABS_NUM(magic), l = SIGN_NUM(magic);
@@ -885,6 +894,19 @@ js_get_propertyint_int32(JSContext* ctx, JSValueConst obj, uint32_t prop) {
   int32_t ret;
   JSValue value = JS_GetPropertyUint32(ctx, obj, prop);
   JS_ToInt32(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+char*
+js_get_property_string(JSContext* ctx, JSValueConst obj, JSAtom prop) {
+  JSValue value;
+  char* ret;
+  value = JS_GetProperty(ctx, obj, prop);
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  ret = js_tostring(ctx, value);
   JS_FreeValue(ctx, value);
   return ret;
 }
@@ -2542,22 +2564,27 @@ js_error_uncatchable(JSContext* ctx) {
 
 JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write) {
-  JSModuleDef* os;
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
-  JSAtom func_name;
   JSValue set_handler;
+  JSValue osval = js_global_get_str(ctx, "os");
 
-  if(!(os = js_module_find(ctx, "os")))
-    return JS_ThrowReferenceError(ctx, "'os' module required");
+  if(!js_is_null_or_undefined(osval)) {
+    set_handler = JS_GetPropertyStr(ctx, osval, handlers[write]);
+    JS_FreeValue(ctx, osval);
+  } else {
+    JSModuleDef* os;
+    JSAtom func_name;
 
-  func_name = JS_NewAtom(ctx, handlers[write]);
-  set_handler = module_exports_find(ctx, os, func_name);
-  JS_FreeAtom(ctx, func_name);
+    if(!(os = js_module_find(ctx, "os")))
+      return JS_ThrowReferenceError(ctx, "'os' module required");
 
-  if(!JS_IsFunction(ctx, set_handler)) {
-    JS_FreeValue(ctx, set_handler);
-    return JS_ThrowReferenceError(ctx, "no os.%s function", handlers[write]);
+    func_name = JS_NewAtom(ctx, handlers[write]);
+    set_handler = module_exports_find(ctx, os, func_name);
+    JS_FreeAtom(ctx, func_name);
   }
+
+  if(js_is_null_or_undefined(set_handler))
+    return JS_ThrowReferenceError(ctx, "no os.%s function", handlers[write]);
 
   return set_handler;
 }
@@ -2584,17 +2611,17 @@ js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst 
   return TRUE;
 }
 
-static thread_local JSCFunction* readhandler_cfunc;
+static thread_local JSCFunctionMagic* readhandler_cfunc;
 
-JSCFunction*
-js_iohandler_cfunc(JSContext* ctx, BOOL write) {
+JSCFunctionMagic*
+js_iohandler_cfunc(JSContext* ctx) {
   if(!readhandler_cfunc) {
     JSValue set_handler;
     JSObject* obj;
-    set_handler = js_iohandler_fn(ctx, write);
+    set_handler = js_iohandler_fn(ctx, TRUE);
     if(JS_IsException(set_handler))
       return 0;
-    readhandler_cfunc = js_function_cfunc(ctx, set_handler);
+    readhandler_cfunc = js_function_cfuncmagic(ctx, set_handler);
   }
   return readhandler_cfunc;
 }

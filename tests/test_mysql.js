@@ -38,40 +38,24 @@ async function main(...args) {
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
-  console.log(
-    'my.connect() =',
-    console.config({ compact: false }),
-    await my.connect('localhost', 'root', 'tD51o7xf', 'mysql', undefined, '/var/run/mysqld/mysqld.sock')
-  );
+  console.log('my.connect() =', console.config({ compact: false }), await my.connect('localhost', 'roman', 'r4eHuJ', 'blah', undefined, '/var/run/mysqld/mysqld.sock'));
 
   let i;
 
-  let q = (globalThis.q = async s => (
-    console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s))
-  ));
+  let q = (globalThis.q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s))));
 
   i = 0;
+  let res = await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`);
 
-  await q(`CREATE DATABASE IF NOT EXISTS blah;`);
+  console.log(`res =`, res);
+
+  /*  await q(`CREATE DATABASE IF NOT EXISTS blah;`);
   await q(`USE blah;`);
 
   await q(
     `CREATE TABLE IF NOT EXISTS article ( id int unsigned NOT NULL auto_increment, title char(64) NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '',  PRIMARY KEY (id)) CHARACTER SET utf8`
   );
-
-  //for await(let table of await q(`SHOW TABLES;`)) console.log('table =', table);
-  //
-  //
-  let res = (globalThis.res = await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`));
-
-  console.log(`res =`, res);
-  /*console.log(`res[Symbol.iterator] =`, res[Symbol.iterator]);
-  console.log(`res[Symbol.asyncIterator] =`, res[Symbol.asyncIterator]);*/
-
-  //for await(let row of res) console.log(`row[${i++}] =`, row);
-
-  /*  startInteractive();
-  return;*/
+*/
 
   for await(let row of res) {
     console.log(`row[${i++}] =`, row);
@@ -81,9 +65,7 @@ async function main(...args) {
     ['This is another article', 'fliesstext...']
   ];
 
-  await q(
-    `INSERT INTO article (title,text) VALUES ${articles.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`
-  );
+  await q(`INSERT INTO article (title,text) VALUES ${articles.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`);
 
   let affected;
   console.log('affected =', (affected = my.affectedRows));
@@ -140,8 +122,7 @@ async function main(...args) {
 
   console.log('insert', insert);
 
-  for await(let row of await q(`SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`))
-    console.log(`article[${i++}] =`, row);
+  for await(let row of await q(`SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`)) console.log(`article[${i++}] =`, row);
 
   await q(insert);
   console.log('affected =', (affected = my.affectedRows));

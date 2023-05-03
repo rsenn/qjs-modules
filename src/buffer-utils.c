@@ -357,6 +357,12 @@ dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value) {
 }
 
 void
+dbuf_put_uint32(DynBuf* db, uint32_t num) {
+  char buf[FMT_ULONG];
+  dbuf_put(db, (const uint8_t*)buf, fmt_ulong(buf, num));
+}
+
+void
 dbuf_put_atom(DynBuf* db, JSContext* ctx, JSAtom atom) {
   const char* str;
   str = JS_AtomToCString(ctx, atom);

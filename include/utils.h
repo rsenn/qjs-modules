@@ -539,7 +539,8 @@ const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_object_tostring2(JSContext* ctx, JSValueConst method, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 const char* js_function_tostring(JSContext* ctx, JSValueConst value);
-JSCFunction* js_function_cfunc(JSContext*, JSValue value);
+JSCFunction* js_function_cfunc(JSContext*, JSValueConst value);
+JSCFunctionMagic* js_function_cfuncmagic(JSContext*, JSValueConst value);
 BOOL js_function_isnative(JSContext* ctx, JSValueConst value);
 int js_function_argc(JSContext* ctx, JSValueConst value);
 JSValue js_function_bind(JSContext*, JSValue func, int argc, JSValue argv[]);
@@ -623,6 +624,7 @@ const char* js_get_propertyint_cstring(JSContext* ctx, JSValueConst obj, uint32_
 int32_t js_get_propertyint_int32(JSContext* ctx, JSValueConst obj, uint32_t i);
 const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
 const char* js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
+char* js_get_property_string(JSContext* ctx, JSValueConst obj, JSAtom prop);
 char* js_get_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop);
 char* js_get_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 int32_t js_get_propertystr_int32(JSContext* ctx, JSValueConst obj, const char* prop);
@@ -903,7 +905,7 @@ JSValue js_error_stack(JSContext* ctx);
 
 JSValue js_iohandler_fn(JSContext*, BOOL write);
 BOOL js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst handler);
-JSCFunction* js_iohandler_cfunc(JSContext*, BOOL write);
+JSCFunctionMagic* js_iohandler_cfunc(JSContext*);
 
 JSValue js_promise_resolve(JSContext* ctx, JSValueConst promise);
 JSValue js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func);

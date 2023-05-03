@@ -31,6 +31,7 @@ struct ConnectParameters {
 
 typedef char* FieldNameFunc(JSContext*, MYSQL_FIELD const*);
 typedef JSValue RowValueFunc(JSContext*, MYSQL_RES*, MYSQL_ROW, int);
+typedef struct ConnectParameters MYSQLConnectParameters;
 
 static char* field_id(JSContext* ctx, MYSQL_FIELD const* field);
 static char* field_name(JSContext* ctx, MYSQL_FIELD const* field);
@@ -221,27 +222,43 @@ value_yield_free(JSContext* ctx, JSValueConst resolve, JSValueConst value) {
 }
 
 static void
-connectparams_init(JSContext* ctx, struct ConnectParameters* c, int argc, JSValueConst argv[]) {
-  c->host = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
-  c->user = argc > 1 ? JS_ToCString(ctx, argv[1]) : 0;
-  c->password = argc > 2 ? JS_ToCString(ctx, argv[2]) : 0;
-  c->db = argc > 3 ? JS_ToCString(ctx, argv[3]) : 0;
+connectparams_init(JSContext* ctx, MYSQLConnectParameters* c, int argc, JSValueConst argv[]) {
+  if(argc == 1 && JS_IsObject(argv[0])) {
+    JSValueConst args[] = {
+        JS_GetPropertyStr(ctx, argv[0], "host"),
+        JS_GetPropertyStr(ctx, argv[0], "user"),
+        JS_GetPropertyStr(ctx, argv[0], "password"),
+        JS_GetPropertyStr(ctx, argv[0], "db"),
+        JS_GetPropertyStr(ctx, argv[0], "port"),
+        JS_GetPropertyStr(ctx, argv[0], "socket"),
+        JS_GetPropertyStr(ctx, argv[0], "flags"),
+    };
 
-  if(argc > 4 && JS_IsNumber(argv[4]))
-    JS_ToUint32(ctx, &c->port, argv[4]);
-  else
-    c->port = 3306;
+    connectparams_init(ctx, c, countof(args), args);
 
-  c->socket = argc > 5 ? JS_ToCString(ctx, argv[5]) : 0;
+    for(size_t i = 0; i < countof(args); i++) JS_FreeValue(ctx, args[i]);
+  } else {
+    c->host = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
+    c->user = argc > 1 ? JS_ToCString(ctx, argv[1]) : 0;
+    c->password = argc > 2 ? JS_ToCString(ctx, argv[2]) : 0;
+    c->db = argc > 3 ? JS_ToCString(ctx, argv[3]) : 0;
 
-  if(argc > 6)
-    JS_ToInt64(ctx, &c->flags, argv[6]);
-  else
-    c->flags = 0;
+    if(argc > 4 && JS_IsNumber(argv[4]))
+      JS_ToUint32(ctx, &c->port, argv[4]);
+    else
+      c->port = 3306;
+
+    c->socket = argc > 5 ? JS_ToCString(ctx, argv[5]) : 0;
+
+    if(argc > 6)
+      JS_ToInt64(ctx, &c->flags, argv[6]);
+    else
+      c->flags = 0;
+  }
 }
 
 static void
-connectparams_free(JSContext* ctx, struct ConnectParameters* c) {
+connectparams_free(JSContext* ctx, MYSQLConnectParameters* c) {
   js_cstring_destroy(ctx, c->host);
   js_cstring_destroy(ctx, c->user);
   js_cstring_destroy(ctx, c->password);
@@ -836,7 +853,7 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 static JSValue
 js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue promise = JS_UNDEFINED, data[5], handler;
-  struct ConnectParameters c = {0, 0, 0, 0, 0};
+  MYSQLConnectParameters c = {0, 0, 0, 0, 0};
   MYSQL *my, *ret = 0;
   int32_t wantwrite, state, fd;
 
@@ -885,7 +902,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(!mysql_nonblock(my)) {
     MYSQL* ret;
-    struct ConnectParameters c = {0, 0, 0, 0, 0};
+    MYSQLConnectParameters c = {0, 0, 0, 0, 0};
 
     connectparams_init(ctx, &c, argc, argv);
 
@@ -904,6 +921,7 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   int32_t wantwrite, oldstate, newstate, fd;
   int ret = 0;
   MYSQL* my = 0;
+  JSCFunctionMagic* set_handler = js_iohandler_cfunc(ctx);
 
   if(!(my = js_mysql_data(ctx, data[1])))
     return JS_EXCEPTION;
@@ -919,33 +937,34 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     MYSQL_RES* res = mysql_use_result(my);
     JSValue res_val = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
 
-    js_iohandler_set(ctx, data[2], fd, JS_NULL);
+    JSValueConst args[2] = {JS_NewInt32(ctx, fd), JS_NULL};
+
+    set_handler(ctx, JS_NULL, 2, args, wantwrite);
+
+    //    js_iohandler_set(ctx, data[2], fd, JS_NULL);
 
     if(mysql_errno(my)) {
       JSValue err = js_mysqlerror_new(ctx, mysql_error(my));
       JS_Call(ctx, data[4], JS_UNDEFINED, 1, &err);
       JS_FreeValue(ctx, err);
-    } else /*if(res) */ {
+    } else {
       if(res)
         JS_DefinePropertyValueStr(ctx, res_val, "handle", JS_DupValue(ctx, data[1]), JS_PROP_CONFIGURABLE);
 
-      /*JSValue res_type = JS_GetPropertyStr(ctx, data[1], "resultType");
-
-         if(!JS_IsUndefined(res_type) && !JS_IsException(res_type))
-           JS_SetPropertyStr(ctx, res_val, "resultType", res_type);*/
       JS_Call(ctx, data[3], JS_UNDEFINED, 1, &res_val);
       JS_FreeValue(ctx, res_val);
     }
 
   } else if(newstate != oldstate) {
-    JSValue handler, hdata[5] = {
-                         JS_NewInt32(ctx, wantwrite),
-                         JS_DupValue(ctx, data[1]),
-                         js_iohandler_fn(ctx, !!(newstate & MYSQL_WAIT_WRITE)),
-                         JS_DupValue(ctx, data[3]),
-                         JS_DupValue(ctx, data[4]),
-                     };
-    handler = JS_NewCFunctionData(ctx, js_mysql_query_cont, 0, 0, countof(hdata), hdata);
+    BOOL wantwrite = !!(newstate & MYSQL_WAIT_WRITE);
+    JSValue hdata[5] = {
+        JS_NewInt32(ctx, wantwrite),
+        JS_DupValue(ctx, data[1]),
+        JS_NewCFunctionMagic(ctx, set_handler, wantwrite ? "setWriteHandler" : "setReadHandler", 2, JS_CFUNC_generic_magic, wantwrite),
+        JS_DupValue(ctx, data[3]),
+        JS_DupValue(ctx, data[4]),
+    };
+    JSValue handler = JS_NewCFunctionData(ctx, js_mysql_query_cont, 0, 0, countof(hdata), hdata);
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
@@ -1008,15 +1027,20 @@ js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
    } else*/
   {
+    JSCFunctionMagic* set_handler = js_iohandler_cfunc(ctx);
 
     data[0] = JS_NewInt32(ctx, wantwrite);
     data[1] = JS_DupValue(ctx, this_val);
-    data[2] = js_iohandler_fn(ctx, wantwrite);
+    data[2] = JS_NewCFunctionMagic(ctx, set_handler, wantwrite ? "setWriteHandler" : "setReadHandler", 2, JS_CFUNC_generic_magic, wantwrite ? 1 : 0);
+
+    // js_iohandler_fn(ctx, wantwrite);
 
     handler = JS_NewCFunctionData(ctx, js_mysql_query_cont, 0, 0, countof(data), data);
 
     if(!js_iohandler_set(ctx, data[2], fd, handler))
       JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
+
+    /* JS_FreeValue(ctx, handler);*/
 
     JS_FreeValue(ctx, data[0]);
     JS_FreeValue(ctx, data[1]);

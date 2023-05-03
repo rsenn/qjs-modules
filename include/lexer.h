@@ -69,7 +69,7 @@ char* lexer_rule_regex(LexerRule*);
 BOOL lexer_rule_expand(Lexer*, char* p, DynBuf* db);
 int lexer_rule_add(Lexer*, char* name, char* expr);
 LexerRule* lexer_rule_find(Lexer*, const char* name);
- void lexer_rule_release_rt(LexerRule*, JSRuntime* rt);
+void lexer_rule_release_rt(LexerRule*, JSRuntime* rt);
 void lexer_rule_dump(Lexer*, LexerRule* rule, DynBuf* dbuf);
 void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_define(Lexer*, char* name, char* expr);
