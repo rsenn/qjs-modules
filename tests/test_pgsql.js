@@ -86,7 +86,6 @@ async function main(...args) {
   console.log('id =', (id = pq.insertId));
 
   startInteractive();
-  // os.kill(process.pid, os.SIGUSR1);
 }
 
 try {
