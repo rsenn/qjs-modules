@@ -77,7 +77,7 @@ async function main(...args) {
   ];
 
   await q(
-    `INSERT INTO article (title,text) VALUES ${articles.map(cols => `(${PGconn.valueString(...cols)})`).join(', ')};`
+    `INSERT INTO article (title,text) VALUES ${articles.map(cols => `(${pq.valueString(...cols)})`).join(', ')};`
   );
 
   let affected;
@@ -117,8 +117,8 @@ async function main(...args) {
   let fieldNames = (globalThis.fields = []);
   for await(let field of await showFields()) fieldNames.push(field);
 
-  const rowValues = row => row.map(s => PGconn.valueString(s));
-  const rowString = row => PGconn.valueString(...row);
+  const rowValues = row => row.map(s => pq.valueString(s));
+  const rowString = row => pq.valueString(...row);
 
   function makeInsertQuery(table = 'article', fields, data = {}) {
     return `INSERT INTO ${table} (${fields.map(f => '`' + f + '`').join(',')}) VALUES (${rowString(data)});`;

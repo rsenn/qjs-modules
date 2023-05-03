@@ -11,7 +11,9 @@
  */
 #define is_control_char(c) ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
 #define is_alphanumeric_char(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
+
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
+#define is_print_char(c) ((c) >= ' ' && (c) <= '\x7f')
 #define is_newline_char(c) ((c) == '\n')
 #define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
 #define is_whitespace_char(c) ((c) == ' ' || (c) == '\t' || (c) == '\v' || (c) == '\n' || (c) == '\r')
@@ -327,15 +329,18 @@ escape_char_letter(char c) {
 #define FMT_XLONG 33 /* enough space to hold 2^128 - 1 in hexadecimal, plus \0 */
 
 size_t token_length(const char*, size_t, char delim);
-size_t fmt_ulong(char*, unsigned long);
-size_t scan_ushort(const char*, unsigned short*);
+size_t fmt_ulong(char*, uint32_t);
+size_t scan_ushort(const char*, uint16_t*);
 size_t fmt_longlong(char*, int64_t);
 size_t fmt_ulonglong(char*, uint64_t);
 size_t fmt_xlonglong(char*, uint64_t);
+size_t fmt_8long(char* dest, uint32_t i);
+size_t fmt_xlong(char* dest, uint32_t num);
+size_t fmt_xlong0(char* dest, uint32_t num, size_t n);
 size_t scan_longlong(const char*, int64_t*);
 size_t scan_ulonglong(const char*, uint64_t*);
 size_t scan_xlonglong(const char*, uint64_t*);
-size_t scan_8longn(const char*, size_t, unsigned long* dest);
+size_t scan_8longn(const char*, size_t, uint32_t* dest);
 size_t scan_whitenskip(const char*, size_t);
 size_t scan_nonwhitenskip(const char*, size_t);
 size_t scan_line(const char*, size_t);
@@ -364,7 +369,7 @@ scan_fromhex(unsigned char c) {
 }
 
 static inline size_t
-scan_8long(const char* src, unsigned long* dest) {
+scan_8long(const char* src, uint32_t* dest) {
   return scan_8longn(src, (size_t)-1, dest);
 }
 

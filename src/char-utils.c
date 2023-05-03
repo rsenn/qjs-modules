@@ -23,8 +23,8 @@ token_length(const char* str, size_t len, char delim) {
 }
 
 size_t
-fmt_ulong(char* dest, unsigned long i) {
-  unsigned long len, tmp, len2;
+fmt_ulong(char* dest, uint32_t i) {
+  uint32_t len, tmp, len2;
   for(len = 1, tmp = i; tmp > 9; ++len) tmp /= 10;
   if(dest)
     for(tmp = i, dest += len, len2 = len + 1; --len2; tmp /= 10) *--dest = (char)((tmp % 10) + '0');
@@ -32,12 +32,12 @@ fmt_ulong(char* dest, unsigned long i) {
 }
 
 size_t
-scan_ushort(const char* src, unsigned short* dest) {
+scan_ushort(const char* src, uint16_t* dest) {
   const char* cur;
-  unsigned short l;
+  uint16_t l;
   for(cur = src, l = 0; *cur >= '0' && *cur <= '9'; ++cur) {
-    unsigned long tmp = l * 10ul + *cur - '0';
-    if((unsigned short)tmp != tmp)
+    uint32_t tmp = l * 10ul + *cur - '0';
+    if((uint16_t)tmp != tmp)
       break;
     l = tmp;
   }
@@ -82,8 +82,52 @@ fmt_xlonglong(char* dest, uint64_t i) {
   return len;
 }
 
+size_t
+fmt_8long(char* dest, uint32_t i) {
+  uint32_t len, tmp;
+  /* first count the number of bytes needed */
+  for(len = 1, tmp = i; tmp > 7; ++len) tmp >>= 3;
+  if(dest)
+    for(tmp = i, dest += len;;) {
+      *--dest = (char)((tmp & 7) + '0');
+      if(!(tmp >>= 3)) {
+        break;
+      };
+    }
+  return len;
+}
+
+#define tohex(c) (char)((c) >= 10 ? (c)-10 + 'a' : (c) + '0')
+
+size_t
+fmt_xlong(char* dest, uint32_t i) {
+  uint32_t len, tmp;
+  /* first count the number of bytes needed */
+  for(len = 1, tmp = i; tmp > 15; ++len) tmp >>= 4;
+  if(dest)
+    for(tmp = i, dest += len;;) {
+      *--dest = tohex(tmp & 15);
+      if(!(tmp >>= 4)) {
+        break;
+      };
+    }
+  return len;
+}
+
+size_t
+fmt_xlong0(char* dest, uint32_t num, size_t n) {
+  size_t i = 0, len, tmp;
+  len = fmt_xlong(NULL, num);
+  if(len < n) {
+    len = n - len;
+    while(i < len) dest[i++] = '0';
+  }
+  i += fmt_xlong(&dest[i], num);
+  return i;
+}
+
 #ifndef MAXLONG
-#define MAXLONG (((unsigned long)-1) >> 1)
+#define MAXLONG (((uint32_t)-1) >> 1)
 #endif
 
 size_t
@@ -142,10 +186,10 @@ scan_xlonglong(const char* src, uint64_t* dest) {
 }
 
 size_t
-scan_8longn(const char* src, size_t n, unsigned long* dest) {
+scan_8longn(const char* src, size_t n, uint32_t* dest) {
 
   const char* tmp = src;
-  unsigned long l = 0;
+  uint32_t l = 0;
   unsigned char c;
 
   while(n-- > 0 && (c = (unsigned char)(*tmp - '0')) < 8) {
