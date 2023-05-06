@@ -604,6 +604,9 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     JSValue val;
   } a = {VECTOR(ctx), 0}, b = {VECTOR(ctx), 0};
 
+  if(!JS_IsObject(argv[0]) || !JS_IsObject(argv[1]))
+    return JS_NewBool(ctx, js_value_equals(ctx, argv[0], argv[1]));
+
   a.it = property_recursion_push(&a.frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
   b.it = property_recursion_push(&b.frames, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
 
@@ -611,14 +614,14 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     BOOL result = TRUE;
 
     if(!a.it || !b.it) {
-      ret = JS_FALSE;
+      ret = (!a.it && !b.it) ? JS_TRUE : JS_FALSE;
       break;
     }
 
     a.val = property_enumeration_value(a.it, ctx);
     b.val = property_enumeration_value(b.it, ctx);
 
-    result = ((JS_IsObject(a.val) && JS_IsObject(b.val)) ? js_object_same2 : js_value_equals)(ctx, a.val, b.val);
+    result = (JS_IsObject(a.val) && JS_IsObject(b.val)) ? TRUE : js_value_equals(ctx, a.val, b.val);
 
     JS_FreeValue(ctx, a.val);
     JS_FreeValue(ctx, b.val);

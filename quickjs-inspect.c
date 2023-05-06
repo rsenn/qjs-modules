@@ -1079,7 +1079,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
       if((desc.flags & JS_PROP_GETSET)) {
         if(!opts->getters) {
           // JSValue v = JS_GetProperty(ctx, value, propenum->atom);
-          JSValue v = JS_Call(ctx, desc.getter, value, 0, 0);
+          JSValue v = js_is_null_or_undefined(desc.getter) ? JS_DupValue(ctx, desc.value) : JS_Call(ctx, desc.getter, value, 0, 0);
           js_inspect_print_value(ctx, buf, v, opts, depth - 2);
           JS_FreeValue(ctx, v);
         } else

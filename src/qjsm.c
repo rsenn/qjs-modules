@@ -614,7 +614,7 @@ jsm_module_package(JSContext* ctx, const char* module) {
 }
 
 void
-jsm_module_script(DynBuf* buf, const char* path, BOOL star) {
+jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
   enum { NAMED = 0, ALL, EXEC } mode = NAMED;
 
   for(; *path; ++path) {
@@ -623,7 +623,10 @@ jsm_module_script(DynBuf* buf, const char* path, BOOL star) {
         if(!star)
           mode = EXEC;
         continue;
-      case '*': mode = ALL; continue;
+      case '*':
+        if(!name)
+          mode = ALL;
+        continue;
     }
     break;
   }
@@ -649,8 +652,12 @@ jsm_module_script(DynBuf* buf, const char* path, BOOL star) {
     }
 
     default: {
-      const char* name = basename(path);
-      size_t len = module_has_suffix(name);
+      size_t len = 0;
+
+      if(!name) {
+        name = basename(path);
+        len = module_has_suffix(name);
+      }
 
       dbuf_putstr(buf, "globalThis['");
       if(len)
@@ -684,19 +691,19 @@ jsm_module_find(JSContext* ctx, const char* name) {
 }
 
 static JSModuleDef*
-jsm_module_load(JSContext* ctx, const char* path) {
+jsm_module_load(JSContext* ctx, const char* path, const char* name) {
   struct list_head* last_module = js_modules_list(ctx)->prev;
   DynBuf dbuf;
 
   dbuf_init2(&dbuf, 0, 0);
 
-  jsm_module_script(&dbuf, path, FALSE);
+  jsm_module_script(&dbuf, path, name, FALSE);
 
   if(*path != '*' && !js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
   } else {
     JS_GetException(ctx);
 
-    jsm_module_script(&dbuf, path, TRUE);
+    jsm_module_script(&dbuf, path, name, TRUE);
 
     if(js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
       dbuf_free(&dbuf);
@@ -1316,13 +1323,21 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case LOAD_MODULE: {
-      if((m = jsm_module_load(ctx, name)))
+      const char* key = 0;
+      if(argc > 1)
+        key = JS_ToCString(ctx, argv[1]);
+
+      if((m = jsm_module_load(ctx, name, key)))
         val = module_value(ctx, m);
+
+      if(key)
+        JS_FreeCString(ctx, key);
+
       break;
     }
 
     case REQUIRE_MODULE: {
-      if((m = jsm_module_load(ctx, name)))
+      if((m = jsm_module_loader(ctx, name, NULL)))
         val = module_exports(ctx, m);
       break;
     }
@@ -1789,7 +1804,7 @@ main(int argc, char** argv) {
       char** ptr;
       vector_foreach_t(&module_list, ptr) {
         JSModuleDef* m;
-        if(!(m = jsm_module_load(ctx, *ptr))) {
+        if(!(m = jsm_module_load(ctx, *ptr, 0))) {
           jsm_dump_error(ctx);
           return 1;
         }
