@@ -586,7 +586,9 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
 char*
 jsm_module_package(JSContext* ctx, const char* module) {
   JSValue package;
-  char* file = 0;
+  char *rel, *file = 0;
+
+  rel = path_isabsolute1(module) ? path_relative1(module) : strdup(module);
 
   if(!has_suffix(module, CONFIG_SHEXT)) {
     package = jsm_load_package(ctx, "package.json");
@@ -596,7 +598,7 @@ jsm_module_package(JSContext* ctx, const char* module) {
 
       aliases = JS_GetPropertyStr(ctx, package, "_moduleAliases");
       if(!JS_IsException(aliases) && JS_IsObject(aliases)) {
-        target = JS_GetPropertyStr(ctx, aliases, path_trimdotslash1(module));
+        target = JS_GetPropertyStr(ctx, aliases, path_trimdotslash1(rel));
 
         if(!JS_IsUndefined(target)) {
           file = js_tostring(ctx, target);
@@ -609,6 +611,7 @@ jsm_module_package(JSContext* ctx, const char* module) {
       JS_FreeValue(ctx, target);
     }
   }
+  free(rel);
 
   return file;
 }
@@ -814,10 +817,18 @@ restart:
   }
 
   if(s == 0) {
-    if(path_isabsolute1(module_name)) {
-      s = js_strdup(ctx, module_name);
-    } else {
-      s = jsm_module_package(ctx, module_name);
+    {
+      if(!s)
+        if((s = jsm_module_package(ctx, module_name))) {
+
+          if(is_searchable(s)) {
+            BuiltinModule* rec;
+            if((rec = jsm_builtin_find(s))) {
+              free(s);
+              return jsm_builtin_init(ctx, rec);
+            }
+          }
+        }
 
       if(!s)
         s = js_strdup(ctx, module_name);

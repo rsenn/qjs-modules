@@ -1070,6 +1070,17 @@ path_relative3(const char* path, const char* relative_to, DynBuf* out) {
 }
 
 char*
+path_relative1(const char* path) {
+  char *rel, *cwd;
+
+  if((cwd = path_getcwd0())) {
+    rel = path_relative2(path, cwd);
+    free(cwd);
+  }
+  return rel;
+}
+
+char*
 path_relative2(const char* path, const char* relative_to) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);

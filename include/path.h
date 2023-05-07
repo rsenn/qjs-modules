@@ -124,6 +124,7 @@ int path_realpath3(const char*, size_t len, DynBuf* buf);
 char* path_realpath2(const char*, size_t len);
 char* path_realpath1(const char*);
 int path_relative3(const char* path, const char* relative_to, DynBuf* out);
+char* path_relative1(const char* path);
 char* path_relative2(const char* path, const char* relative_to);
 int path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
 char* path_relative4(const char* s1, size_t n1, const char* s2, size_t n2);
