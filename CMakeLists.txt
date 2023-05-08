@@ -78,26 +78,17 @@ include(CheckCSourceRuns)
 
 set(CMAKE_REQUIRED_QUIET OFF)
 
-check_functions(vfork fork waitpid execvpe setsid)
-if(HAVE_VFORK)
-  add_definitions(-DHAVE_VFORK)
-else(HAVE_VFORK)
+check_functions_def(vfork fork waitpid execvpe setsid)
+
+if(NOT HAVE_VFORK)
   if(HAVE_FORK)
     add_definitions(-DHAVE_VFORK -Dvfork=fork)
   endif(HAVE_FORK)
-endif(HAVE_VFORK)
-if(HAVE_FORK)
-  add_definitions(-DHAVE_FORK)
-endif(HAVE_FORK)
-if(HAVE_SETSID)
-  add_definitions(-DHAVE_SETSID)
-endif(HAVE_SETSID)
+endif(NOT HAVE_VFORK)
 
-if(HAVE_EXECVPE)
-  add_definitions(-DHAVE_EXECVPE=1)
-else(HAVE_EXECVPE)
-  check_functions(execve)
-endif(HAVE_EXECVPE)
+if(NOT HAVE_EXECVPE)
+  check_functions_def(execve)
+endif(NOT HAVE_EXECVPE)
 
 #[[if(ANDROID)
   option(USE_SPAWN "Use POSIX spawn()" OFF)
@@ -105,16 +96,11 @@ else()
   option(USE_SPAWN "Use POSIX spawn()" ON)
 endif()
 ]]
-check_include_file(sys/wait.h HAVE_SYS_WAIT_H)
-if(HAVE_SYS_WAIT_H)
-  add_definitions(-DHAVE_SYS_WAIT_H)
-endif(HAVE_SYS_WAIT_H)
+check_include_def(sys/wait.h)
 
-if(HAVE_WAITPID)
-  add_definitions(-DHAVE_WAITPID=1)
-endif(HAVE_WAITPID)
+check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
 
-if(NOT HAVE_SPAWN)
+#[[if(NOT HAVE_SPAWN)
   if(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
 
     check_include_file(spawn.h HAVE_SPAWN_H)
@@ -129,141 +115,48 @@ if(NOT HAVE_SPAWN)
       endif(HAVE_POSIX_SPAWNP)
     endif(HAVE_SPAWN_H)
   endif(NOT HAVE_EXECVPE AND NOT HAVE_WAITPID)
-endif(NOT HAVE_SPAWN)
-#dump(USE_SPAWN)
+endif(NOT HAVE_SPAWN)]]
 
 if(HAVE_SPAWN AND USE_SPAWN)
   add_definitions(-DPOSIX_SPAWN=1)
 endif(HAVE_SPAWN AND USE_SPAWN)
 
-check_include_file(threads.h HAVE_THREADS_H)
-if(HAVE_THREADS_H)
-  add_definitions(-DHAVE_THREADS_H)
-endif(HAVE_THREADS_H)
+check_include_def(threads.h)
+check_include_def(sys/mman.h)
 
-check_include_file(sys/mman.h HAVE_SYS_MMAN_H)
-if(HAVE_SYS_MMAN_H)
-  add_definitions(-DHAVE_SYS_MMAN_H)
-endif(HAVE_SYS_MMAN_H)
+check_function_def(mmap)
 
-check_function_exists(mmap HAVE_MMAP)
-if(HAVE_MMAP)
-  add_definitions(-DHAVE_MMAP=1)
-endif(HAVE_MMAP)
+check_include_def(termios.h)
+check_function_def(ioctl)
+check_function_def(realpath)
+check_function_def(link)
+check_function_def(lstat)
+check_function_def(fstat)
+check_function_def(strverscmp)
+check_function_def(memmem)
+check_function_def(fmemopen)
+check_functions(fcntl wordexp inotify_init1)
+check_includes(fcntl.h alloca.h fnmatch.h wordexp.h sys/inotify.h)
 
-check_include_file(termios.h HAVE_TERMIOS_H)
-if(HAVE_TERMIOS_H)
-  add_definitions(-DHAVE_TERMIOS_H)
-endif(HAVE_TERMIOS_H)
+check_functions_def(access fnmatch inet_pton daemon)
 
-#check_function_exists(isatty HAVE_ISATTY)
-#if(HAVE_ISATTY)
-#  add_definitions(-DHAVE_ISATTY=1)
-#endif(HAVE_ISATTY)
-
-check_function_exists(realpath HAVE_REALPATH)
-if(HAVE_REALPATH)
-  add_definitions(-DHAVE_REALPATH=1)
-endif(HAVE_REALPATH)
-
-check_function_exists(link HAVE_LINK)
-if(HAVE_LINK)
-  add_definitions(-DHAVE_LINK=1)
-endif(HAVE_LINK)
-
-check_function_exists(lstat HAVE_LSTAT)
-if(HAVE_LSTAT)
-  add_definitions(-DHAVE_LSTAT=1)
-endif(HAVE_LSTAT)
-
-check_function_exists(fstat HAVE_FSTAT)
-if(HAVE_FSTAT)
-  add_definitions(-DHAVE_FSTAT=1)
-endif(HAVE_FSTAT)
-
-check_function_exists(strverscmp HAVE_STRVERSCMP)
-if(HAVE_STRVERSCMP)
-  add_definitions(-DHAVE_STRVERSCMP=1)
-endif(HAVE_STRVERSCMP)
-
-check_function_exists(memmem HAVE_MEMMEM)
-if(HAVE_MEMMEM)
-  add_definitions(-DHAVE_MEMMEM=1)
-endif(HAVE_MEMMEM)
-
-check_function_exists(fmemopen HAVE_FMEMOPEN)
-if(HAVE_FMEMOPEN)
-  add_definitions(-DHAVE_FMEMOPEN=1)
-endif(HAVE_FMEMOPEN)
-
-check_functions(access fcntl fnmatch glob wordexp inotify_init1 inet_pton
-                daemon)
-check_includes(fcntl.h alloca.h fnmatch.h glob.h wordexp.h sys/inotify.h)
-
-if(HAVE_INET_PTON)
-  add_definitions(-DHAVE_INET_PTON=1)
-endif(HAVE_INET_PTON)
-message("Have inet_pton() ${HAVE_INET_PTON}")
-
-if(HAVE_FNMATCH AND HAVE_FNMATCH_H)
-  add_definitions(-DHAVE_FNMATCH=1)
-endif(HAVE_FNMATCH AND HAVE_FNMATCH_H)
-message("Have fnmatch() ${HAVE_FNMATCH}")
-message("Have fnmatch.h ${HAVE_FNMATCH_H}")
-
-if(HAVE_DAEMON)
-  add_definitions(-DHAVE_DAEMON=1)
-endif(HAVE_DAEMON)
 message("Have daemon() ${HAVE_DAEMON}")
 
-if(HAVE_GLOB AND HAVE_GLOB_H)
-  add_definitions(-DHAVE_GLOB=1)
-endif(HAVE_GLOB AND HAVE_GLOB_H)
+check_function_and_include(fcntl fcntl.h)
+check_function_and_include(fnmatch fnmatch.h)
+check_function_and_include(glob glob.h)
+check_function_and_include(wordexp wordexp.h)
 
-message("Have glob() ${HAVE_GLOB}")
-message("Have glob.h ${HAVE_GLOB_H}")
+check_function_and_include(inotify_init1 sys/inotify.h HAVE_INOTIFY)
 
-if(HAVE_WORDEXP AND HAVE_WORDEXP_H)
-  add_definitions(-DHAVE_WORDEXP=1)
-endif(HAVE_WORDEXP AND HAVE_WORDEXP_H)
-message("Have wordexp() ${HAVE_WORDEXP}")
-message("Have wordexp.h ${HAVE_WORDEXP_H}")
-
-if(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
-  add_definitions(-DHAVE_INOTIFY=1)
-endif(HAVE_INOTIFY_INIT1 AND HAVE_SYS_INOTIFY_H)
 message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
 message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
+message("Enable inotify ${HAVE_INOTIFY}")
 
-  if(HAVE_ACCESS)
-  add_definitions(-DHAVE_ACCESS=1)
-endif(HAVE_ACCESS)
-message("Have access() ${HAVE_ACCESS}")
-
-if(HAVE_FCNTL_H)
-  add_definitions(-DHAVE_FCNTL_H=1)
-endif(HAVE_FCNTL_H)
-message("Have fcntl.h ${HAVE_FCNTL_H}")
-
-if(HAVE_FCNTL)
-  add_definitions(-DHAVE_FCNTL=1)
-endif(HAVE_FCNTL)
-message("Have fcntl() ${HAVE_FCNTL}")
-
-check_functions(sysinfo)
-
-if(HAVE_SYSINFO)
-  check_includes(sys/sysinfo.h)
-
-  if(HAVE_SYS_SYSINFO_H)
-    add_definitions(-DHAVE_SYSINFO)
-  else(HAVE_SYSINFO_H)
-    set(HAVE_SYSINFO FALSE)
-  endif(HAVE_SYS_SYSINFO_H)
-
-endif(HAVE_SYSINFO)
+check_function_and_include(sysinfo sys/sysinfo.h)
 
 message("Have sysinfo() ${HAVE_SYSINFO}")
+
 # if(BUILD_PIGPIO)
 #   include(ExternalProject)
 #   ExternalProject_Add(
@@ -288,8 +181,8 @@ link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES
     bjson blob deep directory lexer list location ${magic_MODULE} misc path
-    pointer predicate repeater textcode sockets stream syscallerror
-    inspect tree-walker xml)
+    pointer predicate repeater textcode sockets stream syscallerror inspect
+    tree-walker xml)
 
 if(BUILD_LIBSERIALPORT)
   list(APPEND QUICKJS_MODULES serial)
@@ -360,7 +253,6 @@ if(USE_MARIADBCLIENT)
 
 endif(USE_MARIADBCLIENT)
 
-
 if(USE_POSTGRESCLIENT)
   pkg_check_modules(LIBPQ libpq)
 
@@ -372,7 +264,6 @@ if(USE_POSTGRESCLIENT)
   dump(LIBPQ_LIBRARY pgsql_LIBRARIES)
 
 endif(USE_POSTGRESCLIENT)
-
 
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} child-process)

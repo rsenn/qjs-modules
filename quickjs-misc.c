@@ -2359,8 +2359,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifndef _WIN32
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
 #endif
-#ifdef HAVE_TERMIOS_H
+#ifdef HAVE_IOCTL_H
     JS_CFUNC_DEF("ioctl", 3, js_misc_ioctl),
+#endif
+#if defined(HAVE_TERMIOS_H) || defined(_WIN32)
     JS_CFUNC_DEF("getScreenSize", 0, js_misc_screensize),
 #endif
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),

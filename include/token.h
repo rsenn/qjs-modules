@@ -19,7 +19,7 @@ typedef struct {
 
 Token* token_new(JSContext*);
 Token* token_create(int, Location*, const char*, size_t len, JSContext* ctx);
-BOOL token_release(Token*, JSRuntime*);
+void token_release(Token*, JSRuntime*);
 void token_free(Token*, JSRuntime*);
 
 static inline Location*

@@ -13,7 +13,7 @@ token_new(JSContext* ctx) {
   return tok;
 }
 
-BOOL
+void
 token_release(Token* tok, JSRuntime* rt) {
   js_free_rt(rt, tok->lexeme);
   tok->lexeme = 0;
