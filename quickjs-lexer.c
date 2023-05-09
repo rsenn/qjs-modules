@@ -679,7 +679,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       input_buffer_free(&lex->input, ctx);
       lex->input = input;
-      location_release_rt(&lex->loc, JS_GetRuntime(ctx));
+      location_release(&lex->loc, JS_GetRuntime(ctx));
       lex->loc = loc;
 
       if(argc > 1 && JS_IsString(argv[1])) {
@@ -1093,7 +1093,7 @@ js_lexer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
       if((tok = js_token_data(value))) {
         lex->pos = tok->loc->char_offset;
 
-        location_release(&lex->loc, ctx);
+        location_release(&lex->loc, JS_GetRuntime(ctx));
         location_copy(&lex->loc, tok->loc, ctx);
         //        lex->loc = tok->loc;
       } /* else if(JS_IsNumber(value)) {
@@ -1371,12 +1371,17 @@ js_lexer_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int 
 }
 
 JSValue
-js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue next, ret = JS_NewObject(ctx);
+  JSAtom symbol = js_symbol_static_atom(ctx, "iterator");
 
-  next = JS_NewCFunction2(ctx, (JSCFunction*)&js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, YIELD_ID | YIELD_DONE_VALUE);
+  next = JS_NewCFunction2(ctx, (JSCFunction*)&js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, magic);
 
-  JS_SetPropertyStr(ctx, ret, "next", js_function_bind_this(ctx, next, this_val));
+  JS_DefinePropertyValue(
+      ctx, ret, symbol, JS_NewCFunction2(ctx, (JSCFunction*)&JS_DupValue, "[Symbol.iterator]", 0, JS_CFUNC_generic, 0), JS_PROP_CONFIGURABLE);
+  JS_FreeAtom(ctx, symbol);
+
+  JS_DefinePropertyValueStr(ctx, ret, "next", js_function_bind_this(ctx, next, this_val), JS_PROP_CONFIGURABLE);
   return ret;
 
   return JS_DupValue(ctx, this_val);
@@ -1462,7 +1467,8 @@ static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     JS_CGETSET_DEF("states", js_lexer_states, 0),
     // JS_CGETSET_DEF("stateStack", js_lexer_statestack, 0),
     // JS_ALIAS_DEF("position", "loc"),
-    JS_CFUNC_DEF("[Symbol.iterator]", 0, js_lexer_iterator),
+    JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_lexer_iterator, YIELD_ID | YIELD_DONE_VALUE),
+    JS_CFUNC_MAGIC_DEF("values", 0, js_lexer_iterator, YIELD_OBJ | YIELD_DONE_VALUE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Lexer", JS_PROP_CONFIGURABLE),
 };
 

@@ -755,17 +755,15 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
 
   if(async) {
     AsyncSocket* asock;
-    AsyncSocket sock = ASYNCSOCKET(fd, 0, -1, FALSE, async, owner, 0);
 
     if(!(asock = js_mallocz(ctx, sizeof(AsyncSocket))))
       return JS_ThrowOutOfMemory(ctx);
 
     JS_SetOpaque(obj, asock);
     s = (Socket*)asock;
-    *asock = sock;
 
   } else {
-    Socket sock = {SOCKET(fd, 0, -1, FALSE, async, owner, 0)};
+    Socket sock = {SOCKET(fd, 0, -1, FALSE, async, owner)};
     assert(sizeof(Socket) == sizeof(sock.ptr));
 
     JS_SetOpaque(obj, sock.ptr);
@@ -921,18 +919,41 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
   return ret;
 }
 
+static const char*
+socket_method(int magic) {
+  static const char* const methods[] = {
+      "ndelay",
+      "bind",
+      "accept",
+      "connect",
+      "listen",
+      0,
+      0,
+      0,
+      "recv",
+      "send",
+      "recvfrom",
+      "sendto",
+      "getsockopt",
+      "setsockopt",
+      "shutdown",
+      "close",
+  };
+  return methods[magic & 0x0f];
+}
+
 enum {
   SOCKETS_NDELAY = 0x00,
   SOCKETS_BIND = 0x01,
   SOCKETS_ACCEPT = 0x02,
   SOCKETS_CONNECT = 0x03,
   SOCKETS_LISTEN = 0x04,
-  SOCKETS_GETSOCKOPT,
-  SOCKETS_SETSOCKOPT,
   SOCKETS_RECV = 0x08,
   SOCKETS_SEND = 0x09,
   SOCKETS_RECVFROM = 0x0a,
   SOCKETS_SENDTO = 0x0b,
+  SOCKETS_GETSOCKOPT,
+  SOCKETS_SETSOCKOPT,
   SOCKETS_SHUTDOWN,
   SOCKETS_CLOSE,
 };
@@ -949,7 +970,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JSValue ret = JS_UNDEFINED;
   SockAddr* a = 0;
   socklen_t alen = 0;
-  BOOL wait = s->nonblock /*&& !(magic & ASYNC_READY)*/;
+  BOOL wait = s->nonblock && !(magic & ASYNC_READY);
 
   magic &= (ASYNC_READY - 1);
 
@@ -967,9 +988,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(wait) {
     switch(magic) {
-      case SOCKETS_LISTEN:
-      case SOCKETS_ACCEPT:
-      case SOCKETS_CONNECT:
       case SOCKETS_RECV:
       case SOCKETS_SEND:
       case SOCKETS_RECVFROM:
@@ -1227,83 +1245,33 @@ js_socket_valueof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 static JSValue
 js_socket_async_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   AsyncSocket* asock = js_async_socket_ptr(data[0]);
-  JSValueConst args[2] = {data[0], JS_NULL};
   JSValueConst value = data[0];
 
-  JS_Call(ctx, data[2], JS_UNDEFINED, 2, args);
+  assert(JS_VALUE_GET_TAG(data[1]) == JS_TAG_OBJECT);
+  assert(JS_VALUE_GET_OBJ(data[1]));
 
   if(magic & 0x0a)
     value = js_socket_method(ctx, data[0], (magic & 0x02) ? 5 : 4, &data[3], magic | ASYNC_READY);
 
   JS_Call(ctx, data[1], JS_UNDEFINED, 1, &value);
+
+  printf("%s(%d) = %s\n", socket_method(magic & 0xf), asock->fd, JS_ToCString(ctx, value));
+
+  if(asock) {
+    if(js_object_same(data[1], asock->pending[magic & 1])) {
+      JSValueConst args[2] = {data[0], JS_NULL};
+      JS_Call(ctx, data[2], JS_UNDEFINED, 2, args);
+
+      printf("%s() set_handler(%d, null) [%p]\n", socket_method(magic & 0xf), asock->fd, JS_VALUE_GET_OBJ(data[1]));
+
+      /* free ourselves */
+      JS_FreeValue(ctx, asock->pending[magic & 1]);
+      asock->pending[magic & 1] = JS_NULL;
+    }
+  }
+
   JS_FreeValue(ctx, data[1]);
   data[1] = JS_UNDEFINED;
-
-  /* free ourselves */
-  if(asock) {
-    Promised* pr = &asock->pending[magic & 1];
-    JS_FreeValue(ctx, pr->promise);
-    JS_FreeValue(ctx, pr->resolve);
-    JS_FreeValue(ctx, pr->reject);
-    *pr = (Promised){JS_UNDEFINED, JS_UNDEFINED, JS_UNDEFINED};
-  }
-
-  return JS_UNDEFINED;
-}
-
-struct AsyncSocketClosure {
-  JSContext* ctx;
-  JSValue func_obj, sock, resolve, set_handler, argv[5];
-  uint32_t argc;
-};
-
-static void
-js_socket_async_closure_free(void* ptr) {
-  struct AsyncSocketClosure* closure = ptr;
-  JSContext* ctx = closure->ctx;
-
-  JS_FreeValue(ctx, closure->sock);
-  JS_FreeValue(ctx, closure->resolve);
-  JS_FreeValue(ctx, closure->set_handler);
-
-  assert(closure->argc < countof(closure->argv));
-  for(int i = 0; i < closure->argc; i++) JS_FreeValue(ctx, closure->argv[i]);
-
-  js_free(ctx, ptr);
-}
-
-static JSValue
-js_socket_async_resolver(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
-  struct AsyncSocketClosure* closure = ptr;
-
-  AsyncSocket* asock = js_async_socket_ptr(closure->sock);
-
-  JSValueConst args[2] = {closure->sock, JS_NULL};
-  JSValueConst value = closure->sock;
-
-  JS_Call(ctx, closure->set_handler, JS_UNDEFINED, 2, args);
-
-  if(magic & 0x0a)
-    value = js_socket_method(ctx, closure->sock, (magic & 0x02) ? 5 : 4, closure->argv, magic | ASYNC_READY);
-
-  JS_Call(ctx, closure->resolve, JS_UNDEFINED, 1, &value);
-  JS_FreeValue(ctx, closure->resolve);
-  closure->resolve = JS_UNDEFINED;
-
-  /* free ourselves */
-  if(asock) {
-    JS_FreeValue(ctx, asock->pending[magic & 1].promise);
-    JS_FreeValue(ctx, asock->pending[magic & 1].resolve);
-    JS_FreeValue(ctx, asock->pending[magic & 1].reject);
-    asock->pending[magic & 1] = (Promised){JS_UNDEFINED, JS_UNDEFINED, JS_UNDEFINED};
-  }
-
-  if(js_has_propertystr(ctx, closure->func_obj, "next")) {
-    JSValue next = JS_GetPropertyStr(ctx, closure->func_obj, "next");
-
-    JS_FreeValue(ctx, JS_Call(ctx, next, JS_UNDEFINED, 0, 0));
-    JS_FreeValue(ctx, next);
-  }
 
   return JS_UNDEFINED;
 }
@@ -1325,34 +1293,11 @@ js_socket_set_handler(JSContext* ctx, BOOL wr) {
   return set_handler;
 }
 
-static const char*
-socket_method(int magic) {
-  static const char* const methods[] = {
-      "ndelay",
-      "bind",
-      "accept",
-      "connect",
-      "listen",
-      "getsockopt",
-      "setsockopt",
-      0,
-      "recv",
-      "send",
-      "recvfrom",
-      "sendto",
-      "shutdown",
-      "close",
-  };
-  return methods[magic & 0x0f];
-}
-
 static JSValue
 js_async_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   AsyncSocket* s;
   int data_len;
   JSValue ret = JS_UNDEFINED, set_handler, args[2], data[7], promise, resolving_funcs[2];
-
-  const char* method = socket_method(magic);
 
   if(!(s = js_async_socket_ptr(this_val)))
     return JS_ThrowInternalError(ctx, "Must be an AsyncSocket");
@@ -1363,8 +1308,8 @@ js_async_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(JS_IsException((set_handler = js_socket_set_handler(ctx, magic & 1))))
     return JS_EXCEPTION;
 
-  if(JS_IsObject(s->pending[magic & 1].resolve))
-    return JS_ThrowInternalError(ctx, "%s(): Already a pending %s", method, magic & 1 ? "write" : "read");
+  if(JS_IsObject(s->pending[magic & 1]))
+    return JS_ThrowInternalError(ctx, "Already a pending %s", magic & 1 ? "write" : "read");
 
   promise = JS_NewPromiseCapability(ctx, resolving_funcs);
   if(JS_IsException(promise))
@@ -1382,26 +1327,11 @@ js_async_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   }
 
   args[0] = JS_NewInt32(ctx, s->fd);
-  // args[1] = JS_NewCFunctionData(ctx, js_socket_async_resolve, 0, magic, data_len, data);
-  //
-  struct AsyncSocketClosure* opaque;
+  args[1] = JS_NewCFunctionData(ctx, js_socket_async_resolve, 0, magic, data_len, data);
 
-  if(!(opaque = js_malloc(ctx, sizeof(struct AsyncSocketClosure))))
-    return JS_EXCEPTION;
+  printf("%s() set_handler(%d, %p)\n", socket_method(magic & 0xf), s->fd, JS_VALUE_GET_OBJ(data[1]));
 
-  *opaque = (struct AsyncSocketClosure){
-      ctx,
-      JS_UNDEFINED,
-      JS_DupValue(ctx, this_val),
-      JS_DupValue(ctx, resolving_funcs[0]),
-      set_handler,
-      {JS_DupValue(ctx, data[3]), JS_DupValue(ctx, data[4]), JS_DupValue(ctx, data[5]), JS_DupValue(ctx, data[6]), JS_DupValue(ctx, data[7])},
-      data_len - 3,
-  };
-
-  opaque->func_obj = js_function_cclosure(ctx, js_socket_async_resolver, 1, magic, opaque, js_socket_async_closure_free);
-
-  args[1] = JS_DupValue(ctx, opaque->func_obj);
+  s->pending[magic & 1] = JS_DupValue(ctx, resolving_funcs[0]);
 
   ret = JS_Call(ctx, set_handler, JS_UNDEFINED, 2, args);
 
@@ -1409,10 +1339,6 @@ js_async_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   JS_FreeValue(ctx, set_handler);
   JS_FreeValue(ctx, resolving_funcs[0]);
   JS_FreeValue(ctx, resolving_funcs[1]);
-
-  s->pending[magic & 1].resolve = args[1];
-
-  printf("%s(): pending fd#%d %s\n", method, s->fd, magic & 1 ? "write" : "read");
 
   return promise;
 }

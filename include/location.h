@@ -4,6 +4,12 @@
 #include "utils.h"
 #include "char-utils.h"
 
+#ifdef JS_LOCATION_MODULE
+#define LOCATION_API VISIBLE
+#else
+#define LOCATION_API
+#endif
+
 /**
  * \defgroup location Source text location
  * @{
@@ -21,41 +27,21 @@ typedef struct {
 #define LOCATION() (Location){0, -1, 0, 0, 0, 0, 0, FALSE};
 #define LOCATION_FILE(atom) (Location){0, (atom), 0, 0, 0, 0, 0, FALSE};
 
-void location_print(const Location*, DynBuf*, JSContext*);
-char* location_tostring(const Location*, JSContext*);
-char* location_file(const Location*, JSContext*);
-JSValue location_tovalue(const Location*, JSContext*);
-void location_init(Location*);
-void location_zero(Location*);
-void location_add(Location*, const Location*);
-void location_sub(Location*, const Location*);
-BOOL location_release_rt(Location*, JSRuntime*);
-Location* location_free_rt(Location*, JSRuntime*);
-size_t location_count(Location*, const uint8_t*, size_t);
-Location* location_copy(Location*, const Location*, JSContext*);
-Location* location_clone(const Location*, JSContext*);
-Location* location_new(JSContext*);
-
-static inline BOOL
-location_release(Location* loc, JSContext* ctx) {
-  return location_release_rt(loc, JS_GetRuntime(ctx));
-}
-
-static inline Location*
-location_free(Location* loc, JSContext* ctx) {
-  return location_free_rt(loc, JS_GetRuntime(ctx));
-}
-
-static inline int
-location_isnull(const Location* loc) {
-  return loc->file == -1 && !loc->line && !loc->column && !loc->char_offset;
-}
-
-static inline Location*
-location_dup(Location* loc) {
-  loc->ref_count++;
-  return loc;
-}
+LOCATION_API void location_print(const Location*, DynBuf*, JSContext*);
+LOCATION_API char* location_tostring(const Location*, JSContext*);
+LOCATION_API char* location_file(const Location*, JSContext*);
+LOCATION_API JSValue location_tovalue(const Location*, JSContext*);
+LOCATION_API void location_init(Location*);
+LOCATION_API void location_zero(Location*);
+LOCATION_API void location_add(Location*, const Location*);
+LOCATION_API void location_sub(Location*, const Location*);
+LOCATION_API BOOL location_release(Location*, JSRuntime*);
+LOCATION_API Location* location_free(Location*, JSRuntime*);
+LOCATION_API size_t location_count(Location*, const uint8_t*, size_t);
+LOCATION_API Location* location_copy(Location*, const Location*, JSContext*);
+LOCATION_API Location* location_clone(const Location*, JSContext*);
+LOCATION_API Location* location_new(JSContext*);
+LOCATION_API Location* location_dup(Location*);
 
 /**
  * @}

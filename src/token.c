@@ -24,7 +24,7 @@ token_release(Token* tok, JSRuntime* rt) {
   }
 
   if(tok->loc) {
-    location_free_rt(tok->loc, rt);
+    location_free(tok->loc, rt);
     tok->loc = 0;
   }
 }

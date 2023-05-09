@@ -497,7 +497,7 @@ lexer_set_location(Lexer* lex, const Location* loc, JSContext* ctx) {
   // lex->start = loc->char_offset;
   lex->byte_length = 0;
   lex->pos = loc->char_offset;
-  location_release(&lex->loc, ctx);
+  location_release(&lex->loc, JS_GetRuntime(ctx));
   location_copy(&lex->loc, loc, ctx);
 }
 
@@ -517,7 +517,7 @@ lexer_release(Lexer* lex, JSRuntime* rt) {
   vector_free(&lex->states);
   vector_free(&lex->state_stack);
 
-  location_release_rt(&lex->loc, rt);
+  location_release(&lex->loc, rt);
 }
 
 void

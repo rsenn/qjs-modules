@@ -43,7 +43,7 @@ js_location_create(JSContext* ctx, JSValueConst proto, Location* loc) {
   return obj;
 
 fail:
-  location_free(loc, ctx);
+  location_free(loc, JS_GetRuntime(ctx));
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -373,7 +373,7 @@ js_location_finalizer(JSRuntime* rt, JSValue val) {
   if((loc = js_location_data(val))) {
     if(loc != (void*)-1ll)
       if(--loc->ref_count)
-        location_free_rt(loc, rt);
+        location_free(loc, rt);
 
     JS_SetOpaque(val, 0);
   }

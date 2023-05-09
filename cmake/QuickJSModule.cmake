@@ -201,7 +201,7 @@ function(make_module FNAME)
   endif(ARGN)
 
   message(
-    STATUS "Building QuickJS module: ${FNAME} (deps: ${DEPS}, libs: ${LIBS})")
+    STATUS "Building QuickJS module: ${FNAME} (deps: ${DEPS}, libs: ${LIBS}) JS_${UNAME}_MODULE=1")
 
   if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     set(BUILD_SHARED_MODULES OFF)

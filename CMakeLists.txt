@@ -351,7 +351,8 @@ set(predicate_SOURCES src/predicate.c include/predicate.h ${vector_SOURCES}
 set(pointer_SOURCES src/pointer.c include/pointer.h ${utils_SOURCES}
                     ${buffer_utils_SOURCES})
 set(lexer_SOURCES
-    quickjs-lexer.h ${location_SOURCES} ${token_SOURCES} ${utils_SOURCES}
+    quickjs-lexer.h #${location_SOURCES} 
+    ${token_SOURCES} ${utils_SOURCES}
     ${vector_SOURCES} src/lexer.c include/lexer.h)
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
@@ -562,7 +563,6 @@ endif(LIBM)
 
 set(sockets_LIBRARIES qjs-syscallerror)
 set(deep_LIBRARIES qjs-pointer qjs-predicate ${LIBM})
-set(lexer_LIBRARIES qjs-predicate)
 set(lexer_DEPS qjs-predicate)
 
 file(GLOB TESTS_SOURCES tests/test_*.js)

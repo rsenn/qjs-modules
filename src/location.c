@@ -83,7 +83,7 @@ location_sub(Location* loc, const Location* other) {
 }
 
 BOOL
-location_release_rt(Location* loc, JSRuntime* rt) {
+location_release(Location* loc, JSRuntime* rt) {
   if(--loc->ref_count == 0) {
     if(loc->file >= 0)
       JS_FreeAtomRT(rt, loc->file);
@@ -94,13 +94,13 @@ location_release_rt(Location* loc, JSRuntime* rt) {
     loc->file = -1;
     return TRUE;
   }
-  // printf("location_release_rt %p ref_count=%d\n", loc, loc->ref_count);
+  // printf("location_release %p ref_count=%d\n", loc, loc->ref_count);
   return FALSE;
 }
 
 Location*
-location_free_rt(Location* loc, JSRuntime* rt) {
-  location_release_rt(loc, rt);
+location_free(Location* loc, JSRuntime* rt) {
+  location_release(loc, rt);
   if(loc->ref_count == 0) {
     js_free_rt(rt, loc);
     loc = 0;
@@ -160,6 +160,12 @@ location_new(JSContext* ctx) {
   Location* loc;
   if((loc = js_malloc(ctx, sizeof(Location))))
     location_init(loc);
+  return loc;
+}
+
+Location*
+location_dup(Location* loc) {
+  ++loc->ref_count;
   return loc;
 }
 
