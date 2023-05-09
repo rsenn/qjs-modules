@@ -522,7 +522,13 @@ js_function_bind(JSContext* ctx, JSValueConst func, int argc, JSValueConst argv[
 
 static JSValue
 js_function_bound_this(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
-  return JS_Call(ctx, func_data[0], func_data[1], argc, argv);
+  int bound_args = magic;
+  int i, j;
+  JSValue args[argc + bound_args];
+  for(i = 0; i < bound_args; i++) args[i] = func_data[i + 2];
+  for(j = 0; j < argc; j++) args[i + j] = argv[j];
+
+  return JS_Call(ctx, func_data[0], func_data[1], bound_args + argc, args);
 }
 
 JSValue
@@ -531,6 +537,15 @@ js_function_bind_this(JSContext* ctx, JSValueConst func, JSValueConst this_val) 
   data[0] = JS_DupValue(ctx, func);
   data[1] = JS_DupValue(ctx, this_val);
   return JS_NewCFunctionData(ctx, js_function_bound_this, js_function_argc(ctx, func), 0, 2, data);
+}
+
+JSValue
+js_function_bind_this_args(JSContext* ctx, JSValueConst func, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue data[2 + argc];
+  data[0] = JS_DupValue(ctx, func);
+  data[1] = JS_DupValue(ctx, this_val);
+  for(int i = 0; i < argc; i++) data[2 + i] = JS_DupValue(ctx, argv[i]);
+  return JS_NewCFunctionData(ctx, js_function_bound_this, js_function_argc(ctx, func), argc, argc, data);
 }
 
 static JSValue

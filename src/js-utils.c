@@ -72,7 +72,7 @@ void
 promise_free(JSRuntime* rt, Promise* pr) {
   JS_FreeValueRT(rt, pr->value);
   pr->value = JS_UNDEFINED;
-  js_resolve_functions_free_rt(rt, &pr->funcs);
+  js_resolve_functions_free_rt(rt, pr);
 }
 
 BOOL
