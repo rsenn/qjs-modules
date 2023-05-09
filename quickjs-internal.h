@@ -911,6 +911,8 @@ struct JSModuleDef {
   BOOL eval_has_exception : 8;
   JSValue eval_exception;
   JSValue meta_obj; /* for import.meta */
+
+  JSValue promise; /* for top-level-await */
 };
 
 typedef struct JSJobEntry {

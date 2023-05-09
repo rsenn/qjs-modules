@@ -82,6 +82,7 @@ enum {
   FUNC_GETPROCMAPS,
   FUNC_GETPROCMOUNTS,
   FUNC_GETPROCSTAT,
+  FUNC_GETTID,
   FUNC_GETPID,
   FUNC_GETPPID,
   FUNC_GETSID,
@@ -216,41 +217,21 @@ js_misc_strcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 static JSValue
 js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-  void* ptr = 0;
-  char buf[128];
+  JSValue ret = JS_NULL;
+  InputBuffer buf;
+  uint8_t* ptr;
 
-  if(js_is_arraybuffer(ctx, argv[0]) || js_is_sharedarraybuffer(ctx, argv[0])) {
-    size_t len;
-    ptr = JS_GetArrayBuffer(ctx, &len, argv[0]);
-  } else if(JS_IsString(argv[0])) {
-    ptr = js_cstring_ptr(argv[0]);
-  } else {
-    switch(JS_VALUE_GET_TAG(argv[0])) {
-        /*  case JS_TAG_BIG_DECIMAL:
-          case JS_TAG_BIG_FLOAT:
-          case JS_TAG_BIG_INT:
-          case JS_TAG_FUNCTION_BYTECODE:
-          case JS_TAG_INT:*/
-      case JS_TAG_MODULE:
-        /*      case JS_TAG_OBJECT:
-               case JS_TAG_SYMBOL:*/
-        {
-          ptr = JS_VALUE_GET_PTR(argv[0]);
-          break;
-        }
-      default: {
-        return JS_ThrowTypeError(ctx, "toPointer: invalid type %s", js_value_typestr(ctx, argv[0]));
-      }
-    }
+  buf = js_input_chars(ctx, argv[0]);
+
+  if(JS_IsException(buf.value))
+    return JS_EXCEPTION;
+
+  if((ptr = input_buffer_data(&buf))) {
+    char str[64];
+    ret = JS_NewStringLen(ctx, str, snprintf(str, sizeof(str), "%p", ptr));
   }
 
-  if(ptr) {
-    snprintf(buf, sizeof(buf), "%p", ptr);
-    ret = JS_NewString(ctx, buf);
-  } else {
-    ret = JS_NULL;
-  }
+  input_buffer_free(&buf, ctx);
 
   return ret;
 }
@@ -1100,10 +1081,15 @@ js_misc_read_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
 static JSValue
 js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-
   int32_t ret = 0;
 
   switch(magic) {
+#ifdef HAVE_GETTID
+    case FUNC_GETTID: {
+      ret = gettid();
+      break;
+    }
+#endif
 #ifndef __wasi__
     case FUNC_GETPID: {
       ret = getpid();
@@ -1794,7 +1780,7 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 static int
 js_misc_unescape_pred(const char* s, size_t* lenp) {
-  unsigned long u;
+  uint32_t l;
   int val = -1;
   size_t len = 1;
 
@@ -1810,8 +1796,8 @@ js_misc_unescape_pred(const char* s, size_t* lenp) {
     val = (int)(unsigned int)(unsigned char)'\v';
   else if(*s == 'b')
     val = (int)(unsigned int)(unsigned char)'\b';
-  else if((len = scan_8long(s, &u)) >= 3)
-    val = (int)(unsigned int)(unsigned char)u;
+  else if((len = scan_8long(s, &l)) >= 3)
+    val = (int)(unsigned int)(unsigned char)l;
 
   if(val != -1) {
     if(lenp)
@@ -1886,6 +1872,8 @@ js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   err = JS_NewObject(ctx);
 
   JS_SetPropertyStr(ctx, err, "errno", JS_NewInt32(ctx, errnum));
+  if(errnum)
+    JS_SetPropertyStr(ctx, err, "message", JS_NewString(ctx, strerror(errnum)));
   if(syscall)
     JS_SetPropertyStr(ctx, err, "syscall", JS_NewString(ctx, syscall));
 
@@ -2340,6 +2328,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getProcMounts", 0, js_misc_procread, FUNC_GETPROCMOUNTS),
     JS_CFUNC_MAGIC_DEF("getProcStat", 0, js_misc_procread, FUNC_GETPROCSTAT),
     JS_CFUNC_DEF("getPrototypeChain", 0, js_misc_getprototypechain),
+#ifdef HAVE_GETTID
+    JS_CFUNC_MAGIC_DEF("gettid", 0, js_misc_getx, FUNC_GETTID),
+#endif
 #ifndef __wasi__
     JS_CFUNC_MAGIC_DEF("getpid", 0, js_misc_getx, FUNC_GETPID),
     JS_CFUNC_MAGIC_DEF("getppid", 0, js_misc_getx, FUNC_GETPPID),

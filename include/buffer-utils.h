@@ -156,6 +156,9 @@ typedef struct {
   int64_t offset, length;
 } OffsetLength;
 
+#define OFFSET_INIT() \
+  (OffsetLength) { 0, INT64_MAX }
+
 static inline void
 offset_init(OffsetLength* ol) {
   ol->offset = 0;
@@ -215,6 +218,21 @@ offset_from_indexrange(const IndexRange* ir) {
   OffsetLength ret;
   ret.offset = ir->start;
   ret.length = ir->end - ir->start;
+  return ret;
+}
+
+static inline JSValue
+offset_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
+  JSValue ret;
+  size_t offset, length;
+
+  ret = JS_GetTypedArrayBuffer(ctx, ret, &offset, &length, NULL);
+
+  if(!JS_IsException(ret)) {
+    ol->offset = offset;
+    ol->length = length;
+  }
+
   return ret;
 }
 
@@ -278,12 +296,12 @@ void input_buffer_free(InputBuffer* in, JSContext* ctx);
 
 static inline uint8_t*
 input_buffer_data(const InputBuffer* in) {
-  return in->data + in->range.offset;
+  return offset_data(&in->range, in->data);
 }
 
 static inline size_t
 input_buffer_length(const InputBuffer* in) {
-  return MIN_NUM(in->range.length, in->size);
+  return offset_size(&in->range, in->size);
 }
 
 static inline MemoryBlock
@@ -294,19 +312,6 @@ input_buffer_block(InputBuffer* in) {
 static inline MemoryBlock*
 input_buffer_blockptr(InputBuffer* in) {
   return &in->block;
-}
-
-static inline InputBuffer
-input_buffer_offset(InputBuffer in, OffsetLength off) {
-  InputBuffer ret = in;
-
-  ret.data += off.offset;
-  ret.size -= off.offset;
-
-  if(ret.size > off.length)
-    ret.size = off.length;
-
-  return ret;
 }
 
 const uint8_t* input_buffer_get(InputBuffer* in, size_t* lenp);

@@ -48,13 +48,14 @@
 #include <quickjs-libc.h>
 #include "quickjs-internal.h"
 #include "buffer-utils.h"
+#include "base64.h"
 #include "debug.h"
 
 typedef JSModuleDef* ModuleInitFunction(JSContext*, const char*);
 typedef char* ModuleLoader(JSContext*, const char*);
 
-static int debug_module_loader = 0;
-static Vector module_debug = VECTOR_INIT();
+static thread_local int debug_module_loader = 0;
+static thread_local Vector module_debug = VECTOR_INIT();
 static thread_local Vector module_list = VECTOR_INIT();
 
 #ifndef QUICKJS_MODULE_PATH
@@ -65,12 +66,13 @@ static thread_local Vector module_list = VECTOR_INIT();
 
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
-static JSModuleLoaderFunc* module_loader = 0;
-static JSValue package_json, replObj;
-static const char* exename;
-static JSRuntime* rt;
-static JSContext* ctx;
-static const char* module_extensions[] = {
+// static JSModuleLoaderFunc* module_loader = 0;
+static thread_local JSValue package_json, replObj;
+static thread_local const char* exename;
+static thread_local JSRuntime* rt;
+static thread_local JSContext* ctx;
+
+static const char* const module_extensions[] = {
     CONFIG_SHEXT,
     ".js",
     "/index.js",
@@ -316,7 +318,7 @@ jsm_stack_pop(JSContext* ctx) {
 }
 
 static int
-jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
+jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   JSValue val;
   int32_t ret;
   JSValue global_obj = JS_GetGlobalObject(ctx);
@@ -325,7 +327,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module) {
   jsm_stack_push(ctx, file);
 
   errno = 0;
-  val = js_eval_file(ctx, file, module);
+  val = js_eval_file(ctx, file, module ? JS_EVAL_TYPE_MODULE : 0);
 
   if(vector_size(&jsm_stack, sizeof(char*)) > 1)
     jsm_stack_pop(ctx);
@@ -801,6 +803,42 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char* s = 0;
   JSModuleDef* m = 0;
 
+  if(str_start(module_name, "file://"))
+    module_name += 7;
+
+  if(str_start(module_name, "data:")) {
+    char* decoded;
+    JSValue module;
+    size_t length = strlen(module_name);
+    size_t offset = byte_chr(module_name, length, ',');
+
+    if(!module_name[offset])
+      return NULL;
+
+    ++offset;
+    length -= offset;
+
+    if(!(decoded = js_malloc(ctx, b64url_get_decoded_buffer_size(length) + 1)))
+      return 0;
+
+    length = b64url_decode((const uint8_t*)&module_name[offset], length, decoded);
+    decoded[length] = '\0';
+
+    module = JS_Eval(ctx, decoded, length, "<data-url>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    js_free(ctx, decoded);
+
+    if(!JS_IsException(module)) {
+      js_module_set_import_meta(ctx, module, FALSE, FALSE);
+      m = JS_VALUE_GET_PTR(module);
+
+      JS_FreeAtom(ctx, m->module_name);
+      m->module_name = JS_NewAtomLen(ctx, name, offset - 1);
+    }
+
+    JS_FreeValue(ctx, module);
+    return m;
+  }
+
 restart:
   if(jsm_stack_find(module_name) != 0) {
     printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n", module_name, jsm_stack_string());
@@ -1224,12 +1262,12 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   switch(magic) {
     case 0: {
-      ret = js_eval_file(ctx, str, module);
+      ret = js_eval_file(ctx, str, module ? JS_EVAL_TYPE_MODULE : 0);
       break;
     }
 
     case 1: {
-      ret = js_eval_buf(ctx, str, len, 0, module);
+      ret = js_eval_buf(ctx, str, len, 0, module ? JS_EVAL_TYPE_MODULE : 0);
       break;
     }
   }
@@ -1824,7 +1862,7 @@ main(int argc, char** argv) {
     }
 
     for(i = 0; i < include_count; i++) {
-      if(jsm_stack_load(ctx, include_list[i], 0) == -1)
+      if(jsm_stack_load(ctx, include_list[i], FALSE, FALSE) == -1)
         goto fail;
     }
 
@@ -1851,7 +1889,7 @@ main(int argc, char** argv) {
       const char* filename;
       filename = argv[optind];
 
-      if(jsm_stack_load(ctx, filename, module) == -1)
+      if(jsm_stack_load(ctx, filename, module, TRUE) == -1)
         goto fail;
     }
 

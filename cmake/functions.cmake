@@ -135,17 +135,8 @@ macro(CHECK_INCLUDES_DEF)
 endmacro(CHECK_INCLUDES_DEF)
 
 macro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
-  if(ARGC LESS 4)
-    clean_name("HAVE_${INC}" INC_RESULT)
-  else(ARGC LESS 4)
-    set(INC_RESULT "${ARGV3}")
-  endif(ARGC LESS 4)
-
-  if(ARGC LESS 3)
-    clean_name("HAVE_${FUNC}" FUNC_RESULT)
-  else(ARGC LESS 3)
-    set(FUNC_RESULT "${ARGV2}")
-  endif(ARGC LESS 3)
+  clean_name("HAVE_${INC}" INC_RESULT)
+  clean_name("HAVE_${FUNC}" FUNC_RESULT)
 
   check_include_def("${INC}" "${INC_RESULT}" "${INC_RESULT}")
 

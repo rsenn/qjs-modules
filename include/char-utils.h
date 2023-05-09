@@ -382,6 +382,9 @@ utf8_charlen(const char* in, size_t len) {
 
 BOOL utf16_multiword(const void*);
 
+ssize_t write_file(const char* file, const void* buf, size_t len);
+ssize_t puts_file(const char* file, const char* s);
+
 /**
  * @}
  */

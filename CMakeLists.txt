@@ -157,6 +157,8 @@ check_function_and_include(sysinfo sys/sysinfo.h)
 
 message("Have sysinfo() ${HAVE_SYSINFO}")
 
+check_function_def(gettid)
+
 # if(BUILD_PIGPIO)
 #   include(ExternalProject)
 #   ExternalProject_Add(
@@ -283,6 +285,7 @@ if(EXISTS "${QUICKJS_H}")
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
 set(buffer_utils_SOURCES src/buffer-utils.c include/buffer-utils.h)
+set(base64_SOURCES src/base64.c include/base64.h)
 set(COMMON_SOURCES src/debug.c include/debug.h)
 set(vector_SOURCES src/vector.c include/vector.h ${buffer_utils_SOURCES})
 set(libutf_SOURCES libutf/include/libutf.h libutf/src/libutf.c)
@@ -375,8 +378,8 @@ set(textcode_SOURCES
     ${libutf_SOURCES} ${tutf8e_SOURCES} ${buffer_utils_SOURCES}
     ${utils_SOURCES} ${vector_SOURCES})
 
-set(misc_SOURCES src/base64.c include/base64.h quickjs-internal.c
-                 quickjs-internal.h ${path_SOURCES} ${vector_SOURCES})
+set(misc_SOURCES ${base64_SOURCES} quickjs-internal.c quickjs-internal.h
+                 ${path_SOURCES} ${vector_SOURCES})
 
 set(directory_SOURCES
     quickjs-directory.c ${getdents_SOURCES} ${char_utils_SOURCES}
@@ -437,7 +440,8 @@ set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
 #  set(serial_LIBRARIES mincore)
 #endif(WIN32 OR MSYS)
 
-set(QJSM_EXTRA_SOURCES ${vector_SOURCES} ${buffer_utils_SOURCES})
+set(QJSM_EXTRA_SOURCES ${base64_SOURCES} ${vector_SOURCES}
+                       ${buffer_utils_SOURCES})
 
 if(HAVE_SYS_MMAN_H AND HAVE_MMAP)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} gpio mmap)

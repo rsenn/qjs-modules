@@ -2344,8 +2344,7 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
 
 JSValue
 js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, int eval_flags) {
-  JSValue ret;
-  // JSModuleDef* m = 0;
+  JSValue ret = JS_EXCEPTION;
 
   if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
     JSValue module;
@@ -2354,16 +2353,17 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
     if(!filename)
       filename = "<input>";
 
-    module = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", eval_flags | JS_EVAL_FLAG_COMPILE_ONLY);
+    module = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", (eval_flags & 0xff) | JS_EVAL_FLAG_COMPILE_ONLY);
     // m = js_module_def(ctx, module);
 
     if(!JS_IsException(module)) {
-      js_module_set_import_meta(ctx, module, !!filename && filename[0] != '<', TRUE);
+      js_module_set_import_meta(ctx, module, !!filename && filename[0] != '<', !!(eval_flags & 0x100));
+
       ret = JS_EvalFunction(ctx, module);
     }
 
   } else {
-    ret = JS_Eval(ctx, buf, buf_len, filename, eval_flags);
+    ret = JS_Eval(ctx, buf, buf_len, filename, eval_flags & 0xff);
   }
 
   return ret;

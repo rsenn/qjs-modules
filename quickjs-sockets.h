@@ -49,15 +49,23 @@ struct async_closure {
   JSCFunctionMagic* set_mux;
 };
 
+typedef struct {
+  JSValue promise, resolve, reject;
+} Promised;
+
 PACK struct async_socket_state {
   SOCKET_PROPS();
   /*struct socket_handlers handlers;*/
-  JSValue pending[2];
+  Promised pending[2];
 };
 ENDPACK
 
-#define SOCKET(fd, err, sys, nonb, asyn, own) \
-  { (fd), (err), (sys), (nonb), (asyn), (own) }
+#define SOCKET(fd, err, sys, nonb, asyn, own, ret) \
+  { (fd), (err), (sys), (nonb), (asyn), (own), (ret) }
+#define ASYNCSOCKET(args...) \
+  { \
+    args, { JS_UNDEFINED, JS_UNDEFINED } \
+  }
 
 typedef union socket_state Socket;
 typedef struct async_socket_state AsyncSocket;
