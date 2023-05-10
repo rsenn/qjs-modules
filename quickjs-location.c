@@ -348,24 +348,12 @@ js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   switch(magic) {
     case LOCATION_EQUAL: {
-      BOOL equal = TRUE;
       Location* other;
 
       if(!(other = js_location_data2(ctx, argv[0])))
         return JS_EXCEPTION;
 
-      if(loc->file != other->file)
-        equal = FALSE;
-      else if(loc->line != other->line)
-        equal = FALSE;
-      else if(loc->column != other->column)
-        equal = FALSE;
-      else if(loc->char_offset != other->char_offset)
-        equal = FALSE;
-      else if(loc->byte_offset != other->byte_offset)
-        equal = FALSE;
-
-      ret = JS_NewBool(ctx, equal);
+      ret = JS_NewBool(ctx, location_equal(loc,other));
       break;
     }
   }
@@ -381,9 +369,9 @@ js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   JSValue obj = JS_NewObjectClass(ctx, js_location_class_id);
 
-  if(loc->line < UINT32_MAX)
+  if(loc->line != -1)
     JS_DefinePropertyValueStr(ctx, obj, "line", JS_NewUint32(ctx, loc->line + 1), JS_PROP_ENUMERABLE);
-  if(loc->column < UINT32_MAX)
+  if(loc->column != -1)
     JS_DefinePropertyValueStr(ctx, obj, "column", JS_NewUint32(ctx, loc->column + 1), JS_PROP_ENUMERABLE);
   if(loc->char_offset >= 0 && loc->char_offset <= INT64_MAX)
     JS_DefinePropertyValueStr(ctx, obj, "charOffset", JS_NewInt64(ctx, loc->char_offset), JS_PROP_ENUMERABLE);
@@ -429,6 +417,7 @@ js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   if(limit == -1 || (size_t)limit > input.size)
     limit = input.size;
 
+  location_zero(loc);
   location_count(loc, (const void*)input.data, limit);
 
   return js_location_wrap(ctx, loc);
