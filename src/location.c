@@ -51,7 +51,7 @@ location_tovalue(const Location* loc, JSContext* ctx) {
 /*VISIBLE*/ void
 location_init(Location* loc) {
   loc->ref_count = 1;
- loc->file = -1;
+  loc->file = -1;
   loc->line = -1;
   loc->column = -1;
   loc->char_offset = -1;
@@ -61,7 +61,7 @@ location_init(Location* loc) {
 
 void
 location_zero(Location* loc) {
-   loc->line = 0;
+  loc->line = 0;
   loc->column = 0;
   loc->char_offset = 0;
   loc->byte_offset = 0;
@@ -108,25 +108,24 @@ location_count(Location* loc, const uint8_t* x, size_t n) {
   return loc->char_offset - start;
 }
 
-BOOL 
-location_equal(const Location*loc, const Location*other) {
-
-      if(loc->file != -1 &&  other->file != -1)
-      if(loc->file != other->file)
-        return FALSE;
-      if(loc->line != -1 &&  other->line != -1)
-      if(loc->line != other->line)
-        return FALSE;
-      if(loc->column != -1 &&  other->column != -1)
-      if(loc->column != other->column)
-        return FALSE;
-            if(loc->char_offset != -1 &&  other->char_offset != -1)
-      if(loc->char_offset != other->char_offset)
-        return FALSE;
-            if(loc->byte_offset != -1 &&  other->byte_offset != -1)
-      if(loc->byte_offset != other->byte_offset)
-        return FALSE;
-return TRUE;
+BOOL
+location_equal(const Location* loc, const Location* other) {
+  if(loc->file != -1 && other->file != -1)
+    if(loc->file != other->file)
+      return FALSE;
+  if(loc->line != -1 && other->line != -1)
+    if(loc->line != other->line)
+      return FALSE;
+  if(loc->column != -1 && other->column != -1)
+    if(loc->column != other->column)
+      return FALSE;
+  if(loc->char_offset != -1 && other->char_offset != -1)
+    if(loc->char_offset != other->char_offset)
+      return FALSE;
+  if(loc->byte_offset != -1 && other->byte_offset != -1)
+    if(loc->byte_offset != other->byte_offset)
+      return FALSE;
+  return TRUE;
 }
 
 Location*

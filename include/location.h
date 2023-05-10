@@ -40,7 +40,7 @@ LOCATION_API Location* location_copy(Location*, const Location*, JSContext*);
 LOCATION_API Location* location_clone(const Location*, JSContext*);
 LOCATION_API Location* location_new(JSContext*);
 LOCATION_API Location* location_dup(Location*);
-LOCATION_API BOOL location_equal(const Location*loc, const Location*other);
+LOCATION_API BOOL location_equal(const Location* loc, const Location* other);
 /**
  * @}
  */

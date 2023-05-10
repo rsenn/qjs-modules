@@ -353,7 +353,7 @@ js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       if(!(other = js_location_data2(ctx, argv[0])))
         return JS_EXCEPTION;
 
-      ret = JS_NewBool(ctx, location_equal(loc,other));
+      ret = JS_NewBool(ctx, location_equal(loc, other));
       break;
     }
   }
