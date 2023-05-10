@@ -17,7 +17,7 @@
 typedef struct {
   int ref_count;
   int32_t file;
-  uint32_t line;
+  int32_t line;
   int32_t column;
   int64_t char_offset, byte_offset;
   char* str;
@@ -33,10 +33,8 @@ LOCATION_API char* location_file(const Location*, JSContext*);
 LOCATION_API JSValue location_tovalue(const Location*, JSContext*);
 LOCATION_API void location_init(Location*);
 LOCATION_API void location_zero(Location*);
-LOCATION_API void location_add(Location*, const Location*);
-LOCATION_API void location_sub(Location*, const Location*);
-LOCATION_API BOOL location_release(Location*, JSRuntime*);
-LOCATION_API Location* location_free(Location*, JSRuntime*);
+LOCATION_API void location_release(Location*, JSRuntime*);
+LOCATION_API void location_free(Location*, JSRuntime*);
 LOCATION_API size_t location_count(Location*, const uint8_t*, size_t);
 LOCATION_API Location* location_copy(Location*, const Location*, JSContext*);
 LOCATION_API Location* location_clone(const Location*, JSContext*);

@@ -13,10 +13,8 @@ location_print(const Location* loc, DynBuf* dbuf, JSContext* ctx) {
     js_atom_dump(ctx, loc->file, dbuf, FALSE);
     dbuf_putc(dbuf, ':');
   }
-  if(loc->column != UINT32_MAX)
-    dbuf_printf(dbuf, "%" PRId32 ":%" PRId32, loc->line + 1, loc->column + 1);
-  else
-    dbuf_printf(dbuf, "%" PRId32, loc->line + 1);
+
+  dbuf_printf(dbuf, loc->column != -1 ? "%" PRId32 ":%" PRId32 : "%" PRId32, loc->line + 1, loc->column + 1);
 }
 
 char*
@@ -60,52 +58,31 @@ location_init(Location* loc) {
 
 void
 location_zero(Location* loc) {
-  loc->line = 0;
-  loc->column = 0;
-  loc->char_offset = 0;
-  loc->byte_offset = 0;
+  loc->file = -1;
+  loc->line = -1;
+  loc->column = -1;
+  loc->char_offset = -1;
+  loc->byte_offset = -1;
 }
 
 void
-location_add(Location* loc, const Location* other) {
-  loc->line += other->line;
-  loc->column += other->column;
-  loc->char_offset += other->char_offset;
-  loc->byte_offset += other->byte_offset;
-}
-
-void
-location_sub(Location* loc, const Location* other) {
-  loc->line -= other->line;
-  loc->column -= other->column;
-  loc->char_offset -= other->char_offset;
-  loc->byte_offset -= other->byte_offset;
-}
-
-BOOL
 location_release(Location* loc, JSRuntime* rt) {
-  if(--loc->ref_count == 0) {
-    if(loc->file >= 0)
-      JS_FreeAtomRT(rt, loc->file);
+  if(loc->file >= 0)
+    JS_FreeAtomRT(rt, loc->file);
+  loc->file = -1;
 
-    if(loc->str)
-      js_free_rt(rt, (char*)loc->str);
-    memset(loc, 0, sizeof(Location));
-    loc->file = -1;
-    return TRUE;
-  }
-  // printf("location_release %p ref_count=%d\n", loc, loc->ref_count);
-  return FALSE;
+  if(loc->str)
+    js_free_rt(rt, (char*)loc->str);
+
+  location_zero(loc);
 }
 
-Location*
+void
 location_free(Location* loc, JSRuntime* rt) {
-  location_release(loc, rt);
-  if(loc->ref_count == 0) {
+  if(--loc->ref_count == 0) {
+    location_release(loc, rt);
     js_free_rt(rt, loc);
-    loc = 0;
   }
-  return loc;
 }
 
 size_t
@@ -136,7 +113,7 @@ location_copy(Location* dst, const Location* src, JSContext* ctx) {
   dst->column = src->column;
   dst->char_offset = src->char_offset;
   dst->byte_offset = src->byte_offset;
-  dst->str = src->str ? js_strdup(ctx, src->str) : 0;
+  dst->str = src->str && src->str[0] ? js_strdup(ctx, src->str) : 0;
   return dst;
 }
 
@@ -150,8 +127,9 @@ location_clone(const Location* loc, JSContext* ctx) {
     ret->column = loc->column;
     ret->char_offset = loc->char_offset;
     ret->byte_offset = loc->byte_offset;
-    ret->str = loc->str ? js_strdup(ctx, loc->str) : 0;
+    ret->str = loc->str && loc->str[0] ? js_strdup(ctx, loc->str) : 0;
   }
+
   return ret;
 }
 
