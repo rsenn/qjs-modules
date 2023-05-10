@@ -57,23 +57,40 @@ JSValue
 js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc;
   JSValue ret = JS_UNDEFINED;
-  size_t len;
+  const char* file = loc->file > -1 ? JS_AtomToCString(ctx, loc->file) : 0;
+  size_t pos = 0, len;
 
   if(!(loc = js_location_data2(ctx, this_val)))
     return ret;
 
   if(!loc->str) {
-    const char* file = loc->file > -1 ? JS_AtomToCString(ctx, loc->file) : 0;
-    len = file ? strlen(file) : 0;
-    len += 46;
-    loc->str = js_malloc(ctx, len);
-    if(file) {
-      snprintf(loc->str, len, "%s:%" PRIi32 ":%" PRIi32 "", file, loc->line + 1, loc->column + 1);
-      JS_FreeCString(ctx, file);
-    } else {
-      snprintf(loc->str, len, "%" PRIi32 ":%" PRIi32 "", loc->line + 1, loc->column + 1);
-    }
+    len = FMT_ULONG * 2 + 2 + (file ? strlen(file) : 0) + 1;
+
+    if(!(loc->str = js_malloc(ctx, len + 1)))
+      return JS_EXCEPTION;
   }
+
+  if(!loc->str[0]) {
+
+    if(file) {
+      strcpy(loc->str, file);
+      pos += strlen(file);
+      loc->str[pos++] = ':';
+      JS_FreeCString(ctx, file);
+    }
+
+    if(loc->line != -1) {
+      pos += fmt_ulong(&loc->str[pos], loc->line + 1);
+
+      if(loc->column != -1) {
+        loc->str[pos++] = ':';
+        pos += fmt_ulong(&loc->str[pos], loc->column + 1);
+      }
+    }
+
+    loc->str[pos] = '\0';
+  }
+
   ret = JS_NewString(ctx, loc->str);
   return ret;
 }
@@ -149,6 +166,9 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
   if(loc->read_only)
     return JS_ThrowTypeError(ctx, "Location is read-only");
 
+  if(loc->str)
+    loc->str[0] = 0;
+
   switch(magic) {
     case LOCATION_PROP_FILE: {
       if(loc->file > -1)
@@ -195,15 +215,15 @@ js_location_from(JSContext* ctx, JSValueConst this_val) {
 
   if(js_has_propertystr(ctx, this_val, "line"))
     loc->line = js_get_propertystr_int32(ctx, this_val, "line") - 1;
-  if(js_has_propertystr(ctx, this_val, "lineNumber"))
+  else if(js_has_propertystr(ctx, this_val, "lineNumber"))
     loc->line = js_get_propertystr_int32(ctx, this_val, "lineNumber") - 1;
   if(js_has_propertystr(ctx, this_val, "column"))
     loc->column = js_get_propertystr_int32(ctx, this_val, "column") - 1;
-  if(js_has_propertystr(ctx, this_val, "columnNumber"))
+  else if(js_has_propertystr(ctx, this_val, "columnNumber"))
     loc->column = js_get_propertystr_int32(ctx, this_val, "columnNumber") - 1;
   if(js_has_propertystr(ctx, this_val, "file"))
     loc->file = js_get_propertystr_atom(ctx, this_val, "file");
-  if(js_has_propertystr(ctx, this_val, "fileName"))
+  else if(js_has_propertystr(ctx, this_val, "fileName"))
     loc->file = js_get_propertystr_atom(ctx, this_val, "fileName");
   if(js_has_propertystr(ctx, this_val, "charOffset"))
     loc->char_offset = js_get_propertystr_uint64(ctx, this_val, "charOffset");
@@ -280,8 +300,13 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     } else if(argc > 1) {
       int i = 0;
 
-      if(i < argc && JS_IsString(argv[i]))
-        loc->file = JS_ValueToAtom(ctx, argv[i++]);
+      loc->file = 0;
+
+      if(i < argc && !JS_IsNumber(argv[i])) {
+        loc->file = JS_IsString(argv[i]) ? JS_ValueToAtom(ctx, argv[i]) : -1;
+        ++i;
+      }
+
       if(i < argc && JS_IsNumber(argv[i]))
         JS_ToUint32(ctx, &loc->line, argv[i++]);
       if(i < argc && JS_IsNumber(argv[i]))
@@ -290,8 +315,12 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
         JS_ToIndex(ctx, (uint64_t*)&loc->char_offset, argv[i++]);
       if(i < argc && JS_IsNumber(argv[i]))
         JS_ToIndex(ctx, (uint64_t*)&loc->byte_offset, argv[i++]);
-      if(loc->file == -1 && i < argc && JS_IsString(argv[i]))
+
+      if(loc->file == 0 && i < argc)
         loc->file = JS_ValueToAtom(ctx, argv[i++]);
+
+      if(loc->file == 0)
+        loc->file = -1;
 
       loc->line--;
       loc->column--;
@@ -417,7 +446,7 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
     JS_SetClassProto(ctx, js_location_class_id, location_proto);
 
-    // js_set_inspect_method(ctx, location_proto, js_location_inspect);
+    js_set_inspect_method(ctx, location_proto, js_location_inspect);
   }
 
   if(m) {
