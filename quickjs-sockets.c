@@ -1153,6 +1153,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       break;
     }
   }
+  // printf("%s(%d) = %s\n",socket_method(magic & 0xf), s->fd, JS_ToCString(ctx, ret));
   /*  if(id == js_socket_class_id)
       JS_SetOpaque(this_val, s->ptr);*/
 
@@ -1255,14 +1256,14 @@ js_socket_async_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   JS_Call(ctx, data[1], JS_UNDEFINED, 1, &value);
 
-  printf("%s(%d) = %s\n", socket_method(magic & 0xf), asock->fd, JS_ToCString(ctx, value));
+  // printf("[%p] %s(%d) = %s\n", JS_VALUE_GET_OBJ(data[1]), socket_method(magic & 0xf), asock->fd, JS_ToCString(ctx, value));
 
   if(asock) {
     if(js_object_same(data[1], asock->pending[magic & 1])) {
       JSValueConst args[2] = {data[0], JS_NULL};
       JS_Call(ctx, data[2], JS_UNDEFINED, 2, args);
 
-      printf("%s() set_handler(%d, null) [%p]\n", socket_method(magic & 0xf), asock->fd, JS_VALUE_GET_OBJ(data[1]));
+      // printf("[%p] set%sHandler(%d, null)\n", JS_VALUE_GET_OBJ(data[1]), magic & 1 ? "Write" : "Read", asock->fd);
 
       /* free ourselves */
       JS_FreeValue(ctx, asock->pending[magic & 1]);
@@ -1329,7 +1330,7 @@ js_async_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   args[0] = JS_NewInt32(ctx, s->fd);
   args[1] = JS_NewCFunctionData(ctx, js_socket_async_resolve, 0, magic, data_len, data);
 
-  printf("%s() set_handler(%d, %p)\n", socket_method(magic & 0xf), s->fd, JS_VALUE_GET_OBJ(data[1]));
+  // printf("set%sHandler(%d, %p)\n", magic & 1 ? "Write" : "Read", s->fd, JS_VALUE_GET_OBJ(data[1]));
 
   s->pending[magic & 1] = JS_DupValue(ctx, resolving_funcs[0]);
 
