@@ -12,7 +12,7 @@
 thread_local JSClassID js_syscallerror_class_id = 0;
 thread_local JSValue syscallerror_proto = {{JS_TAG_UNDEFINED}}, syscallerror_ctor = {{JS_TAG_UNDEFINED}};
 
-static int js_syscallerror_init(JSContext*, JSModuleDef*);
+int js_syscallerror_init(JSContext*, JSModuleDef*);
 
 static const char*
 error_get(int number) {
@@ -196,10 +196,30 @@ js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       js_dbuf_init(ctx, &dbuf);
       js_syscallerror_dump(ctx, this_val, &dbuf);
       ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+      dbuf_free(&dbuf);
       break;
     }
     case SYSCALLERROR_VALUEOF: {
       ret = JS_NewInt32(ctx, err->number);
+      break;
+    }
+  }
+  return ret;
+}
+
+enum {
+  SYSCALLERROR_NAME,
+};
+
+static JSValue
+js_syscallerror_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret = JS_UNDEFINED;
+
+  switch(magic) {
+    case SYSCALLERROR_NAME: {
+      int32_t err = 0;
+      JS_ToInt32(ctx, &err, argv[0]);
+      ret = JS_NewString(ctx, error_get(err));
       break;
     }
   }
@@ -305,12 +325,9 @@ js_syscallerror_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
   return ret;
 }
 const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
-    //
     JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_SYSCALL),
     JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_CODE),
-    JS_ALIAS_DEF("code", "name"),
     JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_ERRNO, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
-    JS_ALIAS_DEF("number", "errno"),
     JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_STACK),
     JS_CGETSET_MAGIC_FLAGS_DEF("message", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_MESSAGE, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_syscallerror_method, SYSCALLERROR_TOSTRING),
@@ -318,82 +335,233 @@ const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyscallError", JS_PROP_CONFIGURABLE),
 };
+
 const size_t js_syscallerror_proto_funcs_size = countof(js_syscallerror_proto_funcs);
 
-static const JSCFunctionListEntry js_syscallerror_defines[] = {
-    JS_PROP_INT32_DEF("EPERM", EPERM, 0),
-    JS_PROP_INT32_DEF("ENOENT", ENOENT, 0),
-    JS_PROP_INT32_DEF("ESRCH", ESRCH, 0),
-    JS_PROP_INT32_DEF("EINTR", EINTR, 0),
-    JS_PROP_INT32_DEF("EIO", EIO, 0),
-    JS_PROP_INT32_DEF("ENXIO", ENXIO, 0),
-    JS_PROP_INT32_DEF("E2BIG", E2BIG, 0),
-    JS_PROP_INT32_DEF("ENOEXEC", ENOEXEC, 0),
-    JS_PROP_INT32_DEF("EBADF", EBADF, 0),
-    JS_PROP_INT32_DEF("ECHILD", ECHILD, 0),
-    JS_PROP_INT32_DEF("EAGAIN", EAGAIN, 0),
-    JS_PROP_INT32_DEF("ENOMEM", ENOMEM, 0),
-    JS_PROP_INT32_DEF("EACCES", EACCES, 0),
-    JS_PROP_INT32_DEF("EFAULT", EFAULT, 0),
-    JS_PROP_INT32_DEF("EBUSY", EBUSY, 0),
-    JS_PROP_INT32_DEF("EEXIST", EEXIST, 0),
-    JS_PROP_INT32_DEF("EXDEV", EXDEV, 0),
-    JS_PROP_INT32_DEF("ENODEV", ENODEV, 0),
-    JS_PROP_INT32_DEF("ENOTDIR", ENOTDIR, 0),
-    JS_PROP_INT32_DEF("EISDIR", EISDIR, 0),
-    JS_PROP_INT32_DEF("EINVAL", EINVAL, 0),
-    JS_PROP_INT32_DEF("ENFILE", ENFILE, 0),
-    JS_PROP_INT32_DEF("EMFILE", EMFILE, 0),
-    JS_PROP_INT32_DEF("ENOTTY", ENOTTY, 0),
-    JS_PROP_INT32_DEF("ETXTBSY", ETXTBSY, 0),
-    JS_PROP_INT32_DEF("EFBIG", EFBIG, 0),
-    JS_PROP_INT32_DEF("ENOSPC", ENOSPC, 0),
-    JS_PROP_INT32_DEF("ESPIPE", ESPIPE, 0),
-    JS_PROP_INT32_DEF("EROFS", EROFS, 0),
-    JS_PROP_INT32_DEF("EMLINK", EMLINK, 0),
-    JS_PROP_INT32_DEF("EPIPE", EPIPE, 0),
-    JS_PROP_INT32_DEF("EDOM", EDOM, 0),
-    JS_PROP_INT32_DEF("ERANGE", ERANGE, 0),
-    JS_PROP_INT32_DEF("EDEADLK", EDEADLK, 0),
-    JS_PROP_INT32_DEF("ENAMETOOLONG", ENAMETOOLONG, 0),
-    JS_PROP_INT32_DEF("ENOLCK", ENOLCK, 0),
-    JS_PROP_INT32_DEF("ENOSYS", ENOSYS, 0),
-    JS_PROP_INT32_DEF("ENOTEMPTY", ENOTEMPTY, 0),
-    JS_PROP_INT32_DEF("ENOMSG", ENOMSG, 0),
-    JS_PROP_INT32_DEF("EIDRM", EIDRM, 0),
-    JS_PROP_INT32_DEF("ENOLINK", ENOLINK, 0),
-    JS_PROP_INT32_DEF("EPROTO", EPROTO, 0),
-    JS_PROP_INT32_DEF("EBADMSG", EBADMSG, 0),
-    JS_PROP_INT32_DEF("EOVERFLOW", EOVERFLOW, 0),
-    JS_PROP_INT32_DEF("EILSEQ", EILSEQ, 0),
-    JS_PROP_INT32_DEF("ENOTSOCK", ENOTSOCK, 0),
-    JS_PROP_INT32_DEF("EDESTADDRREQ", EDESTADDRREQ, 0),
-    JS_PROP_INT32_DEF("EMSGSIZE", EMSGSIZE, 0),
-    JS_PROP_INT32_DEF("EPROTOTYPE", EPROTOTYPE, 0),
-    JS_PROP_INT32_DEF("ENOPROTOOPT", ENOPROTOOPT, 0),
-    JS_PROP_INT32_DEF("EPROTONOSUPPORT", EPROTONOSUPPORT, 0),
-    JS_PROP_INT32_DEF("EOPNOTSUPP", EOPNOTSUPP, 0),
-    JS_PROP_INT32_DEF("EAFNOSUPPORT", EAFNOSUPPORT, 0),
-    JS_PROP_INT32_DEF("EADDRINUSE", EADDRINUSE, 0),
-    JS_PROP_INT32_DEF("EADDRNOTAVAIL", EADDRNOTAVAIL, 0),
-    JS_PROP_INT32_DEF("ENETDOWN", ENETDOWN, 0),
-    JS_PROP_INT32_DEF("ENETUNREACH", ENETUNREACH, 0),
-    JS_PROP_INT32_DEF("ENETRESET", ENETRESET, 0),
-    JS_PROP_INT32_DEF("ECONNABORTED", ECONNABORTED, 0),
-    JS_PROP_INT32_DEF("ECONNRESET", ECONNRESET, 0),
-    JS_PROP_INT32_DEF("ENOBUFS", ENOBUFS, 0),
-    JS_PROP_INT32_DEF("EISCONN", EISCONN, 0),
-    JS_PROP_INT32_DEF("ENOTCONN", ENOTCONN, 0),
-    JS_PROP_INT32_DEF("ETIMEDOUT", ETIMEDOUT, 0),
-    JS_PROP_INT32_DEF("ECONNREFUSED", ECONNREFUSED, 0),
-    JS_PROP_INT32_DEF("EHOSTUNREACH", EHOSTUNREACH, 0),
-    JS_PROP_INT32_DEF("EALREADY", EALREADY, 0),
-    JS_PROP_INT32_DEF("EINPROGRESS", EINPROGRESS, 0),
-    JS_PROP_INT32_DEF("ECANCELED", ECANCELED, 0),
-    JS_PROP_INT32_DEF("EOWNERDEAD", EOWNERDEAD, 0),
-    JS_PROP_INT32_DEF("ENOTRECOVERABLE", ENOTRECOVERABLE, 0),
-    JS_PROP_INT32_DEF("EWOULDBLOCK", EWOULDBLOCK, 0),
+const JSCFunctionListEntry js_syscallerror_defines[] = {
+// JS_CFUNC_MAGIC_DEF("name", 1, js_syscallerror_functions, SYSCALLERROR_NAME),
+#ifdef EPERM
+    JS_CONSTANT(EPERM),
+#endif
+#ifdef ENOENT
+    JS_CONSTANT(ENOENT),
+#endif
+#ifdef ESRCH
+    JS_CONSTANT(ESRCH),
+#endif
+#ifdef EINTR
+    JS_CONSTANT(EINTR),
+#endif
+#ifdef EIO
+    JS_CONSTANT(EIO),
+#endif
+#ifdef ENXIO
+    JS_CONSTANT(ENXIO),
+#endif
+#ifdef E2BIG
+    JS_CONSTANT(E2BIG),
+#endif
+#ifdef ENOEXEC
+    JS_CONSTANT(ENOEXEC),
+#endif
+#ifdef EBADF
+    JS_CONSTANT(EBADF),
+#endif
+#ifdef ECHILD
+    JS_CONSTANT(ECHILD),
+#endif
+#ifdef EAGAIN
+    JS_CONSTANT(EAGAIN),
+#endif
+#ifdef EWOULDBLOCK
+    JS_CONSTANT(EWOULDBLOCK),
+#endif
+#ifdef ENOMEM
+    JS_CONSTANT(ENOMEM),
+#endif
+#ifdef EACCES
+    JS_CONSTANT(EACCES),
+#endif
+#ifdef EFAULT
+    JS_CONSTANT(EFAULT),
+#endif
+#ifdef EBUSY
+    JS_CONSTANT(EBUSY),
+#endif
+#ifdef EEXIST
+    JS_CONSTANT(EEXIST),
+#endif
+#ifdef EXDEV
+    JS_CONSTANT(EXDEV),
+#endif
+#ifdef ENODEV
+    JS_CONSTANT(ENODEV),
+#endif
+#ifdef ENOTDIR
+    JS_CONSTANT(ENOTDIR),
+#endif
+#ifdef EISDIR
+    JS_CONSTANT(EISDIR),
+#endif
+#ifdef EINVAL
+    JS_CONSTANT(EINVAL),
+#endif
+#ifdef ENFILE
+    JS_CONSTANT(ENFILE),
+#endif
+#ifdef EMFILE
+    JS_CONSTANT(EMFILE),
+#endif
+#ifdef ENOTTY
+    JS_CONSTANT(ENOTTY),
+#endif
+#ifdef ETXTBSY
+    JS_CONSTANT(ETXTBSY),
+#endif
+#ifdef EFBIG
+    JS_CONSTANT(EFBIG),
+#endif
+#ifdef ENOSPC
+    JS_CONSTANT(ENOSPC),
+#endif
+#ifdef ESPIPE
+    JS_CONSTANT(ESPIPE),
+#endif
+#ifdef EROFS
+    JS_CONSTANT(EROFS),
+#endif
+#ifdef EMLINK
+    JS_CONSTANT(EMLINK),
+#endif
+#ifdef EPIPE
+    JS_CONSTANT(EPIPE),
+#endif
+#ifdef EDOM
+    JS_CONSTANT(EDOM),
+#endif
+#ifdef ERANGE
+    JS_CONSTANT(ERANGE),
+#endif
+#ifdef EDEADLK
+    JS_CONSTANT(EDEADLK),
+#endif
+#ifdef ENAMETOOLONG
+    JS_CONSTANT(ENAMETOOLONG),
+#endif
+#ifdef ENOLCK
+    JS_CONSTANT(ENOLCK),
+#endif
+#ifdef ENOSYS
+    JS_CONSTANT(ENOSYS),
+#endif
+#ifdef ENOTEMPTY
+    JS_CONSTANT(ENOTEMPTY),
+#endif
+#ifdef ENOMSG
+    JS_CONSTANT(ENOMSG),
+#endif
+#ifdef EIDRM
+    JS_CONSTANT(EIDRM),
+#endif
+#ifdef ENOLINK
+    JS_CONSTANT(ENOLINK),
+#endif
+#ifdef EPROTO
+    JS_CONSTANT(EPROTO),
+#endif
+#ifdef EBADMSG
+    JS_CONSTANT(EBADMSG),
+#endif
+#ifdef EOVERFLOW
+    JS_CONSTANT(EOVERFLOW),
+#endif
+#ifdef EILSEQ
+    JS_CONSTANT(EILSEQ),
+#endif
+#ifdef ERESTART
+    JS_CONSTANT(ERESTART),
+#endif
+#ifdef ENOTSOCK
+    JS_CONSTANT(ENOTSOCK),
+#endif
+#ifdef EDESTADDRREQ
+    JS_CONSTANT(EDESTADDRREQ),
+#endif
+#ifdef EMSGSIZE
+    JS_CONSTANT(EMSGSIZE),
+#endif
+#ifdef EPROTOTYPE
+    JS_CONSTANT(EPROTOTYPE),
+#endif
+#ifdef ENOPROTOOPT
+    JS_CONSTANT(ENOPROTOOPT),
+#endif
+#ifdef EPROTONOSUPPORT
+    JS_CONSTANT(EPROTONOSUPPORT),
+#endif
+#ifdef EOPNOTSUPP
+    JS_CONSTANT(EOPNOTSUPP),
+#endif
+#ifdef EAFNOSUPPORT
+    JS_CONSTANT(EAFNOSUPPORT),
+#endif
+#ifdef EADDRINUSE
+    JS_CONSTANT(EADDRINUSE),
+#endif
+#ifdef EADDRNOTAVAIL
+    JS_CONSTANT(EADDRNOTAVAIL),
+#endif
+#ifdef ENETDOWN
+    JS_CONSTANT(ENETDOWN),
+#endif
+#ifdef ENETUNREACH
+    JS_CONSTANT(ENETUNREACH),
+#endif
+#ifdef ENETRESET
+    JS_CONSTANT(ENETRESET),
+#endif
+#ifdef ECONNABORTED
+    JS_CONSTANT(ECONNABORTED),
+#endif
+#ifdef ECONNRESET
+    JS_CONSTANT(ECONNRESET),
+#endif
+#ifdef ENOBUFS
+    JS_CONSTANT(ENOBUFS),
+#endif
+#ifdef EISCONN
+    JS_CONSTANT(EISCONN),
+#endif
+#ifdef ENOTCONN
+    JS_CONSTANT(ENOTCONN),
+#endif
+#ifdef ETIMEDOUT
+    JS_CONSTANT(ETIMEDOUT),
+#endif
+#ifdef ECONNREFUSED
+    JS_CONSTANT(ECONNREFUSED),
+#endif
+#ifdef EHOSTUNREACH
+    JS_CONSTANT(EHOSTUNREACH),
+#endif
+#ifdef EALREADY
+    JS_CONSTANT(EALREADY),
+#endif
+#ifdef EINPROGRESS
+    JS_CONSTANT(EINPROGRESS),
+#endif
+#ifdef ECANCELED
+    JS_CONSTANT(ECANCELED),
+#endif
+#ifdef EOWNERDEAD
+    JS_CONSTANT(EOWNERDEAD),
+#endif
+#ifdef ENOTRECOVERABLE
+    JS_CONSTANT(ENOTRECOVERABLE),
+#endif
 };
+
+const size_t js_syscallerror_defines_size = countof(js_syscallerror_defines);
 
 static void
 js_syscallerror_finalizer(JSRuntime* rt, JSValue val) {
@@ -412,13 +580,13 @@ static JSClassDef js_syscallerror_class = {
     .finalizer = js_syscallerror_finalizer,
 };
 
-static int
+int
 js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
   JSValue error = js_global_prototype(ctx, "Error");
 
   assert(JS_IsObject(error));
 
-  /*if(!js_syscallerror_class_id && !JS_IsObject(syscallerror_ctor))*/ {
+  if(!js_syscallerror_class_id) {
     JS_NewClassID(&js_syscallerror_class_id);
     JS_NewClass(JS_GetRuntime(ctx), js_syscallerror_class_id, &js_syscallerror_class);
     syscallerror_ctor = JS_NewCFunction2(ctx, js_syscallerror_constructor, "SyscallError", 1, JS_CFUNC_constructor, 0);
@@ -462,7 +630,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   return m;
 }
 
-const char* const errors[133] = {
+const char* const errors[] = {
     0,
     "EPERM",
     "ENOENT",
@@ -474,11 +642,11 @@ const char* const errors[133] = {
     "ENOEXEC",
     "EBADF",
     "ECHILD",
-    "EAGAIN",
+    "EWOULDBLOCK",
     "ENOMEM",
     "EACCES",
     "EFAULT",
-    "ENOTBLK",
+    0,
     "EBUSY",
     "EEXIST",
     "EXDEV",
@@ -507,58 +675,59 @@ const char* const errors[133] = {
     0,
     "ENOMSG",
     "EIDRM",
-    "ECHRNG",
-    "EL2NSYNC",
-    "EL3HLT",
-    "EL3RST",
-    "ELNRNG",
-    "EUNATCH",
-    "ENOCSI",
-    "EL2HLT",
-    "EBADE",
-    "EBADR",
-    "EXFULL",
-    "ENOANO",
-    "EBADRQC",
     0,
     0,
-    "EBFONT",
-    "ENOSTR",
-    "ENODATA",
-    "ETIME",
-    "ENOSR",
-    "ENONET",
-    "ENOPKG",
-    "EREMOTE",
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     "ENOLINK",
-    "EADV",
-    "ESRMNT",
-    "ECOMM",
+    0,
+    0,
+    0,
     "EPROTO",
-    "EDOTDOT",
+    0,
+    0,
     "EBADMSG",
     "EOVERFLOW",
-    "ENOTUNIQ",
-    "EBADFD",
-    "EREMCHG",
-    "ELIBACC",
-    "ELIBBAD",
-    "ELIBSCN",
-    "ELIBMAX",
-    "ELIBEXEC",
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     "EILSEQ",
     "ERESTART",
-    "ESTRPIPE",
-    "EUSERS",
+    0,
+    0,
     "ENOTSOCK",
     "EDESTADDRREQ",
     "EMSGSIZE",
     "EPROTOTYPE",
     "ENOPROTOOPT",
     "EPROTONOSUPPORT",
-    "ESOCKTNOSUPPORT",
+    0,
     "EOPNOTSUPP",
-    "EPFNOSUPPORT",
+    0,
     "EAFNOSUPPORT",
     "EADDRINUSE",
     "EADDRNOTAVAIL",
@@ -570,30 +739,32 @@ const char* const errors[133] = {
     "ENOBUFS",
     "EISCONN",
     "ENOTCONN",
-    "ESHUTDOWN",
-    "ETOOMANYREFS",
+    0,
+    0,
     "ETIMEDOUT",
     "ECONNREFUSED",
-    "EHOSTDOWN",
+    0,
     "EHOSTUNREACH",
     "EALREADY",
     "EINPROGRESS",
-    "EUCLEAN",
-    "ENOTNAM",
-    "ENAVAIL",
-    "EISNAM",
-    "EREMOTEIO",
-    "ENOMEDIUM",
-    "EMEDIUMTYPE",
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
     "ECANCELED",
-    "ENOKEY",
-    "EKEYEXPIRED",
-    "EKEYREVOKED",
-    "EKEYREJECTED",
+    0,
+    0,
+    0,
+    0,
     "EOWNERDEAD",
     "ENOTRECOVERABLE",
-    "ERFKILL",
 };
+
 const size_t errors_size = countof(errors);
 
 /**

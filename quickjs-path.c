@@ -398,11 +398,11 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       if(from == NULL) {
         cwd = DBUF_INIT_CTX(ctx);
         from = path_getcwd1(&cwd);
-      } else if(path_isrelative(from)) {
+      } /*else if(path_isrelative(from)) {
         cwd = DBUF_INIT_CTX(ctx);
         path_absolute3(a, alen, &cwd);
         from = (const char*)cwd.buf;
-      }
+      }*/
 
       path_relative3(b, from, &db);
 

@@ -57,7 +57,9 @@ PACK struct async_socket_state {
 ENDPACK
 
 #define SOCKET(fd, err, sys, nonb, asyn, own) \
-  { (fd), (err), (sys), (nonb), (asyn), (own) }
+  { \
+    { (fd), (err), (sys), (nonb), (asyn), (own) } \
+  }
 
 typedef union socket_state Socket;
 typedef struct async_socket_state AsyncSocket;
@@ -84,11 +86,13 @@ enum SocketCalls {
   SYSCALL_SETSOCKOPT
 };
 
+#define socket_fd(sock) ((sock).fd)
 #define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)
 #define socket_eof(sock) (((sock).syscall == SYSCALL_RECV || (sock).syscall == SYSCALL_RECVFROM) && (sock).ret == 0)
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
+#define socket_retval(sock) ((sock).ret)
 #define socket_error(sock) ((sock).ret < 0 ? (sock).error : 0)
-#define socket_syscall(sock) socket_syscalls[(sock).syscall]
+#define socket_syscall(sock) syscall_name((sock).syscall)
 #define socket_adopted(sock) (!(sock).owner)
 
 static inline int

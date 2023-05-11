@@ -370,6 +370,7 @@ if(WIN32 OR MINGW)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
 endif(WIN32 OR MINGW)
+list(APPEND sockets_LIBRARIES qjs-syscallerror)
 
 file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h
      tutf8e/src/*.c)

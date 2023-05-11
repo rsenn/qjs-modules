@@ -1486,7 +1486,7 @@ static const JSCFunctionListEntry js_lexer_static_funcs[] = {
 int
 js_lexer_init(JSContext* ctx, JSModuleDef* m) {
 
-  js_location_init(ctx, m);
+     js_location_init(ctx, m);
 
   JS_NewClassID(&js_token_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_token_class_id, &js_token_class);
