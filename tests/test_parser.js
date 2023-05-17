@@ -37,6 +37,7 @@ function DumpLexer(lex) {
 function InstanceOf(obj, ctor) {
   return typeof obj == 'object' && obj != null && obj instanceof ctor;
 }
+
 function IsRegExp(regexp) {
   return InstanceOf(regexp, RegExp);
 }

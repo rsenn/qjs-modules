@@ -7,9 +7,11 @@ import { Location, Stack, StackFrame } from '../lib/stack.js';
 function Func1() {
   return Func2();
 }
+
 function Func2() {
   return Func3();
 }
+
 function Func3() {
   return Func4();
 }

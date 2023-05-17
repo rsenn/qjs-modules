@@ -87,6 +87,7 @@ function main(...args) {
   console.log('result', result);
   std.gc();
 }
+
 try {
   main(...scriptArgs.slice(1));
 } catch(error) {
