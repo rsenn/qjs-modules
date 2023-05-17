@@ -38,12 +38,12 @@ token_free(Token* tok, JSRuntime* rt) {
 }
 
 Token*
-token_create(int id, Location* loc, const char* lexeme, size_t len, JSContext* ctx) {
+token_create(int id, const char* lexeme, size_t len, JSContext* ctx) {
   Token* tok;
 
   if((tok = token_new(ctx))) {
     tok->id = id;
-    tok->loc = loc;
+    tok->loc = js_malloc(ctx, sizeof(Location));
 
     tok->byte_length = len;
 

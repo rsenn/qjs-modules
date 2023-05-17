@@ -323,6 +323,9 @@ lexer_peek(Lexer* lex, /*uint64_t __state,*/ unsigned start_rule, JSContext* ctx
   if(input_buffer_eof(&lex->input))
     return LEXER_EOF;
 
+  if(lex->loc.byte_offset == -1)
+    location_zero(&lex->loc);
+
   assert(start_rule >= 0);
   assert(start_rule < vector_size(&lex->rules, sizeof(LexerRule)));
 
@@ -424,8 +427,11 @@ lexer_skip_n(Lexer* lex, size_t bytes) {
 
   assert(bytes <= lex->size - lex->pos);
 
+  lex->loc.byte_offset = lex->pos;
   len = location_count(&lex->loc, &lex->data[lex->pos], bytes);
   lex->pos += bytes;
+
+  // location_count(&lex->loc, &lex->data[tok->loc->byte_offset], bytes);
 
   // lexer_clear_token(lex);
   /* lex->byte_length = 0;
@@ -537,6 +543,17 @@ lexer_dump(Lexer* lex, DynBuf* dbuf) {
   dbuf_putstr(dbuf, ",\n  location: ");
   location_print(&lex->loc, dbuf, 0);
   dbuf_putstr(dbuf, "\n}");
+}
+
+Location
+lexer_get_location(Lexer* lex, JSContext* ctx) {
+  Location loc = {1};
+
+  location_copy(&loc, &lex->loc, ctx);
+
+  // location_count(&loc, &lex->data[lex->pos], lex->byte_length);
+
+  return loc;
 }
 
 /**

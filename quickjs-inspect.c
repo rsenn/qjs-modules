@@ -483,7 +483,7 @@ js_inspect_print_set(JSContext* ctx, DynBuf* buf, JSValueConst obj, inspect_opti
           inspect_newline(buf, INSPECT_LEVEL(opts, depth));
       }
       dbuf_putstr(buf, compact ? " " : "  ");
-      js_inspect_print_value(ctx, buf, value, opts, depth);
+      js_inspect_print_value(ctx, buf, value, opts, depth - 1);
       JS_FreeValue(ctx, value);
     }
   }
@@ -858,7 +858,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 
     } else if(!JS_IsUndefined(tmp)) {
       if(!JS_IsObject(tmp))
-        return js_inspect_print_value(ctx, buf, tmp, opts, depth + 1);
+        return js_inspect_print_value(ctx, buf, tmp, opts, depth - 1);
       // depth;
 
       value = tmp;

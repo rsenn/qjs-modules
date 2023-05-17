@@ -10,8 +10,14 @@
 void
 location_print(const Location* loc, DynBuf* dbuf, JSContext* ctx) {
   if(ctx && loc->file > -1) {
-    js_atom_dump(ctx, loc->file, dbuf, FALSE);
-    dbuf_putc(dbuf, ':');
+    const char* str;
+
+    if((str = JS_AtomToCString(ctx, loc->file))) {
+      dbuf_putstr(dbuf, str);
+      dbuf_putc(dbuf, ':');
+
+      JS_FreeCString(ctx, str);
+    }
   }
 
   dbuf_printf(dbuf, loc->column != -1 ? "%" PRId32 ":%" PRId32 : "%" PRId32, loc->line + 1, loc->column + 1);
@@ -89,9 +95,20 @@ location_free(Location* loc, JSRuntime* rt) {
 
 size_t
 location_count(Location* loc, const uint8_t* x, size_t n) {
-  size_t start = loc->char_offset, i;
+  size_t start, i;
 
-  for(i = loc->byte_offset; i < n;) {
+  if(loc->byte_offset == -1)
+    loc->byte_offset = 0;
+  if(loc->char_offset == -1)
+    loc->char_offset = 0;
+  if(loc->line == -1)
+    loc->line = 0;
+  if(loc->column == -1)
+    loc->column = 0;
+
+  start = loc->char_offset;
+
+  for(i = 0; i < n;) {
     size_t bytes = utf8_charlen((const void*)&x[i], n - i);
 
     if(bytes == 1 && x[i] == '\n') {
@@ -105,6 +122,7 @@ location_count(Location* loc, const uint8_t* x, size_t n) {
     loc->byte_offset += bytes;
     i += bytes;
   }
+
   return loc->char_offset - start;
 }
 

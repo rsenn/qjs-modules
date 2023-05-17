@@ -588,6 +588,8 @@ file(GLOB LIBLEXER ${CMAKE_CURRENT_SOURCE_DIR}/lib/lexer/*.js)
 file(GLOB LIBXML ${CMAKE_CURRENT_SOURCE_DIR}/lib/xml/*.js)
 list(REMOVE_ITEM LIBJS lib/require.js)
 list(REMOVE_ITEM LIBJS lib/fs.js)
+list(REMOVE_ITEM LIBJS lib/std.js)
+list(REMOVE_ITEM LIBJS lib/os.js)
 
 list(
   FILTER

@@ -73,10 +73,8 @@ static thread_local JSRuntime* rt;
 static thread_local JSContext* ctx;
 
 static const char* const module_extensions[] = {
-    CONFIG_SHEXT,
-    ".js",
-    "/index.js",
-    "/package.json",
+    CONFIG_SHEXT, ".js", "/index.js",
+    //    "/package.json",
 };
 
 static inline BOOL
@@ -93,7 +91,7 @@ static char*
 is_module(JSContext* ctx, const char* module_name) {
   BOOL yes = path_isfile1(module_name);
 
-  if(debug_module_loader >= 2)
+  if(debug_module_loader > 2)
     printf("%-18s(module_name=\"%s\")=%s\n", __FUNCTION__, module_name, ((yes) ? "TRUE" : "FALSE"));
 
   return yes ? js_strdup(ctx, module_name) : 0;
@@ -535,7 +533,7 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
   size_t i, n, len = strlen(module_name);
   char *s, *t = 0;
 
-  if(debug_module_loader >= 2)
+  if(debug_module_loader > 3)
     printf("%-18s(module_name=\"%s\", fn=%s)\n",
            __FUNCTION__,
            module_name,
@@ -658,11 +656,15 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 
     default: {
       size_t len = 0;
+      char* tmp;
 
-      if(!name) {
+      if(!name)
         name = basename(path);
-        len = module_has_suffix(name);
-      }
+
+      if((tmp = strrchr(name, '.')))
+        len = tmp - name;
+      else
+        len = strlen(name);
 
       dbuf_putstr(buf, "globalThis['");
       if(len)
@@ -890,8 +892,8 @@ restart:
   }
 
   if(s) {
-    if(debug_module_loader > 3)
-      printf("\"%s\" -> \"%s\"\n", name, s);
+    if(debug_module_loader >= 1)
+      printf("%s \"%s\" -> \"%s\"\n", __FUNCTION__, name, s);
 
     jsm_stack_push(ctx, s);
     if(str_ends(s, ".json"))
@@ -903,7 +905,7 @@ restart:
 
   } else {
     if(debug_module_loader)
-      printf("\"%s\" -> null\n", module_name);
+      printf("%s \"%s\" -> null\n", __FUNCTION__, module_name);
   }
 
   return m;
@@ -912,7 +914,7 @@ restart:
 char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
   char* file = 0;
-  BuiltinModule* bltin;
+  BuiltinModule* bltin = 0;
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
 
@@ -946,11 +948,20 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     }
   }
 
+  if(!bltin && has_dot_or_slash(name) && !module_has_suffix(name)) {
+    char* tmp;
+    if((tmp = jsm_search_suffix(ctx, file ? file : name, &is_module))) {
+      if(file)
+        js_free(ctx, file);
+      file = tmp;
+    }
+  }
+
   if(file == 0)
     file = js_strdup(ctx, name);
 
-  if(debug_module_loader - !strcmp(name, file) >= 3)
-    printf("%s: \"%s\" => \"%s\"\n", path, name, file);
+  if(debug_module_loader >= 1)
+    printf("%s %s: \"%s\" => \"%s\"\n", __FUNCTION__, path, name, file);
 
   return file;
 }
@@ -1378,6 +1389,8 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       if((m = jsm_module_load(ctx, name, key)))
         val = module_value(ctx, m);
+      else
+        val = JS_ThrowInternalError(ctx, "Failed loading module '%s'", name);
 
       if(key)
         JS_FreeCString(ctx, key);
@@ -1531,7 +1544,7 @@ jsm_import_parse(ImportDirective* imp, const char* spec) {
 
 static void
 jsm_start_interactive(void) {
-  char str[512];
+  char str[1024];
   const char* home;
 
   if(!JS_IsUndefined(replObj))
@@ -1543,7 +1556,7 @@ jsm_start_interactive(void) {
   snprintf(str,
     sizeof(str),
     "import REPL from 'repl';\n"
-    "import fs from 'fs';\n"
+    "import * as fs from 'fs';\n"
     "const history = '%s/.%s_history';\n"
     "globalThis.repl = new REPL((__filename ?? '%s').replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
     "repl.loadSaveOptions();\n"

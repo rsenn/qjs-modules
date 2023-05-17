@@ -84,6 +84,7 @@ char* lexer_lexeme(Lexer*, size_t* lenp);
 int lexer_next(Lexer*, JSContext* ctx);
 void lexer_set_input(Lexer*, InputBuffer input, int32_t file_atom);
 void lexer_set_location(Lexer*, const Location* loc, JSContext* ctx);
+Location lexer_get_location(Lexer*, JSContext* ctx);
 void lexer_release(Lexer*, JSRuntime* rt);
 void lexer_free(Lexer*, JSRuntime* rt);
 void lexer_dump(Lexer*, DynBuf* dbuf);

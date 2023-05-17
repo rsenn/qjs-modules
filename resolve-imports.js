@@ -21,7 +21,8 @@ class ArgumentError extends Error {
   }
 }
 
-let buffers = {},
+let globalSheBang,
+  buffers = {},
   modules = {},
   showTiming,
   removeExports = false,
@@ -67,8 +68,8 @@ Object.assign(globalThis, {
   }
 });
 
-let header = [],
-  footer = [];
+let header = (globalThis.header = []),
+  footer = (globalThis.footer = []);
 
 let dependencyTree = memoize(arg => [], dependencyMap);
 let bufferMap = getset(bufferRef);
@@ -79,7 +80,13 @@ function ReadJSON(filename) {
   return data ? JSON.parse(data) : null;
 }
 
-const ReadPackageJSON = memoize(() => ReadJSON('package.json') ?? { _moduleAliases: {} });
+const ReadPackageJSON = memoize(() => {
+  let ret = ReadJSON('package.json');
+
+  if(typeof ret != 'object' || ret == null) ret = { _moduleAliases: {} };
+  ret._moduleAliases ??= {};
+  return ret;
+});
 
 function ImportedBy(importFile) {
   let r = [];
@@ -95,7 +102,6 @@ function ResolveAlias(filename) {
   if(typeof filename == 'string') {
     let key = path.normalize(filename);
     let { _moduleAliases } = ReadPackageJSON();
-
     if(key in _moduleAliases) return _moduleAliases[key];
   }
   return filename;
@@ -174,6 +180,11 @@ const PutsFunction = outFn => str => {
 };
 
 const IsWhiteSpace = str => /^\s*$/.test(str) || str.trim() == '';
+
+const IsImportExportFrom = seq => {
+  seq = seq.slice(-3);
+  return IsKeyword('from', seq[0]) && IsStringLiteral(seq[1]) && IsPunctuator(';', seq[2]);
+};
 
 const debugLog = (str, ...args) => {
   const pred = arg => isObject(arg) && 'compact' in arg;
@@ -294,6 +305,7 @@ function ImportIds(seq) {
 }
 
 function ImportIdMap(seq) {
+  //console.log('ImportIdMap', console.config({ depth: Infinity, compact: 1, maxArrayLength: 3 }), seq);
   let i = 0,
     name,
     local,
@@ -301,13 +313,16 @@ function ImportIdMap(seq) {
   seq = NonWS(seq);
 
   if(!IsKeyword('import', seq[0])) return null;
+
   while(seq[i]) {
     if(seq[i].type != 'keyword') break;
     ++i;
   }
   for(; ; i++) {
     if(IsKeyword('from', seq[i])) break;
+
     if(seq[i].type == 'stringLiteral') break;
+
     let tok = seq[i];
     let { loc } = tok;
     /* prettier-ignore */ //console.log('ImportIdMap', i, loc + '', { tok }, seq.slice(i - 1, i + 2).map(t => t.lexeme), IsPunctuator('*', seq[i]));
@@ -339,7 +354,7 @@ function ImportIdMap(seq) {
        while(IsPunctuator(',', seq[i])) ++i;
       }
     } else {
-      throw new Error(`No such token ${seq[i].lexeme} at ${seq[i].loc}`);
+      throw new Error(`No such token[${seq.indexOf(tok)}] (${inspect(tok)}) ${tok.lexeme} at ${tok.loc}`);
     }
   }
   return entries;
@@ -437,7 +452,7 @@ function Export(tokens, relativePath = s => s) {
   let source = loc.file;
   let type = ImpExpType(tokens);
   let code = TokenSequence(tokens).toString(); // toString(BufferFile(source).slice(...range));
-  if(def != -1) if (debug >= 2) console.log('new Export', { source, file, code, range, loc, tokens });
+  if(def != -1) if (debug > 2) console.log('new Export', { source, file, code, range, loc });
   let len = tokens.length;
   if(o) {
     exported = tokens.filter(tok => tok.type == 'identifier').map(tok => tok.lexeme);
@@ -476,8 +491,8 @@ define(Export.prototype, {
 });
 
 function Import(tokens, relativePath = s => s, depth) {
+  //console.log('Import', {tokens: tokens.map(t => t.lexeme).slice(-3),hasFrom: tokens.some(i => IsKeyword('from', i))  });
   tokens = tokens[0].seq === tokens[1].seq ? tokens.slice(1) : tokens.slice();
-
   if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
   const tok = tokens[0];
   const { loc, seq } = tok;
@@ -689,7 +704,10 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     return ModuleLoader(j);
   };
 
+  //console.log('lexer.peek()', lexer.tokens[lexer.peek()]);
+
   let prevToken,
+    sheBang,
     doneImports,
     used = identifiersUsed ? identifiersUsed(source) : null;
   for(;;) {
@@ -709,6 +727,10 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     if(!token) break;
     const { length, seq } = token;
 
+    if(token.type == 'shebang') {
+      sheBang = token;
+      continue;
+    }
     if(token.type == 'identifier') {
       if(doneImports) {
         if(used) {
@@ -721,9 +743,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       }*/
     }
 
-    if(debug > 3) console.log('token', token);
-    /*   if(debug >= 1) console.log('lexer.mode', lexer.mode);
-     */
+    if(debug >= 3) console.log('token', token);
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
     } else {
@@ -734,9 +754,12 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       }
 
       if(['import', 'export'].indexOf(token.lexeme) >= 0) {
-        impexp = What[token.lexeme.toUpperCase()];
-        cond = true;
-        imp = token.lexeme == 'export' ? [token] : [];
+        if(imp.length == 0) {
+          //console.log(``, { token:token.lexeme, loc: token.loc+'', imp: imp.length});
+          impexp = What[token.lexeme.toUpperCase()];
+          cond = true;
+          imp = token.lexeme == 'export' ? [token] : [];
+        }
       }
 
       if(debug > 3) console.log(`token[${imp.length}]`, token.loc + '', console.config({ breakLength: 80, compact: 0 }), token);
@@ -749,25 +772,27 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         if(imp.indexOf(token) == -1) imp.push(token);
         //console.log( imp[0].loc+'',console.config({breakLength:80, compact: 0}), NonWS(imp));
         if(imp.last.lexeme == ';') {
-          /* prettier-ignore */ if(debug > 3) console.log('imp', imp[0].loc + '', console.config({breakLength: 80, compact: 0 }), TokenSequence(imp) + '');
+          let obj;
+          // /* prettier-ignore */ if(debug >=2) console.log('imp', imp[0].loc + '', console.config({breakLength: 80, compact: 0 }), { sequence: TokenSequence(imp),impexp } );
           cond = false;
-          if(impexp == What.IMPORT || imp.some(i => IsKeyword('from', i))) {
+          if(impexp == What.IMPORT || IsImportExportFrom(imp)) {
             if(imp[1].lexeme != '(') {
-              let obj = new Import(imp, PathAdjust, depth);
+              obj = new Import(imp, PathAdjust, depth);
               if(obj) {
                 obj.source = source;
                 imports.push(obj);
               }
             }
           } else {
-            let obj = new Export(imp, PathAdjust, depth);
-            //console.log('obj',console.config({breakLength:80, compact: 1}), obj, obj.loc+'');
+            obj = new Export(imp, PathAdjust, depth);
             if(obj) {
               obj.source = source;
 
               exports.push(obj);
             }
           }
+          //console.log('obj',console.config({breakLength:80, compact: 1}), obj, obj.loc+'');
+          imp.splice(0, imp.length);
         }
       }
 
@@ -795,8 +820,23 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
   importsFor[source] = allExportsImports.filter(imp => imp.type == What.IMPORT); //fileImports.map(i => i.file);
 
+  if(debug >= 1)
+    console.log(
+      `importsFor[${source}]`,
+      console.config({ compact: false, maxStringLength: 30 }),
+      importsFor[source].map(imp => imp.code)
+    );
+
   let map = FileMap.for(source);
   let imported = used && new Set();
+
+  if(sheBang) {
+    const { byteRange, loc } = sheBang;
+    const { byteOffset, byteLength } = sheBang;
+    console.log('sheBang =', { sheBang, byteRange, byteOffset, byteLength });
+    map.replaceRange(byteRange, null);
+    globalSheBang = sheBang;
+  }
 
   /* for(let impexp of fileImports) {
     let file = ResolveAlias(impexp.file);
@@ -1282,6 +1322,8 @@ class FileMap extends Array {
   }
 
   replaceRange(range, file) {
+    const { buffer } = this;
+
     if(Array.isArray(range) && !(range instanceof NumericRange)) range = new NumericRange(...range);
     const sliceIndex = n => {
       let i, r, item;
@@ -1300,7 +1342,7 @@ class FileMap extends Array {
       }
       return i;
     };
-    /* prettier-ignore */ if(debug > 1) console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { file, range: [range[0], range[1]] });
+    ///* prettier-ignore */ if(debug > 1) console.log('FileMap.replaceRange', compact(2, { customInspect: true }), { file, range: [range[0], range[1]] });
 
     let i = sliceIndex(range[0]);
     let j = sliceIndex(range[1]);
@@ -1337,7 +1379,7 @@ class FileMap extends Array {
 
     if(file != null) this.splice(i + 1, 0, entry);
 
-    /* prettier-ignore */ if(debug > 2) console.log('FileMap.replaceRange', console.config({ compact: 10 }), { i, j, length, this: this });
+    // if(debug > 2) console.log('FileMap.replaceRange', console.config({ compact: 10 }), { i, j, length, this: this });
 
     //if(this.rangeAt(0)[0] != 0) throw new Error('Inconsistent FileMap');
   }
@@ -1373,6 +1415,12 @@ class FileMap extends Array {
     let { length } = this;
     for(let i = 0; i < length; i++) r.push(this[i][0] === null ? null : this.rangeAt(i));
     return r;
+  }
+
+  *[Symbol.iterator]() {
+    let { length } = this;
+
+    for(let i = 0; i < length; ++i) yield this.at(i);
   }
 
   dump() {
@@ -1509,8 +1557,12 @@ class FileMap extends Array {
     };
 
     let arr = [...this].map((item, i) => {
-      let [range, buf, replacement] = item;
-
+      let range, buf, replacement;
+      try {
+        [range, buf, replacement] = [...item];
+      } catch(e) {
+        buf = item;
+      }
       const isBuf = isObject(buf) && types.isArrayBuffer(buf);
       const filename = isBuf ? FileMap.filenames(buf) : undefined;
 
@@ -1650,6 +1702,9 @@ function main(...args) {
   Object.assign(globalThis, {
     IsKeyword,
     IsPunctuator,
+    IsBuiltin,
+    IsImportExportFrom,
+    toString,
     NonWS,
     LeadingWS,
     ImportIds,
@@ -1743,6 +1798,27 @@ function main(...args) {
     args
   );
 
+  console.log('main', {
+    debug,
+    logFile,
+    quiet,
+    exp,
+    onlyImports,
+    relativeTo,
+    outputFile,
+    recursive,
+    removeExports,
+    removeImports,
+    removeComments,
+    globalExports,
+    showDeps,
+    printImports,
+    printFiles,
+    readPackage,
+    userScript,
+    showTiming
+  });
+
   function ShowHelp() {
     let entries = Object.entries(opts);
     let maxlen = entries.reduce((acc, [name]) => (acc > name.length ? acc : name.length), 0);
@@ -1806,43 +1882,56 @@ function main(...args) {
 
     results.push(result);
   }
+  console.log('results', console.config({ compact: 1 }), results);
 
   /*console.log('header', console.config({ compact: 2 }), header);
   console.log('globalImports', console.config({ compact: 1 }), globalImports);*/
 
   for(let imp of allImports()) {
     let { file, source, tokens } = imp;
-    let idmap = imp.idmap();
-    //console.log('imp', { file, source, idmap });
-    if(IsFileImport(file)) continue;
-    let map = (globalImports[ResolveAlias(file)] ??= {});
+    try {
+      let idmap = imp.idmap();
+      //console.log('imp', { file, source, idmap });
+      if(IsFileImport(file)) continue;
+      let map = (globalImports[ResolveAlias(file)] ??= {});
 
-    if(idmap) for(let [local, name] of idmap) map[local] = name;
+      if(idmap) for(let [local, name] of idmap) map[local] = name;
+    } catch(e) {}
   }
 
   let str = OutputImports(globalImports);
+  console.log('OutputImports() =', str);
 
-  results[0].insert(1, toArrayBuffer(str));
+  //  results[0].insert(1, toArrayBuffer(str));
 
-  if(!removeImports) {
+  if(globalSheBang) {
+    out.puts(globalSheBang.lexeme);
+  }
+
+  if(!removeImports) out.puts(str + '\n');
+
+  /*if(!removeImports) {
     let bindings = [],
       importLines = [];
+
     const ContainsAny = (arr, tokens) => tokens.some(tok => arr.indexOf(tok) != -1);
+
     let lines = header
       .filter(impexp => IsBuiltin(impexp.file))
       .filter(hdr => !hdr.code.startsWith('export'))
       .reduce(
         ([acc, prev], hdr) => {
-          let { code } = hdr;
+          let { code, source } = hdr;
           let disable = ContainsAny(bindings, hdr.ids());
-          if(prev != hdr.source) {
-            acc.push('');
-            acc.push(``);
-          }
+
+          if(prev && prev != hdr.source) acc.push('');
 
           let duplicate = importLines.indexOf(code) != -1;
           importLines.push(code);
           if(!duplicate && disable) code = '';
+
+          console.log('hdr', { hdr, code });
+
           if(!duplicate) {
             bindings.push(...hdr.ids());
             acc.push(code);
@@ -1852,11 +1941,11 @@ function main(...args) {
         },
         [[], null]
       )[0];
-    //if(lines.length) lines = [FileBannerComment('header', 0), ...lines, '', FileBannerComment('header', 1)];
-    if(debug > 2) console.log('lines', lines);
+
+    if(debug >= 2) console.log('lines', lines);
 
     out.puts(lines.reduce((acc, line) => acc + line.trim() + '\n', ''));
-  }
+  }*/
 
   if(userScript) {
     for(let line of PrintUserscriptBanner({
@@ -1876,7 +1965,7 @@ function main(...args) {
   if(debug > 1) console.log('out', out, out.file);
 
   if(out.file) {
-    //console.log('results[0]', results[0]);
+    console.log('results[0]', results[0]);
     let nbytes;
     try {
       nbytes = results[0].write(stream);

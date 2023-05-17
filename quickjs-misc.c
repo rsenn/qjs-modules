@@ -187,7 +187,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       js_offset_length(ctx, len, argc - 1, argv + 1, &ol);
 
-      ret = JS_NewStringLen(ctx, (const char*)data + ol.offset, ol.length);
+      ret = JS_NewStringLen(ctx, offset_data(&ol, data), offset_size(&ol, len));
     }
   } else {
     ret = js_value_tostring(ctx, "Object", argc > 0 ? argv[0] : this_val);

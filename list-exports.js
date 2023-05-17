@@ -279,7 +279,7 @@ function ListExports(file, output) {
     std.out.flush();
   }
 
-  if(debug >= 3) console.log('ListExports', { file, output });
+  if(debug >= 3) log('ListExports', { file, output, log: log + '' });
 
   let str = file ? BufferFile(file) : code[1],
     len = str.length,
@@ -289,10 +289,13 @@ function ListExports(file, output) {
   let lex = {
     js: new ECMAScriptLexer(str, file)
   };
+  lex.es = lex.js;
+  lex.mjs = lex.js;
 
   const lexer = (globalThis.lexer = lex[type]);
 
   T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
+  log('ListExports', { lexer, T, verbose });
 
   let e = new SyntaxError();
 
@@ -370,8 +373,8 @@ function ListExports(file, output) {
     let { stateDepth } = lexer;
     let value = lexer.next();
     let done = value === undefined;
+    //if(debug >= 2) log('ListExports', console.config({ compact: 2 }), { value, done });
 
-    //    console.log('value',{value,done});
     if(done) break;
     let newState = lexer.topState();
     //showToken(tok);
@@ -383,6 +386,7 @@ function ListExports(file, output) {
     tok = lexer.token;
 
     if(tok == null) break;
+    if(debug >= 4) log('ListExports', console.config({ compact: 2 }), tok);
 
     if(n == 0 && tok.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
@@ -399,7 +403,7 @@ function ListExports(file, output) {
         imp.push(tok);
 
         if([';', '\n'].indexOf(tok.lexeme) != -1) {
-          //console.log('imp', imp);
+          //log('imp', imp);
           cond = false;
 
           if(imp.some(i => i.lexeme == 'from')) {
@@ -416,14 +420,15 @@ function ListExports(file, output) {
   }
 
   const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
-  //log('Export tokens', tokens.map(t => t.lexeme));
 
   let exportNames = exportTokens.map(index => ExportName(tokens.slice(index))).filter(n => n !== undefined);
+
+  log('Export names', exportNames);
 
   for(let exp of exports) {
     let { exported } = exp;
 
-    exportNames.push(...exported);
+    if(exported) exportNames.push(...exported);
   }
 
   //log('Export names', exportNames);
@@ -489,7 +494,7 @@ function ListExports(file, output) {
   let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
   buffers[source] = [...split(BufferFile(source), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
 
-  //console.log('fileImports', fileImports.map(imp => imp.source));
+  //log('fileImports', fileImports.map(imp => imp.source));
 
   let dir = path.dirname(source);
 
@@ -502,9 +507,9 @@ function ListExports(file, output) {
 
   let end = Date.now();
 
-  if(verbose) log(`took ${end - start}ms`);
+  /*if(verbose)*/ log(`took ${end - start}ms`);
 
-  std.gc();
+  //std.gc();
 }
 
 function ModuleExports(file) {
@@ -518,7 +523,7 @@ function ModuleExports(file) {
       return keys;
     }
   } catch(error) {
-    //console.log('ERROR', error.message + '\n' + error.stack);
+    //log('ERROR', error.message + '\n' + error.stack);
   }
 }
 
@@ -626,14 +631,14 @@ function main(...args) {
     try {
       ProcessFile(file);
     } catch(error) {
-      //console.log('ERROR:', error.message+'\n'+error.stack);
+      console.log('ERROR:', error.message + '\n' + error.stack);
     }
 
     if(params.interactive) startInteractive();
   }
 
   function ProcessFile(file) {
-    if(!/\.js$/.test(file)) {
+    if(!/\.(js|es|mjs)$/.test(file)) {
       let keys;
       if((keys = ModuleExports(file))) {
         if(sort) keys.sort(compareFn());

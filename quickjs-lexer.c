@@ -191,15 +191,16 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JS_DefinePropertyValueStr(ctx, obj, "type", rule ? JS_NewString(ctx, rule->name) : JS_NULL, JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, (const char*)tok->lexeme), JS_PROP_ENUMERABLE);
 
-  if(tok->loc)
-    JS_DefinePropertyValueStr(ctx, obj, "charOffset", JS_NewUint32(ctx, tok->loc->char_offset), JS_PROP_ENUMERABLE);
+  if(tok->loc) {
+    if(tok->loc->char_offset != -1LL)
+      JS_DefinePropertyValueStr(ctx, obj, "charOffset", JS_NewInt64(ctx, tok->loc->char_offset), JS_PROP_ENUMERABLE);
+
+    JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_wrap(ctx, tok->loc), 0);
+  }
 
   JS_DefinePropertyValueStr(ctx, obj, "charLength", JS_NewUint32(ctx, tok->char_length), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(ctx, obj, "charRange", offset_toarray(token_char_range(tok), ctx), 0);
-
-  if(tok->loc)
-    JS_DefinePropertyValueStr(ctx, obj, "loc", js_location_wrap(ctx, tok->loc), 0);
+  JS_DefinePropertyValueStr(ctx, obj, "charRange", offset_toarray(token_char_range(tok), ctx), JS_PROP_ENUMERABLE);
 
   return obj;
 }
@@ -505,11 +506,17 @@ lexer_token(Lexer* lex, int32_t id, JSContext* ctx) {
   if(!(lexeme = lexer_lexeme(lex, &len)))
     return 0;
 
-  if(!(tok = token_create(id, location_clone(&lex->loc, ctx), lexeme, len, ctx)))
+  if(!(tok = token_create(id, lexeme, len, ctx)))
     return 0;
+
+  // lexer_skip_n(lex, len);
 
   tok->lexer = lexer_dup(lex);
   tok->seq = lex->seq;
+
+  *tok->loc = lexer_get_location(lex, ctx);
+  /*  len = lex->pos - tok->loc->byte_offset;
+  tok->loc->byte_offset += len;*/
 
   return tok;
 }
@@ -653,6 +660,7 @@ enum {
   LEXER_PUSH_STATE,
   LEXER_POP_STATE,
   LEXER_TOP_STATE,
+  LEXER_PEEK,
 };
 
 JSValue
@@ -906,6 +914,10 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       if((id = index > 0 ? lexer_state_top(lex, index) : lex->state) >= 0)
         ret = JS_NewString(ctx, lexer_state_name(lex, id));
+      break;
+    }
+    case LEXER_PEEK: {
+      ret = JS_NewInt32(ctx, lexer_peek(lex, 0, ctx));
       break;
     }
   }
@@ -1425,6 +1437,7 @@ static JSClassDef js_lexer_class = {
 
 static const JSCFunctionListEntry js_lexer_proto_funcs[] = {
     // JS_ITERATOR_NEXT_DEF("next", 0, js_lexer_next, YIELD_OBJ),
+    JS_CFUNC_MAGIC_DEF("peek", 0, js_lexer_method, LEXER_PEEK),
     JS_CFUNC_MAGIC_DEF("next", 0, js_lexer_nextfn, YIELD_ID),
     JS_CFUNC_MAGIC_DEF("nextToken", 0, js_lexer_nextfn, YIELD_OBJ),
     JS_CGETSET_MAGIC_DEF("size", js_lexer_get, js_lexer_set, LEXER_SIZE),
@@ -1486,7 +1499,7 @@ static const JSCFunctionListEntry js_lexer_static_funcs[] = {
 int
 js_lexer_init(JSContext* ctx, JSModuleDef* m) {
 
-     js_location_init(ctx, m);
+  js_location_init(ctx, m);
 
   JS_NewClassID(&js_token_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_token_class_id, &js_token_class);
