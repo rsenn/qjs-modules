@@ -67,10 +67,11 @@ static thread_local Vector module_list = VECTOR_INIT();
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
 // static JSModuleLoaderFunc* module_loader = 0;
-static thread_local JSValue package_json, replObj;
+static thread_local JSValue package_json;
 static thread_local const char* exename;
 static thread_local JSRuntime* rt;
 static thread_local JSContext* ctx;
+static thread_local int interactive = 0;
 
 static const char* const module_extensions[] = {
     CONFIG_SHEXT, ".js", "/index.js",
@@ -1553,12 +1554,17 @@ jsm_import_parse(ImportDirective* imp, const char* spec) {
 }*/
 
 static void
-jsm_start_interactive(void) {
+jsm_signal_handler(void) {
+  interactive = TRUE;
+}
+
+static void
+jsm_start_interactive(JSContext* ctx) {
   char str[1024];
   const char* home;
 
-  if(!JS_IsUndefined(replObj))
-    return;
+  /*  if(!JS_IsUndefined(replObj))
+      return;*/
 
   home = getenv("HOME");
 
@@ -1579,12 +1585,17 @@ jsm_start_interactive(void) {
     ",\n"
     " 'import a module'\n"
     "];\n"
-     "repl.runSync();\n",
+     "repl.run();\n",
     home, exename, exename);
   /* clang-format on */
 
-  // js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
-  replObj = js_eval_buf(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
+  JSValue ret;
+
+  // ret = js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
+
+  ret = js_eval_buf(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
+
+  // JS_FreeValue(ctx,module);
 }
 
 int
@@ -1592,7 +1603,6 @@ main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
   char* expr = 0;
-  int interactive = 0;
   int dump_memory = 0;
   int trace_memory = 0;
   int empty_run = 0;
@@ -1608,7 +1618,7 @@ main(int argc, char** argv) {
   size_t stack_size = 0;
 
   package_json = JS_UNDEFINED;
-  replObj = JS_UNDEFINED;
+  // replObj = JS_UNDEFINED;
 
   {
     const char* p;
@@ -1898,7 +1908,7 @@ main(int argc, char** argv) {
 
     if(!interactive) {
 #ifdef SIGUSR1
-      signal(SIGUSR1, jsm_start_interactive);
+      signal(SIGUSR1, jsm_signal_handler);
 #endif
     }
 
@@ -1917,7 +1927,7 @@ main(int argc, char** argv) {
     }
 
     if(interactive)
-      jsm_start_interactive();
+      jsm_start_interactive(ctx);
 
     js_std_loop(ctx);
   }
