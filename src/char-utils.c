@@ -60,9 +60,9 @@ size_t
 fmt_ulonglong(char* dest, uint64_t i) {
   size_t len;
   uint64_t tmp, len2;
-  for(len = 1, tmp = i; tmp > 9; ++len) tmp /= 10;
+  for(len = 1, tmp = i; tmp > 9ll; ++len) tmp /= 10ll;
   if(dest)
-    for(tmp = i, dest += len, len2 = len + 1; --len2; tmp /= 10) *--dest = (tmp % 10) + '0';
+    for(tmp = i, dest += len, len2 = len + 1; --len2; tmp /= 10ll) *--dest = (tmp % 10ll) + '0';
   return len;
 }
 
@@ -71,11 +71,11 @@ fmt_ulonglong(char* dest, uint64_t i) {
 size_t
 fmt_xlonglong(char* dest, uint64_t i) {
   uint64_t len, tmp;
-  for(len = 1, tmp = i; tmp > 15; ++len) tmp >>= 4;
+  for(len = 1, tmp = i; tmp > 15ll; ++len) tmp >>= 4ll;
   if(dest)
     for(tmp = i, dest += len;;) {
-      *--dest = tohex(tmp & 15);
-      if(!(tmp >>= 4)) {
+      *--dest = tohex(tmp & 15ll);
+      if(!(tmp >>= 4ll)) {
         break;
       };
     }
@@ -138,8 +138,8 @@ scan_longlong(const char* src, int64_t* dest) {
   unsigned int neg = c == '-';
   o = c == '-' || c == '+';
   if((i = scan_ulonglong(src + o, &l))) {
-    if(i > 0 && l > MAXLONG + neg) {
-      l /= 10;
+    if(i > 0ll && l > MAXLONG + neg) {
+      l /= 10ll;
       --i;
     }
     if(i + o)
@@ -154,14 +154,15 @@ scan_ulonglong(const char* src, uint64_t* dest) {
   const char* tmp = src;
   uint64_t l = 0;
   unsigned char c;
+
   while((c = (unsigned char)(*tmp - '0')) < 10) {
     uint64_t n;
-    n = l << 3;
-    if((n >> 3) != l)
+    n = l << 3ll;
+    if((n >> 3ll) != l)
       break;
-    if(n + (l << 1) < n)
+    if(n + (l << 1ll) < n)
       break;
-    n += l << 1;
+    n += l << 1ll;
     if(n + c < n)
       break;
     l = n + c;

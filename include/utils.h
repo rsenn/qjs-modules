@@ -830,6 +830,7 @@ struct timespec js_date_timespec(JSContext*, JSValue arg);
 
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromvalue(JSContext*, void* x, size_t n, JSValue val);
+JSValue js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str);
 
 JSValue js_map_new(JSContext*, JSValueConst);
 

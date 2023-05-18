@@ -170,7 +170,7 @@ offset_is_default(const OffsetLength* ol) {
   return ol->offset == 0 && ol->length == INT64_MAX;
 }
 
-static inline uint8_t*
+static inline void*
 offset_data(const OffsetLength* ol, const void* x) {
   return (uint8_t*)x + ol->offset;
 }

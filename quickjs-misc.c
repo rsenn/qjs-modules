@@ -144,22 +144,50 @@ pcg32_random_bounded_divisionless(uint32_t range) {
 }
 
 static void
-js_pointer_free_func(JSRuntime* rt, void* opaque, void* ptr) {
+js_arraybuffer_free_pointer(JSRuntime* rt, void* opaque, void* ptr) {
   js_free_rt(rt, ptr);
 }
 
 static void
-js_string_free_func(JSRuntime* rt, void* opaque, void* ptr) {
+js_arraybuffer_free_cstring(JSRuntime* rt, void* opaque, void* ptr) {
   JSValue value = js_cstring_value(opaque);
 
   JS_FreeValueRT(rt, value);
 }
 
 static void
-js_arraybuffer_free_func(JSRuntime* rt, void* opaque, void* ptr) {
+js_arraybuffer_free_object(JSRuntime* rt, void* opaque, void* ptr) {
   JSValue value = JS_MKPTR(JS_TAG_OBJECT, opaque);
 
   JS_FreeValueRT(rt, value);
+}
+
+static void*
+js_get_pointer(JSContext* ctx, JSValueConst value) {
+  void* ptr;
+  size_t len;
+  const char* str;
+  int64_t i64;
+
+  if((ptr = JS_GetArrayBuffer(ctx, &len, value)))
+    return ptr;
+
+  if(!JS_ToInt64Ext(ctx, &i64, value)) {
+    return (void*)(ptrdiff_t)i64;
+  }
+
+  /*if((str = JS_ToCString(ctx, value))) {
+    uint64_t u64;
+    if(str_start(str, "0x")) {
+      if(scan_xlonglong(str + 2, &u64) > 0)
+        return (void*)(ptrdiff_t)u64;
+    } else {
+      if(scan_ulonglong(str + 2, &u64) > 0)
+        return (void*)(ptrdiff_t)u64;
+    }
+  }*/
+
+  return 0;
 }
 
 static JSValue
@@ -248,11 +276,11 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   /*  if(JS_IsString(argv[0])) {
       JSValueConst value = argv[0]; // JS_DupValue(ctx, argv[0]);
       b.base = JS_ToCStringLen(ctx, &b.size, value);
-      f = &js_string_free_func;
+      f = &js_arraybuffer_free_cstring;
       opaque = b.base;
       ret =
           JS_NewArrayBuffer(ctx, b.base + o.offset, MIN_NUM(b.size, o.length),
-    js_string_free_func, (void*)b.base, FALSE); } else*/
+    js_arraybuffer_free_cstring, (void*)b.base, FALSE); } else*/
 
   InputBuffer input = js_input_chars(ctx, argv[0]);
   js_offset_length(ctx, input.size, argc - 1, argv + 1, &o);
@@ -279,7 +307,7 @@ js_misc_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     JSValue value = JS_DupValue(ctx, argv[0]);
     JSObject* obj = JS_VALUE_GET_OBJ(value);
-    return JS_NewArrayBuffer(ctx, data + ir.start, ir.end - ir.start, js_arraybuffer_free_func, (void*)obj, ab && ab->shared ? TRUE : FALSE);
+    return JS_NewArrayBuffer(ctx, data + ir.start, ir.end - ir.start, js_arraybuffer_free_object, (void*)obj, ab && ab->shared ? TRUE : FALSE);
   }
 
   return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
@@ -300,7 +328,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     JSValue value = JS_DupValue(ctx, argv[0]);
     JSObject* obj = JS_VALUE_GET_OBJ(value);
-    return JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_func, (void*)obj, ab && ab->shared ? TRUE : FALSE);
+    return JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_object, (void*)obj, ab && ab->shared ? TRUE : FALSE);
   }
 
   return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
@@ -354,7 +382,7 @@ js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     memcpy(&buf[pos], buffers[i].data, buffers[i].size);
     pos += buffers[i].size;
   }
-  ret = JS_NewArrayBuffer(ctx, buf, total_len, js_pointer_free_func, 0, FALSE);
+  ret = JS_NewArrayBuffer(ctx, buf, total_len, js_arraybuffer_free_pointer, 0, FALSE);
 fail:
   for(i = 0; i < argc; i++)
     if(buffers[i].data)
@@ -1068,7 +1096,7 @@ js_misc_write_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   uint8_t* bytecode;
 
   if((bytecode = JS_WriteObject(ctx, &size, argv[0], JS_WRITE_OBJ_BYTECODE))) {
-    ret = JS_NewArrayBuffer(ctx, bytecode, size, js_pointer_free_func, 0, FALSE);
+    ret = JS_NewArrayBuffer(ctx, bytecode, size, js_arraybuffer_free_pointer, 0, FALSE);
   }
   return ret;
 }
@@ -1174,7 +1202,10 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 enum {
   VALUE_TYPE = 0,
   VALUE_TAG,
-  VALUE_PTR,
+  VALUE_POINTER,
+  STRING_POINTER,
+  STRING_LENGTH,
+  STRING_BUFFER,
 };
 
 static JSValue
@@ -1191,12 +1222,53 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       ret = JS_NewInt32(ctx, JS_VALUE_GET_TAG(argv[0]));
       break;
     }
-    case VALUE_PTR: {
+    case VALUE_POINTER: {
       void* ptr = JS_VALUE_GET_PTR(argv[0]);
       char buf[128];
 
       snprintf(buf, sizeof(buf), "%p", ptr);
       ret = JS_NewString(ctx, buf);
+      break;
+    }
+    case STRING_POINTER: {
+      if(JS_IsString(argv[0])) {
+        /*char buf[128];
+
+        snprintf(buf, sizeof(buf), "%p", js_cstring_ptr(argv[0]));
+        ret = JS_NewString(ctx, buf);*/
+
+        uint64_t ptr = (ptrdiff_t)js_cstring_ptr(argv[0]);
+
+        if(ptr < (1ll << 53))
+          ret = JS_NewInt64(ctx, ptr);
+        else
+          ret = JS_NewBigUint64(ctx, ptr);
+      } else {
+        void* ptr;
+
+        if((ptr = js_get_pointer(ctx, argv[0])))
+          ret = JS_NewString(ctx, ptr);
+      }
+
+      break;
+    }
+    case STRING_LENGTH: {
+      if(JS_IsString(argv[0])) {
+        ret = JS_NewInt64(ctx, strlen(js_cstring_ptr(argv[0])));
+      } else {
+        void* ptr;
+
+        if((ptr = js_get_pointer(ctx, argv[0])))
+          ret = JS_NewInt64(ctx, strlen(ptr));
+      }
+
+      break;
+    }
+    case STRING_BUFFER: {
+      if(JS_IsString(argv[0])) {
+        ret = js_arraybuffer_fromstring(ctx, argv[0]);
+      }
+
       break;
     }
   }
@@ -1550,7 +1622,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           if(value)
             bufptr[i >> 3] |= 1u << (i & 0x7);
         }
-        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_pointer_free_func, bufptr, FALSE);
+        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_pointer, bufptr, FALSE);
       }
       break;
     }
@@ -1629,7 +1701,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
             bufptr[number >> 3] |= 1u << (number & 0x7);
           }
         }
-        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_pointer_free_func, bufptr, FALSE);
+        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_pointer, bufptr, FALSE);
       }
       break;
     }
@@ -2376,7 +2448,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getByteCode", 1, js_misc_get_bytecode),
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
     JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, VALUE_TAG),
-    JS_CFUNC_MAGIC_DEF("valuePtr", 1, js_misc_valuetype, VALUE_PTR),
+    JS_CFUNC_MAGIC_DEF("valuePointer", 1, js_misc_valuetype, VALUE_POINTER),
+    JS_CFUNC_MAGIC_DEF("stringPointer", 1, js_misc_valuetype, STRING_POINTER),
+    JS_CFUNC_MAGIC_DEF("stringLength", 1, js_misc_valuetype, STRING_LENGTH),
+    JS_CFUNC_MAGIC_DEF("stringBuffer", 1, js_misc_valuetype, STRING_BUFFER),
     JS_CFUNC_DEF("getOpaque", 1, js_misc_getopaque),
     JS_CFUNC_DEF("evalString", 1, js_misc_evalstring),
     JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),

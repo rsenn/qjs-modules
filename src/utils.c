@@ -2331,6 +2331,24 @@ js_arraybuffer_fromvalue(JSContext* ctx, void* x, size_t n, JSValueConst val) {
   return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freevalue, valptr, FALSE);
 }
 
+static void
+js_arraybuffer_freestring(JSRuntime* rt, void* opaque, void* ptr) {
+  JSString* jstr = opaque;
+  JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_STRING, jstr));
+}
+
+JSValue
+js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str) {
+  JSString* jstr;
+  if(!JS_IsString(str))
+    return JS_ThrowTypeError(ctx, "Not a string");
+
+  JS_DupValue(ctx, str);
+  jstr = JS_VALUE_GET_PTR(str);
+
+  return JS_NewArrayBuffer(ctx, jstr->u.str8, jstr->len, js_arraybuffer_freestring, jstr, FALSE);
+}
+
 int64_t
 js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value) {
   int64_t len = -1;
