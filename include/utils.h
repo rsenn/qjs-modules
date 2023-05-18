@@ -864,12 +864,13 @@ JSValue js_modules_entries(JSContext*, JSValue this_val, int magic);
 JSValue js_modules_map(JSContext*, JSValue this_val, int magic);
 JSValue js_modules_object(JSContext*, JSValue this_val, int magic);
 
-#define js_module_find js_module_find_fwd
 int js_module_index(JSContext* ctx, JSModuleDef* m);
 
 JSModuleDef* js_module_def(JSContext*, JSValue value);
-JSModuleDef* js_module_find_fwd(JSContext*, const char* name);
-JSModuleDef* js_module_find_rev(JSContext*, const char* name);
+JSModuleDef* js_module_find(JSContext*, const char* name);
+JSModuleDef* js_module_find_from(JSContext*, const char* name, int pos);
+JSModuleDef* js_module_find_fwd(JSContext*, const char* name, JSModuleDef* start);
+JSModuleDef* js_module_find_rev(JSContext*, const char* name, JSModuleDef* start);
 int js_module_indexof(JSContext*, JSModuleDef* def);
 JSModuleDef* js_module_at(JSContext*, int index);
 

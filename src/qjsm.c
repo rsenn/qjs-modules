@@ -680,19 +680,19 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 }
 
 static JSModuleDef*
-jsm_module_find(JSContext* ctx, const char* name) {
+jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
   JSModuleDef* m;
   BuiltinModule* bltin;
 
   while(*name == '!' || *name == '*') ++name;
 
-  if((m = js_module_find_rev(ctx, name)))
+  if((m = js_module_find_from(ctx, name, start_pos)))
     return m;
 
-  if((bltin = jsm_builtin_find(name))) {
+  /*if((bltin = jsm_builtin_find(name))) {
     if(bltin->def)
       return bltin->def;
-  }
+  }*/
 
   return 0;
 }
@@ -725,7 +725,7 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   assert(last_module->next != js_modules_list(ctx));
 
-  JSModuleDef* m = last_module->next->next != js_modules_list(ctx) ? list_entry(last_module->next->next, JSModuleDef, link) : jsm_module_find(ctx, path);
+  JSModuleDef* m = last_module->next->next != js_modules_list(ctx) ? list_entry(last_module->next->next, JSModuleDef, link) : jsm_module_find(ctx, path, 0);
   return m;
 }
 
@@ -1367,7 +1367,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
     case FIND_MODULE: {
       BuiltinModule* bltin;
-      if((m = jsm_module_find(ctx, name))) {
+      if((m = jsm_module_find(ctx, name, 0))) {
         val = module_value(ctx, m);
       } else {
         val = JS_NULL;
@@ -1376,8 +1376,18 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case FIND_MODULE_INDEX: {
-      if((m = JS_IsModule(argv[0]) ? JS_VALUE_GET_PTR(argv[0]) : jsm_module_find(ctx, name)))
-        val = JS_NewInt32(ctx, js_module_index(ctx, m));
+      int32_t start = 0, index;
+
+      if(argc > 1)
+        JS_ToInt32(ctx, &start, argv[1]);
+
+      m = JS_IsModule(argv[0]) ? JS_VALUE_GET_PTR(argv[0]) : jsm_module_find(ctx, name, start);
+
+      if((index = js_module_indexof(ctx, m)) != -1)
+        if(start < 0)
+          index -= list_size(&ctx->loaded_modules);
+
+      val = JS_NewInt32(ctx, index);
 
       break;
     }

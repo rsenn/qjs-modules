@@ -1983,11 +1983,12 @@ js_module_def(JSContext* ctx, JSValueConst value) {
 }
 
 JSModuleDef*
-js_module_find_fwd(JSContext* ctx, const char* name) {
+js_module_find_fwd(JSContext* ctx, const char* name, JSModuleDef* start) {
   struct list_head* el;
   size_t namelen = strlen(name);
 
-  list_for_each(el, &ctx->loaded_modules) {
+  for(el = start ? &start->link : ctx->loaded_modules.next; el != &ctx->loaded_modules; el = el->next)
+  /*list_for_each(el, &ctx->loaded_modules)*/ {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     char* str = module_namestr(ctx, m);
     BOOL match = !strcmp(str, name);
@@ -1997,6 +1998,22 @@ js_module_find_fwd(JSContext* ctx, const char* name) {
   }
 
   return 0;
+}
+
+JSModuleDef*
+js_module_find_from(JSContext* ctx, const char* name, int start_pos) {
+  JSModuleDef *start, *ret;
+
+  start = js_module_at(ctx, start_pos);
+
+  ret = (start_pos >= 0 ? js_module_find_fwd : js_module_find_rev)(ctx, name, start);
+
+  return ret;
+}
+
+JSModuleDef*
+js_module_find(JSContext* ctx, const char* name) {
+  return js_module_find_fwd(ctx, name, NULL);
 }
 
 int
@@ -2014,11 +2031,11 @@ js_module_index(JSContext* ctx, JSModuleDef* m) {
 }
 
 JSModuleDef*
-js_module_find_rev(JSContext* ctx, const char* name) {
+js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
   struct list_head* el;
   size_t namelen = strlen(name);
 
-  list_for_each_prev(el, &ctx->loaded_modules) {
+  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules; el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     char* str = module_namestr(ctx, m);
     BOOL match = !strcmp(str, name);
@@ -2032,48 +2049,48 @@ js_module_find_rev(JSContext* ctx, const char* name) {
 
 int
 js_module_indexof(JSContext* ctx, JSModuleDef* def) {
-  struct list_head* el;
   int i = 0;
+  struct list_head* el;
+
   list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
+
     if(m == def)
       return i;
+
     ++i;
   }
+
   return -1;
 }
-/*
-Vector
-js_module_vector(JSContext* ctx) {
-  Vector ret = VECTOR(ctx);
-  struct list_head* el;
-  list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    vector_push(&ret, m);
-  }
-  return ret;
-}
-*/
+
 JSModuleDef*
 js_module_at(JSContext* ctx, int index) {
-  struct list_head* el;
   int i = 0;
+  struct list_head* el;
+
   if(index >= 0) {
     list_for_each(el, &ctx->loaded_modules) {
       JSModuleDef* m = list_entry(el, JSModuleDef, link);
+
       if(index == i)
         return m;
+
       ++i;
     }
   } else {
     index = -(index + 1);
+
     list_for_each_prev(el, &ctx->loaded_modules) {
       JSModuleDef* m = list_entry(el, JSModuleDef, link);
+
       if(index == i)
         return m;
+
       ++i;
     }
   }
+
   return 0;
 }
 

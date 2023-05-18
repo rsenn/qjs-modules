@@ -53,46 +53,16 @@ js_location_wrap(JSContext* ctx, Location* loc) {
   return js_location_create(ctx, location_proto, location_dup(loc));
 }
 
-JSValue
-js_location_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  Location* loc;
+static JSValue
+js_location_tostring(JSContext* ctx, const Location* loc) {
   JSValue ret = JS_EXCEPTION;
-  const char* file;
-  size_t pos = 0, len;
+  char* str;
 
-  if(!(loc = js_location_data2(ctx, this_val)))
-    return ret;
-
-  file = loc->file > -1 ? JS_AtomToCString(ctx, loc->file) : 0;
-  len = FMT_ULONG * 2 + 2 + (file ? strlen(file) : 0) + 1;
-
-  if(!loc->str) {
-    if(!(loc->str = js_malloc(ctx, len + 1)))
-      goto fail;
-    loc->str[0] = 0;
-  } else if(!(loc->str = js_realloc(ctx, loc->str, len + 1))) {
-    goto fail;
+  if((str = location_tostring(loc, ctx))) {
+    ret = JS_NewString(ctx, str);
+    js_free(ctx, str);
   }
 
-  if(!loc->str[0]) {
-    if(file) {
-      strcpy(loc->str, file);
-      pos += strlen(file);
-      loc->str[pos++] = ':';
-    }
-    if(loc->line != -1) {
-      pos += fmt_ulong(&loc->str[pos], loc->line + 1);
-      if(loc->column != -1) {
-        loc->str[pos++] = ':';
-        pos += fmt_ulong(&loc->str[pos], loc->column + 1);
-      }
-    }
-
-    loc->str[pos] = '\0';
-  }
-  ret = JS_NewString(ctx, loc->str);
-fail:
-  JS_FreeCString(ctx, file);
   return ret;
 }
 
@@ -244,10 +214,11 @@ js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     return JS_EXCEPTION;
 
   hint = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
-  if(hint && !strcmp(hint, "number"))
+  if(hint && !strcmp(hint, "number")) {
     ret = JS_NewInt64(ctx, loc->char_offset);
-  else
-    ret = js_location_tostring(ctx, this_val, argc, argv);
+  } else {
+    ret = js_location_tostring(ctx, loc);
+  }
 
   if(hint)
     js_cstring_free(ctx, hint);
@@ -336,6 +307,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
 enum {
   LOCATION_EQUAL = 0,
+  LOCATION_TOSTRING,
 };
 
 static JSValue
@@ -354,6 +326,10 @@ js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         return JS_EXCEPTION;
 
       ret = JS_NewBool(ctx, location_equal(loc, other));
+      break;
+    }
+    case LOCATION_TOSTRING: {
+      ret = js_location_tostring(ctx, loc);
       break;
     }
   }
@@ -453,7 +429,7 @@ static const JSCFunctionListEntry js_location_funcs[] = {
     JS_CFUNC_MAGIC_DEF("equal", 1, js_location_methods, LOCATION_EQUAL),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
     JS_CFUNC_DEF("clone", 0, js_location_clone),
-    JS_CFUNC_DEF("toString", 0, js_location_tostring),
+    JS_CFUNC_MAGIC_DEF("toString", 0, js_location_methods, LOCATION_TOSTRING),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Location", JS_PROP_CONFIGURABLE),
 };
 

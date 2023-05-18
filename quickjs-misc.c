@@ -57,6 +57,7 @@
 #ifdef HAVE_TERMIOS_H
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <signal.h>
 #endif
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -2514,6 +2515,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(TIOCSPGRP),
     JS_CONSTANT(TIOCGWINSZ),
     JS_CONSTANT(TIOCSWINSZ),
+    JS_CONSTANT(SIGWINCH),
     JS_CONSTANT(TIOCMGET),
     JS_CONSTANT(TIOCMBIS),
     JS_CONSTANT(TIOCMBIC),

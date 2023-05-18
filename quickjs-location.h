@@ -12,7 +12,6 @@ extern thread_local JSClassID js_location_class_id;
 extern thread_local JSValue location_proto, location_ctor;
 
 JSValue js_location_wrap(JSContext*, Location* loc);
-JSValue js_location_tostring(JSContext*, JSValueConst this_val, int argc, JSValueConst argv[]);
 BOOL js_is_location(JSContext*, JSValueConst obj);
 Location* js_location_from(JSContext*, JSValueConst this_val);
 JSValue js_location_toprimitive(JSContext*, JSValueConst this_val, int argc, JSValueConst argv[]);
