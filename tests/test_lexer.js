@@ -461,7 +461,7 @@ function main(...args) {
 
     if(params.recursive)
       fileImports.forEach(imp => {
-        let p = path.collapse(path.join(dir, imp.file));
+        let p = path.normalize(path.join(dir, imp.file));
         log('p', p);
         AddUnique(files, p);
       });

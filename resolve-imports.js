@@ -100,7 +100,7 @@ function ImportedBy(importFile) {
 
 function ResolveAlias(filename) {
   if(typeof filename == 'string') {
-    let key = path.normalize(filename);
+    let key = path.resolve(filename);
     let { _moduleAliases } = ReadPackageJSON();
     if(key in _moduleAliases) return _moduleAliases[key];
   }
@@ -114,9 +114,9 @@ function IsFileImport(filename) {
 
 function NormalizePath(p) {
   p = path.absolute(p);
-  p = path.collapse(p);
-  p = path.relative(path.getcwd(), p);
   p = path.normalize(p);
+  p = path.relative(path.getcwd(), p);
+  p = path.resolve(p);
   if(!path.isAbsolute(p)) if (!p.startsWith('./') && !p.startsWith('../') && p != '..') p = './' + p;
   return p;
 }
@@ -594,9 +594,9 @@ define(Import.prototype, {
 function ProcessFile(source, log = () => {}, recursive, depth = 0) {
   if(debug > 1) console.log(`Processing ${source}`);
 
-  //source = path.normalize(source);
+  //source = path.resolve(source);
 
-  if(printFiles) std.puts(`${path.normalize(source)}\n`);
+  if(printFiles) std.puts(`${path.resolve(source)}\n`);
 
   let start = Date.now();
   const dir = path.dirname(source);
@@ -698,8 +698,8 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
   const PathAdjust = s => {
     let j = path.join(dir, s);
-    j = path.collapse(j);
     j = path.normalize(j);
+    j = path.resolve(j);
     if(path.isRelative(j)) j = './' + j;
     return ModuleLoader(j);
   };
@@ -899,7 +899,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       if(typeof file == 'string' && !IsFileImport(file)) {
         if(debug > 1) console.log(`\x1b[1;31mInexistent\x1b[0m file '${file}'`);
 
-        // if(printFiles) std.puts(`${path.normalize(source)}: ${file}\n`);
+        // if(printFiles) std.puts(`${path.resolve(source)}: ${file}\n`);
 
         replacement = null;
       } else if(file && path.isFile(file)) {
@@ -973,7 +973,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
       file = NormalizePath(file);
       file = ModuleLoader(file);
-      // file = path.normalize(file);
+      // file = path.resolve(file);
 
       if(file) {
         if(debug > 2) console.log(`Processed`, { file });
@@ -986,7 +986,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
           if(debug >= 1) console.log(`Recursing`, { source, file });
 
           if(/\.(so|dll)$/i.test(file)) {
-            if(printFiles) std.puts(`${path.normalize(file)}\n`);
+            if(printFiles) std.puts(`${path.resolve(file)}\n`);
           } else {
             let ret = ProcessFile(file, log, typeof recursive == 'number' ? recursive - 1 : recursive, depth + 1);
 
@@ -996,7 +996,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
           if(printImports) {
             const ids = imp.ids();
 
-            std.puts(`${path.normalize(source) + ':' /*.padEnd(30, ' ')*/} ${path.normalize(file) /*.padEnd(30)*/} ${ids.join(' ')}\n`);
+            std.puts(`${path.resolve(source) + ':' /*.padEnd(30, ' ')*/} ${path.resolve(file) /*.padEnd(30)*/} ${ids.join(' ')}\n`);
           }
         }
         //  os.kill(process.pid, os.SIGUSR1)
@@ -1224,7 +1224,7 @@ class FileMap extends Array {
   }
 
   get buffer() {
-    return FileMap.buffers(path.normalize(this.file));
+    return FileMap.buffers(path.resolve(this.file));
   }
 
   static empty(file) {
@@ -1253,7 +1253,7 @@ class FileMap extends Array {
       return Object.setPrototypeOf(obj, FileMap.prototype);
     }
     if(fileMaps.has(file)) return fileMaps.get(file);
-    buf ??= FileMap.buffers(path.normalize(file));
+    buf ??= FileMap.buffers(path.resolve(file));
     return new FileMap(file, buf);
   }
 
@@ -1438,7 +1438,7 @@ class FileMap extends Array {
             buf = filename ?? `<this>`;
           }
 
-          if(typeof buf == 'string') buf = path.normalize(buf);
+          if(typeof buf == 'string') buf = path.resolve(buf);
           s += inspect(buf, { maxArrayLength: 30 });
           s += ` ],`;
           return s;
@@ -1581,7 +1581,7 @@ class FileMap extends Array {
 FileMap.prototype[Symbol.toStringTag] = 'FileMap';
 
 function BufferFile(file, buf) {
-  file = path.normalize(file);
+  file = path.resolve(file);
   if(!buf) buf = fileBuffers.get(file) ?? buffers[file];
   if(!buf) buf = buffers[file] ?? fs.readFileSync(file, { flag: 'r' });
   if(typeof buf == 'object' && buf !== null) {
@@ -1874,7 +1874,7 @@ function main(...args) {
 
   for(let file of files) {
     file = RelativePath(file);
-    file = path.normalize(file);
+    file = path.resolve(file);
 
     let result = ProcessFile(file, log, recursive, 0);
 

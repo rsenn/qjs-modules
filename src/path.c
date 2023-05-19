@@ -9,7 +9,7 @@
 
 static int
 path_canonical_buf(DynBuf* db) {
-  db->size = path_collapse2((char*)db->buf, db->size);
+  db->size = path_normalize2((char*)db->buf, db->size);
   dbuf_putc(db, '\0');
   db->size--;
   return 1;
@@ -166,22 +166,22 @@ path_canonical1(const char* path) {
 }
 
 size_t
-path_collapse3(const char* path, size_t n, DynBuf* db) {
+path_normalize3(const char* path, size_t n, DynBuf* db) {
   size_t ret;
   dbuf_realloc(db, n + 1);
   memcpy(db->buf, path, n);
   db->buf[n] = '\0';
-  ret = path_collapse2((char*)db->buf, n);
+  ret = path_normalize2((char*)db->buf, n);
   return ret;
 }
 
 size_t
-path_collapse1(char* path) {
-  return path_collapse2(path, strlen(path));
+path_normalize1(char* path) {
+  return path_normalize2(path, strlen(path));
 }
 
 size_t
-path_collapse2(char* path, size_t nb) {
+path_normalize2(char* path, size_t nb) {
   ssize_t i = 0, j, len;
   len = nb;
 
@@ -951,7 +951,7 @@ path_issymlink2(const char* p, size_t plen) {
 }
 
 int
-path_normalize3(const char* path, DynBuf* db, int symbolic) {
+path_resolve3(const char* path, DynBuf* db, int symbolic) {
   size_t n;
   struct stat st;
   int ret = 1;
@@ -1009,7 +1009,7 @@ start:
         int rret;
         db->size = path_right2((const char*)db->buf, db->size);
         buf[n] = '\0';
-        rret = path_normalize3(buf, db, symbolic);
+        rret = path_resolve3(buf, db, symbolic);
         if(!rret)
           return 0;
       }
@@ -1022,10 +1022,10 @@ start:
 }
 
 char*
-path_normalize2(const char* path, int symbolic) {
+path_resolve2(const char* path, int symbolic) {
   DynBuf db;
   dbuf_init2(&db, 0, 0);
-  path_normalize3(path, &db, symbolic);
+  path_resolve3(path, &db, symbolic);
   dbuf_0(&db);
   return (char*)db.buf;
 }
@@ -1039,7 +1039,7 @@ path_realpath3(const char* path, size_t len, DynBuf* buf) {
   dbuf_init2(&db, 0, 0);
   path_absolute3(path, len, &db);
   dbuf_0(&db);
-  ret = path_normalize3((const char*)db.buf, buf, 1);
+  ret = path_resolve3((const char*)db.buf, buf, 1);
   dbuf_free(&db);
   dbuf_0(buf);
   return ret;
@@ -1054,7 +1054,7 @@ path_realpath2(const char* path, size_t len) {
   dbuf_init2(&db, 0, 0);
   path_absolute3(path, len, &db);
   dbuf_0(&db);
-  ret = path_normalize2((const char*)db.buf, 1);
+  ret = path_resolve2((const char*)db.buf, 1);
   dbuf_free(&db);
   return ret;
 }

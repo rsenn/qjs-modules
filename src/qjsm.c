@@ -334,8 +334,14 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   if(JS_IsException(val)) {
     JSValue stack = JS_IsObject(ctx->rt->current_exception) ? JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack") : JS_UNDEFINED;
     const char* msg = JS_ToCString(ctx, ctx->rt->current_exception);
+    const char* st = JS_ToCString(ctx, stack);
     fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, msg, js_value_typestr(ctx, stack));
 
+    if(st) {
+      if(*st) 
+      fprintf(stderr, "Stack:\n%s\n", st);
+      JS_FreeCString(ctx, st);
+    }
     if(msg)
       JS_FreeCString(ctx, msg);
 
@@ -935,7 +941,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
       dsl = path_skipdotslash2(dir.buf, dir.size);
 
       /* XXX BUG: should use path_normalize* to resolve symlinks */
-      path_collapse2(dir.buf + dsl, dir.size - dsl);
+      path_normalize2(dir.buf + dsl, dir.size - dsl);
       file = dir.buf;
     } else if(has_suffix(name, CONFIG_SHEXT) && !path_isabsolute1(name)) {
       DynBuf db;
@@ -945,7 +951,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
       file = (char*)db.buf;
     } else if(has_dot_or_slash(name) && path_exists1(name) && path_isrelative(name)) {
       file = path_absolute1(name);
-      path_collapse1(file);
+      path_normalize1(file);
     }
   }
 

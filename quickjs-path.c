@@ -27,7 +27,7 @@ enum {
   PATH_BASEPOS,
   PATH_BASELEN,
   PATH_CANONICAL,
-  PATH_COLLAPSE,
+  PATH_NORMALIZE,
   PATH_CONCAT,
   PATH_DIRNAME,
   PATH_DIRLEN,
@@ -52,7 +52,6 @@ enum {
   PATH_IS_SEPARATOR,
   PATH_LENGTH,
   PATH_LEN_S,
-  PATH_NORMALIZE,
   PATH_COMPONENTS,
   PATH_READLINK,
   PATH_REALPATH,
@@ -223,14 +222,14 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case PATH_COLLAPSE: {
+    case PATH_NORMALIZE: {
       char* s = malloc(alen + 1);
 
       memcpy(s, a, alen);
       s[alen] = '\0';
       size_t newlen;
 
-      newlen = path_collapse2(s, alen);
+      newlen = path_normalize2(s, alen);
       ret = JS_NewStringLen(ctx, s, newlen);
       free(s);
       break;
@@ -410,16 +409,6 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         dbuf_free(&cwd);
         from = NULL;
       }
-      break;
-    }
-
-    case PATH_NORMALIZE: {
-      BOOL symbolic = FALSE;
-
-      if(argc > 1)
-        symbolic = JS_ToBool(ctx, argv[1]);
-
-      path_normalize3(a, &db, symbolic);
       break;
     }
   }
@@ -637,7 +626,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   dbuf_0(&db);
 
   if(db.size) {
-    db.size = path_collapse2((char*)db.buf, db.size);
+    db.size = path_normalize2((char*)db.buf, db.size);
 
     while(db.size > 0 && db.buf[db.size - 1] == PATHSEP_C) db.size--;
 
@@ -735,7 +724,7 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("basename", 1, js_path_method, PATH_BASENAME),
     JS_CFUNC_MAGIC_DEF("basepos", 1, js_path_method, PATH_BASEPOS),
     JS_CFUNC_MAGIC_DEF("baselen", 1, js_path_method, PATH_BASELEN),
-    JS_CFUNC_MAGIC_DEF("collapse", 1, js_path_method, PATH_COLLAPSE),
+    JS_CFUNC_MAGIC_DEF("normalize", 1, js_path_method, PATH_NORMALIZE),
     JS_CFUNC_MAGIC_DEF("dirname", 1, js_path_method, PATH_DIRNAME),
     JS_CFUNC_MAGIC_DEF("dirlen", 1, js_path_method, PATH_DIRLEN),
     JS_CFUNC_MAGIC_DEF("exists", 1, js_path_method, PATH_EXISTS),
@@ -774,7 +763,6 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("concat", 2, js_path_method_dbuf, PATH_CONCAT),
     JS_CFUNC_MAGIC_DEF("at", 2, js_path_method, PATH_AT),
     JS_CFUNC_MAGIC_DEF("find", 2, js_path_method_dbuf, PATH_FIND),
-    JS_CFUNC_MAGIC_DEF("normalize", 1, js_path_method_dbuf, PATH_NORMALIZE),
     JS_CFUNC_MAGIC_DEF("relative", 2, js_path_method_dbuf, PATH_RELATIVE),
     JS_CFUNC_DEF("slice", 0, js_path_slice),
     JS_CFUNC_DEF("join", 1, js_path_join),

@@ -51,7 +51,7 @@ async function main(...args) {
 
   CallPathFunction('extname', file);
   CallPathFunction('readlink', '/home/roman/Sources');
-  CallPathFunction('normalize', '/home/roman/Sources');
+  CallPathFunction('resolve', '/home/roman/Sources');
   CallPathFunction('realpath', '/home/roman/Sources');
   CallPathFunction('join', '/home/roman', 'Sources', 'plot-cv/quickjs', 'modules');
   CallPathFunction('isAbsolute', 'c:/windows');
@@ -78,7 +78,7 @@ async function main(...args) {
   CallPathFunction('relative', '/home/roman/Projects/plot-cv/quickjs', cwd);
   CallPathFunction('relative', '/home/roman/Projects/editline', cwd);
   CallPathFunction(
-    'collapse',
+    'normalize',
     '/home/roman/Projects/plot-cv/quickjs/modules/build/x86_64-linux-gnu/CMakeFiles/../../..'
   );
   if(path.slice)

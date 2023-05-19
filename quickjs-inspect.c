@@ -139,10 +139,10 @@ inspect_options_init(inspect_options_t* opts, JSContext* ctx) {
   opts->number_base = 10;
   vector_init(&opts->hide_keys, ctx);
 
-  prop_key_t to_string_tag = {0, js_atom_from(ctx, "[Symbol.toStringTag]")};
-  to_string_tag.name = JS_AtomToCString(ctx, to_string_tag.atom);
+  opts->class_key = (prop_key_t){0, JS_DupAtom(ctx, js_atom_from(ctx, "[Symbol.toStringTag]"))};
+  opts->class_key.name = JS_AtomToCString(ctx, opts->class_key.atom);
 
-  vector_push(&opts->hide_keys, to_string_tag);
+  vector_push(&opts->hide_keys, opts->class_key);
 }
 
 static void
@@ -917,9 +917,15 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     }
   }
 
-  if(js_is_promise(ctx, value)) {
-    dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED "Promise " COLOR_NONE : "Promise ");
+  if(opts->class_key.atom != 1 && JS_HasProperty(ctx, value, opts->class_key.atom)) {
+    char* tostring_tag;
 
+    if((tostring_tag = js_get_property_string(ctx, value, opts->class_key.atom))) {
+      dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED : "");
+      dbuf_putstr(buf, tostring_tag);
+      dbuf_putstr(buf, opts->colors ? COLOR_NONE " " : " ");
+      js_free(ctx, tostring_tag);
+    }
   } else if(!js_is_array(ctx, value) && !is_function) {
     if(s == 0 && JS_IsFunction(ctx, object_tostring))
       s = js_object_tostring2(ctx, object_tostring, value);

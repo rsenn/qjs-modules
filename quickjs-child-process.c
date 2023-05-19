@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 #endif
 
 enum {
@@ -151,38 +152,45 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   }
 
   if(argc > 2 && JS_IsObject(argv[2])) {
-    JSValue env, stdio;
+    JSValue value;
     size_t i, len;
     int *parent_fds, *child_fds;
-    env = JS_GetPropertyStr(ctx, argv[2], "env");
 
-    if(JS_IsObject(env)) {
-      cp->env = child_process_environment(ctx, env);
+    value = JS_GetPropertyStr(ctx, argv[2], "env");
+
+    if(JS_IsObject(value)) {
+      cp->env = child_process_environment(ctx, value);
     } else {
       cp->env = js_strv_dup(ctx, environ);
     }
-    JS_FreeValue(ctx, env);
+    JS_FreeValue(ctx, value);
 
-    stdio = JS_GetPropertyStr(ctx, argv[2], "stdio");
-    if(JS_IsException(stdio) || JS_IsUndefined(stdio))
-      stdio = JS_NewString(ctx, "pipe");
+    value = JS_GetPropertyStr(ctx, argv[2], "cwd");
+    if(JS_IsString(value)) {
+      cp->cwd = js_tostring(ctx, value);
+    }
+    JS_FreeValue(ctx, value);
 
-    if(!JS_IsArray(ctx, stdio)) {
+    value = JS_GetPropertyStr(ctx, argv[2], "stdio");
+    if(JS_IsException(value) || JS_IsUndefined(value))
+      value = JS_NewString(ctx, "pipe");
+
+    if(!JS_IsArray(ctx, value)) {
       JSValue a = JS_NewArray(ctx);
-      JS_SetPropertyUint32(ctx, a, 0, JS_DupValue(ctx, stdio));
-      JS_SetPropertyUint32(ctx, a, 1, JS_DupValue(ctx, stdio));
-      JS_SetPropertyUint32(ctx, a, 2, JS_DupValue(ctx, stdio));
-      JS_FreeValue(ctx, stdio);
-      stdio = a;
+      JS_SetPropertyUint32(ctx, a, 0, JS_DupValue(ctx, value));
+      JS_SetPropertyUint32(ctx, a, 1, JS_DupValue(ctx, value));
+      JS_SetPropertyUint32(ctx, a, 2, JS_DupValue(ctx, value));
+      JS_FreeValue(ctx, value);
+      value = a;
     }
 
-    len = js_array_length(ctx, stdio);
+    len = js_array_length(ctx, value);
     parent_fds = cp->parent_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
     child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
     cp->num_fds = len;
 
     for(i = 0; i < len; i++) {
-      JSValue item = JS_GetPropertyUint32(ctx, stdio, i);
+      JSValue item = JS_GetPropertyUint32(ctx, value, i);
       parent_fds[i] = -1;
       child_fds[i] = -1;
 
@@ -192,7 +200,7 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
         child_fds[i] = fd;
       } else if(JS_IsString(item)) {
-        const char* s = js_get_propertyint_cstring(ctx, stdio, i);
+        const char* s = JS_ToCString(ctx, item);
 
         if(!strcmp(s, "pipe")) {
           int fds[2];
@@ -208,14 +216,16 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
             parent_fds[i] = fds[0];
           }
 
+        } else if(!strcmp(s, "ignore")) {
+          child_fds[i] = open("/dev/null", O_RDWR);
         } else if(!strcmp(s, "inherit")) {
           child_fds[i] = i;
         }
 
-        //        JS_FreeCString(ctx, s);
+        JS_FreeCString(ctx, s);
       }
     }
-    JS_FreeValue(ctx, stdio);
+    JS_FreeValue(ctx, value);
   }
 
   child_process_spawn(cp);
