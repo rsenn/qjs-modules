@@ -338,8 +338,8 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
     fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, msg, js_value_typestr(ctx, stack));
 
     if(st) {
-      if(*st) 
-      fprintf(stderr, "Stack:\n%s\n", st);
+      if(*st)
+        fprintf(stderr, "Stack:\n%s\n", st);
       JS_FreeCString(ctx, st);
     }
     if(msg)
@@ -788,10 +788,10 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
         break;
       }
 
-      if(path_component1(s) == 3 && !strncmp(s, "lib", 3)) {
+      /*if(path_component1(s) == 3 && !strncmp(s, "lib", 3)) {
         strcpy(s, &s[3 + path_separator1(&s[3])]);
         continue;
-      }
+      }*/
 
     } else {
       if((file = jsm_search_suffix(ctx, s, is_module))) {
@@ -1577,7 +1577,7 @@ jsm_start_interactive(JSContext* ctx) {
   /* clang-format off */
   snprintf(str,
     sizeof(str),
-    "import REPL from 'repl';\n"
+    "import { REPL } from 'repl';\n"
     "import * as fs from 'fs';\n"
     "const history = '%s/.%s_history';\n"
     "globalThis.repl = new REPL((__filename ?? '%s').replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
@@ -1932,7 +1932,7 @@ main(int argc, char** argv) {
         goto fail;
     }
 
-    if(interactive)
+    if(interactive || getenv("INTERACTIVE"))
       jsm_start_interactive(ctx);
 
     js_std_loop(ctx);

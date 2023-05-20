@@ -270,7 +270,7 @@ inspect_options_get(inspect_options_t* opts, JSContext* ctx, JSValueConst object
 
   value = JS_GetPropertyStr(ctx, object, "classKey");
   opts->class_key.atom = JS_ValueToAtom(ctx, value);
-  opts->class_key.name = JS_ToCString(ctx, value);
+  opts->class_key.name = JS_AtomToCString(ctx, opts->class_key.atom);
   JS_FreeValue(ctx, value);
 }
 

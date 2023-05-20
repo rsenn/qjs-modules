@@ -4,7 +4,7 @@ import * as path from 'path';
 import Console from 'console';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList } from '../lib/dom.js';
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
-import REPL from 'repl';
+import { REPL } from 'repl';
 import { read as readXML, write as writeXML } from 'xml';
 
 extendArray();

@@ -6,7 +6,7 @@ import inspect from 'inspect';
 import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import ECMAScriptLexer from 'lib/lexer/ecmascript.js';
+import ECMAScriptLexer from 'lexer/ecmascript.js';
 import { escape, toString, define, curry, unique, split, extendArray, camelize, getOpt, startInteractive } from 'util';
 
 let buffers = {},
@@ -64,11 +64,17 @@ function BufferLengths(file) {
 }
 
 function BufferOffsets(file) {
-  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([pos])], [0, []])[1];
+  return buffers[file].reduce(
+    ([pos, list], b) => [pos + b.byteLength, list.concat([pos])],
+    [0, []]
+  )[1];
 }
 
 function BufferRanges(file) {
-  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])], [0, []])[1];
+  return buffers[file].reduce(
+    ([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])],
+    [0, []]
+  )[1];
 }
 
 function WriteFile(file, tok) {
@@ -310,8 +316,21 @@ function ListExports(file, output) {
     debug > 3
       ? (tok, prefix) => {
           const range = tok.charRange;
-          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
-          std.err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
+          const cols = [
+            prefix,
+            `tok[${tok.byteLength}]`,
+            tok.id,
+            tok.type,
+            tok.lexeme,
+            tok.lexeme.length,
+            tok.loc
+          ];
+          std.err.puts(
+            cols.reduce(
+              (acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]),
+              ''
+            ) + '\n'
+          );
         }
       : () => {};
 
@@ -337,7 +356,10 @@ function ListExports(file, output) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.last != table[tok.lexeme])
+            throw new Error(
+              `top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
+            );
 
           stack.pop();
           break;
@@ -363,8 +385,14 @@ function ListExports(file, output) {
     cond,
     imp = [],
     showToken = tok => {
-      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
-        let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
+      if(
+        (lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') ||
+        /^((im|ex)port|from|as)$/.test(tok.lexeme)
+      ) {
+        let a = [
+          /*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '),
+          escape(tok.lexeme)
+        ];
         std.err.puts(a.join('') + '\n');
       }
     };
@@ -419,9 +447,14 @@ function ListExports(file, output) {
     state = newState;
   }
 
-  const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
+  const exportTokens = tokens.reduce(
+    (acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc),
+    []
+  );
 
-  let exportNames = exportTokens.map(index => ExportName(tokens.slice(index))).filter(n => n !== undefined);
+  let exportNames = exportTokens
+    .map(index => ExportName(tokens.slice(index)))
+    .filter(n => n !== undefined);
 
   log('Export names', exportNames);
 
@@ -484,7 +517,8 @@ function ListExports(file, output) {
     }
 
     if(params.raw) output.puts(names.join('\n') + '\n');
-    else if(names.length == 1 && /^default as/.test(names[0])) output.puts(keyword + ` ${base} from '${source}'\n`);
+    else if(names.length == 1 && /^default as/.test(names[0]))
+      output.puts(keyword + ` ${base} from '${source}'\n`);
     else if(names.length > 0) output.puts(keyword + ` { ${names.join(', ')} } from '${source}'\n`);
   }
 
@@ -492,7 +526,9 @@ function ListExports(file, output) {
 
   let fileImports = imports.filter(imp => /\.js$/i.test(imp.source));
   let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
-  buffers[source] = [...split(BufferFile(source), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
+  buffers[source] = [...split(BufferFile(source), ...splitPoints)].map(
+    b => b ?? toString(b, 0, b.byteLength)
+  );
 
   //log('fileImports', fileImports.map(imp => imp.source));
 
@@ -515,7 +551,10 @@ function ListExports(file, output) {
 function ModuleExports(file) {
   let m;
   try {
-    if((m = moduleList.find(m => new RegExp(file).test(getModuleName(m)))) || (m = loadModule(file))) {
+    if(
+      (m = moduleList.find(m => new RegExp(file).test(getModuleName(m)))) ||
+      (m = loadModule(file))
+    ) {
       let list = getModuleExports(m);
 
       let keys = Object.keys(list);
@@ -581,7 +620,14 @@ function main(...args) {
           console.log('help', { __a, __x, params });
           std.puts(`Usage: ${scriptArgs[0]} [OPTIONS] <files...>\n\n`);
 
-          std.puts(params.map(([name, [hasArg, , letter]]) => `  -${letter}, --${name} ${(hasArg ? '<ARG>' : '').padEnd(10)}\n`).join('') + '\n');
+          std.puts(
+            params
+              .map(
+                ([name, [hasArg, , letter]]) =>
+                  `  -${letter}, --${name} ${(hasArg ? '<ARG>' : '').padEnd(10)}\n`
+              )
+              .join('') + '\n'
+          );
           std.exit(0);
         },
         'h'
@@ -597,7 +643,11 @@ function main(...args) {
       /* prettier-ignore */ 'export': [false, () => (exp = true), 'e'],
       for: [true, null, 'f'],
       'print-files': [false, () => (printFiles = true), 'p'],
-      output: [true, filename => (outputFile = filename) /* output = std.open(filename, 'w+')*/, 'o'],
+      output: [
+        true,
+        filename => (outputFile = filename) /* output = std.open(filename, 'w+')*/,
+        'o'
+      ],
       'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
       uppercase: [false, () => (onlyUppercase = true), 'u'],
       interactive: [false, null, 'y'],
@@ -626,7 +676,9 @@ function main(...args) {
   }
 
   for(let file of files) {
-    log = quiet ? () => {} : (...args) => console.log(`${file}:`, console.config({ compact: 10 }), ...args);
+    log = quiet
+      ? () => {}
+      : (...args) => console.log(`${file}:`, console.config({ compact: 10 }), ...args);
 
     try {
       ProcessFile(file);

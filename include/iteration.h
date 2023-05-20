@@ -19,7 +19,7 @@ static inline BOOL
 iteration_init_free(Iteration* it, JSContext* ctx, JSValue iterator) {
   it->iter = iterator;
   it->next = JS_GetPropertyStr(ctx, it->iter, "next");
-  it->data = JS_UNINITIALIZED;
+  it->data = JS_UNDEFINED;
   it->done = FALSE;
   return JS_IsFunction(ctx, it->next);
 }
