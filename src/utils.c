@@ -289,6 +289,15 @@ js_array_to_int64v(JSContext* ctx, size_t* lenp, JSValueConst array) {
   return ret;
 }
 
+JSValue
+js_array_iterator_prototype(JSContext* ctx) {
+  const char* code = "new Array().keys()";
+  JSValue ret, gen = JS_Eval(ctx, code, strlen(code), "<internal>", 0);
+  ret = JS_GetPrototype(ctx, gen);
+  JS_FreeValue(ctx, gen);
+  return ret;
+}
+
 int
 js_array_copys(JSContext* ctx, JSValueConst array, int n, char** stra) {
   int i, len = MIN_NUM(n, js_array_length(ctx, array));
@@ -1717,6 +1726,15 @@ js_map_new(JSContext* ctx, JSValueConst entries) {
 }
 
 JSValue
+js_map_iterator_prototype(JSContext* ctx) {
+  const char* code = "new Map().keys()";
+  JSValue ret, gen = JS_Eval(ctx, code, strlen(code), "<internal>", 0);
+  ret = JS_GetPrototype(ctx, gen);
+  JS_FreeValue(ctx, gen);
+  return ret;
+}
+
+JSValue
 module_name(JSContext* ctx, JSModuleDef* m) {
   if(m->module_name < ctx->rt->atom_count)
     return JS_AtomToValue(ctx, m->module_name);
@@ -3050,6 +3068,33 @@ js_function_cclosure(JSContext* ctx, CClosureFunc* func, int length, int magic, 
   // JS_DefinePropertyValueStr(ctx, func_obj, "length", JS_NewUint32(ctx, length), JS_PROP_CONFIGURABLE);
 
   return func_obj;
+}
+
+JSValue
+js_generator_prototype(JSContext* ctx) {
+  const char* code = "(function *gen() {})()";
+  JSValue ret, gen = JS_Eval(ctx, code, strlen(code), "<internal>", 0);
+  ret = JS_GetPrototype(ctx, gen);
+  JS_FreeValue(ctx, gen);
+  return ret;
+}
+
+JSValue
+js_asyncgenerator_prototype(JSContext* ctx) {
+  const char* code = "(async function *gen() {})()";
+  JSValue ret, gen = JS_Eval(ctx, code, strlen(code), "<internal>", 0);
+  ret = JS_GetPrototype(ctx, gen);
+  JS_FreeValue(ctx, gen);
+  return ret;
+}
+
+JSValue
+js_set_iterator_prototype(JSContext* ctx) {
+  const char* code = "new Set().keys()";
+  JSValue ret, gen = JS_Eval(ctx, code, strlen(code), "<internal>", 0);
+  ret = JS_GetPrototype(ctx, gen);
+  JS_FreeValue(ctx, gen);
+  return ret;
 }
 
 /**

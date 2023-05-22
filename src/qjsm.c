@@ -1578,19 +1578,19 @@ jsm_start_interactive(JSContext* ctx) {
   snprintf(str,
     sizeof(str),
     "import { REPL } from 'repl';\n"
-    "import * as fs from 'fs';\n"
+   /* "import * as fs from 'fs';\n"*/
     "const history = '%s/.%s_history';\n"
     "globalThis.repl = new REPL((__filename ?? '%s').replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
     "repl.loadSaveOptions();\n"
-    "repl.historyLoad(null, fs);\n"
-    "repl.directives.i ??= [\n"
+    "repl.historyLoad();\n"
+    /*"repl.directives.i ??= [\n"
     "  name => import(name).then(m => {\n"
     "    let id = name.slice(name.lastIndexOf('/') + 1).replace(/\\.[^\\/.]+$/g, '');\n"
     "    globalThis[id] = m;\n"
     "  }).catch(() => repl.printStatus(`ERROR: module '${name}' not found\\n`))"
     ",\n"
     " 'import a module'\n"
-    "];\n"
+    "];\n"*/
      "repl.run();\n",
     home, exename, exename);
   /* clang-format on */
@@ -1599,7 +1599,7 @@ jsm_start_interactive(JSContext* ctx) {
 
   // ret = js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
 
-  ret = js_eval_buf(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
+  ret = JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 
   // JS_FreeValue(ctx,module);
 }

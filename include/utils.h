@@ -781,6 +781,8 @@ int32_t* js_array_to_int32v(JSContext*, size_t*, JSValueConst);
 uint32_t* js_array_to_uint32v(JSContext*, size_t*, JSValueConst);
 int64_t* js_array_to_int64v(JSContext*, size_t*, JSValueConst);
 
+JSValue js_array_iterator_prototype(JSContext*);
+
 int js_array_copys(JSContext*, JSValueConst, int n, char** stra);
 int js_strv_copys(JSContext*, int, JSValueConst argv[], int n, char** stra);
 
@@ -833,6 +835,7 @@ JSValue js_arraybuffer_fromvalue(JSContext*, void* x, size_t n, JSValue val);
 JSValue js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str);
 
 JSValue js_map_new(JSContext*, JSValueConst);
+JSValue js_map_iterator_prototype(JSContext*);
 
 typedef union import_directive {
   struct {
@@ -934,6 +937,10 @@ static inline BOOL
 js_is_identifier(JSContext* ctx, const char* str) {
   return js_is_identifier_len(ctx, str, strlen(str));
 }
+
+JSValue js_generator_prototype(JSContext*);
+JSValue js_asyncgenerator_prototype(JSContext*);
+JSValue js_set_iterator_prototype(JSContext*);
 
 /**
  * @}
