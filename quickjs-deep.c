@@ -226,6 +226,12 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   // penum = property_recursion_push(&it->frames, ctx, JS_DupValue(ctx,
   // it->root), PROPENUM_DEFAULT_FLAGS);
+  //
+  //
+  if(!JS_IsObject(it->root)) {
+    *pdone = TRUE;
+    return JS_UNDEFINED;
+  }
 
   for(;;) {
     depth = property_recursion_depth(&it->frames);

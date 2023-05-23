@@ -621,13 +621,15 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if((size = dbuf_load(&dbuf, file)) > 0) {
 
-    while(size > 0 && dbuf.buf[size - 1] == '\n') size--;
+    while(size > 0 && dbuf.buf[size - 1] == '\n')
+      size--;
 
     ret = JS_NewArray(ctx);
     for(i = 0; i < size; i += n + 1) {
       size_t len;
       len = n = byte_chr(&dbuf.buf[i], size - i, sep);
-      while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1])) len--;
+      while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1]))
+        len--;
       JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, (const char*)&dbuf.buf[i], len));
     }
   }
@@ -833,7 +835,8 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   js_misc_glob_errfunc_fn = argc >= 3 ? argv[2] : JS_UNDEFINED;
 
   if((result = glob(pattern, flags & (~(GLOB_APPEND | GLOB_DOOFFS)), js_misc_glob_errfunc, &g)) == 0) {
-    for(i = 0; i < g.gl_pathc; i++) JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, g.gl_pathv[i]));
+    for(i = 0; i < g.gl_pathc; i++)
+      JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, g.gl_pathv[i]));
 
     globfree(&g);
   }
@@ -874,7 +877,8 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
 
   if((result = wordexp(s, &we, flags & (~(WRDE_APPEND | WRDE_DOOFFS | WRDE_REUSE)))) == 0) {
-    for(i = 0; i < we.we_wordc; i++) JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, we.we_wordv[i]));
+    for(i = 0; i < we.we_wordc; i++)
+      JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, we.we_wordv[i]));
 
     wordfree(&we);
   }
@@ -1741,13 +1745,15 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   switch(magic) {
     case BITOP_NOT: {
-      for(i = 0; i < ab[0].len; i++) ab[0].buf[i] ^= 0xffu;
+      for(i = 0; i < ab[0].len; i++)
+        ab[0].buf[i] ^= 0xffu;
 
       break;
     }
     case BITOP_XOR: {
 
-      for(i = 0; i < ab[0].len; i++) ab[0].buf[i] ^= ab[1].buf[i % ab[1].len];
+      for(i = 0; i < ab[0].len; i++)
+        ab[0].buf[i] ^= ab[1].buf[i % ab[1].len];
 
       break;
     }
@@ -1836,8 +1842,12 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     size_t i, nelems;
 
     if(argc > 1 && (intv = js_array_to_int32v(ctx, &nelems, argv[1]))) {
-      for(i = 0; i < nelems; i++) { escape_tab[i] = intv[i]; }
-      while(i < 256) { escape_tab[i++] = '\0'; }
+      for(i = 0; i < nelems; i++) {
+        escape_tab[i] = intv[i];
+      }
+      while(i < 256) {
+        escape_tab[i++] = '\0';
+      }
       tab = escape_tab;
       js_free(ctx, intv);
     }
@@ -2146,10 +2156,15 @@ typedef struct {
 } JSAtExitEntry;
 
 thread_local Vector js_misc_atexit_functions;
+thread_local BOOL js_misc_atexit_called = FALSE;
 
 static void
 js_misc_atexit_handler() {
   JSAtExitEntry* entry;
+
+  if(js_misc_atexit_called)
+    return;
+  js_misc_atexit_called = TRUE;
 
   vector_foreach_t(&js_misc_atexit_functions, entry) {
     JSValue ret = JS_Call(entry->ctx, entry->fn, JS_UNDEFINED, 0, 0);

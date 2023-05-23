@@ -139,7 +139,7 @@ static JSValue
 js_sockaddr_wrap(JSContext* ctx, SockAddr* a) {
   JSValue obj;
 
-  if(js_sockaddr_class_id == 0)
+  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_async_socket_class_id == 0)
     js_sockets_init(ctx, 0);
 
   obj = JS_NewObjectProtoClass(ctx, sockaddr_proto, js_sockaddr_class_id);
@@ -205,7 +205,7 @@ js_sockaddr_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   JSValue proto, obj = JS_UNDEFINED;
   SockAddr* a;
 
-  if(js_sockaddr_class_id == 0)
+  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_async_socket_class_id == 0)
     js_sockets_init(ctx, 0);
 
   if(!(a = sockaddr_new(ctx)))
@@ -776,7 +776,7 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
   JSValue obj;
   Socket* s;
 
-  if(js_socket_class_id == 0 || js_async_socket_class_id == 0)
+  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_async_socket_class_id == 0)
     js_sockets_init(ctx, 0);
 
   if(js_is_nullish(ctx, proto))
@@ -1351,7 +1351,8 @@ js_async_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(magic >= 2) {
     int i, n = (magic & 0x08) ? ((magic & 0x02) ? 5 : 4) : 1;
 
-    for(i = 0; i < n; i++) data[data_len++] = i < argc ? argv[i] : JS_UNDEFINED;
+    for(i = 0; i < n; i++)
+      data[data_len++] = i < argc ? argv[i] : JS_UNDEFINED;
   }
 
   args[0] = JS_NewInt32(ctx, socket_fd(*s));

@@ -71,6 +71,19 @@ size_t list_size(struct list_head* list);
 struct list_head* list_front(const struct list_head* list);
 struct list_head* list_back(const struct list_head* list);
 
+static inline void
+list_splice(const struct list_head* list, struct list_head* head) {
+  if(!list_empty(list)) {
+    struct list_head* a = list->next;
+    struct list_head* b = list->prev;
+    struct list_head* c = head->next;
+    head->next = a;
+    a->prev = head;
+    b->next = c;
+    c->prev = b;
+  }
+}
+
 static inline Arguments
 arguments_new(int argc, const char* argv[]) {
   Arguments args;
