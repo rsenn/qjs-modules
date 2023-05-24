@@ -101,11 +101,11 @@
 #define COLOR_CYAN "\x1b[1;36m"
 #define COLOR_WHITE "\x1b[1;37m"
 
-#define BACKGROUND_RED "\x1b[48;5;124m"
-#define BACKGROUND_BLUE "\x1b[48;5;20m"
-#define BACKGROUND_YELLOW "\x1b[48;5;214m"
-#define BACKGROUND_GREEN "\x1b[48;5;28m"
-#define BACKGROUND_PINK "\x1b[48;5;165m"
+#define BGCOLOR_RED "\x1b[48;5;124m"
+#define BGCOLOR_BLUE "\x1b[48;5;20m"
+#define BGCOLOR_YELLOW "\x1b[48;5;214m"
+#define BGCOLOR_GREEN "\x1b[48;5;28m"
+#define BGCOLOR_PINK "\x1b[48;5;165m"
 
 #define JS_VALUE_FREE(ctx, value) \
   do { \
