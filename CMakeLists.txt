@@ -437,8 +437,7 @@ if(BUILD_LIBSERIALPORT)
 
   link_directories("${CMAKE_CURRENT_BINARY_DIR}/libserialport")
   set(LIBSERIALPORT_LIBRARY serialport)
-  set(LIBSERIALPORT_LIBRARY
-      ${CMAKE_CURRENT_BINARY_DIR}/libserialport/libserialport.a)
+  set(LIBSERIALPORT_LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport)
   if(WIN32)
     list(APPEND LIBSERIALPORT_LIBRARY setupapi)
   endif(WIN32)
@@ -563,7 +562,7 @@ foreach(JS_MODULE ${QUICKJS_MODULES})
        "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
-link_directories(${QJSM_LIBDIR})
+link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 
 #dump(QJSM_LDADD)
 
