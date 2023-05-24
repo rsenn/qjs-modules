@@ -262,7 +262,8 @@ js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
 
     static const uint8_t hexdigits[] = "0123456789ABCDEF";
     dbuf_putstr(out, "'\\x");
-    for(size_t i = 0; i < input.size; i++) dbuf_put(out, (const uint8_t*)buf, fmt_xlong0(buf, input.data[i], 2));
+    for(size_t i = 0; i < input.size; i++)
+      dbuf_put(out, (const uint8_t*)buf, fmt_xlong0(buf, input.data[i], 2));
 
     dbuf_putstr(out, "'::bytea");
 
@@ -292,6 +293,7 @@ js_pgconn_print_field(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
     }
   }
 }
+
 /*
 static void
 js_pgconn_print_fields(JSContext* ctx, DynBuf* out, JSPropertyEnum* tmp_tab, uint32_t tmp_len) {
@@ -1429,6 +1431,7 @@ result_iterate(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
   JS_FreeValue(ctx, val);
   return ret;
 }
+
 /*
 static void
 result_yield(JSContext* ctx, JSValueConst func, PGSQLResult* opaque, int row, int rtype) {
@@ -1592,7 +1595,8 @@ js_pgresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
       ret = JS_NewArray(ctx);
 
-      for(i = 0; i < num_fields; i++) JS_SetPropertyUint32(ctx, ret, i, field_array(JS_GetOpaque(this_val, js_pgresult_class_id), i, ctx));
+      for(i = 0; i < num_fields; i++)
+        JS_SetPropertyUint32(ctx, ret, i, field_array(JS_GetOpaque(this_val, js_pgresult_class_id), i, ctx));
       break;
     }
     case METHOD_FETCH_ROW:

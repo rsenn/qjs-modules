@@ -316,7 +316,8 @@ inspect_options_hidden(inspect_options_t* opts, JSAtom atom) {
 static void
 inspect_newline(DynBuf* buf, int32_t depth) {
   dbuf_putc(buf, '\n');
-  while(depth-- > 0) dbuf_putstr(buf, "  ");
+  while(depth-- > 0)
+    dbuf_putstr(buf, "  ");
 }
 
 static int

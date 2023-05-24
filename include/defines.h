@@ -120,20 +120,30 @@
 
 #if 0
 #define js_object_tmpmark_set(value) \
-  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; } while(0);
+  do { \
+    ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] |= 0x40; \
+  } while(0);
 #define js_object_tmpmark_clear(value) \
-  do { ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; } while(0);
+  do { \
+    ((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] &= ~0x40; \
+  } while(0);
 #define js_object_tmpmark_isset(value) (((uint8_t*)JS_VALUE_GET_OBJ((value)))[5] & 0x40)
 #else
 #define js_object_tmpmark_set(value) \
-  do { JS_VALUE_GET_OBJ((value))->tmp_mark |= 0x40; } while(0);
+  do { \
+    JS_VALUE_GET_OBJ((value))->tmp_mark |= 0x40; \
+  } while(0);
 #define js_object_tmpmark_clear(value) \
-  do { JS_VALUE_GET_OBJ((value))->tmp_mark &= ~0x40; } while(0);
+  do { \
+    JS_VALUE_GET_OBJ((value))->tmp_mark &= ~0x40; \
+  } while(0);
 #define js_object_tmpmark_isset(value) (JS_VALUE_GET_OBJ((value))->tmp_mark & 0x40)
 #endif
 
 #define js_runtime_exception_set(rt, value) \
-  do { *(JSValue*)((uint8_t*)(rt) + 216) = value; } while(0);
+  do { \
+    *(JSValue*)((uint8_t*)(rt) + 216) = value; \
+  } while(0);
 #define js_runtime_exception_get(rt) (*(JSValue*)((uint8_t*)(rt) + 216))
 #define js_runtime_exception_clear(rt) \
   do { \

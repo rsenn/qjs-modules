@@ -245,7 +245,9 @@ jsm_stack_string() {
     dbuf_init2(&buf, 0, vector_realloc);
 
   buf.size = 0;
-  while(--i >= 0) { dbuf_printf(&buf, "%i: %s\n", i, jsm_stack_at(i)); }
+  while(--i >= 0) {
+    dbuf_printf(&buf, "%i: %s\n", i, jsm_stack_at(i));
+  }
 
   dbuf_0(&buf);
   return (char*)buf.buf;
@@ -691,7 +693,8 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
   JSModuleDef* m;
   BuiltinModule* bltin;
 
-  while(*name == '!' || *name == '*') ++name;
+  while(*name == '!' || *name == '*')
+    ++name;
 
   if((m = js_module_find_from(ctx, name, start_pos)))
     return m;

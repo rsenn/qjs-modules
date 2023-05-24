@@ -145,8 +145,10 @@ int path_compare4(const char* a, size_t alen, const char* b, size_t blen);
 static inline size_t
 path_skip1(const char* s) {
   const char* p = s;
-  while(*p && !path_issep(*p)) ++p;
-  while(*p && path_issep(*p)) ++p;
+  while(*p && !path_issep(*p))
+    ++p;
+  while(*p && path_issep(*p))
+    ++p;
   return p - s;
 }
 
@@ -175,8 +177,10 @@ path_skip3(const char* s, size_t* len, size_t n) {
 static inline size_t
 path_right2(const char* s, size_t n) {
   const char* p = s + n - 1;
-  while(p > s && path_issep(*p)) --p;
-  while(p > s && !path_issep(*p)) --p;
+  while(p > s && path_issep(*p))
+    --p;
+  while(p > s && !path_issep(*p))
+    --p;
   return p - s;
 }
 
@@ -203,7 +207,8 @@ path_getsep2(const char* path, size_t len) {
 
 static inline const char*
 path_trimdotslash1(const char* s) {
-  while(*s && path_isdotslash(s)) s += path_skip1(s);
+  while(*s && path_isdotslash(s))
+    s += path_skip1(s);
 
   return s;
 }
@@ -211,14 +216,16 @@ path_trimdotslash1(const char* s) {
 static inline size_t
 path_skipdotslash1(const char* s) {
   size_t i = 0;
-  for(i = 0; path_isdotslash(&s[i]);) i += path_skip1(&s[i]);
+  for(i = 0; path_isdotslash(&s[i]);)
+    i += path_skip1(&s[i]);
   return i;
 }
 
 static inline size_t
 path_skipdotslash2(const char* s, size_t n) {
   size_t i = 0;
-  while(i < n && path_isdotslash(&s[i])) i += path_skip2(&s[i], n - i);
+  while(i < n && path_isdotslash(&s[i]))
+    i += path_skip2(&s[i], n - i);
   return i;
 }
 

@@ -74,7 +74,9 @@ static void
 tree_walker_free(TreeWalker* w, JSRuntime* rt) {
   if(--w->ref_count == 0) {
     PropertyEnumeration *s, *e;
-    for(s = vector_begin(&w->hier), e = vector_end(&w->hier); s != e; s++) { property_enumeration_reset(s, rt); }
+    for(s = vector_begin(&w->hier), e = vector_end(&w->hier); s != e; s++) {
+      property_enumeration_reset(s, rt);
+    }
     vector_free(&w->hier);
     js_free_rt(rt, w);
   }

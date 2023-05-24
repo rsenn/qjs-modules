@@ -44,6 +44,7 @@ token_dup(Token* tok) {
   ++tok->ref_count;
   return tok;
 }
+
 /**
  * @}
  */

@@ -411,6 +411,7 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   }
   return ret;
 }
+
 enum {
   SERIALPORT_FD,
   SERIALPORT_INPUTWAITING,
@@ -495,7 +496,9 @@ js_serial_getports(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   if(sp_list_ports(&ports) == SP_OK) {
     ret = JS_NewArray(ctx);
-    for(int i = 0; ports[i]; i++) { JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, sp_get_port_name(ports[i]))); }
+    for(int i = 0; ports[i]; i++) {
+      JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, sp_get_port_name(ports[i])));
+    }
 
     sp_free_port_list(ports);
   }

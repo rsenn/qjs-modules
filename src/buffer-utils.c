@@ -2,12 +2,12 @@
 #include "char-utils.h"
 #include "buffer-utils.h"
 #include "utils.h"
-#if HAVE_TERMIOS_H
+#ifdef _WIN32
+#include <windows.h>
+#elif defined(HAVE_TERMIOS_H)
 #include <termios.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#elif defined(_WIN32)
-#include <windows.h>
 #endif
 #include "debug.h"
 
@@ -124,7 +124,8 @@ byte_copy(void* out, size_t len, const void* in) {
   char* s = (char*)out;
   const char* t = (const char*)in;
   size_t i;
-  for(i = 0; i < len; ++i) s[i] = t[i];
+  for(i = 0; i < len; ++i)
+    s[i] = t[i];
 }
 
 void
@@ -762,6 +763,7 @@ dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]) {
   }
   return n;
 }
+
 /**
  * @}
  */

@@ -339,6 +339,7 @@ readable_close(Readable* st, JSContext* ctx) {
   }
   return ret;
 }
+
 /*static JSValue
 readable_close(Readable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -431,7 +432,8 @@ readable_free(Readable* st, JSRuntime* rt) {
   if(--st->ref_count == 0) {
     JS_FreeValueRT(rt, st->underlying_source);
     JS_FreeValueRT(rt, st->controller);
-    for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
+    for(int i = 0; i < countof(st->on); i++)
+      JS_FreeValueRT(rt, st->on[i]);
     queue_clear(&st->q);
     js_free_rt(rt, st);
   }
@@ -599,6 +601,7 @@ js_readable_callback(JSContext* ctx, Readable* st, ReadableEvent event, int argc
 
   return JS_UNDEFINED;
 }
+
 /*
 JSValue
 js_readable_start(JSContext* ctx, Readable* st) {
@@ -1007,7 +1010,8 @@ writable_free(Writable* st, JSRuntime* rt) {
   if(--st->ref_count == 0) {
     JS_FreeValueRT(rt, st->underlying_sink);
     JS_FreeValueRT(rt, st->controller);
-    for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
+    for(int i = 0; i < countof(st->on); i++)
+      JS_FreeValueRT(rt, st->on[i]);
     queue_clear(&st->q);
     js_free_rt(rt, st);
   }
@@ -1479,7 +1483,8 @@ js_transform_finalizer(JSRuntime* rt, JSValue val) {
 
       JS_FreeValueRT(rt, st->underlying_transform);
       JS_FreeValueRT(rt, st->controller);
-      for(int i = 0; i < countof(st->on); i++) JS_FreeValueRT(rt, st->on[i]);
+      for(int i = 0; i < countof(st->on); i++)
+        JS_FreeValueRT(rt, st->on[i]);
       js_free_rt(rt, st);
     }
   }

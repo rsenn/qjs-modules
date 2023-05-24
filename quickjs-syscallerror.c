@@ -324,6 +324,7 @@ js_syscallerror_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 
   return ret;
 }
+
 const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_SYSCALL),
     JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_CODE),

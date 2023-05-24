@@ -14,10 +14,10 @@
 #define pipe(fds) _pipe(fds, 4096, 0)
 #else
 #include <unistd.h>
-#include <signal.h>
 #include <sys/wait.h>
-#include <fcntl.h>
 #endif
+#include <signal.h>
+#include <fcntl.h>
 
 enum {
   CHILD_PROCESS_FILE = 0,

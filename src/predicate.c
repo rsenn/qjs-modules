@@ -347,7 +347,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_FUNCTION: {
       int i, nargs = pr->function.arity;
       JSValueConst argv[nargs];
-      for(i = 0; i < nargs; i++) argv[i] = js_arguments_at(args, i);
+      for(i = 0; i < nargs; i++)
+        argv[i] = js_arguments_at(args, i);
 
       ret = JS_Call(ctx, pr->function.func, pr->function.this_val, nargs, argv);
       break;
@@ -1043,7 +1044,8 @@ predicate_keys(const Predicate* pr, JSContext* ctx) {
     case PREDICATE_AND:
     case PREDICATE_XOR: {
       uint32_t n = pr->boolean.npredicates;
-      for(i = 0; i < n; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, i));
+      for(i = 0; i < n; i++)
+        JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, i));
       break;
     }
 

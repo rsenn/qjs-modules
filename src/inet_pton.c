@@ -29,7 +29,8 @@ inet_pton(int af, const char* restrict s, void* restrict a0) {
 
   if(af == AF_INET) {
     for(i = 0; i < 4; i++) {
-      for(v = j = 0; j < 3 && isdigit(s[j]); j++) v = 10 * v + s[j] - '0';
+      for(v = j = 0; j < 3 && isdigit(s[j]); j++)
+        v = 10 * v + s[j] - '0';
       if(j == 0 || (j > 1 && s[0] == '0') || v > 255)
         return 0;
       a[i] = v;
@@ -58,7 +59,8 @@ inet_pton(int af, const char* restrict s, void* restrict a0) {
         return 0;
       continue;
     }
-    for(v = j = 0; j < 4 && (d = hexval(s[j])) >= 0; j++) v = 16 * v + d;
+    for(v = j = 0; j < 4 && (d = hexval(s[j])) >= 0; j++)
+      v = 16 * v + d;
     if(j == 0)
       return 0;
     ip[i & 7] = v;
@@ -77,7 +79,8 @@ inet_pton(int af, const char* restrict s, void* restrict a0) {
   }
   if(brk >= 0) {
     memmove(ip + brk + 7 - i, ip + brk, 2 * (i + 1 - brk));
-    for(j = 0; j < 7 - i; j++) ip[brk + j] = 0;
+    for(j = 0; j < 7 - i; j++)
+      ip[brk + j] = 0;
   }
   for(j = 0; j < 8; j++) {
     *a++ = ip[j] >> 8;

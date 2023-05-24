@@ -9,9 +9,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#ifdef HAVE_THREADS_H
+/*#ifdef HAVE_THREADS_H
 #include <threads.h>
-#endif
+#endif*/
 #include "defines.h"
 
 /**
@@ -73,7 +73,7 @@ struct list_head* list_back(const struct list_head* list);
 
 static inline void
 list_splice(const struct list_head* list, struct list_head* head) {
-  if(!list_empty(list)) {
+  if(list->next != list) {
     struct list_head* a = list->next;
     struct list_head* b = list->prev;
     struct list_head* c = head->next;
@@ -383,6 +383,7 @@ js_cstring_new(JSContext* ctx, const char* str) {
   JS_FreeValue(ctx, v);
   return s;
 }
+
 static inline const char*
 js_cstring_newlen(JSContext* ctx, const char* str, size_t len) {
   JSValue v = JS_NewStringLen(ctx, str, len);
@@ -609,6 +610,7 @@ js_has_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
   JS_FreeAtom(ctx, atom);
   return ret;
 }
+
 static inline JSValue
 js_get_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
@@ -616,6 +618,7 @@ js_get_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
   JS_FreeAtom(ctx, atom);
   return ret;
 }
+
 static inline int
 js_set_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop, JSValueConst value) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
@@ -623,6 +626,7 @@ js_set_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop, JSValu
   JS_FreeAtom(ctx, atom);
   return ret;
 }
+
 static inline int
 js_delete_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
@@ -630,6 +634,7 @@ js_delete_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
   JS_FreeAtom(ctx, atom);
   return ret;
 }
+
 void js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str);
 void js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_t value);
 void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);

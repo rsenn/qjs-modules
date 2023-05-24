@@ -594,7 +594,8 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       goto fail;
     }
     str = JS_ToCStringLen(ctx, &len, argv[i]);
-    while(len > 0 && str[len - 1] == PATHSEP_C) len--;
+    while(len > 0 && str[len - 1] == PATHSEP_C)
+      len--;
     if(dbuf_reserve_start(&db, len + 1))
       goto fail;
     if(len > 0) {
@@ -628,7 +629,8 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(db.size) {
     db.size = path_normalize2((char*)db.buf, db.size);
 
-    while(db.size > 0 && db.buf[db.size - 1] == PATHSEP_C) db.size--;
+    while(db.size > 0 && db.buf[db.size - 1] == PATHSEP_C)
+      db.size--;
 
     ret = JS_NewStringLen(ctx, (const char*)db.buf, db.size);
   }

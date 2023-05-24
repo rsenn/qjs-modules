@@ -83,6 +83,7 @@ virtual_properties(JSContext* ctx, JSValueConst value) {
  */
   return virtual_properties_object(ctx, value);
 }
+
 /**
  * @}
  */

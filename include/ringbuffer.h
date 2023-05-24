@@ -81,6 +81,7 @@ ringbuffer_skip(RingBuffer* rb, size_t n) {
   rb->tail = (rb->tail + n) % rb->size;
   return ringbuffer_begin(rb);
 }
+
 /**
  * @}
  */

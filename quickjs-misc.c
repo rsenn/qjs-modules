@@ -20,7 +20,7 @@
 #include <sys/utsname.h>
 #endif
 #include <errno.h>
-#ifdef HAVE_FNMATCH
+#ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
 #endif
 #ifdef HAVE_GLOB
@@ -928,6 +928,7 @@ js_misc_ioctl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   return JS_NewInt32(ctx, ioctl(fd, request, args[0], args[1]));
 }
+#endif
 
 static JSValue
 js_misc_screensize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -957,7 +958,6 @@ js_misc_screensize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   return ret;
 }
-#endif
 
 static JSValue
 js_misc_btoa(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -1712,6 +1712,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
   return ret;
 }
+
 enum {
   BITOP_NOT,
   BITOP_XOR,
@@ -1965,6 +1966,7 @@ js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   return err;
 }
+
 enum {
   IS_ARRAY,
   IS_BIGDECIMAL,
@@ -2140,6 +2142,31 @@ js_misc_fork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 static JSValue
 js_misc_vfork(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return JS_NewInt32(ctx, vfork());
+}
+#endif
+
+#ifdef HAVE_EXECVE
+static JSValue
+js_misc_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  size_t nargs;
+  char** args;
+  const char* file;
+
+  if(!(file = JS_ToCString(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
+  if(!(args = js_array_to_argv(ctx, &nargs, argv[1]))) {
+    JS_FreeCString(ctx, file);
+    return JS_ThrowTypeError(ctx, "argument 2 must be an array");
+  }
+
+  ret = JS_NewInt32(ctx, execve(file, args, environ));
+
+  JS_FreeCString(ctx, file);
+  js_strv_free(ctx, args);
+
+  return ret;
 }
 #endif
 
@@ -2337,6 +2364,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
 #ifdef HAVE_VFORK
     JS_CFUNC_DEF("vfork", 0, js_misc_vfork),
+#endif
+#ifdef HAVE_EXECVE
+    JS_CFUNC_DEF("exec", 2, js_misc_exec),
 #endif
 #ifdef HAVE_SETSID
     JS_CFUNC_DEF("setsid", 0, js_misc_setsid),

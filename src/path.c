@@ -21,7 +21,8 @@ __path_dirname(const char* path, DynBuf* dir) {
   if(path == NULL || path[i] == '\0') {
     dbuf_putstr(dir, ".");
   } else {
-    while(i > 0 && path_issep(path[i - 1])) --i;
+    while(i > 0 && path_issep(path[i - 1]))
+      --i;
     dbuf_put(dir, (const uint8_t*)path, i);
   }
 
@@ -447,6 +448,7 @@ path_slice3(const char* p, int start, int end) {
   }
   return (char*)db.buf;
 }
+
 /*
 size_t
 path_size1(const char* p) {
@@ -730,7 +732,8 @@ path_gethome1(int uid) {
     while((line = fgets(buf, sizeof(buf) - 1, fp))) {
       size_t p, n, len = strlen(line);
       char *user, *id, *dir;
-      while(len > 0 && is_whitespace_char(buf[len - 1])) buf[--len] = '\0';
+      while(len > 0 && is_whitespace_char(buf[len - 1]))
+        buf[--len] = '\0';
       user = buf;
       user[p = str_chr(user, ':')] = '\0';
       line = buf + p + 1;
@@ -846,6 +849,7 @@ path_ischardev1(const char* p) {
 
   return 0;
 }
+
 int
 path_ischardev2(const char* p, size_t plen) {
   struct stat st;
@@ -969,7 +973,8 @@ path_resolve3(const char* path, DynBuf* db, int symbolic) {
 start:
 
   while(*path) {
-    while(path_issep(*path)) sep = *path++;
+    while(path_issep(*path))
+      sep = *path++;
     if(path[0] == '.') {
       if(path_issep(path[1]) || path[1] == '\0') {
         path++;
@@ -1145,14 +1150,16 @@ path_component3(const char* p, size_t len, size_t pos) {
   if(pos > len)
     pos = len;
   p += pos;
-  while(p < end && !path_issep(*p)) ++p;
+  while(p < end && !path_issep(*p))
+    ++p;
   return p - start;
 }
 
 size_t
 path_component1(const char* p) {
   const char* s = p;
-  while(*s && !path_issep(*s)) ++s;
+  while(*s && !path_issep(*s))
+    ++s;
   return s - p;
 }
 
@@ -1162,14 +1169,16 @@ path_separator3(const char* p, size_t len, size_t pos) {
   if(pos > len)
     pos = len;
   p += pos;
-  while(p < end && path_issep(*p)) ++p;
+  while(p < end && path_issep(*p))
+    ++p;
   return p - start;
 }
 
 size_t
 path_separator1(const char* p) {
   const char* s = p;
-  while(*s && path_issep(*s)) ++s;
+  while(*s && path_issep(*s))
+    ++s;
   return s - p;
 }
 
@@ -1221,7 +1230,8 @@ path_dirlen1(const char* path) {
   size_t i = str_rchrs(path, "/\\", 2);
   if(path[i] == '\0')
     return 0;
-  while(i > 0 && path_issep(path[i - 1])) --i;
+  while(i > 0 && path_issep(path[i - 1]))
+    --i;
   return i;
 }
 
@@ -1230,7 +1240,8 @@ path_dirlen2(const char* path, size_t n) {
   size_t i;
   if((i = byte_rchrs(path, n, "/\\", 2)) == n)
     return 0;
-  while(i > 0 && path_issep(path[i - 1])) --i;
+  while(i > 0 && path_issep(path[i - 1]))
+    --i;
   return i;
 }
 
@@ -1267,6 +1278,7 @@ path_compare4(const char* a, size_t alen, const char* b, size_t blen) {
     return 1;
   return strncmp(a, b, alen);
 }
+
 /**
  * @}
  */

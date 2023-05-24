@@ -161,7 +161,9 @@ encode(const char* map, const uint8_t* in, size_t len, uint8_t* out) {
   }
 
   /* Pad */
-  while(('\0' != map[64]) && (0x03 & j)) { out[j++] = (uint8_t)map[64]; }
+  while(('\0' != map[64]) && (0x03 & j)) {
+    out[j++] = (uint8_t)map[64];
+  }
 }
 
 static size_t

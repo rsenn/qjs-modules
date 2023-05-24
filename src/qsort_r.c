@@ -62,8 +62,10 @@ quicksort(char* base, size_t size, ssize_t l, ssize_t r, int (*compar)(const voi
   exch(base, size, i, r);
   j = i - 1;
   ++i;
-  for(k = l; k < p; k++, j--) exch(base, size, k, j);
-  for(k = r - 1; k > q; k--, i++) exch(base, size, i, k);
+  for(k = l; k < p; k++, j--)
+    exch(base, size, k, j);
+  for(k = r - 1; k > q; k--, i++)
+    exch(base, size, i, k);
   quicksort(base, size, l, j, compar, ptr);
   quicksort(base, size, i, r, compar, ptr);
 }

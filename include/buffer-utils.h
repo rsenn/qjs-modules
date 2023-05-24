@@ -335,14 +335,17 @@ static inline void*
 input_buffer_begin(const InputBuffer* in) {
   return input_buffer_data(in);
 }
+
 static inline void*
 input_buffer_end(const InputBuffer* in) {
   return input_buffer_data(in) + input_buffer_length(in);
 }
+
 static inline BOOL
 input_buffer_eof(const InputBuffer* in) {
   return in->pos == input_buffer_length(in);
 }
+
 static inline size_t
 input_buffer_remain(const InputBuffer* in) {
   return input_buffer_length(in) - in->pos;

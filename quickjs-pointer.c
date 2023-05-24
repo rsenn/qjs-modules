@@ -167,7 +167,8 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case METHOD_DOWN: {
       Pointer* res = pointer_clone(ptr, ctx);
       int i;
-      for(i = 0; i < argc; i++) pointer_push(res, ctx, argv[i]);
+      for(i = 0; i < argc; i++)
+        pointer_push(res, ctx, argv[i]);
       return js_pointer_wrap(ctx, res);
     }
     case METHOD_KEYS: {
@@ -187,7 +188,8 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
     case METHOD_PUSH: {
       int i;
-      for(i = 0; i < argc; i++) pointer_push(ptr, ctx, argv[i]);
+      for(i = 0; i < argc; i++)
+        pointer_push(ptr, ctx, argv[i]);
       return JS_DupValue(ctx, this_val);
     }
     case METHOD_CONCAT: {
@@ -295,7 +297,9 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(!(ptr = pointer_new(ctx)))
         return JS_ThrowOutOfMemory(ctx);
       ret = js_pointer_wrap(ctx, ptr);
-      for(i = 0; i < argc; i++) { pointer_push(ptr, ctx, argv[i]); }
+      for(i = 0; i < argc; i++) {
+        pointer_push(ptr, ctx, argv[i]);
+      }
       break;
     }
 
@@ -331,7 +335,8 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
   if((ptr = js_pointer_data(val))) {
     if(ptr->atoms) {
       uint32_t i;
-      for(i = 0; i < ptr->n; i++) JS_FreeAtomRT(rt, ptr->atoms[i]);
+      for(i = 0; i < ptr->n; i++)
+        JS_FreeAtomRT(rt, ptr->atoms[i]);
       js_free_rt(rt, ptr->atoms);
     }
     js_free_rt(rt, ptr);

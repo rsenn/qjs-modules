@@ -414,7 +414,8 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
           if(!libutf_c32_to_c16(cp, &len, u16))
             return JS_ThrowInternalError(ctx, "%s: TextEncoder: not a valid code point at (%zu) [%zu]: %" PRIu32, __func__, i, end - ptr, cp);
 
-          for(int j = 0; j < len; j++) uint16_put_endian(u8 + j * 2, u16[j], enc->endian);
+          for(int j = 0; j < len; j++)
+            uint16_put_endian(u8 + j * 2, u16[j], enc->endian);
 
           if(ringbuffer_append(&enc->buffer, u8, len * sizeof(uint16_t), ctx) < 0)
             return JS_ThrowInternalError(ctx, "TextEncoder: ringbuffer write failed");

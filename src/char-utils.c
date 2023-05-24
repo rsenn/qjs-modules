@@ -25,9 +25,11 @@ token_length(const char* str, size_t len, char delim) {
 size_t
 fmt_ulong(char* dest, uint32_t i) {
   uint32_t len, tmp, len2;
-  for(len = 1, tmp = i; tmp > 9; ++len) tmp /= 10;
+  for(len = 1, tmp = i; tmp > 9; ++len)
+    tmp /= 10;
   if(dest)
-    for(tmp = i, dest += len, len2 = len + 1; --len2; tmp /= 10) *--dest = (char)((tmp % 10) + '0');
+    for(tmp = i, dest += len, len2 = len + 1; --len2; tmp /= 10)
+      *--dest = (char)((tmp % 10) + '0');
   return len;
 }
 
@@ -60,9 +62,11 @@ size_t
 fmt_ulonglong(char* dest, uint64_t i) {
   size_t len;
   uint64_t tmp, len2;
-  for(len = 1, tmp = i; tmp > 9ll; ++len) tmp /= 10ll;
+  for(len = 1, tmp = i; tmp > 9ll; ++len)
+    tmp /= 10ll;
   if(dest)
-    for(tmp = i, dest += len, len2 = len + 1; --len2; tmp /= 10ll) *--dest = (tmp % 10ll) + '0';
+    for(tmp = i, dest += len, len2 = len + 1; --len2; tmp /= 10ll)
+      *--dest = (tmp % 10ll) + '0';
   return len;
 }
 
@@ -71,7 +75,8 @@ fmt_ulonglong(char* dest, uint64_t i) {
 size_t
 fmt_xlonglong(char* dest, uint64_t i) {
   uint64_t len, tmp;
-  for(len = 1, tmp = i; tmp > 15ll; ++len) tmp >>= 4ll;
+  for(len = 1, tmp = i; tmp > 15ll; ++len)
+    tmp >>= 4ll;
   if(dest)
     for(tmp = i, dest += len;;) {
       *--dest = tohex(tmp & 15ll);
@@ -86,7 +91,8 @@ size_t
 fmt_8long(char* dest, uint32_t i) {
   uint32_t len, tmp;
   /* first count the number of bytes needed */
-  for(len = 1, tmp = i; tmp > 7; ++len) tmp >>= 3;
+  for(len = 1, tmp = i; tmp > 7; ++len)
+    tmp >>= 3;
   if(dest)
     for(tmp = i, dest += len;;) {
       *--dest = (char)((tmp & 7) + '0');
@@ -103,7 +109,8 @@ size_t
 fmt_xlong(char* dest, uint32_t i) {
   uint32_t len, tmp;
   /* first count the number of bytes needed */
-  for(len = 1, tmp = i; tmp > 15; ++len) tmp >>= 4;
+  for(len = 1, tmp = i; tmp > 15; ++len)
+    tmp >>= 4;
   if(dest)
     for(tmp = i, dest += len;;) {
       *--dest = tohex(tmp & 15);
@@ -120,7 +127,8 @@ fmt_xlong0(char* dest, uint32_t num, size_t n) {
   len = fmt_xlong(NULL, num);
   if(len < n) {
     len = n - len;
-    while(i < len) dest[i++] = '0';
+    while(i < len)
+      dest[i++] = '0';
   }
   i += fmt_xlong(&dest[i], num);
   return i;
@@ -292,7 +300,9 @@ utf8_towcs(const void* in, wchar_t* ret) {
   size_t i;
 
   const uint8_t* ptr = in;
-  for(i = 0; *ptr; i++) { ret[i] = unicode_from_utf8(ptr, ptr[1] == '\0' ? 1 : ptr[2] == '\0' ? 2 : ptr[3] ? 3 : 4, &ptr); }
+  for(i = 0; *ptr; i++) {
+    ret[i] = unicode_from_utf8(ptr, ptr[1] == '\0' ? 1 : ptr[2] == '\0' ? 2 : ptr[3] ? 3 : 4, &ptr);
+  }
   ret[i] = '\0';
   return i;
 }

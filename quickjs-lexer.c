@@ -474,7 +474,8 @@ static char*
 lexer_current_line(Lexer* lex, JSContext* ctx) {
   size_t size, start = lex->pos;
 
-  while(start > 0 && lex->data[start - 1] != '\n') start--;
+  while(start > 0 && lex->data[start - 1] != '\n')
+    start--;
 
   size = byte_chr((const char*)&lex->data[start], lex->size - start, '\n');
 
@@ -784,7 +785,9 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         size_t n;
         if(argc > 0)
           JS_ToInt32(ctx, &ntimes, argv[0]);
-        while(ntimes-- > 0) { p = input_buffer_get(&lex->input, &n); }
+        while(ntimes-- > 0) {
+          p = input_buffer_get(&lex->input, &n);
+        }
         if(p)
           ret = JS_NewStringLen(ctx, (const char*)p, n);
       }

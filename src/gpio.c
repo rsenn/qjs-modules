@@ -123,6 +123,7 @@ gpio_get_pin(struct gpio* gpio, const uint8_t pin) {
 
   return value;
 }
+
 /**
  * @}
  */

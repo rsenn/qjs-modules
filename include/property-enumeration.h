@@ -65,7 +65,8 @@ property_enumeration_reset(PropertyEnumeration* it, JSRuntime* rt) {
   uint32_t i;
 
   if(it->tab_atom) {
-    for(i = 0; i < it->tab_atom_len; i++) JS_FreeAtomRT(rt, it->tab_atom[i].atom);
+    for(i = 0; i < it->tab_atom_len; i++)
+      JS_FreeAtomRT(rt, it->tab_atom[i].atom);
     orig_js_free_rt(rt, it->tab_atom);
     it->tab_atom = 0;
     it->tab_atom_len = 0;
@@ -250,6 +251,7 @@ property_recursion_next(Vector* vec, JSContext* ctx) {
 
   return 0;
 }
+
 /**
  * @}
  */

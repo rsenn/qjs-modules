@@ -488,6 +488,7 @@ js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   }
   return ret;
 }
+
 enum { PROP_STATE };
 
 static JSValue
@@ -506,6 +507,7 @@ js_repeater_get(JSContext* ctx, JSValueConst this_val, int magic) {
   }
   return ret;
 }
+
 static void
 repeater_finalizer(JSRuntime* rt, Repeater* rpt) {
   if(--rpt->ref_count == 0) {

@@ -243,7 +243,8 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
 
 static inline void
 xml_write_indent(DynBuf* db, int32_t depth) {
-  while(depth-- > 0) dbuf_putstr(db, "  ");
+  while(depth-- > 0)
+    dbuf_putstr(db, "  ");
 }
 
 static void
@@ -290,7 +291,8 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth, BOO
   if(multiline)
     xml_write_indent(db, depth);
   else {
-    while(db->size > 0 && is_whitespace_char(db->buf[db->size - 1])) db->size--;
+    while(db->size > 0 && is_whitespace_char(db->buf[db->size - 1]))
+      db->size--;
   }
   xml_write_string(ctx, textStr, textLen, db, multiline ? depth : 0);
   js_cstring_free(ctx, textStr);
@@ -483,7 +485,8 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       }
 
       if(!inside_script)
-        while(len > 0 && is_whitespace_char(start[len - 1])) len--;
+        while(len > 0 && is_whitespace_char(start[len - 1]))
+          len--;
 
       if(len > 0) {
         JSValue str = JS_NewStringLen(ctx, (const char*)start, len);
@@ -752,7 +755,8 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
     JS_FreeValue(ctx, value);
   } while((it = xml_enumeration_next(&enumerations, ctx, output, max_depth)));
 
-  while(output->size > 0 && (output->buf[output->size - 1] == '\0' || byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4)) output->size--;
+  while(output->size > 0 && (output->buf[output->size - 1] == '\0' || byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4))
+    output->size--;
   dbuf_putc(output, '\0');
 
   str = JS_NewString(ctx, (const char*)output->buf);

@@ -86,9 +86,7 @@ if(NOT HAVE_VFORK)
   endif(HAVE_FORK)
 endif(NOT HAVE_VFORK)
 
-if(NOT HAVE_EXECVPE)
-  check_functions_def(execve)
-endif(NOT HAVE_EXECVPE)
+check_functions_def(execve execvpe)
 
 #[[if(ANDROID)
   option(USE_SPAWN "Use POSIX spawn()" OFF)
@@ -136,14 +134,25 @@ check_function_def(strverscmp)
 check_function_def(memmem)
 check_function_def(fmemopen)
 check_functions(fcntl wordexp inotify_init1)
-check_includes(fcntl.h alloca.h fnmatch.h wordexp.h sys/inotify.h)
+check_includes(fcntl.h alloca.h  wordexp.h sys/inotify.h)
 
 check_functions_def(access fnmatch inet_pton daemon)
 
 message("Have daemon() ${HAVE_DAEMON}")
 
+message("CMAKE_REQUIRED_INCLUDES: ${CMAKE_REQUIRED_INCLUDES}")
+message("CMAKE_INCLUDE_PATH: ${CMAKE_INCLUDE_PATH}")
+message("CMAKE_SYSTEM_INCLUDE_PATH: ${CMAKE_SYSTEM_INCLUDE_PATH}")
+
+check_include_file(fnmatch.h HAVE_FNMATCH_H_2)
+#check_include_def(fnmatch.h)
+
+message("HAVE_FNMATCH_H_2: ${HAVE_FNMATCH_H_2}")
+
 check_function_and_include(fcntl fcntl.h)
 check_function_and_include(fnmatch fnmatch.h)
+message("HAVE_FNMATCH_H: ${HAVE_FNMATCH_H}")
+
 check_function_and_include(glob glob.h)
 check_function_and_include(wordexp wordexp.h)
 
@@ -435,7 +444,7 @@ if(BUILD_LIBSERIALPORT)
   endif(WIN32)
 endif(BUILD_LIBSERIALPORT)
 
-set(serial_SOURCES quickjs-serial.c)
+set(serial_SOURCES quickjs-serial.c ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(serial_DEPS libserialport)
 set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
 #if(WIN32 OR MSYS)

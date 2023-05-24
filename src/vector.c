@@ -170,6 +170,7 @@ vector_intersection(void* a, size_t m, void* b, size_t n, size_t elsz, Vector* o
     }
   }
 }
+
 /*
 ssize_t
 vector_find(Vector* vec, size_t elsz, const void* ptr) {

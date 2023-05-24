@@ -324,6 +324,7 @@ virtual_properties_copy(const VirtualProperties* vprop, VirtualProperties* dest,
 
   dest->opaque = vprop->dup ? opaque_dup(vprop->dup, vprop->opaque, ctx) : vprop->opaque;
 }
+
 /**
  * @}
  */

@@ -98,7 +98,9 @@ argv_to_string(char* const* argv, char delim) {
   if(argv == NULL)
     return NULL;
 
-  for(i = 0, len = 0; argv[i]; i++) { len += strlen(argv[i]) + 1; }
+  for(i = 0, len = 0; argv[i]; i++) {
+    len += strlen(argv[i]) + 1;
+  }
 
   str = ptr = (char*)malloc(len + 1);
   if(str == NULL)
@@ -210,7 +212,8 @@ child_process_spawn(ChildProcess* cp) {
 #else
     if(cp->env) {
       size_t i;
-      for(i = 0; cp->env[i]; i++) putenv(cp->env[i]);
+      for(i = 0; cp->env[i]; i++)
+        putenv(cp->env[i]);
     }
     execvp(cp->file, cp->args);
     perror("execvp()");

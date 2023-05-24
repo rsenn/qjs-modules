@@ -268,14 +268,16 @@ str_count(const char* s, char c) {
 static inline size_t
 str_copy(char* out, const char* in) {
   char* s;
-  for(s = out; (*s = *in); ++s) ++in;
+  for(s = out; (*s = *in); ++s)
+    ++in;
   return (size_t)(s - out);
 }
 
 static inline size_t
 str_copyn(char* out, const char* in, size_t n) {
   char* s;
-  for(s = out; n-- && (*s = *in); ++s) ++in;
+  for(s = out; n-- && (*s = *in); ++s)
+    ++in;
   *s = '\0';
   return (size_t)(s - out);
 }

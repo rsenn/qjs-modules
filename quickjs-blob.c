@@ -159,7 +159,8 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
 
         for(i = 0; i < len; i++) {
           if(blob_write(ctx, blob, input_buffer_data(&parts[i]), input_buffer_length(&parts[i])) == -1) {
-            while(i < len) input_buffer_free(&parts[i++], ctx);
+            while(i < len)
+              input_buffer_free(&parts[i++], ctx);
             blob_free(JS_GetRuntime(ctx), blob);
             js_free(ctx, parts);
             return JS_ThrowInternalError(ctx, "blob_write returned -1");

@@ -784,7 +784,8 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       ptr2 = ptr->prev;
 
-      for(i = 2; i < argc; i++) ptr2 = list_insert(list, ptr2, argv[i], ctx);
+      for(i = 2; i < argc; i++)
+        ptr2 = list_insert(list, ptr2, argv[i], ctx);
 
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
@@ -877,7 +878,8 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       ptr = iter->link;
 
-      for(int i = 1; i < argc; i++) ptr = list_insert(list, ptr, argv[i], ctx);
+      for(int i = 1; i < argc; i++)
+        ptr = list_insert(list, ptr, argv[i], ctx);
       break;
     }
   }
@@ -1166,7 +1168,8 @@ js_list_static(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(!(list = list_new(ctx)))
         return JS_ThrowOutOfMemory(ctx);
 
-      for(int i = 0; i < argc; i++) list_push(list, argv[i], ctx);
+      for(int i = 0; i < argc; i++)
+        list_push(list, argv[i], ctx);
 
       ret = js_list_wrap(ctx, list_proto, list);
       break;
@@ -1317,13 +1320,15 @@ js_list_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst
 
   if(js_atom_is_index(ctx, &index, prop)) {
     if(index >= (int64_t)list->size) {
-      for(int64_t i = list->size; i < index; i++) list_push(list, JS_UNDEFINED, ctx);
+      for(int64_t i = list->size; i < index; i++)
+        list_push(list, JS_UNDEFINED, ctx);
 
       list_push(list, value, ctx);
 
     } else if(index < 0) {
 
-      for(int64_t i = index; i < -1; i++) list_unshift(list, JS_UNDEFINED, ctx);
+      for(int64_t i = index; i < -1; i++)
+        list_unshift(list, JS_UNDEFINED, ctx);
 
       list_unshift(list, value, ctx);
     } else {

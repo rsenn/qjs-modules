@@ -169,7 +169,9 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(magic_load_buffers(cookie, pointers, sizes, argc))
         ret = JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
 
-      for(int i = 0; i < argc; i++) { input_buffer_free(&buf[i], ctx); }
+      for(int i = 0; i < argc; i++) {
+        input_buffer_free(&buf[i], ctx);
+      }
 
       break;
     }

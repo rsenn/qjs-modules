@@ -205,7 +205,9 @@ js_archive_getter(JSContext* ctx, JSValueConst this_val, int magic) {
     case ARCHIVE_PROP_FILTERS: {
       int i, num_filters = archive_filter_count(ar);
       ret = JS_NewArray(ctx);
-      for(i = 0; i < num_filters; i++) { JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, archive_filter_name(ar, i))); }
+      for(i = 0; i < num_filters; i++) {
+        JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, archive_filter_name(ar, i)));
+      }
       break;
     }
     case ARCHIVE_PROP_FILECOUNT: {

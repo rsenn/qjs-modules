@@ -228,7 +228,8 @@ js_intv_to_array(JSContext* ctx, int* intv, size_t len) {
   JSValue ret = JS_NewArray(ctx);
   if(intv) {
     size_t i;
-    for(i = 0; i < len; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
+    for(i = 0; i < len; i++)
+      JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
   }
   return ret;
 }
@@ -320,7 +321,8 @@ js_strv_copys(JSContext* ctx, int argc, JSValueConst argv[], int n, char** stra)
     else
       stra[i] = 0;
   }
-  for(; i < n; i++) stra[i] = 0;
+  for(; i < n; i++)
+    stra[i] = 0;
 
   return i;
 }
@@ -514,8 +516,10 @@ js_function_bound(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   int i = 0, j = 0, k = ABS_NUM(magic), l = SIGN_NUM(magic);
   JSValue args[argc + k];
 
-  for(i = 0; i < magic; i++) args[i] = func_data[i + 1];
-  for(j = 0; j < argc; j++) args[i++] = argv[j];
+  for(i = 0; i < magic; i++)
+    args[i] = func_data[i + 1];
+  for(j = 0; j < argc; j++)
+    args[i++] = argv[j];
 
   return JS_Call(ctx, func_data[0], l ? args[0] : this_val, i, args + l);
 }
@@ -525,7 +529,8 @@ js_function_bind(JSContext* ctx, JSValueConst func, int argc, JSValueConst argv[
   JSValue data[argc + 1];
   int i;
   data[0] = JS_DupValue(ctx, func);
-  for(i = 0; i < argc; i++) data[i + 1] = JS_DupValue(ctx, argv[i]);
+  for(i = 0; i < argc; i++)
+    data[i + 1] = JS_DupValue(ctx, argv[i]);
   return JS_NewCFunctionData(ctx, js_function_bound, 0, argc, argc + 1, data);
 }
 
@@ -534,8 +539,10 @@ js_function_bound_this(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   int bound_args = magic;
   int i, j;
   JSValue args[argc + bound_args];
-  for(i = 0; i < bound_args; i++) args[i] = func_data[i + 2];
-  for(j = 0; j < argc; j++) args[i + j] = argv[j];
+  for(i = 0; i < bound_args; i++)
+    args[i] = func_data[i + 2];
+  for(j = 0; j < argc; j++)
+    args[i + j] = argv[j];
 
   return JS_Call(ctx, func_data[0], func_data[1], bound_args + argc, args);
 }
@@ -553,7 +560,8 @@ js_function_bind_this_args(JSContext* ctx, JSValueConst func, JSValueConst this_
   JSValue data[2 + argc];
   data[0] = JS_DupValue(ctx, func);
   data[1] = JS_DupValue(ctx, this_val);
-  for(int i = 0; i < argc; i++) data[2 + i] = JS_DupValue(ctx, argv[i]);
+  for(int i = 0; i < argc; i++)
+    data[2 + i] = JS_DupValue(ctx, argv[i]);
   return JS_NewCFunctionData(ctx, js_function_bound_this, js_function_argc(ctx, func), argc, argc, data);
 }
 
@@ -1143,7 +1151,8 @@ js_propenum_cmp(const void* a, const void* b, void* ptr) {
 void
 js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
   uint32_t i;
-  for(i = 0; i < len; i++) JS_FreeAtom(ctx, props[i].atom);
+  for(i = 0; i < len; i++)
+    JS_FreeAtom(ctx, props[i].atom);
   // js_free(ctx, props);
 }
 
@@ -1164,7 +1173,9 @@ js_strv_free(JSContext* ctx, char** strv) {
   if(strv == 0)
     return;
 
-  for(i = 0; strv[i]; i++) { js_free(ctx, strv[i]); }
+  for(i = 0; strv[i]; i++) {
+    js_free(ctx, strv[i]);
+  }
   js_free(ctx, strv);
 }
 
@@ -1174,7 +1185,9 @@ js_strv_free_rt(JSRuntime* rt, char** strv) {
   if(strv == 0)
     return;
 
-  for(i = 0; strv[i]; i++) { js_free_rt(rt, strv[i]); }
+  for(i = 0; strv[i]; i++) {
+    js_free_rt(rt, strv[i]);
+  }
   js_free_rt(rt, strv);
 }
 
@@ -1183,7 +1196,8 @@ js_strv_to_array(JSContext* ctx, char** strv) {
   JSValue ret = JS_NewArray(ctx);
   if(strv) {
     size_t i;
-    for(i = 0; strv[i]; i++) JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, strv[i]));
+    for(i = 0; strv[i]; i++)
+      JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, strv[i]));
   }
   return ret;
 }
@@ -1200,7 +1214,9 @@ js_strv_dup(JSContext* ctx, char** strv) {
   char** ret;
   size_t i, len = js_strv_length(strv);
   ret = js_malloc(ctx, (len + 1) * sizeof(char*));
-  for(i = 0; i < len; i++) { ret[i] = js_strdup(ctx, strv[i]); }
+  for(i = 0; i < len; i++) {
+    ret[i] = js_strdup(ctx, strv[i]);
+  }
   ret[i] = 0;
   return ret;
 }
@@ -1281,9 +1297,11 @@ JSValue*
 js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values) {
   JSValue* ret = js_mallocz_rt(ctx->rt, sizeof(JSValue) * nvalues);
   int i;
-  for(i = 0; i < nvalues; i++) ret[i] = JS_DupValueRT(ctx->rt, values[i]);
+  for(i = 0; i < nvalues; i++)
+    ret[i] = JS_DupValueRT(ctx->rt, values[i]);
   return ret;
 }
+
 /*
 void
 js_values_free(JSContext* ctx, int nvalues, JSValueConst* values) {
@@ -1295,7 +1313,8 @@ js_values_free(JSContext* ctx, int nvalues, JSValueConst* values) {
 void
 js_values_free(JSRuntime* rt, int nvalues, JSValueConst* values) {
   int i;
-  for(i = 0; i < nvalues; i++) JS_FreeValueRT(rt, values[i]);
+  for(i = 0; i < nvalues; i++)
+    JS_FreeValueRT(rt, values[i]);
   js_free_rt(rt, values);
 }
 
@@ -1303,7 +1322,8 @@ JSValue
 js_values_toarray(JSContext* ctx, int nvalues, JSValueConst* values) {
   int i;
   JSValue ret = JS_NewArray(ctx);
-  for(i = 0; i < nvalues; i++) JS_SetPropertyUint32(ctx, ret, i, JS_DupValue(ctx, values[i]));
+  for(i = 0; i < nvalues; i++)
+    JS_SetPropertyUint32(ctx, ret, i, JS_DupValue(ctx, values[i]));
   return ret;
 }
 
@@ -1315,7 +1335,9 @@ js_values_fromarray(JSContext* ctx, size_t* nvalues_p, JSValueConst arr) {
   if(nvalues_p)
     *nvalues_p = len;
 
-  for(i = 0; i < len; i++) { ret[i] = JS_GetPropertyUint32(ctx, arr, i); }
+  for(i = 0; i < len; i++) {
+    ret[i] = JS_GetPropertyUint32(ctx, arr, i);
+  }
   return ret;
 }
 
@@ -2511,6 +2533,7 @@ js_call_handler(JSContext* ctx, JSValueConst func) {
     js_std_dump_error(ctx);
   JS_FreeValue(ctx, ret);
 }
+
 void*
 js_sab_alloc(void* opaque, size_t size) {
   JSSABHeader* sab;
@@ -2520,6 +2543,7 @@ js_sab_alloc(void* opaque, size_t size) {
   sab->ref_count = 1;
   return sab->buf;
 }
+
 void
 js_sab_free(void* opaque, void* ptr) {
   JSSABHeader* sab;
@@ -2777,16 +2801,20 @@ arguments_alloc(Arguments* args, JSContext* ctx, int n) {
   if(args->a) {
     if(!(args->v = js_realloc(ctx, args->v, sizeof(char*) * (n + 1))))
       return FALSE;
-    for(i = args->c; i < args->a; i++) args->v[i] = 0;
+    for(i = args->c; i < args->a; i++)
+      args->v[i] = 0;
     args->a = n;
   } else {
     char** v;
     if(!(v = js_mallocz(ctx, sizeof(char*) * (n + 1))))
       return FALSE;
     c = MIN_NUM(args->c, n);
-    for(i = 0; i < c; i++) v[i] = js_strdup(ctx, args->v[i]);
-    for(j = c; j < args->c; j++) js_free(ctx, (void*)args->v[j]);
-    for(j = i; j <= n; j++) v[j] = 0;
+    for(i = 0; i < c; i++)
+      v[i] = js_strdup(ctx, args->v[i]);
+    for(j = c; j < args->c; j++)
+      js_free(ctx, (void*)args->v[j]);
+    for(j = i; j <= n; j++)
+      v[j] = 0;
     args->v = (const char**)v;
     args->c = c;
     args->a = n;
@@ -2814,7 +2842,8 @@ js_arguments_alloc(JSArguments* args, JSContext* ctx, int n) {
     if(!(args->v = js_realloc(ctx, args->v, sizeof(JSValueConst) * (n + 1))))
       return FALSE;
 
-    for(i = args->c; i < args->a; i++) args->v[i] = JS_UNDEFINED;
+    for(i = args->c; i < args->a; i++)
+      args->v[i] = JS_UNDEFINED;
   } else {
     JSValueConst* v;
 
@@ -2897,7 +2926,9 @@ js_towstringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
     ret = js_mallocz(ctx, sizeof(wchar_t) * (len + 1));
     const uint8_t *ptr = (const uint8_t*)cstr, *end = (const uint8_t*)cstr + len;
 
-    for(i = 0; ptr < end;) { ret[i++] = unicode_from_utf8(ptr, end - ptr, &ptr); }
+    for(i = 0; ptr < end;) {
+      ret[i++] = unicode_from_utf8(ptr, end - ptr, &ptr);
+    }
 
     if(lenp)
       *lenp = i;
@@ -3007,8 +3038,10 @@ js_cclosure_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, i
   /* XXX: could add the function on the stack for debug */
   if(unlikely(argc < ccr->length)) {
     arg_buf = alloca(sizeof(arg_buf[0]) * ccr->length);
-    for(i = 0; i < argc; i++) arg_buf[i] = argv[i];
-    for(i = argc; i < ccr->length; i++) arg_buf[i] = JS_UNDEFINED;
+    for(i = 0; i < argc; i++)
+      arg_buf[i] = argv[i];
+    for(i = argc; i < ccr->length; i++)
+      arg_buf[i] = JS_UNDEFINED;
   } else {
     arg_buf = argv;
   }

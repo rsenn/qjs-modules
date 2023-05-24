@@ -77,23 +77,32 @@ int
 getdents_isblk(const DirEntry* e) {
   return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DEVICE);
 }
+
 int
 getdents_ischr(const DirEntry* e) {
   return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DEVICE);
 }
+
 int
 getdents_isdir(const DirEntry* e) {
   return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
-// int getdents_isfifo(const DirEntry* e) { return
-// !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes==FILE_ATTRIBUTE_DIRECTORY);  }
+
 int
-getdents_islnk(const DirEntry* e) { return  ((WIN32_FIND_DATAW*)e)->dwFileAttributes&FILE_ATTRIBUTE_REPARSE_POINT);
+getdents_isfifo(const DirEntry* e) {
+  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY);
 }
+
+int
+getdents_islnk(const DirEntry* e) {
+  return ((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT;
+}
+
 int
 getdents_isreg(const DirEntry* e) {
   return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_NORMAL);
 }
+
 int
 getdents_issock(const DirEntry* e) {
   return 0;
@@ -206,26 +215,32 @@ int
 getdents_isblk(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_type == DT_BLK;
 }
+
 int
 getdents_ischr(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_type == DT_CHR;
 }
+
 int
 getdents_isdir(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_type == DT_DIR;
 }
+
 int
 getdents_isfifo(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_type == DT_FIFO;
 }
+
 int
 getdents_islnk(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_type == DT_LNK;
 }
+
 int
 getdents_isreg(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_type == DT_REG;
 }
+
 int
 getdents_issock(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_type == DT_SOCK;

@@ -236,7 +236,8 @@ connectparams_init(JSContext* ctx, MYSQLConnectParameters* c, int argc, JSValueC
 
     connectparams_init(ctx, c, countof(args), args);
 
-    for(size_t i = 0; i < countof(args); i++) JS_FreeValue(ctx, args[i]);
+    for(size_t i = 0; i < countof(args); i++)
+      JS_FreeValue(ctx, args[i]);
   } else {
     c->host = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
     c->user = argc > 1 ? JS_ToCString(ctx, argv[1]) : 0;
@@ -1602,7 +1603,8 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
         ret = JS_NewArray(ctx);
 
-        for(i = 0; i < num_fields; i++) JS_SetPropertyUint32(ctx, ret, i, field_array(ctx, &fields[i]));
+        for(i = 0; i < num_fields; i++)
+          JS_SetPropertyUint32(ctx, ret, i, field_array(ctx, &fields[i]));
       }
       break;
     }

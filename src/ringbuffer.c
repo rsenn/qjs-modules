@@ -64,7 +64,8 @@ ringbuffer_read(RingBuffer* r, void* x, size_t len) {
   if(ringbuffer_empty(r))
     return -1;
 
-  for(i = 0; i < len; i++) ringbuffer_dequeue(r, &p[i]);
+  for(i = 0; i < len; i++)
+    ringbuffer_dequeue(r, &p[i]);
 
   return i;
 }
@@ -129,6 +130,7 @@ ringbuffer_reserve(RingBuffer* rb, size_t min_bytes) {
 
   return ringbuffer_end(rb);
 }
+
 /**
  * @}
  */

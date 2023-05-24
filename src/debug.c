@@ -393,18 +393,22 @@ void*
 orig_malloc(size_t size) {
   return malloc(size);
 }
+
 void*
 orig_calloc(size_t nelem, size_t elemsz) {
   return calloc(nelem, elemsz);
 }
+
 void*
 orig_realloc(void* ptr, size_t size) {
   return realloc(ptr, size);
 }
+
 void*
 orig_strdup(const char* str) {
   return strdup(str);
 }
+
 void
 orig_free(void* ptr) {
   free(ptr);
@@ -449,18 +453,22 @@ void*
 orig_js_malloc_rt(JSRuntime* rt, size_t size) {
   return js_malloc_rt(rt, size);
 }
+
 void*
 orig_js_mallocz_rt(JSRuntime* rt, size_t size) {
   return js_mallocz_rt(rt, size);
 }
+
 void*
 orig_js_realloc_rt(JSRuntime* rt, void* p, size_t size) {
   return js_realloc_rt(rt, p, size);
 }
+
 size_t
 orig_js_malloc_usable_size_rt(JSRuntime* rt, const void* p) {
   return js_malloc_usable_size_rt(rt, p);
 }
+
 void
 orig_js_free_rt(JSRuntime* rt, void* p) {
   return js_free_rt(rt, p);
