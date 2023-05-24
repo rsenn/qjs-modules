@@ -28,7 +28,7 @@ char is_junction(const char*);
 #define PATH_FNM_NOESCAPE (1 << 1)
 #define PATH_FNM_PERIOD (1 << 2)
 
-#if defined(__MINGW32__) || defined(__MSYS__) || defined(__CYGWIN__)
+#if /*defined(__MINGW32__) ||*/ defined(__MSYS__) || defined(__CYGWIN__)
 #define PATHSEP_S "/"
 #define PATHSEP_C '/'
 #define PATHDELIM_S ";"
@@ -100,6 +100,7 @@ const char* path_extname1(const char* p);
 int path_fnmatch5(const char* pattern, size_t plen, const char* string, size_t slen, int flags);
 char* path_getcwd1(DynBuf* db);
 char* path_getcwd0(void);
+char* path_gethome(void);
 char* path_gethome1(int uid);
 int path_stat2(const char* p, size_t plen, struct stat* st);
 int path_isabsolute2(const char* x, size_t n);

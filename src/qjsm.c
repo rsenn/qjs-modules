@@ -978,12 +978,12 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
 static void
 jsm_module_save(void) {
-  char* home = path_gethome1(getuid());
+  char* home = path_gethome();
   DynBuf db;
   FILE* f;
 
   dbuf_init2(&db, 0, 0);
-  path_concat3(home, "/.qjsm_modules", &db);
+  path_concat3(home, PATHSEP_S ".qjsm_modules", &db);
 
   if((f = fopen(db.buf, "w"))) {
     char** ptr;
@@ -1004,10 +1004,10 @@ jsm_module_save(void) {
 
 static void
 jsm_module_restore(void) {
-  char* home = path_gethome1(getuid());
+  char* home = path_gethome();
   DynBuf db;
   dbuf_init2(&db, 0, 0);
-  path_concat3(home, "/.qjsm_modules", &db);
+  path_concat3(home, PATHSEP_S ".qjsm_modules", &db);
 
   FILE* f;
   char buf[1024];

@@ -7,6 +7,10 @@
 #define lstat stat
 #endif
 
+#ifdef _WIN32
+#include <shlobj.h>
+#endif
+
 static int
 path_canonical_buf(DynBuf* db) {
   db->size = path_normalize2((char*)db->buf, db->size);
@@ -723,11 +727,23 @@ path_getcwd0(void) {
 }
 
 char*
+path_gethome(void) {
+   static char home[PATH_MAX + 1];
+ #if defined(_WIN32)
+   if (SHGetFolderPathA( NULL, CSIDL_PROFILE, NULL, 0, home ) != S_OK)
+    return 0;
+   return home;
+#else
+  return getenv("HOME");
+#endif
+}
+
+char*
 path_gethome1(int uid) {
+   static char home[PATH_MAX + 1];
   FILE* fp;
   char *line, *ret = 0;
   char buf[1024];
-  static char home[PATH_MAX + 1];
   if((fp = fopen("/etc/passwd", "r"))) {
     while((line = fgets(buf, sizeof(buf) - 1, fp))) {
       size_t p, n, len = strlen(line);
@@ -761,8 +777,6 @@ path_gethome1(int uid) {
 
     fclose(fp);
   }
-  if(ret == 0)
-    ret = getenv("HOME");
   return ret;
 }
 
