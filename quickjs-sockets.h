@@ -33,9 +33,10 @@ typedef union {
   int32_t ret
 
 PACK union socket_state {
-  struct {
+  PACK struct {
     SOCKET_PROPS();
   };
+  ENDPACK
   uint64_t u64;
   void* ptr;
 };
