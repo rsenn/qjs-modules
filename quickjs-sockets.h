@@ -26,11 +26,11 @@ typedef union {
 } SockAddr;
 
 #define SOCKET_PROPS() \
-  uint16_t fd; \
+  unsigned fd :16; \
   unsigned error : 8; \
   unsigned syscall : 4; \
   BOOL nonblock : 1, async : 1, owner : 1; \
-  int32_t ret
+  signed ret : 32
 
 PACK union socket_state {
   PACK struct {
