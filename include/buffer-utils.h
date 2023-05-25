@@ -226,7 +226,7 @@ offset_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
   JSValue ret;
   size_t offset, length;
 
-  ret = JS_GetTypedArrayBuffer(ctx, ret, &offset, &length, NULL);
+  ret = JS_GetTypedArrayBuffer(ctx, array, &offset, &length, NULL);
 
   if(!JS_IsException(ret)) {
     ol->offset = offset;

@@ -2145,12 +2145,12 @@ js_module_at(JSContext* ctx, int index) {
 
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
-   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "ArrayBuffer") || js_object_is(ctx, value, "[object ArrayBuffer]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "ArrayBuffer") || js_object_is(ctx, value, "[object ArrayBuffer]"));
 }
 
 BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
-   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "SharedArrayBuffer") || js_object_is(ctx, value, "[object SharedArrayBuffer]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "SharedArrayBuffer") || js_object_is(ctx, value, "[object SharedArrayBuffer]"));
 }
 
 BOOL
@@ -2170,7 +2170,18 @@ js_is_set(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_generator(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&  js_object_is(ctx, value, "[object Generator]"));
+  JSValue ctor = js_generator_constructor(ctx);
+  BOOL ret = JS_IsInstanceOf(ctx, value, ctor);
+  JS_FreeValue(ctx, ctor);
+  return ret || (JS_IsObject(value) && js_object_is(ctx, value, "[object Generator]"));
+}
+
+BOOL
+js_is_asyncgenerator(JSContext* ctx, JSValueConst value) {
+  JSValue ctor = js_asyncgenerator_constructor(ctx);
+  BOOL ret = JS_IsInstanceOf(ctx, value, ctor);
+  JS_FreeValue(ctx, ctor);
+  return ret || (JS_IsObject(value) && js_object_is(ctx, value, "[object AsyncGenerator]"));
 }
 
 BOOL

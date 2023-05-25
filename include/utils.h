@@ -700,6 +700,7 @@ BOOL js_is_date(JSContext*, JSValueConst);
 BOOL js_is_map(JSContext*, JSValueConst);
 BOOL js_is_set(JSContext*, JSValueConst);
 BOOL js_is_generator(JSContext*, JSValueConst);
+BOOL js_is_asyncgenerator(JSContext*, JSValueConst);
 BOOL js_is_regexp(JSContext*, JSValueConst);
 BOOL js_is_promise(JSContext*, JSValueConst);
 BOOL js_is_dataview(JSContext*, JSValueConst);
@@ -967,13 +968,24 @@ js_is_identifier(JSContext* ctx, const char* str) {
 
 JSValue js_generator_prototype(JSContext*);
 
-static inline JSValue js_generator_constructor(JSContext*ctx) {
-  JSValue proto= js_generator_prototype(ctx);
-  JSValue ret=js_object_constructor(ctx, proto);
+static inline JSValue
+js_generator_constructor(JSContext* ctx) {
+  JSValue proto = js_generator_prototype(ctx);
+  JSValue ret = js_object_constructor(ctx, proto);
   JS_FreeValue(ctx, proto);
   return ret;
 }
+
 JSValue js_asyncgenerator_prototype(JSContext*);
+
+static inline JSValue
+js_asyncgenerator_constructor(JSContext* ctx) {
+  JSValue proto = js_asyncgenerator_prototype(ctx);
+  JSValue ret = js_object_constructor(ctx, proto);
+  JS_FreeValue(ctx, proto);
+  return ret;
+}
+
 JSValue js_set_iterator_prototype(JSContext*);
 
 /**
