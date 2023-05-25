@@ -473,26 +473,6 @@ InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
 
-  /*f(JS_IsException(ret.value)) {
-    JS_GetException(ctx);
-    if(js_is_typedarray(ctx, value) || js_is_dataview(ctx, value)) {
-      JSValue byteoffs, bytelen;
-      int64_t offset = 0, length = INT64_MAX;
-      ret.value = JS_GetPropertyStr(ctx, value, "buffer");
-      bytelen = JS_GetPropertyStr(ctx, value, "byteLength");
-      if(JS_IsNumber(bytelen))
-        JS_ToInt64(ctx, &length, bytelen);
-      JS_FreeValue(ctx, bytelen);
-      byteoffs = JS_GetPropertyStr(ctx, value, "byteOffset");
-      if(JS_IsNumber(byteoffs))
-        JS_ToInt64(ctx, &offset, byteoffs);
-      JS_FreeValue(ctx, byteoffs);
-      ret.range = (OffsetLength){offset, length};
-    } else {
-      ret.value = JS_DupValue(ctx, value);
-    }
-  }*/
-
   if(js_is_typedarray(ctx, value)) {
     ret.value = offset_typedarray(&ret.range, value, ctx);
   } else if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value)) {
@@ -505,16 +485,6 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     JS_FreeValue(ctx, ret.value);
     ret.value = JS_ThrowTypeError(ctx, "Invalid type for input buffer");
   }
-
-  /* if(offset < 0)
-     ret.range.offset = ret.size + offset % ret.size;
-   else if(offset > ret.size)
-     ret.range.offset = ret.size;
-   else
-     ret.range.offset = offset;
-
-   if(ret.range.length > ret.size)
-     ret.range.length = length;*/
 
   return ret;
 }

@@ -82,9 +82,9 @@ function main(...args) {
     '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
     false
   );
-  repl.show = repl.printFunction((...args) => console.log(...args));
-  repl.historyLoad(null, fs);
+  repl.historyLoad(null);
   repl.loadSaveOptions();
+  /*repl.show = repl.printFunction((...args) => console.log(...args));
   repl.directives = {
     i: [
       name => {
@@ -118,12 +118,12 @@ function main(...args) {
       },
       'import a module'
     ]
-  };
+  };*/
 
   for(let arg of params['@']) {
     parse(arg);
   }
-  repl.runSync();
+  repl.run();
 }
 
 try {

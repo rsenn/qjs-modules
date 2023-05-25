@@ -180,7 +180,7 @@ is_self_closing_tag(const char* name, size_t namelen, const ParseOptions* opts) 
   for(v = (const char**)opts->self_closing_tags; *v; v++) {
     size_t n = strlen(*v);
 
-    if(n == namelen && !strncmp(name, *v, namelen))
+    if(n == namelen && !strncasecmp(name, *v, namelen))
       return TRUE;
   }
 
