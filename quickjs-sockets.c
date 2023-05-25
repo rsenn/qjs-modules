@@ -23,6 +23,8 @@ int socketpair(int, int, int, SOCKET[2]);
 #include <errno.h>
 
 #include "debug.h"
+  
+static_assert(sizeof(Socket) <= sizeof(void*));
 
 /**
  * \addtogroup quickjs-sockets
