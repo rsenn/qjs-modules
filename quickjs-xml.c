@@ -228,10 +228,10 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
     dbuf_putc(db, ' ');
     dbuf_putstr(db, keystr);
     if(!(JS_IsBool(value) && JS_ToBool(ctx, value))) {
-      valuestr = property_enumeration_valuestr(&props, ctx);
+      valuestr = JS_ToCString(ctx, value);
       dbuf_putstr(db, "=\"");
       dbuf_putstr(db, valuestr);
-      js_cstring_free(ctx, valuestr);
+      JS_FreeCString(ctx, valuestr);
       dbuf_putc(db, '"');
     }
     js_cstring_free(ctx, keystr);

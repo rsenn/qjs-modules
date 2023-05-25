@@ -33,39 +33,6 @@ const inspectOptions = {
 function main(...args) {
   globalThis.console = new Console({ inspectOptions });
   console.options.compact = 3;
-  // console.log('deep:', deep);
-  /*  let data = std.loadFile(args[0] ?? 'FM-Radio-Receiver-1.5V.xml', 'utf-8');
-
-  let result = xml.read(data);
-  console.log('result:', inspect(result, inspectOptions));*/
-
-  /* let found = deep.find(result, n => typeof n == 'object' && n != null && n.tagName == 'elements');
-
-  console.log('found:', inspect(found, inspectOptions));
-
-  console.log('array:', inspect([, , , , 4, 5, 6, , ,], inspectOptions));
-  let testObj = {};
-
-  deep.set(testObj, 'a.0.b.0.c\\.x.0', null);
-  deep.unset(testObj, 'a.0.b.0');
-  console.log('testObj: ' + inspect(testObj, inspectOptions));
-
-  let out = new Map();
-
-  console.log('deep.MASK_STRING:', deep.MASK_NUMBER);
-  console.log('deep:', deep);
-
-  let clone = [];
-
-  for(let [pointer, value] of out) {
-    deep.set(clone, pointer, value);
-  }
-
- let node = deep.get(result, '2.children.0.children.3.children.8.children.13.children.20');
-  console.log('get():', node);
-  let path = deep.pathOf(result, node);
-  console.log('pathOf():', path);
-*/
 
   let obj1 = {
     a: [undefined, 1, 1234n],
@@ -175,4 +142,14 @@ try {
   std.exit(1);
 } finally {
   console.log('SUCCESS');
+}
+
+function* JSON_Iterator(obj) {
+  for(let [value, path] of deep.iterate(obj, n => true, deep.RETURN_VALUE_PATH)) {
+    console.log('JSON_Iterator', console.config({ depth: 1 }), {
+      value,
+      key: path[path.length - 1],
+      depth: path.length
+    });
+  }
 }

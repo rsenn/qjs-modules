@@ -224,10 +224,6 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if((max_depth = (uint32_t)it->flags & 0xffffff) == 0)
     max_depth = INT32_MAX;
 
-  // penum = property_recursion_push(&it->frames, ctx, JS_DupValue(ctx,
-  // it->root), PROPENUM_DEFAULT_FLAGS);
-  //
-  //
   if(!JS_IsObject(it->root)) {
     *pdone = TRUE;
     return JS_UNDEFINED;
@@ -235,14 +231,9 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   for(;;) {
     depth = property_recursion_depth(&it->frames);
-
-    if(depth == 0)
-      penum = property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS);
-    else if(depth >= max_depth) {
-      penum = property_recursion_skip(&it->frames, ctx);
-    } else {
-      penum = property_recursion_next(&it->frames, ctx);
-    }
+    penum = (depth >= max_depth) ? property_recursion_skip(&it->frames, ctx)
+            : depth > 0          ? property_recursion_next(&it->frames, ctx)
+                                 : property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS);
 
     if(!penum) {
       *pdone = TRUE;
