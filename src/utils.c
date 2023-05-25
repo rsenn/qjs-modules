@@ -1205,7 +1205,8 @@ js_strv_to_array(JSContext* ctx, char** strv) {
 size_t
 js_strv_length(char** strv) {
   size_t i;
-  for(i = 0; strv[i]; i++) {}
+  for(i = 0; strv[i]; i++) {
+  }
   return i;
 }
 

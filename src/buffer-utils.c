@@ -495,7 +495,8 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     }
   }
 
-  if(js_value_isclass(ctx, ret.value, JS_CLASS_ARRAY_BUFFER) || js_is_arraybuffer(ctx, ret.value)) {
+  if(js_is_arraybuffer(ctx, ret.value) || js_object_is(ctx, ret.value, "[object SharedArrayBuffer]")) {
+
     block_arraybuffer(&ret.block, ret.value, ctx);
   } else {
     JS_FreeValue(ctx, ret.value);
