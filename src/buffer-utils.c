@@ -473,11 +473,9 @@ InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
 
-  ret.value = offset_typedarray(&ret.range, value, ctx);
-
-  if(JS_IsException(ret.value)) {
+  /*f(JS_IsException(ret.value)) {
     JS_GetException(ctx);
-    if(js_is_typedarray(value) || js_is_dataview(ctx, value)) {
+    if(js_is_typedarray(ctx, value) || js_is_dataview(ctx, value)) {
       JSValue byteoffs, bytelen;
       int64_t offset = 0, length = INT64_MAX;
       ret.value = JS_GetPropertyStr(ctx, value, "buffer");
@@ -493,10 +491,15 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     } else {
       ret.value = JS_DupValue(ctx, value);
     }
+  }*/
+
+  if(js_is_typedarray(ctx, value)) {
+    ret.value = offset_typedarray(&ret.range, value, ctx);
+  } else if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value)) {
+    ret.value = JS_DupValue(ctx, value);
   }
 
-  if(js_is_arraybuffer(ctx, ret.value) || js_object_is(ctx, ret.value, "[object SharedArrayBuffer]")) {
-
+  if(!JS_IsUndefined(ret.value)) {
     block_arraybuffer(&ret.block, ret.value, ctx);
   } else {
     JS_FreeValue(ctx, ret.value);

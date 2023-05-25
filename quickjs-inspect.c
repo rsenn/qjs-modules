@@ -887,7 +887,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 
   if(!is_function) {
     is_array = js_is_array(ctx, value);
-    is_typedarray = js_is_typedarray(value);
+    is_typedarray = js_is_typedarray(ctx, value);
 
     if(!is_array && !is_typedarray) {
       if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
@@ -987,7 +987,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
   if(is_array_like) {
     len = js_array_length(ctx, value);
 
-    if(js_is_typedarray(value)) {
+    if(js_is_typedarray(ctx, value)) {
       char* cname;
 
       if((cname = js_object_classname(ctx, value))) {

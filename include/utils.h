@@ -276,6 +276,7 @@ js_global_call(JSContext* ctx, const char* ctor_name, int argc, JSValueConst arg
 JSValue js_global_prototype(JSContext* ctx, const char* class_name);
 JSValue js_global_prototype_func(JSContext* ctx, const char* class_name, const char* func_name);
 JSValue js_global_static_func(JSContext* ctx, const char* class_name, const char* func_name);
+BOOL js_global_instanceof(JSContext* ctx, JSValueConst obj, const char* prop);
 
 enum value_types {
   FLAG_UNDEFINED = 0,
@@ -327,7 +328,8 @@ int32_t js_value_type_get(JSContext* ctx, JSValueConst value);
 static inline int32_t
 js_value_type2flag(uint32_t type) {
   int32_t flag;
-  for(flag = 0; (type >>= 1); flag++) {}
+  for(flag = 0; (type >>= 1); flag++) {
+  }
   return flag;
 }
 
@@ -748,19 +750,18 @@ js_is_basic_array(JSContext* ctx, JSValueConst value) {
 }
 
 static inline BOOL
-js_is_typedarray(JSValueConst value) {
-  if(JS_IsObject(value)) {
-    JSClassID id = js_get_classid(value);
-    return id >= JS_CLASS_UINT8C_ARRAY && id <= JS_CLASS_FLOAT64_ARRAY;
-  }
-  return FALSE;
+js_is_typedarray(JSContext* ctx, JSValueConst value) {
+  JSValue ctor = js_typedarray_constructor(ctx);
+  BOOL ret = JS_IsInstanceOf(ctx, value, js_typedarray_constructor(ctx));
+  JS_FreeValue(ctx, ctor);
+  return ret;
 }
 
 int64_t js_array_length(JSContext* ctx, JSValueConst array);
 
 static inline BOOL
 js_is_array(JSContext* ctx, JSValueConst value) {
-  return JS_IsArray(ctx, value) || js_is_typedarray(value);
+  return JS_IsArray(ctx, value) || js_is_typedarray(ctx, value);
 }
 
 static inline BOOL
@@ -851,6 +852,14 @@ struct timespec js_date_timespec(JSContext*, JSValue arg);
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
 JSValue js_arraybuffer_fromvalue(JSContext*, void* x, size_t n, JSValue val);
 JSValue js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str);
+static inline JSValue
+js_arraybuffer_constructor(JSContext* ctx) {
+  return js_global_get_str(ctx, "ArrayBuffer");
+}
+static inline JSValue
+js_sharedarraybuffer_constructor(JSContext* ctx) {
+  return js_global_get_str(ctx, "SharedArrayBuffer");
+}
 
 JSValue js_map_new(JSContext*, JSValueConst);
 JSValue js_map_iterator_prototype(JSContext*);
@@ -957,6 +966,13 @@ js_is_identifier(JSContext* ctx, const char* str) {
 }
 
 JSValue js_generator_prototype(JSContext*);
+
+static inline JSValue js_generator_constructor(JSContext*ctx) {
+  JSValue proto= js_generator_prototype(ctx);
+  JSValue ret=js_object_constructor(ctx, proto);
+  JS_FreeValue(ctx, proto);
+  return ret;
+}
 JSValue js_asyncgenerator_prototype(JSContext*);
 JSValue js_set_iterator_prototype(JSContext*);
 
