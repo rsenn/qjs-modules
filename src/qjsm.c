@@ -1838,7 +1838,8 @@ main(int argc, char** argv) {
   if(memory_limit != 0)
     JS_SetMemoryLimit(rt, memory_limit);
 
-  JS_SetMaxStackSize(rt, stack_size != 0 ? stack_size : 256 * 1048576);
+  if(stack_size != 0)
+    JS_SetMaxStackSize(rt, stack_size);
 
   js_std_set_worker_new_context_func(jsm_context_new);
 
