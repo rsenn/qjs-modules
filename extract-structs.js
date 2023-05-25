@@ -4,7 +4,7 @@ import * as std from 'std';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Console } from 'console';
-import CLexer from 'lib/lexer/c.js';
+import CLexer from 'lexer/c.js';
 import { getOpt, escape, extendArray, define } from 'util';
 
 extendArray();

@@ -11,7 +11,7 @@
  */
 int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
-  it->idx = 0;
+  *it = (PropertyEnumeration)PROPENUM_INIT();
 
   if(JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, object, flags & 0x3f)) {
     it->tab_atom_len = 0;
@@ -80,7 +80,7 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object, int32_t max) {
   if(JS_IsObject(root)) {
     PropertyEnumeration* it = property_recursion_push(&vec, ctx, root, PROPENUM_DEFAULT_FLAGS);
 
-    while(it) {
+    do {
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
       // printf("depth = %" PRIu32 ", atom = %x\n", depth, it->tab_atom[it->idx].atom);
       if(max_depth < depth)
@@ -92,9 +92,9 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object, int32_t max) {
             return max_depth;
         }
       } else {
-        it = property_recursion_next(&vec, ctx);
+        property_recursion_next(&vec, ctx);
       }
-    }
+    } while((it = property_recursion_top(&vec)));
   }
   property_recursion_free(&vec, JS_GetRuntime(ctx));
 
@@ -240,27 +240,26 @@ property_recursion_dumpall(Vector* vec, JSContext* ctx, DynBuf* out) {
   dbuf_putstr(out, i ? "\n  ]" : "]");
 }
 
-PropertyEnumeration*
+int
 property_recursion_skip(Vector* vec, JSContext* ctx) {
-  PropertyEnumeration* it;
-  JSValue value = JS_UNDEFINED;
+  int i = 0;
 
   if(vector_empty(vec))
     return 0;
 
-  for(it = vector_back(vec, sizeof(PropertyEnumeration)); it;) {
-    if(it->tab_atom_len > 0)
-      if(property_enumeration_next(it))
-        break;
+  PropertyEnumeration* it = property_recursion_top(vec);
 
-    while((it = property_recursion_pop(vec, ctx)))
-      if(property_enumeration_next(it))
-        break;
+  if(it->tab_atom_len > 0)
+    if(property_enumeration_next(it))
+      return 0;
 
-    break;
+  while((it = property_recursion_pop(vec, ctx))) {
+    --i;
+    if(property_enumeration_next(it))
+      break;
   }
 
-  return it;
+  return i;
 }
 
 int
@@ -288,12 +287,8 @@ BOOL
 property_recursion_circular(Vector* vec, JSValueConst object) {
   PropertyEnumeration* it;
 
-  vector_foreach_t(vec, it) {
-    if(js_object_same(it->obj, object)) {
-      // printf("circular reference %p\n", ptr);
-      return TRUE;
-    }
-  }
+  vector_foreach_t(vec, it) if(js_object_same(it->obj, object)) return TRUE;
+
   return FALSE;
 }
 
@@ -301,15 +296,12 @@ IndexTuple
 property_recursion_check(Vector* vec) {
   PropertyEnumeration *i, *j;
 
-  vector_foreach_t(vec, i) {
-    vector_foreach_t(vec, j) {
-      if(i == j)
-        continue;
-
-      if(js_object_same(i->obj, j->obj)) {
-        return (IndexTuple){vector_indexof(vec, sizeof(PropertyEnumeration), i), vector_indexof(vec, sizeof(PropertyEnumeration), j)};
-      }
-    }
+  vector_foreach_t(vec, i) vector_foreach_t(vec, j) {
+    if(i == j)
+      return (IndexTuple){
+          vector_indexof(vec, sizeof(PropertyEnumeration), i),
+          vector_indexof(vec, sizeof(PropertyEnumeration), j),
+      };
   }
 
   return (IndexTuple){-1, -1};
@@ -335,25 +327,20 @@ PropertyEnumeration*
 property_recursion_pop(Vector* vec, JSContext* ctx) {
   assert(!vector_empty(vec));
 
-  property_enumeration_reset(vector_end_t(vec, PropertyEnumeration) - 1, JS_GetRuntime(ctx));
-  vector_pop(vec, sizeof(PropertyEnumeration));
+  property_enumeration_reset(vector_pop(vec, sizeof(PropertyEnumeration)), JS_GetRuntime(ctx));
 
-  return vector_empty(vec) ? 0 : vector_end_t(vec, PropertyEnumeration) - 1;
+  return property_recursion_top(vec);
 }
 
 PropertyEnumeration*
 property_recursion_enter(Vector* vec, JSContext* ctx, int32_t idx, int flags) {
-  PropertyEnumeration* it;
-  JSValue value;
 
   assert(!vector_empty(vec));
 
-  it = vector_end_t(vec, PropertyEnumeration) - 1;
-  value = property_enumeration_value(it, ctx);
+  PropertyEnumeration* it = property_recursion_top(vec);
+  JSValue value = property_enumeration_value(it, ctx);
 
   assert(JS_IsObject(value));
-  /*if(!JS_IsObject(value))
-    return 0;*/
 
   if((it = property_recursion_push(vec, ctx, value, flags)))
     if(!property_enumeration_setpos(it, idx))
@@ -362,25 +349,29 @@ property_recursion_enter(Vector* vec, JSContext* ctx, int32_t idx, int flags) {
   return it;
 }
 
-PropertyEnumeration*
+int
 property_recursion_next(Vector* vec, JSContext* ctx) {
-  if(!vector_empty(vec)) {
-    PropertyEnumeration *it = vector_end_t(vec, PropertyEnumeration) - 1, *it2;
-    JSValue value = property_enumeration_value(it, ctx);
-    int32_t type = JS_VALUE_GET_TAG(value);
-    BOOL circular = type == JS_TAG_OBJECT && property_recursion_circular(vec, value);
-    JS_FreeValue(ctx, value);
+  int i = 0;
 
-    if(type == JS_TAG_OBJECT && !circular)
-      if((it2 = property_recursion_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS)))
-        return it2;
+  if(vector_empty(vec))
+    return 0;
 
-    while(!property_enumeration_next(it))
-      if(!(it = property_recursion_pop(vec, ctx)))
-        break;
+  PropertyEnumeration *it = property_recursion_top(vec), *it2;
+  JSValue value = property_enumeration_value(it, ctx);
 
-    return it;
+  int32_t type = JS_VALUE_GET_TAG(value);
+  BOOL circular = type == JS_TAG_OBJECT && property_recursion_circular(vec, value);
+  JS_FreeValue(ctx, value);
+
+  if(type == JS_TAG_OBJECT && !circular)
+    if((it2 = property_recursion_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS)))
+      return 1;
+
+  while(!property_enumeration_next(it)) {
+    --i;
+    if(!(it = property_recursion_pop(vec, ctx)))
+      break;
   }
 
-  return 0;
+  return i;
 }

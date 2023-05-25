@@ -144,12 +144,48 @@ try {
   console.log('SUCCESS');
 }
 
-function* JSON_Iterator(obj) {
+function* JSON_Iterator(obj, chunkSize = 1) {
+  let prev = { depth: 0, path: [], type: valueType(obj) };
+  let stack = [];
+  let parent;
+  let str = '';
+  const push = { Array: () => (stack.push(']'), '['), object: () => (stack.push('}'), '{') };
   for(let [value, path] of deep.iterate(obj, n => true, deep.RETURN_VALUE_PATH)) {
-    console.log('JSON_Iterator', console.config({ depth: 1 }), {
-      value,
-      key: path[path.length - 1],
-      depth: path.length
-    });
+    const depth = path.length;
+    const key = path[depth - 1];
+    const type = valueType(value);
+    let c = common(path, prev.path);
+    let descend = prev.depth - c,
+      ascend = depth - c;
+    let d = descend ? -(descend - 1) : ascend;
+
+    if(d > 0) str += push[(parent = prev.type)]() + ' ';
+    if(d < 0) for(let i = d; i < 0; i++) str += ' ' + stack.pop();
+    if(d <= 0) str += ', ';
+    if(parent != 'array') str += key + ': ';
+    if(!{ array: true, object: true }[type]) str += JSON.stringify(value);
+
+    if(str.length >= chunkSize) {
+      chunkSize = yield str;
+      //chunkSize = yield { str, d /*, descend, ascend*/, path: s(path), type, parent };
+      str = '';
+    }
+    prev = { depth, path, type };
+  }
+
+  yield str;
+
+  function s(p) {
+    return p.join('.');
+  }
+  function common(a, b) {
+    let n = Math.min(a.length, b.length);
+    for(let i = 0; i < n; i++) if(a[i] != b[i]) return i;
+    return n;
+  }
+  function valueType(value) {
+    return Array.isArray(value) ? 'array' : typeof value;
   }
 }
+it = JSON_Iterator(ast);
+it.next().value;

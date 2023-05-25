@@ -6,7 +6,7 @@ import inspect from 'inspect';
 import * as path from 'path';
 import { Lexer, Token } from 'lexer';
 import { Console } from 'console';
-import ECMAScriptLexer from 'lib/lexer/ecmascript.js';
+import ECMAScriptLexer from 'lexer/ecmascript.js';
 import { mapWrapper, intersection, difference, symmetricDifference, union, error, getset, memoize, randInt, getTypeName, getTypeStr, isObject, shorten, toString, toArrayBuffer, define, curry, unique, split, extendArray, camelize, getOpt, quote, escape, types, padStartAnsi } from 'util';
 
 ('use strict');
