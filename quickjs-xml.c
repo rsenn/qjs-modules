@@ -703,10 +703,14 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   if(argc >= 3) {
     if(JS_IsObject(argv[2])) {
       JSValue tags;
-      opts.flat = js_get_propertystr_bool(ctx, argv[2], "flat");
-      opts.tolerant = js_get_propertystr_bool(ctx, argv[2], "tolerant");
-      opts.location = js_get_propertystr_bool(ctx, argv[2], "location");
-      tags = JS_GetPropertyStr(ctx, argv[2], "selfClosingTags");
+      if(js_has_propertystr(ctx, argv[2], "flat"))
+        opts.flat = js_get_propertystr_bool(ctx, argv[2], "flat");
+      if(js_has_propertystr(ctx, argv[2], "tolerant"))
+        opts.tolerant = js_get_propertystr_bool(ctx, argv[2], "tolerant");
+      if(js_has_propertystr(ctx, argv[2], "location"))
+        opts.location = js_get_propertystr_bool(ctx, argv[2], "location");
+      if(js_has_propertystr(ctx, argv[2], "selfClosingTags"))
+        tags = JS_GetPropertyStr(ctx, argv[2], "selfClosingTags");
       if(JS_IsArray(ctx, tags)) {
         size_t ac;
         opts.self_closing_tags = (const char* const*)js_array_to_argv(ctx, &ac, tags);
