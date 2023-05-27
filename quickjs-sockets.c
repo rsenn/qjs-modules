@@ -3,10 +3,13 @@
 #include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "buffer-utils.h"
+#include <fcntl.h>
+#include <assert.h>
+#include <errno.h>
 #if defined(_WIN32) && !defined(__MSYS__)
 #include <winsock2.h>
 int socketpair(int, int, int, SOCKET[2]);
-#define close closesocket
+/*#define close closesocket*/
 #else
 #include <sys/select.h>
 #include <sys/syscall.h>
@@ -14,9 +17,6 @@ int socketpair(int, int, int, SOCKET[2]);
 #include <poll.h>
 #include <unistd.h>
 #endif
-#include <fcntl.h>
-#include <assert.h>
-#include <errno.h>
 
 #include "debug.h"
 
