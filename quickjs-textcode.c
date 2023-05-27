@@ -15,8 +15,8 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_decoder_class_id = 0, js_encoder_class_id = 0;
-thread_local JSValue textdecoder_proto = {{JS_TAG_UNDEFINED}}, textdecoder_ctor = {{JS_TAG_UNDEFINED}}, textencoder_proto = {{JS_TAG_UNDEFINED}},
-                     textencoder_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue textdecoder_proto = {{0},JS_TAG_UNDEFINED}, textdecoder_ctor = {{0},JS_TAG_UNDEFINED}, textencoder_proto = {{0},JS_TAG_UNDEFINED},
+                     textencoder_ctor = {{0},JS_TAG_UNDEFINED};
 
 const TUTF8encoder* tutf8e_coders[] = {
     /* 0, 0, 0, 0, 0, 0, 0, 0, */

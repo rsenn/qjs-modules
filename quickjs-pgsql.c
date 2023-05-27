@@ -11,8 +11,8 @@
  */
 
 thread_local VISIBLE JSClassID js_pgsqlerror_class_id = 0, js_pgconn_class_id = 0, js_pgresult_class_id = 0;
-thread_local JSValue pgsqlerror_proto = {{JS_TAG_UNDEFINED}}, pgsqlerror_ctor = {{JS_TAG_UNDEFINED}}, pgsql_proto = {{JS_TAG_UNDEFINED}},
-                     pgsql_ctor = {{JS_TAG_UNDEFINED}}, pgresult_proto = {{JS_TAG_UNDEFINED}}, pgresult_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue pgsqlerror_proto = {{0},JS_TAG_UNDEFINED}, pgsqlerror_ctor = {{0},JS_TAG_UNDEFINED}, pgsql_proto = {{0},JS_TAG_UNDEFINED},
+                     pgsql_ctor = {{0},JS_TAG_UNDEFINED}, pgresult_proto = {{0},JS_TAG_UNDEFINED}, pgresult_ctor = {{0},JS_TAG_UNDEFINED};
 
 static JSValue js_pgresult_wrap(JSContext* ctx, PGresult* res);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);

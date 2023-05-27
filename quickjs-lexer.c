@@ -21,8 +21,8 @@ typedef struct {
 } JSLexerRule;
 
 thread_local VISIBLE JSClassID js_token_class_id = 0, js_lexer_class_id = 0;
-thread_local JSValue token_proto = {{JS_TAG_UNDEFINED}}, token_ctor = {{JS_TAG_UNDEFINED}};
-thread_local JSValue lexer_proto = {{JS_TAG_UNDEFINED}}, lexer_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue token_proto = {{0},JS_TAG_UNDEFINED}, token_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue lexer_proto = {{0},JS_TAG_UNDEFINED}, lexer_ctor = {{0},JS_TAG_UNDEFINED};
 
 static JSValue
 offset_toarray(OffsetLength offs_len, JSContext* ctx) {

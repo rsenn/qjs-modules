@@ -18,7 +18,7 @@
  * \defgroup quickjs-path QuickJS module: path - Directory path
  * @{
  */
-thread_local JSValue path_object = {{JS_TAG_UNDEFINED}};
+thread_local JSValue path_object = {{0},JS_TAG_UNDEFINED};
 
 enum {
   PATH_ABSOLUTE = 0,

@@ -36,8 +36,8 @@ typedef struct ListIterator {
 typedef int64_t FindCall(List*, JSValueConst, JSValueConst, Node**, JSContext*);
 
 thread_local VISIBLE JSClassID js_list_class_id = 0, js_list_iterator_class_id = 0;
-thread_local JSValue list_proto = {{JS_TAG_UNDEFINED}}, list_ctor = {{JS_TAG_UNDEFINED}}, list_iterator_proto = {{JS_TAG_UNDEFINED}},
-                     list_iterator_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue list_proto = {{0},JS_TAG_UNDEFINED}, list_ctor = {{0},JS_TAG_UNDEFINED}, list_iterator_proto = {{0},JS_TAG_UNDEFINED},
+                     list_iterator_ctor = {{0},JS_TAG_UNDEFINED};
 
 enum {
   METHOD_PUSH = 0,

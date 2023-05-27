@@ -10,7 +10,7 @@
  * @{
  */
 thread_local JSClassID js_syscallerror_class_id = 0;
-thread_local JSValue syscallerror_proto = {{JS_TAG_UNDEFINED}}, syscallerror_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue syscallerror_proto = {{0},JS_TAG_UNDEFINED}, syscallerror_ctor = {{0},JS_TAG_UNDEFINED};
 
 int js_syscallerror_init(JSContext*, JSModuleDef*);
 

@@ -10,8 +10,8 @@
  * @{
  */
 thread_local VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;
-thread_local JSValue serialport_proto = {{JS_TAG_UNDEFINED}}, serialport_ctor = {{JS_TAG_UNDEFINED}}, serial_ctor = {{JS_TAG_UNDEFINED}},
-                     serialerror_proto = {{JS_TAG_UNDEFINED}}, serialerror_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue serialport_proto = {{0},JS_TAG_UNDEFINED}, serialport_ctor = {{0},JS_TAG_UNDEFINED}, serial_ctor = {{0},JS_TAG_UNDEFINED},
+                     serialerror_proto = {{0},JS_TAG_UNDEFINED}, serialerror_ctor = {{0},JS_TAG_UNDEFINED};
 
 static JSValue
 js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {

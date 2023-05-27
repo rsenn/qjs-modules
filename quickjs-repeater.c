@@ -12,7 +12,7 @@ static JSValue js_repeater_push(JSContext*, JSValueConst, int, JSValueConst[]);
 static JSValue js_repeater_stop(JSContext*, JSValueConst, int, JSValueConst[]);
 
 thread_local VISIBLE JSClassID js_repeater_class_id = 0;
-thread_local JSValue repeater_proto = {{JS_TAG_UNDEFINED}}, repeater_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue repeater_proto = {{0},JS_TAG_UNDEFINED}, repeater_ctor = {{0},JS_TAG_UNDEFINED};
 
 enum repeater_functions {
   STATIC_RACE = 0,

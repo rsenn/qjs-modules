@@ -11,8 +11,8 @@
  */
 
 thread_local VISIBLE JSClassID js_mysqlerror_class_id = 0, js_mysql_class_id = 0, js_mysqlresult_class_id = 0;
-thread_local JSValue mysqlerror_proto = {{JS_TAG_UNDEFINED}}, mysqlerror_ctor = {{JS_TAG_UNDEFINED}}, mysql_proto = {{JS_TAG_UNDEFINED}},
-                     mysql_ctor = {{JS_TAG_UNDEFINED}}, mysqlresult_proto = {{JS_TAG_UNDEFINED}}, mysqlresult_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue mysqlerror_proto = {{0},JS_TAG_UNDEFINED}, mysqlerror_ctor = {{0},JS_TAG_UNDEFINED}, mysql_proto = {{0},JS_TAG_UNDEFINED},
+                     mysql_ctor = {{0},JS_TAG_UNDEFINED}, mysqlresult_proto = {{0},JS_TAG_UNDEFINED}, mysqlresult_ctor = {{0},JS_TAG_UNDEFINED};
 
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 
@@ -854,7 +854,7 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 static JSValue
 js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue promise = JS_UNDEFINED, data[5], handler;
-  MYSQLConnectParameters c = {0, 0, 0, 0, 0};
+  MYSQLConnectParameters c = {0, 0, 0, 0, 0, 0, 0, 0, 0};
   MYSQL *my, *ret = 0;
   int32_t wantwrite, state, fd;
 
@@ -903,7 +903,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(!mysql_nonblock(my)) {
     MYSQL* ret;
-    MYSQLConnectParameters c = {0, 0, 0, 0, 0};
+    MYSQLConnectParameters c = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
     connectparams_init(ctx, &c, argc, argv);
 

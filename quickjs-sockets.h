@@ -57,7 +57,7 @@ ENDPACK
 
 #define SOCKET(fd, err, sys, nonb, asyn, own) \
   { \
-    { (fd), (err), (sys), (nonb), (asyn), (own) } \
+    { (fd), (err), (sys), (nonb), (asyn), (own), (0) } \
   }
 
 typedef union socket_state Socket;
@@ -143,7 +143,7 @@ js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
 static inline Socket
 js_socket_data(JSValueConst value) {
   JSClassID id = JS_GetClassID(value);
-  Socket sock = {{-1, 0, -1}};
+  Socket sock = {{-1, 0, -1, FALSE, FALSE, FALSE, 0}};
 
   if((id = JS_GetClassID(value)) > 0) {
     void* opaque = JS_GetOpaque(value, id);

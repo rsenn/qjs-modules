@@ -136,7 +136,7 @@ byte_rchr(const void* str, size_t len, char c) {
 static inline size_t
 byte_chrs(const void* str, size_t len, const char needle[], size_t nl) {
   const char *s, *t;
-  for(s = str, t = str + len; s != t; s++)
+  for(s = str, t = s + len; s != t; s++)
     if(byte_chr(needle, nl, *s) < nl)
       break;
   return s - (const char*)str;

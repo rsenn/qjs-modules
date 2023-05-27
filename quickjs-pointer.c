@@ -11,7 +11,7 @@
  */
 
 thread_local VISIBLE JSClassID js_pointer_class_id = 0;
-thread_local JSValue pointer_proto = {{JS_TAG_UNDEFINED}}, pointer_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue pointer_proto = {{0},JS_TAG_UNDEFINED}, pointer_ctor = {{0},JS_TAG_UNDEFINED};
 
 enum {
   METHOD_DEREF = 0,

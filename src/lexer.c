@@ -547,8 +547,9 @@ lexer_dump(Lexer* lex, DynBuf* dbuf) {
 
 Location
 lexer_get_location(Lexer* lex, JSContext* ctx) {
-  Location loc = {1};
+  Location loc;
 
+loc.ref_count=1;
   location_copy(&loc, &lex->loc, ctx);
 
   // location_count(&loc, &lex->data[lex->pos], lex->byte_length);

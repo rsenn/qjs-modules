@@ -9,7 +9,7 @@
  * @{
  */
 thread_local VISIBLE JSClassID js_directory_class_id = 0;
-thread_local JSValue directory_proto = {{JS_TAG_UNDEFINED}}, directory_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue directory_proto = {{0},JS_TAG_UNDEFINED}, directory_ctor = {{0},JS_TAG_UNDEFINED};
 
 enum {
   FLAG_NAME = 1,

@@ -15,7 +15,7 @@
  * @{
  */
 thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
-thread_local JSValue deep_functions = {{JS_TAG_UNDEFINED}}, deep_iterator_proto = {{JS_TAG_UNDEFINED}}, deep_iterator_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue deep_functions = {{0},JS_TAG_UNDEFINED}, deep_iterator_proto = {{0},JS_TAG_UNDEFINED}, deep_iterator_ctor = {{0},JS_TAG_UNDEFINED};
 
 typedef struct DeepIterator {
   Vector frames;
@@ -601,7 +601,7 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     Vector frames;
     PropertyEnumeration* it;
     JSValue val;
-  } a = {VECTOR(ctx), 0}, b = {VECTOR(ctx), 0};
+  } a = {VECTOR(ctx), 0, JS_UNDEFINED}, b = {VECTOR(ctx), 0, JS_UNDEFINED};
 
   if(!JS_IsObject(argv[0]) || !JS_IsObject(argv[1]))
     return JS_NewBool(ctx, js_value_equals(ctx, argv[0], argv[1]));

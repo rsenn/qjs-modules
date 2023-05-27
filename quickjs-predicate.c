@@ -9,7 +9,7 @@
  * @{
  */
 thread_local JSClassID js_predicate_class_id = 0;
-thread_local JSValue predicate_proto = {{JS_TAG_UNDEFINED}}, predicate_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue predicate_proto = {{0},JS_TAG_UNDEFINED}, predicate_ctor = {{0},JS_TAG_UNDEFINED};
 
 VISIBLE Predicate*
 js_predicate_data(JSValueConst value) {

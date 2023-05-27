@@ -80,8 +80,8 @@ socket_nonblocking(Socket sock) {
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_async_socket_class_id = 0;
-thread_local JSValue sockaddr_proto = {{JS_TAG_UNDEFINED}}, sockaddr_ctor = {{JS_TAG_UNDEFINED}}, socket_proto = {{JS_TAG_UNDEFINED}},
-                     async_socket_proto = {{JS_TAG_UNDEFINED}}, socket_ctor = {{JS_TAG_UNDEFINED}}, async_socket_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue sockaddr_proto = {{0},JS_TAG_UNDEFINED}, sockaddr_ctor = {{0},JS_TAG_UNDEFINED}, socket_proto = {{0},JS_TAG_UNDEFINED},
+                     async_socket_proto = {{0},JS_TAG_UNDEFINED}, socket_ctor = {{0},JS_TAG_UNDEFINED}, async_socket_ctor = {{0},JS_TAG_UNDEFINED};
 
 static const char* socket_syscalls[] = {
     0,

@@ -12,7 +12,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_location_class_id = 0;
-thread_local JSValue location_proto = {{JS_TAG_UNDEFINED}}, location_ctor = {{JS_TAG_UNDEFINED}};
+thread_local JSValue location_proto = {{0},JS_TAG_UNDEFINED}, location_ctor = {{0},JS_TAG_UNDEFINED};
 
 enum {
   LOCATION_PROP_LINE,

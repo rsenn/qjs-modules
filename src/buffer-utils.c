@@ -454,7 +454,7 @@ dbuf_load(DynBuf* s, const char* filename) {
 int
 dbuf_vprintf(DynBuf* s, const char* fmt, va_list ap) {
   char buf[128];
-  int len;
+  size_t len;
 
   len = vsnprintf(buf, sizeof(buf), fmt, ap);
   if(len < sizeof(buf)) {
