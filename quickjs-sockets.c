@@ -3,14 +3,10 @@
 #include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "buffer-utils.h"
-#if defined(_WIN32) || defined(__MSYS__)
+#if defined(_WIN32) && !defined(__MSYS__)
 #include <winsock2.h>
-#if 0 // ndef __MSYS__
-int inet_pton(int, const char*, void*);
-const char* inet_ntop(int, const void*, char*, socklen_t);
-#endif
 int socketpair(int, int, int, SOCKET[2]);
-//#define close closesocket
+#define close closesocket
 #else
 #include <sys/select.h>
 #include <sys/syscall.h>
@@ -23,7 +19,7 @@ int socketpair(int, int, int, SOCKET[2]);
 #include <errno.h>
 
 #include "debug.h"
-  
+
 static_assert(sizeof(Socket) <= sizeof(void*));
 
 /**
@@ -80,8 +76,8 @@ socket_nonblocking(Socket sock) {
   } while(0)
 
 thread_local VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_async_socket_class_id = 0;
-thread_local JSValue sockaddr_proto = {{0},JS_TAG_UNDEFINED}, sockaddr_ctor = {{0},JS_TAG_UNDEFINED}, socket_proto = {{0},JS_TAG_UNDEFINED},
-                     async_socket_proto = {{0},JS_TAG_UNDEFINED}, socket_ctor = {{0},JS_TAG_UNDEFINED}, async_socket_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue sockaddr_proto = {{0}, JS_TAG_UNDEFINED}, sockaddr_ctor = {{0}, JS_TAG_UNDEFINED}, socket_proto = {{0}, JS_TAG_UNDEFINED},
+                     async_socket_proto = {{0}, JS_TAG_UNDEFINED}, socket_ctor = {{0}, JS_TAG_UNDEFINED}, async_socket_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static const char* socket_syscalls[] = {
     0,
@@ -1192,7 +1188,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
 static JSValue
 js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[], int async) {
-  JSValue obj = JS_UNDEFINED;
   JSValue proto;
   int32_t af, type = SOCK_STREAM, protocol = IPPROTO_IP;
   int fd = -1;
@@ -1207,12 +1202,33 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
     if(argc >= 3)
       JS_ToInt32(ctx, &protocol, argv[2]);
   }
-  fd = socket(af, type, protocol);
+
+  for(;;) {
+    fd = socket(af, type, protocol);
+
+    if(fd == -1) {
+#if defined(_WIN32) && !defined(__MSYS__)
+      static BOOL initialized;
+      int err;
+      WSADATA d;
+
+      if(!initialized) {
+        initialized++;
+        if((err = WSAStartup(MAKEWORD(2, 3), &d)))
+          return JS_ThrowInternalError(ctx, "Error initializing winsock: %d", err);
+
+        continue;
+      }
+#endif
+      return JS_ThrowInternalError(ctx, "Failed creating socket: %d", WSAGetLastError());
+    }
+
+    break;
+  }
 
   return js_socket_new_proto(ctx, proto, fd, async, TRUE);
 
 fail:
-  JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
