@@ -148,16 +148,27 @@ function main(...args) {
 
       if(isCFuncList) {
         if(id == rules['rbrace'] && lexer.loc.column == 1) {
-          while(block.length > 0 && ['whitespace', 'rbrace', 'singleLineComment', 'multiLineComment'].indexOf(block[0].type) != -1) block.shift();
+          while(
+            block.length > 0 &&
+            ['whitespace', 'rbrace', 'singleLineComment', 'multiLineComment'].indexOf(block[0].type) != -1
+          )
+            block.shift();
           //console.log('block.slice(0,10)', block.slice(0,10));
           let firstLine = block[0].loc.line;
           let rows = NonWS(block)
             .reduce((acc, token) => {
-              if(['preprocessor', 'singleLineComment', 'multiLineComment'].indexOf(token.type) == -1) (acc[token.loc.line - firstLine] ??= []).push(token);
+              if(['preprocessor', 'singleLineComment', 'multiLineComment'].indexOf(token.type) == -1)
+                (acc[token.loc.line - firstLine] ??= []).push(token);
               return acc;
             }, [])
             .filter(l => l.length);
-          let cfuncList = rows.slice(0, -1).map((row, i) => (i > 0 ? [row[0].lexeme].concat(CommaList(Paren(row, t => t.lexeme))) : row.filter(tok => tok.type == 'identifier').last?.lexeme));
+          let cfuncList = rows
+            .slice(0, -1)
+            .map((row, i) =>
+              i > 0
+                ? [row[0].lexeme].concat(CommaList(Paren(row, t => t.lexeme)))
+                : row.filter(tok => tok.type == 'identifier').last?.lexeme
+            );
           let header = [cfuncList.shift(), block[0].loc + ''];
           cfuncList = [header, cfuncList];
 
@@ -178,7 +189,12 @@ function main(...args) {
       } else if(id == rules['semi']) {
         block = TrimWS(block);
 
-        if(block.length >= 3 && NonWS(block)[1]?.type == 'equal' && block[0]?.type == 'identifier' && /_(proto|ctor)$/.test(block[0].lexeme)) {
+        if(
+          block.length >= 3 &&
+          NonWS(block)[1]?.type == 'equal' &&
+          block[0]?.type == 'identifier' &&
+          /_(proto|ctor)$/.test(block[0].lexeme)
+        ) {
           //console.log('ASSIGN', Lexeme(block));
 
           isCFuncCall = true;
