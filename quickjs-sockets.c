@@ -1204,7 +1204,13 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   }
 
   for(;;) {
+#if defined(_WIN32) && !defined(__MSYS__)
+    SOCKET h = socket(af, type, protocol);
+
+    fd = h == INVALID_SOCKET ? -1 : _open_osfhandle(h, 0);
+#else
     fd = socket(af, type, protocol);
+#endif
 
     if(fd == -1) {
 #if defined(_WIN32) && !defined(__MSYS__)
