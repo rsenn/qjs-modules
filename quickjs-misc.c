@@ -2170,6 +2170,26 @@ js_misc_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 #endif
 
+static JSValue
+js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  JSValue ret = JS_UNDEFINED;
+  uint64_t handle;
+  uint32_t exitcode = 0;
+
+  JS_ToIndex(ctx, &handle, argv[0]);
+  if(argc > 1)
+    JS_ToUint32(ctx, &exitcode, argv[1]);
+
+#if !(defined(_WIN32) && !defined(__MSYS__))
+  else
+    exitcode = SIGTERM;
+  ret = JS_NewInt32(ctx, kill(handle, exitcode));
+#else
+  ret = JS_NewBool(ctx, TerminateProcess((HANDLE)handle, exitcode));
+#endif
+
+  return ret;
+}
 #ifdef HAVE_SETSID
 static JSValue
 js_misc_setsid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -2368,6 +2388,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifdef HAVE_EXECVE
     JS_CFUNC_DEF("exec", 2, js_misc_exec),
 #endif
+    JS_CFUNC_DEF("kill", 1, js_misc_kill),
 #ifdef HAVE_SETSID
     JS_CFUNC_DEF("setsid", 0, js_misc_setsid),
 #endif

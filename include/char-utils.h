@@ -351,6 +351,7 @@ size_t scan_lineskip_escaped(const char*, size_t);
 size_t scan_eolskip(const char*, size_t);
 size_t utf8_strlen(const void*, size_t);
 size_t utf8_towcs(const void*, wchar_t*);
+size_t utf8_fromwcs(void* out, const wchar_t* in);
 BOOL utf16_multiword(const void*);
 int case_lowerc(int);
 int case_starts(const char*, const char*);

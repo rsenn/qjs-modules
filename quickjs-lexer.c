@@ -705,7 +705,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       JS_ToUint32(ctx, &n, argv[0]);
 
       if(n > lex->byte_length)
-        ret = JS_ThrowInternalError(ctx, "skipBytes(): count n > %zu", lex->byte_length);
+        ret = JS_ThrowInternalError(ctx, "skipBytes(): count n > %lu", (unsigned long)lex->byte_length);
       else
         ret = JS_NewUint32(ctx, lexer_skip_n(lex, n));
       break;
@@ -904,7 +904,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         // lexer_state_name(lex, id));
         ret = JS_NewInt32(ctx, id);
       } else {
-        ret = JS_ThrowInternalError(ctx, "lexer (%s) depth %zu", lexer_state_topname(lex), lexer_state_depth(lex));
+        ret = JS_ThrowInternalError(ctx, "lexer (%s) depth %lu", lexer_state_topname(lex), (unsigned long)lexer_state_depth(lex));
       }
 
       break;

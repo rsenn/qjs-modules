@@ -9,7 +9,7 @@
  * @{
  */
 thread_local VISIBLE JSClassID js_directory_class_id = 0;
-thread_local JSValue directory_proto = {{0},JS_TAG_UNDEFINED}, directory_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue directory_proto = {{0}, JS_TAG_UNDEFINED}, directory_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   FLAG_NAME = 1,
@@ -28,19 +28,26 @@ enum {
 };
 
 static JSValue
+directory_name(JSContext* ctx, DirEntry* entry) {
+  JSValue ret;
+  size_t len;
+  return JS_NewArrayBufferCopy(ctx, getdents_namebuf(entry, &len), len);
+}
+
+static JSValue
 js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
-  const char* name = 0;
+  JSValue name;
   int type = -1;
   JSValue ret;
 
   if(dflags & FLAG_NAME)
-    name = getdents_name(entry);
+    name = directory_name(ctx, entry);
   if(dflags & FLAG_TYPE)
     type = getdents_type(entry);
 
   switch(dflags) {
     case FLAG_NAME: {
-      ret = JS_NewString(ctx, name);
+      ret = name;
       break;
     }
     case FLAG_TYPE: {
@@ -49,7 +56,7 @@ js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
     }
     case FLAG_BOTH: {
       ret = JS_NewArray(ctx);
-      JS_SetPropertyUint32(ctx, ret, 0, JS_NewString(ctx, name));
+      JS_SetPropertyUint32(ctx, ret, 0, name);
       JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt32(ctx, type));
       break;
     }

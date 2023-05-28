@@ -307,6 +307,25 @@ utf8_towcs(const void* in, wchar_t* ret) {
   return i;
 }
 
+size_t
+utf8_fromwcs(void* out, const wchar_t* in) {
+  size_t i;
+char* ret=out;
+  const wchar_t* ptr = in;
+
+  for(i = 0; *ptr; i++, ptr++) {
+    int n;
+
+    if(!(n = unicode_to_utf8(ret, *ptr))) 
+      break;
+
+ret+= n;
+  }
+  
+  *ret = '\0';
+  return ret - (char*)out;
+}
+
 BOOL
 utf16_multiword(const void* in) {
   const uint16_t* p16 = in;

@@ -671,7 +671,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       if((node = list_at(list, index)))
         ret = JS_DupValue(ctx, node->value);
       else
-        ret = JS_ThrowRangeError(ctx, "Index %" PRId64 " is out of range", index);
+        ret = JS_ThrowRangeError(ctx, "Index %ld is out of range", (long)index);
 
       break;
     }

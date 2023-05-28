@@ -1371,15 +1371,17 @@ js_value_tag_name(int tag) {
     case JS_TAG_FLOAT64: return "FLOAT64";
   }
   assert(0);
+  return 0;
 }
 
 const char* const*
 js_value_types() {
-  return (const char* const[]){
+  static const char* const types[] = {
       "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
       "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
       "uninitialized", "catch_offset", "exception", 0,
   };
+  return types;
 }
 
 const char*

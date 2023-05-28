@@ -1,4 +1,5 @@
 #include "getdents.h"
+#include "char-utils.h"
 
 #if defined(_WIN32) || defined(__MSYS__)
 #include <windows.h>
@@ -23,14 +24,14 @@ getdents_clear(Directory* d) {
   d->first = FALSE;
 }
 
-ptrdiff_t
+intptr_t
 getdents_handle(Directory* d) {
-  return d->h;
+  return (intptr_t)d->h;
 }
 
 int
 getdents_open(Directory* d, const char* path) {
-  size_t pathlen = utf8_strlen(path);
+  size_t pathlen = utf8_strlen(path, strlen(path));
   wchar_t wp[pathlen + 1];
 
   utf8_towcs(path, wp);
@@ -45,9 +46,9 @@ getdents_open(Directory* d, const char* path) {
 
 int
 getdents_adopt(Directory* d, intptr_t hnd) {
-  if(hnd == INVALID_HANDLE_VALUE)
+  if((HANDLE)hnd == INVALID_HANDLE_VALUE)
     return -1;
-  d->h = hnd;
+  d->h = (HANDLE)hnd;
   return 0;
 }
 
@@ -55,7 +56,7 @@ DirEntry*
 getdents_read(Directory* d) {
   if(d->first) {
     d->first = FALSE;
-    return &d->fdw;
+    return (DirEntry*)&d->fdw;
   }
 
   return 0;
@@ -65,6 +66,14 @@ const char*
 getdents_name(const DirEntry* e) {
   WIN32_FIND_DATAW* fdw = (void*)e;
   return fdw->cFileName;
+}
+
+const uint8_t*
+getdents_namebuf(const DirEntry* e, size_t* len) {
+const wchar_t* name =  (WIN32_FIND_DATAW*)e)->cFileName;
+if(len)
+  *len = wcslen(name);
+return (const uint8_t*)name;
 }
 
 void
@@ -151,7 +160,7 @@ getdents_clear(Directory* d) {
   d->nread = d->bpos = 0;
 }
 
-ptrdiff_t
+intptr_t
 getdents_handle(Directory* d) {
   return d->fd;
 }
@@ -201,8 +210,15 @@ getdents_read(Directory* d) {
 
 const char*
 getdents_name(const DirEntry* e) {
-
   return ((struct linux_dirent64*)e)->d_name;
+}
+
+const uint8_t*
+getdents_namebuf(const DirEntry* e, size_t* len) {
+  const char* name = ((struct linux_dirent64*)e)->d_name;
+  if(len)
+    *len = strlen(name);
+  return (const uint8_t*)name;
 }
 
 void
