@@ -322,9 +322,6 @@ set(location_SOURCES
 set(syscallerror_SOURCES quickjs-syscallerror.c quickjs-syscallerror.h)
 set(blob_SOURCES quickjs-blob.c ${buffer_utils_SOURCES} ${utils_SOURCES})
 
-set(child_process_SOURCES
-    src/child-process.c include/child-process.h src/property-enumeration.c
-    include/property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
 set(deep_SOURCES
     ${vector_SOURCES}
     src/pointer.c
@@ -356,6 +353,9 @@ if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} src/readlink.c)
 endif(WIN32 OR MINGW)
 
+set(child_process_SOURCES
+    src/child-process.c include/child-process.h src/property-enumeration.c
+    include/property-enumeration.h ${path_SOURCES} ${char_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 set(predicate_SOURCES src/predicate.c include/predicate.h ${vector_SOURCES}
                       ${utils_SOURCES})
 set(pointer_SOURCES src/pointer.c include/pointer.h ${utils_SOURCES}

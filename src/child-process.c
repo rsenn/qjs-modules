@@ -1,6 +1,7 @@
 #include "child-process.h"
 #include "utils.h"
 #include "property-enumeration.h"
+#include "char-utils.h"
 #include "path.h"
 #include "debug.h"
 
@@ -125,7 +126,7 @@ child_process_spawn(ChildProcess* cp) {
 #ifdef _WIN32
   int i;
   intptr_t pid;
-  DynBuf search;
+  DynBuf db;
   char *file = 0, *args;
   PROCESS_INFORMATION piProcessInfo;
   STARTUPINFOA siStartInfo;
@@ -148,7 +149,7 @@ child_process_spawn(ChildProcess* cp) {
   siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
   if(cp->use_path) {
-    if(path_isname(cp->file) && !path_exists(cp->file)) {
+    if(path_isname(cp->file) && !path_exists1(cp->file)) {
       dbuf_init2(&db, 0, 0);
       if(!path_search(getenv("PATH"), cp->file, &db)) {
         dbuf_free(&db);
