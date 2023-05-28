@@ -1,6 +1,7 @@
 #include "defines.h"
 #include "getdents.h"
 #include "utils.h"
+#include "char-utils.h"
 #include <errno.h>
 #include <string.h>
 
@@ -26,7 +27,7 @@ enum {
 static JSValue
 directory_namebuf(JSContext* ctx, DirEntry* entry) {
   JSValue ret;
-  size_t len;
+  size_t len=0;
   return JS_NewArrayBufferCopy(ctx, getdents_namebuf(entry, &len), len);
 }
 

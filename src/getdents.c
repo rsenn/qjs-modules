@@ -71,7 +71,7 @@ getdents_read(Directory* d) {
   return 0;
 }
 
-const char*
+const void*
 getdents_name(const DirEntry* e) {
   find_data_type* fdw = (void*)e;
   return fdw->cFileName;
@@ -217,7 +217,7 @@ getdents_read(Directory* d) {
   return 0;
 }
 
-const char*
+const void*
 getdents_name(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_name;
 }
