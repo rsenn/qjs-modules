@@ -5,7 +5,7 @@ import * as fs from 'fs';
 import * as pointer from 'pointer';
 import * as location from 'location';
 import Console from 'console';
-import { Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from 'dom.js';
+import { Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from 'dom';
 import { define, getOpt, weakDefine } from 'util';
 import * as util from 'util';
 import * as dom from 'dom';
@@ -79,7 +79,9 @@ function main(...args) {
   }
 
   repl = globalThis.repl = new REPL(
-    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
+    '\x1b[38;2;80;200;255m' +
+      path.basename(process.argv[1], '.js').replace(/test_/, '') +
+      ' \x1b[0m',
     false
   );
   repl.historyLoad(null);
