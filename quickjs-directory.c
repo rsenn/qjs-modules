@@ -11,11 +11,7 @@
 thread_local VISIBLE JSClassID js_directory_class_id = 0;
 thread_local JSValue directory_proto = {{0}, JS_TAG_UNDEFINED}, directory_ctor = {{0}, JS_TAG_UNDEFINED};
 
-enum {
-  FLAG_NAME = 1,
-  FLAG_TYPE = 2,
-  FLAG_BOTH = FLAG_NAME | FLAG_TYPE,
-};
+enum { FLAG_NAME = 1, FLAG_TYPE = 2, FLAG_BOTH = FLAG_NAME | FLAG_TYPE, FLAG_BUFFER = 0x80 };
 enum {
   DIRECTORY_OPEN,
   DIRECTORY_ADOPT,
@@ -28,10 +24,25 @@ enum {
 };
 
 static JSValue
-directory_name(JSContext* ctx, DirEntry* entry) {
+directory_namebuf(JSContext* ctx, DirEntry* entry) {
   JSValue ret;
   size_t len;
   return JS_NewArrayBufferCopy(ctx, getdents_namebuf(entry, &len), len);
+}
+
+static JSValue
+directory_namestr(JSContext* ctx, DirEntry* entry) {
+#if !(defined(_WIN32) && !defined(__MSYS__))
+  return JS_NewString(ctx, getdents_name(entry));
+#else
+  JSValue ret;
+  char* str = utf8_fromwcs(getdents_name(entry));
+  assert(str);
+
+  ret = JS_NewString(ctx, str);
+  free(str);
+  return ret;
+#endif
 }
 
 static JSValue
@@ -41,7 +52,7 @@ js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
   JSValue ret;
 
   if(dflags & FLAG_NAME)
-    name = directory_name(ctx, entry);
+    name = (dflags & FLAG_BUFFER) ? directory_namebuf(ctx, entry) : directory_namestr(ctx, entry);
   if(dflags & FLAG_TYPE)
     type = getdents_type(entry);
 

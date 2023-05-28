@@ -295,36 +295,31 @@ utf8_strlen(const void* in, size_t len) {
   return i;
 }
 
-size_t
-utf8_towcs(const void* in, wchar_t* ret) {
-  size_t i;
-
-  const uint8_t* ptr = in;
-  for(i = 0; *ptr; i++) {
-    ret[i] = unicode_from_utf8(ptr, ptr[1] == '\0' ? 1 : ptr[2] == '\0' ? 2 : ptr[3] ? 3 : 4, &ptr);
+#if defined(_WIN32) && !defined(__MSYS__)
+wchar_t*
+utf8_towcs(const char* s) {
+  int len = (int)strlen(s);
+  int n = MultiByteToWideChar(CP_UTF8, 0, s, len, NULL, 0);
+  wchar_t* ret = (wchar_t*)malloc((n + 1) * sizeof(wchar_t));
+  if(ret) {
+    MultiByteToWideChar(CP_UTF8, 0, s, len, ret, n);
+    ret[n] = L'\0';
   }
-  ret[i] = '\0';
-  return i;
+  return ret;
 }
 
-size_t
-utf8_fromwcs(void* out, const wchar_t* in) {
-  size_t i;
-char* ret=out;
-  const wchar_t* ptr = in;
-
-  for(i = 0; *ptr; i++, ptr++) {
-    int n;
-
-    if(!(n = unicode_to_utf8(ret, *ptr))) 
-      break;
-
-ret+= n;
+char*
+utf8_fromwcs(const wchar_t* wstr) {
+  int len = (int)wcslen(wstr);
+  int n = WideCharToMultiByte(CP_UTF8, 0, wstr, len, NULL, 0, NULL, NULL);
+  char* ret = malloc((n + 1));
+  if(ret) {
+    WideCharToMultiByte(CP_UTF8, 0, wstr, len, ret, n, NULL, NULL);
+    ret[n] = '\0';
   }
-  
-  *ret = '\0';
-  return ret - (char*)out;
+  return ret;
 }
+#endif
 
 BOOL
 utf16_multiword(const void* in) {

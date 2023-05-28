@@ -32,16 +32,17 @@ getdents_handle(Directory* d) {
 int
 getdents_open(Directory* d, const char* path) {
   size_t pathlen = utf8_strlen(path, strlen(path));
-  wchar_t wp[pathlen + 1];
+  wchar_t* wp;
 
-  utf8_towcs(path, wp);
+  wp = utf8_towcs(path);
+  assert(wp);
 
-  if((d->h = FindFirstFileW(wp, &d->fdw)) == INVALID_HANDLE_VALUE)
-    return -1;
+  if((d->h = FindFirstFileW(wp, &d->fdw)) != INVALID_HANDLE_VALUE)
+    d->first = TRUE;
 
-  d->first = TRUE;
+  free(wp);
 
-  return 0;
+  return d->h == INVALID_HANDLE_VALUE ? -1 : 0;
 }
 
 int
@@ -70,10 +71,10 @@ getdents_name(const DirEntry* e) {
 
 const uint8_t*
 getdents_namebuf(const DirEntry* e, size_t* len) {
-const wchar_t* name =  (WIN32_FIND_DATAW*)e)->cFileName;
-if(len)
-  *len = wcslen(name);
-return (const uint8_t*)name;
+  const wchar_t* name = ((WIN32_FIND_DATAW*)e)->cFileName;
+  if(len)
+    *len = wcslen(name);
+  return (const uint8_t*)name;
 }
 
 void
