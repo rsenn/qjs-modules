@@ -167,6 +167,7 @@ check_function_and_include(sysinfo sys/sysinfo.h)
 message("Have sysinfo() ${HAVE_SYSINFO}")
 
 check_function_def(gettid)
+check_function_def(uname)
 
 # if(BUILD_PIGPIO)
 #   include(ExternalProject)

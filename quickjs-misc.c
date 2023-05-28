@@ -894,11 +894,10 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 #endif
 
-#ifndef _WIN32
 static JSValue
 js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-#ifndef _WIN32
+#ifdef HAVE_UNAME
   struct utsname un;
 
   if(uname(&un) != -1) {
@@ -930,10 +929,12 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       "unknown"
 #endif
       ));
+#endif
 
   return ret;
 }
 
+#ifndef _WIN32
 static JSValue
 js_misc_ioctl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
