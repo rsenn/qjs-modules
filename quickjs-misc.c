@@ -897,8 +897,9 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 #ifndef _WIN32
 static JSValue
 js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  struct utsname un;
   JSValue ret = JS_UNDEFINED;
+#ifndef _WIN32
+  struct utsname un;
 
   if(uname(&un) != -1) {
     ret = JS_NewObject(ctx);
@@ -909,6 +910,26 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_SetPropertyStr(ctx, ret, "version", JS_NewString(ctx, un.version));
     JS_SetPropertyStr(ctx, ret, "machine", JS_NewString(ctx, un.machine));
   }
+#else
+      ret = JS_NewObject(ctx);
+    JS_SetPropertyStr(ctx, ret, "sysname", JS_NewString(ctx, 
+#ifdef __MINGW32__
+      "mingw"
+#elif defined(__MSYS__)
+      "msys"
+#elif defined(_WIN32)
+      "unknown"
+#endif
+      ));
+    JS_SetPropertyStr(ctx, ret, "machine", JS_NewString(ctx,  
+#ifdef __x86_64__
+      "x86_64"
+#elif defined(_X86_)
+      "i686"
+#else
+      "unknown"
+#endif
+      ));
 
   return ret;
 }
@@ -2481,9 +2502,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("seteuid", 1, js_misc_getx, FUNC_SETEUID),
     JS_CFUNC_MAGIC_DEF("setegid", 1, js_misc_getx, FUNC_SETEGID),
     JS_CFUNC_DEF("hrtime", 0, js_misc_hrtime),
-#ifndef _WIN32
     JS_CFUNC_DEF("uname", 0, js_misc_uname),
-#endif
 #ifdef HAVE_IOCTL_H
     JS_CFUNC_DEF("ioctl", 3, js_misc_ioctl),
 #endif

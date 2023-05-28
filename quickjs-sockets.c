@@ -11,10 +11,8 @@
 int socketpair(int, int, int, SOCKET[2]);
 
 #define socket_handle(sock) ((SOCKET)_get_osfhandle(socket_fd(sock)))
-/*#define close closesocket*/
 #else
 typedef int SOCKET;
-#define closesocket(fd) close(fd)
 #define socket_handle(sock) socket_fd(sock)
 #include <sys/select.h>
 #include <sys/syscall.h>
@@ -1180,7 +1178,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           JS_FreeValue(ctx, JS_Call(ctx, asock->pending[magic & 1], JS_NULL, 0, 0));
       }*/
 
-      JS_SOCKETCALL(SYSCALL_CLOSE, s, closesocket(socket_handle(*s)));
+      JS_SOCKETCALL(SYSCALL_CLOSE, s, close(socket_fd(*s)));
 
       if(socket_retval(*s) == 0)
         s->fd = -1;
@@ -1418,7 +1416,7 @@ js_socket_finalizer(JSRuntime* rt, JSValue val) {
   if(sock.fd >= 0) {
     if(socket_open(sock))
       if(!socket_adopted(sock))
-        close(sock.fd);
+        close(socket_fd(sock));
   }
   // JS_FreeValueRT(rt, val);
 }
