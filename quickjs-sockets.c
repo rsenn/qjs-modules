@@ -9,8 +9,13 @@
 #if defined(_WIN32) && !defined(__MSYS__)
 #include <winsock2.h>
 int socketpair(int, int, int, SOCKET[2]);
+
+#define socket_handle(sock) ((SOCKET)_get_osfhandle(socket_fd(sock)))
 /*#define close closesocket*/
 #else
+typedef int SOCKET;
+#define closesocket(fd) close(fd)
+#define socket_handle(sock) socket_fd(sock)
 #include <sys/select.h>
 #include <sys/syscall.h>
 #include <arpa/inet.h>
@@ -593,7 +598,7 @@ optval_buf(JSContext* ctx, JSValueConst arg, int32_t** tmp_ptr, socklen_t* lenp)
   return buf;
 }
 
-static JSValue
+/*static JSValue
 js_socket(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   int32_t af, type = SOCK_STREAM, proto = IPPROTO_IP;
@@ -609,12 +614,13 @@ js_socket(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) 
   JS_SOCKETCALL(SYSCALL_SOCKET, &sock, sock.fd = socket(af, type, proto));
 
   return ret;
-}
+}*/
 
 static JSValue
 js_socketpair(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t af, type = SOCK_STREAM, proto = IPPROTO_IP;
-  int result, s[2];
+  int result;
+  SOCKET s[2];
 
   JS_ToInt32(ctx, &af, argv[0]);
   JS_ToInt32(ctx, &type, argv[1]);
@@ -889,13 +895,13 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case SOCKETS_LOCAL: {
       SockAddr* a = sockaddr_new(ctx);
       socklen_t len = sizeof(SockAddr);
-      JS_SOCKETCALL_RETURN(SYSCALL_GETSOCKNAME, s, getsockname(s->fd, (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
+      JS_SOCKETCALL_RETURN(SYSCALL_GETSOCKNAME, s, getsockname(socket_handle(*s), (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
       break;
     }
     case SOCKETS_REMOTE: {
       SockAddr* a = sockaddr_new(ctx);
       socklen_t len = sizeof(SockAddr);
-      JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, s, getpeername(s->fd, (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
+      JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, s, getpeername(socket_handle(*s), (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
       break;
     }
     case SOCKETS_NONBLOCK: {
@@ -919,7 +925,7 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
     case SOCKETS_MODE: {
 #ifdef _WIN32
       ULONG mode = JS_ToBool(ctx, value);
-      ret = JS_NewInt32(ctx, ioctlsocket(s->fd, FIONBIO, &mode));
+      ret = JS_NewInt32(ctx, ioctlsocket(socket_handle(*s), FIONBIO, &mode));
 #else
       uint32_t mode = 0;
       JS_ToUint32(ctx, &mode, value);
@@ -1024,7 +1030,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         nonblock = JS_ToBool(ctx, argv[0]);
 #ifdef _WIN32
       ULONG mode = nonblock;
-      ret = JS_NewInt32(ctx, ioctlsocket(s->fd, FIONBIO, &mode));
+      ret = JS_NewInt32(ctx, ioctlsocket(socket_handle(*s), FIONBIO, &mode));
 #else
       int oldflags, newflags;
       oldflags = fcntl(s->fd, F_GETFL);
@@ -1036,16 +1042,16 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       break;
     }
     case SOCKETS_BIND: {
-      JS_SOCKETCALL(SYSCALL_BIND, s, bind(s->fd, (struct sockaddr*)a, sockaddr_size(a)));
+      JS_SOCKETCALL(SYSCALL_BIND, s, bind(socket_handle(*s), (struct sockaddr*)a, sockaddr_size(a)));
       break;
     }
     case SOCKETS_ACCEPT: {
       socklen_t addrlen = sizeof(SockAddr);
-      JS_SOCKETCALL(SYSCALL_ACCEPT, s, accept(s->fd, (struct sockaddr*)a, &addrlen));
+      JS_SOCKETCALL(SYSCALL_ACCEPT, s, accept(socket_handle(*s), (struct sockaddr*)a, &addrlen));
       break;
     }
     case SOCKETS_CONNECT: {
-      JS_SOCKETCALL(SYSCALL_CONNECT, s, connect(s->fd, (struct sockaddr*)a, sockaddr_size(a)));
+      JS_SOCKETCALL(SYSCALL_CONNECT, s, connect(socket_handle(*s), (struct sockaddr*)a, sockaddr_size(a)));
 
       if(wait)
         ret = js_async_socket_method(ctx, this_val, argc, argv, magic);
@@ -1056,7 +1062,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       int32_t backlog = 5;
       if(argc >= 1)
         JS_ToInt32(ctx, &backlog, argv[0]);
-      JS_SOCKETCALL(SYSCALL_LISTEN, s, listen(s->fd, backlog));
+      JS_SOCKETCALL(SYSCALL_LISTEN, s, listen(socket_handle(*s), backlog));
       break;
     }
     case SOCKETS_RECV:
@@ -1077,9 +1083,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         if((a = argc >= 5 ? js_sockaddr_data(argv[4]) : 0))
           alen = sizeof(SockAddr);
 
-        JS_SOCKETCALL(SYSCALL_RECVFROM, s, recvfrom(s->fd, buf.data + off.offset, offset_size(&off, buf.size), flags, &a->s, &alen));
+        JS_SOCKETCALL(SYSCALL_RECVFROM, s, recvfrom(socket_handle(*s), (void*)(buf.data + off.offset), offset_size(&off, buf.size), flags, &a->s, &alen));
       } else {
-        JS_SOCKETCALL(SYSCALL_RECV, s, recv(s->fd, buf.data + off.offset, offset_size(&off, buf.size), flags));
+        JS_SOCKETCALL(SYSCALL_RECV, s, recv(socket_handle(*s), (void*)(buf.data + off.offset), offset_size(&off, buf.size), flags));
       }
 
       break;
@@ -1098,9 +1104,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(magic == SOCKETS_SENDTO) {
         if((a = argc >= 5 ? js_sockaddr_data(argv[4]) : 0))
           alen = sockaddr_size(a);
-        JS_SOCKETCALL(SYSCALL_SENDTO, s, sendto(socket_fd(*s), buf.data + off.offset, offset_size(&off, buf.size), flags, &a->s, alen));
+        JS_SOCKETCALL(SYSCALL_SENDTO, s, sendto(socket_handle(*s), (const void*)(buf.data + off.offset), offset_size(&off, buf.size), flags, &a->s, alen));
       } else {
-        JS_SOCKETCALL(SYSCALL_SEND, s, send(socket_fd(*s), buf.data + off.offset, offset_size(&off, buf.size), flags));
+        JS_SOCKETCALL(SYSCALL_SEND, s, send(socket_handle(*s), (const void*)(buf.data + off.offset), offset_size(&off, buf.size), flags));
       }
       break;
     }
@@ -1108,7 +1114,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case SOCKETS_GETSOCKOPT: {
       int32_t level, optname;
       uint32_t optlen = sizeof(int);
-      uint8_t* buf;
+      uint8_t* buf;   
       int32_t val, *tmp = 0;
       socklen_t len;
       JS_ToInt32(ctx, &level, argv[0]);
@@ -1119,7 +1125,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       buf = optval_buf(ctx, argv[2], &tmp, &len);
 
-      JS_SOCKETCALL(SYSCALL_GETSOCKOPT, s, getsockopt(socket_fd(*s), level, optname, buf, &len));
+      JS_SOCKETCALL(SYSCALL_GETSOCKOPT, s, getsockopt(socket_handle(*s), level, optname, (void*)buf, &len));
       if(tmp) {
         js_array_clear(ctx, argv[2]);
         JS_SetPropertyUint32(ctx, argv[2], 0, JS_NewInt32(ctx, *(int32_t*)buf));
@@ -1151,7 +1157,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
             len = newlen;
         }
       }
-      JS_SOCKETCALL(SYSCALL_SETSOCKOPT, s, setsockopt(socket_fd(*s), level, optname, buf, len));
+      JS_SOCKETCALL(SYSCALL_SETSOCKOPT, s, setsockopt(socket_handle(*s), level, optname, (const void*)buf, len));
       /*printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", socket_fd(*s), level, optname,
        * *(int*)buf, buf, len, s->ret);*/
 
@@ -1163,7 +1169,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case SOCKETS_SHUTDOWN: {
       int32_t how;
       JS_ToInt32(ctx, &how, argv[0]);
-      JS_SOCKETCALL(SYSCALL_SHUTDOWN, s, shutdown(socket_fd(*s), how));
+      JS_SOCKETCALL(SYSCALL_SHUTDOWN, s, shutdown(socket_handle(*s), how));
       break;
     }
     case SOCKETS_CLOSE: {
@@ -1174,7 +1180,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           JS_FreeValue(ctx, JS_Call(ctx, asock->pending[magic & 1], JS_NULL, 0, 0));
       }*/
 
-      JS_SOCKETCALL(SYSCALL_CLOSE, s, close(socket_fd(*s)));
+      JS_SOCKETCALL(SYSCALL_CLOSE, s, closesocket(socket_handle(*s)));
 
       if(socket_retval(*s) == 0)
         s->fd = -1;
@@ -1292,7 +1298,7 @@ js_socket_async_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     int err = 0;
     socklen_t optlen = sizeof(err);
 
-    if(getsockopt(socket_fd(*asock), SOL_SOCKET, SO_ERROR, &err, &optlen) != 0) {
+    if(getsockopt(socket_handle(*asock), SOL_SOCKET, SO_ERROR, (void*)&err, &optlen) != 0) {
       asock->ret = -1;
       asock->syscall = SYSCALL_GETSOCKOPT;
       err = errno;
