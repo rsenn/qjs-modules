@@ -1,16 +1,22 @@
 #include "getdents.h"
 #include "char-utils.h"
+#include <assert.h>
 
 #if defined(_WIN32) || defined(__MSYS__)
 #include <windows.h>
 
 #define BUFFER_SIZE 1024 * 1024 * 5
-#define DIRENT(d) ((WIN32_FIND_DATAW*)&(d)->fdw)
+#define DIRENT(d) ((find_data_type*)&(d)->fdw)
+#ifdef _UCRT
+  typedef WIN32_FIND_DATAA find_data_type;
+#else
+  typedef WIN32_FIND_DATAW find_data_type;
+#endif
 
 struct getdents_reader {
   HANDLE h;
   BOOL first;
-  WIN32_FIND_DATAW fdw;
+  find_data_type fdw;
 };
 
 size_t
@@ -31,17 +37,19 @@ getdents_handle(Directory* d) {
 
 int
 getdents_open(Directory* d, const char* path) {
-  size_t pathlen = utf8_strlen(path, strlen(path));
-  wchar_t* wp;
-
-  wp = utf8_towcs(path);
+  /*size_t pathlen = utf8_strlen(path, strlen(path));*/
+#ifdef _UCRT
+  if((d->h = FindFirstFileA(path, &d->fdw)) != INVALID_HANDLE_VALUE)
+    d->first = TRUE;
+#else
+  wchar_t* wp = utf8_towcs(path);
   assert(wp);
 
   if((d->h = FindFirstFileW(wp, &d->fdw)) != INVALID_HANDLE_VALUE)
     d->first = TRUE;
 
   free(wp);
-
+#endif
   return d->h == INVALID_HANDLE_VALUE ? -1 : 0;
 }
 
@@ -65,13 +73,13 @@ getdents_read(Directory* d) {
 
 const char*
 getdents_name(const DirEntry* e) {
-  WIN32_FIND_DATAW* fdw = (void*)e;
+  find_data_type* fdw = (void*)e;
   return fdw->cFileName;
 }
 
 const uint8_t*
 getdents_namebuf(const DirEntry* e, size_t* len) {
-  const wchar_t* name = ((WIN32_FIND_DATAW*)e)->cFileName;
+  const wchar_t* name = ((find_data_type*)e)->cFileName;
   if(len)
     *len = wcslen(name);
   return (const uint8_t*)name;
@@ -85,32 +93,32 @@ getdents_close(Directory* d) {
 
 int
 getdents_isblk(const DirEntry* e) {
-  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DEVICE);
+  return !!(((find_data_type*)e)->dwFileAttributes & FILE_ATTRIBUTE_DEVICE);
 }
 
 int
 getdents_ischr(const DirEntry* e) {
-  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DEVICE);
+  return !!(((find_data_type*)e)->dwFileAttributes & FILE_ATTRIBUTE_DEVICE);
 }
 
 int
 getdents_isdir(const DirEntry* e) {
-  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
+  return !!(((find_data_type*)e)->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 int
 getdents_isfifo(const DirEntry* e) {
-  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY);
+  return !!(((find_data_type*)e)->dwFileAttributes == FILE_ATTRIBUTE_DIRECTORY);
 }
 
 int
 getdents_islnk(const DirEntry* e) {
-  return ((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT;
+  return ((find_data_type*)e)->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT;
 }
 
 int
 getdents_isreg(const DirEntry* e) {
-  return !!(((WIN32_FIND_DATAW*)e)->dwFileAttributes & FILE_ATTRIBUTE_NORMAL);
+  return !!(((find_data_type*)e)->dwFileAttributes & FILE_ATTRIBUTE_NORMAL);
 }
 
 int

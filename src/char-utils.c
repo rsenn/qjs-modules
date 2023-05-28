@@ -1,5 +1,8 @@
 #include "char-utils.h"
 #include "libutf/include/libutf.h"
+#ifdef _WIN32
+#include <winnls.h>
+#endif
 
 /**
  * \addtogroup char-utils
