@@ -18,7 +18,7 @@
  * \defgroup quickjs-path QuickJS module: path - Directory path
  * @{
  */
-thread_local JSValue path_object = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue path_object = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   PATH_ABSOLUTE = 0,
@@ -35,7 +35,7 @@ enum {
   PATH_EXTNAME,
   PATH_EXTPOS,
   PATH_EXTLEN,
-  PATH_FIND,
+  PATH_SEARCH,
   PATH_FNMATCH,
   PATH_GETCWD,
   PATH_GETHOME,
@@ -377,8 +377,8 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       break;
     }
 
-    case PATH_FIND: {
-      // path_find(a, b, &db);
+    case PATH_SEARCH: {
+      path_search(a, b, &db);
       break;
     }
 
@@ -764,7 +764,7 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("realpath", 1, js_path_method_dbuf, PATH_REALPATH),
     JS_CFUNC_MAGIC_DEF("concat", 2, js_path_method_dbuf, PATH_CONCAT),
     JS_CFUNC_MAGIC_DEF("at", 2, js_path_method, PATH_AT),
-    JS_CFUNC_MAGIC_DEF("find", 2, js_path_method_dbuf, PATH_FIND),
+    JS_CFUNC_MAGIC_DEF("search", 2, js_path_method_dbuf, PATH_SEARCH),
     JS_CFUNC_MAGIC_DEF("relative", 2, js_path_method_dbuf, PATH_RELATIVE),
     JS_CFUNC_DEF("slice", 0, js_path_slice),
     JS_CFUNC_DEF("join", 1, js_path_join),

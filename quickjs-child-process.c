@@ -37,7 +37,7 @@ enum {
 extern char** environ;
 
 thread_local VISIBLE JSClassID js_child_process_class_id = 0;
-thread_local JSValue child_process_proto = {{0},JS_TAG_UNDEFINED}, child_process_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue child_process_proto = {{0}, JS_TAG_UNDEFINED}, child_process_ctor = {{0}, JS_TAG_UNDEFINED};
 
 ChildProcess*
 js_child_process_data(JSValueConst value) {
@@ -66,8 +66,7 @@ js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(!(cp = js_mallocz(ctx, sizeof(ChildProcess))))
     return JS_EXCEPTION;
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
@@ -126,6 +125,92 @@ js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return ret;
 }
 
+static int
+js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
+
+  JSValue value;
+  size_t i, len;
+  int *parent_fds, *child_fds;
+
+  value = JS_GetPropertyStr(ctx, obj, "env");
+
+  if(JS_IsObject(value)) {
+    cp->env = child_process_environment(ctx, value);
+  } else {
+    cp->env = js_strv_dup(ctx, environ);
+  }
+  JS_FreeValue(ctx, value);
+
+  value = JS_GetPropertyStr(ctx, obj, "cwd");
+  if(JS_IsString(value)) {
+    cp->cwd = js_tostring(ctx, value);
+  }
+  JS_FreeValue(ctx, value);
+
+  value = JS_GetPropertyStr(ctx, obj, "stdio");
+  if(JS_IsException(value) || JS_IsUndefined(value))
+    value = JS_NewString(ctx, "pipe");
+
+  if(!JS_IsArray(ctx, value)) {
+    JSValue a = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, a, 0, JS_DupValue(ctx, value));
+    JS_SetPropertyUint32(ctx, a, 1, JS_DupValue(ctx, value));
+    JS_SetPropertyUint32(ctx, a, 2, JS_DupValue(ctx, value));
+    JS_FreeValue(ctx, value);
+    value = a;
+  }
+
+  len = js_array_length(ctx, value);
+  parent_fds = cp->parent_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
+  child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
+  cp->num_fds = len;
+
+  for(i = 0; i < len; i++) {
+    JSValue item = JS_GetPropertyUint32(ctx, value, i);
+    parent_fds[i] = -1;
+    child_fds[i] = -1;
+
+    if(JS_IsNumber(item)) {
+      int32_t fd;
+      JS_ToInt32(ctx, &fd, item);
+
+      child_fds[i] = fd;
+    } else if(JS_IsString(item)) {
+      const char* s = JS_ToCString(ctx, item);
+
+      if(!strcmp(s, "pipe")) {
+        int fds[2];
+
+        if(pipe(fds) == -1)
+          fds[0] = fds[1] = -1;
+
+        if(i == 0) {
+          child_fds[i] = fds[0];
+          parent_fds[i] = fds[1];
+        } else {
+          child_fds[i] = fds[1];
+          parent_fds[i] = fds[0];
+        }
+
+      } else if(!strcmp(s, "ignore")) {
+        child_fds[i] = open("/dev/null", O_RDWR);
+      } else if(!strcmp(s, "inherit")) {
+        child_fds[i] = i;
+      }
+
+      JS_FreeCString(ctx, s);
+    }
+  }
+  JS_FreeValue(ctx, value);
+
+  value = JS_GetPropertyStr(ctx, obj, "usePath");
+  if(JS_IsBool(value))
+    cp->use_path = JS_ToBool(ctx, value);
+  JS_FreeValue(ctx, value);
+
+  return 0;
+}
+
 static JSValue
 js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -151,82 +236,8 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     cp->args[1] = 0;
   }
 
-  if(argc > 2 && JS_IsObject(argv[2])) {
-    JSValue value;
-    size_t i, len;
-    int *parent_fds, *child_fds;
-
-    value = JS_GetPropertyStr(ctx, argv[2], "env");
-
-    if(JS_IsObject(value)) {
-      cp->env = child_process_environment(ctx, value);
-    } else {
-      cp->env = js_strv_dup(ctx, environ);
-    }
-    JS_FreeValue(ctx, value);
-
-    value = JS_GetPropertyStr(ctx, argv[2], "cwd");
-    if(JS_IsString(value)) {
-      cp->cwd = js_tostring(ctx, value);
-    }
-    JS_FreeValue(ctx, value);
-
-    value = JS_GetPropertyStr(ctx, argv[2], "stdio");
-    if(JS_IsException(value) || JS_IsUndefined(value))
-      value = JS_NewString(ctx, "pipe");
-
-    if(!JS_IsArray(ctx, value)) {
-      JSValue a = JS_NewArray(ctx);
-      JS_SetPropertyUint32(ctx, a, 0, JS_DupValue(ctx, value));
-      JS_SetPropertyUint32(ctx, a, 1, JS_DupValue(ctx, value));
-      JS_SetPropertyUint32(ctx, a, 2, JS_DupValue(ctx, value));
-      JS_FreeValue(ctx, value);
-      value = a;
-    }
-
-    len = js_array_length(ctx, value);
-    parent_fds = cp->parent_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
-    child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
-    cp->num_fds = len;
-
-    for(i = 0; i < len; i++) {
-      JSValue item = JS_GetPropertyUint32(ctx, value, i);
-      parent_fds[i] = -1;
-      child_fds[i] = -1;
-
-      if(JS_IsNumber(item)) {
-        int32_t fd;
-        JS_ToInt32(ctx, &fd, item);
-
-        child_fds[i] = fd;
-      } else if(JS_IsString(item)) {
-        const char* s = JS_ToCString(ctx, item);
-
-        if(!strcmp(s, "pipe")) {
-          int fds[2];
-
-          if(pipe(fds) == -1)
-            fds[0] = fds[1] = -1;
-
-          if(i == 0) {
-            child_fds[i] = fds[0];
-            parent_fds[i] = fds[1];
-          } else {
-            child_fds[i] = fds[1];
-            parent_fds[i] = fds[0];
-          }
-
-        } else if(!strcmp(s, "ignore")) {
-          child_fds[i] = open("/dev/null", O_RDWR);
-        } else if(!strcmp(s, "inherit")) {
-          child_fds[i] = i;
-        }
-
-        JS_FreeCString(ctx, s);
-      }
-    }
-    JS_FreeValue(ctx, value);
-  }
+  if(argc > 2 && JS_IsObject(argv[2]))
+    js_child_process_options(ctx, cp, argv[2]);
 
   child_process_spawn(cp);
 

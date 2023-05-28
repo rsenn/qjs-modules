@@ -201,7 +201,9 @@ function(make_module FNAME)
   endif(ARGN)
 
   message(
-    STATUS "Building QuickJS module: ${FNAME} (deps: ${DEPS}, libs: ${LIBS}) JS_${UNAME}_MODULE=1")
+    STATUS
+      "Building QuickJS module: ${FNAME} (deps: ${DEPS}, libs: ${LIBS}) JS_${UNAME}_MODULE=1"
+  )
 
   if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     set(BUILD_SHARED_MODULES OFF)
@@ -234,9 +236,9 @@ function(make_module FNAME)
     target_link_libraries(${TARGET_NAME} PUBLIC ${LIBS} ${QUICKJS_LIBRARY})
 
     #message("C module dir: ${QUICKJS_C_MODULE_DIR}")
-    install(TARGETS ${TARGET_NAME} DESTINATION "${QUICKJS_C_MODULE_DIR}"
+    install(TARGETS ${TARGET_NAME} RUNTIME DESTINATION "${QUICKJS_C_MODULE_DIR}"
             PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
-                        GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+                                GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
     config_module(${TARGET_NAME})
 

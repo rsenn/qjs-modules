@@ -134,7 +134,7 @@ check_function_def(strverscmp)
 check_function_def(memmem)
 check_function_def(fmemopen)
 check_functions(fcntl wordexp inotify_init1)
-check_includes(fcntl.h alloca.h  wordexp.h sys/inotify.h)
+check_includes(fcntl.h alloca.h wordexp.h sys/inotify.h)
 
 check_functions_def(access fnmatch inet_pton daemon)
 
@@ -361,9 +361,9 @@ set(predicate_SOURCES src/predicate.c include/predicate.h ${vector_SOURCES}
 set(pointer_SOURCES src/pointer.c include/pointer.h ${utils_SOURCES}
                     ${buffer_utils_SOURCES})
 set(lexer_SOURCES
-    quickjs-lexer.h #${location_SOURCES} 
-    ${token_SOURCES} ${utils_SOURCES}
-    ${vector_SOURCES} src/lexer.c include/lexer.h)
+    quickjs-lexer.h #${location_SOURCES}
+    ${token_SOURCES} ${utils_SOURCES} ${vector_SOURCES} src/lexer.c
+    include/lexer.h)
 set(lexer_LIBRARIES qjs-location)
 set(mmap_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(repeater_SOURCES ${queue_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})

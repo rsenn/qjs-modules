@@ -573,27 +573,26 @@ path_extname1(const char* p) {
 }
 
 int
-path_find(const char* path, const char* name, DynBuf* db) {
-  DIR* dir;
-  struct dirent* entry;
-  int ret = 0;
+path_search(const char* path, const char* name, DynBuf* db) {
+  size_t i, n;
 
-  if(!(dir = opendir(path)))
-    return 0;
+  for(i = 0; path[i]; i += n) {
+    n = str_chr(&path[i], PATHDELIM_S[0]);
 
-  while((entry = readdir(dir))) {
-    const char* s = entry->d_name;
-    if(!strcasecmp(s, name)) {
-      dbuf_putstr(db, path);
-      dbuf_putc(db, PATHSEP_C);
-      dbuf_putstr(db, s);
-      ret = 1;
-      break;
-    }
+    db->size = 0;
+    dbuf_put(db, &path[i], n);
+    dbuf_putc(db, PATHSEP_C);
+    dbuf_putstr(db, name);
+    dbuf_0(db);
+
+    if(path_exists2(db->buf, db->size))
+      return 1;
+
+     if(path[i + n])
+      ++n;
   }
-
-  closedir(dir);
-  return ret;
+  
+  return 0;
 }
 
 int

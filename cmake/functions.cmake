@@ -212,4 +212,3 @@ function(CHECK_FLAG FLAG VAR)
 
   endif(RESULT)
 endfunction(CHECK_FLAG FLAG VAR)
-

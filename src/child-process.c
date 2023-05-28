@@ -47,6 +47,7 @@ child_process_new(JSContext* ctx) {
   ChildProcess* child;
   child = js_mallocz(ctx, sizeof(ChildProcess));
   list_add_tail(&child->link, &child_process_list);
+  child->use_path = 1;
   child->exitcode = -1;
   child->termsig = -1;
   child->stopsig = -1;
@@ -123,7 +124,8 @@ child_process_spawn(ChildProcess* cp) {
 #ifdef _WIN32
   int i;
   intptr_t pid;
-  char* args = argv_to_string(cp->args, ' ');
+  DynBuf search;
+  char *file = 0, *args;
   PROCESS_INFORMATION piProcessInfo;
   STARTUPINFOA siStartInfo;
 
@@ -144,7 +146,23 @@ child_process_spawn(ChildProcess* cp) {
   siStartInfo.hStdInput = (HANDLE)_get_osfhandle(cp->child_fds[0]);
   siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
-  retval = CreateProcessA(cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+  if(cp->use_path) {
+    if(path_isname(cp->file) && !path_exists(cp->file)) {
+      dbuf_init2(&db, 0, 0);
+      if(!path_search(getenv("PATH"), cp->file, &db)) {
+        dbuf_free(&db);
+        return -1;
+      }
+      file = db.buf;
+    }
+  }
+
+  args = argv_to_string(cp->args, ' ');
+  retval = CreateProcessA(file ? file : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+
+  free(args);
+  if(file)
+    free(file);
 
   if(retval == FALSE) {
     int error = GetLastError();
@@ -170,7 +188,7 @@ child_process_spawn(ChildProcess* cp) {
     if(cp->child_fds[i] >= 0)
       posix_spawn_file_actions_adddup2(&actions, cp->child_fds[i], i);
 
-  if(posix_spawnp(&pid, cp->file, &actions, &attr, cp->args, cp->env)) {
+  if((cp->use_path ? posix_spawnp : posix_spawn)(&pid, cp->file, &actions, &attr, cp->args, cp->env)) {
     fprintf(stderr, "posix_spawnp error: %s\n", strerror(errno));
     return -1;
   }
@@ -207,7 +225,7 @@ child_process_spawn(ChildProcess* cp) {
     setgid(cp->gid);
 
 #ifdef HAVE_EXECVPE
-    execvpe(cp->file, cp->args, cp->env ? cp->env : environ);
+    (cp->use_path ? execvpe : execve)(cp->file, cp->args, cp->env ? cp->env : environ);
     perror("execvp()");
 #else
     if(cp->env) {
@@ -215,7 +233,7 @@ child_process_spawn(ChildProcess* cp) {
       for(i = 0; cp->env[i]; i++)
         putenv(cp->env[i]);
     }
-    execvp(cp->file, cp->args);
+    (cp->use_path ? execvp : execv)(cp->file, cp->args);
     perror("execvp()");
 #endif
     exit(errno);
