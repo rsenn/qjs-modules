@@ -1439,7 +1439,7 @@ js_sockopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
 }
 
 static const JSCFunctionListEntry js_sockets_funcs[] = {
-    JS_CFUNC_DEF("socket", 1, js_socket),
+    /*JS_CFUNC_DEF("socket", 1, js_socket),*/
     JS_CFUNC_DEF("socketpair", 4, js_socketpair),
     JS_CFUNC_DEF("select", 1, js_select),
 #ifndef _WIN32
