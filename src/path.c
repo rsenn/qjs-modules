@@ -728,11 +728,11 @@ path_getcwd0(void) {
 
 char*
 path_gethome(void) {
-   static char home[PATH_MAX + 1];
- #if defined(_WIN32)
-   if (SHGetFolderPathA( NULL, CSIDL_PROFILE, NULL, 0, home ) != S_OK)
+  static char home[PATH_MAX + 1];
+#if defined(_WIN32)
+  if(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, home) != S_OK)
     return 0;
-   return home;
+  return home;
 #else
   return getenv("HOME");
 #endif
@@ -740,7 +740,7 @@ path_gethome(void) {
 
 char*
 path_gethome1(int uid) {
-   static char home[PATH_MAX + 1];
+  static char home[PATH_MAX + 1];
   FILE* fp;
   char *line, *ret = 0;
   char buf[1024];

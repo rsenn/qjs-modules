@@ -8,9 +8,9 @@
 #define BUFFER_SIZE 1024 * 1024 * 5
 #define DIRENT(d) ((find_data_type*)&(d)->fdw)
 #ifdef _UCRT
-  typedef WIN32_FIND_DATAA find_data_type;
+typedef WIN32_FIND_DATAA find_data_type;
 #else
-  typedef WIN32_FIND_DATAW find_data_type;
+typedef WIN32_FIND_DATAW find_data_type;
 #endif
 
 struct getdents_reader {
@@ -63,12 +63,18 @@ getdents_adopt(Directory* d, intptr_t hnd) {
 
 DirEntry*
 getdents_read(Directory* d) {
-  if(d->first) {
+  if(d->first)
     d->first = FALSE;
-    return (DirEntry*)&d->fdw;
-  }
+  else if(!
+#ifdef _UCRT
+          FindNextFileA(d->h, &d->fdw)
+#else
+          FindNextFileW(d->h, &d->fdw)
+#endif
+  )
+    return 0;
 
-  return 0;
+  return (DirEntry*)&d->fdw;
 }
 
 const void*
