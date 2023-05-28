@@ -1112,7 +1112,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case SOCKETS_GETSOCKOPT: {
       int32_t level, optname;
       uint32_t optlen = sizeof(int);
-      uint8_t* buf;   
+      uint8_t* buf;
       int32_t val, *tmp = 0;
       socklen_t len;
       JS_ToInt32(ctx, &level, argv[0]);

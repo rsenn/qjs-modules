@@ -85,7 +85,6 @@ enum SocketCalls {
   SYSCALL_SETSOCKOPT
 };
 
-
 #define socket_fd(sock) ((sock).fd)
 #define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)
 #define socket_eof(sock) (((sock).syscall == SYSCALL_RECV || (sock).syscall == SYSCALL_RECVFROM) && (sock).ret == 0)

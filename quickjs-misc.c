@@ -910,25 +910,31 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_SetPropertyStr(ctx, ret, "machine", JS_NewString(ctx, un.machine));
   }
 #else
-      ret = JS_NewObject(ctx);
-    JS_SetPropertyStr(ctx, ret, "sysname", JS_NewString(ctx, 
+  ret = JS_NewObject(ctx);
+  JS_SetPropertyStr(ctx,
+                    ret,
+                    "sysname",
+                    JS_NewString(ctx,
 #ifdef __MINGW32__
-      "mingw"
+                                 "mingw"
 #elif defined(__MSYS__)
-      "msys"
+                                 "msys"
 #elif defined(_WIN32)
-      "unknown"
+                                 "unknown"
 #endif
-      ));
-    JS_SetPropertyStr(ctx, ret, "machine", JS_NewString(ctx,  
+                                 ));
+  JS_SetPropertyStr(ctx,
+                    ret,
+                    "machine",
+                    JS_NewString(ctx,
 #ifdef __x86_64__
-      "x86_64"
+                                 "x86_64"
 #elif defined(_X86_)
-      "i686"
+                                 "i686"
 #else
-      "unknown"
+                                 "unknown"
 #endif
-      ));
+                                 ));
 #endif
 
   return ret;
