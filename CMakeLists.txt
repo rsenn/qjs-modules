@@ -588,7 +588,7 @@ foreach(LIB_MODULE ${LIB_MODULES})
 endforeach(LIB_MODULE ${LIB_MODULES})
 
 
-add_library(modules STATIC ${LIBRARY_SOURCES} ${libutf_SOURCES})
+add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${libutf_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
 add_library(compiled STATIC ${COMPILED_MODULES})
 set(COMMON_LIBRARIES modules compiled)
@@ -621,7 +621,7 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 #dump(COMPILED_MODULES)
 
 #set(QJSM_SOURCES src/qjsm.c src/path.c src/readlink.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c ${MODULES_DIR}/perf_hooks.c ${MODULES_DIR}/process.c ${MODULES_DIR}/tty.c ${MODULES_DIR}/util.c ${QJSM_EXTRA_SOURCES})
-set(QJSM_SOURCES src/qjsm.c quickjs-internal.c quickjs-internal.h)
+set(QJSM_SOURCES src/qjsm.c)
 
 foreach(NATIVE_BUILTIN child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
   list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
