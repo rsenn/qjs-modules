@@ -1,3 +1,4 @@
+#ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -127,3 +128,4 @@ gpio_get_pin(struct gpio* gpio, const uint8_t pin) {
 /**
  * @}
  */
+#endif /* defined(HAVE_SYS_MMAN_H) */
