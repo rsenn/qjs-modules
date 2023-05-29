@@ -369,6 +369,7 @@ list(APPEND sockets_LIBRARIES qjs-syscallerror)
 file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h
      tutf8e/src/*.c)
 file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
+
 set(textcode_SOURCES
     quickjs-textcode.c quickjs-textcode.h src/ringbuffer.c include/ringbuffer.h
     ${libutf_SOURCES} ${tutf8e_SOURCES} ${buffer_utils_SOURCES}
