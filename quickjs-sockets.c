@@ -1229,8 +1229,10 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
 
         continue;
       }
-#endif
       return JS_ThrowInternalError(ctx, "Failed creating socket: %d", WSAGetLastError());
+#else
+      return JS_ThrowInternalError(ctx, "Failed creating socket: %d", strerror(errno));
+#endif
     }
 
     break;

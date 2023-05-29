@@ -525,13 +525,9 @@ if(NOT WASI)
   endif(EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 endif(NOT WASI)
 
-foreach(JS_MODULE ${QUICKJS_MODULES})
-  make_module(${JS_MODULE})
-  string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
-  list(APPEND QJSM_LIBS "${QJSM_MODULE}")
-  list(APPEND QJSM_LDADD
-       "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
-endforeach(JS_MODULE ${QUICKJS_MODULES})
+
+file(GLOB LIBRARY_SOURCES include/*.h src/*.c)
+list(REMOVE_ITEM LIBRARY_SOURCES src/qjsm.c)
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 
@@ -591,6 +587,22 @@ foreach(LIB_MODULE ${LIB_MODULES})
   compile_module(lib/${LIB_MODULE}.js)
 endforeach(LIB_MODULE ${LIB_MODULES})
 
+
+add_library(modules STATIC ${LIBRARY_SOURCES} ${libutf_SOURCES})
+set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
+add_library(compiled STATIC ${COMPILED_MODULES})
+set(COMMON_LIBRARIES modules compiled)
+
+
+foreach(JS_MODULE ${QUICKJS_MODULES})
+  make_module(${JS_MODULE})
+  string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
+  list(APPEND QJSM_LIBS "${QJSM_MODULE}")
+  list(APPEND QJSM_LDADD
+       "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
+endforeach(JS_MODULE ${QUICKJS_MODULES})
+
+
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set(QUICKJS_SOURCES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
@@ -622,12 +634,6 @@ set(QJSM_SOURCES src/qjsm.c quickjs-internal.c quickjs-internal.h)
 #  endif(QUICKJS_DEBUGGER)
 #endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 
-file(GLOB LIBRARY_SOURCES include/*.h src/*.c)
-list(REMOVE_ITEM LIBRARY_SOURCES src/qjsm.c)
-
-add_library(modules STATIC ${LIBRARY_SOURCES} ${libutf_SOURCES})
-add_library(compiled STATIC ${COMPILED_MODULES})
-set(COMMON_LIBRARIES modules compiled)
 
 ##dump(QJSM_SOURCES)
 add_executable(qjsm ${QJSM_SOURCES})
