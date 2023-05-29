@@ -360,10 +360,10 @@ if(NOT WIN32)
   endif(NOT HAVE_INET_NTOP)
 endif(NOT WIN32)
 
-if(WIN32 OR MINGW)
+if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
-endif(WIN32 OR MINGW)
+endif()
 
 list(APPEND sockets_LIBRARIES qjs-syscallerror)
 
@@ -539,7 +539,6 @@ if(LIBM)
   set(predicate_LIBRARIES ${LIBM})
 endif(LIBM)
 
-set(sockets_LIBRARIES qjs-syscallerror)
 set(deep_LIBRARIES qjs-pointer qjs-predicate ${LIBM})
 set(lexer_DEPS qjs-predicate)
 
@@ -595,6 +594,9 @@ set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
 add_library(compiled STATIC ${COMPILED_MODULES})
 set(COMMON_LIBRARIES modules compiled)
 
+dump(CMAKE_SYSTEM_NAME)
+
+dump(HOST_SYSTEM_NAME)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
   if(${JS_MODULE}_LIBRARIES)
