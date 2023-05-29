@@ -1,6 +1,7 @@
 #include "child-process.h"
 #include "utils.h"
 #include "property-enumeration.h"
+#include "char-utils.h"
 #include "path.h"
 #include "debug.h"
 
@@ -125,7 +126,7 @@ child_process_spawn(ChildProcess* cp) {
 #ifdef _WIN32
   int i;
   intptr_t pid;
-  DynBuf search;
+  DynBuf db;
   char *file = 0, *args;
   PROCESS_INFORMATION piProcessInfo;
   STARTUPINFOA siStartInfo;
