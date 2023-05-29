@@ -166,6 +166,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/include ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
+
 set(QUICKJS_MODULES
     bjson blob deep directory lexer list location ${magic_MODULE} misc path
     pointer predicate repeater textcode sockets stream syscallerror inspect
@@ -596,6 +597,9 @@ set(COMMON_LIBRARIES modules compiled)
 
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
+  if(${JS_MODULE}_LIBRARIES)
+    dump(${JS_MODULE}_LIBRARIES)
+  endif()
   make_module(${JS_MODULE})
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
   list(APPEND QJSM_LIBS "${QJSM_MODULE}")
