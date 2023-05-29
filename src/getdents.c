@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "getdents.h"
 #include "char-utils.h"
 #include <assert.h>

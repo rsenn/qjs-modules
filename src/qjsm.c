@@ -176,7 +176,9 @@ static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
 static thread_local BOOL jsm_modules_initialized;
 
 #ifdef CONFIG_BIGNUM
+#ifdef HAVE_QJSCALC
 jsm_module_extern_compiled(qjscalc);
+#endif
 static int bignum_ext = 1;
 #endif
 
@@ -1249,8 +1251,10 @@ jsm_help(void) {
 #ifdef CONFIG_BIGNUM
          "    --no-bignum    disable the bignum extensions (BigFloat, "
          "BigDecimal)\n"
+#ifdef HAVE_QJSCALC
          "    --qjscalc      load the QJSCalc runtime (default if invoked as "
          "qjscalc)\n"
+#endif
 #endif
          "-T  --trace        trace memory allocation\n"
          "-d  --dump         dump the memory usage stats\n"
@@ -1621,7 +1625,7 @@ main(int argc, char** argv) {
   size_t memory_limit = 0;
   char* include_list[32];
   int i, include_count = 0;
-#ifdef CONFIG_BIGNUM
+#ifdef HAVE_QJSCALC
   int load_jscalc;
 #endif
   size_t stack_size = 0;
@@ -1636,7 +1640,9 @@ main(int argc, char** argv) {
     if(p)
       exename = p + 1;
     /* load jscalc runtime if invoked as 'qjscalc' */
+#ifdef HAVE_QJSCALC
     load_jscalc = !strcmp(exename, "qjscalc");
+#endif
   }
 
   /* cannot use getopt because we want to pass the command line to the script */
@@ -1753,12 +1759,12 @@ main(int argc, char** argv) {
         bignum_ext = 1;
         break;
       }
-
+#ifdef HAVE_QJSCALC
       if(!strcmp(longopt, "qjscalc")) {
         load_jscalc = 1;
         break;
       }
-
+#endif
 #endif
       if(opt == 'q' || !strcmp(longopt, "quit")) {
         empty_run++;
@@ -1820,8 +1826,10 @@ main(int argc, char** argv) {
     }
   }
 
+#ifdef HAVE_QJSCALC
   if(load_jscalc)
     bignum_ext = 1;
+#endif
 
   if(trace_memory) {
     jsm_trace_malloc_init(&trace_data);
@@ -1864,12 +1872,12 @@ main(int argc, char** argv) {
     DynBuf db;
     js_dbuf_init(ctx, &db);
 
-#ifdef CONFIG_BIGNUM
+#ifdef HAVE_QJSCALC
     if(load_jscalc) {
       js_eval_binary(ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
     }
-
 #endif
+
     js_std_add_helpers(ctx, argc - optind, argv + optind);
 
     dbuf_putstr(&db, "import process from 'process';\nglobalThis.process = process;\n");

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "child-process.h"
 #include "utils.h"
 #include "property-enumeration.h"
@@ -5,6 +6,7 @@
 #include "path.h"
 #include "debug.h"
 
+#include <stdlib.h>
 #include <errno.h>
 
 #ifdef _WIN32

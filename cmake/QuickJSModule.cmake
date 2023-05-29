@@ -25,8 +25,10 @@ function(compile_module SOURCE)
     set(OUTPUT_FILE "${MODULES_DIR}/${BASE}.c")
   endif(ARGN)
 
-  list(APPEND COMPILED_MODULES "${BASE}.c")
+  list(APPEND COMPILED_MODULES "${OUTPUT_FILE}")
+  list(APPEND COMPILED_TARGETS "${BASE}.c")
   set(COMPILED_MODULES "${COMPILED_MODULES}" PARENT_SCOPE)
+  set(COMPILED_TARGETS "${COMPILED_TARGETS}" PARENT_SCOPE)
 
   #add_custom_command(OUTPUT "${OUTPUT_FILE}" COMMAND qjsc -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE} DEPENDS qjs-inspect qjs-misc)
   add_custom_target(
@@ -193,12 +195,15 @@ function(make_module FNAME)
   set(LIBS ${${VNAME}_LIBRARIES})
 
   if(ARGN)
-    set(SOURCES ${ARGN} ${${VNAME}_SOURCES} ${COMMON_SOURCES})
+    set(SOURCES ${ARGN} #${${VNAME}_SOURCES}
+                ${COMMON_SOURCES})
     add_unique(DEPS ${${VNAME}_DEPS})
   else(ARGN)
-    set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES} ${COMMON_SOURCES})
+    set(SOURCES quickjs-${NAME}.c #${${VNAME}_SOURCES}
+                ${COMMON_SOURCES})
     add_unique(LIBS ${${VNAME}_LIBRARIES})
   endif(ARGN)
+  add_unique(LIBS ${COMMON_LIBRARIES})
 
   message(
     STATUS
@@ -236,9 +241,11 @@ function(make_module FNAME)
     target_link_libraries(${TARGET_NAME} PUBLIC ${LIBS} ${QUICKJS_LIBRARY})
 
     #message("C module dir: ${QUICKJS_C_MODULE_DIR}")
-    install(TARGETS ${TARGET_NAME} RUNTIME DESTINATION "${QUICKJS_C_MODULE_DIR}"
-            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
-                                GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+    install(
+      TARGETS ${TARGET_NAME}
+      RUNTIME DESTINATION "${QUICKJS_C_MODULE_DIR}"
+              PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ
+                          GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
     config_module(${TARGET_NAME})
 
