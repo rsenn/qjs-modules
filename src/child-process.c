@@ -117,7 +117,7 @@ argv_to_string(char* const* argv, char delim) {
     ptr += len;
     *ptr++ = delim;
   }
-  *ptr = 0;
+  *--ptr = 0;
 
   return str;
 }
@@ -151,22 +151,22 @@ child_process_spawn(ChildProcess* cp) {
   siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
   BOOL search = cp->use_path && path_isname(cp->file);
-  const char* pathvar = search ? getenv("PATH") : 0;
+  /*const char* pathvar = search ? getenv("PATH") : 0;
 
   if(search)
-    dbuf_init2(&db, 0, 0);
+    dbuf_init2(&db, 0, 0);*/
 
   args = argv_to_string(cp->args, ' ');
 
-  for(;;) {
+  /*for(;;) {
     if(search) {
       if(!(file = path_search(&pathvar, cp->file, &db)))
         break;
-    }
+    }*/
 
-    retval = CreateProcessA(file ? file : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+    retval = CreateProcessA(search ? 0 : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
 
-    if(retval == 0) {
+    /*if(retval == 0) {
       error = GetLastError();
       if(search && (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)) 
         continue;
@@ -174,9 +174,9 @@ child_process_spawn(ChildProcess* cp) {
     break;
   }
 
-  free(args);
   if(file)
-    free(file);
+    free(file);*/
+  free(args);
 
   if(retval == FALSE) {
     error = GetLastError();

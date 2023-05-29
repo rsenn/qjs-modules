@@ -1586,7 +1586,7 @@ jsm_start_interactive(JSContext* ctx) {
     sizeof(str),
     "import { REPL } from 'repl';\n"
    /* "import * as fs from 'fs';\n"*/
-    "const history = '%s/.%s_history';\n"
+    "const history = '%s%c.%s_history';\n"
     "globalThis.repl = new REPL((__filename ?? '%s').replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
     "repl.loadSaveOptions();\n"
     "repl.historyLoad();\n"
@@ -1599,7 +1599,7 @@ jsm_start_interactive(JSContext* ctx) {
     " 'import a module'\n"
     "];\n"*/
      "repl.run();\n",
-    home, exename, exename);
+    home, PATHSEP_C, exename, exename);
   /* clang-format on */
 
   JSValue ret;
@@ -1634,11 +1634,11 @@ main(int argc, char** argv) {
   // replObj = JS_UNDEFINED;
 
   {
-    const char* p;
+    size_t n;
     exename = argv[0];
-    p = strrchr(exename, '/');
-    if(p)
-      exename = p + 1;
+    n = str_rchrs(exename, "/\\", 2);
+    if(exename[n])
+      exename += n + 1;
     /* load jscalc runtime if invoked as 'qjscalc' */
 #ifdef HAVE_QJSCALC
     load_jscalc = !strcmp(exename, "qjscalc");
