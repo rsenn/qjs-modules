@@ -126,7 +126,7 @@ int
 child_process_spawn(ChildProcess* cp) {
 
 #ifdef _WIN32
-  int i;
+  int i, error = 0;
   intptr_t pid;
   DynBuf db;
   char *file = 0, *args;
@@ -166,8 +166,12 @@ child_process_spawn(ChildProcess* cp) {
 
     retval = CreateProcessA(file ? file : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
 
-    if(!search)
-      break;
+    if(retval == 0) {
+      error = GetLastError();
+      if(search && (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)) 
+        continue;
+    }
+    break;
   }
 
   free(args);
@@ -175,7 +179,7 @@ child_process_spawn(ChildProcess* cp) {
     free(file);
 
   if(retval == FALSE) {
-    int error = GetLastError();
+    error = GetLastError();
     fprintf(stderr, "CreateProcessA error: %d\n", error);
     pid = -1;
   } else {
