@@ -574,7 +574,7 @@ path_extname1(const char* p) {
 
 char*
 path_search(const char** path_ptr, const char* name, DynBuf* db) {
-  size_t i, n;
+  size_t n;
   const char* path = *path_ptr;
 
   if(*path == '\0')
@@ -588,7 +588,7 @@ path_search(const char** path_ptr, const char* name, DynBuf* db) {
   dbuf_putstr(db, name);
   dbuf_0(db);
 
-  if(path[i + n])
+  if(path[n])
     ++n;
 
   *path_ptr += n;

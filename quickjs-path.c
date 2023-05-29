@@ -378,7 +378,23 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
 
     case PATH_SEARCH: {
-      path_search(a, b, &db);
+      const char* pathstr = a;
+      DynBuf db;
+      dbuf_init2(&db, 0, 0);
+
+      for(;;) {
+        char* file;
+
+        if(!(file = path_search(&pathstr, b, &db)))
+          break;
+
+        if(path_exists1(file)) {
+          ret = JS_NewString(ctx, file);
+          break;
+        }
+      }
+
+      dbuf_free(&db);
       break;
     }
 
