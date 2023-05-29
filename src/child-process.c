@@ -163,6 +163,8 @@ child_process_spawn(ChildProcess* cp) {
     }
 
     retval = CreateProcessA(file ? file : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+
+    if(!search) break;
   }
 
   free(args);
