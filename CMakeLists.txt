@@ -324,7 +324,7 @@ set(blob_SOURCES quickjs-blob.c ${buffer_utils_SOURCES} ${utils_SOURCES})
 
 set(child_process_SOURCES
     src/child-process.c include/child-process.h src/property-enumeration.c
-    include/property-enumeration.h ${utils_SOURCES} ${vector_SOURCES})
+    include/property-enumeration.h ${char_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
 set(deep_SOURCES
     ${vector_SOURCES}
     src/pointer.c

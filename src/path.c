@@ -572,27 +572,28 @@ path_extname1(const char* p) {
   return p;
 }
 
-int
-path_search(const char* path, const char* name, DynBuf* db) {
+char*
+path_search(const char** path_ptr, const char* name, DynBuf* db) {
   size_t i, n;
+  const char* path = *path_ptr;
 
-  for(i = 0; path[i]; i += n) {
-    n = str_chr(&path[i], PATHDELIM_S[0]);
+  if(*path == '\0')
+    return 0;
 
-    db->size = 0;
-    dbuf_put(db, &path[i], n);
-    dbuf_putc(db, PATHSEP_C);
-    dbuf_putstr(db, name);
-    dbuf_0(db);
+  n = str_chr(path, PATHDELIM_S[0]);
 
-    if(path_exists2(db->buf, db->size))
-      return 1;
+  db->size = 0;
+  dbuf_put(db, path, n);
+  dbuf_putc(db, PATHSEP_C);
+  dbuf_putstr(db, name);
+  dbuf_0(db);
 
-     if(path[i + n])
-      ++n;
-  }
-  
-  return 0;
+  if(path[i + n])
+    ++n;
+
+  *path_ptr += n;
+
+  return db.buf;
 }
 
 int

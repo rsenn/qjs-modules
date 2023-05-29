@@ -146,6 +146,7 @@ size_t path_dirlen2(const char* path, size_t n);
 int path_readlink2(const char* path, DynBuf* dir);
 char* path_readlink1(const char* path);
 int path_compare4(const char* a, size_t alen, const char* b, size_t blen);
+char* path_search(const char** path_ptr, const char* name, DynBuf* db);
 
 static inline size_t
 path_skip1(const char* s) {

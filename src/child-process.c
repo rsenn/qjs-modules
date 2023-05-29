@@ -147,19 +147,22 @@ child_process_spawn(ChildProcess* cp) {
   siStartInfo.hStdInput = (HANDLE)_get_osfhandle(cp->child_fds[0]);
   siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
-  if(cp->use_path) {
-    if(path_isname(cp->file) && !path_exists(cp->file)) {
-      dbuf_init2(&db, 0, 0);
-      if(!path_search(getenv("PATH"), cp->file, &db)) {
-        dbuf_free(&db);
-        return -1;
-      }
-      file = db.buf;
-    }
-  }
+  BOOL search = cp->use_path && path_isname(cp->file);
+  const char* pathvar = search ? getenv("PATH") : 0;
+
+  if(search)
+    dbuf_init2(&db, 0, 0);
 
   args = argv_to_string(cp->args, ' ');
-  retval = CreateProcessA(file ? file : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+
+  for(;;) {
+    if(search) {
+      if(!(file = path_search(&pathvar, cp->file, &db)))
+        break;
+    }
+
+    retval = CreateProcessA(file ? file : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+  }
 
   free(args);
   if(file)
