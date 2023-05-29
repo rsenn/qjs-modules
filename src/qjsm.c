@@ -69,6 +69,7 @@ static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 // static JSModuleLoaderFunc* module_loader = 0;
 static thread_local JSValue package_json;
 static thread_local const char* exename;
+static thread_local size_t exelen;
 static thread_local JSRuntime* rt;
 static thread_local JSContext* ctx;
 static thread_local int interactive = 0;
@@ -1639,6 +1640,9 @@ main(int argc, char** argv) {
     n = str_rchrs(exename, "/\\", 2);
     if(exename[n])
       exename += n + 1;
+    exelen = str_rchr(exename, '.');
+    argv[0][exelen] = '\0';
+    
     /* load jscalc runtime if invoked as 'qjscalc' */
 #ifdef HAVE_QJSCALC
     load_jscalc = !strcmp(exename, "qjscalc");
