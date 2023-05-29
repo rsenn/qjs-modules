@@ -598,8 +598,7 @@ foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
   list(APPEND QJSM_LIBS "${QJSM_MODULE}")
-  list(APPEND QJSM_LDADD
-       "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
+  #list(APPEND QJSM_LDADD "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
 
@@ -624,6 +623,11 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 #set(QJSM_SOURCES src/qjsm.c src/path.c src/readlink.c ${MODULES_DIR}/repl.c ${MODULES_DIR}/qjscalc.c ${MODULES_DIR}/console.c ${MODULES_DIR}/events.c ${MODULES_DIR}/require.c ${MODULES_DIR}/fs.c ${MODULES_DIR}/perf_hooks.c ${MODULES_DIR}/process.c ${MODULES_DIR}/tty.c ${MODULES_DIR}/util.c ${QJSM_EXTRA_SOURCES})
 set(QJSM_SOURCES src/qjsm.c quickjs-internal.c quickjs-internal.h)
 
+foreach(NATIVE_BUILTIN child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
+  list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
+endforeach()
+
+
 #if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../quickjs-debugger.c)
 #  if(QUICKJS_DEBUGGER)
 #    set(QJSM_SOURCES
@@ -639,12 +643,13 @@ set(QJSM_SOURCES src/qjsm.c quickjs-internal.c quickjs-internal.h)
 add_executable(qjsm ${QJSM_SOURCES})
 
 #dump(QUICKJS_LIBRARY)
-if(BUILD_STATIC_MODULES)
+#[[if(BUILD_STATIC_MODULES)
   if(QJS_MODULES_STATIC)
     dump(QJS_MODULES_STATIC)
     add_dependencies(qjsm ${QJS_MODULES_STATIC})
   endif(QJS_MODULES_STATIC)
-endif(BUILD_STATIC_MODULES)
+endif(BUILD_STATIC_MODULES)]]
+
 if(COMPILED_TARGETS)
   add_dependencies(qjsm ${COMPILED_TARGETS})
 endif(COMPILED_TARGETS)

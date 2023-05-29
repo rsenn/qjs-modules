@@ -230,16 +230,17 @@ function(make_module FNAME)
 
   endif(BUILD_SHARED_MODULES)
 
-  add_library(${TARGET_NAME}-static STATIC ${SOURCES})
+  list(APPEND MODULES_SOURCES quickjs-${NAME}.c)
+  set(MODULES_SOURCES "${MODULES_SOURCES}" PARENT_SCOPE)
 
+  #[[add_library(${TARGET_NAME}-static STATIC ${SOURCES})
   set(MODULES_STATIC "${QJS_MODULES_STATIC}")
   list(APPEND MODULES_STATIC "${TARGET_NAME}-static")
   set(QJS_MODULES_STATIC "${MODULES_STATIC}" PARENT_SCOPE)
-
   set_target_properties(${TARGET_NAME}-static PROPERTIES OUTPUT_NAME "${VNAME}" PREFIX "quickjs-" SUFFIX "${LIBRARY_SUFFIX}" COMPILE_FLAGS "")
   target_compile_definitions(${TARGET_NAME}-static PRIVATE _GNU_SOURCE=1 JS_${UNAME}_MODULE=1 CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}")
   target_link_directories(${TARGET_NAME}-static PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
-  target_link_libraries(${TARGET_NAME}-static INTERFACE ${QUICKJS_LIBRARY})
+  target_link_libraries(${TARGET_NAME}-static INTERFACE ${QUICKJS_LIBRARY})]]
 
 endfunction()
 

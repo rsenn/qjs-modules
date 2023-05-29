@@ -1218,6 +1218,7 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
 
     if(fd == -1) {
 #if defined(_WIN32) && !defined(__MSYS__)
+#warning  defined(_WIN32) && !defined(__MSYS__)
       static BOOL initialized;
       int err;
       WSADATA d;
@@ -1231,7 +1232,7 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
       }
       return JS_ThrowInternalError(ctx, "Failed creating socket: %d", WSAGetLastError());
 #else
-      return JS_ThrowInternalError(ctx, "Failed creating socket: %d", strerror(errno));
+      return JS_ThrowInternalError(ctx, "Failed creating socket: %s", strerror(errno));
 #endif
     }
 
