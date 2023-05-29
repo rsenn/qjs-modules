@@ -593,7 +593,7 @@ path_search(const char** path_ptr, const char* name, DynBuf* db) {
 
   *path_ptr += n;
 
-  return db.buf;
+  return db->buf;
 }
 
 int
