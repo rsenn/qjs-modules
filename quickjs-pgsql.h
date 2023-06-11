@@ -11,7 +11,7 @@
 #include <cutils.h>
 #include <list.h>
 
-#include <postgresql/libpq-fe.h>
+#include <libpq-fe.h>
 
 PGconn* js_pgsql_data(JSContext*, JSValueConst);
 PGresult* js_pgsqlresult_data(JSContext*, JSValueConst);

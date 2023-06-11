@@ -230,6 +230,23 @@ if(USE_POSTGRESCLIENT)
   list(APPEND QUICKJS_MODULES pgsql)
   set(pgsql_LIBRARIES ${LIBPQ_LIBRARY})
   #dump(LIBPQ_LIBRARY pgsql_LIBRARIES)
+
+  set(LIBPQ_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "PostgresSQL client include directory")
+
+  if(NOT EXISTS "${LIBPQ_INCLUDE_DIR}/libpq-fe.h")
+    if(EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql" AND EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql/libpq-fe.h")
+      set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}/postgresql")
+    endif()
+  endif()
+
+  list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBPQ_INCLUDE_DIR}")
+  check_include_def(libpq-fe.h)
+
+
+  if(HAVE_LIBPQ_FE_H OR EXISTS "${LIBPQ_INCLUDE_DIR}")
+    include_directories(${LIBPQ_INCLUDE_DIR})
+  endif()
+
 endif(USE_POSTGRESCLIENT)
 
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)

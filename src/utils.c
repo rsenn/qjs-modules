@@ -2,7 +2,6 @@
 #define _ISOC99_SOURCE 1
 #include "utils.h"
 #include "defines.h"
-#include <alloca.h>
 #include <list.h>
 #include <cutils.h>
 #include "vector.h"
@@ -20,6 +19,9 @@
 
 #if defined(__EMSCRIPTEN__) && defined(__GNUC__)
 #define atomic_add_int __sync_add_and_fetch
+#endif
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
 #endif
 
 JSModuleLoaderFunc* JS_GetModuleLoaderFunc(JSRuntime*);
