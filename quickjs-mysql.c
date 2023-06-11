@@ -854,7 +854,7 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 static JSValue
 js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue promise = JS_UNDEFINED, data[5], handler;
-  MYSQLConnectParameters c = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+  MYSQLConnectParameters c = {0, 0, 0, 0, 0, 0, 0};
   MYSQL *my, *ret = 0;
   int32_t wantwrite, state, fd;
 
@@ -903,7 +903,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(!mysql_nonblock(my)) {
     MYSQL* ret;
-    MYSQLConnectParameters c = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+    MYSQLConnectParameters c = {0, 0, 0, 0, 0, 0, 0};
 
     connectparams_init(ctx, &c, argc, argv);
 
@@ -922,7 +922,6 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   int32_t wantwrite, oldstate, newstate, fd;
   int ret = 0;
   MYSQL* my = 0;
-  JSCFunctionMagic* set_handler = js_iohandler_cfunc(ctx);
 
   if(!(my = js_mysql_data(ctx, data[1])))
     return JS_EXCEPTION;
@@ -940,9 +939,9 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
     JSValueConst args[2] = {JS_NewInt32(ctx, fd), JS_NULL};
 
-    set_handler(ctx, JS_NULL, 2, args, wantwrite);
+    // set_handler(ctx, JS_NULL, 2, args, wantwrite);
 
-    //    js_iohandler_set(ctx, data[2], fd, JS_NULL);
+    js_iohandler_set(ctx, data[2], fd, JS_NULL);
 
     if(mysql_errno(my)) {
       JSValue err = js_mysqlerror_new(ctx, mysql_error(my));
@@ -961,7 +960,7 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     JSValue hdata[5] = {
         JS_NewInt32(ctx, wantwrite),
         JS_DupValue(ctx, data[1]),
-        JS_NewCFunctionMagic(ctx, set_handler, wantwrite ? "setWriteHandler" : "setReadHandler", 2, JS_CFUNC_generic_magic, wantwrite),
+        js_iohandler_fn(ctx, wantwrite),
         JS_DupValue(ctx, data[3]),
         JS_DupValue(ctx, data[4]),
     };
@@ -1008,31 +1007,12 @@ js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   promise = JS_NewPromiseCapability(ctx, &data[3]);
 
-  /* if(state == 0) {
-     MYSQL_RES* res = mysql_use_result(my);
-     JSValue res_val = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
-
-     js_iohandler_set(ctx, data[2], fd, JS_NULL);
-
-     if(mysql_errno(my)) {
-       JSValue err = js_mysqlerror_new(ctx, mysql_error(my));
-       JS_Call(ctx, data[4], JS_UNDEFINED, 1, &err);
-       JS_FreeValue(ctx, err);
-     } else {
-       if(res)
-         JS_DefinePropertyValueStr(ctx, res_val, "handle", JS_DupValue(ctx, data[1]), JS_PROP_CONFIGURABLE);
-
-       JS_Call(ctx, data[3], JS_UNDEFINED, 1, &res_val);
-       JS_FreeValue(ctx, res_val);
-     }
-
-   } else*/
   {
-    JSCFunctionMagic* set_handler = js_iohandler_cfunc(ctx);
+    // JSCFunctionMagic* set_handler = js_iohandler_cfunc(ctx);
 
     data[0] = JS_NewInt32(ctx, wantwrite);
     data[1] = JS_DupValue(ctx, this_val);
-    data[2] = JS_NewCFunctionMagic(ctx, set_handler, wantwrite ? "setWriteHandler" : "setReadHandler", 2, JS_CFUNC_generic_magic, wantwrite ? 1 : 0);
+    data[2] = js_iohandler_fn(ctx, wantwrite);
 
     // js_iohandler_fn(ctx, wantwrite);
 

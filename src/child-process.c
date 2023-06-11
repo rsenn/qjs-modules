@@ -164,18 +164,18 @@ child_process_spawn(ChildProcess* cp) {
         break;
     }*/
 
-    retval = CreateProcessA(search ? 0 : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+  retval = CreateProcessA(search ? 0 : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
 
-    /*if(retval == 0) {
-      error = GetLastError();
-      if(search && (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)) 
-        continue;
-    }
-    break;
+  /*if(retval == 0) {
+    error = GetLastError();
+    if(search && (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND))
+      continue;
   }
+  break;
+}
 
-  if(file)
-    free(file);*/
+if(file)
+  free(file);*/
   free(args);
 
   if(retval == FALSE) {

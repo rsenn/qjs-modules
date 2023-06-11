@@ -2,6 +2,7 @@
 #define _ISOC99_SOURCE 1
 #include "utils.h"
 #include "defines.h"
+#include <alloca.h>
 #include <list.h>
 #include <cutils.h>
 #include "vector.h"
@@ -20,6 +21,9 @@
 #if defined(__EMSCRIPTEN__) && defined(__GNUC__)
 #define atomic_add_int __sync_add_and_fetch
 #endif
+
+JSModuleLoaderFunc* JS_GetModuleLoaderFunc(JSRuntime*);
+void* JS_GetModuleLoaderOpaque(JSRuntime*);
 
 /**
  * \addtogroup utils
@@ -1843,6 +1847,17 @@ module_exports_find(JSContext* ctx, JSModuleDef* m, JSAtom atom) {
   return JS_UNDEFINED;
 }
 
+JSValue
+module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name) {
+  JSAtom atom;
+  JSValue ret = JS_UNDEFINED;
+
+  atom = JS_NewAtom(ctx, name);
+  ret = module_exports_find(ctx, m, atom);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+
 void
 module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueConst exports) {
   JSAtom def = JS_NewAtom(ctx, "default");
@@ -2143,6 +2158,19 @@ js_module_at(JSContext* ctx, int index) {
   }
 
   return 0;
+}
+
+JSModuleDef*
+js_module_load(JSContext* ctx, const char* name) {
+  JSModuleLoaderFunc* loader;
+  void* opaque;
+
+  if(!(loader = JS_GetModuleLoaderFunc(JS_GetRuntime(ctx))))
+    return 0;
+
+  opaque = JS_GetModuleLoaderOpaque(JS_GetRuntime(ctx));
+
+  return loader(ctx, name, opaque);
 }
 
 BOOL
@@ -2663,44 +2691,58 @@ js_error_uncatchable(JSContext* ctx) {
   return obj;
 }*/
 
+static thread_local JSModuleDef* io_module;
+
 JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write) {
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
-  JSValue set_handler;
-  JSValue osval = js_global_get_str(ctx, "os");
+  JSValue set_handler = JS_NULL;
 
-  if(!js_is_null_or_undefined(osval)) {
-    set_handler = JS_GetPropertyStr(ctx, osval, handlers[write]);
-    JS_FreeValue(ctx, osval);
-  } else {
-    JSModuleDef* os;
-    JSAtom func_name;
+  if(!io_module)
+    io_module = js_module_load(ctx, "io");
 
-    if(!(os = js_module_find(ctx, "os")))
-      return JS_ThrowReferenceError(ctx, "'os' module required");
+  if(!io_module)
+    io_module = js_module_load(ctx, "os");
 
-    func_name = JS_NewAtom(ctx, handlers[write]);
-    set_handler = module_exports_find(ctx, os, func_name);
-    JS_FreeAtom(ctx, func_name);
+  if(io_module)
+    set_handler = module_exports_find_str(ctx, io_module, handlers[!!write]);
+
+  if(js_is_null_or_undefined(set_handler)) {
+    JSValue osval = js_global_get_str(ctx, "os");
+
+    if(!js_is_null_or_undefined(osval)) {
+      set_handler = JS_GetPropertyStr(ctx, osval, handlers[!!write]);
+      JS_FreeValue(ctx, osval);
+    } else {
+      JSModuleDef* os;
+      JSAtom func_name;
+
+      if(!(os = js_module_find(ctx, "os")))
+        return JS_ThrowReferenceError(ctx, "'os' module required");
+
+      func_name = JS_NewAtom(ctx, handlers[!!write]);
+      set_handler = module_exports_find(ctx, os, func_name);
+      JS_FreeAtom(ctx, func_name);
+    }
   }
 
   if(js_is_null_or_undefined(set_handler))
-    return JS_ThrowReferenceError(ctx, "no os.%s function", handlers[write]);
+    return JS_ThrowReferenceError(ctx, "no os.%s function", handlers[!!write]);
 
   return set_handler;
 }
 
 BOOL
 js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst handler) {
-  JSValue ret, args[2] = {
-                   JS_NewInt32(ctx, fd),
-                   handler,
-               };
+  JSValue args[2] = {
+      JS_NewInt32(ctx, fd),
+      handler,
+  };
 
   if(JS_IsException(set_handler))
     return FALSE;
 
-  ret = JS_Call(ctx, set_handler, JS_UNDEFINED, countof(args), args);
+  JSValue ret = JS_Call(ctx, set_handler, JS_UNDEFINED, countof(args), args);
 
   if(JS_IsException(ret))
     return FALSE;
@@ -2710,21 +2752,6 @@ js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst 
   JS_FreeValue(ctx, args[0]);
 
   return TRUE;
-}
-
-static thread_local JSCFunctionMagic* readhandler_cfunc;
-
-JSCFunctionMagic*
-js_iohandler_cfunc(JSContext* ctx) {
-  if(!readhandler_cfunc) {
-    JSValue set_handler;
-    JSObject* obj;
-    set_handler = js_iohandler_fn(ctx, TRUE);
-    if(JS_IsException(set_handler))
-      return 0;
-    readhandler_cfunc = js_function_cfuncmagic(ctx, set_handler);
-  }
-  return readhandler_cfunc;
 }
 
 JSValue

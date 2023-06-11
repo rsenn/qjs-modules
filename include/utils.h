@@ -882,6 +882,7 @@ const char* module_namecstr(JSContext* ctx, JSModuleDef* m);
 JSValue module_func(JSContext*, JSModuleDef*);
 JSValue module_ns(JSContext*, JSModuleDef*);
 JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);
+JSValue module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name);
 void module_exports_get(JSContext*, JSModuleDef*, BOOL, JSValue exports);
 JSValue module_imports(JSContext* ctx, JSModuleDef* m);
 JSValue module_default_export(JSContext*, JSModuleDef*);
@@ -905,6 +906,7 @@ JSModuleDef* js_module_find_fwd(JSContext*, const char* name, JSModuleDef* start
 JSModuleDef* js_module_find_rev(JSContext*, const char* name, JSModuleDef* start);
 int js_module_indexof(JSContext*, JSModuleDef* def);
 JSModuleDef* js_module_at(JSContext*, int index);
+JSModuleDef* js_module_load(JSContext* ctx, const char* name);
 
 JSValue js_eval_module(JSContext*, JSValue, BOOL);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t, BOOL load_only);
@@ -939,7 +941,6 @@ JSValue js_error_stack(JSContext* ctx);
 
 JSValue js_iohandler_fn(JSContext*, BOOL write);
 BOOL js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst handler);
-JSCFunctionMagic* js_iohandler_cfunc(JSContext*);
 
 JSValue js_promise_resolve(JSContext* ctx, JSValueConst promise);
 JSValue js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func);

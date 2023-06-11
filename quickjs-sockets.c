@@ -37,7 +37,6 @@ extern const uint8_t qjsm_socklen_t[1030];
 
 static int js_sockets_init(JSContext*, JSModuleDef*);
 static JSValue js_async_socket_method(JSContext*, JSValueConst, int, JSValueConst[], int);
-static JSValue js_socket_set_handler(JSContext* ctx, BOOL wr);
 
 static const char* syscall_name(int syscall_number);
 
@@ -1218,7 +1217,7 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
 
     if(fd == -1) {
 #if defined(_WIN32) && !defined(__MSYS__)
-#warning  defined(_WIN32) && !defined(__MSYS__)
+#warning defined(_WIN32) && !defined(__MSYS__)
       static BOOL initialized;
       int err;
       WSADATA d;
@@ -1336,23 +1335,6 @@ js_socket_async_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 }
 
 static JSValue
-js_socket_set_handler(JSContext* ctx, BOOL wr) {
-  JSValue set_handler = js_iohandler_fn(ctx, wr);
-
-  if(!JS_IsFunction(ctx, set_handler)) {
-    JS_FreeValue(ctx, set_handler);
-    return JS_ThrowInternalError(ctx, "no os.set%sHandler function", wr ? "Write" : "Read");
-  }
-
-  if(js_value_isclass(ctx, set_handler, JS_CLASS_C_FUNCTION)) {
-    JSObject* obj = JS_VALUE_GET_OBJ(set_handler);
-    JSCFunctionMagic* set_mux = obj->u.cfunc.c_function.generic_magic;
-  }
-
-  return set_handler;
-}
-
-static JSValue
 js_async_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   AsyncSocket* s;
   int data_len;
@@ -1364,7 +1346,7 @@ js_async_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(!js_socket_check_open(ctx, *(Socket*)s))
     return JS_EXCEPTION;
 
-  if(JS_IsException((set_handler = js_socket_set_handler(ctx, magic & 1))))
+  if(JS_IsException((set_handler = js_iohandler_fn(ctx, magic & 1))))
     return JS_EXCEPTION;
 
   if(JS_IsObject(s->pending[magic & 1]))

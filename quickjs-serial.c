@@ -78,7 +78,11 @@ js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) 
       snprintf(msg, sizeof(msg), "%s: The requested operation is not supported by this system or device", sp_get_port_name(port));
       break;
     }
+    default: {
+      break;
+    }
   }
+  
   argv[0] = JS_NewString(ctx, msg);
   argv[1] = JS_NewInt32(ctx, result);
   obj = js_serialerror_constructor(ctx, serialerror_ctor, 2, argv);

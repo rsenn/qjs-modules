@@ -75,8 +75,7 @@ macro(CHECK_FUNCTION_DEF FUNC)
   endif(ARGC GREATER_EQUAL 2)
   check_function_exists("${FUNC}" "${RESULT_VAR}")
   if(${${RESULT_VAR}})
-    set("${RESULT_VAR}" TRUE
-        CACHE BOOL "Define this if you have the '${FUNC}' function")
+    set("${RESULT_VAR}" TRUE CACHE BOOL "Define this if you have the '${FUNC}' function")
     if(NOT "${PREPROC_DEF}" STREQUAL "")
       add_definitions(-D${PREPROC_DEF})
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
@@ -113,8 +112,7 @@ macro(CHECK_INCLUDE_DEF INC)
   endif(ARGC GREATER_EQUAL 2)
   check_include_file("${INC}" "${RESULT_VAR}")
   if(${${RESULT_VAR}})
-    set("${RESULT_VAR}" TRUE
-        CACHE BOOL "Define this if you have the '${INC}' header file")
+    set("${RESULT_VAR}" TRUE CACHE BOOL "Define this if you have the '${INC}' header file")
     if(NOT "${PREPROC_DEF}" STREQUAL "")
       add_definitions(-D${PREPROC_DEF})
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
@@ -180,9 +178,7 @@ function(ADD_UNIQUE LIST)
 endfunction(ADD_UNIQUE LIST)
 
 macro(SYMLINK TARGET LINK_NAME)
-  install(
-    CODE "message(\"Create symlink '$ENV{DESTDIR}${LINK_NAME}' to '${TARGET}'\")\nexecute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} $ENV{DESTDIR}${LINK_NAME})"
-  )
+  install(CODE "message(\"Create symlink '$ENV{DESTDIR}${LINK_NAME}' to '${TARGET}'\")\nexecute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} $ENV{DESTDIR}${LINK_NAME})")
 endmacro(SYMLINK TARGET LINK_NAME)
 
 macro(RPATH_APPEND VAR)

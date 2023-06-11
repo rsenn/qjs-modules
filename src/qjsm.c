@@ -129,7 +129,7 @@ extern size_t malloc_usable_size();
 typedef struct {
   const char* module_name;
   JSModuleDef* (*module_func)(JSContext*, const char*);
-  uint8_t* byte_code;
+  const uint8_t* byte_code;
   uint32_t byte_code_len;
   JSModuleDef* def;
   BOOL initialized : 1;
@@ -165,6 +165,7 @@ jsm_module_extern_native(xml);
 jsm_module_extern_compiled(console);
 jsm_module_extern_compiled(events);
 jsm_module_extern_compiled(fs);
+jsm_module_extern_compiled(io);
 jsm_module_extern_compiled(perf_hooks);
 jsm_module_extern_compiled(process);
 jsm_module_extern_compiled(repl);
@@ -414,6 +415,7 @@ jsm_init_modules(JSContext* ctx) {
   jsm_builtin_compiled(console);
   jsm_builtin_compiled(events);
   jsm_builtin_compiled(fs);
+  jsm_builtin_compiled(io);
   jsm_builtin_compiled(perf_hooks);
   jsm_builtin_compiled(process);
   jsm_builtin_compiled(repl);
@@ -434,7 +436,7 @@ jsm_builtin_find(const char* name) {
 static JSModuleDef*
 jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
   JSModuleDef* m;
-  JSValue ret = JS_UNINITIALIZED, obj = JS_UNDEFINED;
+  JSValue obj = JS_UNDEFINED;
 
   jsm_stack_push(ctx, rec->module_name);
 
@@ -461,7 +463,8 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       m = js_value_ptr(obj);
 
       JS_ResolveModule(ctx, obj);
-      ret = JS_EvalFunction(ctx, obj);
+      JSValue ret = JS_EvalFunction(ctx, obj);
+      JS_FreeValue(ctx, ret);
 
       /* rename module */
       JS_FreeAtom(ctx, m->module_name);
@@ -480,9 +483,11 @@ static JSValue
 jsm_load_json(JSContext* ctx, const char* file) {
   uint8_t* buf;
   size_t len;
+
   if(!(buf = js_load_file(ctx, &len, file)))
     return JS_ThrowInternalError(ctx, "Loading '%s' failed", file);
-  return JS_ParseJSON(ctx, buf, len, file);
+
+  return JS_ParseJSON(ctx, (const char*)buf, len, file);
 }
 
 static JSValue
@@ -680,7 +685,7 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 
       dbuf_putstr(buf, "globalThis['");
       if(len)
-        dbuf_put(buf, name, len);
+        dbuf_put(buf, (const uint8_t*)name, len);
       else
         dbuf_putstr(buf, name);
       dbuf_putstr(buf, "'] = tmp;\n");
@@ -719,13 +724,13 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   jsm_module_script(&dbuf, path, name, FALSE);
 
-  if(*path != '*' && !js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+  if(*path != '*' && !js_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
   } else {
     JS_GetException(ctx);
 
     jsm_module_script(&dbuf, path, name, TRUE);
 
-    if(js_eval_str(ctx, dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
+    if(js_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
       dbuf_free(&dbuf);
       return 0;
     }
@@ -756,13 +761,13 @@ jsm_module_json(JSContext* ctx, const char* name) {
   js_dbuf_init(ctx, &db);
   dbuf_putstr(&db, "export default ");
 
-  i = scan_whitenskip(ptr, len);
+  i = scan_whitenskip((const void*)ptr, len);
 
   dbuf_put(&db, ptr + i, len - i);
   js_free(ctx, ptr);
   dbuf_0(&db);
 
-  ret = JS_Eval(ctx, db.buf, db.size, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+  ret = JS_Eval(ctx, (const char*)db.buf, db.size, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
     m = JS_VALUE_GET_PTR(ret);
   JS_FreeValue(ctx, ret);
@@ -822,7 +827,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     module_name += 7;
 
   if(str_start(module_name, "data:")) {
-    char* decoded;
+    uint8_t* decoded;
     JSValue module;
     size_t length = strlen(module_name);
     size_t offset = byte_chr(module_name, length, ',');
@@ -839,7 +844,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     length = b64url_decode((const uint8_t*)&module_name[offset], length, decoded);
     decoded[length] = '\0';
 
-    module = JS_Eval(ctx, decoded, length, "<data-url>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    module = JS_Eval(ctx, (const char*)decoded, length, "<data-url>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
     js_free(ctx, decoded);
 
     if(!JS_IsException(module)) {
@@ -944,11 +949,11 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
         dbuf_putstr(&dir, "." PATHSEP_S);
 
       path_concat5(path, path_dirlen1(path), name, strlen(name), &dir);
-      dsl = path_skipdotslash2(dir.buf, dir.size);
+      dsl = path_skipdotslash2((const char*)dir.buf, dir.size);
 
       /* XXX BUG: should use path_normalize* to resolve symlinks */
-      path_normalize2(dir.buf + dsl, dir.size - dsl);
-      file = dir.buf;
+      path_normalize2((char*)dir.buf + dsl, dir.size - dsl);
+      file = (char*)dir.buf;
     } else if(has_suffix(name, CONFIG_SHEXT) && !path_isabsolute1(name)) {
       DynBuf db;
       js_dbuf_init(ctx, &db);
@@ -988,7 +993,7 @@ jsm_module_save(void) {
   dbuf_init2(&db, 0, 0);
   path_concat3(home, PATHSEP_S ".qjsm_modules", &db);
 
-  if((f = fopen(db.buf, "w"))) {
+  if((f = fopen((const char*)db.buf, "w"))) {
     char** ptr;
     JSModuleDef* m;
 
@@ -1015,7 +1020,7 @@ jsm_module_restore(void) {
   FILE* f;
   char buf[1024];
 
-  if((f = fopen(db.buf, "r"))) {
+  if((f = fopen((const char*)db.buf, "r"))) {
     char* s;
 
     while((s = fgets(buf, sizeof(buf), f))) {
@@ -1362,7 +1367,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     char* path;
 
     if((path = jsm_module_normalize(ctx, ".", name, 0))) {
-      js_free(ctx, name);
+      js_free(ctx, (void*)name);
       name = path;
     }
   }
@@ -1440,13 +1445,13 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case NORMALIZE_MODULE: {
-      char *path, *file, *name;
+      const char *path, *file, *name;
       path = m ? module_namecstr(ctx, m) : JS_ToCString(ctx, argv[0]);
       name = JS_ToCString(ctx, argv[1]);
 
       if((file = jsm_module_normalize(ctx, path, name, 0))) {
         val = JS_NewString(ctx, file);
-        js_free(ctx, file);
+        js_free(ctx, (char*)file);
       }
 
       JS_FreeCString(ctx, path);
@@ -1502,8 +1507,9 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
   }
+
   if(name)
-    js_free(ctx, name);
+    js_free(ctx, (char*)name);
 
   return val;
 }
@@ -1568,7 +1574,7 @@ jsm_import_parse(ImportDirective* imp, const char* spec) {
 }*/
 
 static void
-jsm_signal_handler(void) {
+jsm_signal_handler(int arg) {
   interactive = TRUE;
 }
 
@@ -1577,39 +1583,23 @@ jsm_start_interactive(JSContext* ctx) {
   char str[1024];
   const char* home;
 
-  /*  if(!JS_IsUndefined(replObj))
-      return;*/
-
   home = getenv("HOME");
 
   /* clang-format off */
   snprintf(str,
     sizeof(str),
     "import { REPL } from 'repl';\n"
-   /* "import * as fs from 'fs';\n"*/
-    "const history = '%s%c.%s_history';\n"
+     "const history = '%s%c.%s_history';\n"
     "globalThis.repl = new REPL((__filename ?? '%s').replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
     "repl.loadSaveOptions();\n"
     "repl.historyLoad();\n"
-    /*"repl.directives.i ??= [\n"
-    "  name => import(name).then(m => {\n"
-    "    let id = name.slice(name.lastIndexOf('/') + 1).replace(/\\.[^\\/.]+$/g, '');\n"
-    "    globalThis[id] = m;\n"
-    "  }).catch(() => repl.printStatus(`ERROR: module '${name}' not found\\n`))"
-    ",\n"
-    " 'import a module'\n"
-    "];\n"*/
      "repl.run();\n",
     home, PATHSEP_C, exename, exename);
   /* clang-format on */
 
-  JSValue ret;
+  JSValue ret = JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 
-  // ret = js_eval_binary(ctx, qjsc_repl, qjsc_repl_size, 0);
-
-  ret = JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
-
-  // JS_FreeValue(ctx,module);
+  JS_FreeValue(ctx, ret);
 }
 
 int
@@ -1624,7 +1614,7 @@ main(int argc, char** argv) {
   int load_std = 1;
   int dump_unhandled_promise_rejection = 0;
   size_t memory_limit = 0;
-  char* include_list[32];
+  const char* include_list[32];
   int i, include_count = 0;
 #ifdef HAVE_QJSCALC
   int load_jscalc;
@@ -1642,7 +1632,7 @@ main(int argc, char** argv) {
       exename += n + 1;
     exelen = str_rchr(exename, '.');
     argv[0][exelen] = '\0';
-    
+
     /* load jscalc runtime if invoked as 'qjscalc' */
 #ifdef HAVE_QJSCALC
     load_jscalc = !strcmp(exename, "qjscalc");
@@ -1899,7 +1889,7 @@ main(int argc, char** argv) {
 
     if(db.size) {
       dbuf_0(&db);
-      js_eval_str(ctx, db.buf, 0, JS_EVAL_TYPE_MODULE);
+      js_eval_str(ctx, (const char*)db.buf, 0, JS_EVAL_TYPE_MODULE);
     }
 
     dbuf_free(&db);

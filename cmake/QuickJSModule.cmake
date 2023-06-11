@@ -189,7 +189,20 @@ function(make_module FNAME)
   endif(ARGN)
   add_unique(LIBS ${COMMON_LIBRARIES})
 
-  message(STATUS "Building QuickJS module: ${FNAME} (deps: ${DEPS}, libs: ${LIBS}) JS_${UNAME}_MODULE=1")
+  set(MSG "Building QuickJS module: ${FNAME}")
+
+  if(DEPS)
+    set(MSG "${MSG} (deps: ${DEPS})")
+  endif()
+  set(OUT "${LIBS}")
+  list(REMOVE_ITEM OUT compiled)
+  list(REMOVE_ITEM OUT modules)
+  if(OUT)
+    string(REPLACE ";" " " OUT "${OUT}")
+    set(MSG "${MSG} (libs: ${OUT})")
+  endif()
+
+  message(STATUS "${MSG}")
 
   if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     set(BUILD_SHARED_MODULES OFF)

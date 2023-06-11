@@ -583,7 +583,7 @@ path_search(const char** path_ptr, const char* name, DynBuf* db) {
   n = str_chr(path, PATHDELIM_S[0]);
 
   db->size = 0;
-  dbuf_put(db, path, n);
+  dbuf_put(db, (const uint8_t*)path, n);
   dbuf_putc(db, PATHSEP_C);
   dbuf_putstr(db, name);
   dbuf_0(db);
@@ -593,7 +593,7 @@ path_search(const char** path_ptr, const char* name, DynBuf* db) {
 
   *path_ptr += n;
 
-  return db->buf;
+  return (char*)db->buf;
 }
 
 int
