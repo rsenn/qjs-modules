@@ -226,7 +226,8 @@ endif(USE_MARIADBCLIENT)
 
 if(USE_POSTGRESCLIENT)
   pkg_check_modules(LIBPQ libpq)
-  set(LIBPQ_LIBRARY ${pkgcfg_lib_LIBPQ_pq})
+  set(LIBPQ_LIBRARY "${pkgcfg_lib_LIBPQ_pq}" CACHE PATH "PostgreSQL client library")
+
   list(APPEND QUICKJS_MODULES pgsql)
   set(pgsql_LIBRARIES ${LIBPQ_LIBRARY})
   #dump(LIBPQ_LIBRARY pgsql_LIBRARIES)
@@ -242,10 +243,10 @@ if(USE_POSTGRESCLIENT)
   list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBPQ_INCLUDE_DIR}")
   check_include_def(libpq-fe.h)
 
-
   if(HAVE_LIBPQ_FE_H OR EXISTS "${LIBPQ_INCLUDE_DIR}")
     include_directories(${LIBPQ_INCLUDE_DIR})
   endif()
+  unset(pkgcfg_lib_LIBPQ_pq CACHE)
 
 endif(USE_POSTGRESCLIENT)
 
