@@ -48,7 +48,8 @@ const CommaList = (toklist, t = tok => tok.lexeme) => {
   if(s != '') list.push(s);
   return list;
 };
-const CommaJoin = list => list.reduce((acc, item) => acc.concat(acc.length ? [',', item] : [item]), []);
+const CommaJoin = list =>
+  list.reduce((acc, item) => acc.concat(acc.length ? [',', item] : [item]), []);
 
 function parse(lexer, fn = (tok, arr) => {}, ...args) {
   let i = 0,
@@ -150,14 +151,18 @@ function main(...args) {
         if(id == rules['rbrace'] && lexer.loc.column == 1) {
           while(
             block.length > 0 &&
-            ['whitespace', 'rbrace', 'singleLineComment', 'multiLineComment'].indexOf(block[0].type) != -1
+            ['whitespace', 'rbrace', 'singleLineComment', 'multiLineComment'].indexOf(
+              block[0].type
+            ) != -1
           )
             block.shift();
           //console.log('block.slice(0,10)', block.slice(0,10));
           let firstLine = block[0].loc.line;
           let rows = NonWS(block)
             .reduce((acc, token) => {
-              if(['preprocessor', 'singleLineComment', 'multiLineComment'].indexOf(token.type) == -1)
+              if(
+                ['preprocessor', 'singleLineComment', 'multiLineComment'].indexOf(token.type) == -1
+              )
                 (acc[token.loc.line - firstLine] ??= []).push(token);
               return acc;
             }, [])
@@ -241,7 +246,11 @@ function main(...args) {
         isCFuncCall = false;
 
         block.splice(0, block.length);
-      } else if(lexer.loc.column == 1 && id != rules['whitespace'] && id != rules['preprocessor']) {
+      } else if(
+        lexer.loc.column == 1 &&
+        id != rules['whitespace'] &&
+        id != rules['preprocessor']
+      ) {
       }
       if(cFuncListNames.indexOf(lexer.lexeme) != -1) {
         const { lexeme, loc } = lexer;
