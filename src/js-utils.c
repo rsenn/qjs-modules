@@ -13,7 +13,7 @@ js_resolve_functions_is_null(ResolveFunctions* funcs) {
   return JS_IsNull(funcs->array[0]) && JS_IsNull(funcs->array[1]);
 }
 
-static void
+void
 js_resolve_functions_free(JSContext* ctx, ResolveFunctions* funcs) {
   JS_FreeValue(ctx, funcs->array[0]);
   JS_FreeValue(ctx, funcs->array[1]);

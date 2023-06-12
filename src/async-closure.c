@@ -55,7 +55,7 @@ asyncclosure_free(void* ptr) {
     JS_FreeValue(ctx, ac->obj);
     JS_FreeValue(ctx, ac->set_handler);
 
-    promise_free_funcs(JS_GetRuntime(ctx), &ac->fns);
+    js_resolve_functions_free(ctx, &ac->fns);
     asyncclosure_freeopaque(ac);
 
     js_free(ctx, ac);
