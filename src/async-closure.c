@@ -67,7 +67,7 @@ asyncclosure_free(void* ptr) {
 
     if(ac->state) {
       printf("WARNING: %s() has still a handler for fd %d\n", __func__, ac->fd);
-      asyncclosure_change_event(ac, WANT_NONE);
+      asyncclosure_done(ac);
     } else {
       JS_FreeValue(ctx, ac->set_handler);
     }
