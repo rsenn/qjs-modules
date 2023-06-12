@@ -13,20 +13,17 @@ asyncclosure_new(JSContext* ctx, int fd, AsyncEvent state, JSValueConst this_val
     return 0;
 
   ac->ref_count = 1;
-  ac->fd = 1;
+  ac->fd = fd;
+  ac->state = 0;
+  ac->ccfunc = func;
   ac->ctx = ctx;
   ac->result = JS_DupValue(ctx, this_val);
-  ac->state = 0;
   ac->set_handler = JS_NULL;
-
-  /*ac->state = state;
-  ac->set_handler = state == 0 ? JS_NULL : js_iohandler_fn(ctx, 0 != (state & WANT_WRITE));*/
 
   promise_init(ctx, &ac->promise);
 
   ac->opaque = NULL;
   ac->opaque_free = NULL;
-  ac->ccfunc = func;
 
   if(state)
     asyncclosure_change_event(ac, state);
