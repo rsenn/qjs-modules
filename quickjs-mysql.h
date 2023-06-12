@@ -15,7 +15,7 @@
 
 MYSQL* js_mysql_data(JSValueConst);
 MYSQL* js_mysql_data2(JSContext*, JSValueConst);
-MYSQL_RES* js_mysqlresult_data(JSContext*, JSValueConst);
+MYSQL_RES* js_mysqlresult_data2(JSContext*, JSValueConst);
 MYSQL* js_mysqlresult_handle(JSContext*, JSValueConst);
 BOOL js_mysqlresult_nonblock(JSContext*, JSValueConst);
 int js_mysql_init(JSContext*, JSModuleDef*);

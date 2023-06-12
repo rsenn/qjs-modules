@@ -164,13 +164,16 @@ async function main(...args) {
   let iter = (globalThis.iter = res[Symbol.asyncIterator]());
 
   console.log('iter =', iter);
+  let item = await iter.next();
+
+  console.log('await iter.next() =', item);
   let row;
-  console.log('(await iter.next()).value =', (row = globalThis.row = (await iter.next()).value));
+  console.log('item.value =', (row = globalThis.row = item.value));
   console.log('row[0] =', row[0]);
 
   console.log('id =', (id = my.insertId));
 
-  startInteractive();
+  //startInteractive();
   // os.kill(process.pid, os.SIGUSR1);
 }
 
