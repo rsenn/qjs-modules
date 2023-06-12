@@ -38,24 +38,11 @@ async function main(...args) {
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
-  console.log(
-    'my.connect() =',
-    console.config({ compact: false }),
-    await my.connect(
-      'localhost',
-      'roman',
-      'r4eHuJ',
-      'blah',
-      undefined,
-      '/var/run/mysqld/mysqld.sock'
-    )
-  );
+  console.log('my.connect() =', console.config({ compact: false }), await my.connect('192.168.178.23', 'roman', 'r4eHuJ', 'blah', undefined, '/var/run/mysqld/mysqld.sock'));
 
   let i;
 
-  let q = (globalThis.q = async s => (
-    console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s))
-  ));
+  let q = (globalThis.q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s))));
 
   i = 0;
   let res = await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`);
@@ -78,11 +65,7 @@ async function main(...args) {
     ['This is another article', 'fliesstext...']
   ];
 
-  res = await q(
-    `INSERT INTO article (title,text) VALUES ${articles
-      .map(cols => `(${MySQL.valueString(...cols)})`)
-      .join(', ')};`
-  );
+  res = await q(`INSERT INTO article (title,text) VALUES ${articles.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`);
   console.log('res =', res);
 
   let affected;
@@ -94,9 +77,7 @@ async function main(...args) {
   i = 0;
   my.resultType &= ~(MySQL.RESULT_TABLENAME | MySQL.RESULT_OBJECT);
 
-  res = await q(
-    `SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`
-  );
+  res = await q(`SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`);
 
   for await(let row of res) console.log(`category[${i++}] =`, row);
 
@@ -132,26 +113,17 @@ async function main(...args) {
   const rowString = row => MySQL.valueString(...row);
 
   function makeInsertQuery(table = 'article', fields, data = {}) {
-    return `INSERT INTO ${table} (${fields.map(f => '`' + f + '`').join(',')}) VALUES (${rowString(
-      data
-    )});`;
+    return `INSERT INTO ${table} (${fields.map(f => '`' + f + '`').join(',')}) VALUES (${rowString(data)});`;
   }
 
   console.log('fieldNames', fieldNames);
   let myrow = Array.isArray(rows[0]) ? rows[0] : fieldNames.map(n => rows[0][n]);
 
-  let insert = (globalThis.insert = makeInsertQuery(
-    'article',
-    fieldNames.slice(1),
-    myrow.slice(1)
-  ));
+  let insert = (globalThis.insert = makeInsertQuery('article', fieldNames.slice(1), myrow.slice(1)));
 
   console.log('insert', insert);
 
-  for await(let row of await q(
-    `SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`
-  ))
-    console.log(`article[${i++}] =`, row);
+  for await(let row of await q(`SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`)) console.log(`article[${i++}] =`, row);
 
   await q(insert);
   console.log('affected =', (affected = my.affectedRows));

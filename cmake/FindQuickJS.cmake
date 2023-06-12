@@ -8,7 +8,8 @@ macro(find_quickjs)
   endif(ARGN)
 
   if(NOT QUICKJS_PREFIX)
-    find_file(QUICKJS_H quickjs.h PATHS "${CMAKE_INSTALL_PREFIX}/inclue/quickjs" "/usr/local/include/quickjs" "/usr/include/quickjs" "${QUICKJS_ROOT}/include/quickjs" "${QuickJS_DIR}/include/quickjs")
+    find_file(QUICKJS_H quickjs.h PATHS "${CMAKE_INSTALL_PREFIX}/inclue/quickjs" "/usr/local/include/quickjs" "/usr/include/quickjs" "${QUICKJS_ROOT}/include/quickjs"
+                                        "${QuickJS_DIR}/include/quickjs")
 
     if(QUICKJS_H)
       message("QuickJS header: ${QUICKJS_H}")

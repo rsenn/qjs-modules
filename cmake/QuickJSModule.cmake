@@ -32,7 +32,8 @@ function(compile_module SOURCE)
   #add_custom_command(OUTPUT "${OUTPUT_FILE}" COMMAND qjsc -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE} DEPENDS qjs-inspect qjs-misc)
   add_custom_target(
     "${BASE}.c" ALL BYPRODUCTS "${OUTPUT_FILE}" COMMAND "${QJSC}" -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" DEPENDS ${QJSC_DEPS}
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler" SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" #DEPENDS qjs-inspect qjs-misc
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler"
+    SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" #DEPENDS qjs-inspect qjs-misc
   )
 endfunction(compile_module SOURCE)
 
@@ -220,8 +221,9 @@ function(make_module FNAME)
     #add_library(${TARGET_NAME} MODULE ${SOURCES})
     add_library(${TARGET_NAME} SHARED ${SOURCES})
 
-    set_target_properties(${TARGET_NAME} PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}" INSTALL_RPATH "${QUICKJS_C_MODULE_DIR}" PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}"
-                                                    COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
+    set_target_properties(
+      ${TARGET_NAME} PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}" INSTALL_RPATH "${QUICKJS_C_MODULE_DIR}" PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}"
+                                COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
 
     target_compile_definitions(${TARGET_NAME} PRIVATE _GNU_SOURCE=1 JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1 CONFIG_PREFIX="${QUICKJS_INSTALL_PREFIX}")
 

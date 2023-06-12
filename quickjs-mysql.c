@@ -823,14 +823,15 @@ js_mysql_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
     JS_Call(ctx, data[3], JS_UNDEFINED, 1, &data[1]);
   } else if(newstate != oldstate) {
-    JSValue handler, hdata[5] = {
-                         JS_NewInt32(ctx, wantwrite),
-                         JS_DupValue(ctx, data[1]),
-                         js_iohandler_fn(ctx, !!(newstate & MYSQL_WAIT_WRITE)),
-                         JS_DupValue(ctx, data[3]),
-                         JS_DupValue(ctx, data[4]),
-                     };
-    handler = JS_NewCFunctionData(ctx, js_mysql_connect_cont, 0, 0, countof(hdata), hdata);
+    JSValue hdata[5] = {
+        JS_NewInt32(ctx, wantwrite),
+        JS_DupValue(ctx, data[1]),
+        js_iohandler_fn(ctx, !!(newstate & MYSQL_WAIT_WRITE)),
+        JS_DupValue(ctx, data[3]),
+        JS_DupValue(ctx, data[4]),
+    };
+    JSValue handler = JS_NewCFunctionData(ctx, js_mysql_connect_cont, 0, 0, countof(hdata), hdata);
+    js_set_propertystr_string(ctx, handler, "name", "MySQL.connect (continue)");
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
@@ -879,6 +880,7 @@ js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   data[2] = js_iohandler_fn(ctx, wantwrite);
 
   handler = JS_NewCFunctionData(ctx, js_mysql_connect_cont, 0, 0, countof(data), data);
+  js_set_propertystr_string(ctx, handler, "name", "MySQL.connect (continue)");
 
   if(!js_iohandler_set(ctx, data[2], fd, handler))
     JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
@@ -965,6 +967,7 @@ js_mysql_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         JS_DupValue(ctx, data[4]),
     };
     JSValue handler = JS_NewCFunctionData(ctx, js_mysql_query_cont, 0, 0, countof(hdata), hdata);
+    js_set_propertystr_string(ctx, handler, "name", "MySQL.query (continue)");
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
@@ -1017,6 +1020,7 @@ js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     // js_iohandler_fn(ctx, wantwrite);
 
     handler = JS_NewCFunctionData(ctx, js_mysql_query_cont, 0, 0, countof(data), data);
+    js_set_propertystr_string(ctx, handler, "name", "MySQL.query (continue)");
 
     if(!js_iohandler_set(ctx, data[2], fd, handler))
       JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
@@ -1457,6 +1461,7 @@ js_mysqlresult_next_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValu
                          JS_DupValue(ctx, data[4]),
                      };
     handler = JS_NewCFunctionData(ctx, js_mysqlresult_next_cont, 0, magic, countof(hdata), hdata);
+    js_set_propertystr_string(ctx, handler, "name", "MySQLResult.next (continue)");
 
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
@@ -1515,6 +1520,7 @@ js_mysqlresult_next_start(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     data[2] = js_iohandler_fn(ctx, wantwrite);
 
     handler = JS_NewCFunctionData(ctx, js_mysqlresult_next_cont, 0, magic, countof(data), data);
+    js_set_propertystr_string(ctx, handler, "name", "MySQLResult.next (continue)");
 
     if(!js_iohandler_set(ctx, data[2], mysql_get_socket(my), handler))
       JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);

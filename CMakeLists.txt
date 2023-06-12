@@ -175,9 +175,12 @@ if(USE_LIBARCHIVE)
   if(BUILD_LIBARCHIVE)
     include(ExternalProject)
     ExternalProject_Add(
-      libarchive SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
-      CMAKE_CACHE_ARGS "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
-                       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}" CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+      libarchive
+      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive
+      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
+      CMAKE_CACHE_ARGS "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+                       "-DCMAKE_C_FLAGS:STRING=-w" "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+      CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
     link_directories("${CMAKE_CURRENT_BINARY_DIR}/libarchive")
 
@@ -339,7 +342,8 @@ set(location_SOURCES src/location.c include/location.h quickjs-location.c quickj
 set(syscallerror_SOURCES quickjs-syscallerror.c quickjs-syscallerror.h)
 set(blob_SOURCES quickjs-blob.c ${buffer_utils_SOURCES} ${utils_SOURCES})
 
-set(child_process_SOURCES src/child-process.c include/child-process.h src/property-enumeration.c include/property-enumeration.h ${char_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
+set(child_process_SOURCES src/child-process.c include/child-process.h src/property-enumeration.c include/property-enumeration.h ${char_utils_SOURCES} ${utils_SOURCES}
+                          ${vector_SOURCES})
 
 set(deep_SOURCES ${vector_SOURCES} src/pointer.c src/virtual-properties.c #${js_utils_SOURCES}
                  src/property-enumeration.c include/property-enumeration.h ${utils_SOURCES} ${predicate_SOURCES} include/pointer.h include/virtual-properties.h)
@@ -358,8 +362,8 @@ if(WIN32 OR MINGW)
   set(path_SOURCES ${path_SOURCES} src/readlink.c)
 endif(WIN32 OR MINGW)
 
-set(child_process_SOURCES src/child-process.c include/child-process.h src/property-enumeration.c include/property-enumeration.h ${path_SOURCES} ${char_utils_SOURCES} ${utils_SOURCES}
-                          ${vector_SOURCES})
+set(child_process_SOURCES src/child-process.c include/child-process.h src/property-enumeration.c include/property-enumeration.h ${path_SOURCES} ${char_utils_SOURCES}
+                          ${utils_SOURCES} ${vector_SOURCES})
 set(predicate_SOURCES src/predicate.c include/predicate.h ${vector_SOURCES} ${utils_SOURCES})
 set(pointer_SOURCES src/pointer.c include/pointer.h ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(lexer_SOURCES quickjs-lexer.h #${location_SOURCES}
@@ -388,7 +392,8 @@ list(APPEND sockets_LIBRARIES qjs-syscallerror)
 file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h tutf8e/src/*.c)
 file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
 
-set(textcode_SOURCES quickjs-textcode.c quickjs-textcode.h src/ringbuffer.c include/ringbuffer.h ${libutf_SOURCES} ${tutf8e_SOURCES} ${buffer_utils_SOURCES} ${utils_SOURCES} ${vector_SOURCES})
+set(textcode_SOURCES quickjs-textcode.c quickjs-textcode.h src/ringbuffer.c include/ringbuffer.h ${libutf_SOURCES} ${tutf8e_SOURCES} ${buffer_utils_SOURCES} ${utils_SOURCES}
+                     ${vector_SOURCES})
 
 set(misc_SOURCES ${base64_SOURCES} quickjs-internal.c quickjs-internal.h ${path_SOURCES} ${vector_SOURCES})
 
@@ -420,8 +425,10 @@ if(BUILD_LIBSERIALPORT)
     libserialport
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libserialport
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport
-    CMAKE_CACHE_ARGS "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}" "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-                     "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+    CMAKE_CACHE_ARGS
+      "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}" "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
+      "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+      "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
     CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
   link_directories("${CMAKE_CURRENT_BINARY_DIR}/libserialport")
@@ -487,7 +494,8 @@ if(DO_TESTS)
   foreach(TEST ${TESTS})
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
-    add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR} "${QJSM}" --bignum "${TEST}")
+    add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND env QUICKJS_MODULE_PATH=${CMAKE_CURRENT_SOURCE_DIR}:${CMAKE_CURRENT_BINARY_DIR} "${QJSM}"
+                                                                                    --bignum "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 

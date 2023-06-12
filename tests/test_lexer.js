@@ -60,17 +60,11 @@ function BufferLengths(file) {
 }
 
 function BufferOffsets(file) {
-  return buffers[file].reduce(
-    ([pos, list], b) => [pos + b.byteLength, list.concat([pos])],
-    [0, []]
-  )[1];
+  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([pos])], [0, []])[1];
 }
 
 function BufferRanges(file) {
-  return buffers[file].reduce(
-    ([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])],
-    [0, []]
-  )[1];
+  return buffers[file].reduce(([pos, list], b) => [pos + b.byteLength, list.concat([[pos, b.byteLength]])], [0, []])[1];
 }
 
 function WriteFile(file, tok) {
@@ -317,22 +311,8 @@ function main(...args) {
           const [start, end] = tok.charRange;
           let s = toString(str).slice(start, end);
 
-          const cols = [
-            prefix,
-            `tok[${tok.byteLength}]`,
-            tok.id,
-            tok.type,
-            tok.lexeme,
-            tok.lexeme.length,
-            tok.loc,
-            ` '${s}'`
-          ];
-          std.err.puts(
-            cols.reduce(
-              (acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]),
-              ''
-            ) + '\n'
-          );
+          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc, ` '${s}'`];
+          std.err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
         }
       : () => {};
 
@@ -366,10 +346,7 @@ function main(...args) {
           case '}':
           case ']':
           case ')': {
-            if(stack.last != table[tok.lexeme])
-              throw new Error(
-                `top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`
-              );
+            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
             stack.pop();
             break;
           }
@@ -394,10 +371,7 @@ function main(...args) {
       imp = [],
       count = 0;
     let showToken = tok => {
-      if(
-        (lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') ||
-        /^((im|ex)port|from|as)$/.test(tok.lexeme)
-      ) {
+      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         let a = [tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.puts(a.join('') + '\n');
       }
@@ -450,10 +424,7 @@ function main(...args) {
       }
       state = newState;
     }
-    const exportTokens = tokens.reduce(
-      (acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc),
-      []
-    );
+    const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
     log('Export tokens', exportTokens);
     const exportNames = exportTokens.map(index => ExportName(tokens.slice(index)));
     log('Export names', exportNames);
@@ -465,9 +436,7 @@ function main(...args) {
     modules[file] = { imports, exports };
     let fileImports = imports.filter(imp => /\.js$/i.test(imp.file));
     let splitPoints = unique(fileImports.reduce((acc, imp) => [...acc, ...imp.range], []));
-    buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(
-      b => b ?? toString(b, 0, b.byteLength)
-    );
+    buffers[file] = [...split(BufferFile(file), ...splitPoints)].map(b => b ?? toString(b, 0, b.byteLength));
     log(`splitPoints`, splitPoints);
     log(
       'fileImports',
