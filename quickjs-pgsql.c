@@ -75,7 +75,7 @@ static BOOL field_is_string(PGresult* res, int field);
 enum ResultFlags {
   RESULT_OBJECT = 1,
   RESULT_STRING = 2,
-  RESULT_TABLENAME = 4,
+  RESULT_TBLNAM = 4,
 };
 
 static PGSQLResult* pgresult_dup(PGSQLResult* ptr);
@@ -1241,7 +1241,7 @@ static const JSCFunctionListEntry js_pgconn_static[] = {
 static const JSCFunctionListEntry js_pgconn_defines[] = {
     JS_PROP_INT32_DEF("RESULT_OBJECT", RESULT_OBJECT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("RESULT_STRING", RESULT_STRING, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("RESULT_TABLENAME", RESULT_TABLENAME, JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("RESULT_TBLNAM", RESULT_TBLNAM, JS_PROP_CONFIGURABLE),
 };
 
 static JSValue
@@ -1396,7 +1396,7 @@ result_object(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
   PGresult* res = opaque->result;
   JSValue ret = JS_NewObject(ctx);
   uint32_t i, num_fields = PQnfields(res);
-  FieldNameFunc* fn = (rtype & RESULT_TABLENAME) ? field_id : field_namefunc(res);
+  FieldNameFunc* fn = (rtype & RESULT_TBLNAM) ? field_id : field_namefunc(res);
 
   for(i = 0; i < num_fields; i++) {
     char* id;

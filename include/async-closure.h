@@ -36,4 +36,11 @@ void asyncclosure_resolve(AsyncClosure*);
 void asyncclosure_error(AsyncClosure*, JSValueConst);
 void asyncclosure_done(AsyncClosure*);
 
+static inline void
+asyncclosure_yield(AsyncClosure* ac, JSValueConst value) {
+  JS_FreeValue(ac->ctx, ac->result);
+  ac->result = JS_DupValue(ac->ctx, value);
+  asyncclosure_resolve(ac);
+}
+
 #endif /* defined(ASYNC_CLOSURE_H) */

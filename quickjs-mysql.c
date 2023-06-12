@@ -20,11 +20,12 @@ static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 static const int wait_read = MYSQL_WAIT_READ;
 static const int wait_write = MYSQL_WAIT_WRITE;
 
-enum ResultFlags {
-  RESULT_OBJECT = 1,
-  RESULT_STRING = 2,
-  RESULT_TABLENAME = 4,
-};
+typedef enum  {
+  RESULT_OBJECT = 0b0001,
+  RESULT_STRING = 0b0010,
+  RESULT_TBLNAM = 0b0100,
+  RESULT_ITERAT = 0b1000,
+} ResultFlags;
 
 struct ConnectParameters {
   const char *host, *user, *password, *db;
@@ -1153,7 +1154,7 @@ static const JSCFunctionListEntry js_mysql_static[] = {
 static const JSCFunctionListEntry js_mysql_defines[] = {
     JS_PROP_INT32_DEF("RESULT_OBJECT", RESULT_OBJECT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("RESULT_STRING", RESULT_STRING, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("RESULT_TABLENAME", RESULT_TABLENAME, JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("RESULT_TBLNAM", RESULT_TBLNAM, JS_PROP_CONFIGURABLE),
     JS_PROP_INT64_DEF("COUNT_ERROR", MYSQL_COUNT_ERROR, JS_PROP_CONFIGURABLE),
     /* JS_PROP_INT32_DEF("WAIT_READ", MYSQL_WAIT_READ, JS_PROP_CONFIGURABLE),
      JS_PROP_INT32_DEF("WAIT_WRITE", MYSQL_WAIT_WRITE, JS_PROP_CONFIGURABLE),
@@ -1331,7 +1332,7 @@ result_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
   JSValue ret = JS_NewObject(ctx);
   uint32_t i, num_fields = mysql_num_fields(res);
   MYSQL_FIELD* fields = mysql_fetch_fields(res);
-  FieldNameFunc* fn = (rtype & RESULT_TABLENAME) ? field_id : field_namefunc(fields, num_fields);
+  FieldNameFunc* fn = (rtype & RESULT_TBLNAM) ? field_id : field_namefunc(fields, num_fields);
   unsigned long* field_lengths = mysql_fetch_lengths(res);
 
   for(i = 0; i < num_fields; i++) {
@@ -1387,24 +1388,24 @@ result_resolve(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row,
 }
 
 PACK typedef struct {
-  int result_type;
+  ResultFlags flags;
   MYSQL* conn;
-  MYSQL_RES* result;
+  MYSQL_RES* res;
   uint32_t field_count;
   uint64_t num_rows;
 } ResultIterator;
 ENDPACK
 
 static ResultIterator*
-result_iterator_new(JSContext* ctx, MYSQL* my, MYSQL_RES* res, int type) {
+result_iterator_new(JSContext* ctx, MYSQL* my, MYSQL_RES* res, ResultFlags flags) {
   ResultIterator* ri;
 
   if(!(ri = js_mallocz(ctx, sizeof(ResultIterator))))
     return 0;
 
-  ri->result_type = type;
+  ri->flags = flags;
   ri->conn = my;
-  ri->result = res;
+  ri->res = res;
   ri->field_count = mysql_field_count(my);
   ri->num_rows = mysql_num_rows(res);
 
@@ -1413,25 +1414,28 @@ result_iterator_new(JSContext* ctx, MYSQL* my, MYSQL_RES* res, int type) {
 
 static void
 result_iterator_value(ResultIterator* ri, MYSQL_ROW row, AsyncClosure* ac) {
+  JSValue result = JS_UNDEFINED;
+  JSContext* ctx = ac->ctx;
 
-  if(row) {
-    if(mysql_num_fields(ri->result) == ri->field_count) {
-      ac->result = result_row(ac->ctx, ri->result, row, ri->result_type);
+  if(row)
+    if(mysql_num_fields(ri->res) == ri->field_count)
+      result = result_row(ctx, ri->res, row, ri->flags);
 
-      asyncclosure_resolve(ac);
-    }
-
-  } else {
-    JSValue err = js_mysqlerror_new(ac->ctx, mysql_error(ri->conn));
-    asyncclosure_error(ac, err);
-    JS_FreeValue(ac->ctx, err);
+  if(ri->flags & RESULT_ITERAT) {
+    JSValue tmp = js_iterator_result(ctx, result, JS_IsUndefined(result));
+    JS_FreeValue(ctx, result);
+    result = tmp;
   }
+
+  asyncclosure_yield(ac, result);
+  JS_FreeValue(ctx, result);
 }
 
 MYSQL_RES*
 js_mysqlresult_data(JSValueConst value) {
   return JS_GetOpaque(value, js_mysqlresult_class_id);
 }
+
 MYSQL_RES*
 js_mysqlresult_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_mysqlresult_class_id);
@@ -1477,7 +1481,7 @@ static JSValue
 js_mysqlresult_next2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
   ResultIterator* ri = ac->opaque;
-  MYSQL_RES* res = ri->result;
+  MYSQL_RES* res = ri->res;
   MYSQL_ROW row;
   int state;
 
@@ -1489,7 +1493,7 @@ js_mysqlresult_next2(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
     if(row) {
       if(mysql_num_fields(res) == ri->field_count) {
-        ac->result = result_row(ctx, res, row, ri->result_type);
+        ac->result = result_row(ctx, res, row, ri->flags);
 
         asyncclosure_resolve(ac);
       }
@@ -1531,7 +1535,7 @@ js_mysqlresult_next1(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return asyncclosure_promise(ac);
 }
 
-static JSValue
+/*static JSValue
 js_mysqlresult_next_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   MYSQL_ROW row;
   JSValue my_val;
@@ -1658,7 +1662,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   }
 
   return js_mysqlresult_next_start(ctx, this_val, argc, argv, magic);
-}
+}*/
 
 enum {
   METHOD_FETCH_FIELD,
@@ -1834,7 +1838,7 @@ static JSClassDef js_mysqlresult_class = {
 };
 
 static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("next", 0, js_mysqlresult_next1, 0),
+    JS_CFUNC_MAGIC_DEF("next", 0, js_mysqlresult_next1, RESULT_ITERAT),
     JS_CGETSET_MAGIC_DEF("eof", js_mysqlresult_get, 0, PROP_EOF),
     JS_CGETSET_MAGIC_FLAGS_DEF("numRows", js_mysqlresult_get, 0, PROP_NUM_ROWS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("numFields", js_mysqlresult_get, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
@@ -1842,7 +1846,7 @@ static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
     JS_CGETSET_MAGIC_DEF("currentField", js_mysqlresult_get, 0, PROP_CURRENT_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchField", 1, js_mysqlresult_functions, METHOD_FETCH_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchFields", 0, js_mysqlresult_functions, METHOD_FETCH_FIELDS),
-    JS_CFUNC_MAGIC_DEF("fetchRow", 0, js_mysqlresult_next1, 1),
+    JS_CFUNC_MAGIC_DEF("fetchRow", 0, js_mysqlresult_next1, 0),
     JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_mysqlresult_iterator, METHOD_ITERATOR),
     JS_CFUNC_MAGIC_DEF("[Symbol.asyncIterator]", 0, js_mysqlresult_iterator, METHOD_ASYNC_ITERATOR),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQLResult", JS_PROP_CONFIGURABLE),
