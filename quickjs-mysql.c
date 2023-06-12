@@ -866,7 +866,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   state = mysql_real_connect_start(&ret, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
   ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), this_val, &js_mysql_connect_continue);
 
-  asyncclosure_set_opaque(ac, c, connectparams_free);
+  asyncclosure_opaque(ac, c, connectparams_free);
 
   return asyncclosure_promise(ac);
 }
@@ -915,7 +915,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
 #endif
 
-  asyncclosure_set_opaque(ac, my, NULL);
+  asyncclosure_opaque(ac, my, NULL);
 
   return asyncclosure_promise(ac);
 }
@@ -1339,7 +1339,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
 #endif
 
-  asyncclosure_set_opaque(ac, result_iterator_new(ctx, my, res, magic), &js_free);
+  asyncclosure_opaque(ac, result_iterator_new(ctx, my, res, magic), &js_free);
 
   if(state == 0)
     result_iterator_value(ac->opaque, row, ac);

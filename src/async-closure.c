@@ -1,4 +1,5 @@
 #include "async-closure.h"
+#include <assert.h>
 
 static JSValue
 asyncclosure_function(AsyncClosure* ac, CClosureFunc* func, int magic) {
@@ -42,17 +43,10 @@ asyncclosure_dup(AsyncClosure* ac) {
   return ac;
 }
 
-static void
-asyncclosure_free_opaque(AsyncClosure* ac) {
-  if(ac->opaque && ac->opaque_free)
-    ac->opaque_free(ac->ctx, ac->opaque);
-}
-
 void
-asyncclosure_set_opaque(AsyncClosure* ac, void* opaque, void (*opaque_free)(JSContext* ctx, void*)) {
-
-  if(ac->opaque)
-    asyncclosure_free_opaque(ac);
+asyncclosure_opaque(AsyncClosure* ac, void* opaque, void (*opaque_free)(JSContext* ctx, void*)) {
+  assert(ac->opaque == NULL);
+  assert(ac->opaque_free == NULL);
 
   ac->opaque = opaque;
   ac->opaque_free = opaque_free;
@@ -65,17 +59,16 @@ asyncclosure_free(void* ptr) {
   if(--ac->ref_count == 0) {
     JSContext* ctx = ac->ctx;
 
-    if(ac->state) {
+    if(ac->state)
       printf("WARNING: %s() has still a handler for fd %d\n", __func__, ac->fd);
-      asyncclosure_done(ac);
-    } else {
-      JS_FreeValue(ctx, ac->set_handler);
-    }
 
+    asyncclosure_done(ac);
     JS_FreeValue(ctx, ac->result);
 
     promise_free(JS_GetRuntime(ctx), &ac->promise);
-    asyncclosure_free_opaque(ac);
+
+    if(ac->opaque && ac->opaque_free)
+      ac->opaque_free(ac->ctx, ac->opaque);
 
     js_free(ctx, ac);
   }
@@ -95,6 +88,8 @@ asyncclosure_error(AsyncClosure* ac, JSValueConst obj) {
 
 void
 asyncclosure_done(AsyncClosure* ac) {
+  assert(promise_done(&ac->promise.funcs));
+
   asyncclosure_change_event(ac, WANT_NONE);
 }
 
