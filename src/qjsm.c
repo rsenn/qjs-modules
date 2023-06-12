@@ -1589,7 +1589,8 @@ jsm_start_interactive(JSContext* ctx) {
            "repl.loadSaveOptions();\n"
            "repl.historyLoad();\n"
            "repl.run();\n",
-           (int)str_chr(exename, '.'), exename);
+           (int)str_chr(exename, '.'),
+           exename);
 
   JSValue ret = JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 
