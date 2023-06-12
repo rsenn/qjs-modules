@@ -1581,21 +1581,15 @@ jsm_signal_handler(int arg) {
 static void
 jsm_start_interactive(JSContext* ctx) {
   char str[1024];
-  const char* home;
 
-  home = getenv("HOME");
-
-  /* clang-format off */
   snprintf(str,
-    sizeof(str),
-    "import { REPL } from 'repl';\n"
-     "const history = '%s%c.%s_history';\n"
-    "globalThis.repl = new REPL((__filename ?? '%s').replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
-    "repl.loadSaveOptions();\n"
-    "repl.historyLoad();\n"
-     "repl.run();\n",
-    home, PATHSEP_C, exename, exename);
-  /* clang-format on */
+           sizeof(str),
+           "import { REPL } from 'repl';\n"
+           "globalThis.repl = new REPL('%s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), true);\n"
+           "repl.loadSaveOptions();\n"
+           "repl.historyLoad();\n"
+           "repl.run();\n",
+           exename);
 
   JSValue ret = JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 

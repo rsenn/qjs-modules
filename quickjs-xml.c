@@ -156,8 +156,6 @@ character_classes_init(int c[256]) {
 #define parse_is(c, classes) (chars[(c)] & (classes))
 #define parse_inside(tag) (strlen((tag)) == out->namelen && !strncmp((const char*)out->name, (const char*)(tag), out->namelen))
 #define parse_close() (ptr[0] == '<' && ptr[1] == '/' && !strncmp((const char*)&ptr[2], (const char*)out->name, out->namelen) && ptr[2 + out->namelen] == '>')
-//(ptr + out->namelen + 2 <= end && ptr[0] == '<' && ptr[1] == '/' && !strncmp(&ptr[2], out->name,
-// out->namelen + 1))
 
 static int32_t
 find_tag(Vector* st, const char* name, size_t namelen) {
