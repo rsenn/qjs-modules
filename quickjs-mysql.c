@@ -21,10 +21,10 @@ static const int wait_read = MYSQL_WAIT_READ;
 static const int wait_write = MYSQL_WAIT_WRITE;
 
 typedef enum {
-  RESULT_OBJECT = 0b0001,
-  RESULT_STRING = 0b0010,
-  RESULT_TBLNAM = 0b0100,
-  RESULT_ITERAT = 0b1000,
+  RESULT_OBJECT = 1 << 0,
+  RESULT_STRING = 1 << 1,
+  RESULT_TBLNAM = 1 << 2,
+  RESULT_ITERAT = 1 << 3,
 } ResultFlags;
 
 struct ConnectParameters {
