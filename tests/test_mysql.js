@@ -78,11 +78,12 @@ async function main(...args) {
     ['This is another article', 'fliesstext...']
   ];
 
-  await q(
+  res = await q(
     `INSERT INTO article (title,text) VALUES ${articles
       .map(cols => `(${MySQL.valueString(...cols)})`)
       .join(', ')};`
   );
+  console.log('res =', res);
 
   let affected;
   console.log('affected =', (affected = my.affectedRows));

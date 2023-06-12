@@ -18,7 +18,9 @@ let repl = {
 function StartREPL() {
   //return import('repl').then(REPL => {
   repl = new REPL(
-    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
+    '\x1b[38;2;80;200;255m' +
+      path.basename(process.argv[1], '.js').replace(/test_/, '') +
+      ' \x1b[0m',
     false
   );
   repl.show = repl.printFunction((...args) => console.log(...args));
@@ -73,7 +75,9 @@ function main(...args) {
     ...{ ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath }
   });
 */
-  let files = params['@'].length ? params['@'] : [/*'tests/test1.xml', 'tests/test2.xml', */ 'test3.xml'];
+  let files = params['@'].length
+    ? params['@']
+    : [/*'tests/test1.xml', 'tests/test2.xml', */ 'test3.xml'];
 
   files.forEach(processFile);
 
@@ -113,7 +117,11 @@ function main(...args) {
     let firstLayer = doc.querySelector('layer');
     console.log('firstLayer', firstLayer);
     let allLayers = doc.querySelectorAll('layer');
-    console.log('allLayers', console.config({ compact: false, maxArrayLength: Infinity }), allLayers);
+    console.log(
+      'allLayers',
+      console.config({ compact: false, maxArrayLength: Infinity }),
+      allLayers
+    );
 
     let ll = allLayers.last;
     console.log('ll', ll);
