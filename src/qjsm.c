@@ -1585,11 +1585,11 @@ jsm_start_interactive(JSContext* ctx) {
   snprintf(str,
            sizeof(str),
            "import { REPL } from 'repl';\n"
-           "globalThis.repl = new REPL('%s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), true);\n"
+           "globalThis.repl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), true);\n"
            "repl.loadSaveOptions();\n"
            "repl.historyLoad();\n"
            "repl.run();\n",
-           exename);
+           (int)str_chr(exename, '.'), exename);
 
   JSValue ret = JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 
