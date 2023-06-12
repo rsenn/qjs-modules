@@ -222,6 +222,22 @@ if(USE_MARIADBCLIENT)
   set(MARIADBCLIENT_LIBRARY ${pkgcfg_lib_MARIADB_mariadb})
   list(APPEND QUICKJS_MODULES mysql)
   set(mysql_LIBRARIES ${MARIADBCLIENT_LIBRARY})
+
+  set(LIBMARIADB_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "MariaDB client include directory")
+
+  if(NOT EXISTS "${LIBMARIADB_INCLUDE_DIR}/mysql.h")
+    if(EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb" AND EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb/mysql.h")
+      set(LIBMARIADB_INCLUDE_DIR "${LIBMARIADB_INCLUDE_DIR}/mariadb")
+    endif()
+  endif()
+
+  list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBMARIADB_INCLUDE_DIR}")
+  check_include_def(mysql.h)
+
+  if(HAVE_MYSQL_H OR EXISTS "${LIBMARIADB_INCLUDE_DIR}")
+    include_directories(${LIBMARIADB_INCLUDE_DIR})
+  endif()
+  unset(pkgcfg_lib_MARIADB_mariadb CACHE)
 endif(USE_MARIADBCLIENT)
 
 if(USE_POSTGRESCLIENT)
