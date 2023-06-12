@@ -924,9 +924,12 @@ static JSValue
 js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   MYSQL* my;
+  int fd;
 
   if(!(my = js_mysql_data2(ctx, this_val)))
     return JS_EXCEPTION;
+
+  fd = mysql_get_socket(my);
 
   mysql_close(my);
 

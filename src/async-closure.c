@@ -6,6 +6,8 @@
  * @{
  */
 
+static thread_local struct list_head asyncclosure_list;
+
 static JSValue
 asyncclosure_function(AsyncClosure* ac, CClosureFunc* func, int magic) {
   return js_function_cclosure(ac->ctx, func, 0, magic, asyncclosure_dup(ac), asyncclosure_free);
@@ -14,6 +16,9 @@ asyncclosure_function(AsyncClosure* ac, CClosureFunc* func, int magic) {
 AsyncClosure*
 asyncclosure_new(JSContext* ctx, int fd, AsyncEvent state, JSValueConst this_val, CClosureFunc* func) {
   AsyncClosure* ac;
+
+  if(asyncclosure_list.prev == NULL && asyncclosure_list.next == NULL)
+    init_list_head(&asyncclosure_list);
 
   if(!(ac = js_malloc(ctx, sizeof(AsyncClosure))))
     return 0;
@@ -33,6 +38,8 @@ asyncclosure_new(JSContext* ctx, int fd, AsyncEvent state, JSValueConst this_val
 
   if(state)
     asyncclosure_change_event(ac, state);
+
+  list_add(&ac->link, &asyncclosure_list);
 
   return ac;
 }
@@ -78,6 +85,8 @@ asyncclosure_free(void* ptr) {
       ac->opaque = NULL;
       ac->opaque_free = NULL;
     }
+
+    list_del(&ac->link);
 
     js_free(ctx, ac);
   }

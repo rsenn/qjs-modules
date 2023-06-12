@@ -2,6 +2,7 @@
 #define ASYNC_CLOSURE_H
 
 #include <quickjs.h>
+#include <list.h>
 #include "js-utils.h"
 #include "utils.h"
 
@@ -25,6 +26,7 @@ PACK struct AsyncHandlerClosure {
   Promise promise;
   void* opaque;
   void (*opaque_free)(JSContext*, void*);
+  struct list_head link;
 };
 ENDPACK
 
