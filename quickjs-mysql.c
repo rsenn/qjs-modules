@@ -68,6 +68,15 @@ continue_function(JSContext* ctx, JSCFunctionData* func, const char* name, int m
   return handler;
 }
 
+static inline AsyncEvent
+async_event(int mysql_status) {
+  if(mysql_status & MYSQL_WAIT_WRITE)
+    return WANT_WRITE;
+  if(mysql_status & MYSQL_WAIT_READ)
+    return WANT_READ;
+  return 0;
+}
+
 static void
 js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
 
@@ -839,29 +848,35 @@ fail:
 
 static JSValue
 js_mysql_connect2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
-  struct AsyncClosure* closure = magic ? ptr : 0;
-  MYSQL *my, *my2 = 0;
-  JSValue ret = JS_UNDEFINED;
+  AsyncClosure* ac = ptr;
+  MYSQL *my = js_mysql_data(ac->obj), *my2 = 0;
+  int state = mysql_real_connect_cont(&my2, my, ac->state);
 
+  asyncclosure_change_event(ac, async_event(state));
+
+  if(state == 0)
+    promise_resolve(ctx, &ac->promise.funcs, ac->obj);
+
+  return JS_UNDEFINED;
+}
+
+static JSValue
+js_mysql_connect1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  AsyncClosure* ac;
+  MYSQL *my, *my2 = 0;
+  MYSQLConnectParameters* c;
   int state;
 
-  if(!(my = js_mysql_data2(ctx, closure ? closure->obj : this_val)))
+  if(!(my = js_mysql_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(closure == 0) {
-    MYSQLConnectParameters* c = connectparams_new(ctx, argc, argv);
-    state = mysql_real_connect_start(&my2, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
-    closure = asyncclosure_new(ctx, state, mysql_get_socket(my), this_val, &ret, &js_mysql_connect2);
+  c = connectparams_new(ctx, argc, argv);
+  state = mysql_real_connect_start(&my2, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
+  ac = asyncclosure_new(ctx, mysql_get_socket(my), async_event(state), this_val, &js_mysql_connect2);
 
-    asyncclosure_setopaque(closure, c, connectparams_free);
-  } else {
-    state = mysql_real_connect_cont(&my2, my, closure->state);
-  }
+  asyncclosure_set_opaque(ac, c, connectparams_free);
 
-  if(!js_iohandler_set(ctx, closure->set_handler, mysql_get_socket(my), asyncclosure_function(closure, js_mysql_connect2, state)))
-    promise_reject(ctx, &closure->fns, JS_GetException(ctx));
-
-  return ret;
+  return asyncclosure_promise(ac);
 }
 
 static JSValue
@@ -881,11 +896,6 @@ js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
   if(newstate == 0) {
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
-    /* int ret;
-
-     if((ret = mysql_set_character_set(my, "utf8"))) {
-       printf("failed setting MySQL character set to UTF8: %s (%i)", mysql_error(my), mysql_errno(my));
-     }*/
 
     JS_Call(ctx, data[3], JS_UNDEFINED, 1, &data[1]);
 
@@ -902,13 +912,8 @@ js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
 
-    // JS_FreeValue(ctx, handler);
-
-    JS_FreeValue(ctx, hdata[0]);
-    JS_FreeValue(ctx, hdata[1]);
-    JS_FreeValue(ctx, hdata[2]);
-    JS_FreeValue(ctx, hdata[3]);
-    JS_FreeValue(ctx, hdata[4]);
+    for(int i = 0; i < countof(hdata); i++)
+      JS_FreeValue(ctx, hdata[i]);
   }
 
 #ifdef DEBUG_OUTPUT
@@ -950,11 +955,8 @@ js_mysql_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(!js_iohandler_set(ctx, data[2], fd, handler))
     JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
 
-  JS_FreeValue(ctx, data[0]);
-  JS_FreeValue(ctx, data[1]);
-  JS_FreeValue(ctx, data[2]);
-  JS_FreeValue(ctx, data[3]);
-  JS_FreeValue(ctx, data[4]);
+  for(int i = 0; i < countof(data); i++)
+    JS_FreeValue(ctx, data[i]);
 
   connectparams_release(ctx, &c);
 
@@ -1040,11 +1042,8 @@ js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     js_iohandler_set(ctx, data[2], fd, JS_NULL);
     js_iohandler_set(ctx, hdata[2], fd, handler);
 
-    JS_FreeValue(ctx, hdata[0]);
-    JS_FreeValue(ctx, hdata[1]);
-    JS_FreeValue(ctx, hdata[2]);
-    JS_FreeValue(ctx, hdata[3]);
-    JS_FreeValue(ctx, hdata[4]);
+    for(int i = 0; i < countof(hdata); i++)
+      JS_FreeValue(ctx, hdata[i]);
   }
 
 #ifdef DEBUG_OUTPUT
@@ -1179,7 +1178,7 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CGETSET_MAGIC_DEF("port", js_mysql_get, 0, PROP_PORT),
     JS_CGETSET_MAGIC_DEF("socket", js_mysql_get, 0, PROP_UNIX_SOCKET),
     JS_CGETSET_MAGIC_DEF("db", js_mysql_get, 0, PROP_DB),
-    JS_CFUNC_DEF("connect", 1, js_mysql_connect),
+    JS_CFUNC_DEF("connect", 1, js_mysql_connect1),
     JS_CFUNC_DEF("query", 1, js_mysql_query),
     JS_CFUNC_DEF("close", 0, js_mysql_close),
     JS_ALIAS_DEF("execute", "query"),
