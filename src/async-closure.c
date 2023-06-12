@@ -1,6 +1,11 @@
 #include "async-closure.h"
 #include <assert.h>
 
+/**
+ * \addtogroup async-closure
+ * @{
+ */
+
 static JSValue
 asyncclosure_function(AsyncClosure* ac, CClosureFunc* func, int magic) {
   return js_function_cclosure(ac->ctx, func, 0, magic, asyncclosure_dup(ac), asyncclosure_free);
@@ -124,3 +129,7 @@ asyncclosure_change_event(AsyncClosure* ac, AsyncEvent new_state) {
 
   return FALSE;
 }
+
+/**
+ * @}
+ */

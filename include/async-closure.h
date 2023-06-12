@@ -5,6 +5,11 @@
 #include "js-utils.h"
 #include "utils.h"
 
+/**
+ * \defgroup asymc-closure Async Handler Closure
+ * @{
+ */
+
 typedef enum {
   WANT_READ = 1,
   WANT_WRITE = 2,
@@ -42,5 +47,9 @@ asyncclosure_yield(AsyncClosure* ac, JSValueConst value) {
   ac->result = JS_DupValue(ac->ctx, value);
   asyncclosure_resolve(ac);
 }
+
+/**
+ * @}
+ */
 
 #endif /* defined(ASYNC_CLOSURE_H) */
