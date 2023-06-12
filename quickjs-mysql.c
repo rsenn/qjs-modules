@@ -20,7 +20,7 @@ static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 static const int wait_read = MYSQL_WAIT_READ;
 static const int wait_write = MYSQL_WAIT_WRITE;
 
-typedef enum  {
+typedef enum {
   RESULT_OBJECT = 0b0001,
   RESULT_STRING = 0b0010,
   RESULT_TBLNAM = 0b0100,
@@ -35,7 +35,7 @@ struct ConnectParameters {
 };
 
 typedef char* FieldNameFunc(JSContext*, MYSQL_FIELD const*);
-typedef JSValue RowValueFunc(JSContext*, MYSQL_RES*, MYSQL_ROW, int);
+typedef JSValue RowValueFunc(JSContext*, MYSQL_RES*, MYSQL_ROW, ResultFlags);
 typedef struct ConnectParameters MYSQLConnectParameters;
 
 static char* field_id(JSContext* ctx, MYSQL_FIELD const* field);
@@ -1272,7 +1272,7 @@ static const JSCFunctionListEntry js_mysqlerror_funcs[] = {
 };
 
 static JSValue
-result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, int rtype) {
+result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, ResultFlags rtype) {
   JSValue ret = JS_UNDEFINED;
 
   if(buf == 0)
@@ -1311,7 +1311,7 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, in
 }
 
 static JSValue
-result_array(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
+result_array(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue ret = JS_NewArray(ctx);
   uint32_t i, num_fields = mysql_num_fields(res);
   MYSQL_FIELD* fields = mysql_fetch_fields(res);
@@ -1328,7 +1328,7 @@ result_array(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
 }
 
 static JSValue
-result_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
+result_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue ret = JS_NewObject(ctx);
   uint32_t i, num_fields = mysql_num_fields(res);
   MYSQL_FIELD* fields = mysql_fetch_fields(res);
@@ -1348,22 +1348,17 @@ result_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
 }
 
 static JSValue
-result_row(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
+result_row(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue val;
   RowValueFunc* row_func = (rtype & RESULT_OBJECT) ? result_object : result_array;
 
   val = row ? row_func(ctx, res, row, rtype) : JS_NULL;
 
   return val;
-  /*ret = js_iterator_result(ctx, val, row ? FALSE : TRUE);
-
-  JS_FreeValue(ctx, val);
-
-  return ret;*/
 }
 
 static JSValue
-result_iterate(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
+result_iterate(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue ret, val = result_row(ctx, res, row, rtype);
   ret = js_iterator_result(ctx, val, row ? FALSE : TRUE);
   JS_FreeValue(ctx, val);
@@ -1371,7 +1366,7 @@ result_iterate(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
 }
 
 static void
-result_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
+result_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue val = result_row(ctx, res, row, rtype);
 
   JSValue item = js_iterator_result(ctx, val, row ? FALSE : TRUE);
@@ -1381,7 +1376,7 @@ result_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, i
 }
 
 static void
-result_resolve(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, int rtype) {
+result_resolve(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue value = row ? result_row(ctx, res, row, rtype) : JS_NULL;
 
   value_yield_free(ctx, func, value);
@@ -1472,7 +1467,7 @@ js_mysqlresult_nonblock(JSContext* ctx, JSValueConst value) {
 static inline int
 js_mysqlresult_rtype(JSContext* ctx, JSValueConst value) {
   JSValue handle = JS_GetPropertyStr(ctx, value, "handle");
-  int rtype = js_mysql_rtype(ctx, handle);
+  ResultFlags rtype = js_mysql_rtype(ctx, handle);
   JS_FreeValue(ctx, handle);
   return rtype;
 }
@@ -1534,7 +1529,7 @@ js_mysqlresult_next1(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   return asyncclosure_promise(ac);
 }
- 
+
 enum {
   METHOD_FETCH_FIELD,
   METHOD_FETCH_FIELDS,
