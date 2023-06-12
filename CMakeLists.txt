@@ -221,19 +221,19 @@ if(USE_MARIADBCLIENT)
   pkg_check_modules(MARIADB libmariadb mariadb)
 
   if(pkgcfg_lib_MARIADB_mariadb)
-    set(MARIADBCLIENT_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}" CACHE STRING "MariaDB client library")
+    set(LIBMARIADBCLIENT_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}" CACHE STRING "MariaDB client library")
     unset(pkgcfg_lib_MARIADB_mariadb CACHE)
   else(pkgcfg_lib_MARIADB_mariadb)
     check_library_exists(mariadbclient mysql_init "${LIBMARIADB_LIBRARY_DIR}" HAVE_LIBMARIADBCLIENT)
 
     if(HAVE_LIBMARIADBCLIENT)
-      set(MARIADBCLIENT_LIBRARY mariadbclient CACHE STRING "MariaDB client library")
+      set(LIBMARIADBCLIENT_LIBRARY mariadbclient CACHE STRING "MariaDB client library")
     endif(HAVE_LIBMARIADBCLIENT)
   endif(pkgcfg_lib_MARIADB_mariadb)
 
-  if(MARIADBCLIENT_LIBRARY)
+  if(LIBMARIADBCLIENT_LIBRARY)
     list(APPEND QUICKJS_MODULES mysql)
-    set(mysql_LIBRARIES ${MARIADBCLIENT_LIBRARY})
+    set(mysql_LIBRARIES ${LIBMARIADBCLIENT_LIBRARY})
 
     set(LIBMARIADB_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "MariaDB client include directory")
 
@@ -249,7 +249,7 @@ if(USE_MARIADBCLIENT)
     if(HAVE_MYSQL_H OR EXISTS "${LIBMARIADB_INCLUDE_DIR}")
       include_directories(${LIBMARIADB_INCLUDE_DIR})
     endif()
-  endif(MARIADBCLIENT_LIBRARY)
+  endif(LIBMARIADBCLIENT_LIBRARY)
 endif(USE_MARIADBCLIENT)
 
 if(USE_POSTGRESCLIENT)
