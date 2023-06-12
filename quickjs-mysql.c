@@ -884,13 +884,13 @@ js_mysql_query2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(state == 0) {
     MYSQL_RES* res;
 
-    if(!err && (res = mysql_use_result(ac->opaque))) {
-      JS_SetOpaque(ac->result, res);
-      asyncclosure_resolve(ac);
-    } else {
+    if(err) {
       JSValue error = js_mysqlerror_new(ctx, mysql_error(ac->opaque));
       asyncclosure_error(ac, error);
       JS_FreeValue(ctx, error);
+    } else if((res = mysql_use_result(ac->opaque))) {
+      JS_SetOpaque(ac->result, res);
+      asyncclosure_resolve(ac);
     }
   }
 
@@ -1063,18 +1063,21 @@ js_mysqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
 
   if(argc > 0) {
     prop = JS_NewAtom(ctx, "message");
+    JS_DeleteProperty(ctx, obj, prop, 0);
     JS_DefinePropertyValue(ctx, obj, prop, JS_DupValue(ctx, argv[0]), JS_PROP_C_W_E);
     JS_FreeAtom(ctx, prop);
   }
 
   if(argc > 1) {
     prop = JS_NewAtom(ctx, "type");
+    JS_DeleteProperty(ctx, obj, prop, 0);
     JS_DefinePropertyValue(ctx, obj, prop, JS_DupValue(ctx, argv[1]), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
     JS_FreeAtom(ctx, prop);
   }
 
   JSValue stack = js_error_stack(ctx);
   prop = JS_NewAtom(ctx, "stack");
+  JS_DeleteProperty(ctx, obj, prop, 0);
   JS_DefinePropertyValue(ctx, obj, prop, stack, JS_PROP_CONFIGURABLE);
   JS_FreeAtom(ctx, prop);
 
