@@ -66,7 +66,7 @@ asyncclosure_free(void* ptr) {
     JS_FreeValue(ctx, ac->result);
     JS_FreeValue(ctx, ac->promise.value);
 
-    //promise_free(JS_GetRuntime(ctx), &ac->promise);
+    // promise_free(JS_GetRuntime(ctx), &ac->promise);
 
     if(ac->opaque && ac->opaque_free)
       ac->opaque_free(ac->ctx, ac->opaque);
