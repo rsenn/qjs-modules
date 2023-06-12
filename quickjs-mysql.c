@@ -62,13 +62,6 @@ static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const cha
 
 static JSValue js_mysqlerror_new(JSContext* ctx, const char* msg);
 
-static JSValue
-continue_function(JSContext* ctx, JSCFunctionData* func, const char* name, int magic, int data_len, JSValueConst data[]) {
-  JSValue handler = JS_NewCFunctionData(ctx, func, 0, magic, data_len, data);
-  js_function_set_name(ctx, handler, name);
-  return handler;
-}
-
 static inline AsyncEvent
 my2async(int mysql_status) {
   if(mysql_status & MYSQL_WAIT_WRITE)
@@ -358,16 +351,6 @@ js_mysql_new(JSContext* ctx, JSValueConst proto, MYSQL* my) {
 fail:
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
-}
-
-static JSValue
-js_mysql_wrap(JSContext* ctx, MYSQL* my) {
-  return js_mysql_new(ctx, mysql_proto, my);
-}
-
-static inline int
-js_mysql_rtype(JSContext* ctx, JSValueConst value) {
-  return js_get_propertystr_int32(ctx, value, "resultType");
 }
 
 enum {
@@ -938,147 +921,6 @@ js_mysql_query1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return asyncclosure_promise(ac);
 }
 
-/*static void
-js_mysql_query_done(JSContext* ctx, MYSQL* my, int err, JSValue data[]) {
-  int fd = mysql_get_socket(my);
-  MYSQL_RES* res = mysql_use_result(my);
-  JSValue resval = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
-
-  JSValueConst args[2] = {JS_NewInt32(ctx, fd), JS_NULL};
-
-  js_iohandler_set(ctx, data[2], fd, JS_NULL);
-
-  if(mysql_errno(my)) {
-    JSValue errval = js_mysqlerror_new(ctx, mysql_error(my));
-    JS_Call(ctx, data[4], JS_UNDEFINED, 1, &errval);
-    JS_FreeValue(ctx, errval);
-  } else {
-    if(res)
-      JS_DefinePropertyValueStr(ctx, resval, "handle", JS_DupValue(ctx, data[1]), JS_PROP_CONFIGURABLE);
-
-    JS_Call(ctx, data[3], JS_UNDEFINED, 1, &resval);
-    JS_FreeValue(ctx, resval);
-  }
-}
-
-static JSValue
-js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
-  int32_t wantwrite, oldstate, newstate, fd;
-  int err = 0;
-  MYSQL* my;
-
-  if(!(my = js_mysql_data2(ctx, data[1])))
-    return JS_EXCEPTION;
-
-  fd = mysql_get_socket(my);
-  JS_ToInt32(ctx, &wantwrite, data[0]);
-
-  oldstate = wantwrite ? wait_write : wait_read;
-
-  newstate = mysql_real_query_cont(&err, my, oldstate);
-
-  if(newstate == 0) {
-    js_mysql_query_done(ctx, my, err, data);
-
-  } else if(newstate != oldstate) {
-    BOOL wantwrite = !!(newstate & wait_write);
-    JSValue hdata[5] = {
-        JS_NewInt32(ctx, wantwrite),
-        JS_DupValue(ctx, data[1]),
-        js_iohandler_fn(ctx, wantwrite),
-        JS_DupValue(ctx, data[3]),
-        JS_DupValue(ctx, data[4]),
-    };
-    JSValue handler = continue_function(ctx, js_mysql_query_continue, "query_continue", magic, countof(hdata), hdata);
-
-    js_iohandler_set(ctx, data[2], fd, JS_NULL);
-    js_iohandler_set(ctx, hdata[2], fd, handler);
-
-    for(int i = 0; i < countof(hdata); i++)
-      JS_FreeValue(ctx, hdata[i]);
-  }
-
-#ifdef DEBUG_OUTPUT
-  printf("%s wantwrite=%i fd=%i newstate=%i my=%p err=%d exception=%s error='%s'\n", __func__, wantwrite, fd, newstate, my, err, JS_ToCString(ctx, ctx->rt->current_exception), mysql_error(my));
-#endif
-
-  return JS_UNDEFINED;
-}
-
-static JSValue
-js_mysql_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue promise = JS_UNDEFINED, data[5], handler;
-  const char* query = 0;
-  size_t i;
-  MYSQL* my;
-  int wantwrite, state, err = 0, fd;
-
-  if(!(my = js_mysql_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  query = JS_ToCStringLen(ctx, &i, argv[0]);
-  state = mysql_real_query_start(&err, my, query, i);
-  fd = mysql_get_socket(my);
-
-#ifdef DEBUG_OUTPUT
-  printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
-#endif
-
-  wantwrite = !!(state & wait_write);
-
-  data[0] = JS_NewInt32(ctx, wantwrite);
-  data[1] = JS_DupValue(ctx, this_val);
-  data[2] = js_iohandler_fn(ctx, wantwrite);
-
-  promise = js_promise_new(ctx, &data[3]);
-
-  if(state == 0) {
-    js_mysql_query_done(ctx, my, err, data);
-  } else {
-
-    handler = continue_function(ctx, js_mysql_query_continue, "query_continue", 0, countof(data), data);
-
-    if(!js_iohandler_set(ctx, data[2], fd, handler))
-      JS_Call(ctx, data[4], JS_UNDEFINED, 0, 0);
-  }
-
-  for(i = 0; i < countof(data); i++)
-    JS_FreeValue(ctx, data[i]);
-
-  return promise;
-}
-
-static JSValue
-js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  MYSQL* my;
-
-  if(!(my = js_mysql_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  if(!mysql_nonblock(my)) {
-    MYSQL_RES* res = 0;
-    const char* query = 0;
-    size_t query_len;
-    int state;
-    JSValue ret = JS_UNDEFINED;
-
-    query = JS_ToCStringLen(ctx, &query_len, argv[0]);
-    state = mysql_real_query(my, query, query_len);
-
-    if(state == 0) {
-      res = mysql_store_result(my);
-      ret = res ? js_mysqlresult_wrap(ctx, res) : JS_NULL;
-    }
-
-    if(res)
-      JS_DefinePropertyValueStr(ctx, ret, "handle", JS_DupValue(ctx, this_val), JS_PROP_CONFIGURABLE);
-
-    return ret;
-  }
-
-  return js_mysql_query_start(ctx, this_val, argc, argv);
-}*/
-
 static JSValue
 js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -1156,10 +998,6 @@ static const JSCFunctionListEntry js_mysql_defines[] = {
     JS_PROP_INT32_DEF("RESULT_STRING", RESULT_STRING, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("RESULT_TBLNAM", RESULT_TBLNAM, JS_PROP_CONFIGURABLE),
     JS_PROP_INT64_DEF("COUNT_ERROR", MYSQL_COUNT_ERROR, JS_PROP_CONFIGURABLE),
-    /* JS_PROP_INT32_DEF("WAIT_READ", MYSQL_WAIT_READ, JS_PROP_CONFIGURABLE),
-     JS_PROP_INT32_DEF("WAIT_WRITE", MYSQL_WAIT_WRITE, JS_PROP_CONFIGURABLE),
-     JS_PROP_INT32_DEF("WAIT_EXCEPT", MYSQL_WAIT_EXCEPT, JS_PROP_CONFIGURABLE),
-     JS_PROP_INT32_DEF("WAIT_TIMEOUT", MYSQL_WAIT_TIMEOUT, JS_PROP_CONFIGURABLE),*/
     JS_PROP_INT32_DEF("DATABASE_DRIVER", MYSQL_DATABASE_DRIVER, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("DEFAULT_AUTH", MYSQL_DEFAULT_AUTH, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("ENABLE_CLEARTEXT_PLUGIN", MYSQL_ENABLE_CLEARTEXT_PLUGIN, JS_PROP_CONFIGURABLE),
@@ -1427,11 +1265,6 @@ result_iterator_value(ResultIterator* ri, MYSQL_ROW row, AsyncClosure* ac) {
 }
 
 MYSQL_RES*
-js_mysqlresult_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_mysqlresult_class_id);
-}
-
-MYSQL_RES*
 js_mysqlresult_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_mysqlresult_class_id);
 }
@@ -1452,24 +1285,6 @@ js_mysqlresult_handle(JSContext* ctx, JSValueConst value) {
       ret = res->handle;
 
   return ret;
-}
-
-BOOL
-js_mysqlresult_nonblock(JSContext* ctx, JSValueConst value) {
-  MYSQL* my;
-
-  if((my = js_mysqlresult_handle(ctx, value)))
-    return mysql_nonblock(my);
-
-  return FALSE;
-}
-
-static inline int
-js_mysqlresult_rtype(JSContext* ctx, JSValueConst value) {
-  JSValue handle = JS_GetPropertyStr(ctx, value, "handle");
-  ResultFlags rtype = js_mysql_rtype(ctx, handle);
-  JS_FreeValue(ctx, handle);
-  return rtype;
 }
 
 static JSValue
@@ -1598,16 +1413,6 @@ js_mysqlresult_new(JSContext* ctx, JSValueConst proto, MYSQL_RES* res) {
 fail:
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
-}
-
-static JSValue
-js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res) {
-  JSValue obj = JS_NULL;
-
-  if(res)
-    obj = js_mysqlresult_new(ctx, mysqlresult_proto, res);
-
-  return obj;
 }
 
 static JSValue
