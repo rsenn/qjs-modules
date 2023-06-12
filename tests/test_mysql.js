@@ -38,14 +38,20 @@ async function main(...args) {
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
-  console.log('my.connect() =', console.config({ compact: false }), await my.connect('192.168.178.23', 'roman', 'r4eHuJ', 'blah', undefined, '/var/run/mysqld/mysqld.sock'));
+  console.log(
+    'my.connect() =',
+    console.config({ compact: false }),
+    await my.connect('192.168.178.23', 'roman', 'r4eHuJ', 'web')
+  );
 
   let i;
 
-  let q = (globalThis.q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s))));
+  let q = (globalThis.q = async s => (
+    console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s))
+  ));
 
   i = 0;
-  let res = await q(`SELECT id,title,category_id FROM article LIMIT 0,10;`);
+  let res = await q(`SELECT * FROM users LIMIT 0,10;`);
 
   console.log(`res =`, res);
 
@@ -61,11 +67,13 @@ async function main(...args) {
     console.log(`row[${i++}] =`, row);
   }
   let articles = [
-    ['This is an article', 'lorem ipsum...'],
-    ['This is another article', 'fliesstext...']
+    ['roman', 'r4eHuJ' ],
+    ['root','tD51o7xf']
   ];
 
-  res = await q(`INSERT INTO article (title,text) VALUES ${articles.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`);
+  res = await q(
+    `INSERT INTO users (username,password) VALUES ${articles.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`
+  );
   console.log('res =', res);
 
   let affected;
@@ -123,7 +131,8 @@ async function main(...args) {
 
   console.log('insert', insert);
 
-  for await(let row of await q(`SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`)) console.log(`article[${i++}] =`, row);
+  for await(let row of await q(`SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`))
+    console.log(`article[${i++}] =`, row);
 
   await q(insert);
   console.log('affected =', (affected = my.affectedRows));

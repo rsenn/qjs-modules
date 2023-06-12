@@ -494,6 +494,22 @@ js_function_name(JSContext* ctx, JSValueConst value) {
   return s;
 }
 
+BOOL
+js_function_set_name(JSContext* ctx, JSValueConst func, const char* name) {
+  BOOL ret = TRUE;
+  JSAtom atom = JS_NewAtom(ctx, "name");
+
+  JS_DeleteProperty(ctx, func, atom, 0);
+
+  if(0 > JS_DefinePropertyValue(ctx, func, atom, JS_NewString(ctx, name), JS_PROP_CONFIGURABLE)) {
+    JS_GetException(ctx);
+    ret = FALSE;
+  }
+
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+
 int
 js_function_argc(JSContext* ctx, JSValueConst value) {
   return js_get_propertystr_int32(ctx, value, "length");

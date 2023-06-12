@@ -554,6 +554,7 @@ char* js_atom_tostring(JSContext* ctx, JSAtom atom);
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_object_tostring2(JSContext* ctx, JSValueConst method, JSValueConst value);
 const char* js_function_name(JSContext* ctx, JSValueConst value);
+BOOL js_function_set_name(JSContext* ctx, JSValueConst func, const char* name);
 const char* js_function_tostring(JSContext* ctx, JSValueConst value);
 JSCFunction* js_function_cfunc(JSContext*, JSValueConst value);
 JSCFunctionMagic* js_function_cfuncmagic(JSContext*, JSValueConst value);
@@ -625,6 +626,14 @@ static inline int
 js_set_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop, JSValueConst value) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
   int ret = JS_SetProperty(ctx, obj, atom, value);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+
+static inline int
+js_delete_propertystr(JSContext* ctx, JSValueConst obj, const char* prop) {
+  JSAtom atom = JS_NewAtom(ctx, prop);
+  int ret = JS_DeleteProperty(ctx, obj, atom, 0);
   JS_FreeAtom(ctx, atom);
   return ret;
 }

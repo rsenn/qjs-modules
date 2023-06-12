@@ -1594,7 +1594,7 @@ jsm_start_interactive(JSContext* ctx) {
 
   JSValue ret = JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 
-  JS_FreeValue(ctx, ret);
+  // JS_FreeValue(ctx, ret);
 }
 
 int

@@ -978,7 +978,7 @@ js_pgconn_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   }
 
 #ifdef DEBUG_OUTPUT
-  printf("%s fd=%i newstate=%i pq=%p ret=%p error='%s'\n", __func__, fd, newstate, pq, pgconn_error(pq));
+  printf("%s fd=%i newstate=%i pq=%p error='%s'\n", __func__, fd, newstate, pq, pgconn_error(pq));
 #endif
 
   return JS_UNDEFINED;
@@ -1090,7 +1090,7 @@ js_pgconn_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   }
 
 #ifdef DEBUG_OUTPUT
-  printf("%s wantwrite=%i fd=%i newstate=%i pq=%p ret=%d error='%s'\n", __func__, wantwrite, fd, newstate, pq, ret, pgconn_error(pq));
+  printf("%s fd=%i pq=%p ret=%d error='%s'\n", __func__, fd, pq, ret, pgconn_error(pq));
 #endif
 
   return JS_UNDEFINED;
@@ -1111,7 +1111,7 @@ js_pgconn_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   fd = PQsocket(pq->conn);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s ret=%d query='%.*s'\n", __func__, ret, (int)query_len, query);
+  printf("%s ret=%d query='%s'\n", __func__, ret, query);
 #endif
 
   promise = JS_NewPromiseCapability(ctx, &data[2]);
