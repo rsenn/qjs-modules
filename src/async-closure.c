@@ -65,8 +65,14 @@ asyncclosure_free(void* ptr) {
   if(--ac->ref_count == 0) {
     JSContext* ctx = ac->ctx;
 
+    if(ac->state) {
+      printf("WARNING: %s() has still a handler for fd %d\n", __func__, ac->fd);
+      asyncclosure_change_event(ac, WANT_NONE);
+    } else {
+      JS_FreeValue(ctx, ac->set_handler);
+    }
+
     JS_FreeValue(ctx, ac->result);
-    JS_FreeValue(ctx, ac->set_handler);
 
     promise_free(JS_GetRuntime(ctx), &ac->promise);
     asyncclosure_free_opaque(ac);

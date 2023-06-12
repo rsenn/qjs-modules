@@ -826,9 +826,8 @@ js_mysql_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if(JS_IsException(proto))
     goto fail;
 
-  if((my = mysql_init(NULL))) {
-    // mysql_options(my, MYSQL_OPT_NONBLOCK, 0);
-  }
+  if((my = mysql_init(NULL)))
+    mysql_options(my, MYSQL_OPT_NONBLOCK, 0);
 
   obj = js_mysql_new(ctx, proto, my);
   JS_FreeValue(ctx, proto);
@@ -842,8 +841,8 @@ fail:
 static JSValue
 js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
-  MYSQL *my = js_mysql_data(ac->result), *my2 = 0;
-  int state = mysql_real_connect_cont(&my2, my, async2my(ac->state));
+  MYSQL *my = js_mysql_data(ac->result), *ret = 0;
+  int state = mysql_real_connect_cont(&ret, my, async2my(ac->state));
 
   asyncclosure_change_event(ac, my2async(state));
 
@@ -856,7 +855,7 @@ js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 static JSValue
 js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   AsyncClosure* ac;
-  MYSQL *my, *my2 = 0;
+  MYSQL *my, *ret = 0;
   MYSQLConnectParameters* c;
   int state;
 
@@ -864,7 +863,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_EXCEPTION;
 
   c = connectparams_new(ctx, argc, argv);
-  state = mysql_real_connect_start(&my2, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
+  state = mysql_real_connect_start(&ret, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
   ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), this_val, &js_mysql_connect_continue);
 
   asyncclosure_set_opaque(ac, c, connectparams_free);
