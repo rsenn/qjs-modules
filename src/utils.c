@@ -1399,9 +1399,8 @@ js_value_tag_name(int tag) {
 const char* const*
 js_value_types() {
   static const char* const types[] = {
-      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
-      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception", 0,
+      "undefined",         "null",          "bool",         "int",       "object", "string", "symbol", "big_float", "big_int", "big_decimal", "float64", "nan", "function", "array", "module",
+      "function_bytecode", "uninitialized", "catch_offset", "exception", 0,
   };
   return types;
 }
@@ -1410,9 +1409,8 @@ const char*
 js_value_typeof(JSValueConst value) {
   int32_t flag = js_value_type_flag(value);
   return ((const char* const[]){
-      "undefined",     "object",       "boolean",   "number", "object",   "string", "symbol", "bigfloat",
-      "bigint",        "bigdecimal",   "number",    "number", "function", "object", "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception", 0,
+      "undefined", "object", "boolean",           "number",        "object",       "string",    "symbol", "bigfloat", "bigint", "bigdecimal", "number", "number", "function",
+      "object",    "module", "function_bytecode", "uninitialized", "catch_offset", "exception", 0,
   })[flag];
 }
 
@@ -1420,9 +1418,8 @@ const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
   const char* const types[] = {
-      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
-      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception",
+      "undefined",         "null",          "bool",         "int",       "object", "string", "symbol", "big_float", "big_int", "big_decimal", "float64", "nan", "function", "array", "module",
+      "function_bytecode", "uninitialized", "catch_offset", "exception",
   };
   if(flag >= 0 && flag < countof(types))
     return types[flag];
@@ -2751,32 +2748,34 @@ js_iohandler_fn(JSContext* ctx, BOOL write) {
 }
 
 BOOL
-js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst handler) {
+js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValue handler) {
+  if(JS_IsException(set_handler))
+    return FALSE;
+
   JSValue args[2] = {
       JS_NewInt32(ctx, fd),
       handler,
   };
-
-  if(JS_IsException(set_handler))
-    return FALSE;
-
   JSValue ret = JS_Call(ctx, set_handler, JS_UNDEFINED, countof(args), args);
+
+  JS_FreeValue(ctx, args[0]);
+  JS_FreeValue(ctx, args[1]);
 
   if(JS_IsException(ret))
     return FALSE;
 
   JS_FreeValue(ctx, ret);
-  JS_FreeValue(ctx, set_handler);
-  JS_FreeValue(ctx, args[0]);
 
   return TRUE;
 }
 
 JSValue
-js_promise_resolve(JSContext* ctx, JSValueConst promise) {
-  JSValue ret, ctor = js_global_get_str(ctx, "Promise");
-  ret = js_invoke(ctx, ctor, "resolve", 1, &promise);
-  JS_FreeValue(ctx, ctor);
+js_promise_new(JSContext* ctx, JSValue resolving_funcs[2]) {
+  JSValue ret = JS_NewPromiseCapability(ctx, resolving_funcs);
+
+  js_function_set_name(ctx, resolving_funcs[0], "resolve");
+  js_function_set_name(ctx, resolving_funcs[1], "reject");
+
   return ret;
 }
 
@@ -2791,10 +2790,10 @@ js_promise_catch(JSContext* ctx, JSValueConst promise, JSValueConst func) {
 }
 
 JSValue
-js_promise_wrap(JSContext* ctx, JSValueConst value) {
+js_promise_immediate(JSContext* ctx, BOOL reject, JSValueConst value) {
   JSValue ret, promise, resolving_funcs[2];
   promise = JS_NewPromiseCapability(ctx, resolving_funcs);
-  ret = JS_Call(ctx, resolving_funcs[0], JS_UNDEFINED, 1, &value);
+  ret = JS_Call(ctx, resolving_funcs[!!reject], JS_UNDEFINED, 1, &value);
   JS_FreeValue(ctx, ret);
 
   JS_FreeValue(ctx, resolving_funcs[0]);
@@ -2803,10 +2802,20 @@ js_promise_wrap(JSContext* ctx, JSValueConst value) {
 }
 
 JSValue
+js_promise_resolve(JSContext* ctx, JSValueConst value) {
+  return js_promise_immediate(ctx, FALSE, value);
+}
+
+JSValue
+js_promise_reject(JSContext* ctx, JSValueConst value) {
+  return js_promise_immediate(ctx, TRUE, value);
+}
+
+JSValue
 js_promise_adopt(JSContext* ctx, JSValueConst value) {
   if(js_is_promise(ctx, value))
     return JS_DupValue(ctx, value);
-  return js_promise_wrap(ctx, value);
+  return js_promise_resolve(ctx, value);
 }
 
 JSValue

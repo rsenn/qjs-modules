@@ -1,6 +1,6 @@
 import { Console } from 'console';
 import { exit } from 'std';
-import { abbreviate, startInteractive } from 'util';
+import { abbreviate, startInteractive, randStr } from 'util';
 import { MySQL, MySQLResult } from 'mysql';
 import extendArray from '../lib/extendArray.js';
 
@@ -38,16 +38,21 @@ async function main(...args) {
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
-  console.log(
-    'my.connect() =',
-    console.config({ compact: false }),
-    await my.connect('192.168.178.23', 'roman', 'r4eHuJ', 'web')
-  );
+  console.log('my.connect() =', await my.connect('192.168.178.23', 'roman', 'r4eHuJ', 'web'));
 
   let i;
 
   let q = (globalThis.q = async s => (
-    console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await my.query(s))
+    console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`),
+    result(
+      await my.query(s).then(
+        val => result(val),
+        err => {
+          console.log('query error:', err);
+          return null;
+        }
+      )
+    )
   ));
 
   i = 0;
@@ -66,13 +71,13 @@ async function main(...args) {
   for await(let row of res) {
     console.log(`row[${i++}] =`, row);
   }
-  let articles = [
-    ['roman', 'r4eHuJ' ],
-    ['root','tD51o7xf']
+  let users = [
+    ['roman', 'r4eHuJ'],
+    ['root', 'tD51o7xf']
   ];
 
   res = await q(
-    `INSERT INTO users (username,password) VALUES ${articles.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`
+    `INSERT INTO users (username,password) VALUES ${users.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`
   );
   console.log('res =', res);
 
@@ -82,27 +87,42 @@ async function main(...args) {
   let id = my.insertId;
   console.log('id =', id);
 
+  res = await q(`SELECT id FROM users WHERE username IN ('root','roman');`);
+  console.log('res =', res);
+  let ids = [];
+  for await(let { id } of res) ids.push(id);
+
+  for(let id of ids) {
+    let newres = await q(`INSERT INTO sessions (cookie, user_id) VALUES ('${randStr(64)}', ${id});`);
+    console.log('newres =', newres);
+  }
+
+  console.log('affected =', (affected = my.affectedRows));
+
+  id = my.insertId;
+  console.log('id =', id);
+
   i = 0;
   my.resultType &= ~(MySQL.RESULT_TABLENAME | MySQL.RESULT_OBJECT);
 
-  res = await q(`SELECT * FROM article INNER JOIN categories ON article.category_id=categories.id LIMIT 0,10;`);
+  res = await q(`SELECT * FROM sessions INNER JOIN users ON sessions.user_id=users.id;`);
 
-  for await(let row of res) console.log(`category[${i++}] =`, row);
+  for await(let row of res) console.log(`session[${i++}] =`, row);
 
   i = 0;
   let rows = (globalThis.rows = []);
 
   my.resultType &= ~MySQL.RESULT_OBJECT;
-  res = await q(`SELECT * FROM article ORDER BY id DESC LIMIT 0,10;`);
+  res = await q(`SELECT * FROM users ORDER BY id DESC LIMIT 0,10;`);
   for await(let row of res) {
     console.log(`row[${i++}] =`, console.config({ compact: 1 }), row);
 
     rows.unshift(row);
   }
 
-  async function* showFields(table = 'article') {
+  async function* showFields(table) {
     my.resultType &= ~MySQL.RESULT_OBJECT;
-    let res = await q(`SHOW FIELDS FROM article`);
+    let res = await q(`SHOW FIELDS FROM ${table}`);
 
     for await(let field of res) {
       let name = field['COLUMNS.Field'] ?? field['Field'] ?? field[0];
@@ -115,24 +135,25 @@ async function main(...args) {
   }
 
   let fieldNames = (globalThis.fields = []);
-  for await(let field of await showFields()) fieldNames.push(field);
+  for await(let field of await showFields('sessions')) fieldNames.push(field);
 
   const rowValues = row => row.map(s => MySQL.valueString(s));
   const rowString = row => MySQL.valueString(...row);
 
-  function makeInsertQuery(table = 'article', fields, data = {}) {
+  function makeInsertQuery(table, fields, data = {}) {
     return `INSERT INTO ${table} (${fields.map(f => '`' + f + '`').join(',')}) VALUES (${rowString(data)});`;
   }
 
   console.log('fieldNames', fieldNames);
-  let myrow = Array.isArray(rows[0]) ? rows[0] : fieldNames.map(n => rows[0][n]);
+  let myrow = [randStr(64), 1, JSON.stringify({ data: 'blah' })]; //Array.isArray(rows[0]) ? rows[0] : fieldNames.map(n => rows[0][n]);
+  console.log('myrow', myrow);
 
-  let insert = (globalThis.insert = makeInsertQuery('article', fieldNames.slice(1), myrow.slice(1)));
+  let insert = (globalThis.insert = makeInsertQuery('sessions', fieldNames.slice(1, -2), myrow.slice(0)));
 
   console.log('insert', insert);
 
-  for await(let row of await q(`SELECT id,title,category_id,visible FROM article ORDER BY id DESC LIMIT 0,10;`))
-    console.log(`article[${i++}] =`, row);
+  for await(let row of await q(`SELECT id,username FROM users ORDER BY created DESC LIMIT 0,10;`))
+    console.log(`user[${i++}] =`, row);
 
   await q(insert);
   console.log('affected =', (affected = my.affectedRows));

@@ -13,7 +13,8 @@
 #define list_add mariadb_list_add
 #include <mariadb/mysql.h>
 
-MYSQL* js_mysql_data(JSContext*, JSValueConst);
+MYSQL* js_mysql_data(JSValueConst);
+MYSQL* js_mysql_data2(JSContext*, JSValueConst);
 MYSQL_RES* js_mysqlresult_data(JSContext*, JSValueConst);
 MYSQL* js_mysqlresult_handle(JSContext*, JSValueConst);
 BOOL js_mysqlresult_nonblock(JSContext*, JSValueConst);

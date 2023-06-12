@@ -315,8 +315,7 @@ typedef enum {
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NAN = (1 << FLAG_NAN),
   TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
-  TYPE_PRIMITIVE =
-      (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
+  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
@@ -949,9 +948,12 @@ JSValue js_error_stack(JSContext* ctx);
 /*JSValue js_error_uncatchable(JSContext* ctx);*/
 
 JSValue js_iohandler_fn(JSContext*, BOOL write);
-BOOL js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValueConst handler);
+BOOL js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValue handler);
 
+JSValue js_promise_new(JSContext* ctx, JSValue resolving_funcs[2]);
+JSValue js_promise_immediate(JSContext* ctx, BOOL reject, JSValueConst promise);
 JSValue js_promise_resolve(JSContext* ctx, JSValueConst promise);
+JSValue js_promise_reject(JSContext* ctx, JSValueConst promise);
 JSValue js_promise_then(JSContext* ctx, JSValueConst promise, JSValueConst func);
 
 static inline JSValue
@@ -963,7 +965,6 @@ js_promise_resolve_then(JSContext* ctx, JSValueConst promise, JSValueConst func)
   return ret;
 }
 
-JSValue js_promise_wrap(JSContext* ctx, JSValueConst value);
 JSValue js_promise_adopt(JSContext* ctx, JSValueConst value);
 
 char* js_json_stringify(JSContext* ctx, JSValueConst value);

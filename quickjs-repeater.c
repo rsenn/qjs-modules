@@ -262,7 +262,7 @@ js_repeater_create_iteration(JSContext* ctx, JSValueConst this_val, JSValueConst
   JSValueConst data[2] = {JS_DupValue(ctx, this_val), JS_NewBool(ctx, rpt->state >= REPEATER_DONE)};
   iteration_fn = JS_NewCFunctionData(ctx, js_repeater_iteration, 1, 0, 2, data);
 
-  JSValue promise = js_is_promise(ctx, value) ? JS_DupValue(ctx, value) : js_promise_wrap(ctx, value);
+  JSValue promise = js_is_promise(ctx, value) ? JS_DupValue(ctx, value) : js_promise_resolve(ctx, value);
 
   // ret = js_promise_resolve(ctx, promise);
   ret = js_promise_resolve_then(ctx, promise, iteration_fn);
@@ -448,7 +448,7 @@ js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     /*
       JSValue it = js_iterator_result(ctx, JS_UNDEFINED, done);
-        ret = js_promise_wrap(ctx, it);
+        ret = js_promise_resolve(ctx, it);
         JS_FreeValue(ctx, it);
     */
 
