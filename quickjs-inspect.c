@@ -532,14 +532,14 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
       js_cstring_free(ctx, str);
 
     dbuf_putstr(buf, " {");
-    if(compact >= 1)
+    if(abs(compact) >= 1)
       dbuf_putc(buf, ' ');
     else
       inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
     dbuf_printf(buf, "byteLength: %zu [", size);
   }
 
-  if(compact > 0)
+  if(abs(compact) > 0)
     dbuf_putc(buf, ' ');
   else
     inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 3);
@@ -552,7 +552,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
       if(opts->reparseable && i > 0)
         dbuf_putc(buf, ',');
 
-      if(compact > 0)
+      if(abs(compact) > 0)
         dbuf_putc(buf, ' ');
       else
         inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 3);
@@ -575,19 +575,19 @@ js_inspect_print_arraybuffer(JSContext* ctx, DynBuf* buf, JSValueConst value, in
     dbuf_putstr(buf, "]).buffer");
   } else {
     if(i < size) {
-      if(compact > 0)
+      if(abs(compact) > 0)
         dbuf_putc(buf, ' ');
       else
         inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 3);
 
       dbuf_printf(buf, "... %zu more bytes", size - i);
     }
-    if(compact > 0)
+    if(abs(compact) > 0)
       dbuf_putc(buf, ' ');
     else
       inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 2);
     dbuf_putstr(buf, "]");
-    if(compact >= 1)
+    if(abs(compact) >= 1)
       dbuf_putc(buf, ' ');
     else
       inspect_newline(buf, INSPECT_LEVEL(opts, depth) + 1);

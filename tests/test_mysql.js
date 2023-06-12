@@ -94,7 +94,7 @@ async function main(...args) {
 
   for await(let { id } of res) ids.push(id);
 
-  /* for(let id of ids) {
+  for(let id of ids) {
     let newres = await q(`INSERT INTO sessions (cookie, user_id) VALUES ('${randStr(64)}', ${id});`);
     console.log('newres =', newres);
   }
@@ -109,7 +109,7 @@ async function main(...args) {
 
   res = await q(`SELECT * FROM sessions INNER JOIN users ON sessions.user_id=users.id;`);
 
-  for await(let row of res) console.log(`session[${i++}] =`, row);
+  for await(let row of res) console.log(`session[${i++}] =`,console.config({compact: 1}), row);
 
   i = 0;
   let rows = (globalThis.rows = []);
@@ -157,8 +157,8 @@ async function main(...args) {
   for await(let row of await q(`SELECT id,username FROM users ORDER BY created DESC LIMIT 0,10;`))
     console.log(`user[${i++}] =`, row);
 
-  await q(insert);
-  console.log('affected =', (affected = my.affectedRows));
+  /* await q(insert);
+  console.log('affected =', (affected = my.affectedRows));*/
 
   res = await q(`SELECT last_insert_id();`);
 
@@ -174,8 +174,8 @@ async function main(...args) {
   console.log('row[0] =', row[0]);
 
   console.log('id =', (id = my.insertId));
-  console.log('my.close',my.close);
-*/
+  console.log('my.close', my.close);
+
   my.close();
 
   //startInteractive();

@@ -42,6 +42,7 @@ BOOL asyncclosure_change_event(AsyncClosure*, AsyncEvent);
 void asyncclosure_resolve(AsyncClosure*);
 void asyncclosure_error(AsyncClosure*, JSValueConst);
 void asyncclosure_done(AsyncClosure*);
+AsyncClosure* asyncclosure_lookup(int fd);
 
 static inline void
 asyncclosure_yield(AsyncClosure* ac, JSValueConst value) {

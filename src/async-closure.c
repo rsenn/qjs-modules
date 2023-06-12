@@ -8,6 +8,21 @@
 
 static thread_local struct list_head asyncclosure_list;
 
+AsyncClosure*
+asyncclosure_lookup(int fd) {
+  struct list_head* el;
+
+  list_for_each(el, &asyncclosure_list) {
+    AsyncClosure* ac = list_entry(el, AsyncClosure, link);
+
+    if(ac->fd >= 0)
+      if(ac->fd == fd)
+        return ac;
+  }
+
+  return NULL;
+}
+
 static JSValue
 asyncclosure_function(AsyncClosure* ac, CClosureFunc* func, int magic) {
   return js_function_cclosure(ac->ctx, func, 0, magic, asyncclosure_dup(ac), asyncclosure_free);
@@ -19,6 +34,8 @@ asyncclosure_new(JSContext* ctx, int fd, AsyncEvent state, JSValueConst this_val
 
   if(asyncclosure_list.prev == NULL && asyncclosure_list.next == NULL)
     init_list_head(&asyncclosure_list);
+
+  assert((ac = asyncclosure_lookup(fd)) == NULL || ac->state == 0);
 
   if(!(ac = js_malloc(ctx, sizeof(AsyncClosure))))
     return 0;
@@ -86,7 +103,8 @@ asyncclosure_free(void* ptr) {
       ac->opaque_free = NULL;
     }
 
-    list_del(&ac->link);
+    if(ac->link.prev && ac->link.next)
+      list_del(&ac->link);
 
     js_free(ctx, ac);
   }
@@ -109,6 +127,9 @@ asyncclosure_done(AsyncClosure* ac) {
   assert(promise_done(&ac->promise.funcs));
 
   asyncclosure_change_event(ac, WANT_NONE);
+
+  assert(ac->link.prev && ac->link.next);
+  list_del(&ac->link);
 }
 
 BOOL

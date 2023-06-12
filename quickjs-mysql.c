@@ -924,12 +924,17 @@ static JSValue
 js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   MYSQL* my;
+  AsyncClosure* ac;
   int fd;
 
   if(!(my = js_mysql_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   fd = mysql_get_socket(my);
+
+  if((ac = asyncclosure_lookup(fd))) {
+    asyncclosure_done(ac);
+  }
 
   mysql_close(my);
 
@@ -1325,29 +1330,30 @@ js_mysqlresult_next_continue(JSContext* ctx, JSValueConst this_val, int argc, JS
 
 static JSValue
 js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  AsyncClosure* ac;
   MYSQL_RES* res;
-  MYSQL_ROW row;
-  MYSQL* my;
-  int state;
 
   if(!(res = js_mysqlresult_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  my = js_mysqlresult_handle(ctx, this_val);
-  state = mysql_fetch_row_start(&row, res);
-  ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), JS_NULL, &js_mysqlresult_next_continue);
+  if(!mysql_eof(res)) {
+    MYSQL_ROW row;
+    MYSQL* my = js_mysqlresult_handle(ctx, this_val);
+    int state = mysql_fetch_row_start(&row, res);
+    AsyncClosure* ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), JS_NULL, &js_mysqlresult_next_continue);
 
 #ifdef DEBUG_OUTPUT
-  printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
+    printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
 #endif
 
-  asyncclosure_opaque(ac, result_iterator_new(ctx, my, res, magic), &js_free);
+    asyncclosure_opaque(ac, result_iterator_new(ctx, my, res, magic), &js_free);
 
-  if(state == 0)
-    result_iterator_value(ac->opaque, row, ac);
+    if(state == 0)
+      result_iterator_value(ac->opaque, row, ac);
 
-  return asyncclosure_promise(ac);
+    return asyncclosure_promise(ac);
+  }
+
+  return JS_ThrowRangeError(ctx, "MySQLResult is EOF");
 }
 
 enum {
