@@ -840,7 +840,7 @@ fail:
 }
 
 static JSValue
-js_mysql_connect2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
+js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
   MYSQL *my = js_mysql_data(ac->result), *my2 = 0;
   int state = mysql_real_connect_cont(&my2, my, async2my(ac->state));
@@ -854,7 +854,7 @@ js_mysql_connect2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 }
 
 static JSValue
-js_mysql_connect1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   AsyncClosure* ac;
   MYSQL *my, *my2 = 0;
   MYSQLConnectParameters* c;
@@ -865,7 +865,7 @@ js_mysql_connect1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   c = connectparams_new(ctx, argc, argv);
   state = mysql_real_connect_start(&my2, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
-  ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), this_val, &js_mysql_connect2);
+  ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), this_val, &js_mysql_connect_continue);
 
   asyncclosure_set_opaque(ac, c, connectparams_free);
 
@@ -873,7 +873,7 @@ js_mysql_connect1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 }
 
 static JSValue
-js_mysql_query2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
+js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
   int err = 0, state;
 
@@ -898,7 +898,7 @@ js_mysql_query2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 
 static JSValue
-js_mysql_query1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   AsyncClosure* ac;
   const char* query = 0;
   size_t i;
@@ -910,7 +910,7 @@ js_mysql_query1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   query = JS_ToCStringLen(ctx, &i, argv[0]);
   state = mysql_real_query_start(&err, my, query, i);
-  ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query2);
+  ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query_continue);
 
 #ifdef DEBUG_OUTPUT
   printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
@@ -972,8 +972,8 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CGETSET_MAGIC_DEF("port", js_mysql_get, 0, PROP_PORT),
     JS_CGETSET_MAGIC_DEF("socket", js_mysql_get, 0, PROP_UNIX_SOCKET),
     JS_CGETSET_MAGIC_DEF("db", js_mysql_get, 0, PROP_DB),
-    JS_CFUNC_DEF("connect", 1, js_mysql_connect1),
-    JS_CFUNC_DEF("query", 1, js_mysql_query1),
+    JS_CFUNC_DEF("connect", 1, js_mysql_connect),
+    JS_CFUNC_DEF("query", 1, js_mysql_query),
     JS_CFUNC_DEF("close", 0, js_mysql_close),
     JS_ALIAS_DEF("execute", "query"),
     JS_CFUNC_MAGIC_DEF("escapeString", 1, js_mysql_methods, METHOD_ESCAPE_STRING),
@@ -1291,7 +1291,7 @@ js_mysqlresult_handle(JSContext* ctx, JSValueConst value) {
 }
 
 static JSValue
-js_mysqlresult_next2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
+js_mysqlresult_next_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
   ResultIterator* ri = ac->opaque;
   MYSQL_RES* res = ri->res;
@@ -1322,7 +1322,7 @@ js_mysqlresult_next2(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 }
 
 static JSValue
-js_mysqlresult_next1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   AsyncClosure* ac;
   MYSQL_RES* res;
   MYSQL_ROW row;
@@ -1334,7 +1334,7 @@ js_mysqlresult_next1(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   my = js_mysqlresult_handle(ctx, this_val);
   state = mysql_fetch_row_start(&row, res);
-  ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), JS_NULL, &js_mysqlresult_next2);
+  ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), JS_NULL, &js_mysqlresult_next_continue);
 
 #ifdef DEBUG_OUTPUT
   printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
@@ -1512,7 +1512,7 @@ static JSClassDef js_mysqlresult_class = {
 };
 
 static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("next", 0, js_mysqlresult_next1, RESULT_ITERAT),
+    JS_CFUNC_MAGIC_DEF("next", 0, js_mysqlresult_next, RESULT_ITERAT),
     JS_CGETSET_MAGIC_DEF("eof", js_mysqlresult_get, 0, PROP_EOF),
     JS_CGETSET_MAGIC_FLAGS_DEF("numRows", js_mysqlresult_get, 0, PROP_NUM_ROWS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("numFields", js_mysqlresult_get, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
@@ -1520,7 +1520,7 @@ static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
     JS_CGETSET_MAGIC_DEF("currentField", js_mysqlresult_get, 0, PROP_CURRENT_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchField", 1, js_mysqlresult_functions, METHOD_FETCH_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchFields", 0, js_mysqlresult_functions, METHOD_FETCH_FIELDS),
-    JS_CFUNC_MAGIC_DEF("fetchRow", 0, js_mysqlresult_next1, 0),
+    JS_CFUNC_MAGIC_DEF("fetchRow", 0, js_mysqlresult_next, 0),
     JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_mysqlresult_iterator, METHOD_ITERATOR),
     JS_CFUNC_MAGIC_DEF("[Symbol.asyncIterator]", 0, js_mysqlresult_iterator, METHOD_ASYNC_ITERATOR),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQLResult", JS_PROP_CONFIGURABLE),
