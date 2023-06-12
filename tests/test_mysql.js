@@ -1,6 +1,6 @@
 import { Console } from 'console';
 import { exit } from 'std';
-import { abbreviate, startInteractive, randStr } from 'util';
+import { abbreviate, startInteractive, randStr, className, ansiStyles } from 'util';
 import { MySQL, MySQLResult } from 'mysql';
 import extendArray from '../lib/extendArray.js';
 
@@ -48,7 +48,8 @@ async function main(...args) {
       await my.query(s).then(
         val => result(val),
         err => {
-          console.log('query error:', err);
+          const { redBright, reset } = ansiStyles;
+          console.log(`${redBright.open + className(err) + reset.close}:`, err.message);
           return null;
         }
       )
@@ -90,9 +91,10 @@ async function main(...args) {
   res = await q(`SELECT id FROM users WHERE username IN ('root','roman');`);
   console.log('res =', res);
   let ids = [];
+
   for await(let { id } of res) ids.push(id);
 
-  for(let id of ids) {
+  /* for(let id of ids) {
     let newres = await q(`INSERT INTO sessions (cookie, user_id) VALUES ('${randStr(64)}', ${id});`);
     console.log('newres =', newres);
   }
@@ -172,6 +174,9 @@ async function main(...args) {
   console.log('row[0] =', row[0]);
 
   console.log('id =', (id = my.insertId));
+  console.log('my.close',my.close);
+*/
+  my.close();
 
   //startInteractive();
   // os.kill(process.pid, os.SIGUSR1);
