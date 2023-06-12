@@ -5,28 +5,35 @@
 #include "js-utils.h"
 #include "utils.h"
 
-typedef enum event_flag { WANT_READ = 1, WANT_WRITE = 2 } AsyncEvent;
+typedef enum {
+  WANT_READ = 1,
+  WANT_WRITE = 2,
+  WANT_NONE = 0,
+} AsyncEvent;
 
-PACK struct AsyncClosure {
+PACK struct AsyncHandlerClosure {
   int ref_count, fd;
   AsyncEvent state : 2;
   CClosureFunc* ccfunc;
   JSContext* ctx;
-  JSValue obj, set_handler;
+  JSValue result, set_handler;
   Promise promise;
   void* opaque;
   void (*opaque_free)(JSContext*, void*);
 };
 ENDPACK
 
-typedef struct AsyncClosure AsyncClosure;
+typedef struct AsyncHandlerClosure AsyncClosure;
 
-AsyncClosure* asyncclosure_new(JSContext*, int fd, AsyncEvent state, JSValueConst obj, CClosureFunc*);
+AsyncClosure* asyncclosure_new(JSContext*, int fd, AsyncEvent state, JSValueConst result, CClosureFunc*);
 AsyncClosure* asyncclosure_dup(AsyncClosure*);
 JSValue asyncclosure_promise(AsyncClosure*);
 void asyncclosure_set_opaque(AsyncClosure*, void*, void (*opaque_free)(JSContext*, void*));
 void asyncclosure_free(void*);
 JSValue asyncclosure_promise(AsyncClosure*);
 BOOL asyncclosure_change_event(AsyncClosure*, AsyncEvent);
+void asyncclosure_resolve(AsyncClosure*);
+void asyncclosure_error(AsyncClosure*, JSValueConst);
+void asyncclosure_done(AsyncClosure*);
 
 #endif /* defined(ASYNC_CLOSURE_H) */

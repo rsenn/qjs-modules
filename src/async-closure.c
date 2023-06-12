@@ -15,7 +15,7 @@ asyncclosure_new(JSContext* ctx, int fd, AsyncEvent state, JSValueConst this_val
   ac->ref_count = 1;
   ac->fd = 1;
   ac->ctx = ctx;
-  ac->obj = JS_DupValue(ctx, this_val);
+  ac->result = JS_DupValue(ctx, this_val);
   ac->state = 0;
   ac->set_handler = JS_NULL;
 
@@ -68,7 +68,7 @@ asyncclosure_free(void* ptr) {
   if(--ac->ref_count == 0) {
     JSContext* ctx = ac->ctx;
 
-    JS_FreeValue(ctx, ac->obj);
+    JS_FreeValue(ctx, ac->result);
     JS_FreeValue(ctx, ac->set_handler);
 
     promise_free(JS_GetRuntime(ctx), &ac->promise);
@@ -76,6 +76,23 @@ asyncclosure_free(void* ptr) {
 
     js_free(ctx, ac);
   }
+}
+
+void
+asyncclosure_resolve(AsyncClosure* ac) {
+  promise_resolve(ac->ctx, &ac->promise.funcs, ac->result);
+  asyncclosure_done(ac);
+}
+
+void
+asyncclosure_error(AsyncClosure* ac, JSValueConst obj) {
+  promise_reject(ac->ctx, &ac->promise.funcs, obj);
+  asyncclosure_done(ac);
+}
+
+void
+asyncclosure_done(AsyncClosure* ac) {
+  asyncclosure_change_event(ac, WANT_NONE);
 }
 
 BOOL

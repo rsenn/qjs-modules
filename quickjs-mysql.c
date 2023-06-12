@@ -849,13 +849,13 @@ fail:
 static JSValue
 js_mysql_connect2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
-  MYSQL *my = js_mysql_data(ac->obj), *my2 = 0;
+  MYSQL *my = js_mysql_data(ac->result), *my2 = 0;
   int state = mysql_real_connect_cont(&my2, my, ac->state);
 
   asyncclosure_change_event(ac, async_event(state));
 
   if(state == 0)
-    promise_resolve(ctx, &ac->promise.funcs, ac->obj);
+    asyncclosure_resolve(ac);
 
   return JS_UNDEFINED;
 }
