@@ -399,6 +399,8 @@ js_mysql_new(JSContext* ctx, JSValueConst proto, MYSQL* my) {
   if(JS_IsException(obj))
     goto fail;
 
+  mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"JSObject", (void*)JS_VALUE_GET_OBJ(obj));
+
   JS_SetOpaque(obj, my);
 
   return obj;
@@ -921,9 +923,36 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
   MYSQL* my = js_mysql_data(this_val);
 
 #ifdef _WIN32
-  int fd;
+  int fd = -1;
   SOCKET s, sock = mysql_get_socket(my);
-  BOOL has_fd = js_has_propertystr(ctx, this_val, "fd");
+  BOOL has_fd;
+  intptr_t tmp;
+
+#ifdef MARIADB_OPT_USERDATA
+  if((has_fd = (!mysql_get_optionsv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)&tmp) && tmp != -1)))
+    fd = tmp;
+
+  for(;;) {
+    if(has_fd) {
+      s = _get_osfhandle(fd);
+      if(s != sock) {
+        printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, s, sock);
+        mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)(intptr_t)-1);
+        has_fd = FALSE;
+        continue;
+      }
+    } else {
+      fd = sock != INVALID_HANDLE_VALUE ? _open_osfhandle(sock, _O_BINARY | _O_RDWR) : -1;
+#ifdef DEBUG_OUTPUT
+      printf("filedescriptor %d created from socket handle %p\n", fd, sock);
+#endif
+      mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)(intptr_t)fd);
+    }
+    return fd;
+  }
+
+#else
+  has_fd = js_has_propertystr(ctx, this_val, "fd");
 
   for(;;) {
     if(has_fd) {
@@ -945,6 +974,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
     }
     return fd;
   }
+#endif
 #else
   return mysql_get_socket(my);
 #endif
@@ -1429,8 +1459,8 @@ js_mysqlresult_data2(JSContext* ctx, JSValueConst value) {
 
 MYSQL*
 js_mysqlresult_handle(JSContext* ctx, JSValueConst value) {
-  MYSQL_RES* res;
   MYSQL* ret = 0;
+  MYSQL_RES* res;
   JSValue handle = JS_GetPropertyStr(ctx, value, "handle");
 
   if(JS_IsObject(handle))
@@ -1442,6 +1472,21 @@ js_mysqlresult_handle(JSContext* ctx, JSValueConst value) {
     if((res = JS_GetOpaque(value, js_mysqlresult_class_id)))
       ret = res->handle;
 
+  return ret;
+}
+
+JSValue
+js_mysqlresult_connection(JSContext* ctx, JSValueConst value) {
+  MYSQL* my;
+  JSValue ret = JS_UNDEFINED;
+
+  if((my = js_mysqlresult_handle(ctx, value))) {
+    void* ptr = 0;
+    mysql_get_optionv(my, MARIADB_OPT_USERDATA, (void*)"obj", (void*)&ptr);
+
+    if(ptr)
+      ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_OBJECT, ptr));
+  }
   return ret;
 }
 
