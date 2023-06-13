@@ -313,7 +313,7 @@ endif()
 
 set(buffer_utils_SOURCES src/buffer-utils.c include/buffer-utils.h)
 set(base64_SOURCES src/base64.c include/base64.h)
-set(COMMON_SOURCES src/debug.c include/debug.h)
+set(debug_SOURCES src/debug.c include/debug.h)
 set(vector_SOURCES src/vector.c include/vector.h ${buffer_utils_SOURCES})
 set(libutf_SOURCES libutf/include/libutf.h libutf/src/libutf.c)
 set(char_utils_SOURCES src/char-utils.c include/char-utils.h ${libutf_SOURCES})
