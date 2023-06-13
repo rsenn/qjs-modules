@@ -77,9 +77,7 @@ async function main(...args) {
     ['root', 'tD51o7xf']
   ];
 
-  res = await q(
-    `INSERT INTO users (username,password) VALUES ${users.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`
-  );
+  res = await q(`INSERT INTO users (username,password) VALUES ${users.map(cols => `(${MySQL.valueString(...cols)})`).join(', ')};`);
   console.log('res =', res);
 
   let affected;
@@ -109,7 +107,7 @@ async function main(...args) {
 
   res = await q(`SELECT * FROM sessions INNER JOIN users ON sessions.user_id=users.id;`);
 
-  for await(let row of res) console.log(`session[${i++}] =`,console.config({compact: 1}), row);
+  for await(let row of res) console.log(`session[${i++}] =`, console.config({ compact: 1 }), row);
 
   i = 0;
   let rows = (globalThis.rows = []);
@@ -154,8 +152,7 @@ async function main(...args) {
 
   console.log('insert', insert);
 
-  for await(let row of await q(`SELECT id,username FROM users ORDER BY created DESC LIMIT 0,10;`))
-    console.log(`user[${i++}] =`, row);
+  for await(let row of await q(`SELECT id,username FROM users ORDER BY created DESC LIMIT 0,10;`)) console.log(`user[${i++}] =`, row);
 
   /* await q(insert);
   console.log('affected =', (affected = my.affectedRows));*/

@@ -1090,12 +1090,7 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
           js_inspect_print_value(ctx, buf, v, opts, depth - 2);
           JS_FreeValue(ctx, v);
         } else
-          dbuf_put_colorstr(buf,
-                            JS_IsUndefined(desc.getter)   ? "[Setter]"
-                            : JS_IsUndefined(desc.setter) ? "[Getter]"
-                                                          : "[Getter/Setter]",
-                            COLOR_MARINE,
-                            opts->colors);
+          dbuf_put_colorstr(buf, JS_IsUndefined(desc.getter) ? "[Setter]" : JS_IsUndefined(desc.setter) ? "[Getter]" : "[Getter/Setter]", COLOR_MARINE, opts->colors);
       } else {
 
         if(JS_IsObject(desc.value) && js_object_tmpmark_isset(desc.value))
