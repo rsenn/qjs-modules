@@ -6,6 +6,12 @@
 #include "js-utils.h"
 #include "async-closure.h"
 
+#ifdef _WIN32
+#include <winsock2.h>
+#include <io.h>
+#include <fcntl.h>
+#endif
+
 /**
  * \addtogroup quickjs-mysql
  * @{
@@ -928,20 +934,18 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
         printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, s, sock);
         js_delete_propertystr(ctx, this_val, "fd");
         has_fd = FALSE;
-        continue
+        continue;
       }
-    }
-  }
-  else {
-    sock = mysql_get_socket(my);
-    fd = sock != INVALID_HANDLE_VALUE ? _open_osfhandle(sock, _O_BINARY | _O_RDWR) : -1;
+    } else {
+      sock = mysql_get_socket(my);
+      fd = sock != INVALID_HANDLE_VALUE ? _open_osfhandle(sock, _O_BINARY | _O_RDWR) : -1;
 #ifdef DEBUG_OUTPUT
-    printf("filedescriptor %d created from socket handle %p\n", fd, sock);
+      printf("filedescriptor %d created from socket handle %p\n", fd, sock);
 #endif
-    js_set_propertystr_int(ctx, this_val, "fd", fd);
+      js_set_propertystr_int(ctx, this_val, "fd", fd);
+    }
+    return fd;
   }
-  return fd;
-}
 #else
   return mysql_get_socket(my);
 #endif

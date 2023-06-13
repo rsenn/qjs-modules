@@ -17,7 +17,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-int isatty(HANDLE);
+#include <io.h>
 #else
 #include <unistd.h>
 #if HAVE_TERMIOS_H
