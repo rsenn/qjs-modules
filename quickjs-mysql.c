@@ -620,7 +620,6 @@ enum {
   PROP_AFFECTED_ROWS,
   PROP_WARNING_COUNT,
   PROP_FIELD_COUNT,
-  PROP_SOCKET,
   PROP_INFO,
   PROP_ERRNO,
   PROP_ERROR,
@@ -646,6 +645,7 @@ enum {
   PROP_CURRENT_FIELD,
   PROP_STATUS,
   PROP_PENDING,
+  PROP_SOCKET,
 };
 
 static JSValue
@@ -678,7 +678,7 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case PROP_SOCKET: {
-      ret = JS_NewInt32(ctx, mysql_get_socket(my));
+      ret = JS_NewInt64(ctx, mysql_get_socket(my));
       break;
     }
     case PROP_ERRNO: {
@@ -910,6 +910,43 @@ fail:
   return JS_EXCEPTION;
 }
 
+static int
+js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
+  MYSQL* my = js_mysql_data(this_val);
+
+#ifdef _WIN32
+  int fd;
+  SOCKET s, sock = mysql_get_socket(my);
+  BOOL has_fd = js_has_propertystr(ctx, this_val, fd);
+
+  for(;;) {
+    if(has_fd) {
+      fd = js_get_propertystr_int32(ctx, this_val, "fd");
+      s = _get_osfhandle(fd);
+
+      if(s != sock) {
+        printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, s, sock);
+        js_delete_propertystr(ctx, this_val, "fd");
+        has_fd = FALSE;
+        continue
+      }
+    }
+  }
+  else {
+    sock = mysql_get_socket(my);
+    fd = sock != INVALID_HANDLE_VALUE ? _open_osfhandle(sock, _O_BINARY | _O_RDWR) : -1;
+#ifdef DEBUG_OUTPUT
+    printf("filedescriptor %d created from socket handle %p\n", fd, sock);
+#endif
+    js_set_propertystr_int(ctx, this_val, "fd", fd);
+  }
+  return fd;
+}
+#else
+  return mysql_get_socket(my);
+#endif
+}
+
 static JSValue
 js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
@@ -922,24 +959,6 @@ js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     asyncclosure_resolve(ac);
 
   return JS_UNDEFINED;
-}
-
-static int
-js_mysql_socket(JSContext* ctx, JSValueConst this_val) {
-  MYSQL* my = js_mysql_data(this_val);
-
-#ifdef _WIN32
-  if(!js_has_propertystr(ctx, this_val, fd)) {
-    SOCKET sock = mysql_get_socket(my);
-    int fd = _open_osfhandle(sock, _O_BINARY | _O_RDWR);
-    js_set_propertystr_int(ctx, this_val, "fd", fd);
-    return fd;
-  }
-
-  return js_get_propertystr_int32(ctx, this_val, "fd");
-#else
-  return mysql_get_socket(my);
-#endif
 }
 
 static JSValue
@@ -965,7 +984,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
 
   state = mysql_real_connect_start(&ret, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
-  ac = asyncclosure_new(ctx, js_mysql_socket(ctx, this_val), to_asyncevent(state), this_val, &js_mysql_connect_continue);
+  ac = asyncclosure_new(ctx, js_mysql_fd(ctx, this_val), to_asyncevent(state), this_val, &js_mysql_connect_continue);
 
   asyncclosure_opaque(ac, c, connectparams_free);
 
@@ -1010,7 +1029,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   query = JS_ToCStringLen(ctx, &i, argv[0]);
   state = mysql_real_query_start(&err, my, query, i);
-  ac = asyncclosure_new(ctx, mysql_get_socket(my), to_asyncevent(state), JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query_continue);
+  ac = asyncclosure_new(ctx, js_mysql_fd(ctx, this_val), to_asyncevent(state), JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query_continue);
 
 #ifdef DEBUG_OUTPUT
   printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
@@ -1026,16 +1045,23 @@ js_mysql_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   JSValue ret = JS_UNDEFINED;
   MYSQL* my;
   AsyncClosure* ac;
-  int fd;
+  int fd = -1;
 
   if(!(my = js_mysql_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  fd = mysql_get_socket(my);
-
-  if((ac = asyncclosure_lookup(fd))) {
-    asyncclosure_done(ac);
+#ifdef _WIN32
+  if(js_has_propertystr(ctx, this_val, "fd")) {
+    fd = js_get_propertystr_int32(ctx, this_val, "fd");
+    _close(fd);
   }
+#else
+  fd = mysql_get_socket(my);
+#endif
+
+  if(fd > -1)
+    if((ac = asyncclosure_lookup(fd)))
+      asyncclosure_done(ac);
 
   mysql_close(my);
 
@@ -1063,6 +1089,9 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CGETSET_MAGIC_DEF("affectedRows", js_mysql_get, 0, PROP_AFFECTED_ROWS),
     JS_CGETSET_MAGIC_DEF("warningCount", js_mysql_get, 0, PROP_WARNING_COUNT),
     JS_CGETSET_MAGIC_DEF("fieldCount", js_mysql_get, 0, PROP_FIELD_COUNT),
+#ifndef _WIN32
+    JS_CGETSET_MAGIC_DEF("fd", js_mysql_get, 0, PROP_SOCKET),
+#endif
     JS_CGETSET_MAGIC_DEF("socket", js_mysql_get, 0, PROP_SOCKET),
     JS_CGETSET_MAGIC_DEF("errno", js_mysql_get, 0, PROP_ERRNO),
     JS_CGETSET_MAGIC_DEF("error", js_mysql_get, 0, PROP_ERROR),
@@ -1451,7 +1480,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     MYSQL_ROW row;
     MYSQL* my = js_mysqlresult_handle(ctx, this_val);
     int state = mysql_fetch_row_start(&row, res);
-    AsyncClosure* ac = asyncclosure_new(ctx, mysql_get_socket(my), to_asyncevent(state), JS_NULL, &js_mysqlresult_next_continue);
+    AsyncClosure* ac = asyncclosure_new(ctx, js_mysql_fd(ctx, this_val), to_asyncevent(state), JS_NULL, &js_mysqlresult_next_continue);
 
 #ifdef DEBUG_OUTPUT
     printf("%s state=%d\n", __func__, state);
