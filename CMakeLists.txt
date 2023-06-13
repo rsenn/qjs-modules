@@ -320,6 +320,8 @@ set(char_utils_SOURCES src/char-utils.c include/char-utils.h ${libutf_SOURCES})
 set(queue_SOURCES src/queue.c include/queue.h)
 set(utils_SOURCES src/utils.c include/utils.h ${char_utils_SOURCES} src/clock_gettime.c src/strverscmp.c)
 set(js_utils_SOURCES src/js-utils.c include/js-utils.h)
+set(stream_utils_SOURCES src/stream-utils.c include/stream-utils.h)
+set(async_closure_SOURCES src/async-closure.c include/async-closure.h)
 set(utils_SOURCES ${utils_SOURCES} src/qsort_r.c)
 set(stream_SOURCES quickjs-stream.c ${queue_SOURCES} ${js_utils_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(predicate_SOURCES src/predicate.c include/predicate.h ${utils_SOURCES})
@@ -415,8 +417,7 @@ set(archive_SOURCES ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 set(magic_SOURCES quickjs-magic.c ${utils_SOURCES} ${buffer_utils_SOURCES})
-set(mysql_SOURCES quickjs-mysql.c #${js_utils_SOURCES}
-                  ${utils_SOURCES} ${buffer_utils_SOURCES})
+#set(mysql_SOURCES quickjs-mysql.c ${stream_utils_SOURCES} ${js_utils_SOURCES} ${async_closure_SOURCES} ${utils_SOURCES} ${buffer_utils_SOURCES})
 set(pgsql_SOURCES quickjs-pgsql.c ${utils_SOURCES} ${buffer_utils_SOURCES})
 
 if(BUILD_LIBSERIALPORT)

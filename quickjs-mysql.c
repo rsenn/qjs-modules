@@ -1436,7 +1436,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     AsyncClosure* ac = asyncclosure_new(ctx, mysql_get_socket(my), to_asyncevent(state), JS_NULL, &js_mysqlresult_next_continue);
 
 #ifdef DEBUG_OUTPUT
-    printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
+    printf("%s state=%d\n", __func__, state);
 #endif
 
     asyncclosure_opaque(ac, result_iterator_new(ctx, my, res, magic), &js_free_rt);
