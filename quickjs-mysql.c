@@ -923,7 +923,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
 #ifdef _WIN32
   int fd;
   SOCKET s, sock = mysql_get_socket(my);
-  BOOL has_fd = js_has_propertystr(ctx, this_val, fd);
+  BOOL has_fd = js_has_propertystr(ctx, this_val, "fd");
 
   for(;;) {
     if(has_fd) {
