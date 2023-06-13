@@ -73,7 +73,7 @@ asyncclosure_dup(AsyncClosure* ac) {
 }
 
 void
-asyncclosure_opaque(AsyncClosure* ac, void* opaque, void (*opaque_free)(JSContext* ctx, void*)) {
+asyncclosure_opaque(AsyncClosure* ac, void* opaque, void (*opaque_free)(JSRuntime*, void*)) {
   assert(ac->opaque == NULL);
   assert(ac->opaque_free == NULL);
 
@@ -98,7 +98,7 @@ asyncclosure_free(void* ptr) {
     // promise_free(JS_GetRuntime(ctx), &ac->promise);
 
     if(ac->opaque && ac->opaque_free) {
-      ac->opaque_free(ctx, ac->opaque);
+      ac->opaque_free(JS_GetRuntime(ctx), ac->opaque);
       ac->opaque = NULL;
       ac->opaque_free = NULL;
     }

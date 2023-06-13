@@ -11,7 +11,7 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_mysqlerror_class_id = 0, js_mysql_class_id = 0, js_mysqlresult_class_id = 0;
+thread_local VISIBLE JSClassID js_connectparams_class_id = 0, js_mysqlerror_class_id = 0, js_mysql_class_id = 0, js_mysqlresult_class_id = 0;
 thread_local JSValue mysqlerror_proto = {{0}, JS_TAG_UNDEFINED}, mysqlerror_ctor = {{0}, JS_TAG_UNDEFINED}, mysql_proto = {{0}, JS_TAG_UNDEFINED}, mysql_ctor = {{0}, JS_TAG_UNDEFINED},
                      mysqlresult_proto = {{0}, JS_TAG_UNDEFINED}, mysqlresult_ctor = {{0}, JS_TAG_UNDEFINED};
 
@@ -28,9 +28,9 @@ typedef enum {
 } ResultFlags;
 
 struct ConnectParameters {
-  const char *host, *user, *password, *db;
+  char *host, *user, *password, *db;
   uint32_t port;
-  const char* socket;
+  char* socket;
   int64_t flags;
 };
 
@@ -248,6 +248,16 @@ value_yield_free(JSContext* ctx, JSValueConst resolve, JSValueConst value) {
   JS_FreeValue(ctx, value);
 }
 
+static inline struct ConnectParameters*
+js_connectparams_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_connectparams_class_id);
+}
+
+static inline struct ConnectParameters*
+js_connectparams_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_connectparams_class_id);
+}
+
 static void
 connectparams_init(JSContext* ctx, MYSQLConnectParameters* cp, int argc, JSValueConst argv[]) {
   if(argc == 1 && JS_IsObject(argv[0])) {
@@ -266,17 +276,17 @@ connectparams_init(JSContext* ctx, MYSQLConnectParameters* cp, int argc, JSValue
     for(size_t i = 0; i < countof(args); i++)
       JS_FreeValue(ctx, args[i]);
   } else {
-    cp->host = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
-    cp->user = argc > 1 ? JS_ToCString(ctx, argv[1]) : 0;
-    cp->password = argc > 2 ? JS_ToCString(ctx, argv[2]) : 0;
-    cp->db = argc > 3 ? JS_ToCString(ctx, argv[3]) : 0;
+    cp->host = argc > 0 ? js_tostring(ctx, argv[0]) : 0;
+    cp->user = argc > 1 ? js_tostring(ctx, argv[1]) : 0;
+    cp->password = argc > 2 ? js_tostring(ctx, argv[2]) : 0;
+    cp->db = argc > 3 ? js_tostring(ctx, argv[3]) : 0;
 
     if(argc > 4 && JS_IsNumber(argv[4]))
       JS_ToUint32(ctx, &cp->port, argv[4]);
     else
       cp->port = 3306;
 
-    cp->socket = argc > 5 ? JS_ToCString(ctx, argv[5]) : 0;
+    cp->socket = argc > 5 ? js_tostring(ctx, argv[5]) : 0;
 
     if(argc > 6)
       JS_ToInt64(ctx, &cp->flags, argv[6]);
@@ -298,19 +308,53 @@ connectparams_new(JSContext* ctx, int argc, JSValueConst argv[]) {
 }
 
 static void
-connectparams_release(JSContext* ctx, MYSQLConnectParameters* cp) {
-  js_cstring_destroy(ctx, cp->host);
-  js_cstring_destroy(ctx, cp->user);
-  js_cstring_destroy(ctx, cp->password);
-  js_cstring_destroy(ctx, cp->db);
-  js_cstring_destroy(ctx, cp->socket);
+connectparams_release(JSRuntime* rt, MYSQLConnectParameters* cp) {
+  js_free_rt(rt, cp->host);
+  js_free_rt(rt, cp->user);
+  js_free_rt(rt, cp->password);
+  js_free_rt(rt, cp->db);
+  js_free_rt(rt, cp->socket);
 }
 
 static void
-connectparams_free(JSContext* ctx, void* ptr) {
+connectparams_free(JSRuntime* rt, void* ptr) {
   MYSQLConnectParameters* cp = ptr;
-  connectparams_release(ctx, cp);
-  js_free(ctx, cp);
+  connectparams_release(rt, cp);
+  js_free_rt(rt, cp);
+}
+
+static void
+js_connectparams_finalizer(JSRuntime* rt, JSValue val) {
+  struct ConnectParameters* cp;
+
+  if((cp = js_connectparams_data(val)))
+    connectparams_free(rt, cp);
+}
+
+static JSClassDef js_connectparams_class = {
+    .class_name = "JSConnectParams",
+    .finalizer = js_connectparams_finalizer,
+};
+
+static JSValue
+js_connectparams_from(JSContext* ctx, int argc, JSValueConst argv[]) {
+  JSValue obj;
+  MYSQLConnectParameters* cp;
+
+  if(js_connectparams_class_id == 0) {
+    JS_NewClassID(&js_connectparams_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_connectparams_class_id, &js_connectparams_class);
+  }
+
+  obj = JS_NewObjectClass(ctx, js_connectparams_class_id);
+
+  if(JS_IsException(obj))
+    return JS_EXCEPTION;
+
+  if((cp = connectparams_new(ctx, argc, argv)))
+    JS_SetOpaque(obj, cp);
+
+  return obj;
 }
 
 static BOOL
@@ -846,6 +890,14 @@ js_mysql_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     mysql_options(my, MYSQL_OPT_NONBLOCK, 0);
 
   obj = js_mysql_new(ctx, proto, my);
+
+  if(argc > 0) {
+    JSValue params = js_connectparams_from(ctx, argc, argv);
+    JSAtom prop = js_symbol_for_atom(ctx, "MYSQLConnectParameters");
+    JS_DefinePropertyValue(ctx, obj, prop, params, JS_PROP_CONFIGURABLE);
+    JS_FreeAtom(ctx, prop);
+  }
+
   JS_FreeValue(ctx, proto);
   return obj;
 
@@ -874,11 +926,21 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   MYSQL *my, *ret = 0;
   MYSQLConnectParameters* c;
   int state;
+  JSAtom prop;
 
   if(!(my = js_mysql_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  c = connectparams_new(ctx, argc, argv);
+  prop = js_symbol_for_atom(ctx, "MYSQLConnectParameters");
+
+  if(JS_HasProperty(ctx, this_val, prop)) {
+    JSValue obj = JS_GetProperty(ctx, this_val, prop);
+    c = JS_GetOpaque(obj, js_connectparams_class_id);
+    JS_FreeValue(ctx, obj);
+  } else {
+    c = connectparams_new(ctx, argc, argv);
+  }
+  
   state = mysql_real_connect_start(&ret, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
   ac = asyncclosure_new(ctx, mysql_get_socket(my), my2async(state), this_val, &js_mysql_connect_continue);
 
@@ -1372,7 +1434,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
 #endif
 
-    asyncclosure_opaque(ac, result_iterator_new(ctx, my, res, magic), &js_free);
+    asyncclosure_opaque(ac, result_iterator_new(ctx, my, res, magic), &js_free_rt);
 
     if(state == 0)
       result_iterator_value(ac->opaque, row, ac);
