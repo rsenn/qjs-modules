@@ -550,8 +550,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
               JS_FreeValue(ctx, ret);
               location_count(&loc, buf, start - buf);
               file = location_file(&loc, ctx);
-              xml_debug(
-                  "mismatch </%.*s> at %s:%u:%u (byte %zu/char %zu)", (int)namelen, name, file, loc.line + 1, loc.column + 1, loc.byte_offset, loc.char_offset);
+              xml_debug("mismatch </%.*s> at %s:%u:%u (byte %zu/char %zu)", (int)namelen, name, file, loc.line + 1, loc.column + 1, loc.byte_offset, loc.char_offset);
               ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line + 1, loc.column + 1);
               if(file)
                 js_free(ctx, file);
@@ -700,7 +699,8 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
 
   if(argc >= 3) {
     if(JS_IsObject(argv[2])) {
-      JSValue tags;
+      JSValue tags = JS_UNDEFINED;
+
       if(js_has_propertystr(ctx, argv[2], "flat"))
         opts.flat = js_get_propertystr_bool(ctx, argv[2], "flat");
       if(js_has_propertystr(ctx, argv[2], "tolerant"))
@@ -709,10 +709,12 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
         opts.location = js_get_propertystr_bool(ctx, argv[2], "location");
       if(js_has_propertystr(ctx, argv[2], "selfClosingTags"))
         tags = JS_GetPropertyStr(ctx, argv[2], "selfClosingTags");
+
       if(JS_IsArray(ctx, tags)) {
         size_t ac;
         opts.self_closing_tags = (const char* const*)js_array_to_argv(ctx, &ac, tags);
       }
+
       JS_FreeValue(ctx, tags);
 
     } else {

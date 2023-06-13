@@ -1324,7 +1324,7 @@ result_resolve(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row,
   value_yield_free(ctx, func, value);
 }
 
-PACK typedef struct {
+typedef struct PACK {
   ResultFlags flags;
   MYSQL* conn;
   MYSQL_RES* res;

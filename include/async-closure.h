@@ -17,7 +17,7 @@ typedef enum {
   WANT_NONE = 0,
 } AsyncEvent;
 
-PACK struct AsyncHandlerClosure {
+struct AsyncHandlerClosure {
   int ref_count, fd;
   AsyncEvent state : 2;
   CClosureFunc* ccfunc;
@@ -25,10 +25,9 @@ PACK struct AsyncHandlerClosure {
   JSValue result, set_handler;
   Promise promise;
   void* opaque;
-  void (*opaque_free)(JSContext*, void*);
+  void (*opaque_free)(JSRuntime*, void*);
   struct list_head link;
 };
-ENDPACK
 
 typedef struct AsyncHandlerClosure AsyncClosure;
 
@@ -43,6 +42,10 @@ void asyncclosure_resolve(AsyncClosure*);
 void asyncclosure_error(AsyncClosure*, JSValueConst);
 void asyncclosure_done(AsyncClosure*);
 AsyncClosure* asyncclosure_lookup(int fd);
+
+extern thread_local VISIBLE struct list_head asyncclosure_list;
+extern thread_local VISIBLE JSClassID js_asyncclosure_class_id;
+
 
 static inline void
 asyncclosure_yield(AsyncClosure* ac, JSValueConst value) {

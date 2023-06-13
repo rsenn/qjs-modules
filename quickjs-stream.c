@@ -11,11 +11,10 @@
  */
 
 thread_local VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
-thread_local JSValue readable_proto = {{0},JS_TAG_UNDEFINED}, readable_controller = {{0},JS_TAG_UNDEFINED}, readable_ctor = {{0},JS_TAG_UNDEFINED},
-                     writable_proto = {{0},JS_TAG_UNDEFINED}, writable_controller = {{0},JS_TAG_UNDEFINED}, writable_ctor = {{0},JS_TAG_UNDEFINED},
-                     transform_proto = {{0},JS_TAG_UNDEFINED}, transform_controller = {{0},JS_TAG_UNDEFINED}, transform_ctor = {{0},JS_TAG_UNDEFINED},
-                     reader_proto = {{0},JS_TAG_UNDEFINED}, reader_ctor = {{0},JS_TAG_UNDEFINED}, writer_proto = {{0},JS_TAG_UNDEFINED},
-                     writer_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue readable_proto = {{0}, JS_TAG_UNDEFINED}, readable_controller = {{0}, JS_TAG_UNDEFINED}, readable_ctor = {{0}, JS_TAG_UNDEFINED}, writable_proto = {{0}, JS_TAG_UNDEFINED},
+                     writable_controller = {{0}, JS_TAG_UNDEFINED}, writable_ctor = {{0}, JS_TAG_UNDEFINED}, transform_proto = {{0}, JS_TAG_UNDEFINED}, transform_controller = {{0}, JS_TAG_UNDEFINED},
+                     transform_ctor = {{0}, JS_TAG_UNDEFINED}, reader_proto = {{0}, JS_TAG_UNDEFINED}, reader_ctor = {{0}, JS_TAG_UNDEFINED}, writer_proto = {{0}, JS_TAG_UNDEFINED},
+                     writer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static int reader_update(Reader* rd, JSContext* ctx);
 static BOOL reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx);
@@ -80,7 +79,7 @@ read_next(Reader* rd, JSContext* ctx) {
 
 static BOOL
 read_done(Read* op) {
-  return JS_IsUndefined(op->promise.value) && promise_done(&op->promise);
+  return JS_IsUndefined(op->promise.value) && promise_done(&op->promise.funcs);
 }
 
 static void
@@ -290,7 +289,7 @@ reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   BOOL ret = FALSE;
   list_for_each_prev_safe(el, next, &rd->reads) {
     // printf("reader_passthrough(1) el[%i]\n", el->seq);
-    if(promise_pending(&el->promise)) {
+    if(promise_pending(&el->promise.funcs)) {
       op = el;
       break;
     }
@@ -327,7 +326,7 @@ readable_dup(Readable* st) {
 static JSValue
 readable_close(Readable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  static const BOOL expected = FALSE;
+  static BOOL expected = FALSE;
   // printf("readable_close(1) expected=%i, closed=%i\n", st->closed, expected);
 
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
@@ -403,7 +402,7 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
 
 static int
 readable_lock(Readable* st, Reader* rd) {
-  const Reader* expected = 0;
+  Reader* expected = 0;
   return atomic_compare_exchange_weak(&st->reader, &expected, rd);
 }
 
@@ -955,7 +954,7 @@ writable_dup(Writable* st) {
 static JSValue
 writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  static const BOOL expected = FALSE;
+  static BOOL expected = FALSE;
 
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
     st->reason = js_tostring(ctx, reason);
@@ -971,7 +970,8 @@ writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
 static JSValue
 writable_close(Writable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  static const BOOL expected = FALSE;
+  static BOOL expected = FALSE;
+
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
     if(writable_locked(st)) {
       promise_resolve(ctx, &st->writer->events[WRITER_CLOSED].funcs, JS_UNDEFINED);
@@ -983,7 +983,7 @@ writable_close(Writable* st, JSContext* ctx) {
 
 static int
 writable_lock(Writable* st, Writer* wr) {
-  const Writer* expected = 0;
+  Writer* expected = 0;
   return atomic_compare_exchange_weak(&st->writer, &expected, wr);
 }
 

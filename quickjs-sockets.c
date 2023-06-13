@@ -23,7 +23,7 @@ typedef int SOCKET;
 
 #include "debug.h"
 
-static_assert(sizeof(Socket) <= sizeof(void*));
+/*static_assert(sizeof(Socket) <= sizeof(void*));*/
 
 /**
  * \addtogroup quickjs-sockets

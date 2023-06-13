@@ -120,8 +120,7 @@ typedef enum {
 } TransformProperties;
 
 extern thread_local JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id, js_writable_class_id, js_transform_class_id;
-extern thread_local JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor, transform_proto,
-    transform_ctor;
+extern thread_local JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor, transform_proto, transform_ctor;
 
 JSValue js_reader_constructor(JSContext*, JSValue, int, JSValue argv[]);
 JSValue js_reader_wrap(JSContext*, Reader*);
@@ -159,12 +158,12 @@ int js_stream_init(JSContext*, JSModuleDef*);
 JSModuleDef* js_init_module_stream(JSContext*, const char*);
 
 /* clang-format off */
-static inline BOOL    reader_closed(Reader* rd) { return promise_done(&rd->events[READER_CLOSED]); }
-static inline BOOL    reader_cancelled(Reader* rd) { return promise_done(&rd->events[READER_CANCELLED]); }
+static inline BOOL    reader_closed(Reader* rd) { return promise_done(&rd->events[READER_CLOSED].funcs); }
+static inline BOOL    reader_cancelled(Reader* rd) { return promise_done(&rd->events[READER_CANCELLED].funcs); }
 static inline BOOL    readable_closed(Readable* st) { return atomic_load(&st->closed); }
 static inline Reader* readable_locked(Readable* st) { return atomic_load(&st->reader); }
-static inline BOOL    writer_closed(Writer* wr) { return promise_done(&wr->events[WRITER_CLOSED]); }
-static inline BOOL    writer_ready(Writer* wr) { return promise_done(&wr->events[WRITER_READY]); }
+static inline BOOL    writer_closed(Writer* wr) { return promise_done(&wr->events[WRITER_CLOSED].funcs); }
+static inline BOOL    writer_ready(Writer* wr) { return promise_done(&wr->events[WRITER_READY].funcs); }
 static inline BOOL    writable_closed(Writable* st) { return atomic_load(&st->closed); }
 static inline Writer* writable_locked(Writable* st) { return atomic_load(&st->writer); }
 static inline Reader* js_reader_data(JSValueConst value) { return JS_GetOpaque(value, js_reader_class_id); }

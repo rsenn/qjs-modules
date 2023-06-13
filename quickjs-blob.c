@@ -64,7 +64,7 @@ blob_free(JSRuntime* rt, Blob* blob) {
 
 InputBuffer
 blob_input(JSContext* ctx, Blob* blob) {
-  InputBuffer ret = {blob->data, 0, blob->size, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
+  InputBuffer ret = {{{blob->data, blob->size}}, 0, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
   return ret;
 }
 

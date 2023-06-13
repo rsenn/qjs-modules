@@ -471,7 +471,7 @@ dbuf_vprintf(DynBuf* s, const char* fmt, va_list ap) {
 
 InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
-  InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
+  InputBuffer ret = {{{0, 0}}, 0, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
 
   if(js_is_typedarray(ctx, value)) {
     ret.value = offset_typedarray(&ret.range, value, ctx);
@@ -493,7 +493,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
 
 InputBuffer
 js_input_chars(JSContext* ctx, JSValueConst value) {
-  InputBuffer ret = {0, 0, 0, &input_buffer_free_default, JS_UNDEFINED, OFFSET_INIT()};
+  InputBuffer ret = {{{0, 0}}, 0, &input_buffer_free_default, JS_UNDEFINED, OFFSET_INIT()};
 
   if(JS_IsString(value)) {
     ret.data = (uint8_t*)JS_ToCStringLen(ctx, &ret.size, value);

@@ -6,7 +6,8 @@
  * @{
  */
 
-static thread_local struct list_head asyncclosure_list;
+thread_local VISIBLE struct list_head asyncclosure_list;
+thread_local VISIBLE JSClassID js_asyncclosure_class_id = 0;
 
 AsyncClosure*
 asyncclosure_lookup(int fd) {
