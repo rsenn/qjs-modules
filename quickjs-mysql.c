@@ -69,12 +69,12 @@ static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const cha
 
 static JSValue js_mysqlerror_new(JSContext* ctx, const char* msg);
 
-static inline AsyncEvent
+static AsyncEvent
 to_asyncevent(int my_wait) {
   return ((my_wait & MYSQL_WAIT_WRITE) ? WANT_WRITE : 0) | ((my_wait & MYSQL_WAIT_READ) ? WANT_READ : 0);
 }
 
-static inline int
+static int
 to_mysql_wait(AsyncEvent e) {
   return ((e & WANT_WRITE) ? MYSQL_WAIT_WRITE : 0) | ((e & WANT_READ) ? MYSQL_WAIT_READ : 0);
 }
@@ -970,7 +970,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   AsyncClosure* ac;
   MYSQL *my, *ret = 0;
   MYSQLConnectParameters* c;
-  int state;
+  int state, fd, as;
   JSAtom prop;
 
   if(!(my = js_mysql_data2(ctx, this_val)))
@@ -988,7 +988,9 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
 
   state = mysql_real_connect_start(&ret, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
-  ac = asyncclosure_new(ctx, js_mysql_fd(ctx, this_val), to_asyncevent(state), this_val, &js_mysql_connect_continue);
+  fd = js_mysql_fd(ctx, this_val);
+  as = to_asyncevent(state);
+  ac = asyncclosure_new(ctx, fd, as, this_val, &js_mysql_connect_continue);
 
   asyncclosure_opaque(ac, c, connectparams_free);
 
@@ -998,11 +1000,11 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static JSValue
 js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
-  int err = 0, state;
+  int err = 0, state, as;
 
   state = mysql_real_query_cont(&err, ac->opaque, to_mysql_wait(ac->state));
-
-  asyncclosure_change_event(ac, to_asyncevent(state));
+  as = to_asyncevent(state);
+  asyncclosure_change_event(ac, as);
 
   if(state == 0) {
     MYSQL_RES* res;
@@ -1026,14 +1028,16 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   const char* query = 0;
   size_t i;
   MYSQL* my;
-  int wantwrite, state, err = 0, fd;
+  int wantwrite, state, err = 0, as, fd;
 
   if(!(my = js_mysql_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   query = JS_ToCStringLen(ctx, &i, argv[0]);
   state = mysql_real_query_start(&err, my, query, i);
-  ac = asyncclosure_new(ctx, js_mysql_fd(ctx, this_val), to_asyncevent(state), JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query_continue);
+  fd = js_mysql_fd(ctx, this_val);
+  as = to_asyncevent(state);
+  ac = asyncclosure_new(ctx, fd, as, JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query_continue);
 
 #ifdef DEBUG_OUTPUT
   printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
@@ -1448,14 +1452,13 @@ js_mysqlresult_next_continue(JSContext* ctx, JSValueConst this_val, int argc, JS
   ResultIterator* ri = ac->opaque;
   MYSQL_RES* res = ri->res;
   MYSQL_ROW row;
-  int state;
+  int state, as;
 
   state = mysql_fetch_row_cont(&row, res, to_mysql_wait(ac->state));
-
-  asyncclosure_change_event(ac, to_asyncevent(state));
+  as = to_asyncevent(state);
+  asyncclosure_change_event(ac, as);
 
   if(state == 0) {
-
     if(row) {
       if(mysql_num_fields(res) == ri->field_count) {
         ac->result = result_row(ctx, res, row, ri->flags);
@@ -1484,7 +1487,9 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     MYSQL_ROW row;
     MYSQL* my = js_mysqlresult_handle(ctx, this_val);
     int state = mysql_fetch_row_start(&row, res);
-    AsyncClosure* ac = asyncclosure_new(ctx, js_mysql_fd(ctx, this_val), to_asyncevent(state), JS_NULL, &js_mysqlresult_next_continue);
+    int fd = js_mysql_fd(ctx, this_val);
+    int as = to_asyncevent(state);
+    AsyncClosure* ac = asyncclosure_new(ctx, fd, as, JS_NULL, &js_mysqlresult_next_continue);
 
 #ifdef DEBUG_OUTPUT
     printf("%s state=%d\n", __func__, state);
