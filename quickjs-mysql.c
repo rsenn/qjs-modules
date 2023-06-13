@@ -937,7 +937,6 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
         continue;
       }
     } else {
-      sock = mysql_get_socket(my);
       fd = sock != INVALID_HANDLE_VALUE ? _open_osfhandle(sock, _O_BINARY | _O_RDWR) : -1;
 #ifdef DEBUG_OUTPUT
       printf("filedescriptor %d created from socket handle %p\n", fd, sock);
