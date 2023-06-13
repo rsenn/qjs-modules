@@ -28,6 +28,7 @@ typedef enum {
 } ResultFlags;
 
 struct ConnectParameters {
+  int ref_count;
   char *host, *user, *password, *db;
   uint32_t port;
   char* socket;
@@ -240,18 +241,20 @@ value_yield_free(JSContext* ctx, JSValueConst resolve, JSValueConst value) {
   JS_FreeValue(ctx, value);
 }
 
-static inline struct ConnectParameters*
+static inline MYSQLConnectParameters*
 js_connectparams_data(JSValueConst value) {
   return JS_GetOpaque(value, js_connectparams_class_id);
 }
 
-static inline struct ConnectParameters*
+static inline MYSQLConnectParameters*
 js_connectparams_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_connectparams_class_id);
 }
 
 static void
 connectparams_init(JSContext* ctx, MYSQLConnectParameters* cp, int argc, JSValueConst argv[]) {
+  cp->ref_count = 1;
+
   if(argc == 1 && JS_IsObject(argv[0])) {
     JSValueConst args[] = {
         JS_GetPropertyStr(ctx, argv[0], "host"),
@@ -287,6 +290,12 @@ connectparams_init(JSContext* ctx, MYSQLConnectParameters* cp, int argc, JSValue
   }
 }
 
+static inline MYSQLConnectParameters*
+connectparams_dup(MYSQLConnectParameters* cp) {
+  ++cp->ref_count;
+  return cp;
+}
+
 static MYSQLConnectParameters*
 connectparams_new(JSContext* ctx, int argc, JSValueConst argv[]) {
   MYSQLConnectParameters* cp;
@@ -311,13 +320,16 @@ connectparams_release(JSRuntime* rt, MYSQLConnectParameters* cp) {
 static void
 connectparams_free(JSRuntime* rt, void* ptr) {
   MYSQLConnectParameters* cp = ptr;
-  connectparams_release(rt, cp);
-  js_free_rt(rt, cp);
+
+  if(--cp->ref_count == 0) {
+    connectparams_release(rt, cp);
+    js_free_rt(rt, cp);
+  }
 }
 
 static void
 js_connectparams_finalizer(JSRuntime* rt, JSValue val) {
-  struct ConnectParameters* cp;
+  MYSQLConnectParameters* cp;
 
   if((cp = js_connectparams_data(val)))
     connectparams_free(rt, cp);
@@ -928,7 +940,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   /* when obj[Symbol.for('MYSQLConnectParameters')] is present connect parameters were supplied to the constructor */
   if(JS_HasProperty(ctx, this_val, prop)) {
     JSValue obj = JS_GetProperty(ctx, this_val, prop);
-    c = JS_GetOpaque(obj, js_connectparams_class_id);
+    c = connectparams_dup(JS_GetOpaque(obj, js_connectparams_class_id));
     JS_FreeValue(ctx, obj);
   } else {
     c = connectparams_new(ctx, argc, argv);

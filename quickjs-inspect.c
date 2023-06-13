@@ -918,29 +918,31 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
     }
   }
 
-  if(opts->class_key.atom != 1 && JS_HasProperty(ctx, value, opts->class_key.atom)) {
-    char* tostring_tag;
+  if(!is_function) {
+    if(opts->class_key.atom != 1 && JS_HasProperty(ctx, value, opts->class_key.atom)) {
+      char* tostring_tag;
 
-    if((tostring_tag = js_get_property_string(ctx, value, opts->class_key.atom))) {
-      dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED : "");
-      dbuf_putstr(buf, tostring_tag);
-      dbuf_putstr(buf, opts->colors ? COLOR_NONE " " : " ");
-      js_free(ctx, tostring_tag);
-    }
-  } else if(!js_is_array(ctx, value) && !is_function) {
-    if(s == 0 && JS_IsFunction(ctx, object_tostring))
-      s = js_object_tostring2(ctx, object_tostring, value);
+      if((tostring_tag = js_get_property_string(ctx, value, opts->class_key.atom))) {
+        dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED : "");
+        dbuf_putstr(buf, tostring_tag);
+        dbuf_putstr(buf, opts->colors ? COLOR_NONE " " : " ");
+        js_free(ctx, tostring_tag);
+      }
+    } else if(!js_is_array(ctx, value)) {
+      if(s == 0 && JS_IsFunction(ctx, object_tostring))
+        s = js_object_tostring2(ctx, object_tostring, value);
 
-    if(s && !strncmp(s, "[object ", 8)) {
-      const char* e = strchr(s, ']');
-      size_t slen = e - (s + 8);
+      if(s && !strncmp(s, "[object ", 8)) {
+        const char* e = strchr(s, ']');
+        size_t slen = e - (s + 8);
 
-      if(slen != 6 || memcmp(s + 8, "Object", 6)) {
-        dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED : "[");
-        // dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[" : "[");
-        dbuf_append(buf, (const uint8_t*)s + 8, e - (s + 8));
-        // dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE " " : "] ");
-        dbuf_putstr(buf, opts->colors ? COLOR_NONE " " : "] ");
+        if(slen != 6 || memcmp(s + 8, "Object", 6)) {
+          dbuf_putstr(buf, opts->colors ? COLOR_LIGHTRED : "[");
+          // dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[" : "[");
+          dbuf_append(buf, (const uint8_t*)s + 8, e - (s + 8));
+          // dbuf_putstr(buf, opts->colors ? "]" COLOR_NONE " " : "] ");
+          dbuf_putstr(buf, opts->colors ? COLOR_NONE " " : "] ");
+        }
       }
     }
   }
@@ -960,7 +962,9 @@ js_inspect_print_object(JSContext* ctx, DynBuf* buf, JSValueConst value, inspect
 
   if(is_function) {
     JSValue name;
-    dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[Function" : "[Function");
+    dbuf_putstr(buf, opts->colors ? COLOR_MARINE "[" : "[");
+    dbuf_putstr(buf, js_object_classname(ctx, value));
+
     name = JS_GetPropertyStr(ctx, value, "name");
     if(!JS_IsUndefined(name)) {
       s = JS_ToCString(ctx, name);
