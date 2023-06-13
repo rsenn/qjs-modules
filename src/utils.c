@@ -1046,6 +1046,10 @@ void
 js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_t value) {
   JS_SetPropertyUint32(ctx, obj, i, JS_NewInt32(ctx, value));
 }
+void
+js_set_propertystr_int(JSContext* ctx, JSValueConst obj, const char* prop, int32_t value) {
+  JS_SetPropertyStr(ctx, obj, prop, JS_NewInt32(ctx, value));
+}
 
 void
 js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str) {

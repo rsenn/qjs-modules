@@ -1,6 +1,15 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+#ifdef _WIN32
+#include <io.h>
+#define FD_TO_SOCKET(fd)   ((SOCKET) _get_osfhandle ((fd)))
+#define SOCKET_TO_FD(fh)   (_open_osfhandle ((intptr_t) (fh), O_RDWR | O_BINARY))
+#else
+#define FD_TO_SOCKET(fd)   (fd)
+#define SOCKET_TO_FD(fh)   (fh)
+#endif
+
 #ifndef offsetof
 #define offsetof(type, field) ((size_t) & ((type*)0)->field)
 #endif

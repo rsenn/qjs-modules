@@ -620,7 +620,7 @@ enum {
   PROP_AFFECTED_ROWS,
   PROP_WARNING_COUNT,
   PROP_FIELD_COUNT,
-  PROP_FD,
+  PROP_SOCKET,
   PROP_INFO,
   PROP_ERRNO,
   PROP_ERROR,
@@ -677,7 +677,7 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, mysql_field_count(my));
       break;
     }
-    case PROP_FD: {
+    case PROP_SOCKET: {
       ret = JS_NewInt32(ctx, mysql_get_socket(my));
       break;
     }
@@ -924,6 +924,24 @@ js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   return JS_UNDEFINED;
 }
 
+static int
+js_mysql_socket(JSContext* ctx, JSValueConst this_val) {
+  MYSQL* my = js_mysql_data(this_val);
+
+#ifdef _WIN32
+  if(!js_has_propertystr(ctx, this_val, fd)) {
+    SOCKET sock = mysql_get_socket(my);
+    int fd = _open_osfhandle(sock, _O_BINARY | _O_RDWR);
+    js_set_propertystr_int(ctx, this_val, "fd", fd);
+    return fd;
+  }
+
+  return js_get_propertystr_int32(ctx, this_val, "fd");
+#else
+  return mysql_get_socket(my);
+#endif
+}
+
 static JSValue
 js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   AsyncClosure* ac;
@@ -947,7 +965,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
 
   state = mysql_real_connect_start(&ret, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
-  ac = asyncclosure_new(ctx, mysql_get_socket(my), to_asyncevent(state), this_val, &js_mysql_connect_continue);
+  ac = asyncclosure_new(ctx, js_mysql_socket(ctx, this_val), to_asyncevent(state), this_val, &js_mysql_connect_continue);
 
   asyncclosure_opaque(ac, c, connectparams_free);
 
@@ -1045,7 +1063,7 @@ static const JSCFunctionListEntry js_mysql_funcs[] = {
     JS_CGETSET_MAGIC_DEF("affectedRows", js_mysql_get, 0, PROP_AFFECTED_ROWS),
     JS_CGETSET_MAGIC_DEF("warningCount", js_mysql_get, 0, PROP_WARNING_COUNT),
     JS_CGETSET_MAGIC_DEF("fieldCount", js_mysql_get, 0, PROP_FIELD_COUNT),
-    JS_CGETSET_MAGIC_DEF("fd", js_mysql_get, 0, PROP_FD),
+    JS_CGETSET_MAGIC_DEF("socket", js_mysql_get, 0, PROP_SOCKET),
     JS_CGETSET_MAGIC_DEF("errno", js_mysql_get, 0, PROP_ERRNO),
     JS_CGETSET_MAGIC_DEF("error", js_mysql_get, 0, PROP_ERROR),
     JS_CGETSET_MAGIC_DEF("info", js_mysql_get, 0, PROP_INFO),

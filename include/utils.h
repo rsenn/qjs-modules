@@ -647,6 +647,7 @@ js_delete_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
 
 void js_set_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t i, const char* str);
 void js_set_propertyint_int(JSContext* ctx, JSValueConst obj, uint32_t i, int32_t value);
+void js_set_propertystr_int(JSContext* ctx, JSValueConst obj, const char* prop, int32_t value);
 void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* prop, const char* str);
 void js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_get_propertyint_cstring(JSContext* ctx, JSValueConst obj, uint32_t i);
