@@ -303,7 +303,7 @@ else(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
 endif(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
 
 set(LIB_MODULES
-    console events fs io
+    console db events fs io
     #lexer/csv lexer/ecmascript
     parser perf_hooks process repl require stack tty util)
 
