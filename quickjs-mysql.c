@@ -924,7 +924,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
 
 #ifdef _WIN32
   int fd = -1;
-  SOCKET s, sock = mysql_get_socket(my);
+  SOCKET sock = mysql_get_socket(my);
   BOOL has_fd;
   intptr_t tmp;
 
@@ -934,7 +934,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
 
   for(;;) {
     if(has_fd) {
-      s = _get_osfhandle(fd);
+      SOCKET s = _get_osfhandle(fd);
       if(s != sock) {
         printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, s, sock);
         mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)(intptr_t)-1);
