@@ -1482,7 +1482,7 @@ js_mysqlresult_connection(JSContext* ctx, JSValueConst value) {
 
   if((my = js_mysqlresult_handle(ctx, value))) {
     void* ptr = 0;
-    mysql_get_optionv(my, MARIADB_OPT_USERDATA, (void*)"obj", (void*)&ptr);
+    mysql_get_optionv(my, MARIADB_OPT_USERDATA, (void*)"JSObject*", (void*)&ptr);
 
     if(ptr)
       ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_OBJECT, ptr));
