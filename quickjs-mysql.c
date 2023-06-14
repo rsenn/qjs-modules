@@ -929,7 +929,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
   intptr_t tmp;
 
 #ifdef LIBMARIADB
-  if((has_fd = (!mysql_get_optionsv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)&tmp) && tmp != -1)))
+  if((has_fd = (!mysql_get_optionv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)&tmp) && tmp != -1)))
     fd = tmp;
 
   for(;;) {
