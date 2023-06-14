@@ -924,7 +924,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
 
 #ifdef _WIN32
   int fd = -1;
-  SOCKET sock = mysql_get_socket(my);
+  SOCKET sock = my ? mysql_get_socket(my) : INVALID_HANDLE_VALUE;
   BOOL has_fd;
   intptr_t tmp;
 
