@@ -1493,7 +1493,7 @@ js_mysqlresult_connection(JSContext* ctx, JSValueConst value) {
 static int
 js_mysqlresult_fd(JSContext* ctx, JSValueConst value) {
   JSValue conn = js_mysqlresult_connection(ctx, value);
-  int fd = JS_isObject(conn) ? js_mysql_fd(ctx, conn) : -1;
+  int fd = JS_IsObject(conn) ? js_mysql_fd(ctx, conn) : -1;
   JS_FreeValue(ctx, conn);
   return fd;
 }
