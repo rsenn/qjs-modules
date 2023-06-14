@@ -399,7 +399,7 @@ js_mysql_new(JSContext* ctx, JSValueConst proto, MYSQL* my) {
   if(JS_IsException(obj))
     goto fail;
 
-  mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"JSObject", (void*)JS_VALUE_GET_OBJ(obj));
+  mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"JSObject*", (void*)JS_VALUE_GET_OBJ(obj));
 
   JS_SetOpaque(obj, my);
 
@@ -1475,7 +1475,7 @@ js_mysqlresult_handle(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
-JSValue
+static JSValue
 js_mysqlresult_connection(JSContext* ctx, JSValueConst value) {
   MYSQL* my;
   JSValue ret = JS_UNDEFINED;
@@ -1488,6 +1488,14 @@ js_mysqlresult_connection(JSContext* ctx, JSValueConst value) {
       ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_OBJECT, ptr));
   }
   return ret;
+}
+
+static int
+js_mysqlresult_fd(JSContext* ctx, JSValueConst value) {
+  JSValue conn = js_mysqlresult_connection(ctx, value);
+  int fd = js_mysql_fd(ctx, conn);
+  JS_FreeValue(ctx, conn);
+  return fd;
 }
 
 static JSValue
@@ -1531,7 +1539,7 @@ js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     MYSQL_ROW row;
     MYSQL* my = js_mysqlresult_handle(ctx, this_val);
     int state = mysql_fetch_row_start(&row, res);
-    int fd = js_mysql_fd(ctx, this_val);
+    int fd = js_mysqlresult_fd(ctx, this_val);
     int as = to_asyncevent(state);
     AsyncClosure* ac = asyncclosure_new(ctx, fd, as, JS_NULL, &js_mysqlresult_next_continue);
 
