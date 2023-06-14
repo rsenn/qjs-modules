@@ -928,7 +928,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
   BOOL has_fd;
   intptr_t tmp;
 
-#ifdef MARIADB_OPT_USERDATA
+#ifdef LIBMARIADB
   if((has_fd = (!mysql_get_optionsv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)&tmp) && tmp != -1)))
     fd = tmp;
 
