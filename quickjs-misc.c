@@ -2378,7 +2378,6 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 }
 #endif
 
-#ifdef _WIN32
 enum {
   FUNC_GET_OSFHANDLE,
   FUNC_OPEN_OSFHANDLE,
@@ -2388,6 +2387,7 @@ static JSValue
 js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
 
+#ifdef _WIN32
   switch(magic) {
     case FUNC_GET_OSFHANDLE: {
       int32_t fd = -1;
@@ -2406,10 +2406,12 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       break;
     }
   }
+#else
+  ret = JS_DupValue(ctx, argv[0]);
+#endif
 
   return ret;
 }
-#endif
 
 static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getRelease", 0, js_misc_getrelease),
@@ -2493,10 +2495,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifdef HAVE_FSTAT
     JS_CFUNC_DEF("fstat", 1, js_misc_fstat),
 #endif
-#ifdef _WIN32
     JS_CFUNC_MAGIC_DEF("_get_osfhandle", 1, js_misc_osfhandle, FUNC_GET_OSFHANDLE),
     JS_CFUNC_MAGIC_DEF("_open_osfhandle", 1, js_misc_osfhandle, FUNC_OPEN_OSFHANDLE),
-#endif
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("strcmp", 2, js_misc_strcmp),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
