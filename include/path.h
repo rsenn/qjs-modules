@@ -37,7 +37,7 @@ char is_junction(const char*);
 #define PATHSEP_C '\\'
 #define PATHSEP_S "\\"
 #define PATHDELIM_S ";"
-#define path_issep(c) ((c) == '\\')
+#define path_issep(c) ((c) == '/' || (c) == '\\')
 #else
 #define PATHSEP_S "/"
 #define PATHSEP_C '/'
