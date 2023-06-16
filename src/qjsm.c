@@ -198,7 +198,7 @@ enum {
   SCRIPT_DIRNAME,
 };
 
-static char**
+char**
 jsm_stack_ptr(int i) {
   int size;
   if((size = vector_size(&jsm_stack, sizeof(char*))) > 0) {
@@ -210,7 +210,7 @@ jsm_stack_ptr(int i) {
   return 0;
 }
 
-static char**
+char**
 jsm_stack_find(const char* module) {
   char** ptr;
 
@@ -221,7 +221,7 @@ jsm_stack_find(const char* module) {
   return 0;
 }
 
-static char*
+char*
 jsm_stack_at(int i) {
   char** ptr;
   if((ptr = jsm_stack_ptr(i)))
@@ -229,17 +229,17 @@ jsm_stack_at(int i) {
   return 0;
 }
 
-static char*
+char*
 jsm_stack_top() {
   return jsm_stack_at(-1);
 }
 
-static size_t
+size_t
 jsm_stack_count() {
   return vector_size(&jsm_stack, sizeof(char*));
 }
 
-static char*
+char*
 jsm_stack_string() {
   static DynBuf buf;
   char** ptr;
@@ -257,7 +257,7 @@ jsm_stack_string() {
   return (char*)buf.buf;
 }
 
-static JSValue
+JSValue
 jsm_stack_get(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue ret = JS_UNDEFINED;
 
