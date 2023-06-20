@@ -8,7 +8,7 @@ import * as path from 'path';
 import * as deep from 'deep';
 import Console from '../lib/console.js';
 import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
-import REPL from '../lib/repl.js';
+import { REPL } from 'repl';
 
 let repl = {
   printStatus(...args) {

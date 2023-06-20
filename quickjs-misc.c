@@ -51,7 +51,7 @@
 #ifdef HAVE_WORDEXP
 #include "wordexp.h"
 #endif
-#ifdef HAVE_INOTIFY
+#ifdef HAVE_INOTIFY_INIT1
 #include <sys/inotify.h>
 #endif
 #include "buffer-utils.h"
@@ -2063,7 +2063,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
   return JS_NewBool(ctx, r >= 1);
 }
 
-#ifdef HAVE_INOTIFY
+#ifdef HAVE_INOTIFY_INIT1
 static JSValue
 js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
@@ -2431,7 +2431,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #ifdef HAVE_WORDEXP
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
 #endif
-#ifdef HAVE_INOTIFY
+#ifdef HAVE_INOTIFY_INIT1
     JS_CFUNC_DEF("watch", 1, js_misc_watch),
 #endif
 #ifdef HAVE_DAEMON
@@ -2673,7 +2673,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(WRDE_NOSPACE),
     JS_CONSTANT(WRDE_SYNTAX),
 #endif
-#ifdef HAVE_INOTIFY
+#ifdef HAVE_INOTIFY_INIT1
     JS_CONSTANT(IN_ACCESS),
     JS_CONSTANT(IN_MODIFY),
     JS_CONSTANT(IN_ATTRIB),

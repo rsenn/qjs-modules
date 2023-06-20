@@ -12,7 +12,7 @@
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_location_class_id = 0;
-thread_local JSValue location_proto = {{0},JS_TAG_UNDEFINED}, location_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue location_proto = {{0}, JS_TAG_UNDEFINED}, location_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   LOCATION_PROP_LINE,
@@ -251,7 +251,8 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       size_t ni = max(2, str_count((const char*)begin, ':'));
 
       while(end >= begin) {
-        for(p = end; p > begin && *(p - 1) != ':'; p--) {}
+        for(p = end; p > begin && *(p - 1) != ':'; p--) {
+        }
         if(ni > 0) {
           v = strtoul((const char*)p, (char**)&end, 10);
           if(end > p)
@@ -405,13 +406,8 @@ js_location_finalizer(JSRuntime* rt, JSValue val) {
 
   if((loc = js_location_data(val))) {
     if(loc != (void*)-1ll)
-      if(--loc->ref_count)
-        location_free(loc, rt);
-
-    JS_SetOpaque(val, 0);
+      location_free(loc, rt);
   }
-
-  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_location_class = {
@@ -451,7 +447,7 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
     JS_SetClassProto(ctx, js_location_class_id, location_proto);
 
-    js_set_inspect_method(ctx, location_proto, js_location_inspect);
+    /*js_set_inspect_method(ctx, location_proto, js_location_inspect);*/
   }
 
   if(m) {

@@ -26,7 +26,6 @@ function main() {
   la = new SockAddr(AF_INET, '0.0.0.0', randi() & 0xffff);
   let ra = new SockAddr(AF_INET, '127.0.0.1', 22);
   console.log(`classes`, { socklen_t, fd_set, SockAddr, Socket });
-  console.log(`la.clone() =`, la.clone());
   console.log(`la.toString() =`, la.toString());
   console.log(`ra.toString() =`, ra.toString());
   let opt, ret, data, timeout, pfds, sock;

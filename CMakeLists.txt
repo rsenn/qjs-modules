@@ -133,6 +133,10 @@ check_function_and_include(wordexp wordexp.h)
 
 check_function_and_include(inotify_init1 sys/inotify.h HAVE_INOTIFY)
 
+if(HAVE_INOTIFY)
+  add_definitions(-DHAVE_INOTIFY)
+endif(HAVE_INOTIFY)
+
 message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
 message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
 message("Enable inotify ${HAVE_INOTIFY}")
