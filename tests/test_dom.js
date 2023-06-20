@@ -6,7 +6,7 @@ import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Att
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 import { REPL } from 'repl';
 import { read as readXML, write as writeXML } from 'xml';
-    import { parseSelectors } from '../lib/css3-selectors.js';
+import { parseSelectors } from '../lib/css3-selectors.js';
 
 extendArray();
 
@@ -18,7 +18,10 @@ let repl = {
 
 function StartREPL() {
   //return import('repl').then(REPL => {
-  repl = new REPL('\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m', false);
+  repl = new REPL(
+    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
+    false
+  );
   repl.show = repl.printFunction((...args) => console.log(...args));
   repl.historyLoad();
   repl.loadSaveOptions();
@@ -106,10 +109,10 @@ function main(...args) {
 
     console.log('doc', doc);
 
- 
-let sel=[...parseSelectors('layer')];
+    let [sel] = [...parseSelectors('layer')];
     console.log('sel', sel);
 
+    console.log('sel()', sel({ tagName: 'layer' }));
 
     let firstLayer = doc.querySelector('layer');
     console.log('firstLayer', firstLayer);

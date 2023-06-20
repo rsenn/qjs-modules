@@ -15,7 +15,7 @@
  * @{
  */
 thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
-thread_local JSValue deep_functions = {{0},JS_TAG_UNDEFINED}, deep_iterator_proto = {{0},JS_TAG_UNDEFINED}, deep_iterator_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue deep_functions = {{0}, JS_TAG_UNDEFINED}, deep_iterator_proto = {{0}, JS_TAG_UNDEFINED}, deep_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
 
 typedef struct DeepIterator {
   Vector frames;
@@ -228,6 +228,8 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
                 : (depth >= max_depth) ? property_recursion_skip(&it->frames, ctx)
                                        : /*depth > 0          ?*/ property_recursion_next(&it->frames, ctx);
 
+    ++it->seq;
+
     if(!(penum = property_recursion_top(&it->frames))) {
       *pdone = TRUE;
       return ret;
@@ -243,8 +245,6 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     *pdone = FALSE;
     break;
   }
-
-  ++it->seq;
 
   return ret;
 }
