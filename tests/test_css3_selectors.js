@@ -36,6 +36,7 @@ function main(...args) {
 
   let xmlDoc = new Parser().parseFromString(readFileSync('tests/test1.xml', 'utf-8'));
   console.log('xmlDoc', xmlDoc);
+  console.log('xmlDoc2');
   console.log('xmlDoc', xmlDoc.querySelector('.icon span'));
 
   for(let selector of ['element.big[name="test"]', '[name="C1"]']) {

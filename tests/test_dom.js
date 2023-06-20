@@ -6,6 +6,7 @@ import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Att
 import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
 import { REPL } from 'repl';
 import { read as readXML, write as writeXML } from 'xml';
+    import { parseSelectors } from '../lib/css3-selectors.js';
 
 extendArray();
 
@@ -105,7 +106,10 @@ function main(...args) {
 
     console.log('doc', doc);
 
-    globalThis.fs = fs;
+ 
+let sel=[...parseSelectors('layer')];
+    console.log('sel', sel);
+
 
     let firstLayer = doc.querySelector('layer');
     console.log('firstLayer', firstLayer);

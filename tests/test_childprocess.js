@@ -14,7 +14,7 @@ function WriteFile(file, data) {
 
 function ReadChild(...args) {
   let cmd = args.shift();
-  let child = child_process.spawn(cmd, args, { stdio: 'pipe' });
+  let child = child_process.spawn(cmd, args, { stdio:  ['inherit', 'pipe', 'inherit'] });
   let data = '';
   console.log('child', child);
 
@@ -26,14 +26,14 @@ function ReadChild(...args) {
 
   os.setReadHandler(stdout, () => {
     ret = os.read(stdout, buf, 0, buf.byteLength);
-    //    console.log('buf.byteLength:', buf.byteLength);
+       console.log('buf.byteLength:', buf.byteLength);
     console.log('ret:', ret);
 
     if(ret > 0) {
-      let chunk = toString(buf.slice(0, ret));
-      //  console.log('chunk:', chunk);
-      data += chunk;
-      //console.log('data:', data);
+      let chunk = buf.slice(0, ret);
+       console.log('chunk:', chunk);
+      data += toString(chunk);
+   //console.log('data:', data);
     }
 
     if(ret <= 0 || ret < buf.byteLength) {
@@ -63,7 +63,7 @@ function main(...args) {
     }
   });
 
-  let data = ReadChild('/opt/diet/bin-x86_64/ls', '-la');
+  let data = ReadChild('ls', '-la');
 
   console.log('data:', data);
 
