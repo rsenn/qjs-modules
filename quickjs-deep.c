@@ -564,7 +564,7 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   it = property_recursion_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
 
-  do {
+  while(it) {
     if(property_enumeration_length(it)) {
       JSValueConst args[3] = {
           property_enumeration_value(it, ctx),
@@ -587,7 +587,8 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     property_recursion_next(&frames, ctx);
-  } while((it = property_recursion_top(&frames)));
+    it = property_recursion_top(&frames);
+  }
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
 

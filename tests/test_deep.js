@@ -74,9 +74,9 @@ function main(...args) {
 
   console.log('pred:', pred);
   console.log('pred2:', pred2);
+  console.log('obj3:', obj3);
 
-  for(let [n, p] of deep.iterate(obj3, Predicate.property('4'), deep.RETURN_VALUE_PATH))
-    console.log(`deep.iterate()`, { n, p });
+  for(let [n, p] of deep.iterate(obj3, () => true /*Predicate.property('4')*/, deep.RETURN_VALUE_PATH)) console.log(`deep.iterate()`, { n, p });
 
   console.log('select():', deep.select(obj3, pred, deep.RETURN_VALUE_PATH));
   console.log(
@@ -144,7 +144,7 @@ try {
   console.log('SUCCESS');
 }
 
-function* JSON_Iterator(obj, chunkSize = 1) {
+/*function* JSON_Iterator(obj, chunkSize = 1) {
   let prev = { depth: 0, path: [], type: valueType(obj) };
   let stack = [];
   let parent;
@@ -167,7 +167,7 @@ function* JSON_Iterator(obj, chunkSize = 1) {
 
     if(str.length >= chunkSize) {
       chunkSize = yield str;
-      //chunkSize = yield { str, d /*, descend, ascend*/, path: s(path), type, parent };
+      //chunkSize = yield { str, d, path: s(path), type, parent };
       str = '';
     }
     prev = { depth, path, type };
@@ -187,5 +187,7 @@ function* JSON_Iterator(obj, chunkSize = 1) {
     return Array.isArray(value) ? 'array' : typeof value;
   }
 }
+
 it = JSON_Iterator(ast);
 it.next().value;
+*/
