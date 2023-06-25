@@ -25,7 +25,6 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
     qsort(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void*, const void*)) & compare_jspropertyenum);
 
   it->obj = object;
-  it->finalizer = JS_NULL;
 
   return 0;
 }

@@ -10,6 +10,7 @@
 #include "utils.h"
 #include "vector.h"
 #include "buffer-utils.h"
+#include "stream-utils.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -1293,6 +1294,75 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
   return ret;
 }
 
+static JSValue
+js_inspect2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  DynBuf dbuf;
+  Writer wr;
+  inspect_options_t options;
+  int32_t level;
+  int optind = 1;
+  JSValue ret;
+  PropertyEnumeration* it;
+  Vector frames;
+
+  js_dbuf_init(ctx, &dbuf);
+  wr = writer_from_dynbuf(&dbuf);
+
+  inspect_options_init(&options, ctx);
+
+  if(argc > 1 && JS_IsNumber(argv[1]))
+    optind++;
+
+  if(optind < argc)
+    inspect_options_get(&options, ctx, argv[optind]);
+
+  if(optind > 1) {
+    double d;
+    JS_ToFloat64(ctx, &d, argv[1]);
+    level = isinf(d) ? INT32_MAX : d;
+  } else {
+    level = 0;
+  }
+
+  it = property_recursion_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+
+  while(it) {
+    if(property_enumeration_length(it)) {
+      /*     JSValueConst args[3] = {
+               property_enumeration_value(it, ctx),
+               JS_UNDEFINED,
+               argv[0],
+           };
+           uint32_t type = js_value_type(ctx, args[0]);
+
+           if((type & type_mask) == 0) {
+             JS_FreeValue(ctx, args[0]);
+             continue;
+           }
+
+           args[1] = property_recursion_path(&frames, ctx);
+
+           JS_Call(ctx, fn, this_arg, countof(args), args);
+
+           JS_FreeValue(ctx, args[0]);
+           JS_FreeValue(ctx, args[1]);*/
+    }
+
+    property_recursion_next(&frames, ctx);
+    it = property_recursion_top(&frames);
+  }
+
+  property_recursion_free(&frames, JS_GetRuntime(ctx));
+
+  ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+
+  dbuf_free(&dbuf);
+
+  inspect_options_free(&options, ctx);
+
+  return ret;
+}
+
 char*
 js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   DynBuf dbuf;
@@ -1345,6 +1415,7 @@ js_inspect_stacktrace(JSContext* ctx) {
 
 static const JSCFunctionListEntry js_inspect_funcs[] = {
     JS_CFUNC_DEF("inspect", 1, js_inspect),
+    JS_CFUNC_DEF("inspect2", 1, js_inspect2),
 };
 
 static int

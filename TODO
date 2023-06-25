@@ -1,3 +1,5 @@
+- js_is_* functions using string compration etc. is SLOW
+
 - fix XML enumeration
 
 - make XML writer outputting via a function call instead of DynBuf

@@ -92,7 +92,9 @@ dbuf_zero(DynBuf* db) {
   dbuf_realloc(db, 0);
 }
 
-static inline int32_t
+#warning XXX: dbuf_get_column
+#define dbuf_get_column(x) 0
+/*static inline int32_t
 dbuf_get_column(DynBuf* db) {
   size_t len;
   const char* str;
@@ -101,7 +103,7 @@ dbuf_get_column(DynBuf* db) {
     return ansi_length(str, len);
   }
   return 0;
-}
+}*/
 
 size_t dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]);
 

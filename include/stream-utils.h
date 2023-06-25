@@ -9,7 +9,7 @@ typedef ssize_t WriterFinalizer(void*);
 
 typedef struct {
   WriteFunction* write;
-    void* opaque;
+  void* opaque;
   WriterFinalizer* finalizer;
 } Writer;
 
