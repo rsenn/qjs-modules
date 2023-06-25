@@ -558,8 +558,8 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, ins
   int break_len = opts->break_length;
   int column;
   JSValue proto;
-  int compact = opts->compact;
   int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
+  int compact = (depth - opts->compact);
 
   break_len = (break_len + 1) / 3;
   break_len *= 3;
@@ -589,7 +589,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, ins
       js_cstring_free(ctx, str);
 
     writer_puts(wr, " {");
-    if(abs(compact) >= 1)
+    if(compact >= 0)
       writer_putc(wr, ' ');
     else
       inspect_newline(wr, depth + 2);
@@ -598,7 +598,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, ins
     writer_write(wr, buf, fmt_ulong(buf, size));
     writer_puts(wr, " [");
   }
-  if(abs(compact) > 0)
+  if(compact >= 0)
     writer_putc(wr, ' ');
   else
     inspect_newline(wr, depth + 3);
@@ -610,7 +610,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, ins
     if(column + (opts->reparseable ? 6 : 3) >= break_len && opts->break_length != INT32_MAX) {
       if(opts->reparseable && i > 0)
         writer_putc(wr, ',');
-      if(abs(compact) > 0)
+      if(compact >= 0)
         writer_putc(wr, ' ');
       else
         inspect_newline(wr, depth + 3);
@@ -633,7 +633,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, ins
   } else {
     if(i < size) {
 
-      if(abs(compact) > 0)
+      if(compact >= 0)
         writer_putc(wr, ' ');
       else
         inspect_newline(wr, depth + 3);
@@ -642,12 +642,12 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, ins
       writer_write(wr, buf, fmt_ulong(buf, size - i));
       writer_puts(wr, " more bytes");
     }
-    if(abs(compact) > 0)
+    if(compact >= 0)
       writer_putc(wr, ' ');
     else
       inspect_newline(wr, depth + 2);
     writer_puts(wr, "]");
-    if(abs(compact) >= 1)
+    if(compact >= 0)
       writer_putc(wr, ' ');
     else
       inspect_newline(wr, depth + 1);
@@ -1387,14 +1387,23 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst value, inspect_optio
   it = property_recursion_push(&frames, ctx, JS_DupValue(ctx, value), PROPENUM_DEFAULT_FLAGS);
   arr = JS_IsArray(ctx, it->obj);
   writer_puts(wr, arr ? "[" : "{");
-  inspect_newline(wr, ++depth);
+
+  ++depth;
+  if(depth > opts->compact)
+    writer_putc(wr, ' ');
+  else
+    inspect_newline(wr, depth);
 
   while(it) {
     JSValue value = property_enumeration_value(it, ctx);
 
     if(index > 0) {
       writer_puts(wr, ",");
-      inspect_newline(wr, depth);
+
+      if(depth >= opts->compact)
+        writer_putc(wr, ' ');
+      else
+        inspect_newline(wr, depth);
     }
 
     JSValue key = property_enumeration_key(it, ctx);
@@ -1413,26 +1422,36 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst value, inspect_optio
         index = 0;
         arr = JS_IsArray(ctx, it->obj);
         writer_puts(wr, arr ? "[" : "{");
-        inspect_newline(wr, ++depth);
+
+        if(++depth >= opts->compact)
+          writer_putc(wr, ' ');
+        else
+          inspect_newline(wr, depth);
       }
       continue;
     }
 
     if(is_date)
-      js_inspect_print_date(ctx, wr, value, opts, depth + 1);
+      js_inspect_print_date(ctx, wr, value, opts, depth);
     else if(is_regexp)
-      js_inspect_print_regexp(ctx, wr, value, opts, depth + 1);
+      js_inspect_print_regexp(ctx, wr, value, opts, depth);
     else if(is_arraybuffer)
-      js_inspect_print_arraybuffer(ctx, wr, value, opts, depth + 1);
+      js_inspect_print_arraybuffer(ctx, wr, value, opts, depth);
     else
-      js_inspect_print_value(ctx, wr, value, opts, depth + 1);
+      js_inspect_print_value(ctx, wr, value, opts, depth);
 
     while(!(it = property_enumeration_next(it))) {
       arr = JS_IsArray(ctx, property_recursion_top(&frames)->obj);
       it = property_recursion_pop(&frames, ctx);
 
-      inspect_newline(wr, --depth);
+      --depth;
+      if(depth >= opts->compact)
+        writer_putc(wr, ' ');
+      else
+        inspect_newline(wr, depth);
+
       writer_puts(wr, arr ? "]" : "}");
+
       if(!it)
         break;
     }
@@ -1449,44 +1468,6 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst value, inspect_optio
 
   return 0;
 }
-
-/*static JSValue
-js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  DynBuf dbuf;
-  inspect_options_t options;
-  int32_t level;
-  int optind = 1;
-  JSValue ret;
-
-  js_dbuf_init(ctx, &dbuf);
-  inspect_options_init(&options, ctx);
-
-  if(argc > 1 && JS_IsNumber(argv[1]))
-    optind++;
-
-  if(optind < argc)
-    inspect_options_get(&options, ctx, argv[optind]);
-
-  if(optind > 1) {
-    double d;
-    JS_ToFloat64(ctx, &d, argv[1]);
-    level = isinf(d) ? INT32_MAX : d;
-  } else {
-    level = 0;
-  }
-
-
-  Writer wr = {(WriteFunction*)&dbuf_put, &dbuf, 0};
-
-  js_inspect_print_value(ctx, &wr, argv[0], &options, options.depth - level);
-
-  ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
-
-  dbuf_free(&dbuf);
-  inspect_options_free(&options, ctx);
-
-  return ret;
-}*/
 
 static JSValue
 js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -1518,11 +1499,14 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
     level = 0;
   }
 
-  js_inspect_recurse(ctx, &wr, argv[0], &options, options.depth - level);
+  if(JS_IsObject(argv[0]))
+    js_inspect_recurse(ctx, &wr, argv[0], &options, level);
+  else
+    js_inspect_print_value(ctx, &wr, argv[0], &options, level);
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
-  dbuf_free(&dbuf);
+  writer_free(&wr);
 
   inspect_options_free(&options, ctx);
 
@@ -1533,6 +1517,7 @@ char*
 js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   DynBuf dbuf;
   inspect_options_t options;
+
   js_dbuf_init(ctx, &dbuf);
   inspect_options_init(&options, ctx);
 
@@ -1540,7 +1525,7 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   options.compact = 0;
   options.getters = TRUE;
 
-  Writer wr = {(WriteFunction*)&dbuf_put, &dbuf, 0};
+  Writer wr = writer_from_dynbuf(&dbuf);
   js_inspect_print_value(ctx, &wr, value, &options, options.depth);
 
   inspect_options_free(&options, ctx);
