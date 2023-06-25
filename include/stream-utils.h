@@ -22,9 +22,10 @@ static inline ssize_t
 writer_puts(Writer* wr, const void* s) {
   return writer_write(wr, s, strlen(s));
 }
+
 static inline ssize_t
-writer_putc(Writer* wr,  int c) {
-  char ch=c;
+writer_putc(Writer* wr, int c) {
+  char ch = c;
   return writer_write(wr, &ch, 1);
 }
 
