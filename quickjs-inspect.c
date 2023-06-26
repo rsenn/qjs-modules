@@ -45,8 +45,6 @@ static thread_local JSValue object_tostring;
 #define INSPECT_IS_COMPACT(opts, _depth) INSPECT_IS_COMPACT_DEPTH(INSPECT_LEVEL(opts, _depth), (opts)->compact)
 #define INSPECT_COMPACT(opts, _depth) INSPECT_LEVEL(opts, _depth)
 
-// static thread_local Vector object_list = VECTOR_INIT();
-
 typedef struct {
   const char* name;
   JSAtom atom;
@@ -1174,29 +1172,7 @@ inspect_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* op
     }
 
     case JS_TAG_OBJECT: {
-      int ret = 0;
-      JSValue error_ctor = js_global_get_str(ctx, "Error");
-      BOOL is_error = JS_IsError(ctx, value) || JS_IsInstanceOf(ctx, value, error_ctor);
-
-      JS_FreeValue(ctx, error_ctor);
-
-      if(is_error)
-        return inspect_error(ctx, wr, value, opts, depth);
-
-      JSObject* obj = js_value_ptr(value);
-
-      /* if(vector_find(&object_list, sizeof(obj), &obj) != -1) {
-         writer_puts(wr, opts->colors ? COLOR_RED "[loop]" COLOR_NONE : "[loop]");
-         return ret;
-       }*/
-
-      // vector_push(&object_list, obj);
-
-      ret = inspect_object(ctx, wr, value, opts, depth);
-      // assert(*(JSObject**)vector_back(&object_list, sizeof(obj)) == obj);
-
-      // vector_pop(&object_list, sizeof(obj));
-      return ret;
+      return inspect_object(ctx, wr, value, opts, depth);
     }
 
     case JS_TAG_FUNCTION_BYTECODE: {
