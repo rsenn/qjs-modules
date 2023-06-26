@@ -1382,11 +1382,8 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
 
 char*
 js_inspect_atom(JSContext* ctx, JSAtom atom) {
-  JSValue value;
-  char* str;
-  value = JS_AtomToValue(ctx, atom);
-
-  str = js_inspect_tostring(ctx, value);
+ JSValue value = JS_AtomToValue(ctx, atom);
+  char* str = js_inspect_tostring(ctx, value);
   JS_FreeValue(ctx, value);
   return str;
 }
@@ -1398,11 +1395,13 @@ js_inspect_stacktrace_value(JSContext* ctx) {
   JSRuntime* rt = JS_GetRuntime(ctx);
   struct JSStackFrame* frame;
   JSValue ret = JS_UNDEFINED;
+
   if((frame = rt->current_stack_frame)) {
 #ifdef CONFIG_DEBUGGER
     ret = js_debugger_build_backtrace(ctx, frame->cur_pc);
 #endif
   }
+
   return ret;
 }
 
@@ -1419,8 +1418,6 @@ static const JSCFunctionListEntry js_inspect_funcs[] = {
 static int
 js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   JSValue inspect, inspect_symbol, symbol_ctor;
-
-  // function_class_id_ceil = MAX_NUM(JS_CLASS_ASYNC_GENERATOR, js_predicate_class_id);
 
   stdout_isatty = isatty(STDOUT_FILENO);
   stderr_isatty = isatty(STDERR_FILENO);
