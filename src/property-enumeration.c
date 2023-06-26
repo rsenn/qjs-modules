@@ -143,7 +143,7 @@ property_enumeration_key(const PropertyEnumeration* it, JSContext* ctx) {
 
   if(JS_IsArray(ctx, it->obj)) {
     int64_t idx;
-    
+
     if(!JS_ToInt64(ctx, &idx, key)) {
       JS_FreeValue(ctx, key);
       key = JS_NewInt64(ctx, idx);
@@ -159,7 +159,7 @@ property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueC
   JSValue ret;
   JSValueConst argv[3] = {
       property_enumeration_value(it, ctx),
-      property_enumeration_key(it, ctx),
+      JS_AtomToValue(ctx, it->tab_atom[it->idx].atom) /*property_enumeration_key(it, ctx)*/,
       this_arg,
   };
 

@@ -430,16 +430,16 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
   value = JS_AtomToValue(ctx, atom);
 
   if(JS_IsNumber(value)) {
-    JS_ToInt64(ctx, &index, value);
-    ret = TRUE;
+    if(!JS_ToInt64(ctx, &index, value))
+      ret = TRUE;
   } else if(JS_IsString(value)) {
     const char* s = JS_ToCString(ctx, value);
-    
+
     if(is_digit_char(s[s[0] == '-'])) {
-      index = atoi(s);
+      index = atoll(s);
       ret = TRUE;
     }
-    
+
     JS_FreeCString(ctx, s);
   }
 
