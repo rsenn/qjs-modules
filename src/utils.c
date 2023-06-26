@@ -429,10 +429,10 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
 
   value = JS_AtomToValue(ctx, atom);
 
-  if(JS_IsNumber(value)) {
-    if(!JS_ToInt64(ctx, &index, value))
-      ret = TRUE;
-  } else if(JS_IsString(value)) {
+  // if(JS_IsNumber(value)) {
+  if(!JS_ToInt64(ctx, &index, value))
+    ret = TRUE;
+  /*} else if(JS_IsString(value)) {
     const char* s = JS_ToCString(ctx, value);
 
     if(is_digit_char(s[s[0] == '-'])) {
@@ -441,7 +441,7 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
     }
 
     JS_FreeCString(ctx, s);
-  }
+  }*/
 
   if(ret == TRUE)
     *pval = index;
