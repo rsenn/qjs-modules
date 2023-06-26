@@ -450,16 +450,24 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
 }
 
 BOOL
-js_atom_is_string(JSContext* ctx, JSAtom atom, const char* other) {
+js_atom_is_string(JSContext* ctx, JSAtom atom) {
+  JSValue value = JS_AtomToValue(ctx, atom);
+  BOOL ret = JS_IsString(value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+int
+js_atom_cmp_string(JSContext* ctx, JSAtom atom, const char* other) {
   const char* str = JS_AtomToCString(ctx, atom);
-  BOOL ret = !strcmp(str, other);
+  int ret = strcmp(str, other);
   JS_FreeCString(ctx, str);
   return ret;
 }
 
 BOOL
 js_atom_is_length(JSContext* ctx, JSAtom atom) {
-  return js_atom_is_string(ctx, atom, "length");
+  return js_atom_equal_string(ctx, atom, "length");
 }
 
 const char*
