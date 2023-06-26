@@ -983,7 +983,7 @@ inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
 
   BOOL is_array = js_is_array(ctx, value);
 
-  if(IS_COMPACT(depth + 1 > opts->depth)) {
+  if(IS_COMPACT(depth + 1 > opts->compact)) {
     writer_puts(wr,
                 is_array ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]")
                          : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
