@@ -362,7 +362,7 @@ inspect_newline(Writer* wr, int32_t depth) {
 
 static void
 inspect_escape(Writer* wr, const char* str, size_t len) {
-  char buf[64];
+  char buf[FMT_ULONG];
   size_t i = 0;
   const uint8_t *pos, *end, *next;
   static const uint8_t table[256] = {
@@ -577,7 +577,7 @@ js_inspect_print_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
 
 static int
 js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
-  char buf[64];
+  char buf[FMT_ULONG];
   const char *str, *str2;
   uint8_t* ptr;
   size_t i, slen, size;
@@ -606,7 +606,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, Ins
     else if(str && (str2 = strchr(str, ' '))) {
       str2++;
       slen = byte_chr(str2, strlen(str2), ']');
-      writer_write(wr, (const uint8_t*)str2, slen);
+      writer_write(wr, str2, slen);
     }
 
     if(str)
@@ -636,6 +636,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, Ins
     if(column + (opts->reparseable ? 6 : 3) >= break_len && opts->break_length != INT32_MAX) {
       if(opts->reparseable && i > 0)
         writer_putc(wr, ',');
+
       if(depth + 1 >= opts->compact)
         writer_putc(wr, ' ');
       else
@@ -720,7 +721,7 @@ js_inspect_print_number(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
     JS_ToInt64(ctx, &num, value);
 
     writer_puts(wr, "0x");
-    writer_write(wr, (const uint8_t*)buf, fmt_xlonglong(buf, num));
+    writer_write(wr, buf, fmt_xlonglong(buf, num));
   } else {
     const char* str;
     size_t len;
@@ -745,7 +746,7 @@ js_inspect_print_number(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
       case 8: writer_puts(wr, "0"); break;
     }
 
-    writer_write(wr, (const uint8_t*)str, len);
+    writer_write(wr, str, len);
 
     js_cstring_free(ctx, str);
   }
@@ -811,7 +812,7 @@ js_inspect_print_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
     writer_puts(wr, COLOR_NONE);
 
   if(limit < len) {
-    char lenbuf[64];
+    char lenbuf[FMT_ULONG];
 
     if(opts->break_length != INT32_MAX)
       // if(dbuf_get_column(wr) + 26 > opts->break_length)
@@ -858,7 +859,7 @@ js_inspect_print_atom(JSContext* ctx, Writer* wr, JSAtom atom, InspectOptions* o
 
 static int
 js_inspect_print_module(JSContext* ctx, Writer* wr, JSModuleDef* def, InspectOptions* opts, int32_t depth) {
-  char buf[64];
+  char buf[FMT_ULONG];
 
   writer_puts(wr, opts->colors ? COLOR_CYAN "[module" COLOR_NONE : "[module");
 
@@ -949,8 +950,8 @@ js_inspect_print_error(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
         size_t next = ll + scan_lineskip(&p[ll], e - p - ll);
 
         inspect_newline(wr, depth + 2);
-        writer_write(wr, (const uint8_t*)"|", 1);
-        writer_write(wr, (const uint8_t*)p, ll);
+        writer_write(wr, "|", 1);
+        writer_write(wr, p, ll);
 
         p += next;
       }
@@ -1057,7 +1058,7 @@ js_inspect_print_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
 
         if(slen != 6 || memcmp(s + 8, "Object", 6)) {
           writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "[");
-          writer_write(wr, (const uint8_t*)s + 8, e - (s + 8));
+          writer_write(wr, s + 8, e - (s + 8));
           writer_puts(wr, opts->colors ? COLOR_NONE " " : "] ");
         }
       }
@@ -1273,7 +1274,7 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions*
         it = property_recursion_enter(&frames, ctx, 0, PROPENUM_DEFAULT_FLAGS);
         index = 0;
         is_array = js_is_array(ctx, value);
-        writer_puts(wr, is_array ? "[" : "{");
+        writer_putc(wr, is_array ? '[' : '{');
 
         if(++depth >= opts->compact)
           writer_puts(wr, it ? " " : "");
@@ -1301,7 +1302,7 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions*
       else
         inspect_newline(wr, depth);
 
-      writer_puts(wr, is_array ? "]" : "}");
+      writer_putc(wr, is_array ? ']' : '}');
 
       if(!it)
         break;
