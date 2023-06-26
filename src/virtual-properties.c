@@ -254,7 +254,8 @@ enum {
 };
 
 static JSValue
-virtual_properties_getset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, void* opaque) {
+virtual_properties_getset(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, void* opaque) {
   VirtualWrapper* vwrap = opaque;
   JSValue ret = JS_UNDEFINED;
 

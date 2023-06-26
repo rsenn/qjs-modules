@@ -164,7 +164,8 @@ child_process_spawn(ChildProcess* cp) {
         break;
     }*/
 
-  retval = CreateProcessA(search ? 0 : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+  retval = CreateProcessA(
+      search ? 0 : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
 
   /*if(retval == 0) {
     error = GetLastError();
@@ -377,9 +378,10 @@ child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
 }
 
 const char* child_process_signals[32] = {
-    0,         "SIGHUP",  "SIGINT",  "SIGQUIT", "SIGILL",    "SIGTRAP",   "SIGABRT",  "SIGBUS",  "SIGFPE",  "SIGKILL", "SIGUSR1",
-    "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM", "SIGTERM",   "SIGSTKFLT", "SIGCHLD",  "SIGCONT", "SIGSTOP", "SIGTSTP", "SIGTTIN",
-    "SIGTTOU", "SIGURG",  "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF",   "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
+    0,           "SIGHUP",  "SIGINT",    "SIGQUIT", "SIGILL",   "SIGTRAP", "SIGABRT", "SIGBUS",
+    "SIGFPE",    "SIGKILL", "SIGUSR1",   "SIGSEGV", "SIGUSR2",  "SIGPIPE", "SIGALRM", "SIGTERM",
+    "SIGSTKFLT", "SIGCHLD", "SIGCONT",   "SIGSTOP", "SIGTSTP",  "SIGTTIN", "SIGTTOU", "SIGURG",
+    "SIGXCPU",   "SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
 };
 /**
  * @}

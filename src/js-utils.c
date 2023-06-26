@@ -68,7 +68,6 @@ promise_free(JSContext* ctx, Promise* pr) {
   js_resolve_functions_free(ctx, &pr->funcs);
 }*/
 
-
 void
 promise_free(JSRuntime* rt, Promise* pr) {
   JS_FreeValueRT(rt, pr->value);
@@ -99,13 +98,13 @@ promise_zero(Promise* pr) {
 }
 
 BOOL
-promise_pending( ResolveFunctions* funcs) {
-  return   !js_resolve_functions_is_null( funcs);
+promise_pending(ResolveFunctions* funcs) {
+  return !js_resolve_functions_is_null(funcs);
 }
 
 BOOL
 promise_done(ResolveFunctions* funcs) {
-  return   js_resolve_functions_is_null(funcs);
+  return js_resolve_functions_is_null(funcs);
 }
 
 JSValue

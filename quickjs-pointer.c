@@ -103,6 +103,7 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   Pointer* ptr;
   DynBuf dbuf;
   BOOL color = FALSE, reparseable = FALSE;
+  size_t len;
 
   if(!(ptr = JS_GetOpaque2(ctx, this_val, js_pointer_class_id)))
     return JS_EXCEPTION;
@@ -113,7 +114,19 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   }
 
   js_dbuf_init(ctx, &dbuf);
-  pointer_dump(ptr, ctx, &dbuf, color, -1);
+
+  if(reparseable) {
+    dbuf_putstr(&dbuf, "new Pointer(");
+    len = dbuf.size;
+  }
+
+  pointer_dump(ptr, ctx, &dbuf, color && !reparseable, -1);
+
+  if(reparseable) {
+    dbuf.buf[len] = '\'';
+    dbuf_putstr(&dbuf, "')");
+  }
+
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
   return ret;
