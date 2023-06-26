@@ -498,7 +498,7 @@ js_inspect_print_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
 
   writer_puts(wr, opts->colors ? COLOR_LIGHTRED "Map" COLOR_NONE " {" : "Map {");
 
-  if(!(depth >= opts->compact) && opts->break_length != INT32_MAX)
+  if(depth < opts->compact && opts->break_length != INT32_MAX)
     inspect_newline(wr, depth);
 
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
@@ -507,7 +507,7 @@ js_inspect_print_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
 
       if(i) {
         writer_puts(wr, ",");
-        if(!(depth >= opts->compact) && opts->break_length != INT32_MAX)
+        if(depth < opts->compact && opts->break_length != INT32_MAX)
           inspect_newline(wr, depth);
       }
 
@@ -525,11 +525,12 @@ js_inspect_print_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
     }
   }
 
-  if(!(depth >= opts->compact) && opts->break_length != INT32_MAX)
+  if(depth < opts->compact && opts->break_length != INT32_MAX)
     inspect_newline(wr, depth);
 
   writer_puts(wr, (depth >= opts->compact) ? " }" : "}");
   iteration_reset_rt(&it, JS_GetRuntime(ctx));
+
   return 1;
 }
 
@@ -548,7 +549,7 @@ js_inspect_print_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
 
   writer_puts(wr, opts->colors ? COLOR_LIGHTRED "Set" COLOR_NONE " [" : "Set [");
 
-  if(!(depth >= opts->compact) && opts->break_length != INT32_MAX)
+  if(depth < opts->compact && opts->break_length != INT32_MAX)
     inspect_newline(wr, depth);
 
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
@@ -557,7 +558,7 @@ js_inspect_print_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
 
       if(i) {
         writer_puts(wr, ",");
-        if(!(depth >= opts->compact) && opts->break_length != INT32_MAX)
+        if(depth < opts->compact && opts->break_length != INT32_MAX)
           inspect_newline(wr, depth);
       }
 
@@ -567,7 +568,7 @@ js_inspect_print_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
     }
   }
 
-  if(!(depth >= opts->compact) && opts->break_length != INT32_MAX)
+  if(depth < opts->compact && opts->break_length != INT32_MAX)
     inspect_newline(wr, depth);
 
   writer_puts(wr, (depth >= opts->compact) ? " ]" : "]");
@@ -1011,23 +1012,18 @@ js_inspect_print_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
 
     if(!is_array && !is_typedarray) {
       if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
-        return js_inspect_print_arraybuffer(ctx, wr, value, opts, depth + 1);
+        return js_inspect_print_arraybuffer(ctx, wr, value, opts, depth);
       if(js_is_date(ctx, value))
         return js_inspect_print_date(ctx, wr, value, opts, depth);
       if(js_is_map(ctx, value))
         return js_inspect_print_map(ctx, wr, value, opts, depth);
       if(js_is_set(ctx, value))
-        return js_inspect_print_set(ctx, wr, value, opts, depth + 1);
+        return js_inspect_print_set(ctx, wr, value, opts, depth);
       if(js_is_regexp(ctx, value))
-        return js_inspect_print_regexp(ctx, wr, value, opts, depth + 1);
+        return js_inspect_print_regexp(ctx, wr, value, opts, depth);
+      if(js_is_error(ctx, value))
+        return js_inspect_print_error(ctx, wr, value, opts, depth);
     }
-
-#ifdef TMPMARK_BIT
-    if(js_object_tmpmark_isset(value)) {
-      JS_ThrowTypeError(ctx, "circular reference");
-      return -1;
-    }
-#endif
 
     if(js_is_generator(ctx, value)) {
       writer_puts(wr, "Object [Generator] {}");
@@ -1127,12 +1123,11 @@ js_inspect_print_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
     }
 
     case JS_TAG_EXCEPTION: {
-      const char* msg;
-
       writer_puts(wr, opts->colors ? COLOR_RED "[exception" : "[exception");
 
       if(JS_IsObject(ctx->rt->current_exception)) {
         JSValue message = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "message");
+        const char* msg;
 
         if((msg = JS_ToCString(ctx, message))) {
           writer_puts(wr, " \"");
@@ -1162,6 +1157,7 @@ js_inspect_print_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
     case JS_TAG_SYMBOL: {
       if(opts->reparseable) {
         const char* str = js_symbol_to_cstring(ctx, value);
+
         writer_puts(wr, str);
         JS_FreeCString(ctx, str);
         break;

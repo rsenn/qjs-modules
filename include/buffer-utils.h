@@ -92,19 +92,6 @@ dbuf_zero(DynBuf* db) {
   dbuf_realloc(db, 0);
 }
 
-#warning XXX: dbuf_get_column
-#define dbuf_get_column(x) 0
-/*static inline int32_t
-dbuf_get_column(DynBuf* db) {
-  size_t len;
-  const char* str;
-  if(db->size) {
-    str = dbuf_last_line(db, &len);
-    return ansi_length(str, len);
-  }
-  return 0;
-}*/
-
 size_t dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]);
 
 #define js_dbuf_init(ctx, buf) dbuf_init2((buf), (ctx), (realloc_func*)&utils_js_realloc)
