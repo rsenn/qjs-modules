@@ -73,13 +73,13 @@ typedef struct {
 } InspectOptions;
 
 static int stdout_isatty, stderr_isatty;
-static int32_t screen_width = -1;
+static int32_t width = -1;
 
-static int js_inspect_print_value(JSContext*, Writer*, JSValueConst, InspectOptions*, int32_t);
-static int js_inspect_print_string(JSContext*, Writer*, JSValueConst, InspectOptions*, int32_t);
-static int js_inspect_print_number(JSContext*, Writer*, JSValueConst, InspectOptions*, int32_t);
+static int inspect_value(JSContext*, Writer*, JSValueConst, InspectOptions*, int32_t);
+static int inspect_string(JSContext*, Writer*, JSValueConst, InspectOptions*, int32_t);
+static int inspect_number(JSContext*, Writer*, JSValueConst, InspectOptions*, int32_t);
 
-static int
+/*static int
 regexp_predicate(int c) {
   switch(c) {
     case 8: return 'u';
@@ -94,18 +94,18 @@ regexp_predicate(int c) {
     return 'u';
 
   return 0;
-}
+}*/
 
 static inline int
-inspect_screen_width(void) {
-  if(screen_width != -1)
-    return screen_width;
+screen_width(void) {
+  if(width != -1)
+    return width;
 
 #ifdef _WIN32
   CONSOLE_SCREEN_BUFFER_INFO csbi;
 
   GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
-  screen_width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+  width = csbi.srWindow.Right - csbi.srWindow.Left + 1;
 
 #elif defined(HAVE_TERMIOS_H)
   {
@@ -116,16 +116,16 @@ inspect_screen_width(void) {
     else if(stderr_isatty)
       ioctl(STDERR_FILENO, TIOCGWINSZ, &w);
 
-    screen_width = w.ws_col;
+    width = w.ws_col;
   }
 #else
-  screen_width = 80;
+  width = 80;
 #endif
-  return screen_width;
+  return width;
 }
 
 static void
-inspect_options_init(InspectOptions* opts, JSContext* ctx) {
+options_init(InspectOptions* opts, JSContext* ctx) {
   opts->colors = TRUE;
   opts->show_hidden = FALSE;
   opts->custom_inspect = TRUE;
@@ -136,7 +136,7 @@ inspect_options_init(InspectOptions* opts, JSContext* ctx) {
   opts->depth = INT32_MAX;
   opts->max_array_length = 300;
   opts->max_string_length = INT32_MAX;
-  opts->break_length = inspect_screen_width();
+  opts->break_length = screen_width();
   opts->compact = 5;
   opts->proto_chain = TRUE;
   opts->number_base = 10;
@@ -150,7 +150,7 @@ inspect_options_init(InspectOptions* opts, JSContext* ctx) {
 }
 
 static void
-inspect_options_free(InspectOptions* opts, JSContext* ctx) {
+options_free(InspectOptions* opts, JSContext* ctx) {
 
   PropertyKey* key;
 
@@ -162,7 +162,7 @@ inspect_options_free(InspectOptions* opts, JSContext* ctx) {
 }
 
 static void
-inspect_options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
+options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
   JSValue value;
 
   value = JS_GetPropertyStr(ctx, object, "colors");
@@ -307,7 +307,7 @@ inspect_options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
 }
 
 static JSValue
-inspect_options_object(InspectOptions* opts, JSContext* ctx) {
+options_object(InspectOptions* opts, JSContext* ctx) {
   JSValue arr, ret = JS_NewObject(ctx);
   uint32_t n;
   PropertyKey* key;
@@ -341,7 +341,7 @@ inspect_options_object(InspectOptions* opts, JSContext* ctx) {
 }
 
 static int
-inspect_options_hidden(InspectOptions* opts, JSAtom atom) {
+options_hidden(InspectOptions* opts, JSAtom atom) {
   PropertyKey* key;
 
   vector_foreach_t(&opts->hide_keys, key) {
@@ -353,7 +353,7 @@ inspect_options_hidden(InspectOptions* opts, JSAtom atom) {
 }
 
 static void
-inspect_newline(Writer* wr, int32_t depth) {
+put_newline(Writer* wr, int32_t depth) {
   writer_putc(wr, '\n');
 
   while(depth-- > 0)
@@ -361,7 +361,7 @@ inspect_newline(Writer* wr, int32_t depth) {
 }
 
 static void
-inspect_escape(Writer* wr, const char* str, size_t len) {
+put_escaped(Writer* wr, const char* str, size_t len) {
   char buf[FMT_ULONG];
   size_t i = 0;
   const uint8_t *pos, *end, *next;
@@ -420,7 +420,7 @@ inspect_escape(Writer* wr, const char* str, size_t len) {
   }
 }
 
-static JSAtom
+/*static JSAtom
 js_inspect_custom_atom(JSContext* ctx, const char* sym_for) {
   JSValue key = JS_NewString(ctx, sym_for ? sym_for : "quickjs.inspect.custom");
   JSValue sym = js_symbol_invoke_static(ctx, "for", key);
@@ -429,10 +429,10 @@ js_inspect_custom_atom(JSContext* ctx, const char* sym_for) {
   JS_FreeValue(ctx, sym);
 
   return atom;
-}
+}*/
 
 static JSValue
-js_inspect_custom_call(JSContext* ctx, JSValueConst obj, InspectOptions* opts, int32_t level) {
+inspect_custom(JSContext* ctx, JSValueConst obj, InspectOptions* opts, int32_t level) {
   JSValue ret = JS_UNDEFINED, inspect = JS_UNDEFINED;
 
   if(JS_VALUE_GET_OBJ(obj)->class_id) {
@@ -450,7 +450,7 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, InspectOptions* opts, i
     opts_nocustom.custom_inspect = FALSE;
 
     args[0] = js_number_new(ctx, level + 1);
-    args[1] = inspect_options_object(&opts_nocustom, ctx);
+    args[1] = options_object(&opts_nocustom, ctx);
 
     ret = JS_Call(ctx, inspect, obj, 2, args);
 
@@ -463,7 +463,7 @@ js_inspect_custom_call(JSContext* ctx, JSValueConst obj, InspectOptions* opts, i
 }
 
 static int
-js_inspect_print_date(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t depth) {
+inspect_date(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t depth) {
   const char* str;
   JSValue date = js_invoke(ctx, obj, "toISOString", 0, 0);
 
@@ -484,7 +484,7 @@ js_inspect_print_date(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptio
 }
 
 static int
-js_inspect_print_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t level) {
+inspect_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t level) {
   BOOL ret, finish = FALSE;
   size_t i = 0;
   int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
@@ -492,14 +492,14 @@ js_inspect_print_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
   Iteration it;
 
   if(!(ret = iteration_method_symbol(&it, ctx, obj, "iterator"))) {
-    JS_ThrowTypeError(ctx, "js_inspect_print_map tag=%d\n", JS_VALUE_GET_TAG(obj));
+    JS_ThrowTypeError(ctx, "inspect_map tag=%d\n", JS_VALUE_GET_TAG(obj));
     return 0;
   }
 
   writer_puts(wr, opts->colors ? COLOR_LIGHTRED "Map" COLOR_NONE " {" : "Map {");
 
   if(depth < opts->compact && opts->break_length != INT32_MAX)
-    inspect_newline(wr, depth);
+    put_newline(wr, depth);
 
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
@@ -508,16 +508,16 @@ js_inspect_print_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
       if(i) {
         writer_puts(wr, ",");
         if(depth < opts->compact && opts->break_length != INT32_MAX)
-          inspect_newline(wr, depth);
+          put_newline(wr, depth);
       }
 
       writer_puts(wr, (depth >= opts->compact) ? " " : "  ");
       key = JS_GetPropertyUint32(ctx, data, 0);
-      js_inspect_print_value(ctx, wr, key, opts, depth + 1);
+      inspect_value(ctx, wr, key, opts, depth + 1);
 
       writer_puts(wr, " => ");
       value = JS_GetPropertyUint32(ctx, data, 1);
-      js_inspect_print_value(ctx, wr, value, opts, depth + 1);
+      inspect_value(ctx, wr, value, opts, depth + 1);
 
       JS_FreeValue(ctx, key);
       JS_FreeValue(ctx, value);
@@ -526,7 +526,7 @@ js_inspect_print_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
   }
 
   if(depth < opts->compact && opts->break_length != INT32_MAX)
-    inspect_newline(wr, depth);
+    put_newline(wr, depth);
 
   writer_puts(wr, (depth >= opts->compact) ? " }" : "}");
   iteration_reset_rt(&it, JS_GetRuntime(ctx));
@@ -535,7 +535,7 @@ js_inspect_print_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
 }
 
 static int
-js_inspect_print_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t level) {
+inspect_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t level) {
   BOOL ret, finish = FALSE;
   size_t i = 0;
   int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
@@ -543,14 +543,14 @@ js_inspect_print_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
   Iteration it;
 
   if(!(ret = iteration_method_symbol(&it, ctx, obj, "iterator"))) {
-    JS_ThrowTypeError(ctx, "js_inspect_print_map tag=%d\n", JS_VALUE_GET_TAG(obj));
+    JS_ThrowTypeError(ctx, "inspect_map tag=%d\n", JS_VALUE_GET_TAG(obj));
     return 0;
   }
 
   writer_puts(wr, opts->colors ? COLOR_LIGHTRED "Set" COLOR_NONE " [" : "Set [");
 
   if(depth < opts->compact && opts->break_length != INT32_MAX)
-    inspect_newline(wr, depth);
+    put_newline(wr, depth);
 
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
     if(!finish) {
@@ -559,17 +559,17 @@ js_inspect_print_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
       if(i) {
         writer_puts(wr, ",");
         if(depth < opts->compact && opts->break_length != INT32_MAX)
-          inspect_newline(wr, depth);
+          put_newline(wr, depth);
       }
 
       writer_puts(wr, (depth >= opts->compact) ? " " : "  ");
-      js_inspect_print_value(ctx, wr, value, opts, depth + 1);
+      inspect_value(ctx, wr, value, opts, depth + 1);
       JS_FreeValue(ctx, value);
     }
   }
 
   if(depth < opts->compact && opts->break_length != INT32_MAX)
-    inspect_newline(wr, depth);
+    put_newline(wr, depth);
 
   writer_puts(wr, (depth >= opts->compact) ? " ]" : "]");
   iteration_reset_rt(&it, JS_GetRuntime(ctx));
@@ -577,7 +577,7 @@ js_inspect_print_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOption
 }
 
 static int
-js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
+inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
   char buf[FMT_ULONG];
   const char *str, *str2;
   uint8_t* ptr;
@@ -618,7 +618,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, Ins
     if(depth >= opts->compact)
       writer_putc(wr, ' ');
     else
-      inspect_newline(wr, depth + 2);
+      put_newline(wr, depth + 2);
 
     writer_puts(wr, "byteLength: ");
     writer_write(wr, buf, fmt_ulong(buf, size));
@@ -628,7 +628,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, Ins
   if(depth + 1 >= opts->compact)
     writer_putc(wr, ' ');
   else
-    inspect_newline(wr, depth + 3);
+    put_newline(wr, depth + 3);
 
   break_len -= (depth + 3) * 2;
   column = 0;
@@ -641,7 +641,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, Ins
       if(depth + 1 >= opts->compact)
         writer_putc(wr, ' ');
       else
-        inspect_newline(wr, depth + 3);
+        put_newline(wr, depth + 3);
 
       column = 0;
     }
@@ -666,7 +666,7 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, Ins
       if(depth + 1 >= opts->compact)
         writer_putc(wr, ' ');
       else
-        inspect_newline(wr, depth + 3);
+        put_newline(wr, depth + 3);
 
       writer_puts(wr, "... ");
       writer_write(wr, buf, fmt_ulong(buf, size - i));
@@ -676,14 +676,14 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, Ins
     if(depth + 1 >= opts->compact)
       writer_putc(wr, ' ');
     else
-      inspect_newline(wr, depth + 2);
+      put_newline(wr, depth + 2);
 
     writer_puts(wr, "]");
 
     if(depth >= opts->compact)
       writer_putc(wr, ' ');
     else
-      inspect_newline(wr, depth + 1);
+      put_newline(wr, depth + 1);
 
     writer_puts(wr, "}");
   }
@@ -692,14 +692,14 @@ js_inspect_print_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, Ins
 }
 
 static int
-js_inspect_print_regexp(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t depth) {
+inspect_regexp(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t depth) {
   size_t len;
   const char* str = JS_ToCStringLen(ctx, &len, value);
 
   if(opts->colors)
     writer_puts(wr, COLOR_RED);
 
-  inspect_escape(wr, str, len);
+  put_escaped(wr, str, len);
 
   if(opts->colors)
     writer_puts(wr, COLOR_NONE);
@@ -709,7 +709,7 @@ js_inspect_print_regexp(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
 }
 
 static int
-js_inspect_print_number(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t depth) {
+inspect_number(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t depth) {
   int tag = JS_VALUE_GET_TAG(value);
 
   if(tag != JS_TAG_SYMBOL && opts->colors)
@@ -762,7 +762,7 @@ js_inspect_print_number(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
 }
 
 static int
-js_inspect_print_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
+inspect_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
   int col = 0, tag = JS_VALUE_GET_TAG(value);
   int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
   size_t len, pos, limit, max_len, column_start = (depth * 2);
@@ -784,7 +784,7 @@ js_inspect_print_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
       if(pos > 0) {
         writer_puts(wr, opts->colors ? "'" COLOR_NONE " +" : "' +");
         max_len = opts->break_length - column_start - 8;
-        inspect_newline(wr, depth + 1);
+        put_newline(wr, depth + 1);
         writer_puts(wr, opts->colors ? COLOR_GREEN "'" : "'");
       }
 
@@ -802,7 +802,7 @@ js_inspect_print_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
       n = ansi_truncate(&str[pos], n, max_len);
     }
 
-    inspect_escape(wr, &str[pos], n);
+    put_escaped(wr, &str[pos], n);
     pos += n;
   }
 
@@ -817,7 +817,7 @@ js_inspect_print_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
 
     if(opts->break_length != INT32_MAX)
       // if(dbuf_get_column(wr) + 26 > opts->break_length)
-      inspect_newline(wr, depth + 1);
+      put_newline(wr, depth + 1);
 
     writer_puts(wr, "... ");
     writer_write(wr, lenbuf, fmt_ulong(lenbuf, len - pos));
@@ -828,7 +828,7 @@ js_inspect_print_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
 }
 
 static int
-js_inspect_print_key(JSContext* ctx, Writer* wr, JSAtom key, InspectOptions* opts) {
+inspect_key(JSContext* ctx, Writer* wr, JSAtom key, InspectOptions* opts) {
   const char* str = 0;
   JSValue value = JS_AtomToValue(ctx, key);
   BOOL is_string = JS_IsString(value);
@@ -839,7 +839,7 @@ js_inspect_print_key(JSContext* ctx, Writer* wr, JSAtom key, InspectOptions* opt
     if(!is_string)
       writer_putc(wr, '[');
 
-    js_inspect_print_value(ctx, wr, value, opts, 0);
+    inspect_value(ctx, wr, value, opts, 0);
     if(!is_string)
       writer_putc(wr, ']');
   }
@@ -851,15 +851,15 @@ js_inspect_print_key(JSContext* ctx, Writer* wr, JSAtom key, InspectOptions* opt
 }
 
 static int
-js_inspect_print_atom(JSContext* ctx, Writer* wr, JSAtom atom, InspectOptions* opts, int32_t depth) {
+inspect_atom(JSContext* ctx, Writer* wr, JSAtom atom, InspectOptions* opts, int32_t depth) {
   JSValue value = JS_AtomToValue(ctx, atom);
-  int r = js_inspect_print_value(ctx, wr, value, opts, depth);
+  int r = inspect_value(ctx, wr, value, opts, depth);
   JS_FreeValue(ctx, value);
   return r;
 }
 
 static int
-js_inspect_print_module(JSContext* ctx, Writer* wr, JSModuleDef* def, InspectOptions* opts, int32_t depth) {
+inspect_module(JSContext* ctx, Writer* wr, JSModuleDef* def, InspectOptions* opts, int32_t depth) {
   char buf[FMT_ULONG];
 
   writer_puts(wr, opts->colors ? COLOR_CYAN "[module" COLOR_NONE : "[module");
@@ -886,7 +886,7 @@ js_inspect_print_module(JSContext* ctx, Writer* wr, JSModuleDef* def, InspectOpt
 
     writer_putc(wr, ' ');
     // pos = wr->size;
-    js_inspect_print_atom(ctx, wr, def->module_name, opts, depth + 1);
+    inspect_atom(ctx, wr, def->module_name, opts, depth + 1);
 
     if(JS_IsFunction(ctx, def->func_obj))
       writer_puts(wr, COLOR_RED " JS" COLOR_NONE);
@@ -906,7 +906,7 @@ js_inspect_print_module(JSContext* ctx, Writer* wr, JSModuleDef* def, InspectOpt
 
     if(JS_IsFunction(ctx, def->func_obj)) {
       writer_putc(wr, ' ');
-      js_inspect_print_value(ctx, wr, def->func_obj, opts, depth + 1);
+      inspect_value(ctx, wr, def->func_obj, opts, depth + 1);
     }
   }
 
@@ -915,7 +915,7 @@ js_inspect_print_module(JSContext* ctx, Writer* wr, JSModuleDef* def, InspectOpt
 }
 
 static int
-js_inspect_print_error(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
+inspect_error(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
   JSValue stack;
   char* class_name;
   const char* str;
@@ -929,7 +929,7 @@ js_inspect_print_error(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
   writer_puts(wr, opts->colors ? COLOR_NONE " {" : " {");
 
   if((str = js_get_propertystr_cstring(ctx, value, "message"))) {
-    inspect_newline(wr, depth + 1);
+    put_newline(wr, depth + 1);
     writer_puts(wr, "message: ");
     writer_puts(wr, str);
     JS_FreeCString(ctx, str);
@@ -943,14 +943,14 @@ js_inspect_print_error(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
 
     if((s = JS_ToCStringLen(ctx, &len, stack))) {
 
-      inspect_newline(wr, depth + 1);
+      put_newline(wr, depth + 1);
       writer_puts(wr, "stack:");
 
       for(p = s, e = s + len; p < e;) {
         size_t ll = scan_line(p, e - p);
         size_t next = ll + scan_lineskip(&p[ll], e - p - ll);
 
-        inspect_newline(wr, depth + 2);
+        put_newline(wr, depth + 2);
         writer_write(wr, "|", 1);
         writer_write(wr, p, ll);
 
@@ -961,14 +961,14 @@ js_inspect_print_error(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
     }
   }
 
-  inspect_newline(wr, depth);
+  put_newline(wr, depth);
   writer_puts(wr, opts->colors ? COLOR_NONE "}" : "}");
 
   return 1;
 }
 
 static int
-js_inspect_print_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
+inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
   int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
   JSObject* obj = JS_VALUE_GET_OBJ(value);
 
@@ -985,7 +985,7 @@ js_inspect_print_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
   }
 
   if(opts->custom_inspect) {
-    JSValue tmp = js_inspect_custom_call(ctx, value, opts, depth + 1);
+    JSValue tmp = inspect_custom(ctx, value, opts, depth + 1);
 
     if(JS_IsString(tmp)) {
       const char* s = JS_ToCString(ctx, tmp);
@@ -1000,7 +1000,7 @@ js_inspect_print_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
     }
 
     if(!JS_IsUndefined(tmp)) {
-      js_inspect_print_value(ctx, wr, tmp, opts, depth + 1);
+      inspect_value(ctx, wr, tmp, opts, depth + 1);
       return 1;
     }
   }
@@ -1012,17 +1012,17 @@ js_inspect_print_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectO
 
     if(!is_array && !is_typedarray) {
       if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
-        return js_inspect_print_arraybuffer(ctx, wr, value, opts, depth);
+        return inspect_arraybuffer(ctx, wr, value, opts, depth);
       if(js_is_date(ctx, value))
-        return js_inspect_print_date(ctx, wr, value, opts, depth);
+        return inspect_date(ctx, wr, value, opts, depth);
       if(js_is_map(ctx, value))
-        return js_inspect_print_map(ctx, wr, value, opts, depth);
+        return inspect_map(ctx, wr, value, opts, depth);
       if(js_is_set(ctx, value))
-        return js_inspect_print_set(ctx, wr, value, opts, depth);
+        return inspect_set(ctx, wr, value, opts, depth);
       if(js_is_regexp(ctx, value))
-        return js_inspect_print_regexp(ctx, wr, value, opts, depth);
+        return inspect_regexp(ctx, wr, value, opts, depth);
       if(js_is_error(ctx, value))
-        return js_inspect_print_error(ctx, wr, value, opts, depth);
+        return inspect_error(ctx, wr, value, opts, depth);
     }
 
     if(js_is_generator(ctx, value)) {
@@ -1092,7 +1092,7 @@ end_obj:
 }
 
 static int
-js_inspect_print_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
+inspect_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
   int tag = JS_VALUE_GET_TAG(value);
   int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
 
@@ -1102,7 +1102,7 @@ js_inspect_print_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
     case JS_TAG_BIG_INT:
     case JS_TAG_INT:
     case JS_TAG_BIG_FLOAT: {
-      return js_inspect_print_number(ctx, wr, value, opts, level);
+      return inspect_number(ctx, wr, value, opts, level);
     }
 
     case JS_TAG_BOOL: {
@@ -1171,7 +1171,7 @@ js_inspect_print_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
     }
 
     case JS_TAG_STRING: {
-      return js_inspect_print_string(ctx, wr, value, opts, level);
+      return inspect_string(ctx, wr, value, opts, level);
     }
 
     case JS_TAG_OBJECT: {
@@ -1182,7 +1182,7 @@ js_inspect_print_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
       JS_FreeValue(ctx, error_ctor);
 
       if(is_error)
-        return js_inspect_print_error(ctx, wr, value, opts, depth);
+        return inspect_error(ctx, wr, value, opts, depth);
 
       JSObject* obj = js_value_ptr(value);
 
@@ -1193,7 +1193,7 @@ js_inspect_print_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
 
       vector_push(&object_list, obj);
 
-      ret = js_inspect_print_object(ctx, wr, value, opts, depth);
+      ret = inspect_object(ctx, wr, value, opts, depth);
       assert(*(JSObject**)vector_back(&object_list, sizeof(obj)) == obj);
 
       vector_pop(&object_list, sizeof(obj));
@@ -1218,7 +1218,7 @@ js_inspect_print_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
     }
 
     default: {
-      JS_ThrowTypeError(ctx, "Unhandled value tag in js_inspect_print_value: %d\n", tag);
+      JS_ThrowTypeError(ctx, "Unhandled value tag in inspect_value: %d\n", tag);
       return -1;
     }
   }
@@ -1227,7 +1227,7 @@ js_inspect_print_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOp
 }
 
 static int
-js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t level) {
+inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t level) {
   PropertyEnumeration* it;
   Vector frames;
   BOOL is_array;
@@ -1243,7 +1243,7 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions*
   if(++depth > opts->compact)
     writer_putc(wr, ' ');
   else
-    inspect_newline(wr, depth);
+    put_newline(wr, depth);
 
   while(it) {
     JSValue value = property_enumeration_value(it, ctx);
@@ -1254,16 +1254,16 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions*
       if(depth >= opts->compact)
         writer_putc(wr, ' ');
       else
-        inspect_newline(wr, depth);
+        put_newline(wr, depth);
     }
 
     if(!is_array) {
-      js_inspect_print_key(ctx, wr, property_enumeration_atom(it), opts);
+      inspect_key(ctx, wr, property_enumeration_atom(it), opts);
       writer_puts(wr, ": ");
     }
 
     BOOL is_object = JS_IsObject(value);
-    int ret = is_object ? js_inspect_print_object(ctx, wr, value, opts, depth) : 0;
+    int ret = is_object ? inspect_object(ctx, wr, value, opts, depth) : 0;
 
     if(ret != 1) {
       if(is_object) {
@@ -1275,7 +1275,7 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions*
         if(++depth >= opts->compact)
           writer_puts(wr, it ? " " : "");
         else
-          inspect_newline(wr, depth);
+          put_newline(wr, depth);
 
         if(it)
           continue;
@@ -1285,7 +1285,7 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions*
     if(it) {
       if(ret != 1 && !is_object) {
         assert(!JS_IsObject(value));
-        js_inspect_print_value(ctx, wr, value, opts, depth);
+        inspect_value(ctx, wr, value, opts, depth);
       }
     }
 
@@ -1296,7 +1296,7 @@ js_inspect_recurse(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions*
       if(depth-- >= opts->compact)
         writer_puts(wr, it && property_enumeration_index(it) > 0 ? " " : "");
       else
-        inspect_newline(wr, depth);
+        put_newline(wr, depth);
 
       writer_putc(wr, is_array ? ']' : '}');
 
@@ -1329,13 +1329,13 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
   js_dbuf_init(ctx, &dbuf);
   wr = writer_from_dynbuf(&dbuf);
 
-  inspect_options_init(&options, ctx);
+  options_init(&options, ctx);
 
   if(argc > 1 && JS_IsNumber(argv[1]))
     optind++;
 
   if(optind < argc)
-    inspect_options_get(&options, ctx, argv[optind]);
+    options_get(&options, ctx, argv[optind]);
 
   if(optind > 1) {
     double d;
@@ -1346,15 +1346,15 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
   }
 
   if(JS_IsObject(argv[0]) && level < options.depth)
-    js_inspect_recurse(ctx, &wr, argv[0], &options, level);
+    inspect_recursive(ctx, &wr, argv[0], &options, level);
   else
-    js_inspect_print_value(ctx, &wr, argv[0], &options, level);
+    inspect_value(ctx, &wr, argv[0], &options, level);
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
   writer_free(&wr);
 
-  inspect_options_free(&options, ctx);
+  options_free(&options, ctx);
 
   return ret;
 }
@@ -1365,16 +1365,16 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   InspectOptions options;
 
   js_dbuf_init(ctx, &dbuf);
-  inspect_options_init(&options, ctx);
+  options_init(&options, ctx);
 
   options.colors = FALSE;
   options.compact = 0;
   options.getters = TRUE;
 
   Writer wr = writer_from_dynbuf(&dbuf);
-  js_inspect_print_value(ctx, &wr, value, &options, options.depth);
+  inspect_value(ctx, &wr, value, &options, options.depth);
 
-  inspect_options_free(&options, ctx);
+  options_free(&options, ctx);
 
   dbuf_0(&dbuf);
   return (char*)dbuf.buf;
@@ -1382,13 +1382,13 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
 
 char*
 js_inspect_atom(JSContext* ctx, JSAtom atom) {
- JSValue value = JS_AtomToValue(ctx, atom);
+  JSValue value = JS_AtomToValue(ctx, atom);
   char* str = js_inspect_tostring(ctx, value);
   JS_FreeValue(ctx, value);
   return str;
 }
 
-JSValue js_debugger_build_backtrace(JSContext* ctx, const uint8_t* cur_pc);
+/*JSValue js_debugger_build_backtrace(JSContext* ctx, const uint8_t* cur_pc);
 
 JSValue
 js_inspect_stacktrace_value(JSContext* ctx) {
@@ -1409,7 +1409,7 @@ const char*
 js_inspect_stacktrace(JSContext* ctx) {
   JSValue stack = js_inspect_stacktrace_value(ctx);
   return js_inspect_tostring(ctx, stack);
-}
+}*/
 
 static const JSCFunctionListEntry js_inspect_funcs[] = {
     JS_CFUNC_DEF("inspect", 1, js_inspect),
@@ -1432,8 +1432,8 @@ js_inspect_init(JSContext* ctx, JSModuleDef* m) {
   JS_FreeValue(ctx, symbol_ctor);
   JS_FreeValue(ctx, inspect_symbol);
 
-  inspect_custom_atom = js_inspect_custom_atom(ctx, "quickjs.inspect.custom");
-  inspect_custom_atom_node = js_inspect_custom_atom(ctx, "nodejs.util.inspect.custom");
+  inspect_custom_atom = js_symbol_for_atom(ctx, "quickjs.inspect.custom");
+  inspect_custom_atom_node = js_symbol_for_atom(ctx, "nodejs.util.inspect.custom");
 
   object_tostring = js_global_prototype_func(ctx, "Object", "toString");
 
@@ -1459,7 +1459,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));
     JS_AddModuleExport(ctx, m, "default");
   }
-  
+
   return m;
 }
 
