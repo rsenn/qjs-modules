@@ -11,6 +11,7 @@
 #include "vector.h"
 #include "buffer-utils.h"
 #include "stream-utils.h"
+#include "debug.h"
 
 #include <ctype.h>
 #include <math.h>
@@ -27,9 +28,7 @@
 #endif
 #endif
 
-#include "debug.h"
-
-static JSClassID function_class_id_ceil = JS_CLASS_ASYNC_GENERATOR;
+/*static JSClassID function_class_id_ceil = JS_CLASS_ASYNC_GENERATOR;*/
 
 /**
  * \defgroup quickjs-inspect QuickJS module: inspect - Inspection
@@ -37,7 +36,7 @@ static JSClassID function_class_id_ceil = JS_CLASS_ASYNC_GENERATOR;
  */
 
 thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
-thread_local JSValue object_tostring;
+static thread_local JSValue object_tostring;
 
 #define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
 #define INSPECT_LEVEL(opts, _depth) ((opts)->depth - (_depth))
@@ -46,7 +45,7 @@ thread_local JSValue object_tostring;
 #define INSPECT_IS_COMPACT(opts, _depth) INSPECT_IS_COMPACT_DEPTH(INSPECT_LEVEL(opts, _depth), (opts)->compact)
 #define INSPECT_COMPACT(opts, _depth) INSPECT_LEVEL(opts, _depth)
 
-static thread_local Vector object_list = VECTOR_INIT();
+// static thread_local Vector object_list = VECTOR_INIT();
 
 typedef struct {
   const char* name;
@@ -1186,17 +1185,17 @@ inspect_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* op
 
       JSObject* obj = js_value_ptr(value);
 
-      if(vector_find(&object_list, sizeof(obj), &obj) != -1) {
-        writer_puts(wr, opts->colors ? COLOR_RED "[loop]" COLOR_NONE : "[loop]");
-        return ret;
-      }
+      /* if(vector_find(&object_list, sizeof(obj), &obj) != -1) {
+         writer_puts(wr, opts->colors ? COLOR_RED "[loop]" COLOR_NONE : "[loop]");
+         return ret;
+       }*/
 
-      vector_push(&object_list, obj);
+      // vector_push(&object_list, obj);
 
       ret = inspect_object(ctx, wr, value, opts, depth);
-      assert(*(JSObject**)vector_back(&object_list, sizeof(obj)) == obj);
+      // assert(*(JSObject**)vector_back(&object_list, sizeof(obj)) == obj);
 
-      vector_pop(&object_list, sizeof(obj));
+      // vector_pop(&object_list, sizeof(obj));
       return ret;
     }
 
