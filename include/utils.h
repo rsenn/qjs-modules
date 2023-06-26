@@ -552,10 +552,10 @@ int js_atom_cmp_string(JSContext* ctx, JSAtom atom, const char* other);
 BOOL js_atom_is_length(JSContext* ctx, JSAtom atom);
 char* js_atom_tostring(JSContext* ctx, JSAtom atom);
 
-static inline BOOL
+/*static inline BOOL
 js_atom_equal_string(JSContext* ctx, JSAtom atom, const char* other) {
   return js_atom_cmp_string(ctx, atom, other) == 0;
-}
+}*/
 
 const char* js_object_tostring(JSContext* ctx, JSValueConst value);
 const char* js_object_tostring2(JSContext* ctx, JSValueConst method, JSValueConst value);
