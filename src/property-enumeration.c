@@ -143,12 +143,40 @@ property_enumeration_key(const PropertyEnumeration* it, JSContext* ctx) {
 
   if(JS_IsArray(ctx, it->obj)) {
     int64_t idx;
-    JS_ToInt64(ctx, &idx, key);
-    JS_FreeValue(ctx, key);
-    key = JS_NewInt64(ctx, idx);
+    
+    if(!JS_ToInt64(ctx, &idx, key)) {
+      JS_FreeValue(ctx, key);
+      key = JS_NewInt64(ctx, idx);
+    }
   }
 
   return key;
+}
+
+int
+property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueConst fn, JSValueConst this_arg) {
+  BOOL result;
+  JSValue ret;
+  JSValueConst argv[3] = {
+      property_enumeration_value(it, ctx),
+      property_enumeration_key(it, ctx),
+      this_arg,
+  };
+
+  ret = JS_Call(ctx, fn, JS_UNDEFINED, 3, argv);
+
+  if(JS_IsException(ret)) {
+    JS_GetException(ctx);
+    ret = JS_FALSE;
+  }
+
+  result = JS_ToBool(ctx, ret);
+
+  JS_FreeValue(ctx, argv[0]);
+  JS_FreeValue(ctx, argv[1]);
+  JS_FreeValue(ctx, ret);
+
+  return result;
 }
 
 JSValue
@@ -203,32 +231,6 @@ property_recursion_pathstr_value(const Vector* vec, JSContext* ctx) {
   dbuf_free(&dbuf);
 
   return ret;
-}
-
-int
-property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueConst fn, JSValueConst this_arg) {
-  BOOL result;
-  JSValue ret;
-  JSValueConst argv[3] = {
-      property_enumeration_value(it, ctx),
-      property_enumeration_key(it, ctx),
-      this_arg,
-  };
-
-  ret = JS_Call(ctx, fn, JS_UNDEFINED, 3, argv);
-
-  if(JS_IsException(ret)) {
-    JS_GetException(ctx);
-    ret = JS_FALSE;
-  }
-
-  result = JS_ToBool(ctx, ret);
-
-  JS_FreeValue(ctx, argv[0]);
-  JS_FreeValue(ctx, argv[1]);
-  JS_FreeValue(ctx, ret);
-
-  return result;
 }
 
 void
