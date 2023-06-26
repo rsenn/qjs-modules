@@ -496,7 +496,9 @@ inspect_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
 
   writer_puts(wr, opts->colors ? COLOR_LIGHTRED "Map" COLOR_NONE " {" : "Map {");
 
-  if(IS_COMPACT(depth < opts->compact) && opts->break_length != INT32_MAX)
+  if(IS_COMPACT(depth + 1 > opts->compact))
+    writer_putc(wr, ' ');
+  else
     put_newline(wr, depth);
 
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
@@ -505,11 +507,11 @@ inspect_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
 
       if(i) {
         writer_puts(wr, ",");
-        if(IS_COMPACT(depth < opts->compact) && opts->break_length != INT32_MAX)
+        if(!IS_COMPACT(depth + 1 > opts->compact))
           put_newline(wr, depth);
       }
 
-      writer_puts(wr, IS_COMPACT(depth >= opts->compact) ? " " : "  ");
+      writer_puts(wr, IS_COMPACT(depth + 1 > opts->compact) ? " " : "  ");
       key = JS_GetPropertyUint32(ctx, data, 0);
       inspect_value(ctx, wr, key, opts, depth + 1);
 
@@ -523,10 +525,12 @@ inspect_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
     }
   }
 
-  if(IS_COMPACT(depth < opts->compact) && opts->break_length != INT32_MAX)
+  if(IS_COMPACT(depth + 1 > opts->compact))
+    writer_putc(wr, ' ');
+  else
     put_newline(wr, depth);
 
-  writer_puts(wr, IS_COMPACT(depth >= opts->compact) ? " }" : "}");
+  writer_putc(wr, '}');
   iteration_reset_rt(&it, JS_GetRuntime(ctx));
 
   return 1;
@@ -547,7 +551,9 @@ inspect_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
 
   writer_puts(wr, opts->colors ? COLOR_LIGHTRED "Set" COLOR_NONE " [" : "Set [");
 
-  if(IS_COMPACT(depth < opts->compact) && opts->break_length != INT32_MAX)
+  if(IS_COMPACT(depth + 1 > opts->compact))
+    writer_putc(wr, ' ');
+  else
     put_newline(wr, depth);
 
   for(i = 0; !(finish = iteration_next(&it, ctx)); i++) {
@@ -556,20 +562,22 @@ inspect_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
 
       if(i) {
         writer_puts(wr, ",");
-        if(IS_COMPACT(depth < opts->compact) && opts->break_length != INT32_MAX)
+        if(!IS_COMPACT(depth + 1 > opts->compact))
           put_newline(wr, depth);
       }
 
-      writer_puts(wr, IS_COMPACT(depth >= opts->compact) ? " " : "  ");
+      writer_puts(wr, IS_COMPACT(depth + 1 > opts->compact) ? " " : "  ");
       inspect_value(ctx, wr, value, opts, depth + 1);
       JS_FreeValue(ctx, value);
     }
   }
 
-  if(IS_COMPACT(depth < opts->compact) && opts->break_length != INT32_MAX)
+  if(IS_COMPACT(depth + 1 > opts->compact))
+    writer_putc(wr, ' ');
+  else
     put_newline(wr, depth);
 
-  writer_puts(wr, IS_COMPACT(depth >= opts->compact) ? " ]" : "]");
+  writer_putc(wr, ']');
   iteration_reset_rt(&it, JS_GetRuntime(ctx));
   return 0;
 }
@@ -613,7 +621,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
 
     writer_puts(wr, " {");
 
-    if(IS_COMPACT(depth >= opts->compact))
+    if(IS_COMPACT(depth + 1 > opts->compact))
       writer_putc(wr, ' ');
     else
       put_newline(wr, depth + 2);
@@ -623,7 +631,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
     writer_puts(wr, " [");
   }
 
-  if(IS_COMPACT(depth + 1 >= opts->compact))
+  if(IS_COMPACT(depth + 2 > opts->compact))
     writer_putc(wr, ' ');
   else
     put_newline(wr, depth + 3);
@@ -636,7 +644,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
       if(opts->reparseable && i > 0)
         writer_putc(wr, ',');
 
-      if(IS_COMPACT(depth + 1 >= opts->compact))
+      if(IS_COMPACT(depth + 2 > opts->compact))
         writer_putc(wr, ' ');
       else
         put_newline(wr, depth + 3);
@@ -661,7 +669,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
     writer_puts(wr, "]).buffer");
   } else {
     if(i < size) {
-      if(IS_COMPACT(depth + 1 >= opts->compact))
+      if(IS_COMPACT(depth + 3 > opts->compact))
         writer_putc(wr, ' ');
       else
         put_newline(wr, depth + 3);
@@ -671,14 +679,14 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
       writer_puts(wr, " more bytes");
     }
 
-    if(IS_COMPACT(depth + 1 >= opts->compact))
+    if(IS_COMPACT(depth + 2 > opts->compact))
       writer_putc(wr, ' ');
     else
       put_newline(wr, depth + 2);
 
     writer_puts(wr, "]");
 
-    if(IS_COMPACT(depth >= opts->compact))
+    if(IS_COMPACT(depth + 1 > opts->compact))
       writer_putc(wr, ' ');
     else
       put_newline(wr, depth + 1);
@@ -796,7 +804,7 @@ inspect_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
           break;
         }
       }
-    } else if(IS_COMPACT(depth >= opts->compact)) {
+    } else if(IS_COMPACT(depth + 1 > opts->compact)) {
       n = ansi_truncate(&str[pos], n, max_len);
     }
 
@@ -813,9 +821,9 @@ inspect_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
   if(limit < len) {
     char lenbuf[FMT_ULONG];
 
-    if(opts->break_length != INT32_MAX)
-      // if(dbuf_get_column(wr) + 26 > opts->break_length)
-      put_newline(wr, depth + 1);
+    // if(opts->break_length != INT32_MAX)
+    //  if(dbuf_get_column(wr) + 26 > opts->break_length)
+    put_newline(wr, depth + 1);
 
     writer_puts(wr, "... ");
     writer_write(wr, lenbuf, fmt_ulong(lenbuf, len - pos));
@@ -975,7 +983,7 @@ inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
 
   BOOL is_array = js_is_array(ctx, value);
 
-  if(depth >= opts->depth) {
+  if(IS_COMPACT(depth + 1 > opts->depth)) {
     writer_puts(wr,
                 is_array ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]")
                          : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
@@ -1228,7 +1236,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     if(index > 0) {
       writer_puts(wr, ",");
 
-      if(IS_COMPACT(depth >= opts->compact))
+      if(IS_COMPACT(depth + 1 > opts->compact))
         writer_putc(wr, ' ');
       else
         put_newline(wr, depth);
@@ -1260,7 +1268,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
         if(it == NULL)
           writer_puts(wr, "");
-        else if(IS_COMPACT(depth >= opts->compact))
+        else if(IS_COMPACT(depth + 1 > opts->compact))
           writer_putc(wr, ' ');
         else
           put_newline(wr, depth);
@@ -1283,7 +1291,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
       if(it == NULL || property_enumeration_index(it) == 0)
         writer_puts(wr, "");
-      else if(IS_COMPACT(depth >= opts->compact))
+      else if(IS_COMPACT(depth + 1 > opts->compact))
         writer_putc(wr, ' ');
       else
         put_newline(wr, depth - 1);
