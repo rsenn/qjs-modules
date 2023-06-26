@@ -1308,8 +1308,10 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
       it = property_recursion_pop(&frames, ctx);
 
       if(it || index == 0) {
-        if(IS_COMPACT(depth + 1))
-          writer_puts(wr, index == 0 && !it ? "" : " ");
+        if(index == 0 && !it)
+          writer_puts(wr, "");
+        else if(IS_COMPACT(depth + 1))
+          writer_putc(wr, ' ');
         else
           put_newline(wr, depth - 1);
 
