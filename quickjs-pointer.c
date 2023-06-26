@@ -102,13 +102,14 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   JSValue ret = JS_UNDEFINED;
   Pointer* ptr;
   DynBuf dbuf;
-  BOOL color = FALSE;
+  BOOL color = FALSE, reparseable = FALSE;
 
   if(!(ptr = JS_GetOpaque2(ctx, this_val, js_pointer_class_id)))
     return JS_EXCEPTION;
 
   if(argc > 1 && JS_IsObject(argv[1])) {
     color = js_get_propertystr_bool(ctx, argv[1], "colors");
+    reparseable = js_get_propertystr_bool(ctx, argv[1], "reparseable");
   }
 
   js_dbuf_init(ctx, &dbuf);

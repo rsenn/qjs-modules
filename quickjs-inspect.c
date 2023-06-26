@@ -461,12 +461,16 @@ inspect_date(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts,
   JSValue date = js_invoke(ctx, obj, "toISOString", 0, 0);
 
   if((str = JS_ToCString(ctx, date))) {
-    if(opts->colors)
+    if(opts->reparseable)
+      writer_puts(wr, "new Date('");
+    else if(opts->colors)
       writer_puts(wr, COLOR_PURPLE);
 
     writer_puts(wr, str);
 
-    if(opts->colors)
+    if(opts->reparseable)
+      writer_puts(wr, "')");
+    else if(opts->colors)
       writer_puts(wr, COLOR_NONE);
 
     JS_FreeCString(ctx, str);
@@ -648,8 +652,19 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
     }
 
     if(opts->reparseable) {
-      writer_puts(wr, column ? ", " : "");
-      writer_write(wr, buf, fmt_xlong0(buf, ptr[i], 2));
+      if(i > 0) {
+        writer_puts(wr, column > 0 ? ", " : "");
+        column += 2;
+      }
+
+      if(ptr[i] == 0) {
+        writer_putc(wr, '0');
+        column += 1;
+      } else {
+        writer_puts(wr, "0x");
+        writer_write(wr, buf, fmt_xlong0(buf, ptr[i], 2));
+        column += 4;
+      }
     } else if(i == (size_t)opts->max_array_length) {
       break;
     } else {
@@ -661,6 +676,12 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
   }
 
   if(opts->reparseable) {
+
+    if(IS_COMPACT(depth + 2))
+      writer_putc(wr, ' ');
+    else
+      put_newline(wr, depth + 2);
+
     writer_puts(wr, "]).buffer");
   } else {
     if(i < size) {
@@ -684,7 +705,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
     if(IS_COMPACT(depth + 1))
       writer_putc(wr, ' ');
     else
-      put_newline(wr, depth + 1);
+      put_newline(wr, depth);
 
     writer_puts(wr, "}");
   }
@@ -978,7 +999,7 @@ inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
 
   BOOL is_array = js_is_array(ctx, value);
 
-  if(IS_COMPACT(depth + 1)) {
+  if(opts->depth != INT32_MAX && depth + 1 > opts->depth) {
     writer_puts(wr,
                 is_array ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]")
                          : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
@@ -1307,10 +1328,12 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     is_array = js_is_array(ctx, it->obj);
   }
 
+  --depth;
+
   if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, depth);
+    put_newline(wr, depth - 1);
 
   writer_putc(wr, js_is_array(ctx, obj) ? ']' : '}');
 
@@ -1346,9 +1369,15 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
     level = 0;
   }
 
-  if(JS_IsObject(argv[0]) && level < options.depth)
-    inspect_recursive(ctx, &wr, argv[0], &options, level);
-  else
+  /*if(js_is_date(ctx, argv[0]))
+    inspect_date(ctx, &wr, argv[0], &options, level);
+  else*/
+  if(JS_IsObject(argv[0]) && level < options.depth) {
+    int ret = inspect_object(ctx, &wr, argv[0], &options, level);
+
+    if(ret != 1)
+      inspect_recursive(ctx, &wr, argv[0], &options, level);
+  } else
     inspect_value(ctx, &wr, argv[0], &options, level);
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
