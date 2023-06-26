@@ -1008,14 +1008,15 @@ js_predicate_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, &js_predicate_init);
-  if(!m)
-    return NULL;
+
+  if((m = JS_NewCModule(ctx, module_name, &js_predicate_init))) {
   JS_AddModuleExport(ctx, m, "Predicate");
   JS_AddModuleExport(ctx, m, "PredicateOperators");
   JS_AddModuleExport(ctx, m, "PredicateOperatorSet");
   JS_AddModuleExportList(ctx, m, js_predicate_funcs, countof(js_predicate_funcs));
   JS_AddModuleExportList(ctx, m, js_predicate_types, countof(js_predicate_types));
+}
+
   return m;
 }
 

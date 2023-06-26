@@ -583,10 +583,11 @@ js_repeater_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, &js_repeater_init);
-  if(!m)
-    return NULL;
+  
+  if((m = JS_NewCModule(ctx, module_name, &js_repeater_init))) {
   JS_AddModuleExport(ctx, m, "Repeater");
+}
+
   return m;
 }
 

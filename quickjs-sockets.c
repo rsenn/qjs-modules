@@ -2294,8 +2294,8 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  if(!(m = JS_NewCModule(ctx, module_name, &js_sockets_init)))
-    return m;
+
+  if((m = JS_NewCModule(ctx, module_name, &js_sockets_init))) {
   JS_AddModuleExport(ctx, m, "SyscallError");
   JS_AddModuleExport(ctx, m, "SockAddr");
   JS_AddModuleExport(ctx, m, "Socket");
@@ -2316,6 +2316,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExportList(ctx, m, js_sockets_defines, countof(js_sockets_defines));
     JS_AddModuleExportList(ctx, m, js_sockets_errnos, countof(js_sockets_errnos));
   }
+}
+
   return m;
 }
 

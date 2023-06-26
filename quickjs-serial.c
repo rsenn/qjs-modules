@@ -639,14 +639,15 @@ js_serial_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  if(!(m = JS_NewCModule(ctx, module_name, &js_serial_init)))
-    return m;
+
+  if((m = JS_NewCModule(ctx, module_name, &js_serial_init))) {
   JS_AddModuleExport(ctx, m, "Serial");
   JS_AddModuleExport(ctx, m, "SerialPort");
   JS_AddModuleExport(ctx, m, "SerialError");
 
   /* if(!strcmp(module_name, "cookie"))
      JS_AddModuleExport(ctx, m, "default");*/
+}
 
   return m;
 }

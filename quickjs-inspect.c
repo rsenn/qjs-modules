@@ -1454,11 +1454,12 @@ js_inspect_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, js_inspect_init);
-  if(!m)
-    return NULL;
-  JS_AddModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));
-  JS_AddModuleExport(ctx, m, "default");
+
+  if((m = JS_NewCModule(ctx, module_name, js_inspect_init))) {
+    JS_AddModuleExportList(ctx, m, js_inspect_funcs, countof(js_inspect_funcs));
+    JS_AddModuleExport(ctx, m, "default");
+  }
+  
   return m;
 }
 

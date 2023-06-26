@@ -21,8 +21,8 @@ typedef struct {
 } JSLexerRule;
 
 thread_local VISIBLE JSClassID js_token_class_id = 0, js_lexer_class_id = 0;
-thread_local JSValue token_proto = {{0},JS_TAG_UNDEFINED}, token_ctor = {{0},JS_TAG_UNDEFINED};
-thread_local JSValue lexer_proto = {{0},JS_TAG_UNDEFINED}, lexer_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue token_proto = {{0}, JS_TAG_UNDEFINED}, token_ctor = {{0}, JS_TAG_UNDEFINED};
+thread_local JSValue lexer_proto = {{0}, JS_TAG_UNDEFINED}, lexer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue
 offset_toarray(OffsetLength offs_len, JSContext* ctx) {
@@ -385,7 +385,8 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   int64_t flags = 0;
   int id = 0;
 
-  if(argc >= 1 && (flags = lexer_to_state(lex, ctx, argv[0]))) {}
+  if(argc >= 1 && (flags = lexer_to_state(lex, ctx, argv[0]))) {
+  }
 
   if(lex->byte_length > 0 && lex->token_id != -1)
     lexer_skip(lex);
@@ -904,7 +905,10 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         // lexer_state_name(lex, id));
         ret = JS_NewInt32(ctx, id);
       } else {
-        ret = JS_ThrowInternalError(ctx, "lexer (%s) depth %lu", lexer_state_topname(lex), (unsigned long)lexer_state_depth(lex));
+        ret = JS_ThrowInternalError(ctx,
+                                    "lexer (%s) depth %lu",
+                                    lexer_state_topname(lex),
+                                    (unsigned long)lexer_state_depth(lex));
       }
 
       break;
@@ -1210,7 +1214,8 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
 
   stack[size - 1] = lex->state;
 
-  buf = JS_NewArrayBuffer(ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
+  buf = JS_NewArrayBuffer(
+      ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
 
   ctor = js_global_get_str(ctx, "Int32Array");
 
@@ -1284,7 +1289,8 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                                   lexer_state_top(lex, 0),
                                   lexer_state_name(lex, lexer_state_top(lex, 0)),
                                   /*   lexeme,*/
-                                  (int)(byte_chr((const char*)&lex->data[lex->pos], lex->size - lex->pos, '\n') + lex->loc.column),
+                                  (int)(byte_chr((const char*)&lex->data[lex->pos], lex->size - lex->pos, '\n') +
+                                        lex->loc.column),
                                   &lex->data[lex->pos - lex->loc.column],
                                   lex->loc.column + 1,
                                   "^");
@@ -1392,8 +1398,11 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   next = JS_NewCFunction2(ctx, (JSCFunction*)&js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, magic);
 
-  JS_DefinePropertyValue(
-      ctx, ret, symbol, JS_NewCFunction2(ctx, (JSCFunction*)&JS_DupValue, "[Symbol.iterator]", 0, JS_CFUNC_generic, 0), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValue(ctx,
+                         ret,
+                         symbol,
+                         JS_NewCFunction2(ctx, (JSCFunction*)&JS_DupValue, "[Symbol.iterator]", 0, JS_CFUNC_generic, 0),
+                         JS_PROP_CONFIGURABLE);
   JS_FreeAtom(ctx, symbol);
 
   JS_DefinePropertyValueStr(ctx, ret, "next", js_function_bind_this(ctx, next, this_val), JS_PROP_CONFIGURABLE);
@@ -1549,12 +1558,13 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  if(!(m = JS_NewCModule(ctx, module_name, &js_lexer_init)))
-    return m;
 
-  JS_AddModuleExport(ctx, m, "Location");
-  JS_AddModuleExport(ctx, m, "Token");
-  JS_AddModuleExport(ctx, m, "Lexer");
+  if((m = JS_NewCModule(ctx, module_name, &js_lexer_init))) {
+    JS_AddModuleExport(ctx, m, "Location");
+    JS_AddModuleExport(ctx, m, "Token");
+    JS_AddModuleExport(ctx, m, "Lexer");
+  }
+
   return m;
 }
 

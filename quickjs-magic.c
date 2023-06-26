@@ -10,7 +10,7 @@
  * @{
  */
 thread_local VISIBLE JSClassID js_magic_class_id = 0;
-thread_local JSValue magic_proto = {{0},JS_TAG_UNDEFINED}, magic_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue magic_proto = {{0}, JS_TAG_UNDEFINED}, magic_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   LIBMAGIC_ERROR = 0,
@@ -340,12 +340,13 @@ js_magic_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  if(!(m = JS_NewCModule(ctx, module_name, &js_magic_init)))
-    return m;
-  JS_AddModuleExport(ctx, m, "Magic");
 
-  /* if(!strcmp(module_name, "cookie"))
-     JS_AddModuleExport(ctx, m, "default");*/
+  if((m = JS_NewCModule(ctx, module_name, &js_magic_init))) {
+    JS_AddModuleExport(ctx, m, "Magic");
+
+    /* if(!strcmp(module_name, "cookie"))
+       JS_AddModuleExport(ctx, m, "default");*/
+  }
 
   return m;
 }

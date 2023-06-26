@@ -11,7 +11,7 @@
  */
 
 thread_local VISIBLE JSClassID js_pointer_class_id = 0;
-thread_local JSValue pointer_proto = {{0},JS_TAG_UNDEFINED}, pointer_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue pointer_proto = {{0}, JS_TAG_UNDEFINED}, pointer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   METHOD_DEREF = 0,
@@ -468,7 +468,8 @@ js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
     }
   } else if(js_atom_is_length(ctx, prop)) {
     value = JS_NewUint32(ctx, pointer->n);
-  } else if((entry = js_find_cfunction_atom(ctx, js_pointer_proto_funcs, countof(js_pointer_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
+  } else if((entry = js_find_cfunction_atom(
+                 ctx, js_pointer_proto_funcs, countof(js_pointer_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
 
     // printf("entry: %d magic: %d\n", entry,
     // js_pointer_proto_funcs[entry].magic);
@@ -484,7 +485,8 @@ js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
 }
 
 static int
-js_pointer_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
+js_pointer_set_property(
+    JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
   int64_t index;
 
@@ -527,9 +529,12 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
 
   JSValue array_proto = js_global_prototype(ctx, "Array");
 
-  JS_DefinePropertyValueStr(ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(
+      ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(
+      ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(
+      ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
 
   js_set_inspect_method(ctx, pointer_proto, js_pointer_inspect);
 
@@ -556,10 +561,11 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, &js_pointer_init);
-  if(!m)
-    return NULL;
-  JS_AddModuleExport(ctx, m, "Pointer");
+
+  if((m = JS_NewCModule(ctx, module_name, &js_pointer_init))) {
+    JS_AddModuleExport(ctx, m, "Pointer");
+  }
+
   return m;
 }
 

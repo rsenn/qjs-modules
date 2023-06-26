@@ -12,9 +12,9 @@
  * @{
  */
 thread_local VISIBLE JSClassID js_tree_walker_class_id = 0;
-thread_local JSValue tree_walker_proto = {{0},JS_TAG_UNDEFINED}, tree_walker_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue tree_walker_proto = {{0}, JS_TAG_UNDEFINED}, tree_walker_ctor = {{0}, JS_TAG_UNDEFINED};
 thread_local VISIBLE JSClassID js_tree_iterator_class_id = 0;
-thread_local JSValue tree_iterator_proto = {{0},JS_TAG_UNDEFINED}, tree_iterator_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue tree_iterator_proto = {{0}, JS_TAG_UNDEFINED}, tree_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum tree_walker_filter {
   FILTER_ACCEPT = 1,
@@ -580,13 +580,19 @@ js_tree_walker_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_tree_iterator_class_id, &js_tree_iterator_class);
 
   tree_iterator_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, tree_iterator_proto, js_tree_iterator_proto_funcs, countof(js_tree_iterator_proto_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             tree_iterator_proto,
+                             js_tree_iterator_proto_funcs,
+                             countof(js_tree_iterator_proto_funcs));
   JS_SetClassProto(ctx, js_tree_iterator_class_id, tree_iterator_proto);
 
   tree_iterator_ctor = JS_NewCFunction2(ctx, js_tree_iterator_constructor, "TreeIterator", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, tree_iterator_ctor, tree_iterator_proto);
-  JS_SetPropertyFunctionList(ctx, tree_iterator_ctor, js_tree_walker_static_funcs, countof(js_tree_walker_static_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             tree_iterator_ctor,
+                             js_tree_walker_static_funcs,
+                             countof(js_tree_walker_static_funcs));
 
   if(m) {
     JS_SetModuleExport(ctx, m, "TreeWalker", tree_walker_ctor);
@@ -605,11 +611,12 @@ js_tree_walker_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, &js_tree_walker_init);
-  if(!m)
-    return NULL;
-  JS_AddModuleExport(ctx, m, "TreeWalker");
-  JS_AddModuleExport(ctx, m, "TreeIterator");
+
+  if((m = JS_NewCModule(ctx, module_name, &js_tree_walker_init))) {
+    JS_AddModuleExport(ctx, m, "TreeWalker");
+    JS_AddModuleExport(ctx, m, "TreeIterator");
+  }
+
   return m;
 }
 

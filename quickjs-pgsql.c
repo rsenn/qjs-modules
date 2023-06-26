@@ -11,8 +11,9 @@
  */
 
 thread_local VISIBLE JSClassID js_pgsqlerror_class_id = 0, js_pgconn_class_id = 0, js_pgresult_class_id = 0;
-thread_local JSValue pgsqlerror_proto = {{0}, JS_TAG_UNDEFINED}, pgsqlerror_ctor = {{0}, JS_TAG_UNDEFINED}, pgsql_proto = {{0}, JS_TAG_UNDEFINED},
-                     pgsql_ctor = {{0}, JS_TAG_UNDEFINED}, pgresult_proto = {{0}, JS_TAG_UNDEFINED}, pgresult_ctor = {{0}, JS_TAG_UNDEFINED};
+thread_local JSValue pgsqlerror_proto = {{0}, JS_TAG_UNDEFINED}, pgsqlerror_ctor = {{0}, JS_TAG_UNDEFINED},
+                     pgsql_proto = {{0}, JS_TAG_UNDEFINED}, pgsql_ctor = {{0}, JS_TAG_UNDEFINED},
+                     pgresult_proto = {{0}, JS_TAG_UNDEFINED}, pgresult_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue js_pgresult_wrap(JSContext* ctx, PGresult* res);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
@@ -937,7 +938,8 @@ js_pgconn_unescape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 }
 
 static JSValue
-js_pgconn_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+js_pgconn_connect_cont(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   int32_t fd;
   PGSQLConnection* pq;
   PostgresPollingStatusType newstate, oldstate;
@@ -1383,7 +1385,12 @@ result_array(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
     int len = PQgetlength(res, row, i);
     char* col = PQgetisnull(res, row, i) ? NULL : PQgetvalue(res, row, i);
 #ifdef DEBUG_OUTPUT_
-    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n", __func__, num_fields, i, (int)(len > 32 ? 32 : len), col);
+    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n",
+           __func__,
+           num_fields,
+           i,
+           (int)(len > 32 ? 32 : len),
+           col);
 #endif
     JS_SetPropertyUint32(ctx, ret, i, result_value(ctx, opaque, i, col, len, rtype));
   }
@@ -1714,7 +1721,10 @@ js_pgresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   *closure = (PGSQLResultIterator){ctx, pgresult_dup(opaque), 0};
 
-  JS_SetPropertyStr(ctx, ret, "next", js_function_cclosure(ctx, js_pgresult_iterator_next, 0, 0, closure, js_pgresult_iterator_free));
+  JS_SetPropertyStr(ctx,
+                    ret,
+                    "next",
+                    js_function_cclosure(ctx, js_pgresult_iterator_next, 0, 0, closure, js_pgresult_iterator_free));
 
   return ret;
 }
@@ -1791,73 +1801,6 @@ static const JSCFunctionListEntry js_pgresult_funcs[] = {
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_pgresult_iterator),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "PGresult", JS_PROP_CONFIGURABLE),
 };
-
-int
-js_pgsql_init(JSContext* ctx, JSModuleDef* m) {
-  if(js_pgconn_class_id == 0) {
-
-    JS_NewClassID(&js_pgconn_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_pgconn_class_id, &js_pgconn_class);
-
-    pgsql_ctor = JS_NewCFunction2(ctx, js_pgconn_constructor, "PGconn", 1, JS_CFUNC_constructor, 0);
-    pgsql_proto = JS_NewObject(ctx);
-
-    JS_SetPropertyFunctionList(ctx, pgsql_proto, js_pgconn_funcs, countof(js_pgconn_funcs));
-    JS_SetPropertyFunctionList(ctx, pgsql_proto, js_pgconn_defines, countof(js_pgconn_defines));
-    JS_SetPropertyFunctionList(ctx, pgsql_ctor, js_pgconn_static, countof(js_pgconn_static));
-    JS_SetPropertyFunctionList(ctx, pgsql_ctor, js_pgconn_defines, countof(js_pgconn_defines));
-    JS_SetClassProto(ctx, js_pgconn_class_id, pgsql_proto);
-
-    JSValue error = JS_NewError(ctx);
-    JSValue error_proto = JS_GetPrototype(ctx, error);
-    JS_FreeValue(ctx, error);
-
-    JS_NewClassID(&js_pgsqlerror_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_pgsqlerror_class_id, &js_pgsqlerror_class);
-
-    pgsqlerror_ctor = JS_NewCFunction2(ctx, js_pgsqlerror_constructor, "PGerror", 1, JS_CFUNC_constructor, 0);
-    pgsqlerror_proto = JS_NewObjectProto(ctx, error_proto);
-    JS_FreeValue(ctx, error_proto);
-
-    JS_SetPropertyFunctionList(ctx, pgsqlerror_proto, js_pgsqlerror_funcs, countof(js_pgsqlerror_funcs));
-
-    JS_SetClassProto(ctx, js_pgsqlerror_class_id, pgsqlerror_proto);
-
-    JS_NewClassID(&js_pgresult_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_pgresult_class_id, &js_pgresult_class);
-
-    pgresult_ctor = JS_NewCFunction2(ctx, js_pgresult_constructor, "PGresult", 1, JS_CFUNC_constructor, 0);
-    pgresult_proto = JS_NewObject(ctx);
-
-    JS_SetPropertyFunctionList(ctx, pgresult_proto, js_pgresult_funcs, countof(js_pgresult_funcs));
-    JS_SetClassProto(ctx, js_pgresult_class_id, pgresult_proto);
-  }
-
-  if(m) {
-    JS_SetModuleExport(ctx, m, "PGconn", pgsql_ctor);
-    JS_SetModuleExport(ctx, m, "PGerror", pgsqlerror_ctor);
-    JS_SetModuleExport(ctx, m, "PGresult", pgresult_ctor);
-  }
-
-  return 0;
-}
-
-#ifdef JS_SHARED_LIBRARY
-#define JS_INIT_MODULE js_init_module
-#else
-#define JS_INIT_MODULE js_init_module_pgsql
-#endif
-
-VISIBLE JSModuleDef*
-JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
-  JSModuleDef* m;
-  if(!(m = JS_NewCModule(ctx, module_name, &js_pgsql_init)))
-    return m;
-  JS_AddModuleExport(ctx, m, "PGconn");
-  JS_AddModuleExport(ctx, m, "PGerror");
-  JS_AddModuleExport(ctx, m, "PGresult");
-  return m;
-}
 
 static char*
 field_id(JSContext* ctx, PGSQLResult* opaque, int field) {
@@ -2207,6 +2150,74 @@ string_to_object(JSContext* ctx, const char* ctor_name, const char* s) {
   return ret;
 }
 
+int
+js_pgsql_init(JSContext* ctx, JSModuleDef* m) {
+  if(js_pgconn_class_id == 0) {
+
+    JS_NewClassID(&js_pgconn_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_pgconn_class_id, &js_pgconn_class);
+
+    pgsql_ctor = JS_NewCFunction2(ctx, js_pgconn_constructor, "PGconn", 1, JS_CFUNC_constructor, 0);
+    pgsql_proto = JS_NewObject(ctx);
+
+    JS_SetPropertyFunctionList(ctx, pgsql_proto, js_pgconn_funcs, countof(js_pgconn_funcs));
+    JS_SetPropertyFunctionList(ctx, pgsql_proto, js_pgconn_defines, countof(js_pgconn_defines));
+    JS_SetPropertyFunctionList(ctx, pgsql_ctor, js_pgconn_static, countof(js_pgconn_static));
+    JS_SetPropertyFunctionList(ctx, pgsql_ctor, js_pgconn_defines, countof(js_pgconn_defines));
+    JS_SetClassProto(ctx, js_pgconn_class_id, pgsql_proto);
+
+    JSValue error = JS_NewError(ctx);
+    JSValue error_proto = JS_GetPrototype(ctx, error);
+    JS_FreeValue(ctx, error);
+
+    JS_NewClassID(&js_pgsqlerror_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_pgsqlerror_class_id, &js_pgsqlerror_class);
+
+    pgsqlerror_ctor = JS_NewCFunction2(ctx, js_pgsqlerror_constructor, "PGerror", 1, JS_CFUNC_constructor, 0);
+    pgsqlerror_proto = JS_NewObjectProto(ctx, error_proto);
+    JS_FreeValue(ctx, error_proto);
+
+    JS_SetPropertyFunctionList(ctx, pgsqlerror_proto, js_pgsqlerror_funcs, countof(js_pgsqlerror_funcs));
+
+    JS_SetClassProto(ctx, js_pgsqlerror_class_id, pgsqlerror_proto);
+
+    JS_NewClassID(&js_pgresult_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_pgresult_class_id, &js_pgresult_class);
+
+    pgresult_ctor = JS_NewCFunction2(ctx, js_pgresult_constructor, "PGresult", 1, JS_CFUNC_constructor, 0);
+    pgresult_proto = JS_NewObject(ctx);
+
+    JS_SetPropertyFunctionList(ctx, pgresult_proto, js_pgresult_funcs, countof(js_pgresult_funcs));
+    JS_SetClassProto(ctx, js_pgresult_class_id, pgresult_proto);
+  }
+
+  if(m) {
+    JS_SetModuleExport(ctx, m, "PGconn", pgsql_ctor);
+    JS_SetModuleExport(ctx, m, "PGerror", pgsqlerror_ctor);
+    JS_SetModuleExport(ctx, m, "PGresult", pgresult_ctor);
+  }
+
+  return 0;
+}
+
+#ifdef JS_SHARED_LIBRARY
+#define JS_INIT_MODULE js_init_module
+#else
+#define JS_INIT_MODULE js_init_module_pgsql
+#endif
+
+VISIBLE JSModuleDef*
+JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
+  JSModuleDef* m;
+
+  if((m = JS_NewCModule(ctx, module_name, &js_pgsql_init))) {
+    JS_AddModuleExport(ctx, m, "PGconn");
+    JS_AddModuleExport(ctx, m, "PGerror");
+    JS_AddModuleExport(ctx, m, "PGresult");
+  }
+
+  return m;
+}
 /**
  * @}
  */

@@ -2055,11 +2055,13 @@ js_mysql_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  if(!(m = JS_NewCModule(ctx, module_name, &js_mysql_init)))
-    return m;
+
+  if((m = JS_NewCModule(ctx, module_name, &js_mysql_init))) {
   JS_AddModuleExport(ctx, m, "MySQL");
   JS_AddModuleExport(ctx, m, "MySQLError");
   JS_AddModuleExport(ctx, m, "MySQLResult");
+}
+
   return m;
 }
 

@@ -322,14 +322,14 @@ js_directory_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  if(!(m = JS_NewCModule(ctx, module_name, &js_directory_init)))
-    return m;
 
+  if((m = JS_NewCModule(ctx, module_name, &js_directory_init))) {
   JS_AddModuleExport(ctx, m, "Directory");
   JS_AddModuleExportList(ctx, m, js_directory_static, countof(js_directory_static));
 
   /* if(!strcmp(module_name, "directory"))
      JS_AddModuleExport(ctx, m, "default");*/
+}
 
   return m;
 }

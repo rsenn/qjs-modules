@@ -2747,11 +2747,10 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  m = JS_NewCModule(ctx, module_name, js_misc_init);
-  if(!m)
-    return NULL;
+  if((m = JS_NewCModule(ctx, module_name, js_misc_init))) {
   JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-  // JS_AddModuleExport(ctx, m, "Location");
+}
+
   return m;
 }
 

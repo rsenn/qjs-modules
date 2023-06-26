@@ -473,12 +473,14 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  if(!(m = JS_NewCModule(ctx, module_name, &js_location_init)))
-    return m;
+
+  if((m = JS_NewCModule(ctx, module_name, &js_location_init))) {
   JS_AddModuleExport(ctx, m, "Location");
 
   if(!strcmp(module_name, "location"))
     JS_AddModuleExport(ctx, m, "default");
+}
+
   return m;
 }
 
