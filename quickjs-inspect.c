@@ -1238,7 +1238,14 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     }
 
     BOOL is_object = JS_IsObject(value);
-    int ret = is_object ? inspect_object(ctx, wr, value, opts, depth) : 0;
+    int ret = 0;
+
+    if(is_object && property_recursion_circular(&frames, value)) {
+      writer_puts(wr, opts->colors ? COLOR_LIGHTRED "[loop]" COLOR_NONE : "[loop]");
+      ret = 1;
+    } else {
+      ret = is_object ? inspect_object(ctx, wr, value, opts, depth) : 0;
+    }
 
     if(ret != 1) {
       if(is_object) {

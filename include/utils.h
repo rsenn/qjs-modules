@@ -586,11 +586,13 @@ BOOL js_object_same2(JSContext*, JSValueConst, JSValueConst);
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {
   JSObject *aobj, *bobj;
+
   if(!JS_IsObject(a) || !JS_IsObject(b))
     return FALSE;
 
   aobj = JS_VALUE_GET_OBJ(a);
   bobj = JS_VALUE_GET_OBJ(b);
+
   return aobj == bobj;
 }
 
