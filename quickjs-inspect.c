@@ -1301,13 +1301,15 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
       }
     }
 
+    // BOOL end = index < property_enumeration_length( it ? it : property_recursion_top(&frames));
+
     while(!(it = property_enumeration_next(it ? it : property_recursion_top(&frames)))) {
       is_array = js_is_array(ctx, property_recursion_top(&frames)->obj);
       it = property_recursion_pop(&frames, ctx);
 
-      if(it) {
+      if(it || index == 0) {
         if(IS_COMPACT(depth + 1))
-          writer_putc(wr, ' ');
+          writer_puts(wr, index == 0 && !it ? "" : " ");
         else
           put_newline(wr, depth - 1);
 
