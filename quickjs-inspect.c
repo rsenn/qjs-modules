@@ -373,8 +373,7 @@ inspect_newline(Writer* wr, int32_t depth) {
 
 static void
 inspect_escape(Writer* wr, const char* str, size_t len) {
-  size_t i = 0, j, k, clen;
-  int32_t c;
+  size_t i = 0;
   const uint8_t *pos, *end, *next;
   static const uint8_t table[256] = {
       'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'b', 't', 'n', 'v', 'f',  'r', 'x', 'x',
@@ -396,6 +395,8 @@ inspect_escape(Writer* wr, const char* str, size_t len) {
   };
 
   for(pos = (const uint8_t*)str, end = pos + len; pos < end; pos = next) {
+    size_t clen;
+    int32_t c;
     uint8_t r, ch;
     char buf[64];
 
