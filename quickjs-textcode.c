@@ -684,7 +684,7 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, &js_code_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_code_init))) {
     JS_AddModuleExport(ctx, m, "TextDecoder");
     JS_AddModuleExport(ctx, m, "TextEncoder");
     /*if(!strcmp(module_name, "textdecoder"))

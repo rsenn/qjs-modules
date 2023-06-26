@@ -640,7 +640,7 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, &js_serial_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_serial_init))) {
   JS_AddModuleExport(ctx, m, "Serial");
   JS_AddModuleExport(ctx, m, "SerialPort");
   JS_AddModuleExport(ctx, m, "SerialError");

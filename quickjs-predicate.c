@@ -1009,7 +1009,7 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, &js_predicate_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_predicate_init))) {
   JS_AddModuleExport(ctx, m, "Predicate");
   JS_AddModuleExport(ctx, m, "PredicateOperators");
   JS_AddModuleExport(ctx, m, "PredicateOperatorSet");

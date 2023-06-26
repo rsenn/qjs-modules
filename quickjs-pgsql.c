@@ -2210,7 +2210,7 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, &js_pgsql_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_pgsql_init))) {
     JS_AddModuleExport(ctx, m, "PGconn");
     JS_AddModuleExport(ctx, m, "PGerror");
     JS_AddModuleExport(ctx, m, "PGresult");

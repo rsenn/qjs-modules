@@ -10,10 +10,14 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
-thread_local JSValue readable_proto = {{0}, JS_TAG_UNDEFINED}, readable_controller = {{0}, JS_TAG_UNDEFINED}, readable_ctor = {{0}, JS_TAG_UNDEFINED}, writable_proto = {{0}, JS_TAG_UNDEFINED},
-                     writable_controller = {{0}, JS_TAG_UNDEFINED}, writable_ctor = {{0}, JS_TAG_UNDEFINED}, transform_proto = {{0}, JS_TAG_UNDEFINED}, transform_controller = {{0}, JS_TAG_UNDEFINED},
-                     transform_ctor = {{0}, JS_TAG_UNDEFINED}, reader_proto = {{0}, JS_TAG_UNDEFINED}, reader_ctor = {{0}, JS_TAG_UNDEFINED}, writer_proto = {{0}, JS_TAG_UNDEFINED},
+thread_local VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0,
+                               js_writer_class_id = 0, js_transform_class_id = 0;
+thread_local JSValue readable_proto = {{0}, JS_TAG_UNDEFINED}, readable_controller = {{0}, JS_TAG_UNDEFINED},
+                     readable_ctor = {{0}, JS_TAG_UNDEFINED}, writable_proto = {{0}, JS_TAG_UNDEFINED},
+                     writable_controller = {{0}, JS_TAG_UNDEFINED}, writable_ctor = {{0}, JS_TAG_UNDEFINED},
+                     transform_proto = {{0}, JS_TAG_UNDEFINED}, transform_controller = {{0}, JS_TAG_UNDEFINED},
+                     transform_ctor = {{0}, JS_TAG_UNDEFINED}, reader_proto = {{0}, JS_TAG_UNDEFINED},
+                     reader_ctor = {{0}, JS_TAG_UNDEFINED}, writer_proto = {{0}, JS_TAG_UNDEFINED},
                      writer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static int reader_update(Reader* rd, JSContext* ctx);
@@ -1535,7 +1539,10 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, readable_ctor, readable_proto);
 
   readable_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, readable_controller, js_readable_controller_funcs, countof(js_readable_controller_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             readable_controller,
+                             js_readable_controller_funcs,
+                             countof(js_readable_controller_funcs));
   JS_SetClassProto(ctx, js_readable_class_id, readable_controller);
 
   JS_NewClassID(&js_writer_class_id);
@@ -1561,7 +1568,10 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, writable_ctor, writable_proto);
 
   writable_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, writable_controller, js_writable_controller_funcs, countof(js_writable_controller_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             writable_controller,
+                             js_writable_controller_funcs,
+                             countof(js_writable_controller_funcs));
   JS_SetClassProto(ctx, js_writable_class_id, writable_controller);
 
   JS_NewClassID(&js_transform_class_id);
@@ -1576,7 +1586,10 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, transform_ctor, transform_proto);
 
   transform_controller = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx, transform_controller, js_transform_controller_funcs, countof(js_transform_controller_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             transform_controller,
+                             js_transform_controller_funcs,
+                             countof(js_transform_controller_funcs));
   JS_SetClassProto(ctx, js_transform_class_id, transform_controller);
 
   // JS_SetPropertyFunctionList(ctx, stream_ctor, js_stream_static_funcs, countof(js_stream_static_funcs));
@@ -1603,7 +1616,7 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, &js_stream_init);
+  m = JS_NewCModule(ctx, module_name, js_stream_init);
   if(!m)
     return NULL;
   JS_AddModuleExport(ctx, m, "StreamReader");
