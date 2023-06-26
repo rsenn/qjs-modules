@@ -1309,7 +1309,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
   else
     put_newline(wr, depth - 1);
 
-  writer_putc(wr, is_array ? ']' : '}');
+  writer_putc(wr, js_is_array(ctx, obj) ? ']' : '}');
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
   return 0;
