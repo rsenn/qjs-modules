@@ -38,13 +38,8 @@
 thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 static thread_local JSValue object_tostring;
 
-#define INSPECT_INT32T_INRANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
-#define INSPECT_LEVEL(opts, _depth) ((opts)->depth - (_depth))
-#define INSPECT_IS_COMPACT_DEPTH(level, com) \
-  ((com) == INT32_MAX ? TRUE : INSPECT_INT32T_INRANGE((com)) ? (com) < 0 ? (level) >= -(com) : (level) >= (com) : 0)
-#define INSPECT_IS_COMPACT(opts, _depth) INSPECT_IS_COMPACT_DEPTH(INSPECT_LEVEL(opts, _depth), (opts)->compact)
-#define IS_COMPACT(cond) ((opts->compact != INT32_MIN) && (cond))
-#define INSPECT_COMPACT(opts, _depth) INSPECT_LEVEL(opts, _depth)
+#define INT32_IN_RANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
+#define IS_COMPACT(d) ((opts->compact != INT32_MIN) && ((d) > opts->compact))
 
 typedef struct {
   const char* name;
@@ -485,7 +480,7 @@ static int
 inspect_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t level) {
   BOOL ret, finish = FALSE;
   size_t i = 0;
-  int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
+  int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   JSValue data, key, value;
   Iteration it;
 
@@ -496,7 +491,7 @@ inspect_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
 
   writer_puts(wr, opts->colors ? COLOR_LIGHTRED "Map" COLOR_NONE " {" : "Map {");
 
-  if(IS_COMPACT(depth + 1 > opts->compact))
+  if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
     put_newline(wr, depth);
@@ -507,11 +502,11 @@ inspect_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
 
       if(i) {
         writer_puts(wr, ",");
-        if(!IS_COMPACT(depth + 1 > opts->compact))
+        if(!IS_COMPACT(depth + 1))
           put_newline(wr, depth);
       }
 
-      writer_puts(wr, IS_COMPACT(depth + 1 > opts->compact) ? " " : "  ");
+      writer_puts(wr, IS_COMPACT(depth + 1) ? " " : "  ");
       key = JS_GetPropertyUint32(ctx, data, 0);
       inspect_value(ctx, wr, key, opts, depth + 1);
 
@@ -525,7 +520,7 @@ inspect_map(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
     }
   }
 
-  if(IS_COMPACT(depth + 1 > opts->compact))
+  if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
     put_newline(wr, depth);
@@ -540,7 +535,7 @@ static int
 inspect_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, int32_t level) {
   BOOL ret, finish = FALSE;
   size_t i = 0;
-  int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
+  int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   JSValue value;
   Iteration it;
 
@@ -551,7 +546,7 @@ inspect_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
 
   writer_puts(wr, opts->colors ? COLOR_LIGHTRED "Set" COLOR_NONE " [" : "Set [");
 
-  if(IS_COMPACT(depth + 1 > opts->compact))
+  if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
     put_newline(wr, depth);
@@ -562,17 +557,17 @@ inspect_set(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* opts, 
 
       if(i) {
         writer_puts(wr, ",");
-        if(!IS_COMPACT(depth + 1 > opts->compact))
+        if(!IS_COMPACT(depth + 1))
           put_newline(wr, depth);
       }
 
-      writer_puts(wr, IS_COMPACT(depth + 1 > opts->compact) ? " " : "  ");
+      writer_puts(wr, IS_COMPACT(depth + 1) ? " " : "  ");
       inspect_value(ctx, wr, value, opts, depth + 1);
       JS_FreeValue(ctx, value);
     }
   }
 
-  if(IS_COMPACT(depth + 1 > opts->compact))
+  if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
     put_newline(wr, depth);
@@ -588,7 +583,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
   const char *str, *str2;
   uint8_t* ptr;
   size_t i, slen, size;
-  int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
+  int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   int column, break_len = opts->break_length;
   JSValue proto;
 
@@ -621,7 +616,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
 
     writer_puts(wr, " {");
 
-    if(IS_COMPACT(depth + 1 > opts->compact))
+    if(IS_COMPACT(depth + 1))
       writer_putc(wr, ' ');
     else
       put_newline(wr, depth + 2);
@@ -631,7 +626,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
     writer_puts(wr, " [");
   }
 
-  if(IS_COMPACT(depth + 2 > opts->compact))
+  if(IS_COMPACT(depth + 2))
     writer_putc(wr, ' ');
   else
     put_newline(wr, depth + 3);
@@ -644,7 +639,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
       if(opts->reparseable && i > 0)
         writer_putc(wr, ',');
 
-      if(IS_COMPACT(depth + 2 > opts->compact))
+      if(IS_COMPACT(depth + 2))
         writer_putc(wr, ' ');
       else
         put_newline(wr, depth + 3);
@@ -669,7 +664,7 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
     writer_puts(wr, "]).buffer");
   } else {
     if(i < size) {
-      if(IS_COMPACT(depth + 3 > opts->compact))
+      if(IS_COMPACT(depth + 3))
         writer_putc(wr, ' ');
       else
         put_newline(wr, depth + 3);
@@ -679,14 +674,14 @@ inspect_arraybuffer(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptio
       writer_puts(wr, " more bytes");
     }
 
-    if(IS_COMPACT(depth + 2 > opts->compact))
+    if(IS_COMPACT(depth + 2))
       writer_putc(wr, ' ');
     else
       put_newline(wr, depth + 2);
 
     writer_puts(wr, "]");
 
-    if(IS_COMPACT(depth + 1 > opts->compact))
+    if(IS_COMPACT(depth + 1))
       writer_putc(wr, ' ');
     else
       put_newline(wr, depth + 1);
@@ -770,7 +765,7 @@ inspect_number(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
 static int
 inspect_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
   int col = 0, tag = JS_VALUE_GET_TAG(value);
-  int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
+  int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   size_t len, pos, limit, max_len, column_start = (depth * 2);
   const char* str = JS_ToCStringLen(ctx, &len, value);
 
@@ -804,7 +799,7 @@ inspect_string(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
           break;
         }
       }
-    } else if(IS_COMPACT(depth + 1 > opts->compact)) {
+    } else if(IS_COMPACT(depth + 1)) {
       n = ansi_truncate(&str[pos], n, max_len);
     }
 
@@ -925,7 +920,7 @@ inspect_error(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* op
   JSValue stack;
   char* class_name;
   const char* str;
-  int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
+  int32_t depth = INT32_IN_RANGE(level) ? level : 0;
 
   if(!(class_name = js_get_tostringtag_str(ctx, value)))
     class_name = js_object_classname(ctx, value);
@@ -975,7 +970,7 @@ inspect_error(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* op
 
 static int
 inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
-  int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
+  int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   JSObject* obj = JS_VALUE_GET_OBJ(value);
 
   if(!obj->prop || !obj->shape)
@@ -983,7 +978,7 @@ inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
 
   BOOL is_array = js_is_array(ctx, value);
 
-  if(IS_COMPACT(depth + 1 > opts->compact)) {
+  if(IS_COMPACT(depth + 1)) {
     writer_puts(wr,
                 is_array ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]")
                          : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
@@ -1100,7 +1095,7 @@ end_obj:
 static int
 inspect_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* opts, int32_t level) {
   int tag = JS_VALUE_GET_TAG(value);
-  int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
+  int32_t depth = INT32_IN_RANGE(level) ? level : 0;
 
   switch(tag) {
     case JS_TAG_FLOAT64:
@@ -1215,7 +1210,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
   PropertyEnumeration* it;
   Vector frames;
   BOOL is_array;
-  int32_t depth = INSPECT_INT32T_INRANGE(level) ? level : 0;
+  int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   uint32_t index = 0;
 
   vector_init(&frames, ctx);
@@ -1225,7 +1220,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
   writer_puts(wr, is_array ? "[" : "{");
 
   ++depth;
-  if(IS_COMPACT(depth > opts->compact))
+  if(IS_COMPACT(depth))
     writer_putc(wr, ' ');
   else
     put_newline(wr, depth);
@@ -1236,7 +1231,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     if(index > 0) {
       writer_puts(wr, ",");
 
-      if(IS_COMPACT(depth + 1 > opts->compact))
+      if(IS_COMPACT(depth + 1))
         writer_putc(wr, ' ');
       else
         put_newline(wr, depth);
@@ -1268,7 +1263,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
         if(it == NULL)
           writer_puts(wr, "");
-        else if(IS_COMPACT(depth + 1 > opts->compact))
+        else if(IS_COMPACT(depth + 1))
           writer_putc(wr, ' ');
         else
           put_newline(wr, depth);
@@ -1291,7 +1286,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
       if(it == NULL || property_enumeration_index(it) == 0)
         writer_puts(wr, "");
-      else if(IS_COMPACT(depth + 1 > opts->compact))
+      else if(IS_COMPACT(depth + 1))
         writer_putc(wr, ' ');
       else
         put_newline(wr, depth - 1);
@@ -1312,10 +1307,10 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     is_array = js_is_array(ctx, it->obj);
   }
 
-  if(IS_COMPACT(depth > opts->compact))
+  if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, depth - 1);
+    put_newline(wr, depth);
 
   writer_putc(wr, js_is_array(ctx, obj) ? ']' : '}');
 
