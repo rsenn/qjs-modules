@@ -1882,10 +1882,6 @@ module_exports_find(JSContext* ctx, JSModuleDef* m, JSAtom atom) {
   size_t i;
   for(i = 0; i < m->export_entries_count; i++) {
     JSExportEntry* entry = &m->export_entries[i];
-JSExportTypeEnum type = entry->export_type;
-
-
-    JS_EXPORT_TYPE_INDIRECT
 
     if(entry->export_name == atom) {
       JSVarRef* ref = entry->u.local.var_ref;
@@ -2066,7 +2062,7 @@ js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
       JS_FreeValue(ctx, entry);
     js_free(ctx, name);
   }
-  
+
   return obj;
 }
 
@@ -2102,7 +2098,7 @@ module_object(JSContext* ctx, JSModuleDef* m) {
   tmp = module_imports(ctx, m);
   if(!JS_IsUndefined(tmp))
     JS_SetPropertyStr(ctx, obj, "imports", tmp);
-  tmp=module_reqmodules(ctx,m);
+  tmp = module_reqmodules(ctx, m);
   if(!JS_IsUndefined(tmp))
     JS_SetPropertyStr(ctx, obj, "reqModules", tmp);
   tmp = module_func(ctx, m);
