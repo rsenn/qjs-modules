@@ -1243,16 +1243,19 @@ JSValue
 js_lexer_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
 
-  if(js_is_regexp(ctx, argv[0]) || JS_IsString(argv[0])) {
-    RegExp re;
-    re = regexp_from_argv(argc, argv, ctx);
-    ret = JS_NewString(ctx, re.source);
-  } else {
-    InputBuffer input;
-    input = js_input_chars(ctx, argv[0]);
-    ret = JS_NewStringLen(ctx, (const char*)input.data, input.size);
-    input_buffer_free(&input, ctx);
+  if(argc > 0) {
+    if(js_is_regexp(ctx, argv[0]) || JS_IsString(argv[0])) {
+      RegExp re;
+      re = regexp_from_argv(argc, argv, ctx);
+      ret = JS_NewString(ctx, re.source);
+    } else {
+      InputBuffer input;
+      input = js_input_chars(ctx, argv[0]);
+      ret = JS_NewStringLen(ctx, (const char*)input.data, input.size);
+      input_buffer_free(&input, ctx);
+    }
   }
+
   return ret;
 }
 
