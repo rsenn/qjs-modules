@@ -1363,8 +1363,8 @@ js_socket_async_resolve(
 
   JS_Call(ctx, data[1], JS_UNDEFINED, 1, &value);
 
-  JS_FreeValue(ctx, data[1]);
-  data[1] = JS_UNDEFINED;
+/*  JS_FreeValue(ctx, data[1]);
+  data[1] = JS_UNDEFINED;*/
 
   return JS_UNDEFINED;
 }
