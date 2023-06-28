@@ -118,10 +118,15 @@ static void
 syscall_return(Socket* sock, int syscall, int retval) {
   (sock)->syscall = syscall;
   (sock)->ret = retval;
-  (sock)->error = retval < 0 ? errno : 0;
+  (sock)->error = retval < 0 ?
+#if defined(_WIN32) && !defined(__MSYS__)
+                             WSAGetLastError()
+#else
+                             errno
+#endif
+                             : 0;
 
-  // printf("syscall %s returned %d (%d)\n", socket_syscalls[(sock)->syscall], (sock)->ret,
-  // (sock)->error);
+  printf("syscall %s returned %d (%d)\n", socket_syscalls[(sock)->syscall], (sock)->ret, (sock)->error);
 }
 
 static SockAddr*
