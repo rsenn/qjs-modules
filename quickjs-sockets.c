@@ -1022,13 +1022,12 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(wait) {
     switch(magic) {
-      case SOCKETS_ACCEPT:
-      case SOCKETS_RECV:
-      case SOCKETS_SEND:
-      case SOCKETS_RECVFROM:
-      case SOCKETS_SENDTO: {
-        return js_async_socket_method(ctx, this_val, argc, argv, magic);
-      }
+      case SYSCALL_ACCEPT:
+      case SYSCALL_RECV:
+      case SYSCALL_RECVFROM:
+      case SYSCALL_SEND:
+      case SYSCALL_SENDTO: return js_async_socket_method(ctx, this_val, argc, argv, magic);
+      default: break;
     }
   }
 
@@ -1344,7 +1343,7 @@ js_socket_async_resolve(
     asock->error = err;
 
     value = JS_NewInt32(ctx, err ? -1 : 0);
-  } else  {
+  } else {
     value =
         js_socket_method(ctx, data[0], (magic & 0x08) ? ((magic & 0x02) ? 5 : 4) : 1, &data[3], magic | ASYNC_READY);
   }

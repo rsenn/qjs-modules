@@ -64,21 +64,22 @@ typedef union socket_state Socket;
 typedef struct async_socket_state AsyncSocket;
 
 extern thread_local VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_async_socket_class_id;
-extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto, async_socket_ctor;
+extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto,
+    async_socket_ctor;
 
 enum SocketCalls {
   SYSCALL_SOCKET = 1,
   SYSCALL_GETSOCKNAME, /* 2 */
   SYSCALL_GETPEERNAME, /* 3 */
-  SYSCALL_FCNTL,        /* 4 */
+  SYSCALL_FCNTL,       /* 4 */
   SYSCALL_BIND,
-  SYSCALL_ACCEPT,     /* 6 0b0110 */
-  SYSCALL_CONNECT,    /* 7 0b0111 */
-  SYSCALL_LISTEN,     /* 8 0b1000 */
-  SYSCALL_RECV,       /* 9 0b1001 */
-  SYSCALL_RECVFROM,  /* 10 0b1010 */
-  SYSCALL_SEND,      /* 11 0b1011 */
-  SYSCALL_SENDTO,    /* 12 0b1100 */
+  SYSCALL_ACCEPT,   /* 6 0b0110 */
+  SYSCALL_CONNECT,  /* 7 0b0111 */
+  SYSCALL_LISTEN,   /* 8 0b1000 */
+  SYSCALL_RECV,     /* 9 0b1001 */
+  SYSCALL_RECVFROM, /* 10 0b1010 */
+  SYSCALL_SEND,     /* 11 0b1011 */
+  SYSCALL_SENDTO,   /* 12 0b1100 */
   SYSCALL_SHUTDOWN,
   SYSCALL_CLOSE,
   SYSCALL_GETSOCKOPT,
