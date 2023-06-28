@@ -124,6 +124,28 @@ property_enumeration_level(const PropertyEnumeration* it, const Vector* vec) {
   return it - (const PropertyEnumeration*)vec->data;
 }
 
+static inline PropertyEnumeration*
+property_enumeration_prototype(PropertyEnumeration* it, JSContext* ctx, int flags) {
+  JSValue proto = JS_DupValue(ctx, it->obj);
+
+  if(it->idx < it->tab_atom_len)
+    return property_enumeration_next(it);
+
+  for(;;) {
+    JSValue proto = JS_GetPrototype(ctx, it->obj);
+
+    property_enumeration_reset(it, JS_GetRuntime(ctx));
+
+    if(!JS_IsObject(proto))
+      break;
+
+    if(property_enumeration_init(it, ctx, proto, flags) != -1)
+      if(it->idx < it->tab_atom_len)
+        return it;
+  }
+  return 0;
+}
+
 JSValue property_recursion_path(const Vector*, JSContext* ctx);
 void property_recursion_pathstr(const Vector*, JSContext* ctx, DynBuf* buf);
 JSValue property_recursion_pathstr_value(const Vector*, JSContext* ctx);

@@ -27,6 +27,7 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
           sizeof(JSPropertyEnum),
           (int (*)(const void*, const void*)) & compare_jspropertyenum);
 
+  it->idx = 0;
   it->obj = object;
 
   return 0;

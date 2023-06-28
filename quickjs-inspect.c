@@ -428,12 +428,10 @@ static JSValue
 inspect_custom(JSContext* ctx, JSValueConst obj, InspectOptions* opts, int32_t level) {
   JSValue ret = JS_UNDEFINED, inspect = JS_UNDEFINED;
 
-  if(JS_VALUE_GET_OBJ(obj)->class_id) {
-    if(JS_HasProperty(ctx, obj, inspect_custom_atom))
-      inspect = JS_GetProperty(ctx, obj, inspect_custom_atom);
-    else if(JS_HasProperty(ctx, obj, inspect_custom_atom_node))
-      inspect = JS_GetProperty(ctx, obj, inspect_custom_atom_node);
-  }
+  if(JS_HasProperty(ctx, obj, inspect_custom_atom))
+    inspect = JS_GetProperty(ctx, obj, inspect_custom_atom);
+  else if(JS_HasProperty(ctx, obj, inspect_custom_atom_node))
+    inspect = JS_GetProperty(ctx, obj, inspect_custom_atom_node);
 
   if(JS_IsFunction(ctx, inspect)) {
     JSValueConst args[2];
@@ -1303,7 +1301,9 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
     // BOOL end = index < property_enumeration_length( it ? it : property_recursion_top(&frames));
 
-    while(!(it = property_enumeration_next(it ? it : property_recursion_top(&frames)))) {
+    while(!(it = it ? it : property_recursion_top(&frames),
+            it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
+                                    : property_enumeration_next(it)))) {
       is_array = js_is_array(ctx, property_recursion_top(&frames)->obj);
       it = property_recursion_pop(&frames, ctx);
 
