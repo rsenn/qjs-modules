@@ -1338,6 +1338,7 @@ enum {
   GET_MODULE_OBJECT,
   GET_MODULE_EXPORTS,
   GET_MODULE_IMPORTS,
+  GET_MODULE_REQMODULES,
   GET_MODULE_NAMESPACE,
   GET_MODULE_FUNCTION,
   GET_MODULE_EXCEPTION,
@@ -1360,6 +1361,8 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
                                    "getModuleName",
                                    "getModuleObject",
                                    "getModuleExports",
+                                   "getModuleImports",
+                                   "getModuleReqModules",
                                    "getModuleNamespace",
                                    "getModuleFunction",
                                    "getModuleException",
@@ -1484,6 +1487,11 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       val = module_imports(ctx, m);
       break;
     }
+    case GET_MODULE_REQMODULES: {
+
+      val = module_reqmodules(ctx, m);
+      break;
+    }
 
     case GET_MODULE_EXPORTS: {
       val = module_exports(ctx, m);
@@ -1543,6 +1551,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
     JS_CFUNC_MAGIC_DEF("getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
     JS_CFUNC_MAGIC_DEF("getModuleImports", 1, jsm_module_func, GET_MODULE_IMPORTS),
+    JS_CFUNC_MAGIC_DEF("getModuleReqModules", 1, jsm_module_func, GET_MODULE_REQMODULES),
     JS_CFUNC_MAGIC_DEF("getModuleNamespace", 1, jsm_module_func, GET_MODULE_NAMESPACE),
     JS_CFUNC_MAGIC_DEF("getModuleFunction", 1, jsm_module_func, GET_MODULE_FUNCTION),
     JS_CFUNC_MAGIC_DEF("getModuleException", 1, jsm_module_func, GET_MODULE_EXCEPTION),

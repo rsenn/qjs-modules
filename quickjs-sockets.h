@@ -69,7 +69,7 @@ extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_
 
 enum SocketCalls {
   SYSCALL_SOCKET = 1,
-  SYSCALL_GETSOCKNAME, 
+  SYSCALL_GETSOCKNAME,
   SYSCALL_GETPEERNAME,
   SYSCALL_FCNTL,
   SYSCALL_BIND,
@@ -85,7 +85,6 @@ enum SocketCalls {
   SYSCALL_GETSOCKOPT,
   SYSCALL_SETSOCKOPT
 };
-
 
 #define socket_fd(sock) ((sock).fd)
 #define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)

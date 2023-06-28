@@ -1933,16 +1933,35 @@ module_imports(JSContext* ctx, JSModuleDef* m) {
 
   for(i = 0; i < m->import_entries_count; i++) {
     JSImportEntry* entry = &m->import_entries[i];
-    JSReqModuleEntry* req_module = &m->req_module_entries[entry->req_module_idx];
     JSValue val = JS_UNDEFINED;
     JSAtom name = entry->import_name;
-    JSAtom module_name = req_module->module_name;
+    /*    JSReqModuleEntry* req_module = &m->req_module_entries[entry->req_module_idx];
+  JSAtom module_name = req_module->module_name;*/
 
     JSValue import_value = JS_NewArray(ctx);
 
     JS_SetPropertyUint32(ctx, import_value, 0, JS_AtomToValue(ctx, name));
-    JS_SetPropertyUint32(ctx, import_value, 1, JS_AtomToValue(ctx, module_name));
+    JS_SetPropertyUint32(ctx, import_value, 1, JS_NewUint32(ctx, entry->req_module_idx));
     JS_SetPropertyUint32(ctx, obj, i, import_value);
+  }
+  return obj;
+}
+
+JSValue
+module_reqmodules(JSContext* ctx, JSModuleDef* m) {
+  JSValue obj = JS_NewArray(ctx);
+  uint32_t i;
+
+  for(i = 0; i < m->req_module_entries_count; i++) {
+    JSReqModuleEntry* req_module = &m->req_module_entries[i];
+    JSAtom module_name = req_module->module_name;
+    JSModuleDef* module = req_module->module;
+
+    JSValue req_module_value = JS_NewArray(ctx);
+
+    JS_SetPropertyUint32(ctx, req_module_value, 0, JS_AtomToValue(ctx, module_name));
+    JS_SetPropertyUint32(ctx, req_module_value, 1, JS_NewInt32(ctx, js_module_index(ctx, module)));
+    JS_SetPropertyUint32(ctx, obj, i, req_module_value);
   }
   return obj;
 }

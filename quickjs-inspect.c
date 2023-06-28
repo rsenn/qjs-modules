@@ -1301,8 +1301,11 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
     // BOOL end = index < property_enumeration_length( it ? it : property_recursion_top(&frames));
 
-    while(!(it = it ? it : property_recursion_top(&frames),
+    /*while(!(it = it ? it : property_recursion_top(&frames),
             it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
+                                    : property_enumeration_next(it)))) {*/
+
+   while(!it || !(it =  (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
                                     : property_enumeration_next(it)))) {
       is_array = js_is_array(ctx, property_recursion_top(&frames)->obj);
       it = property_recursion_pop(&frames, ctx);

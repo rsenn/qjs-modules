@@ -907,6 +907,7 @@ JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);
 JSValue module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name);
 void module_exports_get(JSContext*, JSModuleDef*, BOOL, JSValue exports);
 JSValue module_imports(JSContext* ctx, JSModuleDef* m);
+JSValue module_reqmodules(JSContext* ctx, JSModuleDef* m);
 JSValue module_default_export(JSContext*, JSModuleDef*);
 JSValue module_exports(JSContext*, JSModuleDef*);
 JSValue module_value(JSContext*, JSModuleDef*);

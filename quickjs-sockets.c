@@ -1354,17 +1354,17 @@ js_socket_async_resolve(
     JSValueConst args[2] = {data[0], JS_NULL};
     JS_Call(ctx, data[2], JS_UNDEFINED, 2, args);
 
-      // printf("[%p] set%sHandler(%d, null)\n", JS_VALUE_GET_OBJ(data[1]), magic & 1 ? "Write" : "Read", asock->fd);
+    // printf("[%p] set%sHandler(%d, null)\n", JS_VALUE_GET_OBJ(data[1]), magic & 1 ? "Write" : "Read", asock->fd);
 
-      /* free ourselves */
+    /* free ourselves */
     JS_FreeValue(ctx, asock->pending[magic & 1]);
     asock->pending[magic & 1] = JS_NULL;
   }
 
   JS_Call(ctx, data[1], JS_UNDEFINED, 1, &value);
 
-/*  JS_FreeValue(ctx, data[1]);
-  data[1] = JS_UNDEFINED;*/
+  /*  JS_FreeValue(ctx, data[1]);
+    data[1] = JS_UNDEFINED;*/
 
   return JS_UNDEFINED;
 }
