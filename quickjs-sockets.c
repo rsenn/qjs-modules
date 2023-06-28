@@ -1344,15 +1344,10 @@ js_socket_async_resolve(
     asock->error = err;
 
     value = JS_NewInt32(ctx, err ? -1 : 0);
-  } else if(magic & 0x0a) {
+  } else  {
     value =
         js_socket_method(ctx, data[0], (magic & 0x08) ? ((magic & 0x02) ? 5 : 4) : 1, &data[3], magic | ASYNC_READY);
   }
-
-  JS_Call(ctx, data[1], JS_UNDEFINED, 1, &value);
-
-  // printf("[%p] %s(%d) = %s\n", JS_VALUE_GET_OBJ(data[1]), socket_method(magic & 0xf), asock->fd, JS_ToCString(ctx,
-  // value));
 
   if(asock) {
     if(js_object_same(data[1], asock->pending[magic & 1])) {
@@ -1366,6 +1361,8 @@ js_socket_async_resolve(
       asock->pending[magic & 1] = JS_NULL;
     }
   }
+
+  JS_Call(ctx, data[1], JS_UNDEFINED, 1, &value);
 
   JS_FreeValue(ctx, data[1]);
   data[1] = JS_UNDEFINED;
