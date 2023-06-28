@@ -1882,6 +1882,10 @@ module_exports_find(JSContext* ctx, JSModuleDef* m, JSAtom atom) {
   size_t i;
   for(i = 0; i < m->export_entries_count; i++) {
     JSExportEntry* entry = &m->export_entries[i];
+JSExportTypeEnum type = entry->export_type;
+
+
+    JS_EXPORT_TYPE_INDIRECT
 
     if(entry->export_name == atom) {
       JSVarRef* ref = entry->u.local.var_ref;
@@ -2051,6 +2055,7 @@ JSValue
 js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
   struct list_head* it;
   JSValue obj = JS_NewObject(ctx);
+
   list_for_each(it, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(it, JSModuleDef, link);
     char* name = module_namestr(ctx, m);
@@ -2061,6 +2066,7 @@ js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
       JS_FreeValue(ctx, entry);
     js_free(ctx, name);
   }
+  
   return obj;
 }
 
@@ -2080,22 +2086,28 @@ module_entry(JSContext* ctx, JSModuleDef* m) {
 
 JSValue
 module_object(JSContext* ctx, JSModuleDef* m) {
-  JSValue ns, exports, func, obj = JS_NewObject(ctx);
+  JSValue tmp, obj = JS_NewObject(ctx);
   JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
   JS_SetPropertyStr(ctx, obj, "resolved", JS_NewBool(ctx, m->resolved));
   JS_SetPropertyStr(ctx, obj, "func_created", JS_NewBool(ctx, m->func_created));
   JS_SetPropertyStr(ctx, obj, "instantiated", JS_NewBool(ctx, m->instantiated));
   JS_SetPropertyStr(ctx, obj, "evaluated", JS_NewBool(ctx, m->evaluated));
 
-  ns = module_ns(ctx, m);
-  if(!JS_IsUndefined(ns))
-    JS_SetPropertyStr(ctx, obj, "ns", ns);
-  exports = module_exports(ctx, m);
-  if(!JS_IsUndefined(exports))
-    JS_SetPropertyStr(ctx, obj, "exports", module_exports(ctx, m));
-  func = module_func(ctx, m);
-  if(!JS_IsUndefined(func))
-    JS_SetPropertyStr(ctx, obj, "func", func);
+  tmp = module_ns(ctx, m);
+  if(!JS_IsUndefined(tmp))
+    JS_SetPropertyStr(ctx, obj, "ns", tmp);
+  tmp = module_exports(ctx, m);
+  if(!JS_IsUndefined(tmp))
+    JS_SetPropertyStr(ctx, obj, "exports", tmp);
+  tmp = module_imports(ctx, m);
+  if(!JS_IsUndefined(tmp))
+    JS_SetPropertyStr(ctx, obj, "imports", tmp);
+  tmp=module_reqmodules(ctx,m);
+  if(!JS_IsUndefined(tmp))
+    JS_SetPropertyStr(ctx, obj, "reqModules", tmp);
+  tmp = module_func(ctx, m);
+  if(!JS_IsUndefined(tmp))
+    JS_SetPropertyStr(ctx, obj, "func", tmp);
   return obj;
 }
 
