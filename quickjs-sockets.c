@@ -1022,11 +1022,13 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(wait) {
     switch(magic) {
-      case SYSCALL_ACCEPT:
-      case SYSCALL_RECV:
-      case SYSCALL_RECVFROM:
-      case SYSCALL_SEND:
-      case SYSCALL_SENDTO: return js_async_socket_method(ctx, this_val, argc, argv, magic);
+      case SOCKETS_ACCEPT:
+      case SOCKETS_RECV:
+      case SOCKETS_RECVFROM:
+      case SOCKETS_SEND:
+      case SOCKETS_SENDTO: {
+        return js_async_socket_method(ctx, this_val, argc, argv, magic);
+      }
       default: break;
     }
   }
@@ -1348,17 +1350,15 @@ js_socket_async_resolve(
         js_socket_method(ctx, data[0], (magic & 0x08) ? ((magic & 0x02) ? 5 : 4) : 1, &data[3], magic | ASYNC_READY);
   }
 
-  if(asock) {
-    if(js_object_same(data[1], asock->pending[magic & 1])) {
-      JSValueConst args[2] = {data[0], JS_NULL};
-      JS_Call(ctx, data[2], JS_UNDEFINED, 2, args);
+  if(js_object_same(data[1], asock->pending[magic & 1])) {
+    JSValueConst args[2] = {data[0], JS_NULL};
+    JS_Call(ctx, data[2], JS_UNDEFINED, 2, args);
 
       // printf("[%p] set%sHandler(%d, null)\n", JS_VALUE_GET_OBJ(data[1]), magic & 1 ? "Write" : "Read", asock->fd);
 
       /* free ourselves */
-      JS_FreeValue(ctx, asock->pending[magic & 1]);
-      asock->pending[magic & 1] = JS_NULL;
-    }
+    JS_FreeValue(ctx, asock->pending[magic & 1]);
+    asock->pending[magic & 1] = JS_NULL;
   }
 
   JS_Call(ctx, data[1], JS_UNDEFINED, 1, &value);
