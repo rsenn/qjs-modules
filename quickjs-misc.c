@@ -198,8 +198,7 @@ clear_screen(int fd, char mode, BOOL line) {
 #endif
 
 #ifdef _WIN32
-static BOOL
-set_cursor_position(HANDLE h, int x, int y) {
+static BOOL set_cursor_position(HANDLE h, int x, int y) {
   COORD coords = {0, 0};
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
@@ -215,7 +214,7 @@ set_cursor_position(HANDLE h, int x, int y) {
 #else
 static BOOL
 set_cursor_position(int fd, int x, int y) {
-  char buf[32] = {27, '['};
+  char buf[2 + (FMT_ULONG + 1) * 2] = {27, '['};
   size_t pos = 2;
 
   if(y == -1 && x >= 0) {
