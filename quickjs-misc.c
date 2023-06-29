@@ -1159,7 +1159,7 @@ enum { SET_CURSOR_POSITION, MOVE_CURSOR };
 
 static JSValue
 js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int32_t fd = 0, x = -1, y = -1;
+  int32_t fd = 0, x = magic == MOVE_CURSOR ? 0 : -1, y = magic == MOVE_CURSOR ? 0 : -1;
   BOOL line = FALSE;
   JSValue ret = JS_UNDEFINED;
 
@@ -2765,8 +2765,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getScreenSize", 0, js_misc_screensize),
 #endif
     JS_CFUNC_DEF("clearScreen", 1, js_misc_clearscreen),
-    JS_CFUNC_MAGIC_DEF("setCursorPosition", 2, js_misc_cursorposition, SET_CURSOR_POSITION),
-    JS_CFUNC_MAGIC_DEF("moveCursor", 2, js_misc_cursorposition, MOVE_CURSOR),
+    JS_CFUNC_MAGIC_DEF("setCursorPosition", 1, js_misc_cursorposition, SET_CURSOR_POSITION),
+    JS_CFUNC_MAGIC_DEF("moveCursor", 1, js_misc_cursorposition, MOVE_CURSOR),
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
     JS_CFUNC_MAGIC_DEF("not", 1, js_misc_bitop, BITOP_NOT),
