@@ -66,6 +66,54 @@
 #include "debug.h"
 #include "js-utils.h"
 
+#ifndef _WIN32
+#ifndef FOREGROUND_BLUE
+#define FOREGROUND_BLUE (1 << 0)
+#endif
+#ifndef FOREGROUND_GREEN
+#define FOREGROUND_GREEN (1 << 1)
+#endif
+#ifndef FOREGROUND_RED
+#define FOREGROUND_RED (1 << 2)
+#endif
+#ifndef FOREGROUND_INTENSITY
+#define FOREGROUND_INTENSITY (1 << 3)
+#endif
+#ifndef BACKGROUND_BLUE
+#define BACKGROUND_BLUE (1 << 4)
+#endif
+#ifndef BACKGROUND_GREEN
+#define BACKGROUND_GREEN (1 << 5)
+#endif
+#ifndef BACKGROUND_RED
+#define BACKGROUND_RED (1 << 6)
+#endif
+#ifndef BACKGROUND_INTENSITY
+#define BACKGROUND_INTENSITY (1 << 7)
+#endif
+#ifndef COMMON_LVB_LEADING_BYTE
+#define COMMON_LVB_LEADING_BYTE (1 << 8)
+#endif
+#ifndef COMMON_LVB_TRAILING_BYTE
+#define COMMON_LVB_TRAILING_BYTE (1 << 9)
+#endif
+#ifndef COMMON_LVB_GRID_HORIZONTAL
+#define COMMON_LVB_GRID_HORIZONTAL (1 << 10)
+#endif
+#ifndef COMMON_LVB_GRID_LVERTICAL
+#define COMMON_LVB_GRID_LVERTICAL (1 << 11)
+#endif
+#ifndef COMMON_LVB_GRID_RVERTICAL
+#define COMMON_LVB_GRID_RVERTICAL (1 << 12)
+#endif
+#ifndef COMMON_LVB_REVERSE_VIDEO
+#define COMMON_LVB_REVERSE_VIDEO (1 << 14)
+#endif
+#ifndef COMMON_LVB_UNDERSCORE
+#define COMMON_LVB_UNDERSCORE (1 << 15)
+#endif
+#endif
+
 /**
  * \addtogroup quickjs-misc
  * @{
@@ -212,21 +260,6 @@ set_cursor_position(HANDLE h, int x, int y) {
 
   return !!SetConsoleCursorPosition(h, coords);
 }
-
-static BOOL
-move_cursor(HANDLE h, int x, int y) {
-  COORD coords = {0, 0};
-  CONSOLE_SCREEN_BUFFER_INFO sbi;
-
-  if(!GetConsoleScreenBufferInfo(h, &sbi))
-    return FALSE;
-
-  coords.X = sbi.dwCursorPosition.X + x;
-  coords.Y = sbi.dwCursorPosition.Y + y;
-
-  return !!SetConsoleCursorPosition(h, coords);
-}
-
 #else
 static BOOL
 set_cursor_position(int fd, int x, int y) {
@@ -249,7 +282,23 @@ set_cursor_position(int fd, int x, int y) {
 
   return write(fd, buf, pos) > 0;
 }
+#endif
 
+#ifdef _WIN32
+static BOOL
+move_cursor(HANDLE h, int x, int y) {
+  COORD coords = {0, 0};
+  CONSOLE_SCREEN_BUFFER_INFO sbi;
+
+  if(!GetConsoleScreenBufferInfo(h, &sbi))
+    return FALSE;
+
+  coords.X = sbi.dwCursorPosition.X + x;
+  coords.Y = sbi.dwCursorPosition.Y + y;
+
+  return !!SetConsoleCursorPosition(h, coords);
+}
+#else
 static BOOL
 move_cursor(int fd, int x, int y) {
   char buf[(2 + (FMT_ULONG) + 1) * 2];
@@ -270,6 +319,40 @@ move_cursor(int fd, int x, int y) {
       pos += fmt_ulong(buf, ABS_NUM(x));
     buf[pos++] = x < 0 ? 'D' : 'C';
   }
+
+  return write(fd, buf, pos) > 0;
+}
+#endif
+
+#ifdef _WIN32
+static BOOL
+set_text_attribute(HANDLE h, uint32_t attr) {
+  return !!SetConsoleTextAttribute(h, attr);
+}
+#else
+static BOOL
+set_text_attribute(int fd, uint32_t attr) {
+  char buf[(2 + (FMT_ULONG) + 1) * 3];
+  size_t pos = 0;
+
+  buf[pos++] = 27;
+  buf[pos++] = '[';
+
+  int fg = ((attr & FOREGROUND_RED) ? 1 : 0) + ((attr & FOREGROUND_GREEN) ? 2 : 0) +
+           ((attr & FOREGROUND_BLUE) ? 4 : 0) + ((attr & FOREGROUND_INTENSITY) ? 90 : 30);
+
+  pos += fmt_ulong(buf, fg);
+  buf[pos++] = ';';
+
+  int bg = ((attr & BACKGROUND_RED) ? 1 : 0) + ((attr & BACKGROUND_GREEN) ? 2 : 0) +
+           ((attr & BACKGROUND_BLUE) ? 4 : 0) + ((attr & BACKGROUND_INTENSITY) ? 100 : 40);
+
+  pos += fmt_ulong(buf, fg);
+
+  buf[pos++] = ';';
+  pos += fmt_ulong(buf, (attr & COMMON_LVB_REVERSE_VIDEO) ? 7 : 27);
+
+  buf[pos++] = 'm';
 
   return write(fd, buf, pos) > 0;
 }
@@ -1161,7 +1244,7 @@ enum { SET_CURSOR_POSITION, MOVE_CURSOR };
 
 static JSValue
 js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  int32_t fd = 0, x = magic == MOVE_CURSOR ? 0 : -1, y = magic == MOVE_CURSOR ? 0 : -1;
+  int32_t fd = 1, x = magic == MOVE_CURSOR ? 0 : -1, y = magic == MOVE_CURSOR ? 0 : -1;
   BOOL line = FALSE;
   JSValue ret = JS_UNDEFINED;
 
@@ -1181,6 +1264,31 @@ js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   ret = JS_NewInt32(ctx, magic == MOVE_CURSOR ? move_cursor(h, x, y) : set_cursor_position(h, x, y));
 #else
   ret = JS_NewInt32(ctx, magic == MOVE_CURSOR ? move_cursor(fd, x, y) : set_cursor_position(fd, x, y));
+#endif
+
+  return ret;
+}
+
+static JSValue
+js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t fd = 1;
+  uint32_t attr = 0;
+  JSValue ret = JS_UNDEFINED;
+
+  if(argc >= 1)
+    JS_ToInt32(ctx, &fd, argv[0]);
+  if(argc >= 2)
+    JS_ToUint32(ctx, &attr, argv[1]);
+
+#ifdef _WIN32
+  HANDLE h;
+
+  if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
+    return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
+
+  ret = JS_NewInt32(ctx, set_text_attribute(h, attr));
+#else
+  ret = JS_NewInt32(ctx, set_text_attribute(fd, attr));
 #endif
 
   return ret;
@@ -2769,6 +2877,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("clearScreen", 1, js_misc_clearscreen),
     JS_CFUNC_MAGIC_DEF("setCursorPosition", 1, js_misc_cursorposition, SET_CURSOR_POSITION),
     JS_CFUNC_MAGIC_DEF("moveCursor", 1, js_misc_cursorposition, MOVE_CURSOR),
+    JS_CFUNC_DEF("setTextAttribute", 2, js_misc_settextattr),
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
     JS_CFUNC_MAGIC_DEF("not", 1, js_misc_bitop, BITOP_NOT),
