@@ -137,7 +137,6 @@ child_process_spawn(ChildProcess* cp) {
 
   sattr.nLength = sizeof(SECURITY_ATTRIBUTES);
   sattr.bInheritHandle = TRUE;
-
   sattr.lpSecurityDescriptor = NULL;
 
   ZeroMemory(&pinfo, sizeof(PROCESS_INFORMATION));
