@@ -149,19 +149,20 @@ static BOOL
 clear_screen(HANDLE h) {
   COORD coords = {0, 0};
   DWORD n, con_size;
-  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  CONSOLE_SCREEN_BUFFER_INFO sbi;
 
-  if(!GetConsoleScreenBufferInfo(h, &csbi))
+  if(!GetConsoleScreenBufferInfo(h, &sbi))
     return FALSE;
 
-  con_size = csbi.dwSize.X * csbi.dwSize.Y;
+  con_size = sbi.dwSize.X * sbi.dwSize.Y;
 
   if(!FillConsoleOutputCharacter(h, (TCHAR)' ', con_size, coords, &n))
     return FALSE;
-  if(!GetConsoleScreenBufferInfo(h, &csbi))
+  
+  if(!GetConsoleScreenBufferInfo(h, &sbi))
 
     return FALSE;
-  if(!FillConsoleOutputAttribute(h, csbi.wAttributes, con_size, coords, &n))
+  if(!FillConsoleOutputAttribute(h, sbi.wAttributes, con_size, coords, &n))
     return FALSE;
 
   SetConsoleCursorPosition(h, coords);
