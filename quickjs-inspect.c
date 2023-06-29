@@ -735,7 +735,9 @@ inspect_number(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
   if(tag != JS_TAG_SYMBOL && opts->colors)
     writer_puts(wr, COLOR_YELLOW);
 
-  if(opts->number_base == 16 && tag != JS_TAG_FLOAT64) {
+  if(opts->number_base == 16 &&
+     (!JS_TAG_IS_FLOAT64(tag) ||
+      (isfinite(JS_VALUE_GET_FLOAT64(value)) && floor(JS_VALUE_GET_FLOAT64(value)) == JS_VALUE_GET_FLOAT64(value)))) {
     int64_t num;
     char buf[FMT_XLONG];
 
@@ -1305,8 +1307,8 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
             it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
                                     : property_enumeration_next(it)))) {*/
 
-   while(!it || !(it =  (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
-                                    : property_enumeration_next(it)))) {
+    while(!it || !(it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
+                                           : property_enumeration_next(it)))) {
       is_array = js_is_array(ctx, property_recursion_top(&frames)->obj);
       it = property_recursion_pop(&frames, ctx);
 
