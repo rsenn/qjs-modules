@@ -258,14 +258,16 @@ move_cursor(int fd, int x, int y) {
   if(y) {
     buf[pos++] = 27;
     buf[pos++] = '[';
-    pos += fmt_ulong(buf, ABS_NUM(y));
+    if(ABS_NUM(y) != 1)
+      pos += fmt_ulong(buf, ABS_NUM(y));
     buf[pos++] = y < 0 ? 'A' : 'B';
   }
 
   if(x) {
     buf[pos++] = 27;
     buf[pos++] = '[';
-    pos += fmt_ulong(buf, ABS_NUM(x));
+    if(ABS_NUM(x) != 1)
+      pos += fmt_ulong(buf, ABS_NUM(x));
     buf[pos++] = x < 0 ? 'D' : 'C';
   }
 
