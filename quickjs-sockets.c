@@ -1267,7 +1267,7 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
         continue;
       }
 
-      return JS_Throw(ctx, js_syscallerror_new(ctx, "socket", WSAGetLastError());
+      return JS_Throw(ctx, js_syscallerror_new(ctx, "socket", WSAGetLastError()));
 #else
       return JS_Throw(ctx, js_syscallerror_new(ctx, "socket", errno));
 #endif
