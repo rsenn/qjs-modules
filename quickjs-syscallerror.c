@@ -174,6 +174,12 @@ syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
                                 256,
                                 NULL);
 
+    while(dbuf->size > 0) {
+      if(dbuf->buf[dbuf->size - 1] > 0x20)
+        break;
+      --dbuf->size;
+    }
+
 #else
     const char* msg;
 

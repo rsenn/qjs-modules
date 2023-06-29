@@ -368,10 +368,10 @@ dbuf_reserve_start(DynBuf* s, size_t len) {
 
 uint8_t*
 dbuf_reserve(DynBuf* s, size_t len) {
-  if(unlikely((s->size + len) > s->allocated_size)) {
+  if(unlikely((s->size + len) > s->allocated_size))
     if(dbuf_realloc(s, s->size + len))
       return 0;
-  }
+
   return &s->buf[s->size];
 }
 
