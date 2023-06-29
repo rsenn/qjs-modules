@@ -92,11 +92,10 @@ enum SocketCalls {
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
 #define socket_retval(sock) ((sock).ret)
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
-#define socket_error(sock) ((sock).ret < 0 ? (sock).error + WSABASEERR : 0)
+#define socket_error(sock) ((sock).ret < 0 ? (int)(sock).error + WSABASEERR : 0)
 #else
-#define socket_error(sock) ((sock).ret < 0 ? (sock).error : 0)
+#define socket_error(sock) ((sock).ret < 0 ? (int)(sock).error : 0)
 #endif
-#define socket_error(sock) ((sock).ret < 0 ? (sock).error : 0)
 #define socket_syscall(sock) syscall_name((sock).syscall)
 #define socket_adopted(sock) (!(sock).owner)
 
