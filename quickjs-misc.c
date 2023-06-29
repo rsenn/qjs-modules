@@ -213,6 +213,20 @@ set_cursor_position(HANDLE h, int x, int y) {
   return !!SetConsoleCursorPosition(h, coords);
 }
 
+static BOOL
+move_cursor(HANDLE h, int x, int y) {
+  COORD coords = {0, 0};
+  CONSOLE_SCREEN_BUFFER_INFO sbi;
+
+  if(!GetConsoleScreenBufferInfo(h, &sbi))
+    return FALSE;
+
+  coords.X = sbi.dwCursorPosition.X + x;
+  coords.Y = sbi.dwCursorPosition.Y + y;
+
+  return !!SetConsoleCursorPosition(h, coords);
+}
+
 #else
 static BOOL
 set_cursor_position(int fd, int x, int y) {
@@ -231,6 +245,28 @@ set_cursor_position(int fd, int x, int y) {
     }
 
     buf[pos++] = 'H';
+  }
+
+  return write(fd, buf, pos) > 0;
+}
+
+static BOOL
+move_cursor(int fd, int x, int y) {
+  char buf[(2 + (FMT_ULONG) + 1) * 2];
+  size_t pos = 0;
+
+  if(y) {
+    buf[pos++] = 27;
+    buf[pos++] = '[';
+    pos += fmt_ulong(buf, ABS_NUM(y));
+    buf[pos++] = y < 0 ? 'A' : 'B';
+  }
+
+  if(x) {
+    buf[pos++] = 27;
+    buf[pos++] = '[';
+    pos += fmt_ulong(buf, ABS_NUM(x));
+    buf[pos++] = x < 0 ? 'D' : 'C';
   }
 
   return write(fd, buf, pos) > 0;
@@ -1094,13 +1130,12 @@ js_misc_screensize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
 static JSValue
 js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int32_t fd = 0, mode = 0;
+  int32_t fd = 1, mode = 0;
   BOOL line = FALSE;
   JSValue ret = JS_UNDEFINED;
 
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
-
   if(argc >= 2)
     JS_ToInt32(ctx, &mode, argv[1]);
   if(argc >= 3)
@@ -1120,8 +1155,10 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return ret;
 }
 
+enum { SET_CURSOR_POSITION, MOVE_CURSOR };
+
 static JSValue
-js_misc_setcursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 0, x = -1, y = -1;
   BOOL line = FALSE;
   JSValue ret = JS_UNDEFINED;
@@ -1139,9 +1176,9 @@ js_misc_setcursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
-  ret = JS_NewInt32(ctx, set_cursor_position(h, x, y));
+  ret = JS_NewInt32(ctx, magic == MOVE_CURSOR ? move_cursor(h, x, y) : set_cursor_position(h, x, y));
 #else
-  ret = JS_NewInt32(ctx, set_cursor_position(fd, x, y));
+  ret = JS_NewInt32(ctx, magic == MOVE_CURSOR ? move_cursor(fd, x, y) : set_cursor_position(fd, x, y));
 #endif
 
   return ret;
@@ -2728,7 +2765,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("getScreenSize", 0, js_misc_screensize),
 #endif
     JS_CFUNC_DEF("clearScreen", 1, js_misc_clearscreen),
-    JS_CFUNC_DEF("setCursorPosition", 2, js_misc_setcursorposition),
+    JS_CFUNC_MAGIC_DEF("setCursorPosition", 2, js_misc_cursorposition, SET_CURSOR_POSITION),
+    JS_CFUNC_MAGIC_DEF("moveCursor", 2, js_misc_cursorposition, MOVE_CURSOR),
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
     JS_CFUNC_MAGIC_DEF("not", 1, js_misc_bitop, BITOP_NOT),
