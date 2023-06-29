@@ -130,33 +130,32 @@ child_process_spawn(ChildProcess* cp) {
   intptr_t pid;
   DynBuf db;
   char *file = 0, *args, *env;
-  PROCESS_INFORMATION piProcessInfo;
-  STARTUPINFOA siStartInfo;
-  SECURITY_ATTRIBUTES saAttr;
+  PROCESS_INFORMATION pinfo;
+  STARTUPINFOA sinfo;
+  SECURITY_ATTRIBUTES sattr;
   BOOL success = FALSE;
 
-  saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
-  saAttr.bInheritHandle = TRUE;
+  sattr.nLength = sizeof(SECURITY_ATTRIBUTES);
+  sattr.bInheritHandle = TRUE;
 
-  saAttr.lpSecurityDescriptor = NULL;
+  sattr.lpSecurityDescriptor = NULL;
 
-  ZeroMemory(&piProcessInfo, sizeof(PROCESS_INFORMATION));
-  ZeroMemory(&siStartInfo, sizeof(STARTUPINFO));
+  ZeroMemory(&pinfo, sizeof(PROCESS_INFORMATION));
+  ZeroMemory(&sinfo, sizeof(STARTUPINFO));
 
-  siStartInfo.cb = sizeof(STARTUPINFO);
-  siStartInfo.hStdError = (HANDLE)_get_osfhandle(cp->child_fds[2]);
-  siStartInfo.hStdOutput = (HANDLE)_get_osfhandle(cp->child_fds[1]);
-  siStartInfo.hStdInput = (HANDLE)_get_osfhandle(cp->child_fds[0]);
-  siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
+  sinfo.cb = sizeof(STARTUPINFO);
+  sinfo.hStdError = (HANDLE)_get_osfhandle(cp->child_fds[2]);
+  sinfo.hStdOutput = (HANDLE)_get_osfhandle(cp->child_fds[1]);
+  sinfo.hStdInput = (HANDLE)_get_osfhandle(cp->child_fds[0]);
+  sinfo.dwFlags |= STARTF_USESTDHANDLES;
 
   BOOL search = cp->use_path && path_isname(cp->file);
 
+  file = search ? NULL : cp->file;
   args = argv_to_string(cp->args, ' ');
-
   env = cp->env ? argv_to_string(cp->env, '\0') : NULL;
 
-  success = CreateProcessA(
-      search ? 0 : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, env, cp->cwd, &siStartInfo, &piProcessInfo);
+  success = CreateProcessA(file, args, &sattr, NULL, TRUE, CREATE_NO_WINDOW, env, cp->cwd, &sinfo, &pinfo);
 
   free(args);
   if(env)
@@ -167,7 +166,7 @@ child_process_spawn(ChildProcess* cp) {
     fprintf(stderr, "CreateProcessA error: %d\n", error);
     pid = -1;
   } else {
-    pid = piProcessInfo.dwProcessId;
+    pid = pinfo.dwProcessId;
   }
 
 #elif defined(POSIX_SPAWN)
