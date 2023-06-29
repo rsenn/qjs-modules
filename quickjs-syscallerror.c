@@ -158,10 +158,13 @@ static void
 syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
   if(err->syscall) {
     dbuf_putstr(dbuf, err->syscall);
-    dbuf_putstr(dbuf, "() ");
+    dbuf_putstr(dbuf, "()");
   }
 
   if(err->number) {
+    if(err->syscall)
+      dbuf_putstr(dbuf, ": ");
+
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
     dbuf->size += FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
                                 NULL,
@@ -178,10 +181,12 @@ syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
       dbuf_putstr(dbuf, msg);
 #endif
   }
+
   if(err->stack) {
     dbuf_putc(dbuf, '\n');
     dbuf_putstr(dbuf, err->stack);
   }
+
   dbuf_0(dbuf);
 }
 
