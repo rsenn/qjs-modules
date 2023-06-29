@@ -117,6 +117,7 @@ argv_to_string(char* const* argv, char delim) {
     ptr += len;
     *ptr++ = delim;
   }
+  *ptr = 0;
   *--ptr = 0;
 
   return str;
@@ -128,12 +129,11 @@ child_process_spawn(ChildProcess* cp) {
   int i, error = 0;
   intptr_t pid;
   DynBuf db;
-  char *file = 0, *args;
+  char *file = 0, *args, *env;
   PROCESS_INFORMATION piProcessInfo;
   STARTUPINFOA siStartInfo;
-
   SECURITY_ATTRIBUTES saAttr;
-  BOOL retval = FALSE;
+  BOOL success = FALSE;
 
   saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
   saAttr.bInheritHandle = TRUE;
@@ -150,35 +150,19 @@ child_process_spawn(ChildProcess* cp) {
   siStartInfo.dwFlags |= STARTF_USESTDHANDLES;
 
   BOOL search = cp->use_path && path_isname(cp->file);
-  /*const char* pathvar = search ? getenv("PATH") : 0;
-
-  if(search)
-    dbuf_init2(&db, 0, 0);*/
 
   args = argv_to_string(cp->args, ' ');
 
-  /*for(;;) {
-    if(search) {
-      if(!(file = path_search(&pathvar, cp->file, &db)))
-        break;
-    }*/
+  env = cp->env ? argv_to_string(cp->env, '\0') : NULL;
 
-  retval = CreateProcessA(
-      search ? 0 : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &siStartInfo, &piProcessInfo);
+  success = CreateProcessA(
+      search ? 0 : cp->file, args, &saAttr, NULL, TRUE, CREATE_NO_WINDOW, env, cp->cwd, &siStartInfo, &piProcessInfo);
 
-  /*if(retval == 0) {
-    error = GetLastError();
-    if(search && (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND))
-      continue;
-  }
-  break;
-}
-
-if(file)
-  free(file);*/
   free(args);
+  if(env)
+    free(env);
 
-  if(retval == FALSE) {
+  if(!success) {
     error = GetLastError();
     fprintf(stderr, "CreateProcessA error: %d\n", error);
     pid = -1;
@@ -187,7 +171,6 @@ if(file)
   }
 
 #elif defined(POSIX_SPAWN)
-
   int i;
   pid_t pid;
   posix_spawn_file_actions_t actions;
