@@ -198,7 +198,7 @@ clear_screen(HANDLE h, char mode, BOOL line) {
   if(!FillConsoleOutputAttribute(h, sbi.wAttributes, con_size, coords, &n))
     return FALSE;
 
-  SetConsoleCursorPosition(h, coords);
+  //SetConsoleCursorPosition(h, coords);
   return TRUE;
 }
 
@@ -231,14 +231,14 @@ set_cursor_position(int fd, int x, int y) {
   size_t pos = 2;
 
   if(y == -1 && x >= 0) {
-    pos += fmt_ulong(buf, x + 1);
+    pos += fmt_ulong(&buf[pos], x + 1);
     buf[pos++] = 'G';
   } else {
 
     if(y >= 0 && x >= 0) {
-      pos += fmt_ulong(buf, y + 1);
+      pos += fmt_ulong(&buf[pos], y + 1);
       buf[pos++] = ';';
-      pos += fmt_ulong(buf, x + 1);
+      pos += fmt_ulong(&buf[pos], x + 1);
     }
 
     buf[pos++] = 'H';
@@ -272,7 +272,7 @@ move_cursor(int fd, int x, int y) {
     buf[pos++] = 27;
     buf[pos++] = '[';
     if(ABS_NUM(y) != 1)
-      pos += fmt_ulong(buf, ABS_NUM(y));
+      pos += fmt_ulong(&buf[pos], ABS_NUM(y));
     buf[pos++] = y < 0 ? 'A' : 'B';
   }
 
@@ -280,7 +280,7 @@ move_cursor(int fd, int x, int y) {
     buf[pos++] = 27;
     buf[pos++] = '[';
     if(ABS_NUM(x) != 1)
-      pos += fmt_ulong(buf, ABS_NUM(x));
+      pos += fmt_ulong(&buf[pos], ABS_NUM(x));
     buf[pos++] = x < 0 ? 'D' : 'C';
   }
 
@@ -305,16 +305,16 @@ set_text_attribute(int fd, uint32_t attr) {
   int fg = ((attr & FOREGROUND_RED) ? 1 : 0) + ((attr & FOREGROUND_GREEN) ? 2 : 0) +
            ((attr & FOREGROUND_BLUE) ? 4 : 0) + ((attr & FOREGROUND_INTENSITY) ? 90 : 30);
 
-  pos += fmt_ulong(buf, fg);
+  pos += fmt_ulong(&buf[pos], fg);
   buf[pos++] = ';';
 
   int bg = ((attr & BACKGROUND_RED) ? 1 : 0) + ((attr & BACKGROUND_GREEN) ? 2 : 0) +
            ((attr & BACKGROUND_BLUE) ? 4 : 0) + ((attr & BACKGROUND_INTENSITY) ? 100 : 40);
 
-  pos += fmt_ulong(buf, fg);
+  pos += fmt_ulong(&buf[pos], bg);
 
   buf[pos++] = ';';
-  pos += fmt_ulong(buf, (attr & COMMON_LVB_REVERSE_VIDEO) ? 7 : 27);
+  pos += fmt_ulong(&buf[pos], (attr & COMMON_LVB_REVERSE_VIDEO) ? 7 : 27);
 
   buf[pos++] = 'm';
 
@@ -1196,9 +1196,9 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
-  ret = JS_NewInt32(ctx, clear_screen(h, mode, line));
+  ret = JS_NewBool(ctx, clear_screen(h, mode, line));
 #else
-  ret = JS_NewInt32(ctx, clear_screen(fd, mode, line));
+  ret = JS_NewBool(ctx, clear_screen(fd, mode, line));
 #endif
 
   return ret;
@@ -1225,9 +1225,9 @@ js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
-  ret = JS_NewInt32(ctx, magic == MOVE_CURSOR ? move_cursor(h, x, y) : set_cursor_position(h, x, y));
+  ret = JS_NewBool(ctx, magic == MOVE_CURSOR ? move_cursor(h, x, y) : set_cursor_position(h, x, y));
 #else
-  ret = JS_NewInt32(ctx, magic == MOVE_CURSOR ? move_cursor(fd, x, y) : set_cursor_position(fd, x, y));
+  ret = JS_NewBool(ctx, magic == MOVE_CURSOR ? move_cursor(fd, x, y) : set_cursor_position(fd, x, y));
 #endif
 
   return ret;
@@ -1250,9 +1250,9 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
-  ret = JS_NewInt32(ctx, set_text_attribute(h, attr));
+  ret = JS_NewBool(ctx, set_text_attribute(h, attr));
 #else
-  ret = JS_NewInt32(ctx, set_text_attribute(fd, attr));
+  ret = JS_NewBool(ctx, set_text_attribute(fd, attr));
 #endif
 
   return ret;
