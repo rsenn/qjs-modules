@@ -152,29 +152,34 @@ fail:
 }
 
 static void
-js_syscallerror_dump(JSContext* ctx, JSValueConst this_val, DynBuf* dbuf) {
-  SyscallError* err;
-  /*  if(!(err = js_syscallerror_data2(ctx, this_val)))
-      return;*/
-  if((err = js_syscallerror_data(this_val))) {
-    // dbuf_putstr(dbuf, "SyscallError: ");
-
-    if(err->syscall) {
-      dbuf_putstr(dbuf, err->syscall);
-      dbuf_putstr(dbuf, "() ");
-    }
-    if(err->number) {
-      const char* msg;
-
-      if((msg = strerror(err->number)))
-        dbuf_putstr(dbuf, msg);
-    }
-    if(err->stack) {
-      dbuf_putc(dbuf, '\n');
-      dbuf_putstr(dbuf, err->stack);
-    }
-    dbuf_0(dbuf);
+syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
+  if(err->syscall) {
+    dbuf_putstr(dbuf, err->syscall);
+    dbuf_putstr(dbuf, "() ");
   }
+
+  if(err->number) {
+#if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
+    dbuf->size += FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                NULL,
+                                err->number,
+                                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                dbuf_reserve(dbuf, 256),
+                                256,
+                                NULL);
+
+#else
+    const char* msg;
+
+    if((msg = strerror(err->number)))
+      dbuf_putstr(dbuf, msg);
+#endif
+  }
+  if(err->stack) {
+    dbuf_putc(dbuf, '\n');
+    dbuf_putstr(dbuf, err->stack);
+  }
+  dbuf_0(dbuf);
 }
 
 enum {
@@ -194,7 +199,7 @@ js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     case SYSCALLERROR_TOSTRING: {
       DynBuf dbuf = {0};
       js_dbuf_init(ctx, &dbuf);
-      js_syscallerror_dump(ctx, this_val, &dbuf);
+      syscallerror_dump(err, &dbuf);
       ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
       dbuf_free(&dbuf);
       break;
@@ -289,7 +294,7 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case SYSCALLERROR_PROP_MESSAGE: {
       DynBuf dbuf = {0};
       js_dbuf_init(ctx, &dbuf);
-      js_syscallerror_dump(ctx, this_val, &dbuf);
+      syscallerror_dump(err, &dbuf);
       ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, byte_chr(dbuf.buf, dbuf.size, '\n'));
       break;
     }
