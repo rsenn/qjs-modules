@@ -4,6 +4,9 @@
 #include "char-utils.h"
 #include <errno.h>
 #include "debug.h"
+#if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
+#include <windows.h>
+#endif
 
 /**
  * \addtogroup quickjs-syscallerror
