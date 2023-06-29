@@ -124,7 +124,6 @@ argv_to_string(char* const* argv, char delim) {
 
 int
 child_process_spawn(ChildProcess* cp) {
-
 #ifdef _WIN32
   int i, error = 0;
   intptr_t pid;
@@ -208,7 +207,7 @@ if(file)
     return -1;
   }
 
-  return cp->pid = pid;
+
 #else
   int i;
   pid_t pid;
@@ -262,8 +261,9 @@ if(file)
         close(cp->child_fds[i]);
     }
   }
-  return cp->pid = pid;
 #endif
+
+  return cp->pid = pid;
 }
 
 int
