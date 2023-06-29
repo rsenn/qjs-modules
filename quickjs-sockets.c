@@ -6,8 +6,8 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
+
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
-#include <winsock2.h>
 int socketpair(int, int, int, SOCKET[2]);
 
 #define socket_handle(sock) ((SOCKET)_get_osfhandle(socket_fd(sock)))

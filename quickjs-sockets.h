@@ -2,7 +2,7 @@
 #ifndef QUICKJS_SOCKETS_H
 #define QUICKJS_SOCKETS_H
 
-#if defined(_WIN32) || defined(__MSYS__)
+#if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
@@ -91,6 +91,11 @@ enum SocketCalls {
 #define socket_eof(sock) (((sock).syscall == SYSCALL_RECV || (sock).syscall == SYSCALL_RECVFROM) && (sock).ret == 0)
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
 #define socket_retval(sock) ((sock).ret)
+#if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
+#define socket_error(sock) ((sock).ret < 0 ? (sock).error + WSABASEERR : 0)
+#else
+#define socket_error(sock) ((sock).ret < 0 ? (sock).error : 0)
+#endif
 #define socket_error(sock) ((sock).ret < 0 ? (sock).error : 0)
 #define socket_syscall(sock) syscall_name((sock).syscall)
 #define socket_adopted(sock) (!(sock).owner)
