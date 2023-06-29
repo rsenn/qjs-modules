@@ -126,14 +126,13 @@ argv_to_string(char* const* argv, char delim) {
 int
 child_process_spawn(ChildProcess* cp) {
 #ifdef _WIN32
-  int i, error = 0;
   intptr_t pid;
   DynBuf db;
-  char *file = 0, *args, *env;
+  char *file, *args, *env;
   PROCESS_INFORMATION pinfo;
   STARTUPINFOA sinfo;
   SECURITY_ATTRIBUTES sattr;
-  BOOL success = FALSE;
+  BOOL search, success;
 
   sattr.nLength = sizeof(SECURITY_ATTRIBUTES);
   sattr.bInheritHandle = TRUE;
@@ -148,8 +147,7 @@ child_process_spawn(ChildProcess* cp) {
   sinfo.hStdInput = (HANDLE)_get_osfhandle(cp->child_fds[0]);
   sinfo.dwFlags |= STARTF_USESTDHANDLES;
 
-  BOOL search = cp->use_path && path_isname(cp->file);
-
+  search = cp->use_path && path_isname(cp->file);
   file = search ? NULL : cp->file;
   args = argv_to_string(cp->args, ' ');
   env = cp->env ? argv_to_string(cp->env, '\0') : NULL;
@@ -161,8 +159,7 @@ child_process_spawn(ChildProcess* cp) {
     free(env);
 
   if(!success) {
-    error = GetLastError();
-    fprintf(stderr, "CreateProcessA error: %d\n", error);
+    fprintf(stderr, "CreateProcessA error: %d\n", GetLastError());
     pid = -1;
   } else {
     pid = pinfo.dwProcessId;
