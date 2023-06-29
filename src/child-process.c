@@ -207,7 +207,6 @@ if(file)
     return -1;
   }
 
-
 #else
   int i;
   pid_t pid;
