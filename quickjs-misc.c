@@ -198,7 +198,7 @@ clear_screen(HANDLE h, char mode, BOOL line) {
   if(!FillConsoleOutputAttribute(h, sbi.wAttributes, con_size, coords, &n))
     return FALSE;
 
-  //SetConsoleCursorPosition(h, coords);
+  // SetConsoleCursorPosition(h, coords);
   return TRUE;
 }
 
