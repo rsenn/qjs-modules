@@ -158,7 +158,7 @@ clear_screen(HANDLE h) {
 
   if(!FillConsoleOutputCharacter(h, (TCHAR)' ', con_size, coords, &n))
     return FALSE;
-  
+
   if(!GetConsoleScreenBufferInfo(h, &sbi))
 
     return FALSE;
