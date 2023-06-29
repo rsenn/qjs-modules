@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <assert.h>
 #include <errno.h>
-#if defined(_WIN32) && !defined(__MSYS__)
+#if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
 #include <winsock2.h>
 int socketpair(int, int, int, SOCKET[2]);
 
@@ -119,8 +119,8 @@ syscall_return(Socket* sock, int syscall, int retval) {
   (sock)->syscall = syscall;
   (sock)->ret = retval;
   (sock)->error = retval < 0 ?
-#if defined(_WIN32) && !defined(__MSYS__)
-                             WSAGetLastError()
+#if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
+                             WSAGetLastError() - WSABASEERR
 #else
                              errno
 #endif
@@ -1244,7 +1244,7 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   }
 
   for(;;) {
-#if defined(_WIN32) && !defined(__MSYS__)
+#if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
     SOCKET h = socket(af, type, protocol);
 
     fd = h == INVALID_SOCKET ? -1 : _open_osfhandle(h, 0);
@@ -1253,8 +1253,8 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
 #endif
 
     if(fd == -1) {
-#if defined(_WIN32) && !defined(__MSYS__)
-#warning defined(_WIN32) && !defined(__MSYS__)
+#if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
+#warning defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
       static BOOL initialized;
       int err;
       WSADATA d;
@@ -1262,13 +1262,14 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
       if(!initialized) {
         initialized++;
         if((err = WSAStartup(MAKEWORD(2, 3), &d)))
-          return JS_ThrowInternalError(ctx, "Error initializing winsock: %d", err);
+          return JS_Throw(ctx, js_syscallerror_new(ctx, "WSAStartup", err));
 
         continue;
       }
-      return JS_ThrowInternalError(ctx, "Failed creating socket: %d", WSAGetLastError());
+
+      return JS_Throw(ctx, js_syscallerror_new(ctx, "socket", WSAGetLastError());
 #else
-      return JS_ThrowInternalError(ctx, "Failed creating socket: %s", strerror(errno));
+      return JS_Throw(ctx, js_syscallerror_new(ctx, "socket", errno));
 #endif
     }
 
