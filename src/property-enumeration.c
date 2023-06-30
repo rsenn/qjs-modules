@@ -13,16 +13,15 @@ int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
   *it = (PropertyEnumeration)PROPENUM_INIT();
 
-  if(JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, object, flags & 0x3f)) {
+  if(!(it->tab_atom = js_object_keys(ctx,  &it->tab_atom_len, object, flags & ~(PROPENUM_SORT_ATOMS) ))) {
     it->tab_atom_len = 0;
-    it->tab_atom = 0;
-    return -1;
+     return -1;
   }
 
   // assert(it->tab_atom_len);
 
   if(flags & PROPENUM_SORT_ATOMS)
-    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void*, const void*)) & compare_jspropertyenum);
+    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSAtom), (int (*)(const void*, const void*)) & compare_jsatom);
 
   it->idx = 0;
   it->obj = object;
@@ -47,7 +46,7 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
     if(i)
       dbuf_putstr(out, ", ");
 
-    s = JS_AtomToCString(ctx, it->tab_atom[i].atom);
+    s = JS_AtomToCString(ctx, it->tab_atom[i]);
     dbuf_putstr(out, i == it->idx ? COLOR_LIGHTRED : COLOR_GRAY);
     dbuf_putstr(out, s);
     dbuf_putstr(out, COLOR_NONE);
@@ -82,7 +81,7 @@ property_enumeration_deepest(JSContext* ctx, JSValueConst object, int32_t max) {
 
     do {
       depth = vector_size(&vec, sizeof(PropertyEnumeration));
-      // printf("depth = %" PRIu32 ", atom = %x\n", depth, it->tab_atom[it->idx].atom);
+      // printf("depth = %" PRIu32 ", atom = %x\n", depth, it->tab_atom[it->idx]);
       if(max_depth < depth)
         max_depth = depth;
 
@@ -121,7 +120,7 @@ property_enumeration_reset(PropertyEnumeration* it, JSRuntime* rt) {
 
   if(it->tab_atom) {
     for(i = 0; i < it->tab_atom_len; i++)
-      JS_FreeAtomRT(rt, it->tab_atom[i].atom);
+      JS_FreeAtomRT(rt, it->tab_atom[i]);
     orig_js_free_rt(rt, it->tab_atom);
     it->tab_atom = 0;
     it->tab_atom_len = 0;
@@ -137,7 +136,7 @@ property_enumeration_key(const PropertyEnumeration* it, JSContext* ctx) {
 
   assert(it->idx < it->tab_atom_len);
 
-  key = JS_AtomToValue(ctx, it->tab_atom[it->idx].atom);
+  key = JS_AtomToValue(ctx, it->tab_atom[it->idx]);
 
   if(JS_IsArray(ctx, it->obj)) {
     int64_t idx;
@@ -157,7 +156,7 @@ property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueC
   JSValue ret;
   JSValueConst argv[3] = {
       property_enumeration_value(it, ctx),
-      JS_AtomToValue(ctx, it->tab_atom[it->idx].atom) /*property_enumeration_key(it, ctx)*/,
+      JS_AtomToValue(ctx, it->tab_atom[it->idx]) /*property_enumeration_key(it, ctx)*/,
       this_arg,
   };
 

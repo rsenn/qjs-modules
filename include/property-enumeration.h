@@ -13,7 +13,7 @@
 typedef struct PropertyEnumeration {
   uint32_t idx;
   uint32_t tab_atom_len;
-  JSPropertyEnum* tab_atom;
+  JSAtom* tab_atom;
   JSValue obj;
 } PropertyEnumeration;
 
@@ -36,6 +36,10 @@ static inline int
 compare_jspropertyenum(const JSPropertyEnum* a, JSPropertyEnum* b) {
   return a->atom < b->atom ? -1 : a->atom > b->atom ? 1 : 0;
 }
+static inline int
+compare_jsatom(const JSAtom* a, JSAtom* b) {
+  return a < b ? -1 : a> b ? 1 : 0;
+}
 
 int property_enumeration_init(PropertyEnumeration*, JSContext* ctx, JSValue object, int flags);
 void property_enumeration_dump(PropertyEnumeration*, JSContext* ctx, DynBuf* out);
@@ -55,7 +59,7 @@ static inline JSValue
 property_enumeration_value(const PropertyEnumeration* it, JSContext* ctx) {
   assert(it->idx < it->tab_atom_len);
 
-  return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx].atom);
+  return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx]);
 }
 
 static inline const char*
@@ -92,21 +96,21 @@ static inline JSAtom
 property_enumeration_atom(const PropertyEnumeration* it) {
   assert(it->idx < it->tab_atom_len);
 
-  return it->tab_atom[it->idx].atom;
+  return it->tab_atom[it->idx];
 }
 
 static inline const char*
 property_enumeration_keystr(const PropertyEnumeration* it, JSContext* ctx) {
   assert(it->idx < it->tab_atom_len);
 
-  return JS_AtomToCString(ctx, it->tab_atom[it->idx].atom);
+  return JS_AtomToCString(ctx, it->tab_atom[it->idx]);
 }
 
 static inline const char*
 property_enumeration_keystrlen(const PropertyEnumeration* it, size_t* len, JSContext* ctx) {
   assert(it->idx < it->tab_atom_len);
 
-  return js_atom_to_cstringlen(ctx, len, it->tab_atom[it->idx].atom);
+  return js_atom_to_cstringlen(ctx, len, it->tab_atom[it->idx]);
 }
 
 static inline void
