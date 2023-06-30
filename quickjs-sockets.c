@@ -232,7 +232,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
 
           if(in.s_addr == 0) {
             *in6p = (struct in6_addr)IN6ADDR_ANY_INIT;
-          } else if(ntohl(in.s_addr) == INADDR_LOOPBACK) {
+          } else if(in.s_addr == htonl(INADDR_LOOPBACK)) {
             *in6p = (struct in6_addr)IN6ADDR_LOOPBACK_INIT;
           } else {
             in6p->s6_addr32[0] = 0;
