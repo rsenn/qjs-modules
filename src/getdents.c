@@ -26,13 +26,15 @@ struct getdents_reader {
 
 #ifdef FIND_A
 #define findnext(hnd, dat) FindNextFile(hnd, dat)
-#define h h_ptr
+#define findclose(hnd) FindClose(hnd)
+#define h_find h_ptr
 #else
 
 #define cFileName name
 #define dwFileAttributes attrib
 #define findnext(hnd, dat) !_wfindnext64(hnd, dat)
-#define h h_int
+#define findclose(hnd) _findclose(hnd)
+#define h_find h_int
 #endif
 
 size_t
@@ -48,7 +50,7 @@ getdents_clear(Directory* d) {
 
 intptr_t
 getdents_handle(Directory* d) {
-  return (intptr_t)d->h;
+  return (intptr_t)d->h_find;
 }
 
 int
@@ -64,13 +66,13 @@ getdents_open(Directory* d, const char* path) {
   // plen += strlen(&p[plen]);
 
 #ifdef FIND_A
-  if((d->h = FindFirstFile(p, &d->fdw)) != INVALID_HANDLE_VALUE)
+  if((d->h_find = FindFirstFile(p, &d->fdw)) != INVALID_HANDLE_VALUE)
     d->first = TRUE;
 #else
   wchar_t* wp = utf8_towcs(p);
   assert(wp);
 
-  if((HANDLE)(d->h_int = _wfindfirst64(wp, &d->fdw)) != INVALID_HANDLE_VALUE)
+  if((d->h_find = _wfindfirst64(wp, &d->fdw)) != -1)
     d->first = TRUE;
 
   free(wp);
@@ -83,8 +85,9 @@ getdents_open(Directory* d, const char* path) {
 
 int
 getdents_adopt(Directory* d, intptr_t hnd) {
-  if((HANDLE)hnd == INVALID_HANDLE_VALUE)
+  if(hnd == -1)
     return -1;
+
   d->h_int = hnd;
   return 0;
 }
@@ -93,7 +96,7 @@ DirEntry*
 getdents_read(Directory* d) {
   if(d->first)
     d->first = FALSE;
-  else if(!findnext(d->h, &d->fdw))
+  else if(!findnext(d->h_find, &d->fdw))
     return 0;
 
   return (DirEntry*)&d->fdw;
@@ -118,7 +121,7 @@ getdents_namebuf(const DirEntry* e, size_t* len) {
 
 void
 getdents_close(Directory* d) {
-  CloseHandle(d->h_ptr);
+  findclose(d->h_find);
   d->h_ptr = INVALID_HANDLE_VALUE;
 }
 
@@ -158,13 +161,13 @@ getdents_issock(const DirEntry* e) {
 }
 
 #else
-#include <dirent.h> /* Defines DT_* constants */
-#include <fcntl.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/syscall.h>
+#include <dirent.h_find> /* Defines DT_* constants */
+#include <fcntl.h_find>
+#include <stdio.h_find>
+#include <unistd.h_find>
+#include <stdlib.h_find>
+#include <sys/stat.h_find>
+#include <sys/syscall.h_find>
 
 #define BUFFER_SIZE 1024 * 1024 * 5
 #define DIRENT(d) ((struct linux_dirent64*)&(d)->buf[(d)->bpos])
