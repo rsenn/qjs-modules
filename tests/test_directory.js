@@ -16,6 +16,12 @@ function main(...args) {
       hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
     }
   });
+
+  let dir = new Directory('.');
+
+  for(let entry of dir) {
+    console.log('entry', console.config({ compact: 0 }), entry);
+  }
 }
 
 try {
