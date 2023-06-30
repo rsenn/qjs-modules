@@ -428,9 +428,9 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
             memset(a, 0, sizeof(SockAddr));
             a->family = af;
 
-            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(old.sai6.sin6_addr.s6_addr32) || IN6_IS_ADDR_V4COMPAT(old.sai6.sin6_addr.s6_addr32))) {
+            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(old.sai6.sin6_addr.s6_addr32) || IN6_IS_ADDR_V4COMPAT(old.sai6.sin6_addr.s6_addr32)) && a->family == AF_INET) {
               a->sai.sin_addr.s_addr = old.sai6.sin6_addr.s6_addr32[3];
-            } else if(a->family == AF_INET) {
+            } else if(old.family == AF_INET && a->family == AF_INET6) {
               a->sai6.sin6_addr.s6_addr32[0] = 0;
               a->sai6.sin6_addr.s6_addr32[1] = 0;
               a->sai6.sin6_addr.s6_addr32[2] = htonl(0xffff);
