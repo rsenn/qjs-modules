@@ -515,8 +515,6 @@ foreach(LIB_MODULE ${LIB_MODULES})
   compile_module(lib/${LIB_MODULE}.js)
 endforeach(LIB_MODULE ${LIB_MODULES})
 
-dump(LIBRARY_SOURCES)
-
 add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES} ${libutf_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
 add_library(compiled STATIC ${COMPILED_MODULES})
