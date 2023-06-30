@@ -18,6 +18,7 @@
 #endif
 #include <signal.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 enum {
   CHILD_PROCESS_FILE = 0,
@@ -33,8 +34,6 @@ enum {
   CHILD_PROCESS_STOPPED,
   CHILD_PROCESS_CONTINUED,
 };
-
-extern char** environ;
 
 thread_local VISIBLE JSClassID js_child_process_class_id = 0;
 thread_local JSValue child_process_proto = {{0}, JS_TAG_UNDEFINED}, child_process_ctor = {{0}, JS_TAG_UNDEFINED};
@@ -127,7 +126,6 @@ js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static int
 js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
-
   JSValue value;
   size_t i, len;
   int *parent_fds, *child_fds;
@@ -139,6 +137,7 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
   } else {
     cp->env = js_strv_dup(ctx, environ);
   }
+
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, obj, "cwd");
