@@ -350,6 +350,7 @@ enum {
   SOCKADDR_FAMILY,
   SOCKADDR_ADDR,
   SOCKADDR_PORT,
+  SOCKADDR_PATH,
   SOCKADDR_BYTELENGTH,
   SOCKADDR_BUFFER,
 };
@@ -365,24 +366,38 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = JS_NewUint32(ctx, a->family);
         break;
       }
+
       case SOCKADDR_ADDR: {
-        char buf[INET6_ADDRSTRLEN] = {0};
-        inet_ntop(a->family, sockaddr_addr(a), buf, sizeof(buf));
-        ret = JS_NewString(ctx, buf);
+        if(a->family != AF_UNIX) {
+          char buf[INET6_ADDRSTRLEN] = {0};
+          inet_ntop(a->family, sockaddr_addr(a), buf, sizeof(buf));
+          ret = JS_NewString(ctx, buf);
+        }
         break;
       }
+
       case SOCKADDR_PORT: {
-        ret = JS_NewUint32(ctx, sockaddr_port(a));
+        if(a->family != AF_UNIX) {
+          ret = JS_NewUint32(ctx, sockaddr_port(a));
+        }
         break;
       }
+
+      case SOCKADDR_PATH: {
+        if(a->family == AF_UNIX) {
+          ret = JS_NewString(ctx, a->sau.sun_path);
+        }
+        break;
+      }
+
       case SOCKADDR_BYTELENGTH: {
         size_t len;
         if((len = sockaddr_size(a)))
           ret = JS_NewUint32(ctx, len);
         break;
       }
+
       case SOCKADDR_BUFFER: {
-        // JSValue* v = js_mallocz(ctx, sizeof(JSValue));
         JSObject* obj = JS_VALUE_GET_OBJ(JS_DupValue(ctx, this_val));
 
         ret = JS_NewArrayBuffer(ctx, (uint8_t*)a, sizeof(SockAddr), js_sockaddr_free_buffer, obj, FALSE);
@@ -405,21 +420,37 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
       case SOCKADDR_FAMILY: {
         int32_t af;
         JS_ToInt32(ctx, &af, value);
-        a->family = af;
+
+        if(a->family != af) {
+          memset(a, 0, sizeof(SockAddr));
+          a->family = af;
+        }
         break;
       }
       case SOCKADDR_ADDR: {
-        const char* str = JS_ToCString(ctx, value);
-        inet_pton(a->family, str, sockaddr_addr(a));
-        JS_FreeCString(ctx, str);
+        if(a->family != AF_UNIX) {
+          const char* str = JS_ToCString(ctx, value);
+          inet_pton(a->family, str, sockaddr_addr(a));
+          JS_FreeCString(ctx, str);
+        }
         break;
       }
       case SOCKADDR_PORT: {
-        uint32_t port;
-        JS_ToUint32(ctx, &port, value);
-        switch(a->family) {
-          case AF_INET: a->sai.sin_port = htons(port); break;
-          case AF_INET6: a->sai6.sin6_port = htons(port); break;
+        if(a->family != AF_UNIX) {
+          uint32_t port;
+          JS_ToUint32(ctx, &port, value);
+          switch(a->family) {
+            case AF_INET: a->sai.sin_port = htons(port); break;
+            case AF_INET6: a->sai6.sin6_port = htons(port); break;
+          }
+        }
+        break;
+      }
+      case SOCKADDR_PATH: {
+        if(a->family == AF_UNIX) {
+          const char* str = JS_ToCString(ctx, value);
+          strncpy(a->sau.sun_path, str, sizeof(a->sau.sun_path));
+          JS_FreeCString(ctx, str);
         }
         break;
       }
@@ -430,8 +461,6 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 static JSValue
 js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   SockAddr* a;
-  uint16_t port;
-  char buf[INET6_ADDRSTRLEN] = {0};
 
   if(!(a = js_sockaddr_data2(ctx, this_val)))
     return JS_EXCEPTION;
@@ -441,13 +470,21 @@ js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(a->family)
     JS_DefinePropertyValueStr(ctx, obj, "family", JS_NewUint32(ctx, a->family), JS_PROP_ENUMERABLE);
 
-  inet_ntop(a->family, sockaddr_addr(a), buf, sizeof(buf));
+  if(a->family == AF_UNIX) {
+    if(a->sau.sun_path[0])
+      JS_DefinePropertyValueStr(ctx, obj, "path", JS_NewString(ctx, a->sau.sun_path), JS_PROP_ENUMERABLE);
+  } else {
+    uint16_t port;
+    char buf[INET6_ADDRSTRLEN] = {0};
 
-  if(buf[0])
-    JS_DefinePropertyValueStr(ctx, obj, "addr", JS_NewString(ctx, buf), JS_PROP_ENUMERABLE);
+    inet_ntop(a->family, sockaddr_addr(a), buf, sizeof(buf));
 
-  if((port = sockaddr_port(a)))
-    JS_DefinePropertyValueStr(ctx, obj, "port", JS_NewUint32(ctx, port), JS_PROP_ENUMERABLE);
+    if(buf[0])
+      JS_DefinePropertyValueStr(ctx, obj, "addr", JS_NewString(ctx, buf), JS_PROP_ENUMERABLE);
+
+    if((port = sockaddr_port(a)))
+      JS_DefinePropertyValueStr(ctx, obj, "port", JS_NewUint32(ctx, port), JS_PROP_ENUMERABLE);
+  }
 
   JSAtom to_string_tag = js_symbol_static_atom(ctx, "toStringTag");
   JS_DefinePropertyValue(ctx, obj, to_string_tag, JS_NewString(ctx, "SockAddr") /*JS_GetProperty(ctx, this_val, to_string_tag)*/, JS_PROP_CONFIGURABLE);
@@ -470,6 +507,7 @@ static const JSCFunctionListEntry js_sockaddr_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("family", js_sockaddr_get, js_sockaddr_set, SOCKADDR_FAMILY, JS_PROP_C_W_E),
     JS_CGETSET_MAGIC_FLAGS_DEF("addr", js_sockaddr_get, js_sockaddr_set, SOCKADDR_ADDR, JS_PROP_C_W_E),
     JS_CGETSET_MAGIC_FLAGS_DEF("port", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PORT, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_FLAGS_DEF("path", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PATH, JS_PROP_C_W_E),
     JS_CGETSET_MAGIC_DEF("buffer", js_sockaddr_get, 0, SOCKADDR_BUFFER),
     JS_CGETSET_MAGIC_DEF("byteLength", js_sockaddr_get, 0, SOCKADDR_BYTELENGTH),
     JS_CFUNC_MAGIC_DEF("clone", 0, js_sockaddr_method, SOCKADDR_METHOD_CLONE),
