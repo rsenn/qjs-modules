@@ -31,8 +31,8 @@ typedef int SOCKET;
 
 static int js_sockets_init(JSContext*, JSModuleDef*);
 static JSValue js_async_socket_method(JSContext*, JSValueConst, int, JSValueConst[], int);
-static const char* syscall_name(int syscall_number);
-static void syscall_return(Socket* sock, int syscall, int retval);
+/*static const char* syscall_name(int syscall_number);
+static void syscall_return(Socket* sock, int syscall, int retval);*/
 
 #define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), js_socket_error(ctx, *(sock)))
 
@@ -1130,7 +1130,7 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case SOCKETS_REMOTE: {
-      SockAddr* a = sockaddr_new(ctx);
+      SockAddr* a =  js_mallocz(ctx, sizeof(SockAddr));
       socklen_t len = sizeof(SockAddr);
 
       JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, s, getpeername(socket_handle(*s), (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
