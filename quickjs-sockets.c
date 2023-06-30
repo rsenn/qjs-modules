@@ -455,6 +455,7 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
         break;
       }
+      
       case SOCKADDR_PATH: {
         if(a->family == AF_UNIX) {
           const char* str = JS_ToCString(ctx, value);
