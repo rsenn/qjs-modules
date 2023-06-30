@@ -22,9 +22,9 @@
 typedef union {
   uint16_t family;
   struct sockaddr s;
-  struct sockaddr_in sai;
-  struct sockaddr_in6 sai6;
-  struct sockaddr_un sau;
+  struct sockaddr_in ip4;
+  struct sockaddr_in6 ip6;
+  struct sockaddr_un unx;
 } SockAddr;
 
 #define SOCKET_PROPS() \
@@ -110,8 +110,8 @@ enum SocketCalls {
 static inline int
 sockaddr_port(const SockAddr* sa) {
   switch(sa->family) {
-    case AF_INET: return ntohs(sa->sai.sin_port);
-    case AF_INET6: return ntohs(sa->sai6.sin6_port);
+    case AF_INET: return ntohs(sa->ip4.sin_port);
+    case AF_INET6: return ntohs(sa->ip6.sin6_port);
   }
   return -1;
 }
@@ -119,8 +119,8 @@ sockaddr_port(const SockAddr* sa) {
 static inline BOOL
 sockaddr_setport(SockAddr* sa, uint16_t port) {
   switch(sa->family) {
-    case AF_INET: sa->sai.sin_port = htons(port); return TRUE;
-    case AF_INET6: sa->sai6.sin6_port = htons(port); return TRUE;
+    case AF_INET: sa->ip4.sin_port = htons(port); return TRUE;
+    case AF_INET6: sa->ip6.sin6_port = htons(port); return TRUE;
   }
   return FALSE;
 }
@@ -128,8 +128,8 @@ sockaddr_setport(SockAddr* sa, uint16_t port) {
 static inline void*
 sockaddr_addr(SockAddr* sa) {
   switch(sa->family) {
-    case AF_INET: return &sa->sai.sin_addr;
-    case AF_INET6: return &sa->sai6.sin6_addr;
+    case AF_INET: return &sa->ip4.sin_addr;
+    case AF_INET6: return &sa->ip6.sin6_addr;
   }
 
   return 0;
@@ -138,8 +138,8 @@ sockaddr_addr(SockAddr* sa) {
 static inline socklen_t
 sockaddr_addrlen(const SockAddr* sa) {
   switch(sa->family) {
-    case AF_INET: return sizeof(sa->sai.sin_addr);
-    case AF_INET6: return sizeof(sa->sai6.sin6_addr);
+    case AF_INET: return sizeof(sa->ip4.sin_addr);
+    case AF_INET6: return sizeof(sa->ip6.sin6_addr);
   }
   return 0;
 }

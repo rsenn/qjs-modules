@@ -220,18 +220,18 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
 
     if((str = JS_ToCString(ctx, argv[0]))) {
       if(a->family == 0) {
-        if(inet_pton(AF_INET, str, &a->sai.sin_addr) > 0)
+        if(inet_pton(AF_INET, str, &a->ip4.sin_addr) > 0)
           a->family = AF_INET;
-        else if(inet_pton(AF_INET6, str, &a->sai6.sin6_addr) > 0)
+        else if(inet_pton(AF_INET6, str, &a->ip6.sin6_addr) > 0)
           a->family = AF_INET6;
 
       } else if(a->family == AF_UNIX) {
-        strncpy(a->sau.sun_path, str, sizeof(a->sau.sun_path));
+        strncpy(a->unx.sun_path, str, sizeof(a->unx.sun_path));
       } else if(!inet_pton(a->family, str, sockaddr_addr(a)) && a->family == AF_INET6) {
         struct in_addr in;
 
         if(inet_pton(AF_INET, str, &in)) {
-          struct in6_addr* in6p = &a->sai6.sin6_addr;
+          struct in6_addr* in6p = &a->ip6.sin6_addr;
 
           if(in.s_addr == 0) {
             *in6p = (struct in6_addr)IN6ADDR_ANY_INIT;
@@ -257,9 +257,9 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
     JS_ToUint32(ctx, &port, argv[0]);
 
     if(a->family == AF_INET)
-      a->sai.sin_port = htons(port);
+      a->ip4.sin_port = htons(port);
     else if(a->family == AF_INET6)
-      a->sai6.sin6_port = htons(port);
+      a->ip6.sin6_port = htons(port);
   }
 
   return TRUE;
@@ -326,7 +326,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
     case SOCKADDR_METHOD_TOSTRING: {
       if(a->family == AF_UNIX) {
-        ret = JS_NewString(ctx, a->sau.sun_path);
+        ret = JS_NewString(ctx, a->unx.sun_path);
       } else {
         char port[FMT_ULONG];
         DynBuf dbuf;
@@ -384,7 +384,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       case SOCKADDR_PATH: {
         if(a->family == AF_UNIX) {
-          ret = JS_NewString(ctx, a->sau.sun_path);
+          ret = JS_NewString(ctx, a->unx.sun_path);
         }
         break;
       }
@@ -428,13 +428,13 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
             memset(a, 0, sizeof(SockAddr));
             a->family = af;
 
-            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(old.sai6.sin6_addr.s6_addr32) || IN6_IS_ADDR_V4COMPAT(old.sai6.sin6_addr.s6_addr32)) && a->family == AF_INET) {
-              a->sai.sin_addr.s_addr = old.sai6.sin6_addr.s6_addr32[3];
+            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(old.ip6.sin6_addr.s6_addr32) || IN6_IS_ADDR_V4COMPAT(old.ip6.sin6_addr.s6_addr32)) && a->family == AF_INET) {
+              a->ip4.sin_addr.s_addr = old.ip6.sin6_addr.s6_addr32[3];
             } else if(old.family == AF_INET && a->family == AF_INET6) {
-              a->sai6.sin6_addr.s6_addr32[0] = 0;
-              a->sai6.sin6_addr.s6_addr32[1] = 0;
-              a->sai6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-              a->sai6.sin6_addr.s6_addr32[3] = old.sai.sin_addr.s_addr;
+              a->ip6.sin6_addr.s6_addr32[0] = 0;
+              a->ip6.sin6_addr.s6_addr32[1] = 0;
+              a->ip6.sin6_addr.s6_addr32[2] = htonl(0xffff);
+              a->ip6.sin6_addr.s6_addr32[3] = old.ip4.sin_addr.s_addr;
             }
 
             if(port != -1)
@@ -471,7 +471,7 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
         if(a->family == AF_UNIX) {
           const char* str = JS_ToCString(ctx, value);
 
-          strncpy(a->sau.sun_path, str, sizeof(a->sau.sun_path));
+          strncpy(a->unx.sun_path, str, sizeof(a->unx.sun_path));
 
           JS_FreeCString(ctx, str);
         }
@@ -495,8 +495,8 @@ js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     JS_DefinePropertyValueStr(ctx, obj, "family", JS_NewUint32(ctx, a->family), JS_PROP_ENUMERABLE);
 
   if(a->family == AF_UNIX) {
-    if(a->sau.sun_path[0])
-      JS_DefinePropertyValueStr(ctx, obj, "path", JS_NewString(ctx, a->sau.sun_path), JS_PROP_ENUMERABLE);
+    if(a->unx.sun_path[0])
+      JS_DefinePropertyValueStr(ctx, obj, "path", JS_NewString(ctx, a->unx.sun_path), JS_PROP_ENUMERABLE);
   } else {
     uint16_t port;
     char buf[INET6_ADDRSTRLEN] = {0};
