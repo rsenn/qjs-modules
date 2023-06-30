@@ -67,7 +67,7 @@ js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
 Socket
 js_socket_data(JSValueConst value) {
   JSClassID id = JS_GetClassID(value);
-  Socket sock = {SOCKET_INIT()};
+  Socket sock = SOCKET_INIT();
 
   if((id = JS_GetClassID(value)) > 0) {
     void* opaque = JS_GetOpaque(value, id);
@@ -193,16 +193,6 @@ js_sockaddr_new(JSContext* ctx, int family) {
 
 static BOOL
 js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
-  if(argc >= 1) {
-    SockAddr* other;
-
-    if((other = js_sockaddr_data(argv[0]))) {
-      *a = *other;
-
-      return TRUE;
-    }
-  }
-
   if(argc == 1 && js_is_arraybuffer(ctx, argv[0])) {
     uint8_t* data;
     size_t len;
@@ -260,28 +250,26 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
 static JSValue
 js_sockaddr_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
-  SockAddr* a;
+  SockAddr *a, *other;
 
   if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_async_socket_class_id == 0)
     js_sockets_init(ctx, 0);
 
   if(!(a = sockaddr_new(ctx)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
 
-  if(!JS_IsObject(proto))
-    proto = sockaddr_proto;
-
   obj = JS_NewObjectProtoClass(ctx, proto, js_sockaddr_class_id);
-
   JS_FreeValue(ctx, proto);
 
-  if(!js_sockaddr_init(ctx, argc, argv, a)) {
-    js_free(ctx, a);
-    return JS_ThrowInternalError(ctx, "SockAddr init() failed");
+  if(argc >= 1 && (other = js_sockaddr_data(argv[0]))) {
+    *a = *other;
+  } else if(!js_sockaddr_init(ctx, argc, argv, a)) {
+    JS_ThrowInternalError(ctx, "SockAddr init() failed");
+    goto fail;
   }
 
   JS_SetOpaque(obj, a);
@@ -452,9 +440,9 @@ js_sockaddr_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static const JSCFunctionListEntry js_sockaddr_proto_funcs[] = {
-    JS_CGETSET_MAGIC_FLAGS_DEF("family", js_sockaddr_get, js_sockaddr_set, SOCKADDR_FAMILY, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("addr", js_sockaddr_get, js_sockaddr_set, SOCKADDR_ADDR, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("port", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PORT, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("family", js_sockaddr_get, js_sockaddr_set, SOCKADDR_FAMILY, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_FLAGS_DEF("addr", js_sockaddr_get, js_sockaddr_set, SOCKADDR_ADDR, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_FLAGS_DEF("port", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PORT, JS_PROP_C_W_E),
     JS_CGETSET_MAGIC_DEF("buffer", js_sockaddr_get, 0, SOCKADDR_BUFFER),
     JS_CGETSET_MAGIC_DEF("byteLength", js_sockaddr_get, 0, SOCKADDR_BYTELENGTH),
     JS_CFUNC_MAGIC_DEF("clone", 0, js_sockaddr_method, SOCKADDR_METHOD_CLONE),
@@ -2280,7 +2268,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
 
   js_syscallerror_init(ctx, m);
 
-  JSValue fdset_module, fdset_ns, fdset_ctor = JS_UNDEFINED, socklen_module, socklen_ns, socklen_ctor = JS_UNDEFINED;
+  // JSValue fdset_module, fdset_ns, fdset_ctor = JS_UNDEFINED, socklen_module, socklen_ns, socklen_ctor = JS_UNDEFINED;
 
   JS_NewClass(JS_GetRuntime(ctx), js_sockaddr_class_id, &js_sockaddr_class);
 
@@ -2288,9 +2276,11 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   sockaddr_proto = JS_NewObject(ctx);
 
   JS_SetPropertyFunctionList(ctx, sockaddr_proto, js_sockaddr_proto_funcs, countof(js_sockaddr_proto_funcs));
-  JS_SetClassProto(ctx, js_sockaddr_class_id, sockaddr_proto);
 
-  /*js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);*/
+  JS_SetClassProto(ctx, js_sockaddr_class_id, sockaddr_proto);
+  JS_SetConstructor(ctx, sockaddr_ctor, sockaddr_proto);
+
+  js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);
 
   JS_NewClassID(&js_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_socket_class_id, &js_socket_class);
@@ -2304,10 +2294,9 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, socket_ctor, js_sockets_defines, countof(js_sockets_defines));
 
   JS_SetClassProto(ctx, js_socket_class_id, socket_proto);
-
   JS_SetConstructor(ctx, socket_ctor, socket_proto);
 
-  /*js_set_inspect_method(ctx, socket_proto, js_socket_inspect);*/
+  js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
   JS_NewClassID(&js_async_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_async_socket_class_id, &js_async_socket_class);
@@ -2321,15 +2310,14 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, async_socket_ctor, js_sockets_defines, countof(js_sockets_defines));
 
   JS_SetClassProto(ctx, js_async_socket_class_id, async_socket_proto);
-
   JS_SetConstructor(ctx, async_socket_ctor, async_socket_proto);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SockAddr", sockaddr_ctor);
     JS_SetModuleExport(ctx, m, "Socket", socket_ctor);
     JS_SetModuleExport(ctx, m, "AsyncSocket", async_socket_ctor);
-    JS_SetModuleExport(ctx, m, "fd_set", fdset_ctor);
-    JS_SetModuleExport(ctx, m, "socklen_t", socklen_ctor);
+    /*JS_SetModuleExport(ctx, m, "fd_set", fdset_ctor);
+    JS_SetModuleExport(ctx, m, "socklen_t", socklen_ctor);*/
 
     const char* module_name = JS_AtomToCString(ctx, m->module_name);
 
