@@ -83,8 +83,13 @@ js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
 }
 
 static inline Directory*
-js_directory_data(JSContext* ctx, JSValueConst value) {
+js_directory_data(JSValueConst value) {
   return JS_GetOpaque(value, js_directory_class_id);
+}
+
+static inline Directory*
+js_directory_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_directory_class_id);
 }
 
 static JSValue
@@ -152,7 +157,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   Directory* directory;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(directory = js_directory_data(ctx, this_val)))
+  if(!(directory = js_directory_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
   switch(magic) {
@@ -235,11 +240,11 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 static void
 js_directory_finalizer(JSRuntime* rt, JSValue val) {
   Directory* directory;
-  if((directory = JS_GetOpaque(val, js_directory_class_id))) {
+
+  if((directory = js_directory_data(val))) {
     getdents_close(directory);
     js_free_rt(rt, directory);
   }
-  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_directory_class = {

@@ -731,33 +731,33 @@ static JSClassDef js_syscallerror_class = {
 
 int
 js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
+  assert(js_syscallerror_class_id == 0);
+
   JSValue error = js_global_prototype(ctx, "Error");
 
   assert(JS_IsObject(error));
 
-  if(!js_syscallerror_class_id) {
-    JS_NewClassID(&js_syscallerror_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_syscallerror_class_id, &js_syscallerror_class);
-    syscallerror_ctor = JS_NewCFunction2(ctx, js_syscallerror_constructor, "SyscallError", 1, JS_CFUNC_constructor, 0);
+  JS_NewClassID(&js_syscallerror_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_syscallerror_class_id, &js_syscallerror_class);
 
-    syscallerror_proto = JS_NewObjectProto(ctx, error);
-    // syscallerror_proto = JS_NewObject(ctx);
+  syscallerror_ctor = JS_NewCFunction2(ctx, js_syscallerror_constructor, "SyscallError", 1, JS_CFUNC_constructor, 0);
+  syscallerror_proto = JS_NewObjectProto(ctx, error);
 
-    JS_SetPropertyFunctionList(ctx, syscallerror_ctor, js_syscallerror_defines, countof(js_syscallerror_defines));
-    JS_SetPropertyFunctionList(ctx, syscallerror_proto, js_syscallerror_proto_funcs, countof(js_syscallerror_proto_funcs));
-    JS_SetClassProto(ctx, js_syscallerror_class_id, syscallerror_proto);
+  JS_FreeValue(ctx, error);
+  // syscallerror_proto = JS_NewObject(ctx);
 
-    JS_SetConstructor(ctx, syscallerror_ctor, syscallerror_proto);
+  JS_SetPropertyFunctionList(ctx, syscallerror_ctor, js_syscallerror_defines, countof(js_syscallerror_defines));
+  JS_SetPropertyFunctionList(ctx, syscallerror_proto, js_syscallerror_proto_funcs, countof(js_syscallerror_proto_funcs));
 
-    //  js_set_inspect_method(ctx, syscallerror_proto, js_syscallerror_inspect);
-  }
+  JS_SetClassProto(ctx, js_syscallerror_class_id, syscallerror_proto);
+  JS_SetConstructor(ctx, syscallerror_ctor, syscallerror_proto);
+
+  //  js_set_inspect_method(ctx, syscallerror_proto, js_syscallerror_inspect);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SyscallError", syscallerror_ctor);
     JS_SetModuleExportList(ctx, m, js_syscallerror_defines, countof(js_syscallerror_defines));
   }
-
-  JS_FreeValue(ctx, error);
 
   return 0;
 }
