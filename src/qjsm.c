@@ -59,8 +59,8 @@ static thread_local Vector module_debug = VECTOR_INIT();
 static thread_local Vector module_list = VECTOR_INIT();
 
 #ifndef QUICKJS_MODULE_PATH
-#ifdef CONFIG_PREFIX
-#define QUICKJS_MODULE_PATH CONFIG_PREFIX "/lib/quickjs"
+#ifdef QUICKJS_PREFIX
+#define QUICKJS_MODULE_PATH QUICKJS_PREFIX "/lib/quickjs"
 #endif
 #endif
 
