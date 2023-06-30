@@ -449,7 +449,8 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
           dbuf_printf(dbuf, *p > 0xffffff ? "'\\u%08x'" : *p > 0xffff ? "\\u%06x" : "'\\u%04x'", *p);
         i++;
       }
-      dbuf_printf(dbuf, " (len = %zu) ]", pr->charset.len);
+
+      dbuf_printf(dbuf, " (len = %llu) ]", (unsigned long long int)pr->charset.len);
       break;
     }
 

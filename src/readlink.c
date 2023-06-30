@@ -53,7 +53,7 @@ ssize_t
 readlink(const char* LinkPath, char* buf, size_t maxlen) {
   REPARSE_DATA_BUFFER rdb;
   wchar_t* wbuf = 0;
-  unsigned int u8len, len, wlen;
+  unsigned int u8len, /*len,*/ wlen;
 
   if(!get_reparse_data(LinkPath, &rdb)) {
     return -1;
@@ -77,7 +77,7 @@ readlink(const char* LinkPath, char* buf, size_t maxlen) {
   if(!wbuf)
     return 0;
 
-  u8len = WideCharToMultiByte(CP_UTF8, 0, wbuf, len, NULL, 0, NULL, NULL);
+  u8len = WideCharToMultiByte(CP_UTF8, 0, wbuf, wlen, NULL, 0, NULL, NULL);
   if(u8len >= maxlen)
     u8len = maxlen - 1;
   WideCharToMultiByte(CP_UTF8, 0, wbuf, len, buf, u8len, NULL, NULL);
