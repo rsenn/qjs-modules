@@ -35,12 +35,7 @@ VISIBLE JSValue js_syscallerror_new(JSContext*, const char* syscall, int number)
 VISIBLE JSValue js_syscallerror_throw(JSContext*, const char* syscall);
 
 VISIBLE int js_syscallerror_init(JSContext* ctx, JSModuleDef* m);
-
-extern VISIBLE const char* const errors[];
-extern VISIBLE const size_t errors_size;
-extern VISIBLE const JSCFunctionListEntry js_syscallerror_defines[];
-extern VISIBLE const size_t js_syscallerror_defines_size;
-
+ 
 /**
  * @}
  */

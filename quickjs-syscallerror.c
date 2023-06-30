@@ -230,6 +230,7 @@ js_syscallerror_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
       break;
     }
   }
+
   return ret;
 }
 
@@ -342,7 +343,6 @@ const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyscallError", JS_PROP_CONFIGURABLE),
 };
 
-const size_t js_syscallerror_proto_funcs_size = countof(js_syscallerror_proto_funcs);
 const JSCFunctionListEntry js_syscallerror_defines[] = {
     JS_CFUNC_MAGIC_DEF("name", 1, js_syscallerror_method, SYSCALLERROR_NAME),
 #ifdef EPERM
@@ -715,8 +715,6 @@ const JSCFunctionListEntry js_syscallerror_defines[] = {
     JS_CONSTANT(WSAEREFUSED),
 #endif
 };
-
-const size_t js_syscallerror_defines_size = countof(js_syscallerror_defines);
 
 static void
 js_syscallerror_finalizer(JSRuntime* rt, JSValue val) {
