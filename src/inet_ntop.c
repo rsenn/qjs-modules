@@ -1,7 +1,7 @@
-#if !defined(HAVE_INET_NTOP) && !defined(__MSYS__)
+#if !defined(HAVE_INET_NTOP) && !defined(__MSYS__) && !defined(__CYGWIN__)
 #ifdef _WIN32
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #define socklen_t int
 #else
 #include <sys/socket.h>
