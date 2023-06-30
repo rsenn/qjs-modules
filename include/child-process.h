@@ -48,7 +48,9 @@ extern const char* child_process_signals[32];
 #define SIGQUIT 3
 #define SIGILL 4
 #define SIGTRAP 5
+#ifndef SIGABRT
 #define SIGABRT 6
+#endif
 #define SIGBUS 7
 #define SIGFPE 8
 #define SIGKILL 9

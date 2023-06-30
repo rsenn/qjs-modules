@@ -331,6 +331,14 @@ if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
   set(HAVE_INET_PTON TRUE)
+
+  check_include_def(afunix.h)
+
+  #[[if(HAVE_AFUNIX_H)
+    add_definitions(-DHAVE_AFUNIX_H)
+  endif(HAVE_AFUNIX_H)
+  dump(HAVE_AFUNIX_H)]]
+
 else()
   check_function_exists(inet_pton HAVE_INET_PTON)
 endif()
@@ -341,7 +349,6 @@ endif()
 #include(CheckSymbolExists)
 #check_library_exists(ws2_32 inet_pton "" HAVE_INET_PTON)
 
-
 #if(NOT HAVE_INET_PTON)
 #  check_symbol_exists(<inet_pton "winsock2.h" HAVE_INET_PTON)
 #endif(NOT HAVE_INET_PTON)
@@ -349,7 +356,7 @@ endif()
 dump(HAVE_INET_PTON)
 
 if(HAVE_INET_PTON)
-	message(STATUS "Have inet_pton()")
+  message(STATUS "Have inet_pton()")
   add_definitions(-DHAVE_INET_PTON)
 else(HAVE_INET_PTON)
   message(STATUS "Don't have inet_pton()")
@@ -362,7 +369,7 @@ if(NOT HAVE_INET_NTOP)
   set(sockets_SOURCES ${sockets_SOURCES} src/inet_ntop.c)
 endif(NOT HAVE_INET_NTOP)
 
-  list(APPEND sockets_LIBRARIES qjs-syscallerror)
+list(APPEND sockets_LIBRARIES qjs-syscallerror)
 list(APPEND misc_LIBRARIES qjs-syscallerror)
 
 file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h tutf8e/src/*.c)
@@ -469,7 +476,7 @@ endif(HAVE__BUILTIN_MUL_OVERFLOW)
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
 addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
 
- #dump(STATIC_TARGETS)
+#dump(STATIC_TARGETS)
 unset(QJSM_LDADD)
 
 set(QJSM_LIBDIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -564,7 +571,6 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
   unset(QUICKJS_INCLUDE_DIR CACHE)
   set(QUICKJS_INCLUDE_DIR "${QUICKJS_SOURCES_ROOT}")
-
 
   include_directories(${QUICKJS_INCLUDE_DIR})
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)

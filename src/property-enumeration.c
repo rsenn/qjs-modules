@@ -35,7 +35,7 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
   const char* s;
 
   dbuf_putstr(out, "{ obj: 0x");
-  dbuf_printf(out, "%ld", (long)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : 0));
+  dbuf_printf(out, "%ld", (long)(JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : NULL));
   dbuf_putstr(out, ", idx: ");
   dbuf_printf(out, "%u", it->idx);
   dbuf_putstr(out, ", len: ");
@@ -230,7 +230,7 @@ void
 property_recursion_dumpall(Vector* vec, JSContext* ctx, DynBuf* out) {
   size_t i, n = vector_size(vec, sizeof(PropertyEnumeration));
 
-  dbuf_printf(out, "(%zu) [", n);
+  dbuf_printf(out, "(%llu) [", (unsigned long long int)n);
 
   for(i = 0; i < n; i++) {
     dbuf_putstr(out, i ? ",\n    " : "\n    ");
