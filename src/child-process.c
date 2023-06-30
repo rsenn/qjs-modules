@@ -1,4 +1,9 @@
-#define _GNU_SOURCE
+#define _GNU_SOURCE 1
+#if defined(__CYGWIN__) || defined(__MSYS__)
+#undef __GNU_VISIBLE
+#define __GNU_VISIBLE 1
+#include <sys/unistd.h>
+#endif
 #include "child-process.h"
 #include "utils.h"
 #include "property-enumeration.h"

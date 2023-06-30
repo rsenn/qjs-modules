@@ -13,7 +13,7 @@ int socketpair(int, int, int, SOCKET[2]);
 typedef int SOCKET;
 #define socket_handle(sock) socket_fd(sock)
 #include <sys/select.h>
-#include <sys/syscall.h>
+/*#include <sys/syscall.h>*/
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <poll.h>
@@ -184,10 +184,13 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
           struct in6_addr* in6p = &a->ip6.sin6_addr;
 
           if(in.s_addr == 0) {
-            *in6p = (struct in6_addr)IN6ADDR_ANY_INIT;
+          /* IN6ADDR_ANY_INIT */
+          memset(in6p, 0, sizeof(struct in6_addr));
           } else if(in.s_addr == htonl(INADDR_LOOPBACK)) {
-            *in6p = (struct in6_addr)IN6ADDR_LOOPBACK_INIT;
-          } else {
+          /* IN6ADDR_LOOPBACK_INIT */
+          memset(in6p, 0, sizeof(struct in6_addr));
+    ((char*)in6p)[sizeof(struct in6_addr)-1] = 1;
+            } else {
             uint32_t* addr32 = (uint32_t*)in6p;
             addr32[0] = 0;
             addr32[1] = 0;

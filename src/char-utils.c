@@ -1,7 +1,9 @@
 #include "char-utils.h"
 #include "libutf/include/libutf.h"
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MSYS__)
 #include <winnls.h>
+#include <windows.h>
+#include <wchar.h>
 #endif
 
 /**
@@ -298,7 +300,7 @@ utf8_strlen(const void* in, size_t len) {
   return i;
 }
 
-#if defined(_WIN32) && !defined(__MSYS__)
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MSYS__)
 wchar_t*
 utf8_towcs(const char* s) {
   int len = (int)strlen(s);

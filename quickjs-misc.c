@@ -1,8 +1,8 @@
+#define _GNU_SOURCE
 #ifdef _WIN32
 #include <process.h>
 #include <windows.h>
 #else
-#define _DEFAULT_SOURCE
 #include <unistd.h>
 #endif
 #include "defines.h"

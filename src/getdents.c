@@ -3,14 +3,22 @@
 #include "char-utils.h"
 #include <assert.h>
 
-#if defined(_WIN32) || defined(__MSYS__)
+#if defined(_WIN32) || (defined(__MSYS__) || defined(__CYGWIN__))
 #include <windows.h>
 
 #define BUFFER_SIZE 1024 * 1024 * 5
 #define DIRENT(d) ((find_data_type*)&(d)->fdw)
 
+#if  (defined(__MSYS__) || defined(__CYGWIN__))
+#include <minwinbase.h>
+#include <wchar.h>
+#define FIND_W
+#endif
+
 #ifdef FIND_A
-typedef WIN32_FIND_DATA find_data_type;
+typedef WIN32_FIND_DATAA find_data_type;
+#elif defined(FIND_W)
+typedef WIN32_FIND_DATAW find_data_type;
 #else
 typedef struct _wfinddata64_t find_data_type;
 #endif
@@ -24,16 +32,24 @@ struct getdents_reader {
   find_data_type fdw;
 };
 
+#if defined(FIND_A) || defined(FIND_W)
 #ifdef FIND_A
+#define findfirst(path,st) FindFirstFileA(path,st)
+#else
+#define findfirst(path,st) FindFirstFileW(path,st)
+#endif
 #define findnext(hnd, dat) FindNextFile(hnd, dat)
 #define findclose(hnd) FindClose(hnd)
 #define h_find h_ptr
+#define h_type HANDLE
 #else
+#define findfirst(path,st) _wfindfirst64(path,st)
 #define findnext(hnd, dat) !_wfindnext64(hnd, dat)
 #define findclose(hnd) _findclose(hnd)
 #define cFileName name
 #define dwFileAttributes attrib
 #define h_find h_int
+#define h_type intptr_t
 #endif
 
 size_t
@@ -65,13 +81,13 @@ getdents_open(Directory* d, const char* path) {
   // plen += strlen(&p[plen]);
 
 #ifdef FIND_A
-  if((d->h_find = FindFirstFile(p, &d->fdw)) != INVALID_HANDLE_VALUE)
+  if((d->h_find = findfirst(p, &d->fdw)) != INVALID_HANDLE_VALUE)
     d->first = TRUE;
 #else
   wchar_t* wp = utf8_towcs(p);
   assert(wp);
 
-  if((d->h_find = _wfindfirst64(wp, &d->fdw)) != -1)
+  if((d->h_find = findfirst(wp, &d->fdw)) != (h_type)-1)
     d->first = TRUE;
 
   free(wp);
@@ -93,11 +109,11 @@ getdents_adopt(Directory* d, intptr_t hnd) {
 
 DirEntry*
 getdents_read(Directory* d) {
-  DirEntry* ret = &d->fdw;
+  DirEntry* ret = (struct getdents_entry*)&d->fdw;
 
   if(d->first)
     d->first = FALSE;
-  else if(!findnext(d->h_find, &d->fdw))
+  else if(!findnext(d->h_find, (void*)&d->fdw))
     ret = 0;
 
   return ret;
@@ -173,11 +189,14 @@ getdents_issock(const DirEntry* e) {
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#ifndef __CYGWIN__
 #include <sys/syscall.h>
+#endif
 
 #define BUFFER_SIZE 1024 * 1024 * 5
-#define DIRENT(d) ((struct linux_dirent64*)&(d)->buf[(d)->bpos])
+#define DIRENT(d) ((dirent_struct*)&(d)->buf[(d)->bpos])
 
+#ifdef __linux__
 struct linux_dirent {
   long d_ino;
   off_t d_off;
@@ -192,6 +211,14 @@ struct linux_dirent64 {
   unsigned char d_type;    /* File type */
   char d_name[];           /* Filename (null-terminated) */
 };
+#if __SIZEOF_POINTER__ == 8
+#define dirent_struct struct linux_dirent64
+#else
+#define dirent_struct struct linux_dirent
+#endif
+#else
+#define dirent_struct struct dirent
+#endif
 
 struct getdents_reader {
   int fd, nread, bpos;
@@ -245,7 +272,7 @@ getdents_read(Directory* d) {
         break;
     }
     while(d->bpos < d->nread) {
-      struct linux_dirent64* e = DIRENT(d);
+      dirent_struct* e = DIRENT(d);
       char d_type = d->buf[d->bpos + e->d_reclen - 1];
       d->bpos += e->d_reclen;
 
@@ -269,7 +296,7 @@ getdents_name(const DirEntry* e) {
 
 const uint8_t*
 getdents_namebuf(const DirEntry* e, size_t* len) {
-  const char* name = ((struct linux_dirent64*)e)->d_name;
+  const char* name = ((dirent_struct*)e)->d_name;
 
   if(len)
     *len = strlen(name);
@@ -285,37 +312,37 @@ getdents_close(Directory* d) {
 
 int
 getdents_isblk(const DirEntry* e) {
-  return ((struct linux_dirent64*)e)->d_type == DT_BLK;
+  return ((dirent_struct*)e)->d_type == DT_BLK;
 }
 
 int
 getdents_ischr(const DirEntry* e) {
-  return ((struct linux_dirent64*)e)->d_type == DT_CHR;
+  return ((dirent_struct*)e)->d_type == DT_CHR;
 }
 
 int
 getdents_isdir(const DirEntry* e) {
-  return ((struct linux_dirent64*)e)->d_type == DT_DIR;
+  return ((dirent_struct*)e)->d_type == DT_DIR;
 }
 
 int
 getdents_isfifo(const DirEntry* e) {
-  return ((struct linux_dirent64*)e)->d_type == DT_FIFO;
+  return ((dirent_struct*)e)->d_type == DT_FIFO;
 }
 
 int
 getdents_islnk(const DirEntry* e) {
-  return ((struct linux_dirent64*)e)->d_type == DT_LNK;
+  return ((dirent_struct*)e)->d_type == DT_LNK;
 }
 
 int
 getdents_isreg(const DirEntry* e) {
-  return ((struct linux_dirent64*)e)->d_type == DT_REG;
+  return ((dirent_struct*)e)->d_type == DT_REG;
 }
 
 int
 getdents_issock(const DirEntry* e) {
-  return ((struct linux_dirent64*)e)->d_type == DT_SOCK;
+  return ((dirent_struct*)e)->d_type == DT_SOCK;
 }
 
 #endif /* defined(_WIN32) */
