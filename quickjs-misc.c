@@ -1274,8 +1274,7 @@ enum {
 static JSValue
 js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1;
-  uint32_t attr = 0;
-  JSValue ret = JS_UNDEFINED;
+   JSValue ret = JS_UNDEFINED;
   HANDLE h;
 
   if(argc >= 1)
