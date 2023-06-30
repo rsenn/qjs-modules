@@ -423,30 +423,33 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
         if(a->family != newf) {
           SockAddr old = *a;
 
-          if(old.family != AF_UNIX && newf != AF_UNIX) {
-            memset(a, 0, sizeof(SockAddr));
-            a->family = newf;
+          memset(a, 0, sizeof(SockAddr));
+          a->family = newf;
 
-            uint32_t* oldaddr = sockaddr_addr(&old);
-            uint32_t* newaddr = sockaddr_addr(a);
+          uint32_t* oldaddr = sockaddr_addr(&old);
+          uint32_t* inaddr = sockaddr_addr(a);
 
-            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(oldaddr) || IN6_IS_ADDR_V4COMPAT(oldaddr)) && newf == AF_INET) {
-              *newaddr = oldaddr[3];
-            } else if(old.family == AF_INET6 && IN6_IS_ADDR_LOOPBACK(oldaddr) && newf == AF_INET) {
-              *newaddr = htons(INADDR_LOOPBACK);
-            } else if(old.family == AF_INET6 && IN6_IS_ADDR_UNSPECIFIED(oldaddr) && newf == AF_INET) {
-              *newaddr = 0;
-            } else if(old.family == AF_INET && newf == AF_INET6) {
-              newaddr[0] = 0;
-              newaddr[1] = 0;
-              newaddr[2] = htonl(0xffff);
-              newaddr[3] = *oldaddr;
+          if(old.family == AF_INET6 && newf == AF_INET) {
+
+            if((IN6_IS_ADDR_V4MAPPED(oldaddr) || IN6_IS_ADDR_V4COMPAT(oldaddr))) {
+              *inaddr = oldaddr[3];
+            } else if(IN6_IS_ADDR_LOOPBACK(oldaddr)) {
+              *inaddr = htons(INADDR_LOOPBACK);
+            } else if(IN6_IS_ADDR_UNSPECIFIED(oldaddr)) {
+              *inaddr = 0;
             }
 
-            int port = sockaddr_port(&old);
-            if(port != -1)
-              sockaddr_setport(a, port);
+          } else if(old.family == AF_INET && newf == AF_INET6) {
+            inaddr[0] = 0;
+            inaddr[1] = 0;
+            inaddr[2] = htonl(0xffff);
+            inaddr[3] = *oldaddr;
           }
+
+          int port = sockaddr_port(&old);
+
+          if(port != -1)
+            sockaddr_setport(a, port);
         }
 
         break;
