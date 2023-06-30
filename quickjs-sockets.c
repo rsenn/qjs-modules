@@ -94,7 +94,7 @@ js_socket_error(JSContext* ctx, Socket sock) {
 }
 
 static BOOL
-js_socket_setnonblocking(JSContext* ctx, Socket* s, BOOL nonblock) {
+ socket_setnonblocking(  Socket* s, BOOL nonblock) {
 #ifdef _WIN32
   ULONG mode = nonblock;
   syscall_return(s, SYSCALL_FCNTL,  ioctlsocket(socket_handle(*s), FIONBIO, &mode));
@@ -1253,7 +1253,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       if(nonblock != s->nonblock) {
 
-        js_socket_setnonblocking(ctx, s, nonblock);
+       socket_setnonblocking(s, nonblock);
         s->nonblock = nonblock;
       }
       break;
