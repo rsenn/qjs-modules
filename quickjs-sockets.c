@@ -106,7 +106,7 @@ syscall_return(Socket* sock, int syscall, int retval) {
                              : 0;
 
 #ifdef DEBUG_OUTPUT
-  printf("syscall %s returned %d (%d)\n", syscall_names[(sock)->syscall], (sock)->ret, (sock)->error);
+  printf("syscall %s returned %d (%d)\n", syscall_name((sock)->syscall), (sock)->ret, (sock)->error);
 #endif
 }
 
@@ -1052,7 +1052,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-static JSValue
+/*static JSValue
 js_socket_syscall(JSContext* ctx, JSValueConst this_val) {
   const char* syscall;
   Socket sock = js_socket_data(this_val);
@@ -1064,7 +1064,7 @@ js_socket_syscall(JSContext* ctx, JSValueConst this_val) {
     return JS_NewString(ctx, syscall);
 
   return JS_NewInt32(ctx, sock.syscall);
-}
+}*/
 
 enum {
   PROP_FD,
@@ -1119,8 +1119,12 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_SYSCALL: {
-      if(s->syscall > 0)
-        ret = js_socket_syscall(ctx, this_val);
+      if(s->syscall > 0) {
+        const char* name;
+
+        if((name = syscall_name(s->syscall)))
+          ret = JS_NewString(ctx, name);
+      }
       break;
     }
 
