@@ -19,13 +19,14 @@ function main(...args) {
 
   if(args.length == 0) args = ['.'];
 
+  let index = 0;
   for(let arg of args) {
     let dir = new Directory(arg);
 
     for(let [name, type] of dir) {
       if(type == Directory.TYPE_DIR) name += '/';
 
-      console.log('entry', console.config({ compact: 0 }), { name, type });
+      console.log('entry', console.config({ compact: 0 }), { index: index++, name, type });
     }
   }
 }
