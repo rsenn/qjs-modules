@@ -115,7 +115,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
           }
 
           if(!libutf_c16_to_c32(u16, &cp)) {
-            ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: not a valid utf-16 code at (%llu: 0x%04x, 0x%04x): %u",  __func__, (long long unsigned int)i, (unsigned int)ptr[0], (unsigned int)ptr[1], (unsigned int)cp);
+            ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: not a valid utf-16 code at (%llu: 0x%04x, 0x%04x): %lu",  __func__, (long long unsigned int)i, (unsigned int)ptr[0], (unsigned int)ptr[1], (unsigned long)cp);
             break;
           }
           len = unicode_to_utf8((void*)tmp, cp);
@@ -133,7 +133,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         for(i = 0; i < n; ptr = ringbuffer_next(&dec->buffer, ptr), i += 4) {
           cp = uint32_get_endian(ptr, dec->endian);
           if(!libutf_c32_to_c8(cp, &len, tmp)) {
-            ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: not a valid utf-32 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, __func__, i, ptr[0], ptr[1], cp);
+            ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: not a valid utf-32 code at (%llu: 0x%04x, 0x%04x): %lu", __func__,  (long long unsigned int)i, (unsigned int)ptr[0], (unsigned int)ptr[1], (unsigned long)cp);
             break;
           }
           if(dbuf_put(&dbuf, (const void*)tmp, len))
@@ -410,7 +410,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
           int len;
 
           if(!libutf_c32_to_c16(cp, &len, u16))
-            return JS_ThrowInternalError(ctx, "%s: TextEncoder: not a valid code point at (%zu) [%zu]: %" PRIu32, __func__, i, end - ptr, cp);
+            return JS_ThrowInternalError(ctx, "%s: TextEncoder: not a valid code point at (%llu) [%llu]: %lu" , __func__, (long long unsigned int)i, (long long unsigned int)(end - ptr), (unsigned long)cp);
 
           for(int j = 0; j < len; j++)
             uint16_put_endian(u8 + j * 2, u16[j], enc->endian);
