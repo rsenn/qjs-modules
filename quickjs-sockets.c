@@ -94,17 +94,17 @@ js_socket_error(JSContext* ctx, Socket sock) {
 }
 
 static BOOL
- socket_setnonblocking(  Socket* s, BOOL nonblock) {
+socket_setnonblocking(Socket* s, BOOL nonblock) {
 #ifdef _WIN32
   ULONG mode = nonblock;
-  syscall_return(s, SYSCALL_FCNTL,  ioctlsocket(socket_handle(*s), FIONBIO, &mode));
+  syscall_return(s, SYSCALL_FCNTL, ioctlsocket(socket_handle(*s), FIONBIO, &mode));
 #else
   int oldflags, newflags;
   oldflags = fcntl(s->fd, F_GETFL);
   newflags = nonblock ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
-  
+
   if(oldflags != newflags)
-      syscall_return(s, SYSCALL_FCNTL, fcntl(s->fd, F_SETFL, newflags));
+    syscall_return(s, SYSCALL_FCNTL, fcntl(s->fd, F_SETFL, newflags));
 #endif
 
   return s->ret == 0;
@@ -1252,10 +1252,10 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         nonblock = JS_ToBool(ctx, argv[0]);
 
       if(nonblock != s->nonblock) {
-
-       socket_setnonblocking(s, nonblock);
+        socket_setnonblocking(s, nonblock);
         s->nonblock = nonblock;
       }
+      
       break;
     }
 
