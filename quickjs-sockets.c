@@ -367,7 +367,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
       }
 
       case SOCKADDR_ADDR: {
-        if(a->family != AF_UNIX) {
+        if(a->family == AF_INET || a->family == AF_INET6) {
           char buf[INET6_ADDRSTRLEN] = {0};
           inet_ntop(a->family, sockaddr_addr(a), buf, sizeof(buf));
           ret = JS_NewString(ctx, buf);
@@ -376,7 +376,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
       }
 
       case SOCKADDR_PORT: {
-        if(a->family != AF_UNIX) {
+        if(a->family == AF_INET || a->family == AF_INET6) {
           ret = JS_NewUint32(ctx, sockaddr_port(a));
         }
         break;
@@ -391,8 +391,10 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       case SOCKADDR_BYTELENGTH: {
         size_t len;
+
         if((len = sockaddr_size(a)))
           ret = JS_NewUint32(ctx, len);
+
         break;
       }
 
@@ -403,6 +405,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
         break;
       }
     }
+
   return ret;
 }
 
@@ -457,7 +460,7 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
       }
 
       case SOCKADDR_ADDR: {
-        if(a->family != AF_UNIX) {
+        if(a->family == AF_INET || a->family == AF_INET6) {
           const char* str = JS_ToCString(ctx, value);
           inet_pton(a->family, str, sockaddr_addr(a));
           JS_FreeCString(ctx, str);
@@ -467,11 +470,9 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
       }
 
       case SOCKADDR_PORT: {
-        if(a->family != AF_UNIX) {
+        if(a->family == AF_INET || a->family == AF_INET6) {
           uint32_t port;
-
           JS_ToUint32(ctx, &port, value);
-
           sockaddr_setport(a, port);
         }
 
@@ -480,12 +481,14 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
       case SOCKADDR_PATH: {
         if(a->family == AF_UNIX) {
-          const char* str = JS_ToCString(ctx, value);
+          const char* str;
 
-          strncpy(a->un.sun_path, str, sizeof(a->un.sun_path));
-
-          JS_FreeCString(ctx, str);
+          if((str = JS_ToCString(ctx, value))) {
+            strncpy(a->un.sun_path, str, sizeof(a->un.sun_path));
+            JS_FreeCString(ctx, str);
+          }
         }
+
         break;
       }
     }
