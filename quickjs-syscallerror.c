@@ -18,17 +18,6 @@ VISIBLE JSValue syscallerror_proto = {{0}, JS_TAG_UNDEFINED}, syscallerror_ctor 
 int js_syscallerror_init(JSContext*, JSModuleDef*);
 static const char* error_get(int number);
 
-/*
-static int
-error_find(const char* code) {
-  int i, len = errors_size;
-  for(i = 1; i < len; i++) {
-    if(errors[i] && !strcmp(code, errors[i]))
-      kkkreturn i;
-  }
-  return 0;
-}*/
-
 static char*
 stack_get(JSContext* ctx) {
   const char* stack;
@@ -82,7 +71,7 @@ js_syscallerror_new(JSContext* ctx, const char* syscall, int number) {
   SyscallError* err;
   JSValue obj;
 
-  if(js_syscallerror_class_id == 0 /* || JS_IsUndefined(syscallerror_proto) || JS_IsUndefined(syscallerror_ctor)*/)
+  if(js_syscallerror_class_id == 0)
     js_syscallerror_init(ctx, 0);
 
   if(!(err = syscallerror_new(ctx, syscall, number)))
@@ -269,11 +258,11 @@ js_syscallerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 }
 
 enum {
-  SYSCALLERROR_PROP_SYSCALL,
-  SYSCALLERROR_PROP_CODE,
-  SYSCALLERROR_PROP_ERRNO,
-  SYSCALLERROR_PROP_STACK,
-  SYSCALLERROR_PROP_MESSAGE,
+  PROP_SYSCALL,
+  PROP_CODE,
+  PROP_ERRNO,
+  PROP_STACK,
+  PROP_MESSAGE,
 };
 
 static JSValue
@@ -282,28 +271,28 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
   SyscallError* err = js_syscallerror_data(this_val);
 
   switch(magic) {
-    case SYSCALLERROR_PROP_SYSCALL: {
+    case PROP_SYSCALL: {
       if(err)
         ret = err->syscall ? JS_NewString(ctx, err->syscall) : JS_NULL;
       break;
     }
-    case SYSCALLERROR_PROP_CODE: {
+    case PROP_CODE: {
       const char* code;
       if(err)
         ret = (code = error_get(err->number)) ? JS_NewString(ctx, code) : JS_NULL;
       break;
     }
-    case SYSCALLERROR_PROP_ERRNO: {
+    case PROP_ERRNO: {
       if(err)
         ret = JS_NewInt32(ctx, err->number);
       break;
     }
-    case SYSCALLERROR_PROP_STACK: {
+    case PROP_STACK: {
       if(err)
         ret = err->stack ? JS_NewString(ctx, err->stack) : JS_NULL;
       break;
     }
-    case SYSCALLERROR_PROP_MESSAGE: {
+    case PROP_MESSAGE: {
       DynBuf dbuf = {0};
       js_dbuf_init(ctx, &dbuf);
       syscallerror_dump(err, &dbuf);
@@ -322,19 +311,19 @@ js_syscallerror_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
   //if(!(err = js_syscallerror_data2(ctx, this_val))) return JS_EXCEPTION;
 
   switch(magic) {
-    case SYSCALLERROR_PROP_SYSCALL: {
+    case PROP_SYSCALL: {
       break;
     }
-    case SYSCALLERROR_PROP_CODE: {
+    case PROP_CODE: {
       break;
     }
-    case SYSCALLERROR_PROP_ERRNO: {
+    case PROP_ERRNO: {
       break;
     }
-    case SYSCALLERROR_PROP_STACK: {
+    case PROP_STACK: {
       break;
     }
-    case SYSCALLERROR_PROP_MESSAGE: {
+    case PROP_MESSAGE: {
       break;
     }
   }
@@ -343,19 +332,19 @@ js_syscallerror_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 }*/
 
 const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, 0, SYSCALLERROR_PROP_SYSCALL),
-    JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, 0, SYSCALLERROR_PROP_CODE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_syscallerror_get, 0, SYSCALLERROR_PROP_ERRNO, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, 0, SYSCALLERROR_PROP_STACK),
-    JS_CGETSET_MAGIC_FLAGS_DEF("message", js_syscallerror_get, 0, SYSCALLERROR_PROP_MESSAGE, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, 0, PROP_SYSCALL),
+    JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, 0, PROP_CODE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_syscallerror_get, 0, PROP_ERRNO, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, 0, PROP_STACK),
+    JS_CGETSET_MAGIC_FLAGS_DEF("message", js_syscallerror_get, 0, PROP_MESSAGE, JS_PROP_C_W_E),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_syscallerror_method, SYSCALLERROR_TOSTRING),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "toString"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyscallError", JS_PROP_CONFIGURABLE),
 };
 
 const size_t js_syscallerror_proto_funcs_size = countof(js_syscallerror_proto_funcs);
-
 const JSCFunctionListEntry js_syscallerror_defines[] = {
+    JS_CFUNC_MAGIC_DEF("name", 1, js_syscallerror_method, SYSCALLERROR_NAME),
 #ifdef EPERM
     JS_CONSTANT(EPERM),
 #endif
@@ -798,143 +787,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
 
   return m;
 }
-
-const char* const errors[] = {
-    0,
-    "EPERM",
-    "ENOENT",
-    "ESRCH",
-    "EINTR",
-    "EIO",
-    "ENXIO",
-    "E2BIG",
-    "ENOEXEC",
-    "EBADF",
-    "ECHILD",
-    "EWOULDBLOCK",
-    "ENOMEM",
-    "EACCES",
-    "EFAULT",
-    0,
-    "EBUSY",
-    "EEXIST",
-    "EXDEV",
-    "ENODEV",
-    "ENOTDIR",
-    "EISDIR",
-    "EINVAL",
-    "ENFILE",
-    "EMFILE",
-    "ENOTTY",
-    "ETXTBSY",
-    "EFBIG",
-    "ENOSPC",
-    "ESPIPE",
-    "EROFS",
-    "EMLINK",
-    "EPIPE",
-    "EDOM",
-    "ERANGE",
-    "EDEADLK",
-    "ENAMETOOLONG",
-    "ENOLCK",
-    "ENOSYS",
-    "ENOTEMPTY",
-    0,
-    0,
-    "ENOMSG",
-    "EIDRM",
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    "ENOLINK",
-    0,
-    0,
-    0,
-    "EPROTO",
-    0,
-    0,
-    "EBADMSG",
-    "EOVERFLOW",
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    "EILSEQ",
-    "ERESTART",
-    0,
-    0,
-    "ENOTSOCK",
-    "EDESTADDRREQ",
-    "EMSGSIZE",
-    "EPROTOTYPE",
-    "ENOPROTOOPT",
-    "EPROTONOSUPPORT",
-    0,
-    "EOPNOTSUPP",
-    0,
-    "EAFNOSUPPORT",
-    "EADDRINUSE",
-    "EADDRNOTAVAIL",
-    "ENETDOWN",
-    "ENETUNREACH",
-    "ENETRESET",
-    "ECONNABORTED",
-    "ECONNRESET",
-    "ENOBUFS",
-    "EISCONN",
-    "ENOTCONN",
-    0,
-    0,
-    "ETIMEDOUT",
-    "ECONNREFUSED",
-    0,
-    "EHOSTUNREACH",
-    "EALREADY",
-    "EINPROGRESS",
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    "ECANCELED",
-    0,
-    0,
-    0,
-    0,
-    "EOWNERDEAD",
-    "ENOTRECOVERABLE",
-};
-
-const size_t errors_size = countof(errors);
 
 static const char*
 error_get(int number) {
