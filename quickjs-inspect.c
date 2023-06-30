@@ -1177,7 +1177,7 @@ inspect_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* op
       value = js_symbol_to_string(ctx, value);
 
       if(opts->colors)
-        writer_puts(wr, COLOR_MARINE);
+        writer_puts(wr, COLOR_PURPLE);
 
       const char* str = JS_ToCString(ctx, value);
       writer_puts(wr, str);
