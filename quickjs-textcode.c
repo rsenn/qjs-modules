@@ -429,7 +429,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       for(i = 0; ptr < end; ptr = next, i++) {
         cp = unicode_from_utf8(ptr, end - ptr, &next);
         if(cp == 0xffffffff)
-          return JS_ThrowInternalError(ctx, "%s: TextEncoder: not a valid code point at (%zu): %" PRIu32, __func__, ptr - in.block.base, cp);
+          return JS_ThrowInternalError(ctx, "%s: TextEncoder: not a valid code point at (%llu): %lu", __func__, (long long unsigned int)(ptr - in.block.base), (long unsigned int)cp);
         /*cp = 0;
         if(!libutf_c8_to_c32(ptr, &cp))
           return JS_ThrowInternalError(ctx, "No a valid code point at (%zu) [%zu]: %" PRIu32, i, end - ptr,
