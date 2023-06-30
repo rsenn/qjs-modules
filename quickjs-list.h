@@ -27,9 +27,8 @@ js_list_data(JSValueConst value) {
   return JS_GetOpaque(value, js_list_class_id);
 }
 
-JSValue js_list_new(JSContext*, JSValueConst proto);
-JSValue js_list_wrap(JSContext*, JSValueConst proto, List* list);
-JSModuleDef* js_init_module_list(JSContext*, const char* module_name);
+VISIBLE JSValue js_list_new(JSContext*, JSValueConst proto);
+VISIBLE JSValue js_list_wrap(JSContext*, JSValueConst proto, List* list);
 
 /**
  * @}
