@@ -15,7 +15,7 @@ typedef struct List {
   int ref_count;
 } List;
 
-extern thread_local JSClassID js_list_class_id, js_list_iterator_class_id;
+extern VISIBLE JSClassID js_list_class_id, js_list_iterator_class_id;
 
 static inline List*
 js_list_data2(JSContext* ctx, JSValueConst value) {

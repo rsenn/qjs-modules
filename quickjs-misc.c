@@ -1201,7 +1201,7 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 #ifdef _WIN32
   HANDLE h;
 
-  if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
+  if(INVALID_HANDLE_VALUE == (h = (HANDLE)_get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
   ret = JS_NewBool(ctx, clear_screen(h, mode, magic == ERASE_IN_LINE));
@@ -1230,7 +1230,7 @@ js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 #ifdef _WIN32
   HANDLE h;
 
-  if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
+  if(INVALID_HANDLE_VALUE == (h = (HANDLE)_get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
   ret = JS_NewBool(ctx, magic == MOVE_CURSOR ? move_cursor(h, x, y) : set_cursor_position(h, x, y));
@@ -1255,7 +1255,7 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 #ifdef _WIN32
   HANDLE h;
 
-  if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
+  if(INVALID_HANDLE_VALUE == (h = (HANDLE)_get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
   ret = JS_NewBool(ctx, set_text_attribute(h, attr));
@@ -1281,7 +1281,7 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
 
-  if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
+  if(INVALID_HANDLE_VALUE == (h = (HANDLE)_get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
   switch(magic) {
@@ -2744,7 +2744,7 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       if(argc > 1)
         JS_ToInt32(ctx, &flags, argv[1]);
 
-      ret = JS_NewInt32(ctx, _open_osfhandle((HANDLE)hnd, flags));
+      ret = JS_NewInt32(ctx, _open_osfhandle((intptr_t)hnd, flags));
       break;
     }
   }

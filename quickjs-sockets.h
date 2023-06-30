@@ -63,8 +63,8 @@ ENDPACK
 typedef union socket_state Socket;
 typedef struct async_socket_state AsyncSocket;
 
-extern thread_local VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_async_socket_class_id;
-extern thread_local JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto,
+extern VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_async_socket_class_id;
+extern VISIBLE JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto,
     async_socket_ctor;
 
 enum SocketCalls {

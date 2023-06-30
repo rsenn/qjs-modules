@@ -35,8 +35,8 @@ enum {
   CHILD_PROCESS_CONTINUED,
 };
 
-thread_local VISIBLE JSClassID js_child_process_class_id = 0;
-thread_local JSValue child_process_proto = {{0}, JS_TAG_UNDEFINED}, child_process_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_child_process_class_id = 0;
+VISIBLE JSValue child_process_proto = {{0}, JS_TAG_UNDEFINED}, child_process_ctor = {{0}, JS_TAG_UNDEFINED};
 
 ChildProcess*
 js_child_process_data(JSValueConst value) {

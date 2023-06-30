@@ -8,16 +8,16 @@
  * \defgroup quickjs-location QuickJS module: location - Text location object
  * @{
  */
-extern thread_local JSClassID js_location_class_id;
-extern thread_local JSValue location_proto, location_ctor;
+extern VISIBLE JSClassID js_location_class_id;
+extern VISIBLE JSValue location_proto, location_ctor;
 
-JSValue js_location_wrap(JSContext*, Location* loc);
-BOOL js_is_location(JSContext*, JSValueConst obj);
-Location* js_location_from(JSContext*, JSValueConst this_val);
+VISIBLE JSValue js_location_wrap(JSContext*, Location* loc);
+VISIBLE BOOL js_is_location(JSContext*, JSValueConst obj);
+VISIBLE Location* js_location_from(JSContext*, JSValueConst this_val);
 JSValue js_location_toprimitive(JSContext*, JSValueConst this_val, int argc, JSValueConst argv[]);
 JSValue js_location_constructor(JSContext*, JSValueConst new_target, int argc, JSValueConst argv[]);
 void js_location_finalizer(JSRuntime*, JSValueConst val);
-int js_location_init(JSContext*, JSModuleDef* m);
+VISIBLE int js_location_init(JSContext*, JSModuleDef* m);
 JSModuleDef* js_init_module_location(JSContext*, const char* module_name);
 
 static inline Location*

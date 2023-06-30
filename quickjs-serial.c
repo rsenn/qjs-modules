@@ -9,8 +9,8 @@
  * \defgroup quickjs-serial QuickJS module: serial - libserial MIME types
  * @{
  */
-thread_local VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;
-thread_local JSValue serialport_proto = {{0},JS_TAG_UNDEFINED}, serialport_ctor = {{0},JS_TAG_UNDEFINED}, serial_ctor = {{0},JS_TAG_UNDEFINED},
+VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;
+VISIBLE JSValue serialport_proto = {{0},JS_TAG_UNDEFINED}, serialport_ctor = {{0},JS_TAG_UNDEFINED}, serial_ctor = {{0},JS_TAG_UNDEFINED},
                      serialerror_proto = {{0},JS_TAG_UNDEFINED}, serialerror_ctor = {{0},JS_TAG_UNDEFINED};
 
 static JSValue

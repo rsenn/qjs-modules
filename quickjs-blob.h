@@ -21,8 +21,8 @@ typedef union blob {
   Vector vec;
 } Blob;
 
-extern thread_local JSClassID js_blob_class_id;
-extern thread_local JSValue blob_proto, blob_ctor;
+extern VISIBLE JSClassID js_blob_class_id;
+extern VISIBLE JSValue blob_proto, blob_ctor;
 
 Blob* blob_new(JSContext*, const void* x, size_t len, const char* type);
 ssize_t blob_write(JSContext*, Blob* blob, const void* x, size_t len);

@@ -9,8 +9,8 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_blob_class_id = 0;
-thread_local JSValue blob_proto = {{0},JS_TAG_UNDEFINED}, blob_ctor = {{0},JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_blob_class_id = 0;
+VISIBLE JSValue blob_proto = {{0},JS_TAG_UNDEFINED}, blob_ctor = {{0},JS_TAG_UNDEFINED};
 
 enum {
   BLOB_SIZE,

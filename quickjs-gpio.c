@@ -10,8 +10,8 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_gpio_class_id = 0;
-thread_local JSValue gpio_proto = {{0},JS_TAG_UNDEFINED}, gpio_ctor = {{0},JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_gpio_class_id = 0;
+VISIBLE JSValue gpio_proto = {{0},JS_TAG_UNDEFINED}, gpio_ctor = {{0},JS_TAG_UNDEFINED};
 
 enum {
   GPIO_METHOD_INIT_PIN = 0,

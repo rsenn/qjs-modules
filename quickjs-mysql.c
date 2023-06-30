@@ -17,8 +17,8 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_connectparams_class_id = 0, js_mysqlerror_class_id = 0, js_mysql_class_id = 0, js_mysqlresult_class_id = 0;
-thread_local JSValue mysqlerror_proto = {{0}, JS_TAG_UNDEFINED}, mysqlerror_ctor = {{0}, JS_TAG_UNDEFINED}, mysql_proto = {{0}, JS_TAG_UNDEFINED}, mysql_ctor = {{0}, JS_TAG_UNDEFINED},
+VISIBLE JSClassID js_connectparams_class_id = 0, js_mysqlerror_class_id = 0, js_mysql_class_id = 0, js_mysqlresult_class_id = 0;
+VISIBLE JSValue mysqlerror_proto = {{0}, JS_TAG_UNDEFINED}, mysqlerror_ctor = {{0}, JS_TAG_UNDEFINED}, mysql_proto = {{0}, JS_TAG_UNDEFINED}, mysql_ctor = {{0}, JS_TAG_UNDEFINED},
                      mysqlresult_proto = {{0}, JS_TAG_UNDEFINED}, mysqlresult_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
@@ -924,7 +924,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
 
 #ifdef _WIN32
   int fd = -1;
-  SOCKET sock = my ? mysql_get_socket(my) : INVALID_HANDLE_VALUE;
+  HANDLE sock = my ? mysql_get_socket(my) : INVALID_HANDLE_VALUE;
   BOOL has_fd;
   intptr_t tmp;
 
@@ -942,7 +942,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
         continue;
       }
     } else {
-      fd = sock != INVALID_HANDLE_VALUE ? _open_osfhandle(sock, _O_BINARY | _O_RDWR) : -1;
+      fd = sock != INVALID_HANDLE_VALUE ? _open_osfhandle((intptr_t)sock, _O_BINARY | _O_RDWR) : -1;
 #ifdef DEBUG_OUTPUT
       printf("filedescriptor %d created from socket handle %p\n", fd, sock);
 #endif

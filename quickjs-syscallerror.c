@@ -12,8 +12,8 @@
  * \addtogroup quickjs-syscallerror
  * @{
  */
-thread_local JSClassID js_syscallerror_class_id = 0;
-thread_local JSValue syscallerror_proto = {{0}, JS_TAG_UNDEFINED}, syscallerror_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_syscallerror_class_id = 0;
+VISIBLE JSValue syscallerror_proto = {{0}, JS_TAG_UNDEFINED}, syscallerror_ctor = {{0}, JS_TAG_UNDEFINED};
 
 int js_syscallerror_init(JSContext*, JSModuleDef*);
 
@@ -51,17 +51,17 @@ stack_get(JSContext* ctx) {
   return ret;
 }
 
-VISIBLE SyscallError*
+SyscallError*
 js_syscallerror_data(JSValueConst value) {
   return JS_GetOpaque(value, js_syscallerror_class_id);
 }
 
-VISIBLE SyscallError*
+SyscallError*
 js_syscallerror_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_syscallerror_class_id);
 }
 
-VISIBLE SyscallError*
+SyscallError*
 syscallerror_new(JSContext* ctx, const char* syscall, int number) {
   SyscallError* err;
 
@@ -74,7 +74,7 @@ syscallerror_new(JSContext* ctx, const char* syscall, int number) {
   return err;
 }
 
-VISIBLE JSValue
+JSValue
 js_syscallerror_wrap(JSContext* ctx, SyscallError* err) {
   JSValue obj;
   obj = JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
@@ -82,7 +82,7 @@ js_syscallerror_wrap(JSContext* ctx, SyscallError* err) {
   return obj;
 }
 
-VISIBLE JSValue
+JSValue
 js_syscallerror_new(JSContext* ctx, const char* syscall, int number) {
   SyscallError* err;
   JSValue obj;
@@ -105,7 +105,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-VISIBLE JSValue
+JSValue
 js_syscallerror_throw(JSContext* ctx, const char* syscall) {
   JSValue error = js_syscallerror_new(ctx, syscall, errno);
   return JS_Throw(ctx, error);

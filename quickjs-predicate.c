@@ -8,8 +8,8 @@
  * \addtogroup quickjs-predicate
  * @{
  */
-thread_local JSClassID js_predicate_class_id = 0;
-thread_local JSValue predicate_proto = {{0},JS_TAG_UNDEFINED}, predicate_ctor = {{0},JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_predicate_class_id = 0;
+VISIBLE JSValue predicate_proto = {{0},JS_TAG_UNDEFINED}, predicate_ctor = {{0},JS_TAG_UNDEFINED};
 
 VISIBLE Predicate*
 js_predicate_data(JSValueConst value) {

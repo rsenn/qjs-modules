@@ -9,8 +9,8 @@
  * \defgroup quickjs-directory QuickJS module: directory - Directory reader
  * @{
  */
-thread_local VISIBLE JSClassID js_directory_class_id = 0;
-thread_local JSValue directory_proto = {{0}, JS_TAG_UNDEFINED}, directory_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_directory_class_id = 0;
+VISIBLE JSValue directory_proto = {{0}, JS_TAG_UNDEFINED}, directory_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum { FLAG_NAME = 1, FLAG_TYPE = 2, FLAG_BOTH = FLAG_NAME | FLAG_TYPE, FLAG_BUFFER = 0x80 };
 enum {
