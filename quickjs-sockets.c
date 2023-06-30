@@ -245,7 +245,6 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
           }
         }
       }
-
       JS_FreeCString(ctx, str);
     }
 
@@ -422,13 +421,25 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
         JS_ToInt32(ctx, &af, value);
 
         if(a->family != af) {
-          int port = sockaddr_port(a);
+          if(a->family != AF_UNIX && af != AF_UNIX) {
+            SockAddr old = *a;
+            int port = sockaddr_port(a);
 
-          memset(a, 0, sizeof(SockAddr));
-          a->family = af;
+            memset(a, 0, sizeof(SockAddr));
+            a->family = af;
 
-          if(port != -1)
-            sockaddr_setport(a, port);
+            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(old.sai6.sin6_addr.s6_addr32) || IN6_IS_ADDR_V4COMPAT(old.sai6.sin6_addr.s6_addr32))) {
+              a->sai.sin_addr.s_addr = old.sai6.sin6_addr.s6_addr32[3];
+            } else if(a->family == AF_INET) {
+              a->sai6.sin6_addr.s6_addr32[0] = 0;
+              a->sai6.sin6_addr.s6_addr32[1] = 0;
+              a->sai6.sin6_addr.s6_addr32[2] = htonl(0xffff);
+              a->sai6.sin6_addr.s6_addr32[3] = old.sai.sin_addr.s_addr;
+            }
+
+            if(port != -1)
+              sockaddr_setport(a, port);
+          }
         }
 
         break;
@@ -455,18 +466,19 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
         break;
       }
-      
+
       case SOCKADDR_PATH: {
         if(a->family == AF_UNIX) {
           const char* str = JS_ToCString(ctx, value);
-         
+
           strncpy(a->sau.sun_path, str, sizeof(a->sau.sun_path));
-         
+
           JS_FreeCString(ctx, str);
         }
         break;
       }
     }
+
   return ret;
 }
 
