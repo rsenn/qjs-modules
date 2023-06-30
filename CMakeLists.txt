@@ -556,9 +556,13 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
 set(QJSM_SOURCES src/qjsm.c)
-set(QJSM_LDADD qjs-syscallerror-static)
+#set(QJSM_LDADD qjs-syscallerror-static)
 
-foreach(NATIVE_BUILTIN child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
+set(NATIVE_BUILTINS child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
+list(APPEND NATIVE_BUILTINS syscallerror)
+
+foreach(NATIVE_BUILTIN ${NATIVE_BUILTINS})
+
   list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
 endforeach()
 
@@ -581,7 +585,7 @@ if(NOT WASI AND NOT EMSCRIPTEN)
   set_target_properties(qjsm PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/lib/quickjs")
 endif(NOT WASI AND NOT EMSCRIPTEN)
 
-target_link_directories(qjsm PUBLIC ${QUICKJS_LIBRARY_DIR})
+target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_LIBRARY_DIR})
 
 target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QUICKJS_LIBRARY} ${LIBPTHREAD} ${LIBM} ${LIBWS2_32})
 
