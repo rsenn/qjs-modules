@@ -305,7 +305,7 @@ child_process_wait(ChildProcess* cp, int flags) {
 int
 child_process_kill(ChildProcess* cp, int signum) {
 #ifdef _WIN32
-  if(TerminateProcess(cp->pid, 0))
+  if(TerminateProcess((HANDLE)cp->pid, 0))
     return 0;
   return -1;
 #else
