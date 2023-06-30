@@ -264,8 +264,7 @@ js_syscallerror_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     JS_DefinePropertyValueStr(ctx, obj, "code", JS_NewString(ctx, code), JS_PROP_C_W_E);
 
   if(js_has_propertystr(ctx, obj, "stack"))
-    JS_DefinePropertyValueStr(
-        ctx, obj, "stack", JS_GetPropertyStr(ctx, this_val, "stack"), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+    JS_DefinePropertyValueStr(ctx, obj, "stack", JS_GetPropertyStr(ctx, this_val, "stack"), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
 
   return obj;
 }
@@ -348,19 +347,11 @@ js_syscallerror_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
 const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_SYSCALL),
     JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_CODE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("errno",
-                               js_syscallerror_get,
-                               js_syscallerror_set,
-                               SYSCALLERROR_PROP_ERRNO,
-                               JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_ERRNO, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_STACK),
-    JS_CGETSET_MAGIC_FLAGS_DEF("message",
-                               js_syscallerror_get,
-                               js_syscallerror_set,
-                               SYSCALLERROR_PROP_MESSAGE,
-                               JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("message", js_syscallerror_get, js_syscallerror_set, SYSCALLERROR_PROP_MESSAGE, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_syscallerror_method, SYSCALLERROR_TOSTRING),
-    //JS_CFUNC_MAGIC_DEF("valueOf", 0, js_syscallerror_method, SYSCALLERROR_VALUEOF),
+    // JS_CFUNC_MAGIC_DEF("valueOf", 0, js_syscallerror_method, SYSCALLERROR_VALUEOF),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "valueOf"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyscallError", JS_PROP_CONFIGURABLE),
 };
@@ -624,10 +615,7 @@ js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
     // syscallerror_proto = JS_NewObject(ctx);
 
     JS_SetPropertyFunctionList(ctx, syscallerror_ctor, js_syscallerror_defines, countof(js_syscallerror_defines));
-    JS_SetPropertyFunctionList(ctx,
-                               syscallerror_proto,
-                               js_syscallerror_proto_funcs,
-                               countof(js_syscallerror_proto_funcs));
+    JS_SetPropertyFunctionList(ctx, syscallerror_proto, js_syscallerror_proto_funcs, countof(js_syscallerror_proto_funcs));
     JS_SetClassProto(ctx, js_syscallerror_class_id, syscallerror_proto);
 
     JS_SetConstructor(ctx, syscallerror_ctor, syscallerror_proto);
