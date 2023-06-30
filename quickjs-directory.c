@@ -311,7 +311,8 @@ js_directory_init(JSContext* ctx, JSModuleDef* m) {
 
   directory_ctor = JS_NewCFunction2(ctx, js_directory_constructor, "Directory", 1, JS_CFUNC_constructor, 0);
   JSValue generator_proto = js_generator_prototype(ctx);
-  directory_proto = JS_NewObjectProto(ctx, generator_proto);
+  //directory_proto = JS_NewObjectProto(ctx, generator_proto);
+  directory_proto = JS_NewObject(ctx);
   JS_FreeValue(ctx, generator_proto);
 
   JS_SetPropertyFunctionList(ctx, directory_proto, js_directory_funcs, countof(js_directory_funcs));
