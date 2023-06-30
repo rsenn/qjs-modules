@@ -359,18 +359,15 @@ put_escaped(Writer* wr, const char* str, size_t len) {
   size_t i = 0;
   const uint8_t *pos, *end, *next;
   static const uint8_t table[256] = {
-      'x', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'b', 't', 'n', 'v', 'f', 'r', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x',
-      'x', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 0,   0,   0,   0,   0,   0,   0,   '\'', 0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   '\\', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   'x',  0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   'u', 'u', 'u',  'u', 'u', 'u', 'u',
-      'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u',
-      'u', 'u', 'u', 0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,
-      0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,
+      'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x', 'b', 't', 'n',  'v', 'f', 'r', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',
+      'x', 'x', 'x', 0,   0,   0,    0,   0,   0,   0,   '\'', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   '\\', 0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    'x', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+      'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
   };
 
   for(pos = (const uint8_t*)str, end = pos + len; pos < end; pos = next) {
@@ -736,8 +733,7 @@ inspect_number(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
     writer_puts(wr, COLOR_YELLOW);
 
   if(opts->number_base == 16 &&
-     (!JS_TAG_IS_FLOAT64(tag) ||
-      (isfinite(JS_VALUE_GET_FLOAT64(value)) && floor(JS_VALUE_GET_FLOAT64(value)) == JS_VALUE_GET_FLOAT64(value)))) {
+     (!JS_TAG_IS_FLOAT64(tag) || (isfinite(JS_VALUE_GET_FLOAT64(value)) && floor(JS_VALUE_GET_FLOAT64(value)) == JS_VALUE_GET_FLOAT64(value)))) {
     int64_t num;
     char buf[FMT_XLONG];
 
@@ -1001,8 +997,7 @@ inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
 
   if(opts->depth != INT32_MAX && depth + 1 > opts->depth) {
     writer_puts(wr,
-                is_array ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]")
-                         : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
+                is_array ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]") : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
     return 1;
   }
 
@@ -1275,7 +1270,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
     if(ret != 1) {
       if(is_object) {
-        it = property_recursion_enter(&frames, ctx, 0, PROPENUM_DEFAULT_FLAGS);
+        it = property_recursion_enter(&frames, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
         index = 0;
         is_array = js_is_array(ctx, value);
         writer_putc(wr, is_array ? '[' : '{');
@@ -1307,8 +1302,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
             it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
                                     : property_enumeration_next(it)))) {*/
 
-    while(!it || !(it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
-                                           : property_enumeration_next(it)))) {
+    while(!it || !(it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : property_enumeration_next(it)))) {
       is_array = js_is_array(ctx, property_recursion_top(&frames)->obj);
       it = property_recursion_pop(&frames, ctx);
 

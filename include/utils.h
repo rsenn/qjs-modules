@@ -589,8 +589,7 @@ JSValue js_object_function(JSContext*, const char* func_name, JSValueConst obj);
 BOOL js_object_same2(JSContext*, JSValueConst, JSValueConst);
 JSAtom* js_object_keys(JSContext*, uint32_t* lenptr, JSValueConst obj, int flags);
 
-#define JS_GPN_RECURSIVE     (1 << 7)
-
+#define JS_GPN_RECURSIVE (1 << 7)
 
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {

@@ -897,9 +897,9 @@ js_object_keys(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int flags) {
   Vector vec = VECTOR_INIT();
   JSValue proto = JS_DupValue(ctx, obj);
 
-  for(;;) {
+  do {
     JSPropertyEnum* tmp_tab;
-    uint32_t tmp_len; 
+    uint32_t tmp_len;
 
     if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, proto, flags))
       break;
@@ -912,17 +912,18 @@ js_object_keys(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int flags) {
     js_free(ctx, tmp_tab);
     tmp_tab = NULL;
 
-    if(!(flags & JS_GPN_RECURSIVE)) break;
+    if(!(flags & JS_GPN_RECURSIVE))
+      break;
 
     JSValue tmp = JS_GetPrototype(ctx, proto);
     JS_FreeValue(ctx, proto);
     proto = tmp;
-  }
+  } while(JS_IsObject(proto));
 
-    JS_FreeValue(ctx, proto);
+  JS_FreeValue(ctx, proto);
 
   size_t size = vector_size(&vec, sizeof(JSAtom));
-  
+
   if(lenptr)
     *lenptr = size;
 
