@@ -106,7 +106,7 @@ syscall_return(Socket* sock, int syscall, int retval) {
                              : 0;
 
 #ifdef DEBUG_OUTPUT
-  printf("syscall %s returned %d (%d)\n", socket_syscalls[(sock)->syscall], (sock)->ret, (sock)->error);
+  printf("syscall %s returned %d (%d)\n", syscall_names[(sock)->syscall], (sock)->ret, (sock)->error);
 #endif
 }
 
@@ -173,8 +173,10 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
         else if(inet_pton(AF_INET6, str, &a->ip6.sin6_addr) > 0)
           a->family = AF_INET6;
 
+#ifdef HAVE_AF_UNIX
       } else if(a->family == AF_UNIX) {
         strncpy(a->un.sun_path, str, sizeof(a->un.sun_path));
+#endif
       } else if(!inet_pton(a->family, str, sockaddr_addr(a)) && a->family == AF_INET6) {
         struct in_addr in;
 
@@ -274,9 +276,12 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     }
 
     case SOCKADDR_TOSTRING: {
+#ifdef HAVE_AF_UNIX
       if(a->family == AF_UNIX) {
         ret = JS_NewString(ctx, a->un.sun_path);
-      } else {
+      } else
+#endif
+      {
         char port[FMT_ULONG];
         DynBuf dbuf;
         js_dbuf_init(ctx, &dbuf);
@@ -333,12 +338,14 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
+#ifdef HAVE_AF_UNIX
     case SOCKADDR_PATH: {
-      if(a->family == AF_UNIX) {
+      if(a->family == AF_UNIX)
         ret = JS_NewString(ctx, a->un.sun_path);
-      }
+
       break;
     }
+#endif
 
     case SOCKADDR_BYTELENGTH: {
       size_t len;
@@ -429,6 +436,7 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
       break;
     }
 
+#ifdef HAVE_AF_UNIX
     case SOCKADDR_PATH: {
       if(a->family == AF_UNIX) {
         const char* str;
@@ -441,6 +449,7 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
       break;
     }
+#endif
   }
 
   return ret;
@@ -458,10 +467,13 @@ js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(a->family)
     JS_DefinePropertyValueStr(ctx, obj, "family", JS_NewUint32(ctx, a->family), JS_PROP_ENUMERABLE);
 
+#ifdef HAVE_AF_UNIX
   if(a->family == AF_UNIX) {
     if(a->un.sun_path[0])
       JS_DefinePropertyValueStr(ctx, obj, "path", JS_NewString(ctx, a->un.sun_path), JS_PROP_ENUMERABLE);
-  } else {
+  } else
+#endif
+  {
     uint16_t port;
     char buf[INET6_ADDRSTRLEN] = {0};
 

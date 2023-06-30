@@ -17,6 +17,10 @@
 
 #include "utils.h"
 
+#if !defined(_WIN32) || defined(HAVE_AFUNIX_H)
+#define HAVE_AF_UNIX
+#endif
+
 /**
  * \defgroup quickjs-sockets QuickJS module: sockets - Network sockets
  * @{
@@ -27,7 +31,9 @@ typedef union {
   struct sockaddr s;
   struct sockaddr_in ip4;
   struct sockaddr_in6 ip6;
+#ifdef HAVE_AF_UNIX
   struct sockaddr_un un;
+#endif
 } SockAddr;
 
 #define SOCKET_PROPS() \
