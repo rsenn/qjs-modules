@@ -26,12 +26,13 @@ struct getdents_reader {
 
 #ifdef FIND_A
 #define findnext FindNextFile  
+#define h  h_ptr
 #else
 
 #define cFileName name
 #define dwFileAttributes attrib
 #define findnext _wfindnext64
-#define h_ptr h_int
+#define h h_int
 #endif
 
 size_t
@@ -47,14 +48,14 @@ getdents_clear(Directory* d) {
 
 intptr_t
 getdents_handle(Directory* d) {
-  return (intptr_t)d->h_ptr;
+  return (intptr_t)d->h;
 }
 
 int
 getdents_open(Directory* d, const char* path) {
   /*size_t pathlen = utf8_strlen(path, strlen(path));*/
 #ifdef FIND_A
-  if((d->h_ptr = FindFirstFile(path, &d->fdw)) != INVALID_HANDLE_VALUE)
+  if((d->h = FindFirstFile(path, &d->fdw)) != INVALID_HANDLE_VALUE)
     d->first = TRUE;
 #else
   wchar_t* wp = utf8_towcs(path);
@@ -65,7 +66,7 @@ getdents_open(Directory* d, const char* path) {
 
   free(wp);
 #endif
-  return d->h_ptr == INVALID_HANDLE_VALUE ? -1 : 0;
+  return d->h == INVALID_HANDLE_VALUE ? -1 : 0;
 }
 
 int
@@ -80,7 +81,7 @@ DirEntry*
 getdents_read(Directory* d) {
   if(d->first)
     d->first = FALSE;
-  else if(!findnext(d->h_ptr, &d->fdw))
+  else if(!findnext(d->h, &d->fdw))
     return 0;
 
   return (DirEntry*)&d->fdw;
@@ -105,8 +106,8 @@ getdents_namebuf(const DirEntry* e, size_t* len) {
 
 void
 getdents_close(Directory* d) {
-  CloseHandle(d->h_ptr);
-  d->h_ptr = INVALID_HANDLE_VALUE;
+  CloseHandle(d->h);
+  d->h = INVALID_HANDLE_VALUE;
 }
 
 int
