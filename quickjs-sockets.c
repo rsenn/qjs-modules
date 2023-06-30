@@ -1255,20 +1255,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         socket_setnonblocking(s, nonblock);
         s->nonblock = nonblock;
       }
-      
+
       break;
     }
-
-      /*#ifdef _WIN32
-            ULONG mode = nonblock;
-            ret = JS_NewInt32(ctx, ioctlsocket(socket_handle(*s), FIONBIO, &mode));
-      #else
-            int oldflags, newflags;
-            oldflags = fcntl(s->fd, F_GETFL);
-            newflags = nonblock ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
-            if(oldflags != newflags)
-              JS_SOCKETCALL(SYSCALL_FCNTL, s, fcntl(s->fd, F_SETFL, newflags));
-      #endif*/
 
     case SOCKETS_BIND: {
       JS_SOCKETCALL(SYSCALL_BIND, s, bind(socket_handle(*s), (struct sockaddr*)a, sockaddr_size(a)));
