@@ -556,7 +556,7 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
 set(QJSM_SOURCES src/qjsm.c)
-set(QJSM_LDADD qjs-syscallerror)
+set(QJSM_LDADD qjs-syscallerror-static)
 
 foreach(NATIVE_BUILTIN child-process deep inspect lexer location misc path pointer predicate repeater tree-walker xml)
   list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
