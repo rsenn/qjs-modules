@@ -186,10 +186,11 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
           } else if(in.s_addr == htonl(INADDR_LOOPBACK)) {
             *in6p = (struct in6_addr)IN6ADDR_LOOPBACK_INIT;
           } else {
-            in6p->s6_addr32[0] = 0;
-            in6p->s6_addr32[1] = 0;
-            in6p->s6_addr32[2] = htonl(0xffff);
-            in6p->s6_addr32[3] = in.s_addr;
+            uint32_t* addr32 = (uint32_t*)in6p;
+            addr32[0] = 0;
+            addr32[1] = 0;
+            addr32[2] = htonl(0xffff);
+            addr32[3] = in.s_addr;
           }
         }
       }
@@ -384,11 +385,11 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
           if(old.family == AF_INET6 && newf == AF_INET) {
             uint32_t* addr6 = sockaddr_addr(&old);
 
-            if((IN6_IS_ADDR_V4MAPPED(addr6) || IN6_IS_ADDR_V4COMPAT(addr6)))
+            if((IN6_IS_ADDR_V4MAPPED((struct in6_addr*)addr6) || IN6_IS_ADDR_V4COMPAT((struct in6_addr*)addr6)))
               *inaddr = addr6[3];
-            else if(IN6_IS_ADDR_LOOPBACK(addr6))
+            else if(IN6_IS_ADDR_LOOPBACK((struct in6_addr*)addr6))
               *inaddr = htonl(INADDR_LOOPBACK);
-            else if(IN6_IS_ADDR_UNSPECIFIED(addr6))
+            else if(IN6_IS_ADDR_UNSPECIFIED((struct in6_addr*)addr6))
               *inaddr = 0;
 
           } else if(old.family == AF_INET && newf == AF_INET6) {
@@ -1558,7 +1559,6 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
 
     if(fd == -1) {
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
-#warning defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
       static BOOL initialized;
       int err;
       WSADATA d;

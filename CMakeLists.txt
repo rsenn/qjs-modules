@@ -109,7 +109,7 @@ check_function_def(fmemopen)
 check_functions(fcntl wordexp inotify_init1)
 check_includes(fcntl.h alloca.h wordexp.h sys/inotify.h)
 
-check_functions_def(access fnmatch inet_pton daemon)
+check_functions_def(access fnmatch daemon)
 
 message("Have daemon() ${HAVE_DAEMON}")
 
@@ -327,21 +327,42 @@ endif(WIN32 OR MINGW)
 
 set(lexer_LIBRARIES qjs-location)
 
-if(NOT WIN32)
-  if(NOT HAVE_INET_PTON)
-    set(sockets_SOURCES ${sockets_SOURCES} src/inet_pton.c)
-  endif(NOT HAVE_INET_PTON)
-  if(NOT HAVE_INET_NTOP)
-    set(sockets_SOURCES ${sockets_SOURCES} src/inet_ntop.c)
-  endif(NOT HAVE_INET_NTOP)
-endif(NOT WIN32)
-
 if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
+  set(HAVE_INET_PTON TRUE)
+else()
+  check_function_exists(inet_pton HAVE_INET_PTON)
 endif()
 
-list(APPEND sockets_LIBRARIES qjs-syscallerror)
+#set(CMAKE_REQUIRED_LIBRARIES ${sockets_LIBRARIES})
+#unset(CMAKE_REQUIRED_LIBRARIES)
+
+#include(CheckSymbolExists)
+#check_library_exists(ws2_32 inet_pton "" HAVE_INET_PTON)
+
+
+#if(NOT HAVE_INET_PTON)
+#  check_symbol_exists(<inet_pton "winsock2.h" HAVE_INET_PTON)
+#endif(NOT HAVE_INET_PTON)
+
+dump(HAVE_INET_PTON)
+
+if(HAVE_INET_PTON)
+	message(STATUS "Have inet_pton()")
+  add_definitions(-DHAVE_INET_PTON)
+else(HAVE_INET_PTON)
+  message(STATUS "Don't have inet_pton()")
+endif(HAVE_INET_PTON)
+
+if(NOT HAVE_INET_PTON)
+  set(sockets_SOURCES ${sockets_SOURCES} src/inet_pton.c)
+endif(NOT HAVE_INET_PTON)
+if(NOT HAVE_INET_NTOP)
+  set(sockets_SOURCES ${sockets_SOURCES} src/inet_ntop.c)
+endif(NOT HAVE_INET_NTOP)
+
+  list(APPEND sockets_LIBRARIES qjs-syscallerror)
 list(APPEND misc_LIBRARIES qjs-syscallerror)
 
 file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h tutf8e/src/*.c)
@@ -462,6 +483,12 @@ endif(NOT WASI)
 
 file(GLOB LIBRARY_SOURCES include/*.h src/*.c)
 list(REMOVE_ITEM LIBRARY_SOURCES src/qjsm.c)
+if(HAVE_INET_PTON)
+  list(REMOVE_ITEM LIBRARY_SOURCES src/inet_pton.c)
+endif(HAVE_INET_PTON)
+if(HAVE_INET_NTOP)
+  list(REMOVE_ITEM LIBRARY_SOURCES src/inet_ntop.c)
+endif(HAVE_INET_NTOP)
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 

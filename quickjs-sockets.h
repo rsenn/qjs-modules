@@ -5,6 +5,7 @@
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <afunix.h>
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
