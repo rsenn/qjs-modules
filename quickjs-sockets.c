@@ -888,7 +888,8 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
     case SOCKETS_SYSCALL: {
-      ret = js_socket_syscall(ctx, this_val);
+      if(s->syscall > 0)
+        ret = js_socket_syscall(ctx, this_val);
       break;
     }
     case SOCKETS_ERRNO: {

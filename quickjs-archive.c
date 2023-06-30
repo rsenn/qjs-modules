@@ -10,19 +10,11 @@
  * @{
  */
 
-<<<<<<< HEAD
-thread_local VISIBLE JSClassID js_archive_class_id = 0;
-thread_local JSValue archive_proto = {{0}, JS_TAG_UNDEFINED}, archive_ctor = {{0}, JS_TAG_UNDEFINED};
-
-thread_local VISIBLE JSClassID js_archiveentry_class_id = 0;
-thread_local JSValue archiveentry_proto = {{0}, JS_TAG_UNDEFINED}, archiveentry_ctor = {{0}, JS_TAG_UNDEFINED};
-=======
 VISIBLE JSClassID js_archive_class_id = 0;
-VISIBLE JSValue archive_proto = {{0},JS_TAG_UNDEFINED}, archive_ctor = {{0},JS_TAG_UNDEFINED};
+VISIBLE JSValue archive_proto = {{0}, JS_TAG_UNDEFINED}, archive_ctor = {{0}, JS_TAG_UNDEFINED};
 
 VISIBLE JSClassID js_archiveentry_class_id = 0;
-VISIBLE JSValue archiveentry_proto = {{0},JS_TAG_UNDEFINED}, archiveentry_ctor = {{0},JS_TAG_UNDEFINED};
->>>>>>> 90f776b9c9e57f4546c45723ad3aeadb1835bfd9
+VISIBLE JSValue archiveentry_proto = {{0}, JS_TAG_UNDEFINED}, archiveentry_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   ARCHIVE_METHOD_READ,
