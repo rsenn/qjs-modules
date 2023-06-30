@@ -1017,7 +1017,7 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
   }
 
   s->fd = fd;
-  s->nonblock = socket_nonblocking(*s);
+  s->nonblock = FALSE;
 
   return obj;
 
