@@ -69,7 +69,7 @@ getdents_open(Directory* d, const char* path) {
     d->first = TRUE;
 #else
   wchar_t* wp = utf8_towcs(p);
-  assert(wp);
+  assert(wp); 
 
   if((d->h_find = _wfindfirst64(wp, &d->fdw)) != -1)
     d->first = TRUE;
@@ -158,7 +158,7 @@ getdents_islnk(const DirEntry* e) {
 
 int
 getdents_isreg(const DirEntry* e) {
-  return !!(((find_data_type*)e)->dwFileAttributes & FILE_ATTRIBUTE_NORMAL);
+  return !getdents_isdir(e)  && !getdents_ischr(e) && !getdents_islnk(e);
 }
 
 int
@@ -332,9 +332,10 @@ getdents_type(const DirEntry* e) {
     return TYPE_FIFO;
   if(getdents_islnk(e))
     return TYPE_LNK;
-  if(getdents_isreg(e))
-    return TYPE_REG;
   if(getdents_issock(e))
     return TYPE_SOCK;
+  if(getdents_isreg(e))
+    return TYPE_REG;
+  
   return 0;
 }
