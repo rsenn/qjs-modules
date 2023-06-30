@@ -27,10 +27,12 @@ function main(...args) {
       new Uint8Array([0xa]),
       new Uint8Array(toArrayBuffer('BLAH blah BLAH'), 5, 4),
       //childBlob,
-      new DataView(toArrayBuffer('TEST test TEST'), 5, 4)
+      new DataView(toArrayBuffer('TEST test TEST'), 5, 4).buffer
     ],
     { type: 'text/html', endings: 'transparent' }
   );
+
+
   console.log('blob', blob);
 
   console.log('blob', Object.getPrototypeOf(blob));
