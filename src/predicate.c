@@ -10,8 +10,6 @@
  * \addtogroup predicate
  * @{
  */
-#define MAX_NUM(left, right) ((left) > (right) ? (left) : (right))
-#define MIN_NUM(left, right) ((left) < (right) ? (left) : (right))
 
 static size_t
 utf8_to_unicode(const char* str, size_t len, Vector* out) {

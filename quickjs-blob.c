@@ -8,7 +8,6 @@
  * \addtogroup quickjs-blob
  * @{
  */
-#define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_blob_class_id = 0;
 thread_local JSValue blob_proto = {{0},JS_TAG_UNDEFINED}, blob_ctor = {{0},JS_TAG_UNDEFINED};
