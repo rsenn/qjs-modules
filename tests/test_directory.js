@@ -19,8 +19,10 @@ function main(...args) {
 
   let dir = new Directory('.');
 
-  for(let entry of dir) {
-    console.log('entry', console.config({ compact: 0 }), entry);
+  for(let [name, type] of dir) {
+    if(type == Directory.TYPE_DIR) name += '/';
+
+    console.log('entry', console.config({ compact: 0 }), { name, type });
   }
 }
 

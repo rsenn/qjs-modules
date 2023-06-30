@@ -102,8 +102,6 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
-  if(!JS_IsObject(proto))
-    proto = directory_proto;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_directory_class_id);
@@ -296,6 +294,7 @@ js_directory_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetPropertyFunctionList(ctx, directory_ctor, js_directory_static, countof(js_directory_static));
 
     JS_SetClassProto(ctx, js_directory_class_id, directory_proto);
+    JS_SetConstructor(ctx, directory_ctor, directory_proto);
   }
 
   if(m) {
@@ -324,12 +323,12 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_directory_init))) {
-  JS_AddModuleExport(ctx, m, "Directory");
-  JS_AddModuleExportList(ctx, m, js_directory_static, countof(js_directory_static));
+    JS_AddModuleExport(ctx, m, "Directory");
+    JS_AddModuleExportList(ctx, m, js_directory_static, countof(js_directory_static));
 
-  /* if(!strcmp(module_name, "directory"))
-     JS_AddModuleExport(ctx, m, "default");*/
-}
+    /* if(!strcmp(module_name, "directory"))
+       JS_AddModuleExport(ctx, m, "default");*/
+  }
 
   return m;
 }

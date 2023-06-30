@@ -13,18 +13,23 @@
 typedef WIN32_FIND_DATA find_data_type;
 #else
 typedef struct _wfinddata64_t find_data_type;
-#define cFileName name
-#define dwFileAttributes attrib
 #endif
 
 struct getdents_reader {
-	union {
-  HANDLE h;
-  intptr_t hint;
-	};
+  union {
+    HANDLE h_ptr;
+    intptr_t h_int;
+  };
   BOOL first;
   find_data_type fdw;
 };
+
+#ifndef FIND_A
+#define cFileName name
+#define dwFileAttributes attrib
+#define FindNextFile _wfindnext64
+#define h_ptr h_int
+#endif
 
 size_t
 getdents_size() {
@@ -33,38 +38,38 @@ getdents_size() {
 
 void
 getdents_clear(Directory* d) {
-  d->h = INVALID_HANDLE_VALUE;
+  d->h_ptr = INVALID_HANDLE_VALUE;
   d->first = FALSE;
 }
 
 intptr_t
 getdents_handle(Directory* d) {
-  return (intptr_t)d->h;
+  return (intptr_t)d->h_ptr;
 }
 
 int
 getdents_open(Directory* d, const char* path) {
   /*size_t pathlen = utf8_strlen(path, strlen(path));*/
 #ifdef FIND_A
-  if((d->h = FindFirstFile(path, &d->fdw)) != INVALID_HANDLE_VALUE)
+  if((d->h_ptr = FindFirstFile(path, &d->fdw)) != INVALID_HANDLE_VALUE)
     d->first = TRUE;
 #else
   wchar_t* wp = utf8_towcs(path);
   assert(wp);
 
-  if((HANDLE)(d->hint = _wfindfirst64(wp, &d->fdw)) != INVALID_HANDLE_VALUE)
+  if((HANDLE)(d->h_int = _wfindfirst64(wp, &d->fdw)) != INVALID_HANDLE_VALUE)
     d->first = TRUE;
 
   free(wp);
 #endif
-  return d->h == INVALID_HANDLE_VALUE ? -1 : 0;
+  return d->h_ptr == INVALID_HANDLE_VALUE ? -1 : 0;
 }
 
 int
 getdents_adopt(Directory* d, intptr_t hnd) {
   if((HANDLE)hnd == INVALID_HANDLE_VALUE)
     return -1;
-  d->hint = hnd;
+  d->h_int = hnd;
   return 0;
 }
 
@@ -72,13 +77,7 @@ DirEntry*
 getdents_read(Directory* d) {
   if(d->first)
     d->first = FALSE;
-  else if(!
-#ifdef FIND_A
-          FindNextFile(d->h, &d->fdw)
-#else
-          _wfindnext64(d->hint, &d->fdw)
-#endif
-  )
+  else if(!FindNextFile(d->h_ptr, &d->fdw))
     return 0;
 
   return (DirEntry*)&d->fdw;
@@ -93,7 +92,7 @@ getdents_name(const DirEntry* e) {
 
 const uint8_t*
 getdents_namebuf(const DirEntry* e, size_t* len) {
-  const wchar_t* s =  ((find_data_type*)e)->cFileName;
+  const wchar_t* s = ((find_data_type*)e)->cFileName;
 
   if(len)
     *len = wcslen(s);
@@ -102,8 +101,8 @@ getdents_namebuf(const DirEntry* e, size_t* len) {
 
 void
 getdents_close(Directory* d) {
-  CloseHandle(d->h);
-  d->h = INVALID_HANDLE_VALUE;
+  CloseHandle(d->h_ptr);
+  d->h_ptr = INVALID_HANDLE_VALUE;
 }
 
 int
