@@ -575,8 +575,7 @@ js_function_bind(JSContext* ctx, JSValueConst func, int argc, JSValueConst argv[
 }
 
 static JSValue
-js_function_bound_this(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
+js_function_bound_this(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
   int bound_args = magic;
   int i, j;
   JSValue args[argc + bound_args];
@@ -607,8 +606,7 @@ js_function_bind_this_args(JSContext* ctx, JSValueConst func, JSValueConst this_
 }
 
 static JSValue
-js_function_throw_fn(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_function_throw_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   if(!JS_IsUndefined(data[0]))
     return JS_Throw(ctx, data[0]);
 
@@ -623,8 +621,7 @@ js_function_throw(JSContext* ctx, JSValueConst err) {
 }
 
 static JSValue
-js_function_return_value_fn(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_function_return_value_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   return data[0];
 }
 
@@ -758,8 +755,7 @@ js_iterator_result(JSContext* ctx, JSValueConst value, BOOL done) {
 }
 
 static JSValue
-js_iterator_then_fn(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
+js_iterator_then_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   JSValue ret = JS_NewObject(ctx);
 
   if(argc >= 1)
@@ -894,6 +890,34 @@ js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj) {
   ret = js_invoke(ctx, ctor, func_name, 1, &obj);
   JS_FreeValue(ctx, ctor);
   return ret;
+}
+
+JSAtom*
+js_object_keys(JSContext* ctx, JSValueConst obj, int flags) {
+  Vector vec = VECTOR_INIT();
+  JSValue proto = JS_DupValue(ctx, obj);
+
+  for(;;) {
+    JSPropertyEnum* tmp_tab;
+    uint32_t tmp_len;
+
+    if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, proto, flags))
+      break;
+
+    for(uint32_t i = 0; i < tmp_len; i++) {
+      if(vector_find(&vec, sizeof(JSAtom), &tmp_tab[i].atom) == -1)
+        vector_push(&vec, tmp_tab[i].atom);
+    }
+
+    js_free(ctx, tmp_tab);
+    tmp_tab = NULL;
+
+    JSValue tmp = JS_GetPrototype(ctx, proto);
+    JS_FreeValue(ctx, proto);
+    proto = tmp;
+  }
+
+  return vector_begin(&vec);
 }
 
 BOOL
@@ -1561,8 +1585,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
       JSPropertyEnum* tab_atom;
       uint32_t tab_atom_len;
       ret = JS_IsArray(ctx, value) ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      if(!JS_GetOwnPropertyNames(
-             ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+      if(!JS_GetOwnPropertyNames(ctx, &tab_atom, &tab_atom_len, value, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
         uint32_t i;
         for(i = 0; i < tab_atom_len; i++) {
           JSValue prop;
@@ -2173,8 +2196,7 @@ js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
   struct list_head* el;
   size_t namelen = strlen(name);
 
-  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules;
-      el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
+  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules; el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     char* str = module_namestr(ctx, m);
     BOOL match = !strcmp(str, name);
@@ -2248,14 +2270,12 @@ js_module_load(JSContext* ctx, const char* name) {
 
 BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_global_instanceof(ctx, value, "ArrayBuffer") || js_object_is(ctx, value, "[object ArrayBuffer]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "ArrayBuffer") || js_object_is(ctx, value, "[object ArrayBuffer]"));
 }
 
 BOOL
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "SharedArrayBuffer") ||
-                                js_object_is(ctx, value, "[object SharedArrayBuffer]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "SharedArrayBuffer") || js_object_is(ctx, value, "[object SharedArrayBuffer]"));
 }
 
 BOOL
@@ -2291,26 +2311,22 @@ js_is_asyncgenerator(JSContext* ctx, JSValueConst value) {
 
 BOOL
 js_is_regexp(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_global_instanceof(ctx, value, "RegExp") || js_object_is(ctx, value, "[object RegExp]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "RegExp") || js_object_is(ctx, value, "[object RegExp]"));
 }
 
 BOOL
 js_is_promise(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_global_instanceof(ctx, value, "Promise") || js_object_is(ctx, value, "[object Promise]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "Promise") || js_object_is(ctx, value, "[object Promise]"));
 }
 
 BOOL
 js_is_dataview(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) &&
-         (js_global_instanceof(ctx, value, "DataView") || js_object_is(ctx, value, "[object DataView]"));
+  return JS_IsObject(value) && (js_global_instanceof(ctx, value, "DataView") || js_object_is(ctx, value, "[object DataView]"));
 }
 
 BOOL
 js_is_error(JSContext* ctx, JSValueConst value) {
-  return JS_IsObject(value) && (JS_IsError(ctx, value) || js_global_instanceof(ctx, value, "Error") ||
-                                js_object_is(ctx, value, "[object Error]"));
+  return JS_IsObject(value) && (JS_IsError(ctx, value) || js_global_instanceof(ctx, value, "Error") || js_object_is(ctx, value, "[object Error]"));
 }
 
 BOOL
@@ -2368,14 +2384,7 @@ JSValue
 js_typedarray_new(JSContext* ctx, int bits, BOOL floating, BOOL sign, JSValueConst buffer) {
   char class_name[64] = {0};
 
-  snprintf(class_name,
-           sizeof(class_name),
-           "%s%s%dArray",
-           (!floating && bits >= 64) ? "Big" : "",
-           floating ? "Float"
-           : sign   ? "Int"
-                    : "Uint",
-           bits);
+  snprintf(class_name, sizeof(class_name), "%s%s%dArray", (!floating && bits >= 64) ? "Big" : "", floating ? "Float" : sign ? "Int" : "Uint", bits);
 
   JSValue ret, typedarray_ctor = js_global_get_str(ctx, class_name);
   ret = JS_CallConstructor(ctx, typedarray_ctor, 1, &buffer);
@@ -2571,8 +2580,7 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
     if(!filename)
       filename = "<input>";
 
-    module =
-        JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", (eval_flags & 0xff) | JS_EVAL_FLAG_COMPILE_ONLY);
+    module = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", (eval_flags & 0xff) | JS_EVAL_FLAG_COMPILE_ONLY);
     // m = js_module_def(ctx, module);
 
     if(!JS_IsException(module)) {
@@ -3166,8 +3174,7 @@ js_cclosure_data2(JSContext* ctx, JSValueConst value) {
 }
 
 static JSValue
-js_cclosure_call(
-    JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
+js_cclosure_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
   CClosureRecord* ccr;
 
   if(!(ccr = js_cclosure_data2(ctx, func_obj)))
@@ -3210,8 +3217,7 @@ static JSClassDef js_cclosure_class = {
 };
 
 JSValue
-js_function_cclosure(
-    JSContext* ctx, CClosureFunc* func, int length, int magic, void* opaque, void (*opaque_finalize)(void*)) {
+js_function_cclosure(JSContext* ctx, CClosureFunc* func, int length, int magic, void* opaque, void (*opaque_finalize)(void*)) {
   CClosureRecord* ccr;
   JSValue func_proto, func_obj;
 
