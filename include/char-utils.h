@@ -327,7 +327,9 @@ escape_char_letter(char c) {
   return 0;
 }
 
+#define FMT_LONG 41  /* enough space to hold -2^127 in decimal, plus \0 */
 #define FMT_ULONG 40 /* enough space to hold 2^128 - 1 in decimal, plus \0 */
+#define FMT_8LONG 44 /* enough space to hold 2^128 - 1 in octal, plus \0 */
 #define FMT_XLONG 33 /* enough space to hold 2^128 - 1 in hexadecimal, plus \0 */
 
 size_t token_length(const char*, size_t, char delim);

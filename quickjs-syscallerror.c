@@ -1,5 +1,5 @@
 #include "defines.h"
-#include "quickjs-syscallerror.h"
+  #include "quickjs-syscallerror.h"
 #include "buffer-utils.h"
 #include "char-utils.h"
 #include <errno.h>
@@ -157,8 +157,11 @@ fail:
 static void
 syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
   if(err->syscall) {
+    char buf[FMT_LONG];
     dbuf_putstr(dbuf, err->syscall);
-    dbuf_putstr(dbuf, "()");
+    dbuf_putstr(dbuf, "() = -1 (errno = ");
+    dbuf_put(dbuf, buf, fmt_longlong(buf, err->number));
+    dbuf_putstr(dbuf, ")");
   }
 
   if(err->number) {
