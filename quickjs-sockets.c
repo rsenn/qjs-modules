@@ -432,9 +432,9 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
             if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(oldaddr) || IN6_IS_ADDR_V4COMPAT(oldaddr)) && a->family == AF_INET) {
               *newaddr = oldaddr[3];
-            } else if(old.family == AF_INET6 && IN6_IS_ADDR_LOOPBACK(old.ip6.sin6_addr.s6_addr32) && a->family == AF_INET) {
+            } else if(old.family == AF_INET6 && IN6_IS_ADDR_LOOPBACK(oldaddr) && a->family == AF_INET) {
               *newaddr = htons(INADDR_LOOPBACK);
-            } else if(old.family == AF_INET6 && IN6_IS_ADDR_UNSPECIFIED(old.ip6.sin6_addr.s6_addr32) && a->family == AF_INET) {
+            } else if(old.family == AF_INET6 && IN6_IS_ADDR_UNSPECIFIED(oldaddr) && a->family == AF_INET) {
               *newaddr = 0;
             } else if(old.family == AF_INET && a->family == AF_INET6) {
               newaddr[0] = 0;
