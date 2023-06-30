@@ -60,7 +60,7 @@ getdents_open(Directory* d, const char* path) {
     return -1;
 
   memcpy(p, path, plen + 1);
-  strcpy(&p[plen], "/*.*");
+  strcpy(&p[plen], "\\*.*");
   // plen += strlen(&p[plen]);
 
 #ifdef FIND_A
