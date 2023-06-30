@@ -21,375 +21,372 @@ static const char*
 error_get(int number) {
   switch(number) {
 #ifdef EPERM
-      case EPERM: return "EPERM";
+    case EPERM: return "EPERM";
 #endif
 #ifdef ENOENT
-      case ENOENT: return "ENOENT";
+    case ENOENT: return "ENOENT";
 #endif
 #ifdef ESRCH
-      case ESRCH: return "ESRCH";
+    case ESRCH: return "ESRCH";
 #endif
 #ifdef EINTR
-      case EINTR: return "EINTR";
+    case EINTR: return "EINTR";
 #endif
 #ifdef EIO
-      case EIO: return "EIO";
+    case EIO: return "EIO";
 #endif
 #ifdef ENXIO
-      case ENXIO: return "ENXIO";
+    case ENXIO: return "ENXIO";
 #endif
 #ifdef E2BIG
-      case E2BIG: return "E2BIG";
+    case E2BIG: return "E2BIG";
 #endif
 #ifdef ENOEXEC
-      case ENOEXEC: return "ENOEXEC";
+    case ENOEXEC: return "ENOEXEC";
 #endif
 #ifdef EBADF
-      case EBADF: return "EBADF";
+    case EBADF: return "EBADF";
 #endif
 #ifdef ECHILD
-      case ECHILD: return "ECHILD";
+    case ECHILD: return "ECHILD";
 #endif
 #ifdef EAGAIN
-      case EAGAIN: return "EAGAIN";
-#endif
-#ifdef EWOULDBLOCK
-      case EWOULDBLOCK: return "EWOULDBLOCK";
+    case EAGAIN: return "EAGAIN";
 #endif
 #ifdef ENOMEM
-      case ENOMEM: return "ENOMEM";
+    case ENOMEM: return "ENOMEM";
 #endif
 #ifdef EACCES
-      case EACCES: return "EACCES";
+    case EACCES: return "EACCES";
 #endif
 #ifdef EFAULT
-      case EFAULT: return "EFAULT";
+    case EFAULT: return "EFAULT";
 #endif
 #ifdef EBUSY
-      case EBUSY: return "EBUSY";
+    case EBUSY: return "EBUSY";
 #endif
 #ifdef EEXIST
-      case EEXIST: return "EEXIST";
+    case EEXIST: return "EEXIST";
 #endif
 #ifdef EXDEV
-      case EXDEV: return "EXDEV";
+    case EXDEV: return "EXDEV";
 #endif
 #ifdef ENODEV
-      case ENODEV: return "ENODEV";
+    case ENODEV: return "ENODEV";
 #endif
 #ifdef ENOTDIR
-      case ENOTDIR: return "ENOTDIR";
+    case ENOTDIR: return "ENOTDIR";
 #endif
 #ifdef EISDIR
-      case EISDIR: return "EISDIR";
+    case EISDIR: return "EISDIR";
 #endif
 #ifdef EINVAL
-      case EINVAL: return "EINVAL";
+    case EINVAL: return "EINVAL";
 #endif
 #ifdef ENFILE
-      case ENFILE: return "ENFILE";
+    case ENFILE: return "ENFILE";
 #endif
 #ifdef EMFILE
-      case EMFILE: return "EMFILE";
+    case EMFILE: return "EMFILE";
 #endif
 #ifdef ENOTTY
-      case ENOTTY: return "ENOTTY";
+    case ENOTTY: return "ENOTTY";
 #endif
 #ifdef ETXTBSY
-      case ETXTBSY: return "ETXTBSY";
+    case ETXTBSY: return "ETXTBSY";
 #endif
 #ifdef EFBIG
-      case EFBIG: return "EFBIG";
+    case EFBIG: return "EFBIG";
 #endif
 #ifdef ENOSPC
-      case ENOSPC: return "ENOSPC";
+    case ENOSPC: return "ENOSPC";
 #endif
 #ifdef ESPIPE
-      case ESPIPE: return "ESPIPE";
+    case ESPIPE: return "ESPIPE";
 #endif
 #ifdef EROFS
-      case EROFS: return "EROFS";
+    case EROFS: return "EROFS";
 #endif
 #ifdef EMLINK
-      case EMLINK: return "EMLINK";
+    case EMLINK: return "EMLINK";
 #endif
 #ifdef EPIPE
-      case EPIPE: return "EPIPE";
+    case EPIPE: return "EPIPE";
 #endif
 #ifdef EDOM
-      case EDOM: return "EDOM";
+    case EDOM: return "EDOM";
 #endif
 #ifdef ERANGE
-      case ERANGE: return "ERANGE";
+    case ERANGE: return "ERANGE";
 #endif
 #ifdef EDEADLK
-      case EDEADLK: return "EDEADLK";
+    case EDEADLK: return "EDEADLK";
 #endif
 #ifdef ENAMETOOLONG
-      case ENAMETOOLONG: return "ENAMETOOLONG";
+    case ENAMETOOLONG: return "ENAMETOOLONG";
 #endif
 #ifdef ENOLCK
-      case ENOLCK: return "ENOLCK";
+    case ENOLCK: return "ENOLCK";
 #endif
 #ifdef ENOSYS
-      case ENOSYS: return "ENOSYS";
+    case ENOSYS: return "ENOSYS";
 #endif
 #ifdef ENOTEMPTY
-      case ENOTEMPTY: return "ENOTEMPTY";
+    case ENOTEMPTY: return "ENOTEMPTY";
 #endif
 #ifdef ENOMSG
-      case ENOMSG: return "ENOMSG";
+    case ENOMSG: return "ENOMSG";
 #endif
 #ifdef EIDRM
-      case EIDRM: return "EIDRM";
+    case EIDRM: return "EIDRM";
 #endif
 #ifdef ENOLINK
-      case ENOLINK: return "ENOLINK";
+    case ENOLINK: return "ENOLINK";
 #endif
 #ifdef EPROTO
-      case EPROTO: return "EPROTO";
+    case EPROTO: return "EPROTO";
 #endif
 #ifdef EBADMSG
-      case EBADMSG: return "EBADMSG";
+    case EBADMSG: return "EBADMSG";
 #endif
 #ifdef EOVERFLOW
-      case EOVERFLOW: return "EOVERFLOW";
+    case EOVERFLOW: return "EOVERFLOW";
 #endif
 #ifdef EILSEQ
-      case EILSEQ: return "EILSEQ";
+    case EILSEQ: return "EILSEQ";
 #endif
 #ifdef ERESTART
-      case ERESTART: return "ERESTART";
+    case ERESTART: return "ERESTART";
 #endif
 #ifdef ENOTSOCK
-      case ENOTSOCK: return "ENOTSOCK";
+    case ENOTSOCK: return "ENOTSOCK";
 #endif
 #ifdef EDESTADDRREQ
-      case EDESTADDRREQ: return "EDESTADDRREQ";
+    case EDESTADDRREQ: return "EDESTADDRREQ";
 #endif
 #ifdef EMSGSIZE
-      case EMSGSIZE: return "EMSGSIZE";
+    case EMSGSIZE: return "EMSGSIZE";
 #endif
 #ifdef EPROTOTYPE
-      case EPROTOTYPE: return "EPROTOTYPE";
+    case EPROTOTYPE: return "EPROTOTYPE";
 #endif
 #ifdef ENOPROTOOPT
-      case ENOPROTOOPT: return "ENOPROTOOPT";
+    case ENOPROTOOPT: return "ENOPROTOOPT";
 #endif
 #ifdef EPROTONOSUPPORT
-      case EPROTONOSUPPORT: return "EPROTONOSUPPORT";
+    case EPROTONOSUPPORT: return "EPROTONOSUPPORT";
 #endif
 #ifdef EOPNOTSUPP
-      case EOPNOTSUPP: return "EOPNOTSUPP";
+    case EOPNOTSUPP: return "EOPNOTSUPP";
 #endif
 #ifdef EAFNOSUPPORT
-      case EAFNOSUPPORT: return "EAFNOSUPPORT";
+    case EAFNOSUPPORT: return "EAFNOSUPPORT";
 #endif
 #ifdef EADDRINUSE
-      case EADDRINUSE: return "EADDRINUSE";
+    case EADDRINUSE: return "EADDRINUSE";
 #endif
 #ifdef EADDRNOTAVAIL
-      case EADDRNOTAVAIL: return "EADDRNOTAVAIL";
+    case EADDRNOTAVAIL: return "EADDRNOTAVAIL";
 #endif
 #ifdef ENETDOWN
-      case ENETDOWN: return "ENETDOWN";
+    case ENETDOWN: return "ENETDOWN";
 #endif
 #ifdef ENETUNREACH
-      case ENETUNREACH: return "ENETUNREACH";
+    case ENETUNREACH: return "ENETUNREACH";
 #endif
 #ifdef ENETRESET
-      case ENETRESET: return "ENETRESET";
+    case ENETRESET: return "ENETRESET";
 #endif
 #ifdef ECONNABORTED
-      case ECONNABORTED: return "ECONNABORTED";
+    case ECONNABORTED: return "ECONNABORTED";
 #endif
 #ifdef ECONNRESET
-      case ECONNRESET: return "ECONNRESET";
+    case ECONNRESET: return "ECONNRESET";
 #endif
 #ifdef ENOBUFS
-      case ENOBUFS: return "ENOBUFS";
+    case ENOBUFS: return "ENOBUFS";
 #endif
 #ifdef EISCONN
-      case EISCONN: return "EISCONN";
+    case EISCONN: return "EISCONN";
 #endif
 #ifdef ENOTCONN
-      case ENOTCONN: return "ENOTCONN";
+    case ENOTCONN: return "ENOTCONN";
 #endif
 #ifdef ETIMEDOUT
-      case ETIMEDOUT: return "ETIMEDOUT";
+    case ETIMEDOUT: return "ETIMEDOUT";
 #endif
 #ifdef ECONNREFUSED
-      case ECONNREFUSED: return "ECONNREFUSED";
+    case ECONNREFUSED: return "ECONNREFUSED";
 #endif
 #ifdef EHOSTUNREACH
-      case EHOSTUNREACH: return "EHOSTUNREACH";
+    case EHOSTUNREACH: return "EHOSTUNREACH";
 #endif
 #ifdef EALREADY
-      case EALREADY: return "EALREADY";
+    case EALREADY: return "EALREADY";
 #endif
 #ifdef EINPROGRESS
-      case EINPROGRESS: return "EINPROGRESS";
+    case EINPROGRESS: return "EINPROGRESS";
 #endif
 #ifdef ECANCELED
-      case ECANCELED: return "ECANCELED";
+    case ECANCELED: return "ECANCELED";
 #endif
 #ifdef EOWNERDEAD
-      case EOWNERDEAD: return "EOWNERDEAD";
+    case EOWNERDEAD: return "EOWNERDEAD";
 #endif
 #ifdef ENOTRECOVERABLE
-      case ENOTRECOVERABLE: return "ENOTRECOVERABLE";
+    case ENOTRECOVERABLE: return "ENOTRECOVERABLE";
 #endif
 #ifdef WSAEINTR
-      case WSAEINTR: return "WSAEINTR";
+    case WSAEINTR: return "WSAEINTR";
 #endif
 #ifdef WSAEBADF
-      case WSAEBADF: return "WSAEBADF";
+    case WSAEBADF: return "WSAEBADF";
 #endif
 #ifdef WSAEACCES
-      case WSAEACCES: return "WSAEACCES";
+    case WSAEACCES: return "WSAEACCES";
 #endif
 #ifdef WSAEFAULT
-      case WSAEFAULT: return "WSAEFAULT";
+    case WSAEFAULT: return "WSAEFAULT";
 #endif
 #ifdef WSAEINVAL
-      case WSAEINVAL: return "WSAEINVAL";
+    case WSAEINVAL: return "WSAEINVAL";
 #endif
 #ifdef WSAEMFILE
-      case WSAEMFILE: return "WSAEMFILE";
+    case WSAEMFILE: return "WSAEMFILE";
 #endif
 #ifdef WSAEWOULDBLOCK
-      case WSAEWOULDBLOCK: return "WSAEWOULDBLOCK";
+    case WSAEWOULDBLOCK: return "WSAEWOULDBLOCK";
 #endif
 #ifdef WSAEINPROGRESS
-      case WSAEINPROGRESS: return "WSAEINPROGRESS";
+    case WSAEINPROGRESS: return "WSAEINPROGRESS";
 #endif
 #ifdef WSAEALREADY
-      case WSAEALREADY: return "WSAEALREADY";
+    case WSAEALREADY: return "WSAEALREADY";
 #endif
 #ifdef WSAENOTSOCK
-      case WSAENOTSOCK: return "WSAENOTSOCK";
+    case WSAENOTSOCK: return "WSAENOTSOCK";
 #endif
 #ifdef WSAEDESTADDRREQ
-      case WSAEDESTADDRREQ: return "WSAEDESTADDRREQ";
+    case WSAEDESTADDRREQ: return "WSAEDESTADDRREQ";
 #endif
 #ifdef WSAEMSGSIZE
-      case WSAEMSGSIZE: return "WSAEMSGSIZE";
+    case WSAEMSGSIZE: return "WSAEMSGSIZE";
 #endif
 #ifdef WSAEPROTOTYPE
-      case WSAEPROTOTYPE: return "WSAEPROTOTYPE";
+    case WSAEPROTOTYPE: return "WSAEPROTOTYPE";
 #endif
 #ifdef WSAENOPROTOOPT
-      case WSAENOPROTOOPT: return "WSAENOPROTOOPT";
+    case WSAENOPROTOOPT: return "WSAENOPROTOOPT";
 #endif
 #ifdef WSAEPROTONOSUPPORT
-      case WSAEPROTONOSUPPORT: return "WSAEPROTONOSUPPORT";
+    case WSAEPROTONOSUPPORT: return "WSAEPROTONOSUPPORT";
 #endif
 #ifdef WSAESOCKTNOSUPPORT
-      case WSAESOCKTNOSUPPORT: return "WSAESOCKTNOSUPPORT";
+    case WSAESOCKTNOSUPPORT: return "WSAESOCKTNOSUPPORT";
 #endif
 #ifdef WSAEOPNOTSUPP
-      case WSAEOPNOTSUPP: return "WSAEOPNOTSUPP";
+    case WSAEOPNOTSUPP: return "WSAEOPNOTSUPP";
 #endif
 #ifdef WSAEPFNOSUPPORT
-      case WSAEPFNOSUPPORT: return "WSAEPFNOSUPPORT";
+    case WSAEPFNOSUPPORT: return "WSAEPFNOSUPPORT";
 #endif
 #ifdef WSAEAFNOSUPPORT
-      case WSAEAFNOSUPPORT: return "WSAEAFNOSUPPORT";
+    case WSAEAFNOSUPPORT: return "WSAEAFNOSUPPORT";
 #endif
 #ifdef WSAEADDRINUSE
-      case WSAEADDRINUSE: return "WSAEADDRINUSE";
+    case WSAEADDRINUSE: return "WSAEADDRINUSE";
 #endif
 #ifdef WSAEADDRNOTAVAIL
-      case WSAEADDRNOTAVAIL: return "WSAEADDRNOTAVAIL";
+    case WSAEADDRNOTAVAIL: return "WSAEADDRNOTAVAIL";
 #endif
 #ifdef WSAENETDOWN
-      case WSAENETDOWN: return "WSAENETDOWN";
+    case WSAENETDOWN: return "WSAENETDOWN";
 #endif
 #ifdef WSAENETUNREACH
-      case WSAENETUNREACH: return "WSAENETUNREACH";
+    case WSAENETUNREACH: return "WSAENETUNREACH";
 #endif
 #ifdef WSAENETRESET
-      case WSAENETRESET: return "WSAENETRESET";
+    case WSAENETRESET: return "WSAENETRESET";
 #endif
 #ifdef WSAECONNABORTED
-      case WSAECONNABORTED: return "WSAECONNABORTED";
+    case WSAECONNABORTED: return "WSAECONNABORTED";
 #endif
 #ifdef WSAECONNRESET
-      case WSAECONNRESET: return "WSAECONNRESET";
+    case WSAECONNRESET: return "WSAECONNRESET";
 #endif
 #ifdef WSAENOBUFS
-      case WSAENOBUFS: return "WSAENOBUFS";
+    case WSAENOBUFS: return "WSAENOBUFS";
 #endif
 #ifdef WSAEISCONN
-      case WSAEISCONN: return "WSAEISCONN";
+    case WSAEISCONN: return "WSAEISCONN";
 #endif
 #ifdef WSAENOTCONN
-      case WSAENOTCONN: return "WSAENOTCONN";
+    case WSAENOTCONN: return "WSAENOTCONN";
 #endif
 #ifdef WSAESHUTDOWN
-      case WSAESHUTDOWN: return "WSAESHUTDOWN";
+    case WSAESHUTDOWN: return "WSAESHUTDOWN";
 #endif
 #ifdef WSAETOOMANYREFS
-      case WSAETOOMANYREFS: return "WSAETOOMANYREFS";
+    case WSAETOOMANYREFS: return "WSAETOOMANYREFS";
 #endif
 #ifdef WSAETIMEDOUT
-      case WSAETIMEDOUT: return "WSAETIMEDOUT";
+    case WSAETIMEDOUT: return "WSAETIMEDOUT";
 #endif
 #ifdef WSAECONNREFUSED
-      case WSAECONNREFUSED: return "WSAECONNREFUSED";
+    case WSAECONNREFUSED: return "WSAECONNREFUSED";
 #endif
 #ifdef WSAELOOP
-      case WSAELOOP: return "WSAELOOP";
+    case WSAELOOP: return "WSAELOOP";
 #endif
 #ifdef WSAENAMETOOLONG
-      case WSAENAMETOOLONG: return "WSAENAMETOOLONG";
+    case WSAENAMETOOLONG: return "WSAENAMETOOLONG";
 #endif
 #ifdef WSAEHOSTDOWN
-      case WSAEHOSTDOWN: return "WSAEHOSTDOWN";
+    case WSAEHOSTDOWN: return "WSAEHOSTDOWN";
 #endif
 #ifdef WSAEHOSTUNREACH
-      case WSAEHOSTUNREACH: return "WSAEHOSTUNREACH";
+    case WSAEHOSTUNREACH: return "WSAEHOSTUNREACH";
 #endif
 #ifdef WSAENOTEMPTY
-      case WSAENOTEMPTY: return "WSAENOTEMPTY";
+    case WSAENOTEMPTY: return "WSAENOTEMPTY";
 #endif
 #ifdef WSAEPROCLIM
-      case WSAEPROCLIM: return "WSAEPROCLIM";
+    case WSAEPROCLIM: return "WSAEPROCLIM";
 #endif
 #ifdef WSAEUSERS
-      case WSAEUSERS: return "WSAEUSERS";
+    case WSAEUSERS: return "WSAEUSERS";
 #endif
 #ifdef WSAEDQUOT
-      case WSAEDQUOT: return "WSAEDQUOT";
+    case WSAEDQUOT: return "WSAEDQUOT";
 #endif
 #ifdef WSAESTALE
-      case WSAESTALE: return "WSAESTALE";
+    case WSAESTALE: return "WSAESTALE";
 #endif
 #ifdef WSAEREMOTE
-      case WSAEREMOTE: return "WSAEREMOTE";
+    case WSAEREMOTE: return "WSAEREMOTE";
 #endif
 #ifdef WSAEDISCON
-      case WSAEDISCON: return "WSAEDISCON";
+    case WSAEDISCON: return "WSAEDISCON";
 #endif
 #ifdef WSAENOMORE
-      case WSAENOMORE: return "WSAENOMORE";
+    case WSAENOMORE: return "WSAENOMORE";
 #endif
 #ifdef WSAECANCELLED
-      case WSAECANCELLED: return "WSAECANCELLED";
+    case WSAECANCELLED: return "WSAECANCELLED";
 #endif
 #ifdef WSAEINVALIDPROCTABLE
-      case WSAEINVALIDPROCTABLE: return "WSAEINVALIDPROCTABLE";
+    case WSAEINVALIDPROCTABLE: return "WSAEINVALIDPROCTABLE";
 #endif
 #ifdef WSAEINVALIDPROVIDER
-      case WSAEINVALIDPROVIDER: return "WSAEINVALIDPROVIDER";
+    case WSAEINVALIDPROVIDER: return "WSAEINVALIDPROVIDER";
 #endif
 #ifdef WSAEPROVIDERFAILEDINIT
-      case WSAEPROVIDERFAILEDINIT: return "WSAEPROVIDERFAILEDINIT";
+    case WSAEPROVIDERFAILEDINIT: return "WSAEPROVIDERFAILEDINIT";
 #endif
 #ifdef WSAEREFUSED
-      case WSAEREFUSED: return "WSAEREFUSED";
-#endif 
-      default: break;
+    case WSAEREFUSED: return "WSAEREFUSED";
+#endif
+    default: break;
   }
   return 0;
 }
@@ -504,13 +501,13 @@ js_syscallerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, J
 
   if(argc >= 1) {
     int32_t number;
-    //if(JS_IsNumber(argv[0])) {
-      JS_ToInt32(ctx, &number, argv[0]);
-   /* } else {
-      const char* code = JS_ToCString(ctx, argv[0]);
-      number = error_find(code);
-      JS_FreeCString(ctx, code);
-    }*/
+    // if(JS_IsNumber(argv[0])) {
+    JS_ToInt32(ctx, &number, argv[0]);
+    /* } else {
+       const char* code = JS_ToCString(ctx, argv[0]);
+       number = error_find(code);
+       JS_FreeCString(ctx, code);
+     }*/
 
     err->number = number;
   }

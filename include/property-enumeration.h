@@ -38,7 +38,7 @@ compare_jspropertyenum(const JSPropertyEnum* a, JSPropertyEnum* b) {
 }
 static inline int
 compare_jsatom(const JSAtom* a, JSAtom* b) {
-  return a < b ? -1 : a> b ? 1 : 0;
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 int property_enumeration_init(PropertyEnumeration*, JSContext* ctx, JSValue object, int flags);
