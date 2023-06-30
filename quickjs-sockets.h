@@ -60,6 +60,8 @@ ENDPACK
     { (fd), (err), (sys), (nonb), (asyn), (own), (0) } \
   }
 
+#define SOCKET_INIT() SOCKET(-1, 0, -1, FALSE, FALSE, FALSE)
+
 typedef union socket_state Socket;
 typedef struct async_socket_state AsyncSocket;
 

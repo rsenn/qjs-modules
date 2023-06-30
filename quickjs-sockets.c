@@ -67,13 +67,14 @@ js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
 Socket
 js_socket_data(JSValueConst value) {
   JSClassID id = JS_GetClassID(value);
-  Socket sock = {{-1, 0, -1, FALSE, FALSE, FALSE, 0}};
+  Socket sock = {SOCKET_INIT()};
 
   if((id = JS_GetClassID(value)) > 0) {
     void* opaque = JS_GetOpaque(value, id);
+
     if(id == js_socket_class_id)
       sock = *(Socket*)&opaque;
-    if(id == js_async_socket_class_id)
+    else if(id == js_async_socket_class_id)
       sock = *(Socket*)opaque;
   }
 
@@ -126,7 +127,6 @@ static const char* socket_syscalls[] = {
     "setsockopt",
 };
 
-static const size_t socket_syscalls_size = countof(socket_syscalls);
 
 static const char*
 syscall_name(int syscall_number) {
@@ -199,6 +199,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
 
     if((other = js_sockaddr_data(argv[0]))) {
       *a = *other;
+      
       return TRUE;
     }
   }
@@ -1320,7 +1321,7 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_CONFIGURABLE | (sock.error ? JS_PROP_ENUMERABLE : 0));
   JS_DefinePropertyValueStr(ctx, obj, "error", JS_NewString(ctx, strerror(sock.error)), JS_PROP_CONFIGURABLE | (sock.error ? JS_PROP_ENUMERABLE : 0));
-  if(sock.syscall > 0 && sock.syscall < socket_syscalls_size)
+  if(sock.syscall > 0 && sock.syscall < countof(socket_syscalls))
     JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, socket_syscall(sock)), JS_PROP_ENUMERABLE);
 
   return obj;
