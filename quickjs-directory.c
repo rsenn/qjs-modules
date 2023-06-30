@@ -12,7 +12,12 @@
 VISIBLE JSClassID js_directory_class_id = 0;
 VISIBLE JSValue directory_proto = {{0}, JS_TAG_UNDEFINED}, directory_ctor = {{0}, JS_TAG_UNDEFINED};
 
-enum { FLAG_NAME = 1, FLAG_TYPE = 2, FLAG_BOTH = FLAG_NAME | FLAG_TYPE, FLAG_BUFFER = 0x80 };
+enum {
+  FLAG_NAME = 1,
+  FLAG_TYPE = 2,
+  FLAG_BOTH = FLAG_NAME | FLAG_TYPE,
+  FLAG_BUFFER = 0x80,
+};
 enum {
   DIRECTORY_OPEN,
   DIRECTORY_ADOPT,
@@ -171,6 +176,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       JS_FreeCString(ctx, dir);
       break;
     }
+
     case DIRECTORY_ADOPT: {
       int32_t fd = -1;
 
@@ -181,18 +187,22 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       break;
     }
+
     case DIRECTORY_ITERATOR: {
       ret = JS_DupValue(ctx, this_val);
       break;
     }
+
     case DIRECTORY_CLOSE: {
       getdents_close(directory);
       break;
     }
+
     case DIRECTORY_VALUE_OF: {
       ret = JS_NewInt64(ctx, getdents_handle(directory));
       break;
     }
+
     case DIRECTORY_NEXT: {
       DirEntry* entry;
       int32_t* opts = ((int32_t*)((char*)directory + getdents_size()));
@@ -224,10 +234,12 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       JS_FreeValue(ctx, value);
       break;
     }
+
     case DIRECTORY_RETURN: {
       ret = js_iterator_result(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, TRUE);
       break;
     }
+
     case DIRECTORY_THROW: {
       ret = JS_Throw(ctx, argv[0]);
       break;
@@ -257,17 +269,17 @@ static const JSCFunctionListEntry js_directory_funcs[] = {
     JS_CFUNC_MAGIC_DEF("adopt", 1, js_directory_method, DIRECTORY_ADOPT),
     JS_CFUNC_MAGIC_DEF("close", 0, js_directory_method, DIRECTORY_CLOSE),
     JS_CFUNC_MAGIC_DEF("valueOf", 0, js_directory_method, DIRECTORY_VALUE_OF),
-    JS_PROP_INT32_DEF("NAME", FLAG_NAME, 0),
-    JS_PROP_INT32_DEF("TYPE", FLAG_TYPE, 0),
-    JS_PROP_INT32_DEF("BOTH", FLAG_BOTH, 0),
-    JS_PROP_INT32_DEF("TYPE_BLK", TYPE_BLK, 0),
-    JS_PROP_INT32_DEF("TYPE_CHR", TYPE_CHR, 0),
-    JS_PROP_INT32_DEF("TYPE_DIR", TYPE_DIR, 0),
-    JS_PROP_INT32_DEF("TYPE_FIFO", TYPE_FIFO, 0),
-    JS_PROP_INT32_DEF("TYPE_LNK", TYPE_LNK, 0),
-    JS_PROP_INT32_DEF("TYPE_REG", TYPE_REG, 0),
-    JS_PROP_INT32_DEF("TYPE_SOCK", TYPE_SOCK, 0),
-    JS_PROP_INT32_DEF("TYPE_MASK", TYPE_MASK, 0),
+    /*JS_PROP_INT32_DEF("NAME", FLAG_NAME, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE", FLAG_TYPE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("BOTH", FLAG_BOTH, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_BLK", TYPE_BLK, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_CHR", TYPE_CHR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_DIR", TYPE_DIR, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_FIFO", TYPE_FIFO, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_LNK", TYPE_LNK, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_REG", TYPE_REG, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_SOCK", TYPE_SOCK, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("TYPE_MASK", TYPE_MASK, JS_PROP_ENUMERABLE),*/
     JS_CFUNC_MAGIC_DEF("next", 0, js_directory_method, DIRECTORY_NEXT),
     JS_CFUNC_MAGIC_DEF("return", 0, js_directory_method, DIRECTORY_RETURN),
     JS_CFUNC_MAGIC_DEF("throw", 1, js_directory_method, DIRECTORY_THROW),
@@ -292,21 +304,22 @@ static const JSCFunctionListEntry js_directory_static[] = {
 int
 js_directory_init(JSContext* ctx, JSModuleDef* m) {
 
-  if(js_directory_class_id == 0) {
-    JS_NewClassID(&js_directory_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_directory_class_id, &js_directory_class);
+  assert(js_directory_class_id == 0);
 
-    directory_ctor = JS_NewCFunction2(ctx, js_directory_constructor, "Directory", 1, JS_CFUNC_constructor, 0);
-    JSValue generator_proto = js_generator_prototype(ctx);
-    directory_proto = JS_NewObjectProto(ctx, generator_proto);
-    JS_FreeValue(ctx, generator_proto);
+  JS_NewClassID(&js_directory_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_directory_class_id, &js_directory_class);
 
-    JS_SetPropertyFunctionList(ctx, directory_proto, js_directory_funcs, countof(js_directory_funcs));
-    JS_SetPropertyFunctionList(ctx, directory_ctor, js_directory_static, countof(js_directory_static));
+  directory_ctor = JS_NewCFunction2(ctx, js_directory_constructor, "Directory", 1, JS_CFUNC_constructor, 0);
+  JSValue generator_proto = js_generator_prototype(ctx);
+  directory_proto = JS_NewObjectProto(ctx, generator_proto);
+  JS_FreeValue(ctx, generator_proto);
 
-    JS_SetClassProto(ctx, js_directory_class_id, directory_proto);
-    JS_SetConstructor(ctx, directory_ctor, directory_proto);
-  }
+  JS_SetPropertyFunctionList(ctx, directory_proto, js_directory_funcs, countof(js_directory_funcs));
+  JS_SetPropertyFunctionList(ctx, directory_proto, js_directory_static, countof(js_directory_static));
+  JS_SetPropertyFunctionList(ctx, directory_ctor, js_directory_static, countof(js_directory_static));
+
+  JS_SetClassProto(ctx, js_directory_class_id, directory_proto);
+  JS_SetConstructor(ctx, directory_ctor, directory_proto);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Directory", directory_ctor);

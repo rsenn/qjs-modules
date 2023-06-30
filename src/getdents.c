@@ -69,7 +69,7 @@ getdents_open(Directory* d, const char* path) {
     d->first = TRUE;
 #else
   wchar_t* wp = utf8_towcs(p);
-  assert(wp); 
+  assert(wp);
 
   if((d->h_find = _wfindfirst64(wp, &d->fdw)) != -1)
     d->first = TRUE;
@@ -158,7 +158,7 @@ getdents_islnk(const DirEntry* e) {
 
 int
 getdents_isreg(const DirEntry* e) {
-  return !getdents_isdir(e)  && !getdents_ischr(e) && !getdents_islnk(e);
+  return !getdents_isdir(e) && !getdents_ischr(e) && !getdents_islnk(e);
 }
 
 int
@@ -270,10 +270,10 @@ getdents_name(const DirEntry* e) {
 const uint8_t*
 getdents_namebuf(const DirEntry* e, size_t* len) {
   const char* name = ((struct linux_dirent64*)e)->d_name;
- 
+
   if(len)
     *len = strlen(name);
- 
+
   return (const uint8_t*)name;
 }
 
@@ -336,6 +336,6 @@ getdents_type(const DirEntry* e) {
     return TYPE_SOCK;
   if(getdents_isreg(e))
     return TYPE_REG;
-  
+
   return 0;
 }

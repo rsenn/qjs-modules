@@ -315,18 +315,13 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       size_t start, end;
       SlicePredicate slice = pr->slice;
 
-      start = slice.start < 0            ? block.size + (slice.start % (signed)block.size)
-              : slice.start > block.size ? block.size
-                                         : slice.start;
-      end = slice.end < 0            ? block.size + (slice.end % (signed)block.size)
-            : slice.end > block.size ? block.size
-                                     : slice.end;
+      start = slice.start < 0 ? block.size + (slice.start % (signed)block.size) : slice.start > block.size ? block.size : slice.start;
+      end = slice.end < 0 ? block.size + (slice.end % (signed)block.size) : slice.end > block.size ? block.size : slice.end;
 
       if(JS_IsString(arg)) {
         ret = JS_NewStringLen(ctx, (const char*)block.base + start, end - start);
       } else {
-        ret = JS_NewArrayBuffer(
-            ctx, block.base + start, end - start, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), FALSE);
+        ret = JS_NewArrayBuffer(ctx, block.base + start, end - start, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), FALSE);
       }
       input_buffer_free(&buf, ctx);
       break;
@@ -399,10 +394,8 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 const char*
 predicate_typename(const Predicate* pr) {
   return ((const char*[]){
-      "type", "charset", "string", "notnot", "not",        "bnot",        "sqrt",  "add",
-      "sub",  "mul",     "div",    "mod",    "bor",        "band",        "pow",   "atan2",
-      "or",   "and",     "xor",    "regexp", "instanceof", "prototypeis", "equal", "property",
-      "has",  "member",  "shift",  "slice",  "index",      "function",    0,
+      "type", "charset", "string", "notnot", "not",        "bnot",        "sqrt",  "add",      "sub", "mul",    "div",   "mod",   "bor",   "band",     "pow", "atan2",
+      "or",   "and",     "xor",    "regexp", "instanceof", "prototypeis", "equal", "property", "has", "member", "shift", "slice", "index", "function", 0,
   })[pr->id];
 }
 
@@ -705,9 +698,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
 
       predicate_inspect(pr->binary.left, ctx, dbuf, args, parens[0]);
 
-      dbuf_putstr(dbuf,
-                  ((const char* const[]){
-                      " + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pr->id - PREDICATE_ADD]);
+      dbuf_putstr(dbuf, ((const char* const[]){" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pr->id - PREDICATE_ADD]);
 
       predicate_inspect(pr->binary.right, ctx, dbuf, args, parens[1]);
       break;
@@ -743,8 +734,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     case PREDICATE_HAS: {
       const char* arg = arguments_push(args, ctx, "object");
       const char* prop = JS_AtomToCString(ctx, pr->property.atom);
-      char *x,
-          *s = js_is_null_or_undefined(pr->property.predicate) ? (char*)0 : js_tosource(ctx, pr->property.predicate);
+      char *x, *s = js_is_null_or_undefined(pr->property.predicate) ? (char*)0 : js_tosource(ctx, pr->property.predicate);
       dbuf_printf(dbuf, "%s.%s", arg, prop);
       if(s) {
         int i, arglen, slen = strlen(s);
