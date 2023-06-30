@@ -421,22 +421,29 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
         JS_ToInt32(ctx, &af, value);
 
         if(a->family != af) {
-          if(a->family != AF_UNIX && af != AF_UNIX) {
-            SockAddr old = *a;
-            int port = sockaddr_port(a);
+          SockAddr old = *a;
 
+          if(a->family != AF_UNIX && af != AF_UNIX) {
             memset(a, 0, sizeof(SockAddr));
             a->family = af;
 
-            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(old.ip6.sin6_addr.s6_addr32) || IN6_IS_ADDR_V4COMPAT(old.ip6.sin6_addr.s6_addr32)) && a->family == AF_INET) {
-              a->ip4.sin_addr.s_addr = old.ip6.sin6_addr.s6_addr32[3];
+            uint32_t* oldaddr = sockaddr_addr(&old);
+            uint32_t* newaddr = sockaddr_addr(a);
+
+            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(oldaddr) || IN6_IS_ADDR_V4COMPAT(oldaddr)) && a->family == AF_INET) {
+              *newaddr = oldaddr[3];
+            } else if(old.family == AF_INET6 && IN6_IS_ADDR_LOOPBACK(old.ip6.sin6_addr.s6_addr32) && a->family == AF_INET) {
+              *newaddr = htons(INADDR_LOOPBACK);
+            } else if(old.family == AF_INET6 && IN6_IS_ADDR_UNSPECIFIED(old.ip6.sin6_addr.s6_addr32) && a->family == AF_INET) {
+              *newaddr = 0;
             } else if(old.family == AF_INET && a->family == AF_INET6) {
-              a->ip6.sin6_addr.s6_addr32[0] = 0;
-              a->ip6.sin6_addr.s6_addr32[1] = 0;
-              a->ip6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-              a->ip6.sin6_addr.s6_addr32[3] = old.ip4.sin_addr.s_addr;
+              newaddr[0] = 0;
+              newaddr[1] = 0;
+              newaddr[2] = htonl(0xffff);
+              newaddr[3] = *oldaddr;
             }
 
+            int port = sockaddr_port(&old);
             if(port != -1)
               sockaddr_setport(a, port);
           }
