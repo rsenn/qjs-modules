@@ -223,8 +223,16 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
           a->family = AF_INET;
         else if(inet_pton(AF_INET6, str, &a->sai6.sin6_addr) > 0)
           a->family = AF_INET6;
-      } else {
-        inet_pton(a->family, str, sockaddr_addr(a));
+      } else if(!inet_pton(a->family, str, sockaddr_addr(a)) && a->family == AF_INET6) {
+        struct in_addr in;
+        uint32_t* u32 = (uint32_t*)&a->sai6.sin6_addr;
+
+        if(inet_pton(AF_INET, str, &in)) {
+          u32[0] = 0;
+          u32[1] = 0;
+          u32[2] = htonl(0xffff);
+          u32[3] = in.s_addr;
+        }
       }
 
       JS_FreeCString(ctx, str);
@@ -2284,7 +2292,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_sockaddr_class_id, sockaddr_proto);
   JS_SetConstructor(ctx, sockaddr_ctor, sockaddr_proto);
 
-  js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);
+  // js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);
 
   JS_NewClassID(&js_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_socket_class_id, &js_socket_class);
@@ -2300,7 +2308,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_socket_class_id, socket_proto);
   JS_SetConstructor(ctx, socket_ctor, socket_proto);
 
-  js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
+  // js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
   JS_NewClassID(&js_async_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_async_socket_class_id, &js_async_socket_class);
