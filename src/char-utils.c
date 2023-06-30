@@ -329,8 +329,7 @@ utf16_multiword(const void* in) {
   const uint16_t* p16 = in;
   LibutfC16Type type = libutf_c16_type(p16[0]);
 
-  return !((LIBUTF_UTF16_NOT_SURROGATE == type) ||
-           (LIBUTF_UTF16_SURROGATE_HIGH != type || LIBUTF_UTF16_SURROGATE_LOW != libutf_c16_type(p16[1])));
+  return !((LIBUTF_UTF16_NOT_SURROGATE == type) || (LIBUTF_UTF16_SURROGATE_HIGH != type || LIBUTF_UTF16_SURROGATE_LOW != libutf_c16_type(p16[1])));
 }
 
 int

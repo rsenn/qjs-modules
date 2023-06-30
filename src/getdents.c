@@ -53,12 +53,21 @@ getdents_handle(Directory* d) {
 
 int
 getdents_open(Directory* d, const char* path) {
-  /*size_t pathlen = utf8_strlen(path, strlen(path));*/
+  size_t plen = strlen(path);
+  char* p;
+
+  if(!(p = malloc(plen + 1 + 3 + 1)))
+    return -1;
+
+  memcpy(p, path, plen + 1);
+  strcpy(&p[plen], "/*.*");
+  // plen += strlen(&p[plen]);
+
 #ifdef FIND_A
-  if((d->h = FindFirstFile(path, &d->fdw)) != INVALID_HANDLE_VALUE)
+  if((d->h = FindFirstFile(p, &d->fdw)) != INVALID_HANDLE_VALUE)
     d->first = TRUE;
 #else
-  wchar_t* wp = utf8_towcs(path);
+  wchar_t* wp = utf8_towcs(p);
   assert(wp);
 
   if((HANDLE)(d->h_int = _wfindfirst64(wp, &d->fdw)) != INVALID_HANDLE_VALUE)
@@ -66,6 +75,9 @@ getdents_open(Directory* d, const char* path) {
 
   free(wp);
 #endif
+
+  free(p);
+
   return d->h_ptr == INVALID_HANDLE_VALUE ? -1 : 0;
 }
 
