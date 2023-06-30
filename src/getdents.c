@@ -93,12 +93,14 @@ getdents_adopt(Directory* d, intptr_t hnd) {
 
 DirEntry*
 getdents_read(Directory* d) {
+  DirEntry* ret = &d->fdw;
+
   if(d->first)
     d->first = FALSE;
   else if(!findnext(d->h_find, &d->fdw))
-    return 0;
+    ret = 0;
 
-  return (DirEntry*)&d->fdw;
+  return ret;
 }
 
 const void*
