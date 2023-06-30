@@ -156,9 +156,15 @@ pcg32_random_bounded_divisionless(uint32_t range) {
   return multiresult >> 32; // [0, range)
 }
 
+typedef enum {
+  CLEAR_TO_END = 0,
+  CLEAR_TO_BEGIN,
+  CLEAR_ENTIRE,
+} ClearMode;
+
 #ifdef _WIN32
 static BOOL
-clear_screen(HANDLE h, char mode, BOOL line) {
+clear_screen(HANDLE h, ClearMode mode, BOOL line) {
   COORD coords = {0, 0};
   DWORD n, con_size;
   CONSOLE_SCREEN_BUFFER_INFO sbi;
@@ -169,19 +175,19 @@ clear_screen(HANDLE h, char mode, BOOL line) {
 #define CHAR_POS(c) (((c).Y * sbi.dwSize.X) + (c).X)
 
   switch(mode) {
-    case 0: {
+    case CLEAR_TO_END: {
       coords = sbi.dwCursorPosition;
       con_size =
           line ? sbi.dwSize.X - sbi.dwCursorPosition.X : (sbi.dwSize.X * sbi.dwSize.Y) - CHAR_POS(sbi.dwCursorPosition);
       break;
     }
-    case 1: {
+    case CLEAR_TO_BEGIN: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
       con_size = line ? sbi.dwCursorPosition.X : CHAR_POS(sbi.dwCursorPosition);
       break;
     }
-    case 2: {
+    case CLEAR_ENTIRE: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
       con_size = line ? sbi.dwSize.X : sbi.dwSize.X * sbi.dwSize.Y;
@@ -201,10 +207,9 @@ clear_screen(HANDLE h, char mode, BOOL line) {
   // SetConsoleCursorPosition(h, coords);
   return TRUE;
 }
-
 #else
 static BOOL
-clear_screen(int fd, char mode, BOOL line) {
+clear_screen(int fd, ClearMode mode, BOOL line) {
   char buf[] = {27, '[', mode + '0', line ? 'K' : 'J'};
   return write(fd, buf, sizeof(buf)) > 0;
 }
