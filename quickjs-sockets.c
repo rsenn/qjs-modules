@@ -29,6 +29,11 @@ typedef int SOCKET;
  * @{
  */
 
+static int js_sockets_init(JSContext*, JSModuleDef*);
+static JSValue js_async_socket_method(JSContext*, JSValueConst, int, JSValueConst[], int);
+static const char* syscall_name(int syscall_number);
+static void syscall_return(Socket* sock, int syscall, int retval);
+
 #define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), js_socket_error(ctx, *(sock)))
 
 #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), on_fail)
@@ -47,11 +52,6 @@ VISIBLE JSValue sockaddr_proto = {{0}, JS_TAG_UNDEFINED}, sockaddr_ctor = {{0}, 
 extern const uint8_t qjsm_fd_set[1030];
 extern const uint32_t qjsm_socklen_t_size;
 extern const uint8_t qjsm_socklen_t[1030];*/
-
-static int js_sockets_init(JSContext*, JSModuleDef*);
-static JSValue js_async_socket_method(JSContext*, JSValueConst, int, JSValueConst[], int);
-
-static const char* syscall_name(int syscall_number);
 
 SockAddr*
 js_sockaddr_data(JSValueConst value) {
@@ -94,6 +94,22 @@ js_socket_error(JSContext* ctx, Socket sock) {
 }
 
 static BOOL
+js_socket_setnonblocking(JSContext* ctx, Socket* s, BOOL nonblock) {
+#ifdef _WIN32
+  ULONG mode = nonblock;
+  syscall_return(s, SYSCALL_FCNTL,  ioctlsocket(socket_handle(*s), FIONBIO, &mode));
+#else
+  int oldflags, newflags;
+  oldflags = fcntl(s->fd, F_GETFL);
+  newflags = nonblock ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
+  if(oldflags != newflags)
+      syscall_return(s, SYSCALL_FCNTL, fcntl(s->fd, F_SETFL, newflags));
+#endif
+    
+  return s->ret == 0;
+}
+
+static BOOL
 socket_nonblocking(Socket sock) {
   int fd = socket_fd(sock);
 
@@ -111,7 +127,12 @@ static const char* socket_syscalls[] = {
     "socket",
     "getsockname",
     "getpeername",
+
+#ifdef _WIN32
+    "ioctlsocket",
+#else
     "fcntl",
+#endif
     "bind",
     "accept",
     "connect",
@@ -1228,19 +1249,25 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       BOOL nonblock = TRUE;
       if(argc >= 1)
         nonblock = JS_ToBool(ctx, argv[0]);
-#ifdef _WIN32
-      ULONG mode = nonblock;
-      ret = JS_NewInt32(ctx, ioctlsocket(socket_handle(*s), FIONBIO, &mode));
-#else
-      int oldflags, newflags;
-      oldflags = fcntl(s->fd, F_GETFL);
-      newflags = nonblock ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
-      if(oldflags != newflags)
-        JS_SOCKETCALL(SYSCALL_FCNTL, s, fcntl(s->fd, F_SETFL, newflags));
-#endif
-      s->nonblock = nonblock;
+
+      if(nonblock != s->nonblock) {
+
+        js_socket_setnonblocking(ctx, s, nonblock);
+        s->nonblock = nonblock;
+      }
       break;
     }
+
+      /*#ifdef _WIN32
+            ULONG mode = nonblock;
+            ret = JS_NewInt32(ctx, ioctlsocket(socket_handle(*s), FIONBIO, &mode));
+      #else
+            int oldflags, newflags;
+            oldflags = fcntl(s->fd, F_GETFL);
+            newflags = nonblock ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
+            if(oldflags != newflags)
+              JS_SOCKETCALL(SYSCALL_FCNTL, s, fcntl(s->fd, F_SETFL, newflags));
+      #endif*/
 
     case SOCKETS_BIND: {
       JS_SOCKETCALL(SYSCALL_BIND, s, bind(socket_handle(*s), (struct sockaddr*)a, sockaddr_size(a)));
@@ -2468,7 +2495,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_sockaddr_class_id, sockaddr_proto);
   JS_SetConstructor(ctx, sockaddr_ctor, sockaddr_proto);
 
- js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);
+  js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);
 
   JS_NewClassID(&js_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_socket_class_id, &js_socket_class);
@@ -2484,7 +2511,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_socket_class_id, socket_proto);
   JS_SetConstructor(ctx, socket_ctor, socket_proto);
 
-   js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
+  js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
   JS_NewClassID(&js_async_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_async_socket_class_id, &js_async_socket_class);
