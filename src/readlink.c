@@ -80,7 +80,7 @@ readlink(const char* LinkPath, char* buf, size_t maxlen) {
   u8len = WideCharToMultiByte(CP_UTF8, 0, wbuf, wlen, NULL, 0, NULL, NULL);
   if(u8len >= maxlen)
     u8len = maxlen - 1;
-  WideCharToMultiByte(CP_UTF8, 0, wbuf, len, buf, u8len, NULL, NULL);
+  WideCharToMultiByte(CP_UTF8, 0, wbuf, wlen, buf, u8len, NULL, NULL);
 
   buf[u8len] = '\0';
   return u8len;
