@@ -141,7 +141,7 @@ macro(find_quickjs)
   check_include_file(quickjs-config.h HAVE_QUICKJS_CONFIG_H)
 
   if(HAVE_QUICKJS_CONFIG_H)
-    # dump(HAVE_QUICKJS_CONFIG_H)
+     #dump(HAVE_QUICKJS_CONFIG_H)
     add_definitions(-DHAVE_QUICKJS_CONFIG_H=1)
   endif(HAVE_QUICKJS_CONFIG_H)
 
