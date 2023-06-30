@@ -936,13 +936,13 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
     if(has_fd) {
       SOCKET s = _get_osfhandle(fd);
       if(s != sock) {
-        printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, s, sock);
+        printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, (void*)s, (void*)sock);
         mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)(intptr_t)-1);
         has_fd = FALSE;
         continue;
       }
     } else {
-      fd = sock != INVALID_HANDLE_VALUE ? _open_osfhandle((intptr_t)sock, _O_BINARY | _O_RDWR) : -1;
+      fd = sock != (SOCKET)INVALID_HANDLE_VALUE ? _open_osfhandle((intptr_t)sock, _O_BINARY | _O_RDWR) : -1;
 #ifdef DEBUG_OUTPUT
       printf("filedescriptor %d created from socket handle %p\n", fd, sock);
 #endif
