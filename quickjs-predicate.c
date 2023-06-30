@@ -11,12 +11,12 @@
 VISIBLE JSClassID js_predicate_class_id = 0;
 VISIBLE JSValue predicate_proto = {{0}, JS_TAG_UNDEFINED}, predicate_ctor = {{0}, JS_TAG_UNDEFINED};
 
-VISIBLE Predicate*
+  Predicate*
 js_predicate_data(JSValueConst value) {
   return JS_GetOpaque(value, js_predicate_class_id);
 }
 
-VISIBLE Predicate*
+  Predicate*
 js_predicate_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_predicate_class_id);
 }
