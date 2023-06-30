@@ -417,26 +417,26 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
   if(a)
     switch(magic) {
       case SOCKADDR_FAMILY: {
-        int32_t af;
-        JS_ToInt32(ctx, &af, value);
+        int32_t newf;
+        JS_ToInt32(ctx, &newf, value);
 
-        if(a->family != af) {
+        if(a->family != newf) {
           SockAddr old = *a;
 
-          if(a->family != AF_UNIX && af != AF_UNIX) {
+          if(old.family != AF_UNIX && newf != AF_UNIX) {
             memset(a, 0, sizeof(SockAddr));
-            a->family = af;
+            a->family = newf;
 
             uint32_t* oldaddr = sockaddr_addr(&old);
             uint32_t* newaddr = sockaddr_addr(a);
 
-            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(oldaddr) || IN6_IS_ADDR_V4COMPAT(oldaddr)) && a->family == AF_INET) {
+            if(old.family == AF_INET6 && (IN6_IS_ADDR_V4MAPPED(oldaddr) || IN6_IS_ADDR_V4COMPAT(oldaddr)) && newf == AF_INET) {
               *newaddr = oldaddr[3];
-            } else if(old.family == AF_INET6 && IN6_IS_ADDR_LOOPBACK(oldaddr) && a->family == AF_INET) {
+            } else if(old.family == AF_INET6 && IN6_IS_ADDR_LOOPBACK(oldaddr) && newf == AF_INET) {
               *newaddr = htons(INADDR_LOOPBACK);
-            } else if(old.family == AF_INET6 && IN6_IS_ADDR_UNSPECIFIED(oldaddr) && a->family == AF_INET) {
+            } else if(old.family == AF_INET6 && IN6_IS_ADDR_UNSPECIFIED(oldaddr) && newf == AF_INET) {
               *newaddr = 0;
-            } else if(old.family == AF_INET && a->family == AF_INET6) {
+            } else if(old.family == AF_INET && newf == AF_INET6) {
               newaddr[0] = 0;
               newaddr[1] = 0;
               newaddr[2] = htonl(0xffff);
