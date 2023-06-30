@@ -8,6 +8,7 @@
 #else
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/un.h>
 #endif
 #include <quickjs.h>
 
@@ -23,6 +24,7 @@ typedef union {
   struct sockaddr s;
   struct sockaddr_in sai;
   struct sockaddr_in6 sai6;
+  struct sockaddr_un sau;
 } SockAddr;
 
 #define SOCKET_PROPS() \

@@ -224,6 +224,9 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
           a->family = AF_INET;
         else if(inet_pton(AF_INET6, str, &a->sai6.sin6_addr) > 0)
           a->family = AF_INET6;
+
+      } else if(a->family == AF_UNIX) {
+        strncpy(a->sau.sun_path, str, sizeof(a->sau.sun_path));
       } else if(!inet_pton(a->family, str, sockaddr_addr(a)) && a->family == AF_INET6) {
         struct in_addr in;
 
