@@ -27,10 +27,10 @@ typedef struct {
     } \
   } while(0)
 
-SyscallError* js_syscallerror_data(JSValue);
-SyscallError* js_syscallerror_data2(JSContext*, JSValue);
-SyscallError* syscallerror_new(JSContext*, const char* syscall, int number);
-JSValue js_syscallerror_wrap(JSContext*, SyscallError* err);
+VISIBLE SyscallError* js_syscallerror_data(JSValue);
+VISIBLE SyscallError* js_syscallerror_data2(JSContext*, JSValue);
+VISIBLE SyscallError* syscallerror_new(JSContext*, const char* syscall, int number);
+VISIBLE JSValue js_syscallerror_wrap(JSContext*, SyscallError* err);
 VISIBLE JSValue js_syscallerror_new(JSContext*, const char* syscall, int number);
 VISIBLE JSValue js_syscallerror_throw(JSContext*, const char* syscall);
 

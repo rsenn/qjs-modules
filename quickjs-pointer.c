@@ -10,8 +10,8 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_pointer_class_id = 0;
-thread_local JSValue pointer_proto = {{0}, JS_TAG_UNDEFINED}, pointer_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_pointer_class_id = 0;
+VISIBLE JSValue pointer_proto = {{0}, JS_TAG_UNDEFINED}, pointer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   METHOD_DEREF = 0,

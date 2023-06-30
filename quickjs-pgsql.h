@@ -20,7 +20,7 @@ BOOL js_pgsqlresult_nonblock(JSContext*, JSValueConst);
 int js_pgsql_init(JSContext*, JSModuleDef*);
 JSModuleDef* js_init_module_pgsql(JSContext*, const char* module_name);
 
-extern thread_local VISIBLE JSClassID js_pgsql_class_id, js_pgsqlresult_class_id;
+extern VISIBLE JSClassID js_pgsql_class_id, js_pgsqlresult_class_id;
 
 /**
  * @}

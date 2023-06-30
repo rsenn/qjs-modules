@@ -12,8 +12,8 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_decoder_class_id = 0, js_encoder_class_id = 0;
-thread_local JSValue textdecoder_proto = {{0}, JS_TAG_UNDEFINED}, textdecoder_ctor = {{0}, JS_TAG_UNDEFINED},
+VISIBLE JSClassID js_decoder_class_id = 0, js_encoder_class_id = 0;
+VISIBLE JSValue textdecoder_proto = {{0}, JS_TAG_UNDEFINED}, textdecoder_ctor = {{0}, JS_TAG_UNDEFINED},
                      textencoder_proto = {{0}, JS_TAG_UNDEFINED}, textencoder_ctor = {{0}, JS_TAG_UNDEFINED};
 
 const TUTF8encoder* tutf8e_coders[] = {

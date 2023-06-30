@@ -14,8 +14,8 @@
  * \defgroup quickjs-deep QuickJS module: deep - Deep object
  * @{
  */
-thread_local VISIBLE JSClassID js_deep_iterator_class_id = 0;
-thread_local JSValue deep_functions = {{0}, JS_TAG_UNDEFINED}, deep_iterator_proto = {{0}, JS_TAG_UNDEFINED},
+VISIBLE JSClassID js_deep_iterator_class_id = 0;
+VISIBLE JSValue deep_functions = {{0}, JS_TAG_UNDEFINED}, deep_iterator_proto = {{0}, JS_TAG_UNDEFINED},
                      deep_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
 
 typedef struct DeepIterator {

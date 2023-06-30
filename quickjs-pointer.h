@@ -9,7 +9,7 @@
  * \defgroup quickjs-pointer QuickJS module: pointer - JS Object pointers (deep keys)
  * @{
  */
-extern thread_local JSClassID js_pointer_class_id;
+extern VISIBLE JSClassID js_pointer_class_id;
 
 static inline Pointer*
 js_pointer_data2(JSContext* ctx, JSValueConst value) {

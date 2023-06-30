@@ -9,7 +9,7 @@
  * @{
  */
 
-extern thread_local JSClassID js_token_class_id, js_lexer_class_id;
+extern VISIBLE JSClassID js_token_class_id, js_lexer_class_id;
 
 JSValue js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst in, JSValueConst mode);
 JSValue js_lexer_wrap(JSContext* ctx, Lexer* lex);

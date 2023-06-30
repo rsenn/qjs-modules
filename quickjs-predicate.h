@@ -13,7 +13,7 @@ enum predicate_id predicate_id(JSValueConst);
 JSValue js_predicate_wrap(JSContext*, Predicate);
 JSValue js_predicate_new(JSContext*, JSValueConst proto, JSValueConst);
 
-extern thread_local JSClassID js_predicate_class_id;
+extern VISIBLE JSClassID js_predicate_class_id;
 
 /**
  * @}

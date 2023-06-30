@@ -9,8 +9,8 @@
  * @{
  */
 
-thread_local VISIBLE JSClassID js_location_class_id = 0;
-thread_local JSValue location_proto = {{0}, JS_TAG_UNDEFINED}, location_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_location_class_id = 0;
+VISIBLE JSValue location_proto = {{0}, JS_TAG_UNDEFINED}, location_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   LOCATION_PROP_LINE,
@@ -46,7 +46,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-VISIBLE JSValue
+JSValue
 js_location_wrap(JSContext* ctx, Location* loc) {
   return js_location_create(ctx, location_proto, location_dup(loc));
 }
@@ -64,7 +64,7 @@ js_location_tostring(JSContext* ctx, const Location* loc) {
   return ret;
 }
 
-VISIBLE BOOL
+BOOL
 js_is_location(JSContext* ctx, JSValueConst obj) {
   BOOL ret;
   JSAtom line, column;
@@ -173,7 +173,7 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
   return ret;
 }
 
-VISIBLE Location*
+Location*
 js_location_from(JSContext* ctx, JSValueConst this_val) {
   Location* loc;
 
@@ -431,7 +431,7 @@ static const JSCFunctionListEntry js_location_static_funcs[] = {
     JS_CFUNC_DEF("count", 1, js_location_count),
 };
 
-VISIBLE int
+int
 js_location_init(JSContext* ctx, JSModuleDef* m) {
 
   if(js_location_class_id == 0) {
