@@ -1176,9 +1176,18 @@ inspect_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* op
 
       value = js_symbol_to_string(ctx, value);
 
-      writer_puts(wr, opts->colors ? COLOR_GREEN "Symbol" : "Symbol");
+      if(opts->colors)
+        writer_puts(wr, COLOR_MARINE);
 
-      __attribute__((fallthrough));
+      const char* str = JS_ToCString(ctx, value);
+      writer_puts(wr, str);
+      JS_FreeCString(ctx, str);
+
+      if(opts->colors)
+        writer_puts(wr, COLOR_NONE);
+
+      break;
+      //__attribute__((fallthrough));
     }
 
     case JS_TAG_STRING: {
