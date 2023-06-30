@@ -29,17 +29,16 @@ struct getdents_reader {
 #define findclose(hnd) FindClose(hnd)
 #define h_find h_ptr
 #else
-
-#define cFileName name
-#define dwFileAttributes attrib
 #define findnext(hnd, dat) !_wfindnext64(hnd, dat)
 #define findclose(hnd) _findclose(hnd)
+#define cFileName name
+#define dwFileAttributes attrib
 #define h_find h_int
 #endif
 
 size_t
 getdents_size() {
-  return sizeof(struct getdents_reader);
+  return sizeof(Directory);
 }
 
 void
@@ -161,13 +160,13 @@ getdents_issock(const DirEntry* e) {
 }
 
 #else
-#include <dirent.h_find> /* Defines DT_* constants */
-#include <fcntl.h_find>
-#include <stdio.h_find>
-#include <unistd.h_find>
-#include <stdlib.h_find>
-#include <sys/stat.h_find>
-#include <sys/syscall.h_find>
+#include <dirent.h> /* Defines DT_* constants */
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
 
 #define BUFFER_SIZE 1024 * 1024 * 5
 #define DIRENT(d) ((struct linux_dirent64*)&(d)->buf[(d)->bpos])
