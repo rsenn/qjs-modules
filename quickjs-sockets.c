@@ -226,7 +226,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
           a->family = AF_INET6;
 
       } else if(a->family == AF_UNIX) {
-        strncpy(a->unx.sun_path, str, sizeof(a->unx.sun_path));
+        strncpy(a->un.sun_path, str, sizeof(a->un.sun_path));
       } else if(!inet_pton(a->family, str, sockaddr_addr(a)) && a->family == AF_INET6) {
         struct in_addr in;
 
@@ -326,7 +326,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
     case SOCKADDR_METHOD_TOSTRING: {
       if(a->family == AF_UNIX) {
-        ret = JS_NewString(ctx, a->unx.sun_path);
+        ret = JS_NewString(ctx, a->un.sun_path);
       } else {
         char port[FMT_ULONG];
         DynBuf dbuf;
@@ -384,7 +384,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       case SOCKADDR_PATH: {
         if(a->family == AF_UNIX) {
-          ret = JS_NewString(ctx, a->unx.sun_path);
+          ret = JS_NewString(ctx, a->un.sun_path);
         }
         break;
       }
@@ -471,7 +471,7 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
         if(a->family == AF_UNIX) {
           const char* str = JS_ToCString(ctx, value);
 
-          strncpy(a->unx.sun_path, str, sizeof(a->unx.sun_path));
+          strncpy(a->un.sun_path, str, sizeof(a->un.sun_path));
 
           JS_FreeCString(ctx, str);
         }
@@ -495,8 +495,8 @@ js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     JS_DefinePropertyValueStr(ctx, obj, "family", JS_NewUint32(ctx, a->family), JS_PROP_ENUMERABLE);
 
   if(a->family == AF_UNIX) {
-    if(a->unx.sun_path[0])
-      JS_DefinePropertyValueStr(ctx, obj, "path", JS_NewString(ctx, a->unx.sun_path), JS_PROP_ENUMERABLE);
+    if(a->un.sun_path[0])
+      JS_DefinePropertyValueStr(ctx, obj, "path", JS_NewString(ctx, a->un.sun_path), JS_PROP_ENUMERABLE);
   } else {
     uint16_t port;
     char buf[INET6_ADDRSTRLEN] = {0};

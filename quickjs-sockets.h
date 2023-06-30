@@ -24,7 +24,7 @@ typedef union {
   struct sockaddr s;
   struct sockaddr_in ip4;
   struct sockaddr_in6 ip6;
-  struct sockaddr_un unx;
+  struct sockaddr_un un;
 } SockAddr;
 
 #define SOCKET_PROPS() \
