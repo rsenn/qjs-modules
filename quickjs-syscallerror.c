@@ -19,20 +19,390 @@ int js_syscallerror_init(JSContext*, JSModuleDef*);
 
 static const char*
 error_get(int number) {
-  if(number >= 0 && number < errors_size)
-    return errors[number];
+  switch(number) {
+#ifdef EPERM
+      case EPERM: return "EPERM";
+#endif
+#ifdef ENOENT
+      case ENOENT: return "ENOENT";
+#endif
+#ifdef ESRCH
+      case ESRCH: return "ESRCH";
+#endif
+#ifdef EINTR
+      case EINTR: return "EINTR";
+#endif
+#ifdef EIO
+      case EIO: return "EIO";
+#endif
+#ifdef ENXIO
+      case ENXIO: return "ENXIO";
+#endif
+#ifdef E2BIG
+      case E2BIG: return "E2BIG";
+#endif
+#ifdef ENOEXEC
+      case ENOEXEC: return "ENOEXEC";
+#endif
+#ifdef EBADF
+      case EBADF: return "EBADF";
+#endif
+#ifdef ECHILD
+      case ECHILD: return "ECHILD";
+#endif
+#ifdef EAGAIN
+      case EAGAIN: return "EAGAIN";
+#endif
+#ifdef EWOULDBLOCK
+      case EWOULDBLOCK: return "EWOULDBLOCK";
+#endif
+#ifdef ENOMEM
+      case ENOMEM: return "ENOMEM";
+#endif
+#ifdef EACCES
+      case EACCES: return "EACCES";
+#endif
+#ifdef EFAULT
+      case EFAULT: return "EFAULT";
+#endif
+#ifdef EBUSY
+      case EBUSY: return "EBUSY";
+#endif
+#ifdef EEXIST
+      case EEXIST: return "EEXIST";
+#endif
+#ifdef EXDEV
+      case EXDEV: return "EXDEV";
+#endif
+#ifdef ENODEV
+      case ENODEV: return "ENODEV";
+#endif
+#ifdef ENOTDIR
+      case ENOTDIR: return "ENOTDIR";
+#endif
+#ifdef EISDIR
+      case EISDIR: return "EISDIR";
+#endif
+#ifdef EINVAL
+      case EINVAL: return "EINVAL";
+#endif
+#ifdef ENFILE
+      case ENFILE: return "ENFILE";
+#endif
+#ifdef EMFILE
+      case EMFILE: return "EMFILE";
+#endif
+#ifdef ENOTTY
+      case ENOTTY: return "ENOTTY";
+#endif
+#ifdef ETXTBSY
+      case ETXTBSY: return "ETXTBSY";
+#endif
+#ifdef EFBIG
+      case EFBIG: return "EFBIG";
+#endif
+#ifdef ENOSPC
+      case ENOSPC: return "ENOSPC";
+#endif
+#ifdef ESPIPE
+      case ESPIPE: return "ESPIPE";
+#endif
+#ifdef EROFS
+      case EROFS: return "EROFS";
+#endif
+#ifdef EMLINK
+      case EMLINK: return "EMLINK";
+#endif
+#ifdef EPIPE
+      case EPIPE: return "EPIPE";
+#endif
+#ifdef EDOM
+      case EDOM: return "EDOM";
+#endif
+#ifdef ERANGE
+      case ERANGE: return "ERANGE";
+#endif
+#ifdef EDEADLK
+      case EDEADLK: return "EDEADLK";
+#endif
+#ifdef ENAMETOOLONG
+      case ENAMETOOLONG: return "ENAMETOOLONG";
+#endif
+#ifdef ENOLCK
+      case ENOLCK: return "ENOLCK";
+#endif
+#ifdef ENOSYS
+      case ENOSYS: return "ENOSYS";
+#endif
+#ifdef ENOTEMPTY
+      case ENOTEMPTY: return "ENOTEMPTY";
+#endif
+#ifdef ENOMSG
+      case ENOMSG: return "ENOMSG";
+#endif
+#ifdef EIDRM
+      case EIDRM: return "EIDRM";
+#endif
+#ifdef ENOLINK
+      case ENOLINK: return "ENOLINK";
+#endif
+#ifdef EPROTO
+      case EPROTO: return "EPROTO";
+#endif
+#ifdef EBADMSG
+      case EBADMSG: return "EBADMSG";
+#endif
+#ifdef EOVERFLOW
+      case EOVERFLOW: return "EOVERFLOW";
+#endif
+#ifdef EILSEQ
+      case EILSEQ: return "EILSEQ";
+#endif
+#ifdef ERESTART
+      case ERESTART: return "ERESTART";
+#endif
+#ifdef ENOTSOCK
+      case ENOTSOCK: return "ENOTSOCK";
+#endif
+#ifdef EDESTADDRREQ
+      case EDESTADDRREQ: return "EDESTADDRREQ";
+#endif
+#ifdef EMSGSIZE
+      case EMSGSIZE: return "EMSGSIZE";
+#endif
+#ifdef EPROTOTYPE
+      case EPROTOTYPE: return "EPROTOTYPE";
+#endif
+#ifdef ENOPROTOOPT
+      case ENOPROTOOPT: return "ENOPROTOOPT";
+#endif
+#ifdef EPROTONOSUPPORT
+      case EPROTONOSUPPORT: return "EPROTONOSUPPORT";
+#endif
+#ifdef EOPNOTSUPP
+      case EOPNOTSUPP: return "EOPNOTSUPP";
+#endif
+#ifdef EAFNOSUPPORT
+      case EAFNOSUPPORT: return "EAFNOSUPPORT";
+#endif
+#ifdef EADDRINUSE
+      case EADDRINUSE: return "EADDRINUSE";
+#endif
+#ifdef EADDRNOTAVAIL
+      case EADDRNOTAVAIL: return "EADDRNOTAVAIL";
+#endif
+#ifdef ENETDOWN
+      case ENETDOWN: return "ENETDOWN";
+#endif
+#ifdef ENETUNREACH
+      case ENETUNREACH: return "ENETUNREACH";
+#endif
+#ifdef ENETRESET
+      case ENETRESET: return "ENETRESET";
+#endif
+#ifdef ECONNABORTED
+      case ECONNABORTED: return "ECONNABORTED";
+#endif
+#ifdef ECONNRESET
+      case ECONNRESET: return "ECONNRESET";
+#endif
+#ifdef ENOBUFS
+      case ENOBUFS: return "ENOBUFS";
+#endif
+#ifdef EISCONN
+      case EISCONN: return "EISCONN";
+#endif
+#ifdef ENOTCONN
+      case ENOTCONN: return "ENOTCONN";
+#endif
+#ifdef ETIMEDOUT
+      case ETIMEDOUT: return "ETIMEDOUT";
+#endif
+#ifdef ECONNREFUSED
+      case ECONNREFUSED: return "ECONNREFUSED";
+#endif
+#ifdef EHOSTUNREACH
+      case EHOSTUNREACH: return "EHOSTUNREACH";
+#endif
+#ifdef EALREADY
+      case EALREADY: return "EALREADY";
+#endif
+#ifdef EINPROGRESS
+      case EINPROGRESS: return "EINPROGRESS";
+#endif
+#ifdef ECANCELED
+      case ECANCELED: return "ECANCELED";
+#endif
+#ifdef EOWNERDEAD
+      case EOWNERDEAD: return "EOWNERDEAD";
+#endif
+#ifdef ENOTRECOVERABLE
+      case ENOTRECOVERABLE: return "ENOTRECOVERABLE";
+#endif
+#ifdef WSAEINTR
+      case WSAEINTR: return "WSAEINTR";
+#endif
+#ifdef WSAEBADF
+      case WSAEBADF: return "WSAEBADF";
+#endif
+#ifdef WSAEACCES
+      case WSAEACCES: return "WSAEACCES";
+#endif
+#ifdef WSAEFAULT
+      case WSAEFAULT: return "WSAEFAULT";
+#endif
+#ifdef WSAEINVAL
+      case WSAEINVAL: return "WSAEINVAL";
+#endif
+#ifdef WSAEMFILE
+      case WSAEMFILE: return "WSAEMFILE";
+#endif
+#ifdef WSAEWOULDBLOCK
+      case WSAEWOULDBLOCK: return "WSAEWOULDBLOCK";
+#endif
+#ifdef WSAEINPROGRESS
+      case WSAEINPROGRESS: return "WSAEINPROGRESS";
+#endif
+#ifdef WSAEALREADY
+      case WSAEALREADY: return "WSAEALREADY";
+#endif
+#ifdef WSAENOTSOCK
+      case WSAENOTSOCK: return "WSAENOTSOCK";
+#endif
+#ifdef WSAEDESTADDRREQ
+      case WSAEDESTADDRREQ: return "WSAEDESTADDRREQ";
+#endif
+#ifdef WSAEMSGSIZE
+      case WSAEMSGSIZE: return "WSAEMSGSIZE";
+#endif
+#ifdef WSAEPROTOTYPE
+      case WSAEPROTOTYPE: return "WSAEPROTOTYPE";
+#endif
+#ifdef WSAENOPROTOOPT
+      case WSAENOPROTOOPT: return "WSAENOPROTOOPT";
+#endif
+#ifdef WSAEPROTONOSUPPORT
+      case WSAEPROTONOSUPPORT: return "WSAEPROTONOSUPPORT";
+#endif
+#ifdef WSAESOCKTNOSUPPORT
+      case WSAESOCKTNOSUPPORT: return "WSAESOCKTNOSUPPORT";
+#endif
+#ifdef WSAEOPNOTSUPP
+      case WSAEOPNOTSUPP: return "WSAEOPNOTSUPP";
+#endif
+#ifdef WSAEPFNOSUPPORT
+      case WSAEPFNOSUPPORT: return "WSAEPFNOSUPPORT";
+#endif
+#ifdef WSAEAFNOSUPPORT
+      case WSAEAFNOSUPPORT: return "WSAEAFNOSUPPORT";
+#endif
+#ifdef WSAEADDRINUSE
+      case WSAEADDRINUSE: return "WSAEADDRINUSE";
+#endif
+#ifdef WSAEADDRNOTAVAIL
+      case WSAEADDRNOTAVAIL: return "WSAEADDRNOTAVAIL";
+#endif
+#ifdef WSAENETDOWN
+      case WSAENETDOWN: return "WSAENETDOWN";
+#endif
+#ifdef WSAENETUNREACH
+      case WSAENETUNREACH: return "WSAENETUNREACH";
+#endif
+#ifdef WSAENETRESET
+      case WSAENETRESET: return "WSAENETRESET";
+#endif
+#ifdef WSAECONNABORTED
+      case WSAECONNABORTED: return "WSAECONNABORTED";
+#endif
+#ifdef WSAECONNRESET
+      case WSAECONNRESET: return "WSAECONNRESET";
+#endif
+#ifdef WSAENOBUFS
+      case WSAENOBUFS: return "WSAENOBUFS";
+#endif
+#ifdef WSAEISCONN
+      case WSAEISCONN: return "WSAEISCONN";
+#endif
+#ifdef WSAENOTCONN
+      case WSAENOTCONN: return "WSAENOTCONN";
+#endif
+#ifdef WSAESHUTDOWN
+      case WSAESHUTDOWN: return "WSAESHUTDOWN";
+#endif
+#ifdef WSAETOOMANYREFS
+      case WSAETOOMANYREFS: return "WSAETOOMANYREFS";
+#endif
+#ifdef WSAETIMEDOUT
+      case WSAETIMEDOUT: return "WSAETIMEDOUT";
+#endif
+#ifdef WSAECONNREFUSED
+      case WSAECONNREFUSED: return "WSAECONNREFUSED";
+#endif
+#ifdef WSAELOOP
+      case WSAELOOP: return "WSAELOOP";
+#endif
+#ifdef WSAENAMETOOLONG
+      case WSAENAMETOOLONG: return "WSAENAMETOOLONG";
+#endif
+#ifdef WSAEHOSTDOWN
+      case WSAEHOSTDOWN: return "WSAEHOSTDOWN";
+#endif
+#ifdef WSAEHOSTUNREACH
+      case WSAEHOSTUNREACH: return "WSAEHOSTUNREACH";
+#endif
+#ifdef WSAENOTEMPTY
+      case WSAENOTEMPTY: return "WSAENOTEMPTY";
+#endif
+#ifdef WSAEPROCLIM
+      case WSAEPROCLIM: return "WSAEPROCLIM";
+#endif
+#ifdef WSAEUSERS
+      case WSAEUSERS: return "WSAEUSERS";
+#endif
+#ifdef WSAEDQUOT
+      case WSAEDQUOT: return "WSAEDQUOT";
+#endif
+#ifdef WSAESTALE
+      case WSAESTALE: return "WSAESTALE";
+#endif
+#ifdef WSAEREMOTE
+      case WSAEREMOTE: return "WSAEREMOTE";
+#endif
+#ifdef WSAEDISCON
+      case WSAEDISCON: return "WSAEDISCON";
+#endif
+#ifdef WSAENOMORE
+      case WSAENOMORE: return "WSAENOMORE";
+#endif
+#ifdef WSAECANCELLED
+      case WSAECANCELLED: return "WSAECANCELLED";
+#endif
+#ifdef WSAEINVALIDPROCTABLE
+      case WSAEINVALIDPROCTABLE: return "WSAEINVALIDPROCTABLE";
+#endif
+#ifdef WSAEINVALIDPROVIDER
+      case WSAEINVALIDPROVIDER: return "WSAEINVALIDPROVIDER";
+#endif
+#ifdef WSAEPROVIDERFAILEDINIT
+      case WSAEPROVIDERFAILEDINIT: return "WSAEPROVIDERFAILEDINIT";
+#endif
+#ifdef WSAEREFUSED
+      case WSAEREFUSED: return "WSAEREFUSED";
+#endif 
+      default: break;
+  }
   return 0;
 }
-
+/*
 static int
 error_find(const char* code) {
   int i, len = errors_size;
   for(i = 1; i < len; i++) {
     if(errors[i] && !strcmp(code, errors[i]))
-      return i;
+      kkkreturn i;
   }
   return 0;
-}
+}*/
 
 static char*
 stack_get(JSContext* ctx) {
@@ -134,13 +504,14 @@ js_syscallerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, J
 
   if(argc >= 1) {
     int32_t number;
-    if(JS_IsNumber(argv[0])) {
+    //if(JS_IsNumber(argv[0])) {
       JS_ToInt32(ctx, &number, argv[0]);
-    } else {
+   /* } else {
       const char* code = JS_ToCString(ctx, argv[0]);
       number = error_find(code);
       JS_FreeCString(ctx, code);
-    }
+    }*/
+
     err->number = number;
   }
   err->stack = stack_get(ctx);
@@ -581,6 +952,156 @@ const JSCFunctionListEntry js_syscallerror_defines[] = {
 #endif
 #ifdef ENOTRECOVERABLE
     JS_CONSTANT(ENOTRECOVERABLE),
+#endif
+#ifdef WSAEINTR
+    JS_CONSTANT(WSAEINTR),
+#endif
+#ifdef WSAEBADF
+    JS_CONSTANT(WSAEBADF),
+#endif
+#ifdef WSAEACCES
+    JS_CONSTANT(WSAEACCES),
+#endif
+#ifdef WSAEFAULT
+    JS_CONSTANT(WSAEFAULT),
+#endif
+#ifdef WSAEINVAL
+    JS_CONSTANT(WSAEINVAL),
+#endif
+#ifdef WSAEMFILE
+    JS_CONSTANT(WSAEMFILE),
+#endif
+#ifdef WSAEWOULDBLOCK
+    JS_CONSTANT(WSAEWOULDBLOCK),
+#endif
+#ifdef WSAEINPROGRESS
+    JS_CONSTANT(WSAEINPROGRESS),
+#endif
+#ifdef WSAEALREADY
+    JS_CONSTANT(WSAEALREADY),
+#endif
+#ifdef WSAENOTSOCK
+    JS_CONSTANT(WSAENOTSOCK),
+#endif
+#ifdef WSAEDESTADDRREQ
+    JS_CONSTANT(WSAEDESTADDRREQ),
+#endif
+#ifdef WSAEMSGSIZE
+    JS_CONSTANT(WSAEMSGSIZE),
+#endif
+#ifdef WSAEPROTOTYPE
+    JS_CONSTANT(WSAEPROTOTYPE),
+#endif
+#ifdef WSAENOPROTOOPT
+    JS_CONSTANT(WSAENOPROTOOPT),
+#endif
+#ifdef WSAEPROTONOSUPPORT
+    JS_CONSTANT(WSAEPROTONOSUPPORT),
+#endif
+#ifdef WSAESOCKTNOSUPPORT
+    JS_CONSTANT(WSAESOCKTNOSUPPORT),
+#endif
+#ifdef WSAEOPNOTSUPP
+    JS_CONSTANT(WSAEOPNOTSUPP),
+#endif
+#ifdef WSAEPFNOSUPPORT
+    JS_CONSTANT(WSAEPFNOSUPPORT),
+#endif
+#ifdef WSAEAFNOSUPPORT
+    JS_CONSTANT(WSAEAFNOSUPPORT),
+#endif
+#ifdef WSAEADDRINUSE
+    JS_CONSTANT(WSAEADDRINUSE),
+#endif
+#ifdef WSAEADDRNOTAVAIL
+    JS_CONSTANT(WSAEADDRNOTAVAIL),
+#endif
+#ifdef WSAENETDOWN
+    JS_CONSTANT(WSAENETDOWN),
+#endif
+#ifdef WSAENETUNREACH
+    JS_CONSTANT(WSAENETUNREACH),
+#endif
+#ifdef WSAENETRESET
+    JS_CONSTANT(WSAENETRESET),
+#endif
+#ifdef WSAECONNABORTED
+    JS_CONSTANT(WSAECONNABORTED),
+#endif
+#ifdef WSAECONNRESET
+    JS_CONSTANT(WSAECONNRESET),
+#endif
+#ifdef WSAENOBUFS
+    JS_CONSTANT(WSAENOBUFS),
+#endif
+#ifdef WSAEISCONN
+    JS_CONSTANT(WSAEISCONN),
+#endif
+#ifdef WSAENOTCONN
+    JS_CONSTANT(WSAENOTCONN),
+#endif
+#ifdef WSAESHUTDOWN
+    JS_CONSTANT(WSAESHUTDOWN),
+#endif
+#ifdef WSAETOOMANYREFS
+    JS_CONSTANT(WSAETOOMANYREFS),
+#endif
+#ifdef WSAETIMEDOUT
+    JS_CONSTANT(WSAETIMEDOUT),
+#endif
+#ifdef WSAECONNREFUSED
+    JS_CONSTANT(WSAECONNREFUSED),
+#endif
+#ifdef WSAELOOP
+    JS_CONSTANT(WSAELOOP),
+#endif
+#ifdef WSAENAMETOOLONG
+    JS_CONSTANT(WSAENAMETOOLONG),
+#endif
+#ifdef WSAEHOSTDOWN
+    JS_CONSTANT(WSAEHOSTDOWN),
+#endif
+#ifdef WSAEHOSTUNREACH
+    JS_CONSTANT(WSAEHOSTUNREACH),
+#endif
+#ifdef WSAENOTEMPTY
+    JS_CONSTANT(WSAENOTEMPTY),
+#endif
+#ifdef WSAEPROCLIM
+    JS_CONSTANT(WSAEPROCLIM),
+#endif
+#ifdef WSAEUSERS
+    JS_CONSTANT(WSAEUSERS),
+#endif
+#ifdef WSAEDQUOT
+    JS_CONSTANT(WSAEDQUOT),
+#endif
+#ifdef WSAESTALE
+    JS_CONSTANT(WSAESTALE),
+#endif
+#ifdef WSAEREMOTE
+    JS_CONSTANT(WSAEREMOTE),
+#endif
+#ifdef WSAEDISCON
+    JS_CONSTANT(WSAEDISCON),
+#endif
+#ifdef WSAENOMORE
+    JS_CONSTANT(WSAENOMORE),
+#endif
+#ifdef WSAECANCELLED
+    JS_CONSTANT(WSAECANCELLED),
+#endif
+#ifdef WSAEINVALIDPROCTABLE
+    JS_CONSTANT(WSAEINVALIDPROCTABLE),
+#endif
+#ifdef WSAEINVALIDPROVIDER
+    JS_CONSTANT(WSAEINVALIDPROVIDER),
+#endif
+#ifdef WSAEPROVIDERFAILEDINIT
+    JS_CONSTANT(WSAEPROVIDERFAILEDINIT),
+#endif
+#ifdef WSAEREFUSED
+    JS_CONSTANT(WSAEREFUSED),
 #endif
 };
 
