@@ -63,9 +63,13 @@ ENDPACK
 typedef union socket_state Socket;
 typedef struct async_socket_state AsyncSocket;
 
+VISIBLE SockAddr* js_sockaddr_data(JSValueConst);
+VISIBLE SockAddr* js_sockaddr_data2(JSContext*, JSValueConst value);
+VISIBLE Socket js_socket_data(JSValueConst);
+void* optval_buf(JSContext*, JSValueConst arg, int32_t** tmp_ptr, socklen_t* lenp);
+
 extern VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_async_socket_class_id;
-extern VISIBLE JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto,
-    async_socket_ctor;
+extern VISIBLE JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto, async_socket_ctor;
 
 enum SocketCalls {
   SYSCALL_SOCKET = 1,
@@ -114,6 +118,7 @@ sockaddr_addr(SockAddr* sa) {
     case AF_INET: return &sa->sai.sin_addr;
     case AF_INET6: return &sa->sai6.sin6_addr;
   }
+
   return 0;
 }
 
@@ -133,31 +138,6 @@ sockaddr_size(const SockAddr* sa) {
     case AF_INET6: return sizeof(struct sockaddr_in6);
   }
   return 0;
-}
-
-static inline SockAddr*
-js_sockaddr_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_sockaddr_class_id);
-}
-
-static inline SockAddr*
-js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_sockaddr_class_id);
-}
-
-static inline Socket
-js_socket_data(JSValueConst value) {
-  JSClassID id = JS_GetClassID(value);
-  Socket sock = {{-1, 0, -1, FALSE, FALSE, FALSE, 0}};
-
-  if((id = JS_GetClassID(value)) > 0) {
-    void* opaque = JS_GetOpaque(value, id);
-    if(id == js_socket_class_id)
-      sock = *(Socket*)&opaque;
-    if(id == js_async_socket_class_id)
-      sock = *(Socket*)opaque;
-  }
-  return sock;
 }
 
 static inline AsyncSocket*

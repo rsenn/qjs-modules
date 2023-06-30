@@ -1464,9 +1464,8 @@ js_value_tag_name(int tag) {
 const char* const*
 js_value_types() {
   static const char* const types[] = {
-      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
-      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception", 0,
+      "undefined",         "null",          "bool",         "int",       "object", "string", "symbol", "big_float", "big_int", "big_decimal", "float64", "nan", "function", "array", "module",
+      "function_bytecode", "uninitialized", "catch_offset", "exception", 0,
   };
   return types;
 }
@@ -1475,9 +1474,8 @@ const char*
 js_value_typeof(JSValueConst value) {
   int32_t flag = js_value_type_flag(value);
   return ((const char* const[]){
-      "undefined",     "object",       "boolean",   "number", "object",   "string", "symbol", "bigfloat",
-      "bigint",        "bigdecimal",   "number",    "number", "function", "object", "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception", 0,
+      "undefined", "object", "boolean",           "number",        "object",       "string",    "symbol", "bigfloat", "bigint", "bigdecimal", "number", "number", "function",
+      "object",    "module", "function_bytecode", "uninitialized", "catch_offset", "exception", 0,
   })[flag];
 }
 
@@ -1485,9 +1483,8 @@ const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
   const char* const types[] = {
-      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
-      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception",
+      "undefined",         "null",          "bool",         "int",       "object", "string", "symbol", "big_float", "big_int", "big_decimal", "float64", "nan", "function", "array", "module",
+      "function_bytecode", "uninitialized", "catch_offset", "exception",
   };
   if(flag >= 0 && flag < countof(types))
     return types[flag];

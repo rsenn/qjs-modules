@@ -35,7 +35,7 @@ VISIBLE JSValue js_syscallerror_new(JSContext*, const char* syscall, int number)
 VISIBLE JSValue js_syscallerror_throw(JSContext*, const char* syscall);
 
 VISIBLE int js_syscallerror_init(JSContext* ctx, JSModuleDef* m);
- 
+
 /**
  * @}
  */

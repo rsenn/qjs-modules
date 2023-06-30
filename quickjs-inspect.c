@@ -359,15 +359,13 @@ put_escaped(Writer* wr, const char* str, size_t len) {
   size_t i = 0;
   const uint8_t *pos, *end, *next;
   static const uint8_t table[256] = {
-      'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x', 'b', 't', 'n',  'v', 'f', 'r', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',
-      'x', 'x', 'x', 0,   0,   0,    0,   0,   0,   0,   '\'', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   '\\', 0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    'x', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
-      'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'b', 't', 'n', 'v', 'f', 'r', 'x', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0,   0,   0,   0,
+      0,   0,   '\'', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   '\\', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   'x', 0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,   0,   0,   'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+      'u', 0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
   };
 
   for(pos = (const uint8_t*)str, end = pos + len; pos < end; pos = next) {
@@ -732,8 +730,7 @@ inspect_number(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
   if(tag != JS_TAG_SYMBOL && opts->colors)
     writer_puts(wr, COLOR_YELLOW);
 
-  if(opts->number_base == 16 &&
-     (!JS_TAG_IS_FLOAT64(tag) || (isfinite(JS_VALUE_GET_FLOAT64(value)) && floor(JS_VALUE_GET_FLOAT64(value)) == JS_VALUE_GET_FLOAT64(value)))) {
+  if(opts->number_base == 16 && (!JS_TAG_IS_FLOAT64(tag) || (isfinite(JS_VALUE_GET_FLOAT64(value)) && floor(JS_VALUE_GET_FLOAT64(value)) == JS_VALUE_GET_FLOAT64(value)))) {
     int64_t num;
     char buf[FMT_XLONG];
 
@@ -996,8 +993,7 @@ inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
   BOOL is_array = js_is_array(ctx, value);
 
   if(opts->depth != INT32_MAX && depth + 1 > opts->depth) {
-    writer_puts(wr,
-                is_array ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]") : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
+    writer_puts(wr, is_array ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]") : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
     return 1;
   }
 
@@ -1123,9 +1119,7 @@ inspect_value(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* op
     }
 
     case JS_TAG_BOOL: {
-      writer_puts(wr,
-                  JS_VALUE_GET_BOOL(value) ? (opts->colors ? COLOR_BROWN "true" COLOR_NONE : "true")
-                                           : (opts->colors ? COLOR_BROWN "false" COLOR_NONE : "false"));
+      writer_puts(wr, JS_VALUE_GET_BOOL(value) ? (opts->colors ? COLOR_BROWN "true" COLOR_NONE : "true") : (opts->colors ? COLOR_BROWN "false" COLOR_NONE : "false"));
       break;
     }
 
