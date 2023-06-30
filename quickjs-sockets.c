@@ -127,7 +127,6 @@ static const char* socket_syscalls[] = {
     "setsockopt",
 };
 
-
 static const char*
 syscall_name(int syscall_number) {
   assert(syscall_number > 0);
@@ -199,7 +198,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
 
     if((other = js_sockaddr_data(argv[0]))) {
       *a = *other;
-      
+
       return TRUE;
     }
   }
@@ -215,7 +214,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
     return TRUE;
   }
 
-  if(argc >= 2 && JS_IsNumber(argv[0])) {
+  if(argc >= 1 && JS_IsNumber(argv[0])) {
     int32_t family;
 
     JS_ToInt32(ctx, &family, argv[0]);
@@ -225,19 +224,21 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
     argv++;
   }
 
-  if(argc >= 2) {
-    const char* str = JS_ToCString(ctx, argv[0]);
+  if(argc >= 1) {
+    const char* str;
 
-    if(a->family == 0) {
-      if(inet_pton(AF_INET, str, &a->sai.sin_addr) > 0)
-        a->family = AF_INET;
-      else if(inet_pton(AF_INET6, str, &a->sai6.sin6_addr) > 0)
-        a->family = AF_INET6;
-    } else {
-      inet_pton(a->family, str, sockaddr_addr(a));
+    if((str = JS_ToCString(ctx, argv[0]))) {
+      if(a->family == 0) {
+        if(inet_pton(AF_INET, str, &a->sai.sin_addr) > 0)
+          a->family = AF_INET;
+        else if(inet_pton(AF_INET6, str, &a->sai6.sin6_addr) > 0)
+          a->family = AF_INET6;
+      } else {
+        inet_pton(a->family, str, sockaddr_addr(a));
+      }
+
+      JS_FreeCString(ctx, str);
     }
-
-    JS_FreeCString(ctx, str);
 
     argc--;
     argv++;
