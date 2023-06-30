@@ -124,10 +124,9 @@ getdents_namebuf(const DirEntry* e, size_t* len) {
 
   return (const uint8_t*)s;
 }
-* /
 
-    void
-    getdents_close(Directory* d) {
+void
+getdents_close(Directory* d) {
   findclose(d->h_find);
   d->h_ptr = INVALID_HANDLE_VALUE;
 }
@@ -271,8 +270,10 @@ getdents_name(const DirEntry* e) {
 const uint8_t*
 getdents_namebuf(const DirEntry* e, size_t* len) {
   const char* name = ((struct linux_dirent64*)e)->d_name;
+ 
   if(len)
     *len = strlen(name);
+ 
   return (const uint8_t*)name;
 }
 
