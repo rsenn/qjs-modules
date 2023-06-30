@@ -13,6 +13,7 @@
 #include "quickjs-internal.h"
 #include "quickjs-location.h"
 #include "quickjs-textcode.h"
+#include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "path.h"
 #include "base64.h"
@@ -1274,7 +1275,7 @@ enum {
 static JSValue
 js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1;
-   JSValue ret = JS_UNDEFINED;
+  JSValue ret = JS_UNDEFINED;
   HANDLE h;
 
   if(argc >= 1)
@@ -1289,14 +1290,14 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       JS_ToUint32(ctx, &mode, argv[1]);
 
       if(!SetConsoleMode(h, mode))
-        ret = JS_ThrowInternalError(ctx, "GetConsoleMode failed");
+        ret = JS_Throw(ctx, js_syscallerror_new(ctx, "SetConsoleMode", GetLastError()));
 
       break;
     }
     case GET_CONSOLE_MODE: {
       DWORD mode = 0;
       if(!GetConsoleMode(h, &mode))
-        ret = JS_ThrowInternalError(ctx, "GetConsoleMode failed");
+        ret = JS_Throw(ctx, js_syscallerror_new(ctx, "GetConsoleMode", GetLastError()));
       else
         ret = JS_NewUint32(ctx, mode);
 
