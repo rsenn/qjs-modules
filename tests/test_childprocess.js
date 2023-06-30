@@ -30,10 +30,10 @@ function ReadChild(...args) {
     console.log('ret:', ret);
 
     if(ret > 0) {
-      let chunk = buf.slice(0, ret);
-      console.log('chunk:', chunk);
-      data += toString(chunk);
-      //console.log('data:', data);
+      const chunk = buf.slice(0, ret);
+      const str = toString(chunk);
+      console.log('chunk:', str);
+      data += str;
     }
 
     if(ret <= 0 || ret < buf.byteLength) {
