@@ -226,8 +226,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_mmap_init))) {
-  JS_AddModuleExportList(ctx, m, js_mmap_funcs, countof(js_mmap_funcs));
-}
+    JS_AddModuleExportList(ctx, m, js_mmap_funcs, countof(js_mmap_funcs));
+  }
 
   return m;
 }

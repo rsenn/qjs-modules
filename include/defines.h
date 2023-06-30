@@ -3,11 +3,11 @@
 
 #ifdef _WIN32
 #include <io.h>
-#define FD_TO_SOCKET(fd)   ((SOCKET) _get_osfhandle ((fd)))
-#define SOCKET_TO_FD(fh)   (_open_osfhandle ((intptr_t) (fh), O_RDWR | O_BINARY))
+#define FD_TO_SOCKET(fd) ((SOCKET)_get_osfhandle((fd)))
+#define SOCKET_TO_FD(fh) (_open_osfhandle((intptr_t)(fh), O_RDWR | O_BINARY))
 #else
-#define FD_TO_SOCKET(fd)   (fd)
-#define SOCKET_TO_FD(fh)   (fh)
+#define FD_TO_SOCKET(fd) (fd)
+#define SOCKET_TO_FD(fh) (fh)
 #endif
 
 #ifndef offsetof
@@ -49,9 +49,7 @@
 
 #define JS_CGETSET_MAGIC_FLAGS_DEF(prop_name, fgetter, fsetter, magic_num, flags) \
   { \
-    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = { \
-      .getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} \
-    } \
+    .name = prop_name, .prop_flags = flags, .def_type = JS_DEF_CGETSET_MAGIC, .magic = magic_num, .u = {.getset = {.get = {.getter_magic = fgetter}, .set = {.setter_magic = fsetter}} } \
   }
 
 #define JS_CFUNC_DEF_FLAGS(prop_name, length, func1, flags) \

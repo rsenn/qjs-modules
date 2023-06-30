@@ -184,13 +184,13 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
           struct in6_addr* in6p = &a->ip6.sin6_addr;
 
           if(in.s_addr == 0) {
-          /* IN6ADDR_ANY_INIT */
-          memset(in6p, 0, sizeof(struct in6_addr));
+            /* IN6ADDR_ANY_INIT */
+            memset(in6p, 0, sizeof(struct in6_addr));
           } else if(in.s_addr == htonl(INADDR_LOOPBACK)) {
-          /* IN6ADDR_LOOPBACK_INIT */
-          memset(in6p, 0, sizeof(struct in6_addr));
-    ((char*)in6p)[sizeof(struct in6_addr)-1] = 1;
-            } else {
+            /* IN6ADDR_LOOPBACK_INIT */
+            memset(in6p, 0, sizeof(struct in6_addr));
+            ((char*)in6p)[sizeof(struct in6_addr) - 1] = 1;
+          } else {
             uint32_t* addr32 = (uint32_t*)in6p;
             addr32[0] = 0;
             addr32[1] = 0;

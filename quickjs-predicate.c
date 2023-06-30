@@ -9,7 +9,7 @@
  * @{
  */
 VISIBLE JSClassID js_predicate_class_id = 0;
-VISIBLE JSValue predicate_proto = {{0},JS_TAG_UNDEFINED}, predicate_ctor = {{0},JS_TAG_UNDEFINED};
+VISIBLE JSValue predicate_proto = {{0}, JS_TAG_UNDEFINED}, predicate_ctor = {{0}, JS_TAG_UNDEFINED};
 
 VISIBLE Predicate*
 js_predicate_data(JSValueConst value) {
@@ -1010,12 +1010,12 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_predicate_init))) {
-  JS_AddModuleExport(ctx, m, "Predicate");
-  JS_AddModuleExport(ctx, m, "PredicateOperators");
-  JS_AddModuleExport(ctx, m, "PredicateOperatorSet");
-  JS_AddModuleExportList(ctx, m, js_predicate_funcs, countof(js_predicate_funcs));
-  JS_AddModuleExportList(ctx, m, js_predicate_types, countof(js_predicate_types));
-}
+    JS_AddModuleExport(ctx, m, "Predicate");
+    JS_AddModuleExport(ctx, m, "PredicateOperators");
+    JS_AddModuleExport(ctx, m, "PredicateOperatorSet");
+    JS_AddModuleExportList(ctx, m, js_predicate_funcs, countof(js_predicate_funcs));
+    JS_AddModuleExportList(ctx, m, js_predicate_types, countof(js_predicate_types));
+  }
 
   return m;
 }

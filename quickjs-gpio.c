@@ -11,7 +11,7 @@
  */
 
 VISIBLE JSClassID js_gpio_class_id = 0;
-VISIBLE JSValue gpio_proto = {{0},JS_TAG_UNDEFINED}, gpio_ctor = {{0},JS_TAG_UNDEFINED};
+VISIBLE JSValue gpio_proto = {{0}, JS_TAG_UNDEFINED}, gpio_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   GPIO_METHOD_INIT_PIN = 0,
@@ -220,10 +220,10 @@ js_gpio_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  
+
   if((m = JS_NewCModule(ctx, module_name, js_gpio_init))) {
-  JS_AddModuleExport(ctx, m, "GPIO");
-}
+    JS_AddModuleExport(ctx, m, "GPIO");
+  }
 
   return m;
 }

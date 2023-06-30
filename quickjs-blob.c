@@ -10,7 +10,7 @@
  */
 
 VISIBLE JSClassID js_blob_class_id = 0;
-VISIBLE JSValue blob_proto = {{0},JS_TAG_UNDEFINED}, blob_ctor = {{0},JS_TAG_UNDEFINED};
+VISIBLE JSValue blob_proto = {{0}, JS_TAG_UNDEFINED}, blob_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   BLOB_SIZE,
@@ -326,11 +326,11 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_blob_init))) {
-  JS_AddModuleExport(ctx, m, "Blob");
+    JS_AddModuleExport(ctx, m, "Blob");
 
-  /* if(!strcmp(module_name, "blob"))
-     JS_AddModuleExport(ctx, m, "default");*/
-}
+    /* if(!strcmp(module_name, "blob"))
+       JS_AddModuleExport(ctx, m, "default");*/
+  }
 
   return m;
 }

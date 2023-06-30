@@ -905,10 +905,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         // lexer_state_name(lex, id));
         ret = JS_NewInt32(ctx, id);
       } else {
-        ret = JS_ThrowInternalError(ctx,
-                                    "lexer (%s) depth %lu",
-                                    lexer_state_topname(lex),
-                                    (unsigned long)lexer_state_depth(lex));
+        ret = JS_ThrowInternalError(ctx, "lexer (%s) depth %lu", lexer_state_topname(lex), (unsigned long)lexer_state_depth(lex));
       }
 
       break;
@@ -1214,8 +1211,7 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
 
   stack[size - 1] = lex->state;
 
-  buf = JS_NewArrayBuffer(
-      ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
+  buf = JS_NewArrayBuffer(ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
 
   ctor = js_global_get_str(ctx, "Int32Array");
 
@@ -1233,8 +1229,7 @@ js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   DynBuf output;
   js_dbuf_init(ctx, &output);
 
-  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred)
-        : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
+  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred) : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
 
   return dbuf_tostring_free(&output, ctx);
 }
@@ -1292,8 +1287,7 @@ js_lexer_lex(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                                   lexer_state_top(lex, 0),
                                   lexer_state_name(lex, lexer_state_top(lex, 0)),
                                   /*   lexeme,*/
-                                  (int)(byte_chr((const char*)&lex->data[lex->pos], lex->size - lex->pos, '\n') +
-                                        lex->loc.column),
+                                  (int)(byte_chr((const char*)&lex->data[lex->pos], lex->size - lex->pos, '\n') + lex->loc.column),
                                   &lex->data[lex->pos - lex->loc.column],
                                   lex->loc.column + 1,
                                   "^");
@@ -1401,11 +1395,7 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   next = JS_NewCFunction2(ctx, (JSCFunction*)&js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, magic);
 
-  JS_DefinePropertyValue(ctx,
-                         ret,
-                         symbol,
-                         JS_NewCFunction2(ctx, (JSCFunction*)&JS_DupValue, "[Symbol.iterator]", 0, JS_CFUNC_generic, 0),
-                         JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValue(ctx, ret, symbol, JS_NewCFunction2(ctx, (JSCFunction*)&JS_DupValue, "[Symbol.iterator]", 0, JS_CFUNC_generic, 0), JS_PROP_CONFIGURABLE);
   JS_FreeAtom(ctx, symbol);
 
   JS_DefinePropertyValueStr(ctx, ret, "next", js_function_bind_this(ctx, next, this_val), JS_PROP_CONFIGURABLE);

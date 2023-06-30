@@ -12,7 +12,7 @@ static JSValue js_repeater_push(JSContext*, JSValueConst, int, JSValueConst[]);
 static JSValue js_repeater_stop(JSContext*, JSValueConst, int, JSValueConst[]);
 
 VISIBLE JSClassID js_repeater_class_id = 0;
-VISIBLE JSValue repeater_proto = {{0},JS_TAG_UNDEFINED}, repeater_ctor = {{0},JS_TAG_UNDEFINED};
+VISIBLE JSValue repeater_proto = {{0}, JS_TAG_UNDEFINED}, repeater_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum repeater_functions {
   STATIC_RACE = 0,
@@ -583,10 +583,10 @@ js_repeater_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  
+
   if((m = JS_NewCModule(ctx, module_name, js_repeater_init))) {
-  JS_AddModuleExport(ctx, m, "Repeater");
-}
+    JS_AddModuleExport(ctx, m, "Repeater");
+  }
 
   return m;
 }

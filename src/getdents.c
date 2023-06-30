@@ -9,7 +9,7 @@
 #define BUFFER_SIZE 1024 * 1024 * 5
 #define DIRENT(d) ((find_data_type*)&(d)->fdw)
 
-#if  (defined(__MSYS__) || defined(__CYGWIN__))
+#if(defined(__MSYS__) || defined(__CYGWIN__))
 #include <minwinbase.h>
 #include <wchar.h>
 #define FIND_W
@@ -34,16 +34,16 @@ struct getdents_reader {
 
 #if defined(FIND_A) || defined(FIND_W)
 #ifdef FIND_A
-#define findfirst(path,st) FindFirstFileA(path,st)
+#define findfirst(path, st) FindFirstFileA(path, st)
 #else
-#define findfirst(path,st) FindFirstFileW(path,st)
+#define findfirst(path, st) FindFirstFileW(path, st)
 #endif
 #define findnext(hnd, dat) FindNextFile(hnd, dat)
 #define findclose(hnd) FindClose(hnd)
 #define h_find h_ptr
 #define h_type HANDLE
 #else
-#define findfirst(path,st) _wfindfirst64(path,st)
+#define findfirst(path, st) _wfindfirst64(path, st)
 #define findnext(hnd, dat) !_wfindnext64(hnd, dat)
 #define findclose(hnd) _findclose(hnd)
 #define cFileName name

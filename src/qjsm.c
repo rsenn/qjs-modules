@@ -338,9 +338,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
     jsm_stack_pop(ctx);
 
   if(JS_IsException(val)) {
-    JSValue stack = JS_IsObject(ctx->rt->current_exception)
-                        ? JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack")
-                        : JS_UNDEFINED;
+    JSValue stack = JS_IsObject(ctx->rt->current_exception) ? JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack") : JS_UNDEFINED;
     const char* msg = JS_ToCString(ctx, ctx->rt->current_exception);
     const char* st = JS_ToCString(ctx, stack);
     fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, msg, js_value_typestr(ctx, stack));
@@ -553,12 +551,7 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
   char *s, *t = 0;
 
   if(debug_module_loader > 3)
-    printf("%-20s (module_name=\"%s\", fn=%s)\n",
-           __FUNCTION__,
-           module_name,
-           fn == &is_module         ? "is_module"
-           : fn == &jsm_search_path ? "jsm_search_path"
-                                    : "<unknown>");
+    printf("%-20s (module_name=\"%s\", fn=%s)\n", __FUNCTION__, module_name, fn == &is_module ? "is_module" : fn == &jsm_search_path ? "jsm_search_path" : "<unknown>");
 
   if(!(s = js_mallocz(ctx, (len + 31) & (~0xf))))
     return 0;
@@ -745,9 +738,7 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   assert(last_module->next != js_modules_list(ctx));
 
-  JSModuleDef* m = last_module->next->next != js_modules_list(ctx)
-                       ? list_entry(last_module->next->next, JSModuleDef, link)
-                       : jsm_module_find(ctx, path, 0);
+  JSModuleDef* m = last_module->next->next != js_modules_list(ctx) ? list_entry(last_module->next->next, JSModuleDef, link) : jsm_module_find(ctx, path, 0);
   return m;
 }
 
@@ -1107,8 +1098,7 @@ jsm_trace_malloc_usable_size(void* ptr) {
   return malloc_size(ptr);
 #elif defined(_WIN32)
   return _msize(ptr);
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
-    defined(DONT_HAVE_MALLOC_USABLE_SIZE)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
   return 0;
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
   return malloc_usable_size(ptr);
@@ -1238,8 +1228,7 @@ static const JSMallocFunctions trace_mf = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t(*)(const void*))_msize,
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
-    defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
     0,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
     (size_t(*)(const void*))malloc_usable_size,
@@ -1987,12 +1976,7 @@ main(int argc, char** argv) {
           best[j] = ms;
       }
     }
-    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n",
-           best[1] + best[2] + best[3] + best[4],
-           best[1],
-           best[2],
-           best[3],
-           best[4]);
+    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
   }
 
   return 0;

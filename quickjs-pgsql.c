@@ -11,9 +11,8 @@
  */
 
 VISIBLE JSClassID js_pgsqlerror_class_id = 0, js_pgconn_class_id = 0, js_pgresult_class_id = 0;
-VISIBLE JSValue pgsqlerror_proto = {{0}, JS_TAG_UNDEFINED}, pgsqlerror_ctor = {{0}, JS_TAG_UNDEFINED},
-                     pgsql_proto = {{0}, JS_TAG_UNDEFINED}, pgsql_ctor = {{0}, JS_TAG_UNDEFINED},
-                     pgresult_proto = {{0}, JS_TAG_UNDEFINED}, pgresult_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSValue pgsqlerror_proto = {{0}, JS_TAG_UNDEFINED}, pgsqlerror_ctor = {{0}, JS_TAG_UNDEFINED}, pgsql_proto = {{0}, JS_TAG_UNDEFINED}, pgsql_ctor = {{0}, JS_TAG_UNDEFINED},
+                pgresult_proto = {{0}, JS_TAG_UNDEFINED}, pgresult_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue js_pgresult_wrap(JSContext* ctx, PGresult* res);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
@@ -908,8 +907,7 @@ js_pgconn_escape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(!src.size)
     return JS_ThrowTypeError(ctx, "argument 1 must be string or ArrayBuffer");
 
-  dst = (char*)(pq && pq->conn ? PQescapeByteaConn(pq->conn, (unsigned char*)src.data, src.size, &dlen)
-                               : PQescapeBytea((unsigned char*)src.data, src.size, &dlen));
+  dst = (char*)(pq && pq->conn ? PQescapeByteaConn(pq->conn, (unsigned char*)src.data, src.size, &dlen) : PQescapeBytea((unsigned char*)src.data, src.size, &dlen));
 
   if(dlen > 0 && dst[dlen - 1] == '\0')
     dlen--;
@@ -938,8 +936,7 @@ js_pgconn_unescape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 }
 
 static JSValue
-js_pgconn_connect_cont(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
+js_pgconn_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
   int32_t fd;
   PGSQLConnection* pq;
   PostgresPollingStatusType newstate, oldstate;
@@ -1385,12 +1382,7 @@ result_array(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
     int len = PQgetlength(res, row, i);
     char* col = PQgetisnull(res, row, i) ? NULL : PQgetvalue(res, row, i);
 #ifdef DEBUG_OUTPUT_
-    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n",
-           __func__,
-           num_fields,
-           i,
-           (int)(len > 32 ? 32 : len),
-           col);
+    printf("%s num_fields=%" PRIu32 " row[%" PRIu32 "] = '%.*s'\n", __func__, num_fields, i, (int)(len > 32 ? 32 : len), col);
 #endif
     JS_SetPropertyUint32(ctx, ret, i, result_value(ctx, opaque, i, col, len, rtype));
   }
@@ -1721,10 +1713,7 @@ js_pgresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   *closure = (PGSQLResultIterator){ctx, pgresult_dup(opaque), 0};
 
-  JS_SetPropertyStr(ctx,
-                    ret,
-                    "next",
-                    js_function_cclosure(ctx, js_pgresult_iterator_next, 0, 0, closure, js_pgresult_iterator_free));
+  JS_SetPropertyStr(ctx, ret, "next", js_function_cclosure(ctx, js_pgresult_iterator_next, 0, 0, closure, js_pgresult_iterator_free));
 
   return ret;
 }

@@ -10,8 +10,8 @@
  * @{
  */
 VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;
-VISIBLE JSValue serialport_proto = {{0},JS_TAG_UNDEFINED}, serialport_ctor = {{0},JS_TAG_UNDEFINED}, serial_ctor = {{0},JS_TAG_UNDEFINED},
-                     serialerror_proto = {{0},JS_TAG_UNDEFINED}, serialerror_ctor = {{0},JS_TAG_UNDEFINED};
+VISIBLE JSValue serialport_proto = {{0}, JS_TAG_UNDEFINED}, serialport_ctor = {{0}, JS_TAG_UNDEFINED}, serial_ctor = {{0}, JS_TAG_UNDEFINED}, serialerror_proto = {{0}, JS_TAG_UNDEFINED},
+                serialerror_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue
 js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
@@ -82,7 +82,7 @@ js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) 
       break;
     }
   }
-  
+
   argv[0] = JS_NewString(ctx, msg);
   argv[1] = JS_NewInt32(ctx, result);
   obj = js_serialerror_constructor(ctx, serialerror_ctor, 2, argv);
@@ -165,11 +165,7 @@ js_serialport_ioready(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   if(ret < 0) {
     if(ret == SP_ERR_FAIL) {
-      JS_ThrowInternalError(ctx,
-                            "could %s serial port '%s': %s",
-                            ((const char* [3]){"read", "write", "drain"})[magic - SERIALPORT_READ],
-                            sp_get_port_name(port),
-                            sp_last_error_message());
+      JS_ThrowInternalError(ctx, "could %s serial port '%s': %s", ((const char* [3]){"read", "write", "drain"})[magic - SERIALPORT_READ], sp_get_port_name(port), sp_last_error_message());
       args[0] = JS_GetException(ctx);
     } else
       args[0] = js_serialport_error(ctx, port, ret);
@@ -256,9 +252,8 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         if(JS_IsNumber(argv[i])) {
           JS_ToInt32(ctx, &flags, argv[i]);
         } else if(JS_IsObject(argv[i])) {
-          JSValue br = JS_GetPropertyStr(ctx, argv[i], "baudRate"), db = JS_GetPropertyStr(ctx, argv[i], "dataBits"),
-                  sb = JS_GetPropertyStr(ctx, argv[i], "stopBits"), pr = JS_GetPropertyStr(ctx, argv[i], "parity"),
-                  fc = JS_GetPropertyStr(ctx, argv[i], "flowControl");
+          JSValue br = JS_GetPropertyStr(ctx, argv[i], "baudRate"), db = JS_GetPropertyStr(ctx, argv[i], "dataBits"), sb = JS_GetPropertyStr(ctx, argv[i], "stopBits"),
+                  pr = JS_GetPropertyStr(ctx, argv[i], "parity"), fc = JS_GetPropertyStr(ctx, argv[i], "flowControl");
 
           if(JS_IsNumber(br))
             JS_ToInt32(ctx, &baud_rate, br);
@@ -641,13 +636,13 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_serial_init))) {
-  JS_AddModuleExport(ctx, m, "Serial");
-  JS_AddModuleExport(ctx, m, "SerialPort");
-  JS_AddModuleExport(ctx, m, "SerialError");
+    JS_AddModuleExport(ctx, m, "Serial");
+    JS_AddModuleExport(ctx, m, "SerialPort");
+    JS_AddModuleExport(ctx, m, "SerialError");
 
-  /* if(!strcmp(module_name, "cookie"))
-     JS_AddModuleExport(ctx, m, "default");*/
-}
+    /* if(!strcmp(module_name, "cookie"))
+       JS_AddModuleExport(ctx, m, "default");*/
+  }
 
   return m;
 }

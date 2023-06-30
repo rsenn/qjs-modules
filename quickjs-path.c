@@ -825,9 +825,9 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_path_init))) {
-  JS_AddModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
-  JS_AddModuleExport(ctx, m, "default");
-}
+    JS_AddModuleExportList(ctx, m, js_path_funcs, countof(js_path_funcs));
+    JS_AddModuleExport(ctx, m, "default");
+  }
 
   return m;
 }

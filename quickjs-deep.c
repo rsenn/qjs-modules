@@ -15,8 +15,7 @@
  * @{
  */
 VISIBLE JSClassID js_deep_iterator_class_id = 0;
-VISIBLE JSValue deep_functions = {{0}, JS_TAG_UNDEFINED}, deep_iterator_proto = {{0}, JS_TAG_UNDEFINED},
-                     deep_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSValue deep_functions = {{0}, JS_TAG_UNDEFINED}, deep_iterator_proto = {{0}, JS_TAG_UNDEFINED}, deep_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
 
 typedef struct DeepIterator {
   Vector frames;
@@ -225,8 +224,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   for(;;) {
     depth = property_recursion_depth(&it->frames);
-    int level = it->seq == 0
-                    ? (property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS), 1)
+    int level = it->seq == 0           ? (property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS), 1)
                 : (depth >= max_depth) ? property_recursion_skip(&it->frames, ctx)
                                        : /*depth > 0          ?*/ property_recursion_next(&it->frames, ctx);
 
@@ -298,8 +296,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
 
-    int level = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_recursion_skip(&frames, ctx)
-                                                                               : property_recursion_next(&frames, ctx);
+    int level = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_recursion_skip(&frames, ctx) : property_recursion_next(&frames, ctx);
 
   } while((it = property_recursion_top(&frames)));
 
@@ -610,10 +607,8 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(!JS_IsObject(argv[0]) || !JS_IsObject(argv[1]))
     return JS_NewBool(ctx, js_value_equals(ctx, argv[0], argv[1]));
 
-  a.it =
-      property_recursion_push(&a.frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
-  b.it =
-      property_recursion_push(&b.frames, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
+  a.it = property_recursion_push(&a.frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
+  b.it = property_recursion_push(&b.frames, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
 
   for(;;) {
     BOOL result = TRUE;
@@ -713,10 +708,7 @@ js_deep_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_deep_iterator_class_id, &js_deep_iterator_class);
 
   deep_iterator_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             deep_iterator_proto,
-                             js_deep_iterator_proto_funcs,
-                             countof(js_deep_iterator_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, deep_iterator_proto, js_deep_iterator_proto_funcs, countof(js_deep_iterator_proto_funcs));
   JS_SetClassProto(ctx, js_deep_iterator_class_id, deep_iterator_proto);
 
   deep_iterator_ctor = JS_NewCFunction2(ctx, js_deep_iterator_constructor, "DeepIterator", 1, JS_CFUNC_constructor, 0);
