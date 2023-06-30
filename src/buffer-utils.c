@@ -451,11 +451,12 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     ret.value = JS_DupValue(ctx, value);
   }
 
-  if(!JS_IsUndefined(ret.value)) {
+  if(js_is_arraybuffer(ctx, ret.value)) {
     block_arraybuffer(&ret.block, ret.value, ctx);
   } else {
+    JS_ThrowTypeError(ctx, "Invalid type (%s) for input buffer", js_value_typestr(ctx, ret.value));
     JS_FreeValue(ctx, ret.value);
-    ret.value = JS_ThrowTypeError(ctx, "Invalid type for input buffer");
+    ret.value = JS_EXCEPTION;
   }
 
   return ret;

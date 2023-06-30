@@ -55,14 +55,19 @@ function main(...args) {
   });
 
   let watch = new inotify(IN_NONBLOCK);
+    console.log('watch', watch);
 
   watch.add(args[0] ?? '.');
 
+
+
   watch.onread = function(e) {
-    let { mask } = e;
+ let { mask } = e;
+    console.log('inotify event', console.config({compact: 0}),{mask});
     let flags = flags2names(inotifyFlags, mask);
+    console.log('inotify event',console.config({compact: 0}), flags.join('|'));
     let w = this.watch(e);
-    console.log('inotify event', flags.join('|'), e, w);
+    console.log('inotify event', console.config({compact: 0}),w);
   };
 
   os.setTimeout(() => watch.close(), 2000);

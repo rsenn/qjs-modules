@@ -200,6 +200,13 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_REGEXP: {
       JSValue re = js_arguments_at(args, 0);
       InputBuffer input = js_input_chars(ctx, re);
+
+      if(JS_IsException(input.value)) {
+        JS_FreeValue(ctx, JS_GetException(ctx));
+        ret = JS_FALSE;
+        break;
+      }
+
       uint8_t* capture[CAPTURE_COUNT_MAX * 2];
       int capture_count = 0, result;
 
