@@ -110,7 +110,7 @@ socket_setnonblocking(Socket* s, BOOL nonblock) {
   return s->ret == 0;
 }
 
-static BOOL
+/*static BOOL
 socket_nonblocking(Socket sock) {
   int fd = socket_fd(sock);
 
@@ -121,14 +121,13 @@ socket_nonblocking(Socket sock) {
 
   return flags >= 0 && (flags & O_NONBLOCK);
 #endif
-}
+}*/
 
 static const char* socket_syscalls[] = {
     0,
     "socket",
     "getsockname",
     "getpeername",
-
 #ifdef _WIN32
     "ioctlsocket",
 #else
@@ -152,6 +151,7 @@ static const char*
 syscall_name(int syscall_number) {
   assert(syscall_number > 0);
   assert(syscall_number < countof(socket_syscalls));
+  
   return socket_syscalls[syscall_number];
 }
 
