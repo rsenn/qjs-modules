@@ -96,6 +96,7 @@ getdents_namebuf(const DirEntry* e, size_t* len) {
 
   if(len)
     *len = wcslen(s);
+  
   return (const uint8_t*)s;
 }
 
