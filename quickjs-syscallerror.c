@@ -344,7 +344,7 @@ const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
 };
 
 const JSCFunctionListEntry js_syscallerror_defines[] = {
-    JS_CFUNC_MAGIC_DEF("name", 1, js_syscallerror_method, SYSCALLERROR_NAME),
+    JS_CFUNC_MAGIC_DEF("name", 1, js_syscallerror_functions, SYSCALLERROR_NAME),
 #ifdef EPERM
     JS_CONSTANT(EPERM),
 #endif
