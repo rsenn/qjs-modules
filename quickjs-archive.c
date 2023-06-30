@@ -10,7 +10,7 @@
  * @{
  */
 
-#define max(a, b) ((a) > (b) ? (a) : (b))
+#define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_archive_class_id = 0;
 thread_local JSValue archive_proto = {{0},JS_TAG_UNDEFINED}, archive_ctor = {{0},JS_TAG_UNDEFINED};

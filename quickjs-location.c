@@ -9,7 +9,7 @@
  * @{
  */
 
-#define max(a, b) ((a) > (b) ? (a) : (b))
+#define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_location_class_id = 0;
 thread_local JSValue location_proto = {{0}, JS_TAG_UNDEFINED}, location_ctor = {{0}, JS_TAG_UNDEFINED};
@@ -248,7 +248,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       InputBuffer in = js_input_chars(ctx, argv[0]);
       const uint8_t *p, *begin = input_buffer_begin(&in), *end = input_buffer_end(&in);
       unsigned long v, n[2];
-      size_t ni = max(2, str_count((const char*)begin, ':'));
+      size_t ni = MAX_NUM(2, str_count((const char*)begin, ':'));
 
       while(end >= begin) {
         for(p = end; p > begin && *(p - 1) != ':'; p--) {

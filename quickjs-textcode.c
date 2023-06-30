@@ -12,7 +12,7 @@
  * @{
  */
 
-#define max(a, b) ((a) > (b) ? (a) : (b))
+#define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
 
 thread_local VISIBLE JSClassID js_decoder_class_id = 0, js_encoder_class_id = 0;
 thread_local JSValue textdecoder_proto = {{0}, JS_TAG_UNDEFINED}, textdecoder_ctor = {{0}, JS_TAG_UNDEFINED},

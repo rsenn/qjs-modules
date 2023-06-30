@@ -10,8 +10,8 @@
  * \addtogroup predicate
  * @{
  */
-#define max(left, right) ((left) > (right) ? (left) : (right))
-#define min(left, right) ((left) < (right) ? (left) : (right))
+#define MAX_NUM(left, right) ((left) > (right) ? (left) : (right))
+#define MIN_NUM(left, right) ((left) < (right) ? (left) : (right))
 
 static size_t
 utf8_to_unicode(const char* str, size_t len, Vector* out) {
@@ -299,7 +299,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_SHIFT: {
-      int shift = min(args->c, pr->shift.n);
+      int shift = MIN_NUM(args->c, pr->shift.n);
 
       if(pr->shift.n <= args->c) {
         JSArguments args2 = *args;
