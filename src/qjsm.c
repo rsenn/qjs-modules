@@ -132,7 +132,7 @@ typedef struct {
   const uint8_t* byte_code;
   uint32_t byte_code_len;
   JSModuleDef* def;
-  BOOL initialized : 1;
+  BOOL initialized;
 } BuiltinModule;
 
 #define jsm_module_extern_compiled(name) \
@@ -1110,7 +1110,7 @@ jsm_trace_malloc_usable_size(void* ptr) {
 }
 
 static void
-#ifdef _WIN32
+#if defined(_WIN32) && defined(__GNUC__)
     /* mingw printf is used */
     __attribute__((format(gnu_printf, 2, 3)))
 #else
