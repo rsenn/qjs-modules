@@ -104,10 +104,15 @@ getdents_read(Directory* d) {
 }
 
 const void*
-getdents_name(const DirEntry* e) {
+getdents_cname(const DirEntry* e) {
   find_data_type* fdw = (void*)e;
 
   return fdw->cFileName;
+}
+
+char*
+getdents_name(const DirEntry* e) {
+  return utf8_fromwcs(getdents_cname(e));
 }
 
 const uint8_t*
@@ -115,13 +120,14 @@ getdents_namebuf(const DirEntry* e, size_t* len) {
   const wchar_t* s = ((find_data_type*)e)->cFileName;
 
   if(len)
-    *len = wcslen(s);
+    *len = wcslen(s) * sizeof(wchar_t);
 
   return (const uint8_t*)s;
 }
+* /
 
-void
-getdents_close(Directory* d) {
+    void
+    getdents_close(Directory* d) {
   findclose(d->h_find);
   d->h_ptr = INVALID_HANDLE_VALUE;
 }
@@ -253,8 +259,13 @@ getdents_read(Directory* d) {
 }
 
 const void*
-getdents_name(const DirEntry* e) {
+getdents_cname(const DirEntry* e) {
   return ((struct linux_dirent64*)e)->d_name;
+}
+
+char*
+getdents_name(const DirEntry* e) {
+  return strdup(getdents_cname(e));
 }
 
 const uint8_t*

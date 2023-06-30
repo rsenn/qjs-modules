@@ -24,8 +24,9 @@ void getdents_clear(Directory*);
 int getdents_open(Directory*, const char* path);
 int getdents_adopt(Directory*, intptr_t fd);
 DirEntry* getdents_read(Directory*);
-const void* getdents_name(const DirEntry*);
-const uint8_t* getdents_namebuf(const DirEntry* e, size_t* len);
+const void* getdents_cname(const DirEntry*);
+char* getdents_name(const DirEntry*);
+const uint8_t* getdents_namebuf(const DirEntry*, size_t* len);
 int getdents_type(const DirEntry*);
 void getdents_close(Directory*);
 

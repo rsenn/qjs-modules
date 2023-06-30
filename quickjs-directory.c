@@ -27,6 +27,7 @@ enum {
 static JSValue
 directory_namebuf(JSContext* ctx, DirEntry* entry) {
   JSValue ret;
+
   size_t len = 0;
   return JS_NewArrayBufferCopy(ctx, getdents_namebuf(entry, &len), len);
 }
@@ -34,14 +35,16 @@ directory_namebuf(JSContext* ctx, DirEntry* entry) {
 static JSValue
 directory_namestr(JSContext* ctx, DirEntry* entry) {
 #if !(defined(_WIN32) && !defined(__MSYS__))
-  return JS_NewString(ctx, getdents_name(entry));
+  return JS_NewString(ctx, getdents_cname(entry));
 #else
-  JSValue ret;
-  char* str = utf8_fromwcs(getdents_name(entry));
-  assert(str);
+  JSValue ret = JS_UNDEFINED;
+  char* str;
 
-  ret = JS_NewString(ctx, str);
-  free(str);
+  if((str = getdents_name(entry))) {
+    ret = JS_NewString(ctx, str);
+    free(str);
+  }
+
   return ret;
 #endif
 }
@@ -54,6 +57,7 @@ js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
 
   if(dflags & FLAG_NAME)
     name = (dflags & FLAG_BUFFER) ? directory_namebuf(ctx, entry) : directory_namestr(ctx, entry);
+
   if(dflags & FLAG_TYPE)
     type = getdents_type(entry);
 
@@ -62,10 +66,12 @@ js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
       ret = name;
       break;
     }
+
     case FLAG_TYPE: {
       ret = JS_NewInt32(ctx, type);
       break;
     }
+
     case FLAG_BOTH: {
       ret = JS_NewArray(ctx);
       JS_SetPropertyUint32(ctx, ret, 0, name);
