@@ -166,7 +166,7 @@ typedef enum {
 static BOOL
 clear_screen(HANDLE h, ClearMode mode, BOOL line) {
   COORD coords = {0, 0};
-  DWORD n, con_size;
+  DWORD w, n;
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
   if(!GetConsoleScreenBufferInfo(h, &sbi))
@@ -177,36 +177,36 @@ clear_screen(HANDLE h, ClearMode mode, BOOL line) {
   switch(mode) {
     case CLEAR_TO_END: {
       coords = sbi.dwCursorPosition;
-      con_size =
-          line ? sbi.dwSize.X - sbi.dwCursorPosition.X : (sbi.dwSize.X * sbi.dwSize.Y) - CHAR_POS(sbi.dwCursorPosition);
+      n = line ? sbi.dwSize.X - sbi.dwCursorPosition.X : (sbi.dwSize.X * sbi.dwSize.Y) - CHAR_POS(sbi.dwCursorPosition);
       break;
     }
     case CLEAR_TO_BEGIN: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
-      con_size = line ? sbi.dwCursorPosition.X : CHAR_POS(sbi.dwCursorPosition);
+      n = line ? sbi.dwCursorPosition.X : CHAR_POS(sbi.dwCursorPosition);
       break;
     }
     case CLEAR_ENTIRE: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
-      con_size = line ? sbi.dwSize.X : sbi.dwSize.X * sbi.dwSize.Y;
+      n = line ? sbi.dwSize.X : sbi.dwSize.X * sbi.dwSize.Y;
       break;
     }
   }
 
-  if(!FillConsoleOutputCharacter(h, (TCHAR)' ', con_size, coords, &n))
+  if(!FillConsoleOutputCharacter(h, (TCHAR)' ', n, coords, &w))
     return FALSE;
 
   if(!GetConsoleScreenBufferInfo(h, &sbi))
     return FALSE;
 
-  if(!FillConsoleOutputAttribute(h, sbi.wAttributes, con_size, coords, &n))
+  if(!FillConsoleOutputAttribute(h, sbi.wAttributes, n, coords, &w))
     return FALSE;
 
   // SetConsoleCursorPosition(h, coords);
   return TRUE;
 }
+
 #else
 static BOOL
 clear_screen(int fd, ClearMode mode, BOOL line) {
