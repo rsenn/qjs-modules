@@ -422,11 +422,10 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
         if(a->family != newf) {
           SockAddr old = *a;
+          uint32_t* inaddr;
 
           memset(a, 0, sizeof(SockAddr));
           a->family = newf;
-
-          uint32_t* inaddr;
 
           if((inaddr = sockaddr_addr(a))) {
 
