@@ -10,6 +10,7 @@
  * @{
  */
 extern VISIBLE JSClassID js_pointer_class_id;
+ extern VISIBLE JSValue pointer_proto, pointer_ctor;
 
 static inline Pointer*
 js_pointer_data2(JSContext* ctx, JSValueConst value) {
@@ -21,8 +22,8 @@ js_pointer_data(JSValueConst value) {
   return JS_GetOpaque(value, js_pointer_class_id);
 }
 
-JSValue js_pointer_wrap(JSContext*, Pointer*);
-JSValue js_pointer_new(JSContext*, JSValueConst, JSValueConst);
+VISIBLE JSValue js_pointer_wrap(JSContext*, Pointer*);
+VISIBLE JSValue js_pointer_new(JSContext*, JSValueConst, JSValueConst);
 
 /**
  * @}

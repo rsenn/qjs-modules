@@ -10,8 +10,8 @@
  * @{
  */
 
-VISIBLE JSClassID js_pointer_class_id = 0;
-VISIBLE JSValue pointer_proto = {{0}, JS_TAG_UNDEFINED}, pointer_ctor = {{0}, JS_TAG_UNDEFINED};
+  JSClassID js_pointer_class_id = 0;
+ JSValue pointer_proto = {{0}, JS_TAG_UNDEFINED}, pointer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   METHOD_DEREF = 0,
@@ -41,8 +41,8 @@ enum {
   PROP_PATH,
   PROP_ATOMS,
 };
-
-VISIBLE JSValue
+ 
+  JSValue
 js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Pointer* ptr;
   JSValue obj = JS_UNDEFINED;
@@ -70,7 +70,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-VISIBLE JSValue
+  JSValue
 js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
   JSValue obj;
 
