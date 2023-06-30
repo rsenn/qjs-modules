@@ -30,6 +30,7 @@ typedef int SOCKET;
  */
 
 static int js_sockets_init(JSContext*, JSModuleDef*);
+static JSValue js_socket_method(JSContext*, JSValueConst, int, JSValueConst[], int);
 
 #define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), js_socket_error(ctx, *(sock)))
 
@@ -1325,10 +1326,6 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(!js_socket_check_open(ctx, *s))
     return JS_EXCEPTION;
 
-  /*if(socket_eof(sock))
-    if(magic < METHOD_SHUTDOWN)
-      return JS_ThrowInternalError(ctx, "Socket #%d EOF", s->fd);*/
-
   if(wait) {
     switch(magic) {
       case METHOD_ACCEPT:
@@ -1336,7 +1333,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       case METHOD_RECVFROM:
       case METHOD_SEND:
       case METHOD_SENDTO: {
-        return js_asyncsocket_method(ctx, this_val, argc, argv, magic);
+        assert(0);
+        //     return js_asyncsocket_method(ctx, this_val, argc, argv, magic);
+        break;
       }
       default: break;
     }
