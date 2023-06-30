@@ -102,10 +102,11 @@ js_socket_setnonblocking(JSContext* ctx, Socket* s, BOOL nonblock) {
   int oldflags, newflags;
   oldflags = fcntl(s->fd, F_GETFL);
   newflags = nonblock ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
+  
   if(oldflags != newflags)
       syscall_return(s, SYSCALL_FCNTL, fcntl(s->fd, F_SETFL, newflags));
 #endif
-    
+
   return s->ret == 0;
 }
 
