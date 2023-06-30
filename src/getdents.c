@@ -25,13 +25,13 @@ struct getdents_reader {
 };
 
 #ifdef FIND_A
-#define findnext FindNextFile
+#define findnext(hnd, dat) FindNextFile(hnd, dat)
 #define h h_ptr
 #else
 
 #define cFileName name
 #define dwFileAttributes attrib
-#define findnext _wfindnext64
+#define findnext(hnd, dat) !_wfindnext64(hnd, dat)
 #define h h_int
 #endif
 
