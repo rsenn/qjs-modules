@@ -21,7 +21,7 @@
 #include <sys/wait.h>
 #endif
 
-#if(_XOPEN_SOURCE >= 500 && !(_POSIX_C_SOURCE >= 200809L) || _DEFAULT_SOURCE || _BSD_SOURCE)
+#ifdef HAVE_VFORK
 #define fork() vfork()
 #endif
 
