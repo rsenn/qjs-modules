@@ -115,7 +115,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
           }
 
           if(!libutf_c16_to_c32(u16, &cp)) {
-            ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: not a valid utf-16 code at (%zu: 0x%04x, 0x%04x): %" PRIu32, __func__, i, ptr[0], ptr[1], cp);
+            ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: not a valid utf-16 code at (%llu: 0x%04x, 0x%04x): %u",  __func__, (long long unsigned int)i, (unsigned int)ptr[0], (unsigned int)ptr[1], (unsigned int)cp);
             break;
           }
           len = unicode_to_utf8((void*)tmp, cp);
