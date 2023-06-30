@@ -66,7 +66,7 @@ getdents_open(Directory* d, const char* path) {
 
   free(wp);
 #endif
-  return d->h == INVALID_HANDLE_VALUE ? -1 : 0;
+  return d->h_ptr == INVALID_HANDLE_VALUE ? -1 : 0;
 }
 
 int
@@ -106,8 +106,8 @@ getdents_namebuf(const DirEntry* e, size_t* len) {
 
 void
 getdents_close(Directory* d) {
-  CloseHandle(d->h);
-  d->h = INVALID_HANDLE_VALUE;
+  CloseHandle(d->h_ptr);
+  d->h_ptr = INVALID_HANDLE_VALUE;
 }
 
 int
