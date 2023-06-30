@@ -1450,7 +1450,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       int32_t level, optname;
       uint32_t optlen = sizeof(int);
       uint8_t* buf;
-      int32_t val, *tmp = 0;
+      int32_t val = -1, *tmp = 0;
       socklen_t len;
 
       JS_ToInt32(ctx, &level, argv[0]);
@@ -1472,7 +1472,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         js_free(ctx, tmp);
 
 #ifdef DEBUG_OUTPUT
-      printf("SYSCALL_GETSOCKOPT(%d, %d, %d, %p (%p), %zu) = %d\n", socket_fd(*s), level, optname, ((ptrdiff_t*)val)[0], val, len, s->ret);
+      printf("SYSCALL_GETSOCKOPT(%d, %d, %d (%d), %lu) = %d\n", socket_fd(*s), level, optname, val, (unsigned long int)len, s->ret);
 #endif
 
       break;
@@ -1508,7 +1508,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       JS_SOCKETCALL(SYSCALL_SETSOCKOPT, s, setsockopt(socket_handle(*s), level, optname, (const void*)buf, len));
 
 #ifdef DEBUG_OUTPUT
-      printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %zu) = %d\n", socket_fd(*s), level, optname, *(int*)buf, buf, len, s->ret);
+      printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %lu) = %d\n", socket_fd(*s), level, optname, *(int*)buf, buf, (unsigned long int)len, s->ret);
 #endif
 
       if(tmp)

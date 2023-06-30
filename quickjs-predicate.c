@@ -21,7 +21,7 @@ js_predicate_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_predicate_class_id);
 }
 
-  enum PredicateId
+enum PredicateId
 predicate_id(JSValueConst value) {
   Predicate* pred;
   enum PredicateId ret = -1;
