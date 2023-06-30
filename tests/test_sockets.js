@@ -72,7 +72,7 @@ function main() {
   function DumpSock(s) {
     let { fd, ret, errno, syscall, error, open, eof, mode } = s;
 
-    return [inspect({ fd, ret, errno, syscall, error, open, eof }, { })];
+    return [inspect({ fd, ret, errno, syscall, error, open, eof }, {})];
   }
 
   /*  function ioFlags(flags = 0) {
@@ -126,23 +126,13 @@ function main() {
         os.setReadHandler(sock.fd, null);
       }
 
-      console.log(
-        `recv(${sock.fd}, ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(
-          70
-        ),
-        ...DumpSock(sock)
-      );
+      console.log(`recv(${sock.fd}, ArrayBuffer ${buf.byteLength}) = ${n} ${n >= 0 ? quote(data, "'") : sock.error + ''}`.padEnd(70), ...DumpSock(sock));
 
       if(n > 0 && data.indexOf('OpenSSH') != -1) {
         const txt = 'BLAHBLAHTEST\r\n';
         let start = 4;
         n = sock.send(txt, start);
-        console.log(
-          `send(${quote(txt.slice(start), "'")}, ${start}) =`,
-          n,
-          n > 0 ? null : sock.error,
-          ...DumpSock(sock)
-        );
+        console.log(`send(${quote(txt.slice(start), "'")}, ${start}) =`, n, n > 0 ? null : sock.error, ...DumpSock(sock));
       }
     });
   });

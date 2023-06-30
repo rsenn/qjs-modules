@@ -243,7 +243,7 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       }
 
       ret = js_blob_new(ctx, &blob->data[s], e - s, type ? type : blob->type);
-  
+
       if(type)
         js_free(ctx, type);
 

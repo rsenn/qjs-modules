@@ -32,7 +32,6 @@ function main(...args) {
     { type: 'text/html', endings: 'transparent' }
   );
 
-
   console.log('blob', blob);
 
   console.log('blob', Object.getPrototypeOf(blob));
