@@ -2,293 +2,303 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1 plus MathML 2.0//EN" "http://www.w3.org/Math/DTD/mathml2/xhtml-math11-f.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <meta name="GENERATOR" content="LyX 2.2.3"/>
-    <meta http-equiv="Content-type" content="text/html;charset=UTF-8"/>
+    <meta name="GENERATOR" content="LyX 2.2.3" />
+    <meta http-equiv="Content-type" content="text/html;charset=UTF-8" />
     <title>Ngspice Users ManualVersion 27(Describes ngspice-27 release version)</title>
     <style type="text/css">
-/* LyX Provided Styles */
-table { border-collapse: collapse; display: inline-block; }
-td { border: 1px solid black; padding: 0.5ex; }
+      /* LyX Provided Styles */
+      table {
+        border-collapse: collapse;
+        display: inline-block;
+      }
+      td {
+        border: 1px solid black;
+        padding: 0.5ex;
+      }
 
-/* Layout-provided Styles */
-del.strikeout {
-  text-decoration: line-through;
-}
-h1.title {
-font-size: x-large;
-margin-bottom: 1ex;
-text-align: center;
-
-}
-div.author {
-font-size: large;
-margin-top: 1.3ex;
-margin-bottom: 0.7ex;
-text-align: center;
-
-}
-div.standard {
-margin-bottom: 2ex;
-}
-h2.section_ {
-font-weight: bold;
-font-size: x-large;
-margin-top: 1.3ex;
-margin-bottom: 0.7ex;
-text-align: left;
-
-}
-h3.subsection_ {
-font-weight: bold;
-font-size: large;
-margin-top: 0.9ex;
-margin-bottom: 0.5ex;
-text-align: left;
-
-}
-h1.part {
-font-weight: bold;
-font-size: xx-large;
-margin-top: 4ex;
-margin-bottom: 4ex;
-text-align: center;
-
-}
-h1.chapter_ {
-font-weight: bold;
-font-size: xx-large;
-margin-top: 4ex;
-margin-bottom: 0.8ex;
-text-align: left;
-
-}
-ol.enumerate {
-margin-top: 0.7ex;
-margin-bottom: 0.7ex;
-margin-left: 3ex;
-text-align: left;
-
-}
-blockquote.quotation {
-margin-top: 0.5ex;
-margin-bottom: 0.5ex;
-margin-left: 3ex;
-margin-right: 3ex;
-text-align: left;
-
-}
-h1.chapter {
-font-weight: bold;
-font-size: xx-large;
-margin-top: 4ex;
-margin-bottom: 0.8ex;
-text-align: left;
-
-}
-h2.section {
-font-weight: bold;
-font-size: x-large;
-margin-top: 1.3ex;
-margin-bottom: 0.7ex;
-text-align: left;
-
-}
-h3.subsection {
-font-weight: bold;
-font-size: large;
-margin-top: 0.9ex;
-margin-bottom: 0.5ex;
-text-align: left;
-
-}
-h4.subsubsection {
-font-weight: bold;
-font-size: medium;
-margin-top: 0.7ex;
-margin-bottom: 0.4ex;
-text-align: left;
-
-}
-ul.itemize {
-margin-top: 0.7ex;
-margin-bottom: 0.7ex;
-margin-left: 3ex;
-text-align: left;
-
-}
-div.plain_layout {
-text-align: left;
-
-}
-div.lyx_code {
-font-family: monospace;
-margin-top: 0.5ex;
-margin-bottom: 0.5ex;
-margin-left: 3ex;
-margin-right: 3ex;
-text-align: left;
-
-}
-dl.description dt { font-weight: bold; }
-h4.subsubsection_ {
-font-weight: bold;
-font-size: medium;
-margin-top: 0.7ex;
-margin-bottom: 0.4ex;
-text-align: left;
-
-}
-ol.lyxlist {
-list-style-type: none;
-}
-li.labeling_item {
-text-indent: -5em;
-margin-left: 5em;
-}
-span.lyxlist {
-margin-right: 1em;
-}
-h6.subparagraph {
-font-weight: bold;
-font-size: medium;
-margin-top: 0.4ex;
-margin-left: 2ex;
-text-align: left;
-
-}
-blockquote.quote {
-margin-top: 0.5ex;
-margin-bottom: 0.5ex;
-margin-left: 3ex;
-margin-right: 3ex;
-text-align: left;
-
-}
-h5.paragraph {
-font-weight: bold;
-font-size: medium;
-margin-top: 0.4ex;
-text-align: left;
-
-}
-h5.paragraph_ {
-font-weight: bold;
-font-size: medium;
-margin-top: 0.4ex;
-text-align: left;
-
-}
-div.bibliography {
-margin-left: 2em;
-text-indent: -2em;
-}
-span.bibitemlabel:before { content: "["; }
-span.bibitemlabel:after { content: "] "; }
- div.toc {
-   margin: 2em 0em;
-   border-style: solid;
-   border-width: 2px 0px;
-   padding: 1em 0em;
- }
- h2.tochead { font-size: x-large; font-weight: bold; }
- div.lyxtoc-0 {
-   margin: 2em 0em 0em 0em;
-   font-size: xx-large;
-   font-weight: bold;
- }
- div.lyxtoc-1 {
-   margin: 1em 0em 0em 0em;
-   font-size: x-large;
-   font-weight: bold;
- }
- div.lyxtoc-2 {
-   margin: 0em 0.1em 0em 1em;
-   font-size: large;
-   font-weight: normal;
- }
- div.lyxtoc-3 { margin: 0em 0.1em 0em 0.5em; font-size: medium; }
- div.lyxtoc-4 { margin: 0em 0.1em 0em 0.5em; }
- div.lyxtoc-5 { margin: 0em 0.1em 0em 0.5em; }
- div.lyxtoc-6 { margin: 0em 0.1em 0em 0.5em; }
- a.tocentry {
-   text-decoration: none;
-   color: black;
- }
- a.tocentry:visited { color: black; }
-div.float {
-border: 2px solid black;
-text-align: center;
-}
-div.Doublebox {
-border: double thick black;
-padding: 0.5ex;
-}
-div.float-caption {
-text-align: center;
-border: 2px solid black;
-padding: 1ex;
-margin: 1ex;
-}
-div.Frameless { margin: 1em; }
-div.float-listings {
-border: 2px solid black;
-padding: 1ex;
-margin: 1ex;
-}
-div.listings-caption {
-text-align: center;
-border: 2px solid black;
-padding: 1ex;
-margin: 1ex;
-}
-span.foot_label {
-vertical-align: super;
-font-size: smaller;
-font-weight: bold;
-text-decoration: underline;
-}
-div.foot {
-display: inline;
-font-size: small;
-font-weight: medium;
-font-family: serif;
-font-variant: normal;
-font-style: normal;
-}
-div.foot_inner { display: none; }
-div.foot:hover div.foot_inner {
-display: block;
-border: 1px double black;
-margin: 0em 1em;
-padding: 1em;
-}
-div.Boxed {
-border: solid thick black;
-padding: 0.5ex;
-}
-
-
-</style>
+      /* Layout-provided Styles */
+      del.strikeout {
+        text-decoration: line-through;
+      }
+      h1.title {
+        font-size: x-large;
+        margin-bottom: 1ex;
+        text-align: center;
+      }
+      div.author {
+        font-size: large;
+        margin-top: 1.3ex;
+        margin-bottom: 0.7ex;
+        text-align: center;
+      }
+      div.standard {
+        margin-bottom: 2ex;
+      }
+      h2.section_ {
+        font-weight: bold;
+        font-size: x-large;
+        margin-top: 1.3ex;
+        margin-bottom: 0.7ex;
+        text-align: left;
+      }
+      h3.subsection_ {
+        font-weight: bold;
+        font-size: large;
+        margin-top: 0.9ex;
+        margin-bottom: 0.5ex;
+        text-align: left;
+      }
+      h1.part {
+        font-weight: bold;
+        font-size: xx-large;
+        margin-top: 4ex;
+        margin-bottom: 4ex;
+        text-align: center;
+      }
+      h1.chapter_ {
+        font-weight: bold;
+        font-size: xx-large;
+        margin-top: 4ex;
+        margin-bottom: 0.8ex;
+        text-align: left;
+      }
+      ol.enumerate {
+        margin-top: 0.7ex;
+        margin-bottom: 0.7ex;
+        margin-left: 3ex;
+        text-align: left;
+      }
+      blockquote.quotation {
+        margin-top: 0.5ex;
+        margin-bottom: 0.5ex;
+        margin-left: 3ex;
+        margin-right: 3ex;
+        text-align: left;
+      }
+      h1.chapter {
+        font-weight: bold;
+        font-size: xx-large;
+        margin-top: 4ex;
+        margin-bottom: 0.8ex;
+        text-align: left;
+      }
+      h2.section {
+        font-weight: bold;
+        font-size: x-large;
+        margin-top: 1.3ex;
+        margin-bottom: 0.7ex;
+        text-align: left;
+      }
+      h3.subsection {
+        font-weight: bold;
+        font-size: large;
+        margin-top: 0.9ex;
+        margin-bottom: 0.5ex;
+        text-align: left;
+      }
+      h4.subsubsection {
+        font-weight: bold;
+        font-size: medium;
+        margin-top: 0.7ex;
+        margin-bottom: 0.4ex;
+        text-align: left;
+      }
+      ul.itemize {
+        margin-top: 0.7ex;
+        margin-bottom: 0.7ex;
+        margin-left: 3ex;
+        text-align: left;
+      }
+      div.plain_layout {
+        text-align: left;
+      }
+      div.lyx_code {
+        font-family: monospace;
+        margin-top: 0.5ex;
+        margin-bottom: 0.5ex;
+        margin-left: 3ex;
+        margin-right: 3ex;
+        text-align: left;
+      }
+      dl.description dt {
+        font-weight: bold;
+      }
+      h4.subsubsection_ {
+        font-weight: bold;
+        font-size: medium;
+        margin-top: 0.7ex;
+        margin-bottom: 0.4ex;
+        text-align: left;
+      }
+      ol.lyxlist {
+        list-style-type: none;
+      }
+      li.labeling_item {
+        text-indent: -5em;
+        margin-left: 5em;
+      }
+      span.lyxlist {
+        margin-right: 1em;
+      }
+      h6.subparagraph {
+        font-weight: bold;
+        font-size: medium;
+        margin-top: 0.4ex;
+        margin-left: 2ex;
+        text-align: left;
+      }
+      blockquote.quote {
+        margin-top: 0.5ex;
+        margin-bottom: 0.5ex;
+        margin-left: 3ex;
+        margin-right: 3ex;
+        text-align: left;
+      }
+      h5.paragraph {
+        font-weight: bold;
+        font-size: medium;
+        margin-top: 0.4ex;
+        text-align: left;
+      }
+      h5.paragraph_ {
+        font-weight: bold;
+        font-size: medium;
+        margin-top: 0.4ex;
+        text-align: left;
+      }
+      div.bibliography {
+        margin-left: 2em;
+        text-indent: -2em;
+      }
+      span.bibitemlabel:before {
+        content: '[';
+      }
+      span.bibitemlabel:after {
+        content: '] ';
+      }
+      div.toc {
+        margin: 2em 0em;
+        border-style: solid;
+        border-width: 2px 0px;
+        padding: 1em 0em;
+      }
+      h2.tochead {
+        font-size: x-large;
+        font-weight: bold;
+      }
+      div.lyxtoc-0 {
+        margin: 2em 0em 0em 0em;
+        font-size: xx-large;
+        font-weight: bold;
+      }
+      div.lyxtoc-1 {
+        margin: 1em 0em 0em 0em;
+        font-size: x-large;
+        font-weight: bold;
+      }
+      div.lyxtoc-2 {
+        margin: 0em 0.1em 0em 1em;
+        font-size: large;
+        font-weight: normal;
+      }
+      div.lyxtoc-3 {
+        margin: 0em 0.1em 0em 0.5em;
+        font-size: medium;
+      }
+      div.lyxtoc-4 {
+        margin: 0em 0.1em 0em 0.5em;
+      }
+      div.lyxtoc-5 {
+        margin: 0em 0.1em 0em 0.5em;
+      }
+      div.lyxtoc-6 {
+        margin: 0em 0.1em 0em 0.5em;
+      }
+      a.tocentry {
+        text-decoration: none;
+        color: black;
+      }
+      a.tocentry:visited {
+        color: black;
+      }
+      div.float {
+        border: 2px solid black;
+        text-align: center;
+      }
+      div.Doublebox {
+        border: double thick black;
+        padding: 0.5ex;
+      }
+      div.float-caption {
+        text-align: center;
+        border: 2px solid black;
+        padding: 1ex;
+        margin: 1ex;
+      }
+      div.Frameless {
+        margin: 1em;
+      }
+      div.float-listings {
+        border: 2px solid black;
+        padding: 1ex;
+        margin: 1ex;
+      }
+      div.listings-caption {
+        text-align: center;
+        border: 2px solid black;
+        padding: 1ex;
+        margin: 1ex;
+      }
+      span.foot_label {
+        vertical-align: super;
+        font-size: smaller;
+        font-weight: bold;
+        text-decoration: underline;
+      }
+      div.foot {
+        display: inline;
+        font-size: small;
+        font-weight: medium;
+        font-family: serif;
+        font-variant: normal;
+        font-style: normal;
+      }
+      div.foot_inner {
+        display: none;
+      }
+      div.foot:hover div.foot_inner {
+        display: block;
+        border: 1px double black;
+        margin: 0em 1em;
+        padding: 1em;
+      }
+      div.Boxed {
+        border: solid thick black;
+        padding: 0.5ex;
+      }
+    </style>
   </head>
   <body dir="auto">
     <h1 class="title">
-      <a id="magicparlabel-1"/>
-      <b>Ngspice Users Manual
-<br/>
+      <a id="magicparlabel-1" />
+      <b
+        >Ngspice Users Manual
+        <br />
 
-Version 27
-<br/>
+        Version 27
+        <br />
 
-(Describes ngspice-27 release version)</b>
+        (Describes ngspice-27 release version)</b
+      >
     </h1>
-    <div class="author"><a id="magicparlabel-2"/>Holger Vogt, Marcel Hendrix, Paolo Nenzi</div>
+    <div class="author"><a id="magicparlabel-2" />Holger Vogt, Marcel Hendrix, Paolo Nenzi</div>
     <div class="standard">
-      <a id="magicparlabel-3"/>
-      <br/>
+      <a id="magicparlabel-3" />
+      <br />
     </div>
-    <h2 class="section_"><a id="magicparlabel-4"/>Locations</h2>
-    <div class="standard"><a id="magicparlabel-5"/>The project and download pages of ngspice may be found at</div>
-    <div class="standard"><a id="magicparlabel-6"/>Ngspice home page <a href="http://ngspice.sourceforge.net/">http://ngspice.sourceforge.net/</a></div>
-    <div class="standard"><a id="magicparlabel-7"/>Project page at sourceforge <a href="http://sourceforge.net/projects/ngspice/">http://sourceforge.net/projects/ngspice/</a></div>
+    <h2 class="section_"><a id="magicparlabel-4" />Locations</h2>
+    <div class="standard"><a id="magicparlabel-5" />The project and download pages of ngspice may be found at</div>
+    <div class="standard"><a id="magicparlabel-6" />Ngspice home page <a href="http://ngspice.sourceforge.net/">http://ngspice.sourceforge.net/</a></div>
+    <div class="standard"><a id="magicparlabel-7" />Project page at sourceforge <a href="http://sourceforge.net/projects/ngspice/">http://sourceforge.net/projects/ngspice/</a></div>
   </body>
 </html>
