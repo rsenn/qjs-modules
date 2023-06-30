@@ -433,29 +433,34 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
         break;
       }
+
       case SOCKADDR_ADDR: {
         if(a->family != AF_UNIX) {
           const char* str = JS_ToCString(ctx, value);
           inet_pton(a->family, str, sockaddr_addr(a));
           JS_FreeCString(ctx, str);
         }
+
         break;
       }
+
       case SOCKADDR_PORT: {
         if(a->family != AF_UNIX) {
           uint32_t port;
+
           JS_ToUint32(ctx, &port, value);
-          switch(a->family) {
-            case AF_INET: a->sai.sin_port = htons(port); break;
-            case AF_INET6: a->sai6.sin6_port = htons(port); break;
-          }
+
+          sockaddr_setport(a, port);
         }
+
         break;
       }
       case SOCKADDR_PATH: {
         if(a->family == AF_UNIX) {
           const char* str = JS_ToCString(ctx, value);
+         
           strncpy(a->sau.sun_path, str, sizeof(a->sau.sun_path));
+         
           JS_FreeCString(ctx, str);
         }
         break;
