@@ -8,7 +8,8 @@
 
 #define BUFFER_SIZE 1024 * 1024 * 5
 #define DIRENT(d) ((find_data_type*)&(d)->fdw)
-#ifdef _UCRT
+
+#ifdef FIND_A
 typedef WIN32_FIND_DATA find_data_type;
 #else
 typedef struct _wfinddata64_t find_data_type;
@@ -17,7 +18,10 @@ typedef struct _wfinddata64_t find_data_type;
 #endif
 
 struct getdents_reader {
+	union {
   HANDLE h;
+  intptr_t hint;
+	};
   BOOL first;
   find_data_type fdw;
 };
@@ -41,14 +45,14 @@ getdents_handle(Directory* d) {
 int
 getdents_open(Directory* d, const char* path) {
   /*size_t pathlen = utf8_strlen(path, strlen(path));*/
-#ifdef _UCRT
+#ifdef FIND_A
   if((d->h = FindFirstFile(path, &d->fdw)) != INVALID_HANDLE_VALUE)
     d->first = TRUE;
 #else
   wchar_t* wp = utf8_towcs(path);
   assert(wp);
 
-  if((d->h = _wfindfirst64(wp, &d->fdw)) != INVALID_HANDLE_VALUE)
+  if((HANDLE)(d->hint = _wfindfirst64(wp, &d->fdw)) != INVALID_HANDLE_VALUE)
     d->first = TRUE;
 
   free(wp);
@@ -60,7 +64,7 @@ int
 getdents_adopt(Directory* d, intptr_t hnd) {
   if((HANDLE)hnd == INVALID_HANDLE_VALUE)
     return -1;
-  d->h = (HANDLE)hnd;
+  d->hint = hnd;
   return 0;
 }
 
@@ -69,10 +73,10 @@ getdents_read(Directory* d) {
   if(d->first)
     d->first = FALSE;
   else if(!
-#ifdef _UCRT
+#ifdef FIND_A
           FindNextFile(d->h, &d->fdw)
 #else
-          _wfindnext64(d->h, &d->fdw)
+          _wfindnext64(d->hint, &d->fdw)
 #endif
   )
     return 0;
