@@ -25,8 +25,8 @@ struct getdents_reader {
 };
 
 #ifdef FIND_A
-#define findnext FindNextFile  
-#define h  h_ptr
+#define findnext FindNextFile
+#define h h_ptr
 #else
 
 #define cFileName name
