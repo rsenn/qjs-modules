@@ -501,9 +501,9 @@ endif(HAVE_INET_PTON)
 if(HAVE_INET_NTOP)
   list(REMOVE_ITEM LIBRARY_SOURCES src/inet_ntop.c)
 endif(HAVE_INET_NTOP)
-if(HAVE_MMAP)
+if(NOT mmap_SOURCES)
   list(REMOVE_ITEM LIBRARY_SOURCES src/mmap-win32.c)
-endif(HAVE_MMAP)
+endif(NOT mmap_SOURCES)
 
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
