@@ -24,10 +24,13 @@ struct getdents_reader {
   find_data_type fdw;
 };
 
-#ifndef FIND_A
+#ifdef FIND_A
+#define findnext FindNextFile  
+#else
+
 #define cFileName name
 #define dwFileAttributes attrib
-#define FindNextFile _wfindnext64
+#define findnext _wfindnext64
 #define h_ptr h_int
 #endif
 
@@ -77,7 +80,7 @@ DirEntry*
 getdents_read(Directory* d) {
   if(d->first)
     d->first = FALSE;
-  else if(!FindNextFile(d->h_ptr, &d->fdw))
+  else if(!findnext(d->h_ptr, &d->fdw))
     return 0;
 
   return (DirEntry*)&d->fdw;
@@ -96,7 +99,7 @@ getdents_namebuf(const DirEntry* e, size_t* len) {
 
   if(len)
     *len = wcslen(s);
-  
+
   return (const uint8_t*)s;
 }
 
