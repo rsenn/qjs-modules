@@ -31,9 +31,7 @@ macro(find_quickjs)
 
   set(QUICKJS_INSTALL_PREFIX "${QUICKJS_INSTALL_DIR}" CACHE PATH "QuickJS installation prefix")
 
-  #dump(QUICKJS_INSTALL_PREFIX)
 
-  # set(CMAKE_INSTALL_PREFIX "${QUICKJS_PREFIX}" CACHE PATH "Install directory")
 
   if(CACHE{CMAKE_BUILD_TYPE})
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
@@ -141,12 +139,10 @@ macro(find_quickjs)
   check_include_file(quickjs-config.h HAVE_QUICKJS_CONFIG_H)
 
   if(HAVE_QUICKJS_CONFIG_H)
-     #dump(HAVE_QUICKJS_CONFIG_H)
     add_definitions(-DHAVE_QUICKJS_CONFIG_H=1)
   endif(HAVE_QUICKJS_CONFIG_H)
 
   if(NOT HAVE_QUICKJS_H)
-    #message(FATAL_ERROR "QuickJS headers not found in ${QUICKJS_INCLUDE_DIR}")
   endif(NOT HAVE_QUICKJS_H)
 
   include_directories(${QUICKJS_INCLUDE_DIR})
@@ -184,8 +180,6 @@ macro(configure_quickjs)
   set(QUICKJS_C_MODULE_DIR "${QUICKJS_C_MODULE_DIR}" CACHE PATH "QuickJS native C modules directory")
   set(QUICKJS_JS_MODULE_DIR "${QUICKJS_JS_MODULE_DIR}" CACHE PATH "QuickJS JavaScript modules directory")
 
-  #variable_watch(QUICKJS_C_MODULE_DIR configure_quickjs_module_path)
-  #variable_watch(QUICKJS_JS_MODULE_DIR configure_quickjs_module_path)
 
   if(NOT QUICKJS_CONFIGURATION_SHOWN)
     message(STATUS "QuickJS configuration")
