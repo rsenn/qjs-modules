@@ -893,7 +893,7 @@ js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj) {
 }
 
 JSAtom*
-js_object_keys(JSContext* ctx, JSValueConst obj, int flags) {
+js_object_keys(JSContext* ctx, size_t* lenptr, JSValueConst obj, int flags) {
   Vector vec = VECTOR_INIT();
   JSValue proto = JS_DupValue(ctx, obj);
 
@@ -917,7 +917,16 @@ js_object_keys(JSContext* ctx, JSValueConst obj, int flags) {
     proto = tmp;
   }
 
-  return vector_begin(&vec);
+  size_t size = vector_size(&vec, sizeof(JSAtom));
+  if(lenptr)
+    *lenptr = size;
+
+  JSAtom* ret;
+
+  if((ret = vector_begin(&vec)))
+    ret = js_realloc(ctx, ret, size * sizeof(JSAtom));
+
+  return ret;
 }
 
 BOOL
