@@ -30,10 +30,24 @@ typedef int SOCKET;
  * @{
  */
 
-extern const uint32_t qjsm_fd_set_size;
+#define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), js_socket_error(ctx, *(sock)))
+
+#define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), on_fail)
+
+#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail) \
+  do { \
+    syscall_return((sock), (syscall_no), (result)); \
+    ret = (sock)->ret < 0 ? (on_fail) : (on_success); \
+  } while(0)
+
+VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_async_socket_class_id = 0;
+VISIBLE JSValue sockaddr_proto = {{0}, JS_TAG_UNDEFINED}, sockaddr_ctor = {{0}, JS_TAG_UNDEFINED}, socket_proto = {{0}, JS_TAG_UNDEFINED}, async_socket_proto = {{0}, JS_TAG_UNDEFINED},
+                socket_ctor = {{0}, JS_TAG_UNDEFINED}, async_socket_ctor = {{0}, JS_TAG_UNDEFINED};
+
+/*extern const uint32_t qjsm_fd_set_size;
 extern const uint8_t qjsm_fd_set[1030];
 extern const uint32_t qjsm_socklen_t_size;
-extern const uint8_t qjsm_socklen_t[1030];
+extern const uint8_t qjsm_socklen_t[1030];*/
 
 static int js_sockets_init(JSContext*, JSModuleDef*);
 static JSValue js_async_socket_method(JSContext*, JSValueConst, int, JSValueConst[], int);
@@ -91,20 +105,6 @@ socket_nonblocking(Socket sock) {
   return flags >= 0 && (flags & O_NONBLOCK);
 #endif
 }
-
-#define JS_SOCKETCALL(syscall_no, sock, result) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), js_socket_error(ctx, *(sock)))
-
-#define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), on_fail)
-
-#define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail) \
-  do { \
-    syscall_return((sock), (syscall_no), (result)); \
-    ret = (sock)->ret < 0 ? (on_fail) : (on_success); \
-  } while(0)
-
-VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_async_socket_class_id = 0;
-VISIBLE JSValue sockaddr_proto = {{0}, JS_TAG_UNDEFINED}, sockaddr_ctor = {{0}, JS_TAG_UNDEFINED}, socket_proto = {{0}, JS_TAG_UNDEFINED}, async_socket_proto = {{0}, JS_TAG_UNDEFINED},
-                socket_ctor = {{0}, JS_TAG_UNDEFINED}, async_socket_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static const char* socket_syscalls[] = {
     0,
@@ -2321,16 +2321,6 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_async_socket_class_id, async_socket_proto);
 
   JS_SetConstructor(ctx, async_socket_ctor, async_socket_proto);
-
-  // js_set_inspect_method(ctx, async_socket_proto, js_socket_inspect);
-
-  /*fdset_module = js_eval_binary(ctx, qjsm_fd_set, qjsm_fd_set_size, FALSE);
-  fdset_ns = js_module_ns(ctx, fdset_module);
-  fdset_ctor = js_module_func(ctx, fdset_module);
-
-  socklen_module = js_eval_binary(ctx, qjsm_socklen_t, qjsm_socklen_t_size, FALSE);
-  socklen_ns = js_module_ns(ctx, socklen_module);
-  socklen_ctor = js_module_func(ctx, socklen_module);*/
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SockAddr", sockaddr_ctor);
