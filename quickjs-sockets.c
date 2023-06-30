@@ -16,6 +16,7 @@ typedef int SOCKET;
 #define socket_handle(sock) socket_fd(sock)
 #include <sys/select.h>
 #include <sys/syscall.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <poll.h>
 #include <unistd.h>
@@ -234,7 +235,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
             u32[1] = 0;
             u32[2] = 0;
             u32[3] = 0;
-          } else if(IN_LOOPBACK(in.s_addr)) {
+          } else if(ntohl(in.s_addr) == INADDR_LOOPBACK) {
             u32[0] = 0;
             u32[1] = 0;
             u32[2] = 0;
