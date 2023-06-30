@@ -229,7 +229,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
 
         if(inet_pton(AF_INET, str, &in)) {
 struct in6_addr* in6p = & a->sai6.sin6_addr;
-          uint32_t* u32 = in6p->s6_addr32;
+          //uint32_t* u32 = in6p->s6_addr32;
 
           if(in.s_addr == 0) {
             *in6p = (struct in6_addr)IN6ADDR_ANY_INIT;
@@ -244,10 +244,10 @@ struct in6_addr* in6p = & a->sai6.sin6_addr;
             u32[2] = 0;
             u32[3] = htonl(1);*/
           } else {
-            u32[0] = 0;
-            u32[1] = 0;
-            u32[2] = htonl(0xffff);
-            u32[3] = in.s_addr;
+            in6p->s6_addr32[0] = 0;
+            in6p->s6_addr32[1] = 0;
+            in6p->s6_addr32[2] = htonl(0xffff);
+            in6p->s6_addr32[3] = in.s_addr;
           }
         }
       }
