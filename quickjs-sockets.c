@@ -3,9 +3,7 @@
 #include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "buffer-utils.h"
-#include <fcntl.h>
-#include <assert.h>
-#include <errno.h>
+#include "debug.h"
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
 int socketpair(int, int, int, SOCKET[2]);
@@ -22,9 +20,9 @@ typedef int SOCKET;
 #include <unistd.h>
 #endif
 
-#include "debug.h"
-
-/*static_assert(sizeof(Socket) <= sizeof(void*));*/
+#include <fcntl.h>
+#include <assert.h>
+#include <errno.h>
 
 /**
  * \addtogroup quickjs-sockets
@@ -2470,7 +2468,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_sockaddr_class_id, sockaddr_proto);
   JS_SetConstructor(ctx, sockaddr_ctor, sockaddr_proto);
 
-  // js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);
+ js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);
 
   JS_NewClassID(&js_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_socket_class_id, &js_socket_class);
@@ -2486,7 +2484,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_socket_class_id, socket_proto);
   JS_SetConstructor(ctx, socket_ctor, socket_proto);
 
-  // js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
+   js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
   JS_NewClassID(&js_async_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_async_socket_class_id, &js_async_socket_class);
