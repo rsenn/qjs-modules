@@ -28,9 +28,9 @@ Blob* blob_new(JSContext*, const void* x, size_t len, const char* type);
 ssize_t blob_write(JSContext*, Blob* blob, const void* x, size_t len);
 void blob_free(JSRuntime*, Blob* blob);
 InputBuffer blob_input(JSContext*, Blob* blob);
-JSValue js_blob_wrap(JSContext*, Blob* blob);
-JSValue js_blob_new(JSContext*, const void* x, size_t len, const char* type);
-int js_blob_init(JSContext*, JSModuleDef* m);
+
+VISIBLE JSValue js_blob_wrap(JSContext*, Blob* blob);
+VISIBLE JSValue js_blob_new(JSContext*, const void* x, size_t len, const char* type);
 
 static inline void*
 blob_data(Blob* blob) {

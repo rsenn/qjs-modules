@@ -2,7 +2,7 @@ import * as os from 'os';
 import * as std from 'std';
 import { Console } from 'console';
 import { Blob } from 'blob';
-import * as misc from 'misc';
+import { toArrayBuffer, escape } from 'misc';
 
 ('use strict');
 ('use math');
@@ -25,9 +25,9 @@ function main(...args) {
     [
       '<html></html>',
       new Uint8Array([0xa]),
-      new Uint8Array(misc.toArrayBuffer('BLAH blah BLAH'), 5, 4),
+      new Uint8Array(toArrayBuffer('BLAH blah BLAH'), 5, 4),
       //childBlob,
-      new DataView(misc.toArrayBuffer('TEST test TEST'), 5, 4)
+      new DataView(toArrayBuffer('TEST test TEST'), 5, 4)
     ],
     { type: 'text/html', endings: 'transparent' }
   );
@@ -43,11 +43,12 @@ function main(...args) {
   let sl = blob.slice(1, 14, 'text/plain');
   console.log('blob.slice(1)', sl);
   console.log('sl.arrayBuffer()', sl.arrayBuffer());
-  console.log('sl.text()', misc.escape(sl.text()));
+  console.log('sl.text()', escape(sl.text()));
   let blobs = [];
   for(let i = 0; i < 4; i++) {
-    sl = blobs[i] = new Blob([sl, misc.toArrayBuffer(`line #${i}\n`)]);
-    console.log(`sl[${i}]`, misc.escape(sl.text()));
+    sl = blobs[i] = new Blob([sl, toArrayBuffer(`line #${i}\n`)]);
+
+    console.log(`sl[${i}]`, escape(sl.text()));
   }
 }
 
