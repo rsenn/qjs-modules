@@ -1265,6 +1265,50 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return ret;
 }
 
+#ifdef _WIN32
+enum {
+  SET_CONSOLE_MODE,
+  GET_CONSOLE_MODE,
+};
+
+static JSValue
+js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  int32_t fd = 1;
+  uint32_t attr = 0;
+  JSValue ret = JS_UNDEFINED;
+  HANDLE h;
+
+  if(argc >= 1)
+    JS_ToInt32(ctx, &fd, argv[0]);
+
+  if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
+    return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
+
+  switch(magic) {
+    case SET_CONSOLE_MODE: {
+      uint32_t mode = 0;
+      JS_ToUint32(ctx, &mode, argv[1]);
+
+      if(!SetConsoleMode(h, mode))
+        ret = JS_ThrowInternalError(ctx, "GetConsoleMode failed");
+
+      break;
+    }
+    case GET_CONSOLE_MODE: {
+      DWORD mode = 0;
+      if(!GetConsoleMode(h, &mode))
+        ret = JS_ThrowInternalError(ctx, "GetConsoleMode failed");
+      else
+        ret = JS_NewUint32(ctx, mode);
+
+      break;
+    }
+  }
+
+  return ret;
+}
+#endif
+
 static JSValue
 js_misc_btoa(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
@@ -2850,6 +2894,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("setCursorPosition", 1, js_misc_cursorposition, SET_CURSOR_POSITION),
     JS_CFUNC_MAGIC_DEF("moveCursor", 1, js_misc_cursorposition, MOVE_CURSOR),
     JS_CFUNC_DEF("setTextAttribute", 2, js_misc_settextattr),
+#if defined(_WIN32)
+    JS_CFUNC_MAGIC_DEF("setConsoleMode", 2, js_misc_consolemode, SET_CONSOLE_MODE),
+    JS_CFUNC_MAGIC_DEF("getConsoleMode", 1, js_misc_consolemode, GET_CONSOLE_MODE),
+#endif
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
     JS_CFUNC_DEF("atob", 1, js_misc_atob),
     JS_CFUNC_MAGIC_DEF("not", 1, js_misc_bitop, BITOP_NOT),
