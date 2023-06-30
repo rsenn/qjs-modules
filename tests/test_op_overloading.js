@@ -292,7 +292,6 @@ function test_default_op() {
 function main() {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 5,
       maxArrayLength: 10,
       compact: 1,

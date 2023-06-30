@@ -18,7 +18,6 @@ function WriteFile(file, data) {
 }
 
 const inspectOptions = {
-  colors: true,
   showHidden: false,
   customInspect: true,
   showProxy: false,
@@ -76,8 +75,7 @@ function main(...args) {
   console.log('pred2:', pred2);
   console.log('obj3:', obj3);
 
-  for(let [n, p] of deep.iterate(obj3, () => true /*Predicate.property('4')*/, deep.RETURN_VALUE_PATH))
-    console.log(`deep.iterate()`, { n, p });
+  for(let [n, p] of deep.iterate(obj3, () => true /*Predicate.property('4')*/, deep.RETURN_VALUE_PATH)) console.log(`deep.iterate()`, { n, p });
 
   console.log('select():', deep.select(obj3, pred, deep.RETURN_VALUE_PATH));
   console.log(

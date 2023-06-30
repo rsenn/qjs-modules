@@ -56,7 +56,6 @@ function ReadChild(...args) {
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions_: {
-      colors: true,
       maxArrayLength: 10,
       maxStringLength: 200,
       compact: 2

@@ -17,7 +17,6 @@ function WriteFile(file, data) {
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 2,
       maxArrayLength: 4,
       maxStringLength: 60,
@@ -65,7 +64,7 @@ function main(...args) {
       if(typeof node == 'object') {
         console.log(
           'object:',
-          inspect(node, { depth: 0, colors: true }) ||
+          inspect(node, { depth: 0 }) ||
             Object.getOwnPropertyNames(node)
               .filter(n => typeof node[n] != 'object')
               .reduce((acc, name) => ({ ...acc, [name]: node[name] }), {})

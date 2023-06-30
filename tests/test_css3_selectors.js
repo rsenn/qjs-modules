@@ -11,7 +11,6 @@ function main(...args) {
     stdout: process.stdout,
     stderr: process.stderr,
     inspectOptions: {
-      colors: true,
       depth: Infinity,
       compact: false
     }

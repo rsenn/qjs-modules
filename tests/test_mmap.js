@@ -7,7 +7,6 @@ import { mmap, munmap, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_SHARED, MAP_ANONY
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 5,
       maxArrayLength: 10,
       compact: 1,

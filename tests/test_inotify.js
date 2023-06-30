@@ -45,7 +45,6 @@ function flags2names(obj, num) {
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 8,
       maxStringLength: Infinity,
       maxArrayLength: 256,

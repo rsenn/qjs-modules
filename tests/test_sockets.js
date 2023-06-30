@@ -11,7 +11,6 @@ import fs from 'fs';
 function main() {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 4,
       breakLength: 80,
       maxArrayLength: 100,
@@ -73,7 +72,7 @@ function main() {
   function DumpSock(s) {
     let { fd, ret, errno, syscall, error, open, eof, mode } = s;
 
-    return [inspect({ fd, ret, errno, syscall, error, open, eof }, { colors: true })];
+    return [inspect({ fd, ret, errno, syscall, error, open, eof }, { })];
   }
 
   /*  function ioFlags(flags = 0) {

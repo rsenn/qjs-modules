@@ -27,7 +27,7 @@ async function main(...args) {
   //console.log('main:', args);
 
   globalThis.console = new Console({
-    inspectOptions: { colors: true, depth: 1, compact: Infinity }
+    inspectOptions: { depth: 1, compact: Infinity }
   });
 
   let winsz;
@@ -40,7 +40,6 @@ async function main(...args) {
   //console.log('winsz:', winsz);
 
   const options = {
-    colors: true,
     showHidden: false,
     customInspect: true,
     showProxy: false,

@@ -20,7 +20,6 @@ function WriteFile(file, data) {
 function main(...args) {
   globalThis.console = new Console(process.stdout, {
     inspectOptions: {
-      colors: true,
       depth: 10,
       //stringBreakNewline: false,
       maxArrayLength: Infinity,

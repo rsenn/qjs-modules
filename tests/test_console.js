@@ -7,7 +7,6 @@ import Console from 'console';
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       showHidden: false,
       showProxy: false,
       stringBreakNewline: true,

@@ -23,7 +23,6 @@ function Func4() {
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 8,
       breakLength: 100,
       maxStringLength: Infinity,

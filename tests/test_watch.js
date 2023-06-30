@@ -43,7 +43,6 @@ function eventName(n) {
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       compact: 1
     }
   });

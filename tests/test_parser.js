@@ -82,7 +82,6 @@ function* MatchAll(regexp, str) {
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 2,
       maxArrayLength: Infinity,
       maxStringLength: Infinity,

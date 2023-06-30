@@ -30,7 +30,6 @@ function StartREPL() {
 function main(...args) {
   globalThis.console = new Console(process.stdout, {
     inspectOptions: {
-      colors: true,
       depth: 10,
       stringBreakNewline: false,
       maxArrayLength: 10000,

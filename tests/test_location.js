@@ -9,7 +9,6 @@ import { Location } from 'location';
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 8,
       maxStringLength: Infinity,
       maxArrayLength: 256,

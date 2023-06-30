@@ -38,7 +38,6 @@ async function waitFor(msecs) {
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 4,
       breakLength: 80,
       maxArrayLength: 100,

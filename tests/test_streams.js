@@ -8,7 +8,6 @@ import { TextEncoderStream } from '../lib/streams.js';
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 8,
       maxStringLength: Infinity,
       maxArrayLength: 256,

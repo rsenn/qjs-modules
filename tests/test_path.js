@@ -29,7 +29,6 @@ function CallPathFunction(name, ...args) {
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 5,
       _stringBreakNewline: false,
       maxArrayLength: 10,

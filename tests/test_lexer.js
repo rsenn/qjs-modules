@@ -205,7 +205,6 @@ function PrintCJSImport({ type, local, file }) {
 function main(...args) {
   globalThis.console = new Console(process.stderr, {
     inspectOptions: {
-      colors: true,
       depth: 8,
       breakLength: 160,
       maxStringLength: Infinity,

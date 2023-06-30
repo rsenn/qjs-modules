@@ -9,7 +9,6 @@ import { Repeater } from 'repeater';
 async function main(...args) {
   globalThis.console = new Console(std.err, {
     inspectOptions: {
-      colors: true,
       depth: 8,
       maxStringLength: Infinity,
       maxArrayLength: 256,

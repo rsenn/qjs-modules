@@ -19,7 +19,6 @@ function WriteFile(file, data) {
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      colors: true,
       depth: 1,
       maxArrayLength: 10,
       maxStringLength: 100,
