@@ -159,7 +159,7 @@ child_process_spawn(ChildProcess* cp) {
     free(env);
 
   if(!success) {
-    fprintf(stderr, "CreateProcessA error: %d\n", GetLastError());
+    fprintf(stderr, "CreateProcessA error: %ld\n", (long int)GetLastError());
     pid = -1;
   } else {
     pid = pinfo.dwProcessId;
