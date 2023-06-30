@@ -10,7 +10,7 @@
  * \defgroup predicate Predicate function object
  * @{
  */
-enum predicate_id {
+enum PredicateId {
   // PREDICATE_NONE = -1,
   PREDICATE_TYPE = 0,
   PREDICATE_CHARSET,
@@ -111,7 +111,7 @@ typedef struct {
 } FunctionPredicate;
 
 typedef struct Predicate {
-  enum predicate_id id;
+  enum PredicateId id;
   union {
     TypePredicate type;
     CharsetPredicate charset;
@@ -139,7 +139,7 @@ static const size_t CAPTURE_COUNT_MAX = 255;
 
 BOOL predicate_is(JSValueConst);
 BOOL predicate_callable(JSContext*, JSValueConst);
-enum predicate_id predicate_id(JSValue);
+VISIBLE enum PredicateId predicate_id(JSValue);
 JSValue predicate_eval(Predicate*, JSContext* ctx, JSArguments* args);
 JSValue predicate_call(JSContext*, JSValue value, int argc, JSValue argv[]);
 JSValue predicate_value(JSContext*, JSValue value, JSArguments* args);

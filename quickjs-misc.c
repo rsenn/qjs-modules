@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #ifdef _WIN32
 #include <process.h>
 #include <windows.h>
