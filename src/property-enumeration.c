@@ -22,10 +22,7 @@ property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst 
   // assert(it->tab_atom_len);
 
   if(flags & PROPENUM_SORT_ATOMS)
-    qsort(it->tab_atom,
-          it->tab_atom_len,
-          sizeof(JSPropertyEnum),
-          (int (*)(const void*, const void*)) & compare_jspropertyenum);
+    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSPropertyEnum), (int (*)(const void*, const void*)) & compare_jspropertyenum);
 
   it->idx = 0;
   it->obj = object;
@@ -193,11 +190,8 @@ property_recursion_path(const Vector* vec, JSContext* ctx) {
     JS_SetPropertyUint32(ctx, ret, i++, key);
   }
 
-  JS_DefinePropertyValueStr(ctx,
-                            ret,
-                            "toString",
-                            JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0),
-                            JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValueStr(
+      ctx, ret, "toString", JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
 
   return ret;
 }

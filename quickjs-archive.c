@@ -11,10 +11,10 @@
  */
 
 thread_local VISIBLE JSClassID js_archive_class_id = 0;
-thread_local JSValue archive_proto = {{0},JS_TAG_UNDEFINED}, archive_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue archive_proto = {{0}, JS_TAG_UNDEFINED}, archive_ctor = {{0}, JS_TAG_UNDEFINED};
 
 thread_local VISIBLE JSClassID js_archiveentry_class_id = 0;
-thread_local JSValue archiveentry_proto = {{0},JS_TAG_UNDEFINED}, archiveentry_ctor = {{0},JS_TAG_UNDEFINED};
+thread_local JSValue archiveentry_proto = {{0}, JS_TAG_UNDEFINED}, archiveentry_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   ARCHIVE_METHOD_READ,
@@ -1233,8 +1233,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_archive_init))) {
-  JS_AddModuleExport(ctx, m, "Archive");
-}
+    JS_AddModuleExport(ctx, m, "Archive");
+  }
 
   return m;
 }
