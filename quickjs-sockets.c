@@ -426,23 +426,26 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
           memset(a, 0, sizeof(SockAddr));
           a->family = newf;
 
-          uint32_t* inaddr = sockaddr_addr(a);
+          uint32_t* inaddr;
 
-          if(old.family == AF_INET6 && newf == AF_INET) {
-            uint32_t* addr6 = sockaddr_addr(&old);
+          if((inaddr = sockaddr_addr(a))) {
 
-            if((IN6_IS_ADDR_V4MAPPED(addr6) || IN6_IS_ADDR_V4COMPAT(addr6)))
-              *inaddr = addr6[3];
-            else if(IN6_IS_ADDR_LOOPBACK(addr6))
-              *inaddr = htons(INADDR_LOOPBACK);
-            else if(IN6_IS_ADDR_UNSPECIFIED(addr6))
-              *inaddr = 0;
+            if(old.family == AF_INET6 && newf == AF_INET) {
+              uint32_t* addr6 = sockaddr_addr(&old);
 
-          } else if(old.family == AF_INET && newf == AF_INET6) {
-            inaddr[0] = 0;
-            inaddr[1] = 0;
-            inaddr[2] = htonl(0xffff);
-            inaddr[3] = *(uint32_t*)sockaddr_addr(&old);
+              if((IN6_IS_ADDR_V4MAPPED(addr6) || IN6_IS_ADDR_V4COMPAT(addr6)))
+                *inaddr = addr6[3];
+              else if(IN6_IS_ADDR_LOOPBACK(addr6))
+                *inaddr = htons(INADDR_LOOPBACK);
+              else if(IN6_IS_ADDR_UNSPECIFIED(addr6))
+                *inaddr = 0;
+
+            } else if(old.family == AF_INET && newf == AF_INET6) {
+              inaddr[0] = 0;
+              inaddr[1] = 0;
+              inaddr[2] = htonl(0xffff);
+              inaddr[3] = *(uint32_t*)sockaddr_addr(&old);
+            }
           }
 
           int port = sockaddr_port(&old);
