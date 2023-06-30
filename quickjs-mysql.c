@@ -19,7 +19,7 @@
 
 VISIBLE JSClassID js_connectparams_class_id = 0, js_mysqlerror_class_id = 0, js_mysql_class_id = 0, js_mysqlresult_class_id = 0;
 VISIBLE JSValue mysqlerror_proto = {{0}, JS_TAG_UNDEFINED}, mysqlerror_ctor = {{0}, JS_TAG_UNDEFINED}, mysql_proto = {{0}, JS_TAG_UNDEFINED}, mysql_ctor = {{0}, JS_TAG_UNDEFINED},
-                     mysqlresult_proto = {{0}, JS_TAG_UNDEFINED}, mysqlresult_ctor = {{0}, JS_TAG_UNDEFINED};
+                mysqlresult_proto = {{0}, JS_TAG_UNDEFINED}, mysqlresult_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 
@@ -2057,10 +2057,10 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_mysql_init))) {
-  JS_AddModuleExport(ctx, m, "MySQL");
-  JS_AddModuleExport(ctx, m, "MySQLError");
-  JS_AddModuleExport(ctx, m, "MySQLResult");
-}
+    JS_AddModuleExport(ctx, m, "MySQL");
+    JS_AddModuleExport(ctx, m, "MySQLError");
+    JS_AddModuleExport(ctx, m, "MySQLResult");
+  }
 
   return m;
 }
