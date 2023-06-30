@@ -117,10 +117,10 @@ sockaddr_port(const SockAddr* sa) {
 }
 
 static inline BOOL
-sockaddr_setport(  SockAddr* sa, uint16_t port) {
+sockaddr_setport(SockAddr* sa, uint16_t port) {
   switch(sa->family) {
-    case AF_INET: sa->sai.sin_port = htons(port);  return TRUE;
-    case AF_INET6:  sa->sai6.sin6_port = htons(port);  return TRUE;
+    case AF_INET: sa->sai.sin_port = htons(port); return TRUE;
+    case AF_INET6: sa->sai6.sin6_port = htons(port); return TRUE;
   }
   return FALSE;
 }

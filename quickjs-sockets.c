@@ -422,12 +422,13 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
         JS_ToInt32(ctx, &af, value);
 
         if(a->family != af) {
-          uint16_t port = sockaddr_port(a);
+          int port = sockaddr_port(a);
 
           memset(a, 0, sizeof(SockAddr));
           a->family = af;
-          
-          sockaddr_setport(a, port);
+
+          if(port != -1)
+            sockaddr_setport(a, port);
         }
 
         break;
