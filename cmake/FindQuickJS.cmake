@@ -129,7 +129,6 @@ macro(find_quickjs)
       include(FindPkgConfig)
     endif(NOT PKG_CONFIG_FOUND)
     pkg_search_module(QUICKJS REQUIRED quickjs)
-    message(STATUS "QUICKJS_LIBRARY: ${QUICKJS_LIBRARY} ")
   endif(NOT QUICKJS_LIBRARY)
 
   if(NOT QUICKJS_INCLUDE_DIRS)

@@ -115,18 +115,11 @@ check_functions_def(access fnmatch inet_pton daemon)
 
 message("Have daemon() ${HAVE_DAEMON}")
 
-message("CMAKE_REQUIRED_INCLUDES: ${CMAKE_REQUIRED_INCLUDES}")
-message("CMAKE_INCLUDE_PATH: ${CMAKE_INCLUDE_PATH}")
-message("CMAKE_SYSTEM_INCLUDE_PATH: ${CMAKE_SYSTEM_INCLUDE_PATH}")
-
 check_include_file(fnmatch.h HAVE_FNMATCH_H_2)
 #check_include_def(fnmatch.h)
 
-message("HAVE_FNMATCH_H_2: ${HAVE_FNMATCH_H_2}")
-
 check_function_and_include(fcntl fcntl.h)
 check_function_and_include(fnmatch fnmatch.h)
-message("HAVE_FNMATCH_H: ${HAVE_FNMATCH_H}")
 
 check_function_and_include(glob glob.h)
 check_function_and_include(wordexp wordexp.h)
@@ -237,8 +230,6 @@ if(USE_MARIADBCLIENT)
       set(LIBMARIADB_LIBRARY mariadb CACHE STRING "MariaDB client library")
     endif(HAVE_LIBMARIADB)
   endif(pkgcfg_lib_MARIADB_mariadb)
-
-  message("LIBMARIADB_LIBRARY = ${LIBMARIADB_LIBRARY}")
 
   if(LIBMARIADB_LIBRARY)
     list(APPEND QUICKJS_MODULES mysql)
