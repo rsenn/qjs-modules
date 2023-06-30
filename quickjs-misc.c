@@ -1177,18 +1177,20 @@ js_misc_screensize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   return ret;
 }
 
+enum {
+  ERASE_IN_DISPLAY,
+  ERASE_IN_LINE,
+};
+
 static JSValue
-js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1, mode = 0;
-  BOOL line = FALSE;
   JSValue ret = JS_UNDEFINED;
 
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
   if(argc >= 2)
     JS_ToInt32(ctx, &mode, argv[1]);
-  if(argc >= 3)
-    line = JS_ToBool(ctx, argv[2]);
 
 #ifdef _WIN32
   HANDLE h;
@@ -1196,9 +1198,9 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(INVALID_HANDLE_VALUE == (h = _get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
-  ret = JS_NewBool(ctx, clear_screen(h, mode, line));
+  ret = JS_NewBool(ctx, clear_screen(h, mode, magic == ERASE_IN_LINE));
 #else
-  ret = JS_NewBool(ctx, clear_screen(fd, mode, line));
+  ret = JS_NewBool(ctx, clear_screen(fd, mode, magic == ERASE_IN_LINE));
 #endif
 
   return ret;
@@ -2838,7 +2840,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #if defined(HAVE_TERMIOS_H) || defined(_WIN32)
     JS_CFUNC_DEF("getScreenSize", 0, js_misc_screensize),
 #endif
-    JS_CFUNC_DEF("clearScreen", 1, js_misc_clearscreen),
+    JS_CFUNC_MAGIC_DEF("clearScreen", 1, js_misc_clearscreen, ERASE_IN_DISPLAY),
+    JS_CFUNC_MAGIC_DEF("clearLine", 1, js_misc_clearscreen, ERASE_IN_LINE),
     JS_CFUNC_MAGIC_DEF("setCursorPosition", 1, js_misc_cursorposition, SET_CURSOR_POSITION),
     JS_CFUNC_MAGIC_DEF("moveCursor", 1, js_misc_cursorposition, MOVE_CURSOR),
     JS_CFUNC_DEF("setTextAttribute", 2, js_misc_settextattr),
