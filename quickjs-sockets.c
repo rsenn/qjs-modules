@@ -326,16 +326,20 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     }
 
     case SOCKADDR_METHOD_TOSTRING: {
-      char port[FMT_ULONG];
-      DynBuf dbuf;
-      js_dbuf_init(ctx, &dbuf);
-      dbuf_realloc(&dbuf, INET6_ADDRSTRLEN);
-      inet_ntop(a->family, sockaddr_addr(a), (char*)dbuf.buf, INET6_ADDRSTRLEN);
-      dbuf.size = strlen((const char*)dbuf.buf);
-      dbuf_putc(&dbuf, ':');
-      dbuf_put(&dbuf, (const uint8_t*)port, fmt_ulong(port, sockaddr_port(a)));
-      ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
-      dbuf_free(&dbuf);
+      if(a->family == AF_UNIX) {
+        ret = JS_NewString(ctx, a->sau.sun_path);
+      } else {
+        char port[FMT_ULONG];
+        DynBuf dbuf;
+        js_dbuf_init(ctx, &dbuf);
+        dbuf_realloc(&dbuf, INET6_ADDRSTRLEN);
+        inet_ntop(a->family, sockaddr_addr(a), (char*)dbuf.buf, INET6_ADDRSTRLEN);
+        dbuf.size = strlen((const char*)dbuf.buf);
+        dbuf_putc(&dbuf, ':');
+        dbuf_put(&dbuf, (const uint8_t*)port, fmt_ulong(port, sockaddr_port(a)));
+        ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+        dbuf_free(&dbuf);
+      }
       break;
     }
   }
