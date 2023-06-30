@@ -17,12 +17,16 @@ function main(...args) {
     }
   });
 
-  let dir = new Directory('.');
+  if(args.length == 0) args = ['.'];
 
-  for(let [name, type] of dir) {
-    if(type == Directory.TYPE_DIR) name += '/';
+  for(let arg of args) {
+    let dir = new Directory(arg);
 
-    console.log('entry', console.config({ compact: 0 }), { name, type });
+    for(let [name, type] of dir) {
+      if(type == Directory.TYPE_DIR) name += '/';
+
+      console.log('entry', console.config({ compact: 0 }), { name, type });
+    }
   }
 }
 
