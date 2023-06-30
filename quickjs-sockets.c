@@ -426,6 +426,10 @@ js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if((port = sockaddr_port(a)))
     JS_DefinePropertyValueStr(ctx, obj, "port", JS_NewUint32(ctx, port), JS_PROP_ENUMERABLE);
 
+  JSAtom to_string_tag = js_symbol_static_atom(ctx, "toStringTag");
+  JS_DefinePropertyValue(ctx, obj, to_string_tag, JS_NewString(ctx, "SockAddr") /*JS_GetProperty(ctx, this_val, to_string_tag)*/, JS_PROP_CONFIGURABLE);
+  JS_FreeAtom(ctx, to_string_tag);
+
   return obj;
 }
 
