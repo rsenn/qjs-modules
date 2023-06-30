@@ -16,14 +16,11 @@ let T,
   code = 'c',
   debug,
   verbose,
-  sort,
-  params,
   caseSensitive,
   quiet,
   exp,
   relativeTo,
   printFiles,
-  onlyUppercase,
   filter = null,
   match = new Set(),
   identifiers;
@@ -273,7 +270,27 @@ function* GetCommands(file) {
   }
 }
 
-function ListExports(file, output) {
+function SortAndFilter(list, { sort, exclude, include, uppercase, 'case-sensitive': caseSensitive }) {
+  if(sort) list.sort(compareFn());
+
+  const flags = caseSensitive ? '' : 'i';
+
+  if(exclude) {
+    const re = new RegExp(exclude, flags);
+    list = list.filter(n => !re.test(n));
+  }
+
+  if(include) {
+    const re = new RegExp(include, flags);
+    list = list.filter(n => re.test(n));
+  }
+
+  if(uppercase) list = list.filter(name => /^[A-Z]/.test(name));
+
+  return list;
+}
+
+function ListExports(file, output, params) {
   if(printFiles) {
     std.out.puts(`${file}\n`);
     std.out.flush();
@@ -442,18 +459,7 @@ function ListExports(file, output) {
   /*log('ES6 imports', imports.map(PrintES6Import));
     log('CJS imports', imports.map(PrintCJSImport));*/
 
-  if(sort) exportNames.sort(compareFn());
-  if(params.exclude) {
-    let re = new RegExp(params.exclude, 'g');
-    exportNames = exportNames.filter(n => !re.test(n));
-  }
-  if(params.include) {
-    log('params.include', params.include);
-    let re = new RegExp(params.include, 'g');
-    exportNames = exportNames.filter(n => re.test(n));
-  }
-
-  if(onlyUppercase) exportNames = exportNames.filter(name => /^[A-Z]/.test(name));
+  exportNames = SortAndFilter(exportNames, params);
 
   let idx;
   if((idx = exportNames.indexOf(base)) != -1 && exportNames.indexOf('default') != -1) {
@@ -563,6 +569,7 @@ function main(...args) {
     ModuleExports,
     ProcessFile
   });
+
   globalThis.console = new Console(process.stderr, {
     inspectOptions: {
       colors: true,
@@ -576,8 +583,9 @@ function main(...args) {
     }
   });
 
-  let output = std.out;
-  let outputFile;
+  let output = std.out,
+    outputFile,
+    params;
 
   params = getOpt(
     {
@@ -598,25 +606,26 @@ function main(...args) {
       ],
       debug: [false, () => (debug = (debug | 0) + 1), 'x'],
       verbose: [false, () => (verbose = (verbose | 0) + 1), 'v'],
-      sort: [false, () => (sort = true), 's'],
-      include: [true, null, 'I'],
-      exclude: [true, null, 'X'],
+      sort: [false, null, 's'],
+      include: [true, (v, old) => (old ? old + '|' : '') + v, 'I'],
+      exclude: [true, (v, old) => (old ? old + '|' : '') + v, 'X'],
       'case-sensitive': [false, () => (caseSensitive = true), 'c'],
       raw: [false, null, 'R'],
       quiet: [false, () => (quiet = true), 'q'],
-      /* prettier-ignore */ 'export': [false, () => (exp = true), 'e'],
+      export: [false, () => (exp = true), 'e'],
       for: [true, null, 'f'],
       'print-files': [false, () => (printFiles = true), 'p'],
       output: [true, filename => (outputFile = filename) /* output = std.open(filename, 'w+')*/, 'o'],
       'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
-      uppercase: [false, () => (onlyUppercase = true), 'u'],
+      uppercase: [false, null, 'u'],
       interactive: [false, null, 'y'],
       '@': 'files'
     },
     args
   );
   let files = params['@'];
-  //  console.log('debug', debug);
+
+  console.log('params', params);
 
   if(outputFile) output = std.open(outputFile, 'w+');
 
@@ -651,14 +660,14 @@ function main(...args) {
     if(!/\.(js|es|mjs)$/.test(file)) {
       let keys;
       if((keys = ModuleExports(file))) {
-        if(sort) keys.sort(compareFn());
+        keys = SortAndFilter(keys, params);
 
         if(params.raw) output.puts(keys.join('\n') + '\n');
         else if(keys.length > 0) output.puts(`import { ${keys.join(', ')} } from '${file}'\n`);
         return;
       }
     }
-    ListExports(file, output);
+    ListExports(file, output, params);
   }
   /*  if(identifiers.size) {
     std.err.puts(`${identifiers.size} identifiers could not be matched:\n${[...identifiers].join('\n')}\n`);

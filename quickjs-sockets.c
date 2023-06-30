@@ -126,7 +126,9 @@ syscall_return(Socket* sock, int syscall, int retval) {
 #endif
                              : 0;
 
+#ifdef DEBUG_OUTPUT
   printf("syscall %s returned %d (%d)\n", socket_syscalls[(sock)->syscall], (sock)->ret, (sock)->error);
+#endif
 }
 
 static SockAddr*

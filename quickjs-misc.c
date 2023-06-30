@@ -3046,6 +3046,7 @@ js_misc_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
     // JS_SetModuleExport(ctx, m, "Location", location_ctor);
   }
+
   return 0;
 }
 
