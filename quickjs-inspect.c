@@ -1249,7 +1249,9 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     JSValue value = property_enumeration_value(it, ctx);
     index = property_enumeration_index(it);
 
-    printf("%s depth: %u idx: %u/%u\n", __func__, property_recursion_depth(&frames), index, it->tab_atom_len);
+#ifdef DEBUG_OUTPUT
+    printf("%s() depth: %u idx: %u/%u\n", __func__, property_recursion_depth(&frames), index, it->tab_atom_len);
+#endif
 
     if(index > 0)
       writer_puts(wr, ",");
@@ -1303,7 +1305,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     // BOOL end = index < property_enumeration_length( it ? it : property_recursion_top(&frames));
 
     while(!(it = it ? it : property_recursion_top(&frames), it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : property_enumeration_next(it)))) {
-     
+
       /* no more nested enumerations */
       it = property_recursion_pop(&frames, ctx);
 
