@@ -1274,21 +1274,25 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     if(ret != 1) {
       if(is_object) {
         it = property_recursion_enter(&frames, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
-        index = 0;
         is_array = js_is_array(ctx, value);
-        writer_putc(wr, is_array ? '[' : '{');
 
-        ++depth;
+        if(it) {
+          index = 0;
+          writer_putc(wr, is_array ? '[' : '{');
 
-        if(it == NULL)
-          writer_puts(wr, "");
-        else if(IS_COMPACT(depth + 1))
-          writer_putc(wr, ' ');
-        else
-          put_newline(wr, depth);
+          ++depth;
 
-        if(it)
+          if(it == NULL)
+            writer_puts(wr, "");
+          else if(IS_COMPACT(depth + 1))
+            writer_putc(wr, ' ');
+          else
+            put_newline(wr, depth);
+
           continue;
+        } else {
+          writer_puts(wr, is_array ? "[]" : "{}");
+        }
       }
     }
 
