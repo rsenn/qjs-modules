@@ -39,7 +39,7 @@ typedef union {
 #define SOCKET_PROPS() \
   unsigned fd : 16; \
   unsigned error : 8; \
-  unsigned syscall : 4; \
+  unsigned sysno : 4; \
   BOOL nonblock : 1, async : 1, owner : 1; \
   signed ret : 32
 
@@ -104,8 +104,8 @@ enum SocketCalls {
 };
 
 #define socket_fd(sock) ((sock).fd)
-#define socket_closed(sock) ((sock).syscall == SYSCALL_CLOSE && (sock).ret == 0)
-#define socket_eof(sock) (((sock).syscall == SYSCALL_RECV || (sock).syscall == SYSCALL_RECVFROM) && (sock).ret == 0)
+#define socket_closed(sock) ((sock).sysno == SYSCALL_CLOSE && (sock).ret == 0)
+#define socket_eof(sock) (((sock).sysno == SYSCALL_RECV || (sock).sysno == SYSCALL_RECVFROM) && (sock).ret == 0)
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
 #define socket_retval(sock) ((sock).ret)
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
@@ -113,7 +113,7 @@ enum SocketCalls {
 #else
 #define socket_error(sock) ((sock).ret < 0 ? (int)(sock).error : 0)
 #endif
-#define socket_syscall(sock) syscall_name((sock).syscall)
+#define socket_syscall(sock) syscall_name((sock).sysno)
 #define socket_adopted(sock) (!(sock).owner)
 
 static inline int

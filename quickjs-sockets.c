@@ -94,8 +94,8 @@ syscall_name(int syscall_number) {
 }
 
 static void
-syscall_return(Socket* sock, int syscall, int retval) {
-  (sock)->syscall = syscall;
+syscall_return(Socket* sock, int sysno, int retval) {
+  (sock)->sysno = sysno;
   (sock)->ret = retval;
   (sock)->error = retval < 0 ?
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
@@ -105,8 +105,8 @@ syscall_return(Socket* sock, int syscall, int retval) {
 #endif
                              : 0;
 
-#ifdef DEBUG_OUTPUT
-  printf("syscall %s returned %d (%d)\n", syscall_name((sock)->syscall), (sock)->ret, (sock)->error);
+#if 1 // def DEBUG_OUTPUT
+  printf("syscall %s returned %d (%d)\n", (sock)->sysno ? syscall_name((sock)->sysno) : "0", (sock)->ret, (sock)->error);
 #endif
 }
 
@@ -985,7 +985,7 @@ js_socket_error(JSContext* ctx, Socket sock) {
   int err;
 
   if((err = socket_error(sock))) {
-    if(!(sock.nonblock && ((sock.syscall == SYSCALL_RECV && err == EAGAIN) || (sock.syscall == SYSCALL_SEND && err == EWOULDBLOCK) || (sock.syscall == SYSCALL_CONNECT && err == EINPROGRESS))))
+    if(!(sock.nonblock && ((sock.sysno == SYSCALL_RECV && err == EAGAIN) || (sock.sysno == SYSCALL_SEND && err == EWOULDBLOCK) || (sock.sysno == SYSCALL_CONNECT && err == EINPROGRESS))))
       ret = JS_Throw(ctx, js_syscallerror_new(ctx, socket_syscall(sock), err));
   }
 
@@ -1057,13 +1057,13 @@ js_socket_syscall(JSContext* ctx, JSValueConst this_val) {
   const char* syscall;
   Socket sock = js_socket_data(this_val);
 
-  assert(sock.syscall > 0);
-  assert(sock.syscall < countof(syscall_names));
+  assert(sock.sysno > 0);
+  assert(sock.sysno < countof(syscall_names));
 
   if((syscall = socket_syscall(sock)))
     return JS_NewString(ctx, syscall);
 
-  return JS_NewInt32(ctx, sock.syscall);
+  return JS_NewInt32(ctx, sock.sysno);
 }*/
 
 enum {
@@ -1119,10 +1119,10 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_SYSCALL: {
-      if(s->syscall > 0) {
+      if(s->sysno > 0) {
         const char* name;
 
-        if((name = syscall_name(s->syscall)))
+        if((name = syscall_name(s->sysno)))
           ret = JS_NewString(ctx, name);
       }
       break;
@@ -1244,7 +1244,7 @@ js_asyncsocket_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     if(getsockopt(socket_handle(*asock), SOL_SOCKET, SO_ERROR, (void*)&err, &optlen) != 0) {
       asock->ret = -1;
-      asock->syscall = SYSCALL_GETSOCKOPT;
+      asock->sysno = SYSCALL_GETSOCKOPT;
       err = errno;
     }
 
@@ -1509,7 +1509,23 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         }
       }
 
-      JS_SOCKETCALL(SYSCALL_SETSOCKOPT, s, setsockopt(socket_handle(*s), level, optname, (const void*)buf, len));
+      /*    JS_SOCKETCALL(SYSCALL_SETSOCKOPT, s, setsockopt(socket_handle(*s), level, optname, (const void*)buf, len));
+
+        #define JS_SOCKETCALL(syscall_no, sock, result) \
+               JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), js_socket_error(ctx, *(sock)))
+
+         #define JS_SOCKETCALL_FAIL(syscall_no, sock, on_fail) \
+               JS_SOCKETCALL_RETURN(syscall_no, sock, result, JS_NewInt32(ctx, (sock)->ret), on_fail)
+
+         #define JS_SOCKETCALL_RETURN(syscall_no, sock, result, on_success, on_fail) \
+           do { \
+             syscall_return((sock), (syscall_no), (result)); \
+             ret = (sock)->ret < 0 ? (on_fail) : (on_success); \
+           } while(0)
+         */
+      syscall_return(s, SYSCALL_SETSOCKOPT, setsockopt(socket_handle(*s), level, optname, (const void*)buf, len));
+
+      // JS_SOCKETCALL_RETURN(SYSCALL_SETSOCKOPT, s, setsockopt(socket_handle(*s),  JS_NewInt32(ctx, (s)->ret), js_socket_error(ctx, *(sock)))
 
 #ifdef DEBUG_OUTPUT
       printf("SYSCALL_SETSOCKOPT(%d, %d, %d, %i (%p), %lu) = %d\n", socket_fd(*s), level, optname, *(int*)buf, buf, (unsigned long int)len, s->ret);
@@ -1616,7 +1632,7 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   JS_DefinePropertyValueStr(ctx, obj, "errno", JS_NewUint32(ctx, sock.error), JS_PROP_CONFIGURABLE | (sock.error ? JS_PROP_ENUMERABLE : 0));
   JS_DefinePropertyValueStr(ctx, obj, "error", JS_NewString(ctx, strerror(sock.error)), JS_PROP_CONFIGURABLE | (sock.error ? JS_PROP_ENUMERABLE : 0));
 
-  if(sock.syscall > 0 && sock.syscall < countof(syscall_names))
+  if(sock.sysno > 0 && sock.sysno < countof(syscall_names))
     JS_DefinePropertyValueStr(ctx, obj, "syscall", JS_NewString(ctx, socket_syscall(sock)), JS_PROP_ENUMERABLE);
 
   JSAtom to_string_tag = js_symbol_static_atom(ctx, "toStringTag");
