@@ -1317,7 +1317,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
         else
           put_newline(wr, depth - 1);
 
-        if(--depth < 0)
+        if(--depth <= 0)
           break;
 
         writer_putc(wr, is_array ? ']' : '}');
