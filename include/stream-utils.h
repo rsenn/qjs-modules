@@ -17,6 +17,7 @@ typedef struct {
 
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_fd(intptr_t fd, bool close_on_end);
+Writer writer_tee(const Writer a, const Writer b);
 
 ssize_t writer_write(Writer*, const void*, size_t);
 void writer_free(Writer*);

@@ -1347,14 +1347,17 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 static JSValue
 js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   DynBuf dbuf;
-  Writer wr;
+  Writer wr, fd_wr, buf_wr;
   InspectOptions options;
   int32_t level;
   JSValue ret = JS_UNDEFINED;
   int optind = 1;
 
   js_dbuf_init(ctx, &dbuf);
-  wr = writer_from_dynbuf(&dbuf);
+  buf_wr = writer_from_dynbuf(&dbuf);
+  fd_wr = writer_from_fd(1, false);
+
+  wr = writer_tee(buf_wr, fd_wr);
 
   options_init(&options, ctx);
 
