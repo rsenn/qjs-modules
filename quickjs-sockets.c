@@ -2111,12 +2111,6 @@ static const JSCFunctionListEntry js_sockets_defines[] = {
 #ifdef IPPROTO_RAW
     JS_CONSTANT_NONENUMERABLE(IPPROTO_RAW),
 #endif
-#ifdef O_NONBLOCK
-    JS_CONSTANT_NONENUMERABLE(O_NONBLOCK),
-#endif
-#ifdef O_ASYNC
-    JS_CONSTANT_NONENUMERABLE(O_ASYNC),
-#endif
 #ifdef PF_UNSPEC
     JS_CONSTANT_NONENUMERABLE(PF_UNSPEC),
 #endif
