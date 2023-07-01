@@ -4,6 +4,7 @@
 #include "cutils.h"
 #include <sys/types.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef ssize_t WriteFunction(intptr_t, const void*, size_t);
 typedef ssize_t WriterFinalizer(void*);
@@ -15,6 +16,8 @@ typedef struct {
 } Writer;
 
 Writer writer_from_dynbuf(DynBuf*);
+Writer writer_from_fd(intptr_t fd, bool close_on_end);
+
 ssize_t writer_write(Writer*, const void*, size_t);
 void writer_free(Writer*);
 
