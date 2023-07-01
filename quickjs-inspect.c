@@ -1334,16 +1334,16 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     is_array = js_is_array(ctx, it->obj);
   }
 
-  if(depth > 0) {
+  if(depth >= 0) {
     --depth;
 
     if(IS_COMPACT(depth + 1))
       writer_putc(wr, ' ');
     else
       put_newline(wr, depth);
-  }
 
-  writer_putc(wr, js_is_array(ctx, obj) ? ']' : '}');
+    writer_putc(wr, js_is_array(ctx, obj) ? ']' : '}');
+  }
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
   return 0;
