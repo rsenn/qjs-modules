@@ -96,6 +96,7 @@ check_include_def(threads.h)
 check_include_def(sys/mman.h)
 
 check_function_def(mmap)
+dump(HAVE_MMAP)
 
 check_include_def(termios.h)
 check_function_def(ioctl)
@@ -409,16 +410,20 @@ endif(BUILD_LIBSERIALPORT)
 
 set(serial_DEPS libserialport)
 set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
+  
+dump(WIN32 MINGW MSYS CLANG)
 
-if(HAVE_SYS_MMAN_H AND HAVE_MMAP)
-  set(QUICKJS_MODULES ${QUICKJS_MODULES} gpio mmap)
-else(HAVE_SYS_MMAN_H AND HAVE_MMAP)
-  if(WIN32 OR MINGW)
+if(HAVE_MMAP)
+    set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
+else(HAVE_MMAP)
+  if(WIN32 OR MINGW OR MSYS)
     set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
     set(mmap_SOURCES ${mmap_SOURCES} src/mmap-win32.c)
-  endif(WIN32 OR MINGW)
-endif(HAVE_SYS_MMAN_H AND HAVE_MMAP)
+  endif()
+endif(HAVE_MMAP)
 
+dump(QUICKJS_MODULES mmap_SOURCES)
+    
 if(CACHE{CMAKE_BUILD_TYPE})
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 endif(CACHE{CMAKE_BUILD_TYPE})
@@ -496,6 +501,10 @@ endif(HAVE_INET_PTON)
 if(HAVE_INET_NTOP)
   list(REMOVE_ITEM LIBRARY_SOURCES src/inet_ntop.c)
 endif(HAVE_INET_NTOP)
+if(NOT mmap_SOURCES)
+  list(REMOVE_ITEM LIBRARY_SOURCES src/mmap-win32.c)
+endif(NOT mmap_SOURCES)
+
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 

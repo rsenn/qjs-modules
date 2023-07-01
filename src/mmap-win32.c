@@ -20,7 +20,7 @@
 
 /* Include mmap-win32.h instead of sys/mman.h and link with mmap-win32.o */
 
-#ifdef _WIN32
+#if defined(_WIN32)
 
 #include <errno.h>
 #include <windows.h>
