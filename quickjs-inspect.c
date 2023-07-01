@@ -255,7 +255,7 @@ options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
 
   if(!JS_IsUndefined(value) && !JS_IsException(value)) {
     if(JS_VALUE_GET_TAG(value) == JS_TAG_BOOL)
-      opts->compact = JS_VALUE_GET_BOOL(value) == FALSE ? INT32_MIN : INT32_MAX;
+      opts->compact = JS_VALUE_GET_BOOL(value) == FALSE ? INT32_MAX : INT32_MIN;
     else if(JS_VALUE_GET_TAG(value) == JS_TAG_FLOAT64 && isinf(JS_VALUE_GET_FLOAT64(value)))
       opts->compact = INT32_MAX;
     else

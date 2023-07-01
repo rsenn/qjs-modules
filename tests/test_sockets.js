@@ -11,7 +11,7 @@ import fs from 'fs';
 function main() {
   globalThis.console = new Console({
     inspectOptions: {
-      depth: 4,
+      depth: Infinity,
       breakLength: 80,
       maxArrayLength: 100,
       maxStringLength: 100,
