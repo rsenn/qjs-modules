@@ -85,7 +85,7 @@ extern VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_async_sock
 extern VISIBLE JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto, async_socket_ctor;
 
 enum SocketCalls {
-  SYSCALL_SOCKET = 1,
+  SYSCALL_SOCKET = 0,
   SYSCALL_GETSOCKNAME,
   SYSCALL_GETPEERNAME,
   SYSCALL_FCNTL,

@@ -62,8 +62,7 @@ js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
 }
 
 static const char* syscall_names[] = {
-    0,
-    "socket",
+     "socket",
     "getsockname",
     "getpeername",
 #ifdef _WIN32
@@ -87,7 +86,7 @@ static const char* syscall_names[] = {
 
 static const char*
 syscall_name(int syscall_number) {
-  assert(syscall_number > 0);
+  assert(syscall_number >= 0);
   assert(syscall_number < countof(syscall_names));
 
   return syscall_names[syscall_number];
