@@ -816,7 +816,23 @@ void js_strv_free_n(JSContext*, int, char* argv[]);
 void js_strv_free(JSContext* ctx, char** strv);
 void js_strv_free_rt(JSRuntime* rt, char** strv);
 JSValue js_strv_to_array(JSContext* ctx, char** strv);
+
+static inline int32_t*
+js_argv_to_int32v(JSContext* ctx, int argc, JSValueConst argv[]) {
+  int32_t* ret;
+
+  if((ret = js_malloc(ctx, sizeof(int32_t) * argc))) {
+    for(int i = 0; i < argc; i++) {
+      if(JS_ToInt32(ctx, &ret[i], argv[i]))
+        ret[i] = 0;
+    }
+  }
+
+  return ret;
+}
+
 JSValue js_intv_to_array(JSContext*, int*, size_t);
+
 char** js_array_to_argv(JSContext*, size_t*, JSValueConst);
 int32_t* js_array_to_int32v(JSContext*, size_t*, JSValueConst);
 uint32_t* js_array_to_uint32v(JSContext*, size_t*, JSValueConst);

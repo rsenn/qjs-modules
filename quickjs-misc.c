@@ -78,6 +78,17 @@
 #define COMMON_LVB_REVERSE_VIDEO (1 << 14)
 #endif
 
+#define TextAttrColor(n) (((n)&1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
+
+#define ColorIsBG(c) ((c) >= 100 ? TRUE : (c) >= 90 ? FALSE : (c) >= 40 ? TRUE : FALSE)
+#define ColorIsBold(c) ((c) >= 90)
+#define ColorIndex(c) (((c) >= 30 ? (c) % 10 : (c)) & 7)
+#define ColorRed(c) (ColorIndex(c) & 1)
+#define ColorGreen(c) ((ColorIndex(c) >> 1) & 1)
+#define ColorBlue(c) ((ColorIndex(c) >> 2) & 1)
+
+#define ColorToBits(c) ((ColorIsBG(c) << 4) | (ColorIsBold(c) << 3) | ColorBlue(c) | ColorGreen(c) << 1 | ColorRed(c) << 2)
+
 /**
  * \addtogroup quickjs-misc
  * @{
@@ -312,6 +323,33 @@ get_text_attributes(HANDLE h, uint32_t* attr) {
 }
 
 #else
+static BOOL
+set_text_color(intptr_t fd, int intc, int32_t intv[]) {
+  DynBuf dbuf;
+
+  dbuf_init2(&dbuf, 0, 0);
+
+  dbuf_putstr(&dbuf, "\x1b[");
+
+  for(int i = 0; i < intc; i++) {
+    uint8_t* ptr;
+
+    if(!(ptr = dbuf_reserve(&dbuf, FMT_ULONG))) {
+      dbuf_free(&dbuf);
+      return FALSE;
+    }
+
+    dbuf.size += fmt_ulong((void*)ptr, intv[i]);
+
+    dbuf_putc(&dbuf, i < (intc - 1) ? ';' : 'm');
+  }
+
+  ssize_t r = dbuf.size > 0 ? write(fd, dbuf.buf, dbuf.size) : 0;
+  dbuf_free(&dbuf);
+
+  return r > 0;
+}
+
 static BOOL
 set_text_attributes(intptr_t fd, uint32_t attr) {
   char buf[(2 + (FMT_ULONG) + 1) * 3];
@@ -1237,17 +1275,19 @@ js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   return JS_NewBool(ctx, magic == MOVE_CURSOR ? move_cursor(h, x, y) : set_cursor_position(h, x, y));
 }
 
+enum {
+  SET_TEXT_ATTRIBUTES,
+  SET_TEXT_COLOR,
+};
+
 static JSValue
-js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1;
   intptr_t h;
-  uint32_t attr = 0;
+  JSValue ret = JS_UNDEFINED;
 
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
-
-  if(argc >= 2)
-    JS_ToUint32(ctx, &attr, argv[1]);
 
 #ifdef _WIN32
   if(-1 == (h = (intptr_t)_get_osfhandle(fd)))
@@ -1257,7 +1297,51 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   h = fd;
 #endif
 
-  return JS_NewBool(ctx, set_text_attributes(h, attr));
+  switch(magic) {
+    case SET_TEXT_ATTRIBUTES: {
+      uint32_t attr = 0;
+
+      if(argc >= 2)
+        JS_ToUint32(ctx, &attr, argv[1]);
+
+      ret = JS_NewBool(ctx, set_text_attributes(h, attr));
+      break;
+    }
+
+    case SET_TEXT_COLOR: {
+
+#ifdef _WIN32
+      uint32_t attr = 0;
+
+      get_text_attributes(h, &attr);
+
+      for(int i = 0; i < argc; i++) {
+        int32_t color = 0;
+        JS_ToInt32(ctx, &color, argv[i]);
+
+        uint8_t bits = ColorToBits(color) & 0x0f;
+        uint8_t shift = ColorIsBG(color) ? 4 : 0;
+        uint8_t mask = ColorIsBG(color) ? 0xf0 : 0x0f;
+
+        attr &= ~mask;
+        attr |= bits << shift;
+      }
+
+      if(set_text_attributes(h, attr))
+        ret = JS_NewUint32(ctx, attr);
+#else
+      int32_t* intarray;
+
+      if((intarray = js_argv_to_int32v(ctx, argc, argv))) {
+          ret = JS_NewBool(ctx,set_text_color(h, argc, intarray));
+      }
+#endif
+
+      break;
+    }
+  }
+
+  return ret;
 }
 
 #ifdef _WIN32
@@ -1270,12 +1354,12 @@ static JSValue
 js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1;
   JSValue ret = JS_UNDEFINED;
-  HANDLE h;
+  intptr_t h;
 
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
 
-  if(INVALID_HANDLE_VALUE == (h = (HANDLE)_get_osfhandle(fd)))
+  if(-1 == (h = (intptr_t)_get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
   switch(magic) {
@@ -2866,7 +2950,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("clearLine", 1, js_misc_clearscreen, ERASE_IN_LINE),
     JS_CFUNC_MAGIC_DEF("setCursorPosition", 1, js_misc_cursorposition, SET_CURSOR_POSITION),
     JS_CFUNC_MAGIC_DEF("moveCursor", 1, js_misc_cursorposition, MOVE_CURSOR),
-    JS_CFUNC_DEF("setTextAttribute", 2, js_misc_settextattr),
+    JS_CFUNC_MAGIC_DEF("setTextAttribute", 2, js_misc_settextattr, SET_TEXT_ATTRIBUTES),
+    JS_CFUNC_MAGIC_DEF("setTextColor", 2, js_misc_settextattr, SET_TEXT_COLOR),
 #if defined(_WIN32)
     JS_CFUNC_MAGIC_DEF("setConsoleMode", 2, js_misc_consolemode, SET_CONSOLE_MODE),
     JS_CFUNC_MAGIC_DEF("getConsoleMode", 1, js_misc_consolemode, GET_CONSOLE_MODE),
