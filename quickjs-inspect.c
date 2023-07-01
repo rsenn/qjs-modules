@@ -1271,8 +1271,11 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
       ret = is_object ? inspect_object(ctx, wr, value, opts, depth) : 0;
     }
 
+
+
     if(ret != 1) {
       if(is_object) {
+        writer_puts(wr, "({}) ");
         it = property_recursion_enter(&frames, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
         is_array = js_is_array(ctx, value);
 

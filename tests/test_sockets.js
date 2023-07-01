@@ -15,7 +15,7 @@ function main() {
       breakLength: 80,
       maxArrayLength: 100,
       maxStringLength: 100,
-      compact: 2
+      compact: false
     }
   });
   let seed = +Date.now();
