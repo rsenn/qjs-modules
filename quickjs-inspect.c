@@ -1279,12 +1279,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
         ++depth;
 
-        if(it == NULL)
-          writer_puts(wr, "");
-        else if(IS_COMPACT(depth + 1))
-          writer_putc(wr, ' ');
-        else
-          put_newline(wr, depth);
+        put_spacing(wr, opts, depth);
 
         continue;
       } else {
