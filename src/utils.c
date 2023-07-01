@@ -1317,6 +1317,18 @@ js_strv_dup(JSContext* ctx, char** strv) {
   return ret;
 }
 
+int32_t*
+js_argv_to_int32v(JSContext* ctx, int argc, JSValueConst argv[]) {
+  int32_t* ret;
+
+  if((ret = js_malloc(ctx, sizeof(int32_t) * argc)))
+    for(int i = 0; i < argc; i++)
+      if(JS_ToInt32(ctx, &ret[i], argv[i]))
+        ret[i] = 0;
+
+  return ret;
+}
+
 JSAtom
 js_symbol_static_atom(JSContext* ctx, const char* name) {
   JSValue sym = js_symbol_static_value(ctx, name);

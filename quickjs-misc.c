@@ -344,7 +344,18 @@ set_text_color(intptr_t fd, int intc, int32_t intv[]) {
     dbuf_putc(&dbuf, i < (intc - 1) ? ';' : 'm');
   }
 
+  dbuf_0(&dbuf);
+
   ssize_t r = dbuf.size > 0 ? write(fd, dbuf.buf, dbuf.size) : 0;
+
+#if 1 // DEBUG_OUTPUT
+  for(size_t i = 0; i < dbuf.size; i++)
+    if(dbuf.buf[i] == '\x1b')
+      dbuf.buf[i] = 0xac;
+
+  printf("%s intc = %d, buf = '%s'\n", __func__, intc, dbuf.buf);
+#endif
+
   dbuf_free(&dbuf);
 
   return r > 0;
@@ -1237,8 +1248,6 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     JS_ToInt32(ctx, &mode, argv[1]);
 
 #ifdef _WIN32
-  HANDLE h;
-
   if(-1 == (h = (intptr_t)_get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
 
@@ -1333,7 +1342,9 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       int32_t* intarray;
 
       if((intarray = js_argv_to_int32v(ctx, argc, argv))) {
-          ret = JS_NewBool(ctx,set_text_color(h, argc, intarray));
+        ret = JS_NewBool(ctx, set_text_color(h, argc, intarray));
+
+        js_free(ctx, intarray);
       }
 #endif
 
