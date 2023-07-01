@@ -62,7 +62,7 @@ js_sockaddr_data2(JSContext* ctx, JSValueConst value) {
 }
 
 static const char* syscall_names[] = {
-     "socket",
+    "socket",
     "getsockname",
     "getpeername",
 #ifdef _WIN32
@@ -464,7 +464,7 @@ js_sockaddr_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   if(!(a = js_sockaddr_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  JSValue obj = JS_NewObjectClass(ctx, js_sockaddr_class_id);
+  JSValue obj = JS_NewObjectProto(ctx, sockaddr_proto); // JS_NewObjectClass(ctx, js_sockaddr_class_id);
 
   if(a->family)
     JS_DefinePropertyValueStr(ctx, obj, "family", JS_NewUint32(ctx, a->family), JS_PROP_ENUMERABLE);
@@ -2504,7 +2504,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_sockaddr_class_id, sockaddr_proto);
   JS_SetConstructor(ctx, sockaddr_ctor, sockaddr_proto);
 
-  js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);
+  // js_set_inspect_method(ctx, sockaddr_proto, js_sockaddr_inspect);
 
   JS_NewClassID(&js_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_socket_class_id, &js_socket_class);
@@ -2520,7 +2520,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_socket_class_id, socket_proto);
   JS_SetConstructor(ctx, socket_ctor, socket_proto);
 
-  js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
+  // js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
   JS_NewClassID(&js_async_socket_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_async_socket_class_id, &js_async_socket_class);

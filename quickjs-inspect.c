@@ -1334,12 +1334,14 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     is_array = js_is_array(ctx, it->obj);
   }
 
-  --depth;
+  if(depth > 0) {
+    --depth;
 
-  if(IS_COMPACT(depth + 1))
-    writer_putc(wr, ' ');
-  else
-    put_newline(wr, depth - 1);
+    if(IS_COMPACT(depth + 1))
+      writer_putc(wr, ' ');
+    else
+      put_newline(wr, depth);
+  }
 
   writer_putc(wr, js_is_array(ctx, obj) ? ']' : '}');
 
