@@ -150,8 +150,6 @@ function main() {
   /* console.log(`sock`, ...DumpSock(sock));
   let { open, error } = sock;
   if(error) console.log('error:', error);
-  console.log('O_NONBLOCK', O_NONBLOCK.toString(2).padStart(16, '0'));
-  console.log('O_ASYNC   ', O_ASYNC.toString(2).padStart(16, '0'));
   console.log('sock.mode ', sock.mode.toString(2).padStart(16, '0'));
 
   console.log(('sock.close() ' + sock.close() + '').padEnd(70), ...DumpSock(sock));*/
