@@ -16,6 +16,7 @@
 #include <ctype.h>
 #include <math.h>
 #include <string.h>
+#include <fcntl.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -1302,26 +1303,25 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
             it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
                                     : property_enumeration_next(it)))) {*/
 
-    while(!it || !(it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : property_enumeration_next(it)))) {
-      is_array = js_is_array(ctx, property_recursion_top(&frames)->obj);
-      it = property_recursion_pop(&frames, ctx);
+    while(/*!it ||*/ !(it = (/*opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : */ property_enumeration_next(it)))) {
+      it = property_recursion_top(&frames);
+      is_array = js_is_array(ctx, it->obj);
 
-      if(it || index == 0) {
-        if(index == 0 && !it)
-          writer_puts(wr, "");
-        else if(IS_COMPACT(depth + 1))
-          writer_putc(wr, ' ');
-        else
-          put_newline(wr, depth - 1);
-
-        if(--depth <= 0)
-          break;
-
-        writer_puts(wr, is_array ? ">]>" : ">}>");
-      }
-
-      if(!it)
+      /* no more nested enumerations */
+      if(!(it = property_recursion_pop(&frames, ctx)))
         break;
+
+      if(index == 0 && !it)
+        writer_puts(wr, "");
+      else if(IS_COMPACT(depth + 1))
+        writer_putc(wr, ' ');
+      else
+        put_newline(wr, depth - 1);
+
+      if(--depth <= 0)
+        break;
+
+      writer_puts(wr, is_array ? ">]>" : ">}>");
     }
 
     if(it == NULL || depth < 0)
@@ -1355,7 +1355,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
 
   js_dbuf_init(ctx, &dbuf);
   buf_wr = writer_from_dynbuf(&dbuf);
-  fd_wr = writer_from_fd(1, false);
+  fd_wr = writer_from_fd(open("out.tmp", O_CREAT | O_WRONLY | O_APPEND, 0644), true);
 
   wr = writer_tee(buf_wr, fd_wr);
 
