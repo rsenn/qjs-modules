@@ -1247,6 +1247,9 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
   while(it) {
     JSValue value = property_enumeration_value(it, ctx);
+    index = property_enumeration_index(it);
+
+    printf("%s depth: %u idx: %u/%u\n", __func__, property_recursion_depth(&frames), index, it->tab_atom_len);
 
     if(index > 0)
       writer_puts(wr, ",");
@@ -1303,42 +1306,33 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
             it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
                                     : property_enumeration_next(it)))) {*/
 
-    while(/*!it ||*/ !(it = (/*opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : */ property_enumeration_next(it)))) {
-      it = property_recursion_top(&frames);
-      is_array = js_is_array(ctx, it->obj);
-
+    //   while(/*!it ||*/ !(it = (/*opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : */ property_enumeration_next(it)))) {
+    assert(it);
+    //
+    for(;;) {
+      if(it && (it = property_enumeration_next(it)))
+        break;
       /* no more nested enumerations */
-      if(!(it = property_recursion_pop(&frames, ctx)))
+      it = property_recursion_pop(&frames, ctx);
+
+      put_spacing(wr, opts, --depth);
+
+      writer_puts(wr, is_array ? "]" : "}");
+
+      if(!it)
         break;
 
-      if(index == 0 && !it)
-        writer_puts(wr, "");
-      else if(IS_COMPACT(depth + 1))
-        writer_putc(wr, ' ');
-      else
-        put_newline(wr, depth - 1);
-
-      if(--depth <= 0)
-        break;
-
-      writer_puts(wr, is_array ? ">]>" : ">}>");
+      is_array = js_is_array(ctx, it->obj);
     }
-
-    if(it == NULL || depth < 0)
-      break;
-
-    assert(it == property_recursion_top(&frames));
-    index = property_enumeration_index(it);
-    is_array = js_is_array(ctx, it->obj);
   }
 
-  if(depth >= 0) {
+  /*if(depth >= 0) {
     if(depth > 0 || it) {
       put_spacing(wr, opts, 0);
     }
 
     writer_puts(wr, is_array ? "]" : "}");
-  }
+  }*/
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
   return 0;
