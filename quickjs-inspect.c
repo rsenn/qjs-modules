@@ -1317,7 +1317,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
         else
           put_newline(wr, depth - 1);
 
-        if(depth >= 0) {
+        if(depth > 0) {
           --depth;
 
           writer_putc(wr, is_array ? ']' : '}');
@@ -1337,7 +1337,6 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
   }
 
   if(depth >= 0) {
-    --depth;
 
     if(IS_COMPACT(depth + 1))
       writer_putc(wr, ' ');
