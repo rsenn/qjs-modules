@@ -54,6 +54,11 @@ int dbuf_vprintf(DynBuf*, const char*, va_list);
 
 int screen_size(int size[2]);
 
+static inline ssize_t dbuf_writer(DynBuf*db , const void* buf, size_t len) {
+  if(dbuf_put(db, buf, len)) return -1;
+  return len; 
+}
+
 static inline int
 dbuf_putm(DynBuf* db, ...) {
   int r = 0;

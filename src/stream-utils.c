@@ -1,4 +1,5 @@
 #include "stream-utils.h"
+#include "buffer-utils.h"
 #include "defines.h"
 
 #include <assert.h>
@@ -10,7 +11,7 @@
 
 Writer
 writer_from_dynbuf(DynBuf* db) {
-  return (Writer){(WriteFunction*)&dbuf_put, db, (WriterFinalizer*)&dbuf_free};
+  return (Writer){(WriteFunction*)&dbuf_writer, db, (WriterFinalizer*)&dbuf_free};
 }
 
 Writer
