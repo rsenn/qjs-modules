@@ -39,7 +39,7 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 static thread_local JSValue object_tostring;
 
 #define INT32_IN_RANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
-#define IS_COMPACT(d) ((opts->compact != INT32_MIN) && ((d) > opts->compact))
+#define IS_COMPACT(d) (/*(opts->compact != INT32_MIN) &&*/ ((d) > opts->compact))
 
 typedef struct {
   const char* name;
@@ -351,6 +351,14 @@ put_newline(Writer* wr, int32_t depth) {
 
   while(depth-- > 0)
     writer_puts(wr, "  ");
+}
+
+static void
+put_spacing(Writer* wr, const InspectOptions* opts, int32_t depth) {
+  if(IS_COMPACT(depth))
+    writer_putc(wr, ' ');
+  else
+    put_newline(wr, depth);
 }
 
 static void
@@ -1075,9 +1083,7 @@ inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
       if(s)
         js_cstring_free(ctx, s);
     }
-  }
-
-  if(is_function) {
+  } else {
     JSValue name = JS_GetPropertyStr(ctx, value, "name");
 
     writer_puts(wr, opts->colors ? COLOR_MARINE "[" : "[");
@@ -1095,12 +1101,9 @@ inspect_object(JSContext* ctx, Writer* wr, JSValueConst value, InspectOptions* o
     }
 
     JS_FreeValue(ctx, name);
-    writer_puts(wr, opts->colors ? "]" COLOR_NONE : "]");
-
-    goto end_obj;
+    writer_puts(wr, opts->colors ? "] " COLOR_NONE : "] ");
   }
 
-end_obj:
   return 0;
 }
 
@@ -1236,25 +1239,18 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
   it = property_recursion_push(&frames, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
   is_array = js_is_array(ctx, obj);
-  writer_puts(wr, is_array ? "[" : "{");
 
-  ++depth;
-  if(IS_COMPACT(depth))
-    writer_putc(wr, ' ');
-  else
-    put_newline(wr, depth);
+  writer_puts(wr, is_array ? "[" : "{");
+  if(it)
+    ++depth;
 
   while(it) {
     JSValue value = property_enumeration_value(it, ctx);
 
-    if(index > 0) {
+    if(index > 0)
       writer_puts(wr, ",");
 
-      if(IS_COMPACT(depth + 1))
-        writer_putc(wr, ' ');
-      else
-        put_newline(wr, depth);
-    }
+    put_spacing(wr, opts, depth);
 
     if(!is_array) {
       inspect_key(ctx, wr, property_enumeration_atom(it), opts);
@@ -1271,38 +1267,37 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
       ret = is_object ? inspect_object(ctx, wr, value, opts, depth) : 0;
     }
 
+    if(ret != 1 && is_object) {
+      writer_putc(wr, ' ');
 
+      it = property_recursion_enter(&frames, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
+      is_array = js_is_array(ctx, value);
 
-    if(ret != 1) {
-      if(is_object) {
-        writer_puts(wr, "({}) ");
-        it = property_recursion_enter(&frames, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
-        is_array = js_is_array(ctx, value);
+      if(it) {
+        index = 0;
+        writer_puts(wr, is_array ? "<[<" : "<{<");
 
-        if(it) {
-          index = 0;
-          writer_putc(wr, is_array ? '[' : '{');
+        ++depth;
 
-          ++depth;
+        if(it == NULL)
+          writer_puts(wr, "");
+        else if(IS_COMPACT(depth + 1))
+          writer_putc(wr, ' ');
+        else
+          put_newline(wr, depth);
 
-          if(it == NULL)
-            writer_puts(wr, "");
-          else if(IS_COMPACT(depth + 1))
-            writer_putc(wr, ' ');
-          else
-            put_newline(wr, depth);
-
-          continue;
-        } else {
-          writer_puts(wr, is_array ? "[]" : "{}");
-        }
+        continue;
+      } else {
+        writer_puts(wr, is_array ? "[]" : "{}");
       }
     }
 
     if(it) {
       if(ret != 1 && !is_object) {
         assert(!JS_IsObject(value));
+        // writer_putc(wr, '<');
         inspect_value(ctx, wr, value, opts, depth);
+        // writer_putc(wr, '>');
       }
     }
 
@@ -1327,7 +1322,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
         if(--depth <= 0)
           break;
 
-        writer_putc(wr, is_array ? ']' : '}');
+        writer_puts(wr, is_array ? ">]>" : ">}>");
       }
 
       if(!it)
@@ -1343,15 +1338,11 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
   }
 
   if(depth >= 0) {
-    if(depth > 0)
-      --depth;
+    if(depth > 0 || it) {
+      put_spacing(wr, opts, 0);
+    }
 
-    if(IS_COMPACT(depth + 1))
-      writer_putc(wr, ' ');
-    else
-      put_newline(wr, depth);
-
-    writer_putc(wr, js_is_array(ctx, obj) ? ']' : '}');
+    writer_puts(wr, is_array ? "]" : "}");
   }
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
