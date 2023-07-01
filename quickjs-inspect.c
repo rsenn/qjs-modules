@@ -1327,7 +1327,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
         break;
     }
 
-    if(it == NULL)
+    if(it == NULL || depth < 0)
       break;
 
     assert(it == property_recursion_top(&frames));
