@@ -118,8 +118,8 @@ function main() {
 
     console.log(`sock.fd = ${sock.fd} connected`);
 
-    os.setReadHandler(sock.fd, () => {
-      n = sock.recv(buf);
+    os.setReadHandler(sock.fd, async () => {
+      n = await sock.recv(buf);
       if(n > 0) {
         data = toString(buf, 0, n);
       } else {

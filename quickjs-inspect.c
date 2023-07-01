@@ -1336,6 +1336,8 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
   }
 
   if(depth >= 0) {
+    if(depth > 0)
+      --depth;
 
     if(IS_COMPACT(depth + 1))
       writer_putc(wr, ' ');
