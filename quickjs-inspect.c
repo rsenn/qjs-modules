@@ -1321,7 +1321,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
   }
 
 
-#if 1 //def DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT
     printf("%s() depth: %u %u it: %p\n", __func__, property_recursion_depth(&frames), depth, it);
 #endif
   /*if(depth >= 0) {
