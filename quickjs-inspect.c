@@ -1311,22 +1311,27 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
       put_spacing(wr, opts, --depth);
 
-      writer_puts(wr, is_array ? "]" : "}");
-
       if(!it)
         break;
+
+      writer_puts(wr, is_array ? "]" : "}");
 
       is_array = js_is_array(ctx, it->obj);
     }
   }
 
+
+#if 1 //def DEBUG_OUTPUT
+    printf("%s() depth: %u %u it: %p\n", __func__, property_recursion_depth(&frames), depth, it);
+#endif
   /*if(depth >= 0) {
     if(depth > 0 || it) {
       put_spacing(wr, opts, 0);
     }
 
-    writer_puts(wr, is_array ? "]" : "}");
-  }*/
+    }*/
+  writer_puts(wr, JS_IsArray(ctx, obj) ? "]" : "}");
+  
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
   return 0;

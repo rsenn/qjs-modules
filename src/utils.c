@@ -894,7 +894,7 @@ js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj) {
 
 JSAtom*
 js_object_keys(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int flags) {
-  Vector vec = VECTOR_INIT();
+  Vector vec = VECTOR(ctx);
   JSValue proto = JS_DupValue(ctx, obj);
 
   do {

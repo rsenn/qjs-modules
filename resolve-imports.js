@@ -210,7 +210,6 @@ function OutputImports(imports = globalImports) {
 
     if(-1 != (index = idmap.findIndex(([local, name]) => name === '*'))) {
       let [[star]] = idmap.splice(index, 1);
-
       s += `import * as ${star} from '${name}';\n`;
     }
 
@@ -741,19 +740,8 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       sheBang = token;
       continue;
     }
-    if(token.type == 'identifier') {
-      if(doneImports) {
-        if(used) {
-          let { size } = used;
-          used.add(token.lexeme);
-          if(debug >= 2) console.log(`added[${size}]`, source, token.lexeme);
-        }
-      } /*else {
-        imported.add(token.lexeme);
-      }*/
-    }
 
-    if(debug >= 3) console.log('token', token);
+    if(debug >= 3) console.log(`token '${token.lexeme}'`);
     if(n == 0 && token.lexeme == '}' && lexer.stateDepth > 0) {
       lexer.popState();
     } else {
@@ -761,6 +749,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       if(n > 0 && balancers.last.depth == 0) log('balancer');
       if(/comment/i.test(token.type)) {
         comments.push(token);
+        continue;
       }
 
       if(['import', 'export'].indexOf(token.lexeme) >= 0) {
@@ -776,7 +765,17 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
 
       if(token.lexeme == ';' && cond !== true) doneImports = true;
 
-      if(onlyImports && doneImports) break;
+      if(doneImports) {
+        if(onlyImports) break;
+
+        if(token.type == 'identifier') {
+          if(used) {
+            let { size } = used;
+            used.add(token.lexeme);
+            if(debug >= 2) console.log(`added[${size}]`, source, token.lexeme);
+          }
+        }
+      }
 
       if(cond == true) {
         if(imp.indexOf(token) == -1) imp.push(token);

@@ -183,13 +183,16 @@ js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     JS_ToInt32(ctx, &d, argv[argi++]);
 
   obj = JS_NewObjectProtoClass(ctx, token_proto, js_token_class_id);
-  rule = lexer_rule_at(tok->lexer, tok->id);
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewUint32(ctx, tok->id), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "seq", JS_NewUint32(ctx, tok->seq), JS_PROP_ENUMERABLE);
 
-  JS_DefinePropertyValueStr(ctx, obj, "type", rule ? JS_NewString(ctx, rule->name) : JS_NULL, JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, (const char*)tok->lexeme), JS_PROP_ENUMERABLE);
+  if(tok->lexer)
+    if((rule = lexer_rule_at(tok->lexer, tok->id)))
+      JS_DefinePropertyValueStr(ctx, obj, "type", rule ? JS_NewString(ctx, rule->name) : JS_NULL, JS_PROP_ENUMERABLE);
+
+  if(tok->lexeme)
+    JS_DefinePropertyValueStr(ctx, obj, "lexeme", JS_NewString(ctx, (const char*)tok->lexeme), JS_PROP_ENUMERABLE);
 
   if(tok->loc) {
     if(tok->loc->char_offset != -1LL)
@@ -1518,7 +1521,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, token_ctor, token_proto);
   JS_SetPropertyFunctionList(ctx, token_ctor, js_token_static_funcs, countof(js_token_static_funcs));
 
-  js_set_inspect_method(ctx, token_proto, js_token_inspect);
+  //js_set_inspect_method(ctx, token_proto, js_token_inspect);
 
   JS_NewClassID(&js_lexer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_lexer_class_id, &js_lexer_class);
