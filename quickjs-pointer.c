@@ -12,6 +12,7 @@
 
 JSClassID js_pointer_class_id = 0;
 JSValue pointer_proto = {{0}, JS_TAG_UNDEFINED}, pointer_ctor = {{0}, JS_TAG_UNDEFINED};
+JSAtom pointer_length = 0;
 
 enum {
   METHOD_DEREF = 0,
@@ -47,14 +48,14 @@ js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Pointer* ptr;
   JSValue obj = JS_UNDEFINED;
 
-  if(!(ptr = js_mallocz(ctx, sizeof(Pointer))))
+  if(!(ptr = pointer_new(ctx)))
     return JS_EXCEPTION;
-
-  pointer_reset(ptr, ctx);
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_pointer_class_id);
   if(JS_IsException(obj))
     goto fail;
+
+ pointer_length = JS_NewAtom(ctx, "length");
 
   JS_SetOpaque(obj, ptr);
 
@@ -64,6 +65,7 @@ js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   }
 
   return obj;
+
 fail:
   js_free(ctx, ptr);
   JS_FreeValue(ctx, obj);
@@ -72,9 +74,9 @@ fail:
 
 JSValue
 js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
-  JSValue obj;
+  JSValue obj = JS_NewObjectProtoClass(ctx, pointer_proto, js_pointer_class_id);
 
-  obj = JS_NewObjectProtoClass(ctx, pointer_proto, js_pointer_class_id);
+ pointer_length = JS_NewAtom(ctx, "length");
 
   JS_SetOpaque(obj, ptr);
 
@@ -161,21 +163,26 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case METHOD_DEREF: {
       return js_pointer_deref(ctx, ptr, this_val, argv[0]);
     }
+
     case METHOD_TO_STRING: {
       return js_pointer_tostring(ctx, this_val);
     }
+
     case METHOD_TO_ARRAY: {
       return pointer_toarray(ptr, ctx);
     }
+
     case METHOD_SLICE: {
       int64_t s = js_int64_default(ctx, argv[0], 0);
       int64_t e = js_int64_default(ctx, argv[1], 0);
       return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, s, e));
     }
+
     case METHOD_UP: {
       int64_t n = js_int64_default(ctx, argv[0], 0);
       return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, 0, ptr->n - n));
     }
+
     case METHOD_DOWN: {
       Pointer* res = pointer_clone(ptr, ctx);
       int i;
@@ -183,31 +190,37 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
         pointer_push(res, ctx, argv[i]);
       return js_pointer_wrap(ctx, res);
     }
+
     case METHOD_KEYS: {
       JSValue array = pointer_toarray(ptr, ctx);
       JSValue iter = js_iterator_new(ctx, array);
       JS_FreeValue(ctx, array);
       return iter;
     }
+
     case METHOD_VALUES: {
       JSValue array = pointer_toarray(ptr, ctx);
       JSValue iter = js_iterator_new(ctx, array);
       JS_FreeValue(ctx, array);
       return iter;
     }
+
     case METHOD_SHIFT: {
       return pointer_shift(ptr, ctx, argv[0]);
     }
+
     case METHOD_PUSH: {
       int i;
       for(i = 0; i < argc; i++)
         pointer_push(ptr, ctx, argv[i]);
       return JS_DupValue(ctx, this_val);
     }
+
     case METHOD_CONCAT: {
       Pointer* res = pointer_concat(ptr, ctx, argv[0]);
       return js_pointer_wrap(ctx, res);
     }
+
     case METHOD_HIER: {
       JSValue ret = JS_NewArray(ctx);
       size_t i, j = 0;
@@ -252,10 +265,12 @@ js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewUint32(ctx, ptr->n);
       break;
     }
+
     case PROP_PATH: {
       ret = pointer_toarray(ptr, ctx);
       break;
     }
+
     case PROP_ATOMS: {
       ret = pointer_toatoms(ptr, ctx);
       break;
@@ -276,6 +291,7 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
       pointer_fromiterable(ptr, ctx, value);
       break;
     }
+
     case PROP_ATOMS: {
       ret = JS_NewInt32(ctx, pointer_fromatoms(ptr, ctx, value));
       break;
@@ -347,11 +363,16 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
   if((ptr = js_pointer_data(val))) {
     if(ptr->atoms) {
       uint32_t i;
+      
       for(i = 0; i < ptr->n; i++)
         JS_FreeAtomRT(rt, ptr->atoms[i]);
+
       js_free_rt(rt, ptr->atoms);
     }
+
     js_free_rt(rt, ptr);
+
+    JS_FreeAtomRT(rt, pointer_length);
   }
   // JS_FreeValueRT(rt, val);
 }
@@ -389,11 +410,10 @@ static const JSCFunctionListEntry js_pointer_static_funcs[] = {
 static int
 js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
-
   JSValue value = JS_UNDEFINED;
   int64_t index;
 
-  if(js_atom_is_length(ctx, prop)) {
+  if(prop == pointer_length) {
     if(pdesc) {
       pdesc->flags = 0;
       pdesc->value = JS_NewUint32(ctx, pointer->n);
@@ -457,15 +477,15 @@ js_pointer_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
   int64_t index;
 
-  if(js_atom_is_index(ctx, &index, prop)) {
+  if(prop == pointer_length) {
+    return TRUE;
+  } else if(js_atom_is_index(ctx, &index, prop)) {
     if(index < 0)
       index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
 
     if(index < (int64_t)pointer->n)
       return TRUE;
-  } else if(js_atom_is_length(ctx, prop)) {
-    return TRUE;
-  } else {
+  } else  {
     JSValue proto = JS_GetPrototype(ctx, obj);
     if(JS_IsObject(proto) && JS_HasProperty(ctx, proto, prop))
       return TRUE;
@@ -481,7 +501,7 @@ js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
   int64_t index;
   int32_t entry;
 
-  if(js_atom_is_length(ctx, prop)) {
+  if(prop == pointer_length) {
     value = JS_NewUint32(ctx, pointer->n);
   } else if(js_atom_is_index(ctx, &index, prop)) {
     if(index < 0)
@@ -542,6 +562,8 @@ static JSClassDef js_pointer_class = {
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {
+
+
   JS_NewClassID(&js_pointer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_pointer_class_id, &js_pointer_class);
 

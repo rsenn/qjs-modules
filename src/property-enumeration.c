@@ -13,7 +13,7 @@ int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst object, int flags) {
   *it = (PropertyEnumeration)PROPENUM_INIT();
 
-  if(!(it->tab_atom = js_object_keys(ctx, &it->tab_atom_len, object, flags & ~(PROPENUM_SORT_ATOMS)))) {
+  if(!(it->tab_atom = js_object_properties(ctx, &it->tab_atom_len, object, flags & ~(PROPENUM_SORT_ATOMS)))) {
     it->tab_atom_len = 0;
     return -1;
   }

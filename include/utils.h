@@ -614,7 +614,7 @@ JSValue js_object_error(JSContext*, const char* message);
 JSValue js_object_new(JSContext*, const char* class_name, int argc, JSValueConst argv[]);
 JSValue js_object_function(JSContext*, const char* func_name, JSValueConst obj);
 BOOL js_object_same2(JSContext*, JSValueConst, JSValueConst);
-JSAtom* js_object_keys(JSContext*, uint32_t* lenptr, JSValueConst obj, int flags);
+JSAtom* js_object_properties(JSContext*, uint32_t* lenptr, JSValueConst obj, int flags);
 
 #define JS_GPN_RECURSIVE (1 << 7)
 
