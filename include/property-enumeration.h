@@ -72,26 +72,6 @@ property_enumeration_valuestrlen(const PropertyEnumeration* it, size_t* len, JSC
   return str;
 }
 
-/*static inline const char*
-property_enumeration_valuestr(const PropertyEnumeration* it, JSContext* ctx) {
-  JSValue value = property_enumeration_value(it, ctx);
-  const char* str = JS_ToCString(ctxp, value);
-
-  JS_FreeValue(ctx, value);
-
-  return str;
-}
-
-static inline ValueTypeMask
-property_enumeration_type(const PropertyEnumeration* it, JSContext* ctx) {
-  JSValue value = property_enumeration_value(it, ctx);
-  ValueTypeMask ret = js_value_type(ctx, value);
-
-  JS_FreeValue(ctx, value);
-
-  return ret;
-}
-*/
 static inline JSAtom
 property_enumeration_atom(const PropertyEnumeration* it) {
   assert(it->idx < it->tab_atom_len);

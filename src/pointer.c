@@ -228,27 +228,26 @@ pointer_deref(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
   JSValue obj = JS_DupValue(ctx, arg);
 
   for(i = 0; i < ptr->n; i++) {
-    JSAtom atom = ptr->atoms[i]; // JS_DupAtom(ctx, ptr->atoms[i]);
+    JSAtom atom = ptr->atoms[i];
     JSValue child = deref_atom(ctx, obj, atom);
 
+    JS_FreeValue(ctx, obj);
+
     if(JS_IsException(child)) {
-
-      //  if(!JS_HasProperty(ctx, obj, atom)) {
       DynBuf dbuf;
-      js_dbuf_init(ctx, &dbuf);
 
+      js_dbuf_init(ctx, &dbuf);
       pointer_dump(ptr, ctx, &dbuf, TRUE, i);
       dbuf_0(&dbuf);
+
       obj = JS_ThrowReferenceError(ctx, "%s", dbuf.buf);
       dbuf_free(&dbuf);
       break;
     }
 
-    // JSValue child = JS_GetProperty(ctx, obj, atom);
-    JS_FreeValue(ctx, obj);
-
     obj = child;
   }
+
   return obj;
 }
 
@@ -335,14 +334,15 @@ int
 pointer_from(Pointer* ptr, JSContext* ctx, JSValueConst value) {
   Pointer* ptr2;
 
-  if((ptr2 = js_pointer_data(value)))
+  if((ptr2 = js_pointer_data(value))) {
     pointer_copy(ptr, ptr2, ctx);
-  else if(JS_IsString(value))
+  } else if(JS_IsString(value)) {
     pointer_fromstring(ptr, ctx, value);
-  else if(JS_IsArray(ctx, value))
+  } else if(JS_IsArray(ctx, value)) {
     pointer_fromarray(ptr, ctx, value);
-  else if(!JS_IsUndefined(value))
+  } else if(!JS_IsUndefined(value)) {
     return 0;
+  }
 
   return 1;
 }

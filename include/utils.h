@@ -547,6 +547,29 @@ const char* js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom);
 void js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color);
 BOOL js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom);
 BOOL js_atom_is_string(JSContext* ctx, JSAtom atom);
+
+static inline BOOL
+js_atom_is_integer(JSAtom atom) {
+  return !!(atom & (1U << 31));
+}
+
+static inline BOOL
+js_atom_is_number(JSContext* ctx, JSAtom atom) {
+  if(!js_atom_is_integer(atom)) {
+    BOOL ret = FALSE;
+    int64_t index;
+    JSValue value = JS_AtomToValue(ctx, atom);
+
+    if(!JS_ToInt64(ctx, &index, value))
+      ret = TRUE;
+
+    JS_FreeValue(ctx, value);
+    return ret;
+  }
+
+  return TRUE;
+}
+
 int js_atom_cmp_string(JSContext* ctx, JSAtom atom, const char* other);
 BOOL js_atom_is_length(JSContext* ctx, JSAtom atom);
 char* js_atom_tostring(JSContext* ctx, JSAtom atom);
