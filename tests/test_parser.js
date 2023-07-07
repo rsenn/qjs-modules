@@ -1,32 +1,15 @@
-import * as os from 'os';
-import * as std from 'std';
-import * as path from 'path';
-import inspect from 'inspect';
-import { Predicate } from 'predicate';
-import { Location, Lexer, Token } from 'lexer';
-import Console from '../lib/console.js';
-import ECMAScriptLexer from '../lib/lexer/ecmascript.js';
-import CLexer from '../lib/lexer/c.js';
-import BNFLexer from '../lib/lexer/bnf.js';
-import Parser, { DumpToken } from '../lib/parser.js';
-import EBNFParser from '../lib/parser/ebnf.js';
-import extendArray from '../lib/extendArray.js';
-
-('use math');
-
-let code = 'C';
-Error.stackTraceLimit = Infinity;
+//import * as path from 'path';
+//import inspect from 'inspect';
+import { Lexer } from 'lexer';
+import { Console } from 'console';
+import { readFileSync, writeFileSync } from 'fs';
+import extendArray from 'extendArray';
+//import EBNFParser from '../lib/parser/ebnf.js';
 
 extendArray(Array.prototype);
 
-function WriteFile(file, str) {
-  let f = std.open(file, 'w+');
-  f.puts(str);
-  let pos = f.tell();
-  console.log('Wrote "' + file + '": ' + pos + ' bytes');
-  f.close();
-  return pos;
-}
+let code = 'C';
+Error.stackTraceLimit = Infinity;
 
 function DumpLexer(lex) {
   const { size, pos, start, line, column, lineStart, lineEnd, columnIndex } = lex;
@@ -49,13 +32,13 @@ function RegExpToArray(regexp) {
 }
 
 function LoadScript(file) {
-  let code = std.loadFile(file);
+  let code = readFileSync(file, 'utf-8');
   //console.log('LoadScript', { code });
   return std.evalScript(code, {});
 }
 
 function WriteObject(file, obj, fn = arg => arg) {
-  return WriteFile(
+  return writeFileSync(
     file,
     fn(
       inspect(obj, {
@@ -91,31 +74,19 @@ function main(...args) {
       customInspect: true
     }
   });
+
   console.log('console.options', console.options);
+
   let optind = 0;
+
   while(args[optind] && args[optind].startsWith('-')) {
     if(/code/.test(args[optind])) {
       code = globalThis.code = args[++optind].toUpperCase();
     }
 
     optind++;
-  } /*
-  function TestRegExp(char) {
-    let re;
-    TryCatch(() => (re = new RegExp(char))).catch(err => (re = new RegExp((char = Lexer.escape(char))))
-    )();
-    let source = re ? RegExpToString(re) : undefined;
-    if(char != source) throw new Error(`'${char}' != '${source}'`);
-    console.log({ char, re, source, ok: char == source });
   }
-
-  [...Range(0, 127)].map(code => {
-    let char = String.fromCharCode(code);
-    TestRegExp(char);
-  });
-  TestRegExp('\b');
-  TestRegExp('\\b');*/
-
+  /*
   let file = args[optind] ?? path.join(path.dirname(process.argv[1]), '..', 'tests/Shell-Grammar.y');
   let outputFile = args[optind + 1] ?? 'grammar.kison';
   console.log('file:', file);
@@ -136,7 +107,7 @@ function main(...args) {
     //  console.log('grammar:', grammar);
   }
   std.gc();
-  return !!grammar;
+  return !!grammar;*/
 }
 
 try {

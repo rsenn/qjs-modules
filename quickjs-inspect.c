@@ -145,13 +145,13 @@ options_init(InspectOptions* opts, JSContext* ctx) {
 
 static void
 options_free(InspectOptions* opts, JSContext* ctx) {
-
   PropertyKey* key;
 
   vector_foreach_t(&opts->hide_keys, key) {
     JS_FreeAtom(ctx, key->atom);
     js_cstring_free(ctx, key->name);
   }
+
   vector_free(&opts->hide_keys);
 }
 
@@ -355,11 +355,19 @@ put_newline(Writer* wr, int32_t depth) {
 }
 
 static void
-put_spacing(Writer* wr, const InspectOptions* opts, int32_t depth) {
-  if(IS_COMPACT(depth))
+adjust_spacing(Writer* wr, const InspectOptions* opts, int32_t* depth, int32_t incdec) {
+  int32_t d = *depth;
+  *depth += incdec;
+
+  if(IS_COMPACT(d))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, depth);
+    put_newline(wr, *depth);
+}
+
+static void
+put_spacing(Writer* wr, const InspectOptions* opts, int32_t depth) {
+  adjust_spacing(wr, opts, &depth, 0);
 }
 
 static void
@@ -1250,7 +1258,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     index = property_enumeration_index(it);
 
 #ifdef DEBUG_OUTPUT
-    printf("%s() depth: %u idx: %u/%u\n", __func__, property_recursion_depth(&frames), index, it->tab_atom_len);
+    printf("%s()[0] depth: %u idx: %u/%u\n", __func__, property_recursion_depth(&frames), index, it->tab_atom_len);
 #endif
 
     if(index > 0)
@@ -1281,11 +1289,11 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
 
       if(it) {
         index = 0;
-        writer_puts(wr, is_array ? "<[<" : "<{<");
+        writer_puts(wr, is_array ? "[" : "{");
 
         ++depth;
 
-        put_spacing(wr, opts, depth);
+        // put_spacing(wr, opts, depth);
 
         continue;
       } else {
@@ -1296,9 +1304,7 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     if(it) {
       if(ret != 1 && !is_object) {
         assert(!JS_IsObject(value));
-        // writer_putc(wr, '<');
         inspect_value(ctx, wr, value, opts, depth);
-        // writer_putc(wr, '>');
       }
     }
 
@@ -1309,10 +1315,14 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
       /* no more nested enumerations */
       it = property_recursion_pop(&frames, ctx);
 
-      put_spacing(wr, opts, --depth);
+      adjust_spacing(wr, opts, &depth, -1);
 
       if(!it)
         break;
+
+#ifdef DEBUG_OUTPUT
+      printf("%s()[1] depth: %u %u it: %p\n", __func__, property_recursion_depth(&frames), depth, it);
+#endif
 
       writer_puts(wr, is_array ? "]" : "}");
 
@@ -1320,18 +1330,11 @@ inspect_recursive(JSContext* ctx, Writer* wr, JSValueConst obj, InspectOptions* 
     }
   }
 
-
 #ifdef DEBUG_OUTPUT
-    printf("%s() depth: %u %u it: %p\n", __func__, property_recursion_depth(&frames), depth, it);
+  printf("%s()[2] depth: %u %u it: %p\n", __func__, property_recursion_depth(&frames), depth, it);
 #endif
-  /*if(depth >= 0) {
-    if(depth > 0 || it) {
-      put_spacing(wr, opts, 0);
-    }
 
-    }*/
   writer_puts(wr, JS_IsArray(ctx, obj) ? "]" : "}");
-  
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
   return 0;

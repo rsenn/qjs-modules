@@ -27,26 +27,28 @@ void pointer_debug(Pointer*, JSContext* ctx);
 size_t pointer_parse(Pointer*, JSContext* ctx, const char* str, size_t len);
 Pointer* pointer_slice(Pointer*, JSContext* ctx, int64_t start, int64_t end);
 JSValue pointer_shift(Pointer*, JSContext* ctx, JSValue obj);
-JSAtom pointer_at(const Pointer*, int32_t);
+JSAtom pointer_at(Pointer const*, int32_t);
 void pointer_push(Pointer*, JSContext* ctx, JSValue key);
 JSValue pointer_deref(Pointer*, JSContext* ctx, JSValue arg);
 JSValue pointer_acquire(Pointer*, JSContext* ctx, JSValue arg);
-void pointer_fromstring(Pointer*, JSContext* ctx, JSValue value);
+BOOL pointer_fromstring(Pointer*, JSContext* ctx, JSValue value);
 void pointer_fromarray(Pointer*, JSContext* ctx, JSValue array);
 void pointer_fromiterable(Pointer*, JSContext* ctx, JSValue arg);
 int pointer_from(Pointer*, JSContext* ctx, JSValue value);
-Pointer* pointer_concat(Pointer*, JSContext* ctx, JSValue arr);
-void pointer_tostring(Pointer*, JSContext* ctx, DynBuf* db);
-JSValue pointer_toarray(Pointer*, JSContext* ctx);
-JSValue pointer_toatoms(Pointer*, JSContext* ctx);
+Pointer* pointer_concat(Pointer const*, JSContext* ctx, JSValue arr);
+void pointer_tostring(Pointer const*, JSContext* ctx, DynBuf* db);
+JSValue pointer_toarray(Pointer const*, JSContext* ctx);
+JSValue pointer_toatoms(Pointer const*, JSContext* ctx);
 int pointer_fromatoms(Pointer*, JSContext* ctx, JSValue arr);
 void pointer_pushatom(Pointer* ptr, JSContext* ctx, JSAtom atom);
 
 static inline Pointer*
 pointer_clone(Pointer* other, JSContext* ctx) {
   Pointer* ptr;
+
   if((ptr = pointer_new(ctx)))
     pointer_copy(ptr, other, ctx);
+
   return ptr;
 }
 
@@ -54,10 +56,12 @@ static inline JSAtom
 pointer_pop(Pointer* ptr) {
   JSAtom ret = JS_ATOM_NULL;
   size_t size = ptr->n;
+
   if(size > 0) {
     ret = ptr->atoms[size - 1];
     ptr->atoms[--ptr->n] = 0;
   }
+
   return ret;
 }
 

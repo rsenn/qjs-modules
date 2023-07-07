@@ -23,25 +23,28 @@ pointer_free(Pointer* ptr, JSContext* ctx) {
 
 void
 pointer_reset(Pointer* ptr, JSContext* ctx) {
-  size_t i;
-
   if(ptr->atoms) {
+    size_t i;
+
     for(i = 0; i < ptr->n; i++)
       JS_FreeAtom(ctx, ptr->atoms[i]);
+
     js_free(ctx, ptr->atoms);
-    ptr->atoms = 0;
   }
+
+  ptr->atoms = 0;
   ptr->n = 0;
 }
 
 void
 pointer_copy(Pointer* dst, Pointer* src, JSContext* ctx) {
-  if(dst->n)
-    pointer_reset(dst, ctx);
+  pointer_reset(dst, ctx);
 
   if((dst->atoms = js_mallocz(ctx, sizeof(JSAtom) * src->n))) {
     size_t i;
+
     dst->n = src->n;
+
     for(i = 0; i < src->n; i++)
       dst->atoms[i] = JS_DupAtom(ctx, src->atoms[i]);
   }
@@ -53,9 +56,11 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
     pointer_reset(ptr, ctx);
     return;
   }
+
   if(ptr->atoms) {
     size_t i;
-    for(i = ptr->n - 1; i >= size; i--)
+
+    for(i = size; i < ptr->n; i++)
       JS_FreeAtom(ctx, ptr->atoms[i]);
 
     ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * size);
@@ -63,29 +68,33 @@ pointer_truncate(Pointer* ptr, JSContext* ctx, size_t size) {
   }
 }
 
-#define pointer_color(s) (/*(index) >= 0 &&*/ (i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_LIGHTGRAY : COLOR_YELLOW))
+#define pointer_color(s) ((i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_LIGHTGRAY : COLOR_YELLOW))
 
 void
 pointer_dump(Pointer* ptr, JSContext* ctx, DynBuf* db, BOOL color, size_t index) {
   size_t i;
-  const char* s;
+
   for(i = 0; i < ptr->n; i++) {
-    BOOL is_int;
-    s = JS_AtomToCString(ctx, ptr->atoms[i]);
-    is_int = is_integer(s);
+    const char* s = JS_AtomToCString(ctx, ptr->atoms[i]);
+    BOOL is_int = is_integer(s);
+
     dbuf_putstr(db, color ? (is_int ? COLOR_CYAN "[" : COLOR_CYAN ".") : (is_integer(s) ? "[" : "."));
     dbuf_putstr(db, color ? pointer_color(s) : "");
     dbuf_putstr(db, s);
+
     if(is_int)
       dbuf_putstr(db, color ? COLOR_CYAN "]" : "]");
+
     js_cstring_free(ctx, s);
   }
+
   dbuf_putstr(db, color ? COLOR_NONE : "");
 }
 
 void
 pointer_debug(Pointer* ptr, JSContext* ctx) {
   DynBuf db;
+
   js_dbuf_init(ctx, &db);
   pointer_dump(ptr, ctx, &db, TRUE, -1);
   dbuf_0(&db);
@@ -97,30 +106,33 @@ pointer_debug(Pointer* ptr, JSContext* ctx) {
 
 size_t
 pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
-  size_t start, delim, n;
-  JSAtom atom;
-  char* endptr;
-  unsigned long val;
-
   while(len) {
-    char c = str[0];
+    unsigned long val;
+    char c = *str, *endptr;
+    size_t start, delim, n;
+    JSAtom atom;
+
     start = c == '[' ? 1 : 0;
     delim = start;
+
     for(;;) {
       delim += byte_chrs(&str[delim], len - delim, c == '[' ? "." : ".[", c == '[' ? 2 : 2);
+
       if(delim < len && delim > 0 && str[delim - 1] == '\\') {
         ++delim;
         continue;
       }
+
       break;
     }
 
     n = delim - start;
     endptr = 0;
     val = 0;
-    if(delim && str[delim - 1] == ']') {
+
+    if(delim && str[delim - 1] == ']')
       n--;
-    }
+
     if(is_digit_char(str[start]))
       val = strtoul(&str[start], &endptr, 10);
 
@@ -139,6 +151,7 @@ pointer_parse(Pointer* ptr, JSContext* ctx, const char* str, size_t len) {
       --len;
     }
   }
+
   return ptr->n;
 }
 
@@ -149,8 +162,6 @@ pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
 
   start = int32_mod(start, ptr->n);
   end = int32_mod(end, ptr->n);
-  /* if(end == 0)
-     end = ptr->n;*/
 
   ret->n = end - start;
   ret->atoms = ret->n ? js_mallocz(ctx, sizeof(JSAtom) * ret->n) : 0;
@@ -164,31 +175,33 @@ pointer_slice(Pointer* ptr, JSContext* ctx, int64_t start, int64_t end) {
 JSValue
 pointer_shift(Pointer* ptr, JSContext* ctx, JSValueConst obj) {
   JSValue ret = JS_UNDEFINED;
+
   if(ptr->n) {
-    JSAtom atom;
     size_t i;
-    atom = ptr->atoms[0];
-    for(i = 1; i < ptr->n; i++) {
+    JSAtom atom = ptr->atoms[0];
+
+    for(i = 1; i < ptr->n; i++)
       ptr->atoms[i - 1] = ptr->atoms[i];
-    }
+
     ptr->n--;
     ret = JS_GetProperty(ctx, obj, atom);
     JS_FreeAtom(ctx, atom);
   }
+
   return ret;
 }
 
 JSAtom
-pointer_at(const Pointer* ptr, int32_t index) {
+pointer_at(Pointer const* ptr, int32_t index) {
   JSAtom atom;
 
   if(ptr->n) {
-    index = index % (int32_t)ptr->n;
-    if(index < 0)
+    if((index %= (int32_t)ptr->n) < 0)
       index += ptr->n;
 
     return ptr->atoms[index];
   }
+
   return 0;
 }
 
@@ -205,13 +218,19 @@ deref_atom(JSContext* ctx, JSValueConst obj, JSAtom atom) {
 
     if(JS_IsFunction(ctx, value)) {
       JSPropertyEnum* tmp_tab;
-      uint32_t i, tmp_len;
+      uint32_t tmp_len;
+
       if(!JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
+        uint32_t i;
 
         for(i = 0; i < tmp_len; i++) {
-          JSValueConst args[3] = {JS_GetProperty(ctx, obj, tmp_tab[i].atom), JS_AtomToValue(ctx, tmp_tab[i].atom), obj};
+          JSValueConst args[3] = {
+              JS_GetProperty(ctx, obj, tmp_tab[i].atom),
+              JS_AtomToValue(ctx, tmp_tab[i].atom),
+              obj,
+          };
 
-          JSValue ret = JS_Call(ctx, value, JS_NULL, 3, args);
+          JSValue ret = JS_Call(ctx, value, JS_NULL, countof(args), args);
           BOOL match = JS_ToBool(ctx, ret);
 
           JS_FreeValue(ctx, args[1]);
@@ -279,52 +298,67 @@ pointer_acquire(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
     } else {
       child = JS_GetProperty(ctx, obj, atom);
     }
-    JS_FreeValue(ctx, obj);
 
+    JS_FreeValue(ctx, obj);
     obj = child;
   }
+
   return obj;
 }
 
-void
+BOOL
 pointer_fromstring(Pointer* ptr, JSContext* ctx, JSValueConst value) {
   size_t len;
   const char* str;
-  str = JS_ToCStringLen(ctx, &len, value);
-  pointer_parse(ptr, ctx, str, len);
-  js_cstring_free(ctx, str);
+
+  if((str = JS_ToCStringLen(ctx, &len, value))) {
+    pointer_parse(ptr, ctx, str, len);
+    js_cstring_free(ctx, str);
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 void
 pointer_fromarray(Pointer* ptr, JSContext* ctx, JSValueConst array) {
-  size_t i, len;
   JSValueConst prop;
-  len = js_array_length(ctx, array);
+  size_t i, len = js_array_length(ctx, array);
+
   pointer_reset(ptr, ctx);
 
-  ptr->atoms = js_malloc(ctx, sizeof(JSAtom) * len);
-  for(i = 0; i < len; i++) {
-    prop = JS_GetPropertyUint32(ctx, array, i);
-    ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
-    JS_FreeValue(ctx, prop);
+  if(len > 0) {
+    ptr->atoms = js_malloc(ctx, sizeof(JSAtom) * len);
+
+    for(i = 0; i < len; i++) {
+      prop = JS_GetPropertyUint32(ctx, array, i);
+      ptr->atoms[i] = JS_ValueToAtom(ctx, prop);
+      JS_FreeValue(ctx, prop);
+    }
   }
+
   ptr->n = len;
 }
 
 void
 pointer_fromiterable(Pointer* ptr, JSContext* ctx, JSValueConst arg) {
-  BOOL done = FALSE;
-  JSValue item, iter = js_iterator_new(ctx, arg);
+  JSValue iter = js_iterator_new(ctx, arg);
 
   pointer_reset(ptr, ctx);
 
   for(;;) {
-    item = js_iterator_next(ctx, iter, &done);
-    if(done)
+    BOOL done = FALSE;
+    JSValue item = js_iterator_next(ctx, iter, &done);
+
+    if(done) {
+      JS_FreeValue(ctx, item);
       break;
+    }
+
     pointer_push(ptr, ctx, item);
     JS_FreeValue(ctx, item);
   }
+
   JS_FreeValue(ctx, iter);
 }
 
@@ -345,10 +379,11 @@ pointer_from(Pointer* ptr, JSContext* ctx, JSValueConst value) {
 }
 
 Pointer*
-pointer_concat(Pointer* ptr, JSContext* ctx, JSValueConst arr) {
+pointer_concat(Pointer const* ptr, JSContext* ctx, JSValueConst arr) {
   JSValue iterator;
   Pointer* ret = pointer_new(ctx);
   size_t i;
+
   ret->n = ptr->n;
   ret->atoms = js_realloc(ctx, ret->atoms, sizeof(JSAtom) * ret->n);
 
@@ -356,69 +391,87 @@ pointer_concat(Pointer* ptr, JSContext* ctx, JSValueConst arr) {
     ret->atoms[i] = JS_DupAtom(ctx, ptr->atoms[i]);
 
   iterator = js_iterator_new(ctx, arr);
+
   for(;;) {
     BOOL done = FALSE;
     JSValue item = js_iterator_next(ctx, iterator, &done);
+
     if(done)
       break;
+
     pointer_push(ret, ctx, item);
   }
+
   return ret;
 }
 
 void
-pointer_tostring(Pointer* ptr, JSContext* ctx, DynBuf* db) {
+pointer_tostring(Pointer const* ptr, JSContext* ctx, DynBuf* db) {
   size_t i, j;
-  const char* str;
+
   for(i = 0; i < ptr->n; i++) {
+    const char* str;
+
     if(js_atom_isint(ptr->atoms[i])) {
       dbuf_printf(db, "[%" PRIu32 "]", js_atom_toint(ptr->atoms[i]));
       continue;
     }
+
     if(i > 0)
       dbuf_putc(db, '.');
+
     str = JS_AtomToCString(ctx, ptr->atoms[i]);
+
     for(j = 0; str[j]; j++) {
       if(str[j] == '.')
         dbuf_putc(db, '\\');
+
       dbuf_putc(db, str[j]);
     }
+
+    JS_FreeCString(ctx, str);
   }
 }
 
 JSValue
-pointer_toarray(Pointer* ptr, JSContext* ctx) {
+pointer_toarray(Pointer const* ptr, JSContext* ctx) {
   size_t i;
   JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++) {
+
+  for(i = 0; i < ptr->n; i++)
     JS_SetPropertyUint32(ctx, array, i, js_atom_tovalue(ctx, ptr->atoms[i]));
-  }
+
   return array;
 }
 
 JSValue
-pointer_toatoms(Pointer* ptr, JSContext* ctx) {
+pointer_toatoms(Pointer const* ptr, JSContext* ctx) {
   size_t i;
   JSValue array = JS_NewArray(ctx);
-  for(i = 0; i < ptr->n; i++) {
+
+  for(i = 0; i < ptr->n; i++)
     JS_SetPropertyUint32(ctx, array, i, JS_NewUint32(ctx, ptr->atoms[i]));
-  }
+
   return array;
 }
 
 int
 pointer_fromatoms(Pointer* ptr, JSContext* ctx, JSValueConst arr) {
-  size_t len = js_array_length(ctx, arr);
-  size_t i;
+  size_t i, len = js_array_length(ctx, arr);
+
   pointer_reset(ptr, ctx);
 
-  ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * len);
-  ptr->n = len;
-  for(i = 0; i < len; i++) {
-    uint32_t atom;
-    JS_ToUint32(ctx, &atom, JS_GetPropertyUint32(ctx, arr, i));
-    ptr->atoms[i] = atom;
+  if(len > 0) {
+    ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * len);
+    ptr->n = len;
+
+    for(i = 0; i < len; i++) {
+      uint32_t atom;
+      JS_ToUint32(ctx, &atom, JS_GetPropertyUint32(ctx, arr, i));
+      ptr->atoms[i] = atom;
+    }
   }
+
   return ptr->n;
 }
 
