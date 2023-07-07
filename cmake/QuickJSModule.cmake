@@ -12,7 +12,7 @@ endfunction(config_module TARGET_NAME)
 
 function(compile_module SOURCE)
   basename(BASE "${SOURCE}" .js)
-  message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
+  #message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
 
   set(MODULES_DIR "${CMAKE_BINARY_DIR}/modules")
   set(MODULES_DIR "${MODULES_DIR}" PARENT_SCOPE)
@@ -203,7 +203,7 @@ function(make_module FNAME)
     set(MSG "${MSG} (libs: ${OUT})")
   endif()
 
-  message(STATUS "${MSG}")
+  #message(STATUS "${MSG}")
 
   if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
     set(BUILD_SHARED_MODULES OFF)

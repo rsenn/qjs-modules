@@ -1,6 +1,6 @@
 project(qjs-modules C)
 
-message("Building project [1;31m${PROJECT_NAME}[0m")
+#message("Building project [1;31m${PROJECT_NAME}[0m")
 
 cmake_minimum_required(VERSION 3.2)
 
@@ -33,7 +33,7 @@ endif(WIN32 OR MINGW)
 if(ANDROID)
   add_definitions(-DANDROID)
 endif(ANDROID)
-message("System: ${CMAKE_SYSTEM_NAME}")
+#message("System: ${CMAKE_SYSTEM_NAME}")
 
 if(DEBUG_OUTPUT)
   add_definitions(-DDEBUG_OUTPUT)
@@ -51,7 +51,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
-message(STATUS "Finding QuickJS...")
+#message(STATUS "Finding QuickJS...")
 
 find_quickjs()
 configure_quickjs()
@@ -96,7 +96,7 @@ check_include_def(threads.h)
 check_include_def(sys/mman.h)
 
 check_function_def(mmap)
-dump(HAVE_MMAP)
+#dump(HAVE_MMAP)
 
 check_include_def(termios.h)
 check_function_def(ioctl)
@@ -112,7 +112,7 @@ check_includes(fcntl.h alloca.h wordexp.h sys/inotify.h)
 
 check_functions_def(access fnmatch daemon)
 
-message("Have daemon() ${HAVE_DAEMON}")
+#message("Have daemon() ${HAVE_DAEMON}")
 
 check_include_file(fnmatch.h HAVE_FNMATCH_H_2)
 #check_include_def(fnmatch.h)
@@ -129,13 +129,13 @@ if(HAVE_INOTIFY)
   add_definitions(-DHAVE_INOTIFY)
 endif(HAVE_INOTIFY)
 
-message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
-message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
-message("Enable inotify ${HAVE_INOTIFY}")
+#message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
+#message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
+#message("Enable inotify ${HAVE_INOTIFY}")
 
 check_function_and_include(sysinfo sys/sysinfo.h)
 
-message("Have sysinfo() ${HAVE_SYSINFO}")
+#message("Have sysinfo() ${HAVE_SYSINFO}")
 
 check_function_def(gettid)
 check_function_def(uname)
@@ -338,7 +338,7 @@ if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   #[[if(HAVE_AFUNIX_H)
     add_definitions(-DHAVE_AFUNIX_H)
   endif(HAVE_AFUNIX_H)
-  dump(HAVE_AFUNIX_H)]]
+  #dump(HAVE_AFUNIX_H)]]
 
 else()
   check_function_exists(inet_pton HAVE_INET_PTON)
@@ -354,13 +354,13 @@ endif()
 #  check_symbol_exists(<inet_pton "winsock2.h" HAVE_INET_PTON)
 #endif(NOT HAVE_INET_PTON)
 
-dump(HAVE_INET_PTON)
+#dump(HAVE_INET_PTON)
 
 if(HAVE_INET_PTON)
-  message(STATUS "Have inet_pton()")
+  #message(STATUS "Have inet_pton()")
   add_definitions(-DHAVE_INET_PTON)
 else(HAVE_INET_PTON)
-  message(STATUS "Don't have inet_pton()")
+  #message(STATUS "Don't have inet_pton()")
 endif(HAVE_INET_PTON)
 
 if(NOT HAVE_INET_PTON)
@@ -410,11 +410,11 @@ endif(BUILD_LIBSERIALPORT)
 
 set(serial_DEPS libserialport)
 set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
-  
-dump(WIN32 MINGW MSYS CLANG)
+
+#dump(WIN32 MINGW MSYS CLANG)
 
 if(HAVE_MMAP)
-    set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
+  set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
 else(HAVE_MMAP)
   if(WIN32 OR MINGW OR MSYS)
     set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
@@ -422,8 +422,8 @@ else(HAVE_MMAP)
   endif()
 endif(HAVE_MMAP)
 
-dump(QUICKJS_MODULES mmap_SOURCES)
-    
+#dump(QUICKJS_MODULES mmap_SOURCES)
+
 if(CACHE{CMAKE_BUILD_TYPE})
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
 endif(CACHE{CMAKE_BUILD_TYPE})
@@ -504,7 +504,6 @@ endif(HAVE_INET_NTOP)
 if(NOT mmap_SOURCES)
   list(REMOVE_ITEM LIBRARY_SOURCES src/mmap-win32.c)
 endif(NOT mmap_SOURCES)
-
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
 
