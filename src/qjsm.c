@@ -516,7 +516,7 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
     return 0;
 
   for(s = list; *s; s += i) {
-    if((i = str_chrs(s, ";:\n", 3)) == 0)
+    if((i = str_chrs(s, ";\n", 2)) == 0)
       break;
     strncpy(t, s, i);
     t[i] = '/';
