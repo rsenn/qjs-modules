@@ -418,22 +418,35 @@ js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
 
 BOOL
 js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
-  if(!(atom & (1U << 31))) {
-    BOOL ret = FALSE;
-    int64_t index;
-    JSValue value = JS_AtomToValue(ctx, atom);
+  JSValue value;
+  BOOL ret = FALSE;
+  int64_t index;
 
+  if(atom & (1U << 31)) {
+    *pval = atom & (~(1U << 31));
+    return TRUE;
+  }
+
+  value = JS_AtomToValue(ctx, atom);
+
+  if(JS_IsNumber(value)) {
     if(!JS_ToInt64(ctx, &index, value))
       ret = TRUE;
+  } else if(JS_IsString(value)) {
+    const char* s = JS_ToCString(ctx, value);
 
-    if(ret == TRUE)
-      *pval = index;
-    JS_FreeValue(ctx, value);
+    if(is_digit_char(s[s[0] == '-'])) {
+      index = atoll(s);
+      ret = TRUE;
+    }
 
-    return ret;
+    JS_FreeCString(ctx, s);
   }
-  *pval = atom & (~(1U << 31));
-  return TRUE;
+
+  if(ret == TRUE)
+    *pval = index;
+
+  return ret;
 }
 
 BOOL
