@@ -40,7 +40,7 @@ thread_local JSAtom inspect_custom_atom = 0, inspect_custom_atom_node = 0;
 static thread_local JSValue object_tostring;
 
 #define INT32_IN_RANGE(i) ((i) > INT32_MIN && (i) < INT32_MAX)
-#define IS_COMPACT(d) (/*(opts->compact != INT32_MIN) &&*/ ((d) > opts->compact))
+#define IS_COMPACT(d) ((d) >= opts->compact)
 
 typedef struct {
   const char* name;

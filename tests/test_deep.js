@@ -25,14 +25,13 @@ const inspectOptions = {
   depth: 4,
   maxArrayLength: 10,
   maxStringLength: 200,
-  compact: false,
+  compact: 1,
   hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
 };
 
 function main(...args) {
   globalThis.console = new Console({ inspectOptions });
-  console.options.compact = 3;
-
+  
   let obj1 = {
     a: [undefined, 1, 1234n],
     b: 2,
