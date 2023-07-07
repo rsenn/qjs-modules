@@ -95,7 +95,8 @@ js_pointer_tostring(JSContext* ctx, JSValueConst this_val) {
     return JS_EXCEPTION;
 
   js_dbuf_init(ctx, &dbuf);
-  pointer_tostring(ptr, &dbuf, ctx);
+  Writer wr = writer_from_dynbuf(&dbuf);
+  pointer_tostring(ptr, &wr, ctx);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
   return ret;
@@ -150,11 +151,6 @@ js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
 }
 
 static JSValue
-js_pointer_deref(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueConst arg) {
-  return pointer_deref(ptr, arg, ctx);
-}
-
-static JSValue
 js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Pointer* ptr;
 
@@ -163,7 +159,7 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   switch(magic) {
     case METHOD_DEREF: {
-      return js_pointer_deref(ctx, ptr, this_val, argv[0]);
+      return pointer_deref(ptr, argv[0], ctx);
     }
 
     case METHOD_TO_STRING: {
@@ -188,13 +184,13 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case METHOD_DOWN: {
-      Pointer* res = pointer_clone(ptr, ctx);
+      Pointer* result = pointer_clone(ptr, ctx);
       int i;
 
       for(i = 0; i < argc; i++)
-        pointer_push(res, argv[i], ctx);
+        pointer_push(result, argv[i], ctx);
 
-      return js_pointer_wrap(ctx, res);
+      return js_pointer_wrap(ctx, result);
     }
 
     case METHOD_KEYS: {
@@ -238,10 +234,10 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case METHOD_CONCAT: {
-      Pointer* res;
+      Pointer* result;
 
-      if((res = pointer_concat(ptr, argv[0], ctx)))
-        return js_pointer_wrap(ctx, res);
+      if((result = pointer_concat(ptr, argv[0], ctx)))
+        return js_pointer_wrap(ctx, result);
     }
 
     case METHOD_HIER: {

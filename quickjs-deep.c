@@ -327,8 +327,8 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   vector_init(&frames, ctx);
 
   ret = JS_NewArray(ctx);
-  property_recursion_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
-  it = vector_empty(&frames) ? 0 : vector_back(&frames, sizeof(PropertyEnumeration));
+  it = property_recursion_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
+  // it = vector_empty(&frames) ? 0 : vector_back(&frames, sizeof(PropertyEnumeration));
 
   while(it) {
     if(js_deep_predicate(ctx, argv[1], &frames))

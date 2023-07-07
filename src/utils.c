@@ -722,10 +722,11 @@ js_iterator_method(JSContext* ctx, JSValueConst obj) {
 
 JSValue
 js_iterator_new(JSContext* ctx, JSValueConst obj) {
-  JSValue fn, ret = JS_UNDEFINED;
-  fn = js_iterator_method(ctx, obj);
+  JSValue ret = JS_UNDEFINED, fn = js_iterator_method(ctx, obj);
+
   if(JS_IsFunction(ctx, fn))
     ret = JS_Call(ctx, fn, obj, 0, 0);
+  
   JS_FreeValue(ctx, fn);
   return ret;
 }
@@ -891,7 +892,7 @@ js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj) {
   JS_FreeValue(ctx, ctor);
   return ret;
 }
-
+/*
 JSAtom*
 js_object_properties(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int flags) {
   Vector vec = VECTOR(ctx);
@@ -933,6 +934,54 @@ js_object_properties(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int fla
     ret = js_realloc(ctx, ret, size * sizeof(JSAtom));
 
   return ret;
+}*/
+JSAtom*
+js_object_properties(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int flags) {
+  JSAtom* atoms = NULL;
+  uint32_t num_atoms = 0;
+  JSValue proto = JS_DupValue(ctx, obj);
+
+  do {
+    JSPropertyEnum* tmp_tab;
+    uint32_t tmp_len, pos = 0, i, j;
+
+    if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, proto, flags))
+      break;
+
+    atoms = js_realloc(ctx, atoms, sizeof(JSAtom) * (num_atoms + tmp_len));
+
+    for(i = 0; i < tmp_len; i++) {
+
+      for(j = 0; j < num_atoms; j++)
+        if(atoms[j] == tmp_tab[i].atom)
+          break;
+
+      if(j < num_atoms)
+        continue;
+
+      atoms[num_atoms + pos] = tmp_tab[i].atom;
+      pos++;
+    }
+
+    num_atoms += pos;
+
+    js_free(ctx, tmp_tab);
+    tmp_tab = NULL;
+
+    if(!(flags & JS_GPN_RECURSIVE))
+      break;
+
+    JSValue tmp = JS_GetPrototype(ctx, proto);
+    JS_FreeValue(ctx, proto);
+    proto = tmp;
+  } while(JS_IsObject(proto));
+
+  JS_FreeValue(ctx, proto);
+
+  if(lenptr)
+    *lenptr = num_atoms;
+
+  return atoms;
 }
 
 BOOL
@@ -2489,7 +2538,7 @@ js_arraybuffer_freevalue(JSRuntime* rt, void* opaque, void* ptr) {
 JSValue
 js_arraybuffer_fromvalue(JSContext* ctx, void* x, size_t n, JSValueConst val) {
   JSValue* valptr;
-  
+
   if(!(valptr = js_malloc(ctx, sizeof(JSValue))))
     return JS_EXCEPTION;
 

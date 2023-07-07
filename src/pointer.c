@@ -109,7 +109,7 @@ pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
 #define pointer_color(s) ((i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_LIGHTGRAY : COLOR_YELLOW))
 
 void
-pointer_dump(Pointer const* ptr, DynBuf* db, BOOL color, size_t index, JSContext* ctx) {
+pointer_dump(Pointer const* ptr, DynBuf* db, BOOL color, ssize_t index, JSContext* ctx) {
   size_t i;
 
   for(i = 0; i < ptr->n; i++) {
@@ -140,6 +140,38 @@ pointer_debug(Pointer const* ptr, JSContext* ctx) {
   puts((const char*)db.buf);
 
   dbuf_free(&db);
+}
+
+void
+pointer_tostring(Pointer const* ptr, Writer* db, JSContext* ctx) {
+  size_t i, j;
+
+  for(i = 0; i < ptr->n; i++) {
+    const char* str;
+
+    if(js_atom_is_integer(ptr->atoms[i])) {
+      char buf[FMT_ULONG];
+
+      writer_putc(db, '[');
+      writer_write(db, (const uint8_t*)buf, fmt_ulong(buf, js_atom_get_integer(ptr->atoms[i])));
+      writer_putc(db, ']');
+      continue;
+    }
+
+    if(i > 0)
+      writer_putc(db, '.');
+
+    str = JS_AtomToCString(ctx, ptr->atoms[i]);
+
+    for(j = 0; str[j]; j++) {
+      if(str[j] == '.')
+        writer_putc(db, '\\');
+
+      writer_putc(db, str[j]);
+    }
+
+    JS_FreeCString(ctx, str);
+  }
 }
 
 size_t
@@ -213,6 +245,22 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
   }
 
   return ret;
+}
+
+BOOL
+pointer_fromatoms(Pointer* ptr, JSAtom* vec, size_t len, JSContext* ctx) {
+  pointer_reset(ptr, JS_GetRuntime(ctx));
+
+  if(pointer_allocate(ptr, len, ctx)) {
+    size_t i;
+
+    for(i = 0; i < len; i++)
+      ptr->atoms[i] = JS_DupAtom(ctx, vec[i]);
+
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 JSValue
@@ -289,7 +337,7 @@ pointer_deref(Pointer const* ptr, JSValueConst arg, JSContext* ctx) {
       DynBuf dbuf;
 
       js_dbuf_init(ctx, &dbuf);
-      pointer_dump(ptr, &dbuf, TRUE, i, ctx);
+      pointer_dump(ptr, &dbuf, TRUE, -1, ctx);
       dbuf_0(&dbuf);
 
       obj = JS_ThrowReferenceError(ctx, "%s", dbuf.buf);
@@ -369,22 +417,6 @@ pointer_fromiterable(Pointer* ptr, JSValueConst arg, JSContext* ctx) {
   JS_FreeValue(ctx, iter);
 }
 
-BOOL
-pointer_fromatoms(Pointer* ptr, JSAtom* vec, size_t len, JSContext* ctx) {
-  pointer_reset(ptr, JS_GetRuntime(ctx));
-
-  if(pointer_allocate(ptr, len, ctx)) {
-    size_t i;
-
-    for(i = 0; i < len; i++)
-      ptr->atoms[i] = JS_DupAtom(ctx, vec[i]);
-
-    return TRUE;
-  }
-
-  return FALSE;
-}
-
 int
 pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
   Pointer* ptr2;
@@ -422,34 +454,6 @@ pointer_concat(Pointer const* ptr, JSValueConst iterable, JSContext* ctx) {
   }
 
   return ret;
-}
-
-void
-pointer_tostring(Pointer const* ptr, DynBuf* db, JSContext* ctx) {
-  size_t i, j;
-
-  for(i = 0; i < ptr->n; i++) {
-    const char* str;
-
-    if(JS_ATOM_ISINT(ptr->atoms[i])) {
-      dbuf_printf(db, "[%" PRIu32 "]", JS_ATOM_TOINT(ptr->atoms[i]));
-      continue;
-    }
-
-    if(i > 0)
-      dbuf_putc(db, '.');
-
-    str = JS_AtomToCString(ctx, ptr->atoms[i]);
-
-    for(j = 0; str[j]; j++) {
-      if(str[j] == '.')
-        dbuf_putc(db, '\\');
-
-      dbuf_putc(db, str[j]);
-    }
-
-    JS_FreeCString(ctx, str);
-  }
 }
 
 JSValue

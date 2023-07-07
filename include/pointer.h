@@ -2,8 +2,8 @@
 #define POINTER_H
 
 #include <quickjs.h>
-#include <cutils.h>
 #include <assert.h>
+#include "stream-utils.h"
 
 /**
  * \defgroup pointer pointer: JS Object pointer (deep key)
@@ -21,29 +21,27 @@ typedef struct Pointer {
 #define POINTER_INDEX(ptr, ind) ((((ind) % ((ptr)->n)) + (ptr)->n) % (ptr)->n)
 #define POINTER_INRANGE(ptr, ind) ((ind) >= 0 && (ind) < (ptr)->n)
 
-typedef Pointer* DataFunc(JSContext*, JSValueConst);
-
-void pointer_reset(Pointer* ptr, JSRuntime* rt);
+void pointer_reset(Pointer*, JSRuntime* rt);
 BOOL pointer_copy(Pointer*, Pointer const* src, JSContext*);
 BOOL pointer_allocate(Pointer*, size_t size, JSContext*);
-void pointer_dump(Pointer const*, DynBuf* db, BOOL color, size_t index, JSContext*);
+void pointer_dump(Pointer const*, DynBuf* db, BOOL color, ssize_t index, JSContext*);
 void pointer_debug(Pointer const*, JSContext*);
+void pointer_tostring(Pointer const*, Writer* db, JSContext*);
 size_t pointer_parse(Pointer*, const char* str, size_t len, JSContext*);
 Pointer* pointer_slice(Pointer*, int64_t start, int64_t end, JSContext*);
+BOOL pointer_fromatoms(Pointer*, JSAtom* vec, size_t len, JSContext*);
 JSValue pointer_shift(Pointer*, JSContext*);
-BOOL pointer_unshift(Pointer* ptr, JSValueConst, JSContext*);
-JSValue pointer_pop(Pointer* ptr, JSContext*);
-void pointer_push(Pointer* ptr, JSValueConst, JSContext*);
-void pointer_pushfree(Pointer* ptr, JSValue item, JSContext* ctx);
+JSValue pointer_pop(Pointer*, JSContext*);
+BOOL pointer_unshift(Pointer*, JSValueConst value, JSContext*);
+void pointer_push(Pointer*, JSValueConst item, JSContext*);
+void pointer_pushfree(Pointer*, JSValue item, JSContext*);
 JSValue pointer_deref(Pointer const*, JSValueConst arg, JSContext*);
 JSValue pointer_acquire(Pointer const*, JSValueConst arg, JSContext*);
 BOOL pointer_fromstring(Pointer*, JSValueConst value, JSContext*);
 void pointer_fromarray(Pointer*, JSValueConst array, JSContext*);
 void pointer_fromiterable(Pointer*, JSValueConst arg, JSContext*);
-BOOL pointer_fromatoms(Pointer* ptr, JSAtom* vec, size_t len, JSContext* ctx);
 int pointer_from(Pointer*, JSValueConst value, JSContext*);
-Pointer* pointer_concat(Pointer const*, JSValueConst arr, JSContext*);
-void pointer_tostring(Pointer const*, DynBuf* db, JSContext*);
+Pointer* pointer_concat(Pointer const*, JSValueConst iterable, JSContext*);
 JSValue pointer_toarray(Pointer const*, JSContext*);
 JSValue pointer_toatoms(Pointer const*, JSContext*);
 
