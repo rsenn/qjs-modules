@@ -103,7 +103,7 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   DynBuf dbuf;
   BOOL color = FALSE, reparseable = FALSE;
   size_t len;
-  Pointer* ptr = js_pointer_data(  this_val);
+  Pointer* ptr = js_pointer_data(this_val);
 
   if(argc > 1 && JS_IsObject(argv[1])) {
     color = js_get_propertystr_bool(ctx, argv[1], "colors");
@@ -117,8 +117,8 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     len = dbuf.size;
   }
 
-if(ptr)
-  pointer_dump(ptr, ctx, &dbuf, color && !reparseable, -1);
+  if(ptr)
+    pointer_dump(ptr, ctx, &dbuf, color && !reparseable, -1);
 
   if(reparseable) {
     dbuf.buf[len] = '\'';
@@ -393,16 +393,16 @@ js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValue
   JSValue value = JS_UNDEFINED;
   int64_t index;
 
-  if(js_atom_is_length(ctx,  prop)) {
-      if(pdesc) {
-        pdesc->flags = 0;
-        pdesc->value = JS_NewUint32(ctx, pointer->n);
-        pdesc->getter = JS_UNDEFINED;
-        pdesc->setter = JS_UNDEFINED;
-      }
-      return TRUE;
+  if(js_atom_is_length(ctx, prop)) {
+    if(pdesc) {
+      pdesc->flags = 0;
+      pdesc->value = JS_NewUint32(ctx, pointer->n);
+      pdesc->getter = JS_UNDEFINED;
+      pdesc->setter = JS_UNDEFINED;
+    }
+    return TRUE;
 
-    } else if(js_atom_is_index(ctx, &index, prop)) {
+  } else if(js_atom_is_index(ctx, &index, prop)) {
     if(index < 0)
       index = ((index % pointer->n) + pointer->n) % pointer->n;
 
@@ -489,7 +489,7 @@ js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
 
     if(index < (int64_t)pointer->n) {
       JSAtom key = pointer->atoms[index];
-      value = (key & (1U << 31)) ? JS_NewUint32(ctx, key & (~(1U << 31))) : JS_AtomToValue(ctx, key);
+      value = js_atom_is_integer(key) ? JS_NewUint32(ctx, js_atom_get_integer(key)) : JS_AtomToValue(ctx, key);
     }
   } else if((entry = js_find_cfunction_atom(ctx, js_pointer_proto_funcs, countof(js_pointer_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
 
@@ -551,17 +551,16 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JSValue array_proto = js_global_prototype(ctx, "Array");
 
   JS_DefinePropertyValueStr(ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE); 
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
   JS_DefinePropertyValueStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
 
   JS_FreeValue(ctx, array_proto);
 
   js_set_inspect_method(ctx, pointer_proto, js_pointer_inspect);
- 
+
   pointer_ctor = JS_NewCFunction2(ctx, js_pointer_constructor, "Pointer", 1, JS_CFUNC_constructor, 0);
 
   JS_SetPropertyFunctionList(ctx, pointer_ctor, js_pointer_static_funcs, countof(js_pointer_static_funcs));
-
 
   JS_SetClassProto(ctx, js_pointer_class_id, pointer_proto);
   JS_SetConstructor(ctx, pointer_ctor, pointer_proto);

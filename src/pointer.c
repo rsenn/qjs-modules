@@ -5,6 +5,44 @@
 #include "buffer-utils.h"
 #include "debug.h"
 
+static inline JSValue
+deref_atom(JSContext* ctx, JSValueConst obj, JSAtom atom) {
+  JSValue value;
+
+  if(JS_HasProperty(ctx, obj, atom))
+    return JS_GetProperty(ctx, obj, atom);
+
+  value = JS_AtomToValue(ctx, atom);
+
+  if(JS_IsFunction(ctx, value)) {
+    JSPropertyEnum* tmp_tab;
+    uint32_t i, tmp_len;
+
+    if(!JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_SET_ENUM)) {
+      for(i = 0; i < tmp_len; i++) {
+        JSValue args[3] = {JS_GetProperty(ctx, obj, tmp_tab[i].atom), JS_AtomToValue(ctx, tmp_tab[i].atom), obj};
+        JSValue ret = JS_Call(ctx, value, JS_NULL, countof(args), args);
+        BOOL match = JS_ToBool(ctx, ret);
+        JS_FreeValue(ctx, ret);
+        JS_FreeValue(ctx, args[1]);
+
+        if(match) {
+          JS_FreeValue(ctx, value);
+          orig_js_free(ctx, tmp_tab);
+          return args[0];
+        }
+
+        JS_FreeValue(ctx, args[0]);
+      }
+
+      orig_js_free(ctx, tmp_tab);
+    }
+  }
+
+  JS_FreeValue(ctx, value);
+  return JS_EXCEPTION;
+}
+
 /**
  * \addtogroup pointer
  * @{
@@ -178,48 +216,6 @@ pointer_shift(Pointer* ptr, JSContext* ctx, JSValueConst obj) {
   }
 
   return ret;
-}
-
-static JSValue
-deref_atom(JSContext* ctx, JSValueConst obj, JSAtom atom) {
-  if(!JS_HasProperty(ctx, obj, atom)) {
-    JSValue value = JS_AtomToValue(ctx, atom);
-
-    if(JS_IsFunction(ctx, value)) {
-      JSPropertyEnum* tmp_tab;
-      uint32_t tmp_len;
-
-      if(!JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY)) {
-        uint32_t i;
-
-        for(i = 0; i < tmp_len; i++) {
-          JSValueConst args[3] = {
-              JS_GetProperty(ctx, obj, tmp_tab[i].atom),
-              JS_AtomToValue(ctx, tmp_tab[i].atom),
-              obj,
-          };
-
-          JSValue ret = JS_Call(ctx, value, JS_NULL, countof(args), args);
-          BOOL match = JS_ToBool(ctx, ret);
-
-          JS_FreeValue(ctx, args[1]);
-
-          if(match) {
-            JS_FreeValue(ctx, value);
-            orig_js_free(ctx, tmp_tab);
-            return args[0];
-          }
-
-          JS_FreeValue(ctx, args[0]);
-        }
-
-        orig_js_free(ctx, tmp_tab);
-      }
-    }
-    JS_FreeValue(ctx, value);
-    return JS_EXCEPTION;
-  }
-  return JS_GetProperty(ctx, obj, atom);
 }
 
 JSValue

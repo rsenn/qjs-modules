@@ -553,6 +553,11 @@ js_atom_is_integer(JSAtom atom) {
   return !!(atom & (1U << 31));
 }
 
+static inline uint32_t
+js_atom_get_integer(JSAtom atom) {
+  return atom & (~(1U << 31));
+}
+
 static inline BOOL
 js_atom_is_number(JSContext* ctx, JSAtom atom) {
   if(!js_atom_is_integer(atom)) {
