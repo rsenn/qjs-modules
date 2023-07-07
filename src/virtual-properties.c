@@ -285,7 +285,7 @@ virtual_properties_method(VirtualProperties vprop, int magic, JSContext* ctx) {
   JSValue obj;
 
   if(!(vwrap = wrapper_new(&vprop, ctx)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   obj = js_function_cclosure(ctx, virtual_properties_getset, 1, magic, vwrap, wrapper_free);
 

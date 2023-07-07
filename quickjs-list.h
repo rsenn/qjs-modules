@@ -5,7 +5,7 @@
 #include "utils.h"
 
 /**
- * \defgroup quickjs-list QuickJS module: list - JS Object lists (deep keys)
+ * \defgroup quickjs-list quickjs-list: JS Object lists (deep keys)
  * @{
  */
 

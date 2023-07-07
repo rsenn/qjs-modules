@@ -1,6 +1,11 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+/**
+ * \defgroup defines defines: Preprocessor definitions
+ * @{
+ */
+
 #ifdef _WIN32
 #include <io.h>
 #define FD_TO_SOCKET(fd) ((SOCKET)_get_osfhandle((fd)))
@@ -164,8 +169,11 @@
 #define JS_ATOM_TAG_INT (1U << 31)
 #define JS_ATOM_MAX_INT (JS_ATOM_TAG_INT - 1)
 
-#define js_atom_isint(i) ((JSAtom)((i)&JS_ATOM_TAG_INT))
-#define js_atom_fromint(i) ((JSAtom)((i)&JS_ATOM_MAX_INT) | JS_ATOM_TAG_INT)
-#define js_atom_toint(i) (unsigned int)(((JSAtom)(i) & (~(JS_ATOM_TAG_INT))))
+#define JS_ATOM_ISINT(i) ((JSAtom)((i)&JS_ATOM_TAG_INT))
+#define JS_ATOM_FROMINT(i) ((JSAtom)((i)&JS_ATOM_MAX_INT) | JS_ATOM_TAG_INT)
+#define JS_ATOM_TOINT(i) (unsigned int)(((JSAtom)(i) & (~(JS_ATOM_TAG_INT))))
 
+/**
+ * @}
+ */
 #endif /* defined(DEFINES_H) */

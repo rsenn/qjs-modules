@@ -6,6 +6,10 @@
 #include <string.h>
 #include <stdbool.h>
 
+/**
+ * \defgroup stream-utils stream-utils: Utilities for stream I/O
+ * @{
+ */
 typedef ssize_t WriteFunction(intptr_t, const void*, size_t);
 typedef ssize_t WriterFinalizer(void*);
 
@@ -33,4 +37,7 @@ writer_putc(Writer* wr, int c) {
   return writer_write(wr, &ch, 1);
 }
 
+/**
+ * @}
+ */
 #endif /* defined(STREAM_UTILS_H) */

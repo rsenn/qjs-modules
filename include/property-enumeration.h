@@ -7,7 +7,7 @@
 #include "debug.h"
 
 /**
- * \defgroup property-enumeration Property enumeration utilities
+ * \defgroup property-enumeration property-enumeration: Property enumeration utilities
  * @{
  */
 typedef struct PropertyEnumeration {

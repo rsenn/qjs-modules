@@ -6,7 +6,7 @@
 #include <assert.h>
 
 /**
- * \defgroup quickjs-stream QuickJS module: stream - Buffered stream
+ * \defgroup quickjs-stream quickjs-stream: Buffered stream
  * @{
  */
 
@@ -42,12 +42,14 @@ static Read*
 read_new(Reader* rd, JSContext* ctx) {
   static int read_seq = 0;
   Read* op;
+
   if((op = js_mallocz(ctx, sizeof(struct read_next)))) {
     op->seq = ++read_seq;
     list_add((struct list_head*)op, &rd->list);
 
     promise_init(ctx, &op->promise);
   }
+  
   return op;
 }
 
@@ -65,7 +67,7 @@ read_next(Reader* rd, JSContext* ctx) {
 
   if(!op) {
     if(!(op = read_new(rd, ctx)))
-      ret = JS_ThrowOutOfMemory(ctx);
+      ret = JS_EXCEPTION;
   }
 
   if(op) {
@@ -453,7 +455,7 @@ js_reader_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
     return JS_ThrowTypeError(ctx, "argument 1 must be a Readable");
 
   if(!(rd = reader_new(ctx, st)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   if(!readable_unlock(st, rd)) {
     JS_ThrowInternalError(ctx, "unable to lock Readable");
@@ -625,7 +627,7 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   Readable* st;
 
   if(!(st = readable_new(ctx)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
@@ -1027,7 +1029,7 @@ js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
     return JS_ThrowTypeError(ctx, "argument 1 must be a Writable");
 
   if(!(wr = writer_new(ctx, st)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   if(!writable_lock(st, wr)) {
     JS_ThrowInternalError(ctx, "unable to lock Writable");
@@ -1366,7 +1368,7 @@ js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   Transform* st;
 
   if(!(st = transform_new(ctx)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))

@@ -8,6 +8,11 @@
 #include <string.h>
 #include "debug.h"
 
+/**
+ * \addtogroup vector
+ * @{
+ */
+
 realloc2_helper(vector_realloc);
 js_realloc_helper(vector_js_realloc);
 js_realloc_rt_helper(vector_js_realloc_rt);
@@ -288,3 +293,7 @@ vector_dumpstrings(const Vector* vec, DynBuf* buf) {
       dbuf_putstr(buf, "'\n]");
   }
 }
+
+/**
+ * @}
+ */

@@ -6,7 +6,7 @@
 #include "utils.h"
 
 /**
- * \defgroup virtual-properties Virtual property manipulation
+ * \defgroup virtual-properties virtual-properties: Virtual property manipulation
  * @{
  */
 struct VProps;

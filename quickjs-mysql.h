@@ -2,7 +2,7 @@
 #define QUICKJS_MYSQL_H
 
 /**
- * \defgroup quickjs-mysql QuickJS module: mysql - libmysqlclient bindings
+ * \defgroup quickjs-mysql quickjs-mysql: libmysqlclient bindings
  * @{
  */
 

@@ -374,7 +374,8 @@ js_archive_extract(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   if(argc >= 3) {
     if(!(aeref = js_malloc(ctx, sizeof(struct ArchiveEntryRef))))
-      return JS_ThrowOutOfMemory(ctx);
+      return JS_EXCEPTION;
+    
     aeref->ctx = ctx;
     aeref->callback = argv[2];
     aeref->args[0] = this_val;

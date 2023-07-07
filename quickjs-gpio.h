@@ -2,7 +2,7 @@
 #define QUICKJS_GPIO_H
 
 /**
- * \defgroup quickjs-gpio QuickJS module: gpio - Raspberry Pi GPIO
+ * \defgroup quickjs-gpio quickjs-gpio: Raspberry Pi GPIO
  * @{
  */
 struct gpio;

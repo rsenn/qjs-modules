@@ -5,7 +5,7 @@
 #include "utils.h"
 
 /**
- * \defgroup quickjs-syscallerror QuickJS module: syscallerror - System-call error object
+ * \defgroup quickjs-syscallerror quickjs-syscallerror: System-call error object
  * @{
  */
 typedef struct {

@@ -2,6 +2,10 @@
 #include "debug.h"
 #include "token.h"
 
+/**
+ * \addtogroup token
+ * @{
+ */
 Token*
 token_new(JSContext* ctx) {
   Token* tok;
@@ -53,3 +57,7 @@ token_create(int id, const char* lexeme, size_t len, JSContext* ctx) {
 
   return tok;
 }
+
+/**
+ * @}
+ */

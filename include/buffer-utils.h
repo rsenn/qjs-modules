@@ -8,7 +8,7 @@
 #include "char-utils.h"
 
 /**
- * \defgroup buffer-utils Buffer Utilities
+ * \defgroup buffer-utils buffer-utils: Buffer Utilities
  * @{
  */
 int64_t array_search(void* a, size_t m, size_t elsz, void* needle);

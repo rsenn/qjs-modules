@@ -9,6 +9,11 @@
 #error "quickjs.h not included"
 #endif
 
+/**
+ * \defgroup debug debug: Debugging helpers
+ * @{
+ */
+
 extern thread_local struct list_head alloc_block_list;
 
 int64_t check_pointer(void*);
@@ -154,4 +159,7 @@ void* orig_js_realloc_rt(JSRuntime*, void*, size_t);
 size_t orig_js_malloc_usable_size_rt(JSRuntime*, const void*);
 void orig_js_free_rt(JSRuntime*, void*);
 
+/**
+ * @}
+ */
 #endif /* defined(DEBUG_H) */

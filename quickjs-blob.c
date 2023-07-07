@@ -88,7 +88,7 @@ js_blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
   Blob* blob;
 
   if(!(blob = blob_new(ctx, x, len, type)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   return js_blob_wrap(ctx, blob);
 }

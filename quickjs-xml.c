@@ -15,7 +15,7 @@
 char* js_inspect_tostring(JSContext* ctx, JSValueConst value);
 
 /**
- * \defgroup quickjs-xml QuickJS module: xml - XML parser & printer
+ * \defgroup quickjs-xml quickjs-xml: XML parser & printer
  * @{
  */
 #define WS 0x01

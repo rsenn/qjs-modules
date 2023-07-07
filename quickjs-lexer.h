@@ -5,7 +5,7 @@
 #include "token.h"
 
 /**
- * \defgroup quickjs-lexer QuickJS module: lexer - Lexical scanner, regex based
+ * \defgroup quickjs-lexer quickjs-lexer: Lexical scanner, regex based
  * @{
  */
 

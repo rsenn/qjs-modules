@@ -14,7 +14,7 @@
 #include "debug.h"
 
 /**
- * \defgroup vector Vector implementation
+ * \defgroup vector vector: Vector implementation
  * @{
  */
 #define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))

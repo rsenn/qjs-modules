@@ -2,7 +2,7 @@
 #define QUICKJS_PGSQL_H
 
 /**
- * \defgroup quickjs-pgsql QuickJS module: pgsql - libpgsqlclient bindings
+ * \defgroup quickjs-pgsql quickjs-pgsql: libpgsqlclient bindings
  * @{
  */
 

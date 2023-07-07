@@ -4,7 +4,7 @@
 #include "utils.h"
 
 /**
- * \defgroup quickjs-misc QuickJS module: misc - Miscellaneous
+ * \defgroup quickjs-misc quickjs-misc: Miscellaneous
  * @{
  */
 

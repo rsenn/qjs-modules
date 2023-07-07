@@ -6,7 +6,7 @@
 #include <string.h>
 
 /**
- * \defgroup quickjs-directory QuickJS module: directory - Directory reader
+ * \defgroup quickjs-directory quickjs-directory: Directory reader
  * @{
  */
 VISIBLE JSClassID js_directory_class_id = 0;
@@ -105,7 +105,7 @@ js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   int32_t* opts;
 
   if(!(directory = js_malloc(ctx, getdents_size() + sizeof(int32_t) * 2)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   getdents_clear(directory);
 

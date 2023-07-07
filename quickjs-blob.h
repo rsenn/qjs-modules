@@ -6,7 +6,7 @@
 #include "buffer-utils.h"
 
 /**
- * \defgroup quickjs-blob QuickJS module: blob - Blob
+ * \defgroup quickjs-blob quickjs-blob: Blob
  * @{
  */
 typedef union blob {

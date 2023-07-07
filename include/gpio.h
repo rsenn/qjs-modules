@@ -7,7 +7,7 @@
 #define GPIO_MAPSIZE 0xA0
 
 /**
- * \defgroup gpio Raspberry Pi GPIO
+ * \defgroup gpio gpio: Raspberry Pi GPIO
  * @{
  */
 struct gpio {

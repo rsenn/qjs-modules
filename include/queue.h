@@ -7,7 +7,7 @@
 #include <list.h>
 
 /**
- * \defgroup queue I/O queueing
+ * \defgroup queue queue: I/O queueing
  * @{
  */
 typedef struct queue {

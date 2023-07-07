@@ -358,7 +358,7 @@ js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
   const char* str;
   BOOL is_int;
   str = JS_AtomToCString(ctx, atom);
-  is_int = js_atom_isint(atom) || is_integer(str);
+  is_int = JS_ATOM_ISINT(atom) || is_integer(str);
   if(color)
     dbuf_putstr(db, is_int ? COLOR_BROWN : COLOR_GRAY);
 
@@ -376,8 +376,8 @@ js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
 unsigned int
 js_atom_tobinary(JSAtom atom) {
   ssize_t ret;
-  if(js_atom_isint(atom)) {
-    ret = js_atom_toint(atom);
+  if(JS_ATOM_ISINT(atom)) {
+    ret = JS_ATOM_TOINT(atom);
     ret = -ret;
   } else {
     ret = atom;
@@ -397,7 +397,7 @@ js_atom_to_cstringlen(JSContext* ctx, size_t* len, JSAtom atom) {
 
 int32_t
 js_atom_toint32(JSContext* ctx, JSAtom atom) {
-  if(!js_atom_isint(atom)) {
+  if(!JS_ATOM_ISINT(atom)) {
     int64_t i = INT64_MIN;
     js_atom_toint64(ctx, &i, atom);
     return i;
@@ -2489,8 +2489,10 @@ js_arraybuffer_freevalue(JSRuntime* rt, void* opaque, void* ptr) {
 JSValue
 js_arraybuffer_fromvalue(JSContext* ctx, void* x, size_t n, JSValueConst val) {
   JSValue* valptr;
+  
   if(!(valptr = js_malloc(ctx, sizeof(JSValue))))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
+
   *valptr = JS_DupValue(ctx, val);
   return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freevalue, valptr, FALSE);
 }

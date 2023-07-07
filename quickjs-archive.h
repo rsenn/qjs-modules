@@ -2,7 +2,7 @@
 #define QUICKJS_ARCHIVE_H
 
 /**
- * \defgroup quickjs-archive QuickJS module: archive - libarchive bindings
+ * \defgroup quickjs-archive quickjs-archive: libarchive bindings
  * @{
  */
 

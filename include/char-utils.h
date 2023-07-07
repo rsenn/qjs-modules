@@ -6,7 +6,7 @@
 #include "debug.h"
 
 /**
- * \defgroup char-utils Character Utilities
+ * \defgroup char-utils char-utils: Character Utilities
  * @{
  */
 #define is_control_char(c) ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
@@ -194,7 +194,7 @@ str_chrs(const char* in, const char needles[], size_t nn) {
   const char* t;
   size_t i;
 
-  for(t = in; *t; ++i)
+  for(t = in; *t; ++t)
     for(i = 0; i < nn; i++)
       if(*t == needles[i])
         return (size_t)(t - in);
@@ -204,9 +204,9 @@ str_chrs(const char* in, const char needles[], size_t nn) {
 
 static inline size_t
 str_rchr(const char* s, char needle) {
-  const char *in, *found;
+  const char *in, *found = 0;
 
-  for(in = s, found = 0; *in; ++in)
+  for(in = s; *in; ++in)
     if(*in == needle)
       found = in;
 
@@ -215,10 +215,10 @@ str_rchr(const char* s, char needle) {
 
 static inline size_t
 str_rchrs(const char* in, const char needles[], size_t nn) {
-  const char *s, *found;
+  const char *s, *found = 0;
   size_t i;
 
-  for(s = in, found = 0; *s; ++s)
+  for(s = in; *s; ++s)
     for(i = 0; i < nn; ++i)
       if(*s == needles[i])
         found = s;

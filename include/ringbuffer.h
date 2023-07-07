@@ -5,7 +5,7 @@
 #include "debug.h"
 
 /**
- * \defgroup ringbuffer Ring Buffer implementation
+ * \defgroup ringbuffer ringbuffer: Ring Buffer implementation
  * @{
  */
 typedef union ringbuffer {

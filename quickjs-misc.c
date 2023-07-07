@@ -998,7 +998,7 @@ js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_FreeCString(ctx, tmp);
 
   if(!template)
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   fd = mkstemp(template);
 
@@ -2055,7 +2055,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         size_t bufsize = (len + 7) >> 3;
 
         if((bufptr = js_mallocz(ctx, bufsize)) == 0)
-          return JS_ThrowOutOfMemory(ctx);
+          return JS_EXCEPTION;
 
         for(i = 0; i < len; i++) {
           JSValue element = JS_GetPropertyUint32(ctx, argv[0], i);
@@ -2105,7 +2105,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           size_t i;
           bufsize = (len + 7) >> 3;
           if((bufptr = js_mallocz(ctx, bufsize)) == 0)
-            return JS_ThrowOutOfMemory(ctx);
+            return JS_EXCEPTION;
 
           for(i = 0; i < len; i++) {
             JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
@@ -2131,7 +2131,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           }
           bufsize = ((max + 1) + 7) >> 3;
           if((bufptr = js_mallocz(ctx, bufsize)) == 0)
-            return JS_ThrowOutOfMemory(ctx);
+            return JS_EXCEPTION;
 
           for(i = 0; i < len; i++) {
             JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);

@@ -18,7 +18,7 @@ char is_junction(const char*);
 #endif
 
 /**
- * \defgroup path Directory path manipulation
+ * \defgroup path path: Directory path manipulation
  * @{
  */
 #define PATH_NOTFIRST 0x80

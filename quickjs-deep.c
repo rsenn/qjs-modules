@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 /**
- * \defgroup quickjs-deep QuickJS module: deep - Deep object
+ * \defgroup quickjs-deep quickjs-deep: Deep object
  * @{
  */
 VISIBLE JSClassID js_deep_iterator_class_id = 0;
@@ -369,13 +369,13 @@ js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     uint32_t flags = 0; /**/
 
     if(!(ptr = pointer_new(ctx)))
-      return JS_ThrowOutOfMemory(ctx);
+      return JS_EXCEPTION;
 
     if(argc > 2)
       JS_ToUint32(ctx, &flags, argv[2]);
 
-    pointer_from(ptr, ctx, argv[1]);
-    ret = pointer_deref(ptr, ctx, argv[0]);
+    pointer_from(ptr, argv[1], ctx);
+    ret = pointer_deref(ptr, argv[0], ctx);
 
     if(JS_IsException(ret) && (flags & NO_THROW)) {
       JS_GetException(ctx);
@@ -410,11 +410,11 @@ js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     Pointer* ptr;
 
     if(!(ptr = pointer_new(ctx)))
-      return JS_ThrowOutOfMemory(ctx);
+      return JS_EXCEPTION;
 
-    pointer_from(ptr, ctx, argv[1]);
-    prop = pointer_pop(ptr);
-    obj = pointer_acquire(ptr, ctx, argv[0]);
+    pointer_from(ptr, argv[1], ctx);
+    prop = pointer_popatom(ptr);
+    obj = pointer_acquire(ptr, argv[0], ctx);
 
     if(!JS_IsException(obj))
       JS_SetProperty(ctx, obj, prop, argv[2]);
@@ -448,11 +448,11 @@ js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     Pointer* ptr;
 
     if(!(ptr = pointer_new(ctx)))
-      return JS_ThrowOutOfMemory(ctx);
+      return JS_EXCEPTION;
 
-    pointer_from(ptr, ctx, argv[1]);
-    prop = pointer_pop(ptr);
-    obj = pointer_deref(ptr, ctx, argv[0]);
+    pointer_from(ptr, argv[1], ctx);
+    prop = pointer_popatom(ptr);
+    obj = pointer_deref(ptr, argv[0], ctx);
 
     if(!JS_IsException(obj))
       JS_DeleteProperty(ctx, obj, prop, 0);

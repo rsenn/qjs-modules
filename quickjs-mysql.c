@@ -435,7 +435,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       }
 
       if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
-        ret = JS_ThrowOutOfMemory(ctx);
+        ret = JS_EXCEPTION;
         break;
       }
 
@@ -878,7 +878,7 @@ js_mysql_escape_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
     JS_FreeCString(ctx, src);
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
   }
 
   len = mysql_escape_string(dst, src, len);

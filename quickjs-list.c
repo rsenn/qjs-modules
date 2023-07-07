@@ -632,7 +632,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case METHOD_PUSH: {
       for(int i = 0; i < argc; i++) {
         if(!list_push(list, argv[i], ctx))
-          return JS_ThrowOutOfMemory(ctx);
+          return JS_EXCEPTION;
       }
       ret = JS_NewInt64(ctx, list->size);
       break;
@@ -649,7 +649,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case METHOD_UNSHIFT: {
       for(int i = argc - 1; i >= 0; i--) {
         if(!list_unshift(list, argv[i], ctx))
-          return JS_ThrowOutOfMemory(ctx);
+          return JS_EXCEPTION;
       }
       ret = JS_NewInt64(ctx, list->size);
       break;
@@ -701,7 +701,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       struct list_head* ptr;
 
       if(!(other = list_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
 
       list_for_each(ptr, &list->head) {
         node = list_entry(ptr, Node, link);
@@ -735,7 +735,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       end = list_index(list, end);
 
       if(!(other = list_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
 
       list_for_each(ptr, &list->head) {
         node = list_entry(ptr, Node, link);
@@ -765,7 +765,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       end = list_index(list, start + end);
 
       if(!(other = list_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
 
       list_for_each_safe(ptr, ptr2, &list->head) {
         node = list_entry(ptr, Node, link);
@@ -805,7 +805,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       end = list_index(list, end);
 
       if(!(other = list_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
 
       list_for_each(ptr, &list->head) {
         node = list_entry(ptr, Node, link);
@@ -853,7 +853,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       struct list_head* ptr;
 
       if(!(other = list_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
 
       list_for_each_prev(ptr, &list->head) {
         node = list_entry(ptr, Node, link);
@@ -989,7 +989,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       List* other;
 
       if(!(other = list_new(ctx))) {
-        ret = JS_ThrowOutOfMemory(ctx);
+        ret = JS_EXCEPTION;
         break;
       }
 
@@ -1016,7 +1016,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       List* other;
 
       if(!(other = list_new(ctx))) {
-        ret = JS_ThrowOutOfMemory(ctx);
+        ret = JS_EXCEPTION;
         break;
       }
 
@@ -1036,7 +1036,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = JS_DupValue(ctx, argc > 1 ? argv[1] : JS_UNDEFINED);
 
       if(!(other = list_new(ctx))) {
-        ret = JS_ThrowOutOfMemory(ctx);
+        ret = JS_EXCEPTION;
         break;
       }
 
@@ -1063,7 +1063,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = JS_DupValue(ctx, argc > 1 ? argv[1] : JS_UNDEFINED);
 
       if(!(other = list_new(ctx))) {
-        ret = JS_ThrowOutOfMemory(ctx);
+        ret = JS_EXCEPTION;
         break;
       }
 
@@ -1091,7 +1091,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       struct list_head* ptr2;
 
       if(!(other = list_new(ctx))) {
-        ret = JS_ThrowOutOfMemory(ctx);
+        ret = JS_EXCEPTION;
         break;
       }
 
@@ -1152,7 +1152,7 @@ js_list_static(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   switch(magic) {
     case STATIC_FROM: {
       if(!(list = list_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
 
       if(!list_append(list, argv[0], ctx)) {
         list_free(list, ctx);
@@ -1165,7 +1165,7 @@ js_list_static(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
     case STATIC_OF: {
       if(!(list = list_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
 
       for(int i = 0; i < argc; i++)
         list_push(list, argv[i], ctx);

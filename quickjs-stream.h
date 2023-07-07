@@ -10,7 +10,7 @@
 #include <stdatomic.h>
 
 /**
- * \defgroup quickjs-stream QuickJS module: stream - Streams
+ * \defgroup quickjs-stream quickjs-stream: Streams
  * @{
  */
 

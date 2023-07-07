@@ -6,7 +6,7 @@
 #include <assert.h>
 
 /**
- * \defgroup pointer JS Object pointer (deep key)
+ * \defgroup pointer pointer: JS Object pointer (deep key)
  * @{
  */
 
@@ -20,25 +20,29 @@ typedef struct Pointer {
 
 typedef Pointer* DataFunc(JSContext*, JSValueConst);
 
-void pointer_reset(Pointer*, JSContext* ctx);
-void pointer_copy(Pointer*, Pointer* src, JSContext* ctx);
-void pointer_truncate(Pointer*, JSContext* ctx, size_t size);
-void pointer_dump(Pointer*, JSContext* ctx, DynBuf* db, BOOL color, size_t index);
-void pointer_debug(Pointer*, JSContext* ctx);
-size_t pointer_parse(Pointer*, JSContext* ctx, const char* str, size_t len);
-Pointer* pointer_slice(Pointer*, JSContext* ctx, int64_t start, int64_t end);
-JSValue pointer_shift(Pointer*, JSContext* ctx, JSValue obj);
-JSValue pointer_deref(Pointer*, JSContext* ctx, JSValue arg);
-JSValue pointer_acquire(Pointer*, JSContext* ctx, JSValue arg);
-BOOL pointer_fromstring(Pointer*, JSContext* ctx, JSValue value);
-void pointer_fromarray(Pointer*, JSContext* ctx, JSValue array);
-void pointer_fromiterable(Pointer*, JSContext* ctx, JSValue arg);
-int pointer_from(Pointer*, JSContext* ctx, JSValue value);
-Pointer* pointer_concat(Pointer const*, JSContext* ctx, JSValue arr);
-void pointer_tostring(Pointer const*, JSContext* ctx, DynBuf* db);
-JSValue pointer_toarray(Pointer const*, JSContext* ctx);
-JSValue pointer_toatoms(Pointer const*, JSContext* ctx);
-int pointer_fromatoms(Pointer*, JSContext* ctx, JSValue arr);
+void pointer_reset(Pointer*, JSContext*);
+void pointer_copy(Pointer*, Pointer const* src, JSContext*);
+void pointer_truncate(Pointer*, size_t size, JSContext*);
+void pointer_dump(Pointer const*, DynBuf* db, BOOL color, size_t index, JSContext*);
+void pointer_debug(Pointer const*, JSContext*);
+size_t pointer_parse(Pointer*, const char* str, size_t len, JSContext*);
+Pointer* pointer_slice(Pointer*, int64_t start, int64_t end, JSContext*);
+JSValue pointer_shift(Pointer*, JSContext*);
+BOOL pointer_unshift(Pointer* ptr, JSValueConst, JSContext*);
+JSValue pointer_pop(Pointer* ptr, JSContext*);
+void pointer_push(Pointer* ptr, JSValueConst, JSContext*);
+void pointer_pushfree(Pointer* ptr, JSValue item, JSContext* ctx);
+JSValue pointer_deref(Pointer const*, JSValueConst arg, JSContext*);
+JSValue pointer_acquire(Pointer const*, JSValueConst arg, JSContext*);
+BOOL pointer_fromstring(Pointer*, JSValueConst value, JSContext*);
+void pointer_fromarray(Pointer*, JSValueConst array, JSContext*);
+void pointer_fromiterable(Pointer*, JSValueConst arg, JSContext*);
+void pointer_fromatoms(Pointer*, JSValueConst arr, JSContext*);
+int pointer_from(Pointer*, JSValueConst value, JSContext*);
+Pointer* pointer_concat(Pointer const*, JSValueConst arr, JSContext*);
+void pointer_tostring(Pointer const*, DynBuf* db, JSContext*);
+JSValue pointer_toarray(Pointer const*, JSContext*);
+JSValue pointer_toatoms(Pointer const*, JSContext*);
 
 static inline Pointer*
 pointer_new(JSContext* ctx) {
@@ -68,18 +72,13 @@ pointer_ptr(Pointer const* ptr, int32_t index) {
 }
 
 static inline void
-pointer_pushatom(Pointer* ptr, JSContext* ctx, JSAtom atom) {
+pointer_pushatom(Pointer* ptr, JSAtom atom, JSContext* ctx) {
   if((ptr->atoms = js_realloc(ctx, ptr->atoms, (ptr->n + 1) * sizeof(JSAtom))))
     ptr->atoms[ptr->n++] = atom;
 }
 
-static inline void
-pointer_push(Pointer* ptr, JSContext* ctx, JSValueConst key) {
-  pointer_pushatom(ptr, ctx, JS_ValueToAtom(ctx, key));
-}
-
 static inline Pointer*
-pointer_clone(Pointer* other, JSContext* ctx) {
+pointer_clone(Pointer const* other, JSContext* ctx) {
   Pointer* ptr;
 
   if((ptr = pointer_new(ctx)))
@@ -89,7 +88,7 @@ pointer_clone(Pointer* other, JSContext* ctx) {
 }
 
 static inline JSAtom
-pointer_pop(Pointer* ptr) {
+pointer_popatom(Pointer* ptr) {
   JSAtom ret = JS_ATOM_NULL;
   size_t size = ptr->n;
 

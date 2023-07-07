@@ -32,7 +32,7 @@
 /*static JSClassID function_class_id_ceil = JS_CLASS_ASYNC_GENERATOR;*/
 
 /**
- * \defgroup quickjs-inspect QuickJS module: inspect - Inspection
+ * \defgroup quickjs-inspect quickjs-inspect: Inspection
  * @{
  */
 

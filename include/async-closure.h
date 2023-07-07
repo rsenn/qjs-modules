@@ -7,7 +7,7 @@
 #include "utils.h"
 
 /**
- * \defgroup asymc-closure Async Handler Closure
+ * \defgroup async-closure async-closure: Async Handler Closure
  * @{
  */
 

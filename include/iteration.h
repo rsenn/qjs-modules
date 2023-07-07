@@ -6,7 +6,7 @@
 #include <assert.h>
 
 /**
- * \defgroup iteration QuickJS iteration helpers
+ * \defgroup iteration iteration: QuickJS iteration helpers
  * @{
  */
 typedef struct Iteration {

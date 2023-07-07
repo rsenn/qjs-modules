@@ -119,7 +119,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
           len = unicode_to_utf8((void*)tmp, cp);
 
           if(dbuf_put(&dbuf, (const void*)tmp, len))
-            return JS_ThrowOutOfMemory(ctx);
+            return JS_EXCEPTION;
         }
 
         break;
@@ -136,7 +136,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
             break;
           }
           if(dbuf_put(&dbuf, (const void*)tmp, len))
-            return JS_ThrowOutOfMemory(ctx);
+            return JS_EXCEPTION;
         }
         break;
       }
@@ -205,7 +205,7 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
   TextDecoder* dec;
 
   if(!(dec = js_mallocz(ctx, sizeof(TextDecoder))))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -481,7 +481,7 @@ js_encoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
   TextEncoder* enc;
 
   if(!(enc = js_mallocz(ctx, sizeof(TextEncoder))))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");

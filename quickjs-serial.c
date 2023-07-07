@@ -6,7 +6,7 @@
 #include "libserialport/libserialport.h"
 
 /**
- * \defgroup quickjs-serial QuickJS module: serial - libserial MIME types
+ * \defgroup quickjs-serial quickjs-serial: libserial MIME types
  * @{
  */
 VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;

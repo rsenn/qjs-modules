@@ -5,7 +5,7 @@
 #include "ringbuffer.h"
 
 /**
- * \defgroup quickjs-textdecoder QuickJS module: textdecoder - String Decoder
+ * \defgroup quickjs-textdecoder quickjs-textdecoder: String Decoder
  * @{
  */
 

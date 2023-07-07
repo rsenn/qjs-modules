@@ -8,7 +8,7 @@
 #include "buffer-utils.h"
 
 /**
- * \defgroup quickjs-tree-walker QuickJS module: tree_walker - Object tree walker
+ * \defgroup quickjs-tree-walker quickjs-tree_walker: Object tree walker
  * @{
  */
 VISIBLE JSClassID js_tree_walker_class_id = 0;

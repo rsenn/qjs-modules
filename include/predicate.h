@@ -7,7 +7,7 @@
 #include <cutils.h>
 
 /**
- * \defgroup predicate Predicate function object
+ * \defgroup predicate predicate: Predicate function object
  * @{
  */
 enum PredicateId {

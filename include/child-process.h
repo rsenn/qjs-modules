@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 /**
- * \defgroup child-process Child processes
+ * \defgroup child-process child-process: Child processes
  * @{
  */
 

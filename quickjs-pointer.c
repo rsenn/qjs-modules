@@ -20,7 +20,9 @@ enum {
   METHOD_TO_ARRAY,
   METHOD_INSPECT,
   METHOD_SHIFT,
+  METHOD_UNSHIFT,
   METHOD_PUSH,
+  METHOD_POP,
   METHOD_CONCAT,
   METHOD_SLICE,
   METHOD_UP,
@@ -59,7 +61,7 @@ js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
 
   JS_SetOpaque(obj, ptr);
 
-  if(!pointer_from(ptr, ctx, value)) {
+  if(!pointer_from(ptr, value, ctx)) {
     JS_FreeValue(ctx, obj);
     obj = JS_ThrowTypeError(ctx, "Pointer: argument 1 unknown type");
   }
@@ -93,7 +95,7 @@ js_pointer_tostring(JSContext* ctx, JSValueConst this_val) {
     return JS_EXCEPTION;
 
   js_dbuf_init(ctx, &dbuf);
-  pointer_tostring(ptr, ctx, &dbuf);
+  pointer_tostring(ptr, &dbuf, ctx);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
   return ret;
@@ -120,7 +122,7 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   }
 
   if(ptr)
-    pointer_dump(ptr, ctx, &dbuf, color && !reparseable, -1);
+    pointer_dump(ptr, &dbuf, color && !reparseable, -1, ctx);
 
   if(reparseable) {
     dbuf.buf[len] = '\'';
@@ -149,7 +151,7 @@ js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
 
 static JSValue
 js_pointer_deref(JSContext* ctx, Pointer* ptr, JSValueConst this_arg, JSValueConst arg) {
-  return pointer_deref(ptr, ctx, arg);
+  return pointer_deref(ptr, arg, ctx);
 }
 
 static JSValue
@@ -175,19 +177,23 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case METHOD_SLICE: {
       int64_t s = js_int64_default(ctx, argv[0], 0);
       int64_t e = js_int64_default(ctx, argv[1], 0);
-      return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, s, e));
+
+      return js_pointer_wrap(ctx, pointer_slice(ptr, s, e, ctx));
     }
 
     case METHOD_UP: {
       int64_t n = js_int64_default(ctx, argv[0], 0);
-      return js_pointer_wrap(ctx, pointer_slice(ptr, ctx, 0, ptr->n - n));
+
+      return js_pointer_wrap(ctx, pointer_slice(ptr, 0, ptr->n - n, ctx));
     }
 
     case METHOD_DOWN: {
       Pointer* res = pointer_clone(ptr, ctx);
       int i;
+
       for(i = 0; i < argc; i++)
-        pointer_push(res, ctx, argv[i]);
+        pointer_push(res, argv[i], ctx);
+
       return js_pointer_wrap(ctx, res);
     }
 
@@ -206,19 +212,36 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case METHOD_SHIFT: {
-      return pointer_shift(ptr, ctx, argv[0]);
+      return pointer_shift(ptr, ctx);
+    }
+
+    case METHOD_UNSHIFT: {
+      int i;
+
+      for(i = 0; i < argc; i++)
+        pointer_unshift(ptr, argv[i], ctx);
+
+      return JS_DupValue(ctx, this_val);
+    }
+
+    case METHOD_POP: {
+      return pointer_pop(ptr, ctx);
     }
 
     case METHOD_PUSH: {
       int i;
+
       for(i = 0; i < argc; i++)
-        pointer_push(ptr, ctx, argv[i]);
+        pointer_push(ptr, argv[i], ctx);
+
       return JS_DupValue(ctx, this_val);
     }
 
     case METHOD_CONCAT: {
-      Pointer* res = pointer_concat(ptr, ctx, argv[0]);
-      return js_pointer_wrap(ctx, res);
+      Pointer* res;
+
+      if((res = pointer_concat(ptr, argv[0], ctx)))
+        return js_pointer_wrap(ctx, res);
     }
 
     case METHOD_HIER: {
@@ -226,29 +249,36 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       size_t i, j = 0;
 
       for(i = 1; i < ptr->n; i++) {
-        Pointer* h = pointer_slice(ptr, ctx, 0, i);
+        Pointer* h = pointer_slice(ptr, 0, i, ctx);
         JSValue value = js_pointer_wrap(ctx, h);
+
         if(argc >= 1) {
           JSValue ret = JS_Call(ctx, argv[0], JS_UNDEFINED, 1, &value);
           JS_FreeValue(ctx, value);
           value = ret;
         }
+
         JS_SetPropertyUint32(ctx, ret, j++, value);
       }
+
       JS_SetPropertyUint32(ctx, ret, j++, JS_DupValue(ctx, this_val));
       return ret;
     }
 
     case METHOD_AT: {
       JSValue ret = JS_UNDEFINED;
-      int32_t index = -1;
 
-      if(!JS_ToInt32(ctx, &index, argv[0]))
-        ret = JS_AtomToValue(ctx, pointer_at(ptr, index));
+      if(ptr->n > 0) {
+        int32_t index = -1;
+
+        if(!JS_ToInt32(ctx, &index, argv[0]))
+          ret = JS_AtomToValue(ctx, pointer_at(ptr, index));
+      }
 
       return ret;
     }
   }
+
   return JS_EXCEPTION;
 }
 
@@ -276,6 +306,7 @@ js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+
   return ret;
 }
 
@@ -289,15 +320,18 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
 
   switch(magic) {
     case PROP_PATH: {
-      pointer_fromiterable(ptr, ctx, value);
+      pointer_reset(ptr, ctx);
+      pointer_fromiterable(ptr, value, ctx);
       break;
     }
 
     case PROP_ATOMS: {
-      ret = JS_NewInt32(ctx, pointer_fromatoms(ptr, ctx, value));
+      pointer_reset(ptr, ctx);
+      pointer_fromatoms(ptr, value, ctx);
       break;
     }
   }
+
   return ret;
 }
 
@@ -313,37 +347,46 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case STATIC_FROM_ATOMS: {
       int i;
       Pointer* ptr;
+
       if(!(ptr = pointer_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
+
       ret = js_pointer_wrap(ctx, ptr);
-      pointer_fromatoms(ptr, ctx, argv[0]);
+      pointer_fromatoms(ptr, argv[0], ctx);
       break;
     }
 
     case STATIC_OF: {
       int i;
       Pointer* ptr;
+
       if(!(ptr = pointer_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
+
       ret = js_pointer_wrap(ctx, ptr);
-      for(i = 0; i < argc; i++) {
-        pointer_push(ptr, ctx, argv[i]);
-      }
+
+      for(i = 0; i < argc; i++)
+        pointer_push(ptr, argv[i], ctx);
+
       break;
     }
 
     case STATIC_OF_ATOMS: {
       int i;
       Pointer* ptr;
+
       if(!(ptr = pointer_new(ctx)))
-        return JS_ThrowOutOfMemory(ctx);
+        return JS_EXCEPTION;
 
       ret = js_pointer_wrap(ctx, ptr);
+
       for(i = 0; i < argc; i++) {
         uint32_t atom;
+
         JS_ToUint32(ctx, &atom, argv[i]);
-        pointer_pushatom(ptr, ctx, JS_DupAtom(ctx, atom));
+        pointer_pushatom(ptr, JS_DupAtom(ctx, atom), ctx);
       }
+
       break;
     }
 
@@ -354,6 +397,7 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       break;
     }
   }
+
   return ret;
 }
 
@@ -382,7 +426,9 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("deref", 1, js_pointer_method, METHOD_DEREF),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_pointer_method, METHOD_TO_STRING),
     JS_CFUNC_MAGIC_DEF("toArray", 0, js_pointer_method, METHOD_TO_ARRAY),
-    JS_CFUNC_MAGIC_DEF("shift", 1, js_pointer_method, METHOD_SHIFT),
+    JS_CFUNC_MAGIC_DEF("shift", 0, js_pointer_method, METHOD_SHIFT),
+    JS_CFUNC_MAGIC_DEF("unshift", 1, js_pointer_method, METHOD_UNSHIFT),
+    JS_CFUNC_MAGIC_DEF("pop", 0, js_pointer_method, METHOD_POP),
     JS_CFUNC_MAGIC_DEF("push", 1, js_pointer_method, METHOD_PUSH),
     JS_CFUNC_MAGIC_DEF("concat", 1, js_pointer_method, METHOD_CONCAT),
     JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, METHOD_SLICE),
@@ -538,7 +584,7 @@ js_pointer_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
       index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
 
     if(index == (int64_t)pointer->n) {
-      pointer_push(pointer, ctx, value);
+      pointer_push(pointer, value, ctx);
     } else if(POINTER_INRANGE(pointer, index)) {
       JSAtom* atom_p = pointer_ptr(pointer, index);
       JS_FreeAtom(ctx, *atom_p);

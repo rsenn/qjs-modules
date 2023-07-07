@@ -11,6 +11,10 @@
 #include <shlobj.h>
 #endif
 
+/**
+ * \addtogroup path
+ * @{
+ */
 static int
 path_canonical_buf(DynBuf* db) {
   db->size = path_normalize2((char*)db->buf, db->size);
@@ -40,11 +44,7 @@ path_dirname_alloc(const char* path) {
   dbuf_init2(&dir, 0, 0);
   return __path_dirname(path, &dir);
 }*/
-
-/**
- * \addtogroup path
- * @{
- */
+ 
 /*char*
 path_dup2(const char* path, DynBuf* db) {
   return path_dup3(path,strlen(path),db);

@@ -4,6 +4,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/**
+ * \defgroup getdents getdents: Fast directory entry reader
+ * @{
+ */
 typedef struct getdents_reader Directory;
 typedef struct getdents_entry DirEntry;
 
@@ -39,4 +43,7 @@ int getdents_isreg(const DirEntry*);
 int getdents_issock(const DirEntry*);
 int getdents_isunknown(const DirEntry*);
 
+/**
+ * @}
+ */
 #endif /* defined(GETDENTS_H) */

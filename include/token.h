@@ -5,7 +5,7 @@
 #include "lexer.h"
 
 /**
- * \defgroup token
+ * \defgroup token token: Token object for the lexer
  * @{
  */
 typedef struct {

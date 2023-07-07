@@ -22,7 +22,7 @@
 #endif
 
 /**
- * \defgroup quickjs-sockets QuickJS module: sockets - Network sockets
+ * \defgroup quickjs-sockets quickjs-sockets: Network sockets
  * @{
  */
 

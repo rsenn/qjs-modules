@@ -7,7 +7,7 @@
 #include <string.h>
 
 /**
- * \defgroup lexer Lexical scanner, regex based
+ * \defgroup lexer lexer: Lexical scanner, regex based
  * @{
  */
 typedef struct {

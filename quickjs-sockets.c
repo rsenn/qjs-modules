@@ -1028,7 +1028,7 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
     AsyncSocket* asock;
 
     if(!(asock = js_mallocz(ctx, sizeof(AsyncSocket))))
-      return JS_ThrowOutOfMemory(ctx);
+      return JS_EXCEPTION;
 
     JS_SetOpaque(obj, asock);
     s = (Socket*)asock;

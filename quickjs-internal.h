@@ -19,6 +19,10 @@
 #include <pthread.h>
 #endif
 
+/**
+ * \defgroup quickjs-internal QuickJS internal definitions
+ * @{
+ */
 enum JSClassIds {
   /* classid tag        */ /* union usage   | properties */
   JS_CLASS_OBJECT = 1,     /* must be first */
@@ -1191,5 +1195,9 @@ typedef struct {
 } JSSTDFile;
 
 BOOL JS_IsUncatchableError(JSContext*, JSValueConst);
+
+/**
+ * @}
+ */
 
 #endif /* defined(QJS_MODULES_INTERNAL_H) */

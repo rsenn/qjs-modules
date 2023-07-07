@@ -8,6 +8,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+/**
+ * \addtogroup debug
+ * @{
+ */
 struct alloc_block {
   struct list_head link;
   const char* file;
@@ -473,3 +477,7 @@ void
 orig_js_free_rt(JSRuntime* rt, void* p) {
   return js_free_rt(rt, p);
 }
+
+/**
+ * @}
+ */

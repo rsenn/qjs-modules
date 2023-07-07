@@ -3,6 +3,10 @@
 #include "char-utils.h"
 #include <assert.h>
 
+/**
+ * \addtogroup getdents
+ * @{
+ */
 #if defined(_WIN32) || (defined(__MSYS__) || defined(__CYGWIN__))
 #include <windows.h>
 
@@ -366,3 +370,7 @@ getdents_type(const DirEntry* e) {
 
   return 0;
 }
+
+/**
+ * @}
+ */

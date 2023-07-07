@@ -15,7 +15,7 @@
 #include "defines.h"
 
 /**
- * \defgroup utils Utilities
+ * \defgroup utils utils: Utilities
  * @{
  */
 
@@ -570,8 +570,8 @@ int32_t js_atom_toint32(JSContext* ctx, JSAtom atom);
 
 static inline JSValue
 js_atom_tovalue(JSContext* ctx, JSAtom atom) {
-  if(js_atom_isint(atom))
-    return JS_MKVAL(JS_TAG_INT, js_atom_toint(atom));
+  if(JS_ATOM_ISINT(atom))
+    return JS_MKVAL(JS_TAG_INT, JS_ATOM_TOINT(atom));
 
   return JS_AtomToValue(ctx, atom);
 }
@@ -584,12 +584,17 @@ BOOL js_atom_is_string(JSContext* ctx, JSAtom atom);
 
 static inline BOOL
 js_atom_is_integer(JSAtom atom) {
-  return !!(atom & (1U << 31));
+  return JS_ATOM_ISINT(atom);
 }
 
 static inline uint32_t
 js_atom_get_integer(JSAtom atom) {
-  return atom & (~(1U << 31));
+  return JS_ATOM_TOINT(atom);
+}
+
+static inline JSAtom
+js_atom_from_integer(uint32_t i) {
+  return JS_ATOM_FROMINT(i);
 }
 
 static inline BOOL

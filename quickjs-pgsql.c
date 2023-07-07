@@ -558,7 +558,7 @@ js_pgconn_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       }
 
       if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
-        ret = JS_ThrowOutOfMemory(ctx);
+        ret = JS_EXCEPTION;
         break;
       }
 
@@ -844,7 +844,7 @@ js_pgconn_escape_string(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   if((!(dst = js_malloc(ctx, 2 * len + 1)))) {
     JS_FreeCString(ctx, src);
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
   }
 
   len = pq && pq->conn ? PQescapeStringConn(pq->conn, dst, src, len, NULL) : PQescapeString(dst, src, len);

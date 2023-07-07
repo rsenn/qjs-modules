@@ -6,7 +6,7 @@
 #include <magic.h>
 
 /**
- * \defgroup quickjs-magic QuickJS module: magic - libmagic MIME types
+ * \defgroup quickjs-magic quickjs-magic: libmagic MIME types
  * @{
  */
 VISIBLE JSClassID js_magic_class_id = 0;

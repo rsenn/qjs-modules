@@ -612,10 +612,9 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     args = &tmp;
   }*/
   if(args == 0) {
-    if(!arguments_alloc(&tmp, ctx, predicate_recursive_num_args(pr) + 1)) {
-      JS_ThrowOutOfMemory(ctx);
+    if(!arguments_alloc(&tmp, ctx, predicate_recursive_num_args(pr) + 1))
       return;
-    }
+
     args = &tmp;
   }
 

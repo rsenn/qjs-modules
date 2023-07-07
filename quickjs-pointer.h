@@ -6,7 +6,7 @@
 #include "utils.h"
 
 /**
- * \defgroup quickjs-pointer QuickJS module: pointer - JS Object pointers (deep keys)
+ * \defgroup quickjs-pointer quickjs-pointer: JS Object pointers (deep keys)
  * @{
  */
 extern VISIBLE JSClassID js_pointer_class_id;

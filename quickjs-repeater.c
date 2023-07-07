@@ -4,7 +4,7 @@
 #include "debug.h"
 
 /**
- * \defgroup quickjs-repeater QuickJS module: repeater - Async Iterator Repeater
+ * \defgroup quickjs-repeater quickjs-repeater: Async Iterator Repeater
  * @{
  */
 
@@ -132,6 +132,7 @@ resolvable_free(JSContext* ctx, struct resolvable_item* rsva) {
 static struct repeater_item*
 queue_alloc(JSContext* ctx) {
   struct repeater_item* item;
+  
   if((item = js_mallocz(ctx, sizeof(struct repeater_item)))) {
     item->resolvable.resolve = JS_UNDEFINED;
     item->resolvable.value = JS_UNDEFINED;
@@ -186,7 +187,7 @@ get_iterators(JSContext* ctx, JSValueConst arg) {
   int i, j = 0;
 
   if(!(items = js_values_fromarray(ctx, &n_items, arg)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   ret = JS_NewArray(ctx);
   for(i = 0; i < n_items; i++) {
@@ -293,7 +294,8 @@ js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     queue_free(ctx, item);
   } else {
     if(!(item = queue_alloc(ctx)))
-      return JS_ThrowOutOfMemory(ctx);
+      return JS_EXCEPTION;
+
     ret = resolvable_value(ctx, value, &item->resolvable);
     queue_add(&rpt->pushes, item);
   }
@@ -454,7 +456,7 @@ js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   } else {
     if(!(item = queue_alloc(ctx)))
-      return JS_ThrowOutOfMemory(ctx);
+      return JS_EXCEPTION;
 
     ret = resolvable_value(ctx, value, &item->resolvable);
     queue_add(&rpt->nexts, item);

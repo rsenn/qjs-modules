@@ -370,7 +370,7 @@ js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     return JS_EXCEPTION;
 
   if(!(loc = location_clone(other, ctx)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   return js_location_create(ctx, location_proto, loc);
 }
@@ -383,7 +383,7 @@ js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   int64_t limit = -1;
 
   if(!(loc = location_new(ctx)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   if(argc >= 2)
     JS_ToInt64(ctx, &limit, argv[1]);

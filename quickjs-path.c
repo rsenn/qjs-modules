@@ -15,7 +15,7 @@
 #endif
 
 /**
- * \defgroup quickjs-path QuickJS module: path - Directory path
+ * \defgroup quickjs-path quickjs-path: Directory path
  * @{
  */
 thread_local JSValue path_object = {{0}, JS_TAG_UNDEFINED};

@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 /**
- * \defgroup base64 Base64 encoding
+ * \defgroup base64 base64: Base64 encoding
  * @{
  */
 size_t b64_get_encoded_buffer_size(const size_t decoded_size);

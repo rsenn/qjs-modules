@@ -6,7 +6,7 @@
 #include "debug.h"
 
 /**
- * \defgroup quickjs-child-process QuickJS module: child_process - Child process
+ * \defgroup quickjs-child-process quickjs-child_process: Child process
  * @{
  */
 #ifdef _WIN32

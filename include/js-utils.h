@@ -4,6 +4,10 @@
 #include <quickjs.h>
 #include <cutils.h>
 
+/**
+ * \defgroup js-utils js-utils: Utilities for JS Promises
+ * @{
+ */
 typedef union resolve_functions {
   JSValue array[2];
   struct {
@@ -31,4 +35,7 @@ JSValue promise_then(JSContext*, JSValueConst, JSValueConst);
 JSValue promise_catch(JSContext*, JSValueConst, JSValueConst);
 JSValue promise_forward(JSContext* ctx, JSValueConst promise, Promise* receiver);
 
+/**
+ * @}
+ */
 #endif /* defined(JS_UTILS_H) */

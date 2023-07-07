@@ -9,6 +9,10 @@
 #include <unistd.h>
 #endif
 
+/**
+ * \addtogroup stream-utils
+ * @{
+ */
 Writer
 writer_from_dynbuf(DynBuf* db) {
   return (Writer){(WriteFunction*)&dbuf_writer, db, (WriterFinalizer*)&dbuf_free};
@@ -54,3 +58,7 @@ writer_free(Writer* wr) {
   if(wr->finalizer)
     wr->finalizer(wr->opaque);
 }
+
+/**
+ * @}
+ */

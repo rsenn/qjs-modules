@@ -75,7 +75,7 @@ js_syscallerror_new(JSContext* ctx, const char* syscall, int number) {
     js_syscallerror_init(ctx, 0);
 
   if(!(err = syscallerror_new(ctx, syscall, number)))
-    return JS_ThrowOutOfMemory(ctx);
+    return JS_EXCEPTION;
 
   obj = JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
   if(JS_IsException(obj))

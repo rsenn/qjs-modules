@@ -11,7 +11,7 @@
 #endif
 
 /**
- * \defgroup location Source text location
+ * \defgroup location location: Source text location
  * @{
  */
 typedef struct {

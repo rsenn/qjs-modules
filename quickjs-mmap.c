@@ -10,7 +10,7 @@
 #endif
 
 /**
- * \defgroup quickjs-mmap QuickJS module: mmap - Memory mapped I/O
+ * \defgroup quickjs-mmap quickjs-mmap: Memory mapped I/O
  * @{
  */
 static void

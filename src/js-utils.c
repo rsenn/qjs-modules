@@ -2,6 +2,10 @@
 #include "defines.h"
 #include "utils.h"
 
+/**
+ * \addtogroup js-utils
+ * @{
+ */
 static inline void
 js_resolve_functions_zero(ResolveFunctions* funcs) {
   funcs->array[0] = JS_NULL;
@@ -44,7 +48,7 @@ promise_new(JSContext* ctx, JSValue* promise) {
   ResolveFunctions* funcs;
 
   if(!(funcs = js_mallocz(ctx, sizeof(ResolveFunctions)))) {
-    *promise = JS_ThrowOutOfMemory(ctx);
+    *promise = JS_EXCEPTION;
     return 0;
   }
 
@@ -138,3 +142,7 @@ promise_forward(JSContext* ctx, JSValueConst promise, Promise* receiver) {
   JS_FreeValue(ctx, ret);
   return ret2;
 }
+
+/**
+ * @}
+ */

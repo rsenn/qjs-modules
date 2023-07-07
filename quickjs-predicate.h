@@ -4,7 +4,7 @@
 #include "predicate.h"
 
 /**
- * \defgroup quickjs-predicate QuickJS module: predicate - Predicate function object
+ * \defgroup quickjs-predicate quickjs-predicate: Predicate function object
  * @{
  */
 VISIBLE Predicate* js_predicate_data(JSValueConst);

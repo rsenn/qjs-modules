@@ -27,7 +27,7 @@
 #include "debug.h"
 
 /**
- * \defgroup quickjs-bjson QuickJS module: bjson - Binary JSON
+ * \defgroup quickjs-bjson quickjs-bjson: Binary JSON
  * @{
  */
 

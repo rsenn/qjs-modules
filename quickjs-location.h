@@ -5,7 +5,7 @@
 #include "utils.h"
 
 /**
- * \defgroup quickjs-location QuickJS module: location - Text location object
+ * \defgroup quickjs-location quickjs-location: Text location object
  * @{
  */
 extern VISIBLE JSClassID js_location_class_id;
