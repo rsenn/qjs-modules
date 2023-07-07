@@ -467,15 +467,15 @@ js_atom_cmp_string(JSContext* ctx, JSAtom atom, const char* other) {
 
 BOOL
 js_atom_equal_string(JSContext* ctx, JSAtom atom, const char* other) {
-  const char* str = JS_AtomToCString(ctx, atom);
-  BOOL ret = !strcmp(str, other);
-  JS_FreeCString(ctx, str);
+    JSAtom o=JS_NewAtom(ctx, other);
+  BOOL ret=o == atom;
+  JS_FreeAtom(ctx, o);
   return ret;
 }
 
 BOOL
 js_atom_is_length(JSContext* ctx, JSAtom atom) {
-  return js_atom_equal_string(ctx, atom, "length");
+ return js_atom_equal_string(ctx, atom,"length");
 }
 
 const char*

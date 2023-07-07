@@ -533,6 +533,7 @@ static JSClassDef js_pointer_class = {
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JSAtom inspectAtom;
+  
   JS_NewClassID(&js_pointer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_pointer_class_id, &js_pointer_class);
 

@@ -10,17 +10,6 @@
  * @{
  */
 
-Pointer*
-pointer_new(JSContext* ctx) {
-  return js_mallocz(ctx, sizeof(Pointer));
-}
-
-void
-pointer_free(Pointer* ptr, JSContext* ctx) {
-  pointer_reset(ptr, ctx);
-  js_free(ctx, ptr);
-}
-
 void
 pointer_reset(Pointer* ptr, JSContext* ctx) {
   if(ptr->atoms) {
@@ -189,26 +178,6 @@ pointer_shift(Pointer* ptr, JSContext* ctx, JSValueConst obj) {
   }
 
   return ret;
-}
-
-JSAtom
-pointer_at(Pointer const* ptr, int32_t index) {
-  JSAtom atom;
-
-  if(ptr->n) {
-    if((index %= (int32_t)ptr->n) < 0)
-      index += ptr->n;
-
-    return ptr->atoms[index];
-  }
-
-  return 0;
-}
-
-void
-pointer_push(Pointer* ptr, JSContext* ctx, JSValueConst key) {
-  if((ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * (ptr->n + 1))))
-    ptr->atoms[ptr->n++] = JS_ValueToAtom(ctx, key);
 }
 
 static JSValue
@@ -473,12 +442,6 @@ pointer_fromatoms(Pointer* ptr, JSContext* ctx, JSValueConst arr) {
   }
 
   return ptr->n;
-}
-
-void
-pointer_pushatom(Pointer* ptr, JSContext* ctx, JSAtom atom) {
-  if((ptr->atoms = js_realloc(ctx, ptr->atoms, (ptr->n + 1) * sizeof(JSAtom))))
-    ptr->atoms[ptr->n++] = atom;
 }
 
 /**
