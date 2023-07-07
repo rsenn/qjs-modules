@@ -3,7 +3,7 @@
 
 #include <quickjs.h>
 #include <cutils.h>
-#include <stdint.h>
+#include <assert.h>
 
 /**
  * \defgroup pointer JS Object pointer (deep key)
@@ -14,6 +14,9 @@ typedef struct Pointer {
   size_t n;
   JSAtom* atoms;
 } Pointer;
+
+#define POINTER_INDEX(ptr, ind) ((((ind) % ((ptr)->n)) + (ptr)->n) % (ptr)->n)
+#define POINTER_INRANGE(ptr, ind) ((ind) >= 0 && (ind) < (ptr)->n)
 
 typedef Pointer* DataFunc(JSContext*, JSValueConst);
 
@@ -52,14 +55,16 @@ static inline JSAtom
 pointer_at(Pointer const* ptr, int32_t index) {
   JSAtom atom;
 
-  if(ptr->n) {
-    if((index %= (int32_t)ptr->n) < 0)
-      index += ptr->n;
-
-    return ptr->atoms[index];
-  }
+  if(ptr->n)
+    return ptr->atoms[POINTER_INDEX(ptr, index)];
 
   return 0;
+}
+
+static inline JSAtom*
+pointer_ptr(Pointer const* ptr, int32_t index) {
+  assert(ptr->n);
+  return &ptr->atoms[POINTER_INDEX(ptr, index)];
 }
 
 static inline void

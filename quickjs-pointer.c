@@ -55,7 +55,7 @@ js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   if(JS_IsException(obj))
     goto fail;
 
- pointer_length = JS_NewAtom(ctx, "length");
+  pointer_length = JS_NewAtom(ctx, "length");
 
   JS_SetOpaque(obj, ptr);
 
@@ -76,7 +76,7 @@ JSValue
 js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
   JSValue obj = JS_NewObjectProtoClass(ctx, pointer_proto, js_pointer_class_id);
 
- pointer_length = JS_NewAtom(ctx, "length");
+  pointer_length = JS_NewAtom(ctx, "length");
 
   JS_SetOpaque(obj, ptr);
 
@@ -283,6 +283,7 @@ static JSValue
 js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
   Pointer* ptr;
   JSValue ret = JS_UNDEFINED;
+
   if(!(ptr = js_pointer_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
@@ -363,7 +364,7 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
   if((ptr = js_pointer_data(val))) {
     if(ptr->atoms) {
       uint32_t i;
-      
+
       for(i = 0; i < ptr->n; i++)
         JS_FreeAtomRT(rt, ptr->atoms[i]);
 
@@ -424,20 +425,22 @@ js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValue
 
   } else if(js_atom_is_index(ctx, &index, prop)) {
     if(index < 0)
-      index = ((index % pointer->n) + pointer->n) % pointer->n;
+      index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
 
-    if(index < (int64_t)pointer->n) {
-      JSAtom key = pointer->atoms[index];
-      value = (key & (1U << 31)) ? JS_NewUint32(ctx, key & (~(1U << 31))) : JS_AtomToValue(ctx, key);
+    if(POINTER_INRANGE(pointer, index)) {
+      JSAtom* key_p;
 
-      if(pdesc) {
-        pdesc->flags = JS_PROP_ENUMERABLE;
-        pdesc->value = value;
-        pdesc->getter = JS_UNDEFINED;
-        pdesc->setter = JS_UNDEFINED;
-      }
-      return TRUE;
+      if((key_p = pointer_ptr(pointer, index)))
+        value = JS_AtomToValue(ctx, *key_p);
     }
+
+    if(pdesc) {
+      pdesc->flags = JS_PROP_ENUMERABLE;
+      pdesc->value = value;
+      pdesc->getter = JS_UNDEFINED;
+      pdesc->setter = JS_UNDEFINED;
+    }
+    return TRUE;
   }
 
   return FALSE;
@@ -464,7 +467,7 @@ js_pointer_get_own_property_names(JSContext* ctx, JSPropertyEnum** ptab, uint32_
     props[i].atom = i | (1U << 31);
   }
 
-  props[len].is_enumerable = TRUE;
+  props[len].is_enumerable = FALSE;
   props[len].atom = JS_NewAtom(ctx, "length");
 
   *ptab = props;
@@ -480,15 +483,12 @@ js_pointer_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
   if(prop == pointer_length) {
     return TRUE;
   } else if(js_atom_is_index(ctx, &index, prop)) {
-    if(index < 0)
-      index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
-
-    if(index < (int64_t)pointer->n)
-      return TRUE;
-  } else  {
+    return POINTER_INRANGE(pointer, index);
+  } else {
     JSValue proto = JS_GetPrototype(ctx, obj);
-    if(JS_IsObject(proto) && JS_HasProperty(ctx, proto, prop))
-      return TRUE;
+    BOOL ret = JS_IsObject(proto) && JS_HasProperty(ctx, proto, prop);
+    JS_FreeValue(ctx, proto);
+    return ret;
   }
 
   return FALSE;
@@ -507,20 +507,22 @@ js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
     if(index < 0)
       index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
 
-    if(index < (int64_t)pointer->n) {
-      JSAtom key = pointer->atoms[index];
-      value = js_atom_is_integer(key) ? JS_NewUint32(ctx, js_atom_get_integer(key)) : JS_AtomToValue(ctx, key);
+    if(POINTER_INRANGE(pointer, index)) {
+      JSAtom* key_p;
+
+      if((key_p = pointer_ptr(pointer, index)))
+        value = JS_AtomToValue(ctx, *key_p);
     }
+
   } else if((entry = js_find_cfunction_atom(ctx, js_pointer_proto_funcs, countof(js_pointer_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
 
-    // printf("entry: %d magic: %d\n", entry,
-    // js_pointer_proto_funcs[entry].magic);
     value = js_pointer_get(ctx, obj, js_pointer_proto_funcs[entry].magic);
 
   } else {
-    JSValue proto = JS_IsUndefined(pointer_proto) ? JS_GetPrototype(ctx, obj) : pointer_proto;
+    JSValue proto = JS_GetPrototype(ctx, obj);
     if(JS_IsObject(proto))
       value = JS_GetProperty(ctx, proto, prop);
+    JS_FreeValue(ctx, proto);
   }
 
   return value;
@@ -535,10 +537,13 @@ js_pointer_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
     if(index < 0)
       index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
 
-    if(index == (int64_t)pointer->n)
+    if(index == (int64_t)pointer->n) {
       pointer_push(pointer, ctx, value);
-    else if(index < (int64_t)pointer->n)
-      pointer->atoms[index] = JS_ValueToAtom(ctx, value);
+    } else if(POINTER_INRANGE(pointer, index)) {
+      JSAtom* atom_p = pointer_ptr(pointer, index);
+      JS_FreeAtom(ctx, *atom_p);
+      *atom_p = JS_ValueToAtom(ctx, value);
+    }
 
     return TRUE;
   }
@@ -550,7 +555,7 @@ static JSClassExoticMethods js_pointer_exotic_methods = {
     .get_own_property = js_pointer_get_own_property,
     .get_own_property_names = js_pointer_get_own_property_names,
     .has_property = js_pointer_has_property,
-    .get_property = js_pointer_get_property,
+    //.get_property = js_pointer_get_property,
     .set_property = js_pointer_set_property,
 };
 
@@ -562,7 +567,6 @@ static JSClassDef js_pointer_class = {
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {
-
 
   JS_NewClassID(&js_pointer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_pointer_class_id, &js_pointer_class);
