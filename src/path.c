@@ -1160,44 +1160,6 @@ path_root2(const char* x, size_t n) {
   return 0;
 }
 
-size_t
-path_component3(const char* p, size_t len, size_t pos) {
-  const char *start = p, *end = p + len;
-  if(pos > len)
-    pos = len;
-  p += pos;
-  while(p < end && !path_issep(*p))
-    ++p;
-  return p - start;
-}
-
-size_t
-path_component1(const char* p) {
-  const char* s = p;
-  while(*s && !path_issep(*s))
-    ++s;
-  return s - p;
-}
-
-size_t
-path_separator3(const char* p, size_t len, size_t pos) {
-  const char *start = p, *end = p + len;
-  if(pos > len)
-    pos = len;
-  p += pos;
-  while(p < end && path_issep(*p))
-    ++p;
-  return p - start;
-}
-
-size_t
-path_separator1(const char* p) {
-  const char* s = p;
-  while(*s && path_issep(*s))
-    ++s;
-  return s - p;
-}
-
 static inline size_t
 __path_dirname1(const char* path) {
   return str_rchrs(path, PATHSEP_S, 2);

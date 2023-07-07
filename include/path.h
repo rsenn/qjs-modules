@@ -134,10 +134,6 @@ char* path_relative2(const char* path, const char* relative_to);
 int path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
 char* path_relative4(const char* s1, size_t n1, const char* s2, size_t n2);
 size_t path_root2(const char* x, size_t n);
-size_t path_component3(const char* p, size_t len, size_t pos);
-size_t path_component1(const char* p);
-size_t path_separator3(const char* p, size_t len, size_t pos);
-size_t path_separator1(const char* p);
 char* path_dirname1(const char* path);
 char* path_dirname2(const char* path, size_t n);
 char* path_dirname3(const char* path, size_t n, char* dest);
@@ -147,6 +143,56 @@ int path_readlink2(const char* path, DynBuf* dir);
 char* path_readlink1(const char* path);
 int path_compare4(const char* a, size_t alen, const char* b, size_t blen);
 char* path_search(const char** path_ptr, const char* name, DynBuf* db);
+
+static inline size_t
+path_component1(const char* p) {
+  const char* s = p;
+
+  while(*s && !path_issep(*s))
+    ++s;
+
+  return s - p;
+}
+
+static inline size_t
+path_component3(const char* p, size_t len, size_t pos) {
+  const char *start = p, *end = p + len;
+
+  if(pos > len)
+    pos = len;
+
+  p += pos;
+
+  while(p < end && !path_issep(*p))
+    ++p;
+
+  return p - start;
+}
+
+static inline size_t
+path_separator1(const char* p) {
+  const char* s = p;
+
+  while(*s && path_issep(*s))
+    ++s;
+
+  return s - p;
+}
+
+static inline size_t
+path_separator3(const char* p, size_t len, size_t pos) {
+  const char *start = p, *end = p + len;
+
+  if(pos > len)
+    pos = len;
+
+  p += pos;
+
+  while(p < end && path_issep(*p))
+    ++p;
+
+  return p - start;
+}
 
 static inline size_t
 path_skip1(const char* s) {

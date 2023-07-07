@@ -321,8 +321,42 @@ typedef enum {
   TYPE_ARRAY = (1 << FLAG_ARRAY),
 } ValueTypeMask;
 
-int32_t js_value_type_flag(JSValueConst value);
-int32_t js_value_type_get(JSContext* ctx, JSValueConst value);
+static inline int32_t
+js_value_type_flag(JSValueConst value) {
+  switch(JS_VALUE_GET_TAG(value)) {
+    case JS_TAG_BIG_DECIMAL: return FLAG_BIG_DECIMAL;
+    case JS_TAG_BIG_INT: return FLAG_BIG_INT;
+    case JS_TAG_BIG_FLOAT: return FLAG_BIG_FLOAT;
+    case JS_TAG_SYMBOL: return FLAG_SYMBOL;
+    case JS_TAG_STRING: return FLAG_STRING;
+    case JS_TAG_MODULE: return FLAG_MODULE;
+    case JS_TAG_FUNCTION_BYTECODE: return FLAG_FUNCTION_BYTECODE;
+    case JS_TAG_OBJECT: return FLAG_OBJECT;
+    case JS_TAG_INT: return FLAG_INT;
+    case JS_TAG_BOOL: return FLAG_BOOL;
+    case JS_TAG_NULL: return FLAG_NULL;
+    case JS_TAG_UNDEFINED: return FLAG_UNDEFINED;
+    case JS_TAG_UNINITIALIZED: return FLAG_UNINITIALIZED;
+    case JS_TAG_CATCH_OFFSET: return FLAG_CATCH_OFFSET;
+    case JS_TAG_EXCEPTION: return FLAG_EXCEPTION;
+    case JS_TAG_FLOAT64: return FLAG_FLOAT64;
+  }
+  return -1;
+}
+
+static inline int32_t
+js_value_type_get(JSContext* ctx, JSValueConst value) {
+  if(JS_IsArray(ctx, value))
+    return FLAG_ARRAY;
+
+  if(JS_IsFunction(ctx, value) && JS_GetClassID(value) <= JS_CLASS_ASYNC_GENERATOR)
+    return FLAG_FUNCTION;
+
+  if(JS_VALUE_IS_NAN(value))
+    return FLAG_NAN;
+
+  return js_value_type_flag(value);
+}
 
 static inline int32_t
 js_value_type2flag(uint32_t type) {
