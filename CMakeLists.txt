@@ -265,18 +265,26 @@ if(USE_POSTGRESCLIENT)
     endif(HAVE_LIBPQCLIENT)
   endif(pkgcfg_lib_LIBPQ_pq)
 
+  #dump(pkgcfg_lib_LIBPQ_pq LIBPQ_LIBRARY_DIR LIBPQ_LIBRARY)
+
   if(LIBPQ_LIBRARY)
     list(APPEND QUICKJS_MODULES pgsql)
     set(pgsql_LIBRARIES ${LIBPQ_LIBRARY})
     #dump(LIBPQ_LIBRARY pgsql_LIBRARIES)
 
-    set(LIBPQ_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "PostgresSQL client include directory")
+    if("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
+      string(REGEX REPLACE "/lib.*" "/include" LIBPQ_INCLUDE_DIR "${LIBPQ_LIBRARY}")
+    else("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
+      set(LIBPQ_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include")
+    endif("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
 
     if(NOT EXISTS "${LIBPQ_INCLUDE_DIR}/libpq-fe.h")
       if(EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql" AND EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql/libpq-fe.h")
         set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}/postgresql")
       endif()
     endif()
+
+    set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}" CACHE PATH "PostgresSQL client include directory")
 
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBPQ_INCLUDE_DIR}")
     check_include_def(libpq-fe.h)
