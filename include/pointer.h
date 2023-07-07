@@ -23,7 +23,7 @@ typedef struct Pointer {
 
 typedef Pointer* DataFunc(JSContext*, JSValueConst);
 
-void pointer_reset(Pointer*, JSContext*);
+void pointer_reset(Pointer* ptr, JSRuntime* rt);
 BOOL pointer_copy(Pointer*, Pointer const* src, JSContext*);
 BOOL pointer_allocate(Pointer*, size_t size, JSContext*);
 void pointer_dump(Pointer const*, DynBuf* db, BOOL color, size_t index, JSContext*);
@@ -53,9 +53,9 @@ pointer_new(JSContext* ctx) {
 }
 
 static inline void
-pointer_free(Pointer* ptr, JSContext* ctx) {
-  pointer_reset(ptr, ctx);
-  js_free(ctx, ptr);
+pointer_free(Pointer* ptr, JSRuntime* rt) {
+  pointer_reset(ptr, rt);
+  js_free_rt(rt, ptr);
 }
 
 static inline JSAtom

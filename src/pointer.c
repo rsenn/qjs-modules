@@ -49,14 +49,14 @@ deref_atom(JSContext* ctx, JSValueConst obj, JSAtom atom) {
  */
 
 void
-pointer_reset(Pointer* ptr, JSContext* ctx) {
+pointer_reset(Pointer* ptr, JSRuntime* rt) {
   if(ptr->atoms) {
     size_t i;
 
     for(i = 0; i < ptr->n; i++)
-      JS_FreeAtom(ctx, ptr->atoms[i]);
+      JS_FreeAtomRT(rt, ptr->atoms[i]);
 
-    js_free(ctx, ptr->atoms);
+    js_free_rt(rt, ptr->atoms);
   }
 
   ptr->atoms = 0;
@@ -65,7 +65,7 @@ pointer_reset(Pointer* ptr, JSContext* ctx) {
 
 BOOL
 pointer_copy(Pointer* dst, Pointer const* src, JSContext* ctx) {
-  pointer_reset(dst, ctx);
+  pointer_reset(dst, JS_GetRuntime(ctx));
 
   if(pointer_allocate(dst, src->n, ctx)) {
     size_t i;
@@ -84,7 +84,7 @@ pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
   size_t i;
 
   if(size == 0) {
-    pointer_reset(ptr, ctx);
+    pointer_reset(ptr, JS_GetRuntime(ctx));
     return TRUE;
   }
 
@@ -371,7 +371,7 @@ pointer_fromiterable(Pointer* ptr, JSValueConst arg, JSContext* ctx) {
 
 BOOL
 pointer_fromatoms(Pointer* ptr, JSAtom* vec, size_t len, JSContext* ctx) {
-  pointer_reset(ptr, ctx);
+  pointer_reset(ptr, JS_GetRuntime(ctx));
 
   if(pointer_allocate(ptr, len, ctx)) {
     size_t i;
@@ -394,7 +394,7 @@ pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
   } else if(JS_IsString(value)) {
     pointer_fromstring(ptr, value, ctx);
   } else if(JS_IsArray(ctx, value)) {
-    pointer_reset(ptr, ctx);
+    pointer_reset(ptr, JS_GetRuntime(ctx));
     pointer_fromarray(ptr, value, ctx);
   } else if(!JS_IsUndefined(value)) {
     return 0;

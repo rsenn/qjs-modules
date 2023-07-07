@@ -320,7 +320,7 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
 
   switch(magic) {
     case PROP_PATH: {
-      pointer_reset(ptr, ctx);
+      pointer_reset(ptr, JS_GetRuntime(ctx));
       pointer_fromiterable(ptr, value, ctx);
       break;
     }
@@ -330,8 +330,8 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
       size_t vlen;
 
       if((intv = js_array_to_int32v(ctx, &vlen, value))) {
-        pointer_reset(ptr, ctx);
-        ptr->atoms = intv;
+        pointer_reset(ptr, JS_GetRuntime(ctx));
+        ptr->atoms = (JSAtom*)intv;
         ptr->n = vlen;
       }
 
@@ -355,10 +355,10 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       Pointer* ptr;
 
       if((ptr = pointer_new(ctx))) {
-        if((ptr->atoms = js_array_to_int32v(ctx, &ptr->n, argv[0])))
+        if((ptr->atoms = (JSAtom*)js_array_to_int32v(ctx, &ptr->n, argv[0])))
           ret = js_pointer_wrap(ctx, ptr);
         else
-          pointer_free(ptr, ctx);
+          pointer_free(ptr, JS_GetRuntime(ctx));
       }
 
       break;
@@ -380,27 +380,25 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
 
     case STATIC_OF_ATOMS: {
-      int i;
       Pointer* ptr;
 
-      if(!(ptr = pointer_new(ctx)))
-        return JS_EXCEPTION;
+      if((ptr = pointer_new(ctx))) {
+        int32_t* intv;
 
-      ret = js_pointer_wrap(ctx, ptr);
-
-      for(i = 0; i < argc; i++) {
-        uint32_t atom;
-
-        JS_ToUint32(ctx, &atom, argv[i]);
-        pointer_pushatom(ptr, JS_DupAtom(ctx, atom), ctx);
+        if((intv = js_argv_to_int32v(ctx, argc, argv))) {
+          ptr->atoms = (JSAtom*)intv;
+          ptr->n = argc;
+          ret = js_pointer_wrap(ctx, ptr);
+        } else {
+          pointer_free(ptr, JS_GetRuntime(ctx));
+        }
       }
 
       break;
     }
 
     case STATIC_IS_POINTER: {
-      Pointer* ptr;
-      ptr = js_pointer_data(argv[0]);
+      Pointer* ptr = js_pointer_data(argv[0]);
       ret = JS_NewBool(ctx, !!ptr);
       break;
     }
@@ -414,20 +412,10 @@ js_pointer_finalizer(JSRuntime* rt, JSValue val) {
   Pointer* ptr;
 
   if((ptr = js_pointer_data(val))) {
-    if(ptr->atoms) {
-      uint32_t i;
-
-      for(i = 0; i < ptr->n; i++)
-        JS_FreeAtomRT(rt, ptr->atoms[i]);
-
-      js_free_rt(rt, ptr->atoms);
-    }
-
-    js_free_rt(rt, ptr);
+    pointer_free(ptr, rt);
 
     JS_FreeAtomRT(rt, pointer_length);
   }
-  // JS_FreeValueRT(rt, val);
 }
 
 static const JSCFunctionListEntry js_pointer_proto_funcs[] = {

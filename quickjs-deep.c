@@ -382,7 +382,7 @@ js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
       ret = JS_NULL;
     }
 
-    pointer_free(ptr, ctx);
+    pointer_free(ptr, JS_GetRuntime(ctx));
   } else {
     ret = JS_NewCFunctionData(ctx, js_deep_get2, 1, 0, 1, &argv[0]);
   }
@@ -420,7 +420,7 @@ js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
       JS_SetProperty(ctx, obj, prop, argv[2]);
 
     JS_FreeAtom(ctx, prop);
-    pointer_free(ptr, ctx);
+    pointer_free(ptr, JS_GetRuntime(ctx));
 
     // return JS_UNDEFINED;
     return JS_DupValue(ctx, obj);
@@ -458,7 +458,7 @@ js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       JS_DeleteProperty(ctx, obj, prop, 0);
 
     JS_FreeAtom(ctx, prop);
-    pointer_free(ptr, ctx);
+    pointer_free(ptr, JS_GetRuntime(ctx));
 
     return JS_DupValue(ctx, obj);
   }
