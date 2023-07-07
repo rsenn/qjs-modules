@@ -44,7 +44,7 @@ compare_jsatom(const JSAtom* a, JSAtom* b) {
 int property_enumeration_init(PropertyEnumeration*, JSContext* ctx, JSValue object, int flags);
 void property_enumeration_dump(PropertyEnumeration*, JSContext* ctx, DynBuf* out);
 JSValue property_enumeration_path_tostring(JSContext*, JSValue this_val, int argc, JSValue argv[]);
-int32_t property_enumeration_deepest(JSContext*, JSValue object, int32_t max);
+// int32_t property_enumeration_deepest(JSContext*, JSValue object, int32_t max);
 int property_enumeration_predicate(PropertyEnumeration*, JSContext* ctx, JSValue fn, JSValue this_arg);
 int property_enumeration_setpos(PropertyEnumeration*, int32_t);
 void property_enumeration_reset(PropertyEnumeration*, JSRuntime*);
@@ -137,7 +137,7 @@ void property_recursion_dumpall(Vector*, JSContext* ctx, DynBuf* out);
 int property_recursion_insideof(Vector*, JSValue val);
 void property_recursion_free(Vector*, JSRuntime* rt);
 BOOL property_recursion_circular(Vector*, JSValue object);
-IndexTuple property_recursion_check(Vector*);
+// IndexTuple property_recursion_check(Vector*);
 PropertyEnumeration* property_recursion_push(Vector*, JSContext*, JSValueConst, int);
 PropertyEnumeration* property_recursion_pop(Vector*, JSContext*);
 PropertyEnumeration* property_recursion_enter(Vector*, JSContext*, int32_t, int);

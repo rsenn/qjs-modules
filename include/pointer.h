@@ -15,14 +15,17 @@ typedef struct Pointer {
   JSAtom* atoms;
 } Pointer;
 
+#define POINTER_LENGTH(ptr) ((ptr)->n)
+#define POINTER_ATOMS(ptr) ((ptr)->atoms)
+
 #define POINTER_INDEX(ptr, ind) ((((ind) % ((ptr)->n)) + (ptr)->n) % (ptr)->n)
 #define POINTER_INRANGE(ptr, ind) ((ind) >= 0 && (ind) < (ptr)->n)
 
 typedef Pointer* DataFunc(JSContext*, JSValueConst);
 
 void pointer_reset(Pointer*, JSContext*);
-void pointer_copy(Pointer*, Pointer const* src, JSContext*);
-void pointer_truncate(Pointer*, size_t size, JSContext*);
+BOOL pointer_copy(Pointer*, Pointer const* src, JSContext*);
+BOOL pointer_allocate(Pointer*, size_t size, JSContext*);
 void pointer_dump(Pointer const*, DynBuf* db, BOOL color, size_t index, JSContext*);
 void pointer_debug(Pointer const*, JSContext*);
 size_t pointer_parse(Pointer*, const char* str, size_t len, JSContext*);
@@ -37,7 +40,7 @@ JSValue pointer_acquire(Pointer const*, JSValueConst arg, JSContext*);
 BOOL pointer_fromstring(Pointer*, JSValueConst value, JSContext*);
 void pointer_fromarray(Pointer*, JSValueConst array, JSContext*);
 void pointer_fromiterable(Pointer*, JSValueConst arg, JSContext*);
-void pointer_fromatoms(Pointer*, JSValueConst arr, JSContext*);
+BOOL pointer_fromatoms(Pointer* ptr, JSAtom* vec, size_t len, JSContext* ctx);
 int pointer_from(Pointer*, JSValueConst value, JSContext*);
 Pointer* pointer_concat(Pointer const*, JSValueConst arr, JSContext*);
 void pointer_tostring(Pointer const*, DynBuf* db, JSContext*);

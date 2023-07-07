@@ -63,36 +63,47 @@ pointer_reset(Pointer* ptr, JSContext* ctx) {
   ptr->n = 0;
 }
 
-void
+BOOL
 pointer_copy(Pointer* dst, Pointer const* src, JSContext* ctx) {
   pointer_reset(dst, ctx);
 
-  if((dst->atoms = js_mallocz(ctx, sizeof(JSAtom) * src->n))) {
+  if(pointer_allocate(dst, src->n, ctx)) {
     size_t i;
-
-    dst->n = src->n;
 
     for(i = 0; i < src->n; i++)
       dst->atoms[i] = JS_DupAtom(ctx, src->atoms[i]);
+
+    return TRUE;
   }
+
+  return FALSE;
 }
 
-void
-pointer_truncate(Pointer* ptr, size_t size, JSContext* ctx) {
+BOOL
+pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
+  size_t i;
+
   if(size == 0) {
     pointer_reset(ptr, ctx);
-    return;
+    return TRUE;
   }
 
-  if(ptr->atoms) {
-    size_t i;
-
+  if(ptr->atoms && size < ptr->n)
     for(i = size; i < ptr->n; i++)
       JS_FreeAtom(ctx, ptr->atoms[i]);
 
-    ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * size);
-    ptr->n = size;
+  if(!(ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * size))) {
+    ptr->n = 0;
+    return FALSE;
   }
+
+  if(size > ptr->n)
+    for(i = ptr->n; i < size; i++)
+      ptr->atoms[i] = JS_ATOM_NULL;
+
+  ptr->n = size;
+
+  return TRUE;
 }
 
 #define pointer_color(s) ((i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_LIGHTGRAY : COLOR_YELLOW))
@@ -184,17 +195,22 @@ pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
 
 Pointer*
 pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
-  Pointer* ret = js_mallocz(ctx, sizeof(Pointer));
-  int64_t i;
+  Pointer* ret;
 
-  start = int32_mod(start, ptr->n);
-  end = int32_mod(end, ptr->n);
+  if((ret = pointer_new(ctx))) {
+    int64_t i;
 
-  ret->n = end - start;
-  ret->atoms = ret->n ? js_mallocz(ctx, sizeof(JSAtom) * ret->n) : 0;
+    start = int32_mod(start, ptr->n);
+    end = int32_mod(end, ptr->n);
 
-  for(i = start; i < end; i++)
-    ret->atoms[i - start] = JS_DupAtom(ctx, ptr->atoms[i]);
+    if(!pointer_allocate(ret, end - start, ctx)) {
+      js_free(ctx, ret);
+      return NULL;
+    }
+
+    for(i = start; i < end; i++)
+      ret->atoms[i - start] = JS_DupAtom(ctx, ptr->atoms[i]);
+  }
 
   return ret;
 }
@@ -233,15 +249,14 @@ pointer_pop(Pointer* ptr, JSContext* ctx) {
 
 BOOL
 pointer_unshift(Pointer* ptr, JSValueConst value, JSContext* ctx) {
-  JSValue ret = JS_UNDEFINED;
+  size_t copy_len = ptr->n;
 
-  if((ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * (ptr->n + 1)))) {
-
-    if(ptr->n)
-      memmove(&ptr->atoms[1], ptr->atoms, sizeof(JSAtom) * ptr->n);
+  if(pointer_allocate(ptr, ptr->n + 1, ctx)) {
+    if(copy_len)
+      memmove(&ptr->atoms[1], ptr->atoms, sizeof(JSAtom) * copy_len);
 
     ptr->atoms[0] = JS_ValueToAtom(ctx, value);
-    ++ptr->n;
+
     return TRUE;
   }
 
@@ -294,15 +309,14 @@ pointer_acquire(Pointer const* ptr, JSValueConst arg, JSContext* ctx) {
   JSValue obj = JS_DupValue(ctx, arg);
 
   for(i = 0; i < ptr->n; i++) {
-    JSAtom atom = ptr->atoms[i]; // JS_DupAtom(ctx, ptr->atoms[i]);
     JSValue child;
 
-    if(!JS_HasProperty(ctx, obj, atom)) {
+    if(!JS_HasProperty(ctx, obj, ptr->atoms[i])) {
       BOOL is_array = i + 1 < ptr->n && JS_ATOM_ISINT(ptr->atoms[i + 1]);
       child = is_array ? JS_NewArray(ctx) : JS_NewObject(ctx);
-      JS_SetProperty(ctx, obj, atom, JS_DupValue(ctx, child));
+      JS_SetProperty(ctx, obj, ptr->atoms[i], JS_DupValue(ctx, child));
     } else {
-      child = JS_GetProperty(ctx, obj, atom);
+      child = JS_GetProperty(ctx, obj, ptr->atoms[i]);
     }
 
     JS_FreeValue(ctx, obj);
@@ -319,7 +333,8 @@ pointer_fromstring(Pointer* ptr, JSValueConst value, JSContext* ctx) {
 
   if((str = JS_ToCStringLen(ctx, &len, value))) {
     pointer_parse(ptr, str, len, ctx);
-    js_cstring_free(ctx, str);
+
+    JS_FreeCString(ctx, str);
     return TRUE;
   }
 
@@ -328,15 +343,11 @@ pointer_fromstring(Pointer* ptr, JSValueConst value, JSContext* ctx) {
 
 void
 pointer_fromarray(Pointer* ptr, JSValueConst array, JSContext* ctx) {
-  size_t i, len = js_array_length(ctx, array);
+  int64_t i, len;
 
-  for(i = 0; i < len; i++) {
-    JSValue prop = JS_GetPropertyUint32(ctx, array, i);
-    JSAtom atom = JS_ValueToAtom(ctx, prop);
-    JS_FreeValue(ctx, prop);
-
-    pointer_pushatom(ptr, atom, ctx);
-  }
+  if((len = js_array_length(ctx, array)) > 0)
+    for(i = 0; i < len; i++)
+      pointer_pushfree(ptr, JS_GetPropertyUint32(ctx, array, i), ctx);
 }
 
 void
@@ -358,18 +369,20 @@ pointer_fromiterable(Pointer* ptr, JSValueConst arg, JSContext* ctx) {
   JS_FreeValue(ctx, iter);
 }
 
-void
-pointer_fromatoms(Pointer* ptr, JSValueConst array, JSContext* ctx) {
-  size_t i, len = js_array_length(ctx, array);
+BOOL
+pointer_fromatoms(Pointer* ptr, JSAtom* vec, size_t len, JSContext* ctx) {
+  pointer_reset(ptr, ctx);
 
-  for(i = 0; i < len; i++) {
-    JSValue prop = JS_GetPropertyUint32(ctx, array, i);
-    uint32_t atom;
-    JS_ToUint32(ctx, &atom, prop);
-    JS_FreeValue(ctx, prop);
+  if(pointer_allocate(ptr, len, ctx)) {
+    size_t i;
 
-    pointer_pushatom(ptr, atom, ctx);
+    for(i = 0; i < len; i++)
+      ptr->atoms[i] = JS_DupAtom(ctx, vec[i]);
+
+    return TRUE;
   }
+
+  return FALSE;
 }
 
 int

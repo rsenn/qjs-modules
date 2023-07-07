@@ -31,7 +31,7 @@ const inspectOptions = {
 
 function main(...args) {
   globalThis.console = new Console({ inspectOptions });
-  
+
   let obj1 = {
     a: [undefined, 1, 1234n],
     b: 2,
@@ -74,7 +74,8 @@ function main(...args) {
   console.log('pred2:', pred2);
   console.log('obj3:', obj3);
 
-  for(let [n, p] of deep.iterate(obj3, () => true /*Predicate.property('4')*/, deep.RETURN_VALUE_PATH)) console.log(`deep.iterate()`, { n, p });
+  for(let [n, p] of deep.iterate(obj3, () => true /*Predicate.property('4')*/, deep.RETURN_VALUE_PATH))
+    console.log(`deep.iterate()`, { n, p });
 
   console.log('select():', deep.select(obj3, pred, deep.RETURN_VALUE_PATH));
   console.log(

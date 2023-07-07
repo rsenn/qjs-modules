@@ -326,8 +326,15 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
     }
 
     case PROP_ATOMS: {
-      pointer_reset(ptr, ctx);
-      pointer_fromatoms(ptr, value, ctx);
+      int32_t* intv;
+      size_t vlen;
+
+      if((intv = js_array_to_int32v(ctx, &vlen, value))) {
+        pointer_reset(ptr, ctx);
+        ptr->atoms = intv;
+        ptr->n = vlen;
+      }
+
       break;
     }
   }
@@ -337,7 +344,7 @@ js_pointer_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
 
 static JSValue
 js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret;
+  JSValue ret = JS_EXCEPTION;
 
   switch(magic) {
     case STATIC_FROM: {
@@ -345,14 +352,15 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
 
     case STATIC_FROM_ATOMS: {
-      int i;
       Pointer* ptr;
 
-      if(!(ptr = pointer_new(ctx)))
-        return JS_EXCEPTION;
+      if((ptr = pointer_new(ctx))) {
+        if((ptr->atoms = js_array_to_int32v(ctx, &ptr->n, argv[0])))
+          ret = js_pointer_wrap(ctx, ptr);
+        else
+          pointer_free(ptr, ctx);
+      }
 
-      ret = js_pointer_wrap(ctx, ptr);
-      pointer_fromatoms(ptr, argv[0], ctx);
       break;
     }
 
