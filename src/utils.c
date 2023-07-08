@@ -1417,17 +1417,6 @@ js_argv_to_int32v(JSContext* ctx, int argc, JSValueConst argv[]) {
   return ret;
 }
 
-JSAtom*
-js_argv_to_atoms(JSContext* ctx, int argc, JSValueConst argv[]) {
-  JSAtom* ret;
-
-  if((ret = js_malloc(ctx, sizeof(JSAtom) * argc)))
-    for(int i = 0; i < argc; i++)
-      ret[i] = JS_ValueToAtom(ctx, argv[i]);
-
-  return ret;
-}
-
 JSAtom
 js_symbol_static_atom(JSContext* ctx, const char* name) {
   JSValue sym = js_symbol_static_value(ctx, name);
