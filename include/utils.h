@@ -230,6 +230,37 @@ int32_mod(int32_t a, int32_t b) {
   return (c < 0) ? c + b : c;
 }
 
+static inline uint32_t
+uint32_mod(uint32_t a, uint32_t b) {
+  return a % b;
+}
+
+static inline int64_t
+int64_sign(uint64_t i) {
+  return (i & 0x80000000) ? -1 : 1;
+}
+
+static inline int64_t
+int64_mod(int64_t a, int64_t b) {
+  int64_t c = a % b;
+  return (c < 0) ? c + b : c;
+}
+
+static inline uint64_t
+uint64_mod(uint64_t a, uint64_t b) {
+  return a % b;
+}
+static inline size_t
+size_mod(size_t a, size_t b) {
+  return a % b;
+}
+
+static inline ssize_t
+ssize_mod(ssize_t a, ssize_t b) {
+  ssize_t c = a % b;
+  return (c < 0) ? c + b : c;
+}
+
 uint64_t time_us(void);
 
 typedef struct {
@@ -892,6 +923,7 @@ void js_strv_free_rt(JSRuntime* rt, char** strv);
 JSValue js_strv_to_array(JSContext* ctx, char** strv);
 
 int32_t* js_argv_to_int32v(JSContext* ctx, int argc, JSValueConst argv[]);
+JSAtom* js_argv_to_atoms(JSContext*, int argc, JSValueConst argv[]);
 
 JSValue js_int32v_to_array(JSContext*, int32_t const*, size_t);
 JSValue js_intv_to_array(JSContext*, int const*, size_t);
