@@ -71,7 +71,7 @@ pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
   return TRUE;
 }
 
-#define pointer_color(s) ((i) >= (index) ? COLOR_RED : (is_int ? COLOR_LIGHTGRAY : COLOR_YELLOW))
+#define pointer_color(s) ((ssize_t)(i) >= (index) ? COLOR_RED : (is_int ? COLOR_LIGHTGRAY : COLOR_YELLOW))
 
 void
 pointer_dump(Pointer const* ptr, Writer* wr, BOOL color, ssize_t index, JSContext* ctx) {

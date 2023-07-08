@@ -105,7 +105,7 @@ js_mmap_mprotect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   JS_ToInt32(ctx, &flags, argv[0]);
 
-  return JS_NewInt32(ctx, mprotect(data + offset, MIN_NUM(length, len), flags));
+  return JS_NewInt32(ctx, mprotect(data + offset, MIN_NUM(length, (int64_t)len), flags));
 }
 
 static JSValue

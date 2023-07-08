@@ -913,7 +913,6 @@ char* js_tosource(JSContext* ctx, JSValueConst value);
 
 static inline size_t
 js_arraybuffer_length(JSContext* ctx, JSValueConst buffer) {
-  uint8_t* ptr;
   size_t len;
 
   if(JS_GetArrayBuffer(ctx, &len, buffer))

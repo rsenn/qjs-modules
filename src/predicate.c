@@ -133,7 +133,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_ATAN2: {
       JSValue values[2] = {pr->binary.left, pr->binary.right};
       BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.left), js_is_null_or_undefined(pr->binary.right)};
-      size_t i, j = 0;
+      size_t i;
       double left, right, r;
 
       for(i = 0; i < 2; i++) {
@@ -303,15 +303,14 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       break;
     }
 
-    case PREDICATE_SHIFT: {
-      int shift = MIN_NUM(args->c, pr->shift.n);
-
+    case PREDICATE_SHIFT: {      
       if(pr->shift.n <= args->c) {
         JSArguments args2 = *args;
 
         js_arguments_shiftn(&args2, pr->shift.n);
         ret = predicate_value(ctx, pr->shift.predicate, &args2);
       }
+
       break;
     }
 
@@ -322,8 +321,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       size_t start, end;
       SlicePredicate slice = pr->slice;
 
-      start = slice.start < 0 ? block.size + (slice.start % (signed)block.size) : slice.start > block.size ? block.size : slice.start;
-      end = slice.end < 0 ? block.size + (slice.end % (signed)block.size) : slice.end > block.size ? block.size : slice.end;
+      start = slice.start < 0 ? (int64_t)block.size + (slice.start % (signed)block.size) : slice.start > (int64_t)block.size ? (int64_t)block.size : slice.start;
+      end = slice.end < 0 ? (int64_t)block.size + (slice.end % (signed)block.size) : slice.end > (int64_t)block.size ? (int64_t)block.size : slice.end;
 
       if(JS_IsString(arg)) {
         ret = JS_NewStringLen(ctx, (const char*)block.base + start, end - start);
@@ -481,14 +480,15 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     case PREDICATE_BOR:
     case PREDICATE_BAND:
     case PREDICATE_POW: {
-      size_t i;
       static const char* op_str[] = {" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** "};
+
       dbuf_putstr(dbuf, "(");
       dbuf_put_value(dbuf, ctx, pr->binary.left);
 
       dbuf_putstr(dbuf, op_str[pr->id - PREDICATE_ADD]);
       dbuf_put_value(dbuf, ctx, pr->binary.right);
       dbuf_putstr(dbuf, ")");
+
       break;
     }
 
@@ -1263,10 +1263,12 @@ predicate_recursive_num_args(const Predicate* pr) {
     case PREDICATE_OR:
     case PREDICATE_AND:
     case PREDICATE_XOR: {
-      int i;
+      size_t i;
+
       for(i = 0; i < pr->boolean.npredicates; i++)
         if((other = js_predicate_data(pr->boolean.predicates[i])))
           n += predicate_recursive_num_args(other);
+
       break;
     }
 
@@ -1434,7 +1436,7 @@ predicate_precedence(const Predicate* pr) {
     case PREDICATE_MEMBER:
     case PREDICATE_FUNCTION: ret = PRECEDENCE_MEMBER_ACCESS; break;
   }
-  assert(ret != -1);
+  assert(ret != (JSPrecedence)-1);
   return ret;
 }
 

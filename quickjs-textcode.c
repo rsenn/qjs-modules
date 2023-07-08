@@ -264,8 +264,6 @@ js_decoder_decode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case DECODER_END:
     case DECODER_DECODE: {
       InputBuffer in = js_input_chars(ctx, argv[0]);
-      uint8_t tmp[UTF8_CHAR_LEN_MAX];
-      size_t i;
 
       // printf("js_decoder_decode (1) %s length=%zu in.size=%zu\n", magic == DECODER_DECODE ? "decode" :
       // "end", ringbuffer_length(&dec->buffer), in.size);
@@ -540,7 +538,6 @@ js_encoder_encode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   switch(magic) {
     case ENCODER_END:
     case ENCODER_ENCODE: {
-      size_t i;
       InputBuffer in = js_input_chars(ctx, argv[0]);
 
       ret = textencoder_encode(enc, in, ctx);

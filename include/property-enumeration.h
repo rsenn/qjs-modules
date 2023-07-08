@@ -110,8 +110,6 @@ property_enumeration_level(const PropertyEnumeration* it, const Vector* vec) {
 
 static inline PropertyEnumeration*
 property_enumeration_prototype(PropertyEnumeration* it, JSContext* ctx, int flags) {
-  JSValue proto = JS_DupValue(ctx, it->obj);
-
   if(it->idx < it->tab_atom_len)
     return property_enumeration_next(it);
 
@@ -127,6 +125,7 @@ property_enumeration_prototype(PropertyEnumeration* it, JSContext* ctx, int flag
       if(it->idx < it->tab_atom_len)
         return it;
   }
+
   return 0;
 }
 

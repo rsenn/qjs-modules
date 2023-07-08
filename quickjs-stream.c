@@ -247,7 +247,7 @@ reader_clean(Reader* rd, JSContext* ctx) {
 
 static int
 reader_update(Reader* rd, JSContext* ctx) {
-  JSValue chunk, result;
+  JSValue result;
   Chunk* ch;
   Readable* st = rd->stream;
   int ret = 0;
@@ -378,7 +378,6 @@ readable_cancel(Readable* st, JSValueConst reason, JSContext* ctx) {
 
 static JSValue
 readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
-  MemoryBlock b;
   InputBuffer input;
   int64_t ret;
   Reader* rd;
@@ -433,8 +432,10 @@ readable_free(Readable* st, JSRuntime* rt) {
   if(--st->ref_count == 0) {
     JS_FreeValueRT(rt, st->underlying_source);
     JS_FreeValueRT(rt, st->controller);
-    for(int i = 0; i < countof(st->on); i++)
+
+    for(size_t i = 0; i < countof(st->on); i++)
       JS_FreeValueRT(rt, st->on[i]);
+
     queue_clear(&st->q);
     js_free_rt(rt, st);
   }
@@ -1012,8 +1013,10 @@ writable_free(Writable* st, JSRuntime* rt) {
   if(--st->ref_count == 0) {
     JS_FreeValueRT(rt, st->underlying_sink);
     JS_FreeValueRT(rt, st->controller);
-    for(int i = 0; i < countof(st->on); i++)
+
+    for(size_t i = 0; i < countof(st->on); i++)
       JS_FreeValueRT(rt, st->on[i]);
+
     queue_clear(&st->q);
     js_free_rt(rt, st);
   }
@@ -1215,8 +1218,7 @@ js_writable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
 JSValue
 js_writable_handler(JSContext* ctx, JSValueConst this_val, int magic) {
-
-  JSValue r, handler, method;
+  JSValue handler, method;
 
   method = JS_NewCFunctionMagic(ctx, js_writable_method, "handler", 0, JS_CFUNC_generic_magic, magic);
   handler = js_function_bind_this(ctx, method, this_val);
@@ -1485,8 +1487,10 @@ js_transform_finalizer(JSRuntime* rt, JSValue val) {
 
       JS_FreeValueRT(rt, st->underlying_transform);
       JS_FreeValueRT(rt, st->controller);
-      for(int i = 0; i < countof(st->on); i++)
+
+      for(size_t i = 0; i < countof(st->on); i++)
         JS_FreeValueRT(rt, st->on[i]);
+
       js_free_rt(rt, st);
     }
   }

@@ -235,6 +235,8 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       if((result = pointer_concat(ptr, argv[0], ctx)))
         return js_pointer_wrap(ctx, result);
+
+      break;
     }
 
     case METHOD_HIER: {

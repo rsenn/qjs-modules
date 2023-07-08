@@ -324,9 +324,9 @@ path_concat2(const char* a, const char* b) {
 
 const char*
 path_at4(const char* p, size_t plen, size_t* len_ptr, int i) {
-  int pos = 0;
   size_t next, len;
   const char* q = p + plen;
+
   for(; p < q;) {
     len = path_component3(p, q - p, 0);
     next = len + path_separator3(&p[len], q - p - len, 0);
@@ -338,13 +338,14 @@ path_at4(const char* p, size_t plen, size_t* len_ptr, int i) {
 
   if(len_ptr)
     *len_ptr = len;
+
   return p;
 }
 
 const char*
 path_at3(const char* p, size_t* len_ptr, int i) {
-  int pos = 0;
   size_t next, len;
+
   for(;;) {
     len = path_component1(p);
     next = len + path_separator1(&p[len]);
@@ -356,6 +357,7 @@ path_at3(const char* p, size_t* len_ptr, int i) {
 
   if(len_ptr)
     *len_ptr = len;
+
   return p;
 }
 
@@ -728,8 +730,8 @@ path_getcwd0(void) {
 
 char*
 path_gethome(void) {
-  static char home[PATH_MAX + 1];
 #if defined(_WIN32)
+  static char home[PATH_MAX + 1];
   if(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, home) != S_OK)
     return 0;
   return home;

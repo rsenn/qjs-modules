@@ -148,13 +148,13 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
     case LOCATION_PROP_LINE: {
       uint32_t n = 0;
       JS_ToUint32(ctx, &n, value);
-      loc->line = n > 0 ? n - 1 : -1;
+      loc->line = n > 0 ? (int32_t)n - 1 : -1;
       break;
     }
     case LOCATION_PROP_COLUMN: {
       uint32_t n = 0;
       JS_ToUint32(ctx, &n, value);
-      loc->column = n > 0 ? n - 1 : -1;
+      loc->column = n > 0 ? (int32_t)n - 1 : -1;
       break;
     }
     case LOCATION_PROP_CHAROFFSET: {
@@ -274,7 +274,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       loc->file = 0;
 
       if(i < argc && !JS_IsNumber(argv[i])) {
-        loc->file = JS_IsString(argv[i]) ? JS_ValueToAtom(ctx, argv[i]) : -1;
+        loc->file = JS_IsString(argv[i]) ? (int32_t)JS_ValueToAtom(ctx, argv[i]) : -1;
         ++i;
       }
 
@@ -363,7 +363,6 @@ js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
 static JSValue
 js_location_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
   Location *loc, *other;
 
   if(!(other = js_location_data2(ctx, this_val)))
@@ -379,7 +378,6 @@ static JSValue
 js_location_count(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Location* loc = 0;
   InputBuffer input;
-  size_t i;
   int64_t limit = -1;
 
   if(!(loc = location_new(ctx)))

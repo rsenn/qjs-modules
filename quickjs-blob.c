@@ -48,8 +48,6 @@ blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
 
 ssize_t
 blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
-  uint8_t* ptr;
-
   if(dbuf_put(&blob->vec.dbuf, x, len))
     return -1;
 
@@ -140,8 +138,7 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   if(JS_IsException(obj))
     goto fail;
 
-  uint8_t* ptr;
-  size_t size = 0, offs = 0;
+  size_t size = 0;
   blob->type = 0;
 
   if(argc >= 1) {

@@ -164,10 +164,6 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return ret;
 }
 
-static const JSCFunctionListEntry js_token_inspect_funcs[1] = {
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Token", JS_PROP_CONFIGURABLE),
-};
-
 JSValue
 js_token_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue obj;
@@ -1214,7 +1210,7 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
 
   stack[size - 1] = lex->state;
 
-  buf = JS_NewArrayBuffer(ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)&js_free_rt, stack, FALSE);
+  buf = JS_NewArrayBuffer(ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)(void*)&orig_js_free_rt, stack, FALSE);
 
   ctor = js_global_get_str(ctx, "Int32Array");
 
@@ -1373,9 +1369,6 @@ js_lexer_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 JSValue
 js_lexer_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
   Lexer* lex;
-  int32_t result;
-  JSValue ret = JS_UNDEFINED;
-  JSValueConst arg = argc > 0 ? argv[0] : JS_UNDEFINED;
 
   if(!(lex = JS_GetOpaque2(ctx, func_obj, js_lexer_class_id)))
     return JS_EXCEPTION;
@@ -1396,9 +1389,9 @@ js_lexer_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   JSValue next, ret = JS_NewObject(ctx);
   JSAtom symbol = js_symbol_static_atom(ctx, "iterator");
 
-  next = JS_NewCFunction2(ctx, (JSCFunction*)&js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, magic);
+  next = JS_NewCFunction2(ctx, (JSCFunction*)(void*)&js_lexer_nextfn, "next", 0, JS_CFUNC_generic_magic, magic);
 
-  JS_DefinePropertyValue(ctx, ret, symbol, JS_NewCFunction2(ctx, (JSCFunction*)&JS_DupValue, "[Symbol.iterator]", 0, JS_CFUNC_generic, 0), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValue(ctx, ret, symbol, JS_NewCFunction2(ctx, (JSCFunction*)(void*)&JS_DupValue, "[Symbol.iterator]", 0, JS_CFUNC_generic, 0), JS_PROP_CONFIGURABLE);
   JS_FreeAtom(ctx, symbol);
 
   JS_DefinePropertyValueStr(ctx, ret, "next", js_function_bind_this(ctx, next, this_val), JS_PROP_CONFIGURABLE);

@@ -250,7 +250,6 @@ fail:
 
 static JSValue
 js_archive_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  JSValue ret = JS_UNDEFINED;
   struct archive* ar;
   struct archive_entry* ent;
   int result;

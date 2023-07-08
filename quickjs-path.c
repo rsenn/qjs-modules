@@ -316,7 +316,8 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       ret = JS_NewObject(ctx);
       JS_SetPropertyStr(ctx, ret, "dir", JS_NewStringLen(ctx, a, path_dirlen2(a, alen)));
-      JS_SetPropertyStr(ctx, ret, "base", JS_NewStringLen(ctx, base, ext ? ext - base : strlen(base)));
+      JS_SetPropertyStr(ctx, ret, "base", JS_NewStringLen(ctx, base, ext ? (size_t)(ext - base) : strlen(base)));
+
       if(ext)
         JS_SetPropertyStr(ctx, ret, "ext", JS_NewString(ctx, ext));
 
@@ -462,7 +463,7 @@ static JSValue
 js_path_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* str;
   DynBuf db;
-  int32_t i, start = 0, end = -1;
+  int32_t start = 0, end = -1;
   JSValue ret = JS_UNDEFINED;
   js_dbuf_init(ctx, &db);
 
@@ -677,7 +678,7 @@ js_path_isin(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 static JSValue
 js_path_toarray(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char* str;
-  int32_t i, len, clen;
+  int32_t i, len;
   JSValue ret = JS_NewArray(ctx);
 
   if((str = JS_ToCString(ctx, argv[0]))) {
@@ -710,8 +711,9 @@ js_path_toarray(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         JS_SetPropertyUint32(ctx, value, 1, JS_NewUint32(ctx, clen));
 
       } else {
-        value = JS_NewUint32(ctx, magic == 2 ? clen : x - str);
+        value = JS_NewUint32(ctx, magic == 2 ? (ptrdiff_t)clen : x - str);
       }
+
       JS_SetPropertyUint32(ctx, ret, i - ir.start, value);
     }
   }

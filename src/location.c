@@ -148,7 +148,7 @@ location_equal(const Location* loc, const Location* other) {
 
 Location*
 location_copy(Location* dst, const Location* src, JSContext* ctx) {
-  dst->file = src->file >= 0 ? JS_DupAtom(ctx, src->file) : src->file;
+  dst->file = src->file >= 0 ? (int32_t)JS_DupAtom(ctx, src->file) : src->file;
   dst->line = src->line;
   dst->column = src->column;
   dst->char_offset = src->char_offset;
@@ -162,7 +162,7 @@ location_clone(const Location* loc, JSContext* ctx) {
   Location* ret;
 
   if((ret = location_new(ctx))) {
-    ret->file = loc->file >= 0 ? JS_DupAtom(ctx, loc->file) : -1;
+    ret->file = loc->file >= 0 ? (int32_t)JS_DupAtom(ctx, loc->file) : -1;
     ret->line = loc->line;
     ret->column = loc->column;
     ret->char_offset = loc->char_offset;

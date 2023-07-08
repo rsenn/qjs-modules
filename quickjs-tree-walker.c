@@ -108,11 +108,9 @@ tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
 
 static JSValue
 js_get_filter(JSContext* ctx, JSValueConst val) {
-  JSValue ret = JS_UNDEFINED;
-  BOOL is_fun = JS_IsFunction(ctx, val), is_obj;
-
-  ret = JS_DupValue(ctx, val);
-  is_obj = JS_IsObject(val);
+  JSValue ret = JS_DupValue(ctx, val);
+ BOOL is_obj = JS_IsObject(val);
+ 
   if(is_obj) {
     JSValue fn = JS_GetPropertyStr(ctx, val, "acceptNode");
     if(JS_IsFunction(ctx, fn)) {
@@ -120,6 +118,7 @@ js_get_filter(JSContext* ctx, JSValueConst val) {
       ret = fn;
     }
   }
+ 
   if(!JS_IsFunction(ctx, ret)) {
     JS_FreeValue(ctx, ret);
     return JS_NULL;
@@ -470,7 +469,6 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   for(;;) {
     if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {
-      ValueTypeMask vtype;
       *pdone = FALSE;
       switch(r) {
         case RETURN_VALUE: ret = property_enumeration_value(it, ctx); break;

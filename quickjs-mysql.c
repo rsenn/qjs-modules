@@ -23,9 +23,6 @@ VISIBLE JSValue mysqlerror_proto = {{0}, JS_TAG_UNDEFINED}, mysqlerror_ctor = {{
 
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 
-static const int wait_read = MYSQL_WAIT_READ;
-static const int wait_write = MYSQL_WAIT_WRITE;
-
 typedef enum {
   RESULT_OBJECT = 1 << 0,
   RESULT_STRING = 1 << 1,
@@ -1057,7 +1054,7 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   const char* query = 0;
   size_t i;
   MYSQL* my;
-  int wantwrite, state, err = 0, as, fd;
+  int state, err = 0, as, fd;
 
   if(!(my = js_mysql_data2(ctx, this_val)))
     return JS_EXCEPTION;
@@ -1271,7 +1268,7 @@ js_mysqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
 
 static JSValue
 js_mysqlerror_new(JSContext* ctx, const char* msg) {
-  JSValue ret, obj;
+  JSValue  obj;
   JSValue argv[1];
 
   obj = JS_NewObjectProtoClass(ctx, mysqlerror_proto, js_mysqlerror_class_id);

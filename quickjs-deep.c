@@ -224,7 +224,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   for(;;) {
     depth = property_recursion_depth(&it->frames);
-    int level = it->seq == 0           ? (property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS), 1)
+    it->seq == 0           ? (property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS), 1)
                 : (depth >= max_depth) ? property_recursion_skip(&it->frames, ctx)
                                        : /*depth > 0          ?*/ property_recursion_next(&it->frames, ctx);
 
@@ -296,7 +296,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
 
-    int level = vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_recursion_skip(&frames, ctx) : property_recursion_next(&frames, ctx);
+ vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_recursion_skip(&frames, ctx) : property_recursion_next(&frames, ctx);
 
   } while((it = property_recursion_top(&frames)));
 
@@ -310,7 +310,6 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 static JSValue
 js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  JSValueConst this_arg = argc > 3 ? argv[3] : JS_UNDEFINED;
   uint32_t i = 0, flags = js_deep_defaultflags, max_depth;
   PropertyEnumeration* it;
   Vector frames;

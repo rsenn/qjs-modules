@@ -359,7 +359,6 @@ list_find_value(List* list, JSValueConst list_obj, JSValueConst fn, FindCall* fi
 static BOOL
 list_append(List* list, JSValueConst iterable, JSContext* ctx) {
   Iteration iter = {0};
-  JSValue ret;
 
   if(!iteration_method_symbol(&iter, ctx, iterable, "iterator")) {
     iteration_reset(&iter, ctx);
@@ -692,7 +691,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case METHOD_LAST_INDEX_OF: {
       index = list_indexof_reverse(list, argv[0], ctx);
 
-      ret = JS_NewInt64(ctx, index == -1 ? -1 : (list->size - 1) - index);
+      ret = JS_NewInt64(ctx, index == -1 ? -1 : (int64_t)(list->size - 1) - index);
       break;
     }
 
@@ -1253,7 +1252,6 @@ static const JSCFunctionListEntry js_list_iterator_proto_funcs[] = {
 static int
 js_list_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {
   List* list = js_list_data2(ctx, obj);
-  JSValue value = JS_UNDEFINED;
   int64_t index;
 
   if(js_atom_is_index(ctx, &index, prop)) {
@@ -1365,8 +1363,6 @@ static JSClassDef js_list_iterator_class = {
 
 static int
 js_list_init(JSContext* ctx, JSModuleDef* m) {
-  JSAtom inspectAtom;
-
   JS_NewClassID(&js_list_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_list_class_id, &js_list_class);
 

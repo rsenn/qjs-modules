@@ -410,7 +410,7 @@ scan_8long(const char* src, uint32_t* dest) {
 static inline size_t
 utf8_charlen(const char* in, size_t len) {
   const uint8_t* next;
-  int cp = unicode_from_utf8((const uint8_t*)in, len, &next);
+  (void)unicode_from_utf8((const uint8_t*)in, len, &next);
   return next - (const uint8_t*)in;
 }
 

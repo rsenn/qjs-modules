@@ -15,17 +15,15 @@
  */
 Writer
 writer_from_dynbuf(DynBuf* db) {
-  return (Writer){(WriteFunction*)&dbuf_writer, db, (WriterFinalizer*)&dbuf_free};
+  return (Writer){(WriteFunction*)(void*)&dbuf_writer, db, (WriterFinalizer*)(void*)&dbuf_free};
 }
 
 Writer
 writer_from_fd(intptr_t fd, bool close_on_end) {
-  return (Writer){(WriteFunction*)&write, (void*)fd, close_on_end ? (WriterFinalizer*)&close : NULL};
+  return (Writer){(WriteFunction*)(void*)&write, (void*)fd, close_on_end ? (WriterFinalizer*)(void*)&close : NULL};
 }
-
-ssize_t
-writer_tee_write(void* opaque, const void* buf, size_t len) {
-  Writer* wptr = opaque;
+ ssize_t writer_tee_write(intptr_t opaque, const void* buf, size_t len) {
+  Writer* wptr = (void*)opaque;
   ssize_t r[2];
 
   r[0] = writer_write(&wptr[0], buf, len);
@@ -45,7 +43,7 @@ writer_tee(const Writer a, const Writer b) {
 
   assert(opaque);
 
-  return (Writer){(WriteFunction*)&writer_tee_write, (void*)opaque, (WriterFinalizer*)&free};
+  return (Writer){ writer_tee_write, (void*)opaque, (WriterFinalizer*)(void*)&orig_free};
 }
 
 ssize_t

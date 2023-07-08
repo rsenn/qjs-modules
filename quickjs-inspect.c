@@ -70,14 +70,14 @@ typedef struct {
   InspectOptions opts;
   Writer wr;
   Vector hier;
-} InspectContext;
+} Inspector;
 
 static int stdout_isatty, stderr_isatty;
 static int32_t width = -1;
 
-static int inspect_value(JSContext*, InspectContext*, JSValueConst, int32_t);
-static int inspect_string(JSContext*, InspectContext*, JSValueConst, int32_t);
-static int inspect_number(JSContext*, InspectContext*, JSValueConst, int32_t);
+static int inspect_value(Inspector*, JSValueConst, int32_t);
+static int inspect_string(Inspector*, JSValueConst, int32_t);
+static int inspect_number(Inspector*, JSValueConst, int32_t);
 
 /*static int
 regexp_predicate(int c) {
@@ -443,10 +443,9 @@ js_inspect_custom_atom(JSContext* ctx, const char* sym_for) {
 }*/
 
 static JSValue
-inspect_custom(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t level) {
+inspect_custom(Inspector* insp, JSValueConst obj, int32_t level) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
-  Writer* const wr = &insp->wr;
-  const char* str;
   JSValue ret = JS_UNDEFINED, inspect = JS_UNDEFINED;
 
   if(JS_HasProperty(ctx, obj, inspect_custom_atom))
@@ -475,7 +474,8 @@ inspect_custom(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t l
 }
 
 static int
-inspect_date(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t depth) {
+inspect_date(Inspector* insp, JSValueConst obj, int32_t depth) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   const char* str;
@@ -502,7 +502,8 @@ inspect_date(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t dep
 }
 
 static int
-inspect_map(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t level) {
+inspect_map(Inspector* insp, JSValueConst obj, int32_t level) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   BOOL ret, finish = FALSE;
@@ -535,11 +536,11 @@ inspect_map(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t leve
 
       writer_puts(wr, IS_COMPACT(depth + 1) ? " " : "  ");
       key = JS_GetPropertyUint32(ctx, data, 0);
-      inspect_value(ctx, insp, key, depth + 1);
+      inspect_value(insp, key, depth + 1);
 
       writer_puts(wr, " => ");
       value = JS_GetPropertyUint32(ctx, data, 1);
-      inspect_value(ctx, insp, value, depth + 1);
+      inspect_value(insp, value, depth + 1);
 
       JS_FreeValue(ctx, key);
       JS_FreeValue(ctx, value);
@@ -559,7 +560,8 @@ inspect_map(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t leve
 }
 
 static int
-inspect_set(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t level) {
+inspect_set(Inspector* insp, JSValueConst obj, int32_t level) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   BOOL ret, finish = FALSE;
@@ -591,7 +593,7 @@ inspect_set(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t leve
       }
 
       writer_puts(wr, IS_COMPACT(depth + 1) ? " " : "  ");
-      inspect_value(ctx, insp, value, depth + 1);
+      inspect_value(insp, value, depth + 1);
       JS_FreeValue(ctx, value);
     }
   }
@@ -607,7 +609,8 @@ inspect_set(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t leve
 }
 
 static int
-inspect_arraybuffer(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t level) {
+inspect_arraybuffer(Inspector* insp, JSValueConst value, int32_t level) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   char buf[FMT_ULONG];
@@ -741,7 +744,8 @@ inspect_arraybuffer(JSContext* ctx, InspectContext* insp, JSValueConst value, in
 }
 
 static int
-inspect_regexp(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t depth) {
+inspect_regexp(Inspector* insp, JSValueConst value, int32_t depth) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   size_t len;
@@ -760,7 +764,8 @@ inspect_regexp(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t
 }
 
 static int
-inspect_number(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t depth) {
+inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   int tag = JS_VALUE_GET_TAG(value);
@@ -834,7 +839,8 @@ inspect_number(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t
 }
 
 static int
-inspect_string(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t level) {
+inspect_string(Inspector* insp, JSValueConst value, int32_t level) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   int col = 0, tag = JS_VALUE_GET_TAG(value);
@@ -902,8 +908,8 @@ inspect_string(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t
 }
 
 static int
-inspect_key(JSContext* ctx, InspectContext* insp, JSAtom key) {
-  InspectOptions* const opts = &insp->opts;
+inspect_key(Inspector* insp, JSAtom key) {
+  JSContext* const ctx = insp->hier.opaque;
   Writer* const wr = &insp->wr;
   const char* str = 0;
   JSValue value = JS_AtomToValue(ctx, key);
@@ -915,7 +921,7 @@ inspect_key(JSContext* ctx, InspectContext* insp, JSAtom key) {
     if(!is_string)
       writer_putc(wr, '[');
 
-    inspect_value(ctx, insp, value, 0);
+    inspect_value(insp, value, 0);
     if(!is_string)
       writer_putc(wr, ']');
   }
@@ -927,17 +933,17 @@ inspect_key(JSContext* ctx, InspectContext* insp, JSAtom key) {
 }
 
 static int
-inspect_atom(JSContext* ctx, InspectContext* insp, JSAtom atom, int32_t depth) {
-  InspectOptions* const opts = &insp->opts;
-  Writer* const wr = &insp->wr;
+inspect_atom(Inspector* insp, JSAtom atom, int32_t depth) {
+  JSContext* const ctx = insp->hier.opaque;
   JSValue value = JS_AtomToValue(ctx, atom);
-  int r = inspect_value(ctx, insp, value, depth);
+  int r = inspect_value(insp, value, depth);
   JS_FreeValue(ctx, value);
   return r;
 }
 
 static int
-inspect_module(JSContext* ctx, InspectContext* insp, JSModuleDef* def, int32_t depth) {
+inspect_module(Inspector* insp, JSModuleDef* def, int32_t depth) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   char buf[FMT_ULONG];
@@ -966,7 +972,7 @@ inspect_module(JSContext* ctx, InspectContext* insp, JSModuleDef* def, int32_t d
 
     writer_putc(wr, ' ');
     // pos = wr->size;
-    inspect_atom(ctx, insp, def->module_name, depth + 1);
+    inspect_atom(insp, def->module_name, depth + 1);
 
     if(JS_IsFunction(ctx, def->func_obj))
       writer_puts(wr, COLOR_RED " JS" COLOR_NONE);
@@ -986,7 +992,7 @@ inspect_module(JSContext* ctx, InspectContext* insp, JSModuleDef* def, int32_t d
 
     if(JS_IsFunction(ctx, def->func_obj)) {
       writer_putc(wr, ' ');
-      inspect_value(ctx, insp, def->func_obj, depth + 1);
+      inspect_value(insp, def->func_obj, depth + 1);
     }
   }
 
@@ -995,7 +1001,8 @@ inspect_module(JSContext* ctx, InspectContext* insp, JSModuleDef* def, int32_t d
 }
 
 static int
-inspect_error(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t level) {
+inspect_error(Inspector* insp, JSValueConst value, int32_t level) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   JSValue stack;
@@ -1050,7 +1057,8 @@ inspect_error(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t 
 }
 
 static int
-inspect_object(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t level) {
+inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   int32_t depth = INT32_IN_RANGE(level) ? level : 0;
@@ -1067,7 +1075,7 @@ inspect_object(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t
   }
 
   if(opts->custom_inspect) {
-    JSValue tmp = inspect_custom(ctx, insp, value, depth + 1);
+    JSValue tmp = inspect_custom(insp, value, depth + 1);
 
     if(JS_IsString(tmp)) {
       const char* s = JS_ToCString(ctx, tmp);
@@ -1076,13 +1084,11 @@ inspect_object(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t
       return 1;
     }
 
-    if(JS_IsException(tmp)) {
-      JSValue exception = ctx->rt->current_exception;
+    if(JS_IsException(tmp)) 
       return -1;
-    }
 
     if(!JS_IsUndefined(tmp)) {
-      inspect_value(ctx, insp, tmp, depth + 1);
+      inspect_value(insp, tmp, depth + 1);
       return 1;
     }
   }
@@ -1094,17 +1100,17 @@ inspect_object(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t
 
     if(!is_array && !is_typedarray) {
       if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value))
-        return inspect_arraybuffer(ctx, insp, value, depth);
+        return inspect_arraybuffer(insp, value, depth);
       if(js_is_date(ctx, value))
-        return inspect_date(ctx, insp, value, depth);
+        return inspect_date(insp, value, depth);
       if(js_is_map(ctx, value))
-        return inspect_map(ctx, insp, value, depth);
+        return inspect_map(insp, value, depth);
       if(js_is_set(ctx, value))
-        return inspect_set(ctx, insp, value, depth);
+        return inspect_set(insp, value, depth);
       if(js_is_regexp(ctx, value))
-        return inspect_regexp(ctx, insp, value, depth);
+        return inspect_regexp(insp, value, depth);
       if(js_is_error(ctx, value))
-        return inspect_error(ctx, insp, value, depth);
+        return inspect_error(insp, value, depth);
     }
 
     if(js_is_generator(ctx, value)) {
@@ -1169,7 +1175,8 @@ inspect_object(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t
 }
 
 static int
-inspect_value(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t level) {
+inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   int tag = JS_VALUE_GET_TAG(value);
@@ -1181,7 +1188,7 @@ inspect_value(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t 
     case JS_TAG_BIG_INT:
     case JS_TAG_INT:
     case JS_TAG_BIG_FLOAT: {
-      return inspect_number(ctx, insp, value, level);
+      return inspect_number(insp, value, level);
     }
 
     case JS_TAG_BOOL: {
@@ -1257,11 +1264,11 @@ inspect_value(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t 
     }
 
     case JS_TAG_STRING: {
-      return inspect_string(ctx, insp, value, level);
+      return inspect_string(insp, value, level);
     }
 
     case JS_TAG_OBJECT: {
-      return inspect_object(ctx, insp, value, depth);
+      return inspect_object(insp, value, depth);
     }
 
     case JS_TAG_FUNCTION_BYTECODE: {
@@ -1291,7 +1298,8 @@ inspect_value(JSContext* ctx, InspectContext* insp, JSValueConst value, int32_t 
 }
 
 static int
-inspect_recursive(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_t level) {
+inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
+  JSContext* const ctx = insp->hier.opaque;
   InspectOptions* const opts = &insp->opts;
   Writer* const wr = &insp->wr;
   PropertyEnumeration* it;
@@ -1322,7 +1330,7 @@ inspect_recursive(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_
     put_spacing(wr, opts, depth);
 
     if(!is_array) {
-      inspect_key(ctx, insp, property_enumeration_atom(it));
+      inspect_key(insp, property_enumeration_atom(it));
       writer_puts(wr, ": ");
     }
 
@@ -1333,7 +1341,7 @@ inspect_recursive(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_
       writer_puts(wr, opts->colors ? COLOR_LIGHTRED "[loop]" COLOR_NONE : "[loop]");
       ret = 1;
     } else {
-      ret = is_object ? inspect_object(ctx, insp, value, depth) : 0;
+      ret = is_object ? inspect_object(insp, value, depth) : 0;
     }
 
     if(ret != 1 && is_object) {
@@ -1359,7 +1367,7 @@ inspect_recursive(JSContext* ctx, InspectContext* insp, JSValueConst obj, int32_
     if(it) {
       if(ret != 1 && !is_object) {
         assert(!JS_IsObject(value));
-        inspect_value(ctx, insp, value, depth);
+        inspect_value(insp, value, depth);
       }
     }
 
@@ -1408,7 +1416,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
   buf_wr = writer_from_dynbuf(&dbuf);
   fd_wr = writer_from_fd(open("out.tmp", O_CREAT | O_WRONLY | O_APPEND, 0644), true);
 
-  InspectContext insp = {{}, writer_tee(buf_wr, fd_wr), VECTOR(ctx)};
+  Inspector insp = {{}, writer_tee(buf_wr, fd_wr), VECTOR(ctx)};
 
   options_init(&insp.opts, ctx);
 
@@ -1427,15 +1435,15 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
   }
 
   /*if(js_is_date(ctx, argv[0]))
-    inspect_date(ctx, &wr, argv[0], &options, level);
+    inspect_date(&wr, argv[0], &options, level);
   else*/
   if(JS_IsObject(argv[0]) && level < insp.opts.depth) {
-    int ret = inspect_object(ctx, &insp, argv[0], level);
+    int ret = inspect_object(&insp, argv[0], level);
 
     if(ret != 1)
-      inspect_recursive(ctx, &insp, argv[0], level);
+      inspect_recursive(&insp, argv[0], level);
   } else
-    inspect_value(ctx, &insp, argv[0], level);
+    inspect_value(&insp, argv[0], level);
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
@@ -1458,9 +1466,9 @@ js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   options.compact = 0;
   options.getters = TRUE;
 
-  InspectContext insp = {{}, writer_from_dynbuf(&dbuf), VECTOR(ctx)};
+  Inspector insp = {{}, writer_from_dynbuf(&dbuf), VECTOR(ctx)};
 
-  inspect_value(ctx, &insp, value, options.depth);
+  inspect_value(&insp, value, options.depth);
 
   options_free(&insp.opts, ctx);
 

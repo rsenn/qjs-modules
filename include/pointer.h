@@ -19,7 +19,7 @@ typedef struct Pointer {
 #define POINTER_ATOMS(ptr) ((ptr)->atoms)
 
 #define POINTER_INDEX(ptr, ind) (((((signed)(ind)) % (signed)(ptr)->n) + (ptr)->n) % (signed)(ptr)->n)
-#define POINTER_INRANGE(ptr, ind) ((ind) >= 0 && (ind) < (ptr)->n)
+#define POINTER_INRANGE(ptr, ind) ((ind) >= 0 && (ind) < (signed long)(ptr)->n)
 
 void pointer_reset(Pointer*, JSRuntime* rt);
 BOOL pointer_copy(Pointer*, Pointer const* src, JSContext*);
@@ -57,8 +57,6 @@ pointer_free(Pointer* ptr, JSRuntime* rt) {
 
 static inline JSAtom
 pointer_at(Pointer const* ptr, int32_t index) {
-  JSAtom atom;
-
   if(ptr->n)
     return ptr->atoms[POINTER_INDEX(ptr, index)];
 

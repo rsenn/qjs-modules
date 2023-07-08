@@ -682,7 +682,6 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 JSValue
 js_predicate_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
   Predicate* pr;
-  int32_t result;
   JSValue ret = JS_UNDEFINED;
   JSValueConst arg = argc > 0 ? argv[0] : JS_UNDEFINED;
 

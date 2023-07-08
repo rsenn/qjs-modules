@@ -186,7 +186,6 @@ array_get(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 
 static int
 array_set(VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
-  int64_t pos;
   JSValue entry, ret = JS_UNDEFINED;
   /*if((pos = array_find(vp, ctx, prop)) != -1) {
     entry = JS_GetPropertyUint32(ctx, vp->this_obj, pos);

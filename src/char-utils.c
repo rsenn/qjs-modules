@@ -132,7 +132,7 @@ fmt_xlong(char* dest, uint32_t i) {
 
 size_t
 fmt_xlong0(char* dest, uint32_t num, size_t n) {
-  size_t i = 0, len, tmp;
+  size_t i = 0, len;
 
   if((len = fmt_xlong(NULL, num)) < n) {
     len = n - len;

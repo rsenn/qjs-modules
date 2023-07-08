@@ -31,8 +31,6 @@ enum {
 
 static JSValue
 directory_namebuf(JSContext* ctx, DirEntry* entry) {
-  JSValue ret;
-
   size_t len = 0;
   return JS_NewArrayBufferCopy(ctx, getdents_namebuf(entry, &len), len);
 }

@@ -54,28 +54,30 @@ lexer_state_push(Lexer* lex, const char* state) {
 
 int
 lexer_state_pop(Lexer* lex) {
-  int32_t id;
-  size_t n = vector_size(&lex->state_stack, sizeof(int32_t)) - 1;
-  id = lex->state;
+  int32_t id = lex->state;
+
 #ifdef DEBUG_OUTPUT_
   printf("lexer_state_pop(%zu): %s\n", n, lexer_state_name(lex, id));
 #endif
+
   if(!vector_empty(&lex->state_stack)) {
     lex->state = *(int32_t*)vector_back(&lex->state_stack, sizeof(int32_t));
     vector_pop(&lex->state_stack, sizeof(int32_t));
   } else {
     lex->state = -1;
   }
+
   return id;
 }
 
 int
 lexer_state_top(Lexer* lex, int i) {
   int sz;
+
   if(i == 0)
     return lex->state;
-  sz = vector_size(&lex->state_stack, sizeof(int32_t));
-  if(i - 1 >= sz)
+
+  if(i - 1 >= (sz = vector_size(&lex->state_stack, sizeof(int32_t))))
     return -1;
 
   assert(sz >= i);
@@ -326,7 +328,6 @@ lexer_peek(Lexer* lex, /*uint64_t __state,*/ unsigned start_rule, JSContext* ctx
   if(lex->loc.byte_offset == -1)
     location_zero(&lex->loc);
 
-  assert(start_rule >= 0);
   assert(start_rule < vector_size(&lex->rules, sizeof(LexerRule)));
 
   for(rule = start + start_rule; rule < end; ++rule) {

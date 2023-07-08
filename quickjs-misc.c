@@ -410,7 +410,6 @@ static void*
 js_get_pointer(JSContext* ctx, JSValueConst value) {
   void* ptr;
   size_t len;
-  const char* str;
   int64_t i64;
 
   if((ptr = JS_GetArrayBuffer(ctx, &len, value)))
@@ -514,8 +513,6 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   JSValue ret = JS_UNDEFINED;
   MemoryBlock b;
   OffsetLength o;
-  JSFreeArrayBufferDataFunc* f;
-  void* opaque;
 
   /*  if(JS_IsString(argv[0])) {
       JSValueConst value = argv[0]; // JS_DupValue(ctx, argv[0]);
@@ -652,7 +649,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     if(argc >= 3) {
       JS_ToInt64Ext(ctx, &start_pos, argv[2]);
 
-      if(start_pos >= haystack.size)
+      if(start_pos >= (int64_t)haystack.size)
         return JS_NULL;
 
       if(start_pos > 0) {
@@ -755,7 +752,7 @@ js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(i + 1 < argc && JS_IsNumber(argv[i])) {
     int64_t offset = 0;
     JS_ToInt64(ctx, &offset, argv[i++]);
-    offset = MIN_NUM(len, offset);
+    offset = MIN_NUM((int64_t)len, offset);
 
     ptr += offset;
     len -= offset;
@@ -763,14 +760,14 @@ js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(i + 1 < argc && JS_IsNumber(argv[i])) {
     int64_t length = 0;
+
     if(!JS_ToInt64(ctx, &length, argv[i++]))
-      len = MIN_NUM(len, length);
+      len = MIN_NUM((int64_t)len, length);
   }
 
   {
     JSClassID class_id = js_class_find(ctx, "FILE");
     JSValue obj, proto = JS_GetClassProto(ctx, class_id);
-    FILE* fp;
     JSSTDFile* file;
     mode = JS_ToCString(ctx, argv[0]);
 
@@ -1058,7 +1055,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   size_t start = 0, i;
   int32_t flags = 0;
   JSValue ret = JS_UNDEFINED;
-  glob_t g = {0, 0, 0};
+  glob_t g = {0, 0, 0, 0, 0};
   int result;
   BOOL array_arg = FALSE;
   const char* pattern = JS_ToCString(ctx, argv[0]);
@@ -1186,7 +1183,6 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 #ifndef _WIN32
 static JSValue
 js_misc_ioctl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
   int32_t fd = -1, args[2] = {-1, -1};
   int64_t request = -1LL;
 
@@ -1265,7 +1261,6 @@ static JSValue
 js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1, x = magic == MOVE_CURSOR ? 0 : -1, y = magic == MOVE_CURSOR ? 0 : -1;
   intptr_t h;
-  BOOL line = FALSE;
 
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
@@ -1489,8 +1484,6 @@ static JSValue
 js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   struct ImmutableClosure* closure;
   JSValue ret, proto;
-  JSClassID id;
-  JSCFunctionListEntry entry;
   char *name, *new_name;
 
   if(argc == 0 || !JS_IsConstructor(ctx, argv[0]))
@@ -1724,7 +1717,6 @@ js_misc_getopaque(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   if(JS_IsObject(argv[0])) {
     JSClassID id;
-    void* ptr;
     char buf[128];
 
     id = JS_GetClassID(argv[0]);
@@ -1740,7 +1732,6 @@ static JSValue
 js_misc_evalstring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   int32_t flags = JS_EVAL_TYPE_MODULE;
-  JSValueConst obj;
   InputBuffer input = js_input_chars(ctx, argv[0]);
   const char* filename = 0;
 
@@ -2076,7 +2067,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         JS_ToInt64(ctx, &offset, argv[1]);
 
       if((buf = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-        size_t i, j = 0, bits = len * 8;
+        size_t i, bits = len * 8;
         ret = JS_NewArray(ctx);
 
         for(i = 0; i < bits; i++) {
@@ -2250,14 +2241,14 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
-static const uint8_t js_misc_escape_sq_tab[256] = {
+/*static const uint8_t js_misc_escape_sq_tab[256] = {
     'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0, 0, 0, 0, 0,
     0,   0x27, 0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
     0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0x5c, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
     0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    'x',  0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
     0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
     0,   'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
-};
+};*/
 static const uint8_t js_misc_escape_dq_tab[256] = {
     'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x',
 
@@ -2487,7 +2478,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     InputBuffer buf = js_output_args(ctx, argc, argv);
     uint32_t count = 0, reclen;
 
-    if(buf.range.length >= sizeof(struct inotify_event)) {
+    if(buf.range.length >= (int64_t)sizeof(struct inotify_event)) {
       size_t end = buf.pos + buf.range.offset + buf.range.length;
       ret = JS_NewArray(ctx);
 

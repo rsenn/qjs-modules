@@ -50,7 +50,7 @@ js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
 
 static JSValue
 js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) {
-  JSValue ret, obj;
+  JSValue  obj;
   char msg[1024];
   JSValue argv[2];
 

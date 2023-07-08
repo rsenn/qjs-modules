@@ -169,8 +169,6 @@ js_async_socket_ptr(JSValueConst value) {
 
 static inline Socket*
 js_socket_ptr(JSValueConst value) {
-  JSClassID id;
-
   if(js_socket_class_id != 0 && JS_GetClassID(value) == js_socket_class_id) {
     struct JSObject* obj = JS_VALUE_GET_OBJ(value);
     return (Socket*)&obj->u.opaque;

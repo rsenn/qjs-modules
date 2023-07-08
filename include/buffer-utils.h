@@ -166,7 +166,7 @@ offset_data(const OffsetLength* ol, const void* x) {
 
 static inline size_t
 offset_size(const OffsetLength* ol, size_t n) {
-  return MIN_NUM(ol->length, n - ol->offset);
+  return MIN_NUM(ol->length, (signed long)n - ol->offset);
 }
 
 static inline MemoryBlock
@@ -237,7 +237,7 @@ static inline MemoryBlock
 block_range(const MemoryBlock* mb, const OffsetLength* range) {
   MemoryBlock ret;
   ret.base = mb->base + range->offset;
-  ret.size = MIN_NUM(range->length, mb->size - range->offset);
+  ret.size = MIN_NUM(range->length, (signed long)mb->size - range->offset);
   return ret;
 }
 

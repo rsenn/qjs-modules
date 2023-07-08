@@ -142,10 +142,10 @@ typedef struct {
 #define jsm_module_extern_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
 
 #define jsm_module_record_compiled(name) \
-  (BuiltinModule) { #name, 0, qjsc_##name, qjsc_##name##_size, 0 }
+  (BuiltinModule) { #name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE }
 
 #define jsm_module_record_native(name) \
-  (BuiltinModule) { #name, js_init_module_##name, 0, 0, 0 }
+  (BuiltinModule) { #name, js_init_module_##name, 0, 0, 0, FALSE }
 
 jsm_module_extern_native(std);
 jsm_module_extern_native(os);
@@ -242,7 +242,6 @@ jsm_stack_count() {
 char*
 jsm_stack_string() {
   static DynBuf buf;
-  char** ptr;
   int i = jsm_stack_count();
 
   if(buf.buf == 0)
@@ -507,7 +506,7 @@ static char*
 jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
   const char* s;
   char* t = 0;
-  size_t i, j = strlen(module_name);
+  size_t i;
 
   if(debug_module_loader >= 2)
     printf("%-20s (module_name=\"%s\" list =\"%s\")\n", __FUNCTION__, module_name, list);
@@ -518,11 +517,14 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
   for(s = list; *s; s += i) {
     if((i = str_chrs(s, ";\n", 2)) == 0)
       break;
+
     strncpy(t, s, i);
     t[i] = '/';
     strcpy(&t[i + 1], module_name);
+    
     if(path_isfile1(t))
       return t;
+    
     if(s[i])
       ++i;
   }
@@ -694,7 +696,6 @@ jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
 static JSModuleDef*
 jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
   JSModuleDef* m;
-  BuiltinModule* bltin;
 
   while(*name == '!' || *name == '*')
     ++name;
@@ -773,9 +774,8 @@ jsm_module_json(JSContext* ctx, const char* name) {
 
 char*
 jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
-  char *file = 0, *s = 0;
-  JSModuleDef* m = 0;
-
+  char *file = 0, *s
+;
   s = js_strdup(ctx, module_name);
 
   for(;;) {
@@ -787,7 +787,6 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
         break;
 
     if(is_searchable(s)) {
-      size_t len;
       if((file = jsm_search_module(ctx, s))) {
         js_free(ctx, s);
         s = js_strdup(ctx, file);
@@ -990,7 +989,6 @@ jsm_module_save(void) {
 
   if((f = fopen((const char*)db.buf, "w"))) {
     char** ptr;
-    JSModuleDef* m;
 
     vector_foreach_t(&module_list, ptr) {
       char* name = *ptr;
@@ -1384,12 +1382,12 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case FIND_MODULE: {
-      BuiltinModule* bltin;
       if((m = jsm_module_find(ctx, name, 0))) {
         val = module_value(ctx, m);
       } else {
         val = JS_NULL;
       }
+      
       break;
     }
 
@@ -1596,7 +1594,7 @@ jsm_start_interactive(JSContext* ctx) {
            (int)str_chr(exename, '.'),
            exename);
 
-  JSValue ret = JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
+  /*JSValue ret =*/ JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 
   // JS_FreeValue(ctx, ret);
 }
@@ -1614,7 +1612,7 @@ main(int argc, char** argv) {
   int dump_unhandled_promise_rejection = 0;
   size_t memory_limit = 0;
   const char* include_list[32];
-  int i, include_count = 0;
+  size_t i, include_count = 0;
 #ifdef HAVE_QJSCALC
   int load_jscalc;
 #endif

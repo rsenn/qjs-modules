@@ -183,13 +183,13 @@ queue_shift(struct list_head* q) {
 static JSValue
 get_iterators(JSContext* ctx, JSValueConst arg) {
   JSValue ret, *items;
-  size_t n_items;
-  int i, j = 0;
+  size_t n_items, i, j = 0;
 
   if(!(items = js_values_fromarray(ctx, &n_items, arg)))
     return JS_EXCEPTION;
 
   ret = JS_NewArray(ctx);
+
   for(i = 0; i < n_items; i++) {
     JSValue meth = js_iterator_method(ctx, items[i]);
 
@@ -198,6 +198,7 @@ get_iterators(JSContext* ctx, JSValueConst arg) {
       JS_SetPropertyUint32(ctx, ret, j++, tmp);
     } else {
     }
+    
     JS_FreeValue(ctx, meth);
   }
   return ret;
@@ -429,8 +430,6 @@ js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     JS_FreeValue(ctx, result);
   }
 
-  BOOL done = rpt->state >= REPEATER_STOPPED;
-
   // printf("js_repeater_next done=%d pushes=%d nexts=%d\n", done, queue_length(&rpt->pushes),
   // queue_length(&rpt->nexts));
 
@@ -479,13 +478,9 @@ js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
     return JS_EXCEPTION;
 
-  JSValue iterators = get_iterators(ctx, argv[0]);
-
   switch(magic) {
     case STATIC_RACE: break;
-    case STATIC_MERGE: {
-      break;
-    }
+    case STATIC_MERGE: break;
     case STATIC_ZIP: break;
   }
   return ret;

@@ -159,8 +159,9 @@ connectparams_init(JSContext* ctx, PGSQLConnectParameters* c, int argc, JSValueC
         "connect_timeout",
     };
     int i;
-    if(argc > countof(param_names))
-      argc = countof(param_names);
+
+    if(argc > (int)countof(param_names))
+      argc = (int)countof(param_names);
 
     c->num_params = argc;
     c->keywords = js_malloc(ctx, sizeof(char*) * (argc + 1));
@@ -260,7 +261,6 @@ js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
     InputBuffer input = js_input_buffer(ctx, value);
     char buf[FMT_XLONG] = {'\\'};
 
-    static const uint8_t hexdigits[] = "0123456789ABCDEF";
     dbuf_putstr(out, "'\\x");
     for(size_t i = 0; i < input.size; i++)
       dbuf_put(out, (const uint8_t*)buf, fmt_xlong0(buf, input.data[i], 2));
@@ -898,7 +898,7 @@ js_pgconn_escape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   JSValue ret = JS_UNDEFINED;
   PGSQLConnection* pq;
   char* dst;
-  size_t len, dlen = 0;
+  size_t  dlen = 0;
 
   pq = JS_GetOpaque(this_val, js_pgconn_class_id);
 
@@ -923,7 +923,7 @@ js_pgconn_escape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 static JSValue
 js_pgconn_unescape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   char* dst;
-  size_t len, dlen = 0;
+  size_t dlen = 0;
   const char* src;
 
   if(!(src = JS_ToCString(ctx, argv[0])))
@@ -1280,7 +1280,7 @@ js_pgsqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
 
 static JSValue
 js_pgsqlerror_new(JSContext* ctx, const char* msg) {
-  JSValue ret, obj;
+  JSValue  obj;
   JSValue argv[2];
 
   obj = JS_NewObjectProtoClass(ctx, pgsqlerror_proto, js_pgsqlerror_class_id);
@@ -1487,8 +1487,6 @@ pgresult_free(JSRuntime* rt, void* ptr, void* mem) {
 
 static JSValue
 pgresult_row(PGSQLResult* opaque, uint32_t row, RowValueFunc* fn, JSContext* ctx) {
-  PGresult* res = opaque->result;
-  uint32_t i, cols = PQnfields(res);
   JSValue ret /* = JS_NewArray(ctx)*/;
 
   ret = fn(ctx, opaque, row, 0);
@@ -1582,7 +1580,7 @@ js_pgresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       if(JS_ToUint32(ctx, &index, argv[0]))
         return JS_ThrowTypeError(ctx, "argument 1 must be a positive index");
 
-      if(index >= PQnfields(res))
+      if(index >= (uint32_t)PQnfields(res))
         return JS_ThrowRangeError(ctx, "argument 1 must be smaller than total fields (%" PRIu32 ")", PQnfields(res));
 
       ret = field_array(JS_GetOpaque(this_val, js_pgresult_class_id), index, ctx);
@@ -1662,7 +1660,8 @@ js_pgresult_get(JSContext* ctx, JSValueConst this_val, int magic) {
       PGSQLResult* opaque;
 
       if((opaque = JS_GetOpaque(this_val, js_pgresult_class_id)))
-        ret = JS_NewBool(ctx, opaque->row_index == PQntuples(res));
+        ret = JS_NewBool(ctx, opaque->row_index == (uint32_t)PQntuples(res));
+
       break;
     }
     case PROP_NUM_ROWS: {
@@ -1682,11 +1681,9 @@ js_pgresult_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   PGSQLResultIterator* closure = ptr;
   PGSQLResult* opaque = closure->result;
   int rows = PQntuples(opaque->result);
-  JSValue ret;
+  JSValue ret = result_iterate(ctx, opaque, closure->row_index, 0);
 
-  ret = result_iterate(ctx, opaque, closure->row_index, 0);
-
-  if(closure->row_index < rows)
+  if(closure->row_index < (unsigned)rows)
     ++closure->row_index;
 
   return ret;
