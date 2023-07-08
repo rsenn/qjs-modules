@@ -216,6 +216,46 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
   return ret;
 }
 
+Pointer*
+pointer_splice(Pointer* ptr, int64_t start, int64_t end, JSAtom* atoms, size_t insert, JSContext* ctx) {
+  Pointer* ret = 0;
+  size_t i, count, newlen;
+
+  start = size_mod(start, ptr->n);
+  end = size_mod(end, ptr->n);
+  count = end - start;
+  newlen = ptr->n - count + insert;
+
+  if(insert > count && !pointer_allocate(ptr, newlen, ctx)) {
+    js_free(ctx, ret);
+    return NULL;
+  }
+
+  if(count) {
+    if(!(ret = pointer_new(ctx)) || !pointer_allocate(ret, count, ctx)) {
+      js_free(ctx, ret);
+      return NULL;
+    }
+    memcpy(ret->atoms, &ptr->atoms[start], count * sizeof(JSAtom));
+  }
+
+  if(end < (int64_t)ptr->n && count != insert) {
+    size_t remain = ptr->n - end;
+    memmove(&ptr->atoms[newlen - remain], &ptr->atoms[end], remain * sizeof(JSAtom));
+  }
+
+  if(insert)
+    memcpy(&ptr->atoms[start], atoms, insert * sizeof(JSAtom));
+
+  /* shrink */
+  if(ptr->n > newlen)
+    ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * newlen);
+
+  ptr->n = newlen;
+
+  return ret;
+}
+
 BOOL
 pointer_fromatoms(Pointer* ptr, JSAtom* vec, size_t len, JSContext* ctx) {
   pointer_reset(ptr, JS_GetRuntime(ctx));

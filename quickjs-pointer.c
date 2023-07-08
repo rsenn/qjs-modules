@@ -25,9 +25,9 @@ enum {
   METHOD_POP,
   METHOD_CONCAT,
   METHOD_SLICE,
+  METHOD_SPLICE,
   METHOD_UP,
   METHOD_DOWN,
-  // METHOD_KEYS,
   METHOD_VALUES,
   METHOD_HIER,
   METHOD_AT,
@@ -169,9 +169,33 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
     case METHOD_SLICE: {
       int64_t s = js_int64_default(ctx, argv[0], 0);
-      int64_t e = js_int64_default(ctx, argv[1], 0);
+      int64_t e = js_int64_default(ctx, argv[1], INT64_MAX);
 
       return js_pointer_wrap(ctx, pointer_slice(ptr, s, e, ctx));
+    }
+
+    case METHOD_SPLICE: {
+      int64_t s, l;
+
+      if((s = js_int64_default(ctx, argv[0], 0)) < 0)
+        // s = (((s % (int64_t)ptr->n) + (int64_t)ptr->n) % ptr->n);
+        s = MOD_NUM(s, (int64_t)ptr->n);
+
+      if((l = js_int64_default(ctx, argv[1], ptr->n - s)) < 0)
+        // l = (((l % (int64_t)ptr->n) + (int64_t)ptr->n) % ptr->n) - s;
+        l = MOD_NUM(l, (int64_t)ptr->n) - s;
+
+      JSAtom* atoms = 0;
+
+      if(argc > 2)
+        atoms = js_argv_to_atoms(ctx, argc - 2, argv + 2);
+
+      Pointer* result = pointer_splice(ptr, s, s + l, atoms, atoms ? argc - 2 : 0, ctx);
+
+      if(atoms)
+        js_free(ctx, atoms);
+
+      return result ? js_pointer_wrap(ctx, result) : JS_NULL;
     }
 
     case METHOD_UP: {
@@ -211,7 +235,7 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case METHOD_UNSHIFT: {
       int i;
 
-      for(i = 0; i < argc; i++)
+      for(i = argc - 1; i >= 0; i--)
         pointer_unshift(ptr, argv[i], ctx);
 
       return JS_DupValue(ctx, this_val);
@@ -422,7 +446,8 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("pop", 0, js_pointer_method, METHOD_POP),
     JS_CFUNC_MAGIC_DEF("push", 1, js_pointer_method, METHOD_PUSH),
     JS_CFUNC_MAGIC_DEF("concat", 1, js_pointer_method, METHOD_CONCAT),
-    JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, METHOD_SLICE),
+    JS_CFUNC_MAGIC_DEF("slice", 0, js_pointer_method, METHOD_SLICE),
+    JS_CFUNC_MAGIC_DEF("splice", 0, js_pointer_method, METHOD_SPLICE),
     JS_CFUNC_MAGIC_DEF("up", 1, js_pointer_method, METHOD_UP),
     JS_CFUNC_MAGIC_DEF("down", 0, js_pointer_method, METHOD_DOWN),
     // JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
