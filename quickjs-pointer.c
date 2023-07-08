@@ -12,7 +12,6 @@
 
 JSClassID js_pointer_class_id = 0;
 JSValue pointer_proto = {{0}, JS_TAG_UNDEFINED}, pointer_ctor = {{0}, JS_TAG_UNDEFINED};
-JSAtom pointer_length = 0;
 
 enum {
   METHOD_DEREF = 0,
@@ -57,8 +56,6 @@ js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   if(JS_IsException(obj))
     goto fail;
 
-  pointer_length = JS_NewAtom(ctx, "length");
-
   JS_SetOpaque(obj, ptr);
 
   if(!pointer_from(ptr, value, ctx)) {
@@ -77,8 +74,6 @@ fail:
 JSValue
 js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
   JSValue obj = JS_NewObjectProtoClass(ctx, pointer_proto, js_pointer_class_id);
-
-  pointer_length = JS_NewAtom(ctx, "length");
 
   JS_SetOpaque(obj, ptr);
 
@@ -424,11 +419,8 @@ static void
 js_pointer_finalizer(JSRuntime* rt, JSValue val) {
   Pointer* ptr;
 
-  if((ptr = js_pointer_data(val))) {
+  if((ptr = js_pointer_data(val)))
     pointer_free(ptr, rt);
-
-    JS_FreeAtomRT(rt, pointer_length);
-  }
 }
 
 static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
@@ -444,13 +436,13 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("splice", 0, js_pointer_method, METHOD_SPLICE),
     JS_CFUNC_MAGIC_DEF("up", 1, js_pointer_method, METHOD_UP),
     JS_CFUNC_MAGIC_DEF("down", 0, js_pointer_method, METHOD_DOWN),
-    // JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
     JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, METHOD_VALUES),
     JS_CFUNC_MAGIC_DEF("hier", 0, js_pointer_method, METHOD_HIER),
     JS_CFUNC_MAGIC_DEF("at", 1, js_pointer_method, METHOD_AT),
     JS_ALIAS_DEF("toPrimitive", "toString"),
     JS_ALIAS_DEF("[Symbol.iterator]", "values"),
     JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),
+    JS_ALIAS_DEF("size", "length"),
     JS_CGETSET_MAGIC_DEF("path", js_pointer_get, js_pointer_set, PROP_PATH),
     JS_CGETSET_MAGIC_DEF("atoms", js_pointer_get, 0, PROP_ATOMS),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Pointer", JS_PROP_CONFIGURABLE),
