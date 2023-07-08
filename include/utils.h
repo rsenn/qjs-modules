@@ -593,8 +593,14 @@ js_atom_get_integer(JSAtom atom) {
 }
 
 static inline JSAtom
-js_atom_from_integer(uint32_t i) {
-  return JS_ATOM_FROMINT(i);
+js_atom_from_integer(JSContext* ctx, int32_t i) {
+  if(i >= 0)
+    return JS_ATOM_FROMINT(i);
+
+  JSValue val = JS_NewInt32(ctx, i);
+  JSAtom ret = JS_ValueToAtom(ctx, val);
+  JS_FreeValue(ctx, val);
+  return ret;
 }
 
 static inline BOOL
@@ -886,7 +892,8 @@ JSValue js_strv_to_array(JSContext* ctx, char** strv);
 
 int32_t* js_argv_to_int32v(JSContext* ctx, int argc, JSValueConst argv[]);
 
-JSValue js_intv_to_array(JSContext*, int*, size_t);
+JSValue js_int32v_to_array(JSContext*, int32_t const*, size_t);
+JSValue js_intv_to_array(JSContext*, int const*, size_t);
 
 char** js_array_to_argv(JSContext*, size_t*, JSValueConst);
 int32_t* js_array_to_int32v(JSContext*, size_t*, JSValueConst);

@@ -18,15 +18,15 @@ typedef struct Pointer {
 #define POINTER_LENGTH(ptr) ((ptr)->n)
 #define POINTER_ATOMS(ptr) ((ptr)->atoms)
 
-#define POINTER_INDEX(ptr, ind) ((((ind) % ((ptr)->n)) + (ptr)->n) % (ptr)->n)
+#define POINTER_INDEX(ptr, ind) (((((signed)(ind)) % (signed)(ptr)->n) + (ptr)->n) % (signed)(ptr)->n)
 #define POINTER_INRANGE(ptr, ind) ((ind) >= 0 && (ind) < (ptr)->n)
 
 void pointer_reset(Pointer*, JSRuntime* rt);
 BOOL pointer_copy(Pointer*, Pointer const* src, JSContext*);
 BOOL pointer_allocate(Pointer*, size_t size, JSContext*);
-void pointer_dump(Pointer const*, DynBuf* db, BOOL color, ssize_t index, JSContext*);
-void pointer_debug(Pointer const*, JSContext*);
-void pointer_tostring(Pointer const*, Writer* db, JSContext*);
+void pointer_dump(Pointer const*, Writer*, BOOL color, ssize_t index, JSContext*);
+char* pointer_tostring(Pointer const* ptr, BOOL color, ssize_t index, JSContext*);
+void pointer_serialize(Pointer const*, Writer* db, JSContext*);
 size_t pointer_parse(Pointer*, const char* str, size_t len, JSContext*);
 Pointer* pointer_slice(Pointer*, int64_t start, int64_t end, JSContext*);
 BOOL pointer_fromatoms(Pointer*, JSAtom* vec, size_t len, JSContext*);
@@ -43,7 +43,6 @@ void pointer_fromiterable(Pointer*, JSValueConst arg, JSContext*);
 int pointer_from(Pointer*, JSValueConst value, JSContext*);
 Pointer* pointer_concat(Pointer const*, JSValueConst iterable, JSContext*);
 JSValue pointer_toarray(Pointer const*, JSContext*);
-JSValue pointer_toatoms(Pointer const*, JSContext*);
 
 static inline Pointer*
 pointer_new(JSContext* ctx) {

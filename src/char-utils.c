@@ -45,26 +45,6 @@ fmt_ulong(char* dest, uint32_t i) {
 }
 
 size_t
-scan_ushort(const char* src, uint16_t* dest) {
-  const char* cur;
-  uint16_t l;
-
-  for(cur = src, l = 0; *cur >= '0' && *cur <= '9'; ++cur) {
-    uint32_t tmp = l * 10ul + *cur - '0';
-
-    if((uint16_t)tmp != tmp)
-      break;
-
-    l = tmp;
-  }
-
-  if(cur > src)
-    *dest = l;
-
-  return (size_t)(cur - src);
-}
-
-size_t
 fmt_longlong(char* dest, int64_t i) {
   if(i < 0) {
     if(dest)
@@ -163,6 +143,42 @@ fmt_xlong0(char* dest, uint32_t num, size_t n) {
 
   i += fmt_xlong(&dest[i], num);
   return i;
+}
+
+size_t
+scan_ushort(const char* src, uint16_t* dest) {
+  const char* cur;
+  uint16_t l;
+
+  for(cur = src, l = 0; *cur >= '0' && *cur <= '9'; ++cur) {
+    uint32_t tmp = l * 10ul + *cur - '0';
+
+    if((uint16_t)tmp != tmp)
+      break;
+
+    l = tmp;
+  }
+
+  if(cur > src)
+    *dest = l;
+
+  return (size_t)(cur - src);
+}
+
+size_t
+scan_uint(const char* src, uint32_t* dest) {
+  uint64_t u64;
+  size_t r = scan_ulonglong(src, &u64);
+  *dest = u64;
+  return r;
+}
+
+size_t
+scan_int(const char* src, int32_t* dest) {
+  int64_t i64;
+  size_t r = scan_longlong(src, &i64);
+  *dest = i64;
+  return r;
 }
 
 #ifndef MAXLONG
@@ -477,6 +493,44 @@ write_file(const char* file, const void* buf, size_t len) {
 ssize_t
 puts_file(const char* file, const char* s) {
   return write_file(file, s, strlen(s));
+}
+
+size_t
+u64toa(char* x, uint64_t num, int base) {
+  size_t len = 0;
+  uint64_t n = num;
+
+  do {
+    n /= base;
+    len++;
+  } while(n != 0);
+
+  x += len - 1;
+
+  do {
+    char c = num % base;
+    num /= base;
+
+    if(c >= 10)
+      c += 'a' - '0' - 10;
+    *x-- = c + '0';
+  } while(num != 0);
+
+  x[len] = '\0';
+
+  return len;
+}
+
+size_t
+i64toa(char* x, int64_t num, int base) {
+  size_t pos = 0;
+
+  if(num < 0) {
+    x[pos++] = '-';
+    num = -num;
+  }
+
+  return pos + u64toa(&x[pos], num, base);
 }
 
 /**

@@ -83,6 +83,9 @@ is_identifier(const char* str) {
 
 static inline int
 is_integer(const char* str) {
+  if(*str == '-')
+    ++str;
+
   if(!(*str >= '1' && *str <= '9') && !(*str == '0' && str[1] == '\0'))
     return 0;
 
@@ -362,6 +365,8 @@ size_t fmt_8long(char* dest, uint32_t i);
 size_t fmt_xlong(char* dest, uint32_t num);
 size_t fmt_xlong0(char* dest, uint32_t num, size_t n);
 size_t scan_longlong(const char*, int64_t*);
+size_t scan_int(const char*, int32_t*);
+size_t scan_uint(const char*, uint32_t*);
 size_t scan_ulonglong(const char*, uint64_t*);
 size_t scan_xlonglong(const char*, uint64_t*);
 size_t scan_8longn(const char*, size_t, uint32_t* dest);
@@ -413,6 +418,9 @@ BOOL utf16_multiword(const void*);
 
 ssize_t write_file(const char* file, const void* buf, size_t len);
 ssize_t puts_file(const char* file, const char* s);
+
+size_t u64toa(char*, uint64_t num, int base);
+size_t i64toa(char*, int64_t num, int base);
 
 /**
  * @}

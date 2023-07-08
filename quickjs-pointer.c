@@ -27,7 +27,7 @@ enum {
   METHOD_SLICE,
   METHOD_UP,
   METHOD_DOWN,
-  METHOD_KEYS,
+  // METHOD_KEYS,
   METHOD_VALUES,
   METHOD_HIER,
   METHOD_AT,
@@ -86,7 +86,7 @@ js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
 }
 
 static JSValue
-js_pointer_tostring(JSContext* ctx, JSValueConst this_val) {
+js_pointer_serialize(JSContext* ctx, JSValueConst this_val) {
   Pointer* ptr;
   DynBuf dbuf;
   JSValue ret;
@@ -96,7 +96,7 @@ js_pointer_tostring(JSContext* ctx, JSValueConst this_val) {
 
   js_dbuf_init(ctx, &dbuf);
   Writer wr = writer_from_dynbuf(&dbuf);
-  pointer_tostring(ptr, &wr, ctx);
+  pointer_serialize(ptr, &wr, ctx);
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
   return ret;
@@ -107,7 +107,6 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf;
   BOOL color = FALSE, reparseable = FALSE;
-  size_t len;
   Pointer* ptr = js_pointer_data(this_val);
 
   if(argc > 1 && JS_IsObject(argv[1])) {
@@ -116,22 +115,20 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   }
 
   js_dbuf_init(ctx, &dbuf);
+  Writer wr = writer_from_dynbuf(&dbuf);
 
-  if(reparseable) {
-    dbuf_putstr(&dbuf, "new Pointer(");
-    len = dbuf.size;
-  }
+  if(reparseable)
+    writer_puts(&wr, "new Pointer('");
 
   if(ptr)
-    pointer_dump(ptr, &dbuf, color && !reparseable, -1, ctx);
+    pointer_dump(ptr, &wr, color && !reparseable, -1, ctx);
 
-  if(reparseable) {
-    dbuf.buf[len] = '\'';
-    dbuf_putstr(&dbuf, "')");
-  }
+  if(reparseable)
+    writer_puts(&wr, "')");
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
+
   return ret;
 }
 
@@ -163,7 +160,7 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case METHOD_TO_STRING: {
-      return js_pointer_tostring(ctx, this_val);
+      return js_pointer_serialize(ctx, this_val);
     }
 
     case METHOD_TO_ARRAY: {
@@ -193,12 +190,12 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       return js_pointer_wrap(ctx, result);
     }
 
-    case METHOD_KEYS: {
-      JSValue array = pointer_toarray(ptr, ctx);
-      JSValue iter = js_iterator_new(ctx, array);
-      JS_FreeValue(ctx, array);
-      return iter;
-    }
+      /* case METHOD_KEYS: {
+         JSValue array = pointer_toarray(ptr, ctx);
+         JSValue iter = js_iterator_new(ctx, array);
+         JS_FreeValue(ctx, array);
+         return iter;
+       }*/
 
     case METHOD_VALUES: {
       JSValue array = pointer_toarray(ptr, ctx);
@@ -298,7 +295,7 @@ js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_ATOMS: {
-      ret = pointer_toatoms(ptr, ctx);
+      ret = js_int32v_to_array(ctx, (int32_t const*)ptr->atoms, ptr->n);
       break;
     }
   }
@@ -426,12 +423,12 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("slice", 2, js_pointer_method, METHOD_SLICE),
     JS_CFUNC_MAGIC_DEF("up", 1, js_pointer_method, METHOD_UP),
     JS_CFUNC_MAGIC_DEF("down", 0, js_pointer_method, METHOD_DOWN),
-    JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
+    // JS_CFUNC_MAGIC_DEF("keys", 0, js_pointer_method, METHOD_KEYS),
     JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, METHOD_VALUES),
     JS_CFUNC_MAGIC_DEF("hier", 0, js_pointer_method, METHOD_HIER),
     JS_CFUNC_MAGIC_DEF("at", 1, js_pointer_method, METHOD_AT),
     JS_ALIAS_DEF("toPrimitive", "toString"),
-    JS_ALIAS_DEF("[Symbol.iterator]", "keys"),
+    JS_ALIAS_DEF("[Symbol.iterator]", "values"),
     JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),
     JS_CGETSET_MAGIC_DEF("path", js_pointer_get, js_pointer_set, PROP_PATH),
     JS_CGETSET_MAGIC_DEF("atoms", js_pointer_get, 0, PROP_ATOMS),
@@ -452,7 +449,7 @@ js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValue
   JSValue value = JS_UNDEFINED;
   int64_t index;
 
-  if(prop == pointer_length) {
+  /*if(prop == pointer_length) {
     if(pdesc) {
       pdesc->flags = 0;
       pdesc->value = JS_NewUint32(ctx, pointer->n);
@@ -461,7 +458,8 @@ js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValue
     }
     return TRUE;
 
-  } else if(js_atom_is_index(ctx, &index, prop)) {
+  } else*/
+  if(js_atom_is_index(ctx, &index, prop)) {
     if(index < 0)
       index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
 
@@ -487,103 +485,46 @@ js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValue
 static int
 js_pointer_get_own_property_names(JSContext* ctx, JSPropertyEnum** ptab, uint32_t* plen, JSValueConst obj) {
   Pointer* pointer;
-  uint32_t i, len;
-  JSPropertyEnum* props;
 
-  if((pointer = js_pointer_data2(ctx, obj)))
-    len = pointer->n;
-  else {
-    JSValue length = JS_GetPropertyStr(ctx, obj, "length");
-    JS_ToUint32(ctx, &len, length);
-    JS_FreeValue(ctx, length);
+  if((pointer = js_pointer_data2(ctx, obj))) {
+    uint32_t i, len = pointer->n;
+    JSPropertyEnum* props;
+
+    if((props = js_malloc(ctx, sizeof(JSPropertyEnum) * len))) {
+
+      for(i = 0; i < len; i++) {
+        props[i].is_enumerable = TRUE;
+        props[i].atom = JS_ATOM_FROMINT(i);
+      }
+
+      *ptab = props;
+      *plen = len;
+    }
   }
 
-  props = js_malloc(ctx, sizeof(JSPropertyEnum) * (len + 1));
-
-  for(i = 0; i < len; i++) {
-    props[i].is_enumerable = TRUE;
-    props[i].atom = i | (1U << 31);
-  }
-
-  props[len].is_enumerable = FALSE;
-  props[len].atom = JS_NewAtom(ctx, "length");
-
-  *ptab = props;
-  *plen = len + 1;
   return 0;
 }
 
 static int
-js_pointer_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
-  Pointer* pointer = js_pointer_data2(ctx, obj);
-  int64_t index;
-
-  if(prop == pointer_length) {
-    return TRUE;
-  } else if(js_atom_is_index(ctx, &index, prop)) {
-    return POINTER_INRANGE(pointer, index);
-  } else {
-    JSValue proto = JS_GetPrototype(ctx, obj);
-    BOOL ret = JS_IsObject(proto) && JS_HasProperty(ctx, proto, prop);
-    JS_FreeValue(ctx, proto);
-    return ret;
-  }
-
-  return FALSE;
-}
-
-static JSValue
-js_pointer_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst receiver) {
-  Pointer* pointer = js_pointer_data2(ctx, obj);
-  JSValue value = JS_UNDEFINED;
-  int64_t index;
-  int32_t entry;
-
-  if(prop == pointer_length) {
-    value = JS_NewUint32(ctx, pointer->n);
-  } else if(js_atom_is_index(ctx, &index, prop)) {
-    if(index < 0)
-      index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
-
-    if(POINTER_INRANGE(pointer, index)) {
-      JSAtom* key_p;
-
-      if((key_p = pointer_ptr(pointer, index)))
-        value = JS_AtomToValue(ctx, *key_p);
-    }
-
-  } else if((entry = js_find_cfunction_atom(ctx, js_pointer_proto_funcs, countof(js_pointer_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
-
-    value = js_pointer_get(ctx, obj, js_pointer_proto_funcs[entry].magic);
-
-  } else {
-    JSValue proto = JS_GetPrototype(ctx, obj);
-    if(JS_IsObject(proto))
-      value = JS_GetProperty(ctx, proto, prop);
-    JS_FreeValue(ctx, proto);
-  }
-
-  return value;
-}
-
-static int
 js_pointer_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
-  Pointer* pointer = js_pointer_data2(ctx, obj);
-  int64_t index;
+  Pointer* pointer;
 
-  if(js_atom_is_index(ctx, &index, prop)) {
-    if(index < 0)
-      index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
+  if((pointer = js_pointer_data2(ctx, obj))) {
+    int64_t index;
 
-    if(index == (int64_t)pointer->n) {
-      pointer_push(pointer, value, ctx);
-    } else if(POINTER_INRANGE(pointer, index)) {
-      JSAtom* atom_p = pointer_ptr(pointer, index);
-      JS_FreeAtom(ctx, *atom_p);
-      *atom_p = JS_ValueToAtom(ctx, value);
+    if(js_atom_is_index(ctx, &index, prop)) {
+      if(index == (int64_t)pointer->n) {
+        pointer_push(pointer, value, ctx);
+      } else {
+        index = POINTER_INDEX(pointer, index);
+        assert(POINTER_INRANGE(pointer, index));
+
+        JS_FreeAtom(ctx, pointer->atoms[index]);
+        pointer->atoms[index] = JS_ValueToAtom(ctx, value);
+      }
+
+      return TRUE;
     }
-
-    return TRUE;
   }
 
   return FALSE;
@@ -592,8 +533,6 @@ js_pointer_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
 static JSClassExoticMethods js_pointer_exotic_methods = {
     .get_own_property = js_pointer_get_own_property,
     .get_own_property_names = js_pointer_get_own_property_names,
-    .has_property = js_pointer_has_property,
-    //.get_property = js_pointer_get_property,
     .set_property = js_pointer_set_property,
 };
 
@@ -617,6 +556,7 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_DefinePropertyValueStr(ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
   JS_DefinePropertyValueStr(ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
   JS_DefinePropertyValueStr(ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(ctx, pointer_proto, "keys", JS_GetPropertyStr(ctx, array_proto, "keys"), JS_PROP_CONFIGURABLE);
 
   JS_FreeValue(ctx, array_proto);
 

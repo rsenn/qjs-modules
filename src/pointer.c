@@ -5,43 +5,8 @@
 #include "buffer-utils.h"
 #include "debug.h"
 
-static inline JSValue
-deref_atom(JSContext* ctx, JSValueConst obj, JSAtom atom) {
-  JSValue value;
-
-  if(JS_HasProperty(ctx, obj, atom))
-    return JS_GetProperty(ctx, obj, atom);
-
-  value = JS_AtomToValue(ctx, atom);
-
-  if(JS_IsFunction(ctx, value)) {
-    JSPropertyEnum* tmp_tab;
-    uint32_t i, tmp_len;
-
-    if(!JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_SET_ENUM)) {
-      for(i = 0; i < tmp_len; i++) {
-        JSValue args[3] = {JS_GetProperty(ctx, obj, tmp_tab[i].atom), JS_AtomToValue(ctx, tmp_tab[i].atom), obj};
-        JSValue ret = JS_Call(ctx, value, JS_NULL, countof(args), args);
-        BOOL match = JS_ToBool(ctx, ret);
-        JS_FreeValue(ctx, ret);
-        JS_FreeValue(ctx, args[1]);
-
-        if(match) {
-          JS_FreeValue(ctx, value);
-          orig_js_free(ctx, tmp_tab);
-          return args[0];
-        }
-
-        JS_FreeValue(ctx, args[0]);
-      }
-
-      orig_js_free(ctx, tmp_tab);
-    }
-  }
-
-  JS_FreeValue(ctx, value);
-  return JS_EXCEPTION;
-}
+static JSAtom deref_key(JSContext* ctx, JSValueConst obj, JSAtom atom);
+static JSValue deref_value(JSContext* ctx, JSValueConst obj, JSAtom atom);
 
 /**
  * \addtogroup pointer
@@ -106,68 +71,67 @@ pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
   return TRUE;
 }
 
-#define pointer_color(s) ((i) >= (index) ? COLOR_RED : (is_integer(s) ? COLOR_LIGHTGRAY : COLOR_YELLOW))
+#define pointer_color(s) ((i) >= (index) ? COLOR_RED : (is_int ? COLOR_LIGHTGRAY : COLOR_YELLOW))
 
 void
-pointer_dump(Pointer const* ptr, DynBuf* db, BOOL color, ssize_t index, JSContext* ctx) {
+pointer_dump(Pointer const* ptr, Writer* wr, BOOL color, ssize_t index, JSContext* ctx) {
   size_t i;
 
   for(i = 0; i < ptr->n; i++) {
     const char* s = JS_AtomToCString(ctx, ptr->atoms[i]);
     BOOL is_int = is_integer(s);
 
-    dbuf_putstr(db, color ? (is_int ? COLOR_CYAN "[" : COLOR_CYAN ".") : (is_integer(s) ? "[" : "."));
-    dbuf_putstr(db, color ? pointer_color(s) : "");
-    dbuf_putstr(db, s);
+    writer_puts(wr, color ? (is_int ? COLOR_CYAN "[" : COLOR_CYAN ".") : (is_int ? "[" : "."));
+    writer_puts(wr, color ? pointer_color(s) : "");
+    writer_puts(wr, s);
 
     if(is_int)
-      dbuf_putstr(db, color ? COLOR_CYAN "]" : "]");
+      writer_puts(wr, color ? COLOR_CYAN "]" : "]");
 
-    js_cstring_free(ctx, s);
+    JS_FreeCString(ctx, s);
   }
 
-  dbuf_putstr(db, color ? COLOR_NONE : "");
+  writer_puts(wr, color ? COLOR_NONE : "");
 }
 
-void
-pointer_debug(Pointer const* ptr, JSContext* ctx) {
+char*
+pointer_tostring(Pointer const* ptr, BOOL color, ssize_t index, JSContext* ctx) {
   DynBuf db;
-
   js_dbuf_init(ctx, &db);
-  pointer_dump(ptr, &db, TRUE, -1, ctx);
+  Writer wr = writer_from_dynbuf(&db);
+  pointer_dump(ptr, &wr, color, index, ctx);
   dbuf_0(&db);
 
-  puts((const char*)db.buf);
-
-  dbuf_free(&db);
+  return (char*)db.buf;
 }
 
 void
-pointer_tostring(Pointer const* ptr, Writer* db, JSContext* ctx) {
+pointer_serialize(Pointer const* ptr, Writer* wr, JSContext* ctx) {
   size_t i, j;
 
   for(i = 0; i < ptr->n; i++) {
     const char* str;
+    int64_t idx;
 
-    if(js_atom_is_integer(ptr->atoms[i])) {
+    if(js_atom_is_index(ctx, &idx, ptr->atoms[i])) {
       char buf[FMT_ULONG];
 
-      writer_putc(db, '[');
-      writer_write(db, (const uint8_t*)buf, fmt_ulong(buf, js_atom_get_integer(ptr->atoms[i])));
-      writer_putc(db, ']');
+      writer_putc(wr, '[');
+      writer_write(wr, (const uint8_t*)buf, fmt_ulong(buf, idx /*js_atom_get_integer(ptr->atoms[i])*/));
+      writer_putc(wr, ']');
       continue;
     }
 
     if(i > 0)
-      writer_putc(db, '.');
+      writer_putc(wr, '.');
 
     str = JS_AtomToCString(ctx, ptr->atoms[i]);
 
     for(j = 0; str[j]; j++) {
       if(str[j] == '.')
-        writer_putc(db, '\\');
+        writer_putc(wr, '\\');
 
-      writer_putc(db, str[j]);
+      writer_putc(wr, str[j]);
     }
 
     JS_FreeCString(ctx, str);
@@ -176,17 +140,21 @@ pointer_tostring(Pointer const* ptr, Writer* db, JSContext* ctx) {
 
 size_t
 pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
+  if(len > 0 && str[0] == '.') {
+    ++str;
+    --len;
+  }
+
   while(len) {
-    unsigned long val;
-    char c = *str, *endptr;
-    size_t start, delim, n;
-    JSAtom atom;
+    int32_t val;
+    const char c = *str, *endptr;
+    size_t start, delim, n, m;
 
     start = c == '[' ? 1 : 0;
     delim = start;
 
     for(;;) {
-      delim += byte_chrs(&str[delim], len - delim, c == '[' ? "." : ".[", c == '[' ? 2 : 2);
+      delim += byte_chrs(&str[delim], len - delim, c == '[' ? "." : ".[", c == '[' ? 1 : 2);
 
       if(delim < len && delim > 0 && str[delim - 1] == '\\') {
         ++delim;
@@ -203,13 +171,14 @@ pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
     if(delim && str[delim - 1] == ']')
       n--;
 
-    if(is_digit_char(str[start]))
-      val = strtoul(&str[start], &endptr, 10);
+    if((m = scan_int(&str[start], &val)) > 0)
+      endptr = &str[start + m];
+    /*int dpos=str[start] == '-' ? 1 : 0;
 
-    if(endptr == &str[start + n])
-      atom = JS_ATOM_FROMINT(val);
-    else
-      atom = JS_NewAtomLen(ctx, &str[start], n);
+        if(is_digit_char(str[start+dpos]))
+          endptr = &str[start] + scan_int(&str[start], &val);
+    */
+    JSAtom atom = endptr == &str[start + n] ? js_atom_from_integer(ctx, val) : JS_NewAtomLen(ctx, &str[start], n);
 
     pointer_pushatom(ptr, atom, ctx);
 
@@ -328,20 +297,18 @@ pointer_deref(Pointer const* ptr, JSValueConst arg, JSContext* ctx) {
   JSValue obj = JS_DupValue(ctx, arg);
 
   for(i = 0; i < ptr->n; i++) {
-    JSAtom atom = ptr->atoms[i];
-    JSValue child = deref_atom(ctx, obj, atom);
+    JSValue child = deref_value(ctx, obj, ptr->atoms[i]);
 
     JS_FreeValue(ctx, obj);
 
     if(JS_IsException(child)) {
-      DynBuf dbuf;
+      char* str = pointer_tostring(ptr, TRUE, i, ctx);
 
-      js_dbuf_init(ctx, &dbuf);
-      pointer_dump(ptr, &dbuf, TRUE, -1, ctx);
-      dbuf_0(&dbuf);
+      obj = JS_ThrowReferenceError(ctx, "Pointer dereferencing at: %s", str ? str : "(null)");
 
-      obj = JS_ThrowReferenceError(ctx, "%s", dbuf.buf);
-      dbuf_free(&dbuf);
+      if(str)
+        js_free(ctx, str);
+
       break;
     }
 
@@ -423,11 +390,14 @@ pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
 
   if((ptr2 = js_pointer_data(value))) {
     pointer_copy(ptr, ptr2, ctx);
+
   } else if(JS_IsString(value)) {
     pointer_fromstring(ptr, value, ctx);
+
   } else if(JS_IsArray(ctx, value)) {
     pointer_reset(ptr, JS_GetRuntime(ctx));
     pointer_fromarray(ptr, value, ctx);
+
   } else if(!JS_IsUndefined(value)) {
     return 0;
   }
@@ -467,17 +437,61 @@ pointer_toarray(Pointer const* ptr, JSContext* ctx) {
   return array;
 }
 
-JSValue
-pointer_toatoms(Pointer const* ptr, JSContext* ctx) {
-  size_t i;
-  JSValue array = JS_NewArray(ctx);
-
-  for(i = 0; i < ptr->n; i++)
-    JS_SetPropertyUint32(ctx, array, i, JS_NewUint32(ctx, ptr->atoms[i]));
-
-  return array;
-}
-
 /**
  * @}
  */
+
+static JSAtom
+deref_key(JSContext* ctx, JSValueConst obj, JSAtom atom) {
+  JSValue value, ret;
+  const int flags = JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_SET_ENUM;
+
+  if(JS_HasProperty(ctx, obj, atom))
+    return atom;
+
+  value = JS_AtomToValue(ctx, atom);
+
+  if(JS_IsFunction(ctx, value)) {
+    JSPropertyEnum* tmp_tab;
+    uint32_t i, tmp_len;
+
+    if(!JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, obj, flags)) {
+      for(i = 0; i < tmp_len; i++) {
+        JSValue args[3] = {
+            JS_GetProperty(ctx, obj, tmp_tab[i].atom),
+            JS_AtomToValue(ctx, tmp_tab[i].atom),
+            obj,
+        };
+        ret = JS_Call(ctx, value, JS_NULL, countof(args), args);
+        BOOL match = JS_ToBool(ctx, ret);
+        JS_FreeValue(ctx, ret);
+        JS_FreeValue(ctx, args[0]);
+        JS_FreeValue(ctx, args[1]);
+
+        if(match) {
+          JSAtom ret = JS_DupAtom(ctx, tmp_tab[i].atom);
+          JS_FreeValue(ctx, value);
+          js_propertyenums_free(ctx, tmp_tab, tmp_len);
+          orig_js_free(ctx, tmp_tab);
+          return ret;
+        }
+      }
+
+      js_propertyenums_free(ctx, tmp_tab, tmp_len);
+      orig_js_free(ctx, tmp_tab);
+    }
+  }
+
+  JS_FreeValue(ctx, value);
+  return 0;
+}
+
+static JSValue
+deref_value(JSContext* ctx, JSValueConst obj, JSAtom atom) {
+  JSAtom key;
+
+  if((key = deref_key(ctx, obj, atom)))
+    return JS_GetProperty(ctx, obj, key);
+
+  return JS_EXCEPTION;
+}

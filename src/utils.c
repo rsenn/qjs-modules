@@ -230,13 +230,30 @@ js_array_clear(JSContext* ctx, JSValueConst array) {
 }
 
 JSValue
-js_intv_to_array(JSContext* ctx, int* intv, size_t len) {
+js_intv_to_array(JSContext* ctx, int const* intv, size_t len) {
   JSValue ret = JS_NewArray(ctx);
+
   if(intv) {
     size_t i;
+
     for(i = 0; i < len; i++)
       JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, intv[i]));
   }
+
+  return ret;
+}
+
+JSValue
+js_int32v_to_array(JSContext* ctx, int32_t const* int32v, size_t len) {
+  JSValue ret = JS_NewArray(ctx);
+
+  if(int32v) {
+    size_t i;
+
+    for(i = 0; i < len; i++)
+      JS_SetPropertyUint32(ctx, ret, i, JS_NewInt32(ctx, int32v[i]));
+  }
+
   return ret;
 }
 
@@ -423,7 +440,8 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
   int64_t index;
 
   if(atom & (1U << 31)) {
-    *pval = atom & (~(1U << 31));
+    if(pval)
+      *pval = atom & (~(1U << 31));
     return TRUE;
   }
 
@@ -444,7 +462,8 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
   }
 
   if(ret == TRUE)
-    *pval = index;
+    if(pval)
+      *pval = index;
 
   return ret;
 }
@@ -726,7 +745,7 @@ js_iterator_new(JSContext* ctx, JSValueConst obj) {
 
   if(JS_IsFunction(ctx, fn))
     ret = JS_Call(ctx, fn, obj, 0, 0);
-  
+
   JS_FreeValue(ctx, fn);
   return ret;
 }
