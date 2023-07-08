@@ -178,11 +178,9 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       int64_t s, l;
 
       if((s = js_int64_default(ctx, argv[0], 0)) < 0)
-        // s = (((s % (int64_t)ptr->n) + (int64_t)ptr->n) % ptr->n);
         s = MOD_NUM(s, (int64_t)ptr->n);
 
       if((l = js_int64_default(ctx, argv[1], ptr->n - s)) < 0)
-        // l = (((l % (int64_t)ptr->n) + (int64_t)ptr->n) % ptr->n) - s;
         l = MOD_NUM(l, (int64_t)ptr->n) - s;
 
       JSAtom* atoms = 0;
