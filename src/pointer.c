@@ -201,8 +201,14 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
   if((ret = pointer_new(ctx))) {
     int64_t i;
 
-    start = int32_mod(start, ptr->n);
-    end = int32_mod(end, ptr->n);
+    start = int64_mod(start, ptr->n + 1);
+    end = end == INT64_MAX ? (int64_t)ptr->n : int64_mod(end, ptr->n + 1);
+
+    if(start > end) {
+      int64_t tmp = start;
+      start = end;
+      end = tmp;
+    }
 
     if(!pointer_allocate(ret, end - start, ctx)) {
       js_free(ctx, ret);
@@ -211,6 +217,67 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
 
     for(i = start; i < end; i++)
       ret->atoms[i - start] = JS_DupAtom(ctx, ptr->atoms[i]);
+  }
+
+  return ret;
+}
+
+Pointer*
+pointer_splice(Pointer* ptr, int64_t start, int64_t end, JSAtom* atoms, size_t ins, JSContext* ctx) {
+  Pointer* ret = 0;
+  size_t i, del, len, newlen;
+
+  start = int64_mod(start, ptr->n + 1);
+  end = end == INT64_MAX ? (int64_t)ptr->n : int64_mod(end, ptr->n + 1);
+
+  if(start > end) {
+    int64_t tmp = start;
+    start = end;
+    end = tmp;
+  }
+
+  del = end - start;
+  newlen = (len = ptr->n) - del + ins;
+
+#ifdef DEBUG_OUTPUT
+  printf("%s() start: %li end: %li del: %li ins: %lu len: %lu newlen: %lu remain: %li\n",
+         __func__,
+         (long)start,
+         (long)end,
+         (long)del,
+         (unsigned long)ins,
+         (unsigned long)len,
+         (unsigned long)newlen,
+         (long)(len - end));
+#endif
+
+  if(ins > del) {
+    if(!(ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * (ptr->n = newlen)))) {
+      js_free(ctx, ret);
+      return NULL;
+    }
+  }
+
+  if(del) {
+    if(!(ret = pointer_new(ctx)) || !pointer_allocate(ret, del, ctx)) {
+      js_free(ctx, ret);
+      return NULL;
+    }
+    memcpy(ret->atoms, &ptr->atoms[start], del * sizeof(JSAtom));
+  }
+
+  if(end < (int64_t)len && del != ins)
+    memmove(&ptr->atoms[end - del + ins], &ptr->atoms[end], (len - end) * sizeof(JSAtom));
+
+  if(ins)
+    memcpy(&ptr->atoms[start], atoms, ins * sizeof(JSAtom));
+
+  /* shrink */
+  if(del > ins) {
+    if(!(ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * (ptr->n = newlen)))) {
+      js_free(ctx, ret);
+      return NULL;
+    }
   }
 
   return ret;
