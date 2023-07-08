@@ -448,37 +448,35 @@ static const JSCFunctionListEntry js_pointer_static_funcs[] = {
 static int
 js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
-  JSValue value = JS_UNDEFINED;
   int64_t index;
 
-  /*if(prop == pointer_length) {
-    if(pdesc) {
-      pdesc->flags = 0;
-      pdesc->value = JS_NewUint32(ctx, pointer->n);
-      pdesc->getter = JS_UNDEFINED;
-      pdesc->setter = JS_UNDEFINED;
-    }
-    return TRUE;
+  if(JS_HasProperty(ctx, pointer_proto, prop))
+    return FALSE;
 
-  } else*/
+  if(js_atom_is_symbol(ctx, prop))
+    return FALSE;
+
   if(js_atom_is_index(ctx, &index, prop)) {
+
     if(index < 0)
-      index = ((index % (int64_t)(pointer->n + 1)) + pointer->n);
+      index = POINTER_INDEX(pointer, index);
 
     if(POINTER_INRANGE(pointer, index)) {
+      JSValue value = JS_UNDEFINED;
       JSAtom* key_p;
 
       if((key_p = pointer_ptr(pointer, index)))
         value = JS_AtomToValue(ctx, *key_p);
-    }
 
-    if(pdesc) {
-      pdesc->flags = JS_PROP_ENUMERABLE;
-      pdesc->value = value;
-      pdesc->getter = JS_UNDEFINED;
-      pdesc->setter = JS_UNDEFINED;
+      if(pdesc) {
+        pdesc->flags = JS_PROP_ENUMERABLE;
+        pdesc->value = value;
+        pdesc->getter = JS_UNDEFINED;
+        pdesc->setter = JS_UNDEFINED;
+      }
+
+      return TRUE;
     }
-    return TRUE;
   }
 
   return FALSE;

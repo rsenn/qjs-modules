@@ -789,6 +789,8 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
       size_t len = base == 10 ? i64toa(buf, num, base) : u64toa(buf, num, base);
 
       writer_write(wr, buf, len);
+    } else {
+      writer_puts(wr, "NaN");
     }
   }
 
@@ -1084,7 +1086,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
       return 1;
     }
 
-    if(JS_IsException(tmp)) 
+    if(JS_IsException(tmp))
       return -1;
 
     if(!JS_IsUndefined(tmp)) {

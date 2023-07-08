@@ -503,9 +503,10 @@ u64toa(char* x, uint64_t num, int base) {
   do {
     n /= base;
     len++;
+    x++;
   } while(n != 0);
 
-  x += len - 1;
+  *x-- = '\0';
 
   do {
     char c = num % base;
@@ -516,21 +517,21 @@ u64toa(char* x, uint64_t num, int base) {
     *x-- = c + '0';
   } while(num != 0);
 
-  x[len] = '\0';
-
   return len;
 }
 
 size_t
 i64toa(char* x, int64_t num, int base) {
-  size_t pos = 0;
+  size_t pos = 0, len;
 
   if(num < 0) {
     x[pos++] = '-';
     num = -num;
   }
 
-  return pos + u64toa(&x[pos], num, base);
+  len = u64toa(&x[pos], num, base);
+
+  return pos + len;
 }
 
 /**

@@ -483,6 +483,14 @@ js_atom_is_string(JSContext* ctx, JSAtom atom) {
   return ret;
 }
 
+BOOL
+js_atom_is_symbol(JSContext* ctx, JSAtom atom) {
+  JSValue value = JS_AtomToValue(ctx, atom);
+  BOOL ret = JS_IsSymbol(value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 int
 js_atom_cmp_string(JSContext* ctx, JSAtom atom, const char* other) {
   const char* str = JS_AtomToCString(ctx, atom);
@@ -2004,7 +2012,7 @@ void
 module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueConst exports) {
   JSAtom def = JS_NewAtom(ctx, "default");
   int i;
-  
+
   for(i = 0; i < m->export_entries_count; i++) {
     JSExportEntry* entry = &m->export_entries[i];
     JSVarRef* ref = entry->u.local.var_ref;
@@ -2636,10 +2644,10 @@ js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
 JSValue
 js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_only) {
   JSValue obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
-  
+
   if(JS_IsException(obj))
     return obj;
-  
+
   // printf("js_eval_binary obj=%s\n", js_value_typestr(ctx, obj));
   if(!load_only) {
     JSValue tmp = js_eval_module(ctx, obj, load_only);
