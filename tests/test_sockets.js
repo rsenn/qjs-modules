@@ -1,13 +1,31 @@
 import * as os from 'os';
-import * as std from 'std';
-import inspect from 'inspect';
-import { socklen_t, fd_set, SockAddr, Socket, AsyncSocket, AF_INET, SOCK_STREAM, IPPROTO_TCP, SO_ERROR, SO_DEBUG, SO_REUSEPORT, SO_REUSEADDR, SO_KEEPALIVE, SO_DONTROUTE, SO_BROADCAST, SO_OOBINLINE, SO_SNDBUF, SO_RCVBUF, SOL_SOCKET } from 'sockets';
-import { error, escape, quote, toString, toArrayBuffer, randi, randf, srand } from 'misc';
 import { define } from 'util';
-
 import Console from 'console';
-import fs from 'fs';
-
+import inspect from 'inspect';
+import { error } from 'misc';
+import { quote } from 'misc';
+import { randi } from 'misc';
+import { srand } from 'misc';
+import { toString } from 'misc';
+import { AF_INET } from 'sockets';
+import { AsyncSocket } from 'sockets';
+import { fd_set } from 'sockets';
+import { IPPROTO_TCP } from 'sockets';
+import { SO_BROADCAST } from 'sockets';
+import { SO_DEBUG } from 'sockets';
+import { SO_DONTROUTE } from 'sockets';
+import { SO_ERROR } from 'sockets';
+import { SO_KEEPALIVE } from 'sockets';
+import { SO_OOBINLINE } from 'sockets';
+import { SO_RCVBUF } from 'sockets';
+import { SO_REUSEADDR } from 'sockets';
+import { SO_REUSEPORT } from 'sockets';
+import { SO_SNDBUF } from 'sockets';
+import { SOCK_STREAM } from 'sockets';
+import { SockAddr } from 'sockets';
+import { Socket } from 'sockets';
+import { socklen_t } from 'sockets';
+import { SOL_SOCKET } from 'sockets';
 function main() {
   globalThis.console = new Console({
     inspectOptions: {
@@ -104,8 +122,6 @@ function main() {
 
   function waitIO(flags = POLLIN) {
     ret = poll((pfds = [new PollFD(sock.fd, flags | POLLERR)]), pfds.length, (timeout = 3000));
-
-
   }*/
   console.log('local =', sock.local);
   console.log('remote =', sock.remote);

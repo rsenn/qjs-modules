@@ -1,9 +1,10 @@
+import { readFileSync } from 'fs';
+import { writeFileSync } from 'fs';
+import { Console } from 'console';
+import extendArray from 'extendArray';
+import { Lexer } from 'lexer';
 //import * as path from 'path';
 //import inspect from 'inspect';
-import { Lexer } from 'lexer';
-import { Console } from 'console';
-import { readFileSync, writeFileSync } from 'fs';
-import extendArray from 'extendArray';
 //import EBNFParser from '../lib/parser/ebnf.js';
 
 extendArray(Array.prototype);

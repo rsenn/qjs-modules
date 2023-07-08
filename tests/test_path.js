@@ -1,9 +1,7 @@
-import * as os from 'os';
-import * as std from 'std';
-import inspect from 'inspect';
 import * as path from 'path';
 import Console from '../lib/console.js';
-
+import inspect from 'inspect';
+import * as std from 'std';
 ('use strict');
 ('use math');
 

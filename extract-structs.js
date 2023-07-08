@@ -1,17 +1,17 @@
-#!/usr/bin/env qjsm
 import * as os from 'os';
-import * as std from 'std';
-import * as fs from 'fs';
-import * as path from 'path';
+import { define } from 'util';
+import { extendArray } from 'util';
+import { getOpt } from 'util';
 import { Console } from 'console';
 import CLexer from 'lexer/c.js';
-import { getOpt, escape, extendArray, define } from 'util';
-
+import * as std from 'std';
+#!/usr/bin/env qjsm
 extendArray();
 
 let jsCFuncs, noStructs;
 
 const MaybeNumber = t => (Array.isArray(t) ? t.map(MaybeNumber) : isNaN(+t) ? t : +t);
+
 const NonWS = t => (Array.isArray(t) ? t.filter(NonWS) : t.type != 'whitespace');
 const TrimWS = t =>
   t.reduce((acc, item) => {

@@ -1,11 +1,13 @@
-import { TypeSelector, ClassSelector, AttributeSelector, parseSelectors } from '../lib/css3-selectors.js';
-import { Predicate } from 'predicate';
-import { Console } from 'console';
-import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
-import { read as readXML, write as writeXML } from 'xml';
 import { readFileSync } from 'fs';
+import { AttributeSelector } from '../lib/css3-selectors.js';
+import { ClassSelector } from '../lib/css3-selectors.js';
+import { parseSelectors } from '../lib/css3-selectors.js';
+import { TypeSelector } from '../lib/css3-selectors.js';
+import { Attr } from '../lib/dom.js';
+import { Parser } from '../lib/dom.js';
+import { Console } from 'console';
+import { Predicate } from 'predicate';
 import { REPL } from 'repl';
-
 function main(...args) {
   globalThis.console = new Console({
     stdout: process.stdout,

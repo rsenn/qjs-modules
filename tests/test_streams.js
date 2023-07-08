@@ -1,10 +1,8 @@
 import * as os from 'os';
-import * as std from 'std';
-import { Console } from 'console';
-import { TextDecoder, TextEncoder } from 'textcode';
-import { toArrayBuffer, quote, concat, toString } from 'util';
+import { toString } from 'util';
 import { TextEncoderStream } from '../lib/streams.js';
-
+import { Console } from 'console';
+import { TextEncoder } from 'textcode';
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {

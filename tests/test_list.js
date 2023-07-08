@@ -2,6 +2,7 @@ import { List } from 'list';
 let l = new List([6, 5, 4, 3, 2, 1]);
 
 let letter = 'a';
+
 const next = () => {
   let r = letter;
   letter = String.fromCodePoint(letter.codePointAt(0) + 1);

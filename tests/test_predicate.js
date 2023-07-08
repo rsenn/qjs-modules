@@ -1,10 +1,21 @@
 import * as os from 'os';
-import * as std from 'std';
-import inspect from 'inspect';
-import * as xml from 'xml';
-import { Predicate, PredicateOperators, PredicateOperatorSet, index, type, charset, string, not, or, and, xor, regexp, instanceOf, prototypeIs, equal, property } from 'predicate';
 import Console from '../lib/console.js';
-
+import inspect from 'inspect';
+import { and } from 'predicate';
+import { charset } from 'predicate';
+import { equal } from 'predicate';
+import { index } from 'predicate';
+import { instanceOf } from 'predicate';
+import { not } from 'predicate';
+import { or } from 'predicate';
+import { Predicate } from 'predicate';
+import { PredicateOperators } from 'predicate';
+import { PredicateOperatorSet } from 'predicate';
+import { property } from 'predicate';
+import { prototypeIs } from 'predicate';
+import { regexp } from 'predicate';
+import { type } from 'predicate';
+import * as std from 'std';
 ('use strict');
 ('use math');
 
@@ -147,8 +158,6 @@ async function main(...args) {
   console.log('re =', re);
   console.log('re =', re + '');
   console.log('re =', re.toString());
-
-
   let dummy = new ArrayBuffer(1024);
   let arri32 = new Int32Array(1024);
 

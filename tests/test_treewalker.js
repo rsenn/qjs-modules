@@ -1,10 +1,9 @@
-import * as os from 'os';
-import * as std from 'std';
-import inspect from 'inspect';
-import * as xml from 'xml';
-import { TreeWalker, TreeIterator } from 'tree_walker';
 import Console from '../lib/console.js';
-
+import inspect from 'inspect';
+import * as std from 'std';
+import { TreeIterator } from 'tree_walker';
+import { TreeWalker } from 'tree_walker';
+import * as xml from 'xml';
 ('use strict');
 ('use math');
 

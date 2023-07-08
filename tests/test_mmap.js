@@ -1,9 +1,11 @@
 import * as os from 'os';
-import * as std from 'std';
-import inspect from 'inspect';
 import Console from '../lib/console.js';
-import { mmap, munmap, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_SHARED, MAP_ANONYMOUS, toString } from 'mmap';
-
+import inspect from 'inspect';
+import { MAP_PRIVATE } from 'mmap';
+import { mmap } from 'mmap';
+import { munmap } from 'mmap';
+import { PROT_READ } from 'mmap';
+import * as std from 'std';
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {

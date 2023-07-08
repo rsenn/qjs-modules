@@ -1,20 +1,29 @@
-import * as os from 'os';
-import * as std from 'std';
 import fs from 'fs';
-import inspect from 'inspect';
+import * as os from 'os';
 import * as path from 'path';
-import { Predicate } from 'predicate';
-import { Location, Lexer, Token } from 'lexer';
-import { Console } from 'console';
-import ECMAScriptLexer from '../lib/lexer/ecmascript.js';
-import CLexer from '../lib/lexer/c.js';
+import { curry } from 'util';
+import { define } from 'util';
+import { extendArray } from 'util';
+import { getOpt } from 'util';
+import { isObject } from 'util';
+import { split } from 'util';
+import { startInteractive } from 'util';
+import { unique } from 'util';
 import BNFLexer from '../lib/lexer/bnf.js';
+import CLexer from '../lib/lexer/c.js';
 import CSVLexer from '../lib/lexer/csv.js';
-import { escape, quote, toString } from 'misc';
-import { define, curry, unique, split, extendArray, isObject, getOpt, keys, startInteractive } from 'util';
-import { mmap, munmap, PROT_READ, PROT_WRITE, MAP_PRIVATE, MAP_SHARED, MAP_ANONYMOUS } from 'mmap';
-import { TryCatch } from '../lib/parser/ebnf.js';
-
+import ECMAScriptLexer from '../lib/lexer/ecmascript.js';
+import { Console } from 'console';
+import inspect from 'inspect';
+import { Lexer } from 'lexer';
+import { Location } from 'lexer';
+import { Token } from 'lexer';
+import { escape } from 'misc';
+import { toString } from 'misc';
+import { MAP_PRIVATE } from 'mmap';
+import { mmap } from 'mmap';
+import { PROT_READ } from 'mmap';
+import * as std from 'std';
 ('use strict');
 ('use math');
 
@@ -26,6 +35,7 @@ let T;
 extendArray(Array.prototype);
 
 const AddUnique = (arr, item) => (arr.indexOf(item) == -1 ? arr.push(item) : null);
+
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 const code = [

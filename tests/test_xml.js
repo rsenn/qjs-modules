@@ -1,13 +1,11 @@
-import * as os from 'os';
-import * as std from 'std';
-import { escape, quote, isObject } from 'util';
-import inspect from 'inspect';
+import * as path from 'path';
+import { isObject } from 'util';
+import Console from '../lib/console.js';
 import readXML from '../lib/xml/read.js';
 import writeXML from '../lib/xml/write.js';
-import * as path from 'path';
 import * as deep from 'deep';
-import Console from '../lib/console.js';
-
+import inspect from 'inspect';
+import * as std from 'std';
 ('use strict');
 ('use math');
 

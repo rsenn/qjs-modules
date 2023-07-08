@@ -1,7 +1,6 @@
-import { inspect } from 'inspect';
-import { format, formatWithOptions } from 'util';
+import { format } from 'util';
 import Console from '../lib/console.js';
-
+import { inspect } from 'inspect';
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: { depth: 1, compact: Infinity }

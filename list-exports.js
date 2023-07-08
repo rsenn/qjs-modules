@@ -1,14 +1,23 @@
-#!/usr/bin/env qjsm
-import * as os from 'os';
-import * as std from 'std';
 import * as fs from 'fs';
-import inspect from 'inspect';
+import * as os from 'os';
 import * as path from 'path';
-import { Lexer, Token } from 'lexer';
+import { camelize } from 'util';
+import { curry } from 'util';
+import { define } from 'util';
+import { escape } from 'util';
+import { extendArray } from 'util';
+import { getOpt } from 'util';
+import { split } from 'util';
+import { startInteractive } from 'util';
+import { toString } from 'util';
+import { unique } from 'util';
 import { Console } from 'console';
+import inspect from 'inspect';
+import { Lexer } from 'lexer';
+import { Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
-import { escape, toString, define, curry, unique, split, extendArray, camelize, getOpt, startInteractive } from 'util';
-
+import * as std from 'std';
+#!/usr/bin/env qjsm
 let buffers = {},
   modules = {};
 let T,
@@ -33,6 +42,7 @@ extendArray(Array.prototype);
 const AddUnique = (arr, item) => (arr.indexOf(item) == -1 ? arr.push(item) : null);
 
 const IntToDWord = ival => (isNaN(ival) === false && ival < 0 ? ival + 4294967296 : ival);
+
 const IntToBinary = i => (i == -1 || typeof i != 'number' ? i : '0b' + IntToDWord(i).toString(2));
 
 const bufferRef = new WeakMap();

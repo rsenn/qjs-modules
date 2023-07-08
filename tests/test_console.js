@@ -1,9 +1,7 @@
 import * as os from 'os';
-import * as std from 'std';
-import inspect from 'inspect';
-import * as deep from 'deep';
 import Console from 'console';
-
+import inspect from 'inspect';
+import * as std from 'std';
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {

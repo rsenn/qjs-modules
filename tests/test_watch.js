@@ -1,7 +1,31 @@
 import * as os from 'os';
-import * as std from 'std';
-import fs from 'fs';
-import { watch, toString, toArrayBuffer, randStr, IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_CLOSE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, IN_MOVE, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, IN_ONESHOT } from 'util';
+import { IN_ACCESS } from 'util';
+import { IN_ATTRIB } from 'util';
+import { IN_CLOSE } from 'util';
+import { IN_CLOSE_NOWRITE } from 'util';
+import { IN_CLOSE_WRITE } from 'util';
+import { IN_CREATE } from 'util';
+import { IN_DELETE } from 'util';
+import { IN_DELETE_SELF } from 'util';
+import { IN_DONT_FOLLOW } from 'util';
+import { IN_EXCL_UNLINK } from 'util';
+import { IN_IGNORED } from 'util';
+import { IN_ISDIR } from 'util';
+import { IN_MASK_ADD } from 'util';
+import { IN_MODIFY } from 'util';
+import { IN_MOVE } from 'util';
+import { IN_MOVE_SELF } from 'util';
+import { IN_MOVED_FROM } from 'util';
+import { IN_MOVED_TO } from 'util';
+import { IN_ONESHOT } from 'util';
+import { IN_ONLYDIR } from 'util';
+import { IN_OPEN } from 'util';
+import { IN_Q_OVERFLOW } from 'util';
+import { IN_UNMOUNT } from 'util';
+import { randStr } from 'util';
+import { toArrayBuffer } from 'util';
+import { toString } from 'util';
+import { watch } from 'util';
 import { Console } from 'console';
 
 const modes = Object.entries({

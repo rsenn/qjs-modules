@@ -1,12 +1,29 @@
-import * as os from 'os';
-import * as std from 'std';
-import { Console } from 'console';
-import { Location } from 'location';
-import { extendArray, format, waitFor } from 'util';
-import { fnmatch, FNM_CASEFOLD, FNM_FILE_NAME, FNM_LEADING_DIR, FNM_NOESCAPE, FNM_NOMATCH, FNM_PATHNAME, FNM_PERIOD, glob, GLOB_ERR, GLOB_MARK, GLOB_NOSORT, GLOB_NOCHECK, GLOB_NOMATCH, GLOB_NOESCAPE, GLOB_ALTDIRFUNC, GLOB_BRACE, GLOB_NOMAGIC, GLOB_TILDE, GLOB_MAGCHAR, GLOB_NOSPACE, GLOB_ABORTED, JS_EVAL_FLAG_COMPILE_ONLY, JS_EVAL_TYPE_MODULE, JS_EVAL_TYPE_GLOBAL, toArrayBuffer, btoa, atob, valueToAtom, atomToValue, getClassConstructor, arrayToBitfield, bitfieldToArray, compileScript, writeObject, readObject, getByteCode, getOpCodes, resizeArrayBuffer, getClassID, getClassCount, getClassName } from 'misc';
 import * as fs from 'fs';
 import * as path from 'path';
-
+import { extendArray } from 'util';
+import { format } from 'util';
+import { Console } from 'console';
+import { Location } from 'location';
+import { arrayToBitfield } from 'misc';
+import { atob } from 'misc';
+import { atomToValue } from 'misc';
+import { bitfieldToArray } from 'misc';
+import { btoa } from 'misc';
+import { compileScript } from 'misc';
+import { getByteCode } from 'misc';
+import { getClassConstructor } from 'misc';
+import { getClassCount } from 'misc';
+import { getClassID } from 'misc';
+import { getClassName } from 'misc';
+import { getOpCodes } from 'misc';
+import { glob } from 'misc';
+import { JS_EVAL_FLAG_COMPILE_ONLY } from 'misc';
+import { readObject } from 'misc';
+import { resizeArrayBuffer } from 'misc';
+import { toArrayBuffer } from 'misc';
+import { valueToAtom } from 'misc';
+import { writeObject } from 'misc';
+import * as std from 'std';
 ('use strict');
 ('use math');
 

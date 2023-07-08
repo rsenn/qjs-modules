@@ -1,15 +1,11 @@
-import * as os from 'os';
-import * as std from 'std';
-import { escape, quote, isObject, define, getClassName, mapObject, getset, gettersetter, once, memoize, getOpt, glob } from '../lib/util.js';
-import inspect from 'inspect';
-import * as xml from 'xml';
-import * as fs from 'fs';
 import * as path from 'path';
-import * as deep from 'deep';
 import Console from '../lib/console.js';
-import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory } from '../lib/dom.js';
+import { getOpt } from '../lib/util.js';
+import { glob } from '../lib/util.js';
+import inspect from 'inspect';
 import { REPL } from 'repl';
-
+import * as std from 'std';
+import * as xml from 'xml';
 let repl = {
   printStatus(...args) {
     console.log(...args);

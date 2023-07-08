@@ -1,9 +1,8 @@
-import * as os from 'os';
-import * as std from 'std';
 import child_process from 'child_process';
-import Console from '../lib/console.js';
+import * as os from 'os';
 import { toString } from 'util';
-
+import Console from '../lib/console.js';
+import * as std from 'std';
 ('use strict');
 
 function WriteFile(file, data) {

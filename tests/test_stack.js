@@ -1,9 +1,7 @@
-import * as os from 'os';
-import * as std from 'std';
-import inspect from 'inspect';
+import { Stack } from '../lib/stack.js';
 import { Console } from 'console';
-import { Location, Stack, StackFrame } from '../lib/stack.js';
-
+import inspect from 'inspect';
+import * as std from 'std';
 function Func1() {
   return Func2();
 }

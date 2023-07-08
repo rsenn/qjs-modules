@@ -1,13 +1,35 @@
-import { extendArray, escape, quote, isObject, define, mapObject, getset, gettersetter, once, memoize, getOpt } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
-import Console from 'console';
-import { nodeTypes, Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList } from '../lib/dom.js';
-import { ImmutableXPath, MutableXPath, buildXPath, parseXPath, XPath } from '../lib/xpath.js';
-import { REPL } from 'repl';
-import { read as readXML, write as writeXML } from 'xml';
+import { define } from 'util';
+import { escape } from 'util';
+import { extendArray } from 'util';
+import { getOpt } from 'util';
+import { getset } from 'util';
+import { gettersetter } from 'util';
+import { isObject } from 'util';
+import { mapObject } from 'util';
+import { memoize } from 'util';
+import { quote } from 'util';
 import { parseSelectors } from '../lib/css3-selectors.js';
-
+import { Attr } from '../lib/dom.js';
+import { Document } from '../lib/dom.js';
+import { Element } from '../lib/dom.js';
+import { NamedNodeMap } from '../lib/dom.js';
+import { Node } from '../lib/dom.js';
+import { NodeList } from '../lib/dom.js';
+import { nodeTypes } from '../lib/dom.js';
+import { Parser } from '../lib/dom.js';
+import { Text } from '../lib/dom.js';
+import { TokenList } from '../lib/dom.js';
+import { buildXPath } from '../lib/xpath.js';
+import { ImmutableXPath } from '../lib/xpath.js';
+import { MutableXPath } from '../lib/xpath.js';
+import { parseXPath } from '../lib/xpath.js';
+import { XPath } from '../lib/xpath.js';
+import Console from 'console';
+import { REPL } from 'repl';
+import { read as readXML } from 'xml';
+import { write as writeXML } from 'xml';
 extendArray();
 
 let repl = {

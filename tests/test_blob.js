@@ -1,9 +1,8 @@
-import * as os from 'os';
-import * as std from 'std';
-import { Console } from 'console';
 import { Blob } from 'blob';
-import { toArrayBuffer, escape } from 'misc';
-
+import { Console } from 'console';
+import { escape } from 'misc';
+import { toArrayBuffer } from 'misc';
+import * as std from 'std';
 ('use strict');
 ('use math');
 

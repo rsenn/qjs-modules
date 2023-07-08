@@ -1,10 +1,8 @@
-import * as os from 'os';
-import * as std from 'std';
-import inspect from 'inspect';
-import * as xml from 'xml';
-import { Pointer } from 'pointer';
 import Console from '../lib/console.js';
-
+import inspect from 'inspect';
+import { Pointer } from 'pointer';
+import * as std from 'std';
+import * as xml from 'xml';
 ('use strict');
 ('use math');
 

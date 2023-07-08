@@ -1,5 +1,4 @@
 import Console from '../lib/console.js';
-
 ('use strict');
 ('use math');
 

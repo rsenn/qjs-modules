@@ -1,9 +1,11 @@
-import { Console } from 'console';
-import { exit } from 'std';
-import { abbreviate, startInteractive, randStr } from 'util';
-import { PGconn, PGresult } from 'pgsql';
+import { abbreviate } from 'util';
+import { randStr } from 'util';
+import { startInteractive } from 'util';
 import extendArray from '../lib/extendArray.js';
-
+import { Console } from 'console';
+import { PGconn } from 'pgsql';
+import { PGresult } from 'pgsql';
+import { exit } from 'std';
 extendArray();
 
 ('use strict');
