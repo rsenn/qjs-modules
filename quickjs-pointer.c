@@ -205,11 +205,12 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case METHOD_DOWN: {
       Pointer* result;
 
-      if((result = pointer_clone(ptr, ctx)))
+      if((result = pointer_clone(ptr, ctx))) {
         int i;
 
-      for(i = 0; i < argc; i++)
-        pointer_push(result, argv[i], ctx);
+        for(i = 0; i < argc; i++)
+          pointer_push(result, argv[i], ctx);
+      }
 
       return result ? js_pointer_wrap(ctx, result) : JS_EXCEPTION;
     }
