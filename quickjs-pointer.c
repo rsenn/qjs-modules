@@ -203,21 +203,16 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case METHOD_DOWN: {
-      Pointer* result = pointer_clone(ptr, ctx);
-      int i;
+      Pointer* result;
+
+      if((result = pointer_clone(ptr, ctx)))
+        int i;
 
       for(i = 0; i < argc; i++)
         pointer_push(result, argv[i], ctx);
 
-      return js_pointer_wrap(ctx, result);
+      return result ? js_pointer_wrap(ctx, result) : JS_EXCEPTION;
     }
-
-      /* case METHOD_KEYS: {
-         JSValue array = pointer_toarray(ptr, ctx);
-         JSValue iter = js_iterator_new(ctx, array);
-         JS_FreeValue(ctx, array);
-         return iter;
-       }*/
 
     case METHOD_VALUES: {
       JSValue array = pointer_toarray(ptr, ctx);
