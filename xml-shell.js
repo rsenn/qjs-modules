@@ -1,3 +1,4 @@
+#!/usr/bin/env qjsm
 import * as fs from 'fs';
 import * as path from 'path';
 import { getOpt } from 'util';
@@ -19,7 +20,6 @@ import * as location from 'location';
 import * as pointer from 'pointer';
 import { REPL } from 'repl';
 import * as xml from 'xml';
-#!/usr/bin/env qjsm
 let repl;
 
 function main(...args) {

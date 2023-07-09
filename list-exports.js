@@ -1,3 +1,4 @@
+#!/usr/bin/env qjsm
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -17,7 +18,6 @@ import { Lexer } from 'lexer';
 import { Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
-#!/usr/bin/env qjsm
 let buffers = {},
   modules = {};
 let T,
