@@ -6,7 +6,7 @@ import { camelize } from 'util';
 import { curry } from 'util';
 import { define } from 'util';
 import { escape } from 'util';
-import { extendArray } from 'util';
+import extendArray from 'extendArray';
 import { getOpt } from 'util';
 import { split } from 'util';
 import { startInteractive } from 'util';

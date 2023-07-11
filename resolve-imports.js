@@ -267,9 +267,13 @@ function FileReplacer(file) {
       //console.log('FileReplacer.close', fd);
       let size = fs.sizeSync(fd);
       os.close(fd);
-      let err = os.rename(file, file + '.old');
+
+      let err;
+
+      err = os.remove(file);
+      //err = os.rename(file, file + '.old');
       err = os.rename(file + '.new', file);
-      //console.log('os.rename() =', err);
+
       if(err) throw new Error(`FileReplacer rename() error: ${std.strerror(-err)}`);
       console.log(`${file} written (${size} bytes)`);
     }

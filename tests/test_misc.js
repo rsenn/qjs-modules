@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { extendArray } from 'util';
+import extendArray from 'extendArray';
 import { format } from 'util';
 import { Console } from 'console';
 import { Location } from 'location';

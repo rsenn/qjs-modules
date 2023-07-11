@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { define } from 'util';
 import { escape } from 'util';
-import { extendArray } from 'util';
+import extendArray from 'extendArray';
 import { getOpt } from 'util';
 import { getset } from 'util';
 import { gettersetter } from 'util';

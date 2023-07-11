@@ -1,7 +1,7 @@
 #!/usr/bin/env qjsm
 import * as os from 'os';
 import { define } from 'util';
-import { extendArray } from 'util';
+import extendArray from 'extendArray';
 import { getOpt } from 'util';
 import { Console } from 'console';
 import CLexer from 'lexer/c.js';

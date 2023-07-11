@@ -3,7 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { curry } from 'util';
 import { define } from 'util';
-import { extendArray } from 'util';
+import extendArray from 'extendArray';
 import { getOpt } from 'util';
 import { isObject } from 'util';
 import { split } from 'util';
