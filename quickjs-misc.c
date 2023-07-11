@@ -638,8 +638,9 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
   if(!block_arraybuffer(&haystack, argv[0], ctx))
     return JS_ThrowTypeError(ctx, "argument 1 (haystack) must be an ArrayBuffer");
+  
   if(!block_arraybuffer(&needle, argv[1], ctx))
-    return JS_ThrowTypeError(ctx, "argument 2 (haystack) must be an ArrayBuffer");
+    return JS_ThrowTypeError(ctx, "argument 2 (needle) must be an ArrayBuffer");
 
   if(argc < 3 || (JS_IsNumber(argv[2]) || JS_IsBigInt(ctx, argv[2]))) {
     uint8_t* ptr;

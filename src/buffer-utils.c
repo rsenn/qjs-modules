@@ -234,7 +234,7 @@ dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int))
 
 void
 dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]) {
-  size_t i = 0,  clen;
+  size_t i = 0, clen;
   int32_t c;
   const uint8_t *pos, *end, *next;
 
@@ -539,12 +539,10 @@ input_buffer_peek(InputBuffer* in, size_t* lenp) {
 
 const uint8_t*
 input_buffer_get(InputBuffer* in, size_t* lenp) {
-  size_t n;
-  const uint8_t* ret;
-  if(lenp == 0)
-    lenp = &n;
-  ret = input_buffer_peek(in, lenp);
+  const uint8_t* ret = input_buffer_peek(in, lenp);
+
   in->pos += *lenp;
+
   return ret;
 }
 
@@ -666,20 +664,20 @@ js_dbuf_allocator(JSContext* ctx, DynBuf* s) {
   dbuf_init2(s, ctx->rt, (DynBufReallocFunc*)js_realloc_rt);
 }
 
-int
+inline int
 input_buffer_peekc(InputBuffer* in, size_t* lenp) {
   const uint8_t *pos, *end, *next;
   int cp;
   pos = input_buffer_data(in) + in->pos;
   end = input_buffer_data(in) + input_buffer_length(in);
   cp = unicode_from_utf8(pos, end - pos, &next);
-  if(lenp)
-    *lenp = next - pos;
+
+  *lenp = next - pos;
 
   return cp;
 }
 
-int
+inline int
 input_buffer_putc(InputBuffer* in, unsigned int c, JSContext* ctx) {
   int len;
 

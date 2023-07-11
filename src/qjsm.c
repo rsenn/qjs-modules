@@ -521,10 +521,10 @@ jsm_search_list(JSContext* ctx, const char* module_name, const char* list) {
     strncpy(t, s, i);
     t[i] = '/';
     strcpy(&t[i + 1], module_name);
-    
+
     if(path_isfile1(t))
       return t;
-    
+
     if(s[i])
       ++i;
   }
@@ -774,8 +774,7 @@ jsm_module_json(JSContext* ctx, const char* name) {
 
 char*
 jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
-  char *file = 0, *s
-;
+  char *file = 0, *s;
   s = js_strdup(ctx, module_name);
 
   for(;;) {
@@ -1387,7 +1386,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       } else {
         val = JS_NULL;
       }
-      
+
       break;
     }
 
@@ -1587,14 +1586,14 @@ jsm_start_interactive(JSContext* ctx) {
   snprintf(str,
            sizeof(str),
            "import { REPL } from 'repl';\n"
-           "globalThis.repl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), true);\n"
+           "globalThis.repl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
            "repl.loadSaveOptions();\n"
            "repl.historyLoad();\n"
            "repl.run();\n",
            (int)str_chr(exename, '.'),
            exename);
 
-  /*JSValue ret =*/ JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
+  /*JSValue ret =*/JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
 
   // JS_FreeValue(ctx, ret);
 }

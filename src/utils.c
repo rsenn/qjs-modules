@@ -929,49 +929,7 @@ js_object_function(JSContext* ctx, const char* func_name, JSValueConst obj) {
   JS_FreeValue(ctx, ctor);
   return ret;
 }
-/*
-JSAtom*
-js_object_properties(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int flags) {
-  Vector vec = VECTOR(ctx);
-  JSValue proto = JS_DupValue(ctx, obj);
 
-  do {
-    JSPropertyEnum* tmp_tab;
-    uint32_t tmp_len;
-
-    if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, proto, flags))
-      break;
-
-    for(uint32_t i = 0; i < tmp_len; i++) {
-      if(vector_find(&vec, sizeof(JSAtom), &tmp_tab[i].atom) == -1)
-        vector_push(&vec, tmp_tab[i].atom);
-    }
-
-    js_free(ctx, tmp_tab);
-    tmp_tab = NULL;
-
-    if(!(flags & JS_GPN_RECURSIVE))
-      break;
-
-    JSValue tmp = JS_GetPrototype(ctx, proto);
-    JS_FreeValue(ctx, proto);
-    proto = tmp;
-  } while(JS_IsObject(proto));
-
-  JS_FreeValue(ctx, proto);
-
-  size_t size = vector_size(&vec, sizeof(JSAtom));
-
-  if(lenptr)
-    *lenptr = size;
-
-  JSAtom* ret;
-
-  if((ret = vector_begin(&vec)))
-    ret = js_realloc(ctx, ret, size * sizeof(JSAtom));
-
-  return ret;
-}*/
 JSAtom*
 js_object_properties(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int flags) {
   JSAtom* atoms = NULL;
@@ -982,7 +940,7 @@ js_object_properties(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int fla
     JSPropertyEnum* tmp_tab;
     uint32_t tmp_len, pos = 0, i, j;
 
-    if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, proto, flags))
+    if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, proto, flags & ~JS_GPN_RECURSIVE))
       break;
 
     atoms = js_realloc(ctx, atoms, sizeof(JSAtom) * (num_atoms + tmp_len));

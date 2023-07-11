@@ -745,7 +745,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
             location_count(&diff, (const uint8_t*)&lex->data[lex->pos - len], len);
             location_sub(&lex->loc, &diff);
             ret = JS_NewInt32(ctx, lexer_peek(lex, 1 << lex->state, 0, ctx));
-          } else {
+        } else {
             char* buf = byte_escape((const char*)&lex->data[lex->pos - len], len);
             ret = JS_ThrowInternalError(ctx, "Lexer.prototype.back('%s') `%s` ...", str, buf);
             free(buf);
@@ -1514,7 +1514,7 @@ js_lexer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, token_ctor, token_proto);
   JS_SetPropertyFunctionList(ctx, token_ctor, js_token_static_funcs, countof(js_token_static_funcs));
 
-  //js_set_inspect_method(ctx, token_proto, js_token_inspect);
+  // js_set_inspect_method(ctx, token_proto, js_token_inspect);
 
   JS_NewClassID(&js_lexer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_lexer_class_id, &js_lexer_class);

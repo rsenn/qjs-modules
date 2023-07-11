@@ -365,10 +365,10 @@ adjust_spacing(Writer* wr, const InspectOptions* opts, int32_t* depth, int32_t i
   int32_t d = *depth;
   *depth += incdec;
 
-  if(IS_COMPACT(d))
+  if(IS_COMPACT(*depth))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, *depth);
+    put_newline(wr, d);
 }
 
 static void
@@ -1270,6 +1270,7 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
     }
 
     case JS_TAG_OBJECT: {
+      ///     break;
       return inspect_object(insp, value, depth);
     }
 
@@ -1311,12 +1312,15 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
   // vector_init(&insp->hier, ctx);
 
-  it = property_recursion_push(&insp->hier, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
+  it = property_recursion_push(&insp->hier, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
   is_array = js_is_array(ctx, obj);
 
-  writer_puts(wr, is_array ? "[" : "{");
-  if(it)
+  inspect_object(insp, obj, depth);
+
+  if(it) {
+    writer_puts(wr, is_array ? "[" : "{");
     ++depth;
+  }
 
   while(it) {
     JSValue value = property_enumeration_value(it, ctx);
@@ -1382,15 +1386,14 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
       adjust_spacing(wr, opts, &depth, -1);
 
-      if(!it)
-        break;
-
 #ifdef DEBUG_OUTPUT
       printf("%s()[1] depth: %u %u it: %p\n", __func__, property_recursion_depth(&insp->hier), depth, it);
 #endif
 
       writer_puts(wr, is_array ? "]" : "}");
 
+      if(!it)
+        break;
       is_array = js_is_array(ctx, it->obj);
     }
   }
@@ -1399,7 +1402,7 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   printf("%s()[2] depth: %u %u it: %p\n", __func__, property_recursion_depth(&insp->hier), depth, it);
 #endif
 
-  writer_puts(wr, JS_IsArray(ctx, obj) ? "]" : "}");
+  // writer_puts(wr, JS_IsArray(ctx, obj) ? "]" : "}");
 
   property_recursion_free(&insp->hier, JS_GetRuntime(ctx));
   return 0;
@@ -1440,10 +1443,10 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
     inspect_date(&wr, argv[0], &options, level);
   else*/
   if(JS_IsObject(argv[0]) && level < insp.opts.depth) {
-    int ret = inspect_object(&insp, argv[0], level);
+    /* int ret = inspect_object(&insp, argv[0], level);
 
-    if(ret != 1)
-      inspect_recursive(&insp, argv[0], level);
+     if(ret != 1)*/
+    inspect_recursive(&insp, argv[0], level);
   } else
     inspect_value(&insp, argv[0], level);
 
