@@ -541,6 +541,7 @@ js_misc_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
     IndexRange ir;
     JSArrayBuffer* ab;
+
     if(!(ab = JS_GetOpaque(argv[0], JS_CLASS_ARRAY_BUFFER)))
       ab = JS_GetOpaque(argv[0], JS_CLASS_SHARED_ARRAY_BUFFER);
 
@@ -548,6 +549,7 @@ js_misc_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     JSValue value = JS_DupValue(ctx, argv[0]);
     JSObject* obj = JS_VALUE_GET_OBJ(value);
+
     return JS_NewArrayBuffer(ctx, data + ir.start, ir.end - ir.start, js_arraybuffer_free_object, (void*)obj, ab && ab->shared ? TRUE : FALSE);
   }
 
@@ -562,6 +564,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
     OffsetLength ol;
     JSArrayBuffer* ab;
+
     if(!(ab = JS_GetOpaque(argv[0], JS_CLASS_ARRAY_BUFFER)))
       ab = JS_GetOpaque(argv[0], JS_CLASS_SHARED_ARRAY_BUFFER);
 
@@ -569,6 +572,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     JSValue value = JS_DupValue(ctx, argv[0]);
     JSObject* obj = JS_VALUE_GET_OBJ(value);
+
     return JS_NewArrayBuffer(ctx, data + ol.offset, ol.length, js_arraybuffer_free_object, (void*)obj, ab && ab->shared ? TRUE : FALSE);
   }
 
@@ -638,7 +642,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
   if(!block_arraybuffer(&haystack, argv[0], ctx))
     return JS_ThrowTypeError(ctx, "argument 1 (haystack) must be an ArrayBuffer");
-  
+
   if(!block_arraybuffer(&needle, argv[1], ctx))
     return JS_ThrowTypeError(ctx, "argument 2 (needle) must be an ArrayBuffer");
 

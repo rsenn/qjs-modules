@@ -365,10 +365,10 @@ adjust_spacing(Writer* wr, const InspectOptions* opts, int32_t* depth, int32_t i
   int32_t d = *depth;
   *depth += incdec;
 
-  if(IS_COMPACT(*depth))
+  if(IS_COMPACT(d))
     writer_putc(wr, ' ');
   else
-    put_newline(wr, d);
+    put_newline(wr, *depth);
 }
 
 static void

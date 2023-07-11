@@ -1,5 +1,4 @@
 import fs from 'fs';
-import * as os from 'os';
 import { ReadableStream } from 'stream';
 import { toString } from 'util';
 import { extendAsyncGenerator } from '../lib/extendAsyncGenerator.js';
@@ -10,7 +9,8 @@ import { FileSystemWritableFileStream } from '../lib/streams.js';
 import { LineStreamIterator } from '../lib/streams.js';
 import { StreamReadIterator } from '../lib/streams.js';
 import { Console } from 'console';
-import * as std from 'std';
+import { exit } from 'std';
+
 ('use strict');
 ('use math');
 
@@ -35,9 +35,11 @@ async function main(...args) {
 
   let rd = readable.getReader();
   let br = rd.read();
+
   console.log('rd.read()', br);
 
   let wr = writable.getWriter();
+
   console.log('transform', { readable, writable, wr });
   let bw = await wr.write('blah\nhaha\n');
 
@@ -49,6 +51,7 @@ async function main(...args) {
     console.log(`rd.read(${i})`, br);
     br = rd.read();
   }
+
   /*  let tfrm=  LineStreamIterator(iter);*/
   let result = await iter.reduce(
     (buf => (acc, n) => {
@@ -76,5 +79,5 @@ try {
   main(...scriptArgs.slice(1));
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
-  std.exit(1);
+  exit(1);
 }

@@ -2,32 +2,12 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { camelize } from 'util';
-import { curry } from 'util';
-import { define } from 'util';
-import { difference } from 'util';
-import { error } from 'util';
-import { escape } from 'util';
+import { camelize, curry, define, difference, error, escape, getOpt, getset, getTypeName, intersection, isObject, mapWrapper, memoize, padStartAnsi, quote, randInt, split, toArrayBuffer, toString, types, unique, nonenumerable } from 'util';
 import extendArray from 'extendArray';
-import { getOpt } from 'util';
-import { getset } from 'util';
-import { getTypeName } from 'util';
-import { intersection } from 'util';
-import { isObject } from 'util';
-import { mapWrapper } from 'util';
-import { memoize } from 'util';
-import { padStartAnsi } from 'util';
-import { quote } from 'util';
-import { randInt } from 'util';
-import { split } from 'util';
-import { toArrayBuffer } from 'util';
-import { toString } from 'util';
-import { types } from 'util';
-import { unique } from 'util';
+import extendArrayBuffer from 'extendArrayBuffer';
 import { Console } from 'console';
 import inspect from 'inspect';
-import { Lexer } from 'lexer';
-import { Token } from 'lexer';
+import { Lexer, Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
 
@@ -160,6 +140,7 @@ const FileBannerComment = (filename, i) => {
 };
 
 extendArray(Array.prototype);
+extendArrayBuffer();
 
 const IsBuiltin = moduleName => /^[^\/.]+$/.test(moduleName);
 
@@ -419,7 +400,7 @@ function ImportIdMap(seq) {
     } else {
       const { id, type, lexeme } = tok;
 
-      throw new Error(`No such token[${seq.indexOf(tok)}] (${inspect({ id, type, lexeme })}) ${tok.lexeme} at ${tok.loc}`);
+      throw new Error(`No such token[${seq.indexOf(tok)}] (at ${tok.loc}) (${inspect({ id, type, lexeme })}) ${tok.lexeme} at ${tok.loc}`);
     }
   }
   return entries;
@@ -461,6 +442,11 @@ function ExportName(seq) {
 }
 
 function ByteSequence(tokens) {
+  const first = tokens[0],
+    last = tokens[tokens.length - 1];
+
+  return [first.loc.byteOffset, last.loc.byteOffset + last.byteLength];
+
   if(tokens.length) {
     let { loc } = tokens[0];
     let start = loc.byteOffset;
@@ -564,8 +550,7 @@ function Import(tokens, relativePath = s => s, depth) {
   const tok = tokens[0];
   const { loc, seq } = tok;
   let source = loc.file;
-  let type = ImpExpType(tokens.slice()),
-    file = ImportFile(tokens.slice());
+  let type = ImpExpType(tokens.slice());
 
   const range = ByteSequence(tokens.slice());
   range[0] = loc.byteOffset;
@@ -573,13 +558,14 @@ function Import(tokens, relativePath = s => s, depth) {
 
   /* prettier-ignore */ if(debug > 3) console.log('\x1b[1;31mnew\x1b[1;33m Import\x1b[0m', compact(1), {source, file, code, loc, range });
   let imp = Object.setPrototypeOf(
-    define(
+    nonenumerable(
       {
-        file: ResolveAlias(file && /\./.test(file) ? relativePath(file) : file),
-        range
-      },
-      {
-        type,
+        get type() {
+          return ImpExpType(this.tokens);
+        },
+        get file() {
+          return ImportFile(this.tokens);
+        },
         tokens,
         code,
         loc,
@@ -588,6 +574,10 @@ function Import(tokens, relativePath = s => s, depth) {
           const { file } = this;
           if(typeof file == 'string') return relativePath(file);
         }
+      },
+      {
+        //file: ResolveAlias(file && /\./.test(file) ? relativePath(file) : file),
+        range
       }
     ),
     Import.prototype
@@ -670,7 +660,7 @@ define(Import.prototype, {
       output += '{ ' + map.map(([local, foreign]) => (local == foreign ? local : foreign + ' as ' + local)).join(', ') + ' }';
     }
 
-    output += ` from '${this.file}';\n`;
+    output += ` from '${this.file}';`;
     return output;
   }
 });
@@ -846,14 +836,15 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         continue;
       }
 
-      if(['import', 'export'].indexOf(token.lexeme) >= 0) {
-        if(imp.length == 0) {
-          //console.log(``, { token:token.lexeme, loc: token.loc+'', imp: imp.length});
-          impexp = What[token.lexeme.toUpperCase()];
-          cond = true;
-          imp = token.lexeme == 'export' ? [token] : [];
+      if(!doneImports)
+        if(['import', 'export'].indexOf(token.lexeme) >= 0) {
+          if(imp.length == 0) {
+            //console.log(``, { token:token.lexeme, loc: token.loc+'', imp: imp.length});
+            impexp = What[token.lexeme.toUpperCase()];
+            cond = true;
+            imp = token.lexeme == 'export' ? [token] : [];
+          }
         }
-      }
 
       if(debug > 3) console.log(`token[${imp.length}]`, token.loc + '', console.config({ breakLength: 80, compact: 0 }), token);
 
@@ -872,23 +863,13 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       }
 
       if(cond == true) {
-        if(imp.indexOf(token) == -1) imp.push(token);
+        if(imp.indexOf(token) == -1 && token.type != 'comment') imp.push(token);
+
         //console.log( imp[0].loc+'',console.config({breakLength:80, compact: 0}), NonWS(imp));
         if(imp.last.lexeme == ';') {
-          let tmp;
-
-          /*     while((tmp = lexer.peek())) {
-            if(tmp != lexer.rules.whitespace && lexer.lexeme != ';') break;
-            imp.push(lexer.token);
-            lexer.next();
-          }
-
-          console.log('token', lexer.tokens[lexer.peek()]);
-          console.log('token', lexer.tokens[lexer.peek()], lexer.lexeme);
-*/
           let obj;
-          // /* prettier-ignore */ if(debug >=2) console.log('imp', imp[0].loc + '', console.config({breakLength: 80, compact: 0 }), { sequence: TokenSequence(imp),impexp } );
           cond = false;
+
           if(impexp == What.IMPORT || IsImportExportFrom(imp)) {
             if(imp[1].lexeme != '(') {
               obj = new Import(imp, PathAdjust, depth);
@@ -1842,6 +1823,8 @@ function main(...args) {
     toString,
     NonWS,
     LeadingWS,
+    ImportFile,
+    ImportType,
     ImportIds,
     ImportIdMap,
     FileMap,
@@ -1871,7 +1854,7 @@ function main(...args) {
     code = 'c',
     exp = true;
 
-  let out = FdWriter(1, 'stdout');
+  let out /* = FdWriter(1, 'stdout')*/;
   let stream = define(
     { indent: 0 },
     {
@@ -2000,7 +1983,7 @@ function main(...args) {
   const { sort, 'case-sensitive': caseSensitive } = params;
 
   if(outputFile) out = FileWriter(outputFile);
-  globalThis.out = out;
+  //globalThis.out = out;
 
   let argList = [...scriptArgs];
   log = quiet ? () => {} : (...args) => console.log(`${file}:`, ...args);
@@ -2035,9 +2018,15 @@ function main(...args) {
 
       const merged = MergeImports(result.imports);
 
-      map.insertAt(start, ...merged.map(imp => toArrayBuffer(imp + '')));
+      //map.insertAt(start, ...merged.map(imp => toArrayBuffer(imp + '')));
+      map.insertAt(start, toArrayBuffer(merged.join('\n')));
       map.trim();
+
+      out ??= FileReplacer(file);
+
       map.write(out);
+      out.close();
+
       doOutput = false;
     }
   }
