@@ -379,6 +379,12 @@ function ImportIdMap(seq) {
       local = seq[i + 2].lexeme;
       entries.push([local, name]);
       i += 3;
+    } else if(seq[i].type == 'identifier') {
+      local = seq[i].lexeme;
+      name = 'default';
+      entries.push([local, name]);
+
+      if(IsPunctuator(',', seq[i + 1])) ++i;
     } else if(IsKeyword('from', seq[i + 1]) && seq[i].type == 'identifier') {
       local = seq[i].lexeme;
       name = 'default';
@@ -1977,9 +1983,12 @@ function main(...args) {
     onlyImports = true;
     outputFile = null;
     out = DummyWriter('/dev/null');
-  } else {
+  } else if(!params.merge) {
     if(typeof recursive == 'undefined') recursive = true;
   }
+
+  if(params.merge) onlyImports = true;
+
   //  console.log(scriptArgs[0], { printFiles, onlyImports });
 
   if(typeof recursive == 'undefined') recursive = false;
@@ -2014,22 +2023,24 @@ function main(...args) {
       const map = FileMap.for(file);
       map.reset();
 
-      const [start] = result.imports[0].range;
+      if(result.imports[0]) {
+        const [start] = result.imports[0].range;
 
-      for(let imp of result.imports) {
-        map.replaceRange(imp.range, '');
+        for(let imp of result.imports) {
+          map.replaceRange(imp.range, '');
+        }
+
+        const merged = MergeImports(result.imports);
+
+        //map.insertAt(start, ...merged.map(imp => toArrayBuffer(imp + '')));
+        map.insertAt(start, toArrayBuffer(merged.join('\n')));
+        map.trim();
+
+        out ??= FileReplacer(file);
+
+        map.write(out);
+        out.close();
       }
-
-      const merged = MergeImports(result.imports);
-
-      //map.insertAt(start, ...merged.map(imp => toArrayBuffer(imp + '')));
-      map.insertAt(start, toArrayBuffer(merged.join('\n')));
-      map.trim();
-
-      out ??= FileReplacer(file);
-
-      map.write(out);
-      out.close();
 
       doOutput = false;
     }
@@ -2054,6 +2065,8 @@ function main(...args) {
   if(doOutput) {
     let str = OutputImports(globalImports);
     console.log('OutputImports() =', str);
+
+    out ??= FdWriter(1, 'stdout');
 
     //  results[0].insert(1, toArrayBuffer(str));
 

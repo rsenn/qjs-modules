@@ -407,14 +407,14 @@ int32_t js_value_tag_type(int tag);
 const char* js_value_typestr(JSContext* ctx, JSValueConst value);
 
 /* clang-format off */ 
-static inline int       js_value_tag(JSValueConst v) { return JS_VALUE_GET_TAG(v); }
-static inline void*     js_value_ptr(JSValueConst v) { return JS_VALUE_GET_PTR(v); }
-static inline int       js_value_int(JSValueConst v) { return JS_VALUE_GET_INT(v); }
-static inline BOOL      js_value_bool(JSValueConst v) { return JS_VALUE_GET_BOOL(v); }
-static inline double    js_value_float64(JSValueConst v) { return JS_VALUE_GET_FLOAT64(v); }
-static inline JSValue   js_value_mkptr(int tag, void* ptr) { return JS_MKPTR(tag, ptr); }
-static inline JSValue   js_value_mkval(int tag, intptr_t val) { return JS_MKVAL(tag, val); }
-static inline JSObject* js_value_obj(JSValueConst v) { return JS_IsObject(v) ? JS_VALUE_GET_OBJ(v) : 0; }
+int       js_value_tag(JSValueConst v);
+void*     js_value_ptr(JSValueConst v);
+int       js_value_int(JSValueConst v);
+BOOL      js_value_bool(JSValueConst v);
+double    js_value_float64(JSValueConst v);
+JSValue   js_value_mkptr(int tag, void* ptr);
+JSValue   js_value_mkval(int tag, intptr_t val);
+JSObject* js_value_obj(JSValueConst v);
 /* clang-format on */
 
 BOOL js_value_has_ref_count(JSValueConst v);
@@ -587,6 +587,7 @@ js_int64_default(JSContext* ctx, JSValueConst value, int64_t i) {
 }
 
 JSValue js_number_new(JSContext* ctx, int32_t n);
+BOOL js_number_integral(JSValueConst value);
 
 static inline JSValue
 js_new_bool_or_number(JSContext* ctx, int32_t n) {

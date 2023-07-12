@@ -220,23 +220,32 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   ret = js_child_process_wrap(ctx, cp);
 
-  cp->file = js_tostring(ctx, argv[0]);
+  if(JS_IsArray(ctx, argv[0])) {
+    cp->args = js_array_to_argv(ctx, NULL, argv[0]);
 
-  if(argc > 1) {
-    int n = js_array_length(ctx, argv[1]);
-    cp->args = js_mallocz(ctx, sizeof(char*) * (n + 2));
-    cp->args[0] = js_strdup(ctx, cp->file);
-    js_array_copys(ctx, argv[1], n, &cp->args[1]);
-
-    //    cp->args = js_array_to_argv(ctx, 0, argv[1]);
+    if(cp->args[0])
+      cp->file = js_strdup(ctx, cp->args[0]);
   } else {
-    cp->args = js_malloc(ctx, sizeof(char*) * 2);
-    cp->args[0] = js_strdup(ctx, cp->file);
-    cp->args[1] = 0;
+    cp->file = js_tostring(ctx, argv[0]);
+
+    if(argc > 1) {
+      int n = js_array_length(ctx, argv[1]);
+      cp->args = js_mallocz(ctx, sizeof(char*) * (n + 2));
+      cp->args[0] = js_strdup(ctx, cp->file);
+      js_array_copys(ctx, argv[1], n, &cp->args[1]);
+
+      --argc;
+      ++argv;
+      //    cp->args = js_array_to_argv(ctx, 0, argv[1]);
+    } else {
+      cp->args = js_malloc(ctx, sizeof(char*) * 2);
+      cp->args[0] = js_strdup(ctx, cp->file);
+      cp->args[1] = 0;
+    }
   }
 
-  if(argc > 2 && JS_IsObject(argv[2]))
-    js_child_process_options(ctx, cp, argv[2]);
+  if(argc > 1 && JS_IsObject(argv[1]))
+    js_child_process_options(ctx, cp, argv[1]);
 
   child_process_spawn(cp);
 

@@ -104,7 +104,7 @@ syscall_return(Socket* sock, int sysno, int retval) {
 #endif
                              : 0;
 
-#if 1 // def DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT
   printf("syscall %s returned %d (%d)\n", (sock)->sysno ? syscall_name((sock)->sysno) : "0", (sock)->ret, (sock)->error);
 #endif
 }

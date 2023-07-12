@@ -295,7 +295,9 @@ options_get(InspectOptions* opts, JSContext* ctx, JSValueConst object) {
 
   value = JS_GetPropertyStr(ctx, object, "numberBase");
 
-  JS_ToInt32(ctx, &opts->number_base, value);
+  if(JS_ToInt32(ctx, &opts->number_base, value) || opts->number_base == 0)
+    opts->number_base = 10;
+
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, object, "classKey");
@@ -773,7 +775,7 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
   if(tag != JS_TAG_SYMBOL && opts->colors)
     writer_puts(wr, COLOR_YELLOW);
 
-  {
+  if(opts->number_base != 10 && js_number_integral(value)) {
     int64_t num;
 
     if(!JS_ToInt64Ext(ctx, &num, value)) {
@@ -781,9 +783,11 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
 
       switch(base) {
         case 16: writer_puts(wr, "0x"); break;
-        case 2: writer_puts(wr, "0b"); break;
         case 8: writer_puts(wr, "0o"); break;
-        default: base = 10; break;
+        case 2:
+          writer_puts(wr, "0b");
+          break;
+          // default: base = 10; break;
       }
       char buf[256];
       size_t len = base == 10 ? i64toa(buf, num, base) : u64toa(buf, num, base);
@@ -792,6 +796,12 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
     } else {
       writer_puts(wr, "NaN");
     }
+  } else {
+    size_t len;
+    const char* str;
+
+    if((str = JS_ToCStringLen(ctx, &len, value)))
+      writer_write(wr, str, len);
   }
 
   /*if(opts->number_base == 16 && (!JS_TAG_IS_FLOAT64(tag) || (isfinite(JS_VALUE_GET_FLOAT64(value)) && floor(JS_VALUE_GET_FLOAT64(value)) == JS_VALUE_GET_FLOAT64(value)))) {
@@ -1070,9 +1080,13 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
     return -1;
 
   BOOL is_array = js_is_array(ctx, value);
+  BOOL is_function = JS_IsFunction(ctx, value);
 
   if(opts->depth != INT32_MAX && depth + 1 > opts->depth) {
-    writer_puts(wr, is_array ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]") : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
+    writer_puts(wr,
+                is_function ? (opts->colors ? COLOR_MARINE "[Function]" COLOR_NONE : "[Function]")
+                : is_array  ? (opts->colors ? COLOR_MARINE "[Array]" COLOR_NONE : "[Array]")
+                            : (opts->colors ? COLOR_MARINE "[Object]" COLOR_NONE : "[Object]"));
     return 1;
   }
 
@@ -1094,8 +1108,6 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
       return 1;
     }
   }
-
-  BOOL is_function = JS_IsFunction(ctx, value);
 
   if(!is_function) {
     BOOL is_typedarray = js_is_typedarray(ctx, value);

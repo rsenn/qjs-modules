@@ -127,7 +127,7 @@ typedef struct pcg_state_setseq_64 {
   uint64_t state, inc;
 } pcg32_random_t;
 
-static pcg32_random_t pcg32_global = {0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL};
+static thread_local pcg32_random_t pcg32_global = {0x853c49e6748fea9bULL, 0xda3e39cb94b95bdbULL};
 
 static inline uint32_t
 pcg32_random_r(pcg32_random_t* rng) {
@@ -348,7 +348,7 @@ set_text_color(intptr_t fd, int intc, int32_t intv[]) {
 
   ssize_t r = dbuf.size > 0 ? write(fd, dbuf.buf, dbuf.size) : 0;
 
-#if 1 // DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT
   for(size_t i = 0; i < dbuf.size; i++)
     if(dbuf.buf[i] == '\x1b')
       dbuf.buf[i] = 0xac;
@@ -2224,16 +2224,19 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewUint32(ctx, num);
       break;
     }
+
     case RANDOM_RANDI: {
       int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
       ret = JS_NewInt32(ctx, num);
       break;
     }
+
     case RANDOM_RANDF: {
       uint32_t num = pcg32_random();
-      ret = JS_NewFloat64(ctx, (double)num / UINT32_MAX);
+      ret = JS_NewFloat64(ctx, ((double)num / (UINT32_MAX >> 1)) - 1.0l);
       break;
     }
+
     case RANDOM_SRAND: {
       uint32_t st = 0;
       JS_ToUint32(ctx, &st, argv[0]);

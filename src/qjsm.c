@@ -355,12 +355,15 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   }
 
   if(JS_IsModule(val) || module) {
+    JSModuleDef* m;
     if(!JS_IsModule(val)) {
-      JSModuleDef* m = js_module_at(ctx, -1);
+      m = js_module_at(ctx, -1);
       val = module_value(ctx, m);
+    } else {
+      m = JS_VALUE_GET_PTR(val);
     }
 
-    module_exports_get(ctx, JS_VALUE_GET_PTR(val), TRUE, global_obj);
+    module_exports_get(ctx, m, TRUE, global_obj);
   } else {
     JS_ToInt32(ctx, &ret, val);
   }
@@ -1273,7 +1276,7 @@ static JSValue
 jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char* str;
   size_t len;
-  JSValue ret;
+  JSValue ret = JS_UNDEFINED;
   int32_t module;
 
   str = JS_ToCStringLen(ctx, &len, argv[0]);

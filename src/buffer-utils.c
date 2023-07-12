@@ -451,7 +451,7 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
     ret.value = JS_DupValue(ctx, value);
   }
 
-  if(js_is_arraybuffer(ctx, ret.value)) {
+  if(js_is_arraybuffer(ctx, ret.value) || js_is_sharedarraybuffer(ctx, ret.value)) {
     block_arraybuffer(&ret.block, ret.value, ctx);
   } else {
     JS_ThrowTypeError(ctx, "Invalid type (%s) for input buffer", js_value_typestr(ctx, ret.value));

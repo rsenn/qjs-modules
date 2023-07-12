@@ -235,7 +235,9 @@ child_process_spawn(ChildProcess* cp) {
     exit(errno);
   }
 
+#ifdef DEBUG_OUTPUT
   printf("forked proc %d\n", pid);
+#endif
 
   if(cp->child_fds) {
     for(i = 0; i < cp->num_fds; i++) {
@@ -262,6 +264,7 @@ child_process_wait(ChildProcess* cp, int flags) {
 
     if(ret == WAIT_TIMEOUT)
       continue;
+
     if(ret == WAIT_FAILED)
       return -1;
 
@@ -275,6 +278,7 @@ child_process_wait(ChildProcess* cp, int flags) {
       return cp->pid;
     }
   }
+
   return -1;
 
 #elif defined(POSIX_SPAWN)

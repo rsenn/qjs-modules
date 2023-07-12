@@ -15,6 +15,7 @@ function ReadChild(...args) {
   let cmd = args.shift();
   let child = child_process.spawn(cmd, args, { stdio: ['inherit', 'pipe', 'inherit'] });
   let data = '';
+
   console.log('child', child);
 
   let [stdin, stdout, stderr] = child.stdio;
@@ -46,9 +47,12 @@ function ReadChild(...args) {
     // console.log('chunk:', chunk);
     data += chunk;
   }*/
-  //child.wait();
+
+  let retval = child.wait();
+  console.log('retval', retval);
 
   console.log('child', child);
+
   return data;
 }
 
