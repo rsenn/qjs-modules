@@ -303,7 +303,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       break;
     }
 
-    case PREDICATE_SHIFT: {      
+    case PREDICATE_SHIFT: {
       if(pr->shift.n <= args->c) {
         JSArguments args2 = *args;
 
@@ -524,14 +524,14 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     case PREDICATE_INSTANCEOF: {
       const char* name = js_function_name(ctx, pr->unary.predicate);
       dbuf_putstr(dbuf, name);
-      js_cstring_free(ctx, name);
+      JS_FreeCString(ctx, name);
       break;
     }
 
     case PREDICATE_PROTOTYPEIS: {
       const char* name = js_object_tostring(ctx, pr->unary.predicate);
       dbuf_putstr(dbuf, name);
-      js_cstring_free(ctx, name);
+      JS_FreeCString(ctx, name);
       break;
     }
 

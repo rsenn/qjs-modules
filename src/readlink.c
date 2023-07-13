@@ -65,6 +65,7 @@ readlink(const char* LinkPath, char* buf, size_t maxlen) {
       wlen = rdb.u.MountPointReparseBuffer.SubstituteNameLength / sizeof(WCHAR);
       break;
     }
+
     case IO_REPARSE_TAG_SYMLINK: { /* Symlink */
       wbuf = rdb.u.SymbolicLinkReparseBuffer.PathBuffer + rdb.u.SymbolicLinkReparseBuffer.SubstituteNameOffset / sizeof(WCHAR);
       wlen = rdb.u.SymbolicLinkReparseBuffer.SubstituteNameLength / sizeof(WCHAR);

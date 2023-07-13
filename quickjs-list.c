@@ -25,11 +25,17 @@ typedef enum Direction {
   REV = 1,
 } Direction;
 
+typedef enum ListIteratorKind {
+  ITERATOR_KIND_KEY,
+  ITERATOR_KIND_VALUE,
+  ITERATOR_KIND_KEY_AND_VALUE,
+} ListIteratorKind;
+
 typedef struct ListIterator {
   List* list;
   struct list_head* link;
   int64_t index;
-  JSIteratorKindEnum kind;
+  ListIteratorKind kind;
   Direction dir;
 } ListIterator;
 
@@ -394,17 +400,17 @@ list_iterator_value(ListIterator* it, JSContext* ctx) {
   node = (Node*)it->link;
 
   switch(it->kind) {
-    case JS_ITERATOR_KIND_KEY: {
+    case ITERATOR_KIND_KEY: {
       ret = JS_NewInt64(ctx, it->index + it->list->size);
       break;
     }
 
-    case JS_ITERATOR_KIND_VALUE: {
+    case ITERATOR_KIND_VALUE: {
       ret = JS_DupValue(ctx, node->value);
       break;
     }
 
-    case JS_ITERATOR_KIND_KEY_AND_VALUE: {
+    case ITERATOR_KIND_KEY_AND_VALUE: {
       ret = JS_NewArray(ctx);
       JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, it->index + it->list->size));
       JS_SetPropertyUint32(ctx, ret, 1, JS_DupValue(ctx, node->value));
@@ -445,7 +451,7 @@ list_iterator_next(ListIterator* it, BOOL* pdone, JSContext* ctx) {
 }
 
 static JSValue
-js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, JSIteratorKindEnum kind, Direction dir) {
+js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, ListIteratorKind kind, Direction dir) {
   ListIterator* it;
   JSValue obj = JS_UNDEFINED;
 
@@ -495,7 +501,7 @@ js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(JS_IsException(proto))
     return JS_EXCEPTION;
 
-  return js_list_iterator_new(ctx, proto, list, JS_ITERATOR_KIND_VALUE, dir);
+  return js_list_iterator_new(ctx, proto, list, ITERATOR_KIND_VALUE, dir);
 }
 
 static JSValue
@@ -1226,9 +1232,9 @@ static const JSCFunctionListEntry js_list_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("reduce", 1, js_list_functional, METHOD_REDUCE),
     JS_CFUNC_MAGIC_DEF("reduceRight", 1, js_list_functional, METHOD_REDUCE_RIGHT),
     JS_CFUNC_MAGIC_DEF("sort", 0, js_list_functional, METHOD_SORT),
-    JS_CFUNC_MAGIC_DEF("values", 0, js_list_iterator, JS_ITERATOR_KIND_VALUE),
-    JS_CFUNC_MAGIC_DEF("keys", 0, js_list_iterator, JS_ITERATOR_KIND_KEY),
-    JS_CFUNC_MAGIC_DEF("entries", 0, js_list_iterator, JS_ITERATOR_KIND_KEY_AND_VALUE),
+    JS_CFUNC_MAGIC_DEF("values", 0, js_list_iterator, ITERATOR_KIND_VALUE),
+    JS_CFUNC_MAGIC_DEF("keys", 0, js_list_iterator, ITERATOR_KIND_KEY),
+    JS_CFUNC_MAGIC_DEF("entries", 0, js_list_iterator, ITERATOR_KIND_KEY_AND_VALUE),
     JS_ALIAS_DEF("[Symbol.iterator]", "values"),
     JS_CGETSET_MAGIC_DEF("size", js_list_get, 0, PROP_LENGTH),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "List", JS_PROP_CONFIGURABLE),

@@ -612,24 +612,29 @@ js_pgconn_get(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = JS_NewInt64(ctx, pgresult_cmdtuples(pq->result));
       break;
     }
+
     case PROP_NONBLOCKING: {
       ret = JS_NewBool(ctx, pq->conn ? PQisnonblocking(pq->conn) : pq->nonblocking);
       break;
     }
+
     case PROP_FD: {
       ret = JS_NewInt32(ctx, PQsocket(pq->conn));
       break;
     }
+
     case PROP_ERROR_MESSAGE: {
       const char* error = PQerrorMessage(pq->conn);
       ret = error && *error ? JS_NewString(ctx, error) : JS_NULL;
       break;
     }
+
     case PROP_OPTIONS: {
       const char* options = PQoptions(pq->conn);
       ret = options && *options ? JS_NewString(ctx, options) : JS_NULL;
       break;
     }
+
     case PROP_INSERT_ID: {
       PGresult* res;
       int64_t id = -1;
@@ -644,47 +649,56 @@ js_pgconn_get(JSContext* ctx, JSValueConst this_val, int magic) {
       }
       break;
     }
+
     case PROP_CLIENT_ENCODING: {
       int encoding = PQclientEncoding(pq->conn);
       const char* charset = pg_encoding_to_char(encoding);
       ret = charset && *charset ? JS_NewString(ctx, charset) : JS_NULL;
       break;
     }
+
     case PROP_PROTOCOL_VERSION: {
       ret = JS_NewUint32(ctx, PQprotocolVersion(pq->conn));
       break;
     }
+
     case PROP_SERVER_VERSION: {
       ret = JS_NewUint32(ctx, PQserverVersion(pq->conn));
       break;
     }
+
     case PROP_USER: {
       char* user = PQuser(pq->conn);
       ret = user ? JS_NewString(ctx, user) : JS_NULL;
       break;
     }
+
     case PROP_PASSWORD: {
       char* pass = PQpass(pq->conn);
       ret = pass ? JS_NewString(ctx, pass) : JS_NULL;
       break;
     }
+
     case PROP_HOST: {
       char* host = PQhost(pq->conn);
       ret = host ? JS_NewString(ctx, host) : JS_NULL;
 
       break;
     }
+
     case PROP_PORT: {
       char* port = PQport(pq->conn);
       ret = port ? JS_NewString(ctx, port) : JS_NULL;
 
       break;
     }
+
     case PROP_DB: {
       char* db = PQdb(pq->conn);
       ret = db ? JS_NewString(ctx, db) : JS_NULL;
       break;
     }
+
     case PROP_CONNINFO: {
       PQconninfoOption* info;
 
@@ -720,6 +734,7 @@ js_pgconn_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
 
       break;
     }
+
     case PROP_CLIENT_ENCODING: {
       const char* charset;
 
@@ -898,7 +913,7 @@ js_pgconn_escape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   JSValue ret = JS_UNDEFINED;
   PGSQLConnection* pq;
   char* dst;
-  size_t  dlen = 0;
+  size_t dlen = 0;
 
   pq = JS_GetOpaque(this_val, js_pgconn_class_id);
 
@@ -1280,7 +1295,7 @@ js_pgsqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
 
 static JSValue
 js_pgsqlerror_new(JSContext* ctx, const char* msg) {
-  JSValue  obj;
+  JSValue obj;
   JSValue argv[2];
 
   obj = JS_NewObjectProtoClass(ctx, pgsqlerror_proto, js_pgsqlerror_class_id);
@@ -1587,6 +1602,7 @@ js_pgresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
       break;
     }
+
     case METHOD_FETCH_FIELDS: {
       uint32_t i, num_fields = PQnfields(res);
 
@@ -1596,6 +1612,7 @@ js_pgresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         JS_SetPropertyUint32(ctx, ret, i, field_array(JS_GetOpaque(this_val, js_pgresult_class_id), i, ctx));
       break;
     }
+
     case METHOD_FETCH_ROW:
     case METHOD_FETCH_ASSOC: {
       BOOL done = FALSE;
@@ -1664,10 +1681,12 @@ js_pgresult_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
+
     case PROP_NUM_ROWS: {
       ret = JS_NewInt64(ctx, PQntuples(res));
       break;
     }
+
     case PROP_NUM_FIELDS: {
       ret = JS_NewInt64(ctx, PQnfields(res));
       break;

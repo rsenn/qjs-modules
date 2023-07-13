@@ -22,7 +22,8 @@ Writer
 writer_from_fd(intptr_t fd, bool close_on_end) {
   return (Writer){(WriteFunction*)(void*)&write, (void*)fd, close_on_end ? (WriterFinalizer*)(void*)&close : NULL};
 }
- ssize_t writer_tee_write(intptr_t opaque, const void* buf, size_t len) {
+ssize_t
+writer_tee_write(intptr_t opaque, const void* buf, size_t len) {
   Writer* wptr = (void*)opaque;
   ssize_t r[2];
 
@@ -43,7 +44,7 @@ writer_tee(const Writer a, const Writer b) {
 
   assert(opaque);
 
-  return (Writer){ writer_tee_write, (void*)opaque, (WriterFinalizer*)(void*)&orig_free};
+  return (Writer){writer_tee_write, (void*)opaque, (WriterFinalizer*)(void*)&orig_free};
 }
 
 ssize_t

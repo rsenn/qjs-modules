@@ -666,6 +666,7 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewBool(ctx, mysql_more_results(my));
       break;
     }
+
     case PROP_AFFECTED_ROWS: {
       my_ulonglong affected;
 
@@ -674,93 +675,114 @@ js_mysql_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
+
     case PROP_WARNING_COUNT: {
       ret = JS_NewUint32(ctx, mysql_warning_count(my));
       break;
     }
+
     case PROP_FIELD_COUNT: {
       ret = JS_NewUint32(ctx, mysql_field_count(my));
       break;
     }
+
     case PROP_SOCKET: {
       ret = JS_NewInt64(ctx, mysql_get_socket(my));
       break;
     }
+
     case PROP_ERRNO: {
       ret = JS_NewInt32(ctx, mysql_errno(my));
       break;
     }
+
     case PROP_ERROR: {
       const char* error = mysql_info(my);
       ret = error && *error ? JS_NewString(ctx, error) : JS_NULL;
       break;
     }
+
     case PROP_INFO: {
       const char* info = mysql_info(my);
       ret = info && *info ? JS_NewString(ctx, info) : JS_NULL;
       break;
     }
+
     case PROP_INSERT_ID: {
       ret = JS_NewInt64(ctx, mysql_insert_id(my));
       break;
     }
+
     case PROP_CHARSET: {
       const char* charset = mysql_character_set_name(my);
       ret = charset && *charset ? JS_NewString(ctx, charset) : JS_NULL;
       break;
     }
+
     case PROP_TIMEOUT: {
       ret = JS_NewUint32(ctx, mysql_get_timeout_value(my));
       break;
     }
+
     case PROP_TIMEOUT_MS: {
       ret = JS_NewUint32(ctx, mysql_get_timeout_value_ms(my));
       break;
     }
+
     case PROP_SERVER_NAME: {
       const char* name = mysql_get_server_name(my);
       ret = name && *name ? JS_NewString(ctx, name) : JS_NULL;
       break;
     }
+
     case PROP_SERVER_INFO: {
       const char* info = mysql_get_server_info(my);
       ret = info && *info ? JS_NewString(ctx, info) : JS_NULL;
       break;
     }
+
     case PROP_SERVER_VERSION: {
       ret = JS_NewUint32(ctx, mysql_get_server_version(my));
       break;
     }
+
     case PROP_USER: {
       ret = my->user ? JS_NewString(ctx, my->user) : JS_NULL;
       break;
     }
+
     case PROP_PASSWORD: {
       ret = my->passwd ? JS_NewString(ctx, my->passwd) : JS_NULL;
       break;
     }
+
     case PROP_HOST: {
       ret = my->host ? JS_NewString(ctx, my->host) : JS_NULL;
       break;
     }
+
     case PROP_PORT: {
       if(my->port > 0)
         ret = JS_NewUint32(ctx, my->port);
       break;
     }
+
     case PROP_DB: {
       ret = my->db ? JS_NewString(ctx, my->db) : JS_NULL;
 
       break;
     }
+
     case PROP_UNIX_SOCKET: {
       ret = my->unix_socket ? JS_NewString(ctx, my->unix_socket) : JS_NULL;
       break;
     }
+
     case PROP_STATUS: {
       ret = JS_NewInt32(ctx, my->status);
       break;
     }
+
     case PROP_PENDING: {
       AsyncClosure* ac;
       int32_t pending = 0;
@@ -786,10 +808,12 @@ js_mysql_getstatic(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = info && *info ? JS_NewString(ctx, info) : JS_NULL;
       break;
     }
+
     case PROP_CLIENT_VERSION: {
       ret = JS_NewUint32(ctx, mysql_get_client_version());
       break;
     }
+
     case PROP_THREAD_SAFE: {
       ret = JS_NewBool(ctx, mysql_thread_safe());
       break;
@@ -1268,7 +1292,7 @@ js_mysqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
 
 static JSValue
 js_mysqlerror_new(JSContext* ctx, const char* msg) {
-  JSValue  obj;
+  JSValue obj;
   JSValue argv[1];
 
   obj = JS_NewObjectProtoClass(ctx, mysqlerror_proto, js_mysqlerror_class_id);
@@ -1584,6 +1608,7 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
       break;
     }
+
     case METHOD_FETCH_FIELDS: {
       MYSQL_FIELD* fields;
 
@@ -1638,18 +1663,22 @@ js_mysqlresult_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewBool(ctx, mysql_eof(res));
       break;
     }
+
     case PROP_NUM_ROWS: {
       ret = JS_NewInt64(ctx, mysql_num_rows(res));
       break;
     }
+
     case PROP_NUM_FIELDS: {
       ret = JS_NewInt64(ctx, mysql_num_fields(res));
       break;
     }
+
     case PROP_FIELD_COUNT: {
       ret = JS_NewUint32(ctx, res->field_count);
       break;
     }
+
     case PROP_CURRENT_FIELD: {
       ret = JS_NewUint32(ctx, res->current_field);
       break;
@@ -1678,6 +1707,7 @@ js_mysqlresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValue
         ret = JS_DupValue(ctx, this_val);
       break;
     }
+
     case METHOD_ITERATOR: {
       if(block)
         ret = JS_DupValue(ctx, this_val);
@@ -1887,6 +1917,7 @@ field_is_boolean(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_TINY: {
       return field->length == 1;
     }
+
     case MYSQL_TYPE_BIT: {
       return field->length == 1 && (field->flags & UNSIGNED_FLAG);
     }

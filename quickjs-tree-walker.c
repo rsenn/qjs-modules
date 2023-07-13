@@ -109,8 +109,8 @@ tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
 static JSValue
 js_get_filter(JSContext* ctx, JSValueConst val) {
   JSValue ret = JS_DupValue(ctx, val);
- BOOL is_obj = JS_IsObject(val);
- 
+  BOOL is_obj = JS_IsObject(val);
+
   if(is_obj) {
     JSValue fn = JS_GetPropertyStr(ctx, val, "acceptNode");
     if(JS_IsFunction(ctx, fn)) {
@@ -118,7 +118,7 @@ js_get_filter(JSContext* ctx, JSValueConst val) {
       ret = fn;
     }
   }
- 
+
   if(!JS_IsFunction(ctx, ret)) {
     JS_FreeValue(ctx, ret);
     return JS_NULL;
@@ -252,21 +252,25 @@ js_tree_walker_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         return JS_UNDEFINED;
       break;
     }
+
     case LAST_CHILD: {
       if((it = property_recursion_enter(&w->hier, ctx, -1, PROPENUM_DEFAULT_FLAGS)) == 0)
         return JS_UNDEFINED;
       break;
     }
+
     case NEXT_SIBLING: {
       if(!property_enumeration_setpos(it, it->idx + 1))
         return JS_UNDEFINED;
       break;
     }
+
     case PARENT_NODE: {
       if((it = property_recursion_pop(&w->hier, ctx)) == 0)
         return JS_UNDEFINED;
       break;
     }
+
     case PREVIOUS_SIBLING: {
       if(!property_enumeration_setpos(it, it->idx - 1))
         return JS_UNDEFINED;
@@ -324,32 +328,39 @@ js_tree_walker_get(JSContext* ctx, JSValueConst this_val, int magic) {
       }
       break;
     }
+
     case PROP_CURRENT_NODE: {
       if(it)
         ret = property_enumeration_value(it, ctx);
       break;
     }
+
     case PROP_CURRENT_KEY: {
       if(it)
         ret = property_enumeration_key(it, ctx);
       break;
     }
+
     case PROP_CURRENT_PATH: {
       ret = property_recursion_path(&w->hier, ctx);
       break;
     }
+
     case PROP_DEPTH: {
       ret = JS_NewUint32(ctx, vector_size(&w->hier, sizeof(PropertyEnumeration)) - 1);
       break;
     }
+
     case PROP_INDEX: {
       ret = JS_NewUint32(ctx, property_enumeration_index(it));
       break;
     }
+
     case PROP_LENGTH: {
       ret = JS_NewUint32(ctx, property_enumeration_length(it));
       break;
     }
+
     case PROP_TAG_MASK: {
       ret = JS_NewUint32(ctx, w->tag_mask);
       break;

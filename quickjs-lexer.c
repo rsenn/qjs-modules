@@ -160,7 +160,7 @@ js_token_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     ret = JS_NewStringLen(ctx, (const char*)tok->lexeme, tok->byte_length);
 
   if(hint)
-    js_cstring_free(ctx, hint);
+    JS_FreeCString(ctx, hint);
   return ret;
 }
 
@@ -919,6 +919,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         ret = JS_NewString(ctx, lexer_state_name(lex, id));
       break;
     }
+
     case LEXER_PEEK: {
       ret = JS_NewInt32(ctx, lexer_peek(lex, 0, ctx));
       break;

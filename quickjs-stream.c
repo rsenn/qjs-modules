@@ -49,7 +49,7 @@ read_new(Reader* rd, JSContext* ctx) {
 
     promise_init(ctx, &op->promise);
   }
-  
+
   return op;
 }
 
@@ -132,7 +132,7 @@ reader_clear(Reader* rd, JSContext* ctx) {
   list_for_each_prev_safe(el, next, &rd->reads) {
     promise_reject(ctx, &el->promise.funcs, JS_UNDEFINED);
 
-    read_free_rt(el, ctx->rt);
+    read_free_rt(el, JS_GetRuntime(ctx));
   }
 
   return ret;
@@ -536,10 +536,12 @@ js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       ret = JS_DupValue(ctx, rd->events[READER_CANCELLED].value);
       break;
     }
+
     case READER_READ: {
       ret = reader_read(rd, ctx);
       break;
     }
+
     case READER_RELEASE_LOCK: {
       reader_release_lock(rd, ctx);
       break;
@@ -708,6 +710,7 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       break;
     }
+
     case READABLE_GET_READER: {
       Reader* rd;
 
@@ -738,6 +741,7 @@ js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewBool(ctx, readable_closed(st));
       break;
     }
+
     case STREAM_LOCKED: {
       ret = JS_NewBool(ctx, !!readable_locked(st));
       break;
@@ -765,10 +769,12 @@ js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       readable_close(st, ctx);
       break;
     }
+
     case READABLE_ENQUEUE: {
       ret = readable_enqueue(st, argv[0], ctx);
       break;
     }
+
     case READABLE_ERROR: {
       readable_cancel(st, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
       break;
@@ -1087,11 +1093,13 @@ js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       ret = writer_abort(wr, argv[0], ctx);
       break;
     }
+
     case WRITER_CLOSE: {
       ret = writer_close(wr, ctx);
 
       break;
     }
+
     case WRITER_WRITE: {
       /*  MemoryBlock b;
         InputBuffer input;
@@ -1102,6 +1110,7 @@ js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       ret = writer_write(wr, argv[0], ctx);
       break;
     }
+
     case WRITER_RELEASE_LOCK: {
       writer_release_lock(wr, ctx);
       break;
@@ -1124,6 +1133,7 @@ js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_DupValue(ctx, wr->events[WRITER_CLOSED].value);
       break;
     }
+
     case WRITER_READY: {
       ret = JS_DupValue(ctx, wr->events[WRITER_READY].value);
       break;
@@ -1273,6 +1283,7 @@ js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewBool(ctx, writable_closed(st));
       break;
     }
+
     case WRITABLE_LOCKED: {
       ret = JS_NewBool(ctx, writable_locked(st) || writable_locked(st));
       break;
@@ -1415,6 +1426,7 @@ js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = js_readable_wrap(ctx, st->readable);
       break;
     }
+
     case TRANSFORM_WRITABLE: {
       ret = js_writable_wrap(ctx, st->writable);
       break;
@@ -1442,11 +1454,13 @@ js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       ret = readable_enqueue(st->readable, argv[0], ctx);
       break;
     }
+
     case TRANSFORM_ERROR: {
       JS_FreeValue(ctx, readable_cancel(st->readable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx));
       ret = writable_abort(st->writable, argc >= 1 ? argv[0] : JS_UNDEFINED, ctx);
       break;
     }
+
     case TRANSFORM_TERMINATE: {
       JS_FreeValue(ctx, readable_close(st->readable, ctx));
       ret = writable_close(st->writable, ctx);

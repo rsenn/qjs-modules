@@ -46,7 +46,6 @@
 #include "utils.h"
 #include "vector.h"
 #include <quickjs-libc.h>
-#include "quickjs-internal.h"
 #include "buffer-utils.h"
 #include "base64.h"
 #include "debug.h"
@@ -337,8 +336,10 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
     jsm_stack_pop(ctx);
 
   if(JS_IsException(val)) {
-    JSValue stack = JS_IsObject(ctx->rt->current_exception) ? JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack") : JS_UNDEFINED;
-    const char* msg = JS_ToCString(ctx, ctx->rt->current_exception);
+    JSValue exception = JS_GetException(ctx);
+    JSValue stack = JS_IsObject(exception) ? JS_GetPropertyStr(ctx, exception, "stack") : JS_UNDEFINED;
+
+    const char* msg = JS_ToCString(ctx, exception);
     const char* st = JS_ToCString(ctx, stack);
     fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, msg, js_value_typestr(ctx, stack));
 
@@ -350,7 +351,8 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
     if(msg)
       JS_FreeCString(ctx, msg);
 
-    js_error_print(ctx, ctx->rt->current_exception);
+    js_error_print(ctx, exception);
+    JS_FreeValue(ctx, exception);
     return -1;
   }
 
@@ -468,9 +470,11 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       JSValue ret = JS_EvalFunction(ctx, obj);
       JS_FreeValue(ctx, ret);
 
+#ifdef DANGEROUS_QJS_INTERNAL
       /* rename module */
       JS_FreeAtom(ctx, m->module_name);
       m->module_name = JS_NewAtom(ctx, rec->module_name);
+#endif
     }
 
     rec->def = m;
@@ -716,7 +720,7 @@ jsm_module_find(JSContext* ctx, const char* name, int start_pos) {
 
 static JSModuleDef*
 jsm_module_load(JSContext* ctx, const char* path, const char* name) {
-  struct list_head* last_module = js_modules_list(ctx)->prev;
+  JSModuleDef* last_module = module_last(ctx);
   DynBuf dbuf;
 
   dbuf_init2(&dbuf, 0, 0);
@@ -737,12 +741,16 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   dbuf_free(&dbuf);
 
-  if(last_module->next == js_modules_list(ctx))
+  if(module_next(ctx, last_module) == NULL)
     return 0;
 
-  assert(last_module->next != js_modules_list(ctx));
+  assert(module_next(ctx, last_module));
 
-  JSModuleDef* m = last_module->next->next != js_modules_list(ctx) ? list_entry(last_module->next->next, JSModuleDef, link) : jsm_module_find(ctx, path, 0);
+  JSModuleDef* m = module_next(ctx, module_next(ctx, last_module));
+
+  if(!m)
+    m = jsm_module_find(ctx, path, 0);
+
   return m;
 }
 
@@ -847,8 +855,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
       js_module_set_import_meta(ctx, module, FALSE, FALSE);
       m = JS_VALUE_GET_PTR(module);
 
-      JS_FreeAtom(ctx, m->module_name);
-      m->module_name = JS_NewAtomLen(ctx, name, offset - 1);
+      module_rename(ctx, m, JS_NewAtomLen(ctx, name, offset - 1));
     }
 
     JS_FreeValue(ctx, module);
@@ -933,7 +940,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
 
     if(bltin->def)
-      file = js_atom_tostring(ctx, bltin->def->module_name);
+      file = module_namestr(ctx, bltin->def);
 
   } else {
     if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash(name)) {
@@ -944,18 +951,25 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
       if(path_isimplicit(path))
         dbuf_putstr(&dir, "." PATHSEP_S);
 
-      path_concat5(path, path_dirlen1(path), name, strlen(name), &dir);
+      path_append3(path, path_dirlen1(path), &dir);
+      path_append2(name, &dir);
       dsl = path_skipdotslash2((const char*)dir.buf, dir.size);
 
       /* XXX BUG: should use path_normalize* to resolve symlinks */
-      path_normalize2((char*)dir.buf + dsl, dir.size - dsl);
+      dir.size = dsl + path_normalize2((char*)dir.buf + dsl, dir.size - dsl);
+      dbuf_0(&dir);
+
       file = (char*)dir.buf;
     } else if(has_suffix(name, CONFIG_SHEXT) && !path_isabsolute1(name)) {
       DynBuf db;
       js_dbuf_init(ctx, &db);
 
-      path_concat3(QUICKJS_C_MODULE_DIR, name, &db);
+      path_append2(QUICKJS_C_MODULE_DIR, &db);
+      path_append2(name, &db);
+      dbuf_0(&db);
+
       file = (char*)db.buf;
+
     } else if(has_dot_or_slash(name) && path_exists1(name) && path_isrelative(name)) {
       file = path_absolute1(name);
       path_normalize1(file);
@@ -987,7 +1001,8 @@ jsm_module_save(void) {
   FILE* f;
 
   dbuf_init2(&db, 0, 0);
-  path_concat3(home, PATHSEP_S ".qjsm_modules", &db);
+  dbuf_putstr(&db, (const uint8_t*)home);
+  path_append2(".qjsm_modules", &db);
 
   if((f = fopen((const char*)db.buf, "w"))) {
     char** ptr;
@@ -1009,8 +1024,10 @@ static void
 jsm_module_restore(void) {
   char* home = path_gethome();
   DynBuf db;
+
   dbuf_init2(&db, 0, 0);
-  path_concat3(home, PATHSEP_S ".qjsm_modules", &db);
+  dbuf_putstr(&db, (const uint8_t*)home);
+  path_append2(".qjsm_modules", &db);
 
   FILE* f;
   char buf[1024];
@@ -1298,9 +1315,11 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
   }
 
-  if(JS_IsException(ret))
-    if(JS_IsNull(JS_GetRuntime(ctx)->current_exception))
-      ret = JS_GetException(ctx);
+  if(JS_IsException(ret)) {
+
+    // if(JS_IsNull(JS_GetRuntime(ctx)->current_exception))
+    ret = JS_GetException(ctx);
+  }
 
   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE) {
     JSModuleDef* m = JS_VALUE_GET_PTR(ret);
@@ -1399,13 +1418,9 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(argc > 1)
         JS_ToInt32(ctx, &start, argv[1]);
 
-      m = JS_IsModule(argv[0]) ? JS_VALUE_GET_PTR(argv[0]) : jsm_module_find(ctx, name, start);
+      m = /*JS_IsModule(argv[0]) ? JS_VALUE_GET_PTR(argv[0]) :*/ jsm_module_find(ctx, name, start);
 
-      if((index = js_module_indexof(ctx, m)) != -1)
-        if(start < 0)
-          index -= list_size(&ctx->loaded_modules);
-
-      val = JS_NewInt32(ctx, index);
+      val = JS_NewInt32(ctx, js_module_indexof(ctx, m));
 
       break;
     }
@@ -1476,6 +1491,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       val = module_imports(ctx, m);
       break;
     }
+
     case GET_MODULE_REQMODULES: {
 
       val = module_reqmodules(ctx, m);
@@ -1488,7 +1504,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case GET_MODULE_NAMESPACE: {
-      val = JS_DupValue(ctx, m->module_ns);
+      val = module_ns(ctx, m);
       break;
     }
 
@@ -1498,15 +1514,12 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case GET_MODULE_EXCEPTION: {
-      if(m->eval_has_exception)
-        val = JS_DupValue(ctx, m->eval_exception);
-      else
-        val = JS_NULL;
+      val = module_exception(ctx, m);
       break;
     }
 
     case GET_MODULE_META_OBJ: {
-      val = JS_DupValue(ctx, m->meta_obj);
+      val = module_meta_obj(ctx, m);
       break;
     }
   }
@@ -1943,8 +1956,10 @@ main(int argc, char** argv) {
     js_std_loop(ctx);
   }
 
-  if(!JS_IsNull(ctx->rt->current_exception))
-    jsm_dump_error(ctx);
+  JSValue exception = JS_GetException(ctx);
+
+  if(!JS_IsNull(exception))
+    js_error_print(ctx, exception);
 
   if(dump_memory) {
     JSMemoryUsage stats;

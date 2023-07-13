@@ -88,6 +88,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
+
     case LIBMAGIC_FILE: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
       const char* str = magic_file(cookie, filename);
@@ -97,6 +98,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         JS_FreeCString(ctx, filename);
       break;
     }
+
     case LIBMAGIC_BUFFER: {
       InputBuffer buf = js_input_chars(ctx, argv[0]);
       const char* str = magic_buffer(cookie, buf.data, buf.size);
@@ -105,16 +107,19 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       input_buffer_free(&buf, ctx);
       break;
     }
+
     case LIBMAGIC_GETFLAGS: {
       ret = JS_NewInt32(ctx, magic_getflags(cookie));
       break;
     }
+
     case LIBMAGIC_SETFLAGS: {
       int32_t flags = -1;
       JS_ToInt32(ctx, &flags, argv[0]);
       ret = JS_NewInt32(ctx, magic_setflags(cookie, flags));
       break;
     }
+
     case LIBMAGIC_CHECK: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
@@ -125,6 +130,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         JS_FreeCString(ctx, filename);
       break;
     }
+
     case LIBMAGIC_COMPILE: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
@@ -135,6 +141,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         JS_FreeCString(ctx, filename);
       break;
     }
+
     case LIBMAGIC_LIST: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
@@ -145,6 +152,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         JS_FreeCString(ctx, filename);
       break;
     }
+
     case LIBMAGIC_LOAD: {
       const char* filename = argc < 1 || JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
@@ -155,6 +163,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         JS_FreeCString(ctx, filename);
       break;
     }
+
     case LIBMAGIC_LOAD_BUFFERS: {
       InputBuffer buf[argc];
       void* pointers[argc];
@@ -175,6 +184,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       break;
     }
+
     case LIBMAGIC_GETPARAM: {
       int32_t param = -1;
       size_t value = 0;
@@ -184,6 +194,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         ret = JS_NewInt64(ctx, (int64_t)value);
       break;
     }
+
     case LIBMAGIC_SETPARAM: {
       int32_t param = -1;
       int64_t value = -1;
@@ -212,10 +223,12 @@ js_magic_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, magic_error(cookie));
       break;
     }
+
     case LIBMAGIC_ERRNO: {
       ret = JS_NewInt32(ctx, magic_errno(cookie));
       break;
     }
+
     case LIBMAGIC_VERSION: {
       ret = JS_NewInt32(ctx, magic_version());
       break;

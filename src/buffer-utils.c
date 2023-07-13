@@ -326,7 +326,7 @@ dbuf_put_value(DynBuf* db, JSContext* ctx, JSValueConst value) {
   size_t len;
   str = JS_ToCStringLen(ctx, &len, value);
   dbuf_append(db, str, len);
-  js_cstring_free(ctx, str);
+  JS_FreeCString(ctx, str);
 }
 
 void
@@ -661,7 +661,7 @@ screen_size(int size[2]) {
 #undef js_realloc_rt
 void
 js_dbuf_allocator(JSContext* ctx, DynBuf* s) {
-  dbuf_init2(s, ctx->rt, (DynBufReallocFunc*)js_realloc_rt);
+  dbuf_init2(s, JS_GetRuntime(ctx), (DynBufReallocFunc*)js_realloc_rt);
 }
 
 inline int

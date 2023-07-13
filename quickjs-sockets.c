@@ -42,9 +42,9 @@ static JSValue js_socket_method(JSContext*, JSValueConst, int, JSValueConst[], i
     ret = (sock)->ret < 0 ? (on_fail) : (on_success); \
   } while(0)
 
-VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_async_socket_class_id = 0;
-VISIBLE JSValue sockaddr_proto = {{0}, JS_TAG_UNDEFINED}, sockaddr_ctor = {{0}, JS_TAG_UNDEFINED}, socket_proto = {{0}, JS_TAG_UNDEFINED}, async_socket_proto = {{0}, JS_TAG_UNDEFINED},
-                socket_ctor = {{0}, JS_TAG_UNDEFINED}, async_socket_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_asyncsocket_class_id = 0;
+VISIBLE JSValue sockaddr_proto = {{0}, JS_TAG_UNDEFINED}, sockaddr_ctor = {{0}, JS_TAG_UNDEFINED}, socket_proto = {{0}, JS_TAG_UNDEFINED}, asyncsocket_proto = {{0}, JS_TAG_UNDEFINED},
+                socket_ctor = {{0}, JS_TAG_UNDEFINED}, asyncsocket_ctor = {{0}, JS_TAG_UNDEFINED};
 
 /*extern const uint32_t qjsm_fd_set_size;
 extern const uint8_t qjsm_fd_set[1030];
@@ -118,7 +118,7 @@ static JSValue
 js_sockaddr_wrap(JSContext* ctx, SockAddr* a) {
   JSValue obj;
 
-  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_async_socket_class_id == 0)
+  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_asyncsocket_class_id == 0)
     js_sockets_init(ctx, 0);
 
   obj = JS_NewObjectProtoClass(ctx, sockaddr_proto, js_sockaddr_class_id);
@@ -223,7 +223,7 @@ js_sockaddr_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   JSValue proto, obj = JS_UNDEFINED;
   SockAddr *a, *other;
 
-  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_async_socket_class_id == 0)
+  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_asyncsocket_class_id == 0)
     js_sockets_init(ctx, 0);
 
   if(!(a = js_mallocz(ctx, sizeof(SockAddr))))
@@ -971,7 +971,7 @@ js_socket_data(JSValueConst value) {
 
     if(id == js_socket_class_id)
       sock = *(Socket*)&opaque;
-    else if(id == js_async_socket_class_id)
+    else if(id == js_asyncsocket_class_id)
       sock = *(Socket*)opaque;
   }
 
@@ -1011,16 +1011,16 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
   JSValue obj;
   Socket* s;
 
-  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_async_socket_class_id == 0)
+  if(js_sockaddr_class_id == 0 && js_socket_class_id == 0 && js_asyncsocket_class_id == 0)
     js_sockets_init(ctx, 0);
 
   if(js_is_nullish(ctx, proto))
-    proto = async ? async_socket_proto : socket_proto;
+    proto = async ? asyncsocket_proto : socket_proto;
 
   if(async && js_object_same(proto, socket_proto))
-    proto = async_socket_proto;
+    proto = asyncsocket_proto;
 
-  obj = JS_NewObjectProtoClass(ctx, proto, async ? js_async_socket_class_id : js_socket_class_id);
+  obj = JS_NewObjectProtoClass(ctx, proto, async ? js_asyncsocket_class_id : js_socket_class_id);
   if(JS_IsException(obj))
     goto fail;
 
@@ -1033,16 +1033,15 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
     JS_SetOpaque(obj, asock);
     s = (Socket*)asock;
 
+    s->fd = fd;
+    s->nonblock = FALSE;
   } else {
     Socket sock = SOCKET(fd, 0, -1, FALSE, async, owner);
     assert(sizeof(Socket) == sizeof(sock.ptr));
 
     JS_SetOpaque(obj, sock.ptr);
-    s = (Socket*)&(JS_VALUE_GET_OBJ(obj)->u.opaque);
+    //  s = (Socket*)&(JS_VALUE_GET_OBJ(obj)->u.opaque);
   }
-
-  s->fd = fd;
-  s->nonblock = FALSE;
 
   return obj;
 
@@ -1081,60 +1080,57 @@ enum {
 
 static JSValue
 js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
-  Socket* s;
+  Socket s = js_socket_data(this_val);
   JSValue ret = JS_UNDEFINED;
-
-  if(!(s = js_socket_ptr(this_val)))
-    return JS_UNDEFINED;
 
   switch(magic) {
     case PROP_FD: {
-      ret = JS_NewInt32(ctx, (int16_t)s->fd);
+      ret = JS_NewInt32(ctx, (int16_t)s.fd);
       break;
     }
 
     case PROP_OPEN: {
-      ret = JS_NewBool(ctx, socket_open(*s));
+      ret = JS_NewBool(ctx, socket_open(s));
       break;
     }
 
     case PROP_EOF: {
-      ret = JS_NewBool(ctx, socket_eof(*s));
+      ret = JS_NewBool(ctx, socket_eof(s));
       break;
     }
 
     case PROP_RET: {
-      ret = JS_NewInt32(ctx, s->ret);
+      ret = JS_NewInt32(ctx, s.ret);
       break;
     }
 
     case PROP_MODE: {
 #ifdef _WIN32
 #else
-      int fl = fcntl(s->fd, F_GETFL);
+      int fl = fcntl(s.fd, F_GETFL);
       ret = JS_NewInt32(ctx, fl);
 #endif
       break;
     }
 
     case PROP_SYSCALL: {
-      if(s->sysno > 0) {
+      if(s.sysno > 0) {
         const char* name;
 
-        if((name = syscall_name(s->sysno)))
+        if((name = syscall_name(s.sysno)))
           ret = JS_NewString(ctx, name);
       }
       break;
     }
 
     case PROP_ERRNO: {
-      ret = JS_NewUint32(ctx, socket_error(*s));
+      ret = JS_NewUint32(ctx, socket_error(s));
       break;
     }
 
     case PROP_ERROR: {
-      if(s->error)
-        ret = js_syscallerror_new(ctx, socket_syscall(*s), s->error);
+      if(s.error)
+        ret = js_syscallerror_new(ctx, socket_syscall(s), s.error);
       break;
     }
 
@@ -1142,7 +1138,7 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       SockAddr* a = js_mallocz(ctx, sizeof(SockAddr));
       socklen_t len = sizeof(SockAddr);
 
-      JS_SOCKETCALL_RETURN(SYSCALL_GETSOCKNAME, s, getsockname(socket_handle(*s), (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
+      JS_SOCKETCALL_RETURN(SYSCALL_GETSOCKNAME, &s, getsockname(socket_handle(s), (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
 
       break;
     }
@@ -1151,13 +1147,13 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
       SockAddr* a = js_mallocz(ctx, sizeof(SockAddr));
       socklen_t len = sizeof(SockAddr);
 
-      JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, s, getpeername(socket_handle(*s), (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
+      JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, &s, getpeername(socket_handle(s), (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
 
       break;
     }
 
     case PROP_NONBLOCK: {
-      ret = JS_NewBool(ctx, s->nonblock);
+      ret = JS_NewBool(ctx, s.nonblock);
       break;
     }
   }
@@ -1166,11 +1162,11 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 static JSValue
-js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
-  Socket* s;
+js_asyncsocket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
+  AsyncSocket* s;
   JSValue ret = JS_UNDEFINED;
 
-  if(!(s = js_socket_ptr(this_val)))
+  if(!(s = js_asyncsocket_ptr(this_val)))
     return JS_UNDEFINED;
 
   switch(magic) {
@@ -1181,7 +1177,7 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
 #else
       uint32_t mode = 0;
       JS_ToUint32(ctx, &mode, value);
-      JS_SOCKETCALL_RETURN(SYSCALL_FCNTL, s, fcntl(s->fd, F_SETFL, mode), JS_NewInt32(ctx, s->ret), JS_UNDEFINED);
+      JS_SOCKETCALL_RETURN(SYSCALL_FCNTL, (Socket*)s, fcntl(s->fd, F_SETFL, mode), JS_NewInt32(ctx, s->ret), JS_UNDEFINED);
 #endif
       break;
     }
@@ -1194,6 +1190,35 @@ js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
 
   /* if(id == js_socket_class_id)
      JS_SetOpaque(this_val, sock.ptr);*/
+
+  return ret;
+}
+
+static JSValue
+js_socket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic) {
+  Socket s = js_socket_data(this_val);
+  JSValue ret = JS_UNDEFINED;
+
+  switch(magic) {
+    case PROP_MODE: {
+#ifdef _WIN32
+      ULONG mode = JS_ToBool(ctx, value);
+      ret = JS_NewInt32(ctx, ioctlsocket(socket_handle(s), FIONBIO, &mode));
+#else
+      uint32_t mode = 0;
+      JS_ToUint32(ctx, &mode, value);
+      JS_SOCKETCALL_RETURN(SYSCALL_FCNTL, &s, fcntl(s.fd, F_SETFL, mode), JS_NewInt32(ctx, s.ret), JS_UNDEFINED);
+#endif
+      break;
+    }
+
+    case PROP_NONBLOCK: {
+      s.nonblock = JS_ToBool(ctx, value);
+      break;
+    }
+  }
+
+  JS_SetOpaque(this_val, s.ptr);
 
   return ret;
 }
@@ -1231,7 +1256,7 @@ enum {
  */
 static JSValue
 js_asyncsocket_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
-  AsyncSocket* asock = js_async_socket_ptr(data[0]);
+  AsyncSocket* asock = js_asyncsocket_ptr(data[0]);
   JSValueConst value = data[0];
 
   assert(JS_VALUE_GET_TAG(data[1]) == JS_TAG_OBJECT);
@@ -1281,7 +1306,7 @@ js_asyncsocket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   int data_len;
   JSValue ret = JS_UNDEFINED, set_handler, args[2], data[7], promise, resolving_funcs[2];
 
-  if(!(s = js_async_socket_ptr(this_val)))
+  if(!(s = js_asyncsocket_ptr(this_val)))
     return JS_ThrowInternalError(ctx, "Must be an AsyncSocket");
 
   if(!js_socket_check_open(ctx, *(Socket*)s))
@@ -1330,7 +1355,7 @@ js_asyncsocket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static JSValue
 js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  Socket* s = js_socket_ptr(this_val);
+  Socket sock = js_socket_data(this_val), *s = &sock;
   JSValue ret = JS_UNDEFINED;
   SockAddr* a = 0;
   socklen_t alen = 0;
@@ -1546,7 +1571,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     case METHOD_CLOSE: {
       /*AsyncSocket* asock;
-      if((asock = js_async_socket_ptr(this_val))) {
+      if((asock = js_asyncsocket_ptr(this_val))) {
         if(JS_IsObject(asock->pending[magic & 1]))
           JS_FreeValue(ctx, JS_Call(ctx, asock->pending[magic & 1], JS_NULL, 0, 0));
       }*/
@@ -1559,6 +1584,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       break;
     }
   }
+
+  if(js_asyncsocket_ptr(this_val) == NULL)
+    JS_SetOpaque(this_val, sock.ptr);
 
   return ret;
 }
@@ -1631,7 +1659,7 @@ js_syncsocket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
 static JSValue
 js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Socket sock = js_socket_data(this_val);
-  JSValue obj = JS_NewObjectClass(ctx, sock.async ? js_async_socket_class_id : js_socket_class_id);
+  JSValue obj = JS_NewObjectClass(ctx, sock.async ? js_asyncsocket_class_id : js_socket_class_id);
 
   JS_DefinePropertyValueStr(ctx, obj, "fd", JS_NewInt32(ctx, (int16_t)sock.fd), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "ret", JS_NewUint32(ctx, sock.ret), JS_PROP_CONFIGURABLE);
@@ -1651,18 +1679,9 @@ js_socket_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 static JSValue
 js_socket_valueof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int32_t fd = -1;
-  Socket* s;
+  Socket s = js_socket_data(this_val);
 
-  if((s = js_socket_ptr(this_val))) {
-    fd = socket_fd(*s);
-  } else {
-    JSValue value = JS_GetPropertyStr(ctx, this_val, "fd");
-    JS_ToInt32(ctx, &fd, value);
-    JS_FreeValue(ctx, value);
-  }
-
-  return JS_NewInt32(ctx, fd);
+  return JS_NewInt32(ctx, socket_fd(s));
 }
 
 static JSValue
@@ -1683,7 +1702,7 @@ js_socket_finalizer(JSRuntime* rt, JSValue val) {
     if(socket_open(sock))
       close(socket_fd(sock));
 
-  if((asock = js_async_socket_ptr(val))) {
+  if((asock = js_asyncsocket_ptr(val))) {
     JS_FreeValueRT(rt, asock->pending[0]);
     JS_FreeValueRT(rt, asock->pending[1]);
     js_free_rt(rt, asock);
@@ -1695,7 +1714,7 @@ static JSClassDef js_socket_class = {
     .finalizer = js_socket_finalizer,
 };
 
-static JSClassDef js_async_socket_class = {
+static JSClassDef js_asyncsocket_class = {
     .class_name = "AsyncSocket",
     .finalizer = js_socket_finalizer,
 };
@@ -1747,7 +1766,7 @@ static const JSCFunctionListEntry js_socket_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Socket", JS_PROP_CONFIGURABLE),
 };
 
-static const JSCFunctionListEntry js_async_socket_proto_funcs[] = {
+static const JSCFunctionListEntry js_asyncsocket_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("fd", js_socket_get, 0, PROP_FD, JS_PROP_C_W_E),
     JS_CGETSET_MAGIC_DEF("errno", js_socket_get, 0, PROP_ERRNO),
     JS_CGETSET_MAGIC_DEF("syscall", js_socket_get, 0, PROP_SYSCALL),
@@ -1757,9 +1776,9 @@ static const JSCFunctionListEntry js_async_socket_proto_funcs[] = {
     JS_CGETSET_MAGIC_DEF("remote", js_socket_get, 0, PROP_REMOTE),
     JS_CGETSET_MAGIC_DEF("open", js_socket_get, 0, PROP_OPEN),
     JS_CGETSET_MAGIC_DEF("eof", js_socket_get, 0, PROP_EOF),
-    JS_CGETSET_MAGIC_DEF("mode", js_socket_get, js_socket_set, PROP_MODE),
-    JS_CGETSET_MAGIC_DEF("ret", js_socket_get, js_socket_set, PROP_RET),
-    JS_CGETSET_MAGIC_DEF("nonblock", js_socket_get, js_socket_set, PROP_NONBLOCK),
+    JS_CGETSET_MAGIC_DEF("mode", js_socket_get, js_asyncsocket_set, PROP_MODE),
+    JS_CGETSET_MAGIC_DEF("ret", js_socket_get, js_asyncsocket_set, PROP_RET),
+    JS_CGETSET_MAGIC_DEF("nonblock", js_socket_get, js_asyncsocket_set, PROP_NONBLOCK),
     JS_CFUNC_MAGIC_DEF("ndelay", 0, js_socket_method, METHOD_NDELAY),
     JS_CFUNC_MAGIC_DEF("bind", 1, js_socket_method, METHOD_BIND),
     JS_CFUNC_MAGIC_DEF("connect", 1, js_socket_method, METHOD_CONNECT),
@@ -2524,28 +2543,28 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
 
   // js_set_inspect_method(ctx, socket_proto, js_socket_inspect);
 
-  JS_NewClassID(&js_async_socket_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_async_socket_class_id, &js_async_socket_class);
+  JS_NewClassID(&js_asyncsocket_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_asyncsocket_class_id, &js_asyncsocket_class);
 
-  async_socket_ctor = JS_NewCFunction2(ctx, js_asyncsocket_constructor, "AsyncSocket", 1, JS_CFUNC_constructor, 0);
-  async_socket_proto = JS_NewObject(ctx);
+  asyncsocket_ctor = JS_NewCFunction2(ctx, js_asyncsocket_constructor, "AsyncSocket", 1, JS_CFUNC_constructor, 0);
+  asyncsocket_proto = JS_NewObject(ctx);
 
-  JS_SetPropertyFunctionList(ctx, async_socket_proto, js_async_socket_proto_funcs, countof(js_async_socket_proto_funcs));
-  JS_SetPropertyFunctionList(ctx, async_socket_ctor, js_socket_static_funcs, countof(js_socket_static_funcs));
-  JS_SetPropertyFunctionList(ctx, async_socket_ctor, js_sockets_errnos, countof(js_sockets_errnos));
-  JS_SetPropertyFunctionList(ctx, async_socket_ctor, js_sockets_defines, countof(js_sockets_defines));
+  JS_SetPropertyFunctionList(ctx, asyncsocket_proto, js_asyncsocket_proto_funcs, countof(js_asyncsocket_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, asyncsocket_ctor, js_socket_static_funcs, countof(js_socket_static_funcs));
+  JS_SetPropertyFunctionList(ctx, asyncsocket_ctor, js_sockets_errnos, countof(js_sockets_errnos));
+  JS_SetPropertyFunctionList(ctx, asyncsocket_ctor, js_sockets_defines, countof(js_sockets_defines));
 
-  JS_SetClassProto(ctx, js_async_socket_class_id, async_socket_proto);
-  JS_SetConstructor(ctx, async_socket_ctor, async_socket_proto);
+  JS_SetClassProto(ctx, js_asyncsocket_class_id, asyncsocket_proto);
+  JS_SetConstructor(ctx, asyncsocket_ctor, asyncsocket_proto);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SockAddr", sockaddr_ctor);
     JS_SetModuleExport(ctx, m, "Socket", socket_ctor);
-    JS_SetModuleExport(ctx, m, "AsyncSocket", async_socket_ctor);
+    JS_SetModuleExport(ctx, m, "AsyncSocket", asyncsocket_ctor);
     /*JS_SetModuleExport(ctx, m, "fd_set", fdset_ctor);
     JS_SetModuleExport(ctx, m, "socklen_t", socklen_ctor);*/
 
-    const char* module_name = JS_AtomToCString(ctx, m->module_name);
+    const char* module_name = module_namecstr(ctx, m);
 
     if(!strcmp(module_name, "socket"))
       JS_SetModuleExport(ctx, m, "default", socket_ctor);

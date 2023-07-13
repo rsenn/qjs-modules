@@ -100,21 +100,25 @@ js_location_get(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = JS_AtomToValue(ctx, loc->file);
       break;
     }
+
     case LOCATION_PROP_LINE: {
       if(loc->line != -1)
         ret = JS_NewUint32(ctx, loc->line + 1);
       break;
     }
+
     case LOCATION_PROP_COLUMN: {
       if(loc->column != -1)
         ret = JS_NewUint32(ctx, loc->column + 1);
       break;
     }
+
     case LOCATION_PROP_CHAROFFSET: {
       if(loc->char_offset >= 0)
         ret = JS_NewInt64(ctx, loc->char_offset);
       break;
     }
+
     case LOCATION_PROP_BYTEOFFSET: {
       if(loc->byte_offset >= 0)
         ret = JS_NewInt64(ctx, loc->byte_offset);
@@ -145,24 +149,28 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
       loc->file = JS_ValueToAtom(ctx, value);
       break;
     }
+
     case LOCATION_PROP_LINE: {
       uint32_t n = 0;
       JS_ToUint32(ctx, &n, value);
       loc->line = n > 0 ? (int32_t)n - 1 : -1;
       break;
     }
+
     case LOCATION_PROP_COLUMN: {
       uint32_t n = 0;
       JS_ToUint32(ctx, &n, value);
       loc->column = n > 0 ? (int32_t)n - 1 : -1;
       break;
     }
+
     case LOCATION_PROP_CHAROFFSET: {
       int64_t n = 0;
       JS_ToInt64(ctx, &n, value);
       loc->char_offset = n >= 0 ? n : -1;
       break;
     }
+
     case LOCATION_PROP_BYTEOFFSET: {
       int64_t n = 0;
       JS_ToInt64(ctx, &n, value);
@@ -219,7 +227,7 @@ js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   }
 
   if(hint)
-    js_cstring_free(ctx, hint);
+    JS_FreeCString(ctx, hint);
   return ret;
 }
 
@@ -327,6 +335,7 @@ js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       ret = JS_NewBool(ctx, location_equal(loc, other));
       break;
     }
+
     case LOCATION_TOSTRING: {
       ret = js_location_tostring(ctx, loc);
       break;
@@ -449,7 +458,7 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
   if(m) {
     JS_SetModuleExport(ctx, m, "Location", location_ctor);
 
-    const char* module_name = JS_AtomToCString(ctx, m->module_name);
+    const char* module_name = module_namecstr(ctx, m);
 
     if(!strcmp(module_name, "location"))
       JS_SetModuleExport(ctx, m, "default", location_ctor);

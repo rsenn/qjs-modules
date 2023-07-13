@@ -186,10 +186,12 @@ js_decoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, textcode_encodings[dec->type_code]);
       break;
     }
+
     case DECODER_ENDIANNESS: {
       ret = JS_NewBool(ctx, dec->endian == BIG);
       break;
     }
+
     case DECODER_BUFFERED: {
       ret = JS_NewUint32(ctx, ringbuffer_length(&dec->buffer));
       break;
@@ -395,6 +397,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
         return JS_ThrowInternalError(ctx, "%s: TextEncoder: ringbuffer write failed", __func__);
       break;
     }
+
     case UTF16: {
       ptr = block_begin(&in.block);
       end = block_end(&in.block);
@@ -420,6 +423,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
 
       break;
     }
+
     case UTF32: {
       ptr = block_begin(&in.block);
       end = block_end(&in.block);
@@ -460,10 +464,12 @@ js_encoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, textcode_encodings[enc->type_code]);
       break;
     }
+
     case ENCODER_ENDIANNESS: {
       ret = JS_NewBool(ctx, enc->endian == BIG);
       break;
     }
+
     case ENCODER_BUFFERED: {
       ret = JS_NewUint32(ctx, ringbuffer_length(&enc->buffer));
       break;

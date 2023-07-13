@@ -70,19 +70,13 @@ char* path_dup2(const char* path, size_t n);
 int path_absolute3(const char* path, size_t len, DynBuf* db);
 char* path_absolute2(const char* path, size_t len);
 char* path_absolute1(const char* path);
+void path_append2(const char* x, DynBuf* db);
 void path_append3(const char* x, size_t len, DynBuf* db);
-int path_canonical3(const char* path, size_t len, DynBuf* db);
-char* path_canonical2(const char* path, size_t len);
-char* path_canonical1(const char* path);
 size_t path_normalize3(const char* path, size_t n, DynBuf* db);
 size_t path_normalize1(char* path);
 size_t path_normalize2(char* path, size_t nb);
 SizePair path_common4(const char* s1, size_t n1, const char* s2, size_t n2);
 size_t path_components3(const char* p, size_t len, uint32_t n);
-void path_concat5(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db);
-char* path_concat4(const char* a, size_t alen, const char* b, size_t blen);
-void path_concat3(const char* a, const char* b, DynBuf* db);
-char* path_concat2(const char* a, const char* b);
 const char* path_at4(const char* p, size_t plen, size_t* len_ptr, int i);
 const char* path_at3(const char* p, size_t* len_ptr, int i);
 size_t path_offset4(const char* p, size_t len, size_t* len_ptr, int i);
@@ -134,11 +128,12 @@ char* path_relative2(const char* path, const char* relative_to);
 int path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out);
 char* path_relative4(const char* s1, size_t n1, const char* s2, size_t n2);
 size_t path_root2(const char* x, size_t n);
-char* path_dirname1(const char* path);
-char* path_dirname2(const char* path, size_t n);
-char* path_dirname3(const char* path, size_t n, char* dest);
-size_t path_dirlen1(const char* path);
-size_t path_dirlen2(const char* path, size_t n);
+size_t path_dirlen2(const char*, size_t);
+size_t path_dirlen1(const char*);
+char* path_dirname1(const char*);
+char* path_dirname2(const char*, size_t);
+size_t path_basename2(const char*, size_t);
+size_t path_basename3(const char*, size_t*, size_t);
 int path_readlink2(const char* path, DynBuf* dir);
 char* path_readlink1(const char* path);
 int path_compare4(const char* a, size_t alen, const char* b, size_t blen);
@@ -180,13 +175,8 @@ path_separator1(const char* p) {
 }
 
 static inline size_t
-path_separator3(const char* p, size_t len, size_t pos) {
+path_separator2(const char* p, size_t len) {
   const char *start = p, *end = p + len;
-
-  if(pos > len)
-    pos = len;
-
-  p += pos;
 
   while(p < end && path_issep(*p))
     ++p;
@@ -208,7 +198,7 @@ static inline size_t
 path_skip2(const char* s, size_t n) {
   const char *p = s, *e = s + n;
   p += path_component3(s, n, 0);
-  p += path_separator3(p, e - p, 0);
+  p += path_separator2(p, e - p);
   return p - s;
 }
 
@@ -221,7 +211,7 @@ path_skip3(const char* s, size_t* len, size_t n) {
   if(len)
     *len = p - s;
 
-  p += path_separator3(p, e - p, 0);
+  p += path_separator2(p, e - p);
 
   return p - s;
 }
@@ -229,11 +219,37 @@ path_skip3(const char* s, size_t* len, size_t n) {
 static inline size_t
 path_right2(const char* s, size_t n) {
   const char* p = s + n - 1;
+
   while(p > s && path_issep(*p))
     --p;
+
   while(p > s && !path_issep(*p))
     --p;
+
+  if(path_issep(*p))
+    ++p;
+
   return p - s;
+}
+
+static inline size_t
+path_right3(const char* s, size_t* len, size_t n) {
+  const char *p = s + n - 1, *e;
+
+  while(p > s && path_issep(*p))
+    --p;
+  e = p;
+  while(p > s && !path_issep(*p))
+    --p;
+
+  *len = e - p;
+
+  return p - s + 1;
+}
+
+static inline size_t
+path_right1(const char* s) {
+  return path_right2(s, strlen(s));
 }
 
 static inline int
@@ -241,6 +257,7 @@ path_getsep1(const char* path) {
   while(*path) {
     if(path_issep(*path))
       return *path;
+
     ++path;
   }
   return '\0';
@@ -276,8 +293,10 @@ path_skipdotslash1(const char* s) {
 static inline size_t
 path_skipdotslash2(const char* s, size_t n) {
   size_t i = 0;
+
   while(i < n && path_isdotslash(&s[i]))
     i += path_skip2(&s[i], n - i);
+
   return i;
 }
 

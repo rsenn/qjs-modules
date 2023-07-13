@@ -59,7 +59,7 @@ struct async_closure {
   JSCFunctionMagic* set_mux;
 };
 
-struct PACK async_socket_state {
+struct PACK asyncsocket_state {
   SOCKET_PROPS();
   /*struct socket_handlers handlers;*/
   JSValue pending[2];
@@ -74,15 +74,15 @@ ENDPACK
 #define SOCKET_INIT() SOCKET(-1, 0, -1, FALSE, FALSE, FALSE)
 
 typedef union socket_state Socket;
-typedef struct async_socket_state AsyncSocket;
+typedef struct asyncsocket_state AsyncSocket;
 
 VISIBLE SockAddr* js_sockaddr_data(JSValueConst);
 VISIBLE SockAddr* js_sockaddr_data2(JSContext*, JSValueConst value);
 VISIBLE Socket js_socket_data(JSValueConst);
 void* optval_buf(JSContext*, JSValueConst arg, int32_t** tmp_ptr, socklen_t* lenp);
 
-extern VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_async_socket_class_id;
-extern VISIBLE JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, async_socket_proto, async_socket_ctor;
+extern VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_asyncsocket_class_id;
+extern VISIBLE JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, asyncsocket_proto, asyncsocket_ctor;
 
 enum SocketCalls {
   SYSCALL_SOCKET = 0,
@@ -163,18 +163,8 @@ sockaddr_size(const SockAddr* sa) {
 }
 
 static inline AsyncSocket*
-js_async_socket_ptr(JSValueConst value) {
-  return js_async_socket_class_id ? JS_GetOpaque(value, js_async_socket_class_id) : 0;
-}
-
-static inline Socket*
-js_socket_ptr(JSValueConst value) {
-  if(js_socket_class_id != 0 && JS_GetClassID(value) == js_socket_class_id) {
-    struct JSObject* obj = JS_VALUE_GET_OBJ(value);
-    return (Socket*)&obj->u.opaque;
-  }
-
-  return (Socket*)js_async_socket_ptr(value);
+js_asyncsocket_ptr(JSValueConst value) {
+  return js_asyncsocket_class_id ? JS_GetOpaque(value, js_asyncsocket_class_id) : 0;
 }
 
 /**

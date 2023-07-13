@@ -132,7 +132,7 @@ resolvable_free(JSContext* ctx, struct resolvable_item* rsva) {
 static struct repeater_item*
 queue_alloc(JSContext* ctx) {
   struct repeater_item* item;
-  
+
   if((item = js_mallocz(ctx, sizeof(struct repeater_item)))) {
     item->resolvable.resolve = JS_UNDEFINED;
     item->resolvable.value = JS_UNDEFINED;
@@ -198,7 +198,7 @@ get_iterators(JSContext* ctx, JSValueConst arg) {
       JS_SetPropertyUint32(ctx, ret, j++, tmp);
     } else {
     }
-    
+
     JS_FreeValue(ctx, meth);
   }
   return ret;

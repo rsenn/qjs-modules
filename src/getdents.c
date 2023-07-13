@@ -277,7 +277,7 @@ getdents_read(Directory* d) {
     }
     while(d->bpos < d->nread) {
       dirent_struct* e = DIRENT(d);
-      //char d_type = d->buf[d->bpos + e->d_reclen - 1];
+      // char d_type = d->buf[d->bpos + e->d_reclen - 1];
       d->bpos += e->d_reclen;
 
       if(e->d_ino != 0 /*&& d_type == DT_REG*/)

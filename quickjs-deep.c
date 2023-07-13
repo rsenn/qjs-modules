@@ -225,8 +225,8 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   for(;;) {
     depth = property_recursion_depth(&it->frames);
     it->seq == 0           ? (property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS), 1)
-                : (depth >= max_depth) ? property_recursion_skip(&it->frames, ctx)
-                                       : /*depth > 0          ?*/ property_recursion_next(&it->frames, ctx);
+    : (depth >= max_depth) ? property_recursion_skip(&it->frames, ctx)
+                           : /*depth > 0          ?*/ property_recursion_next(&it->frames, ctx);
 
     ++it->seq;
 
@@ -296,7 +296,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
 
- vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_recursion_skip(&frames, ctx) : property_recursion_next(&frames, ctx);
+    vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth ? property_recursion_skip(&frames, ctx) : property_recursion_next(&frames, ctx);
 
   } while((it = property_recursion_top(&frames)));
 

@@ -50,7 +50,7 @@ js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
 
 static JSValue
 js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) {
-  JSValue  obj;
+  JSValue obj;
   char msg[1024];
   JSValue argv[2];
 
@@ -63,6 +63,7 @@ js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) 
       snprintf(msg, sizeof(msg), "%s: Invalid arguments were passed to the function", sp_get_port_name(port));
       break;
     }
+
     case SP_ERR_FAIL: {
       char* err;
       err = sp_last_error_message();
@@ -70,10 +71,12 @@ js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) 
       sp_free_error_message(err);
       break;
     }
+
     case SP_ERR_MEM: {
       snprintf(msg, sizeof(msg), "%s: A memory allocation failed while executing the operation", sp_get_port_name(port));
       break;
     }
+
     case SP_ERR_SUPP: {
       snprintf(msg, sizeof(msg), "%s: The requested operation is not supported by this system or device", sp_get_port_name(port));
       break;
@@ -314,10 +317,12 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
       break;
     }
+
     case SERIALPORT_CLOSE: {
       sp_close(port);
       break;
     }
+
     case SERIALPORT_GETINFO: {
       int vid = -1, pid = -1;
 
@@ -361,6 +366,7 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
       break;
     }
+
     case SERIALPORT_GETSIGNALS: {
       enum sp_signal signals;
 
@@ -376,6 +382,7 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
       break;
     }
+
     case SERIALPORT_SETSIGNALS: {
       JSValue dtr, rts, brk;
 
@@ -397,6 +404,7 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       JS_FreeValue(ctx, brk);
       break;
     }
+
     case SERIALPORT_FLUSH: {
       enum sp_return result;
       int32_t which = SP_BUF_BOTH;
@@ -436,18 +444,22 @@ js_serialport_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
+
     case SERIALPORT_NAME: {
       ret = JS_NewString(ctx, sp_get_port_name(port));
       break;
     }
+
     case SERIALPORT_DESCRIPTION: {
       ret = JS_NewString(ctx, sp_get_port_description(port));
       break;
     }
+
     case SERIALPORT_TRANSPORT: {
       ret = JS_NewString(ctx, ((const char* [3]){"native", "usb", "bluetooth"})[sp_get_port_transport(port) - SP_TRANSPORT_NATIVE]);
       break;
     }
+
     case SERIALPORT_INPUTWAITING: {
       int64_t result;
 
@@ -458,6 +470,7 @@ js_serialport_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
+
     case SERIALPORT_OUTPUTWAITING: {
       int64_t result;
 
@@ -614,7 +627,7 @@ js_serial_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "Serial", serial_ctor);
     JS_SetModuleExport(ctx, m, "SerialError", serialerror_ctor);
 
-    const char* module_name = JS_AtomToCString(ctx, m->module_name);
+    const char* module_name = module_namecstr(ctx, m);
 
     if(!strcmp(module_name, "cookie"))
       JS_SetModuleExport(ctx, m, "default", serial_ctor);

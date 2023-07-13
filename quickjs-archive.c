@@ -160,6 +160,7 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       ret = js_archive_wrap_proto(ctx, proto, ar);
       break;
     }
+
     case ARCHIVE_METHOD_WRITE: {
       if(!(ar = archive_write_new()))
         return JS_ThrowOutOfMemory(ctx);
@@ -196,10 +197,12 @@ js_archive_getter(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, archive_format_name(ar));
       break;
     }
+
     case ARCHIVE_PROP_COMPRESSION: {
       ret = JS_NewString(ctx, archive_filter_name(ar, 0));
       break;
     }
+
     case ARCHIVE_PROP_FILTERS: {
       int i, num_filters = archive_filter_count(ar);
       ret = JS_NewArray(ctx);
@@ -208,6 +211,7 @@ js_archive_getter(JSContext* ctx, JSValueConst this_val, int magic) {
       }
       break;
     }
+
     case ARCHIVE_PROP_FILECOUNT: {
       ret = JS_NewUint32(ctx, archive_file_count(ar));
       break;
@@ -374,7 +378,7 @@ js_archive_extract(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   if(argc >= 3) {
     if(!(aeref = js_malloc(ctx, sizeof(struct ArchiveEntryRef))))
       return JS_EXCEPTION;
-    
+
     aeref->ctx = ctx;
     aeref->callback = argv[2];
     aeref->args[0] = this_val;
@@ -794,116 +798,140 @@ js_archiveentry_getter(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = js_date_from_time_ns(ctx, archive_entry_atime(ent), archive_entry_atime_nsec(ent));
       break;
     }
+
     case ENTRY_CTIME: {
       if(archive_entry_ctime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_ctime(ent), archive_entry_ctime_nsec(ent));
       break;
     }
+
     case ENTRY_MTIME: {
       if(archive_entry_mtime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_mtime(ent), archive_entry_mtime_nsec(ent));
       break;
     }
+
     case ENTRY_BIRTHTIME: {
       if(archive_entry_birthtime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_birthtime(ent), archive_entry_birthtime_nsec(ent));
       break;
     }
+
     case ENTRY_DEV: {
       if(archive_entry_dev_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_dev(ent));
       break;
     }
+
     case ENTRY_DEVMAJOR: {
       if(archive_entry_dev_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_devmajor(ent));
       break;
     }
+
     case ENTRY_DEVMINOR: {
       if(archive_entry_dev_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_devminor(ent));
       break;
     }
+
     case ENTRY_FILETYPE: {
       ret = JS_NewInt64(ctx, archive_entry_filetype(ent));
       break;
     }
+
     case ENTRY_FFLAGS: {
       const char* str;
       if((str = archive_entry_fflags_text(ent)))
         ret = JS_NewString(ctx, str);
       break;
     }
+
     case ENTRY_GID: {
       ret = JS_NewInt64(ctx, archive_entry_gid(ent));
       break;
     }
+
     case ENTRY_GNAME: {
       const char* str;
       if((str = archive_entry_gname_utf8(ent)))
         ret = JS_NewString(ctx, str);
       break;
     }
+
     case ENTRY_HARDLINK: {
       const char* str;
       if((str = archive_entry_hardlink_utf8(ent)))
         ret = JS_NewString(ctx, str);
       break;
     }
+
     case ENTRY_INO: {
       if(archive_entry_ino_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_ino(ent));
       break;
     }
+
     case ENTRY_LINK: {
       // ret = JS_NewString(ctx, archive_entry_link_utf8(ent));
       break;
     }
+
     case ENTRY_MODE: {
       ret = JS_NewUint32(ctx, archive_entry_mode(ent));
       break;
     }
+
     case ENTRY_NLINK: {
       ret = JS_NewUint32(ctx, archive_entry_nlink(ent));
       break;
     }
+
     case ENTRY_PATHNAME: {
       const char* str;
       if((str = archive_entry_pathname_utf8(ent)))
         ret = JS_NewString(ctx, str);
       break;
     }
+
     case ENTRY_PERM: {
       ret = JS_NewUint32(ctx, archive_entry_perm(ent));
       break;
     }
+
     case ENTRY_RDEV: {
       ret = JS_NewInt64(ctx, archive_entry_rdev(ent));
       break;
     }
+
     case ENTRY_RDEVMAJOR: {
       ret = JS_NewInt64(ctx, archive_entry_rdevmajor(ent));
       break;
     }
+
     case ENTRY_RDEVMINOR: {
       ret = JS_NewInt64(ctx, archive_entry_rdevminor(ent));
       break;
     }
+
     case ENTRY_SIZE: {
       if(archive_entry_size_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_size(ent));
       break;
     }
+
     case ENTRY_SYMLINK: {
       const char* str;
       if((str = archive_entry_symlink_utf8(ent)))
         ret = JS_NewString(ctx, str);
       break;
     }
+
     case ENTRY_UID: {
       ret = JS_NewInt64(ctx, archive_entry_uid(ent));
       break;
     }
+
     case ENTRY_UNAME: {
       const char* str;
       if((str = archive_entry_uname_utf8(ent)))
@@ -932,6 +960,7 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_CTIME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_unset_ctime(ent);
@@ -941,6 +970,7 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_MTIME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_unset_mtime(ent);
@@ -950,6 +980,7 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_BIRTHTIME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_unset_birthtime(ent);
@@ -959,30 +990,35 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_DEV: {
       int64_t n;
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_dev(ent, n);
       break;
     }
+
     case ENTRY_DEVMAJOR: {
       int64_t n;
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_devmajor(ent, n);
       break;
     }
+
     case ENTRY_DEVMINOR: {
       int64_t n;
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_devminor(ent, n);
       break;
     }
+
     case ENTRY_FILETYPE: {
       uint32_t n;
       if(!JS_ToUint32(ctx, &n, value))
         archive_entry_set_filetype(ent, n);
       break;
     }
+
     case ENTRY_FFLAGS: {
       if(JS_IsString(value)) {
         const char* str = JS_ToCString(ctx, value);
@@ -1001,12 +1037,14 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_GID: {
       int64_t n;
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_gid(ent, n);
       break;
     }
+
     case ENTRY_GNAME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_gname_utf8(ent, 0);
@@ -1017,6 +1055,7 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_HARDLINK: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_hardlink_utf8(ent, 0);
@@ -1027,12 +1066,14 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_INO: {
       int64_t n;
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_ino(ent, n);
       break;
     }
+
     case ENTRY_LINK: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_link_utf8(ent, 0);
@@ -1043,18 +1084,21 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_MODE: {
       uint32_t n;
       if(!JS_ToUint32(ctx, &n, value))
         archive_entry_set_mode(ent, n);
       break;
     }
+
     case ENTRY_NLINK: {
       uint32_t n;
       if(!JS_ToUint32(ctx, &n, value))
         archive_entry_set_nlink(ent, n);
       break;
     }
+
     case ENTRY_PATHNAME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_pathname_utf8(ent, 0);
@@ -1065,30 +1109,35 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_PERM: {
       uint32_t n;
       if(!JS_ToUint32(ctx, &n, value))
         archive_entry_set_perm(ent, n);
       break;
     }
+
     case ENTRY_RDEV: {
       int64_t n;
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_rdev(ent, n);
       break;
     }
+
     case ENTRY_RDEVMAJOR: {
       int64_t n;
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_rdevmajor(ent, n);
       break;
     }
+
     case ENTRY_RDEVMINOR: {
       int64_t n;
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_rdevminor(ent, n);
       break;
     }
+
     case ENTRY_SIZE: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_unset_size(ent);
@@ -1099,6 +1148,7 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_SYMLINK: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_symlink_utf8(ent, 0);
@@ -1109,12 +1159,14 @@ js_archiveentry_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value
       }
       break;
     }
+
     case ENTRY_UID: {
       int64_t n;
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_uid(ent, n);
       break;
     }
+
     case ENTRY_UNAME: {
       if(js_is_nullish(ctx, value)) {
         archive_entry_set_uname_utf8(ent, 0);

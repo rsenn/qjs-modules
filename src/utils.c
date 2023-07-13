@@ -6,7 +6,6 @@
 #include <cutils.h>
 #include "vector.h"
 #include <libregexp.h>
-#include "quickjs-internal.h"
 #include "buffer-utils.h"
 #include <time.h>
 #include <math.h>
@@ -17,9 +16,6 @@
 #include <quickjs-libc.h>
 #include "debug.h"
 
-#if defined(__EMSCRIPTEN__) && defined(__GNUC__)
-#define atomic_add_int __sync_add_and_fetch
-#endif
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
@@ -40,12 +36,6 @@ int strverscmp(const char*, const char*);
 
 #ifdef USE_WORKER
 #include <pthread.h>
-#include <stdatomic.h>
-
-static int
-atomic_add_int(int* ptr, int v) {
-  return atomic_fetch_add((_Atomic(uint32_t)*)ptr, v) + v;
-}
 #endif
 
 #if defined(__linux__) || defined(__APPLE__)
@@ -147,13 +137,13 @@ regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx) {
   if(js_is_regexp(ctx, argv[0])) {
     re.source = js_get_propertystr_stringlen(ctx, argv[0], "source", &re.len);
     re.flags = regexp_flags_fromstring((flagstr = js_get_propertystr_cstring(ctx, argv[0], "flags")));
-    js_cstring_free(ctx, flagstr);
+    JS_FreeCString(ctx, flagstr);
   } else {
     re.source = js_tostringlen(ctx, &re.len, argv[0]);
 
     if(argc > 1 && JS_IsString(argv[1])) {
       re.flags = regexp_flags_fromstring((flagstr = JS_ToCString(ctx, argv[1])));
-      js_cstring_free(ctx, flagstr);
+      JS_FreeCString(ctx, flagstr);
     }
   }
 
@@ -606,28 +596,6 @@ js_function_argc(JSContext* ctx, JSValueConst value) {
   return js_get_propertystr_int32(ctx, value, "length");
 }
 
-JSCFunction*
-js_function_cfunc(JSContext* ctx, JSValueConst value) {
-
-  if(js_value_isclass(ctx, value, JS_CLASS_C_FUNCTION)) {
-    JSObject* obj = JS_VALUE_GET_OBJ(value);
-    return obj->u.cfunc.c_function.generic;
-  }
-
-  return 0;
-}
-
-JSCFunctionMagic*
-js_function_cfuncmagic(JSContext* ctx, JSValueConst value) {
-
-  if(js_value_isclass(ctx, value, JS_CLASS_C_FUNCTION)) {
-    JSObject* obj = JS_VALUE_GET_OBJ(value);
-    return obj->u.cfunc.c_function.generic_magic;
-  }
-
-  return 0;
-}
-
 static JSValue
 js_function_bound(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* func_data) {
   int i = 0, j = 0, k = ABS_NUM(magic), l = SIGN_NUM(magic);
@@ -907,14 +875,14 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   if(!name) {
 
     if(str)
-      js_cstring_free(ctx, str);
+      JS_FreeCString(ctx, str);
 
     if((str = JS_ToCString(ctx, JS_GetPropertyStr(ctx, ctor, "name"))) && *str)
       name = js_strdup(ctx, str);
   }
 
   if(str)
-    js_cstring_free(ctx, str);
+    JS_FreeCString(ctx, str);
   return name;
 }
 
@@ -960,7 +928,7 @@ js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
 
   if((str = js_object_tostring(ctx, value))) {
     ret = strcmp(str, cmp) == 0;
-    js_cstring_free(ctx, str);
+    JS_FreeCString(ctx, str);
   }
 
   return ret;
@@ -1267,50 +1235,10 @@ js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueCon
 }
 
 JSClassID
-js_class_id(JSContext* ctx, int id) {
-  return ctx->rt->class_array[id].class_id;
-}
-
-JSClassID
 js_class_newid(void) {
   JSClassID id;
   JS_NewClassID(&id);
   return id;
-}
-
-JSClass*
-js_class_get(JSContext* ctx, JSClassID id) {
-  JSClass* ret = &ctx->rt->class_array[id];
-  return ret->class_id == id ? ret : 0;
-}
-
-JSClassID
-js_class_find(JSContext* ctx, const char* name) {
-  JSAtom atom = JS_NewAtom(ctx, name);
-  JSRuntime* rt = ctx->rt;
-  int i, n = rt->class_count;
-
-  for(i = 0; i < n; i++)
-
-    if(rt->class_array[i].class_name == atom)
-      return i;
-
-  return -1;
-}
-
-JSAtom
-js_class_atom(JSContext* ctx, JSClassID id) {
-  JSAtom atom = 0;
-
-  if(id > 0 && id < (JSClassID)ctx->rt->class_count)
-    atom = ctx->rt->class_array[id].class_name;
-  return atom;
-}
-
-const char*
-js_class_name(JSContext* ctx, JSClassID id) {
-  JSAtom atom = ctx->rt->class_array[id].class_name;
-  return JS_AtomToCString(ctx, atom);
 }
 
 const char*
@@ -1354,7 +1282,7 @@ js_function_prototype(JSContext* ctx) {
 
 BOOL
 js_is_input(JSContext* ctx, JSValueConst value) {
-  return JS_IsString(value) || js_value_isclass(ctx, value, JS_CLASS_ARRAY_BUFFER);
+  return JS_IsString(value) || js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value);
 }
 
 int
@@ -1365,8 +1293,8 @@ js_propenum_cmp(const void* a, const void* b, void* ptr) {
   stra = JS_AtomToCString(ctx, ((const JSPropertyEnum*)a)->atom);
   strb = JS_AtomToCString(ctx, ((const JSPropertyEnum*)b)->atom);
   ret = strverscmp(stra, strb);
-  js_cstring_free(ctx, stra);
-  js_cstring_free(ctx, strb);
+  JS_FreeCString(ctx, stra);
+  JS_FreeCString(ctx, strb);
   return ret;
 }
 
@@ -1556,11 +1484,11 @@ js_symbol_to_cstring(JSContext* ctx, JSValueConst sym) {
 
 JSValue*
 js_values_dup(JSContext* ctx, int nvalues, JSValueConst* values) {
-  JSValue* ret = js_mallocz_rt(ctx->rt, sizeof(JSValue) * nvalues);
+  JSValue* ret = js_mallocz_rt(JS_GetRuntime(ctx), sizeof(JSValue) * nvalues);
   int i;
 
   for(i = 0; i < nvalues; i++)
-    ret[i] = JS_DupValueRT(ctx->rt, values[i]);
+    ret[i] = JS_DupValueRT(JS_GetRuntime(ctx), values[i]);
   return ret;
 }
 
@@ -1716,7 +1644,7 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
      const char* str;
      str = JS_ToCStringLen(ctx, &len, value);
      ret = JS_NewStringLen(ctx, str, len);
-     js_cstring_free(ctx, str);
+     JS_FreeCString(ctx, str);
      break;
      }*/
     case TYPE_INT: {
@@ -1807,7 +1735,7 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   } else if(JS_IsObject(value)) {
     const char* str = js_object_tostring(ctx, value);
     dbuf_putstr(db, str);
-    js_cstring_free(ctx, str);
+    JS_FreeCString(ctx, str);
 
     if(db->size && db->buf[db->size - 1] == '\n')
       db->size--;
@@ -1820,7 +1748,7 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
     str = JS_ToCStringLen(ctx, &len, value);
     dbuf_append(db, (const uint8_t*)str, len);
 
-    js_cstring_free(ctx, str);
+    JS_FreeCString(ctx, str);
 
     if(is_string)
       dbuf_putc(db, '"');
@@ -1886,8 +1814,8 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
 
     ret = !strcmp(stra, strb);
 
-    js_cstring_free(ctx, stra);
-    js_cstring_free(ctx, strb);
+    JS_FreeCString(ctx, stra);
+    JS_FreeCString(ctx, strb);
   }
 
   return ret;
@@ -1967,52 +1895,6 @@ JSObject*
 js_value_obj(JSValueConst v) {
   return JS_IsObject(v) ? JS_VALUE_GET_OBJ(v) : 0;
 }
-char*
-js_cstring_ptr(JSValueConst v) {
-  JSString* p;
-
-  if(JS_IsString(v)) {
-    p = JS_VALUE_GET_PTR(v);
-    return (char*)p->u.str8;
-  }
-
-  return 0;
-}
-
-size_t
-js_cstring_len(JSValueConst v) {
-  JSString* p;
-
-  if(JS_IsString(v)) {
-    p = JS_VALUE_GET_PTR(v);
-    return p->len;
-  }
-
-  return 0;
-}
-
-char*
-js_cstring_dup(JSContext* ctx, const char* str) {
-  JSString* p;
-
-  if(!str)
-    return 0;
-  /* purposely removing constness */
-  p = (JSString*)(void*)(str - offsetof(JSString, u));
-  JS_DupValue(ctx, JS_MKPTR(JS_TAG_STRING, p));
-  return (char*)str;
-}
-
-JSValueConst
-js_cstring_value(const char* ptr) {
-  JSString* p;
-
-  if(!ptr)
-    return JS_UNDEFINED;
-
-  p = (JSString*)(void*)(ptr - offsetof(JSString, u));
-  return JS_MKPTR(JS_TAG_STRING, p);
-}
 
 void
 js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
@@ -2022,7 +1904,7 @@ js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   str = JS_ToCStringLen(ctx, &len, value);
   dbuf_append(db, (const uint8_t*)str, len);
 
-  js_cstring_free(ctx, str);
+  JS_FreeCString(ctx, str);
 }
 
 JSValue
@@ -2039,85 +1921,12 @@ js_map_iterator_prototype(JSContext* ctx) {
   return ret;
 }
 
-JSValue
-module_name(JSContext* ctx, JSModuleDef* m) {
-
-  if(m->module_name < (size_t)ctx->rt->atom_count)
-    return JS_AtomToValue(ctx, m->module_name);
-
-  return JS_UNDEFINED;
-}
-
-const char*
-module_namecstr(JSContext* ctx, JSModuleDef* m) {
-  return JS_AtomToCString(ctx, m->module_name);
-}
-
 char*
 module_namestr(JSContext* ctx, JSModuleDef* m) {
   const char* name = module_namecstr(ctx, m);
   char* str = js_strdup(ctx, name);
   JS_FreeCString(ctx, name);
   return str;
-}
-
-static JSValue
-call_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* data) {
-  union {
-    JSModuleInitFunc* init_func;
-    int32_t i[2];
-  } u;
-
-  u.i[0] = JS_VALUE_GET_INT(data[0]);
-  u.i[1] = JS_VALUE_GET_INT(data[1]);
-
-  if(argc >= 1 && JS_IsModule(argv[0]))
-    return JS_NewInt32(ctx, u.init_func(ctx, JS_VALUE_GET_PTR(argv[0])));
-
-  return JS_ThrowTypeError(ctx, "argument 1 module expected");
-}
-
-JSValue
-module_func(JSContext* ctx, JSModuleDef* m) {
-  JSValue func = JS_UNDEFINED;
-
-  if(JS_IsFunction(ctx, m->func_obj)) {
-    func = JS_DupValue(ctx, m->func_obj);
-  } else if(m->init_func) {
-    union {
-      JSModuleInitFunc* init_func;
-      int32_t i[2];
-    } u = {m->init_func};
-    JSValueConst data[2] = {
-        JS_MKVAL(JS_TAG_INT, u.i[0]),
-        JS_MKVAL(JS_TAG_INT, u.i[1]),
-    };
-    func = JS_NewCFunctionData(ctx, call_module_func, 1, 0, 2, data);
-  }
-
-  return func;
-}
-
-JSValue
-module_ns(JSContext* ctx, JSModuleDef* m) {
-  return JS_DupValue(ctx, m->module_ns);
-}
-
-JSValue
-module_exports_find(JSContext* ctx, JSModuleDef* m, JSAtom atom) {
-  int i;
-
-  for(i = 0; i < m->export_entries_count; i++) {
-    JSExportEntry* entry = &m->export_entries[i];
-
-    if(entry->export_name == atom) {
-      JSVarRef* ref = entry->u.local.var_ref;
-      JSValue export = ref ? JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value) : JS_UNDEFINED;
-      return export;
-    }
-  }
-
-  return JS_UNDEFINED;
 }
 
 JSValue
@@ -2131,95 +1940,6 @@ module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name) {
   return ret;
 }
 
-void
-module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueConst exports) {
-  JSAtom def = JS_NewAtom(ctx, "default");
-  int i;
-
-  for(i = 0; i < m->export_entries_count; i++) {
-    JSExportEntry* entry = &m->export_entries[i];
-    JSVarRef* ref = entry->u.local.var_ref;
-    JSValue val = JS_UNDEFINED;
-    JSAtom name = entry->export_name;
-
-    if(ref) {
-      val = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
-
-      if(rename_default && name == def)
-        name = m->module_name;
-    }
-
-    JS_SetProperty(ctx, exports, name, val);
-  }
-
-  JS_FreeAtom(ctx, def);
-}
-
-JSValue
-module_imports(JSContext* ctx, JSModuleDef* m) {
-  JSValue obj = JS_NewArray(ctx);
-  int i;
-
-  for(i = 0; i < m->import_entries_count; i++) {
-    JSImportEntry* entry = &m->import_entries[i];
-    JSAtom name = entry->import_name;
-    /*JSReqModuleEntry* req_module = &m->req_module_entries[entry->req_module_idx];
-    JSAtom module_name = req_module->module_name;*/
-
-    JSValue import_value = JS_NewArray(ctx);
-
-    JS_SetPropertyUint32(ctx, import_value, 0, JS_AtomToValue(ctx, name));
-    JS_SetPropertyUint32(ctx, import_value, 1, JS_NewUint32(ctx, entry->req_module_idx));
-    JS_SetPropertyUint32(ctx, obj, i, import_value);
-  }
-
-  return obj;
-}
-
-JSValue
-module_reqmodules(JSContext* ctx, JSModuleDef* m) {
-  JSValue obj = JS_NewArray(ctx);
-  int i;
-
-  for(i = 0; i < m->req_module_entries_count; i++) {
-    JSReqModuleEntry* req_module = &m->req_module_entries[i];
-    JSAtom module_name = req_module->module_name;
-    JSModuleDef* module = req_module->module;
-
-    JSValue req_module_value = JS_NewArray(ctx);
-
-    JS_SetPropertyUint32(ctx, req_module_value, 0, JS_AtomToValue(ctx, module_name));
-    JS_SetPropertyUint32(ctx, req_module_value, 1, JS_NewInt32(ctx, js_module_index(ctx, module)));
-    JS_SetPropertyUint32(ctx, obj, i, req_module_value);
-  }
-
-  return obj;
-}
-
-JSValue
-module_default_export(JSContext* ctx, JSModuleDef* m) {
-  JSAtom def = JS_NewAtom(ctx, "default");
-  JSValue ret = JS_UNDEFINED;
-  int i;
-
-  for(i = 0; i < m->export_entries_count; i++) {
-    JSExportEntry* entry = &m->export_entries[i];
-    JSVarRef* ref = entry->u.local.var_ref;
-    JSAtom name = entry->export_name;
-
-    if(ref) {
-
-      if(name == def) {
-        ret = JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value);
-        break;
-      }
-    }
-  }
-
-  JS_FreeAtom(ctx, def);
-  return ret;
-}
-
 JSValue
 module_exports(JSContext* ctx, JSModuleDef* m) {
   JSValue exports;
@@ -2228,79 +1948,12 @@ module_exports(JSContext* ctx, JSModuleDef* m) {
   return exports;
 }
 
-struct list_head*
-js_modules_list(JSContext* ctx) {
-  return &ctx->loaded_modules;
-}
-
-JSValue
-js_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct list_head* el;
-  JSValue ret = JS_NewArray(ctx);
-  uint32_t i = 0;
-  list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    char* str = module_namestr(ctx, m);
-    JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
-
-    if(1 /*str[0] != '<'*/)
-      JS_SetPropertyUint32(ctx, ret, i++, entry);
-    else
-      JS_FreeValue(ctx, entry);
-    js_free(ctx, str);
-  }
-
-  return ret;
-}
-
-JSValue
-js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct list_head* el;
-  JSValue ret = JS_NewArray(ctx);
-  uint32_t i = 0;
-  list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    //  char* name = module_namestr(ctx, m);
-    JSValue entry = JS_NewArray(ctx);
-    JS_SetPropertyUint32(ctx, entry, 0, JS_AtomToValue(ctx, m->module_name));
-    JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, m) : module_value(ctx, m));
-
-    if(1 /*str[0] != '<'*/)
-      JS_SetPropertyUint32(ctx, ret, i++, entry);
-    else
-      JS_FreeValue(ctx, entry);
-    //  js_free(ctx, name);
-  }
-
-  return ret;
-}
-
 JSValue
 js_modules_map(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue map, entries = js_modules_entries(ctx, this_val, magic);
   map = js_map_new(ctx, entries);
   JS_FreeValue(ctx, entries);
   return map;
-}
-
-JSValue
-js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct list_head* it;
-  JSValue obj = JS_NewObject(ctx);
-
-  list_for_each(it, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(it, JSModuleDef, link);
-    char* name = module_namestr(ctx, m);
-    JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
-
-    if(1 /*str[0] != '<'*/)
-      JS_SetPropertyStr(ctx, obj, basename(name), entry);
-    else
-      JS_FreeValue(ctx, entry);
-    js_free(ctx, name);
-  }
-
-  return obj;
 }
 
 JSValue
@@ -2316,38 +1969,6 @@ module_entry(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyUint32(ctx, entry, 1, module_exports(ctx, m));
   JS_SetPropertyUint32(ctx, entry, 2, module_func(ctx, m));
   return entry;
-}
-
-JSValue
-module_object(JSContext* ctx, JSModuleDef* m) {
-  JSValue tmp, obj = JS_NewObject(ctx);
-  JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
-  JS_SetPropertyStr(ctx, obj, "resolved", JS_NewBool(ctx, m->resolved));
-  JS_SetPropertyStr(ctx, obj, "func_created", JS_NewBool(ctx, m->func_created));
-  JS_SetPropertyStr(ctx, obj, "instantiated", JS_NewBool(ctx, m->instantiated));
-  JS_SetPropertyStr(ctx, obj, "evaluated", JS_NewBool(ctx, m->evaluated));
-
-  tmp = module_ns(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "ns", tmp);
-  tmp = module_exports(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "exports", tmp);
-  tmp = module_imports(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "imports", tmp);
-  tmp = module_reqmodules(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "reqModules", tmp);
-  tmp = module_func(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "func", tmp);
-  return obj;
 }
 
 JSModuleDef*
@@ -2370,24 +1991,6 @@ js_module_def(JSContext* ctx, JSValueConst value) {
 }
 
 JSModuleDef*
-js_module_find_fwd(JSContext* ctx, const char* name, JSModuleDef* start) {
-  struct list_head* el;
-
-  for(el = start ? &start->link : ctx->loaded_modules.next; el != &ctx->loaded_modules; el = el->next)
-  /*list_for_each(el, &ctx->loaded_modules)*/ {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    char* str = module_namestr(ctx, m);
-    BOOL match = !strcmp(str, name);
-    js_free(ctx, str);
-
-    if(match)
-      return m;
-  }
-
-  return 0;
-}
-
-JSModuleDef*
 js_module_find_from(JSContext* ctx, const char* name, int start_pos) {
   JSModuleDef *start, *ret;
 
@@ -2401,85 +2004,6 @@ js_module_find_from(JSContext* ctx, const char* name, int start_pos) {
 JSModuleDef*
 js_module_find(JSContext* ctx, const char* name) {
   return js_module_find_fwd(ctx, name, NULL);
-}
-
-int
-js_module_index(JSContext* ctx, JSModuleDef* m) {
-  struct list_head* el;
-  int i = 0;
-
-  list_for_each(el, &ctx->loaded_modules) {
-
-    if(m == list_entry(el, JSModuleDef, link))
-      return i;
-    ++i;
-  }
-
-  return -1;
-}
-
-JSModuleDef*
-js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
-  struct list_head* el;
-
-  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules; el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    char* str = module_namestr(ctx, m);
-    BOOL match = !strcmp(str, name);
-    js_free(ctx, str);
-
-    if(match)
-      return m;
-  }
-
-  return 0;
-}
-
-int
-js_module_indexof(JSContext* ctx, JSModuleDef* def) {
-  int i = 0;
-  struct list_head* el;
-
-  list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-
-    if(m == def)
-      return i;
-
-    ++i;
-  }
-
-  return -1;
-}
-
-JSModuleDef*
-js_module_at(JSContext* ctx, int index) {
-  int i = 0;
-  struct list_head* el;
-
-  if(index >= 0) {
-    list_for_each(el, &ctx->loaded_modules) {
-      JSModuleDef* m = list_entry(el, JSModuleDef, link);
-
-      if(index == i)
-        return m;
-
-      ++i;
-    }
-  } else {
-    index = -(index + 1);
-
-    list_for_each_prev(el, &ctx->loaded_modules) {
-      JSModuleDef* m = list_entry(el, JSModuleDef, link);
-
-      if(index == i)
-        return m;
-
-      ++i;
-    }
-  }
-
-  return 0;
 }
 
 JSModuleDef*
@@ -2764,26 +2288,6 @@ js_arraybuffer_fromvalue(JSContext* ctx, void* x, size_t n, JSValueConst val) {
   *valptr = JS_DupValue(ctx, val);
   return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freevalue, valptr, FALSE);
 }
-
-static void
-js_arraybuffer_freestring(JSRuntime* rt, void* opaque, void* ptr) {
-  JSString* jstr = opaque;
-  JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_STRING, jstr));
-}
-
-JSValue
-js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str) {
-  JSString* jstr;
-
-  if(!JS_IsString(str))
-    return JS_ThrowTypeError(ctx, "Not a string");
-
-  JS_DupValue(ctx, str);
-  jstr = JS_VALUE_GET_PTR(str);
-
-  return JS_NewArrayBuffer(ctx, jstr->u.str8, jstr->len, js_arraybuffer_freestring, jstr, FALSE);
-}
-
 int64_t
 js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value) {
   int64_t len = -1;
@@ -2919,21 +2423,6 @@ js_interrupt_handler(JSRuntime* rt, void* opaque) {
 }
 
 void
-js_timer_unlink(JSRuntime* rt, JSOSTimer* th) {
-
-  if(th->link.prev) {
-    list_del(&th->link);
-    th->link.prev = th->link.next = 0;
-  }
-}
-
-void
-js_timer_free(JSRuntime* rt, JSOSTimer* th) {
-  JS_FreeValueRT(rt, th->func);
-  js_free_rt(rt, th);
-}
-
-void
 js_call_handler(JSContext* ctx, JSValueConst func) {
   JSValue ret, func1;
   func1 = JS_DupValue(ctx, func);
@@ -2943,36 +2432,6 @@ js_call_handler(JSContext* ctx, JSValueConst func) {
   if(JS_IsException(ret))
     js_std_dump_error(ctx);
   JS_FreeValue(ctx, ret);
-}
-
-void*
-js_sab_alloc(void* opaque, size_t size) {
-  JSSABHeader* sab;
-
-  if(!(sab = malloc(sizeof(JSSABHeader) + size)))
-    return 0;
-
-  sab->ref_count = 1;
-  return sab->buf;
-}
-
-void
-js_sab_free(void* opaque, void* ptr) {
-  JSSABHeader* sab;
-  int ref_count;
-  sab = (JSSABHeader*)((uint8_t*)ptr - sizeof(JSSABHeader));
-  ref_count = atomic_add_int(&sab->ref_count, -1);
-  assert(ref_count >= 0);
-
-  if(ref_count == 0)
-    free(sab);
-}
-
-void
-js_sab_dup(void* opaque, void* ptr) {
-  JSSABHeader* sab;
-  sab = (JSSABHeader*)((uint8_t*)ptr - sizeof(JSSABHeader));
-  atomic_add_int(&sab->ref_count, 1);
 }
 
 void
@@ -3349,7 +2808,7 @@ js_tostringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
     if(lenp)
       *lenp = len;
 
-    js_cstring_free(ctx, cstr);
+    JS_FreeCString(ctx, cstr);
   }
 
   return ret;
@@ -3362,7 +2821,7 @@ js_atom_tostring(JSContext* ctx, JSAtom atom) {
 
   if((cstr = JS_AtomToCString(ctx, atom))) {
     ret = js_strdup(ctx, cstr);
-    js_cstring_free(ctx, cstr);
+    JS_FreeCString(ctx, cstr);
   }
 
   return ret;

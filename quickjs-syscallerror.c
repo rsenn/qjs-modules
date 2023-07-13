@@ -200,6 +200,7 @@ js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       dbuf_free(&dbuf);
       break;
     }
+
     case SYSCALLERROR_VALUEOF: {
       ret = JS_NewInt32(ctx, err->number);
       break;
@@ -271,22 +272,26 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
         ret = err->syscall ? JS_NewString(ctx, err->syscall) : JS_NULL;
       break;
     }
+
     case PROP_CODE: {
       const char* code;
       if(err)
         ret = (code = error_get(err->number)) ? JS_NewString(ctx, code) : JS_NULL;
       break;
     }
+
     case PROP_ERRNO: {
       if(err)
         ret = JS_NewInt32(ctx, err->number);
       break;
     }
+
     case PROP_STACK: {
       if(err)
         ret = err->stack ? JS_NewString(ctx, err->stack) : JS_NULL;
       break;
     }
+
     case PROP_MESSAGE: {
       DynBuf dbuf = {0};
       js_dbuf_init(ctx, &dbuf);
@@ -309,15 +314,19 @@ js_syscallerror_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, i
     case PROP_SYSCALL: {
       break;
     }
+
     case PROP_CODE: {
       break;
     }
+
     case PROP_ERRNO: {
       break;
     }
+
     case PROP_STACK: {
       break;
     }
+
     case PROP_MESSAGE: {
       break;
     }

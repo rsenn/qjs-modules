@@ -232,7 +232,7 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
       JS_FreeCString(ctx, valuestr);
       dbuf_putc(db, '"');
     }
-    js_cstring_free(ctx, keystr);
+    JS_FreeCString(ctx, keystr);
     JS_FreeValue(ctx, value);
   }
 
@@ -293,7 +293,7 @@ xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth, BOO
       db->size--;
   }
   xml_write_string(ctx, textStr, textLen, db, multiline ? depth : 0);
-  js_cstring_free(ctx, textStr);
+  JS_FreeCString(ctx, textStr);
   if(multiline)
     dbuf_putc(db, '\n');
 }
@@ -345,7 +345,7 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     dbuf_putstr(db, tagName[0] == '?' ? "?>" : (self_closing || num_children <= 0) && !(tagName[0] == '!' || num_children > 0 || isComment) ? " />" : ">");
   dbuf_putc(db, '\n');
 
-  js_cstring_free(ctx, tagName);
+  JS_FreeCString(ctx, tagName);
   JS_FreeValue(ctx, attributes);
 }
 
@@ -366,7 +366,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
       dbuf_putstr(db, ">");
       dbuf_putc(db, '\n');
     }
-    js_cstring_free(ctx, tagName);
+    JS_FreeCString(ctx, tagName);
   }
 }
 

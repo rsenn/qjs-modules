@@ -262,14 +262,17 @@ virtual_properties_getset(JSContext* ctx, JSValueConst this_val, int argc, JSVal
       ret = JS_NewBool(ctx, virtual_properties_has(&vwrap->props, ctx, argv[0]));
       break;
     }
+
     case METHOD_GET: {
       ret = virtual_properties_get(&vwrap->props, ctx, argv[0]);
       break;
     }
+
     case METHOD_SET: {
       virtual_properties_set(&vwrap->props, ctx, argv[0], argc > 1 ? argv[1] : JS_UNDEFINED);
       break;
     }
+
     case METHOD_DELETE: {
       ret = JS_NewBool(ctx, virtual_properties_delete(&vwrap->props, ctx, argv[0]));
       break;

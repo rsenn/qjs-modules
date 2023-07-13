@@ -75,6 +75,7 @@ js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       gpio_init_pin(gpio, pin, output);
       break;
     }
+
     case GPIO_METHOD_SET_PIN: {
       uint32_t pin = 0;
       BOOL value = JS_ToBool(ctx, argv[1]);
@@ -82,6 +83,7 @@ js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       gpio_set_pin(gpio, pin, value);
       break;
     }
+
     case GPIO_METHOD_GET_PIN: {
       uint32_t pin = 0;
       BOOL value;

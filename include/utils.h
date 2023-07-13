@@ -2,17 +2,29 @@
 #define UTILS_H
 
 #include <quickjs.h>
-#include "quickjs-internal.h"
+#include <list.h>
 #include <cutils.h>
 #include <string.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <time.h>
 /*#ifdef HAVE_THREADS_H
 #include <threads.h>
 #endif*/
 #include "defines.h"
+
+#if defined(__EMSCRIPTEN__) && defined(__GNUC__)
+#define atomic_add_int __sync_add_and_fetch
+#else
+#include <stdatomic.h>
+
+static inline int
+atomic_add_int(int* ptr, int v) {
+  return atomic_fetch_add((_Atomic(uint32_t)*)ptr, v) + v;
+}
+#endif
 
 /**
  * \defgroup utils utils: Utilities
@@ -380,7 +392,7 @@ js_value_type_get(JSContext* ctx, JSValueConst value) {
   if(JS_IsArray(ctx, value))
     return FLAG_ARRAY;
 
-  if(JS_IsFunction(ctx, value) && JS_GetClassID(value) <= JS_CLASS_ASYNC_GENERATOR)
+  if(JS_IsFunction(ctx, value))
     return FLAG_FUNCTION;
 
   if(JS_VALUE_IS_NAN(value))
@@ -458,13 +470,13 @@ js_cstring_newlen(JSContext* ctx, const char* str, size_t len) {
   return s;
 }
 
-static inline void
-js_cstring_free(JSContext* ctx, const char* ptr) {
+/*static inline void
+JS_FreeCString(JSContext* ctx, const char* ptr) {
   if(!ptr)
     return;
 
   JS_FreeValue(ctx, JS_MKPTR(JS_TAG_STRING, (void*)(ptr - offsetof(JSString, u))));
-}
+}*/
 
 #define js_cstring_destroy(ctx, cstr) \
   do { \
@@ -667,8 +679,6 @@ const char* js_object_tostring2(JSContext* ctx, JSValueConst method, JSValueCons
 const char* js_function_name(JSContext* ctx, JSValueConst value);
 BOOL js_function_set_name(JSContext* ctx, JSValueConst func, const char* name);
 const char* js_function_tostring(JSContext* ctx, JSValueConst value);
-JSCFunction* js_function_cfunc(JSContext*, JSValueConst value);
-JSCFunctionMagic* js_function_cfuncmagic(JSContext*, JSValueConst value);
 BOOL js_function_isnative(JSContext* ctx, JSValueConst value);
 int js_function_argc(JSContext* ctx, JSValueConst value);
 JSValue js_function_bind(JSContext*, JSValue func, int argc, JSValue argv[]);
@@ -709,15 +719,12 @@ js_object_same(JSValueConst a, JSValueConst b) {
   return aobj == bobj;
 }
 
-static inline JSClassID
+/*static inline JSClassID
 js_get_classid(JSValue v) {
-  JSObject* p;
-  /* if(JS_VALUE_GET_TAG(v) != JS_TAG_OBJECT)
-     return 0;*/
-  p = JS_VALUE_GET_OBJ(v);
+  JSObject* p = JS_VALUE_GET_OBJ(v);
   assert(p != 0);
   return p->class_id;
-}
+}*/
 
 BOOL js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str);
@@ -804,7 +811,6 @@ js_get_tostringtag_str(JSContext* ctx, JSValueConst obj) {
 
 JSClassID js_class_id(JSContext* ctx, int id);
 JSClassID js_class_newid(void);
-JSClass* js_class_get(JSContext* ctx, JSClassID id);
 JSAtom js_class_atom(JSContext* ctx, JSClassID id);
 const char* js_class_name(JSContext* ctx, JSClassID id);
 JSClassID js_class_find(JSContext* ctx, const char* name);
@@ -1013,6 +1019,8 @@ char* module_namestr(JSContext*, JSModuleDef*);
 const char* module_namecstr(JSContext* ctx, JSModuleDef* m);
 JSValue module_func(JSContext*, JSModuleDef*);
 JSValue module_ns(JSContext*, JSModuleDef*);
+JSValue module_exception(JSContext*, JSModuleDef*);
+JSValue module_meta_obj(JSContext*, JSModuleDef*);
 JSValue module_exports_find(JSContext*, JSModuleDef*, JSAtom);
 JSValue module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name);
 void module_exports_get(JSContext*, JSModuleDef*, BOOL, JSValue exports);
@@ -1023,6 +1031,10 @@ JSValue module_exports(JSContext*, JSModuleDef*);
 JSValue module_value(JSContext*, JSModuleDef*);
 JSValue module_entry(JSContext*, JSModuleDef*);
 JSValue module_object(JSContext*, JSModuleDef*);
+JSModuleDef* module_next(JSContext* ctx, JSModuleDef* m);
+JSModuleDef* module_prev(JSContext* ctx, JSModuleDef* m);
+JSModuleDef* module_last(JSContext* ctx);
+void module_rename(JSContext* ctx, JSModuleDef* m, JSAtom name);
 
 struct list_head* js_modules_list(JSContext*);
 JSValue js_modules_array(JSContext*, JSValue this_val, int magic);
@@ -1051,20 +1063,17 @@ int __attribute__((format(printf, 3, 4))) js_eval_fmt(JSContext* ctx, int flags,
 int64_t js_time_ms(void);
 int js_interrupt_handler(JSRuntime*, void*);
 
-void js_timer_unlink(JSRuntime*, JSOSTimer*);
-void js_timer_free(JSRuntime*, JSOSTimer*);
-
 void js_call_handler(JSContext*, JSValueConst);
 
 void* js_sab_alloc(void*, size_t);
 void js_sab_free(void*, void*);
 void js_sab_dup(void*, void*);
 
-JSWorkerMessagePipe* js_new_message_pipe(void);
-JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);
+/*JSWorkerMessagePipe* js_new_message_pipe(void);
+JSWorkerMessagePipe* js_dup_message_pipe(JSWorkerMessagePipe*);*/
 
-void js_free_message(JSWorkerMessage*);
-void js_free_message_pipe(JSWorkerMessagePipe*);
+/*void js_free_message(JSWorkerMessage*);
+void js_free_message_pipe(JSWorkerMessagePipe*);*/
 
 void js_error_dump(JSContext*, JSValueConst, DynBuf* db);
 char* js_error_tostring(JSContext*, JSValueConst);
@@ -1123,6 +1132,10 @@ js_asyncgenerator_constructor(JSContext* ctx) {
 }
 
 JSValue js_set_iterator_prototype(JSContext*);
+JSValue js_std_file(JSContext* ctx, FILE* f);
+
+JSValue js_get_bytecode(JSContext* ctx, JSValueConst value);
+JSValue js_opcode_list(JSContext* ctx, BOOL as_object);
 
 /**
  * @}

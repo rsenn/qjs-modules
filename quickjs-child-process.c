@@ -265,14 +265,17 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewString(ctx, cp->file);
       break;
     }
+
     case CHILD_PROCESS_CWD: {
       ret = cp->cwd ? JS_NewString(ctx, cp->cwd) : JS_NULL;
       break;
     }
+
     case CHILD_PROCESS_ARGS: {
       ret = js_strv_to_array(ctx, cp->args);
       break;
     }
+
     case CHILD_PROCESS_ENV: {
       char** ptr;
       ret = JS_NewObject(ctx);
@@ -286,35 +289,43 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
       // ret = js_strv_to_array(ctx, cp->env);
       break;
     }
+
     case CHILD_PROCESS_STDIO: {
       ret = cp->parent_fds ? js_intv_to_array(ctx, cp->parent_fds, cp->num_fds) : JS_NULL;
       break;
     }
+
     case CHILD_PROCESS_PID: {
       ret = JS_NewInt32(ctx, cp->pid);
       break;
     }
+
     case CHILD_PROCESS_EXITED: {
       ret = JS_NewBool(ctx, cp->exitcode != -1 || cp->signaled);
       break;
     }
+
     case CHILD_PROCESS_EXITCODE: {
       if(cp->exitcode != -1)
         ret = JS_NewInt32(ctx, cp->exitcode);
       break;
     }
+
     case CHILD_PROCESS_SIGNALED: {
       ret = JS_NewBool(ctx, cp->signaled);
       break;
     }
+
     case CHILD_PROCESS_STOPPED: {
       ret = JS_NewBool(ctx, cp->stopped);
       break;
     }
+
     case CHILD_PROCESS_CONTINUED: {
       ret = JS_NewBool(ctx, cp->continued);
       break;
     }
+
     case CHILD_PROCESS_TERMSIG: {
       if(cp->termsig != -1)
         ret = JS_NewInt32(ctx, cp->termsig);

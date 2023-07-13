@@ -24,8 +24,9 @@ path_canonical_buf(DynBuf* db) {
 }
 
 static char*
-__path_dirname(const char* path, DynBuf* dir) {
-  size_t i = str_rchrs(path, "/\\", 2);
+path_dirlen(const char* path, DynBuf* dir) {
+  size_t i = path_right2(path, strlen(path));
+
   if(path == NULL || path[i] == '\0') {
     dbuf_putstr(dir, ".");
   } else {
@@ -42,9 +43,9 @@ __path_dirname(const char* path, DynBuf* dir) {
 path_dirname_alloc(const char* path) {
   DynBuf dir;
   dbuf_init2(&dir, 0, 0);
-  return __path_dirname(path, &dir);
+  return path_dirlen(path, &dir);
 }*/
- 
+
 /*char*
 path_dup2(const char* path, DynBuf* db) {
   return path_dup3(path,strlen(path),db);
@@ -84,10 +85,13 @@ path_absolute3(const char* path, size_t len, DynBuf* db) {
       db->size = strlen((const char*)db->buf);
     else
       db->size = 0;
-    if(strncmp(path, ".", len)) {
-      dbuf_putc(db, PATHSEP_C);
-      dbuf_putstr(db, path);
-    }
+
+    if(strncmp(path, ".", len))
+      path_append3(path, len, db);
+
+    dbuf_0(db);
+    db->size = path_normalize2(db->buf, db->size);
+    dbuf_0(db);
 
     return 1;
   } else {
@@ -119,6 +123,7 @@ path_absolute_db(DynBuf* db) {
   int ret = 0;
   dbuf_putc(db, '\0');
   db->size--;
+
   if(!path_isabsolute2((const char*)db->buf, db->size)) {
     DynBuf tmp;
     dbuf_init(&tmp);
@@ -142,32 +147,21 @@ path_absolute_db(DynBuf* db) {
 }
 
 void
+path_append2(const char* x, DynBuf* db) {
+  return path_append3(x, strlen(x), db);
+}
+
+void
 path_append3(const char* x, size_t len, DynBuf* db) {
   if(db->size > 0 && db->buf[db->size - 1] != PATHSEP_C)
     dbuf_putc(db, PATHSEP_C);
+
+  size_t pos = path_skipdotslash2(x, len);
+
+  x += pos;
+  len -= pos;
+
   dbuf_append(db, (const uint8_t*)x, len);
-}
-
-int
-path_canonical3(const char* path, size_t len, DynBuf* db) {
-  db->size = 0;
-  dbuf_put(db, (const uint8_t*)path, len);
-  dbuf_putc(db, '\0');
-  db->size--;
-  return path_canonical_buf(db);
-}
-
-char*
-path_canonical2(const char* path, size_t len) {
-  DynBuf db;
-  dbuf_init2(&db, 0, 0);
-  path_canonical3(path, len, &db);
-  return (char*)db.buf;
-}
-
-char*
-path_canonical1(const char* path) {
-  return path_canonical2(path, strlen(path));
 }
 
 size_t
@@ -175,8 +169,13 @@ path_normalize3(const char* path, size_t n, DynBuf* db) {
   size_t ret;
   dbuf_realloc(db, n + 1);
   memcpy(db->buf, path, n);
+
   db->buf[n] = '\0';
-  ret = path_normalize2((char*)db->buf, n);
+
+  ret = db->size = path_normalize2((char*)db->buf, n);
+
+  dbuf_0(db);
+
   return ret;
 }
 
@@ -191,10 +190,17 @@ path_normalize2(char* path, size_t nb) {
   len = nb;
 
 again:
-  i = path_separator3(path, len, 0);
+  i = path_separator2(path, len);
+
+  if(i > 1) {
+    byte_copy(&path[1], len - i, &path[i]);
+    len -= i - 1;
+    i = 1;
+  }
 
   while(i < len) {
-    j = i + path_skip2(&path[i], len - i);
+    size_t k;
+    j = i + path_skip3(&path[i], &k, len - i);
     if(j == i) {
       len = j;
       break;
@@ -203,8 +209,10 @@ again:
     if(i > 0 && path_isdot(&path[i])) {
       ssize_t clen = len - j;
       assert(clen >= 0);
+
       if(clen > 0)
         byte_copy(&path[i], clen, &path[j]);
+
       path[i + clen] = '\0';
       len = i + clen;
       goto again;
@@ -214,14 +222,21 @@ again:
       j += (len - j) == 2 || path[j + 2] == '\0' ? 2 : 3;
       ssize_t clen = len - j;
       assert(clen >= 0);
+
       if(clen > 0)
         byte_copy(&path[i], clen, &path[j]);
+
       path[i + clen] = '\0';
       len = i + clen;
       goto again;
     }
 
-    i = j;
+    if((i += k + 1) < j) {
+      if(j < len)
+        byte_copy(&path[i], len - j, &path[j]);
+
+      len -= j - i;
+    }
   }
 
   return len;
@@ -233,8 +248,8 @@ path_common4(const char* s1, size_t n1, const char* s2, size_t n2) {
 
   for(r.sz1 = 0, r.sz2 = 0; r.sz1 != n1 && r.sz2 != n2;) {
     size_t i1, i2;
-    i1 = path_separator3(&s1[r.sz1], n1 - r.sz1, 0);
-    i2 = path_separator3(&s2[r.sz2], n2 - r.sz2, 0);
+    i1 = path_separator2(&s1[r.sz1], n1 - r.sz1);
+    i2 = path_separator2(&s2[r.sz2], n2 - r.sz2);
     if(!!i1 != !!i2)
       break;
     r.sz1 += i1;
@@ -256,8 +271,9 @@ size_t
 path_components3(const char* p, size_t len, uint32_t n) {
   const char *s = p, *e = p + len;
   size_t count = 0;
+
   while(s < e) {
-    s += path_separator3(s, e - s, 0);
+    s += path_separator2(s, e - s);
     if(s == e)
       break;
     s += path_component3(s, e - s, 0);
@@ -269,69 +285,18 @@ path_components3(const char* p, size_t len, uint32_t n) {
   return count;
 }
 
-void
-path_concat5(const char* a, size_t alen, const char* b, size_t blen, DynBuf* db) {
-  path_append3(a, alen, db);
-  while(blen >= 1 && path_isdot(b)) {
-    size_t n;
-
-    if(!(n = path_skipdotslash2(b, blen)))
-      break;
-
-    b += n;
-    blen -= n;
-  }
-
-  path_append3(b, blen, db);
-  dbuf_0(db);
-}
-
-char*
-path_concat4(const char* a, size_t alen, const char* b, size_t blen) {
-  DynBuf db;
-  dbuf_init2(&db, 0, 0);
-
-  if(db.buf) {
-    path_concat5(a, alen, b, blen, &db);
-    dbuf_0(&db);
-  }
-  return (char*)db.buf;
-}
-
-void
-path_concat3(const char* a, const char* b, DynBuf* db) {
-  path_append3(a, strlen(a), db);
-  while(*b && path_isdot(b)) {
-    size_t n = path_skip1(b);
-    b += n;
-  }
-
-  path_append3(b, strlen(b), db);
-  dbuf_0(db);
-}
-
-char*
-path_concat2(const char* a, const char* b) {
-  DynBuf db;
-  dbuf_init2(&db, 0, 0);
-
-  if(db.buf) {
-    path_concat3(a, b, &db);
-    dbuf_0(&db);
-  }
-  return (char*)db.buf;
-}
-
 const char*
 path_at4(const char* p, size_t plen, size_t* len_ptr, int i) {
   size_t next, len;
-  const char* q = p + plen;
+  const char* q;
 
-  for(; p < q;) {
+  for(q = p + plen; p < q;) {
     len = path_component3(p, q - p, 0);
-    next = len + path_separator3(&p[len], q - p - len, 0);
+    next = len + path_separator2(&p[len], q - p - len);
+
     if(i <= 0)
       break;
+
     p += next;
     --i;
   }
@@ -538,16 +503,19 @@ path_isin2(const char* p, const char* dir) {
 
 int
 path_equal4(const char* a, size_t la, const char* b, size_t lb) {
-  size_t i, alen = path_length2(a, la), blen = path_length2(b, lb);
+  size_t aindex = 0, bindex = 0, alen = path_length2(a, la), blen = path_length2(b, lb);
 
-  if(alen != blen)
-    return 0;
-
-  for(i = 0; i < alen; i++) {
+  while(aindex < alen && bindex < blen) {
     size_t an, bn;
     const char *p, *q;
-    p = path_at4(a, la, &an, i);
-    q = path_at4(b, lb, &bn, i);
+
+    do
+      p = path_at4(a, la, &an, aindex++);
+    while(an == 1 && *p == '.');
+
+    do
+      q = path_at4(b, lb, &bn, bindex++);
+    while(bn == 1 && *q == '.');
 
     if(an != bn)
       return 0;
@@ -555,6 +523,7 @@ path_equal4(const char* a, size_t la, const char* b, size_t lb) {
     if(strncmp(p, q, an))
       return 0;
   }
+
   return 1;
 }
 
@@ -567,8 +536,10 @@ const char*
 path_extname1(const char* p) {
   size_t pos;
   char* q;
+
   if((q = strrchr(p, PATHSEP_C)))
     p = q + 1;
+
   pos = str_rchr(p, '.');
   p += pos ? pos : strlen(p);
   return p;
@@ -612,14 +583,17 @@ start:
 
   if(plen == 0)
     return PATH_FNM_NOMATCH;
+
   if(*string == '.' && *pattern != '.' && (flags & PATH_FNM_PERIOD)) {
     if(!(flags & PATH_NOTFIRST))
       return PATH_FNM_NOMATCH;
+
     if((flags & PATH_FNM_PATHNAME) && string[-1] == '/')
       return PATH_FNM_NOMATCH;
   }
 
   flags |= PATH_NOTFIRST;
+
   switch(*pattern) {
     case '[': {
       const char* start;
@@ -632,10 +606,13 @@ start:
       pattern += neg;
       plen -= neg;
       start = pattern;
+
       while(plen) {
         int res = 0;
+
         if(*pattern == ']' && pattern != start)
           break;
+
         if(*pattern == '[' && pattern[1] == ':') {
         } else {
           if(plen > 1 && pattern[1] == '-' && pattern[2] != ']') {
@@ -663,8 +640,8 @@ start:
         } else if(res && neg)
           break;
       }
-
-    } break;
+      break;
+    }
     case '\\': {
       if(!(flags & PATH_FNM_NOESCAPE)) {
         pattern++;
@@ -673,7 +650,8 @@ start:
           goto match;
       } else
         goto match;
-    } break;
+      break;
+    }
     case '*': {
       if((*string == '/' && (flags & PATH_FNM_PATHNAME)) || path_fnmatch5(pattern, plen, string + 1, slen - 1, flags)) {
         pattern++;
@@ -687,13 +665,14 @@ start:
     case '?': {
       if(*string == '/' && (flags & PATH_FNM_PATHNAME))
         break;
+
       pattern++;
       plen--;
       string++;
       slen--;
-    }
 
       goto start;
+    }
     default:
     match : {
       if(*pattern == *string) {
@@ -703,8 +682,8 @@ start:
         slen--;
         goto start;
       }
-
-    } break;
+      break;
+    }
   }
 
   return PATH_FNM_NOMATCH;
@@ -991,47 +970,50 @@ start:
   while(*path) {
     while(path_issep(*path))
       sep = *path++;
+
     if(path[0] == '.') {
       if(path_issep(path[1]) || path[1] == '\0') {
         path++;
         continue;
       }
-      /*
-            if(path[1] == '.' && (path_issep(path[2]) || path[2] == '\0')) {
-              if(db->size && db->buf)
-                db->size = path_right2((const char*)db->buf, db->size);
-              path += 2;
-              continue;
-            }*/
     }
 
     if(*path == '\0')
       break;
+
     if(db->size && (db->buf[db->size - 1] != '/' && db->buf[db->size - 1] != '\\'))
       dbuf_putc(db, sep);
+
     n = path_component3(path, strlen(path), 0);
     dbuf_append(db, (const uint8_t*)path, n);
+
     if(n == 2 && path[1] == ':')
       dbuf_putc(db, sep);
+
     dbuf_0(db);
     path += n;
     memset(&st, 0, sizeof(st));
+
     if(stat_fn((const char*)db->buf, &st) != -1 && path_issymlink1((const char*)db->buf)) {
       ret++;
+
       if((ssize_t)(n = readlink((const char*)db->buf, buf, PATH_MAX)) == (ssize_t)-1)
         return 0;
+
       if(path_isabsolute2(buf, n)) {
         strncpy(&buf[n], path, PATH_MAX - n);
+
         dbuf_zero(db);
         dbuf_putc(db, sep);
+
         path = buf;
         goto start;
       } else {
         int rret;
         db->size = path_right2((const char*)db->buf, db->size);
         buf[n] = '\0';
-        rret = path_resolve3(buf, db, symbolic);
-        if(!rret)
+
+        if(!(rret = path_resolve3(buf, db, symbolic)))
           return 0;
       }
     }
@@ -1039,6 +1021,7 @@ start:
 
   if(db->size == 0)
     dbuf_putc(db, sep);
+
   return ret;
 }
 
@@ -1121,7 +1104,7 @@ path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out
   s2 += p.sz2;
   n2 -= p.sz2;
 
-  i = path_separator3(s2, n2, 0);
+  i = path_separator2(s2, n2);
   s2 += i;
   n2 -= i;
 
@@ -1131,7 +1114,7 @@ path_relative5(const char* s1, size_t n1, const char* s2, size_t n2, DynBuf* out
     n2 -= i;
   }
 
-  i = path_separator3(s1, n1, 0);
+  i = path_separator2(s1, n1);
   dbuf_append(out, s1 + i, n1 - i);
 
   if(out->size == 0)
@@ -1162,21 +1145,26 @@ path_root2(const char* x, size_t n) {
   return 0;
 }
 
-static inline size_t
-__path_dirname1(const char* path) {
-  return str_rchrs(path, PATHSEP_S, 2);
+size_t
+path_dirlen2(const char* path, size_t n) {
+  size_t i = path_right2(path, n);
+
+  while(i > 0 && path_issep(path[i - 1]))
+    i--;
+
+  return i;
 }
 
-static inline size_t
-__path_dirname2(const char* path, size_t n) {
-  return byte_rchrs(path, n, PATHSEP_S, 2);
+size_t
+path_dirlen1(const char* path) {
+  return path_dirlen2(path, strlen(path));
 }
 
 char*
 path_dirname1(const char* path) {
   size_t i;
 
-  if(path[(i = __path_dirname1(path))])
+  if(path[(i = path_dirlen1(path))])
     return path_dup2(path, i);
 
   return path_dup1(".");
@@ -1186,43 +1174,20 @@ char*
 path_dirname2(const char* path, size_t n) {
   size_t i;
 
-  if((i = __path_dirname2(path, n)) < n)
+  if((i = path_dirlen2(path, n)) < n)
     return path_dup2(path, i);
 
   return path_dup1(".");
 }
 
-char*
-path_dirname3(const char* path, size_t n, char* dest) {
-  size_t i;
-
-  if((i = byte_rchrs(path, n, PATHSEP_S, 2)) < n) {
-    memcpy(dest, path, i);
-    dest[i] = '\0';
-
-    return dest;
-  }
-  return 0;
+size_t
+path_basename2(const char* path, size_t n) {
+  return path_right2(path, n);
 }
 
 size_t
-path_dirlen1(const char* path) {
-  size_t i = str_rchrs(path, "/\\", 2);
-  if(path[i] == '\0')
-    return 0;
-  while(i > 0 && path_issep(path[i - 1]))
-    --i;
-  return i;
-}
-
-size_t
-path_dirlen2(const char* path, size_t n) {
-  size_t i;
-  if((i = byte_rchrs(path, n, "/\\", 2)) == n)
-    return 0;
-  while(i > 0 && path_issep(path[i - 1]))
-    --i;
-  return i;
+path_basename3(const char* path, size_t* len, size_t n) {
+  return path_right3(path, len, n);
 }
 
 #define START ((PATH_MAX + 1) >> 7)

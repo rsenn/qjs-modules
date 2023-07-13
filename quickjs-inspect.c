@@ -3,7 +3,6 @@
 #include "iteration.h"
 #include <list.h>
 #include "property-enumeration.h"
-#include "quickjs-internal.h"
 #include "quickjs-predicate.h"
 #include <quickjs.h>
 #include <quickjs-config.h>
@@ -155,7 +154,7 @@ options_free(InspectOptions* opts, JSContext* ctx) {
 
   vector_foreach_t(&opts->hide_keys, key) {
     JS_FreeAtom(ctx, key->atom);
-    js_cstring_free(ctx, key->name);
+    JS_FreeCString(ctx, key->name);
   }
 
   vector_free(&opts->hide_keys);
@@ -648,7 +647,7 @@ inspect_arraybuffer(Inspector* insp, JSValueConst value, int32_t level) {
     }
 
     if(str)
-      js_cstring_free(ctx, str);
+      JS_FreeCString(ctx, str);
 
     writer_puts(wr, " {");
 
@@ -761,7 +760,7 @@ inspect_regexp(Inspector* insp, JSValueConst value, int32_t depth) {
   if(opts->colors)
     writer_puts(wr, COLOR_NONE);
 
-  js_cstring_free(ctx, str);
+  JS_FreeCString(ctx, str);
   return 1;
 }
 
@@ -838,7 +837,7 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
 
     writer_write(wr, str, len);
 
-    js_cstring_free(ctx, str);
+    JS_FreeCString(ctx, str);
   }*/
 
   if(tag <= JS_TAG_BIG_FLOAT)
@@ -898,7 +897,7 @@ inspect_string(Inspector* insp, JSValueConst value, int32_t level) {
     pos += n;
   }
 
-  js_cstring_free(ctx, str);
+  JS_FreeCString(ctx, str);
   writer_putc(wr, tag == JS_TAG_SYMBOL ? ')' : '\'');
 
   if(opts->colors)
@@ -951,65 +950,6 @@ inspect_atom(Inspector* insp, JSAtom atom, int32_t depth) {
   int r = inspect_value(insp, value, depth);
   JS_FreeValue(ctx, value);
   return r;
-}
-
-static int
-inspect_module(Inspector* insp, JSModuleDef* def, int32_t depth) {
-  JSContext* const ctx = insp->hier.opaque;
-  InspectOptions* const opts = &insp->opts;
-  Writer* const wr = &insp->wr;
-  char buf[FMT_ULONG];
-
-  writer_puts(wr, opts->colors ? COLOR_CYAN "[module" COLOR_NONE : "[module");
-
-  if(def) {
-    int index = js_module_indexof(ctx, def);
-    assert(js_module_at(ctx, index) == def);
-
-    if(opts->colors)
-      writer_puts(wr, COLOR_WHITE);
-
-    writer_puts(wr, " #");
-    writer_write(wr, buf, fmt_longlong(buf, index));
-
-    if(opts->colors)
-      writer_puts(wr, COLOR_NONE);
-
-    writer_puts(wr, COLOR_YELLOW);
-    writer_puts(wr, " 0x");
-    writer_write(wr, buf, fmt_xlonglong(buf, (intptr_t)def));
-
-    if(opts->colors)
-      writer_puts(wr, COLOR_NONE);
-
-    writer_putc(wr, ' ');
-    // pos = wr->size;
-    inspect_atom(insp, def->module_name, depth + 1);
-
-    if(JS_IsFunction(ctx, def->func_obj))
-      writer_puts(wr, COLOR_RED " JS" COLOR_NONE);
-    else if(def->init_func)
-      writer_puts(wr, COLOR_RED " NATIVE" COLOR_NONE);
-    else
-      writer_puts(wr, COLOR_RED " BYTECODE" COLOR_NONE);
-
-    if(!def->resolved)
-      writer_puts(wr, COLOR_YELLOW " (not resolved)" COLOR_NONE);
-    else if(!def->func_created)
-      writer_puts(wr, COLOR_YELLOW " (no function created)" COLOR_NONE);
-    else if(!def->instantiated)
-      writer_puts(wr, COLOR_YELLOW " (not instantiated)" COLOR_NONE);
-    else if(!def->evaluated)
-      writer_puts(wr, COLOR_YELLOW " (not evaluated)" COLOR_NONE);
-
-    if(JS_IsFunction(ctx, def->func_obj)) {
-      writer_putc(wr, ' ');
-      inspect_value(insp, def->func_obj, depth + 1);
-    }
-  }
-
-  writer_puts(wr, opts->colors ? COLOR_CYAN "]" COLOR_NONE : "]");
-  return 1;
 }
 
 static int
@@ -1076,8 +1016,8 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
   int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   JSObject* obj = JS_VALUE_GET_OBJ(value);
 
-  if(!obj->prop || !obj->shape)
-    return -1;
+  /*  if(!obj->prop || !obj->shape)
+      return -1;*/
 
   BOOL is_array = js_is_array(ctx, value);
   BOOL is_function = JS_IsFunction(ctx, value);
@@ -1096,7 +1036,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
     if(JS_IsString(tmp)) {
       const char* s = JS_ToCString(ctx, tmp);
       writer_puts(wr, s);
-      js_cstring_free(ctx, s);
+      JS_FreeCString(ctx, s);
       return 1;
     }
 
@@ -1129,7 +1069,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
 
     if(js_is_generator(ctx, value)) {
       writer_puts(wr, "Object [Generator] {}");
-      // js_cstring_free(ctx, s);
+      // JS_FreeCString(ctx, s);
       return 1;
     }
   }
@@ -1162,7 +1102,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
       }
 
       if(s)
-        js_cstring_free(ctx, s);
+        JS_FreeCString(ctx, s);
     }
   } else {
     JSValue name = JS_GetPropertyStr(ctx, value, "name");
@@ -1178,7 +1118,7 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
         writer_puts(wr, s);
       }
 
-      js_cstring_free(ctx, s);
+      JS_FreeCString(ctx, s);
     }
 
     JS_FreeValue(ctx, name);
@@ -1223,8 +1163,10 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
     case JS_TAG_EXCEPTION: {
       writer_puts(wr, opts->colors ? COLOR_RED "[exception" : "[exception");
 
-      if(JS_IsObject(ctx->rt->current_exception)) {
-        JSValue message = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "message");
+      JSValue exception = JS_GetException(ctx);
+
+      if(JS_IsObject(exception)) {
+        JSValue message = JS_GetPropertyStr(ctx, exception, "message");
         const char* msg;
 
         if((msg = JS_ToCString(ctx, message))) {
@@ -1236,7 +1178,7 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
 
         JS_FreeValue(ctx, message);
 
-        JSValue stack = JS_GetPropertyStr(ctx, ctx->rt->current_exception, "stack");
+        JSValue stack = JS_GetPropertyStr(ctx, exception, "stack");
 
         if((msg = JS_ToCString(ctx, stack))) {
           writer_puts(wr, "\n");
@@ -1293,7 +1235,7 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
 
     case JS_TAG_MODULE: {
       JSModuleDef* def = JS_VALUE_GET_PTR(value);
-      const char* name = JS_AtomToCString(ctx, def->module_name);
+      const char* name = module_namecstr(ctx, def);
 
       writer_puts(wr, opts->colors ? COLOR_LIGHTRED "[module '" : "[module '");
       writer_puts(wr, name);
