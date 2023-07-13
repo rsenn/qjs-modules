@@ -502,8 +502,9 @@ path_isin2(const char* p, const char* dir) {
 }
 
 int
-path_equal4(const char* a, size_t la, const char* b, size_t lb) {
+path_diff4(const char* a, size_t la, const char* b, size_t lb) {
   size_t aindex = 0, bindex = 0, alen = path_length2(a, la), blen = path_length2(b, lb);
+  int ret = 0;
 
   while(aindex < alen && bindex < blen) {
     size_t an, bn;
@@ -518,13 +519,23 @@ path_equal4(const char* a, size_t la, const char* b, size_t lb) {
     while(bn == 1 && *q == '.');
 
     if(an != bn)
-      return 0;
+      return an - bn;
 
-    if(strncmp(p, q, an))
-      return 0;
+    if((ret = strncmp(p, q, an)))
+      return ret;
   }
 
-  return 1;
+  if(aindex < alen)
+    return alen - aindex;
+  if(bindex < blen)
+    return -(blen - bindex);
+
+  return 0;
+}
+
+int
+path_equal4(const char* a, size_t la, const char* b, size_t lb) {
+  return 0 == path_diff4(a, la, b, lb);
 }
 
 int

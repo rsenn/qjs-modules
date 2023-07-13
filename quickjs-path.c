@@ -56,6 +56,8 @@ enum {
   PATH_AT,
   PATH_SEARCH,
   PATH_RELATIVE,
+  PATH_ISIN,
+  PATH_EQUAL,
 };
 
 static JSValue
@@ -300,6 +302,16 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewStringLen(ctx, p, len);
       break;
     }
+
+    case PATH_ISIN: {
+      ret = JS_NewBool(ctx, path_isin4(a, alen, b, blen));
+      break;
+    }
+
+    case PATH_EQUAL: {
+      ret = JS_NewBool(ctx, path_equal4(a, alen, b, blen));
+      break;
+    }
   }
 
   if(a)
@@ -314,7 +326,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 static JSValue
 js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char *a = 0, *b = 0;
-  DynBuf db = {0};
+  DynBuf db = DBUF_INIT_0();
   size_t alen = 0, blen = 0;
   JSValue ret = JS_UNDEFINED;
 
@@ -349,8 +361,8 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
     case PATH_SEARCH: {
       const char* pathstr = a;
-      DynBuf db;
-      dbuf_init2(&db, 0, 0);
+      DynBuf db = DBUF_INIT_0();
+      js_dbuf_allocator(ctx, &db);
 
       for(;;) {
         char* file;
@@ -425,12 +437,11 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 static JSValue
 js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* str;
-  DynBuf db;
+  DynBuf db = DBUF_INIT_0();
   int i;
   size_t len = 0;
   JSValue ret = JS_UNDEFINED;
 
-  js_dbuf_init(ctx, &db);
   js_dbuf_init(ctx, &db);
 
   for(i = 0; i < argc; i++) {
@@ -452,7 +463,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 static JSValue
 js_path_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* str;
-  DynBuf db;
+  DynBuf db = DBUF_INIT_0();
   int32_t start = 0, end = -1;
   JSValue ret = JS_UNDEFINED;
 
@@ -520,7 +531,7 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   JSValueConst obj = argv[0];
   const char *dir, *root, *base, *name, *ext;
   JSValue ret = JS_UNDEFINED;
-  DynBuf db;
+  DynBuf db = DBUF_INIT_0();
 
   js_dbuf_init(ctx, &db);
 
@@ -558,7 +569,7 @@ js_path_format(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
 static JSValue
 js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  DynBuf db, cwd;
+  DynBuf db = DBUF_INIT_0(), cwd = DBUF_INIT_0();
   int i;
   const char* str;
   size_t len = 0;
@@ -625,98 +636,6 @@ fail:
   return ret;
 }
 
-static JSValue
-js_path_isin(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  const char *a, *b;
-  BOOL ret;
-
-  a = JS_ToCString(ctx, argv[0]);
-  b = JS_ToCString(ctx, argv[1]);
-
-  switch(magic) {
-    case 0: ret = path_isin2(a, b); break;
-    case 1: ret = path_equal2(a, b); break;
-  }
-
-  JS_FreeCString(ctx, a);
-  JS_FreeCString(ctx, b);
-
-  return JS_NewBool(ctx, ret);
-}
-
-enum {
-  PATH_TOARRAY,
-  PATH_OFFSETS,
-  PATH_LENGTHS,
-  PATH_RANGES,
-};
-
-static JSValue
-js_path_toarray(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  const char* str;
-  int32_t i, len;
-  JSValue ret = JS_NewArray(ctx);
-
-  if((str = JS_ToCString(ctx, argv[0]))) {
-    IndexRange ir = {0, -1};
-    JSValue value;
-
-    len = path_length1(str);
-
-    if(argc > 1) {
-      js_index_range(ctx, len, argc - 1, argv + 1, &ir);
-    }
-
-    // printf("IndexRange { %" PRId64 ", %" PRId64 " }\n", ir.start, ir.end);
-
-    if(argc < 3)
-      ir.end = len;
-    else if(ir.end < 0)
-      ir.end = ((ir.end % len) + len) % len;
-
-    for(i = ir.start; i < ir.end; i++) {
-      size_t clen;
-      const char* x = path_at3(str, &clen, i);
-
-      if(magic == PATH_TOARRAY) {
-        value = JS_NewStringLen(ctx, /*clen == 0 ? "/" :*/ x, /*clen == 0 ? 1 :*/ clen);
-      } else if(magic >= PATH_RANGES) {
-
-        value = JS_NewArray(ctx);
-        JS_SetPropertyUint32(ctx, value, 0, JS_NewUint32(ctx, x - str));
-        JS_SetPropertyUint32(ctx, value, 1, JS_NewUint32(ctx, clen));
-
-      } else {
-        value = JS_NewUint32(ctx, magic == PATH_LENGTHS ? (ptrdiff_t)clen : x - str);
-      }
-
-      JS_SetPropertyUint32(ctx, ret, i - ir.start, value);
-    }
-  }
-
-  return ret;
-}
-
-static JSValue
-js_path_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-
-  JSValue ret, arr, fn;
-  int32_t magic = 0;
-
-  if(argc > 3)
-    JS_ToInt32(ctx, &magic, argv[3]);
-
-  arr = js_path_toarray(ctx, this_val, argc, argv, magic);
-
-  fn = js_iterator_method(ctx, arr);
-
-  ret = JS_Call(ctx, fn, arr, 0, 0);
-  JS_FreeValue(ctx, fn);
-  JS_FreeValue(ctx, arr);
-
-  return ret;
-}
-
 static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("basename", 1, js_path_method, PATH_BASENAME),
     JS_CFUNC_MAGIC_DEF("dirname", 1, js_path_method, PATH_DIRNAME),
@@ -758,13 +677,6 @@ static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_DEF("parse", 1, js_path_parse),
     JS_CFUNC_DEF("format", 1, js_path_format),
     JS_CFUNC_DEF("resolve", 1, js_path_resolve),
-    JS_CFUNC_MAGIC_DEF("isin", 2, js_path_isin, 0),
-    JS_CFUNC_MAGIC_DEF("equal", 2, js_path_isin, 1),
-    JS_CFUNC_MAGIC_DEF("toArray", 0, js_path_toarray, PATH_TOARRAY),
-    JS_CFUNC_MAGIC_DEF("offsets", 0, js_path_toarray, PATH_OFFSETS),
-    JS_CFUNC_MAGIC_DEF("lengths", 0, js_path_toarray, PATH_LENGTHS),
-    JS_CFUNC_MAGIC_DEF("ranges", 0, js_path_toarray, PATH_RANGES),
-    JS_CFUNC_DEF("iterator", 0, js_path_iterator),
     JS_PROP_STRING_DEF("delimiter", PATHDELIM_S, JS_PROP_CONFIGURABLE),
     JS_PROP_STRING_DEF("sep", PATHSEP_S, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("FNM_NOMATCH", PATH_FNM_NOMATCH, JS_PROP_CONFIGURABLE),
