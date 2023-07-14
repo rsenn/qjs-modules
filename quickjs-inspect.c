@@ -1274,6 +1274,8 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   if(it) {
     writer_puts(wr, is_array ? "[" : "{");
     ++depth;
+  } else {
+    writer_puts(wr, is_array ? "[]" : "{}");
   }
 
   while(it) {
@@ -1284,50 +1286,53 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
     printf("%s()[0] depth: %u idx: %u/%u\n", __func__, property_recursion_depth(&insp->hier), index, it->tab_atom_len);
 #endif
 
-    if(index > 0)
-      writer_puts(wr, ",");
+    if(!options_hidden(opts, property_enumeration_atom(it))) {
 
-    put_spacing(wr, opts, depth);
+      if(index > 0)
+        writer_puts(wr, ",");
 
-    if(!is_array) {
-      inspect_key(insp, property_enumeration_atom(it));
-      writer_puts(wr, ": ");
-    }
+      put_spacing(wr, opts, depth);
 
-    BOOL is_object = JS_IsObject(value);
-    int ret = 0;
+      if(!is_array) {
+        inspect_key(insp, property_enumeration_atom(it));
+        writer_puts(wr, ": ");
+      }
 
-    if(is_object && property_recursion_circular(&insp->hier, value)) {
-      writer_puts(wr, opts->colors ? COLOR_LIGHTRED "[loop]" COLOR_NONE : "[loop]");
-      ret = 1;
-    } else {
-      ret = is_object ? inspect_object(insp, value, depth) : 0;
-    }
+      BOOL is_object = JS_IsObject(value);
+      int ret = 0;
 
-    if(ret != 1 && is_object) {
-      writer_putc(wr, ' ');
+      if(is_object && property_recursion_circular(&insp->hier, value)) {
+        writer_puts(wr, opts->colors ? COLOR_LIGHTRED "[loop]" COLOR_NONE : "[loop]");
+        ret = 1;
+      } else {
+        ret = is_object ? inspect_object(insp, value, depth) : 0;
+      }
 
-      it = property_recursion_enter(&insp->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
-      is_array = js_is_array(ctx, value);
+      if(ret != 1 && is_object) {
+        writer_putc(wr, ' ');
+
+        it = property_recursion_enter(&insp->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
+        is_array = js_is_array(ctx, value);
+
+        if(it) {
+          index = 0;
+          writer_puts(wr, is_array ? "[" : "{");
+
+          ++depth;
+
+          // put_spacing(wr, opts, depth);
+
+          continue;
+        } else {
+          writer_puts(wr, is_array ? "[]" : "{}");
+        }
+      }
 
       if(it) {
-        index = 0;
-        writer_puts(wr, is_array ? "[" : "{");
-
-        ++depth;
-
-        // put_spacing(wr, opts, depth);
-
-        continue;
-      } else {
-        writer_puts(wr, is_array ? "[]" : "{}");
-      }
-    }
-
-    if(it) {
-      if(ret != 1 && !is_object) {
-        assert(!JS_IsObject(value));
-        inspect_value(insp, value, depth);
+        if(ret != 1 && !is_object) {
+          assert(!JS_IsObject(value));
+          inspect_value(insp, value, depth);
+        }
       }
     }
 
@@ -1373,9 +1378,9 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
 
   js_dbuf_init(ctx, &dbuf);
   buf_wr = writer_from_dynbuf(&dbuf);
-  //fd_wr = writer_from_fd(open("out.tmp", O_CREAT | O_WRONLY | O_APPEND, 0644), true);
+  // fd_wr = writer_from_fd(open("out.tmp", O_CREAT | O_WRONLY | O_APPEND, 0644), true);
 
-  Inspector insp = {{}, buf_wr/*writer_tee(buf_wr, fd_wr)*/, VECTOR(ctx)};
+  Inspector insp = {{}, buf_wr /*writer_tee(buf_wr, fd_wr)*/, VECTOR(ctx)};
 
   options_init(&insp.opts, ctx);
 
