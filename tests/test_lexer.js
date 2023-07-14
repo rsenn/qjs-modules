@@ -257,19 +257,21 @@ function main(...args) {
     let len = str.length;
     let type = path.extname(file).substring(1);
     log('data:', escape(str.slice(0, 100)));
+
     let lex = {
-      js: new ECMAScriptLexer(str, file),
-      c: new CLexer(str, CLexer.LONGEST, file),
-      bnf: new BNFLexer(str, file),
-      csv: new CSVLexer(str, file)
+      js: () => new ECMAScriptLexer(str, file),
+      c: () => new CLexer(str, CLexer.LONGEST, file),
+      bnf: () => new BNFLexer(str, file),
+      csv: () => new CSVLexer(str, file)
     };
+
     lex.h = lex.c;
     lex.g4 = lex.bnf;
     lex.ebnf = lex.bnf;
     lex.l = lex.bnf;
     lex.y = lex.bnf;
     lex.json = lex.js;
-    const lexer = (globalThis.lexer = lex[type]);
+    const lexer = (globalThis.lexer = lex[type]());
 
     console.log('lexer', lexer);
     T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
@@ -320,8 +322,19 @@ function main(...args) {
           const [start, end] = tok.charRange;
           let s = toString(str).slice(start, end);
 
-          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc, ` '${s}'`];
-          std.err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
+          const cols = [
+            prefix,
+            `tok[${tok.byteLength}]`,
+            tok.id,
+            tok.type,
+            tok.lexeme,
+            tok.lexeme.length,
+            tok.loc,
+            ` '${s}'`
+          ];
+          std.err.puts(
+            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
+          );
         }
       : () => {};
 
@@ -355,7 +368,8 @@ function main(...args) {
           case '}':
           case ']':
           case ')': {
-            if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+            if(stack.last != table[tok.lexeme])
+              throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
             stack.pop();
             break;
           }
@@ -380,7 +394,10 @@ function main(...args) {
       imp = [],
       count = 0;
     let showToken = tok => {
-      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
+      if(
+        (lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') ||
+        /^((im|ex)port|from|as)$/.test(tok.lexeme)
+      ) {
         let a = [tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.puts(a.join('') + '\n');
       }

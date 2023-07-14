@@ -123,8 +123,6 @@ BOOL
 lexer_rule_expand(Lexer* lex, char* p, DynBuf* db) {
   size_t len;
 
-  dbuf_zero(db);
-
   for(; *p; p++) {
     if(*p == '{') {
       if(p[len = str_chr(p, '}')]) {
@@ -150,7 +148,7 @@ lexer_rule_expand(Lexer* lex, char* p, DynBuf* db) {
 
 static BOOL
 lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
-  DynBuf dbuf;
+  DynBuf dbuf = DBUF_INIT_0();
   BOOL ret;
 
   if(rule->bytecode)

@@ -1970,8 +1970,9 @@ function main(...args) {
 
   let files = params['@'];
 
+  identifiersUsed = globalThis.identifiersUsed ??= memoize(arg => new Set());
+
   if(/check-import/.test(scriptArgs[0])) {
-    identifiersUsed = memoize(arg => new Set());
     if(printFiles === undefined) printFiles = false;
     onlyImports = false;
     outputFile = null;

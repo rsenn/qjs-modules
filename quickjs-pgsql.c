@@ -1243,7 +1243,7 @@ static const JSCFunctionListEntry js_pgconn_funcs[] = {
     JS_CFUNC_DEF("valueString", 0, js_pgconn_value_string),
     JS_CFUNC_DEF("valuesString", 1, js_pgconn_values_string),
     JS_CFUNC_DEF("insertQuery", 2, js_pgconn_insert_query),
-    //JS_CFUNC_MAGIC_DEF("escapeString", 1, js_pgconn_methods, METHOD_ESCAPE_STRING),
+    // JS_CFUNC_MAGIC_DEF("escapeString", 1, js_pgconn_methods, METHOD_ESCAPE_STRING),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "PGconn", JS_PROP_CONFIGURABLE),
 };
 
