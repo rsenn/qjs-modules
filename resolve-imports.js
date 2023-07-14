@@ -2096,7 +2096,6 @@ function main(...args) {
 
   let files = params['@'];
 
-  identifiersUsed = globalThis.identifiersUsed ??= memoize(arg => new Set());
 
   if(/check-import/.test(scriptArgs[0])) {
     if(printFiles === undefined) printFiles = false;
@@ -2114,7 +2113,12 @@ function main(...args) {
     if(typeof recursive == 'undefined') recursive = true;
   }
 
-  if(params.merge) onlyImports = !params['remove-unused'];
+  if(params.merge) {
+    onlyImports = !params['remove-unused'];
+  if(params['remove-unused'])
+     identifiersUsed = globalThis.identifiersUsed ??= memoize(arg => new Set());
+  } 
+
 
   //  console.log(scriptArgs[0], { printFiles, onlyImports });
 
