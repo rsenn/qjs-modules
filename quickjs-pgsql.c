@@ -434,7 +434,7 @@ pgconn_nonblock(PGSQLConnection* pq) {
 
 static const char*
 pgconn_error(PGSQLConnection* pq) {
-  return PQerrorMessage(pq->conn);
+  return pgconn_error(pq);
 }
 
 static void
@@ -624,7 +624,7 @@ js_pgconn_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_ERROR_MESSAGE: {
-      const char* error = PQerrorMessage(pq->conn);
+      const char* error = pgconn_error(pq);
       ret = error && *error ? JS_NewString(ctx, error) : JS_NULL;
       break;
     }
@@ -730,7 +730,7 @@ js_pgconn_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
 
       if(pq->conn)
         if(PQsetnonblocking(pq->conn, pq->nonblocking))
-          return JS_Throw(ctx, js_pgsqlerror_new(ctx, PQerrorMessage(pq->conn)));
+          return JS_Throw(ctx, js_pgsqlerror_new(ctx, pgconn_error(pq)));
 
       break;
     }
@@ -743,7 +743,7 @@ js_pgconn_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
         ret = PQsetClientEncoding(pq->conn, charset);
         JS_FreeCString(ctx, charset);
         if(ret)
-          return JS_Throw(ctx, js_pgsqlerror_new(ctx, PQerrorMessage(pq->conn)));
+          return JS_Throw(ctx, js_pgsqlerror_new(ctx, pgconn_error(pq)));
       }
       break;
     }
@@ -968,7 +968,7 @@ js_pgconn_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     int ret;
 
     if((ret = PQsetClientEncoding(pq->conn, "utf8"))) {
-      printf("failed setting PGSQL character set to utf8: %s", PQerrorMessage(pq->conn));
+      printf("failed setting PGSQL character set to utf8: %s", pgconn_error(pq));
     }
 
     JS_Call(ctx, data[2], JS_UNDEFINED, 1, &data[0]);
@@ -1016,7 +1016,7 @@ js_pgconn_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   connectparams_free(ctx, &params);
 
   if(PQsetnonblocking(pq->conn, 1))
-    return JS_Throw(ctx, js_pgsqlerror_new(ctx, PQerrorMessage(pq->conn)));
+    return JS_Throw(ctx, js_pgsqlerror_new(ctx, pgconn_error(pq)));
 
   fd = PQsocket(pq->conn);
   ret = PQconnectPoll(pq->conn);
@@ -1087,7 +1087,7 @@ js_pgconn_query_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   ret = PQconsumeInput(pq->conn);
 
   if(ret == 0) {
-    JSValue err = js_pgsqlerror_new(ctx, PQerrorMessage(pq->conn));
+    JSValue err = js_pgsqlerror_new(ctx, pgconn_error(pq));
     JS_Call(ctx, data[3], JS_UNDEFINED, 1, &err);
     JS_FreeValue(ctx, err);
   } else {
@@ -1131,7 +1131,7 @@ js_pgconn_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   promise = JS_NewPromiseCapability(ctx, &data[2]);
 
   if(ret == 0) {
-    JSValue err = js_pgsqlerror_new(ctx, PQerrorMessage(pq->conn));
+    JSValue err = js_pgsqlerror_new(ctx, pgconn_error(pq));
     JS_Call(ctx, data[3], JS_UNDEFINED, 1, &err);
     JS_FreeValue(ctx, err);
   } else {
@@ -1243,6 +1243,7 @@ static const JSCFunctionListEntry js_pgconn_funcs[] = {
     JS_CFUNC_DEF("valueString", 0, js_pgconn_value_string),
     JS_CFUNC_DEF("valuesString", 1, js_pgconn_values_string),
     JS_CFUNC_DEF("insertQuery", 2, js_pgconn_insert_query),
+    //JS_CFUNC_MAGIC_DEF("escapeString", 1, js_pgconn_methods, METHOD_ESCAPE_STRING),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "PGconn", JS_PROP_CONFIGURABLE),
 };
 
