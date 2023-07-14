@@ -1373,9 +1373,9 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
 
   js_dbuf_init(ctx, &dbuf);
   buf_wr = writer_from_dynbuf(&dbuf);
-  fd_wr = writer_from_fd(open("out.tmp", O_CREAT | O_WRONLY | O_APPEND, 0644), true);
+  //fd_wr = writer_from_fd(open("out.tmp", O_CREAT | O_WRONLY | O_APPEND, 0644), true);
 
-  Inspector insp = {{}, writer_tee(buf_wr, fd_wr), VECTOR(ctx)};
+  Inspector insp = {{}, buf_wr/*writer_tee(buf_wr, fd_wr)*/, VECTOR(ctx)};
 
   options_init(&insp.opts, ctx);
 

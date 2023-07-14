@@ -19,10 +19,7 @@ let repl = {
 
 function StartREPL() {
   //return import('repl').then(REPL => {
-  repl = new REPL(
-    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
-    false
-  );
+  repl = new REPL('\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m', false);
   repl.show = repl.printFunction((...args) => console.log(...args));
   repl.historyLoad();
   repl.loadSaveOptions();

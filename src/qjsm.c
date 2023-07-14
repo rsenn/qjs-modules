@@ -865,7 +865,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 restart:
   if(jsm_stack_find(module_name) != 0) {
     printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n", module_name, jsm_stack_string());
-    exit(1);
+    // exit(1);
   }
 
   if(!module_name[str_chrs(module_name, PATHSEP_S "/", 2)]) {

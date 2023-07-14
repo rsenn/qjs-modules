@@ -35,17 +35,11 @@ async function main(...args) {
 
   let pq = (globalThis.pq = new PGconn());
 
-  console.log(
-    'pq.connect() =',
-    console.config({ compact: false }),
-    await pq.connect('localhost', 'roman', 'r4eHuJ', 'roman', 5432, 10)
-  );
+  console.log('pq.connect() =', console.config({ compact: false }), await pq.connect('localhost', 'roman', 'r4eHuJ', 'roman', 5432, 10));
 
   let i;
 
-  let q = (globalThis.q = async s => (
-    console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await pq.query(s))
-  ));
+  let q = (globalThis.q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await pq.query(s))));
 
   i = 0;
 
@@ -88,13 +82,7 @@ async function main(...args) {
 
   q(pq.insertQuery('users', ['name', 'password', 'email'], [randStr(32), randStr(32), randStr(64)]));
 
-  q(
-    pq.insertQuery(
-      'sessions',
-      ['user_id', 'uuid', 'variables'],
-      [pq.insertId, [8, 4, 4, 4, 12].map(n => randStr(n, '0123456789abcdef')).join('-'), { blah: 1234 }]
-    )
-  );
+  q(pq.insertQuery('sessions', ['user_id', 'uuid', 'variables'], [pq.insertId, [8, 4, 4, 4, 12].map(n => randStr(n, '0123456789abcdef')).join('-'), { blah: 1234 }]));
 
   console.log('pq.affectedRows =', pq.affectedRows);
   console.log('id =', (id = pq.insertId));
