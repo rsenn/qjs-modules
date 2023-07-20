@@ -2777,6 +2777,98 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return ret;
 }
 
+#ifndef __wasi__
+#if defined(_WIN32)
+
+/* Windows 10 built-in VT100 emulation */
+#define __ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#define __ENABLE_VIRTUAL_TERMINAL_INPUT 0x0200
+
+static JSValue
+js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int fd;
+  HANDLE handle;
+
+  if(JS_ToInt32(ctx, &fd, argv[0]))
+    return JS_EXCEPTION;
+  handle = (HANDLE)_get_osfhandle(fd);
+  SetConsoleMode(handle, ENABLE_WINDOW_INPUT | __ENABLE_VIRTUAL_TERMINAL_INPUT);
+  _setmode(fd, _O_BINARY);
+  if(fd == 0) {
+    handle = (HANDLE)_get_osfhandle(1); /* corresponding output */
+    SetConsoleMode(handle, ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT | __ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+  }
+  return JS_UNDEFINED;
+}
+#else
+
+static struct termios oldtty;
+static BOOL have_oldtty;
+
+static void
+term_exit(void) {
+#ifndef __ANDROID__
+  tcsetattr(0, TCSANOW, &oldtty);
+#endif
+}
+
+/* XXX: should add a way to go back to normal mode */
+static JSValue
+js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  struct termios tty;
+  int fd;
+  BOOL restore = FALSE;
+
+  if(JS_ToInt32(ctx, &fd, argv[0]))
+    return JS_EXCEPTION;
+
+  if(argc > 1)
+    restore = JS_ToBool(ctx, argv[1]);
+
+  if(restore) {
+    if(!have_oldtty) {
+      tcgetattr(fd, &tty);
+      tty.c_iflag = IGNPAR | IMAXBEL | IUTF8;
+      tty.c_oflag = OPOST | ONLCR;
+      tty.c_cflag = B38400 | CSIZE | CREAD;
+      tty.c_lflag = ISIG | ECHOE | ECHOK | ECHOCTL | ECHOKE;
+
+      tty.c_cc[VMIN] = 1;
+      tty.c_cc[VTIME] = 0;
+    } else {
+      tty = oldtty;
+    }
+
+    tcsetattr(0, TCSANOW, &tty);
+
+  } else {
+
+    memset(&tty, 0, sizeof(tty));
+#ifndef __ANDROID__
+    tcgetattr(fd, &tty);
+    oldtty = tty;
+    have_oldtty = TRUE;
+
+    tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
+    tty.c_oflag |= OPOST;
+    tty.c_lflag &= ~(ECHO | ECHONL | ICANON | IEXTEN);
+    tty.c_cflag &= ~(CSIZE | PARENB);
+    tty.c_cflag |= CS8;
+    tty.c_cc[VMIN] = 1;
+    tty.c_cc[VTIME] = 0;
+
+    tcsetattr(fd, TCSANOW, &tty);
+
+    atexit(term_exit);
+#endif
+  }
+
+  return JS_UNDEFINED;
+}
+
+#endif /* !_WIN32 */
+#endif
+
 static JSValue
 js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   BOOL as_object = FALSE;
@@ -3012,6 +3104,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isUndefined", 1, js_misc_is, IS_UNDEFINED),
     JS_CFUNC_MAGIC_DEF("isUninitialized", 1, js_misc_is, IS_UNINITIALIZED),
     JS_CFUNC_MAGIC_DEF("isArrayBuffer", 1, js_misc_is, IS_ARRAYBUFFER),
+    JS_CFUNC_DEF("ttySetRaw", 1, js_misc_ttysetraw),
 
     JS_CONSTANT(JS_EVAL_TYPE_GLOBAL),
     JS_CONSTANT(JS_EVAL_TYPE_MODULE),

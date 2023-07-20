@@ -238,13 +238,16 @@ path_right3(const char* s, size_t* len, size_t n) {
 
   while(p > s && path_issep(*p))
     --p;
-  e = p;
+  e = p + 1;
   while(p > s && !path_issep(*p))
     --p;
 
+  if(path_issep(*p))
+    ++p;
+
   *len = e - p;
 
-  return p - s + 1;
+  return p - s;
 }
 
 static inline size_t

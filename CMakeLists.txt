@@ -463,6 +463,14 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
+
+
+list(APPEND CMAKE_REQUIRED_LIBRARIES ${QUICKJS_LIBRARY})
+list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
+
+check_function_def(js_debugger_build_backtrace)
+dump(HAVE_JS_DEBUGGER_BUILD_BACKTRACE)
+
 file(GLOB TESTS tests/test_*.js)
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
 

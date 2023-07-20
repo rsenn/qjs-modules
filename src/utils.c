@@ -1,3 +1,4 @@
+
 #undef _ISOC99_SOURCE
 #define _ISOC99_SOURCE 1
 #include "utils.h"
@@ -1840,9 +1841,8 @@ js_value_print(JSContext* ctx, JSValueConst value) {
 
 int
 js_value_tosize(JSContext* ctx, size_t* sz, JSValueConst value) {
-  uint64_t u64 = 0;
-  int r;
-  r = JS_ToIndex(ctx, &u64, value);
+  uint64_t u64 = *sz;
+  int r = JS_ToIndex(ctx, &u64, value);
   *sz = u64;
   return r;
 }
@@ -1905,6 +1905,12 @@ js_cstring_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   dbuf_append(db, (const uint8_t*)str, len);
 
   JS_FreeCString(ctx, str);
+}
+
+void
+js_cstring_dump_free(JSContext* ctx, JSValue value, DynBuf* db) {
+  js_cstring_dump(ctx, value, db);
+  JS_FreeValue(ctx, value);
 }
 
 JSValue
@@ -3058,6 +3064,68 @@ js_set_iterator_prototype(JSContext* ctx) {
   ret = JS_GetPrototype(ctx, gen);
   JS_FreeValue(ctx, gen);
   return ret;
+}
+
+void
+js_stackframe_dump(JSContext* ctx, JSValueConst frame, DynBuf* db) {
+  size_t pos = db->size;
+
+  js_cstring_dump_free(ctx, JS_GetPropertyStr(ctx, frame, "id"), db);
+  dbuf_putc(db, ' ');
+  js_cstring_dump_free(ctx, JS_GetPropertyStr(ctx, frame, "name"), db);
+
+  JSValue prop = JS_GetPropertyStr(ctx, frame, "filename");
+
+  if(!JS_IsUndefined(prop)) {
+
+    while(db->size - pos < 30)
+      dbuf_putc(db, ' ');
+
+    js_cstring_dump_free(ctx, prop, db);
+    prop = JS_GetPropertyStr(ctx, frame, "line");
+
+    if(!JS_IsUndefined(prop)) {
+      dbuf_putc(db, ':');
+      js_cstring_dump(ctx, prop, db);
+    }
+  }
+
+  JS_FreeValue(ctx, prop);
+  dbuf_putc(db, '\n');
+}
+
+void
+js_stack_dump(JSContext* ctx, JSValueConst stack, DynBuf* db) {
+  int64_t i, len = js_array_length(ctx, stack);
+
+  for(i = 0; i < len; i++) {
+    JSValue frame = JS_GetPropertyUint32(ctx, stack, i);
+    js_stackframe_dump(ctx, frame, db);
+    JS_FreeValue(ctx, frame);
+  }
+}
+
+char*
+js_stack_tostring(JSContext* ctx, JSValueConst stack) {
+  DynBuf db = DBUF_INIT_0();
+
+  dbuf_init2(&db, ctx, (realloc_func*)&utils_js_realloc);
+  js_stack_dump(ctx, stack, &db);
+  dbuf_0(&db);
+
+  return (char*)db.buf;
+}
+
+void
+js_stack_print(JSContext* ctx, JSValueConst stack) {
+  char* str;
+
+  if((str = js_stack_tostring(ctx, stack)))
+    fputs(str, stdout);
+
+  fflush(stdout);
+
+  js_free(ctx, str);
 }
 
 /**

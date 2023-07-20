@@ -90,7 +90,7 @@ path_absolute3(const char* path, size_t len, DynBuf* db) {
       path_append3(path, len, db);
 
     dbuf_0(db);
-    db->size = path_normalize2(db->buf, db->size);
+    db->size = path_normalize2((char*)db->buf, db->size);
     dbuf_0(db);
 
     return 1;

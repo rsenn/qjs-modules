@@ -109,6 +109,34 @@ syscall_return(Socket* sock, int sysno, int retval) {
 #endif
 }
 
+static int
+js_socktype(JSContext* ctx, SockType* st, int argc, JSValueConst argv[]) {
+  int index = 0;
+
+  st->family = AF_UNSPEC;
+  st->type = SOCK_STREAM;
+  st->protocol = IPPROTO_IP;
+
+  if(argc > index) {
+    if(!JS_IsNumber(argv[index]) || JS_ToInt32(ctx, &st->family, argv[index]))
+      return index;
+
+    if(argc > ++index) {
+      if(!JS_IsNumber(argv[index]) || JS_ToInt32(ctx, &st->type, argv[index]))
+        return index;
+
+      if(argc > ++index) {
+        if(!JS_IsNumber(argv[index]) || JS_ToInt32(ctx, &st->protocol, argv[index]))
+          return index;
+
+        ++index;
+      }
+    }
+  }
+
+  return index;
+}
+
 static void
 js_sockaddr_free_buffer(JSRuntime* rt, void* opaque, void* ptr) {
   JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_OBJECT, opaque));
@@ -506,15 +534,15 @@ js_sockaddr_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static const JSCFunctionListEntry js_sockaddr_proto_funcs[] = {
-    JS_CGETSET_MAGIC_FLAGS_DEF("family", js_sockaddr_get, js_sockaddr_set, SOCKADDR_FAMILY, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_FLAGS_DEF("addr", js_sockaddr_get, js_sockaddr_set, SOCKADDR_ADDR, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_FLAGS_DEF("port", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PORT, JS_PROP_C_W_E),
-    JS_CGETSET_MAGIC_FLAGS_DEF("path", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PATH, JS_PROP_C_W_E),
+    JS_CGETSET_MAGIC_FLAGS_DEF("family", js_sockaddr_get, js_sockaddr_set, SOCKADDR_FAMILY, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("addr", js_sockaddr_get, js_sockaddr_set, SOCKADDR_ADDR, JS_PROP_WRITABLE | JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("port", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PORT, JS_PROP_WRITABLE | JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_DEF("path", js_sockaddr_get, js_sockaddr_set, SOCKADDR_PATH),
     JS_CGETSET_MAGIC_DEF("buffer", js_sockaddr_get, 0, SOCKADDR_BUFFER),
     JS_CGETSET_MAGIC_DEF("byteLength", js_sockaddr_get, 0, SOCKADDR_BYTELENGTH),
     JS_CFUNC_MAGIC_DEF("clone", 0, js_sockaddr_method, SOCKADDR_CLONE),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_sockaddr_method, SOCKADDR_TOSTRING),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SockAddr", JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SockAddr", 0),
 };
 
 static JSClassDef js_sockaddr_class = {
@@ -752,19 +780,21 @@ optval_buf(JSContext* ctx, JSValueConst arg, int32_t** tmp_ptr, socklen_t* lenp)
 
 static JSValue
 js_socketpair(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int32_t af, type = SOCK_STREAM, proto = IPPROTO_IP;
+  SockType st = {AF_UNSPEC, SOCK_STREAM, IPPROTO_IP};
   int result;
   SOCKET s[2];
 
-  JS_ToInt32(ctx, &af, argv[0]);
-  JS_ToInt32(ctx, &type, argv[1]);
+  switch(js_socktype(ctx, &st, argc, argv)) {
+    case 0: return JS_ThrowTypeError(ctx, "argument 1 must be address family");
+    case 1: return JS_ThrowTypeError(ctx, "argument 2 must be socket type");
+    /*case 2: return JS_ThrowTypeError(ctx, "argument 3 must be protocol");*/
+    default: break;
+  }
 
-  JS_ToInt32(ctx, &proto, argv[2]);
-
-  if(!JS_IsArray(ctx, argv[3]))
+  if(argc < 4 && !JS_IsArray(ctx, argv[3]))
     return JS_ThrowTypeError(ctx, "argument 4 must be array");
 
-  if((result = socketpair(af, type, proto, s)) != -1) {
+  if((result = socketpair(st.family, st.type, st.protocol, s)) != -1) {
     JS_SetPropertyUint32(ctx, argv[3], 0, JS_NewInt64(ctx, s[0]));
     JS_SetPropertyUint32(ctx, argv[3], 1, JS_NewInt64(ctx, s[1]));
   }
@@ -1034,9 +1064,12 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
     s = (Socket*)asock;
 
     s->fd = fd;
-    s->nonblock = FALSE;
+    s->nonblock = TRUE;
+
+    socket_nonblocking(s, TRUE);
+
   } else {
-    Socket sock = SOCKET(fd, 0, -1, FALSE, async, owner);
+    Socket sock = SOCKET(fd, 0, -1, FALSE, FALSE, owner);
     assert(sizeof(Socket) == sizeof(sock.ptr));
 
     JS_SetOpaque(obj, sock.ptr);
@@ -1594,28 +1627,27 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static JSValue
 js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[], int async) {
   JSValue proto;
-  int32_t af, type = SOCK_STREAM, protocol = IPPROTO_IP;
+  SockType st = {AF_UNSPEC, SOCK_STREAM, IPPROTO_IP};
   int fd = -1;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
 
-  JS_ToInt32(ctx, &af, argv[0]);
-
-  if(argc >= 2) {
-    JS_ToInt32(ctx, &type, argv[1]);
-    if(argc >= 3)
-      JS_ToInt32(ctx, &protocol, argv[2]);
+  switch(js_socktype(ctx, &st, argc, argv)) {
+    case 0: return JS_ThrowTypeError(ctx, "argument 1 must be address family");
+    case 1: return JS_ThrowTypeError(ctx, "argument 2 must be socket type");
+    /*case 2: return JS_ThrowTypeError(ctx, "argument 3 must be protocol");*/
+    default: break;
   }
 
   for(;;) {
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
-    SOCKET h = socket(af, type, protocol);
+    SOCKET h = socket(st.family, st.type, st.protocol);
 
     fd = h == INVALID_SOCKET ? -1 : _open_osfhandle(h, 0);
 #else
-    fd = socket(af, type, protocol);
+    fd = socket(st.family, st.type, st.protocol);
 #endif
 
     if(fd == -1) {

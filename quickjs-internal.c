@@ -584,6 +584,15 @@ js_opcode_list(JSContext* ctx, BOOL as_object) {
   return ret;
 }
 
+#ifdef HAVE_JS_DEBUGGER_BUILD_BACKTRACE
+JSValue js_debugger_build_backtrace(JSContext* ctx, const uint8_t* cur_pc);
+
+JSValue
+js_stack_get(JSContext* ctx) {
+  return js_debugger_build_backtrace(ctx, ctx->rt->current_stack_frame->cur_pc);
+}
+#endif
+
 #define SHORT_OPCODES 1
 
 const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)] = {

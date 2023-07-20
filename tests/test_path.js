@@ -5,7 +5,9 @@ tests({
   'basename()'() {
     eq(path.basename('/tmp/test/'), 'test');
     eq(path.basename('/tmp/test.obj', '.obj'), 'test');
-    eq(path.basename('/tmp/test.obj', '/test.obj'), 'test.obj');
+    eq(path.basename('/tmp/test.obj'), 'test.obj');
+    eq(path.basename('test'), 'test');
+    eq(path.basename('test.obj', '.obj'), 'test');
   },
   'normalize()'() {
     eq(path.normalize('////tmp////other//..//test'), '/tmp/test');

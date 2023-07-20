@@ -26,6 +26,10 @@
  * @{
  */
 
+typedef struct {
+  int32_t family, type, protocol;
+} SockType;
+
 typedef union {
   uint16_t family;
   struct sockaddr s;

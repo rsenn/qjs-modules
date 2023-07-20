@@ -75,7 +75,7 @@ pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
 
 void
 pointer_dump(Pointer const* ptr, Writer* wr, BOOL color, ssize_t index, JSContext* ctx) {
-  size_t i;
+  size_t i, j;
 
   for(i = 0; i < ptr->n; i++) {
     const char* s = JS_AtomToCString(ctx, ptr->atoms[i]);
@@ -83,7 +83,12 @@ pointer_dump(Pointer const* ptr, Writer* wr, BOOL color, ssize_t index, JSContex
 
     writer_puts(wr, color ? (is_int ? COLOR_CYAN "[" : COLOR_CYAN ".") : (is_int ? "[" : "."));
     writer_puts(wr, color ? pointer_color(s) : "");
-    writer_puts(wr, s);
+
+    for(j = 0; s[j]; j++) {
+      if(s[j] == '.' || s[j] == '[' || s[j] == ']')
+        writer_putc(wr, '\\');
+      writer_putc(wr, s[j]);
+    }
 
     if(is_int)
       writer_puts(wr, color ? COLOR_CYAN "]" : "]");
@@ -138,8 +143,16 @@ pointer_serialize(Pointer const* ptr, Writer* wr, JSContext* ctx) {
   }
 }
 
+static int
+pointer_parse_unescape(const char* x, size_t* nptr) {
+  *nptr = 2;
+  return *x;
+}
+
 size_t
 pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
+  DynBuf dbuf = DBUF_INIT_CTX(ctx);
+
   if(len > 0 && str[0] == '.') {
     ++str;
     --len;
@@ -148,16 +161,19 @@ pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
   while(len) {
     int32_t val;
     const char c = *str, *endptr;
-    size_t start, delim, n, m;
+    size_t start, delim, n, m = 0;
+    BOOL unescape = FALSE;
+    JSAtom atom;
 
     start = c == '[' ? 1 : 0;
     delim = start;
 
     for(;;) {
-      delim += byte_chrs(&str[delim], len - delim, c == '[' ? "." : ".[", c == '[' ? 1 : 2);
+      delim += byte_chrs(&str[delim], len - delim, c == '[' ? "]" : ".[", c == '[' ? 1 : 2);
 
       if(delim < len && delim > 0 && str[delim - 1] == '\\') {
         ++delim;
+        unescape = TRUE;
         continue;
       }
 
@@ -168,28 +184,37 @@ pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
     endptr = 0;
     val = 0;
 
-    if(delim && str[delim - 1] == ']')
-      n--;
+    if(unescape) {
+      dbuf.size = 0;
+      dbuf_put_unescaped_pred(&dbuf, &str[start], n, pointer_parse_unescape);
+      atom = JS_NewAtomLen(ctx, (const char*)dbuf.buf, dbuf.size);
+    } else {
+      if(start)
+        m = scan_int(&str[start], &val);
 
-    if((m = scan_int(&str[start], &val)) > 0)
-      endptr = &str[start + m];
-    /*int dpos=str[start] == '-' ? 1 : 0;
-
-        if(is_digit_char(str[start+dpos]))
-          endptr = &str[start] + scan_int(&str[start], &val);
-    */
-    JSAtom atom = endptr == &str[start + n] ? js_atom_from_integer(ctx, val) : JS_NewAtomLen(ctx, &str[start], n);
+      atom = m > 0 && m == n ? js_atom_from_integer(ctx, val) : JS_NewAtomLen(ctx, &str[start], n);
+    }
 
     pointer_pushatom(ptr, atom, ctx);
 
-    str += delim;
-    len -= delim;
+    if(str[start + n] != ']' && str[start + n] != '.')
+      n--;
+
+    str += start + n;
+    len -= start + n;
 
     if(len > 0) {
       ++str;
       --len;
+
+      if(start && *str == '.') {
+        ++str;
+        --len;
+      }
     }
   }
+
+  dbuf_free(&dbuf);
 
   return ptr->n;
 }

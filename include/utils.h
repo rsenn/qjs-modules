@@ -1137,6 +1137,13 @@ JSValue js_std_file(JSContext* ctx, FILE* f);
 JSValue js_get_bytecode(JSContext* ctx, JSValueConst value);
 JSValue js_opcode_list(JSContext* ctx, BOOL as_object);
 
+void js_cstring_dump_free(JSContext*, JSValue, DynBuf*);
+void js_stackframe_dump(JSContext*, JSValueConst, DynBuf*);
+void js_stack_dump(JSContext*, JSValueConst, DynBuf*);
+char* js_stack_tostring(JSContext*, JSValueConst);
+JSValue js_stack_get(JSContext* ctx);
+void js_stack_print(JSContext*, JSValueConst);
+
 /**
  * @}
  */

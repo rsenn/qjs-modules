@@ -1001,7 +1001,7 @@ jsm_module_save(void) {
   FILE* f;
 
   dbuf_init2(&db, 0, 0);
-  dbuf_putstr(&db, (const uint8_t*)home);
+  dbuf_putstr(&db, home);
   path_append2(".qjsm_modules", &db);
 
   if((f = fopen((const char*)db.buf, "w"))) {
@@ -1026,7 +1026,7 @@ jsm_module_restore(void) {
   DynBuf db;
 
   dbuf_init2(&db, 0, 0);
-  dbuf_putstr(&db, (const uint8_t*)home);
+  dbuf_putstr(&db, home);
   path_append2(".qjsm_modules", &db);
 
   FILE* f;
