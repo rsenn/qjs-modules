@@ -91,6 +91,21 @@ fmt_xlonglong(char* dest, uint64_t i) {
 }
 
 size_t
+fmt_xlonglong0(char* dest, uint64_t num, size_t n) {
+  size_t i = 0, len;
+
+  if((len = fmt_xlonglong(NULL, num)) < n) {
+    len = n - len;
+
+    while(i < len)
+      dest[i++] = '0';
+  }
+
+  i += fmt_xlonglong(&dest[i], num);
+  return i;
+}
+
+size_t
 fmt_8long(char* dest, uint32_t i) {
   uint32_t len, tmp;
 
@@ -534,6 +549,30 @@ i64toa(char* x, int64_t num, int base) {
   return pos + len;
 }
 
+size_t
+str_findb(const char* s1, const char* x, size_t n) {
+  const char* b;
+  size_t i, j, len = strlen(s1);
+
+  if(len >= n) {
+    size_t end = len - n + 1;
+
+    for(i = 0; i < end; i++) {
+      b = &s1[i];
+
+      for(j = 0; x[j] == b[j];)
+        if(++j == n)
+          return i;
+    }
+  }
+
+  return len;
+}
+
+size_t
+str_find(const void* s, const void* what) {
+  return str_findb(s, what, strlen(what));
+}
 /**
  * @}
  */

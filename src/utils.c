@@ -1105,14 +1105,26 @@ js_get_propertyint_int32(JSContext* ctx, JSValueConst obj, uint32_t prop) {
 
 char*
 js_get_property_string(JSContext* ctx, JSValueConst obj, JSAtom prop) {
-  JSValue value;
   char* ret;
-  value = JS_GetProperty(ctx, obj, prop);
+  JSValue value = JS_GetProperty(ctx, obj, prop);
 
   if(JS_IsUndefined(value) || JS_IsException(value))
     return 0;
 
   ret = js_tostring(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+const char*
+js_get_property_cstring(JSContext* ctx, JSValueConst obj, JSAtom prop) {
+  const char* ret;
+  JSValue value = JS_GetProperty(ctx, obj, prop);
+
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  ret = JS_ToCString(ctx, value);
   JS_FreeValue(ctx, value);
   return ret;
 }
@@ -1928,7 +1940,7 @@ js_map_iterator_prototype(JSContext* ctx) {
 }
 
 char*
-module_namestr(JSContext* ctx, JSModuleDef* m) {
+namestr(JSContext* ctx, JSModuleDef* m) {
   const char* name = module_namecstr(ctx, m);
   char* str = js_strdup(ctx, name);
   JS_FreeCString(ctx, name);
@@ -1948,9 +1960,13 @@ module_exports_find_str(JSContext* ctx, JSModuleDef* m, const char* name) {
 
 JSValue
 module_exports(JSContext* ctx, JSModuleDef* m) {
-  JSValue exports;
-  exports = JS_NewObject /*Proto*/ (ctx /*, JS_NULL*/);
-  module_exports_get(ctx, m, FALSE, exports);
+  JSValue exports = JS_NewObject(ctx);
+
+  if(module_exports_get(ctx, m, FALSE, exports) == 0) {
+    JS_FreeValue(ctx, exports);
+    return JS_UNDEFINED;
+  }
+
   return exports;
 }
 
@@ -1971,29 +1987,58 @@ module_value(JSContext* ctx, JSModuleDef* m) {
 JSValue
 module_entry(JSContext* ctx, JSModuleDef* m) {
   JSValue entry = JS_NewArray(ctx);
+
   JS_SetPropertyUint32(ctx, entry, 0, module_ns(ctx, m));
   JS_SetPropertyUint32(ctx, entry, 1, module_exports(ctx, m));
   JS_SetPropertyUint32(ctx, entry, 2, module_func(ctx, m));
+
   return entry;
 }
 
 JSModuleDef*
 js_module_def(JSContext* ctx, JSValueConst value) {
-  JSModuleDef* m = 0;
-
   if(JS_IsString(value)) {
     const char* name = JS_ToCString(ctx, value);
-    m = js_module_find(ctx, name);
+    JSModuleDef* m = js_module_find(ctx, name);
     JS_FreeCString(ctx, name);
-  } else if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE) {
-    m = JS_VALUE_GET_PTR(value);
-  } else if(js_number_integral(value)) {
-    int32_t num = -1;
-    JS_ToInt32(ctx, &num, value);
-    m = js_module_at(ctx, num);
+    return m;
   }
 
-  return m;
+  if(JS_VALUE_GET_TAG(value) == JS_TAG_MODULE)
+    return JS_VALUE_GET_PTR(value);
+
+  if(js_number_integral(value)) {
+    int32_t num = -1;
+    JS_ToInt32(ctx, &num, value);
+    return js_module_at(ctx, num);
+  }
+
+  if(JS_IsObject(value)) {
+    JSAtom atom = js_symbol_static_atom(ctx, "toStringTag");
+    uint64_t addrval = 0;
+    const char *tag, *addr;
+
+    if(JS_HasProperty(ctx, value, atom) && js_has_propertystr(ctx, value, "address")) {
+      if((tag = js_get_property_cstring(ctx, value, atom))) {
+        if(!strcmp(tag, "Module")) {
+          if((addr = js_get_propertystr_cstring(ctx, value, "address"))) {
+            if(addr[0] == '0' && addr[1] == 'x')
+              if(scan_xlonglong(addr + 2, &addrval) == 0)
+                addrval = 0;
+            JS_FreeCString(ctx, addr);
+          }
+        }
+        JS_FreeCString(ctx, tag);
+      }
+    }
+
+    JS_FreeAtom(ctx, atom);
+
+    if(addrval)
+      return (JSModuleDef*)(void*)(uintptr_t)addrval;
+  }
+
+  return 0;
 }
 
 JSModuleDef*
@@ -2356,10 +2401,6 @@ js_eval_buf(JSContext* ctx, const void* buf, int buf_len, const char* filename, 
     JSValue module;
 
     /* for the modules, we compile then run to be able to set import.meta */
-
-    if(!filename)
-      filename = "<input>";
-
     module = JS_Eval(ctx, buf, buf_len, filename ? filename : "<input>", (eval_flags & 0xff) | JS_EVAL_FLAG_COMPILE_ONLY);
     // m = js_module_def(ctx, module);
 
@@ -2400,17 +2441,28 @@ js_eval_str(JSContext* ctx, const char* str, const char* file, int flags) {
   return ret;
 }
 
-int __attribute__((format(printf, 3, 4))) js_eval_fmt(JSContext* ctx, int flags, const char* fmt, ...) {
-  int ret;
+JSValue __attribute__((format(printf, 3, 4))) js_eval_fmt(JSContext* ctx, int flags, const char* fmt, ...) {
+  JSValue ret;
   va_list ap;
   DynBuf buf;
+  size_t len;
+
   dbuf_init2(&buf, ctx, (realloc_func*)&utils_js_realloc);
+
+  va_start(ap, fmt);
+  len = vsnprintf((char*)buf.buf, 0, fmt, ap);
+  va_end(ap);
+
+  dbuf_realloc(&buf, buf.size + len + 1);
+
   va_start(ap, fmt);
   dbuf_vprintf(&buf, fmt, ap);
   va_end(ap);
+
   dbuf_0(&buf);
-  ret = js_eval_str(ctx, (const char*)buf.buf, "<input>", flags);
+  ret = js_eval_buf(ctx, (const char*)buf.buf, buf.size, NULL, flags);
   dbuf_free(&buf);
+
   return ret;
 }
 

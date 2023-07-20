@@ -160,7 +160,7 @@ pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
 
   while(len) {
     int32_t val;
-    const char c = *str, *endptr;
+    const char c = *str;
     size_t start, delim, n, m = 0;
     BOOL unescape = FALSE;
     JSAtom atom;
@@ -181,7 +181,6 @@ pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
     }
 
     n = delim - start;
-    endptr = 0;
     val = 0;
 
     if(unescape) {

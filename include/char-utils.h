@@ -310,6 +310,9 @@ str_ndup(const char* s, size_t n) {
   return r;
 }
 
+size_t str_findb(const char*, const char*, size_t);
+size_t str_find(const void*, const void*);
+
 static inline size_t
 predicate_find(const char* str, size_t len, int (*pred)(int32_t)) {
   size_t pos;
@@ -361,6 +364,7 @@ size_t scan_ushort(const char*, uint16_t*);
 size_t fmt_longlong(char*, int64_t);
 size_t fmt_ulonglong(char*, uint64_t);
 size_t fmt_xlonglong(char*, uint64_t);
+size_t fmt_xlonglong0(char*, uint64_t, size_t);
 size_t fmt_8long(char* dest, uint32_t i);
 size_t fmt_xlong(char* dest, uint32_t num);
 size_t fmt_xlong0(char* dest, uint32_t num, size_t n);

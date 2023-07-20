@@ -209,13 +209,16 @@ void
 dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int)) {
   size_t i = 0, j;
   char c;
+
   while(i < len) {
     if((j = predicate_find(&str[i], len - i, pred))) {
       dbuf_append(db, (const uint8_t*)&str[i], j);
       i += j;
     }
+
     if(i == len)
       break;
+
     dbuf_putc(db, '\\');
 
     if(str[i] == 0x1b) {
@@ -228,9 +231,46 @@ dbuf_put_escaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(int))
       if(r == 'u' || r == 'x')
         dbuf_printf(db, r == 'u' ? "%04x" : "%02x", str[i]);
     }
+
     i++;
   }
 }
+
+const uint8_t escape_noquote_tab[256] = {
+    'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0, 0, 0, 0, 0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0x5c, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    'x',  0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
+    0,   'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+};
+const uint8_t escape_singlequote_tab[256] = {
+    'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0, 0, 0, 0, 0,
+    0,   0x27, 0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
+    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0x5c, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
+    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    'x',  0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
+    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
+    0,   'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+};
+
+const uint8_t escape_doublequote_tab[256] = {
+    'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x',
+
+    'x', 'x', 'x', 'x', 0,   0,   0x22, 0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0x5c, 0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   'x', 0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 'u',
+    'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u',
+};
+
+const uint8_t escape_backquote_tab[256] = {
+    'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0,   0x76, 0x66, 0,   'x', 'x', 'x',  'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0, 0, 0, 0x24, 0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,   0,    0,    0,   0,   0,   0,    0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0,    0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,   0,    0,    0,   0,   0,   0x5c, 0,   0,   0,   0x60, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0,    0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,   0,    0,    'x', 0,   0,   0,    0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0,    0,
+    0,   0,   0,   0,   0,   0,   0,   0,   0,    0,    0,   0,    0,    0,   0,   0,   0,    0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0,    0,
+    0,   'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u', 'u',  'u',  'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+};
 
 void
 dbuf_put_escaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]) {
@@ -297,27 +337,49 @@ dbuf_put_unescaped_pred(DynBuf* db, const char* str, size_t len, int (*pred)(con
   }
 }
 
-/*static const uint8_t dbuf_put_escaped_tab[256] = {
-    'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0, 0, 0, 0, 0,
-    0,   0x27, 0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0x5c, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    'x',  0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-    0,   'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
-};*/
+void
+dbuf_put_unescaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]) {
+  size_t i = 0, j;
+
+  while(i < len) {
+    if((j = byte_chr(&str[i], len - i, '\\'))) {
+      dbuf_append(db, (const uint8_t*)&str[i], j);
+      i += j;
+    }
+
+    if(i == len)
+      break;
+
+    ++i;
+
+    uint8_t c;
+
+    switch(str[i]) {
+      case 'b': c = '\b'; break;
+      case 't': c = '\t'; break;
+      case 'n': c = '\n'; break;
+      case 'v': c = '\v'; break;
+      case 'f': c = '\f'; break;
+      case 'r': c = '\r'; break;
+      default: c = str[i]; break;
+    }
+
+    uint8_t r = table[c];
+
+    if(!(r && r != 'x' && r != 'u')) {
+      dbuf_putc(db, '\\');
+      dbuf_putc(db, c);
+    } else {
+      dbuf_putc(db, str[i] == r ? c : r);
+    }
+
+    ++i;
+  }
+}
 
 void
 dbuf_put_escaped(DynBuf* db, const char* str, size_t len) {
-  static const uint8_t tab[256] = {
-      'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0, 0, 0, 0, 0,
-      0,   0x27, 0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-      0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0x5c, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-      0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    'x',  0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-      0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-      0,   'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
-  };
-
-  return dbuf_put_escaped_table(db, str, len, tab);
+  return dbuf_put_escaped_table(db, str, len, escape_noquote_tab);
 }
 
 void
@@ -425,19 +487,9 @@ dbuf_load(DynBuf* s, const char* filename) {
 
 int
 dbuf_vprintf(DynBuf* s, const char* fmt, va_list ap) {
-  char buf[128];
-  size_t len;
 
-  len = vsnprintf(buf, sizeof(buf), fmt, ap);
-  if(len < sizeof(buf)) {
-    /* fast case */
-    return dbuf_put(s, (uint8_t*)buf, len);
-  } else {
-    if(dbuf_realloc(s, s->size + len + 1))
-      return -1;
-    vsnprintf((char*)(s->buf + s->size), s->allocated_size - s->size, fmt, ap);
-    s->size += len;
-  }
+  s->size += vsnprintf((char*)(s->buf + s->size), s->allocated_size - s->size, fmt, ap);
+
   return 0;
 }
 

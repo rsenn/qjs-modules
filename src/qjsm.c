@@ -50,6 +50,8 @@
 #include "base64.h"
 #include "debug.h"
 
+#include "quickjs-internal.h"
+
 typedef JSModuleDef* ModuleInitFunction(JSContext*, const char*);
 typedef char* ModuleLoader(JSContext*, const char*);
 
@@ -604,6 +606,15 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
 
 /* end of "new breed" module loader functions */
 
+BOOL
+jsm_module_is_builtin(JSModuleDef* m) {
+  BuiltinModule* rec;
+
+  vector_foreach_t(&jsm_builtin_modules, rec) if(rec->def == m) return TRUE;
+
+  return FALSE;
+}
+
 char*
 jsm_module_package(JSContext* ctx, const char* module) {
   JSValue package;
@@ -831,10 +842,15 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     module_name += 7;
 
   if(str_start(module_name, "data:")) {
-    uint8_t* decoded;
+    BOOL is_js = module_name[str_find(module_name, "/javascript")] || module_name[str_find(module_name, "/ecmascript")];
+    BOOL is_json = !is_js && module_name[str_find(module_name, "/json")];
+    DynBuf code = DBUF_INIT_CTX(ctx);
     JSValue module;
     size_t length = strlen(module_name);
+    size_t encoding_offset = byte_chr(module_name, length, ';');
     size_t offset = byte_chr(module_name, length, ',');
+    const char* encoding = encoding_offset > offset ? NULL : &module_name[encoding_offset + 1];
+    BOOL is_base64 = encoding && !strncasecmp(encoding, "base64", 4);
 
     if(!module_name[offset])
       return NULL;
@@ -842,20 +858,49 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     ++offset;
     length -= offset;
 
-    if(!(decoded = js_malloc(ctx, b64url_get_decoded_buffer_size(length) + 1)))
-      return 0;
+    if(is_json) {
+      if(is_base64)
+        dbuf_putstr(&code, "import { atos } from 'util';\n");
 
-    length = b64url_decode((const uint8_t*)&module_name[offset], length, decoded);
-    decoded[length] = '\0';
+      dbuf_putstr(&code, "export default JSON.parse(");
+      if(is_base64)
+        dbuf_putstr(&code, "atos(");
 
-    module = JS_Eval(ctx, (const char*)decoded, length, "<data-url>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
-    js_free(ctx, decoded);
+      dbuf_putc(&code, '\'');
+      dbuf_put_escaped_table(&code, &module_name[offset], length, escape_singlequote_tab);
+      dbuf_putc(&code, '\'');
+
+      if(is_base64)
+        dbuf_putc(&code, ')');
+
+      dbuf_putstr(&code, ");");
+      dbuf_putc(&code, '\n');
+    } else if(is_base64) {
+
+      if(dbuf_realloc(&code, code.size + b64url_get_decoded_buffer_size(length)))
+        return 0;
+
+      code.size += b64url_decode((const uint8_t*)&module_name[offset], length, &code.buf[code.size]);
+    } else {
+      dbuf_put(&code, (const uint8_t*)&module_name[offset], length);
+    }
+
+    dbuf_0(&code);
+    module = JS_Eval(ctx, (const char*)code.buf, code.size, "<data-url>", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+    dbuf_free(&code);
 
     if(!JS_IsException(module)) {
       js_module_set_import_meta(ctx, module, FALSE, FALSE);
+
       m = JS_VALUE_GET_PTR(module);
 
-      module_rename(ctx, m, JS_NewAtomLen(ctx, name, offset - 1));
+      JSValue meta_obj = JS_GetImportMeta(ctx, m);
+      if(!JS_IsException(meta_obj)) {
+        JS_DefinePropertyValueStr(ctx, meta_obj, "url", JS_NewString(ctx, module_name), JS_PROP_C_W_E);
+        JS_FreeValue(ctx, meta_obj);
+      }
+
+      module_rename(ctx, m, JS_NewAtom(ctx, "<data-url>"));
     }
 
     JS_FreeValue(ctx, module);
@@ -939,8 +984,11 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
 
-    if(bltin->def)
-      file = module_namestr(ctx, bltin->def);
+    if(bltin->def) {
+      const char* str = module_namecstr(ctx, bltin->def);
+      file = js_strdup(ctx, str);
+      JS_FreeCString(ctx, str);
+    }
 
   } else {
     if(path[0] != '<' && (path_isdotslash(name) || path_isdotdot(name)) && has_dot_or_slash(name)) {
@@ -1091,6 +1139,38 @@ jsm_context_new(JSRuntime* rt) {
   // printf("Set module loader (rt=%p): %p\n", rt);
 
   return ctx;
+}
+
+JSValue
+jsm_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
+  JSModuleDef *m, **list;
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i;
+
+  if(!(list = js_modules_vector(ctx)))
+    return JS_EXCEPTION;
+
+  for(i = 0; (m = list[i]); i++) {
+    JSValue obj = JS_NewObject(ctx);
+
+    if(jsm_module_is_builtin(m)) {
+      const char* name = module_namecstr(ctx, m);
+      size_t namelen, namestart = path_basename2(name, strlen(name));
+
+      namelen = str_find(&name[namestart], ".js");
+
+      JS_DefinePropertyValueStr(ctx, obj, "name", JS_NewStringLen(ctx, &name[namestart], namelen), JS_PROP_ENUMERABLE);
+      JS_SetPropertyStr(ctx, obj, "builtin", JS_TRUE);
+
+      JS_FreeCString(ctx, name);
+    }
+
+    module_make_object(ctx, m, obj);
+
+    JS_SetPropertyUint32(ctx, ret, i, obj);
+  }
+
+  return ret;
 }
 
 #if defined(__APPLE__)
@@ -1533,7 +1613,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("evalFile", 1, jsm_eval_script, 0),
     JS_CFUNC_MAGIC_DEF("evalScript", 1, jsm_eval_script, 1),
-    JS_CGETSET_MAGIC_DEF("moduleList", js_modules_array, 0, 0),
+    JS_CGETSET_MAGIC_DEF("moduleList", jsm_modules_array, 0, 0),
     JS_CGETSET_MAGIC_DEF("moduleObject", js_modules_object, 0, 0),
     JS_CGETSET_MAGIC_DEF("moduleMap", js_modules_map, 0, 0),
     JS_CGETSET_MAGIC_DEF("scriptList", jsm_stack_get, 0, SCRIPT_LIST),
@@ -1596,21 +1676,23 @@ jsm_signal_handler(int arg) {
 }
 
 static void
-jsm_start_interactive(JSContext* ctx) {
-  char str[1024];
+jsm_start_interactive(JSContext* ctx, BOOL global) {
+  js_eval_fmt(ctx,
+              JS_EVAL_TYPE_MODULE,
+              "import { REPL } from 'repl';\n"
+              "%srepl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
+              "repl.loadSaveOptions();\n"
+              "repl.historyLoad();\n"
+              "repl.run();\n",
+              global ? "globalThis." : "const ",
+              (int)str_chr(exename, '.'),
+              exename);
 
-  snprintf(str,
-           sizeof(str),
-           "import { REPL } from 'repl';\n"
-           "globalThis.repl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
-           "repl.loadSaveOptions();\n"
-           "repl.historyLoad();\n"
-           "repl.run();\n",
-           (int)str_chr(exename, '.'),
-           exename);
+  JSModuleDef* m = js_module_find_rev(ctx, "<input>", NULL);
 
-  /*JSValue ret =*/JS_Eval(ctx, str, strlen(str), "<init>", JS_EVAL_TYPE_MODULE);
-
+  printf("m[] = %zu\n", list_size(&ctx->loaded_modules));
+  printf("m = %i\n", js_module_indexof(ctx, m));
+  printf("m = %i\n", js_module_indexof(ctx, js_module_find(ctx, "<input>")));
   // JS_FreeValue(ctx, ret);
 }
 
@@ -1951,7 +2033,7 @@ main(int argc, char** argv) {
     }
 
     if(interactive || getenv("INTERACTIVE"))
-      jsm_start_interactive(ctx);
+      jsm_start_interactive(ctx, TRUE);
 
     js_std_loop(ctx);
   }

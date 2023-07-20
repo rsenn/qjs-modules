@@ -725,7 +725,7 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     }
   }
 
-  ret = js_xml_parse(ctx, input.data, input.size, input_name ? input_name : "<input>", opts);
+  ret = js_xml_parse(ctx, input.data, input.size, input_name ? input_name : "<xml>", opts);
 
   if(input_name)
     JS_FreeCString(ctx, input_name);

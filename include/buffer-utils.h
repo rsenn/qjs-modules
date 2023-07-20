@@ -33,12 +33,15 @@ size_t byte_rchrs(const char* in, size_t len, const char needles[], size_t nn);
 #define DBUF_INIT_CTX(ctx) \
   (DynBuf) { 0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, JS_GetRuntime(ctx) }
 
+extern const uint8_t escape_noquote_tab[256], escape_singlequote_tab[256], escape_doublequote_tab[256], escape_backquote_tab[256];
+
 char* dbuf_at_n(const DynBuf*, size_t, size_t* n, char sep);
 const char* dbuf_last_line(DynBuf*, size_t*);
 int dbuf_prepend(DynBuf*, const uint8_t*, size_t len);
 void dbuf_put_colorstr(DynBuf*, const char*, const char* color, int with_color);
 void dbuf_put_escaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
 void dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const uint8_t table[256]);
+void dbuf_put_unescaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]);
 void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)());
 void dbuf_put_escaped(DynBuf*, const char*, size_t len);
 void dbuf_put_value(DynBuf*, JSContext*, JSValue value);

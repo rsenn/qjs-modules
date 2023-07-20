@@ -1396,15 +1396,20 @@ js_misc_btoa(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 
 static JSValue
-js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret;
   InputBuffer input = js_input_chars(ctx, argv[0]);
   size_t declen = b64_get_decoded_buffer_size(input.size);
   uint8_t* decbuf = js_malloc(ctx, declen);
+  BOOL output_string = magic > 0;
+
+  if(argc > 1 && JS_ToBool(ctx, argv[1]))
+    output_string = TRUE;
 
   b64_decode(input.data, input.size, decbuf);
 
-  ret = JS_NewArrayBufferCopy(ctx, (const uint8_t*)decbuf, declen);
+  ret = output_string ? JS_NewStringLen(ctx, (const char*)decbuf, declen) : JS_NewArrayBufferCopy(ctx, (const uint8_t*)decbuf, declen);
+
   js_free(ctx, decbuf);
   return ret;
 }
@@ -1736,12 +1741,12 @@ js_misc_evalstring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   const char* filename = 0;
 
   if(argc > 1)
-    filename = JS_ToCString(ctx, argv[1]);
+    filename = js_is_null_or_undefined(argv[1]) ? NULL : JS_ToCString(ctx, argv[1]);
 
   if(argc > 2)
     JS_ToInt32(ctx, &flags, argv[2]);
 
-  ret = js_eval_buf(ctx, input.data, input.size, filename ? filename : "<input>", flags);
+  ret = js_eval_buf(ctx, input.data, input.size, filename, flags);
 
   if(filename)
     JS_FreeCString(ctx, filename);
@@ -2196,42 +2201,40 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
-/*static const uint8_t js_misc_escape_sq_tab[256] = {
-    'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0, 0, 0, 0, 0,
-    0,   0x27, 0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0x5c, 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    'x',  0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-    0,   0,    0,   0,   0,   0,   0,   0,   0,    0,    0,    0,    0,    0,    0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0,
-    0,   'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
-};*/
-static const uint8_t js_misc_escape_dq_tab[256] = {
-    'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 0x62, 0x74, 0x6e, 0x76, 0x66, 0x72, 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x',
-
-    'x', 'x', 'x', 'x', 0,   0,   0x22, 0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0x5c, 0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   'x', 0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0,   0,   0,   0,   0,   0,   0,    0,   0,    0,    0,    0,    0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0, 0, 0, 0, 0, 0, 0, 0, 0, 'u',
-    'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u',  'u',  'u',  'u',  'u',  'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u',
-};
-
 JSValue
 js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
+
   if(input.data) {
     uint8_t escape_tab[256];
-    const uint8_t* tab = js_misc_escape_dq_tab;
+    const uint8_t* tab = escape_noquote_tab;
     int32_t* intv = 0;
     size_t i, nelems;
 
-    if(argc > 1 && (intv = js_array_to_int32v(ctx, &nelems, argv[1]))) {
-      for(i = 0; i < nelems; i++) {
-        escape_tab[i] = intv[i];
+    if(argc > 1) {
+      const char* str;
+
+      if(JS_IsString(argv[1]) && (str = JS_ToCString(ctx, argv[1]))) {
+
+        if(*str == '\'')
+          tab = escape_singlequote_tab;
+        else if(*str == '"')
+          tab = escape_doublequote_tab;
+        else if(*str == '`')
+          tab = escape_backquote_tab;
+
+        JS_FreeCString(ctx, str);
+
+      } else if((intv = js_array_to_int32v(ctx, &nelems, argv[1]))) {
+        for(i = 0; i < nelems; i++) {
+          escape_tab[i] = intv[i];
+        }
+        while(i < 256) {
+          escape_tab[i++] = '\0';
+        }
+        tab = escape_tab;
+        js_free(ctx, intv);
       }
-      while(i < 256) {
-        escape_tab[i++] = '\0';
-      }
-      tab = escape_tab;
-      js_free(ctx, intv);
     }
 
     DynBuf output;
@@ -2276,14 +2279,61 @@ js_misc_unescape_pred(const char* s, size_t* lenp) {
 JSValue
 js_misc_unescape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
+
+  if(input.data) {
+    uint8_t escape_tab[256];
+    const uint8_t* tab = escape_noquote_tab;
+    int32_t* intv = 0;
+    size_t i, nelems;
+
+    if(argc > 1) {
+      const char* str;
+
+      if(JS_IsString(argv[1]) && (str = JS_ToCString(ctx, argv[1]))) {
+
+        if(*str == '\'')
+          tab = escape_singlequote_tab;
+        else if(*str == '"')
+          tab = escape_doublequote_tab;
+        else if(*str == '`')
+          tab = escape_backquote_tab;
+
+        JS_FreeCString(ctx, str);
+
+      } else if((intv = js_array_to_int32v(ctx, &nelems, argv[1]))) {
+        for(i = 0; i < nelems; i++) {
+          escape_tab[i] = intv[i];
+        }
+        while(i < 256) {
+          escape_tab[i++] = '\0';
+        }
+        tab = escape_tab;
+        js_free(ctx, intv);
+      }
+    }
+
+    DynBuf output;
+    js_dbuf_init(ctx, &output);
+    dbuf_put_unescaped_table(&output, (const char*)input.data, input.size, tab);
+
+    return dbuf_tostring_free(&output, ctx);
+  }
+  return JS_DupValue(ctx, argv[0]);
+}
+
+/*JSValue
+js_misc_unescape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_chars(ctx, argv[0]);
+
   if(input.data) {
     DynBuf output;
     js_dbuf_init(ctx, &output);
     dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, &js_misc_unescape_pred);
     return dbuf_tostring_free(&output, ctx);
   }
+
   return JS_DupValue(ctx, argv[0]);
-}
+}*/
 
 JSValue
 js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -3029,7 +3079,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getConsoleMode", 1, js_misc_consolemode, GET_CONSOLE_MODE),
 #endif
     JS_CFUNC_DEF("btoa", 1, js_misc_btoa),
-    JS_CFUNC_DEF("atob", 1, js_misc_atob),
+    JS_CFUNC_DEF("stoa", 1, js_misc_btoa),
+    JS_CFUNC_MAGIC_DEF("atob", 1, js_misc_atob, 0),
+    JS_CFUNC_MAGIC_DEF("atos", 1, js_misc_atob, 1),
     JS_CFUNC_MAGIC_DEF("not", 1, js_misc_bitop, BITOP_NOT),
     JS_CFUNC_MAGIC_DEF("xor", 2, js_misc_bitop, BITOP_XOR),
     JS_CFUNC_MAGIC_DEF("and", 2, js_misc_bitop, BITOP_AND),

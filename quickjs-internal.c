@@ -1,4 +1,6 @@
 #include "utils.h"
+#include "char-utils.h"
+#include "vector.h"
 #include "quickjs-internal.h"
 
 JSValue
@@ -24,24 +26,22 @@ js_modules_list(JSContext* ctx) {
   return &ctx->loaded_modules;
 }
 
-JSValue
-js_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
+JSModuleDef**
+js_modules_vector(JSContext* ctx) {
   struct list_head* el;
-  JSValue ret = JS_NewArray(ctx);
-  uint32_t i = 0;
-  list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    char* str = module_namestr(ctx, m);
-    JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
+  Vector vec = VECTOR(ctx);
+  JSModuleDef* m;
 
-    if(1 /*str[0] != '<'*/)
-      JS_SetPropertyUint32(ctx, ret, i++, entry);
-    else
-      JS_FreeValue(ctx, entry);
-    js_free(ctx, str);
+  list_for_each(el, js_modules_list(ctx)) {
+    m = list_entry(el, JSModuleDef, link);
+
+    vector_push(&vec, m);
   }
 
-  return ret;
+  m = NULL;
+  vector_push(&vec, m);
+
+  return vector_begin(&vec);
 }
 
 JSValue
@@ -51,7 +51,7 @@ js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
   uint32_t i = 0;
   list_for_each(el, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    //  char* name = module_namestr(ctx, m);
+    // const char* name = module_namecstr(ctx, m);
     JSValue entry = JS_NewArray(ctx);
     JS_SetPropertyUint32(ctx, entry, 0, JS_AtomToValue(ctx, m->module_name));
     JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, m) : module_value(ctx, m));
@@ -60,7 +60,8 @@ js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
       JS_SetPropertyUint32(ctx, ret, i++, entry);
     else
       JS_FreeValue(ctx, entry);
-    //  js_free(ctx, name);
+
+    // JS_FreeCString(ctx, name);
   }
 
   return ret;
@@ -73,14 +74,15 @@ js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
 
   list_for_each(it, &ctx->loaded_modules) {
     JSModuleDef* m = list_entry(it, JSModuleDef, link);
-    char* name = module_namestr(ctx, m);
+    const char* name = module_namecstr(ctx, m);
     JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
 
     if(1 /*str[0] != '<'*/)
       JS_SetPropertyStr(ctx, obj, basename(name), entry);
     else
       JS_FreeValue(ctx, entry);
-    js_free(ctx, name);
+
+    JS_FreeCString(ctx, name);
   }
 
   return obj;
@@ -93,9 +95,9 @@ js_module_find_fwd(JSContext* ctx, const char* name, JSModuleDef* start) {
   for(el = start ? &start->link : ctx->loaded_modules.next; el != &ctx->loaded_modules; el = el->next)
   /*list_for_each(el, &ctx->loaded_modules)*/ {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    char* str = module_namestr(ctx, m);
+    const char* str = module_namecstr(ctx, m);
     BOOL match = !strcmp(str, name);
-    js_free(ctx, str);
+    JS_FreeCString(ctx, str);
 
     if(match)
       return m;
@@ -125,9 +127,9 @@ js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
 
   for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules; el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    char* str = module_namestr(ctx, m);
+    const char* str = module_namecstr(ctx, m);
     BOOL match = !strcmp(str, name);
-    js_free(ctx, str);
+    JS_FreeCString(ctx, str);
 
     if(match)
       return m;
@@ -183,39 +185,70 @@ js_module_at(JSContext* ctx, int index) {
   return 0;
 }
 
+void
+module_make_object(JSContext* ctx, JSModuleDef* m, JSValueConst obj) {
+  JSValue tmp;
+  char buf[FMT_XLONG + 2];
+  strcpy(buf, "0x");
+
+  JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
+
+  JS_DefinePropertyValueStr(ctx, obj, "resolved", JS_NewBool(ctx, m->resolved), 0);
+  JS_DefinePropertyValueStr(ctx, obj, "funcCreated", JS_NewBool(ctx, m->func_created), 0);
+  JS_DefinePropertyValueStr(ctx, obj, "instantiated", JS_NewBool(ctx, m->instantiated), 0);
+  JS_DefinePropertyValueStr(ctx, obj, "evaluated", JS_NewBool(ctx, m->evaluated), 0);
+
+  if(!JS_IsUndefined((tmp = module_ns(ctx, m))))
+    JS_DefinePropertyValueStr(ctx, obj, "ns", tmp, 0);
+
+  if(!JS_IsUndefined((tmp = module_exports(ctx, m))))
+    JS_DefinePropertyValueStr(ctx, obj, "exports", tmp, 0);
+
+  if(!JS_IsUndefined((tmp = module_imports(ctx, m))))
+    JS_DefinePropertyValueStr(ctx, obj, "imports", tmp, 0);
+
+  if(!JS_IsUndefined((tmp = module_reqmodules(ctx, m))))
+    JS_SetPropertyStr(ctx, obj, "reqModules", tmp);
+
+  if(m->init_func) {
+    JS_SetPropertyStr(ctx, obj, "native", JS_NewBool(ctx, m->init_func != NULL));
+  }
+
+  if(!JS_IsUndefined((tmp = module_func(ctx, m)))) {
+    if(m->init_func)
+      JS_DefinePropertyValueStr(ctx, obj, "initFunc", tmp, 0);
+    else
+      JS_SetPropertyStr(ctx, obj, "func", tmp);
+  }
+
+  if(!js_is_null_or_undefined((tmp = JS_DupValue(ctx, m->meta_obj))))
+    JS_SetPropertyStr(ctx, obj, "metaObj", tmp);
+
+  if(!js_is_null_or_undefined((tmp = JS_DupValue(ctx, m->eval_exception))))
+    JS_SetPropertyStr(ctx, obj, "evalException", tmp);
+
+  {
+    JSAtom atom = js_symbol_static_atom(ctx, "toStringTag");
+    JS_DefinePropertyValue(ctx, obj, atom, JS_NewString(ctx, "Module"), 0);
+    JS_FreeAtom(ctx, atom);
+  }
+
+  {
+
+    buf[2 + fmt_xlonglong0(&buf[2], (long long)(uintptr_t)m, __SIZEOF_POINTER__ * 2)] = 0;
+
+    JS_DefinePropertyValueStr(ctx, obj, "address", JS_NewString(ctx, buf), 0);
+  }
+}
+
 JSValue
 module_object(JSContext* ctx, JSModuleDef* m) {
-  JSValue tmp, obj = JS_NewObject(ctx);
-  JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
-  JS_SetPropertyStr(ctx, obj, "resolved", JS_NewBool(ctx, m->resolved));
-  JS_SetPropertyStr(ctx, obj, "func_created", JS_NewBool(ctx, m->func_created));
-  JS_SetPropertyStr(ctx, obj, "instantiated", JS_NewBool(ctx, m->instantiated));
-  JS_SetPropertyStr(ctx, obj, "evaluated", JS_NewBool(ctx, m->evaluated));
-
-  tmp = module_ns(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "ns", tmp);
-  tmp = module_exports(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "exports", tmp);
-  tmp = module_imports(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "imports", tmp);
-  tmp = module_reqmodules(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "reqModules", tmp);
-  tmp = module_func(ctx, m);
-
-  if(!JS_IsUndefined(tmp))
-    JS_SetPropertyStr(ctx, obj, "func", tmp);
+  JSValue obj = JS_NewObject(ctx);
+  module_make_object(ctx, m, obj);
   return obj;
 }
 
-void
+int
 module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueConst exports) {
   JSAtom def = JS_NewAtom(ctx, "default");
   int i;
@@ -237,11 +270,12 @@ module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueC
   }
 
   JS_FreeAtom(ctx, def);
+  return i;
 }
 
 JSValue
 module_imports(JSContext* ctx, JSModuleDef* m) {
-  JSValue obj = JS_NewArray(ctx);
+  JSValue obj = m->import_entries_count > 0 ? JS_NewArray(ctx) : JS_UNDEFINED;
   int i;
 
   for(i = 0; i < m->import_entries_count; i++) {
@@ -262,7 +296,7 @@ module_imports(JSContext* ctx, JSModuleDef* m) {
 
 JSValue
 module_reqmodules(JSContext* ctx, JSModuleDef* m) {
-  JSValue obj = JS_NewArray(ctx);
+  JSValue obj = m->req_module_entries_count > 0 ? JS_NewArray(ctx) : JS_UNDEFINED;
   int i;
 
   for(i = 0; i < m->req_module_entries_count; i++) {
@@ -329,8 +363,12 @@ call_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
   u.i[0] = JS_VALUE_GET_INT(data[0]);
   u.i[1] = JS_VALUE_GET_INT(data[1]);
 
-  if(argc >= 1 && JS_IsModule(argv[0]))
-    return JS_NewInt32(ctx, u.init_func(ctx, JS_VALUE_GET_PTR(argv[0])));
+  if(argc >= 1) {
+    JSModuleDef* m;
+
+    if((m = js_module_def(ctx, argv[0])))
+      return JS_NewInt32(ctx, u.init_func(ctx, m));
+  }
 
   return JS_ThrowTypeError(ctx, "argument 1 module expected");
 }
@@ -346,10 +384,12 @@ module_func(JSContext* ctx, JSModuleDef* m) {
       JSModuleInitFunc* init_func;
       int32_t i[2];
     } u = {m->init_func};
+
     JSValueConst data[2] = {
         JS_MKVAL(JS_TAG_INT, u.i[0]),
         JS_MKVAL(JS_TAG_INT, u.i[1]),
     };
+
     func = JS_NewCFunctionData(ctx, call_module_func, 1, 0, 2, data);
   }
 

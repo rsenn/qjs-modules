@@ -12,6 +12,7 @@ int socketpair(int, int, int, SOCKET[2]);
 #else
 typedef int SOCKET;
 #define socket_handle(sock) socket_fd(sock)
+#define closesocket(sock) close(sock)
 #include <sys/select.h>
 /*#include <sys/syscall.h>*/
 #include <netinet/in.h>
@@ -1388,10 +1389,12 @@ js_asyncsocket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
 static JSValue
 js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  Socket sock = js_socket_data(this_val), *s = &sock;
+  Socket sock = js_socket_data(this_val);
   JSValue ret = JS_UNDEFINED;
   SockAddr* a = 0;
   socklen_t alen = 0;
+  AsyncSocket* asock = js_asyncsocket_ptr(this_val);
+  Socket* s = asock ? (Socket*)asock : &sock;
   BOOL wait = s->nonblock && !(magic & ASYNC_READY);
 
   magic &= (ASYNC_READY - 1);
@@ -1609,10 +1612,10 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           JS_FreeValue(ctx, JS_Call(ctx, asock->pending[magic & 1], JS_NULL, 0, 0));
       }*/
 
-      JS_SOCKETCALL(SYSCALL_CLOSE, s, close(socket_fd(*s)));
+      JS_SOCKETCALL(SYSCALL_CLOSE, s, closesocket(socket_fd(*s)));
 
       if(socket_retval(*s) == 0)
-        s->fd = -1;
+        s->fd = UINT16_MAX;
 
       break;
     }
