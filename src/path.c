@@ -704,7 +704,9 @@ char*
 path_getcwd1(DynBuf* db) {
   dbuf_zero(db);
   dbuf_realloc(db, PATH_MAX);
+
   getcwd((char*)db->buf, db->allocated_size);
+
   db->size = strlen((const char*)db->buf);
   dbuf_0(db);
   return (char*)db->buf;
@@ -734,17 +736,20 @@ char*
 path_gethome1(int uid) {
   static char home[PATH_MAX + 1];
   FILE* fp;
-  char *line, *ret = 0;
-  char buf[1024];
+  char *line, *ret = 0, buf[1024];
+
   if((fp = fopen("/etc/passwd", "r"))) {
     while((line = fgets(buf, sizeof(buf) - 1, fp))) {
       size_t p, n, len = strlen(line);
       char *user, *id, *dir;
+
       while(len > 0 && is_whitespace_char(buf[len - 1]))
         buf[--len] = '\0';
+
       user = buf;
       user[p = str_chr(user, ':')] = '\0';
       line = buf + p + 1;
+
       for(n = 1; n > 0; n--) {
         p = str_chr(line, ':');
         line[p] = '\0';
@@ -752,6 +757,7 @@ path_gethome1(int uid) {
       }
 
       id = line;
+
       for(n = 3; n > 0; n--) {
         p = str_chr(line, ':');
         line[p] = '\0';
@@ -760,6 +766,7 @@ path_gethome1(int uid) {
 
       if(atoi(id) != uid)
         continue;
+
       dir = line;
       n = str_chr(line, ':');
       strncpy(home, dir, n);
@@ -769,6 +776,7 @@ path_gethome1(int uid) {
 
     fclose(fp);
   }
+
   return ret;
 }
 

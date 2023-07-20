@@ -33,7 +33,7 @@ size_t byte_rchrs(const char* in, size_t len, const char needles[], size_t nn);
 #define DBUF_INIT_CTX(ctx) \
   (DynBuf) { 0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, JS_GetRuntime(ctx) }
 
-extern const uint8_t escape_noquote_tab[256], escape_singlequote_tab[256], escape_doublequote_tab[256], escape_backquote_tab[256];
+extern const uint8_t escape_url_tab[256], escape_noquote_tab[256], escape_singlequote_tab[256], escape_doublequote_tab[256], escape_backquote_tab[256];
 
 char* dbuf_at_n(const DynBuf*, size_t, size_t* n, char sep);
 const char* dbuf_last_line(DynBuf*, size_t*);
@@ -56,13 +56,6 @@ ssize_t dbuf_load(DynBuf*, const char*);
 int dbuf_vprintf(DynBuf*, const char*, va_list);
 
 int screen_size(int size[2]);
-
-static inline ssize_t
-dbuf_writer(DynBuf* db, const void* buf, size_t len) {
-  if(dbuf_put(db, buf, len))
-    return -1;
-  return len;
-}
 
 static inline int
 dbuf_putm(DynBuf* db, ...) {

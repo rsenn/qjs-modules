@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdbool.h>
+#include "buffer-utils.h"
 
 /**
  * \defgroup stream-utils stream-utils: Utilities for stream I/O
@@ -35,6 +36,32 @@ static inline ssize_t
 writer_putc(Writer* wr, int c) {
   char ch = c;
   return writer_write(wr, &ch, 1);
+}
+
+typedef ssize_t ReadFunction(intptr_t, void*, size_t);
+typedef ssize_t ReaderFinalizer(void*, void*);
+
+typedef struct {
+  ReadFunction* read;
+  void *opaque, *opaque2;
+  ReaderFinalizer* finalizer;
+} Reader;
+
+Reader reader_from_buf(InputBuffer*, JSContext*);
+Reader reader_from_fd(intptr_t, _Bool);
+
+ssize_t reader_read(Reader*, void*, size_t);
+void reader_free(Reader*);
+
+static inline int
+reader_getc(Reader* rd) {
+  uint8_t ch;
+  ssize_t ret;
+
+  if((ret = reader_read(rd, &ch, 1)) == 1)
+    return (unsigned int)ch;
+
+  return -1;
 }
 
 /**
