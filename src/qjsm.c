@@ -852,6 +852,12 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
       JS_FreeValue(ctx, args[0]);
 
+      if(JS_IsException(ret)) {
+        fputs("Exception in module loader: ", stderr);
+        jsm_dump_error(ctx);
+        exit(1);
+      }
+
       if(JS_IsString(ret)) {
         js_free(ctx, name);
         name = js_tostring(ctx, ret);
@@ -904,7 +910,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
         code.size += b64url_decode((const uint8_t*)&name[offset], length, &code.buf[code.size]);
       } else {
-        dbuf_put_unescaped_table(&code, (const uint8_t*)&name[offset], length, escape_url_tab);
+        dbuf_put_unescaped_table(&code, &name[offset], length, escape_url_tab);
       }
 
       dbuf_0(&code);
