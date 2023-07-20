@@ -154,7 +154,13 @@ syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
       dbuf_putstr(dbuf, ": ");
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
-    dbuf->size += FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err->number, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (void*)dbuf_reserve(dbuf, 256), 256, NULL);
+    dbuf->size += FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                NULL,
+                                err->number,
+                                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                (void*)dbuf_reserve(dbuf, 256),
+                                256,
+                                NULL);
 
     while(dbuf->size > 0) {
       if(dbuf->buf[dbuf->size - 1] > 0x20)

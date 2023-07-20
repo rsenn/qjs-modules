@@ -11,10 +11,12 @@
  * \defgroup stream-utils stream-utils: Utilities for stream I/O
  * @{
  */
-typedef ssize_t WriteFunction(intptr_t, const void*, size_t);
+struct StreamWriter;
+
+typedef ssize_t WriteFunction(intptr_t, const void*, size_t, struct StreamWriter*);
 typedef ssize_t WriterFinalizer(void*);
 
-typedef struct {
+typedef struct StreamWriter {
   WriteFunction* write;
   void* opaque;
   WriterFinalizer* finalizer;
@@ -23,6 +25,8 @@ typedef struct {
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_fd(intptr_t fd, bool close_on_end);
 Writer writer_tee(const Writer a, const Writer b);
+Writer writer_escaped(Writer*, const char[], size_t);
+Writer writer_urlencode(Writer*);
 
 ssize_t writer_write(Writer*, const void*, size_t);
 void writer_free(Writer*);
@@ -38,18 +42,20 @@ writer_putc(Writer* wr, int c) {
   return writer_write(wr, &ch, 1);
 }
 
-typedef ssize_t ReadFunction(intptr_t, void*, size_t);
+struct StreamReader;
+
+typedef ssize_t ReadFunction(intptr_t, void*, size_t, struct StreamReader*);
 typedef ssize_t ReaderFinalizer(void*, void*);
 
-typedef struct {
+typedef struct StreamReader {
   ReadFunction* read;
   void *opaque, *opaque2;
   ReaderFinalizer* finalizer;
 } Reader;
 
 Reader reader_from_buf(InputBuffer*, JSContext*);
+Reader reader_from_range(const void*, size_t);
 Reader reader_from_fd(intptr_t, _Bool);
-
 ssize_t reader_read(Reader*, void*, size_t);
 void reader_free(Reader*);
 
@@ -63,6 +69,8 @@ reader_getc(Reader* rd) {
 
   return -1;
 }
+
+ssize_t transform_urldecode(Reader*, Writer*);
 
 /**
  * @}

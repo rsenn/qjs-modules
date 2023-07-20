@@ -191,7 +191,8 @@ module_make_object(JSContext* ctx, JSModuleDef* m, JSValueConst obj) {
   char buf[FMT_XLONG + 2];
   strcpy(buf, "0x");
 
-  JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
+  if(!js_has_propertystr(ctx, obj, "name"))
+    JS_SetPropertyStr(ctx, obj, "name", module_name(ctx, m));
 
   JS_DefinePropertyValueStr(ctx, obj, "resolved", JS_NewBool(ctx, m->resolved), 0);
   JS_DefinePropertyValueStr(ctx, obj, "funcCreated", JS_NewBool(ctx, m->func_created), 0);
