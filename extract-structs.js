@@ -6,6 +6,7 @@ import { getOpt } from 'util';
 import { Console } from 'console';
 import CLexer from 'lexer/c.js';
 import * as std from 'std';
+
 extendArray();
 
 let jsCFuncs, noStructs;

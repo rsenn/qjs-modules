@@ -1,25 +1,14 @@
 #!/usr/bin/env qjsm
 import * as fs from 'fs';
 import * as path from 'path';
-import { getOpt } from 'util';
-import { weakDefine } from 'util';
 import * as util from 'util';
 import Console from 'console';
-import { Attr } from 'dom';
-import { Document } from 'dom';
-import { Element } from 'dom';
-import { Factory } from 'dom';
-import { NamedNodeMap } from 'dom';
-import { Node } from 'dom';
-import { NodeList } from 'dom';
-import { Parser } from 'dom';
-import { Text } from 'dom';
-import { TokenList } from 'dom';
 import * as dom from 'dom';
 import * as location from 'location';
 import * as pointer from 'pointer';
 import { REPL } from 'repl';
 import * as xml from 'xml';
+
 let repl;
 
 function main(...args) {
