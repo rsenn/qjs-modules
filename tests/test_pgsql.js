@@ -13,12 +13,12 @@ extendArray();
 
 let resultNum = 0;
 
-const result = r => {
-  let prop = 'result' + ++resultNum;
-  globalThis[prop] = r;
-  console.log(/*'globalThis.' +*/ prop + ' =', r);
-  return r;
-};
+  const result = r => {
+    let prop = 'result' + ++resultNum;
+    globalThis[prop] = r;
+    console.log(/*'globalThis.' +*/ prop + ' =', r);
+    return r;
+  };
 
 async function main(...args) {
   globalThis.console = new Console({
@@ -33,13 +33,22 @@ async function main(...args) {
 
   Object.assign(globalThis, { PGconn, PGresult });
 
-  let pq = (globalThis.pq = new PGconn());
+let i,pq,q,result,resultNum;
+
+ pq = (globalThis.pq = new PGconn());
 
   console.log('pq.connect() =', console.config({ compact: false }), await pq.connect('localhost', 'roman', 'r4eHuJ', 'roman', 5432, 10));
 
-  let i;
 
-  let q = (globalThis.q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await pq.query(s))));
+resultNum = 0;
+
+  result = r => {
+    let prop = 'result' + ++resultNum;
+    globalThis[prop] = r;
+    console.log(/*'globalThis.' +*/ prop + ' =', r);
+    return r;
+  };
+   q = (globalThis.q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await pq.query(s))));
 
   i = 0;
 

@@ -12,8 +12,9 @@ extendArray();
 
 ('use strict');
 ('use math');
+  let i,q,result,resultNum;
 
-let resultNum = 0;
+resultNum = 0;
 
 const result = r => {
   let prop = 'result' + ++resultNum;
@@ -34,19 +35,18 @@ async function main(...args) {
 
   Object.assign(globalThis, { MySQL, MySQLResult });
 
-  let my = (globalThis.my = new MySQL());
+    let my = (globalThis.my = new MySQL());
 
-  my.resultType |= MySQL.RESULT_OBJECT;
+    my.resultType |= MySQL.RESULT_OBJECT;
 
-  my.setOption(MySQL.OPT_NONBLOCK, true);
+    my.setOption(MySQL.OPT_NONBLOCK, true);
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
   console.log('my.connect() =', await my.connect('192.168.178.23', 'roman', 'r4eHuJ', 'web'));
 
-  let i;
 
-  let q = (globalThis.q = async s => (
+  q = (globalThis.q = async s => (
     console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`),
     result(
       await my.query(s).then(
