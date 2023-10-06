@@ -2,12 +2,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as util from 'util';
+import { getOpt } from 'util';
 import Console from 'console';
-import * as dom from 'dom';
-import * as location from 'location';
-import * as pointer from 'pointer';
 import { REPL } from 'repl';
 import * as xml from 'xml';
+import { Attr, CSSStyleDeclaration, Comment, Document, Element, Entities, Factory, GetType, Interface, NamedNodeMap, Node, NodeList, Parser, Prototypes, Serializer, Text, TokenList, nodeTypes } from 'dom';
 
 let repl;
 
@@ -53,19 +52,37 @@ function main(...args) {
       load,
       save
     },
-    dom,
     util,
     fs,
-    path,
-    pointer,
-    location
+    path
   });
+
+  const dom = (globalThis.dom = {
+    Attr,
+    CSSStyleDeclaration,
+    Comment,
+    Document,
+    Element,
+    Entities,
+    Factory,
+    GetType,
+    Interface,
+    NamedNodeMap,
+    Node,
+    NodeList,
+    Parser,
+    Prototypes,
+    Serializer,
+    Text,
+    TokenList,
+    nodeTypes
+  });
+
   Object.assign(globalThis, {
     ...globalThis.xml,
-    ...{ Parser, Node, NodeList, NamedNodeMap, Element, Document, Attr, Text, TokenList, Factory },
-    ...util,
-    ...pointer,
-    ...location
+    ...globalThis.dom,
+    dom,
+    ...util
   });
 
   globalThis.parser ??= new Parser();
@@ -76,7 +93,10 @@ function main(...args) {
     documents.push(document);
   }
 
-  repl = globalThis.repl = new REPL('\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m', false);
+  repl = globalThis.repl = new REPL(
+    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
+    false
+  );
   repl.historyLoad(null);
   repl.loadSaveOptions();
   /*repl.show = repl.printFunction((...args) => console.log(...args));
@@ -149,7 +169,8 @@ function parse(filename, ...args) {
 }
 
 function serialize(...args) {
-  let [filename, doc, wfn = (filename, data) => fs.writeFileSync(filename, data)] = args.length == 1 ? [null, ...args] : args;
+  let [filename, doc, wfn = (filename, data) => fs.writeFileSync(filename, data)] =
+    args.length == 1 ? [null, ...args] : args;
   let data,
     s = (globalThis.serializer ??= new Serializer());
 

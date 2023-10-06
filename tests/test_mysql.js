@@ -12,7 +12,7 @@ extendArray();
 
 ('use strict');
 ('use math');
-  let i,q,result,resultNum;
+let i, q, result, resultNum;
 
 resultNum = 0;
 
@@ -35,18 +35,17 @@ async function main(...args) {
 
   Object.assign(globalThis, { MySQL, MySQLResult });
 
-    let my = (globalThis.my = new MySQL());
+  let my = (globalThis.my = new MySQL());
 
-    my.resultType |= MySQL.RESULT_OBJECT;
+  my.resultType |= MySQL.RESULT_OBJECT;
 
-    my.setOption(MySQL.OPT_NONBLOCK, true);
+  my.setOption(MySQL.OPT_NONBLOCK, true);
 
   console.log('2: my.getOption(OPT_NONBLOCK) =', my.getOption(MySQL.OPT_NONBLOCK));
 
   console.log('my.connect() =', await my.connect('192.168.178.23', 'roman', 'r4eHuJ', 'web'));
 
-
-  q = (globalThis.q = async s => (
+  q = globalThis.q = async s => (
     console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`),
     result(
       await my.query(s).then(
@@ -58,7 +57,7 @@ async function main(...args) {
         }
       )
     )
-  ));
+  );
 
   i = 0;
   let res = await q(`SELECT * FROM users LIMIT 0,10;`);
