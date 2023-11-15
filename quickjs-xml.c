@@ -220,18 +220,24 @@ xml_write_attributes(JSContext* ctx, JSValueConst attributes, DynBuf* db) {
   for(i = 0; i < props.tab_atom_len; i++) {
     const char *keystr, *valuestr;
     JSValue value;
+
     property_enumeration_setpos(&props, i);
     keystr = property_enumeration_keystr(&props, ctx);
     value = property_enumeration_value(&props, ctx);
+
     dbuf_putc(db, ' ');
     dbuf_putstr(db, keystr);
+
     if(!(JS_IsBool(value) && JS_ToBool(ctx, value))) {
       valuestr = JS_ToCString(ctx, value);
+
       dbuf_putstr(db, "=\"");
       dbuf_putstr(db, valuestr);
+
       JS_FreeCString(ctx, valuestr);
       dbuf_putc(db, '"');
     }
+
     JS_FreeCString(ctx, keystr);
     JS_FreeValue(ctx, value);
   }

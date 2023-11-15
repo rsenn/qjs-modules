@@ -137,8 +137,8 @@ property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueC
   BOOL result;
   JSValue ret;
   JSValueConst argv[3] = {
-      property_enumeration_value(it, ctx),
-      JS_AtomToValue(ctx, it->tab_atom[it->idx]) /*property_enumeration_key(it, ctx)*/,
+      JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx]),
+      JS_AtomToValue(ctx, it->tab_atom[it->idx]),
       this_arg,
   };
 
