@@ -1229,7 +1229,8 @@ js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   DynBuf output;
   js_dbuf_init(ctx, &output);
 
-  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred) : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
+  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred)
+        : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
 
   return dbuf_tostring_free(&output, ctx);
 }

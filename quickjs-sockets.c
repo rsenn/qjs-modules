@@ -44,8 +44,8 @@ static JSValue js_socket_method(JSContext*, JSValueConst, int, JSValueConst[], i
   } while(0)
 
 VISIBLE JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_asyncsocket_class_id = 0;
-VISIBLE JSValue sockaddr_proto = {{0}, JS_TAG_UNDEFINED}, sockaddr_ctor = {{0}, JS_TAG_UNDEFINED}, socket_proto = {{0}, JS_TAG_UNDEFINED}, asyncsocket_proto = {{0}, JS_TAG_UNDEFINED},
-                socket_ctor = {{0}, JS_TAG_UNDEFINED}, asyncsocket_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSValue sockaddr_proto = {{0}, JS_TAG_UNDEFINED}, sockaddr_ctor = {{0}, JS_TAG_UNDEFINED}, socket_proto = {{0}, JS_TAG_UNDEFINED},
+                asyncsocket_proto = {{0}, JS_TAG_UNDEFINED}, socket_ctor = {{0}, JS_TAG_UNDEFINED}, asyncsocket_ctor = {{0}, JS_TAG_UNDEFINED};
 
 /*extern const uint32_t qjsm_fd_set_size;
 extern const uint8_t qjsm_fd_set[1030];
@@ -1015,7 +1015,8 @@ js_socket_error(JSContext* ctx, Socket sock) {
   int err;
 
   if((err = socket_error(sock))) {
-    if(!(sock.nonblock && ((sock.sysno == SYSCALL_RECV && err == EAGAIN) || (sock.sysno == SYSCALL_SEND && err == EWOULDBLOCK) || (sock.sysno == SYSCALL_CONNECT && err == EINPROGRESS))))
+    if(!(sock.nonblock &&
+         ((sock.sysno == SYSCALL_RECV && err == EAGAIN) || (sock.sysno == SYSCALL_SEND && err == EWOULDBLOCK) || (sock.sysno == SYSCALL_CONNECT && err == EINPROGRESS))))
       ret = JS_Throw(ctx, js_syscallerror_new(ctx, socket_syscall(sock), err));
   }
 

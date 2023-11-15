@@ -10,8 +10,8 @@
  * @{
  */
 VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;
-VISIBLE JSValue serialport_proto = {{0}, JS_TAG_UNDEFINED}, serialport_ctor = {{0}, JS_TAG_UNDEFINED}, serial_ctor = {{0}, JS_TAG_UNDEFINED}, serialerror_proto = {{0}, JS_TAG_UNDEFINED},
-                serialerror_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSValue serialport_proto = {{0}, JS_TAG_UNDEFINED}, serialport_ctor = {{0}, JS_TAG_UNDEFINED}, serial_ctor = {{0}, JS_TAG_UNDEFINED},
+                serialerror_proto = {{0}, JS_TAG_UNDEFINED}, serialerror_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue
 js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
@@ -168,7 +168,8 @@ js_serialport_ioready(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   if(ret < 0) {
     if(ret == SP_ERR_FAIL) {
-      JS_ThrowInternalError(ctx, "could %s serial port '%s': %s", ((const char* [3]){"read", "write", "drain"})[magic - SERIALPORT_READ], sp_get_port_name(port), sp_last_error_message());
+      JS_ThrowInternalError(
+          ctx, "could %s serial port '%s': %s", ((const char* [3]){"read", "write", "drain"})[magic - SERIALPORT_READ], sp_get_port_name(port), sp_last_error_message());
       args[0] = JS_GetException(ctx);
     } else
       args[0] = js_serialport_error(ctx, port, ret);
