@@ -4,26 +4,9 @@ import extendArray from 'extendArray';
 import { format } from 'util';
 import { Console } from 'console';
 import { Location } from 'location';
-import { arrayToBitfield } from 'misc';
-import { atob } from 'misc';
-import { atomToValue } from 'misc';
-import { bitfieldToArray } from 'misc';
-import { btoa } from 'misc';
-import { compileScript } from 'misc';
-import { getByteCode } from 'misc';
-import { getClassConstructor } from 'misc';
-import { getClassCount } from 'misc';
-import { getClassID } from 'misc';
-import { getClassName } from 'misc';
-import { getOpCodes } from 'misc';
-import { glob } from 'misc';
-import { JS_EVAL_FLAG_COMPILE_ONLY } from 'misc';
-import { readObject } from 'misc';
-import { resizeArrayBuffer } from 'misc';
-import { toArrayBuffer } from 'misc';
-import { valueToAtom } from 'misc';
-import { writeObject } from 'misc';
+import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, compileScript, getByteCode, getClassConstructor, getClassID, getClassName, getOpCodes, glob, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject } from 'misc';
 import * as std from 'std';
+
 ('use strict');
 ('use math');
 
