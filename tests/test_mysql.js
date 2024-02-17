@@ -12,9 +12,7 @@ extendArray();
 
 ('use strict');
 ('use math');
-let i, q, result, resultNum;
-
-resultNum = 0;
+let i, q, resultNum = 0;
 
 const result = r => {
   let prop = 'result' + ++resultNum;
