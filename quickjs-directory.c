@@ -18,6 +18,7 @@ enum {
   FLAG_BOTH = FLAG_NAME | FLAG_TYPE,
   FLAG_BUFFER = 0x80,
 };
+
 enum {
   DIRECTORY_OPEN,
   DIRECTORY_ADOPT,
@@ -54,10 +55,9 @@ directory_namestr(JSContext* ctx, DirEntry* entry) {
 
 static JSValue
 js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
-  JSValue name;
+  JSValue name,ret;
   int type = -1;
-  JSValue ret;
-
+ 
   if(dflags & FLAG_NAME)
     name = (dflags & FLAG_BUFFER) ? directory_namebuf(ctx, entry) : directory_namestr(ctx, entry);
 
@@ -77,6 +77,7 @@ js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
 
     case FLAG_BOTH: {
       ret = JS_NewArray(ctx);
+
       JS_SetPropertyUint32(ctx, ret, 0, name);
       JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt32(ctx, type));
       break;
@@ -210,6 +211,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       if(argc > 0)
         JS_ToInt32(ctx, &flags, argv[0]);
+
       if(argc > 1)
         JS_ToInt32(ctx, &mask, argv[1]);
 
@@ -228,6 +230,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         getdents_close(directory);
         done = TRUE;
       }
+
       ret = js_iterator_result(ctx, value, done);
       JS_FreeValue(ctx, value);
       break;
