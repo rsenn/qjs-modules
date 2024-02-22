@@ -20,7 +20,7 @@ enum {
 };
 
 enum {
-  DIRECTORY_OPEN,
+  DIRECTORY_OPEN = 0,
   DIRECTORY_ADOPT,
   DIRECTORY_CLOSE,
   DIRECTORY_ITERATOR,
@@ -55,9 +55,9 @@ directory_namestr(JSContext* ctx, DirEntry* entry) {
 
 static JSValue
 js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
-  JSValue name,ret;
+  JSValue name, ret;
   int type = -1;
- 
+
   if(dflags & FLAG_NAME)
     name = (dflags & FLAG_BUFFER) ? directory_namebuf(ctx, entry) : directory_namestr(ctx, entry);
 
@@ -207,7 +207,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       int32_t* opts = ((int32_t*)((char*)directory + getdents_size()));
       int32_t flags = opts[0], mask = opts[1];
       JSValue value = JS_UNDEFINED;
-      BOOL done = FALSE;
+      BOOL done = FALSE, init = getdents_initialized(directory), empty = TRUE;
 
       if(argc > 0)
         JS_ToInt32(ctx, &flags, argv[0]);
@@ -222,6 +222,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         if((getdents_type(entry) & mask) == 0)
           continue;
 
+        empty = FALSE;
         value = js_directory_entry(ctx, entry, flags);
         break;
       }
@@ -231,7 +232,13 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         done = TRUE;
       }
 
+      if(init && empty) {
+        ret = JS_ThrowInternalError(ctx, "empty directory");
+        break;
+      }
+
       ret = js_iterator_result(ctx, value, done);
+
       JS_FreeValue(ctx, value);
       break;
     }
@@ -270,17 +277,6 @@ static const JSCFunctionListEntry js_directory_funcs[] = {
     JS_CFUNC_MAGIC_DEF("adopt", 1, js_directory_method, DIRECTORY_ADOPT),
     JS_CFUNC_MAGIC_DEF("close", 0, js_directory_method, DIRECTORY_CLOSE),
     JS_CFUNC_MAGIC_DEF("valueOf", 0, js_directory_method, DIRECTORY_VALUE_OF),
-    /*JS_PROP_INT32_DEF("NAME", FLAG_NAME, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE", FLAG_TYPE, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("BOTH", FLAG_BOTH, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BLK", TYPE_BLK, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_CHR", TYPE_CHR, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_DIR", TYPE_DIR, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_FIFO", TYPE_FIFO, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_LNK", TYPE_LNK, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_REG", TYPE_REG, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_SOCK", TYPE_SOCK, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_MASK", TYPE_MASK, JS_PROP_ENUMERABLE),*/
     JS_CFUNC_MAGIC_DEF("next", 0, js_directory_method, DIRECTORY_NEXT),
     JS_CFUNC_MAGIC_DEF("return", 0, js_directory_method, DIRECTORY_RETURN),
     JS_CFUNC_MAGIC_DEF("throw", 1, js_directory_method, DIRECTORY_THROW),

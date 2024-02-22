@@ -111,6 +111,11 @@ getdents_adopt(Directory* d, intptr_t hnd) {
   return 0;
 }
 
+int
+getdents_initialized(Directory* d) {
+  return d->first == FALSE;
+}
+
 DirEntry*
 getdents_read(Directory* d) {
   DirEntry* ret = (struct getdents_entry*)&d->fdw;
@@ -215,6 +220,7 @@ struct linux_dirent64 {
   unsigned char d_type;    /* File type */
   char d_name[];           /* Filename (null-terminated) */
 };
+
 #if __SIZEOF_POINTER__ == 8
 #define dirent_struct struct linux_dirent64
 #else
@@ -228,6 +234,11 @@ struct getdents_reader {
   int fd, nread, bpos;
   char buf[BUFFER_SIZE];
 };
+
+int
+getdents_initialized(Directory* d) {
+  return d->nread == 0;
+}
 
 size_t
 getdents_size() {
