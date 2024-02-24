@@ -18,3 +18,6 @@
 	path = libserialport
 	url = git@github.com:rsenn/libserialport.git
 	branch = cmake
+[submodule "libbcrypt"]
+	path = libbcrypt
+	url = https://github.com/rg3/libbcrypt
