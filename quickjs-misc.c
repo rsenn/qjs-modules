@@ -1424,14 +1424,14 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     uint32_t wf = 12;
     JS_ToUint32(ctx, &wf, argv[0]);
 
-    InputBuffer buf = js_input_buffer(ctx, argv[1]);
+    InputBuffer salt = js_input_buffer(ctx, argv[1]);
 
-    if(buf.size < BCRYPT_HASHSIZE)
-      return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %zu", buf.size, BCRYPT_HASHSIZE);
+    if(salt.size < BCRYPT_HASHSIZE)
+      return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %zu", salt.size, BCRYPT_HASHSIZE);
 
-    ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, buf.data));
+    ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, salt.data));
 
-    input_buffer_free(&buf, ctx);
+    input_buffer_free(&salt, ctx);
   } else if(argc >= 3) {
     const char* pw;
 
