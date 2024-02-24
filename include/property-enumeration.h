@@ -142,7 +142,6 @@ property_enumeration_prototype(PropertyEnumeration* it, JSContext* ctx, int flag
   return 0;
 }
 
-
 JSValue property_recursion_path(const Vector*, JSContext* ctx);
 void property_recursion_pathstr(const Vector*, JSContext* ctx, DynBuf* buf);
 JSValue property_recursion_pathstr_value(const Vector*, JSContext* ctx);

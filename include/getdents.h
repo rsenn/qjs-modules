@@ -33,7 +33,7 @@ char* getdents_name(const DirEntry*);
 const uint8_t* getdents_namebuf(const DirEntry*, size_t* len);
 int getdents_type(const DirEntry*);
 void getdents_close(Directory*);
-int getdents_initialized(Directory*d);
+int getdents_initialized(Directory* d);
 
 int getdents_isblk(const DirEntry*);
 int getdents_ischr(const DirEntry*);
