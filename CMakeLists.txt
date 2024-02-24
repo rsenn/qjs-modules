@@ -383,6 +383,7 @@ list(APPEND misc_LIBRARIES qjs-syscallerror)
 
 file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h tutf8e/src/*.c)
 file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
+file(GLOB libbcrypt_SOURCES libbcrypt/*.c libbcrypt/*/*.c)
 
 if(HAVE_SYS_MMAN_H)
   set(gpio_SOURCES src/gpio.c include/gpio.h)
@@ -571,7 +572,7 @@ foreach(LIB_MODULE ${LIB_MODULES})
   compile_module(lib/${LIB_MODULE}.js)
 endforeach(LIB_MODULE ${LIB_MODULES})
 
-add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES} ${libutf_SOURCES})
+add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES} ${libutf_SOURCES} ${libbcrypt_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
 add_library(compiled STATIC ${COMPILED_MODULES})
 set(COMMON_LIBRARIES modules compiled)
