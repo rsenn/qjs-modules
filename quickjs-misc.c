@@ -736,6 +736,32 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return JS_NewInt64(ctx, n);
 }
 
+static JSValue
+js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  MemoryBlock s1 = {0, 0}, s2 = {0, 0};
+  OffsetLength o1 = {0, -1}, o2 = {0, -1};
+  size_t n;
+  int i = 0;
+
+  if(!block_arraybuffer(&s1, argv[0], ctx))
+    return JS_ThrowTypeError(ctx, "argument 1 (s1) must be an ArrayBuffer");
+
+  i++;
+
+  i += js_offset_length(ctx, s1.size, argc - i, argv + i, &o1);
+
+  if(i == argc || !block_arraybuffer(&s2, argv[i], ctx))
+    return JS_ThrowTypeError(ctx, "argument %d (s2) must be an ArrayBuffer", i + 1);
+
+  i++;
+
+  i += js_offset_length(ctx, s2.size, argc - i, argv + i, &o2);
+
+  if((n = MIN_NUM(offset_size(&o1, block_length(&s1)), offset_size(&o2, block_length(&s2)))))
+    return JS_NewInt32(ctx, memcmp(offset_data(&o1, block_data(&s1)), offset_data(&o2, block_data(&s2)), n));
+
+  return JS_NULL;
+}
 #ifdef HAVE_FMEMOPEN
 static JSValue
 js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -1424,14 +1450,25 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     uint32_t wf = 12;
     JS_ToUint32(ctx, &wf, argv[0]);
 
-    InputBuffer salt = js_input_buffer(ctx, argv[1]);
+    if(argc > 1) {
+      InputBuffer salt = js_input_buffer(ctx, argv[1]);
 
-    if(salt.size < BCRYPT_HASHSIZE)
-      return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %zu", salt.size, BCRYPT_HASHSIZE);
+      if(salt.size < BCRYPT_HASHSIZE)
+        return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %zu", salt.size, BCRYPT_HASHSIZE);
 
-    ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, salt.data));
+      ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, salt.data));
 
-    input_buffer_free(&salt, ctx);
+      input_buffer_free(&salt, ctx);
+    } else {
+      char s[BCRYPT_HASHSIZE + 1];
+
+      memset(s, 0, sizeof(s));
+
+      if(!bcrypt_gensalt(wf, s))
+        ret = JS_NewStringLen(ctx, s, strlen(s));
+      else
+        ret = JS_NULL;
+    }
   } else if(argc >= 3) {
     const char* pw;
 
@@ -3101,6 +3138,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),
     // JS_ALIAS_DEF("search", "searchArrayBuffer"),
     JS_CFUNC_DEF("memcpy", 2, js_misc_memcpy),
+    JS_CFUNC_DEF("memcmp", 2, js_misc_memcmp),
 #ifdef HAVE_FMEMOPEN
     JS_CFUNC_DEF("fmemopen", 2, js_misc_fmemopen),
 #endif

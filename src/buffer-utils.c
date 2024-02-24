@@ -676,26 +676,28 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Of
   int ret = 0;
   int64_t off = 0, len = size;
 
-  if(argc >= 1 && JS_IsNumber(argv[0]))
+  if(argc >= 1 && JS_IsNumber(argv[0])) {
     if(!JS_ToInt64(ctx, &off, argv[0]))
       ret = 1;
 
-  if(argc >= 2 && JS_IsNumber(argv[1]))
-    if(!JS_ToInt64(ctx, &len, argv[1]))
-      ret = 2;
+    if(argc >= 2 && JS_IsNumber(argv[1]))
+      if(!JS_ToInt64(ctx, &len, argv[1]))
+        ret = 2;
 
-  if(size)
-    off = ((off % size) + size) % size;
+    if(size)
+      off = ((off % size) + size) % size;
 
-  if(len >= 0)
-    len = MIN_NUM(len, size - off);
-  else
-    len = size - off;
+    if(len >= 0)
+      len = MIN_NUM(len, size - off);
+    else
+      len = size - off;
 
-  if(off_len_p) {
-    off_len_p->offset = off;
-    off_len_p->length = len;
+    if(off_len_p) {
+      off_len_p->offset = off;
+      off_len_p->length = len;
+    }
   }
+
   return ret;
 }
 
@@ -704,26 +706,28 @@ js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Inde
   int ret = 0;
   int64_t start = 0, end = size;
 
-  if(argc >= 1 && JS_IsNumber(argv[0]))
+  if(argc >= 1 && JS_IsNumber(argv[0])) {
     if(!JS_ToInt64(ctx, &start, argv[0]))
       ret = 1;
 
-  if(argc >= 2 && JS_IsNumber(argv[1]))
-    if(!JS_ToInt64(ctx, &end, argv[1]))
-      ret = 2;
+    if(argc >= 2 && JS_IsNumber(argv[1]))
+      if(!JS_ToInt64(ctx, &end, argv[1]))
+        ret = 2;
 
-  if(size > 0) {
-    start = ((start % size) + size) % size;
-    end = ((end % size) + size) % size;
+    if(size > 0) {
+      start = ((start % size) + size) % size;
+      end = ((end % size) + size) % size;
+    }
+
+    if(end > size)
+      end = size;
+
+    if(idx_rng_p) {
+      idx_rng_p->start = start;
+      idx_rng_p->end = end;
+    }
   }
 
-  if(end > size)
-    end = size;
-
-  if(idx_rng_p) {
-    idx_rng_p->start = start;
-    idx_rng_p->end = end;
-  }
   return ret;
 }
 
