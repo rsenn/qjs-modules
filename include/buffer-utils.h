@@ -163,7 +163,8 @@ offset_data(const OffsetLength* ol, const void* x) {
 
 static inline size_t
 offset_size(const OffsetLength* ol, size_t n) {
-  if(ol->length == -1) return (signed long)n - ol->offset;
+  if(ol->length == -1)
+    return (signed long)n - ol->offset;
   return MIN_NUM(ol->length, (signed long)n - ol->offset);
 }
 

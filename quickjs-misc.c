@@ -458,7 +458,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     size_t len;
 
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-      OffsetLength ol;
+      OffsetLength ol = {0, -1};
 
       js_offset_length(ctx, len, argc - 1, argv + 1, &ol);
 
@@ -515,7 +515,7 @@ static JSValue
 js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   MemoryBlock b;
-  OffsetLength o;
+  OffsetLength o = {0, -1};
 
   /*  if(JS_IsString(argv[0])) {
       JSValueConst value = argv[0]; // JS_DupValue(ctx, argv[0]);
@@ -561,7 +561,7 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   size_t len;
 
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-    OffsetLength ol;
+    OffsetLength ol = {0, -1};
 
     js_offset_length(ctx, len, argc - 1, argv + 1, &ol);
 
@@ -704,7 +704,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 static JSValue
 js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   MemoryBlock dst = {0, 0}, src = {0, 0};
-  OffsetLength s_offs, d_offs;
+  OffsetLength s_offs = {0, -1}, d_offs = {0, -1};
   size_t n;
   int i = 0;
 
