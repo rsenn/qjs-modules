@@ -236,7 +236,7 @@ static inline MemoryBlock
 block_range(const MemoryBlock* mb, const OffsetLength* range) {
   MemoryBlock ret;
   ret.base = mb->base + range->offset;
-  ret.size = MIN_NUM(range->length, (signed long)mb->size - range->offset);
+  ret.size = MIN_NUM((size_t)range->length, mb->size - range->offset);
   return ret;
 }
 

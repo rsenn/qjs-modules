@@ -1,11 +1,10 @@
 #!/usr/bin/env qjsm
-import * as fs from 'fs';
-import * as path from 'path';
-import * as util from 'util';
+import { readFileSync, writeFileSync } from 'fs';
+import { basename } from 'path';
 import { getOpt } from 'util';
 import Console from 'console';
 import { REPL } from 'repl';
-import * as xml from 'xml';
+import { read, write } from 'xml';
 import { Attr, CSSStyleDeclaration, Comment, Document, Element, Entities, Factory, GetType, Interface, NamedNodeMap, Node, NodeList, Parser, Prototypes, Serializer, Text, TokenList, nodeTypes } from 'dom';
 
 let repl;
@@ -39,8 +38,8 @@ function main(...args) {
       load,
       save,
       serialize,
-      read: xml.read,
-      write: xml.write
+      read: read,
+      write: write
     },
     json: {
       read(...args) {
@@ -51,10 +50,7 @@ function main(...args) {
       },
       load,
       save
-    },
-    util,
-    fs,
-    path
+    }
   });
 
   const dom = (globalThis.dom = {
@@ -81,8 +77,7 @@ function main(...args) {
   Object.assign(globalThis, {
     ...globalThis.xml,
     ...globalThis.dom,
-    dom,
-    ...util
+    dom
   });
 
   globalThis.parser ??= new Parser();
@@ -94,7 +89,7 @@ function main(...args) {
   }
 
   repl = globalThis.repl = new REPL(
-    '\x1b[38;2;80;200;255m' + path.basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
+    '\x1b[38;2;80;200;255m' + basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
     false
   );
   repl.historyLoad(null);
@@ -155,7 +150,7 @@ function load(filename, ...args) {
     data = fs.readFileSync(filename, 'utf-8');
   } catch(e) {}
 
-  if(data) return xml.read(data, filename, ...args);
+  if(data) return read(data, filename, ...args);
 }
 
 function parse(filename, ...args) {
@@ -185,7 +180,7 @@ function save(filename, obj, wfn = (filename, data) => fs.writeFileSync(filename
   let data, err;
 
   try {
-    data = xml.write(Node.raw(obj) ?? obj);
+    data = write(Node.raw(obj) ?? obj);
   } catch(e) {
     err = e;
   }

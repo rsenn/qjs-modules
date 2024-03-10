@@ -2340,8 +2340,10 @@ js_arraybuffer_fromvalue(JSContext* ctx, void* x, size_t n, JSValueConst val) {
     return JS_EXCEPTION;
 
   *valptr = JS_DupValue(ctx, val);
+
   return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freevalue, valptr, FALSE);
 }
+
 int64_t
 js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value) {
   int64_t len = -1;
