@@ -19,6 +19,7 @@
  */
 #define PERIPHERALS_BASE_ADDR (0x20200000)
 #define MAP_SIZE (0xA0)
+#define PINS (sizeof(fsel) / sizeof(fsel[0]))
 
 static const int fsel_shift[] = {
     0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 0, 3, 6, 9, 12, 15, 18, 21, 24, 27,
@@ -93,33 +94,35 @@ gpio_close(struct gpio* gpio) {
 
 void
 gpio_init_pin(struct gpio* gpio, const uint8_t pin, const bool output) {
-  *(gpio->map + fsel[pin]) &= ~(1 << fsel_shift[pin]);
-  *(gpio->map + fsel[pin]) |= (output << fsel_shift[pin]);
+  
+  *(gpio->map + fsel[pin % PINS]) &= ~(1 << fsel_shift[pin % PINS]);
+  *(gpio->map + fsel[pin % PINS]) |= (output << fsel_shift[pin % PINS]);
 
   if(gpio->debug)
-    fprintf(stdout, "Pin %d set to %s\n", pin, output ? "output" : "input");
+    fprintf(stdout, "Pin %d set to %s\n", pin % PINS, output ? "output" : "input");
 }
 
 void
 gpio_set_pin(struct gpio* gpio, const uint8_t pin, const bool value) {
-  if(value) {
-    *(gpio->map + set[pin]) &= ~(1 << set_shift[pin]);
-    *(gpio->map + set[pin]) |= (1 << set_shift[pin]);
+  
+ if(value) {
+    *(gpio->map + set[pin % PINS]) &= ~(1 << set_shift[pin % PINS]);
+    *(gpio->map + set[pin % PINS]) |= (1 << set_shift[pin % PINS]);
   } else {
-    *(gpio->map + clr[pin]) &= ~(1 << clr_shift[pin]);
-    *(gpio->map + clr[pin]) |= (1 << clr_shift[pin]);
+    *(gpio->map + clr[pin % PINS]) &= ~(1 << clr_shift[pin % PINS]);
+    *(gpio->map + clr[pin % PINS]) |= (1 << clr_shift[pin % PINS]);
   }
 
   if(gpio->debug)
-    fprintf(stdout, "Set pin %d to value %d\n", pin, value);
+    fprintf(stdout, "Set pin %d to value %d\n", pin % PINS, value);
 }
 
 bool
 gpio_get_pin(struct gpio* gpio, const uint8_t pin) {
-  const bool value = *(gpio->map + lvl[pin]) & (1 << lvl_shift[pin]);
+ const bool value = *(gpio->map + lvl[pin % PINS]) & (1 << lvl_shift[pin % PINS]);
 
   if(gpio->debug)
-    fprintf(stdout, "Get pin %d at value %d\n", pin, value);
+    fprintf(stdout, "Get pin %d at value %d\n", pin % PINS, value);
 
   return value;
 }
