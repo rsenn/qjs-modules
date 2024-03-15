@@ -94,7 +94,7 @@ gpio_close(struct gpio* gpio) {
 
 void
 gpio_init_pin(struct gpio* gpio, const uint8_t pin, const bool output) {
-  
+
   *(gpio->map + fsel[pin % PINS]) &= ~(1 << fsel_shift[pin % PINS]);
   *(gpio->map + fsel[pin % PINS]) |= (output << fsel_shift[pin % PINS]);
 
@@ -104,8 +104,8 @@ gpio_init_pin(struct gpio* gpio, const uint8_t pin, const bool output) {
 
 void
 gpio_set_pin(struct gpio* gpio, const uint8_t pin, const bool value) {
-  
- if(value) {
+
+  if(value) {
     *(gpio->map + set[pin % PINS]) &= ~(1 << set_shift[pin % PINS]);
     *(gpio->map + set[pin % PINS]) |= (1 << set_shift[pin % PINS]);
   } else {
@@ -119,7 +119,7 @@ gpio_set_pin(struct gpio* gpio, const uint8_t pin, const bool value) {
 
 bool
 gpio_get_pin(struct gpio* gpio, const uint8_t pin) {
- const bool value = *(gpio->map + lvl[pin % PINS]) & (1 << lvl_shift[pin % PINS]);
+  const bool value = *(gpio->map + lvl[pin % PINS]) & (1 << lvl_shift[pin % PINS]);
 
   if(gpio->debug)
     fprintf(stdout, "Get pin %d at value %d\n", pin % PINS, value);
