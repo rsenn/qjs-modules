@@ -177,12 +177,7 @@ const TokIs = curry((type, lexeme, tok) => {
     return true;
   }
 });
-const CompareRange = (a, b) =>
-  a === null || b === null
-    ? 0
-    : typeof a[0] == 'number' && typeof b[0] == 'number' && a[0] != b[0]
-    ? a[0] - b[0]
-    : a[1] - b[1];
+const CompareRange = (a, b) => (a === null || b === null ? 0 : typeof a[0] == 'number' && typeof b[0] == 'number' && a[0] != b[0] ? a[0] - b[0] : a[1] - b[1]);
 
 const IsKeyword = TokIs('keyword');
 const IsPunctuator = TokIs('punctuator');
@@ -231,16 +226,8 @@ function OutputImports(imports = globalImports) {
 
     s += `import `;
 
-    if(idmap.length == 1 && ['*', 'default'].contains(idmap[0][1]))
-      s += idmap[0][1] == '*' ? `* as ${idmap[0][0]}` : idmap[0][0];
-    else
-      s +=
-        '{ ' +
-        idmap.reduce(
-          (acc, [local, name]) => (acc ? acc + ', ' : '') + (local === name ? local : name + ' as ' + local),
-          undefined
-        ) +
-        ' }';
+    if(idmap.length == 1 && ['*', 'default'].contains(idmap[0][1])) s += idmap[0][1] == '*' ? `* as ${idmap[0][0]}` : idmap[0][0];
+    else s += '{ ' + idmap.reduce((acc, [local, name]) => (acc ? acc + ', ' : '') + (local === name ? local : name + ' as ' + local), undefined) + ' }';
 
     s += ` from '${name}';\n`;
   }
@@ -376,8 +363,7 @@ function ImportIdMap(seq) {
     entries = [];
   seq = NonWS(seq);
 
-  const add = (local, name) =>
-    entries.findIndex(([l, n]) => local == l && name == n) == -1 && entries.push([local, name]);
+  const add = (local, name) => entries.findIndex(([l, n]) => local == l && name == n) == -1 && entries.push([local, name]);
 
   if(!IsKeyword('import', seq[0])) return null;
 
@@ -436,11 +422,7 @@ function ImportIdMap(seq) {
     } else {
       const { id, type, lexeme } = tok;
 
-      throw new Error(
-        `No such token[${seq.indexOf(tok)}] (at ${tok.loc}) (${inspect({ id, type, lexeme })}) ${tok.lexeme} at ${
-          tok.loc
-        }`
-      );
+      throw new Error(`No such token[${seq.indexOf(tok)}] (at ${tok.loc}) (${inspect({ id, type, lexeme })}) ${tok.lexeme} at ${tok.loc}`);
     }
   }
   return entries;
@@ -526,8 +508,7 @@ function ModuleExports(file) {
 function Export(tokens, relativePath = s => s) {
   if(tokens[0].seq == tokens[1].seq) tokens.shift();
   const { loc, seq } = tokens[0];
-  if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
-    throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+  if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
   let def = tokens.findIndex(tok => IsKeyword('default', tok));
   let k = 1;
   while(tokens[k].type == 'whitespace' || IsKeyword(['let', 'class', 'function', 'const'], tokens[k])) k++;
@@ -536,16 +517,10 @@ function Export(tokens, relativePath = s => s) {
   let exported = def != -1 ? 'default' : name;
   let file = ImportFile(tokens);
   if(file == ' ') throw new Error('XXX ' + inspect(tokens, { compact: false }));
-  const idx =
-    def != -1
-      ? def
-      : file
-      ? tokens.findIndex(tok => tok.lexeme == ';')
-      : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
+  const idx = def != -1 ? def : file ? tokens.findIndex(tok => tok.lexeme == ';') : tokens.slice(1).findIndex(tok => tok.type != 'whitespace');
   const o = NonWS(tokens)[1].lexeme == '{';
   const remove = o || def != -1 ? tokens.slice() : tokens.slice(0, def == idx ? idx + 2 : idx + 1);
-  if(remove[0])
-    if(remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
+  if(remove[0]) if (remove[0].lexeme != 'export') throw new Error(`AddExport tokens: ` + inspect(tokens, { compact: false }));
   const range = ByteSequence(remove) ?? ByteSequence(tokens);
   let source = loc.file;
   let type = ImpExpType(tokens);
@@ -556,8 +531,7 @@ function Export(tokens, relativePath = s => s) {
     exported = tokens.filter(tok => tok.type == 'identifier').map(tok => tok.lexeme);
   }
 
-  if(NonWS(tokens)[1].lexeme != '{')
-    len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
+  if(NonWS(tokens)[1].lexeme != '{') len = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok)) + 1;
   tokens = tokens.slice(0, len);
   let exp = define(
     {
@@ -593,8 +567,7 @@ function Import(tokens, relativePath = s => s, depth) {
   //console.log('Import', {tokens: tokens.map(t => t.lexeme).slice(-3),hasFrom: tokens.some(i => IsKeyword('from', i))  });
   tokens = tokens[0].seq === tokens[1].seq ? tokens.slice(1) : tokens.slice();
 
-  if(!/^(im|ex)port$/i.test(tokens[0].lexeme))
-    throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
+  if(!/^(im|ex)port$/i.test(tokens[0].lexeme)) throw new Error(`AddImport tokens: ` + inspect(tokens, { compact: false }));
 
   const tok = tokens[0];
   const { loc, seq } = tok;
@@ -710,8 +683,7 @@ define(Import.prototype, {
     } else if(map.length == 1 && map[0][1] == 'default') {
       output += map[0][0];
     } else {
-      output +=
-        '{ ' + map.map(([local, foreign]) => (local == foreign ? local : foreign + ' as ' + local)).join(', ') + ' }';
+      output += '{ ' + map.map(([local, foreign]) => (local == foreign ? local : foreign + ' as ' + local)).join(', ') + ' }';
     }
 
     output += ` from '${this.file}';`;
@@ -808,8 +780,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme])
-            throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
           stack.pop();
           break;
@@ -839,10 +810,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
     imp = [],
     line = [],
     showToken = tok => {
-      if(
-        (lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') ||
-        /^((im|ex)port|from|as)$/.test(tok.lexeme)
-      ) {
+      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         // std.puts(a.join('') + '\n');
       }
@@ -921,8 +889,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         }
       }
 
-      if(debug > 3)
-        log(`token[${imp.length}]`, token.loc + '', console.config({ breakLength: 80, compact: 0 }), token);
+      if(debug > 3) log(`token[${imp.length}]`, token.loc + '', console.config({ breakLength: 80, compact: 0 }), token);
 
       if(token.lexeme == ';' && cond !== true) {
         doneImports = true;
@@ -1078,11 +1045,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
         replacement = null;
       } else if(file && path.isFile(file)) {
         replacement = file;
-      } else if(
-        (typeof replacement == 'string' && !path.isFile(replacement)) ||
-        type == What.IMPORT ||
-        typeof file == 'string'
-      ) {
+      } else if((typeof replacement == 'string' && !path.isFile(replacement)) || type == What.IMPORT || typeof file == 'string') {
         replacement = null;
       } else if(code.startsWith('export')) {
         if(!removeExports) continue;
@@ -1127,7 +1090,7 @@ function ProcessFile(source, log = () => {}, recursive, depth = 0) {
       let { file, range, tokens } = imp;
 
       let abs = path.isRelative(file) ? path.join(path.dirname(source), file) : file;
-let rel=path.relative(path.dirname(source), abs);
+      let rel = path.relative(path.dirname(source), abs);
 
       //console.log(`Import`,console.config({compact: 2}), {file,source});
 
@@ -1232,8 +1195,7 @@ function TokenSequence(tokens) {
 function AddWhitespace(tokens) {
   return tokens.reduce((acc, tok) => {
     if(acc.length) {
-      if(tok.lexeme != ',')
-        if(!IsWS(acc[acc.length - 1]) && !IsWS(tok)) acc.push({ type: 'whitespace', lexeme: ' ' });
+      if(tok.lexeme != ',') if (!IsWS(acc[acc.length - 1]) && !IsWS(tok)) acc.push({ type: 'whitespace', lexeme: ' ' });
     }
 
     acc.push(tok);
@@ -1304,11 +1266,7 @@ function IsRange(obj) {
 
 Object.assign(Range, {
   merge(...args) {
-    return new Range(
-      args[0].file,
-      Math.min(...args.map(r => (Array.isArray(r) ? r[0] : r.start))),
-      Math.max(...args.map(r => (Array.isArray(r) ? r[1] : r.end)))
-    );
+    return new Range(args[0].file, Math.min(...args.map(r => (Array.isArray(r) ? r[0] : r.start))), Math.max(...args.map(r => (Array.isArray(r) ? r[1] : r.end))));
   }
 });
 
@@ -1551,11 +1509,7 @@ class FileMap extends Array {
     if(range[0] < this[i][0]) range[0] = this[i][0];
 
     if(!this[i][0])
-      throw new Error(
-        `range=${range}\nlength=${this.length}\nstart=${i}\nend=${j}\nthis[${i}]=${inspect(this[i])}\nthis[${
-          i - 1
-        }]=${inspect(this[i - 1])}\nthis[${i + 1}]=${inspect(this[i + 1])}`
-      );
+      throw new Error(`range=${range}\nlength=${this.length}\nstart=${i}\nend=${j}\nthis[${i}]=${inspect(this[i])}\nthis[${i - 1}]=${inspect(this[i - 1])}\nthis[${i + 1}]=${inspect(this[i + 1])}`);
 
     let [, buf] = this[i];
     let empty = typeof file != 'string';
@@ -1783,26 +1737,13 @@ class FileMap extends Array {
       const isBuf = isObject(buf) && types.isArrayBuffer(buf);
       const filename = isBuf ? FileMap.filenames(buf) : undefined;
 
-      return [
-        types.isArrayBuffer(buf) ? range : null,
-        filename ? `<Buffer[\x1b[1;36m${buf.byteLength}\x1b[1;0m] \x1b[1;33m'${filename}'\x1b[0m>` : buf,
-        replacement
-      ]
+      return [types.isArrayBuffer(buf) ? range : null, filename ? `<Buffer[\x1b[1;36m${buf.byteLength}\x1b[1;0m] \x1b[1;33m'${filename}'\x1b[0m>` : buf, replacement]
         .slice(0, item.length)
-        .map((part, i) =>
-          padStartAnsi(
-            typeof part == 'string' ? part : inspect(part, opts) + (i < item.length - 1 ? ',' : ''),
-            [20, 34, 0][i]
-          )
-        )
+        .map((part, i) => padStartAnsi(typeof part == 'string' ? part : inspect(part, opts) + (i < item.length - 1 ? ',' : ''), [20, 34, 0][i]))
         .join(' ');
     });
 
-    return (
-      `FileMap\x1b[1;35m<${this.file}>\x1b[0m [\n  ` +
-      arr.map((item, i) => `[ ${('#' + i).padStart(3)} ${item} ]`).join(',\n  ') +
-      `\n]\n`
-    );
+    return `FileMap\x1b[1;35m<${this.file}>\x1b[0m [\n  ` + arr.map((item, i) => `[ ${('#' + i).padStart(3)} ${item} ]`).join(',\n  ') + `\n]\n`;
   }
 }
 
@@ -1860,16 +1801,8 @@ function DumpToken(tok) {
   return `★ Token ${inspect({ chars, offset, length, loc }, { depth: 1 })}`;
 }
 
-function* DependencyTree(
-  root,
-  indent = ' ',
-  spacing = false,
-  depth = 0,
-  pre = '',
-  fn = (name, depth) => `${name} (${depth})`
-) {
-  if(!Array.isArray(dependencyTree(root)))
-    throw new Error(`No such file '${root}' in dependency Map ([${[...dependencyMap.keys()]}])`);
+function* DependencyTree(root, indent = ' ', spacing = false, depth = 0, pre = '', fn = (name, depth) => `${name} (${depth})`) {
+  if(!Array.isArray(dependencyTree(root))) throw new Error(`No such file '${root}' in dependency Map ([${[...dependencyMap.keys()]}])`);
 
   if(depth == 0) yield pre + stripLeadingDotSlash(fn(root, depth)) + `\n`;
 
@@ -1880,19 +1813,9 @@ function* DependencyTree(
   for(i = 0; i < n; i++) {
     if(spacing) yield (pre + indent + `│  ` + '\n').repeat(Number(spacing));
 
-    yield pre +
-      indent +
-      (n == 1 ? `└─ ` : i < n - 1 ? `├─ ` : `└─ `) +
-      stripLeadingDotSlash(fn(a[i], depth + 1)) +
-      '\n';
+    yield pre + indent + (n == 1 ? `└─ ` : i < n - 1 ? `├─ ` : `└─ `) + stripLeadingDotSlash(fn(a[i], depth + 1)) + '\n';
 
-    yield* DependencyTree(
-      a[i],
-      indent,
-      spacing,
-      depth + 1,
-      pre + indent + (n == 1 ? `   ` : i < n - 1 ? `│  ` : `   `)
-    );
+    yield* DependencyTree(a[i], indent, spacing, depth + 1, pre + indent + (n == 1 ? `   ` : i < n - 1 ? `│  ` : `   `));
   }
 
   function stripLeadingDotSlash(n) {
@@ -2079,12 +2002,7 @@ function main(...args) {
 
     let s = Object.entries(opts).reduce(
       (acc, [name, [hasArg, fn, shortOpt]]) =>
-        acc +
-        (
-          `    ${(shortOpt ? '-' + shortOpt + ',' : '').padStart(4, ' ')} --${name.padEnd(maxlen, ' ')} ` +
-          (hasArg ? (typeof hasArg == 'boolean' ? 'ARG' : hasArg) : '')
-        ).padEnd(40, ' ') +
-        '\n',
+        acc + (`    ${(shortOpt ? '-' + shortOpt + ',' : '').padStart(4, ' ')} --${name.padEnd(maxlen, ' ')} ` + (hasArg ? (typeof hasArg == 'boolean' ? 'ARG' : hasArg) : '')).padEnd(40, ' ') + '\n',
       `Usage: ${path.basename(scriptArgs[0])} [OPTIONS] <FILES...>\n\n`
     );
     std.puts(s + '\n');

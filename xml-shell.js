@@ -50,7 +50,8 @@ function main(...args) {
       },
       load,
       save
-    }
+    },
+    ['@']: params['@']
   });
 
   const dom = (globalThis.dom = {
@@ -88,47 +89,9 @@ function main(...args) {
     documents.push(document);
   }
 
-  repl = globalThis.repl = new REPL(
-    '\x1b[38;2;80;200;255m' + basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m',
-    false
-  );
+  repl = globalThis.repl = new REPL('\x1b[38;2;80;200;255m' + basename(process.argv[1], '.js').replace(/test_/, '') + ' \x1b[0m', false);
   repl.historyLoad(null);
   repl.loadSaveOptions();
-  /*repl.show = repl.printFunction((...args) => console.log(...args));
-  repl.directives = {
-    i: [
-      name => {
-        const all = name[0] == '*';
-        if(name[0] == '*') name = name.slice(1);
-
-        import(name)
-          .then(m => {
-            //repl.printStatus(`Loaded '${name}'.`);
-            const sym = name.replace(/.*\//g, '').replace(/\.[^.]+$/gi, '');
-            let err = false;
-            if(all) {
-              try {
-                weakDefine(globalThis, m);
-              } catch(e) {
-                err = e;
-              }
-              repl.printStatus(
-                err
-                  ? `Error importing '${name}': ${err.message}`
-                  : `Imported from '${sym}': ${Object.getOwnPropertyNames(m).join(' ')}`
-              );
-            } else {
-              globalThis[sym] = m;
-              repl.printStatus(`Imported '${sym}' as '${sym}'`);
-            }
-          })
-          .catch(err => {
-            repl.printStatus(`ERROR: ${err.message}`);
-          });
-      },
-      'import a module'
-    ]
-  };*/
 
   for(let arg of params['@']) {
     parse(arg);
@@ -164,8 +127,7 @@ function parse(filename, ...args) {
 }
 
 function serialize(...args) {
-  let [filename, doc, wfn = (filename, data) => fs.writeFileSync(filename, data)] =
-    args.length == 1 ? [null, ...args] : args;
+  let [filename, doc, wfn = (filename, data) => fs.writeFileSync(filename, data)] = args.length == 1 ? [null, ...args] : args;
   let data,
     s = (globalThis.serializer ??= new Serializer());
 
