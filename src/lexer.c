@@ -385,6 +385,7 @@ lexer_peek(Lexer* lex, /*uint64_t __state,*/ unsigned start_rule, JSContext* ctx
       if((lex->mode & LEXER_LONGEST) == 0 || ret < 0 || (size_t)(capture[1] - capture[0]) > len) {
         ret = rule - start;
         len = capture[1] - capture[0];
+        
         if(lex->mode == LEXER_FIRST)
           break;
       }
