@@ -11,9 +11,9 @@
  * @{
  */
 
-VISIBLE JSClassID js_archive_class_id = 0, js_entry_class_id = 0;
-VISIBLE JSValue archive_proto = {{0}, JS_TAG_UNDEFINED}, archive_ctor = {{0}, JS_TAG_UNDEFINED}, entry_proto = {{0}, JS_TAG_UNDEFINED},
-                entry_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSClassID js_archive_class_id = 0, js_archive_iterator_class_id = 0, js_entry_class_id = 0;
+VISIBLE JSValue archive_proto /*= {{0}, JS_TAG_UNDEFINED}*/, archive_ctor /*= {{0}, JS_TAG_UNDEFINED}*/, iterator_proto, entry_proto /*= {{0}, JS_TAG_UNDEFINED}*/,
+    entry_ctor /*= {{0}, JS_TAG_UNDEFINED}*/;
 
 typedef enum { READ = 0, WRITE = 1 } archive_mode;
 
@@ -54,23 +54,30 @@ js_archive_mode(JSContext* ctx, JSValueConst this_val) {
   return js_get_propertystr_int32(ctx, this_val, "mode");
 }
 
-static inline int
-js_archive_result(JSContext* ctx, JSValueConst this_val, int result) {
+static inline JSValue
+js_archive_return(JSContext* ctx, JSValueConst this_val, int result) {
+  JSValue ret = JS_NewInt32(ctx, result);
+  struct archive* ar = js_archive_data2(ctx, this_val);
+
   switch(result) {
     case ARCHIVE_EOF: {
       JS_DefinePropertyValueStr(ctx, this_val, "eof", JS_TRUE, JS_PROP_CONFIGURABLE);
       break;
     }
+
     case ARCHIVE_FATAL: {
+      ret = JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
       break;
     }
   }
-  return result;
+
+  return ret;
 }
 
 static void
 js_archive_free_buffer(JSRuntime* rt, void* opaque, void* ptr) {
   struct ArchiveInstance* ainst = opaque;
+
   JS_FreeValueRT(rt, ainst->archive);
   js_free_rt(rt, ainst);
 }
@@ -85,21 +92,21 @@ js_archive_progress_callback(void* opaque) {
 
 static JSValue
 js_archive_wrap_proto(JSContext* ctx, JSValueConst proto, struct archive* ar) {
-  JSValue obj;
-
   if(js_archive_class_id == 0)
     js_archive_init(ctx, 0);
+
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = JS_DupValue(ctx, archive_proto);
 
   /* using new_target to get the prototype is necessary when the class is extended. */
-  obj = JS_NewObjectProtoClass(ctx, proto, js_archive_class_id);
+  JSValue obj = JS_NewObjectProtoClass(ctx, proto, js_archive_class_id);
   if(JS_IsException(obj))
     goto fail;
 
   JS_SetOpaque(obj, ar);
 
   return obj;
+
 fail:
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
@@ -144,14 +151,13 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         if(r != ARCHIVE_OK) {
           ret = JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
           archive_read_free(ar);
+
           return ret;
         }
       }
 
       ret = js_archive_wrap_proto(ctx, proto, ar);
-
       JS_DefinePropertyValueStr(ctx, ret, "file", JS_DupValue(ctx, argv[0]), JS_PROP_CONFIGURABLE);
-
       break;
     }
 
@@ -167,9 +173,11 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         if(r != ARCHIVE_OK) {
           ret = JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
           archive_read_free(ar);
+
           return ret;
         }
       }
+
       ret = js_archive_wrap_proto(ctx, proto, ar);
       break;
     }
@@ -339,53 +347,9 @@ js_archive_open(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 }
 
 static JSValue
-js_archive_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-  struct archive* ar;
-  struct archive_entry* ent;
-  int result;
-
-  if(!(ar = js_archive_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  if(!(ent = archive_entry_new2(ar)))
-    return JS_ThrowOutOfMemory(ctx);
-
-  BOOL eof = js_get_propertystr_bool(ctx, this_val, "eof");
-
-  result = eof ? ARCHIVE_EOF : archive_read_next_header2(ar, ent);
-
-  switch(result) {
-    case ARCHIVE_EOF: {
-      JS_DefinePropertyValueStr(ctx, this_val, "eof", JS_TRUE, JS_PROP_CONFIGURABLE);
-      *pdone = TRUE;
-      return JS_UNDEFINED;
-    }
-    case ARCHIVE_FATAL: {
-      *pdone = TRUE;
-      return JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
-    }
-  }
-
-  if(result == ARCHIVE_WARN) {
-    fprintf(stderr, "WARNING: %s\n", archive_error_string(ar));
-    archive_clear_error(ar);
-  }
-
-  *pdone = FALSE;
-
-  JSValue entry = js_entry_wrap(ctx, ent);
-
-  JS_DefinePropertyValueStr(ctx, this_val, "entry", JS_DupValue(ctx, entry), JS_PROP_CONFIGURABLE);
-
-  return entry;
-}
-
-static JSValue
 js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
   struct archive* ar;
   uint8_t* ptr;
-  ssize_t r;
   size_t len, offset = 0, length = 0;
 
   if(!(ar = js_archive_data2(ctx, this_val)))
@@ -395,6 +359,7 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     return JS_NULL;
 
   if(argc < 1 || !js_is_arraybuffer(ctx, argv[0])) {
+    JSValue ret = JS_UNDEFINED;
     void* data;
     size_t size;
     __LA_INT64_T offset;
@@ -422,11 +387,13 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     return ret;
   }
 
-  if(JS_IsNumber(argv[0])) {
+  ssize_t r;
 
+  if(JS_IsNumber(argv[0])) {
     int32_t fd = -1;
+
     JS_ToInt32(ctx, &fd, argv[0]);
-    ret = JS_NewInt32(ctx, js_archive_result(ctx, this_val, archive_read_data_into_fd(ar, fd)));
+    r = archive_read_data_into_fd(ar, fd);
 
   } else {
 
@@ -449,37 +416,27 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
         length = (len - offset);
     }
 
-    if((r = js_archive_result(ctx, this_val, archive_read_data(ar, ptr + offset, length))) >= 0)
-      ret = JS_NewInt64(ctx, r);
-    else
-      ret = JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
+    r = archive_read_data(ar, ptr + offset, length);
   }
 
-  return ret;
+  return js_archive_return(ctx, this_val, r);
 }
 
 static JSValue
 js_archive_skip(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
   struct archive* ar;
-  int r;
 
   if(!(ar = js_archive_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  r = js_archive_result(ctx, this_val, archive_read_data_skip(ar));
-
-  ret = JS_NewInt32(ctx, r);
-
-  return ret;
+  return js_archive_return(ctx, this_val, archive_read_data_skip(ar));
 }
 
 static JSValue
 js_archive_seek(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
   struct archive* ar;
-  int64_t offset = 0, r;
-  int32_t whence = 0;
+  int64_t r, offset = 0;
+  int32_t whence = SEEK_SET;
 
   if(!(ar = js_archive_data2(ctx, this_val)))
     return JS_EXCEPTION;
@@ -487,10 +444,9 @@ js_archive_seek(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JS_ToInt64(ctx, &offset, argv[0]);
   JS_ToInt32(ctx, &whence, argv[1]);
 
-  r = js_archive_result(ctx, this_val, archive_seek_data(ar, offset, whence));
+  r = archive_seek_data(ar, offset, whence);
 
-  ret = JS_NewInt64(ctx, r);
-  return ret;
+  return js_archive_return(ctx, this_val, r);
 }
 
 static JSValue
@@ -522,7 +478,7 @@ js_archive_extract(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     archive_read_extract_set_progress_callback(ar, js_archive_progress_callback, aeref);
   }
 
-  ret = JS_NewInt32(ctx, js_archive_result(ctx, this_val, archive_read_extract(ar, ent, flags)));
+  ret = js_archive_return(ctx, this_val, archive_read_extract(ar, ent, flags));
 
   if(aeref) {
     archive_read_extract_set_progress_callback(ar, 0, 0);
@@ -576,7 +532,58 @@ js_archive_version(JSContext* ctx, JSValueConst this_val) {
 
 static JSValue
 js_archive_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  return JS_DupValue(ctx, this_val);
+  JSValue ret = JS_NewObjectProtoClass(ctx, iterator_proto, js_archive_iterator_class_id);
+  struct archive* ar;
+
+  if((ar = js_archive_data(this_val))) {
+    JS_SetOpaque(ret, ar);
+    JS_DefinePropertyValueStr(ctx, ret, "archive", JS_DupValue(ctx, this_val), JS_PROP_CONFIGURABLE);
+  }
+
+  return ret;
+}
+
+static JSValue
+js_archive_iterator_next(JSContext* ctx, JSValueConst iter, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+  struct archive* ar;
+  struct archive_entry* ent = NULL;
+  int result = ARCHIVE_EOF;
+
+  if(!(ar = JS_GetOpaque2(ctx, iter, js_archive_iterator_class_id)))
+    return JS_EXCEPTION;
+
+  JSValue this_val = JS_GetPropertyStr(ctx, iter, "archive");
+
+  BOOL eof = js_get_propertystr_bool(ctx, this_val, "eof");
+
+  if(!eof) {
+    if(!(ent = archive_entry_new2(ar)))
+      return JS_ThrowOutOfMemory(ctx);
+
+    result = archive_read_next_header2(ar, ent);
+  }
+
+  switch(result) {
+    case ARCHIVE_EOF: {
+      JS_DefinePropertyValueStr(ctx, this_val, "eof", JS_TRUE, JS_PROP_CONFIGURABLE);
+      *pdone = TRUE;
+      return JS_UNDEFINED;
+    }
+
+    case ARCHIVE_FATAL: {
+      *pdone = TRUE;
+      return JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
+    }
+  }
+
+  if(result == ARCHIVE_WARN) {
+    fprintf(stderr, "WARNING: %s\n", archive_error_string(ar));
+    archive_clear_error(ar);
+  }
+
+  *pdone = FALSE;
+
+  return js_entry_wrap(ctx, ent);
 }
 
 static void
@@ -593,7 +600,7 @@ static JSClassDef js_archive_class = {
 };
 
 static const JSCFunctionListEntry js_archive_funcs[] = {
-    JS_ITERATOR_NEXT_DEF("next", 0, js_archive_next, 0),
+    // JS_ITERATOR_NEXT_DEF("next", 0, js_archive_iterator_next, 0),
     JS_CGETSET_MAGIC_DEF("errno", js_archive_get, 0, PROP_ERRNO),
     JS_CGETSET_MAGIC_DEF("error", js_archive_get, 0, PROP_ERROR_STRING),
     JS_CGETSET_MAGIC_DEF("format", js_archive_get, 0, PROP_FORMAT),
@@ -612,6 +619,11 @@ static const JSCFunctionListEntry js_archive_funcs[] = {
     JS_PROP_INT32_DEF("READ", 0, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("WRITE", 1, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Archive", JS_PROP_CONFIGURABLE),
+};
+
+static const JSCFunctionListEntry js_archive_iterator_funcs[] = {
+    JS_ITERATOR_NEXT_DEF("next", 0, js_archive_iterator_next, 0),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ArchiveIterator", JS_PROP_CONFIGURABLE),
 };
 
 static const JSCFunctionListEntry js_archive_static_funcs[] = {
@@ -897,6 +909,11 @@ static const JSCFunctionListEntry js_archive_static_funcs[] = {
     JS_CGETSET_DEF("version", js_archive_version, 0),
 };
 
+static JSClassDef js_archive_iterator_class = {
+    .class_name = "ArchiveIterator" /*,
+     .finalizer = js_archiveiterator_finalizer,*/
+};
+
 static JSValue
 js_entry_wrap_proto(JSContext* ctx, JSValueConst proto, struct archive_entry* ent) {
   JSValue obj;
@@ -966,42 +983,49 @@ js_entry_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case ENTRY_ATIME: {
       if(archive_entry_atime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_atime(ent), archive_entry_atime_nsec(ent));
+
       break;
     }
 
     case ENTRY_CTIME: {
       if(archive_entry_ctime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_ctime(ent), archive_entry_ctime_nsec(ent));
+
       break;
     }
 
     case ENTRY_MTIME: {
       if(archive_entry_mtime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_mtime(ent), archive_entry_mtime_nsec(ent));
+
       break;
     }
 
     case ENTRY_BIRTHTIME: {
       if(archive_entry_birthtime_is_set(ent))
         ret = js_date_from_time_ns(ctx, archive_entry_birthtime(ent), archive_entry_birthtime_nsec(ent));
+
       break;
     }
 
     case ENTRY_DEV: {
       if(archive_entry_dev_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_dev(ent));
+
       break;
     }
 
     case ENTRY_DEVMAJOR: {
       if(archive_entry_dev_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_devmajor(ent));
+
       break;
     }
 
     case ENTRY_DEVMINOR: {
       if(archive_entry_dev_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_devminor(ent));
+
       break;
     }
 
@@ -1012,8 +1036,10 @@ js_entry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
     case ENTRY_FFLAGS: {
       const char* str;
+
       if((str = archive_entry_fflags_text(ent)))
         ret = JS_NewString(ctx, str);
+
       break;
     }
 
@@ -1024,15 +1050,19 @@ js_entry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
     case ENTRY_GNAME: {
       const char* str;
+
       if((str = archive_entry_gname_utf8(ent)))
         ret = JS_NewString(ctx, str);
+
       break;
     }
 
     case ENTRY_HARDLINK: {
       const char* str;
+
       if((str = archive_entry_hardlink_utf8(ent)))
         ret = JS_NewString(ctx, str);
+
       break;
     }
 
@@ -1087,13 +1117,16 @@ js_entry_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case ENTRY_SIZE: {
       if(archive_entry_size_is_set(ent))
         ret = JS_NewInt64(ctx, archive_entry_size(ent));
+
       break;
     }
 
     case ENTRY_SYMLINK: {
       const char* str;
+
       if((str = archive_entry_symlink_utf8(ent)))
         ret = JS_NewString(ctx, str);
+
       break;
     }
 
@@ -1104,8 +1137,10 @@ js_entry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
     case ENTRY_UNAME: {
       const char* str;
+
       if((str = archive_entry_uname_utf8(ent)))
         ret = JS_NewString(ctx, str);
+
       break;
     }
   }
@@ -1128,6 +1163,7 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         struct timespec ts = js_date_timespec(ctx, value);
         archive_entry_set_atime(ent, ts.tv_sec, ts.tv_nsec);
       }
+
       break;
     }
 
@@ -1138,6 +1174,7 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         struct timespec ts = js_date_timespec(ctx, value);
         archive_entry_set_ctime(ent, ts.tv_sec, ts.tv_nsec);
       }
+
       break;
     }
 
@@ -1148,6 +1185,7 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         struct timespec ts = js_date_timespec(ctx, value);
         archive_entry_set_mtime(ent, ts.tv_sec, ts.tv_nsec);
       }
+
       break;
     }
 
@@ -1158,60 +1196,74 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         struct timespec ts = js_date_timespec(ctx, value);
         archive_entry_set_birthtime(ent, ts.tv_sec, ts.tv_nsec);
       }
+
       break;
     }
 
     case ENTRY_DEV: {
       int64_t n;
+
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_dev(ent, n);
+
       break;
     }
 
     case ENTRY_DEVMAJOR: {
       int64_t n;
+
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_devmajor(ent, n);
+
       break;
     }
 
     case ENTRY_DEVMINOR: {
       int64_t n;
+
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_devminor(ent, n);
+
       break;
     }
 
     case ENTRY_FILETYPE: {
       uint32_t n;
+
       if(!JS_ToUint32(ctx, &n, value))
         archive_entry_set_filetype(ent, n);
+
       break;
     }
 
     case ENTRY_FFLAGS: {
       if(JS_IsString(value)) {
         const char* str = JS_ToCString(ctx, value);
+
         archive_entry_copy_fflags_text(ent, str);
         JS_FreeCString(ctx, str);
       } else if(JS_IsArray(ctx, value)) {
         JSValue arr[2] = {JS_GetPropertyUint32(ctx, value, 0), JS_GetPropertyUint32(ctx, value, 1)};
-
         uint32_t set = 0, clr = 0;
+
         if(!JS_ToUint32(ctx, &set, arr[0]) && !JS_ToUint32(ctx, &clr, arr[1]))
           archive_entry_set_fflags(ent, set, clr);
+
         JS_FreeValue(ctx, arr[0]);
         JS_FreeValue(ctx, arr[1]);
       } else {
         archive_entry_copy_fflags_text(ent, 0);
       }
+
       break;
     }
 
     case ENTRY_GID: {
       int64_t n;
+
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_gid(ent, n);
+
       break;
     }
 
@@ -1220,9 +1272,11 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         archive_entry_set_gname_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
+
         archive_entry_set_gname_utf8(ent, str);
         JS_FreeCString(ctx, str);
       }
+
       break;
     }
 
@@ -1231,16 +1285,20 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         archive_entry_set_hardlink_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
+
         archive_entry_set_hardlink_utf8(ent, str);
         JS_FreeCString(ctx, str);
       }
+
       break;
     }
 
     case ENTRY_INO: {
       int64_t n;
+
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_ino(ent, n);
+
       break;
     }
 
@@ -1249,23 +1307,29 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         archive_entry_set_link_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
+
         archive_entry_set_link_utf8(ent, str);
         JS_FreeCString(ctx, str);
       }
+
       break;
     }
 
     case ENTRY_MODE: {
       uint32_t n;
+
       if(!JS_ToUint32(ctx, &n, value))
         archive_entry_set_mode(ent, n);
+
       break;
     }
 
     case ENTRY_NLINK: {
       uint32_t n;
+
       if(!JS_ToUint32(ctx, &n, value))
         archive_entry_set_nlink(ent, n);
+
       break;
     }
 
@@ -1274,37 +1338,47 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         archive_entry_set_pathname_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
+
         archive_entry_set_pathname_utf8(ent, str);
         JS_FreeCString(ctx, str);
       }
+
       break;
     }
 
     case ENTRY_PERM: {
       uint32_t n;
+
       if(!JS_ToUint32(ctx, &n, value))
         archive_entry_set_perm(ent, n);
+
       break;
     }
 
     case ENTRY_RDEV: {
       int64_t n;
+
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_rdev(ent, n);
+
       break;
     }
 
     case ENTRY_RDEVMAJOR: {
       int64_t n;
+
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_rdevmajor(ent, n);
+
       break;
     }
 
     case ENTRY_RDEVMINOR: {
       int64_t n;
+
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_rdevminor(ent, n);
+
       break;
     }
 
@@ -1316,6 +1390,7 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         if(!JS_ToInt64(ctx, &n, value))
           archive_entry_set_size(ent, n);
       }
+
       break;
     }
 
@@ -1324,16 +1399,20 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         archive_entry_set_symlink_utf8(ent, 0);
       } else {
         const char* str = JS_ToCString(ctx, value);
+
         archive_entry_set_symlink_utf8(ent, str);
         JS_FreeCString(ctx, str);
       }
+
       break;
     }
 
     case ENTRY_UID: {
       int64_t n;
+
       if(!JS_ToInt64(ctx, &n, value))
         archive_entry_set_uid(ent, n);
+
       break;
     }
 
@@ -1345,6 +1424,7 @@ js_entry_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magi
         archive_entry_set_uname_utf8(ent, str);
         JS_FreeCString(ctx, str);
       }
+
       break;
     }
   }
@@ -1355,8 +1435,7 @@ static JSValue
 js_entry_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj = JS_UNDEFINED;
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   JSValue proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
@@ -1370,11 +1449,10 @@ fail:
 
 static void
 js_entry_finalizer(JSRuntime* rt, JSValue val) {
-  struct archive_entry* ent = JS_GetOpaque(val, js_entry_class_id);
-  if(ent) {
+  struct archive_entry* ent;
+
+  if((ent = JS_GetOpaque(val, js_entry_class_id)))
     archive_entry_free(ent);
-  }
-  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_entry_class = {
@@ -1426,6 +1504,14 @@ js_archive_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetPropertyFunctionList(ctx, archive_ctor, js_archive_static_funcs, countof(js_archive_static_funcs));
     JS_SetClassProto(ctx, js_archive_class_id, archive_proto);
 
+    JS_NewClassID(&js_archive_iterator_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_archive_iterator_class_id, &js_archive_iterator_class);
+
+    iterator_proto = JS_NewObject(ctx);
+
+    JS_SetPropertyFunctionList(ctx, iterator_proto, js_archive_iterator_funcs, countof(js_archive_iterator_funcs));
+    JS_SetClassProto(ctx, js_archive_iterator_class_id, iterator_proto);
+
     JS_NewClassID(&js_entry_class_id);
     JS_NewClass(JS_GetRuntime(ctx), js_entry_class_id, &js_entry_class);
 
@@ -1456,6 +1542,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
 
   if((m = JS_NewCModule(ctx, module_name, js_archive_init))) {
     JS_AddModuleExport(ctx, m, "Archive");
+    JS_AddModuleExport(ctx, m, "ArchiveEntry");
   }
 
   return m;
