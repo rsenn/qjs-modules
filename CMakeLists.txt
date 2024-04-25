@@ -139,6 +139,11 @@ check_function_and_include(sysinfo sys/sysinfo.h)
 
 check_function_def(gettid)
 check_function_def(uname)
+check_function_def(tempnam)
+
+if(HAVE_TEMPNAM)
+  add_definitions(-DUSE_TEMPNAM=1)
+endif(HAVE_TEMPNAM)
 
 # if(BUILD_PIGPIO)
 #   include(ExternalProject)
