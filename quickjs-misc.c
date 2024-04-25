@@ -66,6 +66,8 @@
 #include "js-utils.h"
 #include "../libbcrypt/bcrypt.h"
 
+#define USE_TEMPNAM
+
 #ifndef _WIN32
 #define FOREGROUND_BLUE (1 << 0)
 #define FOREGROUND_GREEN (1 << 1)

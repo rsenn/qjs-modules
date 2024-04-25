@@ -453,7 +453,7 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     JS_FreeCString(ctx, str);
   }
 
-  len = path_normalize2((char*)db.buf, db.size);
+  len = db.size; // path_normalize2((char*)db.buf, db.size);
   ret = JS_NewStringLen(ctx, (const char*)db.buf, len);
 
   dbuf_free(&db);
