@@ -269,14 +269,12 @@ static JSClassDef js_queue_iterator_class = {
 
 static JSValue
 js_queue_iterator_next(JSContext* ctx, JSValueConst iter, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
-
-  Queue* queue;
   JSValue ret = JS_UNDEFINED, queue_obj = JS_GetPropertyStr(ctx, iter, "queue");
+  Queue* queue;
+  Chunk* ch;
 
   if(!(queue = js_queue_data2(ctx, queue_obj)))
     return JS_EXCEPTION;
-
-  Chunk* ch;
 
   *pdone = TRUE;
 
@@ -302,10 +300,7 @@ js_queue_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_queue_class_id, &js_queue_class);
 
   queue_ctor = JS_NewCFunction2(ctx, js_queue_constructor, "Queue", 1, JS_CFUNC_constructor, 0);
-  // JSValue generator_proto = js_generator_prototype(ctx);
-  // queue_proto = JS_NewObjectProto(ctx, generator_proto);
   queue_proto = JS_NewObject(ctx);
-  // JS_FreeValue(ctx, generator_proto);
 
   JS_SetPropertyFunctionList(ctx, queue_proto, js_queue_funcs, countof(js_queue_funcs));
 
