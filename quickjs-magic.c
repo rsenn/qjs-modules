@@ -18,15 +18,15 @@ enum {
   LIBMAGIC_DESCRIPTOR,
   LIBMAGIC_FILE,
   LIBMAGIC_BUFFER,
-  LIBMAGIC_GETFLAGS,
-  LIBMAGIC_SETFLAGS,
-  LIBMAGIC_CHECK,
-  LIBMAGIC_COMPILE,
-  LIBMAGIC_LIST,
-  LIBMAGIC_LOAD,
-  LIBMAGIC_GETPARAM,
-  LIBMAGIC_SETPARAM,
-  LIBMAGIC_VERSION,
+  METHOD_GETFLAGS,
+  METHOD_SETFLAGS,
+  METHOD_CHECK,
+  METHOD_COMPILE,
+  METHOD_LIST,
+  METHOD_LOAD,
+  METHOD_GETPARAM,
+  METHOD_SETPARAM,
+  METHOD_VERSION,
 };
 
 static inline magic_t
@@ -59,6 +59,7 @@ js_magic_load(JSContext* ctx, magic_t cookie, int argc, JSValueConst argv[]) {
 
     input_buffer_free(&input, ctx);
   }
+
   return n;
 }
 
@@ -92,12 +93,9 @@ js_magic_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   if(JS_IsException(obj))
     goto fail;
 
-  while(argc > 0) {
-    int n = js_magic_load(ctx, cookie, argc, argv);
+  int n;
 
-    if(n == 0)
-      break;
-
+  while(argc > 0 && (n = js_magic_load(ctx, cookie, argc, argv))) {
     argc -= n;
     argv += n;
   }
@@ -113,9 +111,9 @@ fail:
 }
 
 static JSValue
-js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_magic_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   magic_t cookie;
-  JSValue ret = JS_UNDEFINED;
+  const char* str = 0;
 
   if(!(cookie = js_magic_data(ctx, this_val)))
     return JS_EXCEPTION;
@@ -123,20 +121,21 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   switch(magic) {
     case LIBMAGIC_DESCRIPTOR: {
       int32_t fd = -1;
+
       JS_ToInt32(ctx, &fd, argv[0]);
-      const char* str = magic_descriptor(cookie, fd);
-      ret = str ? JS_NewString(ctx, str) : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
+      str = magic_descriptor(cookie, fd);
 
       break;
     }
 
     case LIBMAGIC_FILE: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
-      const char* str = magic_file(cookie, filename);
-      ret = str ? JS_NewString(ctx, str) : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
+
+      str = magic_file(cookie, filename);
 
       if(filename)
         JS_FreeCString(ctx, filename);
+
       break;
     }
 
@@ -147,26 +146,39 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(argc > 1)
         n += js_offset_length(ctx, input.size, argc - 1, argv + 1, &input.range);
 
-      const char* str = magic_buffer(cookie, input_buffer_data(&input), input_buffer_length(&input));
-      ret = str ? JS_NewString(ctx, str) : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
+      str = magic_buffer(cookie, input_buffer_data(&input), input_buffer_length(&input));
 
       input_buffer_free(&input, ctx);
       break;
     }
+  }
 
-    case LIBMAGIC_GETFLAGS: {
+  return str ? JS_NewString(ctx, str) : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
+}
+
+static JSValue
+js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  magic_t cookie;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(cookie = js_magic_data(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+
+    case METHOD_GETFLAGS: {
       ret = JS_NewInt32(ctx, magic_getflags(cookie));
       break;
     }
 
-    case LIBMAGIC_SETFLAGS: {
+    case METHOD_SETFLAGS: {
       int32_t flags = -1;
       JS_ToInt32(ctx, &flags, argv[0]);
       ret = JS_NewInt32(ctx, magic_setflags(cookie, flags));
       break;
     }
 
-    case LIBMAGIC_CHECK: {
+    case METHOD_CHECK: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
       if(magic_check(cookie, filename))
@@ -177,7 +189,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
 
-    case LIBMAGIC_COMPILE: {
+    case METHOD_COMPILE: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
       if(magic_compile(cookie, filename))
@@ -188,7 +200,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
 
-    case LIBMAGIC_LIST: {
+    case METHOD_LIST: {
       const char* filename = JS_IsNull(argv[0]) ? NULL : JS_ToCString(ctx, argv[0]);
 
       if(magic_list(cookie, filename))
@@ -199,7 +211,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
 
-    case LIBMAGIC_LOAD: {
+    case METHOD_LOAD: {
       int i = 0;
 
       while(argc > 0) {
@@ -215,7 +227,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
 
-    case LIBMAGIC_GETPARAM: {
+    case METHOD_GETPARAM: {
       int32_t param = -1;
       size_t value = 0;
       JS_ToInt32(ctx, &param, argv[0]);
@@ -225,7 +237,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
 
-    case LIBMAGIC_SETPARAM: {
+    case METHOD_SETPARAM: {
       int32_t param = -1;
       int64_t value = -1;
       size_t sz;
@@ -259,7 +271,7 @@ js_magic_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
 
-    case LIBMAGIC_VERSION: {
+    case METHOD_VERSION: {
       ret = JS_NewInt32(ctx, magic_version());
       break;
     }
@@ -267,39 +279,22 @@ js_magic_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
-JSValue
-js_magic_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
+static JSValue
+js_magic_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   magic_t cookie;
-  const char* str = 0;
 
-  if(!(cookie = js_magic_data(ctx, func_obj)))
+  if(!(cookie = js_magic_data(ctx, this_val)))
     return JS_EXCEPTION;
 
   if(argc == 0)
     return JS_ThrowInternalError(ctx, "Magic(arg)");
 
-  if(JS_IsNumber(argv[0])) {
-    int64_t fd = -1;
-    JS_ToInt64(ctx, &fd, argv[0]);
-    str = magic_descriptor(cookie, fd);
-  } else if(JS_IsString(argv[0])) {
-    const char* file;
+  return js_magic_function(ctx, this_val, argc, argv, JS_IsNumber(argv[0]) ? LIBMAGIC_DESCRIPTOR : JS_IsString(argv[0]) ? LIBMAGIC_FILE : LIBMAGIC_BUFFER);
+}
 
-    if((file = JS_ToCString(ctx, argv[0]))) {
-      str = magic_file(cookie, file);
-      JS_FreeCString(ctx, file);
-    }
-  } else {
-    int n = 1;
-    InputBuffer input = js_input_chars(ctx, argv[0]);
-
-    if(argc > 1)
-      n += js_offset_length(ctx, input.size, argc - 1, argv + 1, &input.range);
-
-    str = magic_buffer(cookie, input_buffer_data(&input), input_buffer_length(&input));
-  }
-
-  return str ? JS_NewString(ctx, str) : JS_NULL;
+static JSValue
+js_magic_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
+  return js_magic_exec(ctx, func_obj, argc, argv);
 }
 
 static void
@@ -307,6 +302,7 @@ js_magic_finalizer(JSRuntime* rt, JSValue val) {
   magic_t cookie;
 
   if((cookie = JS_GetOpaque(val, js_magic_class_id))) {
+    JS_SetOpaque(val, NULL);
     magic_close(cookie);
   }
 }
@@ -316,18 +312,18 @@ static JSClassDef js_magic_class = {.class_name = "Magic", .finalizer = js_magic
 static const JSCFunctionListEntry js_magic_funcs[] = {
     JS_CGETSET_MAGIC_DEF("error", js_magic_get, 0, LIBMAGIC_ERROR),
     JS_CGETSET_MAGIC_DEF("errno", js_magic_get, 0, LIBMAGIC_ERRNO),
-    JS_CFUNC_MAGIC_DEF("descriptor", 1, js_magic_method, LIBMAGIC_DESCRIPTOR),
-    JS_CFUNC_MAGIC_DEF("file", 1, js_magic_method, LIBMAGIC_FILE),
-    JS_CFUNC_MAGIC_DEF("buffer", 1, js_magic_method, LIBMAGIC_BUFFER),
-    JS_CFUNC_MAGIC_DEF("getflags", 0, js_magic_method, LIBMAGIC_GETFLAGS),
-    JS_CFUNC_MAGIC_DEF("setflags", 1, js_magic_method, LIBMAGIC_SETFLAGS),
-    JS_CFUNC_MAGIC_DEF("check", 1, js_magic_method, LIBMAGIC_CHECK),
-    JS_CFUNC_MAGIC_DEF("compile", 1, js_magic_method, LIBMAGIC_COMPILE),
-    JS_CFUNC_MAGIC_DEF("list", 1, js_magic_method, LIBMAGIC_LIST),
-    JS_CFUNC_MAGIC_DEF("load", 0, js_magic_method, LIBMAGIC_LOAD),
-    JS_CFUNC_MAGIC_DEF("getparam", 2, js_magic_method, LIBMAGIC_GETPARAM),
-    JS_CFUNC_MAGIC_DEF("setparam", 2, js_magic_method, LIBMAGIC_SETPARAM),
-    JS_CGETSET_MAGIC_DEF("version", js_magic_get, 0, LIBMAGIC_VERSION),
+    JS_CFUNC_MAGIC_DEF("descriptor", 1, js_magic_function, LIBMAGIC_DESCRIPTOR),
+    JS_CFUNC_MAGIC_DEF("file", 1, js_magic_function, LIBMAGIC_FILE),
+    JS_CFUNC_MAGIC_DEF("buffer", 1, js_magic_function, LIBMAGIC_BUFFER),
+    JS_CFUNC_MAGIC_DEF("getflags", 0, js_magic_method, METHOD_GETFLAGS),
+    JS_CFUNC_MAGIC_DEF("setflags", 1, js_magic_method, METHOD_SETFLAGS),
+    JS_CFUNC_MAGIC_DEF("check", 1, js_magic_method, METHOD_CHECK),
+    JS_CFUNC_MAGIC_DEF("compile", 1, js_magic_method, METHOD_COMPILE),
+    JS_CFUNC_MAGIC_DEF("list", 1, js_magic_method, METHOD_LIST),
+    JS_CFUNC_MAGIC_DEF("load", 0, js_magic_method, METHOD_LOAD),
+    JS_CFUNC_MAGIC_DEF("getparam", 2, js_magic_method, METHOD_GETPARAM),
+    JS_CFUNC_MAGIC_DEF("setparam", 2, js_magic_method, METHOD_SETPARAM),
+    JS_CGETSET_MAGIC_DEF("version", js_magic_get, 0, METHOD_VERSION),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Magic", JS_PROP_CONFIGURABLE),
 };
 
