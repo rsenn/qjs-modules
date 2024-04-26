@@ -11,7 +11,7 @@
  * @{
  */
 typedef struct queue {
-  size_t nbytes, nblocks;
+  size_t nbytes, nchunks;
   union {
     struct {
       struct block *tail, *head;
@@ -69,6 +69,12 @@ static inline Chunk*
 queue_tail(Queue* q) {
   return (Chunk*)(&q->list != q->list.prev ? q->list.prev : 0);
 }
+
+Chunk* queue_chunk(Queue*, ssize_t);
+Chunk* queue_at(Queue*, ssize_t, size_t*);
+
+ssize_t chunk_tailpos(Chunk*, Queue*);
+ssize_t chunk_headpos(Chunk*, Queue*);
 
 /**
  * @}

@@ -11,10 +11,12 @@
 Chunk*
 chunk_alloc(size_t size) {
   Chunk* ch;
+
   if((ch = malloc(sizeof(Chunk) + size))) {
     memset(ch, 0, sizeof(Chunk));
     ch->ref_count = 1;
   }
+
   return ch;
 }
 
@@ -40,11 +42,42 @@ chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
   return JS_NewArrayBuffer(ctx, ptr, len, chunk_arraybuffer_free, ch, FALSE);
 }
 
+ssize_t
+chunk_size(Chunk* ch) {
+  return ch->size - ch->pos;
+}
+
+ssize_t
+chunk_tailpos(Chunk* ch, Queue* q) {
+  ssize_t pos = 0;
+
+  for(struct list_head* el = ch->link.next; el != &q->list; el = el->next) {
+    Chunk* ch = list_entry(el, Chunk, link);
+
+    pos += chunk_size(ch);
+  }
+
+  return pos;
+}
+
+ssize_t
+chunk_headpos(Chunk* ch, Queue* q) {
+  ssize_t pos = 0;
+
+  for(struct list_head* el = &ch->link; el != &q->list; el = el->prev) {
+    Chunk* ch = list_entry(el, Chunk, link);
+
+    pos -= chunk_size(ch);
+  }
+
+  return pos;
+}
+
 void
 queue_init(Queue* q) {
   init_list_head(&q->list);
   q->nbytes = 0;
-  q->nblocks = 0;
+  q->nchunks = 0;
 }
 
 ssize_t
@@ -52,12 +85,11 @@ queue_write(Queue* q, const void* x, size_t n) {
   Chunk* b;
 
   if((b = chunk_alloc(n))) {
-
     list_add(&b->link, &q->list);
     b->size = n;
     memcpy(b->data, x, n);
     q->nbytes += n;
-    q->nblocks++;
+    q->nchunks++;
     return n;
   }
 
@@ -84,7 +116,7 @@ queue_read(Queue* q, void* x, size_t n) {
 
     list_del(&b->link);
     chunk_free(b);
-    q->nblocks--;
+    q->nchunks--;
   }
 
   return ret;
@@ -129,7 +161,7 @@ queue_skip(Queue* q, size_t n) {
 
     list_del(&b->link);
     chunk_free(b);
-    q->nblocks--;
+    q->nchunks--;
   }
   return ret;
 }
@@ -143,7 +175,7 @@ queue_next(Queue* q) {
 
   list_del(&chunk->link);
 
-  --q->nblocks;
+  --q->nchunks;
   q->nbytes -= chunk->size;
 
   return chunk;
@@ -156,15 +188,78 @@ queue_clear(Queue* q) {
   list_for_each_prev_safe(el, el1, &q->list) {
     Chunk* chunk = list_entry(el, Chunk, link);
 
-    --q->nblocks;
+    --q->nchunks;
     q->nbytes -= chunk->size;
 
+    list_del(&chunk->link);
     chunk_free(chunk);
   }
 
   assert(list_empty(&q->list));
-  assert(q->nblocks == 0);
+  assert(q->nchunks == 0);
   assert(q->nbytes == 0);
+}
+
+Chunk*
+queue_chunk(Queue* q, ssize_t pos) {
+  struct list_head* el;
+  ssize_t i = 0;
+
+  if(pos >= 0 && pos < q->nchunks) {
+    list_for_each(el, &q->list) {
+
+      if(i == pos)
+        return list_entry(el, Chunk, link);
+      ++i;
+    }
+
+  } else if(pos < 0 && pos >= -q->nchunks) {
+    list_for_each_prev(el, &q->list) {
+      --i;
+      if(i == pos)
+        return list_entry(el, Chunk, link);
+    }
+  }
+
+  return NULL;
+}
+
+Chunk*
+queue_at(Queue* q, ssize_t offset, size_t* skip) {
+  struct list_head* el;
+  ssize_t i = 0;
+
+  if(offset >= 0 && offset < q->nbytes) {
+    list_for_each(el, &q->list) {
+      Chunk* chunk = list_entry(el, Chunk, link);
+      ssize_t end = i + chunk_size(chunk);
+
+      if(offset >= i && offset < end) {
+
+        if(skip)
+          *skip = offset - i;
+        return chunk;
+      }
+
+      i = end;
+    }
+
+  } else if(offset < 0 && offset >= -q->nbytes) {
+    list_for_each_prev(el, &q->list) {
+      Chunk* chunk = list_entry(el, Chunk, link);
+      ssize_t start = i - chunk_size(chunk);
+
+      if(offset >= start && offset < i) {
+        if(skip)
+          *skip = offset - start;
+        return chunk;
+      }
+
+      i = start;
+    }
+  }
+
+  return NULL;
 }
 
 /**
