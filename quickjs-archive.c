@@ -16,16 +16,17 @@ VISIBLE JSValue archive_proto, archive_ctor, iterator_proto, entry_proto, entry_
 
 typedef enum { READ = 0, WRITE = 1 } archive_mode;
 
+static JSValue js_archive_wrap(JSContext* ctx, JSValueConst proto, struct archive* ar);
 static JSValue js_archiveentry_wrap(JSContext* ctx, JSValueConst proto, struct archive_entry* ent);
 
-struct ArchiveInstance {
+typedef struct {
   JSValue archive;
-};
+} ArchiveInstance;
 
-struct ArchiveEntryRef {
+typedef struct {
   JSContext* ctx;
   JSValueConst callback, args[2];
-};
+} ArchiveEntryRef;
 
 typedef struct {
   int fd;
@@ -35,36 +36,55 @@ typedef struct {
 
 /* Returns size actually written, zero on EOF, -1 on error. */
 static la_ssize_t
-callback_write(struct archive* ar, void* client_data, const void* buffer, size_t length) {
+archive_write(struct archive* ar, void* client_data, const void* buffer, size_t length) {
   ArchiveCallbacks* cb = client_data;
+  JSContext* ctx = cb->ctx;
   int64_t r = -1;
   JSValue args[] = {
-      JS_NewArrayBufferCopy(cb->ctx, buffer, length),
-      JS_NewInt64(cb->ctx, length),
+      JS_NewArrayBufferCopy(ctx, buffer, length),
+      JS_NewInt64(ctx, length),
+      js_archive_wrap(ctx, archive_proto, ar),
   };
 
-  JSValue ret = JS_Call(cb->ctx, cb->write, cb->this_obj, countof(args), args);
-  JS_ToInt64(cb->ctx, &r, ret);
-  JS_FreeValue(cb->ctx, ret);
+  JSValue ret = JS_Call(ctx, cb->write, cb->this_obj, countof(args), args);
+  JS_ToInt64(ctx, &r, ret);
+  JS_FreeValue(ctx, ret);
   return r;
 }
 
 static int
-callback_open(struct archive* ar, void* client_data) {
+archive_open(struct archive* ar, void* client_data) {
   ArchiveCallbacks* cb = client_data;
+  JSContext* ctx = cb->ctx;
 
-  JSValue ret = JS_Call(cb->ctx, cb->open, cb->this_obj, 0, 0);
-  JS_FreeValue(cb->ctx, ret);
+  JSValue ret = JS_Call(ctx, cb->open, cb->this_obj, 0, 0);
+  JS_FreeValue(ctx, ret);
   return ARCHIVE_OK;
 }
 
 static int
-callback_close(struct archive* ar, void* client_data) {
+archive_close(struct archive* ar, void* client_data) {
   ArchiveCallbacks* cb = client_data;
+  JSContext* ctx = cb->ctx;
 
-  JSValue ret = JS_Call(cb->ctx, cb->close, cb->this_obj, 0, 0);
-  JS_FreeValue(cb->ctx, ret);
+  JSValue ret = JS_Call(ctx, cb->close, cb->this_obj, 0, 0);
+  JS_FreeValue(ctx, ret);
   return ARCHIVE_OK;
+}
+
+static int
+archive_destroy(struct archive* ar, void* client_data) {
+  ArchiveCallbacks* cb = client_data;
+  JSContext* ctx = cb->ctx;
+
+  JS_FreeValue(ctx, cb->open);
+  JS_FreeValue(ctx, cb->write);
+  JS_FreeValue(ctx, cb->close);
+  JS_FreeValue(ctx, cb->this_obj);
+
+  js_free(ctx, cb);
+
+  return 0;
 }
 
 static inline struct archive*
@@ -124,7 +144,7 @@ js_archive_return(JSContext* ctx, JSValueConst this_val, int result) {
 
 static void
 js_archive_free_buffer(JSRuntime* rt, void* opaque, void* ptr) {
-  struct ArchiveInstance* ainst = opaque;
+  ArchiveInstance* ainst = opaque;
 
   JS_FreeValueRT(rt, ainst->archive);
   js_free_rt(rt, ainst);
@@ -132,7 +152,7 @@ js_archive_free_buffer(JSRuntime* rt, void* opaque, void* ptr) {
 
 static void
 js_archive_progress_callback(void* opaque) {
-  struct ArchiveEntryRef* aeref = opaque;
+  ArchiveEntryRef* aeref = opaque;
 
   JSValue ret = JS_Call(aeref->ctx, aeref->callback, JS_UNDEFINED, 2, aeref->args);
   JS_FreeValue(aeref->ctx, ret);
@@ -208,6 +228,8 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       if(!(ar = archive_write_new()))
         return JS_ThrowOutOfMemory(ctx);
 
+      archive_write_set_bytes_per_block(ar, 512);
+
       if(JS_IsString(argv[0])) {
         f = JS_ToCString(ctx, argv[0]);
         int r2 = archive_write_set_format_filter_by_ext(ar, f);
@@ -224,6 +246,11 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         if(!(cb = js_malloc(ctx, sizeof(ArchiveCallbacks))))
           return JS_ThrowOutOfMemory(ctx);
 
+        if(js_has_propertystr(ctx, argv[0], "blockSize")) {
+          uint64_t bs = js_get_propertystr_uint64(ctx, argv[0], "blockSize");
+          archive_write_set_bytes_per_block(ar, bs);
+        }
+
         if((f = js_get_propertystr_cstring(ctx, argv[0], "format"))) {
           archive_write_set_format_by_name(ar, f);
           JS_FreeCString(ctx, f);
@@ -236,11 +263,11 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         cb->write = JS_GetPropertyStr(ctx, argv[0], "write");
         cb->close = JS_GetPropertyStr(ctx, argv[0], "close");
 
-        r = archive_write_open(ar,
-                               cb,
-                               JS_IsFunction(ctx, cb->open) ? &callback_open : NULL,
-                               JS_IsFunction(ctx, cb->write) ? &callback_write : NULL,
-                               JS_IsFunction(ctx, cb->close) ? &callback_close : NULL);
+        archive_open_callback* open = JS_IsFunction(ctx, cb->open) ? &archive_open : NULL;
+        archive_write_callback* write = JS_IsFunction(ctx, cb->write) ? &archive_write : NULL;
+        archive_close_callback* close = JS_IsFunction(ctx, cb->close) ? &archive_close : NULL;
+
+        r = archive_write_open2(ar, cb, open, write, close, &archive_destroy);
       }
 
       if(r == ARCHIVE_FATAL || r == ARCHIVE_FAILED) {
@@ -310,8 +337,10 @@ js_archive_get(JSContext* ctx, JSValueConst this_val, int magic) {
       int i, num_filters = archive_filter_count(ar);
       ret = JS_NewArray(ctx);
 
-      for(i = 0; i < num_filters; i++)
-        JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, archive_filter_name(ar, i)));
+      for(i = 0; i < num_filters; i++) {
+        const char* s = archive_filter_name(ar, i);
+        JS_SetPropertyUint32(ctx, ret, i, s ? JS_NewString(ctx, s) : JS_NULL);
+      }
 
       break;
     }
@@ -482,7 +511,7 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
     switch(archive_read_data_block(ar, (const void**)&data, &size, &offset)) {
       case ARCHIVE_OK: {
-        struct ArchiveInstance* abuf = js_malloc(ctx, sizeof(struct ArchiveInstance));
+        ArchiveInstance* abuf = js_malloc(ctx, sizeof(ArchiveInstance));
         abuf->archive = JS_DupValue(ctx, this_val);
         ret = JS_NewArrayBuffer(ctx, data, size, js_archive_free_buffer, abuf, FALSE);
         break;
@@ -624,7 +653,7 @@ js_archive_extract(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   struct archive* ar;
   struct archive_entry* ent;
   int32_t flags;
-  struct ArchiveEntryRef* aeref = 0;
+  ArchiveEntryRef* aeref = 0;
 
   if(js_archive_mode(ctx, this_val) != READ)
     return JS_ThrowInternalError(ctx, "archive not in read mode");
@@ -639,7 +668,7 @@ js_archive_extract(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     JS_ToInt32(ctx, &flags, argv[1]);
 
   if(argc >= 3) {
-    if(!(aeref = js_malloc(ctx, sizeof(struct ArchiveEntryRef))))
+    if(!(aeref = js_malloc(ctx, sizeof(ArchiveEntryRef))))
       return JS_EXCEPTION;
 
     aeref->ctx = ctx;
@@ -813,14 +842,8 @@ static void
 js_archive_finalizer(JSRuntime* rt, JSValue val) {
   struct archive* ar;
 
-  if((ar = js_archive_data(val))) {
-    ArchiveCallbacks* cb = ((void**)ar)[27];
-
-    if(cb && cb->fd == -1)
-      js_free_rt(rt, cb);
-
+  if((ar = js_archive_data(val)))
     archive_free(ar);
-  }
 }
 
 static JSClassDef js_archive_class = {
