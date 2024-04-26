@@ -47,14 +47,19 @@ textdecoder_try(const void* in, size_t len) {
   const uint8_t *x, *y, *end;
   size_t r = 0;
   int ch;
+
   x = in;
   end = x + len;
+
   while(x < end) {
     y = x;
+
     if((ch = unicode_from_utf8(x, end - x, &x)) == -1)
       break;
+
     r += x - y;
   }
+
   return r;
 }
 

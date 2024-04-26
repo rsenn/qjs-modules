@@ -1015,6 +1015,22 @@ js_object_properties(JSContext* ctx, uint32_t* lenptr, JSValueConst obj, int fla
   return atoms;
 }
 
+int
+js_object_copy(JSContext* ctx, JSValueConst dst, JSValueConst src) {
+  JSPropertyEnum* tmp_tab;
+  uint32_t tmp_len, i;
+
+  if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, src, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_PRIVATE_MASK))
+    return -1;
+
+  for(i = 0; i < tmp_len; i++) {
+    JSValue prop = JS_GetProperty(ctx, src, tmp_tab[i].atom);
+    JS_SetProperty(ctx, dst, tmp_tab[i].atom, prop);
+  }
+
+  return i;
+}
+
 BOOL
 js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
   JSAtom atom;

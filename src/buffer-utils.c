@@ -684,7 +684,7 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Of
       if(!JS_ToInt64(ctx, &len, argv[1]))
         ret = 2;
 
-    if(size)
+    if(size && off != size)
       off = ((off % size) + size) % size;
 
     if(len >= 0)

@@ -451,6 +451,78 @@ js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 }
 
 static JSValue
+js_misc_charlen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_args(ctx, argc, argv);
+  size_t size = input_buffer_length(&input);
+  const uint8_t* data = input_buffer_data(&input);
+  int64_t len = 0;
+
+  if(size)
+    len = utf8_charlen(data, size);
+
+  input_buffer_free(&input, ctx);
+
+  return JS_NewInt64(ctx, len);
+}
+
+static JSValue
+js_misc_charcode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_args(ctx, argc, argv);
+  size_t size = input_buffer_length(&input);
+  const uint8_t* data = input_buffer_data(&input);
+  int32_t code = -1;
+
+  if(size)
+    code = utf8_charcode(data, size);
+
+  input_buffer_free(&input, ctx);
+
+  return JS_NewInt32(ctx, code);
+}
+
+static JSValue
+js_misc_u8dec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_args(ctx, argc, argv);
+  size_t size = input_buffer_length(&input);
+  const uint8_t* data = input_buffer_data(&input);
+  int32_t code = -1;
+  int64_t len = 0;
+
+  if(size) {
+    code = utf8_charcode(data, size);
+    len = utf8_charlen(data, size);
+  }
+
+  input_buffer_free(&input, ctx);
+
+  if(code == -1)
+    return JS_NULL;
+
+  JSValue ret = JS_NewArray(ctx);
+  JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt32(ctx, code));
+  JS_SetPropertyUint32(ctx, ret, 1, JS_NewInt64(ctx, len));
+
+  return ret;
+}
+
+static JSValue
+js_misc_u8enc(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  InputBuffer input = js_input_args(ctx, argc - 1, argv + 1);
+  uint32_t code = 0;
+
+  JS_ToUint32(ctx, &code, argv[0]);
+
+  size_t size = input_buffer_length(&input);
+  uint8_t* data = input_buffer_data(&input);
+
+  int len = unicode_to_utf8(data, code);
+
+  input_buffer_free(&input, ctx);
+
+  return JS_NewInt32(ctx, len);
+}
+
+static JSValue
 js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   //  JSValue arraybuffer_ctor = js_global_get_str(ctx, "ArrayBuffer");
@@ -3129,6 +3201,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
     JS_CFUNC_MAGIC_DEF("_get_osfhandle", 1, js_misc_osfhandle, FUNC_GET_OSFHANDLE),
     JS_CFUNC_MAGIC_DEF("_open_osfhandle", 1, js_misc_osfhandle, FUNC_OPEN_OSFHANDLE),
+    JS_CFUNC_DEF("charLength", 1, js_misc_charlen),
+    JS_CFUNC_DEF("charCode", 1, js_misc_charcode),
+    JS_CFUNC_DEF("utf8Decode", 1, js_misc_u8dec),
+    JS_CFUNC_DEF("utf8Encode", 1, js_misc_u8enc),
     JS_CFUNC_DEF("toString", 1, js_misc_tostring),
     JS_CFUNC_DEF("strcmp", 2, js_misc_strcmp),
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),

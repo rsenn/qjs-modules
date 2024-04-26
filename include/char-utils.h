@@ -415,9 +415,16 @@ scan_8long(const char* src, uint32_t* dest) {
 
 static inline size_t
 utf8_charlen(const char* in, size_t len) {
-  const uint8_t* next;
-  (void)unicode_from_utf8((const uint8_t*)in, len, &next);
-  return next - (const uint8_t*)in;
+  const uint8_t* next = in;
+  int r = unicode_from_utf8((const uint8_t*)in, len, &next);
+  return r == -1 ? 0 : next - (const uint8_t*)in;
+}
+
+static inline int
+utf8_charcode(const char* in, size_t len) {
+  const uint8_t* next = in;
+  int r = unicode_from_utf8((const uint8_t*)in, len, &next);
+  return next > in ? r : -1;
 }
 
 BOOL utf16_multiword(const void*);
