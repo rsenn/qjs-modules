@@ -166,7 +166,7 @@ endif(HAVE_TEMPNAM)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES bjson blob deep directory lexer list location ${magic_MODULE} misc path pointer predicate repeater textcode sockets stream syscallerror inspect tree-walker xml)
+set(QUICKJS_MODULES bjson blob deep directory lexer list location ${magic_MODULE} misc path pointer predicate queue repeater textcode sockets stream syscallerror inspect tree-walker xml)
 
 if(BUILD_LIBSERIALPORT)
   list(APPEND QUICKJS_MODULES serial)

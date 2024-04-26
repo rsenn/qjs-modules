@@ -492,6 +492,8 @@ js_archive_open(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     InputBuffer input = js_input_chars(ctx, arg);
     prop = "buffer";
     r = archive_read_open_memory(ar, input_buffer_data(&input), input_buffer_length(&input));
+
+    input_buffer_free(&input, ctx);
   }
 
   if(r != ARCHIVE_OK) {
@@ -601,13 +603,14 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
 
   JSValue ret = JS_UNDEFINED;
+  BOOL in_entry = js_has_propertystr(ctx, this_val, "entry");
 
   while(argc > 0) {
     struct archive_entry* ent;
 
     if((ent = js_archiveentry_data(argv[0]))) {
 
-      if(js_has_propertystr(ctx, this_val, "entry"))
+      if(in_entry)
         archive_write_finish_entry(ar);
 
       ret = archive_write_header(ar, ent) == ARCHIVE_OK ? JS_TRUE : JS_FALSE;
@@ -627,7 +630,6 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     const uint8_t* buf = input_buffer_data(&input);
     size_t len = input_buffer_length(&input);
     size_t block_size = archive_write_get_bytes_per_block(ar);
-
     int64_t r, bytes = 0;
 
     while(len > 0) {
@@ -636,9 +638,6 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       r = archive_write_data(ar, buf, len);
 
       if(r > 0) {
-        /*if(r < len)
-          block_size = r;*/
-
         len -= r;
         buf += r;
         bytes += r;
