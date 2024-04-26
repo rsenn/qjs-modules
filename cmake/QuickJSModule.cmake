@@ -237,8 +237,9 @@ function(make_module FNAME)
                  PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}" COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
 
     target_compile_definitions(
-      ${TARGET_NAME} PRIVATE _GNU_SOURCE=1 JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1
-                             QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}")
+      ${TARGET_NAME}
+      PRIVATE _GNU_SOURCE=1 JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1
+              QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}")
 
     target_link_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
     target_link_libraries(${TARGET_NAME} PUBLIC ${LIBS} ${QUICKJS_LIBRARY})
@@ -267,7 +268,7 @@ function(make_module FNAME)
   list(APPEND MODULES_STATIC "${TARGET_NAME}-static")
   set(QJS_MODULES_STATIC "${MODULES_STATIC}" PARENT_SCOPE)
   set_target_properties(${TARGET_NAME}-static PROPERTIES OUTPUT_NAME "${VNAME}" PREFIX "quickjs-" SUFFIX "${LIBRARY_SUFFIX}" COMPILE_FLAGS "")
-  target_compile_definitions(${TARGET_NAME}-static PRIVATE _GNU_SOURCE=1 JS_${UNAME}_MODULE=1 QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}")
+  target_compile_definitions(${TARGET_NAME}-static PRIVATE _GNU_SOURCE=1 JS_${UNAME}_MODULE=1 QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}")
   target_link_directories(${TARGET_NAME}-static PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
   target_link_libraries(${TARGET_NAME}-static INTERFACE ${QUICKJS_LIBRARY})]]
 

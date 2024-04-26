@@ -236,7 +236,7 @@ endif(USE_LIBMAGIC)
 
 if(USE_LIBMAGIC)
 
-   set(magic_MODULE magic)
+  set(magic_MODULE magic)
 endif(USE_LIBMAGIC)
 
 if(USE_MARIADBCLIENT)
@@ -678,9 +678,10 @@ target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_LIBRAR
 target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QUICKJS_LIBRARY}
                                   ${LIBPTHREAD} ${LIBM} ${LIBWS2_32})
 
-target_compile_definitions(qjsm PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}"
-                                        QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}"
-                                        CONFIG_BIGNUM=1)
+target_compile_definitions(
+  qjsm
+  PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}"
+          QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}" CONFIG_BIGNUM=1)
 install(TARGETS qjsm DESTINATION bin)
 
 file(GLOB INSTALL_SCRIPTS [!.]*.js)
