@@ -228,7 +228,7 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       if(!(ar = archive_write_new()))
         return JS_ThrowOutOfMemory(ctx);
 
-      archive_write_set_bytes_per_block(ar, 512);
+      // archive_write_set_bytes_per_block(ar, 64 * 1024);
 
       if(JS_IsString(argv[0])) {
         f = JS_ToCString(ctx, argv[0]);
@@ -606,7 +606,31 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     if(argc > 1)
       n += js_offset_length(ctx, input.size, argc - 1, argv + 1, &input.range);
 
-    ret = JS_NewInt64(ctx, archive_write_data(ar, input_buffer_data(&input), input_buffer_length(&input)));
+    const uint8_t* buf = input_buffer_data(&input);
+    size_t len = input_buffer_length(&input);
+    size_t block_size = MIN_NUM(len, 512);
+
+    int64_t r, bytes = 0;
+
+    while(len > 0) {
+      size_t nb = MIN_NUM(block_size, len);
+
+      r = archive_write_data(ar, buf, nb);
+
+      if(r > 0) {
+        if(r < len)
+          block_size = r;
+
+        len -= r;
+        buf += r;
+        bytes += r;
+        continue;
+      }
+
+      break;
+    }
+
+    ret = JS_NewInt64(ctx, bytes);
 
     input_buffer_free(&input, ctx);
 
