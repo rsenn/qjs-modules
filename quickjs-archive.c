@@ -32,12 +32,12 @@ typedef struct {
   int fd;
   JSContext* ctx;
   JSValue this_obj, open, write, close;
-} ArchiveCallbacks;
+} ArchiveVirtual;
 
 /* Returns size actually written, zero on EOF, -1 on error. */
 static la_ssize_t
 archive_write(struct archive* ar, void* client_data, const void* buffer, size_t length) {
-  ArchiveCallbacks* cb = client_data;
+  ArchiveVirtual* cb = client_data;
   JSContext* ctx = cb->ctx;
   int64_t r = -1;
   JSValue args[] = {
@@ -54,7 +54,7 @@ archive_write(struct archive* ar, void* client_data, const void* buffer, size_t 
 
 static int
 archive_open(struct archive* ar, void* client_data) {
-  ArchiveCallbacks* cb = client_data;
+  ArchiveVirtual* cb = client_data;
   JSContext* ctx = cb->ctx;
 
   JSValue ret = JS_Call(ctx, cb->open, cb->this_obj, 0, 0);
@@ -64,7 +64,7 @@ archive_open(struct archive* ar, void* client_data) {
 
 static int
 archive_close(struct archive* ar, void* client_data) {
-  ArchiveCallbacks* cb = client_data;
+  ArchiveVirtual* cb = client_data;
   JSContext* ctx = cb->ctx;
 
   JSValue ret = JS_Call(ctx, cb->close, cb->this_obj, 0, 0);
@@ -74,7 +74,7 @@ archive_close(struct archive* ar, void* client_data) {
 
 static int
 archive_destroy(struct archive* ar, void* client_data) {
-  ArchiveCallbacks* cb = client_data;
+  ArchiveVirtual* cb = client_data;
   JSContext* ctx = cb->ctx;
 
   JS_FreeValue(ctx, cb->open);
@@ -228,9 +228,10 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       if(!(ar = archive_write_new()))
         return JS_ThrowOutOfMemory(ctx);
 
-      // archive_write_set_bytes_per_block(ar, 64 * 1024);
+      archive_write_set_bytes_per_block(ar, 1024 * 1024);
 
       if(JS_IsString(argv[0])) {
+
         f = JS_ToCString(ctx, argv[0]);
         int r2 = archive_write_set_format_filter_by_ext(ar, f);
         JS_FreeCString(ctx, f);
@@ -241,9 +242,9 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         js_free(ctx, filename);
 
       } else if(JS_IsObject(argv[0])) {
-        ArchiveCallbacks* cb;
+        ArchiveVirtual* cb;
 
-        if(!(cb = js_malloc(ctx, sizeof(ArchiveCallbacks))))
+        if(!(cb = js_malloc(ctx, sizeof(ArchiveVirtual))))
           return JS_ThrowOutOfMemory(ctx);
 
         if(js_has_propertystr(ctx, argv[0], "blockSize")) {
@@ -298,6 +299,7 @@ enum {
   PROP_POSITION,
   PROP_READ_HEADER_POSITION,
   PROP_HAS_ENCRYPTED_ENTRIES,
+  PROP_BLOCKSIZE,
 };
 
 static JSValue
@@ -369,9 +371,16 @@ js_archive_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_HAS_ENCRYPTED_ENTRIES: {
-      if(js_archive_mode(ctx, this_val) == READ) {
+      if(js_archive_mode(ctx, this_val) == READ)
         ret = JS_NewInt32(ctx, archive_read_has_encrypted_entries(ar));
-      }
+
+      break;
+    }
+
+    case PROP_BLOCKSIZE: {
+      if(js_archive_mode(ctx, this_val) == WRITE)
+        ret = JS_NewInt32(ctx, archive_write_get_bytes_per_block(ar));
+
       break;
     }
   }
@@ -399,6 +408,15 @@ js_archive_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
         }
       }
 
+      break;
+    }
+
+    case PROP_BLOCKSIZE: {
+      if(js_archive_mode(ctx, this_val) == WRITE) {
+        int32_t bs = -1;
+        JS_ToInt32(ctx, &bs, value);
+        ret = JS_NewInt32(ctx, archive_write_set_bytes_per_block(ar, bs));
+      }
       break;
     }
   }
@@ -608,18 +626,18 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     const uint8_t* buf = input_buffer_data(&input);
     size_t len = input_buffer_length(&input);
-    size_t block_size = MIN_NUM(len, 512);
+    size_t block_size = archive_write_get_bytes_per_block(ar);
 
     int64_t r, bytes = 0;
 
     while(len > 0) {
       size_t nb = MIN_NUM(block_size, len);
 
-      r = archive_write_data(ar, buf, nb);
+      r = archive_write_data(ar, buf, len);
 
       if(r > 0) {
-        if(r < len)
-          block_size = r;
+        /*if(r < len)
+          block_size = r;*/
 
         len -= r;
         buf += r;
@@ -884,6 +902,7 @@ static const JSCFunctionListEntry js_archive_funcs[] = {
     JS_CGETSET_MAGIC_DEF("position", js_archive_get, 0, PROP_POSITION),
     JS_CGETSET_MAGIC_DEF("readHeaderPosition", js_archive_get, 0, PROP_READ_HEADER_POSITION),
     JS_CGETSET_MAGIC_DEF("hasEncryptedEntries", js_archive_get, 0, PROP_HAS_ENCRYPTED_ENTRIES),
+    JS_CGETSET_MAGIC_DEF("blockSize", js_archive_get, js_archive_set, PROP_BLOCKSIZE),
     JS_CGETSET_MAGIC_DEF("fileCount", js_archive_get, 0, PROP_FILECOUNT),
     JS_CFUNC_DEF("next", 0, js_archive_next),
     JS_CFUNC_DEF("open", 1, js_archive_open),
