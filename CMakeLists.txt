@@ -232,11 +232,6 @@ if(USE_LIBMAGIC)
     set(LIBMAGIC_DB /usr/share/file/magic)
   endif(EXISTS /usr/share/file/magic)
 
-  #string(REGEX REPLACE "/lib.*" "/share/file/magic" LIBMAGIC_DB "${LIBMAGIC_LIBRARY_DIR}")
-  #find_library(LIBMAGIC_LIBRARY magic PATHS  ${LIBMAGIC_LIBRARY_DIR}  /usr PATH_SUFFIXES . lib NO_DEFAULT_PATH)
-
-  dump(HAVE_LIBMAGIC LIBMAGIC_DB)
-
 endif(USE_LIBMAGIC)
 
 if(USE_LIBMAGIC)
