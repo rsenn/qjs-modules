@@ -294,30 +294,31 @@ static const JSCFunctionListEntry js_queue_iterator_funcs[] = {
 int
 js_queue_init(JSContext* ctx, JSModuleDef* m) {
 
-  assert(js_queue_class_id == 0);
+  if(js_queue_class_id == 0) {
 
-  JS_NewClassID(&js_queue_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_queue_class_id, &js_queue_class);
+    JS_NewClassID(&js_queue_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_queue_class_id, &js_queue_class);
 
-  queue_ctor = JS_NewCFunction2(ctx, js_queue_constructor, "Queue", 1, JS_CFUNC_constructor, 0);
-  queue_proto = JS_NewObject(ctx);
+    queue_ctor = JS_NewCFunction2(ctx, js_queue_constructor, "Queue", 1, JS_CFUNC_constructor, 0);
+    queue_proto = JS_NewObject(ctx);
 
-  JS_SetPropertyFunctionList(ctx, queue_proto, js_queue_funcs, countof(js_queue_funcs));
+    JS_SetPropertyFunctionList(ctx, queue_proto, js_queue_funcs, countof(js_queue_funcs));
 
-  JS_SetClassProto(ctx, js_queue_class_id, queue_proto);
-  JS_SetConstructor(ctx, queue_ctor, queue_proto);
+    JS_SetClassProto(ctx, js_queue_class_id, queue_proto);
+    JS_SetConstructor(ctx, queue_ctor, queue_proto);
 
-  JS_NewClassID(&js_queue_iterator_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_queue_iterator_class_id, &js_queue_iterator_class);
+    JS_NewClassID(&js_queue_iterator_class_id);
+    JS_NewClass(JS_GetRuntime(ctx), js_queue_iterator_class_id, &js_queue_iterator_class);
 
-  queue_iterator_proto = JS_NewObject(ctx);
+    queue_iterator_proto = JS_NewObject(ctx);
 
-  JS_SetPropertyFunctionList(ctx, queue_iterator_proto, js_queue_iterator_funcs, countof(js_queue_iterator_funcs));
+    JS_SetPropertyFunctionList(ctx, queue_iterator_proto, js_queue_iterator_funcs, countof(js_queue_iterator_funcs));
 
-  JS_SetClassProto(ctx, js_queue_iterator_class_id, queue_iterator_proto);
+    JS_SetClassProto(ctx, js_queue_iterator_class_id, queue_iterator_proto);
 
-  if(m) {
-    JS_SetModuleExport(ctx, m, "Queue", queue_ctor);
+    if(m) {
+      JS_SetModuleExport(ctx, m, "Queue", queue_ctor);
+    }
   }
 
   return 0;
