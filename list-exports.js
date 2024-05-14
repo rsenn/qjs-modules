@@ -336,7 +336,7 @@ function ListExports(file, output, params) {
   const lexer = (globalThis.lexer = lex[type]);
 
   T = lexer.tokens.reduce((acc, name, id) => ({ ...acc, [name]: id }), {});
-  log('ListExports', { lexer, T, verbose });
+  if(debug >= 3) log('ListExports', { lexer, T, verbose });
 
   let e = new SyntaxError();
 
@@ -473,7 +473,7 @@ function ListExports(file, output, params) {
     if(exported) exportNames.pushUnique(...exported);
   }
 
-  log('Export names', exportNames);
+  if(debug > 2) log('Export names', exportNames);
 
   //log('Export names', exportNames);
 
@@ -643,7 +643,7 @@ function main(...args) {
   );
   let files = params['@'];
 
-  console.log('params', params);
+  if(debug > 2) console.log('params', params);
 
   if(outputFile) output = std.open(outputFile, 'w+');
 
