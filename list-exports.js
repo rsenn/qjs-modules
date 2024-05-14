@@ -2,22 +2,14 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { camelize } from 'util';
-import { curry } from 'util';
-import { define } from 'util';
-import { escape } from 'util';
+import { camelize, curry, define, escape, getOpt, split, startInteractive, toString, unique } from 'util';
 import extendArray from 'extendArray';
-import { getOpt } from 'util';
-import { split } from 'util';
-import { startInteractive } from 'util';
-import { toString } from 'util';
-import { unique } from 'util';
 import { Console } from 'console';
 import inspect from 'inspect';
-import { Lexer } from 'lexer';
-import { Token } from 'lexer';
+import { Lexer, Token } from 'lexer';
 import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
+
 let buffers = {},
   modules = {};
 let T,
@@ -148,6 +140,18 @@ function ExportName(seq) {
   return ret;
 }
 
+function ExportNames(seq) {
+  seq = seq.filter(({ type }) => type != 'whitespace');
+  let ret = [];
+  for(let idx = seq.findIndex(tok => IsPunctuator('{', tok)) + 1; idx < seq.length; idx++) {
+    if(IsPunctuator(',', seq[idx])) idx++;
+
+    if(seq[idx + 1] && IsKeyword('as', seq[idx + 1])) idx += 2;
+    ret.push(seq[idx]?.lexeme);
+  }
+  return ret;
+}
+
 function IsWS(tok) {
   return tok.type == 'whitespace';
 }
@@ -173,11 +177,21 @@ function HasFrom(tokens) {
 
 function AddExport(tokens) {
   let code = tokens.map(tok => tok.lexeme).join('');
+
   tokens = NonWS(tokens);
-  let offset = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok));
-  if(offset != -1) tokens = tokens.slice(0, offset + 1);
+  const multi = IsPunctuator('{', tokens[1]);
+
+  if(!multi) {
+    let offset = tokens.findIndex(tok => IsIdentifier(undefined, tok) || IsKeyword('default', tok));
+
+    if(offset != -1) tokens = tokens.slice(0, offset + 1);
+  }
+
   let file = HasFrom(tokens);
-  let exported = ExportName(tokens) ?? HasStar(tokens) ? ModuleExports(file) : undefined;
+  let exported = (multi ? ExportNames(tokens) : ExportName(tokens)) || (HasStar(tokens) ? ModuleExports(file) : undefined);
+
+  //console.log('AddExport', { code,multi,exported  });
+
   let exp = define(
     {
       type: ImportType(tokens),
@@ -385,7 +399,7 @@ function ListExports(file, output, params) {
   };
   let balancers = [balancer()],
     imports = [],
-    exports = [],
+    exports = (globalThis.exports = []),
     impexp,
     cond,
     imp = [],
@@ -448,15 +462,18 @@ function ListExports(file, output, params) {
 
   const exportTokens = tokens.reduce((acc, tok, i) => (tok.lexeme == 'export' ? acc.concat([i]) : acc), []);
 
-  let exportNames = exportTokens.map(index => ExportName(tokens.slice(index))).filter(n => n !== undefined);
-
-  log('Export names', exportNames);
+  let exportNames = exportTokens
+    .map(index => ExportName(tokens.slice(index)))
+    .filter(n => n !== undefined)
+    .unique();
 
   for(let exp of exports) {
     let { exported } = exp;
 
-    if(exported) exportNames.push(...exported);
+    if(exported) exportNames.pushUnique(...exported);
   }
+
+  log('Export names', exportNames);
 
   //log('Export names', exportNames);
 
@@ -557,6 +574,7 @@ function main(...args) {
     ImportType,
     ImportFile,
     ExportName,
+    ExportNames,
     IsWS,
     NonWS,
     AddExport,
