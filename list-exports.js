@@ -188,7 +188,8 @@ function AddExport(tokens) {
   }
 
   let file = HasFrom(tokens);
-  let exported = (multi ? ExportNames(tokens) : ExportName(tokens)) || (HasStar(tokens) ? ModuleExports(file) : undefined);
+  let exported =
+    (multi ? ExportNames(tokens) : ExportName(tokens)) || (HasStar(tokens) ? ModuleExports(file) : undefined);
 
   //console.log('AddExport', { code,multi,exported  });
 
@@ -352,7 +353,9 @@ function ListExports(file, output, params) {
       ? (tok, prefix) => {
           const range = tok.charRange;
           const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc];
-          std.err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
+          std.err.puts(
+            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n'
+          );
         }
       : () => {};
 
@@ -378,7 +381,8 @@ function ListExports(file, output, params) {
         case '}':
         case ']':
         case ')': {
-          if(stack.last != table[tok.lexeme]) throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
+          if(stack.last != table[tok.lexeme])
+            throw new Error(`top '${stack.last}' != '${tok.lexeme}' [ ${stack.map(s => `'${s}'`).join(', ')} ]`);
 
           stack.pop();
           break;
@@ -404,7 +408,10 @@ function ListExports(file, output, params) {
     cond,
     imp = [],
     showToken = tok => {
-      if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
+      if(
+        (lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') ||
+        /^((im|ex)port|from|as)$/.test(tok.lexeme)
+      ) {
         let a = [/*(file + ':' + tok.loc).padEnd(file.length+10),*/ tok.type.padEnd(20, ' '), escape(tok.lexeme)];
         std.err.puts(a.join('') + '\n');
       }
@@ -617,7 +624,11 @@ function main(...args) {
           console.log('help', { __a, __x, params });
           std.puts(`Usage: ${scriptArgs[0]} [OPTIONS] <files...>\n\n`);
 
-          std.puts(params.map(([name, [hasArg, , letter]]) => `  -${letter}, --${name} ${(hasArg ? '<ARG>' : '').padEnd(10)}\n`).join('') + '\n');
+          std.puts(
+            params
+              .map(([name, [hasArg, , letter]]) => `  -${letter}, --${name} ${(hasArg ? '<ARG>' : '').padEnd(10)}\n`)
+              .join('') + '\n'
+          );
           std.exit(0);
         },
         'h'

@@ -306,13 +306,13 @@ struct JSContext {
   uint64_t random_state;
   /*bf_context_t*/ void* bf_ctx; /* points to rt->bf_ctx, shared by all contexts */
 #ifdef CONFIG_BIGNUM
-  JSFloatEnv fp_env;             /* global FP environment */
-  BOOL bignum_ext : 8;           /* enable math mode */
+  JSFloatEnv fp_env;   /* global FP environment */
+  BOOL bignum_ext : 8; /* enable math mode */
   BOOL allow_operator_overloading : 8;
 #endif
   /* when the counter reaches zero, JSRutime.interrupt_handler is called */
   int interrupt_counter;
-  //BOOL is_error_property_enabled;
+  // BOOL is_error_property_enabled;
 
   struct list_head loaded_modules; /* list of JSModuleDef.link */
 
