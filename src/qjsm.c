@@ -343,29 +343,37 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   if(vector_size(&jsm_stack, sizeof(char*)) > 1)
     jsm_stack_pop(ctx);
 
+  if(js_is_promise(ctx, val)) {
+    JSPromiseStateEnum state = JS_PromiseState(ctx, val);
+    JSValue result = JS_PromiseResult(ctx, val);
+
+    if(state == JS_PROMISE_REJECTED) {
+
+      JS_FreeValue(ctx, val);
+
+      val = JS_Throw(ctx, result);
+    } else if(state == JS_PROMISE_FULFILLED) {
+      JS_FreeValue(ctx, val);
+      val = JS_DupValue(ctx, result);
+    }
+
+    JS_FreeValue(ctx, result);
+  }
+
   if(JS_IsException(val)) {
     JSValue exception = JS_GetException(ctx);
-    JSValue stack = JS_IsObject(exception) ? JS_GetPropertyStr(ctx, exception, "stack") : JS_UNDEFINED;
 
-    const char* msg = JS_ToCString(ctx, exception);
-    const char* st = JS_ToCString(ctx, stack);
-    fprintf(stderr, "Error evaluating '%s': %s (%s)\n", file, msg, js_value_typestr(ctx, stack));
-
-    if(st) {
-      if(*st)
-        fprintf(stderr, "Stack:\n%s\n", st);
-      JS_FreeCString(ctx, st);
-    }
-    if(msg)
-      JS_FreeCString(ctx, msg);
-
+    fprintf(stderr, "Error evaluating '%s': ", file);
     js_error_print(ctx, exception);
+
     JS_FreeValue(ctx, exception);
+
     return -1;
   }
 
   if(JS_IsModule(val) || module) {
     JSModuleDef* m;
+
     if(!JS_IsModule(val)) {
       m = js_module_at(ctx, -1);
       val = module_value(ctx, m);
