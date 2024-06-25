@@ -3,7 +3,9 @@ import inspect from 'inspect';
 import { Pointer } from 'pointer';
 import * as std from 'std';
 import * as xml from 'xml';
+
 ('use strict');
+
 ('use math');
 
 globalThis.inspect = inspect;

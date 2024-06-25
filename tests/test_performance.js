@@ -1,4 +1,5 @@
 import { performance } from 'perf_hooks';
+
 function waitFor(msecs) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {

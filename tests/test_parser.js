@@ -1,5 +1,4 @@
-import { readFileSync } from 'fs';
-import { writeFileSync } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import { Console } from 'console';
 import extendArray from 'extendArray';
 import { Lexer } from 'lexer';

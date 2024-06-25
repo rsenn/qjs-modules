@@ -4,7 +4,9 @@ import inspect from 'inspect';
 import { Predicate } from 'predicate';
 import * as std from 'std';
 //import * as xml from 'xml.so';
+
 ('use strict');
+
 ('use math');
 
 globalThis.inspect = inspect;

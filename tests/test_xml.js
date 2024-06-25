@@ -4,9 +4,10 @@ import Console from '../lib/console.js';
 import readXML from '../lib/xml/read.js';
 import writeXML from '../lib/xml/write.js';
 import * as deep from 'deep';
-import inspect from 'inspect';
 import * as std from 'std';
+
 ('use strict');
+
 ('use math');
 
 function WriteFile(file, data) {

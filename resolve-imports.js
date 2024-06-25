@@ -12,6 +12,7 @@ import ECMAScriptLexer from 'lexer/ecmascript.js';
 import * as std from 'std';
 
 ('use strict');
+
 ('use math');
 
 const inspectSymbol = Symbol.for('quickjs.inspect.custom');

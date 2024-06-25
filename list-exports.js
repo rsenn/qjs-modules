@@ -27,6 +27,7 @@ let T,
   identifiers;
 
 ('use strict');
+
 ('use math');
 
 extendArray(Array.prototype);

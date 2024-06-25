@@ -4,6 +4,7 @@ import { Console } from 'console';
 import * as std from 'std';
 
 ('use strict');
+
 ('use math');
 
 let inotifyFlags = {

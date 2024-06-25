@@ -1,30 +1,21 @@
 import fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { curry } from 'util';
-import { define } from 'util';
+import { curry, define, getOpt, isObject, split, startInteractive, unique } from 'util';
 import extendArray from 'extendArray';
-import { getOpt } from 'util';
-import { isObject } from 'util';
-import { split } from 'util';
-import { startInteractive } from 'util';
-import { unique } from 'util';
 import BNFLexer from '../lib/lexer/bnf.js';
 import CLexer from '../lib/lexer/c.js';
 import CSVLexer from '../lib/lexer/csv.js';
 import ECMAScriptLexer from '../lib/lexer/ecmascript.js';
 import { Console } from 'console';
 import inspect from 'inspect';
-import { Lexer } from 'lexer';
 import { Location } from 'lexer';
-import { Token } from 'lexer';
-import { escape } from 'misc';
-import { toString } from 'misc';
-import { MAP_PRIVATE } from 'mmap';
-import { mmap } from 'mmap';
-import { PROT_READ } from 'mmap';
+import { escape, toString } from 'misc';
+import { MAP_PRIVATE, mmap, PROT_READ } from 'mmap';
 import * as std from 'std';
+
 ('use strict');
+
 ('use math');
 
 let buffers = {},

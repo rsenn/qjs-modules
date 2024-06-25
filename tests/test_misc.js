@@ -4,10 +4,11 @@ import extendArray from 'extendArray';
 import { format } from 'util';
 import { Console } from 'console';
 import { Location } from 'location';
-import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, compileScript, getByteCode, getClassConstructor, getClassID, getClassName, getOpCodes, glob, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject } from 'misc';
+import { arrayToBitfield, atob, atomToValue, bitfieldToArray, btoa, compileScript, getByteCode, getClassConstructor, getClassID, getClassName, getOpCodes, JS_EVAL_FLAG_COMPILE_ONLY, readObject, toArrayBuffer, valueToAtom, writeObject } from 'misc';
 import * as std from 'std';
 
 ('use strict');
+
 ('use math');
 
 extendArray(Array.prototype);

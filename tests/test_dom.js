@@ -1,13 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { define, escape, getOpt, getset, gettersetter, isObject, mapObject, memoize, quote } from 'util';
+import { getOpt, isObject } from 'util';
 import extendArray from 'extendArray';
 import { parseSelectors } from '../lib/css3-selectors.js';
-import { Attr, Document, Element, NamedNodeMap, Node, NodeList, nodeTypes, Parser, Text, TokenList } from '../lib/dom.js';
-import { buildXPath, ImmutableXPath, MutableXPath, parseXPath, XPath } from '../lib/xpath.js';
+import { Node, Parser } from '../lib/dom.js';
 import Console from 'console';
 import { REPL } from 'repl';
-import { read as readXML, write as writeXML } from 'xml';
+import { write as writeXML } from 'xml';
 
 extendArray();
 

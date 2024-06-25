@@ -1,10 +1,6 @@
 import * as os from 'os';
 import Console from '../lib/console.js';
-import inspect from 'inspect';
-import { MAP_PRIVATE } from 'mmap';
-import { mmap } from 'mmap';
-import { munmap } from 'mmap';
-import { PROT_READ } from 'mmap';
+import { MAP_PRIVATE, mmap, munmap, PROT_READ } from 'mmap';
 import * as std from 'std';
 async function main(...args) {
   globalThis.console = new Console({

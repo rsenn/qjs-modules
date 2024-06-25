@@ -3,6 +3,7 @@ import * as os from 'os';
 import { toString } from 'util';
 import Console from '../lib/console.js';
 import * as std from 'std';
+
 ('use strict');
 
 function WriteFile(file, data) {

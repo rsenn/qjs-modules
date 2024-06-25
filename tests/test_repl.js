@@ -1,11 +1,8 @@
 import * as path from 'path';
 import Console from '../lib/console.js';
 import { getOpt } from '../lib/util.js';
-import { glob } from '../lib/util.js';
-import inspect from 'inspect';
 import { REPL } from 'repl';
 import * as std from 'std';
-import * as xml from 'xml';
 let repl = {
   printStatus(...args) {
     console.log(...args);

@@ -1,5 +1,6 @@
 import Console from 'console';
 import { Directory } from 'directory';
+
 function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {

@@ -1,7 +1,7 @@
 import { Stack } from '../lib/stack.js';
 import { Console } from 'console';
-import inspect from 'inspect';
 import * as std from 'std';
+
 function Func1() {
   return Func2();
 }

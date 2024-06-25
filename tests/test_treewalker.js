@@ -1,10 +1,11 @@
 import Console from '../lib/console.js';
 import inspect from 'inspect';
 import * as std from 'std';
-import { TreeIterator } from 'tree_walker';
-import { TreeWalker } from 'tree_walker';
+import { TreeIterator, TreeWalker } from 'tree_walker';
 import * as xml from 'xml';
+
 ('use strict');
+
 ('use math');
 
 function WriteFile(file, data) {
