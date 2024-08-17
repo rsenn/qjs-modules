@@ -43,6 +43,7 @@ function WriteObject(file, obj, fn = arg => arg) {
     fn(
       inspect(obj, {
         colors: false,
+        reparseable: true,
         breakLength: 120,
         maxStringLength: Infinity,
         maxArrayLength: Infinity,

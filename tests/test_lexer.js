@@ -1,6 +1,6 @@
 import fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import { open, O_RDONLY } from 'os';
+import { dirname, extname, join, normalize } from 'path';
 import { curry, define, getOpt, isObject, split, startInteractive, unique } from 'util';
 import extendArray from 'extendArray';
 import BNFLexer from '../lib/lexer/bnf.js';
@@ -12,7 +12,7 @@ import inspect from 'inspect';
 import { Location } from 'lexer';
 import { escape, toString } from 'misc';
 import { MAP_PRIVATE, mmap, PROT_READ } from 'mmap';
-import * as std from 'std';
+import { err, exit, gc, open as fopen, puts } from 'std';
 
 ('use strict');
 
@@ -48,7 +48,7 @@ function BufferFile(file) {
     if(size < 0) {
       throw new Error('Error getting size of ' + file + ': (' + fs.errno + ') ' + fs.errstr);
     }
-    const fd = os.open(file, os.O_RDONLY);
+    const fd = open(file, O_RDONLY);
     console.log('mmap', [0, size, PROT_READ, MAP_PRIVATE, fd, 0]);
     b = mmap(0, size, PROT_READ, MAP_PRIVATE, fd, 0);
   }
@@ -69,7 +69,7 @@ function BufferRanges(file) {
 }
 
 function WriteFile(file, tok) {
-  let f = std.open(file, 'w+');
+  let f = fopen(file, 'w+');
   f.puts(tok);
   console.log('Wrote "' + file + '": ' + tok.length + ' bytes');
 }
@@ -235,7 +235,7 @@ function main(...args) {
   );
   files = params['@'];
   console.log('files', files);
-  const RelativePath = file => path.join(path.dirname(process.argv[1]), '..', file);
+  const RelativePath = file => join(dirname(process.argv[1]), '..', file);
 
   if(!files.length) files.push(RelativePath('lib/util.js'));
   for(let file of files) ProcessFile(file);
@@ -246,7 +246,7 @@ function main(...args) {
     let str = file ? BufferFile(file) : code[1];
 
     let len = str.length;
-    let type = path.extname(file).substring(1);
+    let type = extname(file).substring(1);
     log('data:', escape(str.slice(0, 100)));
 
     let lex = {
@@ -305,7 +305,7 @@ function main(...args) {
 
     const printTok = params.outputText
       ? (tok, prefix) => {
-          std.puts(tok.lexeme);
+          puts(tok.lexeme);
         }
       : debug || match
       ? (tok, prefix) => {
@@ -314,7 +314,7 @@ function main(...args) {
           let s = toString(str).slice(start, end);
 
           const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc, ` '${s}'`];
-          std.err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
+          err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
         }
       : () => {};
 
@@ -375,7 +375,7 @@ function main(...args) {
     let showToken = tok => {
       if((lexer.constructor != ECMAScriptLexer && tok.type != 'whitespace') || /^((im|ex)port|from|as)$/.test(tok.lexeme)) {
         let a = [tok.type.padEnd(20, ' '), escape(tok.lexeme)];
-        std.puts(a.join('') + '\n');
+        puts(a.join('') + '\n');
       }
     };
     let it = lexer[Symbol.iterator]();
@@ -433,7 +433,7 @@ function main(...args) {
     log('ES6 imports', imports.map(PrintES6Import));
     log('CJS imports', imports.map(PrintCJSImport));
 
-    if(params.outputImps) std.puts(`import { ${exportNames.join(', ')} } from '${file}'\n`);
+    if(params.outputImps) puts(`import { ${exportNames.join(', ')} } from '${file}'\n`);
 
     modules[file] = { imports, exports };
     let fileImports = imports.filter(imp => /\.js$/i.test(imp.file));
@@ -444,11 +444,11 @@ function main(...args) {
       'fileImports',
       fileImports.map(imp => imp.file)
     );
-    let dir = path.dirname(file);
+    let dir = dirname(file);
 
     if(params.recursive)
       fileImports.forEach(imp => {
-        let p = path.normalize(path.join(dir, imp.file));
+        let p = normalize(join(dir, imp.file));
         log('p', p);
         AddUnique(files, p);
       });
@@ -456,7 +456,7 @@ function main(...args) {
 
     log(`took ${end - start}ms (${count} tokens)`);
     log('lexer', lexer);
-    std.gc();
+    gc();
   }
   console.log('files', files);
 }
@@ -466,7 +466,7 @@ try {
 } catch(error) {
   console.log(`FAIL: ${error.message}\n${error.stack}`);
   startInteractive();
-  //std.exit(1);
+  //exit(1);
 } finally {
   console.log('SUCCESS');
 }
