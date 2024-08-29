@@ -95,10 +95,10 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_STRING: {
       InputBuffer input = js_input_chars(ctx, js_arguments_at(args, 0));
 
-      if(input.size >= pr->string.len) {
+      if(input.size == pr->string.len) 
         if(!memcmp(input.data, pr->string.str, pr->string.len))
-          ret = JS_NewInt32(ctx, 1);
-      }
+          ret = JS_NewBool(ctx, TRUE); // JS_NewInt32(ctx, 1);
+
       break;
     }
 
