@@ -423,8 +423,10 @@ utf8_charlen(const char* in, size_t len) {
 static inline int
 utf8_charcode(const char* in, size_t len) {
   const uint8_t* next = (const void*)in;
+
   int r = unicode_from_utf8((const uint8_t*)in, len, &next);
-  return next > in ? r : -1;
+
+  return (const char*)next > in ? r : -1;
 }
 
 BOOL utf16_multiword(const void*);
