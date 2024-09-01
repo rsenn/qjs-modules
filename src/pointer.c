@@ -79,6 +79,7 @@ pointer_dump(Pointer const* ptr, Writer* wr, BOOL color, ssize_t index, JSContex
 
   for(i = 0; i < ptr->n; i++) {
     const char* s = JS_AtomToCString(ctx, ptr->atoms[i]);
+    
     BOOL is_int = is_integer(s);
 
     writer_puts(wr, color ? (is_int ? COLOR_CYAN "[" : COLOR_CYAN ".") : (is_int ? "[" : "."));
@@ -87,6 +88,7 @@ pointer_dump(Pointer const* ptr, Writer* wr, BOOL color, ssize_t index, JSContex
     for(j = 0; s[j]; j++) {
       if(s[j] == '.' || s[j] == '[' || s[j] == ']')
         writer_putc(wr, '\\');
+
       writer_putc(wr, s[j]);
     }
 
