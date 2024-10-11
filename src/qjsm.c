@@ -343,6 +343,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
   if(vector_size(&jsm_stack, sizeof(char*)) > 1)
     jsm_stack_pop(ctx);
 
+#if defined(HAVE_JS_PROMISE_STATE) && defined(HAVE_JS_PROMISE_RESULT)
   if(js_is_promise(ctx, val)) {
     JSPromiseStateEnum state = JS_PromiseState(ctx, val);
     JSValue result = JS_PromiseResult(ctx, val);
@@ -359,6 +360,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
 
     JS_FreeValue(ctx, result);
   }
+#endif
 
   if(JS_IsException(val)) {
     JSValue exception = JS_GetException(ctx);
