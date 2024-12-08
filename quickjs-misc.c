@@ -591,21 +591,43 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   MemoryBlock b;
   OffsetLength o = {0, -1};
 
-  /*  if(JS_IsString(argv[0])) {
-      JSValueConst value = argv[0]; // JS_DupValue(ctx, argv[0]);
-      b.base = JS_ToCStringLen(ctx, &b.size, value);
-      f = &js_arraybuffer_free_cstring;
-      opaque = b.base;
-      ret =
-          JS_NewArrayBuffer(ctx, b.base + o.offset, MIN_NUM(b.size, o.length),
-    js_arraybuffer_free_cstring, (void*)b.base, FALSE); } else*/
+  int64_t addr = 0, len = 0;
+
+  if(JS_IsString(argv[0]) || JS_IsNumber(argv[0])) {
+
+    JS_ToInt64Ext(ctx, &addr, argv[0]);
+
+    if(addr == 0)
+      return JS_NULL;
+
+    JS_ToInt64Ext(ctx, &len, argv[1]);
+
+    if(len == 0)
+      return JS_ThrowInternalError(ctx, "zero length given");
+
+    return JS_NewArrayBuffer(ctx, addr, len, 0, 0, 0);
+  }
 
   InputBuffer input = js_input_chars(ctx, argv[0]);
-  js_offset_length(ctx, input.size, argc - 1, argv + 1, &o);
-  b = input_buffer_block(&input);
-  //    b = block_range(&b, &input.range);
-  b = block_range(&b, &o);
-  ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
+
+  if(!input.block.base)
+    return JS_NULL;
+
+  if(!input.size) {
+    const char* str = JS_ToCString(ctx, argv[0]);
+
+    ret = JS_ThrowInternalError(ctx, "zero size: %s", str);
+
+    JS_FreeCString(ctx, str);
+    return ret;
+  }
+
+  if(!JS_IsException(input.value)) {
+    js_offset_length(ctx, input.size, argc - 1, argv + 1, &o);
+    b = input_buffer_block(&input);
+    b = block_range(&b, &o);
+    ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
+  }
 
   return ret;
 }
