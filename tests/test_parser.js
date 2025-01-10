@@ -2,9 +2,9 @@ import { readFileSync, writeFileSync } from 'fs';
 import { Console } from 'console';
 import extendArray from 'extendArray';
 import { Lexer } from 'lexer';
-//import * as path from 'path';
+ import * as path from 'path';
 //import inspect from 'inspect';
-//import EBNFParser from '../lib/parser/ebnf.js';
+ import EBNFParser from '../lib/parser/ebnf.js';
 
 extendArray(Array.prototype);
 
@@ -87,8 +87,16 @@ function main(...args) {
 
     optind++;
   }
-  /*
   let file = args[optind] ?? path.join(path.dirname(process.argv[1]), '..', 'tests/Shell-Grammar.y');
+     
+ let parser = new EBNFParser(null);
+
+parser.lexer =new BNFLexer(std.loadFile(file, null),file)
+let  grammar = parser.parse();
+
+// parser.setInput();
+
+  /*
   let outputFile = args[optind + 1] ?? 'grammar.kison';
   console.log('file:', file);
   let str = std.loadFile(file, 'utf-8');
