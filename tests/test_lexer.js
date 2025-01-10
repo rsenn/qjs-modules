@@ -14,10 +14,6 @@ import { escape, toString } from 'misc';
 import { MAP_PRIVATE, mmap, PROT_READ } from 'mmap';
 import { err, exit, gc, open as fopen, puts } from 'std';
 
-('use strict');
-
-('use math');
-
 let buffers = {},
   modules = {};
 

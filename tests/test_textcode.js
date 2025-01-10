@@ -4,27 +4,35 @@ import * as std from 'std';
 import { TextDecoder, TextEncoder } from 'textcode';
 
 function Decode(encoding, ...chunks) {
-  let decoder = new TextDecoder(encoding);
+  let decoder = new TextDecoder(encoding), result = [];
   //console.log('decoder(' + encoding + ')', decoder);
-  let result = [];
+
   for(let buf of chunks) {
     console.log('decoder(' + encoding + ').decode(', buf, `)`);
-    result.push(decoder.decode(buf));
+ if(buf !== undefined && buf !== null)
+   result.push(decoder.decode(buf));
   }
+
   let r = decoder.end();
+
   if(r) result.push(r);
+  
   console.log(`result = '${result.join('')}'\n`);
+
   return result;
 }
 
 function Encode(encoding, ...chunks) {
-  let encoder = new TextEncoder(encoding);
-  //  console.log('encoder(' + encoding + ')', encoder);
-  let result = [];
+  let encoder = new TextEncoder(encoding), result = [];
+  //console.log('encoder(' + encoding + ')', encoder);
+
   for(let str of chunks) {
     console.log((`encoder(` + encoding + `).encode('${str}')`).padEnd(30));
+
+if(str !== undefined && str !== null)
     result.push(encoder.encode(str));
   }
+
   let r = encoder.end();
   if(r) result.push(r);
 
@@ -32,6 +40,7 @@ function Encode(encoding, ...chunks) {
   else result = concat(...result.map(typedArr => typedArr.buffer));
 
   console.log(`result = '`, result, `'\n`);
+
   return result;
 }
 
@@ -41,7 +50,7 @@ function main(...args) {
       depth: 8,
       maxStringLength: Infinity,
       maxArrayLength: 256,
-      compact: 2,
+      compact: true,
       showHidden: false,
       numberBase: 16
     }
@@ -63,16 +72,16 @@ function main(...args) {
     Encode('utf-32be', s);
   }
 
-  Decode('utf-8', u8);
-  Decode('utf-16', u16);
-  Decode('utf-32le', u32.buffer.slice(0, -1), u32.buffer.slice(-1));
-  Decode(
+  //Decode('utf-8', u8);
+  //Decode('utf-16', u16);
+  //Decode('utf-32le', u32.buffer.slice(0, -1), u32.buffer.slice(-1));
+  /*Decode(
     'utf-32be',
     new Uint32Array([
       0x47f10100, 0x6260000, 0x2a0000, 0x260000, 0x2f260000, 0x67f10100, 2715156736, 0x5d60100, 0x39d60100, 0x31d40100, 0x17d40100, 2834563328, 0x5ee90100, 0x63160100, 3390374144, 3491037440,
       3491037440
     ])
-  );
+  );*/
 
   const encoder = new TextEncoder();
   const view = encoder.encode('€');

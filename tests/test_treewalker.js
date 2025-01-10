@@ -4,9 +4,6 @@ import * as std from 'std';
 import { TreeIterator, TreeWalker } from 'tree_walker';
 import * as xml from 'xml';
 
-('use strict');
-
-('use math');
 
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');

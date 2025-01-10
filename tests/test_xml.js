@@ -6,9 +6,6 @@ import writeXML from '../lib/xml/write.js';
 import * as deep from 'deep';
 import * as std from 'std';
 
-('use strict');
-
-('use math');
 
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');

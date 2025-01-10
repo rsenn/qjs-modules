@@ -3,10 +3,6 @@ import { IN_ACCESS, IN_ATTRIB, IN_CLOSE, IN_CLOSE_NOWRITE, IN_CLOSE_WRITE, IN_CR
 import { Console } from 'console';
 import * as std from 'std';
 
-('use strict');
-
-('use math');
-
 let inotifyFlags = {
   IN_ACCESS,
   IN_ATTRIB,

@@ -5,9 +5,6 @@ import { ByLineStream, FileSystemReadableFileStream, FileSystemReadableStream, S
 import { Console } from 'console';
 import { exit } from 'std';
 
-('use strict');
-
-('use math');
 
 extendAsyncGenerator();
 

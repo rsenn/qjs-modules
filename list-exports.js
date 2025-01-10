@@ -26,9 +26,6 @@ let T,
   match = new Set(),
   identifiers;
 
-('use strict');
-
-('use math');
 
 extendArray(Array.prototype);
 

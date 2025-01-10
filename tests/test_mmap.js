@@ -2,6 +2,7 @@ import * as os from 'os';
 import Console from '../lib/console.js';
 import { MAP_PRIVATE, mmap, munmap, PROT_READ } from 'mmap';
 import * as std from 'std';
+
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {

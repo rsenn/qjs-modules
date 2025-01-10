@@ -4,9 +4,6 @@ import inspect from 'inspect';
 import { equal, index, instanceOf, Predicate, PredicateOperators, PredicateOperatorSet, property } from 'predicate';
 import * as std from 'std';
 
-('use strict');
-
-('use math');
 
 globalThis.inspect = inspect;
 

@@ -200,16 +200,20 @@ js_location_from(JSContext* ctx, JSValueConst this_val) {
     loc->line = js_get_propertystr_int32(ctx, this_val, "line") - 1;
   else if(js_has_propertystr(ctx, this_val, "lineNumber"))
     loc->line = js_get_propertystr_int32(ctx, this_val, "lineNumber") - 1;
+
   if(js_has_propertystr(ctx, this_val, "column"))
     loc->column = js_get_propertystr_int32(ctx, this_val, "column") - 1;
   else if(js_has_propertystr(ctx, this_val, "columnNumber"))
     loc->column = js_get_propertystr_int32(ctx, this_val, "columnNumber") - 1;
+
   if(js_has_propertystr(ctx, this_val, "file"))
     loc->file = js_get_propertystr_atom(ctx, this_val, "file");
   else if(js_has_propertystr(ctx, this_val, "fileName"))
     loc->file = js_get_propertystr_atom(ctx, this_val, "fileName");
+
   if(js_has_propertystr(ctx, this_val, "charOffset"))
     loc->char_offset = js_get_propertystr_uint64(ctx, this_val, "charOffset");
+
   if(js_has_propertystr(ctx, this_val, "byteOffset"))
     loc->byte_offset = js_get_propertystr_uint64(ctx, this_val, "byteOffset");
 
@@ -226,11 +230,11 @@ js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     return JS_EXCEPTION;
 
   hint = argc > 0 ? JS_ToCString(ctx, argv[0]) : 0;
-  if(hint && !strcmp(hint, "number")) {
+
+  if(hint && !strcmp(hint, "number"))
     ret = JS_NewInt64(ctx, loc->char_offset);
-  } else {
+  else
     ret = js_location_tostring(ctx, loc);
-  }
 
   if(hint)
     JS_FreeCString(ctx, hint);
@@ -269,20 +273,24 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       while(end >= begin) {
         for(p = end; p > begin && *(p - 1) != ':'; p--) {
         }
+
         if(ni > 0) {
           v = strtoul((const char*)p, (char**)&end, 10);
+
           if(end > p)
             n[--ni] = v;
         } else {
           loc->file = JS_NewAtomLen(ctx, (const char*)p, end - p);
           break;
         }
+
         end = p - 1;
       }
       if(ni == 0) {
         loc->line = n[0];
         loc->column = n[1];
       }
+
       loc->line--;
       loc->column--;
       /* From arguments (line,column,pos,file) */
@@ -298,10 +306,13 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
       if(i < argc && JS_IsNumber(argv[i]))
         JS_ToInt32(ctx, &loc->line, argv[i++]);
+
       if(i < argc && JS_IsNumber(argv[i]))
         JS_ToInt32(ctx, &loc->column, argv[i++]);
+
       if(i < argc && JS_IsNumber(argv[i]))
         JS_ToIndex(ctx, (uint64_t*)&loc->char_offset, argv[i++]);
+
       if(i < argc && JS_IsNumber(argv[i]))
         JS_ToIndex(ctx, (uint64_t*)&loc->byte_offset, argv[i++]);
 
@@ -419,10 +430,9 @@ void
 js_location_finalizer(JSRuntime* rt, JSValue val) {
   Location* loc;
 
-  if((loc = js_location_data(val))) {
+  if((loc = js_location_data(val)))
     if(loc != (void*)-1ll)
       location_free(loc, rt);
-  }
 }
 
 static JSClassDef js_location_class = {

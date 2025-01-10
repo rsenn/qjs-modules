@@ -7,11 +7,10 @@ import { AF_INET, AsyncSocket, fd_set, IPPROTO_TCP, SO_BROADCAST, SO_DEBUG, SO_D
 function main() {
   globalThis.console = new Console({
     inspectOptions: {
-      depth: Infinity,
       breakLength: 80,
       maxArrayLength: 100,
       maxStringLength: 100,
-      compact: false
+      compact: true
     }
   });
   let seed = +Date.now();

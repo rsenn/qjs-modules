@@ -2,10 +2,7 @@ import { Blob } from 'blob';
 import { Console } from 'console';
 import { escape, toArrayBuffer } from 'misc';
 import * as std from 'std';
-
-('use strict');
-
-('use math');
+ 
 
 function main(...args) {
   globalThis.console = new Console({
