@@ -3,6 +3,7 @@ import extendArray from '../lib/extendArray.js';
 import { Console } from 'console';
 import { MySQL, MySQLResult } from 'mysql';
 import { exit } from 'std';
+
 extendArray();
 
 let i,
@@ -12,7 +13,7 @@ let i,
 const result = r => {
   let prop = 'result' + ++resultNum;
   globalThis[prop] = r;
-  console.log(prop + ' =',  console.config({ compact: true }), r);
+  console.log(prop + ' =', console.config({ compact: true }), r);
   return r;
 };
 
@@ -136,6 +137,8 @@ async function main(...args) {
   const rowValues = row => row.map(s => MySQL.valueString(s));
   const rowString = row => MySQL.valueString(...row);
 
+  for await(let row of await q(`SELECT id,username FROM users ORDER BY created DESC LIMIT 0,10;`)) console.log(`user[${i++}] =`, row);
+
   function makeInsertQuery(table, fields, data = {}) {
     return `INSERT INTO ${table} (${fields.map(f => '`' + f + '`').join(',')}) VALUES (${rowString(data)});`;
   }
@@ -148,24 +151,25 @@ async function main(...args) {
 
   console.log('insert', insert);
 
-  for await(let row of await q(`SELECT id,username FROM users ORDER BY created DESC LIMIT 0,10;`)) console.log(`user[${i++}] =`, row);
+  res = await q(`INSERT INTO sessions (cookie,user_id) VALUES ('${randStr(32)}',0);`)/*.catch(err => console.error('err', err))*/;
 
-  /* await q(insert);
-  console.log('affected =', (affected = my.affectedRows));*/
+  //await q(insert);
+  console.log('res =', res, 'affected =', (affected = my.affectedRows));
 
   res = await q(`SELECT last_insert_id();`);
 
   console.log('res =', res);
-  let iter = (globalThis.iter = res[Symbol.asyncIterator]());
+  /*  let iter = (globalThis.iter = res[Symbol.asyncIterator]());
 
   console.log('iter =', iter);
   let item = await iter.next();
 
   console.log('await iter.next() =', item);
-  
-  let row;
-  console.log('item.value =', (row = globalThis.row = item.value));
-  console.log('row[0] =', row[0]);
+  */
+
+  for await(let row of res) result(row);
+  /*  console.log('item.value =', (row = globalThis.row = item.value));
+  console.log('row[0] =', row[0]);*/
 
   console.log('id =', (id = my.insertId));
 

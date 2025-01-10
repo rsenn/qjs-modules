@@ -198,6 +198,7 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
     BOOL done = FALSE;
 
     dbuf_putc(out, '(');
+
     for(int i = 0;; i++) {
       item = js_iterator_next(ctx, iter, &done);
 
@@ -220,6 +221,7 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
     if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, values, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY)) {
       JS_FreeValue(ctx, iter);
       JS_ThrowTypeError(ctx, "argument is must be an object");
+
       return;
     }
 
@@ -1072,10 +1074,18 @@ js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
     if(err) {
       JSValue error = js_mysqlerror_new(ctx, mysql_error(ac->opaque));
+
       asyncclosure_error(ac, error);
       JS_FreeValue(ctx, error);
-    } else if((res = mysql_use_result(ac->opaque))) {
-      JS_SetOpaque(ac->result, res);
+
+    } else {
+      if((res = mysql_use_result(ac->opaque))) {
+        JS_SetOpaque(ac->result, res);
+      } else {
+        JS_FreeValue(ctx, ac->result);
+        ac->result = JS_NULL;
+      }
+
       asyncclosure_resolve(ac);
     }
   }
@@ -1143,9 +1153,8 @@ static void
 js_mysql_finalizer(JSRuntime* rt, JSValue val) {
   MYSQL* my;
 
-  if((my = JS_GetOpaque(val, js_mysql_class_id))) {
+  if((my = JS_GetOpaque(val, js_mysql_class_id)))
     mysql_close(my);
-  }
 }
 
 static JSClassDef js_mysql_class = {
@@ -1338,6 +1347,7 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, Re
 
   if(field_is_boolean(field)) {
     BOOL value = *(my_bool*)buf;
+
     if((rtype & RESULT_STRING))
       return JS_NewString(ctx, value ? "1" : "0");
 
@@ -1347,11 +1357,14 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, Re
   if(!(rtype & RESULT_STRING)) {
     if(field_is_number(field))
       return string_to_number(ctx, buf);
+
     if(field_is_decimal(field))
       return string_to_bigdecimal(ctx, buf);
+
     if(field_is_date(field)) {
       if(field->length == 19 && buf[10] == ' ')
         buf[10] = 'T';
+
       return string_to_date(ctx, buf);
     }
   }
@@ -1419,7 +1432,9 @@ static JSValue
 result_iterate(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue ret, val = result_row(ctx, res, row, rtype);
   ret = js_iterator_result(ctx, val, row ? FALSE : TRUE);
+
   JS_FreeValue(ctx, val);
+
   return ret;
 }
 
@@ -1881,12 +1896,8 @@ field_is_integer(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_INT24:
-    case MYSQL_TYPE_BIT: {
-      return (field->flags & NUM_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
+    case MYSQL_TYPE_BIT: return (field->flags & NUM_FLAG);
+    default: return FALSE;
   }
 }
 
@@ -1894,12 +1905,8 @@ static BOOL
 field_is_float(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_FLOAT:
-    case MYSQL_TYPE_DOUBLE: {
-      return (field->flags & NUM_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
+    case MYSQL_TYPE_DOUBLE: return (field->flags & NUM_FLAG);
+    default: return FALSE;
   }
 }
 
@@ -1908,12 +1915,8 @@ field_is_decimal(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
-    case MYSQL_TYPE_LONGLONG: {
-      return (field->flags & NUM_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
+    case MYSQL_TYPE_LONGLONG: return (field->flags & NUM_FLAG);
+    default: return FALSE;
   }
 
   return FALSE;
@@ -1927,28 +1930,20 @@ field_is_number(MYSQL_FIELD const* field) {
 static BOOL
 field_is_boolean(MYSQL_FIELD const* field) {
   switch(field->type) {
-    case MYSQL_TYPE_TINY: {
-      return field->length == 1;
-    }
+    case MYSQL_TYPE_TINY: return field->length == 1;
 
-    case MYSQL_TYPE_BIT: {
-      return field->length == 1 && (field->flags & UNSIGNED_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
+    case MYSQL_TYPE_BIT: return field->length == 1 && (field->flags & UNSIGNED_FLAG);
+
+    default: return FALSE;
   }
 }
 
 static BOOL
 field_is_null(MYSQL_FIELD const* field) {
   switch(field->type) {
-    case MYSQL_TYPE_NULL: {
-      return !(field->flags & NOT_NULL_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
+    case MYSQL_TYPE_NULL: return !(field->flags & NOT_NULL_FLAG);
+
+    default: return FALSE;
   }
 }
 
@@ -1960,12 +1955,9 @@ field_is_date(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_YEAR:
-    case MYSQL_TYPE_NEWDATE: {
-      return !!(field->flags & TIMESTAMP_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
+    case MYSQL_TYPE_NEWDATE: return !!(field->flags & TIMESTAMP_FLAG);
+
+    default: return FALSE;
   }
 }
 
@@ -1975,11 +1967,11 @@ field_is_string(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB: {
+    case MYSQL_TYPE_LONG_BLOB:
       if((field->flags & BLOB_FLAG))
         if(!(field->flags & BINARY_FLAG))
           return TRUE;
-    }
+
     default: break;
   }
 
@@ -1987,12 +1979,9 @@ field_is_string(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET: {
-      return TRUE;
-    }
-    default: {
-      return FALSE;
-    }
+    case MYSQL_TYPE_SET: return TRUE;
+
+    default: return FALSE;
   }
 }
 
@@ -2012,12 +2001,9 @@ field_is_blob(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
-    case MYSQL_TYPE_LONG_BLOB: {
-      return !!(field->flags & BINARY_FLAG);
-    }
-    default: {
-      return FALSE;
-    }
+    case MYSQL_TYPE_LONG_BLOB: return !!(field->flags & BINARY_FLAG);
+
+    default: return FALSE;
   }
 }
 
@@ -2026,6 +2012,7 @@ string_to_value(JSContext* ctx, const char* func_name, const char* s) {
   JSValue ret, arg = JS_NewString(ctx, s);
   ret = js_value_coerce(ctx, func_name, arg);
   JS_FreeValue(ctx, arg);
+
   return ret;
 }
 
@@ -2034,6 +2021,7 @@ string_to_object(JSContext* ctx, const char* ctor_name, const char* s) {
   JSValue ret, arg = JS_NewString(ctx, s);
   ret = js_global_new(ctx, ctor_name, 1, &arg);
   JS_FreeValue(ctx, arg);
+
   return ret;
 }
 
