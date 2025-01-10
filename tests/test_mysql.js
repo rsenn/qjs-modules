@@ -162,17 +162,14 @@ async function main(...args) {
   let item = await iter.next();
 
   console.log('await iter.next() =', item);
+  
   let row;
   console.log('item.value =', (row = globalThis.row = item.value));
   console.log('row[0] =', row[0]);
 
   console.log('id =', (id = my.insertId));
-  console.log('my.close', my.close);
 
   my.close();
-
-  //startInteractive();
-  // os.kill(process.pid, os.SIGUSR1);
 }
 
 try {
