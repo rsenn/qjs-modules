@@ -5,9 +5,6 @@ import { MySQL, MySQLResult } from 'mysql';
 import { exit } from 'std';
 extendArray();
 
-('use strict');
-
-('use math');
 let i,
   q,
   resultNum = 0;
@@ -15,14 +12,14 @@ let i,
 const result = r => {
   let prop = 'result' + ++resultNum;
   globalThis[prop] = r;
-  console.log(/*'globalThis.' +*/ prop + ' =', r);
+  console.log(prop + ' =',  console.config({ compact: true }), r);
   return r;
 };
 
 async function main(...args) {
   globalThis.console = new Console({
     inspectOptions: {
-      compact: 1,
+      compact: true,
       customInspect: true,
       showHidden: false,
       hideKeys: ['query']
