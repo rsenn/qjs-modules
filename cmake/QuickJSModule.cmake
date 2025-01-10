@@ -14,32 +14,40 @@ function(compile_module SOURCE)
   basename(BASE "${SOURCE}" .js)
   #message(STATUS "Compile QuickJS module '${BASE}.c' from '${SOURCE}'")
 
+  set(ARGLIST "${ARGN}")
+  list(POP_FRONT ARGLIST OUT)
+
   set(MODULES_DIR "${CMAKE_BINARY_DIR}/modules")
   set(MODULES_DIR "${MODULES_DIR}" PARENT_SCOPE)
   file(MAKE_DIRECTORY "${MODULES_DIR}")
 
-  if(ARGN)
-    set(OUTPUT_FILE ${ARGN})
-  else(ARGN)
+  if(OUT AND NOT "${OUT}" STREQUAL "")
+    set(OUTPUT_FILE ${OUT})
+  else(OUT)
     set(OUTPUT_FILE "${MODULES_DIR}/${BASE}.c")
-  endif(ARGN)
+  endif(OUT)
 
   list(APPEND COMPILED_MODULES "${OUTPUT_FILE}")
   list(APPEND COMPILED_TARGETS "${BASE}.c")
   set(COMPILED_MODULES "${COMPILED_MODULES}" PARENT_SCOPE)
   set(COMPILED_TARGETS "${COMPILED_TARGETS}" PARENT_SCOPE)
 
-  #add_custom_command(OUTPUT "${OUTPUT_FILE}" COMMAND qjsc -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE} DEPENDS qjs-inspect qjs-misc)
+  unset(ADD_MODULES)
+  foreach(MOD IN ITEMS ${ARGLIST})
+    list(APPEND ADD_MODULES -M "${MOD}")
+  endforeach(MOD IN ITEMS ${ARGLIST})
+
+#add_custom_command(OUTPUT "${OUTPUT_FILE}" COMMAND qjsc ${ADD_MODULES} -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE} DEPENDS qjs-inspect qjs-misc)
   add_custom_target(
     "${BASE}.c" ALL
     BYPRODUCTS "${OUTPUT_FILE}"
-    COMMAND "${QJSC}" -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}"
+    COMMAND "${QJSC}" ${ADD_MODULES} -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}"
     DEPENDS ${QJSC_DEPS}
     WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler"
     SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" #DEPENDS qjs-inspect qjs-misc
   )
-endfunction(compile_module SOURCE)
+endfunction(compile_module SOURCE )
 
 function(generate_module_header SOURCE)
   basename(BASE "${SOURCE}" .c)

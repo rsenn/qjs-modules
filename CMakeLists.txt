@@ -63,8 +63,8 @@ list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 check_function_def(HAVE_JS_PROMISE_STATE JS_PromiseState)
 check_function_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE_2)
 
-dump(HAVE_JS_PROMISE_STATE_2 HAVE_JS_PROMISE_STATE)
-dump(HAVE_JS_PROMISE_RESULT)
+#dump(HAVE_JS_PROMISE_STATE_2 HAVE_JS_PROMISE_STATE)
+#dump(HAVE_JS_PROMISE_RESULT)
 
 if(NOT QUICKJS_LIBRARY_DIR AND NOT QUICKJS_INCLUDE_DIRS)
   if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
@@ -340,11 +340,6 @@ else(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   endif(WIN32 OR MINGW)
 endif(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
 
-set(LIB_MODULES
-    console db events fs io
-    #lexer/csv lexer/ecmascript
-    parser perf_hooks process repl require stack tty util)
-
 if(EXISTS "${QUICKJS_H}")
   set(COMMON_HEADERS ${CUTILS_H} ${QUICKJS_H})
 endif()
@@ -509,7 +504,7 @@ list(APPEND CMAKE_REQUIRED_LIBRARIES ${QUICKJS_LIBRARY})
 list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
 
 check_function_def(js_debugger_build_backtrace)
-dump(HAVE_JS_DEBUGGER_BUILD_BACKTRACE)
+#dump(HAVE_JS_DEBUGGER_BUILD_BACKTRACE)
 
 file(GLOB TESTS tests/test_*.js)
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
@@ -611,13 +606,34 @@ install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
 install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
 install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
+set(LIB_MODULES
+    console db events fs io
+    #lexer/csv lexer/ecmascript
+    parser perf_hooks process repl require stack tty util)
+
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 
 list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
 
+set(COMMON_MODULES inspect util)
+set(console_MODULES )
+set(db_MODULES list)
+set(fs_MODULES events path mmap misc)
+set(io_MODULES misc)
+set(parser_MODULES path)
+set(process_MODULES path misc)
+set(repl_MODULES path io process)
+set(require_MODULES path)
+set(perf_hooks_MODULES misc)
+set(stack_MODULES location)
+set(util_MODULES path misc)
+
 foreach(LIB_MODULE ${LIB_MODULES})
   #message("Compile Module: ${LIB_MODULE}")
-  compile_module(lib/${LIB_MODULE}.js)
+
+  set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
+
+  compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
 endforeach(LIB_MODULE ${LIB_MODULES})
 
 add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES}
