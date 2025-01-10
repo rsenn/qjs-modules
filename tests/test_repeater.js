@@ -1,7 +1,6 @@
 import { Console } from 'console';
 import { Repeater } from 'repeater';
-import {err as stderr} from 'std';
-
+import { err as stderr } from 'std';
 
 async function main(...args) {
   globalThis.console = new Console(stderr, {
@@ -22,10 +21,9 @@ async function main(...args) {
       console.log('await push(1234) =', await push(1234));
       console.log('await push("blah") =', await push('blah'));
       console.log('await push("blah") =', await push(Symbol.toStringTag));
-      
+
       //console.log('await stop( )) =', await stop( ));
       await stop();
-
     } catch(err) {
       console.log('Repeater err=', err);
     }
@@ -38,8 +36,8 @@ async function main(...args) {
 
   while((it = rpt.next(count++))) {
     //console.log(`it[${count}]`, it);
-    
-      try {
+
+    try {
       it = await it;
       //console.log(`it[${count}]`, typeof it);
     } catch(err2) {
@@ -52,13 +50,11 @@ async function main(...args) {
     if(it.done) break;
   }
 
+  let r = new Repeater(async (push, stop) => (await push(1), await push(2), await push('x'), await stop()));
+  console.log(`r`, r, r.state);
 
-let  r=new Repeater(async (push,stop) => (await push(1),await push(2),await push('x'), await stop()))
-  console.log(`r`, r,r.state);
-
-  for await(let value of r)
-    console.log('value', value); 
-  console.log(`r`, r,r.state);
+  for await(let value of r) console.log('value', value);
+  console.log(`r`, r, r.state);
 }
 
 main();

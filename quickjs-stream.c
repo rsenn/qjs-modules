@@ -314,6 +314,7 @@ readable_new(JSContext* ctx) {
   if((st = js_mallocz(ctx, sizeof(Readable)))) {
     st->ref_count = 1;
     st->controller = JS_NULL;
+
     queue_init(&st->q);
   }
 
@@ -444,7 +445,6 @@ readable_free(Readable* st, JSRuntime* rt) {
 
 enum {
   FUNC_PEEK,
-
 };
 
 JSValue
@@ -628,7 +628,7 @@ js_readable_cancel(JSContext* ctx, Readable* st, JSValueConst reason) {
 JSValue
 js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
-  Readable* st;
+  Readable* st = 0;
 
   if(!(st = readable_new(ctx)))
     return JS_EXCEPTION;
@@ -649,12 +649,14 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     st->underlying_source = JS_DupValue(ctx, argv[0]);
 
     st->controller = JS_NewObjectProtoClass(ctx, readable_controller, js_readable_class_id);
-    JS_SetOpaque(st->controller, st);
+
+    JS_SetOpaque(st->controller, readable_dup(st));
   }
 
   JS_SetOpaque(obj, st);
 
   return obj;
+
 fail:
   js_free(ctx, st);
   JS_FreeValue(ctx, obj);
@@ -663,10 +665,11 @@ fail:
 
 JSValue
 js_readable_wrap(JSContext* ctx, Readable* st) {
-  JSValue obj;
-  obj = JS_NewObjectProtoClass(ctx, readable_proto, js_readable_class_id);
-  ++st->ref_count;
+  JSValue obj = JS_NewObjectProtoClass(ctx, readable_proto, js_readable_class_id);
+
+  readable_dup(st);
   JS_SetOpaque(obj, st);
+
   return obj;
 }
 
@@ -808,8 +811,10 @@ void
 js_readable_finalizer(JSRuntime* rt, JSValue val) {
   Readable* st;
 
-  if((st = js_readable_data(val)))
+  if((st = js_readable_data(val))) {
     readable_free(st, rt);
+    JS_SetOpaque(val, 0);
+  }
 }
 
 JSClassDef js_readable_class = {
