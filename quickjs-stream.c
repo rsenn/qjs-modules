@@ -1212,18 +1212,20 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   JS_SetOpaque(obj, st);
 
   return obj;
-fail:
+
+  fail:
   js_free(ctx, st);
   JS_FreeValue(ctx, obj);
+
   return JS_EXCEPTION;
 }
 
 JSValue
 js_writable_wrap(JSContext* ctx, Writable* st) {
-  JSValue obj;
-  obj = JS_NewObjectProtoClass(ctx, writable_proto, js_writable_class_id);
-  ++st->ref_count;
+  JSValue obj  = JS_NewObjectProtoClass(ctx, writable_proto, js_writable_class_id);
+writable_dup(st);
   JS_SetOpaque(obj, st);
+
   return obj;
 }
 
@@ -1239,6 +1241,7 @@ js_writable_handler(JSContext* ctx, JSValueConst this_val, int magic) {
   method = JS_NewCFunctionMagic(ctx, js_writable_method, "handler", 0, JS_CFUNC_generic_magic, magic);
   handler = js_function_bind_this(ctx, method, this_val);
   JS_FreeValue(ctx, method);
+
   return handler;
 }
 
@@ -1255,15 +1258,18 @@ js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = writable_abort(st, argv[0], ctx);
       break;
     }
-      /* case WRITABLE_METHOD_CLOSE: {
-         ret = writable_close(st,  ctx);
-         break;
-       }*/
+
+    /* case WRITABLE_METHOD_CLOSE: {
+       ret = writable_close(st,  ctx);
+       break;
+     }*/
+
     case WRITABLE_GET_WRITER: {
       Writer* wr;
 
       if((wr = writable_get_writer(st, 0, ctx)))
         ret = js_writer_wrap(ctx, wr);
+
       break;
     }
   }
@@ -1295,6 +1301,7 @@ js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+
   return ret;
 }
 
@@ -1350,6 +1357,7 @@ const JSCFunctionListEntry js_writable_controller_funcs[] = {
 static Transform*
 transform_dup(Transform* st) {
   ++st->ref_count;
+
   return st;
 }
 
@@ -1363,6 +1371,7 @@ transform_new(JSContext* ctx) {
     st->writable = writable_new(ctx);
 
     st->controller = JS_NewObjectProtoClass(ctx, transform_controller, js_transform_class_id);
+  
     JS_SetOpaque(st->controller, transform_dup(st));
   }
 
@@ -1413,9 +1422,11 @@ js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   JS_SetOpaque(obj, st);
 
   return obj;
+
 fail:
   js_free(ctx, st);
   JS_FreeValue(ctx, obj);
+
   return JS_EXCEPTION;
 }
 
@@ -1438,6 +1449,7 @@ js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+  
   return ret;
 }
 
