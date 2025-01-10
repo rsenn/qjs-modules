@@ -458,7 +458,7 @@ js_misc_charlen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   int64_t len = 0;
 
   if(size)
-    len = utf8_charlen(data, size);
+    len = utf8_charlen((const char*)data, size);
 
   input_buffer_free(&input, ctx);
 
@@ -473,7 +473,7 @@ js_misc_charcode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   int32_t code = -1;
 
   if(size)
-    code = utf8_charcode(data, size);
+    code = utf8_charcode((const char*)data, size);
 
   input_buffer_free(&input, ctx);
 
@@ -489,8 +489,8 @@ js_misc_u8dec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   int64_t len = 0;
 
   if(size) {
-    code = utf8_charcode(data, size);
-    len = utf8_charlen(data, size);
+    code = utf8_charcode((const char*)data, size);
+    len = utf8_charlen((const char*)data, size);
   }
 
   input_buffer_free(&input, ctx);
@@ -605,7 +605,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     if(len == 0)
       return JS_ThrowInternalError(ctx, "zero length given");
 
-    return JS_NewArrayBuffer(ctx, addr, len, 0, 0, 0);
+    return JS_NewArrayBuffer(ctx, (void*)(size_t)addr, len, 0, 0, 0);
   }
 
   InputBuffer input = js_input_chars(ctx, argv[0]);
@@ -1550,9 +1550,9 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       InputBuffer salt = js_input_buffer(ctx, argv[1]);
 
       if(salt.size < BCRYPT_HASHSIZE)
-        return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %zu", salt.size, BCRYPT_HASHSIZE);
+        return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %d", salt.size, BCRYPT_HASHSIZE);
 
-      ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, salt.data));
+      ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, (void*)salt.data));
 
       input_buffer_free(&salt, ctx);
     } else {
@@ -1585,9 +1585,9 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     input_buffer_free(&salt, ctx);
 
     if(buf.size < BCRYPT_HASHSIZE)
-      return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %zu", buf.size, BCRYPT_HASHSIZE);
+      return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %d", buf.size, BCRYPT_HASHSIZE);
 
-    ret = JS_NewInt32(ctx, bcrypt_hashpw(pw, s, buf.data));
+    ret = JS_NewInt32(ctx, bcrypt_hashpw(pw, s, (char*)buf.data));
 
     input_buffer_free(&buf, ctx);
     JS_FreeCString(ctx, pw);

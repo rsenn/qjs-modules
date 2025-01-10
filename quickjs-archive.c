@@ -403,7 +403,7 @@ js_archive_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
 
       if(js_archive_mode(ctx, this_val) == WRITE) {
         if((fmt = JS_ToCString(ctx, value))) {
-          ret = JS_NewInt32(ctx, (ar, fmt));
+          ret = JS_NewInt32(ctx, archive_write_set_format_by_name(ar, fmt));
           JS_FreeCString(ctx, fmt);
         }
       }
