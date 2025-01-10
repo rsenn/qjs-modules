@@ -7,10 +7,10 @@ import { AF_INET, AsyncSocket, fd_set, IPPROTO_TCP, SO_BROADCAST, SO_DEBUG, SO_D
 async function main() {
   globalThis.console = new Console({
     inspectOptions: {
-            compact: true,
-breakLength: 80,
+      compact: true,
+      breakLength: 80,
       maxArrayLength: 100,
-      maxStringLength: 100,
+      maxStringLength: 100
     }
   });
   let seed = +Date.now();
@@ -52,7 +52,7 @@ breakLength: 80,
 
     for(let [name, value] of so_flags) {
       sock.getsockopt(SOL_SOCKET, value, (opt = [0]), 4);
-      console.log(`[${value.toString()}]`.padStart(4), `${name.padEnd(30)} =`,console.config({compact:true}), opt);
+      console.log(`[${value.toString()}]`.padStart(4), `${name.padEnd(30)} =`, console.config({ compact: true }), opt);
     }
   }
   // console.log(`ndelay(${sock.fd}) =`, sock.ndelay());
@@ -101,12 +101,12 @@ breakLength: 80,
   let n,
     buf = new ArrayBuffer(1024);
 
-    while((n = await sock.recv(buf)) > 0) {
-      console.log(`n`,n);
-      console.log(`buf`,toString(buf));
-let r=await sock.send('\r\n');
-console.log(`r`,r);
-    }
+  while((n = await sock.recv(buf)) > 0) {
+    console.log(`n`, n);
+    console.log(`buf`, toString(buf));
+    let r = await sock.send('\r\n');
+    console.log(`r`, r);
+  }
 
   /*os.setWriteHandler(sock.fd, () => {
     os.setWriteHandler(sock.fd, null);
