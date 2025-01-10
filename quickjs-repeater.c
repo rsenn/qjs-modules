@@ -341,6 +341,7 @@ js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static void
 js_repeater_finish(JSContext* ctx, JSValueConst this_val) {
   Repeater* rpt = JS_GetOpaque(this_val, js_repeater_class_id);
+  struct list_head *el, *el1;
 
   assert(rpt);
 
@@ -352,17 +353,14 @@ js_repeater_finish(JSContext* ctx, JSValueConst this_val) {
 
   rpt->state = REPEATER_DONE;
 
-  {
-    struct list_head *el, *el1;
-    list_for_each_safe(el, el1, &rpt->nexts) {
-      struct repeater_item* next = list_entry(el, struct repeater_item, link);
-      JSValue value = resolvable_resolve(ctx, &next->resolvable, JS_UNDEFINED);
+  list_for_each_safe(el, el1, &rpt->nexts) {
+    struct repeater_item* next = list_entry(el, struct repeater_item, link);
+    JSValue value = resolvable_resolve(ctx, &next->resolvable, JS_UNDEFINED);
 
-      list_del(&next->link);
-      queue_free(ctx, next);
+    list_del(&next->link);
+    queue_free(ctx, next);
 
-      JS_FreeValue(ctx, value);
-    }
+    JS_FreeValue(ctx, value);
   }
 }
 
@@ -384,17 +382,19 @@ js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst executor) {
     rpt->execution = js_repeater_execute(ctx, obj);
 
   return obj;
+
 fail:
   js_free(ctx, rpt);
   JS_FreeValue(ctx, obj);
+
   return JS_EXCEPTION;
 }
 
 JSValue
 js_repeater_wrap(JSContext* ctx, Repeater* rpt) {
-  JSValue obj;
-  obj = JS_NewObjectProtoClass(ctx, repeater_proto, js_repeater_class_id);
+  JSValue obj = JS_NewObjectProtoClass(ctx, repeater_proto, js_repeater_class_id);
   JS_SetOpaque(obj, rpt);
+
   return obj;
 }
 
@@ -483,6 +483,7 @@ js_repeater_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case STATIC_MERGE: break;
     case STATIC_ZIP: break;
   }
+
   return ret;
 }
 

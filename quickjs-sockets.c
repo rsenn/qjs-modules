@@ -1468,7 +1468,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_RECVFROM: {
       int32_t flags = 0;
       InputBuffer buf = js_input_buffer(ctx, argv[0]);
-      OffsetLength off={0,-1};
+      OffsetLength off = {0, -1};
       js_offset_length(ctx, buf.size, argc - 1, argv + 1, &off);
 
 #ifdef DEBUG_OUTPUT
