@@ -66,9 +66,9 @@ async function main(...args) {
   );
 */
 
-  for await(let row of res) {
-    console.log(`row[${i++}] =`, row);
-  }
+  for await(let row of res) 
+    console.log(`row[${i++}] =`,console.config({ compact: 0 }),  row);
+  
   let users = [
     ['roman', 'r4eHuJ'],
     ['root', 'tD51o7xf']
@@ -112,7 +112,7 @@ async function main(...args) {
   my.resultType &= ~MySQL.RESULT_OBJECT;
   res = await q(`SELECT * FROM users ORDER BY id DESC LIMIT 0,10;`);
   for await(let row of res) {
-    console.log(`row[${i++}] =`, console.config({ compact: 1 }), row);
+    console.log(`row[${i++}] =`, console.config({ compact: true }), row);
 
     rows.unshift(row);
   }
