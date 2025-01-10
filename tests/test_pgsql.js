@@ -74,7 +74,8 @@ async function main(...args) {
 
   res = await q(`SELECT * FROM test;`);
 
-  console.log('res =', res);
+  for(let row of res) console.log('row:', console.config({ compact: true }), row);
+  /* console.log('res =', res);
   let iter = (globalThis.iter = res[Symbol.iterator]());
 
   console.log('iter =', iter);
@@ -84,7 +85,7 @@ async function main(...args) {
   console.log('row =', row);
   if(row) {
     console.log('row[0] =', row[0]);
-  }
+  }*/
 
   q(pq.insertQuery('users', ['name', 'password', 'email'], [randStr(32), randStr(32), randStr(64)]));
 
