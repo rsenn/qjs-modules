@@ -4,7 +4,6 @@ import inspect from 'inspect';
 import { equal, index, instanceOf, Predicate, PredicateOperators, PredicateOperatorSet, property } from 'predicate';
 import * as std from 'std';
 
-
 globalThis.inspect = inspect;
 
 function WriteFile(file, data) {

@@ -4,8 +4,6 @@ import { toString } from 'util';
 import Console from '../lib/console.js';
 import * as std from 'std';
 
-('use strict');
-
 function WriteFile(file, data) {
   let f = std.open(file, 'w+');
   f.puts(data);

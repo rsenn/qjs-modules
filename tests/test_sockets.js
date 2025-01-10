@@ -4,13 +4,13 @@ import inspect from 'inspect';
 import { error, quote, randi, srand, toString } from 'misc';
 import { AF_INET, AsyncSocket, fd_set, IPPROTO_TCP, SO_BROADCAST, SO_DEBUG, SO_DONTROUTE, SO_ERROR, SO_KEEPALIVE, SO_OOBINLINE, SO_RCVBUF, SO_REUSEADDR, SO_REUSEPORT, SO_SNDBUF, SOCK_STREAM, SockAddr, Socket, socklen_t, SOL_SOCKET } from 'sockets';
 
-function main() {
+async function main() {
   globalThis.console = new Console({
     inspectOptions: {
-      breakLength: 80,
+            compact: true,
+breakLength: 80,
       maxArrayLength: 100,
       maxStringLength: 100,
-      compact: true
     }
   });
   let seed = +Date.now();
@@ -26,16 +26,11 @@ function main() {
   console.log('AsyncSocket', AsyncSocket);
   sock = new AsyncSocket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   console.log('sock', sock);
-  sock.nonblock = false;
+  //sock.nonblock = false;
   console.log(`sock.nonblock =`, sock.nonblock);
 
-  console.log(`SOL_SOCKET =`, SOL_SOCKET);
-  console.log(`SO_REUSEADDR =`, SO_REUSEADDR);
   sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, [1]);
-
   sock.getsockopt(SOL_SOCKET, SO_REUSEADDR, (opt = []), 4);
-  console.log(`opt =`, opt);
-
   sock.setsockopt(SOL_SOCKET, SO_REUSEPORT, [1]);
   sock.setsockopt(SOL_SOCKET, SO_DEBUG, [1]);
 
@@ -57,12 +52,12 @@ function main() {
 
     for(let [name, value] of so_flags) {
       sock.getsockopt(SOL_SOCKET, value, (opt = [0]), 4);
-      console.log(`[${value.toString()}]`.padStart(4), `${name.padEnd(30)} =`, opt);
+      console.log(`[${value.toString()}]`.padStart(4), `${name.padEnd(30)} =`,console.config({compact:true}), opt);
     }
   }
   // console.log(`ndelay(${sock.fd}) =`, sock.ndelay());
-  console.log(`bind(${sock.fd}, `, la, `) =`, sock.bind(la));
-  console.log(`connect(${sock.fd}, `, ra, `) =`, sock.connect(ra), sock.error);
+  // console.log(`bind(${sock.fd}, `, la, `) =`, sock.bind(la));
+  console.log(`connect(${sock.fd}, `, ra, `) =`, await sock.connect(ra), sock.error);
 
   function DumpSock(s) {
     let { fd, ret, errno, syscall, error, open, eof, mode } = s;
@@ -100,16 +95,24 @@ function main() {
   function waitIO(flags = POLLIN) {
     ret = poll((pfds = [new PollFD(sock.fd, flags | POLLERR)]), pfds.length, (timeout = 3000));
   }*/
-  console.log('local =', sock.local);
-  console.log('remote =', sock.remote);
+  console.log('local =', console.config({ compact: true }), sock.local);
+  console.log('remote =', console.config({ compact: true }), sock.remote);
 
   let n,
     buf = new ArrayBuffer(1024);
 
-  os.setWriteHandler(sock.fd, () => {
+    while((n = await sock.recv(buf)) > 0) {
+      console.log(`n`,n);
+      console.log(`buf`,toString(buf));
+let r=await sock.send('\r\n');
+console.log(`r`,r);
+    }
+
+  /*os.setWriteHandler(sock.fd, () => {
     os.setWriteHandler(sock.fd, null);
 
     console.log(`sock.fd = ${sock.fd} connected`);
+    console.log(`sock.recv`,sock.recv);
 
     os.setReadHandler(sock.fd, async () => {
       n = await sock.recv(buf);
@@ -128,7 +131,7 @@ function main() {
         console.log(`send(${quote(txt.slice(start), "'")}, ${start}) =`, n, n > 0 ? null : sock.error, ...DumpSock(sock));
       }
     });
-  });
+  });*/
 
   /*  waitIO(POLLOUT);
   for(;;) {
