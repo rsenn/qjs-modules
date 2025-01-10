@@ -1213,7 +1213,7 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
   return obj;
 
-  fail:
+fail:
   js_free(ctx, st);
   JS_FreeValue(ctx, obj);
 
@@ -1222,8 +1222,8 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
 JSValue
 js_writable_wrap(JSContext* ctx, Writable* st) {
-  JSValue obj  = JS_NewObjectProtoClass(ctx, writable_proto, js_writable_class_id);
-writable_dup(st);
+  JSValue obj = JS_NewObjectProtoClass(ctx, writable_proto, js_writable_class_id);
+  writable_dup(st);
   JS_SetOpaque(obj, st);
 
   return obj;
@@ -1259,10 +1259,10 @@ js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
 
-    /* case WRITABLE_METHOD_CLOSE: {
-       ret = writable_close(st,  ctx);
-       break;
-     }*/
+      /* case WRITABLE_METHOD_CLOSE: {
+         ret = writable_close(st,  ctx);
+         break;
+       }*/
 
     case WRITABLE_GET_WRITER: {
       Writer* wr;
@@ -1371,7 +1371,7 @@ transform_new(JSContext* ctx) {
     st->writable = writable_new(ctx);
 
     st->controller = JS_NewObjectProtoClass(ctx, transform_controller, js_transform_class_id);
-  
+
     JS_SetOpaque(st->controller, transform_dup(st));
   }
 
@@ -1449,7 +1449,7 @@ js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
-  
+
   return ret;
 }
 
