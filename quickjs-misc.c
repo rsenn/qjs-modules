@@ -593,7 +593,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   int64_t addr = 0, len = 0;
 
-  if(JS_IsString(argv[0]) || JS_IsNumber(argv[0])) {
+  if(JS_IsNumber(argv[0])) {
 
     JS_ToInt64Ext(ctx, &addr, argv[0]);
 
