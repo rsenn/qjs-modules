@@ -1260,7 +1260,7 @@ enum {
 
 static JSValue
 js_archiveentry_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  struct archive* ar = 0;
+  struct archive_entry* ar = 0;
   JSValue ret = JS_UNDEFINED;
 
   if(!(ar = js_archiveentry_data2(ctx, this_val)))
@@ -1949,7 +1949,7 @@ js_archivematch_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
 static void
 js_archivematch_finalizer(JSRuntime* rt, JSValue val) {
-  struct archive_match* m;
+  struct archive* m;
 
   if((m = JS_GetOpaque(val, js_archivematch_class_id)))
     archive_match_free(m);
