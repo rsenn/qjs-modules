@@ -1378,12 +1378,14 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
 
   JSValue array_proto = js_global_prototype(ctx, "Array");
 
-  JS_DefinePropertyValueStr(ctx, list_proto, "join", JS_GetPropertyStr(ctx, array_proto, "join"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, list_proto, "toString", JS_GetPropertyStr(ctx, array_proto, "toString"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, list_proto, "toLocaleString", JS_GetPropertyStr(ctx, array_proto, "toLocaleString"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, list_proto, "flat", JS_GetPropertyStr(ctx, array_proto, "flat"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, list_proto, "flatMap", JS_GetPropertyStr(ctx, array_proto, "flatMap"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx, list_proto, "copyWithin", JS_GetPropertyStr(ctx, array_proto, "copyWithin"), JS_PROP_CONFIGURABLE);
+  if(JS_IsObject(array_proto)) {
+    JS_DefinePropertyValueStr(ctx, list_proto, "join", JS_GetPropertyStr(ctx, array_proto, "join"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "toString", JS_GetPropertyStr(ctx, array_proto, "toString"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "toLocaleString", JS_GetPropertyStr(ctx, array_proto, "toLocaleString"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "flat", JS_GetPropertyStr(ctx, array_proto, "flat"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "flatMap", JS_GetPropertyStr(ctx, array_proto, "flatMap"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "copyWithin", JS_GetPropertyStr(ctx, array_proto, "copyWithin"), JS_PROP_CONFIGURABLE);
+  }
 
   // js_set_inspect_method(ctx, list_proto, js_list_inspect);
 
