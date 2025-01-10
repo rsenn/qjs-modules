@@ -24,13 +24,13 @@ static JSValue
 js_location_create(JSContext* ctx, JSValueConst proto, Location* loc) {
   JSValue obj = JS_UNDEFINED;
 
-  if(js_location_class_id == 0)
-    js_location_init(ctx, 0);
+  /* if(js_location_class_id == 0)
+     js_location_init(ctx, 0);
 
-  if(!JS_IsObject(proto))
-    proto = location_proto;
+   if(!JS_IsObject(proto))
+     proto = location_proto;
 
-  assert(JS_VALUE_GET_OBJ(location_proto) == JS_VALUE_GET_OBJ(proto));
+   assert(JS_VALUE_GET_OBJ(location_proto) == JS_VALUE_GET_OBJ(proto));*/
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_location_class_id);
   if(JS_IsException(obj))
@@ -43,6 +43,7 @@ js_location_create(JSContext* ctx, JSValueConst proto, Location* loc) {
 fail:
   location_free(loc, JS_GetRuntime(ctx));
   JS_FreeValue(ctx, obj);
+
   return JS_EXCEPTION;
 }
 
@@ -71,15 +72,20 @@ js_is_location(JSContext* ctx, JSValueConst obj) {
   line = JS_NewAtom(ctx, "line");
   column = JS_NewAtom(ctx, "column");
   ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) && JS_HasProperty(ctx, obj, column);
+
   JS_FreeAtom(ctx, line);
   JS_FreeAtom(ctx, column);
+
   if(ret)
     return ret;
+
   line = JS_NewAtom(ctx, "lineNumber");
   column = JS_NewAtom(ctx, "columnNumber");
   ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) && JS_HasProperty(ctx, obj, column);
+
   JS_FreeAtom(ctx, line);
   JS_FreeAtom(ctx, column);
+
   return ret;
 }
 
@@ -228,6 +234,7 @@ js_location_toprimitive(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   if(hint)
     JS_FreeCString(ctx, hint);
+
   return ret;
 }
 
@@ -240,6 +247,9 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     return JS_EXCEPTION;
+
+  if(!JS_IsObject(proto))
+    proto = JS_DupValue(ctx, location_proto);
 
   /* Dup from object */
   if(argc >= 1 && JS_IsObject(argv[0])) {
@@ -441,8 +451,10 @@ static const JSCFunctionListEntry js_location_static_funcs[] = {
 int
 js_location_init(JSContext* ctx, JSModuleDef* m) {
 
-  if(js_location_class_id == 0) {
+  if(js_location_class_id == 0)
     JS_NewClassID(&js_location_class_id);
+
+  {
     JS_NewClass(JS_GetRuntime(ctx), js_location_class_id, &js_location_class);
 
     location_ctor = JS_NewCFunction2(ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
@@ -458,12 +470,12 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
   if(m) {
     JS_SetModuleExport(ctx, m, "Location", location_ctor);
 
-    const char* module_name = module_namecstr(ctx, m);
+    /*  const char* module_name = module_namecstr(ctx, m);
 
-    if(!strcmp(module_name, "location"))
-      JS_SetModuleExport(ctx, m, "default", location_ctor);
+      if(!strcmp(module_name, "location"))
+        JS_SetModuleExport(ctx, m, "default", location_ctor);
 
-    JS_FreeCString(ctx, module_name);
+      JS_FreeCString(ctx, module_name);*/
   }
 
   return 0;
@@ -482,8 +494,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if((m = JS_NewCModule(ctx, module_name, js_location_init))) {
     JS_AddModuleExport(ctx, m, "Location");
 
-    if(!strcmp(module_name, "location"))
-      JS_AddModuleExport(ctx, m, "default");
+    /*if(!strcmp(module_name, "location"))
+      JS_AddModuleExport(ctx, m, "default");*/
   }
 
   return m;
