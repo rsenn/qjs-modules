@@ -203,10 +203,7 @@ list_at_forward(List* list, int64_t index) {
   struct list_head* ptr;
   int64_t i = 0;
 
-  list_for_each(ptr, &list->head) {
-    if(i++ == index)
-      return list_entry(ptr, Node, link);
-  }
+  list_for_each(ptr, &list->head) if(i++ == index) return list_entry(ptr, Node, link);
 
   return NULL;
 }
@@ -216,10 +213,7 @@ list_at_reverse(List* list, int64_t index) {
   struct list_head* ptr;
   int64_t i = 0;
 
-  list_for_each_prev(ptr, &list->head) {
-    if(i++ == index)
-      return list_entry(ptr, Node, link);
-  }
+  list_for_each_prev(ptr, &list->head) if(i++ == index) return list_entry(ptr, Node, link);
 
   return NULL;
 }
@@ -242,9 +236,12 @@ list_index(List* list, int64_t index) {
 
 static Node*
 list_at(List* list, int64_t index) {
+  int64_t from_back;
+
   if(index < 0)
     index += list->size;
-  int64_t from_back = (list->size - 1) - index;
+
+  from_back = (list->size - 1) - index;
 
   if(index < (int64_t)list->size) {
     if(from_back < index)
@@ -1367,9 +1364,7 @@ js_list_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst
 
       list_unshift(list, value, ctx);
     } else {
-      Node* node;
-
-      node = list_at(list, index);
+      Node* node = list_at(list, index);
 
       JS_FreeValue(ctx, node->value);
       node->value = JS_DupValue(ctx, value);
@@ -1384,7 +1379,7 @@ js_list_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst
 static JSClassExoticMethods js_list_exotic_methods = {
     .get_own_property = js_list_get_own_property,
     .has_property = js_list_has_property,
-    .get_property = js_list_get_property,
+    //.get_property = js_list_get_property,
     .set_property = js_list_set_property,
 };
 
