@@ -21,9 +21,10 @@ async function main(...args) {
       console.log('Repeater', { push, stop });
       console.log('await push(1234) =', await push(1234));
       console.log('await push("blah") =', await push('blah'));
+      console.log('await push("blah") =', await push(Symbol.toStringTag));
       
       //console.log('await stop( )) =', await stop( ));
-      stop();
+      await stop();
 
     } catch(err) {
       console.log('Repeater err=', err);
@@ -36,11 +37,11 @@ async function main(...args) {
   const states = ['INITIAL', 'STARTED', 'STOPPED', 'DONE', 'REJECTED'];
 
   while((it = rpt.next(count++))) {
-    console.log(`it[${count}]`, it);
+    //console.log(`it[${count}]`, it);
     
       try {
       it = await it;
-      console.log(`it[${count}]`, typeof it);
+      //console.log(`it[${count}]`, typeof it);
     } catch(err2) {
       console.log('Repeater err2=', err2);
     }
@@ -51,9 +52,13 @@ async function main(...args) {
     if(it.done) break;
   }
 
-  console.log(`rpt.state`, states[rpt.state]);
-  /*for await(let value of rpt)
-    console.log('value', value);*/
+
+let  r=new Repeater(async (push,stop) => (await push(1),await push(2),await push('x'), await stop()))
+  console.log(`r`, r,r.state);
+
+  for await(let value of r)
+    console.log('value', value); 
+  console.log(`r`, r,r.state);
 }
 
 main();
