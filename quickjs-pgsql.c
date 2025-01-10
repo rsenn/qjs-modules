@@ -95,13 +95,11 @@ connectparams_parse(JSContext* ctx, PGSQLConnectParameters* c, const char* param
 
   if((options = PQconninfoParse(params, &err))) {
 
-    for(i = 0; options[i].keyword; i++) {
+    for(i = 0; options[i].keyword; i++)
       if(options[i].val)
         ++len;
-    }
 
     c->num_params = len;
-
     c->keywords = js_malloc(ctx, sizeof(char*) * (len + 1));
     c->values = js_malloc(ctx, sizeof(char*) * (len + 1));
 
@@ -145,6 +143,7 @@ static void
 connectparams_init(JSContext* ctx, PGSQLConnectParameters* c, int argc, JSValueConst argv[]) {
   if(argc == 1 && JS_IsString(argv[0])) {
     const char* str = JS_ToCString(ctx, argv[0]);
+
     connectparams_parse(ctx, c, str);
     JS_FreeCString(ctx, str);
   } else if(argc > 0 && JS_IsObject(argv[0])) {
@@ -171,6 +170,7 @@ connectparams_init(JSContext* ctx, PGSQLConnectParameters* c, int argc, JSValueC
       c->keywords[i] = js_strdup(ctx, param_names[i]);
       c->values[i] = js_tostring(ctx, argv[i]);
     }
+
     c->keywords[argc] = c->values[argc] = 0;
   }
 }
@@ -183,6 +183,7 @@ connectparams_free(JSContext* ctx, PGSQLConnectParameters* c) {
     js_free(ctx, (void*)c->keywords[i]);
     js_free(ctx, (void*)c->values[i]);
   }
+
   js_free(ctx, c->keywords);
   js_free(ctx, c->values);
 }
@@ -233,14 +234,14 @@ js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
 
     val = js_invoke(ctx, value, "toISOString", 0, 0);
     str = js_tostringlen(ctx, &len, val);
-    if(len >= 24) {
+    if(len >= 24)
       if(str[23] == 'Z')
         len = 23;
-    }
-    if(len >= 19) {
+
+    if(len >= 19)
       if(str[10] == 'T')
         str[10] = ' ';
-    }
+
     dbuf_putc(out, '\'');
     dbuf_put(out, (const uint8_t*)str, len);
     dbuf_putc(out, '\'');
@@ -322,16 +323,20 @@ js_pgconn_print_fields(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValue
     BOOL done = FALSE;
 
     dbuf_putc(out, '(');
+
     for(int i = 0;; i++) {
       item = js_iterator_next(ctx, iter, &done);
+
       if(done)
         break;
+
       if(i > 0)
         dbuf_putstr(out, ", ");
 
       js_pgconn_print_field(ctx, pq, out, item);
       JS_FreeValue(ctx, item);
     }
+
     dbuf_putc(out, ')');
   }
 }
@@ -346,13 +351,17 @@ js_pgconn_print_values(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValue
     dbuf_putc(out, '(');
     for(int i = 0;; i++) {
       item = js_iterator_next(ctx, iter, &done);
+
       if(done)
         break;
+
       if(i > 0)
         dbuf_putstr(out, ", ");
+
       js_pgconn_print_value(ctx, pq, out, item);
       JS_FreeValue(ctx, item);
     }
+
     dbuf_putc(out, ')');
 
   } /*else {
@@ -419,10 +428,12 @@ pgconn_free(PGSQLConnection* pq, JSRuntime* rt) {
       pgresult_free(rt, pq->result, 0);
       pq->result = 0;
     }
+
     if(pq->conn) {
       PQfinish(pq->conn);
       pq->conn = 0;
     }
+
     js_free_rt(rt, pq);
   }
 }
@@ -443,6 +454,7 @@ pgconn_set_result(PGSQLConnection* pq, PGSQLResult* opaque, JSContext* ctx) {
     pgresult_free(JS_GetRuntime(ctx), pq->result, 0);
     pq->result = 0;
   }
+
   pq->result = opaque ? pgresult_dup(opaque) : 0;
 }
 
@@ -450,8 +462,10 @@ static JSValue
 pgconn_result(PGSQLConnection* pq, PGresult* res, JSContext* ctx) {
   JSValue value = js_pgresult_new(ctx, pgresult_proto, res);
   PGSQLResult* opaque = JS_GetOpaque(value, js_pgresult_class_id);
+
   pgconn_set_result(pq, opaque, ctx);
   pgresult_set_conn(opaque, pq, ctx);
+
   return value;
 }
 
@@ -470,6 +484,7 @@ pgconn_lookup_oid(PGSQLConnection* pq, Oid oid, JSContext* ctx) {
   PGresult* res;
   DynBuf buf;
   char* ret = 0;
+
   js_dbuf_init(ctx, &buf);
   dbuf_putstr(&buf, "SELECT relname FROM pg_class WHERE oid=");
   dbuf_put_uint32(&buf, oid);
@@ -479,10 +494,10 @@ pgconn_lookup_oid(PGSQLConnection* pq, Oid oid, JSContext* ctx) {
   if((res = PQexec(pq->conn, (const char*)buf.buf))) {
     char* s;
 
-    if((s = PQgetvalue(res, 0, 0))) {
+    if((s = PQgetvalue(res, 0, 0)))
       ret = js_strdup(ctx, s);
-    }
   }
+
   dbuf_free(&buf);
   return ret;
 }
@@ -508,6 +523,7 @@ js_pgconn_new(JSContext* ctx, JSValueConst proto) {
     goto fail;
 
   return obj;
+
 fail:
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
@@ -589,7 +605,6 @@ enum {
   PROP_DB,
   PROP_PORT,
   PROP_CONNINFO,
-
   PROP_CLIENT_INFO,
   PROP_CLIENT_VERSION,
   PROP_THREAD_SAFE,
@@ -610,6 +625,7 @@ js_pgconn_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_CMD_TUPLES: {
       if(pq->result)
         ret = JS_NewInt64(ctx, pgresult_cmdtuples(pq->result));
+
       break;
     }
 
@@ -638,15 +654,17 @@ js_pgconn_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_INSERT_ID: {
       PGresult* res;
       int64_t id = -1;
+
       if((res = PQexec(pq->conn, "SELECT lastval();"))) {
         char* val;
 
-        if((val = PQgetvalue(res, 0, 0))) {
+        if((val = PQgetvalue(res, 0, 0)))
           if(scan_longlong(val, &id) > 0)
             ret = JS_NewInt64(ctx, id);
-        }
+
         PQclear(res);
       }
+
       break;
     }
 
@@ -705,6 +723,7 @@ js_pgconn_get(JSContext* ctx, JSValueConst this_val, int magic) {
       if((info = PQconninfo(pq->conn))) {
         int i;
         ret = JS_NewObject(ctx);
+
         for(i = 0; info[i].keyword; i++)
           if(info[i].val)
             JS_SetPropertyStr(ctx, ret, info[i].keyword, info[i].val ? JS_NewString(ctx, info[i].val) : JS_NULL);
@@ -739,12 +758,13 @@ js_pgconn_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int mag
       const char* charset;
 
       if((charset = JS_ToCString(ctx, value))) {
-        int ret;
-        ret = PQsetClientEncoding(pq->conn, charset);
+        int ret = PQsetClientEncoding(pq->conn, charset);
         JS_FreeCString(ctx, charset);
+
         if(ret)
           return JS_Throw(ctx, js_pgsqlerror_new(ctx, pgconn_error(pq)));
       }
+
       break;
     }
   }
@@ -771,6 +791,7 @@ js_pgconn_value_string(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
   dbuf_free(&buf);
+
   return ret;
 }
 
@@ -794,6 +815,7 @@ js_pgconn_values_string(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   ret = JS_NewStringLen(ctx, (const char*)buf.buf, buf.size);
   dbuf_free(&buf);
+
   return ret;
 }
 
@@ -816,9 +838,8 @@ js_pgconn_insert_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   dbuf_put(&buf, (const uint8_t*)tbl, tbl_len);
   dbuf_putstr(&buf, " ");
 
-  if(i + 1 < argc) {
+  if(i + 1 < argc)
     js_pgconn_print_fields(ctx, pq, &buf, argv[i++]);
-  }
 
   dbuf_putstr(&buf, " VALUES ");
 
@@ -1347,6 +1368,7 @@ result_value(JSContext* ctx, PGSQLResult* opaque, int field, char* buf, size_t l
   if(!(rtype & RESULT_STRING)) {
     if(field_is_number(res, field))
       return string_to_number(ctx, buf);
+
     if(field_is_date(res, field)) {
       DynBuf tmp;
       dbuf_init2(&tmp, 0, 0);
@@ -1434,6 +1456,7 @@ result_row(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
   int rows = PQntuples(res);
   RowValueFunc* row_func = (rtype & RESULT_OBJECT) ? result_object : result_array;
   JSValue val = row >= 0 && row < rows ? row_func(ctx, opaque, row, rtype) : JS_NULL;
+
   return val;
 }
 
@@ -1442,29 +1465,12 @@ result_iterate(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
   PGresult* res = opaque->result;
   int rows = PQntuples(res);
   JSValue ret, val = result_row(ctx, opaque, row, rtype);
+
   ret = js_iterator_result(ctx, val, row >= 0 && row < rows ? FALSE : TRUE);
+
   JS_FreeValue(ctx, val);
   return ret;
 }
-
-/*
-static void
-result_yield(JSContext* ctx, JSValueConst func, PGSQLResult* opaque, int row, int rtype) {
-  int rows = PQntuples(opaque->result);
-  JSValue val = result_row(ctx, opaque, row, rtype);
-
-  JSValue item = js_iterator_result(ctx, val, row >= 0 && row < rows ? FALSE : TRUE);
-  JS_FreeValue(ctx, val);
-
-  value_yield_free(ctx, func, item);
-}
-
-static void
-result_resolve(JSContext* ctx, JSValueConst func, PGSQLResult* opaque, int row, int rtype) {
-  JSValue value = result_row(ctx, opaque, row, rtype);
-
-  value_yield_free(ctx, func, value);
-}*/
 
 static PGSQLResult*
 pgresult_new(JSContext* ctx) {
@@ -1482,41 +1488,43 @@ pgresult_new(JSContext* ctx) {
 static PGSQLResult*
 pgresult_dup(PGSQLResult* ptr) {
   ++ptr->ref_count;
+
   return ptr;
 }
 
 static void
 pgresult_free(JSRuntime* rt, void* ptr, void* mem) {
   PGSQLResult* opaque = ptr;
+
   if(--opaque->ref_count == 0) {
     if(opaque->result) {
       PQclear(opaque->result);
       opaque->result = 0;
     }
+
     if(opaque->conn) {
       pgconn_free(opaque->conn, rt);
       opaque->conn = 0;
     }
+
     js_free_rt(rt, opaque);
   }
 }
 
 static JSValue
 pgresult_row(PGSQLResult* opaque, uint32_t row, RowValueFunc* fn, JSContext* ctx) {
-  JSValue ret /* = JS_NewArray(ctx)*/;
-
-  ret = fn(ctx, opaque, row, 0);
-
-  return ret;
+  return fn(ctx, opaque, row, 0);
 }
 
 static int64_t
 pgresult_cmdtuples(PGSQLResult* opaque) {
   int64_t ret = -1;
+
   if(opaque->result) {
     char* cmdtuples = PQcmdTuples(opaque->result);
     scan_longlong(cmdtuples, &ret);
   }
+
   return ret;
 }
 
@@ -1526,6 +1534,7 @@ pgresult_set_conn(PGSQLResult* opaque, PGSQLConnection* conn, JSContext* ctx) {
     pgconn_free(opaque->conn, JS_GetRuntime(ctx));
     opaque->conn = 0;
   }
+
   opaque->conn = conn ? pgconn_dup(conn) : 0;
 }
 
@@ -1812,15 +1821,16 @@ static char*
 field_id(JSContext* ctx, PGSQLResult* opaque, int field) {
   PGresult* res = opaque->result;
   DynBuf buf;
-
   Oid table = PQftable(res, field);
   char* table_name;
+
   dbuf_init2(&buf, 0, 0);
 
   if((table_name = pgconn_lookup_oid(opaque->conn, table, ctx))) {
     dbuf_putstr(&buf, table_name);
     dbuf_putc(&buf, '.');
   }
+
   dbuf_putstr(&buf, PQfname(res, field));
   dbuf_0(&buf);
 

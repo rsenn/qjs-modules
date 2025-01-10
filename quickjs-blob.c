@@ -315,7 +315,7 @@ js_blob_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_blob_class_id, blob_proto);
   JS_SetConstructor(ctx, blob_ctor, blob_proto);
 
-  //js_set_inspect_method(ctx, blob_proto, js_blob_inspect);
+  // js_set_inspect_method(ctx, blob_proto, js_blob_inspect);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "Blob", blob_ctor);

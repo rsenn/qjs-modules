@@ -457,7 +457,7 @@ list_iterator_skip(ListIterator* it, JSContext* ctx) {
       it->index++;
       break;
     }
-    
+
     case REV: {
       it->link = link->prev;
       it->index--;
@@ -661,7 +661,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   switch(magic) {
     case METHOD_PUSH: {
-      for(int i = 0; i < argc; i++) 
+      for(int i = 0; i < argc; i++)
         if(!list_push(list, argv[i], ctx))
           return JS_EXCEPTION;
 
@@ -679,10 +679,10 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case METHOD_UNSHIFT: {
-      for(int i = argc - 1; i >= 0; i--) 
+      for(int i = argc - 1; i >= 0; i--)
         if(!list_unshift(list, argv[i], ctx))
           return JS_EXCEPTION;
-      
+
       ret = JS_NewInt64(ctx, list->size);
       break;
     }

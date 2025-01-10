@@ -171,7 +171,7 @@ queue_skip(Queue* q, size_t n) {
 
     q->nchunks--;
   }
-  
+
   return ret;
 }
 
