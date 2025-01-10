@@ -3,20 +3,8 @@ import extendArray from '../lib/extendArray.js';
 import { Console } from 'console';
 import { PGconn, PGresult } from 'pgsql';
 import { exit } from 'std';
+
 extendArray();
-
-('use strict');
-
-('use math');
-
-let resultNum = 0;
-
-const result = r => {
-  let prop = 'result' + ++resultNum;
-  globalThis[prop] = r;
-  console.log(/*'globalThis.' +*/ prop + ' =', r);
-  return r;
-};
 
 async function main(...args) {
   globalThis.console = new Console({
@@ -42,11 +30,11 @@ async function main(...args) {
   result = r => {
     let prop = 'result' + ++resultNum;
     globalThis[prop] = r;
-    console.log(/*'globalThis.' +*/ prop + ' =', r);
+    console.log(prop + ' =', console.config({ compact: true }), r);
     return r;
   };
-  q = globalThis.q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await pq.query(s)));
 
+  q = globalThis.q = async s => (console.log(`q('\x1b[0;32m${abbreviate(s, 1000)}'\x1b[0m)`), result(await pq.query(s)));
   i = 0;
 
   await q(`CREATE TABLE IF NOT EXISTS users (
@@ -70,31 +58,17 @@ async function main(...args) {
   ON DELETE RESTRICT
 );`);
 
-  let id, res;
+  let id,
+    res = await q(`SELECT * FROM test;`);
 
-  res = await q(`SELECT * FROM test;`);
+  for(let row of res) result(row);
 
-  for(let row of res) console.log('row:', console.config({ compact: true }), row);
-  /* console.log('res =', res);
-  let iter = (globalThis.iter = res[Symbol.iterator]());
+  await q(pq.insertQuery('users', ['name', 'password', 'email'], [randStr(32), randStr(32), randStr(64)]));
 
-  console.log('iter =', iter);
-  let entry, row;
-  console.log('await iter.next() =', (entry = await iter.next()));
-  console.log('entry.value =', (row = entry.value));
-  console.log('row =', row);
-  if(row) {
-    console.log('row[0] =', row[0]);
-  }*/
-
-  q(pq.insertQuery('users', ['name', 'password', 'email'], [randStr(32), randStr(32), randStr(64)]));
-
-  q(pq.insertQuery('sessions', ['user_id', 'uuid', 'variables'], [pq.insertId, [8, 4, 4, 4, 12].map(n => randStr(n, '0123456789abcdef')).join('-'), { blah: 1234 }]));
+  await q(pq.insertQuery('sessions', ['user_id', 'uuid', 'variables'], [pq.insertId, [8, 4, 4, 4, 12].map(n => randStr(n, '0123456789abcdef')).join('-'), { blah: 1234 }]));
 
   console.log('pq.affectedRows =', pq.affectedRows);
   console.log('id =', (id = pq.insertId));
-
-  startInteractive();
 }
 
 try {
