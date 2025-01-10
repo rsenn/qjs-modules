@@ -94,6 +94,7 @@ js_child_process_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValu
 
   if(cp->file)
     JS_DefinePropertyValueStr(ctx, obj, "file", JS_NewString(ctx, cp->file), JS_PROP_ENUMERABLE);
+  
   if(cp->cwd)
     JS_DefinePropertyValueStr(ctx, obj, "cwd", JS_NewString(ctx, cp->cwd), JS_PROP_ENUMERABLE);
 
@@ -132,18 +133,17 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
 
   value = JS_GetPropertyStr(ctx, obj, "env");
 
-  if(JS_IsObject(value)) {
+  if(JS_IsObject(value)) 
     cp->env = child_process_environment(ctx, value);
-  } else {
+   else 
     cp->env = js_strv_dup(ctx, environ);
-  }
 
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, obj, "cwd");
-  if(JS_IsString(value)) {
+  if(JS_IsString(value)) 
     cp->cwd = js_tostring(ctx, value);
-  }
+  
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, obj, "stdio");
@@ -200,13 +200,14 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
       JS_FreeCString(ctx, s);
     }
   }
+
   JS_FreeValue(ctx, value);
 
   value = JS_GetPropertyStr(ctx, obj, "usePath");
   if(JS_IsBool(value))
     cp->use_path = JS_ToBool(ctx, value);
-  JS_FreeValue(ctx, value);
 
+  JS_FreeValue(ctx, value);
   return 0;
 }
 
@@ -230,13 +231,15 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     if(argc > 1) {
       int n = js_array_length(ctx, argv[1]);
+   
       cp->args = js_mallocz(ctx, sizeof(char*) * (n + 2));
       cp->args[0] = js_strdup(ctx, cp->file);
+    
       js_array_copys(ctx, argv[1], n, &cp->args[1]);
 
       --argc;
       ++argv;
-      //    cp->args = js_array_to_argv(ctx, 0, argv[1]);
+      //cp->args = js_array_to_argv(ctx, 0, argv[1]);
     } else {
       cp->args = js_malloc(ctx, sizeof(char*) * 2);
       cp->args[0] = js_strdup(ctx, cp->file);
@@ -286,7 +289,8 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
         JS_DefinePropertyValue(ctx, ret, key, JS_NewString(ctx, *ptr + namelen + 1), JS_PROP_ENUMERABLE);
         JS_FreeAtom(ctx, key);
       }
-      // ret = js_strv_to_array(ctx, cp->env);
+
+      //ret = js_strv_to_array(ctx, cp->env);
       break;
     }
 
@@ -308,6 +312,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case CHILD_PROCESS_EXITCODE: {
       if(cp->exitcode != -1)
         ret = JS_NewInt32(ctx, cp->exitcode);
+
       break;
     }
 
@@ -329,6 +334,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case CHILD_PROCESS_TERMSIG: {
       if(cp->termsig != -1)
         ret = JS_NewInt32(ctx, cp->termsig);
+
       break;
     }
   }
@@ -367,12 +373,14 @@ js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     if(JS_IsString(sig)) {
       const char* str = JS_ToCString(ctx, sig);
       int i, n = str_start(str, "SIG") ? 0 : 3;
+
       for(i = 1; i < 32; i++) {
         if(!strcmp(child_process_signals[i] + n, str)) {
           signum = i;
           break;
         }
       }
+
       JS_FreeCString(ctx, str);
     } else {
       JS_ToInt32(ctx, &signum, sig);
