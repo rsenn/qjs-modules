@@ -1931,9 +1931,7 @@ static BOOL
 field_is_boolean(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_TINY: return field->length == 1;
-
     case MYSQL_TYPE_BIT: return field->length == 1 && (field->flags & UNSIGNED_FLAG);
-
     default: return FALSE;
   }
 }
@@ -1942,7 +1940,6 @@ static BOOL
 field_is_null(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_NULL: return !(field->flags & NOT_NULL_FLAG);
-
     default: return FALSE;
   }
 }
@@ -1956,7 +1953,6 @@ field_is_date(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_NEWDATE: return !!(field->flags & TIMESTAMP_FLAG);
-
     default: return FALSE;
   }
 }
@@ -2002,7 +1998,6 @@ field_is_blob(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB: return !!(field->flags & BINARY_FLAG);
-
     default: return FALSE;
   }
 }
