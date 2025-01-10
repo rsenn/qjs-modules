@@ -66,9 +66,8 @@ async function main(...args) {
   );
 */
 
-  for await(let row of res) 
-    console.log(`row[${i++}] =`,console.config({ compact: 0 }),  row);
-  
+  for await(let row of res) console.log(`row[${i++}] =`, console.config({ compact: 0 }), row);
+
   let users = [
     ['roman', 'r4eHuJ'],
     ['root', 'tD51o7xf']
@@ -151,7 +150,7 @@ async function main(...args) {
 
   console.log('insert', insert);
 
-  res = await q(`INSERT INTO sessions (cookie,user_id) VALUES ('${randStr(32)}',0);`)/*.catch(err => console.error('err', err))*/;
+  res = await q(`INSERT INTO sessions (cookie,user_id) VALUES ('${randStr(32)}',0);`) /*.catch(err => console.error('err', err))*/;
 
   //await q(insert);
   console.log('res =', res, 'affected =', (affected = my.affectedRows));
