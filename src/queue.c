@@ -14,6 +14,7 @@ chunk_alloc(size_t size) {
 
   if((ch = malloc(sizeof(Chunk) + size))) {
     memset(ch, 0, sizeof(Chunk));
+
     ch->ref_count = 1;
   }
 
@@ -29,6 +30,7 @@ chunk_free(Chunk* ch) {
 static void
 chunk_arraybuffer_free(JSRuntime* rt, void* opaque, void* ptr) {
   Chunk* ch = opaque;
+
   chunk_free(ch);
 }
 
@@ -76,6 +78,7 @@ chunk_headpos(Chunk* ch, Queue* q) {
 void
 queue_init(Queue* q) {
   init_list_head(&q->list);
+
   q->nbytes = 0;
   q->nchunks = 0;
 }
@@ -86,10 +89,14 @@ queue_write(Queue* q, const void* x, size_t n) {
 
   if((b = chunk_alloc(n))) {
     list_add(&b->link, &q->list);
+
     b->size = n;
+
     memcpy(b->data, x, n);
+
     q->nbytes += n;
     q->nchunks++;
+
     return n;
   }
 
@@ -161,8 +168,10 @@ queue_skip(Queue* q, size_t n) {
 
     list_del(&b->link);
     chunk_free(b);
+
     q->nchunks--;
   }
+  
   return ret;
 }
 
@@ -210,12 +219,14 @@ queue_chunk(Queue* q, ssize_t pos) {
 
       if(i == pos)
         return list_entry(el, Chunk, link);
+
       ++i;
     }
 
   } else if(pos < 0 && pos >= -q->nchunks) {
     list_for_each_prev(el, &q->list) {
       --i;
+
       if(i == pos)
         return list_entry(el, Chunk, link);
     }
@@ -238,6 +249,7 @@ queue_at(Queue* q, ssize_t offset, size_t* skip) {
 
         if(skip)
           *skip = offset - i;
+
         return chunk;
       }
 
@@ -252,6 +264,7 @@ queue_at(Queue* q, ssize_t offset, size_t* skip) {
       if(offset >= start && offset < i) {
         if(skip)
           *skip = offset - start;
+
         return chunk;
       }
 
