@@ -116,14 +116,14 @@ js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
 
     val = js_invoke(ctx, value, "toISOString", 0, 0);
     str = js_tostringlen(ctx, &len, val);
-    if(len >= 24) {
+    if(len >= 24)
       if(str[23] == 'Z')
         len = 23;
-    }
-    if(len >= 19) {
+
+    if(len >= 19)
       if(str[10] == 'T')
         str[10] = ' ';
-    }
+
     dbuf_putc(out, '\'');
     dbuf_put(out, (const uint8_t*)str, len);
     dbuf_putc(out, '\'');
@@ -153,8 +153,10 @@ js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
             hexdigits[(input.data[i] & 0xf0) >> 4],
             hexdigits[(input.data[i] & 0x0f)],
         };
+
         dbuf_put(out, hex, 2);
       }
+
       input_buffer_free(&input, ctx);
 
     } else {
@@ -171,8 +173,10 @@ static void
 js_mysql_print_fields(JSContext* ctx, DynBuf* out, JSPropertyEnum* tmp_tab, uint32_t tmp_len) {
   for(uint32_t i = 0; i < tmp_len; i++) {
     const char* str;
+
     if(i > 0)
       dbuf_putstr(out, ", ");
+
     str = JS_AtomToCString(ctx, tmp_tab[i].atom);
     dbuf_putc(out, '`');
     dbuf_putstr(out, str);
@@ -196,13 +200,17 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
     dbuf_putc(out, '(');
     for(int i = 0;; i++) {
       item = js_iterator_next(ctx, iter, &done);
+
       if(done)
         break;
+
       if(i > 0)
         dbuf_putstr(out, ", ");
+
       js_mysql_print_value(ctx, out, item);
       JS_FreeValue(ctx, item);
     }
+
     dbuf_putc(out, ')');
 
   } else {
@@ -220,13 +228,16 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
     dbuf_putc(out, ')');
 
     dbuf_putstr(out, " VALUES (");
+
     for(uint32_t i = 0; i < tmp_len; i++) {
       if(i > 0)
         dbuf_putstr(out, ", ");
+
       item = JS_GetProperty(ctx, values, tmp_tab[i].atom);
       js_mysql_print_value(ctx, out, item);
       JS_FreeValue(ctx, item);
     }
+
     dbuf_putc(out, ')');
     js_propertyenums_free(ctx, tmp_tab, tmp_len);
   }
@@ -1508,6 +1519,7 @@ js_mysqlresult_connection(JSContext* ctx, JSValueConst value) {
     if(ptr)
       ret = JS_DupValue(ctx, JS_MKPTR(JS_TAG_OBJECT, ptr));
   }
+
   return ret;
 }
 
@@ -1620,6 +1632,7 @@ js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValu
         for(i = 0; i < num_fields; i++)
           JS_SetPropertyUint32(ctx, ret, i, field_array(ctx, &fields[i]));
       }
+
       break;
     }
   }
