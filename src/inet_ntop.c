@@ -23,6 +23,7 @@ inet_ntop(int af, const void* restrict a0, char* restrict s, socklen_t l) {
     case AF_INET:
       if(snprintf(s, l, "%d.%d.%d.%d", a[0], a[1], a[2], a[3]) < (int)l)
         return s;
+
       break;
     case AF_INET6:
       if(memcmp(a, "\0\0\0\0\0\0\0\0\0\0\377\377", 12))
@@ -55,21 +56,27 @@ inet_ntop(int af, const void* restrict a0, char* restrict s, socklen_t l) {
       for(i = best = 0, max = 2; buf[i]; i++) {
         if(i && buf[i] != ':')
           continue;
+
         j = strspn(buf + i, ":0");
+
         if(j > max)
           best = i, max = j;
       }
+
       if(max > 3) {
         buf[best] = buf[best + 1] = ':';
         memmove(buf + best + 2, buf + best + max, i - best - max + 1);
       }
+
       if(strlen(buf) < l) {
         strcpy(s, buf);
         return s;
       }
+
       break;
     default: errno = EAFNOSUPPORT; return 0;
   }
+
   errno = ENOSPC;
   return 0;
 }

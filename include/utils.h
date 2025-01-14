@@ -605,7 +605,7 @@ static inline JSValue
 js_new_bool_or_number(JSContext* ctx, int32_t n) {
   if(n == INT32_MAX)
     return JS_NewBool(ctx, FALSE);
-  
+
   if(n == INT32_MIN)
     return JS_NewBool(ctx, TRUE);
 

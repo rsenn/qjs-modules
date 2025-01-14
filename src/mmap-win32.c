@@ -37,22 +37,26 @@ sleep(unsigned int seconds) {
 long
 getpagesize(void) {
   static long pagesize = 0;
+
   if(pagesize == 0) {
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     pagesize = si.dwPageSize;
   }
+
   return pagesize;
 }
 
 long
 getgranularity(void) {
   static long granularity = 0;
+
   if(granularity == 0) {
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     granularity = si.dwAllocationGranularity;
   }
+
   return granularity;
 }
 
@@ -105,6 +109,7 @@ mmap(void* addr, size_t len, int prot, int flags, int fd, long off) {
       DWORD file_size = GetFileSize(hFile, NULL);
 
       file_size -= off;
+
       if(len > file_size)
         len = file_size;
     } else if(GetLastError() != NO_ERROR)
@@ -115,6 +120,7 @@ mmap(void* addr, size_t len, int prot, int flags, int fd, long off) {
   }
 
   hMap = CreateFileMapping(hFile, NULL, pageProtect, 0, hFile == INVALID_HANDLE_VALUE ? len : 0, NULL);
+
   if(hMap == NULL) {
     errno = EINVAL; /* what else ? */
     return MAP_FAILED;
@@ -157,6 +163,7 @@ int
 msync(void* addr, size_t length, int flags) {
   if(FlushViewOfFile(addr, length))
     return 0;
+
   return -1;
 }
 

@@ -104,12 +104,11 @@ path_absolute3(const char* path, size_t len, DynBuf* db) {
 char*
 path_absolute2(const char* path, size_t len) {
   DynBuf db;
-  dbuf_init2(&db, 0, 0);
 
-  /* if(db.buf)*/ {
-    path_absolute3(path, len, &db);
-    dbuf_0(&db);
-  }
+  dbuf_init2(&db, 0, 0);
+  path_absolute3(path, len, &db);
+  dbuf_0(&db);
+
   return (char*)db.buf;
 }
 
@@ -129,9 +128,9 @@ path_absolute_db(DynBuf* db) {
     dbuf_init(&tmp);
     dbuf_append(&tmp, db->buf, db->size);
     dbuf_realloc(db, PATH_MAX + 1);
-    if(getcwd((char*)db->buf, PATH_MAX)) {
+
+    if(getcwd((char*)db->buf, PATH_MAX))
       db->size = strlen((const char*)db->buf);
-    }
 
     dbuf_putc(db, PATHSEP_C);
     dbuf_append(db, (const uint8_t*)tmp.buf, tmp.size);
@@ -141,6 +140,7 @@ path_absolute_db(DynBuf* db) {
 
   if(db->size && path_issep(db->buf[db->size - 1]))
     --db->size;
+
   dbuf_putc(db, '\0');
   db->size--;
   return ret;
@@ -250,16 +250,21 @@ path_common4(const char* s1, size_t n1, const char* s2, size_t n2) {
     size_t i1, i2;
     i1 = path_separator2(&s1[r.sz1], n1 - r.sz1);
     i2 = path_separator2(&s2[r.sz2], n2 - r.sz2);
+
     if(!!i1 != !!i2)
       break;
+
     r.sz1 += i1;
     r.sz2 += i2;
     i1 = path_component3(&s1[r.sz1], n1 - r.sz1, 0);
     i2 = path_component3(&s2[r.sz2], n2 - r.sz2, 0);
+
     if(i1 != i2)
       break;
+
     if(memcmp(&s1[r.sz1], &s2[r.sz2], i1))
       break;
+
     r.sz1 += i1;
     r.sz2 += i2;
   }
@@ -274,11 +279,15 @@ path_components3(const char* p, size_t len, uint32_t n) {
 
   while(s < e) {
     s += path_separator2(s, e - s);
+
     if(s == e)
       break;
+
     s += path_component3(s, e - s, 0);
+
     if(--n <= 0)
       break;
+
     count++;
   }
 
@@ -314,8 +323,10 @@ path_at3(const char* p, size_t* len_ptr, int i) {
   for(;;) {
     len = path_component1(p);
     next = len + path_separator1(&p[len]);
+
     if(i <= 0)
       break;
+
     p += next;
     --i;
   }
@@ -383,6 +394,7 @@ path_length2(const char* p, size_t slen) {
 
     ++pos;
   }
+
   return pos;
 }
 
@@ -405,6 +417,7 @@ path_slice4(const char* p, int start, int end, DynBuf* db) {
 
     p += next;
   }
+
   return i;
 }
 
@@ -417,6 +430,7 @@ path_slice3(const char* p, int start, int end) {
     path_slice4(p, start, end, &db);
     dbuf_0(&db);
   }
+
   return (char*)db.buf;
 }
 
@@ -448,6 +462,7 @@ int
 path_exists1(const char* p) {
   struct stat st;
   int r;
+
   return ((r = lstat(p, &st)) == 0);
 }
 
@@ -460,6 +475,7 @@ path_exists2(const char* p, size_t len) {
     ret = path_exists1(q);
     free(q);
   }
+
   return ret;
 }
 
@@ -479,6 +495,7 @@ path_isin4(const char* p, size_t len, const char* dir, size_t dirlen) {
     if(!(plen == dlen && !strncmp(q, pdir, plen)))
       return 0;
   }
+
   return 1;
 }
 
@@ -498,6 +515,7 @@ path_isin2(const char* p, const char* dir) {
     if(!(plen == dlen && !strncmp(q, pdir, plen)))
       return 0;
   }
+
   return 1;
 }
 
@@ -553,6 +571,7 @@ path_extname1(const char* p) {
 
   pos = str_rchr(p, '.');
   p += pos ? pos : strlen(p);
+
   return p;
 }
 
@@ -611,8 +630,10 @@ start:
       int neg = 0;
       pattern++;
       plen--;
+
       if(*string == '/' && (flags & PATH_FNM_PATHNAME))
         return PATH_FNM_NOMATCH;
+
       neg = (*pattern == '!');
       pattern += neg;
       plen -= neg;
@@ -657,6 +678,7 @@ start:
       if(!(flags & PATH_FNM_NOESCAPE)) {
         pattern++;
         plen--;
+
         if(plen)
           goto match;
       } else
@@ -693,6 +715,7 @@ start:
         slen--;
         goto start;
       }
+
       break;
     }
   }
@@ -709,14 +732,17 @@ path_getcwd1(DynBuf* db) {
 
   db->size = strlen((const char*)db->buf);
   dbuf_0(db);
+
   return (char*)db->buf;
 }
 
 char*
 path_getcwd0(void) {
   DynBuf db;
+
   dbuf_init2(&db, 0, 0);
   path_getcwd1(&db);
+
   return (char*)db.buf;
 }
 
@@ -724,6 +750,7 @@ char*
 path_gethome(void) {
 #if defined(_WIN32)
   static char home[PATH_MAX + 1];
+
   if(SHGetFolderPathA(NULL, CSIDL_PROFILE, NULL, 0, home) != S_OK)
     return 0;
   return home;
@@ -806,10 +833,12 @@ int
 path_stat2(const char* p, size_t plen, struct stat* st) {
   char* q;
   int r = 0;
+
   if((q = path_dup2(p, plen))) {
     r = stat(q, st);
     free(q);
   }
+
   return r;
 }
 
@@ -817,8 +846,10 @@ int
 path_isdir1(const char* p) {
   struct stat st;
   int r;
+
   if((r = stat(p, &st) == 0))
     r = S_ISDIR(st.st_mode);
+
   return r;
 }
 
@@ -826,8 +857,10 @@ int
 path_isdir2(const char* p, size_t plen) {
   struct stat st;
   int r = 0;
+
   if((r = path_stat2(p, plen, &st) == 0))
     r = S_ISDIR(st.st_mode);
+
   return r;
 }
 
@@ -835,6 +868,7 @@ int
 path_isfile1(const char* p) {
   struct stat st;
   int r;
+
   if((r = stat(p, &st) == 0)) {
     if(S_ISREG(st.st_mode))
       return 1;
@@ -847,8 +881,10 @@ int
 path_isfile2(const char* p, size_t plen) {
   struct stat st;
   int r;
+
   if((r = path_stat2(p, plen, &st) == 0))
     r = S_ISREG(st.st_mode);
+
   return r;
 }
 
@@ -856,6 +892,7 @@ int
 path_ischardev1(const char* p) {
   struct stat st;
   int r;
+
   if((r = stat(p, &st) == 0)) {
     if(S_ISCHR(st.st_mode))
       return 1;
@@ -868,8 +905,10 @@ int
 path_ischardev2(const char* p, size_t plen) {
   struct stat st;
   int r;
+
   if((r = path_stat2(p, plen, &st) == 0))
     r = S_ISCHR(st.st_mode);
+
   return r;
 }
 
@@ -877,6 +916,7 @@ int
 path_isblockdev1(const char* p) {
   struct stat st;
   int r;
+
   if((r = stat(p, &st) == 0)) {
     if(S_ISBLK(st.st_mode))
       return 1;
@@ -889,8 +929,10 @@ int
 path_isblockdev2(const char* p, size_t plen) {
   struct stat st;
   int r;
+
   if((r = path_stat2(p, plen, &st) == 0))
     r = S_ISBLK(st.st_mode);
+
   return r;
 }
 
@@ -898,6 +940,7 @@ int
 path_isfifo1(const char* p) {
   struct stat st;
   int r;
+
   if((r = stat(p, &st) == 0)) {
     if(S_ISFIFO(st.st_mode))
       return 1;
@@ -910,8 +953,10 @@ int
 path_isfifo2(const char* p, size_t plen) {
   struct stat st;
   int r;
+
   if((r = path_stat2(p, plen, &st) == 0))
     r = S_ISFIFO(st.st_mode);
+
   return r;
 }
 
@@ -920,6 +965,7 @@ path_issocket1(const char* p) {
 #ifdef S_ISSOCK
   struct stat st;
   int r;
+
   if((r = stat(p, &st) == 0)) {
     if(S_ISSOCK(st.st_mode))
       return 1;
@@ -934,6 +980,7 @@ path_issocket2(const char* p, size_t plen) {
 #ifdef S_ISSOCK
   struct stat st;
   int r;
+
   if((r = path_stat2(p, plen, &st) == 0))
     r = S_ISSOCK(st.st_mode);
   return r;
@@ -948,6 +995,7 @@ path_issymlink1(const char* p) {
 #else
   struct stat st;
   int r;
+
   if((r = lstat(p, &st) == 0)) {
     if(S_ISLNK(st.st_mode))
       return 1;
@@ -975,6 +1023,7 @@ path_resolve3(const char* path, DynBuf* db, int symbolic) {
   int ret = 1;
   char sep, buf[PATH_MAX + 1];
   int (*stat_fn)(const char*, struct stat*) = stat;
+
   if(symbolic)
     stat_fn = lstat;
 
@@ -1057,14 +1106,17 @@ int
 path_realpath3(const char* path, size_t len, DynBuf* buf) {
   int ret;
   DynBuf db;
+
   if(!path_exists2(path, len))
     return 0;
+
   dbuf_init2(&db, 0, 0);
   path_absolute3(path, len, &db);
   dbuf_0(&db);
   ret = path_resolve3((const char*)db.buf, buf, 1);
   dbuf_free(&db);
   dbuf_0(buf);
+
   return ret;
 }
 
@@ -1072,13 +1124,16 @@ char*
 path_realpath2(const char* path, size_t len) {
   char* ret;
   DynBuf db;
+
   if(!path_exists2(path, len))
     return 0;
+
   dbuf_init2(&db, 0, 0);
   path_absolute3(path, len, &db);
   dbuf_0(&db);
   ret = path_resolve2((const char*)db.buf, 1);
   dbuf_free(&db);
+
   return ret;
 }
 
@@ -1100,6 +1155,7 @@ path_relative1(const char* path) {
     rel = path_relative2(path, cwd);
     free(cwd);
   }
+
   return rel;
 }
 
@@ -1215,6 +1271,7 @@ int
 path_readlink2(const char* path, DynBuf* dir) {
   ssize_t n = (START ? START : 32);
   ssize_t sz;
+
   do {
     n <<= 1;
     dbuf_realloc(dir, n);
@@ -1238,8 +1295,10 @@ int
 path_compare4(const char* a, size_t alen, const char* b, size_t blen) {
   if(alen < blen)
     return -1;
+
   if(blen > alen)
     return 1;
+
   return strncmp(a, b, alen);
 }
 

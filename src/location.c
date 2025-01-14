@@ -43,6 +43,7 @@ location_file(const Location* loc, JSContext* ctx) {
     ret = js_strdup(ctx, file);
     JS_FreeCString(ctx, file);
   }
+
   return ret;
 }
 
@@ -50,6 +51,7 @@ JSValue
 location_tovalue(const Location* loc, JSContext* ctx) {
   char* str = location_tostring(loc, ctx);
   JSValue ret = JS_NewString(ctx, str);
+
   js_free(ctx, str);
   return ret;
 }
@@ -99,10 +101,13 @@ location_count(Location* loc, const uint8_t* x, size_t n) {
 
   if(loc->byte_offset == -1)
     loc->byte_offset = 0;
+
   if(loc->char_offset == -1)
     loc->char_offset = 0;
+
   if(loc->line == -1)
     loc->line = 0;
+
   if(loc->column == -1)
     loc->column = 0;
 
@@ -131,18 +136,23 @@ location_equal(const Location* loc, const Location* other) {
   if(loc->file != -1 && other->file != -1)
     if(loc->file != other->file)
       return FALSE;
+
   if(loc->line != -1 && other->line != -1)
     if(loc->line != other->line)
       return FALSE;
+
   if(loc->column != -1 && other->column != -1)
     if(loc->column != other->column)
       return FALSE;
+
   if(loc->char_offset != -1 && other->char_offset != -1)
     if(loc->char_offset != other->char_offset)
       return FALSE;
+
   if(loc->byte_offset != -1 && other->byte_offset != -1)
     if(loc->byte_offset != other->byte_offset)
       return FALSE;
+
   return TRUE;
 }
 
@@ -154,6 +164,7 @@ location_copy(Location* dst, const Location* src, JSContext* ctx) {
   dst->char_offset = src->char_offset;
   dst->byte_offset = src->byte_offset;
   dst->str = src->str && src->str[0] ? js_strdup(ctx, src->str) : 0;
+
   return dst;
 }
 
@@ -176,8 +187,10 @@ location_clone(const Location* loc, JSContext* ctx) {
 Location*
 location_new(JSContext* ctx) {
   Location* loc;
+
   if((loc = js_malloc(ctx, sizeof(Location))))
     location_init(loc);
+
   return loc;
 }
 

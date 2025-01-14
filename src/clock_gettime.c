@@ -35,6 +35,7 @@ clock_gettime(int X, struct timeval* tv) {
     LARGE_INTEGER performanceFrequency;
     initialized = 1;
     usePerformanceCounter = QueryPerformanceFrequency(&performanceFrequency);
+
     if(usePerformanceCounter) {
       QueryPerformanceCounter(&offset);
       frequencyToMicroseconds = (double)performanceFrequency.QuadPart / 1000000.;
@@ -43,6 +44,7 @@ clock_gettime(int X, struct timeval* tv) {
       frequencyToMicroseconds = 10.;
     }
   }
+
   if(usePerformanceCounter)
     QueryPerformanceCounter(&t);
   else {
@@ -57,6 +59,7 @@ clock_gettime(int X, struct timeval* tv) {
   t.QuadPart = microseconds;
   tv->tv_sec = t.QuadPart / 1000000;
   tv->tv_usec = t.QuadPart % 1000000;
+
   return (0);
 }
 #endif

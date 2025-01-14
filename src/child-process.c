@@ -43,24 +43,31 @@ child_process_sigchld(int pid) {
 ChildProcess*
 child_process_get(int pid) {
   struct list_head* el;
+
   list_for_each(el, &child_process_list) {
     ChildProcess* cp = list_entry(el, ChildProcess, link);
+
     if(cp->pid == pid)
       return cp;
   }
+
   return 0;
 }
 
 ChildProcess*
 child_process_new(JSContext* ctx) {
   ChildProcess* child;
-  child = js_mallocz(ctx, sizeof(ChildProcess));
-  list_add_tail(&child->link, &child_process_list);
-  child->use_path = 1;
-  child->exitcode = -1;
-  child->termsig = -1;
-  child->stopsig = -1;
-  child->pid = -1;
+
+  if((child = js_mallocz(ctx, sizeof(ChildProcess)))) {
+    list_add_tail(&child->link, &child_process_list);
+
+    child->use_path = 1;
+    child->exitcode = -1;
+    child->termsig = -1;
+    child->stopsig = -1;
+    child->pid = -1;
+  }
+
   return child;
 }
 
@@ -93,6 +100,7 @@ child_process_environment(JSContext* ctx, JSValueConst object) {
   } while(property_enumeration_next(&propenum));
 
   vector_emplace(&args, sizeof(char*));
+
   return (char**)args.data;
 }
 
@@ -104,12 +112,10 @@ argv_to_string(char* const* argv, char delim) {
   if(argv == NULL)
     return NULL;
 
-  for(i = 0, len = 0; argv[i]; i++) {
+  for(i = 0, len = 0; argv[i]; i++)
     len += strlen(argv[i]) + 1;
-  }
 
-  str = ptr = (char*)malloc(len + 1);
-  if(str == NULL)
+  if((str = ptr = (char*)malloc(len + 1)) == NULL)
     return NULL;
 
   for(i = 0; argv[i]; i++) {
@@ -118,6 +124,7 @@ argv_to_string(char* const* argv, char delim) {
     ptr += len;
     *ptr++ = delim;
   }
+
   *ptr = 0;
   *--ptr = 0;
 
@@ -156,6 +163,7 @@ child_process_spawn(ChildProcess* cp) {
   success = CreateProcessA(file, args, &sattr, NULL, TRUE, CREATE_NO_WINDOW, env, cp->cwd, &sinfo, &pinfo);
 
   free(args);
+
   if(env)
     free(env);
 
@@ -314,8 +322,8 @@ child_process_kill(ChildProcess* cp, int signum) {
     return 0;
   return -1;
 #else
-  int ret;
-  int status;
+  int ret, status;
+
   ret = kill(cp->pid, signum);
 
   if(ret != -1 && waitpid(cp->pid, &status, WNOHANG) == cp->pid) {
@@ -332,12 +340,16 @@ child_process_kill(ChildProcess* cp, int signum) {
 void
 child_process_free(ChildProcess* cp, JSContext* ctx) {
   list_del(&cp->link);
+
   if(cp->file)
     js_free(ctx, cp->file);
+
   if(cp->cwd)
     js_free(ctx, cp->cwd);
+
   if(cp->args)
     js_strv_free(ctx, cp->args);
+
   if(cp->env)
     js_strv_free(ctx, cp->env);
 
@@ -347,12 +359,16 @@ child_process_free(ChildProcess* cp, JSContext* ctx) {
 void
 child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
   list_del(&cp->link);
+
   if(cp->file)
     js_free_rt(rt, cp->file);
+
   if(cp->cwd)
     js_free_rt(rt, cp->cwd);
+
   if(cp->args)
     js_strv_free_rt(rt, cp->args);
+
   if(cp->env)
     js_strv_free_rt(rt, cp->env);
 

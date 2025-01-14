@@ -56,12 +56,14 @@ check_pointer(void* p) {
   ALLOC_PTR ptr = ALLOC_BLOCK(p);
   struct list_head* link;
   int64_t ret = 0;
+
   list_for_each(link, &alloc_block_list) {
     if(link == &ptr->link)
       return ret;
+
     ret++;
   }
-  // assert(0);
+
   return -1;
 }
 
@@ -75,8 +77,10 @@ debug_malloc(size_t n, const char* file, int line) {
     ptr->size = n;
 
     add_to_list(&ptr->link, &alloc_block_list);
+
     return &ptr[1];
   }
+
   return 0;
 }
 
@@ -93,8 +97,10 @@ debug_calloc(size_t m, size_t n, const char* file, int line) {
     ptr->size = n;
 
     add_to_list(&ptr->link, &alloc_block_list);
+
     return &ptr[1];
   }
+
   return 0;
 }
 
@@ -125,8 +131,10 @@ debug_realloc(void* p, size_t n, const char* file, int line) {
     ptr->size = n;
 
     add_to_list(&ptr->link, &alloc_block_list);
+
     return &ptr[1];
   }
+
   return 0;
 }
 
@@ -143,8 +151,10 @@ debug_strdup(const char* s, const char* file, int line) {
     add_to_list(&ptr->link, &alloc_block_list);
 
     memcpy(&ptr[1], s, len + 1);
+
     return &ptr[1];
   }
+
   return 0;
 }
 
@@ -169,8 +179,10 @@ debug_js_malloc(JSContext* ctx, size_t n, const char* file, int line) {
     ptr->size = n;
 
     add_to_list(&ptr->link, &alloc_block_list);
+
     return &ptr[1];
   }
+
   return 0;
 }
 
@@ -184,8 +196,10 @@ debug_js_mallocz(JSContext* ctx, size_t n, const char* file, int line) {
     ptr->size = n;
 
     add_to_list(&ptr->link, &alloc_block_list);
+
     return &ptr[1];
   }
+
   return 0;
 }
 
@@ -216,8 +230,10 @@ debug_js_realloc(JSContext* ctx, void* p, size_t n, const char* file, int line) 
     ptr->size = n;
 
     add_to_list(&ptr->link, &alloc_block_list);
+
     return &ptr[1];
   }
+
   return 0;
 }
 
@@ -231,6 +247,7 @@ debug_js_realloc2(JSContext* ctx, void* p, size_t size, size_t* pslack, const ch
       *pslack = (new_size > size) ? new_size - size : 0;
     }
   }
+
   return ptr;
 }
 
@@ -248,8 +265,10 @@ debug_js_strdup(JSContext* ctx, const char* s, const char* file, int line) {
     add_to_list(&ptr->link, &alloc_block_list);
 
     memcpy(p, s, len + 1);
+
     return p;
   }
+
   return 0;
 }
 
@@ -270,6 +289,7 @@ debug_js_strndup(JSContext* ctx, const char* s, size_t len, const char* file, in
 
     return p;
   }
+
   return 0;
 }
 
@@ -303,8 +323,10 @@ debug_js_malloc_rt(JSRuntime* rt, size_t n, const char* file, int line) {
     ptr->size = n;
 
     add_to_list(&ptr->link, &alloc_block_list);
+
     return &ptr[1];
   }
+
   return 0;
 }
 
@@ -318,8 +340,10 @@ debug_js_mallocz_rt(JSRuntime* rt, size_t n, const char* file, int line) {
     ptr->size = n;
 
     add_to_list(&ptr->link, &alloc_block_list);
+
     return &ptr[1];
   }
+
   return 0;
 }
 
@@ -332,10 +356,12 @@ debug_js_realloc_rt(JSRuntime* rt, void* p, size_t n, const char* file, int line
 
     ptr = ALLOC_BLOCK(p);
     list_del(&ptr->link);
+
     if(n == 0) {
       js_free_rt(rt, ptr);
       return 0;
     }
+
     ptr = js_realloc_rt(rt, ptr, n + ALLOC_BLOCK_SIZE);
   } else {
     ptr = js_malloc_rt(rt, n + ALLOC_BLOCK_SIZE);
@@ -347,8 +373,10 @@ debug_js_realloc_rt(JSRuntime* rt, void* p, size_t n, const char* file, int line
     ptr->size = n;
 
     add_to_list(&ptr->link, &alloc_block_list);
+
     return &ptr[1];
   }
+
   return 0;
 }
 

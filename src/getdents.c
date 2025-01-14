@@ -270,10 +270,12 @@ int
 getdents_adopt(Directory* d, intptr_t fd) {
   struct stat st;
   d->nread = d->bpos = 0;
+
   if(fstat(fd, &st) == -1)
     return -1;
 
   d->fd = fd;
+
   return 0;
 }
 
@@ -283,9 +285,11 @@ getdents_read(Directory* d) {
     if(!d->nread || d->bpos >= d->nread) {
       d->bpos = 0;
       d->nread = syscall(SYS_getdents64, d->fd, d->buf, sizeof(d->buf));
+
       if(d->nread <= 0)
         break;
     }
+
     while(d->bpos < d->nread) {
       dirent_struct* e = DIRENT(d);
       // char d_type = d->buf[d->bpos + e->d_reclen - 1];
@@ -366,16 +370,22 @@ int
 getdents_type(const DirEntry* e) {
   if(getdents_isblk(e))
     return TYPE_BLK;
+
   if(getdents_ischr(e))
     return TYPE_CHR;
+
   if(getdents_isdir(e))
     return TYPE_DIR;
+
   if(getdents_isfifo(e))
     return TYPE_FIFO;
+
   if(getdents_islnk(e))
     return TYPE_LNK;
+
   if(getdents_issock(e))
     return TYPE_SOCK;
+
   if(getdents_isreg(e))
     return TYPE_REG;
 

@@ -34,12 +34,14 @@ promise_free_funcs(JSRuntime* rt, ResolveFunctions* funcs) {
 static inline BOOL
 js_resolve_functions_call(JSContext* ctx, ResolveFunctions* funcs, int index, JSValueConst arg) {
   JSValue ret = JS_UNDEFINED;
+
   if(!JS_IsNull(funcs->array[index])) {
     ret = JS_Call(ctx, funcs->array[index], JS_UNDEFINED, 1, &arg);
     js_resolve_functions_free(ctx, funcs);
     JS_FreeValue(ctx, ret);
     return TRUE;
   }
+
   return FALSE;
 }
 
@@ -140,6 +142,7 @@ promise_forward(JSContext* ctx, JSValueConst promise, Promise* receiver) {
   ret = promise_then(ctx, promise, receiver->funcs.array[0]);
   ret2 = promise_catch(ctx, ret, receiver->funcs.array[1]);
   JS_FreeValue(ctx, ret);
+
   return ret2;
 }
 

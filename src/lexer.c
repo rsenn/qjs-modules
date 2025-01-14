@@ -48,6 +48,7 @@ lexer_state_push(Lexer* lex, const char* state) {
     vector_push(&lex->state_stack, lex->state);
     lex->state = id;
   }
+
   assert(id >= 0);
   return id;
 }
@@ -127,6 +128,7 @@ lexer_rule_expand(Lexer* lex, char* p, DynBuf* db) {
     if(*p == '{') {
       if(p[len = str_chr(p, '}')]) {
         LexerRule* subst;
+
         if((subst = lexer_find_definition(lex, p + 1, len - 1))) {
           lexer_rule_expand(lex, subst->expr, db);
           p += len;
@@ -137,6 +139,7 @@ lexer_rule_expand(Lexer* lex, char* p, DynBuf* db) {
 
     if(*p == '\\')
       dbuf_putc(db, *p++);
+
     dbuf_putc(db, *p);
   }
   dbuf_0(db);
@@ -227,11 +230,14 @@ LexerRule*
 lexer_rule_find(Lexer* lex, const char* name) {
   LexerRule* rule;
   assert(name);
+
   vector_foreach_t(&lex->rules, rule) {
     assert(rule->name);
+
     if(!strcmp(rule->name, name))
       return rule;
   }
+
   return 0;
 }
 
@@ -249,6 +255,7 @@ void
 lexer_rule_release_rt(LexerRule* rule, JSRuntime* rt) {
   if(rule->name)
     js_free_rt(rt, rule->name);
+
   js_free_rt(rt, rule->expr);
 
   if(rule->bytecode)
@@ -310,6 +317,7 @@ lexer_compile_rules(Lexer* lex, JSContext* ctx) {
     if(!lexer_rule_compile(lex, rule, ctx))
       return FALSE;
   }
+
   return TRUE;
 }
 
