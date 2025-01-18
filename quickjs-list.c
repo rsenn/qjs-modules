@@ -1402,17 +1402,6 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
   list_proto = JS_NewObject(ctx);
   JS_SetPropertyFunctionList(ctx, list_proto, js_list_proto_funcs, countof(js_list_proto_funcs));
 
-  JSValue array_proto = js_global_prototype(ctx, "Array");
-
-  if(JS_IsObject(array_proto)) {
-    JS_DefinePropertyValueStr(ctx, list_proto, "join", JS_GetPropertyStr(ctx, array_proto, "join"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(ctx, list_proto, "toString", JS_GetPropertyStr(ctx, array_proto, "toString"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(ctx, list_proto, "toLocaleString", JS_GetPropertyStr(ctx, array_proto, "toLocaleString"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(ctx, list_proto, "flat", JS_GetPropertyStr(ctx, array_proto, "flat"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(ctx, list_proto, "flatMap", JS_GetPropertyStr(ctx, array_proto, "flatMap"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(ctx, list_proto, "copyWithin", JS_GetPropertyStr(ctx, array_proto, "copyWithin"), JS_PROP_CONFIGURABLE);
-  }
-
   // js_set_inspect_method(ctx, list_proto, js_list_inspect);
 
   JS_SetClassProto(ctx, js_list_class_id, list_proto);
@@ -1425,6 +1414,19 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, list_ctor, list_proto);
   JS_SetPropertyFunctionList(ctx, list_ctor, js_list_static_funcs, countof(js_list_static_funcs));
+
+  JSValue array_proto = js_global_prototype(ctx, "Array");
+
+  if(JS_IsObject(array_proto)) {
+    JS_DefinePropertyValueStr(ctx, list_proto, "join", JS_GetPropertyStr(ctx, array_proto, "join"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "toString", JS_GetPropertyStr(ctx, array_proto, "toString"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "toLocaleString", JS_GetPropertyStr(ctx, array_proto, "toLocaleString"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "flat", JS_GetPropertyStr(ctx, array_proto, "flat"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "flatMap", JS_GetPropertyStr(ctx, array_proto, "flatMap"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, list_proto, "copyWithin", JS_GetPropertyStr(ctx, array_proto, "copyWithin"), JS_PROP_CONFIGURABLE);
+  }
+
+  JS_FreeValue(ctx, array_proto);
 
   JS_NewClassID(&js_list_iterator_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_list_iterator_class_id, &js_list_iterator_class);

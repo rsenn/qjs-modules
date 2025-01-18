@@ -27,8 +27,10 @@ stack_get(JSContext* ctx) {
 
   stack = JS_ToCString(ctx, st);
   size_t pos = str_chr(stack, '\n');
+
   if(stack[pos])
     pos++;
+
   ret = js_strdup(ctx, stack + pos);
   JS_FreeCString(ctx, stack);
   JS_FreeValue(ctx, error);

@@ -209,6 +209,7 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValu
       if((mask & type) == 0)
         continue;
     }
+
     if(JS_IsFunction(ctx, pred)) {
       BOOL result = property_enumeration_predicate(it, ctx, pred, this_arg);
       if(!result)

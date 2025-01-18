@@ -63,12 +63,16 @@ VISIBLE JSValue
 js_predicate_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
   Predicate* pr;
   JSValue obj;
+
   if(!(pr = js_mallocz(ctx, sizeof(Predicate))))
     return JS_EXCEPTION;
+
   pr->id = -1;
   obj = JS_NewObjectProtoClass(ctx, proto, js_predicate_class_id);
+
   if(JS_IsException(obj))
     goto fail;
+
   JS_SetOpaque(obj, pr);
   return obj;
 fail:

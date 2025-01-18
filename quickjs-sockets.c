@@ -363,9 +363,9 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case SOCKADDR_PORT: {
-      if(a->family == AF_INET || a->family == AF_INET6) {
+      if(a->family == AF_INET || a->family == AF_INET6)
         ret = JS_NewUint32(ctx, sockaddr_port(a));
-      }
+
       break;
     }
 
@@ -635,6 +635,7 @@ fdset_read(JSContext* ctx, JSValueConst arg, fd_set* set) {
 
       JS_FreeValue(ctx, member);
     }
+
     return TRUE;
   }
 
@@ -711,6 +712,7 @@ pollfd_read(JSContext* ctx, JSValueConst arg, struct pollfd* pfd) {
   if(js_is_arraybuffer(ctx, arg)) {
     uint8_t* data;
     size_t len;
+
     if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
       if(len >= sizeof(struct pollfd)) {
         memcpy(pfd, data, MIN_NUM(len, sizeof(struct pollfd)));
@@ -741,6 +743,7 @@ pollfd_write(JSContext* ctx, const struct pollfd* pfd, JSValueConst arg) {
   if(js_is_arraybuffer(ctx, arg)) {
     uint8_t* data;
     size_t len;
+
     if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
       if(len >= sizeof(struct pollfd)) {
         memcpy(data, pfd, MIN_NUM(len, sizeof(struct pollfd)));
@@ -762,6 +765,7 @@ optval_buf(JSContext* ctx, JSValueConst arg, int32_t** tmp_ptr, socklen_t* lenp)
     int i, n = MAX_NUM(1, MIN_NUM(js_array_length(ctx, arg), 1));
     len = n * sizeof(int32_t);
     *tmp_ptr = (int32_t*)(buf = js_mallocz(ctx, len));
+
     for(i = 0; i < n; i++) {
       JSValue el = JS_GetPropertyUint32(ctx, arg, i);
       JS_ToInt32(ctx, &(*tmp_ptr)[i], el);
