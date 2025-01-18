@@ -63,9 +63,6 @@ list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 check_function_def(HAVE_JS_PROMISE_STATE JS_PromiseState)
 check_function_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE_2)
 
-#dump(HAVE_JS_PROMISE_STATE_2 HAVE_JS_PROMISE_STATE)
-#dump(HAVE_JS_PROMISE_RESULT)
-
 if(NOT QUICKJS_LIBRARY_DIR AND NOT QUICKJS_INCLUDE_DIRS)
   if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.h")
@@ -106,7 +103,6 @@ check_include_def(threads.h)
 check_include_def(sys/mman.h)
 
 check_function_def(mmap)
-#dump(HAVE_MMAP)
 
 check_include_def(termios.h)
 check_function_def(ioctl)
@@ -300,12 +296,9 @@ if(USE_POSTGRESCLIENT)
     endif(HAVE_LIBPQCLIENT)
   endif(pkgcfg_lib_LIBPQ_pq)
 
-  #dump(pkgcfg_lib_LIBPQ_pq LIBPQ_LIBRARY_DIR LIBPQ_LIBRARY)
-
   if(LIBPQ_LIBRARY)
     list(APPEND QUICKJS_MODULES pgsql)
     set(pgsql_LIBRARIES ${LIBPQ_LIBRARY})
-    #dump(LIBPQ_LIBRARY pgsql_LIBRARIES)
 
     if("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
       string(REGEX REPLACE "/lib.*" "/include" LIBPQ_INCLUDE_DIR "${LIBPQ_LIBRARY}")
@@ -373,12 +366,6 @@ if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(HAVE_INET_PTON TRUE)
 
   check_include_def(afunix.h)
-
-  #[[if(HAVE_AFUNIX_H)
-    add_definitions(-DHAVE_AFUNIX_H)
-  endif(HAVE_AFUNIX_H)
-  #dump(HAVE_AFUNIX_H)]]
-
 else()
   check_function_exists(inet_pton HAVE_INET_PTON)
 endif()
@@ -392,8 +379,6 @@ endif()
 #if(NOT HAVE_INET_PTON)
 #  check_symbol_exists(<inet_pton "winsock2.h" HAVE_INET_PTON)
 #endif(NOT HAVE_INET_PTON)
-
-#dump(HAVE_INET_PTON)
 
 if(HAVE_INET_PTON)
   #message(STATUS "Have inet_pton()")
@@ -456,8 +441,6 @@ endif(BUILD_LIBSERIALPORT)
 set(serial_DEPS libserialport)
 set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
 
-#dump(WIN32 MINGW MSYS CLANG)
-
 if(HAVE_MMAP)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
 else(HAVE_MMAP)
@@ -466,8 +449,6 @@ else(HAVE_MMAP)
     set(mmap_SOURCES ${mmap_SOURCES} src/mmap-win32.c)
   endif()
 endif(HAVE_MMAP)
-
-#dump(QUICKJS_MODULES mmap_SOURCES)
 
 if(CACHE{CMAKE_BUILD_TYPE})
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
@@ -504,7 +485,6 @@ list(APPEND CMAKE_REQUIRED_LIBRARIES ${QUICKJS_LIBRARY})
 list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
 
 check_function_def(js_debugger_build_backtrace)
-#dump(HAVE_JS_DEBUGGER_BUILD_BACKTRACE)
 
 file(GLOB TESTS tests/test_*.js)
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
@@ -534,7 +514,6 @@ endif(HAVE__BUILTIN_MUL_OVERFLOW)
 addprefix(SHARED_TARGETS "qjs-" ${QUICKJS_MODULES})
 addsuffix(STATIC_TARGETS "-static" ${SHARED_TARGETS})
 
-#dump(STATIC_TARGETS)
 unset(QJSM_LDADD)
 
 set(QJSM_LIBDIR "${CMAKE_CURRENT_BINARY_DIR}")
@@ -559,8 +538,6 @@ if(NOT mmap_SOURCES)
 endif(NOT mmap_SOURCES)
 
 link_directories(${QJSM_LIBDIR} ${LIBSERIALPORT_LIBRARY_DIR})
-
-#dump(QJSM_LDADD)
 
 if(LIBM)
   set(predicate_LIBRARIES ${LIBM})
@@ -641,10 +618,6 @@ add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCE
 set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
 add_library(compiled STATIC ${COMPILED_MODULES})
 set(COMMON_LIBRARIES modules compiled)
-
-#dump(CMAKE_SYSTEM_NAME)
-
-#dump(HOST_SYSTEM_NAME)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})

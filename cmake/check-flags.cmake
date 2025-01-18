@@ -45,7 +45,6 @@ endmacro(check_flags FLAGS)
 macro(NOWARN_FLAG FLAG)
   canonicalize(VARNAME "${FLAG}")
   check_c_compiler_flag("${FLAG}" "${VARNAME}")
-  #dump(${VARNAME})
 
   if(${VARNAME})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${FLAG}")
@@ -68,8 +67,6 @@ macro(ADD_NOWARN_FLAGS)
     nowarn_flag(-Wno-deprecated-enum-enum-conversion)
   endif("${CMAKE_CXX_COMPILER_ID}" MATCHES ".*Clang.*")
 
-  #dump(CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
-  #dump(CMAKE_CXX_FLAGS_DEBUG)
 endmacro(ADD_NOWARN_FLAGS)
 
 #[[

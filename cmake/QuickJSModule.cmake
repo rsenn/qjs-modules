@@ -232,7 +232,6 @@ function(make_module FNAME)
     set(PREFIX "")
   endif(NOT WASI AND "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 
-  #dump(VNAME ${VNAME}_SOURCES SOURCES)
 
   if(BUILD_SHARED_MODULES)
     #add_library(${TARGET_NAME} MODULE ${SOURCES})
