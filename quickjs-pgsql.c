@@ -445,7 +445,7 @@ pgconn_nonblock(PGSQLConnection* pq) {
 
 static const char*
 pgconn_error(PGSQLConnection* pq) {
-  return pgconn_error(pq);
+  return PQerrorMessage(pq->conn);
 }
 
 static void
