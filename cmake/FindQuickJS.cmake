@@ -16,11 +16,7 @@ macro(find_quickjs)
   endif(ARGN)
 
   if(NOT QUICKJS_PREFIX)
-    find_file(
-      QUICKJS_H quickjs.h
-      PATHS "${CMAKE_INSTALL_PREFIX}/inclue/quickjs"
-            "/usr/local/include/quickjs" "/usr/include/quickjs"
-            "${QUICKJS_ROOT}/include/quickjs" "${QuickJS_DIR}/include/quickjs")
+    find_file(QUICKJS_H quickjs.h PATHS "${CMAKE_INSTALL_PREFIX}/inclue/quickjs" "/usr/local/include/quickjs" "/usr/include/quickjs" "${QUICKJS_ROOT}/include/quickjs" "${QuickJS_DIR}/include/quickjs")
 
     if(QUICKJS_H)
       message("QuickJS header: ${QUICKJS_H}")
@@ -35,8 +31,7 @@ macro(find_quickjs)
   endif(NOT QUICKJS_PREFIX)
 
   if(NOT "${CMAKE_SYSROOT}" STREQUAL "")
-    string(REPLACE "${CMAKE_SYSROOT}" "" QUICKJS_INSTALL_DIR
-                   "${QUICKJS_PREFIX}")
+    string(REPLACE "${CMAKE_SYSROOT}" "" QUICKJS_INSTALL_DIR "${QUICKJS_PREFIX}")
   endif(NOT "${CMAKE_SYSROOT}" STREQUAL "")
 
   if("${QUICKJS_INSTALL_DIR}" STREQUAL "")
@@ -48,8 +43,7 @@ macro(find_quickjs)
       CACHE PATH "QuickJS installation prefix")
 
   if(CACHE{CMAKE_BUILD_TYPE})
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release
-                                                 MinSizeRel RelWithDebInfo)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
   endif(CACHE{CMAKE_BUILD_TYPE})
 
   set(CMAKE_REQUIRED_QUIET TRUE)
@@ -74,15 +68,13 @@ macro(find_quickjs)
 
   if(NOT QUICKJS_INCLUDE_DIR)
     if(QUICKJS_LIBRARY_DIR)
-      string(REGEX REPLACE "/lib.*" "/include/quickjs" QUICKJS_INCLUDE_DIR
-                           "${QUICKJS_LIBRARY_DIR}")
+      string(REGEX REPLACE "/lib.*" "/include/quickjs" QUICKJS_INCLUDE_DIR "${QUICKJS_LIBRARY_DIR}")
     endif(QUICKJS_LIBRARY_DIR)
   endif(NOT QUICKJS_INCLUDE_DIR)
 
   if(NOT QUICKJS_INCLUDE_DIR)
     if(QUICKJS_H)
-      string(REGEX REPLACE "/include.*" "/include/quickjs" QUICKJS_INCLUDE_DIR
-                           "${QUICKJS_H}")
+      string(REGEX REPLACE "/include.*" "/include/quickjs" QUICKJS_INCLUDE_DIR "${QUICKJS_H}")
     endif(QUICKJS_H)
   endif(NOT QUICKJS_INCLUDE_DIR)
 
@@ -104,8 +96,7 @@ macro(find_quickjs)
 
   if(NOT QUICKJS_LIBRARY_DIR)
     if(QUICKJS_H)
-      string(REGEX REPLACE "/include.*" "/${CMAKE_INSTALL_LIBDIR}"
-                           QUICKJS_LIBRARY_DIR "${QUICKJS_H}")
+      string(REGEX REPLACE "/include.*" "/${CMAKE_INSTALL_LIBDIR}" QUICKJS_LIBRARY_DIR "${QUICKJS_H}")
     endif(QUICKJS_H)
   endif(NOT QUICKJS_LIBRARY_DIR)
 
@@ -118,8 +109,7 @@ macro(find_quickjs)
   endif(QUICKJS_LIBRARY_DIR)
 
   if(NOT QUICKJS_LIBRARY)
-    foreach(LIBNAME lib${QUICKJS_LIBRARY_NAME}.a lib${QUICKJS_LIBRARY_NAME}.so
-                    lib${QUICKJS_LIBRARY_NAME}.dll.a)
+    foreach(LIBNAME lib${QUICKJS_LIBRARY_NAME}.a lib${QUICKJS_LIBRARY_NAME}.so lib${QUICKJS_LIBRARY_NAME}.dll.a)
       if(EXISTS "${QUICKJS_LIBRARY_DIR}/${LIBNAME}")
         set(QUICKJS_LIBRARY "${QUICKJS_LIBRARY_DIR}/${LIBNAME}")
       endif(EXISTS "${QUICKJS_LIBRARY_DIR}/${LIBNAME}")
@@ -202,17 +192,9 @@ macro(find_quickjs)
     QUICKJS_JS_MODULE_DIR
     QUICKJS_C_MODULE_DIR)
   list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
-  # set(CMAKE_REQUIRED_LIBRARIES "${QUICKJS_LIBRARY}")
-  # check_function_list(JS_AddIntrinsicBigDecimal JS_AddIntrinsicBigFloat
-  # JS_AddIntrinsicOperators JS_EnableBignumExt JS_GetModuleLoaderFunc
-  # JS_GetModuleLoaderOpaque JS_GetPropertyInternal JS_NewString
-  # JS_SetPropertyInternal __JS_FreeValue __JS_FreeValueRT has_suffix
-  # js_debugger_build_backtrace js_init_module_os js_init_module_std
-  # js_load_file js_module_loader js_module_set_import_meta js_std_add_helpers
-  # js_std_dump_error js_std_free_handlers js_std_init_handlers js_std_loop
-  # js_std_promise_rejection_tracker js_std_set_worker_new_context_func
-  # lre_compile lre_exec lre_get_capture_count unicode_from_utf8
-  # unicode_to_utf8)
+  # set(CMAKE_REQUIRED_LIBRARIES "${QUICKJS_LIBRARY}") check_function_list(JS_AddIntrinsicBigDecimal JS_AddIntrinsicBigFloat JS_AddIntrinsicOperators JS_EnableBignumExt JS_GetModuleLoaderFunc JS_GetModuleLoaderOpaque JS_GetPropertyInternal JS_NewString JS_SetPropertyInternal __JS_FreeValue
+  # __JS_FreeValueRT has_suffix js_debugger_build_backtrace js_init_module_os js_init_module_std js_load_file js_module_loader js_module_set_import_meta js_std_add_helpers js_std_dump_error js_std_free_handlers js_std_init_handlers js_std_loop js_std_promise_rejection_tracker
+  # js_std_set_worker_new_context_func lre_compile lre_exec lre_get_capture_count unicode_from_utf8 unicode_to_utf8)
   check_library_functions(
     "${QUICKJS_LIBRARY}"
     JS_AddIntrinsicBigDecimal
@@ -266,8 +248,7 @@ macro(configure_quickjs)
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 
   if(NOT QUICKJS_C_MODULE_DIR)
-    set(QUICKJS_C_MODULE_DIR
-        "${QUICKJS_PREFIX}/${CMAKE_INSTALL_LIBDIR}/quickjs")
+    set(QUICKJS_C_MODULE_DIR "${QUICKJS_PREFIX}/${CMAKE_INSTALL_LIBDIR}/quickjs")
   endif(NOT QUICKJS_C_MODULE_DIR)
 
   if(NOT QUICKJS_JS_MODULE_DIR)

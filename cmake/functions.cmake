@@ -20,7 +20,10 @@ function(CANONICALIZE OUTPUT_VAR STR)
   set("${OUTPUT_VAR}"
       "${TMP_STR}"
       PARENT_SCOPE)
-endfunction(CANONICALIZE OUTPUT_VAR STR)
+endfunction(
+  CANONICALIZE
+  OUTPUT_VAR
+  STR)
 
 function(BASENAME OUTPUT_VAR STR)
   string(REGEX REPLACE ".*/" "" TMP_STR "${STR}")
@@ -121,17 +124,14 @@ macro(CHECK_FUNCTIONS)
 endmacro(CHECK_FUNCTIONS)
 
 function(RESULT_VALUE OUTPUT_VAR VARNAME)
-  if("${ARGV2}" STREQUAL "")
+  list(GET "${ARGN}" 0 POSITIVE_REPORT)
+  if("${POSITIVE_REPORT}" STREQUAL "")
     set(POSITIVE_REPORT "YES")
-  else("${ARGV2}" STREQUAL "")
-    set(POSITIVE_REPORT "${ARGV2}")
-  endif("${ARGV2}" STREQUAL "")
-
-  if("${ARGV3}" STREQUAL "")
+  endif("${POSITIVE_REPORT}" STREQUAL "")
+  list(GET "${ARGN}" 1 NEGATIVE_REPORT)
+  if("${NEGATIVE_REPORT}" STREQUAL "")
     set(NEGATIVE_REPORT "NO")
-  else("${ARGV3}" STREQUAL "")
-    set(NEGATIVE_REPORT "${ARGV3}")
-  endif("${ARGV3}" STREQUAL "")
+  endif("${NEGATIVE_REPORT}" STREQUAL "")
 
   if(${${VARNAME}})
     set("${OUTPUT_VAR}"
@@ -147,10 +147,10 @@ endfunction(
   OUTPUT_VAR
   VARNAME)
 
-function(REPORT MSG VARNAME)
-  result_value(REPORT_RESULT "${VARNAME}" ${ARGV})
+macro(REPORT MSG VARNAME)
+  result_value(REPORT_RESULT "${VARNAME}" ${ARGN})
   message(STATUS "${MSG}... ${REPORT_RESULT}")
-endfunction(
+endmacro(
   REPORT
   MSG
   VARNAME)
@@ -160,26 +160,26 @@ macro(CHECK_LIBRARY_FUNCTIONS LIB)
 
   foreach(FUNC ${ARGN})
     string(TOUPPER "HAVE_${FUNC}" RESULT_VAR)
-    run_code(
-      "check-${FUNC}.c"
-      "#include <stdio.h>\n\nextern int ${FUNC}();\n\nint main() {\n  printf(\"${FUNC}()=%p\\n\", ${FUNC}); return 0;\n}"
-      RUN_RESULT
-      RUN_OUTPUT
-      "${QUICKJS_LIBRARY}"
-      "")
+    run_code("check-${FUNC}.c" "#include <stdio.h>\n\nextern int ${FUNC}();\n\nint main() {\n  printf(\"${FUNC}()=%p\\n\", ${FUNC}); return 0;\n}" RUN_RESULT RUN_OUTPUT "${QUICKJS_LIBRARY}" "")
     # dump(RUN_RESULT RUN_OUTPUT)
 
     if(NOT RUN_RESULT AND NOT RUN_OUTPUT STREQUAL "")
-      set(${RESULT_VAR}
+      set(RESULT
           TRUE
           PARENT_SCOPE)
     else(NOT RUN_RESULT AND NOT RUN_OUTPUT STREQUAL "")
-      set(${RESULT_VAR}
+      set(RESULT
           FALSE
           PARENT_SCOPE)
     endif(NOT RUN_RESULT AND NOT RUN_OUTPUT STREQUAL "")
+    set(${RESULT_VAR}
+        "${RESULT}"
+        PARENT_SCOPE)
 
-    report("Checking for ${FUNC}() in '${LNAME}'" ${RESULT_VAR})
+    result_value(R "${RESULT}")
+
+    message(STATUS "Checking for ${FUNC}() in '${LNAME}': ${R}")
+    # report("Checking for ${FUNC}() in '${LNAME}'" "${RESULT_VAR}")
 
   endforeach(FUNC ${ARGN})
 endmacro(CHECK_LIBRARY_FUNCTIONS)
@@ -273,7 +273,11 @@ function(CONTAINS LIST VALUE OUTPUT)
   set("${OUTPUT}"
       "${RESULT}"
       PARENT_SCOPE)
-endfunction(CONTAINS LIST VALUE OUTPUT)
+endfunction(
+  CONTAINS
+  LIST
+  VALUE
+  OUTPUT)
 
 function(ADD_UNIQUE LIST)
   set(RESULT "${${LIST}}")
@@ -289,9 +293,7 @@ function(ADD_UNIQUE LIST)
 endfunction(ADD_UNIQUE LIST)
 
 macro(SYMLINK TARGET LINK_NAME)
-  install(
-    CODE "message(\"Create symlink '$ENV{DESTDIR}${LINK_NAME}' to '${TARGET}'\")\nexecute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} $ENV{DESTDIR}${LINK_NAME})"
-  )
+  install(CODE "message(\"Create symlink '$ENV{DESTDIR}${LINK_NAME}' to '${TARGET}'\")\nexecute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} $ENV{DESTDIR}${LINK_NAME})")
 endmacro(
   SYMLINK
   TARGET
@@ -323,7 +325,10 @@ function(CHECK_FLAG FLAG VAR)
     message(STATUS "Compiler flag ${FLAG} ... supported")
 
   endif(RESULT)
-endfunction(CHECK_FLAG FLAG VAR)
+endfunction(
+  CHECK_FLAG
+  FLAG
+  VAR)
 
 function(
   TRY_CODE
@@ -366,6 +371,7 @@ function(
   string(RANDOM LENGTH 8 RND)
   set(FN "${CMAKE_CURRENT_BINARY_DIR}/${RND}-${FILE}")
   file(WRITE "${FN}" "${CODE}")
+  string(REGEX REPLACE "\.[^./]+$" ".log" LOG  "${FN}")
 
   # dump(FN)
 
@@ -374,8 +380,10 @@ function(
     COMPILE_OUTPUT_VARIABLE COMPILE_OUTPUT
     RUN_OUTPUT_VARIABLE RUN_OUTPUT
     CMAKE_FLAGS "${CMAKE_REQUIRED_FLAGS}"
-    COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}" LINK_OPTIONS
-                        "${LDFLAGS}" LINK_LIBRARIES "${LIBS}")
+    COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}" LINK_OPTIONS "${LDFLAGS}" LINK_LIBRARIES "${LIBS}")
+
+  file(WRITE "${LOG}" "Compile output:\n${COMPILE_OUTPUT}\n\nRun output:\n${RUN_OUTPUT}\n")
+  unset(LOG)
 
   set(${RESULT_VAR}
       "${COMPILE_RESULT}"

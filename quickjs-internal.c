@@ -249,7 +249,7 @@ module_object(JSContext* ctx, JSModuleDef* m) {
   return obj;
 }
 
-/*int
+int
 module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueConst exports) {
   JSAtom def = JS_NewAtom(ctx, "default");
   int i;
@@ -272,7 +272,7 @@ module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueC
 
   JS_FreeAtom(ctx, def);
   return i;
-}*/
+}
 
 JSValue
 module_imports(JSContext* ctx, JSModuleDef* m) {

@@ -5,8 +5,7 @@ endif()
 if(NOT DEFINED CMAKE_INSTALL_LIBDIR)
   set(CMAKE_INSTALL_LIBDIR
       lib
-      CACHE STRING
-            "Specify the output directory for libraries (default is lib)")
+      CACHE STRING "Specify the output directory for libraries (default is lib)")
 endif()
 
 function(GET_SYSTEM_NAME HOST_SYSTEM_VAR TARGET_SYSTEM_VAR)
