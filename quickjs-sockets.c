@@ -168,7 +168,7 @@ js_sockaddr_new(JSContext* ctx, int family) {
   return js_sockaddr_wrap(ctx, a);
 }
 
-static BOOL
+static bool
 js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
   if(argc == 1 && js_is_arraybuffer(ctx, argv[0])) {
     uint8_t* data;
@@ -178,7 +178,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
       if(len > 0)
         memcpy(a, data, MIN_NUM(len, sizeof(SockAddr)));
 
-    return TRUE;
+    return true;
   }
 
   if(argc >= 1 && JS_IsNumber(argv[0])) {
@@ -244,7 +244,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
       a->ip6.sin6_port = htons(port);
   }
 
-  return TRUE;
+  return true;
 }
 
 static JSValue
@@ -390,7 +390,7 @@ js_sockaddr_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case SOCKADDR_BUFFER: {
       JSObject* obj = JS_VALUE_GET_OBJ(JS_DupValue(ctx, this_val));
 
-      ret = JS_NewArrayBuffer(ctx, (uint8_t*)a, sizeof(SockAddr), js_sockaddr_free_buffer, obj, FALSE);
+      ret = JS_NewArrayBuffer(ctx, (uint8_t*)a, sizeof(SockAddr), js_sockaddr_free_buffer, obj, false);
       break;
     }
   }
@@ -551,7 +551,7 @@ static JSClassDef js_sockaddr_class = {
     .finalizer = js_sockaddr_finalizer,
 };
 
-static BOOL
+static bool
 timeval_read(JSContext* ctx, JSValueConst arg, struct timeval* tv) {
   if(JS_IsNumber(arg)) {
     double msecs = 0;
@@ -561,7 +561,7 @@ timeval_read(JSContext* ctx, JSValueConst arg, struct timeval* tv) {
     msecs -= tv->tv_sec * 1000;
     tv->tv_usec = msecs * 1000;
 
-    return TRUE;
+    return true;
   }
 
   if(js_is_array(ctx, arg) && js_array_length(ctx, arg) >= 2) {
@@ -576,7 +576,7 @@ timeval_read(JSContext* ctx, JSValueConst arg, struct timeval* tv) {
     tv->tv_sec = sec;
     tv->tv_usec = usec;
 
-    return TRUE;
+    return true;
   }
 
   if(js_is_arraybuffer(ctx, arg)) {
@@ -586,25 +586,25 @@ timeval_read(JSContext* ctx, JSValueConst arg, struct timeval* tv) {
     if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
       if(len >= sizeof(struct timeval)) {
         memcpy(tv, data, sizeof(struct timeval));
-        return TRUE;
+        return true;
       }
     }
   }
 
-  return FALSE;
+  return false;
 }
 
-static BOOL
+static bool
 timeval_write(JSContext* ctx, const struct timeval* tv, JSValueConst arg) {
   if(JS_IsNumber(arg)) {
-    return FALSE;
+    return false;
   }
 
   if(js_is_array(ctx, arg)) {
     js_array_clear(ctx, arg);
     JS_SetPropertyUint32(ctx, arg, 0, JS_NewUint32(ctx, tv->tv_sec));
     JS_SetPropertyUint32(ctx, arg, 1, JS_NewUint32(ctx, tv->tv_usec));
-    return TRUE;
+    return true;
   }
 
   if(js_is_arraybuffer(ctx, arg)) {
@@ -613,15 +613,15 @@ timeval_write(JSContext* ctx, const struct timeval* tv, JSValueConst arg) {
     if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
       if(len >= sizeof(struct timeval)) {
         memcpy(data, tv, sizeof(struct timeval));
-        return TRUE;
+        return true;
       }
     }
   }
 
-  return FALSE;
+  return false;
 }
 
-static BOOL
+static bool
 fdset_read(JSContext* ctx, JSValueConst arg, fd_set* set) {
   if(js_is_array(ctx, arg)) {
     size_t i, len = js_array_length(ctx, arg);
@@ -636,7 +636,7 @@ fdset_read(JSContext* ctx, JSValueConst arg, fd_set* set) {
       JS_FreeValue(ctx, member);
     }
 
-    return TRUE;
+    return true;
   }
 
   if(js_is_arraybuffer(ctx, arg)) {
@@ -645,14 +645,14 @@ fdset_read(JSContext* ctx, JSValueConst arg, fd_set* set) {
 
     if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
       memcpy(set, data, MIN_NUM(len, sizeof(fd_set)));
-      return TRUE;
+      return true;
     }
   }
 
-  return FALSE;
+  return false;
 }
 
-static BOOL
+static bool
 fdset_write(JSContext* ctx, const fd_set* set, JSValueConst arg) {
   if(js_is_array(ctx, arg)) {
     int fd, i = 0;
@@ -663,7 +663,7 @@ fdset_write(JSContext* ctx, const fd_set* set, JSValueConst arg) {
       if(FD_ISSET(fd, set))
         JS_SetPropertyUint32(ctx, arg, i++, JS_NewUint32(ctx, fd));
 
-    return TRUE;
+    return true;
   }
 
   if(js_is_arraybuffer(ctx, arg)) {
@@ -672,11 +672,11 @@ fdset_write(JSContext* ctx, const fd_set* set, JSValueConst arg) {
 
     if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
       memcpy(data, set, MIN_NUM(len, sizeof(fd_set)));
-      return TRUE;
+      return true;
     }
   }
 
-  return FALSE;
+  return false;
 }
 
 static JSValue
@@ -693,20 +693,20 @@ fdset_toarray(JSContext* ctx, const fd_set* set) {
 }
 
 #ifndef _WIN32
-static BOOL
+static bool
 pollfd_read(JSContext* ctx, JSValueConst arg, struct pollfd* pfd) {
   if(js_is_array(ctx, arg) && js_array_length(ctx, arg) >= 2) {
     pfd->fd = js_get_propertyint_int32(ctx, arg, 0);
     pfd->events = js_get_propertyint_int32(ctx, arg, 1);
     pfd->revents = js_get_propertyint_int32(ctx, arg, 2);
-    return TRUE;
+    return true;
   }
 
   if(JS_IsObject(arg) && !JS_IsNull(arg)) {
     pfd->fd = js_get_propertystr_int32(ctx, arg, "fd");
     pfd->events = js_get_propertystr_int32(ctx, arg, "events");
     pfd->revents = js_get_propertystr_int32(ctx, arg, "revents");
-    return TRUE;
+    return true;
   }
 
   if(js_is_arraybuffer(ctx, arg)) {
@@ -716,28 +716,28 @@ pollfd_read(JSContext* ctx, JSValueConst arg, struct pollfd* pfd) {
     if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
       if(len >= sizeof(struct pollfd)) {
         memcpy(pfd, data, MIN_NUM(len, sizeof(struct pollfd)));
-        return TRUE;
+        return true;
       }
     }
   }
-  return FALSE;
+  return false;
 }
 
-static BOOL
+static bool
 pollfd_write(JSContext* ctx, const struct pollfd* pfd, JSValueConst arg) {
   if(js_is_array(ctx, arg)) {
     js_array_clear(ctx, arg);
     JS_SetPropertyUint32(ctx, arg, 0, JS_NewInt32(ctx, pfd->fd));
     JS_SetPropertyUint32(ctx, arg, 1, JS_NewInt32(ctx, pfd->events));
     JS_SetPropertyUint32(ctx, arg, 2, JS_NewInt32(ctx, pfd->revents));
-    return TRUE;
+    return true;
   }
 
   if(JS_IsObject(arg) && !JS_IsNull(arg)) {
     JS_SetPropertyStr(ctx, arg, "fd", JS_NewInt32(ctx, pfd->fd));
     JS_SetPropertyStr(ctx, arg, "events", JS_NewInt32(ctx, pfd->events));
     JS_SetPropertyStr(ctx, arg, "revents", JS_NewInt32(ctx, pfd->revents));
-    return TRUE;
+    return true;
   }
 
   if(js_is_arraybuffer(ctx, arg)) {
@@ -747,12 +747,12 @@ pollfd_write(JSContext* ctx, const struct pollfd* pfd, JSValueConst arg) {
     if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
       if(len >= sizeof(struct pollfd)) {
         memcpy(data, pfd, MIN_NUM(len, sizeof(struct pollfd)));
-        return TRUE;
+        return true;
       }
     }
   }
 
-  return FALSE;
+  return false;
 }
 #endif
 
@@ -859,7 +859,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint32_t nfds = 0;
   int32_t timeout = -1;
   struct pollfd* pfds;
-  BOOL is_array = js_is_array(ctx, argv[0]), is_arraybuffer = js_is_arraybuffer(ctx, argv[0]);
+  bool is_array = js_is_array(ctx, argv[0]), is_arraybuffer = js_is_arraybuffer(ctx, argv[0]);
 
   if(argc >= 2 && JS_IsNumber(argv[1]))
     JS_ToUint32(ctx, &nfds, argv[1]);
@@ -944,8 +944,8 @@ end:
 }
 #endif
 
-static BOOL
-socket_nonblocking(Socket* s, BOOL nonblock) {
+static bool
+socket_nonblocking(Socket* s, bool nonblock) {
 #ifdef _WIN32
   ULONG mode = nonblock;
   syscall_return(s, SYSCALL_FCNTL, ioctlsocket(socket_handle(*s), FIONBIO, &mode));
@@ -961,12 +961,12 @@ socket_nonblocking(Socket* s, BOOL nonblock) {
   return s->ret == 0;
 }
 
-/*static BOOL
+/*static bool
 socket_is_nonblocking(Socket sock) {
   int fd = socket_fd(sock);
 
 #ifdef _WIN32
-  return FALSE;
+  return false;
 #else
   int flags = fcntl(fd, F_GETFL);
 
@@ -1027,23 +1027,23 @@ js_socket_error(JSContext* ctx, Socket sock) {
   return ret;
 }
 
-static BOOL
+static bool
 js_socket_check_open(JSContext* ctx, Socket sock) {
   if(socket_closed(sock)) {
     JS_ThrowInternalError(ctx, "Socket #%d has already been closed", sock.fd);
-    return FALSE;
+    return false;
   }
 
   if(!socket_open(sock)) {
     JS_ThrowInternalError(ctx, "Socket #%d is not yet open", sock.fd);
-    return FALSE;
+    return false;
   }
 
-  return TRUE;
+  return true;
 }
 
 static JSValue
-js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL owner) {
+js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, bool async, bool owner) {
   JSValue obj;
   Socket* s;
 
@@ -1070,12 +1070,12 @@ js_socket_new_proto(JSContext* ctx, JSValueConst proto, int fd, BOOL async, BOOL
     s = (Socket*)asock;
 
     s->fd = fd;
-    s->nonblock = TRUE;
+    s->nonblock = true;
 
-    socket_nonblocking(s, TRUE);
+    socket_nonblocking(s, true);
 
   } else {
-    Socket sock = SOCKET(fd, 0, -1, FALSE, FALSE, owner);
+    Socket sock = SOCKET(fd, 0, -1, false, false, owner);
     assert(sizeof(Socket) == sizeof(sock.ptr));
 
     JS_SetOpaque(obj, sock.ptr);
@@ -1400,7 +1400,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   socklen_t alen = 0;
   AsyncSocket* asock = js_asyncsocket_ptr(this_val);
   Socket* s = asock ? (Socket*)asock : &sock;
-  BOOL wait = s->nonblock && !(magic & ASYNC_READY);
+  bool wait = s->nonblock && !(magic & ASYNC_READY);
 
   magic &= (ASYNC_READY - 1);
 
@@ -1428,7 +1428,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   switch(magic) {
     case METHOD_NDELAY: {
-      BOOL nonblock = TRUE;
+      bool nonblock = true;
       if(argc >= 1)
         nonblock = JS_ToBool(ctx, argv[0]);
 
@@ -1660,7 +1660,7 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
 
     if(fd == -1) {
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
-      static BOOL initialized;
+      static bool initialized;
       int err;
       WSADATA d;
 
@@ -1681,7 +1681,7 @@ js_socket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
     break;
   }
 
-  return js_socket_new_proto(ctx, proto, fd, async, TRUE);
+  return js_socket_new_proto(ctx, proto, fd, async, true);
 
 fail:
   return JS_EXCEPTION;
@@ -1689,11 +1689,11 @@ fail:
 
 static JSValue
 js_asyncsocket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  return js_socket_constructor(ctx, new_target, argc, argv, TRUE);
+  return js_socket_constructor(ctx, new_target, argc, argv, true);
 }
 static JSValue
 js_syncsocket_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  return js_socket_constructor(ctx, new_target, argc, argv, FALSE);
+  return js_socket_constructor(ctx, new_target, argc, argv, false);
 }
 
 static JSValue
@@ -1730,7 +1730,7 @@ js_socket_adopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   JS_ToInt32(ctx, &fd, argv[0]);
 
-  return js_socket_new_proto(ctx, socket_proto, fd, FALSE, FALSE);
+  return js_socket_new_proto(ctx, socket_proto, fd, false, false);
 }
 
 static void

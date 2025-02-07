@@ -3,6 +3,7 @@
 
 #include "vector.h"
 #include "debug.h"
+#include <stdbool.h>
 
 /**
  * \defgroup ringbuffer ringbuffer: Ring Buffer implementation
@@ -12,7 +13,7 @@ typedef union ringbuffer {
   struct {
     uint8_t* data;
     size_t size, capacity;
-    BOOL error;
+    bool error;
     DynBufReallocFunc* realloc_func;
     void* opaque;
     volatile uint32_t tail, head;
@@ -65,13 +66,13 @@ typedef union ringbuffer {
 
 void ringbuffer_reset(RingBuffer*);
 void ringbuffer_queue(RingBuffer*, uint8_t data);
-BOOL ringbuffer_dequeue(RingBuffer*, uint8_t* data);
+bool ringbuffer_dequeue(RingBuffer*, uint8_t* data);
 ssize_t ringbuffer_write(RingBuffer*, const void* x, size_t len);
 ssize_t ringbuffer_read(RingBuffer*, void* x, size_t len);
 uint8_t* ringbuffer_peek(RingBuffer*, size_t index);
 void ringbuffer_normalize(RingBuffer*);
-BOOL ringbuffer_resize(RingBuffer*, size_t);
-BOOL ringbuffer_allocate(RingBuffer*, size_t);
+bool ringbuffer_resize(RingBuffer*, size_t);
+bool ringbuffer_allocate(RingBuffer*, size_t);
 uint8_t* ringbuffer_reserve(RingBuffer* rb, size_t min_bytes);
 ssize_t ringbuffer_append(RingBuffer* r, const void* x, size_t len, JSContext* ctx);
 

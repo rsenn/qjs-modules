@@ -404,7 +404,7 @@ utf8_fromwcs(const wchar_t* wstr) {
 }
 #endif
 
-BOOL
+bool
 utf16_multiword(const void* in) {
   const uint16_t* p16 = in;
   LibutfC16Type type = libutf_c16_type(p16[0]);
@@ -511,7 +511,7 @@ puts_file(const char* file, const char* s) {
 }
 
 size_t
-u64toa(char* x, uint64_t num, int base) {
+u64_to_str(char* x, uint64_t num, int base) {
   size_t len = 0;
   uint64_t n = num;
 
@@ -536,7 +536,7 @@ u64toa(char* x, uint64_t num, int base) {
 }
 
 size_t
-i64toa(char* x, int64_t num, int base) {
+i64_to_str(char* x, int64_t num, int base) {
   size_t pos = 0, len;
 
   if(num < 0) {
@@ -544,7 +544,7 @@ i64toa(char* x, int64_t num, int base) {
     num = -num;
   }
 
-  len = u64toa(&x[pos], num, base);
+  len = u64_to_str(&x[pos], num, base);
 
   return pos + len;
 }

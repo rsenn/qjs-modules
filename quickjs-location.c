@@ -65,9 +65,9 @@ js_location_tostring(JSContext* ctx, const Location* loc) {
   return ret;
 }
 
-BOOL
+bool
 js_is_location(JSContext* ctx, JSValueConst obj) {
-  BOOL ret;
+  bool ret;
   JSAtom line, column;
   line = JS_NewAtom(ctx, "line");
   column = JS_NewAtom(ctx, "column");

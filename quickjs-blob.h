@@ -13,7 +13,7 @@ typedef union blob {
   struct {
     uint8_t* data;
     size_t size, capacity;
-    BOOL error;
+    bool error;
     DynBufReallocFunc* realloc_func;
     void* opaque;
     char* type;

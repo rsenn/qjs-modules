@@ -120,7 +120,7 @@ lexer_rule_regex(LexerRule* rule) {
   return lexer_states_skip(rule->expr);
 }
 
-BOOL
+bool
 lexer_rule_expand(Lexer* lex, char* p, DynBuf* db) {
   size_t len;
 
@@ -146,16 +146,16 @@ lexer_rule_expand(Lexer* lex, char* p, DynBuf* db) {
 
   // printf("expand %s %s\n", p, db->buf);
 
-  return TRUE;
+  return true;
 }
 
-static BOOL
+static bool
 lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
   DynBuf dbuf = DBUF_INIT_0();
-  BOOL ret;
+  bool ret;
 
   if(rule->bytecode)
-    return TRUE;
+    return true;
 
   js_dbuf_init(ctx, &dbuf);
 
@@ -166,7 +166,7 @@ lexer_rule_compile(Lexer* lex, LexerRule* rule, JSContext* ctx) {
 
   } else {
     JS_ThrowInternalError(ctx, "Error expanding rule '%s'", rule->name);
-    ret = FALSE;
+    ret = false;
   }
 
   dbuf_free(&dbuf);
@@ -309,16 +309,16 @@ lexer_find_definition(Lexer* lex, const char* name, size_t namelen) {
   return 0;
 }
 
-BOOL
+bool
 lexer_compile_rules(Lexer* lex, JSContext* ctx) {
   LexerRule* rule;
 
   vector_foreach_t(&lex->rules, rule) {
     if(!lexer_rule_compile(lex, rule, ctx))
-      return FALSE;
+      return false;
   }
 
-  return TRUE;
+  return true;
 }
 
 int

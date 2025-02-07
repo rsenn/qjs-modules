@@ -2,6 +2,7 @@
 #define ITERATION_H
 
 #include "utils.h"
+#include <stdbool.h>
 #include <quickjs.h>
 #include <assert.h>
 
@@ -11,27 +12,27 @@
  */
 typedef struct Iteration {
   JSValue iter, next, data;
-  BOOL done;
+  bool done;
 } Iteration;
 
-static inline BOOL
+static inline bool
 iteration_init_free(Iteration* it, JSContext* ctx, JSValue iterator) {
   it->iter = iterator;
   it->next = JS_GetPropertyStr(ctx, it->iter, "next");
   it->data = JS_UNDEFINED;
-  it->done = FALSE;
+  it->done = false;
 
   return JS_IsFunction(ctx, it->next);
 }
 
-static inline BOOL
+static inline bool
 iteration_init(Iteration* it, JSContext* ctx, JSValueConst iterator) {
   return iteration_init_free(it, ctx, JS_DupValue(ctx, iterator));
 }
 
-static inline BOOL
+static inline bool
 iteration_method_atom(Iteration* it, JSContext* ctx, JSValueConst object, JSAtom atom) {
-  BOOL ret = FALSE;
+  bool ret = false;
   JSValue method = JS_GetProperty(ctx, object, atom);
 
   if(JS_IsFunction(ctx, method)) {
@@ -43,10 +44,10 @@ iteration_method_atom(Iteration* it, JSContext* ctx, JSValueConst object, JSAtom
   return ret;
 }
 
-static inline BOOL
+static inline bool
 iteration_method_symbol(Iteration* it, JSContext* ctx, JSValueConst object, const char* sym) {
   JSAtom atom = js_symbol_static_atom(ctx, sym);
-  BOOL ret = iteration_method_atom(it, ctx, object, atom);
+  bool ret = iteration_method_atom(it, ctx, object, atom);
 
   JS_FreeAtom(ctx, atom);
   return ret;
@@ -64,7 +65,7 @@ iteration_reset_rt(Iteration* it, JSRuntime* rt) {
     JS_FreeValueRT(rt, it->data);
 
   it->data = it->iter = it->next = JS_UNINITIALIZED;
-  it->done = FALSE;
+  it->done = false;
 }
 
 static inline void
@@ -72,7 +73,7 @@ iteration_reset(Iteration* it, JSContext* ctx) {
   iteration_reset_rt(it, JS_GetRuntime(ctx));
 }
 
-static inline BOOL
+static inline bool
 iteration_next(Iteration* it, JSContext* ctx) {
   assert(!it->done);
 

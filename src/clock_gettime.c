@@ -29,7 +29,7 @@ clock_gettime(int X, struct timeval* tv) {
   static LARGE_INTEGER offset;
   static double frequencyToMicroseconds;
   static int initialized = 0;
-  static BOOL usePerformanceCounter = 0;
+  static bool usePerformanceCounter = 0;
 
   if(!initialized) {
     LARGE_INTEGER performanceFrequency;

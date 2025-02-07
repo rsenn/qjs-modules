@@ -20,14 +20,14 @@ ringbuffer_queue(RingBuffer* r, uint8_t data) {
   r->head = ((r->head + 1) % r->size);
 }
 
-BOOL
+bool
 ringbuffer_dequeue(RingBuffer* r, uint8_t* data) {
   if(ringbuffer_empty(r))
-    return FALSE;
+    return false;
 
   *data = r->data[r->tail];
   r->tail = ((r->tail + 1) % r->size);
-  return TRUE;
+  return true;
 }
 
 ssize_t
@@ -96,24 +96,24 @@ ringbuffer_normalize(RingBuffer* r) {
   r->tail = 0;
 }
 
-BOOL
+bool
 ringbuffer_resize(RingBuffer* r, size_t newsize) {
   ringbuffer_normalize(r);
   if(newsize > r->size)
     return vector_grow(&r->vec, 1, newsize);
   else if(newsize < r->size)
     return vector_shrink(&r->vec, 1, newsize);
-  return TRUE;
+  return true;
 }
 
-BOOL
+bool
 ringbuffer_allocate(RingBuffer* r, size_t size) {
   ssize_t n = ringbuffer_length(r);
 
   if((r->size - n) < size)
     return ringbuffer_resize(r, ringbuffer_length(r) + size);
 
-  return TRUE;
+  return true;
 }
 
 uint8_t*

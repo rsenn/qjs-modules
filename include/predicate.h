@@ -4,6 +4,7 @@
 #include "vector.h"
 #include "utils.h"
 #include "buffer-utils.h"
+#include <stdbool.h>
 #include <cutils.h>
 
 /**
@@ -137,8 +138,8 @@ typedef struct Predicate {
   }
 static const size_t CAPTURE_COUNT_MAX = 255;
 
-BOOL predicate_is(JSValueConst);
-BOOL predicate_callable(JSContext*, JSValueConst);
+bool predicate_is(JSValueConst);
+bool predicate_callable(JSContext*, JSValueConst);
 VISIBLE enum PredicateId predicate_id(JSValue);
 JSValue predicate_eval(Predicate*, JSContext* ctx, JSArguments* args);
 JSValue predicate_call(JSContext*, JSValue value, int argc, JSValue argv[]);

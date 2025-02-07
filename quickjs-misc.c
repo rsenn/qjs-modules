@@ -82,7 +82,7 @@
 
 #define TextAttrColor(n) (((n)&1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
 
-#define ColorIsBG(c) ((c) >= 100 ? TRUE : (c) >= 90 ? FALSE : (c) >= 40 ? TRUE : FALSE)
+#define ColorIsBG(c) ((c) >= 100 ? true : (c) >= 90 ? false : (c) >= 40 ? true : false)
 #define ColorIsBold(c) ((c) >= 90)
 #define ColorIndex(c) (((c) >= 30 ? (c) % 10 : (c)) & 7)
 #define ColorRed(c) (ColorIndex(c) & 1)
@@ -91,7 +91,7 @@
 
 #define ColorToBits(c) ((ColorIsBG(c) << 4) | (ColorIsBold(c) << 3) | ColorBlue(c) | ColorGreen(c) << 1 | ColorRed(c) << 2)
 
-BOOL JS_IsUncatchableError(JSContext* ctx, JSValueConst val);
+bool JS_IsUncatchableError(JSContext* ctx, JSValueConst val);
 
 /**
  * \addtogroup quickjs-misc
@@ -178,14 +178,14 @@ typedef enum {
 } ClearMode;
 
 #ifdef _WIN32
-static BOOL
-clear_screen(HANDLE h, ClearMode mode, BOOL line) {
+static bool
+clear_screen(HANDLE h, ClearMode mode, bool line) {
   COORD coords = {0, 0};
   DWORD w, n;
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
   if(!GetConsoleScreenBufferInfo(h, &sbi))
-    return FALSE;
+    return false;
 
 #define CHAR_POS(c) (((c).Y * sbi.dwSize.X) + (c).X)
 
@@ -212,34 +212,34 @@ clear_screen(HANDLE h, ClearMode mode, BOOL line) {
   }
 
   if(!FillConsoleOutputCharacter(h, (TCHAR)' ', n, coords, &w))
-    return FALSE;
+    return false;
 
   if(!GetConsoleScreenBufferInfo(h, &sbi))
-    return FALSE;
+    return false;
 
   if(!FillConsoleOutputAttribute(h, sbi.wAttributes, n, coords, &w))
-    return FALSE;
+    return false;
 
   // SetConsoleCursorPosition(h, coords);
-  return TRUE;
+  return true;
 }
 
 #else
-static BOOL
-clear_screen(int fd, ClearMode mode, BOOL line) {
+static bool
+clear_screen(int fd, ClearMode mode, bool line) {
   char buf[] = {27, '[', mode + '0', line ? 'K' : 'J'};
   return write(fd, buf, sizeof(buf)) > 0;
 }
 #endif
 
 #ifdef _WIN32
-static BOOL
+static bool
 set_cursor_position(HANDLE h, int x, int y) {
   COORD coords = {0, 0};
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
   if(!GetConsoleScreenBufferInfo(h, &sbi))
-    return FALSE;
+    return false;
 
   coords.X = x == -1 ? sbi.dwCursorPosition.X : x;
   coords.Y = y == -1 ? sbi.dwCursorPosition.Y : y;
@@ -247,7 +247,7 @@ set_cursor_position(HANDLE h, int x, int y) {
   return !!SetConsoleCursorPosition(h, coords);
 }
 #else
-static BOOL
+static bool
 set_cursor_position(int fd, int x, int y) {
   char buf[2 + (FMT_ULONG + 1) * 2] = {27, '['};
   size_t pos = 2;
@@ -271,13 +271,13 @@ set_cursor_position(int fd, int x, int y) {
 #endif
 
 #ifdef _WIN32
-static BOOL
+static bool
 move_cursor(HANDLE h, int x, int y) {
   COORD coords = {0, 0};
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
   if(!GetConsoleScreenBufferInfo(h, &sbi))
-    return FALSE;
+    return false;
 
   coords.X = sbi.dwCursorPosition.X + x;
   coords.Y = sbi.dwCursorPosition.Y + y;
@@ -285,7 +285,7 @@ move_cursor(HANDLE h, int x, int y) {
   return !!SetConsoleCursorPosition(h, coords);
 }
 #else
-static BOOL
+static bool
 move_cursor(int fd, int x, int y) {
   char buf[(2 + (FMT_ULONG) + 1) * 2];
   size_t pos = 0;
@@ -311,25 +311,25 @@ move_cursor(int fd, int x, int y) {
 #endif
 
 #ifdef _WIN32
-static BOOL
+static bool
 set_text_attributes(HANDLE h, uint32_t attr) {
   return !!SetConsoleTextAttribute(h, attr);
 }
 
-static BOOL
+static bool
 get_text_attributes(HANDLE h, uint32_t* attr) {
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
   if(GetConsoleScreenBufferInfo(h, &sbi)) {
     *attr = sbi.wAttributes;
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 #else
-static BOOL
+static bool
 set_text_color(intptr_t fd, int intc, int32_t intv[]) {
   DynBuf dbuf;
 
@@ -342,7 +342,7 @@ set_text_color(intptr_t fd, int intc, int32_t intv[]) {
 
     if(!(ptr = dbuf_reserve(&dbuf, FMT_ULONG))) {
       dbuf_free(&dbuf);
-      return FALSE;
+      return false;
     }
 
     dbuf.size += fmt_ulong((void*)ptr, intv[i]);
@@ -367,7 +367,7 @@ set_text_color(intptr_t fd, int intc, int32_t intv[]) {
   return r > 0;
 }
 
-static BOOL
+static bool
 set_text_attributes(intptr_t fd, uint32_t attr) {
   char buf[(2 + (FMT_ULONG) + 1) * 3];
   size_t pos = 0;
@@ -718,7 +718,7 @@ js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     memcpy(&buf[pos], buffers[i].data, buffers[i].size);
     pos += buffers[i].size;
   }
-  ret = JS_NewArrayBuffer(ctx, buf, total_len, js_arraybuffer_free_pointer, 0, FALSE);
+  ret = JS_NewArrayBuffer(ctx, buf, total_len, js_arraybuffer_free_pointer, 0, false);
 fail:
   for(i = 0; i < argc; i++)
     if(buffers[i].data)
@@ -1008,7 +1008,7 @@ js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   end = limit >= 0 ? start + limit : -1;
 
   for(proto = JS_DupValue(ctx, argv[0]); !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto); proto = JS_GetPrototype(ctx, proto)) {
-    BOOL circular = (JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(prev));
+    bool circular = (JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(prev));
     JS_FreeValue(ctx, prev);
     if(circular)
       break;
@@ -1167,7 +1167,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   JSValue ret = JS_UNDEFINED;
   glob_t g = {0, 0, 0, 0, 0};
   int result;
-  BOOL array_arg = FALSE;
+  bool array_arg = false;
   const char* pattern = JS_ToCString(ctx, argv[0]);
 
   if(argc >= 2)
@@ -1212,7 +1212,7 @@ js_misc_wordexp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSValue ret = JS_UNDEFINED;
   wordexp_t we = {0, 0, 0};
   int result;
-  BOOL array_arg = FALSE;
+  bool array_arg = false;
   const char* s = JS_ToCString(ctx, argv[0]);
 
   if(argc >= 3)
@@ -1524,10 +1524,10 @@ js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   InputBuffer input = js_input_chars(ctx, argv[0]);
   size_t declen = b64_get_decoded_buffer_size(input.size);
   uint8_t* decbuf = js_malloc(ctx, declen);
-  BOOL output_string = magic > 0;
+  bool output_string = magic > 0;
 
   if(argc > 1 && JS_ToBool(ctx, argv[1]))
-    output_string = TRUE;
+    output_string = true;
 
   b64_decode(input.data, input.size, decbuf);
 
@@ -1619,7 +1619,7 @@ static JSValue
 js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   const char* file = JS_ToCString(ctx, argv[0]);
-  BOOL is_mod = FALSE;
+  bool is_mod = false;
   uint8_t* buf;
   size_t len;
   int32_t flags = JS_EVAL_TYPE_GLOBAL;
@@ -1632,10 +1632,10 @@ js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
   is_mod = !!(flags & JS_EVAL_TYPE_MODULE);
   if(str_ends(file, ".jsm"))
-    is_mod = TRUE;
+    is_mod = true;
   if((buf = js_load_file(ctx, &len, file))) {
     if(!is_mod && JS_DetectModule((const char*)buf, len))
-      is_mod = TRUE;
+      is_mod = true;
     flags |= (is_mod ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
     ret = JS_Eval(ctx, (const char*)buf, len, file, flags | (is_mod ? JS_EVAL_FLAG_COMPILE_ONLY : 0));
 
@@ -1712,7 +1712,7 @@ js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   ret = js_function_cclosure(ctx, js_misc_immutable_constructor, 0, 0, closure, js_misc_immutable_free);
 
   if(!JS_IsConstructor(ctx, ret))
-    JS_SetConstructorBit(ctx, ret, TRUE);
+    JS_SetConstructorBit(ctx, ret, true);
 
   JS_SetConstructor(ctx, ret, proto);
 
@@ -1726,7 +1726,7 @@ js_misc_write_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   uint8_t* bytecode;
 
   if((bytecode = JS_WriteObject(ctx, &size, argv[0], JS_WRITE_OBJ_BYTECODE))) {
-    ret = JS_NewArrayBuffer(ctx, bytecode, size, js_arraybuffer_free_pointer, 0, FALSE);
+    ret = JS_NewArrayBuffer(ctx, bytecode, size, js_arraybuffer_free_pointer, 0, false);
   }
   return ret;
 }
@@ -1958,7 +1958,7 @@ js_misc_evalstring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 static JSValue
 js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  BOOL load_only = FALSE;
+  bool load_only = false;
   JSValueConst obj;
   int tag = JS_VALUE_GET_TAG(argv[0]);
   if(argc >= 2)
@@ -1978,7 +1978,7 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   if(load_only) {
     if(tag == JS_TAG_MODULE)
-      js_module_set_import_meta(ctx, obj, FALSE, FALSE);
+      js_module_set_import_meta(ctx, obj, false, false);
   } else {
     if(tag == JS_TAG_MODULE) {
       if(JS_ResolveModule(ctx, obj) < 0) {
@@ -1989,7 +1989,7 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         JS_FreeValue(ctx, obj);
         return ret;
       }
-      js_module_set_import_meta(ctx, obj, FALSE, TRUE);
+      js_module_set_import_meta(ctx, obj, false, true);
     }
     ret = JS_EvalFunction(ctx, obj);
   }
@@ -2189,7 +2189,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         ret = JS_NewArray(ctx);
 
         for(i = 0; i < bits; i++) {
-          BOOL value = !!(buf[i >> 3] & (1u << (i & 0x7)));
+          bool value = !!(buf[i >> 3] & (1u << (i & 0x7)));
           JS_SetPropertyUint32(ctx, ret, j++, JS_NewInt32(ctx, value));
         }
       } else if(argc >= 1 && JS_IsArray(ctx, argv[0])) {
@@ -2203,13 +2203,13 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
         for(i = 0; i < len; i++) {
           JSValue element = JS_GetPropertyUint32(ctx, argv[0], i);
-          BOOL value = JS_ToBool(ctx, element);
+          bool value = JS_ToBool(ctx, element);
           JS_FreeValue(ctx, element);
 
           if(value)
             bufptr[i >> 3] |= 1u << (i & 0x7);
         }
-        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_pointer, bufptr, FALSE);
+        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_pointer, bufptr, false);
       }
       break;
     }
@@ -2225,7 +2225,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         ret = JS_NewArray(ctx);
 
         for(i = 0; i < bits; i++) {
-          BOOL value = buf[i >> 3] & (1u << (i & 0x7));
+          bool value = buf[i >> 3] & (1u << (i & 0x7));
 
           JS_SetPropertyUint32(ctx, ret, i, JS_NewBool(ctx, value));
         }
@@ -2255,7 +2255,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
           for(i = 0; i < len; i++) {
             JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
-            BOOL b = JS_ToBool(ctx, value);
+            bool b = JS_ToBool(ctx, value);
             JS_FreeValue(ctx, value);
 
             bufptr[i >> 3] |= (b ? 1 : 0) << (i & 0x7);
@@ -2290,7 +2290,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
             bufptr[number >> 3] |= 1u << (number & 0x7);
           }
         }
-        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_pointer, bufptr, FALSE);
+        ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_pointer, bufptr, false);
       }
       break;
     }
@@ -2762,7 +2762,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 #ifdef HAVE_DAEMON
 static JSValue
 js_misc_daemon(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  BOOL nochdir, noclose;
+  bool nochdir, noclose;
 
   nochdir = argc >= 1 && JS_ToBool(ctx, argv[0]);
 
@@ -2844,7 +2844,7 @@ typedef struct {
 } JSAtExitEntry;
 
 thread_local Vector js_misc_atexit_functions;
-thread_local BOOL js_misc_atexit_called = FALSE;
+thread_local bool js_misc_atexit_called = false;
 
 static void
 js_misc_atexit_handler() {
@@ -2852,7 +2852,7 @@ js_misc_atexit_handler() {
 
   if(js_misc_atexit_called)
     return;
-  js_misc_atexit_called = TRUE;
+  js_misc_atexit_called = true;
 
   vector_foreach_t(&js_misc_atexit_functions, entry) {
     JSValue ret = JS_Call(entry->ctx, entry->fn, JS_UNDEFINED, 0, 0);
@@ -3058,7 +3058,7 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 #else
 
 static struct termios oldtty;
-static BOOL have_oldtty;
+static bool have_oldtty;
 
 static void
 term_exit(void) {
@@ -3072,7 +3072,7 @@ static JSValue
 js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct termios tty;
   int fd;
-  BOOL restore = FALSE;
+  bool restore = false;
 
   if(JS_ToInt32(ctx, &fd, argv[0]))
     return JS_EXCEPTION;
@@ -3102,7 +3102,7 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 #ifndef __ANDROID__
     tcgetattr(fd, &tty);
     oldtty = tty;
-    have_oldtty = TRUE;
+    have_oldtty = true;
 
     tty.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL | IXON);
     tty.c_oflag |= OPOST;
@@ -3126,7 +3126,7 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 static JSValue
 js_misc_opcodes(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  BOOL as_object = FALSE;
+  bool as_object = false;
 
   if(argc >= 1)
     as_object = JS_ToBool(ctx, argv[0]);

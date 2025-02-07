@@ -17,7 +17,7 @@
  */
 typedef struct {
   JSValue action;
-  BOOL skip;
+  bool skip;
 } JSLexerRule;
 
 VISIBLE JSClassID js_token_class_id = 0, js_lexer_class_id = 0;
@@ -330,7 +330,7 @@ static const JSCFunctionListEntry js_token_static_funcs[] = {
 
 static JSValue
 lexer_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue data[]) {
-  JSValue val = argc >= 1 ? JS_DupValue(ctx, argv[0]) : JS_NewBool(ctx, TRUE);
+  JSValue val = argc >= 1 ? JS_DupValue(ctx, argv[0]) : JS_NewBool(ctx, true);
 
   JS_SetPropertyUint32(ctx, data[0], 0, val);
 
@@ -354,9 +354,9 @@ lexer_to_state(Lexer* lex, JSContext* ctx, JSValueConst value) {
   return -1;
 }
 
-static BOOL
+static bool
 lexer_handle(Lexer* lex, JSContext* ctx, JSValueConst this_val, JSValueConst handler) {
-  BOOL result = FALSE;
+  bool result = false;
   JSValue ret, do_resume = JS_FALSE, data[1] = {JS_NewArray(ctx)};
   JSValueConst args[2] = {
       JS_DupValue(ctx, this_val),
@@ -403,7 +403,7 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       }
 
       if((jsrule = rule->opaque)) {
-        BOOL skip = FALSE;
+        bool skip = false;
 
         if(JS_IsFunction(ctx, jsrule->action))
           skip = lexer_handle(lex, ctx, this_val, jsrule->action);
@@ -418,7 +418,7 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       JSValue handler = JS_GetPropertyStr(ctx, this_val, "handler");
 
       if(JS_IsFunction(ctx, handler)) {
-        if(lexer_handle(lex, ctx, this_val, handler) == TRUE)
+        if(lexer_handle(lex, ctx, this_val, handler) == true)
           continue;
 
         id = LEXER_ERROR_NOMATCH;
@@ -431,7 +431,7 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return id;
 }
 
-static BOOL
+static bool
 lexer_escape_pred(int c) {
   switch(c) {
     case '*':
@@ -450,12 +450,12 @@ lexer_escape_pred(int c) {
     case '\t':
     case '\v':
     case '\f':
-    case '\\': return TRUE;
+    case '\\': return true;
   }
-  return FALSE;
+  return false;
 }
 
-static BOOL
+static bool
 lexer_unescape_pred(int c) {
   switch(c) {
     case 'r': return '\r';
@@ -492,7 +492,7 @@ lexer_lexeme_s(Lexer* lex, JSContext* ctx) {
 
   s = lexer_lexeme(lex, &len);
 
-  dbuf_put_escaped_pred(&output, s, len, lexer_escape_pred);
+  dbuf_put_escaped_pred(&output, s, len, (int (*)(int))lexer_escape_pred);
   dbuf_0(&output);
 
   return (char*)output.buf;
@@ -805,7 +805,7 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           const uint8_t* p = input_buffer_peek(&lex->input, &n);
           JSValue str = JS_NewStringLen(ctx, (const char*)p, n);
           JSValue ret = JS_Call(ctx, pred, this_val, 1, &str);
-          BOOL b = JS_ToBool(ctx, ret);
+          bool b = JS_ToBool(ctx, ret);
           JS_FreeValue(ctx, ret);
           if(b) {
             ret = str;
@@ -1212,7 +1212,7 @@ js_lexer_statestack(JSContext* ctx, JSValueConst this_val) {
 
   stack[size - 1] = lex->state;
 
-  buf = JS_NewArrayBuffer(ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)(void*)&orig_js_free_rt, stack, FALSE);
+  buf = JS_NewArrayBuffer(ctx, (void*)stack, sizeof(int32_t) * size, (JSFreeArrayBufferDataFunc*)(void*)&orig_js_free_rt, stack, false);
 
   ctor = js_global_get_str(ctx, "Int32Array");
 
@@ -1230,8 +1230,8 @@ js_lexer_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   DynBuf output;
   js_dbuf_init(ctx, &output);
 
-  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, lexer_unescape_pred)
-        : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, lexer_escape_pred);
+  magic ? dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, (int (*)(int))lexer_unescape_pred)
+        : dbuf_put_escaped_pred(&output, (const char*)input.data, input.size, (int (*)(int))lexer_escape_pred);
 
   return dbuf_tostring_free(&output, ctx);
 }

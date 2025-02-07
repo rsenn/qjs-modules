@@ -32,7 +32,7 @@ predicate_id(JSValueConst value) {
 }
 
 static JSValue
-predicate_constant(const Predicate* pr, JSContext* ctx, BOOL color) {
+predicate_constant(const Predicate* pr, JSContext* ctx, bool color) {
   DynBuf dbuf = {0};
   dbuf_init2(&dbuf, 0, 0);
   // js_dbuf_init(ctx, &dbuf);
@@ -712,8 +712,8 @@ js_predicate_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, 
     ret = predicate_eval(pr, ctx, &args);
     /*
         switch(result) {
-          case 0: ret = JS_NewBool(ctx, FALSE); break;
-          case 1: ret = JS_NewBool(ctx, TRUE); break;
+          case 0: ret = JS_NewBool(ctx, false); break;
+          case 1: ret = JS_NewBool(ctx, true); break;
           default: ret = JS_NewInt32(ctx, result); break;
         }*/
   }
@@ -733,7 +733,7 @@ js_predicate_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   JS_DefinePropertyValueStr(ctx, obj, "id", JS_NewInt32(ctx, pr->id), 0);
 
-  js_set_tostringtag_value(ctx, obj, predicate_constant(pr, ctx, TRUE));
+  js_set_tostringtag_value(ctx, obj, predicate_constant(pr, ctx, true));
 
   switch(pr->id) {
     case PREDICATE_TYPE: {

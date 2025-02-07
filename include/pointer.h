@@ -2,6 +2,7 @@
 #define POINTER_H
 
 #include <quickjs.h>
+#include <stdbool.h>
 #include <assert.h>
 #include "stream-utils.h"
 
@@ -22,23 +23,23 @@ typedef struct Pointer {
 #define POINTER_INRANGE(ptr, ind) ((ind) >= 0 && (ind) < (signed long)(ptr)->n)
 
 void pointer_reset(Pointer*, JSRuntime* rt);
-BOOL pointer_copy(Pointer*, Pointer const* src, JSContext*);
-BOOL pointer_allocate(Pointer*, size_t size, JSContext*);
-void pointer_dump(Pointer const*, Writer*, BOOL color, ssize_t index, JSContext*);
-char* pointer_tostring(Pointer const* ptr, BOOL color, ssize_t index, JSContext*);
+bool pointer_copy(Pointer*, Pointer const* src, JSContext*);
+bool pointer_allocate(Pointer*, size_t size, JSContext*);
+void pointer_dump(Pointer const*, Writer*, bool color, ssize_t index, JSContext*);
+char* pointer_tostring(Pointer const* ptr, bool color, ssize_t index, JSContext*);
 void pointer_serialize(Pointer const*, Writer* db, JSContext*);
 size_t pointer_parse(Pointer*, const char* str, size_t len, JSContext*);
 Pointer* pointer_slice(Pointer*, int64_t start, int64_t end, JSContext*);
 Pointer* pointer_splice(Pointer*, int64_t start, int64_t count, JSAtom* atoms, size_t insert, JSContext*);
-BOOL pointer_fromatoms(Pointer*, JSAtom* vec, size_t len, JSContext*);
+bool pointer_fromatoms(Pointer*, JSAtom* vec, size_t len, JSContext*);
 JSValue pointer_shift(Pointer*, JSContext*);
 JSValue pointer_pop(Pointer*, JSContext*);
-BOOL pointer_unshift(Pointer*, JSValueConst value, JSContext*);
+bool pointer_unshift(Pointer*, JSValueConst value, JSContext*);
 void pointer_push(Pointer*, JSValueConst item, JSContext*);
 void pointer_pushfree(Pointer*, JSValue item, JSContext*);
 JSValue pointer_deref(Pointer const*, JSValueConst arg, JSContext*);
 JSValue pointer_acquire(Pointer const*, JSValueConst arg, JSContext*);
-BOOL pointer_fromstring(Pointer*, JSValueConst value, JSContext*);
+bool pointer_fromstring(Pointer*, JSValueConst value, JSContext*);
 void pointer_fromarray(Pointer*, JSValueConst array, JSContext*);
 void pointer_fromiterable(Pointer*, JSValueConst arg, JSContext*);
 int pointer_from(Pointer*, JSValueConst value, JSContext*);

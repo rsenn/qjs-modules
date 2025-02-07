@@ -178,12 +178,12 @@ regexp_compile(RegExp re, JSContext* ctx) {
   return bytecode;
 }
 
-BOOL
+bool
 regexp_match(const uint8_t* bc, const void* cbuf, size_t clen, JSContext* ctx) {
   uint8_t* capture[512];
-  BOOL ret = FALSE;
+  bool ret = false;
   switch(lre_exec(capture, bc, cbuf, 0, clen, 0, ctx)) {
-    case 1: ret = TRUE; break;
+    case 1: ret = true; break;
     case -1: fprintf(stderr, "regexp_match ERROR\n"); break;
     case 0: break;
   }
@@ -397,9 +397,9 @@ js_atom_from(JSContext* ctx, const char* str) {
 }
 
 void
-js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, BOOL color) {
+js_atom_dump(JSContext* ctx, JSAtom atom, DynBuf* db, bool color) {
   const char* str;
-  BOOL is_int;
+  bool is_int;
   str = JS_AtomToCString(ctx, atom);
   is_int = JS_ATOM_ISINT(atom) || is_integer(str);
 
@@ -465,17 +465,17 @@ js_atom_toint64(JSContext* ctx, int64_t* i, JSAtom atom) {
   return ret;
 }
 
-BOOL
+bool
 js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
   JSValue value;
-  BOOL ret = FALSE;
+  bool ret = false;
   int64_t index;
 
   if(atom & (1U << 31)) {
 
     if(pval)
       *pval = atom & (~(1U << 31));
-    return TRUE;
+    return true;
   }
 
   value = JS_AtomToValue(ctx, atom);
@@ -483,19 +483,19 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
   if(JS_IsNumber(value)) {
 
     if(!JS_ToInt64(ctx, &index, value))
-      ret = TRUE;
+      ret = true;
   } else if(JS_IsString(value)) {
     const char* s = JS_ToCString(ctx, value);
 
     if(is_digit_char(s[s[0] == '-'])) {
       index = atoll(s);
-      ret = TRUE;
+      ret = true;
     }
 
     JS_FreeCString(ctx, s);
   }
 
-  if(ret == TRUE)
+  if(ret == true)
 
     if(pval)
       *pval = index;
@@ -503,18 +503,18 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
   return ret;
 }
 
-BOOL
+bool
 js_atom_is_string(JSContext* ctx, JSAtom atom) {
   JSValue value = JS_AtomToValue(ctx, atom);
-  BOOL ret = JS_IsString(value);
+  bool ret = JS_IsString(value);
   JS_FreeValue(ctx, value);
   return ret;
 }
 
-BOOL
+bool
 js_atom_is_symbol(JSContext* ctx, JSAtom atom) {
   JSValue value = JS_AtomToValue(ctx, atom);
-  BOOL ret = JS_IsSymbol(value);
+  bool ret = JS_IsSymbol(value);
   JS_FreeValue(ctx, value);
   return ret;
 }
@@ -527,15 +527,15 @@ js_atom_cmp_string(JSContext* ctx, JSAtom atom, const char* other) {
   return ret;
 }
 
-BOOL
+bool
 js_atom_equal_string(JSContext* ctx, JSAtom atom, const char* other) {
   JSAtom o = JS_NewAtom(ctx, other);
-  BOOL ret = o == atom;
+  bool ret = o == atom;
   JS_FreeAtom(ctx, o);
   return ret;
 }
 
-BOOL
+bool
 js_atom_is_length(JSContext* ctx, JSAtom atom) {
   return js_atom_equal_string(ctx, atom, "length");
 }
@@ -576,16 +576,16 @@ js_function_name(JSContext* ctx, JSValueConst value) {
   return s;
 }
 
-BOOL
+bool
 js_function_set_name(JSContext* ctx, JSValueConst func, const char* name) {
-  BOOL ret = TRUE;
+  bool ret = true;
   JSAtom atom = JS_NewAtom(ctx, "name");
 
   JS_DeleteProperty(ctx, func, atom, 0);
 
   if(0 > JS_DefinePropertyValue(ctx, func, atom, JS_NewString(ctx, name), JS_PROP_CONFIGURABLE)) {
     JS_GetException(ctx);
-    ret = FALSE;
+    ret = false;
   }
 
   JS_FreeAtom(ctx, atom);
@@ -747,10 +747,10 @@ js_global_prototype_func(JSContext* ctx, const char* class_name, const char* fun
   return func;
 }
 
-BOOL
+bool
 js_global_instanceof(JSContext* ctx, JSValueConst obj, const char* prop) {
   JSValue ctor = js_global_get_str(ctx, prop);
-  BOOL ret = JS_IsInstanceOf(ctx, obj, ctor);
+  bool ret = JS_IsInstanceOf(ctx, obj, ctor);
   JS_FreeValue(ctx, ctor);
   return ret;
 }
@@ -790,7 +790,7 @@ js_iterator_new(JSContext* ctx, JSValueConst obj) {
 }
 
 JSValue
-js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p) {
+js_iterator_next(JSContext* ctx, JSValueConst obj, bool* done_p) {
   JSValue fn, result, done, value;
   fn = JS_GetPropertyStr(ctx, obj, "next");
   result = JS_Call(ctx, fn, obj, 0, 0);
@@ -804,7 +804,7 @@ js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p) {
 }
 
 JSValue
-js_iterator_result(JSContext* ctx, JSValueConst value, BOOL done) {
+js_iterator_result(JSContext* ctx, JSValueConst value, bool done) {
   JSValue ret = JS_NewObject(ctx);
 
   JS_SetPropertyStr(ctx, ret, "value", JS_DupValue(ctx, value));
@@ -825,7 +825,7 @@ js_iterator_then_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }
 
 JSValue
-js_iterator_then(JSContext* ctx, BOOL done) {
+js_iterator_then(JSContext* ctx, bool done) {
   JSValueConst data[1] = {JS_NewBool(ctx, done)};
 
   return JS_NewCFunctionData(ctx, js_iterator_then_fn, 1, 0, 1, data);
@@ -887,7 +887,7 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   return name;
 }
 
-BOOL
+bool
 js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   JSPropertyEnum *atoms_a, *atoms_b;
   uint32_t i, natoms_a, natoms_b;
@@ -898,13 +898,13 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   assert(tb == TYPE_OBJECT);
 
   if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
-    return FALSE;
+    return false;
 
   if(JS_GetOwnPropertyNames(ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
-    return FALSE;
+    return false;
 
   if(natoms_a != natoms_b)
-    return FALSE;
+    return false;
 
   quicksort_r(&atoms_a, natoms_a, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
   quicksort_r(&atoms_b, natoms_b, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
@@ -912,19 +912,19 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   for(i = 0; i < natoms_a; i++)
 
     if(atoms_a[i].atom != atoms_b[i].atom)
-      return FALSE;
+      return false;
 
-  return TRUE;
+  return true;
 }
 
-BOOL
+bool
 js_object_same2(JSContext* ctx, JSValueConst a, JSValueConst b) {
   return js_object_same(a, b);
 }
 
 int
 js_object_is(JSContext* ctx, JSValueConst value, const char* cmp) {
-  BOOL ret = FALSE;
+  bool ret = false;
   const char* str;
 
   if((str = js_object_tostring(ctx, value))) {
@@ -1031,10 +1031,10 @@ js_object_copy(JSContext* ctx, JSValueConst dst, JSValueConst src) {
   return i;
 }
 
-BOOL
+bool
 js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
   JSAtom atom;
-  BOOL ret = FALSE;
+  bool ret = false;
   atom = JS_NewAtom(ctx, str);
   ret = JS_HasProperty(ctx, obj, atom);
   JS_FreeAtom(ctx, atom);
@@ -1043,12 +1043,12 @@ js_has_propertystr(JSContext* ctx, JSValueConst obj, const char* str) {
 
 JSValue
 js_get_propertyatom_value(JSContext* ctx, JSValueConst obj, JSAtom prop) {
-  return JS_GetPropertyInternal(ctx, obj, prop, JS_NULL, FALSE);
+  return JS_GetPropertyInternal(ctx, obj, prop, JS_NULL, false);
 }
 
-BOOL
+bool
 js_get_propertystr_bool(JSContext* ctx, JSValueConst obj, const char* str) {
-  BOOL ret = FALSE;
+  bool ret = false;
   JSValue value;
   value = JS_GetPropertyStr(ctx, obj, str);
 
@@ -1251,8 +1251,8 @@ js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueCon
   obj = JS_DupValue(ctx, value);
   do {
 
-    if(JS_GetOwnProperty(ctx, desc, obj, prop) == TRUE)
-      return TRUE;
+    if(JS_GetOwnProperty(ctx, desc, obj, prop) == true)
+      return true;
     proto = JS_GetPrototype(ctx, obj);
 
     if(JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(obj))
@@ -1260,7 +1260,7 @@ js_get_propertydescriptor(JSContext* ctx, JSPropertyDescriptor* desc, JSValueCon
     JS_FreeValue(ctx, obj);
     obj = proto;
   } while(JS_IsObject(obj));
-  return FALSE;
+  return false;
 }
 
 JSClassID
@@ -1296,10 +1296,10 @@ js_function_tostring(JSContext* ctx, JSValueConst value) {
   return s;
 }
 
-BOOL
+bool
 js_function_isnative(JSContext* ctx, JSValueConst value) {
   const char* fn = js_function_tostring(ctx, value);
-  BOOL ret = !!strstr(fn, "\n    [native code]\n");
+  bool ret = !!strstr(fn, "\n    [native code]\n");
   JS_FreeCString(ctx, fn);
   return ret;
 }
@@ -1309,7 +1309,7 @@ js_function_prototype(JSContext* ctx) {
   return js_global_prototype(ctx, "Function");
 }
 
-BOOL
+bool
 js_is_input(JSContext* ctx, JSValueConst value) {
   return JS_IsString(value) || js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value);
 }
@@ -1576,7 +1576,7 @@ js_value_tag_name(int tag) {
     case JS_TAG_FUNCTION_BYTECODE: return "FUNCTION_BYTECODE";
     case JS_TAG_OBJECT: return "OBJECT";
     case JS_TAG_INT: return "INT";
-    case JS_TAG_BOOL: return "BOOL";
+    case JS_TAG_BOOL: return "bool";
     case JS_TAG_NULL: return "NULL";
     case JS_TAG_UNDEFINED: return "UNDEFINED";
     case JS_TAG_UNINITIALIZED: return "UNINITIALIZED";
@@ -1630,7 +1630,7 @@ js_value_typestr(JSContext* ctx, JSValueConst value) {
   return js_value_type_name(type);
 }
 
-BOOL
+bool
 js_value_has_ref_count(JSValue v) {
   return ((unsigned)js_value_tag(v) >= (unsigned)JS_TAG_FIRST);
 }
@@ -1793,17 +1793,17 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   }
 }
 
-BOOL
+bool
 js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   int32_t ta, tb;
-  BOOL ret = FALSE;
+  bool ret = false;
   ta = js_value_type(ctx, a);
   tb = js_value_type(ctx, b);
 
   if(ta != tb) {
-    ret = FALSE;
+    ret = false;
   } else if(ta & tb & (TYPE_NULL | TYPE_UNDEFINED | TYPE_NAN)) {
-    ret = TRUE;
+    ret = true;
   } else if(ta & tb & (TYPE_BIG_INT | TYPE_BIG_FLOAT | TYPE_BIG_DECIMAL)) {
     const char *astr, *bstr;
 
@@ -1822,7 +1822,7 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
     intb = JS_VALUE_GET_INT(b);
     ret = inta == intb;
   } else if(ta & TYPE_BOOL) {
-    BOOL boola, boolb;
+    bool boola, boolb;
 
     boola = !!JS_VALUE_GET_BOOL(a);
     boolb = !!JS_VALUE_GET_BOOL(b);
@@ -1836,7 +1836,7 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
     ret = flta == fltb;
 
   } else if(ta & TYPE_OBJECT) {
-    ret = js_object_same(a, b) ? TRUE : js_object_equals(ctx, a, b);
+    ret = js_object_same(a, b) ? true : js_object_equals(ctx, a, b);
 
   } else if(ta & TYPE_STRING) {
     const char *stra, *strb;
@@ -1906,7 +1906,7 @@ int
 js_value_int(JSValueConst v) {
   return JS_VALUE_GET_INT(v);
 }
-BOOL
+bool
 js_value_bool(JSValueConst v) {
   return JS_VALUE_GET_BOOL(v);
 }
@@ -1981,7 +1981,7 @@ JSValue
 module_exports(JSContext* ctx, JSModuleDef* m) {
   JSValue exports = JS_NewObject(ctx);
 
-  if(module_exports_get(ctx, m, FALSE, exports) == 0) {
+  if(module_exports_get(ctx, m, false, exports) == 0) {
     JS_FreeValue(ctx, exports);
     return JS_UNDEFINED;
   }
@@ -2089,75 +2089,75 @@ js_module_load(JSContext* ctx, const char* name) {
   return loader(ctx, name, opaque);
 }
 
-BOOL
+bool
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "ArrayBuffer") || js_object_is(ctx, value, "[object ArrayBuffer]"));
 }
 
-BOOL
+bool
 js_is_sharedarraybuffer(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "SharedArrayBuffer") || js_object_is(ctx, value, "[object SharedArrayBuffer]"));
 }
 
-BOOL
+bool
 js_is_date(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "Date") || js_object_is(ctx, value, "[object Date]"));
 }
 
-BOOL
+bool
 js_is_map(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "Map") || js_object_is(ctx, value, "[object Map]"));
 }
 
-BOOL
+bool
 js_is_set(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "Set") || js_object_is(ctx, value, "[object Set]"));
 }
 
-BOOL
+bool
 js_is_generator(JSContext* ctx, JSValueConst value) {
   JSValue ctor = js_generator_constructor(ctx);
-  BOOL ret = JS_IsInstanceOf(ctx, value, ctor);
+  bool ret = JS_IsInstanceOf(ctx, value, ctor);
   JS_FreeValue(ctx, ctor);
   return ret || (JS_IsObject(value) && js_object_is(ctx, value, "[object Generator]"));
 }
 
-BOOL
+bool
 js_is_asyncgenerator(JSContext* ctx, JSValueConst value) {
   JSValue ctor = js_asyncgenerator_constructor(ctx);
-  BOOL ret = JS_IsInstanceOf(ctx, value, ctor);
+  bool ret = JS_IsInstanceOf(ctx, value, ctor);
   JS_FreeValue(ctx, ctor);
   return ret || (JS_IsObject(value) && js_object_is(ctx, value, "[object AsyncGenerator]"));
 }
 
-BOOL
+bool
 js_is_regexp(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "RegExp") || js_object_is(ctx, value, "[object RegExp]"));
 }
 
-BOOL
+bool
 js_is_promise(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "Promise") || js_object_is(ctx, value, "[object Promise]"));
 }
 
-BOOL
+bool
 js_is_dataview(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (js_global_instanceof(ctx, value, "DataView") || js_object_is(ctx, value, "[object DataView]"));
 }
 
-BOOL
+bool
 js_is_error(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) && (JS_IsError(ctx, value) || js_global_instanceof(ctx, value, "Error") || js_object_is(ctx, value, "[object Error]"));
 }
 
-BOOL
+bool
 js_is_iterable(JSContext* ctx, JSValueConst obj) {
   JSAtom atom;
-  BOOL ret = FALSE;
+  bool ret = false;
   atom = js_symbol_static_atom(ctx, "iterator");
 
   if(JS_HasProperty(ctx, obj, atom))
-    ret = TRUE;
+    ret = true;
 
   JS_FreeAtom(ctx, atom);
 
@@ -2165,7 +2165,7 @@ js_is_iterable(JSContext* ctx, JSValueConst obj) {
     atom = js_symbol_static_atom(ctx, "asyncIterator");
 
     if(JS_HasProperty(ctx, obj, atom))
-      ret = TRUE;
+      ret = true;
 
     JS_FreeAtom(ctx, atom);
   }
@@ -2173,20 +2173,20 @@ js_is_iterable(JSContext* ctx, JSValueConst obj) {
   return ret;
 }
 
-BOOL
+bool
 js_is_iterator(JSContext* ctx, JSValueConst obj) {
 
   if(JS_IsObject(obj)) {
     JSValue next = JS_GetPropertyStr(ctx, obj, "next");
 
     if(JS_IsFunction(ctx, next))
-      return TRUE;
+      return true;
   }
 
-  return FALSE;
+  return false;
 }
 
-BOOL
+bool
 js_is_nan(JSValueConst obj) {
   return JS_VALUE_IS_NAN(obj);
 }
@@ -2208,7 +2208,7 @@ js_typedarray_constructor(JSContext* ctx) {
 }
 
 JSValue
-js_typedarray_new(JSContext* ctx, int bits, BOOL floating, BOOL sign, JSValueConst buffer) {
+js_typedarray_new(JSContext* ctx, int bits, bool floating, bool sign, JSValueConst buffer) {
   char class_name[64] = {0};
 
   snprintf(class_name, sizeof(class_name), "%s%s%dArray", (!floating && bits >= 64) ? "Big" : "", floating ? "Float" : sign ? "Int" : "Uint", bits);
@@ -2265,12 +2265,12 @@ js_number_new(JSContext* ctx, int32_t n) {
   return JS_NewInt32(ctx, n);
 }
 
-BOOL
+bool
 js_number_integral(JSValueConst value) {
   int tag = JS_VALUE_GET_TAG(value);
 
   if(tag == JS_TAG_INT)
-    return TRUE;
+    return true;
 
   if(tag == JS_TAG_FLOAT64) {
     double num = JS_VALUE_GET_FLOAT64(value);
@@ -2278,7 +2278,7 @@ js_number_integral(JSValueConst value) {
     return fmod(num, 1.0l) == 0.0l;
   }
 
-  return FALSE;
+  return false;
 }
 
 JSValue
@@ -2357,7 +2357,7 @@ js_arraybuffer_fromvalue(JSContext* ctx, void* x, size_t n, JSValueConst val) {
 
   *valptr = JS_DupValue(ctx, val);
 
-  return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freevalue, valptr, FALSE);
+  return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freevalue, valptr, false);
 }
 
 int64_t
@@ -2374,7 +2374,7 @@ js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value) {
 }
 
 JSValue
-js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
+js_eval_module(JSContext* ctx, JSValueConst obj, bool load_only) {
   int tag = JS_VALUE_GET_TAG(obj);
 
   if(tag == JS_TAG_MODULE) {
@@ -2384,7 +2384,7 @@ js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
       return JS_ThrowInternalError(ctx, "Failed resolving module");
     }
 
-    js_module_set_import_meta(ctx, obj, FALSE, !load_only);
+    js_module_set_import_meta(ctx, obj, false, !load_only);
     return load_only ? JS_DupValue(ctx, obj) : JS_EvalFunction(ctx, obj);
   }
 
@@ -2392,7 +2392,7 @@ js_eval_module(JSContext* ctx, JSValueConst obj, BOOL load_only) {
 }
 
 JSValue
-js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_only) {
+js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, bool load_only) {
   JSValue obj = JS_ReadObject(ctx, buf, buf_len, JS_READ_OBJ_BYTECODE);
 
   if(JS_IsException(obj))
@@ -2608,14 +2608,14 @@ js_error_uncatchable(JSContext* ctx) {
   JSValue obj;
 
   obj = JS_NewError(ctx);
-  JS_SetUncatchableError(ctx, obj, TRUE);
+  JS_SetUncatchableError(ctx, obj, true);
   return obj;
 }*/
 
 static thread_local JSModuleDef* io_module;
 
 JSValue
-js_iohandler_fn(JSContext* ctx, BOOL write) {
+js_iohandler_fn(JSContext* ctx, bool write) {
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
   JSValue set_handler = JS_NULL;
 
@@ -2653,11 +2653,11 @@ js_iohandler_fn(JSContext* ctx, BOOL write) {
   return set_handler;
 }
 
-BOOL
+bool
 js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValue handler) {
 
   if(JS_IsException(set_handler))
-    return FALSE;
+    return false;
 
   JSValue args[2] = {
       JS_NewInt32(ctx, fd),
@@ -2669,11 +2669,11 @@ js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValue handl
   JS_FreeValue(ctx, args[1]);
 
   if(JS_IsException(ret))
-    return FALSE;
+    return false;
 
   JS_FreeValue(ctx, ret);
 
-  return TRUE;
+  return true;
 }
 
 JSValue
@@ -2697,7 +2697,7 @@ js_promise_catch(JSContext* ctx, JSValueConst promise, JSValueConst func) {
 }
 
 JSValue
-js_promise_immediate(JSContext* ctx, BOOL reject, JSValueConst value) {
+js_promise_immediate(JSContext* ctx, bool reject, JSValueConst value) {
   JSValue ret, promise, resolving_funcs[2];
   promise = JS_NewPromiseCapability(ctx, resolving_funcs);
   ret = JS_Call(ctx, resolving_funcs[!!reject], JS_UNDEFINED, 1, &value);
@@ -2710,12 +2710,12 @@ js_promise_immediate(JSContext* ctx, BOOL reject, JSValueConst value) {
 
 JSValue
 js_promise_resolve(JSContext* ctx, JSValueConst value) {
-  return js_promise_immediate(ctx, FALSE, value);
+  return js_promise_immediate(ctx, false, value);
 }
 
 JSValue
 js_promise_reject(JSContext* ctx, JSValueConst value) {
-  return js_promise_immediate(ctx, TRUE, value);
+  return js_promise_immediate(ctx, true, value);
 }
 
 JSValue
@@ -2774,14 +2774,14 @@ arguments_dump(Arguments const* args, /*JSContext* ctx,*/ DynBuf* dbuf) {
     dbuf_putstr(dbuf, ")");
 }
 
-BOOL
+bool
 arguments_alloc(Arguments* args, JSContext* ctx, int n) {
   int i, j, c;
 
   if(args->a) {
 
     if(!(args->v = js_realloc(ctx, args->v, sizeof(char*) * (n + 1))))
-      return FALSE;
+      return false;
 
     for(i = args->c; i < args->a; i++)
       args->v[i] = 0;
@@ -2790,7 +2790,7 @@ arguments_alloc(Arguments* args, JSContext* ctx, int n) {
     char** v;
 
     if(!(v = js_mallocz(ctx, sizeof(char*) * (n + 1))))
-      return FALSE;
+      return false;
 
     c = MIN_NUM(args->c, n);
 
@@ -2807,7 +2807,7 @@ arguments_alloc(Arguments* args, JSContext* ctx, int n) {
     args->a = n;
   }
 
-  return TRUE;
+  return true;
 }
 
 const char*
@@ -2825,14 +2825,14 @@ arguments_push(Arguments* args, JSContext* ctx, const char* arg) {
   return args->v[r];
 }
 
-BOOL
+bool
 js_arguments_alloc(JSArguments* args, JSContext* ctx, int n) {
   int i;
 
   if(args->a) {
 
     if(!(args->v = js_realloc(ctx, args->v, sizeof(JSValueConst) * (n + 1))))
-      return FALSE;
+      return false;
 
     for(i = args->c; i < args->a; i++)
       args->v[i] = JS_UNDEFINED;
@@ -2840,14 +2840,14 @@ js_arguments_alloc(JSArguments* args, JSContext* ctx, int n) {
     JSValueConst* v;
 
     if(!(v = js_mallocz(ctx, sizeof(JSValueConst) * (n + 1))))
-      return FALSE;
+      return false;
 
     memcpy(v, args->v, sizeof(JSValueConst) * (args->c + 1));
     args->v = v;
     args->a = n;
   }
 
-  return TRUE;
+  return true;
 }
 
 void
@@ -2949,13 +2949,13 @@ js_json_stringify(JSContext* ctx, JSValueConst value) {
   return str;
 }
 
-BOOL
+bool
 js_is_identifier_len(JSContext* ctx, const char* str, size_t len) {
   /* clang-format off */ 
   RegExp re = regexp_from_string((char*)"([$_a-zA-Z]|[\\xaa\\xb5\\xba\\xc0-\\xd6\\xd8-\\xf6\\xf8-\\u02c1\\u02c6-\\u02d1\\u02e0-\\u02e4\\u02ec\\u02ee\\u0370-\\u0374\\u0376\\u0377\\u037a-\\u037d\\u0386\\u0388-\\u038a\\u038c\\u038e-\\u03a1\\u03a3-\\u03f5\\u03f7-\\u0481\\u048a-\\u0527\\u0531-\\u0556\\u0559\\u0561-\\u0587\\u05d0-\\u05ea\\u05f0-\\u05f2\\u0620-\\u064a\\u066e\\u066f\\u0671-\\u06d3\\u06d5\\u06e5\\u06e6\\u06ee\\u06ef\\u06fa-\\u06fc\\u06ff\\u0710\\u0712-\\u072f\\u074d-\\u07a5\\u07b1\\u07ca-\\u07ea\\u07f4\\u07f5\\u07fa\\u0800-\\u0815\\u081a\\u0824\\u0828\\u0840-\\u0858\\u08a0\\u08a2-\\u08ac\\u0904-\\u0939\\u093d\\u0950\\u0958-\\u0961\\u0971-\\u0977\\u0979-\\u097f\\u0985-\\u098c\\u098f\\u0990\\u0993-\\u09a8\\u09aa-\\u09b0\\u09b2\\u09b6-\\u09b9\\u09bd\\u09ce\\u09dc\\u09dd\\u09df-\\u09e1\\u09f0\\u09f1\\u0a05-\\u0a0a\\u0a0f\\u0a10\\u0a13-\\u0a28\\u0a2a-\\u0a30\\u0a32\\u0a33\\u0a35\\u0a36\\u0a38\\u0a39\\u0a59-\\u0a5c\\u0a5e\\u0a72-\\u0a74\\u0a85-\\u0a8d\\u0a8f-\\u0a91\\u0a93-\\u0aa8\\u0aaa-\\u0ab0\\u0ab2\\u0ab3\\u0ab5-\\u0ab9\\u0abd\\u0ad0\\u0ae0\\u0ae1\\u0b05-\\u0b0c\\u0b0f\\u0b10\\u0b13-\\u0b28\\u0b2a-\\u0b30\\u0b32\\u0b33\\u0b35-\\u0b39\\u0b3d\\u0b5c\\u0b5d\\u0b5f-\\u0b61\\u0b71\\u0b83\\u0b85-\\u0b8a\\u0b8e-\\u0b90\\u0b92-\\u0b95\\u0b99\\u0b9a\\u0b9c\\u0b9e\\u0b9f\\u0ba3\\u0ba4\\u0ba8-\\u0baa\\u0bae-\\u0bb9\\u0bd0\\u0c05-\\u0c0c\\u0c0e-\\u0c10\\u0c12-\\u0c28\\u0c2a-\\u0c33\\u0c35-\\u0c39\\u0c3d\\u0c58\\u0c59\\u0c60\\u0c61\\u0c85-\\u0c8c\\u0c8e-\\u0c90\\u0c92-\\u0ca8\\u0caa-\\u0cb3\\u0cb5-\\u0cb9\\u0cbd\\u0cde\\u0ce0\\u0ce1\\u0cf1\\u0cf2\\u0d05-\\u0d0c\\u0d0e-\\u0d10\\u0d12-\\u0d3a\\u0d3d\\u0d4e\\u0d60\\u0d61\\u0d7a-\\u0d7f\\u0d85-\\u0d96\\u0d9a-\\u0db1\\u0db3-\\u0dbb\\u0dbd\\u0dc0-\\u0dc6\\u0e01-\\u0e30\\u0e32\\u0e33\\u0e40-\\u0e46\\u0e81\\u0e82\\u0e84\\u0e87\\u0e88\\u0e8a\\u0e8d\\u0e94-\\u0e97\\u0e99-\\u0e9f\\u0ea1-\\u0ea3\\u0ea5\\u0ea7\\u0eaa\\u0eab\\u0ead-\\u0eb0\\u0eb2\\u0eb3\\u0ebd\\u0ec0-\\u0ec4\\u0ec6\\u0edc-\\u0edf\\u0f00\\u0f40-\\u0f47\\u0f49-\\u0f6c\\u0f88-\\u0f8c\\u1000-\\u102a\\u103f\\u1050-\\u1055\\u105a-\\u105d\\u1061\\u1065\\u1066\\u106e-\\u1070\\u1075-\\u1081\\u108e\\u10a0-\\u10c5\\u10c7\\u10cd\\u10d0-\\u10fa\\u10fc-\\u1248\\u124a-\\u124d\\u1250-\\u1256\\u1258\\u125a-\\u125d\\u1260-\\u1288\\u128a-\\u128d\\u1290-\\u12b0\\u12b2-\\u12b5\\u12b8-\\u12be\\u12c0\\u12c2-\\u12c5\\u12c8-\\u12d6\\u12d8-\\u1310\\u1312-\\u1315\\u1318-\\u135a\\u1380-\\u138f\\u13a0-\\u13f4\\u1401-\\u166c\\u166f-\\u167f\\u1681-\\u169a\\u16a0-\\u16ea\\u16ee-\\u16f0\\u1700-\\u170c\\u170e-\\u1711\\u1720-\\u1731\\u1740-\\u1751\\u1760-\\u176c\\u176e-\\u1770\\u1780-\\u17b3\\u17d7\\u17dc\\u1820-\\u1877\\u1880-\\u18a8\\u18aa\\u18b0-\\u18f5\\u1900-\\u191c\\u1950-\\u196d\\u1970-\\u1974\\u1980-\\u19ab\\u19c1-\\u19c7\\u1a00-\\u1a16\\u1a20-\\u1a54\\u1aa7\\u1b05-\\u1b33\\u1b45-\\u1b4b\\u1b83-\\u1ba0\\u1bae\\u1baf\\u1bba-\\u1be5\\u1c00-\\u1c23\\u1c4d-\\u1c4f\\u1c5a-\\u1c7d\\u1ce9-\\u1cec\\u1cee-\\u1cf1\\u1cf5\\u1cf6\\u1d00-\\u1dbf\\u1e00-\\u1f15\\u1f18-\\u1f1d\\u1f20-\\u1f45\\u1f48-\\u1f4d\\u1f50-\\u1f57\\u1f59\\u1f5b\\u1f5d\\u1f5f-\\u1f7d\\u1f80-\\u1fb4\\u1fb6-\\u1fbc\\u1fbe\\u1fc2-\\u1fc4\\u1fc6-\\u1fcc\\u1fd0-\\u1fd3\\u1fd6-\\u1fdb\\u1fe0-\\u1fec\\u1ff2-\\u1ff4\\u1ff6-\\u1ffc\\u2071\\u207f\\u2090-\\u209c\\u2102\\u2107\\u210a-\\u2113\\u2115\\u2119-\\u211d\\u2124\\u2126\\u2128\\u212a-\\u212d\\u212f-\\u2139\\u213c-\\u213f\\u2145-\\u2149\\u214e\\u2160-\\u2188\\u2c00-\\u2c2e\\u2c30-\\u2c5e\\u2c60-\\u2ce4\\u2ceb-\\u2cee\\u2cf2\\u2cf3\\u2d00-\\u2d25\\u2d27\\u2d2d\\u2d30-\\u2d67\\u2d6f\\u2d80-\\u2d96\\u2da0-\\u2da6\\u2da8-\\u2dae\\u2db0-\\u2db6\\u2db8-\\u2dbe\\u2dc0-\\u2dc6\\u2dc8-\\u2dce\\u2dd0-\\u2dd6\\u2dd8-\\u2dde\\u2e2f\\u3005-\\u3007\\u3021-\\u3029\\u3031-\\u3035\\u3038-\\u303c\\u3041-\\u3096\\u309d-\\u309f\\u30a1-\\u30fa\\u30fc-\\u30ff\\u3105-\\u312d\\u3131-\\u318e\\u31a0-\\u31ba\\u31f0-\\u31ff\\u3400-\\u4db5\\u4e00-\\u9fcc\\ua000-\\ua48c\\ua4d0-\\ua4fd\\ua500-\\ua60c\\ua610-\\ua61f\\ua62a\\ua62b\\ua640-\\ua66e\\ua67f-\\ua697\\ua6a0-\\ua6ef\\ua717-\\ua71f\\ua722-\\ua788\\ua78b-\\ua78e\\ua790-\\ua793\\ua7a0-\\ua7aa\\ua7f8-\\ua801\\ua803-\\ua805\\ua807-\\ua80a\\ua80c-\\ua822\\ua840-\\ua873\\ua882-\\ua8b3\\ua8f2-\\ua8f7\\ua8fb\\ua90a-\\ua925\\ua930-\\ua946\\ua960-\\ua97c\\ua984-\\ua9b2\\ua9cf\\uaa00-\\uaa28\\uaa40-\\uaa42\\uaa44-\\uaa4b\\uaa60-\\uaa76\\uaa7a\\uaa80-\\uaaaf\\uaab1\\uaab5\\uaab6\\uaab9-\\uaabd\\uaac0\\uaac2\\uaadb-\\uaadd\\uaae0-\\uaaea\\uaaf2-\\uaaf4\\uab01-\\uab06\\uab09-\\uab0e\\uab11-\\uab16\\uab20-\\uab26\\uab28-\\uab2e\\uabc0-\\uabe2\\uac00-\\ud7a3\\ud7b0-\\ud7c6\\ud7cb-\\ud7fb\\uf900-\\ufa6d\\ufa70-\\ufad9\\ufb00-\\ufb06\\ufb13-\\ufb17\\ufb1d\\ufb1f-\\ufb28\\ufb2a-\\ufb36\\ufb38-\\ufb3c\\ufb3e\\ufb40\\ufb41\\ufb43\\ufb44\\ufb46-\\ufbb1\\ufbd3-\\ufd3d\\ufd50-\\ufd8f\\ufd92-\\ufdc7\\ufdf0-\\ufdfb\\ufe70-\\ufe74\\ufe76-\\ufefc\\uff21-\\uff3a\\uff41-\\uff5a\\uff66-\\uffbe\\uffc2-\\uffc7\\uffca-\\uffcf\\uffd2-\\uffd7\\uffda-\\uffdc]|\\\\[u][0-9a-fA-F]{4})([$_a-zA-Z]|[\\xaa\\xb5\\xba\\xc0-\\xd6\\xd8-\\xf6\\xf8-\\u02c1\\u02c6-\\u02d1\\u02e0-\\u02e4\\u02ec\\u02ee\\u0370-\\u0374\\u0376\\u0377\\u037a-\\u037d\\u0386\\u0388-\\u038a\\u038c\\u038e-\\u03a1\\u03a3-\\u03f5\\u03f7-\\u0481\\u048a-\\u0527\\u0531-\\u0556\\u0559\\u0561-\\u0587\\u05d0-\\u05ea\\u05f0-\\u05f2\\u0620-\\u064a\\u066e\\u066f\\u0671-\\u06d3\\u06d5\\u06e5\\u06e6\\u06ee\\u06ef\\u06fa-\\u06fc\\u06ff\\u0710\\u0712-\\u072f\\u074d-\\u07a5\\u07b1\\u07ca-\\u07ea\\u07f4\\u07f5\\u07fa\\u0800-\\u0815\\u081a\\u0824\\u0828\\u0840-\\u0858\\u08a0\\u08a2-\\u08ac\\u0904-\\u0939\\u093d\\u0950\\u0958-\\u0961\\u0971-\\u0977\\u0979-\\u097f\\u0985-\\u098c\\u098f\\u0990\\u0993-\\u09a8\\u09aa-\\u09b0\\u09b2\\u09b6-\\u09b9\\u09bd\\u09ce\\u09dc\\u09dd\\u09df-\\u09e1\\u09f0\\u09f1\\u0a05-\\u0a0a\\u0a0f\\u0a10\\u0a13-\\u0a28\\u0a2a-\\u0a30\\u0a32\\u0a33\\u0a35\\u0a36\\u0a38\\u0a39\\u0a59-\\u0a5c\\u0a5e\\u0a72-\\u0a74\\u0a85-\\u0a8d\\u0a8f-\\u0a91\\u0a93-\\u0aa8\\u0aaa-\\u0ab0\\u0ab2\\u0ab3\\u0ab5-\\u0ab9\\u0abd\\u0ad0\\u0ae0\\u0ae1\\u0b05-\\u0b0c\\u0b0f\\u0b10\\u0b13-\\u0b28\\u0b2a-\\u0b30\\u0b32\\u0b33\\u0b35-\\u0b39\\u0b3d\\u0b5c\\u0b5d\\u0b5f-\\u0b61\\u0b71\\u0b83\\u0b85-\\u0b8a\\u0b8e-\\u0b90\\u0b92-\\u0b95\\u0b99\\u0b9a\\u0b9c\\u0b9e\\u0b9f\\u0ba3\\u0ba4\\u0ba8-\\u0baa\\u0bae-\\u0bb9\\u0bd0\\u0c05-\\u0c0c\\u0c0e-\\u0c10\\u0c12-\\u0c28\\u0c2a-\\u0c33\\u0c35-\\u0c39\\u0c3d\\u0c58\\u0c59\\u0c60\\u0c61\\u0c85-\\u0c8c\\u0c8e-\\u0c90\\u0c92-\\u0ca8\\u0caa-\\u0cb3\\u0cb5-\\u0cb9\\u0cbd\\u0cde\\u0ce0\\u0ce1\\u0cf1\\u0cf2\\u0d05-\\u0d0c\\u0d0e-\\u0d10\\u0d12-\\u0d3a\\u0d3d\\u0d4e\\u0d60\\u0d61\\u0d7a-\\u0d7f\\u0d85-\\u0d96\\u0d9a-\\u0db1\\u0db3-\\u0dbb\\u0dbd\\u0dc0-\\u0dc6\\u0e01-\\u0e30\\u0e32\\u0e33\\u0e40-\\u0e46\\u0e81\\u0e82\\u0e84\\u0e87\\u0e88\\u0e8a\\u0e8d\\u0e94-\\u0e97\\u0e99-\\u0e9f\\u0ea1-\\u0ea3\\u0ea5\\u0ea7\\u0eaa\\u0eab\\u0ead-\\u0eb0\\u0eb2\\u0eb3\\u0ebd\\u0ec0-\\u0ec4\\u0ec6\\u0edc-\\u0edf\\u0f00\\u0f40-\\u0f47\\u0f49-\\u0f6c\\u0f88-\\u0f8c\\u1000-\\u102a\\u103f\\u1050-\\u1055\\u105a-\\u105d\\u1061\\u1065\\u1066\\u106e-\\u1070\\u1075-\\u1081\\u108e\\u10a0-\\u10c5\\u10c7\\u10cd\\u10d0-\\u10fa\\u10fc-\\u1248\\u124a-\\u124d\\u1250-\\u1256\\u1258\\u125a-\\u125d\\u1260-\\u1288\\u128a-\\u128d\\u1290-\\u12b0\\u12b2-\\u12b5\\u12b8-\\u12be\\u12c0\\u12c2-\\u12c5\\u12c8-\\u12d6\\u12d8-\\u1310\\u1312-\\u1315\\u1318-\\u135a\\u1380-\\u138f\\u13a0-\\u13f4\\u1401-\\u166c\\u166f-\\u167f\\u1681-\\u169a\\u16a0-\\u16ea\\u16ee-\\u16f0\\u1700-\\u170c\\u170e-\\u1711\\u1720-\\u1731\\u1740-\\u1751\\u1760-\\u176c\\u176e-\\u1770\\u1780-\\u17b3\\u17d7\\u17dc\\u1820-\\u1877\\u1880-\\u18a8\\u18aa\\u18b0-\\u18f5\\u1900-\\u191c\\u1950-\\u196d\\u1970-\\u1974\\u1980-\\u19ab\\u19c1-\\u19c7\\u1a00-\\u1a16\\u1a20-\\u1a54\\u1aa7\\u1b05-\\u1b33\\u1b45-\\u1b4b\\u1b83-\\u1ba0\\u1bae\\u1baf\\u1bba-\\u1be5\\u1c00-\\u1c23\\u1c4d-\\u1c4f\\u1c5a-\\u1c7d\\u1ce9-\\u1cec\\u1cee-\\u1cf1\\u1cf5\\u1cf6\\u1d00-\\u1dbf\\u1e00-\\u1f15\\u1f18-\\u1f1d\\u1f20-\\u1f45\\u1f48-\\u1f4d\\u1f50-\\u1f57\\u1f59\\u1f5b\\u1f5d\\u1f5f-\\u1f7d\\u1f80-\\u1fb4\\u1fb6-\\u1fbc\\u1fbe\\u1fc2-\\u1fc4\\u1fc6-\\u1fcc\\u1fd0-\\u1fd3\\u1fd6-\\u1fdb\\u1fe0-\\u1fec\\u1ff2-\\u1ff4\\u1ff6-\\u1ffc\\u2071\\u207f\\u2090-\\u209c\\u2102\\u2107\\u210a-\\u2113\\u2115\\u2119-\\u211d\\u2124\\u2126\\u2128\\u212a-\\u212d\\u212f-\\u2139\\u213c-\\u213f\\u2145-\\u2149\\u214e\\u2160-\\u2188\\u2c00-\\u2c2e\\u2c30-\\u2c5e\\u2c60-\\u2ce4\\u2ceb-\\u2cee\\u2cf2\\u2cf3\\u2d00-\\u2d25\\u2d27\\u2d2d\\u2d30-\\u2d67\\u2d6f\\u2d80-\\u2d96\\u2da0-\\u2da6\\u2da8-\\u2dae\\u2db0-\\u2db6\\u2db8-\\u2dbe\\u2dc0-\\u2dc6\\u2dc8-\\u2dce\\u2dd0-\\u2dd6\\u2dd8-\\u2dde\\u2e2f\\u3005-\\u3007\\u3021-\\u3029\\u3031-\\u3035\\u3038-\\u303c\\u3041-\\u3096\\u309d-\\u309f\\u30a1-\\u30fa\\u30fc-\\u30ff\\u3105-\\u312d\\u3131-\\u318e\\u31a0-\\u31ba\\u31f0-\\u31ff\\u3400-\\u4db5\\u4e00-\\u9fcc\\ua000-\\ua48c\\ua4d0-\\ua4fd\\ua500-\\ua60c\\ua610-\\ua61f\\ua62a\\ua62b\\ua640-\\ua66e\\ua67f-\\ua697\\ua6a0-\\ua6ef\\ua717-\\ua71f\\ua722-\\ua788\\ua78b-\\ua78e\\ua790-\\ua793\\ua7a0-\\ua7aa\\ua7f8-\\ua801\\ua803-\\ua805\\ua807-\\ua80a\\ua80c-\\ua822\\ua840-\\ua873\\ua882-\\ua8b3\\ua8f2-\\ua8f7\\ua8fb\\ua90a-\\ua925\\ua930-\\ua946\\ua960-\\ua97c\\ua984-\\ua9b2\\ua9cf\\uaa00-\\uaa28\\uaa40-\\uaa42\\uaa44-\\uaa4b\\uaa60-\\uaa76\\uaa7a\\uaa80-\\uaaaf\\uaab1\\uaab5\\uaab6\\uaab9-\\uaabd\\uaac0\\uaac2\\uaadb-\\uaadd\\uaae0-\\uaaea\\uaaf2-\\uaaf4\\uab01-\\uab06\\uab09-\\uab0e\\uab11-\\uab16\\uab20-\\uab26\\uab28-\\uab2e\\uabc0-\\uabe2\\uac00-\\ud7a3\\ud7b0-\\ud7c6\\ud7cb-\\ud7fb\\uf900-\\ufa6d\\ufa70-\\ufad9\\ufb00-\\ufb06\\ufb13-\\ufb17\\ufb1d\\ufb1f-\\ufb28\\ufb2a-\\ufb36\\ufb38-\\ufb3c\\ufb3e\\ufb40\\ufb41\\ufb43\\ufb44\\ufb46-\\ufbb1\\ufbd3-\\ufd3d\\ufd50-\\ufd8f\\ufd92-\\ufdc7\\ufdf0-\\ufdfb\\ufe70-\\ufe74\\ufe76-\\ufefc\\uff21-\\uff3a\\uff41-\\uff5a\\uff66-\\uffbe\\uffc2-\\uffc7\\uffca-\\uffcf\\uffd2-\\uffd7\\uffda-\\uffdc]|\\\\[u][0-9a-fA-F]{4}|[\\xaa\\xb5\\xba\\xc0-\\xd6\\xd8-\\xf6\\xf8-\\u02c1\\u02c6-\\u02d1\\u02e0-\\u02e4\\u02ec\\u02ee\\u0370-\\u0374\\u0376\\u0377\\u037a-\\u037d\\u0386\\u0388-\\u038a\\u038c\\u038e-\\u03a1\\u03a3-\\u03f5\\u03f7-\\u0481\\u048a-\\u0527\\u0531-\\u0556\\u0559\\u0561-\\u0587\\u05d0-\\u05ea\\u05f0-\\u05f2\\u0620-\\u064a\\u066e\\u066f\\u0671-\\u06d3\\u06d5\\u06e5\\u06e6\\u06ee\\u06ef\\u06fa-\\u06fc\\u06ff\\u0710\\u0712-\\u072f\\u074d-\\u07a5\\u07b1\\u07ca-\\u07ea\\u07f4\\u07f5\\u07fa\\u0800-\\u0815\\u081a\\u0824\\u0828\\u0840-\\u0858\\u08a0\\u08a2-\\u08ac\\u0904-\\u0939\\u093d\\u0950\\u0958-\\u0961\\u0971-\\u0977\\u0979-\\u097f\\u0985-\\u098c\\u098f\\u0990\\u0993-\\u09a8\\u09aa-\\u09b0\\u09b2\\u09b6-\\u09b9\\u09bd\\u09ce\\u09dc\\u09dd\\u09df-\\u09e1\\u09f0\\u09f1\\u0a05-\\u0a0a\\u0a0f\\u0a10\\u0a13-\\u0a28\\u0a2a-\\u0a30\\u0a32\\u0a33\\u0a35\\u0a36\\u0a38\\u0a39\\u0a59-\\u0a5c\\u0a5e\\u0a72-\\u0a74\\u0a85-\\u0a8d\\u0a8f-\\u0a91\\u0a93-\\u0aa8\\u0aaa-\\u0ab0\\u0ab2\\u0ab3\\u0ab5-\\u0ab9\\u0abd\\u0ad0\\u0ae0\\u0ae1\\u0b05-\\u0b0c\\u0b0f\\u0b10\\u0b13-\\u0b28\\u0b2a-\\u0b30\\u0b32\\u0b33\\u0b35-\\u0b39\\u0b3d\\u0b5c\\u0b5d\\u0b5f-\\u0b61\\u0b71\\u0b83\\u0b85-\\u0b8a\\u0b8e-\\u0b90\\u0b92-\\u0b95\\u0b99\\u0b9a\\u0b9c\\u0b9e\\u0b9f\\u0ba3\\u0ba4\\u0ba8-\\u0baa\\u0bae-\\u0bb9\\u0bd0\\u0c05-\\u0c0c\\u0c0e-\\u0c10\\u0c12-\\u0c28\\u0c2a-\\u0c33\\u0c35-\\u0c39\\u0c3d\\u0c58\\u0c59\\u0c60\\u0c61\\u0c85-\\u0c8c\\u0c8e-\\u0c90\\u0c92-\\u0ca8\\u0caa-\\u0cb3\\u0cb5-\\u0cb9\\u0cbd\\u0cde\\u0ce0\\u0ce1\\u0cf1\\u0cf2\\u0d05-\\u0d0c\\u0d0e-\\u0d10\\u0d12-\\u0d3a\\u0d3d\\u0d4e\\u0d60\\u0d61\\u0d7a-\\u0d7f\\u0d85-\\u0d96\\u0d9a-\\u0db1\\u0db3-\\u0dbb\\u0dbd\\u0dc0-\\u0dc6\\u0e01-\\u0e30\\u0e32\\u0e33\\u0e40-\\u0e46\\u0e81\\u0e82\\u0e84\\u0e87\\u0e88\\u0e8a\\u0e8d\\u0e94-\\u0e97\\u0e99-\\u0e9f\\u0ea1-\\u0ea3\\u0ea5\\u0ea7\\u0eaa\\u0eab\\u0ead-\\u0eb0\\u0eb2\\u0eb3\\u0ebd\\u0ec0-\\u0ec4\\u0ec6\\u0edc-\\u0edf\\u0f00\\u0f40-\\u0f47\\u0f49-\\u0f6c\\u0f88-\\u0f8c\\u1000-\\u102a\\u103f\\u1050-\\u1055\\u105a-\\u105d\\u1061\\u1065\\u1066\\u106e-\\u1070\\u1075-\\u1081\\u108e\\u10a0-\\u10c5\\u10c7\\u10cd\\u10d0-\\u10fa\\u10fc-\\u1248\\u124a-\\u124d\\u1250-\\u1256\\u1258\\u125a-\\u125d\\u1260-\\u1288\\u128a-\\u128d\\u1290-\\u12b0\\u12b2-\\u12b5\\u12b8-\\u12be\\u12c0\\u12c2-\\u12c5\\u12c8-\\u12d6\\u12d8-\\u1310\\u1312-\\u1315\\u1318-\\u135a\\u1380-\\u138f\\u13a0-\\u13f4\\u1401-\\u166c\\u166f-\\u167f\\u1681-\\u169a\\u16a0-\\u16ea\\u16ee-\\u16f0\\u1700-\\u170c\\u170e-\\u1711\\u1720-\\u1731\\u1740-\\u1751\\u1760-\\u176c\\u176e-\\u1770\\u1780-\\u17b3\\u17d7\\u17dc\\u1820-\\u1877\\u1880-\\u18a8\\u18aa\\u18b0-\\u18f5\\u1900-\\u191c\\u1950-\\u196d\\u1970-\\u1974\\u1980-\\u19ab\\u19c1-\\u19c7\\u1a00-\\u1a16\\u1a20-\\u1a54\\u1aa7\\u1b05-\\u1b33\\u1b45-\\u1b4b\\u1b83-\\u1ba0\\u1bae\\u1baf\\u1bba-\\u1be5\\u1c00-\\u1c23\\u1c4d-\\u1c4f\\u1c5a-\\u1c7d\\u1ce9-\\u1cec\\u1cee-\\u1cf1\\u1cf5\\u1cf6\\u1d00-\\u1dbf\\u1e00-\\u1f15\\u1f18-\\u1f1d\\u1f20-\\u1f45\\u1f48-\\u1f4d\\u1f50-\\u1f57\\u1f59\\u1f5b\\u1f5d\\u1f5f-\\u1f7d\\u1f80-\\u1fb4\\u1fb6-\\u1fbc\\u1fbe\\u1fc2-\\u1fc4\\u1fc6-\\u1fcc\\u1fd0-\\u1fd3\\u1fd6-\\u1fdb\\u1fe0-\\u1fec\\u1ff2-\\u1ff4\\u1ff6-\\u1ffc\\u2071\\u207f\\u2090-\\u209c\\u2102\\u2107\\u210a-\\u2113\\u2115\\u2119-\\u211d\\u2124\\u2126\\u2128\\u212a-\\u212d\\u212f-\\u2139\\u213c-\\u213f\\u2145-\\u2149\\u214e\\u2160-\\u2188\\u2c00-\\u2c2e\\u2c30-\\u2c5e\\u2c60-\\u2ce4\\u2ceb-\\u2cee\\u2cf2\\u2cf3\\u2d00-\\u2d25\\u2d27\\u2d2d\\u2d30-\\u2d67\\u2d6f\\u2d80-\\u2d96\\u2da0-\\u2da6\\u2da8-\\u2dae\\u2db0-\\u2db6\\u2db8-\\u2dbe\\u2dc0-\\u2dc6\\u2dc8-\\u2dce\\u2dd0-\\u2dd6\\u2dd8-\\u2dde\\u2e2f\\u3005-\\u3007\\u3021-\\u3029\\u3031-\\u3035\\u3038-\\u303c\\u3041-\\u3096\\u309d-\\u309f\\u30a1-\\u30fa\\u30fc-\\u30ff\\u3105-\\u312d\\u3131-\\u318e\\u31a0-\\u31ba\\u31f0-\\u31ff\\u3400-\\u4db5\\u4e00-\\u9fcc\\ua000-\\ua48c\\ua4d0-\\ua4fd\\ua500-\\ua60c\\ua610-\\ua61f\\ua62a\\ua62b\\ua640-\\ua66e\\ua67f-\\ua697\\ua6a0-\\ua6ef\\ua717-\\ua71f\\ua722-\\ua788\\ua78b-\\ua78e\\ua790-\\ua793\\ua7a0-\\ua7aa\\ua7f8-\\ua801\\ua803-\\ua805\\ua807-\\ua80a\\ua80c-\\ua822\\ua840-\\ua873\\ua882-\\ua8b3\\ua8f2-\\ua8f7\\ua8fb\\ua90a-\\ua925\\ua930-\\ua946\\ua960-\\ua97c\\ua984-\\ua9b2\\ua9cf\\uaa00-\\uaa28\\uaa40-\\uaa42\\uaa44-\\uaa4b\\uaa60-\\uaa76\\uaa7a\\uaa80-\\uaaaf\\uaab1\\uaab5\\uaab6\\uaab9-\\uaabd\\uaac0\\uaac2\\uaadb-\\uaadd\\uaae0-\\uaaea\\uaaf2-\\uaaf4\\uab01-\\uab06\\uab09-\\uab0e\\uab11-\\uab16\\uab20-\\uab26\\uab28-\\uab2e\\uabc0-\\uabe2\\uac00-\\ud7a3\\ud7b0-\\ud7c6\\ud7cb-\\ud7fb\\uf900-\\ufa6d\\ufa70-\\ufad9\\ufb00-\\ufb06\\ufb13-\\ufb17\\ufb1d\\ufb1f-\\ufb28\\ufb2a-\\ufb36\\ufb38-\\ufb3c\\ufb3e\\ufb40\\ufb41\\ufb43\\ufb44\\ufb46-\\ufbb1\\ufbd3-\\ufd3d\\ufd50-\\ufd8f\\ufd92-\\ufdc7\\ufdf0-\\ufdfb\\ufe70-\\ufe74\\ufe76-\\ufefc\\uff21-\\uff3a\\uff41-\\uff5a\\uff66-\\uffbe\\uffc2-\\uffc7\\uffca-\\uffcf\\uffd2-\\uffd7\\uffda-\\uffdc0-9\\u0300-\\u036f\\u0483-\\u0487\\u0591-\\u05bd\\u05bf\\u05c1\\u05c2\\u05c4\\u05c5\\u05c7\\u0610-\\u061a\\u064b-\\u0669\\u0670\\u06d6-\\u06dc\\u06df-\\u06e4\\u06e7\\u06e8\\u06ea-\\u06ed\\u06f0-\\u06f9\\u0711\\u0730-\\u074a\\u07a6-\\u07b0\\u07c0-\\u07c9\\u07eb-\\u07f3\\u0816-\\u0819\\u081b-\\u0823\\u0825-\\u0827\\u0829-\\u082d\\u0859-\\u085b\\u08e4-\\u08fe\\u0900-\\u0903\\u093a-\\u093c\\u093e-\\u094f\\u0951-\\u0957\\u0962\\u0963\\u0966-\\u096f\\u0981-\\u0983\\u09bc\\u09be-\\u09c4\\u09c7\\u09c8\\u09cb-\\u09cd\\u09d7\\u09e2\\u09e3\\u09e6-\\u09ef\\u0a01-\\u0a03\\u0a3c\\u0a3e-\\u0a42\\u0a47\\u0a48\\u0a4b-\\u0a4d\\u0a51\\u0a66-\\u0a71\\u0a75\\u0a81-\\u0a83\\u0abc\\u0abe-\\u0ac5\\u0ac7-\\u0ac9\\u0acb-\\u0acd\\u0ae2\\u0ae3\\u0ae6-\\u0aef\\u0b01-\\u0b03\\u0b3c\\u0b3e-\\u0b44\\u0b47\\u0b48\\u0b4b-\\u0b4d\\u0b56\\u0b57\\u0b62\\u0b63\\u0b66-\\u0b6f\\u0b82\\u0bbe-\\u0bc2\\u0bc6-\\u0bc8\\u0bca-\\u0bcd\\u0bd7\\u0be6-\\u0bef\\u0c01-\\u0c03\\u0c3e-\\u0c44\\u0c46-\\u0c48\\u0c4a-\\u0c4d\\u0c55\\u0c56\\u0c62\\u0c63\\u0c66-\\u0c6f\\u0c82\\u0c83\\u0cbc\\u0cbe-\\u0cc4\\u0cc6-\\u0cc8\\u0cca-\\u0ccd\\u0cd5\\u0cd6\\u0ce2\\u0ce3\\u0ce6-\\u0cef\\u0d02\\u0d03\\u0d3e-\\u0d44\\u0d46-\\u0d48\\u0d4a-\\u0d4d\\u0d57\\u0d62\\u0d63\\u0d66-\\u0d6f\\u0d82\\u0d83\\u0dca\\u0dcf-\\u0dd4\\u0dd6\\u0dd8-\\u0ddf\\u0df2\\u0df3\\u0e31\\u0e34-\\u0e3a\\u0e47-\\u0e4e\\u0e50-\\u0e59\\u0eb1\\u0eb4-\\u0eb9\\u0ebb\\u0ebc\\u0ec8-\\u0ecd\\u0ed0-\\u0ed9\\u0f18\\u0f19\\u0f20-\\u0f29\\u0f35\\u0f37\\u0f39\\u0f3e\\u0f3f\\u0f71-\\u0f84\\u0f86\\u0f87\\u0f8d-\\u0f97\\u0f99-\\u0fbc\\u0fc6\\u102b-\\u103e\\u1040-\\u1049\\u1056-\\u1059\\u105e-\\u1060\\u1062-\\u1064\\u1067-\\u106d\\u1071-\\u1074\\u1082-\\u108d\\u108f-\\u109d\\u135d-\\u135f\\u1712-\\u1714\\u1732-\\u1734\\u1752\\u1753\\u1772\\u1773\\u17b4-\\u17d3\\u17dd\\u17e0-\\u17e9\\u180b-\\u180d\\u1810-\\u1819\\u18a9\\u1920-\\u192b\\u1930-\\u193b\\u1946-\\u194f\\u19b0-\\u19c0\\u19c8\\u19c9\\u19d0-\\u19d9\\u1a17-\\u1a1b\\u1a55-\\u1a5e\\u1a60-\\u1a7c\\u1a7f-\\u1a89\\u1a90-\\u1a99\\u1b00-\\u1b04\\u1b34-\\u1b44\\u1b50-\\u1b59\\u1b6b-\\u1b73\\u1b80-\\u1b82\\u1ba1-\\u1bad\\u1bb0-\\u1bb9\\u1be6-\\u1bf3\\u1c24-\\u1c37\\u1c40-\\u1c49\\u1c50-\\u1c59\\u1cd0-\\u1cd2\\u1cd4-\\u1ce8\\u1ced\\u1cf2-\\u1cf4\\u1dc0-\\u1de6\\u1dfc-\\u1dff\\u200c\\u200d\\u203f\\u2040\\u2054\\u20d0-\\u20dc\\u20e1\\u20e5-\\u20f0\\u2cef-\\u2cf1\\u2d7f\\u2de0-\\u2dff\\u302a-\\u302f\\u3099\\u309a\\ua620-\\ua629\\ua66f\\ua674-\\ua67d\\ua69f\\ua6f0\\ua6f1\\ua802\\ua806\\ua80b\\ua823-\\ua827\\ua880\\ua881\\ua8b4-\\ua8c4\\ua8d0-\\ua8d9\\ua8e0-\\ua8f1\\ua900-\\ua909\\ua926-\\ua92d\\ua947-\\ua953\\ua980-\\ua983\\ua9b3-\\ua9c0\\ua9d0-\\ua9d9\\uaa29-\\uaa36\\uaa43\\uaa4c\\uaa4d\\uaa50-\\uaa59\\uaa7b\\uaab0\\uaab2-\\uaab4\\uaab7\\uaab8\\uaabe\\uaabf\\uaac1\\uaaeb-\\uaaef\\uaaf5\\uaaf6\\uabe3-\\uabea\\uabec\\uabed\\uabf0-\\uabf9\\ufb1e\\ufe00-\\ufe0f\\ufe20-\\ufe26\\ufe33\\ufe34\\ufe4d-\\ufe4f\\uff10-\\uff19\\uff3f]|[0-9])*", LRE_FLAG_STICKY);
   /* clang-format on */
   uint8_t* bc;
-  BOOL ret = FALSE;
+  bool ret = false;
 
   if((bc = regexp_compile(re, ctx))) {
 
@@ -2966,11 +2966,11 @@ js_is_identifier_len(JSContext* ctx, const char* str, size_t len) {
   return ret;
 }
 
-BOOL
+bool
 js_is_identifier_atom(JSContext* ctx, JSAtom atom) {
   const char* str;
   size_t len;
-  BOOL ret;
+  bool ret;
   str = js_atom_to_cstringlen(ctx, &len, atom);
   ret = js_is_identifier_len(ctx, str, len);
   JS_FreeCString(ctx, str);

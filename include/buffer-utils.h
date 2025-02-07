@@ -1,6 +1,7 @@
 #ifndef BUFFER_UTILS_H
 #define BUFFER_UTILS_H
 
+#include <stdbool.h>
 #include <quickjs.h>
 #include <cutils.h>
 #include <stdarg.h>
@@ -114,7 +115,7 @@ static inline void* block_begin(const MemoryBlock* mb) { return mb->base; }
 static inline void* block_end(const MemoryBlock* mb) { return mb->base + mb->size; }
 /* clang-format on */
 
-static inline BOOL
+static inline bool
 block_arraybuffer(MemoryBlock* mb, JSValueConst ab, JSContext* ctx) {
   mb->base = JS_GetArrayBuffer(ctx, &mb->size, ab);
   return mb->base != 0;
@@ -151,7 +152,7 @@ offset_init(OffsetLength* ol) {
   ol->length = INT64_MAX;
 }
 
-static inline BOOL
+static inline bool
 offset_is_default(const OffsetLength* ol) {
   return ol->offset == 0 && ol->length == INT64_MAX;
 }
@@ -278,7 +279,7 @@ InputBuffer js_input_args(JSContext* ctx, int argc, JSValueConst argv[]);
 InputBuffer js_output_args(JSContext* ctx, int argc, JSValueConst argv[]);
 
 InputBuffer input_buffer_clone(const InputBuffer* in, JSContext* ctx);
-BOOL input_buffer_valid(const InputBuffer* in);
+bool input_buffer_valid(const InputBuffer* in);
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
 
@@ -329,7 +330,7 @@ input_buffer_end(const InputBuffer* in) {
   return input_buffer_data(in) + input_buffer_length(in);
 }
 
-static inline BOOL
+static inline bool
 input_buffer_eof(const InputBuffer* in) {
   return in->pos == input_buffer_length(in);
 }

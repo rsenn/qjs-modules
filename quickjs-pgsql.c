@@ -41,7 +41,7 @@ struct PGResultIterator {
 struct PGConnection {
   int ref_count;
   PGconn* conn;
-  BOOL nonblocking;
+  bool nonblocking;
   struct PGResult* result;
 };
 
@@ -62,15 +62,15 @@ static char* field_id(JSContext* ctx, PGSQLResult*, int field);
 static char* field_name(JSContext* ctx, PGSQLResult*, int field);
 static FieldNameFunc* field_namefunc(PGresult* res);
 static JSValue field_array(PGSQLResult*, int, JSContext*);
-static BOOL field_is_integer(PGresult* res, int field);
-static BOOL field_is_json(PGresult* res, int field);
-static BOOL field_is_float(PGresult* res, int field);
-static BOOL field_is_number(PGresult* res, int field);
-static BOOL field_is_binary(PGresult* res, int field);
-static BOOL field_is_boolean(PGresult* res, int field);
-static BOOL field_is_null(PGresult* res, int field);
-static BOOL field_is_date(PGresult* res, int field);
-static BOOL field_is_string(PGresult* res, int field);
+static bool field_is_integer(PGresult* res, int field);
+static bool field_is_json(PGresult* res, int field);
+static bool field_is_float(PGresult* res, int field);
+static bool field_is_number(PGresult* res, int field);
+static bool field_is_binary(PGresult* res, int field);
+static bool field_is_boolean(PGresult* res, int field);
+static bool field_is_null(PGresult* res, int field);
+static bool field_is_date(PGresult* res, int field);
+static bool field_is_string(PGresult* res, int field);
 
 enum ResultFlags {
   RESULT_OBJECT = 1,
@@ -195,7 +195,7 @@ js_pgconn_print_value(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValueC
     dbuf_putstr(out, "NULL");
 
   } else if(JS_IsBool(value)) {
-    dbuf_putstr(out, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
+    dbuf_putstr(out, JS_ToBool(ctx, value) ? "true" : "false");
 
   } else if(JS_IsString(value)) {
     size_t len;
@@ -320,7 +320,7 @@ js_pgconn_print_fields(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValue
   JSValue item, iter = js_iterator_new(ctx, fields);
 
   if(!JS_IsUndefined(iter)) {
-    BOOL done = FALSE;
+    bool done = false;
 
     dbuf_putc(out, '(');
 
@@ -346,7 +346,7 @@ js_pgconn_print_values(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValue
   JSValue item, iter = js_iterator_new(ctx, values);
 
   if(!JS_IsUndefined(iter)) {
-    BOOL done = FALSE;
+    bool done = false;
 
     dbuf_putc(out, '(');
     for(int i = 0;; i++) {
@@ -410,7 +410,7 @@ pgconn_new(JSContext* ctx) {
   if(!(pq = js_malloc(ctx, sizeof(PGSQLConnection))))
     return 0;
 
-  *pq = (PGSQLConnection){1, NULL, FALSE, NULL};
+  *pq = (PGSQLConnection){1, NULL, false, NULL};
 
   return pq;
 }
@@ -438,7 +438,7 @@ pgconn_free(PGSQLConnection* pq, JSRuntime* rt) {
   }
 }
 
-static BOOL
+static bool
 pgconn_nonblock(PGSQLConnection* pq) {
   return pq->conn ? PQisnonblocking(pq->conn) : pq->nonblocking;
 }
@@ -968,7 +968,7 @@ js_pgconn_unescape_bytea(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   dst = (char*)PQunescapeBytea((unsigned char*)src, &dlen);
   JS_FreeCString(ctx, src);
 
-  return JS_NewArrayBuffer(ctx, (uint8_t*)dst, dlen, &result_free, 0, FALSE);
+  return JS_NewArrayBuffer(ctx, (uint8_t*)dst, dlen, &result_free, 0, false);
 }
 
 static JSValue
@@ -1357,7 +1357,7 @@ result_value(JSContext* ctx, PGSQLResult* opaque, int field, char* buf, size_t l
     return (rtype & RESULT_STRING) ? JS_NewString(ctx, "NULL") : JS_NULL;
 
   if(field_is_boolean(res, field)) {
-    BOOL value = *(BOOL*)buf;
+    bool value = *(bool*)buf;
 
     if((rtype & RESULT_STRING))
       return JS_NewString(ctx, value ? "1" : "0");
@@ -1402,7 +1402,7 @@ result_value(JSContext* ctx, PGSQLResult* opaque, int field, char* buf, size_t l
     size_t dlen;
 
     if((dst = PQunescapeBytea((const unsigned char*)buf, &dlen)))
-      return JS_NewArrayBuffer(ctx, (uint8_t*)dst, dlen, &result_free, 0, FALSE);
+      return JS_NewArrayBuffer(ctx, (uint8_t*)dst, dlen, &result_free, 0, false);
   }
 
   ret = JS_NewString(ctx, buf);
@@ -1466,7 +1466,7 @@ result_iterate(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
   int rows = PQntuples(res);
   JSValue ret, val = result_row(ctx, opaque, row, rtype);
 
-  ret = js_iterator_result(ctx, val, row >= 0 && row < rows ? FALSE : TRUE);
+  ret = js_iterator_result(ctx, val, row >= 0 && row < rows ? false : true);
 
   JS_FreeValue(ctx, val);
   return ret;
@@ -1582,9 +1582,9 @@ js_pgresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* 
 
   if(opaque->row_index < ntuples) {
     ret = result_row(ctx, opaque, opaque->row_index++, rtype);
-    *pdone = FALSE;
+    *pdone = false;
   } else {
-    *pdone = TRUE;
+    *pdone = true;
   }
 
   return ret;
@@ -1625,7 +1625,7 @@ js_pgresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
     case METHOD_FETCH_ROW:
     case METHOD_FETCH_ASSOC: {
-      BOOL done = FALSE;
+      BOOL done = false;
 
       ret = js_pgresult_next(ctx, this_val, argc, argv, &done, magic);
       break;
@@ -1780,10 +1780,10 @@ js_pgresult_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValu
         pdesc->getter = JS_UNDEFINED;
         pdesc->setter = JS_UNDEFINED;
       }
-      return TRUE;
+      return true;
     }
   }
-  return FALSE;
+  return false;
 }
 
 static void
@@ -1845,7 +1845,7 @@ field_name(JSContext* ctx, PGSQLResult* opaque, int field) {
 static FieldNameFunc*
 field_namefunc(PGresult* res) {
   uint32_t i, j, num_fields = PQnfields(res);
-  BOOL eq = FALSE;
+  bool eq = false;
 
   for(i = 0; !eq && i < num_fields; i++)
     for(j = 0; !eq && j < num_fields; j++)
@@ -2063,7 +2063,7 @@ field_array(PGSQLResult* opaque, int field, JSContext* ctx) {
   return ret;
 }
 
-static BOOL
+static bool
 field_is_integer(PGresult* res, int field) {
   const char* type = field_type(res, field);
   if(str_start(type, "int")) {
@@ -2076,15 +2076,15 @@ field_is_integer(PGresult* res, int field) {
       return type[i] == '\0';
     }
   }
-  return FALSE;
+  return false;
 }
 
-static BOOL
+static bool
 field_is_json(PGresult* res, int field) {
   return !strcmp("json", field_type(res, field));
 }
 
-static BOOL
+static bool
 field_is_float(PGresult* res, int field) {
   const char* type = field_type(res, field);
   if(str_start(type, "float")) {
@@ -2096,58 +2096,58 @@ field_is_float(PGresult* res, int field) {
       return type[i] == '\0';
     }
   }
-  return FALSE;
+  return false;
 }
 
-static BOOL
+static bool
 field_is_number(PGresult* res, int field) {
   return field_is_integer(res, field) || field_is_float(res, field);
 }
 
-static BOOL
+static bool
 field_is_binary(PGresult* res, int field) {
   return PQfformat(res, field) || !strcmp("bytea", field_type(res, field));
 }
 
-static BOOL
+static bool
 field_is_boolean(PGresult* res, int field) {
   return !strcmp(field_type(res, field), "bool");
 }
 
-static BOOL
+static bool
 field_is_null(PGresult* res, int field) {
   return !strcmp(field_type(res, field), "void");
 }
 
-static BOOL
+static bool
 field_is_date(PGresult* res, int field) {
   const char* type = field_type(res, field);
 
   if(!strcmp(type, "date"))
-    return TRUE;
+    return true;
   if(!strcmp(type, "time"))
-    return TRUE;
+    return true;
   if(!strcmp(type, "timestamp"))
-    return TRUE;
+    return true;
   if(!strcmp(type, "timestamptz"))
-    return TRUE;
+    return true;
   if(!strcmp(type, "interval"))
-    return TRUE;
+    return true;
   if(!strcmp(type, "timetz"))
-    return TRUE;
-  return FALSE;
+    return true;
+  return false;
 }
 
-static BOOL
+static bool
 field_is_string(PGresult* res, int field) {
   const char* type = field_type(res, field);
 
   if(!strcmp(type, "varchar"))
-    return TRUE;
+    return true;
   if(!strcmp(type, "bytea"))
-    return TRUE;
+    return true;
 
-  return FALSE;
+  return false;
 }
 
 static JSValue

@@ -1,6 +1,7 @@
 #ifndef ASYNC_CLOSURE_H
 #define ASYNC_CLOSURE_H
 
+#include <stdbool.h>
 #include <quickjs.h>
 #include <list.h>
 #include "js-utils.h"
@@ -37,7 +38,7 @@ JSValue asyncclosure_promise(AsyncClosure*);
 void asyncclosure_opaque(AsyncClosure*, void*, void (*opaque_free)(JSRuntime*, void*));
 void asyncclosure_free(void*);
 JSValue asyncclosure_promise(AsyncClosure*);
-BOOL asyncclosure_change_event(AsyncClosure*, AsyncEvent);
+bool asyncclosure_change_event(AsyncClosure*, AsyncEvent);
 void asyncclosure_resolve(AsyncClosure*);
 void asyncclosure_error(AsyncClosure*, JSValueConst);
 void asyncclosure_done(AsyncClosure*);

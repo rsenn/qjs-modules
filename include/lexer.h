@@ -4,6 +4,7 @@
 #include "location.h"
 #include "vector.h"
 #include "buffer-utils.h"
+#include <stdbool.h>
 #include <string.h>
 
 /**
@@ -66,7 +67,7 @@ int lexer_state_top(Lexer*, int i);
 char* lexer_states_skip(char*);
 void lexer_states_dump(Lexer*, uint64_t mask, DynBuf* dbuf);
 char* lexer_rule_regex(LexerRule*);
-BOOL lexer_rule_expand(Lexer*, char* p, DynBuf* db);
+bool lexer_rule_expand(Lexer*, char* p, DynBuf* db);
 int lexer_rule_add(Lexer*, char* name, char* expr);
 LexerRule* lexer_rule_find(Lexer*, const char* name);
 void lexer_rule_release_rt(LexerRule*, JSRuntime* rt);
@@ -74,7 +75,7 @@ void lexer_rule_dump(Lexer*, LexerRule* rule, DynBuf* dbuf);
 void lexer_init(Lexer*, enum lexer_mode mode, JSContext* ctx);
 void lexer_define(Lexer*, char* name, char* expr);
 LexerRule* lexer_find_definition(Lexer*, const char* name, size_t namelen);
-BOOL lexer_compile_rules(Lexer*, JSContext* ctx);
+bool lexer_compile_rules(Lexer*, JSContext* ctx);
 int lexer_peek(Lexer*, /* uint64_t state,*/ unsigned start_rule, JSContext* ctx);
 size_t lexer_skip_n(Lexer*, size_t bytes);
 size_t lexer_skip(Lexer*);

@@ -140,10 +140,10 @@ child_process_spawn(ChildProcess* cp) {
   PROCESS_INFORMATION pinfo;
   STARTUPINFOA sinfo;
   SECURITY_ATTRIBUTES sattr;
-  BOOL search, success;
+  bool search, success;
 
   sattr.nLength = sizeof(SECURITY_ATTRIBUTES);
-  sattr.bInheritHandle = TRUE;
+  sattr.bInheritHandle = true;
   sattr.lpSecurityDescriptor = NULL;
 
   ZeroMemory(&pinfo, sizeof(PROCESS_INFORMATION));
@@ -160,7 +160,7 @@ child_process_spawn(ChildProcess* cp) {
   args = argv_to_string(cp->args, ' ');
   env = cp->env ? argv_to_string(cp->env, '\0') : NULL;
 
-  success = CreateProcessA(file, args, &sattr, NULL, TRUE, CREATE_NO_WINDOW, env, cp->cwd, &sinfo, &pinfo);
+  success = CreateProcessA(file, args, &sattr, NULL, true, CREATE_NO_WINDOW, env, cp->cwd, &sinfo, &pinfo);
 
   free(args);
 
@@ -261,7 +261,7 @@ child_process_wait(ChildProcess* cp, int flags) {
   HANDLE hproc;
   int i, ret;
 
-  hproc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, cp->pid);
+  hproc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, false, cp->pid);
 
   for(;;) {
     ret = WaitForSingleObject(hproc, INFINITE);

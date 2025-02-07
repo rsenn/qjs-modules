@@ -11,8 +11,8 @@
  */
 struct VProps;
 
-typedef BOOL has_function(struct VProps*, JSContext*, JSValueConst);
-typedef BOOL deleter(struct VProps*, JSContext*, JSValueConst);
+typedef bool has_function(struct VProps*, JSContext*, JSValueConst);
+typedef bool deleter(struct VProps*, JSContext*, JSValueConst);
 typedef JSValue getter(struct VProps*, JSContext*, JSValueConst);
 typedef int setter(struct VProps*, JSContext*, JSValueConst, JSValueConst);
 typedef void destroy_function(struct VProps*, JSContext*);
@@ -37,12 +37,12 @@ VirtualProperties virtual_properties_array(JSContext*, JSValueConst);
 JSValue virtual_properties_wrap(VirtualProperties, JSContext*);
 void virtual_properties_copy(const VirtualProperties*, VirtualProperties*, JSContext*);
 
-static inline BOOL
+static inline bool
 virtual_properties_has(VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
   return vprop->has(vprop, ctx, prop);
 }
 
-static inline BOOL
+static inline bool
 virtual_properties_delete(VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
   return vprop->delete(vprop, ctx, prop);
 }

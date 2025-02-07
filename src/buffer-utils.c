@@ -653,7 +653,7 @@ js_output_args(JSContext* ctx, int argc, JSValueConst argv[]) {
   return output;
 }
 
-BOOL
+bool
 input_buffer_valid(const InputBuffer* in) {
   return !JS_IsException(in->value);
 }

@@ -46,15 +46,15 @@ static char* field_id(JSContext* ctx, MYSQL_FIELD const* field);
 static char* field_name(JSContext* ctx, MYSQL_FIELD const* field);
 static JSValue field_array(JSContext* ctx, MYSQL_FIELD* field);
 static FieldNameFunc* field_namefunc(MYSQL_FIELD* fields, uint32_t num_fields);
-static BOOL field_is_integer(MYSQL_FIELD const* field);
-static BOOL field_is_float(MYSQL_FIELD const* field);
-static BOOL field_is_decimal(MYSQL_FIELD const* field);
-static BOOL field_is_number(MYSQL_FIELD const* field);
-static BOOL field_is_boolean(MYSQL_FIELD const* field);
-static BOOL field_is_null(MYSQL_FIELD const* field);
-static BOOL field_is_date(MYSQL_FIELD const* field);
-static BOOL field_is_string(MYSQL_FIELD const* field);
-static BOOL field_is_blob(MYSQL_FIELD const* field);
+static bool field_is_integer(MYSQL_FIELD const* field);
+static bool field_is_float(MYSQL_FIELD const* field);
+static bool field_is_decimal(MYSQL_FIELD const* field);
+static bool field_is_number(MYSQL_FIELD const* field);
+static bool field_is_boolean(MYSQL_FIELD const* field);
+static bool field_is_null(MYSQL_FIELD const* field);
+static bool field_is_date(MYSQL_FIELD const* field);
+static bool field_is_string(MYSQL_FIELD const* field);
+static bool field_is_blob(MYSQL_FIELD const* field);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
 static JSValue string_to_object(JSContext* ctx, const char* ctor_name, const char* s);
 
@@ -83,7 +83,7 @@ js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
     dbuf_putstr(out, "NULL");
 
   } else if(JS_IsBool(value)) {
-    dbuf_putstr(out, JS_ToBool(ctx, value) ? "TRUE" : "FALSE");
+    dbuf_putstr(out, JS_ToBool(ctx, value) ? "true" : "false");
 
   } else if(JS_IsString(value)) {
     size_t len;
@@ -132,7 +132,7 @@ js_mysql_print_value(JSContext* ctx, DynBuf* out, JSValueConst value) {
     JS_FreeValue(ctx, val);
 
   } else if(js_is_numeric(ctx, value)) {
-    BOOL notanum = !JS_IsNumber(value);
+    bool notanum = !JS_IsNumber(value);
     JSValue val = notanum ? js_value_coerce(ctx, "Number", value) : JS_DupValue(ctx, value);
     size_t len;
     const void* src = JS_ToCStringLen(ctx, &len, val);
@@ -195,7 +195,7 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
   JSValue item, iter = js_iterator_new(ctx, values);
 
   if(!JS_IsUndefined(iter)) {
-    BOOL done = FALSE;
+    bool done = false;
 
     dbuf_putc(out, '(');
 
@@ -377,7 +377,7 @@ js_connectparams_from(JSContext* ctx, int argc, JSValueConst argv[]) {
   return obj;
 }
 
-static BOOL
+static bool
 mysql_nonblock(MYSQL* my) {
   my_bool val;
   mysql_get_option(my, MYSQL_OPT_NONBLOCK, &val);
@@ -959,7 +959,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
 #ifdef _WIN32
   int fd = -1;
   SOCKET sock = my ? (SOCKET)mysql_get_socket(my) : (SOCKET)INVALID_HANDLE_VALUE;
-  BOOL has_fd;
+  bool has_fd;
   intptr_t tmp;
 
 #ifdef LIBMARIADB
@@ -972,7 +972,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
       if(s != sock) {
         printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, (void*)s, (void*)sock);
         mysql_optionsv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)(intptr_t)-1);
-        has_fd = FALSE;
+        has_fd = false;
         continue;
       }
     } else {
@@ -996,7 +996,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
       if(s != sock) {
         printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, s, sock);
         js_delete_propertystr(ctx, this_val, "fd");
-        has_fd = FALSE;
+        has_fd = false;
         continue;
       }
     } else {
@@ -1346,7 +1346,7 @@ result_value(JSContext* ctx, MYSQL_FIELD const* field, char* buf, size_t len, Re
     return (rtype & RESULT_STRING) ? JS_NewString(ctx, "NULL") : JS_NULL;
 
   if(field_is_boolean(field)) {
-    BOOL value = *(my_bool*)buf;
+    bool value = *(my_bool*)buf;
 
     if((rtype & RESULT_STRING))
       return JS_NewString(ctx, value ? "1" : "0");
@@ -1431,7 +1431,7 @@ result_row(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
 static JSValue
 result_iterate(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue ret, val = result_row(ctx, res, row, rtype);
-  ret = js_iterator_result(ctx, val, row ? FALSE : TRUE);
+  ret = js_iterator_result(ctx, val, row ? false : true);
 
   JS_FreeValue(ctx, val);
 
@@ -1442,7 +1442,7 @@ static void
 result_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue val = result_row(ctx, res, row, rtype);
 
-  JSValue item = js_iterator_result(ctx, val, row ? FALSE : TRUE);
+  JSValue item = js_iterator_result(ctx, val, row ? false : true);
   JS_FreeValue(ctx, val);
 
   value_yield_free(ctx, func, item);
@@ -1727,7 +1727,7 @@ js_mysqlresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   assert(my);
 
-  BOOL block = !mysql_nonblock(my);
+  bool block = !mysql_nonblock(my);
 
   switch(magic) {
     case METHOD_ASYNC_ITERATOR: {
@@ -1812,7 +1812,7 @@ field_name(JSContext* ctx, MYSQL_FIELD const* field) {
 static FieldNameFunc*
 field_namefunc(MYSQL_FIELD* fields, uint32_t num_fields) {
   uint32_t i, j;
-  BOOL eq = FALSE;
+  bool eq = false;
 
   for(i = 0; !eq && i < num_fields; i++)
     for(j = 0; !eq && j < num_fields; j++)
@@ -1889,7 +1889,7 @@ field_array(JSContext* ctx, MYSQL_FIELD* field) {
   return ret;
 }
 
-static BOOL
+static bool
 field_is_integer(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_TINY:
@@ -1897,54 +1897,54 @@ field_is_integer(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_BIT: return (field->flags & NUM_FLAG);
-    default: return FALSE;
+    default: return false;
   }
 }
 
-static BOOL
+static bool
 field_is_float(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE: return (field->flags & NUM_FLAG);
-    default: return FALSE;
+    default: return false;
   }
 }
 
-static BOOL
+static bool
 field_is_decimal(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
     case MYSQL_TYPE_LONGLONG: return (field->flags & NUM_FLAG);
-    default: return FALSE;
+    default: return false;
   }
 
-  return FALSE;
+  return false;
 }
 
-static BOOL
+static bool
 field_is_number(MYSQL_FIELD const* field) {
   return field_is_integer(field) || field_is_float(field);
 }
 
-static BOOL
+static bool
 field_is_boolean(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_TINY: return field->length == 1;
     case MYSQL_TYPE_BIT: return field->length == 1 && (field->flags & UNSIGNED_FLAG);
-    default: return FALSE;
+    default: return false;
   }
 }
 
-static BOOL
+static bool
 field_is_null(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_NULL: return !(field->flags & NOT_NULL_FLAG);
-    default: return FALSE;
+    default: return false;
   }
 }
 
-static BOOL
+static bool
 field_is_date(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_TIMESTAMP:
@@ -1953,11 +1953,11 @@ field_is_date(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_NEWDATE: return !!(field->flags & TIMESTAMP_FLAG);
-    default: return FALSE;
+    default: return false;
   }
 }
 
-static BOOL
+static bool
 field_is_string(MYSQL_FIELD const* field) {
   switch(field->type) {
     case MYSQL_TYPE_BLOB:
@@ -1966,7 +1966,7 @@ field_is_string(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_LONG_BLOB:
       if((field->flags & BLOB_FLAG))
         if(!(field->flags & BINARY_FLAG))
-          return TRUE;
+          return true;
 
     default: break;
   }
@@ -1975,17 +1975,17 @@ field_is_string(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
     case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET: return TRUE;
+    case MYSQL_TYPE_SET: return true;
 
-    default: return FALSE;
+    default: return false;
   }
 }
 
-static BOOL
+static bool
 field_is_blob(MYSQL_FIELD const* field) {
 
   if(!strcmp(field->org_table, "COLUMNS") && str_start(field->org_name, "COLUMN_"))
-    return FALSE;
+    return false;
 
   if(field->type != MYSQL_TYPE_STRING)
     if(field->type != MYSQL_TYPE_VAR_STRING)
@@ -1998,7 +1998,7 @@ field_is_blob(MYSQL_FIELD const* field) {
     case MYSQL_TYPE_TINY_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_LONG_BLOB: return !!(field->flags & BINARY_FLAG);
-    default: return FALSE;
+    default: return false;
   }
 }
 

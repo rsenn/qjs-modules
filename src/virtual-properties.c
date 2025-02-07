@@ -18,14 +18,14 @@ struct MapMethodAtoms {
   JSAtom has, delete, get, set;
 };
 
-static BOOL
+static bool
 map_has(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   struct MapMethodAtoms* atoms = vp->opaque;
   JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->has, 1, &prop);
   return JS_ToBool(ctx, ret);
 }
 
-static BOOL
+static bool
 map_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   struct MapMethodAtoms* atoms = vp->opaque;
   JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->delete, 1, &prop);
@@ -91,12 +91,12 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
   };
 }
 
-static BOOL
+static bool
 object_has(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   return js_has_propertyvalue(ctx, vp->this_obj, prop);
 }
 
-static BOOL
+static bool
 object_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   return js_delete_propertyvalue(ctx, vp->this_obj, prop);
 }
@@ -137,7 +137,7 @@ virtual_properties_object(JSContext* ctx, JSValueConst obj) {
 static int64_t
 array_find(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   uint32_t i, n = js_array_length(ctx, vp->this_obj);
-  BOOL ret = FALSE;
+  bool ret = false;
   for(i = 0; i < n; i++) {
     JSValue entry = JS_GetPropertyUint32(ctx, vp->this_obj, i);
     JSValue key = JS_GetPropertyUint32(ctx, entry, 0);
@@ -150,12 +150,12 @@ array_find(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   return -1;
 }
 
-static BOOL
+static bool
 array_has(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   return array_find(vp, ctx, prop) != -1;
 }
 
-static BOOL
+static bool
 array_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   int64_t pos;
 
@@ -163,10 +163,10 @@ array_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
     JSValueConst args[] = {JS_NewInt64(ctx, pos), JS_NewInt32(ctx, 1)};
     JSValue ret = js_invoke(ctx, vp->this_obj, "splice", 2, args);
     JS_FreeValue(ctx, ret);
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 static JSValue

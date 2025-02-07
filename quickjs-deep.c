@@ -37,7 +37,7 @@ enum deep_iterator_return {
 static const uint32_t js_deep_defaultflags = 0;
 
 static inline PropEnumPathValueFunc*
-js_deep_pathfunc(BOOL as_string) {
+js_deep_pathfunc(bool as_string) {
   return as_string ? property_recursion_pathstr_value : property_recursion_path;
 }
 
@@ -85,9 +85,9 @@ js_deep_getflags(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return flags;
 }
 
-static BOOL
+static bool
 js_deep_predicate(JSContext* ctx, JSValueConst value, const Vector* frames) {
-  BOOL result = TRUE;
+  bool result = true;
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
   PropertyEnumeration* back = property_recursion_top(frames);
@@ -135,7 +135,7 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
 
     case RETURN_VALUE_PATH:
     case RETURN_PATH_VALUE: {
-      BOOL value_first = (return_flag & RETURN_MASK) == RETURN_VALUE_PATH;
+      bool value_first = (return_flag & RETURN_MASK) == RETURN_VALUE_PATH;
 
       ret = JS_NewArray(ctx);
 
@@ -218,7 +218,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     max_depth = INT32_MAX;
 
   if(!JS_IsObject(it->root)) {
-    *pdone = TRUE;
+    *pdone = true;
     return JS_UNDEFINED;
   }
 
@@ -231,7 +231,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     ++it->seq;
 
     if(!(penum = property_recursion_top(&it->frames))) {
-      *pdone = TRUE;
+      *pdone = true;
       return ret;
     }
 
@@ -242,7 +242,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       continue;
 
     ret = js_deep_return(ctx, &it->frames, it->flags & ~MAXDEPTH_MASK);
-    *pdone = FALSE;
+    *pdone = false;
     break;
   }
 
@@ -531,7 +531,7 @@ js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   do {
     JSValue value = property_enumeration_value(it, ctx);
-    BOOL result = js_value_type(ctx, value) != type ? FALSE : cmp_fn(ctx, argv[1], value);
+    bool result = js_value_type(ctx, value) != type ? false : cmp_fn(ctx, argv[1], value);
     JS_FreeValue(ctx, value);
 
     if(result) {
@@ -610,7 +610,7 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   b.it = property_recursion_push(&b.frames, ctx, JS_DupValue(ctx, argv[1]), PROPENUM_DEFAULT_FLAGS | PROPENUM_SORT_ATOMS);
 
   for(;;) {
-    BOOL result = TRUE;
+    bool result = true;
 
     if(!a.it || !b.it) {
       ret = (!a.it && !b.it) ? JS_TRUE : JS_FALSE;
@@ -620,7 +620,7 @@ js_deep_equals(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     a.val = property_enumeration_value(a.it, ctx);
     b.val = property_enumeration_value(b.it, ctx);
 
-    result = (JS_IsObject(a.val) && JS_IsObject(b.val)) ? TRUE : js_value_equals(ctx, a.val, b.val);
+    result = (JS_IsObject(a.val) && JS_IsObject(b.val)) ? true : js_value_equals(ctx, a.val, b.val);
 
     JS_FreeValue(ctx, a.val);
     JS_FreeValue(ctx, b.val);

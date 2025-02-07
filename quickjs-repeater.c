@@ -247,12 +247,12 @@ js_repeater_iteration(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   JSValue ret = JS_UNDEFINED;
   JSValueConst value = argc >= 1 ? argv[0] : JS_UNDEFINED;
 
-  BOOL done = JS_ToBool(ctx, data[1]);
-  BOOL rejected = rpt->state >= REPEATER_REJECTED;
+  bool done = JS_ToBool(ctx, data[1]);
+  bool rejected = rpt->state >= REPEATER_REJECTED;
 
   if(!done && rejected) {
     JSValue execution = repeater_consume(rpt, ctx);
-    JSValue then_done = js_iterator_then(ctx, TRUE);
+    JSValue then_done = js_iterator_then(ctx, true);
 
     ret = js_promise_then(ctx, execution, then_done);
 
@@ -332,7 +332,7 @@ js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     JS_Call(ctx, rpt->onstop, this_val, 0, 0);
 
   if(js_is_null_or_undefined(rpt->err))
-    rpt->err = argc >= 1 ? JS_DupValue(ctx, argv[0]) : JS_NewBool(ctx, TRUE);
+    rpt->err = argc >= 1 ? JS_DupValue(ctx, argv[0]) : JS_NewBool(ctx, true);
 
   list_for_each_safe(el, next, &rpt->pushes) {
     struct repeater_item* item = list_entry(el, struct repeater_item, link);

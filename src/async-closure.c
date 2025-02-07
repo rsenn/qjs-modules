@@ -133,7 +133,7 @@ asyncclosure_done(AsyncClosure* ac) {
   list_del(&ac->link);
 }
 
-BOOL
+bool
 asyncclosure_change_event(AsyncClosure* ac, AsyncEvent new_state) {
   new_state &= 0b11u;
 
@@ -155,10 +155,10 @@ asyncclosure_change_event(AsyncClosure* ac, AsyncEvent new_state) {
       if(!js_iohandler_set(ctx, ac->set_handler, ac->fd, asyncclosure_function(ac, ac->ccfunc, new_state)))
         promise_reject(ctx, &ac->promise.funcs, JS_GetException(ctx));
 
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 /**

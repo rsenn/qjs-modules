@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.2)
 
 set(CMAKE_C_STANDARD 11)
 
+option(USE_INTERNAL "Use quickjs.c internal definitions" OFF)
 option(BUILD_LIBARCHIVE "Build archive library" OFF)
 #option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(BUILD_LIBSERIALPORT "Build libserialport library" ON)
@@ -612,8 +613,13 @@ foreach(LIB_MODULE ${LIB_MODULES})
 
   compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
 endforeach(LIB_MODULE ${LIB_MODULES})
-
-add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES}
+if(USE_INTERNAL)
+  set(QUICKJS_INTERNAL_SOURCE quickjs-internal.c)
+  add_definitions(-DQUICKJS_INTERNAL)
+else(USE_INTERNAL)
+  unset(QUICKJS_INTERNAL_SOURCE)
+endif(USE_INTERNAL)
+add_library(modules STATIC ${LIBRARY_SOURCES} ${QUICKJS_INTERNAL_SOURCE} ${tutf8e_SOURCES}
                            ${libutf_SOURCES} ${libbcrypt_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
 add_library(compiled STATIC ${COMPILED_MODULES})
@@ -656,9 +662,14 @@ if(COMPILED_TARGETS)
   add_dependencies(qjsm ${COMPILED_TARGETS})
 endif(COMPILED_TARGETS)
 
+set(LIBDL dl)
 if(LIBDL)
   link_libraries(${LIBDL})
 endif(LIBDL)
+set(LIBM m)
+if(LIBM)
+  link_libraries(${LIBM})
+endif(LIBM)
 
 link_directories(${QJSM_LIBDIR})
 

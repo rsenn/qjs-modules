@@ -418,7 +418,7 @@ textencoder_read(TextEncoder* te, JSContext* ctx) {
   }
 
   buf = JS_NewArrayBufferCopy(ctx, ringbuffer_begin(&te->buffer), len);
-  ret = js_typedarray_new(ctx, bits, FALSE, FALSE, buf);
+  ret = js_typedarray_new(ctx, bits, false, false, buf);
   JS_FreeValue(ctx, buf);
 
   te->buffer.tail += len;

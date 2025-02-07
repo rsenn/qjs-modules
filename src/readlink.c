@@ -16,7 +16,7 @@
 #define Newx(v, n, t) v = (t*)malloc((n));
 #endif
 
-static BOOL
+static bool
 get_reparse_data(const char* LinkPath, REPARSE_DATA_BUFFER* rdb) {
   HANDLE hFile;
   DWORD returnedLength;
@@ -24,29 +24,29 @@ get_reparse_data(const char* LinkPath, REPARSE_DATA_BUFFER* rdb) {
   int attr = GetFileAttributes(LinkPath);
 
   if(!(attr & FILE_ATTRIBUTE_REPARSE_POINT)) {
-    return FALSE;
+    return false;
   }
 
   hFile = CreateFile(LinkPath, 0, 0, 0, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, 0);
 
   if(hFile == INVALID_HANDLE_VALUE) {
-    return FALSE;
+    return false;
   }
 
   /* Get the link */
   if(!DeviceIoControl(hFile, FSCTL_GET_REPARSE_POINT, 0, 0, &rdb->u, 1024, &returnedLength, 0)) {
 
     CloseHandle(hFile);
-    return FALSE;
+    return false;
   }
 
   CloseHandle(hFile);
 
   if(rdb->ReparseTag != IO_REPARSE_TAG_MOUNT_POINT && rdb->ReparseTag != IO_REPARSE_TAG_SYMLINK) {
-    return FALSE;
+    return false;
   }
 
-  return TRUE;
+  return true;
 }
 
 ssize_t

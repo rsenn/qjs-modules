@@ -76,7 +76,7 @@ typedef enum {
 typedef struct readable_stream {
   int ref_count;
   Queue q;
-  _Atomic(BOOL) closed;
+  _Atomic(bool) closed;
   _Atomic(char*) reason;
   _Atomic(Reader*) reader;
   JSValue on[3];
@@ -93,7 +93,7 @@ typedef enum {
 typedef struct writable_stream {
   int ref_count;
   Queue q;
-  _Atomic(BOOL) closed;
+  _Atomic(bool) closed;
   _Atomic(char*) reason;
   _Atomic(Writer*) writer;
   JSValue on[4];
@@ -159,13 +159,13 @@ int js_stream_init(JSContext*, JSModuleDef*);
 JSModuleDef* js_init_module_stream(JSContext*, const char*);
 
 /* clang-format off */
-static inline BOOL    reader_closed(Reader* rd) { return promise_done(&rd->events[READER_CLOSED].funcs); }
-static inline BOOL    reader_cancelled(Reader* rd) { return promise_done(&rd->events[READER_CANCELLED].funcs); }
-static inline BOOL    readable_closed(Readable* st) { return atomic_load(&st->closed); }
+static inline bool    reader_closed(Reader* rd) { return promise_done(&rd->events[READER_CLOSED].funcs); }
+static inline bool    reader_cancelled(Reader* rd) { return promise_done(&rd->events[READER_CANCELLED].funcs); }
+static inline bool    readable_closed(Readable* st) { return atomic_load(&st->closed); }
 static inline Reader* readable_locked(Readable* st) { return atomic_load(&st->reader); }
-static inline BOOL    writer_closed(Writer* wr) { return promise_done(&wr->events[WRITER_CLOSED].funcs); }
-static inline BOOL    writer_ready(Writer* wr) { return promise_done(&wr->events[WRITER_READY].funcs); }
-static inline BOOL    writable_closed(Writable* st) { return atomic_load(&st->closed); }
+static inline bool    writer_closed(Writer* wr) { return promise_done(&wr->events[WRITER_CLOSED].funcs); }
+static inline bool    writer_ready(Writer* wr) { return promise_done(&wr->events[WRITER_READY].funcs); }
+static inline bool    writable_closed(Writable* st) { return atomic_load(&st->closed); }
 static inline Writer* writable_locked(Writable* st) { return atomic_load(&st->writer); }
 static inline Reader* js_reader_data(JSValueConst value) { return JS_GetOpaque(value, js_reader_class_id); }
 static inline Reader* js_reader_data2(JSContext* ctx, JSValueConst value) { return JS_GetOpaque2(ctx, value, js_reader_class_id); }

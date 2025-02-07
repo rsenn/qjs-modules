@@ -86,22 +86,22 @@ static const char* const module_extensions[] = {
     //    "/package.json",
 };
 
-static inline BOOL
+static inline bool
 is_searchable(const char* path) {
   return !path_isexplicit(path);
 }
 
-static inline BOOL
+static inline bool
 has_dot_or_slash(const char* s) {
   return !!s[str_chrs(s, "." PATHSEP_S, 2)];
 }
 
 static char*
 is_module(JSContext* ctx, const char* module_name) {
-  BOOL yes = path_isfile1(module_name);
+  bool yes = path_isfile1(module_name);
 
   if(debug_module_loader > 2)
-    printf("%-20s (module_name=\"%s\")=%s\n", __FUNCTION__, module_name, ((yes) ? "TRUE" : "FALSE"));
+    printf("%-20s (module_name=\"%s\")=%s\n", __FUNCTION__, module_name, ((yes) ? "true" : "false"));
 
   return yes ? js_strdup(ctx, module_name) : 0;
 }
@@ -139,7 +139,7 @@ typedef struct {
   const uint8_t* byte_code;
   uint32_t byte_code_len;
   JSModuleDef* def;
-  BOOL initialized;
+  bool initialized;
 } BuiltinModule;
 
 #define jsm_module_extern_compiled(name) \
@@ -149,10 +149,10 @@ typedef struct {
 #define jsm_module_extern_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
 
 #define jsm_module_record_compiled(name) \
-  (BuiltinModule) { #name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE }
+  (BuiltinModule) { #name, 0, qjsc_##name, qjsc_##name##_size, 0, false }
 
 #define jsm_module_record_native(name) \
-  (BuiltinModule) { #name, js_init_module_##name, 0, 0, 0, FALSE }
+  (BuiltinModule) { #name, js_init_module_##name, 0, 0, 0, false }
 
 jsm_module_extern_native(std);
 jsm_module_extern_native(os);
@@ -182,7 +182,7 @@ jsm_module_extern_compiled(util);
 
 static thread_local Vector jsm_stack = VECTOR_INIT();
 static thread_local Vector jsm_builtin_modules = VECTOR_INIT();
-static thread_local BOOL jsm_modules_initialized;
+static thread_local bool jsm_modules_initialized;
 
 #ifdef CONFIG_BIGNUM
 #ifdef HAVE_QJSCALC
@@ -329,7 +329,7 @@ jsm_stack_pop(JSContext* ctx) {
 }
 
 static int
-jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
+jsm_stack_load(JSContext* ctx, const char* file, bool module, bool is_main) {
   JSValue val;
   int32_t ret;
   JSValue global_obj = JS_GetGlobalObject(ctx);
@@ -383,7 +383,7 @@ jsm_stack_load(JSContext* ctx, const char* file, BOOL module, BOOL is_main) {
       m = JS_VALUE_GET_PTR(val);
     }
 
-    module_exports_get(ctx, m, TRUE, global_obj);
+    module_exports_get(ctx, m, true, global_obj);
   } else {
     JS_ToInt32(ctx, &ret, val);
   }
@@ -411,7 +411,7 @@ jsm_init_modules(JSContext* ctx) {
   if(jsm_modules_initialized)
     return;
 
-  jsm_modules_initialized = TRUE;
+  jsm_modules_initialized = true;
 
   dbuf_init2(&jsm_builtin_modules.dbuf, 0, &vector_realloc);
 
@@ -474,7 +474,7 @@ jsm_builtin_init(JSContext* ctx, BuiltinModule* rec) {
       if(!rec->initialized && !JS_IsUndefined(obj)) {
         JSValue func_obj = JS_DupValue(ctx, obj);
         JS_EvalFunction(ctx, func_obj);
-        rec->initialized = TRUE;
+        rec->initialized = true;
       }
 
       /* bytecode compiled module */
@@ -602,8 +602,8 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
 static char*
 jsm_search_module(JSContext* ctx, const char* module_name) {
   char* s = 0;
-  BOOL search = is_searchable(module_name);
-  BOOL suffix = module_has_suffix(module_name);
+  bool search = is_searchable(module_name);
+  bool suffix = module_has_suffix(module_name);
   ModuleLoader* fn = search ? &jsm_search_path : &is_module;
 
   s = suffix ? fn(ctx, module_name) : jsm_search_suffix(ctx, module_name, fn);
@@ -612,8 +612,8 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
     printf("%-20s (module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n",
            __FUNCTION__,
            module_name,
-           ((search) ? "TRUE" : "FALSE"),
-           ((suffix) ? "TRUE" : "FALSE"),
+           ((search) ? "true" : "false"),
+           ((suffix) ? "true" : "false"),
            search ? "search_module" : "is_module",
            s);
 
@@ -622,13 +622,13 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
 
 /* end of "new breed" module loader functions */
 
-BOOL
+bool
 jsm_module_is_builtin(JSModuleDef* m) {
   BuiltinModule* rec;
 
-  vector_foreach_t(&jsm_builtin_modules, rec) if(rec->def == m) return TRUE;
+  vector_foreach_t(&jsm_builtin_modules, rec) if(rec->def == m) return true;
 
-  return FALSE;
+  return false;
 }
 
 char*
@@ -665,7 +665,7 @@ jsm_module_package(JSContext* ctx, const char* module) {
 }
 
 void
-jsm_module_script(DynBuf* buf, const char* path, const char* name, BOOL star) {
+jsm_module_script(DynBuf* buf, const char* path, const char* name, bool star) {
   enum { NAMED = 0, ALL, EXEC } mode = NAMED;
 
   for(; *path; ++path) {
@@ -752,13 +752,13 @@ jsm_module_load(JSContext* ctx, const char* path, const char* name) {
 
   dbuf_init2(&dbuf, 0, 0);
 
-  jsm_module_script(&dbuf, path, name, FALSE);
+  jsm_module_script(&dbuf, path, name, false);
 
   if(*path != '*' && !js_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
   } else {
     JS_GetException(ctx);
 
-    jsm_module_script(&dbuf, path, name, TRUE);
+    jsm_module_script(&dbuf, path, name, true);
 
     if(js_eval_str(ctx, (const char*)dbuf.buf, "<internal>", JS_EVAL_TYPE_MODULE)) {
       dbuf_free(&dbuf);
@@ -881,15 +881,15 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     name += 7;
 
   if(str_start(name, "data:")) {
-    BOOL is_js = name[str_find(name, "/javascript")] || name[str_find(name, "/ecmascript")];
-    BOOL is_json = !is_js && name[str_find(name, "/json")];
+    bool is_js = name[str_find(name, "/javascript")] || name[str_find(name, "/ecmascript")];
+    bool is_json = !is_js && name[str_find(name, "/json")];
     DynBuf code = DBUF_INIT_CTX(ctx);
     JSValue module;
     size_t length = strlen(name);
     size_t offset = byte_chr(name, length, ',');
     size_t encoding_offset = byte_rchr(name, offset, ';');
     const char* encoding = encoding_offset > offset ? NULL : &name[encoding_offset + 1];
-    BOOL is_base64 = encoding && !strncasecmp(encoding, "base64", 4);
+    bool is_base64 = encoding && !strncasecmp(encoding, "base64", 4);
 
     if(name[offset]) {
 
@@ -928,7 +928,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
       dbuf_free(&code);
 
       if(!JS_IsException(module)) {
-        js_module_set_import_meta(ctx, module, FALSE, FALSE);
+        js_module_set_import_meta(ctx, module, false, false);
 
         m = JS_VALUE_GET_PTR(module);
 
@@ -1158,7 +1158,7 @@ jsm_context_new(JSRuntime* rt) {
     JS_AddIntrinsicBigFloat(ctx);
     JS_AddIntrinsicBigDecimal(ctx);
     JS_AddIntrinsicOperators(ctx);
-    JS_EnableBignumExt(ctx, TRUE);
+    JS_EnableBignumExt(ctx, true);
   }
 
 #endif
@@ -1728,7 +1728,7 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
 
 /*void
 jsm_import_parse(ImportDirective* imp, const char* spec) {
-  BOOL ns;
+  bool ns;
   size_t len, eqpos, dotpos;
   memset(imp, 0, sizeof(ImportDirective));
 
@@ -1758,11 +1758,11 @@ jsm_import_parse(ImportDirective* imp, const char* spec) {
 
 static void
 jsm_signal_handler(int arg) {
-  interactive = TRUE;
+  interactive = true;
 }
 
 static void
-jsm_start_interactive(JSContext* ctx, BOOL global) {
+jsm_start_interactive(JSContext* ctx, bool global) {
   js_eval_fmt(ctx,
               JS_EVAL_TYPE_MODULE,
               "import { REPL } from 'repl';\n"
@@ -2080,7 +2080,7 @@ main(int argc, char** argv) {
     }
 
     for(i = 0; i < include_count; i++) {
-      if(jsm_stack_load(ctx, include_list[i], FALSE, FALSE) == -1)
+      if(jsm_stack_load(ctx, include_list[i], false, false) == -1)
         goto fail;
     }
 
@@ -2107,12 +2107,12 @@ main(int argc, char** argv) {
       const char* filename;
       filename = argv[optind];
 
-      if(jsm_stack_load(ctx, filename, module, TRUE) == -1)
+      if(jsm_stack_load(ctx, filename, module, true) == -1)
         goto fail;
     }
 
     if(interactive || getenv("INTERACTIVE"))
-      jsm_start_interactive(ctx, TRUE);
+      jsm_start_interactive(ctx, true);
 
     js_std_loop(ctx);
   }

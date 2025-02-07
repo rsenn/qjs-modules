@@ -3,7 +3,7 @@
 
 #include <quickjs.h>
 #include <cutils.h>
-
+#include <stdbool.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -25,7 +25,7 @@ typedef union Vector {
     char* data;
     size_t size;
     size_t capacity;
-    BOOL error;
+    bool error;
     DynBufReallocFunc* realloc_func;
     void* opaque;
   };
@@ -88,7 +88,7 @@ void vector_diff(void*, size_t, void*, size_t, size_t, Vector*);
 void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, Vector*, Vector*);
 int vector_copy(Vector* dst, const Vector* src);
 void vector_fwrite(const Vector*, size_t, FILE* out);
-BOOL vector_grow(Vector* vec, size_t elsz, int32_t len);
+bool vector_grow(Vector* vec, size_t elsz, int32_t len);
 char* vector_pushstring(Vector*, const char*);
 char* vector_pushstringlen(Vector*, const char*, size_t);
 void vector_clearstrings(Vector*);
@@ -122,17 +122,17 @@ vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
   return vec->data + (uint32_t)pos * elsz;
 }
 
-static inline BOOL
+static inline bool
 vector_shrink(Vector* vec, size_t elsz, int32_t len) {
   uint64_t need;
   if(len < 0)
-    return FALSE;
+    return false;
   if(!umult64(elsz, len, &need))
-    return FALSE;
+    return false;
   if(need > vec->size)
-    return FALSE;
+    return false;
   vec->size = need;
-  return TRUE;
+  return true;
 }
 
 static inline void*

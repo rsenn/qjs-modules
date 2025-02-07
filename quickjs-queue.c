@@ -131,7 +131,7 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case QUEUE_CHUNK: {
       Chunk* chunk;
       int64_t pos = -1;
-      BOOL returnPos = FALSE;
+      bool returnPos = false;
 
       if(argc > 1)
         returnPos = JS_ToBool(ctx, argv[1]);
@@ -276,11 +276,11 @@ js_queue_iterator_next(JSContext* ctx, JSValueConst iter, int argc, JSValueConst
   if(!(queue = js_queue_data2(ctx, queue_obj)))
     return JS_EXCEPTION;
 
-  *pdone = TRUE;
+  *pdone = true;
 
   if((ch = queue_next(queue))) {
     ret = chunk_arraybuffer(ch, ctx);
-    *pdone = FALSE;
+    *pdone = false;
   }
 
   return ret;

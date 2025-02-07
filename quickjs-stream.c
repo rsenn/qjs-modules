@@ -18,7 +18,7 @@ VISIBLE JSValue readable_proto = {{0}, JS_TAG_UNDEFINED}, readable_controller = 
                 writer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static int reader_update(Reader* rd, JSContext* ctx);
-static BOOL reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx);
+static bool reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx);
 static int readable_unlock(Readable* st, Reader* rd);
 static int writable_unlock(Writable* st, Writer* wr);
 
@@ -36,7 +36,7 @@ chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
 
   chunk_dup(ch);
 
-  return JS_NewArrayBuffer(ctx, ptr, len, chunk_unref, ch, FALSE);
+  return JS_NewArrayBuffer(ctx, ptr, len, chunk_unref, ch, false);
 }
 
 static Read*
@@ -80,7 +80,7 @@ read_next(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
-static BOOL
+static bool
 read_done(Read* op) {
   return JS_IsUndefined(op->promise.value) && promise_done(&op->promise.funcs);
 }
@@ -111,9 +111,9 @@ reader_new(JSContext* ctx, Readable* st) {
   return rd;
 }
 
-static BOOL
+static bool
 reader_release_lock(Reader* rd, JSContext* ctx) {
-  BOOL ret = FALSE;
+  bool ret = false;
   Readable* r;
 
   if((r = atomic_load(&rd->stream))) {
@@ -152,7 +152,7 @@ reader_close(Reader* rd, JSContext* ctx) {
 
   // printf("reader_close (2) promise=%i\n", js_is_promise(ctx, ret));
 
-  rd->stream->closed = TRUE;
+  rd->stream->closed = true;
 
   reader_update(rd, ctx);
 
@@ -261,7 +261,7 @@ reader_update(Reader* rd, JSContext* ctx) {
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
     //   reader_clear(rd, ctx);
-    result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
+    result = js_iterator_result(ctx, JS_UNDEFINED, true);
 
     if(reader_passthrough(rd, result, ctx))
       ++ret;
@@ -270,7 +270,7 @@ reader_update(Reader* rd, JSContext* ctx) {
       JSValue chunk, result;
       // printf("reader_update(2) Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
       chunk = chunk_arraybuffer(ch, ctx);
-      result = js_iterator_result(ctx, chunk, FALSE);
+      result = js_iterator_result(ctx, chunk, false);
       JS_FreeValue(ctx, chunk);
       if(!reader_passthrough(rd, result, ctx))
         break;
@@ -286,10 +286,10 @@ reader_update(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
-static BOOL
+static bool
 reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   Read *op = 0, *el, *next;
-  BOOL ret = FALSE;
+  bool ret = false;
   list_for_each_prev_safe(el, next, &rd->reads) {
     // printf("reader_passthrough(1) el[%i]\n", el->seq);
     if(promise_pending(&el->promise.funcs)) {
@@ -330,10 +330,10 @@ readable_dup(Readable* st) {
 static JSValue
 readable_close(Readable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  static BOOL expected = FALSE;
+  static bool expected = false;
   // printf("readable_close(1) expected=%i, closed=%i\n", st->closed, expected);
 
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
+  if(atomic_compare_exchange_weak(&st->closed, &expected, true)) {
     if(readable_locked(st)) {
       // printf("readable_close(2) expected=%i, closed=%i\n", st->closed, expected);
       promise_resolve(ctx, &st->reader->events[READER_CLOSED].funcs, JS_UNDEFINED);
@@ -363,9 +363,9 @@ readable_cancel(Readable* st, JSValueConst reason, JSContext* ctx) {
   if(st->closed)
     return ret;
 
-  /* static const BOOL expected = FALSE;
+  /* static const bool expected = false;
 
-    if(!atomic_compare_exchange_weak(&st->closed, &expected, TRUE))
+    if(!atomic_compare_exchange_weak(&st->closed, &expected, true))
       JS_ThrowInternalError(ctx, "No locked ReadableStream associated");*/
 
   if(readable_locked(st)) {
@@ -386,8 +386,8 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   // size_t old_size;
 
   if(readable_locked(st) && (rd = st->reader)) {
-    JSValue result = js_iterator_result(ctx, chunk, FALSE);
-    BOOL ok;
+    JSValue result = js_iterator_result(ctx, chunk, false);
+    bool ok;
     ok = reader_passthrough(rd, result, ctx);
 
     JS_FreeValue(ctx, result);
@@ -868,9 +868,9 @@ writer_new(JSContext* ctx, Writable* st) {
   return wr;
 }
 
-static BOOL
+static bool
 writer_release_lock(Writer* wr, JSContext* ctx) {
-  BOOL ret = FALSE;
+  bool ret = false;
   Writable* r;
 
   if((r = atomic_load(&wr->stream))) {
@@ -969,9 +969,9 @@ writable_dup(Writable* st) {
 static JSValue
 writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  static BOOL expected = FALSE;
+  static bool expected = false;
 
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
+  if(atomic_compare_exchange_weak(&st->closed, &expected, true)) {
     st->reason = js_tostring(ctx, reason);
     if(writable_locked(st)) {
       promise_resolve(ctx, &st->writer->events[WRITER_CLOSED].funcs, JS_UNDEFINED);
@@ -985,9 +985,9 @@ writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
 static JSValue
 writable_close(Writable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  static BOOL expected = FALSE;
+  static bool expected = false;
 
-  if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
+  if(atomic_compare_exchange_weak(&st->closed, &expected, true)) {
     if(writable_locked(st)) {
       promise_resolve(ctx, &st->writer->events[WRITER_CLOSED].funcs, JS_UNDEFINED);
       ret = writer_close(st->writer, ctx);

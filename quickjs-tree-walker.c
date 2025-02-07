@@ -109,7 +109,7 @@ tree_walker_dump(TreeWalker* w, JSContext* ctx, DynBuf* db) {
 static JSValue
 js_get_filter(JSContext* ctx, JSValueConst val) {
   JSValue ret = JS_DupValue(ctx, val);
-  BOOL is_obj = JS_IsObject(val);
+  bool is_obj = JS_IsObject(val);
 
   if(is_obj) {
     JSValue fn = JS_GetPropertyStr(ctx, val, "acceptNode");
@@ -127,10 +127,10 @@ js_get_filter(JSContext* ctx, JSValueConst val) {
   return ret;
 }
 
-static BOOL
+static bool
 js_is_filter(JSContext* ctx, JSValueConst val) {
   JSValue fn = js_get_filter(ctx, val);
-  BOOL ret = JS_IsFunction(ctx, fn);
+  bool ret = JS_IsFunction(ctx, fn);
   JS_FreeValue(ctx, fn);
   return ret;
 }
@@ -211,7 +211,7 @@ js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValu
     }
 
     if(JS_IsFunction(ctx, pred)) {
-      BOOL result = property_enumeration_predicate(it, ctx, pred, this_arg);
+      bool result = property_enumeration_predicate(it, ctx, pred, this_arg);
       if(!result)
         continue;
     }
@@ -481,7 +481,7 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   for(;;) {
     if((it = js_tree_walker_next(ctx, w, this_val, argc > 0 ? argv[0] : JS_UNDEFINED))) {
-      *pdone = FALSE;
+      *pdone = false;
       switch(r) {
         case RETURN_VALUE: ret = property_enumeration_value(it, ctx); break;
         case RETURN_PATH: ret = property_recursion_path(&w->hier, ctx); break;
@@ -494,7 +494,7 @@ js_tree_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
         }
       }
     } else {
-      *pdone = TRUE;
+      *pdone = true;
       ret = JS_UNDEFINED;
     }
     break;

@@ -228,22 +228,22 @@ vector_fwrite(const Vector* vec, size_t start, FILE* out) {
   fflush(out);
 }
 
-BOOL
+bool
 vector_grow(Vector* vec, size_t elsz, int32_t len) {
   uint64_t need;
 
   if(len < 0)
-    return FALSE;
+    return false;
 
   if(!umult64(elsz, len, &need))
-    return FALSE;
+    return false;
 
   if(need <= vec->size)
-    return FALSE;
+    return false;
 
   vec->data = vec->realloc_func(vec->opaque, vec->data, need);
   vec->size = need;
-  return TRUE;
+  return true;
 }
 
 char*

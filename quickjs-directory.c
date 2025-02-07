@@ -207,7 +207,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       int32_t* opts = ((int32_t*)((char*)directory + getdents_size()));
       int32_t flags = opts[0], mask = opts[1];
       JSValue value = JS_UNDEFINED;
-      BOOL done = FALSE, init = getdents_initialized(directory), empty = TRUE;
+      bool done = false, init = getdents_initialized(directory), empty = true;
 
       if(argc > 0)
         JS_ToInt32(ctx, &flags, argv[0]);
@@ -222,14 +222,14 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         if((getdents_type(entry) & mask) == 0)
           continue;
 
-        empty = FALSE;
+        empty = false;
         value = js_directory_entry(ctx, entry, flags);
         break;
       }
 
       if(!entry) {
         getdents_close(directory);
-        done = TRUE;
+        done = true;
       }
 
       if(init && empty) {
@@ -244,7 +244,7 @@ js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
 
     case DIRECTORY_RETURN: {
-      ret = js_iterator_result(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, TRUE);
+      ret = js_iterator_result(ctx, argc > 0 ? argv[0] : JS_UNDEFINED, true);
       break;
     }
 

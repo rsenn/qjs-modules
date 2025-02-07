@@ -134,7 +134,7 @@ property_enumeration_key(const PropertyEnumeration* it, JSContext* ctx) {
 
 int
 property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueConst fn, JSValueConst this_arg) {
-  BOOL result;
+  bool result;
   JSValue ret;
   JSValueConst argv[3] = {
       JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx]),
@@ -268,16 +268,16 @@ property_recursion_free(Vector* vec, JSRuntime* rt) {
   vector_free(vec);
 }
 
-BOOL
+bool
 property_recursion_circular(Vector* vec, JSValueConst object) {
   PropertyEnumeration* it;
 
   vector_foreach_t(vec, it) {
     if(js_object_same(it->obj, object))
-      return TRUE;
+      return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 /*IndexTuple

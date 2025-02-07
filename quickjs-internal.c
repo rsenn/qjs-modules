@@ -249,7 +249,7 @@ module_object(JSContext* ctx, JSModuleDef* m) {
   return obj;
 }
 
-int
+/*int
 module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueConst exports) {
   JSAtom def = JS_NewAtom(ctx, "default");
   int i;
@@ -272,7 +272,7 @@ module_exports_get(JSContext* ctx, JSModuleDef* m, BOOL rename_default, JSValueC
 
   JS_FreeAtom(ctx, def);
   return i;
-}
+}*/
 
 JSValue
 module_imports(JSContext* ctx, JSModuleDef* m) {
@@ -609,7 +609,7 @@ js_get_bytecode(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
-JSValue
+/*JSValue
 js_opcode_list(JSContext* ctx, BOOL as_object) {
   JSValue ret = JS_NewArray(ctx);
   size_t i, j, len = countof(js_opcodes);
@@ -623,7 +623,7 @@ js_opcode_list(JSContext* ctx, BOOL as_object) {
   }
 
   return ret;
-}
+}*/
 
 #ifdef HAVE_JS_DEBUGGER_BUILD_BACKTRACE
 JSValue js_debugger_build_backtrace(JSContext* ctx, const uint8_t* cur_pc);

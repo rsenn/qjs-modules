@@ -70,7 +70,7 @@ js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
     case GPIO_METHOD_INIT_PIN: {
       uint32_t pin = 0;
-      BOOL output = JS_ToBool(ctx, argv[1]);
+      bool output = JS_ToBool(ctx, argv[1]);
       JS_ToUint32(ctx, &pin, argv[0]);
       gpio_init_pin(gpio, pin, output);
       break;
@@ -78,7 +78,7 @@ js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
     case GPIO_METHOD_SET_PIN: {
       uint32_t pin = 0;
-      BOOL value = JS_ToBool(ctx, argv[1]);
+      bool value = JS_ToBool(ctx, argv[1]);
       JS_ToUint32(ctx, &pin, argv[0]);
       gpio_set_pin(gpio, pin, value);
       break;
@@ -86,7 +86,7 @@ js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
     case GPIO_METHOD_GET_PIN: {
       uint32_t pin = 0;
-      BOOL value;
+      bool value;
       JS_ToUint32(ctx, &pin, argv[0]);
       value = gpio_get_pin(gpio, pin);
       ret = JS_NewInt32(ctx, value);
@@ -112,7 +112,7 @@ js_gpio_getter(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case GPIO_BUFFER: {
-      ret = JS_NewArrayBuffer(ctx, (uint8_t*)gpio->map, GPIO_MAPSIZE, js_gpio_free, gpio_dup(gpio), FALSE);
+      ret = JS_NewArrayBuffer(ctx, (uint8_t*)gpio->map, GPIO_MAPSIZE, js_gpio_free, gpio_dup(gpio), false);
       break;
     }
   }

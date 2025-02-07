@@ -533,7 +533,7 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       case ARCHIVE_OK: {
         ArchiveInstance* abuf = js_malloc(ctx, sizeof(ArchiveInstance));
         abuf->archive = JS_DupValue(ctx, this_val);
-        ret = JS_NewArrayBuffer(ctx, data, size, js_archive_free_buffer, abuf, FALSE);
+        ret = JS_NewArrayBuffer(ctx, data, size, js_archive_free_buffer, abuf, false);
         break;
       }
 
@@ -603,7 +603,7 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
 
   JSValue ret = JS_UNDEFINED;
-  BOOL in_entry = js_has_propertystr(ctx, this_val, "entry");
+  bool in_entry = js_has_propertystr(ctx, this_val, "entry");
 
   while(argc > 0) {
     struct archive_entry* ent;
@@ -789,7 +789,7 @@ js_archive_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   js_delete_propertystr(ctx, this_val, "entry");
 
-  BOOL eof = js_get_propertystr_bool(ctx, this_val, "eof");
+  bool eof = js_get_propertystr_bool(ctx, this_val, "eof");
 
   if(!eof) {
     if(!(ent = archive_entry_new2(ar)))
@@ -847,7 +847,7 @@ js_archive_iterator_next(JSContext* ctx, JSValueConst iter, int argc, JSValueCon
 
   JSValue this_val = JS_GetPropertyStr(ctx, iter, "archive");
 
-  BOOL eof = js_get_propertystr_bool(ctx, this_val, "eof");
+  bool eof = js_get_propertystr_bool(ctx, this_val, "eof");
 
   if(!eof) {
     if(!(ent = archive_entry_new2(ar)))
@@ -859,12 +859,12 @@ js_archive_iterator_next(JSContext* ctx, JSValueConst iter, int argc, JSValueCon
   switch(result) {
     case ARCHIVE_EOF: {
       JS_DefinePropertyValueStr(ctx, this_val, "eof", JS_TRUE, JS_PROP_CONFIGURABLE);
-      *pdone = TRUE;
+      *pdone = true;
       return JS_UNDEFINED;
     }
 
     case ARCHIVE_FATAL: {
-      *pdone = TRUE;
+      *pdone = true;
       return JS_ThrowInternalError(ctx, "libarchive error: %s", archive_error_string(ar));
     }
   }
@@ -874,7 +874,7 @@ js_archive_iterator_next(JSContext* ctx, JSValueConst iter, int argc, JSValueCon
     archive_clear_error(ar);
   }
 
-  *pdone = FALSE;
+  *pdone = false;
 
   return js_archiveentry_wrap(ctx, entry_proto, ent);
 }

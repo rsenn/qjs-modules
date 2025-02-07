@@ -12,7 +12,7 @@ extern VISIBLE JSClassID js_location_class_id;
 extern VISIBLE JSValue location_proto, location_ctor;
 
 VISIBLE JSValue js_location_wrap(JSContext*, Location* loc);
-VISIBLE BOOL js_is_location(JSContext*, JSValueConst obj);
+VISIBLE bool js_is_location(JSContext*, JSValueConst obj);
 VISIBLE Location* js_location_from(JSContext*, JSValueConst this_val);
 JSValue js_location_toprimitive(JSContext*, JSValueConst this_val, int argc, JSValueConst argv[]);
 JSValue js_location_constructor(JSContext*, JSValueConst new_target, int argc, JSValueConst argv[]);

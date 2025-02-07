@@ -12,7 +12,7 @@ js_resolve_functions_zero(ResolveFunctions* funcs) {
   funcs->array[1] = JS_NULL;
 }
 
-static inline BOOL
+static inline bool
 js_resolve_functions_is_null(ResolveFunctions* funcs) {
   return JS_IsNull(funcs->array[0]) && JS_IsNull(funcs->array[1]);
 }
@@ -31,7 +31,7 @@ promise_free_funcs(JSRuntime* rt, ResolveFunctions* funcs) {
   js_resolve_functions_zero(funcs);
 }
 
-static inline BOOL
+static inline bool
 js_resolve_functions_call(JSContext* ctx, ResolveFunctions* funcs, int index, JSValueConst arg) {
   JSValue ret = JS_UNDEFINED;
 
@@ -39,10 +39,10 @@ js_resolve_functions_call(JSContext* ctx, ResolveFunctions* funcs, int index, JS
     ret = JS_Call(ctx, funcs->array[index], JS_UNDEFINED, 1, &arg);
     js_resolve_functions_free(ctx, funcs);
     JS_FreeValue(ctx, ret);
-    return TRUE;
+    return true;
   }
 
-  return FALSE;
+  return false;
 }
 
 ResolveFunctions*
@@ -81,18 +81,18 @@ promise_free(JSRuntime* rt, Promise* pr) {
   promise_free_funcs(rt, &pr->funcs);
 }
 
-BOOL
+bool
 promise_init(JSContext* ctx, Promise* pr) {
   pr->value = JS_NewPromiseCapability(ctx, pr->funcs.array);
   return !JS_IsException(pr->value);
 }
 
-BOOL
+bool
 promise_resolve(JSContext* ctx, ResolveFunctions* funcs, JSValueConst value) {
   return js_resolve_functions_call(ctx, funcs, 0, value);
 }
 
-BOOL
+bool
 promise_reject(JSContext* ctx, ResolveFunctions* funcs, JSValueConst value) {
   return js_resolve_functions_call(ctx, funcs, 1, value);
 }
@@ -103,12 +103,12 @@ promise_zero(Promise* pr) {
   js_resolve_functions_zero(&pr->funcs);
 }
 
-BOOL
+bool
 promise_pending(ResolveFunctions* funcs) {
   return !js_resolve_functions_is_null(funcs);
 }
 
-BOOL
+bool
 promise_done(ResolveFunctions* funcs) {
   return js_resolve_functions_is_null(funcs);
 }

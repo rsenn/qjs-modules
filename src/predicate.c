@@ -32,7 +32,7 @@ free_arraybuffer_slice(JSRuntime* rt, void* opaque, void* ptr) {
 }
 
 static void
-predicate_inspect(JSValueConst value, JSContext* ctx, DynBuf* dbuf, Arguments* args, BOOL parens) {
+predicate_inspect(JSValueConst value, JSContext* ctx, DynBuf* dbuf, Arguments* args, bool parens) {
   Predicate* pr;
 
   if(js_is_null_or_undefined(value)) {
@@ -52,12 +52,12 @@ predicate_inspect(JSValueConst value, JSContext* ctx, DynBuf* dbuf, Arguments* a
   }
 }
 
-BOOL
+bool
 predicate_is(JSValueConst value) {
   return !!js_predicate_data(value);
 }
 
-BOOL
+bool
 predicate_callable(JSContext* ctx, JSValueConst value) {
   return predicate_is(value) || JS_IsFunction(ctx, value);
 }
@@ -97,7 +97,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
       if(input.size == pr->string.len)
         if(!memcmp(input.data, pr->string.str, pr->string.len))
-          ret = JS_NewBool(ctx, TRUE); // JS_NewInt32(ctx, 1);
+          ret = JS_NewBool(ctx, true); // JS_NewInt32(ctx, 1);
 
       break;
     }
@@ -132,7 +132,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_POW:
     case PREDICATE_ATAN2: {
       JSValue values[2] = {pr->binary.left, pr->binary.right};
-      BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.left), js_is_null_or_undefined(pr->binary.right)};
+      bool nullish[2] = {js_is_null_or_undefined(pr->binary.left), js_is_null_or_undefined(pr->binary.right)};
       size_t i;
       double left, right, r;
 
@@ -327,7 +327,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       if(JS_IsString(arg)) {
         ret = JS_NewStringLen(ctx, (const char*)block.base + start, end - start);
       } else {
-        ret = JS_NewArrayBuffer(ctx, block.base + start, end - start, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), FALSE);
+        ret = JS_NewArrayBuffer(ctx, block.base + start, end - start, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), false);
       }
       input_buffer_free(&buf, ctx);
       break;
@@ -420,7 +420,7 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
                     ((const char* const[]){
                         "UNDEFINED",
                         "NULL",
-                        "BOOL",
+                        "bool",
                         "INT",
                         "OBJECT",
                         "STRING",
@@ -690,17 +690,17 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     case PREDICATE_ATAN2: {
 
       JSPrecedence prec = predicate_precedence(pr);
-      BOOL parens[2] = {!JS_IsNumber(pr->binary.left), !JS_IsNumber(pr->binary.right)};
+      bool parens[2] = {!JS_IsNumber(pr->binary.left), !JS_IsNumber(pr->binary.right)};
 
       Predicate* other;
 
       if((other = js_predicate_data(pr->binary.left)))
         if(prec <= predicate_precedence(other))
-          parens[0] = FALSE;
+          parens[0] = false;
 
       if((other = js_predicate_data(pr->binary.right)))
         if(prec <= predicate_precedence(other))
-          parens[1] = FALSE;
+          parens[1] = false;
 
       predicate_inspect(pr->binary.left, ctx, dbuf, args, parens[0]);
 
@@ -717,13 +717,13 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
       JSPrecedence prec = predicate_precedence(pr);
 
       for(i = 0; i < pr->boolean.npredicates; i++) {
-        BOOL parens = !JS_IsNumber(pr->boolean.predicates[i]);
+        bool parens = !JS_IsNumber(pr->boolean.predicates[i]);
 
         Predicate* other;
 
         if((other = js_predicate_data(pr->boolean.predicates[i])))
           if(prec <= predicate_precedence(other))
-            parens = FALSE;
+            parens = false;
 
         if(i > 0)
           dbuf_putstr(dbuf, ((const char* const[]){" || ", " && ", " ^ "})[pr->id - PREDICATE_OR]);

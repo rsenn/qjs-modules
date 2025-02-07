@@ -3,6 +3,7 @@
 
 #include "utils.h"
 #include "char-utils.h"
+#include <stdbool.h>
 
 #ifdef JS_LOCATION_MODULE
 #define LOCATION_API VISIBLE
@@ -21,11 +22,11 @@ typedef struct {
   int32_t column;
   int64_t char_offset, byte_offset;
   char* str;
-  BOOL read_only : 1;
+  bool read_only : 1;
 } Location;
 
-#define LOCATION() (Location){0, -1, 0, 0, 0, 0, 0, FALSE};
-#define LOCATION_FILE(atom) (Location){0, (atom), 0, 0, 0, 0, 0, FALSE};
+#define LOCATION() (Location){0, -1, 0, 0, 0, 0, 0, false};
+#define LOCATION_FILE(atom) (Location){0, (atom), 0, 0, 0, 0, 0, false};
 
 LOCATION_API void location_print(const Location*, DynBuf*, JSContext*);
 LOCATION_API char* location_tostring(const Location*, JSContext*);
@@ -40,7 +41,7 @@ LOCATION_API Location* location_copy(Location*, const Location*, JSContext*);
 LOCATION_API Location* location_clone(const Location*, JSContext*);
 LOCATION_API Location* location_new(JSContext*);
 LOCATION_API Location* location_dup(Location*);
-LOCATION_API BOOL location_equal(const Location* loc, const Location* other);
+LOCATION_API bool location_equal(const Location* loc, const Location* other);
 /**
  * @}
  */

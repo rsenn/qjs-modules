@@ -32,7 +32,7 @@ struct getdents_reader {
     HANDLE h_ptr;
     intptr_t h_int;
   };
-  BOOL first;
+  bool first;
   find_data_type fdw;
 };
 
@@ -64,7 +64,7 @@ getdents_size() {
 void
 getdents_clear(Directory* d) {
   d->h_ptr = INVALID_HANDLE_VALUE;
-  d->first = FALSE;
+  d->first = false;
 }
 
 intptr_t
@@ -86,13 +86,13 @@ getdents_open(Directory* d, const char* path) {
 
 #ifdef FIND_A
   if((d->h_find = findfirst(p, &d->fdw)) != INVALID_HANDLE_VALUE)
-    d->first = TRUE;
+    d->first = true;
 #else
   wchar_t* wp = utf8_towcs(p);
   assert(wp);
 
   if((d->h_find = findfirst(wp, &d->fdw)) != (h_type)-1)
-    d->first = TRUE;
+    d->first = true;
 
   free(wp);
 #endif
@@ -113,7 +113,7 @@ getdents_adopt(Directory* d, intptr_t hnd) {
 
 int
 getdents_initialized(Directory* d) {
-  return d->first == FALSE;
+  return d->first == false;
 }
 
 DirEntry*
@@ -121,7 +121,7 @@ getdents_read(Directory* d) {
   DirEntry* ret = (struct getdents_entry*)&d->fdw;
 
   if(d->first)
-    d->first = FALSE;
+    d->first = false;
   else if(!findnext(d->h_find, (void*)&d->fdw))
     ret = 0;
 

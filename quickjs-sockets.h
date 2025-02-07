@@ -44,7 +44,7 @@ typedef union {
   unsigned fd : 16; \
   unsigned error : 8; \
   unsigned sysno : 4; \
-  BOOL nonblock : 1, async : 1, owner : 1; \
+  bool nonblock : 1, async : 1, owner : 1; \
   signed ret : 32
 
 union PACK socket_state {
@@ -75,7 +75,7 @@ ENDPACK
     { (fd), (err), (sys), (nonb), (asyn), (own), (0) } \
   }
 
-#define SOCKET_INIT() SOCKET(-1, 0, -1, FALSE, FALSE, FALSE)
+#define SOCKET_INIT() SOCKET(-1, 0, -1, false, false, false)
 
 typedef union socket_state Socket;
 typedef struct asyncsocket_state AsyncSocket;
@@ -129,13 +129,13 @@ sockaddr_port(const SockAddr* sa) {
   return -1;
 }
 
-static inline BOOL
+static inline bool
 sockaddr_setport(SockAddr* sa, uint16_t port) {
   switch(sa->family) {
-    case AF_INET: sa->ip4.sin_port = htons(port); return TRUE;
-    case AF_INET6: sa->ip6.sin6_port = htons(port); return TRUE;
+    case AF_INET: sa->ip4.sin_port = htons(port); return true;
+    case AF_INET6: sa->ip6.sin6_port = htons(port); return true;
   }
-  return FALSE;
+  return false;
 }
 
 static inline void*

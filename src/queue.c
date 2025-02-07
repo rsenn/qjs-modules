@@ -41,7 +41,7 @@ chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
 
   chunk_dup(ch);
 
-  return JS_NewArrayBuffer(ctx, ptr, len, chunk_arraybuffer_free, ch, FALSE);
+  return JS_NewArrayBuffer(ctx, ptr, len, chunk_arraybuffer_free, ch, 0);
 }
 
 ssize_t

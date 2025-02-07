@@ -1,6 +1,7 @@
 #ifndef CHAR_UTILS_H
 #define CHAR_UTILS_H
 
+#include <stdbool.h>
 #include <cutils.h>
 #include <string.h>
 #include "debug.h"
@@ -385,7 +386,7 @@ size_t scan_eolskip(const char*, size_t);
 size_t utf8_strlen(const void*, size_t);
 wchar_t* utf8_towcs(const char*);
 char* utf8_fromwcs(const wchar_t*);
-BOOL utf16_multiword(const void*);
+bool utf16_multiword(const void*);
 int case_lowerc(int);
 int case_starts(const char*, const char*);
 int case_diffb(const void*, size_t, const void* T);
@@ -429,13 +430,13 @@ utf8_charcode(const char* in, size_t len) {
   return (const char*)next > in ? r : -1;
 }
 
-BOOL utf16_multiword(const void*);
+bool utf16_multiword(const void*);
 
 ssize_t write_file(const char* file, const void* buf, size_t len);
 ssize_t puts_file(const char* file, const char* s);
 
-size_t u64toa(char*, uint64_t num, int base);
-size_t i64toa(char*, int64_t num, int base);
+size_t u64_to_str(char*, uint64_t num, int base);
+size_t i64_to_str(char*, int64_t num, int base);
 
 /**
  * @}

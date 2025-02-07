@@ -574,7 +574,7 @@ js_path_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   const char* str;
   size_t len = 0;
   JSValue ret = JS_UNDEFINED;
-  BOOL absolute = FALSE;
+  bool absolute = false;
 
   js_dbuf_init(ctx, &db);
   dbuf_0(&db);

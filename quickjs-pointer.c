@@ -101,7 +101,7 @@ static JSValue
 js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf;
-  BOOL color = FALSE, reparseable = FALSE;
+  bool color = false, reparseable = false;
   Pointer* ptr = js_pointer_data(this_val);
 
   if(argc > 1 && JS_IsObject(argv[1])) {
@@ -461,10 +461,10 @@ js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValue
   int64_t index;
 
   if(JS_HasProperty(ctx, pointer_proto, prop))
-    return FALSE;
+    return false;
 
   if(js_atom_is_symbol(ctx, prop))
-    return FALSE;
+    return false;
 
   if(js_atom_is_index(ctx, &index, prop)) {
 
@@ -485,11 +485,11 @@ js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValue
         pdesc->setter = JS_UNDEFINED;
       }
 
-      return TRUE;
+      return true;
     }
   }
 
-  return FALSE;
+  return false;
 }
 
 static int
@@ -503,7 +503,7 @@ js_pointer_get_own_property_names(JSContext* ctx, JSPropertyEnum** ptab, uint32_
     if((props = js_malloc(ctx, sizeof(JSPropertyEnum) * len))) {
 
       for(i = 0; i < len; i++) {
-        props[i].is_enumerable = TRUE;
+        props[i].is_enumerable = true;
         props[i].atom = JS_ATOM_FROMINT(i);
       }
 
@@ -533,11 +533,11 @@ js_pointer_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueCo
         pointer->atoms[index] = JS_ValueToAtom(ctx, value);
       }
 
-      return TRUE;
+      return true;
     }
   }
 
-  return FALSE;
+  return false;
 }
 
 static JSClassExoticMethods js_pointer_exotic_methods = {

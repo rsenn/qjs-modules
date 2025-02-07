@@ -2,6 +2,7 @@
 #define PROPERTY_ENUMERATION_H
 
 #include <quickjs.h>
+#include <stdbool.h>
 #include "vector.h"
 #include "utils.h"
 #include "debug.h"
@@ -148,7 +149,7 @@ JSValue property_recursion_pathstr_value(const Vector*, JSContext* ctx);
 void property_recursion_dumpall(Vector*, JSContext* ctx, DynBuf* out);
 int property_recursion_insideof(Vector*, JSValue val);
 void property_recursion_free(Vector*, JSRuntime* rt);
-BOOL property_recursion_circular(Vector*, JSValue object);
+bool property_recursion_circular(Vector*, JSValue object);
 // IndexTuple property_recursion_check(Vector*);
 PropertyEnumeration* property_recursion_push(Vector*, JSContext*, JSValueConst, int);
 PropertyEnumeration* property_recursion_pop(Vector*, JSContext*);
@@ -173,7 +174,7 @@ property_recursion_next(Vector* vec, JSContext* ctx) {
   if((it = property_recursion_top(vec))) {
     JSValue value = property_enumeration_value(it, ctx);
     int32_t type = JS_VALUE_GET_TAG(value);
-    BOOL circular = type == JS_TAG_OBJECT && property_recursion_circular(vec, value);
+    bool circular = type == JS_TAG_OBJECT && property_recursion_circular(vec, value);
 
     JS_FreeValue(ctx, value);
 
