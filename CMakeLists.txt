@@ -19,21 +19,13 @@ option(USE_LIBMAGIC "Use libmagic" ON)
 option(USE_MARIADBCLIENT "Use mariadb client" ON)
 option(USE_POSTGRESCLIENT "Use postgresql client" ON)
 
-if(WASI
-   OR EMSCRIPTEN
-   OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
   option(BUILD_SHARED_MODULES "Build shared modules" OFF)
   set(BUILD_SHARED_LIBS FALSE)
-else(
-  WASI
-  OR EMSCRIPTEN
-  OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+else(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   option(BUILD_SHARED_MODULES "Build shared modules" ON)
-endif(
-  WASI
-  OR EMSCRIPTEN
-  OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+endif(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 
 if(WIN32 OR MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
@@ -168,27 +160,7 @@ endif(HAVE_TEMPNAM)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES
-    bjson
-    blob
-    deep
-    directory
-    lexer
-    list
-    location
-    misc
-    path
-    pointer
-    predicate
-    queue
-    repeater
-    textcode
-    sockets
-    stream
-    syscallerror
-    inspect
-    tree-walker
-    xml)
+set(QUICKJS_MODULES bjson blob deep directory lexer list location misc path pointer predicate queue repeater textcode sockets stream syscallerror inspect tree-walker xml)
 
 if(USE_LIBMAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -202,11 +174,8 @@ if(USE_LIBARCHIVE)
   if(BUILD_LIBARCHIVE)
     include(ExternalProject)
     ExternalProject_Add(
-      libarchive
-      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive
-      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive
-      CMAKE_CACHE_ARGS "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w" "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
-                       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+      libarchive SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libarchive BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libarchive CMAKE_CACHE_ARGS "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+                                                                                                                                      "-DCMAKE_C_FLAGS:STRING=-w" "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
     link_directories("${CMAKE_CURRENT_BINARY_DIR}/libarchive")
@@ -234,9 +203,7 @@ if(USE_LIBMAGIC)
 
   if(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
     add_definitions(-DHAVE_LIBMAGIC=1)
-    set(LIBMAGIC_LIBRARY
-        magic
-        CACHE STRING "libmagic library")
+    set(LIBMAGIC_LIBRARY magic CACHE STRING "libmagic library")
     set(magic_LIBRARIES ${LIBMAGIC_LIBRARY})
     set(magic_MODULE magic)
   else(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
@@ -258,17 +225,13 @@ if(USE_MARIADBCLIENT)
   pkg_check_modules(MARIADB libmariadb mariadb)
 
   if(pkgcfg_lib_MARIADB_mariadb)
-    set(LIBMARIADB_LIBRARY
-        "${pkgcfg_lib_MARIADB_mariadb}"
-        CACHE STRING "MariaDB client library")
+    set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}" CACHE STRING "MariaDB client library")
     unset(pkgcfg_lib_MARIADB_mariadb CACHE)
   else(pkgcfg_lib_MARIADB_mariadb)
     check_library_exists(mariadb mysql_init "${LIBMARIADB_LIBRARY_DIR}" HAVE_LIBMARIADB)
 
     if(HAVE_LIBMARIADB)
-      set(LIBMARIADB_LIBRARY
-          mariadb
-          CACHE STRING "MariaDB client library")
+      set(LIBMARIADB_LIBRARY mariadb CACHE STRING "MariaDB client library")
     endif(HAVE_LIBMARIADB)
   endif(pkgcfg_lib_MARIADB_mariadb)
 
@@ -276,9 +239,7 @@ if(USE_MARIADBCLIENT)
     list(APPEND QUICKJS_MODULES mysql)
     set(mysql_LIBRARIES ${LIBMARIADB_LIBRARY})
 
-    set(LIBMARIADB_INCLUDE_DIR
-        "${CMAKE_INSTALL_PREFIX}/include"
-        CACHE PATH "MariaDB client include directory")
+    set(LIBMARIADB_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "MariaDB client include directory")
 
     if(NOT EXISTS "${LIBMARIADB_INCLUDE_DIR}/mysql.h")
       if(EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb" AND EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb/mysql.h")
@@ -299,17 +260,13 @@ if(USE_POSTGRESCLIENT)
   pkg_check_modules(LIBPQ libpq)
 
   if(pkgcfg_lib_LIBPQ_pq)
-    set(LIBPQ_LIBRARY
-        "${pkgcfg_lib_LIBPQ_pq}"
-        CACHE STRING "PostgreSQL client library")
+    set(LIBPQ_LIBRARY "${pkgcfg_lib_LIBPQ_pq}" CACHE STRING "PostgreSQL client library")
     unset(pkgcfg_lib_LIBPQ_pq CACHE)
   else(pkgcfg_lib_LIBPQ_pq)
     check_library_exists(pq PQconnectdb "${LIBPQ_LIBRARY_DIR}" HAVE_LIBPQCLIENT)
 
     if(HAVE_LIBPQCLIENT)
-      set(LIBPQ_LIBRARY
-          pq
-          CACHE STRING "PostgreSQL client library")
+      set(LIBPQ_LIBRARY pq CACHE STRING "PostgreSQL client library")
     endif(HAVE_LIBPQCLIENT)
   endif(pkgcfg_lib_LIBPQ_pq)
 
@@ -329,9 +286,7 @@ if(USE_POSTGRESCLIENT)
       endif()
     endif()
 
-    set(LIBPQ_INCLUDE_DIR
-        "${LIBPQ_INCLUDE_DIR}"
-        CACHE PATH "PostgresSQL client include directory")
+    set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}" CACHE PATH "PostgresSQL client include directory")
 
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBPQ_INCLUDE_DIR}")
     check_include_def(libpq-fe.h)
@@ -378,9 +333,7 @@ endif(WIN32 OR MINGW)
 
 set(lexer_LIBRARIES qjs-location)
 
-if(WIN32
-   OR MINGW
-   OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
+if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
   set(HAVE_INET_PTON TRUE)
@@ -429,19 +382,9 @@ set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 if(BUILD_LIBSERIALPORT)
   include(ExternalProject)
   ExternalProject_Add(
-    libserialport
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libserialport
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport
-    CMAKE_CACHE_ARGS
-      "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}"
-      "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
-      "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
-      "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
-      "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
-      "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
-      "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE"
-    INSTALL_COMMAND cmake -E echo "Skipping install step.")
+    libserialport SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libserialport BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport
+    CMAKE_CACHE_ARGS "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}" "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+                     "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}" CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE" INSTALL_COMMAND cmake -E echo "Skipping install step.")
 
   link_directories("${CMAKE_CURRENT_BINARY_DIR}/libserialport")
   set(LIBSERIALPORT_LIBRARY serialport)
@@ -457,9 +400,7 @@ set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
 if(HAVE_MMAP)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
 else(HAVE_MMAP)
-  if(WIN32
-     OR MINGW
-     OR MSYS)
+  if(WIN32 OR MINGW OR MSYS)
     set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
     set(mmap_SOURCES ${mmap_SOURCES} src/mmap-win32.c)
   endif()
@@ -479,25 +420,19 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
-      set(CMAKE_C_FLAGS_DEBUG
-          "${CMAKE_C_FLAGS_DEBUG} -O0"
-          CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG
-          "${CMAKE_C_FLAGS_DEBUG} -ggdb"
-          CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG
-          "${CMAKE_C_FLAGS_DEBUG} -Wextra"
-          CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -516,10 +451,7 @@ if(DO_TESTS)
   foreach(TEST ${TESTS})
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
-    add_test(
-      NAME "${BASE}"
-      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-      COMMAND env QUICKJS_MODULE_PATH="${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}" "${QJSM}" --bignum "${TEST}")
+    add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND env QUICKJS_MODULE_PATH="${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}" "${QJSM}" --bignum "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 
@@ -571,19 +503,14 @@ file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
-set(QJSM
-    "${CMAKE_CURRENT_BINARY_DIR}/qjsm"
-    CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
+set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
 
 include(CTest)
 
 foreach(TEST_SOURCE ${TESTS_SOURCES})
   file(RELATIVE_PATH TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}" "${TEST_SOURCE}")
   basename(TEST_NAME ${TEST_SOURCE} .js)
-  add_test(
-    NAME "${TEST_NAME}"
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    COMMAND ${QJSM} --bignum "${TEST_SOURCE}")
+  add_test(NAME "${TEST_NAME}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" COMMAND ${QJSM} --bignum "${TEST_SOURCE}")
 
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
@@ -602,20 +529,9 @@ install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
 install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
 set(LIB_MODULES
-    console
-    db
-    events
-    fs
-    io
+    console db events fs io
     # lexer/csv lexer/ecmascript
-    parser
-    perf_hooks
-    process
-    repl
-    require
-    stack
-    tty
-    util)
+    parser perf_hooks process repl require stack tty util)
 
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 
@@ -675,35 +591,7 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 set(QJSM_SOURCES src/qjsm.c)
 # set(QJSM_LDADD qjs-syscallerror-static)
 
-set(NATIVE_BUILTINS
-    archive
-    bjson
-    blob
-    child-process
-    deep
-    directory
-    gpio
-    inspect
-    lexer
-    list
-    location
-    magic
-    misc
-    mmap
-    mysql
-    path
-    pgsql
-    pointer
-    predicate
-    queue
-    repeater
-    serial
-    sockets
-    stream
-    syscallerror
-    textcode
-    tree-walker
-    xml)
+set(NATIVE_BUILTINS archive bjson blob child-process deep directory gpio inspect lexer list location magic misc mmap mysql path pgsql pointer predicate queue repeater serial sockets stream syscallerror textcode tree-walker xml)
 
 foreach(NATIVE_BUILTIN ${NATIVE_BUILTINS})
 
@@ -743,17 +631,7 @@ install(TARGETS qjsm DESTINATION bin)
 
 file(GLOB INSTALL_SCRIPTS [!.]*.js)
 
-install(
-  FILES ${INSTALL_SCRIPTS}
-  DESTINATION bin
-  PERMISSIONS
-    OWNER_EXECUTE
-    OWNER_WRITE
-    OWNER_READ
-    GROUP_EXECUTE
-    GROUP_READ
-    WORLD_EXECUTE
-    WORLD_READ)
+install(FILES ${INSTALL_SCRIPTS} DESTINATION bin PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE WORLD_READ)
 
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")

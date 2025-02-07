@@ -1,3 +1,15 @@
+function(ABBREVIATE OUTPUT_VAR STR MAX)
+  if(NOT MAX)
+    set(MAX 30)
+  endif(NOT MAX)
+  string(LENGTH "${STR}" LEN)
+  if(LEN GREATER "${MAX}")
+    string(SUBSTRING "${STR}" 0 "${MAX}" STR)
+    set(STR "${STR}...")
+  endif(LEN GREATER "${MAX}")
+  set("${OUTPUT_VAR}" "${STR}" PARENT_SCOPE)
+endfunction(ABBREVIATE OUTPUT_VAR STR MAX)
+
 function(DUMP)
   foreach(VAR ${ARGN})
     if("${SEPARATOR}" STREQUAL "")
@@ -17,13 +29,8 @@ function(CANONICALIZE OUTPUT_VAR STR)
   string(REGEX REPLACE "-" "_" TMP_STR "${TMP_STR}")
   string(TOUPPER "${TMP_STR}" TMP_STR)
 
-  set("${OUTPUT_VAR}"
-      "${TMP_STR}"
-      PARENT_SCOPE)
-endfunction(
-  CANONICALIZE
-  OUTPUT_VAR
-  STR)
+  set("${OUTPUT_VAR}" "${TMP_STR}" PARENT_SCOPE)
+endfunction(CANONICALIZE OUTPUT_VAR STR)
 
 function(BASENAME OUTPUT_VAR STR)
   string(REGEX REPLACE ".*/" "" TMP_STR "${STR}")
@@ -31,13 +38,8 @@ function(BASENAME OUTPUT_VAR STR)
     string(REGEX REPLACE "\\${ARGN}\$" "" TMP_STR "${TMP_STR}")
   endif(ARGN)
 
-  set("${OUTPUT_VAR}"
-      "${TMP_STR}"
-      PARENT_SCOPE)
-endfunction(
-  BASENAME
-  OUTPUT_VAR
-  FILE)
+  set("${OUTPUT_VAR}" "${TMP_STR}" PARENT_SCOPE)
+endfunction(BASENAME OUTPUT_VAR FILE)
 
 function(DIRNAME OUTPUT_VAR STR)
   string(REGEX REPLACE "/[^/]+/*$" "" TMP_STR "${STR}")
@@ -45,39 +47,24 @@ function(DIRNAME OUTPUT_VAR STR)
     string(REGEX REPLACE "\\${ARGN}\$" "" TMP_STR "${TMP_STR}")
   endif(ARGN)
 
-  set("${OUTPUT_VAR}"
-      "${TMP_STR}"
-      PARENT_SCOPE)
-endfunction(
-  DIRNAME
-  OUTPUT_VAR
-  FILE)
+  set("${OUTPUT_VAR}" "${TMP_STR}" PARENT_SCOPE)
+endfunction(DIRNAME OUTPUT_VAR FILE)
 
 function(ADDPREFIX OUTPUT_VAR PREFIX)
   set(OUTPUT "")
   foreach(ARG ${ARGN})
     list(APPEND OUTPUT "${PREFIX}${ARG}")
   endforeach(ARG ${ARGN})
-  set("${OUTPUT_VAR}"
-      "${OUTPUT}"
-      PARENT_SCOPE)
-endfunction(
-  ADDPREFIX
-  OUTPUT_VAR
-  PREFIX)
+  set("${OUTPUT_VAR}" "${OUTPUT}" PARENT_SCOPE)
+endfunction(ADDPREFIX OUTPUT_VAR PREFIX)
 
 function(ADDSUFFIX OUTPUT_VAR SUFFIX)
   set(OUTPUT "")
   foreach(ARG ${ARGN})
     list(APPEND OUTPUT "${ARG}${SUFFIX}")
   endforeach(ARG ${ARGN})
-  set("${OUTPUT_VAR}"
-      "${OUTPUT}"
-      PARENT_SCOPE)
-endfunction(
-  ADDSUFFIX
-  OUTPUT_VAR
-  SUFFIX)
+  set("${OUTPUT_VAR}" "${OUTPUT}" PARENT_SCOPE)
+endfunction(ADDSUFFIX OUTPUT_VAR SUFFIX)
 
 function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
   set(LIST "")
@@ -87,13 +74,8 @@ function(RELATIVE_PATH OUT_VAR RELATIVE_TO)
     list(APPEND LIST "${ARG}")
   endforeach(ARG ${ARGN})
 
-  set("${OUT_VAR}"
-      "${LIST}"
-      PARENT_SCOPE)
-endfunction(
-  RELATIVE_PATH
-  RELATIVE_TO
-  OUT_VAR)
+  set("${OUT_VAR}" "${LIST}" PARENT_SCOPE)
+endfunction(RELATIVE_PATH RELATIVE_TO OUT_VAR)
 
 include(CheckFunctionExists)
 
@@ -107,9 +89,7 @@ macro(CHECK_FUNCTION_DEF FUNC)
   endif(ARGC GREATER_EQUAL 2)
   check_function_exists("${FUNC}" "${RESULT_VAR}")
   if(${${RESULT_VAR}})
-    set("${RESULT_VAR}"
-        TRUE
-        CACHE BOOL "Define this if you have the '${FUNC}' function")
+    set("${RESULT_VAR}" TRUE CACHE BOOL "Define this if you have the '${FUNC}' function")
     if(NOT "${PREPROC_DEF}" STREQUAL "")
       add_definitions(-D${PREPROC_DEF})
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
@@ -134,26 +114,16 @@ function(RESULT_VALUE OUTPUT_VAR VARNAME)
   endif("${NEGATIVE_REPORT}" STREQUAL "")
 
   if(${${VARNAME}})
-    set("${OUTPUT_VAR}"
-        "${POSITIVE_REPORT}"
-        PARENT_SCOPE)
+    set("${OUTPUT_VAR}" "${POSITIVE_REPORT}" PARENT_SCOPE)
   else(${${VARNAME}})
-    set("${OUTPUT_VAR}"
-        "${NEGATIVE_REPORT}"
-        PARENT_SCOPE)
+    set("${OUTPUT_VAR}" "${NEGATIVE_REPORT}" PARENT_SCOPE)
   endif(${${VARNAME}})
-endfunction(
-  RESULT_VALUE
-  OUTPUT_VAR
-  VARNAME)
+endfunction(RESULT_VALUE OUTPUT_VAR VARNAME)
 
 macro(REPORT MSG VARNAME)
   result_value(REPORT_RESULT "${VARNAME}" ${ARGN})
   message(STATUS "${MSG}... ${REPORT_RESULT}")
-endmacro(
-  REPORT
-  MSG
-  VARNAME)
+endmacro(REPORT MSG VARNAME)
 
 macro(CHECK_LIBRARY_FUNCTIONS LIB)
   libname(LNAME "${LIB}")
@@ -164,17 +134,11 @@ macro(CHECK_LIBRARY_FUNCTIONS LIB)
     # dump(RUN_RESULT RUN_OUTPUT)
 
     if(NOT RUN_RESULT AND NOT RUN_OUTPUT STREQUAL "")
-      set(RESULT
-          TRUE
-          PARENT_SCOPE)
+      set(RESULT TRUE PARENT_SCOPE)
     else(NOT RUN_RESULT AND NOT RUN_OUTPUT STREQUAL "")
-      set(RESULT
-          FALSE
-          PARENT_SCOPE)
+      set(RESULT FALSE PARENT_SCOPE)
     endif(NOT RUN_RESULT AND NOT RUN_OUTPUT STREQUAL "")
-    set(${RESULT_VAR}
-        "${RESULT}"
-        PARENT_SCOPE)
+    set(${RESULT_VAR} "${RESULT}" PARENT_SCOPE)
 
     result_value(R "${RESULT}")
 
@@ -193,13 +157,8 @@ endmacro(CHECK_FUNCTIONS_DEF)
 function(CLEAN_NAME STR OUTPUT_VAR)
   string(TOUPPER "${STR}" STR)
   string(REGEX REPLACE "[^A-Za-z0-9_]" "_" STR "${STR}")
-  set("${OUTPUT_VAR}"
-      "${STR}"
-      PARENT_SCOPE)
-endfunction(
-  CLEAN_NAME
-  STR
-  OUTPUT_VAR)
+  set("${OUTPUT_VAR}" "${STR}" PARENT_SCOPE)
+endfunction(CLEAN_NAME STR OUTPUT_VAR)
 
 macro(CHECK_INCLUDE_DEF INC)
   if(ARGC GREATER_EQUAL 2)
@@ -212,9 +171,7 @@ macro(CHECK_INCLUDE_DEF INC)
   endif(ARGC GREATER_EQUAL 2)
   check_include_file("${INC}" "${RESULT_VAR}")
   if(${${RESULT_VAR}})
-    set("${RESULT_VAR}"
-        TRUE
-        CACHE BOOL "Define this if you have the '${INC}' header file")
+    set("${RESULT_VAR}" TRUE CACHE BOOL "Define this if you have the '${INC}' header file")
     if(NOT "${PREPROC_DEF}" STREQUAL "")
       add_definitions(-D${PREPROC_DEF})
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
@@ -243,17 +200,12 @@ macro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
   if(${${INC_RESULT}})
     check_function_def("${FUNC}" "${FUNC_RESULT}" "${FUNC_RESULT}")
   endif(${${INC_RESULT}})
-endmacro(
-  CHECK_FUNCTION_AND_INCLUDE
-  FUNC
-  INC)
+endmacro(CHECK_FUNCTION_AND_INCLUDE FUNC INC)
 
 macro(APPEND_PARENT VAR)
   set(LIST "${${VAR}}")
   list(APPEND LIST ${ARGN})
-  set("${VAR}"
-      "${LIST}"
-      PARENT_SCOPE)
+  set("${VAR}" "${LIST}" PARENT_SCOPE)
 endmacro(APPEND_PARENT VAR)
 
 function(CONTAINS LIST VALUE OUTPUT)
@@ -270,14 +222,8 @@ function(CONTAINS LIST VALUE OUTPUT)
       endif("${ITEM}" STREQUAL "${VALUE}")
     endforeach(ITEM ${${LIST}})
   endif(NOT RESULT)
-  set("${OUTPUT}"
-      "${RESULT}"
-      PARENT_SCOPE)
-endfunction(
-  CONTAINS
-  LIST
-  VALUE
-  OUTPUT)
+  set("${OUTPUT}" "${RESULT}" PARENT_SCOPE)
+endfunction(CONTAINS LIST VALUE OUTPUT)
 
 function(ADD_UNIQUE LIST)
   set(RESULT "${${LIST}}")
@@ -287,17 +233,12 @@ function(ADD_UNIQUE LIST)
       list(APPEND RESULT "${ITEM}")
     endif(NOT FOUND)
   endforeach(ITEM ${ARGN})
-  set("${LIST}"
-      "${RESULT}"
-      PARENT_SCOPE)
+  set("${LIST}" "${RESULT}" PARENT_SCOPE)
 endfunction(ADD_UNIQUE LIST)
 
 macro(SYMLINK TARGET LINK_NAME)
   install(CODE "message(\"Create symlink '$ENV{DESTDIR}${LINK_NAME}' to '${TARGET}'\")\nexecute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ${TARGET} $ENV{DESTDIR}${LINK_NAME})")
-endmacro(
-  SYMLINK
-  TARGET
-  LINK_NAME)
+endmacro(SYMLINK TARGET LINK_NAME)
 
 macro(RPATH_APPEND VAR)
   foreach(VALUE ${ARGN})
@@ -325,85 +266,44 @@ function(CHECK_FLAG FLAG VAR)
     message(STATUS "Compiler flag ${FLAG} ... supported")
 
   endif(RESULT)
-endfunction(
-  CHECK_FLAG
-  FLAG
-  VAR)
+endfunction(CHECK_FLAG FLAG VAR)
 
-function(
-  TRY_CODE
-  FILE
-  CODE
-  RESULT_VAR
-  OUTPUT_VAR
-  LIBS
-  LDFLAGS)
+function(TRY_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   if(NOT DEFINED "${RESULT_VAR}" OR NOT DEFINED "${OUTPUT_VAR}")
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${FILE}" "${CODE}")
 
-    try_compile(
-      RESULT "${CMAKE_CURRENT_BINARY_DIR}"
-      "${CMAKE_CURRENT_BINARY_DIR}/${FILE}"
-      CMAKE_FLAGS "${CMAKE_REQUIRED_FLAGS}"
-      COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}"
-      LINK_OPTIONS "${LDFLAGS}"
-      LINK_LIBRARIES "${LIBS}"
-      OUTPUT_VARIABLE OUTPUT)
+    try_compile(RESULT "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/${FILE}" CMAKE_FLAGS "${CMAKE_REQUIRED_FLAGS}" COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}" LINK_OPTIONS "${LDFLAGS}" LINK_LIBRARIES "${LIBS}" OUTPUT_VARIABLE OUTPUT)
 
-    set(${RESULT_VAR}
-        "${RESULT}"
-        PARENT_SCOPE)
-    set(${OUTPUT_VAR}
-        "${OUTPUT}"
-        PARENT_SCOPE)
+    set(${RESULT_VAR} "${RESULT}" PARENT_SCOPE)
+    set(${OUTPUT_VAR} "${OUTPUT}" PARENT_SCOPE)
   endif(NOT DEFINED "${RESULT_VAR}" OR NOT DEFINED "${OUTPUT_VAR}")
 endfunction()
 
-function(
-  RUN_CODE
-  FILE
-  CODE
-  RESULT_VAR
-  OUTPUT_VAR
-  LIBS
-  LDFLAGS)
+function(RUN_CODE FILE CODE RESULT_VAR OUTPUT_VAR LIBS LDFLAGS)
   # if(NOT DEFINED "${RESULT_VAR}" OR NOT DEFINED "${OUTPUT_VAR}")
   string(RANDOM LENGTH 8 RND)
   set(FN "${CMAKE_CURRENT_BINARY_DIR}/${RND}-${FILE}")
   file(WRITE "${FN}" "${CODE}")
-  string(REGEX REPLACE "\.[^./]+$" ".log" LOG  "${FN}")
+  string(REGEX REPLACE "\.[^./]+$" ".log" LOG "${FN}")
 
   # dump(FN)
 
-  try_run(
-    RUN_RESULT COMPILE_RESULT SOURCES "${FN}"
-    COMPILE_OUTPUT_VARIABLE COMPILE_OUTPUT
-    RUN_OUTPUT_VARIABLE RUN_OUTPUT
-    CMAKE_FLAGS "${CMAKE_REQUIRED_FLAGS}"
-    COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}" LINK_OPTIONS "${LDFLAGS}" LINK_LIBRARIES "${LIBS}")
+  try_run(RUN_RESULT COMPILE_RESULT SOURCES "${FN}" COMPILE_OUTPUT_VARIABLE COMPILE_OUTPUT RUN_OUTPUT_VARIABLE RUN_OUTPUT CMAKE_FLAGS "${CMAKE_REQUIRED_FLAGS}" COMPILE_DEFINITIONS "${CMAKE_REQUIRED_DEFINITIONS}" LINK_OPTIONS "${LDFLAGS}" LINK_LIBRARIES "${LIBS}")
 
   file(WRITE "${LOG}" "Compile output:\n${COMPILE_OUTPUT}\n\nRun output:\n${RUN_OUTPUT}\n")
   unset(LOG)
 
-  set(${RESULT_VAR}
-      "${COMPILE_RESULT}"
-      PARENT_SCOPE)
-  set(${OUTPUT_VAR}
-      "${COMPILE_OUTPUT}"
-      PARENT_SCOPE)
+  set(${RESULT_VAR} "${COMPILE_RESULT}" PARENT_SCOPE)
+  set(${OUTPUT_VAR} "${COMPILE_OUTPUT}" PARENT_SCOPE)
 
   file(REMOVE "${FN}")
 
   if(COMPILE_RESULT)
     if(NOT "${RUN_RESULT}" STREQUAL "")
-      set(${RESULT_VAR}
-          "${RUN_RESULT}"
-          PARENT_SCOPE)
+      set(${RESULT_VAR} "${RUN_RESULT}" PARENT_SCOPE)
     endif(NOT "${RUN_RESULT}" STREQUAL "")
     if(NOT "${RUN_OUTPUT}" STREQUAL "")
-      set(${OUTPUT_VAR}
-          "${RUN_OUTPUT}"
-          PARENT_SCOPE)
+      set(${OUTPUT_VAR} "${RUN_OUTPUT}" PARENT_SCOPE)
     endif(NOT "${RUN_OUTPUT}" STREQUAL "")
   endif(COMPILE_RESULT)
 
@@ -416,10 +316,5 @@ endfunction()
 function(LIBNAME OUT_VAR FILENAME)
   string(REGEX REPLACE ".*/(lib|)" "" LIBNAME "${FILENAME}")
   string(REGEX REPLACE "\.[^/.]+$" "" LIBNAME "${LIBNAME}")
-  set(${OUT_VAR}
-      "${LIBNAME}"
-      PARENT_SCOPE)
-endfunction(
-  LIBNAME
-  OUT_VAR
-  FILENAME)
+  set(${OUT_VAR} "${LIBNAME}" PARENT_SCOPE)
+endfunction(LIBNAME OUT_VAR FILENAME)
