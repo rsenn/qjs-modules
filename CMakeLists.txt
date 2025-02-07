@@ -647,9 +647,7 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 set(QJSM_SOURCES src/qjsm.c)
 #set(QJSM_LDADD qjs-syscallerror-static)
 
-set(NATIVE_BUILTINS child-process deep inspect lexer location misc path pointer predicate repeater
-                    tree-walker xml)
-list(APPEND NATIVE_BUILTINS syscallerror)
+set(NATIVE_BUILTINS archive bjson blob child-process deep directory gpio inspect lexer list location magic misc mmap mysql path pgsql pointer predicate queue repeater serial sockets stream syscallerror textcode tree-walker xml)
 
 foreach(NATIVE_BUILTIN ${NATIVE_BUILTINS})
 
