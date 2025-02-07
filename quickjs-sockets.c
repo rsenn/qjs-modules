@@ -198,6 +198,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
       if(a->family == 0) {
         if(inet_pton(AF_INET, str, &a->ip4.sin_addr) > 0)
           a->family = AF_INET;
+        
         else if(inet_pton(AF_INET6, str, &a->ip6.sin6_addr) > 0)
           a->family = AF_INET6;
 
@@ -1486,7 +1487,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         if((a = argc >= 5 ? js_sockaddr_data(argv[4]) : 0))
           alen = sizeof(SockAddr);
 
-        JS_SOCKETCALL(SYSCALL_RECVFROM, s, recvfrom(socket_handle(*s), (void*)(buf.data + off.offset), offset_size(&off, buf.size), flags, &a->s, &alen));
+        JS_SOCKETCALL(SYSCALL_RECVFROM, s, recvfrom(socket_handle(*s), (void*)(buf.data + off.offset), offset_size(&off, buf.size), flags, a ? &a->s : NULL, a ? &alen : NULL));
       } else {
         JS_SOCKETCALL(SYSCALL_RECV, s, recv(socket_handle(*s), (void*)(buf.data + off.offset), offset_size(&off, buf.size), flags));
       }
@@ -1508,10 +1509,12 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(magic == METHOD_SENDTO) {
         if((a = argc >= 5 ? js_sockaddr_data(argv[4]) : 0))
           alen = sockaddr_size(a);
-        JS_SOCKETCALL(SYSCALL_SENDTO, s, sendto(socket_handle(*s), (const void*)(buf.data + off.offset), offset_size(&off, buf.size), flags, &a->s, alen));
+
+        JS_SOCKETCALL(SYSCALL_SENDTO, s, sendto(socket_handle(*s), (const void*)(buf.data + off.offset), offset_size(&off, buf.size), flags, a ? &a->s : NULL, a ? alen : 0));
       } else {
         JS_SOCKETCALL(SYSCALL_SEND, s, send(socket_handle(*s), (const void*)(buf.data + off.offset), offset_size(&off, buf.size), flags));
       }
+      
       break;
     }
 
