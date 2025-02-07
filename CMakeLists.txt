@@ -1,6 +1,6 @@
 project(qjs-modules C)
 
-#message("Building project [1;31m${PROJECT_NAME}[0m")
+# message("Building project [1;31m${PROJECT_NAME}[0m")
 
 cmake_minimum_required(VERSION 3.2)
 
@@ -8,7 +8,7 @@ set(CMAKE_C_STANDARD 11)
 
 option(USE_INTERNAL "Use quickjs.c internal definitions" OFF)
 option(BUILD_LIBARCHIVE "Build archive library" OFF)
-#option(BUILD_PIGPIO "Build pigpio library" OFF)
+# option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(BUILD_LIBSERIALPORT "Build libserialport library" ON)
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
@@ -19,13 +19,21 @@ option(USE_LIBMAGIC "Use libmagic" ON)
 option(USE_MARIADBCLIENT "Use mariadb client" ON)
 option(USE_POSTGRESCLIENT "Use postgresql client" ON)
 
-if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+if(WASI
+   OR EMSCRIPTEN
+   OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
   option(BUILD_SHARED_MODULES "Build shared modules" OFF)
   set(BUILD_SHARED_LIBS FALSE)
-else(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+else(
+  WASI
+  OR EMSCRIPTEN
+  OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   option(BUILD_SHARED_MODULES "Build shared modules" ON)
-endif(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+endif(
+  WASI
+  OR EMSCRIPTEN
+  OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 
 if(WIN32 OR MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
@@ -34,7 +42,7 @@ endif(WIN32 OR MINGW)
 if(ANDROID)
   add_definitions(-DANDROID)
 endif(ANDROID)
-#message("System: ${CMAKE_SYSTEM_NAME}")
+# message("System: ${CMAKE_SYSTEM_NAME}")
 
 if(DEBUG_OUTPUT)
   add_definitions(-DDEBUG_OUTPUT)
@@ -52,13 +60,13 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
-#message(STATUS "Finding QuickJS...")
+# message(STATUS "Finding QuickJS...")
 
 find_quickjs()
 configure_quickjs()
 
 list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
-#list(APPEND CMAKE_REQUIRED_LIBRARIES "${QUICKJS_LIBRARY}")
+# list(APPEND CMAKE_REQUIRED_LIBRARIES "${QUICKJS_LIBRARY}")
 list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 
 check_function_def(HAVE_JS_PROMISE_STATE JS_PromiseState)
@@ -119,10 +127,10 @@ check_includes(fcntl.h alloca.h wordexp.h sys/inotify.h)
 
 check_functions_def(access fnmatch daemon)
 
-#message("Have daemon() ${HAVE_DAEMON}")
+# message("Have daemon() ${HAVE_DAEMON}")
 
 check_include_file(fnmatch.h HAVE_FNMATCH_H_2)
-#check_include_def(fnmatch.h)
+# check_include_def(fnmatch.h)
 
 check_function_and_include(fcntl fcntl.h)
 check_function_and_include(fnmatch fnmatch.h)
@@ -136,13 +144,12 @@ if(HAVE_INOTIFY)
   add_definitions(-DHAVE_INOTIFY)
 endif(HAVE_INOTIFY)
 
-#message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}")
-#message("Have sys/inotify.h ${HAVE_SYS_INOTIFY_H}")
-#message("Enable inotify ${HAVE_INOTIFY}")
+# message("Have inotify_init1 ${HAVE_INOTIFY_INIT1}") message("Have sys/inotify.h
+# ${HAVE_SYS_INOTIFY_H}") message("Enable inotify ${HAVE_INOTIFY}")
 
 check_function_and_include(sysinfo sys/sysinfo.h)
 
-#message("Have sysinfo() ${HAVE_SYSINFO}")
+# message("Have sysinfo() ${HAVE_SYSINFO}")
 
 check_function_def(gettid)
 check_function_def(uname)
@@ -152,30 +159,44 @@ if(HAVE_TEMPNAM)
   add_definitions(-DUSE_TEMPNAM=1)
 endif(HAVE_TEMPNAM)
 
-# if(BUILD_PIGPIO)
-#   include(ExternalProject)
-#   ExternalProject_Add(
-#     pigpio
-#     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/pigpio
-#     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pigpio
-#     CMAKE_CACHE_ARGS
-#       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
-#       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
-#       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-#     CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+# if(BUILD_PIGPIO) include(ExternalProject) ExternalProject_Add( pigpio SOURCE_DIR
+# ${CMAKE_CURRENT_SOURCE_DIR}/pigpio BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/pigpio CMAKE_CACHE_ARGS
+# "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
+# "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}" "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
+# "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
+# "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}" CMAKE_CACHE_DEFAULT_ARGS
+# "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-#   link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
+# link_directories("${CMAKE_CURRENT_BINARY_DIR}/pigpio")
 
-# else(BUILD_PIGPIO)
-#   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpilib/gpio.cmake)
+# else(BUILD_PIGPIO) include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpilib/gpio.cmake)
 # endif(BUILD_PIGPIO)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include
                     ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES bjson blob deep directory lexer list location misc path pointer predicate queue
-                    repeater textcode sockets stream syscallerror inspect tree-walker xml)
+set(QUICKJS_MODULES
+    bjson
+    blob
+    deep
+    directory
+    lexer
+    list
+    location
+    misc
+    path
+    pointer
+    predicate
+    queue
+    repeater
+    textcode
+    sockets
+    stream
+    syscallerror
+    inspect
+    tree-walker
+    xml)
 
 if(USE_LIBMAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -207,9 +228,7 @@ if(USE_LIBARCHIVE)
     include(FindLibArchive)
   endif(BUILD_LIBARCHIVE)
 
-  #if(NOT LibArchive_FOUND)
-  #  message(FATAL_ERROR "libarchive not found")
-  #endif(NOT LibArchive_FOUND)
+  # if(NOT LibArchive_FOUND) message(FATAL_ERROR "libarchive not found") endif(NOT LibArchive_FOUND)
 
   if(LibArchive_FOUND)
     set(QUICKJS_MODULES archive ${QUICKJS_MODULES})
@@ -228,7 +247,9 @@ if(USE_LIBMAGIC)
 
   if(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
     add_definitions(-DHAVE_LIBMAGIC=1)
-    set(LIBMAGIC_LIBRARY magic CACHE STRING "libmagic library")
+    set(LIBMAGIC_LIBRARY
+        magic
+        CACHE STRING "libmagic library")
     set(magic_LIBRARIES ${LIBMAGIC_LIBRARY})
     set(magic_MODULE magic)
   else(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
@@ -250,13 +271,17 @@ if(USE_MARIADBCLIENT)
   pkg_check_modules(MARIADB libmariadb mariadb)
 
   if(pkgcfg_lib_MARIADB_mariadb)
-    set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}" CACHE STRING "MariaDB client library")
+    set(LIBMARIADB_LIBRARY
+        "${pkgcfg_lib_MARIADB_mariadb}"
+        CACHE STRING "MariaDB client library")
     unset(pkgcfg_lib_MARIADB_mariadb CACHE)
   else(pkgcfg_lib_MARIADB_mariadb)
     check_library_exists(mariadb mysql_init "${LIBMARIADB_LIBRARY_DIR}" HAVE_LIBMARIADB)
 
     if(HAVE_LIBMARIADB)
-      set(LIBMARIADB_LIBRARY mariadb CACHE STRING "MariaDB client library")
+      set(LIBMARIADB_LIBRARY
+          mariadb
+          CACHE STRING "MariaDB client library")
     endif(HAVE_LIBMARIADB)
   endif(pkgcfg_lib_MARIADB_mariadb)
 
@@ -264,7 +289,8 @@ if(USE_MARIADBCLIENT)
     list(APPEND QUICKJS_MODULES mysql)
     set(mysql_LIBRARIES ${LIBMARIADB_LIBRARY})
 
-    set(LIBMARIADB_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include"
+    set(LIBMARIADB_INCLUDE_DIR
+        "${CMAKE_INSTALL_PREFIX}/include"
         CACHE PATH "MariaDB client include directory")
 
     if(NOT EXISTS "${LIBMARIADB_INCLUDE_DIR}/mysql.h")
@@ -287,13 +313,17 @@ if(USE_POSTGRESCLIENT)
   pkg_check_modules(LIBPQ libpq)
 
   if(pkgcfg_lib_LIBPQ_pq)
-    set(LIBPQ_LIBRARY "${pkgcfg_lib_LIBPQ_pq}" CACHE STRING "PostgreSQL client library")
+    set(LIBPQ_LIBRARY
+        "${pkgcfg_lib_LIBPQ_pq}"
+        CACHE STRING "PostgreSQL client library")
     unset(pkgcfg_lib_LIBPQ_pq CACHE)
   else(pkgcfg_lib_LIBPQ_pq)
     check_library_exists(pq PQconnectdb "${LIBPQ_LIBRARY_DIR}" HAVE_LIBPQCLIENT)
 
     if(HAVE_LIBPQCLIENT)
-      set(LIBPQ_LIBRARY pq CACHE STRING "PostgreSQL client library")
+      set(LIBPQ_LIBRARY
+          pq
+          CACHE STRING "PostgreSQL client library")
     endif(HAVE_LIBPQCLIENT)
   endif(pkgcfg_lib_LIBPQ_pq)
 
@@ -314,7 +344,9 @@ if(USE_POSTGRESCLIENT)
       endif()
     endif()
 
-    set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}" CACHE PATH "PostgresSQL client include directory")
+    set(LIBPQ_INCLUDE_DIR
+        "${LIBPQ_INCLUDE_DIR}"
+        CACHE PATH "PostgresSQL client include directory")
 
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBPQ_INCLUDE_DIR}")
     check_include_def(libpq-fe.h)
@@ -361,7 +393,9 @@ endif(WIN32 OR MINGW)
 
 set(lexer_LIBRARIES qjs-location)
 
-if(WIN32 OR MINGW OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
+if(WIN32
+   OR MINGW
+   OR "${CMAKE_SYSTEM_NAME}" STREQUAL Windows)
   set(sockets_LIBRARIES mswsock ws2_32)
   set(sockets_SOURCES ${sockets_SOURCES} src/socketpair_win32.c)
   set(HAVE_INET_PTON TRUE)
@@ -371,21 +405,18 @@ else()
   check_function_exists(inet_pton HAVE_INET_PTON)
 endif()
 
-#set(CMAKE_REQUIRED_LIBRARIES ${sockets_LIBRARIES})
-#unset(CMAKE_REQUIRED_LIBRARIES)
+# set(CMAKE_REQUIRED_LIBRARIES ${sockets_LIBRARIES}) unset(CMAKE_REQUIRED_LIBRARIES)
 
-#include(CheckSymbolExists)
-#check_library_exists(ws2_32 inet_pton "" HAVE_INET_PTON)
+# include(CheckSymbolExists) check_library_exists(ws2_32 inet_pton "" HAVE_INET_PTON)
 
-#if(NOT HAVE_INET_PTON)
-#  check_symbol_exists(<inet_pton "winsock2.h" HAVE_INET_PTON)
-#endif(NOT HAVE_INET_PTON)
+# if(NOT HAVE_INET_PTON) check_symbol_exists(<inet_pton "winsock2.h" HAVE_INET_PTON) endif(NOT
+# HAVE_INET_PTON)
 
 if(HAVE_INET_PTON)
-  #message(STATUS "Have inet_pton()")
+  # message(STATUS "Have inet_pton()")
   add_definitions(-DHAVE_INET_PTON)
 else(HAVE_INET_PTON)
-  #message(STATUS "Don't have inet_pton()")
+  # message(STATUS "Don't have inet_pton()")
 endif(HAVE_INET_PTON)
 
 if(NOT HAVE_INET_PTON)
@@ -406,9 +437,7 @@ if(HAVE_SYS_MMAN_H)
   set(gpio_SOURCES src/gpio.c include/gpio.h)
 endif(HAVE_SYS_MMAN_H)
 
-# if(pigpio_LIBRARY)
-#   set(gpio_LIBRARIES ${pigpio_LIBRARY})
-# endif(pigpio_LIBRARY)
+# if(pigpio_LIBRARY) set(gpio_LIBRARIES ${pigpio_LIBRARY}) endif(pigpio_LIBRARY)
 
 include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include
                     ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
@@ -445,7 +474,9 @@ set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
 if(HAVE_MMAP)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
 else(HAVE_MMAP)
-  if(WIN32 OR MINGW OR MSYS)
+  if(WIN32
+     OR MINGW
+     OR MSYS)
     set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
     set(mmap_SOURCES ${mmap_SOURCES} src/mmap-win32.c)
   endif()
@@ -465,19 +496,25 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG} -O0"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG} -ggdb"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG} -Wextra"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -497,9 +534,10 @@ if(DO_TESTS)
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
     add_test(
-      NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-      COMMAND env QUICKJS_MODULE_PATH="${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}"
-              "${QJSM}" --bignum "${TEST}")
+      NAME "${BASE}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMAND env QUICKJS_MODULE_PATH="${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}" "${QJSM}"
+              --bignum "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 
@@ -551,16 +589,19 @@ file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
-set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH
-                                                  "qjsm (QuickJS modular shell) interpreter")
+set(QJSM
+    "${CMAKE_CURRENT_BINARY_DIR}/qjsm"
+    CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
 
 include(CTest)
 
 foreach(TEST_SOURCE ${TESTS_SOURCES})
   file(RELATIVE_PATH TEST_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}" "${TEST_SOURCE}")
   basename(TEST_NAME ${TEST_SOURCE} .js)
-  add_test(NAME "${TEST_NAME}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-           COMMAND ${QJSM} --bignum "${TEST_SOURCE}")
+  add_test(
+    NAME "${TEST_NAME}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMAND ${QJSM} --bignum "${TEST_SOURCE}")
 
 endforeach(TEST_SOURCE ${TESTS_SOURCES})
 
@@ -585,16 +626,27 @@ install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")
 install(FILES ${LIBXML} DESTINATION "${QUICKJS_JS_MODULE_DIR}/xml")
 
 set(LIB_MODULES
-    console db events fs io
-    #lexer/csv lexer/ecmascript
-    parser perf_hooks process repl require stack tty util)
+    console
+    db
+    events
+    fs
+    io
+    # lexer/csv lexer/ecmascript
+    parser
+    perf_hooks
+    process
+    repl
+    require
+    stack
+    tty
+    util)
 
 string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 
 list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
 
 set(COMMON_MODULES inspect util)
-set(console_MODULES )
+set(console_MODULES)
 set(db_MODULES list)
 set(fs_MODULES events path mmap misc)
 set(io_MODULES misc)
@@ -607,7 +659,7 @@ set(stack_MODULES location)
 set(util_MODULES path misc)
 
 foreach(LIB_MODULE ${LIB_MODULES})
-  #message("Compile Module: ${LIB_MODULE}")
+  # message("Compile Module: ${LIB_MODULE}")
 
   set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
 
@@ -629,7 +681,7 @@ foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
   list(APPEND QJSM_LIBS "${QJSM_MODULE}")
-  #list(APPEND QJSM_LDADD "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
+  # list(APPEND QJSM_LDADD "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
@@ -645,9 +697,37 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 
 set(QJSM_SOURCES src/qjsm.c)
-#set(QJSM_LDADD qjs-syscallerror-static)
+# set(QJSM_LDADD qjs-syscallerror-static)
 
-set(NATIVE_BUILTINS archive bjson blob child-process deep directory gpio inspect lexer list location magic misc mmap mysql path pgsql pointer predicate queue repeater serial sockets stream syscallerror textcode tree-walker xml)
+set(NATIVE_BUILTINS
+    archive
+    bjson
+    blob
+    child-process
+    deep
+    directory
+    gpio
+    inspect
+    lexer
+    list
+    location
+    magic
+    misc
+    mmap
+    mysql
+    path
+    pgsql
+    pointer
+    predicate
+    queue
+    repeater
+    serial
+    sockets
+    stream
+    syscallerror
+    textcode
+    tree-walker
+    xml)
 
 foreach(NATIVE_BUILTIN ${NATIVE_BUILTINS})
 
@@ -694,9 +774,17 @@ install(TARGETS qjsm DESTINATION bin)
 
 file(GLOB INSTALL_SCRIPTS [!.]*.js)
 
-install(FILES ${INSTALL_SCRIPTS} DESTINATION bin
-        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE
-                    WORLD_READ)
+install(
+  FILES ${INSTALL_SCRIPTS}
+  DESTINATION bin
+  PERMISSIONS
+    OWNER_EXECUTE
+    OWNER_WRITE
+    OWNER_READ
+    GROUP_EXECUTE
+    GROUP_READ
+    WORLD_EXECUTE
+    WORLD_READ)
 
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")
