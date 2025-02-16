@@ -44,7 +44,6 @@ js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   prop = JS_NewAtom(ctx, "stack");
   JS_DefinePropertyValue(ctx, obj, prop, stack, JS_PROP_CONFIGURABLE);
   JS_FreeAtom(ctx, prop);
-
   return obj;
 }
 
@@ -81,7 +80,9 @@ js_serialerror_new(JSContext* ctx, struct sp_port* port, enum sp_return result) 
       snprintf(msg, sizeof(msg), "%s: The requested operation is not supported by this system or device", sp_get_port_name(port));
       break;
     }
-    default: {
+
+    case SP_OK: {
+      snprintf(msg, sizeof(msg), "%s: No error", sp_get_port_name(port));
       break;
     }
   }
@@ -112,8 +113,8 @@ js_serialport_data(JSContext* ctx, JSValueConst value) {
 
 JSValue
 js_serialport_wrap(JSContext* ctx, struct sp_port* port) {
-  JSValue obj;
-  obj = JS_NewObjectProtoClass(ctx, serialport_proto, js_serialport_class_id);
+  JSValue obj = JS_NewObjectProtoClass(ctx, serialport_proto, js_serialport_class_id);
+
   JS_SetOpaque(obj, port);
   return obj;
 }
@@ -121,12 +122,31 @@ js_serialport_wrap(JSContext* ctx, struct sp_port* port) {
 static JSValue
 js_serialport_error(JSContext* ctx, struct sp_port* port, enum sp_return result) {
   switch(result) {
-    case SP_ERR_ARG: JS_ThrowInternalError(ctx, "libserialport argument error for port '%s'", sp_get_port_name(port)); break;
-    case SP_ERR_FAIL: JS_ThrowInternalError(ctx, "libserialport OS error for port '%s': %s", sp_get_port_name(port), sp_last_error_message()); break;
-    case SP_ERR_SUPP: JS_ThrowInternalError(ctx, "libserialport operation not supported for port '%s'", sp_get_port_name(port)); break;
-    case SP_ERR_MEM: JS_ThrowInternalError(ctx, "libserialport out of memory for port '%s'", sp_get_port_name(port)); break;
-    default: return JS_UNDEFINED;
+    case SP_ERR_ARG: {
+      JS_ThrowInternalError(ctx, "libserialport argument error for port '%s'", sp_get_port_name(port));
+      break;
+    }
+
+    case SP_ERR_FAIL: {
+      JS_ThrowInternalError(ctx, "libserialport OS error for port '%s': %s", sp_get_port_name(port), sp_last_error_message());
+      break;
+    }
+
+    case SP_ERR_SUPP: {
+      JS_ThrowInternalError(ctx, "libserialport operation not supported for port '%s'", sp_get_port_name(port));
+      break;
+    }
+
+    case SP_ERR_MEM: {
+      JS_ThrowInternalError(ctx, "libserialport out of memory for port '%s'", sp_get_port_name(port));
+      break;
+    }
+
+    default: {
+      return JS_UNDEFINED;
+    }
   }
+
   return JS_GetException(ctx);
 }
 
@@ -256,17 +276,24 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         if(JS_IsNumber(argv[i])) {
           JS_ToInt32(ctx, &flags, argv[i]);
         } else if(JS_IsObject(argv[i])) {
-          JSValue br = JS_GetPropertyStr(ctx, argv[i], "baudRate"), db = JS_GetPropertyStr(ctx, argv[i], "dataBits"), sb = JS_GetPropertyStr(ctx, argv[i], "stopBits"),
-                  pr = JS_GetPropertyStr(ctx, argv[i], "parity"), fc = JS_GetPropertyStr(ctx, argv[i], "flowControl");
+          JSValue br = JS_GetPropertyStr(ctx, argv[i], "baudRate");
+          JSValue db = JS_GetPropertyStr(ctx, argv[i], "dataBits");
+          JSValue sb = JS_GetPropertyStr(ctx, argv[i], "stopBits");
+          JSValue pr = JS_GetPropertyStr(ctx, argv[i], "parity");
+          JSValue fc = JS_GetPropertyStr(ctx, argv[i], "flowControl");
 
           if(JS_IsNumber(br))
             JS_ToInt32(ctx, &baud_rate, br);
+
           if(JS_IsNumber(db))
             JS_ToInt32(ctx, &data_bits, db);
+
           if(JS_IsNumber(sb))
             JS_ToInt32(ctx, &stop_bits, sb);
+
           if(JS_IsString(pr))
             parity = JS_ToCString(ctx, pr);
+
           if(JS_IsString(fc))
             flow_control = JS_ToCString(ctx, fc);
 
@@ -281,6 +308,7 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       if((result = sp_open(port, flags)) != SP_OK) {
         if(result == SP_ERR_FAIL) {
           char* msg = sp_last_error_message();
+
           sp_free_port(port);
           ret = JS_ThrowInternalError(ctx, "failed opening port '%s': %s", sp_get_port_name(port), msg);
           sp_free_error_message(msg);
@@ -288,31 +316,32 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
           ret = JS_Throw(ctx, js_serialport_error(ctx, port, result));
         }
       } else {
-        if(baud_rate != -1) {
+        if(baud_rate != -1)
           if(sp_set_baudrate(port, baud_rate) != SP_OK)
             ret = JS_ThrowInternalError(ctx, "Failed setting baud rate on port '%s' to %" PRId32, sp_get_port_name(port), baud_rate);
-        }
+
         if(parity) {
-          if(!strcmp(parity, "none")) {
+          if(!strcmp(parity, "none"))
             sp_set_parity(port, SP_PARITY_NONE);
-          } else if(!strcmp(parity, "even")) {
+          else if(!strcmp(parity, "even"))
             sp_set_parity(port, SP_PARITY_EVEN);
-          } else if(!strcmp(parity, "odd")) {
+          else if(!strcmp(parity, "odd"))
             sp_set_parity(port, SP_PARITY_ODD);
-          }
         }
+
         if(flow_control) {
-          if(!strcmp(flow_control, "none")) {
+          if(!strcmp(flow_control, "none"))
             sp_set_flowcontrol(port, SP_FLOWCONTROL_NONE);
-          } else if(!strcmp(flow_control, "hardware")) {
+          else if(!strcmp(flow_control, "hardware"))
             sp_set_flowcontrol(port, SP_FLOWCONTROL_RTSCTS);
-          } else if(!strcmp(flow_control, "software")) {
+          else if(!strcmp(flow_control, "software"))
             sp_set_flowcontrol(port, SP_FLOWCONTROL_XONXOFF);
-          }
         }
       }
+
       if(parity)
         JS_FreeCString(ctx, parity);
+
       if(flow_control)
         JS_FreeCString(ctx, flow_control);
 
@@ -342,10 +371,12 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
           JS_SetPropertyStr(ctx, ret, "usbSerial", JS_NewString(ctx, sp_get_port_usb_serial(port)));
           break;
         }
+
         case SP_TRANSPORT_BLUETOOTH: {
           JS_SetPropertyStr(ctx, ret, "bluetoothAddress", JS_NewString(ctx, sp_get_port_bluetooth_address(port)));
           break;
         }
+
         case SP_TRANSPORT_NATIVE: break;
       }
 
@@ -409,14 +440,17 @@ js_serialport_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
     case SERIALPORT_FLUSH: {
       enum sp_return result;
       int32_t which = SP_BUF_BOTH;
+
       if(argc > 0)
         JS_ToInt32(ctx, &which, argv[0]);
 
       if((result = sp_flush(port, which)) != SP_OK)
         JS_Throw(ctx, js_serialport_error(ctx, port, result));
+
       break;
     }
   }
+
   return ret;
 }
 
@@ -440,6 +474,7 @@ js_serialport_get(JSContext* ctx, JSValueConst this_val, int magic) {
   switch(magic) {
     case SERIALPORT_FD: {
       int64_t result = 0;
+
       if(sp_get_port_handle(port, &result) == SP_OK)
         ret = result == (int64_t)(uint64_t)(uint32_t)-1 ? JS_NULL : JS_NewInt64(ctx, result);
 
@@ -483,6 +518,7 @@ js_serialport_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+
   return ret;
 }
 
@@ -494,7 +530,6 @@ js_serialport_finalizer(JSRuntime* rt, JSValue val) {
     sp_close(port);
     sp_free_port(port);
   }
-  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_serialport_class = {
@@ -509,9 +544,9 @@ js_serial_getports(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   if(sp_list_ports(&ports) == SP_OK) {
     ret = JS_NewArray(ctx);
-    for(int i = 0; ports[i]; i++) {
+
+    for(int i = 0; ports[i]; i++)
       JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, sp_get_port_name(ports[i])));
-    }
 
     sp_free_port_list(ports);
   }
@@ -590,38 +625,35 @@ static const JSCFunctionListEntry js_serialerror_funcs[] = {
 
 int
 js_serial_init(JSContext* ctx, JSModuleDef* m) {
+  JS_NewClassID(&js_serialport_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_serialport_class_id, &js_serialport_class);
 
-  if(js_serialport_class_id == 0) {
-    JS_NewClassID(&js_serialport_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_serialport_class_id, &js_serialport_class);
+  serialport_ctor = JS_NewObject(ctx);
+  serialport_proto = JS_NewObject(ctx);
 
-    serialport_ctor = JS_NewObject(ctx); // JS_NewCFunction2(ctx, js_serialport_constructor, "Serial", 1, JS_CFUNC_constructor, 0);
-    serialport_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, serialport_proto, js_serialport_funcs, countof(js_serialport_funcs));
+  JS_SetPropertyFunctionList(ctx, serialport_ctor, js_serialport_static, countof(js_serialport_static));
 
-    JS_SetPropertyFunctionList(ctx, serialport_proto, js_serialport_funcs, countof(js_serialport_funcs));
-    JS_SetPropertyFunctionList(ctx, serialport_ctor, js_serialport_static, countof(js_serialport_static));
+  JS_SetClassProto(ctx, js_serialport_class_id, serialport_proto);
 
-    JS_SetClassProto(ctx, js_serialport_class_id, serialport_proto);
+  serial_ctor = JS_NewObject(ctx);
 
-    serial_ctor = JS_NewObject(ctx); // JS_NewCFunction2(ctx, js_serial_constructor, "Serial", 1, JS_CFUNC_constructor, 0);
+  JS_SetPropertyFunctionList(ctx, serial_ctor, js_serial_static, countof(js_serial_static));
 
-    JS_SetPropertyFunctionList(ctx, serial_ctor, js_serial_static, countof(js_serial_static));
+  JSValue error = JS_NewError(ctx);
+  JSValue error_proto = JS_GetPrototype(ctx, error);
+  JS_FreeValue(ctx, error);
 
-    JSValue error = JS_NewError(ctx);
-    JSValue error_proto = JS_GetPrototype(ctx, error);
-    JS_FreeValue(ctx, error);
+  JS_NewClassID(&js_serialerror_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_serialerror_class_id, &js_serialerror_class);
 
-    JS_NewClassID(&js_serialerror_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_serialerror_class_id, &js_serialerror_class);
+  serialerror_ctor = JS_NewCFunction2(ctx, js_serialerror_constructor, "SerialError", 1, JS_CFUNC_constructor, 0);
+  serialerror_proto = JS_NewObjectProto(ctx, error_proto);
+  JS_FreeValue(ctx, error_proto);
 
-    serialerror_ctor = JS_NewCFunction2(ctx, js_serialerror_constructor, "SerialError", 1, JS_CFUNC_constructor, 0);
-    serialerror_proto = JS_NewObjectProto(ctx, error_proto);
-    JS_FreeValue(ctx, error_proto);
+  JS_SetPropertyFunctionList(ctx, serialerror_proto, js_serialerror_funcs, countof(js_serialerror_funcs));
 
-    JS_SetPropertyFunctionList(ctx, serialerror_proto, js_serialerror_funcs, countof(js_serialerror_funcs));
-
-    JS_SetClassProto(ctx, js_serialerror_class_id, serialerror_proto);
-  }
+  JS_SetClassProto(ctx, js_serialerror_class_id, serialerror_proto);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "SerialPort", serialport_ctor);
@@ -653,9 +685,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExport(ctx, m, "Serial");
     JS_AddModuleExport(ctx, m, "SerialPort");
     JS_AddModuleExport(ctx, m, "SerialError");
-
-    /* if(!strcmp(module_name, "cookie"))
-       JS_AddModuleExport(ctx, m, "default");*/
   }
 
   return m;

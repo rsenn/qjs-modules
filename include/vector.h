@@ -65,8 +65,10 @@ umult64(uint64_t a, uint64_t b, uint64_t* c) {
 static inline int
 umult64(uint64_t a, uint64_t b, uint64_t* c) {
   __uint128_t x = ((__uint128_t)a) * b;
+
   if((*c = (uint64_t)x) != x)
     return 0;
+
   return 1;
 }
 #else
@@ -100,37 +102,47 @@ static inline void*
 vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
   uint64_t need;
   size_t capacity;
+
   if(pos < 0)
     return 0;
+
   if(!umult64(elsz, pos + 1, &need))
     return 0;
+
   if(need > vec->size) {
     capacity = vec->capacity;
+
     if(need > capacity) {
-      if(elsz < 8)
-        roundto(need, 1000);
-      else
-        roundto(need, 8000);
+      roundto(need, elsz < 8 ? 1000 : 8000);
+
       assert(need >= 1000);
+
       if(dbuf_realloc(&vec->dbuf, need))
         return 0;
+
       if(vec->capacity > capacity)
         memset(vec->data + capacity, 0, vec->capacity - capacity);
     }
+
     vec->size = ((uint32_t)pos + 1) * elsz;
   }
+
   return vec->data + (uint32_t)pos * elsz;
 }
 
 static inline BOOL
 vector_shrink(Vector* vec, size_t elsz, int32_t len) {
   uint64_t need;
+
   if(len < 0)
     return FALSE;
+
   if(!umult64(elsz, len, &need))
     return FALSE;
+
   if(need > vec->size)
     return FALSE;
+
   vec->size = need;
   return TRUE;
 }
@@ -138,12 +150,16 @@ vector_shrink(Vector* vec, size_t elsz, int32_t len) {
 static inline void*
 vector_at(const Vector* vec, size_t elsz, int32_t pos) {
   uint64_t offs;
+
   if(pos < 0)
     return 0;
+
   if(!umult64(elsz, pos, &offs))
     return 0;
+
   if(offs >= vec->size)
     return 0;
+
   return vec->data + offs;
 }
 
@@ -166,6 +182,7 @@ vector_front(const Vector* vec, size_t elsz) {
 static inline void*
 vector_back(const Vector* vec, size_t elsz) {
   uint32_t n = vector_size(vec, elsz);
+
   assert(n);
   return vector_at(vec, elsz, n - 1);
 }
@@ -183,13 +200,13 @@ vector_freestrings(Vector* vec) {
 
 static inline void*
 vector_emplace(Vector* vec, size_t elsz) {
-  uint32_t n = vector_size(vec, elsz);
-  return vector_allocate(vec, elsz, n);
+  return vector_allocate(vec, elsz, vector_size(vec, elsz));
 }
 
 static inline void*
 vector_pop(Vector* vec, size_t elsz) {
   uint32_t n = vector_size(vec, elsz);
+
   assert(n);
   vector_shrink(vec, elsz, n - 1);
   return vector_end(vec);
@@ -214,6 +231,7 @@ static inline void
 vector_putlong(Vector* vec, long l, int radix) {
   char buf[64];
   size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
+
   vector_put(vec, buf, len);
 }
 
@@ -233,6 +251,7 @@ static inline void
 vector_catlong(Vector* vec, long l, int radix) {
   char buf[64];
   size_t len = snprintf(buf, sizeof(buf), radix == 16 ? "%lx" : radix == 8 ? "%lo" : "%lu", l);
+
   vector_put(vec, buf, len);
 }
 

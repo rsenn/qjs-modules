@@ -22,22 +22,11 @@ enum {
 
 static JSValue
 js_location_create(JSContext* ctx, JSValueConst proto, Location* loc) {
-  JSValue obj = JS_UNDEFINED;
-
-  /* if(js_location_class_id == 0)
-     js_location_init(ctx, 0);
-
-   if(!JS_IsObject(proto))
-     proto = location_proto;
-
-   assert(JS_VALUE_GET_OBJ(location_proto) == JS_VALUE_GET_OBJ(proto));*/
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_location_class_id);
+  JSValue obj = JS_NewObjectProtoClass(ctx, proto, js_location_class_id);
   if(JS_IsException(obj))
     goto fail;
 
   JS_SetOpaque(obj, loc);
-
   return obj;
 
 fail:
@@ -67,11 +56,9 @@ js_location_tostring(JSContext* ctx, const Location* loc) {
 
 BOOL
 js_is_location(JSContext* ctx, JSValueConst obj) {
-  BOOL ret;
-  JSAtom line, column;
-  line = JS_NewAtom(ctx, "line");
-  column = JS_NewAtom(ctx, "column");
-  ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) && JS_HasProperty(ctx, obj, column);
+  JSAtom line = JS_NewAtom(ctx, "line");
+  JSAtom column = JS_NewAtom(ctx, "column");
+  BOOL ret = JS_IsObject(obj) && JS_HasProperty(ctx, obj, line) && JS_HasProperty(ctx, obj, column);
 
   JS_FreeAtom(ctx, line);
   JS_FreeAtom(ctx, column);
@@ -85,7 +72,6 @@ js_is_location(JSContext* ctx, JSValueConst obj) {
 
   JS_FreeAtom(ctx, line);
   JS_FreeAtom(ctx, column);
-
   return ret;
 }
 
@@ -104,33 +90,39 @@ js_location_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case LOCATION_PROP_FILE: {
       if(loc->file > -1)
         ret = JS_AtomToValue(ctx, loc->file);
+
       break;
     }
 
     case LOCATION_PROP_LINE: {
       if(loc->line != -1)
         ret = JS_NewUint32(ctx, loc->line + 1);
+
       break;
     }
 
     case LOCATION_PROP_COLUMN: {
       if(loc->column != -1)
         ret = JS_NewUint32(ctx, loc->column + 1);
+
       break;
     }
 
     case LOCATION_PROP_CHAROFFSET: {
       if(loc->char_offset >= 0)
         ret = JS_NewInt64(ctx, loc->char_offset);
+
       break;
     }
 
     case LOCATION_PROP_BYTEOFFSET: {
       if(loc->byte_offset >= 0)
         ret = JS_NewInt64(ctx, loc->byte_offset);
+
       break;
     }
   }
+
   return ret;
 }
 
@@ -152,12 +144,14 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
     case LOCATION_PROP_FILE: {
       if(loc->file > -1)
         JS_FreeAtom(ctx, loc->file);
+
       loc->file = JS_ValueToAtom(ctx, value);
       break;
     }
 
     case LOCATION_PROP_LINE: {
       uint32_t n = 0;
+
       JS_ToUint32(ctx, &n, value);
       loc->line = n > 0 ? (int32_t)n - 1 : -1;
       break;
@@ -165,6 +159,7 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
     case LOCATION_PROP_COLUMN: {
       uint32_t n = 0;
+
       JS_ToUint32(ctx, &n, value);
       loc->column = n > 0 ? (int32_t)n - 1 : -1;
       break;
@@ -172,6 +167,7 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
     case LOCATION_PROP_CHAROFFSET: {
       int64_t n = 0;
+
       JS_ToInt64(ctx, &n, value);
       loc->char_offset = n >= 0 ? n : -1;
       break;
@@ -179,11 +175,13 @@ js_location_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
 
     case LOCATION_PROP_BYTEOFFSET: {
       int64_t n = 0;
+
       JS_ToInt64(ctx, &n, value);
       loc->byte_offset = n >= 0 ? n : -1;
       break;
     }
   }
+
   return ret;
 }
 
@@ -257,9 +255,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
   /* Dup from object */
   if(argc >= 1 && JS_IsObject(argv[0])) {
-
     loc = js_location_from(ctx, argv[0]);
-
   } else {
     loc = location_new(ctx);
 
@@ -286,6 +282,7 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
         end = p - 1;
       }
+
       if(ni == 0) {
         loc->line = n[0];
         loc->column = n[1];
@@ -329,7 +326,6 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
   obj = js_location_create(ctx, proto, loc);
   JS_FreeValue(ctx, proto);
-
   return obj;
 }
 
@@ -362,33 +358,8 @@ js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       break;
     }
   }
+
   return ret;
-}
-
-static JSValue
-js_location_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  Location* loc;
-
-  if(!(loc = js_location_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  JSValue obj = JS_NewObjectClass(ctx, js_location_class_id);
-
-  if(loc->line != -1)
-    JS_DefinePropertyValueStr(ctx, obj, "line", JS_NewUint32(ctx, loc->line + 1), JS_PROP_ENUMERABLE);
-  if(loc->column != -1)
-    JS_DefinePropertyValueStr(ctx, obj, "column", JS_NewUint32(ctx, loc->column + 1), JS_PROP_ENUMERABLE);
-  if(loc->char_offset >= 0 && loc->char_offset <= INT64_MAX)
-    JS_DefinePropertyValueStr(ctx, obj, "charOffset", JS_NewInt64(ctx, loc->char_offset), JS_PROP_ENUMERABLE);
-  if(loc->byte_offset >= 0 && loc->byte_offset <= INT64_MAX)
-    JS_DefinePropertyValueStr(ctx, obj, "byteOffset", JS_NewInt64(ctx, loc->byte_offset), JS_PROP_ENUMERABLE);
-
-  if(loc->file > -1)
-    JS_DefinePropertyValueStr(ctx, obj, "file", JS_AtomToValue(ctx, loc->file), JS_PROP_ENUMERABLE);
-
-  /*  if(loc->str)
-      JS_DefinePropertyValueStr(ctx, obj, "str", JS_NewString(ctx, loc->str), JS_PROP_ENUMERABLE);*/
-  return obj;
 }
 
 static JSValue
@@ -460,33 +431,19 @@ static const JSCFunctionListEntry js_location_static_funcs[] = {
 
 int
 js_location_init(JSContext* ctx, JSModuleDef* m) {
+  JS_NewClassID(&js_location_class_id);
 
-  if(js_location_class_id == 0)
-    JS_NewClassID(&js_location_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_location_class_id, &js_location_class);
 
-  {
-    JS_NewClass(JS_GetRuntime(ctx), js_location_class_id, &js_location_class);
+  location_ctor = JS_NewCFunction2(ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
+  location_proto = JS_NewObject(ctx);
 
-    location_ctor = JS_NewCFunction2(ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
-    location_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, location_proto, js_location_funcs, countof(js_location_funcs));
+  JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
+  JS_SetClassProto(ctx, js_location_class_id, location_proto);
 
-    JS_SetPropertyFunctionList(ctx, location_proto, js_location_funcs, countof(js_location_funcs));
-    JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
-    JS_SetClassProto(ctx, js_location_class_id, location_proto);
-
-    /*js_set_inspect_method(ctx, location_proto, js_location_inspect);*/
-  }
-
-  if(m) {
+  if(m)
     JS_SetModuleExport(ctx, m, "Location", location_ctor);
-
-    /*  const char* module_name = module_namecstr(ctx, m);
-
-      if(!strcmp(module_name, "location"))
-        JS_SetModuleExport(ctx, m, "default", location_ctor);
-
-      JS_FreeCString(ctx, module_name);*/
-  }
 
   return 0;
 }
@@ -501,12 +458,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_location_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_location_init)))
     JS_AddModuleExport(ctx, m, "Location");
-
-    /*if(!strcmp(module_name, "location"))
-      JS_AddModuleExport(ctx, m, "default");*/
-  }
 
   return m;
 }

@@ -126,6 +126,7 @@ sockaddr_port(const SockAddr* sa) {
     case AF_INET: return ntohs(sa->ip4.sin_port);
     case AF_INET6: return ntohs(sa->ip6.sin6_port);
   }
+
   return -1;
 }
 
@@ -135,6 +136,7 @@ sockaddr_setport(SockAddr* sa, uint16_t port) {
     case AF_INET: sa->ip4.sin_port = htons(port); return TRUE;
     case AF_INET6: sa->ip6.sin6_port = htons(port); return TRUE;
   }
+
   return FALSE;
 }
 
@@ -154,6 +156,7 @@ sockaddr_addrlen(const SockAddr* sa) {
     case AF_INET: return sizeof(sa->ip4.sin_addr);
     case AF_INET6: return sizeof(sa->ip6.sin6_addr);
   }
+
   return 0;
 }
 
@@ -163,6 +166,7 @@ sockaddr_size(const SockAddr* sa) {
     case AF_INET: return sizeof(struct sockaddr_in);
     case AF_INET6: return sizeof(struct sockaddr_in6);
   }
+
   return 0;
 }
 

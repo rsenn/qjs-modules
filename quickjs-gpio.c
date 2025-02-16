@@ -36,11 +36,11 @@ js_gpio_wrap_proto(JSContext* ctx, JSValueConst proto, struct gpio* gpio) {
 
   if(js_gpio_class_id == 0)
     js_gpio_init(ctx, 0);
+
   if(JS_IsNull(proto) || JS_IsUndefined(proto))
     proto = JS_DupValue(ctx, gpio_proto);
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_gpio_class_id);
   if(JS_IsException(obj))
     goto fail;
@@ -48,6 +48,7 @@ js_gpio_wrap_proto(JSContext* ctx, JSValueConst proto, struct gpio* gpio) {
   JS_SetOpaque(obj, gpio);
 
   return obj;
+
 fail:
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
@@ -71,6 +72,7 @@ js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case GPIO_METHOD_INIT_PIN: {
       uint32_t pin = 0;
       BOOL output = JS_ToBool(ctx, argv[1]);
+
       JS_ToUint32(ctx, &pin, argv[0]);
       gpio_init_pin(gpio, pin, output);
       break;
@@ -79,6 +81,7 @@ js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case GPIO_METHOD_SET_PIN: {
       uint32_t pin = 0;
       BOOL value = JS_ToBool(ctx, argv[1]);
+
       JS_ToUint32(ctx, &pin, argv[0]);
       gpio_set_pin(gpio, pin, value);
       break;
@@ -87,6 +90,7 @@ js_gpio_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case GPIO_METHOD_GET_PIN: {
       uint32_t pin = 0;
       BOOL value;
+
       JS_ToUint32(ctx, &pin, argv[0]);
       value = gpio_get_pin(gpio, pin);
       ret = JS_NewInt32(ctx, value);
@@ -129,6 +133,7 @@ js_gpio_setter(JSContext* ctx, JSValueConst this_val, JSValueConst value, int ma
     return ret;
 
   switch(magic) {}
+
   return ret;
 }
 
@@ -140,11 +145,11 @@ js_gpio_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   if(!(gpio = js_mallocz(ctx, sizeof(struct gpio))))
     return JS_EXCEPTION;
 
-  /* using new_target to get the prototype is necessary when the
-     class is extended. */
+  /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
+
   obj = JS_NewObjectProtoClass(ctx, proto, js_gpio_class_id);
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
@@ -163,11 +168,10 @@ fail:
 
 static void
 js_gpio_finalizer(JSRuntime* rt, JSValue val) {
-  struct gpio* gpio = JS_GetOpaque(val, js_gpio_class_id);
-  if(gpio) {
+  struct gpio* gpio;
+
+  if((gpio = JS_GetOpaque(val, js_gpio_class_id)))
     gpio_close(gpio);
-  }
-  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_gpio_class = {
@@ -192,23 +196,18 @@ static const JSCFunctionListEntry js_gpio_static_funcs[] = {
 
 int
 js_gpio_init(JSContext* ctx, JSModuleDef* m) {
+  JS_NewClassID(&js_gpio_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_gpio_class_id, &js_gpio_class);
 
-  if(js_gpio_class_id == 0) {
-    JS_NewClassID(&js_gpio_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_gpio_class_id, &js_gpio_class);
+  gpio_ctor = JS_NewCFunction2(ctx, js_gpio_constructor, "GPIO", 1, JS_CFUNC_constructor, 0);
+  gpio_proto = JS_NewObject(ctx);
 
-    gpio_ctor = JS_NewCFunction2(ctx, js_gpio_constructor, "GPIO", 1, JS_CFUNC_constructor, 0);
-    gpio_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, gpio_proto, js_gpio_funcs, countof(js_gpio_funcs));
+  JS_SetPropertyFunctionList(ctx, gpio_ctor, js_gpio_static_funcs, countof(js_gpio_static_funcs));
+  JS_SetConstructor(ctx, gpio_ctor, gpio_proto);
 
-    JS_SetPropertyFunctionList(ctx, gpio_proto, js_gpio_funcs, countof(js_gpio_funcs));
-    JS_SetPropertyFunctionList(ctx, gpio_ctor, js_gpio_static_funcs, countof(js_gpio_static_funcs));
-    JS_SetConstructor(ctx, gpio_ctor, gpio_proto);
-    // JS_SetClassProto(ctx, js_gpio_class_id, gpio_proto);
-  }
-
-  if(m) {
+  if(m)
     JS_SetModuleExport(ctx, m, "GPIO", gpio_ctor);
-  }
 
   return 0;
 }
@@ -223,9 +222,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_gpio_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_gpio_init)))
     JS_AddModuleExport(ctx, m, "GPIO");
-  }
 
   return m;
 }

@@ -199,13 +199,10 @@ child_process_spawn(ChildProcess* cp) {
   pid_t pid;
 
   if((pid = fork()) == 0) {
-
-    if(cp->parent_fds) {
-      for(i = 0; i < cp->num_fds; i++) {
+    if(cp->parent_fds)
+      for(i = 0; i < cp->num_fds; i++)
         if(cp->parent_fds && cp->parent_fds[i] >= 0)
           close(cp->parent_fds[i]);
-      }
-    }
 
     if(cp->child_fds) {
       for(i = 0; i < cp->num_fds; i++) {
@@ -233,6 +230,7 @@ child_process_spawn(ChildProcess* cp) {
       for(i = 0; cp->env[i]; i++)
         putenv(cp->env[i]);
     }
+
     (cp->use_path ? execvp : execv)(cp->file, cp->args);
     perror("execvp()");
 #endif
@@ -243,12 +241,10 @@ child_process_spawn(ChildProcess* cp) {
   printf("forked proc %d\n", pid);
 #endif
 
-  if(cp->child_fds) {
-    for(i = 0; i < cp->num_fds; i++) {
+  if(cp->child_fds)
+    for(i = 0; i < cp->num_fds; i++)
       if(cp->child_fds[i] >= 0 && cp->child_fds[i] != i)
         close(cp->child_fds[i]);
-    }
-  }
 #endif
 
   return cp->pid = pid;
@@ -333,6 +329,7 @@ child_process_kill(ChildProcess* cp, int signum) {
     if(WIFSIGNALED(status))
       cp->termsig = WTERMSIG(status);
   }
+
   return ret;
 #endif
 }

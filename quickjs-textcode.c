@@ -48,16 +48,11 @@ textdecoder_try(const void* in, size_t len) {
   size_t r = 0;
   int ch;
 
-  x = in;
-  end = x + len;
-
-  while(x < end) {
+  for(x = in, end = x + len; x < end; r += x - y) {
     y = x;
 
     if((ch = unicode_from_utf8(x, end - x, &x)) == -1)
       break;
-
-    r += x - y;
   }
 
   return r;
@@ -65,10 +60,10 @@ textdecoder_try(const void* in, size_t len) {
 
 size_t
 textdecoder_length(TextDecoder* td) {
-  size_t len = 0, r;
+  size_t len, r;
 
   r = textdecoder_try(ringbuffer_begin(&td->buffer), ringbuffer_continuous(&td->buffer));
-  len += r;
+  len = r;
 
   if(len == ringbuffer_continuous(&td->buffer))
     if(td->buffer.head < td->buffer.tail) {
@@ -82,11 +77,12 @@ textdecoder_length(TextDecoder* td) {
 JSValue
 textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  DynBuf dbuf;
   size_t i = 0, blen;
   uint_least32_t cp;
   char tmp[UTF8_CHAR_LEN_MAX];
   int len = 0;
+  DynBuf dbuf;
+
   js_dbuf_init(ctx, &dbuf);
 
   if((blen = ringbuffer_length(&dec->buffer)))
@@ -224,13 +220,13 @@ js_decoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+
   return ret;
 }
 
 static JSValue
 js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  JSValue proto, obj = JS_UNDEFINED;
   TextDecoder* dec;
 
   if(!(dec = js_mallocz(ctx, sizeof(TextDecoder))))
@@ -274,13 +270,11 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
   }
 
   JS_SetOpaque(obj, dec);
-
   return obj;
 
 fail:
   js_free(ctx, dec);
   JS_FreeValue(ctx, obj);
-
   return JS_EXCEPTION;
 }
 
@@ -294,10 +288,7 @@ js_decoder_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
 
   switch(magic) {
     case DECODER_END: {
-      if(ringbuffer_length(&dec->buffer) == 0)
-        ret = JS_NULL;
-      else
-        ret = textdecoder_decode(dec, ctx);
+      ret = ringbuffer_length(&dec->buffer) ? textdecoder_decode(dec, ctx) : JS_NULL;
 
       if(magic == DECODER_END)
         ringbuffer_reset(&dec->buffer);
@@ -311,10 +302,7 @@ js_decoder_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       if(ringbuffer_write(&dec->buffer, in.data, in.size) < 0)
         return JS_ThrowInternalError(ctx, "%s: TextDecoder: ringbuffer %s failed", __func__, magic == DECODER_DECODE ? "decode" : "end");
 
-      if(ringbuffer_length(&dec->buffer) == 0)
-        ret = JS_NULL;
-      else
-        ret = textdecoder_decode(dec, ctx);
+      ret = ringbuffer_length(&dec->buffer) ? textdecoder_decode(dec, ctx) : JS_NULL;
 
       if(magic == DECODER_END)
         ringbuffer_reset(&dec->buffer);
@@ -375,32 +363,6 @@ enum {
   ENCODER_BUFFERED,
 };
 
-/*static size_t
-textencoder_try(const void* in, size_t len) {
-  const uint8_t *x, *y, *end;
-  size_t r = 0;
-  int ch;
-  for(x = in, end=x+len; x < end; ) {
-    y = x;
-    if((ch = unicode_from_utf8(x, end - x, &x)) == -1)
-      break;
-    r += x - y;
-  }
-  return r;
-}
-
-size_t
-textencoder_length(TextEncoder* td) {
-  size_t r = 0;
-
-  r += textencoder_try(ringbuffer_begin(&td->buffer), ringbuffer_continuous(&td->buffer));
-
-  if(td->buffer.head < td->buffer.tail)
-    r += textencoder_try(td->buffer.data, ringbuffer_head(&td->buffer));
-
-  return r;
-}*/
-
 JSValue
 textencoder_read(TextEncoder* te, JSContext* ctx) {
   JSValue ret, buf;
@@ -428,7 +390,6 @@ textencoder_read(TextEncoder* te, JSContext* ctx) {
 JSValue
 textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  size_t i;
   uint32_t cp;
   uint8_t u8[UTF8_CHAR_LEN_MAX];
   const uint8_t *ptr, *end, *next;
@@ -445,7 +406,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       ptr = block_begin(&in.block);
       end = block_end(&in.block);
 
-      for(i = 0; ptr < end; ptr = next, i++) {
+      for(size_t i = 0; ptr < end; ptr = next, i++) {
         uint_least16_t u16[2];
         int len;
 
@@ -473,15 +434,11 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
       ptr = block_begin(&in.block);
       end = block_end(&in.block);
 
-      for(i = 0; ptr < end; ptr = next, i++) {
+      for(size_t i = 0; ptr < end; ptr = next, i++) {
 
         if((cp = unicode_from_utf8(ptr, end - ptr, &next)) == 0xffffffff)
           return JS_ThrowInternalError(
               ctx, "%s: TextEncoder: not a valid code point at (%llu): %lu", __func__, (long long unsigned int)(ptr - in.block.base), (long unsigned int)cp);
-        /*cp = 0;
-        if(!libutf_c8_to_c32(ptr, &cp))
-          return JS_ThrowInternalError(ctx, "No a valid code point at (%zu) [%zu]: %" PRIu32, i, end - ptr,
-        cp); next = ptr + libutf_c8_type(ptr); if(next == ptr) break;*/
 
         uint32_put_endian(u8, cp, enc->endian);
 
@@ -531,8 +488,7 @@ js_encoder_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
 static JSValue
 js_encoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  JSValue proto, obj = JS_UNDEFINED;
   TextEncoder* enc;
 
   if(!(enc = js_mallocz(ctx, sizeof(TextEncoder))))
@@ -576,7 +532,6 @@ js_encoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
   }
 
   JS_SetOpaque(obj, enc);
-
   return obj;
 
 fail:
@@ -619,6 +574,7 @@ js_encoder_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       break;
     }
   }
+
   return ret;
 }
 
@@ -663,33 +619,27 @@ static const JSCFunctionListEntry js_encoder_funcs[] = {
 
 int
 js_code_init(JSContext* ctx, JSModuleDef* m) {
+  JS_NewClassID(&js_decoder_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_decoder_class_id, &js_decoder_class);
 
-  if(js_decoder_class_id == 0) {
-    JS_NewClassID(&js_decoder_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_decoder_class_id, &js_decoder_class);
+  textdecoder_ctor = JS_NewCFunction2(ctx, js_decoder_constructor, "TextDecoder", 1, JS_CFUNC_constructor, 0);
+  textdecoder_proto = JS_NewObject(ctx);
 
-    textdecoder_ctor = JS_NewCFunction2(ctx, js_decoder_constructor, "TextDecoder", 1, JS_CFUNC_constructor, 0);
-    textdecoder_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, textdecoder_proto, js_decoder_funcs, countof(js_decoder_funcs));
+  JS_SetClassProto(ctx, js_decoder_class_id, textdecoder_proto);
 
-    JS_SetPropertyFunctionList(ctx, textdecoder_proto, js_decoder_funcs, countof(js_decoder_funcs));
-    JS_SetClassProto(ctx, js_decoder_class_id, textdecoder_proto);
+  JS_SetConstructor(ctx, textdecoder_ctor, textdecoder_proto);
 
-    JS_SetConstructor(ctx, textdecoder_ctor, textdecoder_proto);
+  JS_NewClassID(&js_encoder_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_encoder_class_id, &js_encoder_class);
 
-    JS_NewClassID(&js_encoder_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_encoder_class_id, &js_encoder_class);
+  textencoder_ctor = JS_NewCFunction2(ctx, js_encoder_constructor, "TextEncoder", 1, JS_CFUNC_constructor, 0);
+  textencoder_proto = JS_NewObject(ctx);
 
-    textencoder_ctor = JS_NewCFunction2(ctx, js_encoder_constructor, "TextEncoder", 1, JS_CFUNC_constructor, 0);
-    textencoder_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, textencoder_proto, js_encoder_funcs, countof(js_encoder_funcs));
+  JS_SetClassProto(ctx, js_encoder_class_id, textencoder_proto);
 
-    JS_SetPropertyFunctionList(ctx, textencoder_proto, js_encoder_funcs, countof(js_encoder_funcs));
-    JS_SetClassProto(ctx, js_encoder_class_id, textencoder_proto);
-
-    JS_SetConstructor(ctx, textencoder_ctor, textencoder_proto);
-
-    // js_set_inspect_method(ctx, textdecoder_proto,
-    // js_decoder_inspect);
-  }
+  JS_SetConstructor(ctx, textencoder_ctor, textencoder_proto);
 
   if(m) {
     JS_SetModuleExport(ctx, m, "TextDecoder", textdecoder_ctor);

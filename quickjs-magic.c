@@ -40,13 +40,13 @@ js_magic_load(JSContext* ctx, magic_t cookie, int argc, JSValueConst argv[]) {
 
   if(JS_IsString(argv[0])) {
     const char* str;
+
     if((str = JS_ToCString(ctx, argv[0]))) {
       magic_load(cookie, str);
       JS_FreeCString(ctx, str);
     }
 
   } else {
-
     InputBuffer input = js_input_chars(ctx, argv[0]);
 
     if(argc > 1)
@@ -65,8 +65,7 @@ js_magic_load(JSContext* ctx, magic_t cookie, int argc, JSValueConst argv[]) {
 
 static JSValue
 js_magic_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  JSValue proto, obj = JS_UNDEFINED;
   magic_t cookie;
   int32_t flags = 0;
 
@@ -83,6 +82,7 @@ js_magic_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
+
   if(!JS_IsObject(proto))
     proto = magic_proto;
 
@@ -101,7 +101,6 @@ js_magic_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
   }
 
   JS_SetOpaque(obj, cookie);
-
   return obj;
 
 fail:
@@ -173,6 +172,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
     case METHOD_SETFLAGS: {
       int32_t flags = -1;
+
       JS_ToInt32(ctx, &flags, argv[0]);
       ret = JS_NewInt32(ctx, magic_setflags(cookie, flags));
       break;
@@ -186,6 +186,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       if(filename)
         JS_FreeCString(ctx, filename);
+
       break;
     }
 
@@ -197,6 +198,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       if(filename)
         JS_FreeCString(ctx, filename);
+
       break;
     }
 
@@ -208,6 +210,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       if(filename)
         JS_FreeCString(ctx, filename);
+
       break;
     }
 
@@ -215,9 +218,11 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       int i = 0;
 
       while(argc > 0) {
-        int n = js_magic_load(ctx, cookie, argc, argv);
-        if(n == 0)
+        int n;
+
+        if((n = js_magic_load(ctx, cookie, argc, argv)) == 0)
           break;
+
         argc -= n;
         argv += n;
         i++;
@@ -230,10 +235,12 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case METHOD_GETPARAM: {
       int32_t param = -1;
       size_t value = 0;
+
       JS_ToInt32(ctx, &param, argv[0]);
 
       if(!magic_getparam(cookie, param, &value))
         ret = JS_NewInt64(ctx, (int64_t)value);
+
       break;
     }
 
@@ -241,6 +248,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       int32_t param = -1;
       int64_t value = -1;
       size_t sz;
+
       JS_ToInt32(ctx, &param, argv[0]);
       JS_ToInt64(ctx, &value, argv[1]);
       sz = value;
@@ -249,6 +257,7 @@ js_magic_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
   }
+
   return ret;
 }
 
@@ -276,6 +285,7 @@ js_magic_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+
   return ret;
 }
 
@@ -373,23 +383,19 @@ static const JSCFunctionListEntry js_magic_static[] = {
 
 int
 js_magic_init(JSContext* ctx, JSModuleDef* m) {
+  JS_NewClassID(&js_magic_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_magic_class_id, &js_magic_class);
 
-  if(js_magic_class_id == 0) {
-    JS_NewClassID(&js_magic_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_magic_class_id, &js_magic_class);
+  magic_ctor = JS_NewCFunction2(ctx, js_magic_constructor, "Magic", 1, JS_CFUNC_constructor, 0);
+  magic_proto = JS_NewObject(ctx);
 
-    magic_ctor = JS_NewCFunction2(ctx, js_magic_constructor, "Magic", 1, JS_CFUNC_constructor, 0);
-    magic_proto = JS_NewObject(ctx);
+  JS_SetPropertyFunctionList(ctx, magic_proto, js_magic_funcs, countof(js_magic_funcs));
+  JS_SetPropertyFunctionList(ctx, magic_ctor, js_magic_static, countof(js_magic_static));
 
-    JS_SetPropertyFunctionList(ctx, magic_proto, js_magic_funcs, countof(js_magic_funcs));
-    JS_SetPropertyFunctionList(ctx, magic_ctor, js_magic_static, countof(js_magic_static));
+  JS_SetClassProto(ctx, js_magic_class_id, magic_proto);
 
-    JS_SetClassProto(ctx, js_magic_class_id, magic_proto);
-  }
-
-  if(m) {
+  if(m)
     JS_SetModuleExport(ctx, m, "Magic", magic_ctor);
-  }
 
   return 0;
 }
@@ -404,9 +410,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_magic_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_magic_init)))
     JS_AddModuleExport(ctx, m, "Magic");
-  }
 
   return m;
 }

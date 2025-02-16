@@ -28,21 +28,24 @@ js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     addr = 0;
   else if(JS_ToIndex(ctx, &addr, argv[0]))
     return JS_EXCEPTION;
+
   if(JS_ToIndex(ctx, &length, argv[1]))
     return JS_EXCEPTION;
+
   if(argc <= 2 || !JS_IsNumber(argv[2]) || JS_ToInt32(ctx, &prot, argv[2]))
     prot = PROT_READ | PROT_WRITE;
+
   if(argc <= 3 || !JS_IsNumber(argv[3]) || JS_ToInt32(ctx, &flags, argv[3]))
     flags = MAP_ANONYMOUS;
+
   if(argc <= 4 || !JS_IsNumber(argv[4]) || JS_ToInt32(ctx, &fd, argv[4]))
     fd = -1;
+
   if(argc <= 5 || !JS_IsNumber(argv[5]) || JS_ToIndex(ctx, &offset, argv[5]))
     offset = 0;
 
-  ptr = mmap((void*)addr, length, prot, flags, fd, offset);
-
-  if(ptr == 0)
-    return JS_EXCEPTION;
+  if(!(ptr = mmap((void*)addr, length, prot, flags, fd, offset)))
+    return JS_ThrowInternalError(ctx, "Could not mmap %" PRIu64 " bytes of memory", length);
 
   if(ptr == MAP_FAILED)
     return JS_NewInt32(ctx, -1);
@@ -66,9 +69,8 @@ js_mmap_msync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(!(data = JS_GetArrayBuffer(ctx, &len, argv[0])))
     return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
 
-  if(!JS_ToIndex(ctx, &length, argv[1])) {
+  if(!JS_ToIndex(ctx, &length, argv[1]))
     len = MIN_NUM(len, length);
-  }
 
   JS_ToInt32(ctx, &flags, argv[2]);
 
@@ -97,7 +99,6 @@ js_mmap_mprotect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
 
   if(argc >= 2 && JS_IsNumber(argv[0])) {
-
     JS_ToInt64(ctx, &length, argv[0]);
     argc--;
     argv++;
@@ -124,7 +125,6 @@ js_mmap_filename(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_ThrowInternalError(ctx, "Unable to open /proc/self/maps");
 
   while(fgets(buf, sizeof(buf) - 1, fp)) {
-
     if(sscanf(buf, "%zx-%zx", &start, &end) < 2)
       continue;
 
@@ -140,15 +140,17 @@ js_mmap_filename(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
 static JSValue
 js_mmap_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
   if(js_is_arraybuffer(ctx, argv[0])) {
     uint8_t* data;
     size_t len;
-    if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-      ret = JS_NewStringLen(ctx, (const char*)data, len);
-    }
+
+    if(!(data = JS_GetArrayBuffer(ctx, &len, argv[0])))
+      return JS_ThrowInternalError(ctx, "Failed getting ArrayBuffer contents");
+
+    return JS_NewStringLen(ctx, (const char*)data, len);
   }
-  return ret;
+
+  return JS_ThrowTypeError(ctx, "Argument is not an ArrayBuffer");
 }
 
 static const JSCFunctionListEntry js_mmap_funcs[] = {
@@ -161,7 +163,6 @@ static const JSCFunctionListEntry js_mmap_funcs[] = {
     JS_PROP_INT32_DEF("PROT_READ", 0x01, 0),
     JS_PROP_INT32_DEF("PROT_WRITE", 0x02, 0),
     JS_PROP_INT32_DEF("PROT_EXEC", 0x04, 0),
-    // JS_PROP_INT32_DEF("PROT_SEM", 0x08, 0),
     JS_PROP_INT32_DEF("PROT_NONE", 0x00, 0),
     JS_PROP_INT32_DEF("PROT_GROWSDOWN", 0x01000000, 0),
     JS_PROP_INT32_DEF("PROT_GROWSUP", 0x02000000, 0),
@@ -225,9 +226,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_mmap_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_mmap_init)))
     JS_AddModuleExportList(ctx, m, js_mmap_funcs, countof(js_mmap_funcs));
-  }
 
   return m;
 }

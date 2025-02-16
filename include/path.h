@@ -263,17 +263,20 @@ path_getsep1(const char* path) {
 
     ++path;
   }
+
   return '\0';
 }
 
 static inline int
 path_getsep2(const char* path, size_t len) {
   const char* q = path + len;
+
   while(path < q) {
     if(path_issep(*path))
       return *path;
     ++path;
   }
+
   return '\0';
 }
 
@@ -288,8 +291,10 @@ path_trimdotslash1(const char* s) {
 static inline size_t
 path_skipdotslash1(const char* s) {
   size_t i = 0;
+
   for(i = 0; path_isdotslash(&s[i]);)
     i += path_skip1(&s[i]);
+
   return i;
 }
 

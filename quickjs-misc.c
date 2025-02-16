@@ -136,9 +136,12 @@ static thread_local pcg32_random_t pcg32_global = {0x853c49e6748fea9bULL, 0xda3e
 static inline uint32_t
 pcg32_random_r(pcg32_random_t* rng) {
   uint64_t oldstate = rng->state;
+
   rng->state = oldstate * 6364136223846793005ULL + rng->inc;
+
   uint32_t xorshifted = (uint32_t)(((oldstate >> 18u) ^ oldstate) >> 27u);
   uint32_t rot = oldstate >> 59u;
+
   return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
 }
 
@@ -155,19 +158,22 @@ pcg32_init_state(uint32_t state) {
 static uint32_t
 pcg32_random_bounded_divisionless(uint32_t range) {
   uint64_t random32bit, multiresult;
-  uint32_t leftover;
-  uint32_t threshold;
+  uint32_t leftover, threshold;
+
   random32bit = pcg32_random();
   multiresult = random32bit * range;
   leftover = (uint32_t)multiresult;
+
   if(leftover < range) {
     threshold = -range % range;
+
     while(leftover < threshold) {
       random32bit = pcg32_random();
       multiresult = random32bit * range;
       leftover = (uint32_t)multiresult;
     }
   }
+
   return multiresult >> 32; // [0, range)
 }
 
@@ -228,6 +234,7 @@ clear_screen(HANDLE h, ClearMode mode, BOOL line) {
 static BOOL
 clear_screen(int fd, ClearMode mode, BOOL line) {
   char buf[] = {27, '[', mode + '0', line ? 'K' : 'J'};
+
   return write(fd, buf, sizeof(buf)) > 0;
 }
 #endif
@@ -256,7 +263,6 @@ set_cursor_position(int fd, int x, int y) {
     pos += fmt_ulong(&buf[pos], x + 1);
     buf[pos++] = 'G';
   } else {
-
     if(y >= 0 && x >= 0) {
       pos += fmt_ulong(&buf[pos], y + 1);
       buf[pos++] = ';';
@@ -293,16 +299,20 @@ move_cursor(int fd, int x, int y) {
   if(y) {
     buf[pos++] = 27;
     buf[pos++] = '[';
+
     if(ABS_NUM(y) != 1)
       pos += fmt_ulong(&buf[pos], ABS_NUM(y));
+
     buf[pos++] = y < 0 ? 'A' : 'B';
   }
 
   if(x) {
     buf[pos++] = 27;
     buf[pos++] = '[';
+
     if(ABS_NUM(x) != 1)
       pos += fmt_ulong(&buf[pos], ABS_NUM(x));
+
     buf[pos++] = x < 0 ? 'D' : 'C';
   }
 
@@ -331,10 +341,10 @@ get_text_attributes(HANDLE h, uint32_t* attr) {
 #else
 static BOOL
 set_text_color(intptr_t fd, int intc, int32_t intv[]) {
+  ssize_t r;
   DynBuf dbuf;
 
   dbuf_init2(&dbuf, 0, 0);
-
   dbuf_putstr(&dbuf, "\x1b[");
 
   for(int i = 0; i < intc; i++) {
@@ -346,13 +356,11 @@ set_text_color(intptr_t fd, int intc, int32_t intv[]) {
     }
 
     dbuf.size += fmt_ulong((void*)ptr, intv[i]);
-
     dbuf_putc(&dbuf, i < (intc - 1) ? ';' : 'm');
   }
 
   dbuf_0(&dbuf);
-
-  ssize_t r = dbuf.size > 0 ? write(fd, dbuf.buf, dbuf.size) : 0;
+  r = dbuf.size > 0 ? write(fd, dbuf.buf, dbuf.size) : 0;
 
 #ifdef DEBUG_OUTPUT
   for(size_t i = 0; i < dbuf.size; i++)
@@ -363,24 +371,24 @@ set_text_color(intptr_t fd, int intc, int32_t intv[]) {
 #endif
 
   dbuf_free(&dbuf);
-
   return r > 0;
 }
 
 static BOOL
 set_text_attributes(intptr_t fd, uint32_t attr) {
+  int fg, bg;
   char buf[(2 + (FMT_ULONG) + 1) * 3];
   size_t pos = 0;
 
   buf[pos++] = 27;
   buf[pos++] = '[';
 
-  int fg = ((attr & FOREGROUND_RED) ? 1 : 0) + ((attr & FOREGROUND_GREEN) ? 2 : 0) + ((attr & FOREGROUND_BLUE) ? 4 : 0) + ((attr & FOREGROUND_INTENSITY) ? 90 : 30);
+  fg = ((attr & FOREGROUND_RED) ? 1 : 0) + ((attr & FOREGROUND_GREEN) ? 2 : 0) + ((attr & FOREGROUND_BLUE) ? 4 : 0) + ((attr & FOREGROUND_INTENSITY) ? 90 : 30);
 
   pos += fmt_ulong(&buf[pos], fg);
   buf[pos++] = ';';
 
-  int bg = ((attr & BACKGROUND_RED) ? 1 : 0) + ((attr & BACKGROUND_GREEN) ? 2 : 0) + ((attr & BACKGROUND_BLUE) ? 4 : 0) + ((attr & BACKGROUND_INTENSITY) ? 100 : 40);
+  bg = ((attr & BACKGROUND_RED) ? 1 : 0) + ((attr & BACKGROUND_GREEN) ? 2 : 0) + ((attr & BACKGROUND_BLUE) ? 4 : 0) + ((attr & BACKGROUND_INTENSITY) ? 100 : 40);
 
   pos += fmt_ulong(&buf[pos], bg);
 
@@ -420,29 +428,15 @@ js_get_pointer(JSContext* ctx, JSValueConst value) {
   if((ptr = JS_GetArrayBuffer(ctx, &len, value)))
     return ptr;
 
-  if(!JS_ToInt64Ext(ctx, &i64, value)) {
+  if(!JS_ToInt64Ext(ctx, &i64, value))
     return (void*)(ptrdiff_t)i64;
-  }
-
-  /*if((str = JS_ToCString(ctx, value))) {
-    uint64_t u64;
-    if(str_start(str, "0x")) {
-      if(scan_xlonglong(str + 2, &u64) > 0)
-        return (void*)(ptrdiff_t)u64;
-    } else {
-      if(scan_ulonglong(str + 2, &u64) > 0)
-        return (void*)(ptrdiff_t)u64;
-    }
-  }*/
 
   return 0;
 }
 
 static JSValue
 js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret;
-
-  ret = JS_NewObject(ctx);
+  JSValue ret = JS_NewObject(ctx);
 
   JS_SetPropertyStr(ctx, ret, "name", JS_NewString(ctx, "quickjs"));
   JS_SetPropertyStr(ctx, ret, "sourceUrl", JS_NewString(ctx, "https://bellard.org/quickjs/quickjs-" CONFIG_VERSION ".tar.xz"));
@@ -525,7 +519,6 @@ js_misc_u8enc(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 static JSValue
 js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  //  JSValue arraybuffer_ctor = js_global_get_str(ctx, "ArrayBuffer");
 
   if(js_is_arraybuffer(ctx, argv[0]) || js_is_sharedarraybuffer(ctx, argv[0])) {
     uint8_t* data;
@@ -533,16 +526,18 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
       OffsetLength ol = {0, -1};
+      uint8_t* s = offset_data(&ol, data);
 
       js_offset_length(ctx, len, argc - 1, argv + 1, &ol);
 
-      ret = JS_NewStringLen(ctx, offset_data(&ol, data), offset_size(&ol, len));
+      if(ol.length < 0 && memchr(s, '\0', len))
+        ret = JS_NewString(ctx, s);
+      else
+        ret = JS_NewStringLen(ctx, s, offset_size(&ol, len));
     }
   } else {
     ret = js_value_tostring(ctx, "Object", argc > 0 ? argv[0] : this_val);
   }
-
-  //  JS_FreeValue(ctx, arraybuffer_ctor);
 
   return ret;
 }
@@ -560,28 +555,23 @@ js_misc_strcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   JS_FreeCString(ctx, a);
   JS_FreeCString(ctx, b);
-
   return ret;
 }
 
 static JSValue
 js_misc_topointer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_NULL;
-  InputBuffer buf;
   uint8_t* ptr;
-
-  buf = js_input_chars(ctx, argv[0]);
+  char str[64];
+  InputBuffer buf = js_input_chars(ctx, argv[0]);
 
   if(JS_IsException(buf.value))
     return JS_EXCEPTION;
 
-  if((ptr = input_buffer_data(&buf))) {
-    char str[64];
+  if((ptr = input_buffer_data(&buf)))
     ret = JS_NewStringLen(ctx, str, snprintf(str, sizeof(str), "%p", ptr));
-  }
 
   input_buffer_free(&buf, ctx);
-
   return ret;
 }
 
@@ -590,11 +580,9 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   JSValue ret = JS_UNDEFINED;
   MemoryBlock b;
   OffsetLength o = {0, -1};
-
   int64_t addr = 0, len = 0;
 
   if(JS_IsNumber(argv[0])) {
-
     JS_ToInt64Ext(ctx, &addr, argv[0]);
 
     if(addr == 0)
@@ -670,59 +658,38 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
 }
 
-/*static JSValue
-js_misc_resizearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-  JSObject* obj;
-  JSArrayBuffer* arraybuf;
-  uint64_t newlen;
-
-  if(!js_is_arraybuffer(ctx, argv[0]))
-    return JS_ThrowTypeError(ctx, "argument 1 must be an ArrayBuffer");
-
-  obj = JS_VALUE_GET_OBJ(argv[0]);
-  arraybuf = obj->u.array_buffer;
-  JS_ToIndex(ctx, &newlen, argv[1]);
-
-  if(arraybuf->shared)
-    ret = JS_ThrowTypeError(ctx, "ArrayBuffer must not be shared");
-  else if(arraybuf->shared)
-    ret = JS_ThrowTypeError(ctx, "ArrayBuffer must have opaque == 0");
-  else {
-    arraybuf->data = js_realloc(ctx, arraybuf->data, newlen);
-    arraybuf->byte_length = newlen;
-
-    ret = JS_MKPTR(JS_TAG_OBJECT, obj);
-  }
-
-  return ret;
-}*/
-
 static JSValue
 js_misc_concat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  int i;
   size_t total_len = 0, pos = 0;
   uint8_t* buf;
   InputBuffer* buffers = js_mallocz(ctx, sizeof(InputBuffer) * argc);
-  for(i = 0; i < argc; i++) {
+
+  for(int i = 0; i < argc; i++) {
     buffers[i] = js_input_buffer(ctx, argv[i]);
+
     if(!buffers[i].data) {
       ret = JS_ThrowTypeError(ctx, "argument %d is not ArrayBuffer", i + 1);
       goto fail;
     }
+
     total_len += buffers[i].size;
   }
+
   buf = js_malloc(ctx, total_len);
-  for(i = 0; i < argc; i++) {
+
+  for(int i = 0; i < argc; i++) {
     memcpy(&buf[pos], buffers[i].data, buffers[i].size);
     pos += buffers[i].size;
   }
+
   ret = JS_NewArrayBuffer(ctx, buf, total_len, js_arraybuffer_free_pointer, 0, FALSE);
+
 fail:
-  for(i = 0; i < argc; i++)
+  for(int i = 0; i < argc; i++)
     if(buffers[i].data)
       input_buffer_free(&buffers[i], ctx);
+
   return ret;
 }
 
@@ -776,12 +743,14 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   // naive searching algorithm (slow)
   for(size_t i = 0; i < h_end; i++) {
     int found = 1;
+
     for(size_t j = 0; j < n_size; j++) {
       if((haystack.base[i + j] ^ needle.base[j]) & mask.base[j]) {
         found = 0;
         break;
       }
     }
+
     if(found) {
       /*for(size_t j = 0; j < n_size; j++) {
         uint8_t xorval = haystack.base[i + j] ^ needle.base[j];
@@ -807,8 +776,7 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(!block_arraybuffer(&dst, argv[0], ctx))
     return JS_ThrowTypeError(ctx, "argument 1 (dst) must be an ArrayBuffer");
 
-  i++;
-
+  ++i;
   i += js_offset_length(ctx, dst.size, argc - i, argv + i, &s_offs);
 
   /* dst.base += s_offs.offset;
@@ -818,8 +786,7 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(i == argc || !block_arraybuffer(&src, argv[i], ctx))
     return JS_ThrowTypeError(ctx, "argument %d (src) must be an ArrayBuffer", i + 1);
 
-  i++;
-
+  ++i;
   i += js_offset_length(ctx, dst.size, argc - i, argv + i, &d_offs);
 
   /* src.base += d_offs.offset;
@@ -842,15 +809,13 @@ js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(!block_arraybuffer(&s1, argv[0], ctx))
     return JS_ThrowTypeError(ctx, "argument 1 (s1) must be an ArrayBuffer");
 
-  i++;
-
+  ++i;
   i += js_offset_length(ctx, s1.size, argc - i, argv + i, &o1);
 
   if(i == argc || !block_arraybuffer(&s2, argv[i], ctx))
     return JS_ThrowTypeError(ctx, "argument %d (s2) must be an ArrayBuffer", i + 1);
 
-  i++;
-
+  ++i;
   i += js_offset_length(ctx, s2.size, argc - i, argv + i, &o2);
 
   if((n = MIN_NUM(offset_size(&o1, block_length(&s1)), offset_size(&o2, block_length(&s2)))))
@@ -869,10 +834,11 @@ js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   if(!(ptr = JS_GetArrayBuffer(ctx, &len, argv[0])))
     return JS_ThrowTypeError(ctx, "argument 1 (dst) must be an ArrayBuffer");
 
-  i++;
+  ++i;
 
   if(i + 1 < argc && JS_IsNumber(argv[i])) {
     int64_t offset = 0;
+
     JS_ToInt64(ctx, &offset, argv[i++]);
     offset = MIN_NUM((int64_t)len, offset);
 
@@ -924,6 +890,7 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(magic == FUNC_GETFD) {
     int32_t fd;
+
     if(argc < 1 || !JS_IsNumber(argv[0]))
       return JS_ThrowTypeError(ctx, "argument 1 must be Number");
 
@@ -950,37 +917,44 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   char sep = '\n';
 
   switch(magic) {
-    case FUNC_GETCOMMANDLINE:
+    case FUNC_GETCOMMANDLINE: {
       file = "/proc/self/cmdline";
       sep = '\0';
       break;
-    case FUNC_GETPROCMAPS:
+    }
+
+    case FUNC_GETPROCMAPS: {
       file = "/proc/self/maps";
       sep = '\n';
       break;
-    case FUNC_GETPROCMOUNTS:
+    }
+
+    case FUNC_GETPROCMOUNTS: {
       file = "/proc/self/mounts";
       sep = '\n';
       break;
-    case FUNC_GETPROCSTAT:
+    }
+
+    case FUNC_GETPROCSTAT: {
       file = "/proc/self/stat";
       sep = ' ';
       break;
+    }
   }
 
   js_dbuf_init(ctx, &dbuf);
 
   if((size = dbuf_load(&dbuf, file)) > 0) {
-
     while(size > 0 && dbuf.buf[size - 1] == '\n')
       size--;
 
     ret = JS_NewArray(ctx);
     for(i = 0; i < size; i += n + 1) {
-      size_t len;
-      len = n = byte_chr(&dbuf.buf[i], size - i, sep);
+      size_t len = n = byte_chr(&dbuf.buf[i], size - i, sep);
+
       while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1]))
         len--;
+
       JS_SetPropertyUint32(ctx, ret, j++, JS_NewStringLen(ctx, (const char*)&dbuf.buf[i], len));
     }
   }
@@ -1009,11 +983,15 @@ js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
   for(proto = JS_DupValue(ctx, argv[0]); !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto); proto = JS_GetPrototype(ctx, proto)) {
     BOOL circular = (JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(prev));
+
     JS_FreeValue(ctx, prev);
+
     if(circular)
       break;
+
     if(i >= start && (end == -1 || i < end))
       JS_SetPropertyUint32(ctx, ret, j++, proto);
+
     ++i;
     prev = proto;
   }
@@ -1070,6 +1048,7 @@ js_misc_realpath(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_NewString(ctx, result);
   return JS_NULL;
 }*/
+
 #ifdef USE_TEMPNAM
 static JSValue
 js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -1079,6 +1058,7 @@ js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   if(argc >= 1 && JS_IsString(argv[0]))
     dir = JS_ToCString(ctx, argv[0]);
+
   if(argc >= 2 && JS_IsString(argv[1]))
     pfx = JS_ToCString(ctx, argv[1]);
 
@@ -1086,6 +1066,7 @@ js_misc_tempnam(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     ret = JS_NewString(ctx, nam);
     free(nam);
   }
+
   return ret;
 }
 #endif
@@ -1108,7 +1089,6 @@ js_misc_mkstemp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     return JS_EXCEPTION;
 
   fd = mkstemp(template);
-
   js_free(ctx, template);
 
   if(fd < 0) {
@@ -1124,7 +1104,6 @@ static JSValue
 js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   size_t plen, slen;
   int32_t flags = 0, ret;
-
   const char* pattern = JS_ToCStringLen(ctx, &plen, argv[0]);
   const char* string = JS_ToCStringLen(ctx, &slen, argv[1]);
 
@@ -1157,6 +1136,7 @@ js_misc_glob_errfunc(const char* epath, int eerrno) {
     JS_FreeValue(ctx, argv[0]);
     JS_FreeValue(ctx, argv[1]);
   }
+
   return 0;
 }
 
@@ -1301,6 +1281,7 @@ js_misc_ioctl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   if(argc >= 3)
     JS_ToInt32(ctx, &args[0], argv[2]);
+
   if(argc >= 4)
     JS_ToInt32(ctx, &args[1], argv[3]);
 
@@ -1318,10 +1299,13 @@ js_misc_screensize(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   if(!screen_size(size)) {
     JSValue width, height;
+
     if(JS_IsUndefined(ret))
       ret = argc >= 1 && JS_IsArray(ctx, argv[0]) ? JS_DupValue(ctx, argv[0]) : JS_NewArray(ctx);
+
     width = JS_NewInt32(ctx, size[0]);
     height = JS_NewInt32(ctx, size[1]);
+
     if(JS_IsArray(ctx, ret)) {
       JS_SetPropertyUint32(ctx, ret, 0, width);
       JS_SetPropertyUint32(ctx, ret, 1, height);
@@ -1350,6 +1334,7 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
+
   if(argc >= 2)
     JS_ToInt32(ctx, &mode, argv[1]);
 
@@ -1374,8 +1359,10 @@ js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
+
   if(argc >= 2 && JS_IsNumber(argv[1]))
     JS_ToInt32(ctx, &x, argv[1]);
+
   if(argc >= 3 && JS_IsNumber(argv[2]))
     JS_ToInt32(ctx, &y, argv[2]);
 
@@ -1423,19 +1410,20 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     }
 
     case SET_TEXT_COLOR: {
-
 #ifdef _WIN32
       uint32_t attr = 0;
 
       get_text_attributes(h, &attr);
 
       for(int i = 0; i < argc; i++) {
+        uint8_t bits, shift, mask;
         int32_t color = 0;
+
         JS_ToInt32(ctx, &color, argv[i]);
 
-        uint8_t bits = ColorToBits(color) & 0x0f;
-        uint8_t shift = ColorIsBG(color) ? 4 : 0;
-        uint8_t mask = ColorIsBG(color) ? 0xf0 : 0x0f;
+        bits = ColorToBits(color) & 0x0f;
+        shift = ColorIsBG(color) ? 4 : 0;
+        mask = ColorIsBG(color) ? 0xf0 : 0x0f;
 
         attr &= ~mask;
         attr |= bits << shift;
@@ -1481,6 +1469,7 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   switch(magic) {
     case SET_CONSOLE_MODE: {
       uint32_t mode = 0;
+
       JS_ToUint32(ctx, &mode, argv[1]);
 
       if(!SetConsoleMode(h, mode))
@@ -1491,6 +1480,7 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
     case GET_CONSOLE_MODE: {
       DWORD mode = 0;
+
       if(!GetConsoleMode(h, &mode))
         ret = JS_Throw(ctx, js_syscallerror_new(ctx, "GetConsoleMode", GetLastError()));
       else
@@ -1544,6 +1534,7 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   if(!JS_IsString(argv[0])) {
     uint32_t wf = 12;
+
     JS_ToUint32(ctx, &wf, argv[0]);
 
     if(argc > 1) {
@@ -1560,27 +1551,20 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       memset(s, 0, sizeof(s));
 
-      if(!bcrypt_gensalt(wf, s))
-        ret = JS_NewStringLen(ctx, s, strlen(s));
-      else
-        ret = JS_NULL;
+      ret = bcrypt_gensalt(wf, s) ? JS_NULL : JS_NewStringLen(ctx, s, strlen(s));
     }
   } else if(argc >= 3) {
-    const char* pw;
-
-    pw = JS_ToCString(ctx, argv[0]);
-
+    const char* pw = JS_ToCString(ctx, argv[0]);
     InputBuffer salt = js_input_chars(ctx, argv[1]);
     InputBuffer buf = js_input_buffer(ctx, argv[2]);
     char s[BCRYPT_HASHSIZE];
 
     memset(s, 0, sizeof(s));
 
-    if(!salt.size) {
+    if(!salt.size)
       bcrypt_gensalt(12, s);
-    } else {
+    else
       memcpy(s, salt.data, salt.size);
-    }
 
     input_buffer_free(&salt, ctx);
 
@@ -1592,10 +1576,7 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     input_buffer_free(&buf, ctx);
     JS_FreeCString(ctx, pw);
   } else {
-    const char* pw;
-
-    pw = JS_ToCString(ctx, argv[0]);
-
+    const char* pw = JS_ToCString(ctx, argv[0]);
     InputBuffer buf = js_input_chars(ctx, argv[1]);
     char x[BCRYPT_HASHSIZE];
 
@@ -1624,27 +1605,32 @@ js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   size_t len;
   int32_t flags = JS_EVAL_TYPE_GLOBAL;
 
-  if(argc >= 2 && JS_IsNumber(argv[1])) {
-    JS_ToInt32(ctx, &flags, argv[1]);
-  } else if(argc >= 2 && JS_IsBool(argv[1])) {
-    if(JS_ToBool(ctx, argv[1]))
-      flags |= JS_EVAL_TYPE_MODULE;
+  if(argc >= 2) {
+    if(JS_IsNumber(argv[1]))
+      JS_ToInt32(ctx, &flags, argv[1]);
+    else if(JS_IsBool(argv[1]))
+      if(JS_ToBool(ctx, argv[1]))
+        flags |= JS_EVAL_TYPE_MODULE;
   }
+
   is_mod = !!(flags & JS_EVAL_TYPE_MODULE);
+
   if(str_ends(file, ".jsm"))
     is_mod = TRUE;
+
   if((buf = js_load_file(ctx, &len, file))) {
     if(!is_mod && JS_DetectModule((const char*)buf, len))
       is_mod = TRUE;
+
     flags |= (is_mod ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
     ret = JS_Eval(ctx, (const char*)buf, len, file, flags | (is_mod ? JS_EVAL_FLAG_COMPILE_ONLY : 0));
 
-    if(is_mod && !(flags & JS_EVAL_FLAG_COMPILE_ONLY)) {
+    if(is_mod && !(flags & JS_EVAL_FLAG_COMPILE_ONLY))
       ret = JS_EvalFunction(ctx, ret);
-    }
   } else {
     ret = JS_ThrowReferenceError(ctx, "could not load '%s': %s", file, strerror(errno));
   }
+
   return ret;
 }
 
@@ -1656,6 +1642,7 @@ struct ImmutableClosure {
 static void
 js_misc_immutable_free(void* ptr) {
   struct ImmutableClosure* closure = ptr;
+
   JS_FreeValueRT(closure->rt, closure->ctor);
   JS_FreeValueRT(closure->rt, closure->proto);
   free(ptr);
@@ -1671,6 +1658,7 @@ js_misc_immutable_constructor(JSContext* ctx, JSValueConst new_target, int argc,
     ret = JS_CallConstructor2(ctx, closure->ctor, new_target, argc, argv);
   } else {
   }
+
   return ret;
 }
 
@@ -1692,6 +1680,7 @@ js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   if(JS_IsException(closure->proto)) {
     js_misc_immutable_free(closure);
+
     return JS_ThrowTypeError(ctx, "argument 1 must have a 'prototype' property");
   }
 
@@ -1703,10 +1692,6 @@ js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   proto = JS_NewObject(ctx);
   JS_SetPrototype(ctx, proto, closure->proto);
 
-  /* {
-     JSCFunctionListEntry entries[] = {JS_PROP_STRING_DEF("[Symbol.toStringTag]", new_name,
-   JS_PROP_CONFIGURABLE)}; JS_SetPropertyFunctionList(ctx, proto, entries, countof(entries));
-   }*/
   js_set_tostringtag_value(ctx, proto, JS_NewString(ctx, new_name));
 
   ret = js_function_cclosure(ctx, js_misc_immutable_constructor, 0, 0, closure, js_misc_immutable_free);
@@ -1725,9 +1710,9 @@ js_misc_write_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   size_t size;
   uint8_t* bytecode;
 
-  if((bytecode = JS_WriteObject(ctx, &size, argv[0], JS_WRITE_OBJ_BYTECODE))) {
+  if((bytecode = JS_WriteObject(ctx, &size, argv[0], JS_WRITE_OBJ_BYTECODE)))
     ret = JS_NewArrayBuffer(ctx, bytecode, size, js_arraybuffer_free_pointer, 0, FALSE);
-  }
+
   return ret;
 }
 
@@ -1788,6 +1773,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     case FUNC_SETUID: {
       int32_t uid;
+
       JS_ToInt32(ctx, &uid, argv[0]);
       ret = setuid(uid);
       break;
@@ -1795,6 +1781,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     case FUNC_SETGID: {
       int32_t gid;
+
       JS_ToInt32(ctx, &gid, argv[0]);
       ret = setgid(gid);
       break;
@@ -1802,6 +1789,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     case FUNC_SETEUID: {
       int32_t euid;
+
       JS_ToInt32(ctx, &euid, argv[0]);
       ret = seteuid(euid);
       break;
@@ -1809,29 +1797,20 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     case FUNC_SETEGID: {
       int32_t egid;
+
       JS_ToInt32(ctx, &egid, argv[0]);
       ret = setegid(egid);
       break;
     }
 #endif
   }
+
   if(ret == -1)
-    return JS_ThrowInternalError(ctx,
-                                 "%s() failed: %s",
-                                 ((const char* const[]){
-                                     "getpid",
-                                     "getppid",
-                                     "getsid",
-                                     "getuid",
-                                     "getgid",
-                                     "geteuid",
-                                     "getegid",
-                                     "setuid",
-                                     "setgid",
-                                     "seteuid",
-                                     "setegid",
-                                 })[magic - FUNC_GETPID],
-                                 strerror(errno));
+    return JS_ThrowInternalError(
+        ctx,
+        "%s() failed: %s",
+        ((const char* const[]){"getpid", "getppid", "getsid", "getuid", "getgid", "geteuid", "getegid", "setuid", "setgid", "seteuid", "setegid"})[magic - FUNC_GETPID],
+        strerror(errno));
 
   return JS_NewInt32(ctx, ret);
 }
@@ -1852,6 +1831,7 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   switch(magic) {
     case VALUE_TYPE: {
       const char* typestr = js_value_typestr(ctx, argv[0]);
+
       ret = JS_NewString(ctx, typestr);
       break;
     }
@@ -1872,11 +1852,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
     case STRING_POINTER: {
       if(JS_IsString(argv[0])) {
-        /*char buf[128];
-
-        snprintf(buf, sizeof(buf), "%p", js_cstring_ptr(argv[0]));
-        ret = JS_NewString(ctx, buf);*/
-
         uint64_t ptr = (ptrdiff_t)js_cstring_ptr(argv[0]);
 
         if(ptr < (1ll << 53))
@@ -1907,13 +1882,13 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case STRING_BUFFER: {
-      if(JS_IsString(argv[0])) {
+      if(JS_IsString(argv[0]))
         ret = js_arraybuffer_fromstring(ctx, argv[0]);
-      }
 
       break;
     }
   }
+
   return ret;
 }
 
@@ -1959,21 +1934,21 @@ static JSValue
 js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   BOOL load_only = FALSE;
-  JSValueConst obj;
+  JSValue obj;
   int tag = JS_VALUE_GET_TAG(argv[0]);
+
   if(argc >= 2)
     load_only = JS_ToBool(ctx, argv[1]);
 
   if(tag != JS_TAG_MODULE && tag != JS_TAG_FUNCTION_BYTECODE)
     obj = js_misc_read_object(ctx, this_val, argc, argv);
   else
-    obj = argv[0];
+    obj = JS_DupValue(ctx, argv[0]);
+
   if(JS_IsException(obj))
     return obj;
 
-  tag = JS_VALUE_GET_TAG(obj);
-
-  if(tag != JS_TAG_MODULE && tag != JS_TAG_FUNCTION_BYTECODE)
+  if((tag = JS_VALUE_GET_TAG(obj)) != JS_TAG_MODULE && tag != JS_TAG_FUNCTION_BYTECODE)
     return JS_ThrowTypeError(ctx, "obj is not MODULE nor BYTECODE");
 
   if(load_only) {
@@ -1984,15 +1959,20 @@ js_misc_evalbinary(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       if(JS_ResolveModule(ctx, obj) < 0) {
         JSModuleDef* m = JS_VALUE_GET_PTR(obj);
         const char* name = module_namecstr(ctx, m);
+
         ret = JS_ThrowInternalError(ctx, "Failed resolving module '%s'", name);
         JS_FreeCString(ctx, name);
         JS_FreeValue(ctx, obj);
         return ret;
       }
+
       js_module_set_import_meta(ctx, obj, FALSE, TRUE);
     }
+
     ret = JS_EvalFunction(ctx, obj);
   }
+
+  JS_FreeValue(ctx, obj);
   return ret;
 }
 
@@ -2009,6 +1989,7 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   switch(magic) {
     case ATOM_TO_STRING: {
       int32_t atom;
+
       JS_ToInt32(ctx, &atom, argv[0]);
       ret = JS_AtomToString(ctx, atom);
       break;
@@ -2016,6 +1997,7 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     case ATOM_TO_VALUE: {
       int32_t atom;
+
       JS_ToInt32(ctx, &atom, argv[0]);
       ret = JS_AtomToValue(ctx, atom);
       break;
@@ -2023,10 +2005,12 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     case VALUE_TO_ATOM: {
       JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
+
       ret = JS_NewUint32(ctx, atom);
       break;
     }
   }
+
   return ret;
 }
 
@@ -2064,46 +2048,46 @@ js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case GET_CLASS_NAME: {
       if(class_id > 0) {
         JSAtom atom;
+
         if((atom = js_class_atom(ctx, class_id)))
           ret = JS_AtomToValue(ctx, atom);
       }
+
       break;
     }
 
     case GET_CLASS_ATOM: {
       if(class_id > 0) {
         JSAtom atom;
+
         if((atom = js_class_atom(ctx, class_id)))
           ret = JS_NewInt32(ctx, atom);
       }
+
       break;
     }
 
-    /*case GET_CLASS_COUNT: {
-      uint32_t i, class_count = JS_GetRuntime(ctx)->class_count;
-      for(i = 1; i < class_count; i++)
-        if(!JS_IsRegisteredClass(JS_GetRuntime(ctx), i))
-          break;
-
-      ret = JS_NewUint32(ctx, i);
-      break;
-    }*/
     case GET_CLASS_PROTO: {
       if(class_id > 0)
         ret = JS_GetClassProto(ctx, class_id);
+
       break;
     }
 
     case GET_CLASS_CONSTRUCTOR: {
       if(class_id > 0) {
         JSValue proto = JS_GetClassProto(ctx, class_id);
+
         if(JS_IsObject(proto))
           ret = JS_GetPropertyStr(ctx, proto, "constructor");
+
         JS_FreeValue(ctx, proto);
       }
+
       break;
     }
   }
+
   return ret;
 }
 
@@ -2112,12 +2096,8 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   JSValue ret = JS_UNDEFINED;
   int32_t type_id = 0;
 
-  if(argc >= 1) {
-    /*  if(JS_IsNumber(argv[0]))
-          JS_ToInt32(ctx, &type_id, argv[0]);
-        else*/
+  if(argc >= 1)
     type_id = js_value_type(ctx, argv[0]);
-  }
 
   switch(magic) {
     case GET_TYPE_ID: {
@@ -2127,22 +2107,27 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
     case GET_TYPE_STR: {
       const char* type;
+
       if((type = js_value_type_name(type_id)))
         ret = JS_NewString(ctx, type);
+
       break;
     }
 
     case GET_TYPE_NAME: {
       const char* type;
+
       if((type = (const char*)js_object_classname(ctx, argv[0]))) {
         ret = JS_NewString(ctx, type);
         js_free(ctx, (void*)type);
       } else if((type = js_value_type_name(type_id))) {
         ret = JS_NewString(ctx, type);
       }
+
       break;
     }
   }
+
   return ret;
 }
 
@@ -2158,6 +2143,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JSValue ret = JS_UNDEFINED;
   size_t len;
   int64_t offset = 0;
+
   switch(magic) {
     case BITFIELD_SET: {
       const uint8_t* buf;
@@ -2169,12 +2155,11 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         size_t i, j = 0, bits = len * 8;
         ret = JS_NewArray(ctx);
 
-        for(i = 0; i < bits; i++) {
-          if(buf[i >> 3] & (1u << (i & 0x7))) {
+        for(i = 0; i < bits; i++)
+          if(buf[i >> 3] & (1u << (i & 0x7)))
             JS_SetPropertyUint32(ctx, ret, j++, JS_NewInt64(ctx, i + offset));
-          }
-        }
       }
+
       break;
     }
 
@@ -2192,8 +2177,8 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           BOOL value = !!(buf[i >> 3] & (1u << (i & 0x7)));
           JS_SetPropertyUint32(ctx, ret, j++, JS_NewInt32(ctx, value));
         }
-      } else if(argc >= 1 && JS_IsArray(ctx, argv[0])) {
 
+      } else if(argc >= 1 && JS_IsArray(ctx, argv[0])) {
         size_t i, len = js_array_length(ctx, argv[0]);
         uint8_t* bufptr;
         size_t bufsize = (len + 7) >> 3;
@@ -2204,13 +2189,16 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         for(i = 0; i < len; i++) {
           JSValue element = JS_GetPropertyUint32(ctx, argv[0], i);
           BOOL value = JS_ToBool(ctx, element);
+
           JS_FreeValue(ctx, element);
 
           if(value)
             bufptr[i >> 3] |= 1u << (i & 0x7);
         }
+
         ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_pointer, bufptr, FALSE);
       }
+
       break;
     }
 
@@ -2230,11 +2218,13 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           JS_SetPropertyUint32(ctx, ret, i, JS_NewBool(ctx, value));
         }
       }
+
       break;
     }
 
     case BITFIELD_FROMARRAY: {
       JSValue prop;
+
       if(argc >= 2)
         JS_ToInt64(ctx, &offset, argv[1]);
 
@@ -2242,14 +2232,16 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         return JS_ThrowTypeError(ctx, "argument must be an array");
 
       prop = JS_GetPropertyUint32(ctx, argv[0], 0);
-      len = js_array_length(ctx, argv[0]);
-      if(len) {
+
+      if((len = js_array_length(ctx, argv[0]))) {
         uint8_t* bufptr;
         size_t bufsize;
 
         if(JS_IsBool(prop)) {
           size_t i;
+
           bufsize = (len + 7) >> 3;
+
           if((bufptr = js_mallocz(ctx, bufsize)) == 0)
             return JS_EXCEPTION;
 
@@ -2260,7 +2252,6 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
             bufptr[i >> 3] |= (b ? 1 : 0) << (i & 0x7);
           }
-
         } else {
 
           size_t i;
@@ -2269,32 +2260,38 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           for(i = 0; i < len; i++) {
             JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
             uint32_t number;
+
             JS_ToUint32(ctx, &number, value);
             JS_FreeValue(ctx, value);
 
             if(max < number)
               max = number;
           }
+
           bufsize = ((max + 1) + 7) >> 3;
+
           if((bufptr = js_mallocz(ctx, bufsize)) == 0)
             return JS_EXCEPTION;
 
           for(i = 0; i < len; i++) {
             JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
             uint32_t number;
+
             JS_ToUint32(ctx, &number, value);
             JS_FreeValue(ctx, value);
 
             number -= offset;
-
             bufptr[number >> 3] |= 1u << (number & 0x7);
           }
         }
+
         ret = JS_NewArrayBuffer(ctx, bufptr, bufsize, js_arraybuffer_free_pointer, bufptr, FALSE);
       }
+
       break;
     }
   }
+
   return ret;
 }
 
@@ -2338,7 +2335,6 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     }
 
     case BITOP_XOR: {
-
       for(i = 0; i < ab[0].len; i++)
         ab[0].buf[i] ^= ab[1].buf[i % ab[1].len];
 
@@ -2353,6 +2349,7 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       break;
     }
   }
+
   return ret;
 }
 
@@ -2374,24 +2371,28 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   switch(magic) {
     case RANDOM_RAND: {
       uint32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound) : pcg32_random();
+
       ret = JS_NewUint32(ctx, num);
       break;
     }
 
     case RANDOM_RANDI: {
       int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
+
       ret = JS_NewInt32(ctx, num);
       break;
     }
 
     case RANDOM_RANDF: {
       uint32_t num = pcg32_random();
+
       ret = JS_NewFloat64(ctx, ((double)num / (UINT32_MAX >> 1)) - 1.0l);
       break;
     }
 
     case RANDOM_SRAND: {
       uint32_t st = 0;
+
       JS_ToUint32(ctx, &st, argv[0]);
       pcg32_init_state(st);
       ret = JS_UNDEFINED;
@@ -2411,6 +2412,7 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     const uint8_t* tab = escape_noquote_tab;
     int32_t* intv = 0;
     size_t i, nelems;
+    DynBuf output;
 
     if(argc > 1) {
       const char* str;
@@ -2427,23 +2429,23 @@ js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         JS_FreeCString(ctx, str);
 
       } else if((intv = js_array_to_int32v(ctx, &nelems, argv[1]))) {
-        for(i = 0; i < nelems; i++) {
+        for(i = 0; i < nelems; i++)
           escape_tab[i] = intv[i];
-        }
-        while(i < 256) {
+
+        while(i < 256)
           escape_tab[i++] = '\0';
-        }
+
         tab = escape_tab;
         js_free(ctx, intv);
       }
     }
 
-    DynBuf output;
     js_dbuf_init(ctx, &output);
     dbuf_put_escaped_table(&output, (const char*)input.data, input.size, tab);
 
     return dbuf_tostring_free(&output, ctx);
   }
+
   return JS_DupValue(ctx, argv[0]);
 }
 
@@ -2471,6 +2473,7 @@ js_misc_unescape_pred(const char* s, size_t* lenp) {
   if(val != -1) {
     if(lenp)
       *lenp += len;
+
     return val;
   }
 
@@ -2486,6 +2489,7 @@ js_misc_unescape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     const uint8_t* tab = escape_url_tab;
     int32_t* intv = 0;
     size_t i, nelems;
+    DynBuf output;
 
     if(argc > 1) {
       const char* str;
@@ -2504,39 +2508,25 @@ js_misc_unescape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         JS_FreeCString(ctx, str);
 
       } else if((intv = js_array_to_int32v(ctx, &nelems, argv[1]))) {
-        for(i = 0; i < nelems; i++) {
+        for(i = 0; i < nelems; i++)
           escape_tab[i] = intv[i];
-        }
-        while(i < 256) {
+
+        while(i < 256)
           escape_tab[i++] = '\0';
-        }
+
         tab = escape_tab;
         js_free(ctx, intv);
       }
     }
 
-    DynBuf output;
     js_dbuf_init(ctx, &output);
     dbuf_put_unescaped_table(&output, (const char*)input.data, input.size, tab);
 
     return dbuf_tostring_free(&output, ctx);
   }
+
   return JS_DupValue(ctx, argv[0]);
 }
-
-/*JSValue
-js_misc_unescape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  InputBuffer input = js_input_chars(ctx, argv[0]);
-
-  if(input.data) {
-    DynBuf output;
-    js_dbuf_init(ctx, &output);
-    dbuf_put_unescaped_pred(&output, (const char*)input.data, input.size, &js_misc_unescape_pred);
-    return dbuf_tostring_free(&output, ctx);
-  }
-
-  return JS_DupValue(ctx, argv[0]);
-}*/
 
 JSValue
 js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -2558,8 +2548,10 @@ js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   js_dbuf_init(ctx, &output);
   if(argc >= 2) {
     const char* str = JS_ToCString(ctx, argv[1]);
+
     if(str[0])
       quote = str[0];
+
     JS_FreeCString(ctx, str);
   }
 
@@ -2574,6 +2566,7 @@ js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   dbuf_putc(&output, quote);
   dbuf_put_escaped_table(&output, (const char*)input.data, input.size, table);
   dbuf_putc(&output, quote);
+
   return dbuf_tostring_free(&output, ctx);
 }
 
@@ -2582,16 +2575,20 @@ js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   int32_t errnum = errno;
   const char* syscall = 0;
   JSValue err;
+
   if(argc >= 1)
     JS_ToInt32(ctx, &errnum, argv[0]);
+
   if(argc >= 2)
     syscall = JS_ToCString(ctx, argv[1]);
 
   err = JS_NewObject(ctx);
 
   JS_SetPropertyStr(ctx, err, "errno", JS_NewInt32(ctx, errnum));
+
   if(errnum)
     JS_SetPropertyStr(ctx, err, "message", JS_NewString(ctx, strerror(errnum)));
+
   if(syscall)
     JS_SetPropertyStr(ctx, err, "syscall", JS_NewString(ctx, syscall));
 
@@ -2676,8 +2673,10 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_UNINITIALIZED: r = JS_IsUninitialized(arg); break;
     case IS_ARRAYBUFFER: r = js_is_arraybuffer(ctx, arg); break;
   }
+
   if(r == -1)
     return JS_ThrowInternalError(ctx, "js_misc_is %d", magic);
+
   return JS_NewBool(ctx, r >= 1);
 }
 
@@ -2687,9 +2686,8 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   JSValue ret = JS_UNDEFINED;
   int32_t fd = -1;
 
-  if(argc >= 1) {
+  if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
-  }
 
   if(js_is_arraybuffer(ctx, argv[0])) {
     InputBuffer buf = js_output_args(ctx, argc, argv);
@@ -2702,9 +2700,9 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       for(size_t i = buf.pos + buf.range.offset; i + sizeof(struct inotify_event) <= end; i += reclen) {
         struct inotify_event* ev = (struct inotify_event*)&buf.data[i];
         size_t namelen = byte_chr(ev->name, '\0', ev->len);
-        reclen = sizeof(struct inotify_event) + ev->len;
-
         JSValue obj = JS_NewObject(ctx);
+
+        reclen = sizeof(struct inotify_event) + ev->len;
 
         JS_SetPropertyStr(ctx, obj, "wd", JS_NewInt32(ctx, ev->wd));
         if(ev->mask)
@@ -2714,7 +2712,6 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
         if(namelen)
           JS_SetPropertyStr(ctx, obj, "name", JS_NewStringLen(ctx, ev->name, namelen));
-        // JS_SetPropertyStr(ctx, obj, "offset", JS_NewUint32(ctx, i));
 
         JS_SetPropertyUint32(ctx, ret, count++, obj);
       }
@@ -2743,15 +2740,18 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     if((r = inotify_rm_watch(fd, wd)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_rm_watch(%d, %d) = %d (%s)", fd, wd, r, strerror(errno));
+
     // printf("inotify_add_watch(%d, %d) = %d\n", fd, wd, r);
 
     ret = JS_NewInt32(ctx, r);
   } else {
     int fd;
+
     if((fd = inotify_init1(IN_NONBLOCK)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_init1(IN_NONBLOCK) failed (%s)", strerror(errno));
 
     // printf("inotify_init1() = %d\n", fd);
+
     ret = JS_NewInt32(ctx, fd);
   }
 
@@ -2765,7 +2765,6 @@ js_misc_daemon(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   BOOL nochdir, noclose;
 
   nochdir = argc >= 1 && JS_ToBool(ctx, argv[0]);
-
   noclose = argc >= 2 && JS_ToBool(ctx, argv[0]);
 
   return JS_NewInt32(ctx, daemon(nochdir, noclose));
@@ -2818,6 +2817,7 @@ js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   uint32_t exitcode = 0;
 
   JS_ToIndex(ctx, &handle, argv[0]);
+
   if(argc > 1)
     JS_ToUint32(ctx, &exitcode, argv[1]);
 
@@ -2852,6 +2852,7 @@ js_misc_atexit_handler() {
 
   if(js_misc_atexit_called)
     return;
+
   js_misc_atexit_called = TRUE;
 
   vector_foreach_t(&js_misc_atexit_functions, entry) {
@@ -2877,7 +2878,6 @@ js_misc_atexit(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 #ifdef HAVE_LINK
 static JSValue
 js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-
   const char *from, *to;
 
   if(!(from = JS_ToCString(ctx, argv[0])))
@@ -2892,7 +2892,6 @@ js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
 static JSValue
 js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-
   const char* file;
 
   if(!(file = JS_ToCString(ctx, argv[0])))
@@ -2906,11 +2905,9 @@ static JSValue
 js_misc_access(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t mode = -1;
   int ret;
-
   const char* pathname = JS_ToCString(ctx, argv[0]);
 
   JS_ToInt32(ctx, &mode, argv[1]);
-
   ret = access(pathname, mode);
 
   return JS_NewInt32(ctx, ret);
@@ -2925,11 +2922,11 @@ js_misc_fcntl(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   JS_ToInt32(ctx, &fd, argv[0]);
   JS_ToInt32(ctx, &cmd, argv[1]);
+
   if(argc > 2)
     JS_ToInt32(ctx, &arg, argv[2]);
 
   ret = fcntl(fd, cmd, arg);
-
   return JS_NewInt32(ctx, ret);
 }
 #endif
@@ -3009,6 +3006,7 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   switch(magic) {
     case FUNC_GET_OSFHANDLE: {
       int32_t fd = -1;
+
       JS_ToInt32(ctx, &fd, argv[0]);
       ret = JS_NewInt64(ctx, _get_osfhandle(fd));
       break;
@@ -3017,7 +3015,9 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     case FUNC_OPEN_OSFHANDLE: {
       int64_t hnd = -1;
       int32_t flags = 0;
+
       JS_ToInt64(ctx, &hnd, argv[0]);
+
       if(argc > 1)
         JS_ToInt32(ctx, &flags, argv[1]);
 
@@ -3046,13 +3046,16 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   if(JS_ToInt32(ctx, &fd, argv[0]))
     return JS_EXCEPTION;
+
   handle = (HANDLE)_get_osfhandle(fd);
   SetConsoleMode(handle, ENABLE_WINDOW_INPUT | __ENABLE_VIRTUAL_TERMINAL_INPUT);
   _setmode(fd, _O_BINARY);
+
   if(fd == 0) {
     handle = (HANDLE)_get_osfhandle(1); /* corresponding output */
     SetConsoleMode(handle, ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT | __ENABLE_VIRTUAL_TERMINAL_PROCESSING);
   }
+
   return JS_UNDEFINED;
 }
 #else
@@ -3477,17 +3480,11 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 
 static int
 js_misc_init(JSContext* ctx, JSModuleDef* m) {
-
-  /* if(!js_location_class_id)
-     js_location_init(ctx, 0);*/
-
   vector_init(&js_misc_atexit_functions, ctx);
   atexit(&js_misc_atexit_handler);
 
-  if(m) {
+  if(m)
     JS_SetModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-    // JS_SetModuleExport(ctx, m, "Location", location_ctor);
-  }
 
   return 0;
 }
@@ -3502,9 +3499,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_misc_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_misc_init)))
     JS_AddModuleExportList(ctx, m, js_misc_funcs, countof(js_misc_funcs));
-  }
 
   return m;
 }

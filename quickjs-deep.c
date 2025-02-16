@@ -44,25 +44,25 @@ js_deep_pathfunc(BOOL as_string) {
 static uint32_t
 js_deep_parseflags(JSContext* ctx, int argc, JSValueConst argv[]) {
   uint32_t flags = 0;
-  int i = 0;
 
-  /*  if(i < argc && JS_IsNumber(argv[i]))
-      flags = 0;*/
-
-  for(; i < argc; i++) {
+  for(int i = 0; i < argc; i++) {
     uint32_t num = 0;
+
     if(JS_IsNumber(argv[i])) {
       JS_ToUint32(ctx, &num, argv[i]);
+
       if(num & (RETURN_MASK | MAXDEPTH_MASK))
         flags |= num;
     }
   }
+
   return flags;
 }
 
 static uint32_t
 js_deep_thisflags(JSContext* ctx, JSValueConst this_val) {
   uint32_t ret = 0;
+
   if(JS_IsObject(this_val)) {
     JSValue flags = JS_GetPropertyStr(ctx, this_val, "flags");
 
@@ -71,6 +71,7 @@ js_deep_thisflags(JSContext* ctx, JSValueConst this_val) {
 
     JS_FreeValue(ctx, flags);
   }
+
   return ret;
 }
 
@@ -144,6 +145,7 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
       break;
     }
   }
+
   return ret;
 }
 
@@ -193,8 +195,10 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
 
   if(i < argc)
     root = argv[i++];
+
   if(i < argc && JS_IsFunction(ctx, argv[i]))
     pred = argv[i++];
+
   if(i < argc)
     flags = js_deep_parseflags(ctx, argc - i, argv + i);
 
@@ -385,6 +389,7 @@ js_deep_get(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   } else {
     ret = JS_NewCFunctionData(ctx, js_deep_get2, 1, 0, 1, &argv[0]);
   }
+
   return ret;
 }
 
@@ -702,7 +707,6 @@ static const JSCFunctionListEntry js_deep_iterator_proto_funcs[] = {
 
 static int
 js_deep_init(JSContext* ctx, JSModuleDef* m) {
-
   JS_NewClassID(&js_deep_iterator_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_deep_iterator_class_id, &js_deep_iterator_class);
 
@@ -723,6 +727,7 @@ js_deep_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "DeepIterator", deep_iterator_ctor);
     JS_SetModuleExport(ctx, m, "default", deep_functions);
   }
+
   return 0;
 }
 

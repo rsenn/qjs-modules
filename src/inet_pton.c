@@ -48,6 +48,7 @@ inet_pton(int af, const char* restrict s, void* restrict a0) {
 
       s += j + 1;
     }
+
     return 0;
   } else if(af != AF_INET6) {
     errno = EAFNOSUPPORT;

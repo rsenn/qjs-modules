@@ -80,9 +80,9 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       ret = JS_NewInt64(ctx, r);
       input_buffer_free(&input, ctx);
-
       break;
     }
+
     case QUEUE_READ: {
       InputBuffer input = js_input_args(ctx, argc, argv);
       int64_t r = queue_read(queue, input_buffer_data(&input), input_buffer_length(&input));
@@ -106,9 +106,7 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       JS_ToUint32(ctx, &n, argv[0]);
 
-      int64_t r = queue_skip(queue, n);
-
-      ret = JS_NewInt64(ctx, r);
+      ret = JS_NewInt64(ctx, queue_skip(queue, n));
       break;
     }
 
@@ -120,10 +118,7 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case QUEUE_NEXT: {
       Chunk* chunk;
 
-      if((chunk = queue_next(queue)))
-        ret = chunk_arraybuffer(chunk, ctx);
-      else
-        ret = JS_NULL;
+      ret = (chunk = queue_next(queue)) ? chunk_arraybuffer(chunk, ctx) : JS_NULL;
 
       break;
     }
@@ -196,6 +191,7 @@ js_queue_get(JSContext* ctx, JSValueConst this_val, int magic) {
       ret = JS_NewBool(ctx, queue_size(queue) == 0);
       break;
     }
+
     case QUEUE_HEAD: {
       Chunk* head;
 
@@ -204,6 +200,7 @@ js_queue_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
+
     case QUEUE_TAIL: {
       Chunk* head;
 
@@ -212,6 +209,7 @@ js_queue_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
       break;
     }
+
     case QUEUE_CHUNKS: {
       ret = JS_NewUint32(ctx, queue->nchunks);
       break;
@@ -226,7 +224,6 @@ js_queue_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   JSValue ret = JS_NewObjectProtoClass(ctx, queue_iterator_proto, js_queue_iterator_class_id);
 
   JS_DefinePropertyValueStr(ctx, ret, "queue", JS_DupValue(ctx, this_val), JS_PROP_CONFIGURABLE);
-
   return ret;
 }
 
@@ -293,33 +290,28 @@ static const JSCFunctionListEntry js_queue_iterator_funcs[] = {
 
 int
 js_queue_init(JSContext* ctx, JSModuleDef* m) {
+  JS_NewClassID(&js_queue_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_queue_class_id, &js_queue_class);
 
-  if(js_queue_class_id == 0) {
+  queue_ctor = JS_NewCFunction2(ctx, js_queue_constructor, "Queue", 1, JS_CFUNC_constructor, 0);
+  queue_proto = JS_NewObject(ctx);
 
-    JS_NewClassID(&js_queue_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_queue_class_id, &js_queue_class);
+  JS_SetPropertyFunctionList(ctx, queue_proto, js_queue_funcs, countof(js_queue_funcs));
 
-    queue_ctor = JS_NewCFunction2(ctx, js_queue_constructor, "Queue", 1, JS_CFUNC_constructor, 0);
-    queue_proto = JS_NewObject(ctx);
+  JS_SetClassProto(ctx, js_queue_class_id, queue_proto);
+  JS_SetConstructor(ctx, queue_ctor, queue_proto);
 
-    JS_SetPropertyFunctionList(ctx, queue_proto, js_queue_funcs, countof(js_queue_funcs));
+  JS_NewClassID(&js_queue_iterator_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_queue_iterator_class_id, &js_queue_iterator_class);
 
-    JS_SetClassProto(ctx, js_queue_class_id, queue_proto);
-    JS_SetConstructor(ctx, queue_ctor, queue_proto);
+  queue_iterator_proto = JS_NewObject(ctx);
 
-    JS_NewClassID(&js_queue_iterator_class_id);
-    JS_NewClass(JS_GetRuntime(ctx), js_queue_iterator_class_id, &js_queue_iterator_class);
+  JS_SetPropertyFunctionList(ctx, queue_iterator_proto, js_queue_iterator_funcs, countof(js_queue_iterator_funcs));
 
-    queue_iterator_proto = JS_NewObject(ctx);
+  JS_SetClassProto(ctx, js_queue_iterator_class_id, queue_iterator_proto);
 
-    JS_SetPropertyFunctionList(ctx, queue_iterator_proto, js_queue_iterator_funcs, countof(js_queue_iterator_funcs));
-
-    JS_SetClassProto(ctx, js_queue_iterator_class_id, queue_iterator_proto);
-
-    if(m) {
-      JS_SetModuleExport(ctx, m, "Queue", queue_ctor);
-    }
-  }
+  if(m)
+    JS_SetModuleExport(ctx, m, "Queue", queue_ctor);
 
   return 0;
 }
@@ -334,9 +326,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_queue_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_queue_init)))
     JS_AddModuleExport(ctx, m, "Queue");
-  }
 
   return m;
 }

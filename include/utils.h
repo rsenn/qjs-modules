@@ -109,10 +109,12 @@ arguments_new(int argc, const char* argv[]) {
 static inline const char*
 arguments_shift(Arguments* args) {
   const char* ret = 0;
+
   if(args->p < args->c) {
     ret = args->v[args->p];
     args->p++;
   }
+
   return ret;
 }
 
@@ -131,6 +133,7 @@ arguments_shiftn(Arguments* args, uint32_t n) {
     i++;
     n--;
   }
+
   return i;
 }
 
@@ -159,10 +162,12 @@ BOOL js_arguments_alloc(JSArguments* args, JSContext* ctx, int n);
 static inline JSValueConst
 js_arguments_shift(JSArguments* args) {
   JSValue ret = JS_EXCEPTION;
+
   if(args->p < args->c) {
     ret = args->v[args->p];
     args->p++;
   }
+
   return ret;
 }
 
@@ -187,6 +192,7 @@ js_arguments_shiftn(JSArguments* args, uint32_t n) {
     i++;
     n--;
   }
+
   return i;
 }
 
@@ -384,6 +390,7 @@ js_value_type_flag(JSValueConst value) {
     case JS_TAG_EXCEPTION: return FLAG_EXCEPTION;
     case JS_TAG_FLOAT64: return FLAG_FLOAT64;
   }
+
   return -1;
 }
 
@@ -404,8 +411,10 @@ js_value_type_get(JSContext* ctx, JSValueConst value) {
 static inline int32_t
 js_value_type2flag(uint32_t type) {
   int32_t flag;
+
   for(flag = 0; (type >>= 1); flag++) {
   }
+
   return flag;
 }
 
@@ -808,10 +817,12 @@ static inline char*
 js_get_tostringtag_str(JSContext* ctx, JSValueConst obj) {
   char* ret = 0;
   const char* str;
+
   if((str = js_get_tostringtag_cstr(ctx, obj))) {
     ret = js_strdup(ctx, str);
     JS_FreeCString(ctx, str);
   }
+
   return ret;
 }
 

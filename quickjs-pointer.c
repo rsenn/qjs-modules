@@ -76,7 +76,6 @@ js_pointer_wrap(JSContext* ctx, Pointer* ptr) {
   JSValue obj = JS_NewObjectProtoClass(ctx, pointer_proto, js_pointer_class_id);
 
   JS_SetOpaque(obj, ptr);
-
   return obj;
 }
 
@@ -123,7 +122,6 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
   dbuf_free(&dbuf);
-
   return ret;
 }
 
@@ -554,7 +552,6 @@ static JSClassDef js_pointer_class = {
 
 static int
 js_pointer_init(JSContext* ctx, JSModuleDef* m) {
-
   JS_NewClassID(&js_pointer_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_pointer_class_id, &js_pointer_class);
 
@@ -579,9 +576,8 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_pointer_class_id, pointer_proto);
   JS_SetConstructor(ctx, pointer_ctor, pointer_proto);
 
-  if(m) {
+  if(m)
     JS_SetModuleExport(ctx, m, "Pointer", pointer_ctor);
-  }
 
   return 0;
 }
@@ -596,9 +592,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_pointer_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_pointer_init)))
     JS_AddModuleExport(ctx, m, "Pointer");
-  }
 
   return m;
 }

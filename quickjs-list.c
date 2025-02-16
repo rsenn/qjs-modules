@@ -138,7 +138,6 @@ node_predicate(Node* node, JSValueConst fn, JSValueConst list_obj, int64_t i, JS
   BOOL result = JS_ToBool(ctx, ret);
 
   JS_FreeValue(ctx, ret);
-
   return result;
 }
 
@@ -268,11 +267,7 @@ list_free_rt(List* list, JSRuntime* rt) {
   if(--list->ref_count == 0) {
     struct list_head *ptr, *ptr2;
 
-    list_for_each_safe(ptr, ptr2, &list->head) {
-      Node* node = list_entry(ptr, Node, link);
-
-      node_free(node, rt);
-    }
+    list_for_each_safe(ptr, ptr2, &list->head) { node_free(list_entry(ptr, Node, link), rt); }
 
     js_free_rt(rt, list);
   }
@@ -310,7 +305,7 @@ list_indexof_forward(List* list, JSValueConst value, JSContext* ctx) {
     if(js_value_equals(ctx, value, node->value))
       return i;
 
-    i++;
+    ++i;
   }
 
   return -1;
@@ -327,7 +322,7 @@ list_indexof_reverse(List* list, JSValueConst value, JSContext* ctx) {
     if(js_value_equals(ctx, value, node->value))
       return i;
 
-    i++;
+    ++i;
   }
 
   return -1;
@@ -493,7 +488,6 @@ js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, ListIterato
     goto fail;
 
   JS_SetOpaque(obj, it);
-
   return obj;
 
 fail:
@@ -587,7 +581,6 @@ js_list_new(JSContext* ctx, JSValueConst proto) {
     goto fail;
 
   JS_SetOpaque(obj, list);
-
   return obj;
 
 fail:
@@ -598,12 +591,9 @@ fail:
 
 VISIBLE JSValue
 js_list_wrap(JSContext* ctx, JSValueConst proto, List* list) {
-  JSValue obj;
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_list_class_id);
+  JSValue obj = JS_NewObjectProtoClass(ctx, proto, js_list_class_id);
 
   JS_SetOpaque(obj, list);
-
   return obj;
 }
 
@@ -611,12 +601,10 @@ VISIBLE JSValue
 js_list_wrap_species(JSContext* ctx, JSValueConst this_val, List* list) {
   JSValue species = js_object_species(ctx, this_val);
   JSValue proto = JS_IsUndefined(species) ? JS_DupValue(ctx, list_proto) : JS_GetPropertyStr(ctx, species, "prototype");
-
   JSValue ret = js_list_wrap(ctx, proto, list);
 
   JS_FreeValue(ctx, proto);
   JS_FreeValue(ctx, species);
-
   return ret;
 }
 
@@ -774,7 +762,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
         if(i >= start && i < end)
           list_push(other, node->value, ctx);
 
-        i++;
+        ++i;
       }
 
       ret = js_list_wrap_species(ctx, this_val, other);
@@ -809,7 +797,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
           list_add_tail(&node->link, &other->head);
         }
 
-        i++;
+        ++i;
       }
 
       ptr2 = ptr->prev;
@@ -847,7 +835,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
         list_push(other, value, ctx);
 
-        i++;
+        ++i;
       }
 
       ret = js_list_wrap_species(ctx, this_val, other);
@@ -922,14 +910,7 @@ js_list_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
 static JSValue
 js_list_predicate(JSContext* ctx, int argc, JSValueConst argv[]) {
-  JSValueConst func_obj;
-
-  if(argc > 1)
-    func_obj = js_function_bind_this(ctx, argv[0], argv[1]);
-  else
-    func_obj = JS_DupValue(ctx, argv[0]);
-
-  return func_obj;
+  return argc > 1 ? js_function_bind_this(ctx, argv[0], argv[1]) : JS_DupValue(ctx, argv[0]);
 }
 
 static JSValue
@@ -984,6 +965,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   if(argc < 1 && magic == METHOD_SORT) {
     const char* fn = "(a, b) => a - b";
+
     argv[0] = JS_Eval(ctx, fn, strlen(fn), "-", 0);
     argc = 1;
   } else if(argc < 1 || !JS_IsFunction(ctx, argv[0])) {
@@ -995,27 +977,33 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   switch(magic) {
     case METHOD_EVERY: {
       ret = JS_TRUE;
+
       list_for_each(ptr, &list->head) {
         Node* node = list_entry(ptr, Node, link);
+
         if(!node_predicate(node, pred, this_val, i++, ctx)) {
           JS_FreeValue(ctx, pred);
           ret = JS_FALSE;
           break;
         }
       }
+
       break;
     }
 
     case METHOD_SOME: {
       ret = JS_FALSE;
+
       list_for_each(ptr, &list->head) {
         Node* node = list_entry(ptr, Node, link);
+
         if(node_predicate(node, pred, this_val, i++, ctx)) {
           JS_FreeValue(ctx, pred);
           ret = JS_TRUE;
           break;
         }
       }
+
       break;
     }
 
@@ -1029,6 +1017,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       list_for_each(ptr, &list->head) {
         Node* node = list_entry(ptr, Node, link);
+
         if(node_predicate(node, pred, this_val, i++, ctx))
           list_push(other, node->value, ctx);
       }
@@ -1043,6 +1032,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
         node_predicate(node, pred, this_val, i++, ctx);
       }
+
       break;
     }
 
@@ -1067,6 +1057,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
     case METHOD_REDUCE: {
       List* other;
+
       ret = JS_DupValue(ctx, argc > 1 ? argv[1] : JS_UNDEFINED);
 
       if(!(other = list_new(ctx))) {
@@ -1094,6 +1085,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
     case METHOD_REDUCE_RIGHT: {
       List* other;
+
       ret = JS_DupValue(ctx, argc > 1 ? argv[1] : JS_UNDEFINED);
 
       if(!(other = list_new(ctx))) {
@@ -1117,6 +1109,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         JS_FreeValue(ctx, args[0]);
         JS_FreeValue(ctx, args[1]);
       }
+
       break;
     }
 
@@ -1140,6 +1133,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
           JSValue value = JS_Call(ctx, pred, JS_UNDEFINED, countof(args), args);
           int32_t retval;
+
           JS_ToInt32(ctx, &retval, value);
           JS_FreeValue(ctx, value);
 
@@ -1175,6 +1169,7 @@ js_list_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+
   return ret;
 }
 
@@ -1304,6 +1299,7 @@ js_list_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueCon
       return TRUE;
     }
   }
+
   return FALSE;
 }
 
@@ -1328,13 +1324,10 @@ js_list_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst
   if(js_atom_is_index(ctx, &index, prop)) {
     if(list_has(list, index))
       value = JS_DupValue(ctx, list_value(list, index));
-
   } else if(js_atom_is_length(ctx, prop)) {
     value = JS_NewInt64(ctx, list->size);
   } else if((entry = js_find_cfunction_atom(ctx, js_list_proto_funcs, countof(js_list_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
-
     value = js_list_get(ctx, obj, js_list_proto_funcs[entry].magic);
-
   } else {
     JSValue proto = JS_IsUndefined(list_proto) ? JS_GetPrototype(ctx, obj) : list_proto;
 
@@ -1356,9 +1349,7 @@ js_list_set_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst
         list_push(list, JS_UNDEFINED, ctx);
 
       list_push(list, value, ctx);
-
     } else if(index < 0) {
-
       for(int64_t i = index; i < -1; i++)
         list_unshift(list, JS_UNDEFINED, ctx);
 
@@ -1401,8 +1392,6 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
 
   list_proto = JS_NewObject(ctx);
   JS_SetPropertyFunctionList(ctx, list_proto, js_list_proto_funcs, countof(js_list_proto_funcs));
-
-  // js_set_inspect_method(ctx, list_proto, js_list_inspect);
 
   JS_SetClassProto(ctx, js_list_class_id, list_proto);
 

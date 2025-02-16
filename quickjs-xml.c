@@ -168,6 +168,7 @@ find_tag(Vector* st, const char* name, size_t namelen) {
     if(o->namelen == namelen && !strncmp((const char*)o->name, name, namelen))
       return index;
   }
+
   return -1;
 }
 
@@ -199,8 +200,8 @@ xml_num_children(JSContext* ctx, JSValueConst element) {
 
 static void
 xml_set_attr_value(JSContext* ctx, JSValueConst obj, const char* attr, size_t alen, JSValue value) {
-  JSAtom prop;
-  prop = JS_NewAtomLen(ctx, (const char*)attr, alen);
+  JSAtom prop = JS_NewAtomLen(ctx, (const char*)attr, alen);
+
   JS_SetProperty(ctx, obj, prop, value);
   JS_FreeAtom(ctx, prop);
 }
@@ -253,29 +254,32 @@ xml_write_indent(DynBuf* db, int32_t depth) {
 
 static void
 xml_write_string(JSContext* ctx, const char* textStr, size_t textLen, DynBuf* db, int32_t depth) {
-  const char* p;
-  for(p = textStr;;) {
+  for(const char* p = textStr;;) {
     size_t n;
 
     if(0) {
       while(textLen) {
         if(byte_chr("\r\n \t", 4, *p) == 4)
           break;
+
         p++;
         textLen--;
       }
     }
+
     n = byte_chr(p, textLen, '\n');
     dbuf_append(db, (const uint8_t*)p, n);
+
     if(n < textLen)
       n++;
+
     p += n;
     textLen -= n;
 
     /*while(textLen > 0 &&  (p[0] == ' ' ||  p[0] == '\t')) {
       textLen--;
       p++;
-    }    */
+    }*/
 
     if(textLen == 0)
       break;
@@ -291,15 +295,18 @@ static void
 xml_write_text(JSContext* ctx, JSValueConst text, DynBuf* db, int32_t depth, BOOL multiline) {
   const char* textStr;
   size_t textLen;
+
   textStr = JS_ToCStringLen(ctx, &textLen, text);
+
   if(multiline)
     xml_write_indent(db, depth);
-  else {
+  else
     while(db->size > 0 && is_whitespace_char(db->buf[db->size - 1]))
       db->size--;
-  }
+
   xml_write_string(ctx, textStr, textLen, db, multiline ? depth : 0);
   JS_FreeCString(ctx, textStr);
+
   if(multiline)
     dbuf_putc(db, '\n');
 }
@@ -309,10 +316,10 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   JSValue attributes = JS_GetPropertyStr(ctx, element, "attributes");
   int32_t num_children = -1;
   size_t tagLen;
-  const char* tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen);
+  const char* tagName;
   BOOL isComment;
 
-  if(!tagName || !tagName[0])
+  if(!(tagName = js_get_propertystr_cstringlen(ctx, element, "tagName", &tagLen)) || !tagName[0])
     return;
 
   assert(tagName);
@@ -325,20 +332,15 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
     dbuf_putc(db, '<');
 
   if(isComment) {
-    if(TRUE || byte_chr(tagName, tagLen, '\n') < tagLen) {
-      /*xml_write_string(ctx, tagName, tagLen - 2, db, depth - 1);
-      dbuf_putc(db, '\n');
-      xml_write_indent(db, depth + 1);
-      dbuf_putc(db, '-');
-      dbuf_putc(db, '-');*/
+    if(TRUE || byte_chr(tagName, tagLen, '\n') < tagLen)
       dbuf_put(db, (const uint8_t*)tagName, tagLen);
-    } else {
+    else
       xml_write_string(ctx, tagName, tagLen, db, depth - 1);
-    }
   } else if(tagName[0] == '!') {
     dbuf_putstr(db, tagName);
   } else {
     dbuf_putstr(db, tagName);
+
     if(JS_IsObject(attributes))
       xml_write_attributes(ctx, attributes, db);
   }
@@ -346,9 +348,9 @@ xml_write_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
   if(!self_closing)
     num_children = xml_num_children(ctx, element);
 
-  //     (tagName[0] == '/' || num_children == -1) ?
   if(tagName[0])
     dbuf_putstr(db, tagName[0] == '?' ? "?>" : (self_closing || num_children <= 0) && !(tagName[0] == '!' || num_children > 0 || isComment) ? " />" : ">");
+
   dbuf_putc(db, '\n');
 
   JS_FreeCString(ctx, tagName);
@@ -372,6 +374,7 @@ xml_close_element(JSContext* ctx, JSValueConst element, DynBuf* db, int32_t dept
       dbuf_putstr(db, ">");
       dbuf_putc(db, '\n');
     }
+
     JS_FreeCString(ctx, tagName);
   }
 }
@@ -398,12 +401,13 @@ xml_enumeration_next(Vector* vec, JSContext* ctx, DynBuf* db, int32_t max_depth)
   }
 
   while(!property_enumeration_next(it)) {
+    int32_t depth;
+
     if((it = property_recursion_pop(vec, ctx)) == 0)
       break;
 
     value = property_enumeration_value(it, ctx);
-
-    int32_t depth = property_recursion_depth(vec) - 1;
+    depth = property_recursion_depth(vec) - 1;
     depth = MAX_NUM(0, depth - 1);
     xml_close_element(ctx, value, db, depth);
 
@@ -455,7 +459,6 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
   out->idx = 0;
 
   while(!done) {
-    // parse_skipspace();
     start = ptr;
 
     BOOL inside_script = parse_inside("script");
@@ -463,6 +466,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
     if(inside_script) {
       while(!parse_close()) {
         ++ptr;
+
         if((ptr += byte_chr(ptr, end - ptr, '<')) == end)
           break;
       }
@@ -477,14 +481,12 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       size_t len, real_len;
 
       start += scan_whitenskip((const char*)start, leading_ws);
-
-      // while(start < ptr && is_whitespace_char(*start)) start++;
-
       real_len = len = ptr - start;
+
       if(inside_script) {
-        real_len = byte_chr(start, len, '\n');
-        if(real_len < len)
+        if((real_len = byte_chr(start, len, '\n')) < len)
           real_len++;
+
         len = real_len;
       }
 
@@ -494,6 +496,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
 
       if(len > 0) {
         JSValue str = JS_NewStringLen(ctx, (const char*)start, len);
+
         yield_add(str);
       }
 
@@ -548,16 +551,16 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           xml_set_attr_bytes(ctx, element, "tagName", 7, name - 1, namelen + 1);
 
         } else {
-
           if((index = find_tag(&st, (const char*)name, namelen)) == -1) {
-
             if(!opts.tolerant) {
               char* file;
+
               JS_FreeValue(ctx, ret);
               location_count(&loc, buf, start - buf);
               file = location_file(&loc, ctx);
               xml_debug("mismatch </%.*s> at %s:%u:%u (byte %zu/char %zu)", (int)namelen, name, file, loc.line + 1, loc.column + 1, loc.byte_offset, loc.char_offset);
               ret = JS_ThrowSyntaxError(ctx, "mismatch </%.*s> at %s:%u:%u", (int)namelen, name, file, loc.line + 1, loc.column + 1);
+
               if(file)
                 js_free(ctx, file);
 
@@ -572,9 +575,8 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       } else {
         yield_next();
 
-        if(namelen && (parse_is(name[0], (/*QUESTION |*/ EXCLAM)))) {
+        if(namelen && (parse_is(name[0], (/*QUESTION |*/ EXCLAM))))
           self_closing = TRUE;
-        }
 
         if(is_self_closing_tag((const char*)name, namelen, &opts))
           self_closing = TRUE;
@@ -582,11 +584,13 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         if(namelen >= 3 && parse_is(name[0], EXCLAM) && parse_is(name[1], HYPHEN) && parse_is(name[2], HYPHEN)) {
           while(!done) {
             parse_getc();
+
             if(end - ptr >= 3 && parse_is(ptr[0], HYPHEN) && parse_is(ptr[1], HYPHEN) && parse_is(ptr[2], CLOSE)) {
               ptr += 2;
               break;
             }
           }
+
           namelen = ptr - name;
 
         } else if(namelen && parse_is(name[0], EXCLAM)) {
@@ -605,6 +609,7 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
         const uint8_t *attr, *value;
         size_t alen, vlen, num_attrs = 0;
         JSValue attributes = JS_NewObject(ctx);
+
         JS_SetPropertyStr(ctx, element, "attributes", attributes);
 
         while(!done) {
@@ -627,20 +632,26 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
 
           if(parse_is(c, EQUAL)) {
             char quote = 0;
+
             parse_getc();
+
             if(parse_is(c, QUOTE)) {
               quote = c;
               parse_getc();
             }
+
             value = ptr;
+
             if(quote)
               parse_until(c == quote);
             else
               parse_until(parse_is(c, (WS | CLOSE)));
 
             vlen = ptr - value;
+
             if(quote && parse_is(c, QUOTE))
               parse_getc();
+
             xml_set_attr_bytes(ctx, attributes, (const char*)attr, alen, value, vlen);
             num_attrs++;
           }
@@ -651,17 +662,17 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
           parse_getc();
         }
 
-        if(parse_is(name[0], QUESTION | EXCLAM)) {
-          if(chars[c] == chars[name[0]]) {
+        if(parse_is(name[0], QUESTION | EXCLAM))
+          if(chars[c] == chars[name[0]])
             parse_getc();
-          }
-        }
+
         if(!opts.flat && !self_closing)
           yield_push();
       }
 
       if(self_closing && opts.flat) {
         char* tagName = js_mallocz(ctx, namelen + 2);
+
         tagName[0] = '/';
         str_copyn(&tagName[1], (const char*)name, namelen);
 
@@ -671,10 +682,12 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
       }
 
       parse_skipspace();
+
       if(parse_is(c, CLOSE))
         parse_getc();
     }
   }
+
   JS_FreeAtom(ctx, loc.file);
 
   if(opts.location)
@@ -709,10 +722,13 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
 
       if(js_has_propertystr(ctx, argv[2], "flat"))
         opts.flat = js_get_propertystr_bool(ctx, argv[2], "flat");
+
       if(js_has_propertystr(ctx, argv[2], "tolerant"))
         opts.tolerant = js_get_propertystr_bool(ctx, argv[2], "tolerant");
+
       if(js_has_propertystr(ctx, argv[2], "location"))
         opts.location = js_get_propertystr_bool(ctx, argv[2], "location");
+
       if(js_has_propertystr(ctx, argv[2], "selfClosingTags"))
         tags = JS_GetPropertyStr(ctx, argv[2], "selfClosingTags");
 
@@ -743,22 +759,20 @@ js_xml_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
 static JSValue
 js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* output) {
   Vector enumerations = VECTOR(ctx);
-  PropertyEnumeration* it;
   JSValue str, value = JS_UNDEFINED;
-
-  it = property_recursion_push(&enumerations, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
+  PropertyEnumeration* it = property_recursion_push(&enumerations, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS);
 
   do {
     int32_t depth = vector_size(&enumerations, sizeof(PropertyEnumeration)) - 1;
 
     depth = MAX_NUM(0, depth - 1);
-
     value = property_enumeration_value(it, ctx);
 
     if(JS_IsString(value)) {
       xml_write_text(ctx, value, output, depth, it->tab_atom_len > 1);
     } else if(JS_IsObject(value) && !JS_IsArray(ctx, value)) {
       int32_t num_children = xml_num_children(ctx, value);
+
       xml_write_element(ctx, value, output, depth, num_children <= 0);
     }
 
@@ -767,10 +781,10 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
 
   while(output->size > 0 && (output->buf[output->size - 1] == '\0' || byte_chr("\r\n\t ", 4, output->buf[output->size - 1]) < 4))
     output->size--;
+
   dbuf_putc(output, '\0');
 
   str = JS_NewString(ctx, (const char*)output->buf);
-  // str = JS_NewStringLen(ctx, output->buf, output->size);
 
   vector_foreach_t(&enumerations, it) { property_enumeration_reset(it, JS_GetRuntime(ctx)); }
   vector_free(&enumerations);
@@ -779,15 +793,12 @@ js_xml_write_tree(JSContext* ctx, JSValueConst obj, int max_depth, DynBuf* outpu
 
 static JSValue
 js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) {
-  size_t i;
   int32_t depth = 0;
   BOOL single_line = FALSE;
-  const char *tagName = 0, *nextTag;
-
   JSValue value = JS_UNDEFINED, next = JS_GetPropertyUint32(ctx, obj, 0);
-  nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
+  const char *tagName = 0, *nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
 
-  for(i = 0; i < len; i++) {
+  for(size_t i = 0; i < len; i++) {
     JS_FreeValue(ctx, value);
     value = next;
     next = JS_GetPropertyUint32(ctx, obj, i + 1);
@@ -798,11 +809,11 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
     if(JS_IsString(value)) {
       const char* s = JS_ToCString(ctx, value);
       uint32_t newlines = str_count(s, '\n');
+
       JS_FreeCString(ctx, s);
       single_line = newlines == 0;
 
       xml_write_text(ctx, value, output, depth, !single_line);
-
     } else if(JS_IsObject(value) && !JS_IsArray(ctx, value)) {
       const char* tagName;
 
@@ -821,11 +832,14 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
 
         JS_FreeCString(ctx, tagName);
       }
+
       single_line = FALSE;
     }
+
     if(tagName)
       JS_FreeCString(ctx, tagName);
   }
+
   return JS_NewStringLen(ctx, (const char*)output->buf, output->size);
 }
 
@@ -850,7 +864,6 @@ js_xml_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   }
 
   len = js_array_length(ctx, obj);
-
   last = JS_GetPropertyUint32(ctx, obj, len - 1);
 
   if(JS_IsObject(last)) {
@@ -882,7 +895,6 @@ static const JSCFunctionListEntry js_xml_funcs[] = {
 
 static int
 js_xml_init(JSContext* ctx, JSModuleDef* m) {
-
   character_classes_init(chars);
 
   if(js_location_class_id == 0)
@@ -891,6 +903,7 @@ js_xml_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetModuleExportList(ctx, m, js_xml_funcs, countof(js_xml_funcs));
 
   JSValue defaultObj = JS_NewObject(ctx);
+
   JS_SetPropertyStr(ctx, defaultObj, "read", JS_NewCFunction(ctx, js_xml_read, "read", 1));
   JS_SetPropertyStr(ctx, defaultObj, "write", JS_NewCFunction(ctx, js_xml_write, "write", 2));
   JS_SetModuleExport(ctx, m, "default", defaultObj);

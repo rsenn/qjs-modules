@@ -83,6 +83,7 @@ js_directory_entry(JSContext* ctx, DirEntry* entry, int dflags) {
       break;
     }
   }
+
   return ret;
 }
 
@@ -98,8 +99,7 @@ js_directory_data2(JSContext* ctx, JSValueConst value) {
 
 static JSValue
 js_directory_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  JSValue proto, obj = JS_UNDEFINED;
   Directory* directory;
   int32_t* opts;
 
@@ -300,9 +300,6 @@ static const JSCFunctionListEntry js_directory_static[] = {
 
 int
 js_directory_init(JSContext* ctx, JSModuleDef* m) {
-
-  assert(js_directory_class_id == 0);
-
   JS_NewClassID(&js_directory_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_directory_class_id, &js_directory_class);
 
@@ -347,9 +344,6 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if((m = JS_NewCModule(ctx, module_name, js_directory_init))) {
     JS_AddModuleExport(ctx, m, "Directory");
     JS_AddModuleExportList(ctx, m, js_directory_static, countof(js_directory_static));
-
-    /* if(!strcmp(module_name, "directory"))
-       JS_AddModuleExport(ctx, m, "default");*/
   }
 
   return m;

@@ -246,6 +246,7 @@ block_realloc(MemoryBlock* mb, size_t new_size, JSContext* ctx) {
     mb->size = new_size;
     return 0;
   }
+
   return -1;
 }
 

@@ -60,7 +60,7 @@ js_child_process_wrap(JSContext* ctx, ChildProcess* cp) {
 static JSValue
 js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
-  JSValue obj = JS_UNDEFINED, proto = JS_UNDEFINED;
+  JSValue proto, obj = JS_UNDEFINED;
 
   if(!(cp = js_mallocz(ctx, sizeof(ChildProcess))))
     return JS_EXCEPTION;
@@ -69,69 +69,39 @@ js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
+
   obj = JS_NewObjectProtoClass(ctx, proto, js_child_process_class_id);
   JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
 
   JS_SetOpaque(obj, cp);
-
   return obj;
+
 fail:
   js_free(ctx, cp);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
 
-static JSValue
-js_child_process_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  ChildProcess* cp;
-
-  if(!(cp = js_child_process_data2(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  JSValue obj = JS_NewObjectClass(ctx, js_child_process_class_id);
-
-  if(cp->file)
-    JS_DefinePropertyValueStr(ctx, obj, "file", JS_NewString(ctx, cp->file), JS_PROP_ENUMERABLE);
-
-  if(cp->cwd)
-    JS_DefinePropertyValueStr(ctx, obj, "cwd", JS_NewString(ctx, cp->cwd), JS_PROP_ENUMERABLE);
-
-  JS_DefinePropertyValueStr(ctx, obj, "args", js_strv_to_array(ctx, cp->args), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "env", js_strv_to_array(ctx, cp->env), 0);
-
-  JS_DefinePropertyValueStr(ctx, obj, "pid", JS_NewUint32(ctx, cp->pid), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "exitcode", JS_NewInt32(ctx, cp->exitcode), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "termsig", JS_NewInt32(ctx, cp->termsig), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "uid", JS_NewUint32(ctx, cp->uid), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "gid", JS_NewUint32(ctx, cp->gid), JS_PROP_ENUMERABLE);
-
-  return obj;
-}
-
 static void
 js_child_process_finalizer(JSRuntime* rt, JSValue val) {
-  ChildProcess* cp = JS_GetOpaque(val, js_child_process_class_id);
-  if(cp) {
+  ChildProcess* cp;
+
+  if((cp = JS_GetOpaque(val, js_child_process_class_id)))
     child_process_free_rt(cp, rt);
-  }
 }
 
 static JSValue
 js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-
-  return ret;
+  return JS_UNDEFINED;
 }
 
 static int
 js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
-  JSValue value;
-  size_t i, len;
+  size_t len;
   int *parent_fds, *child_fds;
-
-  value = JS_GetPropertyStr(ctx, obj, "env");
+  JSValue value = JS_GetPropertyStr(ctx, obj, "env");
 
   if(JS_IsObject(value))
     cp->env = child_process_environment(ctx, value);
@@ -164,15 +134,15 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
   child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
   cp->num_fds = len;
 
-  for(i = 0; i < len; i++) {
+  for(size_t i = 0; i < len; i++) {
     JSValue item = JS_GetPropertyUint32(ctx, value, i);
     parent_fds[i] = -1;
     child_fds[i] = -1;
 
     if(JS_IsNumber(item)) {
       int32_t fd;
-      JS_ToInt32(ctx, &fd, item);
 
+      JS_ToInt32(ctx, &fd, item);
       child_fds[i] = fd;
     } else if(JS_IsString(item)) {
       const char* s = JS_ToCString(ctx, item);
@@ -239,7 +209,6 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
       --argc;
       ++argv;
-      // cp->args = js_array_to_argv(ctx, 0, argv[1]);
     } else {
       cp->args = js_malloc(ctx, sizeof(char*) * 2);
       cp->args[0] = js_strdup(ctx, cp->file);
@@ -280,9 +249,9 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case CHILD_PROCESS_ENV: {
-      char** ptr;
       ret = JS_NewObject(ctx);
-      for(ptr = cp->env; *ptr; ptr++) {
+
+      for(char** ptr = cp->env; *ptr; ptr++) {
         size_t namelen = str_chr(*ptr, '=');
         JSAtom key = JS_NewAtomLen(ctx, *ptr, namelen);
 
@@ -290,7 +259,6 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
         JS_FreeAtom(ctx, key);
       }
 
-      // ret = js_strv_to_array(ctx, cp->env);
       break;
     }
 
@@ -345,7 +313,6 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
 static JSValue
 js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
-  JSValue ret = JS_UNDEFINED;
   int32_t flags = 0;
 
   if(!(cp = js_child_process_data2(ctx, this_val)))
@@ -354,17 +321,14 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(argc >= 1)
     JS_ToInt32(ctx, &flags, argv[0]);
 
-  ret = JS_NewInt32(ctx, child_process_wait(cp, flags));
-
-  return ret;
+  return JS_NewInt32(ctx, child_process_wait(cp, flags));
 }
 
 static JSValue
 js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ChildProcess* cp;
-  int32_t ret, signum = SIGTERM;
-  JSValueConst child = magic ? argv[0] : this_val;
-  JSValueConst sig = argv[magic];
+  int32_t signum = SIGTERM;
+  JSValueConst sig = argv[magic], child = magic ? argv[0] : this_val;
 
   if(!(cp = js_child_process_data2(ctx, child)))
     return JS_EXCEPTION;
@@ -372,9 +336,9 @@ js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(argc >= 1 + magic) {
     if(JS_IsString(sig)) {
       const char* str = JS_ToCString(ctx, sig);
-      int i, n = str_start(str, "SIG") ? 0 : 3;
+      int n = str_start(str, "SIG") ? 0 : 3;
 
-      for(i = 1; i < 32; i++) {
+      for(int i = 1; i < 32; i++) {
         if(!strcmp(child_process_signals[i] + n, str)) {
           signum = i;
           break;
@@ -387,9 +351,7 @@ js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
   }
 
-  ret = child_process_kill(cp, signum);
-
-  return JS_NewInt32(ctx, ret);
+  return JS_NewInt32(ctx, child_process_kill(cp, signum));
 }
 
 static JSClassDef js_child_process_class = {
@@ -462,7 +424,6 @@ static const JSCFunctionListEntry js_child_process_funcs[] = {
 
 static int
 js_child_process_init(JSContext* ctx, JSModuleDef* m) {
-
   JS_NewClassID(&js_child_process_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_child_process_class_id, &js_child_process_class);
 
@@ -474,13 +435,13 @@ js_child_process_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetConstructor(ctx, child_process_ctor, child_process_proto);
   JS_SetPropertyFunctionList(ctx, child_process_ctor, js_child_process_funcs, countof(js_child_process_funcs));
-  // js_set_inspect_method(ctx, child_process_proto, js_child_process_inspect);
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_child_process_funcs, countof(js_child_process_funcs));
     JS_SetModuleExport(ctx, m, "ChildProcess", child_process_ctor);
     JS_SetModuleExport(ctx, m, "default", child_process_ctor);
   }
+
   return 0;
 }
 
@@ -493,9 +454,10 @@ js_child_process_init(JSContext* ctx, JSModuleDef* m) {
 VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
-  m = JS_NewCModule(ctx, module_name, js_child_process_init);
-  if(!m)
+
+  if(!(m = JS_NewCModule(ctx, module_name, js_child_process_init)))
     return NULL;
+
   JS_AddModuleExportList(ctx, m, js_child_process_funcs, countof(js_child_process_funcs));
   JS_AddModuleExport(ctx, m, "ChildProcess");
   JS_AddModuleExport(ctx, m, "default");

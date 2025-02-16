@@ -110,18 +110,20 @@ repeater_consume(Repeater* rpt, JSContext* ctx) {
 static JSValue
 resolvable_value(JSContext* ctx, JSValueConst value, struct resolvable_item* rsva) {
   JSValue ret, resolving_funcs[2];
+
   ret = JS_NewPromiseCapability(ctx, resolving_funcs);
   rsva->resolve = resolving_funcs[0];
   rsva->value = JS_DupValue(ctx, value);
   JS_FreeValue(ctx, resolving_funcs[1]);
+
   return ret;
 }
 
 static JSValue
 resolvable_resolve(JSContext* ctx, struct resolvable_item* rsva, JSValueConst value) {
   JSValue result = JS_Call(ctx, rsva->resolve, JS_UNDEFINED, 1, &value);
-  JS_FreeValue(ctx, result);
 
+  JS_FreeValue(ctx, result);
   return JS_DupValue(ctx, rsva->value);
 }
 
@@ -204,11 +206,11 @@ get_iterators(JSContext* ctx, JSValueConst arg) {
       JSValue tmp = JS_Call(ctx, meth, items[i], 0, 0);
 
       JS_SetPropertyUint32(ctx, ret, j++, tmp);
-    } else {
     }
 
     JS_FreeValue(ctx, meth);
   }
+
   return ret;
 }
 
@@ -246,7 +248,6 @@ js_repeater_iteration(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   Repeater* rpt = JS_GetOpaque(data[0], js_repeater_class_id);
   JSValue ret = JS_UNDEFINED;
   JSValueConst value = argc >= 1 ? argv[0] : JS_UNDEFINED;
-
   BOOL done = JS_ToBool(ctx, data[1]);
   BOOL rejected = rpt->state >= REPEATER_REJECTED;
 
@@ -261,6 +262,7 @@ js_repeater_iteration(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   } else {
     ret = js_iterator_result(ctx, value, done);
   }
+
   return ret;
 }
 
@@ -268,18 +270,17 @@ static JSValue
 js_repeater_create_iteration(JSContext* ctx, JSValueConst this_val, JSValueConst value) {
   Repeater* rpt = JS_GetOpaque(this_val, js_repeater_class_id);
   JSValue ret = JS_UNDEFINED, iteration_fn;
-
-  JSValueConst data[2] = {JS_DupValue(ctx, this_val), JS_NewBool(ctx, rpt->state >= REPEATER_DONE)};
+  JSValueConst data[2] = {
+      JS_DupValue(ctx, this_val),
+      JS_NewBool(ctx, rpt->state >= REPEATER_DONE),
+  };
   iteration_fn = JS_NewCFunctionData(ctx, js_repeater_iteration, 1, 0, 2, data);
-
   JSValue promise = js_is_promise(ctx, value) ? JS_DupValue(ctx, value) : js_promise_resolve(ctx, value);
 
-  // ret = js_promise_resolve(ctx, promise);
   ret = js_promise_resolve_then(ctx, promise, iteration_fn);
 
   JS_FreeValue(ctx, promise);
   JS_FreeValue(ctx, iteration_fn);
-
   return ret;
 }
 
@@ -292,10 +293,6 @@ js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
     return JS_EXCEPTION;
-
-  const char* v = JS_ToCString(ctx, value);
-
-  JS_FreeCString(ctx, v);
 
   if((item = queue_shift(&rpt->nexts))) {
     ret = resolvable_resolve(ctx, &item->resolvable, value);
@@ -400,14 +397,14 @@ fail:
 JSValue
 js_repeater_wrap(JSContext* ctx, Repeater* rpt) {
   JSValue obj = JS_NewObjectProtoClass(ctx, repeater_proto, js_repeater_class_id);
-  JS_SetOpaque(obj, rpt);
 
+  JS_SetOpaque(obj, rpt);
   return obj;
 }
 
 static JSValue
 js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj, proto;
+  JSValue proto, obj;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -437,8 +434,7 @@ js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     JS_FreeValue(ctx, result);
   }
 
-  // printf("js_repeater_next done=%d pushes=%d nexts=%d\n", done, queue_length(&rpt->pushes),
-  // queue_length(&rpt->nexts));
+  // printf("js_repeater_next done=%d pushes=%d nexts=%d\n", done, queue_length(&rpt->pushes), queue_length(&rpt->nexts));
 
   if((item = queue_shift(&rpt->pushes))) {
     JSValue it = resolvable_resolve(ctx, &item->resolvable, value);
@@ -453,12 +449,6 @@ js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     ret = js_repeater_create_iteration(ctx, this_val, it);
     JS_FreeValue(ctx, it);
-
-    /*
-      JSValue it = js_iterator_result(ctx, JS_UNDEFINED, done);
-        ret = js_promise_resolve(ctx, it);
-        JS_FreeValue(ctx, it);
-    */
 
   } else {
     if(!(item = queue_alloc(ctx)))
@@ -511,6 +501,7 @@ js_repeater_get(JSContext* ctx, JSValueConst this_val, int magic) {
       break;
     }
   }
+
   return ret;
 }
 
@@ -531,8 +522,6 @@ js_repeater_finalizer(JSRuntime* rt, JSValue val) {
 
   if((rpt = JS_GetOpaque(val, js_repeater_class_id)))
     repeater_finalizer(rt, rpt);
-
-  // JS_FreeValueRT(rt, val);
 }
 
 static JSClassDef js_repeater_class = {
@@ -560,7 +549,6 @@ static const JSCFunctionListEntry js_repeater_static_funcs[] = {
 
 static int
 js_repeater_init(JSContext* ctx, JSModuleDef* m) {
-
   JS_NewClassID(&js_repeater_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_repeater_class_id, &js_repeater_class);
 
@@ -573,9 +561,8 @@ js_repeater_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetConstructor(ctx, repeater_ctor, repeater_proto);
   JS_SetPropertyFunctionList(ctx, repeater_ctor, js_repeater_static_funcs, countof(js_repeater_static_funcs));
 
-  if(m) {
+  if(m)
     JS_SetModuleExport(ctx, m, "Repeater", repeater_ctor);
-  }
 
   return 0;
 }
@@ -590,9 +577,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_repeater_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_repeater_init)))
     JS_AddModuleExport(ctx, m, "Repeater");
-  }
 
   return m;
 }

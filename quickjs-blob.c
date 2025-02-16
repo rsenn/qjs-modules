@@ -77,6 +77,7 @@ js_blob_free_func(JSRuntime* rt, void* opaque, void* ptr) {
 JSValue
 js_blob_wrap(JSContext* ctx, Blob* blob) {
   JSValue obj = JS_NewObjectProtoClass(ctx, blob_proto, js_blob_class_id);
+
   JS_SetOpaque(obj, blob);
   return obj;
 }
@@ -116,8 +117,7 @@ js_blob_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
 static JSValue
 js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj = JS_UNDEFINED;
-  JSValue proto;
+  JSValue proto, obj = JS_UNDEFINED;
   Blob* blob;
 
   if(!(blob = blob_new(ctx, 0, 0, 0)))
@@ -127,9 +127,6 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
-
-  /*if(!JS_IsObject(proto))
-    proto = blob_proto;*/
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   obj = JS_NewObjectProtoClass(ctx, proto, js_blob_class_id);
@@ -142,7 +139,6 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   blob->type = 0;
 
   if(argc >= 1) {
-
     // XXX:
     // if(js_is_iterable(ctx, argv[0])) {}
 
@@ -193,7 +189,6 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
     blob->type = js_strdup(ctx, "application/binary");
 
   JS_SetOpaque(obj, blob);
-
   return obj;
 
 fail:
@@ -222,6 +217,7 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       if(argc >= 1) {
         JS_ToInt64(ctx, &s, argv[0]);
+
         if(s < 0)
           s = n + s % n;
         else if(s > n)
@@ -229,6 +225,7 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
         if(argc >= 2) {
           JS_ToInt64(ctx, &e, argv[1]);
+
           if(e < 0)
             e = n + e % n;
           else if(e > n)
@@ -272,7 +269,6 @@ js_blob_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   JS_DefinePropertyValueStr(ctx, obj, "size", JS_NewUint32(ctx, blob->size), JS_PROP_ENUMERABLE);
   JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, blob->type), JS_PROP_ENUMERABLE);
-
   return obj;
 }
 
@@ -301,9 +297,6 @@ static const JSCFunctionListEntry js_blob_funcs[] = {
 
 int
 js_blob_init(JSContext* ctx, JSModuleDef* m) {
-
-  assert(js_blob_class_id == 0);
-
   JS_NewClassID(&js_blob_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_blob_class_id, &js_blob_class);
 
@@ -315,11 +308,8 @@ js_blob_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetClassProto(ctx, js_blob_class_id, blob_proto);
   JS_SetConstructor(ctx, blob_ctor, blob_proto);
 
-  // js_set_inspect_method(ctx, blob_proto, js_blob_inspect);
-
-  if(m) {
+  if(m)
     JS_SetModuleExport(ctx, m, "Blob", blob_ctor);
-  }
 
   return 0;
 }
@@ -334,9 +324,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_blob_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_blob_init)))
     JS_AddModuleExport(ctx, m, "Blob");
-  }
 
   return m;
 }

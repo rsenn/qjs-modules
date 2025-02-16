@@ -38,19 +38,27 @@ js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   JSValue obj;
   size_t size;
   int flags;
+
   if(!(buf = JS_GetArrayBuffer(ctx, &size, argv[0])))
     return JS_EXCEPTION;
+
   pos = 0;
   len = size;
+
   if(argc > 1 && JS_ToIndex(ctx, &pos, argv[1]))
     return JS_EXCEPTION;
+
   if(argc > 2 && JS_ToIndex(ctx, &len, argv[2]))
     return JS_EXCEPTION;
+
   if(pos + len > size)
     return JS_ThrowRangeError(ctx, "array buffer overflow");
+
   flags = 0;
+
   if(JS_ToBool(ctx, argv[3]))
     flags |= JS_READ_OBJ_REFERENCE;
+
   obj = JS_ReadObject(ctx, buf + pos, len, flags);
   return obj;
 }
@@ -65,9 +73,10 @@ js_bjson_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   flags = 0;
   if(JS_ToBool(ctx, argv[1]))
     flags |= JS_WRITE_OBJ_REFERENCE;
-  buf = JS_WriteObject(ctx, &len, argv[0], flags);
-  if(!buf)
+
+  if(!(buf = JS_WriteObject(ctx, &len, argv[0], flags)))
     return JS_EXCEPTION;
+
   array = JS_NewArrayBufferCopy(ctx, buf, len);
   js_free(ctx, buf);
   return array;
@@ -93,9 +102,8 @@ VISIBLE JSModuleDef*
 JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
-  if((m = JS_NewCModule(ctx, module_name, js_bjson_init))) {
+  if((m = JS_NewCModule(ctx, module_name, js_bjson_init)))
     JS_AddModuleExportList(ctx, m, js_bjson_funcs, countof(js_bjson_funcs));
-  }
 
   return m;
 }
