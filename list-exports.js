@@ -44,6 +44,7 @@ function compareFn() {
     let fn = compare;
     compare = (...args) => fn(...args.map(s => ('' + s).toLowerCase()));
   }
+  
   return compare;
 }
 
