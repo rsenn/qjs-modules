@@ -3063,7 +3063,7 @@ js_cclosure_finalizer(JSRuntime* rt, JSValue val) {
   if((ccr = js_cclosure_data(val))) {
 
     if(ccr->opaque_finalize)
-      ccr->opaque_finalize(ccr->opaque);
+      ((void (*)(void*, JSRuntime*))ccr->opaque_finalize)(ccr->opaque, rt);
 
     js_free_rt(rt, ccr);
   }

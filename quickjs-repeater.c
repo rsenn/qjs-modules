@@ -125,25 +125,55 @@ resolvable_value(JSContext* ctx, JSValueConst value, Resolvable* rsva) {
   return ret;
 }
 
+static void
+resolvable_call(JSContext* ctx, Resolvable* rsva, JSValueConst value) {   
+    JSValue result = JS_Call(ctx, rsva->resolve, JS_UNDEFINED, 1, &value);
+    JS_FreeValue(ctx, result);
+}
+
 static JSValue
 resolvable_deferred(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, void* opaque) {
   Resolvable* rsva = opaque;
-  JSValue result = JS_Call(ctx, rsva->resolve, JS_UNDEFINED, 1, argv);
-  JS_FreeValue(ctx, result);
+
+  JSValue riter = js_iterator_result(ctx, argv[0], FALSE);
+  resolvable_call(ctx, rsva, riter);
+  JS_FreeValue(ctx, riter);
 
   return JS_DupValue(ctx, rsva->value);
+}
+
+static Resolvable*
+resolvable_dup(Resolvable* rsva, JSContext*ctx) {
+     Resolvable* r;
+
+    if((r = js_malloc(ctx, sizeof(Resolvable)))) {
+         r->resolve = JS_DupValue(ctx, rsva->resolve);
+    r->value = JS_DupValue(ctx, rsva->value);
+}
+return r;
+}
+
+static void
+resolvable_closure_free(Resolvable* r, JSRuntime* rt) {
+  JS_FreeValueRT(rt, r->resolve);
+  JS_FreeValueRT(rt, r->value);
+  js_free_rt(rt, r);
 }
 
 static JSValue
 resolvable_resolve(JSContext* ctx, Resolvable* rsva, JSValueConst value) {
   if(js_is_promise(ctx, value)) {
-    JSValue func = js_function_cclosure(ctx, resolvable_deferred, 1, 0, rsva, 0);
-    JSValue result = js_promise_then(ctx, value, func);
+    Resolvable* r;
+
+    if(!(r = resolvable_dup(rsva, ctx)))
+      return JS_EXCEPTION;
+
+    JSValue func = js_function_cclosure(ctx, resolvable_deferred, 1, 0, r, (void*)&resolvable_closure_free);
+    JSValue result = js_promise_resolve_then(ctx, value, func);
     JS_FreeValue(ctx, func);
     return result;
   } else {
-    JSValue result = JS_Call(ctx, rsva->resolve, JS_UNDEFINED, 1, &value);
-    JS_FreeValue(ctx, result);
+ resolvable_call(ctx,  rsva, value);  
 
     return js_promise_resolve(ctx, rsva->value);
   }
@@ -312,7 +342,7 @@ js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_EXCEPTION;
 
   if((item = list_shift(&rpt->nexts))) {
-    JSValue result = js_iterator_result(ctx, value, FALSE);
+    JSValue result = js_is_promise(ctx, value) ? JS_DupValue(ctx, value) : js_iterator_result(ctx, value, FALSE);
     ret = resolvable_resolve(ctx, &item->resolvable, result);
     JS_FreeValue(ctx, result);
     item_free(item, ctx);
@@ -353,7 +383,7 @@ js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   list_for_each_safe(el, next, &rpt->pushes) {
     RepeaterItem* item = list_entry(el, RepeaterItem, link);
 
-    JS_FreeValue(ctx, resolvable_resolve(ctx, &item->resolvable, JS_UNDEFINED));
+    resolvable_call(ctx, &item->resolvable, JS_UNDEFINED);
     list_del(&item->link);
     item_free(item, ctx);
   }
@@ -378,12 +408,11 @@ js_repeater_finish(JSContext* ctx, JSValueConst this_val) {
 
   list_for_each_safe(el, el1, &rpt->nexts) {
     RepeaterItem* next = list_entry(el, RepeaterItem, link);
-    JSValue value = resolvable_resolve(ctx, &next->resolvable, JS_UNDEFINED);
+    
+     resolvable_call(ctx, &next->resolvable, JS_UNDEFINED);
 
     list_del(&next->link);
     item_free(next, ctx);
-
-    JS_FreeValue(ctx, value);
   }
 }
 
@@ -400,10 +429,6 @@ js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst executor) {
     goto fail;
 
   JS_SetOpaque(obj, rpt);
-
-  if(JS_IsFunction(ctx, rpt->executor) && rpt->state <= REPEATER_INITIAL)
-    rpt->execution = js_repeater_execute(ctx, obj);
-
   return obj;
 
 fail:
