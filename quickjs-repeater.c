@@ -204,63 +204,15 @@ item_free(RepeaterItem* item, JSContext* ctx) {
   js_free(ctx, item);
 }
 
-/*static void
-item_add(RepeaterItem* item, struct list_head* list) {
-  list_add_tail(&item->link, list);
-}*/
-
-static int
-list_length(struct list_head* list) {
-  size_t i = 0;
-  struct list_head* el;
-
-  list_for_each(el, list) { ++i; }
-
-  return i;
-}
-
-static RepeaterItem*
-list_head(struct list_head* list) {
-  if(list_empty(list))
-    return 0;
-
-  return list_entry(list->next, RepeaterItem, link);
-}
-
 static RepeaterItem*
 list_shift(struct list_head* list) {
-  RepeaterItem* item;
+  struct list_head* item;
 
-  if((item = list_head(list)))
-    list_del(&item->link);
+  if((item = list_front(list)))
+    list_del(item);
 
-  return item;
+  return list_entry(item, RepeaterItem, link);
 }
-
-/*static JSValue
-get_iterators(JSContext* ctx, JSValueConst arg) {
-  JSValue ret, *items;
-  size_t n_items, i, j = 0;
-
-  if(!(items = js_values_fromarray(ctx, &n_items, arg)))
-    return JS_EXCEPTION;
-
-  ret = JS_NewArray(ctx);
-
-  for(i = 0; i < n_items; i++) {
-    JSValue meth = js_iterator_method(ctx, items[i]);
-
-    if(JS_IsFunction(ctx, meth)) {
-      JSValue tmp = JS_Call(ctx, meth, items[i], 0, 0);
-
-      JS_SetPropertyUint32(ctx, ret, j++, tmp);
-    }
-
-    JS_FreeValue(ctx, meth);
-  }
-
-  return ret;
-}*/
 
 static JSValue
 js_repeater_execute(JSContext* ctx, JSValueConst this_val) {
@@ -284,10 +236,8 @@ js_repeater_execute(JSContext* ctx, JSValueConst this_val) {
 
   JS_FreeValue(ctx, args[0]);
   JS_FreeValue(ctx, args[1]);
-
   JS_FreeValue(ctx, push);
   JS_FreeValue(ctx, stop);
-
   return ret;
 }
 
@@ -317,15 +267,13 @@ js_repeater_iteration(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 static JSValue
 js_repeater_create_iteration(JSContext* ctx, JSValueConst this_val, JSValueConst value) {
   Repeater* rpt = JS_GetOpaque(this_val, js_repeater_class_id);
-  JSValue ret = JS_UNDEFINED, iteration_fn;
   JSValueConst data[2] = {
       JS_DupValue(ctx, this_val),
       JS_NewBool(ctx, rpt->state >= REPEATER_DONE),
   };
-  iteration_fn = JS_NewCFunctionData(ctx, js_repeater_iteration, 1, 0, 2, data);
+  JSValue iteration_fn = JS_NewCFunctionData(ctx, js_repeater_iteration, 1, 0, 2, data);
   JSValue promise = js_is_promise(ctx, value) ? JS_DupValue(ctx, value) : js_promise_resolve(ctx, value);
-
-  ret = js_promise_resolve_then(ctx, promise, iteration_fn);
+  JSValue ret = js_promise_resolve_then(ctx, promise, iteration_fn);
 
   JS_FreeValue(ctx, promise);
   JS_FreeValue(ctx, iteration_fn);
@@ -357,31 +305,6 @@ js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
 
   return ret;
-}
-
-static void
-js_repeater_finish(JSContext* ctx, JSValueConst this_val) {
-  Repeater* rpt = JS_GetOpaque(this_val, js_repeater_class_id);
-  struct list_head *el, *el1;
-
-  assert(rpt);
-
-  if(rpt->state >= REPEATER_DONE)
-    return;
-
-  if(rpt->state < REPEATER_STOPPED)
-    js_repeater_stop(ctx, this_val, 0, 0);
-
-  rpt->state = REPEATER_DONE;
-
-  list_for_each_safe(el, el1, &rpt->nexts) {
-    RepeaterItem* next = list_entry(el, RepeaterItem, link);
-
-    resolvable_call(ctx, &next->resolvable, JS_UNDEFINED);
-
-    list_del(&next->link);
-    item_free(next, ctx);
-  }
 }
 
 static JSValue
@@ -418,40 +341,41 @@ js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     list_add_tail(&item->link, &rpt->pushes);
   } else {
+    list_for_each_safe(el, next, &rpt->nexts) {
+      RepeaterItem* next = list_entry(el, RepeaterItem, link);
 
-   list_for_each_safe(el, next, &rpt->nexts) {
-     RepeaterItem* next = list_entry(el, RepeaterItem, link);
+      JSValue result = js_iterator_result(ctx, argc >= 1 ? argv[0] : JS_UNDEFINED, TRUE);
+      resolvable_call(ctx, &next->resolvable, result);
+      JS_FreeValue(ctx, result);
 
-JSValue result = js_iterator_result(ctx,  argc >= 1 ? argv[0] : JS_UNDEFINED, TRUE);
-     resolvable_call(ctx, &next->resolvable, result);
-     JS_FreeValue(ctx, result);
+      list_del(&next->link);
+      item_free(next, ctx);
+    }
 
-     list_del(&next->link);
-     item_free(next, ctx);
-   }
- }
- 
-
-  /*  list_for_each_safe(el, next, &rpt->pushes) {
-      RepeaterItem* item = list_entry(el, RepeaterItem, link);
-
-      resolvable_call(ctx, &item->resolvable, JS_UNDEFINED);
-      list_del(&item->link);
-      item_free(item, ctx);
-    }*/
+    rpt->state = REPEATER_DONE;
+  }
 
   return ret;
 }
 
-JSValue
-js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst executor) {
+static JSValue
+js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Repeater* rpt;
-  JSValue obj = JS_UNDEFINED;
+  JSValue proto, obj;
 
-  if(!(rpt = repeater_new(ctx, executor)))
+  if(argc < 1 || !JS_IsFunction(ctx, argv[0]))
+    return JS_ThrowInternalError(ctx, "argument 1 must be executor function");
+
+  if(!(rpt = repeater_new(ctx, argv[0])))
     return JS_EXCEPTION;
 
+  /* using new_target to get the prototype is necessary when the class is extended. */
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    proto = JS_DupValue(ctx, repeater_proto);
+
   obj = JS_NewObjectProtoClass(ctx, proto, js_repeater_class_id);
+  JS_FreeValue(ctx, proto);
   if(JS_IsException(obj))
     goto fail;
 
@@ -461,31 +385,7 @@ js_repeater_new(JSContext* ctx, JSValueConst proto, JSValueConst executor) {
 fail:
   js_free(ctx, rpt);
   JS_FreeValue(ctx, obj);
-
   return JS_EXCEPTION;
-}
-
-JSValue
-js_repeater_wrap(JSContext* ctx, Repeater* rpt) {
-  JSValue obj = JS_NewObjectProtoClass(ctx, repeater_proto, js_repeater_class_id);
-
-  JS_SetOpaque(obj, rpt);
-  return obj;
-}
-
-static JSValue
-js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj;
-
-  /* using new_target to get the prototype is necessary when the class is extended. */
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, repeater_proto);
-
-  obj = js_repeater_new(ctx, proto, argv[0]);
-
-  JS_FreeValue(ctx, proto);
-  return obj;
 }
 
 static JSValue
@@ -517,15 +417,11 @@ js_repeater_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     JS_FreeValue(ctx, it);
 
     item_free(item, ctx);
-
   } else if(rpt->state >= REPEATER_STOPPED) {
-    js_repeater_finish(ctx, this_val);
-
     JSValue it = repeater_consume(rpt, ctx);
 
     ret = js_repeater_create_iteration(ctx, this_val, it);
     JS_FreeValue(ctx, it);
-
   } else {
     if(!(item = item_new(ctx)))
       return JS_EXCEPTION;
