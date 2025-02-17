@@ -612,7 +612,7 @@ js_mysql_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         case MYSQL_SET_CHARSET_NAME:
         case MYSQL_SET_CLIENT_IP:
         case MYSQL_SHARED_MEMORY_BASE_NAME: {
-          const char* val  = JS_ToCString(ctx, argv[1]);
+          const char* val = JS_ToCString(ctx, argv[1]);
 
           if(mysql_options(my, opt, val))
             ret = JS_ThrowInternalError(ctx, "mysql error: %s", mysql_error(my));

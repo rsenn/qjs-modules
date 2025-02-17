@@ -23,7 +23,7 @@ async function main(...args) {
       console.log('await push("blah") =', await push(Symbol.toStringTag));
 
       //console.log('await stop( )) =', await stop( ));
-      await stop();
+      await stop('end');
     } catch(err) {
       console.log('Repeater err=', err);
     }
@@ -44,7 +44,7 @@ async function main(...args) {
       console.log('Repeater err2=', err2);
     }
 
-    console.log(`it[${count}]`, console.config({ compact: 1 }), it);
+    console.log(`it[${count}]`, console.config({ compact: true }), it);
     console.log(`rpt.state`, states[rpt.state]);
 
     if(it.done) break;
