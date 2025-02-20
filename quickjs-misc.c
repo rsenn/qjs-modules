@@ -1249,6 +1249,8 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
                                  "mingw"
 #elif defined(__MSYS__)
                                  "msys"
+#elif defined(__ANDROID__)
+                                 "android"
 #elif defined(_WIN32)
                                  "unknown"
 #endif
@@ -1261,6 +1263,8 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
                                  "x86_64"
 #elif defined(_X86_)
                                  "i686"
+#elif defined(__aarch64__)
+                                 "aarch64"
 #else
                                  "unknown"
 #endif
