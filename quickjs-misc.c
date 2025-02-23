@@ -1245,7 +1245,9 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
                     ret,
                     "sysname",
                     JS_NewString(ctx,
-#ifdef __MINGW32__
+#ifdef __ANDROID__
+                                 "android"
+#elif defined(__MINGW32__)
                                  "mingw"
 #elif defined(__MSYS__)
                                  "msys"
@@ -1259,7 +1261,9 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
                     ret,
                     "machine",
                     JS_NewString(ctx,
-#ifdef __x86_64__
+#ifdef __aarch64__
+                                 "aarch64"
+#elif defined(__x86_64__)
                                  "x86_64"
 #elif defined(_X86_)
                                  "i686"
