@@ -1269,7 +1269,7 @@ js_misc_uname(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
                     JS_NewString(ctx,
 #ifdef __aarch64__
                                  "aarch64"
-#elif defined(__arm__) 
+#elif defined(__arm__)
                                  "arm"
 #elif defined(__x86_64__)
                                  "x86_64"

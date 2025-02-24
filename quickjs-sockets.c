@@ -1254,12 +1254,12 @@ js_asyncsocket_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     value = JS_NewInt32(ctx, err ? -1 : 0);
   } else {
-    value = js_socket_method(ctx, data[0], (magic & 0x08) ? ((magic & 0x02) ? 5 : 4) : 1, &data[3], magic | ASYNC_READY);
+    value = js_socket_method(ctx, data[0], (magic & 0x08) ? ((magic & 0x02) ? 5 : 4) : 1, &data[4], magic | ASYNC_READY);
   }
 
   if(js_object_same(data[1], asock->pending[magic & 1])) {
     JSValueConst args[2] = {data[0], JS_NULL};
-    JS_Call(ctx, data[2], JS_UNDEFINED, 2, args);
+    JS_Call(ctx, data[3], JS_UNDEFINED, 2, args);
 
 #ifdef DEBUG_OUTPUT
     printf("[%p] set%sHandler(%d, null)\n", JS_VALUE_GET_OBJ(data[1]), magic & 1 ? "Write" : "Read", asock->fd);
@@ -1270,7 +1270,11 @@ js_asyncsocket_resolve(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     asock->pending[magic & 1] = JS_NULL;
   }
 
-  JS_Call(ctx, data[1], JS_UNDEFINED, 1, &value);
+  if(JS_IsException(value)) {
+    value = JS_GetException(ctx);
+  }
+
+  JS_Call(ctx, JS_IsException(value) ? data[2] : data[1], JS_UNDEFINED, 1, &value);
 
   /*  JS_FreeValue(ctx, data[1]);
     data[1] = JS_UNDEFINED;*/
@@ -1282,7 +1286,7 @@ static JSValue
 js_asyncsocket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   AsyncSocket* s;
   int data_len;
-  JSValue ret = JS_UNDEFINED, set_handler, args[2], data[7], promise, resolving_funcs[2];
+  JSValue ret = JS_UNDEFINED, set_handler, args[2], data[8], promise, resolving_funcs[2];
 
   if(!(s = js_asyncsocket_ptr(this_val)))
     return JS_ThrowInternalError(ctx, "Must be an AsyncSocket");
@@ -1302,8 +1306,9 @@ js_asyncsocket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   data[0] = this_val;
   data[1] = resolving_funcs[0];
-  data[2] = set_handler;
-  data_len = 3;
+  data[2] = resolving_funcs[1];
+  data[3] = set_handler;
+  data_len = 4;
 
   if(magic >= 2) {
     int n = (magic & 0x08) ? ((magic & 0x02) ? 5 : 4) : 1;
@@ -1444,7 +1449,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_SENDTO: {
       int32_t flags = 0;
       InputBuffer buf = js_input_chars(ctx, argv[0]);
-      OffsetLength off;
+      OffsetLength off = {0, -1};
 
       js_offset_length(ctx, buf.size, argc - 1, argv + 1, &off);
 
