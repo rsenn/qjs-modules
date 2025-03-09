@@ -2616,21 +2616,21 @@ js_error_uncatchable(JSContext* ctx) {
   return obj;
 }*/
 
-static thread_local JSModuleDef* io_module;
+static /*thread_local*/ JSModuleDef* io_module;
 
 JSValue
 js_iohandler_fn(JSContext* ctx, BOOL write) {
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
   JSValue set_handler = JS_NULL;
 
-  if(!io_module)
+  /*if(!io_module)
     io_module = js_module_load(ctx, "io");
 
   if(!io_module)
     io_module = js_module_load(ctx, "os");
 
   if(io_module)
-    set_handler = module_exports_find_str(ctx, io_module, handlers[!!write]);
+    set_handler = module_exports_find_str(ctx, io_module, handlers[!!write]);*/
 
   if(js_is_null_or_undefined(set_handler)) {
     JSValue osval = js_global_get_str(ctx, "os");

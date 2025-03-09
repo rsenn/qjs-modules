@@ -59,17 +59,27 @@ list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
 #list(APPEND CMAKE_REQUIRED_LIBRARIES "${QUICKJS_LIBRARY}")
 list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 
-check_function_def(HAVE_JS_PROMISE_STATE JS_PromiseState)
-check_function_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE_2)
-check_function_exists(quickjs JS_GetModuleLoaderFunc "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADERFUNC)
-check_function_exists(quickjs JS_GetModuleLoaderOpaque "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADEROPAQUE)
+include(CheckLibraryExists)
 
+check_function_def(HAVE_JS_PROMISE_STATE JS_PromiseState)
+check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE_2)
+check_library_exists(quickjs JS_GetModuleLoaderFunc "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADERFUNC)
+dump(HAVE_JS_GETMODULELOADERFUNC)
 if(HAVE_JS_GETMODULELOADERFUNC)
   add_definitions(-DHAVE_JS_GETMODULELOADERFUNC)
 endif(HAVE_JS_GETMODULELOADERFUNC)
+
+check_library_exists(quickjs JS_GetModuleLoaderOpaque "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADEROPAQUE)
+dump(HAVE_JS_GETMODULELOADEROPAQUE)
 if(HAVE_JS_GETMODULELOADEROPAQUE)
   add_definitions(-DHAVE_JS_GETMODULELOADEROPAQUE)
 endif(HAVE_JS_GETMODULELOADEROPAQUE)
+
+check_library_exists(quickjs js_debugger_build_backtrace "${QUICKJS_LIBRARY_DIR}" HAVE_JS_DEBUGGERBUILDBACKTRACE)
+dump(HAVE_JS_DEBUGGERBUILDBACKTRACE)
+if(HAVE_JS_DEBUGGERBUILDBACKTRACE)
+  add_definitions(-DHAVE_JS_DEBUGGER_BUILD_BACKTRACE)
+endif(HAVE_JS_DEBUGGERBUILDBACKTRACE)
 
 
 if(NOT QUICKJS_LIBRARY_DIR AND NOT QUICKJS_INCLUDE_DIRS)
@@ -178,7 +188,7 @@ endif(HAVE_TEMPNAM)
 #   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpilib/gpio.cmake)
 # endif(BUILD_PIGPIO)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}
                     ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
@@ -624,6 +634,17 @@ foreach(LIB_MODULE ${LIB_MODULES})
 
   compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
 endforeach(LIB_MODULE ${LIB_MODULES})
+
+
+execute_process(COMMAND sed -n "/^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }" 
+../quickjs.c ../quickjs-libc.c 
+ WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/internal.h")
+
+file(READ "${CMAKE_CURRENT_BINARY_DIR}/internal.h" INTERNAL)
+
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h" "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n\n${INTERNAL}\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n")
+
+
 
 add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES}
                            ${libutf_SOURCES} ${libbcrypt_SOURCES})

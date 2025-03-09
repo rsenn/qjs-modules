@@ -955,16 +955,14 @@ socket_method(int magic) {
 
 Socket
 js_socket_data(JSValueConst value) {
-  JSClassID id = JS_GetClassID(value);
+  //  JSClassID id = JS_GetClassID(value);
   Socket sock = SOCKET_INIT();
+  void* opaque;
 
-  if((id = JS_GetClassID(value)) > 0) {
-    void* opaque = JS_GetOpaque(value, id);
-
-    if(id == js_socket_class_id)
-      sock = *(Socket*)&opaque;
-    else if(id == js_asyncsocket_class_id)
-      sock = *(Socket*)opaque;
+  if((opaque = JS_GetOpaque(value, js_asyncsocket_class_id))) {
+    sock = *(Socket*)opaque;
+  } else if((opaque = JS_GetOpaque(value, js_socket_class_id))) {
+    sock = *(Socket*)&opaque;
   }
 
   return sock;
@@ -1634,7 +1632,10 @@ static JSValue
 js_socket_valueof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Socket s = js_socket_data(this_val);
 
-  return JS_NewInt32(ctx, socket_fd(s));
+  if(s.ptr)
+    return JS_NewInt32(ctx, socket_fd(s));
+
+  return JS_UNDEFINED;
 }
 
 static JSValue
