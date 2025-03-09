@@ -361,6 +361,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
         dbuf_free(&dbuf);
       }
+
       break;
     }
   }
@@ -614,23 +615,22 @@ fdset_fromarray(JSContext* ctx, JSValueConst arr, fd_set* set) {
   return -1;
 }
 
-static BOOL
+static ssize_t
 fdset_read(JSContext* ctx, JSValueConst arg, fd_set* set) {
-  if(js_is_array(ctx, arg))
-    if(!fdset_fromarray(ctx, arg, set))
-      return TRUE;
+  InputBuffer buf = js_input_buffer(ctx, arg);
 
-  if(js_is_arraybuffer(ctx, arg)) {
-    uint8_t* data;
-    size_t len;
-
-    if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
-      memcpy(set, data, MIN_NUM(len, sizeof(fd_set)));
-      return TRUE;
-    }
+  if(buf.data) {
+    size_t len = MIN_NUM(buf.size, sizeof(fd_set));
+    memcpy(set, buf.data, len);
+    input_buffer_free(&buf, ctx);
+    return len;
   }
 
-  return FALSE;
+  if(js_is_array(ctx, arg))
+    if(!fdset_fromarray(ctx, arg, set))
+      return sizeof(fd_set);
+
+  return 0;
 }
 
 static int64_t
@@ -647,24 +647,22 @@ fdset_toarray(JSContext* ctx, const fd_set* set, JSValueConst arr) {
   return idx;
 }
 
-static BOOL
+static ssize_t
 fdset_write(JSContext* ctx, const fd_set* set, JSValueConst arg) {
-  if(js_is_array(ctx, arg)) {
+  InputBuffer buf = js_input_buffer(ctx, arg);
+
+  if(buf.data) {
+    size_t len = MIN_NUM(buf.size, sizeof(fd_set));
+    memcpy(buf.data, set, len);
+    input_buffer_free(&buf, ctx);
+    return len;
+  }
+
+  if(js_is_array(ctx, arg))
     if(fdset_toarray(ctx, set, arg) >= 0)
-      return TRUE;
-  }
+      return sizeof(fd_set);
 
-  if(js_is_arraybuffer(ctx, arg)) {
-    uint8_t* data;
-    size_t len;
-
-    if((data = JS_GetArrayBuffer(ctx, &len, arg))) {
-      memcpy(data, set, MIN_NUM(len, sizeof(fd_set)));
-      return TRUE;
-    }
-  }
-
-  return FALSE;
+  return 0;
 }
 
 #ifndef _WIN32
@@ -794,6 +792,7 @@ js_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) 
   fd_set rfds, wfds, efds, *rset = 0, *wset = 0, *eset = 0;
   int ret;
   struct timeval tv = {0, 0}, *timeout = 0;
+  ssize_t r;
 
   JS_ToIndex(ctx, &n, argv[0]);
 
@@ -801,17 +800,26 @@ js_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) 
   FD_ZERO(&wfds);
   FD_ZERO(&efds);
 
-  if(argc >= 2)
-    if(fdset_read(ctx, argv[1], &rfds))
+  if(argc >= 2) {
+    if((r = fdset_read(ctx, argv[1], &rfds)) >= sizeof(fd_set))
       rset = &rfds;
+    else if(r > 0)
+      return JS_ThrowTypeError(ctx, "argument 2 ArrayBuffer needs to be at least %zu bytes in size", sizeof(fd_set));
+  }
 
-  if(argc >= 3)
-    if(fdset_read(ctx, argv[2], &wfds))
+  if(argc >= 3) {
+    if((r = fdset_read(ctx, argv[2], &wfds)) >= sizeof(fd_set))
       wset = &wfds;
+    else if(r > 0)
+      return JS_ThrowTypeError(ctx, "argument 3 ArrayBuffer needs to be at least %zu bytes in size", sizeof(fd_set));
+  }
 
-  if(argc >= 4)
-    if(fdset_read(ctx, argv[3], &efds))
+  if(argc >= 4) {
+    if((r = fdset_read(ctx, argv[3], &efds)) >= sizeof(fd_set))
       eset = &efds;
+    else if(r > 0)
+      return JS_ThrowTypeError(ctx, "argument 4 ArrayBuffer needs to be at least %zu bytes in size", sizeof(fd_set));
+  }
 
   if(argc >= 5)
     if(timeval_read(ctx, argv[4], &tv))

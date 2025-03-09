@@ -21,11 +21,36 @@ static BOOL reader_passthrough(Reader*, JSValueConst, JSContext*);
 static int readable_unlock(Readable*, Reader*);
 static int writable_unlock(Writable*, Writer*);
 
+static JSValue
+js_get_iterator_value(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  BOOL done = js_get_propertystr_bool(ctx, argv[0], "done");
+  return JS_GetPropertyStr(ctx, argv[0], "value");
+}
+
+static JSValue
+js_promise_iterator_value(JSContext* ctx, JSValueConst promise) {
+
+  JSValue fn = JS_NewCFunction(ctx, &js_get_iterator_value, "getIteratorValue", 1);
+
+  JSValue ret = promise_then(ctx, promise, fn);
+
+  JS_FreeValue(ctx, fn);
+  return ret;
+}
+
 static void
 chunk_unref(JSRuntime* rt, void* opaque, void* ptr) {
   chunk_free(opaque);
 }
 
+/**
+ * @brief      { function_description }
+ *
+ * @param      ch    { parameter_description }
+ * @param      ctx   The JSContext
+ *
+ * @return     { return value }
+ */
 static JSValue
 chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
   chunk_dup(ch);
@@ -33,6 +58,14 @@ chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
   return JS_NewArrayBuffer(ctx, ch->data + ch->pos, ch->size - ch->pos, chunk_unref, ch, FALSE);
 }
 
+/**
+ * @brief      Creates a new \ref Read
+ *
+ * @param      rd    Reader struct
+ * @param      ctx   The JSContext
+ *
+ * @return     { description_of_the_return_value }
+ */
 static Read*
 read_new(Reader* rd, JSContext* ctx) {
   static int read_seq = 0;
@@ -48,6 +81,14 @@ read_new(Reader* rd, JSContext* ctx) {
   return op;
 }
 
+/**
+ * @brief      Reads the next value
+ *
+ * @param      rd    Reader struct
+ * @param      ctx   The JSContext
+ *
+ * @return     A Promise that resolves to a value when reading done
+ */
 static JSValue
 read_next(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -73,11 +114,24 @@ read_next(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Indicates whether reading is done
+ *
+ * @param      op    The operation
+ *
+ * @return     TRUE if done, FALSE if not
+ */
 static BOOL
 read_done(Read* op) {
   return JS_IsUndefined(op->promise.value) && promise_done(&op->promise.funcs);
 }
 
+/**
+ * @brief      Frees a \ref Read
+ *
+ * @param      op    The operation
+ * @param      rt    The JSRuntime
+ */
 static void
 read_free_rt(Read* op, JSRuntime* rt) {
   promise_free(rt, &op->promise);
@@ -85,6 +139,14 @@ read_free_rt(Read* op, JSRuntime* rt) {
   list_del(&op->link);
 }
 
+/**
+ * @brief      Creates a new \ref Reader
+ *
+ * @param      ctx   The JSContext
+ * @param      st    A readable stream
+ *
+ * @return     A Reader struct or NULL on error
+ */
 static Reader*
 reader_new(JSContext* ctx, Readable* st) {
   Reader* rd;
@@ -104,6 +166,14 @@ reader_new(JSContext* ctx, Readable* st) {
   return rd;
 }
 
+/**
+ * @brief      Releases the \ref Reader from its \ref Readable stream
+ *
+ * @param      rd    Reader struct
+ * @param      ctx   The JSContext
+ *
+ * @return     TRUE on success, FALSE if failed
+ */
 static BOOL
 reader_release_lock(Reader* rd, JSContext* ctx) {
   BOOL ret = FALSE;
@@ -116,6 +186,14 @@ reader_release_lock(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Clears all queued reads on the \ref Reader
+ *
+ * @param      rd    Reader struct
+ * @param      ctx   The JSContext
+ *
+ * @return     How many reads have been cleared
+ */
 static int
 reader_clear(Reader* rd, JSContext* ctx) {
   int ret = 0;
@@ -125,11 +203,21 @@ reader_clear(Reader* rd, JSContext* ctx) {
     promise_reject(ctx, &el->promise.funcs, JS_UNDEFINED);
 
     read_free_rt(el, JS_GetRuntime(ctx));
+
+    ++ret;
   }
 
   return ret;
 }
 
+/**
+ * @brief      Closes a \ref Reader
+ *
+ * @param      rd    Reader struct
+ * @param      ctx   The JSContext
+ *
+ * @return     A Promise that resolves when the closing is done
+ */
 static JSValue
 reader_close(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -153,6 +241,15 @@ reader_close(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Cancels a \ref Reader
+ *
+ * @param      rd      Reader struct
+ * @param[in]  reason  The reason
+ * @param      ctx     The JSContext
+ *
+ * @return     { return value }
+ */
 static JSValue
 reader_cancel(Reader* rd, JSValueConst reason, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -168,6 +265,14 @@ reader_cancel(Reader* rd, JSValueConst reason, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Reads from a \ref Reader
+ *
+ * @param      rd    Reader struct
+ * @param      ctx   The JSContext
+ *
+ * @return     A Promise that resolves to data as soon as the read has completed
+ */
 static JSValue
 reader_read(Reader* rd, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -186,12 +291,21 @@ reader_read(Reader* rd, JSContext* ctx) {
   }
 
   reader_update(rd, ctx);
-  // printf("reader_read (2) [%zu] closed=%i\n", list_size(&rd->list), rd->stream->closed);
-  //  printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
 
-  return ret;
+  // printf("reader_read (2) [%zu] closed=%i\n", list_size(&rd->list), rd->stream->closed);
+  // printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
+
+  return js_promise_iterator_value(ctx, ret);
 }
 
+/**
+ * @brief      Cleans all reads from a \ref Reader
+ *
+ * @param      rd    Reader struct
+ * @param      ctx   The JSContext
+ *
+ * @return     How many reads that have been cleaned
+ */
 static size_t
 reader_clean(Reader* rd, JSContext* ctx) {
   Read *el, *next;
@@ -200,9 +314,11 @@ reader_clean(Reader* rd, JSContext* ctx) {
   list_for_each_prev_safe(el, next, (Read*)&rd->reads) {
     if(read_done(el)) {
       // printf("reader_clean() delete[%i]\n", el->seq);
+
       list_del(&el->link);
       js_free(ctx, el);
-      ret++;
+      ++ret;
+
       continue;
     }
 
@@ -212,6 +328,14 @@ reader_clean(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Updates a \ref Reader state
+ *
+ * @param      rd    Reader struct
+ * @param      ctx   The JSContext
+ *
+ * @return     How many chunks that have been processed
+ */
 static int
 reader_update(Reader* rd, JSContext* ctx) {
   JSValue result;
@@ -225,7 +349,9 @@ reader_update(Reader* rd, JSContext* ctx) {
 
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
+
     // reader_clear(rd, ctx);
+
     result = js_iterator_result(ctx, JS_UNDEFINED, TRUE);
 
     if(reader_passthrough(rd, result, ctx))
@@ -233,7 +359,9 @@ reader_update(Reader* rd, JSContext* ctx) {
   } else {
     while(!list_empty(&rd->list) && (ch = queue_next(&st->q))) {
       JSValue chunk, result;
+
       // printf("reader_update(2) Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
+
       chunk = chunk_arraybuffer(ch, ctx);
       result = js_iterator_result(ctx, chunk, FALSE);
       JS_FreeValue(ctx, chunk);
@@ -252,6 +380,15 @@ reader_update(Reader* rd, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      { function_description }
+ *
+ * @param      rd      { parameter_description }
+ * @param[in]  result  The result
+ * @param      ctx     The JSContext
+ *
+ * @return     { description_of_the_return_value }
+ */
 static BOOL
 reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   Read *op = 0, *el, *next;
@@ -275,6 +412,13 @@ reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Creates a new \ref Readable stream
+ *
+ * @param      ctx   The JSContext
+ *
+ * @return     A new Readable stream
+ */
 static Readable*
 readable_new(JSContext* ctx) {
   Readable* st;
@@ -289,12 +433,27 @@ readable_new(JSContext* ctx) {
   return st;
 }
 
+/**
+ * @brief      Duplicates a \ref Readable stream
+ *
+ * @param      st    A readable stream
+ *
+ * @return     The same readable stream (with incremented reference count)
+ */
 static Readable*
 readable_dup(Readable* st) {
   ++st->ref_count;
   return st;
 }
 
+/**
+ * @brief      Closes the \ref Readable stream
+ *
+ * @param      st    A readable stream
+ * @param      ctx   The JSContext
+ *
+ * @return     JS_UNDEFINED
+ */
 static JSValue
 readable_close(Readable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -312,6 +471,15 @@ readable_close(Readable* st, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Cancels the \ref Readable stream
+ *
+ * @param      st      A readable stream
+ * @param[in]  reason  The reason
+ * @param      ctx     The JSContext
+ *
+ * @return     A Promise which is resolved when the cancellation has completed
+ */
 static JSValue
 readable_cancel(Readable* st, JSValueConst reason, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -332,6 +500,15 @@ readable_cancel(Readable* st, JSValueConst reason, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Enqueues data on the \ref Readable stream
+ *
+ * @param      st     A readable stream
+ * @param[in]  chunk  The chunk
+ * @param      ctx    The JSContext
+ *
+ * @return     JSValue: Number of bytes written
+ */
 static JSValue
 readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   InputBuffer input;
@@ -356,21 +533,46 @@ readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
   // printf("old queue size: %zu new queue size: %zu\n", old_size, queue_size(&st->q));
 
   input_buffer_free(&input, ctx);
+
   return ret < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, ret) : JS_NewInt64(ctx, ret);
 }
 
-static int
+/**
+ * @brief      Locks the \ref Readable stream
+ *
+ * @param      st    A readable stream
+ * @param      rd    Reader struct
+ *
+ * @return     TRUE when locked, FALSE when failed
+ */
+static BOOL
 readable_lock(Readable* st, Reader* rd) {
   Reader* expected = 0;
 
   return atomic_compare_exchange_weak(&st->reader, &expected, rd);
 }
 
-static int
+/**
+ * @brief      Unlocks the \ref Readable stream
+ *
+ * @param      st    A readable stream
+ * @param      rd    Reader struct
+ *
+ * @return     TRUE when unlocked, FALSE when failed
+ */
+static BOOL
 readable_unlock(Readable* st, Reader* rd) {
   return atomic_compare_exchange_weak(&st->reader, &rd, 0);
 }
 
+/**
+ * @brief      Gets the \ref Reader of the \ref Readable stream
+ *
+ * @param      st    A readable stream
+ * @param      ctx   The JSContext
+ *
+ * @return     { description_of_the_return_value }
+ */
 static Reader*
 readable_get_reader(Readable* st, JSContext* ctx) {
   Reader* rd;
@@ -386,6 +588,12 @@ readable_get_reader(Readable* st, JSContext* ctx) {
   return rd;
 }
 
+/**
+ * @brief      Frees the \ref Readable stream
+ *
+ * @param      st    A readable stream
+ * @param      rt    The JSRuntime
+ */
 static void
 readable_free(Readable* st, JSRuntime* rt) {
   if(--st->ref_count == 0) {
@@ -404,6 +612,16 @@ enum {
   FUNC_PEEK,
 };
 
+/**
+ * @brief      Construct a JS Reader object
+ *
+ * @param      ctx         The JSContext
+ * @param[in]  new_target  The constructor function
+ * @param[in]  argc        Number of arguments
+ * @param      argv        The arguments array
+ *
+ * @return     JS Reader object
+ */
 JSValue
 js_reader_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -441,6 +659,14 @@ fail:
   return JS_EXCEPTION;
 }
 
+/**
+ * @brief      Wraps a \ref Reader struct in a JS Reader object
+ *
+ * @param      ctx   The JSContext
+ * @param      rd    Reader struct
+ *
+ * @return     JS Reader object
+ */
 JSValue
 js_reader_wrap(JSContext* ctx, Reader* rd) {
   JSValue obj = JS_NewObjectProtoClass(ctx, reader_proto, js_reader_class_id);
@@ -455,6 +681,17 @@ enum {
   READER_RELEASE_LOCK,
 };
 
+/**
+ * @brief      JS Reader object method function
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  argc      Number of arguments
+ * @param      argv      The arguments array
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the method
+ */
 JSValue
 js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
@@ -472,6 +709,7 @@ js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     case READER_READ: {
       ret = reader_read(rd, ctx);
+
       break;
     }
 
@@ -488,6 +726,15 @@ enum {
   READER_PROP_CLOSED,
 };
 
+/**
+ * @brief      JS Reader object getter function
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  magic     Magic number
+ *
+ * @return     { return value }
+ */
 JSValue
 js_reader_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Reader* rd;
@@ -506,6 +753,12 @@ js_reader_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
+/**
+ * @brief      JS Reader object finalizer
+ *
+ * @param      rt    The JSRuntime
+ * @param[in]  val   The value
+ */
 void
 js_reader_finalizer(JSRuntime* rt, JSValue val) {
   Reader* rd;
@@ -527,6 +780,17 @@ const JSCFunctionListEntry js_reader_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamReader", JS_PROP_CONFIGURABLE),
 };
 
+/**
+ * @brief      { function_description }
+ *
+ * @param      ctx    The JSContext
+ * @param      st     A readable stream
+ * @param[in]  event  The event
+ * @param[in]  argc   Number of arguments
+ * @param      argv   The arguments array
+ *
+ * @return     { return value }
+ */
 JSValue
 js_readable_callback(JSContext* ctx, Readable* st, ReadableEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
@@ -538,6 +802,16 @@ js_readable_callback(JSContext* ctx, Readable* st, ReadableEvent event, int argc
   return JS_UNDEFINED;
 }
 
+/**
+ * @brief      Constructs a JS Readable object
+ *
+ * @param      ctx         The JSContext
+ * @param[in]  new_target  The constructor function
+ * @param[in]  argc        Number of arguments
+ * @param      argv        The arguments array
+ *
+ * @return     JS Readable object
+ */
 JSValue
 js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -575,6 +849,14 @@ fail:
   return JS_EXCEPTION;
 }
 
+/**
+ * @brief      Wraps a Readable struct in a JS Readable object
+ *
+ * @param      ctx   The JSContext
+ * @param      st    A readable stream
+ *
+ * @return     JS Readable object
+ */
 JSValue
 js_readable_wrap(JSContext* ctx, Readable* st) {
   JSValue obj = JS_NewObjectProtoClass(ctx, readable_proto, js_readable_class_id);
@@ -589,6 +871,17 @@ enum {
   READABLE_GET_READER,
 };
 
+/**
+ * @brief      JS Readable object method function
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  argc      Number of arguments
+ * @param      argv      The arguments array
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the method
+ */
 JSValue
 js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Readable* st;
@@ -625,6 +918,15 @@ enum {
   READABLE_PROP_LOCKED,
 };
 
+/**
+ * @brief      JS Readable object getter function
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the getter
+ */
 JSValue
 js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Readable* st;
@@ -654,6 +956,17 @@ enum {
   READABLE_ERROR,
 };
 
+/**
+ * @brief      JS Readable controller functions
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  argc      Number of arguments
+ * @param      argv      The arguments array
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the controller function
+ */
 JSValue
 js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Readable* st;
@@ -682,6 +995,14 @@ js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   return ret;
 }
 
+/**
+ * @brief      Returns the desired size of a JS Readable object
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ *
+ * @return     JS Number
+ */
 JSValue
 js_readable_desired(JSContext* ctx, JSValueConst this_val) {
   Readable* st;
@@ -700,6 +1021,12 @@ js_readable_desired(JSContext* ctx, JSValueConst this_val) {
   return ret;
 }
 
+/**
+ * @brief      JS Readable object finalizer
+ *
+ * @param      rt    The JSRuntime
+ * @param[in]  val   The value
+ */
 void
 js_readable_finalizer(JSRuntime* rt, JSValue val) {
   Readable* st;
@@ -737,6 +1064,14 @@ enum {
   WRITABLE_GET_WRITER,
 };
 
+/**
+ * @brief      Creates a new Writer struct
+ *
+ * @param      ctx   The JSContext
+ * @param      st    A writable stream
+ *
+ * @return     Pointer to Writer struct or NULL on error
+ */
 static Writer*
 writer_new(JSContext* ctx, Writable* st) {
   Writer* wr;
@@ -759,6 +1094,14 @@ writer_new(JSContext* ctx, Writable* st) {
   return wr;
 }
 
+/**
+ * @brief      Releases the \ref Writer from its \ref Writable stream
+ *
+ * @param      wr    The writer
+ * @param      ctx   The JSContext
+ *
+ * @return     TRUE on success, FALSE on error
+ */
 static BOOL
 writer_release_lock(Writer* wr, JSContext* ctx) {
   BOOL ret = FALSE;
@@ -771,16 +1114,26 @@ writer_release_lock(Writer* wr, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Writes a chunk to the \ref Writer
+ *
+ * @param      wr     The writer
+ * @param[in]  chunk  The chunk
+ * @param      ctx    The JSContext
+ *
+ * @return     A Promise that is resolved when the writing is done
+ */
 static JSValue
 writer_write(Writer* wr, JSValueConst chunk, JSContext* ctx) {
-  /* JSValue ret = JS_UNDEFINED;
-ssize_t bytes;
+  /*JSValue ret = JS_UNDEFINED;
+  ssize_t bytes;
 
- if((bytes = queue_write(&wr->q, block->base, block->size)) == block->size) {
-   Chunk* chunk = queue_tail(&wr->q);
+  if((bytes = queue_write(&wr->q, block->base, block->size)) == block->size) {
+    Chunk* chunk = queue_tail(&wr->q);
 
-   chunk->opaque = promise_new(ctx, &ret);
- }*/
+    chunk->opaque = promise_new(ctx, &ret);
+  }*/
+
   if(wr->stream) {
     JSValueConst args[2] = {chunk, wr->stream->controller};
     return js_writable_callback(ctx, wr->stream, WRITABLE_WRITE, 2, args);
@@ -789,6 +1142,14 @@ ssize_t bytes;
   return JS_ThrowInternalError(ctx, "no WriteableStream");
 }
 
+/**
+ * @brief      Close a writer
+ *
+ * @param      wr    The writer
+ * @param      ctx   The JSContext
+ *
+ * @return     A promise that is resolved when the closing is done
+ */
 static JSValue
 writer_close(Writer* wr, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -804,6 +1165,15 @@ writer_close(Writer* wr, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Abort a \ref Writer
+ *
+ * @param      wr      The writer
+ * @param[in]  reason  The reason
+ * @param      ctx     The JSContext
+ *
+ * @return     A promise that is resolved when the aborting is done
+ */
 static JSValue
 writer_abort(Writer* wr, JSValueConst reason, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -819,6 +1189,16 @@ writer_abort(Writer* wr, JSValueConst reason, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      { function_description }
+ *
+ * @param      wr     The writer
+ * @param[in]  event  The event
+ * @param[in]  arg    The argument
+ * @param      ctx    The JSContext
+ *
+ * @return     JS TRUE if successful
+ */
 static JSValue
 writer_signal(Writer* wr, StreamEvent event, JSValueConst arg, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -832,6 +1212,13 @@ writer_signal(Writer* wr, StreamEvent event, JSValueConst arg, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Create a writable stream
+ *
+ * @param      ctx   The JSContext
+ *
+ * @return     a pointer to a Writable struct or NULL on error
+ */
 static Writable*
 writable_new(JSContext* ctx) {
   Writable* st;
@@ -849,12 +1236,28 @@ writable_new(JSContext* ctx) {
   return st;
 }
 
+/**
+ * @brief      Duplicate a writable stream
+ *
+ * @param      st    A writable stream
+ *
+ * @return     The same writable stream (with incremented reference count)
+ */
 static Writable*
 writable_dup(Writable* st) {
   ++st->ref_count;
   return st;
 }
 
+/**
+ * @brief      Abort a \ref Writable
+ *
+ * @param      st      A writable stream
+ * @param[in]  reason  The reason
+ * @param      ctx     The JSContext
+ *
+ * @return     A Promise that is resolved when the aborting is done
+ */
 static JSValue
 writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -872,6 +1275,14 @@ writable_abort(Writable* st, JSValueConst reason, JSContext* ctx) {
   return ret;
 }
 
+/**
+ * @brief      Close a writable stream
+ *
+ * @param      st    A writable stream
+ * @param      ctx   The JSContext
+ *
+ * @return     a Promise which is resolved when the closing is done
+ */
 static JSValue
 writable_close(Writable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
@@ -887,18 +1298,43 @@ writable_close(Writable* st, JSContext* ctx) {
   return ret;
 }
 
-static int
+/**
+ * @brief      Lock a writable stream
+ *
+ * @param      st    A writable stream
+ * @param      wr    The writer
+ *
+ * @return     TRUE when locked, FALSE when failed
+ */
+static BOOL
 writable_lock(Writable* st, Writer* wr) {
   Writer* expected = 0;
 
   return atomic_compare_exchange_weak(&st->writer, &expected, wr);
 }
 
-static int
+/**
+ * @brief      Unlock a writable stream
+ *
+ * @param      st    A writable stream
+ * @param      wr    The writer
+ *
+ * @return     TRUE when unlocked, FALSE when failed
+ */
+static BOOL
 writable_unlock(Writable* st, Writer* wr) {
   return atomic_compare_exchange_weak(&st->writer, &wr, 0);
 }
 
+/**
+ * @brief      Get the writer of a Writable Stream
+ *
+ * @param      st            A writable stream
+ * @param[in]  desired_size  The desired size
+ * @param      ctx           The JSContext
+ *
+ * @return     Pointer to Writer or NULL on error
+ */
 static Writer*
 writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
   Writer* wr;
@@ -916,6 +1352,12 @@ writable_get_writer(Writable* st, size_t desired_size, JSContext* ctx) {
   return wr;
 }
 
+/**
+ * @brief      Free a writable stream
+ *
+ * @param      st    A writable stream
+ * @param      rt    The JSRuntime
+ */
 static void
 writable_free(Writable* st, JSRuntime* rt) {
   if(--st->ref_count == 0) {
@@ -930,6 +1372,16 @@ writable_free(Writable* st, JSRuntime* rt) {
   }
 }
 
+/**
+ * @brief      Construct a Writer object
+ *
+ * @param      ctx         The JSContext
+ * @param[in]  new_target  The constructor function
+ * @param[in]  argc        Number of arguments
+ * @param      argv        The arguments array
+ *
+ * @return     a JS Writer object
+ */
 JSValue
 js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -966,6 +1418,14 @@ fail:
   return JS_EXCEPTION;
 }
 
+/**
+ * @brief      Wraps a \ref Writer struct in a JS Writer object
+ *
+ * @param      ctx   The JSContext
+ * @param      wr    The writer
+ *
+ * @return     JS Writer object
+ */
 JSValue
 js_writer_wrap(JSContext* ctx, Writer* wr) {
   JSValue obj = JS_NewObjectProtoClass(ctx, writer_proto, js_writer_class_id);
@@ -981,6 +1441,17 @@ enum {
   WRITER_RELEASE_LOCK,
 };
 
+/**
+ * @brief      JS Writer object method function
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  argc      Number of arguments
+ * @param      argv      The arguments array
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the method
+ */
 JSValue
 js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
@@ -1001,12 +1472,12 @@ js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
 
     case WRITER_WRITE: {
-      /*  MemoryBlock b;
-        InputBuffer input;
-        input = js_input_args(ctx, argc, argv);
-        b = block_range(input_buffer_blockptr(&input), &input.range);
-        ret = writer_write(wr, &b, ctx);
-        input_buffer_free(&input, ctx);*/
+      /*MemoryBlock b;
+      InputBuffer input;
+      input = js_input_args(ctx, argc, argv);
+      b = block_range(input_buffer_blockptr(&input), &input.range);
+      ret = writer_write(wr, &b, ctx);
+      input_buffer_free(&input, ctx);*/
       ret = writer_write(wr, argv[0], ctx);
       break;
     }
@@ -1025,6 +1496,15 @@ enum {
   WRITER_PROP_READY,
 };
 
+/**
+ * @brief      JS Writer object getter function
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  magic     Magic number
+ *
+ * @return     { return value }
+ */
 JSValue
 js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Writer* wr;
@@ -1048,6 +1528,12 @@ js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
+/**
+ * @brief      JS Writer object finalizer
+ *
+ * @param      rt    The JSRuntime
+ * @param[in]  val   The value
+ */
 void
 js_writer_finalizer(JSRuntime* rt, JSValue val) {
   Writer* wr;
@@ -1071,6 +1557,17 @@ const JSCFunctionListEntry js_writer_proto_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamWriter", JS_PROP_CONFIGURABLE),
 };
 
+/**
+ * @brief      { function_description }
+ *
+ * @param      ctx    The JSContext
+ * @param      st     A writable stream
+ * @param[in]  event  The event
+ * @param[in]  argc   Number of arguments
+ * @param      argv   The arguments array
+ *
+ * @return     { return value }
+ */
 JSValue
 js_writable_callback(JSContext* ctx, Writable* st, WritableEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
@@ -1082,6 +1579,16 @@ js_writable_callback(JSContext* ctx, Writable* st, WritableEvent event, int argc
   return JS_UNDEFINED;
 }
 
+/**
+ * @brief      Constructs a JS Writable object
+ *
+ * @param      ctx         The JSContext
+ * @param[in]  new_target  The constructor function
+ * @param[in]  argc        Number of arguments
+ * @param      argv        The arguments array
+ *
+ * @return     JS Writable object
+ */
 JSValue
 js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -1118,6 +1625,14 @@ fail:
   return JS_EXCEPTION;
 }
 
+/**
+ * @brief      Wraps a Writable struct in a JS Writable object
+ *
+ * @param      ctx   The JSContext
+ * @param      st    A writable stream
+ *
+ * @return     JS Writable object
+ */
 JSValue
 js_writable_wrap(JSContext* ctx, Writable* st) {
   JSValue obj = JS_NewObjectProtoClass(ctx, writable_proto, js_writable_class_id);
@@ -1127,19 +1642,51 @@ js_writable_wrap(JSContext* ctx, Writable* st) {
   return obj;
 }
 
+/**
+ * @brief      Returns the JS object itself
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  argc      Number of arguments
+ * @param      argv      The arguments array
+ *
+ * @return     JS Writable object
+ */
 JSValue
 js_writable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return JS_DupValue(ctx, this_val);
 }
 
-JSValue
+/**
+ * @brief      { function_description }
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  magic     Magic number
+ *
+ * @return     { return value }
+ */
+/*JSValue
 js_writable_handler(JSContext* ctx, JSValueConst this_val, int magic) {
   JSValue method = JS_NewCFunctionMagic(ctx, js_writable_method, "handler", 0, JS_CFUNC_generic_magic, magic);
   JSValue handler = js_function_bind_this(ctx, method, this_val);
-  JS_FreeValue(ctx, method);
-  return handler;
-}
 
+  JS_FreeValue(ctx, method);
+
+  return handler;
+}*/
+
+/**
+ * @brief      JS Writable object method function
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  argc      Number of arguments
+ * @param      argv      The arguments array
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the method
+ */
 JSValue
 js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Writable* st;
@@ -1177,6 +1724,15 @@ enum {
   WRITABLE_PROP_LOCKED,
 };
 
+/**
+ * @brief      JS Writable object getter function
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the getter
+ */
 JSValue
 js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Writable* st;
@@ -1204,6 +1760,17 @@ enum {
   WRITABLE_ERROR = 0,
 };
 
+/**
+ * @brief      JS Writable controller functions
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  argc      Number of arguments
+ * @param      argv      The arguments array
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the controller function
+ */
 JSValue
 js_writable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Writable* st;
@@ -1222,6 +1789,12 @@ js_writable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   return ret;
 }
 
+/**
+ * @brief      JS Writable object finalizer
+ *
+ * @param      rt    The JSRuntime
+ * @param[in]  val   The value
+ */
 void
 js_writable_finalizer(JSRuntime* rt, JSValue val) {
   Writable* st;
@@ -1249,6 +1822,13 @@ const JSCFunctionListEntry js_writable_controller_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
+/**
+ * @brief      Duplicates a \ref Transform stream
+ *
+ * @param      st    A transform stream
+ *
+ * @return     The same Transform stream (with incremented reference count)
+ */
 static Transform*
 transform_dup(Transform* st) {
   ++st->ref_count;
@@ -1256,6 +1836,13 @@ transform_dup(Transform* st) {
   return st;
 }
 
+/**
+ * @brief      Creates a new \ref Transform stream
+ *
+ * @param      ctx   The JSContext
+ *
+ * @return     A new Transform stream
+ */
 static Transform*
 transform_new(JSContext* ctx) {
   Transform* st;
@@ -1273,18 +1860,41 @@ transform_new(JSContext* ctx) {
   return st;
 }
 
+/**
+ * @brief      Terminates a \ref Transform stream
+ *
+ * @param      st    A transform stream
+ * @param      ctx   The JSContext
+ */
 static void
 transform_terminate(Transform* st, JSContext* ctx) {
   readable_close(st->readable, ctx);
   writable_abort(st->writable, JS_UNDEFINED, ctx);
 }
 
+/**
+ * @brief      Signals an error on a \ref Transform stream
+ *
+ * @param      st     A transform stream
+ * @param[in]  error  The error
+ * @param      ctx    The JSContext
+ */
 static void
 transform_error(Transform* st, JSValueConst error, JSContext* ctx) {
   readable_cancel(st->readable, error, ctx);
   writable_abort(st->writable, error, ctx);
 }
 
+/**
+ * @brief      Constructs a JS Transform object
+ *
+ * @param      ctx         The JSContext
+ * @param[in]  new_target  The constructor function
+ * @param[in]  argc        Number of arguments
+ * @param      argv        The arguments array
+ *
+ * @return     JS Transform object
+ */
 JSValue
 js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -1329,6 +1939,15 @@ enum {
   TRANSFORM_PROP_WRITABLE,
 };
 
+/**
+ * @brief      JS Transform object getter function
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the getter
+ */
 JSValue
 js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Transform* st;
@@ -1358,6 +1977,17 @@ enum {
   TRANSFORM_ERROR,
 };
 
+/**
+ * @brief      JS Transform controller functions
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ * @param[in]  argc      Number of arguments
+ * @param      argv      The arguments array
+ * @param[in]  magic     Magic number
+ *
+ * @return     Return value of the controller function
+ */
 JSValue
 js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Transform* st;
@@ -1388,6 +2018,14 @@ js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   return ret;
 }
 
+/**
+ * @brief      Returns the desired size of a JS Transform object
+ *
+ * @param      ctx       The JSContext
+ * @param[in]  this_val  The this object
+ *
+ * @return     JS Number
+ */
 JSValue
 js_transform_desired(JSContext* ctx, JSValueConst this_val) {
   Transform* st;
@@ -1406,6 +2044,12 @@ js_transform_desired(JSContext* ctx, JSValueConst this_val) {
   return ret;
 }
 
+/**
+ * @brief      JS Transform object finalizer
+ *
+ * @param      rt    The JSRuntime
+ * @param[in]  val   The value
+ */
 void
 js_transform_finalizer(JSRuntime* rt, JSValue val) {
   Transform* st;
@@ -1445,6 +2089,14 @@ const JSCFunctionListEntry js_transform_controller_funcs[] = {
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TransformStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
+/**
+ * @brief      Initialize all stream classes
+ *
+ * @param      ctx   The JSContext
+ * @param      m     Module definition
+ *
+ * @return     0 on success
+ */
 int
 js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_reader_class_id);
