@@ -682,7 +682,7 @@ file(READ "${CMAKE_CURRENT_BINARY_DIR}/internal.h" INTERNAL)
 
 file(
   WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h"
-  "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
+  "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n#ifndef SHORT_OPCODES\n#define SHORT_OPCODES 0\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
 )
 
 add_library(
