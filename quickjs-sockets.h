@@ -17,6 +17,18 @@
 
 #include "utils.h"
 
+#ifdef __linux__
+#include <linux/ipx.h>
+#include <linux/x25.h>
+#include <linux/can.h>
+#include <linux/nfc.h>
+#include <linux/ax25.h>
+#include <linux/netlink.h>
+#include <linux/atalk.h>
+#include <linux/phonet.h>
+#include <linux/if_alg.h>
+#endif
+
 #if !defined(_WIN32) || defined(HAVE_AFUNIX_H)
 #define HAVE_AF_UNIX
 #endif
@@ -37,6 +49,17 @@ typedef union {
   struct sockaddr_in6 ip6;
 #ifdef HAVE_AF_UNIX
   struct sockaddr_un un;
+#endif
+#ifdef __linux__
+  struct sockaddr_ipx ipx;
+  struct sockaddr_ax25 ax25;
+  struct sockaddr_nl nl;
+  struct sockaddr_can can;
+  struct sockaddr_nfc nfc;
+  struct sockaddr_x25 x25;
+  struct sockaddr_at at;
+  struct sockaddr_pn pn;
+  struct sockaddr_alg alg;
 #endif
 } SockAddr;
 
@@ -81,9 +104,14 @@ typedef union socket_state Socket;
 typedef struct asyncsocket_state AsyncSocket;
 
 VISIBLE SockAddr* js_sockaddr_data(JSValueConst);
-VISIBLE SockAddr* js_sockaddr_data2(JSContext*, JSValueConst value);
+VISIBLE SockAddr* js_sockaddr_data(JSValueConst);
+VISIBLE SockAddr* js_sockaddr_data2(JSContext*, JSValueConst);
+VISIBLE AsyncSocket* js_asyncsocket_data(JSValueConst);
+VISIBLE AsyncSocket* js_asyncsocket_data2(JSContext*, JSValueConst);
 VISIBLE Socket js_socket_data(JSValueConst);
-void* optval_buf(JSContext*, JSValueConst arg, int32_t** tmp_ptr, socklen_t* lenp);
+VISIBLE Socket js_socket_data2(JSContext*, JSValueConst);
+VISIBLE int js_socket_fd(JSValueConst);
+VISIBLE int js_socket_address_family(JSContext*, JSValueConst);
 
 extern VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_asyncsocket_class_id;
 extern VISIBLE JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, asyncsocket_proto, asyncsocket_ctor;
@@ -117,7 +145,7 @@ enum SocketCalls {
 #else
 #define socket_error(sock) ((sock).ret < 0 ? (int)(sock).error : 0)
 #endif
-#define socket_syscall(sock) syscall_name((sock).sysno)
+#define socket_syscall(sock) socketcall_name((sock).sysno)
 #define socket_adopted(sock) (!(sock).owner)
 
 static inline int
@@ -125,6 +153,11 @@ sockaddr_port(const SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return ntohs(sa->ip4.sin_port);
     case AF_INET6: return ntohs(sa->ip6.sin6_port);
+#ifdef __linux__
+
+    case AF_IPX: return ntohs(sa->ipx.sipx_port);
+    case AF_APPLETALK: return ntohs(sa->at.sat_port);
+#endif
   }
 
   return -1;
@@ -135,6 +168,11 @@ sockaddr_setport(SockAddr* sa, uint16_t port) {
   switch(sa->family) {
     case AF_INET: sa->ip4.sin_port = htons(port); return TRUE;
     case AF_INET6: sa->ip6.sin6_port = htons(port); return TRUE;
+#ifdef __linux__
+
+    case AF_IPX: return sa->ipx.sipx_port = htons(port); return TRUE;
+    case AF_APPLETALK: return sa->at.sat_port = htons(port); return TRUE;
+#endif
   }
 
   return FALSE;
@@ -145,6 +183,17 @@ sockaddr_addr(SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return &sa->ip4.sin_addr;
     case AF_INET6: return &sa->ip6.sin6_addr;
+#ifdef __linux__
+
+    case AF_IPX: return &sa->ipx.sipx_node;
+    case AF_UNIX: return &sa->un.sun_path;
+    case AF_NETLINK: return &sa->nl.nl_pid;
+    case AF_CAN: return &sa->can.can_addr;
+    case AF_NFC: return &sa->nfc.target_idx;
+    case AF_AX25: return &sa->ax25.sax25_call;
+    case AF_X25: return &sa->x25.sx25_addr;
+    case AF_APPLETALK: return &sa->at.sat_addr;
+#endif
   }
 
   return 0;
@@ -155,6 +204,18 @@ sockaddr_addrlen(const SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return sizeof(sa->ip4.sin_addr);
     case AF_INET6: return sizeof(sa->ip6.sin6_addr);
+#ifdef __linux__
+
+    case AF_IPX: return sizeof(sa->ipx.sipx_node);
+    case AF_UNIX: return sizeof(sa->un.sun_path);
+    case AF_NETLINK: return sizeof(sa->nl.nl_pid);
+    case AF_CAN: return sizeof(sa->can.can_addr);
+    case AF_NFC: return sizeof(sa->nfc.target_idx);
+    case AF_AX25: return sizeof(sa->ax25.sax25_call);
+    case AF_X25: return sizeof(sa->x25.sx25_addr);
+    case AF_APPLETALK: return sizeof(sa->at.sat_addr);
+    case AF_PHONET: return sizeof(sa->pn.spn_obj) + sizeof(sa->pn.spn_dev) + sizeof(sa->pn.spn_resource);
+#endif
   }
 
   return 0;
@@ -165,6 +226,18 @@ sockaddr_size(const SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return sizeof(struct sockaddr_in);
     case AF_INET6: return sizeof(struct sockaddr_in6);
+#ifdef __linux__
+    case AF_IPX: return sizeof(struct sockaddr_ipx);
+    case AF_UNIX: return sizeof(struct sockaddr_un);
+    case AF_NETLINK: return sizeof(struct sockaddr_nl);
+    case AF_CAN: return sizeof(struct sockaddr_can);
+    case AF_NFC: return sizeof(struct sockaddr_nfc);
+    case AF_AX25: return sizeof(struct sockaddr_ax25);
+    case AF_X25: return sizeof(struct sockaddr_x25);
+    case AF_APPLETALK: return sizeof(struct sockaddr_at);
+    case AF_PHONET: return sizeof(struct sockaddr_pn);
+    case AF_ALG: return sizeof(struct sockaddr_alg);
+#endif
   }
 
   return 0;

@@ -54,6 +54,7 @@ syscallerror_new(JSContext* ctx, const char* syscall, int number) {
   err->syscall = syscall ? js_strdup(ctx, syscall) : 0;
   err->number = number;
   err->stack = stack_get(ctx);
+
   return err;
 }
 
@@ -62,6 +63,7 @@ js_syscallerror_wrap(JSContext* ctx, SyscallError* err) {
   JSValue obj = JS_NewObjectProtoClass(ctx, syscallerror_proto, js_syscallerror_class_id);
 
   JS_SetOpaque(obj, err);
+
   return obj;
 }
 
@@ -142,6 +144,7 @@ static void
 syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
   if(err->syscall) {
     char buf[FMT_LONG];
+
     dbuf_putstr(dbuf, err->syscall);
     dbuf_putstr(dbuf, "() = -1 (errno = ");
     dbuf_put(dbuf, (const void*)buf, fmt_longlong(buf, err->number));
@@ -164,6 +167,7 @@ syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
     while(dbuf->size > 0) {
       if(dbuf->buf[dbuf->size - 1] > 0x20)
         break;
+
       --dbuf->size;
     }
 
@@ -204,6 +208,7 @@ js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       syscallerror_dump(err, &dbuf);
       ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
       dbuf_free(&dbuf);
+
       break;
     }
 
@@ -230,6 +235,7 @@ js_syscallerror_functions(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 
       JS_ToInt32(ctx, &err, argv[0]);
       ret = JS_NewString(ctx, error_get(err));
+
       break;
     }
   }
@@ -254,6 +260,7 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
     case PROP_SYSCALL: {
       if(err)
         ret = err->syscall ? JS_NewString(ctx, err->syscall) : JS_NULL;
+
       break;
     }
 

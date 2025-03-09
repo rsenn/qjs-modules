@@ -429,7 +429,7 @@ list(APPEND misc_LIBRARIES qjs-syscallerror)
 file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h
      tutf8e/src/*.c)
 file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
-file(GLOB libbcrypt_SOURCES libbcrypt/*.c libbcrypt/*/*.c)
+file(GLOB libbcrypt_SOURCES libbcrypt/*.c libbcrypt/*/*.c libbcrypt/*/*.S)
 
 if(HAVE_SYS_MMAN_H)
   set(gpio_SOURCES src/gpio.c include/gpio.h)

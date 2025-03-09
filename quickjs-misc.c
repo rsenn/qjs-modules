@@ -66,7 +66,9 @@
 #include "js-utils.h"
 #include "../libbcrypt/bcrypt.h"
 
+#ifndef USE_TEMPNAM
 #define USE_TEMPNAM
+#endif
 
 #ifndef _WIN32
 #define FOREGROUND_BLUE (1 << 0)
@@ -526,14 +528,18 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
       OffsetLength ol = {0, -1};
-      uint8_t* s = offset_data(&ol, data);
+      uint8_t* s;
+      size_t n;
 
-      js_offset_length(ctx, len, argc - 1, argv + 1, &ol);
+      js_offset_length(ctx, -1, argc - 1, argv + 1, &ol);
 
-      if(ol.length < 0 && memchr(s, '\0', len))
+      s = offset_data(&ol, data);
+      n = offset_size(&ol, len);
+
+      if(ol.length < 0 && memchr(s, '\0', n))
         ret = JS_NewString(ctx, s);
       else
-        ret = JS_NewStringLen(ctx, s, offset_size(&ol, len));
+        ret = JS_NewStringLen(ctx, s, n);
     }
   } else {
     ret = js_value_tostring(ctx, "Object", argc > 0 ? argv[0] : this_val);

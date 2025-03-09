@@ -935,7 +935,7 @@ js_is_numeric(JSContext* ctx, JSValueConst value) {
 
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
 BOOL js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b);
-void js_array_clear(JSContext* ctx, JSValueConst array);
+int64_t js_array_clear(JSContext* ctx, JSValueConst array);
 
 size_t js_strv_length(char** strv);
 

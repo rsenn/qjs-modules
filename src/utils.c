@@ -222,18 +222,23 @@ js_array_length(JSContext* ctx, JSValueConst array) {
   return len;
 }
 
-void
+int64_t
 js_array_clear(JSContext* ctx, JSValueConst array) {
   int64_t len = js_array_length(ctx, array);
-  JSValue ret;
   JSAtom splice = JS_NewAtom(ctx, "splice");
   JSValueConst args[2] = {JS_NewInt64(ctx, 0), JS_NewInt64(ctx, len)};
 
-  ret = JS_Invoke(ctx, array, splice, 2, args);
+  JSValue ret = JS_Invoke(ctx, array, splice, 2, args);
   JS_FreeAtom(ctx, splice);
+
+  if(JS_IsException(ret))
+    return -1;
+
+  len = js_array_length(ctx, ret);
   JS_FreeValue(ctx, ret);
 
   assert(js_array_length(ctx, array) == 0);
+  return len;
 }
 
 JSValue
