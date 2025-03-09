@@ -15,7 +15,7 @@ option(MODULE_ARCHIVE "Build 'archive' module" ON)
 option(MODULE_MAGIC "Build 'magic' module" ON)
 option(MODULE_MYSQL "Build 'mysql' module" ON)
 option(MODULE_PGSQL "Build 'pgsql' module" ON)
-option(MODULE_SERIAL "Build 'serial' module" ON)
+option(MODULE_SERIAL "Build 'serial' module" OFF)
 
 if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
