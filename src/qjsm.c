@@ -610,13 +610,8 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
   char* s = suffix ? fn(ctx, module_name) : jsm_search_suffix(ctx, module_name, fn);
 
   if(debug_module_loader >= 2)
-    printf("%-20s (module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n",
-           __FUNCTION__,
-           module_name,
-           ((search) ? "TRUE" : "FALSE"),
-           ((suffix) ? "TRUE" : "FALSE"),
-           search ? "search_module" : "is_module",
-           s);
+    printf(
+        "%-20s (module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n", __FUNCTION__, module_name, ((search) ? "TRUE" : "FALSE"), ((suffix) ? "TRUE" : "FALSE"), search ? "search_module" : "is_module", s);
 
   return s;
 }

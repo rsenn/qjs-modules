@@ -149,7 +149,7 @@ asyncclosure_change_event(AsyncClosure* ac, AsyncEvent new_state) {
     }
 
     ac->state = new_state;
-    ac->set_handler = new_state == 0 ? JS_NULL : js_iohandler_fn(ctx, 0 != (new_state & WANT_WRITE));
+    ac->set_handler = new_state == 0 ? JS_NULL : js_iohandler_fn(ctx, 0 != (new_state & WANT_WRITE), "io");
 
     if(new_state)
       if(!js_iohandler_set(ctx, ac->set_handler, ac->fd, asyncclosure_function(ac, ac->ccfunc, new_state)))

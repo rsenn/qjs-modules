@@ -103,18 +103,7 @@ ENDPACK
 typedef union socket_state Socket;
 typedef struct asyncsocket_state AsyncSocket;
 
-VISIBLE SockAddr* js_sockaddr_data(JSValueConst);
-VISIBLE SockAddr* js_sockaddr_data(JSValueConst);
-VISIBLE SockAddr* js_sockaddr_data2(JSContext*, JSValueConst);
-VISIBLE AsyncSocket* js_asyncsocket_data(JSValueConst);
-VISIBLE AsyncSocket* js_asyncsocket_data2(JSContext*, JSValueConst);
-VISIBLE Socket js_socket_data(JSValueConst);
-VISIBLE Socket js_socket_data2(JSContext*, JSValueConst);
-VISIBLE int js_socket_fd(JSValueConst);
-VISIBLE int js_socket_address_family(JSContext*, JSValueConst);
-
-extern VISIBLE JSClassID js_sockaddr_class_id, js_socket_class_id, js_asyncsocket_class_id;
-extern VISIBLE JSValue sockaddr_proto, sockaddr_ctor, socket_proto, socket_ctor, asyncsocket_proto, asyncsocket_ctor;
+VISIBLE JSModuleDef* js_init_module_sockets(JSContext*, const char*);
 
 enum SocketCalls {
   SYSCALL_SOCKET = 0,
@@ -135,7 +124,7 @@ enum SocketCalls {
   SYSCALL_SETSOCKOPT
 };
 
-#define socket_fd(sock) ((sock).fd)
+#define socket_fd(sock) ((int16_t)(uint16_t)(sock).fd)
 #define socket_closed(sock) ((sock).sysno == SYSCALL_CLOSE && (sock).ret == 0)
 #define socket_eof(sock) (((sock).sysno == SYSCALL_RECV || (sock).sysno == SYSCALL_RECVFROM) && (sock).ret == 0)
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
@@ -243,9 +232,13 @@ sockaddr_size(const SockAddr* sa) {
   return 0;
 }
 
-static inline AsyncSocket*
-js_asyncsocket_ptr(JSValueConst value) {
-  return js_asyncsocket_class_id ? JS_GetOpaque(value, js_asyncsocket_class_id) : 0;
+static inline size_t
+sockaddr_len(const SockAddr* sa) {
+  size_t len = sockaddr_size(sa);
+
+  if(len == 0)
+    len = sizeof(SockAddr);
+  return len;
 }
 
 /**

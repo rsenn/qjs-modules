@@ -1597,9 +1597,8 @@ js_value_tag_name(int tag) {
 const char* const*
 js_value_types() {
   static const char* const types[] = {
-      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
-      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception", 0,
+      "undefined",         "null",          "bool",         "int",       "object", "string", "symbol", "big_float", "big_int", "big_decimal", "float64", "nan", "function", "array", "module",
+      "function_bytecode", "uninitialized", "catch_offset", "exception", 0,
   };
   return types;
 }
@@ -1608,9 +1607,8 @@ const char*
 js_value_typeof(JSValueConst value) {
   int32_t flag = js_value_type_flag(value);
   return ((const char* const[]){
-      "undefined",     "object",       "boolean",   "number", "object",   "string", "symbol", "bigfloat",
-      "bigint",        "bigdecimal",   "number",    "number", "function", "object", "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception", 0,
+      "undefined", "object", "boolean",           "number",        "object",       "string",    "symbol", "bigfloat", "bigint", "bigdecimal", "number", "number", "function",
+      "object",    "module", "function_bytecode", "uninitialized", "catch_offset", "exception", 0,
   })[flag];
 }
 
@@ -1618,9 +1616,8 @@ const char*
 js_value_type_name(int32_t type) {
   int32_t flag = js_value_type2flag(type);
   const char* const types[] = {
-      "undefined",     "null",         "bool",      "int", "object",   "string", "symbol", "big_float",
-      "big_int",       "big_decimal",  "float64",   "nan", "function", "array",  "module", "function_bytecode",
-      "uninitialized", "catch_offset", "exception",
+      "undefined",         "null",          "bool",         "int",       "object", "string", "symbol", "big_float", "big_int", "big_decimal", "float64", "nan", "function", "array", "module",
+      "function_bytecode", "uninitialized", "catch_offset", "exception",
   };
 
   if(flag >= 0 && (unsigned)flag < countof(types))
@@ -2624,7 +2621,7 @@ js_error_uncatchable(JSContext* ctx) {
 static /*thread_local*/ JSModuleDef* io_module;
 
 JSValue
-js_iohandler_fn(JSContext* ctx, BOOL write) {
+js_iohandler_fn(JSContext* ctx, BOOL write, const char* global_obj) {
   const char* handlers[2] = {"setReadHandler", "setWriteHandler"};
   JSValue set_handler = JS_NULL;
 
@@ -2638,7 +2635,7 @@ js_iohandler_fn(JSContext* ctx, BOOL write) {
     set_handler = module_exports_find_str(ctx, io_module, handlers[!!write]);*/
 
   if(js_is_null_or_undefined(set_handler)) {
-    JSValue osval = js_global_get_str(ctx, "os");
+    JSValue osval = js_global_get_str(ctx, global_obj ? global_obj : "os");
 
     if(!js_is_null_or_undefined(osval)) {
       set_handler = JS_GetPropertyStr(ctx, osval, handlers[!!write]);
@@ -2647,7 +2644,7 @@ js_iohandler_fn(JSContext* ctx, BOOL write) {
       JSModuleDef* os;
       JSAtom func_name;
 
-      if(!(os = js_module_find(ctx, "os")))
+      if(!(os = js_module_find(ctx, global_obj ? global_obj : "os")))
         return JS_ThrowReferenceError(ctx, "'os' module required");
 
       func_name = JS_NewAtom(ctx, handlers[!!write]);

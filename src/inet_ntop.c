@@ -39,19 +39,8 @@ inet_ntop(int af, const void* restrict a0, char* restrict s, socklen_t l) {
                  256 * a[12] + a[13],
                  256 * a[14] + a[15]);
       else
-        snprintf(buf,
-                 sizeof buf,
-                 "%x:%x:%x:%x:%x:%x:%d.%d.%d.%d",
-                 256 * a[0] + a[1],
-                 256 * a[2] + a[3],
-                 256 * a[4] + a[5],
-                 256 * a[6] + a[7],
-                 256 * a[8] + a[9],
-                 256 * a[10] + a[11],
-                 a[12],
-                 a[13],
-                 a[14],
-                 a[15]);
+        snprintf(
+            buf, sizeof buf, "%x:%x:%x:%x:%x:%x:%d.%d.%d.%d", 256 * a[0] + a[1], 256 * a[2] + a[3], 256 * a[4] + a[5], 256 * a[6] + a[7], 256 * a[8] + a[9], 256 * a[10] + a[11], a[12], a[13], a[14], a[15]);
       /* Replace longest /(^0|:)[:0]{2,}/ with "::" */
       for(i = best = 0, max = 2; buf[i]; i++) {
         if(i && buf[i] != ':')

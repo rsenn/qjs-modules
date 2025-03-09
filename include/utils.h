@@ -1099,7 +1099,7 @@ void js_error_print(JSContext*, JSValueConst);
 JSValue js_error_stack(JSContext* ctx);
 /*JSValue js_error_uncatchable(JSContext* ctx);*/
 
-JSValue js_iohandler_fn(JSContext*, BOOL write);
+JSValue js_iohandler_fn(JSContext*, BOOL write, const char* global_obj);
 BOOL js_iohandler_set(JSContext* ctx, JSValueConst set_handler, int fd, JSValue handler);
 
 JSValue js_promise_new(JSContext* ctx, JSValue resolving_funcs[2]);

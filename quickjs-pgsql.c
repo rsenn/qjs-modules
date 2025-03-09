@@ -11,8 +11,8 @@
  */
 
 VISIBLE JSClassID js_pgsqlerror_class_id = 0, js_pgconn_class_id = 0, js_pgresult_class_id = 0;
-VISIBLE JSValue pgsqlerror_proto = {{0}, JS_TAG_UNDEFINED}, pgsqlerror_ctor = {{0}, JS_TAG_UNDEFINED}, pgsql_proto = {{0}, JS_TAG_UNDEFINED},
-                pgsql_ctor = {{0}, JS_TAG_UNDEFINED}, pgresult_proto = {{0}, JS_TAG_UNDEFINED}, pgresult_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSValue pgsqlerror_proto = {{0}, JS_TAG_UNDEFINED}, pgsqlerror_ctor = {{0}, JS_TAG_UNDEFINED}, pgsql_proto = {{0}, JS_TAG_UNDEFINED}, pgsql_ctor = {{0}, JS_TAG_UNDEFINED},
+                pgresult_proto = {{0}, JS_TAG_UNDEFINED}, pgresult_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue js_pgresult_wrap(JSContext* ctx, PGresult* res);
 static JSValue string_to_value(JSContext* ctx, const char* func_name, const char* s);
@@ -982,7 +982,7 @@ js_pgconn_connect_cont(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   } else if(newstate != oldstate) {
     JSValue handler, hdata[4] = {
                          JS_DupValue(ctx, data[0]),
-                         js_iohandler_fn(ctx, newstate == PGRES_POLLING_WRITING),
+                         js_iohandler_fn(ctx, newstate == PGRES_POLLING_WRITING, 0),
                          JS_DupValue(ctx, data[2]),
                          JS_DupValue(ctx, data[3]),
                      };
@@ -1035,7 +1035,7 @@ js_pgconn_connect_start(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   promise = JS_NewPromiseCapability(ctx, &data[2]);
 
   data[0] = JS_DupValue(ctx, this_val);
-  data[1] = js_iohandler_fn(ctx, ret == PGRES_POLLING_WRITING);
+  data[1] = js_iohandler_fn(ctx, ret == PGRES_POLLING_WRITING, 0);
 
   if(ret == PGRES_POLLING_READING || ret == PGRES_POLLING_WRITING) {
     handler = JS_NewCFunctionData(ctx, js_pgconn_connect_cont, 0, ret, countof(data), data);
@@ -1143,7 +1143,7 @@ js_pgconn_query_start(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   } else {
 
     data[0] = JS_DupValue(ctx, this_val);
-    data[1] = js_iohandler_fn(ctx, 0);
+    data[1] = js_iohandler_fn(ctx, 0, 0);
 
     if(PQisBusy(pq->conn)) {
       handler = JS_NewCFunctionData(ctx, js_pgconn_query_cont, 0, 0, countof(data), data);

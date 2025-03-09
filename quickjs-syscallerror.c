@@ -156,13 +156,7 @@ syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
       dbuf_putstr(dbuf, ": ");
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
-    dbuf->size += FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                                NULL,
-                                err->number,
-                                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                                (void*)dbuf_reserve(dbuf, 256),
-                                256,
-                                NULL);
+    dbuf->size += FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err->number, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (void*)dbuf_reserve(dbuf, 256), 256, NULL);
 
     while(dbuf->size > 0) {
       if(dbuf->buf[dbuf->size - 1] > 0x20)
@@ -301,11 +295,11 @@ js_syscallerror_get(JSContext* ctx, JSValueConst this_val, int magic) {
 }
 
 const JSCFunctionListEntry js_syscallerror_proto_funcs[] = {
-    JS_CGETSET_MAGIC_DEF("syscall", js_syscallerror_get, 0, PROP_SYSCALL),
+    JS_CGETSET_MAGIC_FLAGS_DEF("syscall", js_syscallerror_get, 0, PROP_SYSCALL, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_syscallerror_get, 0, PROP_ERRNO, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("message", js_syscallerror_get, 0, PROP_MESSAGE, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("name", js_syscallerror_get, 0, PROP_CODE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("errno", js_syscallerror_get, 0, PROP_ERRNO, JS_PROP_C_W_E),
     JS_CGETSET_MAGIC_DEF("stack", js_syscallerror_get, 0, PROP_STACK),
-    JS_CGETSET_MAGIC_FLAGS_DEF("message", js_syscallerror_get, 0, PROP_MESSAGE, JS_PROP_C_W_E),
     JS_CFUNC_MAGIC_DEF("toString", 0, js_syscallerror_method, SYSCALLERROR_TOSTRING),
     JS_ALIAS_DEF("[Symbol.toPrimitive]", "toString"),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "SyscallError", JS_PROP_CONFIGURABLE),
