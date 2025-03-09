@@ -1,4 +1,4 @@
-project(qjs-modules C)
+project(qjs-modules C ASM)
 
 #message("Building project [1;31m${PROJECT_NAME}[0m")
 
