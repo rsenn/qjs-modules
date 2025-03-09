@@ -197,7 +197,8 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       if(!(ar = archive_read_new()))
         return JS_ThrowOutOfMemory(ctx);
 
-      archive_read_support_compression_all(ar);
+      archive_read_support_filter_all(ar);
+      //archive_read_support_compression_all(ar);
       archive_read_support_format_all(ar);
       archive_read_support_filter_all(ar);
 
@@ -205,7 +206,7 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         JS_ToUint32(ctx, &block_size, argv[1]);
 
       wchar_t* filename = js_towstring(ctx, argv[0]);
-      int r = (ar, filename, block_size);
+      int r = archive_read_open_filename_w(ar, filename, block_size);
 
       js_free(ctx, filename);
 
@@ -327,7 +328,7 @@ js_archive_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_COMPRESSION: {
-      ret = JS_NewString(ctx, archive_compression_name(ar));
+      ret = JS_NewString(ctx, archive_filter_name(ar, 0));
       break;
     }
 
@@ -349,7 +350,7 @@ js_archive_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_POSITION: {
-      ret = JS_NewInt64(ctx, archive_position_compressed(ar));
+      ret = JS_NewInt64(ctx, archive_filter_bytes(ar, -1));
       break;
     }
 
@@ -448,7 +449,7 @@ js_archive_open(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   ar = archive_read_new();
 
-  archive_read_support_compression_all(ar);
+  archive_read_support_filter_all(ar);
   archive_read_support_format_all(ar);
   archive_read_support_filter_all(ar);
   JS_SetOpaque(this_val, ar);

@@ -537,9 +537,9 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       n = offset_size(&ol, len);
 
       if(ol.length < 0 && memchr(s, '\0', n))
-        ret = JS_NewString(ctx, s);
+        ret = JS_NewString(ctx, (const char*)s);
       else
-        ret = JS_NewStringLen(ctx, s, n);
+        ret = JS_NewStringLen(ctx, (const char*)s, n);
     }
   } else {
     ret = js_value_tostring(ctx, "Object", argc > 0 ? argv[0] : this_val);

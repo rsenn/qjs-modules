@@ -2083,7 +2083,7 @@ js_module_find(JSContext* ctx, const char* name) {
 
 JSModuleDef*
 js_module_load(JSContext* ctx, const char* name) {
-  JSModuleLoaderFunc* loader;
+  JSModuleLoaderFunc* loader = 0;
   void* opaque = 0;
 
 #ifdef HAVE_JS_GETMODULELOADERFUNC

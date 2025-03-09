@@ -153,18 +153,26 @@ js_sockaddr_wrap(JSContext* ctx, SockAddr* a) {
 
 static JSValue
 js_sockaddr_new(JSContext* ctx, int family) {
-  SockAddr* a;
-  size_t sz = sockaddr_size(family);
+  SockAddr* a, addr={family};
+  size_t sz = sockaddr_size(&addr);
 
-  if(sz == 0)
-    sz = sizeof(SockAddr);
-
-  if(!(a = js_mallocz(ctx, sz)))
+  if(!(a = js_mallocz(ctx, sz ? sz : sizeof(SockAddr))))
     return JS_EXCEPTION;
 
   a->family = family;
 
   return js_sockaddr_wrap(ctx, a);
+}
+
+static JSValue
+js_sockaddr_clone(JSContext* ctx, SockAddr addr) {
+  JSValue obj = js_sockaddr_new(ctx, addr.family);
+  SockAddr* a = js_sockaddr_data(obj);
+  size_t len = sockaddr_size(&addr);
+
+  memcpy(a, &addr, len ? len : sizeof(SockAddr));
+
+  return obj;
 }
 
 static BOOL
@@ -197,7 +205,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
 #ifdef __linux__
 
       if(a->family == AF_IPX) {
-        strncpy(a->ipx.sipx_node, str, sizeof(a->ipx.sipx_node));
+        strncpy((char*)a->ipx.sipx_node, str, sizeof(a->ipx.sipx_node));
       } else if(a->family == AF_UNIX) {
         strncpy(a->un.sun_path, str, sizeof(a->un.sun_path));
       } else if(a->family == AF_NETLINK) {
@@ -345,10 +353,7 @@ js_sockaddr_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       SockAddr* other;
       size_t sz = sockaddr_size(a);
 
-      if(sz == 0)
-        sz = sizeof(SockAddr);
-
-      if((other = js_malloc(ctx, sz))) {
+      if((other = js_malloc(ctx, sz ? sz : sizeof(SockAddr)))) {
         memcpy(other, a, sz);
         ret = js_sockaddr_wrap(ctx, other);
       }
@@ -956,7 +961,7 @@ socket_nonblocking(Socket* s, BOOL nonblock) {
   int oldflags, newflags;
 
   oldflags = fcntl(socket_handle(*s), F_GETFL);
-  newflags = nonblock ? oldflags | O_NONBLOCK : oldflags & (~O_NONBLOCK);
+  newflags = nonblock ? (oldflags | O_NONBLOCK) : (oldflags & (~O_NONBLOCK));
 
   if(oldflags != newflags)
     socketcall_return(s, SYSCALL_FCNTL, fcntl(socket_handle(*s), F_SETFL, newflags));
@@ -1199,19 +1204,19 @@ js_socket_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_LOCAL: {
-      SockAddr* a = js_mallocz(ctx, sizeof(SockAddr));
+      SockAddr a;
       socklen_t len = sizeof(SockAddr);
 
-      JS_SOCKETCALL_RETURN(SYSCALL_GETSOCKNAME, &s, getsockname(socket_handle(s), (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
+      JS_SOCKETCALL_RETURN(SYSCALL_GETSOCKNAME, &s, getsockname(socket_handle(s), (struct sockaddr*)&a, &len), js_sockaddr_clone(ctx, a), JS_NULL);
 
       break;
     }
 
     case PROP_REMOTE: {
-      SockAddr* a = js_mallocz(ctx, sizeof(SockAddr));
+      SockAddr a;
       socklen_t len = sizeof(SockAddr);
 
-      JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, &s, getpeername(socket_handle(s), (struct sockaddr*)a, &len), js_sockaddr_wrap(ctx, a), JS_NULL);
+      JS_SOCKETCALL_RETURN(SYSCALL_GETPEERNAME, &s, getpeername(socket_handle(s), (struct sockaddr*)&a, &len), js_sockaddr_clone(ctx, a), JS_NULL);
 
       break;
     }
@@ -1240,6 +1245,7 @@ js_asyncsocket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       ret = JS_NewInt32(ctx, ioctlsocket(socket_handle(*s), FIONBIO, &mode));
 #else
       uint32_t mode = 0;
+
       JS_ToUint32(ctx, &mode, value);
       JS_SOCKETCALL_RETURN(SYSCALL_FCNTL, (Socket*)s, fcntl(socket_handle(*s), F_SETFL, mode), JS_NewInt32(ctx, s->ret), JS_UNDEFINED);
 #endif
@@ -1247,7 +1253,12 @@ js_asyncsocket_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
     }
 
     case PROP_NONBLOCK: {
-      s->nonblock = JS_ToBool(ctx, value);
+      BOOL nb = JS_ToBool(ctx, value);
+
+      if(nb != s->nonblock)
+        if(socket_nonblocking((Socket*)s, nb))
+          s->nonblock = nb;
+
       break;
     }
   }
@@ -1468,14 +1479,15 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   switch(magic) {
     case METHOD_NDELAY: {
-      BOOL nonblock = TRUE;
+      BOOL nonblock = TRUE, prev = s->nonblock;
 
       if(argc >= 1)
         nonblock = JS_ToBool(ctx, argv[0]);
 
-      if(nonblock != s->nonblock) {
+      if(nonblock != prev) {
         socket_nonblocking(s, nonblock);
         s->nonblock = nonblock;
+        ret = JS_NewBool(ctx, prev);
       }
 
       break;
@@ -1732,19 +1744,20 @@ static JSValue
 js_socket_valueof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Socket s = js_socket_data(this_val);
 
-  if(s.ptr)
-    return JS_NewInt32(ctx, socket_fd(s));
-
-  return JS_UNDEFINED;
+  return JS_NewInt32(ctx, socket_fd(s));
 }
 
 static JSValue
 js_socket_adopt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t fd = -1;
+  BOOL async = FALSE;
 
   JS_ToInt32(ctx, &fd, argv[0]);
 
-  return js_socket_new_proto(ctx, socket_proto, fd, FALSE, FALSE);
+  if(argc > 1)
+    async = JS_ToBool(ctx, argv[1]);
+
+  return js_socket_new_proto(ctx, socket_proto, fd, async, FALSE);
 }
 
 static void
