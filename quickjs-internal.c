@@ -5,7 +5,6 @@
 
 extern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];
 
-
 JSValue
 js_std_file(JSContext* ctx, FILE* f) {
   JSClassID class_id = js_class_find(ctx, "FILE");
@@ -199,8 +198,8 @@ module_make_object(JSContext* ctx, JSModuleDef* m, JSValueConst obj) {
 
   JS_DefinePropertyValueStr(ctx, obj, "resolved", JS_NewBool(ctx, m->resolved), 0);
   JS_DefinePropertyValueStr(ctx, obj, "funcCreated", JS_NewBool(ctx, m->func_created), 0);
-  //JS_DefinePropertyValueStr(ctx, obj, "instantiated", JS_NewBool(ctx, m->instantiated), 0);
-  //JS_DefinePropertyValueStr(ctx, obj, "evaluated", JS_NewBool(ctx, m->evaluated), 0);
+  // JS_DefinePropertyValueStr(ctx, obj, "instantiated", JS_NewBool(ctx, m->instantiated), 0);
+  // JS_DefinePropertyValueStr(ctx, obj, "evaluated", JS_NewBool(ctx, m->evaluated), 0);
 
   if(!JS_IsUndefined((tmp = module_ns(ctx, m))))
     JS_DefinePropertyValueStr(ctx, obj, "ns", tmp, 0);
@@ -582,7 +581,7 @@ js_opcode_array(JSContext* ctx, const JSOpCode* opcode) {
   JS_SetPropertyUint32(ctx, ret, 1, JS_NewUint32(ctx, opcode->n_pop));
   JS_SetPropertyUint32(ctx, ret, 2, JS_NewUint32(ctx, opcode->n_push));
   JS_SetPropertyUint32(ctx, ret, 3, JS_NewUint32(ctx, opcode->fmt));
-  //JS_SetPropertyUint32(ctx, ret, 4, JS_NewString(ctx, opcode->name));
+  // JS_SetPropertyUint32(ctx, ret, 4, JS_NewString(ctx, opcode->name));
 
   return ret;
 }
@@ -590,13 +589,13 @@ js_opcode_array(JSContext* ctx, const JSOpCode* opcode) {
 JSValue
 js_opcode_object(JSContext* ctx, const struct JSOpCode* opcode) {
   JSValue ret = JS_NewObject(ctx);
- 
+
   JS_SetPropertyStr(ctx, ret, "size", JS_NewUint32(ctx, opcode->size));
   JS_SetPropertyStr(ctx, ret, "n_pop", JS_NewUint32(ctx, opcode->n_pop));
   JS_SetPropertyStr(ctx, ret, "n_push", JS_NewUint32(ctx, opcode->n_push));
   JS_SetPropertyStr(ctx, ret, "fmt", JS_NewUint32(ctx, opcode->fmt));
-  //JS_SetPropertyStr(ctx, ret, "name", JS_NewString(ctx, opcode->name));
-  
+  // JS_SetPropertyStr(ctx, ret, "name", JS_NewString(ctx, opcode->name));
+
   return ret;
 }
 
