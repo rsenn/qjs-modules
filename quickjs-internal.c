@@ -3,8 +3,6 @@
 #include "vector.h"
 #include "quickjs-internal.h"
 
-extern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];
-
 JSValue
 js_std_file(JSContext* ctx, FILE* f) {
   JSClassID class_id = js_class_find(ctx, "FILE");
@@ -642,9 +640,16 @@ js_stack_get(JSContext* ctx) {
 
 #define SHORT_OPCODES 1
 
-const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)] = {
-#define FMT(f)
-#define DEF(id, size, n_pop, n_push, f) {size, n_pop, n_push, OP_FMT_##f, #id},
+const JSOpCode js_opcodes[/*OP_COUNT + (OP_TEMP_END - OP_TEMP_START)*/] = {
+//#define FMT(f)
+#define def(id, size, n_pop, n_push, f)
+#undef FMT
+#undef SHORT_OPCODES
+#ifdef DUMP_BYTECODE
+#define DEF(id, size, n_pop, n_push, f) {(#id), (size), (n_pop), (n_push), (OP_FMT_ ## f)},
+#else
+#define DEF(id, size, n_pop, n_push, f) {(size), (n_pop), (n_push) /*, (OP_FMT_ ## f)*/ },
+#endif
 #include <quickjs-opcode.h>
 #undef DEF
 #undef FMT

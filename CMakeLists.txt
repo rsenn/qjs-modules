@@ -62,25 +62,28 @@ list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 include(CheckLibraryExists)
 
 check_function_def(HAVE_JS_PROMISE_STATE JS_PromiseState)
-check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE_2)
-check_library_exists(quickjs JS_GetModuleLoaderFunc "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADERFUNC)
+check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}"
+                     HAVE_JS_PROMISE_STATE_2)
+check_library_exists(quickjs JS_GetModuleLoaderFunc "${QUICKJS_LIBRARY_DIR}"
+                     HAVE_JS_GETMODULELOADERFUNC)
 dump(HAVE_JS_GETMODULELOADERFUNC)
 if(HAVE_JS_GETMODULELOADERFUNC)
   add_definitions(-DHAVE_JS_GETMODULELOADERFUNC)
 endif(HAVE_JS_GETMODULELOADERFUNC)
 
-check_library_exists(quickjs JS_GetModuleLoaderOpaque "${QUICKJS_LIBRARY_DIR}" HAVE_JS_GETMODULELOADEROPAQUE)
+check_library_exists(quickjs JS_GetModuleLoaderOpaque "${QUICKJS_LIBRARY_DIR}"
+                     HAVE_JS_GETMODULELOADEROPAQUE)
 dump(HAVE_JS_GETMODULELOADEROPAQUE)
 if(HAVE_JS_GETMODULELOADEROPAQUE)
   add_definitions(-DHAVE_JS_GETMODULELOADEROPAQUE)
 endif(HAVE_JS_GETMODULELOADEROPAQUE)
 
-check_library_exists(quickjs js_debugger_build_backtrace "${QUICKJS_LIBRARY_DIR}" HAVE_JS_DEBUGGERBUILDBACKTRACE)
+check_library_exists(quickjs js_debugger_build_backtrace
+                     "${QUICKJS_LIBRARY_DIR}" HAVE_JS_DEBUGGERBUILDBACKTRACE)
 dump(HAVE_JS_DEBUGGERBUILDBACKTRACE)
 if(HAVE_JS_DEBUGGERBUILDBACKTRACE)
   add_definitions(-DHAVE_JS_DEBUGGER_BUILD_BACKTRACE)
 endif(HAVE_JS_DEBUGGERBUILDBACKTRACE)
-
 
 if(NOT QUICKJS_LIBRARY_DIR AND NOT QUICKJS_INCLUDE_DIRS)
   if(EXISTS "${CMAKE_CURRENT_BINARY_DIR}/../quickjs-config.h")
@@ -188,12 +191,14 @@ endif(HAVE_TEMPNAM)
 #   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Findpilib/gpio.cmake)
 # endif(BUILD_PIGPIO)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}
-                    ${QUICKJS_INCLUDE_DIRS})
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES bjson blob deep directory lexer list location misc path pointer predicate queue
-                    repeater textcode sockets stream syscallerror inspect tree-walker xml)
+set(QUICKJS_MODULES
+    bjson blob deep directory lexer list location misc path pointer predicate
+    queue repeater textcode sockets stream syscallerror inspect tree-walker xml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -271,10 +276,12 @@ if(MODULE_MYSQL)
   pkg_check_modules(MARIADB libmariadb mariadb)
 
   if(pkgcfg_lib_MARIADB_mariadb)
-    set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}" CACHE STRING "MariaDB client library")
+    set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}"
+        CACHE STRING "MariaDB client library")
     unset(pkgcfg_lib_MARIADB_mariadb CACHE)
   else(pkgcfg_lib_MARIADB_mariadb)
-    check_library_exists(mariadb mysql_init "${LIBMARIADB_LIBRARY_DIR}" HAVE_LIBMARIADB)
+    check_library_exists(mariadb mysql_init "${LIBMARIADB_LIBRARY_DIR}"
+                         HAVE_LIBMARIADB)
 
     if(HAVE_LIBMARIADB)
       set(LIBMARIADB_LIBRARY mariadb CACHE STRING "MariaDB client library")
@@ -289,8 +296,8 @@ if(MODULE_MYSQL)
         CACHE PATH "MariaDB client include directory")
 
     if(NOT EXISTS "${LIBMARIADB_INCLUDE_DIR}/mysql.h")
-      if(EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb" AND EXISTS
-                                                        "${LIBMARIADB_INCLUDE_DIR}/mariadb/mysql.h")
+      if(EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb"
+         AND EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb/mysql.h")
         set(LIBMARIADB_INCLUDE_DIR "${LIBMARIADB_INCLUDE_DIR}/mariadb")
       endif()
     endif()
@@ -308,7 +315,8 @@ if(MODULE_PGSQL)
   pkg_check_modules(LIBPQ libpq)
 
   if(pkgcfg_lib_LIBPQ_pq)
-    set(LIBPQ_LIBRARY "${pkgcfg_lib_LIBPQ_pq}" CACHE STRING "PostgreSQL client library")
+    set(LIBPQ_LIBRARY "${pkgcfg_lib_LIBPQ_pq}"
+        CACHE STRING "PostgreSQL client library")
     unset(pkgcfg_lib_LIBPQ_pq CACHE)
   else(pkgcfg_lib_LIBPQ_pq)
     check_library_exists(pq PQconnectdb "${LIBPQ_LIBRARY_DIR}" HAVE_LIBPQCLIENT)
@@ -323,19 +331,21 @@ if(MODULE_PGSQL)
     set(pgsql_LIBRARIES ${LIBPQ_LIBRARY})
 
     if("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
-      string(REGEX REPLACE "/lib.*" "/include" LIBPQ_INCLUDE_DIR "${LIBPQ_LIBRARY}")
+      string(REGEX REPLACE "/lib.*" "/include" LIBPQ_INCLUDE_DIR
+                           "${LIBPQ_LIBRARY}")
     else("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
       set(LIBPQ_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include")
     endif("${LIBPQ_LIBRARY}" MATCHES "[/\\]")
 
     if(NOT EXISTS "${LIBPQ_INCLUDE_DIR}/libpq-fe.h")
-      if(EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql" AND EXISTS
-                                                      "${LIBPQ_INCLUDE_DIR}/postgresql/libpq-fe.h")
+      if(EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql"
+         AND EXISTS "${LIBPQ_INCLUDE_DIR}/postgresql/libpq-fe.h")
         set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}/postgresql")
       endif()
     endif()
 
-    set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}" CACHE PATH "PostgresSQL client include directory")
+    set(LIBPQ_INCLUDE_DIR "${LIBPQ_INCLUDE_DIR}"
+        CACHE PATH "PostgresSQL client include directory")
 
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBPQ_INCLUDE_DIR}")
     check_include_def(libpq-fe.h)
@@ -419,7 +429,8 @@ endif(NOT HAVE_INET_NTOP)
 list(APPEND sockets_LIBRARIES qjs-syscallerror)
 list(APPEND misc_LIBRARIES qjs-syscallerror)
 
-file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h tutf8e/src/*.c)
+file(GLOB tutf8e_SOURCES tutf8e/include/*.h tutf8e/include/tutf8e/*.h
+     tutf8e/src/*.c)
 file(GLOB libutf_SOURCES libutf/src/*.c libutf/include/*.h)
 file(GLOB libbcrypt_SOURCES libbcrypt/*.c libbcrypt/*/*.c)
 
@@ -431,8 +442,9 @@ endif(HAVE_SYS_MMAN_H)
 #   set(gpio_LIBRARIES ${pigpio_LIBRARY})
 # endif(pigpio_LIBRARY)
 
-include_directories(${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include
-                    ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
+include_directories(
+  ${LibArchive_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/libutf/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/tutf8e/include)
 set(archive_LIBRARIES ${LibArchive_LIBRARIES})
 
 if(BUILD_LIBSERIALPORT)
@@ -473,32 +485,38 @@ else(HAVE_MMAP)
 endif(HAVE_MMAP)
 
 if(CACHE{CMAKE_BUILD_TYPE})
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel RelWithDebInfo)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release MinSizeRel
+                                               RelWithDebInfo)
 endif(CACHE{CMAKE_BUILD_TYPE})
 
 set(CMAKE_REQUIRED_QUIET TRUE)
 
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
-check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
+check_flags(
+  "-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function"
+  CMAKE_C_FLAGS)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   check_c_compiler_flag("-O0" O_OPT_NONE)
   if(O_OPT_NONE)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-O0")
   endif(O_OPT_NONE)
   check_c_compiler_flag("-ggdb" G_OPT_GDB)
   if(G_OPT_GDB)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-ggdb")
   endif(G_OPT_GDB)
   check_c_compiler_flag("-Wextra" G_WARN_EXTRA)
   if(G_WARN_EXTRA)
     if(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
-      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra" CACHE STRING "C compiler options")
+      set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra"
+          CACHE STRING "C compiler options")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -518,16 +536,20 @@ if(DO_TESTS)
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
     add_test(
-      NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-      COMMAND env QUICKJS_MODULE_PATH="${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}"
-              "${QJSM}" --bignum "${TEST}")
+      NAME "${BASE}"
+      WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+      COMMAND
+        env
+        QUICKJS_MODULE_PATH="${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}"
+        "${QJSM}" --bignum "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 
 check_c_source_runs(
   " # include <stdbool.h>\nbool foo(int a, int b, int *c) {\n   return __builtin_mul_overflow(a, b,
     # c);\n}\nint main() {\n   int out;\n   if (foo(1, 2, &out)) {\n       return 0;\n   }\n return
-    # 0;\n}" HAVE__BUILTIN_MUL_OVERFLOW)
+    # 0;\n}"
+  HAVE__BUILTIN_MUL_OVERFLOW)
 
 if(HAVE__BUILTIN_MUL_OVERFLOW)
   add_definitions(-DHAVE__BUILTIN_MUL_OVERFLOW)
@@ -572,8 +594,8 @@ file(GLOB TESTS_SOURCES tests/test_*.js)
 list(REMOVE_ITEM TESTS_SOURCES "test_lexer.js")
 source_group(TESTS_GROUP FILES ${TESTS_SOURCES})
 
-set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm" CACHE FILEPATH
-                                                  "qjsm (QuickJS modular shell) interpreter")
+set(QJSM "${CMAKE_CURRENT_BINARY_DIR}/qjsm"
+    CACHE FILEPATH "qjsm (QuickJS modular shell) interpreter")
 
 include(CTest)
 
@@ -615,7 +637,7 @@ string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
 
 set(COMMON_MODULES inspect util)
-set(console_MODULES )
+set(console_MODULES)
 set(db_MODULES list)
 set(fs_MODULES events path mmap misc)
 set(io_MODULES misc)
@@ -632,22 +654,36 @@ foreach(LIB_MODULE ${LIB_MODULES})
 
   set(MODLIST ${COMMON_MODULES} ${${LIB_MODULE}_MODULES})
 
-  compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
+  compile_module(lib/${LIB_MODULE}.js
+                 "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
 endforeach(LIB_MODULE ${LIB_MODULES})
 
+if("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
+    set(QUICKJS_SOURCES_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+  endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
+endif("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 
-execute_process(COMMAND sed -n "/^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }" 
-../quickjs.c ../quickjs-libc.c 
- WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}" OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/internal.h")
+execute_process(
+  COMMAND
+    sed -n
+    "/^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }"
+    ${QUICKJS_SOURCES_ROOT}/quickjs.c ${QUICKJS_SOURCES_ROOT}/quickjs-libc.c
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/internal.h"
+#OUTPUT_VARIABLE INTERNAL
+)
 
 file(READ "${CMAKE_CURRENT_BINARY_DIR}/internal.h" INTERNAL)
 
-file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h" "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n\n${INTERNAL}\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n")
+file(
+  WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h"
+  "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n\n${INTERNAL}\n\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
+)
 
-
-
-add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES}
-                           ${libutf_SOURCES} ${libbcrypt_SOURCES})
+add_library(
+  modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES}
+                 ${libutf_SOURCES} ${libbcrypt_SOURCES})
 set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
 add_library(compiled STATIC ${COMPILED_MODULES})
 set(COMMON_LIBRARIES modules compiled)
@@ -674,8 +710,8 @@ endif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
 set(QJSM_SOURCES src/qjsm.c)
 #set(QJSM_LDADD qjs-syscallerror-static)
 
-set(NATIVE_BUILTINS child-process deep inspect lexer location misc path pointer predicate repeater
-                    tree-walker xml)
+set(NATIVE_BUILTINS child-process deep inspect lexer location misc path pointer
+                    predicate repeater tree-walker xml)
 list(APPEND NATIVE_BUILTINS syscallerror)
 
 foreach(NATIVE_BUILTIN ${NATIVE_BUILTINS})
@@ -696,31 +732,36 @@ endif(LIBDL)
 link_directories(${QJSM_LIBDIR})
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${QJSM_LIBDIR}")
-set_target_properties(qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS
-                                                                                     "-w")
+set_target_properties(
+  qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS
+                                                                 "-w")
 
 if(NOT WASI AND NOT EMSCRIPTEN)
   set_target_properties(
-    qjsm PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}"
-                    INSTALL_RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}")
+    qjsm
+    PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}"
+               INSTALL_RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}")
 endif(NOT WASI AND NOT EMSCRIPTEN)
 
-target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${QUICKJS_LIBRARY_DIR})
+target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
+                        ${QUICKJS_LIBRARY_DIR})
 
-target_link_libraries(qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QUICKJS_LIBRARY}
-                                  ${LIBPTHREAD} ${LIBM} ${LIBWS2_32})
+target_link_libraries(
+  qjsm PUBLIC ${QJSM_LDADD} ${COMMON_LIBRARIES} ${QUICKJS_LIBRARY}
+              ${LIBPTHREAD} ${LIBM} ${LIBWS2_32})
 
 target_compile_definitions(
   qjsm
   PRIVATE _GNU_SOURCE=1 CONFIG_VERSION="${QUICKJS_VERSION}"
-          QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}" CONFIG_BIGNUM=1)
+          QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}"
+          LIBMAGIC_DB="${LIBMAGIC_DB}" CONFIG_BIGNUM=1)
 install(TARGETS qjsm DESTINATION bin)
 
 file(GLOB INSTALL_SCRIPTS [!.]*.js)
 
 install(FILES ${INSTALL_SCRIPTS} DESTINATION bin
-        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE GROUP_READ WORLD_EXECUTE
-                    WORLD_READ)
+        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ GROUP_EXECUTE
+                    GROUP_READ WORLD_EXECUTE WORLD_READ)
 
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/list-imports.js")
 symlink(resolve-imports.js "${CMAKE_INSTALL_PREFIX}/bin/check-imports.js")
