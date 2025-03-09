@@ -198,7 +198,7 @@ js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
         return JS_ThrowOutOfMemory(ctx);
 
       archive_read_support_filter_all(ar);
-      //archive_read_support_compression_all(ar);
+      // archive_read_support_compression_all(ar);
       archive_read_support_format_all(ar);
       archive_read_support_filter_all(ar);
 

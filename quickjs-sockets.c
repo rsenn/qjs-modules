@@ -153,7 +153,7 @@ js_sockaddr_wrap(JSContext* ctx, SockAddr* a) {
 
 static JSValue
 js_sockaddr_new(JSContext* ctx, int family) {
-  SockAddr* a, addr={family};
+  SockAddr *a, addr = {family};
   size_t sz = sockaddr_size(&addr);
 
   if(!(a = js_mallocz(ctx, sz ? sz : sizeof(SockAddr))))
