@@ -2079,12 +2079,16 @@ js_module_find(JSContext* ctx, const char* name) {
 JSModuleDef*
 js_module_load(JSContext* ctx, const char* name) {
   JSModuleLoaderFunc* loader;
-  void* opaque;
+  void* opaque = 0;
 
+#ifdef HAVE_JS_GETMODULELOADERFUNC
   if(!(loader = JS_GetModuleLoaderFunc(JS_GetRuntime(ctx))))
     return 0;
+#endif
 
+#ifdef HAVE_JS_GETMODULELOADEROPAQUE
   opaque = JS_GetModuleLoaderOpaque(JS_GetRuntime(ctx));
+#endif
 
   return loader(ctx, name, opaque);
 }

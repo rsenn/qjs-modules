@@ -1910,7 +1910,7 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   return ret;
 }
 
-static JSValue
+/*static JSValue
 js_misc_getopaque(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
 
@@ -1925,7 +1925,7 @@ js_misc_getopaque(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   }
 
   return ret;
-}
+}*/
 
 static JSValue
 js_misc_evalstring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -2044,7 +2044,7 @@ enum {
   GET_TYPE_NAME,
 };
 
-static JSValue
+/*static JSValue
 js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   int32_t class_id = 0;
@@ -2107,7 +2107,7 @@ js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   }
 
   return ret;
-}
+}*/
 
 static JSValue
 js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -3335,18 +3335,18 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("stringPointer", 1, js_misc_valuetype, STRING_POINTER),
     JS_CFUNC_MAGIC_DEF("stringLength", 1, js_misc_valuetype, STRING_LENGTH),
     JS_CFUNC_MAGIC_DEF("stringBuffer", 1, js_misc_valuetype, STRING_BUFFER),
-    JS_CFUNC_DEF("getOpaque", 1, js_misc_getopaque),
+    //JS_CFUNC_DEF("getOpaque", 1, js_misc_getopaque),
     JS_CFUNC_DEF("evalString", 1, js_misc_evalstring),
     JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
     JS_CFUNC_MAGIC_DEF("atomToString", 1, js_misc_atom, ATOM_TO_STRING),
     JS_CFUNC_MAGIC_DEF("atomToValue", 1, js_misc_atom, ATOM_TO_VALUE),
     JS_CFUNC_MAGIC_DEF("valueToAtom", 1, js_misc_atom, VALUE_TO_ATOM),
-    JS_CFUNC_MAGIC_DEF("getClassID", 1, js_misc_classid, GET_CLASS_ID),
-    JS_CFUNC_MAGIC_DEF("getClassName", 1, js_misc_classid, GET_CLASS_NAME),
-    JS_CFUNC_MAGIC_DEF("getClassAtom", 1, js_misc_classid, GET_CLASS_ATOM),
+    //JS_CFUNC_MAGIC_DEF("getClassID", 1, js_misc_classid, GET_CLASS_ID),
+    //JS_CFUNC_MAGIC_DEF("getClassName", 1, js_misc_classid, GET_CLASS_NAME),
+    //JS_CFUNC_MAGIC_DEF("getClassAtom", 1, js_misc_classid, GET_CLASS_ATOM),
     // JS_CFUNC_MAGIC_DEF("getClassCount", 1, js_misc_classid, GET_CLASS_COUNT),
-    JS_CFUNC_MAGIC_DEF("getClassProto", 1, js_misc_classid, GET_CLASS_PROTO),
-    JS_CFUNC_MAGIC_DEF("getClassConstructor", 1, js_misc_classid, GET_CLASS_CONSTRUCTOR),
+    //JS_CFUNC_MAGIC_DEF("getClassProto", 1, js_misc_classid, GET_CLASS_PROTO),
+    //JS_CFUNC_MAGIC_DEF("getClassConstructor", 1, js_misc_classid, GET_CLASS_CONSTRUCTOR),
     JS_CFUNC_MAGIC_DEF("getTypeId", 1, js_misc_type, GET_TYPE_ID),
     JS_CFUNC_MAGIC_DEF("getTypeStr", 1, js_misc_type, GET_TYPE_STR),
     JS_CFUNC_MAGIC_DEF("getTypeName", 1, js_misc_type, GET_TYPE_NAME),

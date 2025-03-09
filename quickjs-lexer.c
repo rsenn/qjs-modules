@@ -1,5 +1,6 @@
 #include "defines.h"
 #include <quickjs.h>
+#include <cutils.h>
 #include <libregexp.h>
 #include "quickjs-lexer.h"
 #include "quickjs-location.h"
