@@ -664,11 +664,21 @@ if("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
   endif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")
 endif("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
 
+    
+set(QUICKJS_STRUCT_SOURCES
+${QUICKJS_SOURCES_ROOT}/quickjs.c
+    ${QUICKJS_SOURCES_ROOT}/quickjs-libc.c)
+
+
+if(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h)
+  set(QUICKJS_STRUCT_SOURCES ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h ${QUICKJS_STRUCT_SOURCES})
+endif(EXISTS ${QUICKJS_SOURCES_ROOT}/quickjs-debugger.h)
+
 execute_process(
   COMMAND
     sed -n
     "/^typedef.*;$/ { /sig_t/! p }; /^enum [^ ]\\+ {/ { :lp0; N; /\\n}/! b lp0; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^enum {/ { :lp1; N; /\\n}/! b lp1; /JS_CLASS/ { s,enum,enum JSClassIds, }; s,^,\\n,; p }; /^struct .\\+ {/ { :lp2; N; /\\n}/! b lp2; s,^,\\n,; p }; /^typedef enum .*{/ { :lp3; N; /\\n}/! b lp3; s,^,\\n,; p }; /^typedef struct {/ { :lp4; N; /\\n}/! b lp4; s,^,\\n,; p }; /^typedef struct .\\+ {/ { :lp5; N; /\\n}/! b lp5; s,^,\\n,; p }"
-    ${QUICKJS_SOURCES_ROOT}/quickjs.c ${QUICKJS_SOURCES_ROOT}/quickjs-libc.c
+    ${QUICKJS_STRUCT_SOURCES}
   WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
 OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/internal.h"
 #OUTPUT_VARIABLE INTERNAL
@@ -678,7 +688,7 @@ file(READ "${CMAKE_CURRENT_BINARY_DIR}/internal.h" INTERNAL)
 
 file(
   WRITE "${CMAKE_CURRENT_BINARY_DIR}/quickjs-internal.h"
-  "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n\n${INTERNAL}\n\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
+  "#ifndef QJS_MODULES_INTERNAL_H\n#define QJS_MODULES_INTERNAL_H\n\n#include <list.h>\n#include <cutils.h>\n#include <quickjs.h>\n#include <stddef.h>\n#include <sys/types.h>\n#include <quickjs-config.h>\n\n#ifdef CONFIG_BIGNUM\n#include <libbf.h>\n#endif\n#ifdef CONFIG_DEBUGGER\n#include <quickjs-debugger.h>\n#endif\n#ifdef USE_WORKER\n#include <pthread.h>\n#endif\n${INTERNAL}\nextern const JSOpCode js_opcodes[OP_COUNT + (OP_TEMP_END - OP_TEMP_START)];\n\n#endif /* defined(QJS_MODULES_INTERNAL_H) */\n"
 )
 
 add_library(
