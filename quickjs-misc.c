@@ -3199,7 +3199,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 #if !defined(_WIN32)
     JS_SetPropertyStr(ctx, obj, "blocks", new64.u(ctx, st.st_blocks));
 #endif
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__dietlibc__) || defined(__ANDROID__)
     JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, (int64_t)st.st_atime * 1000));
     JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, (int64_t)st.st_mtime * 1000));
     JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, (int64_t)st.st_ctime * 1000));
@@ -3207,10 +3207,10 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, timespec_to_ms(&st.st_atimespec)));
     JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, timespec_to_ms(&st.st_mtimespec)));
     JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, timespec_to_ms(&st.st_ctimespec)));
-#elif defined(__dietlibc__) || defined(__ANDROID__)
+/*#elif defined(__dietlibc__) || defined(__ANDROID__)
     JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, 1000 * st.st_atime));
     JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, 1000 * st.st_mtime));
-    JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, 1000 * st.st_ctime));
+    JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, 1000 * st.st_ctime));*/
 #else
     JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, timespec_to_ms(&st.st_atim)));
     JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, timespec_to_ms(&st.st_mtim)));
