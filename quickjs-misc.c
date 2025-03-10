@@ -2412,12 +2412,12 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case RANDOM_RANDF: {
+    /*case RANDOM_RANDF: {
       uint32_t num = pcg32_random();
 
       ret = JS_NewFloat64(ctx, ((double)num / (UINT32_MAX >> 1)) - 1.0l);
       break;
-    }
+    }*/
 
     case RANDOM_SRAND: {
       uint32_t st = 0;
@@ -3602,7 +3602,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getTypeName", 1, js_misc_type, GET_TYPE_NAME),
     JS_CFUNC_MAGIC_DEF("rand", 0, js_misc_random, RANDOM_RAND),
     JS_CFUNC_MAGIC_DEF("randi", 0, js_misc_random, RANDOM_RANDI),
-    JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, RANDOM_RANDF),
+    //JS_CFUNC_MAGIC_DEF("randf", 0, js_misc_random, RANDOM_RANDF),
     JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, RANDOM_SRAND),
     JS_CFUNC_DEF("escape", 1, js_misc_escape),
     JS_CFUNC_DEF("unescape", 1, js_misc_unescape),
