@@ -3334,6 +3334,7 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   } else {
 
     memset(&tty, 0, sizeof(tty));
+    
 #ifndef __ANDROID__
     tcgetattr(fd, &tty);
     oldtty = tty;
