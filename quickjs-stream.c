@@ -11,10 +11,9 @@
  */
 
 /*VISIBLE*/ JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
-/*VISIBLE*/ JSValue readable_proto = {{0}, JS_TAG_UNDEFINED}, readable_controller = {{0}, JS_TAG_UNDEFINED}, readable_ctor = {{0}, JS_TAG_UNDEFINED}, writable_proto = {{0}, JS_TAG_UNDEFINED},
-                    writable_controller = {{0}, JS_TAG_UNDEFINED}, writable_ctor = {{0}, JS_TAG_UNDEFINED}, transform_proto = {{0}, JS_TAG_UNDEFINED}, transform_controller = {{0}, JS_TAG_UNDEFINED},
-                    transform_ctor = {{0}, JS_TAG_UNDEFINED}, reader_proto = {{0}, JS_TAG_UNDEFINED}, reader_ctor = {{0}, JS_TAG_UNDEFINED}, writer_proto = {{0}, JS_TAG_UNDEFINED},
-                    writer_ctor = {{0}, JS_TAG_UNDEFINED};
+/*VISIBLE*/ JSValue readable_proto = JS_UNDEFINED, readable_controller = JS_UNDEFINED, readable_ctor = JS_UNDEFINED, writable_proto = JS_UNDEFINED, writable_controller = JS_UNDEFINED,
+                    writable_ctor = JS_UNDEFINED, transform_proto = JS_UNDEFINED, transform_controller = JS_UNDEFINED, transform_ctor = JS_UNDEFINED, reader_proto = JS_UNDEFINED, reader_ctor = JS_UNDEFINED,
+                    writer_proto = JS_UNDEFINED, writer_ctor = JS_UNDEFINED;
 
 static int reader_update(Reader*, JSContext*);
 static BOOL reader_passthrough(Reader*, JSValueConst, JSContext*);
@@ -22,6 +21,7 @@ static int readable_unlock(Readable*, Reader*);
 static int writable_unlock(Writable*, Writer*);
 static JSValue js_readable_callback(JSContext*, Readable*, ReadableEvent, int, JSValueConst[]);
 static JSValue js_writable_callback(JSContext*, Writable*, WritableEvent, int, JSValueConst[]);
+static JSValue js_reader_wrap(JSContext* ctx, Reader* rd);
 
 /* clang-format off */
 static inline Reader* js_reader_data(JSValueConst v) { return JS_GetOpaque(v, js_reader_class_id); }
@@ -145,7 +145,10 @@ read_next(Reader* rd, JSContext* ctx) {
       ret = JS_EXCEPTION;
 
   if(op) {
-    // printf("read_next (%i/%zu)\n", op->seq, list_size(&rd->list));
+#ifdef DEBUG_OUTPUT
+    printf("%s(): (%i/%zu)\n", __func__, op->seq, list_size(&rd->list));
+#endif
+
     ret = op->promise.value;
     op->promise.value = JS_UNDEFINED;
   }
@@ -198,10 +201,25 @@ reader_new(JSContext* ctx, Readable* st) {
 
     init_list_head(&rd->list);
 
+    rd->ref_count = 1;
+
     JSValue ret = js_readable_callback(ctx, rd->stream, READABLE_START, 1, &rd->stream->controller);
     JS_FreeValue(ctx, ret);
   }
 
+  return rd;
+}
+
+/**
+ * @brief      Duplicates a \ref Reader
+ *
+ * @param      rd    Reader
+ *
+ * @return     The same reader (with incremented reference count)
+ */
+static Reader*
+reader_dup(Reader* rd) {
+  ++rd->ref_count;
   return rd;
 }
 
@@ -229,24 +247,52 @@ reader_release_lock(Reader* rd, JSContext* ctx) {
  * @brief      Clears all queued reads on the \ref Reader
  *
  * @param      rd    Reader struct
- * @param      ctx   The JSContext
+ * @param      rt    The JSRuntime
  *
  * @return     How many reads have been cleared
  */
 static int
-reader_clear(Reader* rd, JSContext* ctx) {
+reader_clear(Reader* rd, JSRuntime* rt) {
   int ret = 0;
   Read *el, *next;
 
   list_for_each_prev_safe(el, next, &rd->reads) {
-    promise_reject(ctx, &el->promise.funcs, JS_UNDEFINED);
+    JS_FreeValueRT(rt, el->promise.funcs.resolve);
+    JS_FreeValueRT(rt, el->promise.funcs.reject);
+    JS_FreeValueRT(rt, el->promise.value);
 
-    read_free_rt(el, JS_GetRuntime(ctx));
+    read_free_rt(el, rt);
 
     ++ret;
   }
 
   return ret;
+}
+
+/**
+ * @brief      Frees reader
+ *
+ * @param      rd    Reader struct
+ * @param      rt    The JSRuntime
+ */
+static void
+reader_free(Reader* rd, JSRuntime* rt) {
+  if(--rd->ref_count == 0) {
+    reader_clear(rd, rt);
+    js_free_rt(rt, rd);
+  }
+}
+
+static JSValue
+js_reader_close_forward(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
+  Reader* rd;
+
+  if(!(rd = js_reader_data2(ctx, func_data[0])))
+    return JS_EXCEPTION;
+
+  promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, argv[0]);
+
+  return JS_UNDEFINED;
 }
 
 /**
@@ -266,16 +312,30 @@ reader_close(Reader* rd, JSContext* ctx) {
 
   ret = js_readable_callback(ctx, rd->stream, READABLE_CANCEL, 0, 0);
 
-  // printf("reader_close (2) promise=%i\n", js_is_promise(ctx, ret));
-
+#ifdef DEBUG_OUTPUT
+  printf("%s(1): promise=%i\n", __func__, js_is_promise(ctx, ret));
+#endif
   rd->stream->closed = TRUE;
 
   reader_update(rd, ctx);
 
-  if(js_is_promise(ctx, ret))
-    ret = promise_forward(ctx, ret, &rd->events[READER_CLOSED]);
+  if(js_is_promise(ctx, ret)) {
+    JSValue readerObj = js_reader_wrap(ctx, rd);
+    JSValue readerCloseForward = JS_NewCFunctionData(ctx, js_reader_close_forward, 1, 0, 1, &readerObj);
+    JS_FreeValue(ctx, readerObj);
 
-  // printf("reader_close (2) promise=%i\n", js_is_promise(ctx, ret));
+    JSValue tmp = promise_then(ctx, ret, readerCloseForward);
+
+    JS_FreeValue(ctx, ret);
+    JS_FreeValue(ctx, readerCloseForward);
+    ret = tmp;
+
+    //    ret = promise_forward(ctx, ret, &rd->events[READER_CLOSED]);
+  }
+
+#ifdef DEBUG_OUTPUT
+  printf("%s(2): promise=%i\n", __func__, js_is_promise(ctx, ret));
+#endif
 
   return ret;
 }
@@ -331,10 +391,16 @@ reader_read(Reader* rd, JSContext* ctx) {
 
   reader_update(rd, ctx);
 
-  // printf("reader_read (2) [%zu] closed=%i\n", list_size(&rd->list), rd->stream->closed);
-  // printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
+#ifdef DEBUG_OUTPUT
+  printf("%s(): (2) [%zu] closed=%i\n", __func__, list_size(&rd->list), rd->stream->closed);
+#endif
 
-  return js_iterator_promise_value(ctx, ret);
+#ifdef DEBUG_OUTPUT
+  printf("%s():Read (%i) q2[%zu]\n", __func__, op->seq, queue_size(&st->q));
+#endif
+
+  return ret;
+  // return js_iterator_promise_value(ctx, ret);
 }
 
 /**
@@ -352,7 +418,9 @@ reader_clean(Reader* rd, JSContext* ctx) {
 
   list_for_each_prev_safe(el, next, (Read*)&rd->reads) {
     if(read_done(el)) {
-      // printf("reader_clean() delete[%i]\n", el->seq);
+#ifdef DEBUG_OUTPUT
+      printf("%s(): delete[%i]\n", __func__, el->seq);
+#endif
 
       list_del(&el->link);
       js_free(ctx, el);
@@ -384,7 +452,9 @@ reader_update(Reader* rd, JSContext* ctx) {
 
   reader_clean(rd, ctx);
 
-  // printf("reader_update(1) [%zu] closed=%d queue.size=%zu\n", list_size(&rd->list), readable_closed(st), queue_size(&st->q));
+#ifdef DEBUG_OUTPUT
+  printf("%s(): [%zu] closed=%d queue.size=%zu\n", __func__, list_size(&rd->list), readable_closed(st), queue_size(&st->q));
+#endif
 
   if(readable_closed(st)) {
     promise_resolve(ctx, &rd->events[READER_CLOSED].funcs, JS_UNDEFINED);
@@ -399,7 +469,9 @@ reader_update(Reader* rd, JSContext* ctx) {
     while(!list_empty(&rd->list) && (ch = queue_next(&st->q))) {
       JSValue chunk, result;
 
-      // printf("reader_update(2) Chunk ptr=%p, size=%zu, pos=%zu\n", ch->data, ch->size, ch->pos);
+#ifdef DEBUG_OUTPUT
+      printf("%s(2): Chunk ptr=%p, size=%zu, pos=%zu\n", __func__, ch->data, ch->size, ch->pos);
+#endif
 
       chunk = chunk_arraybuffer(ch, ctx);
       result = js_iterator_result(ctx, chunk, FALSE);
@@ -414,7 +486,9 @@ reader_update(Reader* rd, JSContext* ctx) {
     }
   }
 
-  // printf("reader_update(3) closed=%d queue.size=%zu result = %d\n", readable_closed(st), queue_size(&st->q), ret);
+#ifdef DEBUG_OUTPUT
+  printf("%s(3): closed=%d queue.size=%zu result = %d\n", __func__, readable_closed(st), queue_size(&st->q), ret);
+#endif
 
   return ret;
 }
@@ -434,7 +508,9 @@ reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
   BOOL ret = FALSE;
 
   list_for_each_prev_safe(el, next, &rd->reads) {
-    // printf("reader_passthrough(1) el[%i]\n", el->seq);
+#ifdef DEBUG_OUTPUT
+    printf("%s(1): el[%i]\n", __func__, el->seq);
+#endif
 
     if(promise_pending(&el->promise.funcs)) {
       op = el;
@@ -442,7 +518,9 @@ reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
     }
   }
 
-  // printf("reader_passthrough(2) result=%s\n", JS_ToCString(ctx, result));
+#ifdef DEBUG_OUTPUT
+  printf("%s(2): result=%s\n", __func__, JS_ToCString(ctx, result));
+#endif
 
   if(op) {
     ret = promise_resolve(ctx, &op->promise.funcs, result);
@@ -499,7 +577,9 @@ readable_close(Readable* st, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
   static BOOL expected = FALSE;
 
-  // printf("readable_close(1) expected=%i, closed=%i\n", st->closed, expected);
+#ifdef DEBUG_OUTPUT
+  printf("%s(1): expected=%i, closed=%i\n", __func__, st->closed, expected);
+#endif
 
   if(atomic_compare_exchange_weak(&st->closed, &expected, TRUE)) {
     if(readable_locked(st)) {
@@ -712,6 +792,7 @@ static JSValue
 js_reader_wrap(JSContext* ctx, Reader* rd) {
   JSValue obj = JS_NewObjectProtoClass(ctx, reader_proto, js_reader_class_id);
 
+  reader_dup(rd);
   JS_SetOpaque(obj, rd);
   return obj;
 }
@@ -785,6 +866,7 @@ js_reader_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case READER_PROP_CLOSED: {
+      // ret = JS_NewBool(ctx, promise_done(&rd->events[READER_CLOSED].funcs));
       ret = JS_DupValue(ctx, rd->events[READER_CLOSED].value);
       break;
     }
@@ -804,11 +886,11 @@ js_reader_finalizer(JSRuntime* rt, JSValue val) {
   Reader* rd;
 
   if((rd = JS_GetOpaque(val, js_reader_class_id)))
-    js_free_rt(rt, rd);
+    reader_free(rd, rt);
 }
 
 JSClassDef js_reader_class = {
-    .class_name = "StreamReader",
+    .class_name = "ReadableStreamDefaultReader",
     .finalizer = js_reader_finalizer,
 };
 
@@ -817,7 +899,7 @@ const JSCFunctionListEntry js_reader_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("cancel", 0, js_reader_method, READER_CANCEL),
     JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_reader_method, READER_RELEASE_LOCK),
     JS_CGETSET_MAGIC_DEF("closed", js_reader_get, 0, READER_PROP_CLOSED),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamReader", JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamDefaultReader", JS_PROP_CONFIGURABLE),
 };
 
 /**
@@ -945,6 +1027,8 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       if((rd = readable_get_reader(st, ctx)))
         ret = js_reader_wrap(ctx, rd);
+      else
+        ret = JS_ThrowTypeError(ctx, "Failed to execute 'getReader' on 'ReadableStream': ReadableStreamDefaultReader constructor can only accept readable streams that are not yet locked to a reader");
 
       break;
     }
@@ -1560,11 +1644,13 @@ js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case WRITER_PROP_CLOSED: {
+      // ret= promise_done(&wr->events[WRITER_CLOSED].funcs);
       ret = JS_DupValue(ctx, wr->events[WRITER_CLOSED].value);
       break;
     }
 
     case WRITER_PROP_READY: {
+      // ret= promise_done(&wr->events[WRITER_READY].funcs);
       ret = JS_DupValue(ctx, wr->events[WRITER_READY].value);
       break;
     }
@@ -1588,7 +1674,7 @@ js_writer_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 JSClassDef js_writer_class = {
-    .class_name = "StreamWriter",
+    .class_name = "WritableStreamDefaultWriter",
     .finalizer = js_writer_finalizer,
 };
 
@@ -1599,7 +1685,7 @@ const JSCFunctionListEntry js_writer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_writer_method, WRITER_RELEASE_LOCK),
     JS_CGETSET_MAGIC_DEF("closed", js_writer_get, 0, WRITER_PROP_CLOSED),
     JS_CGETSET_MAGIC_DEF("ready", js_writer_get, 0, WRITER_PROP_READY),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "StreamWriter", JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultWriter", JS_PROP_CONFIGURABLE),
 };
 
 /**
@@ -1756,6 +1842,8 @@ js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       if((wr = writable_get_writer(st, 0, ctx)))
         ret = js_writer_wrap(ctx, wr);
+      else
+        ret = JS_ThrowTypeError(ctx, "Failed to execute 'getWriter' on 'WritableStream': WritableStreamDefaultWriter constructor can only accept writable streams that are not yet locked to a writer");
 
       break;
     }
@@ -2156,7 +2244,7 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, reader_proto, js_reader_proto_funcs, countof(js_reader_proto_funcs));
   JS_SetClassProto(ctx, js_reader_class_id, reader_proto);
 
-  reader_ctor = JS_NewCFunction2(ctx, js_reader_constructor, "StreamReader", 1, JS_CFUNC_constructor, 0);
+  reader_ctor = JS_NewCFunction2(ctx, js_reader_constructor, "ReadableStreamDefaultReader", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, reader_ctor, reader_proto);
 
@@ -2182,7 +2270,7 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_SetPropertyFunctionList(ctx, writer_proto, js_writer_proto_funcs, countof(js_writer_proto_funcs));
   JS_SetClassProto(ctx, js_writer_class_id, writer_proto);
 
-  writer_ctor = JS_NewCFunction2(ctx, js_writer_constructor, "StreamWriter", 1, JS_CFUNC_constructor, 0);
+  writer_ctor = JS_NewCFunction2(ctx, js_writer_constructor, "WritableStreamDefaultWriter", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, writer_ctor, writer_proto);
 
@@ -2219,8 +2307,8 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   // JS_SetPropertyFunctionList(ctx, stream_ctor, js_stream_static_funcs, countof(js_stream_static_funcs));
 
   if(m) {
-    JS_SetModuleExport(ctx, m, "StreamReader", reader_ctor);
-    JS_SetModuleExport(ctx, m, "StreamWriter", writer_ctor);
+    JS_SetModuleExport(ctx, m, "ReadableStreamDefaultReader", reader_ctor);
+    JS_SetModuleExport(ctx, m, "WritableStreamDefaultWriter", writer_ctor);
     JS_SetModuleExport(ctx, m, "ReadableStream", readable_ctor);
     JS_SetModuleExport(ctx, m, "ReadableStreamDefaultController", readable_controller);
     JS_SetModuleExport(ctx, m, "WritableStream", writable_ctor);
@@ -2244,8 +2332,8 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   if(!(m = JS_NewCModule(ctx, module_name, js_stream_init)))
     return NULL;
 
-  JS_AddModuleExport(ctx, m, "StreamReader");
-  JS_AddModuleExport(ctx, m, "StreamWriter");
+  JS_AddModuleExport(ctx, m, "ReadableStreamDefaultReader");
+  JS_AddModuleExport(ctx, m, "WritableStreamDefaultWriter");
   JS_AddModuleExport(ctx, m, "ReadableStream");
   JS_AddModuleExport(ctx, m, "ReadableStreamDefaultController");
   JS_AddModuleExport(ctx, m, "WritableStream");

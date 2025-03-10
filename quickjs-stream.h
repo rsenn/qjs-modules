@@ -46,6 +46,7 @@ enum {
 };
 
 typedef struct stream_reader {
+  int ref_count;
   int64_t desired_size;
   _Atomic(struct readable_stream*) stream;
   Promise events[2];
