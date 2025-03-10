@@ -550,14 +550,15 @@ readable_cancel(Readable* st, JSValueConst reason, JSContext* ctx) {
  * @return     JSValue: Number of bytes written
  */
 static JSValue
-readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
+readable_enqueue(Readable* st, JSValueConst chunk, BOOL binary, JSContext* ctx) {
   Reader* rd;
   JSValue ret = JS_UNDEFINED;
   InputBuffer input = js_input_chars(ctx, chunk);
   BOOL ok = FALSE;
 
   if(readable_locked(st) && (rd = st->reader)) {
-    JSValue buf = js_is_arraybuffer(ctx, chunk) ? JS_DupValue(ctx, chunk) : JS_NewArrayBufferCopy(ctx, input.data, input.size);
+    JSValue buf = (!binary || js_is_arraybuffer(ctx, chunk)) ? JS_DupValue(ctx, chunk) : JS_NewArrayBufferCopy(ctx, input.data, input.size);
+
     JSValue result = js_iterator_result(ctx, buf, FALSE);
     JS_FreeValue(ctx, buf);
 
@@ -1021,7 +1022,12 @@ js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     }
 
     case READABLE_ENQUEUE: {
-      ret = readable_enqueue(st, argv[0], ctx);
+      BOOL binary = FALSE;
+
+      if(argc > 1)
+        binary = JS_ToBool(ctx, argv[1]);
+
+      ret = readable_enqueue(st, argv[0], binary, ctx);
       break;
     }
 
@@ -2037,7 +2043,12 @@ js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 
   switch(magic) {
     case TRANSFORM_ENQUEUE: {
-      ret = readable_enqueue(st->readable, argv[0], ctx);
+      BOOL binary = FALSE;
+
+      if(argc > 1)
+        binary = JS_ToBool(ctx, argv[1]);
+
+      ret = readable_enqueue(st->readable, argv[0], binary, ctx);
       break;
     }
 

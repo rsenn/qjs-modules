@@ -27,60 +27,70 @@ typedef union ringbuffer {
     { 0, 0, 0, 0, &ringbuffer_default_realloc, 0 } \
   }
 
-#define ringbuffer_init(rb, ctx) \
+#define ringbuffer_init(rb, size, ctx) \
   do { \
     vector_init(&(rb)->vec, ctx); \
-    vector_allocate(&(rb)->vec, 1, 1023); \
+    vector_allocate(&(rb)->vec, 1, ((size)-1)); \
   } while(0)
-#define ringbuffer_init_rt(rb, rt) \
+
+#define ringbuffer_init_rt(rb, size, rt) \
   do { \
     vector_init_rt(&(rb)->vec, rt); \
-    vector_allocate(&(rb)->vec, 1, 1023); \
+    vector_allocate(&(rb)->vec, 1, ((size)-1)); \
   } while(0)
+
 #define RINGBUFFER(ctx) \
   (RingBuffer) { \
     { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc, ctx, 0, 0 } \
   }
+
 #define RINGBUFFER_RT(rt) \
   (RingBuffer) { \
     { 0, 0, 0, 0, (DynBufReallocFunc*)&js_realloc_rt, rt } \
   }
-#define ringbuffer_free(rb) vector_free(&(rb)->vec)
-#define ringbuffer_begin(rb) (void*)&ringbuffer_tail(rb)
-#define ringbuffer_end(rb) (void*)&ringbuffer_head(rb)
-#define ringbuffer_head(rb) (rb)->data[(rb)->head]
-#define ringbuffer_tail(rb) (rb)->data[(rb)->tail]
 
-#define ringbuffer_empty(rb) ((rb)->tail == (rb)->head)
-#define ringbuffer_full(rb) ((rb)->size == (rb)->head - (rb)->tail)
-#define ringbuffer_wrapped(rb) ((rb)->head < (rb)->tail)
-#define ringbuffer_headroom(rb) ((rb)->size - (rb)->head)
-#define ringbuffer_avail(rb) ((rb)->size - ringbuffer_length(rb))
-#define ringbuffer_length(rb) (ringbuffer_wrapped(rb) ? ((rb)->size - (rb)->tail) + (rb)->head : (rb)->head - (rb)->tail)
-#define ringbuffer_continuous(rb) (ringbuffer_wrapped(rb) ? (rb)->size - (rb)->tail : (rb)->head - (rb)->tail)
-#define ringbuffer_is_continuous(rb) ((rb)->head >= (rb)->tail)
-//#define ringbuffer_skip(rb, n) ((rb)->tail += (n), (rb)->tail %= (rb)->size)
-#define ringbuffer_wrap(rb, idx) ((idx) % (rb)->size)
-#define ringbuffer_next(rb, ptr) (void*)(ringbuffer_wrap(rb, ((uint8_t*)(ptr + 1)) - (rb)->data) + (rb)->data)
+#define ringbuffer_FREE(rb) vector_free(&(rb)->vec)
+#define ringbuffer_BEGIN(rb) (void*)&ringbuffer_TAIL(rb)
+#define ringbuffer_END(rb) (void*)&ringbuffer_HEAD(rb)
+#define ringbuffer_HEAD(rb) (rb)->data[(rb)->head]
+#define ringbuffer_TAIL(rb) (rb)->data[(rb)->tail]
+
+#define ringbuffer_EMPTY(rb) ((rb)->tail == (rb)->head)
+#define ringbuffer_FULL(rb) ((rb)->size == (rb)->head - (rb)->tail)
+#define ringbuffer_WRAPPED(rb) ((rb)->head < (rb)->tail)
+#define ringbuffer_HEADROOM(rb) ((rb)->size - (rb)->head)
+#define ringbuffer_AVAIL(rb) ((rb)->size - ringbuffer_LENGTH(rb))
+#define ringbuffer_LENGTH(rb) (ringbuffer_WRAPPED(rb) ? ((rb)->size - (rb)->tail) + (rb)->head : (rb)->head - (rb)->tail)
+#define ringbuffer_CONTINUOUS(rb) (ringbuffer_WRAPPED(rb) ? (rb)->size - (rb)->tail : (rb)->head - (rb)->tail)
+#define ringbuffer_IS_CONTINUOUS(rb) ((rb)->head >= (rb)->tail)
+#define ringbuffer_SKIP(rb, n) ((rb)->tail += (n), (rb)->tail %= (rb)->size)
+#define ringbuffer_WRAP(rb, idx) ((idx) % (rb)->size)
+#define ringbuffer_NEXT(rb, ptr) (void*)(ringbuffer_WRAP(rb, ((uint8_t*)(ptr + 1)) - (rb)->data) + (rb)->data)
 
 void ringbuffer_reset(RingBuffer*);
-void ringbuffer_queue(RingBuffer*, uint8_t data);
+BOOL ringbuffer_queue(RingBuffer*, uint8_t data);
 BOOL ringbuffer_dequeue(RingBuffer*, uint8_t* data);
-ssize_t ringbuffer_write(RingBuffer*, const void* x, size_t len);
-ssize_t ringbuffer_read(RingBuffer*, void* x, size_t len);
-uint8_t* ringbuffer_peek(RingBuffer*, size_t index);
+ssize_t ringbuffer_write(RingBuffer*, const void*, size_t);
+ssize_t ringbuffer_read(RingBuffer*, void*, size_t);
+uint8_t* ringbuffer_peek(RingBuffer*, size_t);
 void ringbuffer_normalize(RingBuffer*);
 BOOL ringbuffer_resize(RingBuffer*, size_t);
 BOOL ringbuffer_allocate(RingBuffer*, size_t);
-uint8_t* ringbuffer_reserve(RingBuffer* rb, size_t min_bytes);
-ssize_t ringbuffer_append(RingBuffer* r, const void* x, size_t len, JSContext* ctx);
+uint8_t* ringbuffer_reserve(RingBuffer*, size_t);
+ssize_t ringbuffer_append(RingBuffer*, const void*, size_t);
 
 static inline uint8_t*
 ringbuffer_skip(RingBuffer* rb, size_t n) {
-  assert(ringbuffer_length(rb) >= n);
+  assert(ringbuffer_LENGTH(rb) >= n);
+
   rb->tail = (rb->tail + n) % rb->size;
-  return ringbuffer_begin(rb);
+
+  return ringbuffer_BEGIN(rb);
 }
+
+size_t ringbuffer_size(RingBuffer*);
+size_t ringbuffer_length(RingBuffer*);
+size_t ringbuffer_avail(RingBuffer*);
 
 /**
  * @}
