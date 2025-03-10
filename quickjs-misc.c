@@ -3332,7 +3332,7 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
   } else {
 
     memset(&tty, 0, sizeof(tty));
-    
+
     tcgetattr(fd, &tty);
     oldtty = tty;
     have_oldtty = TRUE;
