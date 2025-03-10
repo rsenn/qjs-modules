@@ -5,7 +5,6 @@ import { ByLineStream, FileSystemReadableFileStream, FileSystemReadableStream, S
 import { Console } from 'console';
 import { exit } from 'std';
 
-
 extendAsyncGenerator();
 
 async function main(...args) {

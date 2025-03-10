@@ -12,7 +12,7 @@ import inspect from 'inspect';
 import { Location } from 'lexer';
 import { escape, toString } from 'misc';
 import { MAP_PRIVATE, mmap, PROT_READ } from 'mmap';
-import { err, exit, gc, open as fopen, puts } from 'std';
+import { err, exit, gc, open as fopenSync, puts } from 'std';
 
 let buffers = {},
   modules = {};
@@ -65,7 +65,7 @@ function BufferRanges(file) {
 }
 
 function WriteFile(file, tok) {
-  let f = fopen(file, 'w+');
+  let f = fopenSync(file, 'w+');
   f.puts(tok);
   console.log('Wrote "' + file + '": ' + tok.length + ' bytes');
 }
