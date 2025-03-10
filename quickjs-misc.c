@@ -3207,10 +3207,6 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, timespec_to_ms(&st.st_atimespec)));
     JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, timespec_to_ms(&st.st_mtimespec)));
     JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, timespec_to_ms(&st.st_ctimespec)));
-/*#elif defined(__dietlibc__) || defined(__ANDROID__)
-    JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, 1000 * st.st_atime));
-    JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, 1000 * st.st_mtime));
-    JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, 1000 * st.st_ctime));*/
 #else
     JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, timespec_to_ms(&st.st_atim)));
     JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, timespec_to_ms(&st.st_mtim)));
