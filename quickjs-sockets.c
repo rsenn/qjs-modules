@@ -179,7 +179,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
     const char* str;
 
     if((str = JS_ToCString(ctx, argv[0]))) {
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 
       if(a->family == AF_IPX) {
         strncpy((char*)a->ipx.sipx_node, str, sizeof(a->ipx.sipx_node));

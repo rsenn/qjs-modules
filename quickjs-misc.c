@@ -3297,9 +3297,7 @@ static BOOL have_oldtty;
 
 static void
 term_exit(void) {
-#ifndef __ANDROID__
   tcsetattr(0, TCSANOW, &oldtty);
-#endif
 }
 
 /* XXX: should add a way to go back to normal mode */
@@ -3335,7 +3333,6 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
     memset(&tty, 0, sizeof(tty));
     
-#ifndef __ANDROID__
     tcgetattr(fd, &tty);
     oldtty = tty;
     have_oldtty = TRUE;
@@ -3351,7 +3348,6 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     tcsetattr(fd, TCSANOW, &tty);
 
     atexit(term_exit);
-#endif
   }
 
   return JS_UNDEFINED;

@@ -17,7 +17,7 @@
 
 #include "utils.h"
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 #include <linux/ipx.h>
 #include <linux/x25.h>
 #include <linux/can.h>
@@ -50,7 +50,7 @@ typedef union {
 #ifdef HAVE_AF_UNIX
   struct sockaddr_un un;
 #endif
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
   struct sockaddr_ipx ipx;
   struct sockaddr_ax25 ax25;
   struct sockaddr_nl nl;
@@ -142,8 +142,7 @@ sockaddr_port(const SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return ntohs(sa->ip4.sin_port);
     case AF_INET6: return ntohs(sa->ip6.sin6_port);
-#ifdef __linux__
-
+#if defined(__linux__) && !defined(__ANDROID__)
     case AF_IPX: return ntohs(sa->ipx.sipx_port);
     case AF_APPLETALK: return ntohs(sa->at.sat_port);
 #endif
@@ -157,8 +156,7 @@ sockaddr_setport(SockAddr* sa, uint16_t port) {
   switch(sa->family) {
     case AF_INET: sa->ip4.sin_port = htons(port); return TRUE;
     case AF_INET6: sa->ip6.sin6_port = htons(port); return TRUE;
-#ifdef __linux__
-
+#if defined(__linux__) && !defined(__ANDROID__)
     case AF_IPX: return sa->ipx.sipx_port = htons(port); return TRUE;
     case AF_APPLETALK: return sa->at.sat_port = htons(port); return TRUE;
 #endif
@@ -172,7 +170,7 @@ sockaddr_addr(SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return &sa->ip4.sin_addr;
     case AF_INET6: return &sa->ip6.sin6_addr;
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 
     case AF_IPX: return &sa->ipx.sipx_node;
     case AF_UNIX: return &sa->un.sun_path;
@@ -193,7 +191,7 @@ sockaddr_addrlen(const SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return sizeof(sa->ip4.sin_addr);
     case AF_INET6: return sizeof(sa->ip6.sin6_addr);
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
 
     case AF_IPX: return sizeof(sa->ipx.sipx_node);
     case AF_UNIX: return sizeof(sa->un.sun_path);
@@ -215,7 +213,7 @@ sockaddr_size(const SockAddr* sa) {
   switch(sa->family) {
     case AF_INET: return sizeof(struct sockaddr_in);
     case AF_INET6: return sizeof(struct sockaddr_in6);
-#ifdef __linux__
+#if defined(__linux__) && !defined(__ANDROID__)
     case AF_IPX: return sizeof(struct sockaddr_ipx);
     case AF_UNIX: return sizeof(struct sockaddr_un);
     case AF_NETLINK: return sizeof(struct sockaddr_nl);
