@@ -2917,7 +2917,6 @@ js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 #endif
 
-#ifdef HAVE_CHMOD
 static JSValue
 js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   uint32_t mode = 0;
@@ -2926,6 +2925,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   JS_ToUint32(ctx, &mode, argv[1]);
 
   switch(magic) {
+#ifdef HAVE_FCHMOD
     case 1: {
       int32_t fd = -1;
 
@@ -2934,7 +2934,8 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       ret = fchmod(fd, mode);
       break;
     }
-
+#endif
+#ifdef HAVE_CHMOD
     case 0: {
       const char* path;
 
@@ -2944,11 +2945,11 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       ret = chmod(path, mode);
       break;
     }
+#endif
   }
 
   return JS_NewInt32(ctx, ret);
 }
-#endif
 
 #ifdef HAVE_CHOWN
 static JSValue
@@ -3416,11 +3417,17 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
 #ifdef HAVE_CHMOD
     JS_CFUNC_MAGIC_DEF("chmod", 2, js_misc_chmod, 0),
+#endif
+#ifdef HAVE_FCHMOD
     JS_CFUNC_MAGIC_DEF("fchmod", 2, js_misc_chmod, 1),
 #endif
 #ifdef HAVE_CHOWN
     JS_CFUNC_MAGIC_DEF("chown", 3, js_misc_chown, 0),
+#endif
+#ifdef HAVE_FCHOWN
     JS_CFUNC_MAGIC_DEF("fchown", 3, js_misc_chown, 1),
+#endif
+#ifdef HAVE_LCHOWN
     JS_CFUNC_MAGIC_DEF("lchown", 3, js_misc_chown, 2),
 #endif
 #ifdef HAVE_FSYNC

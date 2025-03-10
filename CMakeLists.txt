@@ -135,7 +135,12 @@ check_function_def(fmemopen)
 check_functions(fcntl wordexp inotify_init1)
 check_includes(fcntl.h alloca.h wordexp.h sys/inotify.h)
 
-check_functions_def(access fnmatch daemon chmod chown fsync fdatasync ftruncate truncate utime utimes futimes lutimes)
+check_functions_def(access fnmatch daemon)
+check_functions_def(chmod fchmod)
+check_functions_def(chown fchown lchown)
+check_functions_def(fsync fdatasync)
+check_functions_def(truncate ftruncate)
+check_functions_def(utime utimes futimes lutimes)
 
 #message("Have daemon() ${HAVE_DAEMON}")
 
