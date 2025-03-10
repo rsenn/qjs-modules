@@ -2298,8 +2298,12 @@ js_number_integral(JSValueConst value) {
 
   if(tag == JS_TAG_FLOAT64) {
     double num = JS_VALUE_GET_FLOAT64(value);
+    int64_t i = num;
 
-    return fmod(num, 1.0l) == 0.0l;
+    if((num - i) < __DBL_EPSILON__)
+      return TRUE;
+
+    // return fmod(num, 1.0l) == 0.0l;
   }
 
   return FALSE;

@@ -2667,7 +2667,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetPropertyFunctionList(ctx, socket_proto, js_socket_proto_funcs, countof(js_socket_proto_funcs));
   JS_SetPropertyFunctionList(ctx, socket_ctor, js_socket_static_funcs, countof(js_socket_static_funcs));
-  //JS_SetPropertyFunctionList(ctx, socket_ctor, js_sockets_errnos, countof(js_sockets_errnos));
+  // JS_SetPropertyFunctionList(ctx, socket_ctor, js_sockets_errnos, countof(js_sockets_errnos));
   JS_SetPropertyFunctionList(ctx, socket_ctor, js_sockets_defines, countof(js_sockets_defines));
 
   JS_SetClassProto(ctx, js_socket_class_id, socket_proto);
@@ -2681,7 +2681,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetPropertyFunctionList(ctx, asyncsocket_proto, js_asyncsocket_proto_funcs, countof(js_asyncsocket_proto_funcs));
   JS_SetPropertyFunctionList(ctx, asyncsocket_ctor, js_socket_static_funcs, countof(js_socket_static_funcs));
-  //JS_SetPropertyFunctionList(ctx, asyncsocket_ctor, js_sockets_errnos, countof(js_sockets_errnos));
+  // JS_SetPropertyFunctionList(ctx, asyncsocket_ctor, js_sockets_errnos, countof(js_sockets_errnos));
   JS_SetPropertyFunctionList(ctx, asyncsocket_ctor, js_sockets_defines, countof(js_sockets_defines));
 
   JS_SetClassProto(ctx, js_asyncsocket_class_id, asyncsocket_proto);
@@ -2700,7 +2700,7 @@ js_sockets_init(JSContext* ctx, JSModuleDef* m) {
     JS_FreeCString(ctx, module_name);
     JS_SetModuleExportList(ctx, m, js_sockets_funcs, countof(js_sockets_funcs));
     JS_SetModuleExportList(ctx, m, js_sockets_defines, countof(js_sockets_defines));
-    //JS_SetModuleExportList(ctx, m, js_sockets_errnos, countof(js_sockets_errnos));
+    // JS_SetModuleExportList(ctx, m, js_sockets_errnos, countof(js_sockets_errnos));
   }
 
   return 0;
@@ -2721,7 +2721,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     JS_AddModuleExport(ctx, m, "SockAddr");
     JS_AddModuleExport(ctx, m, "Socket");
     JS_AddModuleExport(ctx, m, "AsyncSocket");
-     
+
     size_t n = str_rchr(module_name, '/');
 
     if(module_name[n])
@@ -2730,10 +2730,10 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
     size_t len = str_rchr(&module_name[n], '.');
 
     if(!strncmp(&module_name[n], "sockets", len)) {
-      //JS_AddModuleExport(ctx, m, "default");
+      // JS_AddModuleExport(ctx, m, "default");
       JS_AddModuleExportList(ctx, m, js_sockets_funcs, countof(js_sockets_funcs));
       JS_AddModuleExportList(ctx, m, js_sockets_defines, countof(js_sockets_defines));
-      //JS_AddModuleExportList(ctx, m, js_sockets_errnos, countof(js_sockets_errnos));
+      // JS_AddModuleExportList(ctx, m, js_sockets_errnos, countof(js_sockets_errnos));
     }
   }
 
