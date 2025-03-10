@@ -26,7 +26,6 @@ let T,
   match = new Set(),
   identifiers;
 
-
 extendArray(Array.prototype);
 
 const AddUnique = (arr, item) => (arr.indexOf(item) == -1 ? arr.push(item) : null);
@@ -44,7 +43,7 @@ function compareFn() {
     let fn = compare;
     compare = (...args) => fn(...args.map(s => ('' + s).toLowerCase()));
   }
-  
+
   return compare;
 }
 

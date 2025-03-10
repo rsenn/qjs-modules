@@ -790,6 +790,8 @@ void js_set_propertystr_string(JSContext* ctx, JSValueConst obj, const char* pro
 void js_set_propertystr_stringlen(JSContext* ctx, JSValueConst obj, const char* prop, const char* str, size_t len);
 const char* js_get_propertyint_cstring(JSContext* ctx, JSValueConst obj, uint32_t i);
 int32_t js_get_propertyint_int32(JSContext* ctx, JSValueConst obj, uint32_t i);
+int64_t js_get_propertyint_int64(JSContext* ctx, JSValueConst obj, uint32_t i);
+double js_get_propertyint_float64(JSContext* ctx, JSValueConst obj, uint32_t i);
 const char* js_get_propertystr_cstring(JSContext* ctx, JSValueConst obj, const char* prop);
 const char* js_get_propertystr_cstringlen(JSContext* ctx, JSValueConst obj, const char* prop, size_t* lenp);
 const char* js_get_property_cstring(JSContext* ctx, JSValueConst obj, JSAtom prop);

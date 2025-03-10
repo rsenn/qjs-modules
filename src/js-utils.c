@@ -114,6 +114,17 @@ promise_done(ResolveFunctions* funcs) {
 }
 
 JSValue
+promise_then2(JSContext* ctx, JSValueConst promise, JSValueConst resolve, JSValueConst reject) {
+  JSValue fn, ret, args[2] = {resolve, reject};
+
+  fn = JS_GetPropertyStr(ctx, promise, "then");
+  ret = JS_Call(ctx, fn, promise, 2, &args);
+  JS_FreeValue(ctx, fn);
+
+  return ret;
+}
+
+JSValue
 promise_then(JSContext* ctx, JSValueConst promise, JSValueConst handler) {
   JSValue fn, ret;
 

@@ -1124,6 +1124,24 @@ js_get_propertyint_int32(JSContext* ctx, JSValueConst obj, uint32_t prop) {
   return ret;
 }
 
+int64_t
+js_get_propertyint_int64(JSContext* ctx, JSValueConst obj, uint32_t prop) {
+  int64_t ret;
+  JSValue value = JS_GetPropertyUint32(ctx, obj, prop);
+  JS_ToInt64Ext(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
+double
+js_get_propertyint_float64(JSContext* ctx, JSValueConst obj, uint32_t prop) {
+  double ret;
+  JSValue value = JS_GetPropertyUint32(ctx, obj, prop);
+  JS_ToFloat64(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 char*
 js_get_property_string(JSContext* ctx, JSValueConst obj, JSAtom prop) {
   char* ret;

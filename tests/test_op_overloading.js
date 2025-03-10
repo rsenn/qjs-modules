@@ -1,6 +1,5 @@
 import Console from '../lib/console.js';
 
-
 const OverloadNames = ['+', '-', '*', '/', '%', '**', '|', '&', '^', '<<', '>>', '>>>', '==', '<', 'pos', 'neg', '++', '--', '~'];
 
 const CreateOperatorSet = Operators.create;

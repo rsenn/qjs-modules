@@ -32,6 +32,7 @@ void promise_zero(Promise*);
 BOOL promise_pending(ResolveFunctions*);
 BOOL promise_done(ResolveFunctions*);
 JSValue promise_then(JSContext*, JSValueConst, JSValueConst);
+JSValue promise_then2(JSContext*, JSValueConst, JSValueConst, JSValueConst);
 JSValue promise_catch(JSContext*, JSValueConst, JSValueConst);
 JSValue promise_forward(JSContext* ctx, JSValueConst promise, Promise* receiver);
 

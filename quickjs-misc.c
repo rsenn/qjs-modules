@@ -66,6 +66,12 @@
 #include "js-utils.h"
 #include "../libbcrypt/bcrypt.h"
 
+#if defined(HAVE_UTIME) || defined(HAVE_UTIMES)
+#include <sys/types.h>
+#include <sys/time.h>
+#include <utime.h>
+#endif
+
 #ifndef USE_TEMPNAM
 #define USE_TEMPNAM
 #endif
@@ -2911,6 +2917,196 @@ js_misc_link(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 #endif
 
+#ifdef HAVE_CHMOD
+static JSValue
+js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  uint32_t mode = 0;
+  int32_t ret = -1;
+
+  JS_ToUint32(ctx, &mode, argv[1]);
+
+  switch(magic) {
+    case 1: {
+      int32_t fd = -1;
+
+      JS_ToInt32(ctx, &fd, argv[0]);
+
+      ret = fchmod(fd, mode);
+      break;
+    }
+
+    case 0: {
+      const char* path;
+
+      if(!(path = JS_ToCString(ctx, argv[0])))
+        return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
+      ret = chmod(path, mode);
+      break;
+    }
+  }
+
+  return JS_NewInt32(ctx, ret);
+}
+#endif
+
+#ifdef HAVE_CHOWN
+static JSValue
+js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  int32_t ret = -1;
+  uint32_t owner = 0, group = 0;
+
+  JS_ToUint32(ctx, &owner, argv[1]);
+  JS_ToUint32(ctx, &group, argv[2]);
+
+  switch(magic) {
+    case 1: {
+      int32_t fd = -1;
+
+      JS_ToInt32(ctx, &fd, argv[0]);
+
+      ret = fchown(fd, owner, group);
+      break;
+    }
+
+    case 0:
+    case 2: {
+      const char* path;
+
+      if(!(path = JS_ToCString(ctx, argv[0])))
+        return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
+      ret = magic ? lchown(path, owner, group) : chown(path, owner, group);
+      break;
+    }
+  }
+
+  return JS_NewInt32(ctx, ret);
+}
+#endif
+
+static JSValue
+js_misc_fsync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  int32_t ret = -1, fd = -1;
+
+  JS_ToInt32(ctx, &fd, argv[0]);
+
+  switch(magic) {
+#ifdef HAVE_FSYNC
+    case 0: {
+      ret = fsync(fd);
+      break;
+    }
+#endif
+#ifdef HAVE_FDATASYNC
+    case 1: {
+      ret = fdatasync(fd);
+      break;
+    }
+#endif
+  }
+
+  return JS_NewInt32(ctx, ret);
+}
+
+static JSValue
+js_misc_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  int64_t len = -1;
+  int32_t ret = -1;
+
+  JS_ToInt64Ext(ctx, &len, argv[1]);
+
+  if(len < 0)
+    return JS_ThrowRangeError(ctx, "argument 2 must be positive-integer");
+
+  switch(magic) {
+#ifdef HAVE_TRUNCATE
+    case 0: {
+      const char* path;
+
+      if(!(path = JS_ToCString(ctx, argv[0])))
+        return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+
+      ret = truncate(path, len);
+      break;
+    }
+#endif
+#ifdef HAVE_FTRUNCATE
+    case 1: {
+      int32_t fd = -1;
+
+      JS_ToInt32(ctx, &fd, argv[0]);
+
+      ret = ftruncate(fd, len);
+      break;
+    }
+#endif
+  }
+
+  return JS_NewInt32(ctx, ret);
+}
+
+static JSValue
+js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  int32_t fd = -1, ret = -1;
+  const char* path = 0;
+
+  if(magic < 3) {
+    if(!(path = JS_ToCString(ctx, argv[0])))
+      return JS_ThrowTypeError(ctx, "argument 1 must be a string");
+  } else {
+    JS_ToInt32(ctx, &fd, argv[0]);
+  }
+
+  if(!JS_IsArray(ctx, argv[1]))
+    return JS_ThrowTypeError(ctx, "argument 2 must be an array");
+
+  switch(magic) {
+#ifdef HAVE_UTIME
+    case 0: {
+      struct utimbuf tms;
+
+      tms.actime = js_get_propertyint_int64(ctx, argv[1], 0);
+      tms.modtime = js_get_propertyint_int64(ctx, argv[1], 1);
+
+      ret = utime(path, &tms);
+      break;
+    }
+#endif
+#if defined(HAVE_UTIMES) || defined(HAVE_FUTIMES) || defined(HAVE_LUTIMES)
+    default: {
+      struct timeval tv[2];
+
+      double atime = js_get_propertyint_float64(ctx, argv[1], 0);
+
+      tv[0].tv_sec = atime / 1000;
+      tv[0].tv_usec = (atime - tv[0].tv_sec * 1000) * 1000;
+
+      double mtime = js_get_propertyint_float64(ctx, argv[1], 1);
+
+      tv[1].tv_sec = mtime / 1000;
+      tv[1].tv_usec = (mtime - tv[1].tv_sec * 1000) * 1000;
+
+      switch(magic) {
+#ifdef HAVE_FUTIMES
+        case 3: ret = futimes(fd, tv); break;
+#endif
+#ifdef HAVE_LUTIMES
+        case 2: ret = lutimes(path, tv); break;
+#endif
+#ifdef HAVE_UTIMES
+        case 1: ret = utimes(path, tv); break;
+#endif
+      }
+
+      break;
+    }
+#endif
+  }
+
+  return JS_NewInt32(ctx, ret);
+}
+
 static JSValue
 js_misc_unlink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   const char* file;
@@ -2966,8 +3162,22 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   int res, err = 0;
   JSValue ret = JS_NewArray(ctx), obj = JS_NULL;
   struct stat st;
+  BOOL use_bigint = FALSE;
+  struct {
+    JSValue (*i)(JSContext*, int64_t);
+    JSValue (*u)(JSContext*, uint64_t);
+  } new64;
 
   JS_ToInt32(ctx, &fd, argv[0]);
+
+  if(argc > 1 && JS_IsObject(argv[1])) {
+    JSValue bi = JS_GetPropertyStr(ctx, argv[1], "bigint");
+    use_bigint = JS_ToBool(ctx, bi);
+    JS_FreeValue(ctx, bi);
+  }
+
+  new64.i = use_bigint ? JS_NewBigInt64 : JS_NewInt64;
+  new64.u = use_bigint ? JS_NewBigUint64 : (JSValue(*)(JSContext*, uint64_t)) & JS_NewInt64;
 
   res = fstat(fd, &st);
 
@@ -2977,33 +3187,33 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   } else {
     obj = JS_NewObject(ctx);
 
-    JS_SetPropertyStr(ctx, obj, "dev", JS_NewInt64(ctx, st.st_dev));
-    JS_SetPropertyStr(ctx, obj, "ino", JS_NewInt64(ctx, st.st_ino));
-    JS_SetPropertyStr(ctx, obj, "mode", JS_NewInt32(ctx, st.st_mode));
-    JS_SetPropertyStr(ctx, obj, "nlink", JS_NewInt64(ctx, st.st_nlink));
-    JS_SetPropertyStr(ctx, obj, "uid", JS_NewInt64(ctx, st.st_uid));
-    JS_SetPropertyStr(ctx, obj, "gid", JS_NewInt64(ctx, st.st_gid));
-    JS_SetPropertyStr(ctx, obj, "rdev", JS_NewInt64(ctx, st.st_rdev));
-    JS_SetPropertyStr(ctx, obj, "size", JS_NewInt64(ctx, st.st_size));
+    JS_SetPropertyStr(ctx, obj, "dev", new64.u(ctx, st.st_dev));
+    JS_SetPropertyStr(ctx, obj, "ino", new64.u(ctx, st.st_ino));
+    JS_SetPropertyStr(ctx, obj, "mode", new64.u(ctx, st.st_mode));
+    JS_SetPropertyStr(ctx, obj, "nlink", new64.u(ctx, st.st_nlink));
+    JS_SetPropertyStr(ctx, obj, "uid", new64.u(ctx, st.st_uid));
+    JS_SetPropertyStr(ctx, obj, "gid", new64.u(ctx, st.st_gid));
+    JS_SetPropertyStr(ctx, obj, "rdev", new64.u(ctx, st.st_rdev));
+    JS_SetPropertyStr(ctx, obj, "size", new64.u(ctx, st.st_size));
 #if !defined(_WIN32)
-    JS_SetPropertyStr(ctx, obj, "blocks", JS_NewInt64(ctx, st.st_blocks));
+    JS_SetPropertyStr(ctx, obj, "blocks", new64.u(ctx, st.st_blocks));
 #endif
 #if defined(_WIN32)
-    JS_SetPropertyStr(ctx, obj, "atime", JS_NewInt64(ctx, (int64_t)st.st_atime * 1000));
-    JS_SetPropertyStr(ctx, obj, "mtime", JS_NewInt64(ctx, (int64_t)st.st_mtime * 1000));
-    JS_SetPropertyStr(ctx, obj, "ctime", JS_NewInt64(ctx, (int64_t)st.st_ctime * 1000));
+    JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, (int64_t)st.st_atime * 1000));
+    JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, (int64_t)st.st_mtime * 1000));
+    JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, (int64_t)st.st_ctime * 1000));
 #elif defined(__APPLE__)
-    JS_SetPropertyStr(ctx, obj, "atime", JS_NewInt64(ctx, timespec_to_ms(&st.st_atimespec)));
-    JS_SetPropertyStr(ctx, obj, "mtime", JS_NewInt64(ctx, timespec_to_ms(&st.st_mtimespec)));
-    JS_SetPropertyStr(ctx, obj, "ctime", JS_NewInt64(ctx, timespec_to_ms(&st.st_ctimespec)));
+    JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, timespec_to_ms(&st.st_atimespec)));
+    JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, timespec_to_ms(&st.st_mtimespec)));
+    JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, timespec_to_ms(&st.st_ctimespec)));
 #elif defined(__dietlibc__) || defined(__ANDROID__)
-    JS_SetPropertyStr(ctx, obj, "atime", JS_NewInt64(ctx, 1000 * st.st_atime));
-    JS_SetPropertyStr(ctx, obj, "mtime", JS_NewInt64(ctx, 1000 * st.st_mtime));
-    JS_SetPropertyStr(ctx, obj, "ctime", JS_NewInt64(ctx, 1000 * st.st_ctime));
+    JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, 1000 * st.st_atime));
+    JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, 1000 * st.st_mtime));
+    JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, 1000 * st.st_ctime));
 #else
-    JS_SetPropertyStr(ctx, obj, "atime", JS_NewInt64(ctx, timespec_to_ms(&st.st_atim)));
-    JS_SetPropertyStr(ctx, obj, "mtime", JS_NewInt64(ctx, timespec_to_ms(&st.st_mtim)));
-    JS_SetPropertyStr(ctx, obj, "ctime", JS_NewInt64(ctx, timespec_to_ms(&st.st_ctim)));
+    JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, timespec_to_ms(&st.st_atim)));
+    JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, timespec_to_ms(&st.st_mtim)));
+    JS_SetPropertyStr(ctx, obj, "ctime", new64.u(ctx, timespec_to_ms(&st.st_ctim)));
 #endif
   }
 
@@ -3203,6 +3413,39 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("unlink", 1, js_misc_unlink),
 #ifdef HAVE_LINK
     JS_CFUNC_DEF("link", 2, js_misc_link),
+#endif
+#ifdef HAVE_CHMOD
+    JS_CFUNC_MAGIC_DEF("chmod", 2, js_misc_chmod, 0),
+    JS_CFUNC_MAGIC_DEF("fchmod", 2, js_misc_chmod, 1),
+#endif
+#ifdef HAVE_CHOWN
+    JS_CFUNC_MAGIC_DEF("chown", 3, js_misc_chown, 0),
+    JS_CFUNC_MAGIC_DEF("fchown", 3, js_misc_chown, 1),
+    JS_CFUNC_MAGIC_DEF("lchown", 3, js_misc_chown, 2),
+#endif
+#ifdef HAVE_FSYNC
+    JS_CFUNC_MAGIC_DEF("fsync", 1, js_misc_fsync, 0),
+#endif
+#ifdef HAVE_FDATASYNC
+    JS_CFUNC_MAGIC_DEF("fdatasync", 1, js_misc_fsync, 1),
+#endif
+#ifdef HAVE_TRUNCATE
+    JS_CFUNC_MAGIC_DEF("truncate", 2, js_misc_truncate, 0),
+#endif
+#ifdef HAVE_FTRUNCATE
+    JS_CFUNC_MAGIC_DEF("ftruncate", 2, js_misc_truncate, 1),
+#endif
+#ifdef HAVE_UTIME
+    JS_CFUNC_MAGIC_DEF("utime", 2, js_misc_utime, 0),
+#endif
+#ifdef HAVE_UTIMES
+    JS_CFUNC_MAGIC_DEF("utimes", 2, js_misc_utime, 1),
+#endif
+#ifdef HAVE_LUTIMES
+    JS_CFUNC_MAGIC_DEF("lutimes", 2, js_misc_utime, 2),
+#endif
+#ifdef HAVE_FUTIMES
+    JS_CFUNC_MAGIC_DEF("futimes", 2, js_misc_utime, 3),
 #endif
 #ifdef HAVE_ACCESS
     JS_CFUNC_DEF("access", 2, js_misc_access),

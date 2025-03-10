@@ -10,32 +10,58 @@
  * @{
  */
 
-VISIBLE JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
-VISIBLE JSValue readable_proto = {{0}, JS_TAG_UNDEFINED}, readable_controller = {{0}, JS_TAG_UNDEFINED}, readable_ctor = {{0}, JS_TAG_UNDEFINED}, writable_proto = {{0}, JS_TAG_UNDEFINED},
-                writable_controller = {{0}, JS_TAG_UNDEFINED}, writable_ctor = {{0}, JS_TAG_UNDEFINED}, transform_proto = {{0}, JS_TAG_UNDEFINED}, transform_controller = {{0}, JS_TAG_UNDEFINED},
-                transform_ctor = {{0}, JS_TAG_UNDEFINED}, reader_proto = {{0}, JS_TAG_UNDEFINED}, reader_ctor = {{0}, JS_TAG_UNDEFINED}, writer_proto = {{0}, JS_TAG_UNDEFINED},
-                writer_ctor = {{0}, JS_TAG_UNDEFINED};
+/*VISIBLE*/ JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
+/*VISIBLE*/ JSValue readable_proto = {{0}, JS_TAG_UNDEFINED}, readable_controller = {{0}, JS_TAG_UNDEFINED}, readable_ctor = {{0}, JS_TAG_UNDEFINED}, writable_proto = {{0}, JS_TAG_UNDEFINED},
+                    writable_controller = {{0}, JS_TAG_UNDEFINED}, writable_ctor = {{0}, JS_TAG_UNDEFINED}, transform_proto = {{0}, JS_TAG_UNDEFINED}, transform_controller = {{0}, JS_TAG_UNDEFINED},
+                    transform_ctor = {{0}, JS_TAG_UNDEFINED}, reader_proto = {{0}, JS_TAG_UNDEFINED}, reader_ctor = {{0}, JS_TAG_UNDEFINED}, writer_proto = {{0}, JS_TAG_UNDEFINED},
+                    writer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static int reader_update(Reader*, JSContext*);
 static BOOL reader_passthrough(Reader*, JSValueConst, JSContext*);
 static int readable_unlock(Readable*, Reader*);
 static int writable_unlock(Writable*, Writer*);
+static JSValue js_readable_callback(JSContext*, Readable*, ReadableEvent, int, JSValueConst[]);
+static JSValue js_writable_callback(JSContext*, Writable*, WritableEvent, int, JSValueConst[]);
+
+/* clang-format off */
+static inline Reader* js_reader_data(JSValueConst v) { return JS_GetOpaque(v, js_reader_class_id); }
+static inline Reader* js_reader_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_reader_class_id); }
+static inline Writer* js_writer_data(JSValueConst v) { return JS_GetOpaque(v, js_writer_class_id); }
+static inline Writer* js_writer_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_writer_class_id); }
+static inline Readable* js_readable_data(JSValueConst v) { return JS_GetOpaque(v, js_readable_class_id); }
+static inline Readable* js_readable_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_readable_class_id); }
+static inline Writable* js_writable_data(JSValueConst v) { return JS_GetOpaque(v, js_writable_class_id); }
+static inline Writable* js_writable_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_writable_class_id); }
+static inline Transform* js_transform_data(JSValueConst v) { return JS_GetOpaque(v, js_transform_class_id); }
+static inline Transform* js_transform_data2(JSContext* ctx, JSValueConst v) { return JS_GetOpaque2(ctx, v, js_transform_class_id); }
+/* clang-format on */
 
 static JSValue
-js_get_iterator_value(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  BOOL done = js_get_propertystr_bool(ctx, argv[0], "done");
+js_iterator_get_value(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  // BOOL done = js_get_propertystr_bool(ctx, argv[0], "done");
   return JS_GetPropertyStr(ctx, argv[0], "value");
 }
 
 static JSValue
-js_promise_iterator_value(JSContext* ctx, JSValueConst promise) {
-
-  JSValue fn = JS_NewCFunction(ctx, &js_get_iterator_value, "getIteratorValue", 1);
-
+js_iterator_promise_value(JSContext* ctx, JSValueConst promise) {
+  JSValue fn = JS_NewCFunction(ctx, &js_iterator_get_value, "getIteratorValue", 1);
   JSValue ret = promise_then(ctx, promise, fn);
 
   JS_FreeValue(ctx, fn);
   return ret;
+}
+
+static JSValue
+js_to_arraybuffer(JSContext* ctx, JSValueConst chunk) {
+  if(JS_IsString(chunk)) {
+    InputBuffer input = js_input_chars(ctx, chunk);
+    JSValue buf = JS_NewArrayBufferCopy(ctx, input.data, input.size);
+    input_buffer_free(&input, ctx);
+
+    return buf;
+  }
+
+  return JS_DupValue(ctx, chunk);
 }
 
 static void
@@ -56,6 +82,19 @@ chunk_arraybuffer(Chunk* ch, JSContext* ctx) {
   chunk_dup(ch);
 
   return JS_NewArrayBuffer(ctx, ch->data + ch->pos, ch->size - ch->pos, chunk_unref, ch, FALSE);
+}
+
+/**
+ * @brief      { function_description }
+ *
+ * @param      ch    { parameter_description }
+ * @param      ctx   The JSContext
+ *
+ * @return     { return value }
+ */
+static JSValue
+chunk_string(Chunk* ch, JSContext* ctx) {
+  return JS_NewStringLen(ctx, ch->data + ch->pos, ch->size - ch->pos);
 }
 
 /**
@@ -295,7 +334,7 @@ reader_read(Reader* rd, JSContext* ctx) {
   // printf("reader_read (2) [%zu] closed=%i\n", list_size(&rd->list), rd->stream->closed);
   // printf("Read (%i) q2[%zu]\n", op->seq, queue_size(&st->q));
 
-  return js_promise_iterator_value(ctx, ret);
+  return js_iterator_promise_value(ctx, ret);
 }
 
 /**
@@ -381,13 +420,13 @@ reader_update(Reader* rd, JSContext* ctx) {
 }
 
 /**
- * @brief      { function_description }
+ * @brief      Passes through a chunk/result to an active \ref Reader
  *
- * @param      rd      { parameter_description }
- * @param[in]  result  The result
+ * @param      rd      The Reader
+ * @param[in]  result  JS iterator object
  * @param      ctx     The JSContext
  *
- * @return     { description_of_the_return_value }
+ * @return     TRUE if succeeded, FALSE if not
  */
 static BOOL
 reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
@@ -396,6 +435,7 @@ reader_passthrough(Reader* rd, JSValueConst result, JSContext* ctx) {
 
   list_for_each_prev_safe(el, next, &rd->reads) {
     // printf("reader_passthrough(1) el[%i]\n", el->seq);
+
     if(promise_pending(&el->promise.funcs)) {
       op = el;
       break;
@@ -511,30 +551,30 @@ readable_cancel(Readable* st, JSValueConst reason, JSContext* ctx) {
  */
 static JSValue
 readable_enqueue(Readable* st, JSValueConst chunk, JSContext* ctx) {
-  InputBuffer input;
-  int64_t ret;
   Reader* rd;
+  JSValue ret = JS_UNDEFINED;
+  InputBuffer input = js_input_chars(ctx, chunk);
+  BOOL ok = FALSE;
 
   if(readable_locked(st) && (rd = st->reader)) {
-    JSValue result = js_iterator_result(ctx, chunk, FALSE);
-    BOOL ok = reader_passthrough(rd, result, ctx);
+    JSValue buf = js_is_arraybuffer(ctx, chunk) ? JS_DupValue(ctx, chunk) : JS_NewArrayBufferCopy(ctx, input.data, input.size);
+    JSValue result = js_iterator_result(ctx, buf, FALSE);
+    JS_FreeValue(ctx, buf);
+
+    if((ok = reader_passthrough(rd, result, ctx)))
+      ret = JS_NewInt64(ctx, input.size);
 
     JS_FreeValue(ctx, result);
-
-    if(ok)
-      return JS_UNDEFINED;
   }
 
-  input = js_input_chars(ctx, chunk);
-  // old_size = queue_size(&st->q);
+  if(!ok) {
+    int64_t r = queue_write(&st->q, input.data, input.size);
 
-  ret = queue_write(&st->q, input.data, input.size);
-
-  // printf("old queue size: %zu new queue size: %zu\n", old_size, queue_size(&st->q));
+    ret = r < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, r) : JS_NewInt64(ctx, r);
+  }
 
   input_buffer_free(&input, ctx);
-
-  return ret < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, ret) : JS_NewInt64(ctx, ret);
+  return ret;
 }
 
 /**
@@ -622,7 +662,7 @@ enum {
  *
  * @return     JS Reader object
  */
-JSValue
+static JSValue
 js_reader_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
   Reader* rd;
@@ -667,7 +707,7 @@ fail:
  *
  * @return     JS Reader object
  */
-JSValue
+static JSValue
 js_reader_wrap(JSContext* ctx, Reader* rd) {
   JSValue obj = JS_NewObjectProtoClass(ctx, reader_proto, js_reader_class_id);
 
@@ -692,7 +732,7 @@ enum {
  *
  * @return     Return value of the method
  */
-JSValue
+static JSValue
 js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   Reader* rd;
@@ -709,7 +749,6 @@ js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     case READER_READ: {
       ret = reader_read(rd, ctx);
-
       break;
     }
 
@@ -735,7 +774,7 @@ enum {
  *
  * @return     { return value }
  */
-JSValue
+static JSValue
 js_reader_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Reader* rd;
   JSValue ret = JS_UNDEFINED;
@@ -759,7 +798,7 @@ js_reader_get(JSContext* ctx, JSValueConst this_val, int magic) {
  * @param      rt    The JSRuntime
  * @param[in]  val   The value
  */
-void
+static void
 js_reader_finalizer(JSRuntime* rt, JSValue val) {
   Reader* rd;
 
@@ -791,7 +830,7 @@ const JSCFunctionListEntry js_reader_proto_funcs[] = {
  *
  * @return     { return value }
  */
-JSValue
+static JSValue
 js_readable_callback(JSContext* ctx, Readable* st, ReadableEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
   assert(event < countof(st->on));
@@ -812,7 +851,7 @@ js_readable_callback(JSContext* ctx, Readable* st, ReadableEvent event, int argc
  *
  * @return     JS Readable object
  */
-JSValue
+static JSValue
 js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
   Readable* st = 0;
@@ -857,7 +896,7 @@ fail:
  *
  * @return     JS Readable object
  */
-JSValue
+static JSValue
 js_readable_wrap(JSContext* ctx, Readable* st) {
   JSValue obj = JS_NewObjectProtoClass(ctx, readable_proto, js_readable_class_id);
 
@@ -882,7 +921,7 @@ enum {
  *
  * @return     Return value of the method
  */
-JSValue
+static JSValue
 js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Readable* st;
   JSValue ret = JS_UNDEFINED;
@@ -927,7 +966,7 @@ enum {
  *
  * @return     Return value of the getter
  */
-JSValue
+static JSValue
 js_readable_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Readable* st;
   JSValue ret = JS_UNDEFINED;
@@ -967,7 +1006,7 @@ enum {
  *
  * @return     Return value of the controller function
  */
-JSValue
+static JSValue
 js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Readable* st;
   JSValue ret = JS_UNDEFINED;
@@ -1003,7 +1042,7 @@ js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
  *
  * @return     JS Number
  */
-JSValue
+static JSValue
 js_readable_desired(JSContext* ctx, JSValueConst this_val) {
   Readable* st;
   JSValue ret = JS_UNDEFINED;
@@ -1027,7 +1066,7 @@ js_readable_desired(JSContext* ctx, JSValueConst this_val) {
  * @param      rt    The JSRuntime
  * @param[in]  val   The value
  */
-void
+static void
 js_readable_finalizer(JSRuntime* rt, JSValue val) {
   Readable* st;
 
@@ -1382,7 +1421,7 @@ writable_free(Writable* st, JSRuntime* rt) {
  *
  * @return     a JS Writer object
  */
-JSValue
+static JSValue
 js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
   Writer* wr;
@@ -1426,7 +1465,7 @@ fail:
  *
  * @return     JS Writer object
  */
-JSValue
+static JSValue
 js_writer_wrap(JSContext* ctx, Writer* wr) {
   JSValue obj = JS_NewObjectProtoClass(ctx, writer_proto, js_writer_class_id);
 
@@ -1452,7 +1491,7 @@ enum {
  *
  * @return     Return value of the method
  */
-JSValue
+static JSValue
 js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   Writer* wr;
@@ -1505,7 +1544,7 @@ enum {
  *
  * @return     { return value }
  */
-JSValue
+static JSValue
 js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Writer* wr;
   JSValue ret = JS_UNDEFINED;
@@ -1534,7 +1573,7 @@ js_writer_get(JSContext* ctx, JSValueConst this_val, int magic) {
  * @param      rt    The JSRuntime
  * @param[in]  val   The value
  */
-void
+static void
 js_writer_finalizer(JSRuntime* rt, JSValue val) {
   Writer* wr;
 
@@ -1568,7 +1607,7 @@ const JSCFunctionListEntry js_writer_proto_funcs[] = {
  *
  * @return     { return value }
  */
-JSValue
+static JSValue
 js_writable_callback(JSContext* ctx, Writable* st, WritableEvent event, int argc, JSValueConst argv[]) {
   assert(event >= 0);
   assert(event < countof(st->on));
@@ -1589,7 +1628,7 @@ js_writable_callback(JSContext* ctx, Writable* st, WritableEvent event, int argc
  *
  * @return     JS Writable object
  */
-JSValue
+static JSValue
 js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
   Writable* st;
@@ -1633,7 +1672,7 @@ fail:
  *
  * @return     JS Writable object
  */
-JSValue
+static JSValue
 js_writable_wrap(JSContext* ctx, Writable* st) {
   JSValue obj = JS_NewObjectProtoClass(ctx, writable_proto, js_writable_class_id);
 
@@ -1652,7 +1691,7 @@ js_writable_wrap(JSContext* ctx, Writable* st) {
  *
  * @return     JS Writable object
  */
-JSValue
+static JSValue
 js_writable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   return JS_DupValue(ctx, this_val);
 }
@@ -1687,7 +1726,7 @@ js_writable_handler(JSContext* ctx, JSValueConst this_val, int magic) {
  *
  * @return     Return value of the method
  */
-JSValue
+static JSValue
 js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Writable* st;
   JSValue ret = JS_UNDEFINED;
@@ -1733,7 +1772,7 @@ enum {
  *
  * @return     Return value of the getter
  */
-JSValue
+static JSValue
 js_writable_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Writable* st;
   JSValue ret = JS_UNDEFINED;
@@ -1771,7 +1810,7 @@ enum {
  *
  * @return     Return value of the controller function
  */
-JSValue
+static JSValue
 js_writable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Writable* st;
   JSValue ret = JS_UNDEFINED;
@@ -1795,7 +1834,7 @@ js_writable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
  * @param      rt    The JSRuntime
  * @param[in]  val   The value
  */
-void
+static void
 js_writable_finalizer(JSRuntime* rt, JSValue val) {
   Writable* st;
 
@@ -1895,7 +1934,7 @@ transform_error(Transform* st, JSValueConst error, JSContext* ctx) {
  *
  * @return     JS Transform object
  */
-JSValue
+static JSValue
 js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
   Transform* st;
@@ -1948,7 +1987,7 @@ enum {
  *
  * @return     Return value of the getter
  */
-JSValue
+static JSValue
 js_transform_get(JSContext* ctx, JSValueConst this_val, int magic) {
   Transform* st;
   JSValue ret = JS_UNDEFINED;
@@ -1988,7 +2027,7 @@ enum {
  *
  * @return     Return value of the controller function
  */
-JSValue
+static JSValue
 js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Transform* st;
   JSValue ret = JS_UNDEFINED;
@@ -2026,7 +2065,7 @@ js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValue
  *
  * @return     JS Number
  */
-JSValue
+static JSValue
 js_transform_desired(JSContext* ctx, JSValueConst this_val) {
   Transform* st;
   JSValue ret = JS_UNDEFINED;
@@ -2050,7 +2089,7 @@ js_transform_desired(JSContext* ctx, JSValueConst this_val) {
  * @param      rt    The JSRuntime
  * @param[in]  val   The value
  */
-void
+static void
 js_transform_finalizer(JSRuntime* rt, JSValue val) {
   Transform* st;
 
