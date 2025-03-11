@@ -405,6 +405,13 @@ reader_read(ReadableStreamReader* rd, JSContext* ctx) {
 
   if((st = rd->stream)) {
     if(queue_empty(&st->q)) {
+
+      if(st->autoallocatechunksize) {
+        JSValue byob_request = js_byob_request_new(ctx, st->controller);
+
+        JS_SetPropertyStr(ctx, st->controller, "byobRequest", byob_request);
+      }
+
       JSValue tmp = js_readable_callback(ctx, st, READABLE_PULL, 1, &st->controller);
       JS_FreeValue(ctx, tmp);
     }
@@ -1006,10 +1013,6 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     if(bytestream) {
       st->autoallocatechunksize = js_get_propertystr_uint64(ctx, argv[0], "autoAllocateChunkSize");
 
-      JSValue byob_request = js_byob_request_new(ctx, st->controller);
-
-      JS_SetPropertyStr(ctx, st->controller, "byobRequest", byob_request);
-
       /* XXX: right? */
       JS_SetPropertyStr(ctx, st->controller, "desiredSize", JS_NewInt64(ctx, st->autoallocatechunksize));
     }
@@ -1187,6 +1190,7 @@ js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   ReadableStream* st;
   ReadableStreamReader* rd;
   JSValue ret = JS_UNDEFINED;
+  BOOL success = FALSE;
 
   if(!(st = js_readable_data2(ctx, this_val)))
     return JS_EXCEPTION;
@@ -1218,7 +1222,8 @@ js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       JS_FreeValue(ctx, view);
 
       if(!JS_IsUndefined(newa)) {
-        reader_passthrough(rd, newa, ctx);
+        success = reader_passthrough(rd, newa, ctx);
+
         JS_FreeValue(ctx, newa);
       }
 
@@ -1233,9 +1238,17 @@ js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
        * - same byteOffset
        * - smaller or equal length
        */
-      reader_passthrough(rd, argv[0], ctx);
+      success = reader_passthrough(rd, argv[0], ctx);
       break;
     }
+  }
+
+  if(!success) {
+    ret = JS_ThrowInternalError(ctx, "Passing through BYOB request failed because no pending read");
+  } else {
+    JSAtom va = JS_NewAtom(ctx, "view");
+    JS_DeleteProperty(ctx, this_val, va, 0);
+    JS_FreeAtom(ctx, va);
   }
 
   return ret;
@@ -1290,8 +1303,7 @@ js_byob_request_new(JSContext* ctx, JSValueConst controller) {
   JSValue view = js_typedarray_new(ctx, 8, FALSE, FALSE, size);
   JS_FreeValue(ctx, size);
 
-  JS_DefinePropertyValueStr(ctx, byob_request, "view", view, 0);
-
+  JS_DefinePropertyValueStr(ctx, byob_request, "view", view, JS_PROP_CONFIGURABLE);
   /* XXX: Todo */
 
   return byob_request;
