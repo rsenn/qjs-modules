@@ -1226,6 +1226,13 @@ js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     }
 
     case BYOB_REQUEST_METHOD_RESPONDWITHNEWVIEW: {
+
+      /* XXX: Safety checks:
+       *
+       * - same underlying ArrayBuffer
+       * - same byteOffset
+       * - smaller or equal length
+       */
       reader_passthrough(rd, argv[0], ctx);
       break;
     }
