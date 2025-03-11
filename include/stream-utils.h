@@ -11,12 +11,12 @@
  * \defgroup stream-utils stream-utils: Utilities for stream I/O
  * @{
  */
-struct StreamWriter;
+struct WriterSt;
 
-typedef ssize_t WriteFunction(intptr_t, const void*, size_t, struct StreamWriter*);
+typedef ssize_t WriteFunction(intptr_t, const void*, size_t, struct WriterSt*);
 typedef ssize_t WriterFinalizer(void*);
 
-typedef struct StreamWriter {
+typedef struct WriterSt {
   WriteFunction* write;
   void* opaque;
   WriterFinalizer* finalizer;

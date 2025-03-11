@@ -38,82 +38,53 @@ typedef struct read_next {
     ResolveFunctions handlers;
     Promise promise;
   };
-} Read;
-
-enum {
-  READER_CLOSED = 0,
-  READER_CANCELLED,
-};
+} ReadRequest;
 
 typedef struct stream_reader {
   int ref_count;
   int64_t desired_size;
   _Atomic(struct readable_stream*) stream;
-  Promise events[2];
+  struct { Promise cancelled,closed; } events;
   union {
     struct list_head list;
-    Read reads;
+    ReadRequest reads;
   };
-} Reader;
-
-enum {
-  WRITER_CLOSED = 0,
-  WRITER_READY,
-};
+} ReadableStreamReader;
 
 typedef struct stream_writer {
   int64_t desired_size;
   _Atomic(struct writable_stream*) stream;
-  Promise events[2];
+  struct { Promise closed,ready } events;
   Queue q;
-} Writer;
-
-typedef enum {
-  READABLE_START = 0,
-  READABLE_PULL,
-  READABLE_CANCEL,
-} ReadableEvent;
+} WritableStreamWriter;
 
 typedef struct readable_stream {
   int ref_count;
   Queue q;
   _Atomic(BOOL) closed;
   _Atomic(char*) reason;
-  _Atomic(Reader*) reader;
+  _Atomic(ReadableStreamReader*) reader;
   JSValue on[3];
   JSValue underlying_source, controller;
-} Readable;
-
-typedef enum {
-  WRITABLE_START = 0,
-  WRITABLE_WRITE,
-  WRITABLE_CLOSE,
-  WRITABLE_ABORT,
-} WritableEvent;
+} ReadableStream;
 
 typedef struct writable_stream {
   int ref_count;
   Queue q;
   _Atomic(BOOL) closed;
   _Atomic(char*) reason;
-  _Atomic(Writer*) writer;
+  _Atomic(WritableStreamWriter*) writer;
   JSValue on[4];
   JSValue underlying_sink, controller;
-} Writable;
-
-typedef enum {
-  TRANSFORM_START = 0,
-  TRANSFORM_TRANSFORM,
-  TRANSFORM_FLUSH,
-} TransformEvent;
+} WritableStream;
 
 typedef struct transform_stream {
   int ref_count;
-  Readable* readable;
-  Writable* writable;
+  ReadableStream* readable;
+  WritableStream* writable;
   JSValue on[3];
   JSValue underlying_transform, controller;
-} Transform;
+} TransformStream;
 
 typedef enum {
   TRANSFORM_READABLE = 0,
@@ -127,14 +98,14 @@ int js_stream_init(JSContext*, JSModuleDef*);
 JSModuleDef* js_init_module_stream(JSContext*, const char*);
 
 /* clang-format off */
-static inline BOOL    reader_closed(Reader* rd) { return promise_done(&rd->events[READER_CLOSED].funcs); }
-static inline BOOL    reader_cancelled(Reader* rd) { return promise_done(&rd->events[READER_CANCELLED].funcs); }
-static inline BOOL    readable_closed(Readable* st) { return atomic_load(&st->closed); }
-static inline Reader* readable_locked(Readable* st) { return atomic_load(&st->reader); }
-static inline BOOL    writer_closed(Writer* wr) { return promise_done(&wr->events[WRITER_CLOSED].funcs); }
-static inline BOOL    writer_ready(Writer* wr) { return promise_done(&wr->events[WRITER_READY].funcs); }
-static inline BOOL    writable_closed(Writable* st) { return atomic_load(&st->closed); }
-static inline Writer* writable_locked(Writable* st) { return atomic_load(&st->writer); }
+static inline BOOL reader_closed(ReadableStreamReader* rd) { return promise_done(&rd->events.closed.funcs); }
+static inline BOOL reader_cancelled(ReadableStreamReader* rd) { return promise_done(&rd->events.cancelled.funcs); }
+static inline BOOL readable_closed(ReadableStream* st) { return atomic_load(&st->closed); }
+static inline ReadableStreamReader* readable_locked(ReadableStream* st) { return atomic_load(&st->reader); }
+static inline BOOL writer_closed(WritableStreamWriter* wr) { return promise_done(&wr->events.closed.funcs); }
+static inline BOOL writer_ready(WritableStreamWriter* wr) { return promise_done(&wr->events.ready.funcs); }
+static inline BOOL writable_closed(WritableStream* st) { return atomic_load(&st->closed); }
+static inline WritableStreamWriter* writable_locked(WritableStream* st) { return atomic_load(&st->writer); }
 /* clang-format on */
 
 /**
