@@ -1185,18 +1185,48 @@ enum {
 static JSValue
 js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ReadableStream* st;
+  ReadableStreamReader* rd;
   JSValue ret = JS_UNDEFINED;
 
   if(!(st = js_readable_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
+  if(!(rd = readable_locked(st)))
+    return JS_ThrowInternalError(ctx, "ReadableStreamBYOBRequest: ReadableStream is not locked");
+
   switch(magic) {
     case BYOB_REQUEST_METHOD_RESPOND: {
+      JSValue view = JS_GetPropertyStr(ctx, this_val, "view");
+      uint64_t length = js_get_propertystr_uint64(ctx, view, "length");
+      int64_t bytes = -1;
+      JSValue newa = JS_UNDEFINED;
+
+      JS_ToInt64(ctx, &bytes, argv[0]);
+
+      if(bytes > length) {
+        ret = JS_ThrowRangeError(ctx, "Supplied bytesWritten value (%" PRId64 ") is bigger than view length (%" PRIu64 ").");
+      } else if(bytes == length) {
+        newa = JS_DupValue(ctx, view);
+      } else {
+        uint64_t offset = js_get_propertystr_uint64(ctx, view, "byteOffset");
+        JSValue buf = JS_GetPropertyStr(ctx, view, "buffer");
+
+        newa = js_typedarray_new3(ctx, 8, FALSE, FALSE, buf, offset, MIN_NUM(bytes, length));
+        JS_FreeValue(ctx, buf);
+      }
+
+      JS_FreeValue(ctx, view);
+
+      if(!JS_IsUndefined(newa)) {
+        reader_passthrough(rd, newa, ctx);
+        JS_FreeValue(ctx, newa);
+      }
+
       break;
     }
 
     case BYOB_REQUEST_METHOD_RESPONDWITHNEWVIEW: {
-      
+      reader_passthrough(rd, argv[0], ctx);
       break;
     }
   }

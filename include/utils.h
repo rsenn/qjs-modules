@@ -892,7 +892,9 @@ js_is_nullish(JSContext* ctx, JSValueConst value) {
 
 JSValue js_typedarray_prototype(JSContext* ctx);
 JSValue js_typedarray_constructor(JSContext* ctx);
+JSValue js_typedarray_newv(JSContext*, int bits, BOOL floating, BOOL sign, int argc, JSValueConst argv[]);
 JSValue js_typedarray_new(JSContext*, int bits, BOOL floating, BOOL sign, JSValue buffer);
+JSValue js_typedarray_new3(JSContext* ctx, int bits, BOOL floating, BOOL sign, JSValueConst buffer, size_t byteoffset, size_t length);
 
 static inline BOOL
 js_is_basic_array(JSContext* ctx, JSValueConst value) {

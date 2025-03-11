@@ -118,7 +118,7 @@ promise_then2(JSContext* ctx, JSValueConst promise, JSValueConst resolve, JSValu
   JSValue fn, ret, args[2] = {resolve, reject};
 
   fn = JS_GetPropertyStr(ctx, promise, "then");
-  ret = JS_Call(ctx, fn, promise, 2, &args);
+  ret = JS_Call(ctx, fn, promise, countof(args), args);
   JS_FreeValue(ctx, fn);
 
   return ret;
