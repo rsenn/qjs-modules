@@ -1178,7 +1178,7 @@ js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 }
 
 enum {
-  BYOB_REQUEST_METHOD_RESPOND,
+  BYOB_REQUEST_METHOD_RESPOND = 0,
   BYOB_REQUEST_METHOD_RESPONDWITHNEWVIEW,
 };
 
@@ -1196,6 +1196,7 @@ js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     }
 
     case BYOB_REQUEST_METHOD_RESPONDWITHNEWVIEW: {
+      
       break;
     }
   }
