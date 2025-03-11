@@ -1331,7 +1331,8 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       /* no more nested enumerations */
       it = property_recursion_pop(&insp->hier, ctx);
 
-      adjust_spacing(wr, opts, &depth, -1);
+      if(!(depth == 1 && index == 0))
+        adjust_spacing(wr, opts, &depth, -1);
 
 #ifdef DEBUG_OUTPUT
       printf("%s()[1] depth: %u %u it: %p\n", __func__, property_recursion_depth(&insp->hier), depth, it);
