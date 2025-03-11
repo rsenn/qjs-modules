@@ -14,12 +14,6 @@
  * @{
  */
 
-typedef enum {
-  EVENT_CLOSE = 0,
-  EVENT_CANCEL = 1,
-  EVENT_READ = 2,
-} StreamEvent;
-
 #define HEAD(st) \
   struct { \
     st *prev, *next; \
@@ -44,18 +38,22 @@ typedef struct stream_reader {
   int ref_count;
   int64_t desired_size;
   _Atomic(struct readable_stream*) stream;
-  struct { Promise cancelled,closed; } events;
   union {
     struct list_head list;
     ReadRequest reads;
   };
+  struct {
+    Promise cancelled, closed;
+  } events;
 } ReadableStreamReader;
 
 typedef struct stream_writer {
   int64_t desired_size;
   _Atomic(struct writable_stream*) stream;
-  struct { Promise closed,ready } events;
   Queue q;
+  struct {
+    Promise closed, ready
+  } events;
 } WritableStreamWriter;
 
 typedef struct readable_stream {
@@ -85,11 +83,6 @@ typedef struct transform_stream {
   JSValue on[3];
   JSValue underlying_transform, controller;
 } TransformStream;
-
-typedef enum {
-  TRANSFORM_READABLE = 0,
-  TRANSFORM_WRITABLE,
-} TransformProperties;
 
 /*extern VISIBLE JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id, js_writable_class_id, js_transform_class_id;
 extern VISIBLE JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor, transform_proto, transform_ctor;*/

@@ -14,20 +14,20 @@ typedef enum {
   READABLE_START = 0,
   READABLE_PULL,
   READABLE_CANCEL,
-} ReadableEvent;
+} ReadableCallback;
 
 typedef enum {
   WRITABLE_START = 0,
   WRITABLE_WRITE,
   WRITABLE_CLOSE,
   WRITABLE_ABORT,
-} WritableEvent;
+} WritableCallback;
 
 typedef enum {
   TRANSFORM_START = 0,
   TRANSFORM_TRANSFORM,
   TRANSFORM_FLUSH,
-} TransformEvent;
+} TransformCallback;
 
 /*VISIBLE*/ JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0, js_writer_class_id = 0, js_transform_class_id = 0;
 /*VISIBLE*/ JSValue readable_proto = JS_UNDEFINED, readable_controller = JS_UNDEFINED, readable_ctor = JS_UNDEFINED, writable_proto = JS_UNDEFINED, writable_controller = JS_UNDEFINED,
@@ -38,8 +38,8 @@ static int reader_update(ReadableStreamReader*, JSContext*);
 static BOOL reader_passthrough(ReadableStreamReader*, JSValueConst, JSContext*);
 static int readable_unlock(ReadableStream*, ReadableStreamReader*);
 static int writable_unlock(WritableStream*, WritableStreamWriter*);
-static JSValue js_readable_callback(JSContext*, ReadableStream*, ReadableEvent, int, JSValueConst[]);
-static JSValue js_writable_callback(JSContext*, WritableStream*, WritableEvent, int, JSValueConst[]);
+static JSValue js_readable_callback(JSContext*, ReadableStream*, ReadableCallback, int, JSValueConst[]);
+static JSValue js_writable_callback(JSContext*, WritableStream*, WritableCallback, int, JSValueConst[]);
 static JSValue js_reader_wrap(JSContext* ctx, ReadableStreamReader* rd);
 
 /* clang-format off */
@@ -817,8 +817,8 @@ js_reader_wrap(JSContext* ctx, ReadableStreamReader* rd) {
 }
 
 enum {
-  READER_CANCEL,
-  READER_READ,
+  READER_METHOD_CANCEL,
+  READER_METHOD_READ,
   READER_RELEASE_LOCK,
 };
 
@@ -842,13 +842,13 @@ js_reader_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_EXCEPTION;
 
   switch(magic) {
-    case READER_CANCEL: {
+    case READER_METHOD_CANCEL: {
       reader_close(rd, ctx);
       ret = JS_DupValue(ctx, rd->events.cancelled.value);
       break;
     }
 
-    case READER_READ: {
+    case READER_METHOD_READ: {
       ret = reader_read(rd, ctx);
       break;
     }
@@ -914,8 +914,8 @@ JSClassDef js_reader_class = {
 };
 
 const JSCFunctionListEntry js_reader_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("read", 0, js_reader_method, READER_READ),
-    JS_CFUNC_MAGIC_DEF("cancel", 0, js_reader_method, READER_CANCEL),
+    JS_CFUNC_MAGIC_DEF("read", 0, js_reader_method, READER_METHOD_READ),
+    JS_CFUNC_MAGIC_DEF("cancel", 0, js_reader_method, READER_METHOD_CANCEL),
     JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_reader_method, READER_RELEASE_LOCK),
     JS_CGETSET_MAGIC_DEF("closed", js_reader_get, 0, READER_PROP_CLOSED),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamDefaultReader", JS_PROP_CONFIGURABLE),
@@ -933,12 +933,12 @@ const JSCFunctionListEntry js_reader_proto_funcs[] = {
  * @return     { return value }
  */
 static JSValue
-js_readable_callback(JSContext* ctx, ReadableStream* st, ReadableEvent event, int argc, JSValueConst argv[]) {
-  assert(event >= 0);
-  assert(event < countof(st->on));
+js_readable_callback(JSContext* ctx, ReadableStream* st, ReadableCallback cb, int argc, JSValueConst argv[]) {
+  assert(cb >= 0);
+  assert(cb < countof(st->on));
 
-  if(JS_IsFunction(ctx, st->on[event]))
-    return JS_Call(ctx, st->on[event], st->underlying_source, argc, argv);
+  if(JS_IsFunction(ctx, st->on[cb]))
+    return JS_Call(ctx, st->on[cb], st->underlying_source, argc, argv);
 
   return JS_UNDEFINED;
 }
@@ -1008,8 +1008,8 @@ js_readable_wrap(JSContext* ctx, ReadableStream* st) {
 }
 
 enum {
-  READABLE_ABORT = 0,
-  READABLE_GET_READER,
+  READABLE_METHOD_ABORT = 0,
+  READABLE_METHOD_GET_READER,
 };
 
 /**
@@ -1032,7 +1032,7 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     return JS_EXCEPTION;
 
   switch(magic) {
-    case READABLE_ABORT: {
+    case READABLE_METHOD_ABORT: {
       if(argc >= 1)
         readable_cancel(st, argv[0], ctx);
       else
@@ -1041,7 +1041,7 @@ js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
 
-    case READABLE_GET_READER: {
+    case READABLE_METHOD_GET_READER: {
       ReadableStreamReader* rd;
 
       if((rd = readable_get_reader(st, ctx)))
@@ -1191,8 +1191,8 @@ JSClassDef js_readable_class = {
 };
 
 const JSCFunctionListEntry js_readable_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("cancel", 0, js_readable_method, READABLE_ABORT),
-    JS_CFUNC_MAGIC_DEF("getReader", 0, js_readable_method, READABLE_GET_READER),
+    JS_CFUNC_MAGIC_DEF("cancel", 0, js_readable_method, READABLE_METHOD_ABORT),
+    JS_CFUNC_MAGIC_DEF("getReader", 0, js_readable_method, READABLE_METHOD_GET_READER),
     JS_CGETSET_MAGIC_FLAGS_DEF("closed", js_readable_get, 0, READABLE_PROP_CLOSED, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_readable_get, 0, READABLE_PROP_LOCKED, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStream", JS_PROP_CONFIGURABLE),
@@ -1204,12 +1204,6 @@ const JSCFunctionListEntry js_readable_controller_funcs[] = {
     JS_CFUNC_MAGIC_DEF("error", 1, js_readable_controller, READABLE_ERROR),
     JS_CGETSET_DEF("desiredSize", js_readable_desired, 0),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamDefaultController", JS_PROP_CONFIGURABLE),
-};
-
-enum {
-  WRITABLE_METHOD_CLOSE = 0,
-  WRITABLE_METHOD_ABORT,
-  WRITABLE_GET_WRITER,
 };
 
 /**
@@ -1560,10 +1554,10 @@ js_writer_wrap(JSContext* ctx, WritableStreamWriter* wr) {
 }
 
 enum {
-  WRITER_ABORT,
-  WRITER_CLOSE,
-  WRITER_WRITE,
-  WRITER_RELEASE_LOCK,
+  WRITER_METHOD_ABORT,
+  WRITER_METHOD_CLOSE,
+  WRITER_METHOD_WRITE,
+  WRITER_METHOD_RELEASE_LOCK,
 };
 
 /**
@@ -1586,17 +1580,17 @@ js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_EXCEPTION;
 
   switch(magic) {
-    case WRITER_ABORT: {
+    case WRITER_METHOD_ABORT: {
       ret = writer_abort(wr, argv[0], ctx);
       break;
     }
 
-    case WRITER_CLOSE: {
+    case WRITER_METHOD_CLOSE: {
       ret = writer_close(wr, ctx);
       break;
     }
 
-    case WRITER_WRITE: {
+    case WRITER_METHOD_WRITE: {
       /*MemoryBlock b;
       InputBuffer input;
       input = js_input_args(ctx, argc, argv);
@@ -1607,7 +1601,7 @@ js_writer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       break;
     }
 
-    case WRITER_RELEASE_LOCK: {
+    case WRITER_METHOD_RELEASE_LOCK: {
       writer_release_lock(wr, ctx);
       break;
     }
@@ -1675,10 +1669,10 @@ JSClassDef js_writer_class = {
 };
 
 const JSCFunctionListEntry js_writer_proto_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("write", 0, js_writer_method, WRITER_WRITE),
-    JS_CFUNC_MAGIC_DEF("abort", 0, js_writer_method, WRITER_ABORT),
-    JS_CFUNC_MAGIC_DEF("close", 0, js_writer_method, WRITER_CLOSE),
-    JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_writer_method, WRITER_RELEASE_LOCK),
+    JS_CFUNC_MAGIC_DEF("write", 0, js_writer_method, WRITER_METHOD_WRITE),
+    JS_CFUNC_MAGIC_DEF("abort", 0, js_writer_method, WRITER_METHOD_ABORT),
+    JS_CFUNC_MAGIC_DEF("close", 0, js_writer_method, WRITER_METHOD_CLOSE),
+    JS_CFUNC_MAGIC_DEF("releaseLock", 0, js_writer_method, WRITER_METHOD_RELEASE_LOCK),
     JS_CGETSET_MAGIC_DEF("closed", js_writer_get, 0, WRITER_PROP_CLOSED),
     JS_CGETSET_MAGIC_DEF("ready", js_writer_get, 0, WRITER_PROP_READY),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultWriter", JS_PROP_CONFIGURABLE),
@@ -1696,12 +1690,12 @@ const JSCFunctionListEntry js_writer_proto_funcs[] = {
  * @return     { return value }
  */
 static JSValue
-js_writable_callback(JSContext* ctx, WritableStream* st, WritableEvent event, int argc, JSValueConst argv[]) {
-  assert(event >= 0);
-  assert(event < countof(st->on));
+js_writable_callback(JSContext* ctx, WritableStream* st, WritableCallback cb, int argc, JSValueConst argv[]) {
+  assert(cb >= 0);
+  assert(cb < countof(st->on));
 
-  if(JS_IsFunction(ctx, st->on[event]))
-    return JS_Call(ctx, st->on[event], st->underlying_sink, argc, argv);
+  if(JS_IsFunction(ctx, st->on[cb]))
+    return JS_Call(ctx, st->on[cb], st->underlying_sink, argc, argv);
 
   return JS_UNDEFINED;
 }
@@ -1784,24 +1778,11 @@ js_writable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
   return JS_DupValue(ctx, this_val);
 }
 
-/**
- * @brief      { function_description }
- *
- * @param      ctx       The JSContext
- * @param[in]  this_val  The this object
- * @param[in]  magic     Magic number
- *
- * @return     { return value }
- */
-/*JSValue
-js_writable_handler(JSContext* ctx, JSValueConst this_val, int magic) {
-  JSValue method = JS_NewCFunctionMagic(ctx, js_writable_method, "handler", 0, JS_CFUNC_generic_magic, magic);
-  JSValue handler = js_function_bind_this(ctx, method, this_val);
-
-  JS_FreeValue(ctx, method);
-
-  return handler;
-}*/
+enum {
+  WRITABLE_METHOD_CLOSE = 0,
+  WRITABLE_METHOD_ABORT,
+  WRITABLE_METHOD_GET_WRITER,
+};
 
 /**
  * @brief      JS WritableStream object method function
@@ -1833,7 +1814,7 @@ js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
          break;
        }*/
 
-    case WRITABLE_GET_WRITER: {
+    case WRITABLE_METHOD_GET_WRITER: {
       WritableStreamWriter* wr;
 
       if((wr = writable_get_writer(st, 0, ctx)))
@@ -1940,7 +1921,7 @@ JSClassDef js_writable_class = {
 const JSCFunctionListEntry js_writable_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("abort", 1, js_writable_method, WRITABLE_METHOD_ABORT),
     JS_CFUNC_MAGIC_DEF("close", 0, js_writable_method, WRITABLE_METHOD_CLOSE),
-    JS_CFUNC_MAGIC_DEF("getWriter", 0, js_writable_method, WRITABLE_GET_WRITER),
+    JS_CFUNC_MAGIC_DEF("getWriter", 0, js_writable_method, WRITABLE_METHOD_GET_WRITER),
     JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_writable_get, 0, WRITABLE_PROP_LOCKED, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStream", JS_PROP_CONFIGURABLE),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_writable_iterator),
