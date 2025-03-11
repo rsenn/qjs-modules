@@ -52,13 +52,14 @@ typedef struct stream_writer {
   _Atomic(struct writable_stream*) stream;
   Queue q;
   struct {
-    Promise closed, ready
+    Promise closed, ready;
   } events;
 } WritableStreamWriter;
 
 typedef struct readable_stream {
   int ref_count;
   Queue q;
+  int64_t autoallocatechunksize;
   _Atomic(BOOL) closed;
   _Atomic(char*) reason;
   _Atomic(ReadableStreamReader*) reader;
@@ -85,7 +86,7 @@ typedef struct transform_stream {
 } TransformStream;
 
 /*extern VISIBLE JSClassID js_reader_class_id, js_writer_class_id, js_readable_class_id, js_writable_class_id, js_transform_class_id;
-extern VISIBLE JSValue reader_proto, reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor, transform_proto, transform_ctor;*/
+extern VISIBLE JSValue default_reader_proto, default_reader_ctor, writer_proto, writer_ctor, readable_proto, readable_ctor, writable_proto, writable_ctor, transform_proto, transform_ctor;*/
 
 int js_stream_init(JSContext*, JSModuleDef*);
 JSModuleDef* js_init_module_stream(JSContext*, const char*);
