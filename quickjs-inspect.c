@@ -336,6 +336,17 @@ options_hidden(InspectOptions* opts, JSAtom atom) {
   return 0;
 }
 
+static uint32_t
+options_numhidden(InspectOptions* opts, const JSAtom atoms[], size_t n) {
+  uint32_t count = 0;
+
+  for(size_t i = 0; i < n; i++)
+    if(options_hidden(opts, atoms[i]))
+      ++count;
+
+  return count;
+}
+
 static void
 put_newline(Writer* wr, int32_t depth) {
   writer_putc(wr, '\n');
@@ -1271,12 +1282,12 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       put_spacing(wr, opts, depth);
 
       BOOL is_arr = js_is_array(ctx, property_recursion_top(&insp->hier)->obj);
-      uint32_t index = property_enumeration_index(it);
+      uint32_t idx = property_enumeration_index(it);
 
-      if(is_arr && index >= opts->max_array_length) {
+      if(is_arr && idx >= opts->max_array_length) {
         char buf[FMT_ULONG];
         writer_puts(wr, "... ");
-        writer_write(wr, buf, fmt_ulong(buf, property_enumeration_length(it) - index));
+        writer_write(wr, buf, fmt_ulong(buf, property_enumeration_length(it) - idx));
         writer_puts(wr, " more items ... ");
 
         property_enumeration_index(it) = property_enumeration_length(it);
@@ -1326,13 +1337,18 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 
     while(!(it = it ? it : property_recursion_top(&insp->hier), it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : property_enumeration_next(it)))) {
 
-      is_array = js_is_array(ctx, property_recursion_top(&insp->hier)->obj);
+      is_array = js_is_array(ctx, (it = property_recursion_top(&insp->hier))->obj);
+
+      uint32_t nhidden = options_numhidden(opts, it->tab_atom, it->tab_atom_len);
+      uint32_t prev_idx = it->idx - nhidden;
 
       /* no more nested enumerations */
       it = property_recursion_pop(&insp->hier, ctx);
 
-      if(!(depth == 1 && index == 0))
+      if(!(/*depth == 1 &&*/ prev_idx == 0))
         adjust_spacing(wr, opts, &depth, -1);
+      else
+        --depth;
 
 #ifdef DEBUG_OUTPUT
       printf("%s()[1] depth: %u %u it: %p\n", __func__, property_recursion_depth(&insp->hier), depth, it);

@@ -56,8 +56,8 @@ property_enumeration_length(const PropertyEnumeration* propenum) {
 
 static inline JSValue
 property_enumeration_value(const PropertyEnumeration* it, JSContext* ctx) {
-  assert(it->idx < it->tab_atom_len);
-
+  if(it->idx < it->tab_atom_len)
+    ;
   return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx]);
 }
 
@@ -102,13 +102,13 @@ property_enumeration_setpos(PropertyEnumeration* it, int32_t idx) {
   if(idx < 0)
     idx += it->tab_atom_len;
 
-  if(idx >= (int32_t)it->tab_atom_len)
+  if(idx > (int32_t)it->tab_atom_len)
     return 0;
 
-  assert((uint32_t)idx < it->tab_atom_len);
+  assert((uint32_t)idx <= it->tab_atom_len);
   it->idx = idx;
 
-  return 1;
+  return (uint32_t)idx < it->tab_atom_len;
 }
 
 static inline PropertyEnumeration*
