@@ -52,6 +52,8 @@
 
 #include "quickjs-internal.h"
 
+static JSValue jsm_start_interactive4(JSContext*, JSValueConst, int, JSValueConst[]);
+
 typedef JSModuleDef* ModuleInitFunction(JSContext*, const char*);
 typedef char* ModuleLoader(JSContext*, const char*);
 
@@ -1722,25 +1724,61 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getModuleFunction", 1, jsm_module_func, GET_MODULE_FUNCTION),
     JS_CFUNC_MAGIC_DEF("getModuleException", 1, jsm_module_func, GET_MODULE_EXCEPTION),
     JS_CFUNC_MAGIC_DEF("getModuleMetaObject", 1, jsm_module_func, GET_MODULE_META_OBJ),
+    JS_CFUNC_DEF("startInteractive", 0, jsm_start_interactive4),
 };
 
 static void
-jsm_signal_handler(int arg) {
-  interactive = TRUE;
+jsm_start_interactive(JSContext* ctx, BOOL global) {
+  if(interactive == 1) {
+    js_eval_fmt(ctx,
+                JS_EVAL_TYPE_MODULE,
+                "import { REPL } from 'repl';\n"
+                "%srepl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
+                "repl.loadSaveOptions();\n"
+                "repl.historyLoad();\n"
+                "repl.run();\n",
+                global ? "globalThis." : "const ",
+                (int)str_chr(exename, '.'),
+                exename);
+
+    interactive = 2;
+  }
+}
+
+static JSValue
+jsm_start_interactive4(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  BOOL global = TRUE;
+
+  if(argc > 0)
+    global = JS_ToBool(ctx, argv[0]);
+
+  jsm_start_interactive(ctx, global);
+
+  return JS_UNDEFINED;
+}
+
+static JSValue
+jsm_start_interactive3(JSContext* ctx, int argc, JSValueConst argv[]) {
+  return jsm_start_interactive4(ctx, JS_NULL, argc, argv);
 }
 
 static void
-jsm_start_interactive(JSContext* ctx, BOOL global) {
-  js_eval_fmt(ctx,
-              JS_EVAL_TYPE_MODULE,
-              "import { REPL } from 'repl';\n"
-              "%srepl = new REPL('%.*s'.replace(/.*\\//g, '').replace(/\\.js$/g, ''), false);\n"
-              "repl.loadSaveOptions();\n"
-              "repl.historyLoad();\n"
-              "repl.run();\n",
-              global ? "globalThis." : "const ",
-              (int)str_chr(exename, '.'),
-              exename);
+jsm_signal_handler(int arg) {
+  switch(arg) {
+    case SIGUSR1: {
+      interactive = 1;
+
+      JS_EnqueueJob(ctx, &jsm_start_interactive3, 0, 0);
+      break;
+    }
+  }
+}
+
+int
+jsm_interrupt_handler(JSRuntime* rt, void* opaque) {
+  JSContext* ctx = opaque;
+
+  return 0;
 }
 
 int
@@ -1839,7 +1877,7 @@ main(int argc, char** argv) {
       }
 
       if(opt == 'i' || !strcmp(longopt, "interactive")) {
-        interactive++;
+        interactive = 1;
         break;
       }
 
@@ -1993,9 +2031,10 @@ main(int argc, char** argv) {
 
   vector_init(&jsm_stack, ctx);
 
-  if(dump_unhandled_promise_rejection) {
+  if(dump_unhandled_promise_rejection)
     JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, 0);
-  }
+
+  JS_SetInterruptHandler(rt, jsm_interrupt_handler, ctx);
 
   if(!empty_run) {
     DynBuf db;
@@ -2073,7 +2112,7 @@ main(int argc, char** argv) {
         goto fail;
     }
 
-    if(interactive || getenv("INTERACTIVE"))
+    if(interactive == 1)
       jsm_start_interactive(ctx, TRUE);
 
     js_std_loop(ctx);

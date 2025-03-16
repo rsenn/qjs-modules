@@ -1372,10 +1372,10 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
 static JSValue
 js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   DynBuf dbuf;
-  Writer fd_wr, buf_wr;
+  Writer buf_wr;
   int32_t level;
-  JSValue ret = JS_UNDEFINED;
   int optind = 1;
+
   js_dbuf_init(ctx, &dbuf);
   buf_wr = writer_from_dynbuf(&dbuf);
   Inspector insp = {{}, buf_wr, VECTOR(ctx)};
@@ -1401,7 +1401,7 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
   else
     inspect_value(&insp, argv[0], level);
 
-  ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+  JSValue ret = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
 
   writer_free(&insp.wr);
   options_free(&insp.opts, ctx);
@@ -1412,26 +1412,32 @@ js_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[])
 char*
 js_inspect_tostring(JSContext* ctx, JSValueConst value) {
   DynBuf dbuf;
-  InspectOptions options;
 
   js_dbuf_init(ctx, &dbuf);
-  options_init(&options, ctx);
-
-  options.colors = FALSE;
-  options.compact = 0;
-  options.getters = TRUE;
-  options.depth = 1024;
-
-  printf("options {\n  depth: %i\n}\n", options.depth);
-
   Inspector insp = {{}, writer_from_dynbuf(&dbuf), VECTOR(ctx)};
 
-  inspect_value(&insp, value, options.depth);
+  options_init(&insp.opts, ctx);
 
+  insp.opts.colors = FALSE;
+  insp.opts.compact = 0;
+  insp.opts.getters = TRUE;
+  insp.opts.depth = 1024;
+
+  if(JS_IsObject(value))
+    inspect_recursive(&insp, value, 0);
+  else
+    inspect_value(&insp, value, 0);
+
+  JSValue result = JS_NewStringLen(ctx, (const char*)dbuf.buf, dbuf.size);
+
+  writer_free(&insp.wr);
   options_free(&insp.opts, ctx);
 
-  dbuf_0(&dbuf);
-  return (char*)dbuf.buf;
+  char* ret = js_tostring(ctx, result);
+
+  JS_FreeValue(ctx, result);
+
+  return ret;
 }
 
 char*
@@ -1441,29 +1447,6 @@ js_inspect_atom(JSContext* ctx, JSAtom atom) {
   JS_FreeValue(ctx, value);
   return str;
 }
-
-/*JSValue js_debugger_build_backtrace(JSContext* ctx, const uint8_t* cur_pc);
-
-JSValue
-js_inspect_stacktrace_value(JSContext* ctx) {
-  JSRuntime* rt = JS_GetRuntime(ctx);
-  struct JSStackFrame* frame;
-  JSValue ret = JS_UNDEFINED;
-
-  if((frame = rt->current_stack_frame)) {
-#ifdef CONFIG_DEBUGGER
-    ret = js_debugger_build_backtrace(ctx, frame->cur_pc);
-#endif
-  }
-
-  return ret;
-}
-
-const char*
-js_inspect_stacktrace(JSContext* ctx) {
-  JSValue stack = js_inspect_stacktrace_value(ctx);
-  return js_inspect_tostring(ctx, stack);
-}*/
 
 static const JSCFunctionListEntry js_inspect_funcs[] = {
     JS_CFUNC_DEF("inspect", 1, js_inspect),
