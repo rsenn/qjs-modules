@@ -23,9 +23,9 @@ function(compile_module SOURCE)
 
   if(OUT AND NOT "${OUT}" STREQUAL "")
     set(OUTPUT_FILE ${OUT})
-  else(OUT)
+  else(OUT AND NOT "${OUT}" STREQUAL "")
     set(OUTPUT_FILE "${MODULES_DIR}/${BASE}.c")
-  endif(OUT)
+  endif(OUT AND NOT "${OUT}" STREQUAL "")
 
   list(APPEND COMPILED_MODULES "${OUTPUT_FILE}")
   list(APPEND COMPILED_TARGETS "${BASE}.c")
