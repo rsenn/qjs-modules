@@ -67,7 +67,11 @@ configure_quickjs()
 
 list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
 #list(APPEND CMAKE_REQUIRED_LIBRARIES "${QUICKJS_LIBRARY}")
-list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
+#list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
+
+list(APPEND CMAKE_REQUIRED_LIBRARIES ${QUICKJS_LIBRARY})
+list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
+
 
 include(CheckLibraryExists)
 
@@ -121,6 +125,7 @@ endif(NOT HAVE_VFORK)
 
 check_functions_def(execve execvpe)
 check_include_def(sys/wait.h)
+check_include_def(sys/syscall.h)
 
 check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
 
@@ -545,9 +550,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     endif(NOT "${CMAKE_C_FLAGS_DEBUG}" MATCHES "-Wextra")
   endif(G_WARN_EXTRA)
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-
-list(APPEND CMAKE_REQUIRED_LIBRARIES ${QUICKJS_LIBRARY})
-list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
 
 check_function_def(js_debugger_build_backtrace)
 

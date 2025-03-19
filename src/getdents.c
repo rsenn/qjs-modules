@@ -2,7 +2,9 @@
 #include "getdents.h"
 #include "char-utils.h"
 #include <assert.h>
+#ifdef HAVE_SYS_SYSCALL_H
 #include <sys/syscall.h>
+#endif
 
 /**
  * \addtogroup getdents
@@ -199,7 +201,7 @@ getdents_issock(const DirEntry* e) {
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#ifndef __CYGWIN__
+#ifdef HAVE_SYS_SYSCALL_H
 #include <sys/syscall.h>
 #endif
 
