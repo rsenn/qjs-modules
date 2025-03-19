@@ -1,10 +1,10 @@
 #define _IN_DEBUG_C 1
+#include "defines.h"
 #include "debug.h"
 #include <quickjs.h>
 #include <list.h>
 #include <cutils.h>
 #include <assert.h>
-#include "defines.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -41,7 +41,8 @@ struct alloc_block {
 #undef js_free_rt
 #undef js_malloc_usable_size_rt
 
-thread_local struct list_head alloc_block_list = {0, 0};
+//thread_local 
+struct list_head alloc_block_list = {0, 0};
 
 static inline void
 add_to_list(struct list_head* el, struct list_head* head) {

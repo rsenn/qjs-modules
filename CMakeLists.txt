@@ -6,6 +6,12 @@ cmake_minimum_required(VERSION 3.2)
 
 set(CMAKE_C_STANDARD 11)
 
+if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" OR DIET)
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build shared libraries" FORCE)
+endif(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten" OR DIET)
+
+option(BUILD_SHARED_MODULES "Build shared modules" ${BUILD_SHARED_LIBS})
+
 #option(BUILD_PIGPIO "Build pigpio library" OFF)
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
@@ -17,13 +23,25 @@ option(MODULE_MYSQL "Build 'mysql' module" ON)
 option(MODULE_PGSQL "Build 'pgsql' module" ON)
 option(MODULE_SERIAL "Build 'serial' module" OFF)
 
-if(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+include(FindPkgConfig)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
+
+if(WASI OR EMSCRIPTEN)
   set(CMAKE_EXECUTABLE_SUFFIX ".wasm")
-  option(BUILD_SHARED_MODULES "Build shared modules" OFF)
-  set(BUILD_SHARED_LIBS FALSE)
-else(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
-  option(BUILD_SHARED_MODULES "Build shared modules" ON)
-endif(WASI OR EMSCRIPTEN OR "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
+endif(WASI OR EMSCRIPTEN)
+
+#if(NOT BUILD_SHARED_LIBS)
+#  option(BUILD_SHARED_MODULES "Build shared modules" OFF)
+#else(NOT BUILD_SHARED_LIBS)
+#  option(BUILD_SHARED_MODULES "Build shared modules" ON)
+#endif(NOT BUILD_SHARED_LIBS)
+
+dump(BUILD_SHARED_LIBS BUILD_SHARED_MODULES)
 
 if(WIN32 OR MINGW)
   set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
@@ -41,14 +59,6 @@ endif(DEBUG_OUTPUT)
 if(DEBUG_ALLOC)
   add_definitions(-DDEBUG_ALLOC)
 endif(DEBUG_ALLOC)
-
-include(FindPkgConfig)
-
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/FindQuickJS.cmake)
 
 #message(STATUS "Finding QuickJS...")
 
@@ -122,6 +132,20 @@ check_include_def(threads.h)
 check_include_def(sys/mman.h)
 
 check_function_def(mmap)
+
+check_external(getdents64 "" "" HAVE_GETDENTS64)
+#check_function_exists(getdents64 HAVE_GETDENTS64)
+if(NOT HAVE_GETDENTS64)
+  check_external(getdents "" "" HAVE_GETDENTS)
+  #check_function_exists(getdents HAVE_GETDENTS)
+  if(HAVE_GETDENTS)
+    add_definitions(-DHAVE_GETDENTS)
+  endif(HAVE_GETDENTS)
+else(NOT HAVE_GETDENTS64)
+  add_definitions(-DHAVE_GETDENTS64)
+endif(NOT HAVE_GETDENTS64)
+
+dump(HAVE_GETDENTS64 HAVE_GETDENTS)
 
 check_include_def(termios.h)
 check_function_def(ioctl)

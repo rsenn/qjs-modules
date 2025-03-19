@@ -53,7 +53,9 @@ typedef enum text_encoding {
 
 struct text_coder {
   RingBuffer buffer;
-  TextcodeType
+  TextEncoding type_code;
+  unsigned endian : 1;
+  //TextcodeType
 };
 
 typedef struct text_coder TextEncoder;

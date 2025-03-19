@@ -2,6 +2,7 @@
 #include "getdents.h"
 #include "char-utils.h"
 #include <assert.h>
+#include <sys/syscall.h>
 
 /**
  * \addtogroup getdents
@@ -284,7 +285,13 @@ getdents_read(Directory* d) {
   for(;;) {
     if(!d->nread || d->bpos >= d->nread) {
       d->bpos = 0;
+ #ifdef HAVE_GETDENTS64
+      d->nread = getdents64(d->fd, d->buf, sizeof(d->buf));
+ #elif defined(HAVE_GETDENTS)
+      d->nread = getdents(d->fd, d->buf, sizeof(d->buf));
+ #else
       d->nread = syscall(SYS_getdents64, d->fd, d->buf, sizeof(d->buf));
+#endif
 
       if(d->nread <= 0)
         break;

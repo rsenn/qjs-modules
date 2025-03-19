@@ -14,7 +14,7 @@
  * @{
  */
 
-extern thread_local struct list_head alloc_block_list;
+extern struct list_head alloc_block_list;
 
 int64_t check_pointer(void*);
 void* debug_malloc(size_t, const char*, int);

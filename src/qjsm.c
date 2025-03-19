@@ -1762,6 +1762,7 @@ jsm_start_interactive3(JSContext* ctx, int argc, JSValueConst argv[]) {
   return jsm_start_interactive4(ctx, JS_NULL, argc, argv);
 }
 
+#ifndef _WIN32
 static void
 jsm_signal_handler(int arg) {
   switch(arg) {
@@ -1773,6 +1774,7 @@ jsm_signal_handler(int arg) {
     }
   }
 }
+#endif
 
 int
 jsm_interrupt_handler(JSRuntime* rt, void* opaque) {
@@ -2093,8 +2095,10 @@ main(int argc, char** argv) {
                 JS_EVAL_TYPE_MODULE);
 
     if(!interactive) {
+#ifndef _WIN32
 #ifdef SIGUSR1
       signal(SIGUSR1, jsm_signal_handler);
+#endif
 #endif
     }
 

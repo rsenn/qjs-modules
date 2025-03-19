@@ -26,9 +26,11 @@
 #define trim_dotslash(str) (!strncmp((str), "./", 2) ? (str) + 2 : (str))
 
 #ifndef thread_local
-#ifdef _Thread_local
+#if defined(__TINYC__)
+#define thread_local 
+#elif defined(_Thread_local) || defined(__TINYC__)
 #define thread_local _Thread_local
-#elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__SUNPRO_CC) || defined(__IBMCPP__)
+#elif defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__SUNPRO_CC) || defined(__IBMCPP__) 
 #define thread_local __thread
 #elif defined(_WIN32)
 #define thread_local __declspec(thread)
@@ -37,12 +39,12 @@
 #endif
 #endif
 
-#if defined(__GNUC__) || defined(__clang__)
-#define PACK __attribute__((packed))
-#define ENDPACK
-#else
+#ifdef _MSC_VER
 #define PACK #pragma pack(push, 1)
 #define ENDPACK #pragma pack(pop)
+#else
+#define PACK __attribute__((packed))
+#define ENDPACK
 #endif
 
 #define JS_CGETSET_ENUMERABLE_DEF(prop_name, fgetter, fsetter, magic_num) \

@@ -83,7 +83,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
   js_dbuf_init(ctx, &dbuf);
 
   if((blen = ringbuffer_LENGTH(&dec->buffer)))
-    switch(dec->encoding) {
+    switch(dec->type_code & 0x3) {
       case UTF8: {
         size_t blen, rlen = ringbuffer_LENGTH(&dec->buffer);
 
@@ -151,7 +151,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
       default: {
         TUTF8encoder encoder;
 
-        if((encoder = *tutf8e_coders[dec->encoding - 8])) {
+        if((encoder = *tutf8e_coders[dec->type_code - 8])) {
 
           const char* ptr = ringbuffer_BEGIN(&dec->buffer);
           size_t n = 0;
@@ -166,7 +166,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
           }
 
         } else {
-          ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: unknown encoding: %s", __func__, textcode_encodings[dec->encoding]);
+          ret = JS_ThrowInternalError(ctx, "%s: TextDecoder: unknown encoding: %s", __func__, textcode_encodings[dec->type_code & 0x3]);
         }
 
         break;
@@ -244,11 +244,11 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     const char* s = JS_ToCString(ctx, argv[0]);
 
     if(s[case_finds(s, "utf32")] || s[case_finds(s, "utf-32")])
-      dec->encoding = UTF32;
+      dec->type_code = UTF32;
     else if(s[case_finds(s, "utf16")] || s[case_finds(s, "utf-16")])
-      dec->encoding = UTF16;
+      dec->type_code = UTF16;
     else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
-      dec->encoding = UTF8;
+      dec->type_code = UTF8;
     else {
       return JS_ThrowInternalError(ctx, "%s: TextDecoder: '%s' is invalid s", __func__, s);
     }
@@ -258,7 +258,7 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
 
     JS_FreeCString(ctx, s);
   } else {
-    dec->encoding = UTF8;
+    dec->type_code = UTF8;
   }
 
   JS_SetOpaque(obj, dec);
@@ -368,11 +368,11 @@ textencoder_read(TextEncoder* te, JSContext* ctx) {
   if(len > ringbuffer_CONTINUOUS(&te->buffer))
     ringbuffer_normalize(&te->buffer);
 
-  switch(te->encoding) {
+  switch(te->type_code & 0x3) {
     case UTF8: bits = 8; break;
     case UTF16: bits = 16; break;
     case UTF32: bits = 32; break;
-    default: return JS_ThrowInternalError(ctx, "%s: TextEncoder: invalid encoding: %d", __func__, te->encoding);
+    default: return JS_ThrowInternalError(ctx, "%s: TextEncoder: invalid encoding: %d", __func__, te->type_code);
   }
 
   buf = JS_NewArrayBufferCopy(ctx, ringbuffer_BEGIN(&te->buffer), len);
@@ -390,7 +390,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
   uint8_t u8[UTF8_CHAR_LEN_MAX];
   const uint8_t *ptr, *end, *next;
 
-  switch(enc->encoding) {
+  switch(enc->type_code & 0x3) {
     case UTF8: {
       size_t avail = ringbuffer_AVAIL(&enc->buffer);
 
@@ -514,21 +514,21 @@ js_encoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     const char* s = JS_ToCString(ctx, argv[0]);
 
     if(s[case_finds(s, "utf32")] || s[case_finds(s, "utf-32")])
-      enc->encoding = UTF32;
+      enc->type_code = UTF32;
     else if(s[case_finds(s, "utf16")] || s[case_finds(s, "utf-16")])
-      enc->encoding = UTF16;
+      enc->type_code = UTF16;
     else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
-      enc->encoding = UTF8;
+      enc->type_code = UTF8;
     else
       return JS_ThrowInternalError(ctx, "TextEncoder '%s' is invalid s", s);
 
-    if(enc->encoding > UTF8)
+    if(enc->type_code > UTF8)
       if(s[case_finds(s, "be")] || s[case_finds(s, "be")])
         enc->endian = BIG;
 
     JS_FreeCString(ctx, s);
   } else {
-    enc->encoding = UTF8;
+    enc->type_code = UTF8;
   }
 
   JS_SetOpaque(obj, enc);

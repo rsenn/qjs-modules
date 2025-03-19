@@ -3,11 +3,12 @@
 #define _ISOC99_SOURCE 1
 #include "utils.h"
 #include "defines.h"
+#include "vector.h"
+#include "buffer-utils.h"
+#include "debug.h"
 #include <list.h>
 #include <cutils.h>
-#include "vector.h"
 #include <libregexp.h>
-#include "buffer-utils.h"
 #include <time.h>
 #include <math.h>
 #include <errno.h>
@@ -15,7 +16,7 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <quickjs-libc.h>
-#include "debug.h"
+#include <float.h>
 
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
@@ -2314,7 +2315,7 @@ js_number_integral(JSValueConst value) {
     double num = JS_VALUE_GET_FLOAT64(value);
     int64_t i = num;
 
-    if((num - i) < __DBL_EPSILON__)
+    if((num - i) < DBL_EPSILON)
       return TRUE;
 
     // return fmod(num, 1.0l) == 0.0l;
