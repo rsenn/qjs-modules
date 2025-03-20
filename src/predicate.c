@@ -162,7 +162,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
         case PREDICATE_BAND: r = (uint64_t)left & (uint64_t)right; break;
         case PREDICATE_POW: r = pow(left, right); break;
         case PREDICATE_ATAN2: r = atan2(left, right); break;
-        default: r = nan(""); break;
+        default: /*r = nan("");*/ break;
       }
 
       ret = JS_NewFloat64(ctx, r);

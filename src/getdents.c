@@ -339,38 +339,50 @@ getdents_close(Directory* d) {
 }
 
 int
+getdents_gettype(const DirEntry* e) {
+#if __SIZEOF_POINTER__ == 8
+  unsigned char type = ((dirent_struct*)e)->d_type;
+#else
+  size_t len = ((dirent_struct*)e)->d_reclen;
+  uint8_t* ptr = (uint8_t*)e;
+  unsigned char type = ptr[len-1];
+#endif
+  return type;
+}
+
+int
 getdents_isblk(const DirEntry* e) {
-  return ((dirent_struct*)e)->d_type == DT_BLK;
+  return getdents_gettype(e) == DT_BLK;
 }
 
 int
 getdents_ischr(const DirEntry* e) {
-  return ((dirent_struct*)e)->d_type == DT_CHR;
+  return getdents_gettype(e) == DT_CHR;
 }
 
 int
 getdents_isdir(const DirEntry* e) {
-  return ((dirent_struct*)e)->d_type == DT_DIR;
+  return getdents_gettype(e) == DT_DIR;
 }
 
 int
 getdents_isfifo(const DirEntry* e) {
-  return ((dirent_struct*)e)->d_type == DT_FIFO;
+  return getdents_gettype(e) == DT_FIFO;
 }
 
 int
 getdents_islnk(const DirEntry* e) {
-  return ((dirent_struct*)e)->d_type == DT_LNK;
+  return getdents_gettype(e) == DT_LNK;
 }
 
 int
 getdents_isreg(const DirEntry* e) {
-  return ((dirent_struct*)e)->d_type == DT_REG;
+  return getdents_gettype(e) == DT_REG;
 }
 
 int
 getdents_issock(const DirEntry* e) {
-  return ((dirent_struct*)e)->d_type == DT_SOCK;
+  return getdents_gettype(e) == DT_SOCK;
 }
 
 #endif /* defined(_WIN32) */

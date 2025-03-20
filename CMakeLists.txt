@@ -129,6 +129,12 @@ check_include_def(sys/syscall.h)
 
 check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
 
+check_includes(linux/ipx.h linux/x25.h linux/can.h linux/nfc.h linux/ax25.h linux/netlink.h linux/atalk.h linux/phonet.h linux/if_alg.h)
+
+if(HAVE_LINUX_IPX_H)
+  add_definitions(-DHAVE_LINUX_NETWORK_HEADERS)
+endif(HAVE_LINUX_IPX_H)
+
 if(HAVE_SPAWN AND USE_SPAWN)
   add_definitions(-DPOSIX_SPAWN=1)
 endif(HAVE_SPAWN AND USE_SPAWN)
@@ -770,12 +776,12 @@ set_target_properties(
   qjsm PROPERTIES LINK_OPTIONS "${LINK_EXPORT};-L${QJSM_LIBDIR}" COMPILE_FLAGS
                                                                  "-w")
 
-if(NOT WASI AND NOT EMSCRIPTEN)
+if(BUILD_SHARED_LIBS)
   set_target_properties(
     qjsm
     PROPERTIES RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}"
                INSTALL_RPATH "${QUICKJS_INSTALL_PREFIX}/${QUICKJS_LIBRARY_DIR}")
-endif(NOT WASI AND NOT EMSCRIPTEN)
+endif(BUILD_SHARED_LIBS)
 
 target_link_directories(qjsm PUBLIC ${CMAKE_CURRENT_BINARY_DIR}
                         ${QUICKJS_LIBRARY_DIR})
