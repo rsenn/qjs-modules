@@ -75,9 +75,19 @@ list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
 
 include(CheckLibraryExists)
 
-check_function_def(HAVE_JS_PROMISE_STATE JS_PromiseState)
-check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}"
-                     HAVE_JS_PROMISE_STATE_2)
+#check_function_def(JS_PROMISE_STATE JS_PromiseState)
+
+check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE)
+if(HAVE_JS_PROMISE_STATE)
+  add_definitions(-DHAVE_JS_PROMISE_STATE)
+endif(HAVE_JS_PROMISE_STATE)
+
+check_library_exists(quickjs JS_PromiseResult "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_RESULT)
+if(HAVE_JS_PROMISE_RESULT)
+  add_definitions(-DHAVE_JS_PROMISE_RESULT)
+endif(HAVE_JS_PROMISE_RESULT)
+
+
 check_library_exists(quickjs JS_GetModuleLoaderFunc "${QUICKJS_LIBRARY_DIR}"
                      HAVE_JS_GETMODULELOADERFUNC)
 if(HAVE_JS_GETMODULELOADERFUNC)

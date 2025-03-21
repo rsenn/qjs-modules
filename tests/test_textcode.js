@@ -4,33 +4,33 @@ import * as std from 'std';
 import { TextDecoder, TextEncoder } from 'textcode';
 
 function Decode(encoding, ...chunks) {
-  let decoder = new TextDecoder(encoding), result = [];
+  let decoder = new TextDecoder(encoding),
+    result = [];
   //console.log('decoder(' + encoding + ')', decoder);
 
   for(let buf of chunks) {
     console.log('decoder(' + encoding + ').decode(', buf, `)`);
- if(buf !== undefined && buf !== null)
-   result.push(decoder.decode(buf));
+    if(buf !== undefined && buf !== null) result.push(decoder.decode(buf));
   }
 
   let r = decoder.end();
 
   if(r) result.push(r);
-  
+
   console.log(`result = '${result.join('')}'\n`);
 
   return result;
 }
 
 function Encode(encoding, ...chunks) {
-  let encoder = new TextEncoder(encoding), result = [];
+  let encoder = new TextEncoder(encoding),
+    result = [];
   //console.log('encoder(' + encoding + ')', encoder);
 
   for(let str of chunks) {
     console.log((`encoder(` + encoding + `).encode('${str}')`).padEnd(30));
 
-if(str !== undefined && str !== null)
-    result.push(encoder.encode(str));
+    if(str !== undefined && str !== null) result.push(encoder.encode(str));
   }
 
   let r = encoder.end();
