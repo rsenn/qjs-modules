@@ -287,11 +287,11 @@ getdents_read(Directory* d) {
   for(;;) {
     if(!d->nread || d->bpos >= d->nread) {
       d->bpos = 0;
- #ifdef HAVE_GETDENTS64
+#ifdef HAVE_GETDENTS64
       d->nread = getdents64(d->fd, d->buf, sizeof(d->buf));
- #elif defined(HAVE_GETDENTS)
+#elif defined(HAVE_GETDENTS)
       d->nread = getdents(d->fd, d->buf, sizeof(d->buf));
- #else
+#else
       d->nread = syscall(SYS_getdents64, d->fd, d->buf, sizeof(d->buf));
 #endif
 
@@ -345,7 +345,7 @@ getdents_gettype(const DirEntry* e) {
 #else
   size_t len = ((dirent_struct*)e)->d_reclen;
   uint8_t* ptr = (uint8_t*)e;
-  unsigned char type = ptr[len-1];
+  unsigned char type = ptr[len - 1];
 #endif
   return type;
 }

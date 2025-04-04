@@ -41,7 +41,7 @@ struct alloc_block {
 #undef js_free_rt
 #undef js_malloc_usable_size_rt
 
-//thread_local 
+// thread_local
 struct list_head alloc_block_list = {0, 0};
 
 static inline void
