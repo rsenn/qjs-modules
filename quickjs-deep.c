@@ -106,8 +106,8 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
 
 static JSValue
 js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSValueConst pred, uint32_t flags) {
-  DeepIterator* it;
   JSValue obj = JS_UNDEFINED;
+  DeepIterator* it;
 
   if(!(it = js_mallocz(ctx, sizeof(DeepIterator))))
     return JS_EXCEPTION;
@@ -158,8 +158,8 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
     JS_ToUint32(ctx, &flags, argv[i]);
 
   obj = js_deep_iterator_new(ctx, proto, root, pred, flags);
-  JS_FreeValue(ctx, proto);
 
+  JS_FreeValue(ctx, proto);
   return obj;
 }
 
@@ -183,9 +183,13 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   for(;;) {
     depth = property_recursion_depth(&it->frames);
-    it->seq == 0           ? (property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS), 1)
-    : (depth >= max_depth) ? property_recursion_skip(&it->frames, ctx)
-                           : /*depth > 0          ?*/ property_recursion_next(&it->frames, ctx);
+
+    if(it->seq == 0)
+      property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS);
+    else if(depth >= max_depth)
+      property_recursion_skip(&it->frames, ctx);
+    else
+      property_recursion_next(&it->frames, ctx);
 
     ++it->seq;
 
