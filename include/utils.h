@@ -534,6 +534,14 @@ js_value_todouble_free(JSContext* ctx, JSValueConst value) {
   return ret;
 }
 
+static inline int32_t
+js_value_toint32_free(JSContext* ctx, JSValueConst value) {
+  int32_t ret = 0;
+  JS_ToInt32(ctx, &ret, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 static inline int64_t
 js_value_toint64_free(JSContext* ctx, JSValueConst value) {
   int64_t ret = 0;

@@ -134,7 +134,6 @@ property_enumeration_key(const PropertyEnumeration* it, JSContext* ctx) {
 
 int
 property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueConst fn, JSValueConst this_arg) {
-  BOOL result;
   JSValue ret;
   JSValueConst argv[3] = {
       JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx]),
@@ -149,11 +148,10 @@ property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueC
     ret = JS_FALSE;
   }
 
-  result = JS_ToBool(ctx, ret);
+  int32_t result = JS_IsNumber(ret) ? js_value_toint32_free(ctx, ret) : js_value_tobool_free(ctx, ret);
 
   JS_FreeValue(ctx, argv[0]);
   JS_FreeValue(ctx, argv[1]);
-  JS_FreeValue(ctx, ret);
 
   return result;
 }
