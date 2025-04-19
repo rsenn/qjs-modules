@@ -507,7 +507,7 @@ inspect_map(Inspector* insp, JSValueConst obj, int32_t level) {
     return 0;
   }
 
-  writer_puts(wr, opts->reparseable ? (opts->colors ? COLOR_LIGHTRED "new" COLOR_YELLOW " Map" COLOR_CYAN "(" COLOR_NONE "[" : "new Map([") : (opts->colors ? COLOR_LIGHTRED "Map" COLOR_NONE " [" : "Map ["));
+  writer_puts(wr, opts->reparseable ? (opts->colors ? COLOR_LIGHTRED "new" COLOR_YELLOW " Map" COLOR_CYAN "(" COLOR_NONE "[" : "new Map([") : (opts->colors ? COLOR_LIGHTRED "Map" COLOR_NONE " {" : "Map {"));
 
   if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
