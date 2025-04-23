@@ -450,6 +450,7 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
     }
   }
 
+
   return ret;
 }
 
@@ -566,7 +567,7 @@ js_encoder_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCon
       if(JS_IsException(ret))
         break;
 
-      size_t len = ringbuffer_LENGTH(&enc->buffer);
+      size_t len = ringbuffer_avail(&enc->buffer);
       ret = len == 0 ? JS_NULL : textencoder_read(enc, ctx);
 
       if(magic == ENCODER_END)
