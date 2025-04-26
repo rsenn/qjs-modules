@@ -9,8 +9,8 @@ function main(...args) {
       stringBreakNewline: true,
       maxStringLength: Infinity,
       compact: 1,
-      numberBase: 16
-    }
+      numberBase: 16,
+    },
   });
 
   const testString =
@@ -20,7 +20,7 @@ function main(...args) {
 
   const testObject = {
     numb: 1234,
-    str: 'blah'
+    str: 'blah',
   };
 
   testObject.circular = { testObject };

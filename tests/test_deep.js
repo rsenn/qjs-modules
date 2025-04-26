@@ -22,7 +22,7 @@ const inspectOptions = {
   maxArrayLength: 10,
   maxStringLength: 200,
   compact: 1,
-  hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')]
+  hideKeys: ['loc', 'range', 'inspect', Symbol.for('nodejs.util.inspect.custom')],
 };
 
 function main(...args) {
@@ -33,14 +33,14 @@ function main(...args) {
     b: 2,
     c: 3,
     d: 4,
-    e: [NaN, true, false, Infinity, null]
+    e: [NaN, true, false, Infinity, null],
   };
   let obj2 = {
     v: 4,
     w: 3,
     x: 2,
     y: [undefined, 1, 1234n],
-    z: [NaN, true, false, Infinity, null]
+    z: [NaN, true, false, Infinity, null],
   };
   let obj3 = {
     0: true,
@@ -48,7 +48,7 @@ function main(...args) {
     w: 3,
     x: { name: 'x', a: 2 },
     y: [undefined, 1, 1234n],
-    z: [NaN, true, false, Infinity, null]
+    z: [NaN, true, false, Infinity, null],
   };
 
   deep.forEach([], (n, p) => console.log('deep.forEach', { n, p }));
@@ -75,11 +75,11 @@ function main(...args) {
   console.log('select():', deep.select(obj3, pred, deep.RETURN_VALUE_PATH));
   console.log(
     'select()2:',
-    deep.select(obj3, (n, p) => typeof n == 'object', deep.RETURN_VALUE_PATH)
+    deep.select(obj3, (n, p) => typeof n == 'object', deep.RETURN_VALUE_PATH),
   );
   console.log(
     'select()3:',
-    deep.select(obj3, () => true, deep.RETURN_VALUE_PATH)
+    deep.select(obj3, () => true, deep.RETURN_VALUE_PATH),
   );
   return;
 
@@ -97,7 +97,7 @@ function main(...args) {
   console.log('deep.RETURN_PATH_VALUE:', deep.RETURN_PATH_VALUE);
   console.log(
     'find():',
-    deep.find(obj1, n => n == Infinity, deep.RETURN_PATH_VALUE)
+    deep.find(obj1, n => n == Infinity, deep.RETURN_PATH_VALUE),
   );
 
   deep.forEach(obj2, (n, p) => console.log('deep.forEach', { n, p }));
@@ -113,8 +113,8 @@ function main(...args) {
       obj2,
       //node => typeof node == 'object',
       node => !(IsObject(node) || IsNumeric(node)),
-      deep.RETURN_PATH_VALUE
-    )
+      deep.RETURN_PATH_VALUE,
+    ),
   );
 
   it = deep.iterate(obj2, (n, p) => IsObject(n) || !IsNumeric(n));

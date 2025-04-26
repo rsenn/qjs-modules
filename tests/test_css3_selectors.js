@@ -10,8 +10,8 @@ function main(...args) {
     stderr: process.stderr,
     inspectOptions: {
       depth: Infinity,
-      compact: false
-    }
+      compact: false,
+    },
   });
 
   let typeSel = new TypeSelector('html');
