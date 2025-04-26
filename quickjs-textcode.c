@@ -450,7 +450,6 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
     }
   }
 
-
   return ret;
 }
 
