@@ -320,7 +320,10 @@ endif(MODULE_MAGIC)
 
 if(MODULE_MYSQL)
   pkg_check_modules(MARIADB libmariadb mariadb)
-
+  dump(LIBMARIADB_INCLUDE_DIR)
+  string(REGEX REPLACE "/include.*" "/${CMAKE_ARCH_LIBDIR}" LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_INCLUDE_DIR}")
+  set(LIBMARIA_LIBRARY_DIR "${LIBMARIADB_LIBRARY_DIR}" CACHE PATH "MariaDB library directory")
+  dump(LIBMARIA_LIBRARY_DIR)
   if(pkgcfg_lib_MARIADB_mariadb)
     set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}"
         CACHE STRING "MariaDB client library")
