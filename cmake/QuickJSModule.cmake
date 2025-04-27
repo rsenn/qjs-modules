@@ -37,7 +37,7 @@ function(compile_module SOURCE)
     list(APPEND ADD_MODULES -M "${MOD}")
   endforeach(MOD IN ITEMS ${ARGLIST})
 
-#add_custom_command(OUTPUT "${OUTPUT_FILE}" COMMAND qjsc ${ADD_MODULES} -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE} DEPENDS qjs-inspect qjs-misc)
+  #add_custom_command(OUTPUT "${OUTPUT_FILE}" COMMAND qjsc ${ADD_MODULES} -v -c -o "${OUTPUT_FILE}" -m "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" DEPENDS ${QJSC_DEPS} WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler" SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE} DEPENDS qjs-inspect qjs-misc)
   add_custom_target(
     "${BASE}.c" ALL
     BYPRODUCTS "${OUTPUT_FILE}"
@@ -47,7 +47,7 @@ function(compile_module SOURCE)
     COMMENT "Generate ${OUTPUT_FILE} from ${SOURCE} using qjs compiler"
     SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}" #DEPENDS qjs-inspect qjs-misc
   )
-endfunction(compile_module SOURCE )
+endfunction(compile_module SOURCE)
 
 function(generate_module_header SOURCE)
   basename(BASE "${SOURCE}" .c)
@@ -75,8 +75,7 @@ function(generate_module_header SOURCE)
     contains(INCLUDES "${NAME}" DOES_CONTAIN)
     #message(" contains(INCLUDES \"${NAME}\" DOES_CONTAIN) = ${DOES_CONTAIN}")
     if(NOT DOES_CONTAIN)
-      set(S
-          "${S}\nextern const uint32_t qjsc_${NAME}_size;\nextern const uint8_t qjsc_${NAME}[];\n")
+      set(S "${S}\nextern const uint32_t qjsc_${NAME}_size;\nextern const uint8_t qjsc_${NAME}[];\n")
     endif(NOT DOES_CONTAIN)
   endforeach(NAME ${SYMBOLS})
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/modules/${BASE}.h" "${S}")
@@ -90,13 +89,10 @@ function(make_module_header SOURCE)
   string(REGEX REPLACE "\\.c$" ".h" HEADER "${BASE2}")
   string(REGEX REPLACE "-" "_" NAME "${BASE}")
   set(SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/gen-${BASE}-header.cmake")
-  make_script(
-    "${SCRIPT}"
-    "message(\"Generating module '${NAME}'\")\nremake_module(${SOURCE})\n"
-    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake;${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake"
-  )
-  add_custom_target(${BASE}.h ALL ${CMAKE_COMMAND} -P ${SCRIPT} DEPENDS ${SOURCE}
-                    BYPRODUCTS ${HEADER} SOURCES ${SOURCE})
+  make_script("${SCRIPT}" "message(\"Generating module '${NAME}'\")\nremake_module(${SOURCE})\n"
+              "${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake;${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake")
+  add_custom_target(${BASE}.h ALL ${CMAKE_COMMAND} -P ${SCRIPT} DEPENDS ${SOURCE} BYPRODUCTS ${HEADER}
+                    SOURCES ${SOURCE})
 endfunction(make_module_header SOURCE)
 
 function(list_definitions SOURCE OUTVAR)
@@ -195,6 +191,7 @@ function(make_module FNAME)
   set(TARGET_NAME qjs-${NAME})
   set(DEPS ${${VNAME}_DEPS})
   set(LIBS ${${VNAME}_LIBRARIES})
+  set(LINK_DIRECTORIES ${${VNAME}_LINK_DIRECTORIES})
 
   if(ARGN)
     set(SOURCES ${ARGN} #${${VNAME}_SOURCES}
@@ -232,29 +229,28 @@ function(make_module FNAME)
     set(PREFIX "")
   endif(NOT WASI AND "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")
 
-
   if(BUILD_SHARED_MODULES)
     #add_library(${TARGET_NAME} MODULE ${SOURCES})
     add_library(${TARGET_NAME} SHARED ${SOURCES})
 
+    #dump(QUICKJS_C_MODULE_DIR QUICKJS_LIBRARY_DIR)
+
     set_target_properties(
       ${TARGET_NAME}
-      PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}" INSTALL_RPATH
-                                                                        "${QUICKJS_C_MODULE_DIR}"
-                 PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}" COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}"
-                 LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
+      PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}" INSTALL_RPATH "${QUICKJS_C_MODULE_DIR}"
+                 PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}" COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
 
     target_compile_definitions(
-      ${TARGET_NAME}
-      PRIVATE _GNU_SOURCE=1 JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1
-              QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}")
+      ${TARGET_NAME} PRIVATE _GNU_SOURCE=1 JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1
+                             QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}")
 
-            target_link_directories(${TARGET_NAME} PUBLIC "${QUICKJS_LIBRARY_DIR};${CMAKE_CURRENT_BINARY_DIR}")
+    target_link_directories(${TARGET_NAME} PUBLIC ${LINK_DIRECTORIES} ${QUICKJS_LIBRARY_DIR} ${LIBMARIADB_LIBRARY_DIR}
+                            ${CMAKE_CURRENT_BINARY_DIR})
+
     target_link_libraries(${TARGET_NAME} PUBLIC ${LIBS} ${QUICKJS_LIBRARY})
 
     install(TARGETS ${TARGET_NAME} DESTINATION "${QUICKJS_C_MODULE_DIR}"
-            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ
-                        WORLD_EXECUTE)
+            PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
     config_module(${TARGET_NAME})
 
@@ -262,6 +258,10 @@ function(make_module FNAME)
     if(LIBRARIES)
       target_link_libraries(${TARGET_NAME} PRIVATE ${LIBRARIES})
     endif(LIBRARIES)
+    set(LINK_DIRECTORIES ${${VNAME}_LINK_DIRECTORIES})
+    if(LINK_DIRECTORIES)
+      target_link_directories(${TARGET_NAME} PRIVATE ${LINK_DIRECTORIES})
+    endif(LINK_DIRECTORIES)
     if(DEPS)
       add_dependencies(${TARGET_NAME} ${DEPS})
     endif(DEPS)
