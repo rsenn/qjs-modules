@@ -65,9 +65,11 @@ endif(DEBUG_ALLOC)
 find_quickjs()
 configure_quickjs()
 
+dump(QUICKJS_LIBRARY_DIR)
 list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
 #list(APPEND CMAKE_REQUIRED_LIBRARIES "${QUICKJS_LIBRARY}")
 #list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
+dump(CMAKE_REQUIRED_LINK_DIRECTORIES)
 
 list(APPEND CMAKE_REQUIRED_LIBRARIES ${QUICKJS_LIBRARY})
 list(APPEND CMAKE_REQUIRED_INCLUDES ${QUICKJS_INCLUDE_DIR})
@@ -314,12 +316,13 @@ if(MODULE_MYSQL)
   dump(LIBMARIADB_INCLUDE_DIR)
   string(REGEX REPLACE "/include.*" "/${CMAKE_ARCH_LIBDIR}" LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_INCLUDE_DIR}")
   set(LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_LIBRARY_DIR}" CACHE PATH "MariaDB library directory")
-  dump(LIBMARIADB_LIBRARY_DIR)
+  link_directories(${LIBMARIADB_LIBRARY_DIR})
   if(pkgcfg_lib_MARIADB_mariadb)
     message(STATUS "MariaDB found by pkg-config")
     set(LIBMARIADB_LIBRARY "${pkgcfg_lib_MARIADB_mariadb}" CACHE STRING "MariaDB client library")
     unset(pkgcfg_lib_MARIADB_mariadb CACHE)
   else(pkgcfg_lib_MARIADB_mariadb)
+    list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${LIBMARIADB_LIBRARY_DIR}")
     check_library_exists(mariadb mysql_init "${LIBMARIADB_LIBRARY_DIR}" HAVE_LIBMARIADB)
     message(STATUS "MariaDB found by directory search")
 
@@ -330,18 +333,20 @@ if(MODULE_MYSQL)
 
 
   dump(LIBMARIADB_LIBRARY)
+    dump(LIBMARIADB_LIBRARY LIBMARIADB_LIBRARY_DIR)
 
   if(LIBMARIADB_LIBRARY)
     list(APPEND QUICKJS_MODULES mysql)
 
-    dump(LIBMARIADB_LIBRARY)
+    unset(MARIADB_LDFLAGS)
     set(mysql_LIBRARIES ${LIBMARIADB_LIBRARY})
     set(mysql_LINK_DIRECTORIES ${LIBMARIADB_LIBRARY_DIR})
-    set(mysql_LINK_FLAGS ${MARIADB_LDFLAGS})
+    #set(mysql_LINK_FLAGS ${MARIADB_LDFLAGS})
     dump(mysql_LINK_DIRECTORIES)
     dump(mysql_LIBRARIES)
-    dump(mysql_LINK_FLAGS)
+    #dump(mysql_LINK_FLAGS)
 
+    if(NOT LIBMARIADB_INCLUDE_DIR)
     set(LIBMARIADB_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "MariaDB client include directory")
 
     if(NOT EXISTS "${LIBMARIADB_INCLUDE_DIR}/mysql.h")
@@ -349,6 +354,7 @@ if(MODULE_MYSQL)
         set(LIBMARIADB_INCLUDE_DIR "${LIBMARIADB_INCLUDE_DIR}/mariadb")
       endif()
     endif()
+    endif(NOT LIBMARIADB_INCLUDE_DIR)
 
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBMARIADB_INCLUDE_DIR}")
     check_include_def(mysql.h)
@@ -357,7 +363,6 @@ if(MODULE_MYSQL)
       include_directories(${LIBMARIADB_INCLUDE_DIR})
     endif()
   endif(LIBMARIADB_LIBRARY)
-  dump(LIBMARIADB_INCLUDE_DIR)
 endif(MODULE_MYSQL)
 
 if(MODULE_PGSQL)
@@ -720,6 +725,10 @@ add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCE
 set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
 add_library(compiled STATIC ${COMPILED_MODULES})
 set(COMMON_LIBRARIES modules compiled)
+
+
+get_directory_property(CURRENT_LINK_DIRS LINK_DIRECTORIES)
+dump(CURRENT_LINK_DIRS)
 
 foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})
