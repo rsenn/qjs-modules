@@ -241,14 +241,15 @@ function(make_module FNAME)
       ${TARGET_NAME}
       PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}" INSTALL_RPATH
                                                                         "${QUICKJS_C_MODULE_DIR}"
-                 PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}" COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
+                 PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}" COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}"
+                 LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
 
     target_compile_definitions(
       ${TARGET_NAME}
       PRIVATE _GNU_SOURCE=1 JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1
               QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}")
 
-    target_link_directories(${TARGET_NAME} PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+            target_link_directories(${TARGET_NAME} PUBLIC "${QUICKJS_LIBRARY_DIR};${CMAKE_CURRENT_BINARY_DIR}")
     target_link_libraries(${TARGET_NAME} PUBLIC ${LIBS} ${QUICKJS_LIBRARY})
 
     install(TARGETS ${TARGET_NAME} DESTINATION "${QUICKJS_C_MODULE_DIR}"
