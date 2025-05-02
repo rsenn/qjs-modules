@@ -278,7 +278,10 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
         break;
       }
 
-      ret = predicate_call(ctx, pr->property.predicate, 1, &item);
+      if(JS_IsFunction(ctx, pr->property.predicate))
+        ret = predicate_call(ctx, pr->property.predicate, 1, &item);
+      else
+        ret = JS_DupValue(ctx, item);
 
       JS_FreeValue(ctx, item);
       break;
