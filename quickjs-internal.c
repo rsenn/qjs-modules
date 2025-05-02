@@ -24,170 +24,6 @@ js_std_file(JSContext* ctx, FILE* f) {
   return obj;
 }
 
-struct list_head*
-js_modules_list(JSContext* ctx) {
-  return &ctx->loaded_modules;
-}
-
-JSModuleDef**
-js_modules_vector(JSContext* ctx) {
-  struct list_head* el;
-  Vector vec = VECTOR(ctx);
-  JSModuleDef* m;
-
-  list_for_each(el, js_modules_list(ctx)) {
-    m = list_entry(el, JSModuleDef, link);
-
-    vector_push(&vec, m);
-  }
-
-  m = NULL;
-  vector_push(&vec, m);
-
-  return vector_begin(&vec);
-}
-
-JSValue
-js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct list_head* el;
-  JSValue ret = JS_NewArray(ctx);
-  uint32_t i = 0;
-  list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    // const char* name = module_namecstr(ctx, m);
-    JSValue entry = JS_NewArray(ctx);
-    JS_SetPropertyUint32(ctx, entry, 0, JS_AtomToValue(ctx, m->module_name));
-    JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, m) : module_value(ctx, m));
-
-    if(1 /*str[0] != '<'*/)
-      JS_SetPropertyUint32(ctx, ret, i++, entry);
-    else
-      JS_FreeValue(ctx, entry);
-
-    // JS_FreeCString(ctx, name);
-  }
-
-  return ret;
-}
-
-JSValue
-js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
-  struct list_head* it;
-  JSValue obj = JS_NewObject(ctx);
-
-  list_for_each(it, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(it, JSModuleDef, link);
-    const char* name = module_namecstr(ctx, m);
-    JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
-
-    if(1 /*str[0] != '<'*/)
-      JS_SetPropertyStr(ctx, obj, basename(name), entry);
-    else
-      JS_FreeValue(ctx, entry);
-
-    JS_FreeCString(ctx, name);
-  }
-
-  return obj;
-}
-
-JSModuleDef*
-js_module_find_fwd(JSContext* ctx, const char* name, JSModuleDef* start) {
-  struct list_head* el;
-
-  for(el = start ? &start->link : ctx->loaded_modules.next; el != &ctx->loaded_modules; el = el->next)
-  /*list_for_each(el, &ctx->loaded_modules)*/ {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    const char* str = module_namecstr(ctx, m);
-    BOOL match = !strcmp(str, name);
-    JS_FreeCString(ctx, str);
-
-    if(match)
-      return m;
-  }
-
-  return 0;
-}
-
-int
-js_module_index(JSContext* ctx, JSModuleDef* m) {
-  struct list_head* el;
-  int i = 0;
-
-  list_for_each(el, &ctx->loaded_modules) {
-
-    if(m == list_entry(el, JSModuleDef, link))
-      return i;
-    ++i;
-  }
-
-  return -1;
-}
-
-JSModuleDef*
-js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
-  struct list_head* el;
-
-  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules; el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    const char* str = module_namecstr(ctx, m);
-    BOOL match = !strcmp(str, name);
-    JS_FreeCString(ctx, str);
-
-    if(match)
-      return m;
-  }
-
-  return 0;
-}
-
-int
-js_module_indexof(JSContext* ctx, JSModuleDef* def) {
-  int i = 0;
-  struct list_head* el;
-
-  list_for_each(el, &ctx->loaded_modules) {
-    JSModuleDef* m = list_entry(el, JSModuleDef, link);
-
-    if(m == def)
-      return i;
-
-    ++i;
-  }
-
-  return -1;
-}
-
-JSModuleDef*
-js_module_at(JSContext* ctx, int index) {
-  int i = 0;
-  struct list_head* el;
-
-  if(index >= 0) {
-    list_for_each(el, &ctx->loaded_modules) {
-      JSModuleDef* m = list_entry(el, JSModuleDef, link);
-
-      if(index == i)
-        return m;
-
-      ++i;
-    }
-  } else {
-    index = -(index + 1);
-
-    list_for_each_prev(el, &ctx->loaded_modules) {
-      JSModuleDef* m = list_entry(el, JSModuleDef, link);
-
-      if(index == i)
-        return m;
-
-      ++i;
-    }
-  }
-
-  return 0;
-}
-
 void
 module_make_object(JSContext* ctx, JSModuleDef* m, JSValueConst obj) {
   JSValue tmp;
@@ -452,6 +288,170 @@ void
 module_rename(JSContext* ctx, JSModuleDef* m, JSAtom name) {
   JS_FreeAtom(ctx, m->module_name);
   m->module_name = name;
+}
+
+struct list_head*
+js_modules_list(JSContext* ctx) {
+  return &ctx->loaded_modules;
+}
+
+JSModuleDef**
+js_modules_vector(JSContext* ctx) {
+  struct list_head* el;
+  Vector vec = VECTOR(ctx);
+  JSModuleDef* m;
+
+  list_for_each(el, js_modules_list(ctx)) {
+    m = list_entry(el, JSModuleDef, link);
+
+    vector_push(&vec, m);
+  }
+
+  m = NULL;
+  vector_push(&vec, m);
+
+  return vector_begin(&vec);
+}
+
+JSValue
+js_modules_entries(JSContext* ctx, JSValueConst this_val, int magic) {
+  struct list_head* el;
+  JSValue ret = JS_NewArray(ctx);
+  uint32_t i = 0;
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    // const char* name = module_namecstr(ctx, m);
+    JSValue entry = JS_NewArray(ctx);
+    JS_SetPropertyUint32(ctx, entry, 0, JS_AtomToValue(ctx, m->module_name));
+    JS_SetPropertyUint32(ctx, entry, 1, magic ? module_entry(ctx, m) : module_value(ctx, m));
+
+    if(1 /*str[0] != '<'*/)
+      JS_SetPropertyUint32(ctx, ret, i++, entry);
+    else
+      JS_FreeValue(ctx, entry);
+
+    // JS_FreeCString(ctx, name);
+  }
+
+  return ret;
+}
+
+JSValue
+js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
+  struct list_head* it;
+  JSValue obj = JS_NewObject(ctx);
+
+  list_for_each(it, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(it, JSModuleDef, link);
+    const char* name = module_namecstr(ctx, m);
+    JSValue entry = magic ? module_entry(ctx, m) : module_value(ctx, m);
+
+    if(1 /*str[0] != '<'*/)
+      JS_SetPropertyStr(ctx, obj, basename(name), entry);
+    else
+      JS_FreeValue(ctx, entry);
+
+    JS_FreeCString(ctx, name);
+  }
+
+  return obj;
+}
+
+JSModuleDef*
+js_module_find_fwd(JSContext* ctx, const char* name, JSModuleDef* start) {
+  struct list_head* el;
+
+  for(el = start ? &start->link : ctx->loaded_modules.next; el != &ctx->loaded_modules; el = el->next)
+  /*list_for_each(el, &ctx->loaded_modules)*/ {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    const char* str = module_namecstr(ctx, m);
+    BOOL match = !strcmp(str, name);
+    JS_FreeCString(ctx, str);
+
+    if(match)
+      return m;
+  }
+
+  return 0;
+}
+
+int
+js_module_index(JSContext* ctx, JSModuleDef* m) {
+  struct list_head* el;
+  int i = 0;
+
+  list_for_each(el, &ctx->loaded_modules) {
+
+    if(m == list_entry(el, JSModuleDef, link))
+      return i;
+    ++i;
+  }
+
+  return -1;
+}
+
+JSModuleDef*
+js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
+  struct list_head* el;
+
+  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules; el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+    const char* str = module_namecstr(ctx, m);
+    BOOL match = !strcmp(str, name);
+    JS_FreeCString(ctx, str);
+
+    if(match)
+      return m;
+  }
+
+  return 0;
+}
+
+int
+js_module_indexof(JSContext* ctx, JSModuleDef* def) {
+  int i = 0;
+  struct list_head* el;
+
+  list_for_each(el, &ctx->loaded_modules) {
+    JSModuleDef* m = list_entry(el, JSModuleDef, link);
+
+    if(m == def)
+      return i;
+
+    ++i;
+  }
+
+  return -1;
+}
+
+JSModuleDef*
+js_module_at(JSContext* ctx, int index) {
+  int i = 0;
+  struct list_head* el;
+
+  if(index >= 0) {
+    list_for_each(el, &ctx->loaded_modules) {
+      JSModuleDef* m = list_entry(el, JSModuleDef, link);
+
+      if(index == i)
+        return m;
+
+      ++i;
+    }
+  } else {
+    index = -(index + 1);
+
+    list_for_each_prev(el, &ctx->loaded_modules) {
+      JSModuleDef* m = list_entry(el, JSModuleDef, link);
+
+      if(index == i)
+        return m;
+
+      ++i;
+    }
+  }
+
+  return 0;
 }
 
 static void
