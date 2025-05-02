@@ -2107,6 +2107,7 @@ main(int argc, char** argv) {
       char** ptr;
       vector_foreach_t(&module_list, ptr) {
         JSModuleDef* m;
+
         if(!(m = jsm_module_load(ctx, *ptr, 0))) {
           jsm_dump_error(ctx);
           return 1;

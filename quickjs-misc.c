@@ -3531,7 +3531,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(R_OK),
     JS_CONSTANT(W_OK),
     JS_CONSTANT(X_OK),
-
 #endif
 #ifdef HAVE_FCNTL
     JS_CFUNC_DEF("fcntl", 2, js_misc_fcntl),
