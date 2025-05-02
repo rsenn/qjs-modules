@@ -40,7 +40,7 @@ enum deep_iterator_return {
   RETURN_MASK = 3,
   PATH_AS_STRING = 1 << 2,
   NO_THROW = 1 << 3,
-  MAXDEPTH_MASK = -1 << 4,
+  MAXDEPTH_MASK = 0xffffff00,
 };
 
 static const uint32_t js_deep_defaultflags = 0;
@@ -154,6 +154,7 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   JSValue proto, obj = JS_UNDEFINED, root = JS_UNDEFINED, pred = JS_UNDEFINED;
   uint32_t flags = js_deep_defaultflags;
   int i = 0;
+    uint32_t  max_depth=UINT32_MAX;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -167,7 +168,13 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
     pred = argv[i++];
 
   if(i < argc)
-    JS_ToUint32(ctx, &flags, argv[i]);
+    JS_ToUint32(ctx, &flags, argv[i++]);
+
+  if(i < argc) 
+    JS_ToUint32(ctx, &max_depth, argv[i++]);
+
+  flags&= 0xff;
+  flags|= max_depth << 8;
 
   obj = js_deep_iterator_new(ctx, proto, root, pred, flags);
 
@@ -185,7 +192,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!(it = JS_GetOpaque2(ctx, this_val, js_deep_iterator_class_id)))
     return JS_EXCEPTION;
 
-  if((max_depth = (uint32_t)it->flags & 0xffffff) == 0)
+  if((max_depth = (uint32_t)it->flags >> 8) == 0)
     max_depth = INT32_MAX;
 
   if(!JS_IsObject(it->root)) {
@@ -253,7 +260,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   if(argc > 2)
     JS_ToUint32(ctx, &flags, argv[2]);
 
-  if((max_depth = (flags & MAXDEPTH_MASK)) == 0)
+  if((max_depth = (flags & MAXDEPTH_MASK) >> 8) == 0)
     max_depth = INT32_MAX;
 
   if(!predicate_callable(ctx, argv[1]))
@@ -296,7 +303,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(argc > 2)
     JS_ToUint32(ctx, &flags, argv[2]);
 
-  if((max_depth = (flags & MAXDEPTH_MASK)) == 0)
+  if((max_depth = (flags & MAXDEPTH_MASK) >> 8) == 0)
     max_depth = INT32_MAX;
 
   if(!predicate_callable(ctx, argv[1]))

@@ -271,6 +271,13 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
 
     case PREDICATE_PROPERTY: {
       JSValue obj = js_arguments_at(args, 0);
+      BOOL has = JS_HasProperty(ctx, obj, pr->property.atom);
+
+      if(!has) {
+        ret = JS_UNDEFINED;
+        break;
+      }
+
       JSValue item = JS_GetProperty(ctx, obj, pr->property.atom);
 
       if(JS_IsException(item)) {
@@ -278,10 +285,10 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
         break;
       }
 
-      if(JS_IsFunction(ctx, pr->property.predicate))
-        ret = predicate_call(ctx, pr->property.predicate, 1, &item);
-      else
+      if(!JS_IsFunction(ctx, pr->property.predicate))
         ret = JS_DupValue(ctx, item);
+      else
+        ret = predicate_call(ctx, pr->property.predicate, 1, &item);
 
       JS_FreeValue(ctx, item);
       break;
