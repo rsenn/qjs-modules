@@ -120,12 +120,15 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_BNOT: {
-      ret = JS_NewInt64(ctx, ~js_value_toint64_free(ctx, predicate_value(ctx, pr->unary.predicate, args)));
+      ret =
+          JS_NewInt64(ctx,
+                      ~js_value_toint64_free(ctx, predicate_value(ctx, pr->unary.predicate, args)));
       break;
     }
 
     case PREDICATE_SQRT: {
-      ret = JS_NewFloat64(ctx, sqrt(js_value_todouble_free(ctx, predicate_value(ctx, pr->unary.predicate, args))));
+      ret = JS_NewFloat64(
+          ctx, sqrt(js_value_todouble_free(ctx, predicate_value(ctx, pr->unary.predicate, args))));
       break;
     }
 
@@ -139,7 +142,8 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_POW:
     case PREDICATE_ATAN2: {
       JSValue values[2] = {pr->binary.left, pr->binary.right};
-      BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.left), js_is_null_or_undefined(pr->binary.right)};
+      BOOL nullish[2] = {js_is_null_or_undefined(pr->binary.left),
+                         js_is_null_or_undefined(pr->binary.right)};
       double left, right, r;
 
       for(size_t i = 0; i < 2; i++) {
@@ -331,13 +335,22 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       size_t start, end;
       SlicePredicate slice = pr->slice;
 
-      start = slice.start < 0 ? (int64_t)block.size + (slice.start % (signed)block.size) : slice.start > (int64_t)block.size ? (int64_t)block.size : slice.start;
-      end = slice.end < 0 ? (int64_t)block.size + (slice.end % (signed)block.size) : slice.end > (int64_t)block.size ? (int64_t)block.size : slice.end;
+      start = slice.start < 0 ? (int64_t)block.size + (slice.start % (signed)block.size)
+              : slice.start > (int64_t)block.size ? (int64_t)block.size
+                                                  : slice.start;
+      end = slice.end < 0 ? (int64_t)block.size + (slice.end % (signed)block.size)
+            : slice.end > (int64_t)block.size ? (int64_t)block.size
+                                              : slice.end;
 
       if(JS_IsString(arg))
         ret = JS_NewStringLen(ctx, (const char*)block.base + start, end - start);
       else
-        ret = JS_NewArrayBuffer(ctx, block.base + start, end - start, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), FALSE);
+        ret = JS_NewArrayBuffer(ctx,
+                                block.base + start,
+                                end - start,
+                                &free_arraybuffer_slice,
+                                JS_VALUE_GET_OBJ(arg),
+                                FALSE);
 
       input_buffer_free(&buf, ctx);
       break;
@@ -409,8 +422,10 @@ predicate_value(JSContext* ctx, JSValueConst value, JSArguments* args) {
 const char*
 predicate_typename(const Predicate* pr) {
   return ((const char*[]){
-      "type", "charset", "string", "notnot", "not",        "bnot",        "sqrt",  "add",      "sub", "mul",    "div",   "mod",   "bor",   "band",     "pow", "atan2",
-      "or",   "and",     "xor",    "regexp", "instanceof", "prototypeis", "equal", "property", "has", "member", "shift", "slice", "index", "function", 0,
+      "type", "charset", "string", "notnot", "not",        "bnot",        "sqrt",  "add",
+      "sub",  "mul",     "div",    "mod",    "bor",        "band",        "pow",   "atan2",
+      "or",   "and",     "xor",    "regexp", "instanceof", "prototypeis", "equal", "property",
+      "has",  "member",  "shift",  "slice",  "index",      "function",    0,
   })[pr->id];
 }
 
@@ -456,7 +471,11 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
         if(*p < 128)
           dbuf_printf(dbuf, "'%c'", (char)*p);
         else
-          dbuf_printf(dbuf, *p > 0xffffff ? "'\\u%08x'" : *p > 0xffff ? "\\u%06x" : "'\\u%04x'", *p);
+          dbuf_printf(dbuf,
+                      *p > 0xffffff ? "'\\u%08x'"
+                      : *p > 0xffff ? "\\u%06x"
+                                    : "'\\u%04x'",
+                      *p);
         i++;
       }
 
@@ -509,7 +528,8 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
       for(size_t i = 0; i < pr->boolean.npredicates; i++) {
         if(i > 0)
           dbuf_putstr(dbuf,
-                      ", "); // pr->id == PREDICATE_XOR ? " ^ " : pr->id == PREDICATE_AND ? " && " : " || ");
+                      ", "); // pr->id == PREDICATE_XOR ? " ^ " : pr->id == PREDICATE_AND ? " && " :
+                             // " || ");
 
         dbuf_put_value(dbuf, ctx, pr->boolean.predicates[i]);
       }
@@ -714,7 +734,11 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
 
       predicate_inspect(pr->binary.left, ctx, dbuf, args, parens[0]);
 
-      dbuf_putstr(dbuf, ((const char* const[]){" + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pr->id - PREDICATE_ADD]);
+      dbuf_putstr(
+          dbuf,
+          ((const char* const[]){
+              " + ", " - ", " * ", " / ", " % ", " | ", " & ", " ** ", " atan2 "})[pr->id -
+                                                                                   PREDICATE_ADD]);
 
       predicate_inspect(pr->binary.right, ctx, dbuf, args, parens[1]);
       break;
@@ -751,7 +775,9 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
 
       dbuf_printf(dbuf, "%s.%s", arg, prop);
 
-      if((s = js_is_null_or_undefined(pr->property.predicate) ? (char*)0 : js_tosource(ctx, pr->property.predicate))) {
+      if((s = js_is_null_or_undefined(pr->property.predicate)
+                  ? (char*)0
+                  : js_tosource(ctx, pr->property.predicate))) {
         int i, arglen, slen = strlen(s);
         char* x = s;
 
@@ -760,9 +786,11 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
             if(!is_whitespace_char(s[i]) && s[i] != '=' && s[i] != '>')
               break;
 
-          if(!strncmp(&s[i], s, arglen) && !(is_alphanumeric_char(s[i + arglen]) || is_digit_char(s[i + arglen])))
+          if(!strncmp(&s[i], s, arglen) &&
+             !(is_alphanumeric_char(s[i + arglen]) || is_digit_char(s[i + arglen])))
             s += i + arglen;
-        } else if(!strncmp(s + 1, " => ", 4) && is_alphanumeric_char(s[5]) && is_whitespace_char(s[6])) {
+        } else if(!strncmp(s + 1, " => ", 4) && is_alphanumeric_char(s[5]) &&
+                  is_whitespace_char(s[6])) {
           s += 6;
         }
 

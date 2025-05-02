@@ -157,7 +157,8 @@ fail:
 }
 
 static JSValue
-js_directory_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_directory_method(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Directory* directory;
   JSValue ret = JS_UNDEFINED;
 
@@ -303,15 +304,22 @@ js_directory_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_directory_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_directory_class_id, &js_directory_class);
 
-  directory_ctor = JS_NewCFunction2(ctx, js_directory_constructor, "Directory", 1, JS_CFUNC_constructor, 0);
+  directory_ctor =
+      JS_NewCFunction2(ctx, js_directory_constructor, "Directory", 1, JS_CFUNC_constructor, 0);
   JSValue generator_proto = js_generator_prototype(ctx);
   // directory_proto = JS_NewObjectProto(ctx, generator_proto);
   directory_proto = JS_NewObject(ctx);
   JS_FreeValue(ctx, generator_proto);
 
   JS_SetPropertyFunctionList(ctx, directory_proto, js_directory_funcs, countof(js_directory_funcs));
-  JS_SetPropertyFunctionList(ctx, directory_proto, js_directory_static, countof(js_directory_static));
-  JS_SetPropertyFunctionList(ctx, directory_ctor, js_directory_static, countof(js_directory_static));
+  JS_SetPropertyFunctionList(ctx,
+                             directory_proto,
+                             js_directory_static,
+                             countof(js_directory_static));
+  JS_SetPropertyFunctionList(ctx,
+                             directory_ctor,
+                             js_directory_static,
+                             countof(js_directory_static));
 
   JS_SetClassProto(ctx, js_directory_class_id, directory_proto);
   JS_SetConstructor(ctx, directory_ctor, directory_proto);

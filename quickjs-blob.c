@@ -64,7 +64,8 @@ blob_free(JSRuntime* rt, Blob* blob) {
 
 InputBuffer
 blob_input(JSContext* ctx, Blob* blob) {
-  InputBuffer ret = {{{blob->data, blob->size}}, 0, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
+  InputBuffer ret = {
+      {{blob->data, blob->size}}, 0, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
 
   return ret;
 }
@@ -149,13 +150,15 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
       for(i = 0; i < len; i++) {
         Blob* other;
         JSValue item = JS_GetPropertyUint32(ctx, argv[0], i);
-        parts[i] = (other = js_blob_data(ctx, item)) ? blob_input(ctx, other) : js_input_chars(ctx, item);
+        parts[i] =
+            (other = js_blob_data(ctx, item)) ? blob_input(ctx, other) : js_input_chars(ctx, item);
         size += parts[i].size;
         JS_FreeValue(ctx, item);
       }
 
       for(i = 0; i < len; i++) {
-        if(blob_write(ctx, blob, input_buffer_data(&parts[i]), input_buffer_length(&parts[i])) == -1) {
+        if(blob_write(ctx, blob, input_buffer_data(&parts[i]), input_buffer_length(&parts[i])) ==
+           -1) {
 
           while(i < len)
             input_buffer_free(&parts[i++], ctx);

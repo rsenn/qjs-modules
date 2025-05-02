@@ -281,7 +281,8 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         alen -= n;
       }
 
-      ret = magic == PATH_SKIP_SEPARATOR ? JS_NewUint32(ctx, n + path_separator2(a, alen)) : JS_NewBool(ctx, path_separator2(a, alen) == alen);
+      ret = magic == PATH_SKIP_SEPARATOR ? JS_NewUint32(ctx, n + path_separator2(a, alen))
+                                         : JS_NewBool(ctx, path_separator2(a, alen) == alen);
       break;
     }
 
@@ -324,7 +325,8 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 
 static JSValue
-js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_path_method_dbuf(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char *a = 0, *b = 0;
   DynBuf db = DBUF_INIT_0();
   size_t alen = 0, blen = 0;

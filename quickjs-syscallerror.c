@@ -13,7 +13,8 @@
  * @{
  */
 VISIBLE JSClassID js_syscallerror_class_id = 0;
-VISIBLE JSValue syscallerror_proto = {{0}, JS_TAG_UNDEFINED}, syscallerror_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSValue syscallerror_proto = {{0}, JS_TAG_UNDEFINED},
+                syscallerror_ctor = {{0}, JS_TAG_UNDEFINED};
 
 int js_syscallerror_init(JSContext*, JSModuleDef*);
 static const char* error_get(int number);
@@ -99,7 +100,10 @@ js_syscallerror_throw(JSContext* ctx, const char* syscall) {
 }
 
 static JSValue
-js_syscallerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+js_syscallerror_constructor(JSContext* ctx,
+                            JSValueConst new_target,
+                            int argc,
+                            JSValueConst argv[]) {
   SyscallError* err;
   JSValue proto, obj = JS_UNDEFINED, st = JS_UNDEFINED;
 
@@ -156,7 +160,13 @@ syscallerror_dump(SyscallError* err, DynBuf* dbuf) {
       dbuf_putstr(dbuf, ": ");
 
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
-    dbuf->size += FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err->number, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (void*)dbuf_reserve(dbuf, 256), 256, NULL);
+    dbuf->size += FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                                NULL,
+                                err->number,
+                                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                                (void*)dbuf_reserve(dbuf, 256),
+                                256,
+                                NULL);
 
     while(dbuf->size > 0) {
       if(dbuf->buf[dbuf->size - 1] > 0x20)
@@ -187,7 +197,8 @@ enum {
 };
 
 static JSValue
-js_syscallerror_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_syscallerror_method(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   SyscallError* err;
 
@@ -220,7 +231,8 @@ enum {
 };
 
 static JSValue
-js_syscallerror_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_syscallerror_functions(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
 
   switch(magic) {
@@ -706,13 +718,20 @@ js_syscallerror_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_syscallerror_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_syscallerror_class_id, &js_syscallerror_class);
 
-  syscallerror_ctor = JS_NewCFunction2(ctx, js_syscallerror_constructor, "SyscallError", 1, JS_CFUNC_constructor, 0);
+  syscallerror_ctor = JS_NewCFunction2(
+      ctx, js_syscallerror_constructor, "SyscallError", 1, JS_CFUNC_constructor, 0);
   syscallerror_proto = JS_NewObjectProto(ctx, error);
 
   JS_FreeValue(ctx, error);
 
-  JS_SetPropertyFunctionList(ctx, syscallerror_ctor, js_syscallerror_defines, countof(js_syscallerror_defines));
-  JS_SetPropertyFunctionList(ctx, syscallerror_proto, js_syscallerror_proto_funcs, countof(js_syscallerror_proto_funcs));
+  JS_SetPropertyFunctionList(ctx,
+                             syscallerror_ctor,
+                             js_syscallerror_defines,
+                             countof(js_syscallerror_defines));
+  JS_SetPropertyFunctionList(ctx,
+                             syscallerror_proto,
+                             js_syscallerror_proto_funcs,
+                             countof(js_syscallerror_proto_funcs));
 
   JS_SetClassProto(ctx, js_syscallerror_class_id, syscallerror_proto);
   JS_SetConstructor(ctx, syscallerror_ctor, syscallerror_proto);

@@ -152,7 +152,8 @@ js_magic_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
   }
 
-  return str ? JS_NewString(ctx, str) : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
+  return str ? JS_NewString(ctx, str)
+             : JS_ThrowInternalError(ctx, "libmagic error: %s", magic_error(cookie));
 }
 
 static JSValue
@@ -299,11 +300,22 @@ js_magic_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   if(argc == 0)
     return JS_ThrowInternalError(ctx, "Magic(arg)");
 
-  return js_magic_function(ctx, this_val, argc, argv, JS_IsNumber(argv[0]) ? LIBMAGIC_DESCRIPTOR : JS_IsString(argv[0]) ? LIBMAGIC_FILE : LIBMAGIC_BUFFER);
+  return js_magic_function(ctx,
+                           this_val,
+                           argc,
+                           argv,
+                           JS_IsNumber(argv[0])   ? LIBMAGIC_DESCRIPTOR
+                           : JS_IsString(argv[0]) ? LIBMAGIC_FILE
+                                                  : LIBMAGIC_BUFFER);
 }
 
 static JSValue
-js_magic_call(JSContext* ctx, JSValueConst func_obj, JSValueConst this_val, int argc, JSValueConst argv[], int flags) {
+js_magic_call(JSContext* ctx,
+              JSValueConst func_obj,
+              JSValueConst this_val,
+              int argc,
+              JSValueConst argv[],
+              int flags) {
   return js_magic_exec(ctx, func_obj, argc, argv);
 }
 
@@ -317,7 +329,9 @@ js_magic_finalizer(JSRuntime* rt, JSValue val) {
   }
 }
 
-static JSClassDef js_magic_class = {.class_name = "Magic", .finalizer = js_magic_finalizer, .call = js_magic_call};
+static JSClassDef js_magic_class = {.class_name = "Magic",
+                                    .finalizer = js_magic_finalizer,
+                                    .call = js_magic_call};
 
 static const JSCFunctionListEntry js_magic_funcs[] = {
     JS_CGETSET_MAGIC_DEF("error", js_magic_get, 0, LIBMAGIC_ERROR),

@@ -160,7 +160,8 @@ child_process_spawn(ChildProcess* cp) {
   args = argv_to_string(cp->args, ' ');
   env = cp->env ? argv_to_string(cp->env, '\0') : NULL;
 
-  success = CreateProcessA(file, args, &sattr, NULL, TRUE, CREATE_NO_WINDOW, env, cp->cwd, &sinfo, &pinfo);
+  success = CreateProcessA(
+      file, args, &sattr, NULL, TRUE, CREATE_NO_WINDOW, env, cp->cwd, &sinfo, &pinfo);
 
   free(args);
 
@@ -189,7 +190,8 @@ child_process_spawn(ChildProcess* cp) {
     if(cp->child_fds[i] >= 0)
       posix_spawn_file_actions_adddup2(&actions, cp->child_fds[i], i);
 
-  if((cp->use_path ? posix_spawnp : posix_spawn)(&pid, cp->file, &actions, &attr, cp->args, cp->env)) {
+  if((cp->use_path ? posix_spawnp
+                   : posix_spawn)(&pid, cp->file, &actions, &attr, cp->args, cp->env)) {
     fprintf(stderr, "posix_spawnp error: %s\n", strerror(errno));
     return -1;
   }
@@ -373,8 +375,10 @@ child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
 }
 
 const char* child_process_signals[32] = {
-    0,           "SIGHUP",  "SIGINT",  "SIGQUIT", "SIGILL",  "SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE",  "SIGKILL", "SIGUSR1",   "SIGSEGV", "SIGUSR2",  "SIGPIPE", "SIGALRM", "SIGTERM",
-    "SIGSTKFLT", "SIGCHLD", "SIGCONT", "SIGSTOP", "SIGTSTP", "SIGTTIN", "SIGTTOU", "SIGURG", "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
+    0,           "SIGHUP",  "SIGINT",    "SIGQUIT", "SIGILL",   "SIGTRAP", "SIGABRT", "SIGBUS",
+    "SIGFPE",    "SIGKILL", "SIGUSR1",   "SIGSEGV", "SIGUSR2",  "SIGPIPE", "SIGALRM", "SIGTERM",
+    "SIGSTKFLT", "SIGCHLD", "SIGCONT",   "SIGSTOP", "SIGTSTP",  "SIGTTIN", "SIGTTOU", "SIGURG",
+    "SIGXCPU",   "SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH", "SIGIO",   "SIGPWR",  "SIGSYS",
 };
 /**
  * @}

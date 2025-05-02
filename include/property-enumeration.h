@@ -45,7 +45,8 @@ int property_enumeration_init(PropertyEnumeration*, JSContext* ctx, JSValue obje
 void property_enumeration_dump(PropertyEnumeration*, JSContext* ctx, DynBuf* out);
 JSValue property_enumeration_path_tostring(JSContext*, JSValue this_val, int argc, JSValue argv[]);
 // int32_t property_enumeration_deepest(JSContext*, JSValue object, int32_t max);
-int property_enumeration_predicate(PropertyEnumeration*, JSContext* ctx, JSValue fn, JSValue this_arg);
+int
+property_enumeration_predicate(PropertyEnumeration*, JSContext* ctx, JSValue fn, JSValue this_arg);
 void property_enumeration_reset(PropertyEnumeration*, JSRuntime*);
 JSValue property_enumeration_key(const PropertyEnumeration*, JSContext*);
 

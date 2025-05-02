@@ -13,13 +13,17 @@ int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst obj, int flags) {
   *it = (PropertyEnumeration)PROPENUM_INIT();
 
-  if(!(it->tab_atom = js_object_properties(ctx, &it->tab_atom_len, obj, flags & ~(PROPENUM_SORT_ATOMS)))) {
+  if(!(it->tab_atom =
+           js_object_properties(ctx, &it->tab_atom_len, obj, flags & ~(PROPENUM_SORT_ATOMS)))) {
     it->tab_atom_len = 0;
     return -1;
   }
 
   if(flags & PROPENUM_SORT_ATOMS)
-    qsort(it->tab_atom, it->tab_atom_len, sizeof(JSAtom), (int (*)(const void*, const void*)) & compare_jsatom);
+    qsort(it->tab_atom,
+          it->tab_atom_len,
+          sizeof(JSAtom),
+          (int (*)(const void*, const void*)) & compare_jsatom);
 
   it->idx = 0;
   it->obj = obj;
@@ -32,7 +36,9 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
   size_t i;
 
   dbuf_putstr(out, "{ obj: 0x");
-  dbuf_printf(out, "%p", JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : NULL);
+  dbuf_printf(out,
+              "%p",
+              JS_VALUE_GET_TAG(it->obj) == JS_TAG_OBJECT ? JS_VALUE_GET_OBJ(it->obj) : NULL);
   dbuf_putstr(out, ", idx: ");
   dbuf_printf(out, "%u", it->idx);
   dbuf_putstr(out, ", len: ");
@@ -56,7 +62,10 @@ property_enumeration_dump(PropertyEnumeration* it, JSContext* ctx, DynBuf* out) 
 }
 
 JSValue
-property_enumeration_path_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+property_enumeration_path_tostring(JSContext* ctx,
+                                   JSValueConst this_val,
+                                   int argc,
+                                   JSValueConst argv[]) {
   JSValue separator = JS_NewString(ctx, ".");
   JSValue ret = js_invoke(ctx, this_val, "join", 1, &separator);
 
@@ -133,7 +142,10 @@ property_enumeration_key(const PropertyEnumeration* it, JSContext* ctx) {
 }
 
 int
-property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueConst fn, JSValueConst this_arg) {
+property_enumeration_predicate(PropertyEnumeration* it,
+                               JSContext* ctx,
+                               JSValueConst fn,
+                               JSValueConst this_arg) {
   JSValue ret;
   JSValueConst argv[3] = {
       JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx]),
@@ -148,7 +160,8 @@ property_enumeration_predicate(PropertyEnumeration* it, JSContext* ctx, JSValueC
     ret = JS_FALSE;
   }
 
-  int32_t result = JS_IsNumber(ret) ? js_value_toint32_free(ctx, ret) : js_value_tobool_free(ctx, ret);
+  int32_t result =
+      JS_IsNumber(ret) ? js_value_toint32_free(ctx, ret) : js_value_tobool_free(ctx, ret);
 
   JS_FreeValue(ctx, argv[0]);
   JS_FreeValue(ctx, argv[1]);
@@ -167,7 +180,11 @@ property_recursion_path(const Vector* vec, JSContext* ctx) {
     JS_SetPropertyUint32(ctx, ret, i++, key);
   }
 
-  JS_DefinePropertyValueStr(ctx, ret, "toString", JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0), JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
+  JS_DefinePropertyValueStr(ctx,
+                            ret,
+                            "toString",
+                            JS_NewCFunction(ctx, property_enumeration_path_tostring, "toString", 0),
+                            JS_PROP_CONFIGURABLE | JS_PROP_WRITABLE);
 
   return ret;
 }

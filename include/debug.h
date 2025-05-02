@@ -54,7 +54,8 @@ void debug_js_free_rt(JSRuntime*, void*, const char*, int line);
 #define js_malloc_rt(rt, size) debug_js_malloc_rt(rt, size, __FILE__, __LINE__)
 #define js_mallocz_rt(rt, size) debug_js_mallocz_rt(rt, size, __FILE__, __LINE__)
 #define js_realloc_rt(rt, ptr, size) debug_js_realloc_rt(rt, ptr, size, __FILE__, __LINE__)
-#define js_malloc_usable_size_rt(rt, ptr) debug_js_malloc_usable_size_rt(rt, ptr, __FILE__, __LINE__)
+#define js_malloc_usable_size_rt(rt, ptr) \
+  debug_js_malloc_usable_size_rt(rt, ptr, __FILE__, __LINE__)
 #define js_free_rt(rt, ptr) debug_js_free_rt(rt, ptr, __FILE__, __LINE__)
 #endif
 

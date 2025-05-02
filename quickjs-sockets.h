@@ -126,7 +126,8 @@ enum SocketCalls {
 
 #define socket_fd(sock) ((int16_t)(uint16_t)(sock).fd)
 #define socket_closed(sock) ((sock).sysno == SYSCALL_CLOSE && (sock).ret == 0)
-#define socket_eof(sock) (((sock).sysno == SYSCALL_RECV || (sock).sysno == SYSCALL_RECVFROM) && (sock).ret == 0)
+#define socket_eof(sock) \
+  (((sock).sysno == SYSCALL_RECV || (sock).sysno == SYSCALL_RECVFROM) && (sock).ret == 0)
 #define socket_open(sock) ((sock).fd != UINT16_MAX && !socket_closed(sock))
 #define socket_retval(sock) ((sock).ret)
 #if defined(_WIN32) && !defined(__MSYS__) && !defined(__CYGWIN__)
@@ -201,7 +202,8 @@ sockaddr_addrlen(const SockAddr* sa) {
     case AF_AX25: return sizeof(sa->ax25.sax25_call);
     case AF_X25: return sizeof(sa->x25.sx25_addr);
     case AF_APPLETALK: return sizeof(sa->at.sat_addr);
-    case AF_PHONET: return sizeof(sa->pn.spn_obj) + sizeof(sa->pn.spn_dev) + sizeof(sa->pn.spn_resource);
+    case AF_PHONET:
+      return sizeof(sa->pn.spn_obj) + sizeof(sa->pn.spn_dev) + sizeof(sa->pn.spn_resource);
 #endif
   }
 

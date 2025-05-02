@@ -315,7 +315,9 @@ options_object(InspectOptions* opts, JSContext* ctx) {
   arr = JS_NewArray(ctx);
   n = 0;
 
-  vector_foreach_t(&opts->hide_keys, key) { JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom)); }
+  vector_foreach_t(&opts->hide_keys, key) {
+    JS_SetPropertyUint32(ctx, arr, n++, js_atom_tovalue(ctx, key->atom));
+  }
 
   JS_SetPropertyStr(ctx, ret, "hideKeys", arr);
   JS_SetPropertyStr(ctx, ret, "numberBase", js_number_new(ctx, opts->number_base));
@@ -377,13 +379,21 @@ put_escaped(Writer* wr, const char* str, size_t len) {
   size_t i = 0;
   const uint8_t *pos, *end, *next;
   static const uint8_t table[256] = {
-      'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'b', 't', 'n', 'v', 'f', 'r', 'x', 'x', 'x', 'x', 'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0,   0,   0,   0,
-      0,   0,   '\'', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   '\\', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   'x', 0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
-      0,   0,   0,    0,   0,   0,   'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
-      'u', 0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      'x', 'x', 'x',  'x',  'x', 'x', 'x', 'x', 'b', 't', 'n', 'v', 'f', 'r', 'x', 'x', 'x', 'x',
+      'x', 'x', 'x',  'x',  'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 0,   0,   0,   0,
+      0,   0,   0,    '\'', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   '\\', 0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   'x', 0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,    0,   0,   0,   0,   0,   0,   0,   'u', 'u', 'u', 'u', 'u', 'u', 'u',
+      'u', 'u', 'u',  'u',  'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u', 'u',
+      'u', 'u', 'u',  'u',  'u', 'u', 'u', 0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,    0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+      0,   0,   0,    0,
   };
 
   for(pos = (const uint8_t*)str, end = pos + len; pos < end; pos = next) {
@@ -507,7 +517,11 @@ inspect_map(Inspector* insp, JSValueConst obj, int32_t level) {
     return 0;
   }
 
-  writer_puts(wr, opts->reparseable ? (opts->colors ? COLOR_LIGHTRED "new" COLOR_YELLOW " Map" COLOR_CYAN "(" COLOR_NONE "[" : "new Map([") : (opts->colors ? COLOR_LIGHTRED "Map" COLOR_NONE " {" : "Map {"));
+  writer_puts(wr,
+              opts->reparseable ? (opts->colors ? COLOR_LIGHTRED
+                                       "new" COLOR_YELLOW " Map" COLOR_CYAN "(" COLOR_NONE "["
+                                                : "new Map([")
+                                : (opts->colors ? COLOR_LIGHTRED "Map" COLOR_NONE " {" : "Map {"));
 
   if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
@@ -572,7 +586,11 @@ inspect_set(Inspector* insp, JSValueConst obj, int32_t level) {
     return 0;
   }
 
-  writer_puts(wr, opts->reparseable ? (opts->colors ? COLOR_LIGHTRED "new" COLOR_YELLOW " Set" COLOR_CYAN "(" COLOR_NONE "[" : "new Set([") : (opts->colors ? COLOR_LIGHTRED "Set" COLOR_NONE " [" : "Set ["));
+  writer_puts(wr,
+              opts->reparseable ? (opts->colors ? COLOR_LIGHTRED
+                                       "new" COLOR_YELLOW " Set" COLOR_CYAN "(" COLOR_NONE "["
+                                                : "new Set([")
+                                : (opts->colors ? COLOR_LIGHTRED "Set" COLOR_NONE " [" : "Set ["));
 
   if(IS_COMPACT(depth + 1))
     writer_putc(wr, ' ');
@@ -799,8 +817,9 @@ inspect_number(Inspector* insp, JSValueConst value, int32_t depth) {
       writer_write(wr, str, len);
   }
 
-  /*if(opts->number_base == 16 && (!JS_TAG_IS_FLOAT64(tag) || (isfinite(JS_VALUE_GET_FLOAT64(value)) && floor(JS_VALUE_GET_FLOAT64(value)) ==
-  JS_VALUE_GET_FLOAT64(value)))) { int64_t num; char buf[FMT_XLONG];
+  /*if(opts->number_base == 16 && (!JS_TAG_IS_FLOAT64(tag) || (isfinite(JS_VALUE_GET_FLOAT64(value))
+  && floor(JS_VALUE_GET_FLOAT64(value)) == JS_VALUE_GET_FLOAT64(value)))) { int64_t num; char
+  buf[FMT_XLONG];
 
     JS_ToInt64(ctx, &num, value);
 
@@ -1136,7 +1155,10 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
     }
 
     case JS_TAG_BOOL: {
-      writer_puts(wr, JS_VALUE_GET_BOOL(value) ? (opts->colors ? COLOR_BROWN "true" COLOR_NONE : "true") : (opts->colors ? COLOR_BROWN "false" COLOR_NONE : "false"));
+      writer_puts(wr,
+                  JS_VALUE_GET_BOOL(value)
+                      ? (opts->colors ? COLOR_BROWN "true" COLOR_NONE : "true")
+                      : (opts->colors ? COLOR_BROWN "false" COLOR_NONE : "false"));
       break;
     }
 
@@ -1256,7 +1278,10 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   if((ret = inspect_object(insp, obj, depth)))
     return ret;
 
-  it = property_recursion_push(&insp->hier, ctx, JS_DupValue(ctx, obj), PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
+  it = property_recursion_push(&insp->hier,
+                               ctx,
+                               JS_DupValue(ctx, obj),
+                               PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
   is_array = js_is_array(ctx, obj);
 
   if(it) {
@@ -1271,7 +1296,11 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
     index = property_enumeration_index(it);
 
 #ifdef DEBUG_OUTPUT
-    printf("%s()[0] depth: %u idx: %u/%u\n", __func__, property_recursion_depth(&insp->hier), index, it->tab_atom_len);
+    printf("%s()[0] depth: %u idx: %u/%u\n",
+           __func__,
+           property_recursion_depth(&insp->hier),
+           index,
+           it->tab_atom_len);
 #endif
 
     if(!options_hidden(opts, property_enumeration_atom(it))) {
@@ -1311,7 +1340,10 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
         }
 
         if(ret != 1 && is_object && !is_function) {
-          it = property_recursion_enter(&insp->hier, ctx, 0, PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
+          it = property_recursion_enter(&insp->hier,
+                                        ctx,
+                                        0,
+                                        PROPENUM_DEFAULT_FLAGS | JS_GPN_RECURSIVE);
           is_array = js_is_array(ctx, value);
 
           if(it) {
@@ -1335,7 +1367,10 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       }
     }
 
-    while(!(it = it ? it : property_recursion_top(&insp->hier), it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS) : property_enumeration_next(it)))) {
+    while(
+        !(it = it ? it : property_recursion_top(&insp->hier),
+          it = (opts->proto_chain ? property_enumeration_prototype(it, ctx, PROPENUM_DEFAULT_FLAGS)
+                                  : property_enumeration_next(it)))) {
 
       is_array = js_is_array(ctx, (it = property_recursion_top(&insp->hier))->obj);
 
@@ -1351,7 +1386,11 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
         --depth;
 
 #ifdef DEBUG_OUTPUT
-      printf("%s()[1] depth: %u %u it: %p\n", __func__, property_recursion_depth(&insp->hier), depth, it);
+      printf("%s()[1] depth: %u %u it: %p\n",
+             __func__,
+             property_recursion_depth(&insp->hier),
+             depth,
+             it);
 #endif
 
       writer_puts(wr, is_array ? "]" : "}");
@@ -1362,7 +1401,8 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
   }
 
 #ifdef DEBUG_OUTPUT
-  printf("%s()[2] depth: %u %u it: %p\n", __func__, property_recursion_depth(&insp->hier), depth, it);
+  printf(
+      "%s()[2] depth: %u %u it: %p\n", __func__, property_recursion_depth(&insp->hier), depth, it);
 #endif
 
   property_recursion_free(&insp->hier, JS_GetRuntime(ctx));

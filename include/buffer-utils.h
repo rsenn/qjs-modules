@@ -33,7 +33,8 @@ size_t byte_rchrs(const char* in, size_t len, const char needles[], size_t nn);
 #define DBUF_INIT_CTX(ctx) \
   (DynBuf) { 0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, JS_GetRuntime(ctx) }
 
-extern const uint8_t escape_url_tab[256], escape_noquote_tab[256], escape_singlequote_tab[256], escape_doublequote_tab[256], escape_backquote_tab[256];
+extern const uint8_t escape_url_tab[256], escape_noquote_tab[256], escape_singlequote_tab[256],
+    escape_doublequote_tab[256], escape_backquote_tab[256];
 
 char* dbuf_at_n(const DynBuf*, size_t, size_t* n, char sep);
 const char* dbuf_last_line(DynBuf*, size_t*);
@@ -340,7 +341,8 @@ input_buffer_remain(const InputBuffer* in) {
   return input_buffer_length(in) - in->pos;
 }
 
-int js_offset_length(JSContext*, int64_t size, int argc, JSValueConst argv[], OffsetLength* off_len_p);
+int
+js_offset_length(JSContext*, int64_t size, int argc, JSValueConst argv[], OffsetLength* off_len_p);
 int js_index_range(JSContext*, int64_t size, int argc, JSValueConst argv[], IndexRange* idx_rng_p);
 
 /**

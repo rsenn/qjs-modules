@@ -103,7 +103,10 @@ is_module(JSContext* ctx, const char* module_name) {
   BOOL yes = path_isfile1(module_name);
 
   if(debug_module_loader > 2)
-    printf("%-20s (module_name=\"%s\")=%s\n", __FUNCTION__, module_name, ((yes) ? "TRUE" : "FALSE"));
+    printf("%-20s (module_name=\"%s\")=%s\n",
+           __FUNCTION__,
+           module_name,
+           ((yes) ? "TRUE" : "FALSE"));
 
   return yes ? js_strdup(ctx, module_name) : 0;
 }
@@ -148,7 +151,8 @@ typedef struct {
   extern const uint8_t qjsc_##name[]; \
   extern const uint32_t qjsc_##name##_size;
 
-#define jsm_module_extern_native(name) extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
+#define jsm_module_extern_native(name) \
+  extern JSModuleDef* js_init_module_##name(JSContext*, const char*)
 
 #define jsm_module_record_compiled(name) \
   (BuiltinModule) { #name, 0, qjsc_##name, qjsc_##name##_size, 0, FALSE }
@@ -435,7 +439,8 @@ jsm_init_modules(JSContext* ctx) {
   jsm_builtin_native(tree_walker);
   jsm_builtin_native(xml);
 
-#define jsm_builtin_compiled(name) vector_push(&jsm_builtin_modules, jsm_module_record_compiled(name));
+#define jsm_builtin_compiled(name) \
+  vector_push(&jsm_builtin_modules, jsm_module_record_compiled(name));
 
   jsm_builtin_compiled(console);
   jsm_builtin_compiled(events);
@@ -580,7 +585,12 @@ jsm_search_suffix(JSContext* ctx, const char* module_name, ModuleLoader* fn) {
   char *s, *t = 0;
 
   if(debug_module_loader > 3)
-    printf("%-20s (module_name=\"%s\", fn=%s)\n", __FUNCTION__, module_name, fn == &is_module ? "is_module" : fn == &jsm_search_path ? "jsm_search_path" : "<unknown>");
+    printf("%-20s (module_name=\"%s\", fn=%s)\n",
+           __FUNCTION__,
+           module_name,
+           fn == &is_module         ? "is_module"
+           : fn == &jsm_search_path ? "jsm_search_path"
+                                    : "<unknown>");
 
   if(!(s = js_mallocz(ctx, (len + 31) & (~0xf))))
     return 0;
@@ -612,8 +622,13 @@ jsm_search_module(JSContext* ctx, const char* module_name) {
   char* s = suffix ? fn(ctx, module_name) : jsm_search_suffix(ctx, module_name, fn);
 
   if(debug_module_loader >= 2)
-    printf(
-        "%-20s (module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n", __FUNCTION__, module_name, ((search) ? "TRUE" : "FALSE"), ((suffix) ? "TRUE" : "FALSE"), search ? "search_module" : "is_module", s);
+    printf("%-20s (module_name=\"%s\") search=%s suffix=%s fn=%s result=%s\n",
+           __FUNCTION__,
+           module_name,
+           ((search) ? "TRUE" : "FALSE"),
+           ((suffix) ? "TRUE" : "FALSE"),
+           search ? "search_module" : "is_module",
+           s);
 
   return s;
 }
@@ -801,7 +816,8 @@ jsm_module_json(JSContext* ctx, const char* name) {
   js_free(ctx, ptr);
   dbuf_0(&db);
 
-  ret = JS_Eval(ctx, (const char*)db.buf, db.size, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+  ret = JS_Eval(
+      ctx, (const char*)db.buf, db.size, name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
   if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE)
     m = JS_VALUE_GET_PTR(ret);
   JS_FreeValue(ctx, ret);
@@ -816,7 +832,8 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
 
   for(;;) {
     if(debug_module_loader - !strcmp(module_name, s) >= 3)
-      printf("%-20s [1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
+      printf(
+          "%-20s [1](module_name=\"%s\", opaque=%p) s=%s\n", __FUNCTION__, module_name, opaque, s);
 
     if(has_dot_or_slash(s))
       if(path_isfile1(s))
@@ -924,7 +941,11 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
       }
 
       dbuf_0(&code);
-      module = JS_Eval(ctx, (const char*)code.buf, code.size, module_name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+      module = JS_Eval(ctx,
+                       (const char*)code.buf,
+                       code.size,
+                       module_name,
+                       JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
       dbuf_free(&code);
 
       if(!JS_IsException(module)) {
@@ -949,7 +970,9 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
 
 restart:
   if(jsm_stack_find(name) != 0) {
-    printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n", name, jsm_stack_string());
+    printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n",
+           name,
+           jsm_stack_string());
     // exit(1);
   }
 
@@ -1206,7 +1229,8 @@ jsm_modules_array(JSContext* ctx, JSValueConst this_val, int magic) {
 
       namelen = str_find(&name[namestart], ".js");
 
-      JS_DefinePropertyValueStr(ctx, obj, "name", JS_NewStringLen(ctx, &name[namestart], namelen), JS_PROP_ENUMERABLE);
+      JS_DefinePropertyValueStr(
+          ctx, obj, "name", JS_NewStringLen(ctx, &name[namestart], namelen), JS_PROP_ENUMERABLE);
       JS_SetPropertyStr(ctx, obj, "builtin", JS_TRUE);
 
       JS_FreeCString(ctx, name);
@@ -1242,7 +1266,8 @@ jsm_trace_malloc_usable_size(void* ptr) {
   return malloc_size(ptr);
 #elif defined(_WIN32)
   return _msize(ptr);
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
+    defined(DONT_HAVE_MALLOC_USABLE_SIZE)
   return 0;
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
   return malloc_usable_size(ptr);
@@ -1275,7 +1300,9 @@ static void
         if(!(ptr = va_arg(ap, void*)))
           printf("0");
         else
-          printf("H%+06lld.%zd", jsm_trace_malloc_ptr_offset(ptr, s->opaque), jsm_trace_malloc_usable_size(ptr));
+          printf("H%+06lld.%zd",
+                 jsm_trace_malloc_ptr_offset(ptr, s->opaque),
+                 jsm_trace_malloc_usable_size(ptr));
 
         fmt++;
         continue;
@@ -1376,7 +1403,8 @@ static const JSMallocFunctions trace_mf = {
     malloc_size,
 #elif defined(_WIN32)
     (size_t(*)(const void*))_msize,
-#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
+#elif defined(EMSCRIPTEN) || defined(__dietlibc__) || defined(__MSYS__) || defined(ANDROID) || \
+    defined(DONT_HAVE_MALLOC_USABLE_SIZE_DEFINITION)
     0,
 #elif defined(__linux__) || defined(HAVE_MALLOC_USABLE_SIZE)
     (size_t(*)(const void*))malloc_usable_size,
@@ -1489,7 +1517,8 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSModuleDef* m = 0;
   const char* name = 0;
 
-  if((magic >= RESOLVE_MODULE || (magic == NORMALIZE_MODULE && JS_IsModule(argv[0]))) && magic < MODULE_LOADER) {
+  if((magic >= RESOLVE_MODULE || (magic == NORMALIZE_MODULE && JS_IsModule(argv[0]))) &&
+     magic < MODULE_LOADER) {
     if(!(m = js_module_def(ctx, argv[0])))
       return JS_ThrowTypeError(ctx,
                                "%s: argument 1 expecting module",
@@ -1787,7 +1816,8 @@ int
 main(int argc, char** argv) {
   struct trace_malloc_data trace_data = {0};
   int optind;
-  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1, dump_unhandled_promise_rejection = 0;
+  char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1,
+       dump_unhandled_promise_rejection = 0;
   size_t memory_limit = 0;
   const char* include_list[32];
   size_t i, include_count = 0;
@@ -2054,7 +2084,10 @@ main(int argc, char** argv) {
 
     // dbuf_putstr(&db, "import require from 'require';\nglobalThis.require = require;\n");
 
-    JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
+    JS_SetPropertyFunctionList(ctx,
+                               JS_GetGlobalObject(ctx),
+                               jsm_global_funcs,
+                               countof(jsm_global_funcs));
 
     if(load_std) {
       const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = "
@@ -2087,12 +2120,13 @@ main(int argc, char** argv) {
         goto fail;
     }
 
-    js_eval_str(ctx,
-                "import { Console } from 'console';\n"
-                "import { out } from 'std';\n"
-                "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n",
-                0,
-                JS_EVAL_TYPE_MODULE);
+    js_eval_str(
+        ctx,
+        "import { Console } from 'console';\n"
+        "import { out } from 'std';\n"
+        "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n",
+        0,
+        JS_EVAL_TYPE_MODULE);
 
     if(!interactive) {
 #ifndef _WIN32
@@ -2157,7 +2191,12 @@ main(int argc, char** argv) {
           best[j] = ms;
       }
     }
-    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n", best[1] + best[2] + best[3] + best[4], best[1], best[2], best[3], best[4]);
+    printf("\nInstantiation times (ms): %.3f = %.3f+%.3f+%.3f+%.3f\n",
+           best[1] + best[2] + best[3] + best[4],
+           best[1],
+           best[2],
+           best[3],
+           best[4]);
   }
 
   return 0;

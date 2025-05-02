@@ -194,7 +194,8 @@ module_meta_obj(JSContext* ctx, JSModuleDef* m) {
 }
 
 static JSValue
-call_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* data) {
+call_module_func(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* data) {
   union {
     JSModuleInitFunc* init_func;
     int32_t i[2];
@@ -259,7 +260,8 @@ module_exports_find(JSContext* ctx, JSModuleDef* m, JSAtom atom) {
 
     if(entry->export_name == atom) {
       JSVarRef* ref = entry->u.local.var_ref;
-      JSValue export = ref ? JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value) : JS_UNDEFINED;
+      JSValue export =
+          ref ? JS_DupValue(ctx, ref->pvalue ? *ref->pvalue : ref->value) : JS_UNDEFINED;
       return export;
     }
   }
@@ -361,7 +363,8 @@ JSModuleDef*
 js_module_find_fwd(JSContext* ctx, const char* name, JSModuleDef* start) {
   struct list_head* el;
 
-  for(el = start ? &start->link : ctx->loaded_modules.next; el != &ctx->loaded_modules; el = el->next)
+  for(el = start ? &start->link : ctx->loaded_modules.next; el != &ctx->loaded_modules;
+      el = el->next)
   /*list_for_each(el, &ctx->loaded_modules)*/ {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     const char* str = module_namecstr(ctx, m);
@@ -394,7 +397,8 @@ JSModuleDef*
 js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
   struct list_head* el;
 
-  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules; el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
+  for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules;
+      el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
     const char* str = module_namecstr(ctx, m);
     BOOL match = !strcmp(str, name);
@@ -626,7 +630,10 @@ js_opcode_list(JSContext* ctx, BOOL as_object) {
     if(i >= OP_TEMP_START && i < OP_TEMP_END)
       continue;
 
-    JS_SetPropertyUint32(ctx, ret, j++, (as_object ? js_opcode_object : js_opcode_array)(ctx, &js_opcodes[i]));
+    JS_SetPropertyUint32(ctx,
+                         ret,
+                         j++,
+                         (as_object ? js_opcode_object : js_opcode_array)(ctx, &js_opcodes[i]));
   }
 
   return ret;

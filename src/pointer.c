@@ -71,7 +71,8 @@ pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
   return TRUE;
 }
 
-#define pointer_color(s) ((i) >= (size_t)(index) ? COLOR_RED : (is_int ? COLOR_LIGHTGRAY : COLOR_YELLOW))
+#define pointer_color(s) \
+  ((i) >= (size_t)(index) ? COLOR_RED : (is_int ? COLOR_LIGHTGRAY : COLOR_YELLOW))
 
 void
 pointer_dump(Pointer const* ptr, Writer* wr, BOOL color, ssize_t index, JSContext* ctx) {
@@ -124,7 +125,9 @@ pointer_serialize(Pointer const* ptr, Writer* wr, JSContext* ctx) {
       char buf[FMT_ULONG];
 
       writer_putc(wr, '[');
-      writer_write(wr, (const uint8_t*)buf, fmt_ulong(buf, idx /*js_atom_get_integer(ptr->atoms[i])*/));
+      writer_write(wr,
+                   (const uint8_t*)buf,
+                   fmt_ulong(buf, idx /*js_atom_get_integer(ptr->atoms[i])*/));
       writer_putc(wr, ']');
       continue;
     }
@@ -249,7 +252,8 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
 }
 
 Pointer*
-pointer_splice(Pointer* ptr, int64_t start, int64_t end, JSAtom* atoms, size_t ins, JSContext* ctx) {
+pointer_splice(
+    Pointer* ptr, int64_t start, int64_t end, JSAtom* atoms, size_t ins, JSContext* ctx) {
   Pointer* ret = 0;
   size_t i, del, len, newlen;
 

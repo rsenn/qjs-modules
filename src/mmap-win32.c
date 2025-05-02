@@ -70,7 +70,9 @@ mmap(void* addr, size_t len, int prot, int flags, int fd, long off) {
 
   long granularity = getgranularity();
 
-  if(off % getpagesize() || (!(flags & MAP_SHARED) && !(flags & MAP_PRIVATE)) || ((flags & MAP_SHARED) && (flags & MAP_PRIVATE)) || ((flags & MAP_FIXED) && ((LONG_PTR)addr % granularity)) || !len) {
+  if(off % getpagesize() || (!(flags & MAP_SHARED) && !(flags & MAP_PRIVATE)) ||
+     ((flags & MAP_SHARED) && (flags & MAP_PRIVATE)) ||
+     ((flags & MAP_FIXED) && ((LONG_PTR)addr % granularity)) || !len) {
     errno = EINVAL;
     return MAP_FAILED;
   }
@@ -118,7 +120,8 @@ mmap(void* addr, size_t len, int prot, int flags, int fd, long off) {
      * and hFile = INVALID_HANDLE_VALUE */
   }
 
-  hMap = CreateFileMapping(hFile, NULL, pageProtect, 0, hFile == INVALID_HANDLE_VALUE ? len : 0, NULL);
+  hMap =
+      CreateFileMapping(hFile, NULL, pageProtect, 0, hFile == INVALID_HANDLE_VALUE ? len : 0, NULL);
 
   if(hMap == NULL) {
     errno = EINVAL; /* what else ? */

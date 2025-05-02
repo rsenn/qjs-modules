@@ -18,7 +18,8 @@ typedef struct Pointer {
 #define POINTER_LENGTH(ptr) ((ptr)->n)
 #define POINTER_ATOMS(ptr) ((ptr)->atoms)
 
-#define POINTER_INDEX(ptr, ind) (((((signed)(ind)) % (signed)(ptr)->n) + (ptr)->n) % (signed)(ptr)->n)
+#define POINTER_INDEX(ptr, ind) \
+  (((((signed)(ind)) % (signed)(ptr)->n) + (ptr)->n) % (signed)(ptr)->n)
 #define POINTER_INRANGE(ptr, ind) ((ind) >= 0 && (ind) < (signed long)(ptr)->n)
 
 void pointer_reset(Pointer*, JSRuntime* rt);
@@ -29,7 +30,8 @@ char* pointer_tostring(Pointer const* ptr, BOOL color, ssize_t index, JSContext*
 void pointer_serialize(Pointer const*, Writer* db, JSContext*);
 size_t pointer_parse(Pointer*, const char* str, size_t len, JSContext*);
 Pointer* pointer_slice(Pointer*, int64_t start, int64_t end, JSContext*);
-Pointer* pointer_splice(Pointer*, int64_t start, int64_t count, JSAtom* atoms, size_t insert, JSContext*);
+Pointer*
+pointer_splice(Pointer*, int64_t start, int64_t count, JSAtom* atoms, size_t insert, JSContext*);
 BOOL pointer_fromatoms(Pointer*, JSAtom* vec, size_t len, JSContext*);
 JSValue pointer_shift(Pointer*, JSContext*);
 JSValue pointer_pop(Pointer*, JSContext*);
