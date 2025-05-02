@@ -11,6 +11,23 @@
  * \defgroup buffer-utils buffer-utils: Buffer Utilities
  * @{
  */
+typedef struct {
+  uint8_t* base;
+  size_t size;
+} MemoryBlock;
+
+typedef struct {
+  int64_t start, end;
+} IndexRange;
+
+typedef struct {
+  int64_t offset, length;
+} OffsetLength;
+
+typedef struct {
+  uint8_t *start, *end;
+} PointerRange;
+
 int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 #define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
 
@@ -97,11 +114,6 @@ size_t dbuf_bitflags(DynBuf* db, uint32_t bits, const char* const names[]);
 
 void js_dbuf_allocator(JSContext* ctx, DynBuf* s);
 
-typedef struct {
-  uint8_t* base;
-  size_t size;
-} MemoryBlock;
-
 static inline void
 block_init(MemoryBlock* mb) {
   mb->base = 0;
@@ -121,27 +133,38 @@ block_arraybuffer(MemoryBlock* mb, JSValueConst ab, JSContext* ctx) {
   return mb->base != 0;
 }
 
-typedef struct {
-  uint8_t *start, *end;
-} PointerRange;
+static inline MemoryBlock
+block_slice(MemoryBlock mb, IndexRange ir) {
+  if(ir.start < 0)
+    ir.start = mb.size + (ir.start % mb.size);
+  else if(ir.start > mb.size)
+    ir.start = mb.size;
 
-static inline void
-range_init(PointerRange* pr) {
-  pr->end = pr->start = 0;
+  if(ir.end < 0)
+    ir.end = mb.size + (ir.end % mb.size);
+  else if(ir.end > mb.size)
+    ir.end = mb.size;
+
+  return (MemoryBlock){mb.base + ir.start, ir.end - ir.start};
 }
 
-static inline PointerRange
-range_from(const MemoryBlock* mb) {
-  return (PointerRange){mb->base, mb->base + mb->size};
+static inline MemoryBlock
+block_range(MemoryBlock mb, OffsetLength range) {
+  size_t offset = MIN_NUM(mb.size, range.offset);
+  size_t length = MIN_NUM((size_t)range.length, mb.size - offset);
+
+  return (MemoryBlock){mb.base + offset, length};
 }
 
-typedef struct {
-  int64_t start, end;
-} IndexRange;
+static inline int
+block_realloc(MemoryBlock* mb, size_t new_size, JSContext* ctx) {
+  if((mb->base = js_realloc(ctx, mb->base, new_size))) {
+    mb->size = new_size;
+    return 0;
+  }
 
-typedef struct {
-  int64_t offset, length;
-} OffsetLength;
+  return -1;
+}
 
 #define OFFSET_INIT() \
   (OffsetLength) { 0, INT64_MAX }
@@ -166,49 +189,43 @@ static inline size_t
 offset_size(const OffsetLength* ol, size_t n) {
   if(ol->length == -1)
     return (signed long)n - ol->offset;
+
   return MIN_NUM(ol->length, (signed long)n - ol->offset);
 }
 
-static inline MemoryBlock
+/*static inline MemoryBlock
 offset_block(const OffsetLength* ol, const void* x, size_t n) {
   return (MemoryBlock){offset_data(ol, x), offset_size(ol, n)};
-}
+}*/
 
-static inline PointerRange
+/*static inline PointerRange
 offset_range(const OffsetLength* ol, const void* x, size_t n) {
   MemoryBlock mb = offset_block(ol, x, n);
   return range_from(&mb);
-}
+}*/
 
-static inline OffsetLength
+/*static inline OffsetLength
 offset_slice(const OffsetLength ol, int64_t start, int64_t end) {
   if(start < 0)
     start = ol.length + (start % ol.length);
   else if(start > ol.length)
     start = ol.length;
+
   if(end < 0)
     end = ol.length + (end % ol.length);
   else if(end > ol.length)
     end = ol.length;
 
   return (OffsetLength){start, end - start};
-}
+}*/
 
-static inline OffsetLength
-offset_offset(const OffsetLength* ol, const OffsetLength* by) {
-  OffsetLength ret;
-  ret.offset = ol->offset + by->offset;
-  ret.length = MIN_NUM(by->length, ol->length - by->offset);
-  return ret;
-}
-
-static inline OffsetLength
+/*static inline OffsetLength
 offset_from_indexrange(const IndexRange* ir) {
   OffsetLength ret;
   ret.offset = ir->start;
   ret.length = ir->end - ir->start;
   return ret;
-}
+}*/
 
 static inline JSValue
 offset_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
@@ -226,29 +243,32 @@ offset_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
 }
 
 static inline IndexRange
-indexrange_from_offset(const OffsetLength* ol) {
-  IndexRange ret;
-  ret.start = ol->offset;
-  ret.end = ol->offset + ol->length;
-  return ret;
+indexrange_from_offset(OffsetLength ol) {
+  return (IndexRange){ol.offset, ol.offset + ol.length};
 }
 
 static inline MemoryBlock
-block_range(const MemoryBlock* mb, const OffsetLength* range) {
-  MemoryBlock ret;
-  ret.base = mb->base + range->offset;
-  ret.size = MIN_NUM((size_t)range->length, mb->size - range->offset);
-  return ret;
+indexrange_block(IndexRange ir, void* base) {
+  uint8_t* ptr = base;
+  return (MemoryBlock){ptr + ir.start, ir.end - ir.start};
 }
 
-static inline int
-block_realloc(MemoryBlock* mb, size_t new_size, JSContext* ctx) {
-  if((mb->base = js_realloc(ctx, mb->base, new_size))) {
-    mb->size = new_size;
-    return 0;
-  }
+/*static inline IndexRange
+indexrange_slice(const IndexRange* ir, int64_t start, int64_t end) {
+  OffsetLength ol = offset_from_indexrange(ir);
+  ol = offset_slice(ol, start, end);
+  return indexrange_from_offset(ol);
+}
+*/
 
-  return -1;
+static inline void
+range_init(PointerRange* pr) {
+  pr->end = pr->start = 0;
+}
+
+static inline PointerRange
+range_from(const MemoryBlock* mb) {
+  return (PointerRange){mb->base, mb->base + mb->size};
 }
 
 typedef struct InputBuffer {
@@ -289,9 +309,25 @@ input_buffer_data(const InputBuffer* in) {
   return offset_data(&in->range, in->data);
 }
 
+static inline uint8_t*
+input_buffer_begin(const InputBuffer* in) {
+  return input_buffer_begin(in);
+}
+
 static inline size_t
 input_buffer_length(const InputBuffer* in) {
   return offset_size(&in->range, in->size);
+}
+
+static inline uint8_t*
+input_buffer_end(const InputBuffer* in) {
+  return input_buffer_data(in) + input_buffer_length(in);
+}
+
+static inline PointerRange
+input_buffer_range(const InputBuffer* in) {
+  uint8_t* data = input_buffer_data(in);
+  return (PointerRange){data, data + input_buffer_length(in)};
 }
 
 static inline MemoryBlock
@@ -319,16 +355,6 @@ input_buffer_getc(InputBuffer* in) {
   ret = input_buffer_peekc(in, &n);
   in->pos += n;
   return ret;
-}
-
-static inline void*
-input_buffer_begin(const InputBuffer* in) {
-  return input_buffer_data(in);
-}
-
-static inline void*
-input_buffer_end(const InputBuffer* in) {
-  return input_buffer_data(in) + input_buffer_length(in);
 }
 
 static inline BOOL
