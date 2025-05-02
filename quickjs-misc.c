@@ -23,33 +23,42 @@
 #ifdef HAVE_FNMATCH_H
 #include <fnmatch.h>
 #endif
+
 #ifdef HAVE_GLOB
 #include <glob.h>
 #ifndef GLOB_MAGCHAR
 #define GLOB_MAGCHAR 256
 #endif
+
 #ifndef GLOB_ALTDIRFUNC
 #define GLOB_ALTDIRFUNC 512
 #endif
+
 #ifndef GLOB_BRACE
 #define GLOB_BRACE 1024
 #endif
+
 #ifndef GLOB_NOMAGIC
 #define GLOB_NOMAGIC 2048
 #endif
+
 #ifndef GLOB_TILDE
 #define GLOB_TILDE 4096
 #endif
+
 #ifndef GLOB_ONLYDIR
 #define GLOB_ONLYDIR 8192
 #endif
+
 #ifndef GLOB_TILDE_CHECK
 #define GLOB_TILDE_CHECK 16384
 #endif
 #endif
+
 #ifdef HAVE_WORDEXP
 #include "wordexp.h"
 #endif
+
 #ifdef HAVE_INOTIFY_INIT1
 #include <sys/inotify.h>
 #endif
@@ -59,6 +68,7 @@
 #include <sys/ioctl.h>
 #include <signal.h>
 #endif
+
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -420,12 +430,6 @@ static void
 js_arraybuffer_free_pointer(JSRuntime* rt, void* opaque, void* ptr) {
   js_free_rt(rt, ptr);
 }
-
-/*static void
-js_arraybuffer_free_cstring(JSRuntime* rt, void* opaque, void* ptr) {
-  JSValue value = JS_MKPTR(JS_TAG_STRING, (JSString*)(void*)((uint8_t*)opaque - offsetof(JSString,
-u))); JS_FreeValueRT(rt, value);
-}*/
 
 static void
 js_arraybuffer_free_object(JSRuntime* rt, void* opaque, void* ptr) {
@@ -813,9 +817,9 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   ++i;
   i += js_offset_length(ctx, dst.size, argc - i, argv + i, &s_offs);
 
-  /* dst.base += s_offs.offset;
-   dst.size -= s_offs.offset;
-   dst.size = MIN_NUM(dst.size, s_offs.length);*/
+  /*dst.base += s_offs.offset;
+  dst.size -= s_offs.offset;
+  dst.size = MIN_NUM(dst.size, s_offs.length);*/
 
   if(i == argc || !block_arraybuffer(&src, argv[i], ctx))
     return JS_ThrowTypeError(ctx, "argument %d (src) must be an ArrayBuffer", i + 1);
@@ -823,9 +827,9 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   ++i;
   i += js_offset_length(ctx, dst.size, argc - i, argv + i, &d_offs);
 
-  /* src.base += d_offs.offset;
-   src.size -= d_offs.offset;
-   src.size = MIN_NUM(src.size, d_offs.length);*/
+  /*src.base += d_offs.offset;
+  src.size -= d_offs.offset;
+  src.size = MIN_NUM(src.size, d_offs.length);*/
 
   if((n = MIN_NUM(offset_size(&d_offs, block_length(&dst)),
                   offset_size(&s_offs, block_length(&src)))))
@@ -859,6 +863,7 @@ js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   return JS_NULL;
 }
+
 #ifdef HAVE_FMEMOPEN
 static JSValue
 js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -939,10 +944,8 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   js_dbuf_init(ctx, &dbuf);
 
-  if((r = path_readlink2(path, &dbuf)) > 0) {
+  if((r = path_readlink2(path, &dbuf)) > 0) 
     ret = dbuf_tostring_free(&dbuf, ctx);
-  } else if(r < 0) {
-  }
 
   return ret;
 }
@@ -1810,12 +1813,14 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       break;
     }
 #endif
+
 #ifndef __wasi__
     case FUNC_GETPID: {
       ret = getpid();
       break;
     }
 #endif
+
 #if !defined(__wasi__) && !defined(_WIN32)
     case FUNC_GETPPID: {
       ret = getppid();
@@ -2934,6 +2939,7 @@ js_misc_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   return ret;
 }
+
 #ifdef HAVE_SETSID
 static JSValue
 js_misc_setsid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -3011,6 +3017,7 @@ js_misc_chmod(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       break;
     }
 #endif
+
 #ifdef HAVE_CHMOD
     case 0: {
       const char* path;
@@ -3075,6 +3082,7 @@ js_misc_fsync(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       break;
     }
 #endif
+
 #ifdef HAVE_FDATASYNC
     case 1: {
       ret = fdatasync(fd);
@@ -3108,6 +3116,7 @@ js_misc_truncate(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       break;
     }
 #endif
+
 #ifdef HAVE_FTRUNCATE
     case 1: {
       int32_t fd = -1;
@@ -3150,6 +3159,7 @@ js_misc_utime(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       break;
     }
 #endif
+
 #if defined(HAVE_UTIMES) || defined(HAVE_FUTIMES) || defined(HAVE_LUTIMES)
     default: {
       struct timeval tv[2];
@@ -3285,6 +3295,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 #if !defined(_WIN32)
     JS_SetPropertyStr(ctx, obj, "blocks", new64.u(ctx, st.st_blocks));
 #endif
+
 #if defined(_WIN32) || defined(__dietlibc__) || defined(__ANDROID__)
     JS_SetPropertyStr(ctx, obj, "atime", new64.u(ctx, (int64_t)st.st_atime * 1000));
     JS_SetPropertyStr(ctx, obj, "mtime", new64.u(ctx, (int64_t)st.st_mtime * 1000));
@@ -3463,9 +3474,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
 #endif
     JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
-    //#ifdef HAVE_FNMATCH
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
-//#endif
 #ifdef HAVE_GLOB
     JS_CFUNC_DEF("glob", 2, js_misc_glob),
 #endif
@@ -3719,7 +3728,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("isUninitialized", 1, js_misc_is, IS_UNINITIALIZED),
     JS_CFUNC_MAGIC_DEF("isArrayBuffer", 1, js_misc_is, IS_ARRAYBUFFER),
     JS_CFUNC_DEF("ttySetRaw", 1, js_misc_ttysetraw),
-
     JS_CONSTANT(JS_EVAL_TYPE_GLOBAL),
     JS_CONSTANT(JS_EVAL_TYPE_MODULE),
     JS_CONSTANT(JS_EVAL_TYPE_DIRECT),
