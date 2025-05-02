@@ -44,7 +44,6 @@ compare_jsatom(const JSAtom* a, JSAtom* b) {
 int property_enumeration_init(PropertyEnumeration*, JSContext* ctx, JSValue object, int flags);
 void property_enumeration_dump(PropertyEnumeration*, JSContext* ctx, DynBuf* out);
 JSValue property_enumeration_path_tostring(JSContext*, JSValue this_val, int argc, JSValue argv[]);
-// int32_t property_enumeration_deepest(JSContext*, JSValue object, int32_t max);
 int property_enumeration_predicate(PropertyEnumeration*, JSContext* ctx, JSValue fn, JSValue this_arg);
 void property_enumeration_reset(PropertyEnumeration*, JSRuntime*);
 JSValue property_enumeration_key(const PropertyEnumeration*, JSContext*);
@@ -56,14 +55,15 @@ property_enumeration_length(const PropertyEnumeration* propenum) {
 
 static inline JSValue
 property_enumeration_value(const PropertyEnumeration* it, JSContext* ctx) {
-  if(it->idx < it->tab_atom_len)
-    ;
-  return JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx]);
+  return it->idx < it->tab_atom_len ? JS_GetProperty(ctx, it->obj, it->tab_atom[it->idx]) : JS_ThrowRangeError(ctx, "PropertyEnumeration is at end");
 }
 
 static inline const char*
 property_enumeration_valuestrlen(const PropertyEnumeration* it, size_t* len, JSContext* ctx) {
   JSValue value = property_enumeration_value(it, ctx);
+
+if(JS_IsException(value)) return 0;
+
   const char* str = JS_ToCStringLen(ctx, len, value);
 
   JS_FreeValue(ctx, value);
@@ -149,17 +149,35 @@ void property_recursion_dumpall(Vector*, JSContext* ctx, DynBuf* out);
 int property_recursion_insideof(Vector*, JSValue val);
 void property_recursion_free(Vector*, JSRuntime* rt);
 BOOL property_recursion_circular(Vector*, JSValue object);
-// IndexTuple property_recursion_check(Vector*);
 PropertyEnumeration* property_recursion_push(Vector*, JSContext*, JSValueConst, int);
 PropertyEnumeration* property_recursion_pop(Vector*, JSContext*);
 PropertyEnumeration* property_recursion_enter(Vector*, JSContext*, int32_t, int);
 int property_recursion_skip(Vector*, JSContext*);
+
+static inline JSValue
+property_recursion_root(const Vector* vec) {
+ return vector_empty(vec) ? JS_EXCEPTION : vector_begin_t(vec, PropertyEnumeration)->obj;
+}
+
+static inline JSValue
+property_recursion_object(const Vector* vec) {
+  return vector_empty(vec) ? JS_EXCEPTION : (vector_end_t(vec, PropertyEnumeration) - 1)->obj;
+}
+
+static inline JSValue
+property_recursion_value(const Vector* vec, JSContext* ctx) {
+  return vector_empty(vec) ? JS_ThrowRangeError(ctx, "Property recursion is empty") :  property_enumeration_value(vector_back(vec, sizeof(PropertyEnumeration)), ctx);
+}
 
 static inline int32_t
 property_recursion_depth(const Vector* vec) {
   return vector_size(vec, sizeof(PropertyEnumeration));
 }
 
+static inline PropertyEnumeration*
+property_recursion_bottom(const Vector* vec) {
+  return vector_empty(vec) ? 0 : vector_begin_t(vec, PropertyEnumeration);
+}
 static inline PropertyEnumeration*
 property_recursion_top(const Vector* vec) {
   return vector_empty(vec) ? 0 : vector_end_t(vec, PropertyEnumeration) - 1;

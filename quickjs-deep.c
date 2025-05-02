@@ -55,11 +55,10 @@ static int
 js_deep_predicate(JSContext* ctx, JSValueConst value, const Vector* frames) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
-  PropertyEnumeration* back = property_recursion_top(frames);
   JSValueConst args[3] = {
-      back->tab_atom_len == 0 ? JS_UNDEFINED : property_enumeration_value(back, ctx),
+      property_recursion_value(frames, ctx),
       property_recursion_path(frames, ctx),
-      ((PropertyEnumeration*)vector_front(frames, sizeof(PropertyEnumeration)))->obj,
+      property_recursion_root(frames),
   };
 
   if((pred = js_predicate_data(value))) {
