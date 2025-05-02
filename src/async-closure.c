@@ -30,8 +30,7 @@ asyncclosure_function(AsyncClosure* ac, CClosureFunc* func, int magic) {
 }
 
 AsyncClosure*
-asyncclosure_new(
-    JSContext* ctx, int fd, AsyncEvent state, JSValueConst this_val, CClosureFunc* func) {
+asyncclosure_new(JSContext* ctx, int fd, AsyncEvent state, JSValueConst this_val, CClosureFunc* func) {
   AsyncClosure* ac;
 
   if(asyncclosure_list.prev == NULL && asyncclosure_list.next == NULL)
@@ -150,12 +149,10 @@ asyncclosure_change_event(AsyncClosure* ac, AsyncEvent new_state) {
     }
 
     ac->state = new_state;
-    ac->set_handler =
-        new_state == 0 ? JS_NULL : js_iohandler_fn(ctx, 0 != (new_state & WANT_WRITE), "io");
+    ac->set_handler = new_state == 0 ? JS_NULL : js_iohandler_fn(ctx, 0 != (new_state & WANT_WRITE), "io");
 
     if(new_state)
-      if(!js_iohandler_set(
-             ctx, ac->set_handler, ac->fd, asyncclosure_function(ac, ac->ccfunc, new_state)))
+      if(!js_iohandler_set(ctx, ac->set_handler, ac->fd, asyncclosure_function(ac, ac->ccfunc, new_state)))
         promise_reject(ctx, &ac->promise.funcs, JS_GetException(ctx));
 
     return TRUE;

@@ -99,8 +99,8 @@
 #endif
 
 #define TextAttrColor(n) \
-  (((n)&1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + \
-   (((n) >> 2) & 1) * FOREGROUND_BLUE + (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
+  (((n)&1) * FOREGROUND_RED + (((n) >> 1) & 1) * FOREGROUND_GREEN + (((n) >> 2) & 1) * FOREGROUND_BLUE + \
+   (((n) >> 3) & 1) * FOREGROUND_INTENSITY)
 
 #define ColorIsBG(c) ((c) >= 100 ? TRUE : (c) >= 90 ? FALSE : (c) >= 40 ? TRUE : FALSE)
 #define ColorIsBold(c) ((c) >= 90)
@@ -110,8 +110,7 @@
 #define ColorBlue(c) ((ColorIndex(c) >> 2) & 1)
 
 #define ColorToBits(c) \
-  ((ColorIsBG(c) << 4) | (ColorIsBold(c) << 3) | ColorBlue(c) | ColorGreen(c) << 1 | \
-   ColorRed(c) << 2)
+  ((ColorIsBG(c) << 4) | (ColorIsBold(c) << 3) | ColorBlue(c) | ColorGreen(c) << 1 | ColorRed(c) << 2)
 
 BOOL JS_IsUncatchableError(JSContext* ctx, JSValueConst val);
 
@@ -220,8 +219,7 @@ clear_screen(HANDLE h, ClearMode mode, BOOL line) {
   switch(mode) {
     case CLEAR_TO_END: {
       coords = sbi.dwCursorPosition;
-      n = line ? sbi.dwSize.X - sbi.dwCursorPosition.X
-               : (sbi.dwSize.X * sbi.dwSize.Y) - CHAR_POS(sbi.dwCursorPosition);
+      n = line ? sbi.dwSize.X - sbi.dwCursorPosition.X : (sbi.dwSize.X * sbi.dwSize.Y) - CHAR_POS(sbi.dwCursorPosition);
       break;
     }
 
@@ -406,14 +404,14 @@ set_text_attributes(intptr_t fd, uint32_t attr) {
   buf[pos++] = 27;
   buf[pos++] = '[';
 
-  fg = ((attr & FOREGROUND_RED) ? 1 : 0) + ((attr & FOREGROUND_GREEN) ? 2 : 0) +
-       ((attr & FOREGROUND_BLUE) ? 4 : 0) + ((attr & FOREGROUND_INTENSITY) ? 90 : 30);
+  fg = ((attr & FOREGROUND_RED) ? 1 : 0) + ((attr & FOREGROUND_GREEN) ? 2 : 0) + ((attr & FOREGROUND_BLUE) ? 4 : 0) +
+       ((attr & FOREGROUND_INTENSITY) ? 90 : 30);
 
   pos += fmt_ulong(&buf[pos], fg);
   buf[pos++] = ';';
 
-  bg = ((attr & BACKGROUND_RED) ? 1 : 0) + ((attr & BACKGROUND_GREEN) ? 2 : 0) +
-       ((attr & BACKGROUND_BLUE) ? 4 : 0) + ((attr & BACKGROUND_INTENSITY) ? 100 : 40);
+  bg = ((attr & BACKGROUND_RED) ? 1 : 0) + ((attr & BACKGROUND_GREEN) ? 2 : 0) + ((attr & BACKGROUND_BLUE) ? 4 : 0) +
+       ((attr & BACKGROUND_INTENSITY) ? 100 : 40);
 
   pos += fmt_ulong(&buf[pos], bg);
 
@@ -461,8 +459,7 @@ js_misc_getrelease(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   JS_SetPropertyStr(ctx,
                     ret,
                     "sourceUrl",
-                    JS_NewString(ctx,
-                                 "https://bellard.org/quickjs/quickjs-" CONFIG_VERSION ".tar.xz"));
+                    JS_NewString(ctx, "https://bellard.org/quickjs/quickjs-" CONFIG_VERSION ".tar.xz"));
 
   return ret;
 }
@@ -758,8 +755,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
       }
     }
 
-    if(needle.size <= haystack.size &&
-       (ptr = memmem(haystack.base, haystack.size, needle.base, needle.size))) {
+    if(needle.size <= haystack.size && (ptr = memmem(haystack.base, haystack.size, needle.base, needle.size))) {
       ofs = ptr - haystack.base;
       ofs += start_pos;
 
@@ -831,8 +827,7 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   src.size -= d_offs.offset;
   src.size = MIN_NUM(src.size, d_offs.length);*/
 
-  if((n = MIN_NUM(offset_size(&d_offs, block_length(&dst)),
-                  offset_size(&s_offs, block_length(&src)))))
+  if((n = MIN_NUM(offset_size(&d_offs, block_length(&dst)), offset_size(&s_offs, block_length(&src)))))
     memcpy(offset_data(&d_offs, block_data(&dst)), offset_data(&s_offs, block_data(&src)), n);
 
   return JS_NewInt64(ctx, n);
@@ -858,8 +853,7 @@ js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   i += js_offset_length(ctx, s2.size, argc - i, argv + i, &o2);
 
   if((n = MIN_NUM(offset_size(&o1, block_length(&s1)), offset_size(&o2, block_length(&s2)))))
-    return JS_NewInt32(
-        ctx, memcmp(offset_data(&o1, block_data(&s1)), offset_data(&o2, block_data(&s2)), n));
+    return JS_NewInt32(ctx, memcmp(offset_data(&o1, block_data(&s1)), offset_data(&o2, block_data(&s2)), n));
 
   return JS_NULL;
 }
@@ -903,10 +897,7 @@ js_misc_fmemopen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 #endif
 
 static JSValue
-js_misc_getperformancecounter(JSContext* ctx,
-                              JSValueConst this_val,
-                              int argc,
-                              JSValueConst argv[]) {
+js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   struct timespec ts;
 
   clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -1023,8 +1014,7 @@ js_misc_getprototypechain(JSContext* ctx, JSValueConst this_val, int argc, JSVal
   ret = JS_NewArray(ctx);
   end = limit >= 0 ? start + limit : -1;
 
-  for(proto = JS_DupValue(ctx, argv[0]);
-      !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto);
+  for(proto = JS_DupValue(ctx, argv[0]); !JS_IsException(proto) && !JS_IsNull(proto) && JS_IsObject(proto);
       proto = JS_GetPrototype(ctx, proto)) {
     BOOL circular = (JS_VALUE_GET_OBJ(proto) == JS_VALUE_GET_OBJ(prev));
 
@@ -1209,8 +1199,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   js_misc_glob_errfunc_ctx = ctx;
   js_misc_glob_errfunc_fn = argc >= 3 ? argv[2] : JS_UNDEFINED;
 
-  if((result = glob(pattern, flags & (~(GLOB_APPEND | GLOB_DOOFFS)), js_misc_glob_errfunc, &g)) ==
-     0) {
+  if((result = glob(pattern, flags & (~(GLOB_APPEND | GLOB_DOOFFS)), js_misc_glob_errfunc, &g)) == 0) {
     for(i = 0; i < g.gl_pathc; i++)
       JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, g.gl_pathv[i]));
 
@@ -1390,8 +1379,7 @@ enum {
 };
 
 static JSValue
-js_misc_clearscreen(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1, mode = 0;
   intptr_t h;
   JSValue ret = JS_UNDEFINED;
@@ -1417,8 +1405,7 @@ js_misc_clearscreen(
 enum { SET_CURSOR_POSITION, MOVE_CURSOR };
 
 static JSValue
-js_misc_cursorposition(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1, x = magic == MOVE_CURSOR ? 0 : -1, y = magic == MOVE_CURSOR ? 0 : -1;
   intptr_t h;
 
@@ -1438,8 +1425,7 @@ js_misc_cursorposition(
   h = fd;
 #endif
 
-  return JS_NewBool(ctx,
-                    magic == MOVE_CURSOR ? move_cursor(h, x, y) : set_cursor_position(h, x, y));
+  return JS_NewBool(ctx, magic == MOVE_CURSOR ? move_cursor(h, x, y) : set_cursor_position(h, x, y));
 }
 
 enum {
@@ -1448,8 +1434,7 @@ enum {
 };
 
 static JSValue
-js_misc_settextattr(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1;
   intptr_t h;
   JSValue ret = JS_UNDEFINED;
@@ -1522,8 +1507,7 @@ enum {
 };
 
 static JSValue
-js_misc_consolemode(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1;
   JSValue ret = JS_UNDEFINED;
   intptr_t h;
@@ -1610,10 +1594,7 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       InputBuffer salt = js_input_buffer(ctx, argv[1]);
 
       if(salt.size < BCRYPT_HASHSIZE)
-        return JS_ThrowInternalError(ctx,
-                                     "supplied buffer size (%zu) < %d",
-                                     salt.size,
-                                     BCRYPT_HASHSIZE);
+        return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %d", salt.size, BCRYPT_HASHSIZE);
 
       ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, (void*)salt.data));
 
@@ -1641,10 +1622,7 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     input_buffer_free(&salt, ctx);
 
     if(buf.size < BCRYPT_HASHSIZE)
-      return JS_ThrowInternalError(ctx,
-                                   "supplied buffer size (%zu) < %d",
-                                   buf.size,
-                                   BCRYPT_HASHSIZE);
+      return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %d", buf.size, BCRYPT_HASHSIZE);
 
     ret = JS_NewInt32(ctx, bcrypt_hashpw(pw, s, (char*)buf.data));
 
@@ -1698,8 +1676,7 @@ js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       is_mod = TRUE;
 
     flags |= (is_mod ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
-    ret =
-        JS_Eval(ctx, (const char*)buf, len, file, flags | (is_mod ? JS_EVAL_FLAG_COMPILE_ONLY : 0));
+    ret = JS_Eval(ctx, (const char*)buf, len, file, flags | (is_mod ? JS_EVAL_FLAG_COMPILE_ONLY : 0));
 
     if(is_mod && !(flags & JS_EVAL_FLAG_COMPILE_ONLY))
       ret = JS_EvalFunction(ctx, ret);
@@ -1740,8 +1717,7 @@ js_misc_immutable_constructor(
 }
 
 static JSValue
-js_misc_immutable_class(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   struct ImmutableClosure* closure;
   JSValue ret, proto;
   char *name, *new_name;
@@ -1772,8 +1748,7 @@ js_misc_immutable_class(
 
   js_set_tostringtag_value(ctx, proto, JS_NewString(ctx, new_name));
 
-  ret = js_function_cclosure(
-      ctx, js_misc_immutable_constructor, 0, 0, closure, js_misc_immutable_free);
+  ret = js_function_cclosure(ctx, js_misc_immutable_constructor, 0, 0, closure, js_misc_immutable_free);
 
   if(!JS_IsConstructor(ctx, ret))
     JS_SetConstructorBit(ctx, ret, TRUE);
@@ -2467,8 +2442,7 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case RANDOM_RANDI: {
-      int32_t num =
-          argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
+      int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
 
       ret = JS_NewInt32(ctx, num);
       break;
@@ -2625,21 +2599,18 @@ js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   DynBuf output;
   char quote = '"';
   uint8_t table[256] = {
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'b',  't',  'n',  'v',  'f',  'r',  0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, '\\', 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x75, 0x75, 0x75, 0x75,
-      0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
-      0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 'b',  't',  'n',  'v',  'f',  'r',  0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, '\\', 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
+      0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75, 0x75,
   };
 
   js_dbuf_init(ctx, &output);
@@ -2763,9 +2734,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_NULL: r = JS_IsNull(arg); break;
     case IS_NUMBER: r = JS_IsNumber(arg); break;
     case IS_OBJECT: r = JS_IsObject(arg); break;
-    case IS_REGISTEREDCLASS:
-      r = !JS_ToInt32(ctx, &r, arg) && JS_IsRegisteredClass(JS_GetRuntime(ctx), r);
-      break;
+    case IS_REGISTEREDCLASS: r = !JS_ToInt32(ctx, &r, arg) && JS_IsRegisteredClass(JS_GetRuntime(ctx), r); break;
     case IS_STRING: r = JS_IsString(arg); break;
     case IS_SYMBOL: r = JS_IsSymbol(arg); break;
     case IS_UNCATCHABLEERROR: r = JS_IsUncatchableError(ctx, arg); break;
@@ -2797,8 +2766,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       size_t end = buf.pos + buf.range.offset + buf.range.length;
       ret = JS_NewArray(ctx);
 
-      for(size_t i = buf.pos + buf.range.offset; i + sizeof(struct inotify_event) <= end;
-          i += reclen) {
+      for(size_t i = buf.pos + buf.range.offset; i + sizeof(struct inotify_event) <= end; i += reclen) {
         struct inotify_event* ev = (struct inotify_event*)&buf.data[i];
         size_t namelen = byte_chr(ev->name, '\0', ev->len);
         JSValue obj = JS_NewObject(ctx);
@@ -2828,13 +2796,8 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       JS_ToInt32(ctx, &flags, argv[2]);
 
     if((wd = inotify_add_watch(fd, filename, flags)) == -1)
-      return JS_ThrowInternalError(ctx,
-                                   "inotify_add_watch(%d, %s, %08x) = %d (%s)",
-                                   fd,
-                                   filename,
-                                   flags,
-                                   wd,
-                                   strerror(errno));
+      return JS_ThrowInternalError(
+          ctx, "inotify_add_watch(%d, %s, %08x) = %d (%s)", fd, filename, flags, wd, strerror(errno));
 
     // printf("inotify_add_watch(%d, %s, %08x) = %d\n", fd, filename, flags, wd);
 
@@ -2846,8 +2809,7 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_ToInt32(ctx, &wd, argv[1]);
 
     if((r = inotify_rm_watch(fd, wd)) == -1)
-      return JS_ThrowInternalError(
-          ctx, "inotify_rm_watch(%d, %d) = %d (%s)", fd, wd, r, strerror(errno));
+      return JS_ThrowInternalError(ctx, "inotify_rm_watch(%d, %d) = %d (%s)", fd, wd, r, strerror(errno));
 
     // printf("inotify_add_watch(%d, %d) = %d\n", fd, wd, r);
 
@@ -3377,9 +3339,7 @@ js_misc_ttysetraw(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   if(fd == 0) {
     handle = (HANDLE)_get_osfhandle(1); /* corresponding output */
-    SetConsoleMode(handle,
-                   ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT |
-                       __ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    SetConsoleMode(handle, ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT | __ENABLE_VIRTUAL_TERMINAL_PROCESSING);
   }
 
   return JS_UNDEFINED;

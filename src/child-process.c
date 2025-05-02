@@ -160,8 +160,7 @@ child_process_spawn(ChildProcess* cp) {
   args = argv_to_string(cp->args, ' ');
   env = cp->env ? argv_to_string(cp->env, '\0') : NULL;
 
-  success = CreateProcessA(
-      file, args, &sattr, NULL, TRUE, CREATE_NO_WINDOW, env, cp->cwd, &sinfo, &pinfo);
+  success = CreateProcessA(file, args, &sattr, NULL, TRUE, CREATE_NO_WINDOW, env, cp->cwd, &sinfo, &pinfo);
 
   free(args);
 
@@ -190,8 +189,7 @@ child_process_spawn(ChildProcess* cp) {
     if(cp->child_fds[i] >= 0)
       posix_spawn_file_actions_adddup2(&actions, cp->child_fds[i], i);
 
-  if((cp->use_path ? posix_spawnp
-                   : posix_spawn)(&pid, cp->file, &actions, &attr, cp->args, cp->env)) {
+  if((cp->use_path ? posix_spawnp : posix_spawn)(&pid, cp->file, &actions, &attr, cp->args, cp->env)) {
     fprintf(stderr, "posix_spawnp error: %s\n", strerror(errno));
     return -1;
   }

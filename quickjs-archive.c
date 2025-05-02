@@ -11,10 +11,9 @@
  * @{
  */
 
-VISIBLE JSClassID js_archive_class_id = 0, js_archive_iterator_class_id = 0,
-                  js_archiveentry_class_id = 0, js_archivematch_class_id = 0;
-VISIBLE JSValue archive_proto, archive_ctor, iterator_proto, entry_proto, entry_ctor, match_proto,
-    match_ctor;
+VISIBLE JSClassID js_archive_class_id = 0, js_archive_iterator_class_id = 0, js_archiveentry_class_id = 0,
+                  js_archivematch_class_id = 0;
+VISIBLE JSValue archive_proto, archive_ctor, iterator_proto, entry_proto, entry_ctor, match_proto, match_ctor;
 
 typedef enum { READ = 0, WRITE = 1 } archive_mode;
 
@@ -188,8 +187,7 @@ enum {
 };
 
 static JSValue
-js_archive_functions(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_archive_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   struct archive* ar = 0;
   JSValue ret = JS_UNDEFINED, proto = JS_GetPropertyStr(ctx, this_val, "prototype");
 
@@ -283,8 +281,7 @@ js_archive_functions(
   }
 
   ret = js_archive_wrap(ctx, proto, ar);
-  JS_DefinePropertyValueStr(
-      ctx, ret, "file", JS_DupValue(ctx, argv[0]), JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
+  JS_DefinePropertyValueStr(ctx, ret, "file", JS_DupValue(ctx, argv[0]), JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE);
   js_archive_set_mode(ctx, ret, magic == METHOD_READ ? READ : WRITE);
 
   return ret;
@@ -614,8 +611,7 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       ret = archive_write_header(ar, ent) == ARCHIVE_OK ? JS_TRUE : JS_FALSE;
 
-      JS_DefinePropertyValueStr(
-          ctx, this_val, "entry", JS_DupValue(ctx, argv[0]), JS_PROP_CONFIGURABLE);
+      JS_DefinePropertyValueStr(ctx, this_val, "entry", JS_DupValue(ctx, argv[0]), JS_PROP_CONFIGURABLE);
       argv++;
       argc--;
       continue;
@@ -758,8 +754,7 @@ js_archive_close(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       if(js_has_propertystr(ctx, this_val, "entry"))
         archive_write_finish_entry(ar);
 
-    int r =
-        js_archive_mode(ctx, this_val) == WRITE ? archive_write_close(ar) : archive_read_close(ar);
+    int r = js_archive_mode(ctx, this_val) == WRITE ? archive_write_close(ar) : archive_read_close(ar);
 
     ret = r == ARCHIVE_OK ? JS_TRUE : JS_FALSE;
 
@@ -812,8 +807,7 @@ js_archive_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
     default: {
       ret = js_archiveentry_wrap(ctx, entry_proto, ent);
-      JS_DefinePropertyValueStr(
-          ctx, this_val, "entry", JS_DupValue(ctx, ret), JS_PROP_CONFIGURABLE);
+      JS_DefinePropertyValueStr(ctx, this_val, "entry", JS_DupValue(ctx, ret), JS_PROP_CONFIGURABLE);
       break;
     }
   }
@@ -831,16 +825,14 @@ js_archive_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
   if((ar = js_archive_data(this_val))) {
     JS_SetOpaque(ret, ar);
-    JS_DefinePropertyValueStr(
-        ctx, ret, "archive", JS_DupValue(ctx, this_val), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(ctx, ret, "archive", JS_DupValue(ctx, this_val), JS_PROP_CONFIGURABLE);
   }
 
   return ret;
 }
 
 static JSValue
-js_archive_iterator_next(
-    JSContext* ctx, JSValueConst iter, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+js_archive_iterator_next(JSContext* ctx, JSValueConst iter, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   struct archive* ar;
   struct archive_entry* ent = NULL;
   int result = ARCHIVE_EOF;
@@ -1134,29 +1126,19 @@ static const JSCFunctionListEntry js_archive_static_funcs[] = {
     JS_PROP_INT32_DEF("READ_FORMAT_CAPS_ENCRYPT_DATA", ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_DATA, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA
-    JS_PROP_INT32_DEF("READ_FORMAT_CAPS_ENCRYPT_METADATA",
-                      ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA,
-                      0),
+    JS_PROP_INT32_DEF("READ_FORMAT_CAPS_ENCRYPT_METADATA", ARCHIVE_READ_FORMAT_CAPS_ENCRYPT_METADATA, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED
-    JS_PROP_INT32_DEF("READ_FORMAT_ENCRYPTION_UNSUPPORTED",
-                      ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED,
-                      0),
+    JS_PROP_INT32_DEF("READ_FORMAT_ENCRYPTION_UNSUPPORTED", ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW
-    JS_PROP_INT32_DEF("READ_FORMAT_ENCRYPTION_DONT_KNOW",
-                      ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW,
-                      0),
+    JS_PROP_INT32_DEF("READ_FORMAT_ENCRYPTION_DONT_KNOW", ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED
-    JS_PROP_INT32_DEF("READ_FORMAT_ENCRYPTION_UNSUPPORTED",
-                      ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED,
-                      0),
+    JS_PROP_INT32_DEF("READ_FORMAT_ENCRYPTION_UNSUPPORTED", ARCHIVE_READ_FORMAT_ENCRYPTION_UNSUPPORTED, 0),
 #endif
 #ifdef ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW
-    JS_PROP_INT32_DEF("READ_FORMAT_ENCRYPTION_DONT_KNOW",
-                      ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW,
-                      0),
+    JS_PROP_INT32_DEF("READ_FORMAT_ENCRYPTION_DONT_KNOW", ARCHIVE_READ_FORMAT_ENCRYPTION_DONT_KNOW, 0),
 #endif
 #ifdef ARCHIVE_EXTRACT_OWNER
     JS_PROP_INT32_DEF("EXTRACT_OWNER", ARCHIVE_EXTRACT_OWNER, 0),
@@ -1225,10 +1207,7 @@ static JSClassDef js_archive_iterator_class = {
 };
 
 static JSValue
-js_archiveentry_constructor(JSContext* ctx,
-                            JSValueConst new_target,
-                            int argc,
-                            JSValueConst argv[]) {
+js_archiveentry_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
   struct archive_entry* ent;
 
@@ -1275,8 +1254,7 @@ enum {
 };
 
 static JSValue
-js_archiveentry_functions(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_archiveentry_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   struct archive_entry* ar = 0;
   JSValue ret = JS_UNDEFINED;
 
@@ -1382,9 +1360,7 @@ js_archiveentry_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
     case ENTRY_BIRTHTIME: {
       if(archive_entry_birthtime_is_set(ent))
-        ret = js_date_from_time_ns(ctx,
-                                   archive_entry_birthtime(ent),
-                                   archive_entry_birthtime_nsec(ent));
+        ret = js_date_from_time_ns(ctx, archive_entry_birthtime(ent), archive_entry_birthtime_nsec(ent));
 
       break;
     }
@@ -1921,20 +1897,14 @@ static const JSCFunctionListEntry js_archiveentry_funcs[] = {
     JS_CGETSET_MAGIC_DEF("symlink", js_archiveentry_get, js_archiveentry_set, ENTRY_SYMLINK),
     JS_CGETSET_MAGIC_DEF("hardlink", js_archiveentry_get, js_archiveentry_set, ENTRY_HARDLINK),
     JS_CGETSET_MAGIC_DEF("link", js_archiveentry_get, js_archiveentry_set, ENTRY_LINK),
-    JS_CGETSET_MAGIC_DEF(
-        "isDataEncrypted", js_archiveentry_get, js_archiveentry_set, ENTRY_ISDATAENCRYPTED),
-    JS_CGETSET_MAGIC_DEF(
-        "isMetadataEncrypted", js_archiveentry_get, js_archiveentry_set, ENTRY_ISMETADATAENCRYPTED),
-    JS_CGETSET_MAGIC_DEF(
-        "isEncrypted", js_archiveentry_get, js_archiveentry_set, ENTRY_ISENCRYPTED),
+    JS_CGETSET_MAGIC_DEF("isDataEncrypted", js_archiveentry_get, js_archiveentry_set, ENTRY_ISDATAENCRYPTED),
+    JS_CGETSET_MAGIC_DEF("isMetadataEncrypted", js_archiveentry_get, js_archiveentry_set, ENTRY_ISMETADATAENCRYPTED),
+    JS_CGETSET_MAGIC_DEF("isEncrypted", js_archiveentry_get, js_archiveentry_set, ENTRY_ISENCRYPTED),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ArchiveEntry", JS_PROP_CONFIGURABLE),
 };
 
 static JSValue
-js_archivematch_constructor(JSContext* ctx,
-                            JSValueConst new_target,
-                            int argc,
-                            JSValueConst argv[]) {
+js_archivematch_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
@@ -1959,8 +1929,7 @@ enum {
 };
 
 static JSValue
-js_archivematch_functions(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_archivematch_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   struct archive* ar = 0;
   JSValue ret = JS_UNDEFINED;
   wchar_t* pattern = js_towstring(ctx, argv[0]);
@@ -2007,15 +1976,11 @@ js_archive_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_archive_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_archive_class_id, &js_archive_class);
 
-  archive_ctor =
-      JS_NewCFunction2(ctx, js_archive_constructor, "Archive", 1, JS_CFUNC_constructor, 0);
+  archive_ctor = JS_NewCFunction2(ctx, js_archive_constructor, "Archive", 1, JS_CFUNC_constructor, 0);
   archive_proto = JS_NewObject(ctx);
 
   JS_SetPropertyFunctionList(ctx, archive_proto, js_archive_funcs, countof(js_archive_funcs));
-  JS_SetPropertyFunctionList(ctx,
-                             archive_ctor,
-                             js_archive_static_funcs,
-                             countof(js_archive_static_funcs));
+  JS_SetPropertyFunctionList(ctx, archive_ctor, js_archive_static_funcs, countof(js_archive_static_funcs));
   JS_SetClassProto(ctx, js_archive_class_id, archive_proto);
 
   JS_NewClassID(&js_archive_iterator_class_id);
@@ -2023,37 +1988,26 @@ js_archive_init(JSContext* ctx, JSModuleDef* m) {
 
   iterator_proto = JS_NewObject(ctx);
 
-  JS_SetPropertyFunctionList(ctx,
-                             iterator_proto,
-                             js_archive_iterator_funcs,
-                             countof(js_archive_iterator_funcs));
+  JS_SetPropertyFunctionList(ctx, iterator_proto, js_archive_iterator_funcs, countof(js_archive_iterator_funcs));
   JS_SetClassProto(ctx, js_archive_iterator_class_id, iterator_proto);
 
   JS_NewClassID(&js_archiveentry_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_archiveentry_class_id, &js_archiveentry_class);
 
-  entry_ctor = JS_NewCFunction2(
-      ctx, js_archiveentry_constructor, "ArchiveEntry", 1, JS_CFUNC_constructor, 0);
+  entry_ctor = JS_NewCFunction2(ctx, js_archiveentry_constructor, "ArchiveEntry", 1, JS_CFUNC_constructor, 0);
   entry_proto = JS_NewObject(ctx);
 
-  JS_SetPropertyFunctionList(ctx,
-                             entry_proto,
-                             js_archiveentry_funcs,
-                             countof(js_archiveentry_funcs));
+  JS_SetPropertyFunctionList(ctx, entry_proto, js_archiveentry_funcs, countof(js_archiveentry_funcs));
   JS_SetClassProto(ctx, js_archiveentry_class_id, entry_proto);
   JS_SetConstructor(ctx, entry_ctor, entry_proto);
 
   JS_NewClassID(&js_archivematch_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_archivematch_class_id, &js_archivematch_class);
 
-  match_ctor = JS_NewCFunction2(
-      ctx, js_archivematch_constructor, "ArchiveMatch", 1, JS_CFUNC_constructor, 0);
+  match_ctor = JS_NewCFunction2(ctx, js_archivematch_constructor, "ArchiveMatch", 1, JS_CFUNC_constructor, 0);
   match_proto = JS_NewObject(ctx);
 
-  JS_SetPropertyFunctionList(ctx,
-                             match_proto,
-                             js_archivematch_funcs,
-                             countof(js_archivematch_funcs));
+  JS_SetPropertyFunctionList(ctx, match_proto, js_archivematch_funcs, countof(js_archivematch_funcs));
   JS_SetClassProto(ctx, js_archivematch_class_id, match_proto);
   JS_SetConstructor(ctx, match_ctor, match_proto);
 

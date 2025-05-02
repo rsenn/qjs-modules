@@ -36,8 +36,7 @@ enum {
 };
 
 VISIBLE JSClassID js_child_process_class_id = 0;
-VISIBLE JSValue child_process_proto = {{0}, JS_TAG_UNDEFINED},
-                child_process_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSValue child_process_proto = {{0}, JS_TAG_UNDEFINED}, child_process_ctor = {{0}, JS_TAG_UNDEFINED};
 
 ChildProcess*
 js_child_process_data(JSValueConst value) {
@@ -59,10 +58,7 @@ js_child_process_wrap(JSContext* ctx, ChildProcess* cp) {
 }
 
 static JSValue
-js_child_process_constructor(JSContext* ctx,
-                             JSValueConst new_target,
-                             int argc,
-                             JSValueConst argv[]) {
+js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   ChildProcess* cp;
   JSValue proto, obj = JS_UNDEFINED;
 
@@ -259,8 +255,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
         size_t namelen = str_chr(*ptr, '=');
         JSAtom key = JS_NewAtomLen(ctx, *ptr, namelen);
 
-        JS_DefinePropertyValue(
-            ctx, ret, key, JS_NewString(ctx, *ptr + namelen + 1), JS_PROP_ENUMERABLE);
+        JS_DefinePropertyValue(ctx, ret, key, JS_NewString(ctx, *ptr + namelen + 1), JS_PROP_ENUMERABLE);
         JS_FreeAtom(ctx, key);
       }
 
@@ -330,8 +325,7 @@ js_child_process_wait(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 static JSValue
-js_child_process_kill(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ChildProcess* cp;
   int32_t signum = SIGTERM;
   JSValueConst sig = argv[magic], child = magic ? argv[0] : this_val;
@@ -440,14 +434,10 @@ js_child_process_init(JSContext* ctx, JSModuleDef* m) {
                              countof(js_child_process_proto_funcs));
   JS_SetClassProto(ctx, js_child_process_class_id, child_process_proto);
 
-  child_process_ctor = JS_NewCFunction2(
-      ctx, js_child_process_constructor, "ChildProcess", 1, JS_CFUNC_constructor, 0);
+  child_process_ctor = JS_NewCFunction2(ctx, js_child_process_constructor, "ChildProcess", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, child_process_ctor, child_process_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             child_process_ctor,
-                             js_child_process_funcs,
-                             countof(js_child_process_funcs));
+  JS_SetPropertyFunctionList(ctx, child_process_ctor, js_child_process_funcs, countof(js_child_process_funcs));
 
   if(m) {
     JS_SetModuleExportList(ctx, m, js_child_process_funcs, countof(js_child_process_funcs));

@@ -31,31 +31,22 @@ typedef enum {
 
 /*VISIBLE*/ JSClassID js_readable_class_id = 0, js_writable_class_id = 0, js_reader_class_id = 0,
                       js_writer_class_id = 0, js_transform_class_id = 0;
-/*VISIBLE*/ JSValue readable_proto = {{0}, JS_TAG_UNDEFINED},
-                    readable_default_controller = {{0}, JS_TAG_UNDEFINED},
-                    readable_bytestream_controller = {{0}, JS_TAG_UNDEFINED},
-                    readable_ctor = {{0}, JS_TAG_UNDEFINED},
-                    writable_proto = {{0}, JS_TAG_UNDEFINED},
-                    writable_controller = {{0}, JS_TAG_UNDEFINED},
-                    writable_ctor = {{0}, JS_TAG_UNDEFINED},
-                    transform_proto = {{0}, JS_TAG_UNDEFINED},
-                    transform_controller = {{0}, JS_TAG_UNDEFINED},
-                    transform_ctor = {{0}, JS_TAG_UNDEFINED},
-                    default_reader_proto = {{0}, JS_TAG_UNDEFINED},
-                    default_reader_ctor = {{0}, JS_TAG_UNDEFINED},
-                    byob_reader_proto = {{0}, JS_TAG_UNDEFINED},
-                    byob_reader_ctor = {{0}, JS_TAG_UNDEFINED},
-                    byob_request_proto = {{0}, JS_TAG_UNDEFINED},
-                    writer_proto = {{0}, JS_TAG_UNDEFINED}, writer_ctor = {{0}, JS_TAG_UNDEFINED};
+/*VISIBLE*/ JSValue readable_proto = {{0}, JS_TAG_UNDEFINED}, readable_default_controller = {{0}, JS_TAG_UNDEFINED},
+                    readable_bytestream_controller = {{0}, JS_TAG_UNDEFINED}, readable_ctor = {{0}, JS_TAG_UNDEFINED},
+                    writable_proto = {{0}, JS_TAG_UNDEFINED}, writable_controller = {{0}, JS_TAG_UNDEFINED},
+                    writable_ctor = {{0}, JS_TAG_UNDEFINED}, transform_proto = {{0}, JS_TAG_UNDEFINED},
+                    transform_controller = {{0}, JS_TAG_UNDEFINED}, transform_ctor = {{0}, JS_TAG_UNDEFINED},
+                    default_reader_proto = {{0}, JS_TAG_UNDEFINED}, default_reader_ctor = {{0}, JS_TAG_UNDEFINED},
+                    byob_reader_proto = {{0}, JS_TAG_UNDEFINED}, byob_reader_ctor = {{0}, JS_TAG_UNDEFINED},
+                    byob_request_proto = {{0}, JS_TAG_UNDEFINED}, writer_proto = {{0}, JS_TAG_UNDEFINED},
+                    writer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static int reader_update(ReadableStreamReader*, JSContext*);
 static BOOL reader_passthrough(ReadableStreamReader*, JSValueConst, JSContext*);
 static int readable_unlock(ReadableStream*, ReadableStreamReader*);
 static int writable_unlock(WritableStream*, WritableStreamWriter*);
-static JSValue
-js_readable_callback(JSContext*, ReadableStream*, ReadableCallback, int, JSValueConst[]);
-static JSValue
-js_writable_callback(JSContext*, WritableStream*, WritableCallback, int, JSValueConst[]);
+static JSValue js_readable_callback(JSContext*, ReadableStream*, ReadableCallback, int, JSValueConst[]);
+static JSValue js_writable_callback(JSContext*, WritableStream*, WritableCallback, int, JSValueConst[]);
 static JSValue js_reader_wrap(JSContext* ctx, ReadableStreamReader* rd);
 static JSValue js_byob_request_new(JSContext* ctx, JSValueConst this_val);
 
@@ -320,12 +311,8 @@ reader_free(ReadableStreamReader* rd, JSRuntime* rt) {
 }
 
 static JSValue
-js_reader_close_forward(JSContext* ctx,
-                        JSValueConst this_val,
-                        int argc,
-                        JSValueConst argv[],
-                        int magic,
-                        JSValue func_data[]) {
+js_reader_close_forward(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue func_data[]) {
   ReadableStreamReader* rd;
 
   if(!(rd = js_reader_data2(ctx, func_data[0])))
@@ -362,8 +349,7 @@ reader_close(ReadableStreamReader* rd, JSContext* ctx) {
 
   if(js_is_promise(ctx, ret)) {
     JSValue readerObj = js_reader_wrap(ctx, rd);
-    JSValue readerCloseForward =
-        JS_NewCFunctionData(ctx, js_reader_close_forward, 1, 0, 1, &readerObj);
+    JSValue readerCloseForward = JS_NewCFunctionData(ctx, js_reader_close_forward, 1, 0, 1, &readerObj);
     JS_FreeValue(ctx, readerObj);
 
     JSValue tmp = promise_then(ctx, ret, readerCloseForward);
@@ -540,11 +526,7 @@ reader_update(ReadableStreamReader* rd, JSContext* ctx) {
   }
 
 #ifdef DEBUG_OUTPUT
-  printf("%s(3): closed=%d queue.size=%zu result = %d\n",
-         __func__,
-         readable_closed(st),
-         queue_size(&st->q),
-         ret);
+  printf("%s(3): closed=%d queue.size=%zu result = %d\n", __func__, readable_closed(st), queue_size(&st->q), ret);
 #endif
 
   return ret;
@@ -694,9 +676,8 @@ readable_enqueue(ReadableStream* st, JSValueConst chunk, BOOL binary, JSContext*
   BOOL ok = FALSE;
 
   if(readable_locked(st) && (rd = st->reader)) {
-    JSValue buf = (!binary || js_is_arraybuffer(ctx, chunk))
-                      ? JS_DupValue(ctx, chunk)
-                      : JS_NewArrayBufferCopy(ctx, input.data, input.size);
+    JSValue buf = (!binary || js_is_arraybuffer(ctx, chunk)) ? JS_DupValue(ctx, chunk)
+                                                             : JS_NewArrayBufferCopy(ctx, input.data, input.size);
 
     JSValue result = js_iterator_result(ctx, buf, FALSE);
     JS_FreeValue(ctx, buf);
@@ -710,8 +691,7 @@ readable_enqueue(ReadableStream* st, JSValueConst chunk, BOOL binary, JSContext*
   if(!ok) {
     int64_t r = queue_write(&st->q, input.data, input.size);
 
-    ret =
-        r < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, r) : JS_NewInt64(ctx, r);
+    ret = r < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, r) : JS_NewInt64(ctx, r);
   }
 
   input_buffer_free(&input, ctx);
@@ -987,8 +967,7 @@ const JSCFunctionListEntry js_byob_reader_proto_funcs[] = {
  * @return     { return value }
  */
 static JSValue
-js_readable_callback(
-    JSContext* ctx, ReadableStream* st, ReadableCallback cb, int argc, JSValueConst argv[]) {
+js_readable_callback(JSContext* ctx, ReadableStream* st, ReadableCallback cb, int argc, JSValueConst argv[]) {
   assert(cb >= 0);
   assert(cb < countof(st->on));
 
@@ -1040,8 +1019,7 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
     }
 
     st->controller = JS_NewObjectProtoClass(ctx,
-                                            bytestream ? readable_bytestream_controller
-                                                       : readable_default_controller,
+                                            bytestream ? readable_bytestream_controller : readable_default_controller,
                                             js_readable_class_id);
 
     JS_SetOpaque(st->controller, readable_dup(st));
@@ -1050,10 +1028,7 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
       st->autoallocatechunksize = js_get_propertystr_uint64(ctx, argv[0], "autoAllocateChunkSize");
 
       /* XXX: right? */
-      JS_SetPropertyStr(ctx,
-                        st->controller,
-                        "desiredSize",
-                        JS_NewInt64(ctx, st->autoallocatechunksize));
+      JS_SetPropertyStr(ctx, st->controller, "desiredSize", JS_NewInt64(ctx, st->autoallocatechunksize));
     }
   }
 
@@ -1100,8 +1075,7 @@ enum {
  * @return     Return value of the method
  */
 static JSValue
-js_readable_method(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_readable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ReadableStream* st;
   JSValue ret = JS_UNDEFINED;
 
@@ -1124,10 +1098,9 @@ js_readable_method(
       if((rd = readable_get_reader(st, ctx)))
         ret = js_reader_wrap(ctx, rd);
       else
-        ret = JS_ThrowTypeError(
-            ctx,
-            "Failed to execute 'getReader' on 'ReadableStream': ReadableStreamDefaultReader "
-            "constructor can only accept readable streams that are not yet locked to a reader");
+        ret = JS_ThrowTypeError(ctx,
+                                "Failed to execute 'getReader' on 'ReadableStream': ReadableStreamDefaultReader "
+                                "constructor can only accept readable streams that are not yet locked to a reader");
 
       break;
     }
@@ -1191,8 +1164,7 @@ enum {
  * @return     Return value of the controller function
  */
 static JSValue
-js_readable_controller(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_readable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ReadableStream* st;
   JSValue ret = JS_UNDEFINED;
 
@@ -1230,8 +1202,7 @@ enum {
 };
 
 static JSValue
-js_byob_request_method(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   ReadableStream* st;
   ReadableStreamReader* rd;
   JSValue ret = JS_UNDEFINED;
@@ -1254,8 +1225,7 @@ js_byob_request_method(
 
       if(bytes > length) {
         ret = JS_ThrowRangeError(ctx,
-                                 "Supplied bytesWritten value (%" PRId64
-                                 ") is bigger than view length (%" PRIu64 ").");
+                                 "Supplied bytesWritten value (%" PRId64 ") is bigger than view length (%" PRIu64 ").");
       } else if(bytes == length) {
         newa = JS_DupValue(ctx, view);
       } else {
@@ -1380,10 +1350,8 @@ JSClassDef js_readable_class = {
 const JSCFunctionListEntry js_readable_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("cancel", 0, js_readable_method, READABLE_METHOD_ABORT),
     JS_CFUNC_MAGIC_DEF("getReader", 0, js_readable_method, READABLE_METHOD_GET_READER),
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "closed", js_readable_get, 0, READABLE_PROP_CLOSED, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "locked", js_readable_get, 0, READABLE_PROP_LOCKED, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("closed", js_readable_get, 0, READABLE_PROP_CLOSED, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_readable_get, 0, READABLE_PROP_LOCKED, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStream", JS_PROP_CONFIGURABLE),
 };
 
@@ -1392,9 +1360,7 @@ const JSCFunctionListEntry js_readable_default_controller_funcs[] = {
     JS_CFUNC_MAGIC_DEF("enqueue", 1, js_readable_controller, READABLE_ENQUEUE),
     JS_CFUNC_MAGIC_DEF("error", 1, js_readable_controller, READABLE_ERROR),
     JS_CGETSET_DEF("desiredSize", js_readable_desired, 0),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]",
-                       "ReadableStreamDefaultController",
-                       JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
 const JSCFunctionListEntry js_readable_bytestream_controller_funcs[] = {
@@ -1402,15 +1368,12 @@ const JSCFunctionListEntry js_readable_bytestream_controller_funcs[] = {
     JS_CFUNC_MAGIC_DEF("enqueue", 1, js_readable_controller, READABLE_ENQUEUE),
     JS_CFUNC_MAGIC_DEF("error", 1, js_readable_controller, READABLE_ERROR),
     JS_CGETSET_DEF("desiredSize", js_readable_desired, 0),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]",
-                       "ReadableByteStreamController",
-                       JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableByteStreamController", JS_PROP_CONFIGURABLE),
 };
 
 const JSCFunctionListEntry js_byob_request_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("respond", 1, js_byob_request_method, BYOB_REQUEST_METHOD_RESPOND),
-    JS_CFUNC_MAGIC_DEF(
-        "respondWithNewView", 1, js_byob_request_method, BYOB_REQUEST_METHOD_RESPONDWITHNEWVIEW),
+    JS_CFUNC_MAGIC_DEF("respondWithNewView", 1, js_byob_request_method, BYOB_REQUEST_METHOD_RESPONDWITHNEWVIEW),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStreamBYOBRequest", JS_PROP_CONFIGURABLE),
 };
 
@@ -1898,8 +1861,7 @@ const JSCFunctionListEntry js_writer_proto_funcs[] = {
  * @return     { return value }
  */
 static JSValue
-js_writable_callback(
-    JSContext* ctx, WritableStream* st, WritableCallback cb, int argc, JSValueConst argv[]) {
+js_writable_callback(JSContext* ctx, WritableStream* st, WritableCallback cb, int argc, JSValueConst argv[]) {
   assert(cb >= 0);
   assert(cb < countof(st->on));
 
@@ -2005,8 +1967,7 @@ enum {
  * @return     Return value of the method
  */
 static JSValue
-js_writable_method(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_writable_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   WritableStream* st;
   JSValue ret = JS_UNDEFINED;
 
@@ -2030,10 +1991,9 @@ js_writable_method(
       if((wr = writable_get_writer(st, 0, ctx)))
         ret = js_writer_wrap(ctx, wr);
       else
-        ret = JS_ThrowTypeError(
-            ctx,
-            "Failed to execute 'getWriter' on 'WritableStream': WritableStreamDefaultWriter "
-            "constructor can only accept writable streams that are not yet locked to a writer");
+        ret = JS_ThrowTypeError(ctx,
+                                "Failed to execute 'getWriter' on 'WritableStream': WritableStreamDefaultWriter "
+                                "constructor can only accept writable streams that are not yet locked to a writer");
 
       break;
     }
@@ -2095,8 +2055,7 @@ enum {
  * @return     Return value of the controller function
  */
 static JSValue
-js_writable_controller(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_writable_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   WritableStream* st;
   JSValue ret = JS_UNDEFINED;
 
@@ -2136,17 +2095,14 @@ const JSCFunctionListEntry js_writable_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("abort", 1, js_writable_method, WRITABLE_METHOD_ABORT),
     JS_CFUNC_MAGIC_DEF("close", 0, js_writable_method, WRITABLE_METHOD_CLOSE),
     JS_CFUNC_MAGIC_DEF("getWriter", 0, js_writable_method, WRITABLE_METHOD_GET_WRITER),
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "locked", js_writable_get, 0, WRITABLE_PROP_LOCKED, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_writable_get, 0, WRITABLE_PROP_LOCKED, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStream", JS_PROP_CONFIGURABLE),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_writable_iterator),
 };
 
 const JSCFunctionListEntry js_writable_controller_funcs[] = {
     JS_CFUNC_MAGIC_DEF("error", 0, js_writable_controller, WRITABLE_ERROR),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]",
-                       "WritableStreamDefaultController",
-                       JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "WritableStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
 /**
@@ -2316,8 +2272,7 @@ enum {
  * @return     Return value of the controller function
  */
 static JSValue
-js_transform_controller(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_transform_controller(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   TransformStream* st;
   JSValue ret = JS_UNDEFINED;
 
@@ -2409,10 +2364,8 @@ JSClassDef js_transform_class = {
 };
 
 const JSCFunctionListEntry js_transform_proto_funcs[] = {
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "readable", js_transform_get, 0, TRANSFORM_PROP_READABLE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "writable", js_transform_get, 0, TRANSFORM_PROP_WRITABLE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("readable", js_transform_get, 0, TRANSFORM_PROP_READABLE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("writable", js_transform_get, 0, TRANSFORM_PROP_WRITABLE, JS_PROP_ENUMERABLE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TransformStream", JS_PROP_CONFIGURABLE),
 };
 
@@ -2421,9 +2374,7 @@ const JSCFunctionListEntry js_transform_controller_funcs[] = {
     JS_CFUNC_MAGIC_DEF("enqueue", 1, js_transform_controller, TRANSFORM_ENQUEUE),
     JS_CFUNC_MAGIC_DEF("error", 1, js_transform_controller, TRANSFORM_ERROR),
     JS_CGETSET_DEF("desiredSize", js_transform_desired, 0),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]",
-                       "TransformStreamDefaultController",
-                       JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "TransformStreamDefaultController", JS_PROP_CONFIGURABLE),
 };
 
 /**
@@ -2447,20 +2398,17 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
                              countof(js_default_reader_proto_funcs));
   JS_SetClassProto(ctx, js_reader_class_id, default_reader_proto);
 
-  default_reader_ctor = JS_NewCFunction2(
-      ctx, js_reader_constructor, "ReadableStreamDefaultReader", 1, JS_CFUNC_constructor, 0);
+  default_reader_ctor =
+      JS_NewCFunction2(ctx, js_reader_constructor, "ReadableStreamDefaultReader", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, default_reader_ctor, default_reader_proto);
 
   byob_reader_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             byob_reader_proto,
-                             js_byob_reader_proto_funcs,
-                             countof(js_byob_reader_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, byob_reader_proto, js_byob_reader_proto_funcs, countof(js_byob_reader_proto_funcs));
   JS_SetClassProto(ctx, js_reader_class_id, byob_reader_proto);
 
-  byob_reader_ctor = JS_NewCFunction2(
-      ctx, js_reader_constructor, "ReadableStreamBYOBReader", 1, JS_CFUNC_constructor, 0);
+  byob_reader_ctor =
+      JS_NewCFunction2(ctx, js_reader_constructor, "ReadableStreamBYOBReader", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, byob_reader_ctor, byob_reader_proto);
 
@@ -2468,14 +2416,10 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_readable_class_id, &js_readable_class);
 
   readable_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             readable_proto,
-                             js_readable_proto_funcs,
-                             countof(js_readable_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, readable_proto, js_readable_proto_funcs, countof(js_readable_proto_funcs));
   JS_SetClassProto(ctx, js_readable_class_id, readable_proto);
 
-  readable_ctor =
-      JS_NewCFunction2(ctx, js_readable_constructor, "ReadableStream", 1, JS_CFUNC_constructor, 0);
+  readable_ctor = JS_NewCFunction2(ctx, js_readable_constructor, "ReadableStream", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, readable_ctor, readable_proto);
 
@@ -2504,14 +2448,10 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_writer_class_id, &js_writer_class);
 
   writer_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             writer_proto,
-                             js_writer_proto_funcs,
-                             countof(js_writer_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, writer_proto, js_writer_proto_funcs, countof(js_writer_proto_funcs));
   JS_SetClassProto(ctx, js_writer_class_id, writer_proto);
 
-  writer_ctor = JS_NewCFunction2(
-      ctx, js_writer_constructor, "WritableStreamDefaultWriter", 1, JS_CFUNC_constructor, 0);
+  writer_ctor = JS_NewCFunction2(ctx, js_writer_constructor, "WritableStreamDefaultWriter", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, writer_ctor, writer_proto);
 
@@ -2519,14 +2459,10 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_writable_class_id, &js_writable_class);
 
   writable_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             writable_proto,
-                             js_writable_proto_funcs,
-                             countof(js_writable_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, writable_proto, js_writable_proto_funcs, countof(js_writable_proto_funcs));
   JS_SetClassProto(ctx, js_writable_class_id, writable_proto);
 
-  writable_ctor =
-      JS_NewCFunction2(ctx, js_writable_constructor, "WritableStream", 1, JS_CFUNC_constructor, 0);
+  writable_ctor = JS_NewCFunction2(ctx, js_writable_constructor, "WritableStream", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, writable_ctor, writable_proto);
 
@@ -2541,14 +2477,10 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_transform_class_id, &js_transform_class);
 
   transform_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             transform_proto,
-                             js_transform_proto_funcs,
-                             countof(js_transform_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, transform_proto, js_transform_proto_funcs, countof(js_transform_proto_funcs));
   JS_SetClassProto(ctx, js_transform_class_id, transform_proto);
 
-  transform_ctor = JS_NewCFunction2(
-      ctx, js_transform_constructor, "TransformStream", 1, JS_CFUNC_constructor, 0);
+  transform_ctor = JS_NewCFunction2(ctx, js_transform_constructor, "TransformStream", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, transform_ctor, transform_proto);
 

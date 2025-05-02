@@ -23,13 +23,7 @@ enum repeater_getters {
   PROP_LENGTH = 0,
   PROP_PATH,
 };
-enum repeater_state {
-  REPEATER_INITIAL = 0,
-  REPEATER_STARTED,
-  REPEATER_STOPPED,
-  REPEATER_DONE,
-  REPEATER_REJECTED
-};
+enum repeater_state { REPEATER_INITIAL = 0, REPEATER_STARTED, REPEATER_STOPPED, REPEATER_DONE, REPEATER_REJECTED };
 
 typedef struct {
   JSValue resolve, value;
@@ -139,8 +133,7 @@ resolvable_call(JSContext* ctx, Resolvable* rsva, JSValueConst value) {
 }
 
 static JSValue
-resolvable_deferred(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, void* opaque) {
+resolvable_deferred(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, void* opaque) {
   Resolvable* rsva = opaque;
 
   JSValue riter = js_iterator_result(ctx, argv[0], FALSE);
@@ -176,8 +169,7 @@ resolvable_resolve(JSContext* ctx, Resolvable* rsva, JSValueConst value, BOOL as
     if(!(r = resolvable_dup(rsva, ctx)))
       return JS_EXCEPTION;
 
-    JSValue func =
-        js_function_cclosure(ctx, resolvable_deferred, 1, 0, r, (void*)&resolvable_closure_free);
+    JSValue func = js_function_cclosure(ctx, resolvable_deferred, 1, 0, r, (void*)&resolvable_closure_free);
     JSValue result = js_promise_resolve_then(ctx, value, func);
     JS_FreeValue(ctx, func);
     return result;
@@ -250,12 +242,8 @@ js_repeater_execute(JSContext* ctx, JSValueConst this_val) {
 }
 
 static JSValue
-js_repeater_iteration(JSContext* ctx,
-                      JSValueConst this_val,
-                      int argc,
-                      JSValueConst argv[],
-                      int magic,
-                      JSValueConst data[]) {
+js_repeater_iteration(
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValueConst data[]) {
   Repeater* rpt = JS_GetOpaque(data[0], js_repeater_class_id);
   JSValue ret = JS_UNDEFINED;
   JSValueConst value = argc >= 1 ? argv[0] : JS_UNDEFINED;
@@ -285,8 +273,7 @@ js_repeater_create_iteration(JSContext* ctx, JSValueConst this_val, JSValueConst
       JS_NewBool(ctx, rpt->state >= REPEATER_DONE),
   };
   JSValue iteration_fn = JS_NewCFunctionData(ctx, js_repeater_iteration, 1, 0, 2, data);
-  JSValue promise =
-      js_is_promise(ctx, value) ? JS_DupValue(ctx, value) : js_promise_resolve(ctx, value);
+  JSValue promise = js_is_promise(ctx, value) ? JS_DupValue(ctx, value) : js_promise_resolve(ctx, value);
   JSValue ret = js_promise_resolve_then(ctx, promise, iteration_fn);
 
   JS_FreeValue(ctx, promise);
@@ -305,8 +292,7 @@ js_repeater_push(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     return JS_EXCEPTION;
 
   if((item = list_shift(&rpt->nexts))) {
-    JSValue result =
-        js_is_promise(ctx, value) ? JS_DupValue(ctx, value) : js_iterator_result(ctx, value, FALSE);
+    JSValue result = js_is_promise(ctx, value) ? JS_DupValue(ctx, value) : js_iterator_result(ctx, value, FALSE);
 
     ret = resolvable_resolve(ctx, &item->resolvable, result, TRUE);
     JS_FreeValue(ctx, result);
@@ -530,20 +516,13 @@ js_repeater_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_repeater_class_id, &js_repeater_class);
 
   repeater_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             repeater_proto,
-                             js_repeater_proto_funcs,
-                             countof(js_repeater_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, repeater_proto, js_repeater_proto_funcs, countof(js_repeater_proto_funcs));
   JS_SetClassProto(ctx, js_repeater_class_id, repeater_proto);
 
-  repeater_ctor =
-      JS_NewCFunction2(ctx, js_repeater_constructor, "Repeater", 1, JS_CFUNC_constructor, 0);
+  repeater_ctor = JS_NewCFunction2(ctx, js_repeater_constructor, "Repeater", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, repeater_ctor, repeater_proto);
-  JS_SetPropertyFunctionList(ctx,
-                             repeater_ctor,
-                             js_repeater_static_funcs,
-                             countof(js_repeater_static_funcs));
+  JS_SetPropertyFunctionList(ctx, repeater_ctor, js_repeater_static_funcs, countof(js_repeater_static_funcs));
 
   if(m)
     JS_SetModuleExport(ctx, m, "Repeater", repeater_ctor);

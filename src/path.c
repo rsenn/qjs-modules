@@ -689,8 +689,7 @@ start:
     }
 
     case '*': {
-      if((*string == '/' && (flags & PATH_FNM_PATHNAME)) ||
-         path_fnmatch5(pattern, plen, string + 1, slen - 1, flags)) {
+      if((*string == '/' && (flags & PATH_FNM_PATHNAME)) || path_fnmatch5(pattern, plen, string + 1, slen - 1, flags)) {
         pattern++;
         plen--;
         goto start;

@@ -19,10 +19,9 @@
 
 VISIBLE JSClassID js_connectparams_class_id = 0, js_mysqlerror_class_id = 0, js_mysql_class_id = 0,
                   js_mysqlresult_class_id = 0;
-VISIBLE JSValue mysqlerror_proto = {{0}, JS_TAG_UNDEFINED},
-                mysqlerror_ctor = {{0}, JS_TAG_UNDEFINED}, mysql_proto = {{0}, JS_TAG_UNDEFINED},
-                mysql_ctor = {{0}, JS_TAG_UNDEFINED}, mysqlresult_proto = {{0}, JS_TAG_UNDEFINED},
-                mysqlresult_ctor = {{0}, JS_TAG_UNDEFINED};
+VISIBLE JSValue mysqlerror_proto = {{0}, JS_TAG_UNDEFINED}, mysqlerror_ctor = {{0}, JS_TAG_UNDEFINED},
+                mysql_proto = {{0}, JS_TAG_UNDEFINED}, mysql_ctor = {{0}, JS_TAG_UNDEFINED},
+                mysqlresult_proto = {{0}, JS_TAG_UNDEFINED}, mysqlresult_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue js_mysqlresult_wrap(JSContext* ctx, MYSQL_RES* res);
 
@@ -71,8 +70,7 @@ static JSValue js_mysqlerror_new(JSContext*, const char*);
 
 static AsyncEvent
 to_asyncevent(int my_wait) {
-  return ((my_wait & MYSQL_WAIT_WRITE) ? WANT_WRITE : 0) |
-         ((my_wait & MYSQL_WAIT_READ) ? WANT_READ : 0);
+  return ((my_wait & MYSQL_WAIT_WRITE) ? WANT_WRITE : 0) | ((my_wait & MYSQL_WAIT_READ) ? WANT_READ : 0);
 }
 
 static int
@@ -220,8 +218,7 @@ js_mysql_print_values(JSContext* ctx, DynBuf* out, JSValueConst values) {
     JSPropertyEnum* tmp_tab;
     uint32_t tmp_len;
 
-    if(JS_GetOwnPropertyNames(
-           ctx, &tmp_tab, &tmp_len, values, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY)) {
+    if(JS_GetOwnPropertyNames(ctx, &tmp_tab, &tmp_len, values, JS_GPN_STRING_MASK | JS_GPN_ENUM_ONLY)) {
       JS_FreeValue(ctx, iter);
       JS_ThrowTypeError(ctx, "argument is must be an object");
 
@@ -975,8 +972,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
   intptr_t tmp;
 
 #ifdef LIBMARIADB
-  if((has_fd =
-          (!mysql_get_optionv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)&tmp) && tmp != -1)))
+  if((has_fd = (!mysql_get_optionv(my, MARIADB_OPT_USERDATA, (void*)"fd", (void*)&tmp) && tmp != -1)))
     fd = tmp;
 
   for(;;) {
@@ -993,9 +989,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
         continue;
       }
     } else {
-      fd = sock != (SOCKET)INVALID_HANDLE_VALUE
-               ? _open_osfhandle((intptr_t)sock, _O_BINARY | _O_RDWR)
-               : -1;
+      fd = sock != (SOCKET)INVALID_HANDLE_VALUE ? _open_osfhandle((intptr_t)sock, _O_BINARY | _O_RDWR) : -1;
 
 #ifdef DEBUG_OUTPUT
       printf("filedescriptor %d created from socket handle %p\n", fd, sock);
@@ -1016,10 +1010,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
       s = _get_osfhandle(fd);
 
       if(s != sock) {
-        printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n",
-               fd,
-               s,
-               sock);
+        printf("WARNING: filedescriptor %d is socket handle %p, but the MySQL socket is %p\n", fd, s, sock);
         js_delete_propertystr(ctx, this_val, "fd");
         has_fd = FALSE;
         continue;
@@ -1041,8 +1032,7 @@ js_mysql_fd(JSContext* ctx, JSValueConst this_val) {
 }
 
 static JSValue
-js_mysql_connect_continue(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
+js_mysql_connect_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
   MYSQL *my = js_mysql_data(ac->result), *ret = 0;
   int state = mysql_real_connect_cont(&ret, my, to_mysql_wait(ac->state));
@@ -1078,8 +1068,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     c = connectparams_new(ctx, argc, argv);
   }
 
-  state = mysql_real_connect_start(
-      &ret, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
+  state = mysql_real_connect_start(&ret, my, c->host, c->user, c->password, c->db, c->port, c->socket, c->flags);
   fd = js_mysql_fd(ctx, this_val);
   as = to_asyncevent(state);
   ac = asyncclosure_new(ctx, fd, as, this_val, &js_mysql_connect_continue);
@@ -1090,8 +1079,7 @@ js_mysql_connect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 }
 
 static JSValue
-js_mysql_query_continue(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
+js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* ptr) {
   AsyncClosure* ac = ptr;
   int err = 0, state, as;
 
@@ -1138,11 +1126,8 @@ js_mysql_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   state = mysql_real_query_start(&err, my, query, i);
   fd = js_mysql_fd(ctx, this_val);
   as = to_asyncevent(state);
-  ac = asyncclosure_new(ctx,
-                        fd,
-                        as,
-                        JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id),
-                        &js_mysql_query_continue);
+  ac = asyncclosure_new(
+      ctx, fd, as, JS_NewObjectProtoClass(ctx, mysqlresult_proto, js_mysqlresult_class_id), &js_mysql_query_continue);
 
 #ifdef DEBUG_OUTPUT
   printf("%s state=%d err=%d query='%.*s'\n", __func__, state, err, (int)i, query);
@@ -1250,32 +1235,22 @@ static const JSCFunctionListEntry js_mysql_defines[] = {
     JS_PROP_INT64_DEF("COUNT_ERROR", MYSQL_COUNT_ERROR, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("DATABASE_DRIVER", MYSQL_DATABASE_DRIVER, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("DEFAULT_AUTH", MYSQL_DEFAULT_AUTH, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("ENABLE_CLEARTEXT_PLUGIN",
-                      MYSQL_ENABLE_CLEARTEXT_PLUGIN,
-                      JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("ENABLE_CLEARTEXT_PLUGIN", MYSQL_ENABLE_CLEARTEXT_PLUGIN, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("INIT_COMMAND", MYSQL_INIT_COMMAND, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_READY", MYSQL_STATUS_READY, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_GET_RESULT", MYSQL_STATUS_GET_RESULT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_USE_RESULT", MYSQL_STATUS_USE_RESULT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_QUERY_SENT", MYSQL_STATUS_QUERY_SENT, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("STATUS_SENDING_LOAD_DATA",
-                      MYSQL_STATUS_SENDING_LOAD_DATA,
-                      JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("STATUS_SENDING_LOAD_DATA", MYSQL_STATUS_SENDING_LOAD_DATA, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_FETCHING_DATA", MYSQL_STATUS_FETCHING_DATA, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("STATUS_NEXT_RESULT_PENDING",
-                      MYSQL_STATUS_NEXT_RESULT_PENDING,
-                      JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("STATUS_NEXT_RESULT_PENDING", MYSQL_STATUS_NEXT_RESULT_PENDING, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_QUIT_SENT", MYSQL_STATUS_QUIT_SENT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("STATUS_STMT_RESULT", MYSQL_STATUS_STMT_RESULT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_BIND", MYSQL_OPT_BIND, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("OPT_CAN_HANDLE_EXPIRED_PASSWORDS",
-                      MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
-                      JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("OPT_CAN_HANDLE_EXPIRED_PASSWORDS", MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_COMPRESS", MYSQL_OPT_COMPRESS, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_CONNECT_ATTR_ADD", MYSQL_OPT_CONNECT_ATTR_ADD, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("OPT_CONNECT_ATTR_DELETE",
-                      MYSQL_OPT_CONNECT_ATTR_DELETE,
-                      JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("OPT_CONNECT_ATTR_DELETE", MYSQL_OPT_CONNECT_ATTR_DELETE, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_CONNECT_ATTR_RESET", MYSQL_OPT_CONNECT_ATTR_RESET, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_CONNECT_ATTRS", MYSQL_OPT_CONNECT_ATTRS, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_CONNECT_TIMEOUT", MYSQL_OPT_CONNECT_TIMEOUT, JS_PROP_CONFIGURABLE),
@@ -1296,16 +1271,10 @@ static const JSCFunctionListEntry js_mysql_defines[] = {
     JS_PROP_INT32_DEF("OPT_SSL_CRLPATH", MYSQL_OPT_SSL_CRLPATH, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_SSL_ENFORCE", MYSQL_OPT_SSL_ENFORCE, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_SSL_KEY", MYSQL_OPT_SSL_KEY, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("OPT_SSL_VERIFY_SERVER_CERT",
-                      MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                      JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("OPT_SSL_VERIFY_SERVER_CERT", MYSQL_OPT_SSL_VERIFY_SERVER_CERT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_TLS_VERSION", MYSQL_OPT_TLS_VERSION, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("OPT_USE_EMBEDDED_CONNECTION",
-                      MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-                      JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("OPT_USE_REMOTE_CONNECTION",
-                      MYSQL_OPT_USE_REMOTE_CONNECTION,
-                      JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("OPT_USE_EMBEDDED_CONNECTION", MYSQL_OPT_USE_EMBEDDED_CONNECTION, JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("OPT_USE_REMOTE_CONNECTION", MYSQL_OPT_USE_REMOTE_CONNECTION, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_USE_RESULT", MYSQL_OPT_USE_RESULT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("OPT_WRITE_TIMEOUT", MYSQL_OPT_WRITE_TIMEOUT, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("PLUGIN_DIR", MYSQL_PLUGIN_DIR, JS_PROP_CONFIGURABLE),
@@ -1318,9 +1287,7 @@ static const JSCFunctionListEntry js_mysql_defines[] = {
     JS_PROP_INT32_DEF("SET_CHARSET_DIR", MYSQL_SET_CHARSET_DIR, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("SET_CHARSET_NAME", MYSQL_SET_CHARSET_NAME, JS_PROP_CONFIGURABLE),
     JS_PROP_INT32_DEF("SET_CLIENT_IP", MYSQL_SET_CLIENT_IP, JS_PROP_CONFIGURABLE),
-    JS_PROP_INT32_DEF("SHARED_MEMORY_BASE_NAME",
-                      MYSQL_SHARED_MEMORY_BASE_NAME,
-                      JS_PROP_CONFIGURABLE),
+    JS_PROP_INT32_DEF("SHARED_MEMORY_BASE_NAME", MYSQL_SHARED_MEMORY_BASE_NAME, JS_PROP_CONFIGURABLE),
 };
 
 static JSValue
@@ -1348,8 +1315,7 @@ js_mysqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   if(argc > 1) {
     prop = JS_NewAtom(ctx, "type");
     JS_DeleteProperty(ctx, obj, prop, 0);
-    JS_DefinePropertyValue(
-        ctx, obj, prop, JS_DupValue(ctx, argv[1]), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValue(ctx, obj, prop, JS_DupValue(ctx, argv[1]), JS_PROP_WRITABLE | JS_PROP_CONFIGURABLE);
     JS_FreeAtom(ctx, prop);
   }
 
@@ -1443,10 +1409,7 @@ result_array(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
            (int)(field_lengths[i] > 32 ? 32 : field_lengths[i]),
            row[i]);
 #endif
-    JS_SetPropertyUint32(ctx,
-                         ret,
-                         i,
-                         result_value(ctx, &fields[i], row[i], field_lengths[i], rtype));
+    JS_SetPropertyUint32(ctx, ret, i, result_value(ctx, &fields[i], row[i], field_lengths[i], rtype));
   }
 
   return ret;
@@ -1464,10 +1427,7 @@ result_object(JSContext* ctx, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) 
     char* id;
 
     if((id = fn(ctx, &fields[i]))) {
-      JS_SetPropertyStr(ctx,
-                        ret,
-                        id,
-                        result_value(ctx, &fields[i], row[i], field_lengths[i], rtype));
+      JS_SetPropertyStr(ctx, ret, id, result_value(ctx, &fields[i], row[i], field_lengths[i], rtype));
       js_free(ctx, id);
     }
   }
@@ -1503,8 +1463,7 @@ result_yield(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, R
 }
 
 static void
-result_resolve(
-    JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
+result_resolve(JSContext* ctx, JSValueConst func, MYSQL_RES* res, MYSQL_ROW row, ResultFlags rtype) {
   JSValue value = row ? result_row(ctx, res, row, rtype) : JS_NULL;
 
   value_yield_free(ctx, func, value);
@@ -1634,8 +1593,7 @@ js_mysqlresult_next_continue(
 }
 
 static JSValue
-js_mysqlresult_next(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_mysqlresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   MYSQL_RES* res;
 
   if(!(res = js_mysqlresult_data2(ctx, this_val)))
@@ -1670,8 +1628,7 @@ enum {
 };
 
 static JSValue
-js_mysqlresult_functions(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_mysqlresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   MYSQL_RES* res;
 
@@ -1783,8 +1740,7 @@ enum {
 };
 
 static JSValue
-js_mysqlresult_iterator(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_mysqlresult_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   MYSQL* my = js_mysqlresult_handle(ctx, this_val);
 
@@ -1844,8 +1800,7 @@ static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
     JS_CFUNC_MAGIC_DEF("next", 0, js_mysqlresult_next, RESULT_ITERAT),
     JS_CGETSET_MAGIC_DEF("eof", js_mysqlresult_get, 0, PROP_EOF),
     JS_CGETSET_MAGIC_FLAGS_DEF("numRows", js_mysqlresult_get, 0, PROP_NUM_ROWS, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "numFields", js_mysqlresult_get, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("numFields", js_mysqlresult_get, 0, PROP_NUM_FIELDS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("fieldCount", js_mysqlresult_get, 0, PROP_FIELD_COUNT),
     JS_CGETSET_MAGIC_DEF("currentField", js_mysqlresult_get, 0, PROP_CURRENT_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchField", 1, js_mysqlresult_functions, METHOD_FETCH_FIELD),
@@ -1950,10 +1905,7 @@ field_array(JSContext* ctx, MYSQL_FIELD* field) {
   JS_SetPropertyUint32(ctx, ret, 2, JS_NewUint32(ctx, field->length));
   JS_SetPropertyUint32(ctx, ret, 3, JS_NewUint32(ctx, field->max_length));
   JS_SetPropertyUint32(ctx, ret, 4, JS_NewUint32(ctx, field->decimals));
-  JS_SetPropertyUint32(ctx,
-                       ret,
-                       5,
-                       JS_NewString(ctx, (field->flags & NOT_NULL_FLAG) ? "NO" : "YES"));
+  JS_SetPropertyUint32(ctx, ret, 5, JS_NewString(ctx, (field->flags & NOT_NULL_FLAG) ? "NO" : "YES"));
   JS_SetPropertyUint32(ctx, ret, 6, JS_NewStringLen(ctx, field->def, field->def_length));
 
   return ret;
@@ -2123,29 +2075,21 @@ js_mysql_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClassID(&js_mysqlerror_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_mysqlerror_class_id, &js_mysqlerror_class);
 
-  mysqlerror_ctor =
-      JS_NewCFunction2(ctx, js_mysqlerror_constructor, "MySQLError", 1, JS_CFUNC_constructor, 0);
+  mysqlerror_ctor = JS_NewCFunction2(ctx, js_mysqlerror_constructor, "MySQLError", 1, JS_CFUNC_constructor, 0);
   mysqlerror_proto = JS_NewObjectProto(ctx, error_proto);
   JS_FreeValue(ctx, error_proto);
 
-  JS_SetPropertyFunctionList(ctx,
-                             mysqlerror_proto,
-                             js_mysqlerror_funcs,
-                             countof(js_mysqlerror_funcs));
+  JS_SetPropertyFunctionList(ctx, mysqlerror_proto, js_mysqlerror_funcs, countof(js_mysqlerror_funcs));
 
   JS_SetClassProto(ctx, js_mysqlerror_class_id, mysqlerror_proto);
 
   JS_NewClassID(&js_mysqlresult_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_mysqlresult_class_id, &js_mysqlresult_class);
 
-  mysqlresult_ctor =
-      JS_NewCFunction2(ctx, js_mysqlresult_constructor, "MySQLResult", 1, JS_CFUNC_constructor, 0);
+  mysqlresult_ctor = JS_NewCFunction2(ctx, js_mysqlresult_constructor, "MySQLResult", 1, JS_CFUNC_constructor, 0);
   mysqlresult_proto = JS_NewObject(ctx);
 
-  JS_SetPropertyFunctionList(ctx,
-                             mysqlresult_proto,
-                             js_mysqlresult_funcs,
-                             countof(js_mysqlresult_funcs));
+  JS_SetPropertyFunctionList(ctx, mysqlresult_proto, js_mysqlresult_funcs, countof(js_mysqlresult_funcs));
   JS_SetClassProto(ctx, js_mysqlresult_class_id, mysqlresult_proto);
 
   if(m) {

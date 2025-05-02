@@ -135,8 +135,7 @@ js_queue_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
       if((chunk = queue_chunk(queue, pos))) {
         if(returnPos)
-          ret =
-              JS_NewInt64(ctx, pos < 0 ? chunk_tailpos(chunk, queue) : chunk_headpos(chunk, queue));
+          ret = JS_NewInt64(ctx, pos < 0 ? chunk_tailpos(chunk, queue) : chunk_headpos(chunk, queue));
         else
           ret = chunk_arraybuffer(chunk, ctx);
       } else
@@ -266,8 +265,7 @@ static JSClassDef js_queue_iterator_class = {
 };
 
 static JSValue
-js_queue_iterator_next(
-    JSContext* ctx, JSValueConst iter, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+js_queue_iterator_next(JSContext* ctx, JSValueConst iter, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   JSValue ret = JS_UNDEFINED, queue_obj = JS_GetPropertyStr(ctx, iter, "queue");
   Queue* queue;
   Chunk* ch;
@@ -308,10 +306,7 @@ js_queue_init(JSContext* ctx, JSModuleDef* m) {
 
   queue_iterator_proto = JS_NewObject(ctx);
 
-  JS_SetPropertyFunctionList(ctx,
-                             queue_iterator_proto,
-                             js_queue_iterator_funcs,
-                             countof(js_queue_iterator_funcs));
+  JS_SetPropertyFunctionList(ctx, queue_iterator_proto, js_queue_iterator_funcs, countof(js_queue_iterator_funcs));
 
   JS_SetClassProto(ctx, js_queue_iterator_class_id, queue_iterator_proto);
 

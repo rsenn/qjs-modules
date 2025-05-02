@@ -20,10 +20,7 @@ location_print(const Location* loc, DynBuf* dbuf, JSContext* ctx) {
     }
   }
 
-  dbuf_printf(dbuf,
-              loc->column >= 0 ? "%" PRId32 ":%" PRId32 : "%" PRId32,
-              loc->line + 1,
-              loc->column + 1);
+  dbuf_printf(dbuf, loc->column >= 0 ? "%" PRId32 ":%" PRId32 : "%" PRId32, loc->line + 1, loc->column + 1);
 }
 
 char*

@@ -341,8 +341,7 @@ input_buffer_remain(const InputBuffer* in) {
   return input_buffer_length(in) - in->pos;
 }
 
-int
-js_offset_length(JSContext*, int64_t size, int argc, JSValueConst argv[], OffsetLength* off_len_p);
+int js_offset_length(JSContext*, int64_t size, int argc, JSValueConst argv[], OffsetLength* off_len_p);
 int js_index_range(JSContext*, int64_t size, int argc, JSValueConst argv[], IndexRange* idx_rng_p);
 
 /**

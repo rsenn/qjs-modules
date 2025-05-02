@@ -335,8 +335,7 @@ enum {
 };
 
 static JSValue
-js_location_methods(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_location_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Location* loc;
   JSValue ret = JS_UNDEFINED;
 
@@ -413,14 +412,11 @@ static JSClassDef js_location_class = {
 };
 
 static const JSCFunctionListEntry js_location_funcs[] = {
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "line", js_location_get, js_location_set, LOCATION_PROP_LINE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "column", js_location_get, js_location_set, LOCATION_PROP_COLUMN, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("line", js_location_get, js_location_set, LOCATION_PROP_LINE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("column", js_location_get, js_location_set, LOCATION_PROP_COLUMN, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("charOffset", js_location_get, js_location_set, LOCATION_PROP_CHAROFFSET),
     JS_CGETSET_MAGIC_DEF("byteOffset", js_location_get, js_location_set, LOCATION_PROP_BYTEOFFSET),
-    JS_CGETSET_MAGIC_FLAGS_DEF(
-        "file", js_location_get, js_location_set, LOCATION_PROP_FILE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("file", js_location_get, js_location_set, LOCATION_PROP_FILE, JS_PROP_ENUMERABLE),
     JS_ALIAS_DEF("pos", "charOffset"),
     JS_CFUNC_MAGIC_DEF("equal", 1, js_location_methods, LOCATION_EQUAL),
     JS_CFUNC_DEF("[Symbol.toPrimitive]", 0, js_location_toprimitive),
@@ -439,15 +435,11 @@ js_location_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_NewClass(JS_GetRuntime(ctx), js_location_class_id, &js_location_class);
 
-  location_ctor =
-      JS_NewCFunction2(ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
+  location_ctor = JS_NewCFunction2(ctx, js_location_constructor, "Location", 1, JS_CFUNC_constructor, 0);
   location_proto = JS_NewObject(ctx);
 
   JS_SetPropertyFunctionList(ctx, location_proto, js_location_funcs, countof(js_location_funcs));
-  JS_SetPropertyFunctionList(ctx,
-                             location_ctor,
-                             js_location_static_funcs,
-                             countof(js_location_static_funcs));
+  JS_SetPropertyFunctionList(ctx, location_ctor, js_location_static_funcs, countof(js_location_static_funcs));
   JS_SetClassProto(ctx, js_location_class_id, location_proto);
 
   if(m)

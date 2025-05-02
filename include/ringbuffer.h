@@ -62,13 +62,11 @@ typedef union ringbuffer {
 #define ringbuffer_AVAIL(rb) ((rb)->size - ringbuffer_LENGTH(rb))
 #define ringbuffer_LENGTH(rb) \
   (ringbuffer_WRAPPED(rb) ? ((rb)->size - (rb)->tail) + (rb)->head : (rb)->head - (rb)->tail)
-#define ringbuffer_CONTINUOUS(rb) \
-  (ringbuffer_WRAPPED(rb) ? (rb)->size - (rb)->tail : (rb)->head - (rb)->tail)
+#define ringbuffer_CONTINUOUS(rb) (ringbuffer_WRAPPED(rb) ? (rb)->size - (rb)->tail : (rb)->head - (rb)->tail)
 #define ringbuffer_IS_CONTINUOUS(rb) ((rb)->head >= (rb)->tail)
 #define ringbuffer_SKIP(rb, n) ((rb)->tail += (n), (rb)->tail %= (rb)->size)
 #define ringbuffer_WRAP(rb, idx) ((idx) % (rb)->size)
-#define ringbuffer_NEXT(rb, ptr) \
-  (void*)(ringbuffer_WRAP(rb, ((uint8_t*)(ptr + 1)) - (rb)->data) + (rb)->data)
+#define ringbuffer_NEXT(rb, ptr) (void*)(ringbuffer_WRAP(rb, ((uint8_t*)(ptr + 1)) - (rb)->data) + (rb)->data)
 
 void ringbuffer_reset(RingBuffer*);
 BOOL ringbuffer_queue(RingBuffer*, uint8_t data);

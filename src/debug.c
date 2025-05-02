@@ -239,8 +239,7 @@ debug_js_realloc(JSContext* ctx, void* p, size_t n, const char* file, int line) 
 }
 
 void*
-debug_js_realloc2(
-    JSContext* ctx, void* p, size_t size, size_t* pslack, const char* file, int line) {
+debug_js_realloc2(JSContext* ctx, void* p, size_t size, size_t* pslack, const char* file, int line) {
   void* ptr;
 
   if((ptr = debug_js_realloc(ctx, p, size, file, line))) {

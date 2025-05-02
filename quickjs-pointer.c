@@ -454,10 +454,7 @@ static const JSCFunctionListEntry js_pointer_static_funcs[] = {
 };
 
 static int
-js_pointer_get_own_property(JSContext* ctx,
-                            JSPropertyDescriptor* pdesc,
-                            JSValueConst obj,
-                            JSAtom prop) {
+js_pointer_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {
   Pointer* pointer = js_pointer_data2(ctx, obj);
   int64_t index;
 
@@ -494,10 +491,7 @@ js_pointer_get_own_property(JSContext* ctx,
 }
 
 static int
-js_pointer_get_own_property_names(JSContext* ctx,
-                                  JSPropertyEnum** ptab,
-                                  uint32_t* plen,
-                                  JSValueConst obj) {
+js_pointer_get_own_property_names(JSContext* ctx, JSPropertyEnum** ptab, uint32_t* plen, JSValueConst obj) {
   Pointer* pointer;
 
   if((pointer = js_pointer_data2(ctx, obj))) {
@@ -520,12 +514,8 @@ js_pointer_get_own_property_names(JSContext* ctx,
 }
 
 static int
-js_pointer_set_property(JSContext* ctx,
-                        JSValueConst obj,
-                        JSAtom prop,
-                        JSValueConst value,
-                        JSValueConst receiver,
-                        int flags) {
+js_pointer_set_property(
+    JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
   Pointer* pointer;
 
   if((pointer = js_pointer_data2(ctx, obj))) {
@@ -567,42 +557,26 @@ js_pointer_init(JSContext* ctx, JSModuleDef* m) {
   JS_NewClass(JS_GetRuntime(ctx), js_pointer_class_id, &js_pointer_class);
 
   pointer_proto = JS_NewObject(ctx);
-  JS_SetPropertyFunctionList(ctx,
-                             pointer_proto,
-                             js_pointer_proto_funcs,
-                             countof(js_pointer_proto_funcs));
+  JS_SetPropertyFunctionList(ctx, pointer_proto, js_pointer_proto_funcs, countof(js_pointer_proto_funcs));
 
   JSValue array_proto = js_global_prototype(ctx, "Array");
 
   JS_DefinePropertyValueStr(
       ctx, pointer_proto, "map", JS_GetPropertyStr(ctx, array_proto, "map"), JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx,
-                            pointer_proto,
-                            "reduce",
-                            JS_GetPropertyStr(ctx, array_proto, "reduce"),
-                            JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx,
-                            pointer_proto,
-                            "forEach",
-                            JS_GetPropertyStr(ctx, array_proto, "forEach"),
-                            JS_PROP_CONFIGURABLE);
-  JS_DefinePropertyValueStr(ctx,
-                            pointer_proto,
-                            "keys",
-                            JS_GetPropertyStr(ctx, array_proto, "keys"),
-                            JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(
+      ctx, pointer_proto, "reduce", JS_GetPropertyStr(ctx, array_proto, "reduce"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(
+      ctx, pointer_proto, "forEach", JS_GetPropertyStr(ctx, array_proto, "forEach"), JS_PROP_CONFIGURABLE);
+  JS_DefinePropertyValueStr(
+      ctx, pointer_proto, "keys", JS_GetPropertyStr(ctx, array_proto, "keys"), JS_PROP_CONFIGURABLE);
 
   JS_FreeValue(ctx, array_proto);
 
   js_set_inspect_method(ctx, pointer_proto, js_pointer_inspect);
 
-  pointer_ctor =
-      JS_NewCFunction2(ctx, js_pointer_constructor, "Pointer", 1, JS_CFUNC_constructor, 0);
+  pointer_ctor = JS_NewCFunction2(ctx, js_pointer_constructor, "Pointer", 1, JS_CFUNC_constructor, 0);
 
-  JS_SetPropertyFunctionList(ctx,
-                             pointer_ctor,
-                             js_pointer_static_funcs,
-                             countof(js_pointer_static_funcs));
+  JS_SetPropertyFunctionList(ctx, pointer_ctor, js_pointer_static_funcs, countof(js_pointer_static_funcs));
 
   JS_SetClassProto(ctx, js_pointer_class_id, pointer_proto);
   JS_SetConstructor(ctx, pointer_ctor, pointer_proto);

@@ -36,10 +36,8 @@ typedef union Vector {
     { 0, 0, 0, 0, &vector_realloc, 0 } \
   }
 
-#define vector_init(vec, ctx) \
-  dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&vector_js_realloc)
-#define vector_init_rt(vec, rt) \
-  dbuf_init2(&((vec)->dbuf), (rt), (DynBufReallocFunc*)&vector_js_realloc_rt)
+#define vector_init(vec, ctx) dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&vector_js_realloc)
+#define vector_init_rt(vec, rt) dbuf_init2(&((vec)->dbuf), (rt), (DynBufReallocFunc*)&vector_js_realloc_rt)
 #define VECTOR(ctx) \
   (Vector) { \
     { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc, ctx } \
@@ -243,11 +241,7 @@ vector_putptr(Vector* vec, void* p) {
   vector_put(vec, &p, sizeof(p));
 }
 
-void quicksort_r(void* base,
-                 size_t nmemb,
-                 size_t size,
-                 int (*compar)(const void*, const void*, void*),
-                 void* ptr);
+void quicksort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr);
 
 static inline void
 vector_sort(Vector* vec, size_t elsz, int (*compar)(const void*, const void*, void*), void* arg) {

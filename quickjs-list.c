@@ -43,8 +43,7 @@ typedef int64_t FindCall(List*, JSValueConst, JSValueConst, Node**, JSContext*);
 
 VISIBLE JSClassID js_list_class_id = 0, js_list_iterator_class_id = 0;
 VISIBLE JSValue list_proto = {{0}, JS_TAG_UNDEFINED}, list_ctor = {{0}, JS_TAG_UNDEFINED},
-                list_iterator_proto = {{0}, JS_TAG_UNDEFINED},
-                list_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
+                list_iterator_proto = {{0}, JS_TAG_UNDEFINED}, list_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum {
   METHOD_PUSH = 0,
@@ -368,8 +367,7 @@ list_find_reverse(List* list, JSValueConst list_obj, JSValueConst fn, Node** npt
 }
 
 static JSValue
-list_find_value(
-    List* list, JSValueConst list_obj, JSValueConst fn, FindCall* findcall, JSContext* ctx) {
+list_find_value(List* list, JSValueConst list_obj, JSValueConst fn, FindCall* findcall, JSContext* ctx) {
   Node* node = 0;
 
   findcall(list, list_obj, fn, &node, ctx);
@@ -472,8 +470,7 @@ list_iterator_next(ListIterator* it, BOOL* pdone, JSContext* ctx) {
 }
 
 static JSValue
-js_list_iterator_new(
-    JSContext* ctx, JSValueConst proto, List* list, ListIteratorKind kind, Direction dir) {
+js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, ListIteratorKind kind, Direction dir) {
   ListIterator* it;
   JSValue obj = JS_UNDEFINED;
 
@@ -501,10 +498,7 @@ fail:
 }
 
 static JSValue
-js_list_iterator_constructor(JSContext* ctx,
-                             JSValueConst new_target,
-                             int argc,
-                             JSValueConst argv[]) {
+js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto;
   List* list;
   Direction dir = FWD;
@@ -530,8 +524,7 @@ js_list_iterator_constructor(JSContext* ctx,
 }
 
 static JSValue
-js_list_iterator_next(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
+js_list_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   ListIterator* it;
   JSValue ret = JS_UNDEFINED;
 
@@ -607,8 +600,7 @@ js_list_wrap(JSContext* ctx, JSValueConst proto, List* list) {
 VISIBLE JSValue
 js_list_wrap_species(JSContext* ctx, JSValueConst this_val, List* list) {
   JSValue species = js_object_species(ctx, this_val);
-  JSValue proto = JS_IsUndefined(species) ? JS_DupValue(ctx, list_proto)
-                                          : JS_GetPropertyStr(ctx, species, "prototype");
+  JSValue proto = JS_IsUndefined(species) ? JS_DupValue(ctx, list_proto) : JS_GetPropertyStr(ctx, species, "prototype");
   JSValue ret = js_list_wrap(ctx, proto, list);
 
   JS_FreeValue(ctx, proto);
@@ -962,8 +954,7 @@ js_list_search(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 
 static JSValue
-js_list_functional(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   List* list;
   JSValue pred, ret = JS_UNDEFINED;
   struct list_head* ptr;
@@ -1289,10 +1280,7 @@ static const JSCFunctionListEntry js_list_iterator_proto_funcs[] = {
 };
 
 static int
-js_list_get_own_property(JSContext* ctx,
-                         JSPropertyDescriptor* pdesc,
-                         JSValueConst obj,
-                         JSAtom prop) {
+js_list_get_own_property(JSContext* ctx, JSPropertyDescriptor* pdesc, JSValueConst obj, JSAtom prop) {
   List* list = js_list_data2(ctx, obj);
   int64_t index;
 
@@ -1338,11 +1326,8 @@ js_list_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst
       value = JS_DupValue(ctx, list_value(list, index));
   } else if(js_atom_is_length(ctx, prop)) {
     value = JS_NewInt64(ctx, list->size);
-  } else if((entry = js_find_cfunction_atom(ctx,
-                                            js_list_proto_funcs,
-                                            countof(js_list_proto_funcs),
-                                            prop,
-                                            JS_DEF_CGETSET_MAGIC)) >= 0) {
+  } else if((entry = js_find_cfunction_atom(
+                 ctx, js_list_proto_funcs, countof(js_list_proto_funcs), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
     value = js_list_get(ctx, obj, js_list_proto_funcs[entry].magic);
   } else {
     JSValue proto = JS_IsUndefined(list_proto) ? JS_GetPrototype(ctx, obj) : list_proto;
@@ -1355,12 +1340,8 @@ js_list_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst
 }
 
 static int
-js_list_set_property(JSContext* ctx,
-                     JSValueConst obj,
-                     JSAtom prop,
-                     JSValueConst value,
-                     JSValueConst receiver,
-                     int flags) {
+js_list_set_property(
+    JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
   List* list = js_list_data2(ctx, obj);
   int64_t index;
 
@@ -1430,28 +1411,16 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
   if(JS_IsObject(array_proto)) {
     JS_DefinePropertyValueStr(
         ctx, list_proto, "join", JS_GetPropertyStr(ctx, array_proto, "join"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(ctx,
-                              list_proto,
-                              "toString",
-                              JS_GetPropertyStr(ctx, array_proto, "toString"),
-                              JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(ctx,
-                              list_proto,
-                              "toLocaleString",
-                              JS_GetPropertyStr(ctx, array_proto, "toLocaleString"),
-                              JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(
+        ctx, list_proto, "toString", JS_GetPropertyStr(ctx, array_proto, "toString"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(
+        ctx, list_proto, "toLocaleString", JS_GetPropertyStr(ctx, array_proto, "toLocaleString"), JS_PROP_CONFIGURABLE);
     JS_DefinePropertyValueStr(
         ctx, list_proto, "flat", JS_GetPropertyStr(ctx, array_proto, "flat"), JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(ctx,
-                              list_proto,
-                              "flatMap",
-                              JS_GetPropertyStr(ctx, array_proto, "flatMap"),
-                              JS_PROP_CONFIGURABLE);
-    JS_DefinePropertyValueStr(ctx,
-                              list_proto,
-                              "copyWithin",
-                              JS_GetPropertyStr(ctx, array_proto, "copyWithin"),
-                              JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(
+        ctx, list_proto, "flatMap", JS_GetPropertyStr(ctx, array_proto, "flatMap"), JS_PROP_CONFIGURABLE);
+    JS_DefinePropertyValueStr(
+        ctx, list_proto, "copyWithin", JS_GetPropertyStr(ctx, array_proto, "copyWithin"), JS_PROP_CONFIGURABLE);
   }
 
   JS_FreeValue(ctx, array_proto);
@@ -1467,8 +1436,7 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetClassProto(ctx, js_list_iterator_class_id, list_iterator_proto);
 
-  list_iterator_ctor = JS_NewCFunction2(
-      ctx, js_list_iterator_constructor, "ListIterator", 1, JS_CFUNC_constructor, 0);
+  list_iterator_ctor = JS_NewCFunction2(ctx, js_list_iterator_constructor, "ListIterator", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, list_iterator_ctor, list_iterator_proto);
 

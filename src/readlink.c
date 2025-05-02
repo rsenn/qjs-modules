@@ -27,13 +27,7 @@ get_reparse_data(const char* LinkPath, REPARSE_DATA_BUFFER* rdb) {
     return FALSE;
   }
 
-  hFile = CreateFile(LinkPath,
-                     0,
-                     0,
-                     0,
-                     OPEN_EXISTING,
-                     FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
-                     0);
+  hFile = CreateFile(LinkPath, 0, 0, 0, OPEN_EXISTING, FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, 0);
 
   if(hFile == INVALID_HANDLE_VALUE) {
     return FALSE;

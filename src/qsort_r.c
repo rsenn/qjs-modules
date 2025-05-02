@@ -21,12 +21,7 @@ exch(char* base, size_t size, size_t a, size_t b) {
 /* Blame him for the scary variable names */
 /* http://www.cs.princeton.edu/~rs/talks/QuicksortIsOptimal.pdf */
 static void
-quicksort(char* base,
-          size_t size,
-          ssize_t l,
-          ssize_t r,
-          int (*compar)(const void*, const void*, void*),
-          void* ptr) {
+quicksort(char* base, size_t size, ssize_t l, ssize_t r, int (*compar)(const void*, const void*, void*), void* ptr) {
   ssize_t i = l - 1, j = r, p = l - 1, q = r, k;
   char* v = base + r * size;
   if(r <= l)
@@ -76,11 +71,7 @@ quicksort(char* base,
 }
 
 void
-quicksort_r(void* base,
-            size_t nmemb,
-            size_t size,
-            int (*compar)(const void*, const void*, void*),
-            void* ptr) {
+quicksort_r(void* base, size_t nmemb, size_t size, int (*compar)(const void*, const void*, void*), void* ptr) {
   /* check for integer overflows */
   if(nmemb >= (((size_t)-1) >> 1) || size >= (((size_t)-1) >> 1))
     return;

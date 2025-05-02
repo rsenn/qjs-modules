@@ -31,8 +31,7 @@ struct AsyncHandlerClosure {
 
 typedef struct AsyncHandlerClosure AsyncClosure;
 
-AsyncClosure*
-asyncclosure_new(JSContext*, int fd, AsyncEvent state, JSValueConst result, CClosureFunc*);
+AsyncClosure* asyncclosure_new(JSContext*, int fd, AsyncEvent state, JSValueConst result, CClosureFunc*);
 AsyncClosure* asyncclosure_dup(AsyncClosure*);
 JSValue asyncclosure_promise(AsyncClosure*);
 void asyncclosure_opaque(AsyncClosure*, void*, void (*opaque_free)(JSRuntime*, void*));

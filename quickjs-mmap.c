@@ -50,8 +50,7 @@ js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
   if(ptr == MAP_FAILED)
     return JS_NewInt32(ctx, -1);
 
-  return JS_NewArrayBuffer(
-      ctx, ptr, length, &js_mmap_free_func, (void*)length, !!(flags & MAP_SHARED));
+  return JS_NewArrayBuffer(ctx, ptr, length, &js_mmap_free_func, (void*)length, !!(flags & MAP_SHARED));
 }
 
 static JSValue
