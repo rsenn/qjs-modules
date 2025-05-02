@@ -944,7 +944,7 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   js_dbuf_init(ctx, &dbuf);
 
-  if((r = path_readlink2(path, &dbuf)) > 0) 
+  if((r = path_readlink2(path, &dbuf)) > 0)
     ret = dbuf_tostring_free(&dbuf, ctx);
 
   return ret;
@@ -3268,11 +3268,11 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 #ifdef HAVE_FSTAT
   res = fstat(fd, &st);
 #else
-  #warning Emulating fstat() using /proc/self/fd/<n>
+#warning Emulating fstat() using /proc/self/fd/<n>
   {
     char pbuf[32];
     strcpy(pbuf, "/proc/self/fd/");
-    itoa(fd, &pbuf[14], 10);
+    pbuf[fmt_ulong(&pbuf[14], fd)] = '\0';
 
     res = stat(pbuf, &st);
   }
