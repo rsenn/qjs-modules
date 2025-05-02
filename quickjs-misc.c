@@ -3232,7 +3232,6 @@ timespec_to_ms(const struct timespec* tv) {
 }
 #endif
 
-#ifdef HAVE_FSTAT
 static JSValue
 js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t fd = -1;
@@ -3256,7 +3255,18 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   new64.i = use_bigint ? JS_NewBigInt64 : JS_NewInt64;
   new64.u = use_bigint ? JS_NewBigUint64 : (JSValue(*)(JSContext*, uint64_t)) & JS_NewInt64;
 
+#ifdef HAVE_FSTAT
   res = fstat(fd, &st);
+#else
+  #warning Emulating fstat() using /proc/self/fd/<n>
+  {
+    char pbuf[32];
+    strcpy(pbuf, "/proc/self/fd/");
+    itoa(fd, &pbuf[14], 10);
+
+    res = stat(pbuf, &st);
+  }
+#endif
 
   if(res < 0) {
     err = errno;
@@ -3295,7 +3305,6 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
   return ret;
 }
-#endif
 
 enum {
   FUNC_GET_OSFHANDLE,
@@ -3562,9 +3571,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(O_TRUNC),
     JS_CONSTANT(O_WRONLY),
 #endif
-#ifdef HAVE_FSTAT
     JS_CFUNC_DEF("fstat", 1, js_misc_fstat),
-#endif
     JS_CFUNC_MAGIC_DEF("_get_osfhandle", 1, js_misc_osfhandle, FUNC_GET_OSFHANDLE),
     JS_CFUNC_MAGIC_DEF("_open_osfhandle", 1, js_misc_osfhandle, FUNC_OPEN_OSFHANDLE),
     JS_CFUNC_DEF("charLength", 1, js_misc_charlen),
