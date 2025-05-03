@@ -13,9 +13,9 @@ int
 property_enumeration_init(PropertyEnumeration* it, JSContext* ctx, JSValueConst obj, int flags) {
   *it = (PropertyEnumeration)PROPENUM_INIT();
 
-if(!(flags &JS_GPN_RECURSIVE)) {
-  JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, obj,  flags  & ~(PROPENUM_SORT_ATOMS));
-} else   if(!(it->tab_atom = js_object_properties(ctx, &it->tab_atom_len, obj, flags & ~(PROPENUM_SORT_ATOMS)))) {
+  if(!(flags & JS_GPN_RECURSIVE)) {
+    JS_GetOwnPropertyNames(ctx, &it->tab_atom, &it->tab_atom_len, obj, flags & ~(PROPENUM_SORT_ATOMS));
+  } else if(!(it->tab_atom = js_object_properties(ctx, &it->tab_atom_len, obj, flags & ~(PROPENUM_SORT_ATOMS)))) {
     it->tab_atom_len = 0;
     return -1;
   }
