@@ -220,7 +220,6 @@ property_recursion_next(Vector* vec, JSContext* ctx) {
   return 1;
 }
 
-
 /**
  * @}
  */

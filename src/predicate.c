@@ -207,7 +207,9 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       InputBuffer input = js_input_chars(ctx, re);
 
       if(JS_IsException(input.value)) {
-        JS_FreeValue(ctx, JS_GetException(ctx));
+        ret = JS_Throw(ctx, JS_GetException(ctx));
+        break;
+      } else if(!input.size) {
         ret = JS_FALSE;
         break;
       }
