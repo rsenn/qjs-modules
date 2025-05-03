@@ -487,7 +487,7 @@ js_predicate_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_ARGC: {
-      ret = JS_NewUint32(ctx, predicate_recursive_num_args(pr));
+      ret = JS_NewUint32(ctx, predicate_direct_num_args(pr));
       break;
     }
   }

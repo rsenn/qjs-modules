@@ -52,24 +52,28 @@ js_deep_pathfunc(BOOL as_string) {
 }
 
 static int
-js_deep_predicate(JSContext* ctx, JSValueConst value, const Vector* frames) {
+js_deep_predicate(JSContext* ctx, JSValueConst fn, const Vector* frames) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
   JSValueConst args[3] = {
       property_recursion_value(frames, ctx),
-      property_recursion_path(frames, ctx),
-      property_recursion_root(frames),
   };
 
-  if((pred = js_predicate_data(value))) {
-    JSArguments a = js_arguments_new(countof(args), args);
+  if((pred = js_predicate_data(fn))) {
+    JSArguments a = js_arguments_new(1, args);
     ret = predicate_eval(pred, ctx, &a);
-  } else if(JS_IsFunction(ctx, value)) {
-    ret = JS_Call(ctx, value, JS_UNDEFINED, 3, args);
+  } else if(JS_IsFunction(ctx, fn)) {
+
+    args[1] = property_recursion_path(frames, ctx);
+    args[2] = property_recursion_root(frames);
+
+    ret = JS_Call(ctx, fn, JS_UNDEFINED, 3, args);
+
+    JS_FreeValue(ctx, args[2]);
+    JS_FreeValue(ctx, args[1]);
   }
 
   JS_FreeValue(ctx, args[0]);
-  JS_FreeValue(ctx, args[1]);
 
   if(JS_IsException(ret)) {
     JS_GetException(ctx);
