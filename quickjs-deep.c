@@ -41,6 +41,7 @@ typedef struct DeepIterator {
   JSValue root, pred;
   DeepIteratorFlags flags;
   DeepIteratorStatus status;
+  ValueTypeMask mask;
   uint32_t seq;
 } DeepIterator;
 
@@ -52,11 +53,11 @@ js_deep_pathfunc(BOOL as_string) {
 }
 
 static int
-js_deep_predicate(JSContext* ctx, JSValueConst fn, const Vector* frames) {
+js_deep_predicate(JSContext* ctx, JSValueConst fn, JSValueConst value, const Vector* frames) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
   JSValueConst args[3] = {
-      property_recursion_value(frames, ctx),
+      JS_IsUninitialized(value) ? property_recursion_value(frames, ctx) : JS_DupValue(ctx, value),
   };
 
   if((pred = js_predicate_data(fn))) {
@@ -121,7 +122,8 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
 }
 
 static JSValue
-js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSValueConst pred, uint32_t flags) {
+js_deep_iterator_new(
+    JSContext* ctx, JSValueConst proto, JSValueConst root, JSValueConst pred, uint32_t flags, ValueTypeMask mask) {
   JSValue obj = JS_UNDEFINED;
   DeepIterator* it;
 
@@ -145,6 +147,7 @@ js_deep_iterator_new(JSContext* ctx, JSValueConst proto, JSValueConst root, JSVa
     it->pred = JS_DupValue(ctx, pred);
 
   it->flags = flags;
+  it->mask = TYPE_ALL;
   return obj;
 
 fail:
@@ -156,7 +159,8 @@ fail:
 static JSValue
 js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED, root = JS_UNDEFINED, pred = JS_UNDEFINED;
-  uint32_t flags = js_deep_defaultflags, max_depth = MAXDEPTH_MASK >> 8;
+  uint32_t flags = js_deep_defaultflags, max_depth = MAXDEPTH_MASK >> 8, mask = TYPE_ALL;
+
   int i = 0;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
@@ -170,16 +174,21 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(i < argc && JS_IsFunction(ctx, argv[i]))
     pred = argv[i++];
 
-  if(i < argc)
+  if(i < argc) {
     JS_ToUint32(ctx, &flags, argv[i++]);
 
-  if(i < argc)
-    JS_ToUint32(ctx, &max_depth, argv[i++]);
+    if(i < argc) {
+      JS_ToUint32(ctx, &max_depth, argv[i++]);
+
+      if(i < argc)
+        JS_ToUint32(ctx, &mask, argv[i++]);
+    }
+  }
 
   flags &= ~MAXDEPTH_MASK;
   flags |= (max_depth << 8) & MAXDEPTH_MASK;
 
-  obj = js_deep_iterator_new(ctx, proto, root, pred, flags);
+  obj = js_deep_iterator_new(ctx, proto, root, pred, flags, mask);
 
   JS_FreeValue(ctx, proto);
   return obj;
@@ -223,7 +232,15 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     if(property_enumeration_length(penum) == 0)
       continue;
 
-    it->status = js_deep_predicate(ctx, it->pred, &it->frames);
+    JSValue value = property_recursion_value(&it->frames, ctx);
+    ValueTypeMask type = js_value_type(ctx, value);
+
+    if(type & it->mask)
+      it->status = js_deep_predicate(ctx, it->pred, value, &it->frames);
+    else
+      it->status = 0;
+
+    JS_FreeValue(ctx, value);
 
     if(!(it->status & YIELD_MASK))
       continue;
@@ -321,7 +338,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   int r = 0;
 
   while(it) {
-    if((r = js_deep_predicate(ctx, argv[1], &frames)) & YIELD_MASK)
+    if((r = js_deep_predicate(ctx, argv[1], JS_UNINITIALIZED, &frames)) & YIELD_MASK)
       JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK));
 
     if(vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth) {
