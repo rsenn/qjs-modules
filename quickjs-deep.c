@@ -295,7 +295,9 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   if(it)
     do {
-      if(property_enumeration_predicate(it, ctx, argv[1], this_arg)) {
+      int r;
+
+      if((r = js_deep_predicate(ctx, argv[1], JS_UNINITIALIZED, &frames)) & YIELD_MASK) {
         ret = js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK);
         break;
       }
