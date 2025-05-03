@@ -222,8 +222,10 @@ child_process_spawn(ChildProcess* cp) {
     if(cp->cwd)
       chdir(cp->cwd);
 
+#ifndef __ANDROID__
     setuid(cp->uid);
     setgid(cp->gid);
+#endif
 
 #ifdef HAVE_EXECVPE
     (cp->use_path ? execvpe : execve)(cp->file, cp->args, cp->env ? cp->env : environ);
