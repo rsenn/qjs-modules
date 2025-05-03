@@ -147,7 +147,7 @@ js_deep_iterator_new(
     it->pred = JS_DupValue(ctx, pred);
 
   it->flags = flags;
-  it->mask = TYPE_ALL;
+  it->mask = mask;
   return obj;
 
 fail:
@@ -296,7 +296,16 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     do {
       int r;
 
-      if((r = js_deep_predicate(ctx, argv[1], JS_UNINITIALIZED, &frames)) & YIELD_MASK) {
+      JSValue value = property_recursion_value(&frames, ctx);
+      ValueTypeMask type = js_value_type(ctx, value);
+
+      if(type & mask)
+        r = js_deep_predicate(ctx, argv[1], value, &frames);
+      else
+        r = 0;
+      JS_FreeValue(ctx, value);
+
+      if((r & YIELD_MASK)) {
         ret = js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK);
         break;
       }
@@ -342,7 +351,17 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   int r = 0;
 
   while(it) {
-    if((r = js_deep_predicate(ctx, argv[1], JS_UNINITIALIZED, &frames)) & YIELD_MASK)
+    JSValue value = property_recursion_value(&frames, ctx);
+    ValueTypeMask type = js_value_type(ctx, value);
+
+    if(type & mask)
+      r = js_deep_predicate(ctx, argv[1], value, &frames);
+    else
+      r = 0;
+
+    JS_FreeValue(ctx, value);
+
+    if((r & YIELD_MASK))
       JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK));
 
     if(vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth) {
