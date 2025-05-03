@@ -96,7 +96,7 @@ char* vector_pushstring(Vector*, const char*);
 char* vector_pushstringlen(Vector*, const char*, size_t);
 void vector_clearstrings(Vector*);
 void vector_dumpstrings(const Vector*, DynBuf* buf);
-void vector_reserve(Vector*, size_t elsz, int32_t n);
+BOOL vector_reserve(Vector*, size_t elsz, int32_t n);
 void* vector_ready(Vector*, size_t);
 void* vector_readyplus(Vector*, size_t);
 

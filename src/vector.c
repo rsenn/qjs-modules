@@ -330,17 +330,17 @@ vector_readyplus(Vector* vec, size_t need) {
   return ptr + vec->size;
 }
 
-void
+BOOL
 vector_reserve(Vector* vec, size_t elsz, int32_t n) {
   uint64_t need;
 
   if(n < 0)
-    return 0;
+    return FALSE;
 
   if(!umult64(elsz, n, &need))
-    return 0;
+    return FALSE;
 
-  vector_ready(vec, need);
+  return !!vector_ready(vec, need);
 }
 
 /**

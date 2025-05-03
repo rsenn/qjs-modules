@@ -797,7 +797,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     case PREDICATE_REGEXP: {
       const char* arg = arguments_push(args, ctx, "str");
       char flagbuf[32];
-      regexp_flags_tostring(&pr->regexp.expr, flagbuf);
+      regexp_flags_tostring(pr->regexp.expr.flags, flagbuf);
       dbuf_printf(dbuf, "/%s/%s.test(str)", pr->regexp.expr.source, flagbuf);
       break;
     }
