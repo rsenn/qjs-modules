@@ -91,18 +91,20 @@ void vector_diff(void*, size_t, void*, size_t, size_t, Vector*);
 void vector_symmetricdiff(void*, size_t, void*, size_t, size_t, Vector*, Vector*);
 int vector_copy(Vector* dst, const Vector* src);
 void vector_fwrite(const Vector*, size_t, FILE* out);
-BOOL vector_grow(Vector* vec, size_t elsz, int32_t len);
+BOOL vector_resize(Vector* vec, size_t elsz, int32_t len);
 char* vector_pushstring(Vector*, const char*);
 char* vector_pushstringlen(Vector*, const char*, size_t);
 void vector_clearstrings(Vector*);
 void vector_dumpstrings(const Vector*, DynBuf* buf);
+void vector_reserve(Vector*, size_t elsz, int32_t n);
+void* vector_ready(Vector*, size_t);
+void* vector_readyplus(Vector*, size_t);
 
 #define vector_push(vec, elem) vector_put((vec), &(elem), sizeof((elem)))
 
 static inline void*
 vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
   uint64_t need;
-  size_t capacity;
 
   if(pos < 0)
     return 0;
@@ -111,7 +113,7 @@ vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
     return 0;
 
   if(need > vec->size) {
-    capacity = vec->capacity;
+    size_t capacity = vec->capacity;
 
     if(need > capacity) {
       roundto(need, elsz < 8 ? 1000 : 8000);
@@ -132,20 +134,61 @@ vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
 }
 
 static inline BOOL
+vector_adjust(Vector* vec, int64_t delta) {
+  if(delta == 0)
+    return FALSE;
+
+  vec->size += delta;
+  return TRUE;
+}
+
+static inline BOOL
 vector_shrink(Vector* vec, size_t elsz, int32_t len) {
-  uint64_t need;
+  uint64_t n;
 
   if(len < 0)
     return FALSE;
 
-  if(!umult64(elsz, len, &need))
+  if(!umult64(elsz, len, &n))
     return FALSE;
 
-  if(need > vec->size)
+  if(n >= vec->size)
     return FALSE;
 
-  vec->size = need;
-  return TRUE;
+  return vector_adjust(vec, n - vec->size);
+}
+
+static inline BOOL
+vector_grow(Vector* vec, size_t elsz, int32_t len) {
+  uint64_t n;
+
+  if(len < 0)
+    return FALSE;
+
+  if(!umult64(elsz, len, &n))
+    return FALSE;
+
+  if(n <= vec->size)
+    return FALSE;
+
+  return vector_adjust(vec, n - vec->size);
+}
+
+static inline void*
+vector_growplus(Vector* vec, size_t elsz, int32_t len) {
+  uint64_t n;
+  uint8_t* ptr = vector_end(vec);
+
+  if(len < 0)
+    return 0;
+
+  if(!umult64(elsz, len, &n))
+    return 0;
+
+  if(!vector_adjust(vec, n))
+    return 0;
+
+  return ptr;
 }
 
 static inline void*

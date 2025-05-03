@@ -124,7 +124,7 @@ ringbuffer_resize(RingBuffer* r, size_t newsize) {
   ringbuffer_normalize(r);
 
   if(newsize > r->size)
-    return vector_grow(&r->vec, 1, newsize);
+    return vector_resize(&r->vec, 1, newsize);
   else if(newsize < r->size)
     return vector_shrink(&r->vec, 1, newsize);
 

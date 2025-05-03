@@ -229,20 +229,31 @@ vector_fwrite(const Vector* vec, size_t start, FILE* out) {
 }
 
 BOOL
-vector_grow(Vector* vec, size_t elsz, int32_t len) {
-  uint64_t need;
+vector_resize(Vector* vec, size_t elsz, int32_t len) {
+  uint64_t n, a = vec->capacity;
 
   if(len < 0)
     return FALSE;
 
-  if(!umult64(elsz, len, &need))
+  if(!umult64(elsz, len, &n))
     return FALSE;
 
-  if(need <= vec->size)
+  if(n == vec->size)
     return FALSE;
 
-  vec->data = vec->realloc_func(vec->opaque, vec->data, need);
-  vec->size = need;
+  if(n > a) {
+    size_t need = n;
+    roundto(need, elsz < 8 ? 1000 : 8000);
+    assert(need >= 1000);
+
+    vec->data = vec->realloc_func(vec->opaque, vec->data, need);
+    vec->capacity = need;
+
+    if(vec->capacity > a)
+      memset(vec->data + a, 0, vec->capacity - a);
+  }
+
+  vec->size = n;
   return TRUE;
 }
 
@@ -292,6 +303,44 @@ vector_dumpstrings(const Vector* vec, DynBuf* buf) {
     if(i + 1 == len)
       dbuf_putstr(buf, "'\n]");
   }
+}
+
+void*
+vector_ready(Vector* vec, size_t n) {
+  size_t a = vec->capacity;
+
+  if(n > a) {
+    if(dbuf_realloc(&vec->dbuf, n))
+      return 0;
+
+    if(vec->capacity > a)
+      memset(vec->data + a, 0, vec->capacity - a);
+  }
+
+  return vec->data;
+}
+
+void*
+vector_readyplus(Vector* vec, size_t need) {
+  uint8_t* ptr;
+
+  if(!(ptr = vector_ready(vec, vec->size + need)))
+    return 0;
+
+  return ptr + vec->size;
+}
+
+void
+vector_reserve(Vector* vec, size_t elsz, int32_t n) {
+  uint64_t need;
+
+  if(n < 0)
+    return 0;
+
+  if(!umult64(elsz, n, &need))
+    return 0;
+
+  vector_ready(vec, need);
 }
 
 /**

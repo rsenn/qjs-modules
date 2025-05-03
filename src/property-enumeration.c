@@ -299,15 +299,18 @@ property_recursion_check(Vector* vec) {
 
 PropertyEnumeration*
 property_recursion_push(Vector* vec, JSContext* ctx, JSValue object, int flags) {
-  PropertyEnumeration penum;
+  PropertyEnumeration* it;
+
+  if(!(it = vector_readyplus(vec, sizeof(PropertyEnumeration))))
+    return 0;
 
   assert(JS_IsObject(object));
 
-  if(!property_enumeration_init(&penum, ctx, object, flags)) {
-    if(penum.tab_atom_len > 0)
-      return vector_push(vec, penum);
+  if(!property_enumeration_init(it, ctx, object, flags)) {
+    if(it->tab_atom_len > 0)
+      return vector_growplus(vec, sizeof(PropertyEnumeration), 1);
 
-    property_enumeration_reset(&penum, JS_GetRuntime(ctx));
+    property_enumeration_reset(it, JS_GetRuntime(ctx));
   }
 
   return 0;
