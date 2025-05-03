@@ -637,7 +637,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!JS_IsException(input.value)) {
     js_offset_length(ctx, input.size, argc - 1, argv + 1, &o);
     b = input_buffer_block(&input);
-    b = block_range(&b, &o);
+    b = block_range(b, o);
     ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
   }
 

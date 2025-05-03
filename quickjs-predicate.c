@@ -9,17 +9,7 @@
  * @{
  */
 VISIBLE JSClassID js_predicate_class_id = 0;
-VISIBLE JSValue predicate_proto = {{0}, JS_TAG_UNDEFINED}, predicate_ctor = {{0}, JS_TAG_UNDEFINED};
-
-Predicate*
-js_predicate_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_predicate_class_id);
-}
-
-Predicate*
-js_predicate_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_predicate_class_id);
-}
+static JSValue predicate_proto = JS_UNDEFINED, predicate_ctor = JS_UNDEFINED;
 
 enum PredicateId
 predicate_id(JSValueConst value) {
@@ -312,10 +302,15 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
       }
 
       case PREDICATE_SLICE: {
-        int64_t start, end;
+        int64_t start = 0, end = INT64_MAX;
 
-        JS_ToInt64(ctx, &start, js_arguments_shift(&args));
-        JS_ToInt64(ctx, &end, js_arguments_shift(&args));
+        if(js_arguments_count(&args) > 0) {
+          JS_ToInt64(ctx, &start, js_arguments_shift(&args));
+
+          if(js_arguments_count(&args) > 0)
+            JS_ToInt64(ctx, &end, js_arguments_shift(&args));
+        }
+
         *pr = predicate_slice(start, end);
         break;
       }
@@ -984,22 +979,23 @@ static const JSCFunctionListEntry js_predicate_ids[] = {
 };
 
 static const JSCFunctionListEntry js_predicate_types[] = {
-    JS_PROP_INT32_DEF("TYPE_UNDEFINED", TYPE_UNDEFINED, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_NULL", TYPE_NULL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BOOL", TYPE_BOOL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_INT", TYPE_INT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_OBJECT", TYPE_OBJECT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_STRING", TYPE_STRING, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_SYMBOL", TYPE_SYMBOL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BIG_FLOAT", TYPE_BIG_FLOAT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BIG_INT", TYPE_BIG_INT, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_BIG_DECIMAL", TYPE_BIG_DECIMAL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_FLOAT64", TYPE_FLOAT64, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_NUMBER", TYPE_NUMBER, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_PRIMITIVE", TYPE_PRIMITIVE, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_ALL", TYPE_ALL, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_FUNCTION", TYPE_FUNCTION, JS_PROP_ENUMERABLE),
-    JS_PROP_INT32_DEF("TYPE_ARRAY", TYPE_ARRAY, JS_PROP_ENUMERABLE),
+    JS_CONSTANT(TYPE_UNDEFINED),
+    JS_CONSTANT(TYPE_NULL),
+    JS_CONSTANT(TYPE_BOOL),
+    JS_CONSTANT(TYPE_INT),
+    JS_CONSTANT(TYPE_OBJECT),
+    JS_CONSTANT(TYPE_STRING),
+    JS_CONSTANT(TYPE_SYMBOL),
+    JS_CONSTANT(TYPE_BIG_FLOAT),
+    JS_CONSTANT(TYPE_BIG_INT),
+    JS_CONSTANT(TYPE_BIG_DECIMAL),
+    JS_CONSTANT(TYPE_FLOAT64),
+    JS_CONSTANT(TYPE_NUMBER),
+    JS_CONSTANT(TYPE_PRIMITIVE),
+    JS_CONSTANT(TYPE_ALL),
+    JS_CONSTANT(TYPE_FUNCTION),
+    JS_CONSTANT(TYPE_ARRAY),
+
 };
 
 static int

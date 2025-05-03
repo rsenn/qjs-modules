@@ -96,7 +96,8 @@ typedef struct {
     struct {
       int64_t start, end;
     };
-    OffsetLength offset_length;
+    IndexRange index_range;
+    // OffsetLength offset_length;
   };
 } SlicePredicate;
 

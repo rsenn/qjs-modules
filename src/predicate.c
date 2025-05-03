@@ -327,22 +327,12 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_SLICE: {
       JSValue arg = js_arguments_at(args, 0);
       InputBuffer buf = js_input_chars(ctx, arg);
-      MemoryBlock block = input_buffer_block(&buf);
-      size_t start, end;
-      SlicePredicate slice = pr->slice;
-
-      start = slice.start < 0                     ? (int64_t)block.size + (slice.start % (signed)block.size)
-              : slice.start > (int64_t)block.size ? (int64_t)block.size
-                                                  : slice.start;
-      end = slice.end < 0                     ? (int64_t)block.size + (slice.end % (signed)block.size)
-            : slice.end > (int64_t)block.size ? (int64_t)block.size
-                                              : slice.end;
+      MemoryBlock block = block_slice(input_buffer_block(&buf), pr->slice.index_range);
 
       if(JS_IsString(arg))
-        ret = JS_NewStringLen(ctx, (const char*)block.base + start, end - start);
+        ret = JS_NewStringLen(ctx, (const char*)block.base, block.size);
       else
-        ret = JS_NewArrayBuffer(
-            ctx, block.base + start, end - start, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), FALSE);
+        ret = JS_NewArrayBuffer(ctx, block.base, block.size, &free_arraybuffer_slice, JS_VALUE_GET_OBJ(arg), FALSE);
 
       input_buffer_free(&buf, ctx);
       break;
