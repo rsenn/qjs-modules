@@ -317,15 +317,6 @@ property_recursion_push(Vector* vec, JSContext* ctx, JSValue object, int flags) 
 }
 
 PropertyEnumeration*
-property_recursion_pop(Vector* vec, JSContext* ctx) {
-  assert(!vector_empty(vec));
-
-  property_enumeration_reset(vector_pop(vec, sizeof(PropertyEnumeration)), JS_GetRuntime(ctx));
-
-  return property_recursion_top(vec);
-}
-
-PropertyEnumeration*
 property_recursion_enter(Vector* vec, JSContext* ctx, int32_t idx, int flags) {
   PropertyEnumeration* it;
 

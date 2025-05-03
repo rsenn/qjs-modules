@@ -154,7 +154,6 @@ int property_recursion_insideof(Vector*, JSValue val);
 void property_recursion_free(Vector*, JSRuntime* rt);
 BOOL property_recursion_circular(Vector*, JSValue object);
 PropertyEnumeration* property_recursion_push(Vector*, JSContext*, JSValueConst, int);
-PropertyEnumeration* property_recursion_pop(Vector*, JSContext*);
 PropertyEnumeration* property_recursion_enter(Vector*, JSContext*, int32_t, int);
 int property_recursion_skip(Vector*, JSContext*);
 
@@ -188,6 +187,15 @@ property_recursion_top(const Vector* vec) {
   return vector_empty(vec) ? 0 : vector_end_t(vec, PropertyEnumeration) - 1;
 }
 
+static inline PropertyEnumeration*
+property_recursion_pop(Vector* vec, JSContext* ctx) {
+  assert(!vector_empty(vec));
+
+  property_enumeration_reset(vector_pop(vec, sizeof(PropertyEnumeration)), JS_GetRuntime(ctx));
+
+  return property_recursion_top(vec);
+}
+
 static inline int
 property_recursion_next(Vector* vec, JSContext* ctx) {
   JSValue value = property_recursion_value(vec, ctx);
@@ -211,6 +219,7 @@ property_recursion_next(Vector* vec, JSContext* ctx) {
 
   return 1;
 }
+
 
 /**
  * @}
