@@ -78,7 +78,6 @@ include(CheckLibraryExists)
 
 #check_function_def(JS_PROMISE_STATE JS_PromiseState)
 
-
 check_library_exists(quickjs JS_PromiseState "${QUICKJS_LIBRARY_DIR}" HAVE_JS_PROMISE_STATE)
 if(HAVE_JS_PROMISE_STATE)
   add_definitions(-DHAVE_JS_PROMISE_STATE)
@@ -91,15 +90,14 @@ endif(HAVE_JS_PROMISE_RESULT)
 
 #dump(QUICKJS_LIBRARY_DIR)
 
-
 set(CMAKE_REQUIRED_LINK_DIRECTORIES_OLD "${CMAKE_REQUIRED_LINK_DIRECTORIES}")
 set(CMAKE_REQUIRED_LIBRARIES_OLD "${CMAKE_REQUIRED_LIBRARIES}")
 list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
 list(APPEND CMAKE_REQUIRED_LIBRARIES quickjs)
 
-CHECK_FUNCTION_DEF(JS_GetModuleLoaderFunc)
-CHECK_FUNCTION_DEF(JS_GetModuleLoaderOpaque)
-CHECK_FUNCTION_DEF(js_debugger_build_backtrace HAVE_JS_DEBUGGERBUILDBACKTRACE)
+check_function_def(JS_GetModuleLoaderFunc)
+check_function_def(JS_GetModuleLoaderOpaque)
+check_function_def(js_debugger_build_backtrace HAVE_JS_DEBUGGERBUILDBACKTRACE)
 
 #dump(HAVE_JS_GETMODULELOADERFUNC HAVE_JS_GETMODULELOADEROPAQUE HAVE_JS_DEBUGGERBUILDBACKTRACE)
 
@@ -180,9 +178,10 @@ check_functions(fcntl wordexp inotify_init1)
 check_includes(fcntl.h alloca.h wordexp.h sys/inotify.h)
 
 check_functions_def(lstat fstat)
-check_functions_def(access fnmatch daemon)
+check_function_def(access)
+check_functions_def(fnmatch daemon)
 
-#dump(HAVE_ACCESS HAVE_FSTAT)
+dump(HAVE_ACCESS HAVE_FSTAT)
 
 check_functions_def(chmod fchmod)
 check_functions_def(chown fchown lchown)
