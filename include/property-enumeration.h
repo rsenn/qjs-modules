@@ -159,18 +159,26 @@ int property_recursion_skip(Vector*, JSContext*);
 
 static inline JSValue
 property_recursion_root(const Vector* vec) {
-  return vector_empty(vec) ? JS_EXCEPTION : vector_begin_t(vec, PropertyEnumeration)->obj;
+  if(vector_empty(vec))
+    return JS_EXCEPTION;
+
+  return vector_begin_t(vec, PropertyEnumeration)->obj;
 }
 
 static inline JSValue
 property_recursion_object(const Vector* vec) {
-  return vector_empty(vec) ? JS_EXCEPTION : (vector_end_t(vec, PropertyEnumeration) - 1)->obj;
+  if(vector_empty(vec))
+    return JS_EXCEPTION;
+
+  return (vector_end_t(vec, PropertyEnumeration) - 1)->obj;
 }
 
 static inline JSValue
 property_recursion_value(const Vector* vec, JSContext* ctx) {
-  return vector_empty(vec) ? JS_ThrowRangeError(ctx, "Property recursion is empty")
-                           : property_enumeration_value(vector_back(vec, sizeof(PropertyEnumeration)), ctx);
+  if(vector_empty(vec))
+    return JS_ThrowRangeError(ctx, "Property recursion is empty");
+
+  return property_enumeration_value(vector_back(vec, sizeof(PropertyEnumeration)), ctx);
 }
 
 static inline int32_t

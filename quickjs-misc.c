@@ -1828,7 +1828,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     }
 
     case FUNC_SETUID: {
-#ifndef __ANDROID__                        
+#ifndef __ANDROID__
       int32_t uid;
 
       JS_ToInt32(ctx, &uid, argv[0]);
@@ -1840,7 +1840,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     }
 
     case FUNC_SETGID: {
-#ifndef __ANDROID__                        
+#ifndef __ANDROID__
       int32_t gid;
 
       JS_ToInt32(ctx, &gid, argv[0]);
@@ -1852,7 +1852,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     }
 
     case FUNC_SETEUID: {
-#ifndef __ANDROID__                        
+#ifndef __ANDROID__
       int32_t euid;
 
       JS_ToInt32(ctx, &euid, argv[0]);
@@ -1864,7 +1864,7 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     }
 
     case FUNC_SETEGID: {
-#ifndef __ANDROID__                        
+#ifndef __ANDROID__
       int32_t egid;
 
       JS_ToInt32(ctx, &egid, argv[0]);

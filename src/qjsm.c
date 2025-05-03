@@ -2094,7 +2094,7 @@ main(int argc, char** argv) {
           return 1;
         }
       }
-      
+
       vector_freestrings(&module_list);
     }
 
