@@ -190,25 +190,24 @@ static inline int
 property_recursion_next(Vector* vec, JSContext* ctx) {
   JSValue value = property_recursion_value(vec, ctx);
   BOOL recurse = JS_VALUE_GET_TAG(value) == JS_TAG_OBJECT && !property_recursion_circular(vec, value);
-  int i = 0;
 
   JS_FreeValue(ctx, value);
 
-  if(recurse)
-    if(property_recursion_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS))
-      return 1;
+  if(!(recurse && property_recursion_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS))) {
+    PropertyEnumeration* it = property_recursion_top(vec);
+    int i = 0;
 
+    while(!(it = property_enumeration_next(it))) {
+      --i;
 
-  PropertyEnumeration* it = property_recursion_top(vec);
+      if(!(it = property_recursion_pop(vec, ctx)))
+        break;
+    }
 
-  while(!(it = property_enumeration_next(it))) {
-    --i;
-
-    if(!(it = property_recursion_pop(vec, ctx)))
-      break;
+    return i;
   }
 
-  return i;
+  return 1;
 }
 
 /**
