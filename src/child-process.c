@@ -26,8 +26,12 @@
 #include <sys/wait.h>
 #endif
 
+#ifndef __ANDROID__
+#ifndef HAVE_FORK
 #ifdef HAVE_VFORK
 #define fork() vfork()
+#endif
+#endif
 #endif
 
 /**

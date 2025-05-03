@@ -135,7 +135,12 @@ check_functions_def(execve execvpe)
 check_include_def(sys/wait.h)
 check_include_def(sys/syscall.h)
 
-check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
+if(USE_SPAWN)
+  check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
+  if(HAVE_SPAWN)
+    add_definitions(-DPOSIX_SPAWN=1)
+  endif(HAVE_SPAWN)
+endif(USE_SPAWN)
 
 check_includes(linux/ipx.h linux/x25.h linux/can.h linux/nfc.h linux/ax25.h linux/netlink.h linux/atalk.h
                linux/phonet.h linux/if_alg.h)
@@ -143,10 +148,6 @@ check_includes(linux/ipx.h linux/x25.h linux/can.h linux/nfc.h linux/ax25.h linu
 if(HAVE_LINUX_IPX_H)
   add_definitions(-DHAVE_LINUX_NETWORK_HEADERS)
 endif(HAVE_LINUX_IPX_H)
-
-if(HAVE_SPAWN AND USE_SPAWN)
-  add_definitions(-DPOSIX_SPAWN=1)
-endif(HAVE_SPAWN AND USE_SPAWN)
 
 check_include_def(threads.h)
 check_include_def(sys/mman.h)
