@@ -1833,6 +1833,8 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
       JS_ToInt32(ctx, &uid, argv[0]);
       ret = setuid(uid);
+#else
+      ret = -1;
 #endif
       break;
     }
@@ -1843,6 +1845,8 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
       JS_ToInt32(ctx, &gid, argv[0]);
       ret = setgid(gid);
+#else
+      ret = -1;
 #endif
       break;
     }
@@ -1853,6 +1857,8 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
       JS_ToInt32(ctx, &euid, argv[0]);
       ret = seteuid(euid);
+#else
+      ret = -1;
 #endif
       break;
     }
@@ -1863,6 +1869,8 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
       JS_ToInt32(ctx, &egid, argv[0]);
       ret = setegid(egid);
+#else
+      ret = -1;
 #endif
       break;
     }
