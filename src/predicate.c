@@ -623,8 +623,19 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
   switch(pr->id) {
     case PREDICATE_TYPE: {
       const char* arg = arguments_push(args, ctx, "value");
+      uint32_t flag;
+      int i = 0;
 
-      dbuf_printf(dbuf, "typeof %s == %s", arg, js_value_type_name(pr->type.flags));
+      for(flag = 1; flag; flag <<= 1) {
+        if(flag & pr->type.flags) {
+          if(i)
+            dbuf_putstr(dbuf, " || ");
+          dbuf_printf(dbuf, "typeof %s == '%s'", arg, js_value_type_name(flag));
+
+          ++i;
+        }
+      }
+
       break;
     }
 
@@ -698,7 +709,10 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     case PREDICATE_POW:
     case PREDICATE_ATAN2: {
       JSPrecedence prec = predicate_precedence(pr);
-      BOOL parens[2] = {!JS_IsNumber(pr->binary.left), !JS_IsNumber(pr->binary.right)};
+      BOOL parens[2] = {
+          !JS_IsNumber(pr->binary.left),
+          !JS_IsNumber(pr->binary.right),
+      };
 
       Predicate* other;
 
@@ -777,18 +791,18 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     case PREDICATE_MEMBER: {
       break;
     }
-      /*
-          case PREDICATE_REGEXP: {
-            break;
-          }
 
-          case PREDICATE_PROPERTY: {
-            break;
-          }
+    case PREDICATE_REGEXP: {
+      const char* arg = arguments_push(args, ctx, "str");
+      char flagbuf[32];
+      regexp_flags_tostring(&pr->regexp.expr, flagbuf);
+      dbuf_printf(dbuf, "/%s/%s.test(str)", pr->regexp.expr.source, flagbuf);
+      break;
+    }
 
-          case PREDICATE_SHIFT: {
-            break;
-          }*/
+    case PREDICATE_SHIFT: {
+      break;
+    }
 
     case PREDICATE_SLICE: {
       const char* arg = arguments_push(args, ctx, "value");

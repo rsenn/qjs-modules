@@ -26,14 +26,14 @@ typedef enum {
 } DeepIteratorStatus;
 
 typedef enum {
-  RETURN_VALUE_PATH = 0,
-  RETURN_PATH = 1,
-  RETURN_VALUE = 2,
-  RETURN_PATH_VALUE = 3,
-  RETURN_MASK = 3,
-  PATH_AS_STRING = 1 << 2,
-  NO_THROW = 1 << 3,
-  MAXDEPTH_MASK = 0xffffff00,
+  RETURN_VALUE_PATH = 0b00 << 24,
+  RETURN_PATH = 0b01 << 24,
+  RETURN_VALUE = 0b10 << 24,
+  RETURN_PATH_VALUE = 0b11 << 24,
+  RETURN_MASK = 0b11 << 24,
+  PATH_AS_STRING = 0b100 << 24,
+  NO_THROW = 0b1000 << 24,
+  MAXDEPTH_MASK = 0x00ffffff,
 } DeepIteratorFlags;
 
 typedef struct DeepIterator {
@@ -159,7 +159,7 @@ fail:
 static JSValue
 js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED, root = JS_UNDEFINED, pred = JS_UNDEFINED;
-  uint32_t flags = js_deep_defaultflags, max_depth = MAXDEPTH_MASK >> 8, mask = TYPE_ALL;
+  uint32_t flags = js_deep_defaultflags, max_depth = MAXDEPTH_MASK, mask = TYPE_ALL;
 
   int i = 0;
 
@@ -177,16 +177,12 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(i < argc) {
     JS_ToUint32(ctx, &flags, argv[i++]);
 
-    if(i < argc) {
-      JS_ToUint32(ctx, &max_depth, argv[i++]);
-
-      if(i < argc)
-        JS_ToUint32(ctx, &mask, argv[i++]);
-    }
+    if(i < argc)
+      JS_ToUint32(ctx, &mask, argv[i++]);
   }
 
   flags &= ~MAXDEPTH_MASK;
-  flags |= (max_depth << 8) & MAXDEPTH_MASK;
+  flags |= max_depth & MAXDEPTH_MASK;
 
   obj = js_deep_iterator_new(ctx, proto, root, pred, flags, mask);
 
@@ -204,8 +200,8 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   if(!(it = JS_GetOpaque2(ctx, this_val, js_deep_iterator_class_id)))
     return JS_EXCEPTION;
 
-  if((max_depth = (it->flags & MAXDEPTH_MASK) >> 8) == 0)
-    max_depth = MAXDEPTH_MASK >> 8;
+  if((max_depth = (it->flags & MAXDEPTH_MASK)) == 0)
+    max_depth = MAXDEPTH_MASK;
 
   if(!JS_IsObject(it->root)) {
     *pdone = TRUE;
@@ -273,15 +269,18 @@ static JSValue
 js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
   JSValueConst this_arg = argc > 3 ? argv[3] : JS_UNDEFINED;
-  uint32_t flags = js_deep_defaultflags, max_depth;
+  uint32_t flags = js_deep_defaultflags, max_depth = MAXDEPTH_MASK, mask = TYPE_ALL;
   PropertyEnumeration* it;
   Vector frames;
 
-  if(argc > 2)
+  if(argc > 2) {
     JS_ToUint32(ctx, &flags, argv[2]);
+    if(flags & MAXDEPTH_MASK)
+      max_depth = flags & MAXDEPTH_MASK;
+  }
 
-  if((max_depth = (flags & MAXDEPTH_MASK) >> 8) == 0)
-    max_depth = MAXDEPTH_MASK >> 8;
+  if(argc > 3)
+    JS_ToUint32(ctx, &mask, argv[3]);
 
   if(!predicate_callable(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 2 (predicate) is not a function");
@@ -319,15 +318,18 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 static JSValue
 js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret;
-  uint32_t i = 0, flags = js_deep_defaultflags, max_depth;
+  uint32_t i = 0, flags = js_deep_defaultflags, max_depth = MAXDEPTH_MASK, mask = TYPE_ALL;
   PropertyEnumeration* it;
   Vector frames;
 
-  if(argc > 2)
+  if(argc > 2) {
     JS_ToUint32(ctx, &flags, argv[2]);
 
-  if((max_depth = (flags & MAXDEPTH_MASK) >> 8) == 0)
-    max_depth = MAXDEPTH_MASK >> 8;
+    if(flags & MAXDEPTH_MASK)
+      max_depth = flags & MAXDEPTH_MASK;
+  }
+  if(argc > 3)
+    JS_ToUint32(ctx, &mask, argv[3]);
 
   if(!predicate_callable(ctx, argv[1]))
     return JS_ThrowTypeError(ctx, "argument 1 (predicate) is not a function");
