@@ -26,6 +26,7 @@ pointer_reset(Pointer* ptr, JSRuntime* rt) {
 
   ptr->atoms = 0;
   ptr->n = 0;
+  ptr->a = 0;
 }
 
 BOOL
@@ -57,17 +58,64 @@ pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
     for(i = size; i < ptr->n; i++)
       JS_FreeAtom(ctx, ptr->atoms[i]);
 
-  if(!(ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * size))) {
-    ptr->n = 0;
+  size_t a = size, n = ptr->a * 3 / 2;
+  if(n > a)
+    a = n;
+
+  JSAtom* tab_atom;
+
+  if(!(tab_atom = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * a))) {
     return FALSE;
   }
+
+  ptr->atoms = tab_atom;
 
   if(size > ptr->n)
     for(i = ptr->n; i < size; i++)
       ptr->atoms[i] = JS_ATOM_NULL;
 
   ptr->n = size;
+  ptr->a = a;
 
+  return TRUE;
+}
+
+BOOL
+pointer_reserve(Pointer* ptr, size_t alloc, JSContext* ctx) {
+  size_t i;
+
+  if(alloc <= ptr->n)
+    return FALSE;
+
+  if(alloc <= ptr->a)
+    return TRUE;
+  JSAtom* tab_atom;
+
+  if(!(tab_atom = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * alloc))) {
+    return FALSE;
+  }
+
+  if(alloc > ptr->n)
+    for(i = ptr->n; i < size; i++)
+      ptr->atoms[i] = JS_ATOM_NULL;
+
+  ptr->a = alloc;
+  return TRUE;
+}
+
+BOOL
+pointer_truncate(Pointer* ptr, size_t new_size, JSContext* ctx) {
+  size_t i;
+
+  if(new_size >= ptr->n)
+    return FALSE;
+
+  for(i = new_size; i < ptr->n; i++) {
+    JS_FreeAtom(ctx, ptr->atoms[i]);
+    ptr->atoms[i] = JS_ATOM_NULL;
+  }
+
+  ptr->n = new_size;
   return TRUE;
 }
 

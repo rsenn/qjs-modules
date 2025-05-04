@@ -11,7 +11,7 @@
  */
 
 typedef struct Pointer {
-  size_t n;
+  size_t n, a;
   JSAtom* atoms;
 } Pointer;
 
@@ -23,7 +23,9 @@ typedef struct Pointer {
 
 void pointer_reset(Pointer*, JSRuntime* rt);
 BOOL pointer_copy(Pointer*, Pointer const* src, JSContext*);
-BOOL pointer_allocate(Pointer*, size_t size, JSContext*);
+BOOL pointer_allocate(Pointer*, size_t, JSContext*);
+BOOL pointer_reserve(Pointer*, size_t, JSContext*);
+BOOL pointer_truncate(Pointer*, size_t, JSContext*);
 void pointer_dump(Pointer const*, Writer*, BOOL color, ssize_t index, JSContext*);
 char* pointer_tostring(Pointer const* ptr, BOOL color, ssize_t index, JSContext*);
 void pointer_serialize(Pointer const*, Writer* db, JSContext*);
