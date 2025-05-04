@@ -70,7 +70,6 @@ js_deep_predicate(JSContext* ctx, JSValueConst fn, JSValueConst value, const Vec
 
     ret = JS_Call(ctx, fn, JS_UNDEFINED, 3, args);
 
-    JS_FreeValue(ctx, args[2]);
     JS_FreeValue(ctx, args[1]);
   }
 
