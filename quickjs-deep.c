@@ -15,7 +15,7 @@
  * @{
  */
 VISIBLE JSClassID js_deep_iterator_class_id = 0;
-static JSValue deep_functions = JS_UNDEFINED, deep_iterator_proto = JS_UNDEFINED, deep_iterator_ctor = JS_UNDEFINED;
+static JSValue deep_functions = {{0}, JS_TAG_UNDEFINED}, deep_iterator_proto = {{0}, JS_TAG_UNDEFINED}, deep_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
 
 typedef enum {
   YIELD_MASK = 1,

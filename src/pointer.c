@@ -58,24 +58,27 @@ pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
     for(i = size; i < ptr->n; i++)
       JS_FreeAtom(ctx, ptr->atoms[i]);
 
-  size_t a = size, n = ptr->a * 3 / 2;
-  if(n > a)
-    a = n;
+  size_t alloc = size, reserve = ptr->a * 3 / 2;
 
-  JSAtom* tab_atom;
+  if(reserve > alloc)
+    alloc = reserve;
 
-  if(!(tab_atom = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * a))) {
-    return FALSE;
+  if(alloc != ptr->a) {
+    JSAtom* tab_atom;
+
+    if(!(tab_atom = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * alloc))) {
+      return FALSE;
+    }
+
+    ptr->a = alloc;
+    ptr->atoms = tab_atom;
   }
-
-  ptr->atoms = tab_atom;
 
   if(size > ptr->n)
     for(i = ptr->n; i < size; i++)
       ptr->atoms[i] = JS_ATOM_NULL;
 
   ptr->n = size;
-  ptr->a = a;
 
   return TRUE;
 }
@@ -87,30 +90,30 @@ pointer_reserve(Pointer* ptr, size_t alloc, JSContext* ctx) {
   if(alloc <= ptr->n)
     return FALSE;
 
-  if(alloc <= ptr->a)
-    return TRUE;
-  JSAtom* tab_atom;
+  if(alloc > ptr->a) {
+    JSAtom* tab_atom;
 
-  if(!(tab_atom = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * alloc))) {
-    return FALSE;
+    if(!(tab_atom = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * alloc)))
+      return FALSE;
+
+    ptr->atoms = tab_atom;
+
+    if(alloc > ptr->n)
+      for(i = ptr->n; i < alloc; i++)
+        ptr->atoms[i] = JS_ATOM_NULL;
+
+    ptr->a = alloc;
   }
 
-  if(alloc > ptr->n)
-    for(i = ptr->n; i < size; i++)
-      ptr->atoms[i] = JS_ATOM_NULL;
-
-  ptr->a = alloc;
   return TRUE;
 }
 
 BOOL
 pointer_truncate(Pointer* ptr, size_t new_size, JSContext* ctx) {
-  size_t i;
-
   if(new_size >= ptr->n)
     return FALSE;
 
-  for(i = new_size; i < ptr->n; i++) {
+  for(size_t i = new_size; i < ptr->n; i++) {
     JS_FreeAtom(ctx, ptr->atoms[i]);
     ptr->atoms[i] = JS_ATOM_NULL;
   }
@@ -326,7 +329,7 @@ pointer_splice(Pointer* ptr, int64_t start, int64_t end, JSAtom* atoms, size_t i
 #endif
 
   if(ins > del) {
-    if(!(ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * (ptr->n = newlen)))) {
+    if(!pointer_allocate(ptr, (ptr->n = newlen), ctx)) {
       js_free(ctx, ret);
       return NULL;
     }
@@ -348,7 +351,7 @@ pointer_splice(Pointer* ptr, int64_t start, int64_t end, JSAtom* atoms, size_t i
 
   /* shrink */
   if(del > ins) {
-    if(!(ptr->atoms = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * (ptr->n = newlen)))) {
+    if(!pointer_allocate(ptr, (ptr->n = newlen), ctx)) {
       js_free(ctx, ret);
       return NULL;
     }
@@ -434,10 +437,9 @@ pointer_pushfree(Pointer* ptr, JSValue item, JSContext* ctx) {
 
 JSValue
 pointer_deref(Pointer const* ptr, JSValueConst arg, JSContext* ctx) {
-  size_t i;
   JSValue obj = JS_DupValue(ctx, arg);
 
-  for(i = 0; i < ptr->n; i++) {
+  for(size_t i = 0; i < ptr->n; i++) {
     JSValue child = deref_value(ctx, obj, ptr->atoms[i]);
 
     JS_FreeValue(ctx, obj);
@@ -461,10 +463,9 @@ pointer_deref(Pointer const* ptr, JSValueConst arg, JSContext* ctx) {
 
 JSValue
 pointer_acquire(Pointer const* ptr, JSValueConst arg, JSContext* ctx) {
-  size_t i;
   JSValue obj = JS_DupValue(ctx, arg);
 
-  for(i = 0; i < ptr->n; i++) {
+  for(size_t i = 0; i < ptr->n; i++) {
     JSValue child;
 
     if(!JS_HasProperty(ctx, obj, ptr->atoms[i])) {
@@ -531,14 +532,11 @@ pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
 
   if((ptr2 = js_pointer_data(value))) {
     pointer_copy(ptr, ptr2, ctx);
-
   } else if(JS_IsString(value)) {
     pointer_fromstring(ptr, value, ctx);
-
   } else if(JS_IsArray(ctx, value)) {
     pointer_reset(ptr, JS_GetRuntime(ctx));
     pointer_fromarray(ptr, value, ctx);
-
   } else if(!JS_IsUndefined(value)) {
     return 0;
   }

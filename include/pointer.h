@@ -72,10 +72,14 @@ pointer_ptr(Pointer const* ptr, int32_t index) {
   return &ptr->atoms[POINTER_INDEX(ptr, index)];
 }
 
-static inline void
+static inline BOOL
 pointer_pushatom(Pointer* ptr, JSAtom atom, JSContext* ctx) {
-  if((ptr->atoms = js_realloc(ctx, ptr->atoms, (ptr->n + 1) * sizeof(JSAtom))))
-    ptr->atoms[ptr->n++] = atom;
+  size_t pos = ptr->n;
+  BOOL ret;
+  if((ret = pointer_allocate(ptr, ptr->n + 1, ctx)))
+    ptr->atoms[pos] = atom;
+
+  return ret;
 }
 
 static inline Pointer*

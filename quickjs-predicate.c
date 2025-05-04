@@ -9,7 +9,7 @@
  * @{
  */
 VISIBLE JSClassID js_predicate_class_id = 0;
-static JSValue predicate_proto = JS_UNDEFINED, predicate_ctor = JS_UNDEFINED;
+static JSValue predicate_proto = {{0}, JS_TAG_UNDEFINED}, predicate_ctor = {{0}, JS_TAG_UNDEFINED};
 
 enum PredicateId
 predicate_id(JSValueConst value) {
