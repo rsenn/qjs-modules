@@ -105,9 +105,12 @@
 #include "js-utils.h"
 #include "../libbcrypt/bcrypt.h"
 
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+
 #if defined(HAVE_UTIME) || defined(HAVE_UTIMES) || defined(HAVE_FUTIMES) || defined(HAVE_LUTIMES)
 #include <sys/types.h>
-#include <sys/time.h>
 #include <utime.h>
 
 #ifdef __ANDROID__

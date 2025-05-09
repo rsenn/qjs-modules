@@ -193,6 +193,7 @@ check_functions_def(chown fchown lchown)
 check_functions_def(fsync fdatasync)
 check_functions_def(truncate ftruncate)
 check_functions_def(utime utimes futimes lutimes)
+check_include_def(sys/time.h)
 
 #message("Have daemon() ${HAVE_DAEMON}")
 
