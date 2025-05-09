@@ -134,6 +134,7 @@ endif(NOT HAVE_VFORK)
 check_functions_def(execve execvpe)
 check_include_def(sys/wait.h)
 check_include_def(sys/syscall.h)
+check_include_def(unistd.h)
 
 if(USE_SPAWN)
   check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
@@ -153,6 +154,7 @@ check_include_def(threads.h)
 check_include_def(sys/mman.h)
 
 check_function_def(mmap)
+check_function_def(issetugid)
 
 check_external(getdents64 "" "" HAVE_GETDENTS64)
 #check_function_exists(getdents64 HAVE_GETDENTS64)
@@ -199,6 +201,9 @@ check_function_and_include(fcntl fcntl.h)
 check_function_and_include(fnmatch fnmatch.h)
 
 check_function_and_include(glob glob.h)
+
+dump(HAVE_GLOB HAVE_GLOB_H)
+
 check_function_and_include(wordexp wordexp.h)
 
 check_function_and_include(inotify_init1 sys/inotify.h HAVE_INOTIFY)

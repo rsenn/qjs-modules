@@ -12,78 +12,28 @@
  * Constants and definitions
  */
 
-/* Error codes */
-#define GLOB_NOSPACE \
-  (1) /**< (Error result code:) An attempt to allocate memory failed, or \
- \ \
-         if errno was 0 GLOB_LIMIT was specified in the flags and ARG_MAX \
-         patterns were matched. */
-#define GLOB_ABORTED \
-  (2) /**< (Error result code:) The scan was stopped because an error was \
-         encountered and either GLOB_ERR was set or \
-         (*errfunc)() returned non-zero. */
-#define GLOB_NOMATCH \
-  (3)                           /**< (Error result code:) The pattern does not match any existing \
-                                   pathname, and GLOB_NOCHECK was not set int flags. */
-#define GLOB_NOSYS (4)          /**< (Error result code:) . */
-#define GLOB_ABEND GLOB_ABORTED /**< (Error result code:) . */
-
 /* Flags */
-#define GLOB_ERR 0x00000001    /**< Return on read errors. */
-#define GLOB_MARK 0x00000002   /**< Append a slash to each name. */
-#define GLOB_NOSORT 0x00000004 /**< Don't sort the names. */
-#define GLOB_DOOFFS \
-  0x00000008 /**< Insert PGLOB->gl_offs NULLs. Supported from version 1.6 \
-                of UNIXEm. */
-#define GLOB_NOCHECK \
-  0x00000010 /**< If nothing matches, return the pattern. Supported from \
-                version 1.6 of UNIXEm. */
-#define GLOB_APPEND \
-  0x00000020 /**< Append to results of a previous call. Not currently \
-                supported in this implementation. */
-#define GLOB_NOESCAPE \
-  0x00000040 /**< Backslashes don't quote metacharacters. Has no effect \
-                in \
-                this implementation, since escaping is not supported. */
+#define GLOB_APPEND 0x0001  /* Append to output from previous call. */
+#define GLOB_DOOFFS 0x0002  /* Use gl_offs. */
+#define GLOB_ERR 0x0004     /* Return on error. */
+#define GLOB_MARK 0x0008    /* Append / to matching directories. */
+#define GLOB_NOCHECK 0x0010 /* Return pattern itself if nothing matches. */
+#define GLOB_NOSORT 0x0020  /* Don't sort. */
 
-#define GLOB_PERIOD \
-  0x00000080 /**< Leading `.' can be matched by metachars. Supported from \
-              * version 1.6 of UNIXEm. \
-              */
-#define GLOB_MAGCHAR \
-  0x00000100 /**< Set in gl_flags if any metachars seen. Supported from \
-                version 1.6 of UNIXEm. */
-#define GLOB_ALTDIRFUNC \
-  0x00000200 /**< Use gl_opendir et al functions. \
-                  Not currently supported in this \
-                  implementation. */
-#define GLOB_BRACE \
-  0x00000400 /**< Expand "{a,b}" to "a" "b". Not currently supported in \
-                this implementation. */
-#define GLOB_NOMAGIC \
-  0x00000800 /**< If no magic chars, return the pattern. Supported from \
-                version 1.6 of UNIXEm. */
-#define GLOB_TILDE \
-  0x00001000 /**< Expand ~user and ~ to home directories. Partially \
-                supported from version 1.6 of UNIXEm: leading ~ is \
-                expanded to %HOMEDRIVE%%HOMEPATH%. */
-#define GLOB_ONLYDIR \
-  0x00002000 /**< Match only directories. This implementation guarantees \
-                to only return directories when this flag is specified. \
-              */
-#define GLOB_TILDE_CHECK \
-  0x00004000 /**< Like GLOB_TILDE but return an GLOB_NOMATCH even if \
-                GLOB_NOCHECK specified. \
-                Supported from version 1.6 of UNIXEm. */
-#define GLOB_ONLYFILE \
-  0x00008000 /**< Match only files. Supported from version 1.6 of UNIXEm. \
-              */
-#define GLOB_NODOTSDIRS \
-  0x00010000 /**< Elide "." and ".." directories from wildcard searches. \
-                Supported from version 1.6 of UNIXEm. */
-#define GLOB_LIMIT \
-  0x00020000 /**< Limits the search to the number specified by the caller \
-                in gl_matchc. Supported from version 1.6 of UNIXEm. */
+#define GLOB_ALTDIRFUNC 0x0040 /* Use alternately specified directory funcs. */
+#define GLOB_BRACE 0x0080      /* Expand braces ala csh. */
+#define GLOB_MAGCHAR 0x0100    /* Pattern had globbing characters. */
+#define GLOB_NOMAGIC 0x0200    /* GLOB_NOCHECK without magic chars (csh). */
+#define GLOB_QUOTE 0x0400      /* Quote special chars with \. */
+#define GLOB_TILDE 0x0800      /* Expand tilde names from the passwd file. */
+#define GLOB_NOESCAPE 0x1000   /* Disable backslash escaping. */
+
+/* Error values returned by glob(3) */
+#define GLOB_NOSPACE (-1) /* Malloc call failed. */
+#define GLOB_ABORTED (-2) /* Unignored error. */
+#define GLOB_NOMATCH (-3) /* No match and GLOB_NOCHECK not set. */
+#define GLOB_NOSYS (-4)   /* Function not supported. */
+#define GLOB_ABEND GLOB_ABORTED
 
 /*
  * Typedefs
@@ -99,6 +49,19 @@ typedef struct {
   int gl_offs;     /**< reserved at beginning of gl_pathv */
   int gl_flags;    /**< returned flags */
   char** gl_pathv; /**< list of paths matching pattern */
+
+  int (*gl_errfunc)(const char*, int);
+
+  /*
+   * Alternate filesystem access methods for glob; replacement
+   * versions of closedir(3), readdir(3), opendir(3), stat(2)
+   * and lstat(2).
+   */
+  void (*gl_closedir)(void*);
+  struct dirent* (*gl_readdir)(void*);
+  void* (*gl_opendir)(const char*);
+  int (*gl_lstat)(const char*, struct stat*);
+  int (*gl_stat)(const char*, struct stat*);
 } glob_t;
 
 /*
