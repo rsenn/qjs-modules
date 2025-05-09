@@ -311,7 +311,7 @@ input_buffer_data(const InputBuffer* in) {
 
 static inline uint8_t*
 input_buffer_begin(const InputBuffer* in) {
-  return input_buffer_begin(in);
+  return input_buffer_data(in);
 }
 
 static inline size_t

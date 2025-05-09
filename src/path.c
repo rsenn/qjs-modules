@@ -800,7 +800,47 @@ path_gethome1(int uid) {
 
       dir = line;
       n = str_chr(line, ':');
-      strncpy(home, dir, n);
+      byte_copy(home, n, dir);
+      home[n] = '\0';
+      ret = home;
+    }
+
+    fclose(fp);
+  }
+
+  return ret;
+}
+
+char*
+path_gethome2(const char* user, size_t userlen) {
+  static char home[PATH_MAX + 1];
+  FILE* fp;
+  char *line, *ret = 0, buf[1024];
+
+  if((fp = fopen("/etc/passwd", "r"))) {
+    while((line = fgets(buf, sizeof(buf) - 1, fp))) {
+      size_t p, n, len = strlen(line);
+      char* dir;
+
+      while(len > 0 && is_whitespace_char(buf[len - 1]))
+        buf[--len] = '\0';
+
+      p = str_chr(buf, ':');
+
+      if(p != userlen || byte_diff(buf, userlen, user))
+        continue;
+
+      line = buf + p + 1;
+
+      for(n = 4; n > 0; n--) {
+        p = str_chr(line, ':');
+        line[p] = '\0';
+        line += p + 1;
+      }
+
+      dir = line;
+      n = str_chr(line, ':');
+      byte_copy(home, n, dir);
       home[n] = '\0';
       ret = home;
     }

@@ -100,6 +100,7 @@ char* path_getcwd1(DynBuf* db);
 char* path_getcwd0(void);
 char* path_gethome(void);
 char* path_gethome1(int uid);
+char* path_gethome2(const char* user, size_t userlen);
 int path_stat2(const char* p, size_t plen, struct stat* st);
 int path_isabsolute2(const char* x, size_t n);
 int path_isabsolute1(const char* x);

@@ -30,6 +30,10 @@
 #define GLOB_MAGCHAR 256
 #endif
 
+#ifndef GLOB_APPEND
+#define GLOB_APPEND 1
+#endif
+
 #ifndef GLOB_ALTDIRFUNC
 #define GLOB_ALTDIRFUNC 512
 #endif
@@ -53,6 +57,8 @@
 #ifndef GLOB_TILDE_CHECK
 #define GLOB_TILDE_CHECK 16384
 #endif
+#else
+#include "glob.h"
 #endif
 
 #ifdef HAVE_WORDEXP
@@ -1154,7 +1160,6 @@ js_misc_fnmatch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   return JS_NewInt32(ctx, ret);
 }
 
-#ifdef HAVE_GLOB
 static JSContext* js_misc_glob_errfunc_ctx;
 static JSValueConst js_misc_glob_errfunc_fn;
 
@@ -1190,8 +1195,11 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   if((array_arg = (argc >= 4 && JS_IsArray(ctx, argv[3])))) {
     ret = JS_DupValue(ctx, argv[3]);
 
+#ifdef GLOB_APPEND
     if(flags & GLOB_APPEND)
       start = js_array_length(ctx, ret);
+#endif
+
   } else {
     ret = JS_NewArray(ctx);
   }
@@ -1216,7 +1224,6 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   JS_FreeCString(ctx, pattern);
   return ret;
 }
-#endif
 
 #ifdef HAVE_WORDEXP
 static JSValue
@@ -3451,9 +3458,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("mkstemp", 1, js_misc_mkstemp),
 #endif
     JS_CFUNC_DEF("fnmatch", 3, js_misc_fnmatch),
-#ifdef HAVE_GLOB
     JS_CFUNC_DEF("glob", 2, js_misc_glob),
-#endif
 #ifdef HAVE_WORDEXP
     JS_CFUNC_DEF("wordexp", 2, js_misc_wordexp),
 #endif
