@@ -59,6 +59,8 @@
 #endif
 #else
 #include "glob.h"
+#define glob openbsd_glob
+#define globfree openbsd_globfree
 #endif
 
 #ifdef HAVE_WORDEXP
