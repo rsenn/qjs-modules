@@ -64,9 +64,6 @@
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
 #endif
@@ -116,6 +113,10 @@ typedef char char_type;
 
 #endif
 
+#ifndef MAXPATHLEN
+#define MAXPATHLEN PATH_MAX
+#endif
+
 #define CHAR(c) ((char_type)((c)&M_ASCII))
 #define META(c) ((char_type)((c) | M_QUOTE))
 #define M_ALL META('*')
@@ -127,7 +128,7 @@ typedef char char_type;
 #define ismeta(c) (((c)&M_QUOTE) != 0)
 
 static int compare(const void*, const void*);
-static void g_Ctoc(const char_type*, char*);
+static char* g_Ctoc(const char_type*, char*);
 static int g_lstat(char_type*, struct stat*, glob_t*);
 static DIR* g_opendir(char_type*, glob_t*);
 static char_type* g_strchr(char_type*, int);
@@ -150,11 +151,9 @@ static void qprintf(const char*, char_type*);
 
 int
 openbsd_glob(const char* pattern, int flags, int (*errfunc)(const char*, int), glob_t* g) {
-  const unsigned char* patnext;
   int c;
-  char_type *bufnext, *bufend, patbuf[MAXPATHLEN + 1];
-
-  patnext = (unsigned char*)pattern;
+  char_type patbuf[MAXPATHLEN + 1], *bufnext = patbuf, *bufend = patbuf + MAXPATHLEN;
+  const unsigned char* patnext = (unsigned char*)pattern;
 
   if(!(flags & GLOB_APPEND)) {
     g->gl_pathc = 0;
@@ -168,8 +167,6 @@ openbsd_glob(const char* pattern, int flags, int (*errfunc)(const char*, int), g
   g->gl_errfunc = errfunc;
   g->gl_matchc = 0;
 
-  bufnext = patbuf;
-  bufend = bufnext + MAXPATHLEN;
   if(flags & GLOB_NOESCAPE)
     while(bufnext < bufend && (c = *patnext++) != '\0')
       *bufnext++ = c;
@@ -224,9 +221,8 @@ globexp1(const char_type* pattern, glob_t* g) {
 static int
 globexp2(const char_type* ptr, const char_type* pattern, glob_t* g, int* rv) {
   int i;
-  char_type *lm, *ls;
+  char_type *lm, *ls, patbuf[MAXPATHLEN + 1];
   const char_type *pe, *pm, *pl;
-  char_type patbuf[MAXPATHLEN + 1];
 
   /* copy part up to the brace */
   for(lm = patbuf, pm = pattern; pm != ptr; *lm++ = *pm++)
@@ -248,9 +244,9 @@ globexp2(const char_type* ptr, const char_type* pattern, glob_t* g, int* rv) {
          */
         pe = pm;
       }
-    } else if(*pe == '{')
+    } else if(*pe == '{') {
       i++;
-    else if(*pe == '}') {
+    } else if(*pe == '}') {
       if(i == 0)
         break;
 
@@ -265,7 +261,7 @@ globexp2(const char_type* ptr, const char_type* pattern, glob_t* g, int* rv) {
 
   for(i = 0, pl = pm = ptr; pm <= pe; pm++)
     switch(*pm) {
-      case '[':
+      case '[': {
         /* Ignore everything between [] */
         for(pl = pm++; *pm != ']' && *pm != '\0'; pm++)
           continue;
@@ -279,16 +275,19 @@ globexp2(const char_type* ptr, const char_type* pattern, glob_t* g, int* rv) {
         }
 
         break;
-
-      case '{': i++; break;
-
-      case '}':
+      }
+      case '{': {
+        i++;
+        break;
+      }
+      case '}': {
         if(i) {
           i--;
           break;
         }
+      }
         /* FALLTHROUGH */
-      case ',':
+      case ',': {
         if(i && *pm == ',')
           break;
         else {
@@ -312,9 +311,12 @@ globexp2(const char_type* ptr, const char_type* pattern, glob_t* g, int* rv) {
           /* move after the comma, to the next string */
           pl = pm + 1;
         }
-        break;
 
-      default: break;
+        break;
+      }
+      default: {
+        break;
+      }
     }
 
   *rv = 0;
@@ -326,18 +328,17 @@ globexp2(const char_type* ptr, const char_type* pattern, glob_t* g, int* rv) {
  */
 static const char_type*
 globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t* g) {
-  struct passwd* pwd;
   char* h;
-  const char_type* p;
-  char_type *b, *eb;
+  const char_type* patnext;
+  char_type *bufnext, *bufend;
 
   if(*pattern != '~' || !(g->gl_flags & GLOB_TILDE))
     return pattern;
 
   /* Copy up to the end of the string or / */
-  eb = &patbuf[patbuf_len - 1];
+  bufend = &patbuf[patbuf_len - 1];
 
-  for(p = pattern + 1, h = (char*)patbuf; h < (char*)eb && *p && *p != '/'; *h++ = *p++)
+  for(patnext = pattern + 1, h = (char*)patbuf; h < (char*)bufend && *patnext && *patnext != '/'; *h++ = *patnext++)
     continue;
 
   *h = '\0';
@@ -351,6 +352,8 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
     if(issetugid() != 0 || (h = getenv("HOME")) == NULL) {
 #endif
 #ifdef HAVE_GETPWUID
+      struct passwd* pwd;
+
       if((pwd = getpwuid(getuid())) == NULL)
         return pattern;
       else
@@ -366,6 +369,8 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
      * Expand a ~user
      */
 #if HAVE_GETPWNAM
+    struct passwd* pwd;
+
     if((pwd = getpwnam((char*)patbuf)) == NULL)
       return pattern;
     else
@@ -376,14 +381,14 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
   }
 
   /* Copy the home directory */
-  for(b = patbuf; b < eb && *h; *b++ = *h++)
+  for(bufnext = patbuf; bufnext < bufend && *h; *bufnext++ = *h++)
     continue;
 
   /* Append the rest of the pattern */
-  while(b < eb && (*b++ = *p++) != '\0')
+  while(bufnext < bufend && (*bufnext++ = *patnext++) != '\0')
     continue;
 
-  *b = '\0';
+  *bufnext = '\0';
   return patbuf;
 }
 
@@ -396,26 +401,23 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
  */
 static int
 glob0(const char_type* pattern, glob_t* g) {
-  const char_type* qpatnext;
-  int c, err, oldpathc;
-  char_type *bufnext, patbuf[MAXPATHLEN + 1];
-
-  qpatnext = globtilde(pattern, patbuf, sizeof(patbuf) / sizeof(char_type), g);
-  oldpathc = g->gl_pathc;
-  bufnext = patbuf;
+  char_type patbuf[MAXPATHLEN + 1], *bufnext = patbuf;
+  const char_type* qpatnext = globtilde(pattern, patbuf, sizeof(patbuf) / sizeof(char_type), g);
+  int c, err, oldpathc = g->gl_pathc;
 
   /* We don't need to check for buffer overflow any more. */
   while((c = *qpatnext++) != '\0') {
     switch(c) {
-      case '[':
-        c = *qpatnext;
-        if(c == '!')
+      case '[': {
+        if((c = *qpatnext) == '!')
           ++qpatnext;
 
         if(*qpatnext == '\0' || g_strchr((char_type*)qpatnext + 1, ']') == NULL) {
           *bufnext++ = '[';
+
           if(c == '!')
             --qpatnext;
+
           break;
         }
 
@@ -439,22 +441,26 @@ glob0(const char_type* pattern, glob_t* g) {
         g->gl_flags |= GLOB_MAGCHAR;
         *bufnext++ = M_END;
         break;
-
-      case '?':
+      }
+      case '?': {
         g->gl_flags |= GLOB_MAGCHAR;
         *bufnext++ = M_ONE;
         break;
-
-      case '*':
+      }
+      case '*': {
         g->gl_flags |= GLOB_MAGCHAR;
         /* collapse adjacent stars to one,
          * to avoid exponential behavior
          */
         if(bufnext == patbuf || bufnext[-1] != M_ALL)
           *bufnext++ = M_ALL;
-        break;
 
-      default: *bufnext++ = CHAR(c); break;
+        break;
+      }
+      default: {
+        *bufnext++ = CHAR(c);
+        break;
+      }
     }
   }
 
@@ -484,11 +490,6 @@ glob0(const char_type* pattern, glob_t* g) {
     qsort(g->gl_pathv + g->gl_offs + oldpathc, g->gl_pathc - oldpathc, sizeof(char*), compare);
 
   return 0;
-}
-
-static int
-compare(const void* p, const void* q) {
-  return strcmp(*(char**)p, *(char**)q);
 }
 
 static int
@@ -603,16 +604,15 @@ glob3(char_type* pathbuf, char_type* pathend, char_type* pattern, char_type* res
     if(dp->d_name[0] == '.' && *pattern != '.')
       continue;
 
-    g_Ctoc(pathend, dp->d_name);
+    for(sc = (unsigned char*)dp->d_name, dc = pathend; (*dc++ = *sc++) != '\0';)
+      continue;
 
     if(!match(pathend, pattern, restpattern)) {
       *pathend = '\0';
       continue;
     }
 
-    err = glob2(pathbuf, --dc, restpattern, g);
-
-    if(err)
+    if((err = glob2(pathbuf, --dc, restpattern, g)))
       break;
   }
 
@@ -640,14 +640,9 @@ glob3(char_type* pathbuf, char_type* pathend, char_type* pattern, char_type* res
  */
 static int
 globextend(const char_type* path, glob_t* g) {
-  char** pathv;
-  int i;
-  unsigned int newsize;
-  char* copy;
   const char_type* p;
-
-  newsize = sizeof(*pathv) * (2 + g->gl_pathc + g->gl_offs);
-  pathv = g->gl_pathv ? realloc((char*)g->gl_pathv, newsize) : malloc(newsize);
+  unsigned int newsize = sizeof(char*) * (2 + g->gl_pathc + g->gl_offs);
+  char *copy, **pathv = g->gl_pathv ? realloc((char*)g->gl_pathv, newsize) : malloc(newsize);
 
   if(pathv == NULL) {
     if(g->gl_pathv)
@@ -660,7 +655,7 @@ globextend(const char_type* path, glob_t* g) {
     /* first time around -- clear initial gl_offs items */
     pathv += g->gl_offs;
 
-    for(i = g->gl_offs; --i >= 0;)
+    for(int i = g->gl_offs; --i >= 0;)
       *--pathv = NULL;
   }
 
@@ -685,13 +680,12 @@ globextend(const char_type* path, glob_t* g) {
 static int
 match(char_type* name, char_type* pat, char_type* patend) {
   int ok, negate_range;
-  char_type c, k;
 
   while(pat < patend) {
-    c = *pat++;
+    char_type k, c = *pat++;
 
     switch(c & M_MASK) {
-      case M_ALL:
+      case M_ALL: {
         if(pat == patend)
           return 1;
         do
@@ -701,15 +695,16 @@ match(char_type* name, char_type* pat, char_type* patend) {
         while(*name++ != '\0');
 
         return 0;
-
-      case M_ONE:
+      }
+      case M_ONE: {
         if(*name++ == '\0')
           return 0;
 
         break;
-
-      case M_SET:
+      }
+      case M_SET: {
         ok = 0;
+
         if((k = *name++) == '\0')
           return 0;
 
@@ -720,6 +715,7 @@ match(char_type* name, char_type* pat, char_type* patend) {
           if((*pat & M_MASK) == M_RNG) {
             if(c <= k && k <= pat[1])
               ok = 1;
+
             pat += 2;
           } else if(c == k)
             ok = 1;
@@ -728,32 +724,36 @@ match(char_type* name, char_type* pat, char_type* patend) {
           return 0;
 
         break;
-
-      default:
+      }
+      default: {
         if(*name++ != c)
           return 0;
 
         break;
+      }
     }
   }
+
   return *name == '\0';
 }
 
 /* Free allocated data belonging to a glob_t structure. */
 void
 openbsd_globfree(glob_t* g) {
-  int i;
-  char** pp;
-
   if(g->gl_pathv != NULL) {
-    pp = g->gl_pathv + g->gl_offs;
+    char** pp = g->gl_pathv + g->gl_offs;
 
-    for(i = g->gl_pathc; i--; ++pp)
+    for(int i = g->gl_pathc; i--; ++pp)
       if(*pp)
         free(*pp);
 
     free(g->gl_pathv);
   }
+}
+
+static int
+compare(const void* p, const void* q) {
+  return strcmp(*(char**)p, *(char**)q);
 }
 
 static DIR*
@@ -822,12 +822,14 @@ g_strcat(char_type* dst, const char_type* src) {
 }
 #endif
 
-static void
+static char*
 g_Ctoc(const char_type* str, char* buf) {
   char* dc;
 
   for(dc = buf; (*dc++ = *str++) != '\0';)
     continue;
+
+  return dc;
 }
 
 #ifdef DEBUG
