@@ -136,6 +136,7 @@ check_include_def(sys/wait.h)
 check_include_def(sys/syscall.h)
 check_include_def(unistd.h)
 
+
 if(USE_SPAWN)
   check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
   if(HAVE_SPAWN)
@@ -154,7 +155,7 @@ check_include_def(threads.h)
 check_include_def(sys/mman.h)
 
 check_function_def(mmap)
-check_function_def(issetugid)
+check_functions_def(issetugid getpwuid getpwnam)
 
 check_external(getdents64 "" "" HAVE_GETDENTS64)
 #check_function_exists(getdents64 HAVE_GETDENTS64)
