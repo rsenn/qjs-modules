@@ -135,7 +135,6 @@ check_functions_def(execve execvpe)
 check_include_def(sys/wait.h)
 check_include_def(sys/syscall.h)
 
-
 if(USE_SPAWN)
   check_function_and_include(posix_spawnp spawn.h HAVE_SPAWN)
   if(HAVE_SPAWN)
@@ -155,8 +154,14 @@ check_include_def(sys/mman.h)
 
 check_function_def(mmap)
 
-check_includes_def(sys/param.h sys/stat.h errno.h unistd.h dirent.h pwd.h)
-check_functions_def(issetugid getpwuid getpwnam)
+check_includes_def(sys/param.h sys/stat.h errno.h unistd.h dirent.h)
+
+check_functions_def(issetugid)
+
+if(NOT ANDROID)
+  check_include_def(pwd.h)
+  check_functions_def(getpwuid getpwnam)
+endif(NOT ANDROID)
 
 check_external(getdents64 "" "" HAVE_GETDENTS64)
 #check_function_exists(getdents64 HAVE_GETDENTS64)
@@ -313,7 +318,7 @@ if(MODULE_MAGIC)
   if(HAVE_LIBMAGIC AND HAVE_MAGIC_H)
     add_definitions(-DHAVE_LIBMAGIC=1)
     if(NOT DEFINED LIBMAGIC_LIBRARY)
-    set(LIBMAGIC_LIBRARY magic CACHE STRING "libmagic library")
+      set(LIBMAGIC_LIBRARY magic CACHE STRING "libmagic library")
     endif(NOT DEFINED LIBMAGIC_LIBRARY)
     set(magic_LIBRARIES ${LIBMAGIC_LIBRARY})
     set(magic_MODULE magic)
@@ -593,7 +598,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 check_function_def(js_debugger_build_backtrace)
-
 
 dump(CHECKED_FUNCTIONS CHECKED_INCLUDES)
 

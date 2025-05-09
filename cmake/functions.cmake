@@ -73,7 +73,7 @@ macro(CHECK_FUNCTION_DEF FUNC)
   else(${ARGC} GREATER 1)
     string(TOUPPER "HAVE_${FUNC}" RESULT_VAR)
   endif(${ARGC} GREATER 1)
-  
+
   if(${ARGC} GREATER 2)
     set(PREPROC_DEF "${ARGV2}")
   else(${ARGC} GREATER 2)
@@ -97,9 +97,9 @@ macro(CHECK_FUNCTION_DEF FUNC)
   endif(NOT DEFINED ${RESULT_VAR})
 
   if(${${RESULT_VAR}})
-      if(NOT "${PREPROC_DEF}" STREQUAL "")
-        add_definitions(-D${PREPROC_DEF})
-      endif(NOT "${PREPROC_DEF}" STREQUAL "")
+    if(NOT "${PREPROC_DEF}" STREQUAL "")
+      add_definitions(-D${PREPROC_DEF})
+    endif(NOT "${PREPROC_DEF}" STREQUAL "")
   endif(${${RESULT_VAR}})
   #message("${RESULT_VAR}: ${${RESULT_VAR}}")
 
