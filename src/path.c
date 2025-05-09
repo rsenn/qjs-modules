@@ -11,6 +11,14 @@
 #include <shlobj.h>
 #endif
 
+static const char path_passwd[] =
+#ifdef __ANDROID__
+    "/system/etc/passwd"
+#else
+    "/etc/passwd"
+#endif
+    ;
+
 /**
  * \addtogroup path
  * @{
@@ -769,7 +777,7 @@ path_gethome1(int uid) {
   FILE* fp;
   char *line, *ret = 0, buf[1024];
 
-  if((fp = fopen("/etc/passwd", "r"))) {
+  if((fp = fopen(path_passwd, "r"))) {
     while((line = fgets(buf, sizeof(buf) - 1, fp))) {
       size_t p, n, len = strlen(line);
       char *user, *id, *dir;
@@ -817,7 +825,7 @@ path_gethome2(const char* user, size_t userlen) {
   FILE* fp;
   char *line, *ret = 0, buf[1024];
 
-  if((fp = fopen("/etc/passwd", "r"))) {
+  if((fp = fopen(path_passwd, "r"))) {
     while((line = fgets(buf, sizeof(buf) - 1, fp))) {
       size_t p, n, len = strlen(line);
       char* dir;

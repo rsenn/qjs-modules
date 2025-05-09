@@ -105,10 +105,18 @@
 #include "js-utils.h"
 #include "../libbcrypt/bcrypt.h"
 
-#if defined(HAVE_UTIME) || defined(HAVE_UTIMES)
+#if defined(HAVE_UTIME) || defined(HAVE_UTIMES) || defined(HAVE_FUTIMES) || defined(HAVE_LUTIMES)
 #include <sys/types.h>
 #include <sys/time.h>
 #include <utime.h>
+
+#ifdef __ANDROID__
+#if !(__ANDROID_API__ >= 26)
+int futimes(int, const struct timeval[2]);
+int lutimes(const char*, const struct timeval[2]);
+#endif
+#endif
+
 #endif
 
 #ifndef USE_TEMPNAM
