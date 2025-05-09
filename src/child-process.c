@@ -220,11 +220,11 @@ child_process_spawn(ChildProcess* cp) {
     }
 
     if(cp->cwd)
-      chdir(cp->cwd);
+      (void)chdir(cp->cwd);
 
 #ifndef __ANDROID__
-    setuid(cp->uid);
-    setgid(cp->gid);
+    (void)setuid(cp->uid);
+    (void)setgid(cp->gid);
 #endif
 
 #ifdef HAVE_EXECVPE
@@ -260,13 +260,10 @@ int
 child_process_wait(ChildProcess* cp, int flags) {
 #ifdef _WIN32
   DWORD exitcode = 0;
-  HANDLE hproc;
-  int i, ret;
-
-  hproc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, cp->pid);
+  HANDLE hproc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, cp->pid);
 
   for(;;) {
-    ret = WaitForSingleObject(hproc, INFINITE);
+    DWORD ret = WaitForSingleObject(hproc, INFINITE);
 
     if(ret == WAIT_TIMEOUT)
       continue;
@@ -277,6 +274,7 @@ child_process_wait(ChildProcess* cp, int flags) {
     if(ret == WAIT_OBJECT_0) {
       GetExitCodeProcess(hproc, &exitcode);
       CloseHandle(hproc);
+
       if(exitcode == STILL_ACTIVE)
         return -1;
 

@@ -137,12 +137,12 @@ static inline MemoryBlock
 block_slice(MemoryBlock mb, IndexRange ir) {
   if(ir.start < 0)
     ir.start = mb.size + (ir.start % mb.size);
-  else if(ir.start > mb.size)
+  else if(ir.start > (int64_t)mb.size)
     ir.start = mb.size;
 
   if(ir.end < 0)
     ir.end = mb.size + (ir.end % mb.size);
-  else if(ir.end > mb.size)
+  else if(ir.end > (int64_t)mb.size)
     ir.end = mb.size;
 
   return (MemoryBlock){mb.base + ir.start, ir.end - ir.start};
@@ -150,8 +150,8 @@ block_slice(MemoryBlock mb, IndexRange ir) {
 
 static inline MemoryBlock
 block_range(MemoryBlock mb, OffsetLength range) {
-  size_t offset = MIN_NUM(mb.size, range.offset);
-  size_t length = MIN_NUM((size_t)range.length, mb.size - offset);
+  size_t offset = MIN_NUM((int64_t)mb.size, range.offset);
+  size_t length = MIN_NUM(range.length, (int64_t)(mb.size - offset));
 
   return (MemoryBlock){mb.base + offset, length};
 }

@@ -28,7 +28,9 @@
   }
 
 static ssize_t
-write_dbuf(DynBuf* db, const void* buf, size_t len, Writer* wr) {
+write_dbuf(intptr_t p, const void* buf, size_t len, Writer* wr) {
+  DynBuf* db = (DynBuf*)p;
+
   if(dbuf_put(db, buf, len))
     return -1;
 
@@ -36,7 +38,8 @@ write_dbuf(DynBuf* db, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_tee(Writer* wptr, const void* buf, size_t len) {
+write_tee(intptr_t p, const void* buf, size_t len) {
+  Writer* wptr = (Writer*)p;
   ssize_t r[2] = {0, 0};
 
   RESULT(writer_write(&wptr[0], buf, len), r[0]);
@@ -52,7 +55,9 @@ typedef struct {
 } EscapedWriter;
 
 static ssize_t
-write_escaped(EscapedWriter* ew, const uint8_t* x, size_t len) {
+write_escaped(intptr_t p, const void* buf, size_t len) {
+  EscapedWriter* ew = (EscapedWriter*)p;
+  const uint8_t* x = buf;
   ssize_t r = 0;
 
   for(size_t i = 0; i < len; i++) {
@@ -66,7 +71,9 @@ write_escaped(EscapedWriter* ew, const uint8_t* x, size_t len) {
 }
 
 static ssize_t
-write_urlencoded(Writer* parent, const uint8_t* x, size_t len) {
+write_urlencoded(intptr_t p, const void* buf, size_t len) {
+  Writer* parent = (Writer*)p;
+  const uint8_t* x = buf;
   ssize_t r = 0;
   static char const unescaped_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                         "abcdefghijklmnopqrstuvwxyz"
@@ -91,7 +98,9 @@ write_urlencoded(Writer* parent, const uint8_t* x, size_t len) {
 }
 
 static ssize_t
-read_urldecoded(Reader* parent, uint8_t* x, size_t len) {
+read_urldecoded(intptr_t p, void* buf, size_t len) {
+  Reader* parent = (Reader*)p;
+  uint8_t* x = buf;
   uint8_t c, *y = x;
   ssize_t r = 0;
 
@@ -119,7 +128,8 @@ read_urldecoded(Reader* parent, uint8_t* x, size_t len) {
 }
 
 static ssize_t
-read_inputbuffer(InputBuffer* ib, void* buf, size_t len, Reader* rd) {
+read_inputbuffer(intptr_t p, void* buf, size_t len, Reader* rd) {
+  InputBuffer* ib = (InputBuffer*)p;
   size_t remain = ib->size - ib->pos;
 
   if(len > remain)

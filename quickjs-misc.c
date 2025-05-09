@@ -16,6 +16,7 @@
 #include "path.h"
 #include "base64.h"
 #include <time.h>
+#include <sys/types.h>
 #ifndef _WIN32
 #include <sys/utsname.h>
 #endif
@@ -26,41 +27,61 @@
 
 #ifdef HAVE_GLOB
 #include <glob.h>
-#ifndef GLOB_MAGCHAR
-#define GLOB_MAGCHAR 256
-#endif
-
 #ifndef GLOB_APPEND
-#define GLOB_APPEND 1
+#define GLOB_APPEND 0x0001
 #endif
-
+#ifndef GLOB_DOOFFS
+#define GLOB_DOOFFS 0x0002
+#endif
+#ifndef GLOB_ERR
+#define GLOB_ERR 0x0004
+#endif
+#ifndef GLOB_MARK
+#define GLOB_MARK 0x0008
+#endif
+#ifndef GLOB_NOCHECK
+#define GLOB_NOCHECK 0x0010
+#endif
+#ifndef GLOB_NOSORT
+#define GLOB_NOSORT 0x0020
+#endif
 #ifndef GLOB_ALTDIRFUNC
-#define GLOB_ALTDIRFUNC 512
+#define GLOB_ALTDIRFUNC 0x0040
 #endif
-
 #ifndef GLOB_BRACE
-#define GLOB_BRACE 1024
+#define GLOB_BRACE 0x0080
 #endif
-
+#ifndef GLOB_MAGCHAR
+#define GLOB_MAGCHAR 0x0100
+#endif
 #ifndef GLOB_NOMAGIC
-#define GLOB_NOMAGIC 2048
+#define GLOB_NOMAGIC 0x0200
 #endif
-
+#ifndef GLOB_QUOTE
+#define GLOB_QUOTE 0x0400
+#endif
 #ifndef GLOB_TILDE
-#define GLOB_TILDE 4096
+#define GLOB_TILDE 0x0800
 #endif
-
-#ifndef GLOB_ONLYDIR
-#define GLOB_ONLYDIR 8192
+#ifndef GLOB_NOESCAPE
+#define GLOB_NOESCAPE 0x1000
 #endif
-
-#ifndef GLOB_TILDE_CHECK
-#define GLOB_TILDE_CHECK 16384
+#ifndef GLOB_NOSPACE
+#define GLOB_NOSPACE (-1)
+#endif
+#ifndef GLOB_ABORTED
+#define GLOB_ABORTED (-2)
+#endif
+#ifndef GLOB_NOMATCH
+#define GLOB_NOMATCH (-3)
+#endif
+#ifndef GLOB_NOSYS
+#define GLOB_NOSYS (-4)
 #endif
 #else
-#include "glob.h"
 #define glob openbsd_glob
 #define globfree openbsd_globfree
+#include "glob.h"
 #endif
 
 #ifdef HAVE_WORDEXP
@@ -214,12 +235,12 @@ typedef enum {
 
 #ifdef _WIN32
 static BOOL
-clear_screen(HANDLE h, ClearMode mode, BOOL line) {
+clear_screen(intptr_t h, ClearMode mode, BOOL line) {
   COORD coords = {0, 0};
   DWORD w, n;
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
-  if(!GetConsoleScreenBufferInfo(h, &sbi))
+  if(!GetConsoleScreenBufferInfo((HANDLE)h, &sbi))
     return FALSE;
 
 #define CHAR_POS(c) (((c).Y * sbi.dwSize.X) + (c).X)
@@ -246,16 +267,16 @@ clear_screen(HANDLE h, ClearMode mode, BOOL line) {
     }
   }
 
-  if(!FillConsoleOutputCharacter(h, (TCHAR)' ', n, coords, &w))
+  if(!FillConsoleOutputCharacter((HANDLE)h, (TCHAR)' ', n, coords, &w))
     return FALSE;
 
-  if(!GetConsoleScreenBufferInfo(h, &sbi))
+  if(!GetConsoleScreenBufferInfo((HANDLE)h, &sbi))
     return FALSE;
 
-  if(!FillConsoleOutputAttribute(h, sbi.wAttributes, n, coords, &w))
+  if(!FillConsoleOutputAttribute((HANDLE)h, sbi.wAttributes, n, coords, &w))
     return FALSE;
 
-  // SetConsoleCursorPosition(h, coords);
+  // SetConsoleCursorPosition((HANDLE)h, coords);
   return TRUE;
 }
 
@@ -270,17 +291,17 @@ clear_screen(int fd, ClearMode mode, BOOL line) {
 
 #ifdef _WIN32
 static BOOL
-set_cursor_position(HANDLE h, int x, int y) {
+set_cursor_position(intptr_t h, int x, int y) {
   COORD coords = {0, 0};
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
-  if(!GetConsoleScreenBufferInfo(h, &sbi))
+  if(!GetConsoleScreenBufferInfo((HANDLE)h, &sbi))
     return FALSE;
 
   coords.X = x == -1 ? sbi.dwCursorPosition.X : x;
   coords.Y = y == -1 ? sbi.dwCursorPosition.Y : y;
 
-  return !!SetConsoleCursorPosition(h, coords);
+  return !!SetConsoleCursorPosition((HANDLE)h, coords);
 }
 #else
 static BOOL
@@ -307,17 +328,17 @@ set_cursor_position(int fd, int x, int y) {
 
 #ifdef _WIN32
 static BOOL
-move_cursor(HANDLE h, int x, int y) {
+move_cursor(intptr_t h, int x, int y) {
   COORD coords = {0, 0};
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
-  if(!GetConsoleScreenBufferInfo(h, &sbi))
+  if(!GetConsoleScreenBufferInfo((HANDLE)h, &sbi))
     return FALSE;
 
   coords.X = sbi.dwCursorPosition.X + x;
   coords.Y = sbi.dwCursorPosition.Y + y;
 
-  return !!SetConsoleCursorPosition(h, coords);
+  return !!SetConsoleCursorPosition((HANDLE)h, coords);
 }
 #else
 static BOOL
@@ -351,15 +372,15 @@ move_cursor(int fd, int x, int y) {
 
 #ifdef _WIN32
 static BOOL
-set_text_attributes(HANDLE h, uint32_t attr) {
-  return !!SetConsoleTextAttribute(h, attr);
+set_text_attributes(intptr_t h, uint32_t attr) {
+  return !!SetConsoleTextAttribute((HANDLE)h, attr);
 }
 
 static BOOL
-get_text_attributes(HANDLE h, uint32_t* attr) {
+get_text_attributes(intptr_t h, uint32_t* attr) {
   CONSOLE_SCREEN_BUFFER_INFO sbi;
 
-  if(GetConsoleScreenBufferInfo(h, &sbi)) {
+  if(GetConsoleScreenBufferInfo((HANDLE)h, &sbi)) {
     *attr = sbi.wAttributes;
     return TRUE;
   }
@@ -796,7 +817,7 @@ js_misc_searcharraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSVal
     if(found) {
       /*for(size_t j = 0; j < n_size; j++) {
         uint8_t xorval = haystack.base[i + j] ^ needle.base[j];
-        printf("@(%zu + %zu); ", i, j);
+        printf("@(%lu + %lu); ", (unsigned long)i, (unsigned long)j);
         printf("%02x XOR %02x = %02x; ", haystack.base[i + j], needle.base[j], xorval);
         printf("%02x AND %02x = %02x\n", xorval, mask.base[j], xorval & mask.base[j]);
       }*/
@@ -953,7 +974,7 @@ static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf = {0};
-  ssize_t i, j = 0, size, n;
+  ssize_t size, n;
   const char* file;
   char sep = '\n';
 
@@ -990,7 +1011,8 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       size--;
 
     ret = JS_NewArray(ctx);
-    for(i = 0; i < size; i += n + 1) {
+
+    for(size_t i = 0, j = 0; i < size; i += n + 1) {
       size_t len = n = byte_chr(&dbuf.buf[i], size - i, sep);
 
       while(len > 0 && is_whitespace_char(dbuf.buf[i + len - 1]))
@@ -1001,7 +1023,6 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   }
 
   dbuf_free(&dbuf);
-
   return ret;
 }
 
@@ -1183,7 +1204,7 @@ js_misc_glob_errfunc(const char* epath, int eerrno) {
 
 static JSValue
 js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  size_t start = 0, i;
+  int start = 0, i;
   int32_t flags = 0;
   JSValue ret = JS_UNDEFINED;
   glob_t g = {0, 0, 0, 0, 0};
@@ -1391,7 +1412,6 @@ static JSValue
 js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t fd = 1, mode = 0;
   intptr_t h;
-  JSValue ret = JS_UNDEFINED;
 
   if(argc >= 1)
     JS_ToInt32(ctx, &fd, argv[0]);
@@ -1402,13 +1422,11 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 #ifdef _WIN32
   if(-1 == (h = (intptr_t)_get_osfhandle(fd)))
     return JS_ThrowInternalError(ctx, "argument 1 must be file descriptor");
-
 #else
   h = fd;
 #endif
-  ret = JS_NewBool(ctx, clear_screen(h, mode, magic == ERASE_IN_LINE));
 
-  return ret;
+  return JS_NewBool(ctx, clear_screen(h, mode, magic == ERASE_IN_LINE));
 }
 
 enum { SET_CURSOR_POSITION, MOVE_CURSOR };
@@ -1533,7 +1551,7 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       JS_ToUint32(ctx, &mode, argv[1]);
 
-      if(!SetConsoleMode(h, mode))
+      if(!SetConsoleMode((HANDLE)h, mode))
         ret = JS_Throw(ctx, js_syscallerror_new(ctx, "SetConsoleMode", GetLastError()));
 
       break;
@@ -1542,7 +1560,7 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
     case GET_CONSOLE_MODE: {
       DWORD mode = 0;
 
-      if(!GetConsoleMode(h, &mode))
+      if(!GetConsoleMode((HANDLE)h, &mode))
         ret = JS_Throw(ctx, js_syscallerror_new(ctx, "GetConsoleMode", GetLastError()));
       else
         ret = JS_NewUint32(ctx, mode);
@@ -1603,7 +1621,7 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       InputBuffer salt = js_input_buffer(ctx, argv[1]);
 
       if(salt.size < BCRYPT_HASHSIZE)
-        return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %d", salt.size, BCRYPT_HASHSIZE);
+        return JS_ThrowInternalError(ctx, "supplied buffer size (%lu) < %d", (unsigned long)salt.size, BCRYPT_HASHSIZE);
 
       ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, (void*)salt.data));
 
@@ -1631,7 +1649,7 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     input_buffer_free(&salt, ctx);
 
     if(buf.size < BCRYPT_HASHSIZE)
-      return JS_ThrowInternalError(ctx, "supplied buffer size (%zu) < %d", buf.size, BCRYPT_HASHSIZE);
+      return JS_ThrowInternalError(ctx, "supplied buffer size (%lu) < %d", (unsigned long)buf.size, BCRYPT_HASHSIZE);
 
     ret = JS_NewInt32(ctx, bcrypt_hashpw(pw, s, (char*)buf.data));
 
@@ -3732,24 +3750,23 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(FNM_PATHNAME),
     JS_CONSTANT(FNM_PERIOD),
 #endif
-#ifdef HAVE_GLOB
+    JS_CONSTANT(GLOB_APPEND),
+    JS_CONSTANT(GLOB_DOOFFS),
     JS_CONSTANT(GLOB_ERR),
     JS_CONSTANT(GLOB_MARK),
-    JS_CONSTANT(GLOB_NOSORT),
     JS_CONSTANT(GLOB_NOCHECK),
-    JS_CONSTANT(GLOB_NOMATCH),
-    JS_CONSTANT(GLOB_NOESCAPE),
-    // JS_CONSTANT(GLOB_PERIOD),
+    JS_CONSTANT(GLOB_NOSORT),
     JS_CONSTANT(GLOB_ALTDIRFUNC),
     JS_CONSTANT(GLOB_BRACE),
-    JS_CONSTANT(GLOB_NOMAGIC),
-    JS_CONSTANT(GLOB_TILDE),
-    // JS_CONSTANT(GLOB_TILDE_CHECK),
-    // JS_CONSTANT(GLOB_ONLYDIR),
     JS_CONSTANT(GLOB_MAGCHAR),
+    JS_CONSTANT(GLOB_NOMAGIC),
+    JS_CONSTANT(GLOB_QUOTE),
+    JS_CONSTANT(GLOB_TILDE),
+    JS_CONSTANT(GLOB_NOESCAPE),
     JS_CONSTANT(GLOB_NOSPACE),
     JS_CONSTANT(GLOB_ABORTED),
-#endif
+    JS_CONSTANT(GLOB_NOMATCH),
+    JS_CONSTANT(GLOB_NOSYS),
 #ifdef HAVE_WORDEXP
     JS_CONSTANT(WRDE_SHOWERR),
     JS_CONSTANT(WRDE_UNDEF),

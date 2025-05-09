@@ -61,18 +61,36 @@
 
 #ifndef HAVE_GLOB
 
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
-
+#endif
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
-#include <pwd.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
+
+#ifndef S_ISLNK
+#define S_ISLNK(m) (0)
+#endif
+
+#ifndef HAVE_LSTAT
+#define lstat stat
 #endif
 
 #include "glob.h"

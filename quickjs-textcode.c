@@ -122,9 +122,9 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
 
           if(!libutf_c16_to_c32(u16, &cp)) {
             ret = JS_ThrowInternalError(ctx,
-                                        "%s: TextDecoder: not a valid utf-16 code at (%llu: 0x%04x, 0x%04x): %lu",
+                                        "%s: TextDecoder: not a valid utf-16 code at (%lu: 0x%04x, 0x%04x): %lu",
                                         __func__,
-                                        (long long unsigned int)i,
+                                        (unsigned long)i,
                                         (unsigned int)ptr[0],
                                         (unsigned int)ptr[1],
                                         (unsigned long)cp);
@@ -149,9 +149,9 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
 
           if(!libutf_c32_to_c8(cp, &len, tmp)) {
             ret = JS_ThrowInternalError(ctx,
-                                        "%s: TextDecoder: not a valid utf-32 code at (%llu: 0x%04x, 0x%04x): %lu",
+                                        "%s: TextDecoder: not a valid utf-32 code at (%lu: 0x%04x, 0x%04x): %lu",
                                         __func__,
-                                        (long long unsigned int)i,
+                                        (unsigned long)i,
                                         (unsigned int)ptr[0],
                                         (unsigned int)ptr[1],
                                         (unsigned long)cp);
@@ -440,10 +440,10 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
 
         if(!libutf_c32_to_c16(cp, &len, u16))
           return JS_ThrowInternalError(ctx,
-                                       "%s: TextEncoder: not a valid code point at (%llu) [%llu]: %lu",
+                                       "%s: TextEncoder: not a valid code point at (%lu) [%lu]: %lu",
                                        __func__,
-                                       (long long unsigned int)i,
-                                       (long long unsigned int)(end - ptr),
+                                       (unsigned long)i,
+                                       (unsigned long)(end - ptr),
                                        (unsigned long)cp);
 
         for(int j = 0; j < len; j++)
@@ -464,9 +464,9 @@ textencoder_encode(TextEncoder* enc, InputBuffer in, JSContext* ctx) {
 
         if((cp = unicode_from_utf8(ptr, end - ptr, &next)) == 0xffffffff)
           return JS_ThrowInternalError(ctx,
-                                       "%s: TextEncoder: not a valid code point at (%llu): %lu",
+                                       "%s: TextEncoder: not a valid code point at (%lu): %lu",
                                        __func__,
-                                       (long long unsigned int)(ptr - in.block.base),
+                                       (unsigned long)(ptr - in.block.base),
                                        (long unsigned int)cp);
 
         uint32_put_endian(u8, cp, enc->endian);
@@ -556,13 +556,13 @@ js_encoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     else
       return JS_ThrowInternalError(ctx, "TextEncoder '%s' is invalid s", s);
 
-    if(enc->type_code > UTF8)
+    if((int)enc->type_code > (int)UTF8)
       if(s[case_finds(s, "be")] || s[case_finds(s, "be")])
         enc->endian = BIG;
 
     JS_FreeCString(ctx, s);
   } else {
-    enc->type_code = UTF8;
+    enc->type_code = (TextEncoding)UTF8;
   }
 
   JS_SetOpaque(obj, enc);

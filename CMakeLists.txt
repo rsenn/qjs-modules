@@ -134,7 +134,6 @@ endif(NOT HAVE_VFORK)
 check_functions_def(execve execvpe)
 check_include_def(sys/wait.h)
 check_include_def(sys/syscall.h)
-check_include_def(unistd.h)
 
 
 if(USE_SPAWN)
@@ -155,6 +154,8 @@ check_include_def(threads.h)
 check_include_def(sys/mman.h)
 
 check_function_def(mmap)
+
+check_includes_def(sys/param.h sys/stat.h errno.h unistd.h dirent.h pwd.h)
 check_functions_def(issetugid getpwuid getpwnam)
 
 check_external(getdents64 "" "" HAVE_GETDENTS64)
@@ -226,8 +227,12 @@ check_function_def(uname)
 check_function_def(tempnam)
 
 if(HAVE_TEMPNAM)
-  add_definitions(-DUSE_TEMPNAM=1)
+  option(USE_TEMPNAM ON "Use tempnam()")
 endif(HAVE_TEMPNAM)
+
+if(USE_TEMPNAM)
+  add_definitions(-DUSE_TEMPNAM=1)
+endif(USE_TEMPNAM)
 
 # if(BUILD_PIGPIO)
 #   include(ExternalProject)
@@ -587,6 +592,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 check_function_def(js_debugger_build_backtrace)
+
+
+dump(CHECKED_FUNCTIONS CHECKED_INCLUDES)
 
 file(GLOB TESTS tests/test_*.js)
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})

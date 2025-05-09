@@ -214,7 +214,7 @@ queue_chunk(Queue* q, ssize_t pos) {
   struct list_head* el;
   ssize_t i = 0;
 
-  if(pos >= 0 && pos < q->nchunks) {
+  if(pos >= 0 && (size_t)pos < q->nchunks) {
     list_for_each(el, &q->list) {
 
       if(i == pos)
@@ -223,7 +223,7 @@ queue_chunk(Queue* q, ssize_t pos) {
       ++i;
     }
 
-  } else if(pos < 0 && pos >= -q->nchunks) {
+  } else if(pos < 0 && pos >= -(ssize_t)q->nchunks) {
     list_for_each_prev(el, &q->list) {
       --i;
 
@@ -240,7 +240,7 @@ queue_at(Queue* q, ssize_t offset, size_t* skip) {
   struct list_head* el;
   ssize_t i = 0;
 
-  if(offset >= 0 && offset < q->nbytes) {
+  if(offset >= 0 && (size_t)offset < q->nbytes) {
     list_for_each(el, &q->list) {
       Chunk* chunk = list_entry(el, Chunk, link);
       ssize_t end = i + chunk_size(chunk);
@@ -256,7 +256,7 @@ queue_at(Queue* q, ssize_t offset, size_t* skip) {
       i = end;
     }
 
-  } else if(offset < 0 && offset >= -q->nbytes) {
+  } else if(offset < 0 && offset >= -(ssize_t)q->nbytes) {
     list_for_each_prev(el, &q->list) {
       Chunk* chunk = list_entry(el, Chunk, link);
       ssize_t start = i - chunk_size(chunk);

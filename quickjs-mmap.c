@@ -45,7 +45,7 @@ js_mmap_map(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]
     offset = 0;
 
   if(!(ptr = mmap((void*)addr, length, prot, flags, fd, offset)))
-    return JS_ThrowInternalError(ctx, "Could not mmap %" PRIu64 " bytes of memory", length);
+    return JS_ThrowInternalError(ctx, "Could not mmap %lu bytes of memory", (unsigned long)length);
 
   if(ptr == MAP_FAILED)
     return JS_NewInt32(ctx, -1);

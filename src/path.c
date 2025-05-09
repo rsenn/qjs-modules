@@ -1319,6 +1319,7 @@ path_readlink2(const char* path, DynBuf* dir) {
   do {
     n <<= 1;
     dbuf_realloc(dir, n);
+
     if((sz = readlink(path, (char*)dir->buf, n)) == -1)
       return -1;
   } while(sz == n);

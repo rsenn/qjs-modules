@@ -459,7 +459,7 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
         i++;
       }
 
-      dbuf_printf(dbuf, " (len = %llu) ]", (unsigned long long int)pr->charset.len);
+      dbuf_printf(dbuf, " (len = %lu) ]", (unsigned long)pr->charset.len);
       break;
     }
 
@@ -578,7 +578,7 @@ predicate_dump(const Predicate* pr, JSContext* ctx, DynBuf* dbuf) {
     }
 
     case PREDICATE_SLICE: {
-      dbuf_printf(dbuf, ".slice(%" PRId64 ", %" PRId64 ")", pr->slice.start, pr->slice.end);
+      dbuf_printf(dbuf, ".slice(%ld, %ld)", (long)pr->slice.start, (long)pr->slice.end);
       break;
     }
 
@@ -809,7 +809,7 @@ predicate_tosource(const Predicate* pr, JSContext* ctx, DynBuf* dbuf, Arguments*
     case PREDICATE_SLICE: {
       const char* arg = arguments_push(args, ctx, "value");
 
-      dbuf_printf(dbuf, "%s.slice(%" PRId64 ", %" PRId64 ")", arg, pr->slice.start, pr->slice.end);
+      dbuf_printf(dbuf, "%s.slice(%ld, %ld)", arg, (long)pr->slice.start, (long)pr->slice.end);
       break;
     }
 

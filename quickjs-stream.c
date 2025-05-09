@@ -691,7 +691,7 @@ readable_enqueue(ReadableStream* st, JSValueConst chunk, BOOL binary, JSContext*
   if(!ok) {
     int64_t r = queue_write(&st->q, input.data, input.size);
 
-    ret = r < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %" PRId64, r) : JS_NewInt64(ctx, r);
+    ret = r < 0 ? JS_ThrowInternalError(ctx, "enqueue() returned %lu", (unsigned long)r) : JS_NewInt64(ctx, r);
   }
 
   input_buffer_free(&input, ctx);
@@ -1223,10 +1223,12 @@ js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
       JS_ToInt64(ctx, &bytes, argv[0]);
 
-      if(bytes > length) {
+      if(bytes >= 0 && (size_t)bytes > length) {
         ret = JS_ThrowRangeError(ctx,
-                                 "Supplied bytesWritten value (%" PRId64 ") is bigger than view length (%" PRIu64 ").");
-      } else if(bytes == length) {
+                                 "Supplied bytesWritten value (%ld) is bigger than view length (%lu).",
+                                 (long)bytes,
+                                 (unsigned long)length);
+      } else if(bytes >= 0 && (size_t)bytes == length) {
         newa = JS_DupValue(ctx, view);
       } else {
         uint64_t offset = js_get_propertystr_uint64(ctx, view, "byteOffset");

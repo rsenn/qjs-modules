@@ -86,12 +86,18 @@ struct async_closure {
   JSCFunctionMagic* set_mux;
 };
 
-struct PACK asyncsocket_state {
-  SOCKET_PROPS();
-  /*struct socket_handlers handlers;*/
-  JSValue pending[2];
+struct asyncsocket_state {
+  union {
+    struct {
+      union socket_state socket;
+      JSValue pending[2];
+    };
+    struct PACK {
+      SOCKET_PROPS();
+    };
+    ENDPACK
+  };
 };
-ENDPACK
 
 #define SOCKET(fd, err, sys, nonb, asyn, own) \
   { \

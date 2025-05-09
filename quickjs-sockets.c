@@ -189,19 +189,20 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
 #ifdef HAVE_LINUX_NETWORK_HEADERS
 
       if(a->family == AF_IPX) {
-        strncpy((char*)a->ipx.sipx_node, str, sizeof(a->ipx.sipx_node));
+        str_copyn((char*)a->ipx.sipx_node, str, sizeof(a->ipx.sipx_node));
       } else if(a->family == AF_UNIX) {
-        strncpy(a->un.sun_path, str, sizeof(a->un.sun_path));
+        str_copyn(a->un.sun_path, str, sizeof(a->un.sun_path));
       } else if(a->family == AF_NETLINK) {
         uint32_t n = 0;
+
         JS_ToUint32(ctx, &n, argv[0]);
         a->nl.nl_pid = n;
-
       } else if(a->family == AF_CAN) {
         int64_t name;
         uint32_t pgn = 0, addr = 0;
 
         JS_ToInt64Ext(ctx, &name, argv[0]);
+
         if(argc >= 2)
           JS_ToUint32(ctx, &pgn, argv[1]);
         if(argc >= 3)
@@ -210,13 +211,14 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
         a->can.can_addr.j1939.name = name;
         a->can.can_addr.j1939.pgn = pgn;
         a->can.can_addr.j1939.addr = addr;
-
       } else if(a->family == AF_NFC) {
         uint32_t dev_idx, target_idx = 0, nfc_protocol = 0;
 
         JS_ToUint32(ctx, &dev_idx, argv[0]);
+
         if(argc >= 2)
           JS_ToUint32(ctx, &target_idx, argv[1]);
+
         if(argc >= 3)
           JS_ToUint32(ctx, &nfc_protocol, argv[2]);
 
@@ -225,7 +227,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
         a->nfc.nfc_protocol = nfc_protocol;
       } else if(a->family == AF_AX25) {
       } else if(a->family == AF_X25) {
-        strncpy(a->x25.sx25_addr.x25_addr, str, sizeof(a->x25.sx25_addr.x25_addr));
+        str_copyn(a->x25.sx25_addr.x25_addr, str, sizeof(a->x25.sx25_addr.x25_addr));
       } else if(a->family == AF_APPLETALK) {
       } else if(a->family == AF_PHONET) {
       } else if(a->family == AF_ALG) {
@@ -238,7 +240,7 @@ js_sockaddr_init(JSContext* ctx, int argc, JSValueConst argv[], SockAddr* a) {
           a->family = AF_INET6;
 #ifdef HAVE_AF_UNIX
       } else if(a->family == AF_UNIX) {
-        strncpy(a->un.sun_path, str, sizeof(a->un.sun_path));
+        str_copyn(a->un.sun_path, str, sizeof(a->un.sun_path));
 #endif
       } else if(!inet_pton(a->family, str, sockaddr_addr(a)) && a->family == AF_INET6) {
         struct in_addr in;
@@ -494,7 +496,7 @@ js_sockaddr_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int m
         const char* str;
 
         if((str = JS_ToCString(ctx, value))) {
-          strncpy(a->un.sun_path, str, sizeof(a->un.sun_path));
+          str_copyn(a->un.sun_path, str, sizeof(a->un.sun_path));
           JS_FreeCString(ctx, str);
         }
       }
@@ -800,6 +802,7 @@ js_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) 
   int ret;
   struct timeval tv = {0, 0}, *timeout = 0;
   ssize_t r;
+  static const ssize_t fd_setsize = sizeof(fd_set);
 
   JS_ToIndex(ctx, &n, argv[0]);
 
@@ -808,24 +811,30 @@ js_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) 
   FD_ZERO(&efds);
 
   if(argc >= 2) {
-    if((r = fdset_read(ctx, argv[1], &rfds)) >= sizeof(fd_set))
+    if((r = fdset_read(ctx, argv[1], &rfds)) >= fd_setsize)
       rset = &rfds;
     else if(r > 0)
-      return JS_ThrowTypeError(ctx, "argument 2 ArrayBuffer needs to be at least %zu bytes in size", sizeof(fd_set));
+      return JS_ThrowTypeError(ctx,
+                               "argument 2 ArrayBuffer needs to be at least %lu bytes in size",
+                               (unsigned long)sizeof(fd_set));
   }
 
   if(argc >= 3) {
-    if((r = fdset_read(ctx, argv[2], &wfds)) >= sizeof(fd_set))
+    if((r = fdset_read(ctx, argv[2], &wfds)) >= fd_setsize)
       wset = &wfds;
     else if(r > 0)
-      return JS_ThrowTypeError(ctx, "argument 3 ArrayBuffer needs to be at least %zu bytes in size", sizeof(fd_set));
+      return JS_ThrowTypeError(ctx,
+                               "argument 3 ArrayBuffer needs to be at least %lu bytes in size",
+                               (unsigned long)sizeof(fd_set));
   }
 
   if(argc >= 4) {
-    if((r = fdset_read(ctx, argv[3], &efds)) >= sizeof(fd_set))
+    if((r = fdset_read(ctx, argv[3], &efds)) >= fd_setsize)
       eset = &efds;
     else if(r > 0)
-      return JS_ThrowTypeError(ctx, "argument 4 ArrayBuffer needs to be at least %zu bytes in size", sizeof(fd_set));
+      return JS_ThrowTypeError(ctx,
+                               "argument 4 ArrayBuffer needs to be at least %lu bytes in size",
+                               (unsigned long)sizeof(fd_set));
   }
 
   if(argc >= 5)
@@ -870,7 +879,7 @@ js_poll(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
 
   if(nfds == 0)
     nfds = is_array         ? js_array_length(ctx, argv[0])
-           : is_arraybuffer ? js_arraybuffer_bytelength(ctx, argv[0]) / sizeof(struct pollfd)
+           : is_arraybuffer ? js_arraybuffer_bytelength(ctx, argv[0]) / (int64_t)sizeof(struct pollfd)
                             : 0;
 
   assert(nfds);
@@ -1330,12 +1339,12 @@ js_socket_error(JSContext* ctx, Socket sock) {
 static BOOL
 js_socket_check_open(JSContext* ctx, Socket sock) {
   if(socket_closed(sock)) {
-    JS_ThrowInternalError(ctx, "Socket #%d has already been closed", socket_handle(sock));
+    JS_ThrowInternalError(ctx, "Socket #%d has already been closed", socket_fd(sock));
     return FALSE;
   }
 
   if(!socket_open(sock)) {
-    JS_ThrowInternalError(ctx, "Socket #%d is not yet open", socket_handle(sock));
+    JS_ThrowInternalError(ctx, "Socket #%d is not yet open", socket_fd(sock));
     return FALSE;
   }
 

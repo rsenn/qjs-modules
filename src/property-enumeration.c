@@ -216,7 +216,7 @@ void
 property_recursion_dumpall(Vector* vec, JSContext* ctx, DynBuf* out) {
   size_t i, n = vector_size(vec, sizeof(PropertyEnumeration));
 
-  dbuf_printf(out, "(%llu) [", (unsigned long long int)n);
+  dbuf_printf(out, "(%lu) [", (unsigned long)n);
 
   for(i = 0; i < n; i++) {
     dbuf_putstr(out, i ? ",\n    " : "\n    ");

@@ -102,6 +102,8 @@ macro(CHECK_FUNCTION_DEF FUNC)
       endif(NOT "${PREPROC_DEF}" STREQUAL "")
   endif(${${RESULT_VAR}})
   #message("${RESULT_VAR}: ${${RESULT_VAR}}")
+
+  list(APPEND CHECKED_FUNCTIONS "${FUNC}")
 endmacro(CHECK_FUNCTION_DEF FUNC)
 
 macro(CHECK_FUNCTIONS)
@@ -139,6 +141,7 @@ macro(CHECK_INCLUDE_DEF INC)
       add_definitions(-D${PREPROC_DEF})
     endif(NOT "${PREPROC_DEF}" STREQUAL "")
   endif(${${RESULT_VAR}})
+  list(APPEND CHECKED_INCLUDES "${INC}")
 endmacro(CHECK_INCLUDE_DEF INC)
 
 macro(CHECK_INCLUDES)
