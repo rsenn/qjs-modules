@@ -2779,8 +2779,7 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
     case IS_EXCEPTION: r = JS_IsException(arg); break;
     case IS_EXTENSIBLE: r = JS_IsExtensible(ctx, arg); break;
     case IS_FUNCTION: r = JS_IsFunction(ctx, arg); break;
-    // case IS_HTMLDDA: r = JS_VALUE_GET_TAG(arg) == JS_TAG_OBJECT &&
-    // JS_VALUE_GET_OBJ(arg)->is_HTMLDDA; break;
+    //case IS_HTMLDDA: r = JS_VALUE_GET_TAG(arg) == JS_TAG_OBJECT &&  JS_VALUE_GET_OBJ(arg)->is_HTMLDDA; break;
     case IS_INSTANCEOF: r = JS_IsInstanceOf(ctx, arg, argv[1]); break;
     case IS_INTEGER: r = JS_IsNumber(arg) && JS_VALUE_GET_TAG(arg) != JS_TAG_FLOAT64; break;
     case IS_JOBPENDING: r = JS_IsJobPending(JS_GetRuntime(ctx)); break;
