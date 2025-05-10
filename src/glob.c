@@ -376,7 +376,7 @@ globtilde(const char_type* pattern, char_type* patbuf, size_t patbuf_len, glob_t
     else
       h = pwd->pw_dir;
 #else
-    h = path_gethome2((char*)patbuf, patbuf_len);
+    h = path_gethome2((char*)patbuf, strlen((const char*)patbuf));
 #endif
   }
 
