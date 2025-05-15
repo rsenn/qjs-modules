@@ -1940,7 +1940,11 @@ enum {
   VALUE_TAG,
   VALUE_POINTER,
   OBJECT_REFCOUNT,
+  OBJECT_CLASSID,
   OBJECT_OPAQUE,
+  CLASS_ATOM,
+  CLASS_NAME,
+  CLASS_ID,
   STRING_POINTER,
   STRING_LENGTH,
   STRING_BUFFER,
@@ -1964,43 +1968,48 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case VALUE_POINTER: {
-      void* ptr = js_value_ptr(argv[0]);
-#if __SIZEOF_POINTER__ == 8
-      ret = JS_NewBigUint64(ctx, (uint64_t)(uintptr_t)ptr);
-#else
-      ret = JS_NewUint32(ctx, (uintptr_t)ptr);
-#endif
+      ret = js_newpointer(ctx, js_value_ptr(argv[0]));
       break;
     }
 
     case OBJECT_REFCOUNT: {
-      if(JS_IsObject(argv[0]) && !JS_IsNull(argv[0])) {
-        void* ptr = JS_VALUE_GET_PTR(argv[0]);
-        ret = JS_NewInt32(ctx, *(int32_t*)ptr);
-      }
+      ret = JS_NewInt32(ctx, js_object_refcount(argv[0]));
+      break;
+    }
+
+    case OBJECT_CLASSID: {
+      ret = JS_NewInt32(ctx, js_object_classid(argv[0]));
       break;
     }
 
     case OBJECT_OPAQUE: {
-      if(JS_IsObject(argv[0]) && !JS_IsNull(argv[0])) {
-        void* ptr = JS_VALUE_GET_PTR(argv[0]);
-#if __SIZEOF_POINTER__ == 8
-        ret = JS_NewBigUint64(ctx, ((uint64_t*)ptr)[6]);
-#else
-        ret = JS_NewUint32(ctx, ((uintptr_t*)ptr)[7]);
-#endif
-      }
+      ret = js_newpointer(ctx, js_object_opaque(argv[0]));
+      break;
+    }
+    case CLASS_ATOM: {
+      ret = JS_NewInt32(ctx, js_class_atom(ctx, js_toint32(ctx, argv[0])));
+      break;
+    }
+    case CLASS_NAME: {
+      int32_t id = js_toint32(ctx, argv[0]);
+      const char* str;
+      if((str = js_class_name(ctx, id)))
+        ret = JS_NewString(ctx, str);
+      JS_FreeCString(ctx, str);
+      break;
+    }
+
+    case CLASS_ID: {
+      JSAtom name = JS_ValueToAtom(ctx, argv[0]);
+    int32_t id=js_class_find(ctx, name);
+      ret = id == -1 ? JS_UNDEFINED : JS_NewInt32(ctx, id);
+      JS_FreeAtom(ctx, name);
       break;
     }
 
     case STRING_POINTER: {
       if(JS_IsString(argv[0])) {
-        uint64_t ptr = (ptrdiff_t)js_cstring_ptr(argv[0]);
-
-        if(ptr < (1ll << 53))
-          ret = JS_NewInt64(ctx, ptr);
-        else
-          ret = JS_NewBigUint64(ctx, ptr);
+        ret = js_newpointer(ctx, js_cstring_ptr(argv[0]));
       } else {
         void* ptr;
 
@@ -2034,23 +2043,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   return ret;
 }
-
-/*static JSValue
-js_misc_getopaque(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-
-  if(JS_IsObject(argv[0])) {
-    JSClassID id;
-    char buf[128];
-
-    id = JS_GetClassID(argv[0]);
-
-    snprintf(buf, sizeof(buf), "%p", JS_GetOpaque(argv[0], id));
-    ret = JS_NewString(ctx, buf);
-  }
-
-  return ret;
-}*/
 
 static JSValue
 js_misc_evalstring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
@@ -3706,12 +3698,15 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
     JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, VALUE_TAG),
     JS_CFUNC_MAGIC_DEF("valuePointer", 1, js_misc_valuetype, VALUE_POINTER),
+    JS_CFUNC_MAGIC_DEF("objectClassId", 1, js_misc_valuetype, OBJECT_CLASSID),
     JS_CFUNC_MAGIC_DEF("objectRefCount", 1, js_misc_valuetype, OBJECT_REFCOUNT),
     JS_CFUNC_MAGIC_DEF("objectOpaque", 1, js_misc_valuetype, OBJECT_OPAQUE),
+    JS_CFUNC_MAGIC_DEF("classAtom", 1, js_misc_valuetype, CLASS_ATOM),
+    JS_CFUNC_MAGIC_DEF("className", 1, js_misc_valuetype, CLASS_NAME),
+    JS_CFUNC_MAGIC_DEF("classId", 1, js_misc_valuetype, CLASS_ID),
     JS_CFUNC_MAGIC_DEF("stringPointer", 1, js_misc_valuetype, STRING_POINTER),
     JS_CFUNC_MAGIC_DEF("stringLength", 1, js_misc_valuetype, STRING_LENGTH),
     JS_CFUNC_MAGIC_DEF("stringBuffer", 1, js_misc_valuetype, STRING_BUFFER),
-    // JS_CFUNC_DEF("getOpaque", 1, js_misc_getopaque),
     JS_CFUNC_DEF("evalString", 1, js_misc_evalstring),
     JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
     JS_CFUNC_MAGIC_DEF("atomToString", 1, js_misc_atom, ATOM_TO_STRING),

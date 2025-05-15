@@ -102,6 +102,12 @@
 #define SIGN_NUM(n) ((n) < 0)
 #endif
 
+#if __SIZEOF_POINTER__ == 8
+#define DEF6432(v64, v32) v64
+#else
+#define DEF6432(v64, v32) v32
+#endif
+
 #define COLOR_BLACK "\x1b[0;30m"
 #define COLOR_RED "\x1b[0;31m"
 #define COLOR_GREEN "\x1b[0;32m"

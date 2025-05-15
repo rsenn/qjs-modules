@@ -383,7 +383,6 @@ js_strv_copys(JSContext* ctx, int argc, JSValueConst argv[], int n, char** stra)
 
 JSAtom
 js_atom_from(JSContext* ctx, const char* str) {
-
   if(str[0] == '[') {
     JSValue obj, val = JS_UNDEFINED;
     JSAtom prop, ret;
@@ -846,9 +845,9 @@ js_object_classid(JSValueConst v) {
   JSObject* p;
 
   if((p = js_value_obj(v)))
-    return ((uint16_t*)p)[6];
+    return ((uint16_t*)p)[3];
 
-  return -1;
+  return 0;
 }
 
 void*
@@ -856,15 +855,9 @@ js_object_opaque(JSValueConst v) {
   JSObject* p;
 
   if((p = js_value_obj(v)))
-    return ((void**)p)[
-#ifdef __SIZEOF_POINTER__ == 8
-        6
-#else
-        7
-#endif
-    ];
+    return ((void**)p)[DEF6432(6, 7)];
 
-  return -1;
+  return 0;
 }
 
 int
@@ -1334,6 +1327,59 @@ js_class_newid(void) {
   JSClassID id;
   JS_NewClassID(&id);
   return id;
+}
+
+uint32_t
+js_class_count(JSRuntime* rt) {
+  uint32_t class_count = *((uint32_t*)rt + DEF6432(27, 16));
+
+  return class_count;
+}
+
+JSAtom
+js_class_atom(JSContext* ctx, JSClassID id) {
+  JSRuntime* rt = JS_GetRuntime(ctx);
+
+  assert(id >= 1 && id <= js_class_count(rt));
+
+  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17)) + id * DEF6432(5, 6);
+
+  return JS_DupAtom(ctx, ((JSAtom*)class_arr)[1]);
+}
+
+JSValue
+js_class_value(JSContext* ctx, JSClassID id) {
+  JSAtom atom = js_class_atom(ctx, id);
+  JSValue ret = JS_AtomToValue(ctx, atom);
+  JS_FreeAtom(ctx, atom);
+  return ret;
+}
+
+const char*
+js_class_name(JSContext* ctx, JSClassID id) {
+  uint32_t class_count = js_class_count(JS_GetRuntime(ctx));
+  if(id < 0 || id >= class_count) return 0;
+
+  JSAtom atom = js_class_atom(ctx, id);
+  const char* str = JS_AtomToCString(ctx, atom);
+  JS_FreeAtom(ctx, atom);
+  return str;
+}
+
+JSClassID
+js_class_find(JSContext* ctx, JSAtom name) {
+  JSRuntime* rt = JS_GetRuntime(ctx);
+  uint32_t class_count = js_class_count(rt);
+  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17));
+
+  for(uint32_t i = 0; i < class_count; ++i) {
+    if(((JSAtom*)class_arr)[1] == name)
+      return i;
+
+    class_arr += DEF6432(5, 6);
+  }
+
+  return -1;
 }
 
 const char*
@@ -3039,11 +3085,10 @@ js_touint64(JSContext* ctx, JSValueConst value) {
 
 void*
 js_topointer(JSContext* ctx, JSValueConst value) {
-#if __SIZEOF_POINTER__ == 8
-  return (void*)(uintptr_t)js_touint64(ctx, value);
-#else
-  return (void*)(uintptr_t)js_touint32(ctx, value);
-#endif
+  if(js_is_null_or_undefined(value))
+    return 0;
+
+  return (void*)(uintptr_t)DEF6432(js_touint64, js_touint32)(ctx, value);
 }
 
 char*
@@ -3079,6 +3124,14 @@ js_towstringlen(JSContext* ctx, size_t* lenp, JSValueConst value) {
   }
 
   return ret;
+}
+
+JSValue
+js_newpointer(JSContext* ctx, void* ptr) {
+  if(ptr == 0)
+    return JS_NULL;
+
+  return DEF6432(JS_NewBigUint64, JS_NewUint32)(ctx, (uintptr_t)ptr);
 }
 
 char*

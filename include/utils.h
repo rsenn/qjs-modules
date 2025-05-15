@@ -516,6 +516,7 @@ void* js_topointer(JSContext*, JSValueConst);
 char* js_tostringlen(JSContext*, size_t* lenp, JSValueConst value);
 char* js_tostring(JSContext*, JSValueConst value);
 wchar_t* js_towstringlen(JSContext*, size_t* lenp, JSValueConst value);
+JSValue js_newpointer(JSContext*, void*);
 
 static inline wchar_t*
 js_towstring(JSContext* ctx, JSValueConst value) {
@@ -864,21 +865,21 @@ js_get_tostringtag_str(JSContext* ctx, JSValueConst obj) {
   return ret;
 }
 
-JSClassID js_class_id(JSContext*, int id);
+uint32_t js_class_count(JSRuntime*);
 JSClassID js_class_newid(void);
 JSAtom js_class_atom(JSContext*, JSClassID id);
+JSValue js_class_value(JSContext*, JSClassID id);
 const char* js_class_name(JSContext*, JSClassID id);
-JSClassID js_class_find(JSContext*, const char* name);
+JSClassID js_class_find(JSContext*, JSAtom);
 
 static inline BOOL
-js_object_isclass(JSValue obj, int32_t class_id) {
-  return JS_GetOpaque(obj, class_id) != 0;
+js_object_isclass(JSValueConst obj, JSClassID class_id) {
+  return js_object_classid(obj) == class_id;
 }
 
 static inline BOOL
-js_value_isclass(JSContext* ctx, JSValue obj, int id) {
-  int32_t class_id = js_class_id(ctx, id);
-  return js_object_isclass(obj, class_id);
+js_value_isclass(JSContext* ctx, JSValueConst obj, JSClassID class_id) {
+  return (JS_IsObject(obj) && !JS_IsNull(obj)) ? js_object_isclass(obj, class_id) : FALSE;
 }
 
 BOOL js_is_arraybuffer(JSContext*, JSValueConst);

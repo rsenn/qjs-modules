@@ -541,40 +541,6 @@ js_cstring_ptr(JSValueConst v) {
   return 0;
 }
 
-const char*
-js_class_name(JSContext* ctx, JSClassID id) {
-  JSAtom atom = JS_GetRuntime(ctx)->class_array[id].class_name;
-  return JS_AtomToCString(ctx, atom);
-}
-
-JSAtom
-js_class_atom(JSContext* ctx, JSClassID id) {
-  JSAtom atom = 0;
-
-  if(id > 0 && id < (JSClassID)JS_GetRuntime(ctx)->class_count)
-    atom = JS_GetRuntime(ctx)->class_array[id].class_name;
-  return atom;
-}
-
-JSClassID
-js_class_find(JSContext* ctx, const char* name) {
-  JSAtom atom = JS_NewAtom(ctx, name);
-  JSRuntime* rt = JS_GetRuntime(ctx);
-  int i, n = rt->class_count;
-
-  for(i = 0; i < n; i++)
-
-    if(rt->class_array[i].class_name == atom)
-      return i;
-
-  return -1;
-}
-
-JSClassID
-js_class_id(JSContext* ctx, int id) {
-  return JS_GetRuntime(ctx)->class_array[id].class_id;
-}
-
 JSValue
 js_opcode_array(JSContext* ctx, const JSOpCode* opcode) {
   JSValue ret = JS_NewArray(ctx);
