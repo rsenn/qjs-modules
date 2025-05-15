@@ -1340,15 +1340,34 @@ JSAtom
 js_class_atom(JSContext* ctx, JSClassID id) {
   JSRuntime* rt = JS_GetRuntime(ctx);
 
-  assert(id >= 1 && id <= js_class_count(rt));
+  assert(id >= 0 && id < js_class_count(rt));
 
   uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17)) + id * DEF6432(5, 6);
 
   return JS_DupAtom(ctx, ((JSAtom*)class_arr)[1]);
 }
 
+JSClassID
+js_class_id(JSContext* ctx, JSClassID id) {
+  JSRuntime* rt = JS_GetRuntime(ctx);
+
+  assert(id >= 0 && id < js_class_count(rt));
+
+  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17)) + id * DEF6432(5, 6);
+
+  return JS_DupAtom(ctx, *((JSClassID*)class_arr));
+}
+
 JSValue
 js_class_value(JSContext* ctx, JSClassID id) {
+  uint32_t class_count = js_class_count(JS_GetRuntime(ctx));
+
+  if(id < 0 || id >= class_count)
+    return JS_ThrowRangeError(ctx, "id %d out of range (max: %u)", (int)id, (unsigned)class_count);
+
+  if(!js_class_id(ctx, id))
+    return JS_UNDEFINED;
+
   JSAtom atom = js_class_atom(ctx, id);
   JSValue ret = JS_AtomToValue(ctx, atom);
   JS_FreeAtom(ctx, atom);
@@ -1358,7 +1377,8 @@ js_class_value(JSContext* ctx, JSClassID id) {
 const char*
 js_class_name(JSContext* ctx, JSClassID id) {
   uint32_t class_count = js_class_count(JS_GetRuntime(ctx));
-  if(id < 0 || id >= class_count) return 0;
+  if(id < 0 || id >= class_count)
+    return 0;
 
   JSAtom atom = js_class_atom(ctx, id);
   const char* str = JS_AtomToCString(ctx, atom);
@@ -1373,8 +1393,9 @@ js_class_find(JSContext* ctx, JSAtom name) {
   uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17));
 
   for(uint32_t i = 0; i < class_count; ++i) {
-    if(((JSAtom*)class_arr)[1] == name)
-      return i;
+    if(*(JSClassID*)class_arr)
+      if(((JSAtom*)class_arr)[1] == name)
+        return i;
 
     class_arr += DEF6432(5, 6);
   }

@@ -869,6 +869,7 @@ uint32_t js_class_count(JSRuntime*);
 JSClassID js_class_newid(void);
 JSAtom js_class_atom(JSContext*, JSClassID id);
 JSValue js_class_value(JSContext*, JSClassID id);
+JSClassID js_class_id(JSContext*, JSClassID id);
 const char* js_class_name(JSContext*, JSClassID id);
 JSClassID js_class_find(JSContext*, JSAtom);
 

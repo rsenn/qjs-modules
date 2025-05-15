@@ -1987,23 +1987,30 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       break;
     }
     case CLASS_ATOM: {
-      ret = JS_NewInt32(ctx, js_class_atom(ctx, js_toint32(ctx, argv[0])));
+      int32_t id = js_toint32(ctx, argv[0]);
+      uint32_t count = js_class_count(JS_GetRuntime(ctx));
+
+      if(id < 0 || id >= count)
+        ret = JS_ThrowRangeError(ctx, "id %d out of range (max: %u)", (int)id, (unsigned)count);
+      else if(js_class_id(ctx, id))
+        ret = JS_NewInt32(ctx, js_class_atom(ctx, id));
+
       break;
     }
     case CLASS_NAME: {
       int32_t id = js_toint32(ctx, argv[0]);
-      const char* str;
-      if((str = js_class_name(ctx, id)))
-        ret = JS_NewString(ctx, str);
-      JS_FreeCString(ctx, str);
+      ret = js_class_value(ctx, id);
       break;
     }
 
     case CLASS_ID: {
-      JSAtom name = JS_ValueToAtom(ctx, argv[0]);
-    int32_t id=js_class_find(ctx, name);
+      JSAtom name = JS_IsNumber(argv[0]) ? js_toint32(ctx, argv[0]) : JS_ValueToAtom(ctx, argv[0]);
+
+      int32_t id = js_class_find(ctx, name);
       ret = id == -1 ? JS_UNDEFINED : JS_NewInt32(ctx, id);
-      JS_FreeAtom(ctx, name);
+
+      if(!JS_IsNumber(argv[0]))
+        JS_FreeAtom(ctx, name);
       break;
     }
 
