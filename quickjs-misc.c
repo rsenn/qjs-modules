@@ -644,15 +644,16 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   JSValue ret = JS_UNDEFINED;
   MemoryBlock b;
   OffsetLength o = {0, -1};
-  int64_t addr = 0, len = 0;
+  uintptr_t addr = 0, len = 0;
+  BOOL is_bigint = JS_IsBigInt(ctx, argv[0]);
 
-  if(JS_IsNumber(argv[0])) {
-    JS_ToInt64Ext(ctx, &addr, argv[0]);
+  if(argc >= 2 && (JS_IsNumber(argv[0]) || is_bigint)) {
+    addr = (uintptr_t)js_topointer(ctx, argv[0]);
 
     if(addr == 0)
       return JS_NULL;
 
-    JS_ToInt64Ext(ctx, &len, argv[1]);
+    len = (uintptr_t)js_topointer(ctx, argv[1]);
 
     if(len == 0)
       return JS_ThrowInternalError(ctx, "zero length given");
@@ -1938,6 +1939,8 @@ enum {
   VALUE_TYPE = 0,
   VALUE_TAG,
   VALUE_POINTER,
+  OBJECT_REFCOUNT,
+  OBJECT_OPAQUE,
   STRING_POINTER,
   STRING_LENGTH,
   STRING_BUFFER,
@@ -1961,11 +1964,32 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
     }
 
     case VALUE_POINTER: {
-      void* ptr = JS_VALUE_GET_PTR(argv[0]);
-      char buf[128];
+      void* ptr = js_value_ptr(argv[0]);
+#if __SIZEOF_POINTER__ == 8
+      ret = JS_NewBigUint64(ctx, (uint64_t)(uintptr_t)ptr);
+#else
+      ret = JS_NewUint32(ctx, (uintptr_t)ptr);
+#endif
+      break;
+    }
 
-      snprintf(buf, sizeof(buf), "%p", ptr);
-      ret = JS_NewString(ctx, buf);
+    case OBJECT_REFCOUNT: {
+      if(JS_IsObject(argv[0]) && !JS_IsNull(argv[0])) {
+        void* ptr = JS_VALUE_GET_PTR(argv[0]);
+        ret = JS_NewInt32(ctx, *(int32_t*)ptr);
+      }
+      break;
+    }
+
+    case OBJECT_OPAQUE: {
+      if(JS_IsObject(argv[0]) && !JS_IsNull(argv[0])) {
+        void* ptr = JS_VALUE_GET_PTR(argv[0]);
+#if __SIZEOF_POINTER__ == 8
+        ret = JS_NewBigUint64(ctx, ((uint64_t*)ptr)[6]);
+#else
+        ret = JS_NewUint32(ctx, ((uintptr_t*)ptr)[7]);
+#endif
+      }
       break;
     }
 
@@ -3682,6 +3706,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
     JS_CFUNC_MAGIC_DEF("valueTag", 1, js_misc_valuetype, VALUE_TAG),
     JS_CFUNC_MAGIC_DEF("valuePointer", 1, js_misc_valuetype, VALUE_POINTER),
+    JS_CFUNC_MAGIC_DEF("objectRefCount", 1, js_misc_valuetype, OBJECT_REFCOUNT),
+    JS_CFUNC_MAGIC_DEF("objectOpaque", 1, js_misc_valuetype, OBJECT_OPAQUE),
     JS_CFUNC_MAGIC_DEF("stringPointer", 1, js_misc_valuetype, STRING_POINTER),
     JS_CFUNC_MAGIC_DEF("stringLength", 1, js_misc_valuetype, STRING_LENGTH),
     JS_CFUNC_MAGIC_DEF("stringBuffer", 1, js_misc_valuetype, STRING_BUFFER),

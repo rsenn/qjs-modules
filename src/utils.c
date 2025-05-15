@@ -841,6 +841,42 @@ js_iterator_then(JSContext* ctx, BOOL done) {
   return JS_NewCFunctionData(ctx, js_iterator_then_fn, 1, 0, 1, data);
 }
 
+JSClassID
+js_object_classid(JSValueConst v) {
+  JSObject* p;
+
+  if((p = js_value_obj(v)))
+    return ((uint16_t*)p)[6];
+
+  return -1;
+}
+
+void*
+js_object_opaque(JSValueConst v) {
+  JSObject* p;
+
+  if((p = js_value_obj(v)))
+    return ((void**)p)[
+#ifdef __SIZEOF_POINTER__ == 8
+        6
+#else
+        7
+#endif
+    ];
+
+  return -1;
+}
+
+int
+js_object_refcount(JSValueConst v) {
+  JSObject* p;
+
+  if((p = js_value_obj(v)))
+    return ((int*)p)[0];
+
+  return -1;
+}
+
 JSValue
 js_object_constructor(JSContext* ctx, JSValueConst value) {
   JSValue ctor = JS_UNDEFINED;
@@ -1955,19 +1991,24 @@ js_value_float64(JSValueConst v) {
   return JS_VALUE_GET_FLOAT64(v);
 }
 
-JSValue
+JSValueConst
 js_value_mkptr(int tag, void* ptr) {
   return JS_MKPTR(tag, ptr);
 }
 
-JSValue
+JSValueConst
 js_value_mkval(int tag, intptr_t val) {
   return JS_MKVAL(tag, val);
 }
 
+JSValueConst
+js_value_mkobj(JSObject* obj) {
+  return JS_MKPTR(JS_TAG_OBJECT, obj);
+}
+
 JSObject*
 js_value_obj(JSValueConst v) {
-  return JS_IsObject(v) ? JS_VALUE_GET_OBJ(v) : 0;
+  return (JS_IsObject(v) && !JS_IsNull(v)) ? JS_VALUE_GET_OBJ(v) : 0;
 }
 
 void
@@ -2982,6 +3023,27 @@ js_atom_tostring(JSContext* ctx, JSAtom atom) {
   }
 
   return ret;
+}
+
+uint64_t
+js_touint64(JSContext* ctx, JSValueConst value) {
+  uint64_t ret = 0;
+  if(JS_ToIndex(ctx, &ret, value)) {
+    int64_t i64;
+    JS_GetException(ctx);
+    if(!JS_ToInt64Ext(ctx, &i64, value))
+      ret = i64;
+  }
+  return ret;
+}
+
+void*
+js_topointer(JSContext* ctx, JSValueConst value) {
+#if __SIZEOF_POINTER__ == 8
+  return (void*)(uintptr_t)js_touint64(ctx, value);
+#else
+  return (void*)(uintptr_t)js_touint32(ctx, value);
+#endif
 }
 
 char*

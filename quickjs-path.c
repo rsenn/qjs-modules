@@ -448,6 +448,9 @@ js_path_join(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   for(i = 0; i < argc; i++) {
     str = JS_ToCStringLen(ctx, &len, argv[i]);
 
+    if(path_isabsolute2(str, len))
+      db.size = 0;
+
     if(len > 0)
       path_append3(str, len, &db);
 

@@ -86,9 +86,7 @@
         "*.next/*",
         "quickjs-*",
         "tmp",
-        "data",
-         "*/buildx/*",
-         "buildx"
+        "data" 
       ]
     }
   ],

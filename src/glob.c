@@ -86,12 +86,12 @@
 #define S_ISLNK(m) (0)
 #endif
 
+#include "glob.h"
+#include "path.h"
+
 #ifndef HAVE_LSTAT
 #define lstat stat
 #endif
-
-#include "glob.h"
-#include "path.h"
 
 #ifndef DEBUG
 

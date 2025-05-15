@@ -431,14 +431,15 @@ const char* js_value_tag_name(int tag);
 const char* js_value_typestr(JSContext*, JSValueConst value);
 
 /* clang-format off */ 
-int       js_value_tag(JSValueConst v);
-void*     js_value_ptr(JSValueConst v);
-int       js_value_int(JSValueConst v);
-BOOL      js_value_bool(JSValueConst v);
-double    js_value_float64(JSValueConst v);
-JSValue   js_value_mkptr(int tag, void* ptr);
-JSValue   js_value_mkval(int tag, intptr_t val);
-JSObject* js_value_obj(JSValueConst v);
+int          js_value_tag(JSValueConst v);
+void*        js_value_ptr(JSValueConst v);
+int          js_value_int(JSValueConst v);
+BOOL         js_value_bool(JSValueConst v);
+double       js_value_float64(JSValueConst v);
+JSValueConst js_value_mkptr(int tag, void* ptr);
+JSValueConst js_value_mkval(int tag, intptr_t val);
+JSValueConst js_value_mkobj(JSObject*);
+JSObject*    js_value_obj(JSValueConst v);
 /* clang-format on */
 
 BOOL js_value_has_ref_count(JSValueConst v);
@@ -482,14 +483,6 @@ js_cstring_newlen(JSContext* ctx, const char* str, size_t len) {
   return s;
 }
 
-/*static inline void
-JS_FreeCString(JSContext* ctx, const char* ptr) {
-  if(!ptr)
-    return;
-
-  JS_FreeValue(ctx, JS_MKPTR(JS_TAG_STRING, (void*)(ptr - offsetof(JSString, u))));
-}*/
-
 #define js_cstring_destroy(ctx, cstr) \
   do { \
     if((cstr)) \
@@ -497,13 +490,29 @@ JS_FreeCString(JSContext* ctx, const char* ptr) {
     (cstr) = 0; \
   } while(0)
 
-static inline int64_t
-js_toint64(JSContext* ctx, JSValueConst value) {
-  int64_t ret = 0;
-  JS_ToInt64(ctx, &ret, value);
+static inline int32_t
+js_toint32(JSContext* ctx, JSValueConst value) {
+  int32_t ret = 0;
+  JS_ToInt32(ctx, &ret, value);
   return ret;
 }
 
+static inline uint32_t
+js_touint32(JSContext* ctx, JSValueConst value) {
+  uint32_t ret = 0;
+  JS_ToUint32(ctx, &ret, value);
+  return ret;
+}
+
+static inline int64_t
+js_toint64(JSContext* ctx, JSValueConst value) {
+  int64_t ret = 0;
+  JS_ToInt64Ext(ctx, &ret, value);
+  return ret;
+}
+
+uint64_t js_touint64(JSContext*, JSValueConst);
+void* js_topointer(JSContext*, JSValueConst);
 char* js_tostringlen(JSContext*, size_t* lenp, JSValueConst value);
 char* js_tostring(JSContext*, JSValueConst value);
 wchar_t* js_towstringlen(JSContext*, size_t* lenp, JSValueConst value);
@@ -717,6 +726,9 @@ JSValue js_function_prototype(JSContext*);
 typedef JSValue CClosureFunc(JSContext*, JSValueConst, int, JSValueConst[], int, void*);
 JSValue js_function_cclosure(JSContext*, CClosureFunc*, int length, int magic, void*, void (*)(void*));
 
+JSClassID js_object_classid(JSValueConst);
+void* js_object_opaque(JSValueConst);
+int js_object_refcount(JSValueConst);
 JSValue js_object_constructor(JSContext*, JSValueConst value);
 JSValue js_object_species(JSContext*, JSValueConst value);
 char* js_object_classname(JSContext*, JSValueConst value);
@@ -745,12 +757,23 @@ js_object_same(JSValueConst a, JSValueConst b) {
   return aobj == bobj;
 }
 
-/*static inline JSClassID
-js_get_classid(JSValue v) {
-  JSObject* p = JS_VALUE_GET_OBJ(v);
-  assert(p != 0);
-  return p->class_id;
-}*/
+static inline BOOL
+js_has_prototype(JSContext* ctx, JSValueConst obj, JSValueConst proto) {
+  while(JS_IsObject(obj) && !JS_IsNull(obj) && JS_VALUE_GET_OBJ(obj)) {
+
+    if(((uintptr_t*)JS_VALUE_GET_OBJ(obj))[3] == 0)
+      break;
+
+    JSValue val = JS_GetPrototype(ctx, obj);
+
+    if(js_object_same(val, proto))
+      return TRUE;
+
+    obj = val;
+  }
+
+  return FALSE;
+}
 
 BOOL js_has_propertystr(JSContext*, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext*, JSValueConst obj, const char* str);
@@ -920,9 +943,9 @@ js_is_basic_array(JSContext* ctx, JSValueConst value) {
 
 static inline BOOL
 js_is_typedarray(JSContext* ctx, JSValueConst value) {
-  JSValue ctor = js_typedarray_constructor(ctx);
-  BOOL ret = JS_IsInstanceOf(ctx, value, js_typedarray_constructor(ctx));
-  JS_FreeValue(ctx, ctor);
+  JSValue proto = js_typedarray_prototype(ctx);
+  BOOL ret = js_has_prototype(ctx, value, proto);
+  JS_FreeValue(ctx, proto);
   return ret;
 }
 

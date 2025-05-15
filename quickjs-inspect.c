@@ -1021,6 +1021,23 @@ inspect_object(Inspector* insp, JSValueConst value, int32_t level) {
   int32_t depth = INT32_IN_RANGE(level) ? level : 0;
   JSObject* obj = JS_VALUE_GET_OBJ(value);
 
+  JSValue val = JS_DupValue(ctx, value), proto;
+
+  for(proto = JS_DupValue(ctx, val);; proto = JS_GetPrototype(ctx, val)) {
+    JS_FreeValue(ctx, val);
+    val = proto;
+
+    JSObject* optr = js_value_obj(val);
+
+    if(optr == 0)
+      break;
+
+    if(((uintptr_t*)optr)[3] == 0)
+      return -1;
+  }
+
+  JS_FreeValue(ctx, val);
+
   BOOL is_array = js_is_array(ctx, value);
   BOOL is_function = JS_IsFunction(ctx, value);
 
