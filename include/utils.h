@@ -743,7 +743,9 @@ BOOL js_object_same2(JSContext*, JSValueConst, JSValueConst);
 JSAtom* js_object_properties(JSContext*, uint32_t* lenptr, JSValueConst obj, int flags);
 int js_object_copy(JSContext*, JSValueConst dst, JSValueConst src);
 
-#define JS_GPN_RECURSIVE (1 << 7)
+enum { 
+ JS_GPN_RECURSIVE = (1 << 7),
+};
 
 static inline BOOL
 js_object_same(JSValueConst a, JSValueConst b) {
