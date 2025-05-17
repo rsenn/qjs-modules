@@ -228,6 +228,10 @@ property_recursion_next(Vector* vec, JSContext* ctx) {
   return 1;
 }
 
+typedef struct Pointer Pointer;
+
+Pointer* property_recursion_pointer(const Vector*, JSContext*);
+
 /**
  * @}
  */

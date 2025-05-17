@@ -6,6 +6,7 @@
 #include "pointer.h"
 #include "virtual-properties.h"
 #include "quickjs-predicate.h"
+#include "quickjs-pointer.h"
 #include "debug.h"
 
 #include <stdint.h>
@@ -33,12 +34,14 @@ typedef enum {
   RETURN_PATH_VALUE = 0b11 << 24,
   RETURN_MASK = 0b11 << 24,
   PATH_AS_STRING = 0b100 << 24,
-  NO_THROW = 0b1000 << 24,
+  PATH_AS_POINTER = 0b1000 << 24,
+  NO_THROW = 0b10000 << 24,
   MAXDEPTH_MASK = 0x00ffffff,
 } DeepIteratorFlags;
 
 typedef struct DeepIterator {
   Vector frames;
+  Pointer ptr;
   JSValue root, pred;
   DeepIteratorFlags flags;
   DeepIteratorStatus status;
@@ -48,9 +51,21 @@ typedef struct DeepIterator {
 
 static const uint32_t js_deep_defaultflags = 0;
 
+JSValue
+property_recursion_pointer_value(const Vector* vec, JSContext* ctx) {
+  Pointer* ptr;
+
+  if(!(ptr = property_recursion_pointer(vec, ctx)))
+    return JS_EXCEPTION;
+
+  return js_pointer_wrap(ctx, ptr);
+}
+
 static inline PropEnumPathValueFunc*
-js_deep_pathfunc(BOOL as_string) {
-  return as_string ? property_recursion_pathstr_value : property_recursion_path;
+js_deep_pathfunc(int flags) {
+  return (flags & PATH_AS_STRING)    ? property_recursion_pathstr_value
+         : (flags & PATH_AS_POINTER) ? property_recursion_pointer_value
+                                     : property_recursion_path;
 }
 
 static int
@@ -86,12 +101,12 @@ js_deep_predicate(JSContext* ctx, JSValueConst fn, JSValueConst value, const Vec
 }
 
 static JSValue
-js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
+js_deep_return(JSContext* ctx, Vector* frames, int32_t flags) {
   JSValue ret;
   PropertyEnumeration* it = property_recursion_top(frames);
-  PropEnumPathValueFunc* path_fn = js_deep_pathfunc(!!(return_flag & PATH_AS_STRING));
+  PropEnumPathValueFunc* path_fn = js_deep_pathfunc(!!(flags & PATH_AS_STRING));
 
-  switch(return_flag & RETURN_MASK) {
+  switch(flags & RETURN_MASK) {
     case RETURN_VALUE: {
       ret = property_enumeration_value(it, ctx);
       break;
@@ -104,12 +119,15 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t return_flag) {
 
     case RETURN_VALUE_PATH:
     case RETURN_PATH_VALUE: {
-      BOOL value_first = (return_flag & RETURN_MASK) == RETURN_VALUE_PATH;
+      uint32_t value_index = (flags & RETURN_MASK) == RETURN_PATH_VALUE;
+
+      JSValue value = js_deep_return(ctx, frames, (flags & (~RETURN_MASK)) | RETURN_VALUE);
+      JSValue path = js_deep_return(ctx, frames, (flags & (~RETURN_MASK)) | RETURN_PATH);
 
       ret = JS_NewArray(ctx);
 
-      JS_SetPropertyUint32(ctx, ret, value_first ? 0 : 1, property_enumeration_value(it, ctx));
-      JS_SetPropertyUint32(ctx, ret, value_first ? 1 : 0, path_fn(frames, ctx));
+      JS_SetPropertyUint32(ctx, ret, value_index, value);
+      JS_SetPropertyUint32(ctx, ret, !value_index, path);
       break;
     }
   }
@@ -155,7 +173,7 @@ fail:
 static JSValue
 js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED, root = JS_UNDEFINED, pred = JS_UNDEFINED;
-  uint32_t flags = js_deep_defaultflags, max_depth = MAXDEPTH_MASK, mask = TYPE_ALL;
+  uint32_t flags = js_deep_defaultflags, mask = TYPE_ALL;
 
   int i = 0;
 
@@ -176,9 +194,6 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
     if(i < argc)
       JS_ToUint32(ctx, &mask, argv[i++]);
   }
-
-  flags &= ~MAXDEPTH_MASK;
-  flags |= max_depth & MAXDEPTH_MASK;
 
   obj = js_deep_iterator_new(ctx, proto, root, pred, flags, mask);
 
@@ -207,12 +222,12 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   for(;;) {
     depth = property_recursion_depth(&it->frames);
 
-    if(it->seq == 0 && !(it->status & NO_RECURSE))
+    if(it->seq == 0)
       property_recursion_push(&it->frames, ctx, JS_DupValue(ctx, it->root), PROPENUM_DEFAULT_FLAGS);
-    else if(!(it->status & NO_RECURSE) && depth < max_depth)
-      property_recursion_next(&it->frames, ctx);
-    else
+    else if((it->status & NO_RECURSE) || depth >= max_depth)
       property_recursion_skip(&it->frames, ctx);
+    else
+      property_recursion_next(&it->frames, ctx);
 
     ++it->seq;
 

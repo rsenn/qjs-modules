@@ -10,7 +10,6 @@
  * @{
  */
 extern VISIBLE JSClassID js_pointer_class_id;
-extern VISIBLE JSValue pointer_proto, pointer_ctor;
 
 static inline Pointer*
 js_pointer_data2(JSContext* ctx, JSValueConst value) {

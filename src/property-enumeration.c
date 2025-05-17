@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "buffer-utils.h"
+#include "pointer.h"
 
 /**
  * \addtogroup property-enumeration
@@ -212,6 +213,37 @@ property_recursion_pathstr_value(const Vector* vec, JSContext* ctx) {
   return ret;
 }
 
+JSValue js_pointer_wrap(JSContext*, Pointer*);
+
+int
+property_recursion_update_pointer(const Vector* vec, Pointer* ptr, JSContext* ctx) {
+  pointer_allocate(ptr, vector_size(vec, sizeof(PropertyEnumeration)), ctx);
+  int i = 0;
+  PropertyEnumeration* it;
+
+  vector_foreach_t(vec, it) {
+    JSAtom atom = property_enumeration_atom(it);
+    if(ptr->atoms[i] != atom) {
+      JS_FreeAtom(ctx, ptr->atoms[i]);
+      ptr->atoms[i] = JS_DupAtom(ctx, atom);
+    }
+    ++i;
+  }
+
+  return i;
+}
+
+Pointer*
+property_recursion_pointer(const Vector* vec, JSContext* ctx) {
+  Pointer* ptr;
+
+  if((ptr = js_mallocz(ctx, sizeof(Pointer)))) {
+    property_recursion_update_pointer(vec, ptr, ctx);
+  }
+
+  return ptr;
+}
+
 void
 property_recursion_dumpall(Vector* vec, JSContext* ctx, DynBuf* out) {
   size_t i, n = vector_size(vec, sizeof(PropertyEnumeration));
@@ -232,9 +264,9 @@ property_recursion_skip(Vector* vec, JSContext* ctx) {
   PropertyEnumeration* it;
 
   if((it = property_recursion_top(vec))) {
-    if(it->tab_atom_len > 0)
-      if(property_enumeration_next(it))
-        return 0;
+    // if(it->tab_atom_len > 0)
+    if(property_enumeration_next(it))
+      return 0;
 
     while((it = property_recursion_pop(vec, ctx))) {
       --i;

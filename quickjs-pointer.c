@@ -11,7 +11,7 @@
  */
 
 JSClassID js_pointer_class_id = 0;
-JSValue pointer_proto = {{0}, JS_TAG_UNDEFINED}, pointer_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue pointer_proto, pointer_ctor;
 
 enum {
   METHOD_DEREF = 0,
