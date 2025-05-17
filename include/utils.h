@@ -373,7 +373,7 @@ typedef enum {
   TYPE_UNINITIALIZED = (1 << FLAG_UNINITIALIZED),
   TYPE_CATCH_OFFSET = (1 << FLAG_CATCH_OFFSET),
   TYPE_EXCEPTION = (1 << FLAG_EXCEPTION),
-} ValueTypeMask;
+} ValueType;
 
 static inline ValueTypeFlag
 js_value_type_flag(JSValueConst value) {
@@ -414,7 +414,7 @@ js_value_type_get(JSContext* ctx, JSValueConst value) {
 }
 
 static inline ValueTypeFlag
-js_value_type2flag(ValueTypeMask type) {
+js_value_type2flag(ValueType type) {
   ValueTypeFlag flag = 0;
 
   while((type >>= 1))
@@ -423,10 +423,10 @@ js_value_type2flag(ValueTypeMask type) {
   return flag;
 }
 
-ValueTypeMask js_value_type(JSContext*, JSValueConst value);
+ValueType js_value_type(JSContext*, JSValueConst value);
 const char* const* js_value_types(void);
 const char* js_value_typeof(JSValueConst);
-const char* js_value_type_name(ValueTypeMask type);
+const char* js_value_type_name(ValueType type);
 const char* js_value_tag_name(int tag);
 const char* js_value_typestr(JSContext*, JSValueConst value);
 

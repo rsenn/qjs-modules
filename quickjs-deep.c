@@ -16,8 +16,7 @@
  * @{
  */
 VISIBLE JSClassID js_deep_iterator_class_id = 0;
-static JSValue deep_functions = {{0}, JS_TAG_UNDEFINED}, deep_iterator_proto = {{0}, JS_TAG_UNDEFINED},
-               deep_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue deep_functions, deep_iterator_proto, deep_iterator_ctor;
 
 typedef enum {
   YIELD_MASK = 1,
@@ -45,7 +44,7 @@ typedef struct DeepIterator {
   JSValue root, pred;
   DeepIteratorFlags flags;
   DeepIteratorStatus status;
-  ValueTypeMask mask;
+  ValueType mask;
   uint32_t seq;
 } DeepIterator;
 
@@ -105,8 +104,11 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t flags) {
   JSValue ret;
   PropertyEnumeration* it = property_recursion_top(frames);
   PropEnumPathValueFunc* path_fn = js_deep_pathfunc(!!(flags & PATH_AS_STRING));
+  int32_t return_flags = flags & RETURN_MASK;
 
-  switch(flags & RETURN_MASK) {
+  flags &= ~RETURN_MASK;
+
+  switch(return_flags) {
     case RETURN_VALUE: {
       ret = property_enumeration_value(it, ctx);
       break;
@@ -119,15 +121,10 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t flags) {
 
     case RETURN_VALUE_PATH:
     case RETURN_PATH_VALUE: {
-      uint32_t value_index = (flags & RETURN_MASK) == RETURN_PATH_VALUE;
-
-      JSValue value = js_deep_return(ctx, frames, (flags & (~RETURN_MASK)) | RETURN_VALUE);
-      JSValue path = js_deep_return(ctx, frames, (flags & (~RETURN_MASK)) | RETURN_PATH);
-
+      int idx = return_flags == RETURN_PATH_VALUE;
       ret = JS_NewArray(ctx);
-
-      JS_SetPropertyUint32(ctx, ret, value_index, value);
-      JS_SetPropertyUint32(ctx, ret, !value_index, path);
+      JS_SetPropertyUint32(ctx, ret, idx, property_enumeration_value(it, ctx));
+      JS_SetPropertyUint32(ctx, ret, !idx, path_fn(frames, ctx));
       break;
     }
   }
@@ -137,7 +134,7 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t flags) {
 
 static JSValue
 js_deep_iterator_new(
-    JSContext* ctx, JSValueConst proto, JSValueConst root, JSValueConst pred, uint32_t flags, ValueTypeMask mask) {
+    JSContext* ctx, JSValueConst proto, JSValueConst root, JSValueConst pred, uint32_t flags, ValueType mask) {
   JSValue obj = JS_UNDEFINED;
   DeepIterator* it;
 
@@ -240,7 +237,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       continue;
 
     JSValue value = property_recursion_value(&it->frames, ctx);
-    ValueTypeMask type = js_value_type(ctx, value);
+    ValueType type = js_value_type(ctx, value);
 
     if(type & it->mask)
       it->status = js_deep_predicate(ctx, it->pred, value, &it->frames);
@@ -308,7 +305,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       int r;
 
       JSValue value = property_recursion_value(&frames, ctx);
-      ValueTypeMask type = js_value_type(ctx, value);
+      ValueType type = js_value_type(ctx, value);
 
       if(type & mask)
         r = js_deep_predicate(ctx, argv[1], value, &frames);
@@ -363,7 +360,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   while(it) {
     JSValue value = property_recursion_value(&frames, ctx);
-    ValueTypeMask type = js_value_type(ctx, value);
+    ValueType type = js_value_type(ctx, value);
 
     if(type & mask)
       r = js_deep_predicate(ctx, argv[1], value, &frames);
@@ -566,7 +563,7 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 static JSValue
 js_deep_pathof(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue ret = JS_UNDEFINED;
-  ValueTypeMask type = js_value_type(ctx, argv[1]);
+  ValueType type = js_value_type(ctx, argv[1]);
   JSValueCompareFunc* cmp_fn = (type & TYPE_OBJECT) ? js_object_same2 : js_value_equals;
   Vector frames;
   PropertyEnumeration* it;
@@ -730,6 +727,7 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_CONSTANT(RETURN_VALUE),
     JS_CONSTANT(RETURN_PATH_VALUE),
     JS_CONSTANT(RETURN_MASK),
+    JS_CONSTANT(PATH_AS_POINTER),
     JS_CONSTANT(PATH_AS_STRING),
     JS_CONSTANT(NO_THROW),
     JS_CONSTANT(TYPE_UNDEFINED),

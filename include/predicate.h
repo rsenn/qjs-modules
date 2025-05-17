@@ -45,7 +45,7 @@ enum PredicateId {
 };
 
 typedef struct {
-  ValueTypeMask flags;
+  ValueType flags;
 } TypePredicate;
 
 typedef struct {
@@ -203,7 +203,7 @@ predicate_regexp(char* source, size_t len, int flags) {
 }
 
 static inline Predicate
-predicate_type(ValueTypeMask types) {
+predicate_type(ValueType types) {
   Predicate ret = PREDICATE_INIT(PREDICATE_TYPE);
   ret.type.flags = types;
   return ret;

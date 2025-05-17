@@ -1740,7 +1740,7 @@ js_value_typeof(JSValueConst value) {
 }
 
 const char*
-js_value_type_name(ValueTypeMask type) {
+js_value_type_name(ValueType type) {
   ValueTypeFlag flag = js_value_type2flag(type);
 
   if(flag >= 0 && (unsigned)flag < countof(js_value_typenames))
@@ -1751,7 +1751,7 @@ js_value_type_name(ValueTypeMask type) {
 
 const char*
 js_value_typestr(JSContext* ctx, JSValueConst value) {
-  ValueTypeMask type = js_value_type(ctx, value);
+  ValueType type = js_value_type(ctx, value);
 
   return js_value_type_name(type);
 }
@@ -1761,10 +1761,10 @@ js_value_has_ref_count(JSValue v) {
   return ((unsigned)js_value_tag(v) >= (unsigned)JS_TAG_FIRST);
 }
 
-ValueTypeMask
+ValueType
 js_value_type(JSContext* ctx, JSValueConst value) {
   ValueTypeFlag flag;
-  ValueTypeMask type = 0;
+  ValueType type = 0;
 
   if((flag = js_value_type_get(ctx, value)) == -1)
     return 0;
@@ -1794,7 +1794,7 @@ js_value_free(JSContext* ctx, JSValue v) {
 
 JSValue
 js_value_clone(JSContext* ctx, JSValueConst value) {
-  ValueTypeMask type = 1 << js_value_type_get(ctx, value);
+  ValueType type = 1 << js_value_type_get(ctx, value);
   JSValue ret = JS_UNDEFINED;
 
   switch(type) {

@@ -201,7 +201,7 @@ js_tree_walker_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValue
 static PropertyEnumeration*
 js_tree_walker_next(JSContext* ctx, TreeWalker* w, JSValueConst this_arg, JSValueConst pred) {
   PropertyEnumeration* it;
-  ValueTypeMask type, mask = w->tag_mask & TYPE_ALL;
+  ValueType type, mask = w->tag_mask & TYPE_ALL;
 
   for(; (property_recursion_next(&w->hier, ctx), it = property_recursion_top(&w->hier));) {
     if(mask && mask != TYPE_ALL) {
