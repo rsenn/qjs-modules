@@ -103,7 +103,7 @@ static JSValue
 js_deep_return(JSContext* ctx, Vector* frames, int32_t flags) {
   JSValue ret;
   PropertyEnumeration* it = property_recursion_top(frames);
-  PropEnumPathValueFunc* path_fn = js_deep_pathfunc(!!(flags & PATH_AS_STRING));
+  PropEnumPathValueFunc* path_fn = js_deep_pathfunc(flags);
   int32_t return_flags = flags & RETURN_MASK;
 
   flags &= ~RETURN_MASK;
@@ -265,6 +265,7 @@ js_deep_iterator_finalizer(JSRuntime* rt, JSValue val) {
     property_recursion_free(&it->frames, rt);
     JS_FreeValueRT(rt, it->root);
     JS_FreeValueRT(rt, it->pred);
+    pointer_free(&it->ptr, rt);
   }
 }
 
@@ -318,15 +319,12 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
         break;
       }
 
-      if(vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth)
+      if(property_recursion_depth(&frames) >= max_depth)
         property_recursion_skip(&frames, ctx);
       else
         property_recursion_next(&frames, ctx);
 
     } while((it = property_recursion_top(&frames)));
-
-  /*t = time_us() - t; printf("js_deep_find took %" PRIu64 "s %" PRIu64 "us\n", t / 1000000, t %
-   * 1000000);*/
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
   return ret;
@@ -345,6 +343,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     if(flags & MAXDEPTH_MASK)
       max_depth = flags & MAXDEPTH_MASK;
   }
+
   if(argc > 3)
     JS_ToUint32(ctx, &mask, argv[3]);
 
@@ -372,17 +371,12 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     if((r & YIELD_MASK))
       JS_SetPropertyUint32(ctx, ret, i++, js_deep_return(ctx, &frames, flags & ~MAXDEPTH_MASK));
 
-    if(vector_size(&frames, sizeof(PropertyEnumeration)) >= max_depth) {
+    if((r & NO_RECURSE) || property_recursion_depth(&frames) >= max_depth)
       property_recursion_skip(&frames, ctx);
-      it = property_recursion_top(&frames);
-    }
-
-    if(r & NO_RECURSE)
-      property_recursion_skip(&frames, ctx);
-    else {
+    else
       property_recursion_next(&frames, ctx);
-      it = property_recursion_top(&frames);
-    }
+
+    it = property_recursion_top(&frames);
   }
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
@@ -550,7 +544,9 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_FreeValue(ctx, value);
     JS_FreeValue(ctx, path);
 
-  } while((property_recursion_next(&frames, ctx), it = property_recursion_top(&frames)));
+    property_recursion_next(&frames, ctx);
+
+  } while((it = property_recursion_top(&frames)));
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
 
@@ -599,15 +595,22 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   PropertyEnumeration* it;
   JSValueConst fn, this_arg;
   Vector frames;
-  uint32_t type_mask = TYPE_ALL;
+  uint32_t flags = js_deep_defaultflags, max_depth = MAXDEPTH_MASK, type_mask = TYPE_ALL;
 
   vector_init(&frames, ctx);
 
   fn = argv[1];
   this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
 
-  if(argc > 3)
-    JS_ToUint32(ctx, &type_mask, argv[3]);
+  if(argc > 3) {
+    JS_ToUint32(ctx, &flags, argv[3]);
+
+    if(flags & MAXDEPTH_MASK)
+      max_depth = flags & MAXDEPTH_MASK;
+  }
+
+  if(argc > 4)
+    JS_ToUint32(ctx, &type_mask, argv[4]);
 
   it = property_recursion_push(&frames, ctx, JS_DupValue(ctx, argv[0]), PROPENUM_DEFAULT_FLAGS);
 
@@ -633,7 +636,10 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       JS_FreeValue(ctx, args[1]);
     }
 
-    property_recursion_next(&frames, ctx);
+    if(property_recursion_depth(&frames) >= max_depth)
+      property_recursion_skip(&frames, ctx);
+    else
+      property_recursion_next(&frames, ctx);
     it = property_recursion_top(&frames);
   }
 

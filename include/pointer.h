@@ -22,7 +22,7 @@ typedef struct Pointer {
 #define POINTER_INRANGE(ptr, ind) ((ind) >= 0 && (ind) < (signed long)(ptr)->n)
 
 void pointer_reset(Pointer*, JSRuntime* rt);
-BOOL pointer_copy(Pointer*, Pointer const* src, JSContext*);
+BOOL pointer_copy(Pointer*, Pointer const*, JSContext*);
 BOOL pointer_allocate(Pointer*, size_t, JSContext*);
 BOOL pointer_reserve(Pointer*, size_t, JSContext*);
 BOOL pointer_truncate(Pointer*, size_t, JSContext*);
@@ -35,17 +35,19 @@ Pointer* pointer_splice(Pointer*, int64_t start, int64_t count, JSAtom* atoms, s
 BOOL pointer_fromatoms(Pointer*, JSAtom* vec, size_t len, JSContext*);
 JSValue pointer_shift(Pointer*, JSContext*);
 JSValue pointer_pop(Pointer*, JSContext*);
-BOOL pointer_unshift(Pointer*, JSValueConst value, JSContext*);
-void pointer_push(Pointer*, JSValueConst item, JSContext*);
+BOOL pointer_unshift(Pointer*, JSValueConst, JSContext*);
+void pointer_push(Pointer*, JSValueConst, JSContext*);
 void pointer_pushfree(Pointer*, JSValue item, JSContext*);
-JSValue pointer_deref(Pointer const*, JSValueConst arg, JSContext*);
-JSValue pointer_acquire(Pointer const*, JSValueConst arg, JSContext*);
-BOOL pointer_fromstring(Pointer*, JSValueConst value, JSContext*);
-void pointer_fromarray(Pointer*, JSValueConst array, JSContext*);
-void pointer_fromiterable(Pointer*, JSValueConst arg, JSContext*);
-int pointer_from(Pointer*, JSValueConst value, JSContext*);
-Pointer* pointer_concat(Pointer const*, JSValueConst iterable, JSContext*);
+JSValue pointer_deref(Pointer const*, JSValueConst, JSContext*);
+JSValue pointer_acquire(Pointer const*, JSValueConst, JSContext*);
+BOOL pointer_fromstring(Pointer*, JSValueConst, JSContext*);
+void pointer_fromarray(Pointer*, JSValueConst, JSContext*);
+void pointer_fromiterable(Pointer*, JSValueConst, JSContext*);
+int pointer_from(Pointer*, JSValueConst, JSContext*);
+Pointer* pointer_concat(Pointer const*, JSValueConst, JSContext*);
 JSValue pointer_toarray(Pointer const*, JSContext*);
+JSValue pointer_uint32array(Pointer const* ptr, JSContext*);
+JSValue pointer_arraybuffer(Pointer const* ptr, JSContext*);
 
 static inline Pointer*
 pointer_new(JSContext* ctx) {

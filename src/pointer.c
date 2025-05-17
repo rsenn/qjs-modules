@@ -39,16 +39,7 @@ pointer_reset(Pointer* ptr, JSRuntime* rt) {
 
 BOOL
 pointer_copy(Pointer* dst, Pointer const* src, JSContext* ctx) {
-  pointer_reset(dst, JS_GetRuntime(ctx));
-
-  if(pointer_allocate(dst, src->n, ctx)) {
-    for(size_t i = 0; i < src->n; i++)
-      dst->atoms[i] = JS_DupAtom(ctx, src->atoms[i]);
-
-    return TRUE;
-  }
-
-  return FALSE;
+  return pointer_fromatoms(dst, src->atoms, src->n, ctx);
 }
 
 BOOL
@@ -62,54 +53,35 @@ pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
 
   if(size < ptr->n)
     pointer_truncate(ptr, size, ctx);
-
-  size_t alloc = size, reserve = ptr->a * 3 / 2;
-
-  if(reserve > alloc)
-    alloc = reserve;
-
-  if(alloc != ptr->a) {
-    JSAtom* tab_atom;
-
-    if(!(tab_atom = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * alloc)))
+  if(size > ptr->a)
+    if(!pointer_reserve(ptr, size, ctx))
       return FALSE;
-
-    if(ptr->n < alloc)
-      for(i = ptr->n; i < alloc; i++)
-        tab_atom[i] = 0;
-
-    ptr->a = alloc;
-    ptr->atoms = tab_atom;
-  }
 
   if(size > ptr->n)
     for(i = ptr->n; i < size; i++)
       ptr->atoms[i] = JS_DupAtom(ctx, JS_ATOM_NULL);
 
   ptr->n = size;
-
   return TRUE;
 }
 
 BOOL
 pointer_reserve(Pointer* ptr, size_t alloc, JSContext* ctx) {
-  size_t i;
-
-  if(alloc <= ptr->n)
-    return FALSE;
-
   if(alloc > ptr->a) {
+    size_t reserve = ptr->a * 3 / 2;
+
+    if(alloc < reserve)
+      alloc = reserve;
+
     JSAtom* tab_atom;
 
     if(!(tab_atom = js_realloc(ctx, ptr->atoms, sizeof(JSAtom) * alloc)))
       return FALSE;
 
+    if(ptr->a < alloc)
+      memset(&tab_atom[ptr->a], 0, sizeof(JSAtom) * (alloc - ptr->a));
+
     ptr->atoms = tab_atom;
-
-    if(alloc > ptr->n)
-      for(i = ptr->n; i < alloc; i++)
-        ptr->atoms[i] = 0;
-
     ptr->a = alloc;
   }
 
@@ -183,7 +155,7 @@ pointer_serialize(Pointer const* ptr, Writer* wr, JSContext* ctx) {
       char buf[FMT_ULONG];
 
       writer_putc(wr, '[');
-      writer_write(wr, (const uint8_t*)buf, fmt_ulong(buf, idx /*js_atom_get_integer(ptr->atoms[i])*/));
+      writer_write(wr, (const uint8_t*)buf, fmt_ulong(buf, idx));
       writer_putc(wr, ']');
       continue;
     }
@@ -284,8 +256,6 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
   Pointer* ret;
 
   if((ret = pointer_new(ctx))) {
-    int64_t i;
-
     start = int64_mod(start, ptr->n + 1);
     end = end == INT64_MAX ? (int64_t)ptr->n : int64_mod(end, ptr->n + 1);
 
@@ -300,7 +270,7 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
       return NULL;
     }
 
-    for(i = start; i < end; i++)
+    for(int64_t i = start; i < end; i++)
       ret->atoms[i - start] = JS_DupAtom(ctx, ptr->atoms[i]);
   }
 
@@ -370,19 +340,16 @@ pointer_splice(Pointer* ptr, int64_t start, int64_t end, JSAtom* atoms, size_t i
 
 BOOL
 pointer_fromatoms(Pointer* ptr, JSAtom* vec, size_t len, JSContext* ctx) {
+  pointer_clear(ptr, JS_GetRuntime(ctx));
 
-  if(pointer_allocate(ptr, len, ctx)) {
-    for(size_t i = 0; i < len; i++) {
-      if(ptr->atoms[i] != vec[i]) {
-        JS_FreeAtom(ctx, ptr->atoms[i]);
-        ptr->atoms[i] = JS_DupAtom(ctx, vec[i]);
-      }
-    }
+  if(!pointer_reserve(ptr, len, ctx))
+    return FALSE;
 
-    return TRUE;
-  }
+  for(size_t i = 0; i < len; i++)
+    ptr->atoms[i] = JS_DupAtom(ctx, vec[i]);
 
-  return FALSE;
+  ptr->n = len;
+  return TRUE;
 }
 
 JSValue
@@ -421,11 +388,12 @@ BOOL
 pointer_unshift(Pointer* ptr, JSValueConst value, JSContext* ctx) {
   size_t copy_len = ptr->n;
 
-  if(pointer_allocate(ptr, ptr->n + 1, ctx)) {
+  if(pointer_reserve(ptr, ptr->n + 1, ctx)) {
     if(copy_len)
       memmove(&ptr->atoms[1], ptr->atoms, sizeof(JSAtom) * copy_len);
 
     ptr->atoms[0] = JS_ValueToAtom(ctx, value);
+    ptr->n++;
 
     return TRUE;
   }
@@ -576,13 +544,25 @@ pointer_concat(Pointer const* ptr, JSValueConst iterable, JSContext* ctx) {
 
 JSValue
 pointer_toarray(Pointer const* ptr, JSContext* ctx) {
-  size_t i;
   JSValue array = JS_NewArray(ctx);
 
-  for(i = 0; i < ptr->n; i++)
+  for(size_t i = 0; i < ptr->n; i++)
     JS_SetPropertyUint32(ctx, array, i, js_atom_tovalue(ctx, ptr->atoms[i]));
 
   return array;
+}
+
+JSValue
+pointer_arraybuffer(Pointer const* ptr, JSContext* ctx) {
+  return JS_NewArrayBufferCopy(ctx, (uint8_t*)ptr->atoms, sizeof(JSAtom) * ptr->n);
+}
+
+JSValue
+pointer_uint32array(Pointer const* ptr, JSContext* ctx) {
+  JSValue ret, buf = pointer_arraybuffer(ptr, ctx);
+  ret = js_typedarray_new(ctx, 32, FALSE, FALSE, buf);
+  JS_FreeValue(ctx, buf);
+  return ret;
 }
 
 /**

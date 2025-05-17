@@ -38,11 +38,6 @@ enum {
   STATIC_OF_ATOMS,
   STATIC_IS_POINTER,
 };
-enum {
-  PROP_LENGTH = 0,
-  PROP_PATH,
-  PROP_ATOMS,
-};
 
 JSValue
 js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
@@ -287,6 +282,11 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   return JS_EXCEPTION;
 }
+enum {
+  PROP_LENGTH = 0,
+  PROP_PATH,
+  PROP_ATOMS,
+};
 
 static JSValue
 js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -308,7 +308,7 @@ js_pointer_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case PROP_ATOMS: {
-      ret = js_int32v_to_array(ctx, (int32_t const*)ptr->atoms, ptr->n);
+      ret = pointer_uint32array(ptr, ctx);
       break;
     }
   }
