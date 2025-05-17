@@ -216,32 +216,21 @@ property_recursion_pathstr_value(const Vector* vec, JSContext* ctx) {
 JSValue js_pointer_wrap(JSContext*, Pointer*);
 
 int
-property_recursion_update_pointer(const Vector* vec, Pointer* ptr, JSContext* ctx) {
-  pointer_allocate(ptr, vector_size(vec, sizeof(PropertyEnumeration)), ctx);
-  int i = 0;
-  PropertyEnumeration* it;
-
-  vector_foreach_t(vec, it) {
-    JSAtom atom = property_enumeration_atom(it);
-    if(ptr->atoms[i] != atom) {
-      JS_FreeAtom(ctx, ptr->atoms[i]);
-      ptr->atoms[i] = JS_DupAtom(ctx, atom);
+property_recursion_pointer(const Vector* vec, Pointer* ptr, JSContext* ctx) {
+  if(pointer_allocate(ptr, vector_size(vec, sizeof(PropertyEnumeration)), ctx)) {
+    int i = 0;
+    PropertyEnumeration* it;
+    vector_foreach_t(vec, it) {
+      JSAtom atom = property_enumeration_atom(it);
+      if(ptr->atoms[i] != atom) {
+        JS_FreeAtom(ctx, ptr->atoms[i]);
+        ptr->atoms[i] = JS_DupAtom(ctx, atom);
+      }
+      ++i;
     }
-    ++i;
+    return i;
   }
-
-  return i;
-}
-
-Pointer*
-property_recursion_pointer(const Vector* vec, JSContext* ctx) {
-  Pointer* ptr;
-
-  if((ptr = js_mallocz(ctx, sizeof(Pointer)))) {
-    property_recursion_update_pointer(vec, ptr, ctx);
-  }
-
-  return ptr;
+  return -1;
 }
 
 void

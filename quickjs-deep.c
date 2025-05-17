@@ -52,9 +52,9 @@ static const uint32_t js_deep_defaultflags = 0;
 
 JSValue
 property_recursion_pointer_value(const Vector* vec, JSContext* ctx) {
-  Pointer* ptr;
+  Pointer* ptr = pointer_new(ctx);
 
-  if(!(ptr = property_recursion_pointer(vec, ctx)))
+  if(property_recursion_pointer(vec, ptr, ctx) < 0)
     return JS_EXCEPTION;
 
   return js_pointer_wrap(ctx, ptr);
@@ -238,6 +238,9 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
     JSValue value = property_recursion_value(&it->frames, ctx);
     ValueType type = js_value_type(ctx, value);
+
+    if(it->flags & PATH_AS_POINTER)
+      property_recursion_pointer(&it->frames, &it->ptr, ctx);
 
     if(type & it->mask)
       it->status = js_deep_predicate(ctx, it->pred, value, &it->frames);

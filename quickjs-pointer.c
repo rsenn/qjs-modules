@@ -123,16 +123,35 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 static JSValue
 js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue obj, proto;
+  Pointer* ptr;
+
+  if(!(ptr = pointer_new(ctx)))
+    return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     proto = JS_DupValue(ctx, pointer_proto);
 
-  obj = js_pointer_new(ctx, proto, argc > 0 ? argv[0] : JS_UNDEFINED);
-
+  obj = JS_NewObjectProtoClass(ctx, proto, js_pointer_class_id);
   JS_FreeValue(ctx, proto);
+
+  if(JS_IsException(obj))
+    goto fail;
+
+  if(argc > 0)
+    if(!pointer_from(ptr, argv[0], ctx)) {
+      JS_ThrowTypeError(ctx, "Pointer: argument 1 unknown type");
+      goto fail;
+    }
+
+  JS_SetOpaque(obj, ptr);
+
   return obj;
+
+fail:
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
 }
 
 static JSValue
@@ -354,7 +373,8 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
   switch(magic) {
     case STATIC_FROM: {
-      return js_pointer_new(ctx, pointer_proto, argc > 0 ? argv[0] : JS_UNDEFINED);
+      ret = js_pointer_constructor(ctx, pointer_ctor, argc, argv);
+      break;
     }
 
     case STATIC_FROM_ATOMS: {
