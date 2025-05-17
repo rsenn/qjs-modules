@@ -36,19 +36,21 @@ BOOL pointer_fromatoms(Pointer*, JSAtom* vec, size_t len, JSContext*);
 JSValue pointer_shift(Pointer*, JSContext*);
 JSValue pointer_pop(Pointer*, JSContext*);
 BOOL pointer_unshift(Pointer*, JSValueConst, JSContext*);
-void pointer_push(Pointer*, JSValueConst, JSContext*);
-void pointer_pushfree(Pointer*, JSValue item, JSContext*);
+BOOL pointer_push(Pointer*, JSValueConst, JSContext*);
+BOOL pointer_pushfree(Pointer*, JSValue item, JSContext*);
 JSValue pointer_deref(Pointer const*, JSValueConst, JSContext*);
 JSValue pointer_acquire(Pointer const*, JSValueConst, JSContext*);
 BOOL pointer_fromstring(Pointer*, JSValueConst, JSContext*);
-void pointer_fromarray(Pointer*, JSValueConst, JSContext*);
-void pointer_fromiterable(Pointer*, JSValueConst, JSContext*);
-int pointer_from(Pointer*, JSValueConst, JSContext*);
+BOOL pointer_fromarray(Pointer*, JSValueConst, JSContext*);
+BOOL pointer_fromiterable(Pointer*, JSValueConst, JSContext*);
+BOOL pointer_from(Pointer*, JSValueConst, JSContext*);
 Pointer* pointer_concat(Pointer const*, JSValueConst, JSContext*);
 JSValue pointer_toarray(Pointer const*, JSContext*);
-JSValue pointer_uint32array(Pointer const* ptr, JSContext*);
 JSValue pointer_arraybuffer(Pointer const* ptr, JSContext*);
 BOOL pointer_equal(Pointer const* a, Pointer const* b);
+JSValue pointer_uint32array(Pointer const* ptr, JSContext* ctx);
+BOOL pointer_append(Pointer*, int, JSValueConst[], JSContext*);
+int pointer_compare(Pointer const*, Pointer const*, int32_t, int32_t, uint32_t);
 
 static inline Pointer*
 pointer_new(JSContext* ctx) {
@@ -79,6 +81,7 @@ static inline BOOL
 pointer_pushatom(Pointer* ptr, JSAtom atom, JSContext* ctx) {
   size_t pos = ptr->n;
   BOOL ret;
+
   if((ret = pointer_allocate(ptr, ptr->n + 1, ctx)))
     ptr->atoms[pos] = atom;
 

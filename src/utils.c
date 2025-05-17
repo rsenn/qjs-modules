@@ -2245,6 +2245,24 @@ js_module_load(JSContext* ctx, const char* name) {
 }
 
 BOOL
+js_is_primitive(JSValueConst obj) {
+  switch(JS_VALUE_GET_TAG(obj)) {
+    case JS_TAG_BIG_DECIMAL:
+    case JS_TAG_BIG_INT:
+    case JS_TAG_BIG_FLOAT:
+    case JS_TAG_SYMBOL:
+    case JS_TAG_STRING:
+    case JS_TAG_INT:
+    case JS_TAG_BOOL:
+    case JS_TAG_NULL:
+    case JS_TAG_UNDEFINED:
+    case JS_TAG_FLOAT64: return TRUE;
+  }
+
+  return FALSE;
+}
+
+BOOL
 js_is_arraybuffer(JSContext* ctx, JSValueConst value) {
   return JS_IsObject(value) &&
          (js_global_instanceof(ctx, value, "ArrayBuffer") || js_object_is(ctx, value, "[object ArrayBuffer]"));

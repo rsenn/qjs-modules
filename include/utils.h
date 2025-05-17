@@ -606,6 +606,8 @@ const char* js_symbol_to_cstring(JSContext*, JSValueConst sym);
 
 JSValue js_symbol_static_value(JSContext*, const char* name);
 JSAtom js_symbol_static_atom(JSContext*, const char* name);
+
+BOOL js_is_primitive(JSValueConst obj);
 BOOL js_is_iterable(JSContext*, JSValueConst obj);
 BOOL js_is_iterator(JSContext*, JSValueConst obj);
 JSValue js_iterator_method(JSContext*, JSValueConst obj);

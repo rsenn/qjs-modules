@@ -86,6 +86,9 @@
 #define HIDDEN
 #endif
 
+#ifndef WRAP_NUM
+#define WRAP_NUM(n, max) ((n) < 0 ? (max) + (n) : (n))
+#endif
 #ifndef MAX_NUM
 #define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
 #endif
@@ -94,6 +97,9 @@
 #endif
 #ifndef ABS_NUM
 #define ABS_NUM(n) ((n) < 0 ? -(n) : (n))
+#endif
+#ifndef RANGE_NUM
+#define RANGE_NUM(a, min, max) MAX_NUM(MIN_NUM(a, max), min)
 #endif
 #ifndef MOD_NUM
 #define MOD_NUM(n, divisor) ((((n) % (divisor)) + (divisor)) % (divisor))

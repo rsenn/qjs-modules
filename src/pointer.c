@@ -42,6 +42,27 @@ pointer_copy(Pointer* dst, Pointer const* src, JSContext* ctx) {
   return pointer_fromatoms(dst, src->atoms, src->n, ctx);
 }
 
+/** Returns <= -1 if equal, and >= 0 for mismatch */
+int
+pointer_compare(Pointer const* a, Pointer const* b, int32_t aoffs, int32_t boffs, uint32_t len) {
+  uint32_t alen = a->n, blen = b->n;
+
+  aoffs = RANGE_NUM(WRAP_NUM(aoffs, alen), 0, alen);
+  boffs = RANGE_NUM(WRAP_NUM(boffs, blen), 0, blen);
+
+  alen -= aoffs;
+  blen -= boffs;
+
+  len = MIN_NUM(len, alen);
+  len = MIN_NUM(len, blen);
+
+  for(uint32_t i = 0; i < len; i++)
+    if(a->atoms[i + aoffs] != b->atoms[i + boffs])
+      return i;
+
+  return -1 - len;
+}
+
 BOOL
 pointer_equal(Pointer const* a, Pointer const* b) {
   if(a->n != b->n)
@@ -268,8 +289,8 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
   Pointer* ret;
 
   if((ret = pointer_new(ctx))) {
-    start = int64_mod(start, ptr->n + 1);
-    end = end == INT64_MAX ? (int64_t)ptr->n : int64_mod(end, ptr->n + 1);
+    start = WRAP_NUM(start, ptr->n);
+    end = end == INT64_MAX ? (int64_t)ptr->n : WRAP_NUM(end, ptr->n);
 
     if(start > end) {
       int64_t tmp = start;
@@ -413,15 +434,16 @@ pointer_unshift(Pointer* ptr, JSValueConst value, JSContext* ctx) {
   return FALSE;
 }
 
-void
+BOOL
 pointer_push(Pointer* ptr, JSValueConst item, JSContext* ctx) {
-  pointer_pushatom(ptr, JS_ValueToAtom(ctx, item), ctx);
+  return pointer_pushatom(ptr, JS_ValueToAtom(ctx, item), ctx);
 }
 
-void
+BOOL
 pointer_pushfree(Pointer* ptr, JSValue item, JSContext* ctx) {
-  pointer_push(ptr, item, ctx);
+  BOOL ret = pointer_push(ptr, item, ctx);
   JS_FreeValue(ctx, item);
+  return ret;
 }
 
 JSValue
@@ -476,29 +498,34 @@ BOOL
 pointer_fromstring(Pointer* ptr, JSValueConst value, JSContext* ctx) {
   size_t len;
   const char* str;
+  BOOL ret = FALSE;
 
   if((str = JS_ToCStringLen(ctx, &len, value))) {
-    pointer_parse(ptr, str, len, ctx);
+    if(pointer_parse(ptr, str, len, ctx) >= 0)
+      ret = TRUE;
 
     JS_FreeCString(ctx, str);
-    return TRUE;
   }
 
-  return FALSE;
+  return ret;
 }
 
-void
+BOOL
 pointer_fromarray(Pointer* ptr, JSValueConst array, JSContext* ctx) {
   int64_t i, len;
 
   if((len = js_array_length(ctx, array)) > 0)
     for(i = 0; i < len; i++)
-      pointer_pushfree(ptr, JS_GetPropertyUint32(ctx, array, i), ctx);
+      if(!pointer_pushfree(ptr, JS_GetPropertyUint32(ctx, array, i), ctx))
+        return FALSE;
+
+  return TRUE;
 }
 
-void
+BOOL
 pointer_fromiterable(Pointer* ptr, JSValueConst arg, JSContext* ctx) {
   JSValue iter = js_iterator_new(ctx, arg);
+  BOOL ret = FALSE;
 
   for(;;) {
     BOOL done = FALSE;
@@ -506,31 +533,52 @@ pointer_fromiterable(Pointer* ptr, JSValueConst arg, JSContext* ctx) {
 
     if(done) {
       JS_FreeValue(ctx, item);
+      ret = TRUE;
       break;
     }
 
-    pointer_pushfree(ptr, item, ctx);
+    if(!pointer_pushfree(ptr, item, ctx))
+      return FALSE;
   }
 
   JS_FreeValue(ctx, iter);
+  return ret;
 }
 
-int
+BOOL
 pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
   Pointer* ptr2;
 
-  if((ptr2 = js_pointer_data(value))) {
-    pointer_copy(ptr, ptr2, ctx);
-  } else if(JS_IsString(value)) {
-    pointer_fromstring(ptr, value, ctx);
-  } else if(JS_IsArray(ctx, value)) {
-    pointer_reset(ptr, JS_GetRuntime(ctx));
-    pointer_fromarray(ptr, value, ctx);
-  } else if(!JS_IsUndefined(value)) {
-    return 0;
+  if((ptr2 = js_pointer_data(value)))
+    if(pointer_copy(ptr, ptr2, ctx))
+      return TRUE;
+
+  if(JS_IsString(value))
+    if(pointer_fromstring(ptr, value, ctx))
+      return TRUE;
+
+  if(JS_IsArray(ctx, value))
+    if(pointer_fromarray(ptr, value, ctx))
+      return TRUE;
+
+  if(pointer_fromiterable(ptr, value, ctx))
+    return TRUE;
+
+  return FALSE;
+}
+
+BOOL
+pointer_append(Pointer* ptr, int argc, JSValueConst argv[], JSContext* ctx) {
+
+  for(int i = 0; i < argc; i++) {
+    if(js_is_primitive(argv[i]) && !JS_IsString(argv[i]) && pointer_push(ptr, argv[i], ctx)) {
+    } else if(!pointer_from(ptr, argv[i], ctx)) {
+      JS_ThrowInternalError(ctx, "pointer_append() argument %d failed", i);
+      return FALSE;
+    }
   }
 
-  return 1;
+  return TRUE;
 }
 
 Pointer*
@@ -538,16 +586,9 @@ pointer_concat(Pointer const* ptr, JSValueConst iterable, JSContext* ctx) {
   Pointer* ret;
 
   if((ret = pointer_clone(ptr, ctx))) {
-    JSValue iterator = js_iterator_new(ctx, iterable);
-
-    for(;;) {
-      BOOL done = FALSE;
-      JSValue item = js_iterator_next(ctx, iterator, &done);
-
-      if(done)
-        break;
-
-      pointer_pushfree(ret, item, ctx);
+    if(!pointer_fromiterable(ret, iterable, ctx)) {
+      pointer_free(ret, JS_GetRuntime(ctx));
+      ret = 0;
     }
   }
 
@@ -565,13 +606,8 @@ pointer_toarray(Pointer const* ptr, JSContext* ctx) {
 }
 
 JSValue
-pointer_arraybuffer(Pointer const* ptr, JSContext* ctx) {
-  return JS_NewArrayBufferCopy(ctx, (uint8_t*)ptr->atoms, sizeof(JSAtom) * ptr->n);
-}
-
-JSValue
 pointer_uint32array(Pointer const* ptr, JSContext* ctx) {
-  JSValue ret, buf = pointer_arraybuffer(ptr, ctx);
+  JSValue ret, buf = JS_NewArrayBufferCopy(ctx, (uint8_t*)ptr->atoms, sizeof(JSAtom) * ptr->n);
   ret = js_typedarray_new(ctx, 32, FALSE, FALSE, buf);
   JS_FreeValue(ctx, buf);
   return ret;
