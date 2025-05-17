@@ -57,23 +57,19 @@ static int
 js_deep_predicate(JSContext* ctx, JSValueConst fn, JSValueConst value, const Vector* frames) {
   Predicate* pred;
   JSValue ret = JS_UNDEFINED;
-  JSValueConst args[3] = {
+  JSValueConst args[] = {
       JS_IsUninitialized(value) ? property_recursion_value(frames, ctx) : JS_DupValue(ctx, value),
+      property_enumeration_key(property_recursion_top(frames), ctx),
   };
 
   if((pred = js_predicate_data(fn))) {
-    JSArguments a = js_arguments_new(1, args);
+    JSArguments a = js_arguments_new(countof(args), args);
     ret = predicate_eval(pred, ctx, &a);
   } else if(JS_IsFunction(ctx, fn)) {
-
-    args[1] = property_recursion_path(frames, ctx);
-    args[2] = property_recursion_root(frames);
-
-    ret = JS_Call(ctx, fn, JS_UNDEFINED, 3, args);
-
-    JS_FreeValue(ctx, args[1]);
+    ret = JS_Call(ctx, fn, JS_UNDEFINED, countof(args), args);
   }
 
+  JS_FreeValue(ctx, args[1]);
   JS_FreeValue(ctx, args[0]);
 
   if(JS_IsException(ret)) {
