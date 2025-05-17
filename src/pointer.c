@@ -43,6 +43,18 @@ pointer_copy(Pointer* dst, Pointer const* src, JSContext* ctx) {
 }
 
 BOOL
+pointer_equal(Pointer const* a, Pointer const* b) {
+  if(a->n != b->n)
+    return FALSE;
+
+  for(uint32_t i = 0; i < a->n; i++)
+    if(a->atoms[i] != b->atoms[i])
+      return FALSE;
+
+  return TRUE;
+}
+
+BOOL
 pointer_allocate(Pointer* ptr, size_t size, JSContext* ctx) {
   size_t i;
 
@@ -563,6 +575,35 @@ pointer_uint32array(Pointer const* ptr, JSContext* ctx) {
   ret = js_typedarray_new(ctx, 32, FALSE, FALSE, buf);
   JS_FreeValue(ctx, buf);
   return ret;
+}
+
+BOOL
+pointer_startswith(Pointer const* ptr, Pointer const* other) {
+  if(ptr->n < other->n)
+    return FALSE;
+
+  uint32_t len = other->n;
+
+  for(uint32_t i = 0; i < len; i++)
+    if(ptr->atoms[i] != other->atoms[i])
+      return FALSE;
+
+  return TRUE;
+}
+
+BOOL
+pointer_endswith(Pointer const* ptr, Pointer const* other) {
+  if(ptr->n < other->n)
+    return FALSE;
+
+  uint32_t len = other->n;
+  uint32_t start = ptr->n - len;
+
+  for(uint32_t i = 0; i < len; i++)
+    if(ptr->atoms[start + i] != other->atoms[i])
+      return FALSE;
+
+  return TRUE;
 }
 
 /**

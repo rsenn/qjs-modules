@@ -76,12 +76,12 @@ static thread_local ModuleLoaderContext* module_loaders = NULL;
 static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 
 // static JSModuleLoaderFunc* module_loader = 0;
-static thread_local JSValue package_json;
-static thread_local const char* exename;
-static thread_local size_t exelen;
-static thread_local JSRuntime* rt;
-static thread_local JSContext* ctx;
-static thread_local int interactive = 0;
+static JSValue package_json;
+static char* exename;
+static size_t exelen;
+static JSRuntime* rt;
+static JSContext* ctx;
+static int interactive = 0;
 
 static const char* const module_extensions[] = {
     CONFIG_SHEXT, ".js", "/index.js",
@@ -1814,13 +1814,10 @@ main(int argc, char** argv) {
   // replObj = JS_UNDEFINED;
 
   {
-    size_t n;
-    exename = argv[0];
-    n = str_rchrs(exename, "/\\", 2);
-    if(exename[n])
-      exename += n + 1;
-    exelen = str_rchr(exename, '.');
-    argv[0][exelen] = '\0';
+    size_t n = str_rchrs(argv[0], "/\\", 2);
+
+    exename = strdup(argv[0] + n + 1);
+    exelen = strlen(exename);
 
     /* load jscalc runtime if invoked as 'qjscalc' */
 #ifdef HAVE_QJSCALC
@@ -2052,6 +2049,8 @@ main(int argc, char** argv) {
 
   JS_SetInterruptHandler(rt, jsm_interrupt_handler, ctx);
 
+  JSValue sargs = JS_UNDEFINED;
+
   if(!empty_run) {
     DynBuf db;
     js_dbuf_init(ctx, &db);
@@ -2076,6 +2075,9 @@ main(int argc, char** argv) {
                         "os.setTimeout;\nglobalThis.clearTimeout = os.clearTimeout;\n";
       dbuf_putstr(&db, str);
     }
+
+    sargs = js_global_get_str(ctx, "scriptArgs");
+    JS_DefinePropertyValueStr(ctx, sargs, "-1", JS_NewString(ctx, argv[0]), 0);
 
     if(db.size) {
       dbuf_0(&db);
@@ -2128,6 +2130,8 @@ main(int argc, char** argv) {
       const char* filename;
       filename = argv[optind];
 
+      JS_DefinePropertyValueStr(ctx, sargs, "$", JS_NewString(ctx, filename), 0);
+
       if(jsm_stack_load(ctx, filename, module, TRUE) == -1)
         goto fail;
     }
@@ -2148,6 +2152,8 @@ main(int argc, char** argv) {
     JS_ComputeMemoryUsage(rt, &stats);
     JS_DumpMemoryUsage(stdout, &stats, rt);
   }
+
+  JS_FreeValue(ctx, sargs);
 
   js_std_free_handlers(rt);
   JS_FreeContext(ctx);

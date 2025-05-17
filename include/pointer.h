@@ -48,6 +48,7 @@ Pointer* pointer_concat(Pointer const*, JSValueConst, JSContext*);
 JSValue pointer_toarray(Pointer const*, JSContext*);
 JSValue pointer_uint32array(Pointer const* ptr, JSContext*);
 JSValue pointer_arraybuffer(Pointer const* ptr, JSContext*);
+BOOL pointer_equal(Pointer const* a, Pointer const* b);
 
 static inline Pointer*
 pointer_new(JSContext* ctx) {
@@ -106,6 +107,8 @@ pointer_popatom(Pointer* ptr) {
 
   return ret;
 }
+BOOL pointer_startswith(Pointer const*, Pointer const*);
+BOOL pointer_endswith(Pointer const*, Pointer const*);
 
 /**
  * @}

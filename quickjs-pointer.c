@@ -14,24 +14,6 @@ JSClassID js_pointer_class_id = 0;
 static JSValue pointer_proto, pointer_ctor;
 
 enum {
-  METHOD_DEREF = 0,
-  METHOD_TO_STRING,
-  METHOD_TO_ARRAY,
-  METHOD_INSPECT,
-  METHOD_SHIFT,
-  METHOD_UNSHIFT,
-  METHOD_PUSH,
-  METHOD_POP,
-  METHOD_CONCAT,
-  METHOD_SLICE,
-  METHOD_SPLICE,
-  METHOD_UP,
-  METHOD_DOWN,
-  METHOD_VALUES,
-  METHOD_HIER,
-  METHOD_AT,
-};
-enum {
   STATIC_FROM = 0,
   STATIC_FROM_ATOMS,
   STATIC_OF,
@@ -39,29 +21,36 @@ enum {
   STATIC_IS_POINTER,
 };
 
-JSValue
-js_pointer_new(JSContext* ctx, JSValueConst proto, JSValueConst value) {
+static JSValue
+js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue obj, proto;
   Pointer* ptr;
-  JSValue obj = JS_UNDEFINED;
 
   if(!(ptr = pointer_new(ctx)))
     return JS_EXCEPTION;
 
+  /* using new_target to get the prototype is necessary when the class is extended. */
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    proto = JS_DupValue(ctx, pointer_proto);
+
   obj = JS_NewObjectProtoClass(ctx, proto, js_pointer_class_id);
+  JS_FreeValue(ctx, proto);
+
   if(JS_IsException(obj))
     goto fail;
 
-  JS_SetOpaque(obj, ptr);
+  if(argc > 0)
+    if(!pointer_from(ptr, argv[0], ctx)) {
+      JS_ThrowTypeError(ctx, "Pointer: argument 1 unknown type");
+      goto fail;
+    }
 
-  if(!pointer_from(ptr, value, ctx)) {
-    JS_FreeValue(ctx, obj);
-    obj = JS_ThrowTypeError(ctx, "Pointer: argument 1 unknown type");
-  }
+  JS_SetOpaque(obj, ptr);
 
   return obj;
 
 fail:
-  js_free(ctx, ptr);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -120,39 +109,24 @@ js_pointer_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   return ret;
 }
 
-static JSValue
-js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj, proto;
-  Pointer* ptr;
-
-  if(!(ptr = pointer_new(ctx)))
-    return JS_EXCEPTION;
-
-  /* using new_target to get the prototype is necessary when the class is extended. */
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, pointer_proto);
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_pointer_class_id);
-  JS_FreeValue(ctx, proto);
-
-  if(JS_IsException(obj))
-    goto fail;
-
-  if(argc > 0)
-    if(!pointer_from(ptr, argv[0], ctx)) {
-      JS_ThrowTypeError(ctx, "Pointer: argument 1 unknown type");
-      goto fail;
-    }
-
-  JS_SetOpaque(obj, ptr);
-
-  return obj;
-
-fail:
-  JS_FreeValue(ctx, obj);
-  return JS_EXCEPTION;
-}
+enum {
+  METHOD_DEREF = 0,
+  METHOD_TO_STRING,
+  METHOD_TO_ARRAY,
+  METHOD_INSPECT,
+  METHOD_SHIFT,
+  METHOD_UNSHIFT,
+  METHOD_PUSH,
+  METHOD_POP,
+  METHOD_CONCAT,
+  METHOD_SLICE,
+  METHOD_SPLICE,
+  METHOD_UP,
+  METHOD_DOWN,
+  METHOD_VALUES,
+  METHOD_HIER,
+  METHOD_AT,
+};
 
 static JSValue
 js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -301,6 +275,42 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
   return JS_EXCEPTION;
 }
+
+enum {
+  METHOD_EQUAL,
+  METHOD_STARTSWITH,
+  METHOD_ENDSWITH,
+};
+
+static JSValue
+js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  Pointer *ptr, *other;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(ptr = js_pointer_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  if(!(other = js_pointer_data2(ctx, argv[0])))
+    return JS_ThrowTypeError(ctx, "argument 1 must be a Pointer");
+
+  switch(magic) {
+    case METHOD_EQUAL: {
+      ret = JS_NewBool(ctx, pointer_equal(ptr, other));
+      break;
+    }
+    case METHOD_STARTSWITH: {
+      ret = JS_NewBool(ctx, pointer_startswith(ptr, other));
+      break;
+    }
+    case METHOD_ENDSWITH: {
+      ret = JS_NewBool(ctx, pointer_endswith(ptr, other));
+      break;
+    }
+  }
+
+  return ret;
+}
+
 enum {
   PROP_LENGTH = 0,
   PROP_PATH,
@@ -457,6 +467,9 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("values", 0, js_pointer_method, METHOD_VALUES),
     JS_CFUNC_MAGIC_DEF("hier", 0, js_pointer_method, METHOD_HIER),
     JS_CFUNC_MAGIC_DEF("at", 1, js_pointer_method, METHOD_AT),
+    JS_CFUNC_MAGIC_DEF("equal", 1, js_pointer_method2, METHOD_EQUAL),
+    JS_CFUNC_MAGIC_DEF("startsWith", 1, js_pointer_method2, METHOD_STARTSWITH),
+    JS_CFUNC_MAGIC_DEF("endsWith", 1, js_pointer_method2, METHOD_ENDSWITH),
     JS_ALIAS_DEF("toPrimitive", "toString"),
     JS_ALIAS_DEF("[Symbol.iterator]", "values"),
     JS_CGETSET_MAGIC_DEF("length", js_pointer_get, 0, PROP_LENGTH),

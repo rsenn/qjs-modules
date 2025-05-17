@@ -44,6 +44,11 @@ void
 child_process_sigchld(int pid) {
 }
 
+size_t
+child_process_count(void) {
+  return list_size(&child_process_list);
+}
+
 ChildProcess*
 child_process_get(int pid) {
   struct list_head* el;
@@ -75,6 +80,25 @@ child_process_new(JSContext* ctx) {
   return child;
 }
 
+BOOL
+child_process_signal(JSContext* ctx, JSValueConst handler) {
+  JSValue os = js_global_get_str(ctx, "os");
+  JSValue sig = JS_GetPropertyStr(ctx, os, "signal");
+  JS_FreeValue(ctx, os);
+  JSValueConst args[] = {
+      JS_NewInt32(ctx, SIGCHLD),
+      handler,
+  };
+
+  JSValue ret = JS_Call(ctx, sig, JS_NULL, countof(args), args);
+  JS_FreeValue(ctx, sig);
+  JS_FreeValue(ctx, args[0]);
+  BOOL result = JS_ToBool(ctx, ret);
+  JS_FreeValue(ctx, ret);
+  return result;
+}
+
+PropertyEnumeration propenum;
 char**
 child_process_environment(JSContext* ctx, JSValueConst object) {
   PropertyEnumeration propenum;
@@ -285,9 +309,9 @@ child_process_wait(ChildProcess* cp, int flags) {
 
   return -1;
 
-#elif defined(POSIX_SPAWN)
+/*#elif defined(POSIX_SPAWN)
 
-  return -1;
+  return -1;*/
 #else
   int pid, status;
 

@@ -16,7 +16,19 @@ option(BUILD_SHARED_MODULES "Build shared modules" ${BUILD_SHARED_LIBS})
 option(DEBUG_OUTPUT "Debug output" OFF)
 option(DEBUG_ALLOC "Debug allocation" OFF)
 option(DO_TESTS "Perform tests" ON)
-option(USE_SPAWN "Use POSIX spawn()" OFF)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
+
+RUN_CODE("tryposixspawn.c" "#include <spawn.h>\nint\nmain(void) {\n  pid_t pid;\n  posix_spawn_file_actions_t actions;\n  posix_spawnattr_t attr;\n  char* const argv[2] = {\"/bin/true\", 0};\n  char* const envp[1] = {0};\n  posix_spawnattr_setflags(&attr, 0);\n  posix_spawn_file_actions_init(&actions);\n  return posix_spawn(&pid, argv[0], 0, 0, argv, envp);\n}\n" RUN_RESULT  OUTPUT "" "")
+if("${RUN_RESULT}" STREQUAL "0")
+  set(HAVE_POSIX_SPAWN TRUE)
+endif()
+dump(HAVE_POSIX_SPAWN)
+
+if(HAVE_POSIX_SPAWN)
+option(USE_SPAWN "Use POSIX spawn()" ON)
+endif(HAVE_POSIX_SPAWN)
+
 option(MODULE_ARCHIVE "Build 'archive' module" ON)
 option(MODULE_MAGIC "Build 'magic' module" ON)
 option(MODULE_MYSQL "Build 'mysql' module" ON)
@@ -25,7 +37,6 @@ option(MODULE_SERIAL "Build 'serial' module" OFF)
 
 include(FindPkgConfig)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/check-flags.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/UseMultiArch.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/QuickJSModule.cmake)
@@ -599,7 +610,7 @@ endif(CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 check_function_def(js_debugger_build_backtrace)
 
-dump(CHECKED_FUNCTIONS CHECKED_INCLUDES)
+#dump(CHECKED_FUNCTIONS CHECKED_INCLUDES)
 
 file(GLOB TESTS tests/test_*.js)
 relative_path(TESTS "${CMAKE_CURRENT_SOURCE_DIR}" ${TESTS})
