@@ -506,6 +506,7 @@ js_lexer_new(JSContext* ctx, JSValueConst proto, JSValueConst vinput, JSValueCon
     goto fail;
 
   lex->input = js_input_chars(ctx, vinput);
+  JS_GetException(ctx);
 
   JS_SetOpaque(obj, lex);
   return obj;

@@ -151,7 +151,10 @@ block_slice(MemoryBlock mb, IndexRange ir) {
 static inline MemoryBlock
 block_range(MemoryBlock mb, OffsetLength range) {
   size_t offset = MIN_NUM((int64_t)mb.size, range.offset);
-  size_t length = MIN_NUM(range.length, (int64_t)(mb.size - offset));
+  size_t mbs=(size_t)mb.size - offset;
+  size_t rgs = range.length;
+
+  size_t length = MIN_NUM(mbs,rgs);
 
   return (MemoryBlock){mb.base + offset, length};
 }
