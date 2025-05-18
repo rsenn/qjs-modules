@@ -22,17 +22,17 @@ enum {
 };
 
 typedef struct {
-Pointer *ptr, *alloc;
-} PointerAlloc ;
+  Pointer *ptr, *alloc;
+} PointerAlloc;
 
 static PointerAlloc
-js_pointer_read(JSContext*ctx,JSValueConst value) {
-  Pointer*ret,*alloc=0;
+js_pointer_read(JSContext* ctx, JSValueConst value) {
+  Pointer *ret, *alloc = 0;
   if(!(ret = js_pointer_data(value))) {
-    ret =alloc= pointer_new(ctx);
+    ret = alloc = pointer_new(ctx);
     pointer_from(ret, value, ctx);
   }
-  return (PointerAlloc){ret,alloc};
+  return (PointerAlloc){ret, alloc};
 }
 
 static JSValue
@@ -54,7 +54,7 @@ js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
   if(JS_IsException(obj))
     goto fail;
 
-for(int i=0; i< argc; i++) 
+  for(int i = 0; i < argc; i++)
     if(!pointer_from(ptr, argv[i], ctx)) {
       JS_ThrowTypeError(ctx, "Pointer: argument %d unknown type", i);
       goto fail;
@@ -276,9 +276,9 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     }
 
     case METHOD_UP: {
-      int64_t n = js_int64_default(ctx, argv[0], 1);
+      int64_t n = js_int64_default(ctx, argv[0], -1);
 
-      ret = pointer_slice(ptr, 0, ptr->n - n, ctx);
+      ret = pointer_slice(ptr, 0, n < 0 ? ptr->n + n : n, ctx);
       break;
     }
 
@@ -318,15 +318,14 @@ enum {
 
 static JSValue
 js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  Pointer  *ptr = 0;
+  Pointer* ptr = 0;
   PointerAlloc other;
   JSValue ret = JS_UNDEFINED;
 
   if(!(ptr = js_pointer_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  other  = js_pointer_read(ctx, argv[0]);
-
+  other = js_pointer_read(ctx, argv[0]);
 
   switch(magic) {
     case METHOD_EQUAL: {
@@ -359,10 +358,7 @@ js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     }
     case METHOD_COMMON: {
       int r = pointer_compare(ptr, other.ptr, 0, 0, MIN_NUM(ptr->n, other.ptr->n));
-      uint32_t offset = r < 0 ? -(r + 1) : r;
-      Pointer* ptr2;
-      if((ptr2 = pointer_slice(ptr, 0, offset, ctx)))
-        ret = js_pointer_wrap(ctx, ptr2);
+      ret = JS_NewUint32(ctx, r < 0 ? -r - 1 : r);
       break;
     }
     case METHOD_RELATIVETO: {
@@ -485,13 +481,13 @@ js_pointer_funcs(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-   /* case STATIC_COMMON: {
-      for(int i = 0; i < argc; i++){
+      /* case STATIC_COMMON: {
+         for(int i = 0; i < argc; i++){
 
-      }
+         }
 
-      break;
-    }*/
+         break;
+       }*/
 
     case STATIC_OF_ATOMS: {
       Pointer* ptr;
@@ -547,7 +543,7 @@ static const JSCFunctionListEntry js_pointer_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("splice", 0, js_pointer_method1, METHOD_SPLICE),
     JS_CFUNC_MAGIC_DEF("up", 1, js_pointer_method1, METHOD_UP),
     JS_CFUNC_MAGIC_DEF("down", 0, js_pointer_method1, METHOD_DOWN),
-
+    JS_ALIAS_DEF("truncate", "up"),
     JS_CFUNC_MAGIC_DEF("equal", 1, js_pointer_method2, METHOD_EQUAL),
     JS_CFUNC_MAGIC_DEF("compare", 1, js_pointer_method2, METHOD_COMPARE),
     JS_CFUNC_MAGIC_DEF("common", 1, js_pointer_method2, METHOD_COMMON),

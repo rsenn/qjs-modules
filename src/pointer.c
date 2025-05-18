@@ -39,6 +39,8 @@ pointer_reset(Pointer* ptr, JSRuntime* rt) {
 
 BOOL
 pointer_copy(Pointer* dst, Pointer const* src, JSContext* ctx) {
+  pointer_clear(dst, JS_GetRuntime(ctx));
+
   return pointer_fromatoms(dst, src->atoms, src->n, ctx);
 }
 
@@ -373,15 +375,13 @@ pointer_splice(Pointer* ptr, int64_t start, int64_t end, JSAtom* atoms, size_t i
 
 BOOL
 pointer_fromatoms(Pointer* ptr, JSAtom* vec, size_t len, JSContext* ctx) {
-  pointer_clear(ptr, JS_GetRuntime(ctx));
-
-  if(!pointer_reserve(ptr, len, ctx))
+  if(!pointer_reserve(ptr, ptr->n + len, ctx))
     return FALSE;
 
   for(size_t i = 0; i < len; i++)
-    ptr->atoms[i] = JS_DupAtom(ctx, vec[i]);
+    ptr->atoms[ptr->n + i] = JS_DupAtom(ctx, vec[i]);
 
-  ptr->n = len;
+  ptr->n += len;
   return TRUE;
 }
 

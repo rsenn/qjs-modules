@@ -16,6 +16,7 @@ typedef struct ChildProcess {
   char** args;
   char** env;
   intptr_t pid;
+  int status;
   int exitcode;
   int termsig;
   int stopsig;
@@ -36,6 +37,7 @@ int child_process_wait(ChildProcess*, int);
 int child_process_kill(ChildProcess*, int);
 void child_process_free(ChildProcess*, JSContext*);
 void child_process_free_rt(ChildProcess*, JSRuntime*);
+void          child_process_status(ChildProcess*, int);
 
 extern const char* child_process_signals[32];
 

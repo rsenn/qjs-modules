@@ -1,4 +1,4 @@
-import child_process from 'child_process';
+import { signal, spawn, WNOHANG } from 'child_process';
 import * as os from 'os';
 import { toString } from 'util';
 import Console from '../lib/console.js';
@@ -10,28 +10,28 @@ function WriteFile(file, data) {
   console.log('Wrote "' + file + '": ' + data.length + ' bytes');
 }
 
-function ReadChild(...args) {
+function ReadChild(args) {
   let cmd = args.shift();
-  let child = child_process.spawn(cmd, args, { stdio: ['inherit', 'pipe', 'inherit'] });
+  let child = spawn(cmd, args, { stdio: ['inherit', 'pipe', 'inherit'] });
   let data = '';
 
-  console.log('child', child);
+  /* console.log('child', child);*/
 
   let [stdin, stdout, stderr] = child.stdio;
-  console.log('stdio:', { stdin, stdout, stderr });
+  /*console.log('stdio:', { stdin, stdout, stderr });*/
 
   let buf = new ArrayBuffer(4096);
   let ret;
 
   os.setReadHandler(stdout, () => {
     ret = os.read(stdout, buf, 0, buf.byteLength);
-    console.log('buf.byteLength:', buf.byteLength);
-    console.log('ret:', ret);
+    /*console.log('buf.byteLength:', buf.byteLength);
+    console.log('ret:', ret);*/
 
     if(ret > 0) {
       const chunk = buf.slice(0, ret);
       const str = toString(chunk);
-      console.log('chunk:', str);
+      /* console.log('chunk:', str);*/
       data += str;
     }
 
@@ -60,11 +60,21 @@ function main(...args) {
     inspectOptions_: {
       maxArrayLength: 10,
       maxStringLength: 200,
-      compact: 2
+      compact: 2,
+    },
+  });
+
+  signal(() => {
+    const errfn = a => ({ pid: a[0] >= 0 ? a[0] : -1, errno: a[0] < 0 ? -a[0] : 0, status: a[1] });
+    console.log('SIGCHLD');
+    while(true) {
+      const { pid, errno, status } = errfn(os.waitpid(-1, os.WNOHANG));
+      console.log('waitpid() = ', pid, pid == -1 ? ` errno = ${std.strerror(errno)}` : ` status = ${status}`);
+      if(pid == -1) break;
     }
   });
 
-  let data = ReadChild('ls', '-la');
+  let data = ReadChild(['sh', '-c', 'ls -latr | tail -n10']);
 
   console.log('data:', data);
 

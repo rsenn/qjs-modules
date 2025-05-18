@@ -280,6 +280,27 @@ child_process_spawn(ChildProcess* cp) {
   return cp->pid = pid;
 }
 
+
+void
+child_process_status(ChildProcess* cp, int status) {
+  cp->signaled = WIFSIGNALED(status);
+  cp->stopped = WIFSTOPPED(status);
+#ifdef WIFCONTINUED
+  if((cp->continued = WIFCONTINUED(status)))
+    cp->stopsig = -1;
+#else
+  cp->continued = 0;
+#endif
+
+  if(WIFEXITED(status))
+    cp->exitcode = WEXITSTATUS(status);
+
+  if(WIFSIGNALED(status) || WIFEXITED(status))
+    cp->termsig = WTERMSIG(status);
+  if(WIFSTOPPED(status))
+    cp->stopsig = WSTOPSIG(status);
+}
+
 int
 child_process_wait(ChildProcess* cp, int flags) {
 #ifdef _WIN32
@@ -315,30 +336,16 @@ child_process_wait(ChildProcess* cp, int flags) {
 #else
   int pid, status;
 
-  if((pid = waitpid(cp->pid, &status, flags)) != cp->pid)
+  if((pid = waitpid(cp->pid, &cp->status, flags)) != cp->pid)
     return pid;
 
-  cp->signaled = WIFSIGNALED(status);
-  cp->stopped = WIFSTOPPED(status);
-#ifdef WIFCONTINUED
-  if((cp->continued = WIFCONTINUED(status)))
-    cp->stopsig = -1;
-#else
-  cp->continued = 0;
-#endif
-
-  if(WIFEXITED(status))
-    cp->exitcode = WEXITSTATUS(status);
-
-  if(WIFSIGNALED(status) || WIFEXITED(status))
-    cp->termsig = WTERMSIG(status);
-  if(WIFSTOPPED(status))
-    cp->stopsig = WSTOPSIG(status);
+  child_process_status(cp, cp->status);
 
   return pid;
 #endif
 }
 
+  
 int
 child_process_kill(ChildProcess* cp, int signum) {
 #ifdef _WIN32
