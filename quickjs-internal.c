@@ -8,7 +8,9 @@
 
 JSValue
 js_std_file(JSContext* ctx, FILE* f) {
-  JSClassID class_id = js_class_find(ctx, "FILE");
+  JSAtom atom = JS_NewAtom(ctx, "FILE");
+  JSClassID class_id = js_class_find(ctx, atom);
+  JS_FreeAtom(ctx, atom);
   JSValue obj, proto = JS_GetClassProto(ctx, class_id);
   JSSTDFile* file;
 
