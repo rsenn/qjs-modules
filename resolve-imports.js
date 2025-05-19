@@ -1387,6 +1387,7 @@ define(NumericRange.prototype, {
 class FileMap extends Array {
   static buffers = mapWrapper(fileBuffers);
   static filenames = mapWrapper(bufferRef);
+  static serials = mapWrapper(new WeakMap());
 
   constructor(file, buf) {
     super();
@@ -1680,8 +1681,10 @@ class FileMap extends Array {
       written = 0;
     let { length } = this;
     serial ??= randInt(0, 1000);
-    if(this.serial === serial) return 0;
-    this.serial = serial;
+
+    if(FileMap.serials(this) === serial) return 0;
+    FileMap.serials(this, serial);
+
     if(typeof out == 'string') out = FileWriter(out);
     let first = this.firstChunk();
     let last = this.lastChunk();
@@ -2089,10 +2092,12 @@ function main(...args) {
 
     if(debug > 1) console.log('result', compact(false, { depth: Infinity }), result);
 
+    Object.freeze(result.map);
+
     results.push(result);
 
     if(params.merge) {
-      const map = FileMap.for(file);
+      const map = result.map ?? FileMap.for(file);
       map.reset();
 
       if(result.imports[0]) {

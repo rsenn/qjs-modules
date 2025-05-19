@@ -15,63 +15,6 @@
  * \addtogroup buffer-utils
  * @{
  */
-size_t
-ansi_length(const char* str, size_t len) {
-  size_t i, n = 0, p;
-
-  for(i = 0; i < len;) {
-    if(str[i] == 0x1b && (p = ansi_skip(&str[i], len - i)) > 0) {
-      i += p;
-      continue;
-    }
-
-    n++;
-    i++;
-  }
-
-  return n;
-}
-
-size_t
-ansi_skip(const char* str, size_t len) {
-  size_t pos = 0;
-
-  if(str[pos] == 0x1b) {
-    if(++pos < len && str[pos] == '[') {
-      while(++pos < len)
-        if(is_alphanumeric_char(str[pos]))
-          break;
-
-      if(++pos < len && str[pos] == '~')
-        ++pos;
-
-      return pos;
-    }
-  }
-
-  return 0;
-}
-
-size_t
-ansi_truncate(const char* str, size_t len, size_t limit) {
-  size_t i, n = 0, p;
-
-  for(i = 0; i < len;) {
-    if((p = ansi_skip(&str[i], len - i)) > 0) {
-      i += p;
-      continue;
-    }
-
-    n += is_escape_char(str[i]) ? 2 : 1;
-
-    i++;
-
-    if(n > limit)
-      break;
-  }
-
-  return i;
-}
 
 int64_t
 array_search(void* a, size_t m, size_t elsz, void* needle) {
@@ -88,99 +31,6 @@ array_search(void* a, size_t m, size_t elsz, void* needle) {
   }
 
   return -1;
-}
-
-char*
-str_escape(const char* s) {
-  DynBuf dbuf;
-
-  dbuf_init2(&dbuf, 0, 0);
-  dbuf_put_escaped(&dbuf, s, strlen(s));
-  dbuf_0(&dbuf);
-
-  return (char*)dbuf.buf;
-}
-
-char*
-byte_escape(const void* s, size_t n) {
-  DynBuf dbuf;
-
-  dbuf_init2(&dbuf, 0, 0);
-  dbuf_put_escaped(&dbuf, s, n);
-  dbuf_0(&dbuf);
-
-  return (char*)dbuf.buf;
-}
-
-size_t
-byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
-  size_t i, last;
-  const char* s = (const char*)haystack;
-
-  if(hlen < wlen)
-    return hlen;
-
-  last = hlen - wlen;
-
-  for(i = 0; i <= last; i++) {
-    if(byte_equal(s, wlen, what))
-      return i;
-
-    s++;
-  }
-
-  return hlen;
-}
-
-size_t
-byte_finds(const void* haystack, size_t hlen, const char* what) {
-  return byte_findb(haystack, hlen, what, strlen(what));
-}
-
-size_t
-byte_equal(const void* s, size_t n, const void* t) {
-  return memcmp(s, t, n) == 0;
-}
-
-void
-byte_copy(void* out, size_t len, const void* in) {
-  char* s = (char*)out;
-  const char* t = (const char*)in;
-  size_t i;
-
-  for(i = 0; i < len; ++i)
-    s[i] = t[i];
-}
-
-void
-byte_copyr(void* out, size_t len, const void* in) {
-  char* s = (char*)out + len;
-  const char* t = (const char*)in;
-  const char* u = t + len;
-
-  for(;;) {
-    if(t >= u)
-      break;
-
-    --u;
-    --s;
-    *s = *u;
-  }
-}
-
-size_t
-byte_rchrs(const char* in, size_t len, const char needles[], size_t nn) {
-  const char *s = in, *end = in + len, *found = 0;
-  size_t i;
-
-  for(; s < end; s++) {
-    for(i = 0; i < nn; ++i) {
-      if(*s == needles[i])
-        found = s;
-    }
-  }
-
-  return (size_t)((found ? found : s) - in);
 }
 
 char*
@@ -615,11 +465,11 @@ dbuf_vprintf(DynBuf* s, const char* fmt, va_list ap) {
 InputBuffer
 js_input_buffer(JSContext* ctx, JSValueConst value) {
   InputBuffer ret = {
-      {{0, 0}},
+      {BLOCK_INIT()},
       0,
       &input_buffer_free_default,
       JS_UNDEFINED,
-      {0, INT64_MAX},
+      OFFSET_INIT(),
   };
 
   if(js_is_typedarray(ctx, value)) {
@@ -770,13 +620,8 @@ js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Of
       if(!JS_ToInt64(ctx, &len, argv[1]))
         ret = 2;
 
-    if(size >= 0 && off != size)
-      off = ((off % size) + size) % size;
-
-    if(len >= 0 && size >= 0)
-      len = MIN_NUM(len, size - off);
-    else if(size >= 0)
-      len = size - off;
+    off = CLAMP_NUM(WRAP_NUM(off, size), 0, size);
+    len = MIN_NUM(len, size - off);
 
     if(out) {
       out->offset = off;
@@ -801,12 +646,9 @@ js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], Inde
         ret = 2;
 
     if(size > 0) {
-      start = ((start % size) + size) % size;
-      end = ((end % size) + size) % size;
+      start = CLAMP_NUM(WRAP_NUM(start, size), 0, size);
+      end = CLAMP_NUM(WRAP_NUM(end, size), 0, size);
     }
-
-    if(end > size)
-      end = size;
 
     if(idx_rng_p) {
       idx_rng_p->start = start;

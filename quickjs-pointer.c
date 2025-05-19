@@ -246,28 +246,32 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   switch(magic) {
     case METHOD_SLICE: {
-      int64_t s = js_int64_default(ctx, argv[0], 0);
-      int64_t e = js_int64_default(ctx, argv[1], INT64_MAX);
+      IndexRange rng = {0, INT64_MAX};
 
-      ret = pointer_slice(ptr, s, e, ctx);
+      js_index_range(ctx, ptr->n, argc, argv, &rng);
+
+      ret = pointer_slice(ptr, rng.start, rng.end, ctx);
       break;
     }
 
     case METHOD_SPLICE: {
-      int64_t s, l;
+      // int64_t s, l;
+      IndexRange rng = {0, INT64_MAX};
 
-      if((s = js_int64_default(ctx, argv[0], 0)) < 0)
-        s = MOD_NUM(s, (int64_t)ptr->n);
+      js_index_range(ctx, ptr->n, argc, argv, &rng);
 
-      if((l = js_int64_default(ctx, argv[1], ptr->n - s)) < 0)
-        l = MOD_NUM(l, (int64_t)ptr->n) - s;
+      /* if((s = js_int64_default(ctx, argv[0], 0)) < 0)
+         s = MOD_NUM(s, (int64_t)ptr->n);
+
+       if((l = js_int64_default(ctx, argv[1], ptr->n - s)) < 0)
+         l = MOD_NUM(l, (int64_t)ptr->n) - s;*/
 
       JSAtom* atoms = 0;
 
       if(argc > 2)
         atoms = js_argv_to_atoms(ctx, argc - 2, argv + 2);
 
-      ret = pointer_splice(ptr, s, s + l, atoms, atoms ? argc - 2 : 0, ctx);
+      ret = pointer_splice(ptr, rng.start, rng.end, atoms, atoms ? argc - 2 : 0, ctx);
 
       if(atoms)
         js_free(ctx, atoms);

@@ -365,6 +365,17 @@ escape_char_letter(char c) {
 #define FMT_8LONG 44 /* enough space to hold 2^128 - 1 in octal, plus \0 */
 #define FMT_XLONG 33 /* enough space to hold 2^128 - 1 in hexadecimal, plus \0 */
 
+size_t ansi_length(const char*, size_t);
+size_t ansi_skip(const char*, size_t);
+size_t ansi_truncate(const char*, size_t, size_t limit);
+char* byte_escape(const void*, size_t);
+size_t byte_findb(const void*, size_t, const void* what, size_t wlen);
+size_t byte_finds(const void*, size_t, const char* what);
+size_t byte_equal(const void* s, size_t n, const void* t);
+void byte_copy(void* out, size_t len, const void* in);
+void byte_copyr(void* out, size_t len, const void* in);
+size_t byte_rchrs(const char* in, size_t len, const char needles[], size_t nn);
+char* str_escape(const char*);
 size_t token_length(const char*, size_t, char delim);
 size_t fmt_ulong(char*, uint32_t);
 size_t scan_ushort(const char*, uint16_t*);

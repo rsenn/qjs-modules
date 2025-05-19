@@ -762,7 +762,8 @@ inspect_regexp(Inspector* insp, JSValueConst value, int32_t depth) {
   if(opts->colors)
     writer_puts(wr, COLOR_RED);
 
-  put_escaped(wr, str, len);
+  writer_write(wr, str, len);
+  // put_escaped(wr, str, len);
 
   if(opts->colors)
     writer_puts(wr, COLOR_NONE);

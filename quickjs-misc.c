@@ -591,8 +591,8 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       js_offset_length(ctx, -1, argc - 1, argv + 1, &ol);
 
-      s = offset_data(&ol, data);
-      n = offset_size(&ol, len);
+      s = offset_data(ol, data);
+      n = offset_size(ol, len);
 
       if(ol.length < 0 && memchr(s, '\0', n))
         ret = JS_NewString(ctx, (const char*)s);
@@ -675,9 +675,9 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   }*/
 
   if(!JS_IsException(input.value)) {
-    OffsetLength o = {0, -1};
+    OffsetLength o = OFFSET_INIT();
     js_offset_length(ctx, input.size, argc - 1, argv + 1, &o);
-    MemoryBlock b = block_range(input_buffer_block(&input), o);
+    MemoryBlock b = offset_block(o, input_buffer_block(&input));
     ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
   }
 
@@ -685,23 +685,20 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 static JSValue
-js_misc_slice(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_misc_slicearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   uint8_t* data;
   size_t len;
 
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-    IndexRange ir;
+    IndexRange ir = {0, INT64_MAX};
 
     js_index_range(ctx, len, argc - 1, argv + 1, &ir);
 
-    JSValue value = JS_DupValue(ctx, argv[0]);
-    JSObject* obj = JS_VALUE_GET_OBJ(value);
-
     return JS_NewArrayBuffer(ctx,
-                             data + ir.start,
-                             ir.end - ir.start,
+                             indexrange_data(ir, data, len),
+                             indexrange_size(ir, len),
                              js_arraybuffer_free_object,
-                             (void*)obj,
+                             js_value_obj2(ctx, argv[0]),
                              js_is_sharedarraybuffer(ctx, argv[0]));
   }
 
@@ -718,14 +715,11 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
     js_offset_length(ctx, len, argc - 1, argv + 1, &ol);
 
-    JSValue value = JS_DupValue(ctx, argv[0]);
-    JSObject* obj = JS_VALUE_GET_OBJ(value);
-
     return JS_NewArrayBuffer(ctx,
-                             data + ol.offset,
-                             ol.length,
+                             offset_data(ol, data),
+                             offset_size(ol, len),
                              js_arraybuffer_free_object,
-                             (void*)obj,
+                             js_value_obj2(ctx, argv[0]),
                              js_is_sharedarraybuffer(ctx, argv[0]));
   }
 
@@ -867,8 +861,8 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   src.size -= d_offs.offset;
   src.size = MIN_NUM(src.size, d_offs.length);*/
 
-  if((n = MIN_NUM(offset_size(&d_offs, block_length(&dst)), offset_size(&s_offs, block_length(&src)))))
-    memcpy(offset_data(&d_offs, block_data(&dst)), offset_data(&s_offs, block_data(&src)), n);
+  if((n = MIN_NUM(offset_size(d_offs, block_length(&dst)), offset_size(s_offs, block_length(&src)))))
+    memcpy(offset_data(d_offs, block_data(&dst)), offset_data(s_offs, block_data(&src)), n);
 
   return JS_NewInt64(ctx, n);
 }
@@ -892,8 +886,8 @@ js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   ++i;
   i += js_offset_length(ctx, s2.size, argc - i, argv + i, &o2);
 
-  if((n = MIN_NUM(offset_size(&o1, block_length(&s1)), offset_size(&o2, block_length(&s2)))))
-    return JS_NewInt32(ctx, memcmp(offset_data(&o1, block_data(&s1)), offset_data(&o2, block_data(&s2)), n));
+  if((n = MIN_NUM(offset_size(o1, block_length(&s1)), offset_size(o2, block_length(&s2)))))
+    return JS_NewInt32(ctx, memcmp(offset_data(o1, block_data(&s1)), offset_data(o2, block_data(&s2)), n));
 
   return JS_NULL;
 }
@@ -3625,7 +3619,7 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("toPointer", 1, js_misc_topointer),
     JS_CFUNC_DEF("toArrayBuffer", 1, js_misc_toarraybuffer),
     JS_CFUNC_DEF("dupArrayBuffer", 1, js_misc_duparraybuffer),
-    JS_CFUNC_DEF("sliceArrayBuffer", 1, js_misc_slice),
+    JS_CFUNC_DEF("sliceArrayBuffer", 1, js_misc_slicearraybuffer),
     // JS_CFUNC_DEF("resizeArrayBuffer", 1, js_misc_resizearraybuffer),
     JS_CFUNC_DEF("concat", 1, js_misc_concat),
     JS_CFUNC_DEF("searchArrayBuffer", 2, js_misc_searcharraybuffer),

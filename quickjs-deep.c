@@ -271,7 +271,8 @@ js_deep_iterator_finalizer(JSRuntime* rt, JSValue val) {
     property_recursion_free(&it->frames, rt);
     JS_FreeValueRT(rt, it->root);
     JS_FreeValueRT(rt, it->pred);
-    pointer_free(&it->ptr, rt);
+
+    pointer_reset(&it->ptr, rt);
   }
 }
 

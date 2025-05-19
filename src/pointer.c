@@ -49,8 +49,8 @@ int
 pointer_compare(Pointer const* a, Pointer const* b, int32_t aoffs, int32_t boffs, uint32_t len) {
   uint32_t alen = a->n, blen = b->n;
 
-  aoffs = RANGE_NUM(WRAP_NUM(aoffs, alen), 0, alen);
-  boffs = RANGE_NUM(WRAP_NUM(boffs, blen), 0, blen);
+  aoffs = CLAMP_NUM(WRAP_NUM(aoffs, alen), 0, alen);
+  boffs = CLAMP_NUM(WRAP_NUM(boffs, blen), 0, blen);
 
   alen -= aoffs;
   blen -= boffs;

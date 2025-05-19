@@ -133,6 +133,7 @@ size_t path_dirlen2(const char*, size_t);
 size_t path_dirlen1(const char*);
 char* path_dirname1(const char*);
 char* path_dirname2(const char*, size_t);
+size_t path_basename1(const char*);
 size_t path_basename2(const char*, size_t);
 size_t path_basename3(const char*, size_t*, size_t);
 int path_readlink2(const char* path, DynBuf* dir);

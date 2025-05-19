@@ -98,11 +98,14 @@
 #ifndef ABS_NUM
 #define ABS_NUM(n) ((n) < 0 ? -(n) : (n))
 #endif
-#ifndef RANGE_NUM
-#define RANGE_NUM(a, min, max) MAX_NUM(MIN_NUM(a, max), min)
+#ifndef CLAMP_NUM
+#define CLAMP_NUM(a, min, max) MAX_NUM(MIN_NUM(a, max), min)
 #endif
 #ifndef MOD_NUM
 #define MOD_NUM(n, divisor) ((((n) % (divisor)) + (divisor)) % (divisor))
+#endif
+#ifndef WRAP_NUM
+#define WRAP_NUM(n, len) ((n) < 0 ? (n) + (len) : (n))
 #endif
 #ifndef SIGN_NUM
 #define SIGN_NUM(n) ((n) < 0)

@@ -440,6 +440,10 @@ JSValueConst js_value_mkptr(int tag, void* ptr);
 JSValueConst js_value_mkval(int tag, intptr_t val);
 JSValueConst js_value_mkobj(JSObject*);
 JSObject*    js_value_obj(JSValueConst v);
+
+static inline JSObject*    js_value_obj2(JSContext*ctx, JSValueConst v) {
+  return js_value_obj(JS_DupValue(ctx, v));
+}
 /* clang-format on */
 
 BOOL js_value_has_ref_count(JSValueConst v);

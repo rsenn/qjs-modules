@@ -1308,6 +1308,11 @@ path_dirname2(const char* path, size_t n) {
 }
 
 size_t
+path_basename1(const char* path) {
+  return path_right1(path);
+}
+
+size_t
 path_basename2(const char* path, size_t n) {
   return path_right2(path, n);
 }

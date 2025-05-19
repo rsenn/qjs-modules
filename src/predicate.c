@@ -329,7 +329,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_SLICE: {
       JSValue arg = js_arguments_at(args, 0);
       InputBuffer buf = js_input_chars(ctx, arg);
-      MemoryBlock block = block_slice(input_buffer_block(&buf), pr->slice.index_range);
+      MemoryBlock block = indexrange_block(pr->slice.index_range, input_buffer_block(&buf));
 
       if(JS_IsString(arg))
         ret = JS_NewStringLen(ctx, (const char*)block.base, block.size);

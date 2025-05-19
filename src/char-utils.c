@@ -1,5 +1,10 @@
+#define _GNU_SOURCE
+#include <string.h>
+
 #include "char-utils.h"
+#include "buffer-utils.h"
 #include "libutf/include/libutf.h"
+
 #if defined(_WIN32) || defined(__CYGWIN__) || defined(__MSYS__)
 #include <winnls.h>
 #include <windows.h>
@@ -11,12 +16,133 @@
  * @{
  */
 size_t
+ansi_length(const char* str, size_t len) {
+  size_t i, n = 0, p;
+
+  for(i = 0; i < len;) {
+    if(str[i] == 0x1b && (p = ansi_skip(&str[i], len - i)) > 0) {
+      i += p;
+      continue;
+    }
+
+    n++;
+    i++;
+  }
+
+  return n;
+}
+
+size_t
+ansi_skip(const char* str, size_t len) {
+  size_t pos = 0;
+
+  if(str[pos] == 0x1b) {
+    if(++pos < len && str[pos] == '[') {
+      while(++pos < len)
+        if(is_alphanumeric_char(str[pos]))
+          break;
+
+      if(++pos < len && str[pos] == '~')
+        ++pos;
+
+      return pos;
+    }
+  }
+
+  return 0;
+}
+
+size_t
+ansi_truncate(const char* str, size_t len, size_t limit) {
+  size_t i, n = 0, p;
+
+  for(i = 0; i < len;) {
+    if((p = ansi_skip(&str[i], len - i)) > 0) {
+      i += p;
+      continue;
+    }
+
+    n += is_escape_char(str[i]) ? 2 : 1;
+
+    i++;
+
+    if(n > limit)
+      break;
+  }
+
+  return i;
+}
+
+char*
+str_escape(const char* s) {
+  DynBuf dbuf;
+
+  dbuf_init2(&dbuf, 0, 0);
+  dbuf_put_escaped(&dbuf, s, strlen(s));
+  dbuf_0(&dbuf);
+
+  return (char*)dbuf.buf;
+}
+
+char*
+byte_escape(const void* s, size_t n) {
+  DynBuf dbuf;
+
+  dbuf_init2(&dbuf, 0, 0);
+  dbuf_put_escaped(&dbuf, s, n);
+  dbuf_0(&dbuf);
+
+  return (char*)dbuf.buf;
+}
+
+size_t
+byte_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
+  const char* b;
+
+  if((b = memmem(haystack, hlen, what, wlen)))
+    return b - (const char*)haystack;
+
+  return hlen;
+}
+
+size_t
+byte_finds(const void* haystack, size_t hlen, const char* what) {
+  return byte_findb(haystack, hlen, what, strlen(what));
+}
+
+size_t
+byte_equal(const void* s, size_t n, const void* t) {
+  return memcmp(s, t, n) == 0;
+}
+
+void
+byte_copy(void* out, size_t len, const void* in) {
+  memcpy(out, in, len);
+}
+
+void
+byte_copyr(void* out, size_t len, const void* in) {
+  memmove(out, in, len);
+}
+
+size_t
+byte_rchrs(const char* in, size_t len, const char needles[], size_t nn) {
+  const char* s = (const char*)in + len;
+
+  while(--s >= (const char*)in)
+    for(size_t i = 0; i < nn; ++i)
+      if(*s == needles[i])
+        return s - (const char*)in;
+
+  return len;
+}
+
+size_t
 token_length(const char* str, size_t len, char delim) {
   const char *s, *e;
-  size_t pos;
 
-  for(s = str, e = s + len; s < e; s += pos + 1) {
-    pos = byte_chr(s, e - s, delim);
+  for(s = str, e = s + len; s < e; s++) {
+    size_t pos = byte_chr(s, e - s, delim);
 
     if(s + pos == e)
       break;
@@ -25,6 +151,8 @@ token_length(const char* str, size_t len, char delim) {
       s += pos;
       break;
     }
+
+    s +=  pos;
   }
 
   return s - str;
@@ -49,6 +177,7 @@ fmt_longlong(char* dest, int64_t i) {
   if(i < 0) {
     if(dest)
       *dest++ = '-';
+
     return fmt_ulonglong(dest, (uint64_t)-i) + 1;
   }
 
@@ -342,6 +471,7 @@ scan_lineskip_escaped(const char* s, size_t limit) {
       ++t;
       continue;
     }
+
     if(*t == '\n') {
       ++t;
       break;
@@ -365,10 +495,10 @@ scan_eolskip(const char* s, size_t limit) {
 
 size_t
 utf8_strlen(const void* in, size_t len) {
-  const uint8_t *pos, *end, *next;
+  uint8_t* next;
   size_t i = 0;
 
-  for(pos = (const uint8_t*)in, end = pos + len; pos < end; pos = next, ++i)
+  for(uint8_t *pos = (void*)in, *end = (void*)in + len; pos < end; pos = next, ++i)
     unicode_from_utf8(pos, end - pos, &next);
 
   return i;
@@ -423,9 +553,7 @@ case_lowerc(int c) {
 
 int
 case_starts(const char* a, const char* b) {
-  const char *s, *t;
-
-  for(s = a, t = b;; ++s, ++t) {
+  for(const char *s = a, *t = b;; ++s, ++t) {
     unsigned char x, y;
 
     if(!*t)
@@ -447,9 +575,8 @@ case_starts(const char* a, const char* b) {
 int
 case_diffb(const void* S, size_t len, const void* T) {
   unsigned char x, y;
-  const char *s, *t;
 
-  for(s = (const char*)S, t = (const char*)T; len > 0;) {
+  for(const char *s = (const char*)S, *t = (const char*)T; len > 0;) {
     --len;
     x = case_lowerc(*s);
     y = case_lowerc(*t);
@@ -466,15 +593,14 @@ case_diffb(const void* S, size_t len, const void* T) {
 
 size_t
 case_findb(const void* haystack, size_t hlen, const void* what, size_t wlen) {
-  size_t i, last;
   const char* s = haystack;
 
   if(hlen < wlen)
     return hlen;
 
-  last = hlen - wlen;
+  size_t last = hlen - wlen;
 
-  for(i = 0; i <= last; i++, s++)
+  for(size_t i = 0; i <= last; i++, s++)
     if(!case_diffb(s, wlen, what))
       return i;
 
@@ -530,6 +656,7 @@ u64toa(char* x, uint64_t num, int base) {
 
     if(c >= 10)
       c += 'a' - '0' - 10;
+
     *x-- = c + '0';
   } while(num != 0);
 
@@ -538,33 +665,25 @@ u64toa(char* x, uint64_t num, int base) {
 
 size_t
 i64toa(char* x, int64_t num, int base) {
-  size_t pos = 0, len;
+  size_t pos = 0;
 
   if(num < 0) {
     x[pos++] = '-';
     num = -num;
   }
 
-  len = u64toa(&x[pos], num, base);
-
-  return pos + len;
+  return pos + u64toa(&x[pos], num, base);
 }
 
 size_t
 str_findb(const char* s1, const char* x, size_t n) {
-  const char* b;
-  size_t i, j, len = strlen(s1);
+  size_t len = strlen(s1);
 
-  if(len >= n) {
-    size_t end = len - n + 1;
+  if(len >= n && !memchr(x, 0, n)) {
+    const char* b;
 
-    for(i = 0; i < end; i++) {
-      b = &s1[i];
-
-      for(j = 0; x[j] == b[j];)
-        if(++j == n)
-          return i;
-    }
+    if((b = memmem(s1, len, x, n)))
+      return b - s1;
   }
 
   return len;
@@ -572,7 +691,12 @@ str_findb(const char* s1, const char* x, size_t n) {
 
 size_t
 str_find(const void* s, const void* what) {
-  return str_findb(s, what, strlen(what));
+  const char* b;
+
+  if((b = strstr(s, what)))
+    return b - (const char*)s;
+
+  return strlen(s);
 }
 
 /**

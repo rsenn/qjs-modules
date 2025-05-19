@@ -1814,10 +1814,10 @@ main(int argc, char** argv) {
   // replObj = JS_UNDEFINED;
 
   {
-    size_t n = str_rchrs(argv[0], "/\\", 2);
-
-    exename = strdup(argv[0] + n + 1);
+    exename = strdup(argv[0] + path_basename1(argv[0]));
     exelen = strlen(exename);
+
+    // printf("n = %zu, exename = %s, exelen = %d\n", n, exename, (int)exelen);
 
     /* load jscalc runtime if invoked as 'qjscalc' */
 #ifdef HAVE_QJSCALC
