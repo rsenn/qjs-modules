@@ -152,7 +152,7 @@ token_length(const char* str, size_t len, char delim) {
       break;
     }
 
-    s +=  pos;
+    s += pos;
   }
 
   return s - str;
