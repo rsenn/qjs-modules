@@ -1585,9 +1585,12 @@ js_misc_btoa(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   size_t enclen = b64_get_encoded_buffer_size(input.size);
   uint8_t* encbuf = js_malloc(ctx, enclen);
 
-  b64_encode(input.data, input.size, encbuf);
+  if(argc > 1 && JS_ToBool(ctx, argv[1]))
+    b64url_encode(input.data, input.size, encbuf);
+  else
+    b64_encode(input.data, input.size, encbuf);
 
-  ret = JS_NewStringLen(ctx, (const char*)encbuf, enclen);
+  ret = JS_NewStringLen(ctx, (const char*)encbuf, byte_chr(encbuf, enclen, '\0'));
   js_free(ctx, encbuf);
   return ret;
 }
@@ -1596,17 +1599,17 @@ static JSValue
 js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret;
   InputBuffer input = js_input_chars(ctx, argv[0]);
-  size_t declen = b64_get_decoded_buffer_size(input.size);
+  size_t outlen, declen = b64_get_decoded_buffer_size(input.size);
   uint8_t* decbuf = js_malloc(ctx, declen);
   BOOL output_string = magic > 0;
 
   if(argc > 1 && JS_ToBool(ctx, argv[1]))
-    output_string = TRUE;
+    outlen = b64url_decode(input.data, input.size, decbuf);
+  else
+    outlen = b64_decode(input.data, input.size, decbuf);
 
-  b64_decode(input.data, input.size, decbuf);
-
-  ret = output_string ? JS_NewStringLen(ctx, (const char*)decbuf, declen)
-                      : JS_NewArrayBufferCopy(ctx, (const uint8_t*)decbuf, declen);
+  ret = output_string ? JS_NewStringLen(ctx, (const char*)decbuf, outlen)
+                      : JS_NewArrayBufferCopy(ctx, (const uint8_t*)decbuf, outlen);
 
   js_free(ctx, decbuf);
   return ret;

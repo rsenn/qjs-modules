@@ -892,8 +892,8 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     size_t offset = byte_chr(name, length, ',');
 
     if(name[offset]) {
-      BOOL is_js = name[str_find(name, "/javascript")] || name[str_find(name, "/ecmascript")];
-      BOOL is_json = !is_js && name[str_find(name, "/json")];
+      BOOL is_js = byte_finds(name, offset, "/javascript") < offset || byte_finds(name, offset, "/ecmascript") < offset;
+      BOOL is_json = !is_js && byte_finds(name, offset, "/json") < offset;
       DynBuf code = DBUF_INIT_CTX(ctx);
       JSValue module;
       size_t encoding_offset = byte_rchr(name, offset, ';');
