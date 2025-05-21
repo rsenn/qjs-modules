@@ -282,7 +282,6 @@ child_process_spawn(ChildProcess* cp) {
   return cp->pid = pid;
 }
 
-
 void
 child_process_status(ChildProcess* cp, int status) {
   cp->signaled = WIFSIGNALED(status);
@@ -347,7 +346,6 @@ child_process_wait(ChildProcess* cp, int flags) {
 #endif
 }
 
-  
 int
 child_process_kill(ChildProcess* cp, int signum) {
 #ifdef _WIN32

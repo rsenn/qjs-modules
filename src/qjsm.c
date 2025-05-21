@@ -964,7 +964,7 @@ restart:
     // exit(1);
   }
 
-  if(!name[str_chrs(name, PATHSEP_S "/", 2)]) {
+  if(!name[path_skip1(name)]) {
     BuiltinModule* rec;
 
     if((rec = jsm_builtin_find(name))) {
@@ -1672,30 +1672,35 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(!JS_IsFunction(ctx, argv[0])) {
         val = JS_ThrowTypeError(ctx, "argument 1 must be a function");
       } else {
-        ModuleLoaderContext *lc, **lptr = &module_loaders;
-        JSObject* func_obj = JS_VALUE_GET_PTR(argv[0]);
-        uint32_t i = 0;
-
+        uint32_t i;
         val = JS_NewArray(ctx);
 
-        for(; (lc = *lptr); ++i) {
-          JSObject* obj = JS_VALUE_GET_PTR(lc->func);
+        while(argc) {
+          ModuleLoaderContext *lc, **lptr = &module_loaders;
+          JSObject* func_obj = js_value_obj(argv[0]);
 
-          if(obj == func_obj) {
-            JS_FreeValue(ctx, (*lptr)->func);
-            js_free(ctx, *lptr);
-            *lptr = (*lptr)->next;
-            continue;
+          for(i = 0; (lc = *lptr); ++i) {
+            JSObject* obj = js_value_obj(lc->func);
+
+            if(obj == func_obj) {
+              JS_FreeValue(ctx, (*lptr)->func);
+              js_free(ctx, *lptr);
+              *lptr = (*lptr)->next;
+              continue;
+            }
+
+            JS_SetPropertyUint32(ctx, val, i, JS_DupValue(ctx, (*lptr)->func));
+
+            lptr = &(*lptr)->next;
           }
 
-          JS_SetPropertyUint32(ctx, val, i, JS_DupValue(ctx, (*lptr)->func));
+          lc = *lptr = js_mallocz(ctx, sizeof(ModuleLoaderContext));
+          lc->func = JS_DupValue(ctx, argv[0]);
+          JS_SetPropertyUint32(ctx, val, i++, JS_DupValue(ctx, lc->func));
 
-          lptr = &(*lptr)->next;
+          --argc;
+          ++argv;
         }
-
-        *lptr = js_mallocz(ctx, sizeof(ModuleLoaderContext));
-        (*lptr)->func = JS_DupValue(ctx, argv[0]);
-        JS_SetPropertyUint32(ctx, val, i++, JS_DupValue(ctx, (*lptr)->func));
       }
 
       break;
