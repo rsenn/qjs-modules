@@ -28,7 +28,7 @@ blob_init(JSContext* ctx, Blob* blob, const void* x, size_t len, const char* typ
   // blob->vec = VECTOR(ctx);
   blob->type = type ? js_strdup(ctx, type) : 0;
 
-  js_dbuf_allocator(ctx, &blob->vec.dbuf);
+  vector_init(ctx, &blob->vec);
 
   if(x && len)
     blob_write(ctx, blob, x, len);
@@ -48,7 +48,7 @@ blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
 
 ssize_t
 blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
-  if(dbuf_put(&blob->vec.dbuf, x, len))
+  if(dbuf_put(&blob->vec, x, len))
     return -1;
 
   return len;
@@ -56,8 +56,7 @@ blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
 
 void
 blob_free(JSRuntime* rt, Blob* blob) {
-  if(blob->vec.data)
-    dbuf_free(&blob->vec.dbuf);
+  vector_free(&blob->vec);
 
   js_free_rt(rt, blob);
 }

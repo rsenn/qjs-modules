@@ -122,7 +122,7 @@ property_enumeration_next(PropertyEnumeration* it) {
 
 static inline int32_t
 property_enumeration_level(const PropertyEnumeration* it, const Vector* vec) {
-  return it - (const PropertyEnumeration*)vec->data;
+  return it - (const PropertyEnumeration*)vector_begin(vec);
 }
 
 static inline PropertyEnumeration*
@@ -206,26 +206,31 @@ property_recursion_pop(Vector* vec, JSContext* ctx) {
 
 static inline int
 property_recursion_next(Vector* vec, JSContext* ctx) {
-  JSValue value = property_recursion_value(vec, ctx);
-  BOOL recurse = JS_VALUE_GET_TAG(value) == JS_TAG_OBJECT && !property_recursion_circular(vec, value);
+  PropertyEnumeration* it;
 
-  JS_FreeValue(ctx, value);
+  if((it = property_recursion_top(vec))) {
+    JSValue value = property_recursion_value(vec, ctx);
+    BOOL recurse = JS_VALUE_GET_TAG(value) == JS_TAG_OBJECT && !property_recursion_circular(vec, value);
 
-  if(!(recurse && property_recursion_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS))) {
-    PropertyEnumeration* it = property_recursion_top(vec);
-    int i = 0;
+    JS_FreeValue(ctx, value);
 
-    while(!(it = property_enumeration_next(it))) {
-      --i;
+    if(!(recurse && property_recursion_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS))) {
+      int i = 0;
 
-      if(!(it = property_recursion_pop(vec, ctx)))
-        break;
+      while(!(it = property_enumeration_next(it))) {
+        --i;
+
+        if(!(it = property_recursion_pop(vec, ctx)))
+          break;
+      }
+
+      return it ? i : 0;
     }
 
-    return i;
+    return 1;
   }
 
-  return 1;
+  return 0;
 }
 
 typedef struct Pointer Pointer;

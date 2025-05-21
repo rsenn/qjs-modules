@@ -19,7 +19,7 @@
  */
 #define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
 
-typedef union Vector {
+/*typedef union Vector {
   DynBuf dbuf;
   struct {
     char* data;
@@ -29,26 +29,26 @@ typedef union Vector {
     DynBufReallocFunc* realloc_func;
     void* opaque;
   };
-} Vector;
+} Vector;*/
+
+typedef DynBuf Vector;
 
 #define VECTOR_INIT() \
-  { \
-    { 0, 0, 0, 0, &vector_realloc, 0 } \
-  }
-
-#define vector_init(vec, ctx) dbuf_init2(&((vec)->dbuf), (ctx), (DynBufReallocFunc*)&vector_js_realloc)
-#define vector_init_rt(vec, rt) dbuf_init2(&((vec)->dbuf), (rt), (DynBufReallocFunc*)&vector_js_realloc_rt)
+    { 0, 0, 0, 0, &vector_realloc, 0 }
+  
+#define vector_init(vec, ctx) dbuf_init2((vec), (ctx), (DynBufReallocFunc*)&vector_js_realloc)
+#define vector_init_rt(vec, rt) dbuf_init2((vec), (rt), (DynBufReallocFunc*)&vector_js_realloc_rt)
 #define VECTOR(ctx) \
   (Vector) { \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc, ctx } \
+    0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc, ctx \
   }
 #define VECTOR_RT(rt) \
   (Vector) { \
-    { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc_rt, rt } \
+    0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc_rt, rt \
   }
 
-#define vector_begin(vec) ((void*)((vec)->data))
-#define vector_end(vec) ((void*)((vec)->data + (vec)->size))
+#define vector_begin(vec) ((void*)((vec)->buf))
+#define vector_end(vec) ((void*)((vec)->buf + (vec)->size))
 
 #define vector_begin_t(vec, t) ((t*)vector_begin(vec))
 #define vector_end_t(vec, t) ((t*)vector_end(vec))
@@ -113,24 +113,24 @@ vector_allocate(Vector* vec, size_t elsz, int32_t pos) {
     return 0;
 
   if(need > vec->size) {
-    size_t capacity = vec->capacity;
+    size_t capacity = vec->allocated_size;
 
     if(need > capacity) {
       roundto(need, elsz < 8 ? 1000 : 8000);
 
       assert(need >= 1000);
 
-      if(dbuf_realloc(&vec->dbuf, need))
+      if(dbuf_realloc(vec, need))
         return 0;
 
-      if(vec->capacity > capacity)
-        memset(vec->data + capacity, 0, vec->capacity - capacity);
+      if(vec->allocated_size > capacity)
+        memset(vec->buf + capacity, 0, vec->allocated_size - capacity);
     }
 
     vec->size = ((uint32_t)pos + 1) * elsz;
   }
 
-  return vec->data + (uint32_t)pos * elsz;
+  return vec->buf + (uint32_t)pos * elsz;
 }
 
 static inline BOOL
@@ -204,7 +204,7 @@ vector_at(const Vector* vec, size_t elsz, int32_t pos) {
   if(offs >= vec->size)
     return 0;
 
-  return vec->data + offs;
+  return vec->buf + offs;
 }
 
 static inline uint32_t
@@ -220,7 +220,7 @@ vector_empty(const Vector* vec) {
 static inline void*
 vector_front(const Vector* vec, size_t elsz) {
   assert(vec->size >= elsz);
-  return vec->data;
+  return vec->buf;
 }
 
 static inline void*

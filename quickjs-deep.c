@@ -53,6 +53,15 @@ typedef struct DeepIterator {
 
 static const uint32_t js_deep_defaultflags = 0;
 
+static BOOL
+atom_skip(Vector* vec, JSAtom atom) {
+  if(!vector_empty(vec))
+    if(vector_find(vec, sizeof(JSAtom), &atom) == -1)
+      return TRUE;
+
+  return FALSE;
+}
+
 static uint32_t
 iterable_to_atoms(JSContext* ctx, JSValueConst arg, Vector* atoms) {
   JSValue iter = js_iterator_new(ctx, arg);
@@ -120,7 +129,9 @@ js_deep_predicate(JSContext* ctx, JSValueConst fn, JSValueConst value, const Vec
     ret = JS_FALSE;
   }
 
-  int32_t result = JS_IsNumber(ret) ? js_value_toint32_free(ctx, ret) : js_value_tobool_free(ctx, ret);
+  int32_t result = JS_IsNumber(ret)                 ? js_value_toint32_free(ctx, ret)
+                   : js_value_tobool_free(ctx, ret) ? YIELD_AND_RECURSE
+                                                    : RECURSE;
 
   /*if(result != 0)
     printf("js_deep_predicate ret=%s result=%" PRId32 "\n", JS_ToCString(ctx, ret), result);*/
@@ -219,15 +230,20 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(i < argc) {
     root = argv[i++];
 
-    if(i < argc && JS_IsFunction(ctx, argv[i]))
-      pred = argv[i++];
+    if(i < argc) {
+      if(!JS_IsNumber(argv[i])) {
+        if(JS_IsFunction(ctx, argv[i]))
+          pred = argv[i];
+        ++i;
+      }
+    }
 
     if(i < argc) {
       if(!JS_ToUint32(ctx, &flags, argv[i]))
         ++i;
 
       if(i < argc) {
-        if(!JS_ToUint32(ctx, &mask, argv[i++]))
+        if(!JS_ToUint32(ctx, &mask, argv[i]))
           ++i;
 
         if(i < argc) {
@@ -282,25 +298,31 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       continue;
 
     JSAtom atom = property_enumeration_atom(penum);
+    ValueType obj_type = js_value_type(ctx, penum->obj);
 
-    if(!vector_empty(&iter->atoms) && vector_find(&iter->atoms, sizeof(JSAtom), &atom) == -1)
-      continue;
+    if(!(obj_type & TYPE_ARRAY))
+      if(atom_skip(&iter->atoms, atom))
+        continue;
 
     JSValue value = property_recursion_value(&iter->frames, ctx);
     ValueType type = js_value_type(ctx, value);
+    ValueTypeFlag flag = js_value_type2flag(type);
 
-    if(iter->flags & PATH_AS_POINTER)
-      property_recursion_pointer(&iter->frames, &iter->ptr, ctx);
-
-    if(type & iter->mask)
-      iter->status = js_deep_predicate(ctx, iter->pred, value, &iter->frames);
-    else
+    if((1 << flag) & iter->mask) {
+      if(js_is_null_or_undefined(iter->pred))
+        iter->status = YIELD_AND_RECURSE;
+      else
+        iter->status = js_deep_predicate(ctx, iter->pred, value, &iter->frames);
+    } else
       iter->status = 0;
 
     JS_FreeValue(ctx, value);
 
     if(!(iter->status & YIELD_MASK))
       continue;
+
+    if(iter->flags & PATH_AS_POINTER)
+      property_recursion_pointer(&iter->frames, &iter->ptr, ctx);
 
     ret = js_deep_return(ctx, &iter->frames, iter->flags & ~MAXDEPTH_MASK, iter);
     *pdone = FALSE;
@@ -318,7 +340,6 @@ js_deep_iterator_finalizer(JSRuntime* rt, JSValue val) {
     property_recursion_free(&it->frames, rt);
     JS_FreeValueRT(rt, it->root);
     JS_FreeValueRT(rt, it->pred);
-
     pointer_reset(&it->ptr, rt);
   }
 }
@@ -335,6 +356,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   uint32_t flags = js_deep_defaultflags, max_depth = MAXDEPTH_MASK, mask = TYPE_ALL;
   PropertyEnumeration* it;
   Vector frames;
+  Vector atoms = VECTOR(ctx);
 
   if(argc > 2) {
     JS_ToUint32(ctx, &flags, argv[2]);
@@ -345,11 +367,14 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   if(argc > 3)
     JS_ToUint32(ctx, &mask, argv[3]);
 
-  if(!predicate_callable(ctx, argv[1]))
-    return JS_ThrowTypeError(ctx, "argument 2 (predicate) is not a function");
+  if(argc > 4)
+    iterable_to_atoms(ctx, argv[4], &atoms);
 
   if(!JS_IsObject(argv[0]))
     return JS_ThrowTypeError(ctx, "argument 1 (root) is not an object");
+
+  if(!predicate_callable(ctx, argv[1]))
+    return JS_ThrowTypeError(ctx, "argument 2 (predicate) is not a function");
 
   vector_init(&frames, ctx);
 
@@ -357,13 +382,22 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     do {
       int r;
 
+      JSAtom atom = property_enumeration_atom(it);
+      ValueType obj_type = js_value_type(ctx, it->obj);
+
+      if(!(obj_type & TYPE_ARRAY))
+        if(atom_skip(&atoms, atom))
+          continue;
+
       JSValue value = property_recursion_value(&frames, ctx);
       ValueType type = js_value_type(ctx, value);
+      ValueTypeFlag flag = js_value_type2flag(type);
 
-      if(type & mask)
+      if((1 << flag) & mask)
         r = js_deep_predicate(ctx, argv[1], value, &frames);
       else
         r = 0;
+
       JS_FreeValue(ctx, value);
 
       if((r & YIELD_MASK)) {
@@ -379,6 +413,11 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     } while((it = property_recursion_top(&frames)));
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
+
+  JSAtom* p;
+  vector_foreach_t(&atoms, p) { JS_FreeAtom(ctx, *p); }
+  vector_free(&atoms);
+
   return ret;
 }
 

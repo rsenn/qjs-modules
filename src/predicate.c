@@ -78,7 +78,7 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     case PREDICATE_CHARSET: {
       InputBuffer input = js_input_chars(ctx, js_arguments_at(args, 0));
 
-      if(pr->charset.chars.size == 0 && pr->charset.chars.data == 0) {
+      if(vector_empty(&pr->charset.chars) && !vector_begin(&pr->charset.chars)) {
         vector_init(&pr->charset.chars, ctx);
         utf8_to_unicode(pr->charset.set, pr->charset.len, &pr->charset.chars);
       }

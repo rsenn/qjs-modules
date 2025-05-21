@@ -50,11 +50,11 @@ umult64(uint64_t a, uint64_t b, uint64_t* c) {
 
 void
 vector_free(Vector* vec) {
-  if(vec->data)
-    vec->realloc_func(vec->opaque, vec->data, 0);
+  if(vec->buf)
+    vec->realloc_func(vec->opaque, vec->buf, 0);
 
-  vec->data = 0;
-  vec->capacity = vec->size = 0;
+  vec->buf = 0;
+  vec->allocated_size = vec->size = 0;
 }
 
 int32_t
@@ -126,9 +126,9 @@ vector_put(Vector* vec, const void* bytes, size_t len) {
   if(!vector_allocate(vec, 1, vec->size + len - 1))
     return 0;
 
-  memcpy(vec->data + pos, bytes, len);
+  memcpy(vec->buf + pos, bytes, len);
 
-  return vec->data + pos;
+  return vec->buf + pos;
 }
 
 void __attribute__((format(printf, 2, 3))) vector_printf(Vector* vec, const char* fmt, ...) {
@@ -149,7 +149,7 @@ void __attribute__((format(printf, 2, 3))) vector_printf(Vector* vec, const char
       return;
 
     va_start(ap, fmt);
-    len = vsnprintf((char*)(vec->data + pos), len, fmt, ap);
+    len = vsnprintf((char*)(vec->buf + pos), len, fmt, ap);
     va_end(ap);
 
     vec->size += len;
@@ -200,11 +200,11 @@ int
 vector_copy(Vector* dst, const Vector* src) {
   dst->realloc_func = src->realloc_func;
   dst->opaque = src->opaque;
-  dst->data = 0;
-  dst->capacity = 0;
+  dst->buf = 0;
+  dst->allocated_size = 0;
 
-  if(!dbuf_realloc(&dst->dbuf, src->size)) {
-    memcpy(dst->data, src->data, src->size);
+  if(!dbuf_realloc(dst, src->size)) {
+    memcpy(dst->buf, src->buf, src->size);
     return 1;
   }
 
@@ -230,7 +230,7 @@ vector_fwrite(const Vector* vec, size_t start, FILE* out) {
 
 BOOL
 vector_resize(Vector* vec, size_t elsz, int32_t len) {
-  uint64_t n, a = vec->capacity;
+  uint64_t n, a = vec->allocated_size;
 
   if(len < 0)
     return FALSE;
@@ -246,11 +246,11 @@ vector_resize(Vector* vec, size_t elsz, int32_t len) {
     roundto(need, elsz < 8 ? 1000 : 8000);
     assert(need >= 1000);
 
-    vec->data = vec->realloc_func(vec->opaque, vec->data, need);
-    vec->capacity = need;
+    vec->buf = vec->realloc_func(vec->opaque, vec->buf, need);
+    vec->allocated_size = need;
 
-    if(vec->capacity > a)
-      memset(vec->data + a, 0, vec->capacity - a);
+    if(vec->allocated_size > a)
+      memset(vec->buf + a, 0, vec->allocated_size - a);
   }
 
   vec->size = n;
@@ -307,17 +307,17 @@ vector_dumpstrings(const Vector* vec, DynBuf* buf) {
 
 void*
 vector_ready(Vector* vec, size_t n) {
-  size_t a = vec->capacity;
+  size_t a = vec->allocated_size;
 
   if(n > a) {
-    if(dbuf_realloc(&vec->dbuf, n))
+    if(dbuf_realloc(vec, n))
       return 0;
 
-    if(vec->capacity > a)
-      memset(vec->data + a, 0, vec->capacity - a);
+    if(vec->allocated_size > a)
+      memset(vec->buf + a, 0, vec->allocated_size - a);
   }
 
-  return vec->data;
+  return vec->buf;
 }
 
 void*

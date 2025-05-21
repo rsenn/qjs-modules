@@ -129,7 +129,7 @@ child_process_environment(JSContext* ctx, JSValueConst object) {
 
   vector_emplace(&args, sizeof(char*));
 
-  return (char**)args.data;
+  return (char**)vector_begin(&args);
 }
 
 static char*
