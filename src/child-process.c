@@ -132,6 +132,7 @@ child_process_environment(JSContext* ctx, JSValueConst object) {
   return (char**)vector_begin(&args);
 }
 
+#ifdef _WIN32
 static char*
 argv_to_string(char* const* argv, char delim) {
   int i, len;
@@ -158,6 +159,7 @@ argv_to_string(char* const* argv, char delim) {
 
   return str;
 }
+#endif
 
 int
 child_process_spawn(ChildProcess* cp) {

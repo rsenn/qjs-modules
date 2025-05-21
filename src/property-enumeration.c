@@ -268,6 +268,18 @@ property_recursion_skip(Vector* vec, JSContext* ctx) {
   return i;
 }
 
+PropertyEnumeration*
+property_recursion_leave(Vector* vec, JSContext* ctx) {
+  PropertyEnumeration* it;
+
+  if((it = property_recursion_top(vec)))
+    while((it = property_recursion_pop(vec, ctx)))
+      if(property_enumeration_next(it))
+        break;
+
+  return it;
+}
+
 int
 property_recursion_insideof(Vector* vec, JSValueConst val) {
   PropertyEnumeration* it;

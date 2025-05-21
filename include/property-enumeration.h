@@ -156,6 +156,7 @@ BOOL property_recursion_circular(Vector*, JSValue object);
 PropertyEnumeration* property_recursion_push(Vector*, JSContext*, JSValueConst, int);
 PropertyEnumeration* property_recursion_enter(Vector*, JSContext*, int32_t, int);
 int property_recursion_skip(Vector*, JSContext*);
+PropertyEnumeration* property_recursion_leave(Vector*, JSContext*);
 
 static inline JSValue
 property_recursion_root(const Vector* vec) {

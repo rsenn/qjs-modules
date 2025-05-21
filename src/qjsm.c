@@ -416,8 +416,7 @@ jsm_init_modules(JSContext* ctx) {
 
   jsm_modules_initialized = TRUE;
 
-  vector_init(&jsm_builtin_modules, ctx);
-  //dbuf_init2(&jsm_builtin_modules, 0, &vector_realloc);
+  dbuf_init2(&jsm_builtin_modules, 0, &vector_realloc);
 
 #define jsm_builtin_native(name) vector_push(&jsm_builtin_modules, jsm_module_record_native(name));
 
