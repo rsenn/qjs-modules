@@ -336,7 +336,7 @@ child_process_wait(ChildProcess* cp, int flags) {
 
   return -1;*/
 #else
-  int pid, status;
+  int pid;
 
   if((pid = waitpid(cp->pid, &cp->status, flags)) != cp->pid)
     return pid;

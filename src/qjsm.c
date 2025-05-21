@@ -1101,7 +1101,7 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
 
   return file;
 }
-
+/*
 static void
 jsm_module_save(void) {
   char* home = path_gethome();
@@ -1152,7 +1152,7 @@ jsm_module_restore(void) {
   }
 
   dbuf_free(&db);
-}
+}*/
 
 /* also used to initialize the worker context */
 static JSContext*
@@ -1555,7 +1555,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case FIND_MODULE_INDEX: {
-      int32_t start = 0, index;
+      int32_t start = 0;
 
       if(argc > 1)
         JS_ToInt32(ctx, &start, argv[1]);
@@ -1791,7 +1791,7 @@ jsm_signal_handler(int arg) {
 
 int
 jsm_interrupt_handler(JSRuntime* rt, void* opaque) {
-  JSContext* ctx = opaque;
+  /*JSContext* ctx = opaque;*/
 
   return 0;
 }
