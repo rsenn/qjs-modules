@@ -47,10 +47,34 @@ typedef struct DeepIterator {
   DeepIteratorFlags flags;
   DeepIteratorStatus status;
   ValueType mask;
+  Vector atoms;
   uint32_t seq;
 } DeepIterator;
 
 static const uint32_t js_deep_defaultflags = 0;
+
+static uint32_t
+iterable_to_atoms(JSContext* ctx, JSValueConst arg, Vector* atoms) {
+  JSValue iter = js_iterator_new(ctx, arg);
+
+  for(;;) {
+    BOOL done = FALSE;
+    JSValue item = js_iterator_next(ctx, iter, &done);
+
+    if(done) {
+      JS_FreeValue(ctx, item);
+      break;
+    }
+
+    JSAtom atom = JS_ValueToAtom(ctx, item);
+    JS_FreeValue(ctx, item);
+
+    vector_push(atoms, atom);
+  }
+
+  JS_FreeValue(ctx, iter);
+  return vector_size(atoms, sizeof(JSAtom));
+}
 
 JSValue
 property_recursion_pointer_value(const Vector* vec, JSContext* ctx, void* opaque) {
@@ -136,8 +160,13 @@ js_deep_return(JSContext* ctx, Vector* frames, int32_t flags, void* opaque) {
 }
 
 static JSValue
-js_deep_iterator_new(
-    JSContext* ctx, JSValueConst proto, JSValueConst root, JSValueConst pred, uint32_t flags, ValueType mask) {
+js_deep_iterator_new(JSContext* ctx,
+                     JSValueConst proto,
+                     JSValueConst root,
+                     JSValueConst pred,
+                     uint32_t flags,
+                     ValueType mask,
+                     JSValueConst props) {
   JSValue obj = JS_UNDEFINED;
   DeepIterator* it;
 
@@ -146,7 +175,9 @@ js_deep_iterator_new(
 
   vector_init(&it->frames, ctx);
 
+  it->root = JS_UNDEFINED;
   it->pred = JS_UNDEFINED;
+  it->atoms = VECTOR(ctx);
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_deep_iterator_class_id);
   if(JS_IsException(obj))
@@ -154,11 +185,14 @@ js_deep_iterator_new(
 
   JS_SetOpaque(obj, it);
 
-  if(!JS_IsUndefined(root))
+  if(!js_is_null_or_undefined(root))
     it->root = JS_DupValue(ctx, root);
 
-  if(!JS_IsUndefined(pred))
+  if(!js_is_null_or_undefined(pred))
     it->pred = JS_DupValue(ctx, pred);
+
+  if(!js_is_null_or_undefined(props))
+    iterable_to_atoms(ctx, props, &it->atoms);
 
   it->flags = flags;
   it->mask = mask;
@@ -172,7 +206,7 @@ fail:
 
 static JSValue
 js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj = JS_UNDEFINED, root = JS_UNDEFINED, pred = JS_UNDEFINED;
+  JSValue proto, obj = JS_UNDEFINED, root = JS_UNDEFINED, pred = JS_UNDEFINED, props = JS_UNDEFINED;
   uint32_t flags = js_deep_defaultflags, mask = TYPE_ALL;
 
   int i = 0;
@@ -182,20 +216,28 @@ js_deep_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   if(JS_IsException(proto))
     return JS_EXCEPTION;
 
-  if(i < argc)
+  if(i < argc) {
     root = argv[i++];
 
-  if(i < argc /*&& JS_IsFunction(ctx, argv[i])*/)
-    pred = argv[i++];
+    if(i < argc && JS_IsFunction(ctx, argv[i]))
+      pred = argv[i++];
 
-  if(i < argc) {
-    JS_ToUint32(ctx, &flags, argv[i++]);
+    if(i < argc) {
+      if(!JS_ToUint32(ctx, &flags, argv[i]))
+        ++i;
 
-    if(i < argc)
-      JS_ToUint32(ctx, &mask, argv[i++]);
+      if(i < argc) {
+        if(!JS_ToUint32(ctx, &mask, argv[i++]))
+          ++i;
+
+        if(i < argc) {
+          props = argv[i++];
+        }
+      }
+    }
   }
 
-  obj = js_deep_iterator_new(ctx, proto, root, pred, flags, mask);
+  obj = js_deep_iterator_new(ctx, proto, root, pred, flags, mask, props);
 
   JS_FreeValue(ctx, proto);
   return obj;
@@ -237,6 +279,11 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
     if(property_enumeration_length(penum) == 0)
+      continue;
+
+    JSAtom atom = property_enumeration_atom(penum);
+
+    if(!vector_empty(&iter->atoms) && vector_find(&iter->atoms, sizeof(JSAtom), &atom) == -1)
       continue;
 
     JSValue value = property_recursion_value(&iter->frames, ctx);
