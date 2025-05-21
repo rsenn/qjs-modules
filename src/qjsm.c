@@ -858,34 +858,31 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
   return s;
 }
 
+JSValue
+jsm_call_loaders(JSContext* ctx, ModuleLoaderContext* loader, JSValueConst arg) {
+  JSValue module = JS_DupValue(ctx, arg);
+
+  for(; loader; loader = loader->next) {
+    JSValue ret = JS_Call(ctx, loader->func, JS_UNDEFINED, 1, &module);
+
+    JS_FreeValue(ctx, module);
+    module = ret;
+
+    if(JS_IsException(ret)) {
+      fputs("Exception in module loader: ", stderr);
+      jsm_dump_error(ctx);
+      exit(1);
+    }
+  }
+
+  return module;
+}
+
 JSModuleDef*
 jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   char *s = 0, *name = js_strdup(ctx, module_name);
   JSModuleDef* m = 0;
-  ModuleLoaderContext *lc, **lptr = opaque;
-
-  if(*lptr) {
-    while((lc = *lptr)) {
-      JSValueConst ret, args[1] = {JS_NewString(ctx, name)};
-
-      ret = JS_Call(ctx, lc->func, JS_UNDEFINED, countof(args), args);
-
-      JS_FreeValue(ctx, args[0]);
-
-      if(JS_IsException(ret)) {
-        fputs("Exception in module loader: ", stderr);
-        jsm_dump_error(ctx);
-        exit(1);
-      }
-
-      if(JS_IsString(ret)) {
-        js_free(ctx, name);
-        name = js_tostring(ctx, ret);
-      }
-
-      lptr = &(*lptr)->next;
-    }
-  }
+  ModuleLoaderContext** lptr = opaque;
 
   if(str_start(name, "file://"))
     name += 7;
@@ -958,12 +955,6 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
     }
   }
 
-restart:
-  if(jsm_stack_find(name) != 0) {
-    printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n", name, jsm_stack_string());
-    // exit(1);
-  }
-
   if(!name[path_skip1(name)]) {
     BuiltinModule* rec;
 
@@ -975,6 +966,24 @@ restart:
 
       return jsm_builtin_init(ctx, rec);
     }
+  }
+
+  if(lptr) {
+    JSValue module = jsm_call_loaders(ctx, *lptr, JS_NewString(ctx, name));
+    if(JS_IsString(module)) {
+      js_free(ctx, name);
+      name = js_tostring(ctx, module);
+    } else if(JS_VALUE_GET_TAG(module) == JS_TAG_MODULE) {
+      return JS_VALUE_GET_PTR(module);
+    }
+
+    JS_FreeValue(ctx, module);
+  }
+
+restart:
+  if(jsm_stack_find(name) != 0) {
+    printf("\x1b[1;31mWARNING: circular module dependency '%s' from:\n%s\x1b[0m\n", name, jsm_stack_string());
+    // exit(1);
   }
 
   if(s == 0) {
@@ -1485,6 +1494,8 @@ enum {
   NORMALIZE_MODULE,
   RESOLVE_MODULE,
   GET_MODULE_NAME,
+  GET_MODULE_VALUE,
+  GET_MODULE_INDEX,
   GET_MODULE_OBJECT,
   GET_MODULE_EXPORTS,
   GET_MODULE_IMPORTS,
@@ -1510,6 +1521,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
                                    "normalizeModule",
                                    "resolveModule",
                                    "getModuleName",
+                                   "getModuleValue",
                                    "getModuleObject",
                                    "getModuleExports",
                                    "getModuleImports",
@@ -1547,7 +1559,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
     case FIND_MODULE: {
       if((m = jsm_module_find(ctx, name, 0)))
-        val = module_value(ctx, m);
+        val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
       else
         val = JS_NULL;
 
@@ -1628,6 +1640,16 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
 
+    case GET_MODULE_VALUE: {
+      val = JS_DupValue(ctx, JS_MKPTR(JS_TAG_MODULE, m));
+      break;
+    }
+
+    case GET_MODULE_INDEX: {
+      val = JS_NewInt32(ctx, js_module_indexof(ctx, m));
+      break;
+    }
+
     case GET_MODULE_OBJECT: {
       val = module_object(ctx, m);
       break;
@@ -1669,17 +1691,26 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case MODULE_LOADER: {
-      if(!JS_IsFunction(ctx, argv[0])) {
-        val = JS_ThrowTypeError(ctx, "argument 1 must be a function");
-      } else {
-        uint32_t i;
+      uint32_t i, arg;
+      ModuleLoaderContext *lc, **lptr;
+
+      if(!argc) {
         val = JS_NewArray(ctx);
 
-        while(argc) {
-          ModuleLoaderContext *lc, **lptr = &module_loaders;
-          JSObject* func_obj = js_value_obj(argv[0]);
+        for(i = 0, lc = module_loaders; lc; ++i, lc = lc->next)
+          JS_SetPropertyUint32(ctx, val, i, JS_DupValue(ctx, lc->func));
+      } else if(JS_IsFunction(ctx, argv[0])) {
+        for(arg = 0; arg < argc; arg++) {
+          if(!JS_IsFunction(ctx, argv[arg])) {
+            val = JS_ThrowTypeError(ctx, "argument %d must be be a function", arg);
+            break;
+          }
 
-          for(i = 0; (lc = *lptr); ++i) {
+          JSObject* func_obj = js_value_obj(argv[arg]);
+
+          val = JS_NewArray(ctx);
+
+          for(i = 0, lptr = &module_loaders; (lc = *lptr); ++i) {
             JSObject* obj = js_value_obj(lc->func);
 
             if(obj == func_obj) {
@@ -1695,12 +1726,23 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           }
 
           lc = *lptr = js_mallocz(ctx, sizeof(ModuleLoaderContext));
-          lc->func = JS_DupValue(ctx, argv[0]);
+          lc->func = JS_DupValue(ctx, argv[arg]);
           JS_SetPropertyUint32(ctx, val, i++, JS_DupValue(ctx, lc->func));
 
           --argc;
           ++argv;
         }
+      } else {
+        char* module = js_tostring(ctx, argv[0]);
+        BOOL chain = TRUE;
+
+        if(argc > 1)
+          chain = JS_ToBool(ctx, argv[1]);
+
+        JSModuleDef* m = jsm_module_loader(ctx, module, chain ? &module_loaders : 0);
+
+        val = m ? JS_NewInt32(ctx, js_module_indexof(ctx, m)) : JS_NULL;
+        // val = m ? JS_DupValue(ctx, JS_MKVAL(JS_TAG_MODULE, m)) : JS_NULL;
       }
 
       break;
@@ -1734,6 +1776,8 @@ static const JSCFunctionListEntry jsm_global_funcs[] = {
     JS_CFUNC_MAGIC_DEF("normalizeModule", 2, jsm_module_func, NORMALIZE_MODULE),
     JS_CFUNC_MAGIC_DEF("locateModule", 1, jsm_module_func, LOCATE_MODULE),
     JS_CFUNC_MAGIC_DEF("getModuleName", 1, jsm_module_func, GET_MODULE_NAME),
+    JS_CFUNC_MAGIC_DEF("getModuleValue", 1, jsm_module_func, GET_MODULE_VALUE),
+    JS_CFUNC_MAGIC_DEF("getModuleIndex", 1, jsm_module_func, GET_MODULE_INDEX),
     JS_CFUNC_MAGIC_DEF("getModuleObject", 1, jsm_module_func, GET_MODULE_OBJECT),
     JS_CFUNC_MAGIC_DEF("getModuleExports", 1, jsm_module_func, GET_MODULE_EXPORTS),
     JS_CFUNC_MAGIC_DEF("getModuleImports", 1, jsm_module_func, GET_MODULE_IMPORTS),

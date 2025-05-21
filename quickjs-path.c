@@ -24,7 +24,10 @@
 
 enum {
   PATH_BASENAME,
+  PATH_BASEPOS,
+  PATH_BASELEN,
   PATH_DIRNAME,
+  PATH_DIRLEN,
   PATH_EXISTS,
   PATH_EXTNAME,
   PATH_EXTPOS,
@@ -79,7 +82,9 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       return JS_ThrowTypeError(ctx, "argument 1 must be a string");
 
   switch(magic) {
-    case PATH_BASENAME: {
+    case PATH_BASENAME:
+    case PATH_BASEPOS:
+    case PATH_BASELEN: {
       size_t len;
 
       pos = path_basename3(a, &len, alen);
@@ -88,16 +93,23 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         if(!byte_diff(&a[alen - blen], blen, b))
           len -= blen;
 
-      ret = JS_NewStringLen(ctx, a + pos, len);
+      if(magic == PATH_BASENAME)
+        ret = JS_NewStringLen(ctx, a + pos, len);
+      else if(magic == PATH_BASEPOS)
+        ret = JS_NewUint32(ctx, utf8_strlen(a, pos));
+      else if(magic == PATH_BASELEN)
+        ret = JS_NewUint32(ctx, utf8_strlen(a + pos, len));
       break;
     }
 
-    case PATH_DIRNAME: {
-      if((pos = path_dirlen2(a, alen)) < alen)
-        ret = JS_NewStringLen(ctx, a, pos);
-      else
-        ret = JS_NewStringLen(ctx, ".", 1);
+    case PATH_DIRNAME:
+    case PATH_DIRLEN: {
+      pos = path_dirlen2(a, alen);
 
+      if(magic == PATH_DIRNAME)
+        ret = pos < alen ? JS_NewStringLen(ctx, a, pos) : JS_NewStringLen(ctx, ".", 1);
+      else if(magic == PATH_DIRLEN)
+        ret = pos < alen ? JS_NewUint32(ctx, utf8_strlen(a, pos)) : JS_NewInt32(ctx, -1);
       break;
     }
 
@@ -137,14 +149,12 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case PATH_EXTPOS: {
-      const char* extname = path_extname1(a);
-      ret = JS_NewUint32(ctx, utf8_strlen(a, extname - a));
+      ret = JS_NewUint32(ctx, utf8_strlen(a, path_extpos1(a)));
       break;
     }
 
     case PATH_EXTLEN: {
-      const char* extname = path_extname1(a);
-      ret = JS_NewUint32(ctx, utf8_strlen(extname, strlen(extname)));
+      ret = JS_NewUint32(ctx, utf8_strlen(path_extname1(a), path_extlen1(a)));
       break;
     }
 
@@ -233,7 +243,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
 
     case PATH_LENGTH: {
-      ret = JS_NewUint32(ctx, path_length2(a, alen));
+      ret = JS_NewUint32(ctx, utf8_strlen(a, path_length2(a, alen)));
       break;
     }
 
@@ -243,46 +253,44 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(argc > 1)
         JS_ToUint32(ctx, &n, argv[1]);
 
-      ret = JS_NewUint32(ctx, path_components3(a, alen, n));
+      ret = JS_NewUint32(ctx, utf8_strlen(a, path_components3(a, alen, n)));
       break;
     }
 
-    case PATH_RIGHT: {
-      ret = JS_NewUint32(ctx, path_right2(a, alen));
-      break;
-    }
-
-    case PATH_SKIP: {
-      uint64_t n = 0;
+    case PATH_RIGHT:
+    case PATH_SKIP:
+    case PATH_SKIP_SEPARATOR:
+    case PATH_IS_SEPARATOR: {
+      uint64_t n = alen;
 
       if(argc > 1) {
         if(JS_ToIndex(ctx, &n, argv[1]))
-          n = 0;
-        else if(n > alen)
           n = alen;
-      }
-
-      pos = n + path_skip2(a + n, alen - n);
-      ret = JS_NewInt64(ctx, pos == alen ? -1ll : (int64_t)pos);
-      break;
-    }
-
-    case PATH_SKIP_SEPARATOR:
-    case PATH_IS_SEPARATOR: {
-      uint64_t n = 0;
-
-      if(argc > 1) {
-        JS_ToIndex(ctx, &n, argv[1]);
-
         if(n > alen)
           n = alen;
-
-        a += n;
-        alen -= n;
       }
 
-      ret = magic == PATH_SKIP_SEPARATOR ? JS_NewUint32(ctx, n + path_separator2(a, alen))
-                                         : JS_NewBool(ctx, path_separator2(a, alen) == alen);
+      switch(magic) {
+        case PATH_RIGHT: {
+          ret = JS_NewUint32(ctx, utf8_strlen(a, path_right2(a, n)));
+          break;
+        }
+        case PATH_SKIP: {
+          int64_t pos = n + path_skip2(a + n, alen - n);
+          ret = JS_NewInt64(ctx, pos == alen ? -1ll : (int64_t)utf8_strlen(a, pos));
+          break;
+        }
+        case PATH_SKIP_SEPARATOR: {
+          uint32_t pos = n + path_separator2(a + n, alen - n);
+          ret = JS_NewUint32(ctx, utf8_strlen(a, pos));
+          break;
+        }
+        default: {
+          ret = JS_NewBool(ctx, path_separator2(a + n, alen - n) == alen - n);
+          break;
+        }
+      }
+
       break;
     }
 
@@ -642,7 +650,10 @@ fail:
 
 static const JSCFunctionListEntry js_path_funcs[] = {
     JS_CFUNC_MAGIC_DEF("basename", 1, js_path_method, PATH_BASENAME),
+    JS_CFUNC_MAGIC_DEF("basepos", 1, js_path_method, PATH_BASEPOS),
+    JS_CFUNC_MAGIC_DEF("baselen", 1, js_path_method, PATH_BASELEN),
     JS_CFUNC_MAGIC_DEF("dirname", 1, js_path_method, PATH_DIRNAME),
+    JS_CFUNC_MAGIC_DEF("dirlen", 1, js_path_method, PATH_DIRLEN),
     JS_CFUNC_MAGIC_DEF("exists", 1, js_path_method, PATH_EXISTS),
     JS_CFUNC_MAGIC_DEF("extname", 1, js_path_method, PATH_EXTNAME),
     JS_CFUNC_MAGIC_DEF("extpos", 1, js_path_method, PATH_EXTPOS),

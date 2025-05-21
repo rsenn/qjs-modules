@@ -1,5 +1,6 @@
 #include "utils.h"
 #include "char-utils.h"
+#include "path.h"
 #include "vector.h"
 
 #define SHORT_OPCODES 0
@@ -362,12 +363,28 @@ js_modules_object(JSContext* ctx, JSValueConst this_val, int magic) {
 JSModuleDef*
 js_module_find_fwd(JSContext* ctx, const char* name, JSModuleDef* start) {
   struct list_head* el;
+  size_t namelen = strlen(name);
 
-  for(el = start ? &start->link : ctx->loaded_modules.next; el != &ctx->loaded_modules; el = el->next)
-  /*list_for_each(el, &ctx->loaded_modules)*/ {
+  for(el = start ? &start->link : ctx->loaded_modules.next; el != &ctx->loaded_modules; el = el->next) {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    const char* str = module_namecstr(ctx, m);
+    const char *x, *str;
+
+    x = str = module_namecstr(ctx, m);
+
     BOOL match = !strcmp(str, name);
+
+    if(!match) {
+      if(path_isabsolute1(str) && !path_isabsolute2(name, namelen)) {
+        x += path_basename1(x);
+        match = !strcmp(x, name);
+      }
+    }
+    if(!match) {
+      if(path_extpos1(x) == namelen && !path_extlen1(name)) {
+        match = !strncmp(x, name, path_extpos1(x));
+      }
+    }
+
     JS_FreeCString(ctx, str);
 
     if(match)
@@ -395,13 +412,28 @@ js_module_index(JSContext* ctx, JSModuleDef* m) {
 JSModuleDef*
 js_module_find_rev(JSContext* ctx, const char* name, JSModuleDef* start) {
   struct list_head* el;
+  size_t namelen = strlen(name);
 
   for(el = start ? &start->link : ctx->loaded_modules.prev; el != &ctx->loaded_modules;
       el = el->prev) /*list_for_each_prev(el, &ctx->loaded_modules)*/ {
     JSModuleDef* m = list_entry(el, JSModuleDef, link);
-    const char* str = module_namecstr(ctx, m);
+    const char *x, *str;
+
+    x = str = module_namecstr(ctx, m);
+
     BOOL match = !strcmp(str, name);
-    JS_FreeCString(ctx, str);
+
+    if(!match) {
+      if(path_isabsolute1(str) && !path_isabsolute2(name, namelen)) {
+        x += path_basename1(x);
+        match = !strcmp(x, name);
+      }
+    }
+    if(!match) {
+      if(path_extpos1(x) == namelen && !path_extlen1(name)) {
+        match = !strncmp(x, name, namelen);
+      }
+    }
 
     if(match)
       return m;

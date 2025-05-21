@@ -6,6 +6,7 @@
 #include "vector.h"
 #include "buffer-utils.h"
 #include "debug.h"
+#include "path.h"
 #include <list.h>
 #include <cutils.h>
 #include <libregexp.h>

@@ -95,6 +95,8 @@ int path_isin2(const char* p, const char* dir);
 int path_equal4(const char* a, size_t la, const char* b, size_t lb);
 int path_equal2(const char* a, const char* b);
 const char* path_extname1(const char* p);
+size_t path_extpos1(const char* p);
+size_t path_extlen1(const char* p);
 int path_fnmatch5(const char* pattern, size_t plen, const char* string, size_t slen, int flags);
 char* path_getcwd1(DynBuf* db);
 char* path_getcwd0(void);

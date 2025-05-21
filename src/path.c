@@ -583,6 +583,18 @@ path_extname1(const char* p) {
   return p;
 }
 
+size_t
+path_extpos1(const char* p) {
+  const char* q = path_extname1(p);
+
+  return q - p;
+}
+
+size_t
+path_extlen1(const char* p) {
+  return strlen(path_extname1(p));
+}
+
 char*
 path_search(const char** path_ptr, const char* name, DynBuf* db) {
   size_t n;
