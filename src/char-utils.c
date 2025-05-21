@@ -499,7 +499,7 @@ utf8_strlen(const void* in, size_t len) {
   size_t i = 0;
 
   for(uint8_t *pos = (void*)in, *end = (void*)in + len; pos < end; pos = next, ++i)
-    unicode_from_utf8(pos, end - pos, &next);
+    unicode_from_utf8(pos, end - pos, (const uint8_t**)&next);
 
   return i;
 }
