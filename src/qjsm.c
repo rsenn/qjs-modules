@@ -859,14 +859,25 @@ jsm_module_locate(JSContext* ctx, const char* module_name, void* opaque) {
 }
 
 JSValue
-jsm_call_loaders(JSContext* ctx, ModuleLoaderContext* loader, JSValueConst arg) {
-  JSValue module = JS_DupValue(ctx, arg);
+jsm_call_loader_method(JSContext* ctx, ModuleLoaderContext* loader, const char* method_name, int argc, JSValue argv[]) {
+  argv[argc - 1] = JS_DupValue(ctx, argv[argc - 1]);
 
   for(; loader; loader = loader->next) {
-    JSValue ret = JS_Call(ctx, loader->func, JS_UNDEFINED, 1, &module);
+    JSValue fn = JS_GetPropertyStr(ctx, loader->func, method_name);
 
-    JS_FreeValue(ctx, module);
-    module = ret;
+    if(!strcmp(method_name, "loader") && !JS_IsFunction(ctx, fn))
+      fn = JS_DupValue(ctx, loader->func);
+
+    if(!JS_IsFunction(ctx, fn)) {
+      JS_FreeValue(ctx, fn);
+      continue;
+    }
+
+    JSValue ret = JS_Call(ctx, fn, JS_UNDEFINED, argc, argv);
+
+    JS_FreeValue(ctx, fn);
+    JS_FreeValue(ctx, argv[argc - 1]);
+    argv[argc - 1] = ret;
 
     if(JS_IsException(ret)) {
       fputs("Exception in module loader: ", stderr);
@@ -875,7 +886,21 @@ jsm_call_loaders(JSContext* ctx, ModuleLoaderContext* loader, JSValueConst arg) 
     }
   }
 
+  return argv[argc - 1];
+}
+
+JSValue
+jsm_call_loaders(JSContext* ctx, ModuleLoaderContext* loader, JSValueConst arg) {
+  JSValue module = arg;
+  jsm_call_loader_method(ctx, loader, "loader", 1, &module);
   return module;
+}
+
+JSValue
+jsm_call_normalizers(JSContext* ctx, ModuleLoaderContext* loader, JSValueConst base, JSValueConst module) {
+  JSValue argv[] = {base, module};
+  jsm_call_loader_method(ctx, loader, "normalize", countof(argv), argv);
+  return argv[1];
 }
 
 JSModuleDef*
@@ -884,6 +909,7 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   JSModuleDef* m = 0;
   ModuleLoaderContext** lptr = opaque;
 
+again:
   if(str_start(name, "file://"))
     name += 7;
 
@@ -969,12 +995,19 @@ jsm_module_loader(JSContext* ctx, const char* module_name, void* opaque) {
   }
 
   if(lptr) {
-    JSValue module = jsm_call_loaders(ctx, *lptr, JS_NewString(ctx, name));
+    JSValue namev = JS_NewString(ctx, name);
+    JSValue module = jsm_call_loaders(ctx, *lptr, namev);
+    JS_FreeValue(ctx, namev);
+
     if(JS_IsString(module)) {
       js_free(ctx, name);
       name = js_tostring(ctx, module);
+      lptr = opaque = 0;
+      JS_FreeValue(ctx, module);
+      goto again;
     } else if(JS_VALUE_GET_TAG(module) == JS_TAG_MODULE) {
-      return JS_VALUE_GET_PTR(module);
+      m = JS_VALUE_GET_PTR(module);
+      goto end;
     }
 
     JS_FreeValue(ctx, module);
@@ -1051,6 +1084,7 @@ char*
 jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* opaque) {
   char* file = 0;
   BuiltinModule* bltin = 0;
+  ModuleLoaderContext** lptr = opaque;
 
   if(!has_dot_or_slash(name) && (bltin = jsm_builtin_find(name))) {
     if(bltin->def) {
@@ -1089,6 +1123,20 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
       file = path_absolute1(name);
       path_normalize1(file);
     }
+  }
+
+  if(lptr) {
+    JSValue pathv = JS_NewString(ctx, path), namev = JS_NewString(ctx, file ? file : name);
+    JSValue module = jsm_call_normalizers(ctx, *lptr, pathv, namev);
+    JS_FreeValue(ctx, pathv);
+    JS_FreeValue(ctx, namev);
+
+    if(JS_IsString(module)) {
+      if(file)
+        js_free(ctx, file);
+      file = js_tostring(ctx, module);
+    }
+    JS_FreeValue(ctx, module);
   }
 
   if(!bltin && has_dot_or_slash(name) && !module_has_suffix(name)) {
@@ -1728,9 +1776,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           lc = *lptr = js_mallocz(ctx, sizeof(ModuleLoaderContext));
           lc->func = JS_DupValue(ctx, argv[arg]);
           JS_SetPropertyUint32(ctx, val, i++, JS_DupValue(ctx, lc->func));
-
-          --argc;
-          ++argv;
         }
       } else {
         char* module = js_tostring(ctx, argv[0]);
