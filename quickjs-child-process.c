@@ -257,7 +257,7 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case CHILD_PROCESS_FILE: {
-      ret = JS_NewString(ctx, cp->file);
+      ret = cp->file ? JS_NewString(ctx, cp->file) : JS_NULL;
       break;
     }
 
@@ -267,19 +267,23 @@ js_child_process_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
 
     case CHILD_PROCESS_ARGS: {
-      ret = js_strv_to_array(ctx, cp->args);
+      ret = cp->args ? js_strv_to_array(ctx, cp->args) : JS_NULL;
       break;
     }
 
     case CHILD_PROCESS_ENV: {
-      ret = JS_NewObject(ctx);
+      if(cp->env) {
+        ret = JS_NewObject(ctx);
 
-      for(char** ptr = cp->env; *ptr; ptr++) {
-        size_t namelen = str_chr(*ptr, '=');
-        JSAtom key = JS_NewAtomLen(ctx, *ptr, namelen);
+        for(char** ptr = cp->env; *ptr; ptr++) {
+          size_t namelen = str_chr(*ptr, '=');
+          JSAtom key = JS_NewAtomLen(ctx, *ptr, namelen);
 
-        JS_DefinePropertyValue(ctx, ret, key, JS_NewString(ctx, *ptr + namelen + 1), JS_PROP_ENUMERABLE);
-        JS_FreeAtom(ctx, key);
+          JS_DefinePropertyValue(ctx, ret, key, JS_NewString(ctx, *ptr + namelen + 1), JS_PROP_ENUMERABLE);
+          JS_FreeAtom(ctx, key);
+        }
+      } else {
+        ret = JS_NULL;
       }
 
       break;
@@ -377,6 +381,36 @@ js_child_process_kill(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return JS_NewInt32(ctx, child_process_kill(cp, signum));
 }
 
+enum {
+  CHILD_PROCESS_TOPRIMITIVE,
+};
+
+static JSValue
+js_child_process_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  ChildProcess* cp;
+  JSValue ret = JS_UNDEFINED;
+
+  if(!(cp = js_child_process_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case CHILD_PROCESS_TOPRIMITIVE: {
+      const char* hint = 0;
+
+      if(argc > 0)
+        hint = JS_ToCString(ctx, argv[0]);
+
+      ret = JS_NewInt32(ctx, cp->pid);
+
+      if(hint)
+        JS_FreeCString(ctx, hint);
+      break;
+    }
+  }
+
+  return ret;
+}
+
 JSValue
 js_child_process_signal(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   JSValue os = js_global_get_str(ctx, "os");
@@ -413,6 +447,7 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
     JS_CGETSET_ENUMERABLE_DEF("continued", js_child_process_get, 0, CHILD_PROCESS_CONTINUED),
     JS_CFUNC_DEF("wait", 0, js_child_process_wait),
     JS_CFUNC_MAGIC_DEF("kill", 0, js_child_process_kill, 0),
+    JS_CFUNC_MAGIC_DEF("[Symbol.toPrimitive]", 0, js_child_process_method, CHILD_PROCESS_TOPRIMITIVE),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ChildProcess", 0),
 };
 

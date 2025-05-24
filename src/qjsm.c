@@ -1139,16 +1139,17 @@ jsm_module_normalize(JSContext* ctx, const char* path, const char* name, void* o
     JS_FreeValue(ctx, module);
   }
 
-  if(!bltin && has_dot_or_slash(name) && !module_has_suffix(name)) {
-    char* tmp;
+  if(file == 0)
+    if(!bltin && has_dot_or_slash(name) && !module_has_suffix(name)) {
+      char* tmp;
 
-    if((tmp = jsm_search_suffix(ctx, file ? file : name, &is_module))) {
-      if(file)
+      if((tmp = jsm_search_suffix(ctx, file ? file : name, &is_module))) {
+        // if(file)
         js_free(ctx, file);
 
-      file = tmp;
+        file = tmp;
+      }
     }
-  }
 
   if(file == 0)
     file = js_strdup(ctx, name);
@@ -1747,10 +1748,10 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
         for(i = 0, lc = module_loaders; lc; ++i, lc = lc->next)
           JS_SetPropertyUint32(ctx, val, i, JS_DupValue(ctx, lc->func));
-      } else if(JS_IsFunction(ctx, argv[0])) {
+      } else if(JS_IsObject(argv[0])) {
         for(arg = 0; arg < argc; arg++) {
-          if(!JS_IsFunction(ctx, argv[arg])) {
-            val = JS_ThrowTypeError(ctx, "argument %d must be be a function", arg);
+          if(!JS_IsObject(argv[arg])) {
+            val = JS_ThrowTypeError(ctx, "argument %d must be an object", arg);
             break;
           }
 

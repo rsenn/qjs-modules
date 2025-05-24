@@ -218,7 +218,7 @@ property_recursion_next(Vector* vec, JSContext* ctx) {
     if(!(recurse && property_recursion_enter(vec, ctx, 0, PROPENUM_DEFAULT_FLAGS))) {
       int i = 0;
 
-      while(!(it = property_enumeration_next(it))) {
+      while(!(it = property_enumeration_next(property_recursion_top(vec)))) {
         --i;
 
         if(!(it = property_recursion_pop(vec, ctx)))
