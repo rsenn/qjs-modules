@@ -309,21 +309,10 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
     if(iter->seq == 0)
       property_recursion_push(&iter->frames, ctx, JS_DupValue(ctx, iter->root), PROPENUM_DEFAULT_FLAGS);
-    else {
-
-      if(!STATUS_RECURSE(iter->status) || depth >= max_depth)
-        property_recursion_skip(&iter->frames, ctx);
-      else {
-        int r = property_recursion_next(&iter->frames, ctx);
-
-        /*if(r == 1 && !vector_empty(&iter->atoms) && (iter->flags & FILTER_MASK) == FILTER_HAS_KEY) {
-          penum = property_recursion_top(&iter->frames);
-
-          if(atoms_skip(&iter->atoms, penum->tab_atom, penum->tab_atom_len))
-            penum = property_recursion_leave(&iter->frames, ctx);
-        }*/
-      }
-    }
+    else if(!STATUS_RECURSE(iter->status) || depth >= max_depth)
+      property_recursion_skip(&iter->frames, ctx);
+    else
+      property_recursion_next(&iter->frames, ctx);
 
     ++iter->seq;
 
@@ -347,7 +336,8 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     ValueType type = js_value_type(ctx, value);
 
     /*printf(
-        "%s depth=%u seq=%u idx=%u/%u return=%x path-as=%x filter=%x max_depth=%06x status=%02x mask=%04x type=%04x\n",
+        "%s depth=%u seq=%u idx=%u/%u return=%x path-as=%x filter=%x max_depth=%06x status=%02x mask=%04x
+       type=%04x\n",
         __func__,
         property_recursion_depth(&iter->frames),
         iter->seq,
@@ -399,6 +389,68 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     ret = js_deep_return(ctx, &iter->frames, iter->flags & ~MAXDEPTH_MASK, iter);
     *pdone = FALSE;
     break;
+  }
+
+  return ret;
+}
+
+enum {
+  METHOD_LEAVE,
+  METHOD_SKIP,
+};
+
+static JSValue
+js_deep_iterator_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  JSValue ret = JS_UNDEFINED;
+  DeepIterator* iter;
+
+  if(!(iter = JS_GetOpaque2(ctx, this_val, js_deep_iterator_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case METHOD_LEAVE: {
+      PropertyEnumeration* penum;
+
+      if((penum = property_recursion_top(&iter->frames))) {
+
+        property_recursion_pop(&iter->frames, ctx);
+
+        iter->status |= NO_RECURSE;
+
+        ret = JS_NewUint32(ctx, property_recursion_depth(&iter->frames));
+      }
+
+      break;
+    }
+
+    case METHOD_SKIP: {
+      ret = JS_NewInt32(ctx, property_recursion_skip(&iter->frames, ctx));
+      break;
+    }
+  }
+
+  return ret;
+}
+
+enum {
+  PROPERTY_PATH,
+};
+
+static JSValue
+js_deep_iterator_get(JSContext* ctx, JSValueConst this_val, int magic) {
+  JSValue ret = JS_UNDEFINED;
+  DeepIterator* iter;
+
+  if(!(iter = JS_GetOpaque2(ctx, this_val, js_deep_iterator_class_id)))
+    return JS_EXCEPTION;
+
+  switch(magic) {
+    case PROPERTY_PATH: {
+      path_func_type* fn = js_deep_pathfunc(iter->flags);
+
+      ret = fn(&iter->frames, ctx, 0);
+      break;
+    }
   }
 
   return ret;
@@ -957,6 +1009,9 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
 static const JSCFunctionListEntry js_deep_iterator_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_deep_iterator_next, 0),
     JS_ITERATOR_NEXT_DEF("return", 0, js_deep_iterator_return, 0),
+    JS_CFUNC_MAGIC_DEF("leave", 0, js_deep_iterator_method, METHOD_LEAVE),
+    JS_CFUNC_MAGIC_DEF("skip", 0, js_deep_iterator_method, METHOD_SKIP),
+    JS_CGETSET_MAGIC_DEF("path", js_deep_iterator_get, 0, PROPERTY_PATH),
     JS_CFUNC_DEF("[Symbol.iterator]", 0, js_deep_iterator_iterator),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Deep Iterator", JS_PROP_CONFIGURABLE),
 };
