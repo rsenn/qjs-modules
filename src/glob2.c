@@ -232,7 +232,7 @@ glob_brace2(struct range pat, struct glob_state* g) {
         ptr += byte_chr(ptr, y - ptr, ']');
 
         /*for(left = ptr++; ptr < y && *ptr != ']'; ptr++) continue;*/
-
+7
         if(ptr == y) {
           /*
            * We could not find a ptr ']'.
