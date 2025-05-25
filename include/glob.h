@@ -112,13 +112,12 @@ struct range {
 
 struct vec {
   char** ptr;
-  size_t len, res;
+  uint32_t len, res;
 };
 
 struct glob_state {
   int flags;
-  struct range pat;
-  struct range buf;
+  struct range pat, buf;
   struct vec paths;
 };
 

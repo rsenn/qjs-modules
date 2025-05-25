@@ -85,6 +85,11 @@ range_write(struct range* r, const void* x, size_t n) {
   return r->end;
 }
 
+static char*
+range_puts(struct range* r, const void* x) {
+  return range_write(r, x, strlen(x));
+}
+
 static inline char*
 range_append(struct range* r, struct range other) {
   return range_write(r, other.start, range_len(&other));
@@ -181,61 +186,59 @@ glob_brace1(struct range pat, struct glob_state* g) {
 static int
 glob_brace2(struct range pat, struct glob_state* g) {
   int ret = 0, i;
-  char* lm;
   char* const y = g->pat.end;
-  const char *pe, *pm, *pl;
+  const char *right=0, *ptr=0, *left=0;
   struct range out = {0, 0};
 
   assert(!overlap(&g->buf, &pat));
 
   /* copy part up to the brace */
-  lm = range_append(&out, pat);
+  range_append(&out, pat);
 
   size_t rl = range_len(&out);
-  /*for(lm = patbuf, pm = pat.start; pm != pat.end; *lm++ = *pm++)
-    continue;
-
-  ls = lm;*/
 
   /* Find the balanced brace */
-  for(i = 0, pe = ++pat.end; pe < y; pe++)
-    if(*pe == '[') {
+  for(i = 0, right = ++pat.end; right < y; right++)
+    if(*right == '[') {
       /* Ignore everything between [] */
-      for(pm = pe++; pe < y && *pe != ']'; pe++)
-        continue;
+      ptr = right++;
+      right += byte_chr(right, y - right, ']');
 
-      if(pe == y) {
-        /* could not find a matching ']'
+      /* for(ptr = right++; right < y && *right != ']'; right++) continue;*/
+
+      if(right == y) {
+        /* could not find a ptr ']'
          - ignore and just look for '}' */
-        pe = pm;
+        right = ptr;
       }
-    } else if(*pe == '{') {
+    } else if(*right == '{') {
       i++;
-    } else if(*pe == '}') {
+    } else if(*right == '}') {
       if(i == 0)
         break;
 
       i--;
     }
 
-  /* Non matching braces; just glob the pattern */
-  if(i != 0 || pe == y) {
+  /* Non ptr braces; just glob the pattern */
+  if(i != 0 || right == y)
     return glob_components((struct range){pat.start, y}, g);
-  }
 
-  for(i = 0, pl = pm = pat.end; pm <= pe; pm++)
-    switch(*pm) {
+  for(i = 0, left = ptr = pat.end; ptr <= right; ptr++)
+    switch(*ptr) {
       case '[': {
         /* Ignore everything between [] */
-        for(pl = pm++; pm < y && *pm != ']'; pm++)
-          continue;
+        left = ptr++;
+        ptr += byte_chr(ptr, y - ptr, ']');
 
-        if(pm == y) {
+        /*for(left = ptr++; ptr < y && *ptr != ']'; ptr++) continue;*/
+
+        if(ptr == y) {
           /*
-           * We could not find a matching ']'.
+           * We could not find a ptr ']'.
            * Ignore and just look for '}'
            */
-          pm = pl;
+          ptr = left;
         }
 
         break;
@@ -252,34 +255,30 @@ glob_brace2(struct range pat, struct glob_state* g) {
       }
         /* FALLTHROUGH */
       case ',': {
-        if(i && *pm == ',')
-          break;
+        if(!(i && *ptr == ',')) {
+          char* end;
 
-        /* Append the current string */
-        range_append(&out, (struct range){pl, pm});
+          /* Append the current string */
+          range_append(&out, (struct range){(char*)left, (char*)ptr});
 
-        /*for(lm = out.start + rl; (pl < pm); *lm++ = *pl++) continue;*/
+          /* Append the rest of the pattern after the closing brace */
+          if(!(end = range_append(&out, (struct range){(char*)right + 1, y})))
+            return -1;
 
-        /* Append the rest of the pattern after the closing brace */
-        if(!(lm = range_append(&out, (struct range){pe + 1, y})))
-          return -1;
+          *end = '\0';
 
-        /*for(pl = pe + 1; pl <= y && (*lm++ = *pl++);) continue;*/
+          /* Expand the current pattern */
+          ret = glob_brace1((struct range){out.start, end}, g);
 
-        *lm = '\0';
+          if(range_resize(&out, rl))
+            return -1;
 
-        /* Expand the current pattern */
-        ret = glob_brace1((struct range){out.start, lm}, g);
-
-        if(range_resize(&out, rl))
-          return -1;
-
-        /* move after the comma, to the next string */
-        pl = pm + 1;
+          /* move after the comma, to the next string */
+          left = ptr + 1;
+        }
 
         break;
       }
-        /*default: { break; }*/
     }
 
   return ret;
@@ -288,8 +287,8 @@ glob_brace2(struct range pat, struct glob_state* g) {
 /**
  * @brief Tilde globbing
  *
- * @param {char*}         pattern Pattern
- * @param {struct glob_state*} g       State
+ * @param {char*}              pattern  Pattern
+ * @param {struct glob_state*} g        State
  *
  * @returns -1 on error
  */
@@ -313,11 +312,11 @@ glob_tilde(char* pattern, struct glob_state* g) {
     if(!(pw = getpwnam(user)) || !pw->pw_dir)
       return -1;
 
-    range_write(&g->buf, pw->pw_dir, strlen(pw->pw_dir));
+    range_puts(&g->buf, pw->pw_dir);
   } else {
     const char* home = path_gethome();
 
-    range_write(&g->buf, home, strlen(home));
+    range_puts(&g->buf, home);
   }
 
   range_write(&g->buf, pattern + len, slen);
@@ -369,7 +368,7 @@ glob_components(struct range rest, struct glob_state* g) {
 
   if((S_ISDIR(st.st_mode) || (S_ISLNK(st.st_mode) && (stat(g->buf.start, &st) == 0) && S_ISDIR(st.st_mode)))) {
 
-    if(!(x = range_write(&g->buf, "/", 1)))
+    if(!(x = range_puts(&g->buf, "/")))
       return -1;
 
     *x = '\0';
