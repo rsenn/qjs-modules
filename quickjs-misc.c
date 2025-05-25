@@ -104,7 +104,6 @@
 #endif
 #include "debug.h"
 #include "js-utils.h"
-#include "../libbcrypt/bcrypt.h"
 
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
@@ -1609,75 +1608,6 @@ js_misc_atob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
                       : JS_NewArrayBufferCopy(ctx, (const uint8_t*)decbuf, outlen);
 
   js_free(ctx, decbuf);
-  return ret;
-}
-
-static JSValue
-js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret;
-  InputBuffer input = js_input_chars(ctx, argv[0]);
-
-  if(!JS_IsString(argv[0])) {
-    uint32_t wf = 12;
-
-    JS_ToUint32(ctx, &wf, argv[0]);
-
-    if(argc > 1) {
-      InputBuffer salt = js_input_buffer(ctx, argv[1]);
-
-      if(salt.size < BCRYPT_HASHSIZE)
-        return JS_ThrowInternalError(ctx, "supplied buffer size (%lu) < %d", (unsigned long)salt.size, BCRYPT_HASHSIZE);
-
-      ret = JS_NewInt32(ctx, bcrypt_gensalt(wf, (void*)salt.data));
-
-      input_buffer_free(&salt, ctx);
-    } else {
-      char s[BCRYPT_HASHSIZE + 1];
-
-      memset(s, 0, sizeof(s));
-
-      ret = bcrypt_gensalt(wf, s) ? JS_NULL : JS_NewStringLen(ctx, s, strlen(s));
-    }
-  } else if(argc >= 3) {
-    const char* pw = JS_ToCString(ctx, argv[0]);
-    InputBuffer salt = js_input_chars(ctx, argv[1]);
-    InputBuffer buf = js_input_buffer(ctx, argv[2]);
-    char s[BCRYPT_HASHSIZE];
-
-    memset(s, 0, sizeof(s));
-
-    if(!salt.size)
-      bcrypt_gensalt(12, s);
-    else
-      memcpy(s, salt.data, salt.size);
-
-    input_buffer_free(&salt, ctx);
-
-    if(buf.size < BCRYPT_HASHSIZE)
-      return JS_ThrowInternalError(ctx, "supplied buffer size (%lu) < %d", (unsigned long)buf.size, BCRYPT_HASHSIZE);
-
-    ret = JS_NewInt32(ctx, bcrypt_hashpw(pw, s, (char*)buf.data));
-
-    input_buffer_free(&buf, ctx);
-    JS_FreeCString(ctx, pw);
-  } else {
-    const char* pw = JS_ToCString(ctx, argv[0]);
-    InputBuffer buf = js_input_chars(ctx, argv[1]);
-    char x[BCRYPT_HASHSIZE];
-
-    if(!buf.size)
-      return JS_ThrowInternalError(ctx, "supplied buffer size 0");
-
-    memset(x, 0, sizeof(x));
-    memcpy(x, buf.data, buf.size);
-
-    input_buffer_free(&buf, ctx);
-
-    ret = JS_NewInt32(ctx, bcrypt_checkpw(pw, x));
-
-    JS_FreeCString(ctx, pw);
-  }
-
   return ret;
 }
 
@@ -3534,7 +3464,6 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_DEF("stoa", 1, js_misc_btoa),
     JS_CFUNC_MAGIC_DEF("atob", 1, js_misc_atob, 0),
     JS_CFUNC_MAGIC_DEF("atos", 1, js_misc_atob, 1),
-    JS_CFUNC_MAGIC_DEF("bcrypt", 1, js_misc_bcrypt, 1),
     JS_CFUNC_MAGIC_DEF("not", 1, js_misc_bitop, BITOP_NOT),
     JS_CFUNC_MAGIC_DEF("xor", 2, js_misc_bitop, BITOP_XOR),
     JS_CFUNC_MAGIC_DEF("and", 2, js_misc_bitop, BITOP_AND),
