@@ -16,37 +16,43 @@ alloc_len(size_t len) {
 }
 
 static inline int
-in_range(const my_range* r, char* ptr) {
+in_range(const struct range* r, char* ptr) {
   return ptr >= r->start && ptr <= r->end;
 }
 
 static inline int
-overlap(const my_range* a, const my_range* b) {
+overlap(const struct range* a, const struct range* b) {
   return in_range(a, b->start) || in_range(a, b->end);
 }
 
 static inline ssize_t
-range_len(const my_range* r) {
+range_len(const struct range* r) {
   return r->end - r->start;
 }
 
-static my_range
+static struct range
 range_dup(const char* s) {
   char* start = strdup(s);
   size_t len = strlen(s);
-  return (my_range){start, start + len};
+  return (struct range){start, start + len};
 }
 
 static void
-range_free(my_range* r) {
+range_free(struct range* r) {
   if(r->start) {
     free(r->start);
-    *r = (my_range){0, 0};
+    *r = (struct range){0, 0};
   }
 }
 
+static struct range
+range_fromstr(const char* s) {
+  size_t len = strlen(s);
+  return (struct range){(char*)s, (char*)s + len};
+}
+
 static int
-range_resize(my_range* r, size_t newlen) {
+range_resize(struct range* r, size_t newlen) {
   size_t len = range_len(r);
 
   if(newlen > len) {
@@ -61,7 +67,7 @@ range_resize(my_range* r, size_t newlen) {
 }
 
 static char*
-range_write(my_range* r, const void* x, size_t n) {
+range_write(struct range* r, const void* x, size_t n) {
   size_t len = range_len(r);
   size_t o = alloc_len(len + 1);
   size_t a = alloc_len(len + n + 1);
@@ -80,12 +86,12 @@ range_write(my_range* r, const void* x, size_t n) {
 }
 
 static inline char*
-range_append(my_range* r, my_range other) {
-  return range_write(r, other.start, other.end - other.start);
+range_append(struct range* r, struct range other) {
+  return range_write(r, other.start, range_len(&other));
 }
 
 static int
-vec_push(my_vec* v, const char* str) {
+vec_push(struct vec* v, const char* str) {
   if(v->len + 1 > v->res) {
     size_t res = alloc_len(v->len + 1);
 
@@ -102,17 +108,16 @@ vec_push(my_vec* v, const char* str) {
   return -1;
 }
 
-static int glob_components(my_range, myglob_state*);
-static int glob_expand(my_range, myglob_state*);
-
-static int glob_tilde(char*, myglob_state*);
-static int glob_brace1(my_range, myglob_state* g);
-static int glob_brace2(my_range, myglob_state* g);
+static int glob_components(struct range, struct glob_state*);
+static int glob_expand(struct range, struct glob_state*);
+static int glob_tilde(char*, struct glob_state*);
+static int glob_brace1(struct range, struct glob_state*);
+static int glob_brace2(struct range, struct glob_state*);
 
 int
-my_glob(const char* pattern, myglob_state* g) {
-  g->pat = (my_range){(char*)pattern, (char*)pattern + strlen(pattern)};
-  g->buf = (my_range){0, 0};
+my_glob(const char* pattern, struct glob_state* g) {
+  g->pat = range_fromstr(pattern);
+  g->buf = (struct range){0, 0};
 
   char* x = g->pat.start;
 
@@ -124,18 +129,25 @@ my_glob(const char* pattern, myglob_state* g) {
   }
 
   if(g->flags & GLOB_BRACE)
-    return glob_brace1((my_range){x, g->pat.end}, g);
+    return glob_brace1((struct range){x, g->pat.end}, g);
   else
-    return glob_components((my_range){x, g->pat.end}, g);
+    return glob_components((struct range){x, g->pat.end}, g);
 }
 
-/*
- * Expand recursively a glob {} pattern. When there is no more expansion
- * invoke the standard globbing routine to glob the rest of the magic
- * characters
+/**
+ * \brief Brace globbing
+ *
+ * Expand recursively a glob {} pattern. When there is no more
+ * expansion invoke the standard globbing routine to glob the
+ * rest of the magic characters.
+ *
+ * @param {struct range}      pat   Pattern
+ * @param {struct glob_state*} g     State
+ *
+ * @returns -1 on error
  */
 static int
-glob_brace1(my_range pat, myglob_state* g) {
+glob_brace1(struct range pat, struct glob_state* g) {
   char* x = pat.start;
   char* const y = pat.end;
 
@@ -143,28 +155,36 @@ glob_brace1(my_range pat, myglob_state* g) {
 
   /* Protect a single {}, for find(1), like csh */
   if(x[0] == '{' && x[1] == '}' && x + 2 == y)
-    return glob_components((my_range){x, y}, g);
+    return glob_components((struct range){x, y}, g);
 
   size_t offset = byte_chr(x, y - x, '{');
 
   if(x + offset < y)
-    return glob_brace2((my_range){x, x + offset}, g);
+    return glob_brace2((struct range){x, x + offset}, g);
 
   return glob_components(pat, g);
 }
 
-/*
- * Recursive brace globbing helper. Tries to expand a single brace.
+/**
+ * @brief Recursive brace globbing helper.
+ *
+ * Tries to expand a single brace.
  * If it succeeds then it invokes globexp1 with the new pattern.
- * If it fails then it tries to glob the rest of the pattern and returns.
+ * If it fails then it tries to glob the rest of the pattern and
+ * returns.
+ *
+ * @param {struct range}      pat   Pattern
+ * @param {struct glob_state*} g     State
+ *
+ * @returns -1 on error
  */
 static int
-glob_brace2(my_range pat, myglob_state* g) {
+glob_brace2(struct range pat, struct glob_state* g) {
   int ret = 0, i;
   char* lm;
   char* const y = g->pat.end;
   const char *pe, *pm, *pl;
-  my_range out = {0, 0};
+  struct range out = {0, 0};
 
   assert(!overlap(&g->buf, &pat));
 
@@ -200,7 +220,7 @@ glob_brace2(my_range pat, myglob_state* g) {
 
   /* Non matching braces; just glob the pattern */
   if(i != 0 || pe == y) {
-    return glob_components((my_range){pat.start, y}, g);
+    return glob_components((struct range){pat.start, y}, g);
   }
 
   for(i = 0, pl = pm = pat.end; pm <= pe; pm++)
@@ -236,12 +256,12 @@ glob_brace2(my_range pat, myglob_state* g) {
           break;
 
         /* Append the current string */
-        range_append(&out, (my_range){pl, pm});
+        range_append(&out, (struct range){pl, pm});
 
         /*for(lm = out.start + rl; (pl < pm); *lm++ = *pl++) continue;*/
 
         /* Append the rest of the pattern after the closing brace */
-        if(!(lm = range_append(&out, (my_range){pe + 1, y})))
+        if(!(lm = range_append(&out, (struct range){pe + 1, y})))
           return -1;
 
         /*for(pl = pe + 1; pl <= y && (*lm++ = *pl++);) continue;*/
@@ -249,7 +269,7 @@ glob_brace2(my_range pat, myglob_state* g) {
         *lm = '\0';
 
         /* Expand the current pattern */
-        ret = glob_brace1((my_range){out.start, lm}, g);
+        ret = glob_brace1((struct range){out.start, lm}, g);
 
         if(range_resize(&out, rl))
           return -1;
@@ -265,8 +285,16 @@ glob_brace2(my_range pat, myglob_state* g) {
   return ret;
 }
 
+/**
+ * @brief Tilde globbing
+ *
+ * @param {char*}         pattern Pattern
+ * @param {struct glob_state*} g       State
+ *
+ * @returns -1 on error
+ */
 static int
-glob_tilde(char* pattern, myglob_state* g) {
+glob_tilde(char* pattern, struct glob_state* g) {
   assert(!in_range(&g->buf, pattern));
 
   if(*pattern != '~' || !(g->flags & GLOB_TILDE))
@@ -296,8 +324,16 @@ glob_tilde(char* pattern, myglob_state* g) {
   return len + slen;
 }
 
+/**
+ * @brief Glob directory components
+ *
+ * @param {struct range}      rest   Pattern
+ * @param {struct glob_state*} g     State
+ *
+ * @returns -1 on error
+ */
 static int
-glob_components(my_range rest, myglob_state* g) {
+glob_components(struct range rest, struct glob_state* g) {
   char *x = rest.start, *y = rest.end;
 
   assert(!overlap(&g->buf, &rest));
@@ -315,7 +351,7 @@ glob_components(my_range rest, myglob_state* g) {
     size_t magic = byte_chrs(x, offset, "[?*{", 4);
 
     if(magic < offset)
-      return glob_expand((my_range){x, x + offset}, g);
+      return glob_expand((struct range){x, x + offset}, g);
 
     offset += path_separator2(x + offset, y - (x + offset));
 
@@ -342,8 +378,16 @@ glob_components(my_range rest, myglob_state* g) {
   return vec_push(&g->paths, g->buf.start);
 }
 
+/**
+ * @brief Expand filenames
+ *
+ * @param {struct range}      pat  Pattern
+ * @param {struct glob_state*} g    State
+ *
+ * @returns -1 on error
+ */
 static int
-glob_expand(my_range pat, myglob_state* g) {
+glob_expand(struct range pat, struct glob_state* g) {
   Directory* dir;
   DirEntry* ent;
   int i = 0;
@@ -365,7 +409,7 @@ glob_expand(my_range pat, myglob_state* g) {
 
     size_t namelen = strlen(name);
 
-    if(path_fnmatch5(pat.start, pat.end - pat.start, name, namelen, 0) != PATH_FNM_NOMATCH) {
+    if(path_fnmatch5(pat.start, range_len(&pat), name, namelen, 0) != PATH_FNM_NOMATCH) {
       size_t sep, oldsize = range_len(&g->buf);
       range_write(&g->buf, name, namelen);
 
@@ -373,9 +417,9 @@ glob_expand(my_range pat, myglob_state* g) {
         range_write(&g->buf, pat.end, sep);
 
       // if(pat.end == g->pat.start.end) printf("result: '%.*s' pat.start: '%.*s'\n", (int)range_len(&g->buf),
-      // g->buf.start, (int)(pat.end - pat.start), pat.start);
+      // g->buf.start, (int)range_len(&pat), pat.start);
 
-      glob_components((my_range){pat.end + sep, g->pat.end}, g);
+      glob_components(range_fromstr(pat.end + sep), g);
 
       range_resize(&g->buf, oldsize);
       *g->buf.end = '\0';

@@ -1228,17 +1228,17 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     globfree(&g);
   }
 
-  myglob_state* myg = js_mallocz(ctx, sizeof(myglob_state));
+  struct glob_state* gs;
+  gs = js_mallocz(ctx, sizeof(struct glob_state));
+  *gs = (struct glob_state){.flags = GLOB_TILDE | GLOB_BRACE};
 
-  *myg = (myglob_state){.flags = GLOB_TILDE | GLOB_BRACE};
-
-  result = my_glob(pattern, myg);
+  result = my_glob(pattern, gs);
 
   JS_FreeValue(ctx, ret);
   ret = JS_NewArray(ctx);
 
-  for(size_t i = 0; i < myg->paths.len; i++)
-    JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, myg->paths.ptr[i]));
+  for(size_t i = 0; i < gs->paths.len; i++)
+    JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, gs->paths.ptr[i]));
 
   if(array_arg || result) {
     JS_FreeValue(ctx, ret);

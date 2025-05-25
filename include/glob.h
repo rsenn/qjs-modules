@@ -106,22 +106,22 @@ void globfree(glob_t* pglob);
 #include <list.h>
 #include "getdents.h"
 
-typedef struct {
+struct range {
   char *start, *end;
-} my_range;
+};
 
-typedef struct {
+struct vec {
   char** ptr;
   size_t len, res;
-} my_vec;
+};
 
-typedef struct {
+struct glob_state {
   int flags;
-  my_range pat;
-  my_range buf;
-  my_vec paths;
-} myglob_state;
+  struct range pat;
+  struct range buf;
+  struct vec paths;
+};
 
-int my_glob(const char* pattern, myglob_state* g);
+int my_glob(const char* pattern, struct glob_state* g);
 
 #endif /* GLOB_H */
