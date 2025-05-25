@@ -20,7 +20,7 @@ in_range(const struct range* r, char* ptr) {
   return ptr >= r->start && ptr <= r->end;
 }
 
-static inline int
+static int
 overlap(const struct range* a, const struct range* b) {
   return in_range(a, b->start) || in_range(a, b->end);
 }
@@ -31,25 +31,26 @@ range_len(const struct range* r) {
 }
 
 static struct range
-range_dup(const char* s) {
-  char* start = strdup(s);
-  size_t len = strlen(s);
-  return (struct range){start, start + len};
+range_null() {
+  return (struct range){0, 0};
 }
 
-static void
-range_free(struct range* r) {
-  if(r->start) {
-    free(r->start);
-    *r = (struct range){0, 0};
-  }
+static struct range
+range_frombuf(const void* x, size_t n) {
+  return (struct range){(char*)x, (char*)x + n};
 }
 
 static struct range
 range_fromstr(const char* s) {
-  size_t len = strlen(s);
-  return (struct range){(char*)s, (char*)s + len};
+  return range_frombuf(s, strlen(s));
 }
+
+/*static struct range
+range_dup(const char* s) {
+  char* start = strdup(s);
+  size_t len = strlen(s);
+  return range_frombuf(start,len);
+}*/
 
 static int
 range_resize(struct range* r, size_t newlen) {
@@ -63,6 +64,7 @@ range_resize(struct range* r, size_t newlen) {
   }
 
   r->end = r->start + newlen;
+  *r->end = '\0';
   return 0;
 }
 
@@ -79,7 +81,6 @@ range_write(struct range* r, const void* x, size_t n) {
 
   byte_copy(&r->start[len], n, x);
   r->end = r->start + len + n;
-
   *r->end = '\0';
 
   return r->end;
@@ -90,9 +91,17 @@ range_puts(struct range* r, const void* x) {
   return range_write(r, x, strlen(x));
 }
 
-static inline char*
+static char*
 range_append(struct range* r, struct range other) {
   return range_write(r, other.start, range_len(&other));
+}
+
+static void
+range_free(struct range* r) {
+  if(r->start) {
+    free(r->start);
+    *r = range_null();
+  }
 }
 
 static int
@@ -122,7 +131,7 @@ static int glob_brace2(struct range, struct glob_state*);
 int
 my_glob(const char* pattern, struct glob_state* g) {
   g->pat = range_fromstr(pattern);
-  g->buf = (struct range){0, 0};
+  g->buf = range_null();
 
   char* x = g->pat.start;
 
@@ -165,7 +174,7 @@ glob_brace1(struct range pat, struct glob_state* g) {
   size_t offset = byte_chr(x, y - x, '{');
 
   if(x + offset < y)
-    return glob_brace2((struct range){x, x + offset}, g);
+    return glob_brace2(range_frombuf(x, offset), g);
 
   return glob_components(pat, g);
 }
@@ -187,7 +196,7 @@ static int
 glob_brace2(struct range pat, struct glob_state* g) {
   int ret = 0, i;
   char* const y = g->pat.end;
-  const char *right=0, *ptr=0, *left=0;
+  char *right = 0, *ptr = 0, *left = 0;
   struct range out = {0, 0};
 
   assert(!overlap(&g->buf, &pat));
@@ -232,7 +241,6 @@ glob_brace2(struct range pat, struct glob_state* g) {
         ptr += byte_chr(ptr, y - ptr, ']');
 
         /*for(left = ptr++; ptr < y && *ptr != ']'; ptr++) continue;*/
-7
         if(ptr == y) {
           /*
            * We could not find a ptr ']'.
@@ -259,10 +267,10 @@ glob_brace2(struct range pat, struct glob_state* g) {
           char* end;
 
           /* Append the current string */
-          range_append(&out, (struct range){(char*)left, (char*)ptr});
+          range_append(&out, (struct range){left, ptr});
 
           /* Append the rest of the pattern after the closing brace */
-          if(!(end = range_append(&out, (struct range){(char*)right + 1, y})))
+          if(!(end = range_append(&out, (struct range){right + 1, y})))
             return -1;
 
           *end = '\0';
@@ -350,7 +358,7 @@ glob_components(struct range rest, struct glob_state* g) {
     size_t magic = byte_chrs(x, offset, "[?*{", 4);
 
     if(magic < offset)
-      return glob_expand((struct range){x, x + offset}, g);
+      return glob_expand(range_frombuf(x, offset), g);
 
     offset += path_separator2(x + offset, y - (x + offset));
 
@@ -417,8 +425,8 @@ glob_expand(struct range pat, struct glob_state* g) {
 
       // if(pat.end == g->pat.start.end) printf("result: '%.*s' pat.start: '%.*s'\n", (int)range_len(&g->buf),
       // g->buf.start, (int)range_len(&pat), pat.start);
-
-      glob_components(range_fromstr(pat.end + sep), g);
+      struct range rest = range_fromstr(pat.end + sep);
+      glob_components(rest, g);
 
       range_resize(&g->buf, oldsize);
       *g->buf.end = '\0';
