@@ -101,11 +101,14 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         return JS_ThrowInternalError(ctx, "supplied buffer size %lu < %lu", buf.size, BCRYPT_HASHSIZE-4);
       }
 
+memset(x, 0, sizeof(x));
+      memcpy(x,  buf.data, NUM_MIN(buf.size, BCRYPT_HASHSIZE));
+      input_buffer_free(&buf, ctx);
+
 const char* pw = JS_ToCString(ctx, argv[0]);
       
-      ret = JS_NewInt32(ctx, bcrypt_checkpw(pw, buf.data));
+      ret = JS_NewInt32(ctx, bcrypt_checkpw(pw, x));
 
-      input_buffer_free(&buf, ctx);
       JS_FreeCString(ctx, pw);
       break;
     }
