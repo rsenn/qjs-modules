@@ -119,9 +119,9 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 }
 
 static const JSCFunctionListEntry js_bcrypt_functions[] = {
-    JS_CFUNC_MAGIC_DEF("gensalt", 0, js_bcrypt_function, BCRYPT_GENSALT),
-    JS_CFUNC_MAGIC_DEF("hashpw", 1, js_bcrypt_function, BCRYPT_HASHPW),
-    JS_CFUNC_MAGIC_DEF("checkpw", 2, js_bcrypt_function, BCRYPT_CHECKPW),
+    JS_CFUNC_MAGIC_DEF("genSalt", 0, js_bcrypt_function, BCRYPT_GENSALT),
+    JS_CFUNC_MAGIC_DEF("hash", 1, js_bcrypt_function, BCRYPT_HASHPW),
+    JS_CFUNC_MAGIC_DEF("compare", 2, js_bcrypt_function, BCRYPT_CHECKPW),
     JS_PROP_INT32_DEF("HASHSIZE", BCRYPT_HASHSIZE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SALTSIZE", BCRYPT_SALTSIZE, JS_PROP_ENUMERABLE),
 };
