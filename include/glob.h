@@ -103,4 +103,18 @@ void globfree(glob_t* pglob);
 }
 #endif /* __cplusplus */
 
+#include "getdents.h"
+
+typedef struct {
+  char *start, *end;
+} my_range;
+
+typedef struct {
+  my_range pat;
+  my_range buf;
+  Directory* dir;
+} myglob_state;
+
+int my_glob(const char* pattern, myglob_state* g);
+
 #endif /* GLOB_H */

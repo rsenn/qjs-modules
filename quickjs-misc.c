@@ -1228,6 +1228,10 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     globfree(&g);
   }
 
+  myglob_state myg;
+
+  int r = my_glob(pattern, &myg);
+
   if(array_arg || result) {
     JS_FreeValue(ctx, ret);
     ret = JS_NewInt32(ctx, result);

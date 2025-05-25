@@ -153,6 +153,16 @@ path_component1(const char* p) {
 }
 
 static inline size_t
+path_component2(const char* p, size_t len) {
+  const char *start = p, *end = p + len;
+
+  while(p < end && !path_issep(*p))
+    ++p;
+
+  return p - start;
+}
+
+static inline size_t
 path_component3(const char* p, size_t len, size_t pos) {
   const char *start = p, *end = p + len;
 

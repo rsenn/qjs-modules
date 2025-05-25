@@ -248,6 +248,16 @@ getdents_size() {
   return sizeof(Directory);
 }
 
+Directory*
+getdents_new() {
+  Directory*dir;
+
+  if((dir= malloc(sizeof(Directory))))
+    getdents_clear(dir);
+
+  return dir;
+}
+
 void
 getdents_clear(Directory* d) {
   d->fd = -1;

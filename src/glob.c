@@ -88,6 +88,7 @@
 
 #include "glob.h"
 #include "path.h"
+#include "char-utils.h"
 
 #ifndef HAVE_LSTAT
 #define lstat stat
@@ -135,6 +136,7 @@ static char_type* g_strchr(char_type*, int);
 #ifdef notdef
 static char_type* g_strcat(char_type*, const char_type*);
 #endif
+static char_type* g_strcpy(char_type* str, const char* x);
 static int g_stat(char_type*, struct stat*, glob_t*);
 static int glob0(const char_type*, glob_t*);
 static int glob1(char_type*, glob_t*);
@@ -604,8 +606,10 @@ glob3(char_type* pathbuf, char_type* pathend, char_type* pattern, char_type* res
     if(dp->d_name[0] == '.' && *pattern != '.')
       continue;
 
-    for(sc = (unsigned char*)dp->d_name, dc = pathend; (*dc++ = *sc++) != '\0';)
-      continue;
+    dc = g_strcpy(pathend, (char*)dp->d_name);
+
+    /*for(sc = (unsigned char*)dp->d_name, dc = pathend; (*dc++ = *sc++) != '\0';)
+          continue;*/
 
     if(!match(pathend, pattern, restpattern)) {
       *pathend = '\0';
@@ -674,8 +678,8 @@ globextend(const char_type* path, glob_t* g) {
 }
 
 /*
- * pattern matching function for filenames.  Each occurrence of the *
- * pattern causes a recursion level.
+ * pattern matching function for filenames.
+ * Each occurrence of the pattern causes a recursion level.
  */
 static int
 match(char_type* name, char_type* pat, char_type* patend) {
@@ -805,6 +809,15 @@ g_strchr(char_type* str, int ch) {
   return NULL;
 }
 
+static char_type*
+g_strcpy(char_type* str, const char* x) {
+  for(;;)
+    if(!(*str++ = *x++))
+      break;
+
+  return str;
+}
+
 #ifdef notdef
 static char_type*
 g_strcat(char_type* dst, const char_type* src) {
@@ -832,6 +845,17 @@ g_Ctoc(const char_type* str, char* buf) {
   return dc;
 }
 
+static char*
+g_Ctos(const char_type* str) {
+  static char buf[1024];
+  char* dc;
+
+  for(dc = buf; (*dc++ = *str++) != '\0';)
+    continue;
+
+  return buf;
+}
+
 #ifdef DEBUG
 static void
 qprintf(const char* str, char_type* s) {
@@ -852,5 +876,93 @@ qprintf(const char* str, char_type* s) {
   (void)printf("\n");
 }
 #endif
+
+static inline my_range
+range_dup(const char* s) {
+  my_range ret;
+  ret.start = strdup(s);
+  ret.end = ret.start + strlen(ret.start);
+  return ret;
+}
+static inline ssize_t
+range_len(const my_range* range) {
+  return range->end - range->start;
+}
+
+static inline char*
+range_append(my_range* range, const void* x, size_t n) {
+  size_t len = range_len(range);
+
+  if((range->start = realloc(range->start, len + n + 1))) {
+    range->end = range->start + len + n;
+
+    byte_copy(&range->start[len], n, x);
+    return range->end;
+  } else
+    range->end = 0;
+
+  return 0;
+}
+
+int my_glob2(char* rest, myglob_state* g);
+int my_glob3(char* buf, char* pat, char* patend, myglob_state* g);
+
+int
+my_glob(const char* pattern, myglob_state* g) {
+  g->pat = range_dup(pattern);
+  g->buf = (my_range){0, 0};
+
+  my_glob2(g->pat.start, g);
+}
+
+int
+my_glob2(char* rest, myglob_state* g) {
+
+  char *x = rest, *y = g->pat.end;
+
+  while(x < y) {
+    size_t offset = path_component2(x, y - x);
+
+    size_t magic = byte_chrs(x, offset, "[?*{", 4);
+
+    if(magic < offset) {
+      my_glob3(g->buf.end, x, x + offset, g);
+    } else {
+      char* r;
+
+      offset += path_separator2(x + offset, y - (x + offset));
+
+      range_append(&g->buf, x, offset);
+
+      x += offset;
+    }
+  }
+}
+
+int
+my_glob3(char* buf, char* pat, char* patend, myglob_state* g) {
+  *buf = '\0';
+
+  g->dir = getdents_new();
+
+  getdents_open(g->dir, g->buf.start);
+
+  DirEntry* ent;
+  int i = 0;
+  while((ent = getdents_read(g->dir))) {
+    const char* name = getdents_cname(ent);
+    size_t namelen = strlen(name);
+
+    if(path_fnmatch5(pat, patend - pat, name, namelen, 0) != PATH_FNM_NOMATCH) {
+      printf("name: %s\n", name);
+      size_t s = range_len(&g->buf);
+      range_append(&g->buf, name, namelen);
+
+      my_glob2(patend, g);
+    }
+
+    ++i;
+  }
+}
 
 #endif /* HAVE_GLOB */

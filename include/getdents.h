@@ -24,6 +24,7 @@ enum {
 
 size_t getdents_size();
 ptrdiff_t getdents_handle(Directory*);
+Directory* getdents_new();
 void getdents_clear(Directory*);
 int getdents_open(Directory*, const char* path);
 int getdents_adopt(Directory*, intptr_t fd);
