@@ -5,14 +5,16 @@
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
+#include <sys/types.h>
 
 #include "glob.h"
 #include "path.h"
 #include "char-utils.h"
 
 static inline ssize_t
-alloc_len(size_t len) {
-  return ((len + (len >> 2) + 30) + 31) & (~(size_t)31);
+alloc_len(uintptr_t len) {
+  return ((len + (len >> 2) + 30) + 31) & (~(uintptr_t)31);
 }
 
 static inline int
@@ -36,7 +38,7 @@ range_null() {
 }
 
 static struct range
-range_frombuf(const void* x, size_t n) {
+range_frombuf(const void* x, uintptr_t n) {
   return (struct range){(char*)x, (char*)x + n};
 }
 
@@ -48,16 +50,16 @@ range_fromstr(const char* s) {
 /*static struct range
 range_dup(const char* s) {
   char* start = strdup(s);
-  size_t len = strlen(s);
+  uintptr_t len = strlen(s);
   return range_frombuf(start,len);
 }*/
 
 static int
-range_resize(struct range* r, size_t newlen) {
-  size_t len = range_len(r);
+range_resize(struct range* r, uintptr_t newlen) {
+  uintptr_t len = range_len(r);
 
   if(newlen > len) {
-    size_t res = alloc_len(len + 1);
+    uintptr_t res = alloc_len(len + 1);
 
     if(newlen < res)
       return -1;
@@ -69,10 +71,10 @@ range_resize(struct range* r, size_t newlen) {
 }
 
 static char*
-range_write(struct range* r, const void* x, size_t n) {
-  size_t len = range_len(r);
-  size_t o = alloc_len(len + 1);
-  size_t a = alloc_len(len + n + 1);
+range_write(struct range* r, const void* x, uintptr_t n) {
+  uintptr_t len = range_len(r);
+  uintptr_t o = alloc_len(len + 1);
+  uintptr_t a = alloc_len(len + n + 1);
 
   if(!r->start || a != o) {
     if(!(r->start = realloc(r->start, a)))
@@ -107,7 +109,7 @@ range_free(struct range* r) {
 static int
 vec_push(struct vec* v, const char* str) {
   if(v->len + 1 > v->res) {
-    size_t res = alloc_len(v->len + 1);
+    uintptr_t res = alloc_len(v->len + 1);
 
     if((v->ptr = realloc(v->ptr, res * sizeof(char*))))
       v->res = res;
@@ -171,10 +173,10 @@ glob_brace1(struct range pat, struct glob_state* g) {
   if(x[0] == '{' && x[1] == '}' && x + 2 == y)
     return glob_components((struct range){x, y}, g);
 
-  size_t offset = byte_chr(x, y - x, '{');
+  uintptr_t offset = byte_chr(x, y - x, '{');
 
   if(x + offset < y)
-    return glob_brace2(range_frombuf(x, offset), g);
+    return glob_brace2((struct range){x, x + offset}, g);
 
   return glob_components(pat, g);
 }
@@ -204,7 +206,7 @@ glob_brace2(struct range pat, struct glob_state* g) {
   /* copy part up to the brace */
   range_append(&out, pat);
 
-  size_t rl = range_len(&out);
+  uintptr_t rl = range_len(&out);
 
   /* Find the balanced brace */
   for(i = 0, right = ++pat.end; right < y; right++)
@@ -307,8 +309,8 @@ glob_tilde(char* pattern, struct glob_state* g) {
   if(*pattern != '~' || !(g->flags & GLOB_TILDE))
     return 0;
 
-  size_t len = path_component2(pattern, g->pat.end - pattern);
-  size_t slen = path_separator2(pattern + len, g->pat.end - (pattern + len));
+  uintptr_t len = path_component2(pattern, g->pat.end - pattern);
+  uintptr_t slen = path_separator2(pattern + len, g->pat.end - (pattern + len));
 
   if(len > 1) {
     char user[len];
@@ -346,7 +348,7 @@ glob_components(struct range rest, struct glob_state* g) {
   assert(!overlap(&g->buf, &rest));
 
   if(x < y && path_isabsolute2(x, y - x)) {
-    size_t n = path_separator2(x, y - x);
+    uintptr_t n = path_separator2(x, y - x);
 
     if(!range_write(&g->buf, x, n))
       return -1;
@@ -354,11 +356,11 @@ glob_components(struct range rest, struct glob_state* g) {
   }
 
   while(x < y) {
-    size_t offset = path_component2(x, y - x);
-    size_t magic = byte_chrs(x, offset, "[?*{", 4);
+    uintptr_t offset = path_component2(x, y - x);
+    uintptr_t magic = byte_chrs(x, offset, "[?*{", 4);
 
     if(magic < offset)
-      return glob_expand(range_frombuf(x, offset), g);
+      return glob_expand((struct range){x, x + offset}, g);
 
     offset += path_separator2(x + offset, y - (x + offset));
 
@@ -414,10 +416,10 @@ glob_expand(struct range pat, struct glob_state* g) {
     if(path_isdot1(name) || path_isdotdot1(name))
       continue;
 
-    size_t namelen = strlen(name);
+    uintptr_t namelen = strlen(name);
 
     if(path_fnmatch5(pat.start, range_len(&pat), name, namelen, 0) != PATH_FNM_NOMATCH) {
-      size_t sep, oldsize = range_len(&g->buf);
+      uintptr_t sep, oldsize = range_len(&g->buf);
       range_write(&g->buf, name, namelen);
 
       if((sep = path_separator2(pat.end, g->pat.end - pat.end)))
