@@ -17,10 +17,14 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     case BCRYPT_GENSALT: {
       uint32_t wf = 12;
 
-      JS_ToUint32(ctx, &wf, argv[0]);
+      if(JS_IsNumber(argv[0])) {
+        JS_ToUint32(ctx, &wf, argv[0]);
+        --argc;
+        ++argv;
+      }
 
-      if(argc > 1) {
-        InputBuffer salt = js_input_buffer(ctx, argv[1]);
+      if(argc > 0) {
+        InputBuffer salt = js_input_buffer(ctx, argv[0]);
 
         if(salt.size < BCRYPT_HASHSIZE)
           return JS_ThrowInternalError(ctx,
@@ -42,25 +46,34 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
     case BCRYPT_HASHPW: {
-      const char* pw = JS_ToCString(ctx, argv[0]);
+      const char* pw;
       InputBuffer salt = js_input_chars(ctx, argv[1]);
       InputBuffer buf = js_input_buffer(ctx, argv[2]);
-      char s[BCRYPT_HASHSIZE];
+      char tmp[BCRYPT_HASHSIZE], *s;
 
-      memset(s, 0, sizeof(s));
+      if(!salt.size) {
+        bcrypt_gensalt(12, s = tmp);
+      }  else if(salt.size < BCRYPT_HASHSIZE) {
+        JS_ThrowInternalError(ctx, "supplied salt size (%lu) < %d", (unsigned long)salt.size, BCRYPT_HASHSIZE);
+        input_buffer_free(&salt, ctx);
+        input_buffer_free(&buf, ctx);
+        return JS_EXCEPTION;
+      } else if(salt.size >= BCRYPT_HASHSIZE) {
+        s = salt.data;
+      }
 
-      if(!salt.size)
-        bcrypt_gensalt(12, s);
-      else
-        memcpy(s, salt.data, salt.size);
+      if(buf.size < BCRYPT_HASHSIZE) {
+        JS_ThrowInternalError(ctx, "supplied buffer size (%lu) < %d", (unsigned long)buf.size, BCRYPT_HASHSIZE);
+        input_buffer_free(&salt, ctx);
+        input_buffer_free(&buf, ctx);
+        return JS_EXCEPTION;
+      }
 
-      input_buffer_free(&salt, ctx);
-
-      if(buf.size < BCRYPT_HASHSIZE)
-        return JS_ThrowInternalError(ctx, "supplied buffer size (%lu) < %d", (unsigned long)buf.size, BCRYPT_HASHSIZE);
+      pw = JS_ToCString(ctx, argv[0]);
 
       ret = JS_NewInt32(ctx, bcrypt_hashpw(pw, s, (char*)buf.data));
 
+      input_buffer_free(&salt, ctx);
       input_buffer_free(&buf, ctx);
       JS_FreeCString(ctx, pw);
       break;
@@ -93,6 +106,7 @@ static const JSCFunctionListEntry js_bcrypt_functions[] = {
     JS_CFUNC_MAGIC_DEF("gensalt", 0, js_bcrypt_function, BCRYPT_GENSALT),
     JS_CFUNC_MAGIC_DEF("hashpw", 1, js_bcrypt_function, BCRYPT_HASHPW),
     JS_CFUNC_MAGIC_DEF("checkpw", 2, js_bcrypt_function, BCRYPT_CHECKPW),
+    JS_CONSTANT(BCRYPT_HASHSIZE),
 };
 
 static int
