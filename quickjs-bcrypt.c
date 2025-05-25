@@ -91,22 +91,22 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       InputBuffer buf = js_input_chars(ctx, argv[1]);
       char x[BCRYPT_HASHSIZE];
 
-      if(!buf.size){
-      input_buffer_free(&buf, ctx);
+      if(!buf.size) {
+        input_buffer_free(&buf, ctx);
         return JS_ThrowInternalError(ctx, "supplied buffer size 0");
       }
 
-      if(buf.size < (BCRYPT_HASHSIZE-4)) {
-      input_buffer_free(&buf, ctx);
-        return JS_ThrowInternalError(ctx, "supplied buffer size %lu < %lu", buf.size, BCRYPT_HASHSIZE-4);
+      if(buf.size < (BCRYPT_HASHSIZE - 4)) {
+        input_buffer_free(&buf, ctx);
+        return JS_ThrowInternalError(ctx, "supplied buffer size %lu < %lu", buf.size, BCRYPT_HASHSIZE - 4);
       }
 
-memset(x, 0, sizeof(x));
-      memcpy(x,  buf.data, NUM_MIN(buf.size, BCRYPT_HASHSIZE));
+      memset(x, 0, sizeof(x));
+      memcpy(x, buf.data, MIN_NUM(buf.size, BCRYPT_HASHSIZE));
       input_buffer_free(&buf, ctx);
 
-const char* pw = JS_ToCString(ctx, argv[0]);
-      
+      const char* pw = JS_ToCString(ctx, argv[0]);
+
       ret = JS_NewInt32(ctx, bcrypt_checkpw(pw, x));
 
       JS_FreeCString(ctx, pw);
@@ -123,6 +123,8 @@ static const JSCFunctionListEntry js_bcrypt_functions[] = {
     JS_CFUNC_MAGIC_DEF("checkpw", 2, js_bcrypt_function, BCRYPT_CHECKPW),
     JS_PROP_INT32_DEF("HASHSIZE", BCRYPT_HASHSIZE, JS_PROP_ENUMERABLE),
     JS_PROP_INT32_DEF("SALTSIZE", BCRYPT_SALTSIZE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("MATCH", 0, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("ERROR", -1, JS_PROP_ENUMERABLE),
 };
 
 static int
