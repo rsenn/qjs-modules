@@ -37,6 +37,7 @@ endif(HAVE_POSIX_SPAWN)
 
 option(MODULE_ARCHIVE "Build 'archive' module" ON)
 option(MODULE_MAGIC "Build 'magic' module" ON)
+option(MODULE_BCRYPT "Build 'bcrypt' module" ON)
 option(MODULE_MYSQL "Build 'mysql' module" ON)
 option(MODULE_PGSQL "Build 'pgsql' module" ON)
 option(MODULE_SERIAL "Build 'serial' module" OFF)
@@ -282,12 +283,16 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
                     ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES bjson blob deep directory lexer list location misc path pointer predicate queue repeater textcode
+set(QUICKJS_MODULES  bjson blob deep directory lexer list location misc path pointer predicate queue repeater textcode
                     sockets stream syscallerror inspect tree-walker xml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
 endif(MODULE_MAGIC)
+
+if(MODULE_BCRYPT)
+  list(APPEND QUICKJS_MODULES bcrypt)
+endif(MODULE_BCRYPT)
 
 if(MODULE_SERIAL)
   option(BUILD_LIBSERIALPORT "Build serialport library" OFF)
@@ -798,7 +803,9 @@ target_link_libraries(qjs-inspect PRIVATE qjs-pointer)
 target_link_libraries(qjs-tree-walker PRIVATE qjs-pointer)
 target_link_libraries(qjs-xml PRIVATE qjs-pointer)
 # XXX: why?
+if(TARGET qjs-child-process)
 target_link_libraries(qjs-child-process PRIVATE qjs-pointer)
+endif(TARGET qjs-child-process)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set(QUICKJS_SOURCES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
