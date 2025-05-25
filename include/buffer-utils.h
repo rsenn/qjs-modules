@@ -115,8 +115,9 @@ block_arraybuffer(MemoryBlock* mb, JSValueConst ab, JSContext* ctx) {
 
 static inline MemoryBlock
 block_slice(MemoryBlock mb, int64_t start, int64_t end) {
-  start = CLAMP_NUM(WRAP_NUM(start, mb.size), 0, mb.size);
-  end = CLAMP_NUM(WRAP_NUM(end, mb.size), 0, mb.size);
+  int64_t n =(int64_t)mb.size;
+  start = CLAMP_NUM(WRAP_NUM(start, n), 0, n);
+  end = CLAMP_NUM(WRAP_NUM(end, n), 0, n);
 
   return (MemoryBlock){mb.base + start, end - start};
 }
@@ -222,12 +223,14 @@ indexrange_from_offset(OffsetLength ol) {
 
 static inline int64_t
 indexrange_start(IndexRange ir, size_t n) {
-  return CLAMP_NUM(WRAP_NUM(ir.start, n), 0, n);
+  int64_t l = n;
+  return CLAMP_NUM(WRAP_NUM(ir.start, l), 0, l);
 }
 
 static inline int64_t
 indexrange_end(IndexRange ir, size_t n) {
-  return CLAMP_NUM(WRAP_NUM(ir.end, n), 0, n);
+  int64_t l = n;
+  return CLAMP_NUM(WRAP_NUM(ir.end, l), 0, l);
 }
 
 static inline void*

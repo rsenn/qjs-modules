@@ -1647,7 +1647,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         uint32_t newlen = 0;
 
         if(!JS_ToUint32(ctx, &newlen, argv[3])) {
-          newlen = MIN_NUM(newlen, len);
+          newlen = MIN_NUM(newlen, (uint32_t)len);
 
           if(newlen)
             len = newlen;

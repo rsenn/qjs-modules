@@ -1,3 +1,4 @@
+#define QUICKJS_POINTER_IMPL
 #include "defines.h"
 #include "quickjs-pointer.h"
 #include "buffer-utils.h"
@@ -10,6 +11,10 @@
  * @{
  */
 
+VISIBLE 
+#ifdef _WIN32
+__declspec(dllexport)
+#endif
 JSClassID js_pointer_class_id = 0;
 static JSValue pointer_proto, pointer_ctor;
 
@@ -25,6 +30,15 @@ typedef struct {
   Pointer *ptr, *alloc;
 } PointerAlloc;
 
+VISIBLE Pointer*
+js_pointer_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_pointer_class_id);
+}
+
+VISIBLE Pointer*
+js_pointer_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_pointer_class_id);
+}
 static PointerAlloc
 js_pointer_read(JSContext* ctx, JSValueConst value) {
   Pointer *ret, *alloc = 0;

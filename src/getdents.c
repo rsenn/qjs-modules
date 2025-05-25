@@ -248,16 +248,6 @@ getdents_size() {
   return sizeof(Directory);
 }
 
-Directory*
-getdents_new() {
-  Directory*dir;
-
-  if((dir= malloc(sizeof(Directory))))
-    getdents_clear(dir);
-
-  return dir;
-}
-
 void
 getdents_clear(Directory* d) {
   d->fd = -1;
@@ -421,6 +411,16 @@ getdents_type(const DirEntry* e) {
     return TYPE_REG;
 
   return 0;
+}
+
+Directory*
+getdents_new() {
+  Directory*dir;
+
+  if((dir= malloc(sizeof(Directory))))
+    getdents_clear(dir);
+
+  return dir;
 }
 
 /**

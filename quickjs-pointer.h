@@ -3,23 +3,14 @@
 
 #include "pointer.h"
 #include "utils.h"
-#include "utils.h"
+#include "defines.h"
 
 /**
  * \defgroup quickjs-pointer quickjs-pointer: JS Object pointers (deep keys)
  * @{
  */
-extern VISIBLE JSClassID js_pointer_class_id;
-
-static inline Pointer*
-js_pointer_data2(JSContext* ctx, JSValueConst value) {
-  return JS_GetOpaque2(ctx, value, js_pointer_class_id);
-}
-
-static inline Pointer*
-js_pointer_data(JSValueConst value) {
-  return JS_GetOpaque(value, js_pointer_class_id);
-}
+VISIBLE extern Pointer* js_pointer_data2(JSContext* ctx, JSValueConst value);
+VISIBLE extern Pointer* js_pointer_data(JSValueConst value);
 
 VISIBLE JSValue js_pointer_wrap(JSContext*, Pointer*);
 VISIBLE JSValue js_pointer_new(JSContext*, JSValueConst, JSValueConst);

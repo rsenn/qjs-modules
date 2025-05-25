@@ -227,7 +227,7 @@ js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   ret = js_child_process_wrap(ctx, cp);
 
-  char* shell = getenv("SHELL");
+  const char* shell = getenv("SHELL");
 
   if(!shell)
     shell = "/bin/sh";

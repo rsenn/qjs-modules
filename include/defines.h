@@ -73,16 +73,22 @@
 #define JS_CONSTANT(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE | JS_PROP_ENUMERABLE)
 #define JS_CONSTANT_NONENUMERABLE(name) JS_PROP_INT32_DEF(#name, name, JS_PROP_CONFIGURABLE)
 
+#if defined(_WIN32) || defined(__MINGW32__)
+#define DLLEXPORT __declspec(dllexport)
+#else 
+#define DLLEXPORT 
+#endif
+
 #ifdef JS_SHARED_LIBRARY
 #if defined(_WIN32) || defined(__MINGW32__)
-#define VISIBLE __declspec(dllexport)
+#define VISIBLE DLLEXPORT
 #define HIDDEN
 #else
 #define VISIBLE __attribute__((visibility("default")))
 #define HIDDEN __attribute__((visibility("hidden")))
 #endif
 #else
-#define VISIBLE
+#define VISIBLE DLLEXPORT
 #define HIDDEN
 #endif
 

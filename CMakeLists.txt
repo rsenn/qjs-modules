@@ -725,18 +725,19 @@ string(REGEX REPLACE "[^A-Za-z0-9_]" ";" BUILTIN_LIBS "${LIB_MODULES}")
 
 list(APPEND CMAKE_FIND_LIBRARY_PREFIXES "")
 
-set(COMMON_MODULES inspect util)
-set(console_MODULES)
+set(COMMON_MODULES util)
+set(console_MODULES inspect)
 set(db_MODULES list)
 set(fs_MODULES stream events path mmap misc textcode)
 set(io_MODULES misc)
 set(parser_MODULES path list)
 set(process_MODULES path misc)
-set(repl_MODULES path io process)
+set(repl_MODULES inspect path io process)
 set(require_MODULES path)
 set(perf_hooks_MODULES misc)
-set(stack_MODULES location)
-set(util_MODULES path misc)
+set(stack_MODULES inspect location)
+set(util_MODULES inspect path misc)
+set(inspect_MODULES pointer)
 
 foreach(LIB_MODULE ${LIB_MODULES})
   #message("Compile Module: ${LIB_MODULE}")
@@ -784,12 +785,20 @@ set(COMMON_LIBRARIES modules compiled)
 get_directory_property(CURRENT_LINK_DIRS LINK_DIRECTORIES)
 #dump(CURRENT_LINK_DIRS)
 
+#set(inspect_LIBS qjs-pointer)
+
 foreach(JS_MODULE ${QUICKJS_MODULES})
   make_module(${JS_MODULE})
   string(REGEX REPLACE "-" "_" QJSM_MODULE "${JS_MODULE}")
   list(APPEND QJSM_LIBS "${QJSM_MODULE}")
   #list(APPEND QJSM_LDADD "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
+
+target_link_libraries(qjs-inspect PRIVATE qjs-pointer)
+target_link_libraries(qjs-tree-walker PRIVATE qjs-pointer)
+target_link_libraries(qjs-xml PRIVATE qjs-pointer)
+# XXX: why?
+target_link_libraries(qjs-child-process PRIVATE qjs-pointer)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set(QUICKJS_SOURCES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
@@ -810,7 +819,6 @@ set(NATIVE_BUILTINS child-process deep inspect lexer location misc path pointer 
 list(APPEND NATIVE_BUILTINS syscallerror)
 
 foreach(NATIVE_BUILTIN ${NATIVE_BUILTINS})
-
   list(APPEND QJSM_SOURCES quickjs-${NATIVE_BUILTIN}.c)
 endforeach()
 

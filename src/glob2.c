@@ -2,11 +2,17 @@
 #ifndef HAVE_GLOB
 
 #include <assert.h>
+#ifdef HAVE_PWD_H
 #include <pwd.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/types.h>
+
+#ifdef _WIN32
+#define lstat stat
+#endif
 
 #include "glob.h"
 #include "path.h"
@@ -236,11 +242,15 @@ glob_tilde(char* pattern, struct glob_state* g) {
     byte_copy(user, len - 1, pattern + 1);
     user[len - 1] = '\0';
 
+#ifdef _WIN32
+#warning Get home directory for user
+#else
     if(!(pw = getpwnam(user)) || !pw->pw_dir)
       return -1;
 
     if(range_puts(&g->buf, pw->pw_dir))
       return -1;
+#endif
   } else {
     const char* home = path_gethome();
 
@@ -290,11 +300,13 @@ glob_components(PointerRange rest, struct glob_state* g) {
   if(lstat(z, &st) == -1)
     return -1;
 
-  if((S_ISDIR(st.st_mode) || (S_ISLNK(st.st_mode) && (stat(z, &st) == 0) && S_ISDIR(st.st_mode)))) {
-
+  if(S_ISDIR(st.st_mode)
+#ifdef S_ISLNK
+        || (S_ISLNK(st.st_mode) && (stat(z, &st) == 0) && S_ISDIR(st.st_mode))
+#endif
+      )
     if(range_puts(&g->buf, "/"))
       return -1;
-  }
 
   return vec_push(&g->paths, range_begin(&g->buf));
 }
