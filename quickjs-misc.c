@@ -1228,9 +1228,15 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
     globfree(&g);
   }
 
-  myglob_state myg;
+  myglob_state myg = {0};
 
   int r = my_glob(pattern, &myg);
+
+  JS_FreeValue(ctx, ret);
+  ret = JS_NewArray(ctx);
+
+  for(size_t i = 0; i < myg.paths.len; i++)
+    JS_SetPropertyUint32(ctx, ret, i, JS_NewString(ctx, myg.paths.ptr[i]));
 
   if(array_arg || result) {
     JS_FreeValue(ctx, ret);

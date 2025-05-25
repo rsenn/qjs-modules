@@ -48,6 +48,26 @@ path_dirlen(const char* path, DynBuf* dir) {
   return (char*)dir->buf;
 }
 
+BOOL
+path_isdot1(const char* p) {
+  return p[0] == '.' && p[1] == '\0';
+}
+
+BOOL
+path_isdot2(const char* p, size_t n) {
+  return n == 1 && p[0] == '.';
+}
+
+BOOL
+path_isdotdot1(const char* p) {
+  return p[0] == '.' && p[1] == '.' && p[2] == '\0';
+}
+
+BOOL
+path_isdotdot2(const char* p, size_t n) {
+  return n == 2 && p[0] == '.' && p[1] == '.';
+}
+
 /*static char*
 path_dirname_alloc(const char* path) {
   DynBuf dir;

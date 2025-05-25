@@ -63,6 +63,10 @@ typedef struct {
   size_t sz1, sz2;
 } SizePair;
 
+BOOL path_isdot1(const char*);
+BOOL path_isdot2(const char*, size_t);
+BOOL path_isdotdot1(const char*);
+BOOL path_isdotdot2(const char*, size_t);
 char* path_dup3(const char* path, size_t n, DynBuf* db);
 char* path_dup1(const char* path);
 char* path_dup2(const char* path, size_t n);

@@ -103,6 +103,7 @@ void globfree(glob_t* pglob);
 }
 #endif /* __cplusplus */
 
+#include <list.h>
 #include "getdents.h"
 
 typedef struct {
@@ -110,9 +111,14 @@ typedef struct {
 } my_range;
 
 typedef struct {
+  char** ptr;
+  size_t len, res;
+} my_vec;
+
+typedef struct {
   my_range pat;
   my_range buf;
-  Directory* dir;
+  my_vec paths;
 } myglob_state;
 
 int my_glob(const char* pattern, myglob_state* g);
