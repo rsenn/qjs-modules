@@ -16,6 +16,7 @@
 #include "path.h"
 #include "base64.h"
 #include <time.h>
+#include <stddef.h>
 #include <sys/types.h>
 #ifndef _WIN32
 #include <sys/utsname.h>

@@ -11,6 +11,7 @@
  * \defgroup buffer-utils buffer-utils: Buffer Utilities
  * @{
  */
+ssize_t alloc_len(uintptr_t);
 
 int64_t array_search(void* a, size_t m, size_t elsz, void* needle);
 #define array_contains(a, m, elsz, needle) (array_search((a), (m), (elsz), (needle)) != -1)
@@ -255,15 +256,40 @@ indexrange_slice(const IndexRange* ir, int64_t start, int64_t end) {
 }*/
 
 typedef struct {
-  uint8_t *start, *end;
+  void *start, *end;
 } PointerRange;
 
 #define RANGE_INIT() \
   (PointerRange) { 0, 0 }
 
+int range_overlap(const PointerRange*, const PointerRange*);
+PointerRange range_null();
+PointerRange range_frombuf(const void*, uintptr_t);
+PointerRange range_fromstr(const char*);
+int range_resize(PointerRange*, uintptr_t);
+int range_write(PointerRange*, const void*, uintptr_t);
+int range_puts(PointerRange*, const void*);
+int range_append(PointerRange*, PointerRange);
+
 static inline void
 range_init(PointerRange* pr) {
   pr->end = pr->start = 0;
+}
+
+static inline char*
+range_begin(PointerRange* pr) {
+  return (char*)pr->start;
+}
+
+static inline char*
+range_end(PointerRange* pr) {
+  return (char*)pr->end;
+}
+
+static inline char*
+range_str(PointerRange* pr) {
+  *range_end(pr) = '\0';
+  return range_begin(pr);
 }
 
 static inline BOOL
@@ -295,6 +321,16 @@ range_offset_length(PointerRange pr, OffsetLength ol) {
   uint8_t* base = pr.start + offset_offset(ol, size);
 
   return (PointerRange){base, base + offset_size(ol, size)};
+}
+
+static inline int
+range_in(const PointerRange* r, const void* ptr) {
+  return (const uint8_t*)ptr >= (const uint8_t*)r->start && (const uint8_t*)ptr <= (const uint8_t*)r->end;
+}
+
+static inline ssize_t
+range_len(const PointerRange* r) {
+  return r->end - r->start;
 }
 
 typedef struct InputBuffer {

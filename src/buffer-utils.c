@@ -11,6 +11,11 @@
 #endif
 #include "debug.h"
 
+ssize_t
+alloc_len(uintptr_t len) {
+  return ((len + (len >> 2) + 30) + 31) & (~(uintptr_t)31);
+}
+
 /**
  * \addtogroup buffer-utils
  * @{
@@ -530,6 +535,68 @@ js_output_args(JSContext* ctx, int argc, JSValueConst argv[]) {
     js_offset_length(ctx, output.size, argc - 1, argv + 1, &output.range);
 
   return output;
+}
+
+int
+range_overlap(const PointerRange* a, const PointerRange* b) {
+  return range_in(a, b->start) || range_in(a, b->end);
+}
+
+PointerRange
+range_null() {
+  return (PointerRange){0, 0};
+}
+
+PointerRange
+range_frombuf(const void* x, uintptr_t n) {
+  return (PointerRange){(char*)x, (char*)x + n};
+}
+
+PointerRange
+range_fromstr(const char* s) {
+  return range_frombuf(s, strlen(s));
+}
+
+int
+range_resize(PointerRange* r, uintptr_t newlen) {
+  uintptr_t len = range_len(r);
+
+  if(newlen > len) {
+    uintptr_t res = alloc_len(len + 1);
+
+    if(newlen < res)
+      return -1;
+  }
+
+  r->end = r->start + newlen;
+  *(char*)r->end = '\0';
+  return 0;
+}
+
+int
+range_write(PointerRange* r, const void* x, uintptr_t n) {
+  uintptr_t len = range_len(r);
+  uintptr_t a = alloc_len(len + n + 1);
+
+  if(!r->start || a != alloc_len(len + 1))
+    if(!(r->start = realloc(r->start, a)))
+      return -1;
+
+  byte_copy(range_begin(r) + len, n, x);
+  r->end = r->start + len + n;
+  *(char*)r->end = '\0';
+
+  return 0;
+}
+
+int
+range_puts(PointerRange* r, const void* x) {
+  return range_write(r, x, strlen(x));
+}
+
+int
+range_append(PointerRange* r, PointerRange other) {
+  return range_write(r, other.start, range_len(&other));
 }
 
 BOOL

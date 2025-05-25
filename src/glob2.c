@@ -12,99 +12,13 @@
 #include "path.h"
 #include "char-utils.h"
 
-static inline ssize_t
-alloc_len(uintptr_t len) {
-  return ((len + (len >> 2) + 30) + 31) & (~(uintptr_t)31);
-}
-
-static inline int
-in_range(const struct range* r, char* ptr) {
-  return ptr >= r->start && ptr <= r->end;
-}
-
-static int
-overlap(const struct range* a, const struct range* b) {
-  return in_range(a, b->start) || in_range(a, b->end);
-}
-
-static inline ssize_t
-range_len(const struct range* r) {
-  return r->end - r->start;
-}
-
-static struct range
-range_null() {
-  return (struct range){0, 0};
-}
-
-static struct range
-range_frombuf(const void* x, uintptr_t n) {
-  return (struct range){(char*)x, (char*)x + n};
-}
-
-static struct range
-range_fromstr(const char* s) {
-  return range_frombuf(s, strlen(s));
-}
-
-/*static struct range
-range_dup(const char* s) {
-  char* start = strdup(s);
-  uintptr_t len = strlen(s);
-  return range_frombuf(start,len);
-}*/
-
-static int
-range_resize(struct range* r, uintptr_t newlen) {
-  uintptr_t len = range_len(r);
-
-  if(newlen > len) {
-    uintptr_t res = alloc_len(len + 1);
-
-    if(newlen < res)
-      return -1;
-  }
-
-  r->end = r->start + newlen;
-  *r->end = '\0';
-  return 0;
-}
-
-static char*
-range_write(struct range* r, const void* x, uintptr_t n) {
-  uintptr_t len = range_len(r);
-  uintptr_t o = alloc_len(len + 1);
-  uintptr_t a = alloc_len(len + n + 1);
-
-  if(!r->start || a != o) {
-    if(!(r->start = realloc(r->start, a)))
-      return 0;
-  }
-
-  byte_copy(&r->start[len], n, x);
-  r->end = r->start + len + n;
-  *r->end = '\0';
-
-  return r->end;
-}
-
-static char*
-range_puts(struct range* r, const void* x) {
-  return range_write(r, x, strlen(x));
-}
-
-static char*
-range_append(struct range* r, struct range other) {
-  return range_write(r, other.start, range_len(&other));
-}
-
-static void
-range_free(struct range* r) {
+/*static void
+range_free(PointerRange* r) {
   if(r->start) {
     free(r->start);
     *r = range_null();
   }
-}
+}*/
 
 static int
 vec_push(struct vec* v, const char* str) {
@@ -124,30 +38,38 @@ vec_push(struct vec* v, const char* str) {
   return -1;
 }
 
-static int glob_components(struct range, struct glob_state*);
-static int glob_expand(struct range, struct glob_state*);
+static int glob_components(PointerRange, struct glob_state*);
+static int glob_expand(PointerRange, struct glob_state*);
 static int glob_tilde(char*, struct glob_state*);
-static int glob_brace1(struct range, struct glob_state*);
-static int glob_brace2(struct range, struct glob_state*);
+static int glob_brace1(PointerRange, struct glob_state*);
+static int glob_brace2(PointerRange, struct glob_state*);
 
 int
 my_glob(const char* pattern, struct glob_state* g) {
   g->pat = range_fromstr(pattern);
   g->buf = range_null();
 
-  char* x = g->pat.start;
+  char *x = range_begin(&g->pat), *y = range_end(&g->pat);
 
-  if(x < g->pat.end && *x == '~') {
+  if(x < y && *x == '~') {
     int n;
 
     if((n = glob_tilde(x, g)))
       x += n;
   }
 
+  size_t s;
+
+  if((s = path_separator2(x, y - x))) {
+    if(range_write(&g->buf, x, s))
+      return -1;
+    x += s;
+  }
+
   if(g->flags & GLOB_BRACE)
-    return glob_brace1((struct range){x, g->pat.end}, g);
+    return glob_brace1((PointerRange){x, y}, g);
   else
-    return glob_components((struct range){x, g->pat.end}, g);
+    return glob_components((PointerRange){x, y}, g);
 }
 
 /**
@@ -157,26 +79,26 @@ my_glob(const char* pattern, struct glob_state* g) {
  * expansion invoke the standard globbing routine to glob the
  * rest of the magic characters.
  *
- * @param {struct range}      pat   Pattern
+ * @param {PointerRange}      pat   Pattern
  * @param {struct glob_state*} g     State
  *
  * @returns -1 on error
  */
 static int
-glob_brace1(struct range pat, struct glob_state* g) {
-  char* x = pat.start;
-  char* const y = pat.end;
+glob_brace1(PointerRange pat, struct glob_state* g) {
+  char* x = range_begin(&pat);
+  char* const y = range_end(&pat);
 
-  assert(!overlap(&g->buf, &pat));
+  assert(!range_overlap(&g->buf, &pat));
 
   /* Protect a single {}, for find(1), like csh */
   if(x[0] == '{' && x[1] == '}' && x + 2 == y)
-    return glob_components((struct range){x, y}, g);
+    return glob_components((PointerRange){x, y}, g);
 
   uintptr_t offset = byte_chr(x, y - x, '{');
 
   if(x + offset < y)
-    return glob_brace2((struct range){x, x + offset}, g);
+    return glob_brace2((PointerRange){x, x + offset}, g);
 
   return glob_components(pat, g);
 }
@@ -189,39 +111,39 @@ glob_brace1(struct range pat, struct glob_state* g) {
  * If it fails then it tries to glob the rest of the pattern and
  * returns.
  *
- * @param {struct range}      pat   Pattern
+ * @param {PointerRange}      pat   Pattern
  * @param {struct glob_state*} g     State
  *
  * @returns -1 on error
  */
 static int
-glob_brace2(struct range pat, struct glob_state* g) {
+glob_brace2(PointerRange pat, struct glob_state* g) {
   int ret = 0, i;
-  char* const y = g->pat.end;
+  char *x = range_begin(&pat), *y = range_end(&pat);
   char *right = 0, *ptr = 0, *left = 0;
-  struct range out = {0, 0};
+  PointerRange out = {0, 0};
 
-  assert(!overlap(&g->buf, &pat));
+  assert(!range_overlap(&g->buf, &pat));
 
   /* copy part up to the brace */
-  range_append(&out, pat);
+  if(range_append(&out, pat))
+    return -1;
+  if(range_append(&g->buf, pat))
+    return -1;
 
   uintptr_t rl = range_len(&out);
 
   /* Find the balanced brace */
-  for(i = 0, right = ++pat.end; right < y; right++)
+  for(i = 0, right = ++y; right < y; right++)
     if(*right == '[') {
       /* Ignore everything between [] */
       ptr = right++;
       right += byte_chr(right, y - right, ']');
 
-      /* for(ptr = right++; right < y && *right != ']'; right++) continue;*/
-
-      if(right == y) {
-        /* could not find a ptr ']'
-         - ignore and just look for '}' */
+      if(right == y)
+        /* could not find a ptr ']' - ignore and just look for '}' */
         right = ptr;
-      }
+
     } else if(*right == '{') {
       i++;
     } else if(*right == '}') {
@@ -233,23 +155,18 @@ glob_brace2(struct range pat, struct glob_state* g) {
 
   /* Non ptr braces; just glob the pattern */
   if(i != 0 || right == y)
-    return glob_components((struct range){pat.start, y}, g);
+    return glob_components((PointerRange){x, y}, g);
 
-  for(i = 0, left = ptr = pat.end; ptr <= right; ptr++)
+  for(i = 0, left = ptr = y; ptr <= right; ptr++)
     switch(*ptr) {
       case '[': {
         /* Ignore everything between [] */
         left = ptr++;
         ptr += byte_chr(ptr, y - ptr, ']');
 
-        /*for(left = ptr++; ptr < y && *ptr != ']'; ptr++) continue;*/
-        if(ptr == y) {
-          /*
-           * We could not find a ptr ']'.
-           * Ignore and just look for '}'
-           */
+        if(ptr == y)
+          /* We could not find a ptr ']' - ignore and just look for '}' */
           ptr = left;
-        }
 
         break;
       }
@@ -266,19 +183,17 @@ glob_brace2(struct range pat, struct glob_state* g) {
         /* FALLTHROUGH */
       case ',': {
         if(!(i && *ptr == ',')) {
-          char* end;
 
           /* Append the current string */
-          range_append(&out, (struct range){left, ptr});
-
-          /* Append the rest of the pattern after the closing brace */
-          if(!(end = range_append(&out, (struct range){right + 1, y})))
+          if(range_append(&out, (PointerRange){left, ptr}))
             return -1;
 
-          *end = '\0';
+          /* Append the rest of the pattern after the closing brace */
+          if(range_append(&out, (PointerRange){right + 1, y}))
+            return -1;
 
           /* Expand the current pattern */
-          ret = glob_brace1((struct range){out.start, end}, g);
+          ret = glob_brace1((PointerRange){range_begin(&out) + rl, range_end(&out)}, g);
 
           if(range_resize(&out, rl))
             return -1;
@@ -304,13 +219,15 @@ glob_brace2(struct range pat, struct glob_state* g) {
  */
 static int
 glob_tilde(char* pattern, struct glob_state* g) {
-  assert(!in_range(&g->buf, pattern));
+  char* const end = range_end(&g->pat);
+
+  assert(!range_in(&g->buf, pattern));
 
   if(*pattern != '~' || !(g->flags & GLOB_TILDE))
     return 0;
 
-  uintptr_t len = path_component2(pattern, g->pat.end - pattern);
-  uintptr_t slen = path_separator2(pattern + len, g->pat.end - (pattern + len));
+  uintptr_t len = path_component2(pattern, end - pattern);
+  uintptr_t slen = path_separator2(pattern + len, end - (pattern + len));
 
   if(len > 1) {
     char user[len];
@@ -322,92 +239,86 @@ glob_tilde(char* pattern, struct glob_state* g) {
     if(!(pw = getpwnam(user)) || !pw->pw_dir)
       return -1;
 
-    range_puts(&g->buf, pw->pw_dir);
+    if(range_puts(&g->buf, pw->pw_dir))
+      return -1;
   } else {
     const char* home = path_gethome();
 
-    range_puts(&g->buf, home);
+    if(range_puts(&g->buf, home))
+      return -1;
   }
 
-  range_write(&g->buf, pattern + len, slen);
+  if(range_write(&g->buf, pattern + len, slen))
+    return -1;
+
   return len + slen;
 }
 
 /**
  * @brief Glob directory components
  *
- * @param {struct range}      rest   Pattern
+ * @param {PointerRange}      rest   Pattern
  * @param {struct glob_state*} g     State
  *
  * @returns -1 on error
  */
 static int
-glob_components(struct range rest, struct glob_state* g) {
-  char *x = rest.start, *y = rest.end;
+glob_components(PointerRange rest, struct glob_state* g) {
+  char *x = range_begin(&rest), *y = range_end(&rest);
 
-  assert(!overlap(&g->buf, &rest));
-
-  if(x < y && path_isabsolute2(x, y - x)) {
-    uintptr_t n = path_separator2(x, y - x);
-
-    if(!range_write(&g->buf, x, n))
-      return -1;
-    x += n;
-  }
+  assert(!range_overlap(&g->buf, &rest));
 
   while(x < y) {
     uintptr_t offset = path_component2(x, y - x);
     uintptr_t magic = byte_chrs(x, offset, "[?*{", 4);
 
     if(magic < offset)
-      return glob_expand((struct range){x, x + offset}, g);
+      return glob_expand((PointerRange){x, x + offset}, g);
 
     offset += path_separator2(x + offset, y - (x + offset));
 
-    if(!range_write(&g->buf, x, offset))
+    if(range_write(&g->buf, x, offset))
       return -1;
 
     x += offset;
   }
 
-  *g->buf.end = '\0';
+  //*range_end(&g->buf) = '\0';
   struct stat st;
+  char* z = range_begin(&g->buf);
 
-  if(lstat(g->buf.start, &st) == -1)
+  if(lstat(z, &st) == -1)
     return -1;
 
-  if((S_ISDIR(st.st_mode) || (S_ISLNK(st.st_mode) && (stat(g->buf.start, &st) == 0) && S_ISDIR(st.st_mode)))) {
+  if((S_ISDIR(st.st_mode) || (S_ISLNK(st.st_mode) && (stat(z, &st) == 0) && S_ISDIR(st.st_mode)))) {
 
-    if(!(x = range_puts(&g->buf, "/")))
+    if(range_puts(&g->buf, "/"))
       return -1;
-
-    *x = '\0';
   }
 
-  return vec_push(&g->paths, g->buf.start);
+  return vec_push(&g->paths, range_begin(&g->buf));
 }
 
 /**
  * @brief Expand filenames
  *
- * @param {struct range}      pat  Pattern
+ * @param {PointerRange}      pat  Pattern
  * @param {struct glob_state*} g    State
  *
  * @returns -1 on error
  */
 static int
-glob_expand(struct range pat, struct glob_state* g) {
+glob_expand(PointerRange pat, struct glob_state* g) {
   Directory* dir;
   DirEntry* ent;
   int i = 0;
+  char *x = range_begin(&pat), *y = range_end(&pat);
 
-  assert(!overlap(&g->buf, &pat));
+  assert(!range_overlap(&g->buf, &pat));
 
   dir = getdents_new();
 
-  *g->buf.end = '\0';
-
-  if(getdents_open(dir, g->buf.start))
+  if(getdents_open(dir, range_str(&g->buf)))
     return -1;
 
   while((ent = getdents_read(dir))) {
@@ -418,20 +329,24 @@ glob_expand(struct range pat, struct glob_state* g) {
 
     uintptr_t namelen = strlen(name);
 
-    if(path_fnmatch5(pat.start, range_len(&pat), name, namelen, 0) != PATH_FNM_NOMATCH) {
+    if(path_fnmatch5(x, range_len(&pat), name, namelen, 0) != PATH_FNM_NOMATCH) {
       uintptr_t sep, oldsize = range_len(&g->buf);
-      range_write(&g->buf, name, namelen);
 
-      if((sep = path_separator2(pat.end, g->pat.end - pat.end)))
-        range_write(&g->buf, pat.end, sep);
+      if(range_write(&g->buf, name, namelen))
+        return -1;
 
-      // if(pat.end == g->pat.start.end) printf("result: '%.*s' pat.start: '%.*s'\n", (int)range_len(&g->buf),
-      // g->buf.start, (int)range_len(&pat), pat.start);
-      struct range rest = range_fromstr(pat.end + sep);
+      if((sep = path_separator2(y, range_end(&g->pat) - y)))
+        if(range_write(&g->buf, y, sep))
+          return -1;
+
+      // if(y == range_begin(&g->pat).end) printf("result: '%.*s' x: '%.*s'\n",
+      // (int)range_len(&g->buf), range_begin(&g->buf), (int)range_len(&pat), x);
+
+      PointerRange rest = range_fromstr(y + sep);
       glob_components(rest, g);
 
       range_resize(&g->buf, oldsize);
-      *g->buf.end = '\0';
+      // *range_end(&g->buf) = '\0';
     }
 
     ++i;

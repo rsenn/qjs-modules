@@ -105,10 +105,7 @@ void globfree(glob_t* pglob);
 
 #include <list.h>
 #include "getdents.h"
-
-struct range {
-  char *start, *end;
-};
+#include "buffer-utils.h"
 
 struct vec {
   char** ptr;
@@ -117,7 +114,7 @@ struct vec {
 
 struct glob_state {
   int flags;
-  struct range pat, buf;
+  PointerRange pat, buf;
   struct vec paths;
 };
 
