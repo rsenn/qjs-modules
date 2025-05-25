@@ -116,6 +116,7 @@ typedef struct {
 } my_vec;
 
 typedef struct {
+  int flags;
   my_range pat;
   my_range buf;
   my_vec paths;

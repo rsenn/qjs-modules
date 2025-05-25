@@ -1,6 +1,8 @@
 
 #ifndef HAVE_GLOB
 
+#include <assert.h>
+#include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,9 +15,19 @@ alloc_len(size_t len) {
   return ((len + (len >> 2) + 30) + 31) & (~(size_t)31);
 }
 
+static inline int
+in_range(const my_range* r, char* ptr) {
+  return ptr >= r->start && ptr <= r->end;
+}
+
+static inline int
+overlap(const my_range* a, const my_range* b) {
+  return in_range(a, b->start) || in_range(a, b->end);
+}
+
 static inline ssize_t
-range_len(const my_range* range) {
-  return range->end - range->start;
+range_len(const my_range* r) {
+  return r->end - r->start;
 }
 
 static my_range
@@ -25,66 +37,289 @@ range_dup(const char* s) {
   return (my_range){start, start + len};
 }
 
-static char*
-range_append(my_range* range, const void* x, size_t n) {
-  size_t len = range_len(range);
-  size_t o = alloc_len(len + 1);
-  size_t a = alloc_len(len + n + 1);
-
-  if(!range->start || a != o) {
-    if(!(range->start = realloc(range->start, a)))
-      return 0;
+static void
+range_free(my_range* r) {
+  if(r->start) {
+    free(r->start);
+    *r = (my_range){0, 0};
   }
-
-  byte_copy(&range->start[len], n, x);
-  range->end = range->start + len + n;
-
-  return range->end;
 }
 
 static int
-vec_push(my_vec* vec, const char* str) {
-  if(vec->len + 1 > vec->res) {
-    size_t res = alloc_len(vec->len + 1);
+range_resize(my_range* r, size_t newlen) {
+  size_t len = range_len(r);
 
-    if((vec->ptr = realloc(vec->ptr, res * sizeof(char*))))
-      vec->res = res;
+  if(newlen > len) {
+    size_t res = alloc_len(len + 1);
+
+    if(newlen < res)
+      return -1;
   }
 
-  if(vec->ptr) {
-    vec->ptr[vec->len] = strdup(str);
-    vec->ptr[++vec->len] = 0;
+  r->end = r->start + newlen;
+  return 0;
+}
+
+static char*
+range_write(my_range* r, const void* x, size_t n) {
+  size_t len = range_len(r);
+  size_t o = alloc_len(len + 1);
+  size_t a = alloc_len(len + n + 1);
+
+  if(!r->start || a != o) {
+    if(!(r->start = realloc(r->start, a)))
+      return 0;
+  }
+
+  byte_copy(&r->start[len], n, x);
+  r->end = r->start + len + n;
+
+  *r->end = '\0';
+
+  return r->end;
+}
+
+static inline char*
+range_append(my_range* r, my_range other) {
+  return range_write(r, other.start, other.end - other.start);
+}
+
+static int
+vec_push(my_vec* v, const char* str) {
+  if(v->len + 1 > v->res) {
+    size_t res = alloc_len(v->len + 1);
+
+    if((v->ptr = realloc(v->ptr, res * sizeof(char*))))
+      v->res = res;
+  }
+
+  if(v->ptr) {
+    v->ptr[v->len] = strdup(str);
+    v->ptr[++v->len] = 0;
     return 0;
   }
 
   return -1;
 }
 
-static int glob_components(char* rest, myglob_state* g);
-static int glob_expand(char* pat, char* patend, myglob_state* g);
+static int glob_components(my_range, myglob_state*);
+static int glob_expand(my_range, myglob_state*);
+
+static int glob_tilde(char*, myglob_state*);
+static int glob_brace1(my_range, myglob_state* g);
+static int glob_brace2(my_range, myglob_state* g);
 
 int
 my_glob(const char* pattern, myglob_state* g) {
-  g->pat = range_dup(pattern);
+  g->pat = (my_range){(char*)pattern, (char*)pattern + strlen(pattern)};
   g->buf = (my_range){0, 0};
 
-  return glob_components(g->pat.start, g);
+  char* x = g->pat.start;
+
+  if(x < g->pat.end && *x == '~') {
+    int n;
+
+    if((n = glob_tilde(x, g)))
+      x += n;
+  }
+
+  if(g->flags & GLOB_BRACE)
+    return glob_brace1((my_range){x, g->pat.end}, g);
+  else
+    return glob_components((my_range){x, g->pat.end}, g);
+}
+
+/*
+ * Expand recursively a glob {} pattern. When there is no more expansion
+ * invoke the standard globbing routine to glob the rest of the magic
+ * characters
+ */
+static int
+glob_brace1(my_range pat, myglob_state* g) {
+  char* x = pat.start;
+  char* const y = pat.end;
+
+  assert(!overlap(&g->buf, &pat));
+
+  /* Protect a single {}, for find(1), like csh */
+  if(x[0] == '{' && x[1] == '}' && x + 2 == y)
+    return glob_components((my_range){x, y}, g);
+
+  size_t offset = byte_chr(x, y - x, '{');
+
+  if(x + offset < y)
+    return glob_brace2((my_range){x, x + offset}, g);
+
+  return glob_components(pat, g);
+}
+
+/*
+ * Recursive brace globbing helper. Tries to expand a single brace.
+ * If it succeeds then it invokes globexp1 with the new pattern.
+ * If it fails then it tries to glob the rest of the pattern and returns.
+ */
+static int
+glob_brace2(my_range pat, myglob_state* g) {
+  int ret = 0, i;
+  char* lm;
+  char* const y = g->pat.end;
+  const char *pe, *pm, *pl;
+  my_range out = {0, 0};
+
+  assert(!overlap(&g->buf, &pat));
+
+  /* copy part up to the brace */
+  lm = range_append(&out, pat);
+
+  size_t rl = range_len(&out);
+  /*for(lm = patbuf, pm = pat.start; pm != pat.end; *lm++ = *pm++)
+    continue;
+
+  ls = lm;*/
+
+  /* Find the balanced brace */
+  for(i = 0, pe = ++pat.end; pe < y; pe++)
+    if(*pe == '[') {
+      /* Ignore everything between [] */
+      for(pm = pe++; pe < y && *pe != ']'; pe++)
+        continue;
+
+      if(pe == y) {
+        /* could not find a matching ']'
+         - ignore and just look for '}' */
+        pe = pm;
+      }
+    } else if(*pe == '{') {
+      i++;
+    } else if(*pe == '}') {
+      if(i == 0)
+        break;
+
+      i--;
+    }
+
+  /* Non matching braces; just glob the pattern */
+  if(i != 0 || pe == y) {
+    return glob_components((my_range){pat.start, y}, g);
+  }
+
+  for(i = 0, pl = pm = pat.end; pm <= pe; pm++)
+    switch(*pm) {
+      case '[': {
+        /* Ignore everything between [] */
+        for(pl = pm++; pm < y && *pm != ']'; pm++)
+          continue;
+
+        if(pm == y) {
+          /*
+           * We could not find a matching ']'.
+           * Ignore and just look for '}'
+           */
+          pm = pl;
+        }
+
+        break;
+      }
+      case '{': {
+        i++;
+        break;
+      }
+      case '}': {
+        if(i) {
+          i--;
+          break;
+        }
+      }
+        /* FALLTHROUGH */
+      case ',': {
+        if(i && *pm == ',')
+          break;
+
+        /* Append the current string */
+        range_append(&out, (my_range){pl, pm});
+
+        /*for(lm = out.start + rl; (pl < pm); *lm++ = *pl++) continue;*/
+
+        /* Append the rest of the pattern after the closing brace */
+        if(!(lm = range_append(&out, (my_range){pe + 1, y})))
+          return -1;
+
+        /*for(pl = pe + 1; pl <= y && (*lm++ = *pl++);) continue;*/
+
+        *lm = '\0';
+
+        /* Expand the current pattern */
+        ret = glob_brace1((my_range){out.start, lm}, g);
+
+        if(range_resize(&out, rl))
+          return -1;
+
+        /* move after the comma, to the next string */
+        pl = pm + 1;
+
+        break;
+      }
+        /*default: { break; }*/
+    }
+
+  return ret;
 }
 
 static int
-glob_components(char* rest, myglob_state* g) {
-  char *x = rest, *y = g->pat.end;
+glob_tilde(char* pattern, myglob_state* g) {
+  assert(!in_range(&g->buf, pattern));
+
+  if(*pattern != '~' || !(g->flags & GLOB_TILDE))
+    return 0;
+
+  size_t len = path_component2(pattern, g->pat.end - pattern);
+  size_t slen = path_separator2(pattern + len, g->pat.end - (pattern + len));
+
+  if(len > 1) {
+    char user[len];
+    struct passwd* pw;
+
+    byte_copy(user, len - 1, pattern + 1);
+    user[len - 1] = '\0';
+
+    if(!(pw = getpwnam(user)) || !pw->pw_dir)
+      return -1;
+
+    range_write(&g->buf, pw->pw_dir, strlen(pw->pw_dir));
+  } else {
+    const char* home = path_gethome();
+
+    range_write(&g->buf, home, strlen(home));
+  }
+
+  range_write(&g->buf, pattern + len, slen);
+  return len + slen;
+}
+
+static int
+glob_components(my_range rest, myglob_state* g) {
+  char *x = rest.start, *y = rest.end;
+
+  assert(!overlap(&g->buf, &rest));
+
+  if(x < y && path_isabsolute2(x, y - x)) {
+    size_t n = path_separator2(x, y - x);
+
+    if(!range_write(&g->buf, x, n))
+      return -1;
+    x += n;
+  }
 
   while(x < y) {
     size_t offset = path_component2(x, y - x);
     size_t magic = byte_chrs(x, offset, "[?*{", 4);
 
     if(magic < offset)
-      return glob_expand(x, x + offset, g);
+      return glob_expand((my_range){x, x + offset}, g);
 
     offset += path_separator2(x + offset, y - (x + offset));
 
-    if(!range_append(&g->buf, x, offset))
+    if(!range_write(&g->buf, x, offset))
       return -1;
 
     x += offset;
@@ -98,7 +333,7 @@ glob_components(char* rest, myglob_state* g) {
 
   if((S_ISDIR(st.st_mode) || (S_ISLNK(st.st_mode) && (stat(g->buf.start, &st) == 0) && S_ISDIR(st.st_mode)))) {
 
-    if(!(x = range_append(&g->buf, "/", 1)))
+    if(!(x = range_write(&g->buf, "/", 1)))
       return -1;
 
     *x = '\0';
@@ -108,14 +343,17 @@ glob_components(char* rest, myglob_state* g) {
 }
 
 static int
-glob_expand(char* pat, char* patend, myglob_state* g) {
+glob_expand(my_range pat, myglob_state* g) {
   Directory* dir;
   DirEntry* ent;
   int i = 0;
 
+  assert(!overlap(&g->buf, &pat));
+
   dir = getdents_new();
 
   *g->buf.end = '\0';
+
   if(getdents_open(dir, g->buf.start))
     return -1;
 
@@ -127,18 +365,19 @@ glob_expand(char* pat, char* patend, myglob_state* g) {
 
     size_t namelen = strlen(name);
 
-    if(path_fnmatch5(pat, patend - pat, name, namelen, 0) != PATH_FNM_NOMATCH) {
+    if(path_fnmatch5(pat.start, pat.end - pat.start, name, namelen, 0) != PATH_FNM_NOMATCH) {
       size_t sep, oldsize = range_len(&g->buf);
-      range_append(&g->buf, name, namelen);
+      range_write(&g->buf, name, namelen);
 
-      if((sep = path_separator2(patend, g->pat.end - patend)))
-        range_append(&g->buf, patend, sep);
+      if((sep = path_separator2(pat.end, g->pat.end - pat.end)))
+        range_write(&g->buf, pat.end, sep);
 
-      // if(patend == g->pat.end) printf("result: '%.*s' pat: '%.*s'\n", (int)range_len(&g->buf), g->buf.start, (int)(patend - pat), pat);
+      // if(pat.end == g->pat.start.end) printf("result: '%.*s' pat.start: '%.*s'\n", (int)range_len(&g->buf),
+      // g->buf.start, (int)(pat.end - pat.start), pat.start);
 
-      glob_components(patend + sep, g);
+      glob_components((my_range){pat.end + sep, g->pat.end}, g);
 
-      g->buf.end = g->buf.start + oldsize;
+      range_resize(&g->buf, oldsize);
       *g->buf.end = '\0';
     }
 
