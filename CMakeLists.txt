@@ -19,14 +19,20 @@ option(DO_TESTS "Perform tests" ON)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 
-RUN_CODE("tryposixspawn.c" "#include <spawn.h>\nint\nmain(void) {\n  pid_t pid;\n  posix_spawn_file_actions_t actions;\n  posix_spawnattr_t attr;\n  char* const argv[2] = {\"/bin/true\", 0};\n  char* const envp[1] = {0};\n  posix_spawnattr_setflags(&attr, 0);\n  posix_spawn_file_actions_init(&actions);\n  return posix_spawn(&pid, argv[0], 0, 0, argv, envp);\n}\n" RUN_RESULT  OUTPUT "" "")
+run_code(
+  "tryposixspawn.c"
+  "#include <spawn.h>\nint\nmain(void) {\n  pid_t pid;\n  posix_spawn_file_actions_t actions;\n  posix_spawnattr_t attr;\n  char* const argv[2] = {\"/bin/true\", 0};\n  char* const envp[1] = {0};\n  posix_spawnattr_setflags(&attr, 0);\n  posix_spawn_file_actions_init(&actions);\n  return posix_spawn(&pid, argv[0], 0, 0, argv, envp);\n}\n"
+  RUN_RESULT
+  OUTPUT
+  ""
+  "")
 if("${RUN_RESULT}" STREQUAL "0")
   set(HAVE_POSIX_SPAWN TRUE)
 endif()
 dump(HAVE_POSIX_SPAWN)
 
 if(HAVE_POSIX_SPAWN)
-option(USE_SPAWN "Use POSIX spawn()" ON)
+  option(USE_SPAWN "Use POSIX spawn()" ON)
 endif(HAVE_POSIX_SPAWN)
 
 option(MODULE_ARCHIVE "Build 'archive' module" ON)
@@ -34,6 +40,7 @@ option(MODULE_MAGIC "Build 'magic' module" ON)
 option(MODULE_MYSQL "Build 'mysql' module" ON)
 option(MODULE_PGSQL "Build 'pgsql' module" ON)
 option(MODULE_SERIAL "Build 'serial' module" OFF)
+option(OPENBSD_GLOB "OpenBSD glob()" ON)
 
 include(FindPkgConfig)
 
@@ -219,9 +226,11 @@ check_include_file(fnmatch.h HAVE_FNMATCH_H_2)
 check_function_and_include(fcntl fcntl.h)
 check_function_and_include(fnmatch fnmatch.h)
 
-check_function_and_include(glob glob.h)
+if(NOT OPENBSD_GLOB)
+  check_function_and_include(glob glob.h)
+endif(NOT OPENBSD_GLOB)
 
-dump(HAVE_GLOB HAVE_GLOB_H)
+dump(HAVE_GLOB)
 
 check_function_and_include(wordexp wordexp.h)
 

@@ -117,6 +117,13 @@
 #define DEF6432(v64, v32) v32
 #endif
 
+#if defined(_WIN32) && defined(__GNUC__)
+/* mingw printf is used */
+#define FORMAT_STRING(a, b) __attribute__((format(gnu_printf, a, b)))
+#else
+#define FORMAT_STRING(a, b) __attribute__((format(printf, a, b)))
+#endif
+
 #define COLOR_BLACK "\x1b[0;30m"
 #define COLOR_RED "\x1b[0;31m"
 #define COLOR_GREEN "\x1b[0;32m"

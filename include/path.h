@@ -9,7 +9,6 @@
 #include <unistd.h>
 
 #include <cutils.h>
-#include "utils.h"
 
 #ifdef _WIN32
 ssize_t readlink(const char*, char*, size_t);

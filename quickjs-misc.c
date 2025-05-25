@@ -25,7 +25,7 @@
 #include <fnmatch.h>
 #endif
 
-#ifdef HAVE_GLOB
+#if defined(HAVE_GLOB) && defined(HAVE_GLOB_H)
 #include <glob.h>
 #ifndef GLOB_APPEND
 #define GLOB_APPEND 0x0001
@@ -163,29 +163,6 @@ BOOL JS_IsUncatchableError(JSContext* ctx, JSValueConst val);
 void* memmem(const void*, size_t, const void*, size_t);
 #endif
 
-enum {
-  FUNC_GETEXECUTABLE = 0,
-  FUNC_GETCWD,
-  FUNC_GETROOT,
-  FUNC_GETFD,
-  FUNC_GETCOMMANDLINE,
-  FUNC_GETPROCMAPS,
-  FUNC_GETPROCMOUNTS,
-  FUNC_GETPROCSTAT,
-  FUNC_GETTID,
-  FUNC_GETPID,
-  FUNC_GETPPID,
-  FUNC_GETSID,
-  FUNC_GETUID,
-  FUNC_GETGID,
-  FUNC_GETEUID,
-  FUNC_GETEGID,
-  FUNC_SETUID,
-  FUNC_SETGID,
-  FUNC_SETEUID,
-  FUNC_SETEGID
-};
-
 // static thread_local int inotify_fd = -1;
 
 typedef struct pcg_state_setseq_64 {
@@ -262,14 +239,12 @@ clear_screen(intptr_t h, ClearMode mode, BOOL line) {
       n = line ? sbi.dwSize.X - sbi.dwCursorPosition.X : (sbi.dwSize.X * sbi.dwSize.Y) - CHAR_POS(sbi.dwCursorPosition);
       break;
     }
-
     case CLEAR_TO_BEGIN: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
       n = line ? sbi.dwCursorPosition.X : CHAR_POS(sbi.dwCursorPosition);
       break;
     }
-
     case CLEAR_ENTIRE: {
       if(line)
         coords.Y = sbi.dwCursorPosition.Y;
@@ -939,6 +914,13 @@ js_misc_getperformancecounter(JSContext* ctx, JSValueConst this_val, int argc, J
   return JS_NewFloat64(ctx, (double)ts.tv_sec * 1000 + ((double)ts.tv_nsec / 1e06));
 }
 
+enum {
+  FUNC_GETEXECUTABLE,
+  FUNC_GETCWD,
+  FUNC_GETROOT,
+  FUNC_GETFD,
+};
+
 static JSValue
 js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
@@ -975,6 +957,13 @@ js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return ret;
 }
 
+enum {
+  FUNC_GETCOMMANDLINE,
+  FUNC_GETPROCMAPS,
+  FUNC_GETPROCMOUNTS,
+  FUNC_GETPROCSTAT,
+};
+
 static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
@@ -989,19 +978,16 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       sep = '\0';
       break;
     }
-
     case FUNC_GETPROCMAPS: {
       file = "/proc/self/maps";
       sep = '\n';
       break;
     }
-
     case FUNC_GETPROCMOUNTS: {
       file = "/proc/self/mounts";
       sep = '\n';
       break;
     }
-
     case FUNC_GETPROCSTAT: {
       file = "/proc/self/stat";
       sep = ' ';
@@ -1492,7 +1478,6 @@ js_misc_settextattr(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
       ret = JS_NewBool(ctx, set_text_attributes(h, attr));
       break;
     }
-
     case SET_TEXT_COLOR: {
 #ifdef _WIN32
       uint32_t attr = 0;
@@ -1561,7 +1546,6 @@ js_misc_consolemode(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
       break;
     }
-
     case GET_CONSOLE_MODE: {
       DWORD mode = 0;
 
@@ -1684,44 +1668,6 @@ js_misc_bcrypt(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
-static JSValue
-js_misc_compile(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret = JS_UNDEFINED;
-  const char* file = JS_ToCString(ctx, argv[0]);
-  BOOL is_mod = FALSE;
-  uint8_t* buf;
-  size_t len;
-  int32_t flags = JS_EVAL_TYPE_GLOBAL;
-
-  if(argc >= 2) {
-    if(JS_IsNumber(argv[1]))
-      JS_ToInt32(ctx, &flags, argv[1]);
-    else if(JS_IsBool(argv[1]))
-      if(JS_ToBool(ctx, argv[1]))
-        flags |= JS_EVAL_TYPE_MODULE;
-  }
-
-  is_mod = !!(flags & JS_EVAL_TYPE_MODULE);
-
-  if(str_ends(file, ".jsm"))
-    is_mod = TRUE;
-
-  if((buf = js_load_file(ctx, &len, file))) {
-    if(!is_mod && JS_DetectModule((const char*)buf, len))
-      is_mod = TRUE;
-
-    flags |= (is_mod ? JS_EVAL_TYPE_MODULE : JS_EVAL_TYPE_GLOBAL);
-    ret = JS_Eval(ctx, (const char*)buf, len, file, flags | (is_mod ? JS_EVAL_FLAG_COMPILE_ONLY : 0));
-
-    if(is_mod && !(flags & JS_EVAL_FLAG_COMPILE_ONLY))
-      ret = JS_EvalFunction(ctx, ret);
-  } else {
-    ret = JS_ThrowReferenceError(ctx, "could not load '%s': %s", file, strerror(errno));
-  }
-
-  return ret;
-}
-
 struct ImmutableClosure {
   JSRuntime* rt;
   JSValue ctor, proto;
@@ -1812,6 +1758,21 @@ js_misc_read_object(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return JS_ReadObject(ctx, input.data, input.size, JS_READ_OBJ_BYTECODE);
 }
 
+enum {
+  FUNC_GETTID,
+  FUNC_GETPID,
+  FUNC_GETPPID,
+  FUNC_GETSID,
+  FUNC_GETUID,
+  FUNC_GETGID,
+  FUNC_GETEUID,
+  FUNC_GETEGID,
+  FUNC_SETUID,
+  FUNC_SETGID,
+  FUNC_SETEUID,
+  FUNC_SETEGID,
+};
+
 static JSValue
 js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t ret = 0;
@@ -1846,22 +1807,18 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = getuid();
       break;
     }
-
     case FUNC_GETGID: {
       ret = getgid();
       break;
     }
-
     case FUNC_GETEUID: {
       ret = geteuid();
       break;
     }
-
     case FUNC_GETEGID: {
       ret = getegid();
       break;
     }
-
     case FUNC_SETUID: {
 #ifndef __ANDROID__
       int32_t uid;
@@ -1873,7 +1830,6 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
       break;
     }
-
     case FUNC_SETGID: {
 #ifndef __ANDROID__
       int32_t gid;
@@ -1885,7 +1841,6 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
       break;
     }
-
     case FUNC_SETEUID: {
 #ifndef __ANDROID__
       int32_t euid;
@@ -1897,7 +1852,6 @@ js_misc_getx(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 #endif
       break;
     }
-
     case FUNC_SETEGID: {
 #ifndef __ANDROID__
       int32_t egid;
@@ -1957,27 +1911,22 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       ret = JS_NewString(ctx, typestr);
       break;
     }
-
     case VALUE_TAG: {
       ret = JS_NewInt32(ctx, JS_VALUE_GET_TAG(argv[0]));
       break;
     }
-
     case VALUE_POINTER: {
       ret = js_newpointer(ctx, js_value_ptr(argv[0]));
       break;
     }
-
     case OBJECT_REFCOUNT: {
       ret = JS_NewInt32(ctx, js_object_refcount(argv[0]));
       break;
     }
-
     case OBJECT_CLASSID: {
       ret = JS_NewInt32(ctx, js_object_classid(argv[0]));
       break;
     }
-
     case OBJECT_OPAQUE: {
       ret = js_newpointer(ctx, js_object_opaque(argv[0]));
       break;
@@ -1998,7 +1947,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       ret = js_class_value(ctx, id);
       break;
     }
-
     case CLASS_ID: {
       JSAtom name = JS_IsNumber(argv[0]) ? js_toint32(ctx, argv[0]) : JS_ValueToAtom(ctx, argv[0]);
 
@@ -2009,7 +1957,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
         JS_FreeAtom(ctx, name);
       break;
     }
-
     case STRING_POINTER: {
       if(JS_IsString(argv[0])) {
         ret = js_newpointer(ctx, js_cstring_ptr(argv[0]));
@@ -2022,7 +1969,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       break;
     }
-
     case STRING_LENGTH: {
       if(JS_IsString(argv[0])) {
         ret = JS_NewInt64(ctx, strlen(js_cstring_ptr(argv[0])));
@@ -2035,7 +1981,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
 
       break;
     }
-
     case STRING_BUFFER: {
       if(JS_IsString(argv[0]))
         ret = js_arraybuffer_fromstring(ctx, argv[0]);
@@ -2043,27 +1988,6 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       break;
     }
   }
-
-  return ret;
-}
-
-static JSValue
-js_misc_evalstring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
-  int32_t flags = JS_EVAL_TYPE_MODULE;
-  InputBuffer input = js_input_chars(ctx, argv[0]);
-  const char* filename = 0;
-
-  if(argc > 1)
-    filename = js_is_null_or_undefined(argv[1]) ? NULL : JS_ToCString(ctx, argv[1]);
-
-  if(argc > 2)
-    JS_ToInt32(ctx, &flags, argv[2]);
-
-  ret = js_eval_buf(ctx, input.data, input.size, filename, flags);
-
-  if(filename)
-    JS_FreeCString(ctx, filename);
 
   return ret;
 }
@@ -2132,7 +2056,6 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_AtomToString(ctx, atom);
       break;
     }
-
     case ATOM_TO_VALUE: {
       int32_t atom;
 
@@ -2140,7 +2063,6 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_AtomToValue(ctx, atom);
       break;
     }
-
     case VALUE_TO_ATOM: {
       JSAtom atom = JS_ValueToAtom(ctx, argv[0]);
 
@@ -2153,81 +2075,10 @@ js_misc_atom(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 }
 
 enum {
-  GET_CLASS_ID = 0,
-  GET_CLASS_NAME,
-  GET_CLASS_ATOM,
-  // GET_CLASS_COUNT,
-  GET_CLASS_PROTO,
-  GET_CLASS_CONSTRUCTOR,
   GET_TYPE_ID,
   GET_TYPE_STR,
   GET_TYPE_NAME,
 };
-
-/*static JSValue
-js_misc_classid(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret = JS_UNDEFINED;
-  int32_t class_id = 0;
-
-  if(argc >= 1) {
-    if(JS_IsNumber(argv[0]))
-      JS_ToInt32(ctx, &class_id, argv[0]);
-    else if(JS_IsObject(argv[0]))
-      class_id = JS_GetClassID(argv[0]);
-  }
-
-  switch(magic) {
-    case GET_CLASS_ID: {
-      if(class_id > 0)
-        ret = JS_NewUint32(ctx, class_id);
-      break;
-    }
-
-    case GET_CLASS_NAME: {
-      if(class_id > 0) {
-        JSAtom atom;
-
-        if((atom = js_class_atom(ctx, class_id)))
-          ret = JS_AtomToValue(ctx, atom);
-      }
-
-      break;
-    }
-
-    case GET_CLASS_ATOM: {
-      if(class_id > 0) {
-        JSAtom atom;
-
-        if((atom = js_class_atom(ctx, class_id)))
-          ret = JS_NewInt32(ctx, atom);
-      }
-
-      break;
-    }
-
-    case GET_CLASS_PROTO: {
-      if(class_id > 0)
-        ret = JS_GetClassProto(ctx, class_id);
-
-      break;
-    }
-
-    case GET_CLASS_CONSTRUCTOR: {
-      if(class_id > 0) {
-        JSValue proto = JS_GetClassProto(ctx, class_id);
-
-        if(JS_IsObject(proto))
-          ret = JS_GetPropertyStr(ctx, proto, "constructor");
-
-        JS_FreeValue(ctx, proto);
-      }
-
-      break;
-    }
-  }
-
-  return ret;
-}*/
 
 static JSValue
 js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -2242,7 +2093,6 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ret = JS_NewInt32(ctx, type_id);
       break;
     }
-
     case GET_TYPE_STR: {
       const char* type;
 
@@ -2251,7 +2101,6 @@ js_misc_type(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
       break;
     }
-
     case GET_TYPE_NAME: {
       const char* type;
 
@@ -2300,7 +2149,6 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case BITFIELD_BITS: {
       const uint8_t* buf;
 
@@ -2339,7 +2187,6 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case BITFIELD_TOARRAY: {
       const uint8_t* buf;
 
@@ -2359,7 +2206,6 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       break;
     }
-
     case BITFIELD_FROMARRAY: {
       JSValue prop;
 
@@ -2471,18 +2317,15 @@ js_misc_bitop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
       break;
     }
-
     case BITOP_XOR: {
       for(i = 0; i < ab[0].len; i++)
         ab[0].buf[i] ^= ab[1].buf[i % ab[1].len];
 
       break;
     }
-
     case BITOP_AND: {
       break;
     }
-
     case BITOP_OR: {
       break;
     }
@@ -2513,7 +2356,6 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewUint32(ctx, num);
       break;
     }
-
     case RANDOM_RANDI: {
       int32_t num = argc > 0 ? pcg32_random_bounded_divisionless(bound * 2) - bound : pcg32_random();
 
@@ -2793,7 +2635,6 @@ js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[],
         JS_FreeCString(ctx, s);
       break;
     }
-
     case IS_ERROR: r = JS_IsError(ctx, arg); break;
     case IS_EXCEPTION: r = JS_IsException(arg); break;
     case IS_EXTENSIBLE: r = JS_IsExtensible(ctx, arg); break;
@@ -3086,7 +2927,6 @@ js_misc_chown(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
       ret = fchown(fd, owner, group);
       break;
     }
-
     case 0:
     case 2: {
       const char* path;
@@ -3369,7 +3209,6 @@ js_misc_osfhandle(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       ret = JS_NewInt64(ctx, _get_osfhandle(fd));
       break;
     }
-
     case FUNC_OPEN_OSFHANDLE: {
       int64_t hnd = -1;
       int32_t flags = 0;
@@ -3691,11 +3530,10 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("bits", 1, js_misc_bitfield, BITFIELD_BITS),
     JS_CFUNC_MAGIC_DEF("bitfieldToArray", 1, js_misc_bitfield, BITFIELD_TOARRAY),
     JS_CFUNC_MAGIC_DEF("arrayToBitfield", 1, js_misc_bitfield, BITFIELD_FROMARRAY),
-    JS_CFUNC_MAGIC_DEF("compileScript", 1, js_misc_compile, 0),
-    JS_CFUNC_MAGIC_DEF("evalScript", 1, js_misc_compile, 1),
     JS_CFUNC_MAGIC_DEF("immutableClass", 1, js_misc_immutable_class, 1),
     JS_CFUNC_DEF("writeObject", 1, js_misc_write_object),
     JS_CFUNC_DEF("readObject", 1, js_misc_read_object),
+    JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
     JS_CFUNC_DEF("getOpCodes", 0, js_misc_opcodes),
     JS_CFUNC_DEF("getByteCode", 1, js_misc_get_bytecode),
     JS_CFUNC_MAGIC_DEF("valueType", 1, js_misc_valuetype, VALUE_TYPE),
@@ -3710,17 +3548,9 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("stringPointer", 1, js_misc_valuetype, STRING_POINTER),
     JS_CFUNC_MAGIC_DEF("stringLength", 1, js_misc_valuetype, STRING_LENGTH),
     JS_CFUNC_MAGIC_DEF("stringBuffer", 1, js_misc_valuetype, STRING_BUFFER),
-    JS_CFUNC_DEF("evalString", 1, js_misc_evalstring),
-    JS_CFUNC_DEF("evalBinary", 1, js_misc_evalbinary),
     JS_CFUNC_MAGIC_DEF("atomToString", 1, js_misc_atom, ATOM_TO_STRING),
     JS_CFUNC_MAGIC_DEF("atomToValue", 1, js_misc_atom, ATOM_TO_VALUE),
     JS_CFUNC_MAGIC_DEF("valueToAtom", 1, js_misc_atom, VALUE_TO_ATOM),
-    // JS_CFUNC_MAGIC_DEF("getClassID", 1, js_misc_classid, GET_CLASS_ID),
-    // JS_CFUNC_MAGIC_DEF("getClassName", 1, js_misc_classid, GET_CLASS_NAME),
-    // JS_CFUNC_MAGIC_DEF("getClassAtom", 1, js_misc_classid, GET_CLASS_ATOM),
-    //  JS_CFUNC_MAGIC_DEF("getClassCount", 1, js_misc_classid, GET_CLASS_COUNT),
-    // JS_CFUNC_MAGIC_DEF("getClassProto", 1, js_misc_classid, GET_CLASS_PROTO),
-    // JS_CFUNC_MAGIC_DEF("getClassConstructor", 1, js_misc_classid, GET_CLASS_CONSTRUCTOR),
     JS_CFUNC_MAGIC_DEF("getTypeId", 1, js_misc_type, GET_TYPE_ID),
     JS_CFUNC_MAGIC_DEF("getTypeStr", 1, js_misc_type, GET_TYPE_STR),
     JS_CFUNC_MAGIC_DEF("getTypeName", 1, js_misc_type, GET_TYPE_NAME),
@@ -3768,10 +3598,12 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CONSTANT(JS_EVAL_TYPE_DIRECT),
     JS_CONSTANT(JS_EVAL_TYPE_INDIRECT),
     JS_CONSTANT(JS_EVAL_TYPE_MASK),
+    JS_CONSTANT(JS_EVAL_IS_MAIN),
     JS_CONSTANT(JS_EVAL_FLAG_STRICT),
     JS_CONSTANT(JS_EVAL_FLAG_STRIP),
     JS_CONSTANT(JS_EVAL_FLAG_COMPILE_ONLY),
     JS_CONSTANT(JS_EVAL_FLAG_BACKTRACE_BARRIER),
+    JS_CONSTANT(JS_EVAL_FLAG_MASK),
 #ifdef HAVE_FNMATCH
     JS_CONSTANT(FNM_CASEFOLD),
 #ifdef FNM_EXTMATCH

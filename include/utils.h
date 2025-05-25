@@ -35,6 +35,12 @@ atomic_add_int(int* ptr, int v) {
 
 #define MAX_SAFE_INTEGER 9007199254740991
 
+#define JS_EVAL_IS_MAIN (1 << 2)
+
+#define JS_EVAL_FLAG_MASK \
+  (JS_EVAL_FLAG_STRICT | JS_EVAL_FLAG_STRIP | JS_EVAL_FLAG_COMPILE_ONLY | JS_EVAL_FLAG_BACKTRACE_BARRIER | \
+   JS_EVAL_FLAG_ASYNC)
+
 char* basename(const char*);
 
 typedef enum endian { LIL = 0, BIG = 1 } Endian;
@@ -289,7 +295,7 @@ typedef struct {
 
 int regexp_flags_tostring(int, char*);
 int regexp_flags_fromstring(const char*);
-RegExp regexp_from_argv(int argc, JSValueConst argv[], JSContext* ctx);
+RegExp regexp_from_argv(int argc, JSValueConst[], JSContext* ctx);
 RegExp regexp_from_string(char* str, int flags);
 RegExp regexp_from_dbuf(DynBuf* dbuf, int flags);
 uint8_t* regexp_compile(RegExp re, JSContext* ctx);
@@ -325,7 +331,7 @@ js_global_call(JSContext* ctx, const char* ctor_name, int argc, JSValueConst arg
 JSValue js_global_prototype(JSContext*, const char* class_name);
 JSValue js_global_prototype_func(JSContext*, const char* class_name, const char* func_name);
 JSValue js_global_static_func(JSContext*, const char* class_name, const char* func_name);
-BOOL js_global_instanceof(JSContext*, JSValueConst obj, const char* prop);
+BOOL js_global_instanceof(JSContext*, JSValueConst, const char* prop);
 
 typedef enum {
   FLAG_UNDEFINED = 0,
@@ -423,12 +429,12 @@ js_value_type2flag(ValueType type) {
   return flag;
 }
 
-ValueType js_value_type(JSContext*, JSValueConst value);
+ValueType js_value_type(JSContext*, JSValueConst);
 const char* const* js_value_types(void);
 const char* js_value_typeof(JSValueConst);
 const char* js_value_type_name(ValueType type);
 const char* js_value_tag_name(int tag);
-const char* js_value_typestr(JSContext*, JSValueConst value);
+const char* js_value_typestr(JSContext*, JSValueConst);
 
 /* clang-format off */ 
 int          js_value_tag(JSValueConst v);
@@ -613,7 +619,10 @@ JSAtom js_symbol_static_atom(JSContext*, const char* name);
 
 BOOL js_is_primitive(JSValueConst obj);
 BOOL js_is_iterable(JSContext*, JSValueConst obj);
+BOOL js_is_asynciterable(JSContext*, JSValueConst obj);
 BOOL js_is_iterator(JSContext*, JSValueConst obj);
+BOOL js_is_asynciterator(JSContext*, JSValueConst obj);
+
 JSValue js_iterator_method(JSContext*, JSValueConst obj);
 JSValue js_iterator_new(JSContext*, JSValueConst obj);
 JSValue js_iterator_next(JSContext*, JSValueConst obj, BOOL* done_p);
@@ -718,6 +727,9 @@ js_atom_equal_string(JSContext* ctx, JSAtom atom, const char* other) {
 const char* js_object_tostring(JSContext*, JSValueConst value);
 const char* js_object_tostring2(JSContext*, JSValueConst method, JSValueConst value);
 const char* js_function_name(JSContext*, JSValueConst value);
+
+BOOL js_function_isasync(JSContext*, JSValueConst);
+
 BOOL js_function_set_name(JSContext*, JSValueConst func, const char* name);
 const char* js_function_tostring(JSContext*, JSValueConst value);
 BOOL js_function_isnative(JSContext*, JSValueConst value);
@@ -1127,15 +1139,15 @@ JSModuleDef* js_module_load(JSContext*, const char* name);
 
 JSValue js_eval_module(JSContext*, JSValue, BOOL);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t, BOOL load_only);
-JSValue js_eval_buf(JSContext*, const void*, int, const char* filename, int eval_flags);
+JSValue js_eval_buf(JSContext*, const void*, size_t, const char* filename, int eval_flags);
 JSValue js_eval_file(JSContext*, const char*, int);
 int js_eval_str(JSContext*, const char*, const char*, int flags);
-JSValue __attribute__((format(printf, 3, 4))) js_eval_fmt(JSContext*, int flags, const char* fmt, ...);
+JSValue js_eval_fmt(JSContext*, int flags, const char* fmt, ...) __attribute__((format(printf, 3, 4)));
 
 int64_t js_time_ms(void);
 int js_interrupt_handler(JSRuntime*, void*);
 
-void js_call_handler(JSContext*, JSValueConst);
+void js_call_handler(JSContext*, JSValueConst, JSValueConst, int, JSValueConst[]);
 
 void* js_sab_alloc(void*, size_t);
 void js_sab_free(void*, void*);

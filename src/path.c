@@ -1,4 +1,5 @@
 #include "path.h"
+#include "utils.h"
 #include "buffer-utils.h"
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -1290,6 +1291,9 @@ path_dirlen2(const char* path, size_t n) {
 
   while(i > 0 && path_issep(path[i - 1]))
     i--;
+
+  if(i == 0)
+    return n;
 
   return i;
 }
