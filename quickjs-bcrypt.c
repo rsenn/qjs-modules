@@ -2,6 +2,8 @@
 #include "libbcrypt/bcrypt.h"
 #include "buffer-utils.h"
 
+static const int BCRYPT_SALTSIZE = 29;
+
 enum {
   BCRYPT_GENSALT,
   BCRYPT_CHECKPW,
@@ -40,7 +42,8 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
         memset(s, 0, sizeof(s));
 
-        ret = bcrypt_gensalt(wf, s) ? JS_NULL : JS_NewStringLen(ctx, s, strlen(s));
+        if(!bcrypt_gensalt(wf, s))
+          ret = JS_NewStringLen(ctx, s, strlen(s));
       }
 
       break;
@@ -48,52 +51,61 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     case BCRYPT_HASHPW: {
       const char* pw;
       InputBuffer salt = js_input_chars(ctx, argv[1]);
-      InputBuffer buf = js_input_buffer(ctx, argv[2]);
-      char tmp[BCRYPT_HASHSIZE], *s;
+      // InputBuffer buf = js_input_buffer(ctx, argv[2]);
+      char tmp[BCRYPT_HASHSIZE], out[BCRYPT_HASHSIZE], *s;
 
       if(!salt.size) {
-        bcrypt_gensalt(12, s = tmp);
-      }  else if(salt.size < BCRYPT_HASHSIZE) {
-        JS_ThrowInternalError(ctx, "supplied salt size (%lu) < %d", (unsigned long)salt.size, BCRYPT_HASHSIZE);
+        int32_t workfactor = 12;
+        JS_ToInt32(ctx, &workfactor, argv[1]);
+        bcrypt_gensalt(workfactor, s = tmp);
+      } else if(salt.size < BCRYPT_SALTSIZE) {
+        JS_ThrowInternalError(ctx, "supplied salt size (%lu) < %d", (unsigned long)salt.size, BCRYPT_SALTSIZE);
         input_buffer_free(&salt, ctx);
-        input_buffer_free(&buf, ctx);
+        // input_buffer_free(&buf, ctx);
         return JS_EXCEPTION;
-      } else if(salt.size >= BCRYPT_HASHSIZE) {
+      } else if(salt.size >= BCRYPT_SALTSIZE) {
         s = salt.data;
       }
 
-      if(buf.size < BCRYPT_HASHSIZE) {
-        JS_ThrowInternalError(ctx, "supplied buffer size (%lu) < %d", (unsigned long)buf.size, BCRYPT_HASHSIZE);
-        input_buffer_free(&salt, ctx);
-        input_buffer_free(&buf, ctx);
-        return JS_EXCEPTION;
-      }
+      /* if(buf.size < BCRYPT_HASHSIZE) {
+         JS_ThrowInternalError(ctx, "supplied buffer size (%lu) < %d", (unsigned long)buf.size, BCRYPT_HASHSIZE);
+         input_buffer_free(&salt, ctx);
+         input_buffer_free(&buf, ctx);
+         return JS_EXCEPTION;
+       }*/
 
       pw = JS_ToCString(ctx, argv[0]);
 
-      ret = JS_NewInt32(ctx, bcrypt_hashpw(pw, s, (char*)buf.data));
+      if(!bcrypt_hashpw(pw, s, out))
+        ret = JS_NewStringLen(ctx, out, strlen(out));
+      // ret = JS_NewInt32(ctx, bcrypt_hashpw(pw, s,out));
 
       input_buffer_free(&salt, ctx);
-      input_buffer_free(&buf, ctx);
+      // input_buffer_free(&buf, ctx);
       JS_FreeCString(ctx, pw);
+
       break;
     }
 
     case BCRYPT_CHECKPW: {
-      const char* pw = JS_ToCString(ctx, argv[0]);
       InputBuffer buf = js_input_chars(ctx, argv[1]);
       char x[BCRYPT_HASHSIZE];
 
-      if(!buf.size)
+      if(!buf.size){
+      input_buffer_free(&buf, ctx);
         return JS_ThrowInternalError(ctx, "supplied buffer size 0");
+      }
 
-      memset(x, 0, sizeof(x));
-      memcpy(x, buf.data, buf.size);
+      if(buf.size < (BCRYPT_HASHSIZE-4)) {
+      input_buffer_free(&buf, ctx);
+        return JS_ThrowInternalError(ctx, "supplied buffer size %lu < %lu", buf.size, BCRYPT_HASHSIZE-4);
+      }
+
+const char* pw = JS_ToCString(ctx, argv[0]);
+      
+      ret = JS_NewInt32(ctx, bcrypt_checkpw(pw, buf.data));
 
       input_buffer_free(&buf, ctx);
-
-      ret = JS_NewInt32(ctx, bcrypt_checkpw(pw, x));
-
       JS_FreeCString(ctx, pw);
       break;
     }
@@ -106,7 +118,8 @@ static const JSCFunctionListEntry js_bcrypt_functions[] = {
     JS_CFUNC_MAGIC_DEF("gensalt", 0, js_bcrypt_function, BCRYPT_GENSALT),
     JS_CFUNC_MAGIC_DEF("hashpw", 1, js_bcrypt_function, BCRYPT_HASHPW),
     JS_CFUNC_MAGIC_DEF("checkpw", 2, js_bcrypt_function, BCRYPT_CHECKPW),
-    JS_CONSTANT(BCRYPT_HASHSIZE),
+    JS_PROP_INT32_DEF("HASHSIZE", BCRYPT_HASHSIZE, JS_PROP_ENUMERABLE),
+    JS_PROP_INT32_DEF("SALTSIZE", BCRYPT_SALTSIZE, JS_PROP_ENUMERABLE),
 };
 
 static int
