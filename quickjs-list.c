@@ -710,13 +710,10 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case LIST_SLICE: {
       List* other;
       struct list_head* ptr;
-      int64_t i = 0, start = 0, end = list->size;
+      IndexRange range = INDEXRANGE_INIT();
+      int64_t i = 0;
 
-      if(argc > 0 && (start = js_toindex_name(ctx, argv[0], list->size, "argument 1")) == -1)
-        return JS_EXCEPTION;
-
-      if(argc > 1 && (end = js_toindex_name(ctx, argv[1], list->size, "argument 2")) == -1)
-        return JS_EXCEPTION;
+      js_index_range(ctx, list->size, argc, argv, 0, &range);
 
       if(!(other = list_new(ctx)))
         return JS_EXCEPTION;
@@ -724,10 +721,10 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       list_for_each(ptr, &list->head) {
         node = list_entry(ptr, Node, link);
 
-        if(i == end)
+        if(i == range.end)
           break;
 
-        if(i >= start)
+        if(i >= range.start)
           list_push(other, node->value, ctx);
 
         ++i;
@@ -838,6 +835,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     }
     case LIST_INSERT: {
       ListIterator* iter;
+      Node* node;
       struct list_head* ptr = NULL;
 
       if((iter = JS_GetOpaque(argv[0], js_list_iterator_class_id))) {
@@ -845,6 +843,8 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
           return JS_ThrowReferenceError(ctx, "Iterator not from this list");
 
         ptr = iter->link;
+      } else if((node = JS_GetOpaque(argv[0], js_node_class_id))) {
+        ptr = &node->link;
       }
 
       for(int i = 1; i < argc; i++)
