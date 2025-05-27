@@ -1447,6 +1447,7 @@ enum {
   NODE_NEXT,
   NODE_LINKED,
   NODE_ADDRESS,
+  NODE_SENTINEL,
 };
 
 static JSValue
@@ -1459,7 +1460,7 @@ js_node_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case NODE_VALUE: {
-      ret = JS_IsUninitialized(node->value) ? JS_NULL : JS_DupValue(ctx, node->value);
+      ret = JS_IsUninitialized(node->value) ? JS_UNINITIALIZED : JS_DupValue(ctx, node->value);
       break;
     }
     case NODE_PREV: {
@@ -1472,6 +1473,10 @@ js_node_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case NODE_LINKED: {
       ret = JS_NewBool(ctx, node_linked(node));
+      break;
+    }
+    case NODE_SENTINEL: {
+      ret = JS_NewBool(ctx, JS_IsUninitialized(node->value));
       break;
     }
     case NODE_ADDRESS: {
@@ -1496,8 +1501,10 @@ js_node_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic
 
   switch(magic) {
     case NODE_VALUE: {
-      JS_FreeValue(ctx, node->value);
-      node->value = JS_DupValue(ctx, value);
+      if(!JS_IsUninitialized(node->value)) {
+        JS_FreeValue(ctx, node->value);
+        node->value = JS_DupValue(ctx, value);
+      }
       break;
     }
   }
@@ -1518,6 +1525,7 @@ static const JSCFunctionListEntry js_node_methods[] = {
     JS_CGETSET_MAGIC_DEF("prev", js_node_get, 0, NODE_PREV),
     JS_CGETSET_MAGIC_DEF("next", js_node_get, 0, NODE_NEXT),
     JS_CGETSET_MAGIC_DEF("linked", js_node_get, 0, NODE_LINKED),
+    JS_CGETSET_MAGIC_DEF("sentinel", js_node_get, 0, NODE_SENTINEL),
     JS_CGETSET_MAGIC_DEF("value", js_node_get, js_node_set, NODE_VALUE),
     JS_CGETSET_MAGIC_DEF("address", js_node_get, 0, NODE_ADDRESS),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Node", JS_PROP_CONFIGURABLE),
