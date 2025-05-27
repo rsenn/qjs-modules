@@ -303,9 +303,9 @@ glob_components(PointerRange rest, struct glob_state* g) {
 
   if(S_ISDIR(st.st_mode)
 #ifdef S_ISLNK
-        || (S_ISLNK(st.st_mode) && (stat(z, &st) == 0) && S_ISDIR(st.st_mode))
+     || (S_ISLNK(st.st_mode) && (stat(z, &st) == 0) && S_ISDIR(st.st_mode))
 #endif
-      )
+  )
     if(range_puts(&g->buf, "/"))
       return -1;
 

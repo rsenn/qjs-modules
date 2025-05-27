@@ -133,7 +133,7 @@ node_remove(Node* node, List* list, JSContext* ctx) {
 }
 
 /**
- * \brief Call a JS function for a specific list node.
+ * @brief Call a JS function for a specific list node.
  *
  * JS function will be called with arguments:
  *   fn(node, index, List)
@@ -155,7 +155,7 @@ node_call(Node* node, JSValueConst fn, JSValueConst list_obj, int64_t i, JSConte
 }
 
 /**
- * \brief Call a predicate function for a specific List node.
+ * @brief Call a predicate function for a specific List node.
  *
  * @return TRUE if predicate fulfilled, FALSE otherwise
  */
@@ -184,7 +184,7 @@ list_new(JSContext* ctx) {
 }
 
 /**
- * \brief Insert at the tail of the list or before \param next
+ * @brief Insert at the tail of the list or before @param next
  */
 static Node*
 list_insert_before(List* list, struct list_head* next, JSValueConst value, JSContext* ctx) {
@@ -200,7 +200,7 @@ list_insert_before(List* list, struct list_head* next, JSValueConst value, JSCon
 }
 
 /**
- * \brief Insert at the head of the list or after \param prev
+ * @brief Insert at the head of the list or after @param prev
  */
 static Node*
 list_insert(List* list, struct list_head* prev, JSValueConst value, JSContext* ctx) {
@@ -216,7 +216,7 @@ list_insert(List* list, struct list_head* prev, JSValueConst value, JSContext* c
 }
 
 /**
- * \brief Insert at the tail of the list
+ * @brief Insert at the tail of the list
  */
 static inline Node*
 list_push(List* list, JSValueConst value, JSContext* ctx) {
@@ -224,7 +224,7 @@ list_push(List* list, JSValueConst value, JSContext* ctx) {
 }
 
 /**
- * \brief Insert at the head of the list
+ * @brief Insert at the head of the list
  */
 static inline Node*
 list_unshift(List* list, JSValueConst value, JSContext* ctx) {
@@ -423,12 +423,10 @@ list_iterator_value(ListIterator* it, JSContext* ctx) {
       ret = JS_NewInt64(ctx, it->index + it->list->size);
       break;
     }
-
     case ITERATOR_KIND_VALUE: {
       ret = JS_DupValue(ctx, node->value);
       break;
     }
-
     case ITERATOR_KIND_KEY_AND_VALUE: {
       ret = JS_NewArray(ctx);
       JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, it->index + it->list->size));
@@ -454,7 +452,6 @@ list_iterator_skip(ListIterator* it, JSContext* ctx) {
       it->index++;
       break;
     }
-
     case REV: {
       it->link = link->prev;
       it->index--;
@@ -538,39 +535,39 @@ js_list_iterator_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 }*/
 
 static JSValue
-js_list_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  ListIterator* it;
-  JSValueConst args[] = {
-      this_val,
-      argc > 0 ? JS_DupValue(ctx, argv[0]) : JS_NewInt32(ctx, 0),
-  };
-  JSValue ret = js_list_iterator_constructor(ctx, list_iterator_ctor, countof(args), args);
+js_list_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
+  JSValue proto, obj;
+  List* list = 0;
 
-  JS_FreeValue(ctx, args[1]);
-
-  it = JS_GetOpaque(ret, js_list_iterator_class_id);
-  it->kind = magic;
-
-  return ret;
-}
-
-static JSValue
-js_list_new(JSContext* ctx, JSValueConst proto) {
-  List* list;
-  JSValue obj = JS_UNDEFINED;
-
-  if(!(list = list_new(ctx)))
-    return JS_EXCEPTION;
+  /* using new_target to get the prototype is necessary when the class is extended. */
+  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
+  if(JS_IsException(proto))
+    proto = JS_DupValue(ctx, list_proto);
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_list_class_id);
   if(JS_IsException(obj))
     goto fail;
 
+  if(!(list = list_new(ctx)))
+    goto fail;
+
+  if(argc > 0) {
+    if(!list_append(list, argv[0], ctx)) {
+      JS_FreeValue(ctx, obj);
+
+      JS_ThrowTypeError(ctx, "argument 1 not iterable");
+      goto fail2;
+    }
+  }
+
   JS_SetOpaque(obj, list);
   return obj;
 
-fail:
+fail2:
   js_free(ctx, list);
+
+fail:
+
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -594,34 +591,8 @@ js_list_wrap_species(JSContext* ctx, JSValueConst this_val, List* list) {
   return ret;
 }
 
-static JSValue
-js_list_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj;
-  List* list;
-
-  /* using new_target to get the prototype is necessary when the class is extended. */
-  proto = JS_GetPropertyStr(ctx, new_target, "prototype");
-  if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, list_proto);
-
-  obj = js_list_new(ctx, proto);
-
-  if(!(list = js_list_data2(ctx, obj)))
-    return JS_EXCEPTION;
-
-  if(argc > 0) {
-    if(!list_append(list, argv[0], ctx)) {
-      JS_FreeValue(ctx, obj);
-
-      return JS_ThrowTypeError(ctx, "argument 1 not iterable");
-    }
-  }
-
-  return obj;
-}
-
 enum {
-  LIST_PUSH = 0,
+  LIST_PUSH,
   LIST_POP,
   LIST_UNSHIFT,
   LIST_SHIFT,
@@ -669,14 +640,12 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewInt64(ctx, list->size);
       break;
     }
-
     case LIST_POP: {
       if((node = list_last(&list->head, Node, link)))
         ret = node_remove(node, list, ctx);
 
       break;
     }
-
     case LIST_UNSHIFT: {
       for(int i = argc - 1; i >= 0; i--)
         if(!list_unshift(list, argv[i], ctx))
@@ -685,14 +654,12 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewInt64(ctx, list->size);
       break;
     }
-
     case LIST_SHIFT: {
       if((node = list_first(&list->head, Node, link)))
         ret = node_remove(node, list, ctx);
 
       break;
     }
-
     case LIST_AT: {
       if((index = js_toindex_name(ctx, argv[0], list->size, "argument 1")) == -1)
         return JS_EXCEPTION;
@@ -702,24 +669,20 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       break;
     }
-
     case LIST_INCLUDES: {
       ret = JS_NewBool(ctx, list_indexof_forward(list, argv[0], ctx) != -1);
       break;
     }
-
     case LIST_INDEX_OF: {
       ret = JS_NewInt64(ctx, list_indexof_forward(list, argv[0], ctx));
       break;
     }
-
     case LIST_LAST_INDEX_OF: {
       index = list_indexof_reverse(list, argv[0], ctx);
 
       ret = JS_NewInt64(ctx, index == -1 ? -1 : (int64_t)(list->size - 1) - index);
       break;
     }
-
     case LIST_CONCAT: {
       List* other;
       struct list_head* ptr;
@@ -744,7 +707,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
     }
-
     case LIST_SLICE: {
       List* other;
       struct list_head* ptr;
@@ -774,7 +736,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
     }
-
     case LIST_SPLICE: {
       List* other;
       struct list_head *ptr, *ptr2;
@@ -809,7 +770,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
     }
-
     case LIST_FILL: {
       List* other;
       struct list_head* ptr;
@@ -837,7 +797,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
     }
-
     case LIST_ROTATE: {
       if(JS_ToInt64(ctx, &index, argv[0]))
         return JS_ThrowRangeError(ctx, "argument 1 must be numeric index");
@@ -861,7 +820,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_DupValue(ctx, this_val);
       break;
     }
-
     case LIST_REVERSE: {
       List* other;
       struct list_head* ptr;
@@ -878,7 +836,6 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
     }
-
     case LIST_INSERT: {
       ListIterator* iter;
       struct list_head* ptr = NULL;
@@ -923,17 +880,14 @@ js_list_search(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewInt64(ctx, list_find_forward(list, this_val, pred, NULL, ctx));
       break;
     }
-
     case LIST_FIND_LAST_INDEX: {
       ret = JS_NewInt64(ctx, list_find_reverse(list, this_val, pred, NULL, ctx));
       break;
     }
-
     case LIST_FIND: {
       ret = list_find_value(list, this_val, pred, list_find_forward, ctx);
       break;
     }
-
     case LIST_FIND_LAST: {
       ret = list_find_value(list, this_val, pred, list_find_reverse, ctx);
       break;
@@ -981,7 +935,6 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       break;
     }
-
     case LIST_SOME: {
       ret = JS_FALSE;
 
@@ -997,7 +950,6 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       break;
     }
-
     case LIST_FILTER: {
       List* other;
 
@@ -1016,7 +968,6 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
     }
-
     case LIST_FOREACH: {
       list_for_each(ptr, &list->head) {
         Node* node = list_entry(ptr, Node, link);
@@ -1026,7 +977,6 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       break;
     }
-
     case LIST_MAP: {
       List* other;
 
@@ -1045,7 +995,6 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
     }
-
     case LIST_REDUCE: {
       List* other;
 
@@ -1073,7 +1022,6 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       break;
     }
-
     case LIST_REDUCE_RIGHT: {
       List* other;
 
@@ -1103,7 +1051,6 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       break;
     }
-
     case LIST_SORT: {
       List* other;
       struct list_head* ptr2;
@@ -1175,6 +1122,23 @@ js_list_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
+static JSValue
+js_list_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  ListIterator* it;
+  JSValueConst args[] = {
+      this_val,
+      argc > 0 ? JS_DupValue(ctx, argv[0]) : JS_NewInt32(ctx, 0),
+  };
+  JSValue ret = js_list_iterator_constructor(ctx, list_iterator_ctor, countof(args), args);
+
+  JS_FreeValue(ctx, args[1]);
+
+  it = JS_GetOpaque(ret, js_list_iterator_class_id);
+  it->kind = magic;
+
+  return ret;
+}
+
 enum {
   STATIC_FROM = 0,
   STATIC_OF,
@@ -1199,7 +1163,6 @@ js_list_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       ret = js_list_wrap(ctx, list_proto, list);
       break;
     }
-
     case STATIC_OF: {
       if(!(list = list_new(ctx)))
         return JS_EXCEPTION;
@@ -1210,7 +1173,6 @@ js_list_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       ret = js_list_wrap(ctx, list_proto, list);
       break;
     }
-
     case STATIC_IS_LIST: {
       ret = JS_NewBool(ctx, js_list_data(argv[0]) != NULL);
       break;
@@ -1448,7 +1410,6 @@ js_node_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       break;
     }
-
     case NODE_VALUEOF: {
       if(JS_IsUninitialized(node->value))
         ret = js_list_wrap(ctx, list_proto, list_dup((List*)node));

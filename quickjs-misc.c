@@ -1434,7 +1434,10 @@ js_misc_clearscreen(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return JS_NewBool(ctx, clear_screen(h, mode, magic == ERASE_IN_LINE));
 }
 
-enum { SET_CURSOR_POSITION, MOVE_CURSOR };
+enum {
+  SET_CURSOR_POSITION,
+  MOVE_CURSOR,
+};
 
 static JSValue
 js_misc_cursorposition(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {

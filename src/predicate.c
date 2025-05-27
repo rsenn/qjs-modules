@@ -267,13 +267,13 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
     }
 
     case PREDICATE_EQUAL: {
-           JSValue other = js_arguments_shift(args);
-           BOOL deep = FALSE;
+      JSValue other = js_arguments_shift(args);
+      BOOL deep = FALSE;
 
-           if(js_arguments_count(args) > 0)
-            deep = JS_ToBool(ctx, js_arguments_at(args, 0));
+      if(js_arguments_count(args) > 0)
+        deep = JS_ToBool(ctx, js_arguments_at(args, 0));
 
- ret = JS_NewBool(ctx, js_value_equals(ctx, other, pr->unary.predicate, deep));
+      ret = JS_NewBool(ctx, js_value_equals(ctx, other, pr->unary.predicate, deep));
       break;
     }
 

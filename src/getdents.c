@@ -415,9 +415,9 @@ getdents_type(const DirEntry* e) {
 
 Directory*
 getdents_new() {
-  Directory*dir;
+  Directory* dir;
 
-  if((dir= malloc(sizeof(Directory))))
+  if((dir = malloc(sizeof(Directory))))
     getdents_clear(dir);
 
   return dir;
