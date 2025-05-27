@@ -25,3 +25,7 @@
 	path = third_party/wasm3
 	url = git@github.com:rsenn/wasm3.git
 	branch = main
+[submodule "third_party/wasm30"]
+	path = third_party/wasm30
+	url = git@github.com:Geckos-Ink/wasm30.git
+	branch = main

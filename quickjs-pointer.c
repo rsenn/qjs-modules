@@ -11,11 +11,11 @@
  * @{
  */
 
-VISIBLE 
+VISIBLE
 #ifdef _WIN32
 __declspec(dllexport)
 #endif
-JSClassID js_pointer_class_id = 0;
+    JSClassID js_pointer_class_id = 0;
 static JSValue pointer_proto, pointer_ctor;
 
 enum {
@@ -262,7 +262,7 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     case METHOD_SLICE: {
       IndexRange rng = {0, INT64_MAX};
 
-      js_index_range(ctx, ptr->n, argc, argv, &rng);
+      js_index_range(ctx, ptr->n, argc, argv, 0, &rng);
 
       ret = pointer_slice(ptr, rng.start, rng.end, ctx);
       break;
@@ -272,7 +272,7 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       // int64_t s, l;
       IndexRange rng = {0, INT64_MAX};
 
-      js_index_range(ctx, ptr->n, argc, argv, &rng);
+      js_index_range(ctx, ptr->n, argc, argv, 0, &rng);
 
       /* if((s = js_int64_default(ctx, argv[0], 0)) < 0)
          s = MOD_NUM(s, (int64_t)ptr->n);

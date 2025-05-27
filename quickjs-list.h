@@ -9,11 +9,7 @@
  * @{
  */
 
-typedef struct List {
-  struct list_head head;
-  size_t size;
-  int ref_count;
-} List;
+typedef union List List;
 
 extern VISIBLE JSClassID js_list_class_id, js_list_iterator_class_id;
 

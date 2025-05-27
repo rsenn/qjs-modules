@@ -23,6 +23,8 @@
 #include <alloca.h>
 #endif
 
+int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
+
 JSModuleLoaderFunc* JS_GetModuleLoaderFunc(JSRuntime*);
 void* JS_GetModuleLoaderOpaque(JSRuntime*);
 
@@ -489,19 +491,16 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
   BOOL ret = FALSE;
   int64_t index;
 
-  if(atom & (1U << 31)) {
+  if(JS_ATOM_ISINT(atom)) {
     if(pval)
-      *pval = atom & (~(1U << 31));
+      *pval = JS_ATOM_TOINT(atom);
 
     return TRUE;
   }
 
   value = JS_AtomToValue(ctx, atom);
 
-  if(JS_IsNumber(value)) {
-    if(!JS_ToInt64(ctx, &index, value))
-      ret = TRUE;
-  } else if(JS_IsString(value)) {
+  if(JS_IsString(value)) {
     const char* s = JS_ToCString(ctx, value);
 
     if(is_digit_char(s[s[0] == '-'])) {
@@ -510,6 +509,8 @@ js_atom_is_index(JSContext* ctx, int64_t* pval, JSAtom atom) {
     }
 
     JS_FreeCString(ctx, s);
+  } else if(!JS_ToInt64Ext(ctx, &index, value)) {
+    ret = TRUE;
   }
 
   if(ret == TRUE)
@@ -909,8 +910,19 @@ JSValue
 js_object_constructor(JSContext* ctx, JSValueConst value) {
   JSValue ctor = JS_UNDEFINED;
 
-  if(JS_IsObject(value))
-    ctor = JS_GetPropertyStr(ctx, value, "constructor");
+  if(JS_IsObject(value)) {
+    if(!js_has_propertystr(ctx, value, "constructor")) {
+      JSValue proto = JS_GetPrototype(ctx, value);
+
+      if(JS_IsObject(proto) && !js_object_same(value, proto)) {
+        ctor = js_object_constructor(ctx, proto);
+        JS_FreeValue(ctx, proto);
+      } else {
+        ctor = JS_GetPropertyStr(ctx, value, "constructor");
+      }
+    }
+  }
+
   return ctor;
 }
 
@@ -962,11 +974,11 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
 }
 
 BOOL
-js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
+js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
   JSPropertyEnum *atoms_a, *atoms_b;
   uint32_t natoms_a, natoms_b;
-  int32_t ta = js_value_type(ctx, a);
-  int32_t tb = js_value_type(ctx, b);
+  int32_t ta = js_value_type(ctx, a), tb = js_value_type(ctx, b);
+
   assert(ta == TYPE_OBJECT);
   assert(tb == TYPE_OBJECT);
 
@@ -982,15 +994,27 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
   quicksort_r(&atoms_a, natoms_a, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
   quicksort_r(&atoms_b, natoms_b, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
 
-  for(uint32_t i = 0; i < natoms_a; i++)
+  for(uint32_t i = 0; i < natoms_a; i++) {
     if(atoms_a[i].atom != atoms_b[i].atom)
       return FALSE;
+
+    JSValue prop_a = JS_GetProperty(ctx, a, atoms_a[i].atom);
+    JSValue prop_b = JS_GetProperty(ctx, b, atoms_b[i].atom);
+
+    BOOL ret = js_value_equals(ctx, prop_a, prop_b, deep);
+
+    JS_FreeValue(ctx, prop_a);
+    JS_FreeValue(ctx, prop_b);
+
+    if(!ret)
+      return FALSE;
+  }
 
   return TRUE;
 }
 
 BOOL
-js_object_same2(JSContext* ctx, JSValueConst a, JSValueConst b) {
+js_object_same2(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
   return js_object_same(a, b);
 }
 
@@ -1939,7 +1963,7 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
 }
 
 BOOL
-js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
+js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
   int32_t ta = js_value_type(ctx, a), tb = js_value_type(ctx, b);
   BOOL ret = FALSE;
 
@@ -1973,7 +1997,10 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b) {
     ret = flta == fltb;
 
   } else if(ta & TYPE_OBJECT) {
-    ret = js_object_same(a, b) ? TRUE : js_object_equals(ctx, a, b);
+    ret = js_object_same(a, b);
+
+    if(deep && !ret)
+      ret = js_object_equals(ctx, a, b, TRUE);
 
   } else if(ta & TYPE_STRING) {
     const char *stra = JS_ToCString(ctx, a), *strb = JS_ToCString(ctx, b);
@@ -3188,6 +3215,50 @@ js_topointer(JSContext* ctx, JSValueConst value) {
   return (void*)(uintptr_t)DEF6432(js_touint64, js_touint32)(ctx, value);
 }
 
+int64_t
+js_toindex_name(JSContext* ctx, JSValueConst value, size_t range, const char* name) {
+  int64_t index = 0;
+
+  if(JS_ToInt64Ext(ctx, &index, value)) {
+    JS_ThrowTypeError(ctx, "%s is not an index (type: %s)", name, js_value_typeof(value));
+    return -1;
+  }
+
+  if(index < -(int64_t)range || index >= (int64_t)range) {
+    JS_ThrowTypeError(ctx, "%s is not within range %lld - %lld", name, -(long long)range, (long long)range - 1);
+    return -1;
+  }
+
+  return WRAP_NUM(index, (int64_t)range);
+}
+
+int64_t
+js_toindex(JSContext* ctx, JSValueConst value, size_t range) {
+  return js_toindex_name(ctx, value, range, "value");
+}
+
+int64_t
+js_tosize_name(JSContext* ctx, JSValueConst value, size_t max, size_t range, const char* name) {
+  int64_t size = 0;
+
+  if(JS_ToInt64Clamp(ctx, &size, value, 0, max, range)) {
+    JS_ThrowTypeError(ctx, "%s is not an index (type: %s)", name, js_value_typeof(value));
+    return -1;
+  }
+
+  return size;
+}
+
+size_t
+js_tosize(JSContext* ctx, JSValueConst value, size_t max, size_t range) {
+  int64_t size;
+
+  if(JS_ToInt64Clamp(ctx, &size, value, 0, max, range))
+    size = max;
+
+  return size;
+}
+
 char*
 js_tostring(JSContext* ctx, JSValueConst value) {
   return js_tostringlen(ctx, 0, value);
@@ -3509,6 +3580,39 @@ js_stack_print(JSContext* ctx, JSValueConst stack) {
   js_free(ctx, str);
 }
 
+int
+js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int start_arg, struct OffsetLength* out) {
+  int ret;
+
+  if((ret = offsetlength_from_argv(out, size, argc, argv, ctx)) < 0) {
+    ret = (-ret - 1) + start_arg;
+
+    JS_ThrowTypeError(ctx,
+                      "argument %d is not %s (type: %s)",
+                      ret + 1,
+                      (const char*[]){"an offset", "a length"}[ret],
+                      js_value_typeof(argv[ret]));
+    return -1;
+  }
+
+  return ret;
+}
+
+int
+js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], int start_arg, struct IndexRange* ir) {
+  IndexRange tmp = INDEXRANGE_INIT();
+  int ret;
+
+  if((ret = indexrange_from_argv(ir ? ir : &tmp, size, argc, argv, ctx)) < 0) {
+    JS_ThrowTypeError(ctx,
+                      "argument %d is not an index (type: %s)",
+                      -ret + start_arg,
+                      js_value_typeof(argv[-ret - 1 + start_arg]));
+    return -1;
+  }
+
+  return ret;
+}
 /**
  * @}
  */

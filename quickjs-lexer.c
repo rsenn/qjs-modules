@@ -26,7 +26,7 @@ VISIBLE JSValue token_proto = {{0}, JS_TAG_UNDEFINED}, token_ctor = {{0}, JS_TAG
 VISIBLE JSValue lexer_proto = {{0}, JS_TAG_UNDEFINED}, lexer_ctor = {{0}, JS_TAG_UNDEFINED};
 
 static JSValue
-offset_toarray(OffsetLength offs_len, JSContext* ctx) {
+offsetlength_toarray(OffsetLength offs_len, JSContext* ctx) {
   JSValue ret = JS_NewArray(ctx);
 
   JS_SetPropertyUint32(ctx, ret, 0, JS_NewInt64(ctx, offs_len.offset));
@@ -205,7 +205,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       Location* loc;
 
       if((loc = tok->loc))
-        ret = offset_toarray(token_byte_range(tok), ctx);
+        ret = offsetlength_toarray(token_byte_range(tok), ctx);
 
       break;
     }
@@ -214,7 +214,7 @@ js_token_get(JSContext* ctx, JSValueConst this_val, int magic) {
       Location* loc;
 
       if((loc = tok->loc))
-        ret = offset_toarray(token_char_range(tok), ctx);
+        ret = offsetlength_toarray(token_char_range(tok), ctx);
 
       break;
     }

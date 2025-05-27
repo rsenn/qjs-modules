@@ -30,7 +30,7 @@ const code = [
   '/Reg.*Ex/i.test(n)',
   '/\\n/g',
   'const [match, pattern, flags] = /^\\/(.*)\\/([a-z]*)$/.exec(token.value);',
-  '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);'
+  '/^\\s\\((.*):([0-9]*):([0-9]*)\\)$/.exec(line);',
 ];
 
 const bufferRef = new WeakMap();
@@ -82,13 +82,13 @@ function DumpToken(tok) {
 
 const What = {
   IMPORT: 0,
-  EXPORT: 1
+  EXPORT: 1,
 };
 
 const ImportTypes = {
   IMPORT: 0,
   IMPORT_DEFAULT: 1,
-  IMPORT_NAMESPACE: 2
+  IMPORT_NAMESPACE: 2,
 };
 
 const TokIs = curry((type, lexeme, tok) => {
@@ -139,9 +139,9 @@ function AddExport(tokens) {
       type: tokens[1]?.lexeme,
       tokens,
       exported: ExportName(tokens),
-      range: [+tokens[0]?.loc, +tokens.last?.loc]
+      range: [+tokens[0]?.loc, +tokens.last?.loc],
     },
-    { code, loc: tokens[0]?.loc }
+    { code, loc: tokens[0]?.loc },
   );
   return exp;
 }
@@ -178,7 +178,7 @@ function AddImport(tokens) {
         }
       }
       return specifiers;
-    }
+    },
   }[type]();
   return imp;
 }
@@ -187,7 +187,7 @@ function PrintES6Import(imp) {
   return {
     [ImportTypes.IMPORT_NAMESPACE]: ({ local, file }) => `import * as ${local} from '${file}';`,
     [ImportTypes.IMPORT_DEFAULT]: ({ local, file }) => `import ${local} from '${file}';`,
-    [ImportTypes.IMPORT]: ({ local, file }) => `import { ${local.join(', ')} } from '${file}';`
+    [ImportTypes.IMPORT]: ({ local, file }) => `import { ${local.join(', ')} } from '${file}';`,
   }[imp.type](imp);
 }
 
@@ -195,7 +195,7 @@ function PrintCJSImport({ type, local, file }) {
   return {
     [ImportTypes.IMPORT_NAMESPACE]: () => `const ${local} = require('${file}');`,
     [ImportTypes.IMPORT_DEFAULT]: () => `const ${local} = require('${file}');`,
-    [ImportTypes.IMPORT]: () => `const { ${local.join(', ')} } = require('${file}');`
+    [ImportTypes.IMPORT]: () => `const { ${local.join(', ')} } = require('${file}');`,
   }[type]();
 }
 
@@ -208,8 +208,8 @@ function main(...args) {
       maxArrayLength: Infinity,
       compact: 1,
       stringBreakNewline: false,
-      hideKeys: [Symbol.toStringTag]
-    }
+      hideKeys: [Symbol.toStringTag],
+    },
   });
   console.log('args', args);
   let optind = 0;
@@ -225,9 +225,9 @@ function main(...args) {
       outputImps: [false, null, 'I'],
       outputText: [false, null, 'T'],
       debug: [false, () => (debug = (debug | 0) + 1), 'x'],
-      '@': 'file'
+      '@': 'file',
     },
-    args
+    args,
   );
   files = params['@'];
   console.log('files', files);
@@ -249,7 +249,7 @@ function main(...args) {
       js: () => new ECMAScriptLexer(str, file),
       c: () => new CLexer(str, CLexer.LONGEST, file),
       bnf: () => new BNFLexer(str, file),
-      csv: () => new CSVLexer(str, file)
+      csv: () => new CSVLexer(str, file),
     };
 
     lex.h = lex.c;
@@ -258,6 +258,7 @@ function main(...args) {
     lex.l = lex.bnf;
     lex.y = lex.bnf;
     lex.json = lex.js;
+    lex.ts = lex.js;
     const lexer = (globalThis.lexer = lex[type]());
 
     console.log('lexer', lexer);
@@ -304,15 +305,15 @@ function main(...args) {
           puts(tok.lexeme);
         }
       : debug || match
-      ? (tok, prefix) => {
-          const range = tok.charRange;
-          const [start, end] = tok.charRange;
-          let s = toString(str).slice(start, end);
+        ? (tok, prefix) => {
+            const range = tok.charRange;
+            const [start, end] = tok.charRange;
+            let s = toString(str).slice(start, end);
 
-          const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc, ` '${s}'`];
-          err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
-        }
-      : () => {};
+            const cols = [prefix, `tok[${tok.byteLength}]`, tok.id, tok.type, tok.lexeme, tok.lexeme.length, tok.loc, ` '${s}'`];
+            err.puts(cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n');
+          }
+        : () => {};
 
     let tok,
       i = 0;
@@ -357,7 +358,7 @@ function main(...args) {
         },
         get depth() {
           return stack.length;
-        }
+        },
       });
       return self;
     };
@@ -438,7 +439,7 @@ function main(...args) {
     log(`splitPoints`, splitPoints);
     log(
       'fileImports',
-      fileImports.map(imp => imp.file)
+      fileImports.map(imp => imp.file),
     );
     let dir = dirname(file);
 

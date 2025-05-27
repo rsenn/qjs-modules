@@ -50,7 +50,7 @@ js_magic_load(JSContext* ctx, magic_t cookie, int argc, JSValueConst argv[]) {
     InputBuffer input = js_input_chars(ctx, argv[0]);
 
     if(argc > 1)
-      n += js_offset_length(ctx, input.size, argc - 1, argv + 1, &input.range);
+      n += js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
     void* buf[] = {input_buffer_data(&input), NULL};
     size_t siz[] = {input_buffer_length(&input), 0};
@@ -143,7 +143,7 @@ js_magic_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       InputBuffer input = js_input_chars(ctx, argv[0]);
 
       if(argc > 1)
-        n += js_offset_length(ctx, input.size, argc - 1, argv + 1, &input.range);
+        n += js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
       str = magic_buffer(cookie, input_buffer_data(&input), input_buffer_length(&input));
 

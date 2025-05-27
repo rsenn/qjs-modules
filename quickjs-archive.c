@@ -621,7 +621,7 @@ js_archive_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     InputBuffer input = js_input_chars(ctx, argv[0]);
 
     if(argc > 1)
-      n += js_offset_length(ctx, input.size, argc - 1, argv + 1, &input.range);
+      n += js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
     const uint8_t* buf = input_buffer_data(&input);
     size_t len = input_buffer_length(&input);

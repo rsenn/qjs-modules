@@ -10,6 +10,9 @@
 #include <unistd.h>
 #endif
 #include "debug.h"
+#include <quickjs.h>
+
+int JS_ToInt64Clamp(JSContext*, int64_t*, JSValueConst, int64_t, int64_t, int64_t);
 
 ssize_t
 alloc_len(uintptr_t len) {
@@ -474,11 +477,11 @@ js_input_buffer(JSContext* ctx, JSValueConst value) {
       0,
       &input_buffer_free_default,
       JS_UNDEFINED,
-      OFFSET_INIT(),
+      OFFSETLENGTH_INIT(),
   };
 
   if(js_is_typedarray(ctx, value)) {
-    ret.value = offset_typedarray(&ret.range, value, ctx);
+    ret.value = offsetlength_typedarray(&ret.range, value, ctx);
   } else if(js_is_arraybuffer(ctx, value) || js_is_sharedarraybuffer(ctx, value)) {
     ret.value = JS_DupValue(ctx, value);
   }
@@ -503,7 +506,7 @@ js_input_chars(JSContext* ctx, JSValueConst value) {
       0,
       &input_buffer_free_default,
       JS_UNDEFINED,
-      OFFSET_INIT(),
+      OFFSETLENGTH_INIT(),
   };
 
   if(JS_IsString(value)) {
@@ -522,7 +525,7 @@ js_input_args(JSContext* ctx, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
 
   if(argc > 1)
-    js_offset_length(ctx, input.size, argc - 1, argv + 1, &input.range);
+    js_offset_length(ctx, input.size, argc, argv, 1, &input.range);
 
   return input;
 }
@@ -532,7 +535,7 @@ js_output_args(JSContext* ctx, int argc, JSValueConst argv[]) {
   InputBuffer output = js_input_buffer(ctx, argv[0]);
 
   if(argc > 1)
-    js_offset_length(ctx, output.size, argc - 1, argv + 1, &output.range);
+    js_offset_length(ctx, output.size, argc, argv, 1, &output.range);
 
   return output;
 }
@@ -675,55 +678,50 @@ input_buffer_column(InputBuffer* in, size_t* len) {
 }
 
 int
-js_offset_length(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], OffsetLength* out) {
-  int ret = 0;
-  int64_t off = 0, len = size;
+offsetlength_from_argv(OffsetLength* ol, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
+  int64_t offset = 0, length = size;
+  int i = 0;
 
-  if(argc >= 1 && JS_IsNumber(argv[0])) {
-    if(!JS_ToInt64(ctx, &off, argv[0]))
-      ret = 1;
+  if(i < argc) {
+    if(JS_ToInt64Clamp(ctx, &offset, argv[i], 0, size, size))
+      return -1;
 
-    if(argc >= 2 && JS_IsNumber(argv[1]))
-      if(!JS_ToInt64(ctx, &len, argv[1]))
-        ret = 2;
+    if(++i < argc) {
+      if(JS_ToInt64Clamp(ctx, &length, argv[i], 0, size - offset, size))
+        return -2;
 
-    off = CLAMP_NUM(WRAP_NUM(off, size), 0, size);
-    len = MIN_NUM(len, size - off);
-
-    if(out) {
-      out->offset = off;
-      out->length = len;
+      ++i;
     }
   }
 
-  return ret;
+  if(ol) {
+    ol->offset = offset;
+    ol->length = length;
+  }
+
+  return i;
 }
 
 int
-js_index_range(JSContext* ctx, int64_t size, int argc, JSValueConst argv[], IndexRange* idx_rng_p) {
-  int ret = 0;
-  int64_t start = 0, end = size;
+indexrange_from_argv(IndexRange* ir, int64_t size, int argc, JSValueConst argv[], JSContext* ctx) {
+  int i = 0;
 
-  if(argc >= 1 && JS_IsNumber(argv[0])) {
-    if(!JS_ToInt64(ctx, &start, argv[0]))
-      ret = 1;
+  ir->start = 0;
+  ir->end = size;
 
-    if(argc >= 2 && JS_IsNumber(argv[1]))
-      if(!JS_ToInt64(ctx, &end, argv[1]))
-        ret = 2;
+  if(i < argc) {
+    if(JS_ToInt64Clamp(ctx, &ir->start, argv[i], 0, size, size))
+      return -1;
 
-    if(size > 0) {
-      start = CLAMP_NUM(WRAP_NUM(start, size), 0, size);
-      end = CLAMP_NUM(WRAP_NUM(end, size), 0, size);
-    }
+    if(++i < argc) {
+      if(JS_ToInt64Clamp(ctx, &ir->end, argv[i], ir->start, size, size))
+        return -2;
 
-    if(idx_rng_p) {
-      idx_rng_p->start = start;
-      idx_rng_p->end = end;
+      ++i;
     }
   }
 
-  return ret;
+  return i;
 }
 
 int

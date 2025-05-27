@@ -1,4 +1,5 @@
 
+
 #ifndef HAVE_GLOB
 
 #include <assert.h>
@@ -330,7 +331,7 @@ glob_expand(PointerRange pat, struct glob_state* g) {
 
   dir = getdents_new();
 
-  if(getdents_open(dir, range_str(&g->buf)))
+  if(getdents_open(dir, range_len(&g->buf) ? range_str(&g->buf) : "."))
     return -1;
 
   while((ent = getdents_read(dir))) {

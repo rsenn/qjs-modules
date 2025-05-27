@@ -6,6 +6,7 @@
 #endif
 #include "defines.h"
 #include <quickjs.h>
+#include <cutils.h>
 #include <quickjs-libc.h>
 #include <quickjs-config.h>
 #include "quickjs-misc.h"
@@ -14,6 +15,7 @@
 #include "quickjs-syscallerror.h"
 #include "utils.h"
 #include "path.h"
+#include "vector.h"
 #include "base64.h"
 #include <time.h>
 #include <stddef.h>
@@ -564,10 +566,10 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       uint8_t* s;
       size_t n;
 
-      js_offset_length(ctx, -1, argc - 1, argv + 1, &ol);
+      js_offset_length(ctx, -1, argc , argv , 1, &ol);
 
-      s = offset_data(ol, data);
-      n = offset_size(ol, len);
+      s = offsetlength_data(ol, data);
+      n = offsetlength_size(ol, len);
 
       if(ol.length < 0 && memchr(s, '\0', n))
         ret = JS_NewString(ctx, (const char*)s);
@@ -650,9 +652,9 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   }*/
 
   if(!JS_IsException(input.value)) {
-    OffsetLength o = OFFSET_INIT();
-    js_offset_length(ctx, input.size, argc - 1, argv + 1, &o);
-    MemoryBlock b = offset_block(o, input_buffer_block(&input));
+    OffsetLength o = OFFSETLENGTH_INIT();
+    js_offset_length(ctx, input.size, argc , argv, 1, &o);
+    MemoryBlock b = offsetlength_block(o, input_buffer_block(&input));
     ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
   }
 
@@ -667,7 +669,7 @@ js_misc_slicearraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValu
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
     IndexRange ir = {0, INT64_MAX};
 
-    js_index_range(ctx, len, argc - 1, argv + 1, &ir);
+    js_index_range(ctx, len, argc - 1, argv + 1, 0, &ir);
 
     return JS_NewArrayBuffer(ctx,
                              indexrange_data(ir, data, len),
@@ -688,11 +690,11 @@ js_misc_duparraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
     OffsetLength ol = {0, -1};
 
-    js_offset_length(ctx, len, argc - 1, argv + 1, &ol);
+    js_offset_length(ctx, len, argc - 1, argv + 1, 0, &ol);
 
     return JS_NewArrayBuffer(ctx,
-                             offset_data(ol, data),
-                             offset_size(ol, len),
+                             offsetlength_data(ol, data),
+                             offsetlength_size(ol, len),
                              js_arraybuffer_free_object,
                              js_value_obj2(ctx, argv[0]),
                              js_is_sharedarraybuffer(ctx, argv[0]));
@@ -820,7 +822,7 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     return JS_ThrowTypeError(ctx, "argument 1 (dst) must be an ArrayBuffer");
 
   ++i;
-  i += js_offset_length(ctx, dst.size, argc - i, argv + i, &s_offs);
+  i += js_offset_length(ctx, dst.size, argc - i, argv + i, 0, &s_offs);
 
   /*dst.base += s_offs.offset;
   dst.size -= s_offs.offset;
@@ -830,14 +832,14 @@ js_misc_memcpy(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     return JS_ThrowTypeError(ctx, "argument %d (src) must be an ArrayBuffer", i + 1);
 
   ++i;
-  i += js_offset_length(ctx, dst.size, argc - i, argv + i, &d_offs);
+  i += js_offset_length(ctx, dst.size, argc - i, argv + i, 0, &d_offs);
 
   /*src.base += d_offs.offset;
   src.size -= d_offs.offset;
   src.size = MIN_NUM(src.size, d_offs.length);*/
 
-  if((n = MIN_NUM(offset_size(d_offs, block_length(&dst)), offset_size(s_offs, block_length(&src)))))
-    memcpy(offset_data(d_offs, block_data(&dst)), offset_data(s_offs, block_data(&src)), n);
+  if((n = MIN_NUM(offsetlength_size(d_offs, block_length(&dst)), offsetlength_size(s_offs, block_length(&src)))))
+    memcpy(offsetlength_data(d_offs, block_data(&dst)), offsetlength_data(s_offs, block_data(&src)), n);
 
   return JS_NewInt64(ctx, n);
 }
@@ -853,16 +855,16 @@ js_misc_memcmp(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     return JS_ThrowTypeError(ctx, "argument 1 (s1) must be an ArrayBuffer");
 
   ++i;
-  i += js_offset_length(ctx, s1.size, argc - i, argv + i, &o1);
+  i += js_offset_length(ctx, s1.size, argc - i, argv + i, 0, &o1);
 
   if(i == argc || !block_arraybuffer(&s2, argv[i], ctx))
     return JS_ThrowTypeError(ctx, "argument %d (s2) must be an ArrayBuffer", i + 1);
 
   ++i;
-  i += js_offset_length(ctx, s2.size, argc - i, argv + i, &o2);
+  i += js_offset_length(ctx, s2.size, argc - i, argv + i, 0, &o2);
 
-  if((n = MIN_NUM(offset_size(o1, block_length(&s1)), offset_size(o2, block_length(&s2)))))
-    return JS_NewInt32(ctx, memcmp(offset_data(o1, block_data(&s1)), offset_data(o2, block_data(&s2)), n));
+  if((n = MIN_NUM(offsetlength_size(o1, block_length(&s1)), offsetlength_size(o2, block_length(&s2)))))
+    return JS_NewInt32(ctx, memcmp(offsetlength_data(o1, block_data(&s1)), offsetlength_data(o2, block_data(&s2)), n));
 
   return JS_NULL;
 }
@@ -2326,7 +2328,7 @@ js_misc_random(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   return ret;
 }
 
-JSValue
+static JSValue
 js_misc_escape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
 
@@ -2403,7 +2405,7 @@ js_misc_unescape_pred(const char* s, size_t* lenp) {
   return 0;
 }
 
-JSValue
+static JSValue
 js_misc_unescape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
 
@@ -2451,8 +2453,8 @@ js_misc_unescape(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return JS_DupValue(ctx, argv[0]);
 }
 
-JSValue
-js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+static JSValue
+js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   InputBuffer input = js_input_chars(ctx, argv[0]);
   DynBuf output;
   char quote = '"';
@@ -2490,13 +2492,13 @@ js_misc_quote(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
   }
 
   dbuf_putc(&output, quote);
-  dbuf_put_escaped_table(&output, (const char*)input.data, input.size, table);
+  (magic ? dbuf_put_unescaped_table : dbuf_put_escaped_table)(&output, (const char*)input.data, input.size, table);
   dbuf_putc(&output, quote);
 
   return dbuf_tostring_free(&output, ctx);
 }
 
-JSValue
+static JSValue
 js_misc_error(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   int32_t errnum = errno;
   const char* syscall = 0;
@@ -2556,7 +2558,7 @@ enum {
   IS_ARRAYBUFFER,
 };
 
-JSValue
+static JSValue
 js_misc_is(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int32_t r = -1;
   JSValueConst arg = argc >= 1 ? argv[0] : JS_UNDEFINED;
@@ -3502,7 +3504,8 @@ static const JSCFunctionListEntry js_misc_funcs[] = {
     JS_CFUNC_MAGIC_DEF("srand", 1, js_misc_random, RANDOM_SRAND),
     JS_CFUNC_DEF("escape", 1, js_misc_escape),
     JS_CFUNC_DEF("unescape", 1, js_misc_unescape),
-    JS_CFUNC_DEF("quote", 1, js_misc_quote),
+    JS_CFUNC_MAGIC_DEF("quote", 1, js_misc_quote, 0),
+    JS_CFUNC_MAGIC_DEF("dequote", 1, js_misc_quote, 1),
     JS_CFUNC_DEF("error", 0, js_misc_error),
     JS_CFUNC_DEF("atexit", 1, js_misc_atexit),
     JS_CFUNC_MAGIC_DEF("isArray", 1, js_misc_is, IS_ARRAY),

@@ -91,10 +91,7 @@
 #define VISIBLE DLLEXPORT
 #define HIDDEN
 #endif
-
-#ifndef WRAP_NUM
-#define WRAP_NUM(n, max) ((n) < 0 ? (max) + (n) : (n))
-#endif
+ 
 #ifndef MAX_NUM
 #define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
 #endif

@@ -80,7 +80,7 @@ typedef struct {
 } Arguments;
 
 typedef void* realloc_func(void*, void*, size_t);
-typedef BOOL JSValueCompareFunc(JSContext*, JSValueConst, JSValueConst);
+typedef BOOL JSValueCompareFunc(JSContext*, JSValueConst, JSValueConst, BOOL);
 
 void* utils_js_realloc(JSContext*, void* ptr, size_t size);
 void* utils_js_realloc_rt(JSRuntime*, void* ptr, size_t size);
@@ -89,12 +89,13 @@ size_t list_size(struct list_head* list);
 struct list_head* list_front(const struct list_head* list);
 struct list_head* list_back(const struct list_head* list);
 
+#define list_first(list, type, member) list_entry(list_front((list)), type, member)
+#define list_last(list, type, member) list_entry(list_back((list)), type, member)
+
 static inline void
 list_splice(const struct list_head* list, struct list_head* head) {
   if(list->next != list) {
-    struct list_head* a = list->next;
-    struct list_head* b = list->prev;
-    struct list_head* c = head->next;
+    struct list_head *a = list->next, *b = list->prev, *c = head->next;
     head->next = a;
     a->prev = head;
     b->next = c;
@@ -457,7 +458,7 @@ BOOL js_value_has_ref_count(JSValueConst v);
 void js_value_free(JSContext*, JSValue v);
 void js_value_free_rt(JSRuntime*, JSValue v);
 
-BOOL js_value_equals(JSContext*, JSValueConst a, JSValueConst b);
+BOOL js_value_equals(JSContext*, JSValueConst a, JSValueConst b, BOOL deep);
 void js_value_print(JSContext*, JSValueConst value);
 JSValue js_value_clone(JSContext*, JSValueConst valpe);
 JSValue* js_values_dup(JSContext*, int nvalues, JSValueConst* values);
@@ -523,6 +524,10 @@ js_toint64(JSContext* ctx, JSValueConst value) {
 
 uint64_t js_touint64(JSContext*, JSValueConst);
 void* js_topointer(JSContext*, JSValueConst);
+int64_t js_toindex_name(JSContext*, JSValueConst, size_t, const char*);
+int64_t js_toindex(JSContext*, JSValueConst, size_t);
+int64_t js_tosize_name(JSContext*, JSValueConst, size_t, size_t, const char*);
+size_t js_tosize(JSContext*, JSValueConst, size_t, size_t);
 char* js_tostringlen(JSContext*, size_t* lenp, JSValueConst value);
 char* js_tostring(JSContext*, JSValueConst value);
 wchar_t* js_towstringlen(JSContext*, size_t* lenp, JSValueConst value);
@@ -751,13 +756,13 @@ int js_object_refcount(JSValueConst);
 JSValue js_object_constructor(JSContext*, JSValueConst value);
 JSValue js_object_species(JSContext*, JSValueConst value);
 char* js_object_classname(JSContext*, JSValueConst value);
-BOOL js_object_equals(JSContext*, JSValueConst a, JSValueConst b);
+BOOL js_object_equals(JSContext*, JSValueConst a, JSValueConst b, BOOL);
 int js_object_is(JSContext*, JSValueConst value, const char* cmp);
 JSValue js_object_construct(JSContext*, JSValueConst ctor);
 JSValue js_object_error(JSContext*, const char* message);
 JSValue js_object_new(JSContext*, const char* class_name, int argc, JSValueConst argv[]);
 JSValue js_object_function(JSContext*, const char* func_name, JSValueConst obj);
-BOOL js_object_same2(JSContext*, JSValueConst, JSValueConst);
+BOOL js_object_same2(JSContext*, JSValueConst, JSValueConst, BOOL);
 JSAtom* js_object_properties(JSContext*, uint32_t* lenptr, JSValueConst obj, int flags);
 int js_object_copy(JSContext*, JSValueConst dst, JSValueConst src);
 
@@ -997,7 +1002,6 @@ js_is_numeric(JSContext* ctx, JSValueConst value) {
 }
 
 int js_propenum_cmp(const void* a, const void* b, void* ptr);
-BOOL js_object_equals(JSContext*, JSValueConst a, JSValueConst b);
 int64_t js_array_clear(JSContext*, JSValueConst array);
 
 size_t js_strv_length(char** strv);
@@ -1142,7 +1146,7 @@ JSValue js_eval_binary(JSContext*, const uint8_t*, size_t, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const void*, size_t, const char* filename, int eval_flags);
 JSValue js_eval_file(JSContext*, const char*, int);
 int js_eval_str(JSContext*, const char*, const char*, int flags);
-JSValue js_eval_fmt(JSContext*, int flags, const char* fmt, ...) __attribute__((format(printf, 3, 4)));
+JSValue js_eval_fmt(JSContext*, int flags, const char* fmt, ...) FORMAT_STRING(3, 4);
 
 int64_t js_time_ms(void);
 int js_interrupt_handler(JSRuntime*, void*);
@@ -1227,6 +1231,12 @@ void js_stack_dump(JSContext*, JSValueConst, DynBuf*);
 char* js_stack_tostring(JSContext*, JSValueConst);
 JSValue js_stack_get(JSContext*);
 void js_stack_print(JSContext*, JSValueConst);
+
+struct OffsetLength;
+struct IndexRange;
+
+int js_offset_length(JSContext*, int64_t, int, JSValueConst[], int, struct OffsetLength*);
+int js_index_range(JSContext*, int64_t, int, JSValueConst[], int, struct IndexRange*);
 
 /**
  * @}

@@ -1513,9 +1513,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_RECVFROM: {
       int32_t flags = 0;
       InputBuffer buf = js_input_buffer(ctx, argv[0]);
-      OffsetLength off = OFFSET_INIT();
+      OffsetLength off = OFFSETLENGTH_INIT();
 
-      js_offset_length(ctx, buf.size, argc - 1, argv + 1, &off);
+      js_offset_length(ctx, buf.size, argc - 1, argv + 1, 0, &off);
 
 #ifdef DEBUG_OUTPUT_
       printf("%s(): recv(%d, %zu, %zu, %zu)\n",
@@ -1523,7 +1523,7 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
              socket_handle(*s),
              off.offset,
              off.length,
-             offset_size(off, buf.size));
+             offsetlength_size(off, buf.size));
 #endif
 
       if(argc >= 4)
@@ -1536,15 +1536,16 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         JS_SOCKETCALL(SYSCALL_RECVFROM,
                       s,
                       recvfrom(socket_handle(*s),
-                               offset_data(off, buf.data),
-                               offset_size(off, buf.size),
+                               offsetlength_data(off, buf.data),
+                               offsetlength_size(off, buf.size),
                                flags,
                                a ? &a->s : NULL,
                                a ? &alen : NULL));
       } else {
-        JS_SOCKETCALL(SYSCALL_RECV,
-                      s,
-                      recv(socket_handle(*s), offset_data(off, buf.data), offset_size(off, buf.size), flags));
+        JS_SOCKETCALL(
+            SYSCALL_RECV,
+            s,
+            recv(socket_handle(*s), offsetlength_data(off, buf.data), offsetlength_size(off, buf.size), flags));
       }
 
       break;
@@ -1554,9 +1555,9 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     case METHOD_SENDTO: {
       int32_t flags = 0;
       InputBuffer buf = js_input_chars(ctx, argv[0]);
-      OffsetLength off = OFFSET_INIT();
+      OffsetLength off = OFFSETLENGTH_INIT();
 
-      js_offset_length(ctx, buf.size, argc - 1, argv + 1, &off);
+      js_offset_length(ctx, buf.size, argc - 1, argv + 1, 0, &off);
 
       if(argc >= 4)
         JS_ToInt32(ctx, &flags, argv[3]);
@@ -1568,15 +1569,16 @@ js_socket_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         JS_SOCKETCALL(SYSCALL_SENDTO,
                       s,
                       sendto(socket_handle(*s),
-                             offset_data(off, buf.data),
-                             offset_size(off, buf.size),
+                             offsetlength_data(off, buf.data),
+                             offsetlength_size(off, buf.size),
                              flags,
                              a ? &a->s : NULL,
                              a ? alen : 0));
       } else {
-        JS_SOCKETCALL(SYSCALL_SEND,
-                      s,
-                      send(socket_handle(*s), offset_data(off, buf.data), offset_size(off, buf.size), flags));
+        JS_SOCKETCALL(
+            SYSCALL_SEND,
+            s,
+            send(socket_handle(*s), offsetlength_data(off, buf.data), offsetlength_size(off, buf.size), flags));
       }
 
       break;

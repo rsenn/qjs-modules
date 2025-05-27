@@ -87,6 +87,19 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case PATH_BASELEN: {
       size_t len;
 
+      if(b) {
+        --argc;
+        ++argv;
+      }
+      if(argc > 1) {
+        int64_t index = INT64_MAX;
+        JS_ToInt64(ctx, &index, argv[1]);
+
+        index = CLAMP_NUM(WRAP_NUM(index, (int64_t)alen), 0, (int64_t)alen);
+
+        alen = index;
+      }
+
       pos = path_basename3(a, &len, alen);
 
       if(blen && blen < len)
@@ -210,16 +223,6 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case PATH_FNMATCH: {
-      int32_t flags = 0;
-
-      if(argc > 2)
-        JS_ToInt32(ctx, &flags, argv[2]);
-
-      ret = JS_NewInt32(ctx, path_fnmatch5(a, alen, b, blen, flags));
-      break;
-    }
-
 #ifndef __wasi__
     case PATH_GETHOME: {
       const char* home;
@@ -312,6 +315,15 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
+    case PATH_FNMATCH: {
+      int32_t flags = 0;
+
+      if(argc > 2)
+        JS_ToInt32(ctx, &flags, argv[2]);
+
+      ret = JS_NewInt32(ctx, path_fnmatch5(a, alen, b, blen, flags));
+      break;
+    }
     case PATH_ISIN: {
       ret = JS_NewBool(ctx, path_isin4(a, alen, b, blen));
       break;

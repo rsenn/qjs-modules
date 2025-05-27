@@ -115,7 +115,7 @@ block_arraybuffer(MemoryBlock* mb, JSValueConst ab, JSContext* ctx) {
 
 static inline MemoryBlock
 block_slice(MemoryBlock mb, int64_t start, int64_t end) {
-  int64_t n =(int64_t)mb.size;
+  int64_t n = (int64_t)mb.size;
   start = CLAMP_NUM(WRAP_NUM(start, n), 0, n);
   end = CLAMP_NUM(WRAP_NUM(end, n), 0, n);
 
@@ -140,36 +140,40 @@ block_realloc(MemoryBlock* mb, size_t new_size, JSContext* ctx) {
   return -1;
 }
 
-typedef struct {
+typedef struct OffsetLength {
   size_t offset, length;
 } OffsetLength;
 
-#define OFFSET_INIT() \
+#define OFFSETLENGTH_INIT() \
   (OffsetLength) { 0, SIZE_MAX }
 
+#define offsetlength_in_range(ol, num) ((num) >= (ol).offset && (num) < ((ol).offset + (ol).length))
+
+int offsetlength_from_argv(OffsetLength*, int64_t, int, JSValueConst[], JSContext*);
+
 static inline void
-offset_init(OffsetLength* ol) {
+offsetlength_init(OffsetLength* ol) {
   ol->offset = 0;
   ol->length = SIZE_MAX;
 }
 
 static inline BOOL
-offset_is_default(OffsetLength ol) {
+offsetlength_is_default(OffsetLength ol) {
   return ol.offset == 0 && ol.length == SIZE_MAX;
 }
 
 static inline size_t
-offset_offset(OffsetLength ol, size_t n) {
+offsetlength_offset(OffsetLength ol, size_t n) {
   return MIN_NUM(ol.offset, n);
 }
 
 static inline void*
-offset_data(OffsetLength ol, const void* x) {
+offsetlength_data(OffsetLength ol, const void* x) {
   return (uint8_t*)x + ol.offset;
 }
 
 static inline size_t
-offset_size(OffsetLength ol, size_t n) {
+offsetlength_size(OffsetLength ol, size_t n) {
   size_t offs = MIN_NUM(ol.offset, n);
 
   if(ol.length == SIZE_MAX)
@@ -179,12 +183,12 @@ offset_size(OffsetLength ol, size_t n) {
 }
 
 static inline MemoryBlock
-offset_block(OffsetLength ol, MemoryBlock mb) {
+offsetlength_block(OffsetLength ol, MemoryBlock mb) {
   return block_range(mb, ol.offset, ol.length);
 }
 
 static inline JSValue
-offset_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
+offsetlength_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
   JSValue ret;
   size_t offset, length;
 
@@ -198,12 +202,16 @@ offset_typedarray(OffsetLength* ol, JSValueConst array, JSContext* ctx) {
   return ret;
 }
 
-typedef struct {
+typedef struct IndexRange {
   int64_t start, end;
 } IndexRange;
 
 #define INDEXRANGE_INIT() \
   (IndexRange) { 0, INT64_MAX }
+
+#define indexrange_in_range(ir, num) ((num) >= (ir).start && (num) < ((ir).end))
+
+int indexrange_from_argv(IndexRange*, int64_t, int, JSValueConst[], JSContext*);
 
 static inline void
 indexrange_init(IndexRange* ir) {
@@ -250,13 +258,6 @@ indexrange_block(IndexRange ir, MemoryBlock b) {
       indexrange_size(ir, b.size),
   };
 }
-
-/*static inline IndexRange
-indexrange_slice(const IndexRange* ir, int64_t start, int64_t end) {
-  OffsetLength ol = offset_from_indexrange(ir);
-  ol = offset_slice(ol, start, end);
-  return indexrange_from_offset(ol);
-}*/
 
 typedef struct {
   void *start, *end;
@@ -321,9 +322,9 @@ range_fromblock(MemoryBlock mb) {
 static inline PointerRange
 range_offset_length(PointerRange pr, OffsetLength ol) {
   size_t size = range_size(pr);
-  uint8_t* base = pr.start + offset_offset(ol, size);
+  uint8_t* base = pr.start + offsetlength_offset(ol, size);
 
-  return (PointerRange){base, base + offset_size(ol, size)};
+  return (PointerRange){base, base + offsetlength_size(ol, size)};
 }
 
 static inline int
@@ -371,7 +372,7 @@ void input_buffer_free(InputBuffer* in, JSContext* ctx);
 
 static inline uint8_t*
 input_buffer_data(const InputBuffer* in) {
-  return offset_data(in->range, in->data);
+  return offsetlength_data(in->range, in->data);
 }
 
 static inline uint8_t*
@@ -381,7 +382,7 @@ input_buffer_begin(const InputBuffer* in) {
 
 static inline size_t
 input_buffer_length(const InputBuffer* in) {
-  return offset_size(in->range, in->size);
+  return offsetlength_size(in->range, in->size);
 }
 
 static inline uint8_t*
@@ -431,9 +432,6 @@ static inline size_t
 input_buffer_remain(const InputBuffer* in) {
   return input_buffer_length(in) - in->pos;
 }
-
-int js_offset_length(JSContext*, int64_t size, int argc, JSValueConst argv[], OffsetLength* off_len_p);
-int js_index_range(JSContext*, int64_t size, int argc, JSValueConst argv[], IndexRange* idx_rng_p);
 
 /**
  * @}
