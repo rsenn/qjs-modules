@@ -1414,6 +1414,10 @@ js_node_wrap(JSContext* ctx, JSValueConst proto, Node* node) {
   return obj;
 }
 
+enum {
+  NODE_EQUAL,
+};
+
 static JSValue
 js_node_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Node* node;
@@ -1422,7 +1426,17 @@ js_node_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   if(!(node = js_node_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  switch(magic) {}
+  switch(magic) {
+    case NODE_EQUAL: {
+      Node* other;
+
+      if(!(other = js_node_data2(ctx, argv[0])))
+        return JS_EXCEPTION;
+
+      ret = JS_NewBool(ctx, other == node);
+      break;
+    }
+  }
 
   return ret;
 }
