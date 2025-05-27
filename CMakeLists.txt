@@ -492,6 +492,41 @@ endif(HAVE_WASM3)
   endif(LibArchive_FOUND)
 endif(MODULE_WASM)
 
+if(MODULE_WASM)
+  option(BUILD_LIBWASM "Build wasm library" OFF)
+
+  if(BUILD_WASM3)
+    include(ExternalProject)
+    ExternalProject_Add(
+      wasm3
+      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/wasm3
+      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm3
+      CMAKE_CACHE_ARGS
+        "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}" "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
+        "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}" "-DCMAKE_C_FLAGS:STRING=-w"
+        "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
+      CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
+
+set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
+    link_directories("${WASM3_LIBRARY_DIR}")
+set(WASM3_LIBRARY m3)
+
+  else(BUILD_WASM3)
+check_library_exists(m3  m3_ParseModule "${WASM3_LIBRARY_DIR}" HAVE_WASM3)
+if(HAVE_WASM3)
+  set(WASM3_LIBRARY m3)
+endif(HAVE_WASM3)
+  endif(BUILD_WASM3)
+
+  #if(NOT LibArchive_FOUND)
+  #  message(FATAL_ERROR "wasm30 not found")
+  #endif(NOT LibArchive_FOUND)
+
+  if(WASM3_LIBRARY)
+    set(QUICKJS_MODULES wasm ${QUICKJS_MODULES})
+  endif(LibArchive_FOUND)
+endif(MODULE_WASM)
+
 if(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} child-process)
 else(HAVE_SYS_WAIT_H AND HAVE_WAITPID)
