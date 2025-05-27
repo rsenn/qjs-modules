@@ -362,18 +362,18 @@ js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 static JSValue
 js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   Repeater* rpt;
-  JSValue proto, obj;
+  JSValue proto, obj = JS_UNDEFINED;
 
   if(argc < 1 || !JS_IsFunction(ctx, argv[0]))
     return JS_ThrowInternalError(ctx, "argument 1 must be executor function");
 
   if(!(rpt = repeater_new(ctx, argv[0])))
-    return JS_EXCEPTION;
+    goto fail;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, repeater_proto);
+    goto fail;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_repeater_class_id);
   JS_FreeValue(ctx, proto);
@@ -384,7 +384,8 @@ js_repeater_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   return obj;
 
 fail:
-  js_free(ctx, rpt);
+  if(rpt)
+    js_free(ctx, rpt);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }

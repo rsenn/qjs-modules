@@ -23,9 +23,6 @@ js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JS
   if(JS_IsException(proto))
     return JS_EXCEPTION;
 
-  if(!JS_IsObject(proto))
-    proto = JS_DupValue(ctx, serialerror_proto);
-
   obj = JS_NewObjectProtoClass(ctx, proto, js_serialerror_class_id);
   JS_FreeValue(ctx, proto);
 

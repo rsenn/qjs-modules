@@ -998,7 +998,7 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, readable_proto);
+    goto fail;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_readable_class_id);
   JS_FreeValue(ctx, proto);
@@ -1036,7 +1036,8 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   return obj;
 
 fail:
-  js_free(ctx, st);
+  if(st)
+    js_free(ctx, st);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -1677,7 +1678,7 @@ writable_free(WritableStream* st, JSRuntime* rt) {
 static JSValue
 js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
-  WritableStreamWriter* wr;
+  WritableStreamWriter* wr = 0;
   WritableStream* st;
 
   if(argc < 1 || !(st = js_writable_data(argv[0])))
@@ -1705,7 +1706,8 @@ js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   return obj;
 
 fail:
-  js_free(ctx, wr);
+  if(wr)
+    js_free(ctx, wr);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -1893,7 +1895,7 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, writable_proto);
+    goto fail;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_writable_class_id);
   if(JS_IsException(obj))
@@ -1913,7 +1915,8 @@ js_writable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   return obj;
 
 fail:
-  js_free(ctx, st);
+  if(st)
+    js_free(ctx, st);
   JS_FreeValue(ctx, obj);
 
   return JS_EXCEPTION;
@@ -2190,7 +2193,7 @@ js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, transform_proto);
+    goto fail;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_transform_class_id);
   if(JS_IsException(obj))
@@ -2213,7 +2216,8 @@ js_transform_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
   return obj;
 
 fail:
-  js_free(ctx, st);
+  if(st)
+    js_free(ctx, st);
   JS_FreeValue(ctx, obj);
 
   return JS_EXCEPTION;

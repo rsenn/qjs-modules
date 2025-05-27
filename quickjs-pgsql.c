@@ -1263,18 +1263,17 @@ static const JSCFunctionListEntry js_pgconn_defines[] = {
 
 static JSValue
 js_pgsqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue obj, proto;
+  JSValue proto, obj = JS_UNDEFINED;
   JSAtom prop;
 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    return JS_EXCEPTION;
-
-  if(!JS_IsObject(proto))
-    proto = JS_DupValue(ctx, pgsqlerror_proto);
+    goto fail;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_pgsqlerror_class_id);
   JS_FreeValue(ctx, proto);
+  if(JS_IsException(obj))
+    goto fail;
 
   if(argc > 0) {
     prop = JS_NewAtom(ctx, "message");
@@ -1294,6 +1293,10 @@ js_pgsqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   JS_FreeAtom(ctx, prop);
 
   return obj;
+
+fail:
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
 }
 
 static JSValue

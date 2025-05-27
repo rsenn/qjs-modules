@@ -122,12 +122,12 @@ node_linked(Node* node) {
 
 static inline JSValue
 node_remove(Node* node, List* list, JSContext* ctx) {
-  JSValue ret = node->value;
+  JSValue ret = JS_IsUninitialized(node->value) ? JS_UNDEFINED : JS_DupValue(ctx, node->value);
 
   list_del(&node->link);
   --list->size;
 
-  js_free(ctx, node);
+  node_free(node, ctx);
 
   return ret;
 }
@@ -464,7 +464,7 @@ list_iterator_skip(ListIterator* it, JSContext* ctx) {
 
 static JSValue
 js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj;
+  JSValue proto, obj = JS_UNDEFINED;
   List* list;
   Direction dir = FWD;
   ListIterator* it;
@@ -484,8 +484,11 @@ js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    return JS_EXCEPTION;
+    goto fail;
+
   obj = JS_NewObjectProtoClass(ctx, proto, js_list_iterator_class_id);
+  JS_FreeValue(ctx, proto);
+
   if(JS_IsException(obj))
     goto fail;
 
@@ -534,15 +537,27 @@ js_list_iterator_fn(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
   return ret;
 }*/
 
+static void
+js_list_iterator_finalizer(JSRuntime* rt, JSValue val) {
+  ListIterator* it;
+
+  if((it = JS_GetOpaque(val, js_list_iterator_class_id))) {
+    if(it->list)
+      list_unref(&it->list, rt);
+
+    js_free_rt(rt, it);
+  }
+}
+
 static JSValue
 js_list_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj;
+  JSValue proto, obj = JS_UNDEFINED;
   List* list = 0;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, list_proto);
+    goto fail;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_list_class_id);
   if(JS_IsException(obj))
@@ -553,8 +568,6 @@ js_list_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
 
   if(argc > 0) {
     if(!list_append(list, argv[0], ctx)) {
-      JS_FreeValue(ctx, obj);
-
       JS_ThrowTypeError(ctx, "argument 1 not iterable");
       goto fail2;
     }
@@ -567,7 +580,6 @@ fail2:
   js_free(ctx, list);
 
 fail:
-
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -755,6 +767,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         if(i >= ol.offset) {
           list_del(&node->link);
           list_add_tail(&node->link, &other->head);
+          other->size++;
         }
 
         ++i;
@@ -804,7 +817,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       Node* node = list_at(list, index);
 
       list_del(&list->head);
-        list_add_tail(&list->head, &node->link);
+      list_add_tail(&list->head, &node->link);
 
       ret = JS_DupValue(ctx, this_val);
       break;
@@ -926,7 +939,6 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         Node* node = list_entry(ptr, Node, link);
 
         if(!node_predicate(node, pred, this_val, i++, ctx)) {
-          JS_FreeValue(ctx, pred);
           ret = JS_FALSE;
           break;
         }
@@ -941,7 +953,6 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         Node* node = list_entry(ptr, Node, link);
 
         if(node_predicate(node, pred, this_val, i++, ctx)) {
-          JS_FreeValue(ctx, pred);
           ret = JS_TRUE;
           break;
         }
@@ -1016,7 +1027,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         ret = JS_Call(ctx, argv[0], JS_UNDEFINED, countof(args), args);
 
         JS_FreeValue(ctx, args[0]);
-        JS_FreeValue(ctx, args[1]);
+        JS_FreeValue(ctx, args[2]);
       }
 
       break;
@@ -1045,7 +1056,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         ret = JS_Call(ctx, argv[0], JS_UNDEFINED, countof(args), args);
 
         JS_FreeValue(ctx, args[0]);
-        JS_FreeValue(ctx, args[1]);
+        JS_FreeValue(ctx, args[2]);
       }
 
       break;
@@ -1187,18 +1198,6 @@ js_list_finalizer(JSRuntime* rt, JSValue val) {
 
   if((list = js_list_data(val)))
     list_free_rt(list, rt);
-}
-
-static void
-js_list_iterator_finalizer(JSRuntime* rt, JSValue val) {
-  ListIterator* it;
-
-  if((it = JS_GetOpaque(val, js_list_iterator_class_id))) {
-    if(it->list)
-      list_unref(&it->list, rt);
-
-    js_free_rt(rt, it);
-  }
 }
 
 static const JSCFunctionListEntry js_list_iterator_proto_funcs[] = {
@@ -1348,9 +1347,9 @@ static const JSCFunctionListEntry js_list_functions[] = {
 
 static JSValue
 js_node_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto, obj;
-  Node* node = 0;
+  JSValue proto, obj = JS_UNDEFINED;
   List* other;
+  Node* node;
 
   if(argc > 0 && (other = js_list_data(argv[0]))) {
     node = node_dup(&other->node);
@@ -1363,7 +1362,7 @@ js_node_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
-    proto = JS_DupValue(ctx, node_proto);
+    goto fail;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_node_class_id);
   if(JS_IsException(obj))
@@ -1373,9 +1372,7 @@ js_node_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   return obj;
 
 fail:
-  if(node)
-    js_free(ctx, node);
-
+  js_free(ctx, node);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -1531,15 +1528,12 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
 
   list_ctor = JS_NewCFunction2(ctx, js_list_constructor, "List", 1, JS_CFUNC_constructor, 0);
 
-  JSAtom species_atom = js_symbol_static_atom(ctx, "species");
+  /* JSAtom species_atom = js_symbol_static_atom(ctx, "species");
   JS_SetProperty(ctx, list_ctor, species_atom, list_ctor);
-  JS_FreeAtom(ctx, species_atom);
+  JS_FreeAtom(ctx, species_atom);*/
 
   JS_SetConstructor(ctx, list_ctor, list_proto);
   JS_SetPropertyFunctionList(ctx, list_ctor, js_list_functions, countof(js_list_functions));
-
-  JS_NewClassID(&js_node_class_id);
-  JS_NewClass(JS_GetRuntime(ctx), js_node_class_id, &js_node_class);
 
   JSValue array_proto = js_global_prototype(ctx, "Array");
 
@@ -1574,6 +1568,9 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
   list_iterator_ctor = JS_NewCFunction2(ctx, js_list_iterator_constructor, "ListIterator", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, list_iterator_ctor, list_iterator_proto);
+
+  JS_NewClassID(&js_node_class_id);
+  JS_NewClass(JS_GetRuntime(ctx), js_node_class_id, &js_node_class);
 
   node_proto = JS_NewObjectProto(ctx, JS_NULL);
   JS_SetPropertyFunctionList(ctx, node_proto, js_node_methods, countof(js_node_methods));

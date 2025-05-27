@@ -250,9 +250,6 @@ js_location_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
   if(JS_IsException(proto))
     return JS_EXCEPTION;
 
-  if(!JS_IsObject(proto))
-    proto = JS_DupValue(ctx, location_proto);
-
   /* Dup from object */
   if(argc >= 1 && JS_IsObject(argv[0])) {
     loc = js_location_from(ctx, argv[0]);

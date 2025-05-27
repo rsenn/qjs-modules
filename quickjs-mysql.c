@@ -945,6 +945,7 @@ js_mysql_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     mysql_options(my, MYSQL_OPT_NONBLOCK, 0);
 
   obj = js_mysql_new(ctx, proto, my);
+  JS_FreeValue(ctx, proto);
 
   if(argc > 0) {
     JSValue params = js_connectparams_from(ctx, argc, argv);
@@ -953,7 +954,6 @@ js_mysql_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueC
     JS_FreeAtom(ctx, prop);
   }
 
-  JS_FreeValue(ctx, proto);
   return obj;
 
 fail:
@@ -1298,9 +1298,6 @@ js_mysqlerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSV
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     return JS_EXCEPTION;
-
-  if(!JS_IsObject(proto))
-    proto = JS_DupValue(ctx, mysqlerror_proto);
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_mysqlerror_class_id);
   JS_FreeValue(ctx, proto);

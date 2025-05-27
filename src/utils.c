@@ -1385,7 +1385,9 @@ js_class_atom(JSContext* ctx, JSClassID id) {
 
   assert(id >= 0 && id < js_class_count(rt));
 
-  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17)) + id * DEF6432(5, 6);
+  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17));
+
+  class_arr += id * DEF6432(5, 6);
 
   return JS_DupAtom(ctx, ((JSAtom*)class_arr)[1]);
 }
@@ -1396,7 +1398,9 @@ js_class_id(JSContext* ctx, JSClassID id) {
 
   assert(id >= 0 && id < js_class_count(rt));
 
-  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17)) + id * DEF6432(5, 6);
+  uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17));
+
+  class_arr += id * DEF6432(5, 6);
 
   return JS_DupAtom(ctx, *((JSClassID*)class_arr));
 }
@@ -1423,10 +1427,12 @@ js_class_name(JSContext* ctx, JSClassID id) {
   uint32_t class_count = js_class_count(JS_GetRuntime(ctx));
 
   if(id >= 0 && id < class_count) {
-    JSAtom atom = js_class_atom(ctx, id);
-    const char* str = JS_AtomToCString(ctx, atom);
-    JS_FreeAtom(ctx, atom);
-    return str;
+    if(js_class_id(ctx, id)) {
+      JSAtom atom = js_class_atom(ctx, id);
+      const char* str = JS_AtomToCString(ctx, atom);
+      JS_FreeAtom(ctx, atom);
+      return str;
+    }
   }
 
   return 0;
