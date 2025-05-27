@@ -31,7 +31,7 @@ union List {
   };
 };
 
-//  typedef Node* SkipCall(Node*, List*);
+typedef union List List;
 
 typedef enum {
   FWD = 0,
@@ -56,6 +56,16 @@ typedef int64_t FindCall(List*, JSValueConst, JSValueConst, Node**, JSContext*);
 
 VISIBLE JSClassID js_list_class_id = 0, js_list_iterator_class_id = 0, js_node_class_id = 0;
 static JSValue list_proto, list_ctor, list_iterator_proto, list_iterator_ctor, node_proto, node_ctor;
+
+static inline List*
+js_list_data2(JSContext* ctx, JSValueConst value) {
+  return JS_GetOpaque2(ctx, value, js_list_class_id);
+}
+
+static inline List*
+js_list_data(JSValueConst value) {
+  return JS_GetOpaque(value, js_list_class_id);
+}
 
 static inline Node*
 js_node_data2(JSContext* ctx, JSValueConst value) {
@@ -544,7 +554,7 @@ js_list_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   return ret;
 }
 
-VISIBLE JSValue
+static JSValue
 js_list_new(JSContext* ctx, JSValueConst proto) {
   List* list;
   JSValue obj = JS_UNDEFINED;
@@ -565,7 +575,7 @@ fail:
   return JS_EXCEPTION;
 }
 
-VISIBLE JSValue
+static JSValue
 js_list_wrap(JSContext* ctx, JSValueConst proto, List* list) {
   JSValue obj = JS_NewObjectProtoClass(ctx, proto, js_list_class_id);
 
@@ -573,7 +583,7 @@ js_list_wrap(JSContext* ctx, JSValueConst proto, List* list) {
   return obj;
 }
 
-VISIBLE JSValue
+static JSValue
 js_list_wrap_species(JSContext* ctx, JSValueConst this_val, List* list) {
   JSValue species = js_object_species(ctx, this_val);
   JSValue proto = JS_IsUndefined(species) ? JS_DupValue(ctx, list_proto) : JS_GetPropertyStr(ctx, species, "prototype");
@@ -1281,19 +1291,21 @@ static int
 js_list_set_property(
     JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
   List* list;
-  int64_t index;
+  int64_t index, size;
 
   if(!(list = js_list_data2(ctx, obj)))
     return FALSE;
 
+  size = (int64_t)list->size;
+
   if(js_atom_is_index(ctx, &index, prop)) {
-    if(index >= (int64_t)list->size) {
-      for(int64_t i = list->size; i < index; i++)
+    if(index >= size) {
+      for(int64_t i = size; i < index; i++)
         list_push(list, JS_UNDEFINED, ctx);
 
       list_push(list, value, ctx);
-    } else if(index < 0) {
-      for(int64_t i = index; i < -1; i++)
+    } else if(index < -size) {
+      for(int64_t i = index; i < -(size + 1); i++)
         list_unshift(list, JS_UNDEFINED, ctx);
 
       list_unshift(list, value, ctx);
@@ -1416,6 +1428,7 @@ js_node_wrap(JSContext* ctx, JSValueConst proto, Node* node) {
 
 enum {
   NODE_EQUAL,
+  NODE_VALUEOF,
 };
 
 static JSValue
@@ -1430,10 +1443,18 @@ js_node_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     case NODE_EQUAL: {
       Node* other;
 
-      if(!(other = js_node_data2(ctx, argv[0])))
-        return JS_EXCEPTION;
+      if((other = js_node_data(argv[0])) || (other = JS_GetOpaque(argv[0], js_list_class_id)))
+        ret = JS_NewBool(ctx, other == node);
 
-      ret = JS_NewBool(ctx, other == node);
+      break;
+    }
+
+    case NODE_VALUEOF: {
+      if(JS_IsUninitialized(node->value))
+        ret = js_list_wrap(ctx, list_proto, list_dup((List*)node));
+      else
+        ret = JS_DupValue(ctx, node->value);
+
       break;
     }
   }
@@ -1522,6 +1543,7 @@ js_node_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static const JSCFunctionListEntry js_node_methods[] = {
+    JS_CFUNC_MAGIC_DEF("valueOf", 0, js_node_method, NODE_VALUEOF),
     JS_CGETSET_MAGIC_DEF("prev", js_node_get, 0, NODE_PREV),
     JS_CGETSET_MAGIC_DEF("next", js_node_get, 0, NODE_NEXT),
     JS_CGETSET_MAGIC_DEF("linked", js_node_get, 0, NODE_LINKED),

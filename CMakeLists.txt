@@ -284,7 +284,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
                     ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES  bjson blob deep directory lexer list location misc path pointer predicate queue repeater textcode
+set(QUICKJS_MODULES bjson blob deep directory lexer list location misc path pointer predicate queue repeater textcode
                     sockets stream syscallerror inspect tree-walker xml)
 
 if(MODULE_MAGIC)
@@ -472,15 +472,15 @@ if(MODULE_WASM)
         "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
+    set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
     link_directories("${WASM3_LIBRARY_DIR}")
-set(WASM3_LIBRARY m3)
+    set(WASM3_LIBRARY m3)
 
   else(BUILD_WASM3)
-check_library_exists(m3  m3_ParseModule "${WASM3_LIBRARY_DIR}" HAVE_WASM3)
-if(HAVE_WASM3)
-  set(WASM3_LIBRARY m3)
-endif(HAVE_WASM3)
+    check_library_exists(m3 m3_ParseModule "${WASM3_LIBRARY_DIR}" HAVE_WASM3)
+    if(HAVE_WASM3)
+      set(WASM3_LIBRARY m3)
+    endif(HAVE_WASM3)
   endif(BUILD_WASM3)
 
   #if(NOT LibArchive_FOUND)
@@ -507,15 +507,15 @@ if(MODULE_WASM)
         "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
+    set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
     link_directories("${WASM3_LIBRARY_DIR}")
-set(WASM3_LIBRARY m3)
+    set(WASM3_LIBRARY m3)
 
   else(BUILD_WASM3)
-check_library_exists(m3  m3_ParseModule "${WASM3_LIBRARY_DIR}" HAVE_WASM3)
-if(HAVE_WASM3)
-  set(WASM3_LIBRARY m3)
-endif(HAVE_WASM3)
+    check_library_exists(m3 m3_ParseModule "${WASM3_LIBRARY_DIR}" HAVE_WASM3)
+    if(HAVE_WASM3)
+      set(WASM3_LIBRARY m3)
+    endif(HAVE_WASM3)
   endif(BUILD_WASM3)
 
   #if(NOT LibArchive_FOUND)
@@ -542,15 +542,15 @@ if(MODULE_WASM)
         "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}" "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
       CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE")
 
-set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
+    set(WASM3_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/third_party/wasm30/source")
     link_directories("${WASM3_LIBRARY_DIR}")
-set(WASM3_LIBRARY m3)
+    set(WASM3_LIBRARY m3)
 
   else(BUILD_WASM3)
-check_library_exists(m3  m3_ParseModule "${WASM3_LIBRARY_DIR}" HAVE_WASM3)
-if(HAVE_WASM3)
-  set(WASM3_LIBRARY m3)
-endif(HAVE_WASM3)
+    check_library_exists(m3 m3_ParseModule "${WASM3_LIBRARY_DIR}" HAVE_WASM3)
+    if(HAVE_WASM3)
+      set(WASM3_LIBRARY m3)
+    endif(HAVE_WASM3)
   endif(BUILD_WASM3)
 
   #if(NOT LibArchive_FOUND)
@@ -905,12 +905,18 @@ foreach(JS_MODULE ${QUICKJS_MODULES})
   #list(APPEND QJSM_LDADD "${QJSM_LIBDIR}/quickjs-${QJSM_MODULE}${LIBRARY_SUFFIX}")
 endforeach(JS_MODULE ${QUICKJS_MODULES})
 
-target_link_libraries(qjs-inspect PRIVATE qjs-pointer)
-target_link_libraries(qjs-tree-walker PRIVATE qjs-pointer)
-target_link_libraries(qjs-xml PRIVATE qjs-pointer)
+if(TARGET qjs-inspect)
+  target_link_libraries(qjs-inspect PRIVATE qjs-pointer)
+endif(TARGET qjs-inspect)
+if(TARGET qjs-tree-walker)
+  target_link_libraries(qjs-tree-walker PRIVATE qjs-pointer)
+endif(TARGET qjs-tree-walker)
+if(TARGET qjs-xml)
+  target_link_libraries(qjs-xml PRIVATE qjs-pointer)
+endif(TARGET qjs-xml)
 # XXX: why?
 if(TARGET qjs-child-process)
-target_link_libraries(qjs-child-process PRIVATE qjs-pointer)
+  target_link_libraries(qjs-child-process PRIVATE qjs-pointer)
 endif(TARGET qjs-child-process)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
