@@ -88,20 +88,15 @@ void* utils_js_realloc_rt(JSRuntime*, void* ptr, size_t size);
 size_t list_size(struct list_head* list);
 struct list_head* list_front(const struct list_head* list);
 struct list_head* list_back(const struct list_head* list);
+struct list_head* list_unlink_before(struct list_head*);
+struct list_head* list_unlink_after(struct list_head*);
+void list_link_next(struct list_head*, struct list_head*);
+void list_link_prev(struct list_head*, struct list_head*);
+void list_splice(struct list_head*, struct list_head*);
+struct list_head list_unlink(struct list_head*, struct list_head*);
 
 #define list_first(list, type, member) list_entry(list_front((list)), type, member)
 #define list_last(list, type, member) list_entry(list_back((list)), type, member)
-
-static inline void
-list_splice(const struct list_head* list, struct list_head* head) {
-  if(list->next != list) {
-    struct list_head *a = list->next, *b = list->prev, *c = head->next;
-    head->next = a;
-    a->prev = head;
-    b->next = c;
-    c->prev = b;
-  }
-}
 
 static inline Arguments
 arguments_new(int argc, const char* argv[]) {
@@ -155,7 +150,7 @@ typedef struct {
 } JSArguments;
 
 static inline JSArguments
-js_arguments_new(int argc, JSValueConst* argv) {
+js_arguments_new(int argc, JSValueConst argv[]) {
   JSArguments args;
   args.p = 0;
   args.c = argc;
@@ -354,6 +349,7 @@ typedef enum {
   FLAG_UNINITIALIZED,     // 16
   FLAG_CATCH_OFFSET,      // 17
   FLAG_EXCEPTION,         // 18
+  FLAG_INVALID = -1,
 } ValueTypeFlag;
 
 typedef enum {
@@ -748,7 +744,9 @@ JSValue js_function_return_value(JSContext*, JSValue value);
 JSValue js_function_prototype(JSContext*);
 
 typedef JSValue CClosureFunc(JSContext*, JSValueConst, int, JSValueConst[], int, void*);
-JSValue js_function_cclosure(JSContext*, CClosureFunc*, int length, int magic, void*, void (*)(void*));
+typedef void FinalizerFunc(JSRuntime*, void*);
+
+JSValue js_function_cclosure(JSContext*, CClosureFunc*, int length, int magic, void*, FinalizerFunc* finalizer);
 
 JSClassID js_object_classid(JSValueConst);
 void* js_object_opaque(JSValueConst);
@@ -805,7 +803,7 @@ BOOL js_has_propertystr(JSContext*, JSValueConst obj, const char* str);
 BOOL js_get_propertystr_bool(JSContext*, JSValueConst obj, const char* str);
 
 static inline BOOL
-js_has_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
+js_has_property_value(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
   BOOL ret = JS_HasProperty(ctx, obj, atom);
   JS_FreeAtom(ctx, atom);
@@ -813,7 +811,7 @@ js_has_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
 }
 
 static inline JSValue
-js_get_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
+js_get_property_value(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
   JSValue ret = JS_GetProperty(ctx, obj, atom);
   JS_FreeAtom(ctx, atom);
@@ -821,7 +819,7 @@ js_get_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
 }
 
 static inline int
-js_set_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop, JSValueConst value) {
+js_set_property_value(JSContext* ctx, JSValueConst obj, JSValueConst prop, JSValueConst value) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
   int ret = JS_SetProperty(ctx, obj, atom, value);
   JS_FreeAtom(ctx, atom);
@@ -837,7 +835,7 @@ js_delete_propertystr(JSContext* ctx, JSValueConst obj, const char* prop) {
 }
 
 static inline int
-js_delete_propertyvalue(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
+js_delete_property_value(JSContext* ctx, JSValueConst obj, JSValueConst prop) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
   int ret = JS_DeleteProperty(ctx, obj, atom, 0);
   JS_FreeAtom(ctx, atom);

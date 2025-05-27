@@ -80,7 +80,7 @@ my_glob(const char* pattern, struct glob_state* g) {
 }
 
 /**
- * \brief Brace globbing
+ * @brief Brace globbing
  *
  * Expand recursively a glob {} pattern. When there is no more
  * expansion invoke the standard globbing routine to glob the

@@ -1713,7 +1713,7 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case MODULE_LOADER: {
-      uint32_t i, arg;
+      int i, arg;
       ModuleLoaderContext *lc, **lptr;
 
       if(!argc) {

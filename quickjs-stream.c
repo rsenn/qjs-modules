@@ -803,8 +803,6 @@ js_reader_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
-  if(!JS_IsObject(proto))
-    proto = default_reader_proto;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_reader_class_id);
   JS_FreeValue(ctx, proto);
@@ -1038,6 +1036,7 @@ js_readable_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVal
 fail:
   if(st)
     js_free(ctx, st);
+
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
@@ -1695,8 +1694,6 @@ js_writer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValue
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     goto fail;
-  if(!JS_IsObject(proto))
-    proto = writer_proto;
 
   obj = JS_NewObjectProtoClass(ctx, proto, js_writer_class_id);
   if(JS_IsException(obj))

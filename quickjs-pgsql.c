@@ -1546,7 +1546,7 @@ enum {
 };
 
 static JSValue
-js_pgresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, BOOL* pdone, int magic) {
+js_pgresult_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], BOOL* pdone, int magic) {
   PGSQLResult* res;
   uint32_t ntuples;
   JSValue ret = JS_NULL;
@@ -1704,10 +1704,10 @@ js_pgresult_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSVal
 }
 
 static void
-js_pgresult_iterator_free(void* ptr) {
+js_pgresult_iterator_free(JSRuntime* rt, void* ptr) {
   PGSQLResultIterator* it = ptr;
 
-  pgresult_free(JS_GetRuntime(it->ctx), it->result, 0);
+  pgresult_free(rt, it->result, 0);
 }
 
 static JSValue

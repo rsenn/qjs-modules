@@ -35,7 +35,7 @@ AsyncClosure* asyncclosure_new(JSContext*, int fd, AsyncEvent state, JSValueCons
 AsyncClosure* asyncclosure_dup(AsyncClosure*);
 JSValue asyncclosure_promise(AsyncClosure*);
 void asyncclosure_opaque(AsyncClosure*, void*, void (*opaque_free)(JSRuntime*, void*));
-void asyncclosure_free(void*);
+void asyncclosure_free(JSRuntime*, void*);
 JSValue asyncclosure_promise(AsyncClosure*);
 BOOL asyncclosure_change_event(AsyncClosure*, AsyncEvent);
 void asyncclosure_resolve(AsyncClosure*);

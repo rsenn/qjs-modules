@@ -578,8 +578,8 @@ range_resize(PointerRange* r, uintptr_t newlen) {
 
 int
 range_write(PointerRange* r, const void* x, uintptr_t n) {
-  uintptr_t len = range_len(r);
-  uintptr_t a = alloc_len(len + n + 1);
+  ssize_t len = range_len(r);
+  ssize_t a = alloc_len(len + n + 1);
 
   if(!r->start || a != alloc_len(len + 1))
     if(!(r->start = realloc(r->start, a)))

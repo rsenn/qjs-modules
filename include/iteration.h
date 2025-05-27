@@ -14,6 +14,9 @@ typedef struct Iteration {
   BOOL done;
 } Iteration;
 
+#define ITERATION_INIT() \
+  (Iteration) { JS_UNDEFINED, JS_UNDEFINED, JS_UNDEFINED, FALSE }
+
 static inline BOOL
 iteration_init_free(Iteration* it, JSContext* ctx, JSValue iterator) {
   it->iter = iterator;

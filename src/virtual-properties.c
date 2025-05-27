@@ -10,78 +10,121 @@ struct VWrapper {
   JSContext* ctx;
 };
 
+static VirtualWrapper*
+wrapper_new(const VirtualProperties* vprops, JSContext* ctx) {
+  VirtualWrapper* vw;
+
+  if(!(vw = js_malloc(ctx, sizeof(VirtualWrapper))))
+    return 0;
+
+  virtual_properties_copy(vprops, &vw->props, ctx);
+  vw->ctx = ctx;
+  vw->ref_count = 1;
+
+  return vw;
+}
+
+static void
+wrapper_free(JSRuntime* rt, void* ptr) {
+  VirtualWrapper* vw = ptr;
+
+  if(--vw->ref_count == 0) {
+    virtual_properties_free(&vw->props, vw->ctx);
+
+    js_free_rt(rt, vw);
+  }
+}
+
 /**
  * \addtogroup virtual-properties
  * @{
  */
-struct MapMethodAtoms {
-  JSAtom has, delete, get, set;
-};
+typedef struct {
+  JSAtom has, delete, get, set, keys;
+} MapMethodAtoms;
 
 static BOOL
-map_has(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  struct MapMethodAtoms* atoms = vp->opaque;
+map_has(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+  MapMethodAtoms* atoms = vp->opaque;
   JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->has, 1, &prop);
 
   return JS_ToBool(ctx, ret);
 }
 
 static BOOL
-map_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  struct MapMethodAtoms* atoms = vp->opaque;
+map_delete(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+  MapMethodAtoms* atoms = vp->opaque;
   JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->delete, 1, &prop);
 
   return JS_ToBool(ctx, ret);
 }
 
 static JSValue
-map_get(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  struct MapMethodAtoms* atoms = vp->opaque;
+map_get(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+  MapMethodAtoms* atoms = vp->opaque;
 
   return JS_Invoke(ctx, vp->this_obj, atoms->get, 1, &prop);
 }
 
 static int
-map_set(VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
-  struct MapMethodAtoms* atoms = vp->opaque;
-  int32_t r = -1;
-  JSValueConst args[2] = {prop, value};
-  JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->set, 2, args);
+map_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
+  MapMethodAtoms* atoms = vp->opaque;
+  JSValueConst args[] = {
+      prop,
+      value,
+  };
 
-  JS_ToInt32(ctx, &r, ret);
-  return r;
+  JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->set, countof(args), args);
+
+  if(JS_IsException(ret)) {
+    JS_GetException(ctx);
+    return -1;
+  }
+
+  JS_FreeValue(ctx, ret);
+  return 0;
+}
+
+static JSValue
+map_keys(const VirtualProperties* vp, JSContext* ctx, int flags) {
+  MapMethodAtoms* atoms = vp->opaque;
+
+  JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->keys, 0, 0);
+
+  return ret;
 }
 
 static void
-map_finalizer(VirtualProperties* vp, JSContext* ctx) {
-  struct MapMethodAtoms* atoms = vp->opaque;
+map_finalizer(JSRuntime* rt, void* ptr) {
+  VirtualProperties* vp = ptr;
+  MapMethodAtoms* atoms = vp->opaque;
 
-  JS_FreeAtom(ctx, atoms->has);
-  JS_FreeAtom(ctx, atoms->delete);
-  JS_FreeAtom(ctx, atoms->get);
-  JS_FreeAtom(ctx, atoms->set);
-  js_free(ctx, atoms);
+  JS_FreeAtomRT(rt, atoms->has);
+  JS_FreeAtomRT(rt, atoms->delete);
+  JS_FreeAtomRT(rt, atoms->get);
+  JS_FreeAtomRT(rt, atoms->set);
+  JS_FreeAtomRT(rt, atoms->keys);
+
+  js_free_rt(rt, atoms);
+
   vp->opaque = 0;
-}
-
-static void*
-opaque_dup(dup_function* fn, void* ptr, JSContext* ctx) {
-  assert(fn);
-  return fn(ptr, ctx);
 }
 
 VirtualProperties
 virtual_properties_map(JSContext* ctx, JSValueConst map) {
   JSValue map_prototype, map_obj;
-  struct MapMethodAtoms* atoms = js_mallocz(ctx, sizeof(struct MapMethodAtoms));
+  MapMethodAtoms* atoms = js_mallocz(ctx, sizeof(MapMethodAtoms));
 
   map_obj = JS_DupValue(ctx, map);
   map_prototype = js_global_prototype(ctx, "Map");
 
-  atoms->has = JS_NewAtom(ctx, "has");
-  atoms->delete = JS_NewAtom(ctx, "delete");
-  atoms->get = JS_NewAtom(ctx, "get");
-  atoms->set = JS_NewAtom(ctx, "set");
+  *atoms = (MapMethodAtoms){
+      JS_NewAtom(ctx, "has"),
+      JS_NewAtom(ctx, "delete"),
+      JS_NewAtom(ctx, "get"),
+      JS_NewAtom(ctx, "set"),
+      JS_NewAtom(ctx, "keys"),
+  };
 
   JS_FreeValue(ctx, map_prototype);
 
@@ -91,6 +134,7 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
       map_delete,
       map_get,
       map_set,
+      map_keys,
       map_finalizer,
       atoms,
       0,
@@ -98,22 +142,22 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
 }
 
 static BOOL
-object_has(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  return js_has_propertyvalue(ctx, vp->this_obj, prop);
+object_has(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+  return js_has_property_value(ctx, vp->this_obj, prop);
 }
 
 static BOOL
-object_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  return js_delete_propertyvalue(ctx, vp->this_obj, prop);
+object_delete(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+  return js_delete_property_value(ctx, vp->this_obj, prop);
 }
 
 static JSValue
-object_get(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  return js_get_propertyvalue(ctx, vp->this_obj, prop);
+object_get(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+  return js_get_property_value(ctx, vp->this_obj, prop);
 }
 
 static int
-object_set(VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
+object_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
   JSAtom atom = JS_ValueToAtom(ctx, prop);
   int ret = JS_SetProperty(ctx, vp->this_obj, atom, value);
 
@@ -121,8 +165,26 @@ object_set(VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue val
   return ret;
 }
 
+static JSValue
+object_keys(const VirtualProperties* vp, JSContext* ctx, int flags) {
+  JSAtom* tab_atom;
+  uint32_t i, tab_atom_len;
+  JSValue ret;
+
+  if(!(tab_atom = js_object_properties(ctx, &tab_atom_len, vp->this_obj, flags)))
+    return JS_ThrowInternalError(ctx, "unable to get object keys");
+
+  ret = JS_NewArray(ctx);
+
+  for(i = 0; i < tab_atom_len; i++)
+    JS_SetPropertyUint32(ctx, ret, i, JS_AtomToValue(ctx, tab_atom[i]));
+
+  return ret;
+}
+
 static void
-object_finalizer(VirtualProperties* vp, JSContext* ctx) {
+object_finalizer(JSRuntime* rt, void* ptr) {
+  VirtualProperties* vp = ptr;
 }
 
 VirtualProperties
@@ -133,6 +195,7 @@ virtual_properties_object(JSContext* ctx, JSValueConst obj) {
       object_delete,
       object_get,
       object_set,
+      object_keys,
       object_finalizer,
       0,
       0,
@@ -140,32 +203,33 @@ virtual_properties_object(JSContext* ctx, JSValueConst obj) {
 }
 
 static int64_t
-array_find(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  uint32_t n = js_array_length(ctx, vp->this_obj);
-  BOOL ret = FALSE;
+array_find(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+  int64_t len;
 
-  for(uint32_t i = 0; i < n; i++) {
-    JSValue entry = JS_GetPropertyUint32(ctx, vp->this_obj, i);
-    JSValue key = JS_GetPropertyUint32(ctx, entry, 0);
+  if((len = js_array_length(ctx, vp->this_obj)) != -1) {
+    for(uint32_t i = 0; i < len; i++) {
+      JSValue entry = JS_GetPropertyUint32(ctx, vp->this_obj, i);
+      JSValue key = JS_GetPropertyUint32(ctx, entry, 0);
 
-    JS_FreeValue(ctx, entry);
-    ret = js_value_equals(ctx, key, prop, FALSE);
-    JS_FreeValue(ctx, key);
+      JS_FreeValue(ctx, entry);
+      BOOL ret = js_value_equals(ctx, key, prop, FALSE);
+      JS_FreeValue(ctx, key);
 
-    if(ret)
-      return i;
+      if(ret)
+        return i;
+    }
   }
 
   return -1;
 }
 
 static BOOL
-array_has(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+array_has(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   return array_find(vp, ctx, prop) != -1;
 }
 
 static BOOL
-array_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
+array_delete(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   int64_t pos;
 
   if((pos = array_find(vp, ctx, prop)) != -1) {
@@ -173,9 +237,11 @@ array_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
         JS_NewInt64(ctx, pos),
         JS_NewInt32(ctx, 1),
     };
-    JSValue ret = js_invoke(ctx, vp->this_obj, "splice", 2, args);
-
+    JSValue ret = js_invoke(ctx, vp->this_obj, "splice", countof(args), args);
     JS_FreeValue(ctx, ret);
+
+    JS_FreeValue(ctx, args[0]);
+    JS_FreeValue(ctx, args[1]);
     return TRUE;
   }
 
@@ -183,36 +249,54 @@ array_delete(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
 }
 
 static JSValue
-array_get(VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
-  JSValue entry, value, ret = JS_UNDEFINED;
+array_get(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
   int64_t pos;
 
   if((pos = array_find(vp, ctx, prop)) != -1) {
-    entry = JS_GetPropertyUint32(ctx, vp->this_obj, pos);
-    value = JS_GetPropertyUint32(ctx, entry, 1);
-
+    JSValue entry = JS_GetPropertyUint32(ctx, vp->this_obj, pos);
+    JSValue value = JS_GetPropertyUint32(ctx, entry, 1);
     JS_FreeValue(ctx, entry);
-    ret = value;
+
+    return value;
   }
 
-  return ret;
+  return JS_UNDEFINED;
 }
 
 static int
-array_set(VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
-  JSValue entry, ret;
+array_set(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop, JSValue value) {
+  JSValue ret, entry = JS_NewArray(ctx);
 
-  entry = JS_NewArray(ctx);
   JS_SetPropertyUint32(ctx, entry, 0, JS_DupValue(ctx, prop));
   JS_SetPropertyUint32(ctx, entry, 1, value);
   ret = js_invoke(ctx, vp->this_obj, "push", 1, &entry);
   JS_FreeValue(ctx, ret);
 
-  return 0;
+  return js_toint32(ctx, ret);
+}
+
+static JSValue
+array_keys(const VirtualProperties* vp, JSContext* ctx, int flags) {
+  int64_t len;
+
+  if((len = js_array_length(ctx, vp->this_obj)) != -1) {
+    JSValue ret = JS_NewArray(ctx);
+
+    for(int64_t i = 0; i < len; i++) {
+      JSValue entry = JS_GetPropertyUint32(ctx, vp->this_obj, i);
+      JS_SetPropertyUint32(ctx, ret, i, JS_GetPropertyUint32(ctx, entry, 0));
+      JS_FreeValue(ctx, entry);
+    }
+
+    return ret;
+  }
+
+  return JS_UNDEFINED;
 }
 
 static void
-array_finalizer(VirtualProperties* vp, JSContext* ctx) {
+array_finalizer(JSRuntime* rt, void* ptr) {
+  VirtualProperties* vp = ptr;
 }
 
 VirtualProperties
@@ -223,35 +307,11 @@ virtual_properties_array(JSContext* ctx, JSValueConst obj) {
       array_delete,
       array_get,
       array_set,
+      array_keys,
       array_finalizer,
       0,
       0,
   };
-}
-
-static VirtualWrapper*
-wrapper_new(VirtualProperties* vprops, JSContext* ctx) {
-  VirtualWrapper* vwrap;
-
-  if(!(vwrap = js_malloc(ctx, sizeof(VirtualWrapper))))
-    return 0;
-
-  virtual_properties_copy(vprops, &vwrap->props, ctx);
-  vwrap->ctx = ctx;
-  vwrap->ref_count = 1;
-
-  return vwrap;
-}
-
-static void
-wrapper_free(void* ptr) {
-  VirtualWrapper* vwrap = ptr;
-
-  if(--vwrap->ref_count == 0) {
-    virtual_properties_free(&vwrap->props, vwrap->ctx);
-
-    js_free(vwrap->ctx, vwrap);
-  }
 }
 
 enum {
@@ -259,32 +319,45 @@ enum {
   METHOD_GET,
   METHOD_SET,
   METHOD_DELETE,
+  METHOD_KEYS,
 };
 
 static JSValue
 virtual_properties_getset(
-    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, void* opaque) {
-  VirtualWrapper* vwrap = opaque;
+    JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, void* opaque) {
+  VirtualWrapper* vw = opaque;
   JSValue ret = JS_UNDEFINED;
 
   switch(magic) {
     case METHOD_HAS: {
-      ret = JS_NewBool(ctx, virtual_properties_has(&vwrap->props, ctx, argv[0]));
+      ret = JS_NewBool(ctx, virtual_properties_has(&vw->props, ctx, argv[0]));
       break;
     }
 
     case METHOD_GET: {
-      ret = virtual_properties_get(&vwrap->props, ctx, argv[0]);
+      ret = virtual_properties_get(&vw->props, ctx, argv[0]);
       break;
     }
 
     case METHOD_SET: {
-      virtual_properties_set(&vwrap->props, ctx, argv[0], argc > 1 ? argv[1] : JS_UNDEFINED);
+      if(virtual_properties_set(&vw->props, ctx, argv[0], argv[1]))
+        ret = JS_ThrowInternalError(ctx, "failed to set()");
+
       break;
     }
 
     case METHOD_DELETE: {
-      ret = JS_NewBool(ctx, virtual_properties_delete(&vwrap->props, ctx, argv[0]));
+      ret = JS_NewBool(ctx, virtual_properties_delete(&vw->props, ctx, argv[0]));
+      break;
+    }
+
+    case METHOD_KEYS: {
+      int32_t flags = (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
+
+      if(argc > 0)
+        JS_ToInt32(ctx, &flags, argv[0]);
+
+      ret = virtual_properties_keys(&vw->props, ctx, flags);
       break;
     }
   }
@@ -294,13 +367,20 @@ virtual_properties_getset(
 
 JSValue
 virtual_properties_method(VirtualProperties vprop, int magic, JSContext* ctx) {
-  VirtualWrapper* vwrap;
+  VirtualWrapper* vw;
   JSValue obj;
 
-  if(!(vwrap = wrapper_new(&vprop, ctx)))
+  if(!(vw = wrapper_new(&vprop, ctx)))
     return JS_EXCEPTION;
 
-  obj = js_function_cclosure(ctx, virtual_properties_getset, 1, magic, vwrap, wrapper_free);
+  obj = js_function_cclosure(ctx,
+                             virtual_properties_getset,
+                             magic == METHOD_SET    ? 2
+                             : magic == METHOD_KEYS ? 0
+                                                    : 1,
+                             magic,
+                             vw,
+                             wrapper_free);
 
   return obj;
 }
@@ -312,32 +392,37 @@ virtual_properties_wrap(VirtualProperties vprop, JSContext* ctx) {
   if(!(vprop.get && vprop.set))
     return JS_ThrowInternalError(ctx, "virtual property needs at least get & set methods");
 
-  obj = JS_NewObject(ctx);
+  obj = JS_NewObjectProto(ctx, JS_NULL);
 
   if(vprop.has)
-    JS_SetPropertyStr(ctx, obj, "has", virtual_properties_method(vprop, METHOD_HAS, ctx));
+    JS_DefinePropertyValueStr(ctx, obj, "has", virtual_properties_method(vprop, METHOD_HAS, ctx), JS_PROP_CONFIGURABLE);
 
   if(vprop.get)
-    JS_SetPropertyStr(ctx, obj, "get", virtual_properties_method(vprop, METHOD_GET, ctx));
+    JS_DefinePropertyValueStr(ctx, obj, "get", virtual_properties_method(vprop, METHOD_GET, ctx), JS_PROP_CONFIGURABLE);
 
   if(vprop.set)
-    JS_SetPropertyStr(ctx, obj, "set", virtual_properties_method(vprop, METHOD_SET, ctx));
+    JS_DefinePropertyValueStr(ctx, obj, "set", virtual_properties_method(vprop, METHOD_SET, ctx), JS_PROP_CONFIGURABLE);
 
   if(vprop.delete)
-    JS_SetPropertyStr(ctx, obj, "delete", virtual_properties_method(vprop, METHOD_DELETE, ctx));
+    JS_DefinePropertyValueStr(
+        ctx, obj, "delete", virtual_properties_method(vprop, METHOD_DELETE, ctx), JS_PROP_CONFIGURABLE);
+
+  if(vprop.keys)
+    JS_DefinePropertyValueStr(
+        ctx, obj, "keys", virtual_properties_method(vprop, METHOD_DELETE, ctx), JS_PROP_CONFIGURABLE);
 
   return obj;
 }
 
 void
-virtual_properties_copy(const VirtualProperties* vprop, VirtualProperties* dest, JSContext* ctx) {
-  dest->this_obj = JS_DupValue(ctx, vprop->this_obj);
-  dest->has = vprop->has;
-  dest->delete = vprop->delete;
-  dest->get = vprop->get;
-  dest->set = vprop->set;
-  dest->finalize = vprop->finalize;
-  dest->opaque = vprop->dup ? opaque_dup(vprop->dup, vprop->opaque, ctx) : vprop->opaque;
+virtual_properties_copy(const VirtualProperties* src, VirtualProperties* dst, JSContext* ctx) {
+  dst->this_obj = JS_DupValue(ctx, src->this_obj);
+  dst->has = src->has;
+  dst->delete = src->delete;
+  dst->get = src->get;
+  dst->set = src->set;
+  dst->finalize = src->finalize;
+  dst->opaque = src->dup ? src->dup(ctx, src->opaque) : src->opaque;
 }
 
 /**

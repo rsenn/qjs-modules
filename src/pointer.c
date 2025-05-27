@@ -49,13 +49,13 @@ int
 pointer_compare(Pointer const* a, Pointer const* b, int32_t aoffs, int32_t boffs, uint32_t len) {
   uint32_t alen = a->n, blen = b->n;
 
-  aoffs = CLAMP_NUM(WRAP_NUM(aoffs, alen), 0, alen);
-  boffs = CLAMP_NUM(WRAP_NUM(boffs, blen), 0, blen);
+  aoffs = CLAMP_NUM(WRAP_NUM(aoffs, (int32_t)alen), 0, alen);
+  boffs = CLAMP_NUM(WRAP_NUM(boffs, (int32_t)blen), 0, blen);
 
   alen -= aoffs;
   blen -= boffs;
 
-  len = MIN_NUM(len, alen);
+  len = MIN_NUM(len,  alen);
   len = MIN_NUM(len, blen);
 
   for(uint32_t i = 0; i < len; i++)
@@ -217,7 +217,7 @@ pointer_parse_unescape(const char* x, size_t* nptr) {
   return *x;
 }
 
-size_t
+ssize_t
 pointer_parse(Pointer* ptr, const char* str, size_t len, JSContext* ctx) {
   DynBuf dbuf = DBUF_INIT_CTX(ctx);
 
@@ -292,7 +292,7 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
 
   if((ret = pointer_new(ctx))) {
     start = WRAP_NUM(start, ptr->n);
-    end = end == INT64_MAX ? (int64_t)ptr->n : WRAP_NUM(end, ptr->n);
+    end = end == INT64_MAX ? (int64_t)ptr->n : WRAP_NUM(end, (int64_t)ptr->n);
 
     if(start > end) {
       int64_t tmp = start;

@@ -87,6 +87,65 @@ list_back(const struct list_head* list) {
   return list->prev != list ? list->prev : 0;
 }
 
+struct list_head*
+list_unlink_before(struct list_head* list) {
+  struct list_head* prev = list->prev;
+
+  prev->next = NULL;
+  list->prev = NULL;
+
+  return prev;
+}
+
+struct list_head*
+list_unlink_after(struct list_head* list) {
+  struct list_head* next = list->next;
+
+  next->prev = NULL;
+  list->next = NULL;
+
+  return next;
+}
+
+struct list_head
+list_unlink(struct list_head* start, struct list_head* end) {
+  struct list_head *prev, *last;
+
+  prev = list_unlink_before(start);
+  last = list_unlink_before(end);
+
+  list_link_next(prev, end);
+  list_link_prev(end, prev);
+
+  return (struct list_head){last, start};
+}
+
+void
+list_link_next(struct list_head* node, struct list_head* newn) {
+  node->next = newn;
+  newn->prev = node;
+}
+
+void
+list_link_prev(struct list_head* node, struct list_head* newn) {
+  node->prev = newn;
+  newn->next = node;
+}
+
+void
+list_splice(struct list_head* list, struct list_head* head) {
+  struct list_head *next = head->next, *first = list->next, *last = list->prev;
+
+  if(list_empty(list))
+    return;
+
+  head->next = first;
+  first->prev = head;
+
+  last->next = next;
+  next->prev = last;
+}
+
 js_realloc_helper(utils_js_realloc);
 js_realloc_rt_helper(utils_js_realloc_rt);
 
@@ -1383,7 +1442,7 @@ JSAtom
 js_class_atom(JSContext* ctx, JSClassID id) {
   JSRuntime* rt = JS_GetRuntime(ctx);
 
-  assert(id >= 0 && id < js_class_count(rt));
+  assert(id > 0 && id < js_class_count(rt));
 
   uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17));
 
@@ -1396,7 +1455,7 @@ JSClassID
 js_class_id(JSContext* ctx, JSClassID id) {
   JSRuntime* rt = JS_GetRuntime(ctx);
 
-  assert(id >= 0 && id < js_class_count(rt));
+  assert(id > 0 && id < js_class_count(rt));
 
   uintptr_t* class_arr = *((uintptr_t**)rt + DEF6432(14, 17));
 
@@ -1409,7 +1468,7 @@ JSValue
 js_class_value(JSContext* ctx, JSClassID id) {
   uint32_t class_count = js_class_count(JS_GetRuntime(ctx));
 
-  if(id < 0 || id >= class_count)
+  if(id < 1 || id >= class_count)
     return JS_ThrowRangeError(ctx, "id %d out of range (max: %u)", (int)id, (unsigned)class_count);
 
   if(js_class_id(ctx, id)) {
@@ -1426,7 +1485,7 @@ const char*
 js_class_name(JSContext* ctx, JSClassID id) {
   uint32_t class_count = js_class_count(JS_GetRuntime(ctx));
 
-  if(id >= 0 && id < class_count) {
+  if(id > 0 && id < class_count) {
     if(js_class_id(ctx, id)) {
       JSAtom atom = js_class_atom(ctx, id);
       const char* str = JS_AtomToCString(ctx, atom);
@@ -1792,7 +1851,7 @@ js_value_type(JSContext* ctx, JSValueConst value) {
   ValueTypeFlag flag;
   ValueType type = 0;
 
-  if((flag = js_value_type_get(ctx, value)) == -1)
+  if((flag = js_value_type_get(ctx, value)) == FLAG_INVALID)
     return 0;
 
   if(flag == FLAG_ARRAY /*|| flag == FLAG_FUNCTION*/)
@@ -3381,7 +3440,7 @@ typedef struct {
   uint16_t length;
   uint16_t magic;
   void* opaque;
-  void (*opaque_finalize)(void*);
+  void (*opaque_finalize)(JSRuntime*, void*);
 } CClosureRecord;
 
 static thread_local JSClassID js_cclosure_class_id;
@@ -3429,7 +3488,7 @@ js_cclosure_finalizer(JSRuntime* rt, JSValue val) {
 
   if((ccr = js_cclosure_data(val))) {
     if(ccr->opaque_finalize)
-      ((void (*)(void*, JSRuntime*))ccr->opaque_finalize)(ccr->opaque, rt);
+      ccr->opaque_finalize(rt, ccr->opaque);
 
     js_free_rt(rt, ccr);
   }
@@ -3443,7 +3502,7 @@ static JSClassDef js_cclosure_class = {
 
 JSValue
 js_function_cclosure(
-    JSContext* ctx, CClosureFunc* func, int length, int magic, void* opaque, void (*opaque_finalize)(void*)) {
+    JSContext* ctx, CClosureFunc* func, int length, int magic, void* opaque, FinalizerFunc* opaque_finalize) {
   CClosureRecord* ccr;
   JSValue func_proto, func_obj;
 

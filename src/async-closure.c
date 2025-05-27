@@ -83,7 +83,7 @@ asyncclosure_opaque(AsyncClosure* ac, void* opaque, void (*opaque_free)(JSRuntim
 }
 
 void
-asyncclosure_free(void* ptr) {
+asyncclosure_free(JSRuntime* rt, void* ptr) {
   AsyncClosure* ac = ptr;
 
   if(--ac->ref_count == 0) {
@@ -99,7 +99,7 @@ asyncclosure_free(void* ptr) {
     // promise_free(JS_GetRuntime(ctx), &ac->promise);
 
     if(ac->opaque && ac->opaque_free) {
-      ac->opaque_free(JS_GetRuntime(ctx), ac->opaque);
+      ac->opaque_free(rt, ac->opaque);
       ac->opaque = NULL;
       ac->opaque_free = NULL;
     }

@@ -1622,11 +1622,11 @@ struct ImmutableClosure {
 };
 
 static void
-js_misc_immutable_free(void* ptr) {
+js_misc_immutable_free(JSRuntime* rt, void* ptr) {
   struct ImmutableClosure* closure = ptr;
 
-  JS_FreeValueRT(closure->rt, closure->ctor);
-  JS_FreeValueRT(closure->rt, closure->proto);
+  JS_FreeValueRT(rt, closure->ctor);
+  JS_FreeValueRT(rt, closure->proto);
   free(ptr);
 }
 
@@ -1662,7 +1662,7 @@ js_misc_immutable_class(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   closure->proto = JS_GetPropertyStr(ctx, closure->ctor, "prototype");
 
   if(JS_IsException(closure->proto)) {
-    js_misc_immutable_free(closure);
+    js_misc_immutable_free(JS_GetRuntime(ctx), closure);
 
     return JS_ThrowTypeError(ctx, "argument 1 must have a 'prototype' property");
   }

@@ -28,7 +28,7 @@
   }
 
 static ssize_t
-write_dbuf(intptr_t p, const void* buf, size_t len, Writer* wr) {
+write_dbuf(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
   DynBuf* db = (DynBuf*)p;
 
   if(dbuf_put(db, buf, len))
@@ -38,7 +38,7 @@ write_dbuf(intptr_t p, const void* buf, size_t len, Writer* wr) {
 }
 
 static ssize_t
-write_tee(intptr_t p, const void* buf, size_t len) {
+write_tee(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
   Writer* wptr = (Writer*)p;
   ssize_t r[2] = {0, 0};
 
@@ -55,7 +55,7 @@ typedef struct {
 } EscapedWriter;
 
 static ssize_t
-write_escaped(intptr_t p, const void* buf, size_t len) {
+write_escaped(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
   EscapedWriter* ew = (EscapedWriter*)p;
   const uint8_t* x = buf;
   ssize_t r = 0;
@@ -71,7 +71,7 @@ write_escaped(intptr_t p, const void* buf, size_t len) {
 }
 
 static ssize_t
-write_urlencoded(intptr_t p, const void* buf, size_t len) {
+write_urlencoded(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
   Writer* parent = (Writer*)p;
   const uint8_t* x = buf;
   ssize_t r = 0;
@@ -98,7 +98,7 @@ write_urlencoded(intptr_t p, const void* buf, size_t len) {
 }
 
 static ssize_t
-read_urldecoded(intptr_t p, void* buf, size_t len) {
+read_urldecoded(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
   Reader* parent = (Reader*)p;
   uint8_t* x = buf;
   uint8_t c, *y = x;
@@ -128,7 +128,7 @@ read_urldecoded(intptr_t p, void* buf, size_t len) {
 }
 
 static ssize_t
-read_inputbuffer(intptr_t p, void* buf, size_t len, Reader* rd) {
+read_inputbuffer(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
   InputBuffer* ib = (InputBuffer*)p;
   size_t remain = ib->size - ib->pos;
 
@@ -143,7 +143,8 @@ read_inputbuffer(intptr_t p, void* buf, size_t len, Reader* rd) {
 }
 
 static ssize_t
-read_range(const uint8_t* start, void* buf, size_t len, Reader* rd) {
+read_range(intptr_t p, void* buf, size_t len, struct StreamReader* rd) {
+  const uint8_t* start = rd->opaque;
   const uint8_t* end = rd->opaque2;
   size_t remain = end - start;
 
@@ -165,13 +166,13 @@ read_range(const uint8_t* start, void* buf, size_t len, Reader* rd) {
  */
 Writer
 writer_from_dynbuf(DynBuf* db) {
-  return (Writer){(WriteFunction*)&write_dbuf, db, (WriterFinalizer*)(void*)&dbuf_free};
+  return (Writer){&write_dbuf, db, (WriterFinalizer*)(void*)&dbuf_free};
 }
 
 Writer
 writer_from_fd(intptr_t fd, bool close_on_end) {
   return (Writer){
-      (WriteFunction*)&write,
+      (WriteFunction*)(void*)&write,
       (void*)fd,
       close_on_end ? (WriterFinalizer*)(void*)&close : NULL,
   };
@@ -189,7 +190,7 @@ writer_tee(const Writer a, const Writer b) {
   assert(opaque);
 
   return (Writer){
-      (WriteFunction*)&write_tee,
+      &write_tee,
       (void*)opaque,
       (WriterFinalizer*)(void*)&orig_free,
   };
@@ -206,7 +207,7 @@ writer_escaped(Writer* out, const char chars[], size_t nchars) {
   }
 
   return (Writer){
-      (WriteFunction*)&write_escaped,
+      &write_escaped,
       (void*)ew,
       (WriterFinalizer*)(void*)&orig_free,
   };
@@ -215,7 +216,7 @@ writer_escaped(Writer* out, const char chars[], size_t nchars) {
 Writer
 writer_urlencode(Writer* out) {
   return (Writer){
-      (WriteFunction*)&write_urlencoded,
+      &write_urlencoded,
       (void*)out,
       NULL,
   };
@@ -235,7 +236,7 @@ writer_free(Writer* wr) {
 Reader
 reader_from_buf(InputBuffer* ib, JSContext* ctx) {
   return (Reader){
-      (ReadFunction*)&read_inputbuffer,
+      &read_inputbuffer,
       ib,
       ctx,
       (ReaderFinalizer*)(void*)&input_buffer_free,
@@ -245,7 +246,7 @@ reader_from_buf(InputBuffer* ib, JSContext* ctx) {
 Reader
 reader_from_range(const void* start, size_t len) {
   return (Reader){
-      (ReadFunction*)&read_range,
+      &read_range,
       (void*)start,
       ((uint8_t*)start) + len,
       NULL,
@@ -255,7 +256,7 @@ reader_from_range(const void* start, size_t len) {
 Reader
 reader_from_fd(intptr_t fd, bool close_on_end) {
   return (Reader){
-      (ReadFunction*)&read,
+      (ReadFunction*)(void*)&read,
       (void*)fd,
       NULL,
       close_on_end ? (ReaderFinalizer*)(void*)&close : NULL,
@@ -265,7 +266,7 @@ reader_from_fd(intptr_t fd, bool close_on_end) {
 Reader
 reader_urldecode(Reader* parent) {
   return (Reader){
-      (ReadFunction*)&read_urldecoded,
+      &read_urldecoded,
       parent,
       NULL,
       NULL,

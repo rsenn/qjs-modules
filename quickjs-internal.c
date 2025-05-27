@@ -197,7 +197,7 @@ module_meta_obj(JSContext* ctx, JSModuleDef* m) {
 }
 
 static JSValue
-call_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst* argv, int magic, JSValue* data) {
+call_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic, JSValue* data) {
   union {
     JSModuleInitFunc* init_func;
     int32_t i[2];
