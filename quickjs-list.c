@@ -67,16 +67,6 @@ js_node_data(JSValueConst value) {
   return JS_GetOpaque(value, js_node_class_id);
 }
 
-enum {
-  STATIC_FROM = 0,
-  STATIC_OF,
-  STATIC_IS_LIST,
-};
-
-enum {
-  PROP_LENGTH = 0,
-};
-
 static Node*
 node_new(JSContext* ctx, JSValueConst value) {
   Node* node;
@@ -466,38 +456,11 @@ list_iterator_skip(ListIterator* it, JSContext* ctx) {
 }
 
 static JSValue
-js_list_iterator_new(JSContext* ctx, JSValueConst proto, List* list, ListIteratorKind kind, Direction dir) {
-  ListIterator* it;
-  JSValue obj = JS_UNDEFINED;
-
-  if(!(it = js_malloc(ctx, sizeof(ListIterator))))
-    return JS_EXCEPTION;
-
-  it->list = list_dup(list);
-  it->index = dir == REV ? -1 : 0;
-  it->link = dir == REV ? list->head.prev : list->head.next;
-  it->kind = kind;
-  it->dir = dir;
-
-  obj = JS_NewObjectProtoClass(ctx, proto, js_list_iterator_class_id);
-  if(JS_IsException(obj))
-    goto fail;
-
-  JS_SetOpaque(obj, it);
-  return obj;
-
-fail:
-  js_free(ctx, it);
-  JS_FreeValue(ctx, obj);
-
-  return JS_EXCEPTION;
-}
-
-static JSValue
 js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
-  JSValue proto;
+  JSValue proto, obj;
   List* list;
   Direction dir = FWD;
+  ListIterator* it;
 
   if(argc < 1)
     return JS_ThrowReferenceError(ctx, "argument 1 must be a List");
@@ -515,8 +478,25 @@ js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
   if(JS_IsException(proto))
     return JS_EXCEPTION;
+  obj = JS_NewObjectProtoClass(ctx, proto, js_list_iterator_class_id);
+  if(JS_IsException(obj))
+    goto fail;
 
-  return js_list_iterator_new(ctx, proto, list, ITERATOR_KIND_VALUE, dir);
+  if(!(it = js_malloc(ctx, sizeof(ListIterator))))
+    goto fail;
+
+  it->list = list_dup(list);
+  it->index = dir == REV ? -1 : 0;
+  it->link = dir == REV ? list->head.prev : list->head.next;
+  it->kind = ITERATOR_KIND_VALUE;
+  it->dir = dir;
+
+  JS_SetOpaque(obj, it);
+  return obj;
+
+fail:
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
 }
 
 static JSValue
@@ -631,33 +611,33 @@ js_list_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
 }
 
 enum {
-  METHOD_PUSH = 0,
-  METHOD_POP,
-  METHOD_UNSHIFT,
-  METHOD_SHIFT,
-  METHOD_AT,
-  METHOD_INDEX_OF,
-  METHOD_INCLUDES,
-  METHOD_LAST_INDEX_OF,
-  METHOD_FIND_INDEX,
-  METHOD_FIND_LAST_INDEX,
-  METHOD_FIND,
-  METHOD_FIND_LAST,
-  METHOD_CONCAT,
-  METHOD_SLICE,
-  METHOD_FILL,
-  METHOD_ROTATE,
-  METHOD_REVERSE,
-  METHOD_SPLICE,
-  METHOD_EVERY,
-  METHOD_FILTER,
-  METHOD_FOREACH,
-  METHOD_MAP,
-  METHOD_REDUCE,
-  METHOD_REDUCE_RIGHT,
-  METHOD_SOME,
-  METHOD_SORT,
-  METHOD_INSERT,
+  LIST_PUSH = 0,
+  LIST_POP,
+  LIST_UNSHIFT,
+  LIST_SHIFT,
+  LIST_AT,
+  LIST_INDEX_OF,
+  LIST_INCLUDES,
+  LIST_LAST_INDEX_OF,
+  LIST_FIND_INDEX,
+  LIST_FIND_LAST_INDEX,
+  LIST_FIND,
+  LIST_FIND_LAST,
+  LIST_CONCAT,
+  LIST_SLICE,
+  LIST_FILL,
+  LIST_ROTATE,
+  LIST_REVERSE,
+  LIST_SPLICE,
+  LIST_EVERY,
+  LIST_FILTER,
+  LIST_FOREACH,
+  LIST_MAP,
+  LIST_REDUCE,
+  LIST_REDUCE_RIGHT,
+  LIST_SOME,
+  LIST_SORT,
+  LIST_INSERT,
 };
 
 static JSValue
@@ -671,7 +651,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     return JS_EXCEPTION;
 
   switch(magic) {
-    case METHOD_PUSH: {
+    case LIST_PUSH: {
       for(int i = 0; i < argc; i++)
         if(!list_push(list, argv[i], ctx))
           return JS_EXCEPTION;
@@ -680,14 +660,14 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case METHOD_POP: {
+    case LIST_POP: {
       if((node = list_last(&list->head, Node, link)))
         ret = node_remove(node, list, ctx);
 
       break;
     }
 
-    case METHOD_UNSHIFT: {
+    case LIST_UNSHIFT: {
       for(int i = argc - 1; i >= 0; i--)
         if(!list_unshift(list, argv[i], ctx))
           return JS_EXCEPTION;
@@ -696,14 +676,14 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case METHOD_SHIFT: {
+    case LIST_SHIFT: {
       if((node = list_first(&list->head, Node, link)))
         ret = node_remove(node, list, ctx);
 
       break;
     }
 
-    case METHOD_AT: {
+    case LIST_AT: {
       if((index = js_toindex_name(ctx, argv[0], list->size, "argument 1")) == -1)
         return JS_EXCEPTION;
 
@@ -713,24 +693,24 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case METHOD_INCLUDES: {
+    case LIST_INCLUDES: {
       ret = JS_NewBool(ctx, list_indexof_forward(list, argv[0], ctx) != -1);
       break;
     }
 
-    case METHOD_INDEX_OF: {
+    case LIST_INDEX_OF: {
       ret = JS_NewInt64(ctx, list_indexof_forward(list, argv[0], ctx));
       break;
     }
 
-    case METHOD_LAST_INDEX_OF: {
+    case LIST_LAST_INDEX_OF: {
       index = list_indexof_reverse(list, argv[0], ctx);
 
       ret = JS_NewInt64(ctx, index == -1 ? -1 : (int64_t)(list->size - 1) - index);
       break;
     }
 
-    case METHOD_CONCAT: {
+    case LIST_CONCAT: {
       List* other;
       struct list_head* ptr;
 
@@ -755,7 +735,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case METHOD_SLICE: {
+    case LIST_SLICE: {
       List* other;
       struct list_head* ptr;
       int64_t i = 0, start = 0, end = list->size;
@@ -785,7 +765,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case METHOD_SPLICE: {
+    case LIST_SPLICE: {
       List* other;
       struct list_head *ptr, *ptr2;
       OffsetLength ol = OFFSETLENGTH_INIT();
@@ -820,7 +800,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case METHOD_FILL: {
+    case LIST_FILL: {
       List* other;
       struct list_head* ptr;
       IndexRange range = INDEXRANGE_INIT();
@@ -848,7 +828,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case METHOD_ROTATE: {
+    case LIST_ROTATE: {
       if(JS_ToInt64(ctx, &index, argv[0]))
         return JS_ThrowRangeError(ctx, "argument 1 must be numeric index");
 
@@ -872,7 +852,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case METHOD_REVERSE: {
+    case LIST_REVERSE: {
       List* other;
       struct list_head* ptr;
 
@@ -889,7 +869,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
 
-    case METHOD_INSERT: {
+    case LIST_INSERT: {
       ListIterator* iter;
       struct list_head* ptr = NULL;
 
@@ -929,22 +909,22 @@ js_list_search(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   pred = js_list_predicate(ctx, argc, argv);
 
   switch(magic) {
-    case METHOD_FIND_INDEX: {
+    case LIST_FIND_INDEX: {
       ret = JS_NewInt64(ctx, list_find_forward(list, this_val, pred, NULL, ctx));
       break;
     }
 
-    case METHOD_FIND_LAST_INDEX: {
+    case LIST_FIND_LAST_INDEX: {
       ret = JS_NewInt64(ctx, list_find_reverse(list, this_val, pred, NULL, ctx));
       break;
     }
 
-    case METHOD_FIND: {
+    case LIST_FIND: {
       ret = list_find_value(list, this_val, pred, list_find_forward, ctx);
       break;
     }
 
-    case METHOD_FIND_LAST: {
+    case LIST_FIND_LAST: {
       ret = list_find_value(list, this_val, pred, list_find_reverse, ctx);
       break;
     }
@@ -964,7 +944,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   if(!(list = js_list_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(argc < 1 && magic == METHOD_SORT) {
+  if(argc < 1 && magic == LIST_SORT) {
     const char* fn = "(a, b) => a - b";
 
     argv[0] = JS_Eval(ctx, fn, strlen(fn), "-", 0);
@@ -976,7 +956,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   pred = js_list_predicate(ctx, argc, argv);
 
   switch(magic) {
-    case METHOD_EVERY: {
+    case LIST_EVERY: {
       ret = JS_TRUE;
 
       list_for_each(ptr, &list->head) {
@@ -992,7 +972,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
 
-    case METHOD_SOME: {
+    case LIST_SOME: {
       ret = JS_FALSE;
 
       list_for_each(ptr, &list->head) {
@@ -1008,7 +988,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
 
-    case METHOD_FILTER: {
+    case LIST_FILTER: {
       List* other;
 
       if(!(other = list_new(ctx))) {
@@ -1027,7 +1007,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
 
-    case METHOD_FOREACH: {
+    case LIST_FOREACH: {
       list_for_each(ptr, &list->head) {
         Node* node = list_entry(ptr, Node, link);
 
@@ -1037,7 +1017,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
 
-    case METHOD_MAP: {
+    case LIST_MAP: {
       List* other;
 
       if(!(other = list_new(ctx))) {
@@ -1056,7 +1036,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
 
-    case METHOD_REDUCE: {
+    case LIST_REDUCE: {
       List* other;
 
       ret = JS_DupValue(ctx, argc > 1 ? argv[1] : JS_UNDEFINED);
@@ -1084,7 +1064,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
 
-    case METHOD_REDUCE_RIGHT: {
+    case LIST_REDUCE_RIGHT: {
       List* other;
 
       ret = JS_DupValue(ctx, argc > 1 ? argv[1] : JS_UNDEFINED);
@@ -1114,7 +1094,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
 
-    case METHOD_SORT: {
+    case LIST_SORT: {
       List* other;
       struct list_head* ptr2;
 
@@ -1152,9 +1132,13 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   }
 
   JS_FreeValue(ctx, pred);
-
   return ret;
 }
+
+enum {
+  LIST_LENGTH,
+  LIST_ADDRESS,
+};
 
 static JSValue
 js_list_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -1165,8 +1149,15 @@ js_list_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PROP_LENGTH: {
+    case LIST_LENGTH: {
       ret = JS_NewInt64(ctx, list->size);
+      break;
+    }
+    case LIST_ADDRESS: {
+      char buf[32];
+
+      snprintf(buf, sizeof(buf), "%p", list);
+      ret = JS_NewString(ctx, buf);
       break;
     }
   }
@@ -1174,8 +1165,14 @@ js_list_get(JSContext* ctx, JSValueConst this_val, int magic) {
   return ret;
 }
 
+enum {
+  STATIC_FROM = 0,
+  STATIC_OF,
+  STATIC_IS_LIST,
+};
+
 static JSValue
-js_list_static(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+js_list_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   List* list;
 
@@ -1233,50 +1230,6 @@ js_list_iterator_finalizer(JSRuntime* rt, JSValue val) {
   }
 }
 
-static const JSCFunctionListEntry js_list_methods[] = {
-    JS_CFUNC_MAGIC_DEF("push", 1, js_list_method, METHOD_PUSH),
-    JS_CFUNC_MAGIC_DEF("pop", 0, js_list_method, METHOD_POP),
-    JS_CFUNC_MAGIC_DEF("unshift", 1, js_list_method, METHOD_UNSHIFT),
-    JS_CFUNC_MAGIC_DEF("shift", 0, js_list_method, METHOD_SHIFT),
-    JS_CFUNC_MAGIC_DEF("at", 1, js_list_method, METHOD_AT),
-    JS_CFUNC_MAGIC_DEF("includes", 1, js_list_method, METHOD_INCLUDES),
-    JS_CFUNC_MAGIC_DEF("indexOf", 1, js_list_method, METHOD_INDEX_OF),
-    JS_CFUNC_MAGIC_DEF("lastIndexOf", 1, js_list_method, METHOD_LAST_INDEX_OF),
-    JS_CFUNC_MAGIC_DEF("findIndex", 1, js_list_search, METHOD_FIND_INDEX),
-    JS_CFUNC_MAGIC_DEF("findLastIndex", 1, js_list_search, METHOD_FIND_LAST_INDEX),
-    JS_CFUNC_MAGIC_DEF("find", 1, js_list_search, METHOD_FIND),
-    JS_CFUNC_MAGIC_DEF("findLast", 1, js_list_search, METHOD_FIND_LAST),
-    JS_CFUNC_MAGIC_DEF("concat", 1, js_list_method, METHOD_CONCAT),
-    JS_CFUNC_MAGIC_DEF("slice", 0, js_list_method, METHOD_SLICE),
-    JS_CFUNC_MAGIC_DEF("reverse", 0, js_list_method, METHOD_REVERSE),
-    JS_CFUNC_MAGIC_DEF("insert", 1, js_list_method, METHOD_INSERT),
-    JS_CFUNC_MAGIC_DEF("splice", 0, js_list_method, METHOD_SPLICE),
-    JS_CFUNC_MAGIC_DEF("fill", 1, js_list_method, METHOD_FILL),
-    JS_CFUNC_MAGIC_DEF("rotate", 1, js_list_method, METHOD_ROTATE),
-    JS_CFUNC_MAGIC_DEF("every", 1, js_list_functional, METHOD_EVERY),
-    JS_CFUNC_MAGIC_DEF("some", 1, js_list_functional, METHOD_SOME),
-    JS_CFUNC_MAGIC_DEF("filter", 1, js_list_functional, METHOD_FILTER),
-    JS_CFUNC_MAGIC_DEF("forEach", 1, js_list_functional, METHOD_FOREACH),
-    JS_CFUNC_MAGIC_DEF("map", 1, js_list_functional, METHOD_MAP),
-    JS_CFUNC_MAGIC_DEF("reduce", 1, js_list_functional, METHOD_REDUCE),
-    JS_CFUNC_MAGIC_DEF("reduceRight", 1, js_list_functional, METHOD_REDUCE_RIGHT),
-    JS_CFUNC_MAGIC_DEF("sort", 0, js_list_functional, METHOD_SORT),
-    JS_CFUNC_MAGIC_DEF("values", 0, js_list_iterator, ITERATOR_KIND_VALUE),
-    JS_CFUNC_MAGIC_DEF("keys", 0, js_list_iterator, ITERATOR_KIND_KEY),
-    JS_CFUNC_MAGIC_DEF("entries", 0, js_list_iterator, ITERATOR_KIND_KEY_AND_VALUE),
-    JS_ALIAS_DEF("[Symbol.iterator]", "values"),
-    JS_CGETSET_MAGIC_DEF("size", js_list_get, 0, PROP_LENGTH),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "List", JS_PROP_CONFIGURABLE),
-};
-
-static const JSCFunctionListEntry js_list_static_funcs[] = {
-    JS_CFUNC_MAGIC_DEF("from", 1, js_list_static, STATIC_FROM),
-    JS_CFUNC_MAGIC_DEF("of", 0, js_list_static, STATIC_OF),
-    JS_CFUNC_MAGIC_DEF("isList", 1, js_list_static, STATIC_IS_LIST),
-    JS_CONSTANT(FWD),
-    JS_CONSTANT(REV),
-};
-
 static const JSCFunctionListEntry js_list_iterator_proto_funcs[] = {
     JS_ITERATOR_NEXT_DEF("next", 0, js_list_iterator_next, 0),
     // JS_CFUNC_DEF("next", 0, js_list_iterator_fn),
@@ -1324,34 +1277,6 @@ js_list_has_property(JSContext* ctx, JSValueConst obj, JSAtom prop) {
   return FALSE;
 }
 
-/*static JSValue
-js_list_get_property(JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst receiver) {
-  List* list;
-  JSValue value = JS_UNDEFINED;
-  int64_t index;
-  int32_t entry;
-
-  if(!(list = js_list_data2(ctx, obj)))
-    return JS_EXCEPTION;
-
-  if(js_atom_is_index(ctx, &index, prop)) {
-    if(list_has(list, index))
-      value = JS_DupValue(ctx, list_value(list, index));
-  } else if(js_atom_is_length(ctx, prop)) {
-    value = JS_NewInt64(ctx, list->size);
-  } else if((entry = js_find_cfunction_atom(
-                 ctx, js_list_methods, countof(js_list_methods), prop, JS_DEF_CGETSET_MAGIC)) >= 0) {
-    value = js_list_get(ctx, obj, js_list_methods[entry].magic);
-  } else {
-    JSValue proto = JS_IsUndefined(list_proto) ? JS_GetPrototype(ctx, obj) : list_proto;
-
-    if(JS_IsObject(proto))
-      value = JS_GetProperty(ctx, proto, prop);
-  }
-
-  return value;
-}*/
-
 static int
 js_list_set_property(
     JSContext* ctx, JSValueConst obj, JSAtom prop, JSValueConst value, JSValueConst receiver, int flags) {
@@ -1388,7 +1313,6 @@ js_list_set_property(
 static JSClassExoticMethods js_list_exotic_methods = {
     .get_own_property = js_list_get_own_property,
     .has_property = js_list_has_property,
-    //.get_property = js_list_get_property,
     .set_property = js_list_set_property,
 };
 
@@ -1401,6 +1325,51 @@ static JSClassDef js_list_class = {
 static JSClassDef js_list_iterator_class = {
     .class_name = "ListIterator",
     .finalizer = js_list_iterator_finalizer,
+};
+
+static const JSCFunctionListEntry js_list_methods[] = {
+    JS_CFUNC_MAGIC_DEF("push", 1, js_list_method, LIST_PUSH),
+    JS_CFUNC_MAGIC_DEF("pop", 0, js_list_method, LIST_POP),
+    JS_CFUNC_MAGIC_DEF("unshift", 1, js_list_method, LIST_UNSHIFT),
+    JS_CFUNC_MAGIC_DEF("shift", 0, js_list_method, LIST_SHIFT),
+    JS_CFUNC_MAGIC_DEF("at", 1, js_list_method, LIST_AT),
+    JS_CFUNC_MAGIC_DEF("includes", 1, js_list_method, LIST_INCLUDES),
+    JS_CFUNC_MAGIC_DEF("indexOf", 1, js_list_method, LIST_INDEX_OF),
+    JS_CFUNC_MAGIC_DEF("lastIndexOf", 1, js_list_method, LIST_LAST_INDEX_OF),
+    JS_CFUNC_MAGIC_DEF("findIndex", 1, js_list_search, LIST_FIND_INDEX),
+    JS_CFUNC_MAGIC_DEF("findLastIndex", 1, js_list_search, LIST_FIND_LAST_INDEX),
+    JS_CFUNC_MAGIC_DEF("find", 1, js_list_search, LIST_FIND),
+    JS_CFUNC_MAGIC_DEF("findLast", 1, js_list_search, LIST_FIND_LAST),
+    JS_CFUNC_MAGIC_DEF("concat", 1, js_list_method, LIST_CONCAT),
+    JS_CFUNC_MAGIC_DEF("slice", 0, js_list_method, LIST_SLICE),
+    JS_CFUNC_MAGIC_DEF("reverse", 0, js_list_method, LIST_REVERSE),
+    JS_CFUNC_MAGIC_DEF("insert", 1, js_list_method, LIST_INSERT),
+    JS_CFUNC_MAGIC_DEF("splice", 0, js_list_method, LIST_SPLICE),
+    JS_CFUNC_MAGIC_DEF("fill", 1, js_list_method, LIST_FILL),
+    JS_CFUNC_MAGIC_DEF("rotate", 1, js_list_method, LIST_ROTATE),
+    JS_CFUNC_MAGIC_DEF("every", 1, js_list_functional, LIST_EVERY),
+    JS_CFUNC_MAGIC_DEF("some", 1, js_list_functional, LIST_SOME),
+    JS_CFUNC_MAGIC_DEF("filter", 1, js_list_functional, LIST_FILTER),
+    JS_CFUNC_MAGIC_DEF("forEach", 1, js_list_functional, LIST_FOREACH),
+    JS_CFUNC_MAGIC_DEF("map", 1, js_list_functional, LIST_MAP),
+    JS_CFUNC_MAGIC_DEF("reduce", 1, js_list_functional, LIST_REDUCE),
+    JS_CFUNC_MAGIC_DEF("reduceRight", 1, js_list_functional, LIST_REDUCE_RIGHT),
+    JS_CFUNC_MAGIC_DEF("sort", 0, js_list_functional, LIST_SORT),
+    JS_CFUNC_MAGIC_DEF("values", 0, js_list_iterator, ITERATOR_KIND_VALUE),
+    JS_CFUNC_MAGIC_DEF("keys", 0, js_list_iterator, ITERATOR_KIND_KEY),
+    JS_CFUNC_MAGIC_DEF("entries", 0, js_list_iterator, ITERATOR_KIND_KEY_AND_VALUE),
+    JS_ALIAS_DEF("[Symbol.iterator]", "values"),
+    JS_CGETSET_MAGIC_DEF("length", js_list_get, 0, LIST_LENGTH),
+    JS_CGETSET_MAGIC_DEF("address", js_list_get, 0, LIST_ADDRESS),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "List", JS_PROP_CONFIGURABLE),
+};
+
+static const JSCFunctionListEntry js_list_functions[] = {
+    JS_CFUNC_MAGIC_DEF("from", 1, js_list_function, STATIC_FROM),
+    JS_CFUNC_MAGIC_DEF("of", 0, js_list_function, STATIC_OF),
+    JS_CFUNC_MAGIC_DEF("isList", 1, js_list_function, STATIC_IS_LIST),
+    JS_CONSTANT(FWD),
+    JS_CONSTANT(REV),
 };
 
 static JSValue
@@ -1422,7 +1391,7 @@ js_node_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   if(JS_IsException(proto))
     proto = JS_DupValue(ctx, node_proto);
 
-  obj = JS_NewObjectProtoClass(ctx, proto, js_list_iterator_class_id);
+  obj = JS_NewObjectProtoClass(ctx, proto, js_node_class_id);
   if(JS_IsException(obj))
     goto fail;
 
@@ -1459,11 +1428,11 @@ js_node_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 }
 
 enum {
-  PROP_VALUE,
-  PROP_PREV,
-  PROP_NEXT,
-  PROP_LINKED,
-  PROP_ADDRESS,
+  NODE_VALUE,
+  NODE_PREV,
+  NODE_NEXT,
+  NODE_LINKED,
+  NODE_ADDRESS,
 };
 
 static JSValue
@@ -1475,23 +1444,23 @@ js_node_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PROP_VALUE: {
+    case NODE_VALUE: {
       ret = JS_IsUninitialized(node->value) ? JS_NULL : JS_DupValue(ctx, node->value);
       break;
     }
-    case PROP_PREV: {
+    case NODE_PREV: {
       ret = node_linked(node) ? js_node_wrap(ctx, node_proto, node_dup((Node*)node->link.prev)) : JS_NULL;
       break;
     }
-    case PROP_NEXT: {
+    case NODE_NEXT: {
       ret = node_linked(node) ? js_node_wrap(ctx, node_proto, node_dup((Node*)node->link.next)) : JS_NULL;
       break;
     }
-    case PROP_LINKED: {
+    case NODE_LINKED: {
       ret = JS_NewBool(ctx, node_linked(node));
       break;
     }
-    case PROP_ADDRESS: {
+    case NODE_ADDRESS: {
       char buf[32];
 
       snprintf(buf, sizeof(buf), "%p", node);
@@ -1512,7 +1481,7 @@ js_node_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, int magic
     return JS_EXCEPTION;
 
   switch(magic) {
-    case PROP_VALUE: {
+    case NODE_VALUE: {
       JS_FreeValue(ctx, node->value);
       node->value = JS_DupValue(ctx, value);
       break;
@@ -1532,11 +1501,11 @@ js_node_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static const JSCFunctionListEntry js_node_methods[] = {
-    JS_CGETSET_MAGIC_DEF("prev", js_node_get, 0, PROP_PREV),
-    JS_CGETSET_MAGIC_DEF("next", js_node_get, 0, PROP_NEXT),
-    JS_CGETSET_MAGIC_DEF("linked", js_node_get, 0, PROP_LINKED),
-    JS_CGETSET_MAGIC_DEF("value", js_node_get, js_node_set, PROP_VALUE),
-    JS_CGETSET_MAGIC_DEF("address", js_node_get, 0, PROP_ADDRESS),
+    JS_CGETSET_MAGIC_DEF("prev", js_node_get, 0, NODE_PREV),
+    JS_CGETSET_MAGIC_DEF("next", js_node_get, 0, NODE_NEXT),
+    JS_CGETSET_MAGIC_DEF("linked", js_node_get, 0, NODE_LINKED),
+    JS_CGETSET_MAGIC_DEF("value", js_node_get, js_node_set, NODE_VALUE),
+    JS_CGETSET_MAGIC_DEF("address", js_node_get, 0, NODE_ADDRESS),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Node", JS_PROP_CONFIGURABLE),
 };
 
@@ -1562,7 +1531,7 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
   JS_FreeAtom(ctx, species_atom);
 
   JS_SetConstructor(ctx, list_ctor, list_proto);
-  JS_SetPropertyFunctionList(ctx, list_ctor, js_list_static_funcs, countof(js_list_static_funcs));
+  JS_SetPropertyFunctionList(ctx, list_ctor, js_list_functions, countof(js_list_functions));
 
   JS_NewClassID(&js_node_class_id);
   JS_NewClass(JS_GetRuntime(ctx), js_node_class_id, &js_node_class);

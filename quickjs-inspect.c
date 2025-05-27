@@ -971,9 +971,12 @@ inspect_error(Inspector* insp, JSValueConst value, int32_t level) {
   if(!(class_name = js_get_tostringtag_str(ctx, value)))
     class_name = js_object_classname(ctx, value);
 
-  writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "");
-  writer_puts(wr, class_name);
-  writer_puts(wr, opts->colors ? COLOR_NONE " {" : " {");
+  if(class_name) {
+    writer_puts(wr, opts->colors ? COLOR_LIGHTRED : "");
+    writer_puts(wr, class_name);
+    writer_puts(wr, opts->colors ? COLOR_NONE " {" : " {");
+  } else
+    writer_puts(wr, "{");
 
   if((str = js_get_propertystr_cstring(ctx, value, "message"))) {
     put_newline(wr, depth + 1);

@@ -917,9 +917,9 @@ js_object_constructor(JSContext* ctx, JSValueConst value) {
       if(JS_IsObject(proto) && !js_object_same(value, proto)) {
         ctor = js_object_constructor(ctx, proto);
         JS_FreeValue(ctx, proto);
-      } else {
-        ctor = JS_GetPropertyStr(ctx, value, "constructor");
       }
+    } else {
+      ctor = JS_GetPropertyStr(ctx, value, "constructor");
     }
   }
 
@@ -949,7 +949,6 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   }
 
   if((str = JS_ToCString(ctx, ctor))) {
-
     if(!strncmp(str, "function ", 9)) {
       namelen = byte_chr(str + 9, strlen(str) - 9, '(');
 
@@ -959,7 +958,6 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   }
 
   if(!name) {
-
     if(str)
       JS_FreeCString(ctx, str);
 

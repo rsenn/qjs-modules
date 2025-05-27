@@ -566,7 +566,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       uint8_t* s;
       size_t n;
 
-      js_offset_length(ctx, -1, argc , argv , 1, &ol);
+      js_offset_length(ctx, -1, argc, argv, 1, &ol);
 
       s = offsetlength_data(ol, data);
       n = offsetlength_size(ol, len);
@@ -653,7 +653,7 @@ js_misc_toarraybuffer(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   if(!JS_IsException(input.value)) {
     OffsetLength o = OFFSETLENGTH_INIT();
-    js_offset_length(ctx, input.size, argc , argv, 1, &o);
+    js_offset_length(ctx, input.size, argc, argv, 1, &o);
     MemoryBlock b = offsetlength_block(o, input_buffer_block(&input));
     ret = js_arraybuffer_fromvalue(ctx, b.base, b.size, argv[0]);
   }
