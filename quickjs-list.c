@@ -618,7 +618,8 @@ enum {
   LIST_REDUCE_RIGHT,
   LIST_SOME,
   LIST_SORT,
-  LIST_INSERT,
+  LIST_INSERT_BEFORE,
+  LIST_INSERT_AFTER,
 };
 
 static JSValue
@@ -800,19 +801,10 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
       index %= (int64_t)list->size;
 
-      while(index > 0 && list->head.prev != &list->head) {
-        node = list_entry(list->head.prev, Node, link);
-        list_del(&node->link);
-        list_add(&node->link, &list->head);
-        index--;
-      }
+      Node* node = list_at(list, index);
 
-      while(index < 0 && list->head.next != &list->head) {
-        node = list_entry(list->head.next, Node, link);
-        list_del(&node->link);
-        list_add_tail(&node->link, &list->head);
-        index++;
-      }
+      list_del(&list->head);
+        list_add_tail(&list->head, &node->link);
 
       ret = JS_DupValue(ctx, this_val);
       break;
@@ -833,7 +825,8 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
     }
-    case LIST_INSERT: {
+    case LIST_INSERT_BEFORE:
+    case LIST_INSERT_AFTER: {
       ListIterator* iter;
       Node* node;
       struct list_head* ptr = NULL;
@@ -845,10 +838,16 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         ptr = iter->link;
       } else if((node = JS_GetOpaque(argv[0], js_node_class_id))) {
         ptr = &node->link;
+      } else {
+        return JS_ThrowInternalError(ctx, "argument 1 must be a ListIterator or ListNode");
       }
 
-      for(int i = 1; i < argc; i++)
-        ptr = &list_insert(list, ptr, argv[i], ctx)->link;
+      if(magic == LIST_INSERT_BEFORE)
+        for(int i = 1; i < argc; i++)
+          list_insert_before(list, ptr, argv[i], ctx);
+      else
+        for(int i = argc - 1; i >= 1; i++)
+          list_insert(list, ptr, argv[i], ctx);
 
       break;
     }
@@ -1317,7 +1316,8 @@ static const JSCFunctionListEntry js_list_methods[] = {
     JS_CFUNC_MAGIC_DEF("concat", 1, js_list_method, LIST_CONCAT),
     JS_CFUNC_MAGIC_DEF("slice", 0, js_list_method, LIST_SLICE),
     JS_CFUNC_MAGIC_DEF("reverse", 0, js_list_method, LIST_REVERSE),
-    JS_CFUNC_MAGIC_DEF("insert", 1, js_list_method, LIST_INSERT),
+    JS_CFUNC_MAGIC_DEF("insert", 1, js_list_method, LIST_INSERT_AFTER),
+    JS_CFUNC_MAGIC_DEF("insertBefore", 1, js_list_method, LIST_INSERT_BEFORE),
     JS_CFUNC_MAGIC_DEF("splice", 0, js_list_method, LIST_SPLICE),
     JS_CFUNC_MAGIC_DEF("fill", 1, js_list_method, LIST_FILL),
     JS_CFUNC_MAGIC_DEF("rotate", 1, js_list_method, LIST_ROTATE),
