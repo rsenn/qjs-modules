@@ -55,7 +55,7 @@ pointer_compare(Pointer const* a, Pointer const* b, int32_t aoffs, int32_t boffs
   alen -= aoffs;
   blen -= boffs;
 
-  len = MIN_NUM(len,  alen);
+  len = MIN_NUM(len, alen);
   len = MIN_NUM(len, blen);
 
   for(uint32_t i = 0; i < len; i++)

@@ -1,19 +1,19 @@
 #include "virtual-properties.h"
 
 /**
- * \addtogroup quickjs-virtual
+ * \addtogroup quickjs-VirtualProperties
  * @{
  */
 
 VISIBLE JSClassID js_virtual_class_id = 0;
 static JSValue virtual_proto, virtual_ctor;
 
-static inline List*
+static inline VirtualProperties*
 js_virtual_data2(JSContext* ctx, JSValueConst value) {
   return JS_GetOpaque2(ctx, value, js_virtual_class_id);
 }
 
-static inline List*
+static inline VirtualProperties*
 js_virtual_data(JSValueConst value) {
   return JS_GetOpaque(value, js_virtual_class_id);
 }
@@ -45,6 +45,24 @@ fail:
   return JS_EXCEPTION;
 }
 
+JSValue
+js_virtual_wrap(JSContext* ctx, JSValueConst proto, VirtualProperties virt) {
+  JSValue obj = JS_NewObjectProtoClass(ctx, proto, js_virtual_class_id);
+  VirtualProperties* v;
+
+  if(!(v = js_malloc(ctx, sizeof(VirtualProperties))))
+    goto fail;
+
+  *v = virt;
+
+  JS_SetOpaque(obj, v);
+  return obj;
+
+fail:
+  JS_FreeValue(ctx, obj);
+  return JS_EXCEPTION;
+}
+
 enum {
   VIRTUAL_HAS,
   VIRTUAL_GET,
@@ -54,8 +72,8 @@ enum {
 };
 
 static JSValue
-js_virtual_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  Virtual* virt;
+js_virtual_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  VirtualProperties* virt;
   JSValue ret = JS_UNDEFINED;
 
   if(!(virt = js_virtual_data2(ctx, this_val)))
@@ -63,50 +81,72 @@ js_virtual_methods(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
   switch(magic) {
     case VIRTUAL_HAS: {
+      ret = JS_NewBool(ctx, virtual_has(virt, ctx, argv[0]));
       break;
     }
     case VIRTUAL_GET: {
+      ret = virtual_get(virt, ctx, argv[0]);
       break;
     }
     case VIRTUAL_SET: {
+      ret = JS_NewInt32(ctx, virtual_set(virt, ctx, argv[0], argv[1]));
       break;
     }
     case VIRTUAL_DELETE: {
+      ret = JS_NewBool(ctx, virtual_delete(virt, ctx, argv[0]));
       break;
     }
     case VIRTUAL_KEYS: {
+      int32_t flags = (JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY);
+
+      if(argc > 0)
+        JS_ToInt32(ctx, &flags, argv[0]);
+
+      ret = virtual_keys(virt, ctx, flags);
       break;
     }
   }
 
   return ret;
 }
+
+enum {
+  VIRTUAL_ARRAY,
+  VIRTUAL_MAP,
+  VIRTUAL_OBJECT,
+  VIRTUAL_FROM,
+};
 
 static JSValue
 js_virtual_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
+  VirtualProperties virt = {JS_EXCEPTION, 0, 0, 0, 0, 0, 0, 0, 0};
 
   switch(magic) {
     case VIRTUAL_ARRAY: {
+      virt = virtual_properties_array(ctx, argv[0]);
       break;
     }
     case VIRTUAL_MAP: {
+      virt = virtual_properties_map(ctx, argv[0]);
       break;
     }
     case VIRTUAL_OBJECT: {
+      virt = virtual_properties_object(ctx, argv[0]);
       break;
     }
     case VIRTUAL_FROM: {
+      virt = virtual_properties(ctx, argv[0]);
       break;
     }
   }
 
-  return ret;
+  return js_virtual_wrap(ctx, virtual_proto, virt);
 }
 
 void
 js_virtual_finalizer(JSRuntime* rt, JSValue val) {
-  Virtual* virt;
+  VirtualProperties* virt;
 
   if((virt = js_virtual_data(val))) {
     virtual_properties_free_rt(virt, rt);
@@ -115,7 +155,7 @@ js_virtual_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static JSClassDef js_virtual_class = {
-    .class_name = "Virtual",
+    .class_name = "VirtualProperties",
     .finalizer = js_virtual_finalizer,
 };
 
@@ -125,7 +165,7 @@ static const JSCFunctionListEntry js_virtual_methods[] = {
     JS_CFUNC_MAGIC_DEF("set", 2, js_virtual_method, VIRTUAL_SET),
     JS_CFUNC_MAGIC_DEF("delete", 1, js_virtual_method, VIRTUAL_DELETE),
     JS_CFUNC_MAGIC_DEF("keys", 0, js_virtual_method, VIRTUAL_KEYS),
-    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "Virtual", JS_PROP_CONFIGURABLE),
+    JS_PROP_STRING_DEF("[Symbol.toStringTag]", "VirtualProperties", JS_PROP_CONFIGURABLE),
 };
 
 static const JSCFunctionListEntry js_virtual_functions[] = {
@@ -141,15 +181,17 @@ js_virtual_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_NewClass(JS_GetRuntime(ctx), js_virtual_class_id, &js_virtual_class);
 
-  virtual_ctor = JS_NewCFunction2(ctx, js_virtual_constructor, "Virtual", 1, JS_CFUNC_constructor, 0);
-  virtual_proto = JS_NewObject(ctx);
+  virtual_ctor = JS_NewCFunction2(ctx, js_virtual_constructor, "VirtualProperties", 1, JS_CFUNC_constructor, 0);
+  virtual_proto = JS_NewObjectProto(ctx, JS_NULL);
 
   JS_SetPropertyFunctionList(ctx, virtual_proto, js_virtual_methods, countof(js_virtual_methods));
   JS_SetPropertyFunctionList(ctx, virtual_ctor, js_virtual_functions, countof(js_virtual_functions));
+
   JS_SetClassProto(ctx, js_virtual_class_id, virtual_proto);
+  JS_SetConstructor(ctx, virtual_ctor, virtual_proto);
 
   if(m)
-    JS_SetModuleExport(ctx, m, "Virtual", virtual_ctor);
+    JS_SetModuleExport(ctx, m, "VirtualProperties", virtual_ctor);
 
   return 0;
 }
@@ -165,7 +207,7 @@ JS_INIT_MODULE(JSContext* ctx, const char* module_name) {
   JSModuleDef* m;
 
   if((m = JS_NewCModule(ctx, module_name, js_virtual_init)))
-    JS_AddModuleExport(ctx, m, "Virtual");
+    JS_AddModuleExport(ctx, m, "VirtualProperties");
 
   return m;
 }
