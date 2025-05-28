@@ -629,6 +629,10 @@ js_list_wrap_species(JSContext* ctx, JSValueConst this_val, List* list) {
 }
 
 enum {
+  LIST_BEGIN,
+  LIST_END,
+  LIST_RBEGIN,
+  LIST_REND,
   LIST_PUSH,
   LIST_POP,
   LIST_UNSHIFT,
@@ -669,6 +673,22 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     return JS_EXCEPTION;
 
   switch(magic) {
+    case LIST_BEGIN: {
+ret=js_node_wrap(ctx, node_proto, list->head);
+      break;
+    }
+    case LIST_END: {
+ret=js_node_wrap(ctx, node_proto, &list->node);
+      break;
+    }
+    case LIST_RBEGIN: {
+ret=js_node_wrap(ctx, node_proto, list->tail);
+      break;
+    }
+    case LIST_REND: {
+ret=js_node_wrap(ctx, node_proto, &list->node);
+      break;
+    }
     case LIST_PUSH: {
       for(int i = 0; i < argc; i++)
         if(!list_push(list, argv[i], ctx))
@@ -1363,7 +1383,11 @@ static JSClassDef js_list_iterator_class = {
 };
 
 static const JSCFunctionListEntry js_list_methods[] = {
-    JS_CFUNC_MAGIC_DEF("push", 1, js_list_method, LIST_PUSH),
+       JS_CFUNC_MAGIC_DEF("begin", 0, js_list_iterator, LIST_BEGIN),
+       JS_CFUNC_MAGIC_DEF("end", 0, js_list_iterator, LIST_END),
+       JS_CFUNC_MAGIC_DEF("rbegin", 0, js_list_iterator, LIST_RBEGIN),
+       JS_CFUNC_MAGIC_DEF("rend", 0, js_list_iterator, LIST_REND),
+ JS_CFUNC_MAGIC_DEF("push", 1, js_list_method, LIST_PUSH),
     JS_CFUNC_MAGIC_DEF("pop", 0, js_list_method, LIST_POP),
     JS_CFUNC_MAGIC_DEF("unshift", 1, js_list_method, LIST_UNSHIFT),
     JS_CFUNC_MAGIC_DEF("shift", 0, js_list_method, LIST_SHIFT),

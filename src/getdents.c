@@ -291,6 +291,8 @@ getdents_read(Directory* d) {
       d->nread = getdents64(d->fd, d->buf, sizeof(d->buf));
 #elif defined(HAVE_GETDENTS)
       d->nread = getdents(d->fd, d->buf, sizeof(d->buf));
+#elif defined(__dietlibc__)
+      d->nread = getdents64(d->fd, d->buf, sizeof(d->buf));
 #else
       d->nread = syscall(SYS_getdents64, d->fd, d->buf, sizeof(d->buf));
 #endif
