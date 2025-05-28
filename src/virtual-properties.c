@@ -55,7 +55,7 @@ wrapper_free(JSRuntime* rt, void* ptr) {
   }
 }
 
-static void
+static void*
 atoms_dup(JSContext* ctx, void* ptr) {
   JSAtom *atoms = ptr, *ret;
   uint32_t len;
