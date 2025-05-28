@@ -259,37 +259,37 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
       case PREDICATE_PROPERTY: {
         JSAtom prop = 0;
-        JSValue propv, objv, obj = JS_UNDEFINED;
+        JSValue arg, pred = JS_UNDEFINED;
 
-        if(!js_is_null_or_undefined((propv = js_arguments_shift(&args)))) {
-          prop = JS_ValueToAtom(ctx, propv);
-          JS_FreeValue(ctx, propv);
-        }
+        if(!js_is_null_or_undefined((arg = js_arguments_shift(&args))))
+          prop = JS_ValueToAtom(ctx, arg);
 
-        if(predicate_callable(ctx, (objv = js_arguments_shift(&args))))
-          obj = JS_DupValue(ctx, objv);
+        if(predicate_callable(ctx, (arg = js_arguments_shift(&args))))
+          pred = JS_DupValue(ctx, arg);
 
-        *pr = predicate_property(prop, obj);
+        *pr = predicate_property(prop, pred);
         break;
       }
 
       case PREDICATE_HAS: {
         JSAtom prop = 0;
-        JSValue propv;
+        JSValue arg;
 
-        if(!js_is_null_or_undefined((propv = js_arguments_shift(&args)))) {
-          prop = JS_ValueToAtom(ctx, propv);
-          JS_FreeValue(ctx, propv);
-        }
+        if(!js_is_null_or_undefined((arg = js_arguments_shift(&args))))
+          prop = JS_ValueToAtom(ctx, arg);
 
         *pr = predicate_has(prop);
         break;
       }
 
       case PREDICATE_MEMBER: {
-        JSValue obj = js_arguments_shift(&args);
+        JSValue objv = js_arguments_shift(&args);
+        JSValue arg, pred = JS_UNDEFINED;
 
-        *pr = predicate_member(obj);
+        if(predicate_callable(ctx, (arg = js_arguments_shift(&args))))
+          pred = JS_DupValue(ctx, arg);
+
+        *pr = predicate_member(objv, pred);
         break;
       }
 
@@ -317,14 +317,14 @@ js_predicate_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSVa
 
       case PREDICATE_INDEX: {
         int64_t pos;
-        JSValue objv, obj = JS_UNDEFINED;
+        JSValue arg, pred = JS_UNDEFINED;
 
         JS_ToInt64(ctx, &pos, js_arguments_shift(&args));
 
-        if(predicate_callable(ctx, (objv = js_arguments_shift(&args))))
-          obj = JS_DupValue(ctx, objv);
+        if(predicate_callable(ctx, (arg = js_arguments_shift(&args))))
+          pred = JS_DupValue(ctx, arg);
 
-        *pr = predicate_index(pos, obj);
+        *pr = predicate_index(pos, pred);
         break;
       }
 
@@ -663,9 +663,12 @@ js_predicate_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
     }
 
     case PREDICATE_MEMBER: {
-      JSValue obj = JS_DupValue(ctx, argv[0]);
+      JSValue pred = JS_UNDEFINED;
 
-      ret = js_predicate_wrap(ctx, predicate_member(obj));
+      if(argc >= 2 && predicate_callable(ctx, argv[1]))
+        pred = JS_DupValue(ctx, argv[1]);
+
+      ret = js_predicate_wrap(ctx, predicate_member(JS_DupValue(ctx, argv[0]), pred));
       break;
     }
 

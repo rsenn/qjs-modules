@@ -488,6 +488,30 @@ virtual_properties_free_rt(VirtualProperties* virt, JSRuntime* rt) {
   virt->this_obj = JS_UNDEFINED;
 }
 
+BOOL
+virtual_has(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
+  return vprop->has(vprop, ctx, prop);
+}
+
+JSValue
+virtual_get(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
+  return vprop->get(vprop, ctx, prop);
+}
+
+int
+virtual_set(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop, JSValue value) {
+  return vprop->set(vprop, ctx, prop, value);
+}
+BOOL
+virtual_delete(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
+  return vprop->delete(vprop, ctx, prop);
+}
+
+JSValue
+virtual_keys(const VirtualProperties* vprop, JSContext* ctx, int flags) {
+  return vprop->keys ? vprop->keys(vprop, ctx, flags)
+                     : JS_ThrowInternalError(ctx, "VirtualProperties has no 'keys' method");
+}
 /**
  * @}
  */

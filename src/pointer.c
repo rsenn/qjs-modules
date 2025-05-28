@@ -648,7 +648,7 @@ pointer_endswith(Pointer const* ptr, Pointer const* other) {
 
 static JSAtom
 deref_key(JSContext* ctx, JSValueConst obj, JSAtom atom) {
-  JSValue value, ret;
+  JSValue value;
   const int flags = JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_SET_ENUM;
 
   if(JS_HasProperty(ctx, obj, atom))
@@ -667,18 +667,18 @@ deref_key(JSContext* ctx, JSValueConst obj, JSAtom atom) {
             JS_AtomToValue(ctx, tmp_tab[i].atom),
             obj,
         };
-        ret = JS_Call(ctx, value, JS_NULL, countof(args), args);
+        JSValue ret = JS_Call(ctx, value, JS_NULL, countof(args), args);
         BOOL match = JS_ToBool(ctx, ret);
         JS_FreeValue(ctx, ret);
         JS_FreeValue(ctx, args[0]);
         JS_FreeValue(ctx, args[1]);
 
         if(match) {
-          JSAtom ret = JS_DupAtom(ctx, tmp_tab[i].atom);
+          JSAtom key = JS_DupAtom(ctx, tmp_tab[i].atom);
           JS_FreeValue(ctx, value);
           js_propertyenums_free(ctx, tmp_tab, tmp_len);
           orig_js_free(ctx, tmp_tab);
-          return ret;
+          return key;
         }
       }
 

@@ -525,9 +525,9 @@ js_archive_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JSValue ret = JS_UNDEFINED;
     void* data;
     size_t size;
-    __LA_INT64_T offset;
+    __LA_INT64_T offs;
 
-    switch(archive_read_data_block(ar, (const void**)&data, &size, &offset)) {
+    switch(archive_read_data_block(ar, (const void**)&data, &size, &offs)) {
       case ARCHIVE_OK: {
         ArchiveInstance* abuf = js_malloc(ctx, sizeof(ArchiveInstance));
         abuf->archive = JS_DupValue(ctx, this_val);

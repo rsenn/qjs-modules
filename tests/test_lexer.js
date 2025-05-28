@@ -305,26 +305,26 @@ function main(...args) {
           puts(tok.lexeme);
         }
       : debug || match
-      ? (tok, prefix) => {
-          const range = tok.charRange;
-          const [start, end] = tok.charRange;
-          let s = toString(str).slice(start, end);
+        ? (tok, prefix) => {
+            const range = tok.charRange;
+            const [start, end] = tok.charRange;
+            let s = toString(str).slice(start, end);
 
-          const cols = [
-            prefix,
-            `tok[${tok.byteLength}]`,
-            tok.id,
-            tok.type,
-            tok.lexeme,
-            tok.lexeme.length,
-            tok.loc,
-            ` '${s}'`,
-          ];
-          err.puts(
-            cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n',
-          );
-        }
-      : () => {};
+            const cols = [
+              prefix,
+              `tok[${tok.byteLength}]`,
+              tok.id,
+              tok.type,
+              tok.lexeme,
+              tok.lexeme.length,
+              tok.loc,
+              ` '${s}'`,
+            ];
+            err.puts(
+              cols.reduce((acc, col, i) => acc + (col + '').replaceAll('\n', '\\n').padEnd(colSizes[i]), '') + '\n',
+            );
+          }
+        : () => {};
 
     let tok,
       i = 0;

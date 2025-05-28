@@ -314,7 +314,6 @@ static JSValue
 js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   Repeater* rpt;
   JSValue ret = JS_UNDEFINED;
-  struct list_head *el, *next;
 
   if(!(rpt = JS_GetOpaque2(ctx, this_val, js_repeater_class_id)))
     return JS_EXCEPTION;
@@ -344,15 +343,17 @@ js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
     list_add_tail(&item->link, &rpt->pushes);
   } else {
-    list_for_each_safe(el, next, &rpt->nexts) {
-      RepeaterItem* next = list_entry(el, RepeaterItem, link);
+    struct list_head *el, *next;
+
+  list_for_each_safe(el, next, &rpt->nexts) {
+      RepeaterItem* item = list_entry(el, RepeaterItem, link);
 
       JSValue result = js_iterator_result(ctx, argc >= 1 ? argv[0] : JS_UNDEFINED, TRUE);
-      resolvable_call(ctx, &next->resolvable, result);
+      resolvable_call(ctx, &item->resolvable, result);
       JS_FreeValue(ctx, result);
 
-      list_del(&next->link);
-      item_free(next, ctx);
+      list_del(&item->link);
+      item_free(item, ctx);
     }
 
     rpt->state = REPEATER_DONE;

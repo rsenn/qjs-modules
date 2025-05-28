@@ -663,7 +663,6 @@ static JSValue
 js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   int64_t index;
   List* list;
-  Node* node = 0;
   JSValue ret = JS_UNDEFINED;
 
   if(!(list = js_list_data2(ctx, this_val)))
@@ -679,7 +678,9 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case LIST_POP: {
-      if((node = list_last(&list->list, Node, link)))
+      Node* node = 0;
+
+ if((node = list_last(&list->list, Node, link)))
         ret = node_remove(node, list, ctx);
 
       break;
@@ -693,7 +694,9 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       break;
     }
     case LIST_SHIFT: {
-      if((node = list_first(&list->list, Node, link)))
+          Node* node = 0;
+
+  if((node = list_first(&list->list, Node, link)))
         ret = node_remove(node, list, ctx);
 
       break;
@@ -778,11 +781,8 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(!(other = list_new(ctx)))
         return JS_EXCEPTION;
 
-      list_for_each(ptr, &list->list) {
-        node = list_entry(ptr, Node, link);
-
-        list_push(other, node->value, ctx);
-      }
+      list_for_each(ptr, &list->list) 
+        list_push(other, list_entry(ptr, Node, link)->value, ctx);
 
       for(int i = 0; i < argc; i++) {
         if(!list_append(other, argv[i], ctx)) {
@@ -864,8 +864,7 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         return JS_EXCEPTION;
 
       list_for_each(ptr, &list->list) {
-        node = list_entry(ptr, Node, link);
-        JSValue value = node->value;
+        JSValue value = list_entry(ptr, Node, link)->value;
 
         if(indexrange_in_range(range, i))
           value = argv[0];
@@ -900,11 +899,8 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(!(other = list_new(ctx)))
         return JS_EXCEPTION;
 
-      list_for_each_prev(ptr, &list->list) {
-        node = list_entry(ptr, Node, link);
-
-        list_push(other, node->value, ctx);
-      }
+      list_for_each_prev(ptr, &list->list) 
+        list_push(other, list_entry(ptr, Node, link)->value, ctx);
 
       ret = js_list_wrap_species(ctx, this_val, other);
       break;

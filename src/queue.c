@@ -53,11 +53,8 @@ ssize_t
 chunk_tailpos(Chunk* ch, Queue* q) {
   ssize_t pos = 0;
 
-  for(struct list_head* el = ch->link.next; el != &q->list; el = el->next) {
-    Chunk* ch = list_entry(el, Chunk, link);
-
-    pos += chunk_size(ch);
-  }
+  for(struct list_head* el = ch->link.next; el != &q->list; el = el->next)
+    pos += chunk_size(list_entry(el, Chunk, link));
 
   return pos;
 }
@@ -66,11 +63,8 @@ ssize_t
 chunk_headpos(Chunk* ch, Queue* q) {
   ssize_t pos = 0;
 
-  for(struct list_head* el = &ch->link; el != &q->list; el = el->prev) {
-    Chunk* ch = list_entry(el, Chunk, link);
-
-    pos -= chunk_size(ch);
-  }
+  for(struct list_head* el = &ch->link; el != &q->list; el = el->prev)
+    pos -= chunk_size(list_entry(el, Chunk, link));
 
   return pos;
 }

@@ -131,7 +131,6 @@ child_process_signal(JSContext* ctx, JSValueConst handler) {
   return result;
 }
 
-PropertyEnumeration propenum;
 char**
 child_process_environment(JSContext* ctx, JSValueConst object) {
   PropertyEnumeration propenum;

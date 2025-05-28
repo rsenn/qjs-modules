@@ -506,22 +506,22 @@ reader_update(ReadableStreamReader* rd, JSContext* ctx) {
       ++ret;
   } else {
     while(!list_empty(&rd->list) && (ch = queue_next(&st->q))) {
-      JSValue chunk, result;
+      JSValue chunk, value;
 
 #ifdef DEBUG_OUTPUT
       printf("%s(2): Chunk ptr=%p, size=%zu, pos=%zu\n", __func__, ch->data, ch->size, ch->pos);
 #endif
 
       chunk = chunk_arraybuffer(ch, ctx);
-      result = js_iterator_result(ctx, chunk, FALSE);
+      value = js_iterator_result(ctx, chunk, FALSE);
       JS_FreeValue(ctx, chunk);
 
-      if(!reader_passthrough(rd, result, ctx))
+      if(!reader_passthrough(rd, value, ctx))
         break;
 
       ++ret;
 
-      JS_FreeValue(ctx, result);
+      JS_FreeValue(ctx, value);
     }
   }
 

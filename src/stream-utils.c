@@ -83,11 +83,11 @@ write_urlencoded(intptr_t p, const void* buf, size_t len, Writer* wr) {
   for(size_t i = 0; i < len; i++) {
 
     if(!memchr(unescaped_chars, x[i], sizeof(unescaped_chars) - 1)) {
-      char buf[4] = {'%'};
+      char esc[4] = {'%'};
 
-      fmt_xlong0(&buf[1], x[i], 2);
+      fmt_xlong0(&esc[1], x[i], 2);
 
-      RESULT_LOOP(writer_write(parent, buf, 3), r);
+      RESULT_LOOP(writer_write(parent, esc, 3), r);
       continue;
     }
 

@@ -215,9 +215,9 @@ js_pointer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
         JSValue value = js_pointer_wrap(ctx, h);
 
         if(argc >= 1) {
-          JSValue ret = JS_Call(ctx, argv[0], JS_UNDEFINED, 1, &value);
+          JSValue result = JS_Call(ctx, argv[0], JS_UNDEFINED, 1, &value);
           JS_FreeValue(ctx, value);
-          value = ret;
+          value = result;
         }
 
         JS_SetPropertyUint32(ctx, ret, j++, value);

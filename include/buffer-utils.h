@@ -32,7 +32,7 @@ void dbuf_put_colorstr(DynBuf*, const char*, const char* color, int with_color);
 void dbuf_put_escaped_pred(DynBuf*, const char*, size_t len, int (*pred)(int));
 void dbuf_put_escaped_table(DynBuf*, const char*, size_t len, const uint8_t table[256]);
 void dbuf_put_unescaped_table(DynBuf* db, const char* str, size_t len, const uint8_t table[256]);
-void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)());
+void dbuf_put_unescaped_pred(DynBuf*, const char*, size_t len, int (*pred)(const char*, size_t*));
 void dbuf_put_escaped(DynBuf*, const char*, size_t len);
 void dbuf_put_value(DynBuf*, JSContext*, JSValue value);
 void dbuf_put_uint32(DynBuf* db, uint32_t num);
@@ -267,7 +267,7 @@ typedef struct {
   (PointerRange) { 0, 0 }
 
 int range_overlap(const PointerRange*, const PointerRange*);
-PointerRange range_null();
+PointerRange range_null(void);
 PointerRange range_frombuf(const void*, uintptr_t);
 PointerRange range_fromstr(const char*);
 int range_resize(PointerRange*, uintptr_t);

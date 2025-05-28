@@ -67,7 +67,7 @@ static JSValue
 js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   const char *a = 0, *b = 0;
   char buf[PATH_MAX + 1];
-  size_t alen = 0, blen = 0, pos;
+  size_t alen = 0, blen = 0;
   JSValue ret = JS_UNDEFINED;
 
   if(argc > 0) {
@@ -100,7 +100,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         alen = index;
       }
 
-      pos = path_basename3(a, &len, alen);
+      size_t pos = path_basename3(a, &len, alen);
 
       if(blen && blen < len)
         if(!byte_diff(&a[alen - blen], blen, b))
@@ -117,7 +117,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
     case PATH_DIRNAME:
     case PATH_DIRLEN: {
-      pos = path_dirlen2(a, alen);
+      size_t pos = path_dirlen2(a, alen);
 
       if(magic == PATH_DIRNAME)
         ret = pos < alen ? JS_NewStringLen(ctx, a, pos) : JS_NewStringLen(ctx, ".", 1);
@@ -382,8 +382,8 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
     case PATH_SEARCH: {
       const char* pathstr = a;
-      DynBuf db = DBUF_INIT_0();
-      js_dbuf_allocator(ctx, &db);
+     /* DynBuf db = DBUF_INIT_0();
+      js_dbuf_allocator(ctx, &db);*/
 
       for(;;) {
         char* file;
@@ -399,7 +399,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         }
       }
 
-      dbuf_free(&db);
+      //dbuf_free(&db);
       break;
     }
 

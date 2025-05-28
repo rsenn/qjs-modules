@@ -84,6 +84,7 @@ typedef struct {
 
 typedef struct {
   JSValue object;
+  JSValue predicate;
 } MemberPredicate;
 
 typedef struct {
@@ -326,10 +327,14 @@ predicate_has(JSAtom prop) {
   return ret;
 }
 
+/**
+ * @brief Creates a predicate that binds an object
+ */
 static inline Predicate
-predicate_member(JSValue obj) {
+predicate_member(JSValue obj, JSValue pred) {
   Predicate ret = PREDICATE_INIT(PREDICATE_MEMBER);
   ret.member.object = obj;
+  ret.member.predicate = pred;
   return ret;
 }
 

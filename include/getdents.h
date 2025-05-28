@@ -22,9 +22,9 @@ enum {
   TYPE_MASK = (TYPE_REG | TYPE_BLK | TYPE_CHR | TYPE_DIR | TYPE_FIFO | TYPE_LNK | TYPE_SOCK),
 };
 
-size_t getdents_size();
+size_t getdents_size(void);
 ptrdiff_t getdents_handle(Directory*);
-Directory* getdents_new();
+Directory* getdents_new(void);
 void getdents_clear(Directory*);
 int getdents_open(Directory*, const char* path);
 int getdents_adopt(Directory*, intptr_t fd);

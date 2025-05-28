@@ -1197,7 +1197,7 @@ js_misc_glob_errfunc(const char* epath, int eerrno) {
 
 static JSValue
 js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int start = 0, i;
+  int start = 0/*, i*/;
   int32_t flags = 0;
   JSValue ret = JS_UNDEFINED;
   glob_t g = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -1224,7 +1224,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   js_misc_glob_errfunc_fn = argc >= 3 ? argv[2] : JS_UNDEFINED;
 
   if((result = glob(pattern, flags & (~(GLOB_APPEND | GLOB_DOOFFS)), js_misc_glob_errfunc, &g)) == 0) {
-    for(i = 0; i < g.gl_pathc; i++)
+    for(int i = 0; i < g.gl_pathc; i++)
       JS_SetPropertyUint32(ctx, ret, i + start, JS_NewString(ctx, g.gl_pathv[i]));
 
     globfree(&g);
@@ -2076,12 +2076,12 @@ enum {
 static JSValue
 js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
-  size_t len;
   int64_t offset = 0;
 
   switch(magic) {
     case BITFIELD_SET: {
       const uint8_t* buf;
+      size_t len;
 
       if(argc >= 2)
         JS_ToInt64(ctx, &offset, argv[1]);
@@ -2099,6 +2099,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
     case BITFIELD_BITS: {
       const uint8_t* buf;
+      size_t len;
 
       if(argc >= 2)
         JS_ToInt64(ctx, &offset, argv[1]);
@@ -2113,14 +2114,16 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
         }
 
       } else if(argc >= 1 && JS_IsArray(ctx, argv[0])) {
-        size_t i, len = js_array_length(ctx, argv[0]);
         uint8_t* bufptr;
-        size_t bufsize = (len + 7) >> 3;
+        size_t bufsize;
+
+        len = js_array_length(ctx, argv[0]);
+        bufsize = (len + 7) >> 3;
 
         if((bufptr = js_mallocz(ctx, bufsize)) == 0)
           return JS_EXCEPTION;
 
-        for(i = 0; i < len; i++) {
+        for(size_t i = 0; i < len; i++) {
           JSValue element = JS_GetPropertyUint32(ctx, argv[0], i);
           BOOL value = JS_ToBool(ctx, element);
 
@@ -2137,6 +2140,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
     case BITFIELD_TOARRAY: {
       const uint8_t* buf;
+      size_t len;
 
       if(argc >= 2)
         JS_ToInt64(ctx, &offset, argv[1]);
@@ -2156,6 +2160,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     }
     case BITFIELD_FROMARRAY: {
       JSValue prop;
+      int64_t len;
 
       if(argc >= 2)
         JS_ToInt64(ctx, &offset, argv[1]);
@@ -2165,19 +2170,18 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
 
       prop = JS_GetPropertyUint32(ctx, argv[0], 0);
 
-      if((len = js_array_length(ctx, argv[0]))) {
+      if((len = js_array_length(ctx, argv[0])) >= 0) {
         uint8_t* bufptr;
         size_t bufsize;
 
         if(JS_IsBool(prop)) {
-          size_t i;
 
           bufsize = (len + 7) >> 3;
 
           if((bufptr = js_mallocz(ctx, bufsize)) == 0)
             return JS_EXCEPTION;
 
-          for(i = 0; i < len; i++) {
+          for(int64_t i = 0; i < len; i++) {
             JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
             BOOL b = JS_ToBool(ctx, value);
             JS_FreeValue(ctx, value);
@@ -2185,11 +2189,9 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
             bufptr[i >> 3] |= (b ? 1 : 0) << (i & 0x7);
           }
         } else {
-
-          size_t i;
           int64_t max = -1;
 
-          for(i = 0; i < len; i++) {
+          for(int64_t i = 0; i < len; i++) {
             JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
             uint32_t number;
 
@@ -2205,7 +2207,7 @@ js_misc_bitfield(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
           if((bufptr = js_mallocz(ctx, bufsize)) == 0)
             return JS_EXCEPTION;
 
-          for(i = 0; i < len; i++) {
+          for(int64_t i = 0; i < len; i++) {
             JSValue value = JS_GetPropertyUint32(ctx, argv[0], i);
             uint32_t number;
 
@@ -2676,8 +2678,6 @@ js_misc_watch(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     ret = JS_NewInt32(ctx, r);
   } else {
-    int fd;
-
     if((fd = inotify_init1(IN_NONBLOCK)) == -1)
       return JS_ThrowInternalError(ctx, "inotify_init1(IN_NONBLOCK) failed (%s)", strerror(errno));
 
@@ -2779,7 +2779,7 @@ thread_local Vector js_misc_atexit_functions;
 thread_local BOOL js_misc_atexit_called = FALSE;
 
 static void
-js_misc_atexit_handler() {
+js_misc_atexit_handler(void) {
   JSAtExitEntry* entry;
 
   if(js_misc_atexit_called)

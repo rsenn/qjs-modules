@@ -226,13 +226,13 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
         JSValue arg = js_arguments_at(args, 1);
 
         if(JS_IsFunction(ctx, arg)) {
-          JSValue args[] = {
+          JSValue argv[] = {
               predicate_regexp_capture(capture, capture_count, input.data, ctx),
               re,
           };
 
-          JS_Call(ctx, arg, JS_NULL, 2, args);
-          JS_FreeValue(ctx, args[0]);
+          JS_Call(ctx, arg, JS_NULL, countof(argv), argv);
+          JS_FreeValue(ctx, argv[0]);
         } else if(JS_IsArray(ctx, arg)) {
           JS_SetPropertyStr(ctx, arg, "length", JS_NewUint32(ctx, capture_count));
 
@@ -313,11 +313,28 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       JSValue obj = pr->member.object;
       JSValue member = js_arguments_at(args, 0);
       JSAtom atom = JS_ValueToAtom(ctx, member);
-
       JS_FreeValue(ctx, member);
+      BOOL has = JS_HasProperty(ctx, obj, atom);
 
-      ret = JS_HasProperty(ctx, obj, atom) ? JS_GetProperty(ctx, obj, atom) : JS_UNDEFINED;
+      if(!has) {
+        ret = JS_UNDEFINED;
+        JS_FreeAtom(ctx, atom);
+        break;
+      }
 
+      JSValue item = JS_GetProperty(ctx, obj, atom);
+
+      if(JS_IsException(item)) {
+        ret = item;
+        break;
+      }
+
+      if(!JS_IsFunction(ctx, pr->member.predicate))
+        ret = JS_DupValue(ctx, item);
+      else
+        ret = predicate_call(ctx, pr->member.predicate, 1, &item);
+
+      JS_FreeValue(ctx, item);
       break;
     }
 

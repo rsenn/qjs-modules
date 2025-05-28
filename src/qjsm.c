@@ -79,8 +79,8 @@ static const char jsm_default_module_path[] = QUICKJS_MODULE_PATH;
 static JSValue package_json;
 static char* exename;
 static size_t exelen;
-static JSRuntime* rt;
-static JSContext* ctx;
+static JSRuntime* jsm_rt;
+static JSContext* jsm_ctx;
 static int interactive = 0;
 
 static const char* const module_extensions[] = {
@@ -127,7 +127,7 @@ void js_std_set_module_loader_func(JSModuleLoaderFunc* func);
 #if !DONT_HAVE_MALLOC_USABLE_SIZE && !defined(ANDROID)
 #if HAVE_MALLOC_USABLE_SIZE
 #ifndef HAVE_MALLOC_USABLE_SIZE_DEFINITION
-extern size_t malloc_usable_size();
+extern size_t malloc_usable_size(void*);
 #endif
 #endif
 #endif
@@ -242,17 +242,17 @@ jsm_stack_at(int i) {
 }
 
 char*
-jsm_stack_top() {
+jsm_stack_top(void) {
   return jsm_stack_at(-1);
 }
 
 size_t
-jsm_stack_count() {
+jsm_stack_count(void) {
   return vector_size(&jsm_stack, sizeof(char*));
 }
 
 char*
-jsm_stack_string() {
+jsm_stack_string(void) {
   int i = jsm_stack_count();
   DynBuf buf;
   dbuf_init2(&buf, 0, vector_realloc);
@@ -1637,18 +1637,18 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
 
     case NORMALIZE_MODULE: {
-      const char *path, *name, *file;
+      const char *path, *module, *file;
 
       path = m ? module_namecstr(ctx, m) : JS_ToCString(ctx, argv[0]);
-      name = JS_ToCString(ctx, argv[1]);
+      module = JS_ToCString(ctx, argv[1]);
 
-      if((file = jsm_module_normalize(ctx, path, name, 0))) {
+      if((file = jsm_module_normalize(ctx, path, module, 0))) {
         val = JS_NewString(ctx, file);
         js_free(ctx, (char*)file);
       }
 
       JS_FreeCString(ctx, path);
-      JS_FreeCString(ctx, name);
+      JS_FreeCString(ctx, module);
       break;
     }
 
@@ -1752,7 +1752,6 @@ jsm_module_func(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           JS_SetPropertyUint32(ctx, val, i++, JS_DupValue(ctx, lc->func));
         }
       } else {
-        JSModuleDef* m;
         char* module = js_tostring(ctx, argv[0]);
         BOOL chain = TRUE;
 
@@ -1850,7 +1849,7 @@ jsm_signal_handler(int arg) {
     case SIGUSR1: {
       interactive = 1;
 
-      JS_EnqueueJob(ctx, &jsm_start_interactive3, 0, 0);
+      JS_EnqueueJob(jsm_ctx, &jsm_start_interactive3, 0, 0);
       break;
     }
   }
@@ -1871,7 +1870,7 @@ main(int argc, char** argv) {
   char *expr = 0, dump_memory = 0, trace_memory = 0, empty_run = 0, module = 1, load_std = 1,
        dump_unhandled_promise_rejection = 0;
   const char* include_list[32];
-  size_t i, memory_limit = 0, include_count = 0, stack_size = 0;
+  size_t /*i,*/ memory_limit = 0, include_count = 0, stack_size = 0;
 #ifdef HAVE_QJSCALC
   int load_jscalc;
 #endif
@@ -2049,7 +2048,7 @@ main(int argc, char** argv) {
     optind++;
   }
 
-  jsm_init_modules(ctx);
+  jsm_init_modules(jsm_ctx);
 
 #ifdef HAVE_GET_MODULE_LOADER_FUNC
   module_loader = js_std_get_module_loader_func();
@@ -2080,61 +2079,61 @@ main(int argc, char** argv) {
 
   if(trace_memory) {
     jsm_trace_malloc_init(&trace_data);
-    rt = JS_NewRuntime2(&trace_mf, &trace_data);
+    jsm_rt = JS_NewRuntime2(&trace_mf, &trace_data);
   } else {
-    rt = JS_NewRuntime();
+    jsm_rt = JS_NewRuntime();
   }
 
-  if(!rt) {
+  if(!jsm_rt) {
     fprintf(stderr, "%s: cannot allocate JS runtime\n", exename);
     exit(2);
   }
 
   if(memory_limit != 0)
-    JS_SetMemoryLimit(rt, memory_limit);
+    JS_SetMemoryLimit(jsm_rt, memory_limit);
 
   if(stack_size != 0)
-    JS_SetMaxStackSize(rt, stack_size);
+    JS_SetMaxStackSize(jsm_rt, stack_size);
 
   js_std_set_worker_new_context_func(jsm_context_new);
 
-  js_std_init_handlers(rt);
+  js_std_init_handlers(jsm_rt);
 
   /* loader for ES6 modules */
-  JS_SetModuleLoaderFunc(rt, jsm_module_normalize, jsm_module_loader, &module_loaders);
+  JS_SetModuleLoaderFunc(jsm_rt, jsm_module_normalize, jsm_module_loader, &module_loaders);
 
-  ctx = jsm_context_new(rt);
-  if(!ctx) {
+  jsm_ctx = jsm_context_new(jsm_rt);
+  if(!jsm_ctx) {
     fprintf(stderr, "%s: cannot allocate JS context\n", exename);
     exit(2);
   }
 
-  vector_init(&jsm_stack, ctx);
+  vector_init(&jsm_stack, jsm_ctx);
 
   if(dump_unhandled_promise_rejection)
-    JS_SetHostPromiseRejectionTracker(rt, js_std_promise_rejection_tracker, 0);
+    JS_SetHostPromiseRejectionTracker(jsm_rt, js_std_promise_rejection_tracker, 0);
 
-  JS_SetInterruptHandler(rt, jsm_interrupt_handler, ctx);
+  JS_SetInterruptHandler(jsm_rt, jsm_interrupt_handler, jsm_ctx);
 
   JSValue sargs = JS_UNDEFINED;
 
   if(!empty_run) {
     DynBuf db;
-    js_dbuf_init(ctx, &db);
+    js_dbuf_init(jsm_ctx, &db);
 
 #ifdef HAVE_QJSCALC
     if(load_jscalc) {
-      js_eval_binary(ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
+      js_eval_binary(jsm_ctx, qjsc_qjscalc, qjsc_qjscalc_size, 0);
     }
 #endif
 
-    js_std_add_helpers(ctx, argc - optind, argv + optind);
+    js_std_add_helpers(jsm_ctx, argc - optind, argv + optind);
 
     dbuf_putstr(&db, "import process from 'process';\nglobalThis.process = process;\n");
 
     // dbuf_putstr(&db, "import require from 'require';\nglobalThis.require = require;\n");
 
-    JS_SetPropertyFunctionList(ctx, JS_GetGlobalObject(ctx), jsm_global_funcs, countof(jsm_global_funcs));
+    JS_SetPropertyFunctionList(jsm_ctx, JS_GetGlobalObject(jsm_ctx), jsm_global_funcs, countof(jsm_global_funcs));
 
     if(load_std) {
       const char* str = "import * as std from 'std';\nimport * as os from 'os';\nglobalThis.std = "
@@ -2143,12 +2142,12 @@ main(int argc, char** argv) {
       dbuf_putstr(&db, str);
     }
 
-    sargs = js_global_get_str(ctx, "scriptArgs");
-    JS_DefinePropertyValueStr(ctx, sargs, "-1", JS_NewString(ctx, argv[0]), 0);
+    sargs = js_global_get_str(jsm_ctx, "scriptArgs");
+    JS_DefinePropertyValueStr(jsm_ctx, sargs, "-1", JS_NewString(jsm_ctx, argv[0]), 0);
 
     if(db.size) {
       dbuf_0(&db);
-      js_eval_str(ctx, (const char*)db.buf, 0, JS_EVAL_TYPE_MODULE);
+      js_eval_str(jsm_ctx, (const char*)db.buf, 0, JS_EVAL_TYPE_MODULE);
     }
 
     dbuf_free(&db);
@@ -2159,8 +2158,8 @@ main(int argc, char** argv) {
       vector_foreach_t(&module_list, ptr) {
         JSModuleDef* m;
 
-        if(!(m = jsm_module_load(ctx, *ptr, 0))) {
-          jsm_dump_error(ctx);
+        if(!(m = jsm_module_load(jsm_ctx, *ptr, 0))) {
+          jsm_dump_error(jsm_ctx);
           return 1;
         }
       }
@@ -2168,12 +2167,12 @@ main(int argc, char** argv) {
       vector_freestrings(&module_list);
     }
 
-    for(i = 0; i < include_count; i++) {
-      if(jsm_stack_load(ctx, include_list[i], FALSE, FALSE) == -1)
+    for(size_t i = 0; i < include_count; i++) {
+      if(jsm_stack_load(jsm_ctx, include_list[i], FALSE, FALSE) == -1)
         goto fail;
     }
 
-    js_eval_str(ctx,
+    js_eval_str(jsm_ctx,
                 "import { Console } from 'console';\n"
                 "import { out } from 'std';\n"
                 "globalThis.console = new Console(out, { inspectOptions: { customInspect: true } });\n",
@@ -2189,7 +2188,7 @@ main(int argc, char** argv) {
     }
 
     if(expr) {
-      if(js_eval_str(ctx, expr, "<cmdline>", 0) == -1)
+      if(js_eval_str(jsm_ctx, expr, "<cmdline>", 0) == -1)
         goto fail;
     } else if(optind >= argc) {
       /* interactive mode */
@@ -2197,53 +2196,52 @@ main(int argc, char** argv) {
     } else {
       const char* filename = argv[optind];
 
-      JS_DefinePropertyValueStr(ctx, sargs, "$", JS_NewString(ctx, filename), 0);
+      JS_DefinePropertyValueStr(jsm_ctx, sargs, "$", JS_NewString(jsm_ctx, filename), 0);
 
-      if(jsm_stack_load(ctx, filename, module, TRUE) == -1)
+      if(jsm_stack_load(jsm_ctx, filename, module, TRUE) == -1)
         goto fail;
     }
 
     if(interactive == 1)
-      jsm_start_interactive(ctx, TRUE);
+      jsm_start_interactive(jsm_ctx, TRUE);
 
-    js_std_loop(ctx);
+    js_std_loop(jsm_ctx);
   }
 
-  JSValue exception = JS_GetException(ctx);
+  JSValue exception = JS_GetException(jsm_ctx);
 
   if(!JS_IsNull(exception))
-    js_error_print(ctx, exception);
+    js_error_print(jsm_ctx, exception);
 
   if(dump_memory) {
     JSMemoryUsage stats;
 
-    JS_ComputeMemoryUsage(rt, &stats);
-    JS_DumpMemoryUsage(stdout, &stats, rt);
+    JS_ComputeMemoryUsage(jsm_rt, &stats);
+    JS_DumpMemoryUsage(stdout, &stats, jsm_rt);
   }
 
-  JS_FreeValue(ctx, sargs);
+  JS_FreeValue(jsm_ctx, sargs);
 
-  js_std_free_handlers(rt);
-  JS_FreeContext(ctx);
-  JS_FreeRuntime(rt);
+  js_std_free_handlers(jsm_rt);
+  JS_FreeContext(jsm_ctx);
+  JS_FreeRuntime(jsm_rt);
 
   if(empty_run && dump_memory) {
     clock_t t[5];
     double best[5];
-    int i, j;
 
-    for(i = 0; i < 100; i++) {
+    for(int i = 0; i < 100; i++) {
       t[0] = clock();
-      rt = JS_NewRuntime();
+      jsm_rt = JS_NewRuntime();
       t[1] = clock();
-      ctx = JS_NewContext(rt);
+      jsm_ctx = JS_NewContext(jsm_rt);
       t[2] = clock();
-      JS_FreeContext(ctx);
+      JS_FreeContext(jsm_ctx);
       t[3] = clock();
-      JS_FreeRuntime(rt);
+      JS_FreeRuntime(jsm_rt);
       t[4] = clock();
 
-      for(j = 4; j > 0; j--) {
+      for(int j = 4; j > 0; j--) {
         double ms = 1000.0 * (t[j] - t[j - 1]) / CLOCKS_PER_SEC;
 
         if(i == 0 || best[j] > ms)
@@ -2260,8 +2258,8 @@ main(int argc, char** argv) {
 
   return 0;
 fail:
-  js_std_free_handlers(rt);
-  JS_FreeContext(ctx);
-  JS_FreeRuntime(rt);
+  js_std_free_handlers(jsm_rt);
+  JS_FreeContext(jsm_ctx);
+  JS_FreeRuntime(jsm_rt);
   return 1;
 }

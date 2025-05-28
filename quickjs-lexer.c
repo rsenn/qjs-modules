@@ -399,7 +399,7 @@ lexer_lex(Lexer* lex, JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
   return id;
 }
 
-static BOOL
+static int
 lexer_escape_pred(int c) {
   switch(c) {
     case '*':
@@ -424,8 +424,10 @@ lexer_escape_pred(int c) {
   return FALSE;
 }
 
-static BOOL
-lexer_unescape_pred(int c) {
+static int
+lexer_unescape_pred(const char* s, size_t* n) {
+  char c=*s;
+
   switch(c) {
     case 'r': return '\r';
     case 'n': return '\n';
@@ -782,13 +784,13 @@ js_lexer_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
           size_t n;
           const uint8_t* p = input_buffer_peek(&lex->input, &n);
           JSValue str = JS_NewStringLen(ctx, (const char*)p, n);
-          JSValue ret = JS_Call(ctx, pred, this_val, 1, &str);
-          BOOL b = JS_ToBool(ctx, ret);
+          JSValue result = JS_Call(ctx, pred, this_val, 1, &str);
+          BOOL b = JS_ToBool(ctx, result);
 
-          JS_FreeValue(ctx, ret);
+          JS_FreeValue(ctx, result);
 
           if(b) {
-            ret = str;
+            result = str;
             break;
           }
 
@@ -1337,40 +1339,40 @@ enum {
 
 JSValue
 js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
-  JSValue ret, value = JS_UNDEFINED;
+  JSValue ret = JS_UNDEFINED;
   Lexer* lex;
 
   if(!(lex = js_lexer_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  ret = js_lexer_lex(ctx, this_val, argc, argv);
+ JSValue result = js_lexer_lex(ctx, this_val, argc, argv);
 
-  if(JS_IsNumber(ret)) {
+  if(JS_IsNumber(result)) {
     int32_t id;
 
-    JS_ToInt32(ctx, &id, ret);
+    JS_ToInt32(ctx, &id, result);
 
     if(magic & YIELD_OBJ) {
       Token* tok = lexer_token(lex, id, ctx);
-      value = js_token_wrap(ctx, tok);
+      ret = js_token_wrap(ctx, tok);
     } else {
-      value = JS_NewInt32(ctx, id);
+      ret = JS_NewInt32(ctx, id);
     }
   } else {
-    value = JS_DupValue(ctx, ret);
+    ret = JS_DupValue(ctx, result);
   }
 
-  JS_FreeValue(ctx, ret);
+  JS_FreeValue(ctx, result);
 
   if(magic & YIELD_DONE_VALUE) {
-    JSValue ret = JS_NewObject(ctx);
+    JSValue item = JS_NewObject(ctx);
 
-    JS_SetPropertyStr(ctx, ret, "value", value);
-    JS_SetPropertyStr(ctx, ret, "done", JS_NewBool(ctx, js_is_null_or_undefined(value)));
-    return ret;
+    JS_SetPropertyStr(ctx, item, "value", ret);
+    JS_SetPropertyStr(ctx, item, "done", JS_NewBool(ctx, js_is_null_or_undefined(ret)));
+    return item;
   }
 
-  return value;
+  return ret;
 }
 
 JSValue

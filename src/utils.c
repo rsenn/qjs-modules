@@ -1963,7 +1963,7 @@ js_value_fwrite(JSContext* ctx, JSValueConst val, FILE* f) {
 
 void
 js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
-  const char* str;
+  /*const char* str;*/
   size_t len;
 
   dbuf_putstr(db, js_value_typestr(ctx, value));
@@ -2006,7 +2006,7 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
       if(is_string)
         dbuf_putc(db, '"');
 
-      str = JS_ToCStringLen(ctx, &len, value);
+     const char* str = JS_ToCStringLen(ctx, &len, value);
       dbuf_append(db, (const uint8_t*)str, len);
 
       JS_FreeCString(ctx, str);

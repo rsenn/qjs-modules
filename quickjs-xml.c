@@ -485,24 +485,24 @@ js_xml_parse(JSContext* ctx, const uint8_t* buf, size_t len, const char* input_n
     size_t leading_ws = scan_whitenskip((const char*)start, ptr - start);
 
     while(start < ptr) {
-      size_t len, real_len;
+      size_t n, real_len;
 
       start += scan_whitenskip((const char*)start, leading_ws);
-      real_len = len = ptr - start;
+      real_len = n = ptr - start;
 
       if(inside_script) {
-        if((real_len = byte_chr(start, len, '\n')) < len)
+        if((real_len = byte_chr(start, n, '\n')) < n)
           real_len++;
 
-        len = real_len;
+        n = real_len;
       }
 
       if(!inside_script)
-        while(len > 0 && is_whitespace_char(start[len - 1]))
-          len--;
+        while(n > 0 && is_whitespace_char(start[n - 1]))
+          n--;
 
-      if(len > 0) {
-        JSValue str = JS_NewStringLen(ctx, (const char*)start, len);
+      if(n > 0) {
+        JSValue str = JS_NewStringLen(ctx, (const char*)start, n);
 
         yield_add(str);
       }
@@ -812,7 +812,7 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
   int32_t depth = 0;
   BOOL single_line = FALSE;
   JSValue value = JS_UNDEFINED, next = JS_GetPropertyUint32(ctx, obj, 0);
-  const char *tagName = 0, *nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
+  const char *tagName=0,*nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
 
   for(size_t i = 0; i < len; i++) {
     JS_FreeValue(ctx, value);
@@ -831,22 +831,22 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
 
       xml_write_text(ctx, value, output, depth, !single_line);
     } else if(JS_IsObject(value) && !JS_IsArray(ctx, value)) {
-      const char* tagName;
+      const char* tag;
 
-      if((tagName = js_get_propertystr_cstring(ctx, value, "tagName"))) {
-        BOOL self_closing = nextTag && nextTag[0] == '/' && !strcmp(tagName, &nextTag[1]);
+      if((tag = js_get_propertystr_cstring(ctx, value, "tagName"))) {
+        BOOL self_closing = nextTag && nextTag[0] == '/' && !strcmp(tag, &nextTag[1]);
 
-        if(tagName[0] == '/')
+        if(tag[0] == '/')
           depth--;
 
         xml_write_element(ctx, value, output, single_line ? 0 : depth, self_closing);
 
         if(self_closing)
           next = JS_GetPropertyUint32(ctx, obj, ++i + 1);
-        else if(tagName[0] != '/' && tagName[0] != '?' && tagName[0] != '!' && !strcasecmp(tagName, "dt"))
+        else if(tag[0] != '/' && tag[0] != '?' && tag[0] != '!' && !strcasecmp(tag, "dt"))
           depth++;
 
-        JS_FreeCString(ctx, tagName);
+        JS_FreeCString(ctx, tag);
       }
 
       single_line = FALSE;

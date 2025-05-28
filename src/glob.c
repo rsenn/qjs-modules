@@ -573,7 +573,7 @@ glob3(char_type* pathbuf, char_type* pathend, char_type* pattern, char_type* res
    * and dirent.h as taking pointers to differently typed opaque
    * structures.
    */
-  struct dirent* (*readdirfunc)();
+  struct dirent* (*readdirfunc)(void*);
 
   *pathend = '\0';
   errno = 0;
@@ -596,9 +596,9 @@ glob3(char_type* pathbuf, char_type* pathend, char_type* pattern, char_type* res
   if(g->gl_flags & GLOB_ALTDIRFUNC)
     readdirfunc = g->gl_readdir;
   else
-    readdirfunc = readdir;
+    readdirfunc = (struct dirent * (*)(void*)) & readdir;
 
-  while((dp = (*readdirfunc)(dirp))) {
+  while((dp = readdirfunc(dirp))) {
     unsigned char* sc;
     char_type* dc;
 

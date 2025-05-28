@@ -45,38 +45,11 @@ JSValue virtual_properties_wrap(VirtualProperties, JSContext*);
 void virtual_properties_free_rt(VirtualProperties*, JSRuntime*);
 void virtual_properties_copy(const VirtualProperties*, VirtualProperties*, JSContext*);
 
-static inline BOOL
-virtual_has(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
-  return vprop->has(vprop, ctx, prop);
-}
-
-static inline JSValue
-virtual_get(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
-  return vprop->get(vprop, ctx, prop);
-}
-
-static inline int
-virtual_set(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop, JSValue value) {
-  return vprop->set(vprop, ctx, prop, value);
-}
-static inline BOOL
-virtual_delete(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop) {
-  return vprop->delete(vprop, ctx, prop);
-}
-
-static inline JSValue
-virtual_keys(const VirtualProperties* vprop, JSContext* ctx, int flags) {
-  return vprop->keys ? vprop->keys(vprop, ctx, flags)
-                     : JS_ThrowInternalError(ctx, "VirtualProperties has no 'keys' method");
-}
-
-/*static inline int
-virtual_properties_setstr(const VirtualProperties* vprop, JSContext* ctx, const char* prop, JSValue value) {
-  JSValue key = JS_NewString(ctx, prop);
-  int ret = virtual_set(vprop, ctx, key, value);
-  JS_FreeValue(ctx, key);
-  return ret;
-}*/
+BOOL virtual_has(const VirtualProperties*, JSContext*, JSValueConst);
+JSValueConst virtual_get(const VirtualProperties*, JSContext*, JSValueConst);
+int virtual_set(const VirtualProperties*, JSContext*, JSValueConst, JSValueConst);
+BOOL virtual_delete(const VirtualProperties*, JSContext*, JSValueConst);
+JSValueConst virtual_keys(const VirtualProperties*, JSContext*, int);
 
 static inline void
 virtual_properties_free(VirtualProperties* vprop, JSContext* ctx) {
