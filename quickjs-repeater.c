@@ -155,8 +155,8 @@ resolvable_dup(Resolvable* rsva, JSContext* ctx) {
 }
 
 static void
-resolvable_closure_free(JSRuntime* rt, void*ptr) {
-  Resolvable* r=ptr;
+resolvable_closure_free(JSRuntime* rt, void* ptr) {
+  Resolvable* r = ptr;
 
   JS_FreeValueRT(rt, r->resolve);
   JS_FreeValueRT(rt, r->value);
@@ -171,7 +171,7 @@ resolvable_resolve(JSContext* ctx, Resolvable* rsva, JSValueConst value, BOOL as
     if(!(r = resolvable_dup(rsva, ctx)))
       return JS_EXCEPTION;
 
-    JSValue func = js_function_cclosure(ctx, resolvable_deferred, 1, 0, r,  &resolvable_closure_free);
+    JSValue func = js_function_cclosure(ctx, resolvable_deferred, 1, 0, r, &resolvable_closure_free);
     JSValue result = js_promise_resolve_then(ctx, value, func);
     JS_FreeValue(ctx, func);
     return result;

@@ -75,8 +75,8 @@
 
 #if defined(_WIN32) || defined(__MINGW32__)
 #define DLLEXPORT __declspec(dllexport)
-#else 
-#define DLLEXPORT 
+#else
+#define DLLEXPORT
 #endif
 
 #ifdef JS_SHARED_LIBRARY
@@ -91,7 +91,7 @@
 #define VISIBLE DLLEXPORT
 #define HIDDEN
 #endif
- 
+
 #ifndef MAX_NUM
 #define MAX_NUM(a, b) ((a) > (b) ? (a) : (b))
 #endif

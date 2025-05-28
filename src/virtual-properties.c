@@ -1,8 +1,7 @@
 #include "virtual-properties.h"
 #include "utils.h"
-#include "js-utils.h"
-#include <quickjs.h>
 #include "debug.h"
+#include "iteration.h"
 
 /**
  * \addtogroup virtual-properties
@@ -151,7 +150,7 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
       map_get,
       map_set,
       map_delete,
-      map_keys,
+      JS_HasProperty(ctx, map, atoms->keys) ? map_keys : 0,
       map_finalizer,
       atoms,
       0,
