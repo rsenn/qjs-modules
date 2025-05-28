@@ -243,7 +243,7 @@ glob_tilde(char* pattern, struct glob_state* g) {
     byte_copy(user, len - 1, pattern + 1);
     user[len - 1] = '\0';
 
-#ifdef _WIN32
+#ifndef HAVE_GETPWNAM
 #warning Get home directory for user
 #else
     if(!(pw = getpwnam(user)) || !pw->pw_dir)
