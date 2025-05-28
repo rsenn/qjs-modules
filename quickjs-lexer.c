@@ -426,7 +426,7 @@ lexer_escape_pred(int c) {
 
 static int
 lexer_unescape_pred(const char* s, size_t* n) {
-  char c=*s;
+  char c = *s;
 
   switch(c) {
     case 'r': return '\r';
@@ -1345,7 +1345,7 @@ js_lexer_nextfn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   if(!(lex = js_lexer_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
- JSValue result = js_lexer_lex(ctx, this_val, argc, argv);
+  JSValue result = js_lexer_lex(ctx, this_val, argc, argv);
 
   if(JS_IsNumber(result)) {
     int32_t id;

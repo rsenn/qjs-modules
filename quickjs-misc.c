@@ -1197,7 +1197,7 @@ js_misc_glob_errfunc(const char* epath, int eerrno) {
 
 static JSValue
 js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  int start = 0/*, i*/;
+  int start = 0 /*, i*/;
   int32_t flags = 0;
   JSValue ret = JS_UNDEFINED;
   glob_t g = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};

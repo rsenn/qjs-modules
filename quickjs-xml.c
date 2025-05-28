@@ -812,7 +812,7 @@ js_xml_write_list(JSContext* ctx, JSValueConst obj, size_t len, DynBuf* output) 
   int32_t depth = 0;
   BOOL single_line = FALSE;
   JSValue value = JS_UNDEFINED, next = JS_GetPropertyUint32(ctx, obj, 0);
-  const char *tagName=0,*nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
+  const char *tagName = 0, *nextTag = JS_IsObject(next) ? js_get_propertystr_cstring(ctx, next, "tagName") : 0;
 
   for(size_t i = 0; i < len; i++) {
     JS_FreeValue(ctx, value);
