@@ -11,17 +11,16 @@
  * \defgroup stream-utils stream-utils: Utilities for stream I/O
  * @{
  */
-struct WriterSt;
+typedef struct Writer Writer;
 
+typedef ssize_t WriteFunction(intptr_t, const void*, size_t, Writer*);
 typedef ssize_t WriterFinalizer(void*);
 
-typedef struct WriterSt {
+struct Writer {
   WriteFunction* write;
   void* opaque;
   WriterFinalizer* finalizer;
-} Writer;
-
-typedef ssize_t WriteFunction(intptr_t, const void*, size_t, Writer* wr);
+};
 
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_fd(intptr_t fd, bool close_on_end);
