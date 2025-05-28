@@ -31,7 +31,8 @@ typedef struct VProps {
   DupFunction* opaque_dup;
 } VirtualProperties;
 
-#define VIRTUAL_PROPERTIES_INIT() (VirtualProperties){JS_EXCEPTION, 0, 0, 0, 0, 0, 0, 0, 0}
+#define VIRTUAL_PROPERTIES_INIT() \
+  (VirtualProperties) { JS_EXCEPTION, 0, 0, 0, 0, 0, 0, 0, 0 }
 
 typedef struct VWrapper VirtualWrapper;
 
@@ -65,7 +66,8 @@ virtual_delete(const VirtualProperties* vprop, JSContext* ctx, JSValueConst prop
 
 static inline JSValue
 virtual_keys(const VirtualProperties* vprop, JSContext* ctx, int flags) {
-  return vprop->keys ? vprop->keys(vprop, ctx, flags) : JS_ThrowInternalError(ctx, "VirtualProperties has no 'keys' method");
+  return vprop->keys ? vprop->keys(vprop, ctx, flags)
+                     : JS_ThrowInternalError(ctx, "VirtualProperties has no 'keys' method");
 }
 
 /*static inline int

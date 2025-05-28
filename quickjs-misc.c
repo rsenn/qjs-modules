@@ -970,7 +970,7 @@ static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf = {0};
-   size_t size, n;
+  size_t size, n;
   const char* file;
   char sep = '\n';
 
@@ -1200,7 +1200,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   int start = 0, i;
   int32_t flags = 0;
   JSValue ret = JS_UNDEFINED;
-  glob_t g = {0, 0, 0, 0, 0, 0,0, 0,0,0,0};
+  glob_t g = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   int result;
   BOOL array_arg = FALSE;
   const char* pattern = JS_ToCString(ctx, argv[0]);

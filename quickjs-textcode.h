@@ -9,7 +9,12 @@
  * @{
  */
 
-typedef enum utf_encoding { UNKNOWN = 0, UTF8 /* = 1 */, UTF16 /* = 2 */, UTF32 /* = 3 */, } UTFCharset;
+typedef enum utf_encoding {
+  UNKNOWN = 0,
+  UTF8 /* = 1 */,
+  UTF16 /* = 2 */,
+  UTF32 /* = 3 */,
+} UTFCharset;
 typedef enum text_encoding {
   UTF16LE = 2,
   UTF32LE = 3,
@@ -53,11 +58,11 @@ typedef enum text_encoding {
 
 struct text_coder {
   RingBuffer buffer;
-union {
-   unsigned endian : 1;
- TextEncoding type_code;
-};
-UTFCharset  char_set;
+  union {
+    unsigned endian : 1;
+    TextEncoding type_code;
+  };
+  UTFCharset char_set;
   // TextcodeType
 };
 

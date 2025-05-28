@@ -56,19 +56,20 @@ wrapper_free(JSRuntime* rt, void* ptr) {
 }
 
 static void
-atoms_dup(JSContext*ctx, void* ptr) {
-  JSAtom* atoms=ptr, *ret;
+atoms_dup(JSContext* ctx, void* ptr) {
+  JSAtom *atoms = ptr, *ret;
   uint32_t len;
 
-  for(len = 0; atoms[len]; len++) {}
+  for(len = 0; atoms[len]; len++) {
+  }
 
-if(!(ret=js_mallocz(ctx,  (len+1) * sizeof(JSAtom))))
-  return 0;
+  if(!(ret = js_mallocz(ctx, (len + 1) * sizeof(JSAtom))))
+    return 0;
 
   for(uint32_t i = 0; i < len; i++)
-    ret[i]= JS_DupAtom(ctx,  atoms[i]);
+    ret[i] = JS_DupAtom(ctx, atoms[i]);
 
-return ret;
+  return ret;
 }
 
 typedef struct {
@@ -160,7 +161,7 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
       JS_NewAtom(ctx, "set"),
       JS_NewAtom(ctx, "delete"),
       JS_NewAtom(ctx, "keys"),
-   };
+  };
 
   JS_FreeValue(ctx, map_prototype);
 
@@ -336,7 +337,7 @@ static void
 array_finalizer(JSRuntime* rt, void* ptr) {
   VirtualProperties* vp = ptr;
 
-   ArrayMethodAtoms* atoms = vp->opaque;
+  ArrayMethodAtoms* atoms = vp->opaque;
 
   JS_FreeAtomRT(rt, atoms->push);
   JS_FreeAtomRT(rt, atoms->splice);
@@ -346,12 +347,12 @@ array_finalizer(JSRuntime* rt, void* ptr) {
 
 VirtualProperties
 virtual_properties_array(JSContext* ctx, JSValueConst obj) {
-  ArrayMethodAtoms* atoms = js_mallocz(ctx, sizeof(ArrayMethodAtoms)+ sizeof(JSAtom));
- 
+  ArrayMethodAtoms* atoms = js_mallocz(ctx, sizeof(ArrayMethodAtoms) + sizeof(JSAtom));
+
   *atoms = (ArrayMethodAtoms){
       JS_NewAtom(ctx, "push"),
       JS_NewAtom(ctx, "splice"),
-   };
+  };
 
   return (VirtualProperties){
       JS_DupValue(ctx, obj),

@@ -95,7 +95,10 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       if(buf.size < (BCRYPT_HASHSIZE - 4)) {
         input_buffer_free(&buf, ctx);
-        return JS_ThrowInternalError(ctx, "supplied buffer size %lu < %u", (unsigned long)buf.size, BCRYPT_HASHSIZE - 4);
+        return JS_ThrowInternalError(ctx,
+                                     "supplied buffer size %lu < %u",
+                                     (unsigned long)buf.size,
+                                     BCRYPT_HASHSIZE - 4);
       }
 
       memset(x, 0, sizeof(x));
