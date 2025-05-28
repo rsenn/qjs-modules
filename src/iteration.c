@@ -61,15 +61,6 @@ iteration_next(Iteration* it, JSContext* ctx) {
   return it->done;
 }
 
-const char*
-iteration_valuestr(Iteration* it, JSContext* ctx) {
-  JSValue value = iteration_value(it, ctx);
-  const char* str = JS_ToCString(ctx, value);
-  JS_FreeValue(ctx, value);
-
-  return str;
-}
-
 JSValue
 iteration_array(JSContext* ctx, JSValueConst iterable) {
   Iteration iter = ITERATION_INIT();

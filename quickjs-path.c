@@ -279,7 +279,7 @@ js_path_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
           break;
         }
         case PATH_SKIP: {
-          int64_t pos = n + path_skip2(a + n, alen - n);
+          size_t pos = n + path_skip2(a + n, alen - n);
           ret = JS_NewInt64(ctx, pos == alen ? -1ll : (int64_t)utf8_strlen(a, pos));
           break;
         }

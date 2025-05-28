@@ -562,7 +562,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
     size_t len;
 
     if((data = JS_GetArrayBuffer(ctx, &len, argv[0]))) {
-      OffsetLength ol = {0, -1};
+      OffsetLength ol = OFFSETLENGTH_INIT();
       uint8_t* s;
       size_t n;
 
@@ -571,7 +571,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       s = offsetlength_data(ol, data);
       n = offsetlength_size(ol, len);
 
-      if(ol.length < 0 && memchr(s, '\0', n))
+      if(ol.length == SIZE_MAX && memchr(s, '\0', n))
         ret = JS_NewString(ctx, (const char*)s);
       else
         ret = JS_NewStringLen(ctx, (const char*)s, n);
@@ -970,7 +970,7 @@ static JSValue
 js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf = {0};
-  ssize_t size, n;
+   size_t size, n;
   const char* file;
   char sep = '\n';
 
@@ -1200,7 +1200,7 @@ js_misc_glob(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   int start = 0, i;
   int32_t flags = 0;
   JSValue ret = JS_UNDEFINED;
-  glob_t g = {0, 0, 0, 0, 0};
+  glob_t g = {0, 0, 0, 0, 0, 0,0, 0,0,0,0};
   int result;
   BOOL array_arg = FALSE;
   const char* pattern = JS_ToCString(ctx, argv[0]);
@@ -1880,10 +1880,10 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       break;
     }
     case CLASS_ATOM: {
-      int32_t id = js_toint32(ctx, argv[0]);
+      uint32_t id = js_toint32(ctx, argv[0]);
       uint32_t count = js_class_count(JS_GetRuntime(ctx));
 
-      if(id < 0 || id >= count)
+      if(id < 1 || id >= count)
         ret = JS_ThrowRangeError(ctx, "id %d out of range (max: %u)", (int)id, (unsigned)count);
       else if(js_class_id(ctx, id))
         ret = JS_NewInt32(ctx, js_class_atom(ctx, id));
@@ -1896,7 +1896,7 @@ js_misc_valuetype(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst 
       break;
     }
     case CLASS_ID: {
-      JSAtom name = JS_IsNumber(argv[0]) ? js_toint32(ctx, argv[0]) : JS_ValueToAtom(ctx, argv[0]);
+      JSAtom name = JS_IsNumber(argv[0]) ? js_touint32(ctx, argv[0]) : JS_ValueToAtom(ctx, argv[0]);
 
       int32_t id = js_class_find(ctx, name);
       ret = id == -1 ? JS_UNDEFINED : JS_NewInt32(ctx, id);

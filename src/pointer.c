@@ -49,8 +49,8 @@ int
 pointer_compare(Pointer const* a, Pointer const* b, int32_t aoffs, int32_t boffs, uint32_t len) {
   uint32_t alen = a->n, blen = b->n;
 
-  aoffs = CLAMP_NUM(WRAP_NUM(aoffs, (int32_t)alen), 0, alen);
-  boffs = CLAMP_NUM(WRAP_NUM(boffs, (int32_t)blen), 0, blen);
+  aoffs = CLAMP_NUM(WRAP_NUM(aoffs, (int32_t)alen), 0, (int32_t)alen);
+  boffs = CLAMP_NUM(WRAP_NUM(boffs, (int32_t)blen), 0, (int32_t)blen);
 
   alen -= aoffs;
   blen -= boffs;
@@ -291,7 +291,7 @@ pointer_slice(Pointer* ptr, int64_t start, int64_t end, JSContext* ctx) {
   Pointer* ret;
 
   if((ret = pointer_new(ctx))) {
-    start = WRAP_NUM(start, ptr->n);
+    start = WRAP_NUM(start, (int64_t)ptr->n);
     end = end == INT64_MAX ? (int64_t)ptr->n : WRAP_NUM(end, (int64_t)ptr->n);
 
     if(start > end) {

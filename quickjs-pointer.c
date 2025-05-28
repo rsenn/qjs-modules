@@ -296,7 +296,7 @@ js_pointer_method1(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     case METHOD_UP: {
       int64_t n = js_int64_default(ctx, argv[0], -1);
 
-      ret = pointer_slice(ptr, 0, n < 0 ? ptr->n + n : n, ctx);
+      ret = pointer_slice(ptr, 0, n < 0 ? (int64_t)ptr->n + n : n, ctx);
       break;
     }
 

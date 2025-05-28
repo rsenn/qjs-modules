@@ -2,7 +2,7 @@
 #include "libbcrypt/bcrypt.h"
 #include "buffer-utils.h"
 
-static const int BCRYPT_SALTSIZE = 29;
+static const unsigned int BCRYPT_SALTSIZE = 29;
 
 enum {
   BCRYPT_GENSALT,
@@ -69,7 +69,7 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
         // input_buffer_free(&buf, ctx);
         return JS_EXCEPTION;
       } else if(salt.size >= BCRYPT_SALTSIZE) {
-        s = salt.data;
+        s = (void*)salt.data;
       }
 
       pw = JS_ToCString(ctx, argv[0]);
@@ -95,7 +95,7 @@ js_bcrypt_function(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
 
       if(buf.size < (BCRYPT_HASHSIZE - 4)) {
         input_buffer_free(&buf, ctx);
-        return JS_ThrowInternalError(ctx, "supplied buffer size %lu < %lu", buf.size, BCRYPT_HASHSIZE - 4);
+        return JS_ThrowInternalError(ctx, "supplied buffer size %lu < %u", (unsigned long)buf.size, BCRYPT_HASHSIZE - 4);
       }
 
       memset(x, 0, sizeof(x));

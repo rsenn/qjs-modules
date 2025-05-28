@@ -28,7 +28,7 @@
   }
 
 static ssize_t
-write_dbuf(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
+write_dbuf(intptr_t p, const void* buf, size_t len, Writer* wr) {
   DynBuf* db = (DynBuf*)p;
 
   if(dbuf_put(db, buf, len))
@@ -38,7 +38,7 @@ write_dbuf(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
 }
 
 static ssize_t
-write_tee(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
+write_tee(intptr_t p, const void* buf, size_t len, Writer* wr) {
   Writer* wptr = (Writer*)p;
   ssize_t r[2] = {0, 0};
 
@@ -55,7 +55,7 @@ typedef struct {
 } EscapedWriter;
 
 static ssize_t
-write_escaped(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
+write_escaped(intptr_t p, const void* buf, size_t len, Writer* wr) {
   EscapedWriter* ew = (EscapedWriter*)p;
   const uint8_t* x = buf;
   ssize_t r = 0;
@@ -71,7 +71,7 @@ write_escaped(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
 }
 
 static ssize_t
-write_urlencoded(intptr_t p, const void* buf, size_t len, struct WriterSt*) {
+write_urlencoded(intptr_t p, const void* buf, size_t len, Writer* wr) {
   Writer* parent = (Writer*)p;
   const uint8_t* x = buf;
   ssize_t r = 0;

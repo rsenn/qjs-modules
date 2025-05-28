@@ -264,11 +264,11 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     const char* s = JS_ToCString(ctx, argv[0]);
 
     if(s[case_finds(s, "utf32")] || s[case_finds(s, "utf-32")])
-      dec->type_code = UTF32;
+      dec->char_set = UTF32;
     else if(s[case_finds(s, "utf16")] || s[case_finds(s, "utf-16")])
-      dec->type_code = UTF16;
+      dec->char_set = UTF16;
     else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
-      dec->type_code = UTF8;
+      dec->char_set = UTF8;
     else {
       return JS_ThrowInternalError(ctx, "%s: TextDecoder: '%s' is invalid s", __func__, s);
     }
@@ -278,7 +278,7 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
 
     JS_FreeCString(ctx, s);
   } else {
-    dec->type_code = UTF8;
+    dec->char_set = UTF8;
   }
 
   JS_SetOpaque(obj, dec);
@@ -548,21 +548,21 @@ js_encoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     const char* s = JS_ToCString(ctx, argv[0]);
 
     if(s[case_finds(s, "utf32")] || s[case_finds(s, "utf-32")])
-      enc->type_code = UTF32;
+      enc->char_set = UTF32;
     else if(s[case_finds(s, "utf16")] || s[case_finds(s, "utf-16")])
-      enc->type_code = UTF16;
+      enc->char_set = UTF16;
     else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
-      enc->type_code = UTF8;
+      enc->char_set = UTF8;
     else
       return JS_ThrowInternalError(ctx, "TextEncoder '%s' is invalid s", s);
 
-    if((int)enc->type_code > (int)UTF8)
+    if((int)enc->char_set > (int)UTF8)
       if(s[case_finds(s, "be")] || s[case_finds(s, "be")])
         enc->endian = BIG;
 
     JS_FreeCString(ctx, s);
   } else {
-    enc->type_code = (TextEncoding)UTF8;
+    enc->char_set = (UTFCharset)UTF8;
   }
 
   JS_SetOpaque(obj, enc);

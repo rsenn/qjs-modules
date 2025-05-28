@@ -129,9 +129,9 @@ typedef JSValue path_func_type(const Vector*, JSContext*, void*);
 static inline path_func_type*
 js_deep_pathfunc(int flags) {
   switch(FLAGS_PATH_AS(flags)) {
-    case PATH_AS_STRING: return (path_func_type*)&property_recursion_pathstr_value;
+    case PATH_AS_STRING: return (path_func_type*)(void*)&property_recursion_pathstr_value;
     case PATH_AS_POINTER: return property_recursion_pointer_value;
-    default: return (path_func_type*)&property_recursion_path;
+    default: return (path_func_type*)(void*)&property_recursion_path;
   }
 }
 
@@ -501,7 +501,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   JSValueConst this_arg = argc > 3 ? argv[3] : JS_UNDEFINED;
   DeepIteratorFlags flags = js_deep_defaultflags;
   ValueType mask = TYPE_ALL;
-  int32_t max_depth;
+  uint32_t max_depth;
   PropertyEnumeration* it;
   Vector frames;
   Vector atoms = VECTOR(ctx);

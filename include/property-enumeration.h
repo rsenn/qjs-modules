@@ -182,7 +182,7 @@ property_recursion_value(const Vector* vec, JSContext* ctx) {
   return property_enumeration_value(vector_back(vec, sizeof(PropertyEnumeration)), ctx);
 }
 
-static inline int32_t
+static inline uint32_t
 property_recursion_depth(const Vector* vec) {
   return vector_size(vec, sizeof(PropertyEnumeration));
 }

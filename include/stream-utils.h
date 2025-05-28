@@ -13,7 +13,6 @@
  */
 struct WriterSt;
 
-typedef ssize_t WriteFunction(intptr_t, const void*, size_t, struct WriterSt*);
 typedef ssize_t WriterFinalizer(void*);
 
 typedef struct WriterSt {
@@ -21,6 +20,8 @@ typedef struct WriterSt {
   void* opaque;
   WriterFinalizer* finalizer;
 } Writer;
+
+typedef ssize_t WriteFunction(intptr_t, const void*, size_t, Writer* wr);
 
 Writer writer_from_dynbuf(DynBuf*);
 Writer writer_from_fd(intptr_t fd, bool close_on_end);

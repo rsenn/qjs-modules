@@ -22,8 +22,7 @@ BOOL iteration_method_atom(Iteration*, JSContext*, JSValueConst, JSAtom);
 BOOL iteration_method_symbol(Iteration*, JSContext*, JSValueConst, const char*);
 void iteration_reset_rt(Iteration*, JSRuntime*);
 BOOL iteration_next(Iteration*, JSContext*);
-const char* iteration_valuestr(Iteration*, JSContext*);
-JSValueConst iteration_array(JSContext*, JSValueConst);
+ JSValueConst iteration_array(JSContext*, JSValueConst);
 
 static inline BOOL
 iteration_init(Iteration* it, JSContext* ctx, JSValueConst iterator) {

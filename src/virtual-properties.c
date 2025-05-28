@@ -55,6 +55,22 @@ wrapper_free(JSRuntime* rt, void* ptr) {
   }
 }
 
+static void
+atoms_dup(JSContext*ctx, void* ptr) {
+  JSAtom* atoms=ptr, *ret;
+  uint32_t len;
+
+  for(len = 0; atoms[len]; len++) {}
+
+if(!(ret=js_mallocz(ctx,  (len+1) * sizeof(JSAtom))))
+  return 0;
+
+  for(uint32_t i = 0; i < len; i++)
+    ret[i]= JS_DupAtom(ctx,  atoms[i]);
+
+return ret;
+}
+
 typedef struct {
   JSAtom has, get, set, delete, keys;
 } MethodAtoms;
@@ -107,6 +123,10 @@ map_keys(const VirtualProperties* vp, JSContext* ctx, int flags) {
 
   JSValue ret = JS_Invoke(ctx, vp->this_obj, atoms->keys, 0, 0);
 
+  JSValue arr = iteration_array(ctx, ret);
+  JS_FreeValue(ctx, ret);
+  ret = arr;
+
   return ret;
 }
 
@@ -129,7 +149,7 @@ map_finalizer(JSRuntime* rt, void* ptr) {
 VirtualProperties
 virtual_properties_map(JSContext* ctx, JSValueConst map) {
   JSValue map_prototype, map_obj;
-  MethodAtoms* atoms = js_mallocz(ctx, sizeof(MethodAtoms));
+  MethodAtoms* atoms = js_mallocz(ctx, sizeof(MethodAtoms) + sizeof(JSAtom));
 
   map_obj = JS_DupValue(ctx, map);
   map_prototype = js_global_prototype(ctx, "Map");
@@ -140,7 +160,7 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
       JS_NewAtom(ctx, "set"),
       JS_NewAtom(ctx, "delete"),
       JS_NewAtom(ctx, "keys"),
-  };
+   };
 
   JS_FreeValue(ctx, map_prototype);
 
@@ -153,7 +173,7 @@ virtual_properties_map(JSContext* ctx, JSValueConst map) {
       JS_HasProperty(ctx, map, atoms->keys) ? map_keys : 0,
       map_finalizer,
       atoms,
-      0,
+      atoms_dup,
   };
 }
 
@@ -213,6 +233,10 @@ virtual_properties_object(JSContext* ctx, JSValueConst obj) {
       0,
   };
 }
+
+typedef struct {
+  JSAtom push, splice;
+} ArrayMethodAtoms;
 
 static int64_t
 array_find(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
@@ -311,10 +335,24 @@ array_keys(const VirtualProperties* vp, JSContext* ctx, int flags) {
 static void
 array_finalizer(JSRuntime* rt, void* ptr) {
   VirtualProperties* vp = ptr;
+
+   ArrayMethodAtoms* atoms = vp->opaque;
+
+  JS_FreeAtomRT(rt, atoms->push);
+  JS_FreeAtomRT(rt, atoms->splice);
+
+  js_free_rt(rt, atoms);
 }
 
 VirtualProperties
 virtual_properties_array(JSContext* ctx, JSValueConst obj) {
+  ArrayMethodAtoms* atoms = js_mallocz(ctx, sizeof(ArrayMethodAtoms)+ sizeof(JSAtom));
+ 
+  *atoms = (ArrayMethodAtoms){
+      JS_NewAtom(ctx, "push"),
+      JS_NewAtom(ctx, "splice"),
+   };
+
   return (VirtualProperties){
       JS_DupValue(ctx, obj),
       array_has,
@@ -323,8 +361,8 @@ virtual_properties_array(JSContext* ctx, JSValueConst obj) {
       array_delete,
       array_keys,
       array_finalizer,
-      0,
-      0,
+      atoms,
+      atoms_dup,
   };
 }
 
@@ -422,7 +460,8 @@ virtual_properties_copy(const VirtualProperties* src, VirtualProperties* dst, JS
   dst->delete = src->delete;
   dst->keys = src->keys;
   dst->finalize = src->finalize;
-  dst->opaque = src->dup ? src->dup(ctx, src->opaque) : src->opaque;
+  dst->opaque = src->opaque_dup ? src->opaque_dup(ctx, src->opaque) : src->opaque;
+  dst->opaque_dup = src->opaque_dup;
 }
 
 VirtualProperties
@@ -437,7 +476,7 @@ virtual_properties(JSContext* ctx, JSValueConst value) {
     return virtual_properties_object(ctx, value);
 
   JS_ThrowTypeError(ctx, "argument must be Array, Map-like or plain Object");
-  return (VirtualProperties){JS_EXCEPTION};
+  return VIRTUAL_PROPERTIES_INIT();
 }
 
 void

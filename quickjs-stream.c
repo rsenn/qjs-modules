@@ -1234,7 +1234,7 @@ js_byob_request_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
         uint64_t offset = js_get_propertystr_uint64(ctx, view, "byteOffset");
         JSValue buf = JS_GetPropertyStr(ctx, view, "buffer");
 
-        newa = js_typedarray_new3(ctx, 8, FALSE, FALSE, buf, offset, MIN_NUM(bytes, length));
+        newa = js_typedarray_new3(ctx, 8, FALSE, FALSE, buf, offset, MIN_NUM(bytes, (int64_t)length));
         JS_FreeValue(ctx, buf);
       }
 
