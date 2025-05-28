@@ -81,7 +81,7 @@ textdecoder_length(TextDecoder* td) {
 JSValue
 textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
   JSValue ret = JS_UNDEFINED;
-  size_t  i=0, blen;
+  size_t i = 0, blen;
   uint_least32_t cp;
   char tmp[UTF8_CHAR_LEN_MAX];
   int len = 0;
@@ -108,7 +108,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         uint_least16_t* ptr = ringbuffer_BEGIN(&dec->buffer);
         size_t n = blen & ~(0x1);
 
-        for( i = 0; i < n; ptr = ringbuffer_NEXT(&dec->buffer, ptr), i += 2) {
+        for(i = 0; i < n; ptr = ringbuffer_NEXT(&dec->buffer, ptr), i += 2) {
           uint_least16_t u16[2] = {uint16_get_endian(ptr, dec->endian), 0};
           size_t ns = 2;
 
@@ -144,7 +144,7 @@ textdecoder_decode(TextDecoder* dec, JSContext* ctx) {
         const uint_least32_t* ptr = ringbuffer_BEGIN(&dec->buffer);
         size_t n = blen & ~(0x3);
 
-        for( i = 0; i < n; ptr = ringbuffer_NEXT(&dec->buffer, ptr), i += 4) {
+        for(i = 0; i < n; ptr = ringbuffer_NEXT(&dec->buffer, ptr), i += 4) {
           cp = uint32_get_endian(ptr, dec->endian);
 
           if(!libutf_c32_to_c8(cp, &len, tmp)) {

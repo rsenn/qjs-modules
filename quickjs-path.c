@@ -382,8 +382,8 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
 
     case PATH_SEARCH: {
       const char* pathstr = a;
-     /* DynBuf db = DBUF_INIT_0();
-      js_dbuf_allocator(ctx, &db);*/
+      /* DynBuf db = DBUF_INIT_0();
+       js_dbuf_allocator(ctx, &db);*/
 
       for(;;) {
         char* file;
@@ -399,7 +399,7 @@ js_path_method_dbuf(JSContext* ctx, JSValueConst this_val, int argc, JSValueCons
         }
       }
 
-      //dbuf_free(&db);
+      // dbuf_free(&db);
       break;
     }
 

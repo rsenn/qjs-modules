@@ -345,7 +345,7 @@ js_repeater_stop(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   } else {
     struct list_head *el, *next;
 
-  list_for_each_safe(el, next, &rpt->nexts) {
+    list_for_each_safe(el, next, &rpt->nexts) {
       RepeaterItem* item = list_entry(el, RepeaterItem, link);
 
       JSValue result = js_iterator_result(ctx, argc >= 1 ? argv[0] : JS_UNDEFINED, TRUE);

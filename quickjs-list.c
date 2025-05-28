@@ -674,19 +674,19 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   switch(magic) {
     case LIST_BEGIN: {
-ret=js_node_wrap(ctx, node_proto, list->head);
+      ret = js_node_wrap(ctx, node_proto, list->head);
       break;
     }
     case LIST_END: {
-ret=js_node_wrap(ctx, node_proto, &list->node);
+      ret = js_node_wrap(ctx, node_proto, &list->node);
       break;
     }
     case LIST_RBEGIN: {
-ret=js_node_wrap(ctx, node_proto, list->tail);
+      ret = js_node_wrap(ctx, node_proto, list->tail);
       break;
     }
     case LIST_REND: {
-ret=js_node_wrap(ctx, node_proto, &list->node);
+      ret = js_node_wrap(ctx, node_proto, &list->node);
       break;
     }
     case LIST_PUSH: {
@@ -700,7 +700,7 @@ ret=js_node_wrap(ctx, node_proto, &list->node);
     case LIST_POP: {
       Node* node = 0;
 
- if((node = list_last(&list->list, Node, link)))
+      if((node = list_last(&list->list, Node, link)))
         ret = node_remove(node, list, ctx);
 
       break;
@@ -714,9 +714,9 @@ ret=js_node_wrap(ctx, node_proto, &list->node);
       break;
     }
     case LIST_SHIFT: {
-          Node* node = 0;
+      Node* node = 0;
 
-  if((node = list_first(&list->list, Node, link)))
+      if((node = list_first(&list->list, Node, link)))
         ret = node_remove(node, list, ctx);
 
       break;
@@ -801,8 +801,7 @@ ret=js_node_wrap(ctx, node_proto, &list->node);
       if(!(other = list_new(ctx)))
         return JS_EXCEPTION;
 
-      list_for_each(ptr, &list->list) 
-        list_push(other, list_entry(ptr, Node, link)->value, ctx);
+      list_for_each(ptr, &list->list) list_push(other, list_entry(ptr, Node, link)->value, ctx);
 
       for(int i = 0; i < argc; i++) {
         if(!list_append(other, argv[i], ctx)) {
@@ -919,8 +918,7 @@ ret=js_node_wrap(ctx, node_proto, &list->node);
       if(!(other = list_new(ctx)))
         return JS_EXCEPTION;
 
-      list_for_each_prev(ptr, &list->list) 
-        list_push(other, list_entry(ptr, Node, link)->value, ctx);
+      list_for_each_prev(ptr, &list->list) list_push(other, list_entry(ptr, Node, link)->value, ctx);
 
       ret = js_list_wrap_species(ctx, this_val, other);
       break;
@@ -1383,11 +1381,11 @@ static JSClassDef js_list_iterator_class = {
 };
 
 static const JSCFunctionListEntry js_list_methods[] = {
-       JS_CFUNC_MAGIC_DEF("begin", 0, js_list_iterator, LIST_BEGIN),
-       JS_CFUNC_MAGIC_DEF("end", 0, js_list_iterator, LIST_END),
-       JS_CFUNC_MAGIC_DEF("rbegin", 0, js_list_iterator, LIST_RBEGIN),
-       JS_CFUNC_MAGIC_DEF("rend", 0, js_list_iterator, LIST_REND),
- JS_CFUNC_MAGIC_DEF("push", 1, js_list_method, LIST_PUSH),
+    JS_CFUNC_MAGIC_DEF("begin", 0, js_list_method, LIST_BEGIN),
+    JS_CFUNC_MAGIC_DEF("end", 0, js_list_method, LIST_END),
+    JS_CFUNC_MAGIC_DEF("rbegin", 0, js_list_method, LIST_RBEGIN),
+    JS_CFUNC_MAGIC_DEF("rend", 0, js_list_method, LIST_REND),
+    JS_CFUNC_MAGIC_DEF("push", 1, js_list_method, LIST_PUSH),
     JS_CFUNC_MAGIC_DEF("pop", 0, js_list_method, LIST_POP),
     JS_CFUNC_MAGIC_DEF("unshift", 1, js_list_method, LIST_UNSHIFT),
     JS_CFUNC_MAGIC_DEF("shift", 0, js_list_method, LIST_SHIFT),
