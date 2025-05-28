@@ -285,7 +285,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
 link_directories(${QUICKJS_LIBRARY_DIR})
 
 set(QUICKJS_MODULES bjson blob deep directory lexer list location misc path pointer predicate queue repeater textcode
-                    sockets stream syscallerror inspect tree-walker xml)
+                    sockets stream syscallerror inspect tree-walker virtual xml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)

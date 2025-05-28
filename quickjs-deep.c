@@ -778,7 +778,7 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     value = property_enumeration_value(it, ctx);
     path = property_recursion_pathstr_value(&frames, ctx);
 
-    virtual_properties_set(&vmap, ctx, path, value);
+    virtual_set(&vmap, ctx, path, value);
 
     JS_FreeValue(ctx, value);
     JS_FreeValue(ctx, path);

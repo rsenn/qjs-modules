@@ -34,18 +34,14 @@
 typedef DynBuf Vector;
 
 #define VECTOR_INIT() \
-    { 0, 0, 0, 0, &vector_realloc, 0 }
-  
+  { 0, 0, 0, 0, &vector_realloc, 0 }
+
 #define vector_init(vec, ctx) dbuf_init2((vec), (ctx), (DynBufReallocFunc*)&vector_js_realloc)
 #define vector_init_rt(vec, rt) dbuf_init2((vec), (rt), (DynBufReallocFunc*)&vector_js_realloc_rt)
 #define VECTOR(ctx) \
-  (Vector) { \
-    0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc, ctx \
-  }
+  (Vector) { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc, ctx }
 #define VECTOR_RT(rt) \
-  (Vector) { \
-    0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc_rt, rt \
-  }
+  (Vector) { 0, 0, 0, 0, (DynBufReallocFunc*)&vector_js_realloc_rt, rt }
 
 #define vector_begin(vec) ((void*)((vec)->buf))
 #define vector_end(vec) ((void*)((vec)->buf + (vec)->size))

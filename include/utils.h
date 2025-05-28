@@ -906,6 +906,11 @@ js_value_isclass(JSContext* ctx, JSValueConst obj, JSClassID class_id) {
   return (JS_IsObject(obj) && !JS_IsNull(obj)) ? js_object_isclass(obj, class_id) : FALSE;
 }
 
+static inline BOOL
+js_is_object(JSContext* ctx, JSValueConst val) {
+  return JS_IsObject(val) && !JS_IsNull(val);
+}
+
 BOOL js_is_arraybuffer(JSContext*, JSValueConst);
 BOOL js_is_sharedarraybuffer(JSContext*, JSValueConst);
 BOOL js_is_date(JSContext*, JSValueConst);

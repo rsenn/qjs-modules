@@ -116,7 +116,7 @@ character_classes_init(int c[256]) {
     element = JS_NewObject(ctx); \
     JS_SetPropertyUint32(ctx, out->obj, out->idx++, element); \
     if(opts.location) \
-      virtual_properties_set(&vprop, ctx, element, locObj); \
+      virtual_set(&vprop, ctx, element, locObj); \
   } while(0)
 
 #define yield_return(index) \
