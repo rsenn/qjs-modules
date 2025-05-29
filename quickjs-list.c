@@ -162,7 +162,11 @@ static Node*
 node_get(JSContext* ctx, JSValueConst value) {
   ListIterator* iter;
   Node* node;
+  /*List* list;
 
+  if((list = js_list_data(value))) {
+    node = &list->node;
+  } else*/
   if((iter = JS_GetOpaque(value, js_list_iterator_class_id))) {
     node = iter->node;
   } else if(!(node = JS_GetOpaque(value, js_node_class_id))) {
@@ -298,44 +302,14 @@ list_dup(List* list) {
 }
 
 static int64_t
-list_indexof_forward(List* list, JSValueConst value, JSContext* ctx) {
-  struct list_head* ptr;
-  int64_t i = 0;
-
-  list_for_each(ptr, &list->header) {
-    if(js_value_equals(ctx, value, list_entry(ptr, Node, link)->value, FALSE))
-      return i;
-
-    ++i;
-  }
-
-  return -1;
-}
-
-static int64_t
-list_indexof_reverse(List* list, JSValueConst value, JSContext* ctx) {
-  struct list_head* ptr;
-  int64_t i = 0;
-
-  list_for_each_prev(ptr, &list->header) {
-    if(js_value_equals(ctx, value, list_entry(ptr, Node, link)->value, FALSE))
-      return i;
-
-    ++i;
-  }
-
-  return -1;
-}
-
-static int64_t
 list_find_forward(List* list, JSValueConst list_obj, JSValueConst fn, Node** nptr, JSContext* ctx) {
   struct list_head* ptr;
-  int64_t i = 0;
+  int64_t i = -1;
 
   list_for_each(ptr, &list->header) {
     Node* node = list_entry(ptr, Node, link);
 
-    if(node_predicate(node, fn, list_obj, i++, ctx)) {
+    if(node_predicate(node, fn, list_obj, ++i, ctx)) {
       if(nptr)
         *nptr = node;
 
@@ -349,12 +323,12 @@ list_find_forward(List* list, JSValueConst list_obj, JSValueConst fn, Node** npt
 static int64_t
 list_find_reverse(List* list, JSValueConst list_obj, JSValueConst fn, Node** nptr, JSContext* ctx) {
   struct list_head* ptr;
-  int64_t i = list->size - 1;
+  int64_t i = list->size;
 
   list_for_each_prev(ptr, &list->header) {
     Node* node = list_entry(ptr, Node, link);
 
-    if(node_predicate(node, fn, list_obj, i--, ctx)) {
+    if(node_predicate(node, fn, list_obj, --i, ctx)) {
       if(nptr)
         *nptr = node;
 
@@ -468,7 +442,7 @@ static BOOL
 list_iterator_skip(ListIterator* it, JSContext* ctx) {
   Node* node = it->node;
 
-  if((node = it->node) == it->header)
+  if(node == it->header)
     return TRUE;
 
   assert(!JS_IsUninitialized(node->value));
@@ -478,16 +452,18 @@ list_iterator_skip(ListIterator* it, JSContext* ctx) {
 
   switch(it->iterator_type) {
     case NORMAL: {
-      it->node = node->next;
+      it->node = node_dup(node->next);
       it->index++;
       break;
     }
     case REVERSE: {
-      it->node = node->prev;
+      it->node = node_dup(node->prev);
       it->index--;
       break;
     }
   }
+
+  node_free(node, ctx);
 
   return FALSE;
 }
@@ -574,9 +550,10 @@ js_list_iterator_method(JSContext* ctx, JSValueConst this_val, int argc, JSValue
     case ITERATOR_EQUALS: {
       Node* node;
 
-      if((node = node_get(ctx, argv[0])))
-        ret = JS_NewBool(ctx, node == it->node);
+      if(!(node = node_get(ctx, argv[0])))
+        return JS_EXCEPTION;
 
+      ret = JS_NewBool(ctx, node == it->node);
       break;
     }
     case ITERATOR_COPY: {
@@ -1090,7 +1067,7 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case LIST_ROTATE: {
       Node* node;
 
-      if(!(node = js_node_data(argv[0])))
+      if(!(node = node_get(ctx, argv[0])))
         return JS_ThrowTypeError(ctx, "argument 1 must be ListNode");
 
       if(JS_IsUninitialized(node->value))
@@ -1584,16 +1561,10 @@ static const JSCFunctionListEntry js_list_functions[] = {
 static JSValue
 js_node_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
-  List* other;
   Node* node;
 
-  if(argc > 0 && (other = js_list_data(argv[0]))) {
-    node = node_dup(&other->node);
-  } else if(argc > 0 && (node = js_node_data(argv[0]))) {
-    node = node_new(ctx, node->value);
-  } else {
-    node = node_new(ctx, argc > 0 ? argv[0] : JS_UNDEFINED);
-  }
+  if(!(node = node_get(ctx, argv[0])))
+    return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
   proto = JS_GetPropertyStr(ctx, new_target, "prototype");
@@ -1622,7 +1593,7 @@ js_node_wrap(JSContext* ctx, JSValueConst proto, Node* node) {
 }
 
 enum {
-  NODE_EQUAL,
+  NODE_EQUALS,
   NODE_VALUEOF,
 };
 
@@ -1635,12 +1606,13 @@ js_node_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
     return JS_EXCEPTION;
 
   switch(magic) {
-    case NODE_EQUAL: {
+    case NODE_EQUALS: {
       Node* other;
 
-      if((other = js_node_data(argv[0])) || (other = JS_GetOpaque(argv[0], js_list_class_id)))
-        ret = JS_NewBool(ctx, other == node);
+      if(!(other = node_get(ctx, argv[0])))
+        return JS_EXCEPTION;
 
+      ret = JS_NewBool(ctx, other == node);
       break;
     }
     case NODE_VALUEOF: {
@@ -1737,6 +1709,7 @@ js_node_finalizer(JSRuntime* rt, JSValue val) {
 }
 
 static const JSCFunctionListEntry js_node_methods[] = {
+    JS_CFUNC_MAGIC_DEF("equals", 1, js_node_method, NODE_EQUALS),
     JS_CFUNC_MAGIC_DEF("valueOf", 0, js_node_method, NODE_VALUEOF),
     JS_CGETSET_MAGIC_DEF("prev", js_node_get, 0, NODE_PREV),
     JS_CGETSET_MAGIC_DEF("next", js_node_get, 0, NODE_NEXT),
@@ -1813,7 +1786,7 @@ js_list_init(JSContext* ctx, JSModuleDef* m) {
 
   JS_SetClassProto(ctx, js_node_class_id, node_proto);
 
-  node_ctor = JS_NewCFunction2(ctx, js_node_constructor, "Node", 0, JS_CFUNC_constructor, 0);
+  node_ctor = JS_NewCFunction2(ctx, js_node_constructor, "Node", 1, JS_CFUNC_constructor, 0);
 
   JS_SetConstructor(ctx, node_ctor, node_proto);
 

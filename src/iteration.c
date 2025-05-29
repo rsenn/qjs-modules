@@ -2,12 +2,18 @@
 
 BOOL
 iteration_init_free(Iteration* it, JSContext* ctx, JSValue iterator) {
-  it->iter = iterator;
-  it->next = JS_GetPropertyStr(ctx, it->iter, "next");
-  it->data = JS_UNDEFINED;
-  it->done = FALSE;
+  JSValue next = JS_GetPropertyStr(ctx, iterator, "next");
 
-  return JS_IsFunction(ctx, it->next);
+  if(JS_IsFunction(ctx, next)) {
+    it->iter = iterator;
+    it->next = next;
+    it->data = JS_UNDEFINED;
+    it->done = FALSE;
+    return TRUE;
+  }
+
+  JS_FreeValue(ctx, next);
+  return FALSE;
 }
 
 BOOL
