@@ -492,6 +492,14 @@ list_iterator_skip(ListIterator* it, JSContext* ctx) {
   return FALSE;
 }
 
+static BOOL
+js_call_pred(JSContext* ctx, JSValueConst pred, JSValueConst a, JSValueConst b) {
+  JSValueConst args[] = {a, b};
+
+  JSValue ret = JS_Call(ctx, pred, JS_UNDEFINED, countof(args), args);
+  return js_tobool_free(ctx, ret);
+}
+
 static JSValue
 js_list_iterator_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {
   JSValue proto, obj = JS_UNDEFINED;
@@ -739,6 +747,7 @@ enum {
   LIST_INSERT_BEFORE,
   LIST_INSERT_AFTER,
   LIST_UNIQUE,
+  LIST_MERGE,
 };
 
 static JSValue
@@ -848,6 +857,29 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       ret = JS_NewUint32(ctx, list->size);
       break;
     }
+
+    case LIST_MERGE: {
+      Node *node = list->head, *el;
+      List* other;
+
+      if(!(other = js_list_data2(ctx, argv[0])))
+        return JS_EXCEPTION;
+
+      JSValue pred = argc > 1 ? JS_DupValue(ctx, argv[0])
+                              : JS_Eval(ctx, "(a, b) => a <= b", sizeof("(a, b) => a <= b") - 1, "-", 0);
+
+      list_for_each(el, &other->node) {
+        while(node != &list->node && js_call_pred(ctx, pred, node->value, el->value)) {
+          node = node->next;
+        }
+
+        list_insert_before(list, el->value, node, ctx);
+      }
+
+      JS_FreeValue(ctx, pred);
+      ret = JS_DupValue(ctx, this_val);
+      break;
+    }
   }
   return ret;
 }
@@ -910,7 +942,7 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
     case LIST_UNSHIFT: {
       for(int i = argc - 1; i >= 0; i--)
-        if(!list_insert(list, argv[i], 0, ctx))
+        if(!list_insert(list, argv[i], NULL, ctx))
           return JS_EXCEPTION;
 
       ret = JS_NewInt64(ctx, list->size);
@@ -954,22 +986,20 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case LIST_INDEX_OF: {
-      Node *n;
+      Node* n;
 
-      list_for_each(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) 
-        break;
+      list_for_each(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) break;
 
       ret = js_list_iterator_new(ctx, n, &list->node, NORMAL);
       break;
     }
     case LIST_LAST_INDEX_OF: {
-      Node *n;
+      Node* n;
 
-      list_for_each_prev(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) 
-        break;
+      list_for_each_prev(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) break;
 
-            ret = js_list_iterator_new(ctx, n, &list->node, REVERSE);
-       break;
+      ret = js_list_iterator_new(ctx, n, &list->node, REVERSE);
+      break;
     }
     case LIST_CONCAT: {
       List* other;
@@ -1153,12 +1183,7 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
   if(!(list = js_list_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  if(argc < 1 && magic == LIST_SORT) {
-    const char* fn = "(a, b) => a - b";
-
-    argv[0] = JS_Eval(ctx, fn, strlen(fn), "-", 0);
-    argc = 1;
-  } else if(argc < 1 || !JS_IsFunction(ctx, argv[0])) {
+  if(argc < 1 || !JS_IsFunction(ctx, argv[0])) {
     return JS_ThrowTypeError(ctx, "argument 1 must be a function");
   }
 
@@ -1295,8 +1320,12 @@ js_list_functional(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
       break;
     }
     case LIST_SORT: {
-      list_sort(list, argv[0], ctx);
+      JSValue pred =
+          argc > 0 ? JS_DupValue(ctx, argv[0]) : JS_Eval(ctx, "(a, b) => a - b", sizeof("(a, b) => a - b") - 1, "-", 0);
 
+      list_sort(list, pred, ctx);
+
+      JS_FreeValue(ctx, pred);
       ret = JS_DupValue(ctx, this_val);
       break;
     }
@@ -1338,19 +1367,19 @@ js_list_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
 static JSValue
 js_list_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
+  List* list;
   ListIterator* it;
-  JSValueConst args[] = {
-      this_val,
-      argc > 0 ? JS_DupValue(ctx, argv[0]) : JS_NewInt32(ctx, 0),
-  };
-  JSValue ret = js_list_iterator_constructor(ctx, list_iterator_ctor, countof(args), args);
+  JSValue ret = JS_UNDEFINED;
 
-  JS_FreeValue(ctx, args[1]);
+  if(!(list = js_list_data2(ctx, this_val)))
+    return JS_EXCEPTION;
 
-  it = JS_GetOpaque(ret, js_list_iterator_class_id);
+  if(!(it = list_iterator_new(list->head, &list->node, NORMAL, ctx)))
+    return JS_EXCEPTION;
+
   it->kind = magic;
 
-  return ret;
+  return js_list_iterator_wrap(ctx, list_iterator_proto, it);
 }
 
 enum {
@@ -1506,6 +1535,7 @@ static const JSCFunctionListEntry js_list_methods[] = {
     JS_CFUNC_MAGIC_DEF("insert", 1, js_list_method, LIST_INSERT_AFTER),
     JS_CFUNC_MAGIC_DEF("insertBefore", 1, js_list_method, LIST_INSERT_BEFORE),
     JS_CFUNC_MAGIC_DEF("unique", 0, js_list_method, LIST_UNIQUE),
+    JS_CFUNC_MAGIC_DEF("merge", 1, js_list_method, LIST_MERGE),
 
     JS_CFUNC_MAGIC_DEF("push", 1, js_list_method2, LIST_PUSH),
     JS_CFUNC_MAGIC_DEF("pop", 0, js_list_method2, LIST_POP),

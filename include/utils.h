@@ -516,6 +516,13 @@ js_toint32_free(JSContext* ctx, JSValue value) {
   return ret;
 }
 
+static inline BOOL
+js_tobool_free(JSContext* ctx, JSValue value) {
+  BOOL ret = JS_ToBool(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
+
 static inline uint32_t
 js_touint32(JSContext* ctx, JSValueConst value) {
   uint32_t ret = 0;
