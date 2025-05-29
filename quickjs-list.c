@@ -408,7 +408,7 @@ list_sort_cmp(struct list_head* a, struct list_head* b, void* opaque) {
   };
 
   JSValue ret = JS_Call(sc->ctx, sc->fn, JS_UNDEFINED, countof(args), args);
-  return js_toint32_free(sc->ctx, ret);
+  return JS_IsBool(ret) ? !js_tobool_free(sc->ctx, ret) : js_toint32_free(sc->ctx, ret);
 }
 
 static void
