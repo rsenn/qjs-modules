@@ -94,9 +94,14 @@ void list_link_next(struct list_head*, struct list_head*);
 void list_link_prev(struct list_head*, struct list_head*);
 void list_splice(struct list_head*, struct list_head*);
 struct list_head list_unlink(struct list_head*, struct list_head*);
+void __list_sort(struct list_head*, int (*)(struct list_head*, struct list_head*, void*), void*);
+void __list_reverse(struct list_head*);
 
 #define list_first(list, type, member) list_entry(list_front((list)), type, member)
+#define list_first_entry(ptr, type, member) list_entry((ptr)->next, type, member)
+
 #define list_last(list, type, member) list_entry(list_back((list)), type, member)
+#define list_last_entry(ptr, type, member) list_entry((ptr)->prev, type, member)
 
 static inline Arguments
 arguments_new(int argc, const char* argv[]) {
@@ -501,6 +506,13 @@ static inline int32_t
 js_toint32(JSContext* ctx, JSValueConst value) {
   int32_t ret = 0;
   JS_ToInt32(ctx, &ret, value);
+  return ret;
+}
+
+static inline int32_t
+js_toint32_free(JSContext* ctx, JSValue value) {
+  int32_t ret = js_toint32(ctx, value);
+  JS_FreeValue(ctx, value);
   return ret;
 }
 
