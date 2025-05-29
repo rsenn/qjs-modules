@@ -478,13 +478,18 @@ pgconn_get_result(PGSQLConnection* pq, JSContext* ctx) {
 }
 
 static char*
-pgconn_lookup_oid(PGSQLConnection* pq, Oid oid, JSContext* ctx) {
+pgconn_lookup_oid(PGSQLConnection* pq, Oid oid, const char* field, const char* table, JSContext* ctx) {
   PGresult* res;
   DynBuf buf;
   char* ret = 0;
 
   js_dbuf_init(ctx, &buf);
-  dbuf_putstr(&buf, "SELECT relname FROM pg_class WHERE oid=");
+  dbuf_putstr(&buf, "SELECT ");
+  dbuf_putstr(&buf, field);
+  dbuf_putstr(&buf, " FROM ");
+
+  dbuf_putstr(&buf, table);
+  dbuf_putstr(&buf, " WHERE oid=");
   dbuf_put_uint32(&buf, oid);
   dbuf_putc(&buf, ';');
   dbuf_0(&buf);
@@ -498,6 +503,11 @@ pgconn_lookup_oid(PGSQLConnection* pq, Oid oid, JSContext* ctx) {
 
   dbuf_free(&buf);
   return ret;
+}
+
+static char*
+pgconn_lookup_oid_class(PGSQLConnection* pq, Oid oid, JSContext* ctx) {
+  return pgconn_lookup_oid(pq, oid, "relname", "pg_class", ctx);
 }
 
 PGSQLConnection*
@@ -892,7 +902,7 @@ js_pgconn_insert_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
       } while(property_enumeration_next(&propenum));
 
       property_enumeration_reset(&propenum, JS_GetRuntime(ctx));
-      
+
       dbuf_putstr(&buf, ")");
 
       i++;
@@ -901,7 +911,7 @@ js_pgconn_insert_query(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   if(i < argc) {
     dbuf_putstr(&buf, " RETURNING ");
-    js_pgconn_print_field(ctx, pq, &buf, argv[j++]);
+    js_pgconn_print_field(ctx, pq, &buf, argv[i++]);
   }
 
   dbuf_putstr(&buf, ";");
@@ -1477,7 +1487,7 @@ result_array(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
 static JSValue
 result_object(JSContext* ctx, PGSQLResult* opaque, int row, int rtype) {
   PGresult* res = opaque->result;
-  JSValue ret = JS_NewObject(ctx);
+  JSValue ret = JS_NewObjectProto(ctx, JS_NULL);
   uint32_t num_fields = PQnfields(res);
   FieldNameFunc* fn = (rtype & RESULT_TBLNAM) ? field_id : field_namefunc(res);
 
@@ -1661,7 +1671,7 @@ js_pgresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       ret = JS_NewArray(ctx);
 
       for(uint32_t i = 0; i < num_fields; i++)
-        JS_SetPropertyUint32(ctx, ret, i, field_array(JS_GetOpaque(this_val, js_pgresult_class_id), i, ctx));
+        JS_SetPropertyUint32(ctx, ret, i, field_array(res, i, ctx));
       break;
     }
 
@@ -1874,7 +1884,7 @@ field_id(JSContext* ctx, PGSQLResult* opaque, int field) {
 
   dbuf_init2(&buf, 0, 0);
 
-  if((table_name = pgconn_lookup_oid(opaque->conn, table, ctx))) {
+  if((table_name = pgconn_lookup_oid_class(opaque->conn, table, ctx))) {
     dbuf_putstr(&buf, table_name);
     dbuf_putc(&buf, '.');
   }
@@ -2107,7 +2117,7 @@ field_array(PGSQLResult* opaque, int field, JSContext* ctx) {
   JS_SetPropertyUint32(ctx, ret, 4, JS_NewString(ctx, field_is_binary(res, field) ? "binary" : "text"));
   Oid table = PQftable(res, field);
 
-  char* table_name = pgconn_lookup_oid(opaque->conn, table, ctx);
+  char* table_name = pgconn_lookup_oid_class(opaque->conn, table, ctx);
 
   JS_SetPropertyUint32(ctx, ret, 5, table_name ? JS_NewString(ctx, table_name) : JS_NULL);
 
