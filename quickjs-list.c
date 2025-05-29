@@ -799,22 +799,32 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
         list_erase(list, p, ctx);
       }
 
-      ret = js_node_wrap(ctx, node_proto, node_dup(q));
+      ret = js_list_iterator_new(ctx, q, &list->node, NORMAL);
       break;
     }
     case LIST_INSERT_BEFORE:
     case LIST_INSERT_AFTER: {
-      Node* node;
+      Node *node, *tmp;
 
-      if(!(node = node_get(ctx, argv[0])))
+      if(js_is_null_or_undefined(argv[0]))
+        node = &list->node;
+      else if(!(node = node_get(ctx, argv[0])))
         return JS_EXCEPTION;
 
-      if(magic == LIST_INSERT_BEFORE)
+      if(magic == LIST_INSERT_BEFORE) {
+        tmp = node->prev;
+
         for(int i = 1; i < argc; i++)
           list_insert_before(list, argv[i], node, ctx);
-      else
+
+        ret = js_list_iterator_new(ctx, tmp->next, &list->node, REVERSE);
+      } else {
+        tmp = node->next;
         for(int i = argc - 1; i >= 1; i++)
           list_insert(list, argv[i], node, ctx);
+
+        ret = js_list_iterator_new(ctx, tmp->prev, &list->node, NORMAL);
+      }
 
       break;
     }
@@ -870,7 +880,6 @@ enum {
   LIST_REDUCE_RIGHT,
   LIST_SOME,
   LIST_SORT,
-
 };
 
 static JSValue
@@ -945,26 +954,22 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       break;
     }
     case LIST_INDEX_OF: {
-      Node *n, *result = 0;
+      Node *n;
 
-      list_for_each(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) {
-        result = n;
+      list_for_each(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) 
         break;
-      }
 
-      ret = result ? js_node_wrap(ctx, node_proto, node_dup(result)) : JS_NULL;
+      ret = js_list_iterator_new(ctx, n, &list->node, NORMAL);
       break;
     }
     case LIST_LAST_INDEX_OF: {
-      Node *n, *result = 0;
+      Node *n;
 
-      list_for_each_prev(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) {
-        result = n;
+      list_for_each_prev(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) 
         break;
-      }
 
-      ret = result ? js_node_wrap(ctx, node_proto, node_dup(result)) : JS_NULL;
-      break;
+            ret = js_list_iterator_new(ctx, n, &list->node, REVERSE);
+       break;
     }
     case LIST_CONCAT: {
       List* other;
@@ -988,7 +993,7 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     }
     case LIST_SLICE: {
       List* other;
-      Node *start, *end, *ptr;
+      Node *start, *end, *node;
 
       if(!(start = node_get(ctx, argv[0])))
         return JS_ThrowTypeError(ctx, "argument 1 must be ListNode");
@@ -999,8 +1004,8 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       if(!(other = list_new(ctx)))
         return JS_EXCEPTION;
 
-      for(ptr = start; ptr != end && ptr != &list->node; ptr = ptr->next) {
-        list_insert_before(other, ptr->value, NULL, ctx);
+      for(node = start; node != end && node != &list->node; node = node->next) {
+        list_insert_before(other, node->value, NULL, ctx);
       }
 
       ret = js_list_wrap_species(ctx, this_val, other);
