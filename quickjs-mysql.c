@@ -1803,6 +1803,7 @@ static const JSCFunctionListEntry js_mysqlresult_funcs[] = {
     JS_CFUNC_MAGIC_DEF("fetchField", 1, js_mysqlresult_functions, METHOD_FETCH_FIELD),
     JS_CFUNC_MAGIC_DEF("fetchFields", 0, js_mysqlresult_functions, METHOD_FETCH_FIELDS),
     JS_CFUNC_MAGIC_DEF("fetchRow", 0, js_mysqlresult_next, 0),
+    JS_CFUNC_MAGIC_DEF("fetchAssoc", 0, js_mysqlresult_next, RESULT_OBJECT),
     JS_CFUNC_MAGIC_DEF("[Symbol.iterator]", 0, js_mysqlresult_iterator, METHOD_ITERATOR),
     JS_CFUNC_MAGIC_DEF("[Symbol.asyncIterator]", 0, js_mysqlresult_iterator, METHOD_ASYNC_ITERATOR),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "MySQLResult", JS_PROP_CONFIGURABLE),

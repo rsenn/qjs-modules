@@ -615,6 +615,8 @@ else()
   check_function_exists(inet_pton HAVE_INET_PTON)
 endif()
 
+#set(stream_SOURCES ${stream_SOURCES} "${CMAKE_CURRENT_BINARY_DIR}/stream.c")
+
 #set(CMAKE_REQUIRED_LIBRARIES ${sockets_LIBRARIES})
 #unset(CMAKE_REQUIRED_LIBRARIES)
 
@@ -822,6 +824,7 @@ list(REMOVE_ITEM LIBJS lib/require.js)
 list(REMOVE_ITEM LIBJS lib/fs.js)
 list(REMOVE_ITEM LIBJS lib/std.js)
 list(REMOVE_ITEM LIBJS lib/os.js)
+list(REMOVE_ITEM LIBJS lib/stream.js)
 
 list(
   FILTER
@@ -858,6 +861,7 @@ set(stack_MODULES inspect location)
 set(util_MODULES inspect path misc)
 set(inspect_MODULES pointer)
 
+
 foreach(LIB_MODULE ${LIB_MODULES})
   #message("Compile Module: ${LIB_MODULE}")
 
@@ -865,6 +869,8 @@ foreach(LIB_MODULE ${LIB_MODULES})
 
   compile_module(lib/${LIB_MODULE}.js "${CMAKE_BINARY_DIR}/modules/${LIB_MODULE}.c" ${MODLIST})
 endforeach(LIB_MODULE ${LIB_MODULES})
+
+#compile_module(lib/stream.js "${CMAKE_CURRENT_BINARY_DIR}/stream.c" stream)
 
 if("${QUICKJS_SOURCES_ROOT}" STREQUAL "")
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../quickjs.c")

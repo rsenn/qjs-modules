@@ -5,6 +5,9 @@
 #include <list.h>
 #include <assert.h>
 
+extern const uint32_t qjsc_stream_size;
+extern const uint8_t qjsc_stream[];
+
 /**
  * \defgroup quickjs-stream quickjs-stream: Buffered stream
  * @{
@@ -1328,6 +1331,16 @@ js_byob_request_new(JSContext* ctx, JSValueConst controller) {
   return byob_request;
 }
 
+static JSValue
+js_readable_iterator(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  ReadableStream* st;
+
+  if(!(st = js_readable_data2(ctx, this_val)))
+    return JS_EXCEPTION;
+
+  return JS_UNDEFINED;
+}
+
 /**
  * @brief      JS ReadableStream object finalizer
  *
@@ -1354,6 +1367,7 @@ const JSCFunctionListEntry js_readable_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("getReader", 0, js_readable_method, READABLE_METHOD_GET_READER),
     JS_CGETSET_MAGIC_FLAGS_DEF("closed", js_readable_get, 0, READABLE_PROP_CLOSED, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("locked", js_readable_get, 0, READABLE_PROP_LOCKED, JS_PROP_ENUMERABLE),
+    // JS_CFUNC_DEF("[Symbol.asyncIterator]", 0, js_readable_iterator),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "ReadableStream", JS_PROP_CONFIGURABLE),
 };
 
@@ -2508,6 +2522,8 @@ js_stream_init(JSContext* ctx, JSModuleDef* m) {
     JS_SetModuleExport(ctx, m, "WritableStreamDefaultController", writable_controller);
     JS_SetModuleExport(ctx, m, "TransformStream", transform_ctor);
   }
+
+  // js_eval_binary(ctx, qjsc_stream, qjsc_stream_size, FALSE);
 
   return 0;
 }

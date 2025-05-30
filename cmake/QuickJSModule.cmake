@@ -194,12 +194,14 @@ function(make_module FNAME)
   set(LINK_DIRECTORIES ${${VNAME}_LINK_DIRECTORIES})
   set(LINK_FLAGS ${${VNAME}_LINK_FLAGS})
 
+  #dump(VNAME ${VNAME}_SOURCES)
+
   if(ARGN)
-    set(SOURCES ${ARGN} #${${VNAME}_SOURCES}
+    set(SOURCES ${ARGN} ${${VNAME}_SOURCES}
                 ${COMMON_SOURCES})
     add_unique(DEPS ${${VNAME}_DEPS})
   else(ARGN)
-    set(SOURCES quickjs-${NAME}.c #${${VNAME}_SOURCES}
+    set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES}
                 ${COMMON_SOURCES})
     add_unique(LIBS ${${VNAME}_LIBRARIES})
   endif(ARGN)

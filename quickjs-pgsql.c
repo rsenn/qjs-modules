@@ -1671,7 +1671,7 @@ js_pgresult_functions(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
       ret = JS_NewArray(ctx);
 
       for(uint32_t i = 0; i < num_fields; i++)
-        JS_SetPropertyUint32(ctx, ret, i, field_array(res, i, ctx));
+        JS_SetPropertyUint32(ctx, ret, i, field_array(JS_GetOpaque(this_val, js_pgresult_class_id), i, ctx));
       break;
     }
 
@@ -2100,9 +2100,12 @@ field_array(PGSQLResult* opaque, int field, JSContext* ctx) {
 
   if((type = field_type(res, field))) {
     dbuf_putstr(&buf, type);
+  } else if((name = pgconn_lookup_oid(opaque->conn, PQftype(res, field), "typname", "pg_type", ctx))) {
+    dbuf_putstr(&buf, name);
+    js_free(ctx, name);
   } else {
     char tmp[FMT_ULONG];
-    dbuf_putstr(&buf, "oid:");
+    dbuf_putstr(&buf, "oid=");
     dbuf_put(&buf, (const void*)tmp, fmt_ulonglong(tmp, PQftype(res, field)));
   }
 
