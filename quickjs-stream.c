@@ -423,6 +423,12 @@ reader_read(ReadableStreamReader* rd, JSContext* ctx) {
       }
 
       JSValue tmp = js_readable_callback(ctx, st, READABLE_PULL, 1, &st->controller);
+
+      if(JS_IsException(tmp)) {
+        JS_FreeValue(ctx, ret);
+        return JS_EXCEPTION;
+      }
+
       JS_FreeValue(ctx, tmp);
     }
   }

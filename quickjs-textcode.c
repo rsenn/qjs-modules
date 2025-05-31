@@ -264,11 +264,11 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     const char* s = JS_ToCString(ctx, argv[0]);
 
     if(s[case_finds(s, "utf32")] || s[case_finds(s, "utf-32")])
-      dec->char_set = UTF32;
+      dec->type_code = UTF32;
     else if(s[case_finds(s, "utf16")] || s[case_finds(s, "utf-16")])
-      dec->char_set = UTF16;
+      dec->type_code = UTF16;
     else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
-      dec->char_set = UTF8;
+      dec->type_code = UTF8;
     else {
       return JS_ThrowInternalError(ctx, "%s: TextDecoder: '%s' is invalid s", __func__, s);
     }
@@ -278,7 +278,7 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
 
     JS_FreeCString(ctx, s);
   } else {
-    dec->char_set = UTF8;
+    dec->type_code = UTF8;
   }
 
   JS_SetOpaque(obj, dec);

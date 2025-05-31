@@ -15,6 +15,7 @@ typedef enum utf_encoding {
   UTF16 /* = 2 */,
   UTF32 /* = 3 */,
 } UTFCharset;
+
 typedef enum text_encoding {
   UTF16LE = 2,
   UTF32LE = 3,
@@ -49,7 +50,7 @@ typedef enum text_encoding {
 #define TextcodeType \
   PACK union { \
     struct { \
-      UTFCharset encoding : 2; \
+      UTFCharset char_set : 2; \
       Endian endian : 1; \
     }; \
     TextEncoding type_code; \
@@ -58,12 +59,7 @@ typedef enum text_encoding {
 
 struct text_coder {
   RingBuffer buffer;
-  union {
-    unsigned endian : 1;
-    TextEncoding type_code;
-  };
-  UTFCharset char_set;
-  // TextcodeType
+  TextcodeType
 };
 
 typedef struct text_coder TextEncoder;
