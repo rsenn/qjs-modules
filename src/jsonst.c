@@ -18,7 +18,8 @@ typedef struct {
 } JsonSt_Arena;
 
 /*
- * Inspired by https://nullprogram.com/blog/2023/10/08/, modified to always be null byte terminated.
+ * Inspired by https://nullprogram.com/blog/2023/10/08/, modified to always be null byte
+ * terminated.
  * The length field is excluding the 0 byte.
  */
 typedef struct {
@@ -341,8 +342,6 @@ is_valid_json_number(const char* buf, const ptrdiff_t len) {
   return s == State_IntZero || s == State_IntDigit || s == State_IntFrac || s == State_ExpInt;
 }
 
-// static JsonSt_Error jsonst_emit(const JsonSt_Internal* j, const JsonSt_Type type) __attribute((warn_unused_result));
-
 static JsonSt_Error
 jsonst_emit(const JsonSt_Internal* j, const JsonSt_Type type) {
   JsonSt_Arena scratch = j->sp->a;
@@ -441,8 +440,6 @@ parse_hex4(const JsonSt_S8 str) {
   return ret;
 }
 
-// static JsonSt_Error frame_utf8_encode(JsonSt_Frame* f, const uint32_t c) __attribute((warn_unused_result));
-
 static JsonSt_Error
 frame_utf8_encode(JsonSt_Frame* f, const uint32_t c) {
   if(c <= 0x7f) {
@@ -474,8 +471,6 @@ frame_utf8_encode(JsonSt_Frame* f, const uint32_t c) {
   return Error_InvalidUnicodeCodepoint;
 }
 
-// static JsonSt_Error jsonst_push(JsonSt_Internal* j, const JsonSt_Type type) __attribute((warn_unused_result));
-
 static JsonSt_Error
 jsonst_push(JsonSt_Internal* j, const JsonSt_Type type) {
   if((j->sp = jsonst_new_frame(j->sp->a, j->sp, type)) == NULL)
@@ -491,8 +486,6 @@ jsonst_pop(JsonSt_Internal* j, __attribute((unused)) const JsonSt_Type expect_ty
 
   j->sp = j->sp->prev;
 }
-
-// static JsonSt_Error expect_start_value(JsonSt_Internal* j, const char c) __attribute((warn_unused_result));
 
 static JsonSt_Error
 expect_start_value(JsonSt_Internal* j, const char c) {
@@ -553,8 +546,6 @@ expect_start_value(JsonSt_Internal* j, const char c) {
 #define STR_TRUE_LEN (jsonst_sizeof(STR_TRUE) - 1)
 #define STR_FALSE "false"
 #define STR_FALSE_LEN (jsonst_sizeof(STR_FALSE) - 1)
-
-// static JsonSt_Error feed(JsonSt_Internal* j, const char c) __attribute((warn_unused_result));
 
 static JsonSt_Error
 feed(JsonSt_Internal* j, const char c) {
