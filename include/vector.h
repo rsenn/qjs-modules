@@ -18,19 +18,7 @@
  * @{
  */
 #define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
-
-/*typedef union Vector {
-  DynBuf dbuf;
-  struct {
-    char* data;
-    size_t size;
-    size_t capacity;
-    BOOL error;
-    DynBufReallocFunc* realloc_func;
-    void* opaque;
-  };
-} Vector;*/
-
+ 
 typedef DynBuf Vector;
 
 #define VECTOR_INIT() \

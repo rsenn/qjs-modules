@@ -9,17 +9,33 @@
  * \defgroup char-utils char-utils: Character Utilities
  * @{
  */
-#define is_control_char(c) \
-  ((c) == '\a' || (c) == '\b' || (c) == '\t' || (c) == '\n' || (c) == '\v' || (c) == '\f' || (c) == '\r')
+#define is_control_char(c) ((c) >= 0 && (c) <= 0x1f)
 #define is_alphanumeric_char(c) (((c) >= 'A' && (c) <= 'Z') || ((c) >= 'a' && (c) <= 'z'))
 
 #define is_digit_char(c) ((c) >= '0' && (c) <= '9')
+#define is_xdigit_char(c) (is_digit_char((c)) || ((c) >= 'A' && (c) <= 'F') || ((c) >= 'a' && (c) <= 'f'))
 #define is_print_char(c) ((c) >= ' ' && (c) <= '\x7f')
 #define is_newline_char(c) ((c) == '\n')
 #define is_identifier_char(c) (is_alphanumeric_char(c) || is_digit_char(c) || (c) == '$' || (c) == '_')
 #define is_whitespace_char(c) ((c) == ' ' || (c) == '\t' || (c) == '\v' || (c) == '\n' || (c) == '\r')
 
 #define str_equal(s, t) (!strcmp((s), (t)))
+
+static inline char
+is_quotable_char(const char c) {
+  switch(c) {
+    case '"': return c;
+    case '\\': return c;
+    case '/': return c;
+    case 'b': return '\b';
+    case 'f': return '\f';
+    case 'n': return '\n';
+    case 'r': return '\r';
+    case 't': return '\t';
+  }
+
+  return 0;
+}
 
 static inline int
 escape_char_pred(int c) {

@@ -47,6 +47,11 @@ struct StreamReader;
 typedef ssize_t ReadFunction(intptr_t, void*, size_t, struct StreamReader*);
 typedef ssize_t ReaderFinalizer(void*, void*);
 
+typedef enum {
+  READER_EOF = -2,
+  READER_ERROR = -1,
+} ReaderStatus;
+
 typedef struct StreamReader {
   ReadFunction* read;
   void *opaque, *opaque2;
@@ -79,7 +84,7 @@ reader_getc(Reader* rd) {
   if((ret = reader_read(rd, &ch, 1)) == 1)
     return (unsigned int)ch;
 
-  return -1;
+  return ret == 0 ? READER_EOF : READER_ERROR;
 }
 
 ssize_t transform_urldecode(Reader*, Writer*);

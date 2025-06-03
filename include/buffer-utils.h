@@ -22,6 +22,9 @@ int64_t array_search(void*, size_t, size_t elsz, void* needle);
 #define DBUF_INIT_CTX(ctx) \
   (DynBuf) { 0, 0, 0, 0, (DynBufReallocFunc*)js_realloc_rt, JS_GetRuntime(ctx) }
 
+#define DBUF_DATA(db) ((void*)(db)->buf)
+#define DBUF_SIZE(db) ((db)->size)
+
 extern const uint8_t escape_url_tab[256], escape_noquote_tab[256], escape_singlequote_tab[256],
     escape_doublequote_tab[256], escape_backquote_tab[256];
 
@@ -113,6 +116,14 @@ block_arraybuffer(MemoryBlock* mb, JSValueConst ab, JSContext* ctx) {
   return mb->base != 0;
 }
 
+static inline JSValue
+block_toarraybuffer(MemoryBlock* mb, JSContext* ctx) {
+  if(mb->base)
+    return JS_NewArrayBufferCopy(ctx, mb->base, mb->size);
+
+  return JS_NULL;
+}
+
 static inline MemoryBlock
 block_slice(MemoryBlock mb, int64_t start, int64_t end) {
   int64_t n = (int64_t)mb.size;
@@ -138,6 +149,35 @@ block_realloc(MemoryBlock* mb, size_t new_size, JSContext* ctx) {
   }
 
   return -1;
+}
+
+static inline void
+block_free(MemoryBlock* mb, JSRuntime* rt) {
+  if(mb->base) {
+    js_free_rt(rt, mb->base);
+    mb->base = NULL;
+  }
+}
+
+static inline uint8_t*
+block_grow(MemoryBlock* mb, size_t add_size, JSContext* ctx) {
+  uint8_t* ptr = block_end(mb);
+
+  if(block_realloc(mb, mb->size + add_size, ctx))
+    return 0;
+
+  return ptr;
+}
+
+static inline int
+block_append(MemoryBlock* mb, const void* buf, size_t len, JSContext* ctx) {
+  uint8_t* ptr;
+
+  if(!(ptr = block_grow(mb, len, ctx)))
+    return -1;
+
+  memcpy(ptr, buf, len);
+  return 0;
 }
 
 typedef struct OffsetLength {
