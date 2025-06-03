@@ -226,7 +226,7 @@ is_valid_json_number(const char* buf, const ptrdiff_t len) {
     const char c = buf[i];
 
     switch(s) {
-      case State_Init:
+      case State_Init: {
         if(c == '-') {
           s = State_IntMinus;
           continue;
@@ -242,8 +242,9 @@ is_valid_json_number(const char* buf, const ptrdiff_t len) {
 
         s = State_IntDigit;
         continue;
+      }
 
-      case State_IntMinus:
+      case State_IntMinus: {
         if(c == '0') {
           s = State_IntZero;
           continue;
@@ -254,8 +255,9 @@ is_valid_json_number(const char* buf, const ptrdiff_t len) {
 
         s = State_IntDigit;
         continue;
+      }
 
-      case State_IntZero:
+      case State_IntZero: {
         if(is_digit_char(c))
           return false;
 
@@ -270,8 +272,9 @@ is_valid_json_number(const char* buf, const ptrdiff_t len) {
         }
 
         return false;
+      }
 
-      case State_IntDigit:
+      case State_IntDigit: {
         if(is_digit_char(c))
           continue;
 
@@ -286,15 +289,17 @@ is_valid_json_number(const char* buf, const ptrdiff_t len) {
         }
 
         return false;
+      }
 
-      case State_IntDot:
+      case State_IntDot: {
         if(!is_digit_char(c))
           return false;
 
         s = State_IntFrac;
         continue;
+      }
 
-      case State_IntFrac:
+      case State_IntFrac: {
         if(is_digit_char(c))
           continue;
 
@@ -303,8 +308,9 @@ is_valid_json_number(const char* buf, const ptrdiff_t len) {
 
         s = State_ExpE;
         continue;
+      }
 
-      case State_ExpE:
+      case State_ExpE: {
         if(c == '-' || c == '+') {
           s = State_ExpSign;
           continue;
@@ -315,17 +321,20 @@ is_valid_json_number(const char* buf, const ptrdiff_t len) {
 
         s = State_ExpInt;
         continue;
+      }
 
-      case State_ExpSign:
+      case State_ExpSign: {
         if(!is_digit_char(c) || c == '0')
           return false;
 
         s = State_ExpInt;
         continue;
+      }
 
-      case State_ExpInt:
+      case State_ExpInt: {
         if(!is_digit_char(c))
           return false;
+      }
     }
   }
 
@@ -353,15 +362,16 @@ jsonst_emit(const JsonSt_Internal* j, const JsonSt_Type type) {
     }
 
     case Type_String:
-    case Type_ObjectKey:
+    case Type_ObjectKey: {
       assert(j->sp->type == Type_String || j->sp->type == Type_ObjectKey);
       v->val_str.str = j->sp->str.buf;
       v->val_str.str_len = j->sp->len;
       break;
-
-    default:
+    }
+    default: {
       /* Nothing else to do for the others. */
       break;
+    }
   }
 
   /* Fill in path, in reverse order of stack. */
@@ -370,8 +380,13 @@ jsonst_emit(const JsonSt_Internal* j, const JsonSt_Type type) {
   for(const JsonSt_Frame* f = j->sp; f != NULL; f = f->prev) {
     switch(f->type) {
       case Type_ArrayElm:
-      case Type_ObjectKey: break;
-      default: continue;
+      case Type_ObjectKey: {
+        break;
+      }
+
+      default: {
+        continue;
+      }
     }
 
     JsonSt_Path* p_new = JSONST_NEW(&scratch, JsonSt_Path, 1);
@@ -382,15 +397,17 @@ jsonst_emit(const JsonSt_Internal* j, const JsonSt_Type type) {
     p_new->type = f->type;
 
     switch(f->type) {
-      case Type_ArrayElm:
+      case Type_ArrayElm: {
         assert(f->prev->type == Type_Array);
         p_new->props.arry_ix = f->prev->len;
         break;
+      }
 
-      case Type_ObjectKey:
+      case Type_ObjectKey: {
         p_new->props.obj_key.str = f->str.buf;
         p_new->props.obj_key.str_len = f->len;
         break;
+      }
     }
 
     if(p == NULL) {
@@ -424,10 +441,10 @@ parse_hex4(const JsonSt_S8 str) {
   return ret;
 }
 
-// static JsonSt_Error utf8_encode(JsonSt_Frame* f, const uint32_t c) __attribute((warn_unused_result));
+// static JsonSt_Error frame_utf8_encode(JsonSt_Frame* f, const uint32_t c) __attribute((warn_unused_result));
 
 static JsonSt_Error
-utf8_encode(JsonSt_Frame* f, const uint32_t c) {
+frame_utf8_encode(JsonSt_Frame* f, const uint32_t c) {
   if(c <= 0x7f) {
     RETURN_ON_ERR(frame_putc(f, c));
     return Error_Success;
@@ -461,9 +478,7 @@ utf8_encode(JsonSt_Frame* f, const uint32_t c) {
 
 static JsonSt_Error
 jsonst_push(JsonSt_Internal* j, const JsonSt_Type type) {
-  j->sp = jsonst_new_frame(j->sp->a, j->sp, type);
-
-  if(j->sp == NULL)
+  if((j->sp = jsonst_new_frame(j->sp->a, j->sp, type)) == NULL)
     return Error_Oom;
 
   return Error_Success;
@@ -482,38 +497,43 @@ jsonst_pop(JsonSt_Internal* j, __attribute((unused)) const JsonSt_Type expect_ty
 static JsonSt_Error
 expect_start_value(JsonSt_Internal* j, const char c) {
   switch(c) {
-    case '[':
+    case '[': {
       RETURN_ON_ERR(jsonst_push(j, Type_Array));
       RETURN_ON_ERR(jsonst_emit(j, Type_Array));
       return Error_Success;
+    }
 
-    case '{':
+    case '{': {
       RETURN_ON_ERR(jsonst_push(j, Type_Object));
       RETURN_ON_ERR(jsonst_emit(j, Type_Object));
       return Error_Success;
+    }
 
-    case 'n':
+    case 'n': {
       RETURN_ON_ERR(jsonst_push(j, Type_Null));
       j->sp->len++;
       return Error_Success;
+    }
 
-    case 't':
+    case 't': {
       RETURN_ON_ERR(jsonst_push(j, Type_True));
       j->sp->len++;
       return Error_Success;
+    }
 
-    case 'f':
+    case 'f': {
       RETURN_ON_ERR(jsonst_push(j, Type_False));
       j->sp->len++;
       return Error_Success;
+    }
 
-    case '"':
+    case '"': {
       RETURN_ON_ERR(jsonst_push(j, Type_String));
       j->sp->str = jsonst_new_s8(&j->sp->a, j->config.str_alloc_bytes);
       RETURN_OOM_IFNULL(j->sp->str.buf);
       return Error_Success;
-
-    default:
+    }
+    default: {
       if(is_digit_char(c) || c == '-') {
         RETURN_ON_ERR(jsonst_push(j, Type_Number));
         j->sp->str = jsonst_new_s8(&j->sp->a, j->config.num_alloc_bytes);
@@ -523,6 +543,7 @@ expect_start_value(JsonSt_Internal* j, const char c) {
       }
 
       return Error_ExpectedNewValue;
+    }
   }
 }
 
@@ -557,7 +578,7 @@ feed(JsonSt_Internal* j, const char c) {
   }
 
   switch(j->sp->type) {
-    case Type_Doc:
+    case Type_Doc: {
       if(is_whitespace_char(c))
         return Error_Success;
 
@@ -567,8 +588,9 @@ feed(JsonSt_Internal* j, const char c) {
       j->sp->len++;
       RETURN_ON_ERR(expect_start_value(j, c));
       return Error_Success;
+    }
 
-    case Type_Array:
+    case Type_Array: {
       if(is_whitespace_char(c))
         return Error_Success;
 
@@ -581,7 +603,9 @@ feed(JsonSt_Internal* j, const char c) {
       RETURN_ON_ERR(jsonst_push(j, Type_ArrayElm));
       RETURN_ON_ERR(expect_start_value(j, c));
       return Error_Success;
-    case Type_ArrayElm:
+    }
+
+    case Type_ArrayElm: {
       if(is_whitespace_char(c))
         return Error_Success;
 
@@ -602,7 +626,9 @@ feed(JsonSt_Internal* j, const char c) {
 
       /* Expected ',' or ']'. */
       return Error_UnexpectedChar;
-    case InternalState_ArrayElementNext:
+    }
+
+    case InternalState_ArrayElementNext: {
       if(is_whitespace_char(c))
         return Error_Success;
 
@@ -611,8 +637,9 @@ feed(JsonSt_Internal* j, const char c) {
       RETURN_ON_ERR(jsonst_push(j, Type_ArrayElm));
       RETURN_ON_ERR(expect_start_value(j, c));
       return Error_Success;
+    }
 
-    case Type_Object:
+    case Type_Object: {
       if(is_whitespace_char(c))
         return Error_Success;
 
@@ -635,7 +662,9 @@ feed(JsonSt_Internal* j, const char c) {
 
       /* Expected '\"' or '}'. */
       return Error_UnexpectedChar;
-    case InternalState_ObjectPostKey:
+    }
+
+    case InternalState_ObjectPostKey: {
       if(is_whitespace_char(c))
         return Error_Success;
 
@@ -649,7 +678,9 @@ feed(JsonSt_Internal* j, const char c) {
 
       /* Expected ':'. */
       return Error_UnexpectedChar;
-    case InternalState_ObjectPostSep:
+    }
+
+    case InternalState_ObjectPostSep: {
       if(is_whitespace_char(c))
         return Error_Success;
 
@@ -658,8 +689,9 @@ feed(JsonSt_Internal* j, const char c) {
       RETURN_ON_ERR(jsonst_push(j, (int)InternalState_ObjectNext));
       RETURN_ON_ERR(expect_start_value(j, c));
       return Error_Success;
+    }
 
-    case InternalState_ObjectNext:
+    case InternalState_ObjectNext: {
       if(is_whitespace_char(c))
         return Error_Success;
 
@@ -681,8 +713,9 @@ feed(JsonSt_Internal* j, const char c) {
 
       /* Expected ',' or '}'. */
       return Error_UnexpectedChar;
+    }
 
-    case Type_Null:
+    case Type_Null: {
       if(c != STR_NULL[j->sp->len])
         return Error_InvalidLiteral;
 
@@ -694,7 +727,9 @@ feed(JsonSt_Internal* j, const char c) {
       }
 
       return Error_Success;
-    case Type_True:
+    }
+
+    case Type_True: {
       if(c != STR_TRUE[j->sp->len])
         return Error_InvalidLiteral;
 
@@ -706,7 +741,9 @@ feed(JsonSt_Internal* j, const char c) {
       }
 
       return Error_Success;
-    case Type_False:
+    }
+
+    case Type_False: {
       if(c != STR_FALSE[j->sp->len])
         return Error_InvalidLiteral;
 
@@ -718,9 +755,12 @@ feed(JsonSt_Internal* j, const char c) {
       }
 
       return Error_Success;
+    }
 
-    case Type_String:
-    case Type_ObjectKey:
+    case Type_String: {
+    }
+
+    case Type_ObjectKey: {
       if(c == '"') {
         if(j->sp->type == Type_String) {
           RETURN_ON_ERR(jsonst_emit(j, Type_String));
@@ -773,8 +813,9 @@ feed(JsonSt_Internal* j, const char c) {
       }
 
       return Error_InvalidUtf8Encoding;
+    }
 
-    case InternalState_StringEscape:
+    case InternalState_StringEscape: {
       if(c == 'u') {
         RETURN_ON_ERR(jsonst_push(j, (int)InternalState_StringEscapeUhex));
         j->sp->str = jsonst_new_s8(&j->sp->a, 4);
@@ -793,8 +834,9 @@ feed(JsonSt_Internal* j, const char c) {
       }
 
       return Error_InvalidQuotedChar;
+    }
 
-    case InternalState_StringUtf8:
+    case InternalState_StringUtf8: {
       /* Check that conforms to 10xxxxxx. */
       if(((unsigned char)c & 0xc0) != 0x80)
         return Error_InvalidUtf8Encoding;
@@ -808,8 +850,9 @@ feed(JsonSt_Internal* j, const char c) {
         jsonst_pop(j, (int)InternalState_StringUtf8);
 
       return Error_Success;
+    }
 
-    case InternalState_StringEscapeUhex:
+    case InternalState_StringEscapeUhex: {
       assert(j->sp->prev->type == InternalState_StringEscape);
       assert(j->sp->prev->prev->type == Type_String || j->sp->prev->prev->type == Type_ObjectKey);
       if(!is_xdigit_char(c))
@@ -827,14 +870,15 @@ feed(JsonSt_Internal* j, const char c) {
         RETURN_OOM_IFNULL(j->sp->str.buf);
         j->sp->len = -2; /* Eat the \u sequence */
       } else {
-        RETURN_ON_ERR(utf8_encode(j->sp->prev->prev, n));
+        RETURN_ON_ERR(frame_utf8_encode(j->sp->prev->prev, n));
         jsonst_pop(j, (int)InternalState_StringEscapeUhex);
         jsonst_pop(j, (int)InternalState_StringEscape);
       }
 
       return Error_Success;
+    }
 
-    case InternalState_StringEscapeUhexUtf16:
+    case InternalState_StringEscapeUhexUtf16: {
       assert(j->sp->prev->type == InternalState_StringEscapeUhex);
       assert(j->sp->prev->prev->type == InternalState_StringEscape);
       assert(j->sp->prev->prev->prev->type == Type_String || j->sp->prev->prev->prev->type == Type_ObjectKey);
@@ -869,14 +913,15 @@ feed(JsonSt_Internal* j, const char c) {
 
         const uint32_t decoded = ((high - 0xd800) << 10 | (low - 0xdc00)) + 0x10000;
 
-        RETURN_ON_ERR(utf8_encode(j->sp->prev->prev->prev, decoded));
+        RETURN_ON_ERR(frame_utf8_encode(j->sp->prev->prev->prev, decoded));
         jsonst_pop(j, (int)InternalState_StringEscapeUhexUtf16);
         jsonst_pop(j, (int)InternalState_StringEscapeUhex);
         jsonst_pop(j, (int)InternalState_StringEscape);
         return Error_Success;
       }
+    }
 
-    case Type_Number:
+    case Type_Number: {
       if(!is_number_char(c)) {
         RETURN_ON_ERR(jsonst_emit(j, Type_Number));
         jsonst_pop(j, Type_Number);
@@ -891,7 +936,7 @@ feed(JsonSt_Internal* j, const char c) {
 
       RETURN_ON_ERR(frame_putc(j->sp, c));
       return Error_Success;
-
+    }
     default: {
       assert(false);
       return Error_InternalBug;
