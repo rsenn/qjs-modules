@@ -13,56 +13,56 @@
 
 /* Possible types of objects in a JSON document. */
 typedef enum {
-  JsonStType_Doc = 'd',
-  JsonStType_Null = 'n',
-  JsonStType_True = 't',
-  JsonStType_False = 'f',
-  JsonStType_Number = 'x',
-  JsonStType_String = 's',
+  Type_Doc = 'd',
+  Type_Null = 'n',
+  Type_True = 't',
+  Type_False = 'f',
+  Type_Number = 'x',
+  Type_String = 's',
 
-  JsonStType_Array = '[',
-  JsonStType_ArrayElm = 'e',
-  JsonStType_ArrayEnd = ']',
+  Type_Array = '[',
+  Type_ArrayElm = 'e',
+  Type_ArrayEnd = ']',
 
-  JsonStType_Object = '{',
-  JsonStType_ObjectKey = 'k',
-  JsonStType_ObjectEnd = '}',
-} JsonStType;
+  Type_Object = '{',
+  Type_ObjectKey = 'k',
+  Type_ObjectEnd = '}',
+} JsonSt_Type;
 
 /* A JSON value. */
 typedef struct {
-  JsonStType type;
+  JsonSt_Type type;
 
-  /* Set only if type == JsonStType_String or type == JsonStType_Number.
+  /* Set only if type == Type_String or type == Type_Number.
    *
-   * In case of JsonStType_Number, you have to parse the number yourself - it is provided here exactly as
+   * In case of Type_Number, you have to parse the number yourself - it is provided here exactly as
    * it is in the document. It is guaranteed to be a valid number as per JSON spec and strtod()
    * should always work on it. Parsing example:
-   * 
+   *
    *   #include <stdlib.h>
    *   char *endptr;
    *   double num = strtod(value->val_str.str, &endptr);
    *      You might want to do real error handling here instead.
-   *   assert(endptr == value->val_str.str + value->val_str.str_len); 
+   *   assert(endptr == value->val_str.str + value->val_str.str_len);
    */
   struct {
     char* str;         /**< This is NULL byte terminated for compatibility with C strings. */
     ptrdiff_t str_len; /**< Length of str _without_ the NULL byte. */
   } val_str;
-} JsonStValue;
+} JsonSt_Value;
 
 /* A JSON path describing the location of a value in a document. */
-typedef struct jsonst_path JsonStPath;
+typedef struct jsonst_path JsonSt_Path;
 
 struct jsonst_path {
-  JsonStType type;  /**< Valid options are only JsonStType_ArrayElm and JsonStType_ObjectKey. */
-  JsonStPath* next; /**< Is NULL for the last path segment. */
+  JsonSt_Type type;  /**< Valid options are only Type_ArrayElm and Type_ObjectKey. */
+  JsonSt_Path* next; /**< Is NULL for the last path segment. */
   union {
-    unsigned arry_ix; /**< Set if type == JsonStType_ArrayElm. */
+    unsigned arry_ix; /**< Set if type == Type_ArrayElm. */
     struct {
       char* str;         /**< This is NULL byte terminated for compatibility with the C stdlib. */
       ptrdiff_t str_len; /**< Length of str without NULL byte. */
-    } obj_key;           /**< Set if type == JsonStType_ObjectKey. */
+    } obj_key;           /**< Set if type == Type_ObjectKey. */
   } props;
 };
 
@@ -71,7 +71,7 @@ struct jsonst_path {
  * The callback arguments and memory locations they point to have valid lifetime only until the
  * callback returns. Excepted from that is user_data.
  */
-typedef void (*JsonStCallback)(void* user_data, const JsonStValue* value, const JsonStPath* p);
+typedef void (*JsonSt_Callback)(void* user_data, const JsonSt_Value* value, const JsonSt_Path* p);
 
 /*
  * Opaque handle to an instance.
@@ -79,7 +79,7 @@ typedef void (*JsonStCallback)(void* user_data, const JsonStValue* value, const 
  */
 typedef struct jsonst_internal* JsonSt;
 
-/* Default values for JsonStConfig. */
+/* Default values for JsonSt_Config. */
 #define JSONST_DEFAULT_STR_ALLOC_BYTES (ptrdiff_t)128
 #define JSONST_DEFAULT_OBJ_KEY_ALLOC_BYTES (ptrdiff_t)128
 #define JSONST_DEFAULT_NUM_ALLOC_BYTES (ptrdiff_t)128
@@ -92,7 +92,7 @@ typedef struct {
   ptrdiff_t str_alloc_bytes;     /**< Max size in bytes for string values. */
   ptrdiff_t obj_key_alloc_bytes; /**< Max size in bytes for object keys. */
   ptrdiff_t num_alloc_bytes;     /**< Max size in bytes for numbers before parsing. */
-} JsonStConfig;
+} JsonSt_Config;
 
 /*
  * Create an instance.
@@ -111,53 +111,53 @@ typedef struct {
  * - If the memory region mem passed in here is too small to allocate an instance, NULL is returned.
  */
 JsonSt
-jsonst_new(void* mem, const ptrdiff_t memsz, const JsonStCallback cb, void* cb_user_data, const JsonStConfig conf);
+jsonst_new(void* mem, const ptrdiff_t memsz, const JsonSt_Callback cb, void* cb_user_data, const JsonSt_Config conf);
 
 /* Error codes. */
 typedef enum {
-  JsonStError_Success = 0,
+  Error_Success = 0,
 
-  JsonStError_Oom,
-  JsonStError_StrBufferFull,
-  JsonStError_PreviousError,
-  JsonStError_InternalBug,
-  JsonStError_EndOfDoc,
-  JsonStError_InvalidEof,
+  Error_Oom,
+  Error_StrBufferFull,
+  Error_PreviousError,
+  Error_InternalBug,
+  Error_EndOfDoc,
+  Error_InvalidEof,
 
-  JsonStError_ExpectedNewValue,
-  JsonStError_ExpectedNewKey,
-  JsonStError_UnexpectedChar,
-  JsonStError_InvalidLiteral,
-  JsonStError_InvalidControlChar,
-  JsonStError_InvalidQuotedChar,
-  JsonStError_InvalidHexDigit,
-  JsonStError_InvalidUtf8Encoding,
-  JsonStError_InvalidNumber,
-  JsonStError_InvalidUnicodeCodepoint,
-  JsonStError_InvalidUtf16Surrogate,
-} JsonStError;
+  Error_ExpectedNewValue,
+  Error_ExpectedNewKey,
+  Error_UnexpectedChar,
+  Error_InvalidLiteral,
+  Error_InvalidControlChar,
+  Error_InvalidQuotedChar,
+  Error_InvalidHexDigit,
+  Error_InvalidUtf8Encoding,
+  Error_InvalidNumber,
+  Error_InvalidUnicodeCodepoint,
+  Error_InvalidUtf16Surrogate,
+} JsonSt_Error;
 
 #define JSONST_EOF (-1)
 
 /* Feed the next byte to the parser.
  * This can cause zero, one or multiple invocations of the callback function.
  * At the end of your input, you must call this method once with c = JSONST_EOF.
- * Returns JsonStError_Success or an error code.
+ * Returns Error_Success or an error code.
  */
-JsonStError jsonst_feed(JsonSt j, const char c);
+JsonSt_Error jsonst_feed(JsonSt j, const char c);
 
 /* Return value of jsonst_feed_doc. */
 typedef struct {
-  JsonStError err;
+  JsonSt_Error err;
   size_t parsed_bytes;
-} JsonStFeedDocRet;
+} JsonSt_FeedDocRet;
 
 /* Feed an entire document to the parser.
  * Will process until the document is entirely parsed, or an error is met.
- * Returns JsonStError_Success or an error code, as well as the number of bytes the
+ * Returns Error_Success or an error code, as well as the number of bytes the
  * parser has read from the doc.
  */
-JsonStFeedDocRet jsonst_feed_doc(JsonSt j, const char* doc, const size_t docsz);
+JsonSt_FeedDocRet jsonst_feed_doc(JsonSt j, const char* doc, const size_t docsz);
 
 /**
  * @}

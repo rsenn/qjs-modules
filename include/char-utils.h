@@ -37,6 +37,32 @@ is_quotable_char(const char c) {
   return 0;
 }
 
+static int
+is_number_char(const char c) {
+  if(is_digit_char(c))
+    return 1;
+
+  switch(c) {
+    case '.':
+    case 'e':
+    case 'E':
+    case '+':
+    case '-': return 1;
+  }
+
+  return 0;
+}
+
+static inline BOOL
+is_utf16_high_surrogate(const uint32_t c) {
+  return c >= 0xd800 && c < 0xdc00;
+}
+
+static inline BOOL
+is_utf16_low_surrogate(const uint32_t c) {
+  return c >= 0xdc00 && c < 0xe000;
+}
+
 static inline int
 escape_char_pred(int c) {
   static const unsigned char table[256] = {
@@ -424,18 +450,16 @@ int case_diffb(const void*, size_t, const void* T);
 size_t case_findb(const void*, size_t, const void* what, size_t wlen);
 size_t case_finds(const void*, const char*);
 
-static inline int
-scan_fromhex(unsigned char c) {
-  c -= '0';
+static int
+scan_fromhex(const char c) {
+  if(is_digit_char(c))
+    return c - '0';
 
-  if(c <= 9)
-    return c;
+  if(c >= 'a' && c <= 'f')
+    return c - 'a' + 10;
 
-  c &= ~0x20;
-  c -= 'A' - '0';
-
-  if(c < 6)
-    return c + 10;
+  if(c >= 'A' && c <= 'F')
+    return c - 'A' + 10;
 
   return -1;
 }
