@@ -5,7 +5,11 @@
 
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
+
+/**
+ * \defgroup jsonst jsonst: JSON parser
+ * @{
+ */
 
 /* Possible types of objects in a JSON document. */
 typedef enum {
@@ -30,16 +34,17 @@ typedef struct {
   JsonStType type;
 
   /* Set only if type == JsonStType_String or type == JsonStType_Number.
-
-     In case of JsonStType_Number, you have to parse the number yourself - it is provided here exactly as
-     it is in the document. It is guaranteed to be a valid number as per JSON spec and strtod()
-     should always work on it. Parsing example:
-
-       #include <stdlib.h>
-       char *endptr;
-       double num = strtod(value->val_str.str, &endptr);
-          You might want to do real error handling here instead.
-       assert(endptr == value->val_str.str + value->val_str.str_len); */
+   *
+   * In case of JsonStType_Number, you have to parse the number yourself - it is provided here exactly as
+   * it is in the document. It is guaranteed to be a valid number as per JSON spec and strtod()
+   * should always work on it. Parsing example:
+   * 
+   *   #include <stdlib.h>
+   *   char *endptr;
+   *   double num = strtod(value->val_str.str, &endptr);
+   *      You might want to do real error handling here instead.
+   *   assert(endptr == value->val_str.str + value->val_str.str_len); 
+   */
   struct {
     char* str;         /**< This is NULL byte terminated for compatibility with C strings. */
     ptrdiff_t str_len; /**< Length of str _without_ the NULL byte. */
@@ -48,17 +53,18 @@ typedef struct {
 
 /* A JSON path describing the location of a value in a document. */
 typedef struct jsonst_path JsonStPath;
-typedef struct jsonst_path {
+
+struct jsonst_path {
   JsonStType type;  /**< Valid options are only JsonStType_ArrayElm and JsonStType_ObjectKey. */
   JsonStPath* next; /**< Is NULL for the last path segment. */
   union {
-    uint32_t arry_ix; /**< Set if type == JsonStType_ArrayElm. */
+    unsigned arry_ix; /**< Set if type == JsonStType_ArrayElm. */
     struct {
       char* str;         /**< This is NULL byte terminated for compatibility with the C stdlib. */
       ptrdiff_t str_len; /**< Length of str without NULL byte. */
     } obj_key;           /**< Set if type == JsonStType_ObjectKey. */
   } props;
-} JsonStPath;
+};
 
 /*
  * Callback signature.
@@ -105,7 +111,7 @@ typedef struct {
  * - If the memory region mem passed in here is too small to allocate an instance, NULL is returned.
  */
 JsonSt
-jsonst_new(uint8_t* mem, const ptrdiff_t memsz, const JsonStCallback cb, void* cb_user_data, const JsonStConfig conf);
+jsonst_new(void* mem, const ptrdiff_t memsz, const JsonStCallback cb, void* cb_user_data, const JsonStConfig conf);
 
 /* Error codes. */
 typedef enum {
@@ -153,4 +159,8 @@ typedef struct {
  */
 JsonStFeedDocRet jsonst_feed_doc(JsonSt j, const char* doc, const size_t docsz);
 
-#endif
+/**
+ * @}
+ */
+
+#endif /* defined(JSONST_H) */

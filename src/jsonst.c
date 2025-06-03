@@ -186,7 +186,7 @@ jsonst_new_internal(
 
 JsonSt
 jsonst_new(
-    uint8_t* mem, const ptrdiff_t memsz, const JsonStCallback cb, void* cb_user_data, const JsonStConfig conf) {
+    void* mem, const ptrdiff_t memsz, const JsonStCallback cb, void* cb_user_data, const JsonStConfig conf) {
   return jsonst_new_internal(mem, memsz, cb, cb_user_data, conf);
 }
 
