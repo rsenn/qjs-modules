@@ -59,6 +59,18 @@ Reader reader_from_fd(intptr_t, _Bool);
 ssize_t reader_read(Reader*, void*, size_t);
 void reader_free(Reader*);
 
+static inline Reader
+reader_from_js(JSValueConst value, JSContext* ctx) {
+  InputBuffer* input;
+
+  if(!(input = js_mallocz(ctx, sizeof(InputBuffer))))
+    return (Reader){};
+
+  *input = js_input_chars(ctx, value);
+
+  return reader_from_buf(input, ctx);
+}
+
 static inline int
 reader_getc(Reader* rd) {
   uint8_t ch;

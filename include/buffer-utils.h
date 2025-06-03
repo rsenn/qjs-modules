@@ -351,6 +351,9 @@ typedef struct InputBuffer {
   OffsetLength range;
 } InputBuffer;
 
+#define INPUT_BUFFER_INIT() \
+  (InputBuffer) { {BLOCK_INIT()}, 0, NULL, JS_UNDEFINED, OFFSETLENGTH_INIT() }
+
 static inline void
 input_buffer_free_default(JSContext* ctx, const char* str, JSValue val) {
   if(JS_IsString(val))
