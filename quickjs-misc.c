@@ -567,7 +567,7 @@ js_misc_tostring(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
       size_t n;
 
       js_offset_length(ctx, len, argc, argv, 1, &ol);
- 
+
       s = offsetlength_data(ol, data);
       n = offsetlength_size(ol, len);
 
@@ -3109,7 +3109,7 @@ js_misc_fstat(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     JS_SetPropertyStr(ctx, obj, "dev", new64.u(ctx, st.st_dev));
     JS_SetPropertyStr(ctx, obj, "ino", new64.u(ctx, st.st_ino));
     JS_SetPropertyStr(ctx, obj, "mode", new64.u(ctx, st.st_mode));
-    JS_SetPropertyStr(ctx, obj, "nlink", new64.u(ctx, st.st_nlink)) ;
+    JS_SetPropertyStr(ctx, obj, "nlink", new64.u(ctx, st.st_nlink));
     JS_SetPropertyStr(ctx, obj, "uid", new64.u(ctx, st.st_uid));
     JS_SetPropertyStr(ctx, obj, "gid", new64.u(ctx, st.st_gid));
     JS_SetPropertyStr(ctx, obj, "rdev", new64.u(ctx, st.st_rdev));
