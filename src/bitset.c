@@ -25,28 +25,42 @@ bitset_byte(BitSet* bs, size_t bit) {
 }
 
 bool
-bitset_get(BitSet* bs, size_t bit) {
-  assert(bit < bs->len);
+bitset_at(BitSet* bs, int32_t idx) {
 
-  uint8_t* b = bitset_byte(bs, bit);
+  idx = WRAP_NUM(idx, (signed)bs->len);
 
-  return ((*b) >> shift) & 1;
+  assert(idx >= 0);
+  assert(idx < bs->len);
+
+  uint8_t* b = bitset_byte(bs, idx);
+
+  return ((*b) >> (idx & 7)) & 1;
 }
 
 void
-bitset_set(BitSet* bs, size_t bit, bool value) {
+bitset_assign(BitSet* bs, size_t bit, bool value) {
   uint8_t* b = bitset_byte(bs, bit);
   uint8_t mask = 1 << (bit & 7);
 
   (*b) = value ? (*b) | mask : (*b) & (~mask);
 }
 
+bool
+bitset_toggle(BitSet* bs, size_t bit) {
+  uint8_t* b = bitset_byte(bs, bit);
+  uint8_t mask = 1 << (bit & 7);
+
+  (*b) ^= mask;
+
+  return !!((*b) & mask);
+}
+
 void
 bitset_free(BitSet* bs) {
   if(bs->ptr) {
     free(bs->ptr);
-    bs->ptr=0;
+    bs->ptr = 0;
   }
-  
-  bs->len=0;
+
+  bs->len = 0;
 }
