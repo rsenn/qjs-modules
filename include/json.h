@@ -23,25 +23,13 @@ typedef enum {
   JSON_TYPE_NUMBER,
 } JsonValueType;
 
-typedef enum {
-  JSON_STATE_EOF = -2,
-  JSON_STATE_ERROR = -1,
-  JSON_STATE_PARSING = 0,
-  JSON_STATE_PARSING_ARRAY = 0b1,
-  JSON_STATE_PARSING_OBJECT_KEY = 0b10,
-  JSON_STATE_PARSING_OBJECT_VALUE = 0b11,
-  JSON_STATE_PARSING_OBJECT = 0b11,
-  JSON_STATE_EXPECTING_COMMA_OR_END = 0b100,
-  JSON_STATE_EXPECTING_COLON = 0b1000,
-} JsonParseState;
-
 typedef struct JsonParser JsonParser;
 
 typedef void JsonCallback(JsonParser*, JsonValueType value, void*);
 
 struct JsonParser {
   int ref_count;
-  JsonParseState state;
+  int state;
   Reader reader;
   DynBuf token;
   JsonCallback* callback;

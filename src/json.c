@@ -2,6 +2,17 @@
 #include "json.h"
 #include "char-utils.h"
 
+enum {
+  ERROR = -1,
+  PARSING = 0,
+  PARSING_OBJECT_KEY = 0b10,
+  PARSING_OBJECT_VALUE = 0b01,
+  PARSING_OBJECT = 0b11,
+  PARSING_ARRAY = 0b100,
+  EXPECTING_COMMA_OR_END = 0b1000,
+  EXPECTING_COLON = 0b10000,
+};
+
 static int
 json_error(JsonParser* json) {
   return -1;
@@ -32,7 +43,7 @@ json_init(JsonParser* json, JSValueConst input, JSContext* ctx) {
   json->pos = 0;
   json->pushback = -1;
 
-  json->state = JSON_STATE_PARSING;
+  json->state = PARSING;
 
   // js_dbuf_init(ctx, &json->token);
   dbuf_init2(&json->token, 0, 0);
@@ -91,6 +102,7 @@ json_getc(JsonParser* json) {
 
   ++json->pos;
 
+  dbuf_putc(&json->token, c);
   return c;
 }
 
@@ -102,6 +114,7 @@ json_ungetc(JsonParser* json, char c) {
   json->pushback = (unsigned int)(unsigned char)c;
 
   --json->pos;
+  json->token.size -= 1;
   return 0;
 }
 
@@ -115,53 +128,46 @@ json_parse(JsonParser* json, JSContext* ctx) {
     if((c = json_getc_skipws(json)) < 0)
       goto end;
 
-    if(json->state & JSON_STATE_EXPECTING_COLON) {
+    if(json->state & EXPECTING_COLON) {
       if(c != ':') {
         JS_ThrowInternalError(ctx, "JSON parser expects a colon, token = '%c'", (char)c);
         goto fail;
       }
-      json->state &= ~JSON_STATE_EXPECTING_COLON;
+      json->state &= ~EXPECTING_COLON;
+      dbuf_zero(&json->token);
       continue;
     }
 
-    if(json->state & JSON_STATE_EXPECTING_COLON) {
-      if(c != ':') {
-        JS_ThrowInternalError(ctx, "JSON parser expects a colon, token = '%c'", (char)c);
-        goto fail;
-      }
-      json->state &= ~JSON_STATE_EXPECTING_COLON;
-      continue;
-    }
-
-    if(json->state & JSON_STATE_EXPECTING_COMMA_OR_END) {
+    if(json->state & EXPECTING_COMMA_OR_END) {
       if(c == ',') {
-        json->state &= ~JSON_STATE_EXPECTING_COMMA_OR_END;
+        json->state &= ~EXPECTING_COMMA_OR_END;
+        dbuf_zero(&json->token);
         continue;
       }
     }
 
-    json->state |= JSON_STATE_EXPECTING_COMMA_OR_END;
+    json->state |= EXPECTING_COMMA_OR_END;
 
-    if((json->state & JSON_STATE_PARSING_OBJECT) != JSON_STATE_PARSING_OBJECT_KEY)
-      switch(c) {
-        case '{': {
-          json->state = JSON_STATE_PARSING_OBJECT_KEY;
-          return JSON_TYPE_OBJECT;
-        }
-
-        case '[': {
-          json->state = JSON_STATE_PARSING_ARRAY;
-          return JSON_TYPE_ARRAY;
-        }
-
-        case '}': {
-          return JSON_TYPE_OBJECT_END;
-        }
-
-        case ']': {
-          return JSON_TYPE_ARRAY_END;
-        }
+    // if((json->state & PARSING_OBJECT) != PARSING_OBJECT_KEY)
+    switch(c) {
+      case '{': {
+        json->state = PARSING_OBJECT_KEY;
+        return JSON_TYPE_OBJECT;
       }
+
+      case '[': {
+        json->state = PARSING_ARRAY;
+        return JSON_TYPE_ARRAY;
+      }
+
+      case '}': {
+        return JSON_TYPE_OBJECT_END;
+      }
+
+      case ']': {
+        return JSON_TYPE_ARRAY_END;
+      }
+    }
 
     switch(c) {
       case 'n': {
@@ -199,31 +205,32 @@ json_parse(JsonParser* json, JSContext* ctx) {
       }
 
       case '"': {
+        dbuf_zero(&json->token);
+
         while((c = json_getc(json)) >= 0) {
           if(c == '\\') {
-            dbuf_putc(&json->token, c);
 
             if((c = json_getc(json)) < 0)
               return c;
 
           } else if(c == '"') {
 
-            if((json->state & JSON_STATE_PARSING_OBJECT) == JSON_STATE_PARSING_OBJECT_KEY) {
-              json->state &= ~JSON_STATE_PARSING_OBJECT;
-              json->state |= JSON_STATE_PARSING_OBJECT_VALUE | JSON_STATE_EXPECTING_COLON;
+            json->token.size -= 1;
+
+            if((json->state & PARSING_OBJECT) == PARSING_OBJECT_KEY) {
+              json->state &= ~PARSING_OBJECT;
+              json->state |= PARSING_OBJECT_VALUE | EXPECTING_COLON;
 
               return JSON_TYPE_KEY;
             }
 
-            if(json->state & JSON_STATE_PARSING_OBJECT) {
-              json->state &= ~JSON_STATE_PARSING_OBJECT;
-              json->state |= JSON_STATE_PARSING_OBJECT_KEY | JSON_STATE_EXPECTING_COMMA_OR_END;
+            if(json->state & PARSING_OBJECT) {
+              json->state &= ~PARSING_OBJECT;
+              json->state |= PARSING_OBJECT_KEY | EXPECTING_COMMA_OR_END;
             }
 
             return JSON_TYPE_STRING;
           }
-
-          dbuf_putc(&json->token, c);
         }
 
         break;
@@ -236,15 +243,17 @@ json_parse(JsonParser* json, JSContext* ctx) {
           goto fail;
         }
 
-        dbuf_putc(&json->token, c);
-
         while((c = json_getc(json)) >= 0) {
           if(!is_number_char(c)) {
             json_ungetc(json, c);
+
+            if(json->state & PARSING_OBJECT) {
+              json->state &= ~PARSING_OBJECT;
+              json->state |= PARSING_OBJECT_KEY;
+            }
+
             return JSON_TYPE_NUMBER;
           }
-
-          dbuf_putc(&json->token, c);
         }
 
         break;
