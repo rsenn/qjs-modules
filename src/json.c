@@ -121,6 +121,7 @@ json_ungetc(JsonParser* json, char c) {
 int
 json_parse(JsonParser* json, JSContext* ctx) {
   int c;
+  JsonValueType ret = JSON_TYPE_NONE;
 
   dbuf_zero(&json->token);
 
@@ -152,20 +153,24 @@ json_parse(JsonParser* json, JSContext* ctx) {
     switch(c) {
       case '{': {
         json->state = PARSING_OBJECT_KEY;
-        return JSON_TYPE_OBJECT;
+        ret = JSON_TYPE_OBJECT;
+        goto end;
       }
 
       case '[': {
         json->state = PARSING_ARRAY;
-        return JSON_TYPE_ARRAY;
+        ret = JSON_TYPE_ARRAY;
+        goto end;
       }
 
       case '}': {
-        return JSON_TYPE_OBJECT_END;
+        ret = JSON_TYPE_OBJECT_END;
+        goto end;
       }
 
       case ']': {
-        return JSON_TYPE_ARRAY_END;
+        ret = JSON_TYPE_ARRAY_END;
+        goto end;
       }
     }
 
@@ -178,7 +183,8 @@ json_parse(JsonParser* json, JSContext* ctx) {
         if(json_getc(json) != 'l')
           goto end;
 
-        return JSON_TYPE_NULL;
+        ret = JSON_TYPE_NULL;
+        goto end;
       }
 
       case 't': {
@@ -189,7 +195,8 @@ json_parse(JsonParser* json, JSContext* ctx) {
         if(json_getc(json) != 'e')
           goto end;
 
-        return JSON_TYPE_TRUE;
+        ret = JSON_TYPE_TRUE;
+        goto end;
       }
       case 'f': {
         if(json_getc(json) != 'a')
@@ -201,7 +208,8 @@ json_parse(JsonParser* json, JSContext* ctx) {
         if(json_getc(json) != 'e')
           goto end;
 
-        return JSON_TYPE_FALSE;
+        ret = JSON_TYPE_FALSE;
+        goto end;
       }
 
       case '"': {
@@ -210,8 +218,10 @@ json_parse(JsonParser* json, JSContext* ctx) {
         while((c = json_getc(json)) >= 0) {
           if(c == '\\') {
 
-            if((c = json_getc(json)) < 0)
-              return c;
+            if((c = json_getc(json)) < 0) {
+              ret = c;
+              goto end;
+            }
 
           } else if(c == '"') {
 
@@ -221,7 +231,8 @@ json_parse(JsonParser* json, JSContext* ctx) {
               json->state &= ~PARSING_OBJECT;
               json->state |= PARSING_OBJECT_VALUE | EXPECTING_COLON;
 
-              return JSON_TYPE_KEY;
+              ret = JSON_TYPE_KEY;
+              goto end;
             }
 
             if(json->state & PARSING_OBJECT) {
@@ -229,7 +240,8 @@ json_parse(JsonParser* json, JSContext* ctx) {
               json->state |= PARSING_OBJECT_KEY | EXPECTING_COMMA_OR_END;
             }
 
-            return JSON_TYPE_STRING;
+            ret = JSON_TYPE_STRING;
+            goto end;
           }
         }
 
@@ -252,7 +264,8 @@ json_parse(JsonParser* json, JSContext* ctx) {
               json->state |= PARSING_OBJECT_KEY;
             }
 
-            return JSON_TYPE_NUMBER;
+            ret = JSON_TYPE_NUMBER;
+            goto end;
           }
         }
 
@@ -263,11 +276,12 @@ json_parse(JsonParser* json, JSContext* ctx) {
     break;
   }
 
-  if(c < 0)
-    return c;
-
 end:
-  return 0;
+  if(ret == JSON_TYPE_NONE)
+    if(c < 0)
+      return c;
+
+  return ret;
 
 fail:
   return -1;
