@@ -21,7 +21,9 @@ bitset_resize(BitSet* bs, size_t bits) {
 
 #define bitset_byte(bs, bit) ((bs)->ptr[(bit) >> 3])
 
-static inline size_t
+#define bitset_index(bs, idx) WRAP_NUM((idx), (signed)(bs)->len)
+
+/*static inline size_t
 bitset_index(BitSet* bs, int32_t idx) {
   idx = WRAP_NUM(idx, (signed)bs->len);
 
@@ -29,7 +31,7 @@ bitset_index(BitSet* bs, int32_t idx) {
   assert(idx < bs->len);
 
   return idx;
-}
+}*/
 
 bool
 bitset_at(BitSet* bs, int32_t idx) {
