@@ -78,7 +78,7 @@ dbuf_0(DynBuf* db) {
 
 static inline void
 dbuf_zero(DynBuf* db) {
-  dbuf_realloc(db, 0);
+  // dbuf_realloc(db, 0);
   db->size = 0;
 }
 

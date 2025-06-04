@@ -80,20 +80,22 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
   switch(magic) {
     case JSON_PARSER_PARSE: {
-      JsonParseState state = json_parse(parser, ctx);
+      JsonValueType type = json_parse(parser, ctx);
       ret = JS_NewString(ctx,
                          (const char*[]){
-                             "EOF",
-                             "error",
-                             "waitingfirstchar",
-                             "parsing",
-                             "parsing-object",
-                             "parsing-array",
-                             "parsing-string",
-                             "parsing-primitive",
-                             "expecting-comma-or-end",
-                             "expecting-colon",
-                         }[state + 2]);
+                             "NONE",
+                             "OBJECT",
+                             "OBJECT_END",
+                             "ARRAY",
+                             "ARRAY_END",
+                             "KEY",
+                             "STRING",
+                             "TRUE",
+                             "FALSE",
+                             "NULL",
+                             "NUMBER",
+
+                         }[type + 1]);
       break;
     }
   }
@@ -102,13 +104,10 @@ js_json_parser_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 }
 
 enum {
-  JSON_PARSER_STATE,
-  JSON_PARSER_TYPE,
-  JSON_PARSER_BUF,
-  JSON_PARSER_UNGET,
   JSON_PARSER_CALLBACK,
   JSON_PARSER_POS,
-  JSON_PARSER_STACK,
+  JSON_PARSER_TOKEN,
+  JSON_PARSER_STATE,
 };
 
 static JSValue
@@ -120,80 +119,20 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
     return JS_EXCEPTION;
 
   switch(magic) {
-    case JSON_PARSER_STATE: {
-     /* ret = JS_NewString(ctx,
-                         (const char*[]){
-                             "EOF",
-                             "error",
-                             "waitingfirstchar",
-                             "parsing",
-                             "parsing-object",
-                             "parsing-array",
-                             "parsing-string",
-                             "parsing-primitive",
-                             "expecting-comma-or-end",
-                             "expecting-colon",
-                         }[parser->stack->state + 2]);*/
-      break;
-    }
-    case JSON_PARSER_TYPE: {
-      /*ret = JS_NewString(ctx,
-                         (const char*[]){
-                             "none",
-                             "object",
-                             "object-end",
-                             "array",
-                             "array-end",
-                             "key",
-                             "string",
-                             "true",
-                             "false",
-                             "null",
-                             "number",
-                         }[parser->stack->type + 1]);*/
-      break;
-    }
-    case JSON_PARSER_STACK: {
-     if(parser->stack) {
-      ret = JS_NewArray(ctx);
-
-      struct JsonParserStack* st;
-      uint32_t n = 0, i = 0;
-
-      for(st = parser->stack; st; st = st->parent)
-        ++n;
-
-      for(st = parser->stack; st; st = st->parent) {
-        ++i;
-
-        JSValue item = JS_NewObjectProto(ctx, JS_NULL);
-
-        JS_SetPropertyStr(ctx, item, "state", JS_NewInt32(ctx, st->state));
-        JS_SetPropertyStr(ctx, item, "type", JS_NewInt32(ctx, st->type));
-
-        JS_SetPropertyUint32(ctx, ret, n - i, item);
-
-        st = st->parent;
-      }
-}
-
-      break;
-    }
-    case JSON_PARSER_BUF: {
-      if(parser->unget)
-        ret = JS_NewArrayBufferCopy(ctx, parser->buf.base, MIN_NUM(parser->unget, parser->buf.size));
-      break;
-    }
-    case JSON_PARSER_UNGET: {
-      ret = JS_NewUint32(ctx, parser->unget);
-      break;
-    }
     case JSON_PARSER_CALLBACK: {
       ret = parser->opaque ? JS_DupValue(ctx, js_value_mkobj(parser->opaque)) : JS_NULL;
       break;
     }
     case JSON_PARSER_POS: {
       ret = JS_NewUint32(ctx, parser->pos);
+      break;
+    }
+    case JSON_PARSER_TOKEN: {
+      ret = JS_NewStringLen(ctx, parser->token.buf, parser->token.size);
+      break;
+    }
+    case JSON_PARSER_STATE: {
+      ret = JS_NewInt32(ctx, parser->state);
       break;
     }
   }
@@ -271,13 +210,10 @@ js_json_parser_finalizer(JSRuntime* rt, JSValue obj) {
 
 static const JSCFunctionListEntry js_json_parser_proto_funcs[] = {
     JS_CFUNC_MAGIC_DEF("parse", 0, js_json_parser_method, JSON_PARSER_PARSE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("state", js_json_parser_get, 0, JSON_PARSER_STATE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_FLAGS_DEF("type", js_json_parser_get, 0, JSON_PARSER_TYPE, JS_PROP_ENUMERABLE),
-    JS_CGETSET_MAGIC_DEF("buf", js_json_parser_get, 0, JSON_PARSER_BUF),
-    JS_CGETSET_MAGIC_DEF("unget", js_json_parser_get, 0, JSON_PARSER_UNGET),
     JS_CGETSET_MAGIC_FLAGS_DEF("pos", js_json_parser_get, 0, JSON_PARSER_POS, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("token", js_json_parser_get, 0, JSON_PARSER_TOKEN, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("state", js_json_parser_get, 0, JSON_PARSER_STATE, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("callback", js_json_parser_get, js_json_parser_set, JSON_PARSER_CALLBACK),
-    JS_CGETSET_MAGIC_DEF("stack", js_json_parser_get, 0, JSON_PARSER_STACK),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonParser", JS_PROP_CONFIGURABLE),
 };
 

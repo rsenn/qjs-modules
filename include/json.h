@@ -26,37 +26,29 @@ typedef enum {
 typedef enum {
   JSON_STATE_EOF = -2,
   JSON_STATE_ERROR = -1,
-  JSON_STATE_WAITINGFIRSTCHAR = 0,
-  JSON_STATE_PARSING,
-  JSON_STATE_PARSING_OBJECT,
-  JSON_STATE_PARSING_ARRAY,
-  JSON_STATE_PARSING_STRING,
-  JSON_STATE_PARSING_PRIMITIVE,
-  JSON_STATE_EXPECTING_COMMA_OR_END,
-  JSON_STATE_EXPECTING_COLON,
+  JSON_STATE_PARSING = 0,
+  JSON_STATE_PARSING_ARRAY = 0b1,
+  JSON_STATE_PARSING_OBJECT_KEY = 0b10,
+  JSON_STATE_PARSING_OBJECT_VALUE = 0b11,
+  JSON_STATE_PARSING_OBJECT = 0b11,
+  JSON_STATE_EXPECTING_COMMA_OR_END = 0b100,
+  JSON_STATE_EXPECTING_COLON = 0b1000,
 } JsonParseState;
 
 typedef struct JsonParser JsonParser;
 
 typedef void JsonCallback(JsonParser*, JsonValueType value, void*);
 
-struct JsonParserStack {
-  JsonParseState state;
-  JsonValueType type;
-  struct JsonParserStack* parent;
-};
-
 struct JsonParser {
   int ref_count;
-  /*  JsonParseState state;
-    JsonValueType type;*/
+  JsonParseState state;
   Reader reader;
-  MemoryBlock buf;
-  size_t unget;
+  DynBuf token;
   JsonCallback* callback;
   void* opaque;
+  int pushback;
   uint32_t pos;
-  uint8_t *stack;
+  uint8_t* stack;
   uint32_t depth;
 };
 
@@ -66,8 +58,7 @@ void json_free(JsonParser*, JSRuntime*);
 void json_clear(JsonParser*, JSRuntime*);
 JsonParser* json_dup(JsonParser*);
 int json_getc(JsonParser*);
-uint8_t* json_peek(JsonParser*, size_t, JSContext*);
-BOOL json_ungetc(JsonParser*, int, JSContext*);
+int json_ungetc(JsonParser*, char);
 int json_parse(JsonParser*, JSContext*);
 
 /*static inline int
