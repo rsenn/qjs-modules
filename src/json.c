@@ -213,7 +213,7 @@ json_parse(JsonParser* json, JSContext* ctx) {
       }
 
       case '"': {
-        dbuf_zero(&json->token);
+        // dbuf_zero(&json->token);
 
         while((c = json_getc(json)) >= 0) {
           if(c == '\\') {
@@ -225,7 +225,7 @@ json_parse(JsonParser* json, JSContext* ctx) {
 
           } else if(c == '"') {
 
-            json->token.size -= 1;
+            // json->token.size -= 1;
 
             if((json->state & PARSING_OBJECT) == PARSING_OBJECT_KEY) {
               json->state &= ~PARSING_OBJECT;
@@ -277,9 +277,9 @@ json_parse(JsonParser* json, JSContext* ctx) {
   }
 
 end:
-  if(ret == JSON_TYPE_NONE)
+  /*if(ret == JSON_TYPE_NONE)
     if(c < 0)
-      return c;
+      return c;*/
 
   return ret;
 
