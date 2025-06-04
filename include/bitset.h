@@ -2,9 +2,11 @@
 #define BITSET_H
 
 #include "buffer-utils.h"
+#include <stdbool.h>
+#include <stdint.h>
 
 typedef struct {
-  uint8_t* buf;
+  uint8_t* ptr;
   size_t len;
 } BitSet;
 
@@ -19,5 +21,6 @@ bool bitset_assign(BitSet*, int, bool);
 bool bitset_toggle(BitSet*, int);
 void bitset_free(BitSet*);
 bool bitset_push(BitSet*, int, size_t);
+int bitset_pop(BitSet*, size_t);
 
 #endif /* defined(BITSET) */

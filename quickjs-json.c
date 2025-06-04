@@ -108,6 +108,7 @@ enum {
   JSON_PARSER_POS,
   JSON_PARSER_TOKEN,
   JSON_PARSER_STATE,
+  JSON_PARSER_DEPTH,
 };
 
 static JSValue
@@ -133,6 +134,10 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
     }
     case JSON_PARSER_STATE: {
       ret = JS_NewInt32(ctx, parser->state);
+      break;
+    }
+    case JSON_PARSER_DEPTH: {
+      ret = JS_NewUint32(ctx, parser->stack.len);
       break;
     }
   }
@@ -213,6 +218,7 @@ static const JSCFunctionListEntry js_json_parser_proto_funcs[] = {
     JS_CGETSET_MAGIC_FLAGS_DEF("pos", js_json_parser_get, 0, JSON_PARSER_POS, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("token", js_json_parser_get, 0, JSON_PARSER_TOKEN, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_FLAGS_DEF("state", js_json_parser_get, 0, JSON_PARSER_STATE, JS_PROP_ENUMERABLE),
+    JS_CGETSET_MAGIC_FLAGS_DEF("depth", js_json_parser_get, 0, JSON_PARSER_DEPTH, JS_PROP_ENUMERABLE),
     JS_CGETSET_MAGIC_DEF("callback", js_json_parser_get, js_json_parser_set, JSON_PARSER_CALLBACK),
     JS_PROP_STRING_DEF("[Symbol.toStringTag]", "JsonParser", JS_PROP_CONFIGURABLE),
 };

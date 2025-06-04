@@ -1,7 +1,6 @@
 #include "bitset.h"
 #include <assert.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 #define bitset_BYTE(bs, bit) ((bs)->ptr[(bit) >> 3])
 #define bitset_INDEX(bs, idx) WRAP_NUM((idx), (signed)(bs)->len)
@@ -25,7 +24,7 @@ bitset_resize(BitSet* bs, size_t bits) {
 
 bool
 bitset_isset(BitSet* bs, int idx) {
-  size_t bit = bitset_INDEX(idx);
+  size_t bit = bitset_INDEX(bs, idx);
   assert(bit < bs->len);
   uint8_t b = bitset_BYTE(bs, bit);
 
@@ -34,7 +33,7 @@ bitset_isset(BitSet* bs, int idx) {
 
 bool
 bitset_assign(BitSet* bs, int idx, bool value) {
-  size_t bit = bitset_INDEX(idx);
+  size_t bit = bitset_INDEX(bs, idx);
 
   if(bit >= bs->len)
     if(!bitset_resize(bs, bit + 1))
@@ -51,7 +50,7 @@ bitset_assign(BitSet* bs, int idx, bool value) {
 
 bool
 bitset_toggle(BitSet* bs, int idx) {
-  size_t bit = bitset_INDEX(idx);
+  size_t bit = bitset_INDEX(bs, idx);
   assert(bit < bs->len);
   uint8_t* b = &bitset_BYTE(bs, bit);
   uint8_t mask = 1 << (bit & 7);
@@ -74,6 +73,21 @@ bitset_push(BitSet* bs, int bits, size_t num_bits) {
   }
 
   return true;
+}
+
+int
+bitset_pop(BitSet* bs, size_t num_bits) {
+  int ret = 0;
+
+  while(bs->len > 0) {
+    ret <<= 1;
+
+    ret |= bitset_isset(bs, bs->len - 1);
+
+    --bs->len;
+  }
+
+  return ret;
 }
 
 void

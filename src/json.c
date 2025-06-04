@@ -167,13 +167,18 @@ json_parse(JsonParser* json, JSContext* ctx) {
         goto end;
       }
 
-      case '}': {
-        ret = JSON_TYPE_OBJECT_END;
-        goto end;
-      }
-
+      case '}':
       case ']': {
-        ret = JSON_TYPE_ARRAY_END;
+        ret = c == '}' ? JSON_TYPE_OBJECT_END : JSON_TYPE_ARRAY_END;
+
+        json->state &= ~(PARSING_OBJECT | PARSING_ARRAY);
+
+        if(bitset_pop(&json->stack, 1)) {
+          json->state |= PARSING_OBJECT_KEY;
+        } else {
+          json->state |= PARSING_ARRAY;
+        }
+
         goto end;
       }
     }
