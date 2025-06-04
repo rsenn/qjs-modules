@@ -26,7 +26,6 @@ bitset_byte(BitSet* bs, size_t bit) {
 
 bool
 bitset_at(BitSet* bs, int32_t idx) {
-
   idx = WRAP_NUM(idx, (signed)bs->len);
 
   assert(idx >= 0);
