@@ -70,7 +70,7 @@ uint8_t* json_peek(JsonParser*, size_t, JSContext*);
 BOOL json_ungetc(JsonParser*, int, JSContext*);
 int json_parse(JsonParser*, JSContext*);
 
-static inline int
+/*static inline int
 json_push(JsonParser* parser, JsonParseState state, JsonValueType type) {
   struct JsonParserStack* st;
 
@@ -94,7 +94,7 @@ json_pop(JsonParser* parser) {
 
   free(st);
   return ret;
-}
+}*/
 
 static inline int
 json_skip(JsonParser* parser, size_t n) {
