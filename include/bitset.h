@@ -18,5 +18,6 @@ bool bitset_isset(BitSet*, int);
 bool bitset_assign(BitSet*, int, bool);
 bool bitset_toggle(BitSet*, int);
 void bitset_free(BitSet*);
+bool bitset_push(BitSet*, int, size_t);
 
 #endif /* defined(BITSET) */

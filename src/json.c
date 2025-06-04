@@ -45,6 +45,8 @@ json_init(JsonParser* json, JSValueConst input, JSContext* ctx) {
 
   json->state = PARSING;
 
+  json->stack = BITSET_INIT();
+
   // js_dbuf_init(ctx, &json->token);
   dbuf_init2(&json->token, 0, 0);
 
@@ -153,12 +155,14 @@ json_parse(JsonParser* json, JSContext* ctx) {
     switch(c) {
       case '{': {
         json->state = PARSING_OBJECT_KEY;
+        bitset_push(&json->stack, 1, 1);
         ret = JSON_TYPE_OBJECT;
         goto end;
       }
 
       case '[': {
         json->state = PARSING_ARRAY;
+        bitset_push(&json->stack, 0, 1);
         ret = JSON_TYPE_ARRAY;
         goto end;
       }

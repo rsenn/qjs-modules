@@ -3,6 +3,7 @@
 
 #include "stream-utils.h"
 #include "buffer-utils.h"
+#include "bitset.h"
 
 /**
  * \defgroup json json: JSON parser
@@ -36,8 +37,7 @@ struct JsonParser {
   void* opaque;
   int pushback;
   uint32_t pos;
-  uint8_t* stack;
-  uint32_t depth;
+  BitSet stack;
 };
 
 BOOL json_init(JsonParser*, JSValueConst, JSContext*);
