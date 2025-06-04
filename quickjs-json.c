@@ -121,7 +121,7 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
   switch(magic) {
     case JSON_PARSER_STATE: {
-      ret = JS_NewString(ctx,
+     /* ret = JS_NewString(ctx,
                          (const char*[]){
                              "EOF",
                              "error",
@@ -133,11 +133,11 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
                              "parsing-primitive",
                              "expecting-comma-or-end",
                              "expecting-colon",
-                         }[parser->stack->state + 2]);
+                         }[parser->stack->state + 2]);*/
       break;
     }
     case JSON_PARSER_TYPE: {
-      ret = JS_NewString(ctx,
+      /*ret = JS_NewString(ctx,
                          (const char*[]){
                              "none",
                              "object",
@@ -150,7 +150,7 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
                              "false",
                              "null",
                              "number",
-                         }[parser->stack->type + 1]);
+                         }[parser->stack->type + 1]);*/
       break;
     }
     case JSON_PARSER_STACK: {

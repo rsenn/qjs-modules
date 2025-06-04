@@ -4,7 +4,7 @@
 
 static int
 json_error(JsonParser* json) {
-  json->stack->state = JSON_STATE_ERROR;
+  //json->stack->state = JSON_STATE_ERROR;
   return -1;
 }
 
@@ -96,8 +96,8 @@ json_getc(JsonParser* json) {
   } else {
     c = reader_getc(&json->reader);
 
-    if(c == READER_EOF)
-      json->stack->state = JSON_STATE_EOF;
+    //if(c == READER_EOF)
+      //json->stack->state = JSON_STATE_EOF;
 
     if(c == READER_ERROR)
       return json_error(json);
@@ -147,7 +147,7 @@ json_ungetc(JsonParser* json, int c, JSContext* ctx) {
 int
 json_parse(JsonParser* json, JSContext* ctx) {
   int c;
-  JsonParseState prev_state = json->stack ? json->stack->state : JSON_STATE_WAITINGFIRSTCHAR;
+  JsonParseState prev_state = /*json->stack ? json->stack->state : */JSON_STATE_WAITINGFIRSTCHAR;
   JsonValueType type = JSON_TYPE_NONE;
   uint8_t* ptr;
 
@@ -157,8 +157,6 @@ json_parse(JsonParser* json, JSContext* ctx) {
   DynBuf db = DBUF_INIT_CTX(ctx);
 
 again:
-  switch(json->stack ? json->stack->state : JSON_STATE_WAITINGFIRSTCHAR) {
-    case JSON_STATE_WAITINGFIRSTCHAR: {
 
       if((c = json_getc(json)) < 0)
         goto end;
@@ -216,7 +214,7 @@ again:
         }
       }
 
-      break;
+   /*   break;
     }
     case JSON_STATE_PARSING_OBJECT: {
 
@@ -234,7 +232,7 @@ again:
       break;
     }
     case JSON_STATE_PARSING: {
-      switch(json->stack->type) {
+      //switch(json->stack->type) {
         case JSON_TYPE_OBJECT: {
           break;
         }
@@ -263,12 +261,12 @@ again:
           break;
 
         if(c == '"' && prev != '\\') {
-          type = json->stack->type;
+          //type = json->stack->type;
 
           if(type == JSON_TYPE_KEY)
-            json->stack->state = JSON_STATE_EXPECTING_COLON;
+            //json->stack->state = JSON_STATE_EXPECTING_COLON;
 
-          // json_push(json, json->stack->type == JSON_TYPE_KEY ? JSON_STATE_EXPECTING_COLON :
+          //// json_push(json, json->stack->type == JSON_TYPE_KEY ? JSON_STATE_EXPECTING_COLON :
           // JSON_STATE_EXPECTING_COMMA_OR_END, JSON_TYPE_STRING);
           break;
         }
@@ -290,7 +288,7 @@ again:
       if(c == READER_EOF) {
         json_pop(json);
       } else if(c == ',') {
-        json_push(json, JSON_STATE_PARSING, json->stack->type);
+        //json_push(json, JSON_STATE_PARSING, json->stack->type);
       } else {
         json_error(json);
       }
@@ -299,7 +297,7 @@ again:
     case JSON_STATE_EXPECTING_COLON: {
       if((c = json_getc(json)) >= 0 && c == ':') {
 
-        json->stack->state = JSON_STATE_PARSING_OBJECT;
+        //json->stack->state = JSON_STATE_PARSING_OBJECT;
         goto again;
       } else {
         json_error(json);
@@ -307,7 +305,7 @@ again:
 
       break;
     }
-  }
+  }*/
 
 end:
   // if(json->state != JSON_STATE_ERROR)
@@ -315,7 +313,7 @@ end:
   // if(prev_state != JSON_STATE_WAITINGFIRSTCHAR)
 
   if(type == JSON_TYPE_KEY)
-    json->stack->state = JSON_STATE_EXPECTING_COLON;
+    //json->stack->state = JSON_STATE_EXPECTING_COLON;
 
   if(json->callback) {
     if(db.size)
@@ -326,7 +324,7 @@ end:
 
   dbuf_free(&db);
 
-  return json->stack->state;
+  //return json->stack->state;
 }
 
 /**
