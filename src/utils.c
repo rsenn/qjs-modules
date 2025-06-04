@@ -889,6 +889,52 @@ js_function_return_undefined(JSContext* ctx) {
   return js_function_return_value(ctx, JS_UNDEFINED);
 }
 
+BOOL
+js_callback3(JSContext* ctx, JSCallback* ret, JSValueConst arg) {
+  if(!JS_IsFunction(ctx, arg)) {
+    JS_ThrowTypeError(ctx, "must be a function");
+    return FALSE;
+  }
+
+  *ret = (JSCallback){JS_DupContext(ctx), js_value_obj(JS_DupValue(ctx, arg))};
+  return TRUE;
+}
+
+JSCallback*
+js_callback(JSContext* ctx, JSValueConst arg) {
+  JSCallback* ret;
+
+  if(!(ret = js_malloc(ctx, sizeof(JSCallback))))
+    return ret;
+
+  if(!js_callback3(ctx, ret, arg)) {
+    js_free(ctx, ret);
+    return NULL;
+  }
+
+  return ret;
+}
+
+void
+js_callback_free(JSCallback* cb) {
+  JSContext* ctx;
+
+  if((ctx = cb->ctx)) {
+    if(cb->obj) {
+      JS_FreeValue(ctx, js_value_mkobj(cb->obj));
+      cb->obj = NULL;
+    }
+
+    cb->ctx = NULL;
+    JS_FreeContext(ctx);
+  }
+}
+
+JSValue
+js_callback_call_this(JSCallback* cb, JSValueConst this_obj, int argc, JSValueConst argv[]) {
+  return JS_Call(cb->ctx, js_value_mkobj(cb->obj), this_obj, argc, argv);
+}
+
 JSValue
 js_global_get_str(JSContext* ctx, const char* prop) {
   JSValue global_obj = JS_GetGlobalObject(ctx);
@@ -1378,6 +1424,18 @@ js_get_propertyint_float64(JSContext* ctx, JSValueConst obj, uint32_t prop) {
   return ret;
 }
 
+char*
+js_get_propertyint_string(JSContext* ctx, JSValueConst obj, uint32_t prop) {
+  char* ret;
+  JSValue value = JS_GetPropertyUint32(ctx, obj, prop);
+
+  if(JS_IsUndefined(value) || JS_IsException(value))
+    return 0;
+
+  ret = js_tostring(ctx, value);
+  JS_FreeValue(ctx, value);
+  return ret;
+}
 char*
 js_get_property_string(JSContext* ctx, JSValueConst obj, JSAtom prop) {
   char* ret;

@@ -746,6 +746,12 @@ js_atom_equal_string(JSContext* ctx, JSAtom atom, const char* other) {
 
 const char* js_object_tostring(JSContext*, JSValueConst value);
 const char* js_object_tostring2(JSContext*, JSValueConst method, JSValueConst value);
+
+typedef struct {
+  JSContext* ctx;
+  JSObject* obj;
+} JSCallback;
+
 const char* js_function_name(JSContext*, JSValueConst value);
 
 BOOL js_function_isasync(JSContext*, JSValueConst);
@@ -761,6 +767,16 @@ JSValue js_function_throw(JSContext*, JSValue err);
 JSValue js_function_return_undefined(JSContext*);
 JSValue js_function_return_value(JSContext*, JSValue value);
 JSValue js_function_prototype(JSContext*);
+
+BOOL js_callback3(JSContext*, JSCallback*, JSValueConst);
+JSCallback* js_callback(JSContext*, JSValueConst);
+void js_callback_free(JSCallback*);
+JSValue js_callback_call_this(JSCallback*, JSValueConst, int, JSValueConst[]);
+
+static inline JSValue
+js_callback_call(JSCallback* cb, int argc, JSValueConst argv[]) {
+  return js_callback_call_this(cb, JS_UNDEFINED, argc, argv);
+}
 
 typedef JSValue CClosureFunc(JSContext*, JSValueConst, int, JSValueConst[], int, void*);
 typedef void FinalizerFunc(JSRuntime*, void*);
@@ -870,6 +886,7 @@ const char* js_get_propertyint_cstring(JSContext*, JSValueConst obj, uint32_t i)
 int32_t js_get_propertyint_int32(JSContext*, JSValueConst obj, uint32_t i);
 int64_t js_get_propertyint_int64(JSContext*, JSValueConst obj, uint32_t i);
 double js_get_propertyint_float64(JSContext*, JSValueConst obj, uint32_t i);
+char* js_get_propertyint_string(JSContext*, JSValueConst, uint32_t);
 const char* js_get_propertystr_cstring(JSContext*, JSValueConst obj, const char* prop);
 const char* js_get_propertystr_cstringlen(JSContext*, JSValueConst obj, const char* prop, size_t* lenp);
 const char* js_get_property_cstring(JSContext*, JSValueConst obj, JSAtom prop);

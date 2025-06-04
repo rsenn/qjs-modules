@@ -413,7 +413,7 @@ BOOL input_buffer_valid(const InputBuffer* in);
 void input_buffer_dump(const InputBuffer* in, DynBuf* db);
 void input_buffer_free(InputBuffer* in, JSContext* ctx);
 
-static inline uint8_t*
+static inline void*
 input_buffer_data(const InputBuffer* in) {
   return offsetlength_data(in->range, in->data);
 }

@@ -664,7 +664,7 @@ input_buffer_currentline(InputBuffer* in, size_t* len) {
   if(len)
     *len = in->pos - i;
 
-  return (const char*)&input_buffer_data(in)[i];
+  return (const char*)&input_buffer_begin(in)[i];
 }
 
 size_t
