@@ -4,15 +4,15 @@
 
 bool
 bitset_resize(BitSet* bs, size_t bits) {
-  size_t old = (bs->len + 7) >> 3;
-  size_t new = (bits + 7) >> 3;
+  size_t bytes = (bs->len + 7) >> 3;
+  size_t need = (bits + 7) >> 3;
 
-  if(new > old || bs->ptr == 0) {
-    if(!(bs->ptr = realloc(bs->ptr, new)))
+  if(need > bytes || bs->ptr == 0) {
+    if(!(bs->ptr = realloc(bs->ptr, need)))
       return false;
 
-    if(new > old)
-      memset(&bs->ptr[old], 0, new - old);
+    if(need > bytes)
+      memset(&bs->ptr[bytes], 0, need - bytes);
   }
 
   bs->len = bits;
@@ -27,31 +27,37 @@ bitset_resize(BitSet* bs, size_t bits) {
 bitset_index(BitSet* bs, int32_t idx) {
   idx = WRAP_NUM(idx, (signed)bs->len);
 
-  assert(idx >= 0);
-  assert(idx < bs->len);
+  assert(idx >= 0);  assert(idx < bs->len);
 
   return idx;
 }*/
 
 bool
-bitset_at(BitSet* bs, int32_t idx) {
+bitset_isset(BitSet* bs, int idx) {
   size_t bit = bitset_index(idx);
   uint8_t b = bitset_byte(bs, bit);
 
   return (b >> (bit & 7)) & 1;
 }
 
-void
-bitset_assign(BitSet* bs, int32_t idx, bool value) {
+bool
+bitset_assign(BitSet* bs, int idx, bool value) {
   size_t bit = bitset_index(idx);
+
+  if(bit >= bs->len) {
+    if(!bitset_resize(bs, bit + 1))
+      return false;
+  }
+
   uint8_t* b = &bitset_byte(bs, bit);
   uint8_t mask = 1 << (bit & 7);
 
   (*b) = value ? (*b) | mask : (*b) & (~mask);
+  return true;
 }
 
 bool
-bitset_toggle(BitSet* bs, int32_t idx) {
+bitset_toggle(BitSet* bs, int idx) {
   size_t bit = bitset_index(idx);
   uint8_t* b = &bitset_byte(bs, bit);
   uint8_t mask = 1 << (bit & 7);
@@ -70,3 +76,4 @@ bitset_free(BitSet* bs) {
 
   bs->len = 0;
 }
+§§
