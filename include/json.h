@@ -56,7 +56,8 @@ struct JsonParser {
   JsonCallback* callback;
   void* opaque;
   uint32_t pos;
-  struct JsonParserStack* stack;
+  uint8_t *stack;
+  uint32_t depth;
 };
 
 BOOL json_init(JsonParser*, JSValueConst, JSContext*);
