@@ -142,7 +142,7 @@ connectparams_fromobj(JSContext* ctx, PGSQLConnectParameters* c, JSValueConst ob
   c->values[i] = NULL;
 
   js_propertyenums_free(ctx, tmp_tab, tmp_len);
-}
+ }
 
 static void
 connectparams_init(JSContext* ctx, PGSQLConnectParameters* c, int argc, JSValueConst argv[]) {
@@ -383,7 +383,7 @@ js_pgconn_print_values(JSContext* ctx, PGSQLConnection* pq, DynBuf* out, JSValue
       JS_FreeValue(ctx, item);
     }
     dbuf_putc(out, ')');
-    js_propertyenums_free(ctx, tmp_tab, tmp_len);
+    js_propertyenums_clear(ctx, tmp_tab, tmp_len);
   }*/
 }
 

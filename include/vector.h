@@ -18,7 +18,7 @@
  * @{
  */
 #define roundto(n, mod) (((n) = (((n) + (mod)-1))), n = (n) - ((uint64_t)(n) % (uint64_t)(mod)))
- 
+
 typedef DynBuf Vector;
 
 #define VECTOR_INIT() \

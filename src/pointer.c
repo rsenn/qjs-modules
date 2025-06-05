@@ -676,13 +676,13 @@ deref_key(JSContext* ctx, JSValueConst obj, JSAtom atom) {
         if(match) {
           JSAtom key = JS_DupAtom(ctx, tmp_tab[i].atom);
           JS_FreeValue(ctx, value);
-          js_propertyenums_free(ctx, tmp_tab, tmp_len);
+          js_propertyenums_clear(ctx, tmp_tab, tmp_len);
           orig_js_free(ctx, tmp_tab);
           return key;
         }
       }
 
-      js_propertyenums_free(ctx, tmp_tab, tmp_len);
+      js_propertyenums_clear(ctx, tmp_tab, tmp_len);
       orig_js_free(ctx, tmp_tab);
     }
   }

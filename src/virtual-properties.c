@@ -249,9 +249,11 @@ array_find(const VirtualProperties* vp, JSContext* ctx, JSValueConst prop) {
       JSValue key = JS_GetPropertyUint32(ctx, entry, 0);
       JS_FreeValue(ctx, entry);
 
-      BOOL ret = js_value_equals(ctx, key, prop, FALSE);
+      int ret = js_value_equals(ctx, key, prop, FALSE);
       JS_FreeValue(ctx, key);
 
+      if(ret < 0)
+        break;
       if(ret)
         return i;
     }

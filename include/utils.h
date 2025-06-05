@@ -80,7 +80,7 @@ typedef struct {
 } Arguments;
 
 typedef void* realloc_func(void*, void*, size_t);
-typedef BOOL JSValueCompareFunc(JSContext*, JSValueConst, JSValueConst, BOOL);
+typedef int JSValueCompareFunc(JSContext*, JSValueConst, JSValueConst, BOOL);
 
 void* utils_js_realloc(JSContext*, void* ptr, size_t size);
 void* utils_js_realloc_rt(JSRuntime*, void* ptr, size_t size);
@@ -458,7 +458,7 @@ BOOL js_value_has_ref_count(JSValueConst v);
 void js_value_free(JSContext*, JSValue v);
 void js_value_free_rt(JSRuntime*, JSValue v);
 
-BOOL js_value_equals(JSContext*, JSValueConst a, JSValueConst b, BOOL deep);
+int js_value_equals(JSContext*, JSValueConst a, JSValueConst b, BOOL deep);
 void js_value_print(JSContext*, JSValueConst value);
 JSValue js_value_clone(JSContext*, JSValueConst valpe);
 JSValue* js_values_dup(JSContext*, int nvalues, JSValueConst* values);
@@ -616,7 +616,12 @@ js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
   return ret;
 }
 
-void js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len);
+void js_propertyenums_clear(JSContext* ctx, JSPropertyEnum* props, size_t len);
+
+static inline void js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
+  js_propertyenums_clear(ctx, props, len);
+  js_free(ctx, props);
+}
 
 static inline void
 js_propertydescriptor_free(JSContext* ctx, JSPropertyDescriptor* desc) {
@@ -648,8 +653,9 @@ JSValue js_iterator_next(JSContext*, JSValueConst obj, BOOL* done_p);
 JSValue js_iterator_result(JSContext*, JSValue value, BOOL done);
 JSValue js_iterator_then(JSContext*, BOOL done);
 JSValue js_symbol_for(JSContext*, const char* sym_for);
+JSValue js_symbol_keyfor(JSContext* ctx, JSValueConst sym);
 JSAtom js_symbol_for_atom(JSContext*, const char* sym_for);
-
+ 
 JSValue js_symbol_operatorset_value(JSContext*);
 
 JSAtom js_symbol_operatorset_atom(JSContext*);

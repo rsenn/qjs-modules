@@ -273,7 +273,9 @@ predicate_eval(Predicate* pr, JSContext* ctx, JSArguments* args) {
       if(js_arguments_count(args) > 0)
         deep = JS_ToBool(ctx, js_arguments_at(args, 0));
 
-      ret = JS_NewBool(ctx, js_value_equals(ctx, other, pr->unary.predicate, deep));
+      int eq = js_value_equals(ctx, other, pr->unary.predicate, deep);
+
+      ret = eq < 0 ? JS_ThrowInternalError(ctx, "js_value_equals returned -1") : JS_NewBool(ctx, eq);
       break;
     }
 

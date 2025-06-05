@@ -824,8 +824,10 @@ js_list_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
             if(js_toint32_free(ctx, ret))
               break;
-          } else if(!js_value_equals(ctx, node->value, node->next->value, FALSE))
-            break;
+          } else {
+            if(0 >= js_value_equals(ctx, node->value, node->next->value, FALSE))
+              break;
+          }
 
           list_remove(list, node->next, ctx);
         }
@@ -947,14 +949,15 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
       BOOL result = FALSE;
 
       for(n1 = list->head, n2 = list->tail; n1 != &list->node && n2 != &list->node; n1 = n1->next, n2 = n2->prev) {
-        if(js_value_equals(ctx, n1->value, argv[0], FALSE) ||
-           (n1 != n2 && js_value_equals(ctx, n2->value, argv[0], FALSE))) {
+        if(js_value_equals(ctx, n1->value, argv[0], FALSE) > 0 ||
+           (n1 != n2 && js_value_equals(ctx, n2->value, argv[0], FALSE) > 0)) {
           result = TRUE;
           break;
         }
 
         if(n1 == n2)
           break;
+
         if(n1->next == n2 || n2->prev == n1)
           break;
       }
@@ -965,7 +968,7 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case LIST_INDEX_OF: {
       Node* n;
 
-      list_for_each(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) break;
+      list_for_each(n, &list->node) if(0 < js_value_equals(ctx, n->value, argv[0], FALSE)) break;
 
       ret = js_list_iterator_new(ctx, n, &list->node, NORMAL);
       break;
@@ -973,7 +976,7 @@ js_list_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     case LIST_LAST_INDEX_OF: {
       Node* n;
 
-      list_for_each_prev(n, &list->node) if(js_value_equals(ctx, n->value, argv[0], FALSE)) break;
+      list_for_each_prev(n, &list->node) if(0 < js_value_equals(ctx, n->value, argv[0], FALSE)) break;
 
       ret = js_list_iterator_new(ctx, n, &list->node, REVERSE);
       break;

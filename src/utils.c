@@ -1171,30 +1171,33 @@ js_object_classname(JSContext* ctx, JSValueConst value) {
   return name;
 }
 
-BOOL
+int
 js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
-  JSPropertyEnum *atoms_a, *atoms_b;
+  JSPropertyEnum *atoms_a = 0, *atoms_b = 0;
   uint32_t natoms_a, natoms_b;
   int32_t ta = js_value_type(ctx, a), tb = js_value_type(ctx, b);
+  int ret = -1;
 
   assert(ta == TYPE_OBJECT);
   assert(tb == TYPE_OBJECT);
 
   if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
-    return FALSE;
+    goto end;
 
   if(JS_GetOwnPropertyNames(ctx, &atoms_b, &natoms_b, b, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
-    return FALSE;
+    goto end;
+
+  ret = 0;
 
   if(natoms_a != natoms_b)
-    return FALSE;
+    goto end;
 
   quicksort_r(&atoms_a, natoms_a, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
   quicksort_r(&atoms_b, natoms_b, sizeof(JSPropertyEnum), &js_propenum_cmp, ctx);
 
   for(uint32_t i = 0; i < natoms_a; i++) {
     if(atoms_a[i].atom != atoms_b[i].atom)
-      return FALSE;
+      goto end;
 
     JSValue prop_a = JS_GetProperty(ctx, a, atoms_a[i].atom);
     JSValue prop_b = JS_GetProperty(ctx, b, atoms_b[i].atom);
@@ -1205,10 +1208,17 @@ js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
     JS_FreeValue(ctx, prop_b);
 
     if(!ret)
-      return FALSE;
+      goto end;
   }
 
-  return TRUE;
+  ret = 1;
+
+end:
+  if(atoms_a)
+    js_propertyenums_free(ctx, atoms_a, natoms_a);
+  if(atoms_b)
+    js_propertyenums_free(ctx, atoms_b, natoms_b);
+  return ret;
 }
 
 BOOL
@@ -1723,7 +1733,7 @@ js_propenum_cmp(const void* a, const void* b, void* ptr) {
 }
 
 void
-js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
+js_propertyenums_clear(JSContext* ctx, JSPropertyEnum* props, size_t len) {
   for(uint32_t i = 0; i < len; i++)
     JS_FreeAtom(ctx, props[i].atom);
   // js_free(ctx, props);
@@ -1852,6 +1862,11 @@ js_symbol_for(JSContext* ctx, const char* sym_for) {
   JSValue sym = js_symbol_invoke_static(ctx, "for", key);
   JS_FreeValue(ctx, key);
   return sym;
+}
+
+JSValue
+js_symbol_keyfor(JSContext* ctx, JSValueConst sym) {
+  return js_symbol_invoke_static(ctx, "keyFor", sym);
 }
 
 JSAtom
@@ -2035,14 +2050,13 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
   JSValue ret = JS_UNDEFINED;
 
   switch(type) {
-      /*case TYPE_STRING: {
-        size_t len;
-        const char* str;
-        str = JS_ToCStringLen(ctx, &len, value);
-        ret = JS_NewStringLen(ctx, str, len);
-        JS_FreeCString(ctx, str);
-        break;
-      }*/
+    case TYPE_STRING: {
+      size_t len;
+      const char* str = JS_ToCStringLen(ctx, &len, value);
+      ret = JS_NewStringLen(ctx, str, len);
+      JS_FreeCString(ctx, str);
+      break;
+    }
 
     case TYPE_INT: {
       ret = JS_NewInt32(ctx, JS_VALUE_GET_INT(value));
@@ -2081,7 +2095,6 @@ js_value_clone(JSContext* ctx, JSValueConst value) {
 
     case TYPE_UNDEFINED:
     case TYPE_NULL:
-    case TYPE_STRING:
     case TYPE_SYMBOL:
     case TYPE_BIG_DECIMAL:
     case TYPE_BIG_INT:
@@ -2178,7 +2191,7 @@ js_value_dump(JSContext* ctx, JSValueConst value, DynBuf* db) {
   }
 }
 
-BOOL
+int
 js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
   int32_t ta = js_value_type(ctx, a), tb = js_value_type(ctx, b);
   BOOL ret = FALSE;
