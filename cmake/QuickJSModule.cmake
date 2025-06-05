@@ -237,6 +237,7 @@ function(make_module FNAME)
     add_library(${TARGET_NAME} SHARED ${SOURCES})
 
     #dump(QUICKJS_C_MODULE_DIR QUICKJS_LIBRARY_DIR)
+    #dump(MODULE_COMPILE_FLAGS)
 
     set_target_properties(
       ${TARGET_NAME}

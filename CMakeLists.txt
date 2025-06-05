@@ -20,7 +20,7 @@ option(DO_TESTS "Perform tests" ON)
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 
 
-dump(CMAKE_CROSSCOMPILING)
+#dump(CMAKE_CROSSCOMPILING)
 
 if(NOT CMAKE_CROSSCOMPILING)
   run_code(
@@ -219,7 +219,7 @@ check_functions_def(lstat fstat)
 check_function_def(access)
 check_functions_def(fnmatch daemon)
 
-dump(HAVE_ACCESS HAVE_FSTAT)
+#dump(HAVE_ACCESS HAVE_FSTAT)
 
 check_functions_def(chmod fchmod)
 check_functions_def(chown fchown lchown)
@@ -240,7 +240,7 @@ if(NOT OPENBSD_GLOB)
   check_function_and_include(glob glob.h)
 endif(NOT OPENBSD_GLOB)
 
-dump(HAVE_GLOB)
+#dump(HAVE_GLOB)
 
 check_function_and_include(wordexp wordexp.h)
 
@@ -304,7 +304,7 @@ if(MODULE_BCRYPT)
 endif(MODULE_BCRYPT)
 
 if(MODULE_SERIAL)
-  option(BUILD_LIBSERIALPORT "Build serialport library" OFF)
+  option(BUILD_LIBSERIALPORT "Build serialport library" ON)
 
   list(APPEND QUICKJS_MODULES serial)
 endif(MODULE_SERIAL)
@@ -714,6 +714,8 @@ set(CMAKE_REQUIRED_QUIET TRUE)
 
 check_flag("-fvisibility=hidden" VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
 
+#dump(VISIBILITY_HIDDEN MODULE_COMPILE_FLAGS)
+
 check_flags("-Wall;-Wno-unused-parameter;-Wno-unused-variable;-Wno-unused-function" CMAKE_C_FLAGS)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -752,7 +754,7 @@ if(DO_TESTS)
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
     add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-             COMMAND env QUICKJS_MODULE_PATH="${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}" "${QJSM}" --bignum
+             COMMAND env QUICKJS_MODULE_PATH="${CMAKE_CURRENT_BINARY_DIR}" "${QJSM}" --bignum
                      "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
@@ -903,8 +905,9 @@ file(
 
 add_library(modules STATIC ${LIBRARY_SOURCES} quickjs-internal.c ${tutf8e_SOURCES} ${libutf_SOURCES}
                            ${libbcrypt_SOURCES})
-set_target_properties(modules PROPERTIES COMPILE_FLAGS -fPIC)
+set_target_properties(modules PROPERTIES COMPILE_FLAGS "-fPIC ${MODULE_COMPILE_FLAGS}")
 add_library(compiled STATIC ${COMPILED_MODULES})
+
 set(COMMON_LIBRARIES modules compiled)
 
 get_directory_property(CURRENT_LINK_DIRS LINK_DIRECTORIES)
