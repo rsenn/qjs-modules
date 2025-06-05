@@ -2910,31 +2910,55 @@ js_eval_binary(JSContext* ctx, const uint8_t* buf, size_t buf_len, BOOL load_onl
 
 JSValue
 js_eval_buf(JSContext* ctx, const void* buf, size_t buf_len, const char* filename, int eval_flags) {
-  JSValue ret = JS_EXCEPTION;
-  static const int eval_mask = (JS_EVAL_TYPE_MASK | JS_EVAL_FLAG_MASK);
+  JSValue ret;
+  BOOL as_module = (eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE;
+  int flags = (eval_flags & (JS_EVAL_TYPE_MASK | JS_EVAL_FLAG_MASK)) | (as_module ? JS_EVAL_FLAG_COMPILE_ONLY : 0);
 
   if(!filename)
     filename = "<input>";
 
-  if((eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE) {
+  ret = JS_Eval(ctx, buf, buf_len, filename, flags);
+
+  if(as_module) {
     /* for the modules, we compile then run to be able to set import.meta */
-    JSValue module = JS_Eval(ctx, buf, buf_len, filename, (eval_flags & eval_mask) | JS_EVAL_FLAG_COMPILE_ONLY);
+    if(!JS_IsException(ret)) {
+      js_module_set_import_meta(ctx, ret, filename[0] != '<', !!(eval_flags & JS_EVAL_IS_MAIN));
 
-    if(!JS_IsException(module)) {
-      js_module_set_import_meta(ctx, module, filename[0] != '<', !!(eval_flags & JS_EVAL_IS_MAIN));
+      ret = JS_EvalFunction(ctx, ret);
+    }
+  }
 
-      ret = JS_EvalFunction(ctx, module);
+  return ret;
+}
+
+JSValue
+js_eval_this_buf(
+    JSContext* ctx, JSValueConst this_obj, const void* buf, size_t buf_len, const char* filename, int eval_flags) {
+  JSValue ret;
+  BOOL as_module = (eval_flags & JS_EVAL_TYPE_MASK) == JS_EVAL_TYPE_MODULE;
+  int flags = (eval_flags & (JS_EVAL_TYPE_MASK | JS_EVAL_FLAG_MASK)) | (as_module ? JS_EVAL_FLAG_COMPILE_ONLY : 0);
+
+  if(!filename)
+    filename = "<input>";
+
+  ret = JS_EvalThis(ctx, this_obj, buf, buf_len, filename, flags);
+
+  if(as_module) {
+    /* for the modules, we compile then run to be able to set import.meta */
+    if(!JS_IsException(ret)) {
+      js_module_set_import_meta(ctx, ret, filename[0] != '<', !!(eval_flags & JS_EVAL_IS_MAIN));
+
+      JSValue tmp = JS_EvalFunction(ctx, ret);
+      JS_FreeValue(ctx, ret);
+      ret = tmp;
     }
 
-    if(JS_VALUE_GET_TAG(module) == JS_TAG_MODULE) {
+    if(JS_VALUE_GET_TAG(ret) == JS_TAG_MODULE) {
       JSModuleDef* m;
 
-      if((m = js_value_ptr(module))) {
+      if((m = js_value_ptr(ret))) {
       }
     }
-
-  } else {
-    ret = JS_Eval(ctx, buf, buf_len, filename, (eval_flags & eval_mask));
   }
 
   return ret;
@@ -2949,6 +2973,17 @@ js_eval_file(JSContext* ctx, const char* filename, int eval_flags) {
     return JS_ThrowInternalError(ctx, "Error loading '%s': %s", filename, strerror(errno));
 
   return js_eval_buf(ctx, buf, buf_len, filename, eval_flags);
+}
+
+JSValue
+js_eval_this_file(JSContext* ctx, JSValueConst this_obj, const char* filename, int eval_flags) {
+  uint8_t* buf;
+  size_t buf_len;
+
+  if(!(buf = js_load_file(ctx, &buf_len, filename)))
+    return JS_ThrowInternalError(ctx, "Error loading '%s': %s", filename, strerror(errno));
+
+  return js_eval_this_buf(ctx, this_obj, buf, buf_len, filename, eval_flags);
 }
 
 int

@@ -39,14 +39,29 @@ VISIBLE Pointer*
 js_pointer_data(JSValueConst value) {
   return JS_GetOpaque(value, js_pointer_class_id);
 }
+
 static PointerAlloc
 js_pointer_read(JSContext* ctx, JSValueConst value) {
-  Pointer *ret, *alloc = 0;
+  Pointer *ret, *alloc = 0, *other;
+
   if(!(ret = js_pointer_data(value))) {
     ret = alloc = pointer_new(ctx);
-    pointer_from(ret, value, ctx);
+
+    js_pointer_from(ret, value, ctx);
   }
+
   return (PointerAlloc){ret, alloc};
+}
+
+VISIBLE BOOL
+js_pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
+  Pointer* ptr2;
+
+  if((ptr2 = js_pointer_data(value)))
+    if(pointer_copy(ptr, ptr2, ctx))
+      return TRUE;
+
+  return pointer_from(ptr, value, ctx);
 }
 
 static JSValue
@@ -68,11 +83,12 @@ js_pointer_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
   if(JS_IsException(obj))
     goto fail;
 
-  for(int i = 0; i < argc; i++)
-    if(!pointer_from(ptr, argv[i], ctx)) {
+  for(int i = 0; i < argc; i++) {
+    if(!js_pointer_from(ptr, argv[i], ctx)) {
       JS_ThrowTypeError(ctx, "Pointer: argument %d unknown type", i);
       goto fail;
     }
+  }
 
   JS_SetOpaque(obj, ptr);
 

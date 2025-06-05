@@ -549,9 +549,9 @@ BOOL
 pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
   Pointer* ptr2;
 
-  if((ptr2 = js_pointer_data(value)))
+  /*if((ptr2 = js_pointer_data(value)))
     if(pointer_copy(ptr, ptr2, ctx))
-      return TRUE;
+      return TRUE;*/
 
   if(JS_IsString(value))
     if(pointer_fromstring(ptr, value, ctx))

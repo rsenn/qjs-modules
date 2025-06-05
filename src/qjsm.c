@@ -1449,6 +1449,7 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   size_t len;
   const char* str = JS_ToCStringLen(ctx, &len, argv[0]);
   char* file = 0;
+  JSValue tmp_global = JS_UNINITIALIZED;
 
   if(argc > 1 && JS_IsString(argv[1])) {
     file = js_tostring(ctx, argv[1]);
@@ -1466,6 +1467,9 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
               (js_get_propertystr_bool(ctx, argv[1], "async") ? JS_EVAL_FLAG_ASYNC : 0) |
               (js_get_propertystr_bool(ctx, argv[1], "strict") ? JS_EVAL_FLAG_STRICT : 0) |
               (js_get_propertystr_bool(ctx, argv[1], "strip") ? JS_EVAL_FLAG_STRIP : 0);
+
+      if(js_has_propertystr(ctx, argv[1], "global"))
+        tmp_global = JS_GetPropertyStr(ctx, argv[1], "global");
     }
   } else
     flags = str_ends(file ? file : str, ".mjs") ? JS_EVAL_TYPE_MODULE : 0;
@@ -1475,15 +1479,20 @@ jsm_eval_script(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   switch(magic) {
     case EVAL_FILE: {
-      ret = js_eval_file(ctx, str, flags);
+      ret = JS_IsUninitialized(tmp_global) ? js_eval_file(ctx, str, flags)
+                                           : js_eval_this_file(ctx, tmp_global, str, flags);
       break;
     }
 
     case EVAL_BUF: {
-      ret = js_eval_buf(ctx, str, len, file, flags);
+      ret = JS_IsUninitialized(tmp_global) ? js_eval_buf(ctx, str, len, file, flags)
+                                           : js_eval_this_buf(ctx, tmp_global, str, len, file, flags);
       break;
     }
   }
+
+  if(!JS_IsUninitialized(tmp_global))
+    JS_FreeValue(ctx, tmp_global);
 
   if(file) {
     jsm_stack_pop(ctx);

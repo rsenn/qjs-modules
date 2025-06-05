@@ -1,4 +1,4 @@
-#if !defined(HAVE_INET_NTOP) && !defined(__MSYS__) && !defined(__CYGWIN__)
+#if !defined(HAVE_INET_NTOP) && !defined(__MSYS__) && !defined(__CYGWIN__) && !defined(__MINGW32__)
 #ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
@@ -14,7 +14,7 @@
 #include <stdint.h>
 
 const char*
-inet_ntop(int af, const void* restrict a0, char* restrict s, socklen_t l) {
+inet_ntop(int af, const void* a0, char* s, socklen_t l) {
   const unsigned char* a = a0;
   int i, j, max, best;
   char buf[100];

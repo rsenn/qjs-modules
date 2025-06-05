@@ -1171,7 +1171,7 @@ JSValue js_modules_object(JSContext*, JSValue this_val, int magic);
 
 int js_module_index(JSContext*, JSModuleDef* m);
 
-JSModuleDef* js_module_def(JSContext*, JSValue value);
+JSModuleDef* js_module_def(JSContext*, JSValueConst value);
 JSModuleDef* js_module_find(JSContext*, const char* name);
 JSModuleDef* js_module_find_from(JSContext*, const char* name, int pos);
 JSModuleDef* js_module_find_fwd(JSContext*, const char* name, JSModuleDef* start);
@@ -1180,10 +1180,12 @@ int js_module_indexof(JSContext*, JSModuleDef* def);
 JSModuleDef* js_module_at(JSContext*, int index);
 JSModuleDef* js_module_load(JSContext*, const char* name);
 
-JSValue js_eval_module(JSContext*, JSValue, BOOL);
+JSValue js_eval_module(JSContext*, JSValueConst, BOOL);
 JSValue js_eval_binary(JSContext*, const uint8_t*, size_t, BOOL load_only);
 JSValue js_eval_buf(JSContext*, const void*, size_t, const char* filename, int eval_flags);
+JSValue js_eval_this_buf(JSContext*, JSValueConst, const void*, size_t, const char* filename, int eval_flags);
 JSValue js_eval_file(JSContext*, const char*, int);
+JSValue js_eval_this_file(JSContext*, JSValueConst, const char*, int);
 int js_eval_str(JSContext*, const char*, const char*, int flags);
 JSValue js_eval_fmt(JSContext*, int flags, const char* fmt, ...) FORMAT_STRING(3, 4);
 

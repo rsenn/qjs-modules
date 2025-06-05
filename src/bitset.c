@@ -64,6 +64,8 @@ bool
 bitset_push(BitSet* bs, int bits, size_t num_bits) {
   size_t i = bs->len;
 
+  assert(num_bits <= (sizeof(int) * 8 - 1));
+
   if(!bitset_resize(bs, bs->len + num_bits))
     return false;
 
@@ -79,7 +81,10 @@ int
 bitset_pop(BitSet* bs, size_t num_bits) {
   int ret = 0;
 
-  while(bs->len > 0) {
+  assert(num_bits <= bs->len);
+  assert(num_bits <= (sizeof(int) * 8 - 1));
+
+  for(; num_bits > 0; --num_bits) {
     ret <<= 1;
 
     ret |= bitset_isset(bs, bs->len - 1);
