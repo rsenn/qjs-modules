@@ -195,14 +195,15 @@ function(make_module FNAME)
   set(LINK_FLAGS ${${VNAME}_LINK_FLAGS})
 
   #dump(VNAME ${VNAME}_SOURCES)
-  #dump(FNAME LINK_DIRECTORIES LIBS)
 
   if(ARGN)
-    set(SOURCES ${ARGN} ${${VNAME}_SOURCES} ${COMMON_SOURCES})
-    #add_unique(DEPS ${${VNAME}_DEPS})
+    set(SOURCES ${ARGN} ${${VNAME}_SOURCES}
+                ${COMMON_SOURCES})
+    add_unique(DEPS ${${VNAME}_DEPS})
   else(ARGN)
-    set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES} ${COMMON_SOURCES})
-    #add_unique(LIBS ${${VNAME}_LIBRARIES})
+    set(SOURCES quickjs-${NAME}.c ${${VNAME}_SOURCES}
+                ${COMMON_SOURCES})
+    add_unique(LIBS ${${VNAME}_LIBRARIES})
   endif(ARGN)
   add_unique(LIBS ${COMMON_LIBRARIES})
 
@@ -240,37 +241,35 @@ function(make_module FNAME)
 
     set_target_properties(
       ${TARGET_NAME}
-      PROPERTIES #RPATH "${QUICKJS_C_MODULE_DIR}"
-                 #INSTALL_RPATH "${QUICKJS_C_MODULE_DIR}"
-                 #LINK_FLAGS "${LINK_FLAGS}"
-                 PREFIX "${PREFIX}"
-                 OUTPUT_NAME "${VNAME}"
-                 COMPILE_FLAGS "${MODULE_COMPILE_FLAGS}")
+      PROPERTIES RPATH "${MBEDTLS_LIBRARY_DIR}:${QUICKJS_C_MODULE_DIR}" INSTALL_RPATH "${QUICKJS_C_MODULE_DIR}"
+                 LINK_FLAGS "${LINK_FLAGS}" PREFIX "${PREFIX}" OUTPUT_NAME "${VNAME}" COMPILE_FLAGS
+                                                                                      "${MODULE_COMPILE_FLAGS}")
 
     target_compile_definitions(
       ${TARGET_NAME} PRIVATE _GNU_SOURCE=1 JS_SHARED_LIBRARY=1 JS_${UNAME}_MODULE=1
                              QUICKJS_PREFIX="${QUICKJS_INSTALL_PREFIX}" LIBMAGIC_DB="${LIBMAGIC_DB}")
 
-    target_link_directories(${TARGET_NAME} PUBLIC ${QUICKJS_LIBRARY_DIR} ${CMAKE_CURRENT_BINARY_DIR} PRIVATE
-                            ${LINK_DIRECTORIES})
+    target_link_directories(${TARGET_NAME} PUBLIC ${LINK_DIRECTORIES} ${QUICKJS_LIBRARY_DIR}
+                            ${CMAKE_CURRENT_BINARY_DIR})
 
-    target_link_libraries(${TARGET_NAME} PUBLIC ${QUICKJS_LIBRARY})
-    target_link_libraries(${TARGET_NAME} PRIVATE ${LIBS})
+    target_link_libraries(${TARGET_NAME} PUBLIC ${LIBS} ${QUICKJS_LIBRARY})
 
     install(TARGETS ${TARGET_NAME} DESTINATION "${QUICKJS_C_MODULE_DIR}"
             PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 
-    #[[if(LINK_DIRECTORIES)
-      target_link_directories(${TARGET_NAME} PUBLIC ${LINK_DIRECTORIES})
+    config_module(${TARGET_NAME})
+
+    set(LIBRARIES ${${VNAME}_LIBRARIES})
+    if(LIBRARIES)
+      target_link_libraries(${TARGET_NAME} PRIVATE ${LIBRARIES})
+    endif(LIBRARIES)
+    set(LINK_DIRECTORIES ${${VNAME}_LINK_DIRECTORIES})
+    if(LINK_DIRECTORIES)
+      target_link_directories(${TARGET_NAME} PRIVATE ${LINK_DIRECTORIES})
     endif(LINK_DIRECTORIES)
-    if(LIBS)
-      target_link_libraries(${TARGET_NAME} PRIVATE ${LIBS})
-    endif(LIBS)]]
     if(DEPS)
       add_dependencies(${TARGET_NAME} ${DEPS})
     endif(DEPS)
-
-    config_module(${TARGET_NAME})
 
   endif(BUILD_SHARED_MODULES)
 
