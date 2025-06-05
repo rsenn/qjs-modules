@@ -1335,7 +1335,35 @@ js_object_copy(JSContext* ctx, JSValueConst dst, JSValueConst src) {
     JS_SetProperty(ctx, dst, tmp_tab[i].atom, prop);
   }
 
+  js_propertyenums_free(ctx, tmp_tab, tmp_len);
+
   return tmp_len;
+}
+
+int64_t
+js_object_keyof(JSContext* ctx, JSValueConst obj, JSValueConst value) {
+  JSPropertyEnum* tmp_tab;
+  uint32_t tmp_len;
+  int64_t ret = -1;
+
+  if(JS_GetOwnPropertyNames(
+         ctx, &tmp_tab, &tmp_len, obj, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK /*| JS_GPN_ENUM_ONLY*/))
+    return -1;
+
+  for(uint32_t i = 0; i < tmp_len; i++) {
+    JSValue prop = JS_GetProperty(ctx, obj, tmp_tab[i].atom);
+    int r = js_value_equals(ctx, value, prop, FALSE);
+    JS_FreeValue(ctx, prop);
+
+    if(r > 0) {
+      ret = (int64_t)(uint32_t)tmp_tab[i].atom;
+      break;
+    }
+  }
+
+  js_propertyenums_free(ctx, tmp_tab, tmp_len);
+
+  return ret;
 }
 
 BOOL
@@ -1879,7 +1907,7 @@ js_symbol_for_atom(JSContext* ctx, const char* sym_for) {
 
 JSValue
 js_symbol_to_string(JSContext* ctx, JSValueConst sym) {
-  JSValue value = js_symbol_invoke_static(ctx, "keyFor", sym);
+  JSValue value = js_symbol_keyfor(ctx, sym);
 
   if(JS_IsUndefined(value)) {
     JSAtom atom = JS_ValueToAtom(ctx, sym);
@@ -2241,6 +2269,13 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
       JS_FreeCString(ctx, stra);
     if(strb)
       JS_FreeCString(ctx, strb);
+  } else if(ta & TYPE_SYMBOL) {
+    JSAtom aa = JS_ValueToAtom(ctx, a), ab = JS_ValueToAtom(ctx, b);
+
+    ret = aa == ab;
+
+    JS_FreeAtom(ctx, aa);
+    JS_FreeAtom(ctx, ab);
   }
 
   return ret;

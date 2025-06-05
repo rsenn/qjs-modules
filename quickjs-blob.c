@@ -144,7 +144,7 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
         ++i;
 
         if(input.data == 0) {
-          JS_ThrowTypeError(ctx, "item #%d supplied is not <Blob | ArrayBuffer | TypedArray | String>");
+          JS_ThrowTypeError(ctx, "item #%d supplied is not <Blob | ArrayBuffer | TypedArray | String>", i);
           goto fail;
         }
 

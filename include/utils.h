@@ -618,7 +618,8 @@ js_value_cmpstring(JSContext* ctx, JSValueConst value, const char* other) {
 
 void js_propertyenums_clear(JSContext* ctx, JSPropertyEnum* props, size_t len);
 
-static inline void js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
+static inline void
+js_propertyenums_free(JSContext* ctx, JSPropertyEnum* props, size_t len) {
   js_propertyenums_clear(ctx, props, len);
   js_free(ctx, props);
 }
@@ -655,7 +656,7 @@ JSValue js_iterator_then(JSContext*, BOOL done);
 JSValue js_symbol_for(JSContext*, const char* sym_for);
 JSValue js_symbol_keyfor(JSContext* ctx, JSValueConst sym);
 JSAtom js_symbol_for_atom(JSContext*, const char* sym_for);
- 
+
 JSValue js_symbol_operatorset_value(JSContext*);
 
 JSAtom js_symbol_operatorset_atom(JSContext*);
@@ -803,6 +804,7 @@ JSValue js_object_function(JSContext*, const char* func_name, JSValueConst obj);
 BOOL js_object_same2(JSContext*, JSValueConst, JSValueConst, BOOL);
 JSAtom* js_object_properties(JSContext*, uint32_t* lenptr, JSValueConst obj, int flags);
 int js_object_copy(JSContext*, JSValueConst dst, JSValueConst src);
+int64_t js_object_keyof(JSContext*, JSValueConst obj, JSValueConst value);
 
 enum {
   JS_GPN_RECURSIVE = (1 << 7),
