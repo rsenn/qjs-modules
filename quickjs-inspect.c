@@ -1221,25 +1221,59 @@ inspect_value(Inspector* insp, JSValueConst value, int32_t level) {
 
     case JS_TAG_SYMBOL: {
       if(opts->reparseable) {
-        const char* str = js_symbol_to_cstring(ctx, value);
+        JSValue key = js_symbol_keyfor(ctx, value);
+        const char* str;
 
-        writer_puts(wr, str);
-        JS_FreeCString(ctx, str);
+        if(!JS_IsUndefined(key)) {
+          writer_puts(wr, "Symbol.for('");
+          str = JS_ToCString(ctx, key);
+          writer_puts(wr, str);
+          JS_FreeCString(ctx, str);
+          writer_puts(wr, "')");
+          JS_FreeValue(ctx, key);
+        } else {
+          JSValue sym = js_symbol_ctor(ctx);
+          int64_t key;
+
+          if((key = js_object_keyof(ctx, sym, value)) >= 0) {
+            str = JS_AtomToCString(ctx, key);
+            writer_puts(wr, "Symbol.");
+            writer_puts(wr, str);
+          } else {
+            str = js_symbol_to_cstring(ctx, value);
+            BOOL prnt = !str_start(str, "Symbol");
+
+            if(prnt)
+              writer_puts(wr, "Symbol('");
+            writer_puts(wr, str);
+            if(prnt)
+              writer_puts(wr, "')");
+          }
+
+          JS_FreeCString(ctx, str);
+          JS_FreeValue(ctx, sym);
+        }
+
         break;
       }
 
-      value = js_symbol_to_string(ctx, value);
+      JSValue key = js_symbol_to_string(ctx, value);
 
       if(opts->colors)
         writer_puts(wr, COLOR_PURPLE);
 
-      const char* str = JS_ToCString(ctx, value);
+      writer_puts(wr, "Symbol(");
+
+      const char* str = JS_ToCString(ctx, key);
       writer_puts(wr, str);
       JS_FreeCString(ctx, str);
+
+      writer_puts(wr, ")");
 
       if(opts->colors)
         writer_puts(wr, COLOR_NONE);
 
+      JS_FreeValue(ctx, key);
       break;
     }
 

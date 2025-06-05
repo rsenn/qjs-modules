@@ -53,7 +53,7 @@ js_pointer_read(JSContext* ctx, JSValueConst value) {
   return (PointerAlloc){ret, alloc};
 }
 
-static PointerAlloc
+static void
 js_pointer_dispose(JSContext* ctx, PointerAlloc a) {
   if(a.alloc) {
     pointer_free(a.alloc, JS_GetRuntime(ctx));
