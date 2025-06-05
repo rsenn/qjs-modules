@@ -19,7 +19,6 @@ option(DO_TESTS "Perform tests" ON)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/functions.cmake)
 
-
 #dump(CMAKE_CROSSCOMPILING)
 
 if(NOT CMAKE_CROSSCOMPILING)
@@ -41,7 +40,6 @@ if(HAVE_POSIX_SPAWN)
 else(HAVE_POSIX_SPAWN)
   option(USE_SPAWN "Use POSIX spawn()" OFF)
 endif(HAVE_POSIX_SPAWN)
-
 
 option(MODULE_ARCHIVE "Build 'archive' module" ON)
 option(MODULE_MAGIC "Build 'magic' module" ON)
@@ -292,8 +290,8 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/incl
                     ${QUICKJS_INCLUDE_DIRS})
 link_directories(${QUICKJS_LIBRARY_DIR})
 
-set(QUICKJS_MODULES bjson blob deep directory json lexer list location misc path pointer predicate queue repeater textcode
-                    sockets stream syscallerror inspect tree-walker virtual xml)
+set(QUICKJS_MODULES bjson blob deep directory json lexer list location misc path pointer predicate queue repeater
+                    textcode sockets stream syscallerror inspect tree-walker virtual xml)
 
 if(MODULE_MAGIC)
   list(APPEND QUICKJS_MODULES magic)
@@ -678,24 +676,41 @@ if(BUILD_LIBSERIALPORT)
     CMAKE_CACHE_ARGS
       "-DCMAKE_INSTALL_LIBDIR:PATH=${CMAKE_INSTALL_LIBDIR}"
       "-DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}"
-      "-DCMAKE_C_FLAGS:STRING=-w -fPIC"
+      "-DCMAKE_C_FLAGS:STRING=${MODULE_COMPILE_FLAGS}"
       "-DCMAKE_SYSROOT:PATH=${CMAKE_SYSROOT}"
       "-DCMAKE_TOOLCHAIN_FILE:FILEPATH=${CMAKE_TOOLCHAIN_FILE}"
       "-DCMAKE_VERBOSE_MAKEFILE:BOOL=${CMAKE_VERBOSE_MAKEFILE}"
       "-DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}"
-    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE"
+      "-DNO_PUBLIC_API:BOOL=TRUE"
+    CMAKE_CACHE_DEFAULT_ARGS "-DBUILD_SHARED_LIBS:BOOL=FALSE" "-DNO_PUBLIC_API:BOOL=TRUE"
     INSTALL_COMMAND cmake -E echo "Skipping install step.")
 
-  link_directories("${CMAKE_CURRENT_BINARY_DIR}/libserialport")
+  #link_directories("${CMAKE_CURRENT_BINARY_DIR}/libserialport")
+
   set(LIBSERIALPORT_LIBRARY serialport)
   set(LIBSERIALPORT_LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libserialport)
+  set(LIBSERIALPORT_LIBRARY_FILE
+      ${LIBSERIALPORT_LIBRARY_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}serialport${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+  add_library(Serial::Port STATIC IMPORTED GLOBAL)
+
+  #dump(LIBSERIALPORT_LIBRARY_FILE CMAKE_STATIC_LIBRARY_PREFIX CMAKE_STATIC_LIBRARY_SUFFIX)
+
+  set_target_properties(Serial::Port PROPERTIES IMPORTED_LOCATION "${LIBSERIALPORT_LIBRARY_FILE}"
+                                                IMPORTED_IMPLIB "${LIBSERIALPORT_LIBRARY_FILE}")
+
+  link_directories(${LIBSERIALPORT_LIBRARY_DIR})
+
   if(WIN32)
     list(APPEND LIBSERIALPORT_LIBRARY setupapi)
   endif(WIN32)
 endif(BUILD_LIBSERIALPORT)
 
 set(serial_DEPS libserialport)
-set(serial_LIBRARIES ${LIBSERIALPORT_LIBRARY})
+#[[set(serial_LIBRARIES Serial::Port) #${LIBSERIALPORT_LIBRARY_FILE})
+set(serial_LINK_DIRECTORIES ${LIBSERIALPORT_LIBRARY_DIR})]]
+
+dump(serial_LIBRARIES)
 
 if(HAVE_MMAP)
   set(QUICKJS_MODULES ${QUICKJS_MODULES} mmap)
@@ -754,8 +769,7 @@ if(DO_TESTS)
     basename(BASE "${TEST}")
     string(REPLACE "test_" "" NAME "${BASE}")
     add_test(NAME "${BASE}" WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-             COMMAND env QUICKJS_MODULE_PATH="${CMAKE_CURRENT_BINARY_DIR}" "${QJSM}" --bignum
-                     "${TEST}")
+             COMMAND env QUICKJS_MODULE_PATH="${CMAKE_CURRENT_BINARY_DIR}" "${QJSM}" --bignum "${TEST}")
   endforeach(TEST ${TESTS})
 endif(DO_TESTS)
 
@@ -863,7 +877,6 @@ set(stack_MODULES inspect location)
 set(util_MODULES inspect path misc)
 set(inspect_MODULES pointer)
 
-
 foreach(LIB_MODULE ${LIB_MODULES})
   #message("Compile Module: ${LIB_MODULE}")
 
@@ -935,6 +948,11 @@ endif(TARGET qjs-xml)
 if(TARGET qjs-child-process)
   target_link_libraries(qjs-child-process PRIVATE qjs-pointer)
 endif(TARGET qjs-child-process)
+
+if(TARGET qjs-serial)
+  target_link_directories(qjs-serial PRIVATE ${LIBSERIALPORT_LIBRARY_DIR})
+  target_link_libraries(qjs-serial PRIVATE Serial::Port)
+endif(TARGET qjs-serial)
 
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../defs.cmake)
   set(QUICKJS_SOURCES_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
