@@ -1064,11 +1064,11 @@ restart:
 
       if(!js_is_null_or_undefined(exception)) {
         char* top = jsm_stack_top();
-       // char* err=js_error_tostring(ctx, exception);
+        // char* err=js_error_tostring(ctx, exception);
 
         JS_ThrowInternalError(
-            ctx, "%s: %s%scould not load module filename '%s'", __func__, top ? top : "", top ? ": " : "", s/*, err*/);
-        //js_free(ctx, err);
+            ctx, "%s: %s%scould not load module filename '%s'", __func__, top ? top : "", top ? ": " : "", s /*, err*/);
+        // js_free(ctx, err);
       }
 
       JS_FreeValue(ctx, exception);

@@ -2854,6 +2854,26 @@ js_arraybuffer_fromvalue(JSContext* ctx, void* x, size_t n, JSValueConst val) {
   return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freevalue, valptr, FALSE);
 }
 
+void
+js_arraybuffer_freeobj(JSRuntime* rt, void* opaque, void* ptr) {
+  JS_FreeValueRT(rt, js_value_mkobj(opaque));
+}
+
+JSValue
+js_arraybuffer_fromobj(JSContext* ctx, void* x, size_t n, JSValueConst val) {
+  assert(JS_IsObject(val));
+
+  if(!JS_IsObject(val))
+    return JS_ThrowTypeError(ctx, "Not an object");
+
+  return JS_NewArrayBuffer(ctx, x, n, js_arraybuffer_freeobj, js_value_obj(JS_DupValue(ctx, val)), FALSE);
+}
+
+void
+js_arraybuffer_freeptr(JSRuntime* rt, void* opaque, void* ptr) {
+  js_free_rt(rt, ptr);
+}
+
 int64_t
 js_arraybuffer_bytelength(JSContext* ctx, JSValueConst value) {
   int64_t len = -1;

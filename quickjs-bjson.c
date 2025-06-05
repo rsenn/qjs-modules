@@ -24,6 +24,7 @@
 #include <quickjs-libc.h>
 #include "utils.h"
 #include "defines.h"
+#include "buffer-utils.h"
 #include "debug.h"
 
 /**
@@ -33,58 +34,58 @@
 
 static JSValue
 js_bjson_read(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  uint8_t* buf;
-  uint64_t pos, len;
-  JSValue obj;
-  size_t size;
-  int flags;
+  int32_t flags = 0;
+  InputBuffer input = js_input_args(ctx, argc, argv);
 
-  if(!(buf = JS_GetArrayBuffer(ctx, &size, argv[0])))
-    return JS_EXCEPTION;
+  if(!input.data)
+    return JS_ThrowTypeError(ctx, "argument 1 must be < ArrayBuffer | TypedArray | String >");
 
-  pos = 0;
-  len = size;
+  if(argc > 3) {
+    if(JS_IsBool(argv[3])) {
+      if(JS_ToBool(ctx, argv[3]))
+        flags |= JS_READ_OBJ_REFERENCE;
+    } else {
+      JS_ToInt32(ctx, &flags, argv[3]);
+    }
+  }
 
-  if(argc > 1 && JS_ToIndex(ctx, &pos, argv[1]))
-    return JS_EXCEPTION;
-
-  if(argc > 2 && JS_ToIndex(ctx, &len, argv[2]))
-    return JS_EXCEPTION;
-
-  if(pos + len > size)
-    return JS_ThrowRangeError(ctx, "array buffer overflow");
-
-  flags = 0;
-
-  if(JS_ToBool(ctx, argv[3]))
-    flags |= JS_READ_OBJ_REFERENCE;
-
-  obj = JS_ReadObject(ctx, buf + pos, len, flags);
+  JSValue obj = JS_ReadObject(ctx, input_buffer_data(&input), input_buffer_length(&input), flags);
+  input_buffer_free(&input, ctx);
   return obj;
 }
 
 static JSValue
 js_bjson_write(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+  int32_t flags = 0;
   size_t len;
   uint8_t* buf;
-  JSValue array;
-  int flags;
 
-  flags = 0;
-  if(JS_ToBool(ctx, argv[1]))
-    flags |= JS_WRITE_OBJ_REFERENCE;
+  if(argc > 1) {
+    if(JS_IsBool(argv[1])) {
+      if(JS_ToBool(ctx, argv[1]))
+        flags |= JS_WRITE_OBJ_REFERENCE;
+    } else {
+      JS_ToInt32(ctx, &flags, argv[1]);
+    }
+  }
 
   if(!(buf = JS_WriteObject(ctx, &len, argv[0], flags)))
     return JS_EXCEPTION;
 
-  array = JS_NewArrayBufferCopy(ctx, buf, len);
-  js_free(ctx, buf);
-  return array;
+  return JS_NewArrayBuffer(ctx, buf, len, js_arraybuffer_freeptr, 0, FALSE);
 }
 
 static const JSCFunctionListEntry js_bjson_funcs[] = {
     JS_CFUNC_DEF("read", 4, js_bjson_read),
+    JS_CONSTANT(JS_READ_OBJ_BYTECODE),
+    JS_CONSTANT(JS_READ_OBJ_ROM_DATA),
+    JS_CONSTANT(JS_READ_OBJ_SAB),
+    JS_CONSTANT(JS_READ_OBJ_REFERENCE),
     JS_CFUNC_DEF("write", 2, js_bjson_write),
+    JS_CONSTANT(JS_WRITE_OBJ_BYTECODE),
+    JS_CONSTANT(JS_WRITE_OBJ_BSWAP),
+    JS_CONSTANT(JS_WRITE_OBJ_SAB),
+    JS_CONSTANT(JS_WRITE_OBJ_REFERENCE),
 };
 
 static int

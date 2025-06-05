@@ -2,6 +2,7 @@
 #include "quickjs-blob.h"
 #include "utils.h"
 #include "buffer-utils.h"
+#include "iteration.h"
 #include "debug.h"
 
 /**
@@ -10,43 +11,30 @@
  */
 
 JSClassID js_blob_class_id = 0;
-JSValue blob_proto = {{0}, JS_TAG_UNDEFINED}, blob_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue blob_proto, blob_ctor;
 
-enum {
-  BLOB_SIZE,
-  BLOB_TYPE,
-};
-enum {
-  BLOB_ARRAYBUFFER,
-  BLOB_SLICE,
-  BLOB_STREAM,
-  BLOB_TEXT,
-};
-
-void
-blob_init(JSContext* ctx, Blob* blob, const void* x, size_t len, const char* type) {
-  // blob->vec = VECTOR(ctx);
-  blob->type = type ? js_strdup(ctx, type) : 0;
-
-  vector_init(&blob->vec, ctx);
-
-  if(x && len)
-    blob_write(ctx, blob, x, len);
-}
-
-Blob*
-blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
+static Blob*
+blob_new(JSContext* ctx, const char* type) {
   Blob* blob;
 
   if(!(blob = js_mallocz(ctx, sizeof(Blob))))
     return 0;
 
-  blob_init(ctx, blob, x, len, type);
+  blob->type = type ? js_strdup(ctx, type) : 0;
+
+  vector_init(&blob->vec, ctx);
 
   return blob;
 }
 
-ssize_t
+static void
+blob_free(JSRuntime* rt, Blob* blob) {
+  vector_free(&blob->vec);
+
+  js_free_rt(rt, blob);
+}
+
+static inline ssize_t
 blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
   if(dbuf_put(&blob->vec, x, len))
     return -1;
@@ -54,23 +42,15 @@ blob_write(JSContext* ctx, Blob* blob, const void* x, size_t len) {
   return len;
 }
 
-void
-blob_free(JSRuntime* rt, Blob* blob) {
-  vector_free(&blob->vec);
-
-  js_free_rt(rt, blob);
-}
-
-InputBuffer
+static inline InputBuffer
 blob_input(JSContext* ctx, Blob* blob) {
-  InputBuffer ret = {{{blob->data, blob->size}}, 0, &input_buffer_free_default, JS_UNDEFINED, {0, INT64_MAX}};
-
-  return ret;
-}
-
-static void
-js_blob_free_func(JSRuntime* rt, void* opaque, void* ptr) {
-  // js_free_rt(rt, ptr);
+  return (InputBuffer){
+      {{blob->data, blob->size}},
+      0,
+      &input_buffer_free_default,
+      JS_UNDEFINED,
+      OFFSETLENGTH_INIT(),
+  };
 }
 
 JSValue
@@ -78,6 +58,7 @@ js_blob_wrap(JSContext* ctx, Blob* blob) {
   JSValue obj = JS_NewObjectProtoClass(ctx, blob_proto, js_blob_class_id);
 
   JS_SetOpaque(obj, blob);
+
   return obj;
 }
 
@@ -85,11 +66,23 @@ JSValue
 js_blob_new(JSContext* ctx, const void* x, size_t len, const char* type) {
   Blob* blob;
 
-  if(!(blob = blob_new(ctx, x, len, type)))
+  if(!(blob = blob_new(ctx, type)))
     return JS_EXCEPTION;
+
+  if(x && len) {
+    if(dbuf_put(&blob->vec, x, len)) {
+      blob_free(JS_GetRuntime(ctx), blob);
+      return JS_EXCEPTION;
+    }
+  }
 
   return js_blob_wrap(ctx, blob);
 }
+
+enum {
+  BLOB_SIZE,
+  BLOB_TYPE,
+};
 
 static JSValue
 js_blob_get(JSContext* ctx, JSValueConst this_val, int magic) {
@@ -119,7 +112,7 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   JSValue proto, obj = JS_UNDEFINED;
   Blob* blob;
 
-  if(!(blob = blob_new(ctx, 0, 0, 0)))
+  if(!(blob = js_mallocz(ctx, sizeof(Blob))))
     return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
@@ -134,54 +127,42 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   if(JS_IsException(obj))
     goto fail;
 
-  size_t size = 0;
   blob->type = 0;
 
   if(argc >= 1) {
-    // XXX:
-    // if(js_is_iterable(ctx, argv[0])) {}
+    Iteration iter = ITERATION_INIT();
 
-    if(js_is_array(ctx, argv[0])) {
-      uint32_t i, len = js_array_length(ctx, argv[0]);
-      InputBuffer* parts = js_malloc(ctx, sizeof(InputBuffer) * len);
+    if(iteration_method_symbol(&iter, ctx, argv[0], "iterator")) {
+      int i = 0;
 
-      for(i = 0; i < len; i++) {
+      while(!iteration_next(&iter, ctx)) {
         Blob* other;
-        JSValue item = JS_GetPropertyUint32(ctx, argv[0], i);
-        parts[i] = (other = js_blob_data(ctx, item)) ? blob_input(ctx, other) : js_input_chars(ctx, item);
-        size += parts[i].size;
-        JS_FreeValue(ctx, item);
-      }
+        JSValue value = iteration_value(&iter, ctx);
+        InputBuffer input = (other = js_blob_data(ctx, value)) ? blob_input(ctx, other) : js_input_chars(ctx, value);
+        JS_FreeValue(ctx, value);
 
-      for(i = 0; i < len; i++) {
-        if(blob_write(ctx, blob, input_buffer_data(&parts[i]), input_buffer_length(&parts[i])) == -1) {
+        ++i;
 
-          while(i < len)
-            input_buffer_free(&parts[i++], ctx);
-
-          blob_free(JS_GetRuntime(ctx), blob);
-          js_free(ctx, parts);
-          return JS_ThrowInternalError(ctx, "blob_write returned -1");
+        if(input.data == 0) {
+          JS_ThrowTypeError(ctx, "item #%d supplied is not <Blob | ArrayBuffer | TypedArray | String>");
+          goto fail;
         }
 
-        input_buffer_free(&parts[i], ctx);
+        if(blob_write(ctx, blob, input_buffer_data(&input), input_buffer_length(&input)) == -1) {
+          JS_ThrowInternalError(ctx, "blob_write returned -1");
+          goto fail;
+        }
+
+        input_buffer_free(&input, ctx);
       }
-
-      js_free(ctx, parts);
-
-    } else {
-      JS_ThrowInternalError(ctx, "argument 1 must be array");
-      goto fail;
     }
+
+    iteration_reset(&iter, ctx);
   }
 
   if(argc >= 2 && JS_IsObject(argv[1])) {
-    JSValue type = JS_GetPropertyStr(ctx, argv[1], "type");
-
-    if(JS_IsString(type))
-      blob->type = js_tostring(ctx, type);
-
-    JS_FreeValue(ctx, type);
+    if(js_has_propertystr(ctx, argv[1], "type"))
+      blob->type = js_get_propertystr_string(ctx, argv[1], "type");
   }
 
   if(blob->type == 0)
@@ -191,10 +172,17 @@ js_blob_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueCo
   return obj;
 
 fail:
-  js_free(ctx, blob);
+  blob_free(JS_GetRuntime(ctx), blob);
   JS_FreeValue(ctx, obj);
   return JS_EXCEPTION;
 }
+
+enum {
+  BLOB_ARRAYBUFFER,
+  BLOB_SLICE,
+  BLOB_STREAM,
+  BLOB_TEXT,
+};
 
 static JSValue
 js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
@@ -217,18 +205,14 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
       if(argc >= 1) {
         JS_ToInt64(ctx, &s, argv[0]);
 
-        if(s < 0)
-          s = n + s % n;
-        else if(s > n)
-          s = n;
+        s = WRAP_NUM(s, n);
+        s = CLAMP_NUM(s, 0, n);
 
         if(argc >= 2) {
           JS_ToInt64(ctx, &e, argv[1]);
 
-          if(e < 0)
-            e = n + e % n;
-          else if(e > n)
-            e = n;
+          e = WRAP_NUM(e, n);
+          e = CLAMP_NUM(e, 0, n);
 
           if(argc >= 3)
             type = js_tostring(ctx, argv[2]);
@@ -255,20 +239,6 @@ js_blob_method(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   }
 
   return ret;
-}
-
-static JSValue
-js_blob_inspect(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  Blob* blob;
-
-  if(!(blob = js_blob_data(ctx, this_val)))
-    return JS_EXCEPTION;
-
-  JSValue obj = JS_NewObjectClass(ctx, js_blob_class_id);
-
-  JS_DefinePropertyValueStr(ctx, obj, "size", JS_NewUint32(ctx, blob->size), JS_PROP_ENUMERABLE);
-  JS_DefinePropertyValueStr(ctx, obj, "type", JS_NewString(ctx, blob->type), JS_PROP_ENUMERABLE);
-  return obj;
 }
 
 static void

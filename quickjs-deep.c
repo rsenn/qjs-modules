@@ -333,7 +333,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
           continue;
 
     JSValue value = property_recursion_value(&iter->frames, ctx);
-    ValueType type = js_value_type(ctx, value);
+    ValueType type = 1 << js_value_type_get(ctx, value);
 
     /*printf(
         "%s depth=%u seq=%u idx=%u/%u return=%x path-as=%x filter=%x max_depth=%06x status=%02x mask=%04x
@@ -536,10 +536,10 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       if((obj_type & TYPE_ARRAY) || !atom_skip(&atoms, atom)) {
 
         JSValue value = property_recursion_value(&frames, ctx);
-        ValueType type = js_value_type(ctx, value);
-        ValueTypeFlag flag = js_value_type2flag(type);
+        ValueType type = 1 << js_value_type_get(ctx, value);
+        // ValueTypeFlag flag = js_value_type2flag(type);
 
-        if((1 << flag) & mask)
+        if(type & mask)
           r = js_deep_predicate(ctx, argv[1], value, &frames);
         else
           r = 0;
@@ -598,7 +598,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 
   while(it) {
     JSValue value = property_recursion_value(&frames, ctx);
-    ValueType type = js_value_type(ctx, value);
+    ValueType type = 1 << js_value_type_get(ctx, value);
 
     if(type & mask)
       r = js_deep_predicate(ctx, argv[1], value, &frames);
@@ -680,22 +680,19 @@ js_deep_set2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 static JSValue
 js_deep_set(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   if(argc > 1) {
-    JSValue obj;
-    JSAtom prop;
-    Pointer* ptr;
+    Pointer ptr=POINTER_INIT();
 
-    if(!(ptr = pointer_new(ctx)))
+    if(!js_pointer_from(&ptr, argv[1], ctx))
       return JS_EXCEPTION;
 
-    pointer_from(ptr, argv[1], ctx);
-    prop = pointer_popatom(ptr);
-    obj = pointer_acquire(ptr, argv[0], ctx);
+    JSAtom prop = pointer_popatom(&ptr);
+    JSValue obj = pointer_acquire(&ptr, argv[0], ctx);
 
     if(!JS_IsException(obj))
-      JS_SetProperty(ctx, obj, prop, argv[2]);
+      JS_SetProperty(ctx, obj, prop, JS_DupValue(ctx, argv[2]));
 
     JS_FreeAtom(ctx, prop);
-    pointer_free(ptr, JS_GetRuntime(ctx));
+    pointer_reset(&ptr, JS_GetRuntime(ctx));
 
     return JS_DupValue(ctx, obj);
   }
@@ -717,22 +714,19 @@ js_deep_unset2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
 static JSValue
 js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
   if(argc > 1) {
-    JSValue obj;
-    JSAtom prop;
-    Pointer* ptr;
+    Pointer ptr =POINTER_INIT();
 
-    if(!(ptr = pointer_new(ctx)))
+    if(!js_pointer_from(&ptr, argv[1], ctx))
       return JS_EXCEPTION;
 
-    pointer_from(ptr, argv[1], ctx);
-    prop = pointer_popatom(ptr);
-    obj = pointer_deref(ptr, argv[0], ctx);
+    JSAtom prop = pointer_popatom(&ptr);
+    JSValue obj = pointer_deref(&ptr, argv[0], ctx);
 
     if(!JS_IsException(obj))
       JS_DeleteProperty(ctx, obj, prop, 0);
 
     JS_FreeAtom(ctx, prop);
-    pointer_free(ptr, JS_GetRuntime(ctx));
+    pointer_reset(&ptr, JS_GetRuntime(ctx));
 
     return JS_DupValue(ctx, obj);
   }
@@ -742,18 +736,17 @@ js_deep_unset(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
 static JSValue
 js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
-  JSValue ret = JS_UNDEFINED;
+  JSValue ret;
   DynBuf dbuf;
-  JSValueConst dest;
   VirtualProperties vmap;
   Vector frames, offsets;
   PropertyEnumeration* it;
-  uint32_t mask = 0;
+  uint32_t mask = TYPE_ALL;
 
   js_dbuf_init(ctx, &dbuf);
 
-  dest = argc > 1 ? argv[1] : JS_NewObject(ctx);
-  vmap = virtual_properties(ctx, dest);
+  ret = argc > 1 && JS_IsObject(argv[1]) ? JS_DupValue(ctx, argv[1]) : JS_NewObject(ctx);
+  vmap = virtual_properties(ctx, ret);
 
   vector_init(&frames, ctx);
   vector_init(&offsets, ctx);
@@ -764,18 +757,21 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
     JS_ToUint32(ctx, &mask, argv[2]);
 
   do {
-    JSValue value, path;
+    JSValue value = JS_UNINITIALIZED, path;
 
-    if(mask) {
-      JSValue tmp = property_enumeration_value(it, ctx);
-      int32_t type = js_value_type(ctx, tmp);
-      JS_FreeValue(ctx, tmp);
+    if(mask != TYPE_ALL) {
+      value = property_enumeration_value(it, ctx);
+      ValueType type = 1 << js_value_type_get(ctx, value);
 
-      if((mask & (1 << type)) == 0)
+      if((mask & type) == 0) {
+        JS_FreeValue(ctx, value);
+        property_recursion_next(&frames, ctx);
         continue;
+      }
     }
 
-    value = property_enumeration_value(it, ctx);
+    if(JS_IsUninitialized(value))
+      value = property_enumeration_value(it, ctx);
     path = property_recursion_pathstr_value(&frames, ctx);
 
     virtual_set(&vmap, ctx, path, value);
@@ -789,7 +785,6 @@ js_deep_flatten(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
 
-  ret = vmap.this_obj;
   virtual_properties_free(&vmap, ctx);
 
   return ret;
@@ -857,30 +852,29 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
 
   while(it) {
     if(property_enumeration_length(it)) {
-      JSValueConst args[3] = {
+      JSValue args[] = {
           property_enumeration_value(it, ctx),
           JS_UNDEFINED,
           argv[0],
       };
-      uint32_t type = js_value_type(ctx, args[0]);
 
-      if((type & type_mask) == 0) {
+      ValueType type = 1 << js_value_type_get(ctx, args[0]);
+
+      if((type & type_mask) != 0) {
+        args[1] = property_recursion_path(&frames, ctx);
+
+        JS_Call(ctx, fn, this_arg, countof(args), args);
+
         JS_FreeValue(ctx, args[0]);
-        continue;
+        JS_FreeValue(ctx, args[1]);
       }
-
-      args[1] = property_recursion_path(&frames, ctx);
-
-      JS_Call(ctx, fn, this_arg, countof(args), args);
-
-      JS_FreeValue(ctx, args[0]);
-      JS_FreeValue(ctx, args[1]);
     }
 
     if(property_recursion_depth(&frames) >= max_depth)
       property_recursion_skip(&frames, ctx);
     else
       property_recursion_next(&frames, ctx);
+
     it = property_recursion_top(&frames);
   }
 

@@ -53,6 +53,25 @@ js_pointer_read(JSContext* ctx, JSValueConst value) {
   return (PointerAlloc){ret, alloc};
 }
 
+static PointerAlloc
+js_pointer_dispose(JSContext* ctx, PointerAlloc a) {
+  if(a.alloc) {
+    pointer_free(a.alloc, JS_GetRuntime(ctx));
+    a.alloc = NULL;
+  }
+}
+
+VISIBLE Pointer*
+js_pointer_copy(JSContext* ctx, JSValueConst value) {
+  Pointer tmp = {0}, *ret = 0;
+
+  if(js_pointer_from(&tmp, value, ctx))
+    if((ret = pointer_new(ctx)))
+      *ret = tmp;
+
+  return ret;
+}
+
 VISIBLE BOOL
 js_pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
   Pointer* ptr2;
@@ -353,13 +372,12 @@ enum {
 static JSValue
 js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   Pointer* ptr = 0;
-  PointerAlloc other;
   JSValue ret = JS_UNDEFINED;
 
   if(!(ptr = js_pointer_data2(ctx, this_val)))
     return JS_EXCEPTION;
 
-  other = js_pointer_read(ctx, argv[0]);
+  PointerAlloc other = js_pointer_read(ctx, argv[0]);
 
   switch(magic) {
     case METHOD_EQUAL: {
@@ -406,8 +424,7 @@ js_pointer_method2(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst
     }
   }
 
-  if(other.alloc)
-    pointer_free(other.alloc, JS_GetRuntime(ctx));
+  js_pointer_dispose(ctx, other);
 
   return ret;
 }

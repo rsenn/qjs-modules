@@ -1,8 +1,32 @@
+import { test, tests, assert_equals } from '../lib/testharnessreport.js';
 import { Blob } from 'blob';
+import { toArrayBuffer } from 'misc';
+
+test(() => {
+  let blob = new Blob(['<html></html>', new Uint8Array([0xa]), new Uint8Array([98, 108, 97, 104]), new Uint8Array([84, 69, 83, 84, 32, 116, 101, 115, 116, 32, 84, 69, 83, 84]).buffer], {
+    type: 'text/html',
+    endings: 'transparent',
+  });
+
+  assert_equals(blob.type, 'text/html', 'blob.type');
+  assert_equals(blob.size, 32, 'blob.size == 32');
+  assert_equals(blob.text(), '<html></html>\nblahTEST test TEST', 'blob.text()');
+}, 'HTML blob');
+
+test(() => {
+  let blob = new Blob();
+
+  assert_equals(blob.type, 'application/binary', 'blob.type');
+  assert_equals(blob.size, 0, 'blob.size == 0');
+  assert_equals(blob.text(), '', 'blob.text()');
+}, 'empty Blob');
+
+console.log('tests', tests.phase);
+
+/*import { Blob } from 'blob';
 import { Console } from 'console';
 import { escape, toArrayBuffer } from 'misc';
 import * as std from 'std';
- 
 
 function main(...args) {
   globalThis.console = new Console({
@@ -12,22 +36,15 @@ function main(...args) {
       maxArrayLength: 256,
       compact: 2,
       showHidden: false,
-      customInspect: false
-    }
+      customInspect: false,
+    },
   });
   console.log('Blob', Blob);
 
-  //  let childBlob = new Blob(['\nx\ny\nz\n']);
-  let blob = new Blob(
-    [
-      '<html></html>',
-      new Uint8Array([0xa]),
-      new Uint8Array(toArrayBuffer('BLAH blah BLAH'), 5, 4),
-      //childBlob,
-      new DataView(toArrayBuffer('TEST test TEST'), 5, 4).buffer
-    ],
-    { type: 'text/html', endings: 'transparent' }
-  );
+  let blob = new Blob(['<html></html>', new Uint8Array([0xa]), new Uint8Array(toArrayBuffer('BLAH blah BLAH'), 5, 4), new DataView(toArrayBuffer('TEST test TEST'), 5, 4).buffer], {
+    type: 'text/html',
+    endings: 'transparent',
+  });
 
   console.log('blob', blob);
 
@@ -58,3 +75,4 @@ try {
 } finally {
   console.log('SUCCESS');
 }
+*/

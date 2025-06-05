@@ -370,9 +370,8 @@ typedef enum {
   TYPE_BIG_DECIMAL = (1 << FLAG_BIG_DECIMAL),
   TYPE_FLOAT64 = (1 << FLAG_FLOAT64),
   TYPE_NAN = (1 << FLAG_NAN),
-  TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64),
-  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_INT | TYPE_STRING | TYPE_SYMBOL | TYPE_BIG_FLOAT |
-                    TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_NAN),
+  TYPE_NUMBER = (TYPE_INT | TYPE_BIG_FLOAT | TYPE_BIG_INT | TYPE_BIG_DECIMAL | TYPE_FLOAT64 | TYPE_NAN),
+  TYPE_PRIMITIVE = (TYPE_UNDEFINED | TYPE_NULL | TYPE_BOOL | TYPE_STRING | TYPE_SYMBOL | TYPE_NUMBER),
   TYPE_FUNCTION = (1 << FLAG_FUNCTION),
   TYPE_ARRAY = (1 << FLAG_ARRAY),
   TYPE_ALL = (TYPE_PRIMITIVE | TYPE_OBJECT | TYPE_FUNCTION | TYPE_ARRAY),
@@ -1113,7 +1112,13 @@ int64_t js_date_time(JSContext*, JSValue arg);
 struct timespec js_date_timespec(JSContext*, JSValue arg);
 
 void js_arraybuffer_freevalue(JSRuntime*, void* opaque, void* ptr);
-JSValue js_arraybuffer_fromvalue(JSContext*, void* x, size_t n, JSValue val);
+JSValue js_arraybuffer_fromvalue(JSContext*, void* x, size_t n, JSValueConst val);
+
+void js_arraybuffer_freeobj(JSRuntime*, void* opaque, void* ptr);
+JSValue js_arraybuffer_fromobj(JSContext*, void* x, size_t n, JSValueConst val);
+
+void js_arraybuffer_freeptr(JSRuntime*, void* opaque, void* ptr);
+
 JSValue js_arraybuffer_fromstring(JSContext*, JSValueConst str);
 
 static inline JSValue

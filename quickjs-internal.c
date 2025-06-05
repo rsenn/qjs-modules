@@ -489,9 +489,10 @@ js_module_at(JSContext* ctx, int index) {
   return 0;
 }
 
-static void
+void
 js_arraybuffer_freestring(JSRuntime* rt, void* opaque, void* ptr) {
   JSString* jstr = opaque;
+
   JS_FreeValueRT(rt, JS_MKPTR(JS_TAG_STRING, jstr));
 }
 
@@ -502,8 +503,7 @@ js_arraybuffer_fromstring(JSContext* ctx, JSValueConst str) {
   if(!JS_IsString(str))
     return JS_ThrowTypeError(ctx, "Not a string");
 
-  JS_DupValue(ctx, str);
-  jstr = JS_VALUE_GET_PTR(str);
+  jstr = js_value_ptr(JS_DupValue(ctx, str));
 
   return JS_NewArrayBuffer(ctx, jstr->u.str8, jstr->len, js_arraybuffer_freestring, jstr, FALSE);
 }
