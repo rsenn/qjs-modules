@@ -1348,9 +1348,19 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
       if(index > 0)
         writer_puts(wr, ",");
 
+      BOOL is_arr = js_is_array(ctx, property_recursion_top(&insp->hier)->obj);
+      JSAtom key = property_enumeration_atom(it);
+
+      /* handle Array with holes */
+      if(is_arr && (key & 0x80000000)) {
+        int32_t prev_index = it->idx > 0 ? it->tab_atom[it->idx - 1] & 0x7fffffff : -1;
+
+        while(++prev_index < (key & 0x7fffffff))
+          writer_puts(wr, " ,");
+      }
+
       put_spacing(wr, opts, depth);
 
-      BOOL is_arr = js_is_array(ctx, property_recursion_top(&insp->hier)->obj);
       uint32_t idx = property_enumeration_index(it);
 
       if(is_arr && idx >= opts->max_array_length) {
@@ -1362,9 +1372,10 @@ inspect_recursive(Inspector* insp, JSValueConst obj, int32_t level) {
         property_enumeration_index(it) = property_enumeration_length(it);
 
       } else {
+        JSAtom key = property_enumeration_atom(it);
 
         if(!is_arr) {
-          inspect_key(insp, property_enumeration_atom(it));
+          inspect_key(insp, key);
           writer_puts(wr, ": ");
         }
 

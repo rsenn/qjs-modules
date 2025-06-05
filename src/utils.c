@@ -625,7 +625,7 @@ js_atom_toint32(JSContext* ctx, JSAtom atom) {
     return i;
   }
 
-  return -atom;
+  return atom & 0x7fffffff;
 }
 
 int
