@@ -52,6 +52,8 @@
 
 #include "quickjs-internal.h"
 
+JSModuleDef* js_module_loader_path(JSContext* ctx, const char* module_name, void* opaque);
+
 static JSValue jsm_start_interactive4(JSContext*, JSValueConst, int, JSValueConst[]);
 
 typedef JSModuleDef* ModuleInitFunction(JSContext*, const char*);
@@ -1062,9 +1064,14 @@ restart:
 
       if(!js_is_null_or_undefined(exception)) {
         char* top = jsm_stack_top();
+       // char* err=js_error_tostring(ctx, exception);
+
         JS_ThrowInternalError(
-            ctx, "%s: %s%scould not load module filename '%s'", __func__, top ? top : "", top ? ": " : "", s);
+            ctx, "%s: %s%scould not load module filename '%s'", __func__, top ? top : "", top ? ": " : "", s/*, err*/);
+        //js_free(ctx, err);
       }
+
+      JS_FreeValue(ctx, exception);
     }
     js_free(ctx, s);
 
