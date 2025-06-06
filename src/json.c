@@ -166,7 +166,7 @@ json_parse(JsonParser* json, JSContext* ctx) {
         ret = JSON_TYPE_ARRAY;
         goto novalue;
       }
-      
+
       case '}':
       case ']': {
         ret = c == '}' ? JSON_TYPE_OBJECT_END : JSON_TYPE_ARRAY_END;
