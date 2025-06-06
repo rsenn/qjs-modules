@@ -89,7 +89,7 @@ endif(DEBUG_ALLOC)
 #message(STATUS "Finding QuickJS...")
 
 find_quickjs()
-#configure_quickjs()
+configure_quickjs()
 
 #dump(QUICKJS_LIBRARY_DIR)
 list(APPEND CMAKE_REQUIRED_LINK_DIRECTORIES "${QUICKJS_LIBRARY_DIR}")
@@ -370,6 +370,8 @@ endif(MODULE_MAGIC)
 
 if(MODULE_MYSQL)
   pkg_check_modules(MARIADB libmariadb mariadb)
+
+
   #dump(LIBMARIADB_INCLUDE_DIR)
   string(REGEX REPLACE "/include.*" "/${CMAKE_ARCH_LIBDIR}" LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_INCLUDE_DIR}")
   set(LIBMARIADB_LIBRARY_DIR "${LIBMARIADB_LIBRARY_DIR}" CACHE PATH "MariaDB library directory")
@@ -403,7 +405,10 @@ if(MODULE_MYSQL)
     #dump(mysql_LINK_FLAGS)
 
     if(NOT LIBMARIADB_INCLUDE_DIR)
-      set(LIBMARIADB_INCLUDE_DIR "${CMAKE_INSTALL_PREFIX}/include" CACHE PATH "MariaDB client include directory")
+      if(LIBMARIADB_INCLUDE_DIR)
+        string(REGEX REPLACE "/lib.*" "/include" LIBMARIADB_INCLUDE_DIR "${ĹIBMARIADB_LIBRARY}")
+      endif(LIBMARIADB_INCLUDE_DIR)
+      set(LIBMARIADB_INCLUDE_DIR "${LIBMARIADB_INCLUDE_DIR}" CACHE PATH "MariaDB client include directory")
 
       if(NOT EXISTS "${LIBMARIADB_INCLUDE_DIR}/mysql.h")
         if(EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb" AND EXISTS "${LIBMARIADB_INCLUDE_DIR}/mariadb/mysql.h")
@@ -411,6 +416,8 @@ if(MODULE_MYSQL)
         endif()
       endif()
     endif(NOT LIBMARIADB_INCLUDE_DIR)
+
+    dump(LIBMARIADB_INCLUDE_DIR)
 
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBMARIADB_INCLUDE_DIR}")
     check_include_def(mysql.h)
@@ -849,6 +856,8 @@ list(
   REGEX
   "/(archive|bjson|blob|child_process|deep|gpio|inspect|lexer|location|misc|mmap|path|pointer|predicate|repeater|sockets|stream|syscallerror|textcode|tree_walker|xml)\.js$"
 )
+
+dump(QUICKJS_JS_MODULE_DIR)
 
 install(FILES ${LIBJS} DESTINATION "${QUICKJS_JS_MODULE_DIR}")
 install(FILES ${LIBLEXER} DESTINATION "${QUICKJS_JS_MODULE_DIR}/lexer")

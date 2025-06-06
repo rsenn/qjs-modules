@@ -547,9 +547,9 @@ pointer_fromiterable(Pointer* ptr, JSValueConst arg, JSContext* ctx) {
 
 BOOL
 pointer_from(Pointer* ptr, JSValueConst value, JSContext* ctx) {
-  Pointer* ptr2;
+  /*Pointer* ptr2;
 
-  /*if((ptr2 = js_pointer_data(value)))
+  if((ptr2 = js_pointer_data(value)))
     if(pointer_copy(ptr, ptr2, ctx))
       return TRUE;*/
 

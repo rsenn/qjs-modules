@@ -1265,8 +1265,14 @@ js_socket_data(JSValueConst value) {
 
   if((opaque = JS_GetOpaque(value, js_asyncsocket_class_id)))
     sock = *(Socket*)opaque;
-  else if((opaque = JS_GetOpaque(value, js_socket_class_id)))
-    sock = *(Socket*)&opaque;
+  else if((opaque = JS_GetOpaque(value, js_socket_class_id))) {
+    union {
+      Socket s;
+      void* ptr;
+    } u;
+    u.ptr = opaque;
+    sock = u.s;
+  }
 
   return sock;
 }
@@ -1278,8 +1284,15 @@ js_socket_data2(JSContext* ctx, JSValueConst value) {
 
   if((opaque = JS_GetOpaque(value, js_asyncsocket_class_id)))
     sock = *(Socket*)opaque;
-  else if((opaque = JS_GetOpaque2(ctx, value, js_socket_class_id)))
-    sock = *(Socket*)&opaque;
+  else if((opaque = JS_GetOpaque2(ctx, value, js_socket_class_id))) {
+    union {
+      Socket s;
+      void* ptr;
+    } u;
+
+    u.ptr = opaque;
+    sock = u.s;
+  }
 
   return sock;
 }

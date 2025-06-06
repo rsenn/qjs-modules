@@ -29,7 +29,7 @@ JSModuleLoaderFunc* JS_GetModuleLoaderFunc(JSRuntime*);
 void* JS_GetModuleLoaderOpaque(JSRuntime*);
 
 static JSValue generator_prototype, asyncgenerator_prototype, typedarray_prototype;
-static JSModuleDef* io_module;
+// static JSModuleDef* io_module;
 
 /**
  * \addtogroup utils
@@ -1175,11 +1175,11 @@ int
 js_object_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
   JSPropertyEnum *atoms_a = 0, *atoms_b = 0;
   uint32_t natoms_a, natoms_b;
-  int32_t ta = js_value_type(ctx, a), tb = js_value_type(ctx, b);
+  //int32_t ta = js_value_type(ctx, a), tb = js_value_type(ctx, b);
   int ret = -1;
 
-  assert(ta == TYPE_OBJECT);
-  assert(tb == TYPE_OBJECT);
+  //assert(ta == TYPE_OBJECT);
+  //assert(tb == TYPE_OBJECT);
 
   if(JS_GetOwnPropertyNames(ctx, &atoms_a, &natoms_a, a, JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK | JS_GPN_ENUM_ONLY))
     goto end;
@@ -2229,7 +2229,7 @@ js_value_equals(JSContext* ctx, JSValueConst a, JSValueConst b, BOOL deep) {
   } else if(ta & tb & (TYPE_NULL | TYPE_UNDEFINED | TYPE_NAN)) {
     ret = TRUE;
   } else if(ta & tb & (TYPE_BIG_INT | TYPE_BIG_FLOAT | TYPE_BIG_DECIMAL)) {
-    const char *astr, *bstr;
+    const char *astr, *bstr = 0;
 
     if((astr = JS_ToCString(ctx, a)) && (bstr = JS_ToCString(ctx, b)))
       ret = !strcmp(astr, bstr);

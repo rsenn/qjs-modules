@@ -24,15 +24,15 @@ static const char path_passwd[] =
  * \addtogroup path
  * @{
  */
-static int
+/*static int
 path_canonical_buf(DynBuf* db) {
   db->size = path_normalize2((char*)db->buf, db->size);
   dbuf_putc(db, '\0');
   db->size--;
   return 1;
-}
+}*/
 
-static char*
+/*static char*
 path_dirlen(const char* path, DynBuf* dir) {
   size_t i = path_right2(path, strlen(path));
 
@@ -46,7 +46,7 @@ path_dirlen(const char* path, DynBuf* dir) {
 
   dbuf_0(dir);
   return (char*)dir->buf;
-}
+}*/
 
 BOOL
 path_isdot1(const char* p) {
@@ -146,7 +146,7 @@ path_absolute1(const char* path) {
   return path_absolute2(path, strlen(path));
 }
 
-static int
+/*static int
 path_absolute_db(DynBuf* db) {
   int ret = 0;
   dbuf_putc(db, '\0');
@@ -173,7 +173,7 @@ path_absolute_db(DynBuf* db) {
   dbuf_putc(db, '\0');
   db->size--;
   return ret;
-}
+}*/
 
 void
 path_append2(const char* x, DynBuf* db) {
@@ -325,7 +325,7 @@ path_components3(const char* p, size_t len, uint32_t n) {
 
 const char*
 path_at4(const char* p, size_t plen, size_t* len_ptr, int i) {
-  size_t next, len;
+  size_t next, len = 0;
   const char* q;
 
   for(q = p + plen; p < q;) {

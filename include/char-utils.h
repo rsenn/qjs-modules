@@ -37,7 +37,7 @@ is_quotable_char(const char c) {
   return 0;
 }
 
-static int
+static inline int
 is_number_char(const char c) {
   if(is_digit_char(c))
     return 1;
@@ -450,7 +450,7 @@ int case_diffb(const void*, size_t, const void* T);
 size_t case_findb(const void*, size_t, const void* what, size_t wlen);
 size_t case_finds(const void*, const char*);
 
-static int
+static inline int
 scan_fromhex(const char c) {
   if(is_digit_char(c))
     return c - '0';

@@ -160,7 +160,8 @@ endmacro(find_quickjs)
 
 macro(configure_quickjs)
   if(NOT QUICKJS_PREFIX)
-    set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
+    message(ERROR "Must have QUICKJS_PREFIX")
+    #set(QUICKJS_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH "QuickJS install directory")
   endif(NOT QUICKJS_PREFIX)
 
   if(NOT CMAKE_INSTALL_LIBDIR)

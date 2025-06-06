@@ -824,7 +824,7 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSValueConst fn = argv[1], this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
 
   if(argc > 3)
-    flags=js_touint32(ctx, argv[3]);
+    flags = js_touint32(ctx, argv[3]);
 
   uint32_t max_depth = FLAGS_MAXDEPTH(flags);
   flags &= ~MAXDEPTH_MASK;
@@ -938,7 +938,7 @@ js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     pred = argv[argi++];
 
   if(argi < argc)
-  flags = js_touint32(ctx, argv[argi++]);
+    flags = js_touint32(ctx, argv[argi++]);
 
   uint32_t max_depth = FLAGS_MAXDEPTH(flags);
   flags &= ~MAXDEPTH_MASK;
