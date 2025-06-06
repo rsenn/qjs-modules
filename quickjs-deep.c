@@ -42,12 +42,14 @@ typedef enum {
   NO_THROW = 1 << 28,
   FILTER_KEY_OF = 0 << 30,
   FILTER_HAS_KEY = 1 << 30,
-  FILTER_MASK = 1 << 30,
+  FILTER_NEGATE = 2 << 30,
+  FILTER_MASK = 3 << 30,
   MAXDEPTH_MASK = (1 << 24) - 1,
 } DeepIteratorFlags;
 
 #define FLAGS_RETURN(flags) ((flags)&RETURN_MASK)
 #define FLAGS_FILTER(flags) ((flags)&FILTER_MASK)
+#define FLAGS_NEGATE_FILTER(flags) (!!((flags)&FILTER_NEGATE))
 #define FLAGS_MAXDEPTH(flags) (((flags)&MAXDEPTH_MASK) ? (flags)&MAXDEPTH_MASK : MAXDEPTH_MASK)
 #define FLAGS_PATH_AS(flags) ((flags)&PATH_AS_MASK)
 
@@ -329,7 +331,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
 
     if(!(obj_type & TYPE_ARRAY))
       if(FLAGS_FILTER(iter->flags) == FILTER_KEY_OF)
-        if(!vector_empty(&iter->atoms) && atom_skip(&iter->atoms, atom))
+        if(!vector_empty(&iter->atoms) && (atom_skip(&iter->atoms, atom) ^ FLAGS_NEGATE_FILTER(iter->flags)))
           continue;
 
     JSValue value = property_recursion_value(&iter->frames, ctx);
@@ -364,7 +366,7 @@ js_deep_iterator_next(JSContext* ctx, JSValueConst this_val, int argc, JSValueCo
             }
           }
 
-          if(!has) {
+          if((!has) ^ FLAGS_NEGATE_FILTER(iter->flags)) {
             JS_FreeValue(ctx, value);
             continue;
           }
@@ -507,7 +509,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   Vector atoms = VECTOR(ctx);
 
   if(argc > 2)
-    JS_ToUint32(ctx, &flags, argv[2]);
+    flags = js_touint32(ctx, argv[2]);
 
   max_depth = FLAGS_MAXDEPTH(flags);
   flags &= ~MAXDEPTH_MASK;
@@ -574,7 +576,7 @@ js_deep_select(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst arg
   ValueType mask = TYPE_ALL;
 
   if(argc > 2)
-    JS_ToUint32(ctx, &flags, argv[2]);
+    flags = js_touint32(ctx, argv[2]);
 
   uint32_t i = 0, max_depth = FLAGS_MAXDEPTH(flags);
   flags &= ~MAXDEPTH_MASK;
@@ -822,7 +824,7 @@ js_deep_foreach(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst ar
   JSValueConst fn = argv[1], this_arg = argc > 2 ? argv[2] : JS_UNDEFINED;
 
   if(argc > 3)
-    JS_ToUint32(ctx, &flags, argv[3]);
+    flags=js_touint32(ctx, argv[3]);
 
   uint32_t max_depth = FLAGS_MAXDEPTH(flags);
   flags &= ~MAXDEPTH_MASK;
@@ -936,7 +938,7 @@ js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
     pred = argv[argi++];
 
   if(argi < argc)
-    JS_ToUint32(ctx, &flags, argv[argi++]);
+  flags = js_touint32(ctx, argv[argi++]);
 
   uint32_t max_depth = FLAGS_MAXDEPTH(flags);
   flags &= ~MAXDEPTH_MASK;
@@ -979,7 +981,7 @@ js_deep_clone(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv
 
     it = property_recursion_top(&frames);
 
-    int depth = property_recursion_depth(&frames);
+    uint32_t depth = property_recursion_depth(&frames);
 
     if(depth > vector_size(&stack, sizeof(JSValue))) {
       vector_push(&stack, prop);
@@ -1009,7 +1011,6 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_CFUNC_DEF("iterate", 1, js_deep_iterate),
     JS_CFUNC_DEF("forEach", 2, js_deep_foreach),
     JS_CFUNC_DEF("clone", 1, js_deep_clone),
-    JS_CONSTANT(YIELD_MASK),
     JS_CONSTANT(YIELD),
     JS_CONSTANT(YIELD_NO_RECURSE),
     JS_CONSTANT(RECURSE),
@@ -1018,14 +1019,12 @@ static const JSCFunctionListEntry js_deep_funcs[] = {
     JS_CONSTANT(RETURN_PATH),
     JS_CONSTANT(RETURN_VALUE),
     JS_CONSTANT(RETURN_PATH_VALUE),
-    JS_CONSTANT(RETURN_MASK),
     JS_CONSTANT(PATH_AS_ARRAY),
     JS_CONSTANT(PATH_AS_POINTER),
     JS_CONSTANT(PATH_AS_STRING),
-    JS_CONSTANT(PATH_AS_MASK),
     JS_CONSTANT(FILTER_KEY_OF),
     JS_CONSTANT(FILTER_HAS_KEY),
-    JS_CONSTANT(FILTER_MASK),
+    JS_CONSTANT(FILTER_NEGATE),
     JS_CONSTANT(NO_THROW),
     JS_CONSTANT(TYPE_UNDEFINED),
     JS_CONSTANT(TYPE_NULL),
