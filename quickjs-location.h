@@ -9,7 +9,6 @@
  * @{
  */
 extern VISIBLE JSClassID js_location_class_id;
-extern VISIBLE JSValue location_proto, location_ctor;
 
 VISIBLE JSValue js_location_wrap(JSContext*, Location* loc);
 VISIBLE BOOL js_is_location(JSContext*, JSValueConst obj);

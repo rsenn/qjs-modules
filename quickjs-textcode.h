@@ -66,7 +66,6 @@ typedef struct text_coder TextEncoder;
 typedef struct text_coder TextDecoder;
 
 extern VISIBLE JSClassID js_decoder_class_id, js_encoder_class_id;
-extern VISIBLE JSValue textdecoder_proto, textdecoder_ctor, textencoder_proto, textencoder_ctor;
 extern const char* const textcode_encodings[];
 
 size_t textdecoder_length(TextDecoder*);

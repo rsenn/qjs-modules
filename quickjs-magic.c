@@ -10,7 +10,7 @@
  * @{
  */
 VISIBLE JSClassID js_magic_class_id = 0;
-VISIBLE JSValue magic_proto = {{0}, JS_TAG_UNDEFINED}, magic_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue magic_proto, magic_ctor;
 
 enum {
   LIBMAGIC_ERROR = 0,

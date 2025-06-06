@@ -53,9 +53,9 @@ static JSValue js_socket_new_proto(JSContext*, JSValueConst, int, BOOL, BOOL);
 static int js_socket_address_family(JSValueConst);
 
 JSClassID js_sockaddr_class_id = 0, js_socket_class_id = 0, js_asyncsocket_class_id = 0;
-JSValue sockaddr_proto = {{0}, JS_TAG_UNDEFINED}, sockaddr_ctor = {{0}, JS_TAG_UNDEFINED},
-        socket_proto = {{0}, JS_TAG_UNDEFINED}, asyncsocket_proto = {{0}, JS_TAG_UNDEFINED},
-        socket_ctor = {{0}, JS_TAG_UNDEFINED}, asyncsocket_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue sockaddr_proto, sockaddr_ctor,
+        socket_proto, asyncsocket_proto,
+        socket_ctor, asyncsocket_ctor;
 
 static const char* socketcall_names[] = {
     "socket",

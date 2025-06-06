@@ -8,7 +8,7 @@
  * @{
  */
 VISIBLE JSClassID js_queue_class_id = 0, js_queue_iterator_class_id = 0;
-VISIBLE JSValue queue_proto, queue_ctor, queue_iterator_proto;
+static JSValue queue_proto, queue_ctor, queue_iterator_proto;
 
 JSValue chunk_arraybuffer(Chunk* ch, JSContext* ctx);
 

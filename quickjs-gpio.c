@@ -11,7 +11,7 @@
  */
 
 VISIBLE JSClassID js_gpio_class_id = 0;
-VISIBLE JSValue gpio_proto = {{0}, JS_TAG_UNDEFINED}, gpio_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue gpio_proto, gpio_ctor;
 
 enum {
   GPIO_METHOD_INIT_PIN = 0,

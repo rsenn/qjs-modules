@@ -10,9 +10,7 @@
  * @{
  */
 VISIBLE JSClassID js_serialport_class_id = 0, js_serialerror_class_id = 0;
-VISIBLE JSValue serialport_proto = {{0}, JS_TAG_UNDEFINED}, serialport_ctor = {{0}, JS_TAG_UNDEFINED},
-                serial_ctor = {{0}, JS_TAG_UNDEFINED}, serialerror_proto = {{0}, JS_TAG_UNDEFINED},
-                serialerror_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue serialport_proto, serialport_ctor,                 serial_ctor, serialerror_proto,                serialerror_ctor;
 
 static JSValue
 js_serialerror_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValueConst argv[]) {

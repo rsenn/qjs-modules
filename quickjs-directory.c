@@ -10,7 +10,7 @@
  * @{
  */
 VISIBLE JSClassID js_directory_class_id = 0;
-VISIBLE JSValue directory_proto = {{0}, JS_TAG_UNDEFINED}, directory_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue directory_proto, directory_ctor;
 
 enum {
   FLAG_NAME = 1,

@@ -13,7 +13,7 @@
  * @{
  */
 VISIBLE JSClassID js_syscallerror_class_id = 0;
-VISIBLE JSValue syscallerror_proto = {{0}, JS_TAG_UNDEFINED}, syscallerror_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue syscallerror_proto, syscallerror_ctor;
 
 int js_syscallerror_init(JSContext*, JSModuleDef*);
 static const char* error_get(int number);

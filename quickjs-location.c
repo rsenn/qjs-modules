@@ -10,7 +10,7 @@
  */
 
 VISIBLE JSClassID js_location_class_id = 0;
-VISIBLE JSValue location_proto = {{0}, JS_TAG_UNDEFINED}, location_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue location_proto, location_ctor;
 
 enum {
   LOCATION_PROP_LINE,

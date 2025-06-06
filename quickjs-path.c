@@ -20,7 +20,7 @@
  * \defgroup quickjs-path quickjs-path: Directory path
  * @{
  */
-// thread_local JSValue path_object = {{0}, JS_TAG_UNDEFINED};
+// thread_local JSValue path_object;
 
 enum {
   PATH_BASENAME,

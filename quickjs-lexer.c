@@ -22,8 +22,8 @@ typedef struct {
 } JSLexerRule;
 
 VISIBLE JSClassID js_token_class_id = 0, js_lexer_class_id = 0;
-VISIBLE JSValue token_proto = {{0}, JS_TAG_UNDEFINED}, token_ctor = {{0}, JS_TAG_UNDEFINED};
-VISIBLE JSValue lexer_proto = {{0}, JS_TAG_UNDEFINED}, lexer_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue token_proto, token_ctor;
+static JSValue lexer_proto, lexer_ctor;
 
 static JSValue
 offsetlength_toarray(OffsetLength offs_len, JSContext* ctx) {

@@ -13,8 +13,7 @@
  */
 
 VISIBLE JSClassID js_decoder_class_id = 0, js_encoder_class_id = 0;
-VISIBLE JSValue textdecoder_proto = {{0}, JS_TAG_UNDEFINED}, textdecoder_ctor = {{0}, JS_TAG_UNDEFINED},
-                textencoder_proto = {{0}, JS_TAG_UNDEFINED}, textencoder_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue textdecoder_proto, textdecoder_ctor, textencoder_proto, textencoder_ctor;
 
 const TUTF8encoder* tutf8e_coders[] = {
     /* 0, 0, 0, 0, 0, 0, 0, 0, */
@@ -264,11 +263,11 @@ js_decoder_constructor(JSContext* ctx, JSValueConst new_target, int argc, JSValu
     const char* s = JS_ToCString(ctx, argv[0]);
 
     if(s[case_finds(s, "utf32")] || s[case_finds(s, "utf-32")])
-      dec->type_code = UTF32;
+      dec->char_set = UTF32;
     else if(s[case_finds(s, "utf16")] || s[case_finds(s, "utf-16")])
-      dec->type_code = UTF16;
+      dec->char_set = UTF16;
     else if(s[case_finds(s, "utf8")] || s[case_finds(s, "utf-8")])
-      dec->type_code = UTF8;
+      dec->char_set = UTF8;
     else {
       return JS_ThrowInternalError(ctx, "%s: TextDecoder: '%s' is invalid s", __func__, s);
     }

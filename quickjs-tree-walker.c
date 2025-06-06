@@ -12,9 +12,9 @@
  * @{
  */
 VISIBLE JSClassID js_tree_walker_class_id = 0;
-VISIBLE JSValue tree_walker_proto = {{0}, JS_TAG_UNDEFINED}, tree_walker_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue tree_walker_proto, tree_walker_ctor;
 VISIBLE JSClassID js_tree_iterator_class_id = 0;
-VISIBLE JSValue tree_iterator_proto = {{0}, JS_TAG_UNDEFINED}, tree_iterator_ctor = {{0}, JS_TAG_UNDEFINED};
+static JSValue tree_iterator_proto, tree_iterator_ctor;
 
 enum tree_walker_filter {
   FILTER_ACCEPT = 1,
