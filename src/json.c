@@ -152,7 +152,6 @@ json_parse(JsonParser* json, JSContext* ctx) {
       continue;
     }
 
-    // if(!(json->state & PARSING_OBJECT_KEY))
     switch(c) {
       case '{': {
         json->state = PARSING_OBJECT_KEY;
@@ -167,9 +166,7 @@ json_parse(JsonParser* json, JSContext* ctx) {
         ret = JSON_TYPE_ARRAY;
         goto novalue;
       }
-        /*  }
-
-          switch(c) {*/
+      
       case '}':
       case ']': {
         ret = c == '}' ? JSON_TYPE_OBJECT_END : JSON_TYPE_ARRAY_END;
@@ -180,9 +177,7 @@ json_parse(JsonParser* json, JSContext* ctx) {
 
         goto novalue;
       }
-        /*  }
 
-        switch(c) {*/
       case 'n': {
         if(json_getc(json) != 'u')
           goto end;
@@ -234,15 +229,9 @@ json_parse(JsonParser* json, JSContext* ctx) {
             }
 
           } else if(c == '"') {
-
             // json->token.size -= 1;
+
             ret = (json->state & PARSING_OBJECT_KEY) ? JSON_TYPE_KEY : JSON_TYPE_STRING;
-
-            /* if(json->state & PARSING_OBJECT)
-                  json->state ^= PARSING_OBJECT;
-
-                json->state &= (PARSING_OBJECT | PARSING_ARRAY);
-                json->state |= ret == JSON_TYPE_KEY ? EXPECTING_COLON : EXPECTING_COMMA_OR_END;*/
 
             goto end;
           }
@@ -251,7 +240,7 @@ json_parse(JsonParser* json, JSContext* ctx) {
         break;
       }
 
-        /* Number */
+      /* Number */
       default: {
         if(!is_number_char(c)) {
           JS_ThrowInternalError(ctx, "JSON parser expects a number, token = '%c'", (char)c);
@@ -261,11 +250,6 @@ json_parse(JsonParser* json, JSContext* ctx) {
         while((c = json_getc(json)) >= 0) {
           if(!is_number_char(c)) {
             json_ungetc(json, c);
-
-            /*    if(json->state & PARSING_OBJECT) {
-                  json->state &= ~PARSING_OBJECT;
-                  json->state |= PARSING_OBJECT_KEY;
-                }*/
 
             ret = JSON_TYPE_NUMBER;
             goto end;
@@ -280,10 +264,8 @@ json_parse(JsonParser* json, JSContext* ctx) {
   }
 
 end:
-
-  if(json->state & PARSING_OBJECT) {
+  if(json->state & PARSING_OBJECT)
     json->state ^= PARSING_OBJECT;
-  }
 
 novalue:
   json->state &= ~(EXPECTING_COLON | EXPECTING_COMMA_OR_END);
