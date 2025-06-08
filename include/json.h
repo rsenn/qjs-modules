@@ -29,7 +29,7 @@ typedef struct JsonParser JsonParser;
 typedef void JsonCallback(JsonParser*, JsonValueType value, void*);
 
 struct JsonParser {
-  int ref_count;
+  /*int ref_count;*/
   int state;
   Reader reader;
   DynBuf token;
@@ -44,36 +44,9 @@ BOOL json_init(JsonParser*, JSValueConst, JSContext*);
 JsonParser* json_new(JSValueConst, JSContext*);
 void json_free(JsonParser*, JSRuntime*);
 void json_clear(JsonParser*, JSRuntime*);
-JsonParser* json_dup(JsonParser*);
 int json_getc(JsonParser*);
 int json_ungetc(JsonParser*, char);
 int json_parse(JsonParser*, JSContext*);
-
-/*static inline int
-json_push(JsonParser* parser, JsonParseState state, JsonValueType type) {
-  struct JsonParserStack* st;
-
-  if(!(st = malloc(sizeof(struct JsonParserStack))))
-    return -1;
-
-  st->type = type;
-  st->state = state;
-  st->parent = parser->stack;
-
-  parser->stack = st;
-  return 0;
-}
-
-static inline JsonParseState
-json_pop(JsonParser* parser) {
-  JsonParseState ret = parser->stack->state;
-  struct JsonParserStack* st = parser->stack;
-
-  parser->stack = parser->stack->parent;
-
-  free(st);
-  return ret;
-}*/
 
 static inline int
 json_skip(JsonParser* parser, size_t n) {

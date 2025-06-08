@@ -15,19 +15,14 @@ typedef struct Iteration {
 } Iteration;
 
 #define ITERATION_INIT() \
-  (Iteration) { JS_UNDEFINED, JS_UNDEFINED, JS_UNDEFINED, FALSE }
+  (Iteration) { JS_UNINITIALIZED, JS_UNINITIALIZED, JS_UNINITIALIZED, FALSE }
 
-BOOL iteration_init_free(Iteration*, JSContext*, JSValueConst);
+BOOL iteration_init(Iteration*, JSContext*, JSValueConst);
 BOOL iteration_method_atom(Iteration*, JSContext*, JSValueConst, JSAtom);
 BOOL iteration_method_symbol(Iteration*, JSContext*, JSValueConst, const char*);
 void iteration_reset_rt(Iteration*, JSRuntime*);
 BOOL iteration_next(Iteration*, JSContext*);
 JSValueConst iteration_array(JSContext*, JSValueConst);
-
-static inline BOOL
-iteration_init(Iteration* it, JSContext* ctx, JSValueConst iterator) {
-  return iteration_init_free(it, ctx, JS_DupValue(ctx, iterator));
-}
 
 static inline void
 iteration_reset(Iteration* it, JSContext* ctx) {

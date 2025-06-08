@@ -1033,12 +1033,11 @@ js_iterator_new(JSContext* ctx, JSValueConst obj) {
 
 JSValue
 js_iterator_next(JSContext* ctx, JSValueConst obj, BOOL* done_p) {
-  JSValue done, value;
   JSValue fn = JS_GetPropertyStr(ctx, obj, "next");
   JSValue result = JS_Call(ctx, fn, obj, 0, 0);
   JS_FreeValue(ctx, fn);
-  done = JS_GetPropertyStr(ctx, result, "done");
-  value = JS_GetPropertyStr(ctx, result, "value");
+  JSValue done = JS_GetPropertyStr(ctx, result, "done");
+  JSValue value = JS_GetPropertyStr(ctx, result, "value");
   JS_FreeValue(ctx, result);
   *done_p = JS_ToBool(ctx, done);
   JS_FreeValue(ctx, done);

@@ -52,20 +52,6 @@ fail:
   return JS_EXCEPTION;
 }
 
-static JSValue
-js_json_parser_wrap2(JSContext* ctx, JSValueConst proto, JsonParser* parser) {
-  JSValue obj = JS_NewObjectProtoClass(ctx, proto, js_json_parser_class_id);
-
-  JS_SetOpaque(obj, json_dup(parser));
-
-  return obj;
-}
-
-static JSValue
-js_json_parser_wrap(JSContext* ctx, JsonParser* parser) {
-  return js_json_parser_wrap2(ctx, json_parser_proto, parser);
-}
-
 enum {
   JSON_PARSER_PARSE,
 };
@@ -147,7 +133,7 @@ js_json_parser_get(JSContext* ctx, JSValueConst this_val, int magic) {
 
 struct js_json_parser_opaque {
   JSContext* ctx;
-  JSObject* obj;
+  JSObject *parser, *obj;
 };
 
 static void
@@ -156,7 +142,7 @@ js_json_parser_callback(JsonParser* parser, JsonValueType type, void* ptr) {
   JSContext* ctx = op->ctx;
   JSValue fn = js_value_mkobj(op->obj);
   JSValue args[] = {
-      js_json_parser_wrap(ctx, json_dup(parser)),
+      js_value_mkobj(op->parser),
       JS_NewInt32(ctx, type),
       ptr ? JS_NewString(ctx, ptr) : JS_UNDEFINED,
   };
@@ -192,7 +178,7 @@ js_json_parser_set(JSContext* ctx, JSValueConst this_val, JSValueConst value, in
       op = parser->opaque ? parser->opaque : js_malloc(ctx, sizeof(struct js_json_parser_opaque));
 
       if(op) {
-        *op = (struct js_json_parser_opaque){ctx, js_value_obj(JS_DupValue(ctx, value))};
+        *op = (struct js_json_parser_opaque){ctx, js_value_obj(this_val), js_value_obj(JS_DupValue(ctx, value))};
 
         parser->callback = js_json_parser_callback;
         parser->opaque = op;

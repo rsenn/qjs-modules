@@ -1044,6 +1044,12 @@ restart:
     }
   }
 
+  if(s && (m = js_module_find(ctx, s)))
+    goto end;
+
+  if((m = js_module_find(ctx, name)))
+    goto end;
+
   if(s) {
     if(debug_module_loader >= 1)
       printf("%-20s \"%s\" -> \"%s\"\n", __FUNCTION__, name, s);

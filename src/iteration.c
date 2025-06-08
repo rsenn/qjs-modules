@@ -1,7 +1,7 @@
 #include "iteration.h"
 
 BOOL
-iteration_init_free(Iteration* it, JSContext* ctx, JSValue iterator) {
+iteration_init(Iteration* it, JSContext* ctx, JSValue iterator) {
   JSValue next = JS_GetPropertyStr(ctx, iterator, "next");
 
   if(JS_IsFunction(ctx, next)) {
@@ -12,7 +12,6 @@ iteration_init_free(Iteration* it, JSContext* ctx, JSValue iterator) {
     return TRUE;
   }
 
-  JS_FreeValue(ctx, next);
   return FALSE;
 }
 
@@ -23,7 +22,7 @@ iteration_method_atom(Iteration* it, JSContext* ctx, JSValueConst object, JSAtom
 
   if(JS_IsFunction(ctx, method)) {
     JSValue iterator = JS_Call(ctx, method, object, 0, 0);
-    ret = iteration_init_free(it, ctx, iterator);
+    ret = iteration_init(it, ctx, iterator);
   }
 
   JS_FreeValue(ctx, method);

@@ -13,10 +13,10 @@ enum {
   EXPECTING_COLON = 0b10000,
 };
 
-static int
+/*static int
 json_error(JsonParser* json) {
   return -1;
-}
+}*/
 
 static int
 json_getc_skipws(JsonParser* json) {
@@ -38,7 +38,7 @@ json_getc_skipws(JsonParser* json) {
 
 BOOL
 json_init(JsonParser* json, JSValueConst input, JSContext* ctx) {
-  json->ref_count = 1;
+  /*json->ref_count = 1;*/
   json->reader = reader_from_js(input, ctx);
 
   json->callback = NULL;
@@ -76,21 +76,13 @@ json_new(JSValueConst input, JSContext* ctx) {
 
 void
 json_free(JsonParser* json, JSRuntime* rt) {
-  if(--json->ref_count == 0) {
-    json_clear(json, rt);
-    js_free_rt(rt, json);
-  }
+  json_clear(json, rt);
+  js_free_rt(rt, json);
 }
 
 void
 json_clear(JsonParser* json, JSRuntime* rt) {
   reader_free(&json->reader);
-}
-
-JsonParser*
-json_dup(JsonParser* json) {
-  ++json->ref_count;
-  return json;
 }
 
 int
@@ -218,18 +210,20 @@ json_parse(JsonParser* json, JSContext* ctx) {
 
     switch(c) {
       case '"': {
-        // dbuf_zero(&json->token);
+         dbuf_zero(&json->token);
 
         while((c = json_getc(json)) >= 0) {
           if(c == '\\') {
+              json->token.size -= 1;
 
             if((c = json_getc(json)) < 0) {
-              ret = c;
-              goto end;
+              // so we can resume
+              json_ungetc(json, c);
+              goto fail;
             }
 
           } else if(c == '"') {
-            // json->token.size -= 1;
+              json->token.size -= 1;
 
             ret = (json->state & PARSING_OBJECT_KEY) ? JSON_TYPE_KEY : JSON_TYPE_STRING;
 
@@ -270,10 +264,6 @@ end:
 novalue:
   json->state &= ~(EXPECTING_COLON | EXPECTING_COMMA_OR_END);
   json->state |= ret == JSON_TYPE_KEY ? EXPECTING_COLON : EXPECTING_COMMA_OR_END;
-
-  /*if(ret == JSON_TYPE_NONE)
-    if(c < 0)
-      return c;*/
 
   return ret;
 

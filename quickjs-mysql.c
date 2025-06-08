@@ -1086,8 +1086,6 @@ js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValue
   asyncclosure_change_event(ac, as);
 
   if(state == 0) {
-    MYSQL_RES* res;
-
     if(err) {
       JSValue error = js_mysqlerror_new(ctx, mysql_error(ac->opaque));
 
@@ -1095,6 +1093,8 @@ js_mysql_query_continue(JSContext* ctx, JSValueConst this_val, int argc, JSValue
       JS_FreeValue(ctx, error);
 
     } else {
+      MYSQL_RES* res;
+
       if((res = mysql_use_result(ac->opaque))) {
         JS_SetOpaque(ac->result, res);
       } else {

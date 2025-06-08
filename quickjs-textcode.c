@@ -3,7 +3,7 @@
 #include "utils.h"
 #include "buffer-utils.h"
 #include "debug.h"
-#include <libutf.h>
+#include <sys/types.h>
 #include <libutf.h>
 #include "tutf8e/include/tutf8e.h"
 
