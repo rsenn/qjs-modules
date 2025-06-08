@@ -971,7 +971,7 @@ js_misc_procread(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst a
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf = {0};
   size_t size, n;
-  const char* file;
+  const char* file = 0;
   char sep = '\n';
 
   switch(magic) {
