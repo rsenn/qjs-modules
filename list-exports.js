@@ -88,13 +88,13 @@ function DumpToken(tok) {
 
 const What = {
   IMPORT: 0,
-  EXPORT: 1
+  EXPORT: 1,
 };
 
 const ImportTypes = {
   IMPORT: 0,
   IMPORT_DEFAULT: 1,
-  IMPORT_NAMESPACE: 2
+  IMPORT_NAMESPACE: 2,
 };
 
 const TokIs = curry((type, lexeme, tok) => {
@@ -195,10 +195,10 @@ function AddExport(tokens) {
       type: ImportType(tokens),
       tokens,
       exported,
-      range: [+tokens[0]?.loc, +tokens.last?.loc]
+      range: [+tokens[0]?.loc, +tokens.last?.loc],
     },
     { code, loc: tokens[0]?.loc },
-    file ? { file } : {}
+    file ? { file } : {},
   );
   /*  console.log('AddExport', { exp });
   os.kill(process.pid, os.SIGUSR1);
@@ -239,7 +239,7 @@ function AddImport(tokens) {
         }
       }
       return specifiers;
-    }
+    },
   }[type]();
 
   return imp;
@@ -249,7 +249,7 @@ function PrintES6Import(imp) {
   return {
     [ImportTypes.IMPORT_NAMESPACE]: ({ local, file }) => `import * as ${local} from '${file}';`,
     [ImportTypes.IMPORT_DEFAULT]: ({ local, file }) => `import ${local} from '${file}';`,
-    [ImportTypes.IMPORT]: ({ local, file }) => `import { ${local.join(', ')} } from '${file}';`
+    [ImportTypes.IMPORT]: ({ local, file }) => `import { ${local.join(', ')} } from '${file}';`,
   }[imp.type](imp);
 }
 
@@ -257,7 +257,7 @@ function PrintCJSImport({ type, local, file }) {
   return {
     [ImportTypes.IMPORT_NAMESPACE]: () => `const ${local} = require('${file}');`,
     [ImportTypes.IMPORT_DEFAULT]: () => `const ${local} = require('${file}');`,
-    [ImportTypes.IMPORT]: () => `const { ${local.join(', ')} } = require('${file}');`
+    [ImportTypes.IMPORT]: () => `const { ${local.join(', ')} } = require('${file}');`,
   }[type]();
 }
 
@@ -326,7 +326,7 @@ function ListExports(file, output, params) {
     base = camelize(path.basename(file, '.' + type).replace(/[^0-9A-Za-z_]/g, '_'));
 
   let lex = {
-    js: new ECMAScriptLexer(str, file)
+    js: new ECMAScriptLexer(str, file),
   };
   lex.es = lex.js;
   lex.mjs = lex.js;
@@ -390,7 +390,7 @@ function ListExports(file, output, params) {
       },
       /* prettier-ignore */ get depth() {
         return stack.length;
-      }
+      },
     });
 
     return self;
@@ -587,7 +587,7 @@ function main(...args) {
     HasStar,
     RemoveKeyword,
     ModuleExports,
-    ProcessFile
+    ProcessFile,
   });
 
   globalThis.console = new Console(process.stderr, {
@@ -599,8 +599,8 @@ function main(...args) {
       maxArrayLength: Infinity,
       compact: 0,
       stringBreakNewline: false,
-      hideKeys: [Symbol.toStringTag /*, 'code'*/]
-    }
+      hideKeys: [Symbol.toStringTag /*, 'code'*/],
+    },
   });
 
   let output = std.out,
@@ -618,7 +618,7 @@ function main(...args) {
           std.puts(params.map(([name, [hasArg, , letter]]) => `  -${letter}, --${name} ${(hasArg ? '<ARG>' : '').padEnd(10)}\n`).join('') + '\n');
           std.exit(0);
         },
-        'h'
+        'h',
       ],
       debug: [false, () => (debug = (debug | 0) + 1), 'x'],
       verbose: [false, () => (verbose = (verbose | 0) + 1), 'v'],
@@ -635,9 +635,9 @@ function main(...args) {
       'relative-to': [true, arg => (relativeTo = path.absolute(arg)), 'r'],
       uppercase: [false, null, 'u'],
       interactive: [false, null, 'y'],
-      '@': 'files'
+      '@': 'files',
     },
-    args
+    args,
   );
   let files = params['@'];
 

@@ -74,8 +74,8 @@ function main(...args) {
       colors: true,
       maxStringLength: 100,
       maxArrayLength: Infinity,
-      compact: false
-    }
+      compact: false,
+    },
   });
   //console.log('args', scriptArgs);
 
@@ -88,9 +88,9 @@ function main(...args) {
       debug: [false, () => (debug = (debug | 0) + 1), 'x'],
       'no-structs': [false, () => (noStructs = true), 'S'],
       cfunc: [false, (jsCFuncs = true), 'c'],
-      '@': 'files'
+      '@': 'files',
     },
-    args
+    args,
   );
   let cFuncLists = [];
   let files = params['@'];

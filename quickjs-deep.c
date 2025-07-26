@@ -505,8 +505,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
   ValueType mask = TYPE_ALL;
   uint32_t max_depth;
   PropertyEnumeration* it;
-  Vector frames;
-  Vector atoms = VECTOR(ctx);
+  Vector frames, atoms = VECTOR(ctx);
 
   if(argc > 2)
     flags = js_touint32(ctx, argv[2]);
@@ -536,10 +535,8 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
       ValueType obj_type = js_value_type(ctx, it->obj);
 
       if((obj_type & TYPE_ARRAY) || !atom_skip(&atoms, atom)) {
-
         JSValue value = property_recursion_value(&frames, ctx);
         ValueType type = 1 << js_value_type_get(ctx, value);
-        // ValueTypeFlag flag = js_value_type2flag(type);
 
         if(type & mask)
           r = js_deep_predicate(ctx, argv[1], value, &frames);
@@ -563,9 +560,7 @@ js_deep_find(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[
 
   property_recursion_free(&frames, JS_GetRuntime(ctx));
 
-  JSAtom* p;
-  vector_foreach_t(&atoms, p) { JS_FreeAtom(ctx, *p); }
-  vector_free(&atoms);
+  atoms_free(&atoms, JS_GetRuntime(ctx));
 
   return ret;
 }
