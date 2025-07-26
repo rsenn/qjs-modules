@@ -205,7 +205,6 @@ getdents_issock(const DirEntry* e) {
 #include <sys/syscall.h>
 #endif
 
-#define BUFFER_SIZE 1024 * 1024 * 5
 #define DIRENT(d) ((dirent_struct*)&(d)->buf[(d)->bpos])
 
 #ifdef __linux__
@@ -232,6 +231,9 @@ struct linux_dirent64 {
 #else
 #define dirent_struct struct dirent
 #endif
+
+#define NUM_DIRENTS (((64 * 1024) - (sizeof(int) * 3)) / sizeof(dirent_struct))
+#define BUFFER_SIZE (NUM_DIRENTS * sizeof(dirent_struct))
 
 struct getdents_reader {
   int fd, nread, bpos;
