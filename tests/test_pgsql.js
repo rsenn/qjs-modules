@@ -38,25 +38,25 @@ async function main(...args) {
   i = 0;
 
   await q(`CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
-  name character varying(1024) UNIQUE NOT NULL,
-  password character varying(1024) NOT NULL,
-  email character varying(512) UNIQUE,       
-  properties JSON DEFAULT '{}',
-  bindata BYTEA,
-  last_seen timestamptz DEFAULT now()
-);`);
+    id SERIAL PRIMARY KEY,
+    name character varying(1024) UNIQUE NOT NULL,
+    password character varying(1024) NOT NULL,
+    email character varying(512) UNIQUE,       
+    properties JSON DEFAULT '{}',
+    bindata BYTEA,
+    last_seen timestamptz DEFAULT now()
+  );`);
 
   await q(`CREATE TABLE IF NOT EXISTS sessions (
-  id SERIAL PRIMARY KEY,
-  user_id integer NOT NULL,    
-  uuid character varying(1024) UNIQUE NOT NULL,
-  variables JSON DEFAULT '{}',
-  created timestamptz DEFAULT now(),
-  FOREIGN KEY (user_id) REFERENCES users(id)
-  ON UPDATE CASCADE
-  ON DELETE RESTRICT
-);`);
+    id SERIAL PRIMARY KEY,
+    user_id integer NOT NULL,    
+    uuid character varying(1024) UNIQUE NOT NULL,
+    variables JSON DEFAULT '{}',
+    created timestamptz DEFAULT now(),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
+  );`);
 
   let id,
     res = await q(`SELECT * FROM test;`);

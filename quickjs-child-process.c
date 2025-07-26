@@ -122,7 +122,7 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
     value = a;
   }
 
-  len = js_array_length(ctx, value);
+  len = cp->num_fds = js_array_length(ctx, value);
   parent_fds = cp->parent_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
   child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
   cp->num_fds = len;
@@ -142,6 +142,11 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
 
       if(!strcmp(s, "pipe")) {
         int fds[2];
+
+        if(!cp->pipe_fds)
+          cp->pipe_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
+
+        cp->pipe_fds[i] = 1;
 
         if(pipe(fds) == -1)
           fds[0] = fds[1] = -1;
@@ -175,7 +180,7 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
 }
 
 static JSValue
-js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   ChildProcess* cp;
 
@@ -214,11 +219,46 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
 
   child_process_spawn(cp);
 
+  /* spawnSync? */
+  if(magic) {
+    int pid;
+
+    do {
+
+    } while((pid = child_process_wait(cp, 0)) && pid != cp->pid);
+
+    DynBuf db[cp->num_fds];
+
+    if(cp->pipe_fds) {
+      int num = cp->num_fds > 3 ? 3 : cp->num_fds;
+
+      for(int i = 0; i < num; i++) {
+        if(cp->pipe_fds[i])
+          dbuf_init2(&db[i], 0, 0);
+      }
+
+      for(int i = 0; i < num; i++)
+        if(cp->pipe_fds[i]) {
+          for(;;) {
+            char tmp[1024];
+            ssize_t bytes = read(cp->pipe_fds[i], tmp, sizeof(tmp));
+
+            if(bytes > 0) {
+              dbuf_put(&db[i], tmp, bytes);
+              continue;
+            }
+
+            break;
+          }
+        }
+    }
+  }
+
   return ret;
 }
 
 static JSValue
-js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[]) {
+js_child_process_exec(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   ChildProcess* cp;
 
@@ -452,8 +492,10 @@ static const JSCFunctionListEntry js_child_process_proto_funcs[] = {
 };
 
 static const JSCFunctionListEntry js_child_process_funcs[] = {
-    JS_CFUNC_DEF("exec", 1, js_child_process_exec),
-    JS_CFUNC_DEF("spawn", 1, js_child_process_spawn),
+    JS_CFUNC_MAGIC_DEF("exec", 1, js_child_process_exec, 0),
+    JS_CFUNC_MAGIC_DEF("execSync", 1, js_child_process_exec, 1),
+    JS_CFUNC_MAGIC_DEF("spawn", 1, js_child_process_spawn, 0),
+    JS_CFUNC_MAGIC_DEF("spawnSync", 1, js_child_process_spawn, 1),
     JS_CFUNC_MAGIC_DEF("kill", 1, js_child_process_kill, 1),
     JS_CFUNC_DEF("signal", 1, js_child_process_signal),
 

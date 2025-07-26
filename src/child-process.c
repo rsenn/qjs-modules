@@ -418,6 +418,25 @@ child_process_free(ChildProcess* cp, JSContext* ctx) {
   if(cp->env)
     js_strv_free(ctx, cp->env);
 
+  if(cp->child_fds) {
+    for(int i = 0; i < cp->num_fds; i++)
+      if(cp->pipe_fds && cp->pipe_fds[i])
+        close(cp->child_fds[i]);
+
+    js_free(ctx, cp->child_fds);
+  }
+
+  if(cp->parent_fds) {
+    for(int i = 0; i < cp->num_fds; i++)
+      if(cp->pipe_fds && cp->pipe_fds[i])
+        close(cp->parent_fds[i]);
+
+    js_free(ctx, cp->parent_fds);
+  }
+
+  if(cp->pipe_fds)
+    js_free(ctx, cp->pipe_fds);
+
   js_free(ctx, cp);
 }
 
@@ -436,6 +455,25 @@ child_process_free_rt(ChildProcess* cp, JSRuntime* rt) {
 
   if(cp->env)
     js_strv_free_rt(rt, cp->env);
+
+  if(cp->child_fds) {
+    for(int i = 0; i < cp->num_fds; i++)
+      if(cp->pipe_fds && cp->pipe_fds[i])
+        close(cp->child_fds[i]);
+
+    js_free_rt(rt, cp->child_fds);
+  }
+
+  if(cp->parent_fds) {
+    for(int i = 0; i < cp->num_fds; i++)
+      if(cp->pipe_fds && cp->pipe_fds[i])
+        close(cp->parent_fds[i]);
+
+    js_free_rt(rt, cp->parent_fds);
+  }
+
+  if(cp->pipe_fds)
+    js_free_rt(rt, cp->pipe_fds);
 
   js_free_rt(rt, cp);
 }

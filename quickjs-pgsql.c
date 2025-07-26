@@ -146,7 +146,7 @@ connectparams_fromobj(JSContext* ctx, PGSQLConnectParameters* c, JSValueConst ob
 
 static void
 connectparams_init(JSContext* ctx, PGSQLConnectParameters* c, int argc, JSValueConst argv[]) {
-  if(argc > 0 && JS_IsString(argv[0])) {
+  if(argc == 1 && JS_IsString(argv[0])) {
     const char* str = JS_ToCString(ctx, argv[0]);
 
     connectparams_parse(ctx, c, str);
