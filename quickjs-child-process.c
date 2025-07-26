@@ -228,14 +228,13 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
     } while((pid = child_process_wait(cp, 0)) && pid != cp->pid);
 
     DynBuf db[cp->num_fds];
-
-    if(cp->pipe_fds) {
       int num = cp->num_fds > 3 ? 3 : cp->num_fds;
 
-      for(int i = 0; i < num; i++) {
+    if(cp->pipe_fds) {
+      for(int i = 0; i < num; i++) 
         if(cp->pipe_fds[i])
           dbuf_init2(&db[i], 0, 0);
-      }
+      
 
       for(int i = 0; i < num; i++)
         if(cp->pipe_fds[i]) {
@@ -251,6 +250,12 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
             break;
           }
         }
+
+      for(int i = 0; i < num; i++) 
+        if(cp->pipe_fds[i])
+          dbuf_init2(&db[i], 0, 0);
+      
+
     }
   }
 
