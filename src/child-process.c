@@ -103,11 +103,17 @@ child_process_new(JSContext* ctx) {
   if((child = js_mallocz(ctx, sizeof(ChildProcess)))) {
     list_add_tail(&child->link, &child_process_list);
 
-    child->use_path = 1;
+    child->use_path = true;
+    child->exited = child->signaled = child->stopped = child->continued = false;
+
     child->exitcode = -1;
     child->termsig = -1;
     child->stopsig = -1;
     child->pid = -1;
+
+    child->num_fds = 0;
+
+    child->child_fds = child->parent_fds = child->pipe_fds = NULL;
   }
 
   return child;
@@ -316,6 +322,9 @@ child_process_spawn(ChildProcess* cp) {
 
 void
 child_process_status(ChildProcess* cp, int status) {
+  cp->status = status;
+
+  cp->exited = WIFEXITED(status);
   cp->signaled = WIFSIGNALED(status);
   cp->stopped = WIFSTOPPED(status);
 
@@ -326,12 +335,13 @@ child_process_status(ChildProcess* cp, int status) {
   cp->continued = 0;
 #endif
 
-  if(WIFEXITED(status))
+  if(cp->exited)
     cp->exitcode = WEXITSTATUS(status);
 
-  if(WIFSIGNALED(status) || WIFEXITED(status))
+  if(cp->signaled || cp->exited)
     cp->termsig = WTERMSIG(status);
-  if(WIFSTOPPED(status))
+
+  if(cp->stopped)
     cp->stopsig = WSTOPSIG(status);
 }
 
@@ -368,12 +378,10 @@ child_process_wait(ChildProcess* cp, int flags) {
 
   return -1;*/
 #else
-  int pid;
+  int status = 0, pid = waitpid(cp ? cp->pid : -1, &status, flags);
 
-  if((pid = waitpid(cp->pid, &cp->status, flags)) != cp->pid)
-    return pid;
-
-  child_process_status(cp, cp->status);
+  if((cp && pid == cp->pid) || (cp = child_process_get(pid)))
+    child_process_status(cp, status);
 
   return pid;
 #endif
@@ -390,13 +398,8 @@ child_process_kill(ChildProcess* cp, int signum) {
 
   ret = kill(cp->pid, signum);
 
-  if(ret != -1 && waitpid(cp->pid, &status, WNOHANG) == cp->pid) {
-    if(WIFEXITED(status))
-      cp->exitcode = WEXITSTATUS(status);
-
-    if(WIFSIGNALED(status))
-      cp->termsig = WTERMSIG(status);
-  }
+  if(ret != -1 && waitpid(cp->pid, &status, WNOHANG) == cp->pid)
+    child_process_status(cp, status);
 
   return ret;
 #endif

@@ -1,6 +1,7 @@
 #include "defines.h"
 #include "utils.h"
 #include "char-utils.h"
+#include "buffer-utils.h"
 #include "child-process.h"
 #include "property-enumeration.h"
 #include "debug.h"
@@ -60,7 +61,7 @@ js_child_process_constructor(JSContext* ctx, JSValueConst new_target, int argc, 
   ChildProcess* cp;
   JSValue proto, obj = JS_UNDEFINED;
 
-  if(!(cp = js_mallocz(ctx, sizeof(ChildProcess))))
+  if(!(cp = child_process_new(ctx)))
     return JS_EXCEPTION;
 
   /* using new_target to get the prototype is necessary when the class is extended. */
@@ -122,9 +123,10 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
     value = a;
   }
 
-  len = cp->num_fds = js_array_length(ctx, value);
+  len = js_array_length(ctx, value);
   parent_fds = cp->parent_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
   child_fds = cp->child_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
+  cp->pipe_fds = NULL;
   cp->num_fds = len;
 
   for(size_t i = 0; i < len; i++) {
@@ -145,7 +147,6 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
 
         if(!cp->pipe_fds)
           cp->pipe_fds = js_mallocz(ctx, sizeof(int) * (len + 1));
-
         cp->pipe_fds[i] = 1;
 
         if(pipe(fds) == -1)
@@ -171,11 +172,12 @@ js_child_process_options(JSContext* ctx, ChildProcess* cp, JSValueConst obj) {
 
   JS_FreeValue(ctx, value);
 
-  value = JS_GetPropertyStr(ctx, obj, "usePath");
-  if(JS_IsBool(value))
+  if(js_has_propertystr(ctx, obj, "usePath")) {
+    value = JS_GetPropertyStr(ctx, obj, "usePath");
     cp->use_path = JS_ToBool(ctx, value);
+    JS_FreeValue(ctx, value);
+  }
 
-  JS_FreeValue(ctx, value);
   return 0;
 }
 
@@ -223,24 +225,37 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
   if(magic) {
     int pid;
 
+    JSValue obj = JS_NewObjectProto(ctx, JS_NULL);
+
+    JS_SetPropertyStr(ctx, obj, "pid", JS_NewInt32(ctx, cp->pid));
+
     do {
 
     } while((pid = child_process_wait(cp, 0)) && pid != cp->pid);
 
-    DynBuf db[cp->num_fds];
-      int num = cp->num_fds > 3 ? 3 : cp->num_fds;
+    if(cp->signaled || cp->stopped)
+      JS_SetPropertyStr(ctx, obj, "signal", JS_NewInt32(ctx, cp->stopped ? cp->stopsig : cp->termsig));
+
+    JS_SetPropertyStr(ctx, obj, "status", WIFEXITED(cp->status) ? JS_NewInt32(ctx, WEXITSTATUS(cp->status)) : JS_NULL);
+
+    int num = cp->num_fds > 3 ? 3 : cp->num_fds;
+    DynBuf db[num];
 
     if(cp->pipe_fds) {
-      for(int i = 0; i < num; i++) 
+      JSValue arr = JS_NewArray(ctx);
+      uint32_t arrlen = 0;
+
+      JS_DefinePropertyValueStr(ctx, obj, "output", arr, JS_PROP_CONFIGURABLE);
+
+      for(int i = 1; i < num; i++)
         if(cp->pipe_fds[i])
           dbuf_init2(&db[i], 0, 0);
-      
 
-      for(int i = 0; i < num; i++)
+      for(int i = 1; i < num; i++)
         if(cp->pipe_fds[i]) {
           for(;;) {
             char tmp[1024];
-            ssize_t bytes = read(cp->pipe_fds[i], tmp, sizeof(tmp));
+            ssize_t bytes = read(cp->parent_fds[i], tmp, sizeof(tmp));
 
             if(bytes > 0) {
               dbuf_put(&db[i], tmp, bytes);
@@ -251,12 +266,22 @@ js_child_process_spawn(JSContext* ctx, JSValueConst this_val, int argc, JSValueC
           }
         }
 
-      for(int i = 0; i < num; i++) 
-        if(cp->pipe_fds[i])
-          dbuf_init2(&db[i], 0, 0);
-      
+      for(int i = 1; i < num; i++)
+        if(cp->pipe_fds[i]) {
+          static const char* names[3] = {
+              NULL,
+              "stdout",
+              "stderr",
+          };
 
+          JSValue str = dbuf_tostring_free(&db[i], ctx);
+          JS_SetPropertyStr(ctx, obj, names[i], str);
+          JS_SetPropertyUint32(ctx, arr, arrlen++, JS_DupValue(ctx, str));
+        }
     }
+
+    JS_FreeValue(ctx, ret);
+    ret = obj;
   }
 
   return ret;

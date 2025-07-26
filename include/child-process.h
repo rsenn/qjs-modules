@@ -4,6 +4,7 @@
 #include <quickjs.h>
 #include <list.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * \defgroup child-process child-process: Child processes
@@ -18,13 +19,15 @@ typedef struct ChildProcess {
   intptr_t pid;
   int status;
   int exitcode;
-  int termsig;
-  int stopsig;
-  unsigned use_path : 1;
-  unsigned signaled : 1, stopped : 1, continued : 1;
+  int termsig, stopsig;
+
+  bool use_path /* : 1 */, exited /* : 1 */, signaled /* : 1 */, stopped /* : 1 */, continued /* : 1 */;
+
   uint32_t uid, gid;
   int num_fds;
+
   int *child_fds, *parent_fds, *pipe_fds;
+
   struct list_head link;
 } ChildProcess;
 

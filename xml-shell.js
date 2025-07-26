@@ -5,7 +5,7 @@ import { getOpt } from 'util';
 import Console from 'console';
 import { REPL } from 'repl';
 import { read, write } from 'xml';
-import { Attr, CSSStyleDeclaration, Comment, Document, Element, Entities, Factory, GetType, Interface, NamedNodeMap, Node, NodeList, Parser, Prototypes, Serializer, Text, TokenList, nodeTypes } from 'dom';
+import { Attr, CSSStyleDeclaration, Comment, Document, Element, Entities, Factory, GetType, Interface, NamedNodeMap, Node, NodeList, Parser, Prototypes, Serializer, Text, TokenList, nodeTypes, } from 'dom';
 
 let repl;
 
@@ -19,17 +19,17 @@ function main(...args) {
       compact: false,
       maxStringLength: Infinity,
       customInspect: true /*,
-      hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/
-    }
+      hideKeys: [Symbol.iterator, Symbol.for('quickjs.inspect.custom'), Symbol.inspect]*/,
+    },
   });
 
   let params = getOpt(
     {
       output: [true, null, 'o'],
       interactive: [true, null, 'i'],
-      '@': 'xml'
+      '@': 'xml',
     },
-    args
+    args,
   );
 
   Object.assign(globalThis, {
@@ -39,7 +39,7 @@ function main(...args) {
       save,
       serialize,
       read: read,
-      write: write
+      write: write,
     },
     json: {
       read(...args) {
@@ -49,9 +49,9 @@ function main(...args) {
         return JSON.stringify(...args);
       },
       load,
-      save
+      save,
     },
-    ['@']: params['@']
+    ['@']: params['@'],
   });
 
   const dom = (globalThis.dom = {
@@ -72,13 +72,13 @@ function main(...args) {
     Serializer,
     Text,
     TokenList,
-    nodeTypes
+    nodeTypes,
   });
 
   Object.assign(globalThis, {
     ...globalThis.xml,
     ...globalThis.dom,
-    dom
+    dom,
   });
 
   globalThis.parser ??= new Parser();
