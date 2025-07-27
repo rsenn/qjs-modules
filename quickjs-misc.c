@@ -927,7 +927,7 @@ static JSValue
 js_misc_proclink(JSContext* ctx, JSValueConst this_val, int argc, JSValueConst argv[], int magic) {
   JSValue ret = JS_UNDEFINED;
   DynBuf dbuf = {0};
-  const char* link;
+  const char* link = NULL;
   char path[256];
   size_t n;
   ssize_t r;
