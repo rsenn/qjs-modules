@@ -2224,6 +2224,9 @@ main(int argc, char** argv) {
         goto fail;
     }
 
+    if(getenv("INTERACTIVE") && interactive != 2)
+      interactive = 1;
+
     if(interactive == 1)
       jsm_start_interactive(jsm_ctx, TRUE);
 
